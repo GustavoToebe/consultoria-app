@@ -43,8 +43,8 @@ public final class AlunoDtos {
     /**
      * {@code versao} só no PUT (lock otimista); no POST vai nulo. {@code telefone}, {@code cpf} e {@code endereco} são
      * dados pessoais; {@code cpf} e {@code endereco} exigem {@code ALUNO_SENSIVEL_ALTERAR} (sem ela são ignorados e o que
-     * está gravado fica). {@code telefone}: nulo = não mexe; em branco = apaga; só vale para aluno que já tem acesso
-     * (409 {@code ALUNO_SEM_ACESSO} se vier preenchido para quem não tem).
+     * está gravado fica). {@code telefone}: nulo = não mexe; em branco = apaga; sem acesso, fica no cadastro do
+     * aluno até o acesso existir (V048).
      */
     public record AlunoRequest(
             @NotBlank @Size(max = 120) String nome,
@@ -94,8 +94,8 @@ public final class AlunoDtos {
     }
 
     /**
-     * Ficha do aluno. {@code telefone} e {@code emailDeAcesso} (do usuário do aluno; nulos se ele ainda não tem acesso) saem
-     * com {@code ALUNO_LER}; {@code aguardandoPrimeiroAcesso} = a senha provisória do treinador ainda não foi trocada. Objetivo, observações, {@code cpf} e {@code endereco} são omitidos do JSON sem
+     * Ficha do aluno. {@code telefone} (do usuário do aluno ou, sem acesso, o guardado no cadastro) e
+     * {@code emailDeAcesso} (nulo sem acesso) saem com {@code ALUNO_LER}; {@code aguardandoPrimeiroAcesso} = a senha provisória do treinador ainda não foi trocada. Objetivo, observações, {@code cpf} e {@code endereco} são omitidos do JSON sem
      * {@code ALUNO_SENSIVEL_LER} (e quando não há valor); {@code endereco} traz os sete campos (nulos os vazios).
      */
     public record AlunoDetalhe(UUID id, String nome, String email, String telefone,
@@ -119,7 +119,7 @@ public final class AlunoDtos {
             boolean sensivel = br.com.treinos.api.equipe.AcessoAtual.pode("ALUNO_SENSIVEL_LER");
             boolean ler = br.com.treinos.api.equipe.AcessoAtual.pode("ALUNO_LER");
             return new AlunoDetalhe(a.getId(), a.getNome(), a.getEmail(),
-                    ler && usuario != null ? usuario.getTelefone() : null,
+                    ler ? (usuario != null ? usuario.getTelefone() : a.getTelefoneSemAcesso()) : null,
                     sensivel ? a.getCpf() : null, sensivel ? a.endereco() : null,
                     sensivel ? a.getObjetivo() : null, sensivel ? a.getObservacoes() : null,
                     a.isAtivo(), a.getUsuarioId() != null, conviteValido ? a.getConviteExpiraEm() : null,

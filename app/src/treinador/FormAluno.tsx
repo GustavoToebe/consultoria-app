@@ -65,8 +65,8 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
   const avisarDoPlano = useAvisoDoPlano();
   const campos = errosPorCampo(erro);
   const diasInvalidos = dias.trim() !== '' && diasDoCampo(dias) === null;
-  // O telefone é do usuário do aluno (só existe depois do convite); CPF e endereço seguem a permissão de dados sensíveis.
-  const comTelefone = !!inicial?.temAcesso && !inicial.anonimizado;
+  // Sem acesso, o telefone fica no cadastro e passa ao usuário quando o aluno entrar; CPF e endereço seguem a permissão de dados sensíveis.
+  const comTelefone = !inicial?.anonimizado;
   const comSensivel = pode('ALUNO_SENSIVEL_ALTERAR');
   const erroTelefone = comTelefone ? erroDoTelefone(telefone) : undefined;
   const erroCpf = comSensivel ? erroDoCpf(cpf) : undefined;

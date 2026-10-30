@@ -178,7 +178,7 @@ class GravadorDaImportacao {
         String cpf = cpfFinal(novo, atual, leitura(linha, config, "cpf"), indice, regra);
         Endereco endereco = enderecoFinal(novo, atual, linha, config, regra);
         UUID responsavel = responsavelFinal(novo, atual == null ? null : atual.getResponsavelId(), leitura(linha, config, "responsavel"), equipe, usuarioId, linha.numero());
-        String telefone = telefoneFinal(atual, leitura(linha, config, "telefone"), linha.numero());
+        String telefone = telefoneFinal(leitura(linha, config, "telefone"), linha.numero());
         boolean reativa = !novo && !atual.isAtivo() && ativo;
         if ((novo && ativo) || reativa) {
             if (!vagas.reservar(gravar, plano)) {
@@ -198,6 +198,8 @@ class GravadorDaImportacao {
             if (endereco != null) {
                 aluno.alterarEndereco(endereco);
             }
+            // Aluno novo não tem acesso: o telefone fica no cadastro até o acesso existir (V048).
+            aluno.guardarTelefoneSemAcesso(telefone);
             if (gravar) {
                 salvar(aluno);
             }
@@ -222,6 +224,8 @@ class GravadorDaImportacao {
                         u.alterarTelefone(telefone);
                     }
                 });
+            } else if (telefone != null && (!"COMPLETAR".equals(regra) || atual.getTelefoneSemAcesso() == null)) {
+                atual.guardarTelefoneSemAcesso(telefone); // sem acesso: guardado no cadastro até o acesso existir
             }
             salvar(atual);
             if (situacao != null && situacao != atual.isAtivo()) {
@@ -705,15 +709,12 @@ class GravadorDaImportacao {
         return achado.getId();
     }
 
-    private String telefoneFinal(Aluno atual, Leitura lida, int numero) {
+    private String telefoneFinal(Leitura lida, int numero) {
         if (lida.erro()) {
             throw new FalhaDaLinha(numero, "telefone", "Célula com erro.");
         }
         if (!lida.mapeado() || lida.vazio()) {
             return null;
-        }
-        if (atual == null || atual.getUsuarioId() == null) {
-            throw new FalhaDaLinha(numero, "telefone", "Aluno sem acesso ao app.");
         }
         return formato(numero, "telefone", () -> Formatos.telefone(lida.texto()));
     }

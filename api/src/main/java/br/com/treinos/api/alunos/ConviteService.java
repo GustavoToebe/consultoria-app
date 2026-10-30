@@ -88,10 +88,12 @@ public class ConviteService {
         if (usuarios.existeEmail(normalizado)) {
             throw emailEmUso();
         }
+        Usuario novo = Usuario.aluno(aluno.getConsultoriaId(), aluno.getId(), normalizado, aluno.getNome(),
+                passwordEncoder.encode(senha));
+        novo.alterarTelefone(aluno.tirarTelefoneSemAcesso()); // o telefone guardado no cadastro passa ao usuário
         Usuario usuario;
         try {
-            usuario = usuarios.saveAndFlush(Usuario.aluno(aluno.getConsultoriaId(), aluno.getId(), normalizado,
-                    aluno.getNome(), passwordEncoder.encode(senha)));
+            usuario = usuarios.saveAndFlush(novo);
         } catch (DataIntegrityViolationException corrida) {
             throw emailEmUso();
         }

@@ -186,16 +186,16 @@ test('ficha sem permissão de dados sensíveis: CPF e endereço não aparecem e 
   expect(errosDaPagina).toEqual([]);
 });
 
-test('ficha de aluno sem acesso: telefone com a nota e sem campo de telefone na edição', async ({ page }) => {
+test('ficha de aluno sem acesso: telefone com a nota e campo de telefone na edição', async ({ page }) => {
   await simularApi(page, {
     ...(await sessao(page, TREINADOR)),
     ...ROTAS_DA_FICHA,
     [`GET /alunos/${ALUNO_ID}`]: { corpo: { ...FICHA, telefone: undefined, temAcesso: false } },
   });
   await page.goto(`/treinador/alunos/${ALUNO_ID}`);
-  await expect(page.getByText('O telefone entra depois que o aluno criar o acesso.')).toBeVisible();
+  await expect(page.getByText('O aluno ainda não tem acesso: o telefone passa para o acesso quando ele entrar no app.')).toBeVisible();
   await page.getByRole('button', { name: 'Editar', exact: true }).click();
-  await expect(page.getByLabel('Telefone (opcional)')).toHaveCount(0);
+  await expect(page.getByLabel('Telefone (opcional)')).toBeVisible();
   await expect(page.getByLabel('CPF (opcional)')).toBeVisible();
 });
 
