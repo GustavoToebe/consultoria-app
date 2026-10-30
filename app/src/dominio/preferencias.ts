@@ -5,7 +5,7 @@ import type { Cores } from '../tema/tokens';
  * Preferências visuais de cada pessoa, só neste aparelho e para a conta dela (não vão para a API nem para log). A
  * cor da marca não entra aqui: é do treinador e vale para todos os alunos dele.
  */
-export type TemaEscolhido = 'CONSULTORIA' | 'ESCURO' | 'CLARO' | 'SISTEMA';
+export type TemaEscolhido = 'CONSULTORIA' | 'ESCURO' | 'CLARO' | 'AREIA' | 'SISTEMA';
 export type Contraste = 'PADRAO' | 'ALTO';
 export type TamanhoTexto = 'PADRAO' | 'MEDIO' | 'GRANDE' | 'EXTRA';
 export type Movimento = 'SISTEMA' | 'REDUZIDO';
@@ -74,7 +74,7 @@ export const PREFERENCIAS_PADRAO: Preferencias = {
   agendasOcultas: [],
 };
 
-const TEMAS: readonly TemaEscolhido[] = ['CONSULTORIA', 'ESCURO', 'CLARO', 'SISTEMA'];
+const TEMAS: readonly TemaEscolhido[] = ['CONSULTORIA', 'ESCURO', 'CLARO', 'AREIA', 'SISTEMA'];
 const CONTRASTES: readonly Contraste[] = ['PADRAO', 'ALTO'];
 const TAMANHOS: readonly TamanhoTexto[] = ['PADRAO', 'MEDIO', 'GRANDE', 'EXTRA'];
 const MOVIMENTOS: readonly Movimento[] = ['SISTEMA', 'REDUZIDO'];

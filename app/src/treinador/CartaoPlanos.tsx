@@ -55,11 +55,11 @@ export function periodo(p: { inicio: string | null; fim: string | null }): strin
   return `${dataParaTela(p.inicio) || '—'} a ${dataParaTela(p.fim) || '—'}`;
 }
 
-/** Selos do plano: ativo (verde), rascunho nunca publicado ou alterado depois de publicar (âmbar), versão (cinza). */
+/** Selos do plano: em uso pelo aluno (verde; "ativo" se confundia com pasta aberta, reunião de 29/10), rascunho nunca publicado ou alterado depois de publicar (âmbar), versão (cinza). */
 export function SelosDoPlano({ plano }: { plano: PlanoResumo }) {
   return (
     <View style={estilos.selos}>
-      {plano.ativo ? <Selo texto="Ativo" tipo="sucesso" /> : null}
+      {plano.ativo ? <Selo texto="Em uso pelo aluno" tipo="sucesso" /> : null}
       {plano.versaoPublicada === 0 ? (
         <Selo texto="Rascunho" tipo="atencao" />
       ) : (
@@ -117,7 +117,9 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar }: {
 
   return (
     <Cartao
+      faixa
       titulo={NOMES[tipo].plural}
+      descricao="O aluno só vê o que está publicado."
       acoes={escritaLiberada ? <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Botao rotulo={NOMES[tipo].novo} tipo="secundario" Icone={Plus} aoTocar={() => setNovo(true)} /></Permitido> : null}>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}

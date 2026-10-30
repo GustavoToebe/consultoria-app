@@ -29,7 +29,7 @@ export function ConfiguracaoDoPlano<C>({ editor, modelo, recolhido, descricao, c
   const e = editor.estado;
   if (!e) return null;
   return (
-    <Cartao titulo="Configuração do plano" descricao={descricao} recolhivel recolhido={recolhido}>
+    <Cartao faixa titulo="Configuração do plano" descricao={descricao} recolhivel recolhido={recolhido}>
       {modelo ? null : (
         <Campo
           rotulo="Título"

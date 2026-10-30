@@ -256,7 +256,7 @@ const TREINADOR: Guia = {
         { titulo: 'Ciclo de atualização padrão', texto: 'Em Marca, no cartão Acompanhamento, "Nova atualização a cada (dias)" vale para os alunos sem ciclo próprio no cadastro: sugere o fim da pasta nova e da renovação. O ciclo escrito no aluno sempre vale mais.' },
         { titulo: 'Equipe', texto: 'Cada membro tem um perfil com permissões. Ninguém concede mais do que tem.' },
         { titulo: 'Auditoria', texto: 'Lista ações importantes por pessoa e período, guardadas por um ano.' },
-        { titulo: 'Tema claro/escuro', texto: 'Qualquer pessoa troca em Ajustes (menu do seu nome, no topo; no celular, em Perfil). Vale só para o seu usuário.' },
+        { titulo: 'Tema claro/escuro', texto: 'Qualquer pessoa troca em Ajustes (menu do seu nome, no topo; no celular, em Perfil): claro, claro areia (fundo em tom areia), escuro ou o do aparelho. Vale só para o seu usuário.' },
       ],
     },
     {
@@ -419,7 +419,7 @@ const ALUNO: Guia = {
       itens: [
         { titulo: 'Foto de perfil', texto: 'Opcional. Em Conta, escolha uma foto da galeria ou tire na hora; ela aparece no seu início e para a equipe do seu treinador. Precisa de internet e não fica salva no aparelho. Dá para trocar ou remover quando quiser.' },
         { titulo: 'Uso das suas fotos', texto: 'Em Conta, o cartão "Uso das suas fotos" liga ou desliga a autorização para a consultoria usar suas fotos de evolução em comparações para divulgação, por exemplo no Instagram. Você desliga quando quiser. Sem internet o cartão some. A comparação no Histórico continua disponível; quem gera a imagem é o treinador, e só com a autorização ligada.' },
-        { titulo: 'Tema e texto', texto: 'Claro, escuro ou do sistema; tamanho do texto, contraste, animações e vibração.' },
+        { titulo: 'Tema e texto', texto: 'Claro, claro areia, escuro ou do sistema; tamanho do texto, contraste, animações e vibração.' },
         { titulo: 'Senha', texto: 'Trocar a senha encerra as outras sessões.' },
         { titulo: 'Excluir minha conta', texto: 'O último cartão de Conta apaga a sua conta, com internet. Digite a sua senha e a palavra EXCLUIR. Seu nome, e-mail e senha, o peso, a dieta, as respostas das atualizações e da anamnese, as observações dos treinos e as fotos são apagados; os treinos e as cargas que você registrou ficam com a consultoria, sem o seu nome. Não tem volta: para usar o app de novo, peça um convite novo ao treinador.' },
       ],

@@ -196,7 +196,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
         />
       ))}
       <Texto variante="bloco" nivel={2}>Complementos</Texto>
-      <Cartao titulo="Orientações" descricao="Títulos e textos que o aluno lê junto com a dieta." nivel={3} recolhivel recolhido={c.orientacoes.length === 0}>
+      <Cartao faixa titulo="Orientações" descricao="Títulos e textos que o aluno lê junto com a dieta." nivel={3} recolhivel recolhido={c.orientacoes.length === 0}>
         {c.orientacoes.map((o, oi) => (
           <View key={oi} style={[estilos.orientacao, { borderColor: cores.borda }]}>
             <View style={estilos.cresce}>
@@ -211,11 +211,11 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
         </View>
       </Cartao>
 
-      <Cartao titulo="Observações" nivel={3} recolhivel recolhido={!c.observacoes}>
+      <Cartao faixa titulo="Observações" nivel={3} recolhivel recolhido={!c.observacoes}>
         <Campo rotulo="Observações (opcional)" valor={c.observacoes ?? ''} aoMudar={(t) => mudar({ observacoes: t || null })} linhas={4} maxLength={8000} />
       </Cartao>
 
-      <Cartao titulo="Suplementação" nivel={3} recolhivel recolhido={c.suplementacao.length === 0}>
+      <Cartao faixa titulo="Suplementação" nivel={3} recolhivel recolhido={c.suplementacao.length === 0}>
         <Texto variante="suave">Campo livre do treinador. O sistema só guarda e mostra o que for escrito aqui; da biblioteca vêm só o nome e o link do produto. A dose é a que você prescreve, não a porção da embalagem.</Texto>
         {c.suplementacao.map((s, si) => {
           const mudarS = (parcial: Partial<typeof s>) => mudar({ suplementacao: substituir(c.suplementacao, si, { ...s, ...parcial }) });
@@ -256,7 +256,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
         </View>
       </Cartao>
       {veErgogenicos ? (
-        <Cartao titulo="Outros (medicação e ergogênicos)" nivel={3} recolhivel recolhido={(c.ergogenicos ?? []).length === 0}>
+        <Cartao faixa titulo="Outros (medicação e ergogênicos)" nivel={3} recolhivel recolhido={(c.ergogenicos ?? []).length === 0}>
           <Texto variante="suave">
             Campo livre do treinador. O sistema só guarda e mostra o que for escrito aqui; da biblioteca vêm só nome, princípio ativo e concentração.
             {editaErgogenicos ? '' : ' Seu perfil só pode ler esta lista.'}
@@ -405,7 +405,7 @@ function TotalDoDia({ conteudo: c, semValor, aoAbrirRefeicao }: { conteudo: Cont
   const t = totalDoDia(c);
   const primeiro = semValor[0];
   return (
-    <Cartao titulo="Total do dia" descricao="Soma da opção A de cada refeição.">
+    <Cartao faixa titulo="Total do dia" descricao="Soma da opção A de cada refeição.">
       <Texto variante="destaque" numerico>{t.kcal === null ? 'kcal —' : `${numeroParaTela(t.kcal, 0)} kcal`}</Texto>
       <Texto numerico>
         {[textoDoMacro('Proteína', t.proteina, 'g'), textoDoMacro('Carboidrato', t.carboidrato, 'g'), textoDoMacro('Gordura', t.gordura, 'g')].join(' · ')}

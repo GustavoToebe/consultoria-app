@@ -90,9 +90,11 @@ export function CartaoExercicio(p: Props) {
     <AlvoDeRolagem chave={e.uid}
       style={[
         estilos.cartao,
-        { borderColor: p.comProblema ? cores.perigo : cores.borda, backgroundColor: cores.superficie2 },
+        // Reunião de 29/10: o exercício é o bloco principal (cartão branco) e os grupos de séries ficam dentro dele, em
+        // `superficie2` com a faixa própria; aberto, o topo vira faixa para marcar onde o exercício começa.
+        { borderColor: p.comProblema ? cores.perigo : cores.borda, backgroundColor: cores.superficie },
       ]}>
-      <View style={estilos.topo}>
+      <View style={[estilos.topo, p.aberto && { backgroundColor: cores.superficie3, borderBottomWidth: 1, borderBottomColor: cores.borda }]}>
         {p.demonstracao ? (
           <DemonstracaoDoExercicio exercicioId={e.exercicioId} nome={e.nome} imagens={p.demonstracao.imagens}
             imagemPropriaEm={p.demonstracao.imagemPropriaEm} papel="EQUIPE" largura={56} altura={56} preencher ampliavel />
@@ -237,13 +239,13 @@ export function CartaoExercicio(p: Props) {
 }
 
 const estilos = StyleSheet.create({
-  cartao: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(1) },
-  topo: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(1) },
+  cartao: { borderWidth: 1, borderRadius: RAIO, overflow: 'hidden' },
+  topo: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(1), padding: espaco(1.5) },
   titulo: { flex: 1, gap: 2, minHeight: 44, justifyContent: 'center' },
   nome: { fontFamily: fontes.semi, fontSize: 16, lineHeight: 22 },
   selos: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(0.5), marginTop: 2 },
   acoes: { flexDirection: 'row' },
-  corpo: { gap: espaco(1.5) },
+  corpo: { gap: espaco(1.5), padding: espaco(1.5), paddingTop: espaco(2) },
   linhaNome: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(1) },
   campoNome: { flex: 1 },
   // O Botao se alinha ao topo por padrão; aqui fica na base, rente ao campo.

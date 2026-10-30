@@ -5,7 +5,7 @@ import type { Preferencias, TamanhoTexto } from '../dominio/preferencias';
 import { fatorDoTexto } from '../dominio/preferencias';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
-import { CLARO, ESCURO, espaco, fontes, RAIO, type Cores } from '../tema/tokens';
+import { AREIA, CLARO, ESCURO, espaco, fontes, RAIO, type Cores } from '../tema/tokens';
 import { useAviso } from './Aviso';
 import { Botao } from './Botao';
 import { Interruptor } from './Campos';
@@ -46,7 +46,7 @@ export function PreferenciasDoApp({ comTitulo = true, extras }: { comTitulo?: bo
         </View>
       ) : null}
 
-      <Cartao titulo="Tema" descricao="Escuro, claro, o da consultoria ou o do aparelho.">
+      <Cartao titulo="Tema" descricao="Escuro, claro, claro areia, o da consultoria ou o do aparelho.">
         <GradeDeOpcoes rotulo="Tema">
           <OpcaoCartao
             titulo="Padrão da consultoria"
@@ -68,6 +68,13 @@ export function PreferenciasDoApp({ comTitulo = true, extras }: { comTitulo?: bo
             selecionada={preferencias.tema === 'CLARO'}
             aoEscolher={() => mudar({ tema: 'CLARO' })}
             amostra={<AmostraDoTema esquerda={CLARO} cor={marca} />}
+          />
+          <OpcaoCartao
+            titulo="Claro areia"
+            descricao="Fundo claro em tom areia"
+            selecionada={preferencias.tema === 'AREIA'}
+            aoEscolher={() => mudar({ tema: 'AREIA' })}
+            amostra={<AmostraDoTema esquerda={AREIA} cor={marca} />}
           />
           <OpcaoCartao
             titulo="Igual ao aparelho"
