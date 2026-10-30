@@ -137,7 +137,7 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar }: {
               `LinhaDeAcoes` nunca passa da largura do cartão (em 390 px os cinco botões estouravam a folha). */}
           <LinhaDeAcoes>
             {podeAlterar ? <Botao rotulo={rotuloCurto ? 'Editar' : rotuloEditarPlano(tipo)} rotuloAcessivel={rotuloEditarPlano(tipo)} tipo="secundario" Icone={Pencil} aoTocar={() => { aoNavegar?.(); router.push(rotaDoEditor(tipo, p.id)); }} /> : null}
-            {acoesDoMenu(p).some(Boolean) ? <IconeBotao Icone={Ellipsis} rotulo={`Mais ações de ${p.titulo}`} aoTocar={() => setMenu(p)} /> : null}
+            {acoesDoMenu(p).some(Boolean) ? <IconeBotao Icone={Ellipsis} moldura rotulo={`Mais ações de ${p.titulo}`} aoTocar={() => setMenu(p)} /> : null}
           </LinhaDeAcoes>
         </EntradaEmCascata>
       ))}

@@ -36,7 +36,7 @@ interface Props extends Omit<TextInputProps, 'style' | 'onChangeText' | 'value'>
 }
 
 /**
- * Campo de digitar com rótulo, ajuda e erro. O erro vai ao leitor de tela: `aria-invalid` na web, região viva no
+ * Campo de digitar com rótulo, ajuda e erro. O rótulo vai na cor do texto (protótipo de 30/10: só a ajuda é suave). O erro vai ao leitor de tela: `aria-invalid` na web, região viva no
  * Android e anúncio no iOS. Foco = borda de 2 px na cor do anel de foco (a cor da marca não contrasta no escuro).
  */
 export function Campo({ rotulo, valor, aoMudar, erro, ajuda, linhas, numerico, acao, rotuloAcessivel, rotuloOculto, sufixo, erroSemTexto, ...resto }: Props) {
@@ -48,7 +48,7 @@ export function Campo({ rotulo, valor, aoMudar, erro, ajuda, linhas, numerico, a
   useAnunciarErro(erro, rotulo);
   return (
     <View style={estilos.campo}>
-      {rotuloOculto ? null : <Label style={[ESTILOS_TEXTO.rotulo, { color: cores.textoSuave }]}>{rotulo}</Label>}
+      {rotuloOculto ? null : <Label style={[ESTILOS_TEXTO.rotulo, { color: cores.texto }]}>{rotulo}</Label>}
       <View>
       <Input
         {...resto}

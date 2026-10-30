@@ -145,7 +145,7 @@ function LinhaDoQuestionario({ q, ocupado, podeAlterar, aoAbrir, aoMenu }: {
 }) {
   return <LinhaDaLista titulo={q.nome} metadados={metadadosDoQuestionario(q)} descricao={q.descricao ?? undefined} selos={selosDoQuestionario(q)} acoes={<>
     <Botao rotulo={podeAlterar && !q.arquivado ? 'Editar' : 'Ver'} tipo="secundario" Icone={Pencil} carregando={ocupado} aoTocar={aoAbrir} />
-    {aoMenu ? <IconeBotao Icone={Ellipsis} rotulo={`Mais ações de ${q.nome}`} desabilitado={ocupado} aoTocar={aoMenu} /> : null}
+    {aoMenu ? <IconeBotao Icone={Ellipsis} moldura rotulo={`Mais ações de ${q.nome}`} desabilitado={ocupado} aoTocar={aoMenu} /> : null}
   </>} />;
 }
 

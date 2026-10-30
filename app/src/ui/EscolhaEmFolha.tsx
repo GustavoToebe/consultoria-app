@@ -46,7 +46,8 @@ interface Props<T> {
 export const OPCOES_PARA_BUSCAR = 8;
 
 /**
- * Escolha com muitas opções (pessoa da equipe, grupo muscular, aluno): um botão "Rótulo: valor" que abre uma folha
+ * Escolha com muitas opções (pessoa da equipe, grupo muscular, aluno): um botão "Rótulo: valor" com cara de campo
+ * (fundo `campo`, borda `bordaCampo` de 3:1, como o `select` do protótipo de 30/10) que abre uma folha
  * com busca e uma lista de rádio com alvo de 44 px. Substitui faixas de chips com quatro ou cinco linhas. Até oito
  * opções, sem busca, use `Escolha`.
  */
@@ -73,7 +74,7 @@ export function EscolhaEmFolha<T extends string | number | null>({
         accessibilityState={{ disabled: !!desabilitado, expanded: aberta }}
         disabled={desabilitado}
         onPress={() => setAberta(true)}
-        style={(estado) => [estilos.botao, { borderColor: cores.borda, backgroundColor: sobre(estado) ? cores.superficie3 : 'transparent', opacity: desabilitado ? 0.5 : 1 }, style]}>
+        style={(estado) => [estilos.botao, { borderColor: cores.bordaCampo, backgroundColor: sobre(estado) && !desabilitado ? cores.superficie3 : cores.campo, opacity: desabilitado ? 0.5 : 1 }, style]}>
         <Texto style={estilos.textoBotao} numberOfLines={1}>
           <Texto variante="suave" style={estilos.textoBotao}>{rotulo}: </Texto>
           {textoDoValor}
@@ -124,7 +125,7 @@ const estilos = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: espaco(1),
-    paddingHorizontal: espaco(2),
+    paddingHorizontal: espaco(1.5),
     borderWidth: 1,
     borderRadius: RAIO,
   },

@@ -73,7 +73,7 @@ export default function FichaAluno() {
   return (
     <Tela bordas={['top']} largura={LARGURA_LISTA}>
       <Cabecalho titulo={aluno?.nome ?? 'Aluno'} trilha={[{ rotulo: 'Alunos', href: '/treinador/alunos' }, { rotulo: aluno?.nome ?? 'Aluno' }]} voltar="/treinador/alunos"
-        acoes={temMenu ? <IconeBotao Icone={Ellipsis} rotulo="Mais ações do aluno" aoTocar={() => setMenu(true)} /> : undefined} />
+        acoes={temMenu ? <IconeBotao Icone={Ellipsis} moldura rotulo="Mais ações do aluno" aoTocar={() => setMenu(true)} /> : undefined} />
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!aluno && carregando ? <Esqueleto /> : null}
       {aluno ? (

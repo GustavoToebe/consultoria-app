@@ -4,7 +4,7 @@ import { useRef, type ReactNode } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, LINHA_DA_FAIXA, RAIO } from '../tema/tokens';
 import { Botao } from './Botao';
 import { usePortalDaFolha, type PortalDaFolhaValor } from './Folha';
 import { Texto } from './Texto';
@@ -30,9 +30,11 @@ interface Props {
 /**
  * Confirmação na própria tela. Nada de `alert()`/`confirm()` do navegador nem `Alert.alert` (não funciona na web).
  * Para o leitor de tela é um `alertdialog` com o título como nome; ao fechar, o foco volta a quem abriu.
+ * Visual de bloco (passo 1 da atualização visual, 30/10): borda do bloco e o título numa faixa `superficie3` com a linha
+ * de 3 px embaixo, como o topo da `Folha`; a pergunta e os botões ficam no corpo.
  */
 export function PainelConfirmacao(props: Props) {
-  const { cores } = useTema();
+  const { cores, bordas } = useTema();
   const focoAnterior = useRef<HTMLElement | null>(null);
   // Dentro de uma Folha o diálogo vai para o portal dela; no da raiz ficaria escondido atrás do Modal.
   const portalDeQuemContem = usePortalDaFolha();
@@ -45,23 +47,30 @@ export function PainelConfirmacao(props: Props) {
         aria-label={props.titulo}
         accessibilityViewIsModal
         onOpenAutoFocus={() => { if (Platform.OS === 'web') focoAnterior.current = document.activeElement as HTMLElement; }}
-        onCloseAutoFocus={evento => { if (Platform.OS === 'web' && focoAnterior.current?.isConnected) { evento.preventDefault(); focoAnterior.current.focus(); } }} style={[estilos.painel, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
-          <AlertDialogTitle style={[ESTILOS_TEXTO.subtitulo, {color:cores.texto}]}>{props.titulo}</AlertDialogTitle>
-          {props.mensagem ? <AlertDialogDescription style={[ESTILOS_TEXTO.suave, {color:cores.textoSuave}]}>{props.mensagem}</AlertDialogDescription> : null}
-          {props.children}
-          <View style={estilos.botoes}>
-            <AlertDialogCancel style={[estilos.cancelar, { borderColor: cores.borda }]}><Texto style={estilos.textoCancelar}>{props.rotuloCancelar ?? 'Cancelar'}</Texto></AlertDialogCancel>
-            <Botao
-              rotulo={props.rotuloConfirmar}
-              tipo={props.perigo ? 'perigo' : 'primario'}
-              carregando={props.carregando}
-              desabilitado={props.desabilitado}
-              rotuloAcessivel={props.desabilitado && props.motivo ? `${props.rotuloConfirmar}. ${props.motivo}` : undefined}
-              aoTocar={props.aoConfirmar}
-            />
+        onCloseAutoFocus={evento => { if (Platform.OS === 'web' && focoAnterior.current?.isConnected) { evento.preventDefault(); focoAnterior.current.focus(); } }}
+        style={[estilos.painel, { backgroundColor: cores.superficie, borderColor: cores.borda, borderWidth: bordas.bloco }]}>
+          <View style={[estilos.faixa, { backgroundColor: cores.superficie3, borderBottomColor: cores.bordaCampo }]}>
+            <AlertDialogTitle style={[ESTILOS_TEXTO.bloco, { color: cores.texto }]}>{props.titulo}</AlertDialogTitle>
           </View>
-          {/* O motivo fica abaixo da linha dos botões: dentro do botão ele esticava a altura e o Cancelar crescia junto. */}
-          {props.desabilitado && props.motivo && !props.carregando ? <Texto variante="pequeno" style={estilos.motivo}>{props.motivo}</Texto> : null}
+          <View style={estilos.corpo}>
+            {props.mensagem ? <AlertDialogDescription style={[ESTILOS_TEXTO.suave, {color:cores.textoSuave}]}>{props.mensagem}</AlertDialogDescription> : null}
+            {props.children}
+            <View style={estilos.botoes}>
+              <AlertDialogCancel style={[estilos.cancelar, { borderColor: cores.borda }]}>
+                <Texto style={estilos.textoCancelar}>{props.rotuloCancelar ?? 'Cancelar'}</Texto>
+              </AlertDialogCancel>
+              <Botao
+                rotulo={props.rotuloConfirmar}
+                tipo={props.perigo ? 'perigo' : 'primario'}
+                carregando={props.carregando}
+                desabilitado={props.desabilitado}
+                rotuloAcessivel={props.desabilitado && props.motivo ? `${props.rotuloConfirmar}. ${props.motivo}` : undefined}
+                aoTocar={props.aoConfirmar}
+              />
+            </View>
+            {/* O motivo fica abaixo da linha dos botões: dentro do botão ele esticava a altura e o Cancelar crescia junto. */}
+            {props.desabilitado && props.motivo && !props.carregando ? <Texto variante="pequeno" style={estilos.motivo}>{props.motivo}</Texto> : null}
+          </View>
       </AlertDialogContent>
     </AlertDialog>
   );
@@ -72,12 +81,14 @@ const estilos = StyleSheet.create({
     width: '100%',
     maxWidth: 480,
     alignSelf: 'center',
-    borderWidth: 1,
     borderRadius: RAIO,
-    padding: espaco(2.5),
-    gap: espaco(1.5),
+    overflow: 'hidden',
+    padding: 0,
+    gap: 0,
   },
-  botoes: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: espaco(1), flexWrap: 'wrap', marginTop: espaco(1) },
+  faixa: { paddingHorizontal: espaco(2.5), paddingVertical: espaco(1.5), borderBottomWidth: LINHA_DA_FAIXA },
+  corpo: { padding: espaco(2.5), gap: espaco(1.5) },
+  botoes: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: espaco(1), flexWrap: 'wrap', marginTop: espaco(0.5) },
   motivo: { textAlign: 'right' },
   cancelar: { minHeight: ALVO_TOQUE, borderRadius: RAIO, borderWidth: 1, paddingHorizontal: espaco(2), alignItems: 'center', justifyContent: 'center' },
   textoCancelar: { fontFamily: fontes.semi },

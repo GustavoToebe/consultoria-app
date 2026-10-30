@@ -55,7 +55,7 @@ export const ESCURO: Cores = {
   divisor: '#36363C',
   borda: '#4C4C55',
   campo: '#0F0F12',
-  bordaCampo: '#63636B',
+  bordaCampo: '#707078',
   texto: '#F4F4F5',
   textoSuave: '#A1A1AA',
   sucesso: '#2BB36A',

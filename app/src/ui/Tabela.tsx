@@ -86,7 +86,7 @@ export function Tabela<T>({ colunas, linhas, chave, larguraMinima = LARGURA_TABE
         ))
       ) : (
         <>
-          <View role="row" style={[estilos.linha, estilos.cabecalho, { backgroundColor: cores.superficie3, borderColor: cores.borda }]}>
+          <View role="row" style={[estilos.linha, estilos.cabecalho, { backgroundColor: cores.superficie3, borderColor: cores.bordaCampo }]}>
             {colunas.map((c) => (
               <View key={c.chave} role="columnheader" style={estiloColuna(c)}>
                 {c.acao && !c.tituloNaTabela ? null : (
