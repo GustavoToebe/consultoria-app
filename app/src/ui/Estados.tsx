@@ -101,19 +101,36 @@ function valeTentarDeNovo(erro: unknown): boolean {
   return erro.status === 0 || erro.status === 408 || erro.status === 429 || erro.status >= 500;
 }
 
+export type TomDoAlerta = 'perigo' | 'atencao' | 'sucesso';
+
+/**
+ * Caixa de aviso: fundo claro e borda na cor do tom, texto na mesma cor (pedido do Gustavo em 30/10: "pode usar nos avisos
+ * de atenção"). `perigo` é erro (região de alerta para o leitor de tela), `atencao` é o que pede cuidado mas não impede
+ * (aluno ocupado, avisos da validação, prévia) e `sucesso` confirma. A cor diz o tipo; o texto sempre diz o que houve.
+ */
+export function Alerta({ tom, titulo, texto, children }: { tom: TomDoAlerta; titulo?: string; texto?: string; children?: ReactNode }) {
+  const { cores } = useTema();
+  const cor = cores[tom];
+  return (
+    <View
+      accessibilityRole={tom === 'perigo' ? 'alert' : 'summary'}
+      style={[estilos.erro, { borderColor: cor, backgroundColor: `${cor}18` }]}>
+      {titulo ? <Texto variante="subtitulo" cor={cor}>{titulo}</Texto> : null}
+      {texto ? <Texto cor={cor}>{texto}</Texto> : null}
+      {children}
+    </View>
+  );
+}
+
 /**
  * Erro na própria tela, com o texto da API e, se der, um "tentar de novo" (só quando repetir pode resolver: nunca para
  * 400, 403, 404 ou 409). Frase padrão do HTTP em inglês ("Bad Request") vira português.
  */
 export function MensagemErro({ texto, tentarDeNovo, erro }: { texto: string; tentarDeNovo?: () => void; erro?: unknown }) {
-  const { cores } = useTema();
   return (
-    <View
-      accessibilityRole="alert"
-      style={[estilos.erro, { borderColor: cores.perigo, backgroundColor: `${cores.perigo}18` }]}>
-      <Texto cor={cores.perigo}>{textoSemIngles(texto, erro)}</Texto>
+    <Alerta tom="perigo" texto={textoSemIngles(texto, erro)}>
       {tentarDeNovo && valeTentarDeNovo(erro) ? <Botao rotulo="Tentar de novo" tipo="secundario" aoTocar={tentarDeNovo} /> : null}
-    </View>
+    </Alerta>
   );
 }
 

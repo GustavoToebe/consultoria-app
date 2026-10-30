@@ -10,7 +10,7 @@ import { espaco, RAIO } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { Cartao } from '../../ui/Cartao';
 import { Esqueleto } from '../../ui/Esqueleto';
-import { MensagemErro } from '../../ui/Estados';
+import { Alerta, MensagemErro } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
@@ -61,7 +61,7 @@ export function SemelhantesDaInscricao({ dados, podeAlterar, podeVerAluno, execu
           </LinhaDeAcoes>
         </View>
       ) : null}
-      {texto ? <Texto>{texto}</Texto> : null}
+      {texto ? <Alerta tom="atencao" texto={texto} /> : null}
       {dados.duplicidade.alunoId && podeVerAluno ? (
         <LinhaDeAcoes>
           <Botao rotulo="Abrir ficha do aluno" tipo="secundario" aoTocar={() => aoAbrirFicha(dados.duplicidade.alunoId ?? '')} />

@@ -19,6 +19,7 @@ mandou (fora do repositório: tem dado de pessoas reais e não entra no git).
 | D6 | Suplemento | O campo vira "Dose prescrita"; a porção da embalagem aparece só como informação; nada é preenchido sozinho | Análise do vídeo (A07) |
 | D8 | Início e fim de cada bloco | Todo cartão com título ganha a faixa de cabeçalho (título e ações em `superficie3`, linha embaixo) e o topo de toda Folha também; bordas mais fortes nos temas | Gustavo, 30/10 ("tudo parece uma coisa só, sem início e fim") |
 | D9 | Água por dia | O treinador escreve os litros no cartão "Total do dia" do editor da dieta, sempre à vista (estava dentro da "Configuração do plano", que abre fechada). O registro da água bebida pelo aluno segue como o passo 1.2 de `engajamento.md` | Gustavo, 30/10 |
+| D10 | Avisos de atenção | Mesma caixa do erro (fundo claro, borda e texto na cor), em âmbar para o que pede cuidado e não impede: aluno ocupado na agenda, avisos da validação do plano, possível duplicidade de interessado, prévia da Minha conta e, na importação, campos obrigatórios faltando | Gustavo, 30/10 ("curti muito essas partes em vermelho… pode usar nos avisos de atenção") |
 | D7 | Lista de compras | "Conforme a dieta" quando falta fator e "Estimativa para compra" quando a conta foi feita; "Mês (30 dias)"; uma opção por refeição | Análise do vídeo (A08) |
 
 ## Passos

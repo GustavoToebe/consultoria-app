@@ -120,3 +120,21 @@ describe('corDaAgenda', () => {
     expect(corDaAgenda(null, false)).toBe(PALETA_DA_AGENDA.claro.ARDOSIA);
   });
 });
+
+/** Mistura `cor` com alfa 0x18 sobre `fundo`, como o fundo da caixa `Alerta` (`${cor}18`). */
+function fundoDoAlerta(cor: string, fundo: string): string {
+  const a = 0x18 / 255;
+  const canal = (h: string, i: number) => parseInt(h.slice(1 + i * 2, 3 + i * 2), 16);
+  return `#${[0, 1, 2].map((i) => Math.round(canal(cor, i) * a + canal(fundo, i) * (1 - a)).toString(16).padStart(2, '0')).join('')}`;
+}
+
+test.each([['claro', CLARO], ['escuro', ESCURO], ['areia', AREIA]] as const)(
+  'texto da caixa de aviso (perigo, atenção, sucesso) legível sobre o próprio fundo no tema %s',
+  (_nome, cores) => {
+    for (const tom of ['perigo', 'atencao', 'sucesso'] as const) {
+      for (const base of [cores.superficie, cores.fundo]) {
+        expect(contraste(cores[tom], fundoDoAlerta(cores[tom], base))).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  },
+);
