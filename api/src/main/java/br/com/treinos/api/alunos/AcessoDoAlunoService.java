@@ -66,6 +66,7 @@ public class AcessoDoAlunoService {
         }
         Usuario usuario = Usuario.aluno(aluno.getConsultoriaId(), aluno.getId(), email, aluno.getNome(), hash);
         usuario.definirSenhaProvisoria(hash);
+        usuario.alterarTelefone(aluno.tirarTelefoneSemAcesso()); // o telefone guardado no cadastro passa ao usuário
         try {
             usuario = usuarios.saveAndFlush(usuario);
         } catch (DataIntegrityViolationException corrida) {

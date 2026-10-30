@@ -331,7 +331,7 @@ export interface AlunoRequest {
   responsavelId?:string|null;
   nome: string;
   email: string | null;
-  /** Só vale com acesso (a API recusa com 409 `ALUNO_SEM_ACESSO`). Ausente/`null` não mexe; texto em branco apaga. */
+  /** Sem acesso fica no cadastro e passa ao acesso quando o aluno entrar. Ausente/`null` não mexe; texto em branco apaga. */
   telefone?: string | null;
   objetivo?: string | null;
   observacoes?: string | null;

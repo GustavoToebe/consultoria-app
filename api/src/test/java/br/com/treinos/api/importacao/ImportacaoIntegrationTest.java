@@ -662,6 +662,27 @@ class ImportacaoIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.get("/alunos/" + inativo, treinador, 200).path("ativo").asBoolean()).isFalse();
     }
 
+    @Test
+    void telefoneDeAlunoSemAcessoFicaNoCadastroEPassaAoUsuarioNoAcesso() throws Exception {
+        // Planilha real de 30/10: aluno novo com telefone recusava a linha inteira ("Aluno sem acesso ao app.").
+        String email = unico("novo-tel");
+        String csv = "nome;email;telefone\nNovo Com Telefone Fictício;" + email + ";45 98888-3333\n";
+        String config = config("email", "IGNORAR", Map.of("nome", 0, "email", 1, "telefone", 2));
+        JsonNode previa = previa("alunos", "novo-tel.csv", csv, config);
+        assertThat(previa.path("comErro").asInt()).isZero();
+        assertThat(previa.path("novos").asInt()).isEqualTo(1);
+        confirmar("alunos", "novo-tel.csv", csv.getBytes(StandardCharsets.UTF_8), config, previa.path("hash").asString());
+
+        String id = jdbc.queryForObject("select id::text from aluno where email = ?", String.class, email);
+        assertThat(jdbc.queryForObject("select telefone_sem_acesso from aluno where id = ?::uuid", String.class, id))
+                .isEqualTo("(45) 98888-3333");
+        assertThat(api.get("/alunos/" + id, treinador, 200).path("telefone").asString()).isEqualTo("(45) 98888-3333");
+
+        JsonNode login = api.convidarEEntrar(treinador, UUID.fromString(id));
+        assertThat(telefoneDe(login)).isEqualTo("45988883333");
+        assertThat(jdbc.queryForObject("select telefone_sem_acesso from aluno where id = ?::uuid", String.class, id)).isNull();
+    }
+
     private static final Map<String, Integer> COLUNAS_COM_ENDERECO = colunas("nome", "email", "cep", "logradouro", "numero",
             "complemento", "bairro", "cidade", "uf");
 

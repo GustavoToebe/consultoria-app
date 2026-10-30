@@ -129,8 +129,8 @@ export const enderecoParaLeitura = (e: EnderecoDoAluno | null | undefined): stri
   return linhas.length ? linhas.join('\n') : null;
 };
 
-/** Nota do telefone de quem ainda não criou o acesso (o telefone mora no usuário do aluno). */
-export const NOTA_TELEFONE_SEM_ACESSO = 'O telefone entra depois que o aluno criar o acesso.';
+/** Nota do telefone de quem ainda não criou o acesso: fica no cadastro e passa ao acesso quando o aluno entrar. */
+export const NOTA_TELEFONE_SEM_ACESSO = 'O aluno ainda não tem acesso: o telefone passa para o acesso quando ele entrar no app.';
 /** Código do 409 de CPF que já está no cadastro de outro aluno (a API não repete o valor). */
 export const CPF_EM_USO = 'ALUNO_CPF_EM_USO';
 export const MENSAGEM_CPF_EM_USO = 'Este CPF já está no cadastro de outro aluno.';

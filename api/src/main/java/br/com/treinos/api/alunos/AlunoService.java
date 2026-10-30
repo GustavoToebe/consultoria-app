@@ -136,9 +136,10 @@ public class AlunoService {
         plano.exigirVagaDeAluno();
         boolean sensivel = br.com.treinos.api.equipe.AcessoAtual.pode("ALUNO_SENSIVEL_ALTERAR");
         Dados dados = Dados.de(r, sensivel);
-        if (dados.telefone() != null) throw semAcesso(); // aluno novo nunca tem acesso
         Aluno aluno = new Aluno(r.nome().trim(), email(r.email()), Buscas.opcional(r.objetivo()),
                 Buscas.opcional(r.observacoes()), r.diasAtualizacao());
+        // Aluno novo nunca tem acesso: o telefone fica no cadastro até o acesso existir (V048).
+        aluno.guardarTelefoneSemAcesso(dados.telefone());
         if (sensivel) {
             exigirCpfLivre(dados.cpf(), null);
             aluno.alterarCpf(dados.cpf());
@@ -387,12 +388,13 @@ public class AlunoService {
 
     /**
      * O telefone mora no usuário do aluno. Nulo no corpo = não mexe; em branco = apaga; preenchido = grava (já
-     * normalizado). Preenchido para quem não tem acesso é 409 {@code ALUNO_SEM_ACESSO}; apagar o que não existe não é erro.
+     * normalizado). Quem ainda não tem acesso guarda o telefone no próprio cadastro (V048), que passa ao usuário quando o
+     * acesso for criado.
      */
     void trocarTelefone(Aluno aluno, String bruto, String normalizado) {
         if (bruto == null) return;
         if (aluno.getUsuarioId() == null) {
-            if (normalizado != null) throw semAcesso();
+            aluno.guardarTelefoneSemAcesso(normalizado);
             return;
         }
         usuarios.buscarParaAlterar(aluno.getUsuarioId()).ifPresent(u -> u.alterarTelefone(normalizado));

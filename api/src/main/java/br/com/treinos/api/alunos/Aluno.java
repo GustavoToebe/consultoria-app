@@ -47,6 +47,9 @@ public class Aluno {
 
     /** CPF formatado ({@code 123.456.789-09}), único por consultoria quando preenchido. Dado pessoal: nunca em log. */
     private String cpf;
+    /** Telefone de quem ainda não tem acesso (V048); com acesso, o telefone mora no {@code Usuario} e aqui fica nulo. */
+    @Column(name = "telefone_sem_acesso")
+    private String telefoneSemAcesso;
 
     /** Endereço em sete colunas, todas opcionais e independentes. Dado pessoal: nunca em log. */
     private String cep;
@@ -213,6 +216,23 @@ public class Aluno {
         this.atualizadoEm = Instant.now();
     }
 
+    public String getTelefoneSemAcesso() {
+        return telefoneSemAcesso;
+    }
+
+    /** Guarda (ou apaga, com nulo) o telefone de quem ainda não tem acesso; já vem formatado por {@code Formatos.telefone}. */
+    public void guardarTelefoneSemAcesso(String telefone) {
+        this.telefoneSemAcesso = telefone;
+        this.atualizadoEm = Instant.now();
+    }
+
+    /** Devolve o telefone guardado e limpa a coluna: chamado ao criar o usuário do aluno, que passa a guardá-lo. */
+    public String tirarTelefoneSemAcesso() {
+        String telefone = telefoneSemAcesso;
+        telefoneSemAcesso = null;
+        return telefone;
+    }
+
     public String getCpf() {
         return cpf;
     }
@@ -259,6 +279,7 @@ public class Aluno {
         this.objetivo = null;
         this.observacoes = null;
         this.cpf = null;
+        this.telefoneSemAcesso = null;
         this.cep = null;
         this.logradouro = null;
         this.numero = null;

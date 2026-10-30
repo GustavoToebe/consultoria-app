@@ -336,26 +336,44 @@ class AlunoCadastroIntegrationTest extends AbstractIntegrationTest {
 
     // ---- telefone ----
 
-    @Test
-    void telefoneSoParaQuemTemAcessoEOutrosCasosDeConflito() throws Exception {
-        String id = criar(treinador, "Aluno Fictício", null, null, 200).path("id").asString();
+    private String telefoneSemAcesso(String alunoId) {
+        return banco.queryForObject("select telefone_sem_acesso from aluno where id = ?::uuid", String.class, alunoId);
+    }
 
-        // Sem acesso não há onde guardar: 409 (criar e editar), a ficha segue sem telefone.
+    private JsonNode criar(JsonNode quem, Map<String, Object> corpo) throws Exception {
+        return api.post("/alunos", quem, corpo, 200);
+    }
+
+    @Test
+    void telefoneSemAcessoFicaNoCadastroEPassaAoUsuarioNoAcesso() throws Exception {
+        // Sem acesso (V048): o telefone fica no cadastro do aluno, já formatado, e a ficha o mostra.
         Map<String, Object> comTelefone = corpo("Aluno Fictício", null, null);
-        comTelefone.put("telefone", "(45) 99999-8888");
-        assertThat(api.post("/alunos", treinador, comTelefone, 409).path("codigo").asString()).isEqualTo("ALUNO_SEM_ACESSO");
-        JsonNode recusado = alterar(treinador, id, comTelefone, 409);
-        assertThat(recusado.path("codigo").asString()).isEqualTo("ALUNO_SEM_ACESSO");
-        assertThat(recusado.toString()).doesNotContain("99999");
-        assertThat(semValor(api.get("/alunos/" + id, treinador, 200).path("telefone"))).isTrue();
-        // Nulo ou em branco, sem acesso, é só "não mexe".
+        comTelefone.put("telefone", "45 99999-7777");
+        JsonNode criado = criar(treinador, comTelefone);
+        String id = criado.path("id").asString();
+        assertThat(criado.path("telefone").asString()).isEqualTo("(45) 99999-7777");
+        assertThat(telefoneSemAcesso(id)).isEqualTo("(45) 99999-7777");
+
+        // Editar troca; nulo não mexe; em branco apaga.
+        Map<String, Object> outro = corpo("Aluno Fictício", null, null);
+        outro.put("telefone", "(45) 99999-6666");
+        assertThat(alterar(treinador, id, outro, 200).path("telefone").asString()).isEqualTo("(45) 99999-6666");
+        assertThat(alterar(treinador, id, corpo("Aluno Fictício", null, null), 200).path("telefone").asString())
+                .isEqualTo("(45) 99999-6666");
         Map<String, Object> embranco = corpo("Aluno Fictício", null, null);
         embranco.put("telefone", "  ");
-        alterar(treinador, id, embranco, 200);
-        alterar(treinador, id, corpo("Aluno Fictício", null, null), 200);
+        assertThat(semValor(alterar(treinador, id, embranco, 200).path("telefone"))).isTrue();
+        assertThat(telefoneSemAcesso(id)).isNull();
+        alterar(treinador, id, outro, 200);
+
+        // Ao criar o acesso, o telefone passa para o usuário e sai do cadastro.
+        api.convidarEEntrar(treinador, UUID.fromString(id));
+        assertThat(telefoneSemAcesso(id)).isNull();
+        assertThat(banco.queryForObject("select telefone from usuario where id = (select usuario_id from aluno where id = ?::uuid)",
+                String.class, id)).isEqualTo("(45) 99999-6666");
+        assertThat(api.get("/alunos/" + id, treinador, 200).path("telefone").asString()).isEqualTo("(45) 99999-6666");
 
         // Com acesso: grava no usuário do aluno, normalizado.
-        api.convidarEEntrar(treinador, UUID.fromString(id));
         Map<String, Object> digitado = corpo("Aluno Fictício", null, null);
         digitado.put("telefone", "+55 45 99999-8888");
         assertThat(alterar(treinador, id, digitado, 200).path("telefone").asString()).isEqualTo("(45) 99999-8888");
