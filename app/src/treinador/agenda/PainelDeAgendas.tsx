@@ -13,6 +13,7 @@ import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, CHAVES_DA_AGENDA, espaco, fontes, RAIO, textoSobre } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
+import { Cartao } from '../../ui/Cartao';
 import { MensagemErro } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
@@ -37,17 +38,20 @@ interface Props {
 type Edicao = { tipo: 'nova' } | { tipo: 'editar'; agenda: AgendaPessoal };
 
 /**
- * "Minhas agendas": as duas fixas (compromissos com alunos e atualizações) e as pessoais, cada uma com a caixa de mostrar ou
- * esconder na cor dela (a escolha fica no aparelho, `agendasOcultas`). Com `AGENDA_ALTERAR`, "Nova agenda" e o lápis de cada
- * pessoal abrem a folha de nome e cor, onde também se apaga (com a contagem de eventos na confirmação).
+ * "Minhas agendas" (bloco com faixa): as duas fixas (compromissos com alunos e atualizações) e as pessoais, cada uma com a
+ * caixa de mostrar ou esconder na cor dela (a escolha fica no aparelho, `agendasOcultas`). Com `AGENDA_ALTERAR`, o "+" da
+ * faixa ("Nova agenda") e o lápis de cada pessoal abrem a folha de nome e cor, onde também se apaga (com a contagem de
+ * eventos na confirmação). No limite de agendas o "+" fica desabilitado e o motivo aparece embaixo da lista.
  */
 export function PainelDeAgendas({ agendas, pessoais, carregando, podeAlterar, aoAlternar, aoMudar }: Props) {
   const [edicao, setEdicao] = useState<Edicao | null>(null);
   const quantas = pessoais?.length ?? 0;
   const podeCriar = podeCriarAgenda(quantas);
+  const comNova = podeAlterar && !!pessoais;
+  const motivo = `Você já tem ${LIMITES_DA_AGENDA.agendas} agendas. Apague uma para criar outra.`;
   return (
-    <View style={estilos.painel}>
-      <Texto variante="secao" nivel={2}>Minhas agendas</Texto>
+    <Cartao titulo="Minhas agendas"
+      acoes={comNova ? <IconeBotao Icone={Plus} rotulo={podeCriar ? 'Nova agenda' : `Nova agenda. ${motivo}`} moldura aoTocar={() => setEdicao({ tipo: 'nova' })} desabilitado={!podeCriar} /> : undefined}>
       <View style={estilos.lista} role="group" aria-label="Agendas visíveis">
         {agendas.map((a) => <LinhaDaAgenda key={a.chave} agenda={a} aoAlternar={() => aoAlternar(a.chave)}
           aoEditar={podeAlterar && !a.fixa ? () => {
@@ -56,13 +60,12 @@ export function PainelDeAgendas({ agendas, pessoais, carregando, podeAlterar, ao
           } : undefined} />)}
         {carregando ? <Texto variante="suave">Carregando as agendas…</Texto> : null}
       </View>
-      {podeAlterar && pessoais ? (
-        <Botao rotulo="Nova agenda" tipo="secundario" Icone={Plus} aoTocar={() => setEdicao({ tipo: 'nova' })}
-          desabilitado={!podeCriar} motivo={`Você já tem ${LIMITES_DA_AGENDA.agendas} agendas. Apague uma para criar outra.`} />
+      {comNova && !podeCriar ? (
+        <Texto variante="pequeno">{motivo}</Texto>
       ) : null}
       <FolhaDaAgenda key={edicao?.tipo === 'editar' ? edicao.agenda.id : edicao?.tipo ?? 'fechada'} edicao={edicao} pessoais={pessoais ?? []}
         aoFechar={() => setEdicao(null)} aoMudar={() => { setEdicao(null); aoMudar(); }} />
-    </View>
+    </Cartao>
   );
 }
 
@@ -192,8 +195,7 @@ function EscolhaDeCor({ valor, aoMudar }: { valor: CorDaAgenda; aoMudar: (c: Cor
 }
 
 const estilos = StyleSheet.create({
-  painel: { gap: espaco(1.5) },
-  lista: { gap: 2 },
+  lista: { gap: 2, marginHorizontal: -espaco(1) },
   linha: { flexDirection: 'row', alignItems: 'center' },
   caixaELinha: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: espaco(1.5), minHeight: ALVO_TOQUE, paddingHorizontal: espaco(1), borderRadius: RAIO },
   caixa: { width: 20, height: 20, borderRadius: 4, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },

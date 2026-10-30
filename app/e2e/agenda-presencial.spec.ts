@@ -120,7 +120,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
     test.use({ viewport: { width: largura, height: altura } });
     // No celular Dia e Semana são a lista por dia (metadados e resumo do dia); no PC, a grade de horários (os blocos têm o
     // mesmo nome acessível, mas não os metadados da lista).
-    const naLista = largura < 760;
+    const naLista = largura < 768;
 
     test('lista com vários alunos e série; marcar com 2 alunos, aviso de aluno ocupado e 409 com a data', async ({ page }) => {
       const lista = [

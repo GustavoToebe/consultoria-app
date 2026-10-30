@@ -1,7 +1,8 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import type {
-  AgendaPessoal, AgendaPessoalRequest, Compromisso, CorDaAgenda, EventoDetalhe, EventoRequest, OcorrenciaDeEvento, RepeticaoDeEvento,
+  AgendaPessoal, AgendaPessoalRequest, Compromisso, CorDaAgenda, CruzamentoDeEvento, CruzamentoRequest, EventoDetalhe, EventoRequest,
+  OcorrenciaDeEvento, RepeticaoDeEvento,
 } from '../src/api/agendaTipos';
 import type { AlunoResumo, AtualizacaoDaLista } from '../src/api/tipos';
 import { erroApi, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type PedidoFalso, type RespostasApi } from './api-falsa';
@@ -56,6 +57,8 @@ function compromisso(id: string, alunos: AlunoResumo[], data: string, hora: stri
 }
 
 const agenda = (id: string, nome: string, cor: CorDaAgenda): AgendaPessoal => ({ id, nome, cor, versao: 0 });
+
+const SEM_CRUZAMENTO: CruzamentoDeEvento = { quantidade: 0, datas: [], incompleto: false };
 
 /** Um evento da API falsa: a regra e as datas já expandidas (quem expande de verdade é a API). */
 interface EventoFalso {
@@ -174,6 +177,8 @@ async function abrirAgenda(page: Page, estado: Estado, opcoes: { permissoes?: st
       for (const o of eventosNoPeriodo(p)) dia(o.data).eventos += 1;
       return json(route, { dias: [...dias.values()].sort((a, b) => a.data.localeCompare(b.data)) });
     },
+    // Aviso de cruzamento do formulário do evento: sem cruzamento, a não ser que o teste troque.
+    'POST /agenda/eventos/cruzamentos': { corpo: SEM_CRUZAMENTO },
     ...opcoes.extra,
   });
 }
@@ -194,7 +199,7 @@ const semRolagemHorizontal = async (page: Page) =>
 for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
   test.describe(`${largura} px`, () => {
     test.use({ viewport: { width: largura, height: altura } });
-    const celular = largura < 760;
+    const celular = largura < 768;
 
     /** Onde ficam o painel de agendas e os filtros: a coluna da esquerda no PC, a folha "Agendas e filtros" no celular. */
     async function painel(page: Page): Promise<Locator> {
@@ -814,3 +819,186 @@ test.describe('filtros em Folha (390 px)', () => {
     expect(ultimo(pedidos, '/agenda/compromissos')?.busca.get('situacao')).toBe('AGENDADO');
   });
 });
+
+/**
+ * Menu "Criar" pelo teclado (pendência do lote 2, conferida no lote A da rodada visual): abre com o foco no primeiro item,
+ * as setas andam entre os itens (dando a volta), Home e End vão às pontas, Enter escolhe e Esc fecha devolvendo o foco.
+ */
+test.describe('menu Criar pelo teclado (1280 px)', () => {
+  test.use({ viewport: { width: 1280, height: 900 } });
+
+  test('setas, Home e End andam entre os itens; Enter abre o escolhido; Esc fecha e o foco volta ao Criar', async ({ page }) => {
+    const estado: Estado = { agendas: [agenda('g1', 'Pessoal', 'AZUL')], eventos: [], compromissos: [] };
+    await abrirAgenda(page, estado);
+    await page.goto('/treinador/agenda');
+    const criar = page.getByRole('button', { name: 'Criar', exact: true });
+    const compromissoItem = page.getByRole('menuitem', { name: /^Compromisso com aluno/ });
+    const eventoItem = page.getByRole('menuitem', { name: /^Evento\./ });
+    await criar.click();
+    await expect(compromissoItem).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(eventoItem).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(compromissoItem).toBeFocused();
+    await page.keyboard.press('ArrowUp');
+    await expect(eventoItem).toBeFocused();
+    await page.keyboard.press('Home');
+    await expect(compromissoItem).toBeFocused();
+    await page.keyboard.press('End');
+    await expect(eventoItem).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(eventoItem).toBeHidden();
+    await expect(criar).toBeFocused();
+    // As setas não trocam a visão nem a data com o menu aberto (o endereço fica igual).
+    await criar.press('Enter');
+    await expect(compromissoItem).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(page).toHaveURL(/\/treinador\/agenda$/);
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('dialog', { name: 'Novo evento', exact: true })).toBeVisible();
+  });
+});
+
+/**
+ * Aviso de cruzamento do evento (30/10): vem de `POST /agenda/eventos/cruzamentos`, que considera a repetição por um ano
+ * (a conferência local do período carregado saiu). É só aviso: nunca impede nem atrasa o salvar; falha ou sem rede, nada
+ * aparece. A pergunta leva só horário e repetição (nunca o título) e, na edição, o id do evento.
+ */
+for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
+  test.describe(`aviso de cruzamento (${largura} px)`, () => {
+    test.use({ viewport: { width: largura, height: altura } });
+
+    const URL_DO_CRUZAMENTO = /\/api\/agenda\/eventos\/cruzamentos$/;
+    const AVISO = /^Cruza com /;
+
+    /** Agenda com a "Pessoal" e o formulário de evento novo aberto (19/10). */
+    async function abrirNovoEvento(page: Page, cruzamento: RespostasApi[string]) {
+      const estado: Estado = { agendas: [agenda('g1', 'Pessoal', 'AZUL')], eventos: [], compromissos: [] };
+      const api = await abrirAgenda(page, estado, { extra: { 'POST /agenda/eventos/cruzamentos': cruzamento } });
+      await page.goto('/treinador/agenda');
+      await page.getByRole('button', { name: 'Criar', exact: true }).click();
+      await page.getByRole('menuitem', { name: /^Evento\./ }).click();
+      const folha = page.getByRole('dialog', { name: 'Novo evento', exact: true });
+      await expect(folha).toBeVisible();
+      return { ...api, folha };
+    }
+    const cruzamentos = (pedidos: PedidoFalso[]) =>
+      doCaminho(pedidos, 'POST', '/agenda/eventos/cruzamentos').map((p) => p.corpo as CruzamentoRequest);
+
+    test('repetição que cruza mostra "Cruza com N horários" e as datas; com o aviso, salvar continua salvando', async ({ page }) => {
+      // Só a repetição diária cruza (as três primeiras datas); o horário avulso de 19/10 não.
+      const { folha, pedidos, naoTratadas, errosDaPagina } = await abrirNovoEvento(page, (p, route) =>
+        json(route, (p.corpo as CruzamentoRequest).repeticao
+          ? { quantidade: 3, datas: ['2026-10-20', '2026-10-21', '2026-10-22'], incompleto: false } : SEM_CRUZAMENTO));
+      // Sem hora não há pergunta.
+      await folha.getByLabel('Título', { exact: true }).fill('Estudo de teste');
+      await opcao(folha, 'Repetição', 'Todo dia').click();
+      expect(cruzamentos(pedidos)).toEqual([]);
+
+      const resposta = page.waitForResponse(URL_DO_CRUZAMENTO);
+      await folha.getByLabel('Hora (Brasília)').fill('0900');
+      await resposta;
+      const aviso = folha.getByText('Cruza com 3 horários: 20/10, 21/10 e 22/10. Dá para salvar mesmo assim.', { exact: true });
+      await expect(aviso).toBeVisible();
+      // A pergunta é a do salvar, sem título, local, descrição nem agenda.
+      expect(cruzamentos(pedidos).at(-1)).toEqual({
+        eventoId: null, data: HOJE, diaInteiro: false, hora: '09:00', duracaoMinutos: 60, repeticao: { tipo: 'DIARIA' },
+      });
+
+      // Sem repetição a API diz zero: o aviso some.
+      await opcao(folha, 'Repetição', 'Não se repete').click();
+      await expect(aviso).toHaveCount(0);
+      await opcao(folha, 'Repetição', 'Todo dia').click();
+      await expect(aviso).toBeVisible();
+      // Dia inteiro não pergunta e não avisa.
+      const antes = cruzamentos(pedidos).length;
+      await folha.getByRole('switch', { name: 'Dia inteiro' }).click();
+      await expect(aviso).toHaveCount(0);
+      await folha.getByRole('switch', { name: 'Dia inteiro' }).click();
+      await expect(aviso).toBeVisible();
+      expect(cruzamentos(pedidos).slice(antes).every((c) => !c.diaInteiro)).toBe(true);
+
+      // O aviso não trava: "Criar evento" salva direto, sem pergunta nem espera.
+      await folha.getByRole('button', { name: 'Criar evento', exact: true }).click();
+      await expect(folha).toBeHidden();
+      expect(doCaminho(pedidos, 'POST', '/agenda/eventos').map((p) => (p.corpo as EventoRequest).repeticao)).toEqual([{ tipo: 'DIARIA' }]);
+      expect(naoTratadas).toEqual([]);
+      expect(errosDaPagina).toEqual([]);
+    });
+
+    test('"incompleto" diz que pode haver mais', async ({ page }) => {
+      const { folha } = await abrirNovoEvento(page, {
+        corpo: { quantidade: 400, datas: ['2026-10-20', '2026-10-21', '2026-10-22', '2026-10-23', '2026-10-26'], incompleto: true },
+      });
+      await folha.getByLabel('Hora (Brasília)').fill('0900');
+      await opcao(folha, 'Repetição', 'Dias úteis (segunda a sexta)').click();
+      await expect(folha.getByText(
+        'Cruza com 400 horários, pode haver mais: 20/10, 21/10, 22/10, 23/10, 26/10 e outros. Dá para salvar mesmo assim.', { exact: true },
+      )).toBeVisible();
+    });
+
+    test('quantidade 0 não mostra aviso', async ({ page }) => {
+      const { folha, pedidos } = await abrirNovoEvento(page, { corpo: SEM_CRUZAMENTO });
+      const resposta = page.waitForResponse(URL_DO_CRUZAMENTO);
+      await folha.getByLabel('Hora (Brasília)').fill('0900');
+      await resposta;
+      expect(cruzamentos(pedidos)).toHaveLength(1);
+      await expect(folha.getByText(AVISO)).toHaveCount(0);
+    });
+
+    const falhas: [string, RespostasApi[string]][] = [
+      ['falha da rota (503)', erroApi(503, 'Indisponível.', 'INDISPONIVEL')],
+      ['sem rede no pedido', (_p, route) => route.abort('internetdisconnected')],
+    ];
+    for (const [caso, resposta] of falhas) {
+      test(`${caso}: sem aviso nem erro, e salvar funciona`, async ({ page }) => {
+        const { folha, pedidos, errosDaPagina } = await abrirNovoEvento(page, resposta);
+        await folha.getByLabel('Título', { exact: true }).fill('Estudo de teste');
+        await opcao(folha, 'Repetição', 'Todo dia').click();
+        const terminou = Promise.race([
+          page.waitForEvent('requestfinished', (r) => URL_DO_CRUZAMENTO.test(r.url())),
+          page.waitForEvent('requestfailed', (r) => URL_DO_CRUZAMENTO.test(r.url())),
+        ]);
+        await folha.getByLabel('Hora (Brasília)').fill('0900');
+        await terminou;
+        expect(cruzamentos(pedidos)).toHaveLength(1);
+        await expect(folha.getByText(AVISO)).toHaveCount(0);
+        await expect(folha.getByRole('alert')).toHaveCount(0);
+        await folha.getByRole('button', { name: 'Criar evento', exact: true }).click();
+        await expect(folha).toBeHidden();
+        expect(doCaminho(pedidos, 'POST', '/agenda/eventos')).toHaveLength(1);
+        await expect(page.getByRole('alert')).toHaveCount(0);
+        expect(errosDaPagina).toEqual([]);
+      });
+    }
+
+    test('na edição vai o id do evento (ele não cruza consigo); o aviso fica e salvar segue', async ({ page }) => {
+      const serie: EventoFalso = {
+        id: 'ev-serie', agendaId: 'g1', titulo: 'Estudo de teste', hora: '09:00',
+        datas: ['2026-10-21', '2026-10-28'], repeticao: { tipo: 'SEMANAL', diasDaSemana: ['WEDNESDAY'], ate: '2026-10-28' }, versao: 0,
+      };
+      const estado: Estado = { agendas: [agenda('g1', 'Pessoal', 'AZUL')], eventos: [serie], compromissos: [] };
+      const { pedidos, naoTratadas } = await abrirAgenda(page, estado, {
+        extra: { 'POST /agenda/eventos/cruzamentos': { corpo: { quantidade: 1, datas: ['2026-10-28'], incompleto: false } } },
+      });
+      await page.goto('/treinador/agenda');
+      await page.getByRole('button', { name: /^Abrir evento Estudo/ }).first().click();
+      const detalhe = page.getByRole('dialog', { name: 'Evento', exact: true });
+      await detalhe.getByRole('button', { name: 'Editar', exact: true }).click();
+      // No detalhe não há pergunta; no formulário, sim, com o id do evento.
+      const editar = page.getByRole('dialog', { name: 'Editar evento', exact: true });
+      await expect(editar.getByText('Cruza com 1 horário: 28/10. Dá para salvar mesmo assim.', { exact: true })).toBeVisible();
+      expect(cruzamentos(pedidos)).toEqual([{
+        eventoId: 'ev-serie', data: '2026-10-21', diaInteiro: false, hora: '09:00', duracaoMinutos: 60,
+        repeticao: { tipo: 'SEMANAL', diasDaSemana: ['WEDNESDAY'], ate: '2026-10-28' },
+      }]);
+      await editar.getByLabel('Título', { exact: true }).fill('Estudo só nesta');
+      await editar.getByRole('button', { name: 'Salvar alterações', exact: true }).click();
+      const pergunta = page.getByRole('alertdialog', { name: 'Salvar em quais eventos da série?' });
+      await pergunta.getByRole('button', { name: 'Salvar alterações', exact: true }).click();
+      await expect(editar).toBeHidden();
+      expect(doCaminho(pedidos, 'PUT', '/agenda/eventos/ev-serie')).toHaveLength(1);
+      expect(naoTratadas).toEqual([]);
+    });
+  });
+}

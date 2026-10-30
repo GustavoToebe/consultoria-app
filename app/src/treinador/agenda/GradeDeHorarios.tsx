@@ -7,7 +7,7 @@ import {
 } from '../../dominio/agendaCalendario';
 import { diaDaSemanaIso } from '../../dominio/formatos';
 import { useTema } from '../../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, RAIO } from '../../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, LINHA_DA_FAIXA, RAIO } from '../../tema/tokens';
 import { Selo } from '../../ui/Selo';
 import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
@@ -36,10 +36,11 @@ interface Props {
 /**
  * Dia e Semana no PC: uma coluna por dia, uma linha por hora, a faixa de "dia inteiro" no topo (as atualizações entram
  * aqui), os itens sobrepostos lado a lado (`colunasDaGrade`), a rolagem inicial em `minutoInicialDaGrade` (uma vez por
- * período) e a linha do "agora" no dia de hoje. O cabeçalho e a faixa ficam fora da rolagem.
+ * período) e a linha do "agora" no dia de hoje. O cabeçalho e a faixa ficam fora da rolagem. A grade é um bloco (borda do
+ * bloco) e a linha dos dias é a faixa dele (`superficie3` com a linha forte embaixo); os itens são o nível de item.
  */
 export function GradeDeHorarios({ dias, itens, hoje, meus, chaveDoPeriodo, aoAbrir, aoAbrirDia, aoCriarNoHorario }: Props) {
-  const { cores } = useTema();
+  const { cores, bordas } = useTema();
   const { height } = useWindowDimensions();
   const colunas = colunasDaGrade(itens, dias, { alturaPorHora: ALTURA_DA_HORA, alturaMinima: ALVO_TOQUE });
   const altura = alturaDaGrade(ALTURA_DA_HORA);
@@ -59,9 +60,9 @@ export function GradeDeHorarios({ dias, itens, hoje, meus, chaveDoPeriodo, aoAbr
   }, [chaveDoPeriodo, dias, hoje, itens, minutoDeAgora]);
 
   return (
-    <View style={[estilos.moldura, { borderColor: cores.borda, backgroundColor: cores.superficie }]}>
-      {/* Cabeçalho dos dias e faixa de dia inteiro. */}
-      <View style={[estilos.linha, { borderBottomColor: cores.divisor }]}>
+    <View style={[estilos.moldura, { borderWidth: bordas.bloco, borderColor: cores.borda, backgroundColor: cores.superficie }]}>
+      {/* Cabeçalho dos dias (a faixa do bloco) e a linha de dia inteiro. */}
+      <View style={[estilos.linha, estilos.faixa, { backgroundColor: cores.superficie3, borderBottomColor: cores.bordaCampo }]}>
         <View style={estilos.calha} />
         {colunas.map((c) => {
           const ehHoje = c.data === hoje;
@@ -77,7 +78,7 @@ export function GradeDeHorarios({ dias, itens, hoje, meus, chaveDoPeriodo, aoAbr
               {aoAbrirDia && !umDia ? (
                 <Pressable accessibilityRole="button" accessibilityLabel={`Abrir o dia ${dataComDiaDaSemana(c.data)}${ehHoje ? ', hoje' : ''}`}
                   onPress={() => aoAbrirDia(c.data)}
-                  style={(e) => [estilos.botaoDoDia, sobre(e) && { backgroundColor: cores.superficie3 }]}>{conteudo}</Pressable>
+                  style={(e) => [estilos.botaoDoDia, sobre(e) && { backgroundColor: cores.superficie }]}>{conteudo}</Pressable>
               ) : <View style={estilos.botaoDoDia} accessibilityLabel={`${dataComDiaDaSemana(c.data)}${ehHoje ? ', hoje' : ''}`}>{conteudo}</View>}
             </View>
           );
@@ -168,7 +169,7 @@ function Bloco({ segmento: s, hoje, meus, aoAbrir }: { segmento: SegmentoNaGrade
           {cabeHora ? item.titulo : `${horarioDoItem(item).split('–')[0]} ${item.titulo}`}
         </Texto>
         {cabeHora ? <Texto variante="pequeno" numerico cor={cores.textoSuave} numberOfLines={1}>{horarioDoItem(item)}</Texto> : null}
-        {cabeSelo && selo ? <Selo texto={selo.texto} tipo={selo.tipo} /> : null}
+        {cabeSelo && selo ? <Selo texto={selo.texto} tipo={selo.tipo} Icone={selo.Icone} /> : null}
       </Pressable>
     </View>
   );
@@ -188,8 +189,9 @@ function ItemDeDiaInteiro({ item, hoje, meus, aoAbrir }: { item: ItemDoCalendari
 }
 
 const estilos = StyleSheet.create({
-  moldura: { borderWidth: 1, borderRadius: RAIO, overflow: 'hidden' },
+  moldura: { borderRadius: RAIO, overflow: 'hidden' },
   linha: { flexDirection: 'row', borderBottomWidth: 1 },
+  faixa: { borderBottomWidth: LINHA_DA_FAIXA },
   calha: { width: LARGURA_DAS_HORAS, flexShrink: 0 },
   rotuloDiaInteiro: { justifyContent: 'center', paddingHorizontal: espaco(0.5) },
   cabecalhoDoDia: { flex: 1, minWidth: 0, borderLeftWidth: 1 },

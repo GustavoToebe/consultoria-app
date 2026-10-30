@@ -1,7 +1,7 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { SlidersHorizontal } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import type { Compromisso } from '../../api/agendaTipos';
 import {
@@ -18,14 +18,16 @@ import { FolhaCompromisso } from '../../treinador/agenda/FolhaCompromisso';
 import { type EventoAberto, FolhaEvento } from '../../treinador/agenda/FolhaEvento';
 import { GradeDeHorarios } from '../../treinador/agenda/GradeDeHorarios';
 import { CartaoSemData, ListaDoCalendario } from '../../treinador/agenda/ListaDoCalendario';
+import { iconeDoTom } from '../../treinador/agenda/itemDaAgenda';
 import { MenuCriar } from '../../treinador/agenda/MenuCriar';
-import { LARGURA_DO_MINI, MiniCalendario } from '../../treinador/agenda/MiniCalendario';
+import { larguraDoMini, MiniCalendario } from '../../treinador/agenda/MiniCalendario';
 import { PainelDeAgendas } from '../../treinador/agenda/PainelDeAgendas';
 import { useCalendario } from '../../treinador/agenda/useCalendario';
 import { VisaoDoAno } from '../../treinador/agenda/VisaoDoAno';
 import { VisaoDoMes } from '../../treinador/agenda/VisaoDoMes';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
+import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
 import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
 import { Esqueleto } from '../../ui/Esqueleto';
@@ -75,7 +77,7 @@ function algoPorCima(menuAberto: boolean): boolean {
 export default function AgendaDoTreinador() {
   const p = useLocalSearchParams<Parametros>();
   const { pode, usuario, offline } = useSessao();
-  const { preferencias, preferenciasLidas, escolherPreferencia } = useTema();
+  const { preferencias, preferenciasLidas, escolherPreferencia, bordas } = useTema();
   const permissoes = useMemo(() => ({
     agenda: pode('AGENDA_LER'),
     atualizacoes: pode('ATUALIZACAO_LER') && pode('ALUNO_SENSIVEL_LER'),
@@ -85,8 +87,11 @@ export default function AgendaDoTreinador() {
   const podeAlterar = permissoes.agenda && pode('AGENDA_ALTERAR');
 
   const hoje = hojeEmBrasilia();
+  // Celular × PC é pela janela (abaixo de 768 px há a barra de baixo, como no resto do app); o painel lateral é pelo conteúdo
+  // medido, que desconta o menu lateral.
+  const { width: larguraDaJanela } = useWindowDimensions();
   const [largura, setLargura] = useState(0);
-  const { visao, data } = lerEnderecoDoCalendario(p, hoje, largura);
+  const { visao, data } = lerEnderecoDoCalendario(p, hoje, larguraDaJanela);
   // Os filtros (responsável, situação) vão para o endereço, mas só depois de as Folhas fecharem: um `router.replace` com a
   // Folha aberta cai na entrada de histórico dela e o fechar desfaz a escolha. Até lá o que foi escolhido vale daqui.
   const [ajuste, setAjuste] = useState<Partial<Parametros> | null>(null);
@@ -94,7 +99,7 @@ export default function AgendaDoTreinador() {
   const meus = filtrosDoEndereco.meus === 'true';
   const membro = !meus && permissoes.equipe && filtrosDoEndereco.membro ? filtrosDoEndereco.membro : null;
   const situacao = permissoes.agenda ? lerSituacao(filtrosDoEndereco.situacao) : null;
-  const modo = modoDaVisao(visao, largura);
+  const modo = modoDaVisao(visao, larguraDaJanela);
   const lateral = largura >= LARGURA_DO_PAINEL_LATERAL;
 
   const cal = useCalendario(permissoes, {
@@ -225,7 +230,7 @@ export default function AgendaDoTreinador() {
     <View onLayout={(e) => setLargura(Math.round(e.nativeEvent.layout.width))}>
       {largura === 0 ? null : lateral ? (
         <View style={estilos.colunas}>
-          <View style={estilos.lateral}>
+          <View style={[estilos.lateral, { width: larguraDoMini(bordas.bloco) }]}>
             <MiniCalendario visao={visao} data={data} hoje={hoje} aoEscolher={escolherData} />
             {painel}
             {filtros}
@@ -255,15 +260,15 @@ export default function AgendaDoTreinador() {
       carregados={cal.compromissosCarregados} aoFechar={() => setCompromisso(null)}
       aoMudar={(c) => { setCompromisso((atual) => (atual && atual !== 'novo' ? c : atual)); cal.recarregarCompromissos(); }} /> : null}
     {permissoes.agenda ? <FolhaEvento aberto={evento} agendas={cal.agendas} erroDasAgendas={cal.erros.find((x) => x.chave === 'agendas')?.erro}
-      recarregarAgendas={cal.recarregarAgendas} hoje={hoje} itens={itens} podeAlterar={podeAlterar}
+      recarregarAgendas={cal.recarregarAgendas} hoje={hoje} podeAlterar={podeAlterar}
       aoFechar={() => setEvento(null)}
       aoMudar={(o) => { cal.recarregarEventos(); if (o.agendas) cal.recarregarAgendas(); }} /> : null}
   </Tela>;
 }
 
 /**
- * Filtros da agenda: o responsável (D19: toda a equipe, só os meus ou um membro, nas três fontes), a situação dos
- * compromissos e o contador de atualizações atrasadas com o link para a lista.
+ * Filtros da agenda (bloco com faixa): o responsável (D19: toda a equipe, só os meus ou um membro, nas três fontes), a
+ * situação dos compromissos e o contador de atualizações atrasadas com o link para a lista.
  */
 function Filtros({ meus, membro, situacao, permissoes, cal, usuarioId, aoMudar }: {
   meus: boolean; membro: string | null; situacao: ReturnType<typeof lerSituacao>;
@@ -278,8 +283,7 @@ function Filtros({ meus, membro, situacao, permissoes, cal, usuarioId, aoMudar }
   const valor = meus ? SO_OS_MEUS : membro ?? TODA_A_EQUIPE;
   const nomeDoMembro = membro ? cal.equipe.find((r) => r.id === membro)?.nome ?? 'Membro da equipe' : 'Toda a equipe';
   return (
-    <View style={estilos.filtros}>
-      <Texto variante="secao" nivel={2}>Filtros</Texto>
+    <Cartao titulo="Filtros">
       <EscolhaEmFolha rotulo="Responsável" titulo="Mostrar a agenda de" valor={valor} opcoes={opcoes} rotuloDoValor={nomeDoMembro}
         carregando={cal.equipeCarregando}
         aoMudar={(v) => aoMudar({ meus: v === SO_OS_MEUS ? 'true' : undefined, membro: v && v !== SO_OS_MEUS ? v : undefined })} />
@@ -289,18 +293,17 @@ function Filtros({ meus, membro, situacao, permissoes, cal, usuarioId, aoMudar }
         {situacao ? <Texto variante="suave">Com vários alunos, aparecem os compromissos em que algum aluno está nessa situação.</Texto> : null}
       </> : null}
       {cal.atrasadas ? <View style={estilos.atrasadas}>
-        <Selo texto={cal.atrasadas} tipo="perigo" />
+        <Selo texto={cal.atrasadas} tipo="perigo" Icone={iconeDoTom('perigo')} />
         <LinkTexto texto="Ver atrasadas" href={caminhoListaAtualizacoes('ATRASADAS', meus)} />
       </View> : null}
-    </View>
+    </Cartao>
   );
 }
 
 const estilos = StyleSheet.create({
   colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(3) },
-  lateral: { width: LARGURA_DO_MINI, gap: espaco(3) },
+  lateral: { gap: espaco(3) },
   principal: { flex: 1, minWidth: 0, gap: espaco(2) },
   painelDaFolha: { gap: espaco(3) },
-  filtros: { gap: espaco(1.5) },
   atrasadas: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(1.5) },
 });

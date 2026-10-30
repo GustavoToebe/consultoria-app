@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import type { Compromisso, Participante } from '../../api/agendaTipos';
 import { rotuloDoDia } from '../../dominio/agenda';
 import {
-  type AcaoDeSituacao, acoesDeSituacao, seloDaSituacao, seloDoCompromisso, textoDaDuracao, textoDaOcorrencia, textoDoHorario,
+  type AcaoDeSituacao, acoesDeSituacao, textoDaDuracao, textoDaOcorrencia, textoDoHorario,
 } from '../../dominio/agendaPresencial';
 import { dataSemAnoCorrente } from '../../dominio/datasRelativas';
 import { useSessao } from '../../sessao/SessaoProvider';
@@ -16,6 +16,7 @@ import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { LinkTexto } from '../../ui/LinkTexto';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
+import { seloDoCompromissoComIcone, seloDoParticipante } from './itemDaAgenda';
 
 interface Props {
   compromisso: Compromisso;
@@ -35,7 +36,7 @@ export function DetalheDoCompromisso({ compromisso: c, hoje, agora, enviando, ao
   const { pode } = useSessao();
   const podeAlterar = pode('AGENDA_ALTERAR');
   const varios = c.participantes.length > 1;
-  const selo = seloDoCompromisso(c);
+  const selo = seloDoCompromissoComIcone(c);
   const ocorrencia = textoDaOcorrencia(c);
   const unico = c.participantes.length === 1 ? c.participantes[0] : null;
   // Antes do início, realizado e falta não valem para ninguém: uma frase só, em vez de um botão apagado por aluno.
@@ -46,7 +47,7 @@ export function DetalheDoCompromisso({ compromisso: c, hoje, agora, enviando, ao
       <View style={estilos.topo}>
         <Texto variante="bloco">{`${rotuloDoDia(c.data, hoje)}, ${dataSemAnoCorrente(c.data, hoje)} · ${textoDoHorario(c)}`}</Texto>
         {varios || ocorrencia ? <View style={estilos.linhaSelo}>
-          {varios ? <Selo texto={selo.texto} tipo={selo.tipo} /> : null}
+          {varios ? <Selo texto={selo.texto} tipo={selo.tipo} Icone={selo.Icone} /> : null}
           {ocorrencia ? <Texto variante="suave" numerico>{ocorrencia}</Texto> : null}
         </View> : null}
       </View>
@@ -61,7 +62,7 @@ export function DetalheDoCompromisso({ compromisso: c, hoje, agora, enviando, ao
       ) : null}
       <ListaDeLinhas>
         {c.participantes.map((p) => {
-          const s = seloDaSituacao(p.situacao);
+          const s = seloDoParticipante(p.situacao);
           const acoes = podeAlterar
             ? acoesDeSituacao({ situacao: p.situacao, inicio: c.inicio }, agora, { nome: p.nome, sozinho: !varios, cancelado: c.cancelado })
               .filter((a) => !a.motivo)

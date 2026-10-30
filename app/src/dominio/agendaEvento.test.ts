@@ -16,16 +16,17 @@ import {
   formularioDeEventoNovo,
   formularioDoEvento,
   garantirAgendaPadrao,
-  intervaloDoEvento,
   mudouAAgendaDoEvento,
   mudouADataDoEvento,
   pedidoDaAgenda,
+  pedidoDeCruzamento,
   pedidoDoEvento,
   podeCriarAgenda,
   primeiroDiaDaRegra,
   repeticaoDoEvento,
   textoDeApagarAgenda,
   textoDeExcluirEvento,
+  textoDoCruzamento,
   textoDoErroDoCalendario,
   trocarTipoDaRepeticaoDoEvento,
   SEM_REPETICAO_DO_EVENTO,
@@ -266,12 +267,41 @@ describe('pedido do evento', () => {
       expect(pedido).toMatchObject({ data: '2026-10-26', repeticao: { tipo: 'SEMANAL' } });
     });
   });
+});
 
-  it('intervalo do evento: com horário em Brasília; dia inteiro fica de fora (D5)', () => {
-    const { pedido } = pedidoDoEvento(valido({ hora: '23:30', duracao: '60' }));
-    const intervalo = intervaloDoEvento(pedido!);
-    expect(intervalo).toEqual({ inicio: instanteDeBrasilia(HOJE, '23:30'), fim: instanteDeBrasilia('2026-10-30', '00:30') });
-    expect(intervaloDoEvento({ ...pedido!, diaInteiro: true, hora: null, duracaoMinutos: null })).toBeNull();
+describe('aviso de cruzamento (P5)', () => {
+  it('a pergunta leva só horário e repetição; o título não importa; incompleto ou dia inteiro não pergunta', () => {
+    const f = valido({ titulo: '', agendaId: '', local: 'Sala', repeticao: { ...SEM_REPETICAO_DO_EVENTO, tipo: 'DIARIA' } });
+    expect(pedidoDeCruzamento(f)).toEqual({
+      eventoId: null, data: HOJE, diaInteiro: false, hora: '09:00', duracaoMinutos: 60, repeticao: { tipo: 'DIARIA' },
+    });
+    expect(pedidoDeCruzamento(valido(), 'e1')).toMatchObject({ eventoId: 'e1', repeticao: null });
+    expect(pedidoDeCruzamento(valido({ hora: '' }))).toBeNull();
+    expect(pedidoDeCruzamento(valido({ hora: '25:00' }))).toBeNull();
+    expect(pedidoDeCruzamento(valido({ duracao: '' }))).toBeNull();
+    expect(pedidoDeCruzamento(valido({ data: '31/02/2026' }))).toBeNull();
+    expect(pedidoDeCruzamento(valido({ repeticao: { ...SEM_REPETICAO_DO_EVENTO, tipo: 'SEMANAL', dias: [] } }))).toBeNull();
+    expect(pedidoDeCruzamento(valido({ diaInteiro: true }))).toBeNull();
+  });
+
+  it('o texto: singular, lista, "e mais N", "pode haver mais"; zero não avisa', () => {
+    expect(textoDoCruzamento(null, HOJE)).toBeNull();
+    expect(textoDoCruzamento({ quantidade: 0, datas: [], incompleto: false }, HOJE)).toBeNull();
+    expect(textoDoCruzamento({ quantidade: 1, datas: ['2026-11-02'], incompleto: false }, HOJE))
+      .toBe('Cruza com 1 horário: 02/11. Dá para salvar mesmo assim.');
+    expect(textoDoCruzamento({ quantidade: 3, datas: ['2026-11-02', '2026-11-09', '2026-11-16'], incompleto: false }, HOJE))
+      .toBe('Cruza com 3 horários: 02/11, 09/11 e 16/11. Dá para salvar mesmo assim.');
+    const cinco = ['2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06'];
+    expect(textoDoCruzamento({ quantidade: 12, datas: cinco, incompleto: false }, HOJE))
+      .toBe('Cruza com 12 horários: 02/11, 03/11, 04/11, 05/11, 06/11 e mais 7. Dá para salvar mesmo assim.');
+    expect(textoDoCruzamento({ quantidade: 500, datas: cinco, incompleto: true }, HOJE))
+      .toBe('Cruza com 500 horários, pode haver mais: 02/11, 03/11, 04/11, 05/11, 06/11 e outros. Dá para salvar mesmo assim.');
+    expect(textoDoCruzamento({ quantidade: 2, datas: [], incompleto: false }, HOJE)).toBe('Cruza com 2 horários. Dá para salvar mesmo assim.');
+  });
+
+  it('o texto: data curta no ano atual e com o ano fora dele (série que passa da virada do ano)', () => {
+    expect(textoDoCruzamento({ quantidade: 2, datas: ['2026-12-28', '2027-01-04'], incompleto: false }, HOJE))
+      .toBe('Cruza com 2 horários: 28/12 e 04/01/2027. Dá para salvar mesmo assim.');
   });
 });
 

@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import type { AtualizacaoDaLista } from '../../api/tipos';
 import { rotuloDoDia } from '../../dominio/agenda';
 import { agruparPorDia, type ItemDoCalendario } from '../../dominio/agendaCalendario';
-import { metadadosDoCompromisso, resumoDoDia, seloDoCompromisso } from '../../dominio/agendaPresencial';
+import { metadadosDoCompromisso, resumoDoDia } from '../../dominio/agendaPresencial';
 import { caminhoAtualizacaoTreinador, statusAtualizacaoTreinador } from '../../dominio/atualizacao';
 import { dataSemAnoCorrente } from '../../dominio/datasRelativas';
 import { espaco } from '../../tema/tokens';
@@ -11,7 +11,7 @@ import { Botao } from '../../ui/Botao';
 import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
 import { Cartao } from '../../ui/Cartao';
 import { LinhaDaLista, ListaDeLinhas } from '../../ui/LinhaDaLista';
-import { type AoAbrirItem, MarcadorDaAgenda, rotuloDoItem } from './itemDaAgenda';
+import { type AoAbrirItem, iconeDoTom, MarcadorDaAgenda, rotuloDoItem, seloDoCompromissoComIcone } from './itemDaAgenda';
 
 interface Props {
   itens: readonly ItemDoCalendario[];
@@ -81,13 +81,13 @@ function Linha({ item, dia, hoje, meus, nomesDasAgendas, aoAbrir }: {
     const selo = statusAtualizacaoTreinador(f.atualizacao, hoje);
     // O dia já está no título do cartão: o selo só entra quando diz algo a mais (adiada, atrasada).
     return <LinhaDaLista titulo={item.titulo} metadados="Atualização" inicio={marcador}
-      selos={selo.tipo === 'neutro' ? undefined : [{ texto: selo.curto, tipo: selo.tipo }]}
+      selos={selo.tipo === 'neutro' ? undefined : [{ texto: selo.curto, tipo: selo.tipo, Icone: iconeDoTom(selo.tipo) }]}
       href={caminhoAtualizacaoTreinador(f.atualizacao, { situacao: 'PROXIMAS', meus })}
       rotulo={`Abrir atualização de ${item.titulo}, ${tituloDoDia(dia, hoje)}${selo.tipo === 'neutro' ? '' : `, ${selo.curto}`}`} />;
   }
   if (f.origem === 'COMPROMISSO') {
     const c = f.compromisso;
-    return <LinhaDaLista titulo={item.titulo} metadados={metadadosDoCompromisso(c)} selos={[seloDoCompromisso(c)]} inicio={marcador}
+    return <LinhaDaLista titulo={item.titulo} metadados={metadadosDoCompromisso(c)} selos={[seloDoCompromissoComIcone(c)]} inicio={marcador}
       esmaecido={item.cancelado} aoTocarTextos={() => aoAbrir(item)}
       acoes={<Botao rotulo="Abrir" tipo="secundario" rotuloAcessivel={rotuloDoItem(item, hoje)} aoTocar={() => aoAbrir(item)} />} />;
   }
