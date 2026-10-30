@@ -148,7 +148,7 @@ Situação no fim do dia 30/10, na branch `atualizacao-visual-app-full`, com tod
 - `app/`: `npx playwright test`, o e2e completo com build novo do `dist-e2e`: 383 passaram, 0 falhas, em 2,8 min.
 - `api/`: `mvn verify` com 1737 testes, 0 falhas e 0 erros. Rodado pelo executor depois da última mudança da API, e a API não mudou depois disso.
 
-### Textos dos agentes para o AGENTS.md e o `agenda-calendario.md` (não aplicados; o Gustavo junta)
+### Textos dos agentes para o AGENTS.md e o `agenda-calendario.md` (aplicados pelo Claude da nuvem em 30/10, numa edição só)
 
 **1. Do executor da API.** AGENTS.md, item "Calendário e eventos pessoais", na frase da rota `POST /agenda/eventos/cruzamentos`. Essa frase o mesmo agente já tinha posto na primeira tarefa e está no arquivo. São duas trocas:
 - trocar "`EventoAgendaService.cruzamentos`; ainda não ligada à `FolhaEvento`)" por "`EventoAgendaService.cruzamentos`; ligada à `FolhaEvento` por `treinador/agenda/useAvisoDeCruzamento`)";
@@ -196,3 +196,11 @@ Situação no fim do dia 30/10, na branch `atualizacao-visual-app-full`, com tod
 - **Capturas finais do lote A:** Início, Atualizações, Agenda e Números, em 390 e 1280 px, claro e escuro, lado a lado, com o código final. As que existem são das etapas intermediárias.
 - **Capturas da Agenda (b):** em 768, 900 e 1024 px.
 - **Aviso de cruzamento no tema escuro:** os e2e rodaram só no claro.
+
+### Conferência na nuvem (30/10)
+
+- Os textos 1 a 4 acima foram aplicados no `AGENTS.md` e no `agenda-calendario.md` numa edição só.
+- `npm run typecheck`, `npm run lint` e `npm test` (188 suítes, 2721 testes) rodados de novo na nuvem: verdes. O `mvn verify` vale o do PC (a nuvem não tem Docker); a CI do PR roda de novo.
+- Capturas do lote A, da Agenda, dos filtros e do protótipo do painel recebidas e conferidas: Atualizações (lista e detalhe), Agenda (Semana no escuro, Mês em 390) seguem o estilo novo, sem problema à vista.
+- Os dois riscos do aviso de cruzamento (série "N vezes" aberta numa ocorrência posterior; "Somente este" ainda olhando a regra da série) ficam como pendência: o escopo só é escolhido ao salvar, então a folha não sabe qual será. Só afeta o texto do aviso, que nunca impede salvar.
+- Continuam pendentes: capturas da Agenda em 768, 900 e 1024 px; o aviso de cruzamento no tema escuro; os passos 8 e 9 (código do painel e do primeiro uso).
