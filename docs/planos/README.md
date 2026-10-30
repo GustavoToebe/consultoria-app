@@ -35,6 +35,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Clareza do treinador (reunião de 29/10: pasta, aplicar modelo, hierarquia visual, importação em etapas) | [clareza-do-treinador.md](clareza-do-treinador.md) | PR para a `main` (30/10) | Pronta: lotes A, B e C, importação com correção na tabela, avisos de atenção | 30/10/2026 |
 | Editor de treino: visual do protótipo de 30/10 (fundo quase branco, bordas, cantos, selos, numeração, uma série aberta) | [editor-de-treino-visual.md](editor-de-treino-visual.md) | branch (30/10) | Em andamento | 30/10/2026 |
 | Telas do aluno no estilo novo (lista em grupos, ficha, novo aluno) | [telas-do-aluno-visual.md](telas-do-aluno-visual.md) | branch (30/10), Claude local | Planejando: protótipo aprovado em `docs/prototipos/alunos.html` | 30/10/2026 |
+| Atualização visual do app inteiro e pendências da análise de 29/10 (painel novo, A01, A02, A06, A12, cabeçalho da importação, rótulos da lista de compras) | [atualizacao-visual-app-full.md](atualizacao-visual-app-full.md) | branch `atualizacao-visual-app-full`, Claude local | Planejando | 30/10/2026 |
 | Água do aluno (marcar os copos do dia contra a "Água por dia" da dieta) | [agua-do-aluno.md](agua-do-aluno.md) | PR para a `main` (30/10), junto da clareza | Pronta | 30/10/2026 |
 
 ## Pendências soltas
