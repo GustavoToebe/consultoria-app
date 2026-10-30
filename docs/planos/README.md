@@ -75,6 +75,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Próximo lote do consultoria: o trecho "VPS" do `AGENTS.md` passa a só apontar para o `AGENTS.md` da Central, para não haver duas versões da regra | Claude | acesso à VPS |
 | Proxy, conferido em 30/10 (só leitura): na VPS o bloco vivo é `extras/consultoria.caddy` (o Caddyfile importa `extras/*.caddy`; o Caddy subiu depois da última mudança dos arquivos). As diretivas são iguais às do `.modelo`, inclusive o CSP e o `connect-src`; só dois comentários do vivo estão velhos (a receita com `caddy reload`, que não existe com `admin off`, e o "aberto só até a primeira conta" do cadastro). Copiar o `.modelo` por cima na próxima recriação do proxy | Gustavo decide (ok para mexer na VPS) | cloudflare-turnstile |
 | Turnstile: testar o app nativo do iPhone (WKWebView) antes do TestFlight; roteiro em `docs/build-celular.md` seção 5 | Gustavo (aparelho) | cloudflare-turnstile |
+| Filtro de servidor `GET /alunos?grupo=` (ex.: "Sem pasta com período"), para o cartão do painel abrir a lista já filtrada; hoje abre a lista sem filtro, que é paginada, e o grupo aparece lá | Gustavo decide quando | `atualizacao-visual-app-full.md`, passo 8 (30/10) |
 
 ## Limitações aceitas (não são pendência)
 

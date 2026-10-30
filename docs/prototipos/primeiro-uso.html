@@ -185,6 +185,13 @@ body.cel .faixa .acoes .prog { margin-right: auto; }
 .passo .acoes-p { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; align-items: center; }
 .passo.aberto .acoes-p { grid-column: 2 / -1; justify-content: flex-start; }
 .motivo { font-size: 12px; color: var(--suave); }
+/* Linha dos resolvidos ("3 feitos e 1 deixado para depois"): um botão que abre a lista deles, como em painel.html */
+.pp-feitos { display: flex; flex-direction: column; gap: 6px; }
+.linha-feitos { display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items: center; width: 100%; min-height: 44px; padding: 4px 6px 4px 12px; border: 1px solid var(--borda); border-radius: var(--raio); background: var(--sup); text-align: left; font: inherit; font-weight: 600; color: var(--texto); cursor: pointer; }
+.linha-feitos:hover { background: var(--sup3); }
+.linha-feitos .n { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; border: 2px solid var(--sucesso); color: var(--sucesso); background: color-mix(in srgb, var(--sucesso) 10%, var(--sup)); }
+.linha-feitos .seta { width: 32px; height: 32px; display: grid; place-items: center; color: var(--suave); }
+.corpo > .pp-feitos + .passos { margin-top: 8px; }
 body.cel .passo { grid-template-columns: 28px 1fr auto; gap: 10px; padding: 10px 12px; }
 body.cel .passo.aberto .acoes-p, body.cel .passo .acoes-p:has(.motivo) { grid-column: 2 / -1; justify-content: flex-start; }
 
@@ -243,7 +250,7 @@ body.cel .abrir-ajustes { bottom: auto; top: 10px; right: 10px; height: 36px; pa
 .ajustes .sinais .ok { color: #176E3C; font-weight: 700; } .ajustes .sinais .dec { color: #875710; font-weight: 700; }
 body.editando [data-t] { outline: 1px dashed #2563eb; outline-offset: 1px; cursor: text; border-radius: 3px; }
 .editor-texto { position: fixed; z-index: 90; background: #fff; color: #111114; border: 1px solid #2563eb; border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px; width: 320px; max-width: calc(100vw - 16px); box-shadow: 0 6px 24px rgba(0,0,0,.2); }
-.editor-texto input { height: 36px; border: 1px solid #8A8A93; border-radius: 6px; padding: 0 10px; }
+.editor-texto input { height: 36px; border: 1px solid #80808A; border-radius: 6px; padding: 0 10px; }
 .editor-texto .lb { display: flex; gap: 6px; } .editor-texto button { border: 1px solid #B9B9C0; background: #fff; border-radius: 6px; padding: 6px 10px; font-weight: 700; } .editor-texto button.forte { background: #111114; color: #fff; }
 .aviso-flutuante { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%); z-index: 80; background: #111114; color: #fff; border-radius: 10px; padding: 10px 14px; font-size: 13px; max-width: calc(100vw - 32px); display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .aviso-flutuante button { background: #fff; color: #111114; border: 0; border-radius: 8px; min-height: 36px; padding: 0 12px; font-weight: 700; }
@@ -259,9 +266,9 @@ body.editando [data-t] { outline: 1px dashed #2563eb; outline-offset: 1px; curso
 'use strict';
 /* ====================== cores (as de app/src/tema/tokens.ts, com o fundo quase branco) ====================== */
 const TEMAS = {
-  claro: { fundo:'#F7F7F8', sup:'#FFFFFF', sup2:'#F4F4F5', sup3:'#E7E7EA', divisor:'#D4D4D8', borda:'#B9B9C0', campo:'#FFFFFF', bordaCampo:'#8A8A93', texto:'#111114', suave:'#52525B', sucesso:'#176E3C', atencao:'#875710', perigo:'#B71C1C', neutro:'#616169' },
+  claro: { fundo:'#F7F7F8', sup:'#FFFFFF', sup2:'#F4F4F5', sup3:'#E7E7EA', divisor:'#D4D4D8', borda:'#B9B9C0', campo:'#FFFFFF', bordaCampo:'#80808A', texto:'#111114', suave:'#52525B', sucesso:'#176E3C', atencao:'#875710', perigo:'#B71C1C', neutro:'#616169' },
   areia: { fundo:'#FAF9F6', sup:'#FFFFFF', sup2:'#F7F5F0', sup3:'#E7E3DB', divisor:'#DDD8CF', borda:'#B9B3A9', campo:'#FFFFFF', bordaCampo:'#77736B', texto:'#111114', suave:'#52525B', sucesso:'#176E3C', atencao:'#875710', perigo:'#B71C1C', neutro:'#616169' },
-  escuro: { fundo:'#0A0A0C', sup:'#18181B', sup2:'#222226', sup3:'#2C2C31', divisor:'#36363C', borda:'#4C4C55', campo:'#0F0F12', bordaCampo:'#707078', texto:'#F4F4F5', suave:'#A1A1AA', sucesso:'#2BB36A', atencao:'#D9962C', perigo:'#F0666B', neutro:'#9A9AA3' },
+  escuro: { fundo:'#0A0A0C', sup:'#18181B', sup2:'#222226', sup3:'#2C2C31', divisor:'#36363C', borda:'#4C4C55', campo:'#0F0F12', bordaCampo:'#76767E', texto:'#F4F4F5', suave:'#A1A1AA', sucesso:'#2BB36A', atencao:'#D9962C', perigo:'#F0666B', neutro:'#9A9AA3' },
 };
 /* Cores da marca que seguram texto branco a 4,5:1 (como avaliarMarca de dominio/paletas.ts). */
 const CORES_MARCA = [['#B71C1C', 'Vermelho'], ['#1D4ED8', 'Azul'], ['#047857', 'Verde'], ['#6D28D9', 'Roxo']];
@@ -306,7 +313,6 @@ const P = {
   atualizar:'<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
   funil:'<path d="M10 20a1 1 0 0 0 .55.9l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .52-1.34L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.74 1.67l7.22 7.99A2 2 0 0 1 10 14z"/>',
   lapis:'<path d="M21.17 6.81a1 1 0 0 0-3.98-3.98L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/>',
-  grafico:'<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
   mapa:'<path d="M14.1 4.1 9.9 2 3 5v17l6.9-3 4.2 2 6.9-3V1z"/><path d="M9.9 2v17"/><path d="M14.1 4.1v17"/>',
 };
 const ic = (n, t = 16) => `<svg width="${t}" height="${t}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n] || ''}</svg>`;
@@ -318,7 +324,7 @@ const iniciais = (n) => n.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]
 const restrito = () => ajustes.perfil === 'restrito';
 
 /* ====================== estado da tela ====================== */
-let estado = { tela:'inicio', aba:'treino', chip:'semanas', id:null, form:{ nome:'', email:'' }, tentou:false, recolhido:false, listaAberta:false,
+let estado = { tela:'inicio', aba:'treino', chip:'semanas', id:null, form:{ nome:'', email:'' }, tentou:false, recolhido:false, verFeitos:false,
   verConcluidos:false, confirmar:false, passeio:null, menuUsuario:false, conviteDe:null, linkForm:null };
 let ultimoProgresso = null, ultimoProximo = null;
 
@@ -378,6 +384,18 @@ function linhaPasso(i, n, g, primarioNoItem) {
     ${acoes ? `<div class="acoes-p">${acoes}</div>` : ''}</li>`;
 }
 const listaPassos = (g, primarioNoItem) => `<ol class="passos" aria-label="Primeiros passos">${g.lista.map((i, k) => linhaPasso(i, k + 1, g, primarioNoItem)).join('')}</ol>`;
+/* No Início, à vista só o que falta (com "Sem informação" e o que depende do aluno). Os resolvidos ficam numa linha
+   "3 feitos e 1 deixado para depois", um botão com aria-expanded que abre a lista deles. O número de cada item é o da
+   lista inteira (a da Ajuda), para não mudar quando um item sai da vista. */
+function passosDoInicio(g) {
+  const numerados = g.lista.map((i, k) => ({ i, n: k + 1 })), prontos = numerados.filter(({ i }) => resolvido(i)), faltam = numerados.filter(({ i }) => !resolvido(i));
+  const d = prontos.filter(({ i }) => i.pulado).length, f = prontos.length - d;
+  const texto = [f ? `${f} ${f === 1 ? 'feito' : 'feitos'}` : '', d ? `${d} deixado${d === 1 ? '' : 's'} para depois` : ''].filter(Boolean).join(' e ');
+  const linha = prontos.length ? `<div class="pp-feitos"><button type="button" class="linha-feitos anima" data-acao="ver-feitos" data-k="pp-feitos" aria-expanded="${estado.verFeitos}" aria-controls="lista-feitos">
+      <span class="n" aria-hidden="true">${ic('check', 14)}</span><span class="num">${texto}</span><span class="seta" aria-hidden="true">${ic(estado.verFeitos ? 'cima' : 'baixo')}</span></button>
+    <ol class="passos" id="lista-feitos" aria-label="Primeiros passos: ${texto}" ${estado.verFeitos ? '' : 'hidden'}>${estado.verFeitos ? prontos.map(({ i, n }) => linhaPasso(i, n, g, true)).join('') : ''}</ol></div>` : '';
+  return `${linha}<ol class="passos" aria-label="Primeiros passos que faltam">${faltam.map(({ i, n }) => linhaPasso(i, n, g, true)).join('')}</ol>`;
+}
 
 /* Bloco "Primeiros passos": o primeiro bloco do painel do Início (painel.html), no topo, enquanto não for concluído ou
    dispensado. Enquanto aberto, toma o lugar do "Próximo passo": o único primário é o do item aberto. */
@@ -389,7 +407,7 @@ function guiaNoInicio() {
       <small>${T('guia.desc', 'O que falta para começar a atender pelo app. Cada item abre a tela certa.')}</small></div>
     <div class="acoes">${progHtml(g)}<button class="btn fantasma anima" data-acao="dispensar">Dispensar</button>
       <button class="ib anima" data-acao="recolher" aria-expanded="${!estado.recolhido}" aria-label="${estado.recolhido ? 'Mostrar' : 'Recolher'} os primeiros passos">${ic(estado.recolhido ? 'baixo' : 'cima')}</button></div></div>
-    ${estado.recolhido ? '' : `<div class="corpo">${listaPassos(g, true)}</div>`}</section>`;
+    ${estado.recolhido ? '' : `<div class="corpo">${passosDoInicio(g)}</div>`}</section>`;
 }
 /* Concluído: vira uma linha "Concluídos", que dá para abrir (Ver) ou tirar do Início (X). O Próximo passo volta. */
 function blocoConcluido(g) {
@@ -442,7 +460,7 @@ const inferior = () => `<nav class="inferior" aria-label="Menu">${[['casa', 'In�
 /* ====================== tela: Início (o painel de painel.html, resumido) ====================== */
 function telaInicio() {
   const n = dados.alunos.length, pp = proximoDoInicio(), st = estadoGeral();
-  return `<div class="cab-tela"><div class="tx"><h1>${ic('grafico', 22).replace('aria-hidden', 'class="ic-h1" aria-hidden')} ${T('inicio.titulo', 'Painel')}</h1><span class="suave">${T('inicio.ola', 'Olá, Treinador Exemplo. O que pede atenção na consultoria hoje.')}</span></div>
+  return `<div class="cab-tela"><div class="tx"><h1>${ic('casa', 22).replace('aria-hidden', 'class="ic-h1" aria-hidden')} ${T('inicio.titulo', 'Início')}</h1><span class="suave">${T('inicio.ola', 'Olá, Treinador Exemplo. O que pede atenção na consultoria hoje.')}</span></div>
       <div class="acoes"><button class="btn anima" data-acao="ir-novo">${ic('mais')} Novo aluno</button>
         <button class="btn anima" data-acao="nada" ${n ? '' : 'aria-disabled="true" aria-describedby="m-editar"'}>${ic('lapis')} Editar</button>${n ? '' : '<span class="motivo" id="m-editar">Os blocos aparecem quando houver alunos.</span>'}</div></div>
     ${st || `${pp ? proximoHtml(pp) : ''}${guiaNoInicio()}${painelDoInicio()}`}`;
@@ -730,7 +748,7 @@ function aviso(t, acao) {
   c.innerHTML = `<div class="aviso-flutuante" role="status"><span>${esc(t)}</span>${acao ? `<button data-acao="${acao[1]}" data-v="${acao[2] || ''}">${esc(acao[0])}</button>` : ''}</div>`;
   clearTimeout(aviso.t); aviso.t = setTimeout(() => (c.innerHTML = ''), acao ? 10000 : 3500);
 }
-const ir = (tela, extra = {}) => { Object.assign(estado, { tela, menuUsuario: false, listaAberta: false }, extra); if (tela !== 'marca') estado.marcaForm = null; if (tela !== 'interessados') estado.linkForm = null; render(); scrollTo(0, 0); };
+const ir = (tela, extra = {}) => { Object.assign(estado, { tela, menuUsuario: false }, extra); if (tela !== 'marca') estado.marcaForm = null; if (tela !== 'interessados') estado.linkForm = null; render(); scrollTo(0, 0); };
 /* Muda os dados e, se um item dos primeiros passos ficou feito, avisa (com "Voltar ao Início", como o useAviso com ação). */
 function mudar(fn) {
   const antes = guia(), feitosAntes = new Set(antes.lista.filter(resolvido).map((i) => i.id));
@@ -776,7 +794,7 @@ document.addEventListener('click', (ev) => {
     case 'nao-agora': mudar(() => { dados.linkNaoAgora = true; }); render(); aviso('Link de inscrição deixado para depois.', ['Desfazer', 'desfazer-nao-agora']); return;
     case 'desfazer-nao-agora': dados.linkNaoAgora = false; guardar(); render(); aviso('O link de inscrição voltou para a lista.'); return;
     case 'recolher': estado.recolhido = !estado.recolhido; break;
-    case 'ver-todos': estado.listaAberta = !estado.listaAberta; break;
+    case 'ver-feitos': estado.verFeitos = !estado.verFeitos; break;
     case 'ver-concluidos': estado.verConcluidos = !estado.verConcluidos; break;
     case 'dispensar': estado.confirmar = true; break;
     case 'conf-cancelar': estado.confirmar = false; break;
@@ -819,7 +837,7 @@ document.addEventListener('click', (ev) => {
       ajustes.estado = d.v === 'parcial' ? 'parcial' : 'normal';
       ajustes.perfil = d.v === 'restrito' ? 'restrito' : 'admin';
       estado.confirmar = d.v === 'dispensar';
-      Object.assign(estado, { recolhido: false, verConcluidos: false, conviteDe: null, marcaForm: null, linkForm: null });
+      Object.assign(estado, { recolhido: false, verFeitos: false, verConcluidos: false, conviteDe: null, marcaForm: null, linkForm: null });
       ultimoProgresso = null; guardar(); ir('inicio'); return;
     case 'aj-abrir': ajAberto = true; break;
     case 'aj-fechar': ajAberto = false; exportado = ''; break;
