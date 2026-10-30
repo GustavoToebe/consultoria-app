@@ -2,7 +2,7 @@ import { requisicao } from './cliente';
 import {
   aceitarInscricao, alterarCancelamentoCompromisso, alterarCompromisso, alterarSituacaoDoAluno, aplicarAlteracaoDaAnamnese, avisosDeCompromisso, listarAlunosOcupados, marcarAvisoDeCompromissoVisto, compromissosDoAluno, criarCompromisso, listarCompromissos, buscarQuestionario, descartarAlteracaoDaAnamnese, fatoresDosAlimentos, inscricao, inscricaoPublica, listarPlanos,
   retornoDoPagamento, definirLembretesDoAluno, lembretesDaCobranca, lembretesDoAluno,
-  alterarAgendaPessoal, alterarEvento, apagarAgendaPessoal, contarEventosDaAgenda, criarAgendaPessoal, criarEvento,
+  alterarAgendaPessoal, alterarEvento, apagarAgendaPessoal, contarEventosDaAgenda, criarAgendaPessoal, criarEvento, cruzamentosDoEvento,
   detalheDoEvento, excluirEvento, listarAgendasPessoais, listarAtualizacoes, listarEventos, resumoDaAgenda,
 } from './rotas';
 
@@ -115,6 +115,9 @@ describe('caminhos da API', () => {
     };
     await criarEvento(corpo);
     expect(requisicao).toHaveBeenLastCalledWith('/agenda/eventos', { metodo: 'POST', corpo });
+    const pergunta = { eventoId: 'e1', data: '2026-11-05', diaInteiro: false, hora: '09:00', duracaoMinutos: 60, repeticao: { tipo: 'DIARIA' as const } };
+    await cruzamentosDoEvento(pergunta);
+    expect(requisicao).toHaveBeenLastCalledWith('/agenda/eventos/cruzamentos', { metodo: 'POST', corpo: pergunta });
     await alterarEvento('e1', { ...corpo, versao: 4 });
     expect(requisicao).toHaveBeenLastCalledWith('/agenda/eventos/e1', { metodo: 'PUT', corpo: { ...corpo, versao: 4 } });
     await alterarEvento('e1', { ...corpo, versao: 4 }, { escopo: 'ESTA', ocorrencia: '2026-11-05' });

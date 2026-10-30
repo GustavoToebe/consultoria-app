@@ -79,6 +79,23 @@ public final class AgendaCalendarioDtos {
     }
 
     /**
+     * Pergunta de leitura "o evento que estou montando cruza outro meu?" (o aviso da folha do evento; nunca grava nem
+     * bloqueia). Os campos de horário e de repetição são os de {@link EventoRequest}; sem título, local, descrição nem
+     * agenda. {@code eventoId} (opcional, na edição) é o próprio evento: nenhuma ocorrência dele conta. Dia inteiro não
+     * cruza (o aviso da tela também o ignora): resposta zerada.
+     */
+    public record CruzamentoRequest(UUID eventoId, @NotNull LocalDate data, boolean diaInteiro, LocalTime hora,
+                                    @Min(EVENTO_DURACAO_MINIMA) @Max(EVENTO_DURACAO_MAXIMA) Integer duracaoMinutos,
+                                    @Valid RepeticaoDeEvento repeticao) { }
+
+    /**
+     * Quantas ocorrências do evento pedido (em até um ano) cruzam algum outro evento do membro e as primeiras
+     * {@code datas} delas (de Brasília, em ordem, no máximo {@value EventoAgendaService#CRUZAMENTOS_DATAS}).
+     * {@code incompleto}: a conta bateu num teto de segurança e pode estar maior. Nada de texto de outro evento.
+     */
+    public record CruzamentoResponse(int quantidade, List<LocalDate> datas, boolean incompleto) { }
+
+    /**
      * Uma ocorrência já expandida (com a exceção aplicada). {@code dataOriginal} é o dia da regra (a chave para editar ou
      * excluir só esta); {@code data} é onde ela cai hoje (difere se foi movida). Dia inteiro: {@code hora} e
      * {@code horaFim} nulos e {@code inicio}/{@code fim} são o começo do dia e o do dia seguinte em Brasília.
