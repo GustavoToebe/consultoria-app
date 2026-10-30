@@ -45,7 +45,7 @@ biblioteca de gráficos, Redux ou outro gerenciador de estado global. O estado m
 aluno offline) e nas próprias telas.
 
 Os outros fronts do ecossistema (Central e Servirea) são **Angular 21 + Tailwind 3**, outra base. Eles seguem os
-mesmos três pilares de design (seção 4.1), mas não dividem código com este app.
+mesmos três pilares de design (seção 4.2), mas não dividem código com este app.
 
 ---
 
@@ -91,7 +91,43 @@ app/src/
 
 ## 4. O sistema visual de hoje
 
-### 4.1 Os três pilares (valem em todos os apps do ecossistema)
+### 4.1 Como esse estilo se caracteriza
+
+É uma **interface flat utilitária, de painel SaaS, organizada em blocos com contorno** (definida no protótipo do
+editor de treino de 30/10; decisões em `docs/planos/editor-de-treino-visual.md`).
+
+**Os nomes que descrevem**
+- **Flat design (flat UI):** cores chapadas, sem sombra, sem gradiente e sem efeito de vidro. A profundidade vem só de
+  tons de superfície e de linhas.
+- **Interface de cartões com contorno (card-based, "outlined cards"):** cada assunto é um bloco fechado por uma borda
+  visível, com uma faixa de título no topo. É o que resolve o "onde começa e onde termina".
+- **Painel SaaS utilitário, com muita informação:** tela de trabalho, densa, para quem usa todo dia (o treinador no
+  PC), no espírito de ferramentas como Linear, Stripe Dashboard e Notion, mas com bordas bem mais fortes.
+- **Toque de neo-brutalismo suave ("soft neo-brutalism"):** borda de 2 a 3 px, linha forte embaixo do título, cores
+  sólidas e botões com moldura, sem a sombra deslocada nem as cores berrantes do neo-brutalismo "puro".
+
+**As regras que dão a identidade**
+- **Hierarquia por contenção:** página → bloco → faixa do título → item → campo, cada nível com um tom ou uma borda
+  diferente. Não se usa cor aleatória para separar.
+- **Cor com significado (cor semântica):** verde é "pronto", âmbar é atenção, vermelho é problema e cinza é encerrado;
+  a cor da marca aparece só na ação principal, no menu ativo e na barra da sessão.
+- **Seleção invertida (monocromática):** a opção escolhida fica com fundo escuro e letra clara, nunca na cor da marca.
+- **Mostrar aos poucos (progressive disclosure, padrão "acordeão"):** uma série aberta por vez e as outras resumidas
+  numa linha.
+- **Status sempre com texto e ícone:** "Pronta", "Corrigir", "1 problema a corrigir"; a cor nunca fala sozinha.
+- **Grade de 8 px, cantos de 12 px e fonte Inter**, com números alinhados (tabulares).
+
+**Para descrever a um designer ou a outra IA**
+
+> UI flat utilitária de painel SaaS, organizada em cartões com contorno de 2 px e faixa de título com linha de 3 px;
+> fundo quase branco, sem sombras nem gradientes; cor só com significado (verde, âmbar, vermelho e cinza para status,
+> cor da marca só na ação principal e no menu ativo); seleção invertida em preto; detalhes revelados aos poucos, como
+> acordeão; cantos de 12 px, grade de 8 px, fonte Inter.
+
+Termos para procurar referências: *flat SaaS dashboard*, *outlined card UI*, *data-dense admin UI* e *soft
+neo-brutalism UI* (este último mostra o lado "borda forte").
+
+### 4.2 Os três pilares (valem em todos os apps do ecossistema)
 
 1. **Cor com significado:**
    - verde = positivo;
@@ -105,7 +141,7 @@ app/src/
    com seus botões.
 3. **SaaS limpo:** visual *flat*, grade de 8 px, tipografia contida, nada decorativo.
 
-### 4.2 Níveis de superfície (o coração da hierarquia)
+### 4.3 Níveis de superfície (o coração da hierarquia)
 
 ```
 fundo da página (quase branco: #F7F7F8)
@@ -129,7 +165,7 @@ fundo da página (quase branco: #F7F7F8)
 - Pontos de quebra: abaixo de 768 px é celular (barra inferior); de 768 a 1023, menu lateral só com ícones; a
   partir de 1024, menu lateral completo.
 
-### 4.3 Peças principais
+### 4.4 Peças principais
 
 | Peça | Para quê |
 | --- | --- |
