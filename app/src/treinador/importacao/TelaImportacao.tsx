@@ -24,7 +24,7 @@ import { CaixaSelecao } from '../../ui/CaixaSelecao';
 import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
 import { EscolhaSuspensa } from '../../ui/EscolhaSuspensa';
 import { Esqueleto } from '../../ui/Esqueleto';
-import { MensagemErro, Vazio } from '../../ui/Estados';
+import { Alerta, MensagemErro, Vazio } from '../../ui/Estados';
 import { Folha } from '../../ui/Folha';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Selo, type TipoSelo } from '../../ui/Selo';
@@ -536,9 +536,7 @@ function Mapeamento({ destino, colunas, cabecalho, chave, mapa, estreita, podeSe
   return (
     <>
       {faltando.length > 0 ? (
-        <View style={[estilos.alerta, { borderColor: cores.perigo }]} accessibilityRole="alert">
-          <Texto cor={cores.perigo}>{`Falta escolher a coluna de: ${faltando.join(', ')}.`}</Texto>
-        </View>
+        <Alerta tom="atencao" texto={`Falta escolher a coluna de: ${faltando.join(', ')}.`} />
       ) : null}
       <Texto variante="suave">
         {colunas.amostra.length > 0
@@ -734,7 +732,6 @@ const estilos = StyleSheet.create({
   nomeDaEtapa: { flexShrink: 1 },
   numeros: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
   numero: { flexGrow: 1, flexBasis: 140, borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: 2 },
-  alerta: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5) },
   zona: { borderWidth: 1, borderStyle: 'dashed', borderRadius: RAIO, padding: espaco(2) },
   vazioDoArquivo: { alignItems: 'center', gap: espaco(1), paddingVertical: espaco(1.5) },
   arquivo: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.5), flexWrap: 'wrap' },
