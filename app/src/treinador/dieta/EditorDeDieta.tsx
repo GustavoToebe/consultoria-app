@@ -9,8 +9,8 @@ import { uidsComProblema } from '../../dominio/caminhos';
 import { AGUA_MAXIMA, AGUA_MINIMA, aguaValida, aplicarReceitaDeDieta, itensSemValorNoTotal, type ItemSemValor, novaRefeicao, novoItem, normalizarDieta, textoDaAgua, textoDoMacro, textoItensSemValor, totalDoDia } from '../../dominio/dieta';
 import { mover, remover, substituir } from '../../dominio/editorTreino';
 import { linhaDeErgogenico } from '../../dominio/ergogenicos';
-import { dataDaTela, dataParaTela, numeroParaTela } from '../../dominio/formatos';
-import { linhaDeSuplementacao } from '../../dominio/suplementos';
+import { dataDaTela, dataParaTela, numeroParaTela, SEM_DADO } from '../../dominio/formatos';
+import { descricaoDaPorcao, linhaDeSuplementacao } from '../../dominio/suplementos';
 import { novoUid } from '../../dominio/uid';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
@@ -79,6 +79,8 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
   const [folha, setFolha] = useState<FolhaAberta | null>(null);
   const [desfazer, setDesfazer] = useState<Desfazer<ConteudoDieta> | null>(null);
   const [modelos, setModelos] = useState(false);
+  // Porção da embalagem dos produtos escolhidos nesta abertura, só para referência ao escrever a dose (não é gravada).
+  const [porcoes, setPorcoes] = useState<Record<string, string>>({});
 
   const estado = editor.estado;
   if (!estado) {
@@ -214,7 +216,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
       </Cartao>
 
       <Cartao titulo="Suplementação" nivel={3} recolhivel recolhido={c.suplementacao.length === 0}>
-        <Texto variante="suave">Campo livre do treinador. O sistema só guarda e mostra o que for escrito aqui; da biblioteca vêm só o nome e o link do produto.</Texto>
+        <Texto variante="suave">Campo livre do treinador. O sistema só guarda e mostra o que for escrito aqui; da biblioteca vêm só o nome e o link do produto. A dose é a que você prescreve, não a porção da embalagem.</Texto>
         {c.suplementacao.map((s, si) => {
           const mudarS = (parcial: Partial<typeof s>) => mudar({ suplementacao: substituir(c.suplementacao, si, { ...s, ...parcial }) });
           return (
@@ -224,7 +226,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
                   <Campo rotulo="Nome" valor={s.nome} aoMudar={(nome) => mudarS({ nome })} maxLength={120} />
                 </View>
                 <View style={estilos.campoSup}>
-                  <Campo rotulo="Dose" valor={s.dose} aoMudar={(dose) => mudarS({ dose })} maxLength={120} />
+                  <Campo rotulo="Dose prescrita" valor={s.dose} aoMudar={(dose) => mudarS({ dose })} maxLength={120} ajuda={porcoes[s.uid] ? `Embalagem: ${porcoes[s.uid]} (só referência)` : undefined} />
                 </View>
                 <View style={estilos.campoSup}>
                   <Campo rotulo="Horário" valor={s.horario} aoMudar={(horario) => mudarS({ horario })} maxLength={120} />
@@ -275,7 +277,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
                     <Campo rotulo="Concentração" valor={e.concentracao} aoMudar={(concentracao) => mudarE({ concentracao })} maxLength={40} editable={editaErgogenicos} />
                   </View>
                   <View style={estilos.campoSup}>
-                    <Campo rotulo="Dose" valor={e.dose} aoMudar={(dose) => mudarE({ dose })} maxLength={120} editable={editaErgogenicos} />
+                    <Campo rotulo="Dose prescrita" valor={e.dose} aoMudar={(dose) => mudarE({ dose })} maxLength={120} editable={editaErgogenicos} />
                   </View>
                   <View style={estilos.campoSup}>
                     <Campo rotulo="Horário" valor={e.horario} aoMudar={(horario) => mudarE({ horario })} maxLength={120} editable={editaErgogenicos} />
@@ -347,7 +349,10 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
           aoFechar={() => setFolha(null)}
           aoEscolher={(s) => {
             setFolha(null);
-            mudar({ suplementacao: [...c.suplementacao, linhaDeSuplementacao(s, novoUid())] });
+            const linha = linhaDeSuplementacao(s, novoUid());
+            const porcao = descricaoDaPorcao(s);
+            if (porcao !== SEM_DADO) setPorcoes((atual) => ({ ...atual, [linha.uid]: porcao }));
+            mudar({ suplementacao: [...c.suplementacao, linha] });
           }}
         />
       ) : null}

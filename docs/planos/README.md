@@ -30,8 +30,9 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Meus dados do aluno (cartão na aba Conta) | [meus-dados-do-aluno.md](meus-dados-do-aluno.md) | `main` (um push) | Concluída em 28/10/2026 (run 40760401698 verde; celular só num APK novo) | 28/10/2026 |
 | Evolução (referências da Prime: lista de compras, receitas, PDFs, avaliação física, agenda, lembretes) | [evolucao-prime.md](evolucao-prime.md) | `main` (457c152) | Concluída em 28/10/2026; decisões abertas fechadas em 29/10 | 29/10/2026 |
 | Ajustes da evolução (lista na ordem do mercado, PDF do comparativo para o aluno, aluno desliga lembretes, contraste do PDF) | [ajustes-evolucao.md](ajustes-evolucao.md) | `main` (6becaa4, PR 15) | Concluída em 29/10/2026 (V041 na `main`) | 29/10/2026 |
-| Agenda no estilo do Google Agenda (Dia/Semana/Mês/Ano, agendas com cor, evento sem aluno, recorrência) e compromisso com vários alunos, aviso no app e lembrete no celular | [agenda-calendario.md](agenda-calendario.md) | branch `claude/saraiva-api-direcionamento-treinos-dv10io` (junta com Interessados) | Lotes 1 e 2 prontos; indo para a `main` num PR junto com Interessados | 29/10/2026 |
-| Interessados: correções e CRM | [interessados-crm.md](interessados-crm.md) | branch `claude/saraiva-api-direcionamento-treinos-dv10io` (junta com a agenda) | Pronta; indo para a `main` num PR junto com a agenda | 29/10/2026 |
+| Agenda no estilo do Google Agenda (Dia/Semana/Mês/Ano, agendas com cor, evento sem aluno, recorrência) e compromisso com vários alunos, aviso no app e lembrete no celular | [agenda-calendario.md](agenda-calendario.md) | `main` (f95aacf, PR 16) | Concluída em 29/10/2026 | 29/10/2026 |
+| Interessados: correções e CRM | [interessados-crm.md](interessados-crm.md) | `main` (f95aacf, PR 16) | Concluída em 29/10/2026; falta a conferência do Gustavo | 29/10/2026 |
+| Clareza do treinador (reunião de 29/10: pasta, aplicar modelo, hierarquia visual, importação em etapas) | [clareza-do-treinador.md](clareza-do-treinador.md) | branch `claude/saraiva-api-direcionamento-treinos-dv10io` | Em andamento: lotes A, B e C | 30/10/2026 |
 
 ## Pendências soltas
 

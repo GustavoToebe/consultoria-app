@@ -1,5 +1,6 @@
 import type { PlanoDetalhe, Receita, TipoReceita } from '../api/tipos';
-import { SEM_DADO } from './formatos';
+import { periodoCurto } from './datasRelativas';
+import { hojeIso, SEM_DADO } from './formatos';
 
 /** Mesmo limite da API (`ReceitaRequest` e `SalvarComoReceitaRequest`). A coluna do banco comporta 400: texto antigo maior continua legível, mas só salva reduzido. */
 export const LIMITE_DESCRICAO_DO_MODELO = 300;
@@ -31,16 +32,31 @@ export function podeAplicarModelo(tipo: TipoReceita, pode: (codigo: string) => b
 export const SEM_PASTA_PARA_APLICAR = 'Peça a quem pode criar pastas para criar uma para este aluno.';
 
 /**
- * Destino ao aplicar um modelo (só apresentação; a API recusa com 403 criar pasta sem `PASTA_ALTERAR`): quem não pode
- * criar pasta só escolhe uma existente, e sem nenhuma o aviso substitui o formulário. `pastas` nulo = ainda carregando.
+ * Destino ao aplicar um modelo ou copiar um plano (só apresentação; a API recusa com 403 criar pasta sem
+ * `PASTA_ALTERAR`): pastas abertas primeiro, depois "Criar nova pasta" (só para quem pode) e as concluídas por último,
+ * cada uma com o período. Na reunião de 29/10 o destino padrão "nova pasta" criou uma segunda pasta sem o treinador
+ * perceber: agora, se o aluno já tem pasta, ninguém escolhe por ele (`padrao` nulo); só sem pasta nenhuma a nova vem
+ * marcada, e quem não pode criar pasta com uma única pasta fica nela. Sem pasta e sem poder criar, o aviso substitui o
+ * formulário. `pastas` nulo = ainda carregando.
  */
-export function destinosParaAplicar(podeCriarPasta: boolean, pastas: readonly { id: string; titulo: string }[] | null) {
-  const existentes = (pastas ?? []).map((p) => ({ valor: p.id, rotulo: p.titulo }));
+export function destinosParaAplicar(
+  podeCriarPasta: boolean,
+  pastas: readonly { id: string; titulo: string; inicio?: string | null; fim?: string | null; concluidaEm?: string | null }[] | null,
+  hoje: string = hojeIso(),
+) {
+  const lista = pastas ?? [];
+  const rotulo = (p: (typeof lista)[number]) =>
+    `${p.titulo} · ${periodoCurto(p.inicio ?? null, p.fim ?? null, hoje)}${p.concluidaEm ? ' (concluída)' : ''}`;
+  const abertas = lista.filter((p) => !p.concluidaEm).map((p) => ({ valor: p.id, rotulo: rotulo(p) }));
+  const concluidas = lista.filter((p) => !!p.concluidaEm).map((p) => ({ valor: p.id, rotulo: rotulo(p) }));
+  const opcoes = [...abertas, ...(podeCriarPasta ? [{ valor: '', rotulo: 'Criar nova pasta' }] : []), ...concluidas];
+  const padrao: string | null =
+    pastas === null ? null : lista.length === 0 ? (podeCriarPasta ? '' : null) : !podeCriarPasta && lista.length === 1 ? lista[0].id : null;
   return {
-    opcoes: podeCriarPasta ? [{ valor: '', rotulo: 'Criar nova pasta' }, ...existentes] : existentes,
-    semDestino: !podeCriarPasta && pastas !== null && pastas.length === 0,
-    /** Destino usado quando nada foi escolhido: nova pasta (vazio) para quem pode criar; a primeira existente para os demais. */
-    padrao: podeCriarPasta ? '' : existentes[0]?.valor ?? '',
+    opcoes,
+    semDestino: !podeCriarPasta && pastas !== null && lista.length === 0,
+    /** Destino já marcado ao abrir; nulo = o treinador precisa escolher. */
+    padrao,
   };
 }
 
@@ -51,3 +67,15 @@ export const podeSalvarPastaComoModelo = (pode: (codigo: string) => boolean): bo
 /** O ⋯ da pasta só aparece se tiver ao menos uma ação: salvar como pacote ou excluir a pasta. */
 export const temAcaoNoMenuDaPasta = (pode: (codigo: string) => boolean): boolean =>
   pode('PASTA_ALTERAR') || podeSalvarPastaComoModelo(pode);
+
+/**
+ * Frase acima do botão de aplicar ou copiar: onde a cópia entra e que o aluno só a vê depois de publicada (a aplicação
+ * cria rascunho; reunião de 29/10). Nulo enquanto o destino não foi escolhido.
+ */
+export function resumoDoDestino(escolhido: boolean, destino: string, opcoes: readonly { valor: string; rotulo: string }[], titulo: string): string | null {
+  if (!escolhido) return null;
+  const aviso = 'O aluno só vê depois que você publicar.';
+  if (!destino) return `Cria a pasta nova “${titulo.trim() || 'sem título'}” com a cópia em rascunho. ${aviso}`;
+  const pasta = opcoes.find((o) => o.valor === destino)?.rotulo.split(' · ')[0] ?? 'escolhida';
+  return `A cópia entra em rascunho na pasta “${pasta}”. ${aviso}`;
+}

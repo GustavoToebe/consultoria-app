@@ -1,7 +1,7 @@
 import { CONFIGURACAO_PADRAO } from './metodologiaPadrao';
 import type { Configuracao, ConteudoTreino } from '../api/tipos';
 import { aplicarReceitaDePlano, normalizarTreino, novaSerie, novaSessao } from './editorTreino';
-import { destinosParaAplicar, detalheDoModelo, podeAplicarModelo, podeSalvarPastaComoModelo, SEM_PASTA_PARA_APLICAR, temAcaoNoMenuDaPasta, descricaoDoModelo, LIMITE_DESCRICAO_DO_MODELO } from './modelos';
+import { destinosParaAplicar, resumoDoDestino, detalheDoModelo, podeAplicarModelo, podeSalvarPastaComoModelo, SEM_PASTA_PARA_APLICAR, temAcaoNoMenuDaPasta, descricaoDoModelo, LIMITE_DESCRICAO_DO_MODELO } from './modelos';
 import { nomeDoTipo } from './metodologia';
 import { conteudoInicial } from '../treinador/planejamento/modelos';
 
@@ -62,17 +62,37 @@ test('aplicar modelo pede a permissão de alterar o que ele cria (como a API)', 
 
 test('sem PASTA_ALTERAR não há "criar nova pasta" ao aplicar um modelo', () => {
   const pastas = [{ id: 'p1', titulo: 'Pasta 1' }, { id: 'p2', titulo: 'Pasta 2' }];
-  const quemCria = destinosParaAplicar(true, pastas);
-  expect(quemCria.opcoes.map((o) => o.valor)).toEqual(['', 'p1', 'p2']);
-  expect(quemCria.padrao).toBe('');
-  const quemNaoCria = destinosParaAplicar(false, pastas);
+  const quemCria = destinosParaAplicar(true, pastas, '2026-10-30');
+  expect(quemCria.opcoes.map((o) => o.valor)).toEqual(['p1', 'p2', '']);
+  const quemNaoCria = destinosParaAplicar(false, pastas, '2026-10-30');
   expect(quemNaoCria.opcoes.map((o) => o.valor)).toEqual(['p1', 'p2']);
-  expect(quemNaoCria.padrao).toBe('p1');
   expect(quemNaoCria.semDestino).toBe(false);
   expect(destinosParaAplicar(false, []).semDestino).toBe(true);
   expect(destinosParaAplicar(false, null).semDestino).toBe(false);
   expect(destinosParaAplicar(true, []).semDestino).toBe(false);
   expect(SEM_PASTA_PARA_APLICAR).toBe('Peça a quem pode criar pastas para criar uma para este aluno.');
+});
+
+test('aluno com pasta: ninguém escolhe o destino pelo treinador (reunião de 29/10)', () => {
+  const pastas = [
+    { id: 'p1', titulo: 'Plano 16', inicio: '2026-10-01', fim: '2026-10-15', concluidaEm: '2026-10-16T12:00:00Z' },
+    { id: 'p2', titulo: 'Plano 17', inicio: '2026-10-16', fim: '2026-10-30', concluidaEm: null },
+  ];
+  const d = destinosParaAplicar(true, pastas, '2026-10-30');
+  expect(d.padrao).toBeNull();
+  // Abertas primeiro, depois a nova, e as concluídas por último; cada uma com o período.
+  expect(d.opcoes).toEqual([
+    { valor: 'p2', rotulo: 'Plano 17 · 16/10 a 30/10' },
+    { valor: '', rotulo: 'Criar nova pasta' },
+    { valor: 'p1', rotulo: 'Plano 16 · 01/10 a 15/10 (concluída)' },
+  ]);
+  // Sem pasta nenhuma, a nova já vem marcada; ainda carregando, nada.
+  expect(destinosParaAplicar(true, []).padrao).toBe('');
+  expect(destinosParaAplicar(true, null).padrao).toBeNull();
+  // Quem não cria pasta: com uma só, fica nela; com duas, escolhe.
+  expect(destinosParaAplicar(false, [pastas[1]], '2026-10-30').padrao).toBe('p2');
+  expect(destinosParaAplicar(false, pastas, '2026-10-30').padrao).toBeNull();
+  expect(destinosParaAplicar(false, [], '2026-10-30').padrao).toBeNull();
 });
 
 test('salvar pasta como pacote segue as permissões da rota e o ⋯ some sem ação', () => {
@@ -96,4 +116,11 @@ test('descrição do modelo: texto aparado ou "—", e o limite é o da API', ()
   expect(descricaoDoModelo({ descricao: null })).toBe('—');
   expect(descricaoDoModelo({ descricao: '   ' })).toBe('—');
   expect(LIMITE_DESCRICAO_DO_MODELO).toBe(300);
+});
+
+test('resumo do destino diz onde a cópia entra e que fica em rascunho', () => {
+  const opcoes = [{ valor: 'p2', rotulo: 'Plano 17 · 16/10 a 30/10' }, { valor: '', rotulo: 'Criar nova pasta' }];
+  expect(resumoDoDestino(false, '', opcoes, 'Dieta base')).toBeNull();
+  expect(resumoDoDestino(true, 'p2', opcoes, 'Dieta base')).toBe('A cópia entra em rascunho na pasta “Plano 17”. O aluno só vê depois que você publicar.');
+  expect(resumoDoDestino(true, '', opcoes, 'Dieta base')).toBe('Cria a pasta nova “Dieta base” com a cópia em rascunho. O aluno só vê depois que você publicar.');
 });
