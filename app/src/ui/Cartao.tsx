@@ -30,11 +30,13 @@ interface Props {
    * faixa atrapalha (cartão de destaque com cor própria, por exemplo).
    */
   faixa?: boolean;
+  /** Antes do título, na mesma linha: a bolinha na cor do estado nos grupos da lista de alunos. Decorativo: o título diz o estado. */
+  marcador?: ReactNode;
   style?: StyleProp<ViewStyle>;
 }
 
 /** Cartão flat: superfície, borda de 2 px, cantos de 12 px, sem sombra; a faixa do título tem linha de 3 px embaixo. Separa seções, dias, exercícios. */
-export function Cartao({ children, cabecalho, titulo, descricao, acoes, rodape, recolhivel, recolhido = false, nivel = 2, faixa = true, style }: Props) {
+export function Cartao({ children, cabecalho, titulo, descricao, acoes, rodape, recolhivel, recolhido = false, nivel = 2, faixa = true, marcador, style }: Props) {
   const { cores, bordas } = useTema();
   const { width } = useWindowDimensions();
   const [fechado, setFechado] = useState(recolhivel ? recolhido : false);
@@ -55,9 +57,12 @@ export function Cartao({ children, cabecalho, titulo, descricao, acoes, rodape, 
                 accessibilityState={{ expanded: !fechado }}
                 onPress={() => setFechado((v) => !v)}
                 style={({ pressed }) => [estilos.tituloBotao, { opacity: pressed ? 0.7 : 1 }]}>
+                {marcador ?? null}
                 <Texto variante="bloco" nivel={nivel} style={estilos.titulo}>{titulo}</Texto>
                 <Seta size={18} color={cores.textoSuave} />
               </Pressable>
+            ) : titulo && marcador ? (
+              <View style={estilos.comMarcador}>{marcador}<Texto variante="bloco" nivel={nivel} style={estilos.titulo}>{titulo}</Texto></View>
             ) : titulo ? <Texto variante="bloco" nivel={nivel} style={estilos.titulo}>{titulo}</Texto> : null}
             {descricao && !fechado ? <Texto variante="suave">{descricao}</Texto> : null}
           </View>
@@ -77,6 +82,7 @@ const estilos = StyleSheet.create({
   topo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), flexWrap: 'wrap' },
   tituloEDescricao: { flexShrink: 1, flexGrow: 1, flexBasis: 200, gap: 2 },
   titulo: { flexShrink: 1 },
+  comMarcador: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
   faixa: { paddingVertical: espaco(1.5), borderBottomWidth: LINHA_DA_FAIXA },
   faixaFechada: { borderBottomWidth: 0 },
   tituloBotao: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75), flexShrink: 1, minHeight: 44 },

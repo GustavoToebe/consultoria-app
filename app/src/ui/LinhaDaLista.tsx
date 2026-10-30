@@ -4,14 +4,18 @@ import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, LARGURA_MENU_LATERAL, RAIO } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, LARGURA_MENU_EXPANDIDO, LARGURA_MENU_LATERAL, RAIO } from '../tema/tokens';
+import { BORDA_DA_LINHA, ESPACO_ENTRE_COLUNAS, estiloDaColuna, LARGURA_AO_LADO, margensDoCabecalho, RECUO_DA_LINHA, type ColunaDaLista } from './colunasDaLista';
 import { propsDeLink } from './propsDeLink';
 import { rotuloDaLinha, type SeloDaLinha } from './rotuloDaLinha';
 import { Selo } from './Selo';
 import { sobre } from './sobre';
 import { Texto } from './Texto';
 
-export { rotuloDaLinha, type SeloDaLinha };
+export { rotuloDaLinha, type ColunaDaLista, type SeloDaLinha };
+
+/** Células da linha, uma por chave de coluna (as que faltarem ficam vazias). */
+export type CelulasDaLinha = Readonly<Record<string, ReactNode>>;
 
 interface Base {
   titulo: string;
@@ -31,21 +35,34 @@ interface Base {
   esmaecido?: boolean;
   /** Conteúdo embaixo da linha, dentro da mesma borda (as instruções abertas do Catálogo). */
   children?: ReactNode;
+  /**
+   * Linha em colunas (lista de alunos): no PC (a partir do menu lateral) as `celulas` ficam alinhadas ao
+   * `CabecalhoDasColunas` com a mesma `definicao`, no lugar de título, metadados e selos; no celular a linha continua
+   * empilhada, com a célula da primeira coluna no lugar do título e os metadados e selos embaixo dela.
+   */
+  colunas?: { definicao: readonly ColunaDaLista[]; celulas: CelulasDaLinha };
 }
 
 /** A linha inteira abre outra tela: na web é um `<a href>` e não tem botão dentro. */
-export type LinhaComLink = Base & { href: Href; aoAbrir?: () => void; acoes?: never; aoTocarTextos?: never; acoesAoLado?: never; marcar?: never };
+export type LinhaComLink = Base & {
+  href: Href; aoAbrir?: () => void; acoes?: never; aoTocarTextos?: never; acoesAoLado?: never; marcar?: never;
+  /**
+   * Uma ação só de ícone (`IconeBotao moldura`, o lápis de editar) depois do link, dentro da mesma borda e fora do `<a>`:
+   * linha-link nunca tem botão dentro. Ocupa `LARGURA_AO_LADO`, que o `CabecalhoDasColunas aoLado` desconta.
+   */
+  aoLado?: ReactNode;
+};
 /**
  * A linha tem botões à direita (no celular, embaixo); `aoTocarTextos` faz tocar no nome agir também (Catálogo).
  * `acoesAoLado`: ações só de ícone (o lápis) ficam à direita também no celular, em vez de sozinhas numa linha embaixo.
  */
-export type LinhaComAcoes = Base & { href?: never; aoAbrir?: never; acoes?: ReactNode; aoTocarTextos?: () => void; acoesAoLado?: boolean; marcar?: never };
+export type LinhaComAcoes = Base & { href?: never; aoAbrir?: never; acoes?: ReactNode; aoTocarTextos?: () => void; acoesAoLado?: boolean; marcar?: never; aoLado?: never };
 /**
  * A linha inteira é a caixa de marcar (Selecionar dos alunos): um só alvo, role checkbox, com a caixa só desenhada à
  * esquerda. Sem seta, sem `href`, sem `inicio` nem ações: nunca link e caixa juntos.
  */
 export type LinhaDeMarcar = Base & {
-  href?: never; aoAbrir?: never; acoes?: never; aoTocarTextos?: never; acoesAoLado?: never; inicio?: never;
+  href?: never; aoAbrir?: never; acoes?: never; aoTocarTextos?: never; acoesAoLado?: never; inicio?: never; aoLado?: never;
   marcar: { marcado: boolean; aoMudar: () => void };
 };
 export type PropsDaLinha = LinhaComLink | LinhaComAcoes | LinhaDeMarcar;
@@ -56,27 +73,36 @@ export type PropsDaLinha = LinhaComLink | LinhaComAcoes | LinhaDeMarcar;
  * em cima e as ações embaixo. Ou abre outra tela (`href`), ou tem ações (`acoes`), ou a linha toda marca (`marcar`),
  * nunca duas: botão dentro de link quebra o leitor de tela e o Ctrl+clique.
  */
+/**
+ * A lista em colunas só vira colunas com o menu aberto por inteiro: com o menu só de ícones (768 a 1023 px) as colunas
+ * apertavam e os textos ficavam cortados, então ali a linha fica empilhada, como no celular (Gustavo, 30/10).
+ */
+export const LARGURA_DAS_COLUNAS = LARGURA_MENU_EXPANDIDO;
+
 export function LinhaDaLista(p: PropsDaLinha) {
   const { cores } = useTema();
   const { width } = useWindowDimensions();
-  const largo = width >= LARGURA_MENU_LATERAL;
+  const largo = width >= (p.colunas ? LARGURA_DAS_COLUNAS : LARGURA_MENU_LATERAL);
   const [ativo, setAtivo] = useState(false);
   const selos = p.selos ?? [];
   const borda = { borderColor: p.marcado || p.marcar?.marcado ? cores.texto : cores.borda };
   const apagado = p.esmaecido ? estilos.esmaecido : null;
 
+  const colunas = p.colunas;
   const textos = (
     <View style={estilos.textos}>
-      <Texto variante="bloco">{p.titulo}</Texto>
+      {colunas && colunas.definicao.length ? colunas.celulas[colunas.definicao[0].chave] ?? null : <Texto variante="bloco">{p.titulo}</Texto>}
       {p.metadados ? <Texto variante="pequeno" numerico>{p.metadados}</Texto> : null}
       {p.descricao ? <Texto variante="suave" numberOfLines={2}>{p.descricao}</Texto> : null}
       {selos.length && !largo ? <SelosDaLinha selos={selos} /> : null}
     </View>
   );
   // No PC os selos ganham coluna própria, entre os textos e as ações; no celular ficam embaixo dos textos.
-  const miolo = selos.length && largo
-    ? <View style={estilos.mioloLargo}>{textos}<SelosDaLinha selos={selos} /></View>
-    : textos;
+  const miolo = colunas && largo
+    ? <Celulas definicao={colunas.definicao} celulas={colunas.celulas} />
+    : selos.length && largo
+      ? <View style={estilos.mioloLargo}>{textos}<SelosDaLinha selos={selos} /></View>
+      : textos;
 
   if (p.marcar) {
     const { marcado, aoMudar } = p.marcar;
@@ -130,6 +156,7 @@ export function LinhaDaLista(p: PropsDaLinha) {
         <View style={estilos.linhaDoLink}>
           {p.inicio ? <View style={[estilos.inicioDoLink, apagado]}>{p.inicio}</View> : null}
           {link}
+          {p.aoLado ? <View style={estilos.aoLado}>{p.aoLado}</View> : null}
         </View>
         {p.children}
       </View>
@@ -155,7 +182,35 @@ export function LinhaDaLista(p: PropsDaLinha) {
 }
 
 function SelosDaLinha({ selos }: { selos: readonly SeloDaLinha[] }) {
-  return <View style={estilos.selos}>{selos.map((s) => <Selo key={s.texto} texto={s.texto} tipo={s.tipo} />)}</View>;
+  return <View style={estilos.selos}>{selos.map((s) => <Selo key={s.texto} texto={s.texto} tipo={s.tipo} Icone={s.Icone} />)}</View>;
+}
+
+function Celulas({ definicao, celulas }: { definicao: readonly ColunaDaLista[]; celulas: CelulasDaLinha }) {
+  return (
+    <View style={[estilos.colunas, estilos.colunasDaLinha]}>
+      {definicao.map((c) => <View key={c.chave} style={[estilos.celula, estiloDaColuna(c)]}>{celulas[c.chave] ?? null}</View>)}
+    </View>
+  );
+}
+
+/**
+ * Cabeçalho das colunas de uma lista em colunas (texto `rotulo`, em `textoSuave`, com divisor embaixo), só no PC; no
+ * celular não aparece, porque a linha fica empilhada. `marcar` e `aoLado` dizem como são as linhas embaixo (caixa à
+ * esquerda no Selecionar; seta e ação ao lado fora dele), para as colunas caírem no mesmo lugar. É só visual: o nome
+ * acessível de cada linha já diz o que ela mostra.
+ */
+export function CabecalhoDasColunas({ colunas, marcar, aoLado }: { colunas: readonly ColunaDaLista[]; marcar?: boolean; aoLado?: boolean }) {
+  const { cores } = useTema();
+  const { width } = useWindowDimensions();
+  if (width < LARGURA_DAS_COLUNAS) return null;
+  const { antes, depois } = margensDoCabecalho({ marcar, aoLado });
+  const recuo = BORDA_DA_LINHA + RECUO_DA_LINHA;
+  return (
+    <View accessible={false} importantForAccessibility="no-hide-descendants" aria-hidden
+      style={[estilos.colunas, estilos.cabecalho, { borderBottomColor: cores.divisor, paddingLeft: recuo + antes, paddingRight: recuo + depois }]}>
+      {colunas.map((c) => <View key={c.chave} style={estiloDaColuna(c)}><Texto variante="rotulo" numberOfLines={1}>{c.rotulo}</Texto></View>)}
+    </View>
+  );
 }
 
 /** Linhas de uma lista, uma embaixo da outra, com o mesmo espaço que as linhas têm dentro de um `Cartao`. */
@@ -196,7 +251,7 @@ function DesenhoDaCaixa({ marcado }: { marcado: boolean }) {
 
 const estilos = StyleSheet.create({
   lista: { gap: espaco(2) },
-  contorno: { borderWidth: 1, borderRadius: RAIO },
+  contorno: { borderWidth: BORDA_DA_LINHA, borderRadius: RAIO },
   esmaecido: { opacity: 0.6 },
   // Seta, caixa e miniatura nunca encolhem quando o nome é comprido.
   fixo: { flexShrink: 0 },
@@ -211,9 +266,15 @@ const estilos = StyleSheet.create({
   toqueDosTextos: { flexShrink: 1, flexGrow: 1, flexDirection: 'row', alignItems: 'center', minHeight: ALVO_TOQUE },
   linhaDoLink: { flexDirection: 'row', alignItems: 'stretch' },
   inicioDoLink: { flexShrink: 0, justifyContent: 'center', paddingLeft: espaco(1) },
-  link: { flex: 1, borderRadius: RAIO, padding: espaco(1.5), minHeight: ALVO_TOQUE + espaco(1), justifyContent: 'center' },
+  link: { flex: 1, borderRadius: RAIO, padding: RECUO_DA_LINHA, minHeight: ALVO_TOQUE + espaco(1), justifyContent: 'center' },
   linkDepoisDoInicio: { paddingLeft: espaco(1) },
-  linkConteudo: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.5) },
+  linkConteudo: { flexDirection: 'row', alignItems: 'center', gap: RECUO_DA_LINHA },
+  // Colunas: as medidas vêm de `colunasDaLista` (o cabeçalho usa as mesmas).
+  colunas: { flexDirection: 'row', alignItems: 'center', gap: ESPACO_ENTRE_COLUNAS },
+  colunasDaLinha: { flex: 1, minWidth: 0 },
+  celula: { justifyContent: 'center' },
+  cabecalho: { paddingBottom: espaco(1.25), borderBottomWidth: 1 },
+  aoLado: { width: LARGURA_AO_LADO, flexShrink: 0, paddingRight: RECUO_DA_LINHA, alignItems: 'flex-end', justifyContent: 'center' },
   alvoDaCaixa: { width: ALVO_TOQUE, height: ALVO_TOQUE, borderRadius: RAIO, alignItems: 'center', justifyContent: 'center' },
   caixa: { width: 24, height: 24, borderWidth: 1, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
 });
