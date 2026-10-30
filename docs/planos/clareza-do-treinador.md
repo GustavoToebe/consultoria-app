@@ -1,6 +1,6 @@
 # Clareza do treinador: o que a reunião de 29/10 mostrou
 
-Situação: Em andamento · Onde: branch `claude/saraiva-api-direcionamento-treinos-dv10io` · Atualizado: 30/10/2026
+Situação: Pronta, no PR para a `main` · Onde: branch `claude/saraiva-api-direcionamento-treinos-dv10io` · Atualizado: 30/10/2026
 
 ## Objetivo
 Fazer funcionar bem o que já existe: o treinador precisa ver onde cada bloco começa e termina, entender o que cada
@@ -26,7 +26,7 @@ mandou (fora do repositório: tem dado de pessoas reais e não entra no git).
 - [x] 1. Lote A: fim automático da pasta, "Abertas", efeito de finalizar, destino explícito ao aplicar modelo e ao copiar plano, "Dose prescrita" (com a porção da embalagem só como referência), períodos "Semana (7 dias)"/"Mês (30 dias)" na lista de compras, aviso do gráfico de peso — commit/run: 79d9d3e (Jest 2552, lint, typecheck, e2e `pasta-periodo` e `lista-de-compras` em 390 e 1280)
 - [x] 2. Lote B: tokens dos dois temas e do contraste alto, opção "Claro areia", exercício × grupo de séries, pasta com Treino, Dieta e Mobilidade em blocos próprios; capturas antes e depois em 390 e 1280 — commit/run: f65c800; faixa de cabeçalho em todo cartão com título e no topo das folhas (D8): c114082 (Jest 2556, lint, typecheck, e2e completo 326 de 326)
 - [x] 3. Lote C: importação em etapas (lista separada do assistente; destino e arquivo juntos; configuração com ajuda; amostra com a escolha do campo em cada coluna; resumo Total / Com erro / Corretas; "Voltar"; mudar arquivo, aba ou mapeamento invalida a prévia) — commit/run: ea45e8b (`POST /importacoes/{destino}/colunas` traz `linhas` e `amostra` de até 5 linhas, só na resposta; `mvn verify` 1688, e2e `importacao` em 390 e 1280); mais perto da referência (destino em cartões com ícone, área do arquivo com clique e arrastar, campo de cada coluna em lista suspensa com busca no PC e folha no celular, a planilha inteira até 1.000 linhas e 20.000 células com busca e páginas de 50) e correção na tabela (D3: célula editada e linha tirada vão em `configuracao.ajustes`, cobertos pelo hash; "Corrigir na tabela" depois da validação): commit seguinte ao ea45e8b na branch `clareza-importacao-ref`
-- [ ] 4. Ajuda, guias PDF, AGENTS.md, testes (Jest, e2e em 390 e 1280, `mvn verify` se a API mudar), PR, CI verde e merge — commit/run: —
+- [x] 4. Ajuda, guias PDF, AGENTS.md, testes (Jest, e2e em 390 e 1280, `mvn verify` se a API mudar), PR, CI verde e merge — verificado em 30/10 sobre a branch juntada (lotes A, B e C, importação com correção na tabela, água no editor e do aluno, item 3, caixa de atenção): `mvn clean verify` 1704 testes e 0 falhas, Jest 2614, e2e completo 344/344; PR para a `main` em 30/10
 
 ## Fora do escopo
 - Painel novo em blocos (lote D) e montagem do painel por usuário.
