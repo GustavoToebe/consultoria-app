@@ -1,14 +1,16 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
 import { numerosDaConsultoria } from '../../api/rotas';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { contagemParaTela, MARCA_PARCIAL, REGRA_ALUNOS_ATIVOS, REGRA_ATUALIZACOES, resumoDasAtualizacoes, rotuloDoMes, textoDoResumo, totalDoMes } from '../../dominio/numeros';
-import { LARGURA_EDITOR } from '../../tema/tokens';
+import { espaco, LARGURA_EDITOR } from '../../tema/tokens';
+import { ICONE_DO_SELO } from '../../treinador/iconesDosSelos';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
+import { Selo } from '../../ui/Selo';
 import { Tabela } from '../../ui/Tabela';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
@@ -38,9 +40,10 @@ export default function NumerosDoTreinador() {
     {meses && meses.length > 0 ? <>
       <Cartao titulo="Mês a mês" descricao="Do mês atual para o mais antigo.">
         <Tabela rotulo="Alunos ativos e atualizações de cada mês" larguraMinima={640} linhas={linhas} chave={m => m.mes} colunas={[
-          { chave: 'mes', titulo: 'Mês', principal: true, flex: 1.4, render: m => <View>
+          // O mês que ainda não terminou leva o selo neutro "até hoje" (com ícone, como os selos do estilo novo).
+          { chave: 'mes', titulo: 'Mês', principal: true, flex: 1.4, render: m => <View style={estilos.mes}>
             <Texto numerico>{rotuloDoMes(m.mes)}</Texto>
-            {m.parcial ? <Texto variante="pequeno">{MARCA_PARCIAL}</Texto> : null}
+            {m.parcial ? <Selo texto={MARCA_PARCIAL} tipo="neutro" Icone={ICONE_DO_SELO.neutro} /> : null}
           </View> },
           { chave: 'ativos', titulo: 'Alunos ativos', alinhar: 'direita', render: m => <Texto numerico>{contagemParaTela(m.alunosAtivos)}</Texto> },
           { chave: 'prazo', titulo: 'No prazo', alinhar: 'direita', render: m => <Texto numerico>{contagemParaTela(m.atualizacoesNoPrazo)}</Texto> },
@@ -56,3 +59,7 @@ export default function NumerosDoTreinador() {
     </> : null}
   </Tela>;
 }
+
+const estilos = StyleSheet.create({
+  mes: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1) },
+});
