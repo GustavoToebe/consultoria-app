@@ -104,7 +104,7 @@ export function textoDoAnterior(s: SerieAnterior | null, semCarga: boolean): str
   return `${numeroParaTela(s.carga)} kg × ${s.repeticoes ?? '—'}`;
 }
 
-/** Linha de cima das séries: "Anterior: o que você fez em 23/10." */
+/** Linha de cima das séries: "Último registro: o que você fez em 23/10." */
 export function textoDaUltimaVez(ultima: AnteriorDoExercicio | null): string | null {
-  return ultima ? `Anterior: o que você fez em ${dataCurta(ultima.data)}.` : null;
+  return ultima ? `Último registro: o que você fez em ${dataCurta(ultima.data)}.` : null;
 }

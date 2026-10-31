@@ -239,3 +239,41 @@ export function textoDoVolume(v: Volume | null): string | null {
   const valor = `${numeroParaTela(v.valor)} kg`;
   return v.completo ? `Volume de carga: ${valor}` : `Volume de carga: subtotal de ${valor} (faltou carga ou repetição)`;
 }
+
+/**
+ * Quantas versões do plano (`planoVersaoId`) têm registro no período. O registro só traz o id da versão que o aluno
+ * executou, sem o plano nem o número dela: ids diferentes podem ser versões do mesmo plano ou planos diferentes. Por isso o
+ * nome honesto é "mais de uma versão publicada executada". Sessão sem exercício com série não conta (nada foi registrado).
+ */
+export function versoesDoPlanoNoPeriodo(dias: readonly DiaDeTreino[]): number {
+  const versoes = new Set<string>();
+  for (const d of dias) {
+    for (const s of d.sessoes) {
+      if (s.exercicios.some((e) => e.series.length > 0)) versoes.add(s.planoVersaoId);
+    }
+  }
+  return versoes.size;
+}
+
+/** O período mistura registros de mais de uma versão publicada do plano (a tela pode avisar que as divisões podem ter mudado). */
+export const periodoMisturaVersoes = (dias: readonly DiaDeTreino[]): boolean => versoesDoPlanoNoPeriodo(dias) > 1;
+
+export const TEXTO_SEM_REGISTROS_NO_PERIODO = 'Nenhum registro neste período.';
+/** Onde ligar os gráficos muda com o papel: o treinador tem Perfil › Preferências; o aluno, a Conta. */
+export const TEXTO_GRAFICOS_DESLIGADOS = 'Os gráficos estão desligados em Perfil › Preferências.';
+export const TEXTO_GRAFICOS_DESLIGADOS_ALUNO = 'Os gráficos estão desligados em Conta › Aparência e preferências.';
+/** Linha extra quando o período tem registros de mais de uma versão publicada do plano (`periodoMisturaVersoes`). */
+export const TEXTO_PERIODO_MISTURA_VERSOES = 'Este período tem registros de mais de uma versão do plano; as divisões podem ter mudado.';
+
+export type PapelDoHistorico = 'ALUNO' | 'TREINADOR';
+
+/**
+ * Texto do estado vazio do histórico (B6: a tela ficava em branco e o aluno não sabia o porquê). Sem registro, o período
+ * está vazio; com registro e gráficos desligados (preferência `graficos`), a parte de gráfico some e a tela diz onde ligar
+ * (o caminho depende do papel); com registro e gráficos ligados não há estado vazio (`null`).
+ */
+export function textoDoHistoricoVazio({ temRegistros, graficosLigados, papel = 'TREINADOR' }: { temRegistros: boolean; graficosLigados: boolean; papel?: PapelDoHistorico }): string | null {
+  if (!temRegistros) return TEXTO_SEM_REGISTROS_NO_PERIODO;
+  if (graficosLigados) return null;
+  return papel === 'ALUNO' ? TEXTO_GRAFICOS_DESLIGADOS_ALUNO : TEXTO_GRAFICOS_DESLIGADOS;
+}
