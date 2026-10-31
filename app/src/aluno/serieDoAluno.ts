@@ -28,11 +28,13 @@ export function selosDaSerie(serie: Pick<Serie, 'tipo' | 'tecnica'>, metodologia
 export interface TextosDaSerie {
   /** "Meta: 3 a 6 reps · 50% da WS · 1 RIR" (sem a técnica nem o alvo extra, que têm linha própria). */
   meta: string;
+  /** A mesma meta sem o "Meta: " do começo, para a linha em destaque do cartão, que já tem o rótulo (A8, 30/10). */
+  valorDaMeta: string;
   /** "Descanso 1 min 30 s"; nulo quando a série não tem descanso ou ele vale para o grupo. */
   descanso: string | null;
   /** Técnica por extenso. */
   tecnica: string;
-  /** Alvo extra do treinador, quando existir. */
+  /** Alvo extra do treinador, quando existir. Para o aluno ele se chama "Observação desta série" (A9, 30/10). */
   alvoExtra: string | null;
   /** Série pedida em AMRAP: o aluno registra as repetições que fez. */
   amrap: boolean;
@@ -43,8 +45,10 @@ export function textosDaSerie(
   contexto: { tipoTrabalho: string; semCarga: boolean; metodologia?: Configuracao; seriesDoExercicio: readonly Serie[]; descansoPorSerie: boolean },
 ): TextosDaSerie {
   const descanso = contexto.descansoPorSerie && serie.descansoSegundos && serie.descansoSegundos > 0 ? `Descanso ${rotuloDescanso(serie.descansoSegundos)}` : null;
+  const meta = metaDaSerie({ ...serie, tecnica: null, alvoExtra: null }, contexto.tipoTrabalho, contexto.semCarga, contexto.metodologia, contexto.seriesDoExercicio);
   return {
-    meta: metaDaSerie({ ...serie, tecnica: null, alvoExtra: null }, contexto.tipoTrabalho, contexto.semCarga, contexto.metodologia, contexto.seriesDoExercicio),
+    meta,
+    valorDaMeta: meta.replace(/^Meta: /, ''),
     descanso,
     tecnica: leituraDaTecnica(serie, contexto.metodologia, { descansoPorSerie: contexto.descansoPorSerie, semCarga: contexto.semCarga }),
     alvoExtra: serie.alvoExtra?.trim() || null,

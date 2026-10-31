@@ -98,8 +98,8 @@ describe('novas técnicas', () => {
 
 describe('carga e esforço em texto', () => {
   it('cada forma de carga diz a base, e carga de trabalho não diz nada', () => {
-    expect(textoCarga(carga('PERCENTUAL_WS', 85, 90), 'WS')).toBe('85 a 90% da WS');
-    expect(textoCarga(carga('ACIMA_DA_ANTERIOR', 1, 5))).toBe('+1 a 5% sobre a anterior');
+    expect(textoCarga(carga('PERCENTUAL_WS', 85, 90), 'WS')).toBe('85% a 90% da WS');
+    expect(textoCarga(carga('ACIMA_DA_ANTERIOR', 1, 5))).toBe('+1% a 5% sobre a anterior');
     expect(textoCarga(carga('MESMA_CARGA'), 'WS')).toBe('mesma carga da WS');
     expect(textoCarga(carga('ABAIXO_DA_REFERENCIA', 15, null, 'x'), 'WS', 'Top set')).toBe('15% abaixo da referência (Top set)');
     expect(textoCarga(carga('CARGA_TRABALHO'))).toBe('');
@@ -140,14 +140,14 @@ const tresFs = () => {
 };
 test.each([
   ['aquecimento', [exemplo('WARM_UP')], '1x10 a 15 - Aquecimento'],
-  ['3 FS', tresFs(), '3x3 - FS 50/70/85 a 90% da WS'],
+  ['3 FS', tresFs(), '3x3 - FS 50% · 70% · 85% a 90% da WS'],
   [
     '2 FS',
     [
       exemplo('FEEDER', { repsMin: 3, repsMax: 5, carga: carga('PERCENTUAL_WS', 70) }),
       exemplo('FEEDER', { repsMin: 3, repsMax: 5, carga: carga('PERCENTUAL_WS', 85, 90) }),
     ],
-    '2x3 a 5 - FS 70/85 a 90% da WS',
+    '2x3 a 5 - FS 70% · 85% a 90% da WS',
   ],
   ['WS livre', [exemplo('WORKING', {}, 'LIVRE')], '1x3 a 6 - WS · 1 RIR'],
   ['WS máquina', [exemplo('WORKING', {}, 'MAQUINA')], '1x3 a 6 - WS · até a falha'],
@@ -156,7 +156,7 @@ test.each([
   ['3 micro-séries', [exemplo('WORKING', { repsMin: 4, esforco: null, tecnica: tecnicaDe('REST_PAUSE', { pausaSegundos: 15, pausas: 2 }) })], '1x4 a 6 - WS + Rest pause 15 s, 2 pausas'],
   ['cluster desigual', [exemplo(undefined, { tipo: null, repsMin: 6, repsMax: 6, carga: carga('MESMA_CARGA'), esforco: null, tecnica: tecnicaDe('CLUSTER', { blocos: [4, 2], pausaSegundos: 15 }) })], '1x6 (4+2) - Cluster 15 s · mesma carga da WS'],
   ['muscle round', [exemplo(undefined, { tipo: null, repsMin: 16, repsMax: 16, carga: null, esforco: null, tecnica: tecnicaDe('CLUSTER', { blocos: [4, 4, 4, 4], pausaSegundos: 10, pausaRespiracoes: 5 }) })], '1x16 (4×4) - Cluster 5 respirações ou 10 s'],
-  ['top set', [exemplo('TOP_SET', {}, 'MAQUINA')], '1x - Top set +5 a 10% sobre a anterior'],
+  ['top set', [exemplo('TOP_SET', {}, 'MAQUINA')], '1x - Top set +5% a 10% sobre a anterior'],
   ['AMRAP', [exemplo('WORKING', { repsMin: null, repsMax: null, amrap: true, esforco: null })], '1xAMRAP - WS'],
 ] as [string, Serie[], string][])('%s: resumo da prescrição', (_nome, series, esperado) => {
   expect(descreverSeries(series, config).join(' / ')).toBe(esperado);
@@ -168,7 +168,7 @@ describe('back off com referência', () => {
     const a = serieDeTeste('a', { tipo: 'BACK_OFF', repsMin: 6, repsMax: 8, carga: carga('ABAIXO_DA_REFERENCIA', 15, null, 'top') });
     const b = serieDeTeste('b', { tipo: 'BACK_OFF', repsMin: 6, repsMax: 8, carga: carga('ABAIXO_DA_REFERENCIA', 15, null, 'top') });
     const c = serieDeTeste('c', { tipo: 'BACK_OFF', repsMin: 6, repsMax: 8, carga: carga('ABAIXO_DA_REFERENCIA', 15, null, 'a') });
-    expect(descreverSeries([top, a, b], config)).toEqual(['1x - Top set +1 a 5% sobre a anterior', '2x6 a 8 - Back off 15% abaixo da referência (Top set)']);
+    expect(descreverSeries([top, a, b], config)).toEqual(['1x - Top set +1% a 5% sobre a anterior', '2x6 a 8 - Back off 15% abaixo da referência (Top set)']);
     expect(agrupar([top, a, b, c]).map((g) => g.series.length)).toEqual([1, 2, 1]);
   });
 });

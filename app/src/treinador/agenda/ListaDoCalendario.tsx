@@ -31,8 +31,9 @@ export const tituloDoDia = (data: string, hoje: string) => `${rotuloDoDia(data, 
 
 /**
  * Dia e Semana no celular (e o dia escolhido no Mês compacto): um cartão por dia com a faixa do dia e o resumo; o dia vazio
- * fica só na faixa, para a semana caber na tela. Cada linha tem o marcador da cor da agenda; o status do compromisso
- * continua num selo; a atualização é link para a ficha.
+ * fica só na faixa, para a semana caber na tela. Cada linha tem a faixa da cor da agenda (8 px, como na grade); o status
+ * do compromisso vai num selo escrito (o cancelado não é mais esmaecido: a opacidade apagava o selo junto); a atualização
+ * é link para a ficha. O fundo da linha é o da `LinhaDaLista` (sem tinta: ela não recebe fundo de fora).
  */
 export function ListaDoCalendario({ itens, de, ate, hoje, meus, nomesDasAgendas, semData = [], aoAbrir }: Props) {
   const dias = agruparPorDia(itens, de, ate);
@@ -64,7 +65,7 @@ export function CartaoSemData({ semData, meus }: { semData: readonly Atualizacao
         {semData.map((a) => {
           const nome = a.nomeAluno ?? 'Aluno';
           return <LinhaDaLista key={`a:${a.pastaId ?? a.alunoId}`} titulo={nome} metadados="Atualização"
-            inicio={<MarcadorDaAgenda cor="ARDOSIA" />}
+            inicio={<MarcadorDaAgenda cor="ARDOSIA" forma="faixa" />}
             href={caminhoAtualizacaoTreinador(a, { situacao: 'PROXIMAS', meus })} rotulo={`Abrir atualização de ${nome}, sem data`} />;
         })}
       </ListaDeLinhas>
@@ -76,7 +77,8 @@ function Linha({ item, dia, hoje, meus, nomesDasAgendas, aoAbrir }: {
   item: ItemDoCalendario; dia: string; hoje: string; meus: boolean; nomesDasAgendas: ReadonlyMap<string, string>; aoAbrir: AoAbrirItem;
 }) {
   const f = item.fonte;
-  const marcador = <MarcadorDaAgenda cor={item.cor} />;
+  // A faixa de 8 px da cor da agenda, como na grade; o status vai no selo (nunca só na cor ou na opacidade).
+  const marcador = <MarcadorDaAgenda cor={item.cor} forma="faixa" />;
   if (f.origem === 'ATUALIZACAO') {
     const selo = statusAtualizacaoTreinador(f.atualizacao, hoje);
     // O dia já está no título do cartão: o selo só entra quando diz algo a mais (adiada, atrasada).
@@ -88,7 +90,7 @@ function Linha({ item, dia, hoje, meus, nomesDasAgendas, aoAbrir }: {
   if (f.origem === 'COMPROMISSO') {
     const c = f.compromisso;
     return <LinhaDaLista titulo={item.titulo} metadados={metadadosDoCompromisso(c)} selos={[seloDoCompromissoComIcone(c)]} inicio={marcador}
-      esmaecido={item.cancelado} aoTocarTextos={() => aoAbrir(item)}
+      aoTocarTextos={() => aoAbrir(item)}
       acoes={<Botao rotulo="Abrir" tipo="secundario" rotuloAcessivel={rotuloDoItem(item, hoje)} aoTocar={() => aoAbrir(item)} />} />;
   }
   const o = f.ocorrencia;

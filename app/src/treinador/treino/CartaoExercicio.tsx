@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowLeftRight, ArrowUp, ChevronDown, ChevronUp, CircleAlert, CircleCheck, Save, Trash2, TriangleAlert, Unlink } from 'lucide-react-native';
+import { ArrowLeftRight, ChevronDown, ChevronUp, CircleAlert, CircleCheck, Save, Trash2, TriangleAlert, Unlink } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
@@ -25,7 +25,7 @@ import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { rotuloSalvarComo } from '../planejamento/modelos';
 import { AvisoDoCampo } from './CamposDaPrescricao';
-import { EditorSeries } from './EditorSeries';
+import { BotaoDeMover, EditorSeries } from './EditorSeries';
 
 interface Props {
   exercicio: ExercicioPlano;
@@ -82,17 +82,25 @@ export function CartaoExercicio(p: Props) {
   const [extrasAbertos, setExtrasAbertos] = useState(!!(erroDoVideo(e.videoUrl) ?? erros.videoUrl));
   // Modalidade pedida que apagaria as séries: espera a confirmação.
   const [modalidadePendente, setModalidadePendente] = useState<{ valor: string | null } | null>(null);
+  // A modalidade aparece como resumo ("Modalidade: Livre") e só vira escolha depois do "Alterar" (reunião de 30/10): um
+  // toque sem querer nos chips não troca mais nada. Nunca é deduzida do nome do exercício.
+  const [alterandoModalidade, setAlterandoModalidade] = useState(false);
   const trocarModalidade = (valor: string | null) => {
     if (valor === e.modalidade) return;
     if (trocaApagaSeries(e, valor)) setModalidadePendente({ valor });
-    else p.aoMudar(comModalidade(e, valor));
+    else {
+      p.aoMudar(comModalidade(e, valor));
+      setAlterandoModalidade(false);
+    }
   };
   const confirmarModalidade = () => {
     if (!modalidadePendente) return;
     const novo = comModalidade(e, modalidadePendente.valor);
     setModalidadePendente(null);
+    setAlterandoModalidade(false);
     (p.aoMudarApagandoSeries ?? p.aoMudar)(novo);
   };
+  const nomeDaModalidade = OPCOES_DE_MODALIDADE.find((o) => o.valor === (e.modalidade ?? null))?.rotulo ?? e.modalidade ?? 'Não informada';
 
   return (
     <AlvoDeRolagem chave={e.uid}
@@ -115,8 +123,10 @@ export function CartaoExercicio(p: Props) {
           onPress={p.aoAbrir}
           style={estilos.titulo}>
           <View style={estilos.linhaDoNome}>
+            {/* "Exercício 2 de 5 · Supino reto": a posição por extenso não se confunde com o número da série (reunião de 30/10). */}
             <Texto style={estilos.nome}>
-              {p.posicao + 1}. {e.nome || 'Exercício sem nome'}
+              <Texto style={[estilos.nome, { color: cores.textoSuave }]}>Exercício {p.posicao + 1} de {p.total} · </Texto>
+              {e.nome || 'sem nome'}
             </Texto>
             {p.grupoMuscular ? <Selo texto={p.grupoMuscular} tipo="neutro" /> : null}
             <Selo texto={estado.texto} tipo={estado.tipo} Icone={estado.Icone} />
@@ -137,20 +147,34 @@ export function CartaoExercicio(p: Props) {
             {e.exercicioId === null && e.nome ? <Selo texto="Fora da biblioteca" tipo="neutro" /> : null}
           </View>
         </Pressable>
-        <View style={[estilos.acoes, largo ? null : estilos.acoesEstreitas]}>
+        <View style={[estilos.acoes, largo ? estilos.acoesLargas : estilos.acoesEstreitas]}>
           {largo
             ? <Botao rotulo="Trocar" rotuloAcessivel={`Trocar ${e.nome || 'o exercício'}`} tipo="secundario" Icone={ArrowLeftRight} aoTocar={p.aoEscolherDaBiblioteca} />
             : <IconeBotao moldura Icone={ArrowLeftRight} rotulo={`Trocar ${e.nome || 'o exercício'}`} aoTocar={p.aoEscolherDaBiblioteca} />}
-          <IconeBotao moldura Icone={ArrowUp} rotulo="Subir exercício" desabilitado={p.posicao === 0} aoTocar={() => p.aoMover(-1)} />
-          <IconeBotao moldura Icone={ArrowDown} rotulo="Descer exercício" desabilitado={p.posicao === p.total - 1} aoTocar={() => p.aoMover(1)} />
+          <BotaoDeMover alvo="exercicio" direcao={-1} comTexto={largo} desabilitado={p.posicao === 0} aoTocar={() => p.aoMover(-1)} />
+          <BotaoDeMover alvo="exercicio" direcao={1} comTexto={largo} desabilitado={p.posicao === p.total - 1} aoTocar={() => p.aoMover(1)} />
           <IconeBotao moldura Icone={Trash2} rotulo={`Remover ${e.nome || 'o exercício'}`} cor={cores.perigo} aoTocar={p.aoRemover} />
           <IconeBotao moldura Icone={p.aberto ? ChevronUp : ChevronDown} rotulo={p.aberto ? 'Fechar exercício' : 'Editar exercício'} aoTocar={p.aoAbrir} />
         </View>
       </View>
       {p.aberto ? (
         <View style={estilos.corpo}>
+          <Texto variante="secao" nivel={3}>Dados do exercício</Texto>
           <Campo rotulo="Nome de exibição" valor={e.nome} aoMudar={(nome) => mudar({ nome })} maxLength={120} erro={erros.nome} />
-          <Escolha rotulo="Modalidade" compacta opcoes={OPCOES_DE_MODALIDADE} valor={e.modalidade} aoMudar={trocarModalidade} />
+          {alterandoModalidade ? (
+            <View style={estilos.modalidade}>
+              <Escolha rotulo="Modalidade" compacta opcoes={OPCOES_DE_MODALIDADE} valor={e.modalidade} aoMudar={trocarModalidade} />
+              <Texto variante="pequeno">Livre e máquina mantêm as séries como estão. Trocar de ou para cardio apaga as séries (dá para desfazer).</Texto>
+              <View style={estilos.linhaDaModalidade}>
+                <Botao rotulo="Manter como está" rotuloAcessivel="Manter a modalidade como está" tipo="fantasma" aoTocar={() => setAlterandoModalidade(false)} />
+              </View>
+            </View>
+          ) : (
+            <View style={estilos.linhaDaModalidade}>
+              <Texto><Texto variante="rotulo">Modalidade: </Texto>{nomeDaModalidade}</Texto>
+              <Botao rotulo="Alterar" rotuloAcessivel="Alterar modalidade" tipo="secundario" aoTocar={() => setAlterandoModalidade(true)} />
+            </View>
+          )}
           {!cardio ? (
             <Escolha
               rotulo="Carga do exercício"
@@ -178,7 +202,8 @@ export function CartaoExercicio(p: Props) {
           ) : null}
           <View style={[estilos.divisor, { backgroundColor: cores.borda }]} />
           <Texto variante="secao">{cardio ? 'Cardio' : 'Séries'}</Texto>
-          <EditorSeries modalidade={e.modalidade} series={e.series} config={p.config} semCarga={e.unidade === 'nenhuma'} descansoPorSerie={p.descansoPorSerie !== false} aoMudar={(series) => mudar({ series })} aoUsarReceita={p.aoUsarReceita} />
+          <EditorSeries modalidade={e.modalidade} series={e.series} config={p.config} semCarga={e.unidade === 'nenhuma'} descansoPorSerie={p.descansoPorSerie !== false} aoMudar={(series) => mudar({ series })} aoUsarReceita={p.aoUsarReceita}
+            numeroDoExercicio={p.posicao + 1} nomeDoExercicio={e.nome} />
           <View style={[estilos.divisor, { backgroundColor: cores.borda }]} />
           <CabecalhoDeGrupo titulo="Execução (opcional)" resumo={execucaoAberta ? undefined : resumoDaExecucao(e)} aberto={execucaoAberta} aoAlternar={() => setExecucaoAberta((v) => !v)} />
           {execucaoAberta ? <View style={estilos.linhaExecucao}>
@@ -280,6 +305,10 @@ const estilos = StyleSheet.create({
   nome: { fontFamily: fontes.semi, fontSize: 16, lineHeight: 22 },
   selos: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(0.5), marginTop: 2 },
   acoes: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75) },
+  // No PC os botões de mover têm texto: a linha quebra em vez de apertar o nome do exercício.
+  acoesLargas: { flexWrap: 'wrap', justifyContent: 'flex-end' },
+  modalidade: { gap: espaco(1) },
+  linhaDaModalidade: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1.5) },
   corpo: { gap: espaco(1.5), padding: espaco(1.5), paddingTop: espaco(2) },
   rodape: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: espaco(1) },
   linhaExecucao: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5), alignItems: 'flex-start' },

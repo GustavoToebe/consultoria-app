@@ -1,6 +1,8 @@
 import { CONFIGURACAO_PADRAO } from './metodologiaPadrao';
 import type { Configuracao, ConteudoTreino, ExercicioPlano, Serie } from '../api/tipos';
-import { agrupar, descreverGrupo, descreverSeries } from './agrupamento';
+import { agrupar, descreverGrupo, descreverSeries, rotuloDoTipoDaSerie, tituloDoGrupoDeSeries } from './agrupamento';
+import { composicaoDasSeries } from './receitasDeSeries';
+import { previaDoGrupo } from './resumoDaSerie';
 import { localizar, uidsComProblema } from './caminhos';
 import { carga, exercicio, grupo, rir, serie as serieDeTeste, sessao as sessaoDeTeste } from './exemplosDeTreino.apoioTeste';
 import {
@@ -68,18 +70,35 @@ beforeEach(() => {
 });
 
 describe('forma de carga no editor', () => {
-  it('o % e a mesma carga dizem a base pelo nome da série de trabalho', () => {
-    expect(modosDeCarga(CONFIG).find((m) => m.valor === 'PERCENTUAL_WS')?.rotulo).toBe('% da WS');
-    expect(modosDeCarga(CONFIG).find((m) => m.valor === 'MESMA_CARGA')?.rotulo).toBe('Mesma carga da WS');
-    expect(modosDeCarga(null).find((m) => m.valor === 'PERCENTUAL_WS')?.rotulo).toBe('% da série de trabalho');
+  const todos = (m: ReturnType<typeof modosDeCarga>) => [...m.principais, ...m.outras].map((o) => o.valor);
+
+  it('o percentual e a mesma carga dizem a base pelo nome da série de trabalho', () => {
+    const rotulo = (m: ReturnType<typeof modosDeCarga>, valor: string) => [...m.principais, ...m.outras].find((o) => o.valor === valor)?.rotulo;
+    expect(rotulo(modosDeCarga(CONFIG), 'PERCENTUAL_WS')).toBe('Percentual da carga de trabalho (WS)');
+    expect(rotulo(modosDeCarga(CONFIG), 'MESMA_CARGA')).toBe('Mesma carga da WS');
+    expect(rotulo(modosDeCarga(CONFIG), 'NENHUMA')).toBe('Sem sugestão de carga');
+    expect(rotulo(modosDeCarga(null), 'PERCENTUAL_WS')).toBe('Percentual da carga de trabalho');
   });
 
-  it('o papel prioriza as opções sem proibir nenhuma', () => {
-    expect(modosDeCarga(CONFIG, 'TRABALHO')[0].valor).toBe('CARGA_TRABALHO');
-    expect(modosDeCarga(CONFIG, 'POS_TRABALHO')[0].valor).toBe('PERCENTUAL_WS');
-    expect(modosDeCarga(CONFIG, 'AQUECIMENTO')[0].valor).toBe('NENHUMA');
-    expect(modosDeCarga(CONFIG, 'OUTRO')).toHaveLength(6);
-    expect(modosDeCarga(CONFIG, 'POS_TRABALHO').map((m) => m.valor).sort()).toEqual(modosDeCarga(CONFIG).map((m) => m.valor).sort());
+  it('o papel escolhe as duas principais; as outras ficam em "Outras formas de carga"', () => {
+    expect(modosDeCarga(CONFIG, 'TRABALHO', 'CARGA_TRABALHO').principais.map((o) => o.valor)).toEqual(['CARGA_TRABALHO', 'ACIMA_DA_ANTERIOR']);
+    expect(modosDeCarga(CONFIG, 'POS_TRABALHO', 'PERCENTUAL_WS').principais.map((o) => o.valor)).toEqual(['PERCENTUAL_WS', 'ABAIXO_DA_REFERENCIA']);
+    expect(modosDeCarga(CONFIG, 'AQUECIMENTO').principais.map((o) => o.valor)).toEqual(['NENHUMA', 'PERCENTUAL_WS']);
+    expect(modosDeCarga(CONFIG, 'PREPARACAO').principais.map((o) => o.valor)).toEqual(['PERCENTUAL_WS', 'NENHUMA']);
+  });
+
+  it('nenhuma forma some nem repete, e a gravada fica sempre entre as principais', () => {
+    const papeis = [null, 'AQUECIMENTO', 'PREPARACAO', 'TRABALHO', 'POS_TRABALHO', 'OUTRO'] as const;
+    const modos = ['CARGA_TRABALHO', 'PERCENTUAL_WS', 'ACIMA_DA_ANTERIOR', 'ABAIXO_DA_REFERENCIA', 'MESMA_CARGA', 'NENHUMA'] as const;
+    for (const papel of papeis) {
+      for (const atual of [...modos, null]) {
+        const m = modosDeCarga(CONFIG, papel, atual);
+        expect(todos(m)).toHaveLength(6);
+        expect(new Set(todos(m))).toEqual(new Set(modos));
+        expect(m.principais.map((o) => o.valor)).toContain(atual ?? 'NENHUMA');
+        expect(m.principais.length).toBeLessThanOrEqual(3);
+      }
+    }
   });
 
   it('cargaDoModo: sem carga é nulo; as outras formas nascem sem número', () => {
@@ -91,7 +110,7 @@ describe('forma de carga no editor', () => {
 describe('agrupamento', () => {
   it('junta séries consecutivas iguais como no PDF', () => {
     const series = [fs('a', 50), fs('b', 70), fs('c', 85), ws('d'), backOff('e'), backOff('f')];
-    expect(descreverSeries(series, CONFIG)).toEqual(['3x3 - FS 50/70/85% da WS', '1x3 a 6 - WS', '2x6 a 8 - Back off 85% da WS']);
+    expect(descreverSeries(series, CONFIG)).toEqual(['3x3 - FS 50% · 70% · 85% da WS', '1x3 a 6 - WS', '2x6 a 8 - Back off 85% da WS']);
     expect(agrupar(series).map((g) => g.inicio)).toEqual([0, 3, 4]);
   });
 
@@ -330,7 +349,7 @@ describe('adicionar e reordenar séries (reunião de 17/10)', () => {
 
   it('série igual ao último grupo soma a ele pelo mesmo caminho do "+", com a regra de preparação', () => {
     const resultado = adicionarSerie([fs('a', 70), fs('b', 85, 90)], CONFIG, 'FEEDER');
-    expect(descreverSeries(resultado, CONFIG)).toEqual(['3x3 - FS 50/70/85 a 90% da WS']);
+    expect(descreverSeries(resultado, CONFIG)).toEqual(['3x3 - FS 50% · 70% · 85% a 90% da WS']);
     expect(resultado.slice(0, 2).map((s) => s.uid)).toEqual(['a', 'b']);
   });
 
@@ -726,5 +745,69 @@ describe('modalidade do exercício', () => {
     const volta = comModalidade({ ...cardio, series: [novaSerieDeCardio()] }, 'LIVRE');
     expect(volta).toMatchObject({ modalidade: 'LIVRE', unidade: 'kg', series: [] });
     expect(comModalidade(comSeries, 'MAQUINA').series).toHaveLength(1);
+  });
+});
+
+describe('título do grupo de séries no editor (reunião de 30/10)', () => {
+  it('papel e nome do tipo; só um deles quando são o mesmo; tipo fora da metodologia pelo código', () => {
+    expect(rotuloDoTipoDaSerie(CONFIG, 'FEEDER')).toBe('Preparação · FS');
+    expect(rotuloDoTipoDaSerie(CONFIG, 'WORKING')).toBe('Trabalho · WS');
+    expect(rotuloDoTipoDaSerie(CONFIG, 'BACK_OFF')).toBe('Pós-trabalho · Back off');
+    expect(rotuloDoTipoDaSerie(CONFIG, 'WARM_UP')).toBe('Aquecimento');
+    expect(rotuloDoTipoDaSerie(CONFIG, 'NAO_EXISTE')).toBe('NAO_EXISTE');
+    expect(rotuloDoTipoDaSerie(CONFIG, null)).toBe('');
+  });
+
+  it('a técnica entra no título, sem números (eles ficam no resumo)', () => {
+    const cluster = { ...tecnicaVazia('CLUSTER'), blocos: [4, 4, 4, 4], pausaSegundos: 15 };
+    const restPause = { ...tecnicaVazia('REST_PAUSE'), pausaSegundos: 20, pausas: 1 };
+    expect(tituloDoGrupoDeSeries(agrupar([fs('a', 50), fs('b', 70)])[0], CONFIG)).toBe('Preparação · FS');
+    expect(tituloDoGrupoDeSeries(agrupar([ws('a')].map((x) => ({ ...x, tecnica: cluster })))[0], CONFIG)).toBe('Trabalho · WS com Cluster');
+    expect(tituloDoGrupoDeSeries(agrupar([ws('a')].map((x) => ({ ...x, tecnica: restPause })))[0], CONFIG)).toBe('Trabalho · WS + Rest pause');
+    expect(tituloDoGrupoDeSeries(agrupar([novaSerieDeCardio()])[0], CONFIG)).toBe('Cardio');
+    expect(tituloDoGrupoDeSeries(agrupar([serie('x', null, 8, 8)])[0], CONFIG)).toBe('Série sem tipo');
+  });
+});
+
+/** Congela o objeto e tudo dentro dele: qualquer escrita das funções de leitura vira erro no teste. */
+function congelar<T>(valor: T): T {
+  if (valor && typeof valor === 'object') {
+    Object.values(valor as Record<string, unknown>).forEach(congelar);
+    Object.freeze(valor);
+  }
+  return valor;
+}
+
+describe('o corpo salvo não muda com os textos novos do editor (reunião de 30/10)', () => {
+  it('títulos, resumos, prévia, formas de carga e composição só leem as séries', () => {
+    const cluster = { ...tecnicaVazia('CLUSTER'), blocos: [4, 2], pausaSegundos: 15 };
+    const series = [
+      fs('a', 50), fs('b', 70), fs('c', 85, 90),
+      serie('d', 'TOP_SET', 3, 5, { carga: carga('ACIMA_DA_ANTERIOR', 1, 5), esforco: rir(1), alvoExtra: 'Controle na descida' }),
+      serie('e', 'WORKING', 6, 8, { carga: carga('CARGA_TRABALHO'), tecnica: cluster }),
+      backOffDe('f', 'd'), backOffDe('g', 'd'),
+      novaSerieDeCardio(),
+    ];
+    const antes = JSON.stringify(series);
+    congelar(series);
+    const exercicioCongelado = congelar(exercicio('x', { modalidade: 'LIVRE', series: JSON.parse(antes) as Serie[] }));
+    const exercicioAntes = JSON.stringify(exercicioCongelado);
+
+    for (const g of agrupar(series)) {
+      tituloDoGrupoDeSeries(g, CONFIG);
+      descreverGrupo(g, CONFIG, series);
+      descreverGrupo(g, CONFIG, series, { etapasAParte: true, semObservacao: true });
+      previaDoGrupo(g, series, CONFIG, {});
+      for (const s of g.series) modosDeCarga(CONFIG, null, s.carga?.modo ?? null);
+    }
+    descreverSeries(series, CONFIG);
+    composicaoDasSeries(series, CONFIG);
+
+    expect(JSON.stringify(series)).toBe(antes);
+    // Trocar Livre ↔ Máquina não reescreve a prescrição: as séries saem iguais, campo por campo.
+    const maquina = comModalidade(exercicioCongelado, 'MAQUINA');
+    expect(JSON.stringify(maquina.series)).toBe(antes);
+    expect(JSON.stringify(comModalidade(maquina, 'LIVRE').series)).toBe(antes);
+    expect(JSON.stringify(exercicioCongelado)).toBe(exercicioAntes);
   });
 });

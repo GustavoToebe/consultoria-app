@@ -1,14 +1,15 @@
-import { ChevronDown, ChevronUp, Medal, PlayCircle, Repeat, Timer } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, PlayCircle, Repeat, Timer } from 'lucide-react-native';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import type { AnteriorDoExercicio, Configuracao, DemonstracaoDoAluno, EtapaRegistrada, ExercicioPlano, OrigemDaReferencia, Serie, UltimaCarga } from '../api/tipos';
-import { ajustarCarga, calcularCargasDoExercicio, passoDaCarga, usaCargaDeTrabalho, type SerieCalculada } from '../dominio/cargas';
+import { ajustarCarga, calcularCargasDoExercicio, passoDaCarga, seriesSeguintesDependemDesta, textoDaOrigem, usaCargaDeTrabalho, type SerieCalculada } from '../dominio/cargas';
 import { etapasDaSerie } from '../dominio/etapas';
 import { textosDeExecucao } from '../dominio/execucaoDoExercicio';
 import { dataCurta, dataParaTela, numeroParaTela } from '../dominio/formatos';
 import { textoDoRecorde, type Recorde } from '../dominio/recordesPessoais';
+import { acompanharPendente, digitarPendente, valorExibido, type ValorPendente } from '../dominio/valorPendente';
 import { repeticaoDaAnterior } from '../dominio/repetirSerie';
 import { anteriorDaSerie, textoDaUltimaVez, textoDoAnterior } from '../dominio/seriesAnteriores';
 import { videoValido } from '../dominio/video';
@@ -21,7 +22,6 @@ import { Botao } from '../ui/Botao';
 import { BotaoMarcar } from '../ui/BotaoMarcar';
 import { CampoNumericoGrande } from '../ui/Campos';
 import { Cartao } from '../ui/Cartao';
-import { Selo } from '../ui/Selo';
 import { DemonstracaoDoExercicio } from '../ui/DemonstracaoDoExercicio';
 import { IconeBotao } from '../ui/IconeBotao';
 import { sobre } from '../ui/sobre';
@@ -29,8 +29,7 @@ import { Texto } from '../ui/Texto';
 import { useMovimentoReduzido } from '../ui/useMovimentoReduzido';
 import { CartaoSerieComEtapas } from './CartaoSerieComEtapas';
 import { CartaoSerieDeCardio } from './CartaoSerieDeCardio';
-import { LinhaDoAnterior } from './LinhaDoAnterior';
-import { SeloComExplicacao } from './SeloComExplicacao';
+import { CabecalhoDaSerie, LinhaDaSugestao, LinhaDoUltimoRegistro, MetaDaSerie, RotuloDeHoje } from './PartesDaSerie';
 import { dicaDaCarga, ehExercicioDeCardio, selosDaSerie, textosDaSerie } from './serieDoAluno';
 
 export interface DadosSerie {
@@ -88,6 +87,16 @@ export function ExercicioAluno(p: Props) {
   const e = p.exercicio;
   const [comoFazerAberto, abrirComoFazer] = useState(false);
   const base = p.cargaDoDia ?? p.ultima?.carga ?? null;
+  // A base digitada chega gravada depois (B1, 30/10): a caixa mostra o que foi digitado até lá. A conta das séries continua
+  // usando só a base gravada (`base`), como antes.
+  const [pendenteDaBase, setPendenteDaBase] = useState<ValorPendente<number | null> | undefined>(undefined);
+  const baseAcompanhada = acompanharPendente(pendenteDaBase, p.cargaDoDia);
+  if (baseAcompanhada !== pendenteDaBase) setPendenteDaBase(baseAcompanhada);
+  const baseNaCaixa = baseAcompanhada ? baseAcompanhada.valor : base;
+  const mudarBase = (v: number | null) => {
+    setPendenteDaBase(digitarPendente(baseAcompanhada, v, p.cargaDoDia));
+    p.aoMudarCargaDoDia(v);
+  };
   const cargasDoDia: Record<string, number | null> = {};
   for (const s of e.series) cargasDoDia[s.uid] = p.registroDe(s.uid)?.carga ?? null;
   const calculadas = calcularCargasDoExercicio(e, base, cargasDoDia, p.config);
@@ -155,24 +164,26 @@ export function ExercicioAluno(p: Props) {
           <Texto variante="rotulo">Carga de trabalho ({p.config.tipoTrabalho}) · {dataCurta(p.data)}</Texto>
           <View style={estilos.linhaPasso}>
             {passo !== null ? (
-              <BotaoDePasso sentido={-1} passo={passo} rotulo="carga de trabalho" aoAjustar={(s) => p.aoMudarCargaDoDia(ajustarCarga(base, null, passo, s))} />
+              <BotaoDePasso sentido={-1} passo={passo} rotulo="carga de trabalho" aoAjustar={(s) => mudarBase(ajustarCarga(baseNaCaixa, null, passo, s))} />
             ) : null}
             <CampoNumericoGrande
               rotulo="Carga de trabalho do dia"
               rotuloOculto
               sufixo="kg"
-              valor={base}
-              aoMudar={p.aoMudarCargaDoDia}
+              valor={baseNaCaixa}
+              aoMudar={mudarBase}
             />
             {passo !== null ? (
-              <BotaoDePasso sentido={1} passo={passo} rotulo="carga de trabalho" aoAjustar={(s) => p.aoMudarCargaDoDia(ajustarCarga(base, null, passo, s))} />
+              <BotaoDePasso sentido={1} passo={passo} rotulo="carga de trabalho" aoAjustar={(s) => mudarBase(ajustarCarga(baseNaCaixa, null, passo, s))} />
             ) : null}
           </View>
           <Texto numerico variante="pequeno">
             {p.ultima?.carga != null
-              ? `Última vez: ${numeroParaTela(p.ultima.carga)} kg × ${p.ultima.repeticoes ?? '—'} em ${dataParaTela(p.ultima.data)}. `
-              : 'Sem registro anterior. '}
-            {`É a carga das séries ${p.config.tipoTrabalho}; "% da ${p.config.tipoTrabalho}" é uma parte dela.`}
+              ? `Última vez: ${numeroParaTela(p.ultima.carga)} kg × ${p.ultima.repeticoes ?? '—'} em ${dataParaTela(p.ultima.data)}.`
+              : 'Sem registro anterior.'}
+          </Texto>
+          <Texto numerico variante="pequeno">
+            {`É o ponto de partida do dia. Depois que você registrar a ${p.config.tipoTrabalho} nesta sessão (com o ✓), as séries em "% da ${p.config.tipoTrabalho}" passam a sair dela.`}
           </Texto>
         </Cartao>
       ) : null}
@@ -201,6 +212,8 @@ export function ExercicioAluno(p: Props) {
             data={p.data}
             semCarga={semCarga}
             metodologia={p.config.metodologia}
+            tipoTrabalho={p.config.tipoTrabalho}
+            seriesDoExercicio={e.series}
             arredondamentoKg={p.config.arredondamentoKg}
             descansoNaSerie={p.descansoNaSerie ?? true}
             registro={p.registroDe(c.serie.uid)}
@@ -286,8 +299,17 @@ function CartaoSerie({
   const [cargaInvalida, setCargaInvalida] = useState(false);
   const [repsInvalidas, setRepsInvalidas] = useState(false);
   const invalido = cargaInvalida || repsInvalidas;
-  const carga = registro ? registro.carga : cargaDigitada !== undefined ? cargaDigitada : calculada.sugestao;
-  const reps = registro ? registro.repeticoes : repsDigitadas;
+  // Série já gravada: o número digitado só volta gravado depois (B1, 30/10). Até lá a caixa mostra o digitado, senão ela
+  // voltava ao antigo e a tecla seguinte somava a ele ("5", "0" gravava 420). Some quando a gravação chega ou o registro muda por fora.
+  // `undefined` no gravado = sem registro (o pendente cai); `null` = campo vazio gravado.
+  const [pendenteDaCarga, setPendenteDaCarga] = useState<ValorPendente<number | null | undefined> | undefined>(undefined);
+  const [pendenteDasReps, setPendenteDasReps] = useState<ValorPendente<number | null | undefined> | undefined>(undefined);
+  const cargaAcompanhada = acompanharPendente(pendenteDaCarga, registro?.carga);
+  const repsAcompanhadas = acompanharPendente(pendenteDasReps, registro?.repeticoes);
+  if (cargaAcompanhada !== pendenteDaCarga) setPendenteDaCarga(cargaAcompanhada);
+  if (repsAcompanhadas !== pendenteDasReps) setPendenteDasReps(repsAcompanhadas);
+  const carga = registro ? (valorExibido(cargaAcompanhada, registro.carga) ?? null) : cargaDigitada !== undefined ? cargaDigitada : calculada.sugestao;
+  const reps = registro ? (valorExibido(repsAcompanhadas, registro.repeticoes) ?? null) : repsDigitadas;
   const feita = !!registro?.concluida;
   const reduzido = useMovimentoReduzido();
   const progresso = useSharedValue(feita ? 1 : 0);
@@ -301,10 +323,20 @@ function CartaoSerie({
   const selos = selosDaSerie(s, metodologia);
   const pausa = s.tecnica?.pausaSegundos != null && s.tecnica.pausaSegundos > 0 ? s.tecnica.pausaSegundos : null;
 
-  const dica = ativa && !semCarga && !registro ? dicaDaCarga(s, { sugestao: calculada.sugestao, digitou: cargaDigitada !== undefined, tipoTrabalho, metodologia, seriesDoExercicio }) : null;
+  // De onde saiu o peso sugerido (A9): a frase troca o genérico "Peso sugerido pelo plano"; a dica fica para o que falta.
+  const origem = semCarga ? null : textoDaOrigem(calculada, { tipoTrabalho, metodologia, series: seriesDoExercicio });
+  const mostrarSugestao = !semCarga && !feita && calculada.sugestao != null;
+  const dica = ativa && !semCarga && !registro && !(mostrarSugestao && origem)
+    ? dicaDaCarga(s, { sugestao: calculada.sugestao, digitou: cargaDigitada !== undefined, tipoTrabalho, metodologia, seriesDoExercicio })
+    : null;
+  // A carga só entra na conta das séries seguintes com o ✓ (regra de sempre, N15): a dica diz isso enquanto não foi marcada.
+  const avisoDoMarcar = !semCarga && !registro && (ativa || cargaDigitada !== undefined) && seriesSeguintesDependemDesta(seriesDoExercicio, indice);
 
   const mudar = (parcial: Partial<DadosSerie>) => {
     if (registro) {
+      if ('carga' in parcial) setPendenteDaCarga(digitarPendente(cargaAcompanhada, parcial.carga ?? null, registro.carga));
+      if ('repeticoes' in parcial) setPendenteDasReps(digitarPendente(repsAcompanhadas, parcial.repeticoes ?? null, registro.repeticoes));
+      // Vai o que a caixa mostra nos dois campos (o outro pode ter uma tecla ainda não gravada).
       aoRegistrar({ carga, repeticoes: reps, concluida: feita, ...parcial });
     } else {
       if ('carga' in parcial) setCargaDigitada(parcial.carga ?? null);
@@ -314,33 +346,9 @@ function CartaoSerie({
 
   return (
     <Animated.View style={[estilos.serie, { borderColor: feita ? cores.sucesso : cores.borda }, fundo]}>
-      <View style={estilos.cabecaSerie}>
-        {recordes?.length ? (
-          // Medalha no lugar do número (referência do Hevy); o número continua no que o leitor de tela lê.
-          <View
-            style={estilos.medalha}
-            accessible
-            accessibilityRole="text"
-            accessibilityLabel={`Série ${numero}, recorde pessoal: ${recordes.map(textoDoRecorde).join('; ')}`}>
-            <Medal size={20} color={cores.sucesso} />
-            <Selo texto="Recorde" tipo="sucesso" />
-          </View>
-        ) : (
-          <Texto style={estilos.nomeSerie}>Série {numero}</Texto>
-        )}
-        {selos.tipo ? <SeloComExplicacao nome={selos.tipo.nome} explicacao={selos.tipo.explicacao} rotuloAcessivel={`Explicação de ${selos.tipo.nome}, série ${numero}`} /> : null}
-        {selos.tecnica ? <SeloComExplicacao nome={selos.tecnica.nome} explicacao={selos.tecnica.explicacao} rotuloAcessivel={`Explicação de ${selos.tecnica.nome}, série ${numero}`} /> : null}
-      </View>
-      <Texto numerico variante="pequeno">
-        {textos.descanso ? `${textos.meta} · ${textos.descanso}` : textos.meta}
-      </Texto>
-      {recordes?.length ? (
-        <Texto numerico variante="pequeno" cor={cores.sucesso} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          {recordes.map(textoDoRecorde).join(' · ')}
-        </Texto>
-      ) : null}
-      {anterior != null ? <LinhaDoAnterior texto={anterior} numero={numero} /> : null}
-      {textos.alvoExtra ? <Texto numerico variante="pequeno">Alvo extra: {textos.alvoExtra}</Texto> : null}
+      <CabecalhoDaSerie numero={numero} tipo={selos.tipo} tecnica={selos.tecnica} recordes={recordes} naoRegistrada={!feita} />
+      <MetaDaSerie texto={textos.valorDaMeta} complemento={textos.descanso} />
+      {textos.alvoExtra ? <Texto numerico variante="pequeno">Observação desta série: {textos.alvoExtra}</Texto> : null}
       {textos.amrap ? <Texto numerico variante="pequeno">AMRAP: faça o máximo de repetições que conseguir e anote quantas fez.</Texto> : null}
       {textos.tecnica ? (
         <View style={estilos.tecnica}>
@@ -350,6 +358,13 @@ function CartaoSerie({
           ) : null}
         </View>
       ) : null}
+      {anterior != null ? <LinhaDoUltimoRegistro texto={anterior} numero={numero} /> : null}
+      {recordes?.length ? (
+        <Texto numerico variante="pequeno" cor={cores.sucesso} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          {recordes.map(textoDoRecorde).join(' · ')}
+        </Texto>
+      ) : null}
+      <RotuloDeHoje />
       <View style={estilos.campos}>
         {semCarga ? null : (
           <CampoNumericoGrande
@@ -381,6 +396,8 @@ function CartaoSerie({
         />
       </View>
       {invalido ? <Texto variante="pequeno" cor={cores.perigo}>Corrija o número para marcar a série.</Texto> : null}
+      {mostrarSugestao ? <LinhaDaSugestao sugestao={calculada.sugestao!} origem={origem} /> : null}
+      {avisoDoMarcar ? <Texto numerico variante="pequeno">As séries seguintes só usam este peso depois que você marcar ✓.</Texto> : null}
       {!semCarga && passo !== null ? (
         <AjusteDeCarga passo={passo} rotulo={`peso da série ${numero}`}
           aoAjustar={(sentido) => mudar({ carga: ajustarCarga(carga, calculada.sugestao, passo, sentido) })} />
@@ -406,9 +423,6 @@ const estilos = StyleSheet.create({
   linhaPasso: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), maxWidth: 360 },
   tituloSeries: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: espaco(0.5), gap: espaco(1) },
   serie: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(1) },
-  cabecaSerie: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(1) },
-  nomeSerie: { fontFamily: fontes.semi, fontSize: 16 },
-  medalha: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5) },
   tecnica: { gap: espaco(1), alignItems: 'flex-start' },
   tecnicaTexto: { fontFamily: fontes.semi },
   campos: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(1), maxWidth: 480 },

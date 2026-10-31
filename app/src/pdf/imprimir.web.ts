@@ -2,11 +2,16 @@ import type { Documento } from './html';
 
 const ID = 'treinos-impressao';
 
+/** Limpeza da impressão anterior: se o navegador não avisou o fim (cancelou sem `afterprint`), ela ainda está pendente. */
+let limparAnterior: (() => void) | null = null;
+
 /**
  * Web: o documento entra num bloco só de impressão dentro da própria página e o navegador abre "Imprimir / Salvar
  * como PDF". Sem iframe (a CSP do Caddy bloqueia `frame-src`) e sem `Print.printAsync`, que imprime a tela atual.
  */
 export async function imprimir(d: Documento): Promise<void> {
+  // Restaura o título e tira o ouvinte da impressão anterior, senão o `afterprint` desta restauraria o título dela.
+  limparAnterior?.();
   document.getElementById(ID)?.remove();
   const bloco = document.createElement('div');
   bloco.id = ID;
@@ -27,13 +32,18 @@ export async function imprimir(d: Documento): Promise<void> {
 
   const tituloAnterior = document.title;
   document.title = d.titulo; // vira o nome sugerido do arquivo ao salvar como PDF
-  await esperarImagens(conteudo);
   const limpar = () => {
     document.title = tituloAnterior;
     bloco.remove();
     window.removeEventListener('afterprint', limpar);
+    if (limparAnterior === limpar) limparAnterior = null;
   };
+  // Registrada antes de esperar as imagens: uma segunda chamada (duplo clique) já enxerga esta e a desfaz primeiro.
+  limparAnterior = limpar;
   window.addEventListener('afterprint', limpar);
+  await esperarImagens(conteudo);
+  // Se outra impressão começou durante a espera, esta já foi desfeita: não imprime um bloco que não existe mais.
+  if (limparAnterior !== limpar) return;
   window.print();
 }
 

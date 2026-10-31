@@ -25,6 +25,7 @@ import {
   soMinutos,
   textoDasSeriesMarcadas,
 } from '../dominio/conclusaoNaTela';
+import { rotuloDoConcluir } from '../dominio/destaqueDaConclusao';
 import { useAluno } from '../offline/AlunoProvider';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
@@ -51,7 +52,10 @@ interface Props {
   hoje: string;
   /** A série (pelo `uid`) está feita nesta data? Dá a sugestão "Fiz tudo"/"Fiz em parte". */
   feita: (serieUid: string) => boolean;
-  /** Um primário por área: o rodapé do último exercício (e o da lista quando não há o que começar) é primário. */
+  /**
+   * Um primário por área: o rodapé do último exercício (e o da lista quando não há o que começar) é primário; com todas
+   * as séries marcadas, também o rodapé de qualquer exercício (`concluirEmDestaque`, B5).
+   */
   tipo: 'primario' | 'secundario';
   cheio?: boolean;
   /** Em data futura, mostra aqui a linha "Você poderá concluir..." (só num dos pontos da tela, para não repetir). */
@@ -94,6 +98,9 @@ export function ConcluirTreino({ versaoId, sessao, data, hoje, feita, tipo, chei
   }
 
   const conclusao = sessaoConcluidaDe(versaoId, sessao.uid, data);
+  // B5 (30/10): com todas as séries marcadas o botão diz "Revisar e concluir treino"; o toque continua só abrindo a Folha.
+  const marcadas = contagemDeSeries(sessao, feita);
+  const rotulo = rotuloDoConcluir(marcadas.total, marcadas.feitas);
 
   // Estado da Folha montado no toque (nunca num efeito): sugestão pelas séries marcadas e duração desde a 1ª série.
   const abrir = () => {
@@ -209,7 +216,7 @@ export function ConcluirTreino({ versaoId, sessao, data, hoje, feita, tipo, chei
       </LinhaDeAcoes>
     </Animated.View>
   ) : (
-    <Botao rotulo="Concluir treino" tipo={tipo} cheio={cheio} Icone={CheckCheck} aoTocar={abrir} />
+    <Botao rotulo={rotulo} tipo={tipo} cheio={cheio} Icone={CheckCheck} aoTocar={abrir} />
   );
 
   return (

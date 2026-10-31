@@ -170,9 +170,11 @@ for (const largura of [390, 1280]) {
 
     await page.getByRole('button', { name: 'Editar Supino fictício', exact: true }).click();
     await page.getByRole('button', { name: 'Usar receita', exact: true }).click();
-    await page.getByRole('button', { name: 'Usar este modelo', exact: true }).click();
-    await expect(page.getByRole('button', { name: /1x10 - WS \+ Pirâmide decrescente 10 a 15% abaixo da referência/ })).toBeVisible();
-    await page.getByRole('button', { name: /1x10 - WS \+ Pirâmide decrescente 10 a 15% abaixo da referência/ }).click();
+    await page.getByRole('button', { name: 'Aplicar receita Pirâmide decrescente', exact: true }).click();
+    await expect(page.getByText('Substitui as séries deste exercício', { exact: true })).toHaveCount(0);
+    await expect(page.getByText(/^1x10 - WS \+ Pirâmide decrescente 10% a 15% abaixo da referência/)).toBeVisible();
+    // As três séries têm o mesmo título ("Trabalho · WS + Pirâmide decrescente"); a de 10 reps é a segunda faixa.
+    await page.getByRole('button', { name: 'Trabalho · WS + Pirâmide decrescente, recolhido', exact: true }).nth(1).click();
     await expect(page.getByRole('button', { name: 'Série 1 · WS', exact: true })).toBeVisible();
     expect(api.errosDaPagina).toEqual([]);
     expect(api.naoTratadas).toEqual([]);

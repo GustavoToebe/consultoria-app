@@ -14,6 +14,7 @@ import type {
   TipoDeTecnica,
 } from '../api/tipos';
 import { numeroParaTela } from './formatos';
+import { textoDaFaixa } from './percentuais';
 
 /**
  * Leitura da metodologia para o editor, o aluno e o PDF. A metodologia só preenche padrões no editor (ao criar a série
@@ -46,11 +47,12 @@ function textoDaCargaPadrao(c: Carga | null | undefined, nomeDaWs?: string | nul
   if (c.modo === 'CARGA_TRABALHO') return 'carga de trabalho';
   const daWs = nomeDaWs ? ` da ${nomeDaWs}` : '';
   if (c.modo === 'MESMA_CARGA') return `mesma carga${daWs}`;
-  const faixa = faixaPreenchida(c.percentualMin, c.percentualMax ?? c.percentualMin);
-  if (!faixa) return '';
-  if (c.modo === 'PERCENTUAL_WS') return `${faixa}%${daWs}`;
-  if (c.modo === 'ACIMA_DA_ANTERIOR') return `+${faixa}% sobre a anterior`;
-  if (c.modo === 'ABAIXO_DA_REFERENCIA') return `${faixa}% abaixo da referência`;
+  const max = c.percentualMax ?? c.percentualMin;
+  if (c.percentualMin == null || max == null || !Number.isFinite(c.percentualMin) || !Number.isFinite(max)) return '';
+  const faixa = textoDaFaixa(c.percentualMin, max);
+  if (c.modo === 'PERCENTUAL_WS') return `${faixa}${daWs}`;
+  if (c.modo === 'ACIMA_DA_ANTERIOR') return `+${faixa} sobre a anterior`;
+  if (c.modo === 'ABAIXO_DA_REFERENCIA') return `${faixa} abaixo da referência`;
   return '';
 }
 

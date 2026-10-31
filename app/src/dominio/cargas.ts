@@ -1,5 +1,7 @@
 import type { Configuracao, ExercicioPlano, OrigemDaReferencia, Serie } from '../api/tipos';
 import { nomeDaReferencia, textoCardio, textoCarga, textoDasRepeticoes, textoEsforco, textoTecnica } from './agrupamento';
+import { numeroParaTela } from './formatos';
+import { tipoPorCodigo, tipoTrabalho as tipoTrabalhoDaMetodologia } from './metodologia';
 import { temEtapaEmPercentual } from './validacaoDeSerie';
 
 /**
@@ -165,6 +167,86 @@ export function calcularCargasDoExercicio(
     }
     return { serie, sugestao, referencia, meta: metaDaSerie(serie, config.tipoTrabalho, semCarga, config.metodologia, series) };
   });
+}
+
+/** Nomes que o texto da origem da carga usa: o da série de trabalho ("WS") e, para anterior e referência, as séries do exercício. */
+export interface NomesDaOrigem {
+  /** Nome da série de trabalho quando a metodologia não o dá (o `tipoTrabalho` da configuração da tela). */
+  tipoTrabalho?: string | null;
+  metodologia?: Configuracao | null;
+  /** As séries do exercício: dão o tipo da série anterior e da série de referência. */
+  series?: readonly Serie[];
+}
+
+const SEM_NOME_DA_WS = 'carga de trabalho';
+
+/** Nome do tipo na metodologia; sem ela (ou sem o tipo) fica vazio, porque o código nunca aparece para o aluno. */
+const nomeDoTipoNaMetodologia = (metodologia: Configuracao | null | undefined, codigo: string | null | undefined): string => tipoPorCodigo(metodologia, codigo)?.nome.trim() ?? '';
+
+/**
+ * De onde saiu a carga sugerida, em uma frase curta para o aluno ("80% da WS registrada nesta sessão", "80% da base do
+ * dia"). Só descreve o que `calcularCargasDoExercicio` já fez (a origem de `referencia`, o modo e o percentual mínimo,
+ * o mesmo número da conta): não calcula nada nem muda a sugestão. `null` quando não há sugestão ou a série não parte de
+ * uma referência (cardio, sem carga, sem base, "acima da anterior" sem a anterior registrada...).
+ * O nome da WS vem do tipo de trabalho da metodologia; sem ele, o `tipoTrabalho` informado; sem nenhum, "carga de trabalho".
+ */
+export function textoDaOrigem(calculada: SerieCalculada, nomes: NomesDaOrigem = {}): string | null {
+  const { serie, sugestao, referencia } = calculada;
+  if (sugestao == null || serie.cardio) return null;
+  const nomeDaWs = tipoTrabalhoDaMetodologia(nomes.metodologia) ?? (nomes.tipoTrabalho?.trim() || SEM_NOME_DA_WS);
+  const min = serie.carga?.percentualMin ?? null;
+  const max = serie.carga?.percentualMax ?? null;
+  const percentual = min == null ? null : `${numeroParaTela(min)}%`;
+  // Em faixa ("85% a 90%") a conta usa só o mínimo: o texto diz isso para o número não parecer errado ao lado da meta.
+  const daFaixa = min != null && max != null && max > min ? ', mínimo da faixa' : '';
+  const daReferencia = referencia?.origem === 'WS_ANTERIOR' ? `da ${nomeDaWs} registrada nesta sessão` : 'da base do dia';
+
+  switch (modo(serie)) {
+    case 'CARGA_TRABALHO':
+      return referencia ? 'carga da base do dia' : null;
+    case 'MESMA_CARGA':
+      return referencia ? `mesma carga ${daReferencia}` : null;
+    case 'PERCENTUAL_WS':
+      return referencia && percentual ? `${percentual} ${daReferencia}${daFaixa}` : null;
+    case 'ACIMA_DA_ANTERIOR': {
+      if (!percentual) return null;
+      const posicao = nomes.series?.findIndex((x) => x.uid === serie.uid) ?? -1;
+      const nome = posicao > 0 ? nomeDoTipoNaMetodologia(nomes.metodologia, nomes.series?.[posicao - 1]?.tipo) : '';
+      return `${percentual} acima da série anterior${nome ? ` (${nome})` : ''}${daFaixa}`;
+    }
+    case 'ABAIXO_DA_REFERENCIA': {
+      if (!percentual) return null;
+      const uid = serie.carga?.referenciaUid;
+      const nome = nomeDoTipoNaMetodologia(nomes.metodologia, uid ? nomes.series?.find((x) => x.uid === uid)?.tipo : null);
+      return `${percentual} abaixo da série de referência${nome ? ` (${nome})` : ''}${daFaixa}`;
+    }
+    default:
+      return null;
+  }
+}
+
+/**
+ * Alguma série seguinte parte da carga registrada nesta (A9, reunião de 30/10)? É o caso da WS para as séries em % dela,
+ * na mesma carga ou com etapa em % (enquanto nenhuma outra WS ficar entre elas), da série imediatamente anterior a um
+ * "acima da anterior" e da série de referência de um "abaixo da referência". Só descreve a regra de
+ * `calcularCargasDoExercicio` (a carga entra na conta das outras quando é registrada, com o ✓): não muda nada nela.
+ */
+export function seriesSeguintesDependemDesta(series: readonly Serie[], indice: number): boolean {
+  const s = series[indice];
+  if (!s || s.cardio || modo(s) === 'NENHUMA') return false;
+  for (let j = indice + 1; j < series.length; j++) {
+    const x = series[j];
+    if (x.cardio) continue;
+    const m = modo(x);
+    if (j === indice + 1 && m === 'ACIMA_DA_ANTERIOR') return true;
+    if (m === 'ABAIXO_DA_REFERENCIA' && x.carga?.referenciaUid === s.uid) return true;
+    if (ehSerieDeTrabalho(s) && (m === 'PERCENTUAL_WS' || m === 'MESMA_CARGA' || temEtapaEmPercentual(x.tecnica))) {
+      // A referência dela é a WS mais próxima antes dela: outra WS no meio passa a ser a dela.
+      const outraWsNoMeio = series.slice(indice + 1, j).some(ehSerieDeTrabalho);
+      if (!outraWsNoMeio) return true;
+    }
+  }
+  return false;
 }
 
 /** O exercício usa a carga de trabalho do dia (tem série de trabalho ou em % dela)? */

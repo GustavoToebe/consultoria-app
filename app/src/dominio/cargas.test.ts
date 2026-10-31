@@ -1,7 +1,7 @@
 import type { ExercicioPlano, Serie } from '../api/tipos';
 import { CONFIGURACAO_PADRAO } from './metodologiaPadrao';
-import { ajustarCarga, arredondar, calcularCargasDoExercicio, ehSerieDeTrabalho, metaDaSerie, passoDaCarga, usaCargaDeTrabalho } from './cargas';
-import { carga, exercicio as exercicioDeTeste, rir, serie as serieDeTeste } from './exemplosDeTreino.apoioTeste';
+import { ajustarCarga, arredondar, calcularCargasDoExercicio, ehSerieDeTrabalho, metaDaSerie, passoDaCarga, seriesSeguintesDependemDesta, textoDaOrigem, usaCargaDeTrabalho } from './cargas';
+import { carga, exercicio as exercicioDeTeste, rir, serie as serieDeTeste, tecnica } from './exemplosDeTreino.apoioTeste';
 
 const serie = (uid: string, tipo: string | null, extra: Partial<Serie>): Serie => serieDeTeste(uid, { tipo, repsMin: 3, repsMax: 3, carga: null, ...extra });
 const fs = (uid: string, p: number) => serie(uid, 'FEEDER', { carga: carga('PERCENTUAL_WS', p) });
@@ -52,7 +52,7 @@ describe('cargas do aluno', () => {
     expect(metaDaSerie(ws('d'), 'WS')).toBe('Meta: 3 a 6 reps · carga de trabalho');
     expect(metaDaSerie(serie('r', 'WORKING', { repsMin: 8, repsMax: 12, esforco: rir(1) }), 'WS')).toBe('Meta: 8 a 12 reps · 1 RIR');
     expect(metaDaSerie(serie('c', null, { repsMin: null, repsMax: null }), 'WS')).toBe('Meta: — reps');
-    expect(metaDaSerie(topSet('t', 1, 5), 'WS')).toBe('Meta: — reps · +1 a 5% sobre a anterior');
+    expect(metaDaSerie(topSet('t', 1, 5), 'WS')).toBe('Meta: — reps · +1% a 5% sobre a anterior');
   });
 
   it('AMRAP e alvo extra entram na meta', () => {
@@ -174,7 +174,7 @@ describe('modos de carga do formato novo', () => {
   it('percentual em faixa usa o mínimo, arredonda e não inventa carga sem referência', () => {
     const faixa = serie('c', 'FEEDER', { carga: carga('PERCENTUAL_WS', 85, 90), esforco: rir(0) });
     expect(calcularCargasDoExercicio(exercicio([faixa]), 31, {}, CONFIG)[0].sugestao).toBe(26.5);
-    expect(metaDaSerie(faixa, 'WS')).toBe('Meta: 3 reps · 85 a 90% da WS · até a falha');
+    expect(metaDaSerie(faixa, 'WS')).toBe('Meta: 3 reps · 85% a 90% da WS · até a falha');
     expect(calcularCargasDoExercicio(exercicio([faixa]), null, {}, CONFIG)[0].sugestao).toBeNull();
     expect(metaDaSerie(igual('c'), 'WS')).toContain('mesma carga da WS');
   });
@@ -182,5 +182,145 @@ describe('modos de carga do formato novo', () => {
     const semCarga = serie('n', 'WARM_UP', { carga: null });
     const nenhuma = serie('m', 'WARM_UP', { carga: carga('NENHUMA') });
     expect(calcularCargasDoExercicio(exercicio([semCarga, nenhuma]), 30, {}, CONFIG).map((x) => x.sugestao)).toEqual([null, null]);
+  });
+});
+
+describe('B1 · a sugestão depois da WS (fórmula intocada; reunião de 30/10, N15)', () => {
+  const e = () => exercicio([ws('w'), backOff('b', 80)]);
+
+  it('base 40, WS registrada em 42, Back off 80%, passo 0,5: a WS fica em 40 e o Back off sai de 42 → 33,5', () => {
+    const r = calcularCargasDoExercicio(e(), 40, { w: 42 }, CONFIG);
+    expect(r.map((x) => x.sugestao)).toEqual([40, 33.5]);
+    expect(r[1].referencia).toEqual({ valor: 42, origem: 'WS_ANTERIOR' });
+  });
+
+  it('WS ainda não registrada (a caixa pode ter 42 digitado, mas o domínio só vê o registro): o Back off sai da base do dia', () => {
+    for (const registro of [{}, { w: null }, { w: undefined }]) {
+      const r = calcularCargasDoExercicio(e(), 40, registro, CONFIG);
+      expect(r[1].sugestao).toBe(32);
+      expect(r[1].referencia).toEqual({ valor: 40, origem: 'BASE_DO_DIA' });
+    }
+  });
+
+  it('o Back off segue a WS registrada a cada edição, e voltar a esvaziá-la devolve a base do dia', () => {
+    const sugestoes = [42, 50, null].map((w) => calcularCargasDoExercicio(e(), 40, { w }, CONFIG)[1].sugestao);
+    expect(sugestoes).toEqual([33.5, 40, 32]);
+  });
+
+  it('mudar a base do dia só mexe no Back off enquanto não há WS registrada', () => {
+    expect(calcularCargasDoExercicio(e(), 45, {}, CONFIG).map((x) => x.sugestao)).toEqual([45, 36]);
+    expect(calcularCargasDoExercicio(e(), 45, { w: 42 }, CONFIG).map((x) => x.sugestao)).toEqual([45, 33.5]);
+  });
+
+  it('exercício sem base: nada sugerido; com a WS registrada, o Back off aparece mesmo assim', () => {
+    expect(calcularCargasDoExercicio(e(), null, {}, CONFIG).map((x) => x.sugestao)).toEqual([null, null]);
+    expect(calcularCargasDoExercicio(e(), null, { w: 42 }, CONFIG).map((x) => x.sugestao)).toEqual([null, 33.5]);
+  });
+
+  it('Cluster em carga de trabalho continua saindo da base do dia, mesmo com uma WS registrada antes', () => {
+    const cluster = serie('c', 'WORKING', { repsMin: 6, repsMax: 6, carga: carga('CARGA_TRABALHO'), tecnica: tecnica('CLUSTER', { blocos: [4, 2], pausaSegundos: 15 }) });
+    const r = calcularCargasDoExercicio(exercicio([ws('w'), cluster]), 40, { w: 42 }, CONFIG);
+    expect(r.map((x) => x.sugestao)).toEqual([40, 40]);
+    expect(r[1].referencia).toEqual({ valor: 40, origem: 'BASE_DO_DIA' });
+  });
+});
+
+describe('texto da origem da carga (clareza para o aluno, sem mudar a conta)', () => {
+  const nomes = { tipoTrabalho: 'WS', metodologia: CONFIGURACAO_PADRAO };
+  const origem = (series: Serie[], base: number | null, registradas: Record<string, number | null>, indice: number, n: Parameters<typeof textoDaOrigem>[1] = nomes) =>
+    textoDaOrigem(calcularCargasDoExercicio(exercicio(series), base, registradas, CONFIG)[indice], { ...n, series });
+
+  it('Back off com a WS registrada: "80% da WS registrada nesta sessão" (a sugestão continua 33,5)', () => {
+    const series = [ws('w'), backOff('b', 80)];
+    const calculadas = calcularCargasDoExercicio(exercicio(series), 40, { w: 42 }, CONFIG);
+    expect(calculadas[1].sugestao).toBe(33.5);
+    expect(textoDaOrigem(calculadas[1], { ...nomes, series })).toBe('80% da WS registrada nesta sessão');
+  });
+
+  it('Back off sem WS registrada: "80% da base do dia" (a sugestão continua 32)', () => {
+    const series = [ws('w'), backOff('b', 80)];
+    const calculadas = calcularCargasDoExercicio(exercicio(series), 40, {}, CONFIG);
+    expect(calculadas[1].sugestao).toBe(32);
+    expect(textoDaOrigem(calculadas[1], { ...nomes, series })).toBe('80% da base do dia');
+  });
+
+  it('o nome da WS vem da metodologia; sem ela, do nome informado; sem nenhum, "carga de trabalho"', () => {
+    const series = [ws('w'), backOff('b', 80)];
+    const renomeada = { ...CONFIGURACAO_PADRAO, tipos: CONFIGURACAO_PADRAO.tipos.map((t) => (t.papel === 'TRABALHO' ? { ...t, nome: 'Trabalho' } : t)) };
+    expect(origem(series, 40, { w: 42 }, 1, { tipoTrabalho: 'WS', metodologia: renomeada })).toBe('80% da Trabalho registrada nesta sessão');
+    expect(origem(series, 40, { w: 42 }, 1, { tipoTrabalho: 'WS', metodologia: undefined })).toBe('80% da WS registrada nesta sessão');
+    expect(origem(series, 40, { w: 42 }, 1, { tipoTrabalho: '  ', metodologia: undefined })).toBe('80% da carga de trabalho registrada nesta sessão');
+    expect(textoDaOrigem(calcularCargasDoExercicio(exercicio(series), 40, { w: 42 }, CONFIG)[1])).toBe('80% da carga de trabalho registrada nesta sessão');
+  });
+
+  it('faixa em % usa o mínimo, como a conta, e diz isso', () => {
+    const series = [ws('w'), serie('f', 'FEEDER', { carga: carga('PERCENTUAL_WS', 85, 90) })];
+    expect(origem(series, 31, {}, 1)).toBe('85% da base do dia, mínimo da faixa');
+  });
+
+  it('Cluster em carga de trabalho sai da base do dia, mesmo com WS registrada antes', () => {
+    const cluster = serie('c', 'WORKING', { repsMin: 6, repsMax: 6, carga: carga('CARGA_TRABALHO'), tecnica: tecnica('CLUSTER', { blocos: [4, 2], pausaSegundos: 15 }) });
+    expect(origem([ws('w'), cluster], 40, { w: 42 }, 1)).toBe('carga da base do dia');
+  });
+
+  it('mesma carga: da WS registrada ou da base do dia', () => {
+    const series = [ws('w'), serie('m', 'FEEDER', { carga: carga('MESMA_CARGA') })];
+    expect(origem(series, 40, { w: 42 }, 1)).toBe('mesma carga da WS registrada nesta sessão');
+    expect(origem(series, 40, {}, 1)).toBe('mesma carga da base do dia');
+  });
+
+  it('acima da anterior e abaixo da referência dizem o tipo da série pela metodologia', () => {
+    const series = [ws('w'), topSet('t', 5, 10), backOffDe('b', 't', 15)];
+    expect(origem(series, 100, { w: 40 }, 1)).toBe('5% acima da série anterior (WS), mínimo da faixa');
+    expect(origem(series, 100, { w: 40, t: 42 }, 2)).toBe('15% abaixo da série de referência (Top set)');
+    // Sem metodologia o código do tipo nunca aparece para o aluno.
+    expect(origem(series, 100, { w: 40, t: 42 }, 2, { tipoTrabalho: 'WS', metodologia: undefined })).toBe('15% abaixo da série de referência');
+  });
+
+  it('sem sugestão ou sem referência o texto é nulo (sem base, referência sem registro, sem carga, nenhuma, cardio)', () => {
+    expect(origem([ws('w'), backOff('b', 80)], null, {}, 1)).toBeNull();
+    expect(origem([ws('w'), backOff('b', 80)], null, {}, 0)).toBeNull();
+    expect(origem([ws('w'), topSet('t', 5, 10)], 100, {}, 1)).toBeNull();
+    expect(origem([ws('w'), backOffDe('b', 'w', 15)], 100, {}, 1)).toBeNull();
+    expect(origem([serie('n', 'WARM_UP', { carga: carga('NENHUMA') })], 40, {}, 0)).toBeNull();
+    expect(origem([serie('x', 'WARM_UP', { carga: null })], 40, {}, 0)).toBeNull();
+    const semCarga = calcularCargasDoExercicio(exercicio([ws('w'), backOff('b', 80)], { unidade: 'nenhuma' }), 40, { w: 42 }, CONFIG);
+    expect(textoDaOrigem(semCarga[1], nomes)).toBeNull();
+    const cardio = serie('k', null, { repsMin: null, repsMax: null, carga: null, cardio: { duracaoMin: 20, distanciaKm: null, ritmo: null, zona: 2, intervalos: null } });
+    expect(origem([cardio], 40, {}, 0)).toBeNull();
+  });
+});
+
+describe('as séries seguintes dependem desta? (dica do ✓, A9; só lê a regra da conta)', () => {
+  const depende = (series: Serie[], i: number) => seriesSeguintesDependemDesta(series, i);
+
+  it('WS com Back off em % ou na mesma carga depois dela: sim; o Back off em si, não', () => {
+    expect(depende([ws('w'), backOff('b', 80)], 0)).toBe(true);
+    expect(depende([ws('w'), serie('m', 'FEEDER', { carga: carga('MESMA_CARGA') })], 0)).toBe(true);
+    expect(depende([ws('w'), backOff('b', 80)], 1)).toBe(false);
+  });
+
+  it('a série em % antes da WS não depende dela (sai da base do dia)', () => {
+    expect(depende([fs('f', 50), ws('w')], 1)).toBe(false);
+    expect(depende([fs('f', 50), ws('w')], 0)).toBe(false);
+  });
+
+  it('outra WS no meio passa a ser a referência: a primeira não manda mais no Back off', () => {
+    expect(depende([ws('w1'), ws('w2'), backOff('b', 80)], 0)).toBe(false);
+    expect(depende([ws('w1'), ws('w2'), backOff('b', 80)], 1)).toBe(true);
+  });
+
+  it('acima da anterior depende da imediatamente anterior; abaixo da referência, da série apontada', () => {
+    expect(depende([ws('w'), topSet('t', 5, null)], 0)).toBe(true);
+    expect(depende([topSet('t', 5, null), backOffDe('b', 't', 15)], 0)).toBe(true);
+    expect(depende([ws('w'), topSet('t', 5, null), backOffDe('b', 't', 15)], 0)).toBe(true); // o Top set vem logo depois
+    expect(depende([ws('w'), fs('f', 50), topSet('t', 5, null)], 0)).toBe(true); // o FS em % da WS
+    expect(depende([fs('f', 50), fs('g', 70), topSet('t', 5, null)], 0)).toBe(false);
+  });
+
+  it('sem carga, cardio ou última série: não', () => {
+    expect(depende([serie('n', 'WARM_UP', { carga: carga('NENHUMA') }), backOff('b', 80)], 0)).toBe(false);
+    expect(depende([ws('w')], 0)).toBe(false);
+    expect(depende([], 0)).toBe(false);
   });
 });

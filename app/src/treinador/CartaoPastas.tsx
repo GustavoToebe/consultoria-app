@@ -8,11 +8,13 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { atualizacaoDoAluno, atualizacoesDoAluno, excluirPasta, finalizarPasta, reabrirPasta, salvarPastaComoModelo, atualizarPasta, criarPasta, escolherQuestionarioDaPasta, listarPastas, replicarPasta } from '../api/rotas';
+import { atualizacaoDoAluno, atualizacoesDoAluno, excluirPasta, finalizarPasta, reabrirPasta, salvarPastaComoModelo, atualizarPasta, criarPasta, escolherQuestionarioDaPasta, listarPastas, pesosDoAluno, replicarPasta } from '../api/rotas';
 import { SeletorDeQuestionario } from './questionarios/SeletorDeQuestionario';
 import type { Atualizacao, PastaResumo, Receita } from '../api/tipos';
 import { atualizacaoDaPasta, caminhoAtualizacaoTreinador, statusAtualizacaoTreinador } from '../dominio/atualizacao';
-import { dataDaTela, dataParaTela, hojeIso } from '../dominio/formatos';
+import { NOTAS_DA_RENOVACAO, PASSOS_DA_RENOVACAO, TITULO_ORDEM_DA_RENOVACAO } from '../dominio/ordemDaRenovacao';
+import { dataDoPesoDaAtualizacao, pesoDaAtualizacao, substituiPesoDaAtualizacao, textoDoPesoDaAtualizacao } from '../dominio/pesoNaFinalizacao';
+import { dataDaTela, dataParaTela, hojeIso, numeroParaTela } from '../dominio/formatos';
 import { dataSemAnoCorrente, periodoCurto } from '../dominio/datasRelativas';
 import { precisaRenovar } from '../dominio/resumoDoAluno';
 import { dadosDaRenovacao, diasDoPeriodo, fimQueAcompanha, periodoInicial, proximoPeriodo } from '../dominio/periodo';
@@ -27,7 +29,7 @@ import { CartaoCicloNoPeriodo } from './ciclo/CicloNaFicha';
 import { Cartao } from '../ui/Cartao';
 import { Escolha } from '../ui/Escolha';
 import { Esqueleto } from '../ui/Esqueleto';
-import { MensagemErro, Vazio } from '../ui/Estados';
+import { Alerta, MensagemErro, Vazio } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
 import { Folha } from '../ui/Folha';
 import { IconeBotao } from '../ui/IconeBotao';
@@ -180,6 +182,7 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
           {/* A atualização fecha o período e é o ponto central do acompanhamento: fica logo abaixo das ações. */}
           {verAtualizacoes ? <AtualizacaoDaPasta atualizacao={daPasta(aberta.id)} carregando={!atualizacoes} destaque={revisarNaFolha}
             aoAbrir={(a) => { setAbertaId(null); router.push(caminhoAtualizacaoTreinador(a)); }} /> : null}
+          <OrdemDaRenovacao />
           <Texto variante="secao">Planos desta pasta</Texto>
           <Permitido codigo={PERMISSOES_DO_PLANO.treino.ler}><CartaoPlanos tipo="treino" alunoId={alunoId} pasta={aberta} geracao={geracao} aoNavegar={() => setAbertaId(null)} /></Permitido>
           <Permitido codigo={PERMISSOES_DO_PLANO.dieta.ler}><CartaoPlanos tipo="dieta" alunoId={alunoId} pasta={aberta} geracao={geracao} aoNavegar={() => setAbertaId(null)} /></Permitido>
@@ -203,7 +206,7 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
         excluirPasta(id).then(aoSalvar, (e: unknown) => avisar(textoDoErro(e), 'perigo'));
       }} />
       {modo ? <FolhaPasta alunoId={alunoId} modo={modo} diasAtualizacao={diasAtualizacao} aoFechar={() => setModo(null)} aoSalvar={aoSalvar} /> : null}
-      {finalizar ? <FolhaFinalizar pasta={finalizar} aoFechar={() => setFinalizar(null)} aoFinalizar={(comPeso) => { setFinalizar(null); aoSalvar(); if (comPeso) aoGravarPeso?.(); }} /> : null}
+      {finalizar ? <FolhaFinalizar pasta={finalizar} alunoId={alunoId} atualizacao={daPasta(finalizar.id)} aoFechar={() => setFinalizar(null)} aoFinalizar={(comPeso) => { setFinalizar(null); aoSalvar(); if (comPeso) aoGravarPeso?.(); }} /> : null}
     </>
   );
 }
@@ -359,9 +362,32 @@ function FolhaPasta({ alunoId, modo, diasAtualizacao, aoFechar, aoSalvar }: { al
   );
 }
 
-function FolhaFinalizar({ pasta, aoFechar, aoFinalizar }: { pasta: PastaResumo; aoFechar: () => void; aoFinalizar: (comPeso: boolean) => void }) {
+/**
+ * Ordem sugerida para renovar o ciclo (reunião de 30/10): só orientação, recolhida, para não disputar com a ação
+ * principal da Folha. Nenhum botão e nenhuma automação.
+ */
+function OrdemDaRenovacao() {
+  return (
+    <Cartao titulo={TITULO_ORDEM_DA_RENOVACAO} nivel={3} recolhivel recolhido>
+      <View style={estilos.passos}>
+        {PASSOS_DA_RENOVACAO.map((passo, i) => (
+          <View key={passo} style={estilos.passo}>
+            <Texto numerico style={estilos.numeroDoPasso}>{i + 1}.</Texto>
+            <Texto style={estilos.textoDoPasso}>{passo}</Texto>
+          </View>
+        ))}
+      </View>
+      {NOTAS_DA_RENOVACAO.map((nota) => <Texto key={nota} variante="suave">{nota}</Texto>)}
+    </Cartao>
+  );
+}
+
+function FolhaFinalizar({ pasta, alunoId, atualizacao, aoFechar, aoFinalizar }: {
+  pasta: PastaResumo; alunoId: string; atualizacao: Atualizacao | null; aoFechar: () => void; aoFinalizar: (comPeso: boolean) => void;
+}) {
   const { pode } = useSessao();
   const { avisar } = useAviso();
+  // Começa vazia: o peso da atualização nunca é copiado para o campo (gravaria de novo um peso antigo).
   const [data, setData] = useState(dataParaTela(hojeIso()));
   const [peso, setPeso] = useState<number | null>(null);
   const [observacao, setObservacao] = useState('');
@@ -369,6 +395,11 @@ function FolhaFinalizar({ pasta, aoFechar, aoFinalizar }: { pasta: PastaResumo; 
   const [erro, setErro] = useState<unknown>(null);
   const dataIso = dataDaTela(data);
   const valido = dataIso !== undefined && (peso !== null || observacao.trim() === '');
+  // Peso que a atualização enviada já gravou na data dela: só com as duas permissões (peso e atualização são sensíveis).
+  const dataDoPeso = pode('ALUNO_SENSIVEL_LER') && pode('ATUALIZACAO_LER') ? dataDoPesoDaAtualizacao(atualizacao) : null;
+  const pesos = useCarregar(dataDoPeso ? `pesos-finalizar:${alunoId}:${dataDoPeso}` : null, () => pesosDoAluno(alunoId));
+  const registrado = pesoDaAtualizacao(pesos.dados, dataDoPeso);
+  const substitui = substituiPesoDaAtualizacao(dataIso, registrado, peso);
 
   const salvar = () => {
     if (!valido) return;
@@ -405,10 +436,20 @@ function FolhaFinalizar({ pasta, aoFechar, aoFinalizar }: { pasta: PastaResumo; 
         Finalizar não troca o que o aluno vê: ele passa a usar a pasta nova quando você publica o treino, a dieta ou a
         mobilidade dela.
       </Texto>
+      {registrado ? <Texto numerico>{textoDoPesoDaAtualizacao(registrado)}</Texto> : null}
+      {dataDoPeso && pesos.erro ? <Texto variante="suave">Não foi possível conferir o peso da atualização.</Texto> : null}
       <Permitido codigo="ALUNO_SENSIVEL_ALTERAR">
-      <Texto variante="suave">O peso opcional entra no registro do aluno com a data e a observação abaixo.</Texto>
+      <Texto variante="suave">
+        {registrado
+          ? 'Só preencha o peso se houver uma pesagem nova. Ele entra no registro do aluno com a data e a observação abaixo.'
+          : 'O peso opcional entra no registro do aluno com a data e a observação abaixo.'}
+      </Texto>
       <CampoData rotulo="Data do peso" valor={data} aoMudar={setData} />
       <CampoNumerico rotulo="Peso (opcional)" sufixo="kg" valor={peso} aoMudar={setPeso} />
+      {substitui && registrado ? (
+        <Alerta tom="atencao" titulo="Vai substituir o peso da atualização"
+          texto={`Já há ${numeroParaTela(registrado.pesoKg, 1)} kg registrado em ${dataParaTela(registrado.data)}. Um peso por dia: finalizar com esta data troca esse peso pelo novo. Para manter os dois, use outra data.`} />
+      ) : null}
       <Campo rotulo="Observação (opcional)" valor={observacao} aoMudar={setObservacao} maxLength={300} ajuda="Só é gravada junto com o peso." />
       </Permitido>
       {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
@@ -421,6 +462,10 @@ const estilos = StyleSheet.create({
   fimManual: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(1) },
   data: { flex: 1, minWidth: 190 },
   resumo: { gap: espaco(0.75) },
+  passos: { gap: espaco(0.5) },
+  passo: { flexDirection: 'row', gap: espaco(1), alignItems: 'flex-start' },
+  numeroDoPasso: { fontFamily: fontes.semi, minWidth: 20 },
+  textoDoPasso: { flex: 1 },
   linhaAtualizacao: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(0.75), marginTop: espaco(0.5) },
   linha: { borderWidth: 1, borderRadius: RAIO, overflow: 'hidden' },
   linhaToque: {
