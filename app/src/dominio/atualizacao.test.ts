@@ -87,6 +87,16 @@ describe('revisão em fila', () => {
     expect(filaDosParametros('AVISARAM_ATRASO', undefined)).toEqual({ situacao: 'AVISARAM_ATRASO', meus: false });
     expect(filaDosParametros('QUALQUER', 'true')).toBeNull();
     expect(filaDosParametros(undefined, 'true')).toBeNull();
+    // Responsável e período da barra de filtros vão junto; com Meus o responsável não vale (a API recusa os dois).
+    const id = 'u0000000-0000-4000-8000-000000000007';
+    expect(filaDosParametros('PARA_REVISAR', undefined, { responsavel: id, de: '2026-10-01', ate: '2026-10-31' }))
+      .toEqual({ situacao: 'PARA_REVISAR', meus: false, responsavel: id, de: '2026-10-01', ate: '2026-10-31' });
+    expect(filaDosParametros('PARA_REVISAR', 'true', { responsavel: id, de: '2026-10-01' })).toEqual({ situacao: 'PARA_REVISAR', meus: true });
+    expect(filaDosParametros('PARA_REVISAR', undefined, { responsavel: '../x' })).toEqual({ situacao: 'PARA_REVISAR', meus: false });
+    const fila = { situacao: 'ATRASADAS' as const, meus: false, responsavel: id, de: '2026-10-01', ate: '2026-10-31' };
+    expect(caminhoAtualizacaoTreinador({ id: 'c1', alunoId: 'a1' }, fila))
+      .toBe(`/treinador/atualizacoes/c1?situacao=ATRASADAS&responsavel=${id}&de=2026-10-01&ate=2026-10-31`);
+    expect(caminhoListaAtualizacoes('ATRASADAS', false, fila)).toBe(`/treinador/atualizacoes?situacao=ATRASADAS&responsavel=${id}&de=2026-10-01&ate=2026-10-31`);
   });
 
   it('a próxima é a primeira diferente da atual; fila acabou = nula', () => {
