@@ -1,4 +1,4 @@
-import { contadorDeRetornos, proximoPassoDoInicio, tomDoContador, umPorAluno } from './inicioTreinador';
+import { contadorDeRetornos, proximoPassoDoInicio, TETO_PLANOS_TERMINANDO, tomDoContador, umPorAluno } from './inicioTreinador';
 
 const nada = { paraRevisar: 0, atrasadas: 0, interessadosNovos: 0, planosTerminando: 0, semRegistro: 0, diasSemRegistro: 7 };
 
@@ -9,6 +9,13 @@ describe('proximoPassoDoInicio', () => {
     expect(proximoPassoDoInicio({ ...nada, interessadosNovos: 1, planosTerminando: 2 })?.destino).toBe('INTERESSADOS');
     expect(proximoPassoDoInicio({ ...nada, planosTerminando: 1 })?.texto).toBe('1 plano termina nos próximos 7 dias.');
     expect(proximoPassoDoInicio({ ...nada, semRegistro: 3, diasSemRegistro: 14 })?.texto).toBe('3 alunos estão sem registro há 14 dias.');
+  });
+
+  it('planos terminando no teto da lista da API (20) dizem "20 ou mais", porque o total não vem', () => {
+    expect(TETO_PLANOS_TERMINANDO).toBe(20);
+    expect(proximoPassoDoInicio({ ...nada, planosTerminando: 19 })?.texto).toBe('19 planos terminam nos próximos 7 dias.');
+    expect(proximoPassoDoInicio({ ...nada, planosTerminando: 20 })?.texto).toBe('20 ou mais planos terminam nos próximos 7 dias.');
+    expect(proximoPassoDoInicio({ ...nada, planosTerminando: 20 })?.acao).toBe('Ver planos');
   });
   it('retorno vencido vem depois das atualizações e antes dos interessados novos; o de hoje, depois deles', () => {
     expect(proximoPassoDoInicio({ ...nada, atrasadas: 1, retornosAtrasados: 2 })?.destino).toBe('ATRASADAS');

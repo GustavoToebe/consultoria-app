@@ -1,7 +1,7 @@
-import { LARGURA_LISTA } from '../../tema/tokens';
-import { TelaImportacao } from '../../treinador/importacao/TelaImportacao';
-import { Cabecalho } from '../../ui/Cabecalho';
-import { Tela } from '../../ui/Tela';
+import { LARGURA_LISTA } from '../../../tema/tokens';
+import { TelaImportacao } from '../../../treinador/importacao/TelaImportacao';
+import { Cabecalho } from '../../../ui/Cabecalho';
+import { Tela } from '../../../ui/Tela';
 
 /** Importação de planilha: prévia, confirmação e histórico. O arquivo não fica guardado. */
 export default function Importacao() {

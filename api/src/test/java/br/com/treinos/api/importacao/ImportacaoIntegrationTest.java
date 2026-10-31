@@ -84,6 +84,22 @@ class ImportacaoIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void xComoVazioEntraEErroDeFormulaFicaDeForaComMotivoClaro() throws Exception {
+        // Planilha real de 30/10: "x" no e-mail (opcional) derrubava a linha com "E-mail inválido".
+        String nome1 = "Marcador Fictício " + UUID.randomUUID();
+        String nome2 = "Formula Fictícia " + UUID.randomUUID();
+        String csv = "nome;email;objetivo\n" + nome1 + ";x;-\n" + nome2 + ";#ERROR!;Hipertrofia\n";
+        String config = config("nome", "IGNORAR", Map.of("nome", 0, "email", 1, "objetivo", 2));
+        JsonNode previa = enviar("alunos/previa", "alunos.csv", csv.getBytes(StandardCharsets.UTF_8), config, 200);
+        assertThat(previa.path("novos").asInt()).isEqualTo(1);
+        assertThat(previa.path("comErro").asInt()).isEqualTo(1);
+        JsonNode erro = previa.path("erros").get(0);
+        assertThat(erro.path("linha").asInt()).isEqualTo(3);
+        assertThat(erro.path("campo").asString()).isEqualTo("email");
+        assertThat(erro.path("motivo").asString()).isEqualTo(GravadorDaImportacao.CELULA_COM_ERRO).doesNotContain(nome2);
+    }
+
+    @Test
     void colunasTrazemAsPrimeirasLinhasSemGravarNada() throws Exception {
         StringBuilder csv = new StringBuilder("Nome do aluno;E-mail;Obs\n");
         for (int i = 1; i <= 7; i++) {

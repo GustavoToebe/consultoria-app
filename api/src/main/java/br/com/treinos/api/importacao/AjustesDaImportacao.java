@@ -114,7 +114,7 @@ record AjustesDaImportacao(Map<Integer, Map<Integer, String>> celulas, Set<Integ
             for (int c = 0; c < largura; c++) {
                 String texto = novas.get(c);
                 if (texto != null) {
-                    celulasDaLinha.add(new LeitorDePlanilha.Celula(texto, false, false));
+                    celulasDaLinha.add(LeitorDePlanilha.Celula.deTextoLido(texto));
                 } else {
                     celulasDaLinha.add(c < linha.celulas().size() ? linha.celulas().get(c) : LeitorDePlanilha.Celula.vazia());
                 }

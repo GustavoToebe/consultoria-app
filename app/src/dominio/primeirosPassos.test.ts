@@ -146,6 +146,12 @@ describe('itens e de onde sai o "feito"', () => {
     expect(falta.bloqueio).toBeNull();
   });
 
+  it('convite: o texto diz o que o item mede (aluno com acesso), não "entrou no app"', () => {
+    const i = item(montar(), 'convite');
+    expect(i.titulo).toBe('Um aluno já tem acesso ao app');
+    expect(i.descricao).toBe('Convite aceito ou e-mail e senha definidos na ficha.');
+  });
+
   it('convite: bloqueado sem aluno ativo, com o motivo certo para cada caso', () => {
     const nenhum = item(montar({ alunosAtivos: 0, alunosInativos: 0 }), 'convite');
     expect(nenhum.bloqueio).toBe('Cadastre um aluno primeiro.');
