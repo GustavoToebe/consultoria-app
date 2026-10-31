@@ -6,14 +6,16 @@
  * Regra: a caixa mostra o pendente enquanto ele existir. Ele some quando o valor gravado passa a ser o último digitado
  * (a gravação chegou) ou quando o gravado muda por fora para um valor que o campo nunca mandou (sincronização, outra
  * ação). O gravado que chega igual a uma tecla anterior ainda em voo (o "5" de "50") é eco da própria digitação: o
- * pendente continua. Nada aqui grava, calcula carga ou marca a série: só decide o que a caixa mostra.
+ * pendente continua. As gravações saem uma de cada vez e em ordem, então `enviados` é uma fila: cada gravado que chega
+ * tira da fila tudo até a primeira ocorrência dele, e o pendente só some quando a fila esvazia (digitar 5, 50 e voltar
+ * a 5 não libera a caixa no primeiro "5"). Nada aqui grava, calcula carga ou marca a série: só decide o que a caixa mostra.
  *
  * `undefined` é "sem pendente"; `null` é um valor de verdade (o campo esvaziado).
  */
 export interface ValorPendente<T> {
   /** O último valor digitado: o que a caixa mostra. */
   valor: T;
-  /** Tudo o que o campo mandou gravar desde que o pendente começou (o eco desses valores é da própria digitação). */
+  /** O que o campo mandou gravar e ainda não voltou, na ordem (o eco desses valores é da própria digitação). */
   enviados: readonly T[];
   /** O último valor gravado que o campo viu. */
   visto: T;
@@ -21,7 +23,10 @@ export interface ValorPendente<T> {
 
 /** O aluno digitou `valor` com `gravado` ainda valendo: abre o pendente ou acrescenta a tecla ao que já existe. */
 export function digitarPendente<T>(pendente: ValorPendente<T> | undefined, valor: T, gravado: T): ValorPendente<T> {
-  return { valor, enviados: [...(pendente?.enviados ?? []), valor], visto: pendente ? pendente.visto : gravado };
+  const fila = pendente?.enviados ?? [];
+  // Tecla repetida (o mesmo valor de novo) não gera outra gravação em voo para esperar.
+  const enviados = fila.length > 0 && Object.is(fila[fila.length - 1], valor) ? fila : [...fila, valor];
+  return { valor, enviados, visto: pendente ? pendente.visto : gravado };
 }
 
 /**
@@ -32,9 +37,11 @@ export function digitarPendente<T>(pendente: ValorPendente<T> | undefined, valor
 export function acompanharPendente<T>(pendente: ValorPendente<T> | undefined, gravado: T): ValorPendente<T> | undefined {
   if (!pendente) return undefined;
   if (Object.is(gravado, pendente.visto)) return pendente;
-  if (Object.is(gravado, pendente.valor)) return undefined;
-  if (pendente.enviados.some((v) => Object.is(v, gravado))) return { ...pendente, visto: gravado };
-  return undefined;
+  const posicao = pendente.enviados.findIndex((v) => Object.is(v, gravado));
+  if (posicao < 0) return undefined; // mudou por fora
+  const restantes = pendente.enviados.slice(posicao + 1);
+  if (restantes.length === 0) return undefined; // chegou a gravação do último valor
+  return { ...pendente, enviados: restantes, visto: gravado };
 }
 
 /** O que a caixa mostra: o pendente, se houver; senão o gravado. */

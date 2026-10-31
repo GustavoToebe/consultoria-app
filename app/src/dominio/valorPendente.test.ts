@@ -21,7 +21,7 @@ describe('valor pendente (campo com gravação assíncrona)', () => {
     const p = digitarPendente(digitarPendente(undefined, 5, 42), 50, 42);
     expect(p).toEqual({ valor: 50, enviados: [5, 50], visto: 42 });
     const depoisDoCinco = acompanharPendente(p, 5);
-    expect(depoisDoCinco).toEqual({ valor: 50, enviados: [5, 50], visto: 5 });
+    expect(depoisDoCinco).toEqual({ valor: 50, enviados: [50], visto: 5 });
     expect(valorExibido(depoisDoCinco, 5)).toBe(50);
     expect(acompanharPendente(depoisDoCinco, 5)).toBe(depoisDoCinco); // a guarda: sem nova mudança, o mesmo objeto
     expect(acompanharPendente(depoisDoCinco, 50)).toBeUndefined();
@@ -32,6 +32,25 @@ describe('valor pendente (campo com gravação assíncrona)', () => {
     const depoisDoQuatro = acompanharPendente(p, 4);
     expect(valorExibido(depoisDoQuatro, 4)).toBe(42);
     expect(acompanharPendente(depoisDoQuatro, 42)).toBeUndefined();
+  });
+
+  it('5, 50 e de volta a 5: o primeiro "5" que chega não libera a caixa; só o último', () => {
+    let p: ValorPendente<number> | undefined = digitarPendente<number>(undefined, 5, 40);
+    p = digitarPendente<number>(p, 50, 40);
+    p = digitarPendente<number>(p, 5, 40);
+    expect(p?.enviados).toEqual([5, 50, 5]);
+    p = acompanharPendente(p, 5);
+    expect(valorExibido(p, 5)).toBe(5);
+    expect(p).toBeDefined();
+    p = acompanharPendente(p, 50);
+    expect(p).toBeDefined(); // o 50 chegou, mas o último 5 ainda não: a caixa não pode pular para 50
+    expect(valorExibido(p, 50)).toBe(5);
+    expect(acompanharPendente(p, 5)).toBeUndefined();
+  });
+
+  it('o mesmo valor digitado duas vezes seguidas conta uma gravação só', () => {
+    const p = digitarPendente(digitarPendente(undefined, 5, 40), 5, 40);
+    expect(p.enviados).toEqual([5]);
   });
 
   it('o gravado muda por fora para um valor que o campo nunca mandou: o pendente é descartado', () => {

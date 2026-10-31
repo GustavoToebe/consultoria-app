@@ -24,9 +24,9 @@ export function pesoDaAtualizacao<T extends Peso>(pesos: readonly T[] | null | u
   return pesos.find((p) => p.data.slice(0, 10) === dia) ?? null;
 }
 
-/** "Peso da atualização já registrado: 82,4 kg em 20/10" (ano só quando é outro). */
+/** "Peso já registrado na data da atualização: 82,4 kg em 20/10" (ano só quando é outro). */
 export function textoDoPesoDaAtualizacao(peso: Peso, hoje: string = hojeIso()): string {
-  return `Peso da atualização já registrado: ${numeroParaTela(peso.pesoKg, 1)} kg em ${dataSemAnoCorrente(peso.data.slice(0, 10), hoje)}`;
+  return `Peso já registrado na data da atualização: ${numeroParaTela(peso.pesoKg, 1)} kg em ${dataSemAnoCorrente(peso.data.slice(0, 10), hoje)}`;
 }
 
 /**

@@ -32,15 +32,18 @@ export async function imprimir(d: Documento): Promise<void> {
 
   const tituloAnterior = document.title;
   document.title = d.titulo; // vira o nome sugerido do arquivo ao salvar como PDF
-  await esperarImagens(conteudo);
   const limpar = () => {
     document.title = tituloAnterior;
     bloco.remove();
     window.removeEventListener('afterprint', limpar);
     if (limparAnterior === limpar) limparAnterior = null;
   };
+  // Registrada antes de esperar as imagens: uma segunda chamada (duplo clique) já enxerga esta e a desfaz primeiro.
   limparAnterior = limpar;
   window.addEventListener('afterprint', limpar);
+  await esperarImagens(conteudo);
+  // Se outra impressão começou durante a espera, esta já foi desfeita: não imprime um bloco que não existe mais.
+  if (limparAnterior !== limpar) return;
   window.print();
 }
 

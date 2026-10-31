@@ -77,7 +77,7 @@ async function abrir(page: Page, permissoesExtras: string[], extras: RespostasAp
   });
 }
 
-const LINHA_DO_PESO = /Peso da atualização já registrado: 82,4 kg em 20\/10/;
+const LINHA_DO_PESO = /Peso já registrado na data da atualização: 82,4 kg em 20\/10/;
 
 for (const largura of [390, 1280]) {
   test(`finalizar: mostra o peso da atualização, o campo começa vazio e avisa da substituição (${largura}px)`, async ({ page }) => {

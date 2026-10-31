@@ -204,6 +204,16 @@ class InscricoesVisibilidadeIntegrationTest extends AbstractIntegrationTest {
         }
     }
 
+    @Test
+    void buscaPeloWhatsappComDddCinquentaECincoNaoPerdeODdd() throws Exception {
+        // O DDD 55 (Rio Grande do Sul) começa igual ao código do país: só se tira o 55 quando sobram 12 ou 13 dígitos.
+        String id = inscrever("Pessoa Teste Ddd Gaucho", "55999980041");
+        assertThat(detalhe(id).path("whatsapp").asString()).isEqualTo("(55) 99998-0041");
+        for (String busca : List.of("55999980041", "(55) 99998-0041", "+55 55 99998-0041", "5555999980041")) {
+            assertThat(ids("?busca=" + busca)).as("busca por %s", busca).containsExactly(id);
+        }
+    }
+
     // ---- caso 2: mesmo e-mail e mesmo WhatsApp ----
 
     @Test

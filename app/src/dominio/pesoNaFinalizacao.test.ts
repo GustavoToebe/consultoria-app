@@ -34,11 +34,11 @@ describe('pesoDaAtualizacao', () => {
 
 describe('textoDoPesoDaAtualizacao', () => {
   it('peso com vírgula e data curta no ano corrente', () => {
-    expect(textoDoPesoDaAtualizacao(PESOS[1], '2026-10-31')).toBe('Peso da atualização já registrado: 82,4 kg em 20/10');
+    expect(textoDoPesoDaAtualizacao(PESOS[1], '2026-10-31')).toBe('Peso já registrado na data da atualização: 82,4 kg em 20/10');
   });
 
   it('leva o ano quando é outro', () => {
-    expect(textoDoPesoDaAtualizacao({ data: '2025-12-30', pesoKg: 80 }, '2026-01-05')).toBe('Peso da atualização já registrado: 80 kg em 30/12/2025');
+    expect(textoDoPesoDaAtualizacao({ data: '2025-12-30', pesoKg: 80 }, '2026-01-05')).toBe('Peso já registrado na data da atualização: 80 kg em 30/12/2025');
   });
 });
 
