@@ -42,12 +42,32 @@ for (const largura of [390, 1280]) {
     // O filtro "Meus" (padrão de quem não tem acesso total) vai junto nas contagens e no endereço de Interessados.
     expect(pedidos.some((p) => p.caminho === '/inscricoes/contagens' && p.busca.get('meus') === 'true')).toBe(true);
 
+    // "Ver retornos" leva à mesma lista do cartão: retornos até hoje, com o "Meus".
     await page.getByRole('button', { name: 'Ver retornos' }).click();
-    await expect(page).toHaveURL(/\/treinador\/interessados\?meus=true$/);
+    await expect(page).toHaveURL(/\/treinador\/interessados\?retornos=ATE_HOJE&meus=true$/);
     expect(naoTratadas.filter((r) => !r.startsWith('GET /inscricoes/'))).toEqual([]);
     expect(errosDaPagina).toEqual([]);
   });
 }
+
+test('"Ver retornos" de quem tem acesso total abre os retornos até hoje de todos, igual ao cartão', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const { errosDaPagina } = await simularApi(page, {
+    ...(await sessao(page, TREINADOR, { permissoes: PERMISSOES_TREINADOR, perfil: { id: 'p1', nome: 'Administrador', acessoTotal: true } })),
+    'GET /painel': { corpo: PAINEL },
+    'GET /inscricoes/contagens': contagens(1, 0),
+    'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+    'GET /inscricoes/retornos': { corpo: [] },
+    'GET /inscricoes/configuracao': { corpo: null },
+    'GET /responsaveis': { corpo: [] },
+  });
+  await page.goto('/treinador');
+  const cartao = page.getByRole('link', { name: /^Retornos a interessados atrasados ou de hoje: 1/ });
+  await expect(cartao).toHaveAttribute('href', /\/treinador\/interessados\?retornos=ATE_HOJE$/);
+  await page.getByRole('button', { name: 'Ver retornos' }).click();
+  await expect(page).toHaveURL(/\/treinador\/interessados\?retornos=ATE_HOJE$/);
+  expect(errosDaPagina).toEqual([]);
+});
 
 test('sem retornos o contador fica apagado e o próximo passo segue para os interessados novos', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });

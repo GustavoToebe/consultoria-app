@@ -7,13 +7,17 @@
 export const BLOCOS_DO_PAINEL = ['atualizacoes', 'interessados', 'treinos', 'pastas', 'agenda', 'financeiro', 'recebido', 'alunos'] as const;
 export type BlocoDoPainelId = (typeof BLOCOS_DO_PAINEL)[number];
 
-/** Preferência do "Editar" (guardada em `Preferencias.painelDoInicio`): ordem de todos os blocos e os escondidos. */
+/**
+ * Preferência do painel (guardada em `Preferencias.painelDoInicio`): ordem de todos os blocos e os escondidos (do
+ * "Editar") e o Todos/Meus que a pessoa escolheu em cada bloco (`true` = Meus; bloco ausente = o padrão do perfil).
+ */
 export interface PainelDoInicioPreferido {
   ordem: BlocoDoPainelId[];
   escondidos: BlocoDoPainelId[];
+  meus: Partial<Record<BlocoDoPainelId, boolean>>;
 }
 
-export const PAINEL_DO_INICIO_PADRAO: PainelDoInicioPreferido = { ordem: [...BLOCOS_DO_PAINEL], escondidos: [] };
+export const PAINEL_DO_INICIO_PADRAO: PainelDoInicioPreferido = { ordem: [...BLOCOS_DO_PAINEL], escondidos: [], meus: {} };
 
 export const ehBlocoDoPainel = (valor: unknown): valor is BlocoDoPainelId =>
   typeof valor === 'string' && (BLOCOS_DO_PAINEL as readonly string[]).includes(valor);
