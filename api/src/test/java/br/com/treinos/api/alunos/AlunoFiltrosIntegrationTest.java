@@ -7,6 +7,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -32,6 +33,7 @@ class AlunoFiltrosIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired private MockMvc mvc;
     @Autowired private JsonMapper json;
+    @Autowired private JdbcTemplate banco;
     private ApiDeTeste api;
     private JsonNode admin;
     private final LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
@@ -57,6 +59,15 @@ class AlunoFiltrosIntegrationTest extends AbstractIntegrationTest {
 
     private UUID aluno(String nome) throws Exception {
         return api.criarAluno(admin, nome);
+    }
+
+    /**
+     * O cadastro põe quem cadastrou como responsável e a API não tem rota para tirá-lo; aluno sem responsável
+     * nasce de outros caminhos (importação, inscrição com responsável inativo). Aqui o teste o prepara direto no banco.
+     */
+    private UUID semResponsavel(UUID aluno) {
+        banco.update("update aluno set responsavel_id = null where id = ?", aluno);
+        return aluno;
     }
 
     private UUID aluno(String nome, JsonNode responsavel) throws Exception {
@@ -116,7 +127,7 @@ class AlunoFiltrosIntegrationTest extends AbstractIntegrationTest {
         JsonNode membro = membroCom(Set.of("ALUNO_LER"));
         aluno("Aluno do membro", membro);
         aluno("Aluno do admin", admin);
-        aluno("Aluno sem responsável");
+        semResponsavel(aluno("Aluno sem responsável"));
 
         assertThat(nomes(listar(admin, "responsavel=" + idDe(membro)))).containsExactly("Aluno do membro");
         assertThat(nomes(listar(admin, "responsavel=nenhum"))).containsExactly("Aluno sem responsável");
@@ -205,7 +216,7 @@ class AlunoFiltrosIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void semAPermissaoDoFiltroE403() throws Exception {
-        aluno("Aluno qualquer");
+        semResponsavel(aluno("Aluno qualquer"));
         JsonNode soAlunos = membroCom(Set.of("ALUNO_LER"));
         assertThat(api.get("/alunos?atualizacao=ATRASADA", soAlunos, 403).path("codigo").asString()).isEqualTo("PERMISSAO_NEGADA");
         api.get("/alunos?plano=COM", soAlunos, 403);
@@ -231,9 +242,9 @@ class AlunoFiltrosIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void outraConsultoriaNuncaAparece() throws Exception {
-        aluno("Aluno daqui sem acesso");
+        semResponsavel(aluno("Aluno daqui sem acesso"));
         JsonNode outro = api.novoTreinador();
-        api.criarAluno(outro, "Aluno de lá sem acesso");
+        semResponsavel(api.criarAluno(outro, "Aluno de lá sem acesso"));
 
         for (String consulta : List.of("acesso=SEM", "responsavel=nenhum", "atualizacao=SEM_PASTA", "plano=SEM", "registro=NUNCA")) {
             assertThat(nomes(listar(admin, consulta))).as(consulta).containsExactly("Aluno daqui sem acesso");
