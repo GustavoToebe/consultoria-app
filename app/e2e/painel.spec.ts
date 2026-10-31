@@ -111,7 +111,7 @@ for (const largura of [390, 1280]) {
   });
 }
 
-test('Todos/Meus é de cada bloco, e atualizar recarrega só o bloco', async ({ page }) => {
+test('Todos/Meus é de cada bloco, fica gravado e o Voltar ao padrão limpa; atualizar recarrega só o bloco', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   const { pedidos } = await abrir(page);
   const filtro = page.getByRole('button', { name: /^Interessados: mostrando só os meus alunos/ });
@@ -126,6 +126,18 @@ test('Todos/Meus é de cada bloco, e atualizar recarrega só o bloco', async ({ 
   await page.getByRole('button', { name: 'Atualizar Agenda' }).click();
   await expect.poll(() => pedidos.filter((p) => p.caminho === '/agenda/resumo').length).toBe(agendaAntes + 1);
   expect(pedidos.filter((p) => p.caminho === '/painel').length).toBe(painelAntes);
+
+  // A escolha de cada bloco fica gravada: depois de recarregar, Interessados continua em Todos e os outros em Meus.
+  await page.reload();
+  await expect(page.getByRole('button', { name: /^Interessados: mostrando todos os alunos/ })).toBeVisible();
+  await expect(page.getByText('Só os meus alunos')).toHaveCount(7);
+  // Voltar ao padrão, no Editar, devolve todos os blocos ao padrão do perfil (Meus, para quem não tem acesso total).
+  await page.getByRole('button', { name: 'Editar os blocos do Início' }).click();
+  const folha = page.getByRole('dialog', { name: 'Editar o Início' });
+  await folha.getByRole('button', { name: 'Voltar ao padrão' }).click();
+  await folha.getByRole('button', { name: 'Concluir' }).click();
+  await expect(page.getByRole('button', { name: /^Interessados: mostrando só os meus alunos/ })).toBeVisible();
+  await expect(page.getByText('Só os meus alunos')).toHaveCount(8);
 });
 
 test('consulta que falhou e campo nulo mostram "Não carregou", nunca zero; Atualizar tenta de novo', async ({ page }) => {

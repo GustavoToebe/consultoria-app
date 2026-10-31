@@ -5,7 +5,7 @@
  *
  * De onde sai o "feito" de cada item (nada de rota ou campo novo):
  * - Marca e logo: `useSessao().marca.logoUrl` (a sessão é atualizada quando a marca é salva).
- * - Cadastrar o primeiro aluno e Dar acesso ao app: `GET /painel?meus=false` (`alunosAtivos`, `alunosSemAcesso`,
+ * - Cadastrar o primeiro aluno e Um aluno já tem acesso ao app: `GET /painel?meus=false` (`alunosAtivos`, `alunosSemAcesso`,
  *   `alunosInativos`). Sempre a consultoria inteira: no filtro "Meus" um membro novo veria zero alunos.
  * - Ligar o link de inscrição: `GET /inscricoes/configuracao` (`aberta`).
  * - Conferir a metodologia e os modelos: não há dado no servidor; só o botão "Já conferi", guardado no aparelho.
@@ -157,8 +157,8 @@ const DEFINICOES: readonly Definicao[] = [
     visivel: (p) => p.pode('ALUNO_ALTERAR') && p.pode('PAINEL_VER'),
   },
   {
-    id: 'convite', titulo: 'Dar acesso ao app ao aluno', opcional: false, conferivel: false, rotuloAbrir: 'Abrir Alunos', destino: '/treinador/alunos',
-    texto: 'Gere o convite (o aluno cria a própria senha) ou defina você o e-mail e uma senha provisória.',
+    id: 'convite', titulo: 'Um aluno já tem acesso ao app', opcional: false, conferivel: false, rotuloAbrir: 'Abrir Alunos', destino: '/treinador/alunos',
+    texto: 'Convite aceito ou e-mail e senha definidos na ficha.',
     visivel: (p) => p.pode('ALUNO_CONVITE') && p.pode('PAINEL_VER'),
   },
   {

@@ -19,7 +19,7 @@ describe('preferências pessoais', () => {
   });
 
   it('aceita o objeto e o texto salvo, valor por valor', () => {
-    const salvo = { tema: 'SISTEMA', contraste: 'ALTO', tamanhoTexto: 'EXTRA', movimento: 'REDUZIDO', vibracao: false, graficos: false, bordasReforcadas: true, barrasEscuras: false, diasSemRegistro: 14, mostrarFasesDoCiclo: true, pdfDieta: { modo: 'detalhado', periodo: 'mes', fatores: false }, logoNaComparacao: false, lembretesCompromisso: true, agendasOcultas: ['compromissos', 'a1'], painelDoInicio: { ordem: ['financeiro', 'alunos', 'atualizacoes', 'interessados', 'treinos', 'pastas', 'agenda', 'recebido'], escondidos: ['agenda', 'recebido'] } };
+    const salvo = { tema: 'SISTEMA', contraste: 'ALTO', tamanhoTexto: 'EXTRA', movimento: 'REDUZIDO', vibracao: false, graficos: false, bordasReforcadas: true, barrasEscuras: false, diasSemRegistro: 14, mostrarFasesDoCiclo: true, pdfDieta: { modo: 'detalhado', periodo: 'mes', fatores: false }, logoNaComparacao: false, lembretesCompromisso: true, agendasOcultas: ['compromissos', 'a1'], painelDoInicio: { ordem: ['financeiro', 'alunos', 'atualizacoes', 'interessados', 'treinos', 'pastas', 'agenda', 'recebido'], escondidos: ['agenda', 'recebido'], meus: { agenda: true, interessados: false } } };
     expect(normalizarPreferencias(salvo)).toEqual(salvo);
     expect(normalizarPreferencias(JSON.stringify(salvo))).toEqual(salvo);
     expect(normalizarPreferencias({ tema: 'CLARO' })).toEqual({ ...PREFERENCIAS_PADRAO, tema: 'CLARO' });
@@ -55,7 +55,7 @@ describe('preferências pessoais', () => {
   });
 
   it('painel do Início: padrão com todos os blocos na ordem do protótipo e nenhum escondido', () => {
-    expect(PREFERENCIAS_PADRAO.painelDoInicio).toEqual({ ordem: [...BLOCOS_DO_PAINEL], escondidos: [] });
+    expect(PREFERENCIAS_PADRAO.painelDoInicio).toEqual({ ordem: [...BLOCOS_DO_PAINEL], escondidos: [], meus: {} });
     expect(PREFERENCIAS_PADRAO.painelDoInicio.ordem).toHaveLength(8);
     expect(normalizarPreferencias({}).painelDoInicio).toEqual(PREFERENCIAS_PADRAO.painelDoInicio);
   });
@@ -69,6 +69,14 @@ describe('preferências pessoais', () => {
   it('painel do Início: valor que não é objeto, ou com listas que não são listas, volta ao padrão', () => {
     for (const v of ['texto', 1, null, [], true, { ordem: 'alunos', escondidos: { a: 1 } }]) {
       expect(normalizarPreferencias({ painelDoInicio: v }).painelDoInicio).toEqual(PREFERENCIAS_PADRAO.painelDoInicio);
+    }
+  });
+
+  it('painel do Início: o Todos/Meus de cada bloco é gravado; id desconhecido e valor que não é booleano saem', () => {
+    const r = normalizarPreferencias({ painelDoInicio: { meus: { agenda: true, interessados: false, xis: true, treinos: 'sim', pastas: 1 } } }).painelDoInicio;
+    expect(r.meus).toEqual({ agenda: true, interessados: false });
+    for (const v of [null, 'Meus', ['agenda'], 3]) {
+      expect(normalizarPreferencias({ painelDoInicio: { meus: v } }).painelDoInicio.meus).toEqual({});
     }
   });
 

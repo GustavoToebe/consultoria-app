@@ -50,8 +50,9 @@ export interface Preferencias {
    */
   agendasOcultas: string[];
   /**
-   * Só treinador: "Editar" do painel do Início (D7). `ordem` traz sempre todos os blocos (os que a pessoa não pode ver
-   * guardam o lugar) e `escondidos` os que ela desligou. Os Primeiros passos e o Todos/Meus de cada bloco não entram.
+   * Só treinador: painel do Início (D7). `ordem` traz sempre todos os blocos (os que a pessoa não pode ver guardam o
+   * lugar), `escondidos` os que ela desligou no "Editar" e `meus` o Todos/Meus escolhido em cada bloco (o "Voltar ao
+   * padrão" do Editar limpa os três). Os Primeiros passos não entram.
    */
   painelDoInicio: PainelDoInicioPreferido;
 }
@@ -125,15 +126,21 @@ export function normalizarPreferencias(qualquer: unknown): Preferencias {
 
 /**
  * Ordem salva: ids conhecidos, sem repetir, na ordem salva; os que faltam (bloco novo numa versão futura) entram no fim, na
- * ordem padrão. Escondidos: só ids conhecidos, sem repetir. Qualquer outra coisa volta ao padrão.
+ * ordem padrão. Escondidos: só ids conhecidos, sem repetir. Meus: só ids conhecidos com valor booleano. Qualquer outra
+ * coisa volta ao padrão.
  */
 function painelDoInicioDe(valor: unknown): PainelDoInicioPreferido {
   const o = valor && typeof valor === 'object' ? (valor as Record<string, unknown>) : {};
   const conhecidos = (v: unknown) => (Array.isArray(v) ? [...new Set(v.filter(ehBlocoDoPainel))] : []);
   const salva = conhecidos(o.ordem);
+  const meus: PainelDoInicioPreferido['meus'] = {};
+  if (o.meus && typeof o.meus === 'object' && !Array.isArray(o.meus)) {
+    for (const [id, v] of Object.entries(o.meus)) if (ehBlocoDoPainel(id) && typeof v === 'boolean') meus[id] = v;
+  }
   return {
     ordem: [...salva, ...BLOCOS_DO_PAINEL.filter((id) => !salva.includes(id))],
     escondidos: conhecidos(o.escondidos),
+    meus,
   };
 }
 
