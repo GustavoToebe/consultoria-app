@@ -87,8 +87,10 @@ describe('tipos, técnicas e combinações pelo nome', () => {
 
 describe('carga', () => {
   it('só as formas com percentual têm rótulos de faixa, e o % é sempre da série de trabalho', () => {
-    expect(rotulosDaFaixa('PERCENTUAL_WS', cfg)?.minimo).toBe('% da WS mín.');
-    expect(rotulosDaFaixa('PERCENTUAL_WS', cfg)?.ajuda).toMatch(/nunca do 1RM/);
+    expect(rotulosDaFaixa('PERCENTUAL_WS', cfg)).toMatchObject({ minimo: 'Mínimo', maximo: 'Máximo' });
+    expect(rotulosDaFaixa('PERCENTUAL_WS', cfg)?.ajuda).toMatch(/carga da WS \(o tipo de trabalho\), nunca do 1RM/);
+    expect(rotulosDaFaixa('ACIMA_DA_ANTERIOR', cfg)?.ajuda).toMatch(/nunca do 1RM/);
+    expect(rotulosDaFaixa('ABAIXO_DA_REFERENCIA', cfg)?.ajuda).toMatch(/nunca do 1RM/);
     expect(rotulosDaFaixa('ACIMA_DA_ANTERIOR', cfg)).not.toBeNull();
     expect(rotulosDaFaixa('ABAIXO_DA_REFERENCIA', cfg)).not.toBeNull();
     expect(rotulosDaFaixa('CARGA_TRABALHO', cfg)).toBeNull();

@@ -45,11 +45,11 @@ describe('leitura curta da série (análise 2, A6)', () => {
     const p = previaDoGrupo({ series: [a, b] }, [a, b], config, { referencia: 'Referência: a carga de trabalho do dia, que o aluno informa.' });
     expect(p.resumo).toBe('2 séries completas · 3 reps');
     expect(p.linhas).toEqual([
-      'Carga: 50/70% da WS',
+      'Carga: 50% · 70% da WS',
       'Referência: a carga de trabalho do dia, que o aluno informa.',
       'Esforço: 2 RIR',
       'Descanso depois da série: 1 min 30 s',
-      'Alvo extra: Controle',
+      'Observação desta série: Controle',
     ]);
   });
 

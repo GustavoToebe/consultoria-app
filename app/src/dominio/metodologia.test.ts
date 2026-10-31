@@ -33,7 +33,7 @@ test('o cartão fechado resume só o que o tipo já tem', () => {
   expect(resumoDoTipo(c.tipos[1], 'WS')).toBe('Preparação · 3 reps · 85% da WS');
   expect(resumoDoTipo(c.tipos[2], 'WS')).toBe('Trabalho · 3 a 6 reps · carga de trabalho · 1 RIR');
   expect(resumoDoTipo(c.tipos[0], 'WS')).toBe('Aquecimento · 10 a 15 reps');
-  expect(resumoDoTipo(c.tipos[3], 'WS')).toBe('Trabalho · +1 a 5% sobre a anterior');
+  expect(resumoDoTipo(c.tipos[3], 'WS')).toBe('Trabalho · +1% a 5% sobre a anterior');
   expect(resumoDoTipo({
     papel: 'OUTRO',
     repeticoes: { min: 4, max: null },
@@ -112,7 +112,7 @@ test('a regra reaplica faixas por série ao mudar a quantidade; percentual indiv
   const series = [novaSerie(c, 'FEEDER')];
   const tres = mudarQuantidade(series, agrupar(series)[0], 3, c);
   expect(tres.map((s) => [s.carga?.percentualMin, s.carga?.percentualMax])).toEqual([[50, null], [70, null], [85, 90]]);
-  expect(descreverGrupo(agrupar(tres)[0], c)).toBe('3x3 - FS 50/70/85 a 90% da WS');
+  expect(descreverGrupo(agrupar(tres)[0], c)).toBe('3x3 - FS 50% · 70% · 85% a 90% da WS');
   const duas = mudarQuantidade(tres, agrupar(tres)[0], 2, c);
   expect(duas[1].carga?.percentualMax).toBe(90);
   const outra = alterarPercentuais(tres, 1, 75, 80);
@@ -164,7 +164,7 @@ test('normalizar preserva a metodologia sem compartilhar; o glossário tem só o
 });
 
 test('texto da carga e do esforço: faixas, mesma carga, até a falha em qualquer forma e pausas por respirações', () => {
-  expect(textoCargaEEsforco({ carga: carga('PERCENTUAL_WS', 85, 90), esforco: rir(0) }, 'WS')).toBe('85 a 90% da WS · até a falha');
+  expect(textoCargaEEsforco({ carga: carga('PERCENTUAL_WS', 85, 90), esforco: rir(0) }, 'WS')).toBe('85% a 90% da WS · até a falha');
   expect(textoCargaEEsforco({ carga: carga('MESMA_CARGA'), esforco: rir(2) }, 'WS')).toBe('mesma carga da WS · 2 RIR');
   expect(textoCarga(carga('ABAIXO_DA_REFERENCIA', 15), 'WS', 'Top set')).toBe('15% abaixo da referência (Top set)');
   expect(textoCarga(carga('CARGA_TRABALHO'), 'WS')).toBe('');

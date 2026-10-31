@@ -1,6 +1,6 @@
 import type { Configuracao, ConteudoTreino, ExercicioPlano, Marca, Serie, Sessao } from '../api/tipos';
 import { agrupar, descreverGrupo } from '../dominio/agrupamento';
-import { estruturaDaSerie, linhasDasEtapas } from '../dominio/resumoDaSerie';
+import { estruturaDaSerie, linhasDasEtapas, ROTULO_DA_OBSERVACAO_DA_SERIE } from '../dominio/resumoDaSerie';
 import { explicacaoDoCatalogo } from '../dominio/catalogoMetodologia';
 import { gruposDaSessao } from '../dominio/combinacoes';
 import { rotuloDescanso } from '../dominio/descanso';
@@ -55,8 +55,9 @@ export interface SerieDoPdf {
 /**
  * Coluna "Séries": um bloco por grupo de séries iguais. A linha tem o nome do tipo da metodologia (nunca o código), as
  * repetições ("AMRAP" quando pedido), a carga em faixa de percentual, o esforço (RIR/RPE, "até a falha" para RIR 0), a
- * técnica, o alvo extra e a prescrição de cardio. Cluster e Rest-pause levam as etapas numa linha própria, e o descanso
- * depois da série fica separado da pausa entre etapas. `comDescanso` falso nos membros de grupo cujo descanso é o do grupo
+ * técnica e a prescrição de cardio. Cluster e Rest-pause levam as etapas numa linha própria, e o descanso
+ * depois da série fica separado da pausa entre etapas. A observação da série (`alvoExtra`) vai numa linha própria,
+ * "Observação desta série: …", com o mesmo nome do editor e da prévia (reunião de 30/10). `comDescanso` falso nos membros de grupo cujo descanso é o do grupo
  * (a linha do grupo o diz).
  */
 export function seriesDoPdf(e: Pick<ExercicioPlano, 'series'>, config: Configuracao, comDescanso = true): SerieDoPdf[] {
@@ -68,7 +69,9 @@ export function seriesDoPdf(e: Pick<ExercicioPlano, 'series'>, config: Configura
     }
     const descanso = comDescanso ? textoDoDescansoDasSeries(g.series) : '';
     if (descanso) detalhes.push(`Descanso depois da série: ${descanso}`);
-    return { linha: descreverGrupo(g, config, e.series, { etapasAParte: true }), detalhes };
+    const observacao = primeira.alvoExtra?.trim();
+    if (observacao) detalhes.push(`${ROTULO_DA_OBSERVACAO_DA_SERIE}: ${observacao}`);
+    return { linha: descreverGrupo(g, config, e.series, { etapasAParte: true, semObservacao: true }), detalhes };
   });
 }
 

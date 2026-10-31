@@ -239,7 +239,7 @@ function problemasDaSerieDeCardio(p: Problemas, s: Serie): void {
 export function problemasDaSerie(s: Serie, exercicioCardio: boolean): Problemas {
   const p: Problemas = {};
   if (s.descansoSegundos != null && !dentro(s.descansoSegundos, 0, 3600)) p.descansoSegundos = 'Descanso precisa ficar entre 0 e 3600 segundos.';
-  if (s.alvoExtra != null && s.alvoExtra.length > 120) p.alvoExtra = 'Alvo extra com no máximo 120 caracteres.';
+  if (s.alvoExtra != null && s.alvoExtra.length > 120) p.alvoExtra = 'Observação desta série com no máximo 120 caracteres.';
   if (exercicioCardio) {
     problemasDaSerieDeCardio(p, s);
     return p;
