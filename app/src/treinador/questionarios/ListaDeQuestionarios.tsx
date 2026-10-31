@@ -1,22 +1,23 @@
 import { router } from 'expo-router';
 import { Archive, ArchiveRestore, Copy, Ellipsis, Pencil, Star, Trash2 } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
 
 import {
   arquivarQuestionario, criarQuestionario, definirQuestionarioPadrao, desarquivarQuestionario, duplicarQuestionario, excluirQuestionario,
   listarQuestionarios,
 } from '../../api/rotas';
 import type { FinalidadeQuestionario, OrigemQuestionario, QuestionarioResumo } from '../../api/tipos';
+import {
+  chipsDosFiltros, filtrarQuestionarios, PUBLICACOES, SEM_FILTROS, semOFiltro, SITUACOES_DO_QUESTIONARIO, type ChaveDoFiltro,
+  type FiltrosDeQuestionarios,
+} from '../../dominio/filtrosDeQuestionarios';
 import { useSessao } from '../../sessao/SessaoProvider';
-import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
+import { BarraDeFiltros } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
-import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
-import { semAcento } from '../../dominio/telas';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
@@ -27,6 +28,7 @@ import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Permitido } from '../../ui/Permitido';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
+import { CelulaDoFiltro } from '../SeletoresDeFiltro';
 
 const irParaEditor = (id: string) => router.push(`/treinador/planejamento/questionario/${id}`);
 
@@ -52,11 +54,13 @@ export function ListaDeQuestionarios({ finalidade = 'ATUALIZACAO', pedirNovo, ao
   const { avisar } = useAviso();
   const { pode } = useSessao();
   const anamnese = finalidade === 'ANAMNESE';
-  const [arquivados, setArquivados] = useState(false);
+  // Filtros (`docs/planos/filtros-nas-listas.md`, D12): a situação vai à API; busca e publicação filtram o que veio.
+  const [filtros, setFiltros] = useState<FiltrosDeQuestionarios>(SEM_FILTROS);
+  const arquivados = filtros.situacao === 'ARQUIVADOS';
   const lista = useCarregar(`questionarios:${finalidade}:${arquivados}`, () => listarQuestionarios(arquivados, finalidade));
   const [busca, setBusca] = useState('');
-  const termo = semAcento(busca.trim());
-  const filtrados = lista.dados?.filter((q) => !termo || semAcento(`${q.nome} ${q.descricao ?? ''}`).includes(termo));
+  const filtrados = lista.dados ? filtrarQuestionarios(lista.dados, filtros, busca) : undefined;
+  const chips = chipsDosFiltros(filtros);
   const [novoAberto, setNovoAberto] = useState(false);
   // `?novo=1` (atalho da busca) abre o formulário e sai do endereço na mesma hora: assim fechar o formulário não reescreve
   // a URL e o voltar do navegador não tem passo sobrando. Sem a permissão não abre (a API recusaria de qualquer jeito).
@@ -85,15 +89,17 @@ export function ListaDeQuestionarios({ finalidade = 'ATUALIZACAO', pedirNovo, ao
       descricao={anamnese ? 'O questionário inicial que você envia ao aluno pela ficha dele (cartão Anamnese). Ele responde no app, logado; a versão enviada não muda depois.'
         : 'O check-in que o aluno responde a cada período. O padrão vale para quem não tem outro escolhido na ficha ou na pasta.'}
       acoes={<Permitido codigo="QUESTIONARIO_ALTERAR"><Botao rotulo={anamnese ? 'Nova anamnese' : 'Novo questionário'} aoTocar={() => setNovoAberto(true)} /></Permitido>}>
-      {/* A mesma barra da lista de modelos: busca, depois o filtro. */}
-      <View style={estilos.busca}>
-        <View style={estilos.campoBusca}><Campo rotulo={anamnese ? 'Buscar anamnese' : 'Buscar questionário'} valor={busca} aoMudar={setBusca} placeholder="Nome ou descrição" autoCorrect={false} /></View>
-        <EscolhaEmFolha rotulo="Situação" valor={arquivados ? 'arquivados' : 'ativos'} aoMudar={(v) => setArquivados(v === 'arquivados')} style={estilos.seletor}
-          opcoes={[{ valor: 'ativos', rotulo: 'Ativos' }, { valor: 'arquivados', rotulo: 'Arquivados' }]} />
-      </View>
+      {/* Busca e o botão "Filtros" (situação e publicação), como nas outras listas. */}
+      <BarraDeFiltros busca={{ valor: busca, aoMudar: setBusca, rotulo: anamnese ? 'Buscar anamnese' : 'Buscar questionário', placeholder: 'Nome ou descrição' }}
+        valor={filtros} aoAplicar={setFiltros} limpo={SEM_FILTROS} chips={chips} aoTirar={(chave) => setFiltros(semOFiltro(filtros, chave as ChaveDoFiltro))}
+        rotuloDoResultado={anamnese ? 'Ver anamneses' : 'Ver questionários'}
+        seletores={(atuais, mudar) => <>
+          <CelulaDoFiltro><Escolha rotulo="Situação" opcoes={[...SITUACOES_DO_QUESTIONARIO]} valor={atuais.situacao} aoMudar={(situacao) => mudar({ ...atuais, situacao })} /></CelulaDoFiltro>
+          <CelulaDoFiltro><Escolha rotulo="Publicação" opcoes={[...PUBLICACOES]} valor={atuais.publicacao} aoMudar={(publicacao) => mudar({ ...atuais, publicacao })} /></CelulaDoFiltro>
+        </>} />
       {lista.erro ? <MensagemErro texto={textoDoErro(lista.erro)} erro={lista.erro} tentarDeNovo={lista.recarregar} /> : null}
       {!lista.dados && lista.carregando ? <Esqueleto /> : null}
-      {lista.dados?.length && filtrados?.length === 0 ? <Vazio texto="Nenhum questionário com essa busca." /> : null}
+      {lista.dados?.length && filtrados?.length === 0 ? <Vazio texto={filtros.publicacao ? 'Nenhum questionário com essa busca e esses filtros.' : 'Nenhum questionário com essa busca.'} /> : null}
       {lista.dados?.length === 0 ? <Vazio texto={arquivados ? 'Nenhum questionário arquivado.' : anamnese ? 'Nenhuma anamnese ainda. Crie uma em branco e monte as seções.' : 'Nenhum questionário ainda.'} /> : null}
       {filtrados?.length ? <ListaDeLinhas>{filtrados.map((q) =>
         <LinhaDoQuestionario key={q.id} q={q} ocupado={ocupado === q.id} podeAlterar={podeAlterar} aoAbrir={() => irParaEditor(q.id)} aoMenu={podeAlterar ? () => setMenu(q) : undefined} />)}</ListaDeLinhas> : null}
@@ -171,8 +177,3 @@ function FormularioNovo({ finalidade, aoFechar }: { finalidade: FinalidadeQuesti
   </Folha>;
 }
 
-const estilos = StyleSheet.create({
-  busca: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: espaco(1) },
-  campoBusca: { flexGrow: 1, flexBasis: 240 },
-  seletor: { alignSelf: 'flex-end' },
-});
