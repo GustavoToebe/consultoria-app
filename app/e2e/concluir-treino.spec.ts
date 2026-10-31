@@ -67,6 +67,8 @@ async function abrir(page: Page, { ligada = true, post = 'aceita' }: Opcoes = {}
 
 const serie = (page: Page, n: number) => page.getByRole('checkbox', { name: `Série ${n} feita`, exact: true });
 const botoesConcluir = (page: Page) => page.getByRole('button', { name: 'Concluir treino', exact: true });
+/** B5 (30/10): com todas as séries marcadas o botão passa a dizer isto (a Folha continua "Concluir treino"). */
+const botoesRevisar = (page: Page) => page.getByRole('button', { name: 'Revisar e concluir treino', exact: true });
 const folha = (page: Page) => page.getByRole('dialog', { name: 'Concluir treino' });
 const minutos = (page: Page) => folha(page).getByRole('textbox', { name: 'Duração em minutos', exact: true });
 const comentario = (page: Page) => folha(page).getByRole('textbox', { name: 'Como foi seu treino? (opcional)', exact: true });
@@ -82,6 +84,11 @@ test('chave desligada: nada novo aparece e o "Concluir treino" de sempre só vol
   await page.goto(EXERCICIO);
   await expect(botoesConcluir(page)).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Lista do dia' })).toHaveCount(0);
+  // B5 com a chave desligada: marcar tudo não muda o botão de sempre.
+  for (const n of [1, 2, 3]) await serie(page, n).click();
+  await expect(serie(page, 3)).toBeChecked();
+  await expect(botoesConcluir(page)).toHaveCount(1);
+  await expect(botoesRevisar(page)).toHaveCount(0);
   await botoesConcluir(page).click();
   await expect(page).toHaveURL(/\/aluno\/sessao\/sx\?data=2026-10-19$/);
   await expect(folha(page)).toHaveCount(0);
@@ -116,11 +123,15 @@ for (const largura of [390, 1280]) {
     await serie(page, 2).click();
     await serie(page, 3).click();
     await expect(serie(page, 3)).toBeChecked();
+    // B5: tudo marcado, o botão vira "Revisar e concluir treino" (o do rodapé continua o primário) e nada conclui sozinho.
+    await expect(botoesRevisar(page)).toHaveCount(2);
+    await expect(botoesConcluir(page)).toHaveCount(0);
+    await expect(page.getByText('Treino concluído')).toHaveCount(0);
     await page.clock.setFixedTime(new Date('2026-10-19T12:52:00-03:00'));
     await page.getByRole('button', { name: 'Lista do dia' }).click();
     await expect(page).toHaveURL(/\/aluno\/sessao\/sx\?data=2026-10-19$/);
-    await expect(botoesConcluir(page)).toHaveCount(2);
-    await botoesConcluir(page).first().click();
+    await expect(botoesRevisar(page)).toHaveCount(2);
+    await botoesRevisar(page).first().click();
     await expect(opcao(page, 'Fiz tudo')).toHaveAttribute('aria-checked', 'true');
     await expect(minutos(page)).toHaveValue('52');
     await comentario(page).fill('Treino puxado, mas deu.');
@@ -138,6 +149,7 @@ for (const largura of [390, 1280]) {
     await expect(page.getByText('Treino concluído', { exact: true })).toHaveCount(2);
     await expect(page.getByText('Fiz tudo · 52 min')).toHaveCount(2);
     await expect(botoesConcluir(page)).toHaveCount(0);
+    await expect(botoesRevisar(page)).toHaveCount(0);
     await expect.poll(() => api.conclusoes.length, { timeout: 15_000 }).toBe(1);
     expect(api.conclusoes[0]).toMatchObject({
       planoVersaoId: VERSAO, sessaoUid: 'sx', data: '2026-10-19', concluida: true, resultado: 'COMPLETA', duracaoSegundos: 3120,
@@ -149,7 +161,8 @@ for (const largura of [390, 1280]) {
     // Reabrir é o mesmo registro, sem resultado nem duração.
     await page.getByRole('button', { name: 'Reabrir o treino' }).first().click();
     await expect(page.getByText('Treino reaberto.')).toBeVisible();
-    await expect(botoesConcluir(page)).toHaveCount(2);
+    // Reaberto com tudo ainda marcado: volta o "Revisar e concluir treino".
+    await expect(botoesRevisar(page)).toHaveCount(2);
     await expect.poll(() => api.conclusoes.length, { timeout: 15_000 }).toBe(2);
     expect(api.conclusoes[1]).toMatchObject({ id: api.conclusoes[0].id, concluida: false, resultado: null, duracaoSegundos: null });
 

@@ -14,6 +14,8 @@ import { useTelaAcesa } from '../../../../aluno/useTelaAcesa';
 import { useAluno } from '../../../../offline/AlunoProvider';
 import { caminhoDaSessao, useSessaoDoDia } from '../../../../aluno/useSessaoDoDia';
 import { posicaoNoGrupo } from '../../../../dominio/combinacoes';
+import { podeConcluirEm } from '../../../../dominio/conclusaoDoTreino';
+import { concluirEmDestaque } from '../../../../dominio/destaqueDaConclusao';
 import { dataCurta } from '../../../../dominio/formatos';
 import { textoDaContagem } from '../../../../dominio/recordesPessoais';
 import { MODALIDADES } from '../../../../dominio/modalidades';
@@ -40,7 +42,7 @@ export default function ExercicioDaSessao() {
   const { uid, exercicio: exercicioUid, data: dataDaRota } = useLocalSearchParams<{ uid: string; exercicio: string; data?: string }>();
   const dia = useSessaoDoDia(uid, dataDaRota);
   useTelaAcesa();
-  const { iniciarDescanso, cancelarDescansoDe, demonstracoes } = useAluno();
+  const { iniciarDescanso, cancelarDescansoDe, demonstracoes, sessaoConcluidaDe } = useAluno();
   const { retornoHabilitado } = useSessao();
   const { sessao, data } = dia;
   const voltar = caminhoDaSessao(uid ?? '', data);
@@ -89,6 +91,15 @@ export default function ExercicioDaSessao() {
   const demonstracao = e.exercicioId ? demonstracoes.find((d) => d.exercicioId === e.exercicioId) ?? null : null;
   const recordesNoDia = textoDaContagem(dia.recordesNoDia);
   const resumoDoDia = `${feitasNoDia} de ${totalNoDia} ${totalNoDia === 1 ? 'série feita' : 'séries feitas'} neste treino.${recordesNoDia ? ` ${recordesNoDia}.` : ''}`;
+  // B5 (30/10): tudo marcado e ainda não concluído, "Revisar e concluir treino" vira o primário do rodapé e o "Próximo"
+  // passa a secundário (o aluno pode ter feito fora de ordem). Só abre a Folha; nada é concluído sozinho.
+  const emDestaque = concluirEmDestaque({
+    retornoHabilitado,
+    total: totalNoDia,
+    feitas: feitasNoDia,
+    podeConcluir: podeConcluirEm(data, dia.hoje),
+    concluida: !!sessaoConcluidaDe(dia.treino.versaoId, sessao.uid, data)?.concluida,
+  });
   const registrarSerie = (serieUid: string, d: Parameters<typeof dia.registrar>[2]) => {
     const jaFeita = !!dia.registroDe(serieUid)?.concluida;
     const recordes = dia.registrar(e, serieUid, d);
@@ -114,7 +125,7 @@ export default function ExercicioDaSessao() {
         </Cartao>
       ) : null}
       {/* Topo do último exercício: secundário (o primário é o do rodapé). Em data futura a linha fica só no rodapé. */}
-      {!proximo ? <ConcluirTreino {...conclusao} tipo="secundario" /> : null}
+      {!proximo || emDestaque ? <ConcluirTreino {...conclusao} tipo="secundario" /> : null}
       {noGrupo ? (
         <Cartao>
           <View style={estilos.linhaGrupo}>
@@ -151,7 +162,13 @@ export default function ExercicioDaSessao() {
         demonstracao={demonstracao}
       />
       <View style={estilos.fim}>
-        {proximo ? (
+        {proximo && emDestaque ? (
+          <>
+            <Texto numerico variante="suave">{resumoDoDia}</Texto>
+            <ConcluirTreino {...conclusao} tipo="primario" cheio />
+            <Botao rotulo={`Próximo: ${proximo.nome}`} Icone={ArrowRight} tipo="secundario" cheio aoTocar={() => ir(proximo.uid)} />
+          </>
+        ) : proximo ? (
           <Botao rotulo={`Próximo: ${proximo.nome}`} Icone={ArrowRight} cheio aoTocar={() => ir(proximo.uid)} />
         ) : retornoHabilitado ? (
           <>

@@ -13,6 +13,7 @@ import { pesosAluno } from '../../api/rotas';
 import type { ConteudoDieta, Refeicao, VersaoDetalhe } from '../../api/tipos';
 import { normalizarDieta, somar, textoDaAgua, textoEscolhaDasOpcoes, totalDoDia } from '../../dominio/dieta';
 import { ergogenicosPreenchidos } from '../../dominio/ergogenicos';
+import { linhasDoComplemento } from '../../dominio/linhasDoComplemento';
 import { dataParaTela, numeroParaTela } from '../../dominio/formatos';
 import { linkParaAbrir } from '../../dominio/links';
 import { useAluno } from '../../offline/AlunoProvider';
@@ -149,7 +150,7 @@ function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
               {e.principioAtivo || e.concentracao ? (
                 <Texto numerico variante="suave">{[e.principioAtivo, e.concentracao].filter(Boolean).join(' · ')}</Texto>
               ) : null}
-              <Texto numerico variante="suave">{[e.dose, e.horario, e.observacao].filter(Boolean).join(' · ') || '—'}</Texto>
+              <LinhasDoComplemento item={e} />
               {e.prescricao ? <Texto numerico variante="suave">Prescrição: {e.prescricao}</Texto> : null}
             </View>
           ))}
@@ -160,7 +161,7 @@ function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
           {c.suplementacao.map((s) => (
             <View key={s.uid} style={[estilos.item, { borderColor: cores.borda }]}>
               <Texto numerico style={estilos.forte}>{s.nome || '—'}</Texto>
-              <Texto numerico variante="suave">{[s.dose, s.horario, s.observacao].filter(Boolean).join(' · ') || '—'}</Texto>
+              <LinhasDoComplemento item={s} />
               {linkParaAbrir(s.link) ? <VerProduto link={s.link} /> : null}
             </View>
           ))}
@@ -168,6 +169,19 @@ function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
       ) : null}
       <NoPlano funcionalidade="PDF"><Botao rotulo="Baixar PDF da dieta" tipo="secundario" cheio Icone={FileDown} aoTocar={() => setFolhaPdf(true)} /></NoPlano>
       <FolhaPdfDieta visivel={folhaPdf} aoFechar={() => setFolhaPdf(false)} conteudo={c} versao={versao.numero} aoBaixar={pdf} />
+    </>
+  );
+}
+
+/** "Dose: …", "Horário: …", "Observação: …", uma por linha e só as preenchidas (A10); nada preenchido = "—". */
+function LinhasDoComplemento({ item }: { item: { dose?: string | null; horario?: string | null; observacao?: string | null } }) {
+  const linhas = linhasDoComplemento(item);
+  if (!linhas.length) return <Texto numerico variante="suave">—</Texto>;
+  return (
+    <>
+      {linhas.map((l) => (
+        <Texto key={l} numerico variante="suave">{l}</Texto>
+      ))}
     </>
   );
 }
@@ -195,11 +209,17 @@ function CartaoRefeicaoAluno({ refeicao }: { refeicao: Refeicao }) {
   return (
     <Cartao
       cabecalho={
-        <CabecalhoDeGrupo titulo={`${refeicao.horario ? `${refeicao.horario} · ` : ''}${refeicao.nome}`} />
+        // A12: o nome da refeição é o título; o horário vem embaixo, com o nome dele (antes "07:30 · Café" numa linha só).
+        <CabecalhoDeGrupo titulo={refeicao.nome || 'Refeição'} resumo={refeicao.horario ? `Horário: ${refeicao.horario}` : undefined} />
       }>
       {refeicao.observacao ? <Texto numerico variante="suave">{refeicao.observacao}</Texto> : null}
       {/* Opções são alternativas: o aluno escolhe uma, e os itens de opções diferentes não se somam. */}
-      {escolha ? <Texto numerico style={estilos.forte}>{escolha}</Texto> : null}
+      {escolha ? (
+        <View style={[estilos.escolha, { backgroundColor: cores.superficie3, borderLeftColor: cores.bordaCampo }]}>
+          <Texto numerico style={estilos.forte} cor={cores.texto}>{escolha}</Texto>
+          <Texto numerico variante="pequeno">As opções não se somam: o total do dia conta só a opção A.</Texto>
+        </View>
+      ) : null}
       {refeicao.opcoes.length > 1 ? (
         <Abas
           abas={refeicao.opcoes.map((o, i) => ({ valor: String(i), rotulo: `Opção ${o.rotulo}` }))}
@@ -216,9 +236,11 @@ function CartaoRefeicaoAluno({ refeicao }: { refeicao: Refeicao }) {
         </View>
       ))}
       {opcao ? (
-        <Texto numerico style={estilos.forte}>
-          {refeicao.opcoes.length > 1 ? `Total da opção ${opcao.rotulo}` : 'Total'}: {textoTotais(somar(opcao.itens))}
-        </Texto>
+        <View style={[estilos.totalDaRefeicao, { borderColor: cores.bordaCampo }]}>
+          <Texto numerico style={estilos.forte} cor={cores.texto}>
+            {refeicao.opcoes.length > 1 ? `Total da opção ${opcao.rotulo}` : 'Total'}: {textoTotais(somar(opcao.itens))}
+          </Texto>
+        </View>
       ) : null}
       <ModoDePreparo texto={refeicao.modoDePreparo} />
     </Cartao>
@@ -233,5 +255,7 @@ const estilos = StyleSheet.create({
   orientacao: { gap: 2 },
   forte: { fontFamily: fontes.semi },
   item: { borderTopWidth: 1, paddingTop: espaco(1), gap: 2 },
+  escolha: { borderRadius: RAIO, borderLeftWidth: 3, paddingVertical: espaco(1), paddingHorizontal: espaco(1.25), gap: 2 },
+  totalDaRefeicao: { borderTopWidth: 2, paddingTop: espaco(1), marginTop: espaco(0.5) },
   produto: { alignItems: 'flex-start', paddingTop: espaco(0.5) },
 });

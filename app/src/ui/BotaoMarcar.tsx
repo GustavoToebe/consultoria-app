@@ -2,7 +2,7 @@ import { Check } from 'lucide-react-native';
 import { Pressable, StyleSheet } from 'react-native';
 import Animated, { Keyframe, ReduceMotion, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import { useTema } from '../tema/TemaProvider';
-import { RAIO } from '../tema/tokens';
+import { RAIO, textoSobre } from '../tema/tokens';
 import { useMovimentoReduzido } from './useMovimentoReduzido';
 import { aoPressionarMarcar } from './marcar';
 import { vibrar } from './vibrar';
@@ -29,7 +29,7 @@ export function BotaoMarcar({ feito, aoTocar, ultimaDoExercicio, rotulo, desabil
         })}
         style={({ pressed }) => [estilos.botao, { borderColor: feito ? cores.sucesso : cores.bordaCampo, backgroundColor: feito ? cores.sucesso : pressed ? cores.superficie3 : cores.campo }]}>
         <Animated.View key={String(feito)} entering={reduzido ? undefined : new Keyframe({ 0: { opacity: 0, transform: [{ scale: 0.6 }] }, 100: { opacity: 1, transform: [{ scale: 1 }] } }).duration(150).reduceMotion(ReduceMotion.System)}>
-          <Check size={26} color={feito ? '#FFFFFF' : cores.textoSuave} strokeWidth={3} />
+          <Check size={26} color={feito ? textoSobre(cores.sucesso) : cores.textoSuave} strokeWidth={3} />
         </Animated.View>
       </Pressable>
     </Animated.View>
