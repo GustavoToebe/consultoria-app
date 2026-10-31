@@ -111,7 +111,7 @@ describe('ordem e escondidos (Editar)', () => {
   });
 
   it('preferência reordena e esconde; bloco sem permissão não entra nem na lista do Editar', () => {
-    const pref: PainelDoInicioPreferido = { ordem: ['alunos', 'agenda', ...BLOCOS_DO_PAINEL.filter((b) => b !== 'alunos' && b !== 'agenda')], escondidos: ['agenda'] };
+    const pref: PainelDoInicioPreferido = { ordem: ['alunos', 'agenda', ...BLOCOS_DO_PAINEL.filter((b) => b !== 'alunos' && b !== 'agenda')], escondidos: ['agenda'], meus: {} };
     const ctx = ctxCom(TODAS.filter((c) => c !== 'INSCRICAO_LER'));
     expect(blocosVisiveis(ctx, pref)).toEqual(['alunos', 'atualizacoes', 'treinos', 'pastas', 'financeiro', 'recebido']);
     expect(blocosPermitidos(ctx, pref)).toEqual(['alunos', 'agenda', 'atualizacoes', 'treinos', 'pastas', 'financeiro', 'recebido']);
@@ -123,7 +123,14 @@ describe('ordem e escondidos (Editar)', () => {
   });
 
   it('tudo escondido: nenhum bloco visível', () => {
-    expect(blocosVisiveis(ctxCom(), { ordem: [...BLOCOS_DO_PAINEL], escondidos: [...BLOCOS_DO_PAINEL] })).toEqual([]);
+    expect(blocosVisiveis(ctxCom(), { ordem: [...BLOCOS_DO_PAINEL], escondidos: [...BLOCOS_DO_PAINEL], meus: {} })).toEqual([]);
+  });
+
+  it('ligar, desligar e mover no Editar não perdem o Todos/Meus gravado de cada bloco', () => {
+    const pref = { ...PAINEL_DO_INICIO_PADRAO, meus: { agenda: true } };
+    expect(alternarBloco(pref, 'treinos').meus).toEqual({ agenda: true });
+    expect(moverBloco(pref, 'agenda', -1, BLOCOS_DO_PAINEL).meus).toEqual({ agenda: true });
+    expect(PAINEL_DO_INICIO_PADRAO.meus).toEqual({});
   });
 
   it('alternarBloco liga e desliga sem mexer na ordem nem no original', () => {

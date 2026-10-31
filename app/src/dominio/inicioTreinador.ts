@@ -25,13 +25,19 @@ const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um :
  * retorno a interessado já vencido (combinado e não cumprido), interessados novos (quem espera contato), retornos
  * marcados para hoje, planos que terminam e alunos sem registro. Nada pendente = nulo.
  */
+/** Teto da lista `planosTerminando` do `GET /painel` (a API não manda o total): no teto, o texto diz "20 ou mais". */
+export const TETO_PLANOS_TERMINANDO = 20;
+
 export function proximoPassoDoInicio(p: PendenciasDoInicio): { texto: string; acao: string; destino: DestinoDoInicio } | null {
   if (p.paraRevisar) return { texto: `${plural(p.paraRevisar, 'atualização chegou', 'atualizações chegaram')} para revisar.`, acao: 'Revisar agora', destino: 'PARA_REVISAR' };
   if (p.atrasadas) return { texto: `${plural(p.atrasadas, 'atualização está atrasada', 'atualizações estão atrasadas')}.`, acao: 'Ver atrasadas', destino: 'ATRASADAS' };
   if (p.retornosAtrasados) return { texto: `${plural(p.retornosAtrasados, 'retorno a interessado está atrasado', 'retornos a interessados estão atrasados')}.`, acao: 'Ver retornos', destino: 'RETORNOS' };
   if (p.interessadosNovos) return { texto: `${plural(p.interessadosNovos, 'interessado novo espera', 'interessados novos esperam')} contato.`, acao: 'Ver interessados', destino: 'INTERESSADOS' };
   if (p.retornosHoje) return { texto: `${plural(p.retornosHoje, 'retorno a interessado está marcado', 'retornos a interessados estão marcados')} para hoje.`, acao: 'Ver retornos', destino: 'RETORNOS' };
-  if (p.planosTerminando) return { texto: `${plural(p.planosTerminando, 'plano termina', 'planos terminam')} nos próximos 7 dias.`, acao: 'Ver planos', destino: 'PLANOS_TERMINANDO' };
+  if (p.planosTerminando) {
+    const quantos = p.planosTerminando >= TETO_PLANOS_TERMINANDO ? `${TETO_PLANOS_TERMINANDO} ou mais planos terminam` : plural(p.planosTerminando, 'plano termina', 'planos terminam');
+    return { texto: `${quantos} nos próximos 7 dias.`, acao: 'Ver planos', destino: 'PLANOS_TERMINANDO' };
+  }
   if (p.semRegistro) return { texto: `${plural(p.semRegistro, 'aluno está', 'alunos estão')} sem registro há ${p.diasSemRegistro} dias.`, acao: 'Ver alunos', destino: 'SEM_REGISTRO' };
   return null;
 }

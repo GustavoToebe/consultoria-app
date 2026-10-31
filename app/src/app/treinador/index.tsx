@@ -85,12 +85,12 @@ export default function InicioTreinador() {
   const { preferencias, escolherPreferencia } = useTema();
   const ctx: ContextoDoPainel = useMemo(() => ({ pode, pagamentosHabilitados, retornoHabilitado }), [pode, pagamentosHabilitados, retornoHabilitado]);
   const administrador = !!perfilEquipe?.acessoTotal;
-  // Padrão do Todos/Meus, como no Início antigo: quem tem acesso total vê todos; o membro, os seus. Só em memória.
+  // Padrão do Todos/Meus, como no Início antigo: quem tem acesso total vê todos; o membro, os seus. A escolha de cada
+  // bloco fica nas preferências do aparelho (`painelDoInicio.meus`), junto da ordem do "Editar".
   const padraoMeus = !administrador;
-  const [filtros, setFiltros] = useState<Partial<Record<BlocoDoPainelId, boolean>>>({});
-  const meusDe = useCallback((id: BlocoDoPainelId) => filtros[id] ?? padraoMeus, [filtros, padraoMeus]);
-  const dias = preferencias.diasSemRegistro;
   const pref = preferencias.painelDoInicio;
+  const meusDe = useCallback((id: BlocoDoPainelId) => pref.meus[id] ?? padraoMeus, [pref.meus, padraoMeus]);
+  const dias = preferencias.diasSemRegistro;
   const usuarioId = usuario?.id ?? null;
   const hoje = hojeEmBrasilia();
   const opcoes = useCallback((id: BlocoDoPainelId): OpcoesDoBloco => ({ meus: meusDe(id), dias, graficos: preferencias.graficos, hoje, usuarioId }),
@@ -157,7 +157,7 @@ export default function InicioTreinador() {
     if (!padrao) return;
     if (destino === 'PARA_REVISAR' || destino === 'ATRASADAS') router.push(caminhoListaAtualizacoes(destino, padraoMeus));
     else if (destino === 'INTERESSADOS') router.push((padraoMeus ? '/treinador/interessados?situacao=NOVA&meus=true' : '/treinador/interessados?situacao=NOVA') as Href);
-    else if (destino === 'RETORNOS') router.push((padraoMeus ? '/treinador/interessados?meus=true' : '/treinador/interessados') as Href);
+    else if (destino === 'RETORNOS') router.push((padraoMeus ? '/treinador/interessados?retornos=ATE_HOJE&meus=true' : '/treinador/interessados?retornos=ATE_HOJE') as Href);
     else if (destino === 'PLANOS_TERMINANDO' && padrao.planosTerminando[0]) router.push(`/treinador/alunos/${padrao.planosTerminando[0].aluno.id}`);
     else if (destino === 'SEM_REGISTRO') setFolhaAberta({ id: 'semRegistro', meus: padraoMeus });
   };
@@ -273,7 +273,7 @@ export default function InicioTreinador() {
                 return (
                   <BlocoDoPainel key={c.id} bloco={bloco} style={{ flex: c.colunas, flexBasis: 0 }}
                     aoAtualizar={() => recarregar(porBloco.get(c.id) ?? [])}
-                    aoAlternarFiltro={() => setFiltros((f) => ({ ...f, [c.id]: !(f[c.id] ?? padraoMeus) }))}
+                    aoAlternarFiltro={() => escolherPreferencia({ painelDoInicio: { ...pref, meus: { ...pref.meus, [c.id]: !meusDe(c.id) } } })}
                     aoAbrirFolha={(id) => setFolhaAberta({ id, meus: bloco.meus })} />
                 );
               })}
