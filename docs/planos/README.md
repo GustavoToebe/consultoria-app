@@ -42,6 +42,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Importação em tela inteira, "x" como vazio, erro de fórmula e erros agrupados (reunião de 30/10) | [importacao-tela-inteira.md](importacao-tela-inteira.md) | `main` (c7d1b2b, PR 24) | Concluída em 31/10/2026 | 31/10/2026 |
 | "Quero ser aluno" com as perguntas do treinador (questionário de inscrição) | [inscricao-com-perguntas-proprias.md](inscricao-com-perguntas-proprias.md) | — | Planejando, decisões fechadas: começa depois de `ajustes-video-30-10` e das pendências do painel | 31/10/2026 |
 | Filtros avançados da lista de alunos (busca, painel de filtros, "Filtrado por"; Início abre a lista filtrada) | [filtros-da-lista-de-alunos.md](filtros-da-lista-de-alunos.md) | branch (31/10) | Pronta na branch; falta o `mvn verify` com Docker | 31/10/2026 |
+| Filtros nas outras listas (Atualizações, Interessados, Financeiro, Biblioteca, Questionários, Auditoria, Importação, Equipe), lote 1 só app | [filtros-nas-listas.md](filtros-nas-listas.md) | branch `claude/filtros-nas-listas-lote1` (31/10) | Em andamento | 31/10/2026 |
 
 ## Pendências soltas
 
