@@ -1,6 +1,6 @@
 # Ajustes do vídeo de 30/10 (Análise 4: lotes A e B)
 
-Situação: Em andamento · Onde: branch `ajustes-video-30-10` (PR para a `main`) · Atualizado: 31/10/2026
+Situação: Concluída (PR aberto) · Onde: branch `ajustes-video-30-10` (PR para a `main`) · Atualizado: 31/10/2026
 
 ## Objetivo
 Ajustar o que já existe no editor de treino, na tela do aluno e no caminho do treinador, sem funcionalidade nova, como
@@ -62,7 +62,7 @@ referência foi conferida no código atual. A análise em si fica fora do git.
 - [ ] 6. Lote B 8 (CRM: reproduzir e relatar; achado real: busca por WhatsApp com +55) — commit `5a88e46f`
 - [ ] 7. Lote A 14 (Agenda) — commit `27590a0c`
 - [ ] 8. Ajuda, guias em PDF, `AGENTS.md`, ligação das peças no `EditorDeTreino` — commits `601d19d5`, `a1300447` (merge da `main`: `b4f5baba`)
-- [ ] 9. Lote B 7 (impressão, só relatório), e2e completo, capturas "depois", revisão, PR — commit: —
+- [x] 9. Lote B 7 (impressão, só relatório), e2e completo, capturas "depois", revisão, PR — commits `a2b1bcfe`, `49d4b411` (merge da `main`: `825704df`); `mvn verify` 1750 testes, Jest 3291, e2e 425 de 426 (a falha é a oscilação de subpixel já listada no README)
 
 ## Fora do escopo
 - Lote C, cada um com o contrato proposto e os impactos em "Pendências soltas" do README: carga fixa, libras, RIR acima
