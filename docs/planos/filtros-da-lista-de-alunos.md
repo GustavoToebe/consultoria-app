@@ -1,6 +1,6 @@
 # Filtros avançados da lista de alunos
 
-Situação: Em andamento · Onde: branch `worktree-agent-a2aaa2df55b4fdccf` (31/10) · Atualizado: 31/10/2026
+Situação: Pronta na branch (falta o `mvn verify` com Docker e o merge) · Onde: branch `worktree-agent-a2aaa2df55b4fdccf` (31/10) · Atualizado: 31/10/2026
 
 ## Objetivo
 Na lista de alunos do treinador, achar quem precisa de atenção sem rolar a lista inteira: busca, um botão "Filtros" que
@@ -18,17 +18,21 @@ abre o painel "Filtros avançados" (seletores múltiplos, como na Central e no a
 | D6 | `registro` | `NUNCA`, `HA_MAIS_DE_7`, `HA_MAIS_DE_14`, `HA_MAIS_DE_30` (dias de Brasília, a conta do "sem registro há N dias" do painel: último registro antes de hoje − N). `HA_MAIS_DE_N` **não** inclui quem nunca registrou: isso é `NUNCA`, à parte. Exige `REGISTRO_LER` | Claude, pela sugestão do Gustavo |
 | D7 | Valor desconhecido | 400 `FILTRO_INVALIDO`, a mensagem cita só o nome do parâmetro, nunca o valor (vale também para `situacao`) | Gustavo (31/10) |
 | D8 | Implementação | Sem SQL nativo: busca, situação, responsável, acesso e plano numa `Specification` (Criteria; `@TenantId` vale). Os calculados (atualização, pasta a renovar, registro) em memória sobre os candidatos do escopo, depois a página (ordem por nome; `total` = quem passou em tudo). Sem filtro calculado, a página continua saindo do banco | Gustavo (31/10) |
-| D9 | App | Peça reaproveitável `ui/BarraDeFiltros` (busca, "Filtros" com a contagem, "Limpar filtros", "Filtrado por" com ✕): no PC (≥ 768) painel logo abaixo, no celular uma `Folha`. Filtro sem a permissão some (o app nunca manda um filtro que daria 403). Filtros no endereço, trocados por `router.replace` (sem empilhar histórico), voltam à página 1 e limpam a seleção em lote | Gustavo (31/10) |
+| D9 | App | Peça reaproveitável `ui/BarraDeFiltros` (busca, "Filtros" com a contagem, "Limpar filtros", "Filtrado por" com ✕): no PC (≥ 768) painel logo abaixo, com cada escolha valendo na hora; no celular uma `Folha` com rascunho, gravado ao fechar (`depoisDeFecharAsFolhas`). Filtro sem a permissão some (o app nunca manda um filtro que daria 403). Filtros no endereço sem empilhar histórico, voltam à página 1 e limpam a seleção em lote | Gustavo (31/10) |
+| D10 | Troca do endereço | `router.setParams` (chave que sai vai como `undefined`), não `router.replace`: medido no e2e, o `replace` troca a rota inteira e a tela perdia a busca digitada e o painel aberto. Também sem passo novo no histórico (o voltar sai da tela, provado no e2e) | Claude (31/10) |
+| D11 | Responsável no endereço | `meus=true` = só os meus; `meus=false` = todos; `responsavel=<id>,nenhum` (e `meus` junto de pessoas); sem nada disso vale o padrão do perfil, como antes (quem não tem acesso total abre nos seus). Meus junto de outras pessoas vai à API como o id do usuário em `responsavel`. O Início manda sempre `meus=true` ou `meus=false`, para o Todos do bloco valer também para quem começa em Meus. Os chips mostram "Responsável: Meus alunos" também quando é o padrão do perfil, e "Limpar filtros" deixa todos os ativos | Claude (31/10) |
+| D12 | Início | A rosca do bloco Alunos vira links (Ativos com acesso → `acesso=COM`, Ativos sem acesso → `acesso=SEM`, Inativos → `situacao=INATIVO`); "Sem pasta com período" → `atualizacao=SEM_PASTA` só para quem vê atualizações (sem elas, a lista sem esse filtro); "Concluídos" continua na lista sem filtro (não há filtro equivalente) | Claude (31/10) |
 
 ## Passos
-- [ ] 1. API: parâmetros novos em `GET /alunos` e `AlunoFiltrosIntegrationTest` — commit: —
-- [ ] 2. App: `dominio/filtrosDeAlunos.ts`, `ui/BarraDeFiltros`, tela de alunos com os filtros no endereço — commit: —
-- [ ] 3. Início: cartões e rosca do bloco Alunos abrem a lista filtrada (com `meus=true` em Meus) — commit: —
-- [ ] 4. e2e `lista-alunos-filtros.spec.ts`, Ajuda, guias e `AGENTS.md` — commit: —
+- [x] 1. API: parâmetros novos em `GET /alunos` e `AlunoFiltrosIntegrationTest` — commit: cef843c (o teste de integração compila; não rodou aqui, sem Docker)
+- [x] 2. App: `dominio/filtrosDeAlunos.ts`, `ui/BarraDeFiltros`, tela de alunos com os filtros no endereço — commit: c8e8ce2
+- [x] 3. Início: cartões e rosca do bloco Alunos abrem a lista filtrada (com `meus=true` em Meus) — commit: c8e8ce2
+- [x] 4. e2e `lista-alunos-filtros.spec.ts` (c8e8ce2), Ajuda, guia do treinador e `AGENTS.md` — commit: o seguinte a c8e8ce2
 
 ## Fora do escopo
 - Usar a `ui/BarraDeFiltros` em Interessados, Atualizações e Financeiro (a peça já nasce para isso).
 - Filtro por responsável na Agenda ou no Financeiro.
 
 ## O que ficou para trás
-- (preencher ao entregar)
+- `mvn verify` com Docker para rodar o `AlunoFiltrosIntegrationTest` (aqui só compilou). Também em Pendências soltas.
+- Levar a `ui/BarraDeFiltros` a Interessados, Atualizações e Financeiro (fora do escopo; a peça já é genérica).

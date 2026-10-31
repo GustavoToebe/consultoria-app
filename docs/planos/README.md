@@ -39,17 +39,15 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Importar plano de treino (e dieta) de PDF ou Google Docs (A02) | [importar-plano-de-documento.md](importar-plano-de-documento.md) | branch `atualizacao-visual-app-full` | Planejando: só o plano escrito, sem código; perguntas para o Gustavo | 30/10/2026 |
 | Água do aluno (marcar os copos do dia contra a "Água por dia" da dieta) | [agua-do-aluno.md](agua-do-aluno.md) | PR para a `main` (30/10), junto da clareza | Pronta | 30/10/2026 |
 | "Quero ser aluno" com as perguntas do treinador (questionário de inscrição) | [inscricao-com-perguntas-proprias.md](inscricao-com-perguntas-proprias.md) | — | Planejando, decisões fechadas: começa depois de `ajustes-video-30-10` e das pendências do painel | 31/10/2026 |
-| Filtros avançados da lista de alunos (busca, painel de filtros, "Filtrado por"; Início abre a lista filtrada) | [filtros-da-lista-de-alunos.md](filtros-da-lista-de-alunos.md) | branch (31/10) | Em andamento | 31/10/2026 |
+| Filtros avançados da lista de alunos (busca, painel de filtros, "Filtrado por"; Início abre a lista filtrada) | [filtros-da-lista-de-alunos.md](filtros-da-lista-de-alunos.md) | branch (31/10) | Pronta na branch; falta o `mvn verify` com Docker | 31/10/2026 |
 
 ## Pendências soltas
 
 | Pendência | Quem | Origem |
 | --- | --- | --- |
 | Início, Primeiros passos: "Abrir Metodologias" leva à Biblioteca sem abrir o chip de metodologias | Claude, quando o Gustavo pedir | atualizacao-visual-app-full (passo 9) |
-| Início: `/treinador/alunos` ignora `?meus=`; o cartão do bloco Alunos em "Meus" abre a lista sem o filtro | Claude, quando o Gustavo pedir | atualizacao-visual-app-full (passo 8) |
 | Início: conferir no seed o texto de exemplo "3 semanas e 2 dietas" do item de modelos dos Primeiros passos | Claude | atualizacao-visual-app-full (passo 9) |
 | Início, revisão do PR `painel-novo` (não bloqueiam): (a) `releer` do foco que responde depois de um toque desfaz o toque na tela até o próximo foco (`usePrimeirosPassosGuardados`, contador de geração); (b) ao trocar o N do "Sem registro" a Folha mostra os números do N anterior até a resposta (`useCarregar` devolve os dados da chave antiga como prontos); (c) tocar um cartão de Folha antes do `/painel` responder abre a Folha com o alerta de erro (distinguir carregando de falhou); (d) a Ajuda diz "Eles já estão no Início" para perfil sem nenhum item dos Primeiros passos; (e) no Início sem alunos as consultas dos blocos saem à toa; (f) `useFontesDoPainel.recarregar` casa duas listas pela ordem; (g) o X da linha "Concluídos" sem `moldura` | Claude, quando o Gustavo pedir | atualizacao-visual-app-full (passos 8 e 9) |
-| e2e `lista-alunos-grupos.spec.ts` (1280, lápis ao lado): oscilou uma vez com altura 39,99997 px contra o mínimo de 40 (arredondamento de subpixel; passou ao rodar de novo); tolerância de 0,5 px no `toBeGreaterThanOrEqual` | Claude | e2e do PR `painel-novo` |
 | Arrastar no Kanban de interessados: testar no celular (toque longo) | Gustavo | interessados-crm |
 | Conferir que a "Anamnese Saraiva Team" está publicada em Planejamento › Anamnese | Gustavo | anamnese |
 | Ver no celular se os títulos das seções do editor de séries (caixa alta 12 px) ficaram bons | Gustavo | editor de séries (5d353d0) |
@@ -61,6 +59,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Dependabot `node-forge`, `decode-uri-component`, `uuid`: aceitos até 14/11 (só build do Expo / DoS no navegador), registro e revisão em [dependabot-28-10.md](dependabot-28-10.md); olhar ao gerar o próximo APK | Claude | Dependabot |
 | Link de vídeo da técnica (Rest-pause, Cluster) quando houver vídeo aprovado do Saraiva | Gustavo | análise 2 (A8) |
 | Ciclo menstrual: expansão como projeto separado | Gustavo decide | ciclo |
+| Filtros da lista de alunos: `mvn verify` com Docker antes do merge (o `AlunoFiltrosIntegrationTest` só compilou no ambiente sem Docker) | Gustavo (PC) ou CI do PR | [filtros-da-lista-de-alunos.md](filtros-da-lista-de-alunos.md) |
 | Evolução: `mvn verify` com Docker na branch `atualizacao-visual-app-full` antes de qualquer PR (testes de integração novos de avaliação, agenda, lembretes, grupo do alimento, dieta e limite do CPF não rodaram no ambiente sem Docker) | Gustavo (PC) | evolucao-prime |
 | Agenda calendário, o que a tela do lote 2 não conferiu: setas do teclado dentro do menu "Criar"; janela de 1024 a 1100 px; teclado virtual em aparelho (roteiro 22a/22b de `docs/build-celular.md`); o aviso de sobreposição de evento ignora a repetição; se o `replace` do filtro não chegar ao endereço, o filtro escolhido numa Folha fica só na tela até recarregar | Claude, junto do lote A da rodada visual (`atualizacao-visual-app-full`), para não haver dois agentes na agenda | [agenda-calendario.md](agenda-calendario.md) |
 | Agenda: push do servidor para compromisso marcado, remarcado ou cancelado (app fechado) fica com a decisão de push da frente de engajamento (item "Push do servidor", Etapa 3) | Gustavo decide | [agenda-calendario.md](agenda-calendario.md), [engajamento.md](engajamento.md) |
@@ -82,7 +81,6 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Próximo lote do consultoria: o trecho "VPS" do `AGENTS.md` passa a só apontar para o `AGENTS.md` da Central, para não haver duas versões da regra | Claude | acesso à VPS |
 | Proxy, conferido em 30/10 (só leitura): na VPS o bloco vivo é `extras/consultoria.caddy` (o Caddyfile importa `extras/*.caddy`; o Caddy subiu depois da última mudança dos arquivos). As diretivas são iguais às do `.modelo`, inclusive o CSP e o `connect-src`; só dois comentários do vivo estão velhos (a receita com `caddy reload`, que não existe com `admin off`, e o "aberto só até a primeira conta" do cadastro). Copiar o `.modelo` por cima na próxima recriação do proxy | Gustavo decide (ok para mexer na VPS) | cloudflare-turnstile |
 | Turnstile: testar o app nativo do iPhone (WKWebView) antes do TestFlight; roteiro em `docs/build-celular.md` seção 5 | Gustavo (aparelho) | cloudflare-turnstile |
-| Filtro de servidor `GET /alunos?grupo=` (ex.: "Sem pasta com período"), para o cartão do painel abrir a lista já filtrada; hoje abre a lista sem filtro, que é paginada, e o grupo aparece lá | Gustavo decide quando | `atualizacao-visual-app-full.md`, passo 8 (30/10) |
 
 ## Limitações aceitas (não são pendência)
 
