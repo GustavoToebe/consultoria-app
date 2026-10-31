@@ -39,6 +39,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Importar plano de treino (e dieta) de PDF ou Google Docs (A02) | [importar-plano-de-documento.md](importar-plano-de-documento.md) | branch `atualizacao-visual-app-full` | Planejando: só o plano escrito, sem código; perguntas para o Gustavo | 30/10/2026 |
 | Água do aluno (marcar os copos do dia contra a "Água por dia" da dieta) | [agua-do-aluno.md](agua-do-aluno.md) | PR para a `main` (30/10), junto da clareza | Pronta | 30/10/2026 |
 | "Quero ser aluno" com as perguntas do treinador (questionário de inscrição) | [inscricao-com-perguntas-proprias.md](inscricao-com-perguntas-proprias.md) | — | Planejando, decisões fechadas: começa depois de `ajustes-video-30-10` e das pendências do painel | 31/10/2026 |
+| Filtros avançados da lista de alunos (busca, painel de filtros, "Filtrado por"; Início abre a lista filtrada) | [filtros-da-lista-de-alunos.md](filtros-da-lista-de-alunos.md) | branch (31/10) | Em andamento | 31/10/2026 |
 
 ## Pendências soltas
 
