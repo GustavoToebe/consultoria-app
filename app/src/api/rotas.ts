@@ -632,12 +632,20 @@ export const numerosDaConsultoria = () => requisicao<NumerosDaConsultoria>('/num
 
 // ---- Treinador: alunos ----
 
-export const listarAlunos = (filtro: { busca?: string; situacao?: SituacaoFiltro; pagina?: number; meus?:boolean }) => {
+/**
+ * `filtros`: os filtros avançados já montados por `dominio/filtrosDeAlunos.pedidoDaApi` (situação, meus ou responsável,
+ * acesso, atualização, plano, pasta e registro; repetidos quando são várias opções). Sem eles, situação e meus simples.
+ */
+export const listarAlunos = (filtro: { busca?: string; situacao?: SituacaoFiltro; pagina?: number; meus?:boolean; filtros?: readonly [string, string][] }) => {
   const q = new URLSearchParams();
   if (filtro.busca) q.set('busca', filtro.busca);
-  q.set('situacao', filtro.situacao ?? 'ATIVO');
+  if (filtro.filtros) {
+    for (const [chave, valor] of filtro.filtros) q.append(chave, valor);
+  } else {
+    q.set('situacao', filtro.situacao ?? 'ATIVO');
+    q.set('meus', String(filtro.meus ?? false));
+  }
   q.set('pagina', String(filtro.pagina ?? 0));
-  q.set('meus', String(filtro.meus ?? false));
   return requisicao<PaginaAlunos>(`/alunos?${q.toString()}`);
 };
 

@@ -20,6 +20,7 @@ import br.com.plataforma.comum.web.ApiError;
 import br.com.plataforma.comum.web.BadRequestException;
 import br.com.treinos.api.web.Buscas;
 import br.com.plataforma.comum.web.ConflictException;
+import br.com.plataforma.comum.web.ForbiddenException;
 import br.com.treinos.api.web.Formatos;
 import br.com.treinos.api.web.Fuso;
 import br.com.treinos.api.web.ValidacaoException;
@@ -27,6 +28,7 @@ import br.com.treinos.api.web.NaoEncontradoException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,6 +49,7 @@ import java.util.stream.Collectors;
 public class AlunoService {
 
     private static final Set<String> SITUACOES = Set.of("ATIVO", "INATIVO", "TODOS");
+    private static final int LOTE_DE_IDS = 1000;
 
     private final AlunoRepository alunos;
     private final UsuarioRepository usuarios;
@@ -60,13 +63,16 @@ public class AlunoService {
     private final br.com.treinos.api.ciclo.CicloMenstrualService ciclo;
     private final br.com.treinos.api.agenda.AgendaService agenda;
     private final ConsultoriaRepository consultorias;
+    private final br.com.treinos.api.pastas.PastaRepository pastas;
 
     public AlunoService(AlunoRepository alunos, UsuarioRepository usuarios, Autenticador autenticador,
                         PlanoTreinoRepository planos, ExecucaoSerieRepository execucoes,br.com.treinos.api.auditoria.Auditoria auditoria,
                         AtualizacaoRepository atualizacoes, br.com.treinos.api.conta.PlanoDaConsultoria plano,
                         br.com.treinos.api.pagamentos.PagamentosDoAluno pagamentos,
                         br.com.treinos.api.ciclo.CicloMenstrualService ciclo,
-                        br.com.treinos.api.agenda.AgendaService agenda, ConsultoriaRepository consultorias) {
+                        br.com.treinos.api.agenda.AgendaService agenda, ConsultoriaRepository consultorias,
+                        br.com.treinos.api.pastas.PastaRepository pastas) {
+        this.pastas = pastas;
         this.agenda = agenda;
         this.consultorias = consultorias;
         this.plano = plano;
@@ -88,29 +94,127 @@ public class AlunoService {
 
     @Transactional(readOnly = true)
     public PaginaAlunos listar(String busca, String situacao, int pagina, int tamanho, boolean meus) {
+        return listar(busca, situacao, pagina, tamanho, meus, FiltrosDaListaDeAlunos.Pedido.vazio());
+    }
+
+    /**
+     * Lista paginada com os filtros avançados ({@link FiltrosDaListaDeAlunos}). Sem filtro calculado, a página sai do
+     * banco como sempre; com algum (atualização, pasta a renovar, último registro), lê os candidatos do escopo (já
+     * filtrados no banco pelo resto), aplica os calculados em memória e só então corta a página: o {@code total} é quantos
+     * passaram em todos os filtros. Ordem por nome. A resposta não muda.
+     */
+    @Transactional(readOnly = true)
+    public PaginaAlunos listar(String busca, String situacao, int pagina, int tamanho, boolean meus,
+                               FiltrosDaListaDeAlunos.Pedido pedido) {
         String filtro = situacao == null ? "ATIVO" : situacao.toUpperCase(Locale.ROOT);
         if (!SITUACOES.contains(filtro)) {
-            throw new BadRequestException("Situação precisa ser ATIVO, INATIVO ou TODOS.");
+            throw new BadRequestException("Situação precisa ser ATIVO, INATIVO ou TODOS.", FiltrosDaListaDeAlunos.CODIGO);
         }
-        UUID responsavelId = meus ? ((br.com.treinos.api.security.UsuarioAutenticado)
-                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal()).usuarioId() : null;
-        Page<Aluno> page = alunos.buscar(Buscas.padrao(busca), filtro, responsavelId,
-                PageRequest.of(Math.max(0, pagina), Math.clamp(tamanho, 1, 100)));
-        List<UUID> ids = page.getContent().stream().map(Aluno::getId).toList();
+        FiltrosDaListaDeAlunos filtros = FiltrosDaListaDeAlunos.ler(pedido, meus);
+        exigirPermissoesDosFiltros(filtros);
+        Set<UUID> responsaveis = meus ? Set.of(((br.com.treinos.api.security.UsuarioAutenticado)
+                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal()).usuarioId())
+                : filtros.responsaveis();
+        if (!meus) responsaveis.forEach(this::exigirResponsavel);
+        Specification<Aluno> consulta = filtros.especificacao(Buscas.padrao(busca), filtro, responsaveis);
+        int numero = Math.max(0, pagina);
+        int porPagina = Math.clamp(tamanho, 1, 100);
+        List<Aluno> daPagina;
+        long total;
+        if (filtros.temCalculado()) {
+            List<Aluno> passaram = aplicarCalculados(alunos.findAll(consulta), filtros);
+            total = passaram.size();
+            long inicio = (long) numero * porPagina;
+            daPagina = inicio >= total ? List.of()
+                    : passaram.subList((int) inicio, (int) Math.min(total, inicio + porPagina));
+        } else {
+            Page<Aluno> page = alunos.findAll(consulta, PageRequest.of(numero, porPagina));
+            daPagina = page.getContent();
+            total = page.getTotalElements();
+        }
+        List<UUID> ids = daPagina.stream().map(Aluno::getId).toList();
         Map<UUID, PlanoTreino> planoAtivo = ids.isEmpty() ? Map.of() : planos.findByAlunoIdInAndAtivoTrue(ids).stream()
                 .collect(Collectors.toMap(PlanoTreino::getAlunoId, p -> p));
-        Map<UUID, LocalDate> ultimo = new HashMap<>();
-        if (!ids.isEmpty()) {
-            execucoes.ultimoRegistro(ids).forEach(u -> ultimo.put(u.alunoId(), u.data()));
-        }
+        Map<UUID, LocalDate> ultimo = ultimosRegistros(ids);
         Map<UUID, SituacaoAtualizacao> situacoes = situacoesDasAtualizacoes(ids);
-        List<AlunoResumo> itens = page.getContent().stream().map(a -> {
+        List<AlunoResumo> itens = daPagina.stream().map(a -> {
             PlanoTreino p = planoAtivo.get(a.getId());
             return new AlunoResumo(a.getId(), a.getNome(), a.isAtivo(), a.getUsuarioId() != null,
                     (p == null || !br.com.treinos.api.equipe.AcessoAtual.pode("TREINO_LER")) ? null : new PlanoAtivoResumo(p.getId(), p.getTitulo()), br.com.treinos.api.equipe.AcessoAtual.pode("REGISTRO_LER") ? ultimo.get(a.getId()) : null,a.getResponsavelId(),
                     situacoes.get(a.getId()));
         }).toList();
-        return new PaginaAlunos(itens, page.getTotalElements());
+        return new PaginaAlunos(itens, total);
+    }
+
+    /** Cada filtro pede a permissão de quem já vê aquele dado na lista; sem ela, 403 (o app nem mostra o filtro). */
+    private static void exigirPermissoesDosFiltros(FiltrosDaListaDeAlunos f) {
+        boolean semPermissao = (!f.atualizacao().isEmpty() && !(br.com.treinos.api.equipe.AcessoAtual.pode("ATUALIZACAO_LER")
+                        && br.com.treinos.api.equipe.AcessoAtual.pode("ALUNO_SENSIVEL_LER")))
+                || ((f.plano() != null || f.pastaARenovar()) && !br.com.treinos.api.equipe.AcessoAtual.pode("TREINO_LER"))
+                || (f.registro() != null && !br.com.treinos.api.equipe.AcessoAtual.pode("REGISTRO_LER"));
+        if (semPermissao) {
+            throw new ForbiddenException("Seu perfil não permite este filtro.", "PERMISSAO_NEGADA");
+        }
+    }
+
+    /** O responsável escolhido no filtro precisa ser membro da equipe desta consultoria (senão 404), como em {@code GET /atualizacoes}. */
+    private void exigirResponsavel(UUID id) {
+        boolean daEquipe = usuarios.findById(id)
+                .filter(u -> u.getConsultoriaId() != null && u.getConsultoriaId().equals(br.com.treinos.api.tenant.TenantContext.get())
+                        && u.getPapel() == br.com.treinos.api.auth.Papel.TREINADOR)
+                .isPresent();
+        if (!daEquipe) throw new NaoEncontradoException("Responsável não encontrado.");
+    }
+
+    /** Atualização, pasta a renovar e último registro, nessa ordem, sobre os candidatos (que já vêm em ordem de nome). */
+    private List<Aluno> aplicarCalculados(List<Aluno> candidatos, FiltrosDaListaDeAlunos f) {
+        List<Aluno> resto = candidatos;
+        LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
+        if (!f.atualizacao().isEmpty() && !resto.isEmpty()) {
+            Map<UUID, String> fases = new HashMap<>();
+            for (List<UUID> lote : lotes(resto)) {
+                atualizacoes.linhasDosAlunos(lote).forEach(l -> fases.put(l.alunoId(),
+                        RegrasAtualizacao.calcular(hoje, l.data(), l.atrasoAte(), l.estado()).fase()));
+            }
+            resto = resto.stream().filter(a -> f.atualizacao().contains(fases.getOrDefault(a.getId(), FiltrosDaListaDeAlunos.SEM_PASTA))).toList();
+        }
+        if (f.pastaARenovar() && !resto.isEmpty()) {
+            // A mesma consulta do painel (PastaRepository.aRenovar): só alunos ativos, fim até hoje + 7.
+            Set<UUID> aRenovar = pastas.aRenovar(null, hoje.plusDays(br.com.treinos.api.painel.PainelService.DIAS_PARA_RENOVAR)).stream()
+                    .map(br.com.treinos.api.pastas.PastaPlano::getAlunoId).collect(Collectors.toSet());
+            resto = resto.stream().filter(a -> aRenovar.contains(a.getId())).toList();
+        }
+        if (f.registro() != null && !resto.isEmpty()) {
+            Map<UUID, LocalDate> ultimo = ultimosRegistros(resto.stream().map(Aluno::getId).toList());
+            FiltrosDaListaDeAlunos.Registro r = f.registro();
+            resto = resto.stream().filter(a -> {
+                LocalDate data = ultimo.get(a.getId());
+                return r == FiltrosDaListaDeAlunos.Registro.NUNCA ? data == null
+                        : data != null && data.isBefore(hoje.minusDays(r.dias()));
+            }).toList();
+        }
+        return resto;
+    }
+
+    private Map<UUID, LocalDate> ultimosRegistros(List<UUID> ids) {
+        Map<UUID, LocalDate> ultimo = new HashMap<>();
+        for (List<UUID> lote : lotesDeIds(ids)) {
+            execucoes.ultimoRegistro(lote).forEach(u -> ultimo.put(u.alunoId(), u.data()));
+        }
+        return ultimo;
+    }
+
+    /** Lotes de até {@value #LOTE_DE_IDS} ids, para o {@code in} das consultas não crescer sem limite. */
+    private static List<List<UUID>> lotes(List<Aluno> alunosDoLote) {
+        return lotesDeIds(alunosDoLote.stream().map(Aluno::getId).toList());
+    }
+
+    private static List<List<UUID>> lotesDeIds(List<UUID> ids) {
+        List<List<UUID>> lotes = new ArrayList<>();
+        for (int i = 0; i < ids.size(); i += LOTE_DE_IDS) {
+            lotes.add(ids.subList(i, Math.min(ids.size(), i + LOTE_DE_IDS)));
+        }
+        return lotes;
     }
 
     /** Mesma exigência dos painéis de atualização: ler atualizações e dados sensíveis (as respostas são de saúde). */
