@@ -1,9 +1,13 @@
-import { StyleSheet, View } from 'react-native';
+import { router, type Href } from 'expo-router';
+import { ChevronRight } from 'lucide-react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Text as SvgTexto } from 'react-native-svg';
 
 import type { RoscaDoPainel } from '../../dominio/painelDoInicio';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco } from '../../tema/tokens';
+import { ALVO_TOQUE, espaco, RAIO } from '../../tema/tokens';
+import { propsDeLink } from '../../ui/propsDeLink';
+import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
 
 const RAIO_DA_ROSCA = 38;
@@ -13,7 +17,8 @@ const VOLTA = 2 * Math.PI * RAIO_DA_ROSCA;
 /**
  * Rosca dos alunos (SVG, sem biblioteca): ativos com acesso, ativos sem acesso e inativos, com o total no meio. O desenho
  * é decorativo para o leitor de tela: a legenda ao lado é a lista com os mesmos números (lida uma vez só). Com "Mostrar
- * gráficos" desligado, ou sem nenhum aluno, fica só a legenda.
+ * gráficos" desligado, ou sem nenhum aluno, fica só a legenda. Cada item da legenda é o link da lista de alunos filtrada
+ * por ele (com acesso, sem acesso, inativos).
  */
 export function RoscaDosAlunos({ rosca }: { rosca: RoscaDoPainel }) {
   const { cores } = useTema();
@@ -37,11 +42,14 @@ export function RoscaDosAlunos({ rosca }: { rosca: RoscaDoPainel }) {
         ) : null}
         <View accessibilityRole="list" accessibilityLabel={`${rosca.titulo}. Total ${rosca.total}`} style={estilos.legenda}>
           {rosca.fatias.map((f) => (
-            <View key={f.chave} accessible accessibilityLabel={`${f.rotulo}: ${f.valor}`} style={estilos.itemDaLegenda}>
+            <Pressable key={f.chave} accessibilityRole="link" accessibilityLabel={`${f.rotulo}: ${f.valor}. Ver na lista de alunos`}
+              {...propsDeLink(f.href as Href, () => router.push(f.href as Href))}
+              style={(e) => [estilos.itemDaLegenda, { backgroundColor: sobre(e) ? cores.superficie3 : 'transparent' }]}>
               <View style={[estilos.bolinha, { backgroundColor: cores[f.cor] }]} />
               <Texto style={estilos.rotulo}>{f.rotulo}</Texto>
               <Texto variante="bloco" numerico>{String(f.valor)}</Texto>
-            </View>
+              <ChevronRight size={16} color={cores.textoSuave} strokeWidth={2} />
+            </Pressable>
           ))}
         </View>
       </View>
@@ -54,8 +62,8 @@ const estilos = StyleSheet.create({
   area: { gap: espaco(1) },
   linha: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1.5) },
   desenho: { flexShrink: 0 },
-  legenda: { flexGrow: 1, flexShrink: 1, flexBasis: 140, gap: espaco(0.75) },
-  itemDaLegenda: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
+  legenda: { flexGrow: 1, flexShrink: 1, flexBasis: 140, gap: espaco(0.25) },
+  itemDaLegenda: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), minHeight: ALVO_TOQUE, paddingHorizontal: espaco(0.75), borderRadius: RAIO },
   bolinha: { width: 10, height: 10, borderRadius: 5 },
   rotulo: { flex: 1, minWidth: 0 },
 });

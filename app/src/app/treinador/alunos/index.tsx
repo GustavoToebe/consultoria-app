@@ -1,23 +1,28 @@
 import { Permitido } from '../../../ui/Permitido';
 import { useSessao } from '../../../sessao/SessaoProvider';
 import { EntradaEmCascata, usePrimeiraLista } from '../../../ui/EntradaEmCascata';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { CalendarClock, CircleAlert, CircleCheck, Pencil, Plus, TriangleAlert, type LucideIcon } from 'lucide-react-native';
 import { useState } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import type { ResponsavelEquipe } from '../../../api/equipeTipos';
 import { listarAlunos, responsaveisEquipe } from '../../../api/rotas';
-import type { AlunoResumo, SituacaoFiltro } from '../../../api/tipos';
+import type { AlunoResumo } from '../../../api/tipos';
 import { statusAtualizacaoTreinador } from '../../../dominio/atualizacao';
 import { dataRelativa } from '../../../dominio/datasRelativas';
 import { SEM_DADO } from '../../../dominio/formatos';
 import { agruparAlunos, primeiroNome, ultimoRegistroDaLinha, type TomDoGrupo } from '../../../dominio/gruposDeAlunos';
 import { LIMITE_LOTE, textoDaSelecao } from '../../../dominio/loteDeAlunos';
+import {
+  chaveDosFiltros, chipsDosFiltros, filtrosVisiveis, lerDoEndereco, paraEndereco, pedidoDaApi, permissoesDosFiltros, SEM_FILTROS,
+  CHAVES_DO_ENDERECO, semOFiltro, semOQueNaoPode, type ChaveDoFiltro, type FiltrosDeAlunos, type ParametrosDoEndereco,
+} from '../../../dominio/filtrosDeAlunos';
 import { alternarComLimite, marcarVisiveis } from '../../../dominio/selecaoMultipla';
 import { useTema } from '../../../tema/TemaProvider';
-import { espaco, LARGURA_LISTA, LARGURA_MENU_LATERAL } from '../../../tema/tokens';
-import { EscolhaResponsabilidade, type Responsabilidade } from '../../../treinador/EscolhaResponsabilidade';
+import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
+import { SeletoresDosFiltrosDeAlunos } from '../../../treinador/SeletoresDosFiltrosDeAlunos';
+import { BarraDeFiltros } from '../../../ui/BarraDeFiltros';
 import { Folha } from '../../../ui/Folha';
 import { LinhaDeAcoes } from '../../../ui/LinhaDeAcoes';
 import { AcoesEmLote } from '../../../treinador/AcoesEmLote';
@@ -25,8 +30,6 @@ import { useAviso } from '../../../ui/Aviso';
 import { Botao } from '../../../ui/Botao';
 import { Cabecalho } from '../../../ui/Cabecalho';
 import { Cartao } from '../../../ui/Cartao';
-import { Campo } from '../../../ui/Campo';
-import { Escolha } from '../../../ui/Escolha';
 import { Esqueleto } from '../../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../../ui/Estados';
 import { textoDoErro } from '../../../ui/erros';
@@ -37,12 +40,6 @@ import { Selo, type TipoSelo } from '../../../ui/Selo';
 import { Tela } from '../../../ui/Tela';
 import { Texto } from '../../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../../ui/useCarregar';
-
-const SITUACOES: { valor: SituacaoFiltro; rotulo: string }[] = [
-  { valor: 'ATIVO', rotulo: 'Ativos' },
-  { valor: 'INATIVO', rotulo: 'Inativos' },
-  { valor: 'TODOS', rotulo: 'Todos' },
-];
 
 const TAMANHO_PAGINA = 30;
 
@@ -61,15 +58,13 @@ const COLUNAS_SEM_ATUALIZACAO = COLUNAS.filter((c) => c.chave !== 'atualizacao')
 const ICONE_DO_SELO: Record<TipoSelo, LucideIcon> = { sucesso: CircleCheck, atencao: TriangleAlert, perigo: CircleAlert, neutro: CalendarClock };
 
 export default function Alunos() {
-  const { pode,perfilEquipe } = useSessao();
+  const { pode, perfilEquipe, usuario } = useSessao();
   const { avisar } = useAviso();
   // Modo "Selecionar" (ações em lote): os marcados valem entre páginas, mas mudar busca ou filtro limpa a marcação.
   const [selecionando, setSelecionando] = useState(false);
   const [marcados, setMarcados] = useState<ReadonlySet<string>>(new Set());
-  const [escopo,setEscopo]=useState<Responsabilidade>(perfilEquipe?.acessoTotal?'todos':'meus');
   const [acoesAbertas, setAcoesAbertas] = useState(false);
   const { cores } = useTema();
-  const { width } = useWindowDimensions();
   // Sem as duas permissões a API manda a atualização nula: um grupo só ("Alunos") e sem a coluna Atualização.
   const veAtualizacao = pode('ATUALIZACAO_LER') && pode('ALUNO_SENSIVEL_LER');
   const podeEditar = pode('ALUNO_ALTERAR');
@@ -79,17 +74,31 @@ export default function Alunos() {
     const r = id ? responsaveis.find((x) => x.id === id) : undefined;
     return r ? primeiroNome(r.nome) : null;
   };
-  // No celular os filtros ficam recolhidos (só a busca aparece): antes empurravam a lista ~300 px para baixo.
-  const estreito = width < LARGURA_MENU_LATERAL;
+  // Filtros avançados no endereço (`dominio/filtrosDeAlunos`): o Início abre a lista já filtrada e o voltar sai da tela.
+  // Quem não tem acesso total começa nos próprios alunos, como antes; filtro sem a permissão é ignorado.
+  const comecaEmMeus = !perfilEquipe?.acessoTotal;
+  const permissoes = permissoesDosFiltros(pode);
+  const visiveis = filtrosVisiveis(permissoes);
+  const parametros = useLocalSearchParams<Record<keyof ParametrosDoEndereco, string | string[]>>();
+  const filtros = semOQueNaoPode(lerDoEndereco(parametros, comecaEmMeus), permissoes);
+  const chaveFiltros = chaveDosFiltros(filtros);
   const [busca, setBusca] = useState('');
-  const [situacao, setSituacao] = useState<SituacaoFiltro>('ATIVO');
   const [pagina, setPagina] = useState(0);
   const termo = useAtrasado(busca.trim(), 300);
-  const { dados, erro, carregando, recarregar } = useCarregar(`${termo}|${situacao}|${pagina}|${escopo}`, () =>
-    listarAlunos({ busca: termo, situacao, pagina,meus:escopo==='meus' }),
+  const { dados, erro, carregando, recarregar } = useCarregar(`${termo}|${chaveFiltros}|${pagina}`, () =>
+    listarAlunos({ busca: termo, pagina, filtros: pedidoDaApi(filtros, usuario?.id) }),
   );
-  const animar = usePrimeiraLista(!!dados, `${termo}|${situacao}|${pagina}`);
-  const mudarFiltro = (aplicar: () => void) => { aplicar(); setPagina(0); setMarcados(new Set()); };
+  const animar = usePrimeiraLista(!!dados, `${termo}|${chaveFiltros}|${pagina}`);
+  const limparSelecao = () => { setPagina(0); setMarcados(new Set()); };
+  const mudarBusca = (texto: string) => { setBusca(texto); limparSelecao(); };
+  // Trocar um filtro troca o endereço sem empilhar histórico (o voltar sai da tela) e volta à página 1. `setParams`, não
+  // `router.replace`: o replace troca a rota inteira e a tela perderia a busca digitada e o painel aberto. Chave que sai
+  // vai como `undefined` (o setParams junta com os parâmetros de antes).
+  const aplicar = (novos: FiltrosDeAlunos) => {
+    limparSelecao();
+    const params = paraEndereco(novos, comecaEmMeus);
+    router.setParams(Object.fromEntries(CHAVES_DO_ENDERECO.map((k) => [k, params[k]])));
+  };
   const sairDaSelecao = () => { setSelecionando(false); setMarcados(new Set()); };
   const alternar = (id: string) => {
     const r = alternarComLimite(marcados, id, !marcados.has(id), LIMITE_LOTE);
@@ -107,14 +116,9 @@ export default function Alunos() {
   const colunas = veAtualizacao ? COLUNAS : COLUNAS_SEM_ATUALIZACAO;
   // A entrada em cascata segue a ordem da tela, de um grupo para o outro.
   const inicios = grupos.map((_, i) => grupos.slice(0, i).reduce((n, g) => n + g.itens.length, 0));
-
-  const rotuloSituacao = SITUACOES.find((o) => o.valor === situacao)?.rotulo ?? '';
-  const filtros = (
-    <View style={estilos.recortes}>
-      <EscolhaResponsabilidade valor={escopo} aoMudar={(v) => mudarFiltro(() => setEscopo(v))} />
-      <Escolha rotulo="Situação" opcoes={SITUACOES} valor={situacao} aoMudar={(s) => mudarFiltro(() => setSituacao(s))} />
-    </View>
-  );
+  const nomeCompleto = (id: string) => responsaveis.find((r) => r.id === id)?.nome ?? null;
+  const chips = chipsDosFiltros(filtros, nomeCompleto);
+  const filtrado = chips.length > 0;
 
   return (
     <View style={estilos.raiz}>
@@ -135,26 +139,27 @@ export default function Alunos() {
           </View>
         }
       />
-      {/* Ordem das listas: busca → filtros. */}
-      <View style={estilos.busca}>
-        <Campo
-          rotulo="Buscar"
-          valor={busca}
-          aoMudar={(t) => mudarFiltro(() => setBusca(t))}
-          placeholder="Nome do aluno"
-          autoCapitalize="none"
-        />
-      </View>
-      {estreito ? (
-        <Cartao titulo={`Filtros: ${escopo === 'meus' ? 'meus' : 'todos'} · ${rotuloSituacao.toLowerCase()}`} recolhivel recolhido>{filtros}</Cartao>
-      ) : filtros}
+      {/* Ordem das listas: busca → filtros (botão "Filtros" com o painel e o "Filtrado por"). */}
+      <BarraDeFiltros
+        busca={{ valor: busca, aoMudar: mudarBusca, placeholder: 'Nome do aluno' }}
+        valor={filtros}
+        aoAplicar={aplicar}
+        limpo={SEM_FILTROS}
+        chips={chips}
+        aoTirar={(chave) => aplicar(semOFiltro(filtros, chave as ChaveDoFiltro))}
+        rotuloDoResultado="Ver alunos"
+        seletores={(atuais, mudar) => (
+          <SeletoresDosFiltrosDeAlunos visiveis={visiveis} filtros={atuais} aoMudar={mudar} responsaveis={responsaveis} usuarioId={usuario?.id} />
+        )}
+      />
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && dados.itens.length === 0 ? (
         <Vazio
-          titulo={termo ? 'Nenhum aluno encontrado' : 'Nenhum aluno ainda'}
-          texto={termo ? 'Tente buscar por outro nome.' : 'Cadastre seu primeiro aluno para montar os planos.'}
-          acao={termo || !pode('ALUNO_ALTERAR') ? undefined : { rotulo: 'Cadastrar aluno', aoTocar: () => router.push('/treinador/alunos/novo') }}
+          titulo={termo || filtrado ? 'Nenhum aluno encontrado' : 'Nenhum aluno ainda'}
+          texto={termo ? 'Tente buscar por outro nome.' : filtrado ? 'Nenhum aluno passa nesses filtros. Tire algum ou limpe os filtros.' : 'Cadastre seu primeiro aluno para montar os planos.'}
+          acao={filtrado ? { rotulo: 'Limpar filtros', aoTocar: () => aplicar(SEM_FILTROS) }
+            : termo || !pode('ALUNO_ALTERAR') ? undefined : { rotulo: 'Cadastrar aluno', aoTocar: () => router.push('/treinador/alunos/novo') }}
         />
       ) : null}
       <View style={[estilos.lista, carregando && dados ? estilos.esmaecido : null]}>
@@ -301,8 +306,6 @@ const estilos = StyleSheet.create({
   barraLote: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), borderTopWidth: 1, paddingHorizontal: espaco(2), paddingVertical: espaco(1.25) },
   textoLote: { flexShrink: 1 },
   acoesDoTopo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1) },
-  busca: { maxWidth: 480 },
-  recortes: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(3), rowGap: espaco(1.5) },
   // 24 px entre os blocos dos grupos.
   lista: { gap: espaco(3) },
   bolinha: { width: 10, height: 10, borderRadius: 5 },
