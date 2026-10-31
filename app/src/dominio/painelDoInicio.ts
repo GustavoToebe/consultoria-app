@@ -139,7 +139,7 @@ export function blocosParaEditar(ctx: ContextoDoPainel, pref: PainelDoInicioPref
 export function alternarBloco(pref: PainelDoInicioPreferido, id: BlocoDoPainelId): PainelDoInicioPreferido {
   if (!ehBlocoDoPainel(id)) return pref;
   const escondidos = pref.escondidos.includes(id) ? pref.escondidos.filter((x) => x !== id) : [...pref.escondidos, id];
-  return { ordem: [...pref.ordem], escondidos };
+  return { ordem: [...pref.ordem], escondidos, meus: { ...pref.meus } };
 }
 
 /**
@@ -157,7 +157,7 @@ export function moverBloco(pref: PainelDoInicioPreferido, id: BlocoDoPainelId, s
   const b = ordem.indexOf(vizinho);
   ordem[a] = vizinho;
   ordem[b] = id;
-  return { ordem, escondidos: [...pref.escondidos] };
+  return { ordem, escondidos: [...pref.escondidos], meus: { ...pref.meus } };
 }
 
 // ---- Fontes (o que a tela já carregou) ----
