@@ -9,8 +9,11 @@ import { Cabecalho } from '../../ui/Cabecalho';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
+import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Tela } from '../../ui/Tela';
+import { AtualizacaoDoPlano } from '../plano/AtualizacaoDoPlano';
 import { ConfiguracaoDoPlano } from '../plano/ConfiguracaoDoPlano';
+import { VoltarParaAPasta } from '../plano/VoltarParaAPasta';
 import { BarraDoPlano, ProblemasDoPlano } from '../plano/TopoPlano';
 import { TelaDoEditor } from '../plano/TelaDoEditor';
 import { FaixaDoPlanoDoAluno, useNomeDoAluno } from '../plano/FaixaDoPlano';
@@ -44,6 +47,13 @@ export default function EditorDeMobilidade() {
     <TelaDoEditor
       cabecalho={<Cabecalho titulo={titulo} trilha={trilhaDoPlano(false, estado.plano.alunoId, titulo)} subtitulo={estado.plano.titulo} voltar={`/treinador/alunos/${estado.plano.alunoId}`} />}
       barra={<BarraDoPlano tipo="mobilidade" editor={editor} aoProblemas={setProblemas} />}>
+      {/* Plano de uma pasta: volta à Folha dela e lê a atualização sem perder o rascunho (reunião de 30/10). */}
+      {estado.plano.pastaId ? (
+        <LinhaDeAcoes>
+          <VoltarParaAPasta alunoId={estado.plano.alunoId} pastaId={estado.plano.pastaId} />
+          <AtualizacaoDoPlano alunoId={estado.plano.alunoId} pastaId={estado.plano.pastaId} />
+        </LinhaDeAcoes>
+      ) : null}
       <FaixaDoPlanoDoAluno tipo="mobilidade" />
       <ProblemasDoPlano editor={editor} problemas={problemas} aoProblemas={setProblemas} />
       <ConfiguracaoDoPlano editor={editor} recolhido={estado.titulo.trim() !== ''} descricao="Título e período da mobilidade." />
