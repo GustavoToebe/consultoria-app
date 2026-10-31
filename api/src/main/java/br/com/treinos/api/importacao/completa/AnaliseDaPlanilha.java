@@ -49,11 +49,11 @@ public final class AnaliseDaPlanilha {
     static final int PERGUNTAS_NA_RESPOSTA = 300;
     /** Séries por tipo nas colunas de contagem (WS, FS), como o {@code MAX_SERIES_POR_TIPO} do script. */
     private static final int SERIES_POR_TIPO = 10;
-    private static final Pattern EMAIL = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
+    static final Pattern EMAIL = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
     /** Marcadores de "sem e-mail" que valem como célula vazia (os mesmos do {@code planilha-lib.mjs}). */
-    private static final Set<String> SEM_EMAIL = Set.of("x", "-", "--", "—", ".", "sem", "sem email", "sem e-mail",
+    static final Set<String> SEM_EMAIL = Set.of("x", "-", "--", "—", ".", "sem", "sem email", "sem e-mail",
             "nao tem", "não tem", "n/a", "na");
-    private static final Pattern ATIVO = Pattern.compile("^ativ[oa]s?$");
+    static final Pattern ATIVO = Pattern.compile("^ativ[oa]s?$");
     private static final Pattern PESO_ESCRITO = Pattern.compile("^(\\d{1,3})(?:[.,](\\d{1,2}))?$");
     private static final Pattern DATA_BR = Pattern.compile("^(\\d{1,2})/(\\d{1,2})/(\\d{4})$");
     private static final Pattern DATA_ISO = Pattern.compile("^(\\d{4})-(\\d{2})-(\\d{2})$");
@@ -117,17 +117,7 @@ public final class AnaliseDaPlanilha {
 
     public static Analise analisar(Leitura leitura, Collection<String> exerciciosDaBiblioteca,
                                    Collection<String> alimentosDaBiblioteca, LocalDate hoje) {
-        List<AbaReconhecida> abas = new ArrayList<>();
-        for (AbaLida lida : leitura.abas()) {
-            Reconhecimento r = ReconhecimentoDeAbas.reconhecer(lida.linhas());
-            List<Linha> dados = new ArrayList<>();
-            for (Linha l : lida.linhas().subList(r.posicaoDoCabecalho() + 1, lida.linhas().size())) {
-                if (!emBranco(l)) {
-                    dados.add(l);
-                }
-            }
-            abas.add(new AbaReconhecida(lida.indice(), lida.nome(), r, List.copyOf(dados)));
-        }
+        List<AbaReconhecida> abas = reconhecerAbas(leitura, Map.of());
 
         List<LigacaoDeAbas.Ligacao> ligacoes = LigacaoDeAbas.ligarTodas(abas);
         Map<Integer, LigacaoDeAbas.Ligacao> porFilha = new HashMap<>();
@@ -200,6 +190,30 @@ public final class AnaliseDaPlanilha {
                 contas.faixasDeData);
         return new Analise(abas.stream().map(AnaliseDaPlanilha::aba).toList(), ligacoes.stream().map(AnaliseDaPlanilha::ligacao).toList(),
                 resumo, List.copyOf(problemas.lista), problemas.alem, problemas.porTipo, deExercicios.perguntas(), deAlimentos.perguntas());
+    }
+
+    /**
+     * Reconhece cada aba e separa as linhas de dados (sem o cabeçalho e sem as em branco). {@code tipos} troca o tipo
+     * reconhecido de uma aba pelo que o treinador confirmou (aba fora do mapa fica como foi reconhecida); a aba
+     * ignorada vira {@code DESCONHECIDA}.
+     */
+    static List<AbaReconhecida> reconhecerAbas(Leitura leitura, Map<Integer, TipoDeAba> tipos) {
+        List<AbaReconhecida> abas = new ArrayList<>();
+        for (AbaLida lida : leitura.abas()) {
+            Reconhecimento r = ReconhecimentoDeAbas.reconhecer(lida.linhas());
+            TipoDeAba confirmado = tipos.get(lida.indice());
+            if (confirmado != null && confirmado != r.tipo()) {
+                r = new Reconhecimento(confirmado, r.linhaDoCabecalho(), r.posicaoDoCabecalho(), r.campos(), r.avisos());
+            }
+            List<Linha> dados = new ArrayList<>();
+            for (Linha l : lida.linhas().subList(r.posicaoDoCabecalho() + 1, lida.linhas().size())) {
+                if (!emBranco(l)) {
+                    dados.add(l);
+                }
+            }
+            abas.add(new AbaReconhecida(lida.indice(), lida.nome(), r, List.copyOf(dados)));
+        }
+        return abas;
     }
 
     private record Casados(Contagem contagem, List<Pergunta> perguntas) {
@@ -456,7 +470,7 @@ public final class AnaliseDaPlanilha {
                 l.naoLigadas().size(), l.ambiguas().size());
     }
 
-    private static Campo campoDaColuna(Reconhecimento r, int coluna) {
+    static Campo campoDaColuna(Reconhecimento r, int coluna) {
         return r.campos().entrySet().stream().filter(e -> e.getValue() == coluna).map(Map.Entry::getKey).findFirst().orElse(null);
     }
 
@@ -469,11 +483,11 @@ public final class AnaliseDaPlanilha {
         return -1;
     }
 
-    private static boolean emBranco(Linha l) {
+    static boolean emBranco(Linha l) {
         return l.celulas().stream().allMatch(ReconhecimentoDeAbas::vazia);
     }
 
-    private static String texto(Linha l, int coluna) {
+    static String texto(Linha l, int coluna) {
         Celula c = LigacaoDeAbas.celula(l, coluna);
         return c == null || c.erro() ? "" : c.texto().strip();
     }

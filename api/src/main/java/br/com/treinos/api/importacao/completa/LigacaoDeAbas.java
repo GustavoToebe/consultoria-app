@@ -39,10 +39,12 @@ public final class LigacaoDeAbas {
 
     /**
      * {@code ligadas}, {@code naoLigadas} e {@code ambiguas} são números de linha da filha (no arquivo); linha com a
-     * coluna vazia não entra em nenhuma.
+     * coluna vazia não entra em nenhuma. {@code maes} = linha da filha → linha da mãe (das ligadas) e {@code candidatas}
+     * = linha ambígua → as linhas da mãe com o mesmo nome (a pergunta que o treinador responde).
      */
     public record Ligacao(int filha, int colunaFilha, int mae, int colunaMae, Por por, List<Integer> ligadas,
-                          List<Integer> naoLigadas, List<Integer> ambiguas) {
+                          List<Integer> naoLigadas, List<Integer> ambiguas, Map<Integer, Integer> maes,
+                          Map<Integer, List<Integer>> candidatas) {
     }
 
     private LigacaoDeAbas() {
@@ -152,13 +154,15 @@ public final class LigacaoDeAbas {
     }
 
     private static Ligacao ligar(AbaReconhecida filha, int colunaFilha, AbaReconhecida mae, int colunaMae, Por por, Chave chave) {
-        Map<String, Integer> vezesNaMae = new HashMap<>();
+        Map<String, List<Integer>> linhasNaMae = new HashMap<>();
         for (Linha l : mae.dados()) {
             String v = chave.de(celula(l, colunaMae));
             if (!v.isEmpty()) {
-                vezesNaMae.merge(v, 1, Integer::sum);
+                linhasNaMae.computeIfAbsent(v, k -> new ArrayList<>()).add(l.numero());
             }
         }
+        Map<Integer, Integer> maes = new HashMap<>();
+        Map<Integer, List<Integer>> candidatas = new HashMap<>();
         List<Integer> ligadas = new ArrayList<>();
         List<Integer> naoLigadas = new ArrayList<>();
         List<Integer> ambiguas = new ArrayList<>();
@@ -167,17 +171,19 @@ public final class LigacaoDeAbas {
             if (v.isEmpty()) {
                 continue;
             }
-            int vezes = vezesNaMae.getOrDefault(v, 0);
-            if (vezes == 0) {
+            List<Integer> naMae = linhasNaMae.getOrDefault(v, List.of());
+            if (naMae.isEmpty()) {
                 naoLigadas.add(l.numero());
-            } else if (vezes > 1 && por == Por.NOME) {
+            } else if (naMae.size() > 1 && por == Por.NOME) {
                 ambiguas.add(l.numero());
+                candidatas.put(l.numero(), List.copyOf(naMae));
             } else {
                 ligadas.add(l.numero());
+                maes.put(l.numero(), naMae.getFirst());
             }
         }
         return new Ligacao(filha.indice(), colunaFilha, mae.indice(), colunaMae, por, List.copyOf(ligadas),
-                List.copyOf(naoLigadas), List.copyOf(ambiguas));
+                List.copyOf(naoLigadas), List.copyOf(ambiguas), Map.copyOf(maes), Map.copyOf(candidatas));
     }
 
     private static Optional<AbaReconhecida> primeira(List<AbaReconhecida> abas, TipoDeAba tipo) {
