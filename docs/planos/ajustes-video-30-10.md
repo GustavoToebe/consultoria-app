@@ -82,4 +82,4 @@ referência foi conferida no código atual. A análise em si fica fora do git.
     acessível só com o horário de início.
   - Aluno: editar outra etapa com um salvamento em voo ainda monta o registro a partir do dado antigo (pede mudança em
     `aplicarAcao`); `avisoDoGrafico` pode reaproveitar o texto de domínio do B6.
-  - Impressão (B7): só o relatório; o diálogo real de impressão não é automatizável aqui.
+  - Impressão (B7): achado real corrigido (cancelar sem `afterprint` e imprimir de novo deixava o título da aba com o do PDF anterior; `pdf/imprimir.web.ts` agora limpa a impressão pendente antes de começar outra). Specs: `impressao-cancelada` e `impressao-emulada` (Chrome e Edge, só com `IMPRESSAO_CANAIS=1`). O diálogo real de impressão não é automatizável aqui.

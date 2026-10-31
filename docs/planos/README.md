@@ -102,7 +102,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | CRM, link público: o limite de envio (429) usa o texto do login ("Muitas tentativas de acesso"); texto próprio do formulário. Inscrição reaberta mantém a data original de criação (volta à posição antiga da lista) | Claude, quando o Gustavo pedir | ajustes-video-30-10 (B8) |
 | Agenda: fundo tingido na lista do celular (precisa de `fundo` em `ui/LinhaDaLista`), status "Cancelado" na visão do mês e nome acessível do bloco só com o horário de início | Claude, quando o Gustavo pedir | ajustes-video-30-10 (A14) |
 | Aluno: editar outra etapa com um salvamento em voo ainda monta o registro a partir do dado antigo (pede mudança em `aplicarAcao`); `avisoDoGrafico` pode reaproveitar o texto de domínio do histórico vazio | Claude | ajustes-video-30-10 (B1/B6) |
-| Impressão (B7): conferida só por emulação de mídia e `page.pdf` e por teste com `window.print` trocado; o diálogo real de impressão do navegador não é automatizável, conferir no Chrome e no Edge com e sem logo | Gustavo | ajustes-video-30-10 (B7) |
+| Impressão (B7): conferida por emulação de mídia e `page.pdf` no Chrome e no Edge (claro/escuro, com/sem logo; `IMPRESSAO_CANAIS=1 npx playwright test e2e/impressao-emulada.spec.ts`) e por teste com `window.print` trocado; o diálogo real de impressão não é automatizável, abrir o "Imprimir" de verdade no Chrome e no Edge e no celular | Gustavo | ajustes-video-30-10 (B7) |
 
 ## Limitações aceitas (não são pendência)
 
