@@ -224,9 +224,10 @@ class AlunoFiltrosIntegrationTest extends AbstractIntegrationTest {
         api.get("/alunos?registro=NUNCA", soAlunos, 403);
         // Acesso e responsável não pedem permissão além da lista.
         assertThat(nomes(api.get("/alunos?acesso=SEM&responsavel=nenhum", soAlunos, 200))).containsExactly("Aluno qualquer");
-        // Atualização pede as duas: sem a sensível, 403.
-        JsonNode semSensivel = membroCom(Set.of("ALUNO_LER", "ATUALIZACAO_LER"));
-        api.get("/alunos?atualizacao=SEM_PASTA", semSensivel, 403);
+        // Atualização pede as duas. ATUALIZACAO_LER já depende da sensível no catálogo, então o caso que existe
+        // é ter a sensível sem ATUALIZACAO_LER: 403.
+        JsonNode soSensivel = membroCom(Set.of("ALUNO_LER", "ALUNO_SENSIVEL_LER"));
+        api.get("/alunos?atualizacao=SEM_PASTA", soSensivel, 403);
     }
 
     @Test
