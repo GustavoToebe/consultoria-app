@@ -1,4 +1,5 @@
 import { PERIODOS_DA_LISTA, type PeriodoDaLista } from './listaDeCompras';
+import { BLOCOS_DO_PAINEL, ehBlocoDoPainel, PAINEL_DO_INICIO_PADRAO, type PainelDoInicioPreferido } from './painelBlocos';
 import { BORDA_BLOCO, BORDA_ITEM, type Cores } from '../tema/tokens';
 
 /**
@@ -48,6 +49,11 @@ export interface Preferencias {
    * existe mais fica guardado (a leitura da lista pode ter falhado): quem usa filtra com `agendasOcultasValidas`.
    */
   agendasOcultas: string[];
+  /**
+   * Só treinador: "Editar" do painel do Início (D7). `ordem` traz sempre todos os blocos (os que a pessoa não pode ver
+   * guardam o lugar) e `escondidos` os que ela desligou. Os Primeiros passos e o Todos/Meus de cada bloco não entram.
+   */
+  painelDoInicio: PainelDoInicioPreferido;
 }
 
 /** Teto de itens e de tamanho de cada um em `agendasOcultas` (20 agendas pessoais + 2 fixas cabem com folga). */
@@ -75,6 +81,7 @@ export const PREFERENCIAS_PADRAO: Preferencias = {
   mostrarFasesDoCiclo: true,
   lembretesCompromisso: false,
   agendasOcultas: [],
+  painelDoInicio: PAINEL_DO_INICIO_PADRAO,
 };
 
 const TEMAS: readonly TemaEscolhido[] = ['CONSULTORIA', 'ESCURO', 'CLARO', 'AREIA', 'SISTEMA'];
@@ -93,7 +100,7 @@ export function normalizarPreferencias(qualquer: unknown): Preferencias {
     try {
       bruto = JSON.parse(bruto);
     } catch {
-      return { ...PREFERENCIAS_PADRAO };
+      return normalizarPreferencias({});
     }
   }
   const o = bruto && typeof bruto === 'object' ? (bruto as Record<string, unknown>) : {};
@@ -112,6 +119,21 @@ export function normalizarPreferencias(qualquer: unknown): Preferencias {
     mostrarFasesDoCiclo: typeof o.mostrarFasesDoCiclo === 'boolean' ? o.mostrarFasesDoCiclo : PREFERENCIAS_PADRAO.mostrarFasesDoCiclo,
     lembretesCompromisso: typeof o.lembretesCompromisso === 'boolean' ? o.lembretesCompromisso : PREFERENCIAS_PADRAO.lembretesCompromisso,
     agendasOcultas: agendasOcultasDe(o.agendasOcultas),
+    painelDoInicio: painelDoInicioDe(o.painelDoInicio),
+  };
+}
+
+/**
+ * Ordem salva: ids conhecidos, sem repetir, na ordem salva; os que faltam (bloco novo numa versão futura) entram no fim, na
+ * ordem padrão. Escondidos: só ids conhecidos, sem repetir. Qualquer outra coisa volta ao padrão.
+ */
+function painelDoInicioDe(valor: unknown): PainelDoInicioPreferido {
+  const o = valor && typeof valor === 'object' ? (valor as Record<string, unknown>) : {};
+  const conhecidos = (v: unknown) => (Array.isArray(v) ? [...new Set(v.filter(ehBlocoDoPainel))] : []);
+  const salva = conhecidos(o.ordem);
+  return {
+    ordem: [...salva, ...BLOCOS_DO_PAINEL.filter((id) => !salva.includes(id))],
+    escondidos: conhecidos(o.escondidos),
   };
 }
 

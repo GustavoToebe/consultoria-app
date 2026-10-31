@@ -3,6 +3,7 @@ import type { EtapaRegistrada, LoteResponse, RegistroAguaEnvio, RegistroEnvio, R
 import { inicioDaJanelaDeConclusao } from '../dominio/conclusaoDoTreino';
 import { chavePasseio } from '../dominio/passeio';
 import { chaveDasPreferencias } from '../dominio/preferencias';
+import { chavePrimeirosPassos } from '../dominio/primeirosPassos';
 import { emMemoria } from './armazenamento';
 import { fabricaNode, type FabricaDeTeste } from './bancoNode.apoioTeste';
 import { CHAVE_FILAS_RETIDAS, registrarFilaRetida, varrerFilasRetidas } from './filasRetidas';
@@ -643,7 +644,7 @@ describe('sessão recusada na web (chave-valor)', () => {
   it('sobram só os registros não enviados, a marca e o que já sobrevive ao sair; "Sair" depois apaga a fila também', async () => {
     const kv = emMemoria();
     const preferencias = chaveDasPreferencias('ana');
-    for (const chave of [preferencias, chavePasseio('ana'), 'treinos:ana:favoritos', 'treinos:ana:pacote', 'treinos:bia:favoritos']) {
+    for (const chave of [preferencias, chavePasseio('ana'), chavePrimeirosPassos('ana'), 'treinos:ana:favoritos', 'treinos:ana:pacote', 'treinos:bia:favoritos']) {
       await kv.gravar(chave, '1');
     }
     const ana = new RepositorioChaveValor(kv, 'ana', novoId, agora);
@@ -651,18 +652,21 @@ describe('sessão recusada na web (chave-valor)', () => {
     await ana.reterSoAFila();
     const restam = (await kv.chaves()).filter((c) => c.startsWith('treinos:'));
     expect([...restam].sort()).toEqual(
-      [preferencias, chavePasseio('ana'), 'treinos:ana:registros', 'treinos:ana:filaRetida', 'treinos:bia:favoritos'].sort(),
+      [preferencias, chavePasseio('ana'), chavePrimeirosPassos('ana'), 'treinos:ana:registros', 'treinos:ana:filaRetida', 'treinos:bia:favoritos'].sort(),
     );
     // A pessoa ainda tocou em "Sair" a tempo: aí a fila também vai embora.
     await new RepositorioChaveValor(kv, 'ana', novoId, agora).apagarTudo();
-    expect((await kv.chaves()).filter((c) => c.startsWith('treinos:ana:')).sort()).toEqual([preferencias, chavePasseio('ana')].sort());
+    expect((await kv.chaves()).filter((c) => c.startsWith('treinos:ana:')).sort()).toEqual([preferencias, chavePasseio('ana'), chavePrimeirosPassos('ana')].sort());
   });
 });
 
 describe('sair da conta na web (chave-valor)', () => {
-  it('guarda só a preferência de tela e o passeio já visto, e apenas as de quem saiu', async () => {
+  it('guarda só a preferência de tela, o passeio já visto e os primeiros passos, e apenas os de quem saiu', async () => {
     const kv = emMemoria();
-    const mantidas = [chaveDasPreferencias('ana'), chavePasseio('ana'), chaveDasPreferencias('bia'), chavePasseio('bia')];
+    const mantidas = [
+      chaveDasPreferencias('ana'), chavePasseio('ana'), chavePrimeirosPassos('ana'),
+      chaveDasPreferencias('bia'), chavePasseio('bia'), chavePrimeirosPassos('bia'),
+    ];
     for (const chave of [...mantidas, 'treinos:ana:favoritos', 'treinos:ana:lembreteAtualizacaoPerguntado', 'treinos:bia:favoritos']) {
       await kv.gravar(chave, '1');
     }

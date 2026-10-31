@@ -117,14 +117,30 @@ export function json(route: Route, corpo: unknown, status = 200) {
   return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(corpo) });
 }
 
+/** O que fica gravado no aparelho antes de a página abrir (ver {@link sessao}). */
+export interface AparelhoFalso {
+  /** Marca o passeio do primeiro acesso como visto (padrão). `false`: o passeio abre, como no primeiro acesso. */
+  passeioVisto?: boolean;
+  /**
+   * Estado dos Primeiros passos do Início (`treinos:<id>:primeirosPassos`). Padrão `{"dispensado":true}`: o bloco não
+   * cobre o Início nem faz consultas a mais. `null`: não grava nada (o bloco aparece, como no primeiro uso).
+   */
+  primeirosPassos?: string | null;
+}
+
 /**
  * Sessão aberta como na volta ao app: o refresh (cookie, na web) devolve a sessão e o `/eu` traz o perfil com os termos
- * aceitos. O passeio do primeiro acesso fica marcado como visto, para não cobrir a tela.
+ * aceitos. O passeio do primeiro acesso fica marcado como visto, para não cobrir a tela, e os Primeiros passos do Início
+ * ficam dispensados (`aparelho` muda os dois). Só grava o que ainda não existe: recarregar a página mantém o que a tela
+ * gravou (o teste de "Já conferi" depois de recarregar).
  */
-export async function sessao(page: Page, usuario: UsuarioResumo, extra: Partial<EuResponse> = {}): Promise<RespostasApi> {
-  await page.addInitScript((id) => {
-    localStorage.setItem(`treinos:${id}:passeioVisto`, '1');
-  }, usuario.id);
+export async function sessao(page: Page, usuario: UsuarioResumo, extra: Partial<EuResponse> = {}, aparelho: AparelhoFalso = {}): Promise<RespostasApi> {
+  const primeirosPassos = aparelho.primeirosPassos === undefined ? JSON.stringify({ dispensado: true }) : aparelho.primeirosPassos;
+  await page.addInitScript(({ id, passeio, passos }) => {
+    if (passeio) localStorage.setItem(`treinos:${id}:passeioVisto`, '1');
+    const chave = `treinos:${id}:primeirosPassos`;
+    if (passos !== null && localStorage.getItem(chave) === null) localStorage.setItem(chave, passos);
+  }, { id: usuario.id, passeio: aparelho.passeioVisto !== false, passos: primeirosPassos });
   const login: LoginResponse = { accessToken: 'token-falso', expiresIn: 900, usuario, marca: MARCA };
   const eu: EuResponse = {
     usuario,

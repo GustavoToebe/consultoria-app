@@ -819,11 +819,12 @@ export interface RascunhoAtualizacao {
 export const prefixoDoUsuario = (usuarioId: string) => `treinos:${usuarioId}:`;
 
 /**
- * O que não vai embora ao sair da conta: preferências de tela e "passeio pelo menu já visto". São do usuário naquele
- * aparelho, não têm dado pessoal, e a pessoa não deve refazer a escolha nem rever o passeio a cada entrada.
- * Os testes conferem as chaves reais (`chaveDasPreferencias`, `chavePasseio`).
+ * O que não vai embora ao sair da conta: preferências de tela, "passeio pelo menu já visto" e o estado dos "Primeiros
+ * passos" do Início (itens conferidos, "agora não", dispensado). São do usuário naquele aparelho, não têm dado pessoal, e
+ * a pessoa não deve refazer a escolha, rever o passeio nem ver de novo um bloco que dispensou a cada entrada.
+ * Os testes conferem as chaves reais (`chaveDasPreferencias`, `chavePasseio`, `chavePrimeirosPassos`).
  */
-export const SOBREVIVEM_AO_SAIR: readonly string[] = ['preferencias', 'passeioVisto'];
+export const SOBREVIVEM_AO_SAIR: readonly string[] = ['preferencias', 'passeioVisto', 'primeirosPassos'];
 
 /** O que fica no aparelho quando o servidor recusa a sessão: os registros não enviados (séries, mobilidade, conclusões e água) e a marca com a data. */
 export const CHAVES_DA_FILA_RETIDA: readonly string[] = ['registros', 'registrosMobilidade', 'sessoesConcluidas', 'registrosAgua', 'filaRetida'];

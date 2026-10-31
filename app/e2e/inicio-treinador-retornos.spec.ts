@@ -4,13 +4,14 @@ import type { PainelTreinador } from '../src/api/tipos';
 import { PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
 
 /**
- * Início do treinador, 30/10: retornos combinados com interessados (atrasados e de hoje) num contador próprio, que acende
- * em vermelho com algum atrasado, entra no "Próximo passo" e abre Interessados com o mesmo "Todos / Meus". Dados fictícios.
+ * Início do treinador: retornos combinados com interessados (atrasados e de hoje) no cartão Retornos do bloco
+ * Interessados, que acende em vermelho com algum atrasado, entra no "Próximo passo" e abre Interessados com o mesmo
+ * "Todos / Meus" (painel novo de 31/10; antes era um contador próprio). Dados fictícios.
  */
 const PAINEL: PainelTreinador = {
   atualizacoesParaRevisar: 0, atualizacoesAtrasadas: 0, atualizacoesAvisaramAtraso: 0, atualizacoesProximas: 0, alunosAtivos: 3,
   alunosSemRegistro: [], ultimasExecucoes: [], planosTerminando: [],
-  pastasARenovar: 0, pastasParaRenovar: [], alunosSemPastaComPeriodo: 0, alunosSemRegistroTotal: 0, alunosSemAcesso: 0,
+  pastasARenovar: 0, pastasParaRenovar: [], alunosSemPastaComPeriodo: 0, alunosSemRegistroTotal: 0, alunosSemAcesso: 0, alunosInativos: 0,
   sessoesConcluidas7Dias: 0,
 };
 
@@ -31,9 +32,11 @@ for (const largura of [390, 1280]) {
       'GET /responsaveis': { corpo: [] },
     });
     await page.goto('/treinador');
-    const contador = page.getByRole('link', { name: 'Retornos a interessados: 3 (2 atrasados · 1 para hoje). Ver retornos.' });
+    const contador = page.getByRole('link', { name: 'Retornos a interessados atrasados ou de hoje: 3, 2 atrasados e 1 de hoje' });
     await expect(contador).toBeVisible();
     await expect(contador.getByText('2 atrasados · 1 para hoje')).toBeVisible();
+    // O cartão abre Interessados já filtrado nos retornos até hoje, com o "Meus" do bloco.
+    await expect(contador).toHaveAttribute('href', /\/treinador\/interessados\?.*retornos=ATE_HOJE/);
     // O retorno vencido passa na frente do interessado novo.
     await expect(page.getByText('2 retornos a interessados estão atrasados.')).toBeVisible();
     // O filtro "Meus" (padrão de quem não tem acesso total) vai junto nas contagens e no endereço de Interessados.
@@ -54,7 +57,7 @@ test('sem retornos o contador fica apagado e o próximo passo segue para os inte
     'GET /inscricoes/contagens': contagens(0, 0, 2),
   });
   await page.goto('/treinador');
-  await expect(page.getByRole('link', { name: 'Retornos a interessados: 0. Ver retornos.' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Retornos a interessados atrasados ou de hoje: 0' })).toBeVisible();
   await expect(page.getByText('2 interessados novos esperam contato.')).toBeVisible();
   expect(errosDaPagina).toEqual([]);
 });
@@ -67,7 +70,7 @@ test('só retornos de hoje: âmbar, e o próximo passo fala de hoje', async ({ p
     'GET /inscricoes/contagens': contagens(0, 1),
   });
   await page.goto('/treinador');
-  await expect(page.getByRole('link', { name: 'Retornos a interessados: 1 (1 para hoje). Ver retornos.' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Retornos a interessados atrasados ou de hoje: 1, 1 de hoje' })).toBeVisible();
   await expect(page.getByText('1 retorno a interessado está marcado para hoje.')).toBeVisible();
   expect(errosDaPagina).toEqual([]);
 });
