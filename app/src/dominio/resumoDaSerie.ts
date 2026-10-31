@@ -1,5 +1,5 @@
 import type { CargaDaEtapa, Configuracao, Serie } from '../api/tipos';
-import { faixa, nomeDaReferencia, textoCardio, textoCarga, textoDaFaixaPercentual, textoEsforco, textoPausa, textoTecnica } from './agrupamento';
+import { faixa, textoCardio, textoCarga, textoDosPercentuaisDoGrupo, textoEsforco, textoPausa, textoTecnica } from './agrupamento';
 import { blocosIguais, blocosValidos, somaDosBlocos } from './blocos';
 import { rotuloDescanso } from './descanso';
 import { metaDaRetomada, textoDaCargaDaEtapa } from './etapas';
@@ -73,16 +73,19 @@ export function linhasDasEtapas(s: Serie, config?: Configuracao | null): string[
   return [...linhas, `Percentuais ${base}, fixada ao registrar a primeira etapa.`];
 }
 
+/** Rótulo do `alvoExtra` (até 120 caracteres) no editor, na prévia e no PDF: texto curto do treinador só para esta série. */
+export const ROTULO_DA_OBSERVACAO_DA_SERIE = 'Observação desta série';
+
 export interface PreviaDoGrupo {
   /** "2 séries completas · 4 blocos de 4 reps · pausa de 15 s". */
   resumo: string;
-  /** Carga, referência, esforço, descanso e alvo extra, cada um numa linha e só quando faz sentido. */
+  /** Carga, referência, esforço, descanso e observação da série, cada um numa linha e só quando faz sentido. */
   linhas: string[];
 }
 
 /**
  * Prévia de um grupo de séries iguais (as `series` são as do exercício: dão o nome da referência e a posição). Percentuais
- * diferentes por série saem juntos ("50/70/85 a 90% da WS"). `referencia` é a origem da carga já em texto (ver
+ * diferentes por série saem juntos ("50% · 70% · 85% a 90% da WS", `percentuais.textoDosPercentuais`). `referencia` é a origem da carga já em texto (ver
  * `referenciaDaCarga` no editor), para o treinador saber de onde sai a sugestão.
  */
 export function previaDoGrupo(
@@ -102,14 +105,7 @@ export function previaDoGrupo(
     let carga: string;
     if (modo === 'CARGA_TRABALHO') carga = 'carga de trabalho (a base do dia, que o aluno informa)';
     else if (modo === 'MESMA_CARGA') carga = textoCarga(primeira.carga, ws);
-    else {
-      const valores = grupo.series.map((s) => textoDaFaixaPercentual(s.carga?.percentualMin, s.carga?.percentualMax));
-      const lista = valores.every((v) => v === valores[0]) ? valores[0] : valores.join('/');
-      const referencia = nomeDaReferencia(primeira, series, config);
-      carga = modo === 'PERCENTUAL_WS' ? `${lista}%${ws ? ` da ${ws}` : ''}`
-        : modo === 'ACIMA_DA_ANTERIOR' ? `+${lista}% sobre a anterior`
-          : `${lista}% abaixo da referência${referencia ? ` (${referencia})` : ''}`;
-    }
+    else carga = textoDosPercentuaisDoGrupo(grupo, series, config, ws);
     linhas.push(`Carga: ${carga}`);
     if (contexto.referencia) linhas.push(contexto.referencia);
   }
@@ -123,6 +119,6 @@ export function previaDoGrupo(
     else if (comEtapas) linhas.push('Descanso depois da série: não informado');
   }
   const alvo = primeira.alvoExtra?.trim();
-  if (alvo) linhas.push(`Alvo extra: ${alvo}`);
+  if (alvo) linhas.push(`${ROTULO_DA_OBSERVACAO_DA_SERIE}: ${alvo}`);
   return { resumo, linhas };
 }

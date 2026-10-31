@@ -473,6 +473,8 @@ public class InscricaoService {
             String texto = f.busca() == null ? "" : f.busca().trim();
             boolean busca = !texto.isEmpty();
             String digitos = texto.replaceAll("\\D", "");
+            // O WhatsApp é gravado sem o +55 (Formatos.telefone), então o número colado com o código do país também acha.
+            if ((digitos.length() == 12 || digitos.length() == 13) && digitos.startsWith("55")) digitos = digitos.substring(2);
             if (digitos.length() < 4) digitos = "";
             if (digitos.length() > 20) digitos = digitos.substring(0, 20);
             return new Consulta(responsavel, semResponsavel, origem, semOrigem, busca, Buscas.padraoSemAcento(texto),

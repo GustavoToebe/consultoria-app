@@ -86,7 +86,7 @@ describe('PDF do treino', () => {
   }).corpo;
 
   it('escreve as séries em linguagem natural: faixa de percentual, esforço e tipo pelo nome', () => {
-    expect(html).toContain('<div class="serie">3x3 - FS 50/70/85% da WS</div><div class="serie">1x3 a 6 - WS · 1 RIR</div><div class="serie">2x6 a 8 - Back off 85% da WS</div>');
+    expect(html).toContain('<div class="serie">3x3 - FS 50% · 70% · 85% da WS</div><div class="serie">1x3 a 6 - WS · 1 RIR</div><div class="serie">2x6 a 8 - Back off 85% da WS</div>');
   });
 
   it('nunca mostra o código do tipo', () => {
@@ -138,7 +138,9 @@ describe('PDF do treino: técnica separada do tipo, descanso e alvos', () => {
   const html = documentoTreino(dadosDoTreino(treinoCom(comDropSet))).corpo;
 
   it('o tipo continua WS, a técnica aparece separada e o descanso fica numa linha própria', () => {
-    expect(html).toContain('1x6 a 8 - WS + Drop-set 2× −20% · Subir a carga se passar de 8<div class="etapas">Descanso depois da série: 1 min 30 s</div>');
+    // A observação da série sai da linha e ganha a dela, com o mesmo nome do editor (reunião de 30/10).
+    expect(html).toContain('1x6 a 8 - WS + Drop-set 2× −20%<div class="etapas">Descanso depois da série: 1 min 30 s</div><div class="etapas">Observação desta série: Subir a carga se passar de 8</div>');
+    expect(html).not.toContain('Alvo extra');
     // A explicação por extenso não se repete na coluna Obs: está no glossário.
     expect(html).not.toContain('Drop-set: ao terminar');
   });
@@ -188,7 +190,7 @@ describe('PDF do treino: top set e back off pela referência', () => {
 
   it('escreve "abaixo da referência" com o nome do tipo da série de referência', () => {
     const linhas = linhasDeSeries({ series: [top, ...back] }, CONFIGURACAO_PADRAO);
-    expect(linhas).toEqual(['1x - Top set +1 a 5% sobre a anterior', '2x6 a 8 - Back off 15% abaixo da referência (Top set)']);
+    expect(linhas).toEqual(['1x - Top set +1% a 5% sobre a anterior', '2x6 a 8 - Back off 15% abaixo da referência (Top set)']);
   });
 });
 
@@ -820,8 +822,8 @@ describe('cabeçalho uniforme dos PDFs', () => {
 
 test('PDF: série sem repetições mostra "—" no lugar delas ("1x - Top set") e com repetições mostra a faixa', () => {
   const topSet = s('t', 'TOP_SET', null, null, carga('ACIMA_DA_ANTERIOR', 1, 5));
-  expect(linhasDeSeries({ series: [topSet] }, CONFIGURACAO_PADRAO)).toEqual(['1x - Top set +1 a 5% sobre a anterior']);
-  expect(linhasDeSeries({ series: [{ ...topSet, repsMin: 3, repsMax: 6 }] }, CONFIGURACAO_PADRAO)).toEqual(['1x3 a 6 - Top set +1 a 5% sobre a anterior']);
+  expect(linhasDeSeries({ series: [topSet] }, CONFIGURACAO_PADRAO)).toEqual(['1x - Top set +1% a 5% sobre a anterior']);
+  expect(linhasDeSeries({ series: [{ ...topSet, repsMin: 3, repsMax: 6 }] }, CONFIGURACAO_PADRAO)).toEqual(['1x3 a 6 - Top set +1% a 5% sobre a anterior']);
 });
 
 test('PDF: glossário só com o que o treino usa, com o nome da metodologia e todo texto escapado', () => {

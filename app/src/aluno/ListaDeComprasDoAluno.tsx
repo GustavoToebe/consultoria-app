@@ -201,7 +201,7 @@ export function ListaDeComprasDoAluno({
 }
 
 /**
- * Uma linha da lista. Fora do modo de ajuste, o ✓ à direita marca comprado (e a linha apaga); no modo de ajuste, o
+ * Uma linha da lista. Fora do modo de ajuste, o ✓ à direita marca comprado (com o selo "Comprado"); no modo de ajuste, o
  * lápis ajusta (ou edita o avulso) e a lixeira tira o avulso. O que é do aluno leva o selo dizendo isso.
  */
 function LinhaDoItem({ item, ajustando, aoMarcar, aoAjustar, aoRemover }: {
@@ -225,8 +225,9 @@ function LinhaDoItem({ item, ajustando, aoMarcar, aoAjustar, aoRemover }: {
       titulo={item.nome}
       metadados={item.quantidade}
       descricao={item.calculado ? `Calculado: ${item.calculado}` : undefined}
-      selos={origem ? [{ texto: origem, tipo: 'neutro' }] : undefined}
-      esmaecido={item.comprado && !ajustando}
+      // A12 (contraste): a linha comprada não fica mais esmaecida (opacidade 0,6 deixava o texto suave abaixo de 4,5:1 nos
+      // temas claros); o estado vai no ✓ preenchido e no selo "Comprado" (verde: é um estado concluído).
+      selos={[...(item.comprado && !ajustando ? [{ texto: 'Comprado', tipo: 'sucesso' as const }] : []), ...(origem ? [{ texto: origem, tipo: 'neutro' as const }] : [])]}
       acoes={acoes}
       acoesAoLado
     />

@@ -68,7 +68,7 @@ export function DetalheDoCompromisso({ compromisso: c, hoje, agora, enviando, ao
               .filter((a) => !a.motivo)
             : [];
           return (
-            <LinhaDaLista key={p.id} titulo={p.nome ?? 'Aluno'} selos={[s]} esmaecido={p.situacao === 'CANCELADO'}
+            <LinhaDaLista key={p.id} titulo={p.nome ?? 'Aluno'} selos={[s]}
               acoes={acoes.length ? <LinhaDeAcoes>
                 {acoes.map((a) => (
                   <Botao key={a.situacao} rotulo={a.rotulo} rotuloAcessivel={a.rotuloAcessivel} tipo={a.perigo ? 'perigoTexto' : 'secundario'}

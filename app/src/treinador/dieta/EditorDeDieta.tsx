@@ -49,6 +49,8 @@ import { CartaoCicloNoPeriodo } from '../ciclo/CicloNaFicha';
 import { FaixaDoModelo, FaixaDoPlanoDoAluno, useNomeDoAluno } from '../plano/FaixaDoPlano';
 import { trilhaDoPlano } from '../plano/trilha';
 import { ConfiguracaoDoPlano } from '../plano/ConfiguracaoDoPlano';
+import { AtualizacaoDoPlano } from '../plano/AtualizacaoDoPlano';
+import { VoltarParaAPasta } from '../plano/VoltarParaAPasta';
 import { Folha } from '../../ui/Folha';
 
 type FolhaAberta = { tipo: 'alimento'; refeicao: number; opcao: number } | { tipo: 'receita' } | { tipo: 'suplemento' } | { tipo: 'ergogenico' } | { tipo: 'salvar' } | { tipo: 'refeicao' } | { tipo: 'salvarRefeicao'; indice: number } | { tipo: 'compras' };
@@ -120,6 +122,13 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
     <TelaDoEditor
       cabecalho={<Cabecalho titulo={titulo} trilha={trilhaDoPlano(modelo, estado.plano.alunoId, titulo)} subtitulo={modelo ? undefined : estado.plano.titulo} voltar={modelo ? '/treinador/planejamento' : `/treinador/alunos/${estado.plano.alunoId}`} />}
       barra={modelo ? <BarraDoModeloDoEditor editor={editor} receita={receita} /> : <BarraDoPlano tipo="dieta" editor={editor} aoProblemas={setProblemas} />}>
+      {/* Plano de uma pasta: volta à Folha dela e lê a atualização sem perder o rascunho (reunião de 30/10). */}
+      {!modelo && estado.plano.pastaId ? (
+        <LinhaDeAcoes>
+          <VoltarParaAPasta alunoId={estado.plano.alunoId} pastaId={estado.plano.pastaId} />
+          <AtualizacaoDoPlano alunoId={estado.plano.alunoId} pastaId={estado.plano.pastaId} />
+        </LinhaDeAcoes>
+      ) : null}
       {modelo ? <FaixaDoModelo /> : <FaixaDoPlanoDoAluno tipo="dieta" />}
       {modelo ? null : <CartaoCicloNoPeriodo alunoId={estado.plano.alunoId} inicio={estado.plano.inicio} fim={estado.plano.fim} />}
       {modelo ? <NomeDoModelo editor={editor} /> : <ProblemasDoPlano editor={editor} problemas={problemas} aoProblemas={setProblemas}

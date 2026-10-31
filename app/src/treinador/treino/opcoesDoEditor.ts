@@ -30,7 +30,8 @@ export function formaDoEsforco(e: Esforco | null | undefined): FormaDeEsforco {
 
 // Rótulos curtos para caberem numa linha ao lado do Descanso; o que é RIR e RPE aparece ao escolher (teste local de 30/10).
 export const FORMAS_DE_ESFORCO: { valor: FormaDeEsforco; rotulo: string }[] = [
-  { valor: 'NENHUM', rotulo: 'Sem esforço' },
+  // "Sem esforço" parecia "série sem esforço"; o que a opção diz é que o esforço não foi prescrito (reunião de 30/10).
+  { valor: 'NENHUM', rotulo: 'Esforço não prescrito' },
   { valor: 'RIR', rotulo: 'RIR' },
   { valor: 'RPE', rotulo: 'RPE' },
 ];
@@ -153,16 +154,20 @@ export interface RotulosDaFaixa {
   ajuda: string;
 }
 
-/** Rótulos dos campos de percentual de cada forma de carga; `null` nas que não têm percentual. */
+/**
+ * Rótulos dos campos de percentual de cada forma de carga; `null` nas que não têm percentual. Os campos são só
+ * "Mínimo (%)" e "Máximo (%)" (o sufixo põe o "%"): de quê é o percentual fica na linha de ajuda, curta e uma só
+ * (reunião de 30/10: "% da WS mín." não dizia que a referência é a série de trabalho).
+ */
 export function rotulosDaFaixa(modo: ModoDeCarga | null | undefined, config: Configuracao | null | undefined): RotulosDaFaixa | null {
   const ws = nomeDaSerieDeTrabalho(config);
   switch (modo) {
     case 'PERCENTUAL_WS':
-      return { minimo: `% da ${ws} mín.`, maximo: `% da ${ws} máx. (opcional)`, ajuda: `Sempre da carga da ${ws}, nunca do 1RM. Máximo vazio = percentual único.` };
+      return { minimo: 'Mínimo', maximo: 'Máximo', ajuda: `Percentual da carga da ${ws} (o tipo de trabalho), nunca do 1RM. Sem máximo, o percentual é único.` };
     case 'ACIMA_DA_ANTERIOR':
-      return { minimo: 'Acima da anterior mín.', maximo: 'Acima da anterior máx. (opcional)', ajuda: 'Quanto a carga sobe em relação à série imediatamente anterior (de 1 a 100%).' };
+      return { minimo: 'Mínimo', maximo: 'Máximo', ajuda: 'Quanto sobe sobre a carga da série anterior, nunca do 1RM (1% a 100%). Sem máximo, o percentual é único.' };
     case 'ABAIXO_DA_REFERENCIA':
-      return { minimo: 'Redução mín.', maximo: 'Redução máx. (opcional)', ajuda: 'Quanto a carga cai em relação à série de referência (de 1 a 50%).' };
+      return { minimo: 'Mínimo', maximo: 'Máximo', ajuda: 'Quanto cai da carga da série de referência, nunca do 1RM (1% a 50%). Sem máximo, o percentual é único.' };
     default:
       return null;
   }

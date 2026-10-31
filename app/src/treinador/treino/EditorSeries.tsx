@@ -2,14 +2,14 @@ import { ArrowDown, ArrowUp, CircleAlert, CircleCheck, Minus, NotebookTabs, Penc
 import { type ReactNode, useMemo, useState } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import type { Configuracao, Serie } from '../../api/tipos';
-import { agrupar, descreverGrupo, type GrupoDeSeries } from '../../dominio/agrupamento';
+import { agrupar, descreverGrupo, tituloDoGrupoDeSeries, type GrupoDeSeries } from '../../dominio/agrupamento';
 import { blocosValidos } from '../../dominio/blocos';
 import { adicionarSerie, alterarGrupo, alterarPercentuais, DESCANSO_MAXIMO_SEGUNDOS, LIMITE_SERIES, moverGrupo, mudarQuantidade, novoExercicio, removerGrupo, tecnicaVazia, type AlteracaoDeGrupo } from '../../dominio/editorTreino';
 import { explicacaoDoCatalogo } from '../../dominio/catalogoMetodologia';
 import { assinaturaDoEsforco, marcaConfere, origemAposConteudo, origemAoTrocarTipo, podeRestPauseNaUltima, restPauseNestaSerie, textoDaContagemDeSeries, textoDaRevisaoDoEsforco, type MarcaDeOrigem } from '../../dominio/exemplosDePrescricao';
 import { codigoTrabalho, esforcoInicial, explicacaoDaTecnica, explicacaoDoTipo, nomeDaSerieDeTrabalho, nomeDoTipo, papelDe, padraoDaTecnica, tecnicaDescritiva, tipoPorCodigo } from '../../dominio/metodologia';
 import { CONFIGURACAO_PADRAO } from '../../dominio/metodologiaPadrao';
-import { previaDoGrupo } from '../../dominio/resumoDaSerie';
+import { previaDoGrupo, ROTULO_DA_OBSERVACAO_DA_SERIE } from '../../dominio/resumoDaSerie';
 import { validarExercicio } from '../../dominio/validacaoDoTreino';
 import { useTema } from '../../tema/TemaProvider';
 import { BORDA_ITEM, espaco, fontes, RAIO, tingido } from '../../tema/tokens';
@@ -49,16 +49,19 @@ interface Props {
   semCarga?: boolean;
   /** `false` no grupo cujo descanso é depois da volta: a leitura não repete o descanso da série. */
   descansoPorSerie?: boolean;
+  /** Número e nome do exercício: a faixa curta no topo do grupo aberto diz de qual exercício são as séries. */
+  numeroDoExercicio?: number;
+  nomeDoExercicio?: string;
 }
 
 /**
  * Séries do exercício. O cartão de cada grupo tem seções nesta ordem: tipo e técnica, estrutura (séries completas,
- * repetições e os campos da técnica), carga, esforço, descanso, alvo extra e "Para o aluno" no fim. Séries
+ * repetições e os campos da técnica), carga, esforço, descanso, observação desta série e "Para o aluno" no fim. Séries
  * iguais e seguidas formam um grupo e se editam juntas; o percentual de cada série é próprio. Cada campo mostra o erro e o
  * aviso da validação (a mesma da publicação) e a prévia diz como o aluno vai ler. Exercício de cardio só tem a prescrição de
  * cardio.
  */
-export function EditorSeries({ series, config, modalidade, aoMudar, aoUsarReceita, semCarga = false, descansoPorSerie = true }: Props) {
+export function EditorSeries({ series, config, modalidade, aoMudar, aoUsarReceita, semCarga = false, descansoPorSerie = true, numeroDoExercicio, nomeDoExercicio }: Props) {
   const { cores } = useTema();
   const cfg = config ?? CONFIGURACAO_PADRAO;
   const cardio = modalidade === 'CARDIO';
@@ -153,6 +156,7 @@ export function EditorSeries({ series, config, modalidade, aoMudar, aoUsarReceit
   return <View style={estilos.lista}>
     {grupos.map((g, i) => <EditorGrupo key={g.series[0].uid} grupo={g} series={series} config={cfg} cardio={cardio} semCarga={semCarga} descansoPorSerie={descansoPorSerie}
       tipos={tipos} podeMais={!cheio} primeiro={i === 0} ultimo={i === grupos.length - 1} numero={i + 1}
+      exercicio={numeroDoExercicio != null ? `Exercício ${numeroDoExercicio} · ${nomeDoExercicio?.trim() || 'sem nome'}` : null}
       porSerie={validacao.porSerieErros}
       aberto={aberto === g.series[0].uid} aoAlternar={() => alternar(g.series[0].uid)}
       esforcoVeioDoPadrao={g.series.length > 0 && g.series.every(aindaDoTipo)}
@@ -238,12 +242,14 @@ function Explicacao({ texto }: { texto: string }) {
 interface PropsDoGrupo {
   grupo: GrupoDeSeries; series: Serie[]; config: Configuracao; cardio: boolean; semCarga: boolean; descansoPorSerie: boolean;
   tipos: { valor: string; rotulo: string; foraDaMetodologia: boolean }[]; podeMais: boolean; primeiro: boolean; ultimo: boolean; numero: number;
+  /** "Exercício 2 · Supino reto", na faixa curta do topo do grupo aberto; nulo sem ela. */
+  exercicio: string | null;
   porSerie: ReturnType<typeof problemasPorSerie>;
   aberto: boolean; esforcoVeioDoPadrao: boolean; aoAlternar: () => void; aoMover: (d: -1 | 1) => void; aoAlterar: (m: AlteracaoDeGrupo) => void;
   aoQuantidade: (n: number) => void; aoRestPauseNaUltima: () => void; aoPercentuais: (i: number, min: number | null, max: number | null) => void; aoRemover: () => void;
 }
 
-function EditorGrupo({ grupo: g, series, config, cardio, semCarga, descansoPorSerie, tipos, podeMais, primeiro, ultimo, numero, porSerie, aberto, esforcoVeioDoPadrao, aoAlternar, aoMover, aoAlterar, aoQuantidade, aoRestPauseNaUltima, aoPercentuais, aoRemover }: PropsDoGrupo) {
+function EditorGrupo({ grupo: g, series, config, cardio, semCarga, descansoPorSerie, tipos, podeMais, primeiro, ultimo, numero, exercicio, porSerie, aberto, esforcoVeioDoPadrao, aoAlternar, aoMover, aoAlterar, aoQuantidade, aoRestPauseNaUltima, aoPercentuais, aoRemover }: PropsDoGrupo) {
   const { cores, bordas } = useTema();
   const largo = useCamposLadoALado();
   // Explicações do tipo e da técnica começam recolhidas; o "O que é?" abre.
@@ -269,14 +275,19 @@ function EditorGrupo({ grupo: g, series, config, cardio, semCarga, descansoPorSe
   const recuo = espaco(largo ? 2.5 : 2);
   const borda = nivel === 'perigo' ? cores.perigo : aberto ? cores.bordaCampo : cores.borda;
   return <View style={[estilos.grupo, { borderWidth: bordas.item, borderColor: borda, backgroundColor: aberto ? cores.superficie : cores.superficie2 }]}>
-    <CabecalhoDeGrupo titulo={descreverGrupo(g, config, series)} selo={SELO_DO_NIVEL[nivel]} aberto={aberto} aoAlternar={aoAlternar} linha="fina"
+    {/* 1ª linha: o tipo como o treinador lê ("Preparação · FS"); 2ª: os números ("3x3 - FS 50% · 70% · 85% da WS"). */}
+    <CabecalhoDeGrupo titulo={tituloDoGrupoDeSeries(g, config)} resumo={descreverGrupo(g, config, series)} selo={SELO_DO_NIVEL[nivel]} aberto={aberto} aoAlternar={aoAlternar} linha="fina"
       inicio={<NumeroDaSerie numero={numero} aberto={aberto} />} acoes={<>
       {aberto ? null : <Botao rotulo="Editar" rotuloAcessivel={`Editar a série ${numero}`} tipo="secundario" Icone={Pencil} aoTocar={aoAlternar} />}
-      <IconeBotao moldura Icone={ArrowUp} rotulo="Subir este grupo de séries" desabilitado={primeiro} aoTocar={() => aoMover(-1)} />
-      <IconeBotao moldura Icone={ArrowDown} rotulo="Descer este grupo de séries" desabilitado={ultimo} aoTocar={() => aoMover(1)} />
+      <BotaoDeMover alvo="grupo" direcao={-1} comTexto={largo} desabilitado={primeiro} aoTocar={() => aoMover(-1)} />
+      <BotaoDeMover alvo="grupo" direcao={1} comTexto={largo} desabilitado={ultimo} aoTocar={() => aoMover(1)} />
       <IconeBotao moldura Icone={Trash2} rotulo="Remover este grupo de séries" cor={cores.perigo} aoTocar={aoRemover} />
     </>} />
     {aberto ? <View style={[estilos.corpo, { padding: recuo }]}>
+      {/* Faixa curta, sem fixar no topo: com o grupo aberto e longo, o nome do exercício some da tela (reunião de 30/10). */}
+      {exercicio ? <View style={[estilos.doExercicio, { borderLeftColor: cores.bordaCampo }]}>
+        <Texto variante="pequeno" cor={cores.texto}>{exercicio}</Texto>
+      </View> : null}
       {secoes.tipo ? <Secao titulo="Tipo e técnica">
         <View style={estilos.juntos}>
           <Tipos rotulo="Tipo da série" opcoes={tipos} valor={s.tipo} aoMudar={(tipo) => aoAlterar({ tipo })} />
@@ -339,8 +350,8 @@ function EditorGrupo({ grupo: g, series, config, cardio, semCarga, descansoPorSe
       </Secao> : null}
       </View>
 
-      {secoes.alvoExtra ? <Secao titulo="Alvo extra">
-        <Campo rotulo="Texto curto para o aluno (opcional)" rotuloAcessivel="Alvo extra (opcional)" valor={s.alvoExtra ?? ''} maxLength={120} aoMudar={(alvoExtra) => aoAlterar({ alvoExtra })}
+      {secoes.alvoExtra ? <Secao titulo={ROTULO_DA_OBSERVACAO_DA_SERIE}>
+        <Campo rotulo="Texto curto para o aluno (opcional)" rotuloAcessivel={`${ROTULO_DA_OBSERVACAO_DA_SERIE} (opcional)`} valor={s.alvoExtra ?? ''} maxLength={120} aoMudar={(alvoExtra) => aoAlterar({ alvoExtra })}
           erro={erros.alvoExtra} />
       </Secao> : null}
 
@@ -355,7 +366,7 @@ function EditorGrupo({ grupo: g, series, config, cardio, semCarga, descansoPorSe
 
 /**
  * "Para o aluno": o resultado final em uma linha (quantas séries completas e a estrutura), e embaixo só o que está
- * informado: carga e de onde ela sai, esforço, descanso e alvo extra. A leitura longa da técnica fica com o aluno.
+ * informado: carga e de onde ela sai, esforço, descanso e a observação desta série. A leitura longa da técnica fica com o aluno.
  */
 function PreviaDoAluno({ grupo: g, series, config, semCarga, descansoPorSerie, nivel }: { grupo: GrupoDeSeries; series: Serie[]; config: Configuracao; semCarga: boolean; descansoPorSerie: boolean; nivel: Nivel }) {
   const { cores } = useTema();
@@ -386,6 +397,21 @@ const SELO_DO_NIVEL: Record<Nivel, { texto: string; tipo: TipoSelo; Icone: Lucid
   perigo: { texto: 'Corrigir', tipo: 'perigo', Icone: CircleAlert },
 };
 const TEXTO_DA_PREVIA: Record<Nivel, string> = { sucesso: 'Série pronta', atencao: 'Pode publicar, com aviso', perigo: 'Não dá para publicar' };
+
+/**
+ * Mover o exercício ou o grupo de séries. Os dois ficam um dentro do outro e tinham o mesmo ícone: o nome acessível diz
+ * qual ("Mover grupo de séries para cima") e, a partir de 768 px, o botão também diz na tela ("↑ Grupo", "↑ Exercício";
+ * reunião de 30/10). No celular, só o ícone com moldura, para a linha de ações caber em 390 px.
+ */
+export function BotaoDeMover({ alvo, direcao, comTexto, desabilitado, aoTocar }: {
+  alvo: 'exercicio' | 'grupo'; direcao: -1 | 1; comTexto: boolean; desabilitado: boolean; aoTocar: () => void;
+}) {
+  const nome = alvo === 'exercicio' ? 'exercício' : 'grupo de séries';
+  const rotulo = `Mover ${nome} para ${direcao < 0 ? 'cima' : 'baixo'}`;
+  const Icone = direcao < 0 ? ArrowUp : ArrowDown;
+  if (!comTexto) return <IconeBotao moldura Icone={Icone} rotulo={rotulo} desabilitado={desabilitado} aoTocar={aoTocar} />;
+  return <Botao rotulo={alvo === 'exercicio' ? 'Exercício' : 'Grupo'} rotuloAcessivel={rotulo} tipo="secundario" Icone={Icone} desabilitado={desabilitado} aoTocar={aoTocar} />;
+}
 
 /** Número da série no começo da faixa: claro nas fechadas, invertido (escuro) na aberta. */
 function NumeroDaSerie({ numero, aberto }: { numero: number; aberto: boolean }) {
@@ -418,4 +444,5 @@ const estilos = StyleSheet.create({
   previa: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(0.75) },
   contador: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
   numero: { fontFamily: fontes.negrito, fontSize: 18, lineHeight: 24, minWidth: 24, textAlign: 'center' },
+  doExercicio: { borderLeftWidth: 3, paddingLeft: espaco(1), paddingVertical: 2 },
 });

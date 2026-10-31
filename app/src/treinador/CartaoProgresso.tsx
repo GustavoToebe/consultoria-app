@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { type LayoutChangeEvent, StyleSheet, View } from 'react-native';
 
+import { ErroApi } from '../api/cliente';
 import { execucoesDoAluno, historicoAluno } from '../api/rotas';
 import { hojeIso, somarDias } from '../dominio/formatos';
 import { agruparPorGrupo } from '../dominio/progresso';
-import { opcoesDeProgresso } from '../dominio/relatorio';
+import { opcoesDeProgresso, periodoMisturaVersoes, TEXTO_PERIODO_MISTURA_VERSOES, textoDoHistoricoVazio } from '../dominio/relatorio';
 import { LIMITE_PROGRESSO } from '../dominio/selecaoMultipla';
 import { espaco } from '../tema/tokens';
 import { useAviso } from '../ui/Aviso';
@@ -14,7 +15,9 @@ import { Interruptor } from '../ui/Campos';
 import { Campo } from '../ui/Campo';
 import { Cartao } from '../ui/Cartao';
 import { Escolha } from '../ui/Escolha';
-import { Vazio } from '../ui/Estados';
+import { MensagemErro, Vazio } from '../ui/Estados';
+import { textoDoErro } from '../ui/erros';
+import { Esqueleto } from '../ui/Esqueleto';
 import { Folha } from '../ui/Folha';
 import { SelecaoMultipla } from '../ui/SelecaoMultipla';
 import { Texto } from '../ui/Texto';
@@ -41,7 +44,7 @@ export function CartaoProgresso({ alunoId }: { alunoId?: string }) {
   const aoMedir = (e: LayoutChangeEvent) => setLarguraDoCartao(e.nativeEvent.layout.width);
   const hoje = hojeIso();
   const de = somarDias(hoje, -DIAS_DA_LISTA);
-  const { dados: dias } = useCarregar(`exec-progresso:${alunoId ?? 'eu'}:${de}:${hoje}`, () =>
+  const { dados: dias, erro, recarregar } = useCarregar(`exec-progresso:${alunoId ?? 'eu'}:${de}:${hoje}`, () =>
     alunoId ? execucoesDoAluno(alunoId, de, hoje) : historicoAluno(de, hoje));
   const [grupo, setGrupo] = useState('todos');
   const [busca, setBusca] = useState('');
@@ -58,7 +61,29 @@ export function CartaoProgresso({ alunoId }: { alunoId?: string }) {
     novo.delete(valor);
     setEscolhidos(novo);
   };
-  if (!dias || grupos.length === 0) return null;
+  // B6: o cartão não some mais em silêncio. Carregando, erro e vazio dizem o que está acontecendo; o caminho dos gráficos
+  // muda com o papel (sem `alunoId` é o próprio aluno, no Histórico dele).
+  const papel = alunoId ? 'TREINADOR' : 'ALUNO';
+  const titulo = 'Progresso por exercício';
+  if (!dias) {
+    return (
+      <Cartao titulo={titulo}>
+        {erro ? (
+          erro instanceof ErroApi && erro.semConexao
+            ? <Texto numerico variante="suave">Sem conexão: o progresso aparece quando a internet voltar.</Texto>
+            : <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} />
+        ) : <Esqueleto texto="Carregando progresso" cartoes={1} />}
+      </Cartao>
+    );
+  }
+  if (grupos.length === 0) {
+    return (
+      <Cartao titulo={titulo}>
+        <Texto numerico variante="suave">{textoDoHistoricoVazio({ temRegistros: false, graficosLigados: preferencias.graficos, papel })}</Texto>
+      </Cartao>
+    );
+  }
+  const avisoDosGraficos = textoDoHistoricoVazio({ temRegistros: true, graficosLigados: preferencias.graficos, papel });
 
   const bloco = (o: (typeof mostrados)[number]) => (
     <ProgressoDoExercicio key={o.valor} alunoId={alunoId} exercicioId={o.valor} nome={o.rotulo} grupo={o.grupo} aoTirar={() => tirar(o.valor)} />
@@ -74,6 +99,8 @@ export function CartaoProgresso({ alunoId }: { alunoId?: string }) {
       acoes={<Botao rotulo={`Escolher exercícios (${mostrados.length})`} tipo="secundario" aoTocar={() => setEscolhendo(true)} />}>
       {/* Preferência pessoal deste aparelho; vale também para o gráfico de peso. */}
       <Interruptor rotulo="Mostrar gráficos" valor={preferencias.graficos} aoMudar={(graficos) => escolherPreferencia({ graficos })} />
+      {avisoDosGraficos ? <Texto numerico variante="pequeno">{avisoDosGraficos}</Texto> : null}
+      {periodoMisturaVersoes(dias) ? <Texto numerico variante="pequeno">{TEXTO_PERIODO_MISTURA_VERSOES}</Texto> : null}
       {mostrados.length === 0 ? <Vazio titulo="Nenhum exercício marcado" texto="Escolha os exercícios que quer comparar." acao={{ rotulo: 'Escolher exercícios', aoTocar: () => setEscolhendo(true) }} /> : null}
       {duasColunas ? (
         <View style={estilos.colunas}>

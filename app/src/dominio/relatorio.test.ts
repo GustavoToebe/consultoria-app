@@ -1,7 +1,7 @@
 import type { DiaDeTreino, EtapaRegistrada, SerieFeita, Sessao } from '../api/tipos';
 import { textoCarga } from '../pdf/pdfCargas';
 import { dataCurta, diaDaSemanaIso } from './formatos';
-import { cargasPorDivisao, filtrarPorSessoes, intervaloDeRegistros, opcoesDeProgresso, partesDaDivisao, totalDeRegistros, ultimoRegistroDaDivisao } from './relatorio';
+import { cargasPorDivisao, filtrarPorSessoes, intervaloDeRegistros, opcoesDeProgresso, partesDaDivisao, periodoMisturaVersoes, TEXTO_PERIODO_MISTURA_VERSOES, textoDoHistoricoVazio, totalDeRegistros, ultimoRegistroDaDivisao, versoesDoPlanoNoPeriodo } from './relatorio';
 import { marcasDoEixo } from './grafico';
 import { datasDaSessao, nomeComDia, podeRegistrarEm } from './semana';
 
@@ -241,5 +241,45 @@ describe('faixa da divisão', () => {
     ] } as unknown as Parameters<typeof ultimoRegistroDaDivisao>[0];
     expect(ultimoRegistroDaDivisao(d)).toBe('2026-10-07');
     expect(ultimoRegistroDaDivisao({ chave: 'b', nome: 'B', exercicios: [] })).toBeNull();
+  });
+});
+
+describe('histórico: versões do plano e estado vazio (B6)', () => {
+  const diaDaVersao = (data: string, versao: string, comSerie = true): DiaDeTreino => ({
+    data,
+    sessoes: [{ sessaoUid: 's', sessao: 'A', planoVersaoId: versao, exercicios: [{ exercicioUid: 'e', exercicioId: null, nome: 'Remada', series: comSerie ? [serie({})] : [] }] }],
+  });
+
+  it('uma versão só, ou nenhum registro: não mistura', () => {
+    expect(versoesDoPlanoNoPeriodo([])).toBe(0);
+    expect(periodoMisturaVersoes([])).toBe(false);
+    const umaVersao = [diaDaVersao('2026-10-01', 'v1'), diaDaVersao('2026-10-08', 'v1')];
+    expect(versoesDoPlanoNoPeriodo(umaVersao)).toBe(1);
+    expect(periodoMisturaVersoes(umaVersao)).toBe(false);
+  });
+
+  it('duas versões no período: mistura (também no mesmo dia, em sessões diferentes)', () => {
+    expect(periodoMisturaVersoes([diaDaVersao('2026-10-01', 'v1'), diaDaVersao('2026-10-15', 'v2')])).toBe(true);
+    const mesmoDia: DiaDeTreino = { data: '2026-10-20', sessoes: [diaDaVersao('2026-10-20', 'v1').sessoes[0], diaDaVersao('2026-10-20', 'v2').sessoes[0]] };
+    expect(versoesDoPlanoNoPeriodo([mesmoDia])).toBe(2);
+  });
+
+  it('sessão sem série registrada não conta como versão executada', () => {
+    expect(periodoMisturaVersoes([diaDaVersao('2026-10-01', 'v1'), diaDaVersao('2026-10-15', 'v2', false)])).toBe(false);
+  });
+
+  it('estado vazio: sem registros diz que o período está vazio; com registros e gráficos desligados diz onde ligar; ligados, nada', () => {
+    expect(textoDoHistoricoVazio({ temRegistros: false, graficosLigados: true })).toBe('Nenhum registro neste período.');
+    expect(textoDoHistoricoVazio({ temRegistros: false, graficosLigados: false })).toBe('Nenhum registro neste período.');
+    expect(textoDoHistoricoVazio({ temRegistros: true, graficosLigados: false })).toBe('Os gráficos estão desligados em Perfil › Preferências.');
+    expect(textoDoHistoricoVazio({ temRegistros: true, graficosLigados: true })).toBeNull();
+  });
+
+  it('o caminho para ligar os gráficos depende do papel: aluno na Conta, treinador no Perfil', () => {
+    expect(textoDoHistoricoVazio({ temRegistros: true, graficosLigados: false, papel: 'ALUNO' })).toBe('Os gráficos estão desligados em Conta › Aparência e preferências.');
+    expect(textoDoHistoricoVazio({ temRegistros: true, graficosLigados: false, papel: 'TREINADOR' })).toBe('Os gráficos estão desligados em Perfil › Preferências.');
+    expect(textoDoHistoricoVazio({ temRegistros: false, graficosLigados: false, papel: 'ALUNO' })).toBe('Nenhum registro neste período.');
+    expect(textoDoHistoricoVazio({ temRegistros: true, graficosLigados: true, papel: 'ALUNO' })).toBeNull();
+    expect(TEXTO_PERIODO_MISTURA_VERSOES).toBe('Este período tem registros de mais de uma versão do plano; as divisões podem ter mudado.');
   });
 });

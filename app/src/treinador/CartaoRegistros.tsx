@@ -6,7 +6,7 @@ import { StyleSheet, View } from 'react-native';
 import { execucoesDoAluno } from '../api/rotas';
 import type { DiaDeTreino, PastaResumo } from '../api/tipos';
 import { dataParaTela, hojeIso } from '../dominio/formatos';
-import { cargasPorDivisao, filtrarPorSessoes, intervaloDeRegistros, textoDoVolume, textoSerie, volumeDoExercicio } from '../dominio/relatorio';
+import { cargasPorDivisao, filtrarPorSessoes, intervaloDeRegistros, periodoMisturaVersoes, TEXTO_PERIODO_MISTURA_VERSOES, textoDoHistoricoVazio, textoDoVolume, textoSerie, volumeDoExercicio } from '../dominio/relatorio';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes } from '../tema/tokens';
 import { Abas } from '../ui/Abas';
@@ -84,8 +84,10 @@ export function CartaoRegistros({ aluno, pasta }: { aluno: { id: string; nome: s
         {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
         {!dados && carregando ? <Esqueleto /> : null}
         {dados && filtrados && filtrados.length === 0 ? (
-          <Vazio titulo="Sem registros no período" texto="Os treinos registrados aparecem aqui. O aluno pode ter treinado sem registrar." />
+          // B6: o motivo do vazio vem do domínio (o mesmo texto do histórico do aluno), com a dica de que pode ter treinado sem registrar.
+          <Vazio titulo={textoDoHistoricoVazio({ temRegistros: false, graficosLigados: true, papel: 'TREINADOR' }) ?? 'Sem registros'} texto="Os treinos registrados aparecem aqui. O aluno pode ter treinado sem registrar." />
         ) : null}
+        {filtrados && periodoMisturaVersoes(filtrados) ? <Texto numerico variante="pequeno">{TEXTO_PERIODO_MISTURA_VERSOES}</Texto> : null}
         {dados && visao === 'divisao' ? <CargasPorDivisao divisoes={divisoes} /> : null}
         {filtrados && visao === 'dia'
           ? [...filtrados].sort((a, b) => b.data.localeCompare(a.data)).map((d, i) => <EntradaEmCascata key={d.data} indice={i} animar={animar}><DiaRegistros dia={d} /></EntradaEmCascata>)

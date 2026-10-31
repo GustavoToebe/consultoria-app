@@ -55,6 +55,9 @@ for (const largura of [390, 1280]) {
     await page.setViewportSize({ width: largura, height: 900 });
     const api = await abrirDiaDeTreino(page);
     await page.getByRole('button', { name: 'Editar Supino de teste', exact: true }).click();
+    // A modalidade aparece como resumo; a escolha só abre pelo "Alterar" (reunião de 30/10).
+    await expect(page.getByText('Modalidade:', { exact: false }).first()).toBeVisible();
+    await page.getByRole('button', { name: 'Alterar modalidade', exact: true }).click();
     await page.getByRole('button', { name: 'Cardio', exact: true }).click();
     // O exercício tem séries: a troca espera a confirmação e só então apaga.
     await expect(page.getByText('Trocar para cardio?', { exact: true })).toBeVisible();

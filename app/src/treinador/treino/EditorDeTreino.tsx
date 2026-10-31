@@ -55,6 +55,9 @@ import { nomeDaCombinacao } from '../../dominio/metodologia';
 import { descansoSoDoGrupo } from '../../dominio/textoDoGrupo';
 import { CONFIGURACAO_PADRAO } from '../../dominio/metodologiaPadrao';
 import { ConfiguracaoDoPlano } from '../plano/ConfiguracaoDoPlano';
+import { AtualizacaoDoPlano } from '../plano/AtualizacaoDoPlano';
+import { VoltarParaAPasta } from '../plano/VoltarParaAPasta';
+import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { ContadoresDoTreino } from './ContadoresDoTreino';
 import { SeletorDeSessoes } from './SeletorDeSessoes';
 import { Folha } from '../../ui/Folha';
@@ -244,10 +247,17 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
     <TelaDoEditor
       cabecalho={<Cabecalho titulo={titulo} trilha={trilhaDoPlano(modelo, estado.plano.alunoId, titulo)} subtitulo={modelo ? undefined : estado.plano.titulo} voltar={modelo ? '/treinador/planejamento' : `/treinador/alunos/${estado.plano.alunoId}`} />}
       barra={modelo ? <BarraDoModeloDoEditor editor={comVerificacao} receita={receita} /> : <BarraDoPlano tipo="treino" editor={comVerificacao} aoProblemas={aoProblemas} />}>
+      {/* Plano de uma pasta: volta à Folha dela e lê a atualização sem perder o rascunho (reunião de 30/10). */}
+      {!modelo && estado.plano.pastaId ? (
+        <LinhaDeAcoes>
+          <VoltarParaAPasta alunoId={estado.plano.alunoId} pastaId={estado.plano.pastaId} />
+          <AtualizacaoDoPlano alunoId={estado.plano.alunoId} pastaId={estado.plano.pastaId} />
+        </LinhaDeAcoes>
+      ) : null}
       {modelo ? <FaixaDoModelo /> : <FaixaDoPlanoDoAluno tipo="treino" />}
       {modelo ? null : <CartaoCicloNoPeriodo alunoId={estado.plano.alunoId} inicio={estado.plano.inicio} fim={estado.plano.fim} />}
       {modelo ? <NomeDoModelo editor={editor} /> : null}
-      {unica ? null : <ContadoresDoTreino conteudo={c} aoIrAoPrimeiro={(uids) => { setVerificando(true); irAoPrimeiro(uids); }} />}
+      {unica ? null : <ContadoresDoTreino conteudo={c} sessao={sessaoAtual} aoIrAoPrimeiro={(uids) => { setVerificando(true); irAoPrimeiro(uids); }} />}
       <ProblemasDoPlano editor={editor} problemas={problemas ?? validacaoLocal} aoProblemas={fecharVerificacao} aoIrAoPrimeiro={irAoPrimeiro} />
       {desfazer ? (
         <BarraDesfazer
@@ -460,7 +470,8 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
         <FolhaReceitas
           tipo="SERIES"
           titulo="Usar receita de séries"
-          explicacao="As séries do exercício são trocadas pelas da receita. Dá para desfazer logo depois."
+          explicacao="Escolha a receita pela sequência de séries. Ao aplicar, dá para desfazer logo depois."
+          config={config}
           aoFechar={() => setFolha(null)}
           aoUsar={(r) => {
             const { sessao: si, exercicio: ei } = folha.alvo;

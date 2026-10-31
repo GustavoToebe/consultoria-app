@@ -76,7 +76,7 @@ for (const largura of [390, 1280]) {
       await marcar(page, n);
     }
     await page.clock.setFixedTime(new Date('2026-10-19T12:45:00-03:00'));
-    await page.getByRole('button', { name: 'Concluir treino', exact: true }).last().click();
+    await page.getByRole('button', { name: 'Revisar e concluir treino', exact: true }).last().click();
     await folha(page).getByRole('button', { name: 'Concluir treino', exact: true }).click();
 
     await expect(page).toHaveURL(/\/aluno\/sessao\/sx\/concluido\?data=2026-10-19$/);

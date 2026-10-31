@@ -11,7 +11,8 @@ import type { ExercicioPlano, Sessao } from '../../api/tipos';
 import { normalizarTreino } from '../../dominio/editorTreino';
 import { dataParaTela, hojeIso, numeroParaTela } from '../../dominio/formatos';
 import { CONFIGURACAO_PADRAO } from '../../dominio/metodologiaPadrao';
-import { cargasPorDivisao, intervaloDeRegistros, textoSerie } from '../../dominio/relatorio';
+import { cargasPorDivisao, intervaloDeRegistros, periodoMisturaVersoes, TEXTO_PERIODO_MISTURA_VERSOES, textoDoHistoricoVazio, textoSerie } from '../../dominio/relatorio';
+import { variacoesDoPeso, type VariacaoDoPeso as VariacaoCalculada } from '../../dominio/variacaoDoPeso';
 import { useAluno } from '../../offline/AlunoProvider';
 import type { RegistroLocal } from '../../offline/repositorioLocal';
 import { imprimir } from '../../pdf/imprimir';
@@ -23,6 +24,7 @@ import { CargasPorDivisao } from '../../treinador/CargasPorDivisao';
 import { CartaoAvaliacaoFisica } from '../../treinador/CartaoAvaliacaoFisica';
 import { CartaoProgresso } from '../../treinador/CartaoProgresso';
 import { DiaRegistros, VISOES, type VisaoRegistros } from '../../treinador/CartaoRegistros';
+import { LegendaDaVariacao, VariacaoDoPeso } from '../../treinador/VariacaoDoPeso';
 import { Abas } from '../../ui/Abas';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
@@ -77,6 +79,10 @@ export default function HistoricoAluno() {
   const sessoes = new Map<string, Sessao>();
   for (const { sessao } of nomes.values()) sessoes.set(sessao.uid, sessao);
   const divisoes = historico.dados ? cargasPorDivisao(historico.dados, sessoes) : [];
+  const vazio = textoDoHistoricoVazio({ temRegistros: false, graficosLigados: true, papel: 'ALUNO' });
+  // A11: a variação do peso diz contra quando ("desde 12/10"), igual à ficha do treinador.
+  const pesosRecentes = [...(pesos.dados ?? [])].sort((a, b) => b.data.localeCompare(a.data));
+  const variacoes = variacoesDoPeso(pesos.dados ?? []);
 
   const pdf = () => {
     if (!pacote) return;
@@ -141,15 +147,13 @@ export default function HistoricoAluno() {
         {historico.erro && !semConexao ? <MensagemErro texto={textoDoErro(historico.erro)} erro={historico.erro} tentarDeNovo={historico.recarregar} /> : null}
         {!historico.dados && historico.carregando ? <Esqueleto /> : null}
         {historico.dados && historico.dados.length === 0 ? (
-          daPasta ? (
-            <>
-              <Vazio titulo="Nenhum treino neste plano ainda" texto="Os treinos que você registrar aparecem aqui." />
-              <Botao rotulo={`Ver os últimos ${DIAS} dias`} tipo="secundario" aoTocar={() => setUltimosDias(true)} />
-            </>
-          ) : (
-            <Vazio titulo="Sem treinos no período" texto="Os treinos registrados aparecem aqui." />
-          )
+          // B6: o motivo do vazio sai do domínio (o mesmo texto da ficha do treinador).
+          <>
+            <Vazio titulo={vazio ?? 'Sem registros'} texto={daPasta ? 'Os treinos que você registrar neste plano aparecem aqui.' : 'Os treinos que você registrar aparecem aqui.'} />
+            {daPasta ? <Botao rotulo={`Ver os últimos ${DIAS} dias`} tipo="secundario" aoTocar={() => setUltimosDias(true)} /> : null}
+          </>
         ) : null}
+        {historico.dados && periodoMisturaVersoes(historico.dados) ? <Texto numerico variante="pequeno">{TEXTO_PERIODO_MISTURA_VERSOES}</Texto> : null}
         {ultimosDias ? <Botao rotulo="Voltar ao período do plano" tipo="fantasma" aoTocar={() => setUltimosDias(false)} /> : null}
         {historico.dados && visao === 'divisao' ? <CargasPorDivisao divisoes={divisoes} /> : null}
         {historico.dados && visao === 'dia'
@@ -162,9 +166,12 @@ export default function HistoricoAluno() {
       <Cartao titulo="Peso">
         {pesos.dados?.length ? (
           // Mais recente primeiro, como nas outras listas do aluno.
-          [...pesos.dados].sort((a, b) => b.data.localeCompare(a.data)).map((p) => (
-            <LinhaPeso key={p.id} data={p.data} peso={p.pesoKg} variacao={p.variacao} />
-          ))
+          <>
+            {pesosRecentes.map((p) => (
+              <LinhaPeso key={p.id} data={p.data} peso={p.pesoKg} variacao={variacoes[p.id] ?? null} />
+            ))}
+            {pesosRecentes.some((p) => variacoes[p.id]) ? <LegendaDaVariacao /> : null}
+          </>
         ) : pesos.carregando ? (
           <Esqueleto texto="Carregando pesos" cartoes={1} />
         ) : (
@@ -186,15 +193,15 @@ function agrupar(lista: RegistroLocal[]): [string, RegistroLocal[]][] {
   return [...grupos];
 }
 
-function LinhaPeso({ data, peso, variacao }: { data: string; peso: number; variacao: number | null }) {
+function LinhaPeso({ data, peso, variacao }: { data: string; peso: number; variacao: VariacaoCalculada | null }) {
   const { cores } = useTema();
   return (
     <View style={[estilos.peso, { borderColor: cores.borda }]}>
-      <Texto numerico>{dataParaTela(data)}</Texto>
-      <Texto numerico style={estilos.forte}>{numeroParaTela(peso)} kg</Texto>
-      <Texto numerico variante="suave">
-        {variacao === null ? '—' : `${variacao > 0 ? '+' : variacao < 0 ? '−' : ''}${numeroParaTela(Math.abs(variacao))} kg`}
-      </Texto>
+      <Texto numerico style={estilos.coluna}>{dataParaTela(data)}</Texto>
+      <Texto numerico style={[estilos.forte, estilos.coluna]}>{numeroParaTela(peso)} kg</Texto>
+      <View style={[estilos.coluna, estilos.variacao]}>
+        <VariacaoDoPeso variacao={variacao} />
+      </View>
     </View>
   );
 }
@@ -202,5 +209,7 @@ function LinhaPeso({ data, peso, variacao }: { data: string; peso: number; varia
 const estilos = StyleSheet.create({
   linha: { gap: 2 },
   forte: { fontFamily: fontes.semi },
-  peso: { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, paddingTop: espaco(1), gap: espaco(1) },
+  peso: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', borderTopWidth: 1, paddingTop: espaco(1), gap: espaco(1) },
+  coluna: { flex: 1 },
+  variacao: { alignItems: 'flex-end' },
 });
