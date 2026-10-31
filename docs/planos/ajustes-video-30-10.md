@@ -53,25 +53,33 @@ referência foi conferida no código atual. A análise em si fica fora do git.
 | N25 | Comunidade, aulas e supervisão da equipe | Fora (frente futura) |
 
 ## Passos
-- [ ] 0. Plano no repositório, capturas "antes" e `dominio/percentuais.ts` (formatador único, com teste) — commit: —
-- [ ] 1. Editor, Lote A 1 a 7 (cabeçalho do exercício e do grupo, percentuais, rótulos, modalidade, contadores, estrutura de semana, receitas de séries) — commit: —
-- [ ] 2. Aluno, Lote B 1 (reproduzir a carga, estado por estado) — commit: —
-- [ ] 3. Aluno, Lote A 8 a 12 (série, origem da carga, "Outros", variação de peso, dieta e contraste) — commit: —
-- [ ] 4. Aluno, Lote B 5 e 6 (concluir treino, histórico vazio) — commit: —
-- [ ] 5. Caminho do treinador, Lote A 13 e Lote B 2 a 4 (ordem da renovação, atualização ao lado, voltar à pasta, peso na finalização) — commit: —
-- [ ] 6. Lote B 8 (CRM: reproduzir e relatar) — commit: —
-- [ ] 7. Lote A 14 (Agenda) — commit: —
-- [ ] 8. Ajuda, guias em PDF, `AGENTS.md`, ligação das peças no `EditorDeTreino` — commit: —
+- [x] 0. Plano no repositório, capturas "antes" e `dominio/percentuais.ts` (formatador único, com teste) — commits `0fa8eb8e`, `2f645fab`
+- [ ] 1. Editor, Lote A 1 a 7 (cabeçalho do exercício e do grupo, percentuais, rótulos, modalidade, contadores, estrutura de semana, receitas de séries) — commit `e52f7802`
+- [ ] 2. Aluno, Lote B 1 (reproduzir a carga, estado por estado; sem erro na fórmula, achado de digitação assíncrona corrigido com `valorPendente`) — commit `42c90b4c`
+- [ ] 3. Aluno, Lote A 8 a 12 (série, origem da carga, "Outros", variação de peso, dieta e contraste) — commits `42c90b4c`, `a477abdb`
+- [ ] 4. Aluno, Lote B 5 e 6 (concluir treino, histórico vazio) — commits `42c90b4c`, `a477abdb`
+- [ ] 5. Caminho do treinador, Lote A 13 e Lote B 2 a 4 (ordem da renovação, atualização ao lado, voltar à pasta, peso na finalização) — commit `186e49cf`
+- [ ] 6. Lote B 8 (CRM: reproduzir e relatar; achado real: busca por WhatsApp com +55) — commit `5a88e46f`
+- [ ] 7. Lote A 14 (Agenda) — commit `27590a0c`
+- [ ] 8. Ajuda, guias em PDF, `AGENTS.md`, ligação das peças no `EditorDeTreino` — commits `601d19d5`, `a1300447` (merge da `main`: `b4f5baba`)
 - [ ] 9. Lote B 7 (impressão, só relatório), e2e completo, capturas "depois", revisão, PR — commit: —
 
 ## Fora do escopo
 - Lote C, cada um com o contrato proposto e os impactos em "Pendências soltas" do README: carga fixa, libras, RIR acima
-  de 5, esforço por série, publicar os três planos juntos, ciclo novo na mesma pasta, gráfico de medidas, perguntas no
-  formulário público e fotos enviadas pela equipe.
+  de 5, esforço por série, publicar os três planos juntos, ciclo novo na mesma pasta, gráfico de medidas, fotos enviadas
+  pela equipe. As perguntas próprias no formulário público não são pendência solta: ficam em
+  [inscricao-com-perguntas-proprias.md](inscricao-com-perguntas-proprias.md).
 - N16 (sugestão de progressão), N20 (migração) e N06 (RPE/1RM): só texto.
 - N09 (como evolução do fluxo) e N25 (comunidade, aulas, supervisão).
 - Criar tipo Cluster, reescrever séries antigas, mudar padrões globais de FS/WS, mudar a base de carga sozinho, inferir
   RIR a partir de percentual, calcular doses, apagar dado clínico, migrar ou publicar em produção.
 
 ## O que ficou para trás
-- (preenchido a cada entrega; cada sobra também vai para "Pendências soltas" do README)
+- Cada sobra também está em "Pendências soltas" do README:
+  - CRM: avisar na busca vazia quando há resultado em outro filtro ("Encontrada em: Aceitas (1). Ver Todas"); mensagem
+    própria para o limite de envio (429) no link público; inscrição reaberta mantém a data original de criação.
+  - Agenda: fundo tingido na lista do celular (precisa de `fundo` em `ui/LinhaDaLista`), status na visão do mês e nome
+    acessível só com o horário de início.
+  - Aluno: editar outra etapa com um salvamento em voo ainda monta o registro a partir do dado antigo (pede mudança em
+    `aplicarAcao`); `avisoDoGrafico` pode reaproveitar o texto de domínio do B6.
+  - Impressão (B7): só o relatório; o diálogo real de impressão não é automatizável aqui.

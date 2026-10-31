@@ -98,6 +98,11 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | **Sugestão de progressão** (N16): definir antes qual série entra, quantos registros bastam, mesma prescrição e unidade, e como tratar registro incompleto. Nunca aumento automático de carga | Gustavo decide | ajustes-video-30-10 (N16) |
 | **Migração de clientes e planos** (N20): separar cadastros, bibliotecas e conversão de planos; diagnóstico do arquivo, relatório de incompatibilidades, amostra revisável, rascunhos e conferência antes de publicar. Ver [importar-plano-de-documento.md](importar-plano-de-documento.md) e a importação por planilha (`docs/importacao-alunos.md`) | Gustavo decide | ajustes-video-30-10 (N20) |
 | RPE e 1RM (N06): sem mudança. O percentual é da carga de trabalho, nunca do 1RM, e o app não converte percentual em RIR; uma calculadora de carga por RPE seria recurso à parte | Registro | ajustes-video-30-10 (N06) |
+| CRM, busca vazia: quando há resultado em outro filtro, dizer "Encontrada em: Aceitas (1). Ver Todas" (as contagens já vêm carregadas; mexe em `estadoVazio` de `dominio/inscricoes.ts` e em `interessados.tsx`). O filtro padrão ABERTAS esconde aceita, recusada e desistente, o que não é erro | Gustavo decide | ajustes-video-30-10 (B8) |
+| CRM, link público: o limite de envio (429) usa o texto do login ("Muitas tentativas de acesso"); texto próprio do formulário. Inscrição reaberta mantém a data original de criação (volta à posição antiga da lista) | Claude, quando o Gustavo pedir | ajustes-video-30-10 (B8) |
+| Agenda: fundo tingido na lista do celular (precisa de `fundo` em `ui/LinhaDaLista`), status "Cancelado" na visão do mês e nome acessível do bloco só com o horário de início | Claude, quando o Gustavo pedir | ajustes-video-30-10 (A14) |
+| Aluno: editar outra etapa com um salvamento em voo ainda monta o registro a partir do dado antigo (pede mudança em `aplicarAcao`); `avisoDoGrafico` pode reaproveitar o texto de domínio do histórico vazio | Claude | ajustes-video-30-10 (B1/B6) |
+| Impressão (B7): conferida só por emulação de mídia e `page.pdf` e por teste com `window.print` trocado; o diálogo real de impressão do navegador não é automatizável, conferir no Chrome e no Edge com e sem logo | Gustavo | ajustes-video-30-10 (B7) |
 
 ## Limitações aceitas (não são pendência)
 
