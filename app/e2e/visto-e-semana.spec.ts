@@ -42,7 +42,7 @@ const CONCLUSOES = (vistoEm: string | null): SessoesConcluidasResponse => ({
 const PAINEL: PainelTreinador = {
   atualizacoesParaRevisar: 0, atualizacoesAtrasadas: 0, atualizacoesAvisaramAtraso: 0, atualizacoesProximas: 0, alunosAtivos: 1,
   alunosSemRegistro: [], ultimasExecucoes: [], planosTerminando: [],
-  pastasARenovar: 0, pastasParaRenovar: [], alunosSemPastaComPeriodo: 0, alunosSemRegistroTotal: 0, alunosSemAcesso: 0,
+  pastasARenovar: 0, pastasParaRenovar: [], alunosSemPastaComPeriodo: 0, alunosSemRegistroTotal: 0, alunosSemAcesso: 0, alunosInativos: 0,
   sessoesConcluidas7Dias: 0,
 };
 
@@ -108,12 +108,13 @@ test('sem REGISTRO_REAGIR o treinador só lê: sem botão, com o selo "Visto" qu
   expect(api.errosDaPagina).toEqual([]);
 });
 
-test('Início do treinador: "Recordes da semana" com a linha que abre a ficha', async ({ page }) => {
+test('Início do treinador: o cartão Recordes do bloco Treinos abre a Folha, e a linha abre a ficha', async ({ page }) => {
   const api = await treinador(page, []);
   await page.goto('/treinador');
-  await expect(page.getByRole('heading', { name: 'Recordes da semana' })).toBeVisible();
-  await expect(page.getByText('1 série com recorde nos últimos 7 dias')).toBeVisible();
-  await page.getByRole('link', { name: /Abrir Aluno Teste: Supino de teste: Maior carga · 70 kg/ }).click();
+  await page.getByRole('button', { name: 'Recordes nos últimos 7 dias: 1. Abre a lista' }).click();
+  const folha = page.getByRole('dialog', { name: 'Recordes dos últimos 7 dias' });
+  await expect(folha.getByText(/1 série com recorde/)).toBeVisible();
+  await folha.getByRole('link', { name: /^Aluno Teste, Supino de teste/ }).click();
   await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${ALUNO_ID}$`));
   expect(api.errosDaPagina).toEqual([]);
 });

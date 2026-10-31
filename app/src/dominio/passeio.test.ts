@@ -1,5 +1,6 @@
 import { GUIAS } from '../ajuda/conteudo';
 import {
+  ALVO_PRIMEIROS_PASSOS,
   andamentoDoPasseio,
   chavePasseio,
   deveMostrarPasseio,
@@ -70,9 +71,26 @@ describe('passeio pelo menu: passos', () => {
       expect(guia.passeio.length).toBeGreaterThan(2);
       for (const p of guia.passeio) {
         expect(p.texto.length).toBeGreaterThan(10);
-        if (p.alvo) expect(p.alvo).toMatch(/^menu:\//);
+        if (p.alvo && p.alvo !== ALVO_PRIMEIROS_PASSOS) expect(p.alvo).toMatch(/^menu:\//);
       }
     }
+  });
+
+  it('o passeio do treinador termina nos Primeiros passos do Início; o do aluno não os tem', () => {
+    const treinador = GUIAS.treinador.passeio;
+    const ultimo = treinador[treinador.length - 1];
+    expect(ultimo.alvo).toBe(ALVO_PRIMEIROS_PASSOS);
+    expect(ultimo.titulo).toBe('Primeiros passos');
+    expect(treinador.filter((p) => p.alvo === ALVO_PRIMEIROS_PASSOS)).toHaveLength(1);
+    expect(GUIAS.aluno.passeio.some((p) => p.alvo === ALVO_PRIMEIROS_PASSOS)).toBe(false);
+  });
+
+  it('o passo dos Primeiros passos some quando o bloco não está na tela (dispensado, concluído, outra largura)', () => {
+    const treinador = GUIAS.treinador.passeio;
+    const menus = new Set(treinador.flatMap((p) => (p.alvo?.startsWith('menu:') ? [p.alvo] : [])));
+    expect(passosVisiveis(treinador, menus).some((p) => p.alvo === ALVO_PRIMEIROS_PASSOS)).toBe(false);
+    const comBloco = passosVisiveis(treinador, new Set([...menus, ALVO_PRIMEIROS_PASSOS]));
+    expect(comBloco[comBloco.length - 1].alvo).toBe(ALVO_PRIMEIROS_PASSOS);
   });
 });
 

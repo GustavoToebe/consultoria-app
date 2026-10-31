@@ -43,6 +43,15 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 
 | Pendência | Quem | Origem |
 | --- | --- | --- |
+| Início, Primeiros passos: o item "acesso ao app" não conta convite pendente (só aluno ativo com acesso); contar pediria campo novo no `GET /painel` | Gustavo decide | atualizacao-visual-app-full (passo 9) |
+| Início, Primeiros passos: "Abrir Metodologias" leva à Biblioteca sem abrir o chip de metodologias | Claude, quando o Gustavo pedir | atualizacao-visual-app-full (passo 9) |
+| Início: `/treinador/alunos` ignora `?meus=`; o cartão do bloco Alunos em "Meus" abre a lista sem o filtro | Claude, quando o Gustavo pedir | atualizacao-visual-app-full (passo 8) |
+| Início: o Todos/Meus de cada bloco não é gravado (volta ao padrão ao reabrir); gravar nas preferências se o Gustavo quiser | Gustavo decide | atualizacao-visual-app-full (passo 8) |
+| Início: Números no celular só pela busca de telas e por Perfil › Atalhos (o link ao lado de "Ver alunos" saiu com o painel novo) | Gustavo decide | atualizacao-visual-app-full (passo 8) |
+| Início: conferir no seed o texto de exemplo "3 semanas e 2 dietas" do item de modelos dos Primeiros passos | Claude | atualizacao-visual-app-full (passo 9) |
+| Início, revisão do PR `painel-novo` (não bloqueiam): (a) `releer` do foco que responde depois de um toque desfaz o toque na tela até o próximo foco (`usePrimeirosPassosGuardados`, contador de geração); (b) ao trocar o N do "Sem registro" a Folha mostra os números do N anterior até a resposta (`useCarregar` devolve os dados da chave antiga como prontos); (c) tocar um cartão de Folha antes do `/painel` responder abre a Folha com o alerta de erro (distinguir carregando de falhou); (d) a Ajuda diz "Eles já estão no Início" para perfil sem nenhum item dos Primeiros passos; (e) no Início sem alunos as consultas dos blocos saem à toa; (f) `useFontesDoPainel.recarregar` casa duas listas pela ordem; (g) o X da linha "Concluídos" sem `moldura` | Claude, quando o Gustavo pedir | atualizacao-visual-app-full (passos 8 e 9) |
+| Início, Próximo passo: "planos terminando" conta a lista com teto de 20 (a API não manda o total); "Ver retornos" abre sem `retornos=ATE_HOJE` (o cartão abre com ele) | Gustavo decide | atualizacao-visual-app-full (passo 8) |
+| e2e `lista-alunos-grupos.spec.ts` (1280, lápis ao lado): oscilou uma vez com altura 39,99997 px contra o mínimo de 40 (arredondamento de subpixel; passou ao rodar de novo); tolerância de 0,5 px no `toBeGreaterThanOrEqual` | Claude | e2e do PR `painel-novo` |
 | Arrastar no Kanban de interessados: testar no celular (toque longo) | Gustavo | interessados-crm |
 | Conferir que a "Anamnese Saraiva Team" está publicada em Planejamento › Anamnese | Gustavo | anamnese |
 | Ver no celular se os títulos das seções do editor de séries (caixa alta 12 px) ficaram bons | Gustavo | editor de séries (5d353d0) |
