@@ -8,7 +8,7 @@ import { fixarHoje, sessaoDeAluno } from './aluno';
 /**
  * Agenda presencial: na tela Agenda do treinador os compromissos e as atualizações aparecem juntos, por dia. Um
  * compromisso tem de 1 a 20 alunos (a linha diz "Ana, Bruno +2", o selo resume a situação de cada um, a série mostra
- * "Ocorrência 3 de 10" e o cancelado fica esmaecido). Na folha: marcar com vários alunos (chips, sem repetir), o aviso de
+ * "Ocorrência 3 de 10" e o cancelado tem o selo Cancelado). Na folha: marcar com vários alunos (chips, sem repetir), o aviso de
  * aluno ocupado (só aviso), a repetição semanal com fim e a prévia, o 409 HORARIO_OCUPADO com as datas que conflitam (o
  * formulário fica), editar uma ocorrência perguntando o escopo, a situação por aluno e cancelar o compromisso inteiro.
  * O aluno vê os próprios próximos compromissos no Início, só leitura. O relógio fica em segunda-feira, 19/10/2026, 12:00
