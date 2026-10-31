@@ -20,7 +20,15 @@ public final class PlanilhaCompletaDtos {
      */
     public record Analise(List<Aba> abas, List<Ligacao> ligacoes, Resumo resumo, List<Problema> problemas,
                           int problemasAlem, Map<String, Integer> problemasPorTipo, List<Pergunta> exercicios,
-                          List<Pergunta> alimentos) {
+                          List<Pergunta> alimentos, List<PerguntaDeSuplemento> suplementos) {
+    }
+
+    /**
+     * Nome da aba de suplementos e para onde vai sem resposta: {@code sugestao} {@code SUPLEMENTO} ou {@code SENSIVEL}
+     * pela biblioteca; nula = nenhuma biblioteca reconhece (sem resposta vai para Medicação e ergogênicos). Só aparece a
+     * quem pode gravar a dieta.
+     */
+    public record PerguntaDeSuplemento(String nome, String sugestao, int ocorrencias) {
     }
 
     /** {@code linhaDoCabecalho} = número da linha no arquivo (0 = sem cabeçalho); {@code campos} = campo → coluna (0 = A). */
@@ -31,8 +39,13 @@ public final class PlanilhaCompletaDtos {
     public record Aviso(String codigo, int linha, int coluna) {
     }
 
+    /** {@code pendentes}: até 200 linhas ambíguas da filha, cada uma com as linhas da mãe que ela pode ser. */
     public record Ligacao(int abaFilha, int colunaFilha, int abaMae, int colunaMae, String por, int ligadas,
-                          int naoLigadas, int ambiguas) {
+                          int naoLigadas, int ambiguas, List<LinhaAmbigua> pendentes) {
+    }
+
+    /** Linha (no arquivo) da aba filha e as linhas (no arquivo) da aba mãe com o mesmo nome. */
+    public record LinhaAmbigua(int linha, List<Integer> candidatas) {
     }
 
     /**

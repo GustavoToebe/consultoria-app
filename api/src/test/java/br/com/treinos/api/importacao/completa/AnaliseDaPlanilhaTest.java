@@ -226,4 +226,17 @@ class AnaliseDaPlanilhaTest {
         assertThatThrownBy(() -> LeituraDasAbas.ler("muitas.xlsx", PlanilhaDeTeste.xlsx(muitas)))
                 .isInstanceOf(ValidacaoException.class).hasMessageContaining("abas");
     }
+
+    @Test
+    void listaOsSuplementosComASugestaoSoQuandoPedido() {
+        LeituraDasAbas.Leitura leitura = LeituraDasAbas.ler("planilha.xlsx", PlanilhaDeTeste.xlsx(PlanilhaDeTeste.abasDoTreinador()));
+        Analise semLista = AnaliseDaPlanilha.analisar(leitura, List.of(), List.of(), HOJE);
+        assertThat(semLista.suplementos()).isEmpty();
+        Analise a = AnaliseDaPlanilha.analisar(leitura, List.of(), List.of(), List.of("Creatina monohidratada"), List.of(), HOJE);
+        assertThat(a.suplementos()).extracting(PlanilhaCompletaDtos.PerguntaDeSuplemento::nome)
+                .containsExactly("Creatina", "Remédio Fictício XYZ");
+        assertThat(a.suplementos()).extracting(PlanilhaCompletaDtos.PerguntaDeSuplemento::sugestao)
+                .containsExactly("SUPLEMENTO", null);
+        assertThat(a.ligacoes()).allMatch(l -> l.pendentes().size() == l.ambiguas());
+    }
 }

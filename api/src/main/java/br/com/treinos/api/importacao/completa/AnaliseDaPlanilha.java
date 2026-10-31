@@ -15,7 +15,9 @@ import br.com.treinos.api.importacao.completa.PlanilhaCompletaDtos.Analise;
 import br.com.treinos.api.importacao.completa.PlanilhaCompletaDtos.Aviso;
 import br.com.treinos.api.importacao.completa.PlanilhaCompletaDtos.Contagem;
 import br.com.treinos.api.importacao.completa.PlanilhaCompletaDtos.Ligacao;
+import br.com.treinos.api.importacao.completa.PlanilhaCompletaDtos.LinhaAmbigua;
 import br.com.treinos.api.importacao.completa.PlanilhaCompletaDtos.Pergunta;
+import br.com.treinos.api.importacao.completa.PlanilhaCompletaDtos.PerguntaDeSuplemento;
 import br.com.treinos.api.importacao.completa.PlanilhaCompletaDtos.Problema;
 import br.com.treinos.api.importacao.completa.PlanilhaCompletaDtos.Resumo;
 import br.com.treinos.api.importacao.completa.ReconhecimentoDeAbas.Reconhecimento;
@@ -46,6 +48,7 @@ import java.util.regex.Pattern;
 public final class AnaliseDaPlanilha {
 
     static final int PROBLEMAS_NA_RESPOSTA = 500;
+    static final int LINHAS_AMBIGUAS_NA_RESPOSTA = 200;
     static final int PERGUNTAS_NA_RESPOSTA = 300;
     /** Séries por tipo nas colunas de contagem (WS, FS), como o {@code MAX_SERIES_POR_TIPO} do script. */
     private static final int SERIES_POR_TIPO = 10;
@@ -117,6 +120,17 @@ public final class AnaliseDaPlanilha {
 
     public static Analise analisar(Leitura leitura, Collection<String> exerciciosDaBiblioteca,
                                    Collection<String> alimentosDaBiblioteca, LocalDate hoje) {
+        return analisar(leitura, exerciciosDaBiblioteca, alimentosDaBiblioteca, null, List.of(), hoje);
+    }
+
+    /**
+     * Com {@code suplementosDaBiblioteca} não nulo, a análise lista também os nomes distintos da aba de suplementos com a
+     * sugestão de destino (a mesma regra da montagem: ergogênicos da biblioteca primeiro, depois suplementos; sem par,
+     * sem sugestão). Nulo = não lista (quem não pode gravar a dieta não vê os nomes de medicação).
+     */
+    public static Analise analisar(Leitura leitura, Collection<String> exerciciosDaBiblioteca,
+                                   Collection<String> alimentosDaBiblioteca, Collection<String> suplementosDaBiblioteca,
+                                   Collection<String> ergogenicosDaBiblioteca, LocalDate hoje) {
         List<AbaReconhecida> abas = reconhecerAbas(leitura, Map.of());
 
         List<LigacaoDeAbas.Ligacao> ligacoes = LigacaoDeAbas.ligarTodas(abas);
@@ -127,6 +141,7 @@ public final class AnaliseDaPlanilha {
         Contas contas = new Contas();
         Ocorrencias exercicios = new Ocorrencias();
         Ocorrencias alimentos = new Ocorrencias();
+        Map<String, String[]> suplementos = new LinkedHashMap<>();
         List<String> listaDaPlanilha = new ArrayList<>();
         // Alunos primeiro: os pesos conferem o aluno que ficou fora e o peso inicial do cadastro.
         abas.stream().filter(a -> a.tipo() == TipoDeAba.ALUNOS)
@@ -145,7 +160,7 @@ public final class AnaliseDaPlanilha {
                     }
                 }
                 case DIETA -> dieta(aba, contas, alimentos, problemas);
-                case SUPLEMENTOS -> suplementos(aba, contas, problemas);
+                case SUPLEMENTOS -> suplementos(aba, contas, suplementos, problemas);
                 default -> {
                     // Alunos já foram; rotinas e planos de dieta só ligam as outras abas; a tabela de alimentos de
                     // terceiros não é usada.
@@ -189,7 +204,9 @@ public final class AnaliseDaPlanilha {
                 deExercicios.contagem(), deAlimentos.contagem(), contas.prescricoes, contas.naoEntendidas, contas.comSobra,
                 contas.faixasDeData);
         return new Analise(abas.stream().map(AnaliseDaPlanilha::aba).toList(), ligacoes.stream().map(AnaliseDaPlanilha::ligacao).toList(),
-                resumo, List.copyOf(problemas.lista), problemas.alem, problemas.porTipo, deExercicios.perguntas(), deAlimentos.perguntas());
+                resumo, List.copyOf(problemas.lista), problemas.alem, problemas.porTipo, deExercicios.perguntas(), deAlimentos.perguntas(),
+                suplementosDaBiblioteca == null ? List.of()
+                        : perguntasDeSuplemento(suplementos, suplementosDaBiblioteca, ergogenicosDaBiblioteca));
     }
 
     /**
@@ -445,15 +462,36 @@ public final class AnaliseDaPlanilha {
         }
     }
 
-    private static void suplementos(AbaReconhecida aba, Contas contas, Problemas problemas) {
+    private static void suplementos(AbaReconhecida aba, Contas contas, Map<String, String[]> nomes, Problemas problemas) {
         int coluna = aba.reconhecimento().coluna(Campo.SUPLEMENTO);
         for (Linha l : aba.dados()) {
-            if (texto(l, coluna).isEmpty()) {
+            String nome = texto(l, coluna).strip().replaceAll("\\s+", " ");
+            if (nome.isEmpty()) {
                 problemas.add(aba.nome(), l.numero(), Campo.SUPLEMENTO, "SUPLEMENTO_SEM_NOME");
             } else {
                 contas.suplementos++;
+                String k = MontagemDaImportacao.nomeDeSuplemento(nome);
+                if (!k.isEmpty() && nome.length() <= RespostasDaPlanilha.TEXTO_MAXIMO) {
+                    String[] atual = nomes.computeIfAbsent(k, x -> new String[] {nome, "0"});
+                    atual[1] = String.valueOf(Integer.parseInt(atual[1]) + 1);
+                }
             }
         }
+    }
+
+    /** Nomes distintos da aba de suplementos com a sugestão de destino; a ordem é a da planilha. */
+    private static List<PerguntaDeSuplemento> perguntasDeSuplemento(Map<String, String[]> nomes,
+                                                                   Collection<String> suplementos,
+                                                                   Collection<String> ergogenicos) {
+        List<String> ergo = ergogenicos.stream().map(MontagemDaImportacao::nomeDeSuplemento).toList();
+        List<String> supl = suplementos.stream().map(MontagemDaImportacao::nomeDeSuplemento).toList();
+        List<PerguntaDeSuplemento> saida = new ArrayList<>();
+        nomes.forEach((k, v) -> {
+            String sugestao = ergo.stream().anyMatch(e -> MontagemDaImportacao.parecido(k, e)) ? "SENSIVEL"
+                    : supl.stream().anyMatch(e -> MontagemDaImportacao.parecido(k, e)) ? "SUPLEMENTO" : null;
+            saida.add(new PerguntaDeSuplemento(v[0], sugestao, Integer.parseInt(v[1])));
+        });
+        return List.copyOf(saida);
     }
 
     private static Aba aba(AbaReconhecida a) {
@@ -466,8 +504,15 @@ public final class AnaliseDaPlanilha {
     }
 
     private static Ligacao ligacao(LigacaoDeAbas.Ligacao l) {
+        List<LinhaAmbigua> pendentes = new ArrayList<>();
+        for (Integer linha : l.ambiguas()) {
+            if (pendentes.size() == LINHAS_AMBIGUAS_NA_RESPOSTA) {
+                break;
+            }
+            pendentes.add(new LinhaAmbigua(linha, List.copyOf(l.candidatas().getOrDefault(linha, List.of()))));
+        }
         return new Ligacao(l.filha(), l.colunaFilha(), l.mae(), l.colunaMae(), l.por().name(), l.ligadas().size(),
-                l.naoLigadas().size(), l.ambiguas().size());
+                l.naoLigadas().size(), l.ambiguas().size(), List.copyOf(pendentes));
     }
 
     static Campo campoDaColuna(Reconhecimento r, int coluna) {
