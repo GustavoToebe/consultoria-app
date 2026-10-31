@@ -1,6 +1,6 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { Apple, Check, Download, Dumbbell, FileSpreadsheet, FileUp, FlaskConical, Pill, Scale, Trash2, Undo2, Users, type LucideIcon } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { createElement, useId, useRef, useState } from 'react';
 import { Linking, Platform, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
 
@@ -13,11 +13,17 @@ import {
   totalDeAjustes, type AjustesDaTabela, type EtapaDaImportacao, type MapaDaImportacao,
 } from '../../dominio/assistenteDaImportacao';
 import { DESTINOS, destinosPermitidos, faltandoColuna, sugerirMapeamento, type Destino, type DestinoDaImportacao } from '../../dominio/mapeamentoDaImportacao';
+import { paraSetParams } from '../../dominio/filtrosComuns';
+import {
+  ARQUIVOS, CHAVES_DO_ENDERECO, chipsDosFiltros, lerDoEndereco, paraEndereco, pedidoDaApi, SEM_FILTROS, semOFiltro, SITUACOES,
+  type ChaveDoFiltro, type FiltrosDaImportacao, type ParametrosDoEndereco,
+} from '../../dominio/filtrosDaImportacao';
 import { dataHoraParaTela } from '../../dominio/formatos';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, LARGURA_MAXIMA, RAIO, espaco, fontes } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
+import { BarraDeFiltros } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Campo } from '../../ui/Campo';
@@ -34,6 +40,7 @@ import { sobre } from '../../ui/sobre';
 import { Tabela } from '../../ui/Tabela';
 import { Texto } from '../../ui/Texto';
 import { textoDoErro as textoDoErroDaApi } from '../../ui/erros';
+import { CelulaDoFiltro, UmaOpcao } from '../SeletoresDeFiltro';
 import { useCarregar } from '../../ui/useCarregar';
 import { baixarCsv } from '../financeiro/baixarCsv';
 import { TelaDoEditor } from '../plano/TelaDoEditor';
@@ -69,20 +76,25 @@ const rotuloDoDestino = (id: string) => DESTINOS.find((d) => d.id === id)?.rotul
 /**
  * Lista do que já foi importado; "Nova importação" abre o assistente em etapas numa tela inteira
  * (`/treinador/importacao/nova`). O arquivo não fica guardado: o histórico guarda só a extensão, por isso cada
- * importação é identificada pelo destino e pela data.
+ * importação é identificada pelo destino e pela data. Destino, situação e tipo do arquivo ficam na barra de filtros, no
+ * endereço (`?destino=&situacao=&arquivo=`; `docs/planos/filtros-nas-listas.md`, D10).
  */
 export function TelaImportacao() {
   const { pode } = useSessao();
   const router = useRouter();
   const permitidos = destinosPermitidos(pode);
-  const [busca, setBusca] = useState('');
-  const [destinoFiltro, setDestinoFiltro] = useState('');
-  const [situacao, setSituacao] = useState('');
+  const filtros = lerDoEndereco(useLocalSearchParams<Record<keyof ParametrosDoEndereco, string>>(), permitidos);
   const [pagina, setPagina] = useState(0);
   const [modelos, setModelos] = useState(false);
   const [detalheId, setDetalheId] = useState<string | null>(null);
-  const filtro = { destino: destinoFiltro || undefined, situacao: situacao || undefined, busca: busca.trim() || undefined, pagina };
+  const filtro = { ...pedidoDaApi(filtros), pagina };
   const lista = useCarregar(JSON.stringify(filtro), () => listarImportacoes(filtro));
+  // Trocar um filtro troca o endereço sem empilhar histórico e volta à página 1.
+  const aplicar = (novos: FiltrosDaImportacao) => {
+    setPagina(0);
+    router.setParams(paraSetParams(CHAVES_DO_ENDERECO, paraEndereco(novos)));
+  };
+  const chips = chipsDosFiltros(filtros, rotuloDoDestino);
 
   return (
     <>
@@ -90,16 +102,27 @@ export function TelaImportacao() {
         <Botao rotulo="Nova importação" Icone={FileUp} aoTocar={() => router.push('/treinador/importacao/nova')} />
         <Botao rotulo="Modelos de planilha" tipo="secundario" aoTocar={() => setModelos(true)} />
       </LinhaDeAcoes>
-      <Campo rotulo="Buscar" valor={busca} aoMudar={(v) => { setBusca(v); setPagina(0); }} placeholder="Nome do arquivo" />
-      <LinhaDeAcoes>
-        <EscolhaEmFolha rotulo="Destino" valor={destinoFiltro} aoMudar={(v) => { setDestinoFiltro(v); setPagina(0); }}
-          opcoes={[{ valor: '', rotulo: 'Todos os destinos' }, ...permitidos.map((d) => ({ valor: d.id, rotulo: d.rotulo }))]} />
-        <EscolhaEmFolha rotulo="Situação" valor={situacao} aoMudar={(v) => { setSituacao(v); setPagina(0); }}
-          opcoes={[{ valor: '', rotulo: 'Todas' }, ...Object.entries(SITUACAO).map(([valor, s]) => ({ valor, rotulo: s.texto }))]} />
-      </LinhaDeAcoes>
+      <BarraDeFiltros valor={filtros} aoAplicar={aplicar} limpo={SEM_FILTROS} chips={chips}
+        aoTirar={(chave) => aplicar(semOFiltro(filtros, chave as ChaveDoFiltro))} rotuloDoResultado="Ver importações"
+        seletores={(atuais, mudar) => <>
+          <CelulaDoFiltro>
+            <UmaOpcao rotulo="Destino" valor={atuais.destino} aoMudar={(destino) => mudar({ ...atuais, destino })}
+              opcoes={[{ valor: '', rotulo: 'Todos' }, ...permitidos.map((d) => ({ valor: d.id, rotulo: d.rotulo }))]} />
+          </CelulaDoFiltro>
+          <CelulaDoFiltro>
+            <UmaOpcao rotulo="Situação" valor={atuais.situacao} aoMudar={(situacao) => mudar({ ...atuais, situacao })}
+              opcoes={[{ valor: '' as const, rotulo: 'Todas' }, ...SITUACOES]} />
+          </CelulaDoFiltro>
+          <CelulaDoFiltro>
+            <UmaOpcao rotulo="Arquivo" valor={atuais.arquivo} aoMudar={(arquivo) => mudar({ ...atuais, arquivo })}
+              opcoes={[{ valor: '' as const, rotulo: 'Todos' }, ...ARQUIVOS]} />
+          </CelulaDoFiltro>
+        </>} />
       {lista.erro ? <MensagemErro texto={textoDoErroDaApi(lista.erro)} tentarDeNovo={lista.recarregar} /> : null}
       {lista.carregando && !lista.dados ? <Esqueleto /> : null}
-      {lista.dados?.itens.length === 0 ? <Vazio titulo="Nenhuma importação" texto="Quando você confirmar uma planilha, ela aparece aqui. O arquivo em si não fica guardado." /> : null}
+      {lista.dados?.itens.length === 0 ? (chips.length
+        ? <Vazio titulo="Nenhuma importação com esses filtros" texto="Tire algum filtro para ver mais." acao={{ rotulo: 'Limpar filtros', aoTocar: () => aplicar(SEM_FILTROS) }} />
+        : <Vazio titulo="Nenhuma importação" texto="Quando você confirmar uma planilha, ela aparece aqui. O arquivo em si não fica guardado." />) : null}
       {lista.dados && lista.dados.itens.length > 0 ? (
         <Cartao titulo="Histórico" descricao={`${lista.dados.total} ${lista.dados.total === 1 ? 'importação' : 'importações'}.`}>
           <Tabela rotulo="Importações" linhas={lista.dados.itens} chave={(i) => i.id} aoTocarLinha={(i) => setDetalheId(i.id)}
