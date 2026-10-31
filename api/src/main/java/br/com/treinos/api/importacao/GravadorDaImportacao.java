@@ -59,6 +59,13 @@ import java.util.UUID;
 @Component
 class GravadorDaImportacao {
 
+    /**
+     * Motivo da célula com erro: erro de fórmula da planilha (#ERROR!, #N/A, #REF!…) ou texto acima de 4.000 letras. Fixo,
+     * sem repetir o conteúdo; diz o que fazer (antes era só "Célula com erro.").
+     */
+    static final String CELULA_COM_ERRO =
+            "A célula tem um erro da própria planilha (como #ERROR! ou #N/A) ou um texto longo demais. Corrija e valide de novo.";
+
     private static final DateTimeFormatter DIA = DateTimeFormatter.ofPattern("dd/MM/uuuu");
     private static final int ERROS_GUARDADOS = 1000;
     private static final int AMOSTRA = 20;
@@ -278,7 +285,7 @@ class GravadorDaImportacao {
                         new BigDecimal("499.99"), 2, false);
                 Leitura obs = leitura(linha, config, "observacao");
                 if (obs.erro()) {
-                    throw falha(linha, "observacao", "Célula com erro.");
+                    throw falha(linha, "observacao", CELULA_COM_ERRO);
                 }
                 String observacao = obs.mapeado() && !obs.vazio() ? limitar(obs.texto(), 300, linha.numero(), "observacao") : null;
                 String idDia = aluno.getId() + ":" + data;
@@ -430,7 +437,7 @@ class GravadorDaImportacao {
                 String nome = textoFinal(true, null, obrigatoria(linha, config, "nome"), "nome", 120, true);
                 Leitura marcaLida = leitura(linha, config, "marca");
                 if (marcaLida.erro()) {
-                    throw falha(linha, "marca", "Célula com erro.");
+                    throw falha(linha, "marca", CELULA_COM_ERRO);
                 }
                 String marcaInformada = marcaLida.mapeado() && !marcaLida.vazio() ? limitar(marcaLida.texto(), 80, linha.numero(), "marca") : null;
                 Suplemento atual = porNome.get(Buscas.semAcento(nome));
@@ -531,7 +538,7 @@ class GravadorDaImportacao {
     /** Concentração e apresentação como identidade: ausente ou vazia é "" (o {@code existeIgual} compara assim). */
     private String identidade(Leitura lida, String campo, int maximo) {
         if (lida.erro()) {
-            throw falhaCampo(campo, "Célula com erro.");
+            throw falhaCampo(campo, CELULA_COM_ERRO);
         }
         return !lida.mapeado() || lida.vazio() ? "" : limitar(lida.texto(), maximo, -1, campo);
     }
@@ -559,7 +566,7 @@ class GravadorDaImportacao {
 
     private String textoFinal(boolean novo, String atual, Leitura lida, String campo, int maximo, boolean obrigatorio) {
         if (lida.erro()) {
-            throw falhaCampo(campo, "Célula com erro.");
+            throw falhaCampo(campo, CELULA_COM_ERRO);
         }
         if (!lida.mapeado() || lida.vazio()) {
             if (novo && obrigatorio) {
@@ -576,7 +583,7 @@ class GravadorDaImportacao {
 
     private String emailFinal(boolean novo, String atual, Leitura lida) {
         if (lida.erro()) {
-            throw falhaCampo("email", "Célula com erro.");
+            throw falhaCampo("email", CELULA_COM_ERRO);
         }
         if (!lida.mapeado() || lida.vazio()) {
             return atual;
@@ -593,7 +600,7 @@ class GravadorDaImportacao {
 
     private Integer diasFinal(boolean novo, Integer atual, Leitura lida) {
         if (lida.erro()) {
-            throw falhaCampo("dias", "Célula com erro.");
+            throw falhaCampo("dias", CELULA_COM_ERRO);
         }
         if (!lida.mapeado() || lida.vazio()) {
             return atual;
@@ -614,7 +621,7 @@ class GravadorDaImportacao {
 
     private Boolean situacao(Leitura lida, int numero) {
         if (lida.erro()) {
-            throw new FalhaDaLinha(numero, "situacao", "Célula com erro.");
+            throw new FalhaDaLinha(numero, "situacao", CELULA_COM_ERRO);
         }
         if (!lida.mapeado() || lida.vazio()) {
             return null;
@@ -631,7 +638,7 @@ class GravadorDaImportacao {
 
     private String cpfFinal(boolean novo, Aluno atual, Leitura lida, Indice indice, String regra) {
         if (lida.erro()) {
-            throw falhaCampo("cpf", "Célula com erro.");
+            throw falhaCampo("cpf", CELULA_COM_ERRO);
         }
         if (!lida.mapeado() || lida.vazio()) {
             return atual == null ? null : atual.getCpf();
@@ -687,14 +694,14 @@ class GravadorDaImportacao {
 
     private String parteEndereco(Leitura lida, String campo) {
         if (lida.erro()) {
-            throw falhaCampo(campo, "Célula com erro.");
+            throw falhaCampo(campo, CELULA_COM_ERRO);
         }
         return !lida.mapeado() || lida.vazio() ? null : lida.texto();
     }
 
     private UUID responsavelFinal(boolean novo, UUID atual, Leitura lida, Map<String, Usuario> equipe, UUID usuarioId, int numero) {
         if (lida.erro()) {
-            throw new FalhaDaLinha(numero, "responsavel", "Célula com erro.");
+            throw new FalhaDaLinha(numero, "responsavel", CELULA_COM_ERRO);
         }
         if (!lida.mapeado() || lida.vazio()) {
             return novo ? usuarioId : atual;
@@ -711,7 +718,7 @@ class GravadorDaImportacao {
 
     private String telefoneFinal(Leitura lida, int numero) {
         if (lida.erro()) {
-            throw new FalhaDaLinha(numero, "telefone", "Célula com erro.");
+            throw new FalhaDaLinha(numero, "telefone", CELULA_COM_ERRO);
         }
         if (!lida.mapeado() || lida.vazio()) {
             return null;
@@ -721,7 +728,7 @@ class GravadorDaImportacao {
 
     private Exercicio.Modalidade modalidade(boolean novo, Exercicio atual, Leitura lida, int numero) {
         if (lida.erro()) {
-            throw new FalhaDaLinha(numero, "modalidade", "Célula com erro.");
+            throw new FalhaDaLinha(numero, "modalidade", CELULA_COM_ERRO);
         }
         if (!lida.mapeado() || lida.vazio()) {
             return novo ? Exercicio.Modalidade.MAQUINA : atual.getModalidade();
@@ -738,7 +745,7 @@ class GravadorDaImportacao {
 
     private String video(boolean novo, String atual, Leitura lida, int numero) {
         if (lida.erro()) {
-            throw new FalhaDaLinha(numero, "video", "Célula com erro.");
+            throw new FalhaDaLinha(numero, "video", CELULA_COM_ERRO);
         }
         if (!lida.mapeado() || lida.vazio()) {
             return atual;
@@ -756,7 +763,7 @@ class GravadorDaImportacao {
 
     private String unidadeFinal(boolean novo, String atual, Leitura lida, int numero) {
         if (lida.erro()) {
-            throw new FalhaDaLinha(numero, "unidade", "Célula com erro.");
+            throw new FalhaDaLinha(numero, "unidade", CELULA_COM_ERRO);
         }
         if (!lida.mapeado() || lida.vazio()) {
             if (novo) {
@@ -777,7 +784,7 @@ class GravadorDaImportacao {
     private BigDecimal numeroFinal(boolean novo, BigDecimal atual, Leitura lida, int numero, String campo,
                                    BigDecimal min, BigDecimal max, int escala, boolean obrigatorio) {
         if (lida.erro()) {
-            throw new FalhaDaLinha(numero, campo, "Célula com erro.");
+            throw new FalhaDaLinha(numero, campo, CELULA_COM_ERRO);
         }
         if (!lida.mapeado() || lida.vazio()) {
             if (novo && obrigatorio) {
@@ -794,7 +801,7 @@ class GravadorDaImportacao {
 
     private BigDecimal fator(boolean novo, BigDecimal atual, Leitura lida, int numero, String campo, BigDecimal min, BigDecimal max) {
         if (lida.erro()) {
-            throw new FalhaDaLinha(numero, campo, "Célula com erro.");
+            throw new FalhaDaLinha(numero, campo, CELULA_COM_ERRO);
         }
         if (!lida.mapeado() || lida.vazio()) {
             return atual;
@@ -808,7 +815,7 @@ class GravadorDaImportacao {
 
     private String sabores(boolean novo, String atualJson, Leitura lida, String regra, int numero) {
         if (lida.erro()) {
-            throw new FalhaDaLinha(numero, "sabores", "Célula com erro.");
+            throw new FalhaDaLinha(numero, "sabores", CELULA_COM_ERRO);
         }
         if (!lida.mapeado() || lida.vazio()) {
             return atualJson == null ? "[]" : atualJson;
@@ -833,7 +840,7 @@ class GravadorDaImportacao {
 
     private String link(boolean novo, String atual, Leitura lida, int numero) {
         if (lida.erro()) {
-            throw new FalhaDaLinha(numero, "link", "Célula com erro.");
+            throw new FalhaDaLinha(numero, "link", CELULA_COM_ERRO);
         }
         if (!lida.mapeado() || lida.vazio()) {
             return atual;
@@ -889,7 +896,7 @@ class GravadorDaImportacao {
 
     private LocalDate data(Leitura lida, boolean data1904, int numero, String campo) {
         if (lida.erro() || lida.vazio()) {
-            throw new FalhaDaLinha(numero, campo, lida.erro() ? "Célula com erro." : "Informe a data.");
+            throw new FalhaDaLinha(numero, campo, lida.erro() ? CELULA_COM_ERRO : "Informe a data.");
         }
         if (lida.numero()) {
             LocalDate data = LeitorDePlanilha.dataSerial(new BigDecimal(lida.texto()), data1904);
@@ -915,7 +922,7 @@ class GravadorDaImportacao {
     private Leitura obrigatoria(Linha linha, ConfiguracaoDaImportacao config, String campo) {
         Leitura lida = leitura(linha, config, campo);
         if (lida.erro()) {
-            throw new FalhaDaLinha(linha.numero(), campo, "Célula com erro.");
+            throw new FalhaDaLinha(linha.numero(), campo, CELULA_COM_ERRO);
         }
         if (!lida.mapeado() || lida.vazio()) {
             throw new FalhaDaLinha(linha.numero(), campo, "Informe este campo.");

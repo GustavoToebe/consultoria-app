@@ -135,11 +135,76 @@ export function textoDoQueVaiAcontecer(previa: { novos: number; atualizados: num
 
 /** "Linha 4 · Nome (coluna “Aluno”): Informe o nome." — o campo pelo rótulo e, quando mapeado, a coluna de origem. */
 export function textoDoErro(erro: { linha: number; campo: string; motivo: string }, destino: Destino, colunas: readonly string[], mapa: MapaDaImportacao): string {
-  const campo = destino.campos.find((c) => c.id === erro.campo);
-  const indice = mapa[erro.campo];
+  return `Linha ${erro.linha} · ${ondeDoErro(erro.campo, destino, colunas, mapa)}: ${erro.motivo}`;
+}
+
+/** "Nome (coluna “Aluno”)": o rótulo do campo e, se o mapeamento é conhecido, a coluna da planilha. */
+export function ondeDoErro(campoId: string, destino: Destino, colunas: readonly string[], mapa: MapaDaImportacao): string {
+  const campo = destino.campos.find((c) => c.id === campoId);
+  const indice = mapa[campoId];
   const coluna = indice !== null && indice !== undefined && indice >= 0 ? colunas[indice] : undefined;
-  const onde = campo ? `${campo.rotulo}${coluna ? ` (coluna “${coluna}”)` : ''}` : erro.campo;
-  return `Linha ${erro.linha} · ${onde}: ${erro.motivo}`;
+  return campo ? `${campo.rotulo}${coluna ? ` (coluna “${coluna}”)` : ''}` : campoId;
+}
+
+/** Erros com o mesmo campo e o mesmo motivo, e as linhas de cada um. */
+export interface GrupoDeErros { campo: string; motivo: string; linhas: number[] }
+
+/**
+ * Junta os erros iguais (mesmo campo e mesmo motivo): 62 linhas com "E-mail inválido" viram um item só, com as linhas
+ * (reunião de 30/10). Os grupos maiores primeiro; no empate, o que aparece antes na planilha. As linhas em ordem.
+ */
+export function agruparErros(erros: readonly { linha: number; campo: string; motivo: string }[]): GrupoDeErros[] {
+  const grupos = new Map<string, GrupoDeErros>();
+  for (const e of erros) {
+    const chave = `${e.campo}\u0000${e.motivo}`;
+    const g = grupos.get(chave);
+    if (g) g.linhas.push(e.linha);
+    else grupos.set(chave, { campo: e.campo, motivo: e.motivo, linhas: [e.linha] });
+  }
+  const lista = [...grupos.values()].map((g) => ({ ...g, linhas: [...new Set(g.linhas)].sort((a, b) => a - b) }));
+  return lista.sort((a, b) => b.linhas.length - a.linhas.length || a.linhas[0] - b.linhas[0]);
+}
+
+/** Quantas linhas um grupo mostra antes do "e mais N" (o CSV de erros traz todas). */
+export const LINHAS_POR_GRUPO = 10;
+
+/**
+ * Um grupo em texto. Uma linha só: "Linha 4 · Nome: Informe o nome." (como antes). Várias: "E-mail: E-mail inválido. ·
+ * 62 linhas: 5, 7, 8, … e mais 52".
+ */
+export function textoDoGrupoDeErros(grupo: GrupoDeErros, onde: string): string {
+  const n = grupo.linhas.length;
+  if (n === 1) return `Linha ${grupo.linhas[0]} · ${onde}: ${grupo.motivo}`;
+  const mostradas = grupo.linhas.slice(0, LINHAS_POR_GRUPO).join(', ');
+  const resto = n > LINHAS_POR_GRUPO ? ` e mais ${n - LINHAS_POR_GRUPO}` : '';
+  return `${onde}: ${grupo.motivo} · ${n} linhas: ${mostradas}${resto}`;
+}
+
+/**
+ * Colunas cujo título tem cara de dado, não de nome de coluna (a planilha real de 30/10 tinha um código de aluno no lugar
+ * do título da primeira coluna): e-mail, telefone, data, número ou código como "ALU328476". Devolve os índices; a tela
+ * avisa sem repetir o texto, que pode ser dado de pessoa se a linha do cabeçalho estiver errada.
+ */
+export function colunasComTituloDeDado(colunas: readonly string[]): number[] {
+  const pareceDado = (titulo: string) => {
+    const t = titulo.trim();
+    if (!t) return false;
+    if (/^\S+@\S+\.\S+$/.test(t)) return true;
+    if (/^\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}$/.test(t) || /^\d{4}-\d{2}-\d{2}/.test(t)) return true;
+    if (/^[+(\d][\d\s().+-]*$/.test(t) && t.replace(/\D/g, '').length >= 8) return true;
+    if (/^-?\d+([.,]\d+)?$/.test(t)) return true;
+    return /^[A-Za-z]{1,6}-?\d{3,}$/.test(t);
+  };
+  return colunas.flatMap((c, i) => (pareceDado(c) ? [i] : []));
+}
+
+/** "O título da coluna 1 parece um dado…" / "Os títulos das colunas 1 e 3 parecem dados…"; nulo sem nenhuma. */
+export function avisoDeTituloDeDado(indices: readonly number[]): string | null {
+  if (indices.length === 0) return null;
+  const numeros = juntar(indices.map((i) => String(i + 1)));
+  return indices.length === 1
+    ? `O título da coluna ${numeros} parece um dado, não um nome de coluna. Confira a linha do cabeçalho na etapa Configuração.`
+    : `Os títulos das colunas ${numeros} parecem dados, não nomes de colunas. Confira a linha do cabeçalho na etapa Configuração.`;
 }
 
 /** Rótulo do campo na lista do mapeamento: "Endereço > CEP" quando o campo tem grupo. */
