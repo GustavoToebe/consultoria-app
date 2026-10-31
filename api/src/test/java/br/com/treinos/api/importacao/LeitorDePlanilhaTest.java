@@ -83,6 +83,60 @@ class LeitorDePlanilhaTest {
     }
 
     @Test
+    void marcadoresDeVazioEErroDeFormulaNoCsv() {
+        // Planilha do treinador (30/10): "x" para vazio e o texto do erro de fórmula que o Google Sheets exporta.
+        byte[] csv = "nome;email;telefone;obs\nAna;x;#ERROR!;-\nBia; X ;#N/D;—\nCaio;xis;#REF!;Exame ok\n".getBytes(StandardCharsets.UTF_8);
+        var linhas = LeitorDePlanilha.ler("alunos.csv", csv, 0).linhas();
+        var ana = linhas.get(1).celulas();
+        assertThat(ana.get(1).texto()).isEmpty();
+        assertThat(ana.get(1).erro()).isFalse();
+        assertThat(ana.get(2).erro()).isTrue();
+        assertThat(ana.get(2).texto()).isEqualTo("#ERROR!");
+        assertThat(ana.get(3).texto()).isEmpty();
+        var bia = linhas.get(2).celulas();
+        assertThat(bia.get(1).texto()).isEmpty();
+        assertThat(bia.get(2).erro()).isTrue();
+        assertThat(bia.get(3).texto()).isEmpty();
+        // Só o marcador sozinho: "xis" e texto comum continuam como estão.
+        var caio = linhas.get(3).celulas();
+        assertThat(caio.get(1).texto()).isEqualTo("xis");
+        assertThat(caio.get(2).erro()).isTrue();
+        assertThat(caio.get(3).texto()).isEqualTo("Exame ok");
+    }
+
+    @Test
+    void marcadoresDeVazioEErroDeFormulaNoXlsx() {
+        byte[] arquivo = xlsx(Map.of(
+                "xl/sharedStrings.xml", """
+                        <?xml version="1.0" encoding="UTF-8"?>
+                        <sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><si><t>x</t></si><si><t>#VALOR!</t></si></sst>
+                        """,
+                "xl/worksheets/sheet1.xml", """
+                        <?xml version="1.0" encoding="UTF-8"?>
+                        <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>
+                        <row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="str"><f>A1*2</f><v>#ERROR!</v></c><c r="D1" t="inlineStr"><is><t>-</t></is></c><c r="E1" t="e"><v>#DIV/0!</v></c></row>
+                        </sheetData></worksheet>
+                        """));
+        var celulas = LeitorDePlanilha.ler("alunos.xlsx", arquivo, 0).linhas().get(0).celulas();
+        assertThat(celulas.get(0).texto()).isEmpty();
+        assertThat(celulas.get(0).erro()).isFalse();
+        assertThat(celulas.get(1).erro()).isTrue();
+        assertThat(celulas.get(2).erro()).isTrue();
+        assertThat(celulas.get(3).texto()).isEmpty();
+        assertThat(celulas.get(4).erro()).isTrue();
+    }
+
+    @Test
+    void textoLidoSoTrataOMarcadorSozinho() {
+        assertThat(LeitorDePlanilha.Celula.deTextoLido(" x ").texto()).isEmpty();
+        assertThat(LeitorDePlanilha.Celula.deTextoLido("x-salada").texto()).isEqualTo("x-salada");
+        assertThat(LeitorDePlanilha.Celula.deTextoLido("#name?").erro()).isTrue();
+        assertThat(LeitorDePlanilha.Celula.deTextoLido("#NÚM!").erro()).isTrue();
+        assertThat(LeitorDePlanilha.Celula.deTextoLido("#hashtag").erro()).isFalse();
+        assertThat(LeitorDePlanilha.Celula.deTextoLido(null).texto()).isEmpty();
+    }
+
+    @Test
     void csvComPontoEVirgulaEBom() {
         byte[] csv = "\uFEFFnome;email\nAna;ana@exemplo.com\n".getBytes(StandardCharsets.UTF_8);
         var planilha = LeitorDePlanilha.ler("alunos.csv", csv, 0);

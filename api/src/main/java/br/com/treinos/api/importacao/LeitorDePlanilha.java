@@ -22,7 +22,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Predicate;
+import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -67,7 +69,36 @@ public final class LeitorDePlanilha {
         static Celula comErro() {
             return new Celula("", false, true);
         }
+
+        /**
+         * Texto lido do arquivo ou digitado na correção da tabela (reunião de 30/10, planilha real do treinador): "x", "-",
+         * "–" ou "—" sozinhos na célula são o jeito comum de dizer "vazio" e contam como vazia (antes, "x" num e-mail
+         * opcional derrubava a linha inteira com "E-mail inválido"). O texto de um erro de fórmula (#ERROR!, #N/A, #REF!…,
+         * em inglês ou em português), que o Google Sheets grava como texto, vira célula com erro; o texto fica só para a
+         * tabela da tela mostrar o que veio, e a validação nunca o usa.
+         */
+        public static Celula deTextoLido(String t) {
+            if (t == null) {
+                return VAZIA;
+            }
+            String limpo = t.strip();
+            if (MARCADORES_DE_VAZIO.contains(limpo)) {
+                return VAZIA;
+            }
+            if (ERRO_DE_FORMULA.matcher(limpo).matches()) {
+                return new Celula(limpo, false, true);
+            }
+            return new Celula(t, false, false);
+        }
     }
+
+    /** "x", "-", "–" e "—" sozinhos: vazio (ver {@link Celula#deTextoLido}). */
+    static final Set<String> MARCADORES_DE_VAZIO = Set.of("x", "X", "-", "–", "—");
+
+    /** Erros de fórmula do Excel e do Google Sheets, em inglês e em português. */
+    static final Pattern ERRO_DE_FORMULA = Pattern.compile(
+            "#(NULL!|NULO!|DIV/0!|VALUE!|VALOR!|REF!|NAME\\?|NOME\\?|NUM!|NÚM!|N/A|N/D|ERROR!|ERRO!|SPILL!|CALC!|GETTING_DATA|CARREGANDO)",
+            Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
 
     public record Linha(int numero, List<Celula> celulas) {
     }
@@ -137,7 +168,7 @@ public final class LeitorDePlanilha {
             }
             List<Celula> celulas = new ArrayList<>();
             for (String c : l.campos()) {
-                celulas.add(c.length() > TEXTO_MAXIMO ? Celula.comErro() : Celula.deTexto(c));
+                celulas.add(c.length() > TEXTO_MAXIMO ? Celula.comErro() : Celula.deTextoLido(c));
             }
             linhas.add(new Linha(l.numero(), celulas));
         }
@@ -330,10 +361,10 @@ public final class LeitorDePlanilha {
                 return Celula.deTexto("");
             }
             String guardado = textos.get(i);
-            return guardado == null ? Celula.comErro() : Celula.deTexto(guardado);
+            return guardado == null ? Celula.comErro() : Celula.deTextoLido(guardado);
         }
         if ("inlineStr".equals(tipo) || "str".equals(tipo)) {
-            return Celula.deTexto(t);
+            return Celula.deTextoLido(t);
         }
         if ("b".equals(tipo)) {
             return Celula.deTexto("1".equals(t) ? "verdadeiro" : "falso");

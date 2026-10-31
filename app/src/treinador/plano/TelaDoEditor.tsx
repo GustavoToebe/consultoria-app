@@ -13,10 +13,16 @@ interface Props {
   barra: ReactNode;
   children: ReactNode;
   largura?: number;
+  /**
+   * Botões que ficam presos embaixo (a importação em tela inteira: Voltar e Validar sempre à vista). Na web gruda na base
+   * da rolagem (`sticky`); no celular nativo fica fora da rolagem, abaixo do conteúdo.
+   */
+  rodape?: ReactNode;
 }
 
 /** `position: sticky` existe no react-native-web (CSS), mas não no tipo do React Native. */
 const GRUDADA = { position: 'sticky', top: 0, zIndex: 10 } as unknown as ViewStyle;
+const GRUDADA_EMBAIXO = { position: 'sticky', bottom: 0, zIndex: 10 } as unknown as ViewStyle;
 
 /**
  * Base dos editores (plano do aluno, modelo e questionário; revisão de telas de 19/10): a mesma `Tela`, mas com a barra
@@ -24,7 +30,7 @@ const GRUDADA = { position: 'sticky', top: 0, zIndex: 10 } as unknown as ViewSty
  * sessões. Na web a barra vem logo depois do cabeçalho e gruda no topo da rolagem (`sticky`); no celular nativo, sem
  * `sticky`, ela fica fora da rolagem, acima do conteúdo.
  */
-export function TelaDoEditor({ cabecalho, barra, children, largura = LARGURA_EDITOR }: Props) {
+export function TelaDoEditor({ cabecalho, barra, children, largura = LARGURA_EDITOR, rodape }: Props) {
   const { cores } = useTema();
   const larguraUtil = Math.min(largura, LARGURA_MAXIMA);
   const web = Platform.OS === 'web';
@@ -38,8 +44,10 @@ export function TelaDoEditor({ cabecalho, barra, children, largura = LARGURA_EDI
             {cabecalho}
             {web ? <View style={[GRUDADA, estilos.barraGrudada, fundoDaBarra]}>{barra}</View> : null}
             {children}
+            {web && rodape ? <View style={[GRUDADA_EMBAIXO, estilos.rodapeGrudado, fundoDaBarra]}>{rodape}</View> : null}
           </View>
         </RolagemComTopo>
+        {!web && rodape ? <View style={[estilos.rodapeFora, fundoDaBarra]}><View style={[estilos.largura, estilos.linhaDoRodape, { maxWidth: larguraUtil }]}>{rodape}</View></View> : null}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -53,4 +61,10 @@ const estilos = StyleSheet.create({
   // A barra cobre também o recuo lateral da rolagem: o conteúdo que passa por baixo não aparece nas beiradas.
   barraGrudada: { marginHorizontal: -espaco(2), paddingHorizontal: espaco(2), paddingVertical: espaco(1), borderBottomWidth: 1, marginTop: -espaco(1.5) },
   barraFora: { paddingHorizontal: espaco(2), paddingVertical: espaco(1), borderBottomWidth: 1 },
+  rodapeGrudado: {
+    marginHorizontal: -espaco(2), paddingHorizontal: espaco(2), paddingVertical: espaco(1.5), borderTopWidth: 1, marginBottom: -espaco(2),
+    flexDirection: 'row', justifyContent: 'flex-end', flexWrap: 'wrap', gap: espaco(1),
+  },
+  rodapeFora: { paddingHorizontal: espaco(2), paddingVertical: espaco(1), borderTopWidth: 1 },
+  linhaDoRodape: { flexDirection: 'row', justifyContent: 'flex-end', flexWrap: 'wrap', gap: espaco(1) },
 });

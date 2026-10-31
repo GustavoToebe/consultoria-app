@@ -38,6 +38,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Atualização visual do app inteiro e pendências da análise de 29/10 (painel novo, A01, A02, A06, A12, cabeçalho da importação, rótulos da lista de compras) | [atualizacao-visual-app-full.md](atualizacao-visual-app-full.md) | branch `atualizacao-visual-app-full`, Claude local | Planejando | 30/10/2026 |
 | Importar plano de treino (e dieta) de PDF ou Google Docs (A02) | [importar-plano-de-documento.md](importar-plano-de-documento.md) | branch `atualizacao-visual-app-full` | Planejando: só o plano escrito, sem código; perguntas para o Gustavo | 30/10/2026 |
 | Água do aluno (marcar os copos do dia contra a "Água por dia" da dieta) | [agua-do-aluno.md](agua-do-aluno.md) | PR para a `main` (30/10), junto da clareza | Pronta | 30/10/2026 |
+| Importação em tela inteira, "x" como vazio, erro de fórmula e erros agrupados (reunião de 30/10) | [importacao-tela-inteira.md](importacao-tela-inteira.md) | PR para a `main` (31/10) | Em andamento | 31/10/2026 |
 | "Quero ser aluno" com as perguntas do treinador (questionário de inscrição) | [inscricao-com-perguntas-proprias.md](inscricao-com-perguntas-proprias.md) | — | Planejando, decisões fechadas: começa depois de `ajustes-video-30-10` e das pendências do painel | 31/10/2026 |
 
 ## Pendências soltas
