@@ -50,4 +50,12 @@ public interface AlunoRepository extends JpaRepository<Aluno, UUID> {
     @Query("select a from Aluno a where a.ativo = true and (:responsavelId is null or a.responsavelId = :responsavelId) "
             + "order by a.nome asc")
     List<Aluno> ativosDoEscopo(UUID responsavelId);
+
+    /**
+     * Alunos inativos e não anonimizados; com {@code responsavelId} só os dele. Mesmo filtro de responsável do
+     * {@link #ativosDoEscopo}; só a contagem do painel (a rosca de alunos por situação).
+     */
+    @Query("select count(a) from Aluno a where a.ativo = false and a.anonimizadoEm is null "
+            + "and (:responsavelId is null or a.responsavelId = :responsavelId)")
+    long contarInativosNaoAnonimizadosDoEscopo(UUID responsavelId);
 }

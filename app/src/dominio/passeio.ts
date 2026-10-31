@@ -32,10 +32,18 @@ export function situacaoDoPasseio(leitura: LeituraDoPasseio, dispensado: boolean
 /** Uma pergunta de cada vez: o lembrete da atualização só abre quando o passeio já não está nem para abrir. */
 export const lembretePodeAbrir = (passeio: SituacaoDoPasseio): boolean => passeio === 'encerrada';
 
+/**
+ * Alvo do último passo do treinador: o bloco "Primeiros passos" do Início. Quem registra é o bloco ABERTO
+ * (`useAlvoDoPasseio(ALVO_PRIMEIROS_PASSOS)`); dispensado, concluído ou fora do Início, o alvo não existe e
+ * `passosVisiveis` tira o passo, sem balão apontando para o nada. Registre na faixa do título do bloco (baixa e larga), não
+ * no bloco inteiro: `posicaoDoBalao` foi feita para itens pequenos e um alvo alto ficaria coberto pelo balão.
+ */
+export const ALVO_PRIMEIROS_PASSOS = 'inicio:primeiros-passos';
+
 export interface PassoDoPasseio {
   titulo: string;
   texto: string;
-  /** Item destacado (`menu:<caminho>`); sem alvo, o balão fica no meio da tela. */
+  /** Item destacado (`menu:<caminho>` ou `inicio:primeiros-passos`); sem alvo, o balão fica no meio da tela. */
   alvo?: string;
 }
 

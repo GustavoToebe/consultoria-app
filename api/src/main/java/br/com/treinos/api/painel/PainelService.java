@@ -74,6 +74,8 @@ public class PainelService {
      * {@code sessoesConcluidas7Dias}: sessões concluídas (completas e parciais) dos alunos do escopo nos últimos
      * {@value RecordesDaSemanaService#DIAS} dias (hoje de Brasília incluído), só número; {@code null} (nunca zero) sem
      * {@code REGISTRO_LER} ou com o retorno desligado ({@code treinos.retorno.habilitado}).
+     * {@code alunosInativos}: alunos inativos e não anonimizados do mesmo escopo ({@code meus}), só o número; como o
+     * {@code alunosAtivos}, nunca é nulo nem pede permissão além da {@code PAINEL_VER} da rota.
      */
     public record PainelTreinador(long alunosAtivos, List<AlunoSemRegistro> alunosSemRegistro,
                                   List<ExecucaoRecente> ultimasExecucoes, List<PlanoTerminando> planosTerminando,
@@ -81,7 +83,7 @@ public class PainelService {
                                   long atualizacoesAvisaramAtraso, long atualizacoesProximas,
                                   Long pastasARenovar, List<PastaARenovar> pastasParaRenovar,
                                   Long alunosSemPastaComPeriodo, Long alunosSemRegistroTotal, Long alunosSemAcesso,
-                                  Long sessoesConcluidas7Dias) {
+                                  Long sessoesConcluidas7Dias, long alunosInativos) {
     }
 
     private final AlunoRepository alunos;
@@ -168,7 +170,8 @@ public class PainelService {
                 contagem.getOrDefault("PARA_REVISAR",0L), contagem.getOrDefault("ATRASADAS",0L),
                 contagem.getOrDefault("AVISARAM_ATRASO",0L), contagem.getOrDefault("PROXIMAS",0L),
                 treinos ? Long.valueOf(aRenovar.size()) : null, listaARenovar, semPasta,
-                registros ? Long.valueOf(paradosHaDias.size()) : null, semAcesso, concluidas);
+                registros ? Long.valueOf(paradosHaDias.size()) : null, semAcesso, concluidas,
+                alunos.contarInativosNaoAnonimizadosDoEscopo(responsavelId));
     }
 
     private long concluidasNa7Dias(List<Aluno> ativos, LocalDate hoje) {

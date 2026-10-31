@@ -1,4 +1,5 @@
 import { AREIA, contraste, CLARO, ESCURO } from '../tema/tokens';
+import { BLOCOS_DO_PAINEL } from './painelBlocos';
 import {
   AGENDAS_OCULTAS_MAXIMO,
   coresComBordasReforcadas,
@@ -18,7 +19,7 @@ describe('preferências pessoais', () => {
   });
 
   it('aceita o objeto e o texto salvo, valor por valor', () => {
-    const salvo = { tema: 'SISTEMA', contraste: 'ALTO', tamanhoTexto: 'EXTRA', movimento: 'REDUZIDO', vibracao: false, graficos: false, bordasReforcadas: true, barrasEscuras: false, diasSemRegistro: 14, mostrarFasesDoCiclo: true, pdfDieta: { modo: 'detalhado', periodo: 'mes', fatores: false }, logoNaComparacao: false, lembretesCompromisso: true, agendasOcultas: ['compromissos', 'a1'] };
+    const salvo = { tema: 'SISTEMA', contraste: 'ALTO', tamanhoTexto: 'EXTRA', movimento: 'REDUZIDO', vibracao: false, graficos: false, bordasReforcadas: true, barrasEscuras: false, diasSemRegistro: 14, mostrarFasesDoCiclo: true, pdfDieta: { modo: 'detalhado', periodo: 'mes', fatores: false }, logoNaComparacao: false, lembretesCompromisso: true, agendasOcultas: ['compromissos', 'a1'], painelDoInicio: { ordem: ['financeiro', 'alunos', 'atualizacoes', 'interessados', 'treinos', 'pastas', 'agenda', 'recebido'], escondidos: ['agenda', 'recebido'] } };
     expect(normalizarPreferencias(salvo)).toEqual(salvo);
     expect(normalizarPreferencias(JSON.stringify(salvo))).toEqual(salvo);
     expect(normalizarPreferencias({ tema: 'CLARO' })).toEqual({ ...PREFERENCIAS_PADRAO, tema: 'CLARO' });
@@ -51,6 +52,31 @@ describe('preferências pessoais', () => {
     expect(PREFERENCIAS_PADRAO.lembretesCompromisso).toBe(false);
     expect(normalizarPreferencias({ lembretesCompromisso: true }).lembretesCompromisso).toBe(true);
     for (const v of ['sim', 1, null]) expect(normalizarPreferencias({ lembretesCompromisso: v }).lembretesCompromisso).toBe(false);
+  });
+
+  it('painel do Início: padrão com todos os blocos na ordem do protótipo e nenhum escondido', () => {
+    expect(PREFERENCIAS_PADRAO.painelDoInicio).toEqual({ ordem: [...BLOCOS_DO_PAINEL], escondidos: [] });
+    expect(PREFERENCIAS_PADRAO.painelDoInicio.ordem).toHaveLength(8);
+    expect(normalizarPreferencias({}).painelDoInicio).toEqual(PREFERENCIAS_PADRAO.painelDoInicio);
+  });
+
+  it('painel do Início: ordem salva vale; id desconhecido e repetido saem; bloco que falta entra no fim, na ordem padrão', () => {
+    const r = normalizarPreferencias({ painelDoInicio: { ordem: ['alunos', 'xis', 'alunos', 7, 'agenda'], escondidos: ['agenda', 'agenda', 'xis', null] } }).painelDoInicio;
+    expect(r.ordem).toEqual(['alunos', 'agenda', 'atualizacoes', 'interessados', 'treinos', 'pastas', 'financeiro', 'recebido']);
+    expect(r.escondidos).toEqual(['agenda']);
+  });
+
+  it('painel do Início: valor que não é objeto, ou com listas que não são listas, volta ao padrão', () => {
+    for (const v of ['texto', 1, null, [], true, { ordem: 'alunos', escondidos: { a: 1 } }]) {
+      expect(normalizarPreferencias({ painelDoInicio: v }).painelDoInicio).toEqual(PREFERENCIAS_PADRAO.painelDoInicio);
+    }
+  });
+
+  it('painel do Início: o padrão não é compartilhado (mexer na cópia não muda o padrão)', () => {
+    const a = normalizarPreferencias({});
+    a.painelDoInicio.escondidos.push('agenda');
+    expect(normalizarPreferencias({}).painelDoInicio.escondidos).toEqual([]);
+    expect(PREFERENCIAS_PADRAO.painelDoInicio.escondidos).toEqual([]);
   });
 
   it('agendas ocultas: nenhuma por padrão; só lista de textos, sem repetir, vazio nem texto enorme; o resto volta a nenhuma', () => {

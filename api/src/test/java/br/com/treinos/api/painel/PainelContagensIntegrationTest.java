@@ -217,6 +217,47 @@ class PainelContagensIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void alunosInativosContaSoInativosNaoAnonimizadosDoEscopoESemPermissaoExtra() throws Exception {
+        UUID inativoDoAdmin = aluno(admin, "Aluno inativo do admin");
+        api.patch("/alunos/" + inativoDoAdmin + "/situacao", admin, Map.of("ativo", false), 200);
+        UUID inativoDoMembro = aluno(membro, "Aluno inativo do membro");
+        api.patch("/alunos/" + inativoDoMembro + "/situacao", admin, Map.of("ativo", false), 200);
+        // Ativo e anonimizado não contam.
+        aluno(admin, "Aluno ativo do admin");
+        String nomeAnonimizado = "Aluno anonimizado fictício";
+        UUID anonimizado = aluno(admin, nomeAnonimizado);
+        api.patch("/alunos/" + anonimizado + "/situacao", admin, Map.of("ativo", false), 200);
+        api.post("/alunos/" + anonimizado + "/anonimizar", admin, Map.of("nomeConfirmado", nomeAnonimizado), 200);
+
+        // Outra consultoria, com um aluno inativo: não entra na conta da primeira.
+        JsonNode outro = api.novoTreinador();
+        UUID inativoDeFora = api.criarAluno(outro, "Aluno inativo de outra consultoria");
+        api.patch("/alunos/" + inativoDeFora + "/situacao", outro, Map.of("ativo", false), 200);
+
+        JsonNode todos = painel(admin, false);
+        assertThat(todos.path("alunosInativos").isNumber()).isTrue();
+        assertThat(todos.path("alunosInativos").asLong()).isEqualTo(2);
+        assertThat(todos.path("alunosAtivos").asLong()).isEqualTo(1);
+        // "Meus": cada um só conta os inativos pelos quais é responsável.
+        assertThat(painel(admin, true).path("alunosInativos").asLong()).isEqualTo(1);
+        assertThat(painel(membro, true).path("alunosInativos").asLong()).isEqualTo(1);
+        // Segue o alunosAtivos: sem permissão além da PAINEL_VER da rota, o número vem (não é null, nem zero escondido).
+        JsonNode soPainel = membroCom(Set.of("PAINEL_VER"));
+        assertThat(painel(soPainel, false).path("alunosInativos").isNull()).isFalse();
+        assertThat(painel(soPainel, false).path("alunosInativos").asLong()).isEqualTo(2);
+        // A outra consultoria só vê o dela.
+        assertThat(painel(outro, false).path("alunosInativos").asLong()).isEqualTo(1);
+    }
+
+    @Test
+    void consultoriaSemInativosTemZeroENaoNull() throws Exception {
+        aluno(admin, "Aluno ativo qualquer");
+        JsonNode p = painel(admin, false);
+        assertThat(p.path("alunosInativos").isNull()).isFalse();
+        assertThat(p.path("alunosInativos").asLong()).isZero();
+    }
+
+    @Test
     void semPermissaoAsContagensDePastaERegistroSaoNullNuncaZero() throws Exception {
         UUID a = aluno(admin, "Aluno com pasta e sem registro");
         pasta(a, hoje.minusDays(20), hoje.plusDays(1));

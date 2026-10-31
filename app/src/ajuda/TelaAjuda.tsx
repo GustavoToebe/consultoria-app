@@ -1,14 +1,17 @@
 import { router, type Href } from 'expo-router';
-import { ChevronDown, ChevronUp, FileDown, MousePointerClick, PlayCircle } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, FileDown, MousePointerClick, PlayCircle, RotateCcw } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 
+import { AVISO_DE_VOLTA, mostrarDeNovo } from '../dominio/primeirosPassos';
 import { useSessao } from '../sessao/SessaoProvider';
+import { usePrimeirosPassosGuardados } from '../treinador/painel/usePrimeirosPassosGuardados';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, LARGURA_EDITOR } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
 import { Cabecalho } from '../ui/Cabecalho';
 import { Cartao } from '../ui/Cartao';
+import { Alerta } from '../ui/Estados';
 import { LinhaDeAcoes } from '../ui/LinhaDeAcoes';
 import { usePasseio } from '../ui/Passeio';
 import { sobre } from '../ui/sobre';
@@ -19,7 +22,7 @@ import { TutorialGuiado } from './TutorialGuiado';
 
 /**
  * Ajuda de cada área: "Conhecer o app" (o passeio pelo menu e o tutorial passo a passo, que antes eram dois cartões com
- * nomes parecidos), primeiros passos com "Abrir" em todo passo que acontece numa tela, guia em PDF (web) e um cartão só
+ * nomes parecidos), primeiros passos (aluno: a lista com "Abrir"; treinador: o "Mostrar no Início de novo"), guia em PDF (web) e um cartão só
  * com as seções e as perguntas, cada uma numa linha que abre (antes eram vários cartões de ~85 px). Passo só do PDF (o
  * convite, para quem ainda não entrou) não aparece aqui. A seta de voltar vem do `Cabecalho` (origem: Perfil ou Conta).
  */
@@ -41,19 +44,21 @@ export function TelaAjuda({ publico }: { publico: Publico }) {
           <Botao rotulo="Conhecer o menu" tipo="secundario" Icone={MousePointerClick} aoTocar={rever} />
         </LinhaDeAcoes>
       </Cartao>
-      <Cartao titulo="Primeiros passos">
-        {passos.map((p, i) => (
-          <View key={p.titulo} style={estilos.passo}>
-            <View style={estilos.textoDoPasso}>
-              <Texto numerico variante="bloco">{i + 1}. {p.titulo}</Texto>
-              <Texto variante="suave">{p.texto}</Texto>
+      {publico === 'treinador' ? <CartaoPrimeirosPassosDoTreinador /> : (
+        <Cartao titulo="Primeiros passos">
+          {passos.map((p, i) => (
+            <View key={p.titulo} style={estilos.passo}>
+              <View style={estilos.textoDoPasso}>
+                <Texto numerico variante="bloco">{i + 1}. {p.titulo}</Texto>
+                <Texto variante="suave">{p.texto}</Texto>
+              </View>
+              {p.rota ? (
+                <Botao rotulo="Abrir" rotuloAcessivel={`Abrir: ${p.titulo}`} tipo="secundario" aoTocar={() => router.navigate(p.rota as Href)} />
+              ) : null}
             </View>
-            {p.rota ? (
-              <Botao rotulo="Abrir" rotuloAcessivel={`Abrir: ${p.titulo}`} tipo="secundario" aoTocar={() => router.navigate(p.rota as Href)} />
-            ) : null}
-          </View>
-        ))}
-      </Cartao>
+          ))}
+        </Cartao>
+      )}
       {Platform.OS === 'web' ? (
         <Cartao titulo="Guia do usuário em PDF" descricao="Para ler com calma, imprimir ou enviar."
           acoes={<Botao rotulo="Abrir o guia" rotuloAcessivel={`Abrir ${guia.titulo.toLowerCase()}`} tipo="secundario" Icone={FileDown} aoTocar={() => void Linking.openURL(`/guias/${guia.arquivoPdf}`)} />}>{null}</Cartao>
@@ -80,6 +85,34 @@ export function TelaAjuda({ publico }: { publico: Publico }) {
       </Cartao>
       {tutorial ? <TutorialGuiado passos={guia.tutorial} aoFechar={() => setTutorial(false)} /> : null}
     </Tela>
+  );
+}
+
+/**
+ * Treinador: os Primeiros passos moram no Início (bloco no topo). Aqui fica o texto curto e o "Mostrar no Início de novo"
+ * para quem dispensou ou fechou; a lista dos passos (o `guia.primeirosPassos`) segue no guia em PDF.
+ */
+function CartaoPrimeirosPassosDoTreinador() {
+  const { usuario } = useSessao();
+  const { estado, gravar } = usePrimeirosPassosGuardados(usuario?.id ?? null);
+  const [voltou, setVoltou] = useState(false);
+  const noInicio = !!estado && !estado.dispensado && !estado.fechado;
+  const motivo = !estado ? 'Conferindo o que ficou salvo neste aparelho.' : noInicio && !voltou ? 'Eles já estão no Início.' : undefined;
+  return (
+    <Cartao titulo="Primeiros passos">
+      <Texto variante="suave">
+        No topo do Início, enquanto você monta a consultoria: marca e logo, metodologia, modelos de treino, o primeiro aluno, o acesso dele ao app e o link de inscrição. Cada item abre a tela certa. Se dispensou ou fechou, traga de volta por aqui.
+      </Texto>
+      {voltou ? <Alerta tom="sucesso" texto={AVISO_DE_VOLTA} /> : null}
+      <LinhaDeAcoes>
+        <Botao rotulo="Mostrar no Início de novo" tipo="secundario" Icone={RotateCcw} desabilitado={!!motivo || voltou} motivo={voltou ? undefined : motivo}
+          aoTocar={() => {
+            gravar(mostrarDeNovo);
+            setVoltou(true);
+          }} />
+        {noInicio ? <Botao rotulo="Abrir o Início" tipo="fantasma" aoTocar={() => router.navigate('/treinador')} /> : null}
+      </LinhaDeAcoes>
+    </Cartao>
   );
 }
 

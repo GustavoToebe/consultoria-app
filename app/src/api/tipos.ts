@@ -868,6 +868,8 @@ export interface PainelTreinador {
   alunosSemRegistroTotal: number | null;
   /** Alunos ativos sem conta de acesso (`!temAcesso`); subconjunto de `alunosAtivos`. */
   alunosSemAcesso: number;
+  /** Alunos inativos e não anonimizados, do mesmo escopo do `meus`; só o número. Nunca nulo (como `alunosAtivos`): 0 quando não há. */
+  alunosInativos: number;
   /** Treinos concluídos (completos e parciais) nos últimos 7 dias, dos mesmos alunos; só o número. `null` com o retorno desligado ou sem `REGISTRO_LER`; 0 com o retorno ligado e nenhum. */
   sessoesConcluidas7Dias: number | null;
 }

@@ -50,8 +50,8 @@ Para onde abrem os cartões: ver a D9. Não existem `/treinador/recordes` nem `/
 - [ ] 5. Lista de compras: rótulos "Conforme a dieta" e "Estimativa para compra" (D7 de clareza-do-treinador, que ficou só nos selos) — commit/run: —
 - [x] 6. A12: migration das categorias dos suplementos (D4), com teste de integração — commit/run: `faca6070` (V047)
 - [x] 7. Importação: escolher a linha do cabeçalho (API, tela e testes) — commit/run: `2d31c558` (só o formato novo `linhaDoCabecalho`, sem transição: app antigo que manda `cabecalho` recebe 422)
-- [ ] 8. Painel novo do Início do treinador (D7), junto com o bloco de primeiros passos: protótipo `docs/prototipos/painel.html` **aprovado para código (Gustavo, 30/10)**, com os ajustes da D9; o código começa depois das contagens do `/painel` (`executor`) — commit/run: —
-- [ ] 9. A01: orientação guiada no primeiro uso (D8): protótipo `primeiro-uso.html` **aprovado (Gustavo, 30/10)**, com as respostas da D8 e os feitos recolhidos (D9); código junto do passo 8 — commit/run: —
+- [x] 8. Painel novo do Início do treinador (D7), junto com o bloco de primeiros passos: protótipo `docs/prototipos/painel.html` **aprovado para código (Gustavo, 30/10)**, com os ajustes da D9; o código começa depois das contagens do `/painel` (`executor`) — commit/run: `d53a3696` (com `alunosInativos` no `GET /painel`; PR `painel-novo`)
+- [x] 9. A01: orientação guiada no primeiro uso (D8): protótipo `primeiro-uso.html` **aprovado (Gustavo, 30/10)**, com as respostas da D8 e os feitos recolhidos (D9); código junto do passo 8 — commit/run: `d53a3696` (PR `painel-novo`; o que ficou de fora está nas Pendências soltas do README)
 - [x] 10. A02: plano escrito em `docs/planos/importar-plano-de-documento.md` (D5) — commit/run: — (perguntas para o Gustavo no próprio plano)
 - [ ] 11. Ajuda, guias PDF, AGENTS.md, Jest, lint, typecheck, `mvn verify` (passos 6 e 7), e2e completo em 390 e 1280 — commit/run: —
 
