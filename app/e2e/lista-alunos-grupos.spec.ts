@@ -108,7 +108,8 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await expect(page.getByRole('checkbox')).toHaveCount(0);
 
       const lapis = page.getByRole('button', { name: 'Editar cadastro de Ana Fictícia', exact: true });
-      expect((await lapis.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(40);
+      // 0,5 px de folga: o arredondamento de subpixel às vezes mede 39,99997.
+      expect((await lapis.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(39.5);
       await lapis.click();
 
       await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${id(1)}$`));

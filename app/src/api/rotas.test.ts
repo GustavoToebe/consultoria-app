@@ -3,7 +3,7 @@ import {
   aceitarInscricao, alterarCancelamentoCompromisso, alterarCompromisso, alterarSituacaoDoAluno, aplicarAlteracaoDaAnamnese, avisosDeCompromisso, listarAlunosOcupados, marcarAvisoDeCompromissoVisto, compromissosDoAluno, criarCompromisso, listarCompromissos, buscarQuestionario, descartarAlteracaoDaAnamnese, fatoresDosAlimentos, inscricao, inscricaoPublica, listarPlanos,
   retornoDoPagamento, definirLembretesDoAluno, lembretesDaCobranca, lembretesDoAluno,
   alterarAgendaPessoal, alterarEvento, apagarAgendaPessoal, contarEventosDaAgenda, criarAgendaPessoal, criarEvento, cruzamentosDoEvento,
-  detalheDoEvento, excluirEvento, listarAgendasPessoais, listarAtualizacoes, listarEventos, resumoDaAgenda,
+  detalheDoEvento, excluirEvento, listarAgendasPessoais, listarAlunos, listarAtualizacoes, listarEventos, resumoDaAgenda,
 } from './rotas';
 
 jest.mock('./cliente', () => ({ requisicao: jest.fn((caminho: string) => Promise.resolve(caminho)) }));
@@ -90,6 +90,12 @@ describe('caminhos da API', () => {
     await expect(avisosDeCompromisso()).resolves.toBe('/aluno/avisos-de-compromisso');
     await marcarAvisoDeCompromissoVisto('av/1');
     expect(requisicao).toHaveBeenLastCalledWith('/aluno/avisos-de-compromisso/av%2F1/visto', { metodo: 'POST' });
+  });
+
+  it('lista de alunos: os filtros avançados vão como parâmetros repetidos', async () => {
+    await expect(listarAlunos({ busca: 'ana', pagina: 1, filtros: [['situacao', 'TODOS'], ['meus', 'false'], ['acesso', 'SEM'], ['acesso', 'AGUARDANDO'], ['registro', 'NUNCA']] }))
+      .resolves.toBe('/alunos?busca=ana&situacao=TODOS&meus=false&acesso=SEM&acesso=AGUARDANDO&registro=NUNCA&pagina=1');
+    await expect(listarAlunos({ pagina: 0 })).resolves.toBe('/alunos?situacao=ATIVO&meus=false&pagina=0');
   });
 
   it('calendário: agendas pessoais com id codificado e versão na query do DELETE', async () => {

@@ -263,7 +263,8 @@ describe('Treinos', () => {
     expect(cartaoDe(b, 'treinos.semRegistro')).toMatchObject({ tom: 'atencao', rotulo: 'Sem registro há 7 dias', largo: true });
     expect(cartaoDe(b, 'treinos.recordes').destino).toEqual({ tipo: 'folha', folha: 'recordes' });
     expect(cartaoDe(b, 'treinos.semRegistro').destino).toEqual({ tipo: 'folha', folha: 'semRegistro' });
-    expect(href(cartaoDe(b, 'treinos.concluidos').destino)).toBe('/treinador/alunos');
+    // Meus/Todos explícito: quem não tem acesso total abriria a lista nos seus sem o meus=false.
+    expect(href(cartaoDe(b, 'treinos.concluidos').destino)).toBe('/treinador/alunos?meus=false');
     expect(cartaoDe(b, 'treinos.semRegistro').falado).toMatch(/Abre a lista$/);
   });
 
@@ -301,7 +302,12 @@ describe('Pastas', () => {
     expect(b.cartoes.map((c) => c.texto)).toEqual(['2', '4']);
     expect(cartaoDe(b, 'pastas.aRenovar')).toMatchObject({ tom: 'atencao', destino: { tipo: 'folha', folha: 'pastasARenovar' } });
     expect(cartaoDe(b, 'pastas.semPasta').tom).toBe('neutro');
-    expect(href(cartaoDe(b, 'pastas.semPasta').destino)).toBe('/treinador/alunos?meus=true');
+    expect(href(cartaoDe(b, 'pastas.semPasta').destino)).toBe('/treinador/alunos?atualizacao=SEM_PASTA&meus=true');
+  });
+
+  it('sem ver atualizações, "Sem pasta com período" abre a lista sem o filtro (que daria 403)', () => {
+    const b = bloco('pastas', fontes(), ctxCom(TODAS.filter((c) => c !== 'ATUALIZACAO_LER')), { meus: false });
+    expect(href(cartaoDe(b, 'pastas.semPasta').destino)).toBe('/treinador/alunos?meus=false');
   });
 
   it('campo nulo (sem permissão de leitura na API) é "Não carregou", não 0', () => {
@@ -482,6 +488,13 @@ describe('Alunos (rosca)', () => {
     expect(g.resumo).toBe('10 ativos, 3 sem acesso ao app · 4 inativos');
   });
 
+  it('cada fatia abre a lista de alunos filtrada, com o Meus/Todos do bloco', () => {
+    expect(roscaDosAlunos({ alunosAtivos: 1, alunosInativos: 1, alunosSemAcesso: 0 }, true).fatias.map((f) => f.href)).toEqual([
+      '/treinador/alunos?acesso=COM&meus=false', '/treinador/alunos?acesso=SEM&meus=false', '/treinador/alunos?situacao=INATIVO&meus=false',
+    ]);
+    expect(roscaDosAlunos({ alunosAtivos: 1, alunosInativos: 1, alunosSemAcesso: 0 }, true, true).fatias[1].href).toBe('/treinador/alunos?acesso=SEM&meus=true');
+  });
+
   it('sem acesso nunca passa dos ativos; sem alunos é vazia', () => {
     expect(roscaDosAlunos({ alunosAtivos: 2, alunosInativos: 0, alunosSemAcesso: 5 }, true).fatias.map((f) => f.valor)).toEqual([0, 2, 0]);
     const v = roscaDosAlunos({ alunosAtivos: 0, alunosInativos: 0, alunosSemAcesso: 0 }, true);
@@ -525,7 +538,8 @@ describe('faixa de cada bloco (Todos/Meus e abrir)', () => {
     expect(enderecoDoBloco('interessados', true)).toBe('/treinador/interessados?meus=true');
     expect(enderecoDoBloco('agenda', false)).toBe('/treinador/agenda?visao=semana');
     expect(enderecoDoBloco('financeiro', true)).toBe('/treinador/financeiro?meus=true');
-    expect(enderecoDoBloco('treinos', false)).toBe('/treinador/alunos');
+    expect(enderecoDoBloco('treinos', false)).toBe('/treinador/alunos?meus=false');
+    expect(enderecoDoBloco('alunos', true)).toBe('/treinador/alunos?meus=true');
     expect(enderecoDoBloco('recebido', false)).toBe('/treinador/financeiro?aba=visao');
     expect(enderecoDoBloco('recebido', true)).toBe('/treinador/financeiro?aba=visao&meus=true');
   });

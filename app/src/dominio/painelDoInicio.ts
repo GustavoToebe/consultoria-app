@@ -380,6 +380,15 @@ function comConsulta(base: string, ...params: (string | false | null | undefined
 
 const meusQ = (meus: boolean) => meus && 'meus=true';
 
+/**
+ * Lista de alunos já filtrada (`dominio/filtrosDeAlunos`, filtros no endereço). O Meus/Todos vai sempre explícito
+ * (`meus=true` ou `meus=false`): sem ele, quem não tem acesso total abriria a lista nos próprios alunos mesmo vindo de um
+ * bloco em Todos.
+ */
+export function listaDeAlunos(meus: boolean, ...filtros: (string | false | null | undefined)[]): string {
+  return comConsulta('/treinador/alunos', ...filtros, meus ? 'meus=true' : 'meus=false');
+}
+
 /** Destino do ícone "abrir a tela" da faixa de cada bloco. */
 export function enderecoDoBloco(id: BlocoDoPainelId, meus: boolean): string {
   switch (id) {
@@ -387,7 +396,7 @@ export function enderecoDoBloco(id: BlocoDoPainelId, meus: boolean): string {
     case 'interessados': return comConsulta('/treinador/interessados', meusQ(meus));
     case 'treinos':
     case 'pastas':
-    case 'alunos': return comConsulta('/treinador/alunos', meusQ(meus));
+    case 'alunos': return listaDeAlunos(meus);
     case 'agenda': return comConsulta('/treinador/agenda', 'visao=semana', meusQ(meus));
     case 'financeiro': return comConsulta('/treinador/financeiro', meusQ(meus));
     // As barras vêm do mesmo `/financeiro/painel` da Visão geral, que respeita `?meus=`; a aba Lançamentos não filtra por aluno.
@@ -405,6 +414,8 @@ export interface FatiaDaRosca {
   /** Fração do total (0 a 1) e onde começa (0 a 1, a partir do topo, sentido horário). */
   fracao: number;
   inicio: number;
+  /** A lista de alunos filtrada por esta fatia (o item da legenda é o link). */
+  href: string;
 }
 
 export interface RoscaDoPainel {
@@ -519,7 +530,7 @@ export function montarBloco(id: BlocoDoPainelId, ctx: ContextoDoPainel, o: Opcoe
     case 'atualizacoes': return blocoAtualizacoes(o);
     case 'interessados': return blocoInteressados(o);
     case 'treinos': return blocoTreinos(ctx, o);
-    case 'pastas': return blocoPastas(o);
+    case 'pastas': return blocoPastas(ctx, o);
     case 'agenda': return blocoAgenda(o);
     case 'financeiro': return blocoFinanceiro(ctx, o);
     case 'recebido': return blocoRecebido(o);
@@ -580,7 +591,7 @@ function blocoTreinos(ctx: ContextoDoPainel, o: Entrada): BlocoDoPainel {
     valor: p?.alunosSemRegistroTotal, tom: 'atencao', destino: { tipo: 'folha', folha: 'semRegistro' }, largo: retorno, abreLista: true,
   });
   if (!retorno) return fechar(cabecalho('treinos', o.meus), { cartoes: [semRegistro], nota: NOTA_SEM_RETORNO });
-  const alunos: DestinoDoCartao = { tipo: 'endereco', href: comConsulta('/treinador/alunos', meusQ(o.meus)) };
+  const alunos: DestinoDoCartao = { tipo: 'endereco', href: listaDeAlunos(o.meus) };
   const recordes = dadosDe(o.fontes.recordes);
   return fechar(cabecalho('treinos', o.meus, { periodo: PERIODO_DOS_TREINOS }), {
     cartoes: [
@@ -591,13 +602,16 @@ function blocoTreinos(ctx: ContextoDoPainel, o: Entrada): BlocoDoPainel {
   });
 }
 
-function blocoPastas(o: Entrada): BlocoDoPainel {
+function blocoPastas(ctx: ContextoDoPainel, o: Entrada): BlocoDoPainel {
   const sit = situacaoDe(o.fontes.painel);
   const p = dadosDe(o.fontes.painel);
+  // O filtro "Sem pasta com período" da lista é o da atualização (pede ATUALIZACAO_LER + ALUNO_SENSIVEL_LER); sem ele, a
+  // lista abre sem esse filtro (o grupo "Sem pasta com período" aparece lá) em vez de mandar um filtro que daria 403.
+  const filtroSemPasta = ctx.pode('ATUALIZACAO_LER') && ctx.pode('ALUNO_SENSIVEL_LER') && 'atualizacao=SEM_PASTA';
   return fechar(cabecalho('pastas', o.meus), {
     cartoes: [
       cartao({ chave: 'pastas.aRenovar', rotulo: 'A renovar em 7 dias', nome: 'Pastas a renovar em 7 dias', situacao: sit, valor: p?.pastasARenovar, tom: 'atencao', destino: { tipo: 'folha', folha: 'pastasARenovar' }, abreLista: true }),
-      cartao({ chave: 'pastas.semPasta', rotulo: 'Sem pasta com período', nome: 'Alunos sem pasta com período', situacao: sit, valor: p?.alunosSemPastaComPeriodo, tom: 'neutro', destino: { tipo: 'endereco', href: comConsulta('/treinador/alunos', meusQ(o.meus)) } }),
+      cartao({ chave: 'pastas.semPasta', rotulo: 'Sem pasta com período', nome: 'Alunos sem pasta com período', situacao: sit, valor: p?.alunosSemPastaComPeriodo, tom: 'neutro', destino: { tipo: 'endereco', href: listaDeAlunos(o.meus, filtroSemPasta) } }),
     ],
   });
 }
@@ -712,22 +726,23 @@ function blocoAlunos(o: Entrada): BlocoDoPainel {
   if (sit === 'carregando') return { ...fechar(base, {}), carregando: true };
   // Resposta sem as contagens (API antiga ou campo faltando): sem rosca, nunca "NaN" ou "undefined ativos".
   if (!p || !ehNumero(p.alunosAtivos) || !ehNumero(p.alunosInativos) || !ehNumero(p.alunosSemAcesso)) return { ...fechar(base, { falhouGrafico: true }), falhou: true };
-  return fechar(base, { grafico: roscaDosAlunos(p, o.graficos) });
+  return fechar(base, { grafico: roscaDosAlunos(p, o.graficos, o.meus) });
 }
 
 /**
  * Rosca dos alunos, uma visão só (D9): ativos com acesso, ativos sem acesso e inativos. `alunosSemAcesso` é parte de
  * `alunosAtivos`, então nenhum aluno conta duas vezes; o total é ativos + inativos.
  */
-export function roscaDosAlunos(p: Pick<PainelTreinador, 'alunosAtivos' | 'alunosInativos' | 'alunosSemAcesso'>, graficos: boolean): RoscaDoPainel {
+export function roscaDosAlunos(p: Pick<PainelTreinador, 'alunosAtivos' | 'alunosInativos' | 'alunosSemAcesso'>, graficos: boolean, meus = false): RoscaDoPainel {
   const ativos = p.alunosAtivos;
   const inativos = p.alunosInativos;
   const semAcesso = Math.min(ativos, Math.max(0, p.alunosSemAcesso));
   const total = ativos + inativos;
-  const brutas: Pick<FatiaDaRosca, 'chave' | 'rotulo' | 'valor' | 'cor'>[] = [
-    { chave: 'comAcesso', rotulo: 'Ativos com acesso', valor: ativos - semAcesso, cor: 'sucesso' },
-    { chave: 'semAcesso', rotulo: 'Ativos sem acesso', valor: semAcesso, cor: 'atencao' },
-    { chave: 'inativos', rotulo: 'Inativos', valor: inativos, cor: 'neutro' },
+  // Cada fatia abre a lista de alunos já filtrada (a situação "Ativos" é o padrão da lista).
+  const brutas: Pick<FatiaDaRosca, 'chave' | 'rotulo' | 'valor' | 'cor' | 'href'>[] = [
+    { chave: 'comAcesso', rotulo: 'Ativos com acesso', valor: ativos - semAcesso, cor: 'sucesso', href: listaDeAlunos(meus, 'acesso=COM') },
+    { chave: 'semAcesso', rotulo: 'Ativos sem acesso', valor: semAcesso, cor: 'atencao', href: listaDeAlunos(meus, 'acesso=SEM') },
+    { chave: 'inativos', rotulo: 'Inativos', valor: inativos, cor: 'neutro', href: listaDeAlunos(meus, 'situacao=INATIVO') },
   ];
   let acumulado = 0;
   const fatias: FatiaDaRosca[] = brutas.map((f) => {
