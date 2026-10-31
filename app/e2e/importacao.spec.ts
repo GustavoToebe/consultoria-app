@@ -6,14 +6,23 @@ import { json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api
  * Importação em etapas (análise do vídeo de 29/10 e referência de 30/10): lista separada do assistente, destino em
  * cartões e arquivo juntos, configuração com ajuda, a planilha com o campo de cada coluna (lista suspensa com busca no
  * PC, folha no celular), busca, correção de célula e lixeira por linha, resumo Total / Com erro / Corretas e o
- * resultado. API falsa, dados fictícios. 390 e 1280 são a mesma página com a largura trocada.
+ * resultado. Desde 31/10 (reunião de 30/10) o assistente é uma tela inteira (`/treinador/importacao/nova`), com guarda de
+ * saída, aviso de título de coluna com cara de dado e erros agrupados por motivo. API falsa, dados fictícios. 390 e 1280
+ * são a mesma página com a largura trocada.
  */
 const ID = 'i0000000-0000-4000-8000-000000000001';
 const ITEM = {
   id: ID, destino: 'alunos', nomeArquivo: 'alunos.csv', criadoEm: '2026-01-15T15:00:00Z',
   linhas: 3, novos: 2, atualizados: 0, ignorados: 0, comErro: 1, situacao: 'CONCLUIDA_COM_ERROS',
 };
-const DETALHE = { ...ITEM, configuracao: {}, erros: [{ linha: 4, campo: 'nome', motivo: 'Informe o nome.' }] };
+const DETALHE = {
+  ...ITEM, configuracao: {}, erros: [
+    { linha: 4, campo: 'nome', motivo: 'Informe o nome.' },
+    { linha: 5, campo: 'email', motivo: 'E-mail inválido.' },
+    { linha: 7, campo: 'email', motivo: 'E-mail inválido.' },
+    { linha: 8, campo: 'email', motivo: 'E-mail inválido.' },
+  ],
+};
 const CSV = 'Aluno;E-mail;Apelido\nAna Fictícia;ana.ficticia@exemplo.com;Aninha\n';
 const COLUNAS = {
   abas: ['Dados', 'Instruções'], aba: 0, colunas: ['Aluno', 'E-mail', 'Apelido'], linhas: 3,
@@ -70,7 +79,7 @@ async function preparar(page: Page, largura: number, colunas: object = COLUNAS) 
 
 /** Escolhe o campo da coluna: a mesma lista com busca, colada ao botão no PC e numa folha no celular. */
 async function escolherCampo(page: Page, botao: RegExp, coluna: string, campo: string, busca?: string) {
-  await page.getByRole('dialog').first().getByRole('button', { name: botao }).first().click();
+  await page.getByRole('button', { name: botao }).first().click();
   const lista = page.getByRole('dialog', { name: `Campo da coluna “${coluna}”` });
   if (busca) await lista.getByLabel('Buscar campo').fill(busca);
   await lista.getByRole('option', { name: new RegExp(`^${campo}`) }).click();
@@ -82,8 +91,13 @@ for (const largura of [390, 1280]) {
     const { naoTratadas, errosDaPagina } = await preparar(page, largura);
     await page.goto('/treinador/importacao');
     await expect(page.getByText('Concluída com erros')).toBeVisible();
-    await page.getByRole('button', { name: 'Abrir alunos.csv' }).click();
+    // Sem o nome do arquivo (só a extensão fica guardada), a importação é o destino e a data.
+    await page.getByRole('button', { name: /^Abrir a importação de Alunos de 15\/01\/2026/ }).click();
+    await expect(page.getByRole('dialog').getByText('Importação de Alunos').first()).toBeVisible();
     await expect(page.getByText('Com erro (ficaram de fora)')).toBeVisible();
+    // Erros iguais num item só, com as linhas; o erro de uma linha continua como antes.
+    await expect(page.getByText('E-mail: E-mail inválido. · 3 linhas: 5, 7, 8')).toBeVisible();
+    await expect(page.getByText('Linha 4 · Nome: Informe o nome.')).toBeVisible();
     const download = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Baixar CSV de erros' }).click();
     expect((await download).suggestedFilename()).toBe('erros.csv');
@@ -102,7 +116,8 @@ for (const largura of [390, 1280]) {
     const { naoTratadas, errosDaPagina, pedidos } = await preparar(page, largura);
     await page.goto('/treinador/importacao');
     await page.getByRole('button', { name: 'Nova importação' }).click();
-    const folha = page.getByRole('dialog');
+    await expect(page).toHaveURL(/\/treinador\/importacao\/nova$/);
+    const folha = page.locator('body');
     await expect(folha.getByText(/Destino e arquivo/).first()).toBeVisible();
 
     // Etapa 1: destino em cartões; sem destino nem arquivo, Continuar explica o porquê; arquivo .xls não passa.
@@ -192,6 +207,7 @@ for (const largura of [390, 1280]) {
     await expect(folha.getByLabel('Atualizados: 1')).toBeVisible();
     await folha.getByRole('button', { name: 'Concluir' }).click();
     await expect(page.getByText('Importação registrada.')).toBeVisible();
+    await expect(page).toHaveURL(/\/treinador\/importacao$/);
 
     expect(pedidos.colunas).toEqual(['aba=0&linhaDoCabecalho=1']);
     expect(naoTratadas).toEqual([]);
@@ -202,7 +218,8 @@ for (const largura of [390, 1280]) {
     const { naoTratadas, errosDaPagina } = await preparar(page, largura, COLUNAS_GRANDES);
     await page.goto('/treinador/importacao');
     await page.getByRole('button', { name: 'Nova importação' }).click();
-    const folha = page.getByRole('dialog');
+    await expect(page).toHaveURL(/\/treinador\/importacao\/nova$/);
+    const folha = page.locator('body');
     await folha.getByRole('radiogroup', { name: 'O que vai importar' }).getByRole('radio', { name: 'Alunos' }).click();
     await page.getByLabel('Arquivo da planilha').setInputFiles({ name: 'alunos.csv', mimeType: 'text/csv', buffer: Buffer.from(CSV) });
     await folha.getByRole('button', { name: 'Continuar' }).click();
@@ -235,6 +252,41 @@ for (const largura of [390, 1280]) {
     await folha.getByLabel('Pesquisar na planilha').fill('ficticia 7');
     await expect(folha.getByText('Página 1 de 2')).toHaveCount(0);
     await expect(folha.getByLabel('Linha 8, coluna “Aluno”')).toHaveValue('Pessoa Fictícia 7');
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+  test(`tela inteira: sair no meio pergunta antes e título com cara de dado avisa em ${largura}px`, async ({ page }) => {
+    const { naoTratadas, errosDaPagina } = await preparar(page, largura, { ...COLUNAS, colunas: ['ALU000001', 'Nome', 'E-mail'] });
+    await page.goto('/treinador/importacao/nova');
+    await expect(page.getByRole('heading', { name: 'Nova importação', level: 1 })).toBeVisible();
+    // Sem nada escolhido, Cancelar sai direto.
+    await page.getByRole('button', { name: 'Cancelar' }).click();
+    await expect(page).toHaveURL(/\/treinador\/importacao$/);
+
+    await page.getByRole('button', { name: 'Nova importação' }).click();
+    await page.getByRole('radiogroup', { name: 'O que vai importar' }).getByRole('radio', { name: 'Alunos' }).click();
+    await page.getByLabel('Arquivo da planilha').setInputFiles({ name: 'alunos.csv', mimeType: 'text/csv', buffer: Buffer.from(CSV) });
+    // Com arquivo escolhido, Cancelar pergunta; "Continuar editando" fica.
+    await page.getByRole('button', { name: 'Cancelar' }).click();
+    await expect(page.getByText('Sair sem salvar?')).toBeVisible();
+    await page.getByRole('button', { name: 'Continuar editando' }).click();
+    await expect(page).toHaveURL(/\/importacao\/nova$/);
+
+    // Etapa 2: o título da coluna 1 é um código de aluno; o aviso não repete o texto.
+    await page.getByRole('button', { name: 'Continuar' }).click();
+    const aviso = 'O título da coluna 1 parece um dado, não um nome de coluna. Confira a linha do cabeçalho na etapa Configuração.';
+    await expect(page.getByText(aviso)).toBeVisible();
+    await page.getByRole('button', { name: 'Continuar' }).click();
+    await expect(page.getByText(aviso)).toBeVisible();
+    // As etapas e o Validar continuam à vista (presos no topo e na base da tela).
+    await expect(page.getByText(/Mapeamento/).first()).toBeInViewport();
+    await expect(page.getByRole('button', { name: 'Validar' })).toBeInViewport();
+
+    await page.getByRole('button', { name: 'Voltar' }).click();
+    await page.getByRole('button', { name: 'Voltar' }).click();
+    await page.getByRole('button', { name: 'Cancelar' }).click();
+    await page.getByRole('button', { name: 'Sair sem salvar' }).click();
+    await expect(page).toHaveURL(/\/treinador\/importacao$/);
     expect(naoTratadas).toEqual([]);
     expect(errosDaPagina).toEqual([]);
   });

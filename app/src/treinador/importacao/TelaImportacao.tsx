@@ -1,23 +1,25 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { Apple, Check, Download, Dumbbell, FileSpreadsheet, FileUp, FlaskConical, Pill, Scale, Trash2, Undo2, Users, type LucideIcon } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import { createElement, useId, useRef, useState } from 'react';
-import { Linking, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Linking, Platform, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
 
 import { colunasDaImportacao, confirmarImportacao, csvDeErrosDaImportacao, detalheDaImportacao, listarImportacoes, previaDaImportacao } from '../../api/rotas';
 import type { ColunasDaImportacao, DetalheDeImportacao, PreviaDeImportacao } from '../../api/tipos';
 import {
-  ETAPAS_DA_IMPORTACAO, LINHA_DO_CABECALHO_PADRAO, SEM_AJUSTES, ajustarCelula, ajustesParaApi, alternarRemovida, avisoDoCorte, campoDaColuna, camposPermitidos,
+  ETAPAS_DA_IMPORTACAO, LINHA_DO_CABECALHO_PADRAO, SEM_AJUSTES, agruparErros, ajustarCelula, avisoDeTituloDeDado, colunasComTituloDeDado, ondeDoErro, textoDoGrupoDeErros, ajustesParaApi, alternarRemovida, avisoDoCorte, campoDaColuna, camposPermitidos,
   celulaAjustada, errosNaTabela, escolherCampoDaColuna, explicacaoDosExistentes, linhasDaPlanilha, motivoParaNaoContinuar,
-  opcoesDaLinhaDoCabecalho, opcoesDoCampoDaColuna, paginaDaPlanilha, primeiraLinhaDeDados, resumoDaValidacao, tamanhoParaTela, textoDoErro, textoDoQueVaiAcontecer, tipoDoArquivo,
+  opcoesDaLinhaDoCabecalho, opcoesDoCampoDaColuna, paginaDaPlanilha, primeiraLinhaDeDados, resumoDaValidacao, tamanhoParaTela, textoDoQueVaiAcontecer, tipoDoArquivo,
   totalDeAjustes, type AjustesDaTabela, type EtapaDaImportacao, type MapaDaImportacao,
 } from '../../dominio/assistenteDaImportacao';
 import { DESTINOS, destinosPermitidos, faltandoColuna, sugerirMapeamento, type Destino, type DestinoDaImportacao } from '../../dominio/mapeamentoDaImportacao';
 import { dataHoraParaTela } from '../../dominio/formatos';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
-import { ALVO_TOQUE, LARGURA_EDITOR, RAIO, espaco, fontes } from '../../tema/tokens';
+import { ALVO_TOQUE, LARGURA_MAXIMA, RAIO, espaco, fontes } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
+import { Cabecalho } from '../../ui/Cabecalho';
 import { Campo } from '../../ui/Campo';
 import { Cartao } from '../../ui/Cartao';
 import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
@@ -25,6 +27,7 @@ import { EscolhaSuspensa } from '../../ui/EscolhaSuspensa';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { Alerta, MensagemErro, Vazio } from '../../ui/Estados';
 import { Folha } from '../../ui/Folha';
+import { useGuardaDeSaida, useSaidaGuardada } from '../../ui/GuardaDeSaida';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Selo, type TipoSelo } from '../../ui/Selo';
 import { sobre } from '../../ui/sobre';
@@ -33,6 +36,7 @@ import { Texto } from '../../ui/Texto';
 import { textoDoErro as textoDoErroDaApi } from '../../ui/erros';
 import { useCarregar } from '../../ui/useCarregar';
 import { baixarCsv } from '../financeiro/baixarCsv';
+import { TelaDoEditor } from '../plano/TelaDoEditor';
 import { formulario, type ArquivoEscolhido } from './formularioDaImportacao';
 
 const SITUACAO: Record<string, { texto: string; tipo: TipoSelo }> = {
@@ -42,6 +46,9 @@ const SITUACAO: Record<string, { texto: string; tipo: TipoSelo }> = {
 };
 
 const BASE_MODELO = 'https://consultoria.servirea.com.br/modelos/importacao';
+/** Colunas fixas da tabela do mapeamento: o número da linha e a lixeira. */
+const LARGURA_DO_NUMERO = 72;
+const LARGURA_DA_ACAO = 56;
 /** Abaixo desta largura o indicador de etapas vira "Etapa N de 5" e as colunas da tabela ficam mais estreitas. */
 const LARGURA_ESTREITA = 600;
 const ERROS_NA_TELA = 50;
@@ -56,25 +63,31 @@ function abrirModelo(nome: string) {
   void Linking.openURL(`${BASE_MODELO}/${nome}`);
 }
 
-/** Lista do que já foi importado; "Nova importação" abre o assistente em etapas. O arquivo não fica guardado. */
+/** Rótulo do destino ("Alunos"), ou o próprio id se a versão da API trouxer um destino que o app não conhece. */
+const rotuloDoDestino = (id: string) => DESTINOS.find((d) => d.id === id)?.rotulo ?? id;
+
+/**
+ * Lista do que já foi importado; "Nova importação" abre o assistente em etapas numa tela inteira
+ * (`/treinador/importacao/nova`). O arquivo não fica guardado: o histórico guarda só a extensão, por isso cada
+ * importação é identificada pelo destino e pela data.
+ */
 export function TelaImportacao() {
   const { pode } = useSessao();
-  const { avisar } = useAviso();
+  const router = useRouter();
   const permitidos = destinosPermitidos(pode);
   const [busca, setBusca] = useState('');
   const [destinoFiltro, setDestinoFiltro] = useState('');
   const [situacao, setSituacao] = useState('');
   const [pagina, setPagina] = useState(0);
-  const [assistente, setAssistente] = useState(false);
   const [modelos, setModelos] = useState(false);
   const [detalheId, setDetalheId] = useState<string | null>(null);
   const filtro = { destino: destinoFiltro || undefined, situacao: situacao || undefined, busca: busca.trim() || undefined, pagina };
-  const lista = useCarregar(assistente ? null : JSON.stringify(filtro), () => listarImportacoes(filtro));
+  const lista = useCarregar(JSON.stringify(filtro), () => listarImportacoes(filtro));
 
   return (
     <>
       <LinhaDeAcoes>
-        <Botao rotulo="Nova importação" Icone={FileUp} aoTocar={() => setAssistente(true)} />
+        <Botao rotulo="Nova importação" Icone={FileUp} aoTocar={() => router.push('/treinador/importacao/nova')} />
         <Botao rotulo="Modelos de planilha" tipo="secundario" aoTocar={() => setModelos(true)} />
       </LinhaDeAcoes>
       <Campo rotulo="Buscar" valor={busca} aoMudar={(v) => { setBusca(v); setPagina(0); }} placeholder="Nome do arquivo" />
@@ -89,10 +102,11 @@ export function TelaImportacao() {
       {lista.dados?.itens.length === 0 ? <Vazio titulo="Nenhuma importação" texto="Quando você confirmar uma planilha, ela aparece aqui. O arquivo em si não fica guardado." /> : null}
       {lista.dados && lista.dados.itens.length > 0 ? (
         <Cartao titulo="Histórico" descricao={`${lista.dados.total} ${lista.dados.total === 1 ? 'importação' : 'importações'}.`}>
-          <Tabela rotulo="Importações" linhas={lista.dados.itens} chave={(i) => i.id} aoTocarLinha={(i) => setDetalheId(i.id)} rotuloDaLinha={(i) => `Abrir ${i.nomeArquivo}`} colunas={[
-            { chave: 'arquivo', titulo: 'Arquivo', flex: 2, principal: true, render: (i) => <Texto variante="bloco">{i.nomeArquivo}</Texto> },
-            { chave: 'destino', titulo: 'Destino', flex: 1, render: (i) => <Texto>{DESTINOS.find((d) => d.id === i.destino)?.rotulo ?? i.destino}</Texto> },
+          <Tabela rotulo="Importações" linhas={lista.dados.itens} chave={(i) => i.id} aoTocarLinha={(i) => setDetalheId(i.id)}
+            rotuloDaLinha={(i) => `Abrir a importação de ${rotuloDoDestino(i.destino)} de ${dataHoraParaTela(i.criadoEm)}`} colunas={[
+            { chave: 'destino', titulo: 'Destino', flex: 1.5, principal: true, render: (i) => <Texto variante="bloco">{rotuloDoDestino(i.destino)}</Texto> },
             { chave: 'quando', titulo: 'Quando', flex: 1.2, render: (i) => <Texto numerico>{dataHoraParaTela(i.criadoEm)}</Texto> },
+            { chave: 'arquivo', titulo: 'Arquivo', flex: 0.8, render: (i) => <Texto variante="suave">{i.nomeArquivo}</Texto> },
             { chave: 'situacao', titulo: 'Situação', flex: 1.3, render: (i) => <Selo texto={SITUACAO[i.situacao]?.texto ?? i.situacao} tipo={SITUACAO[i.situacao]?.tipo ?? 'neutro'} /> },
           ]} />
           {lista.dados.total > 30 ? (
@@ -103,10 +117,6 @@ export function TelaImportacao() {
             </View>
           ) : null}
         </Cartao>
-      ) : null}
-      {assistente ? (
-        <Assistente destinos={permitidos} aoFechar={() => setAssistente(false)}
-          aoConcluir={() => { setAssistente(false); lista.recarregar(); avisar('Importação registrada.'); }} />
       ) : null}
       {modelos ? <FolhaModelos destinos={permitidos} aoFechar={() => setModelos(false)} /> : null}
       {detalheId ? <FolhaDetalhe id={detalheId} aoFechar={() => setDetalheId(null)} /> : null}
@@ -129,7 +139,10 @@ function FolhaModelos({ destinos, aoFechar }: { destinos: Destino[]; aoFechar: (
   );
 }
 
-/** Novos, atualizados, ignorados e com erro, cada um no seu número, e o CSV dos erros. */
+/**
+ * Novos, atualizados, ignorados e com erro, cada um no seu número, e o CSV dos erros. Os erros vêm agrupados por campo e
+ * motivo ("E-mail inválido · 62 linhas: …"), em vez de uma linha por erro (reunião de 30/10).
+ */
 function ResultadoDaImportacao({ dados }: { dados: DetalheDeImportacao }) {
   const [baixando, setBaixando] = useState(false);
   const baixar = () => {
@@ -138,20 +151,36 @@ function ResultadoDaImportacao({ dados }: { dados: DetalheDeImportacao }) {
   };
   return (
     <>
-      <Texto>{DESTINOS.find((d) => d.id === dados.destino)?.rotulo} · {dataHoraParaTela(dados.criadoEm)}</Texto>
+      <Texto variante="suave">{`${rotuloDoDestino(dados.destino)} · ${dataHoraParaTela(dados.criadoEm)} · arquivo ${dados.nomeArquivo}`}</Texto>
       <Numeros itens={[
         { rotulo: 'Novos', valor: dados.novos },
         { rotulo: 'Atualizados', valor: dados.atualizados },
         { rotulo: 'Já existiam (ficaram como estavam)', valor: dados.ignorados },
         { rotulo: 'Com erro (ficaram de fora)', valor: dados.comErro, tipo: dados.comErro > 0 ? 'perigo' : undefined },
       ]} />
-      {dados.erros.length > 0 ? <Botao rotulo="Baixar CSV de erros" tipo="secundario" Icone={Download} carregando={baixando} aoTocar={baixar} /> : null}
-      {dados.erros.slice(0, ERROS_NA_TELA).map((e) => {
-        const campo = DESTINOS.find((d) => d.id === dados.destino)?.campos.find((c) => c.id === e.campo)?.rotulo ?? e.campo;
-        return <Texto key={`${e.linha}-${e.campo}`}>{`Linha ${e.linha} · ${campo}: ${e.motivo}`}</Texto>;
-      })}
-      {dados.erros.length > ERROS_NA_TELA ? <Texto variante="suave">{`E mais ${dados.erros.length - ERROS_NA_TELA} no CSV.`}</Texto> : null}
+      {dados.erros.length > 0 ? (
+        <Cartao titulo="Linhas que ficaram de fora" descricao="Corrija na planilha e importe só essas linhas de novo. O CSV traz linha, campo e motivo de cada uma."
+          acoes={<Botao rotulo="Baixar CSV de erros" tipo="secundario" Icone={Download} carregando={baixando} aoTocar={baixar} />}>
+          <ListaDeErros erros={dados.erros} onde={(campo) => DESTINOS.find((d) => d.id === dados.destino)?.campos.find((c) => c.id === campo)?.rotulo ?? campo} />
+        </Cartao>
+      ) : null}
     </>
+  );
+}
+
+/** Os erros agrupados, um item por campo e motivo; até `ERROS_NA_TELA` grupos (o resto está no CSV). */
+function ListaDeErros({ erros, onde }: { erros: readonly { linha: number; campo: string; motivo: string }[]; onde: (campo: string) => string }) {
+  const { cores } = useTema();
+  const grupos = agruparErros(erros);
+  return (
+    <View style={estilos.erros}>
+      {grupos.slice(0, ERROS_NA_TELA).map((g) => (
+        <View key={`${g.campo}-${g.motivo}`} style={[estilos.grupoDeErro, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
+          <Texto>{textoDoGrupoDeErros(g, onde(g.campo))}</Texto>
+        </View>
+      ))}
+      {grupos.length > ERROS_NA_TELA ? <Texto variante="suave">{`E mais ${grupos.length - ERROS_NA_TELA} tipos de erro no CSV.`}</Texto> : null}
+    </View>
   );
 }
 
@@ -159,7 +188,7 @@ function FolhaDetalhe({ id, aoFechar }: { id: string; aoFechar: () => void }) {
   const { dados, erro, carregando, recarregar } = useCarregar(`importacao:${id}`, () => detalheDaImportacao(id));
   const selo = dados ? SITUACAO[dados.situacao] : undefined;
   return (
-    <Folha visivel titulo={dados?.nomeArquivo ?? 'Importação'} aoFechar={aoFechar}
+    <Folha visivel titulo={dados ? `Importação de ${rotuloDoDestino(dados.destino)}` : 'Importação'} aoFechar={aoFechar}
       acaoNoTopo={selo ? <Selo texto={selo.texto} tipo={selo.tipo} /> : undefined}>
       {erro ? <MensagemErro texto={textoDoErroDaApi(erro)} tentarDeNovo={recarregar} /> : null}
       {carregando && !dados ? <Esqueleto cartoes={1} /> : null}
@@ -210,12 +239,22 @@ function Etapas({ etapa, estreita }: { etapa: EtapaDaImportacao; estreita: boole
   );
 }
 
-function Assistente({ destinos, aoFechar, aoConcluir }: { destinos: Destino[]; aoFechar: () => void; aoConcluir: () => void }) {
+/**
+ * Nova importação em tela inteira (reunião de 30/10: na Folha cabiam quatro colunas da planilha e o treinador rolava
+ * para os lados sem ver o todo). As etapas ficam presas no topo e Voltar/Validar na base. O arquivo, o mapeamento e as
+ * correções da tabela ficam só na memória desta tela: sair no meio (menu, seta, voltar do navegador, Cancelar) pergunta
+ * antes, pela guarda de saída dos editores.
+ */
+export function AssistenteDaImportacao() {
   const { pode } = useSessao();
   const { cores } = useTema();
+  const router = useRouter();
+  const { avisar } = useAviso();
+  const { confirmar: confirmarSaida } = useSaidaGuardada();
+  const destinos = destinosPermitidos(pode);
   const podeSensivel = pode('ALUNO_SENSIVEL_ALTERAR');
   const [etapa, setEtapa] = useState<EtapaDaImportacao>(1);
-  const [largura, setLargura] = useState(LARGURA_EDITOR);
+  const [largura, setLargura] = useState<number>(LARGURA_MAXIMA);
   const [destino, setDestino] = useState<Destino | null>(destinos.length === 1 ? destinos[0] : null);
   const [arquivo, setArquivo] = useState<ArquivoEscolhido | null>(null);
   const [colunas, setColunas] = useState<ColunasDaImportacao | null>(null);
@@ -357,10 +396,18 @@ function Assistente({ destinos, aoFechar, aoConcluir }: { destinos: Destino[]; a
     if (etapa > 1 && etapa < 5) setEtapa((etapa - 1) as EtapaDaImportacao);
   };
 
+  // Há o que perder a partir do destino ou do arquivo escolhido, até a importação ser confirmada.
+  useGuardaDeSaida(etapa < 5 && (!!arquivo || (destino !== null && destinos.length > 1)));
+  const aoFechar = () => confirmarSaida(() => router.replace('/treinador/importacao'));
+  const aoConcluir = () => {
+    avisar('Importação registrada.');
+    router.replace('/treinador/importacao');
+  };
+
   const motivo = motivoParaNaoContinuar(etapa, { destino, arquivo, lendo: ocupado, temColunas: !!colunas, chave, mapa });
   const resumo = previa ? resumoDaValidacao(previa) : null;
   const titulo = destino ? `Nova importação · ${destino.rotulo}` : 'Nova importação';
-  const fechar = etapa === 5 ? aoConcluir : aoFechar;
+  const tituloDeDado = colunas ? avisoDeTituloDeDado(colunasComTituloDeDado(colunas.colunas)) : null;
 
   const rodape = etapa === 5 ? (
     <Botao rotulo="Concluir" aoTocar={aoConcluir} />
@@ -377,9 +424,11 @@ function Assistente({ destinos, aoFechar, aoConcluir }: { destinos: Destino[]; a
   );
 
   return (
-    <Folha visivel titulo={titulo} aoFechar={fechar} largura={LARGURA_EDITOR} rodape={rodape}>
+    <TelaDoEditor largura={LARGURA_MAXIMA} rodape={rodape}
+      cabecalho={<Cabecalho titulo={titulo} subtitulo="Nada é gravado antes de Confirmar importação. O arquivo não fica guardado."
+        trilha={[{ rotulo: 'Importação', href: '/treinador/importacao' }]} />}
+      barra={<Etapas etapa={etapa} estreita={estreita} />}>
       <View onLayout={(e) => setLargura(e.nativeEvent.layout.width)} style={estilos.coluna}>
-        <Etapas etapa={etapa} estreita={estreita} />
         {erro ? <MensagemErro texto={textoDoErroDaApi(erro)} /> : null}
 
         {etapa === 1 ? (
@@ -412,6 +461,7 @@ function Assistente({ destinos, aoFechar, aoConcluir }: { destinos: Destino[]; a
                   <Texto variante="pequeno">{`A planilha tem ${colunas.abas.length} abas; escolha a que tem os dados.`}</Texto>
                 </View>
               ) : null}
+              {tituloDeDado ? <Alerta tom="atencao" texto={tituloDeDado} /> : null}
               <View style={estilos.campo}>
                 <EscolhaEmFolha rotulo="Linha do cabeçalho" valor={linhaDoCabecalho} opcoes={opcoesDaLinhaDoCabecalho()}
                   aoMudar={(v) => { setLinhaDoCabecalho(v); lerColunas(aba, v); }} />
@@ -434,6 +484,7 @@ function Assistente({ destinos, aoFechar, aoConcluir }: { destinos: Destino[]; a
 
         {etapa === 3 && destino && colunas ? (
           <Mapeamento destino={destino} colunas={colunas} linhaDoCabecalho={linhaDoCabecalho} chave={chave} mapa={mapa} estreita={estreita} podeSensivel={podeSensivel}
+            larguraDisponivel={largura} tituloDeDado={tituloDeDado}
             aoMudar={(m) => { setMapa(m); setPrevia(null); }} ajustes={ajustes} aoAjustar={mudarAjustes}
             ultimaValidacao={ultimaValidacao} soComErro={soComErro} aoMudarSoComErro={setSoComErro} />
         ) : null}
@@ -452,11 +503,9 @@ function Assistente({ destinos, aoFechar, aoConcluir }: { destinos: Destino[]; a
                 {previa.comErro > 0 ? (
                   <Cartao titulo="Linhas com erro" descricao="Ficam de fora se você confirmar agora. Ajuste os valores diretamente na tabela e valide de novo."
                     acoes={<Botao rotulo="Corrigir na tabela" tipo="secundario" aoTocar={() => { setSoComErro(true); setEtapa(3); }} />}>
-                    {previa.erros.slice(0, ERROS_NA_TELA).map((e) => (
-                      <Texto key={`${e.linha}-${e.campo}`}>{textoDoErro(e, destino, colunas.colunas, mapa)}</Texto>
-                    ))}
-                    {previa.erros.length > ERROS_NA_TELA || previa.errosAlem > 0
-                      ? <Texto variante="suave">{`E mais ${previa.erros.length - Math.min(previa.erros.length, ERROS_NA_TELA) + previa.errosAlem}.`}</Texto>
+                    <ListaDeErros erros={previa.erros} onde={(campo) => ondeDoErro(campo, destino, colunas.colunas, mapa)} />
+                    {previa.errosAlem > 0
+                      ? <Texto variante="suave">{`E mais ${previa.errosAlem} ${previa.errosAlem === 1 ? 'erro' : 'erros'} além dos listados.`}</Texto>
                       : null}
                   </Cartao>
                 ) : null}
@@ -468,7 +517,7 @@ function Assistente({ destinos, aoFechar, aoConcluir }: { destinos: Destino[]; a
 
         {etapa === 5 && resultado ? <ResultadoDaImportacao dados={resultado} /> : null}
       </View>
-    </Folha>
+    </TelaDoEditor>
   );
 }
 
@@ -508,14 +557,15 @@ function CartoesDeDestino({ destinos, valor, aoMudar }: { destinos: Destino[]; v
  * páginas de 50 linhas, células editáveis e a lixeira por linha (referência de 30/10). O que se corrige ou tira fica só
  * na memória da tela e vai junto na validação; a célula que veio cortada não se edita.
  */
-function Mapeamento({ destino, colunas, linhaDoCabecalho, chave, mapa, estreita, podeSensivel, aoMudar, ajustes, aoAjustar, ultimaValidacao, soComErro, aoMudarSoComErro }: {
+function Mapeamento({ destino, colunas, linhaDoCabecalho, chave, mapa, estreita, podeSensivel, larguraDisponivel, tituloDeDado, aoMudar, ajustes, aoAjustar, ultimaValidacao, soComErro, aoMudarSoComErro }: {
   destino: Destino; colunas: ColunasDaImportacao; linhaDoCabecalho: number; chave: string; mapa: MapaDaImportacao;
-  estreita: boolean; podeSensivel: boolean; aoMudar: (mapa: MapaDaImportacao) => void;
+  estreita: boolean; podeSensivel: boolean; larguraDisponivel: number; tituloDeDado: string | null; aoMudar: (mapa: MapaDaImportacao) => void;
   ajustes: AjustesDaTabela; aoAjustar: (ajustes: AjustesDaTabela) => void;
   ultimaValidacao: { erros: PreviaDeImportacao['erros']; mapa: MapaDaImportacao } | null;
   soComErro: boolean; aoMudarSoComErro: (v: boolean) => void;
 }) {
   const { cores } = useTema();
+  const { height: alturaDaJanela } = useWindowDimensions();
   const [busca, setBusca] = useState('');
   const [pagina, setPagina] = useState(0);
   const campos = camposPermitidos(destino, podeSensivel);
@@ -533,13 +583,18 @@ function Mapeamento({ destino, colunas, linhaDoCabecalho, chave, mapa, estreita,
     const posicao = numeros ? numeros.indexOf(linha) : linha - primeiraLinhaDeDados(linhaDoCabecalho);
     return colunas.amostra[posicao]?.[coluna] ?? '';
   };
-  const largura = estreita ? 200 : 230;
+  // Na tela inteira as colunas dividem a largura (entre 200 e 320 px); com muitas colunas, a tabela rola para o lado.
+  const livre = larguraDisponivel - LARGURA_DO_NUMERO - LARGURA_DA_ACAO - 4;
+  const largura = estreita ? 200 : Math.max(200, Math.min(320, Math.floor(livre / Math.max(1, colunas.colunas.length))));
+  // O cabeçalho (o campo de cada coluna) fica parado e as linhas rolam embaixo dele, numa altura que cabe na janela.
+  const alturaDasLinhas = Math.max(280, alturaDaJanela - 360);
 
   return (
     <>
       {faltando.length > 0 ? (
         <Alerta tom="atencao" texto={`Falta escolher a coluna de: ${faltando.join(', ')}.`} />
       ) : null}
+      {tituloDeDado ? <Alerta tom="atencao" texto={tituloDeDado} /> : null}
       <Texto variante="suave">
         {colunas.amostra.length > 0
           ? 'Em cada coluna, escolha o campo do sistema; o que ficar em “Não importar” não entra. Dá para corrigir um valor direto na tabela ou tirar uma linha: o arquivo não muda e a correção vai junto na validação.'
@@ -584,6 +639,7 @@ function Mapeamento({ destino, colunas, linhaDoCabecalho, chave, mapa, estreita,
             ))}
             <View style={estilos.celulaAcao} />
           </View>
+          <ScrollView style={{ maxHeight: alturaDasLinhas }} nestedScrollEnabled>
           {pag.linhas.length === 0 && colunas.amostra.length > 0 ? (
             <Texto variante="suave" style={estilos.semLinhas}>Nenhuma linha com essa busca.</Texto>
           ) : null}
@@ -612,6 +668,7 @@ function Mapeamento({ destino, colunas, linhaDoCabecalho, chave, mapa, estreita,
               </View>
             );
           })}
+          </ScrollView>
         </View>
       </ScrollView>
       {pag.total > 1 ? (
@@ -744,14 +801,16 @@ const estilos = StyleSheet.create({
   rotuloDoDestino: { fontFamily: fontes.semi, textAlign: 'center' },
   busca: { flexGrow: 1, flexBasis: 260 },
   resumoDosAjustes: { borderWidth: 1, borderRadius: RAIO, paddingHorizontal: espaco(1.5), paddingVertical: espaco(0.5) },
-  celulaAcao: { width: 56, alignItems: 'center', justifyContent: 'center' },
+  celulaAcao: { width: LARGURA_DA_ACAO, alignItems: 'center', justifyContent: 'center' },
   lixeira: { width: ALVO_TOQUE, height: ALVO_TOQUE, alignItems: 'center', justifyContent: 'center', borderRadius: RAIO },
   entrada: { minHeight: ALVO_TOQUE, borderRadius: RAIO, paddingHorizontal: espaco(1), fontFamily: fontes.normal, fontSize: 15 },
   linhaPequena: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5), flexWrap: 'wrap' },
   link: { textDecorationLine: 'underline', fontFamily: fontes.semi },
   semLinhas: { padding: espaco(2) },
   linhaDaTabela: { flexDirection: 'row', borderBottomWidth: 1 },
-  celulaLinha: { width: 72, padding: espaco(1), justifyContent: 'center', gap: 2 },
+  celulaLinha: { width: LARGURA_DO_NUMERO, padding: espaco(1), justifyContent: 'center', gap: 2 },
+  erros: { gap: espaco(1) },
+  grupoDeErro: { borderWidth: 1, borderRadius: RAIO, paddingHorizontal: espaco(1.5), paddingVertical: espaco(1) },
   celulaCabecalho: { padding: espaco(1), gap: espaco(0.5) },
   celula: { padding: espaco(0.75), justifyContent: 'center', gap: 2 },
 });

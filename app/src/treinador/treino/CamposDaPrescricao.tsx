@@ -71,8 +71,23 @@ export function EscolhaDeCarga({ carga, config, papel, aoMudarModo, erro, rotulo
 }) {
   const modo = carga?.modo ?? 'NENHUMA';
   const ajuda = ajudaPropria ?? ajudaDaCarga(modo, config);
+  // As duas formas mais usadas para o papel (e a gravada) ficam à vista; as outras, atrás de "Outras formas de carga",
+  // recolhidas (reunião de 30/10). A divisão usa a forma gravada quando o campo abriu: escolher uma das "outras" não a
+  // faz pular para a linha de cima enquanto a pessoa ainda está olhando. Nenhuma forma válida some.
+  const [modoAoAbrir] = useState(modo);
+  const { principais, outras } = modosDeCarga(config, papel, modoAoAbrir);
+  const [verOutras, setVerOutras] = useState(false);
+  const daOutras = outras.some((o) => o.valor === modo);
+  const abertas = verOutras || daOutras;
+  const escolher = (m: ModoDeCarga | null) => { if (m) aoMudarModo(m); };
   return <View style={estilos.bloco}>
-    <Escolha rotulo={rotuloVisivel ? rotulo : undefined} descricao={rotulo} opcoes={modosDeCarga(config, papel)} valor={modo} aoMudar={aoMudarModo} />
+    <Escolha<ModoDeCarga | null> rotulo={rotuloVisivel ? rotulo : undefined} descricao={rotulo} opcoes={principais} valor={daOutras ? null : modo} aoMudar={escolher} />
+    {/* Com a forma gravada entre as "outras", elas ficam abertas (não se esconde o que está escolhido): só o título. */}
+    {outras.length > 0 && daOutras ? <Texto variante="rotulo">Outras formas de carga</Texto> : null}
+    {outras.length > 0 && !daOutras ? <BotaoDeAbrir texto="Outras formas de carga" rotuloAcessivel={rotulo === 'Carga' ? undefined : `Outras formas de carga (${rotulo.toLowerCase()})`}
+      aberto={abertas} aoAlternar={() => setVerOutras(!abertas)} /> : null}
+    {abertas && outras.length > 0 ? <Escolha<ModoDeCarga | null> descricao={`${rotulo}: outras formas de carga`} opcoes={outras} valor={daOutras ? modo : null}
+      aoMudar={(m) => { setVerOutras(true); escolher(m); }} /> : null}
     {ajuda ? <Texto variante="pequeno">{ajuda}</Texto> : null}
     <ErroDoCampo mensagem={erro} />
   </View>;

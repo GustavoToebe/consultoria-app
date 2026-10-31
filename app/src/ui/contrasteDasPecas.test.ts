@@ -56,3 +56,62 @@ describe.each(VARIANTES)('peças comuns no tema %s', (_nome, cores) => {
     expect(contraste(cores.neutro, tingido(cores.neutro, cores.superficie))).toBeGreaterThanOrEqual(4.5);
   });
 });
+
+/** Cor com alfa sobre um fundo opaco (o que o aparelho pinta), para conferir o contraste de um fundo translúcido. */
+function sobreposta(cor: string, alfa: number, base: string): string {
+  const a = parseInt(cor.slice(1), 16);
+  const b = parseInt(base.slice(1), 16);
+  const canal = (d: number) => Math.round(((b >> d) & 255) * (1 - alfa) + ((a >> d) & 255) * alfa);
+  return `#${[16, 8, 0].map((d) => canal(d).toString(16).padStart(2, '0')).join('')}`;
+}
+
+/**
+ * Telas do aluno revistas na reunião de 30/10 (A8 a A12): série do exercício, dieta, lista de compras e variação do peso.
+ * Achado: a lista de compras esmaecia o item comprado (opacidade 0,6), o que deixava o texto a 2,8–4,2:1; agora o item
+ * fica com a cor cheia e ganha o selo "Comprado". Os pares abaixo são os que essas telas usam.
+ */
+describe.each(VARIANTES)('telas do aluno (reunião de 30/10) no tema %s', (_nome, cores) => {
+  /** Fundo da série feita: `${sucesso}29` (alfa 0x29) sobre `superficie2` (`CartaoSerie`). */
+  const serieFeita = sobreposta(cores.sucesso, 0x29 / 255, cores.superficie2);
+
+  it('série: texto, texto suave e selos sobre a série a fazer (`superficie2`) e sobre a feita (verde translúcido)', () => {
+    for (const fundo of [cores.superficie2, serieFeita]) {
+      expect(contraste(cores.texto, fundo)).toBeGreaterThanOrEqual(4.5);
+      // "Último registro", "Sugerido: … · origem", "Observação desta série", rótulos "Hoje".
+      expect(contraste(cores.textoSuave, fundo)).toBeGreaterThanOrEqual(4.5);
+    }
+    // "Ainda não registrado" (neutro) só na série a fazer; "Recorde" (sucesso) nas duas.
+    expect(contraste(cores.neutro, cores.superficie2)).toBeGreaterThanOrEqual(4.5);
+    expect(contraste(cores.sucesso, cores.superficie2)).toBeGreaterThanOrEqual(4.5);
+    expect(contraste(cores.sucesso, serieFeita)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('caixa da Meta e caixa da escolha da dieta: `texto` e `textoSuave` sobre `superficie3`, filete `bordaCampo` ≥ 3:1', () => {
+    expect(contraste(cores.texto, cores.superficie3)).toBeGreaterThanOrEqual(4.5);
+    expect(contraste(cores.textoSuave, cores.superficie3)).toBeGreaterThanOrEqual(4.5);
+    expect(contraste(cores.bordaCampo, cores.superficie3)).toBeGreaterThanOrEqual(3);
+    expect(contraste(cores.bordaCampo, cores.superficie)).toBeGreaterThanOrEqual(3);
+  });
+
+  it('dieta: linhas rotuladas (Dose, Horário, Observação) e total da refeição sobre o cartão e o item', () => {
+    for (const fundo of [cores.superficie, cores.superficie2]) {
+      expect(contraste(cores.texto, fundo)).toBeGreaterThanOrEqual(4.5);
+      expect(contraste(cores.textoSuave, fundo)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it('lista de compras: item comprado com a cor cheia e o selo "Comprado" (sucesso) e de origem (neutro) sobre o item', () => {
+    for (const fundo of [cores.superficie2, cores.superficie3]) {
+      expect(contraste(cores.texto, fundo)).toBeGreaterThanOrEqual(4.5);
+      expect(contraste(cores.sucesso, fundo)).toBeGreaterThanOrEqual(4.5);
+      expect(contraste(cores.neutro, fundo)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it('variação do peso: seta e número em `texto`, "desde 12/10" e a legenda em `textoSuave`', () => {
+    for (const fundo of [cores.superficie, cores.superficie2]) {
+      expect(contraste(cores.texto, fundo)).toBeGreaterThanOrEqual(4.5);
+      expect(contraste(cores.textoSuave, fundo)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+});

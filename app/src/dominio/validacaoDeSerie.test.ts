@@ -136,7 +136,7 @@ describe('série', () => {
     expect(problemasDaSerie(serie('a', { tipo: null }), false)).toEqual({ tipo: 'Série sem tipo.' });
     expect(problemasDaSerie(serie('a', { tipo: '  ' }), false).tipo).toBe('Série sem tipo.');
     expect(problemasDaSerie(serie('a', { descansoSegundos: 3601 }), false)).toEqual({ descansoSegundos: 'Descanso precisa ficar entre 0 e 3600 segundos.' });
-    expect(problemasDaSerie(serie('a', { alvoExtra: 'x'.repeat(121) }), false)).toEqual({ alvoExtra: 'Alvo extra com no máximo 120 caracteres.' });
+    expect(problemasDaSerie(serie('a', { alvoExtra: 'x'.repeat(121) }), false)).toEqual({ alvoExtra: 'Observação desta série com no máximo 120 caracteres.' });
   });
 
   it('repetições: juntas ou nenhuma, de 0 a 500, máximo não menor que o mínimo', () => {

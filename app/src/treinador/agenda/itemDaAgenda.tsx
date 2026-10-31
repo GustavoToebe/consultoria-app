@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 
 import type { CorDaAgenda, SituacaoCompromisso } from '../../api/agendaTipos';
 import type { ItemDoCalendario } from '../../dominio/agendaCalendario';
+import { fundoDoItemDaAgenda, LARGURA_DA_FAIXA, statusNoRotuloDoCompromisso } from '../../dominio/agendaLegivel';
 import { nomesPorExtenso, seloDaSituacao, seloDoCompromisso, situacaoDoCompromisso } from '../../dominio/agendaPresencial';
 import { caminhoAtualizacaoTreinador, statusAtualizacaoTreinador } from '../../dominio/atualizacao';
 import { dataSemAnoCorrente } from '../../dominio/datasRelativas';
@@ -26,15 +27,17 @@ export function horarioDoItem(item: ItemDoCalendario): string {
 
 /**
  * Nome do item para o leitor de tela. O do compromisso é o mesmo da lista de antes ("Abrir compromisso de Ana, 15:00"), em
- * qualquer visão; o evento diz o título e a hora; a atualização, o aluno, o dia e o selo quando ele diz algo a mais.
+ * qualquer visão, com o status no fim quando não é "todos agendados" (", cancelado", ", realizado", ", 1 faltou"): no bloco
+ * curto o status é só ícone e o nome é quem o diz. O evento diz o título e a hora; a atualização, o aluno, o dia e o selo
+ * quando ele diz algo a mais.
  */
 export function rotuloDoItem(item: ItemDoCalendario, hoje: string): string {
   const f = item.fonte;
   if (f.origem === 'COMPROMISSO') {
     const c = f.compromisso;
-    return `Abrir compromisso de ${nomesPorExtenso(c)}, ${c.hora}${item.cancelado ? ', cancelado' : ''}`;
+    return `Abrir compromisso de ${nomesPorExtenso(c)}, ${c.hora}${statusNoRotuloDoCompromisso(c)}`;
   }
-  if (f.origem === 'EVENTO') return `Abrir evento ${item.titulo}, ${item.diaInteiro ? 'dia inteiro' : f.ocorrencia.hora ?? ''}`;
+  if (f.origem === 'EVENTO') return `Abrir evento ${item.titulo}, ${item.diaInteiro ? 'dia inteiro' : f.ocorrencia.hora ?? ''}${item.cancelado ? ', cancelado' : ''}`;
   const selo = statusAtualizacaoTreinador(f.atualizacao, hoje);
   return `Abrir atualização de ${item.titulo}, ${dataSemAnoCorrente(item.data, hoje)}${selo.tipo === 'neutro' ? '' : `, ${selo.curto}`}`;
 }
@@ -74,6 +77,18 @@ export function seloDoItem(item: ItemDoCalendario, hoje: string): SeloDaAgenda |
 }
 
 /**
+ * O status curto do item na grade (bloco e dia inteiro): a palavra da situação do compromisso ("Cancelado", "Realizado";
+ * o resumo por aluno, que pode ser longo, fica na lista, no nome acessível e na folha), o selo da atualização quando não é
+ * neutro e "Cancelado" em qualquer item cancelado. Evento sem status: `null`.
+ */
+export function seloCurtoDoItem(item: ItemDoCalendario, hoje: string): SeloDaAgenda | null {
+  const f = item.fonte;
+  if (f.origem === 'COMPROMISSO') return seloDoParticipante(situacaoDoCompromisso(f.compromisso));
+  if (item.cancelado) return seloDoParticipante('CANCELADO');
+  return seloDoItem(item, hoje);
+}
+
+/**
  * Props de toque do item: a atualização vira link (na web, `<a href>` que abre em nova guia) para a ficha, na fila das
  * próximas; os outros chamam `aoAbrir` (folha).
  */
@@ -92,14 +107,43 @@ export function useCorDaAgenda() {
   return (cor: CorDaAgenda | string) => corDaAgenda(cor, modo === 'ESCURO');
 }
 
-/** Marcador de cor da agenda: ponto (lista, mês) ou barra (grade). Decorativo: a agenda vai no texto ou no rótulo. */
-export function MarcadorDaAgenda({ cor, forma = 'ponto' }: { cor: CorDaAgenda | string; forma?: 'ponto' | 'barra' }) {
+/**
+ * Fundo do item na grade (bloco e dia inteiro): a superfície do item tingida com a cor da agenda, na maior proporção em
+ * que o texto (`texto`) fica ≥ 4,5:1 e a faixa e os ícones de status ≥ 3:1 (`dominio/agendaLegivel`, conferido em
+ * `contrasteDaAgenda.test.ts` com os mesmos argumentos). O cancelado fica sem tinta: o selo "Cancelado" e o riscado dizem
+ * o status, e nada é esmaecido (a opacidade baixava o contraste do texto e do selo).
+ */
+export function useFundoDoItem() {
+  const { cores } = useTema();
+  return (cor: string, aceso: boolean, cancelado: boolean) => {
+    const base = aceso ? cores.superficie3 : cores.superficie2;
+    if (cancelado) return base;
+    return fundoDoItemDaAgenda({ cor, base, textos: [cores.texto], graficos: [cores.sucesso, cores.atencao, cores.perigo, cores.neutro] });
+  };
+}
+
+/** O status só em ícone (bloco curto ou coluna estreita): decorativo, porque o nome acessível do item já o diz. */
+export function IconeDoStatus({ selo }: { selo: SeloDaAgenda }) {
+  const { cores } = useTema();
+  const { Icone } = selo;
+  return <View aria-hidden importantForAccessibility="no-hide-descendants" style={estilos.icone}>
+    <Icone size={14} color={cores[selo.tipo]} strokeWidth={2.5} />
+  </View>;
+}
+
+/**
+ * Marcador de cor da agenda: ponto (mês, folha do evento) ou faixa (a linha da lista, com a largura da faixa da grade).
+ * Decorativo: a agenda vai no texto ou no rótulo.
+ */
+export function MarcadorDaAgenda({ cor, forma = 'ponto' }: { cor: CorDaAgenda | string; forma?: 'ponto' | 'faixa' }) {
   const corDe = useCorDaAgenda();
   return <View aria-hidden importantForAccessibility="no-hide-descendants"
-    style={[forma === 'ponto' ? estilos.ponto : estilos.barra, { backgroundColor: corDe(cor) }]} />;
+    style={[forma === 'ponto' ? estilos.ponto : estilos.faixa, { backgroundColor: corDe(cor) }]} />;
 }
 
 const estilos = StyleSheet.create({
   ponto: { width: 10, height: 10, borderRadius: 5 },
-  barra: { width: 4, alignSelf: 'stretch', borderRadius: 2 },
+  // Altura fixa: a linha da lista centraliza o `inicio`, então `stretch` deixaria a faixa sem altura.
+  faixa: { width: LARGURA_DA_FAIXA, height: 40, borderRadius: 4 },
+  icone: { flexShrink: 0 },
 });

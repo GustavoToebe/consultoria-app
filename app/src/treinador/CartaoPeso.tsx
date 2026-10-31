@@ -7,10 +7,12 @@ import { excluirPeso, pesosDoAluno, registrarPeso } from '../api/rotas';
 import type { RegistroPeso } from '../api/tipos';
 import { dataCurta, dataDaTela, dataParaTela, hojeIso, numeroParaTela } from '../dominio/formatos';
 import { avisoDoGrafico } from '../dominio/progresso';
+import { variacoesDoPeso } from '../dominio/variacaoDoPeso';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes } from '../tema/tokens';
 import { SeloDaFase, useCicloNoPeso } from './ciclo/CicloNaFicha';
+import { LegendaDaVariacao, VariacaoDoPeso } from './VariacaoDoPeso';
 import { Abas } from '../ui/Abas';
 import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
@@ -26,13 +28,6 @@ import { PainelConfirmacao } from '../ui/PainelConfirmacao';
 import { Tabela } from '../ui/Tabela';
 import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
-
-/** Variação com sinal ("+0,5 kg", "−1 kg"). Só a diferença para o registro anterior; nenhuma avaliação. */
-function variacao(v: number | null): string {
-  if (v === null) return '—';
-  if (v === 0) return '0 kg';
-  return `${v > 0 ? '+' : '−'}${numeroParaTela(Math.abs(v))} kg`;
-}
 
 const LINHAS_INICIAIS = 12;
 
@@ -89,6 +84,9 @@ export function CartaoPeso({ alunoId }: { alunoId: string }) {
   const comGrafico = preferencias.graficos && visao === 'grafico' && !!dados && dados.length > 1;
   const comTabela = !comGrafico;
   const visiveis = todos ? lista : lista.slice(0, LINHAS_INICIAIS);
+  // A11: a variação diz contra quando ("desde 12/10"), a partir da lista inteira recebida, não só das linhas visíveis.
+  const variacoes = variacoesDoPeso(dados ?? []);
+  const algumaVariacao = visiveis.some((p) => variacoes[p.id]);
 
   return (
     <Cartao titulo="Peso" descricao="Evolução do peso ao longo do tempo."
@@ -125,7 +123,7 @@ export function CartaoPeso({ alunoId }: { alunoId: string }) {
             { chave: 'peso', titulo: 'Peso', render: (p) => <Texto numerico style={estilos.negrito}>{numeroParaTela(p.pesoKg)} kg</Texto> },
             {
               chave: 'variacao', titulo: 'Variação',
-              render: (p) => <Texto numerico style={[estilos.negrito, { color: p.variacao === null || p.variacao === 0 ? cores.textoSuave : cores.texto }]}>{variacao(p.variacao)}</Texto>,
+              render: (p) => <VariacaoDoPeso variacao={variacoes[p.id] ?? null} />,
             },
             { chave: 'obs', titulo: 'Obs', flex: 1.4, render: (p) => <Texto variante="suave" numberOfLines={2}>{p.observacao || '—'}</Texto> },
             {
@@ -135,6 +133,7 @@ export function CartaoPeso({ alunoId }: { alunoId: string }) {
           ]}
         />
       ) : null}
+      {comTabela && algumaVariacao ? <LegendaDaVariacao /> : null}
       {comTabela && lista.length > LINHAS_INICIAIS ? (
         <Botao rotulo={todos ? 'Mostrar só os últimos' : `Mostrar todos (${lista.length})`} tipo="fantasma" aoTocar={() => setTodos((v) => !v)} />
       ) : null}

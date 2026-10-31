@@ -2,9 +2,9 @@ import { RotateCcw, Timer } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import type { Configuracao, EtapaRegistrada } from '../api/tipos';
+import type { Configuracao, EtapaRegistrada, Serie } from '../api/tipos';
 import { textoPausa } from '../dominio/agrupamento';
-import { modoComReferenciaExterna, sugestaoSobreReferencia, type SerieCalculada } from '../dominio/cargas';
+import { modoComReferenciaExterna, sugestaoSobreReferencia, textoDaOrigem, type SerieCalculada } from '../dominio/cargas';
 import { rotuloDescanso } from '../dominio/descanso';
 import {
   aplicarAcao, etapasDaSerie, origemDaPausa, pausaDaAcao, proximaPendente, resumoDaExecucao, sugestaoDaEtapa, textoDaCargaDaEtapa, textoDaReferenciaCongelada,
@@ -14,6 +14,7 @@ import { numeroParaTela } from '../dominio/formatos';
 import { nomeDaSerieDeTrabalho } from '../dominio/metodologia';
 import { estruturaDaSerie } from '../dominio/resumoDaSerie';
 import { temEtapaEmPercentual } from '../dominio/validacaoDeSerie';
+import { acompanharPendente, digitarPendente, valorExibido, type ValorPendente } from '../dominio/valorPendente';
 import type { RegistroLocal } from '../offline/repositorioLocal';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../tema/tokens';
@@ -22,8 +23,7 @@ import { BotaoMarcar } from '../ui/BotaoMarcar';
 import { CampoNumericoGrande } from '../ui/Campos';
 import { Texto } from '../ui/Texto';
 import type { DadosSerie } from './ExercicioAluno';
-import { LinhaDoAnterior } from './LinhaDoAnterior';
-import { SeloComExplicacao } from './SeloComExplicacao';
+import { CabecalhoDaSerie, LinhaDaSugestao, LinhaDoUltimoRegistro, MetaDaSerie, RotuloDeHoje } from './PartesDaSerie';
 import { selosDaSerie } from './serieDoAluno';
 
 interface Props {
@@ -32,6 +32,9 @@ interface Props {
   data: string;
   semCarga: boolean;
   metodologia?: Configuracao;
+  /** Nome da série de trabalho da configuração ("WS") e as séries do exercício: só para a frase de onde saiu a carga. */
+  tipoTrabalho?: string;
+  seriesDoExercicio?: readonly Serie[];
   /** Passo do arredondamento (sugestão sobre a referência congelada). */
   arredondamentoKg: number;
   /** O descanso da série vale (falso no grupo cujo descanso é depois da volta). */
@@ -81,6 +84,8 @@ export function CartaoSerieComEtapas(p: Props) {
     ? textoDaReferenciaCongelada(registro.referenciaCarga, registro.referenciaOrigem)
     : comPercentual ? textoDaReferenciaCongelada(p.calculada.referencia?.valor, p.calculada.referencia?.origem) : null;
   const semDetalhe = !!registro && !registro.etapas && (registro.repeticoes != null || registro.carga != null || registro.concluida);
+  // De onde saiu a carga sugerida (A9). Com a referência já congelada na primeira etapa, a linha dela já diz a origem.
+  const origem = p.semCarga || registro?.referenciaCarga != null ? null : textoDaOrigem(p.calculada, { tipoTrabalho: p.tipoTrabalho, metodologia: p.metodologia, series: p.seriesDoExercicio });
 
   const agir = (acao: AcaoNaEtapa) => {
     const gravacao = aplicarAcao(registro, acao, quantas, p.calculada.referencia);
@@ -104,16 +109,13 @@ export function CartaoSerieComEtapas(p: Props) {
 
   return (
     <View style={[estilos.serie, { borderColor: feita ? cores.sucesso : cores.borda, backgroundColor: feita ? `${cores.sucesso}29` : cores.superficie2 }]}>
-      <View style={estilos.cabeca}>
-        <Texto style={estilos.nome}>Série {p.numero}</Texto>
-        {selos.tipo ? <SeloComExplicacao nome={selos.tipo.nome} explicacao={selos.tipo.explicacao} rotuloAcessivel={`Explicação de ${selos.tipo.nome}, série ${p.numero}`} /> : null}
-        {selos.tecnica ? <SeloComExplicacao nome={selos.tecnica.nome} explicacao={selos.tecnica.explicacao} rotuloAcessivel={`Explicação de ${selos.tecnica.nome}, série ${p.numero}`} /> : null}
-      </View>
-      <Texto numerico variante="pequeno">{estruturaDaSerie(s, p.metodologia)}</Texto>
-      {p.anterior != null ? <LinhaDoAnterior texto={p.anterior} numero={p.numero} /> : null}
-      {!p.semCarga && !comPercentual && sugestaoDaSerie != null ? <Texto numerico variante="pequeno">Carga sugerida: {numeroParaTela(sugestaoDaSerie)} kg</Texto> : null}
+      <CabecalhoDaSerie numero={p.numero} tipo={selos.tipo} tecnica={selos.tecnica} naoRegistrada={!feita && etapas.length === 0 && !semDetalhe} />
+      <MetaDaSerie texto={estruturaDaSerie(s, p.metodologia)} />
+      {p.anterior != null ? <LinhaDoUltimoRegistro texto={p.anterior} numero={p.numero} /> : null}
+      {!p.semCarga && !comPercentual && sugestaoDaSerie != null && !feita ? <LinhaDaSugestao sugestao={sugestaoDaSerie} origem={origem} /> : null}
       {!p.semCarga && referenciaCongelada ? <Texto numerico variante="pequeno">{referenciaCongelada}</Texto> : null}
       {semDetalhe ? <Texto numerico variante="pequeno">Registro sem detalhe por {cluster ? 'bloco' : 'etapa'}: {registro!.repeticoes ?? '—'} reps{registro!.carga != null ? ` · ${numeroParaTela(registro!.carga)} kg` : ''}.</Texto> : null}
+      <RotuloDeHoje />
 
       {previstas.map((prevista, i) => (
         <LinhaDaEtapa key={prevista.posicao} prevista={prevista} numeroDaSerie={p.numero} registrada={etapas.find((e) => e.posicao === prevista.posicao)}
@@ -165,8 +167,23 @@ function LinhaDaEtapa({ prevista, numeroDaSerie, registrada, atual, sugestao, ca
   const invalido = repsInvalidas || cargaInvalida;
   const feita = registrada?.situacao === 'FEITA';
   const naoRealizada = registrada?.situacao === 'NAO_REALIZADA';
-  const reps = feita ? registrada!.repeticoes : repsDigitadas;
-  const carga = feita ? registrada!.carga : cargaDigitada !== undefined ? cargaDigitada : sugestao;
+  // Etapa já feita: a edição só volta gravada depois (B1, 30/10); a caixa mostra o digitado até lá (`dominio/valorPendente`).
+  const [pendenteDasReps, setPendenteDasReps] = useState<ValorPendente<number | null | undefined> | undefined>(undefined);
+  const [pendenteDaCarga, setPendenteDaCarga] = useState<ValorPendente<number | null | undefined> | undefined>(undefined);
+  const repsGravadas = feita ? registrada!.repeticoes : undefined;
+  const cargaGravada = feita ? registrada!.carga : undefined;
+  const repsAcompanhadas = acompanharPendente(pendenteDasReps, repsGravadas);
+  const cargaAcompanhada = acompanharPendente(pendenteDaCarga, cargaGravada);
+  if (repsAcompanhadas !== pendenteDasReps) setPendenteDasReps(repsAcompanhadas);
+  if (cargaAcompanhada !== pendenteDaCarga) setPendenteDaCarga(cargaAcompanhada);
+  const reps = feita ? (valorExibido(repsAcompanhadas, repsGravadas) ?? null) : repsDigitadas;
+  const carga = feita ? (valorExibido(cargaAcompanhada, cargaGravada) ?? null) : cargaDigitada !== undefined ? cargaDigitada : sugestao;
+  const editar = (parcial: { repeticoes?: number | null; carga?: number | null }) => {
+    if ('repeticoes' in parcial) setPendenteDasReps(digitarPendente(repsAcompanhadas, parcial.repeticoes ?? null, repsGravadas));
+    if ('carga' in parcial) setPendenteDaCarga(digitarPendente(cargaAcompanhada, parcial.carga ?? null, cargaGravada));
+    // Vão os dois valores que a caixa mostra: o outro campo pode ter uma tecla ainda não gravada.
+    agir({ tipo: 'EDITAR', posicao, repeticoes: reps, ...(semCarga ? {} : { carga }), ...parcial });
+  };
   const nome = `${prevista.rotulo.toLowerCase()} da série ${numeroDaSerie}`;
   // "Bloco 1 feito", "Etapa inicial feita", "Retomada feita".
   const feito = prevista.rotulo.startsWith('Bloco') ? 'feito' : 'feita';
@@ -185,11 +202,11 @@ function LinhaDaEtapa({ prevista, numeroDaSerie, registrada, atual, sugestao, ca
         <>
           <View style={estilos.campos}>
             <CampoNumericoGrande rotulo="Reps" rotuloOculto rotuloAcessivel={`Repetições feitas, ${nome}`} sufixo="reps" inteiro valor={reps}
-              aoMudar={(v) => { if (feita) agir({ tipo: 'EDITAR', posicao, repeticoes: v }); else setRepsDigitadas(v); }}
+              aoMudar={(v) => { if (feita) editar({ repeticoes: v }); else setRepsDigitadas(v); }}
               aoValidade={(ok) => setRepsInvalidas(!ok)} />
             {semCarga ? null : (
               <CampoNumericoGrande rotulo="Peso" rotuloOculto rotuloAcessivel={`Peso, ${nome}, em quilos`} sufixo="kg" valor={carga}
-                aoMudar={(v) => { if (feita) agir({ tipo: 'EDITAR', posicao, carga: v }); else setCargaDigitada(v); }}
+                aoMudar={(v) => { if (feita) editar({ carga: v }); else setCargaDigitada(v); }}
                 aoValidade={(ok) => setCargaInvalida(!ok)} />
             )}
             <BotaoMarcar feito={feita} desabilitado={invalido}
@@ -212,8 +229,6 @@ function LinhaDaEtapa({ prevista, numeroDaSerie, registrada, atual, sugestao, ca
 
 const estilos = StyleSheet.create({
   serie: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(1) },
-  cabeca: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(1) },
-  nome: { fontFamily: fontes.semi, fontSize: 16 },
   etapa: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1), gap: espaco(0.75) },
   rotuloEtapa: { fontFamily: fontes.semi },
   campos: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(1), maxWidth: 480 },

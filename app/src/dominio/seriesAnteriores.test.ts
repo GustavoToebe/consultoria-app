@@ -66,7 +66,7 @@ describe('coluna "Anterior" (Engajamento 0.3, espelho de SeriesAnterioresTest)',
     expect(textoDoAnterior(anteriorDaSerie(u, supino, 2), false)).toBe('62,5 kg × 6');
     expect(anteriorDaSerie(u, supino, 3)).toBeNull();
     expect(textoDoAnterior(null, false)).toBe('—');
-    expect(textoDaUltimaVez(u)).toBe('Anterior: o que você fez em 24/10.');
+    expect(textoDaUltimaVez(u)).toBe('Último registro: o que você fez em 24/10.');
   });
 
   it('o plano mudou: a 2ª WS continua casando com a 2ª WS, mesmo com outra série na frente', () => {

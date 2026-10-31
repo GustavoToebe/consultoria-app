@@ -5,13 +5,17 @@ import {
   alturaDaGrade, colunasDaGrade, DIAS_DA_SEMANA_CURTOS, dataComDiaDaSemana, horaDoPontoDaGrade, type ItemDoCalendario, minutoDoDiaEmBrasilia,
   minutoInicialDaGrade, posicaoDoMinuto, ROTULOS_DAS_HORAS, type SegmentoNaGrade,
 } from '../../dominio/agendaCalendario';
+import { arranjoDoBloco, LARGURA_DA_FAIXA, statusNoDiaInteiro } from '../../dominio/agendaLegivel';
 import { diaDaSemanaIso } from '../../dominio/formatos';
+import { escalar } from '../../dominio/preferencias';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, LINHA_DA_FAIXA, RAIO } from '../../tema/tokens';
 import { Selo } from '../../ui/Selo';
 import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
-import { type AoAbrirItem, horarioDoItem, rotuloDoItem, seloDoItem, toqueDoItem, useCorDaAgenda } from './itemDaAgenda';
+import {
+  type AoAbrirItem, horarioDoItem, IconeDoStatus, rotuloDoItem, seloCurtoDoItem, toqueDoItem, useCorDaAgenda, useFundoDoItem,
+} from './itemDaAgenda';
 
 /** Altura de uma hora: 48 px, como no Google Agenda. O item tem no mínimo o alvo de toque (44 px). */
 const ALTURA_DA_HORA = 48;
@@ -152,38 +156,68 @@ function useAgora(): Date {
   return agora;
 }
 
+/**
+ * Bloco de um item com horário. A cor da agenda é a faixa de 8 px à esquerda (a borda, que o e2e confere) e o fundo
+ * tingido; título e horário na cor `texto`. O que entra depende da altura e da largura medidas (`arranjoDoBloco`): no
+ * bloco curto (15 a 30 min) ou estreito (sobrepostos) o status vira ícone, e o nome acessível o diz por extenso.
+ */
 function Bloco({ segmento: s, hoje, meus, aoAbrir }: { segmento: SegmentoNaGrade; hoje: string; meus: boolean; aoAbrir: AoAbrirItem }) {
-  const { cores } = useTema();
+  const { cores, fatorTexto } = useTema();
   const corDe = useCorDaAgenda();
+  const fundoDe = useFundoDoItem();
+  const [largura, setLargura] = useState(0);
   const item = s.item;
-  const selo = seloDoItem(item, hoje);
-  const cabeHora = s.altura >= 52;
-  const cabeSelo = s.altura >= 84 && !!selo;
+  const status = seloCurtoDoItem(item, hoje);
+  const arranjo = arranjoDoBloco(s.altura, largura, !!status, escalar(16, fatorTexto));
+  const faixa = corDe(item.cor);
+  const horario = horarioDoItem(item);
+  const icone = arranjo.status === 'icone' && status ? <IconeDoStatus selo={status} /> : null;
   return (
     <View pointerEvents="box-none" style={[estilos.lugar, { top: s.topo, height: s.altura, left: `${s.esquerda * 100}%`, width: `${s.largura * 100}%` }]}>
       <Pressable {...toqueDoItem(item, meus, aoAbrir)} accessibilityLabel={rotuloDoItem(item, hoje)}
-        style={(e) => [estilos.bloco, {
-          backgroundColor: sobre(e) ? cores.superficie3 : cores.superficie2, borderColor: cores.borda, borderLeftColor: corDe(item.cor),
-        }, item.cancelado && estilos.esmaecido]}>
-        <Texto variante="pequeno" numberOfLines={cabeHora ? 2 : 1} style={[estilos.tituloDoBloco, item.cancelado && estilos.riscado]}>
-          {cabeHora ? item.titulo : `${horarioDoItem(item).split('–')[0]} ${item.titulo}`}
-        </Texto>
-        {cabeHora ? <Texto variante="pequeno" numerico cor={cores.textoSuave} numberOfLines={1}>{horarioDoItem(item)}</Texto> : null}
-        {cabeSelo && selo ? <Selo texto={selo.texto} tipo={selo.tipo} Icone={selo.Icone} /> : null}
+        onLayout={(e) => setLargura(Math.round(e.nativeEvent.layout.width))}
+        style={(e) => [estilos.bloco, { backgroundColor: fundoDe(faixa, sobre(e), item.cancelado), borderColor: cores.borda, borderLeftColor: faixa }]}>
+        <View style={estilos.linhaDoBloco}>
+          {arranjo.horarioSeparado ? null : icone}
+          <Texto variante="pequeno" cor={cores.texto} numberOfLines={arranjo.linhasDoTitulo}
+            style={[estilos.tituloDoBloco, item.cancelado && estilos.riscado]}>
+            {arranjo.horarioSeparado ? item.titulo : `${horario.split('–')[0]} ${item.titulo}`}
+          </Texto>
+        </View>
+        {arranjo.horarioSeparado ? (
+          <View style={estilos.linhaDoBloco}>
+            {icone}
+            <Texto variante="pequeno" numerico cor={cores.texto} numberOfLines={1} style={estilos.encolhe}>{horario}</Texto>
+          </View>
+        ) : null}
+        {/* Numa linha: o selo com ícone se centraliza no eixo cruzado, e aqui ele fica rente à esquerda, sob o horário. */}
+        {arranjo.status === 'selo' && status ? <View style={estilos.linhaDoBloco}><Selo texto={status.texto} tipo={status.tipo} Icone={status.Icone} /></View> : null}
       </Pressable>
     </View>
   );
 }
 
+/**
+ * Item de dia inteiro (evento ou atualização) na faixa do topo: a mesma faixa de 8 px e o mesmo fundo tingido do bloco, e
+ * o status (atualização atrasada ou adiada, item cancelado) escrito no selo ao lado do título quando cabe, ou em ícone.
+ */
 function ItemDeDiaInteiro({ item, hoje, meus, aoAbrir }: { item: ItemDoCalendario; hoje: string; meus: boolean; aoAbrir: AoAbrirItem }) {
-  const { cores } = useTema();
+  const { cores, fatorTexto } = useTema();
   const corDe = useCorDaAgenda();
+  const fundoDe = useFundoDoItem();
+  const [largura, setLargura] = useState(0);
+  const status = seloCurtoDoItem(item, hoje);
+  const forma = statusNoDiaInteiro(largura, !!status, escalar(16, fatorTexto));
+  const faixa = corDe(item.cor);
   return (
     <Pressable {...toqueDoItem(item, meus, aoAbrir)} accessibilityLabel={rotuloDoItem(item, hoje)}
+      onLayout={(e) => setLargura(Math.round(e.nativeEvent.layout.width))}
       style={(e) => [estilos.diaInteiro, {
-        backgroundColor: sobre(e) ? cores.superficie3 : cores.superficie2, borderColor: cores.borda, borderLeftColor: corDe(item.cor),
+        backgroundColor: fundoDe(faixa, sobre(e), item.cancelado), borderColor: cores.borda, borderLeftColor: faixa,
       }]}>
-      <Texto variante="pequeno" numberOfLines={1} style={estilos.tituloDoBloco}>{item.titulo}</Texto>
+      {forma === 'icone' && status ? <IconeDoStatus selo={status} /> : null}
+      <Texto variante="pequeno" cor={cores.texto} numberOfLines={1} style={[estilos.tituloDoBloco, item.cancelado && estilos.riscado]}>{item.titulo}</Texto>
+      {forma === 'selo' && status ? <View style={estilos.seloAoLado}><Selo texto={status.texto} tipo={status.tipo} Icone={status.Icone} /></View> : null}
     </Pressable>
   );
 }
@@ -199,17 +233,25 @@ const estilos = StyleSheet.create({
   numero: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   faixaDoDia: { flex: 1, minWidth: 0, borderLeftWidth: 1, padding: 2, gap: 2 },
   diaInteiro: {
-    minHeight: ALVO_TOQUE, justifyContent: 'center', paddingHorizontal: espaco(0.75), borderWidth: 1, borderLeftWidth: 4, borderRadius: 4,
+    minHeight: ALVO_TOQUE, flexDirection: 'row', alignItems: 'center', gap: espaco(0.5), paddingHorizontal: espaco(0.75), borderWidth: 1,
+    borderLeftWidth: LARGURA_DA_FAIXA, borderRadius: 4,
   },
+  seloAoLado: { flexShrink: 0, marginLeft: 'auto' },
   mais: { minHeight: ALVO_TOQUE, justifyContent: 'center', paddingHorizontal: espaco(0.75), borderRadius: 4 },
   corpo: { flexDirection: 'row' },
   hora: { position: 'absolute', right: espaco(1), fontFamily: fontes.normal },
   coluna: { flex: 1, minWidth: 0, borderLeftWidth: 1, position: 'relative' },
   linhaDaHora: { position: 'absolute', left: 0, right: 0, borderTopWidth: 1 },
   lugar: { position: 'absolute', padding: 1 },
-  bloco: { flex: 1, borderWidth: 1, borderLeftWidth: 4, borderRadius: 4, paddingHorizontal: espaco(0.5), paddingVertical: 2, overflow: 'hidden', gap: 2 },
-  tituloDoBloco: { fontFamily: fontes.semi },
-  esmaecido: { opacity: 0.6 },
+  // A faixa da cor é a borda esquerda (8 px); `overflow: hidden` só segura o fundo nos cantos: o que entra no bloco já foi
+  // medido para caber (`arranjoDoBloco`), com reticências no título.
+  bloco: {
+    flex: 1, borderWidth: 1, borderLeftWidth: LARGURA_DA_FAIXA, borderRadius: 4, paddingHorizontal: espaco(0.5), paddingVertical: 2, overflow: 'hidden', gap: 2,
+  },
+  linhaDoBloco: { flexDirection: 'row', alignItems: 'center', gap: 4, minWidth: 0 },
+  // `minWidth: 0` deixa o texto encolher na linha e cortar com reticências (sem ele a palavra empurra a largura).
+  tituloDoBloco: { fontFamily: fontes.semi, flexShrink: 1, minWidth: 0 },
+  encolhe: { flexShrink: 1, minWidth: 0 },
   riscado: { textDecorationLine: 'line-through' },
   agora: { position: 'absolute', left: 0, right: 0, height: 2, flexDirection: 'row', alignItems: 'center' },
   pontoDoAgora: { width: 10, height: 10, borderRadius: 5, marginLeft: -5 },

@@ -33,6 +33,18 @@ describe('textos da ajuda', () => {
     expect(texto).toContain('abaixo da referência');
   });
 
+  it('os guias usam os rótulos novos e explicam a ordem de renovar a pasta', () => {
+    const treinador = textoDoGuia('treinador');
+    expect(treinador).toContain('Observação desta série');
+    expect(treinador).not.toMatch(/alvo extra/i);
+    expect(treinador).toContain('Finalizar não publica nada');
+    expect(treinador).toContain('para um novo período, renove a pasta');
+    const aluno = textoDoGuia('aluno');
+    expect(aluno).toContain('"Último registro"');
+    expect(aluno).not.toMatch(/alvo extra/i);
+    expect(aluno).toContain('80% da WS registrada nesta sessão');
+  });
+
   it('o guia do aluno explica RIR 0, grupos, descanso depois do grupo e cardio', () => {
     const itens = GUIAS.aluno.secoes.flatMap((s) => s.itens.map((i) => i.titulo));
     for (const titulo of ['Tipos de série', 'Carga, esforço e repetições', 'Técnicas na série', 'Grupos de exercícios', 'Cardio']) {

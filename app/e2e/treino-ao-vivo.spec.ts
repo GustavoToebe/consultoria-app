@@ -53,7 +53,7 @@ for (const largura of [390, 1280]) {
     const api = await abrir(page, true);
     await page.goto(EXERCICIO);
 
-    await expect(page.getByText('Anterior: o que você fez em 16/10.', { exact: true })).toBeVisible();
+    await expect(page.getByText('Último registro: o que você fez em 16/10.', { exact: true })).toBeVisible();
     await expect(anterior(page, 1, '60 kg × 10')).toBeVisible();
     await expect(anterior(page, 2, '62,5 kg × 8')).toBeVisible();
     // A terceira WS não foi feita da última vez: a linha fica, com "—".

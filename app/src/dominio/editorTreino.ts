@@ -52,34 +52,55 @@ export const TIPOS_SESSAO: { valor: TipoSessao; rotulo: string }[] = [
 
 export const MODOS: { valor: ModoDeCarga; rotulo: string }[] = [
   { valor: 'CARGA_TRABALHO', rotulo: 'Carga de trabalho' },
-  { valor: 'PERCENTUAL_WS', rotulo: '% da série de trabalho' },
+  { valor: 'PERCENTUAL_WS', rotulo: 'Percentual da carga de trabalho' },
   { valor: 'ACIMA_DA_ANTERIOR', rotulo: 'Acima da anterior' },
   { valor: 'ABAIXO_DA_REFERENCIA', rotulo: 'Abaixo da referência' },
   { valor: 'MESMA_CARGA', rotulo: 'Mesma carga da série de trabalho' },
-  { valor: 'NENHUMA', rotulo: 'Sem carga' },
+  // `NENHUMA` é a série sem sugestão de carga; o exercício "sem carga" (elástico, peso corporal) é a `unidade`, outra decisão.
+  { valor: 'NENHUMA', rotulo: 'Sem sugestão de carga' },
 ];
 
+export interface OpcaoDeModo {
+  valor: ModoDeCarga;
+  rotulo: string;
+}
+
+/** Opções de carga em duas partes: as que aparecem sempre e as que ficam em "Outras formas de carga" (recolhidas). */
+export interface ModosDeCarga {
+  principais: OpcaoDeModo[];
+  outras: OpcaoDeModo[];
+}
+
+/** Ordem das formas de carga por papel do tipo: as mais usadas primeiro. Papel sem ordem (ou "Outro") usa a de `MODOS`. */
+const ORDEM_POR_PAPEL: Partial<Record<PapelDaSerie, ModoDeCarga[]>> = {
+  AQUECIMENTO: ['NENHUMA', 'PERCENTUAL_WS', 'CARGA_TRABALHO'],
+  PREPARACAO: ['PERCENTUAL_WS', 'NENHUMA', 'CARGA_TRABALHO'],
+  TRABALHO: ['CARGA_TRABALHO', 'ACIMA_DA_ANTERIOR', 'MESMA_CARGA', 'NENHUMA'],
+  POS_TRABALHO: ['PERCENTUAL_WS', 'ABAIXO_DA_REFERENCIA', 'MESMA_CARGA', 'ACIMA_DA_ANTERIOR', 'CARGA_TRABALHO', 'NENHUMA'],
+};
+
+/** Quantas opções do papel ficam sempre à vista; as demais vão para "Outras formas de carga". */
+const PRINCIPAIS_POR_PAPEL = 2;
+
 /**
- * As opções de carga com o "% de quê" escrito pelo nome da série de trabalho da metodologia ("% da WS", "Mesma carga da
- * WS"): o percentual sempre diz a base, para deixar a referência explícita. O papel do tipo prioriza as opções.
+ * As formas de carga do editor, com a base escrita pelo nome da série de trabalho da metodologia ("Percentual da carga de
+ * trabalho (WS)", "Mesma carga da WS"): o percentual sempre diz de onde sai, nunca do 1RM. O papel do tipo ordena; as duas
+ * primeiras ficam em `principais` e, se a série já grava outra forma (`atual`; nula = `NENHUMA`), ela também, para nunca
+ * sumir atrás de "Outras formas de carga". Nenhuma forma é proibida: todas as seis estão numa das duas listas.
  */
-export function modosDeCarga(config: Configuracao | null | undefined, papel?: PapelDaSerie | null): { valor: ModoDeCarga; rotulo: string }[] {
+export function modosDeCarga(config: Configuracao | null | undefined, papel?: PapelDaSerie | null, atual?: ModoDeCarga | null): ModosDeCarga {
   const base = tipoTrabalho(config);
-  const preferidos: Partial<Record<PapelDaSerie, ModoDeCarga[]>> = {
-    AQUECIMENTO: ['NENHUMA', 'PERCENTUAL_WS', 'CARGA_TRABALHO'],
-    PREPARACAO: ['PERCENTUAL_WS', 'NENHUMA', 'CARGA_TRABALHO'],
-    TRABALHO: ['CARGA_TRABALHO', 'ACIMA_DA_ANTERIOR', 'MESMA_CARGA', 'NENHUMA'],
-    POS_TRABALHO: ['PERCENTUAL_WS', 'ABAIXO_DA_REFERENCIA', 'MESMA_CARGA', 'ACIMA_DA_ANTERIOR', 'CARGA_TRABALHO', 'NENHUMA'],
-  };
-  const ordem = papel ? preferidos[papel] : undefined;
-  // O papel prioriza as opções, sem proibir uma forma de carga que a API aceita nesse tipo.
-  const opcoes = ordem ? [...ordem.map((valor) => MODOS.find((m) => m.valor === valor)!), ...MODOS.filter((m) => !ordem.includes(m.valor))] : MODOS;
-  return opcoes.map((m) => {
+  const ordem = papel ? ORDEM_POR_PAPEL[papel] : undefined;
+  const ordenadas = ordem ? [...ordem.map((valor) => MODOS.find((m) => m.valor === valor)!), ...MODOS.filter((m) => !ordem.includes(m.valor))] : MODOS;
+  const opcoes = ordenadas.map((m): OpcaoDeModo => {
     if (!base) return { ...m };
-    if (m.valor === 'PERCENTUAL_WS') return { ...m, rotulo: `% da ${base}` };
+    if (m.valor === 'PERCENTUAL_WS') return { ...m, rotulo: `Percentual da carga de trabalho (${base})` };
     if (m.valor === 'MESMA_CARGA') return { ...m, rotulo: `Mesma carga da ${base}` };
-    return m;
+    return { ...m };
   });
+  const gravada = atual ?? 'NENHUMA';
+  const principais = opcoes.filter((m, i) => i < PRINCIPAIS_POR_PAPEL || m.valor === gravada);
+  return { principais, outras: opcoes.filter((m) => !principais.includes(m)) };
 }
 
 export function novaSessao(diaSemana: number | null): Sessao {

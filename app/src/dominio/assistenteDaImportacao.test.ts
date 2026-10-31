@@ -1,4 +1,5 @@
 import {
+  agruparErros, avisoDeTituloDeDado, colunasComTituloDeDado, ondeDoErro, textoDoGrupoDeErros,
   ajustarCelula, ajustesParaApi, alternarRemovida, avisoDoCorte, celulaAjustada, errosNaTabela, linhasDaPlanilha, opcoesDoCampoDaColuna,
   paginaDaPlanilha, rotuloNaLista, SEM_AJUSTES, totalDeAjustes, valorDaCelula,
   LINHA_DO_CABECALHO_MAXIMA, LINHA_DO_CABECALHO_PADRAO, opcoesDaLinhaDoCabecalho, primeiraLinhaDeDados,
@@ -180,5 +181,47 @@ describe('tabela do mapeamento', () => {
     expect(t.motivoDaCelula(3, 0)).toBeNull();
     expect(t.motivosDaLinha(4)).toEqual(['CPF inválido.']);
     expect([...t.linhas]).toEqual([3, 4]);
+  });
+});
+
+describe('erros agrupados (reunião de 30/10)', () => {
+  const alunos = DESTINOS.find((d) => d.id === 'alunos')!;
+
+  it('junta mesmo campo e motivo, maior grupo primeiro e linhas em ordem', () => {
+    const grupos = agruparErros([
+      { linha: 9, campo: 'email', motivo: 'E-mail inválido.' },
+      { linha: 19, campo: 'telefone', motivo: 'Telefone inválido.' },
+      { linha: 5, campo: 'email', motivo: 'E-mail inválido.' },
+      { linha: 5, campo: 'email', motivo: 'E-mail inválido.' },
+      { linha: 7, campo: 'email', motivo: 'Outro motivo.' },
+    ]);
+    expect(grupos).toEqual([
+      { campo: 'email', motivo: 'E-mail inválido.', linhas: [5, 9] },
+      { campo: 'email', motivo: 'Outro motivo.', linhas: [7] },
+      { campo: 'telefone', motivo: 'Telefone inválido.', linhas: [19] },
+    ]);
+  });
+
+  it('uma linha mantém o texto de antes; várias mostram até 10 e "e mais N"', () => {
+    const onde = ondeDoErro('nome', alunos, ['Aluno', 'E-mail'], { nome: 0 });
+    expect(textoDoGrupoDeErros({ campo: 'nome', motivo: 'Informe o nome.', linhas: [4] }, onde)).toBe('Linha 4 · Nome (coluna “Aluno”): Informe o nome.');
+    const linhas = Array.from({ length: 12 }, (_, i) => i + 2);
+    expect(textoDoGrupoDeErros({ campo: 'email', motivo: 'E-mail inválido.', linhas }, 'E-mail'))
+      .toBe('E-mail: E-mail inválido. · 12 linhas: 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 e mais 2');
+    expect(textoDoGrupoDeErros({ campo: 'email', motivo: 'E-mail inválido.', linhas: [2, 3] }, 'E-mail'))
+      .toBe('E-mail: E-mail inválido. · 2 linhas: 2, 3');
+  });
+});
+
+describe('título de coluna com cara de dado', () => {
+  it('reconhece código, e-mail, telefone, data e número; deixa nome de coluna comum', () => {
+    expect(colunasComTituloDeDado(['ALU328476', 'Nome', 'ana@exemplo.com', '(45) 99999-8888', '30/10/2026', '70,5', 'Peso Inicial (kg)', 'A', '', 'Semana 1', '2026-10-30']))
+      .toEqual([0, 2, 3, 4, 5, 10]);
+  });
+
+  it('aviso sem repetir o texto do título', () => {
+    expect(avisoDeTituloDeDado([])).toBeNull();
+    expect(avisoDeTituloDeDado([0])).toBe('O título da coluna 1 parece um dado, não um nome de coluna. Confira a linha do cabeçalho na etapa Configuração.');
+    expect(avisoDeTituloDeDado([0, 2])).toBe('Os títulos das colunas 1 e 3 parecem dados, não nomes de colunas. Confira a linha do cabeçalho na etapa Configuração.');
   });
 });
