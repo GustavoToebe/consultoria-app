@@ -56,7 +56,7 @@ export default function DietaAluno() {
       {dados?.dieta?.conteudo.aguaLitros ? <CartaoAguaDoDia metaLitros={dados.dieta.conteudo.aguaLitros} /> : null}
       {escolhida ? (
         escolhida.planos.dieta ? (
-          <Dieta versao={escolhida.planos.dieta} salva={false} />
+          <Dieta versao={escolhida.planos.dieta} salva={false} aguaNoCartao={!!dados?.dieta?.conteudo.aguaLitros && dados.dieta.id === escolhida.planos.dieta.id} />
         ) : (
           <Vazio titulo="Sem dieta neste plano" texto="Este plano só tem treino publicado." />
         )
@@ -69,12 +69,16 @@ export default function DietaAluno() {
       ) : null}
       {escolhida ? null : !dados && carregando ? <Esqueleto /> : null}
       {escolhida ? null : dados && !dados.dieta ? <Vazio titulo="Sem plano de dieta" texto="Seu treinador ainda não publicou a dieta." /> : null}
-      {!escolhida && dados?.dieta ? <Dieta versao={dados.dieta} salva={dados.salva} /> : null}
+      {!escolhida && dados?.dieta ? <Dieta versao={dados.dieta} salva={dados.salva} aguaNoCartao={!!dados.dieta.conteudo.aguaLitros} /> : null}
     </Tela>
   );
 }
 
-function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva: boolean }) {
+/**
+ * `aguaNoCartao`: a meta de água desta dieta já está no cartão "Água de hoje" logo acima; a linha "Água: 3 L por dia" do
+ * topo some para não repetir (31/10). Numa dieta de outra pasta, só para consulta, a linha continua.
+ */
+function Dieta({ versao, salva, aguaNoCartao = false }: { versao: VersaoDetalhe<ConteudoDieta>; salva: boolean; aguaNoCartao?: boolean }) {
   const { cores } = useTema();
   const { pacote } = useAluno();
   const [folhaPdf, setFolhaPdf] = useState(false);
@@ -107,7 +111,7 @@ function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
       <Cartao>
         <Texto numerico variante="subtitulo">{versao.titulo}</Texto>
         {c.objetivo ? <Texto numerico>Objetivo: {c.objetivo}</Texto> : null}
-        {textoDaAgua(c.aguaLitros) ? (
+        {!aguaNoCartao && textoDaAgua(c.aguaLitros) ? (
           <View style={estilos.agua}>
             <Droplet size={20} color={cores.texto} />
             <Texto numerico style={estilos.forte}>Água: {textoDaAgua(c.aguaLitros)}</Texto>

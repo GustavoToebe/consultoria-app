@@ -249,6 +249,21 @@ export function seriesSeguintesDependemDesta(series: readonly Serie[], indice: n
   return false;
 }
 
+/**
+ * A carga que um registro do dia empresta às séries seguintes (referência da WS, "acima da anterior", "abaixo da
+ * referência"): só a de série marcada como feita (o ✓) ou, na série com etapas (Cluster, Rest pause), com alguma etapa
+ * feita. Desmarcar a série tira a carga dela da conta: o aluno disse que não fez, e a sugestão das seguintes não parte de
+ * uma carga desfeita (decisão do Gustavo, 31/10). Carga digitada e ainda não marcada também não conta, como o texto da
+ * tela já diz ("depois que você registrar a WS, com o ✓").
+ */
+export function cargaQueContaComoReferencia(
+  registro: { carga: number | null; concluida: boolean; etapas?: readonly { situacao: string }[] | null } | null | undefined,
+): number | null {
+  if (!registro || registro.carga == null) return null;
+  const feita = registro.concluida || (registro.etapas ?? []).some((e) => e.situacao === 'FEITA');
+  return feita ? registro.carga : null;
+}
+
 /** O exercício usa a carga de trabalho do dia (tem série de trabalho ou em % dela)? */
 export function usaCargaDeTrabalho(exercicio: ExercicioPlano): boolean {
   return (
