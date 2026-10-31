@@ -1,6 +1,6 @@
 import type { ExercicioPlano, Serie } from '../api/tipos';
 import { CONFIGURACAO_PADRAO } from './metodologiaPadrao';
-import { ajustarCarga, arredondar, calcularCargasDoExercicio, ehSerieDeTrabalho, metaDaSerie, passoDaCarga, seriesSeguintesDependemDesta, textoDaOrigem, usaCargaDeTrabalho } from './cargas';
+import { ajustarCarga, arredondar, calcularCargasDoExercicio, cargaQueContaComoReferencia, ehSerieDeTrabalho, metaDaSerie, passoDaCarga, seriesSeguintesDependemDesta, textoDaOrigem, usaCargaDeTrabalho } from './cargas';
 import { carga, exercicio as exercicioDeTeste, rir, serie as serieDeTeste, tecnica } from './exemplosDeTreino.apoioTeste';
 
 const serie = (uid: string, tipo: string | null, extra: Partial<Serie>): Serie => serieDeTeste(uid, { tipo, repsMin: 3, repsMax: 3, carga: null, ...extra });
@@ -322,5 +322,16 @@ describe('as séries seguintes dependem desta? (dica do ✓, A9; só lê a regra
     expect(depende([serie('n', 'WARM_UP', { carga: carga('NENHUMA') }), backOff('b', 80)], 0)).toBe(false);
     expect(depende([ws('w')], 0)).toBe(false);
     expect(depende([], 0)).toBe(false);
+  });
+});
+
+describe('cargaQueContaComoReferencia (desmarcar tira da conta, 31/10)', () => {
+  it('só série feita, ou com etapa feita, empresta a carga', () => {
+    expect(cargaQueContaComoReferencia({ carga: 42, concluida: true })).toBe(42);
+    expect(cargaQueContaComoReferencia({ carga: 42, concluida: false })).toBeNull();
+    expect(cargaQueContaComoReferencia({ carga: 42, concluida: false, etapas: [{ situacao: 'FEITA' }] })).toBe(42);
+    expect(cargaQueContaComoReferencia({ carga: 42, concluida: false, etapas: [{ situacao: 'NAO_REALIZADA' }] })).toBeNull();
+    expect(cargaQueContaComoReferencia({ carga: null, concluida: true })).toBeNull();
+    expect(cargaQueContaComoReferencia(undefined)).toBeNull();
   });
 });

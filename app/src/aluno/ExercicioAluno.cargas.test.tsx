@@ -206,13 +206,16 @@ describe('B1 · o Back off acompanha a WS? (cartão real, estado por estado)', (
     expect(t.peso(2)).toBe('40'); // 80% de 50
   });
 
-  it('(3b) desmarcar o ✓ da WS não apaga a carga: ela continua sendo a referência enquanto estiver na caixa', async () => {
+  it('(3b) desmarcar o ✓ da WS mantém a carga na caixa, mas o Back off volta à base do dia (decisão de 31/10)', async () => {
     const t = await montar(treino(ws('w'), backOff('b1')));
     await t.digitarPeso(1, '42');
     await t.marcar(1);
-    await t.marcar(1); // desmarca
+    expect(t.peso(2)).toBe('33,5');
+    await t.marcar(1); // desmarca: o aluno disse que não fez, a carga dela sai da conta
     expect(t.controle.registros.get('w')).toMatchObject({ carga: 42, concluida: false });
     expect(t.peso(1)).toBe('42');
+    expect(t.peso(2)).toBe('32');
+    await t.marcar(1); // marca de novo: volta a valer
     expect(t.peso(2)).toBe('33,5');
   });
 

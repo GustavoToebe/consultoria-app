@@ -4,7 +4,7 @@ import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import type { AnteriorDoExercicio, Configuracao, DemonstracaoDoAluno, EtapaRegistrada, ExercicioPlano, OrigemDaReferencia, Serie, UltimaCarga } from '../api/tipos';
-import { ajustarCarga, calcularCargasDoExercicio, passoDaCarga, seriesSeguintesDependemDesta, textoDaOrigem, usaCargaDeTrabalho, type SerieCalculada } from '../dominio/cargas';
+import { ajustarCarga, calcularCargasDoExercicio, cargaQueContaComoReferencia, passoDaCarga, seriesSeguintesDependemDesta, textoDaOrigem, usaCargaDeTrabalho, type SerieCalculada } from '../dominio/cargas';
 import { etapasDaSerie } from '../dominio/etapas';
 import { textosDeExecucao } from '../dominio/execucaoDoExercicio';
 import { dataCurta, dataParaTela, numeroParaTela } from '../dominio/formatos';
@@ -98,7 +98,8 @@ export function ExercicioAluno(p: Props) {
     p.aoMudarCargaDoDia(v);
   };
   const cargasDoDia: Record<string, number | null> = {};
-  for (const s of e.series) cargasDoDia[s.uid] = p.registroDe(s.uid)?.carga ?? null;
+  // Só a carga de série feita (ou com etapa feita) serve de referência: desmarcar tira da conta (31/10).
+  for (const s of e.series) cargasDoDia[s.uid] = cargaQueContaComoReferencia(p.registroDe(s.uid));
   const calculadas = calcularCargasDoExercicio(e, base, cargasDoDia, p.config);
   const feitas = e.series.filter((s) => p.registroDe(s.uid)?.concluida).length;
   const proximaAFazer = e.series.findIndex((s) => !p.registroDe(s.uid)?.concluida);

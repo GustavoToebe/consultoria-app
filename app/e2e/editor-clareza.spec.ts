@@ -86,7 +86,7 @@ for (const largura of [390, 1280]) {
     await expect(page.getByRole('button', { name: 'Mover grupo de séries para cima', exact: true }).first()).toBeDisabled();
     await expect(page.getByRole('button', { name: 'Mover grupo de séries para baixo', exact: true }).first()).toBeEnabled();
     // A partir de 768 px os botões de mover dizem o quê; no celular ficam só com a seta (nome acessível igual).
-    const comTexto = page.getByRole('button', { name: 'Mover exercício para baixo', exact: true }).first().getByText('Exercício', { exact: true });
+    const comTexto = page.getByRole('button', { name: 'Mover exercício para baixo', exact: true }).first().getByText('Mover exercício', { exact: true });
     await expect(comTexto).toHaveCount(largura >= 768 ? 1 : 0);
     // O grupo: o tipo na 1ª linha e os percentuais de cada série na 2ª.
     await expect(page.getByRole('button', { name: 'Preparação · FS, recolhido', exact: true })).toBeVisible();

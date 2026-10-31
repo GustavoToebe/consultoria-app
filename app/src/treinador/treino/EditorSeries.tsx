@@ -400,8 +400,8 @@ const TEXTO_DA_PREVIA: Record<Nivel, string> = { sucesso: 'Série pronta', atenc
 
 /**
  * Mover o exercício ou o grupo de séries. Os dois ficam um dentro do outro e tinham o mesmo ícone: o nome acessível diz
- * qual ("Mover grupo de séries para cima") e, a partir de 768 px, o botão também diz na tela ("↑ Grupo", "↑ Exercício";
- * reunião de 30/10). No celular, só o ícone com moldura, para a linha de ações caber em 390 px.
+ * qual ("Mover grupo de séries para cima") e, a partir de 768 px, o botão também diz na tela ("↑ Mover grupo", "↑ Mover
+ * exercício"; reunião de 30/10, com o "Mover" desde 31/10 para quem não percebe a seta). No celular, só o ícone com moldura, para a linha de ações caber em 390 px.
  */
 export function BotaoDeMover({ alvo, direcao, comTexto, desabilitado, aoTocar }: {
   alvo: 'exercicio' | 'grupo'; direcao: -1 | 1; comTexto: boolean; desabilitado: boolean; aoTocar: () => void;
@@ -410,7 +410,7 @@ export function BotaoDeMover({ alvo, direcao, comTexto, desabilitado, aoTocar }:
   const rotulo = `Mover ${nome} para ${direcao < 0 ? 'cima' : 'baixo'}`;
   const Icone = direcao < 0 ? ArrowUp : ArrowDown;
   if (!comTexto) return <IconeBotao moldura Icone={Icone} rotulo={rotulo} desabilitado={desabilitado} aoTocar={aoTocar} />;
-  return <Botao rotulo={alvo === 'exercicio' ? 'Exercício' : 'Grupo'} rotuloAcessivel={rotulo} tipo="secundario" Icone={Icone} desabilitado={desabilitado} aoTocar={aoTocar} />;
+  return <Botao rotulo={alvo === 'exercicio' ? 'Mover exercício' : 'Mover grupo'} rotuloAcessivel={rotulo} tipo="secundario" Icone={Icone} desabilitado={desabilitado} aoTocar={aoTocar} />;
 }
 
 /** Número da série no começo da faixa: claro nas fechadas, invertido (escuro) na aberta. */
