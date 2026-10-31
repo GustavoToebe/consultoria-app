@@ -40,7 +40,7 @@ public class PainelService {
     public static final int DIAS_SEM_REGISTRO_MAXIMO = 90;
     private static final int LIMITE_LISTA = 20;
     /** "A renovar": pasta que termina em até 7 dias (ou já terminou); igual a {@code DIAS_PARA_RENOVAR} do app. */
-    private static final int DIAS_PARA_RENOVAR = 7;
+    public static final int DIAS_PARA_RENOVAR = 7;
     private static final int ULTIMAS_EXECUCOES = 10;
 
     public record AlunoRef(UUID id, String nome) {

@@ -1,9 +1,8 @@
 package br.com.treinos.api.alunos;
 
 import jakarta.persistence.LockModeType;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 
@@ -11,14 +10,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-/** Toda consulta já sai filtrada pela consultoria da sessão ({@code @TenantId} em {@link Aluno}). */
-public interface AlunoRepository extends JpaRepository<Aluno, UUID> {
-
-    @Query("select a from Aluno a where lower(a.nome) like :padrao escape '\\' and "
-            + "(:situacao = 'TODOS' or (:situacao = 'ATIVO' and a.ativo = true) "
-            + "or (:situacao = 'INATIVO' and a.ativo = false)) "
-            + "and (:responsavelId is null or a.responsavelId = :responsavelId) order by lower(a.nome)")
-    Page<Aluno> buscar(String padrao, String situacao, UUID responsavelId, Pageable pagina);
+/**
+ * Toda consulta já sai filtrada pela consultoria da sessão ({@code @TenantId} em {@link Aluno}), também as da lista com
+ * filtros ({@link FiltrosDaListaDeAlunos#especificacao}, Criteria).
+ */
+public interface AlunoRepository extends JpaRepository<Aluno, UUID>, JpaSpecificationExecutor<Aluno> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select a from Aluno a where a.id = :id")
