@@ -210,8 +210,11 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
       return json(route, plano, 201);
     },
     'GET /financeiro/cobrancas': (p, route) => {
-      const situacao = p.busca.get('situacao');
-      const itens = estado.cobrancas.filter((c) => !situacao || (situacao === 'VENCIDA' ? c.situacao === 'ABERTA' && c.vencida : c.situacao === situacao));
+      // Várias situações em OU (VENCIDA = aberta já vencida) e a busca pelo nome do aluno, como a API.
+      const situacoes = p.busca.getAll('situacao');
+      const busca = (p.busca.get('busca') ?? '').toLowerCase();
+      const itens = estado.cobrancas.filter((c) => (!situacoes.length || situacoes.some((s) => (s === 'VENCIDA' ? c.situacao === 'ABERTA' && c.vencida : c.situacao === s)))
+        && (!busca || (c.alunoNome ?? '').toLowerCase().includes(busca)));
       return json(route, { itens, total: itens.length, pagina: 0 });
     },
     'GET /financeiro/inadimplentes': (_p, route) => json(route, {
@@ -222,6 +225,8 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
     }),
     'GET /financeiro/painel': (p, route) => json(route, { ...estado.painel, somenteMeus: p.busca.get('meus') === 'true' }),
     'GET /financeiro/lancamentos': (_p, route) => json(route, { itens: estado.lancamentos, total: estado.lancamentos.length, pagina: 0 }),
+    'GET /financeiro/lancamentos/categorias': (_p, route) =>
+      json(route, [...new Set(estado.lancamentos.map((l) => l.categoria).filter((c): c is string => !!c))].sort()),
     'POST /financeiro/lancamentos': (p, route) => {
       const c = p.corpo as { data: string; descricao: string; valorCentavos: number; tipo: LancamentoResponse['tipo']; categoria?: string | null };
       const novo: LancamentoResponse = {

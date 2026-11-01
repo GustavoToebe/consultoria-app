@@ -156,10 +156,10 @@ async function abrirFinanceiro(page: Page, caminho: string) {
     // O ponto de Interessados no menu (a sessão do treinador tem INSCRICAO_LER).
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },
     'GET /financeiro/cobrancas': (p, route) => {
-      const situacao = p.busca.get('situacao');
+      const situacoes = p.busca.getAll('situacao');
       const de = p.busca.get('de') ?? '0000-01-01';
       const ate = p.busca.get('ate') ?? '9999-12-31';
-      const itens = estado.cobrancas.filter((c) => (!situacao || (situacao === 'VENCIDA' ? c.situacao === 'ABERTA' && c.vencida : c.situacao === situacao))
+      const itens = estado.cobrancas.filter((c) => (!situacoes.length || situacoes.some((situacao) => (situacao === 'VENCIDA' ? c.situacao === 'ABERTA' && c.vencida : c.situacao === situacao)))
         && c.vencimento >= de && c.vencimento <= ate);
       return json(route, { itens, total: itens.length, pagina: 0 });
     },
@@ -179,15 +179,20 @@ test('Financeiro ?situacao=VENCIDA com meus=true: só as vencidas, "Vencidas" e 
   await expect(page.getByRole('button', { name: 'Tirar filtro: Situação: Vencidas' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Tirar filtro: Responsável: Meus' })).toBeVisible();
   await page.getByRole('button', { name: /^Filtros, / }).click();
-  await expect(opcao(page, 'Situação', 'Vencidas')).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByRole('button', { name: 'Situação: Vencidas. Escolher.' })).toBeVisible();
   await expect(opcao(page, 'Responsável', 'Meus')).toHaveAttribute('aria-checked', 'true');
   const ultimo = pedidos.filter((p) => p.caminho === '/financeiro/cobrancas').at(-1);
-  expect(ultimo?.busca.get('situacao')).toBe('VENCIDA');
+  expect(ultimo?.busca.getAll('situacao')).toEqual(['VENCIDA']);
   expect(ultimo?.busca.get('meus')).toBe('true');
 
-  // A situação vinda do endereço se troca pela própria escolha da tela.
-  await opcao(page, 'Situação', 'Todas').click();
+  // A situação vinda do endereço se troca pela própria escolha da tela (várias de uma vez: Vencidas e Pagas).
+  await page.getByRole('button', { name: 'Situação: Vencidas. Escolher.' }).click();
+  await page.getByRole('dialog', { name: 'Situação' }).getByRole('checkbox', { name: 'Pagas' }).click();
+  await page.keyboard.press('Escape');
   await expect(page.getByText('Aluna Paga', { exact: true })).toBeVisible();
+  await expect(page.getByText('Aluna Atrasada', { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/situacao=VENCIDA%2CPAGA|situacao=VENCIDA,PAGA/);
+  expect(pedidos.filter((p) => p.caminho === '/financeiro/cobrancas').at(-1)?.busca.getAll('situacao')).toEqual(['VENCIDA', 'PAGA']);
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);
 });
@@ -228,7 +233,7 @@ test('Financeiro com valores desconhecidos no endereço: Todas, sem janela e sem
   await expect(page.getByRole('button', { name: /Tirar filtro/ })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /Limpar filtro/ })).toHaveCount(0);
   await page.getByRole('button', { name: 'Filtros, nenhum ligado' }).click();
-  await expect(opcao(page, 'Situação', 'Todas')).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByRole('button', { name: 'Situação: Todas. Escolher.' })).toBeVisible();
   await expect(opcao(page, 'Responsável', 'Todos')).toHaveAttribute('aria-checked', 'true');
   const ultimo = pedidos.filter((p) => p.caminho === '/financeiro/cobrancas').at(-1);
   expect([ultimo?.busca.get('situacao'), ultimo?.busca.get('de'), ultimo?.busca.get('meus')]).toEqual([null, null, null]);

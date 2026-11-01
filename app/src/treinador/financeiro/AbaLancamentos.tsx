@@ -4,13 +4,14 @@ import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import type { LancamentoResponse, TipoDeLancamento } from '../../api/financeiroTipos';
-import { alterarLancamento, criarLancamento, excluirLancamento, listarLancamentos, painelFinanceiro } from '../../api/rotas';
+import { alterarLancamento, categoriasDeLancamentos, criarLancamento, excluirLancamento, listarLancamentos, painelFinanceiro } from '../../api/rotas';
 import { hojeEmBrasilia, LIMITES, periodoDoMes, validarLancamento } from '../../dominio/financeiro';
 import { dataSemAnoCorrente } from '../../dominio/datasRelativas';
-import { paraSetParams, temPeriodo } from '../../dominio/filtrosComuns';
+import { paraSetParams } from '../../dominio/filtrosComuns';
 import {
-  CHAVES_DE_LANCAMENTOS, chipsDosLancamentos, lancamentosParaEndereco, lerLancamentosDoEndereco, SEM_FILTROS_DE_LANCAMENTOS,
-  type FiltrosDeLancamentos,
+  CHAVES_DE_LANCAMENTOS, chaveDosLancamentos, chipsDosLancamentos, lancamentosParaEndereco, lerLancamentosDoEndereco,
+  SEM_FILTROS_DE_LANCAMENTOS, semOFiltroDeLancamentos, temFiltroDeLancamentos, TIPOS_DO_FILTRO,
+  type ChaveDoFiltroDeLancamentos, type FiltrosDeLancamentos,
 } from '../../dominio/filtrosDoFinanceiro';
 import { centavosDaTela, centavosParaCampo, centavosParaTela, dataDaTela, dataParaTela } from '../../dominio/formatos';
 import { espaco } from '../../tema/tokens';
@@ -30,8 +31,9 @@ import { textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
+import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
 import { Texto } from '../../ui/Texto';
-import { useCarregar } from '../../ui/useCarregar';
+import { useAtrasado, useCarregar } from '../../ui/useCarregar';
 import { avisoDeConflito, CampoMoeda, ehConflito } from './comum';
 import { ListaOuTabela } from './ListaOuTabela';
 import { ResultadoDoMes } from './ResultadoDoMes';
@@ -46,20 +48,28 @@ const rotuloDoTipo = (t: TipoDeLancamento) => (t === 'SAIDA' ? 'Saída' : 'Entra
 /**
  * Lançamentos avulsos da consultoria (aluguel, equipamento, entrada que não vem de plano). Entram no "Resultado do mês
  * (entradas − saídas registradas)". Categoria é texto livre. Criar, editar e excluir exigem `FINANCEIRO_ALTERAR`; a
- * edição e a exclusão levam a versão vista, e um 409 recarrega a lista. O período (data do lançamento) fica na barra de
- * filtros, no endereço junto do `?aba=lancamentos` (`?de=&ate=`).
+ * edição e a exclusão levam a versão vista, e um 409 recarrega a lista. Na barra de filtros (lote 2), a busca na descrição
+ * (na API, 300 ms depois de digitar) e, no painel, o período (data do lançamento), o tipo e as categorias já usadas, no
+ * endereço junto do `?aba=lancamentos` (`?de=&ate=&tipo=&categoria=`).
  */
 export function AbaLancamentos({ podeAlterar }: { podeAlterar: boolean }) {
   const [pagina, setPagina] = useState(0);
   const [aberto, setAberto] = useState<LancamentoResponse | 'novo' | null>(null);
-  const filtros = lerLancamentosDoEndereco(useLocalSearchParams<{ de?: string; ate?: string }>());
+  const filtros = lerLancamentosDoEndereco(useLocalSearchParams<{ de?: string; ate?: string; tipo?: string; categoria?: string }>());
   const { de, ate } = filtros.periodo;
-  const lista = useCarregar(`lancamentos|${de ?? ''}|${ate ?? ''}|${pagina}`, () => listarLancamentos({ pagina, de: de ?? undefined, ate: ate ?? undefined }));
+  const [buscaDigitada, setBuscaDigitada] = useState('');
+  const busca = useAtrasado(buscaDigitada.trim(), 300);
+  const lista = useCarregar(`lancamentos|${chaveDosLancamentos(filtros, busca)}|${pagina}`, () => listarLancamentos({
+    pagina, de: de ?? undefined, ate: ate ?? undefined, tipo: filtros.tipo ?? undefined, categorias: filtros.categorias, busca: busca || undefined,
+  }));
+  // Categorias já usadas (texto livre); falha deixa o filtro só com as que já estão no endereço.
+  const categorias = useCarregar('categorias-de-lancamentos', () => categoriasDeLancamentos().catch((): string[] => []));
+  const opcoesDeCategoria = [...new Set([...(categorias.dados ?? []), ...filtros.categorias])].map((c) => ({ valor: c, rotulo: c }));
   const aplicar = (novos: FiltrosDeLancamentos) => {
     setPagina(0);
     router.setParams(paraSetParams(CHAVES_DE_LANCAMENTOS, lancamentosParaEndereco(novos)));
   };
-  const filtrado = temPeriodo(filtros.periodo);
+  const filtrado = temFiltroDeLancamentos(filtros) || !!busca;
   const mes = periodoDoMes(hojeEmBrasilia());
   const resultado = useCarregar(`lancamentos-resultado|${mes.de}`, () => painelFinanceiro({ ...mes, meus: false }));
   const dados = lista.dados;
@@ -77,15 +87,27 @@ export function AbaLancamentos({ podeAlterar }: { podeAlterar: boolean }) {
       </View>
       {resultado.erro ? <MensagemErro texto={textoDoErro(resultado.erro)} erro={resultado.erro} tentarDeNovo={recarregarResultado} /> : null}
       {resultado.dados ? <ResultadoDoMes resultado={resultado.dados.resultadoDoMes} /> : null}
-      <BarraDeFiltros valor={filtros} aoAplicar={aplicar} limpo={SEM_FILTROS_DE_LANCAMENTOS} chips={chipsDosLancamentos(filtros)}
-        aoTirar={() => aplicar(SEM_FILTROS_DE_LANCAMENTOS)} rotuloDoResultado="Ver lançamentos"
+      <BarraDeFiltros busca={{ valor: buscaDigitada, aoMudar: (t) => { setBuscaDigitada(t); setPagina(0); }, placeholder: 'Descrição' }}
+        valor={filtros} aoAplicar={aplicar} limpo={SEM_FILTROS_DE_LANCAMENTOS} chips={chipsDosLancamentos(filtros)}
+        aoTirar={(chave) => aplicar(semOFiltroDeLancamentos(filtros, chave as ChaveDoFiltroDeLancamentos))} rotuloDoResultado="Ver lançamentos"
         seletores={(atuais, mudar) => (
-          <CelulaDoFiltro><CamposDePeriodo rotulo="Data do lançamento" valor={atuais.periodo} aoMudar={(periodo) => mudar({ periodo })} /></CelulaDoFiltro>
+          <>
+            <CelulaDoFiltro><CamposDePeriodo rotulo="Data do lançamento" valor={atuais.periodo} aoMudar={(periodo) => mudar({ ...atuais, periodo })} /></CelulaDoFiltro>
+            <CelulaDoFiltro>
+              <Escolha<TipoDeLancamento | 'TODOS'> rotulo="Tipo" opcoes={[{ valor: 'TODOS', rotulo: 'Todos' }, ...TIPOS_DO_FILTRO]} valor={atuais.tipo ?? 'TODOS'}
+                aoMudar={(v) => mudar({ ...atuais, tipo: v === 'TODOS' ? null : v })} />
+            </CelulaDoFiltro>
+            <CelulaDoFiltro>
+              <SelecaoMultiplaSuspensa rotulo="Categoria" opcoes={opcoesDeCategoria} marcados={new Set(atuais.categorias)} rotuloDeTodos="Todas"
+                aoMudar={(m) => mudar({ ...atuais, categorias: opcoesDeCategoria.map((o) => o.valor).filter((v) => m.has(v)) })} style={estilos.cheio} />
+            </CelulaDoFiltro>
+          </>
         )} />
       {lista.erro ? <MensagemErro texto={textoDoErro(lista.erro)} erro={lista.erro} tentarDeNovo={recarregarLista} /> : null}
       {!dados && lista.carregando ? <Esqueleto /> : null}
       {dados && dados.itens.length === 0 ? (
-        filtrado ? <Vazio titulo="Nenhum lançamento nesse período" texto="Tente outras datas." acao={{ rotulo: 'Limpar filtros', aoTocar: () => aplicar(SEM_FILTROS_DE_LANCAMENTOS) }} />
+        filtrado ? <Vazio titulo="Nenhum lançamento com esses filtros" texto="Tente outras datas, outro filtro ou limpe a busca."
+          acao={temFiltroDeLancamentos(filtros) ? { rotulo: 'Limpar filtros', aoTocar: () => aplicar(SEM_FILTROS_DE_LANCAMENTOS) } : undefined} />
           : <Vazio titulo="Nenhum lançamento" texto={podeAlterar ? 'Toque em Novo lançamento para registrar a primeira entrada ou saída.' : 'Os lançamentos registrados pela equipe aparecem aqui.'} />
       ) : null}
       {dados && dados.itens.length > 0 ? (
@@ -238,5 +260,6 @@ const estilos = StyleSheet.create({
   topo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5) },
   explicacao: { flexGrow: 1, flexShrink: 1, flexBasis: 260 },
   esmaecido: { opacity: 0.6 },
+  cheio: { alignSelf: 'stretch' },
   paginacao: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), flexWrap: 'wrap' },
 });

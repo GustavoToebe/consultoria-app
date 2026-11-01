@@ -1,5 +1,5 @@
 import type { Atualizacao } from '../api/tipos';
-import { atualizacaoDaPasta, caminhoAtualizacaoTreinador, caminhoListaAtualizacoes, faseAtualizacao, filaDosParametros, formularioSomenteLeitura, limitesNovaDataAtraso, linkCartaoAtualizacao, mostrarCartaoAtualizacao, novaDataAtrasoValida, emDias, proximaDaFila, statusAtualizacaoTreinador } from './atualizacao';
+import { atualizacaoDaPasta, caminhoAtualizacaoTreinador, caminhoListaAtualizacoes, faseAtualizacao, filaDosParametros, filtroDaFila, formularioSomenteLeitura, limitesNovaDataAtraso, linkCartaoAtualizacao, mostrarCartaoAtualizacao, novaDataAtrasoValida, emDias, proximaDaFila, statusAtualizacaoTreinador } from './atualizacao';
 
 describe('datas da atualização iguais às do servidor', () => {
   it.each([['2026-10-05','NENHUMA',4,0],['2026-10-06','AVISO',3,0],['2026-10-07','AVISO',2,0],
@@ -97,6 +97,13 @@ describe('revisão em fila', () => {
     expect(caminhoAtualizacaoTreinador({ id: 'c1', alunoId: 'a1' }, fila))
       .toBe(`/treinador/atualizacoes/c1?situacao=ATRASADAS&responsavel=${id}&de=2026-10-01&ate=2026-10-31`);
     expect(caminhoListaAtualizacoes('ATRASADAS', false, fila)).toBe(`/treinador/atualizacoes?situacao=ATRASADAS&responsavel=${id}&de=2026-10-01&ate=2026-10-31`);
+    // Lote 2: vários responsáveis (com "nenhum") e a busca vão junto; algo estranho na lista derruba o filtro inteiro.
+    const varios = filaDosParametros('ATRASADAS', undefined, { responsavel: `${id},nenhum`, busca: ' ana ' });
+    expect(varios).toEqual({ situacao: 'ATRASADAS', meus: false, responsavel: `${id},nenhum`, busca: 'ana' });
+    expect(caminhoAtualizacaoTreinador({ id: 'c1', alunoId: 'a1' }, varios))
+      .toBe(`/treinador/atualizacoes/c1?situacao=ATRASADAS&responsavel=${encodeURIComponent(`${id},nenhum`)}&busca=ana`);
+    expect(filtroDaFila(varios!)).toEqual({ responsavel: [id, 'nenhum'], busca: 'ana' });
+    expect(filaDosParametros('ATRASADAS', undefined, { responsavel: `${id},../x` })).toEqual({ situacao: 'ATRASADAS', meus: false });
   });
 
   it('a próxima é a primeira diferente da atual; fila acabou = nula', () => {

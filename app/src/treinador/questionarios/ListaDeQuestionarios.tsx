@@ -8,7 +8,7 @@ import {
 } from '../../api/rotas';
 import type { FinalidadeQuestionario, OrigemQuestionario, QuestionarioResumo } from '../../api/tipos';
 import {
-  chipsDosFiltros, filtrarQuestionarios, PUBLICACOES, SEM_FILTROS, semOFiltro, SITUACOES_DO_QUESTIONARIO, type ChaveDoFiltro,
+  arquivadosDaApi, chipsDosFiltros, filtrarQuestionarios, PUBLICACOES, SEM_FILTROS, semOFiltro, SITUACOES_DO_QUESTIONARIO, type ChaveDoFiltro,
   type FiltrosDeQuestionarios,
 } from '../../dominio/filtrosDeQuestionarios';
 import { useSessao } from '../../sessao/SessaoProvider';
@@ -56,7 +56,7 @@ export function ListaDeQuestionarios({ finalidade = 'ATUALIZACAO', pedirNovo, ao
   const anamnese = finalidade === 'ANAMNESE';
   // Filtros (`docs/planos/filtros-nas-listas.md`, D12): a situação vai à API; busca e publicação filtram o que veio.
   const [filtros, setFiltros] = useState<FiltrosDeQuestionarios>(SEM_FILTROS);
-  const arquivados = filtros.situacao === 'ARQUIVADOS';
+  const arquivados = arquivadosDaApi(filtros.situacao);
   const lista = useCarregar(`questionarios:${finalidade}:${arquivados}`, () => listarQuestionarios(arquivados, finalidade));
   const [busca, setBusca] = useState('');
   const filtrados = lista.dados ? filtrarQuestionarios(lista.dados, filtros, busca) : undefined;
@@ -100,7 +100,7 @@ export function ListaDeQuestionarios({ finalidade = 'ATUALIZACAO', pedirNovo, ao
       {lista.erro ? <MensagemErro texto={textoDoErro(lista.erro)} erro={lista.erro} tentarDeNovo={lista.recarregar} /> : null}
       {!lista.dados && lista.carregando ? <Esqueleto /> : null}
       {lista.dados?.length && filtrados?.length === 0 ? <Vazio texto={filtros.publicacao ? 'Nenhum questionário com essa busca e esses filtros.' : 'Nenhum questionário com essa busca.'} /> : null}
-      {lista.dados?.length === 0 ? <Vazio texto={arquivados ? 'Nenhum questionário arquivado.' : anamnese ? 'Nenhuma anamnese ainda. Crie uma em branco e monte as seções.' : 'Nenhum questionário ainda.'} /> : null}
+      {lista.dados?.length === 0 ? <Vazio texto={arquivados === true ? 'Nenhum questionário arquivado.' : anamnese ? 'Nenhuma anamnese ainda. Crie uma em branco e monte as seções.' : 'Nenhum questionário ainda.'} /> : null}
       {filtrados?.length ? <ListaDeLinhas>{filtrados.map((q) =>
         <LinhaDoQuestionario key={q.id} q={q} ocupado={ocupado === q.id} podeAlterar={podeAlterar} aoAbrir={() => irParaEditor(q.id)} aoMenu={podeAlterar ? () => setMenu(q) : undefined} />)}</ListaDeLinhas> : null}
     </Cartao>

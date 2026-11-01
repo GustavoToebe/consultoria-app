@@ -3,7 +3,7 @@ import {
   aceitarInscricao, alterarCancelamentoCompromisso, alterarCompromisso, alterarSituacaoDoAluno, aplicarAlteracaoDaAnamnese, avisosDeCompromisso, listarAlunosOcupados, marcarAvisoDeCompromissoVisto, compromissosDoAluno, criarCompromisso, listarCompromissos, buscarQuestionario, descartarAlteracaoDaAnamnese, fatoresDosAlimentos, inscricao, inscricaoPublica, listarPlanos,
   retornoDoPagamento, definirLembretesDoAluno, lembretesDaCobranca, lembretesDoAluno,
   alterarAgendaPessoal, alterarEvento, apagarAgendaPessoal, contarEventosDaAgenda, criarAgendaPessoal, criarEvento, cruzamentosDoEvento,
-  detalheDoEvento, excluirEvento, listarAgendasPessoais, listarAlunos, listarAtualizacoes, listarEventos, resumoDaAgenda,
+  detalheDoEvento, excluirEvento, listarAgendasPessoais, listarAlunos, listarAtualizacoes, contagensAtualizacoes, listarEventos, resumoDaAgenda,
 } from './rotas';
 
 jest.mock('./cliente', () => ({ requisicao: jest.fn((caminho: string) => Promise.resolve(caminho)) }));
@@ -148,6 +148,12 @@ describe('caminhos da API', () => {
       .resolves.toBe('/atualizacoes?situacao=PROXIMAS&responsavel=u%2F1&de=2026-11-01&ate=2026-11-30');
     await expect(listarAtualizacoes('PROXIMAS', true, { responsavel: 'u1' })).resolves.toBe('/atualizacoes?situacao=PROXIMAS&responsavel=u1');
     await expect(listarAtualizacoes('PROXIMAS', false, { de: '2026-11-01' })).resolves.toBe('/atualizacoes?situacao=PROXIMAS&meus=false');
+    // Lote 2: vários responsáveis (repetidos) e a busca pelo nome.
+    await expect(listarAtualizacoes('ATRASADAS', false, { responsavel: ['u1', 'nenhum'], busca: ' joão ' }))
+      .resolves.toBe('/atualizacoes?situacao=ATRASADAS&responsavel=u1&responsavel=nenhum&busca=jo%C3%A3o');
+    await expect(contagensAtualizacoes(true)).resolves.toBe('/atualizacoes/contagens?meus=true');
+    await expect(contagensAtualizacoes(false, { responsavel: ['u1'], de: '2026-11-01', ate: '2026-11-30' }))
+      .resolves.toBe('/atualizacoes/contagens?responsavel=u1&de=2026-11-01&ate=2026-11-30');
   });
 
   it('uuid comum passa igual', async () => {

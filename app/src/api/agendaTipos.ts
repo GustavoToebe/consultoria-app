@@ -299,7 +299,10 @@ export interface FiltroResumo {
 
 /** Recortes novos de `GET /atualizacoes` (D14, D19): `de`/`ate` juntos (até 366 dias); `responsavel` não vale com `meus`. */
 export interface FiltroAtualizacoes {
-  responsavel?: string | null;
+  /** Um id ou vários (ids de membros e/ou `nenhum`). */
+  responsavel?: string | readonly string[] | null;
+  /** Nome do aluno (a API ignora acento e caixa). */
+  busca?: string | null;
   de?: string | null;
   ate?: string | null;
 }
