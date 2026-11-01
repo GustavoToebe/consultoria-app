@@ -9,6 +9,8 @@ ALTER TABLE exercicio ADD COLUMN importacao_id uuid REFERENCES importacao (id) O
 ALTER TABLE pasta_plano ADD COLUMN importacao_id uuid REFERENCES importacao (id) ON DELETE SET NULL;
 ALTER TABLE plano_treino ADD COLUMN importacao_id uuid REFERENCES importacao (id) ON DELETE SET NULL;
 ALTER TABLE plano_dieta ADD COLUMN importacao_id uuid REFERENCES importacao (id) ON DELETE SET NULL;
+-- A importação não cria mobilidade, mas a coluna mora em PlanoBase (treino, dieta e mobilidade): fica sempre nula aqui.
+ALTER TABLE plano_mobilidade ADD COLUMN importacao_id uuid REFERENCES importacao (id) ON DELETE SET NULL;
 
 CREATE INDEX ix_aluno_importacao ON aluno (importacao_id) WHERE importacao_id IS NOT NULL;
 CREATE INDEX ix_registro_peso_importacao ON registro_peso (importacao_id) WHERE importacao_id IS NOT NULL;
