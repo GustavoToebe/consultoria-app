@@ -304,7 +304,7 @@ class QuestionariosIntegrationTest extends AbstractIntegrationTest {
         JsonNode troca = api.post("/questionarios/" + outro.path("id").asString() + "/padrao", treinador, null, 200);
         assertThat(troca.path("padrao").asBoolean()).isTrue();
         api.post("/questionarios/" + outro.path("id").asString() + "/padrao", treinador, null, 200);
-        assertThat(banco.queryForObject("select count(*) from questionario where consultoria_id=? and padrao",
+        assertThat(banco.queryForObject("select count(*) from questionario where consultoria_id=? and padrao and finalidade='ATUALIZACAO'",
                 Integer.class, consultoria())).isEqualTo(1);
         assertThat(api.get("/questionarios/" + padraoId, treinador, 200).path("padrao").asBoolean()).isFalse();
         // A segunda chamada em "outro" (já é o padrão) responde 200 e não audita.

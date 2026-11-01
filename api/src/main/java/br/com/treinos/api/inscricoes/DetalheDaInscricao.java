@@ -11,9 +11,12 @@ import br.com.treinos.api.inscricoes.InscricaoDtos.ProximoRetorno;
 import br.com.treinos.api.inscricoes.InscricaoDtos.Proposta;
 import br.com.treinos.api.inscricoes.InscricaoDtos.Relacionada;
 import br.com.treinos.api.inscricoes.InscricaoDtos.Retorno;
+import br.com.treinos.api.inscricoes.InscricaoDtos.RespostasDaInscricao;
+import br.com.treinos.api.questionarios.QuestionarioResolver;
 import br.com.treinos.api.web.Fuso;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -45,9 +48,14 @@ class DetalheDaInscricao {
     private final InscricaoEventoRepository eventos;
     private final InscricaoRetornoRepository retornos;
     private final ResponsaveisDaInscricao responsaveis;
+    private final QuestionarioResolver questionarios;
+    private final JsonMapper json;
 
     DetalheDaInscricao(InscricaoRepository inscricoes, InscricaoNotaRepository notas, InscricaoEventoRepository eventos,
-                       InscricaoRetornoRepository retornos, ResponsaveisDaInscricao responsaveis) {
+                       InscricaoRetornoRepository retornos, ResponsaveisDaInscricao responsaveis,
+                       QuestionarioResolver questionarios, JsonMapper json) {
+        this.questionarios = questionarios;
+        this.json = json;
         this.inscricoes = inscricoes;
         this.notas = notas;
         this.eventos = eventos;
@@ -89,7 +97,19 @@ class DetalheDaInscricao {
                 listaRetornos.stream().map(r -> retorno(r, nomes)).toList(),
                 listaEventos.stream().map(e -> new Evento(e.getId(), e.getTipo(), e.getCiclo(), e.getDe(), e.getPara(),
                         e.getMotivo() == null ? null : MotivoEncerramento.valueOf(e.getMotivo()), e.getDetalhe(),
-                        nomes.get(e.getAutorId()), e.getCriadoEm())).toList());
+                        nomes.get(e.getAutorId()), e.getCriadoEm())).toList(),
+                respostas(i));
+    }
+
+    /**
+     * Respostas às perguntas do treinador com a versão respondida. Seguem a regra do objetivo e da observação: na
+     * inscrição aceita, só para quem tem {@code ALUNO_SENSIVEL_LER} (o texto livre pode trazer o que é sensível).
+     */
+    private RespostasDaInscricao respostas(Inscricao i) {
+        if (i.getQuestionarioVersaoId() == null || textoLivre(i, i.getRespostas()) == null) return null;
+        var versao = questionarios.fixa(i.getQuestionarioVersaoId());
+        return new RespostasDaInscricao(versao.versaoId(), versao.numero(), json.readTree(versao.conteudo()),
+                json.readTree(i.getRespostas()));
     }
 
     List<InscricaoResumo> resumos(List<Inscricao> lista) {

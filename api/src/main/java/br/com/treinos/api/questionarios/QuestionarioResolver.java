@@ -43,6 +43,15 @@ public class QuestionarioResolver {
         return publicada(questionarios.findByPadraoTrueAndFinalidade(Finalidade.ATUALIZACAO).orElseThrow(naoEncontrado()));
     }
 
+    /**
+     * Perguntas da página "Quero ser aluno": a versão publicada do padrão de inscrição da consultoria (D8). Vazio quando
+     * não há padrão de inscrição (a página mostra só os campos fixos).
+     */
+    public java.util.Optional<Resolvida> padraoDaInscricao() {
+        return questionarios.findByPadraoTrueAndFinalidade(Finalidade.INSCRICAO).filter(Questionario::isUsavel)
+                .map(this::publicada);
+    }
+
     /** Versão já fixada numa atualização enviada (continua valendo mesmo se o questionário for arquivado). */
     public Resolvida fixa(UUID versaoId) {
         QuestionarioVersao v = versoes.findById(versaoId).orElseThrow(naoEncontrado());

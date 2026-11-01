@@ -83,8 +83,17 @@ class InscricoesIntegrationTest extends AbstractIntegrationTest {
         corpo.put("whatsapp", "11987654321");
         corpo.put("email", email);
         corpo.put("objetivo", "Objetivo fictício");
-        corpo.put("observacao", "Observação fictícia");
         return corpo;
+    }
+
+    /**
+     * Responde a "Observação" do padrão de inscrição que toda consultoria recebe (V050), com a versão que a página
+     * pública mostra.
+     */
+    private void comObservacao(Map<String, Object> corpo, String codigo) throws Exception {
+        corpo.put("questionarioVersaoId",
+                api.get("/publico/inscricoes/" + codigo, null, 200).path("perguntas").path("versaoId").asString());
+        corpo.put("respostas", Map.of("observacao", "Observação fictícia"));
     }
 
     private JsonNode inscrever(String codigo, Map<String, Object> corpo, int status) throws Exception {
@@ -146,8 +155,9 @@ class InscricoesIntegrationTest extends AbstractIntegrationTest {
         assertThat(pagina.path("aberta").asBoolean()).isTrue();
         assertThat(pagina.path("texto").asString()).isEqualTo(texto);
         assertThat(pagina.path("consultoria").path("nome").asString()).startsWith("Consultoria ");
-        // Só a marca e o texto: nada da fila nem da equipe.
-        assertThat(pagina.propertyNames()).containsExactlyInAnyOrder("consultoria", "texto", "textoVersao", "aberta");
+        // A marca, o texto, os campos fixos visíveis e as perguntas: nada da fila nem da equipe.
+        assertThat(pagina.propertyNames()).containsExactlyInAnyOrder("consultoria", "texto", "textoVersao", "aberta",
+                "campos", "perguntas");
         String versaoDoTexto = pagina.path("textoVersao").asString();
         assertThat(versaoDoTexto).hasSize(64);
         assertThat(pagina.path("consultoria").propertyNames()).containsExactlyInAnyOrder("id", "nome", "corPrimaria",
@@ -625,7 +635,9 @@ class InscricoesIntegrationTest extends AbstractIntegrationTest {
     @Test
     void inscricaoAceitaEscondeObjetivoEObservacaoDeQuemNaoLeDadoSensivel() throws Exception {
         String codigo = abrirLink(admin, null, null).path("codigo").asString();
-        inscrever(codigo, inscricao("Aluna Fictícia Sensível", null), 202);
+        Map<String, Object> sensivel = inscricao("Aluna Fictícia Sensível", null);
+        comObservacao(sensivel, codigo);
+        inscrever(codigo, sensivel, 202);
         String id = unica(admin).path("id").asString();
 
         // Antes do aceite, quem atende a fila (Assistente, sem ALUNO_SENSIVEL_LER) lê o que a pessoa escreveu.
@@ -636,7 +648,8 @@ class InscricoesIntegrationTest extends AbstractIntegrationTest {
         String alunoId = api.post("/inscricoes/" + id + "/aceitar", admin,
                 Map.of("convidar", false, "versao", api.get("/inscricoes/" + id, admin, 200).path("versao").asLong()), 200)
                 .path("alunoId").asString();
-        assertThat(api.get("/inscricoes/" + id, admin, 200).path("observacao").asString()).isEqualTo("Observação fictícia");
+        assertThat(api.get("/inscricoes/" + id, admin, 200).path("respostas").path("respostas").path("observacao").asString())
+                .isEqualTo("Observação fictícia");
 
         // Depois do aceite valem as regras do aluno: a ficha esconde o objetivo, e a inscrição também.
         perfil(admin, "Assistente");
@@ -644,6 +657,7 @@ class InscricoesIntegrationTest extends AbstractIntegrationTest {
         JsonNode detalhe = api.get("/inscricoes/" + id, admin, 200);
         assertThat(semValor(detalhe.path("objetivo"))).isTrue();
         assertThat(semValor(detalhe.path("observacao"))).isTrue();
+        assertThat(semValor(detalhe.path("respostas"))).isTrue();
         JsonNode item = api.get("/inscricoes?situacao=TODAS", admin, 200).path("itens").get(0);
         assertThat(semValor(item.path("objetivo"))).isTrue();
         assertThat(detalhe.toString() + item).doesNotContain("Objetivo fictício").doesNotContain("Observação fictícia");
@@ -655,6 +669,7 @@ class InscricoesIntegrationTest extends AbstractIntegrationTest {
         Map<String, Object> corpo = inscricao("Aluna Fictícia Exportada", null);
         corpo.put("cienciaPrivacidade", true);
         corpo.put("textoVersao", api.get("/publico/inscricoes/" + codigo, null, 200).path("textoVersao").asString());
+        comObservacao(corpo, codigo);
         inscrever(codigo, corpo, 202);
         String id = unica(admin).path("id").asString();
         api.post("/inscricoes/" + id + "/notas", admin, Map.of("texto", "Nota fictícia da equipe"), 200);
@@ -666,7 +681,8 @@ class InscricoesIntegrationTest extends AbstractIntegrationTest {
         JsonNode itens = exportacao.path("inscricao").path("itens");
         assertThat(itens).hasSize(1);
         assertThat(itens.get(0).path("whatsapp").asString()).isEqualTo(WHATSAPP);
-        assertThat(itens.get(0).path("observacao").asString()).isEqualTo("Observação fictícia");
+        assertThat(itens.get(0).path("respostas").path("observacao").asString()).isEqualTo("Observação fictícia");
+        assertThat(itens.get(0).path("questionarioVersaoId").asString()).isNotBlank();
         assertThat(itens.get(0).path("cienciaTexto").asString()).isEqualTo("Texto fictício da consultoria.");
         assertThat(itens.get(0).path("notas").get(0).path("texto").asString()).isEqualTo("Nota fictícia da equipe");
         assertThat(itens.get(0).path("notas").get(0).has("autorId")).isFalse();

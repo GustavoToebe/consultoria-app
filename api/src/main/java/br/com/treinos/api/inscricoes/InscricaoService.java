@@ -26,6 +26,9 @@ import br.com.treinos.api.inscricoes.InscricaoDtos.InscricaoPublicaRequest;
 import br.com.treinos.api.inscricoes.InscricaoDtos.NotaRequest;
 import br.com.treinos.api.inscricoes.InscricaoDtos.PaginaInscricoes;
 import br.com.treinos.api.inscricoes.InscricaoDtos.ReabrirRequest;
+import br.com.treinos.api.atualizacoes.ValidadorAtualizacao;
+import br.com.treinos.api.questionarios.ConteudoQuestionario;
+import br.com.treinos.api.questionarios.QuestionarioResolver;
 import br.com.treinos.api.questionarios.QuestionarioService;
 import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.web.Buscas;
@@ -39,6 +42,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -84,6 +89,9 @@ public class InscricaoService {
     private final QuestionarioService questionarios;
     private final Auditoria auditoria;
     private final ConsultoriaRepository consultorias;
+    private final QuestionarioResolver resolver;
+    private final ValidadorAtualizacao validadorDeRespostas;
+    private final JsonMapper json;
     private final int limiteDiario;
 
     public InscricaoService(InscricaoRepository inscricoes, InscricaoNotaRepository notas,
@@ -91,7 +99,8 @@ public class InscricaoService {
                             ResponsaveisDaInscricao responsaveis, HistoricoDaInscricao historico,
                             DetalheDaInscricao detalhes, AlunoService alunos, ConviteService convites,
                             AnamneseService anamneses, QuestionarioService questionarios, Auditoria auditoria,
-                            ConsultoriaRepository consultorias,
+                            ConsultoriaRepository consultorias, QuestionarioResolver resolver,
+                            ValidadorAtualizacao validadorDeRespostas, JsonMapper json,
                             @Value("${treinos.limites.inscricao-consultoria-dia:200}") int limiteDiario) {
         if (limiteDiario < 1) {
             throw new IllegalArgumentException("Limite diário de inscrições inválido.");
@@ -110,14 +119,29 @@ public class InscricaoService {
         this.questionarios = questionarios;
         this.auditoria = auditoria;
         this.consultorias = consultorias;
+        this.resolver = resolver;
+        this.validadorDeRespostas = validadorDeRespostas;
+        this.json = json;
     }
 
     // ---- Público (com a consultoria do link no TenantContext) ----
 
-    /** Texto do link aberto; o código é conferido de novo aqui (pode ter mudado depois da busca). */
+    /**
+     * O que a página pública do link aberto mostra: o texto, os campos fixos visíveis e as perguntas do padrão de
+     * inscrição publicado (só o necessário para responder; nulo sem padrão). O código é conferido de novo aqui (pode ter
+     * mudado depois da busca).
+     */
+    public record PaginaDoLink(String texto, List<CampoDaInscricao> campos, InscricaoDtos.PerguntasDaInscricao perguntas) {
+    }
+
     @Transactional(readOnly = true)
-    public String textoDoLink(String codigo) {
-        return linkAberto(codigo).getTexto();
+    public PaginaDoLink paginaDoLink(String codigo) {
+        InscricaoConfiguracao link = linkAberto(codigo);
+        InscricaoDtos.PerguntasDaInscricao perguntas = resolver.padraoDaInscricao()
+                .map(v -> new InscricaoDtos.PerguntasDaInscricao(v.versaoId(),
+                        PerguntasPublicas.de(json.readValue(v.conteudo(), ConteudoQuestionario.class))))
+                .orElse(null);
+        return new PaginaDoLink(link.getTexto(), List.copyOf(CampoDaInscricao.visiveis(link.getCamposOcultos())), perguntas);
     }
 
     /**
@@ -134,6 +158,14 @@ public class InscricaoService {
      *
      * <p>Com texto, a ciência vale só para o texto que a pessoa viu (achado B2): o envio traz a {@code textoVersao} da
      * página e, se a equipe trocou o texto nesse meio-tempo, é 409 {@code TEXTO_ALTERADO} e a página mostra o texto novo.
+     *
+     * <p>Campos fixos que o treinador escondeu (D4) são ignorados se chegarem (a página pode ser de antes da mudança).
+     * As respostas às perguntas do treinador (D9) são validadas pela versão publicada do padrão de inscrição, com as regras
+     * da atualização e da anamnese (422 {@code INSCRICAO_INVALIDA}, por id da pergunta, sem repetir o valor), e gravadas com
+     * a versão fixada. A página manda a versão que mostrou: outra versão (ou respostas sem versão, ou versão sem padrão)
+     * é 409 {@code PERGUNTAS_ALTERADAS} e a página recarrega as perguntas. Sem versão e sem respostas vale como "não
+     * respondeu" (a pergunta obrigatória ainda recusa). Nada disso vai a log nem à auditoria; o aceite não copia as
+     * respostas para o cadastro.
      */
     @Transactional
     public void registrarPublica(String codigo, InscricaoPublicaRequest r) {
@@ -152,15 +184,44 @@ public class InscricaoService {
         }
         String whatsapp = Formatos.telefone(r.whatsapp());
         UUID responsavel = responsaveis.ativo(link.getResponsavelId()) ? link.getResponsavelId() : null;
-        if (r.sexo() != null && !r.sexo().isBlank() && Sexo.ler(r.sexo()) == null) {
+        Set<CampoDaInscricao> ocultos = link.getCamposOcultos();
+        String sexo = ocultos.contains(CampoDaInscricao.SEXO) ? null : r.sexo();
+        if (sexo != null && !sexo.isBlank() && Sexo.ler(sexo) == null) {
             throw new br.com.treinos.api.web.ValidacaoException("Confira os campos.", "INSCRICAO_INVALIDA",
                     List.of(new br.com.plataforma.comum.web.ApiError.FieldError("sexo", "Escolha Masculino, Feminino ou Outro.")));
         }
-        Inscricao nova = new Inscricao(r.nome().trim(), whatsapp, Buscas.opcional(r.email()), Buscas.opcional(r.objetivo()),
-                Buscas.opcional(r.observacao()), texto, responsavel, Sexo.ler(r.sexo()));
-        nova.qualificar(r.interesse(), r.modalidade(), r.previsaoInicio(), r.origem(), Crm.origemLinkValida(r.origemLink()));
+        Inscricao nova = new Inscricao(r.nome().trim(), whatsapp,
+                ocultos.contains(CampoDaInscricao.EMAIL) ? null : Buscas.opcional(r.email()),
+                ocultos.contains(CampoDaInscricao.OBJETIVO) ? null : Buscas.opcional(r.objetivo()),
+                null, texto, responsavel, Sexo.ler(sexo));
+        nova.qualificar(ocultos.contains(CampoDaInscricao.INTERESSE) ? null : r.interesse(),
+                ocultos.contains(CampoDaInscricao.MODALIDADE) ? null : r.modalidade(),
+                ocultos.contains(CampoDaInscricao.PREVISAO_INICIO) ? null : r.previsaoInicio(),
+                ocultos.contains(CampoDaInscricao.ORIGEM) ? null : r.origem(), Crm.origemLinkValida(r.origemLink()));
+        responderPerguntas(nova, r.questionarioVersaoId(), r.respostas());
         Inscricao gravada = inscricoes.saveAndFlush(nova);
         historico.registrar(gravada, TipoEvento.CRIADA, null, null, null, null);
+    }
+
+    /** Confere a versão das perguntas e valida as respostas por ela (regras no javadoc de {@link #registrarPublica}). */
+    private void responderPerguntas(Inscricao nova, UUID versaoEnviada, JsonNode enviadas) {
+        boolean temRespostas = enviadas != null && !enviadas.isNull() && !enviadas.isMissingNode()
+                && !(enviadas.isObject() && enviadas.isEmpty());
+        var padrao = resolver.padraoDaInscricao();
+        if (padrao.isEmpty()) {
+            if (versaoEnviada != null || temRespostas) throw perguntasAlteradas();
+            return;
+        }
+        UUID versao = padrao.get().versaoId();
+        if (versaoEnviada != null ? !versaoEnviada.equals(versao) : temRespostas) throw perguntasAlteradas();
+        JsonNode limpas = validadorDeRespostas.validar(json.readTree(padrao.get().conteudo()),
+                temRespostas ? enviadas : json.createObjectNode(), false, "INSCRICAO_INVALIDA", LocalDate.now(Fuso.BRASILIA));
+        nova.responder(versao, json.writeValueAsString(limpas));
+    }
+
+    private static ConflictException perguntasAlteradas() {
+        return new ConflictException("A consultoria mudou as perguntas enquanto você preenchia. Confira as perguntas e envie de novo.",
+                "PERGUNTAS_ALTERADAS");
     }
 
     private InscricaoConfiguracao linkAberto(String codigo) {

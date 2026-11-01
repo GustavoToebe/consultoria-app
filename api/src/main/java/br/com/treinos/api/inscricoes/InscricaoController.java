@@ -79,6 +79,12 @@ public class InscricaoController {
     }
 
     @PreAuthorize("hasAuthority('PERM_INSCRICAO_ALTERAR')")
+    @PutMapping("/configuracao/campos-ocultos")
+    public ConfiguracaoResponse esconderCampos(@RequestBody @Valid InscricaoDtos.CamposOcultosRequest request) {
+        return configuracao.esconderCampos(request);
+    }
+
+    @PreAuthorize("hasAuthority('PERM_INSCRICAO_ALTERAR')")
     @PostMapping("/configuracao/novo-link")
     public ConfiguracaoResponse novoLink(@RequestBody(required = false) NovoLinkRequest request) {
         return configuracao.novoLink(request);

@@ -1392,7 +1392,7 @@ export type AtualizacaoDaLista = Pick<Atualizacao, 'id' | 'pastaId' | 'alunoId' 
 /** Gestão dos questionários (`questionarios/dto/QuestionarioDtos`). */
 export type OrigemQuestionario = 'VAZIO' | 'FABRICA';
 /** Check-in de cada período ou anamnese atribuída ao aluno. */
-export type FinalidadeQuestionario = 'ATUALIZACAO' | 'ANAMNESE';
+export type FinalidadeQuestionario = 'ATUALIZACAO' | 'ANAMNESE' | 'INSCRICAO';
 export interface UsoQuestionario { alunos: number; pastas: number; envios: number }
 export interface QuestionarioResumo {
   id: string; nome: string; descricao: string | null; finalidade: FinalidadeQuestionario; padrao: boolean; arquivado: boolean;

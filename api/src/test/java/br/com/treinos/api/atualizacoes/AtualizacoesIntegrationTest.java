@@ -343,7 +343,7 @@ class AtualizacoesIntegrationTest extends AbstractIntegrationTest {
         String pasta = publicarPasta(hoje);
         UUID[] antigo = novoQuestionario("Respondido",SEM_PESO);
         escolherNoAluno(antigo[0]);
-        UUID padrao = banco.queryForObject("select id from questionario_versao where consultoria_id=? and questionario_id in (select id from questionario where padrao and consultoria_id=?)",UUID.class,consultoria(),consultoria());
+        UUID padrao = banco.queryForObject("select id from questionario_versao where consultoria_id=? and questionario_id in (select id from questionario where padrao and finalidade='ATUALIZACAO' and consultoria_id=?)",UUID.class,consultoria(),consultoria());
         // Versão que não é a vigente: 409 e nada é gravado.
         api.post("/aluno/atualizacao/enviar",loginAluno,envioComVersao(pasta,padrao,Map.of("sono",7)),409);
         assertThat(api.get("/aluno/atualizacao",loginAluno,200).path("fase").asString()).isEqualTo("ABERTA");
