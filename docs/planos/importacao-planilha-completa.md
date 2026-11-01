@@ -32,8 +32,8 @@ Tomadas na implementação; o Gustavo confirma ou pede a troca.
 ## Passos
 - [x] 1. Regras de reconhecimento, ligação, prescrição e nomes, e a análise só leitura (`POST /importacoes/planilha-completa/analisar`) — commit: d37fcb5
 - [x] 2. Prévia, confirmação em rascunho, desfazer e V049 (`importacao_id`) — commits: 51a1f24, ef0cca2
-- [x] 3. Análise com as linhas ambíguas e os nomes de suplemento com a sugestão — commit: a desta entrega
-- [x] 4. Tela: cartão "Planilha completa" entre os destinos, página inteira `/treinador/importacao/planilha-completa` (arquivo, abas, nomes, prévia, resultado), "Desfazer importação" no histórico, Ajuda e e2e — commit: a desta entrega
+- [x] 3. Análise com as linhas ambíguas e os nomes de suplemento com a sugestão — commit: 47f1b48
+- [x] 4. Tela: cartão "Planilha completa" entre os destinos, página inteira `/treinador/importacao/planilha-completa` (arquivo, abas, nomes, prévia, resultado), "Desfazer importação" no histórico, Ajuda e e2e — commit: 2aae19d
 - [ ] 5. CI verde (`mvn verify` com os testes de integração, que precisam de Docker) e conferência do Gustavo com uma planilha fictícia
 - [ ] 6. Fase 2: o que o Gustavo decidir depois da conferência
 
