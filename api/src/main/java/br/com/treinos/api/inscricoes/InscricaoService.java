@@ -31,6 +31,7 @@ import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.web.Buscas;
 import br.com.treinos.api.web.ConflitoComRecursoException;
 import br.com.treinos.api.web.Formatos;
+import br.com.treinos.api.web.Fuso;
 import br.com.treinos.api.web.MuitasRequisicoesException;
 import br.com.treinos.api.web.NaoEncontradoException;
 import org.springframework.beans.factory.annotation.Value;
@@ -45,6 +46,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 /**

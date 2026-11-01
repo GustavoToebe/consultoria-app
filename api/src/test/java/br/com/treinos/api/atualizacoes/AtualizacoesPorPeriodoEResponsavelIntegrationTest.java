@@ -27,6 +27,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @AutoConfigureMockMvc
 class AtualizacoesPorPeriodoEResponsavelIntegrationTest extends AbstractIntegrationTest {
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.jdbc.core.JdbcTemplate banco;
+
 
     @Autowired private MockMvc mvc;
     @Autowired private JsonMapper json;
@@ -115,10 +118,8 @@ class AtualizacoesPorPeriodoEResponsavelIntegrationTest extends AbstractIntegrat
     /** Aluno sem responsável, com a mesma pasta e treino de {@link #alunoDe}. */
     private UUID alunoSemResponsavel(String nome, LocalDate fimDaPasta) throws Exception {
         UUID aluno = alunoDe(admin, nome, fimDaPasta);
-        Map<String, Object> corpo = new java.util.HashMap<>();
-        corpo.put("responsavelId", null);
-        corpo.put("alunoIds", List.of(aluno.toString()));
-        api.post("/alunos/lote/responsavel", admin, corpo, 200);
+        // O cadastro sempre põe um responsável e nenhuma rota o tira: o teste o tira direto no banco.
+        banco.update("update aluno set responsavel_id = null where id = ?", aluno);
         return aluno;
     }
 

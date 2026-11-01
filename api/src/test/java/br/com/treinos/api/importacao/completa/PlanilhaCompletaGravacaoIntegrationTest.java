@@ -289,7 +289,7 @@ class PlanilhaCompletaGravacaoIntegrationTest extends AbstractIntegrationTest {
         assertThat(contar("plano_treino", id, " and versao_publicada = 0 and publicado_em is null")).isEqualTo(3);
         String rascunho = jdbc.queryForObject("select p.rascunho::text from plano_treino p join aluno a on a.id = p.aluno_id "
                 + "where p.importacao_id = ?::uuid and a.nome = ?", String.class, id, "Ana Fictícia");
-        assertThat(rascunho).contains("\"descansoSegundos\":90").contains("Treino A").contains("Treino B");
+        assertThat(rascunho).contains("\"descansoSegundos\": 90").contains("Treino A").contains("Treino B");
         // O histórico não guarda o nome do aluno que está no nome da aba.
         assertThat(jdbc.queryForObject("select erros::text from importacao where id = ?::uuid", String.class, id))
                 .doesNotContain("Ana Fictícia");
