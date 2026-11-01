@@ -20,7 +20,7 @@ import br.com.treinos.api.inscricoes.InscricaoDtos.PropostaRequest;
 import br.com.treinos.api.inscricoes.InscricaoDtos.ReabrirRequest;
 import br.com.treinos.api.inscricoes.InscricaoDtos.RelacaoRequest;
 import br.com.treinos.api.inscricoes.InscricaoDtos.Semelhantes;
-import br.com.treinos.api.inscricoes.InscricaoService.Filtro;
+import br.com.treinos.api.inscricoes.FilaDeInscricoesService.Filtro;
 import br.com.treinos.api.security.UsuarioAutenticado;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -54,13 +54,15 @@ import java.util.UUID;
 public class InscricaoController {
 
     private final InscricaoService inscricoes;
+    private final FilaDeInscricoesService fila;
     private final AtendimentoService atendimento;
     private final IndicadoresDeInscricoes indicadores;
     private final ConfiguracaoInscricaoService configuracao;
 
-    public InscricaoController(InscricaoService inscricoes, AtendimentoService atendimento,
+    public InscricaoController(InscricaoService inscricoes, FilaDeInscricoesService fila, AtendimentoService atendimento,
                                IndicadoresDeInscricoes indicadores, ConfiguracaoInscricaoService configuracao) {
         this.inscricoes = inscricoes;
+        this.fila = fila;
         this.atendimento = atendimento;
         this.indicadores = indicadores;
         this.configuracao = configuracao;
@@ -84,28 +86,43 @@ public class InscricaoController {
         return configuracao.novoLink(request);
     }
 
+    /**
+     * Fila filtrada (todos opcionais, combinados com E; {@link FiltrosDaFila}): {@code responsavel} e {@code origem}
+     * repetíveis ({@code nenhum} e {@code NAO_INFORMADA} valem; {@code meus} junto de {@code responsavel} = 400), período
+     * de entrada ({@code de}/{@code ate}) e de última atividade ({@code atividadeDe}/{@code atividadeAte}). As contagens
+     * aceitam os mesmos filtros (sem a situação), para o número de cada situação bater com a lista e o Kanban.
+     */
     @PreAuthorize("hasAuthority('PERM_INSCRICAO_LER')")
     @GetMapping
     public PaginaInscricoes listar(@AuthenticationPrincipal UsuarioAutenticado eu,
                                    @RequestParam(required = false) String situacao,
                                    @RequestParam(defaultValue = "false") boolean meus,
-                                   @RequestParam(required = false) String responsavel,
-                                   @RequestParam(required = false) String origem,
+                                   @RequestParam(required = false) List<String> responsavel,
+                                   @RequestParam(required = false) List<String> origem,
                                    @RequestParam(required = false) String busca,
+                                   @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate de,
+                                   @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate ate,
+                                   @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate atividadeDe,
+                                   @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate atividadeAte,
                                    @RequestParam(defaultValue = "0") int pagina,
                                    @RequestParam(defaultValue = "30") int tamanho) {
-        return inscricoes.listar(new Filtro(situacao, meus ? eu.usuarioId() : null, responsavel, origem, busca), pagina,
-                tamanho);
+        return fila.listar(new Filtro(situacao, meus ? eu.usuarioId() : null, responsavel, origem, busca, de, ate,
+                atividadeDe, atividadeAte), pagina, tamanho);
     }
 
     @PreAuthorize("hasAuthority('PERM_INSCRICAO_LER')")
     @GetMapping("/contagens")
     public Contagens contagens(@AuthenticationPrincipal UsuarioAutenticado eu,
                                @RequestParam(defaultValue = "false") boolean meus,
-                               @RequestParam(required = false) String responsavel,
-                               @RequestParam(required = false) String origem,
-                               @RequestParam(required = false) String busca) {
-        return inscricoes.contar(new Filtro(null, meus ? eu.usuarioId() : null, responsavel, origem, busca));
+                               @RequestParam(required = false) List<String> responsavel,
+                               @RequestParam(required = false) List<String> origem,
+                               @RequestParam(required = false) String busca,
+                               @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate de,
+                               @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate ate,
+                               @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate atividadeDe,
+                               @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate atividadeAte) {
+        return fila.contar(new Filtro(null, meus ? eu.usuarioId() : null, responsavel, origem, busca, de, ate, atividadeDe,
+                atividadeAte));
     }
 
     /** Período em dias de Brasília ({@code de}/{@code ate}, até 366 dias; sem eles, os últimos 30). */

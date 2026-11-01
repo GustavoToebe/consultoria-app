@@ -64,6 +64,38 @@ class ImportacaoIntegrationTest extends AbstractIntegrationTest {
         treinador = api.novoTreinador();
     }
 
+    /** Histórico (lote 2 dos filtros): {@code arquivo=xlsx|csv} pela extensão gravada e período {@code de}/{@code ate}. */
+    @Test
+    void historicoFiltraPorArquivoEPeriodo() throws Exception {
+        String config = config("email", "IGNORAR", Map.of("nome", 0, "email", 1));
+        String csv = "nome;email\nCaio Fictício;" + unico("caio") + "\n";
+        JsonNode doCsv = confirmar("alunos", "lista de alunos.csv", csv.getBytes(StandardCharsets.UTF_8), config,
+                hash("alunos", "lista de alunos.csv", csv, config));
+        String csvX = "nome;email\nDora Fictícia;" + unico("dora") + "\n";
+        JsonNode previaX = enviar("alunos/previa", "planilha.xlsx", xlsx(csvX), config, 200);
+        confirmar("alunos", "planilha.xlsx", xlsx(csvX), config, previaX.path("hash").asString());
+        LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
+        // A do CSV fica 20 dias para trás.
+        jdbc.update("update importacao set criado_em = now() - interval '20 days' where id = ?::uuid", doCsv.path("id").asString());
+
+        assertThat(api.get("/importacoes?arquivo=csv", treinador, 200).path("total").asLong()).isEqualTo(1);
+        assertThat(api.get("/importacoes?arquivo=XLSX", treinador, 200).path("itens").get(0).path("nomeArquivo").asString())
+                .isEqualTo(".xlsx");
+        assertThat(api.get("/importacoes?de=" + hoje.minusDays(5), treinador, 200).path("total").asLong()).isEqualTo(1);
+        assertThat(api.get("/importacoes?ate=" + hoje.minusDays(10), treinador, 200).path("total").asLong()).isEqualTo(1);
+        assertThat(api.get("/importacoes?de=" + hoje.minusDays(30) + "&ate=" + hoje + "&arquivo=csv", treinador, 200)
+                .path("total").asLong()).isEqualTo(1);
+        assertThat(api.get("/importacoes?de=" + hoje.minusDays(5) + "&arquivo=csv", treinador, 200).path("total").asLong()).isZero();
+
+        JsonNode erro = api.get("/importacoes?arquivo=pdf", treinador, 400);
+        assertThat(erro.path("codigo").asString()).isEqualTo("FILTRO_INVALIDO");
+        assertThat(erro.toString()).doesNotContain("pdf");
+        assertThat(api.get("/importacoes?de=" + hoje + "&ate=" + hoje.minusDays(1), treinador, 400).path("codigo").asString())
+                .isEqualTo("PERIODO_INVALIDO");
+        // Outra consultoria não vê o histórico daqui.
+        assertThat(api.get("/importacoes?arquivo=csv", api.novoTreinador(), 200).path("total").asLong()).isZero();
+    }
+
     @Test
     void previaNaoGravaECsvEXlsxCriamAluno() throws Exception {
         String email = unico("ana");

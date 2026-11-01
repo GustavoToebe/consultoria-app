@@ -23,6 +23,9 @@ public interface QuestionarioRepository extends JpaRepository<Questionario, UUID
 
     List<Questionario> findByArquivadoAndFinalidadeOrderByNomeAsc(boolean arquivado, Finalidade finalidade);
 
+    /** Ativos e arquivados juntos ({@code arquivados=todos} na lista). */
+    List<Questionario> findByFinalidadeOrderByNomeAsc(Finalidade finalidade);
+
     /** Contagens para a lista (uma consulta por tipo de uso, sem N+1). Todas passam pelo @TenantId. */
     @Query("select new br.com.treinos.api.questionarios.ContagemPorQuestionario(a.questionarioId, count(a)) "
             + "from Aluno a where a.questionarioId is not null group by a.questionarioId")

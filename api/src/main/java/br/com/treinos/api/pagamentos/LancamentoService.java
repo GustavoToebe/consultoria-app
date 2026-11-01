@@ -9,6 +9,7 @@ import br.com.treinos.api.pagamentos.PagamentosDtos.LancamentoRequest;
 import br.com.treinos.api.pagamentos.PagamentosDtos.LancamentoResponse;
 import br.com.treinos.api.pagamentos.PagamentosDtos.PaginaLancamentos;
 import br.com.treinos.api.web.Buscas;
+import br.com.treinos.api.web.FiltrosDeLista;
 import br.com.treinos.api.web.Fuso;
 import br.com.treinos.api.web.NaoEncontradoException;
 import br.com.treinos.api.web.ValidacaoException;
@@ -40,17 +41,33 @@ public class LancamentoService {
         this.auditoria = auditoria;
     }
 
+    /**
+     * Lista paginada (mais recentes primeiro) com os filtros, todos opcionais e combinados com E: período pela data,
+     * {@code tipo} ({@code ENTRADA} ou {@code SAIDA}), {@code categoria} repetível (sem diferença de caixa; OU entre elas)
+     * e {@code busca} na descrição. Valor desconhecido = 400 {@code FILTRO_INVALIDO}; período invertido = 400.
+     */
     @Transactional(readOnly = true)
-    public PaginaLancamentos listar(LocalDate de, LocalDate ate, int pagina) {
+    public PaginaLancamentos listar(LocalDate de, LocalDate ate, String tipo, List<String> categoria, String busca, int pagina) {
         LocalDate inicio = de == null ? PRIMEIRO_DIA : de;
         LocalDate fim = ate == null ? ULTIMO_DIA : ate;
         if (fim.isBefore(inicio)) {
             throw new BadRequestException("Período inválido.");
         }
-        var page = lancamentos.findByDataBetweenOrderByDataDescCriadoEmDescIdDesc(inicio, fim,
+        TipoDeLancamento filtroTipo = FiltrosDeLista.umEnum(TipoDeLancamento.class, tipo, "tipo");
+        List<String> categorias = FiltrosDeLista.valores(categoria, "categoria").stream()
+                .map(c -> c.toLowerCase(java.util.Locale.ROOT)).distinct().toList();
+        boolean temBusca = busca != null && !busca.isBlank();
+        var page = lancamentos.filtrar(inicio, fim, filtroTipo, !categorias.isEmpty(),
+                categorias.isEmpty() ? List.of("") : categorias, temBusca, Buscas.padrao(busca),
                 PageRequest.of(Math.max(0, pagina), TAMANHO_PAGINA));
         return new PaginaLancamentos(page.getContent().stream().map(Respostas::lancamento).toList(),
                 page.getTotalElements(), Math.max(0, pagina));
+    }
+
+    /** Categorias já usadas nos lançamentos da consultoria, para o filtro (até 200, em ordem alfabética). */
+    @Transactional(readOnly = true)
+    public List<String> categorias() {
+        return lancamentos.categorias(PageRequest.of(0, 200));
     }
 
     @Transactional

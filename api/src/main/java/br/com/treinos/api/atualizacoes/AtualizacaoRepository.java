@@ -19,7 +19,7 @@ public interface AtualizacaoRepository extends JpaRepository<Atualizacao, UUID> 
      * JPQL: o {@code @TenantId} vale em todas as entidades. A fase é calculada em Java por {@link RegrasAtualizacao}.
      */
     @Query("select new br.com.treinos.api.atualizacoes.LinhaAtualizacao(a.id, a.nome, p.id, p.fim, u.id, "
-            + "u.dataAtualizacao, u.atrasoAte, u.estado) from Aluno a "
+            + "u.dataAtualizacao, u.atrasoAte, u.estado, a.responsavelId) from Aluno a "
             + "left join PlanoTreino t on t.alunoId = a.id and t.ativo = true "
             + "left join PlanoDieta d on d.alunoId = a.id and d.ativo = true "
             + "join PastaPlano p on p.id = coalesce(t.pastaId, d.pastaId) and p.alunoId = a.id "
@@ -30,7 +30,7 @@ public interface AtualizacaoRepository extends JpaRepository<Atualizacao, UUID> 
 
     /** Mesma consulta de {@link #linhasDoPainel}, só para os alunos de uma página da lista (sem filtro de responsável). */
     @Query("select new br.com.treinos.api.atualizacoes.LinhaAtualizacao(a.id, a.nome, p.id, p.fim, u.id, "
-            + "u.dataAtualizacao, u.atrasoAte, u.estado) from Aluno a "
+            + "u.dataAtualizacao, u.atrasoAte, u.estado, a.responsavelId) from Aluno a "
             + "left join PlanoTreino t on t.alunoId = a.id and t.ativo = true "
             + "left join PlanoDieta d on d.alunoId = a.id and d.ativo = true "
             + "join PastaPlano p on p.id = coalesce(t.pastaId, d.pastaId) and p.alunoId = a.id "

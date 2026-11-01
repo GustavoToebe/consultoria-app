@@ -4,6 +4,7 @@ import br.com.treinos.api.pagamentos.PagamentosDtos.LancamentoRequest;
 import br.com.treinos.api.pagamentos.PagamentosDtos.LancamentoResponse;
 import br.com.treinos.api.pagamentos.PagamentosDtos.PaginaLancamentos;
 import br.com.treinos.api.security.UsuarioAutenticado;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 /** Lançamentos avulsos: ler com {@code FINANCEIRO_LER}; criar, editar e excluir com {@code FINANCEIRO_ALTERAR}, sempre com a versão. */
@@ -40,8 +42,24 @@ public class LancamentoController {
     @GetMapping("/financeiro/lancamentos")
     public PaginaLancamentos listar(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate de,
                                     @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate ate,
-                                    @RequestParam(defaultValue = "0") int pagina) {
-        return lancamentos.listar(de, ate, pagina);
+                                    @RequestParam(required = false) String tipo,
+                                    @RequestParam(required = false) String busca,
+                                    @RequestParam(defaultValue = "0") int pagina,
+                                    HttpServletRequest http) {
+        return lancamentos.listar(de, ate, tipo, categoriasDe(http), busca, pagina);
+    }
+
+    /** {@code categoria} repetida: lida crua, porque a categoria é texto livre e pode ter vírgula (o Spring a partiria). */
+    private static List<String> categoriasDe(HttpServletRequest http) {
+        String[] valores = http.getParameterValues("categoria");
+        return valores == null ? List.of() : List.of(valores);
+    }
+
+    /** Categorias já usadas, para o filtro da lista. */
+    @PreAuthorize(LER)
+    @GetMapping("/financeiro/lancamentos/categorias")
+    public List<String> categorias() {
+        return lancamentos.categorias();
     }
 
     @PreAuthorize(ALTERAR)

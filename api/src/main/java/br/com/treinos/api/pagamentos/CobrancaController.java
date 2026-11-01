@@ -38,16 +38,26 @@ public class CobrancaController {
         this.cobrancas = cobrancas;
     }
 
-    /** {@code meus=true}: só os alunos cujo responsável é quem pede. Preferência de listagem, não restrição de acesso. */
+    /**
+     * {@code meus=true}: só os alunos cujo responsável é quem pede (preferência de listagem, não restrição de acesso).
+     * Filtros opcionais, combinados com E: {@code situacao} repetível (VENCIDA = aberta com vencimento antes de hoje),
+     * vencimento {@code de}/{@code ate}, {@code busca} no nome do aluno, {@code alunoId}, {@code planoId} e {@code forma}
+     * ({@code MANUAL} ou {@code ONLINE}). Nenhum abre dado que a rota já não mostrava.
+     */
     @PreAuthorize(LER)
     @GetMapping("/financeiro/cobrancas")
-    public PaginaCobrancas listar(@RequestParam(required = false) String situacao,
+    public PaginaCobrancas listar(@RequestParam(required = false) List<String> situacao,
                                   @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate de,
                                   @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate ate,
+                                  @RequestParam(required = false) String busca,
+                                  @RequestParam(required = false) String alunoId,
+                                  @RequestParam(required = false) String planoId,
+                                  @RequestParam(required = false) String forma,
                                   @RequestParam(defaultValue = "false") boolean meus,
                                   @RequestParam(defaultValue = "0") int pagina,
                                   @AuthenticationPrincipal UsuarioAutenticado eu) {
-        return cobrancas.listar(situacao, de, ate, meus ? eu.usuarioId() : null, pagina);
+        return cobrancas.listar(new CobrancaService.FiltroDeCobrancas(situacao, de, ate, busca, alunoId, planoId, forma),
+                meus ? eu.usuarioId() : null, pagina);
     }
 
     @PreAuthorize(LER)
