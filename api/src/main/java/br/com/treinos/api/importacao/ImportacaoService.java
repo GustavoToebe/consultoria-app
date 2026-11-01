@@ -76,6 +76,12 @@ public class ImportacaoService {
             "suplementos", List.of("nome", "marca"),
             "outros", List.of("nome"));
 
+    /**
+     * Destinos que só aparecem no histórico (lista, detalhe e erros): a planilha completa tem rotas próprias
+     * ({@code importacao.completa}) e não passa pela prévia nem pela confirmação de uma aba daqui.
+     */
+    private static final Map<String, String> SO_NO_HISTORICO = Map.of("planilha-completa", "ALUNO_ALTERAR");
+
     private static final Set<String> TRAVAM_A_CONSULTORIA = Set.of("alunos", "pesos");
 
     private static final TypeReference<List<Erro>> TIPO_ERROS = new TypeReference<>() { };
@@ -186,7 +192,7 @@ public class ImportacaoService {
     public Pagina listar(String destino, String situacao, String busca, int pagina) {
         List<String> visiveis = visiveis();
         if (destino != null && !destino.isBlank()) {
-            if (!PERMISSAO.containsKey(destino)) {
+            if (!PERMISSAO.containsKey(destino) && !SO_NO_HISTORICO.containsKey(destino)) {
                 throw new NaoEncontradoException("Importação não encontrada.");
             }
             if (!visiveis.contains(destino)) {
@@ -255,6 +261,11 @@ public class ImportacaoService {
         List<String> destinos = new ArrayList<>();
         PERMISSAO.forEach((destino, permissao) -> {
             if (AcessoAtual.pode(permissao) && !destinos.contains(destino)) {
+                destinos.add(destino);
+            }
+        });
+        SO_NO_HISTORICO.forEach((destino, permissao) -> {
+            if (AcessoAtual.pode(permissao)) {
                 destinos.add(destino);
             }
         });

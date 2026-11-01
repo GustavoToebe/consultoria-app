@@ -40,6 +40,22 @@ public class RegistroPeso {
     @Column(name = "registrado_por", nullable = false)
     private UUID registradoPor;
 
+    /**
+     * Importação da planilha completa que criou a linha (V049); nulo = criada à mão. O "Desfazer" da importação só olha
+     * as linhas com este id. Gravado só na criação.
+     */
+    @Column(name = "importacao_id", updatable = false)
+    private UUID importacaoId;
+
+    public UUID getImportacaoId() {
+        return importacaoId;
+    }
+
+    /** Antes de gravar a linha nova: liga à importação que a cria. */
+    public void marcarImportacao(UUID importacao) {
+        this.importacaoId = importacao;
+    }
+
     @Column(name = "criado_em", insertable = false, updatable = false)
     private Instant criadoEm;
 

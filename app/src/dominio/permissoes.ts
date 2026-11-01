@@ -44,6 +44,8 @@ export function podeAcessarTela(caminho:string,tem:(codigo:string)=>boolean,paga
   if(caminho==='/treinador/marca') return administrador;
   if(caminho==='/treinador/equipe') return tem('EQUIPE_LER');
   if(caminho==='/treinador/auditoria') return tem('AUDITORIA_LER');
+  // A planilha completa cria alunos (e o resto por parte, conferido na API): a rota pede ALUNO_ALTERAR.
+  if(caminho==='/treinador/importacao/planilha-completa') return tem('ALUNO_ALTERAR');
   if(caminho==='/treinador/importacao'||caminho==='/treinador/importacao/nova') return tem('ALUNO_ALTERAR')||tem('ALUNO_SENSIVEL_ALTERAR')||tem('BIBLIOTECA_ALTERAR')||tem('ERGOGENICO_ALTERAR');
   return false;
 }
