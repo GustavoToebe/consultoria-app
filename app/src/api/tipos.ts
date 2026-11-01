@@ -478,6 +478,70 @@ export interface DetalheDeImportacao extends ItemDeImportacao {
   configuracao: Record<string, unknown>; erros: ErroDeImportacao[];
 }
 
+// ---- Importação: planilha completa (várias abas ligadas) ----
+
+/** Tipo de aba reconhecido pela API (`TipoDeAba`). */
+export type TipoDeAbaDaPlanilha = 'ALUNOS' | 'PESOS' | 'TREINO' | 'ROTINAS' | 'DIETA' | 'PLANOS_DE_DIETA' | 'SUPLEMENTOS'
+  | 'LISTA_DE_EXERCICIOS' | 'TABELA_DE_ALIMENTOS' | 'DESCONHECIDA';
+export interface AbaDaPlanilha {
+  indice: number; nome: string; tipo: TipoDeAbaDaPlanilha; linhaDoCabecalho: number; linhas: number;
+  campos: Record<string, number>; avisos: { codigo: string; linha: number; coluna: number }[];
+}
+export interface LinhaAmbiguaDaPlanilha { linha: number; candidatas: number[] }
+export interface LigacaoDaPlanilha {
+  abaFilha: number; colunaFilha: number; abaMae: number; colunaMae: number; por: 'CODIGO' | 'NOME';
+  ligadas: number; naoLigadas: number; ambiguas: number; pendentes: LinhaAmbiguaDaPlanilha[];
+}
+export interface ProblemaDaPlanilha { aba: string; linha: number; campo: string | null; tipo: string }
+/** Nome que pede resposta: `PROVAVEL` (com a sugestão) ou `NENHUM`. */
+export interface PerguntaDaPlanilha { nome: string; nivel: 'PROVAVEL' | 'NENHUM'; sugestao: string | null; origem: string | null; nota: number; ocorrencias: number }
+export interface PerguntaDeSuplementoDaPlanilha { nome: string; sugestao: 'SUPLEMENTO' | 'SENSIVEL' | null; ocorrencias: number }
+export interface ContagemDeNomes { certo: number; provavel: number; nenhum: number }
+export interface ResumoDaPlanilha {
+  alunos: number; alunosInativos: number; pesos: number; pesosIniciais: number; pesosIniciaisNoHistorico: number;
+  treinos: number; exercicios: number; refeicoes: number; itensDeDieta: number; suplementos: number; exerciciosNaLista: number;
+  nomesDeExercicio: ContagemDeNomes; nomesDeAlimento: ContagemDeNomes; prescricoes: number; prescricoesNaoEntendidas: number;
+  prescricoesComSobra: number; faixasRecuperadasDeData: number;
+}
+/** Resposta de `analisar`: só contagens, tipos, linhas e nomes de exercício, alimento e suplemento; nunca dado de aluno. */
+export interface AnaliseDaPlanilha {
+  abas: AbaDaPlanilha[]; ligacoes: LigacaoDaPlanilha[]; resumo: ResumoDaPlanilha; problemas: ProblemaDaPlanilha[];
+  problemasAlem: number; problemasPorTipo: Record<string, number>; exercicios: PerguntaDaPlanilha[];
+  alimentos: PerguntaDaPlanilha[]; suplementos: PerguntaDeSuplementoDaPlanilha[];
+}
+export type AcaoDoNome = 'ACEITAR' | 'BIBLIOTECA' | 'CRIAR' | 'MANTER';
+export type DestinoDoSuplemento = 'SUPLEMENTO' | 'SENSIVEL';
+/** O que o treinador respondeu (parte `respostas` da prévia e da confirmação). */
+export interface RespostasDaPlanilha {
+  abas: { indice: number; tipo: TipoDeAbaDaPlanilha | 'IGNORAR' }[];
+  ligacoes: { aba: number; linha: number; linhaDaMae: number }[];
+  exercicios: { nome: string; acao: AcaoDoNome; id?: string }[];
+  alimentos: { nome: string; acao: AcaoDoNome; id?: string }[];
+  suplementos: { nome: string; destino: DestinoDoSuplemento }[];
+}
+export interface CriacaoDaPlanilha {
+  alunosNovos: number; alunosNovosInativos: number; alunosReaproveitados: number; pesos: number; pesosIniciais: number;
+  pesosJaRegistrados: number; exercicios: number; pastas: number; treinos: number; sessoes: number; exerciciosNosTreinos: number;
+  exerciciosLigados: number; series: number; dietas: number; refeicoes: number; itens: number; itensLigados: number;
+  suplementos: number; ergogenicos: number; ergogenicosPulados: number; faixasRecuperadasDeData: number;
+}
+export interface PartePuladaDaPlanilha { parte: string; permissao: string }
+export interface PendenciasDaPlanilha { exerciciosProvaveis: number; alimentosProvaveis: number; ligacoesAmbiguas: number; suplementosSemClassificacao: number }
+export interface ValidacaoDosTreinos { erros: number; avisos: number }
+export interface PreviaDaPlanilha {
+  hash: string; criacao: CriacaoDaPlanilha; partesPuladas: PartePuladaDaPlanilha[]; pendencias: PendenciasDaPlanilha;
+  validacaoDosTreinos: ValidacaoDosTreinos; problemas: ProblemaDaPlanilha[]; problemasAlem: number; problemasPorTipo: Record<string, number>;
+}
+export interface ConfirmacaoDaPlanilha {
+  importacaoId: string; situacao: string; criados: CriacaoDaPlanilha; partesPuladas: PartePuladaDaPlanilha[];
+  validacaoDosTreinos: ValidacaoDosTreinos; problemas: number; problemasPorTipo: Record<string, number>;
+}
+export type TipoDesfeito = 'PLANO_TREINO' | 'PLANO_DIETA' | 'PASTA' | 'PESO' | 'EXERCICIO' | 'ALUNO';
+export interface ParteDesfeita { tipo: TipoDesfeito; apagados: number; ficaram: number; motivos: Record<string, number> }
+export interface ImportacaoDesfeita {
+  importacaoId: string; partes: ParteDesfeita[]; ficaram: { tipo: TipoDesfeito; id: string; motivo: string }[]; ficaramAlem: number;
+}
+
 // ---- Receitas ----
 
 export type TipoReceita = 'SERIES' | 'PLANO_TREINO' | 'PLANO_DIETA' | 'METODOLOGIA' | 'SESSAO_TREINO' | 'REFEICAO' | 'PASTA_PLANO' | 'MOBILIDADE';

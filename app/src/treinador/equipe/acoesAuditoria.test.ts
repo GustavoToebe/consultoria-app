@@ -31,3 +31,7 @@ test('ações da avaliação física têm rótulo no filtro da auditoria', () =>
 test('ações das agendas pessoais e dos eventos têm rótulo no filtro da auditoria', () => {
   for (const acao of ['AGENDA_PESSOAL_CRIADA', 'AGENDA_PESSOAL_ALTERADA', 'AGENDA_PESSOAL_APAGADA', 'EVENTO_CRIADO', 'EVENTO_ALTERADO', 'EVENTO_EXCLUIDO']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
 });
+
+test('importar e desfazer a importação têm rótulo no filtro da auditoria', () => {
+  for (const acao of ['IMPORTACAO_CONCLUIDA', 'IMPORTACAO_DESFEITA']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
+});
