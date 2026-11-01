@@ -18,8 +18,8 @@ era preciso converter aba por aba com os scripts de `scripts/importacao/`.
 | 6 | LGPD | Nenhum dado de aluno em log, auditoria ou mensagem de erro: o problema cita aba, linha, campo e código, nunca o valor. A tela só recebe contagens e nomes de aba, exercício, alimento e suplemento | Gustavo |
 | 7 | Revisão do d37fcb5 | TACO e tabelas de terceiros só reconhecidas, nunca importadas; sem apelidos do Saraiva no reconhecimento; código repetido liga à primeira linha | Gustavo |
 
-### Decisões para conferir (do relatório da API)
-Tomadas na implementação; o Gustavo confirma ou pede a troca.
+### Decisões confirmadas (Gustavo, 31/10)
+Tomadas na implementação e confirmadas pelo Gustavo em 31/10: exercício novo como Máquina, alimento nunca criado, suplemento sem classificação em "Medicação e ergogênicos" e responsável = quem importa (pode ser trocado depois, na ficha ou em lote na lista de alunos: Selecionar → Trocar responsável).
 - Exercício novo nasce com a modalidade `MAQUINA` (a coluna é obrigatória no banco; é o mesmo padrão da importação de uma aba).
 - Alimento nunca é criado: o item sem par na biblioteca fica manual, com o nome e os valores da planilha.
 - Suplemento sem resposta e sem par em nenhuma biblioteca vai para "Medicação e ergogênicos" (o lado conservador, como o script) e conta como pendência.
