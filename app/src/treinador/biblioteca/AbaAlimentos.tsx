@@ -23,7 +23,7 @@ import { Folha } from '../../ui/Folha';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Texto } from '../../ui/Texto';
-import { BarraDaBiblioteca, FiltroDaBiblioteca } from './BarraDaBiblioteca';
+import { BarraDaBiblioteca } from './BarraDaBiblioteca';
 import { useCarregar } from '../../ui/useCarregar';
 import { LinhaDaLista, ListaDeLinhas } from '../../ui/LinhaDaLista';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
@@ -83,10 +83,9 @@ export function AbaAlimentos() {
       titulo="Alimentos da biblioteca"
       descricao="Os alimentos que você escolhe ao montar a dieta, com os valores por quantidade-base."
       acoes={<Permitido codigo="BIBLIOTECA_ALTERAR"><Botao rotulo="Novo alimento" Icone={Plus} aoTocar={() => setEditando('novo')} /></Permitido>}>
-      <BarraDaBiblioteca rotulo="Buscar alimento" placeholder="Nome do alimento" valor={busca} aoMudar={setBusca}>
-        <FiltroDaBiblioteca rotulo="Fatores da lista de compras" valor={fatores} aoMudar={setFatores}
-          opcoes={[{ valor: 'todos', rotulo: 'Todos' }, { valor: 'com', rotulo: 'Com fatores' }, { valor: 'sem', rotulo: 'Sem fatores' }]} />
-      </BarraDaBiblioteca>
+      <BarraDaBiblioteca rotulo="Buscar alimento" placeholder="Nome do alimento" valor={busca} aoMudar={setBusca}
+        filtro={{ tipo: 'uma', rotulo: 'Fatores da lista de compras', valor: fatores, todos: 'todos', aoMudar: setFatores,
+          opcoes: [{ valor: 'todos', rotulo: 'Todos' }, { valor: 'com', rotulo: 'Com fatores' }, { valor: 'sem', rotulo: 'Sem fatores' }] }} />
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && lista.length === 0 ? (

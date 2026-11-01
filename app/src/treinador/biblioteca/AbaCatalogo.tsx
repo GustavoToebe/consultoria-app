@@ -22,7 +22,6 @@ import { MODALIDADES } from '../../dominio/modalidades';
 import { normalizar } from '../treino/FolhaBiblioteca';
 import { DemonstracaoDoExercicio } from '../../ui/DemonstracaoDoExercicio';
 import { marcadosExistentes } from '../../dominio/selecaoMultiplaSuspensa';
-import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
 import { BarraDaBiblioteca } from './BarraDaBiblioteca';
 
 interface ItemCatalogo {
@@ -146,9 +145,8 @@ export function AbaCatalogo() {
           setMarcados(new Set());
         }}
       />
-      <BarraDaBiblioteca rotulo="Buscar no catálogo" placeholder={tipo === 'exercicios' ? 'Nome do exercício' : 'Nome do alimento'} valor={busca} aoMudar={setBusca}>
-        {opcoesDeGrupo.length ? <SelecaoMultiplaSuspensa rotulo="Grupo" opcoes={opcoesDeGrupo} marcados={gruposMarcados} aoMudar={setGruposMarcados} style={estilos.aoPeDoCampo} /> : null}
-      </BarraDaBiblioteca>
+      <BarraDaBiblioteca rotulo="Buscar no catálogo" placeholder={tipo === 'exercicios' ? 'Nome do exercício' : 'Nome do alimento'} valor={busca} aoMudar={setBusca}
+        filtro={opcoesDeGrupo.length ? { tipo: 'varias', rotulo: 'Grupo', rotuloDeTodos: 'Todos', opcoes: opcoesDeGrupo, marcados: new Set(gruposDoFiltro), aoMudar: setGruposMarcados } : null} />
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && dados.itens.length === 0 ? <Vazio titulo="Nenhum resultado no catálogo" texto="Tente outro nome ou ajuste o filtro de grupo." /> : null}
@@ -204,5 +202,4 @@ const estilos = StyleSheet.create({
   passos: { gap: espaco(0.5), paddingHorizontal: espaco(1.5), paddingBottom: espaco(1.5) },
   creditos: { marginTop: espaco(2) },
   /** O seletor nasce com alignSelf flex-start; na barra (alinhada pela base) ele subia e ficava fora do lugar. */
-  aoPeDoCampo: { alignSelf: 'flex-end' },
 });
