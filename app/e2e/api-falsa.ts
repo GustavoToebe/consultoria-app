@@ -84,6 +84,8 @@ export async function simularApi(page: Page, respostas: RespostasApi = {}) {
     'GET /aluno/anamnese': erroApi(404, 'Nenhuma anamnese.', 'NAO_ENCONTRADO'),
     // A faixa do ciclo na pasta e nos editores do aluno consulta isto; desligado não desenha nada.
     'GET /alunos/{id}/ciclo': { corpo: { ativo: false, registros: [], dias: [] } },
+    // O número das abas de Atualizações (os mesmos filtros da lista); zero nos testes que não conferem isso.
+    'GET /atualizacoes/contagens': { corpo: { PARA_REVISAR: 0, ATRASADAS: 0, AVISARAM_ATRASO: 0, PROXIMAS: 0 } },
     ...respostas,
   };
   const rotas = Object.keys(mapa).sort((a, b) => b.length - a.length);

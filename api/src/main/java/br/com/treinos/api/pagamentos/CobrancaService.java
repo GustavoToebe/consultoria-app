@@ -9,6 +9,8 @@ import br.com.treinos.api.pagamentos.PagamentosDtos.CobrancaResponse;
 import br.com.treinos.api.pagamentos.PagamentosDtos.MotivoRequest;
 import br.com.treinos.api.pagamentos.PagamentosDtos.PaginaCobrancas;
 import br.com.treinos.api.web.Buscas;
+import br.com.treinos.api.web.FiltrosDeLista;
+import br.com.treinos.api.web.NaoEncontradoException;
 import br.com.treinos.api.web.Fuso;
 import br.com.treinos.api.web.ValidacaoException;
 import org.springframework.data.domain.Page;
@@ -36,46 +38,81 @@ public class CobrancaService {
 
     private final CobrancaAlunoRepository cobrancas;
     private final AlunoRepository alunos;
+    private final PlanoComercialRepository planos;
     private final BaixaDeCobranca baixa;
     private final Auditoria auditoria;
 
-    public CobrancaService(CobrancaAlunoRepository cobrancas, AlunoRepository alunos, BaixaDeCobranca baixa,
-                           Auditoria auditoria) {
+    public CobrancaService(CobrancaAlunoRepository cobrancas, AlunoRepository alunos, PlanoComercialRepository planos,
+                           BaixaDeCobranca baixa, Auditoria auditoria) {
         this.cobrancas = cobrancas;
         this.alunos = alunos;
+        this.planos = planos;
         this.baixa = baixa;
         this.auditoria = auditoria;
     }
 
+    /** Forma da baixa no filtro: registrada pelo treinador ou confirmada por um provedor (online). */
+    public enum FormaDaBaixa { MANUAL, ONLINE }
+
     /**
-     * {@code situacao}: TODAS (padrão), VENCIDA (aberta com vencimento anterior a hoje) ou uma situação gravada; ABERTA
-     * inclui as vencidas. Filtro por vencimento. Abertas e vencidas vêm das mais antigas; o resto, das mais recentes.
-     * {@code responsavelId} nulo = todos os alunos; preenchido = só os alunos dele ("Meus").
+     * Filtros crus da lista ({@code GET /financeiro/cobrancas}): {@code situacao} repetível (TODAS, VENCIDA ou uma situação
+     * gravada; ABERTA inclui as vencidas; vazio = todas), vencimento {@code de}/{@code ate}, {@code busca} no nome do aluno,
+     * {@code alunoId}, {@code planoId} (plano comercial da contratação) e {@code forma} ({@link FormaDaBaixa}).
+     */
+    public record FiltroDeCobrancas(List<String> situacao, LocalDate de, LocalDate ate, String busca, String alunoId,
+                                    String planoId, String forma) {
+
+        public static FiltroDeCobrancas soSituacao(String situacao, LocalDate de, LocalDate ate) {
+            return new FiltroDeCobrancas(situacao == null ? null : List.of(situacao), de, ate, null, null, null, null);
+        }
+    }
+
+    /**
+     * Lista paginada com os filtros (todos opcionais, combinados com E; as situações em OU). Valor desconhecido = 400
+     * {@code FILTRO_INVALIDO} sem repetir o valor; aluno ou plano de outra consultoria = 404; vencimento invertido = 400.
+     * Só abertas e/ou vencidas vêm das mais antigas; o resto, das mais recentes. {@code responsavelId} nulo = todos os
+     * alunos; preenchido = só os alunos dele ("Meus").
      */
     @Transactional(readOnly = true)
-    public PaginaCobrancas listar(String situacao, LocalDate de, LocalDate ate, UUID responsavelId, int pagina) {
-        String filtro = situacao == null || situacao.isBlank() ? "TODAS" : situacao.trim().toUpperCase(Locale.ROOT);
-        boolean todas = filtro.equals("TODAS");
-        boolean vencidas = filtro.equals("VENCIDA");
-        CobrancaAluno.Situacao gravada = CobrancaAluno.Situacao.ABERTA;
-        if (!todas && !vencidas) {
-            try {
-                gravada = CobrancaAluno.Situacao.valueOf(filtro);
-            } catch (IllegalArgumentException e) {
-                throw new BadRequestException("Situação precisa ser TODAS, VENCIDA, ABERTA, PAGA, CANCELADA, ESTORNADA ou CONTESTADA.");
-            }
+    public PaginaCobrancas listar(FiltroDeCobrancas f, UUID responsavelId, int pagina) {
+        java.util.Set<CobrancaAluno.Situacao> gravadas = java.util.EnumSet.noneOf(CobrancaAluno.Situacao.class);
+        boolean todas = false;
+        boolean vencidas = false;
+        for (String v : FiltrosDeLista.valores(f.situacao(), "situacao")) {
+            String valor = v.toUpperCase(Locale.ROOT);
+            if (valor.equals("TODAS")) todas = true;
+            else if (valor.equals("VENCIDA")) vencidas = true;
+            else gravadas.add(FiltrosDeLista.umEnum(CobrancaAluno.Situacao.class, valor, "situacao"));
         }
-        LocalDate inicio = de == null ? PRIMEIRO_DIA : de;
-        LocalDate fim = ate == null ? ULTIMO_DIA : ate;
-        if (fim.isBefore(inicio)) {
-            throw new BadRequestException("Período inválido.");
+        if (todas) {
+            gravadas.clear();
+            vencidas = false;
         }
+        // ABERTA já inclui as vencidas.
+        if (gravadas.contains(CobrancaAluno.Situacao.ABERTA)) vencidas = false;
+        UUID alunoId = f.alunoId() == null || f.alunoId().isBlank() ? null : FiltrosDeLista.uuid(f.alunoId(), "alunoId");
+        UUID planoId = f.planoId() == null || f.planoId().isBlank() ? null : FiltrosDeLista.uuid(f.planoId(), "planoId");
+        FormaDaBaixa forma = FiltrosDeLista.umEnum(FormaDaBaixa.class, f.forma(), "forma");
+        FiltrosDeLista.exigirPeriodo(f.de(), f.ate(), 0, "PERIODO_INVALIDO");
+        if (alunoId != null) Travas.exigirAluno(alunos, alunoId);
+        if (planoId != null && !planos.existsById(planoId)) throw new NaoEncontradoException("Plano não encontrado.");
+        LocalDate inicio = f.de() == null ? PRIMEIRO_DIA : f.de();
+        LocalDate fim = f.ate() == null ? ULTIMO_DIA : f.ate();
         LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
         var pageable = PageRequest.of(Math.max(0, pagina), TAMANHO_PAGINA);
-        boolean crescente = vencidas || (!todas && gravada == CobrancaAluno.Situacao.ABERTA);
+        boolean crescente = (vencidas || !gravadas.isEmpty())
+                && java.util.Set.of(CobrancaAluno.Situacao.ABERTA).containsAll(gravadas);
+        boolean filtraSituacoes = !gravadas.isEmpty();
+        // Coleção nunca vazia na consulta: sem situação gravada a flag desliga o trecho e a lista não importa.
+        var situacoes = filtraSituacoes ? gravadas : java.util.Set.of(CobrancaAluno.Situacao.ABERTA);
+        String textoForma = forma == null ? "" : forma.name();
+        boolean busca = f.busca() != null && !f.busca().isBlank();
+        String nome = Buscas.padrao(f.busca());
         Page<LinhaDeCobranca> page = crescente
-                ? cobrancas.listarCrescente(todas, gravada, vencidas, hoje, inicio, fim, null, responsavelId, pageable)
-                : cobrancas.listarDecrescente(todas, gravada, vencidas, hoje, inicio, fim, null, responsavelId, pageable);
+                ? cobrancas.filtrarCrescente(filtraSituacoes, situacoes, vencidas, CobrancaAluno.Situacao.ABERTA, hoje,
+                        inicio, fim, alunoId, responsavelId, planoId, textoForma, busca, nome, pageable)
+                : cobrancas.filtrarDecrescente(filtraSituacoes, situacoes, vencidas, CobrancaAluno.Situacao.ABERTA, hoje,
+                        inicio, fim, alunoId, responsavelId, planoId, textoForma, busca, nome, pageable);
         return new PaginaCobrancas(page.getContent().stream().map(l -> Respostas.cobranca(l, hoje)).toList(),
                 page.getTotalElements(), Math.max(0, pagina));
     }

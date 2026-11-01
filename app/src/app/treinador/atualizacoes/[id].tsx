@@ -8,7 +8,7 @@ import { QuestionarioAtualizacao } from '../../../aluno/atualizacao/Questionario
 import { ErroApi } from '../../../api/cliente';
 import { atualizacaoDoAluno, baixarFotoDoTreinador, detalheAtualizacao, listarAtualizacoes, responderAtualizacao } from '../../../api/rotas';
 import type { Atualizacao } from '../../../api/tipos';
-import { caminhoAtualizacaoTreinador, caminhoListaAtualizacoes, filaDosParametros, type FilaDeAtualizacoes, proximaDaFila, statusAtualizacaoTreinador } from '../../../dominio/atualizacao';
+import { caminhoAtualizacaoTreinador, caminhoListaAtualizacoes, filaDosParametros, filtroDaFila, type FilaDeAtualizacoes, proximaDaFila, statusAtualizacaoTreinador } from '../../../dominio/atualizacao';
 import { dataSemAnoCorrente } from '../../../dominio/datasRelativas';
 import { dataParaTela } from '../../../dominio/formatos';
 import { espaco, LARGURA_EDITOR, LARGURA_LISTA } from '../../../tema/tokens';
@@ -36,8 +36,8 @@ import { useCarregar } from '../../../ui/useCarregar';
  */
 export default function AtualizacaoTreinador() {
   const {pode}=useSessao();
-  const {id,alunoId,situacao,meus,responsavel,de,ate}=useLocalSearchParams<{id:string;alunoId?:string;situacao?:string;meus?:string;responsavel?:string;de?:string;ate?:string}>();
-  const fila=filaDosParametros(situacao,meus,{responsavel,de,ate});
+  const {id,alunoId,situacao,meus,responsavel,de,ate,busca}=useLocalSearchParams<{id:string;alunoId?:string;situacao?:string;meus?:string;responsavel?:string;de?:string;ate?:string;busca?:string}>();
+  const fila=filaDosParametros(situacao,meus,{responsavel,de,ate,busca});
   const detalhe=useCarregar(id==='previa'?alunoId??null:id??null,()=>
     id==='previa' ? atualizacaoDoAluno(alunoId!) : detalheAtualizacao(id));
   const a=detalhe.dados;
@@ -133,7 +133,7 @@ function ProximaDaFila({fila,pastaAtual}:{fila:FilaDeAtualizacoes;pastaAtual:str
   const proxima=async()=>{
     setBuscando(true);
     try {
-      const item=proximaDaFila(await listarAtualizacoes(fila.situacao,fila.meus,{responsavel:fila.responsavel,de:fila.de,ate:fila.ate}),pastaAtual);
+      const item=proximaDaFila(await listarAtualizacoes(fila.situacao,fila.meus,filtroDaFila(fila)),pastaAtual);
       if(item)router.replace(caminhoAtualizacaoTreinador(item,fila) as never);
       else setAcabou(true);
     }catch(erro){avisar(textoDoErro(erro),'perigo');}

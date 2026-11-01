@@ -8,6 +8,7 @@ import type {
   ConferenciasDePagamento,
   FinanceiroDoAluno,
   FiltroDeSituacao,
+  TipoDeLancamento,
   LancamentoRequest,
   LancamentoResponse,
   LinkDePagamento,
@@ -181,8 +182,13 @@ export const pedirRedefinicaoDeSenha = (email:string,turnstileToken?:string) => 
 export const redefinirSenha = (token:string,novaSenha:string,codigoMfa?:string) => requisicao<void>('/auth/redefinir-senha',{metodo:'POST',corpo:{token,novaSenha,codigoMfa},semRenovar:true});
 export const responsaveisEquipe = () => requisicao<ResponsavelEquipe[]>('/responsaveis');
 export const alterarMeuPerfil = (nome:string,telefone:string|null) => requisicao<EuResponse>('/eu',{metodo:'PUT',corpo:{nome,telefone}});
-export const listarAuditoria = (filtro:{de?:string;ate?:string;usuarioId?:string;acao?:string;pagina:number}) => {
-  const q=new URLSearchParams();for(const [campo,valor] of Object.entries(filtro)) if(valor!==undefined&&valor!=='') q.set(campo,String(valor));
+/** Pessoas (`usuarioId`, ids e/ou `sistema`) e ações vão repetidas; o resto, uma vez. */
+export const listarAuditoria = (filtro:{de?:string;ate?:string;usuarioId?:readonly string[];acao?:readonly string[];pagina:number}) => {
+  const q=new URLSearchParams();
+  for (const [campo,valor] of Object.entries(filtro)) {
+    if (Array.isArray(valor)) valor.forEach((v:string)=>q.append(campo,v));
+    else if (valor!==undefined&&valor!=='') q.set(campo,String(valor));
+  }
   return requisicao<PaginaAuditoria>(`/auditoria?${q.toString()}`);
 };
 
@@ -194,7 +200,8 @@ export const detalheAtualizacaoAluno = (id: string) => requisicao<Atualizacao>(`
 export const enviarAtualizacao = (pastaId: string, questionarioVersaoId: string, respostas: RespostasAtualizacao) =>
   requisicao<Atualizacao>('/aluno/atualizacao/enviar', { metodo: 'POST', corpo: { pastaId, questionarioVersaoId, respostas } });
 // Questionários de atualização (gestão pelo treinador; a API autoriza pelo banco).
-export const listarQuestionarios = (arquivados = false, finalidade: FinalidadeQuestionario = 'ATUALIZACAO') =>
+/** `arquivados`: só os ativos (`false`), só os arquivados (`true`) ou os dois juntos (`'todos'`). */
+export const listarQuestionarios = (arquivados: boolean | 'todos' = false, finalidade: FinalidadeQuestionario = 'ATUALIZACAO') =>
   requisicao<QuestionarioResumo[]>(`/questionarios?arquivados=${arquivados}&finalidade=${finalidade}`);
 export const opcoesDeQuestionario = (finalidade: FinalidadeQuestionario = 'ATUALIZACAO') =>
   requisicao<OpcaoQuestionario[]>(`/questionarios/opcoes?finalidade=${finalidade}`);
@@ -250,16 +257,26 @@ export const marcarFeedbackVisto = (id: string) =>
  * `responsavel` (um membro da equipe) e `meus` juntos dão 400 `FILTRO_INVALIDO`, então com `responsavel` o `meus` não vai;
  * `de`/`ate` vão só em par (até 366 dias).
  */
-export const listarAtualizacoes = (situacao: SituacaoAtualizacao, meus = false, filtro: FiltroAtualizacoes = {}) => {
-  const q = new URLSearchParams({ situacao });
-  if (filtro.responsavel) q.set('responsavel', filtro.responsavel);
+/** Filtros comuns da lista e das contagens de atualizações (responsáveis repetidos; a API recusa `meus` com `responsavel`). */
+function filtroDeAtualizacoes(meus: boolean, filtro: FiltroAtualizacoes, inicio: Record<string, string> = {}): URLSearchParams {
+  const q = new URLSearchParams(inicio);
+  const responsaveis = typeof filtro.responsavel === 'string' ? [filtro.responsavel] : [...(filtro.responsavel ?? [])];
+  if (responsaveis.length) responsaveis.forEach((r) => q.append('responsavel', r));
   else q.set('meus', String(meus));
+  if (filtro.busca?.trim()) q.set('busca', filtro.busca.trim());
   if (filtro.de && filtro.ate) {
     q.set('de', filtro.de);
     q.set('ate', filtro.ate);
   }
+  return q;
+}
+export const listarAtualizacoes = (situacao: SituacaoAtualizacao, meus = false, filtro: FiltroAtualizacoes = {}) => {
+  const q = filtroDeAtualizacoes(meus, filtro, { situacao });
   return requisicao<AtualizacaoDaLista[]>(`/atualizacoes?${q.toString()}`);
 };
+/** Quantas há em cada situação (o número das abas) com os mesmos filtros da lista. */
+export const contagensAtualizacoes = (meus = false, filtro: FiltroAtualizacoes = {}) =>
+  requisicao<Record<SituacaoAtualizacao, number>>(`/atualizacoes/contagens?${filtroDeAtualizacoes(meus, filtro).toString()}`);
 export const atualizacoesDoAluno = (id: string) => requisicao<Atualizacao[]>(`/alunos/${seg(id)}/atualizacoes`);
 export const atualizacaoDoAluno = (id: string) => requisicao<Atualizacao>(`/alunos/${seg(id)}/atualizacao`);
 export const evolucaoRespostasDoAluno = (id: string) =>
@@ -429,13 +446,17 @@ export const esconderCamposDaInscricao = (camposOcultos: CampoDaInscricao[], ver
 export const novoLinkInscricao = (versao: number | null) =>
   requisicao<ConfiguracaoInscricao>('/inscricoes/configuracao/novo-link', { metodo: 'POST', corpo: { versao } });
 
-/** Parâmetros comuns da lista, das contagens e do Kanban (busca, responsável e origem). */
+/** Parâmetros comuns da lista, das contagens e do Kanban (busca, responsáveis, origens e os dois períodos). */
 function filtroDaFila(filtro: Omit<FiltroDaFila, 'situacao' | 'pagina'>): URLSearchParams {
   const q = new URLSearchParams();
   q.set('meus', String(filtro.meus));
   if (filtro.busca?.trim()) q.set('busca', filtro.busca.trim());
-  if (filtro.responsavel && !filtro.meus) q.set('responsavel', filtro.responsavel);
-  if (filtro.origem) q.set('origem', filtro.origem);
+  if (!filtro.meus) filtro.responsavel?.forEach((r) => q.append('responsavel', r));
+  filtro.origem?.forEach((o) => q.append('origem', o));
+  for (const chave of ['de', 'ate', 'atividadeDe', 'atividadeAte'] as const) {
+    const valor = filtro[chave];
+    if (valor) q.set(chave, valor);
+  }
   return q;
 }
 
@@ -794,11 +815,12 @@ export type TipoBiblioteca = 'exercicios' | 'alimentos';
 export const importarDoCatalogo = (tipo: TipoBiblioteca, ids: string[]) =>
   requisicao<ImportacaoResultado>(`/${seg(tipo)}/importar-catalogo`, { metodo: 'POST', corpo: { ids } });
 
-export const listarImportacoes = (filtro: { destino?: string; situacao?: string; busca?: string; pagina: number }) => {
+export const listarImportacoes = (filtro: { destino?: string; situacao?: string; arquivo?: 'xlsx' | 'csv'; de?: string; ate?: string; pagina: number }) => {
   const q = new URLSearchParams();
-  if (filtro.destino) q.set('destino', filtro.destino);
-  if (filtro.situacao) q.set('situacao', filtro.situacao);
-  if (filtro.busca) q.set('busca', filtro.busca);
+  for (const campo of ['destino', 'situacao', 'arquivo', 'de', 'ate'] as const) {
+    const valor = filtro[campo];
+    if (valor) q.set(campo, valor);
+  }
   q.set('pagina', String(filtro.pagina));
   return requisicao<PaginaDeImportacao>(`/importacoes?${q}`);
 };
@@ -1021,16 +1043,21 @@ export const mudarSituacaoDaContratacao = (id: string, acao: 'pausar' | 'retomar
 
 export const listarCobrancasDoAluno = (alunoId: string) =>
   requisicao<CobrancaResponse[]>(`/alunos/${seg(alunoId)}/cobrancas`);
-export const listarCobrancas = (filtro: { situacao?: FiltroDeSituacao; de?: string; ate?: string; meus?: boolean; pagina?: number }) =>
-  requisicao<PaginaCobrancas>(
-    `/financeiro/cobrancas${consultaFinanceiro({
-      situacao: filtro.situacao === 'TODAS' ? undefined : filtro.situacao,
-      de: filtro.de,
-      ate: filtro.ate,
-      meus: filtro.meus ? true : undefined,
-      pagina: filtro.pagina ?? 0,
-    })}`,
-  );
+/**
+ * Cobranças filtradas: `situacoes` repetidas (vazio = todas; "Em aberto" inclui as vencidas), vencimento `de`/`ate`,
+ * `busca` no nome do aluno, `alunoId`, `planoId` e `forma` da baixa.
+ */
+export const listarCobrancas = (filtro: {
+  situacoes?: readonly FiltroDeSituacao[]; de?: string; ate?: string; meus?: boolean; pagina?: number; busca?: string;
+  alunoId?: string; planoId?: string; forma?: 'MANUAL' | 'ONLINE';
+}) => {
+  const q = new URLSearchParams();
+  (filtro.situacoes ?? []).filter((s) => s !== 'TODAS').forEach((s) => q.append('situacao', s));
+  const resto = { de: filtro.de, ate: filtro.ate, busca: filtro.busca?.trim(), alunoId: filtro.alunoId, planoId: filtro.planoId,
+    forma: filtro.forma, meus: filtro.meus ? 'true' : undefined, pagina: String(filtro.pagina ?? 0) };
+  for (const [campo, valor] of Object.entries(resto)) if (valor) q.set(campo, valor);
+  return requisicao<PaginaCobrancas>(`/financeiro/cobrancas?${q.toString()}`);
+};
 export const registrarPagamentoManual = (id: string, corpo: BaixaManualRequest) =>
   requisicao<CobrancaResponse>(`/cobrancas/${seg(id)}/baixa-manual`, { metodo: 'POST', corpo });
 export const desfazerBaixaDaCobranca = (id: string, corpo: MotivoRequest) =>
@@ -1053,8 +1080,17 @@ export const listarInadimplentes = (filtro: { meus: boolean; pagina?: number }) 
 export const exportarFinanceiro = (de: string, ate: string) =>
   requisicao<string>(`/financeiro/exportacao${consultaFinanceiro({ de, ate })}`, { aceita: 'text/csv' });
 
-export const listarLancamentos = (filtro: { de?: string; ate?: string; pagina?: number } = {}) =>
-  requisicao<PaginaLancamentos>(`/financeiro/lancamentos${consultaFinanceiro({ de: filtro.de, ate: filtro.ate, pagina: filtro.pagina ?? 0 })}`);
+/** Lançamentos filtrados: período, `tipo`, `categoria` repetida (texto livre, cada uma num parâmetro) e `busca` na descrição. */
+export const listarLancamentos = (filtro: { de?: string; ate?: string; pagina?: number; tipo?: TipoDeLancamento; categorias?: readonly string[]; busca?: string } = {}) => {
+  const q = new URLSearchParams();
+  const resto = { de: filtro.de, ate: filtro.ate, tipo: filtro.tipo, busca: filtro.busca?.trim() };
+  for (const [campo, valor] of Object.entries(resto)) if (valor) q.set(campo, valor);
+  (filtro.categorias ?? []).forEach((c) => q.append('categoria', c));
+  q.set('pagina', String(filtro.pagina ?? 0));
+  return requisicao<PaginaLancamentos>(`/financeiro/lancamentos?${q.toString()}`);
+};
+/** Categorias já usadas nos lançamentos (para o filtro). */
+export const categoriasDeLancamentos = () => requisicao<string[]>('/financeiro/lancamentos/categorias');
 export const criarLancamento = (corpo: LancamentoRequest) =>
   requisicao<LancamentoResponse>('/financeiro/lancamentos', { metodo: 'POST', corpo });
 export const alterarLancamento = (id: string, corpo: LancamentoRequest) =>

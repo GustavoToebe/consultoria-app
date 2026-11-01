@@ -41,7 +41,7 @@ import { sobre } from '../../ui/sobre';
 import { Tabela } from '../../ui/Tabela';
 import { Texto } from '../../ui/Texto';
 import { textoDoErro as textoDoErroDaApi } from '../../ui/erros';
-import { CelulaDoFiltro, UmaOpcao } from '../SeletoresDeFiltro';
+import { CamposDePeriodo, CelulaDoFiltro, UmaOpcao } from '../SeletoresDeFiltro';
 import { useCarregar } from '../../ui/useCarregar';
 import { baixarCsv } from '../financeiro/baixarCsv';
 import { TelaDoEditor } from '../plano/TelaDoEditor';
@@ -78,8 +78,8 @@ const rotuloDoDestino = (id: string) => DESTINOS.find((d) => d.id === id)?.rotul
 /**
  * Lista do que já foi importado; "Nova importação" abre o assistente em etapas numa tela inteira
  * (`/treinador/importacao/nova`). O arquivo não fica guardado: o histórico guarda só a extensão, por isso cada
- * importação é identificada pelo destino e pela data. Destino, situação e tipo do arquivo ficam na barra de filtros, no
- * endereço (`?destino=&situacao=&arquivo=`; `docs/planos/filtros-nas-listas.md`, D10).
+ * importação é identificada pelo destino e pela data. Destino, situação, tipo do arquivo e período ficam na barra de
+ * filtros, no endereço (`?destino=&situacao=&arquivo=&de=&ate=`; `docs/planos/filtros-nas-listas.md`, D10 e lote 2).
  */
 export function TelaImportacao() {
   const { pode } = useSessao();
@@ -118,6 +118,9 @@ export function TelaImportacao() {
           <CelulaDoFiltro>
             <UmaOpcao rotulo="Arquivo" valor={atuais.arquivo} aoMudar={(arquivo) => mudar({ ...atuais, arquivo })}
               opcoes={[{ valor: '' as const, rotulo: 'Todos' }, ...ARQUIVOS]} />
+          </CelulaDoFiltro>
+          <CelulaDoFiltro>
+            <CamposDePeriodo rotulo="Data da importação" valor={atuais.periodo} aoMudar={(periodo) => mudar({ ...atuais, periodo })} />
           </CelulaDoFiltro>
         </>} />
       {lista.erro ? <MensagemErro texto={textoDoErroDaApi(lista.erro)} tentarDeNovo={lista.recarregar} /> : null}

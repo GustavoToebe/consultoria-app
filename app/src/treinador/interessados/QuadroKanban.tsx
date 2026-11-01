@@ -159,7 +159,7 @@ function Coluna({ situacao, titulo, total, filtros, rodada, movendo, aoAbrir, ao
 }) {
   const { cores } = useTema();
   const [limite, setLimite] = useState(POR_VEZ);
-  const chave = `kanban:${situacao}:${filtros.meus}:${filtros.busca ?? ''}:${filtros.responsavel ?? ''}:${filtros.origem ?? ''}:${rodada}:${limite}`;
+  const chave = `kanban:${situacao}:${JSON.stringify(filtros)}:${rodada}:${limite}`;
   const lista = useCarregar(chave, () => listarInscricoes({ ...filtros, situacao, pagina: 0, tamanho: limite }));
   const itens = lista.dados?.itens ?? [];
   const totalDaColuna = total ?? lista.dados?.total;

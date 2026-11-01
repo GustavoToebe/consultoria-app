@@ -6,6 +6,7 @@ import br.com.treinos.api.importacao.ImportacaoDtos.Detalhe;
 import br.com.treinos.api.importacao.ImportacaoDtos.Pagina;
 import br.com.treinos.api.importacao.ImportacaoDtos.Previa;
 import br.com.treinos.api.security.UsuarioAutenticado;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -23,6 +24,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.UUID;
 
 @RestController
@@ -45,8 +47,11 @@ public class ImportacaoController {
     @GetMapping
     @PreAuthorize(PERMISSOES)
     public Pagina listar(@RequestParam(required = false) String destino, @RequestParam(required = false) String situacao,
-                         @RequestParam(required = false) String busca, @RequestParam(defaultValue = "0") int pagina) {
-        return service.listar(destino, situacao, busca, pagina);
+                         @RequestParam(required = false) String arquivo,
+                         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate de,
+                         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate ate,
+                         @RequestParam(defaultValue = "0") int pagina) {
+        return service.listar(destino, situacao, arquivo, de, ate, pagina);
     }
 
     @GetMapping("/{id}")

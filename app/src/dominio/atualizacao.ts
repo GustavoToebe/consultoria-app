@@ -50,25 +50,34 @@ export function atualizacaoDaPasta(pastaId: string, atual: Atualizacao | null | 
   return historico.find(a => a.pastaId === pastaId) ?? null;
 }
 /**
- * Lista de onde o treinador veio: a revisão em fila segue o mesmo filtro (`?situacao=&meus=`, e o responsável e o
- * período da barra de filtros, `?responsavel=&de=&ate=`).
+ * Lista de onde o treinador veio: a revisão em fila segue o mesmo filtro (`?situacao=&meus=`, e os responsáveis, o
+ * período e a busca da barra de filtros, `?responsavel=<id>,nenhum&de=&ate=&busca=`).
  */
-export interface FilaDeAtualizacoes { situacao: SituacaoAtualizacao; meus: boolean; responsavel?: string; de?: string; ate?: string }
+export interface FilaDeAtualizacoes { situacao: SituacaoAtualizacao; meus: boolean; responsavel?: string; de?: string; ate?: string; busca?: string }
 const SITUACOES_DA_FILA: readonly SituacaoAtualizacao[] = ['PARA_REVISAR', 'ATRASADAS', 'AVISARAM_ATRASO', 'PROXIMAS'];
-const ID_DA_FILA = /^[0-9a-z-]{8,64}$/i;
+const ID_DA_FILA = /^([0-9a-z-]{8,64}|nenhum)$/i;
 const DATA_DA_FILA = /^\d{4}-\d{2}-\d{2}$/;
 export function filaDosParametros(situacao: string | undefined, meus: string | undefined,
-  extra: { responsavel?: string; de?: string; ate?: string } = {}): FilaDeAtualizacoes | null {
+  extra: { responsavel?: string; de?: string; ate?: string; busca?: string } = {}): FilaDeAtualizacoes | null {
   const achada = SITUACOES_DA_FILA.find((s) => s === situacao);
   if (!achada) return null;
   const fila: FilaDeAtualizacoes = { situacao: achada, meus: meus === 'true' };
-  if (!fila.meus && extra.responsavel && ID_DA_FILA.test(extra.responsavel)) fila.responsavel = extra.responsavel;
+  const responsaveis = (extra.responsavel ?? '').split(',').map((r) => r.trim()).filter(Boolean);
+  if (!fila.meus && responsaveis.length && responsaveis.every((r) => ID_DA_FILA.test(r))) fila.responsavel = responsaveis.join(',');
   if (extra.de && extra.ate && DATA_DA_FILA.test(extra.de) && DATA_DA_FILA.test(extra.ate)) { fila.de = extra.de; fila.ate = extra.ate; }
+  const busca = extra.busca?.trim().slice(0, 100);
+  if (busca) fila.busca = busca;
   return fila;
 }
-/** O resto do endereço da fila: `&responsavel=` e `&de=&ate=` quando há. */
+/** O resto do endereço da fila: `&responsavel=`, `&de=&ate=` e `&busca=` quando há. */
 const restoDaFila = (fila: FilaDeAtualizacoes) =>
-  `${fila.responsavel ? `&responsavel=${encodeURIComponent(fila.responsavel)}` : ''}${fila.de && fila.ate ? `&de=${fila.de}&ate=${fila.ate}` : ''}`;
+  `${fila.responsavel ? `&responsavel=${encodeURIComponent(fila.responsavel)}` : ''}${fila.de && fila.ate ? `&de=${fila.de}&ate=${fila.ate}` : ''}${fila.busca ? `&busca=${encodeURIComponent(fila.busca)}` : ''}`;
+/** O filtro da API da fila (os responsáveis da vírgula viram parâmetros repetidos). */
+export const filtroDaFila = (fila: FilaDeAtualizacoes) => ({
+  ...(fila.responsavel ? { responsavel: fila.responsavel.split(',') } : {}),
+  ...(fila.de && fila.ate ? { de: fila.de, ate: fila.ate } : {}),
+  ...(fila.busca ? { busca: fila.busca } : {}),
+});
 export const caminhoAtualizacaoTreinador = (a: Pick<Atualizacao,'id'|'alunoId'>, fila?: FilaDeAtualizacoes | null) => {
   const base = a.id ? `/treinador/atualizacoes/${a.id}` : `/treinador/atualizacoes/previa?alunoId=${a.alunoId}`;
   if (!fila) return base;

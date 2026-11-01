@@ -1,9 +1,9 @@
 package br.com.treinos.api.inscricoes;
 
 import jakarta.persistence.LockModeType;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -18,14 +18,10 @@ import java.util.UUID;
  * Toda leitura sai filtrada pela consultoria da sessão ({@code @TenantId} em {@link Inscricao} e {@code Aluno}). Os
  * {@code delete} em lote levam a consultoria ou o aluno explícitos, sem depender do filtro do tenant.
  */
-public interface InscricaoRepository extends JpaRepository<Inscricao, UUID> {
+public interface InscricaoRepository extends JpaRepository<Inscricao, UUID>, JpaSpecificationExecutor<Inscricao> {
 
     /** Contato de uma inscrição, só para o aviso de duplicidade (e-mail já em minúsculas). */
     record Contato(UUID id, String email, String whatsapp, SituacaoInscricao situacao) {
-    }
-
-    /** Linha das contagens por situação. */
-    record PorSituacao(SituacaoInscricao situacao, long quantidade) {
     }
 
     /** Entrada e aceite de uma inscrição (tempo até o aceite, nos indicadores). */
@@ -39,27 +35,6 @@ public interface InscricaoRepository extends JpaRepository<Inscricao, UUID> {
     /** E-mail (em minúsculas) de um aluno, só para o aviso de duplicidade. */
     record AlunoComEmail(UUID id, String email) {
     }
-
-    /** Filtros da fila (o mesmo trecho da lista e das contagens). */
-    String FILTROS = "(:responsavelId is null or i.responsavelId = :responsavelId) "
-            + "and (:semResponsavel = false or i.responsavelId is null) "
-            + "and (:origem is null or i.origem = :origem) and (:semOrigem = false or i.origem is null) "
-            + "and (:busca = false or i.nomeBusca like :nome escape '\\' or lower(i.email) like :texto escape '\\' "
-            + "or (:digitos <> '' and i.whatsappDigitos like :digitosPadrao))";
-
-    /**
-     * Fila filtrada: situações, responsável ({@code responsavelId} ou só as sem responsável), origem (uma ou só as sem
-     * origem) e busca por nome (sem acento), e-mail ou dígitos do WhatsApp. Mais novas primeiro (ordem fixa).
-     */
-    @Query("select i from Inscricao i where i.situacao in :situacoes and " + FILTROS + " order by i.criadaEm desc, i.id")
-    Page<Inscricao> buscar(Collection<SituacaoInscricao> situacoes, UUID responsavelId, boolean semResponsavel,
-                           Crm.Origem origem, boolean semOrigem, boolean busca, String nome, String texto, String digitos,
-                           String digitosPadrao, Pageable pagina);
-
-    @Query("select new br.com.treinos.api.inscricoes.InscricaoRepository$PorSituacao(i.situacao, count(i)) "
-            + "from Inscricao i where " + FILTROS + " group by i.situacao")
-    List<PorSituacao> contarPorSituacao(UUID responsavelId, boolean semResponsavel, Crm.Origem origem, boolean semOrigem,
-                                        boolean busca, String nome, String texto, String digitos, String digitosPadrao);
 
     /** Trava a inscrição: dois aceites (ou aceite e recusa) simultâneos ficam em série. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)

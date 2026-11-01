@@ -69,10 +69,21 @@ public class QuestionarioService {
 
     // ---------------------------------------------------------------- leitura
 
+    /**
+     * {@code arquivados}: {@code false} (padrão, só os ativos), {@code true} (só os arquivados) ou {@code todos} (os dois
+     * juntos); outro valor = 400 {@code FILTRO_INVALIDO}, sem repetir o valor. O padrão vem primeiro, o resto por nome.
+     */
     @Transactional(readOnly = true)
-    public List<QuestionarioResumo> listar(boolean arquivados, Finalidade finalidade) {
+    public List<QuestionarioResumo> listar(String arquivados, Finalidade finalidade) {
+        String valor = arquivados == null || arquivados.isBlank() ? "false" : arquivados.trim().toLowerCase(java.util.Locale.ROOT);
+        List<Questionario> lista = switch (valor) {
+            case "false" -> questionarios.findByArquivadoAndFinalidadeOrderByNomeAsc(false, finalidade);
+            case "true" -> questionarios.findByArquivadoAndFinalidadeOrderByNomeAsc(true, finalidade);
+            case "todos" -> questionarios.findByFinalidadeOrderByNomeAsc(finalidade);
+            default -> throw br.com.treinos.api.web.FiltrosDeLista.invalido("arquivados");
+        };
         Usos usos = usos();
-        return questionarios.findByArquivadoAndFinalidadeOrderByNomeAsc(arquivados, finalidade).stream()
+        return lista.stream()
                 .sorted(Comparator.comparing((Questionario q) -> !q.isPadrao()))
                 .map(q -> resumo(q, usos.de(q.getId()))).toList();
     }

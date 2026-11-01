@@ -112,6 +112,66 @@ class AtualizacoesPorPeriodoEResponsavelIntegrationTest extends AbstractIntegrat
                 .isEmpty();
     }
 
+    /** Aluno sem responsável, com a mesma pasta e treino de {@link #alunoDe}. */
+    private UUID alunoSemResponsavel(String nome, LocalDate fimDaPasta) throws Exception {
+        UUID aluno = alunoDe(admin, nome, fimDaPasta);
+        Map<String, Object> corpo = new java.util.HashMap<>();
+        corpo.put("responsavelId", null);
+        corpo.put("alunoIds", List.of(aluno.toString()));
+        api.post("/alunos/lote/responsavel", admin, corpo, 200);
+        return aluno;
+    }
+
+    @Test
+    void responsavelRepetivelSemResponsavelEBuscaSemAcento() throws Exception {
+        alunoDe(admin, "Álvaro do administrador", hoje.minusDays(4));
+        alunoDe(membro, "Bárbara do membro", hoje.minusDays(3));
+        alunoSemResponsavel("Cássio sem responsável", hoje.minusDays(2));
+
+        assertThat(nomes(admin, "situacao=ATRASADAS&responsavel=" + id(admin) + "&responsavel=" + id(membro)))
+                .containsExactly("Bárbara do membro", "Álvaro do administrador");
+        assertThat(nomes(admin, "situacao=ATRASADAS&responsavel=nenhum")).containsExactly("Cássio sem responsável");
+        // Vírgula vale como repetição.
+        assertThat(nomes(admin, "situacao=ATRASADAS&responsavel=" + id(membro) + ",nenhum"))
+                .containsExactly("Bárbara do membro", "Cássio sem responsável");
+        // Busca pelo nome sem acento e sem caixa, combinada (E) com o responsável e o período.
+        assertThat(nomes(admin, "situacao=ATRASADAS&busca=alvaro")).containsExactly("Álvaro do administrador");
+        assertThat(nomes(admin, "situacao=ATRASADAS&busca=BARBARA&responsavel=nenhum")).isEmpty();
+        assertThat(nomes(admin, "situacao=ATRASADAS&busca=do&de=" + hoje.minusDays(3) + "&ate=" + hoje))
+                .containsExactly("Bárbara do membro");
+        assertThat(nomes(admin, "situacao=ATRASADAS&busca=100%")).isEmpty();
+    }
+
+    @Test
+    void contagensSeguemOsMesmosFiltrosDaLista() throws Exception {
+        alunoDe(admin, "Atrasado do administrador", hoje.minusDays(4));
+        alunoDe(membro, "Atrasado do membro", hoje.minusDays(2));
+        alunoDe(membro, "Próximo do membro", hoje.plusDays(3));
+
+        JsonNode todas = api.get("/atualizacoes/contagens", admin, 200);
+        assertThat(todas.path("ATRASADAS").asLong()).isEqualTo(2);
+        assertThat(todas.path("PROXIMAS").asLong()).isEqualTo(1);
+        assertThat(todas.path("PARA_REVISAR").asLong()).isZero();
+        JsonNode doMembro = api.get("/atualizacoes/contagens?responsavel=" + id(membro), admin, 200);
+        assertThat(doMembro.path("ATRASADAS").asLong()).isEqualTo(1);
+        assertThat(doMembro.path("PROXIMAS").asLong()).isEqualTo(1);
+        assertThat(api.get("/atualizacoes/contagens?meus=true", membro, 200)).isEqualTo(doMembro);
+        assertThat(api.get("/atualizacoes/contagens?busca=administrador", admin, 200).path("ATRASADAS").asLong()).isEqualTo(1);
+        assertThat(api.get("/atualizacoes/contagens?de=" + hoje.minusDays(3) + "&ate=" + hoje, admin, 200)
+                .path("ATRASADAS").asLong()).isEqualTo(1);
+        // Cada número é o tamanho da lista com os mesmos filtros.
+        for (String situacao : AtualizacaoService.SITUACOES) {
+            assertThat(nomes(admin, "situacao=" + situacao + "&responsavel=" + id(membro)))
+                    .hasSize((int) doMembro.path(situacao).asLong());
+        }
+        // Recusas e permissão iguais às da lista; outra consultoria não conta nada daqui.
+        api.get("/atualizacoes/contagens?meus=true&responsavel=nenhum", admin, 400);
+        api.get("/atualizacoes/contagens?de=" + hoje, admin, 400);
+        api.get("/atualizacoes/contagens?responsavel=" + UUID.randomUUID(), admin, 404);
+        JsonNode outro = api.novoTreinador();
+        assertThat(api.get("/atualizacoes/contagens", outro, 200).path("ATRASADAS").asLong()).isZero();
+    }
+
     @Test
     void recusaPedidosMalFormados() throws Exception {
         // meus junto com responsavel
@@ -130,6 +190,18 @@ class AtualizacoesPorPeriodoEResponsavelIntegrationTest extends AbstractIntegrat
         api.get("/atualizacoes?situacao=ATRASADAS&de=" + hoje + "&ate=" + hoje.plusDays(365), admin, 200);
         // data que não é data
         api.get("/atualizacoes?situacao=ATRASADAS&de=ontem&ate=hoje", admin, 400);
+        // responsável que não é id nem "nenhum", sem repetir o valor
+        JsonNode r = api.get("/atualizacoes?situacao=ATRASADAS&responsavel=alguem", admin, 400);
+        assertThat(r.path("codigo").asString()).isEqualTo("FILTRO_INVALIDO");
+        assertThat(r.toString()).doesNotContain("alguem");
+        // meus junto de "nenhum" também é recusado
+        assertThat(api.get("/atualizacoes?situacao=ATRASADAS&meus=true&responsavel=nenhum", admin, 400)
+                .path("codigo").asString()).isEqualTo("FILTRO_INVALIDO");
+        // mais de 50 valores
+        StringBuilder muitos = new StringBuilder();
+        for (int i = 0; i < 51; i++) muitos.append("&responsavel=").append(UUID.randomUUID());
+        assertThat(api.get("/atualizacoes?situacao=ATRASADAS" + muitos, admin, 400).path("codigo").asString())
+                .isEqualTo("FILTRO_INVALIDO");
     }
 
     @Test

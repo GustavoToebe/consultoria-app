@@ -1,4 +1,4 @@
-import { chipsDosFiltros, filtrarQuestionarios, SEM_FILTROS, semOFiltro } from './filtrosDeQuestionarios';
+import { arquivadosDaApi, chipsDosFiltros, filtrarQuestionarios, SEM_FILTROS, semOFiltro } from './filtrosDeQuestionarios';
 
 const q = (nome: string, versaoPublicada: number, alteradoDesdePublicacao = false, descricao: string | null = null) =>
   ({ nome, descricao, versaoPublicada, alteradoDesdePublicacao });
@@ -22,5 +22,12 @@ describe('filtros dos questionários', () => {
     expect(chipsDosFiltros(f).map((c) => c.texto)).toEqual(['Situação: Arquivados', 'Publicação: Alterados desde a publicação']);
     expect(semOFiltro(f, 'situacao').situacao).toBe('ATIVOS');
     expect(semOFiltro(f, 'publicacao').publicacao).toBe('');
+    expect(chipsDosFiltros({ ...SEM_FILTROS, situacao: 'TODOS' }).map((c) => c.texto)).toEqual(['Situação: Ativos e arquivados']);
+  });
+
+  test('situação vai à API: false, true ou todos', () => {
+    expect(arquivadosDaApi('ATIVOS')).toBe(false);
+    expect(arquivadosDaApi('ARQUIVADOS')).toBe(true);
+    expect(arquivadosDaApi('TODOS')).toBe('todos');
   });
 });

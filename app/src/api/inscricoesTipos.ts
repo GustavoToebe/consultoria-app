@@ -161,9 +161,16 @@ export interface FiltroDaFila {
   meus: boolean;
   /** Nome, e-mail ou WhatsApp (4 dígitos ou mais). */
   busca?: string;
-  /** Id de um membro, ou `nenhum` (sem responsável). Ignorado com `meus`. */
-  responsavel?: string;
-  origem?: Origem | 'NAO_INFORMADA';
+  /** Ids de membros e/ou `nenhum` (sem responsável). Nunca junto de `meus` (a API recusa). */
+  responsavel?: readonly string[];
+  /** Origens e/ou `NAO_INFORMADA`. */
+  origem?: readonly (Origem | 'NAO_INFORMADA')[];
+  /** Entrada (`AAAA-MM-DD`, Brasília, cada ponta opcional). */
+  de?: string;
+  ate?: string;
+  /** Última atividade (`AAAA-MM-DD`, Brasília, cada ponta opcional). */
+  atividadeDe?: string;
+  atividadeAte?: string;
   pagina: number;
   tamanho?: number;
 }

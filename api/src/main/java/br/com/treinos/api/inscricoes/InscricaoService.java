@@ -13,18 +13,15 @@ import br.com.treinos.api.auditoria.Auditar;
 import br.com.treinos.api.auditoria.Auditoria;
 import br.com.treinos.api.consultoria.ConsultoriaRepository;
 import br.com.treinos.api.equipe.AcessoAtual;
-import br.com.treinos.api.inscricoes.Crm.Origem;
 import br.com.treinos.api.inscricoes.Crm.TipoEvento;
 import br.com.treinos.api.inscricoes.InscricaoDtos.AceitarRequest;
 import br.com.treinos.api.inscricoes.InscricaoDtos.AceiteResponse;
 import br.com.treinos.api.inscricoes.InscricaoDtos.AlterarInscricaoRequest;
-import br.com.treinos.api.inscricoes.InscricaoDtos.Contagens;
 import br.com.treinos.api.inscricoes.InscricaoDtos.EncerrarRequest;
 import br.com.treinos.api.inscricoes.InscricaoDtos.EtapaRequest;
 import br.com.treinos.api.inscricoes.InscricaoDtos.InscricaoDetalhe;
 import br.com.treinos.api.inscricoes.InscricaoDtos.InscricaoPublicaRequest;
 import br.com.treinos.api.inscricoes.InscricaoDtos.NotaRequest;
-import br.com.treinos.api.inscricoes.InscricaoDtos.PaginaInscricoes;
 import br.com.treinos.api.inscricoes.InscricaoDtos.ReabrirRequest;
 import br.com.treinos.api.atualizacoes.ValidadorAtualizacao;
 import br.com.treinos.api.questionarios.ConteudoQuestionario;
@@ -34,12 +31,9 @@ import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.web.Buscas;
 import br.com.treinos.api.web.ConflitoComRecursoException;
 import br.com.treinos.api.web.Formatos;
-import br.com.treinos.api.web.Fuso;
 import br.com.treinos.api.web.MuitasRequisicoesException;
 import br.com.treinos.api.web.NaoEncontradoException;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
@@ -48,13 +42,9 @@ import tools.jackson.databind.json.JsonMapper;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.EnumMap;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -79,7 +69,6 @@ public class InscricaoService {
     private final InscricaoRepository inscricoes;
     private final InscricaoNotaRepository notas;
     private final InscricaoConfiguracaoRepository configuracoes;
-    private final InscricaoRetornoRepository retornos;
     private final ResponsaveisDaInscricao responsaveis;
     private final HistoricoDaInscricao historico;
     private final DetalheDaInscricao detalhes;
@@ -95,7 +84,7 @@ public class InscricaoService {
     private final int limiteDiario;
 
     public InscricaoService(InscricaoRepository inscricoes, InscricaoNotaRepository notas,
-                            InscricaoConfiguracaoRepository configuracoes, InscricaoRetornoRepository retornos,
+                            InscricaoConfiguracaoRepository configuracoes,
                             ResponsaveisDaInscricao responsaveis, HistoricoDaInscricao historico,
                             DetalheDaInscricao detalhes, AlunoService alunos, ConviteService convites,
                             AnamneseService anamneses, QuestionarioService questionarios, Auditoria auditoria,
@@ -109,7 +98,6 @@ public class InscricaoService {
         this.inscricoes = inscricoes;
         this.notas = notas;
         this.configuracoes = configuracoes;
-        this.retornos = retornos;
         this.responsaveis = responsaveis;
         this.historico = historico;
         this.detalhes = detalhes;
@@ -230,45 +218,6 @@ public class InscricaoService {
     }
 
     // ---- Fila da equipe ----
-
-    /**
-     * Filtros da fila. {@code situacao}: {@code ABERTAS} (padrão: nova, em contato, em negociação), {@code TODAS} ou uma
-     * situação. {@code meus} = as inscrições com quem pede; {@code responsavel} = id de um membro ou {@code nenhum}
-     * (ignorado com {@code meus}); {@code origem} = uma origem ou {@code NAO_INFORMADA}; {@code busca} = nome (sem acento),
-     * e-mail ou dígitos do WhatsApp (4 ou mais).
-     */
-    public record Filtro(String situacao, UUID meus, String responsavel, String origem, String busca) {
-    }
-
-    /** Mais novas primeiro, em páginas de até 100. */
-    @Transactional(readOnly = true)
-    public PaginaInscricoes listar(Filtro f, int pagina, int tamanho) {
-        Consulta c = Consulta.de(f);
-        Page<Inscricao> page = inscricoes.buscar(situacoes(f.situacao()), c.responsavelId, c.semResponsavel, c.origem,
-                c.semOrigem, c.busca, c.nome, c.texto, c.digitos, c.digitosPadrao,
-                PageRequest.of(Math.max(0, pagina), Math.clamp(tamanho, 1, 100)));
-        return new PaginaInscricoes(detalhes.resumos(page.getContent()), page.getTotalElements());
-    }
-
-    /**
-     * Quantas há em cada situação com os mesmos filtros (sem a situação) e os retornos pendentes das abertas: atrasados
-     * (antes de hoje) e de hoje, de Brasília ({@code meus} = os retornos com quem pede).
-     */
-    @Transactional(readOnly = true)
-    public Contagens contar(Filtro f) {
-        Consulta c = Consulta.de(f);
-        Map<SituacaoInscricao, Long> por = new EnumMap<>(SituacaoInscricao.class);
-        for (SituacaoInscricao s : SituacaoInscricao.values()) por.put(s, 0L);
-        inscricoes.contarPorSituacao(c.responsavelId, c.semResponsavel, c.origem, c.semOrigem, c.busca, c.nome, c.texto,
-                c.digitos, c.digitosPadrao).forEach(p -> por.put(p.situacao(), p.quantidade()));
-        long abertas = SituacaoInscricao.ABERTAS.stream().mapToLong(por::get).sum();
-        long todas = por.values().stream().mapToLong(Long::longValue).sum();
-        LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
-        long atrasados = retornos.contarPendentes(SituacaoInscricao.ABERTAS, f.meus(), LocalDate.of(1900, 1, 1),
-                hoje.minusDays(1));
-        long deHoje = retornos.contarPendentes(SituacaoInscricao.ABERTAS, f.meus(), hoje, hoje);
-        return new Contagens(por, abertas, todas, atrasados, deHoje);
-    }
 
     @Transactional(readOnly = true)
     public InscricaoDetalhe detalhe(UUID id) {
@@ -468,17 +417,6 @@ public class InscricaoService {
         }
     }
 
-    private static Set<SituacaoInscricao> situacoes(String situacao) {
-        String valor = situacao == null || situacao.isBlank() ? "ABERTAS" : situacao.trim().toUpperCase(Locale.ROOT);
-        if (valor.equals("ABERTAS")) return SituacaoInscricao.ABERTAS;
-        if (valor.equals("TODAS")) return EnumSet.allOf(SituacaoInscricao.class);
-        try {
-            return EnumSet.of(SituacaoInscricao.valueOf(valor));
-        } catch (IllegalArgumentException e) {
-            throw new BadRequestException("Situação precisa ser ABERTAS, TODAS ou uma situação da inscrição.");
-        }
-    }
-
     static void exigirVersao(Inscricao i, Long versao) {
         if (versao == null || !versao.equals(i.getVersao())) {
             throw new ConflictException("Outra pessoa ou aba alterou esta inscrição. Recarregue para ver a versão atual.",
@@ -497,49 +435,5 @@ public class InscricaoService {
 
     static NaoEncontradoException naoEncontrada() {
         return new NaoEncontradoException("Inscrição não encontrada.");
-    }
-
-    /** Parâmetros já prontos para a consulta da fila (padrões do LIKE e flags). */
-    private record Consulta(UUID responsavelId, boolean semResponsavel, Origem origem, boolean semOrigem, boolean busca,
-                            String nome, String texto, String digitos, String digitosPadrao) {
-
-        static Consulta de(Filtro f) {
-            UUID responsavel = f.meus();
-            boolean semResponsavel = false;
-            if (responsavel == null && f.responsavel() != null && !f.responsavel().isBlank()) {
-                if (f.responsavel().trim().equalsIgnoreCase("nenhum")) {
-                    semResponsavel = true;
-                } else {
-                    try {
-                        responsavel = UUID.fromString(f.responsavel().trim());
-                    } catch (IllegalArgumentException e) {
-                        throw new BadRequestException("Responsável precisa ser o id de um membro ou \"nenhum\".");
-                    }
-                }
-            }
-            Origem origem = null;
-            boolean semOrigem = false;
-            if (f.origem() != null && !f.origem().isBlank()) {
-                String valor = f.origem().trim().toUpperCase(Locale.ROOT);
-                if (valor.equals("NAO_INFORMADA")) {
-                    semOrigem = true;
-                } else {
-                    try {
-                        origem = Origem.valueOf(valor);
-                    } catch (IllegalArgumentException e) {
-                        throw new BadRequestException("Origem desconhecida.");
-                    }
-                }
-            }
-            String texto = f.busca() == null ? "" : f.busca().trim();
-            boolean busca = !texto.isEmpty();
-            String digitos = texto.replaceAll("\\D", "");
-            // O WhatsApp é gravado sem o +55 (Formatos.telefone), então o número colado com o código do país também acha.
-            if ((digitos.length() == 12 || digitos.length() == 13) && digitos.startsWith("55")) digitos = digitos.substring(2);
-            if (digitos.length() < 4) digitos = "";
-            if (digitos.length() > 20) digitos = digitos.substring(0, 20);
-            return new Consulta(responsavel, semResponsavel, origem, semOrigem, busca, Buscas.padraoSemAcento(texto),
-                    Buscas.padrao(texto), digitos, "%" + digitos + "%");
-        }
     }
 }

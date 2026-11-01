@@ -354,6 +354,15 @@ class QuestionariosIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.get("/questionarios/opcoes", treinador, 200).valueStream().map(o -> o.path("nome").asString()))
                 .doesNotContain("Alfa fictício");
 
+        // "todos": ativos e arquivados juntos (o padrão primeiro); valor desconhecido = 400 sem repetir o valor.
+        assertThat(api.get("/questionarios?arquivados=todos", treinador, 200).valueStream()
+                .map(o -> o.path("nome").asString()).toList()).containsExactly("Padrão", "Alfa fictício", "Beta rascunho");
+        JsonNode erro = api.get("/questionarios?arquivados=talvez", treinador, 400);
+        assertThat(erro.path("codigo").asString()).isEqualTo("FILTRO_INVALIDO");
+        assertThat(erro.toString()).doesNotContain("talvez");
+        assertThat(api.get("/questionarios?arquivados=todos", api.novoTreinador(), 200).valueStream()
+                .map(o -> o.path("nome").asString())).doesNotContain("Alfa fictício");
+
         // Nome ocupado por um ativo: não desarquiva.
         criar("Alfa fictício", "VAZIO");
         assertThat(api.post("/questionarios/" + a.path("id").asString() + "/desarquivar", treinador, null, 409)

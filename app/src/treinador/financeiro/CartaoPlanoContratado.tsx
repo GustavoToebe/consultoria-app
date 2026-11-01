@@ -31,6 +31,7 @@ import { Folha } from '../../ui/Folha';
 import { Grade } from '../../ui/Grade';
 import { ItemDeLista } from '../../ui/ItemDeLista';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
+import { LinkTexto } from '../../ui/LinkTexto';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
@@ -148,6 +149,8 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado }: { alunoId
               <Botao rotulo={todas ? 'Ver menos' : `Ver todas (${ordenadas.length})`} tipo="fantasma" aoTocar={() => setTodas((v) => !v)} />
             </LinhaDeAcoes>
           ) : null}
+          {/* As cobranças deste aluno na tela Financeiro, com os filtros de lá (`?alunoId=`). */}
+          <LinkTexto texto="Ver no Financeiro" href={`/treinador/financeiro?aba=cobrancas&alunoId=${encodeURIComponent(alunoId)}` as never} />
         </View>
       ) : null}
       {cobrancas.dados && cobrancas.dados.length === 0 && vigente ? <Texto variante="suave">Ainda não há cobranças geradas.</Texto> : null}

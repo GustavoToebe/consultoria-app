@@ -114,13 +114,39 @@ public class Auditoria {
         return usuarios.findByConsultoriaIdAndPapelOrderByNomeAsc(TenantContext.get(),Papel.TREINADOR)
                 .stream().map(u -> new Pessoa(u.getId(),u.getNome())).toList();
     }
+    /** {@code usuarioId=sistema}: os eventos sem autor (do sistema, como a baixa confirmada pela InfinitePay). */
+    public static final String SISTEMA = "sistema";
+    private static final java.util.regex.Pattern ACAO = java.util.regex.Pattern.compile("[A-Z][A-Z0-9_]{0,79}");
+    private static final UUID NINGUEM = new UUID(0L, 0L);
+
+    /**
+     * Lista paginada, mais recentes primeiro. Filtros opcionais e combinados com E: período (dias de Brasília),
+     * {@code usuarioId} repetível (ids de usuários desta consultoria, senão 404, e/ou {@value #SISTEMA}) e {@code acao}
+     * repetível (códigos em maiúsculas; outro formato = 400 {@code FILTRO_INVALIDO}, sem repetir o valor).
+     */
     @Transactional(readOnly=true)
-    public Pagina listar(LocalDate de,LocalDate ate,UUID usuarioId,String acao,int pagina) {
+    public Pagina listar(LocalDate de,LocalDate ate,List<String> usuarioId,List<String> acao,int pagina) {
         if(de!=null && ate!=null && ate.isBefore(de)) throw new BadRequestException("Período inválido.");
-        if(usuarioId!=null) Exigir.existe(usuarios.findById(usuarioId).filter(u -> u.getConsultoriaId().equals(TenantContext.get())),() -> new NaoEncontradoException("Usuário não encontrado."));
+        java.util.Set<UUID> ids=new java.util.LinkedHashSet<>();
+        boolean sistema=false;
+        for(String v:FiltrosDeLista.valores(usuarioId,"usuarioId")) {
+            if(SISTEMA.equalsIgnoreCase(v)) sistema=true; else ids.add(FiltrosDeLista.uuid(v,"usuarioId"));
+        }
+        java.util.Set<String> acoes=new java.util.LinkedHashSet<>();
+        for(String v:FiltrosDeLista.valores(acao,"acao")) {
+            if(!ACAO.matcher(v).matches()) throw FiltrosDeLista.invalido("acao");
+            acoes.add(v);
+        }
+        if(!ids.isEmpty()) {
+            long daConsultoria=usuarios.findAllById(ids).stream().filter(u -> TenantContext.get().equals(u.getConsultoriaId())).count();
+            if(daConsultoria!=ids.size()) throw new NaoEncontradoException("Usuário não encontrado.");
+        }
         Instant inicio=de==null?Instant.EPOCH:de.atStartOfDay(Fuso.BRASILIA).toInstant();
         Instant fim=ate==null?Instant.now().plus(1,ChronoUnit.DAYS):ate.plusDays(1).atStartOfDay(Fuso.BRASILIA).toInstant();
-        var lista=eventos.buscar(inicio,fim,usuarioId,Buscas.opcional(acao),PageRequest.of(Math.max(0,pagina),50));
+        boolean filtraUsuarios=!ids.isEmpty()||sistema;
+        // As coleções nunca vão vazias à consulta: sem filtro a flag desliga o trecho.
+        var lista=eventos.buscar(inicio,fim,filtraUsuarios,ids.isEmpty()?java.util.Set.of(NINGUEM):ids,sistema,
+                !acoes.isEmpty(),acoes.isEmpty()?java.util.Set.of(""):acoes,PageRequest.of(Math.max(0,pagina),50));
         return new Pagina(lista.stream().map(a -> new Evento(a.getId(),a.getUsuarioId(),nomeDoAutor(a.getUsuarioId()),
                 a.getAcao(),a.getEntidade(),a.getEntidadeId(),a.getResumo(),a.getCriadoEm())).toList(),lista.getTotalElements(),Math.max(0,pagina));
     }
