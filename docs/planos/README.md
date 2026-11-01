@@ -42,12 +42,13 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Importação em tela inteira, "x" como vazio, erro de fórmula e erros agrupados (reunião de 30/10) | [importacao-tela-inteira.md](importacao-tela-inteira.md) | `main` (c7d1b2b, PR 24) | Concluída em 31/10/2026 | 31/10/2026 |
 | "Quero ser aluno" com as perguntas do treinador (questionário de inscrição) | [inscricao-com-perguntas-proprias.md](inscricao-com-perguntas-proprias.md) | — | Planejando, decisões fechadas: começa depois de `ajustes-video-30-10` e das pendências do painel | 31/10/2026 |
 | Filtros avançados da lista de alunos (busca, painel de filtros, "Filtrado por"; Início abre a lista filtrada) | [filtros-da-lista-de-alunos.md](filtros-da-lista-de-alunos.md) | branch (31/10) | Pronta na branch; falta o `mvn verify` com Docker | 31/10/2026 |
-| Filtros nas outras listas (Atualizações, Interessados, Financeiro, Biblioteca, Questionários, Auditoria, Importação, Equipe), lote 1 só app | [filtros-nas-listas.md](filtros-nas-listas.md) | branch `claude/filtros-nas-listas-lote1` (31/10) | Em andamento | 31/10/2026 |
+| Filtros nas outras listas (Atualizações, Interessados, Financeiro, Biblioteca, Questionários, Auditoria, Importação, Equipe), lote 1 só app | [filtros-nas-listas.md](filtros-nas-listas.md) | branch `claude/filtros-nas-listas-lote1` (31/10) | Lote 1 pronto na branch (só app); Lote 2 (API) planejado | 01/11/2026 |
 
 ## Pendências soltas
 
 | Pendência | Quem | Origem |
 | --- | --- | --- |
+| Filtros nas listas, Lote 2 (API): parâmetros novos listados no plano (busca e aluno nas cobranças, tipo e categoria nos lançamentos, período na importação, várias opções em responsável, origem, pessoa e ação) | Claude, quando o Gustavo pedir | filtros-nas-listas |
 | Início, Primeiros passos: "Abrir Metodologias" leva à Biblioteca sem abrir o chip de metodologias | Claude, quando o Gustavo pedir | atualizacao-visual-app-full (passo 9) |
 | Início: conferir no seed o texto de exemplo "3 semanas e 2 dietas" do item de modelos dos Primeiros passos | Claude | atualizacao-visual-app-full (passo 9) |
 | Início, revisão do PR `painel-novo` (não bloqueiam): (a) `releer` do foco que responde depois de um toque desfaz o toque na tela até o próximo foco (`usePrimeirosPassosGuardados`, contador de geração); (b) ao trocar o N do "Sem registro" a Folha mostra os números do N anterior até a resposta (`useCarregar` devolve os dados da chave antiga como prontos); (c) tocar um cartão de Folha antes do `/painel` responder abre a Folha com o alerta de erro (distinguir carregando de falhou); (d) a Ajuda diz "Eles já estão no Início" para perfil sem nenhum item dos Primeiros passos; (e) no Início sem alunos as consultas dos blocos saem à toa; (f) `useFontesDoPainel.recarregar` casa duas listas pela ordem; (g) o X da linha "Concluídos" sem `moldura` | Claude, quando o Gustavo pedir | atualizacao-visual-app-full (passos 8 e 9) |
