@@ -814,6 +814,9 @@ export const confirmarPlanilhaCompleta = (arquivo: FormData, hash: string) =>
   requisicao<ConfirmacaoDaPlanilha>(`/importacoes/planilha-completa/confirmar?hash=${encodeURIComponent(hash)}`, { metodo: 'POST', corpoBruto: arquivo });
 export const desfazerImportacao = (id: string) =>
   requisicao<ImportacaoDesfeita>(`/importacoes/${seg(id)}/desfazer`, { metodo: 'POST' });
+/** Esquece as respostas guardadas das importações anteriores da planilha completa (a próxima análise vem sem marcas). */
+export const esquecerRespostasDaPlanilha = () =>
+  requisicao<{ apagadas: number }>('/importacoes/planilha-completa/respostas-salvas', { metodo: 'DELETE' });
 
 // ---- Treinador: receitas ----
 

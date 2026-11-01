@@ -483,9 +483,20 @@ export interface DetalheDeImportacao extends ItemDeImportacao {
 /** Tipo de aba reconhecido pela API (`TipoDeAba`). */
 export type TipoDeAbaDaPlanilha = 'ALUNOS' | 'PESOS' | 'TREINO' | 'ROTINAS' | 'DIETA' | 'PLANOS_DE_DIETA' | 'SUPLEMENTOS'
   | 'LISTA_DE_EXERCICIOS' | 'TABELA_DE_ALIMENTOS' | 'DESCONHECIDA';
+/** `TABELA` (liga por coluna), `UM_ALUNO` (a aba é de um aluno, pelo nome dela) ou `BLOCOS` (vários alunos, nome em cima de cada tabela). */
+export type FormatoDaAbaDaPlanilha = 'TABELA' | 'UM_ALUNO' | 'BLOCOS';
+/** De quem é o aluno do bloco: da aba de alunos, um que já existe, novo (só com o nome), ambíguo (não entra) ou sem aluno. */
+export type SituacaoDoAlunoDoBloco = 'PLANILHA' | 'EXISTENTE' | 'NOVO' | 'AMBIGUO' | 'SEM_ALUNO';
+/** Uma tabela da aba de um aluno ou em blocos. O nome do aluno vem da própria planilha do treinador (não é guardado). */
+export interface BlocoDaAbaDaPlanilha {
+  linha: number; tipo: TipoDeAbaDaPlanilha; aluno: string | null; situacao: SituacaoDoAlunoDoBloco; titulo: string | null; linhas: number;
+}
 export interface AbaDaPlanilha {
   indice: number; nome: string; tipo: TipoDeAbaDaPlanilha; linhaDoCabecalho: number; linhas: number;
   campos: Record<string, number>; avisos: { codigo: string; linha: number; coluna: number }[];
+  formato: FormatoDaAbaDaPlanilha; blocos: BlocoDaAbaDaPlanilha[];
+  /** O tipo dado a esta aba (pelos títulos das colunas) numa importação anterior; nulo sem resposta salva. */
+  tipoSalvo: TipoDeAbaDaPlanilha | 'IGNORAR' | null;
 }
 export interface LinhaAmbiguaDaPlanilha { linha: number; candidatas: number[] }
 export interface LigacaoDaPlanilha {
@@ -494,8 +505,16 @@ export interface LigacaoDaPlanilha {
 }
 export interface ProblemaDaPlanilha { aba: string; linha: number; campo: string | null; tipo: string }
 /** Nome que pede resposta: `PROVAVEL` (com a sugestão) ou `NENHUM`. */
-export interface PerguntaDaPlanilha { nome: string; nivel: 'PROVAVEL' | 'NENHUM'; sugestao: string | null; origem: string | null; nota: number; ocorrencias: number }
-export interface PerguntaDeSuplementoDaPlanilha { nome: string; sugestao: 'SUPLEMENTO' | 'SENSIVEL' | null; ocorrencias: number }
+export interface PerguntaDaPlanilha {
+  nome: string; nivel: 'PROVAVEL' | 'NENHUM'; sugestao: string | null; origem: string | null; nota: number; ocorrencias: number;
+  /** A resposta dada a este nome numa importação anterior (e o item da biblioteca, em `BIBLIOTECA`); nula sem resposta salva. */
+  respostaSalva: AcaoDoNome | null; idSalvo: string | null;
+}
+export interface PerguntaDeSuplementoDaPlanilha {
+  nome: string; sugestao: 'SUPLEMENTO' | 'SENSIVEL' | null; ocorrencias: number;
+  /** O destino dado a este nome numa importação anterior; nulo sem resposta salva. */
+  destinoSalvo: 'SUPLEMENTO' | 'SENSIVEL' | null;
+}
 export interface ContagemDeNomes { certo: number; provavel: number; nenhum: number }
 export interface ResumoDaPlanilha {
   alunos: number; alunosInativos: number; pesos: number; pesosIniciais: number; pesosIniciaisNoHistorico: number;
@@ -508,6 +527,8 @@ export interface AnaliseDaPlanilha {
   abas: AbaDaPlanilha[]; ligacoes: LigacaoDaPlanilha[]; resumo: ResumoDaPlanilha; problemas: ProblemaDaPlanilha[];
   problemasAlem: number; problemasPorTipo: Record<string, number>; exercicios: PerguntaDaPlanilha[];
   alimentos: PerguntaDaPlanilha[]; suplementos: PerguntaDeSuplementoDaPlanilha[];
+  /** Quantas respostas de importações anteriores a consultoria tem guardadas. */
+  respostasSalvas: number;
 }
 export type AcaoDoNome = 'ACEITAR' | 'BIBLIOTECA' | 'CRIAR' | 'MANTER';
 export type DestinoDoSuplemento = 'SUPLEMENTO' | 'SENSIVEL';

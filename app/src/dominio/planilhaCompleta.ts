@@ -4,12 +4,14 @@
  * vai na parte `respostas` da prévia e da confirmação) e os textos da prévia, do resultado e do desfazer.
  *
  * Só regras fixas, sem IA: a API reconhece as abas e casa os nomes; aqui só se escolhe e se explica. Nada daqui fica no
- * aparelho. A tela nunca mostra dado de aluno: a API não manda nome, e-mail, peso nem dieta de ninguém.
+ * aparelho. A tela nunca mostra dado de aluno: a API não manda e-mail, peso nem dieta de ninguém. O único nome de aluno é
+ * o que está na própria planilha como nome de uma aba ou título de um bloco (fase 2), para o treinador conferir de quem é
+ * cada parte; ele não é guardado.
  */
 import type {
-  AcaoDoNome, AnaliseDaPlanilha, CriacaoDaPlanilha, DestinoDoSuplemento, ImportacaoDesfeita, ParteDesfeita,
-  PartePuladaDaPlanilha, PerguntaDaPlanilha, PerguntaDeSuplementoDaPlanilha, ProblemaDaPlanilha, RespostasDaPlanilha,
-  TipoDeAbaDaPlanilha,
+  AbaDaPlanilha, AcaoDoNome, AnaliseDaPlanilha, BlocoDaAbaDaPlanilha, CriacaoDaPlanilha, DestinoDoSuplemento,
+  ImportacaoDesfeita, ParteDesfeita, PartePuladaDaPlanilha, PerguntaDaPlanilha, PerguntaDeSuplementoDaPlanilha,
+  ProblemaDaPlanilha, RespostasDaPlanilha, SituacaoDoAlunoDoBloco, TipoDeAbaDaPlanilha,
 } from '../api/tipos';
 import { semAcento } from './telas';
 
@@ -53,6 +55,64 @@ export function opcoesDoTipoDaAba(): { valor: TipoEscolhido; rotulo: string; det
   ];
 }
 
+// ----------------------------------------------------------------------- formatos (fase 2: aluno por aba e blocos)
+
+/** O formato da aba em palavras; nulo na tabela (o formato de sempre). */
+export function textoDoFormato(aba: Pick<AbaDaPlanilha, 'formato' | 'blocos'>): string | null {
+  if (aba.formato === 'UM_ALUNO') return aba.blocos.length > 1 ? `Um aluno por aba, ${aba.blocos.length} tabelas` : 'Um aluno por aba';
+  if (aba.formato === 'BLOCOS') return `Vários alunos em blocos (${aba.blocos.length} ${aba.blocos.length === 1 ? 'tabela' : 'tabelas'})`;
+  return null;
+}
+
+const SITUACOES: Record<SituacaoDoAlunoDoBloco, string> = {
+  PLANILHA: 'da aba de alunos da planilha',
+  EXISTENTE: 'já é seu aluno',
+  NOVO: 'aluno novo, entra só com o nome',
+  AMBIGUO: 'há mais de um aluno com esse nome: não entra',
+  SEM_ALUNO: 'sem aluno: não entra',
+};
+
+export function textoDaSituacaoDoAluno(s: SituacaoDoAlunoDoBloco): string {
+  return SITUACOES[s] ?? s;
+}
+
+/** Situação que deixa o bloco de fora (o treinador precisa corrigir na planilha ou ignorar a aba). */
+export const blocoFicaDeFora = (b: Pick<BlocoDaAbaDaPlanilha, 'situacao'>) => b.situacao === 'AMBIGUO' || b.situacao === 'SEM_ALUNO';
+
+/** "Linha 3 · Treino A · 5 linhas · Ana Souza (aluno novo, entra só com o nome)". */
+export function textoDoBloco(b: BlocoDaAbaDaPlanilha): string {
+  const partes = [`Linha ${b.linha}`];
+  if (b.titulo) partes.push(b.titulo);
+  partes.push(`${b.linhas} ${b.linhas === 1 ? 'linha' : 'linhas'}`);
+  const aluno = b.aluno ? `${b.aluno} (${textoDaSituacaoDoAluno(b.situacao)})` : textoDaSituacaoDoAluno('SEM_ALUNO');
+  return `${partes.join(' · ')} · ${aluno}`;
+}
+
+/**
+ * Os alunos de uma aba de um aluno ou em blocos, na ordem, sem repetir (cada um com a situação): o resumo de "de quem é
+ * esta aba". Vazio na tabela.
+ */
+export function alunosDaAba(aba: Pick<AbaDaPlanilha, 'formato' | 'blocos'>): { aluno: string | null; situacao: SituacaoDoAlunoDoBloco }[] {
+  if (aba.formato === 'TABELA') return [];
+  const vistos = new Map<string, { aluno: string | null; situacao: SituacaoDoAlunoDoBloco }>();
+  for (const b of aba.blocos) {
+    const chave = b.aluno === null ? '' : semAcento(b.aluno);
+    if (!vistos.has(chave)) vistos.set(chave, { aluno: b.aluno, situacao: b.aluno === null ? 'SEM_ALUNO' : b.situacao });
+  }
+  return [...vistos.values()];
+}
+
+/** "De Ana Souza (aluno novo, entra só com o nome)" ou "3 alunos: Ana, Bruno e Carla". */
+export function textoDosAlunosDaAba(aba: Pick<AbaDaPlanilha, 'formato' | 'blocos'>): string | null {
+  const alunos = alunosDaAba(aba);
+  if (alunos.length === 0) return null;
+  if (alunos.length === 1) {
+    const a = alunos[0];
+    return a.aluno ? `De ${a.aluno} (${textoDaSituacaoDoAluno(a.situacao)}).` : 'Sem aluno: não entra.';
+  }
+  return `${alunos.length} alunos: ${juntar(alunos.map((a) => a.aluno ?? 'sem aluno'))}.`;
+}
+
 // ------------------------------------------------------------------------------------------- respostas
 
 /** Resposta a um nome de exercício ou alimento. `id` só com `BIBLIOTECA`. */
@@ -69,6 +129,97 @@ export interface EstadoDasRespostas {
 }
 
 export const SEM_RESPOSTAS: EstadoDasRespostas = { tipos: {}, ligacoes: {}, exercicios: {}, alimentos: {}, suplementos: {} };
+
+// --------------------------------------------------------------------- respostas salvas (fase 2, por consultoria)
+
+/** O aviso discreto ao lado do que veio marcado pela importação anterior. */
+export const AVISO_RESPONDIDO_ANTES = 'Respondido na importação anterior';
+
+/** A resposta salva de um nome, se ela ainda vale aqui ("aceitar" só com sugestão; "biblioteca" só com o item). */
+function respostaSalvaDoNome(p: PerguntaDaPlanilha): RespostaDoNome | null {
+  if (!p.respostaSalva) return null;
+  if (p.respostaSalva === 'ACEITAR' && !p.sugestao) return null;
+  if (p.respostaSalva === 'BIBLIOTECA') return p.idSalvo ? { acao: 'BIBLIOTECA', id: p.idSalvo } : null;
+  return { acao: p.respostaSalva };
+}
+
+/**
+ * As respostas que já vêm marcadas ao ler a planilha: as que a consultoria guardou em importações anteriores (o tipo das
+ * abas pelos títulos, os nomes e os suplementos). Só marca; o treinador vê e pode trocar.
+ */
+export function respostasSalvasMarcadas(analise: AnaliseDaPlanilha): EstadoDasRespostas {
+  const tipos: Record<number, TipoEscolhido> = {};
+  for (const a of analise.abas) if (a.tipoSalvo && a.tipoSalvo !== a.tipo) tipos[a.indice] = a.tipoSalvo;
+  const nomes = (perguntas: readonly PerguntaDaPlanilha[]) => {
+    const saida: Record<string, RespostaDoNome> = {};
+    for (const p of perguntas) {
+      const r = respostaSalvaDoNome(p);
+      if (r) saida[p.nome] = r;
+    }
+    return saida;
+  };
+  const suplementos: Record<string, DestinoDoSuplemento> = {};
+  for (const p of analise.suplementos) if (p.destinoSalvo) suplementos[p.nome] = p.destinoSalvo;
+  return { tipos, ligacoes: {}, exercicios: nomes(analise.exercicios), alimentos: nomes(analise.alimentos), suplementos };
+}
+
+/** O tipo da aba é o que foi dado na importação anterior (e é diferente do reconhecido). */
+export function abaRespondidaAntes(analise: AnaliseDaPlanilha, estado: EstadoDasRespostas, aba: AbaDaPlanilha): boolean {
+  return !!aba.tipoSalvo && aba.tipoSalvo !== aba.tipo && tipoDaAba(analise, estado, aba.indice) === aba.tipoSalvo;
+}
+
+/** A resposta atual do nome é a da importação anterior. */
+export function nomeRespondidoAntes(p: PerguntaDaPlanilha, r: RespostaDoNome | undefined): boolean {
+  const salva = respostaSalvaDoNome(p);
+  return !!salva && !!r && r.acao === salva.acao && (r.acao !== 'BIBLIOTECA' || r.id === salva.id);
+}
+
+export function suplementoRespondidoAntes(p: PerguntaDeSuplementoDaPlanilha, destino: DestinoDoSuplemento | undefined): boolean {
+  return !!p.destinoSalvo && destino === p.destinoSalvo;
+}
+
+/**
+ * Depois de "Esquecer as respostas salvas": a análise sem as marcas e as respostas sem as que vieram delas (o que o
+ * treinador trocou nesta tela fica).
+ */
+export function semRespostasSalvas(analise: AnaliseDaPlanilha, estado: EstadoDasRespostas): { analise: AnaliseDaPlanilha; estado: EstadoDasRespostas } {
+  const tipos = { ...estado.tipos };
+  for (const a of analise.abas) if (abaRespondidaAntes(analise, estado, a)) delete tipos[a.indice];
+  const limpar = (perguntas: readonly PerguntaDaPlanilha[], respostas: Readonly<Record<string, RespostaDoNome>>) => {
+    const saida = { ...respostas };
+    for (const p of perguntas) if (nomeRespondidoAntes(p, saida[p.nome])) delete saida[p.nome];
+    return saida;
+  };
+  const suplementos = { ...estado.suplementos };
+  for (const p of analise.suplementos) if (suplementoRespondidoAntes(p, suplementos[p.nome])) delete suplementos[p.nome];
+  return {
+    analise: {
+      ...analise,
+      respostasSalvas: 0,
+      abas: analise.abas.map((a) => ({ ...a, tipoSalvo: null })),
+      exercicios: analise.exercicios.map((p) => ({ ...p, respostaSalva: null, idSalvo: null })),
+      alimentos: analise.alimentos.map((p) => ({ ...p, respostaSalva: null, idSalvo: null })),
+      suplementos: analise.suplementos.map((p) => ({ ...p, destinoSalvo: null })),
+    },
+    estado: { ...estado, tipos, exercicios: limpar(analise.exercicios, estado.exercicios), alimentos: limpar(analise.alimentos, estado.alimentos), suplementos },
+  };
+}
+
+/** Quantas das respostas marcadas agora vieram da importação anterior. */
+export function quantasRespostasSalvasMarcadas(analise: AnaliseDaPlanilha, estado: EstadoDasRespostas): number {
+  return analise.abas.filter((a) => abaRespondidaAntes(analise, estado, a)).length
+    + analise.exercicios.filter((p) => nomeRespondidoAntes(p, estado.exercicios[p.nome])).length
+    + analise.alimentos.filter((p) => nomeRespondidoAntes(p, estado.alimentos[p.nome])).length
+    + analise.suplementos.filter((p) => suplementoRespondidoAntes(p, estado.suplementos[p.nome])).length;
+}
+
+/** O texto do cartão das respostas salvas. */
+export function textoDasRespostasSalvas(analise: AnaliseDaPlanilha, estado: EstadoDasRespostas): string {
+  const marcadas = quantasRespostasSalvasMarcadas(analise, estado);
+  const guardadas = `${analise.respostasSalvas} ${analise.respostasSalvas === 1 ? 'resposta guardada' : 'respostas guardadas'} das importações anteriores`;
+  if (marcadas === 0) return `${guardadas}; nenhuma vale para esta planilha.`;
+  return `${guardadas}: ${marcadas} ${marcadas === 1 ? 'veio marcada' : 'vieram marcadas'} aqui. Confira e troque o que precisar; as que você mudar ficam guardadas ao confirmar.`;
+}
 
 /** O tipo que vale para a aba: o escolhido, senão o reconhecido. */
 export function tipoDaAba(analise: AnaliseDaPlanilha, estado: EstadoDasRespostas, indice: number): TipoEscolhido {
@@ -287,6 +438,13 @@ export function textoDaPartePulada(p: PartePuladaDaPlanilha): string {
 const PROBLEMAS: Record<string, string> = {
   ABA_SEM_LIGACAO: 'A aba não está ligada a nenhum aluno.',
   ALUNO_ANONIMIZADO: 'O aluno já foi anonimizado e não recebe dados.',
+  ALUNO_DO_BLOCO_AMBIGUO: 'Há mais de um aluno com esse nome na aba de alunos: o bloco não entra.',
+  BLOCO_SEM_ALUNO: 'Bloco sem o nome do aluno em cima: não entra.',
+  CLUSTER_DIFERENTE_DAS_REPETICOES: 'Cluster com repetições que não somam os blocos: a série entra sem a técnica (o texto fica na observação).',
+  ESFORCO_CONFLITANTE: 'Esforço escrito de dois jeitos que não combinam: entra sem esforço (o texto fica na observação).',
+  PIRAMIDE_DIFERENTE_DAS_SERIES: 'A pirâmide não tem tantos números quanto as séries: entra sem séries (o texto fica na observação).',
+  TECNICA_FORA_DA_METODOLOGIA: 'A técnica escrita não está na sua metodologia: a série entra sem ela (o texto fica na observação).',
+  TECNICA_INCOMPLETA: 'Faltou um número da técnica (os blocos do cluster, por exemplo): a série entra sem ela (o texto fica na observação).',
   ALUNO_EXISTENTE_AMBIGUO: 'Há mais de um aluno com este nome; use o e-mail para diferenciar.',
   ALUNO_FORA: 'A linha é de um aluno que ficou de fora.',
   ALUNO_SEM_CODIGO: 'Aluno sem código.',

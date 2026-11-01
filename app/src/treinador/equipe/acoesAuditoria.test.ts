@@ -33,5 +33,5 @@ test('ações das agendas pessoais e dos eventos têm rótulo no filtro da audit
 });
 
 test('importar e desfazer a importação têm rótulo no filtro da auditoria', () => {
-  for (const acao of ['IMPORTACAO_CONCLUIDA', 'IMPORTACAO_DESFEITA']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
+  for (const acao of ['IMPORTACAO_CONCLUIDA', 'IMPORTACAO_DESFEITA', 'IMPORTACAO_RESPOSTAS_ESQUECIDAS']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
 });
