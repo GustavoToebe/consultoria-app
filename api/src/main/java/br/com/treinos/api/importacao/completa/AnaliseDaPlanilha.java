@@ -133,7 +133,7 @@ public final class AnaliseDaPlanilha {
                                    Collection<String> alimentosDaBiblioteca, Collection<String> suplementosDaBiblioteca,
                                    Collection<String> ergogenicosDaBiblioteca, LocalDate hoje) {
         return analisar(leitura, exerciciosDaBiblioteca, alimentosDaBiblioteca, suplementosDaBiblioteca,
-                ergogenicosDaBiblioteca, List.of(), hoje);
+                ergogenicosDaBiblioteca, List.of(), RespostasSalvas.NENHUMA, hoje);
     }
 
     /**
@@ -143,7 +143,7 @@ public final class AnaliseDaPlanilha {
     public static Analise analisar(Leitura leitura, Collection<String> exerciciosDaBiblioteca,
                                    Collection<String> alimentosDaBiblioteca, Collection<String> suplementosDaBiblioteca,
                                    Collection<String> ergogenicosDaBiblioteca, Collection<String> alunosExistentes,
-                                   LocalDate hoje) {
+                                   RespostasSalvas salvas, LocalDate hoje) {
         List<AbaReconhecida> abas = reconhecerAbas(leitura, Map.of());
 
         List<LigacaoDeAbas.Ligacao> ligacoes = LigacaoDeAbas.ligarTodas(abas);
@@ -219,10 +219,11 @@ public final class AnaliseDaPlanilha {
         exerciciosDaBiblioteca.forEach(n -> daBiblioteca.add(CasamentoDeNomes.chave(n)));
         List<String> candidatos = new ArrayList<>(exerciciosDaBiblioteca);
         candidatos.addAll(listaDaPlanilha);
-        Casados deExercicios = casar(exercicios, new CasamentoDeNomes.Indice(candidatos), daBiblioteca);
+        Casados deExercicios = casar(exercicios, new CasamentoDeNomes.Indice(candidatos), daBiblioteca, salvas.exercicios());
         Set<String> alimentosConhecidos = new HashSet<>();
         alimentosDaBiblioteca.forEach(n -> alimentosConhecidos.add(CasamentoDeNomes.chave(n)));
-        Casados deAlimentos = casar(alimentos, new CasamentoDeNomes.Indice(alimentosDaBiblioteca), alimentosConhecidos);
+        Casados deAlimentos = casar(alimentos, new CasamentoDeNomes.Indice(alimentosDaBiblioteca), alimentosConhecidos,
+                salvas.alimentos());
 
         Resumo resumo = new Resumo(contas.alunos, contas.alunosInativos, contas.pesos, contas.pesosIniciais,
                 contas.iniciaisNoHistorico, contas.treinos.size(), contas.exercicios,
@@ -230,10 +231,12 @@ public final class AnaliseDaPlanilha {
                 deExercicios.contagem(), deAlimentos.contagem(), contas.prescricoes, contas.naoEntendidas, contas.comSobra,
                 contas.faixasDeData);
         AlunosDosBlocos donos = new AlunosDosBlocos(abas, alunosExistentes);
-        return new Analise(abas.stream().map(a -> aba(a, donos)).toList(), ligacoes.stream().map(AnaliseDaPlanilha::ligacao).toList(),
+        return new Analise(abas.stream().map(a -> aba(a, donos, tipoSalvo(salvas, assinaturaDosTitulos(leitura, a)))).toList(),
+                ligacoes.stream().map(AnaliseDaPlanilha::ligacao).toList(),
                 resumo, List.copyOf(problemas.lista), problemas.alem, problemas.porTipo, deExercicios.perguntas(), deAlimentos.perguntas(),
                 suplementosDaBiblioteca == null ? List.of()
-                        : perguntasDeSuplemento(suplementos, suplementosDaBiblioteca, ergogenicosDaBiblioteca));
+                        : perguntasDeSuplemento(suplementos, suplementosDaBiblioteca, ergogenicosDaBiblioteca, salvas.suplementos()),
+                salvas.total());
     }
 
     /**
@@ -285,7 +288,8 @@ public final class AnaliseDaPlanilha {
     }
 
     /** Casa cada nome distinto: a contagem por nível e as perguntas (provável e nenhum), as mais frequentes primeiro. */
-    private static Casados casar(Ocorrencias vistos, CasamentoDeNomes.Indice indice, Set<String> chavesDaBiblioteca) {
+    private static Casados casar(Ocorrencias vistos, CasamentoDeNomes.Indice indice, Set<String> chavesDaBiblioteca,
+                                 Map<String, RespostasSalvas.NomeSalvo> salvas) {
         int certo = 0;
         int provavel = 0;
         int nenhum = 0;
@@ -304,7 +308,12 @@ public final class AnaliseDaPlanilha {
             }
             String origem = r.candidato() == null ? null
                     : chavesDaBiblioteca.contains(CasamentoDeNomes.chave(r.candidato())) ? "BIBLIOTECA" : "PLANILHA";
-            saida.add(new Pergunta(e.getValue(), r.nivel().name(), r.candidato(), origem, r.nota(), vezes));
+            RespostasSalvas.NomeSalvo salva = salvas.get(e.getKey());
+            if (salva != null && "ACEITAR".equals(salva.acao()) && r.candidato() == null) {
+                salva = null; // "aceitar" sem sugestão não tem o que aceitar
+            }
+            saida.add(new Pergunta(e.getValue(), r.nivel().name(), r.candidato(), origem, r.nota(), vezes,
+                    salva == null ? null : salva.acao(), salva == null ? null : salva.id()));
         }
         saida.sort(Comparator.comparingInt(Pergunta::ocorrencias).reversed()
                 .thenComparing(p -> p.nome().toLowerCase(Locale.ROOT)));
@@ -530,14 +539,15 @@ public final class AnaliseDaPlanilha {
     /** Nomes distintos da aba de suplementos com a sugestão de destino; a ordem é a da planilha. */
     private static List<PerguntaDeSuplemento> perguntasDeSuplemento(Map<String, String[]> nomes,
                                                                    Collection<String> suplementos,
-                                                                   Collection<String> ergogenicos) {
+                                                                   Collection<String> ergogenicos,
+                                                                   Map<String, String> salvos) {
         List<String> ergo = ergogenicos.stream().map(MontagemDaImportacao::nomeDeSuplemento).toList();
         List<String> supl = suplementos.stream().map(MontagemDaImportacao::nomeDeSuplemento).toList();
         List<PerguntaDeSuplemento> saida = new ArrayList<>();
         nomes.forEach((k, v) -> {
             String sugestao = ergo.stream().anyMatch(e -> MontagemDaImportacao.parecido(k, e)) ? "SENSIVEL"
                     : supl.stream().anyMatch(e -> MontagemDaImportacao.parecido(k, e)) ? "SUPLEMENTO" : null;
-            saida.add(new PerguntaDeSuplemento(v[0], sugestao, Integer.parseInt(v[1])));
+            saida.add(new PerguntaDeSuplemento(v[0], sugestao, Integer.parseInt(v[1]), salvos.get(k)));
         });
         return List.copyOf(saida);
     }
@@ -589,7 +599,45 @@ public final class AnaliseDaPlanilha {
         }
     }
 
-    private static Aba aba(AbaReconhecida a, AlunosDosBlocos donos) {
+    /**
+     * Assinatura dos títulos das colunas de uma aba (para guardar o tipo que o treinador deu a ela): sha256 dos títulos do
+     * cabeçalho em palavras normalizadas (sem acento, sem caixa). Nunca o texto. Sem cabeçalho = null.
+     */
+    static String assinaturaDosTitulos(Leitura leitura, AbaReconhecida aba) {
+        int numero = aba.reconhecimento().linhaDoCabecalho();
+        if (numero <= 0 || aba.indice() >= leitura.abas().size()) {
+            return null;
+        }
+        Linha cabecalho = leitura.abas().get(aba.indice()).linhas().stream().filter(l -> l.numero() == numero).findFirst()
+                .orElse(null);
+        if (cabecalho == null) {
+            return null;
+        }
+        List<String> titulos = new ArrayList<>();
+        for (Celula c : cabecalho.celulas()) {
+            titulos.add(c.numero() || c.erro() ? "" : String.join(" ", Normalizacao.palavras(c.texto())));
+        }
+        while (!titulos.isEmpty() && titulos.getLast().isEmpty()) {
+            titulos.removeLast();
+        }
+        if (titulos.isEmpty()) {
+            return null;
+        }
+        try {
+            java.security.MessageDigest sha = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] h = sha.digest(("titulos-v1|" + String.join("|", titulos)).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(h);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /** O tipo guardado para a assinatura (nula = aba sem cabeçalho, sem tipo guardado). */
+    private static String tipoSalvo(RespostasSalvas salvas, String assinatura) {
+        return assinatura == null ? null : salvas.abas().get(assinatura);
+    }
+
+    private static Aba aba(AbaReconhecida a, AlunosDosBlocos donos, String tipoSalvo) {
         Reconhecimento r = a.reconhecimento();
         Map<String, Integer> campos = new LinkedHashMap<>();
         r.campos().entrySet().stream().sorted(Map.Entry.comparingByKey())
@@ -600,7 +648,7 @@ public final class AnaliseDaPlanilha {
                         donos.situacao(b.aluno()), b.titulo(), b.dados().size()))
                 .toList();
         return new Aba(a.indice(), a.nome(), r.tipo().name(), r.linhaDoCabecalho(), a.dados().size(), campos, avisos,
-                a.formato().name(), blocos, null);
+                a.formato().name(), blocos, tipoSalvo);
     }
 
     private static Ligacao ligacao(LigacaoDeAbas.Ligacao l) {

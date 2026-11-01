@@ -107,13 +107,14 @@ public class GravacaoDaPlanilha {
     private final VideoUrls videos;
     private final ValidadorTreino validador;
     private final JsonMapper json;
+    private final GuardaDasRespostas guarda;
 
     public GravacaoDaPlanilha(ExercicioRepository exercicios, AlimentoRepository alimentos,
                               SuplementoRepository suplementos, ErgogenicoRepository ergogenicos, AlunoRepository alunos,
                               RegistroPesoRepository pesos, PastaRepository pastas, PlanoTreinoRepository treinos,
                               PlanoDietaRepository dietas, ImportacaoRepository importacoes, ReceitaService receitas,
                               PlanoDaConsultoria plano, ConsultoriaRepository consultorias, Auditoria auditoria,
-                              VideoUrls videos, ValidadorTreino validador, JsonMapper json) {
+                              VideoUrls videos, ValidadorTreino validador, JsonMapper json, GuardaDasRespostas guarda) {
         this.exercicios = exercicios;
         this.alimentos = alimentos;
         this.suplementos = suplementos;
@@ -131,6 +132,7 @@ public class GravacaoDaPlanilha {
         this.videos = videos;
         this.validador = validador;
         this.json = json;
+        this.guarda = guarda;
     }
 
     @Transactional(readOnly = true)
@@ -215,6 +217,9 @@ public class GravacaoDaPlanilha {
                 dietas.saveAndFlush(d);
             }
         }
+        // As respostas ficam guardadas na consultoria e voltam marcadas na próxima análise (as de suplemento, só com a
+        // dieta, como na análise). Na mesma transação: se a confirmação desfaz, elas também.
+        guarda.guardar(respostas, leitura, AcessoAtual.pode("PASTA_ALTERAR") && AcessoAtual.pode("DIETA_ALTERAR"));
         auditoria.registrarEvento("IMPORTACAO_CONCLUIDA", "IMPORTACAO", id, "Importou dados de planilha completa.");
         return new Confirmacao(id, situacao, criacao(m, criacao.exercicios()), m.partesPuladas(), validacao(m),
                 m.problemas().size(), porTipo(m.problemas()));

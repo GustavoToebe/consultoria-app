@@ -9,6 +9,7 @@ import br.com.treinos.api.security.UsuarioAutenticado;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,7 +25,8 @@ import java.util.UUID;
  * Planilha completa (várias abas ligadas entre si): análise e prévia só leem; a confirmação grava tudo em rascunho numa
  * transação; o "Desfazer" apaga o que ficou intocado. Mesmo limite por usuário da importação de uma aba (prévia e
  * confirmação) e o mesmo leitor (tamanho, zip, linhas, colunas e texto). Toda rota exige {@code ALUNO_ALTERAR}; as
- * outras permissões são conferidas por parte no serviço.
+ * outras permissões são conferidas por parte no serviço. As respostas guardadas na consultoria (fase 2) se esquecem por
+ * {@code DELETE /importacoes/planilha-completa/respostas-salvas}.
  */
 @RestController
 @RequestMapping("/importacoes")
@@ -67,6 +69,16 @@ public class PlanilhaCompletaController {
                                  @RequestParam String hash) throws IOException {
         limites.confirmacaoDeImportacao(eu.usuarioId());
         return gravacao.confirmar(eu, arquivo.getOriginalFilename(), arquivo.getBytes(), respostas, hash);
+    }
+
+    /** Apaga as respostas guardadas das importações anteriores (a próxima análise volta sem sugestão marcada). */
+    @DeleteMapping("/planilha-completa/respostas-salvas")
+    @PreAuthorize("hasAuthority('PERM_ALUNO_ALTERAR')")
+    public RespostasEsquecidas esquecerRespostas() {
+        return new RespostasEsquecidas(service.esquecerRespostas());
+    }
+
+    public record RespostasEsquecidas(int apagadas) {
     }
 
     @PostMapping("/{id}/desfazer")

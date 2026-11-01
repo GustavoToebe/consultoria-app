@@ -16,19 +16,21 @@ public final class PlanilhaCompletaDtos {
 
     /**
      * {@code problemas} traz até {@link AnaliseDaPlanilha#PROBLEMAS_NA_RESPOSTA} itens ({@code problemasAlem} = os que
-     * ficaram fora); {@code problemasPorTipo} conta todos.
+     * ficaram fora); {@code problemasPorTipo} conta todos. {@code respostasSalvas} = quantas respostas de importações
+     * anteriores a consultoria tem guardadas (as que valem aqui voltam marcadas nas abas e nas perguntas).
      */
     public record Analise(List<Aba> abas, List<Ligacao> ligacoes, Resumo resumo, List<Problema> problemas,
                           int problemasAlem, Map<String, Integer> problemasPorTipo, List<Pergunta> exercicios,
-                          List<Pergunta> alimentos, List<PerguntaDeSuplemento> suplementos) {
+                          List<Pergunta> alimentos, List<PerguntaDeSuplemento> suplementos, int respostasSalvas) {
     }
 
     /**
      * Nome da aba de suplementos e para onde vai sem resposta: {@code sugestao} {@code SUPLEMENTO} ou {@code SENSIVEL}
      * pela biblioteca; nula = nenhuma biblioteca reconhece (sem resposta vai para Medicação e ergogênicos). Só aparece a
-     * quem pode gravar a dieta.
+     * quem pode gravar a dieta. {@code destinoSalvo} = o destino que o treinador deu a este nome numa importação
+     * anterior (nulo sem resposta salva).
      */
-    public record PerguntaDeSuplemento(String nome, String sugestao, int ocorrencias) {
+    public record PerguntaDeSuplemento(String nome, String sugestao, int ocorrencias, String destinoSalvo) {
     }
 
     /**
@@ -88,9 +90,12 @@ public final class PlanilhaCompletaDtos {
 
     /**
      * Nome que pede confirmação: {@code PROVAVEL} (com a sugestão) ou {@code NENHUM}. {@code origem} = de onde veio a
-     * sugestão ({@code BIBLIOTECA} ou {@code PLANILHA}); nula sem sugestão.
+     * sugestão ({@code BIBLIOTECA} ou {@code PLANILHA}); nula sem sugestão. {@code respostaSalva} e {@code idSalvo} = a
+     * resposta dada a este nome numa importação anterior ({@code ACEITAR} só volta com sugestão; {@code BIBLIOTECA} só
+     * com o item ainda ativo), nulas sem resposta salva.
      */
-    public record Pergunta(String nome, String nivel, String sugestao, String origem, double nota, int ocorrencias) {
+    public record Pergunta(String nome, String nivel, String sugestao, String origem, double nota, int ocorrencias,
+                           String respostaSalva, UUID idSalvo) {
     }
 
     // ------------------------------------------------------------------------------------- prévia e confirmação

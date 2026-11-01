@@ -299,4 +299,70 @@ class PlanilhaCompletaGravacaoIntegrationTest extends AbstractIntegrationTest {
         assertThat(parte(d, "PLANO_TREINO").path("apagados").asInt()).isEqualTo(3);
         assertThat(api.get("/alunos", treinador, 200).path("total").asInt()).isZero();
     }
+
+    private static JsonNode porNome(JsonNode lista, String nome) {
+        for (JsonNode n : lista) {
+            if (nome.equals(n.path("nome").asString())) {
+                return n;
+            }
+        }
+        throw new AssertionError("Nome ausente na análise.");
+    }
+
+    private int respostasGuardadas(JsonNode login, String tipo) {
+        return jdbc.queryForObject("select count(*) from importacao_resposta_salva r join usuario u on u.consultoria_id = "
+                + "r.consultoria_id where u.id = ?::uuid and r.tipo = ?", Integer.class,
+                login.path("usuario").path("id").asString(), tipo);
+    }
+
+    @Test
+    void respostasFicamGuardadasNaConsultoriaEVoltamMarcadas() throws Exception {
+        String respostas = "{\"abas\":[{\"indice\":8,\"tipo\":\"IGNORAR\"}],"
+                + "\"exercicios\":[{\"nome\":\"Xyzzy qwerty\",\"acao\":\"MANTER\"}],"
+                + "\"suplementos\":[{\"nome\":\"Creatina\",\"destino\":\"SUPLEMENTO\"}]}";
+        assertThat(enviar(treinador, "analisar", null, null, 200).path("respostasSalvas").asInt()).isZero();
+        JsonNode previa = enviar(treinador, "previa", respostas, null, 200);
+        enviar(treinador, "confirmar", respostas, previa.path("hash").asString(), 200);
+        assertThat(respostasGuardadas(treinador, "ABA")).isEqualTo(1);
+        assertThat(respostasGuardadas(treinador, "EXERCICIO")).isEqualTo(1);
+        assertThat(respostasGuardadas(treinador, "SUPLEMENTO")).isEqualTo(1);
+        // A chave da aba é um hash: o texto dos títulos não fica guardado.
+        assertThat(jdbc.queryForList("select chave from importacao_resposta_salva where tipo = 'ABA'", String.class))
+                .noneMatch(c -> c.contains("alimentos"));
+
+        JsonNode analise = enviar(treinador, "analisar", null, null, 200);
+        assertThat(analise.path("respostasSalvas").asInt()).isEqualTo(3);
+        assertThat(analise.path("abas").get(8).path("tipoSalvo").asString()).isEqualTo("IGNORAR");
+        assertThat(porNome(analise.path("exercicios"), "Xyzzy qwerty").path("respostaSalva").asString()).isEqualTo("MANTER");
+        assertThat(porNome(analise.path("suplementos"), "Creatina").path("destinoSalvo").asString()).isEqualTo("SUPLEMENTO");
+
+        // Outra consultoria não vê nada.
+        assertThat(enviar(api.novoTreinador(), "analisar", null, null, 200).path("respostasSalvas").asInt()).isZero();
+
+        // Esquecer apaga todas, com um evento de auditoria (resumo fixo); de novo, nada a apagar e nenhum evento novo.
+        assertThat(api.delete(BASE + "respostas-salvas", treinador, 200).path("apagadas").asInt()).isEqualTo(3);
+        assertThat(api.delete(BASE + "respostas-salvas", treinador, 200).path("apagadas").asInt()).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from auditoria a join usuario u on u.consultoria_id = a.consultoria_id "
+                + "where u.id = ?::uuid and a.acao = 'IMPORTACAO_RESPOSTAS_ESQUECIDAS'", Integer.class,
+                treinador.path("usuario").path("id").asString())).isEqualTo(1);
+        JsonNode depois = enviar(treinador, "analisar", null, null, 200);
+        assertThat(depois.path("respostasSalvas").asInt()).isZero();
+        JsonNode tipoSalvo = depois.path("abas").get(8).path("tipoSalvo");
+        assertThat(tipoSalvo.isNull() || tipoSalvo.isMissingNode()).isTrue();
+    }
+
+    @Test
+    void semADietaOSuplementoNaoEGuardadoNemVolta() throws Exception {
+        JsonNode membro = membroCom(Set.of("ALUNO_LER", "ALUNO_ALTERAR"));
+        String respostas = "{\"exercicios\":[{\"nome\":\"Xyzzy qwerty\",\"acao\":\"MANTER\"}],"
+                + "\"suplementos\":[{\"nome\":\"Creatina\",\"destino\":\"SENSIVEL\"}]}";
+        JsonNode previa = enviar(membro, "previa", respostas, null, 200);
+        enviar(membro, "confirmar", respostas, previa.path("hash").asString(), 200);
+        assertThat(respostasGuardadas(membro, "EXERCICIO")).isEqualTo(1);
+        assertThat(respostasGuardadas(membro, "SUPLEMENTO")).isZero();
+        assertThat(enviar(membro, "analisar", null, null, 200).path("suplementos").size()).isZero();
+        // Sem ALUNO_ALTERAR não esquece.
+        api.delete(BASE + "respostas-salvas", membroCom(Set.of("ALUNO_LER")), 403);
+        assertThat(respostasGuardadas(membro, "EXERCICIO")).isEqualTo(1);
+    }
 }

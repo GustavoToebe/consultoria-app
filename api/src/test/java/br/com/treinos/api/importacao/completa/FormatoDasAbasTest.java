@@ -54,7 +54,8 @@ class FormatoDasAbasTest {
 
     private static Analise analisar(Map<String, List<List<Object>>> abas, List<String> existentes) {
         LeituraDasAbas.Leitura leitura = LeituraDasAbas.ler("planilha.xlsx", PlanilhaDeTeste.xlsx(abas));
-        return AnaliseDaPlanilha.analisar(leitura, List.of(), List.of(), List.of(), List.of(), existentes, HOJE);
+        return AnaliseDaPlanilha.analisar(leitura, List.of(), List.of(), List.of(), List.of(), existentes, RespostasSalvas.NENHUMA,
+                HOJE);
     }
 
     private static PlanosDoAluno planosDe(Montagem m, String nome) {
