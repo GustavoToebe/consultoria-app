@@ -140,4 +140,104 @@ class MontagemDeSeriesTest {
         assertThat(MontagemDeSeries.logico(celula("talvez"))).isEqualTo(Logico.INVALIDO);
         assertThat(MontagemDeSeries.logico(celula(null))).isEqualTo(Logico.AUSENTE);
     }
+
+    // ------------------------------------------------------------------------- formato livre (fase 2, 01/11)
+
+    /** Lê o texto e monta as séries, como a montagem faz com a coluna de prescrição. */
+    private static MontagemDeSeries.PorPrescricao livre(String texto, ConfiguracaoConsultoria metodologia) {
+        LeitorDePrescricao.Prescricao p = LeitorDePrescricao.ler(texto);
+        return MontagemDeSeries.porPrescricao(new MontagemDeSeries.Prescrita(p.series(), p.repsMin(), p.repsMax(), p.piramide(),
+                p.amrap(), p.ateAFalha(), p.duracaoSegundos(), p.descansoSegundos(), p.rir(), p.rpe(), p.tecnica()), metodologia);
+    }
+
+    private static MontagemDeSeries.PorPrescricao livre(String texto) {
+        return livre(texto, PADRAO);
+    }
+
+    @Test
+    void livreSeriesERepeticoesDoTipoDeTrabalho() {
+        MontagemDeSeries.PorPrescricao r = livre("3x10");
+        assertThat(r.series()).hasSize(3);
+        assertThat(r.series()).allMatch(s -> "WORKING".equals(s.tipo()) && s.repsMin() == 10 && s.repsMax() == 10
+                && "CARGA_TRABALHO".equals(s.carga().modo()) && s.esforco() == null && s.descansoSegundos() == null);
+        assertThat(r.manterTexto()).isFalse();
+        assertThat(r.avisos()).isEmpty();
+        assertThat(livre("4x8-12").series()).allMatch(s -> s.repsMin() == 8 && s.repsMax() == 12).hasSize(4);
+        assertThat(livre("3x8 a 12").series()).allMatch(s -> s.repsMin() == 8 && s.repsMax() == 12).hasSize(3);
+        // Sem quantidade escrita, nenhuma série nasce (nada é inventado).
+        assertThat(livre("8-12").series()).isEmpty();
+        assertThat(livre("conforme combinado").series()).isEmpty();
+    }
+
+    @Test
+    void livrePiramide() {
+        MontagemDeSeries.PorPrescricao r = livre("10-8-6");
+        assertThat(r.series()).extracting(Serie::repsMin).containsExactly(10, 8, 6);
+        assertThat(r.series()).extracting(Serie::repsMax).containsExactly(10, 8, 6);
+        // A coluna "Séries" diz 4 e a pirâmide tem 3 números: nada nasce e o texto fica.
+        MontagemDeSeries.PorPrescricao naoBate = MontagemDeSeries.porPrescricao(new MontagemDeSeries.Prescrita(4, null, null,
+                List.of(10, 8, 6), false, false, null, null, null, null, null), PADRAO);
+        assertThat(naoBate.series()).isEmpty();
+        assertThat(naoBate.avisos()).containsExactly("PIRAMIDE_DIFERENTE_DAS_SERIES");
+        assertThat(naoBate.manterTexto()).isTrue();
+    }
+
+    @Test
+    void livreAteAFalhaAmrapTempoDescansoEEsforco() {
+        MontagemDeSeries.PorPrescricao falha = livre("3x até a falha");
+        assertThat(falha.series()).hasSize(3).allMatch(s -> s.repsMin() == null && s.esforco().rir() == 0 && s.amrap() == null);
+        assertThat(livre("2x amrap").series()).hasSize(2).allMatch(s -> Boolean.TRUE.equals(s.amrap()) && s.repsMin() == null);
+
+        MontagemDeSeries.PorPrescricao tempo = livre("3x30s");
+        assertThat(tempo.series()).hasSize(3).allMatch(s -> s.repsMin() == null && s.repsMax() == null);
+        assertThat(tempo.observacoes()).containsExactly("Duração de cada série: 30 s");
+        assertThat(livre("3x1min30").observacoes()).containsExactly("Duração de cada série: 1 min 30 s");
+
+        assertThat(livre("3x10 desc 60s").series()).allMatch(s -> s.descansoSegundos() == 60);
+        assertThat(livre("4x8 90\"").series()).allMatch(s -> s.descansoSegundos() == 90);
+        assertThat(livre("3x10 RIR 2").series()).allMatch(s -> s.esforco().rir() == 2 && s.esforco().rpe() == null);
+        assertThat(livre("3x10 RPE 8,5").series()).allMatch(s -> s.esforco().rpe().compareTo(new BigDecimal("8.5")) == 0);
+        // "Até a falha" com RIR 2 não combina: sem esforço e o texto fica.
+        MontagemDeSeries.PorPrescricao conflito = livre("3x10 falha RIR 2");
+        assertThat(conflito.series()).allMatch(s -> s.esforco() == null);
+        assertThat(conflito.avisos()).containsExactly("ESFORCO_CONFLITANTE");
+        assertThat(conflito.manterTexto()).isTrue();
+    }
+
+    @Test
+    void livreTecnicaDaMetodologiaComOPadraoNoQueFaltou() {
+        MontagemDeSeries.PorPrescricao rp = livre("4x10 rest pause");
+        assertThat(rp.series()).hasSize(4).allMatch(s -> s.tecnica() != null && "REST_PAUSE".equals(s.tecnica().tipo())
+                && s.tecnica().pausaSegundos() == 20 && s.tecnica().pausas() == 1);
+        assertThat(rp.manterTexto()).isTrue(); // o texto fica para conferir o padrão usado
+        assertThat(livre("4x10 rest pause 15s").series().getFirst().tecnica().pausaSegundos()).isEqualTo(15);
+
+        MontagemDeSeries.PorPrescricao ultima = livre("4x10 rest-pause na última");
+        assertThat(ultima.series()).extracting(s -> s.tecnica() == null ? null : s.tecnica().tipo())
+                .containsExactly(null, null, null, "REST_PAUSE");
+
+        MontagemDeSeries.PorPrescricao cluster = livre("3x cluster 4+4+2");
+        assertThat(cluster.series()).hasSize(3).allMatch(s -> s.repsMin() == 10 && s.repsMax() == 10
+                && s.tecnica().blocos().equals(List.of(4, 4, 2)) && s.tecnica().pausaSegundos() == 15);
+        // Cluster sem blocos escritos não fica completo; com repetições que não somam, também não.
+        MontagemDeSeries.PorPrescricao semBlocos = livre("Cluster 4x6");
+        assertThat(semBlocos.series()).hasSize(4).allMatch(s -> s.tecnica() == null && s.repsMin() == 6);
+        assertThat(semBlocos.avisos()).containsExactly("TECNICA_INCOMPLETA");
+        MontagemDeSeries.PorPrescricao naoSoma = MontagemDeSeries.porPrescricao(new MontagemDeSeries.Prescrita(3, 12, 12, null,
+                false, false, null, null, null, null, new LeitorDePrescricao.TecnicaEscrita(LeitorDePrescricao.Tecnica.CLUSTER,
+                null, null, null, List.of(4, 4, 2), null, null, false)), PADRAO);
+        assertThat(naoSoma.series()).allMatch(s -> s.tecnica() == null && s.repsMin() == 12);
+        assertThat(naoSoma.avisos()).containsExactly("CLUSTER_DIFERENTE_DAS_REPETICOES");
+
+        MontagemDeSeries.PorPrescricao drop = livre("3x12 drop-set 2 quedas 20%");
+        assertThat(drop.series()).allMatch(s -> s.tecnica().quedas() == 2 && s.tecnica().reducaoPercentual() == 20);
+
+        // Metodologia sem a técnica: a série entra sem ela e o texto fica.
+        ConfiguracaoConsultoria semTecnicas = new ConfiguracaoConsultoria(PADRAO.tipos(), List.of(), List.of(),
+                PADRAO.arredondamentoKg(), null, null);
+        MontagemDeSeries.PorPrescricao fora = livre("4x10 rest pause", semTecnicas);
+        assertThat(fora.series()).hasSize(4).allMatch(s -> s.tecnica() == null);
+        assertThat(fora.avisos()).containsExactly("TECNICA_FORA_DA_METODOLOGIA");
+        assertThat(fora.manterTexto()).isTrue();
+    }
 }

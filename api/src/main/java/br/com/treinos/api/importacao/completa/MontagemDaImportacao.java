@@ -818,9 +818,11 @@ public final class MontagemDaImportacao {
             boolean formatoDeContagem = r.tem(Campo.SERIES_TRABALHO) || r.tem(Campo.SERIES_PREPARACAO)
                     || r.tem(Campo.TOP_SET) || r.tem(Campo.BACK_OFF);
             List<Serie> series = formatoDeContagem ? seriesPorContagem(aba, l) : seriesPorPrescricao(aba, l, obs);
-            String descanso = linhaUnica(AnaliseDaPlanilha.texto(l, r.coluna(Campo.DESCANSO)));
-            if (!descanso.isEmpty()) {
-                obs.add("Descanso: " + descanso);
+            if (formatoDeContagem) {
+                String descanso = linhaUnica(AnaliseDaPlanilha.texto(l, r.coluna(Campo.DESCANSO)));
+                if (!descanso.isEmpty()) {
+                    obs.add("Descanso: " + descanso);
+                }
             }
             if (series.isEmpty()) {
                 problema(aba, l.numero(), null, "EXERCICIO_SEM_SERIE");
@@ -856,24 +858,34 @@ public final class MontagemDaImportacao {
         }
 
         /**
-         * Formato livre (uma coluna de prescrição, ou séries e repetições separadas): só nasce série quando a quantidade de
-         * séries está escrita; todas do tipo de trabalho da metodologia, com as repetições entendidas (ou sem elas), AMRAP
-         * só quando escrito e "até a falha" como RIR 0. O texto original da prescrição vai para a observação sempre que
-         * algo dele não coube nas séries (carga em kg, técnica, sobra ou repetição sem quantidade de séries).
+         * Formato livre (uma coluna de prescrição, ou séries e repetições separadas): o que o {@link LeitorDePrescricao}
+         * entende das colunas da linha é juntado (o primeiro valor de cada coisa vale) e vira séries pelo
+         * {@link MontagemDeSeries#porPrescricao}. O descanso vem da coluna "Descanso" (só tempo com unidade) ou do texto
+         * da prescrição. O texto original vai para a observação sempre que algo dele não coube nas séries (carga em kg,
+         * técnica, sobra), quando nenhuma série nasceu, ou quando a técnica entrou com o padrão da metodologia.
          */
         private List<Serie> seriesPorPrescricao(AbaReconhecida aba, Linha l, List<String> obs) {
             Reconhecimento r = aba.reconhecimento();
             Integer quantidade = null;
             Integer min = null;
             Integer max = null;
+            List<Integer> piramide = null;
             boolean amrap = false;
             boolean falha = false;
+            Integer duracao = null;
+            Integer descanso = null;
+            Integer rir = null;
+            BigDecimal rpe = null;
+            LeitorDePrescricao.TecnicaEscrita tecnica = null;
+            boolean tecnicasDiferentes = false;
             List<String> foraDasSeries = new ArrayList<>();
+            List<String> todos = new ArrayList<>();
             for (Campo campo : List.of(Campo.SERIES, Campo.PRESCRICAO, Campo.REPETICOES, Campo.CARGA)) {
                 Celula c = LigacaoDeAbas.celula(l, r.coluna(campo));
                 if (ReconhecimentoDeAbas.vazia(c) || c.erro()) {
                     continue;
                 }
+                todos.add(c.numero() ? c.texto() : linhaUnica(c.texto()));
                 if (campo == Campo.SERIES && c.numero()) {
                     MontagemDeSeries.Numero n = MontagemDeSeries.numero(c);
                     boolean ok = n.valor() != null && n.valor().stripTrailingZeros().scale() <= 0
@@ -890,43 +902,52 @@ public final class MontagemDaImportacao {
                 if (p.faixaDeData()) {
                     faixasDeData++;
                 }
-                if (quantidade == null && p.series() != null) {
+                if (p.piramide() != null && piramide == null && min == null) {
+                    piramide = p.piramide();
+                    if (quantidade == null && campo != Campo.REPETICOES) {
+                        quantidade = p.series();
+                    }
+                } else if (quantidade == null && p.series() != null) {
                     quantidade = p.series();
                 }
-                if (min == null && p.repsMin() != null) {
+                if (min == null && piramide == null && p.repsMin() != null) {
                     min = p.repsMin();
                     max = p.repsMax();
                 }
                 amrap |= p.amrap();
                 falha |= p.ateAFalha();
+                duracao = duracao == null ? p.duracaoSegundos() : duracao;
+                descanso = descanso == null ? p.descansoSegundos() : descanso;
+                rir = rir == null ? p.rir() : rir;
+                rpe = rpe == null ? p.rpe() : rpe;
+                if (p.tecnica() != null) {
+                    tecnicasDiferentes |= tecnica != null && tecnica.tipo() != p.tecnica().tipo();
+                    tecnica = tecnica == null ? p.tecnica() : tecnica;
+                }
                 boolean tudoNasSeries = p.cargaKg() == null && p.tecnicas().isEmpty() && p.sobra().isEmpty();
                 if (!tudoNasSeries && !c.numero()) {
                     foraDasSeries.add(linhaUnica(c.texto()));
                 }
             }
-            List<Serie> series = new ArrayList<>();
-            TipoDeSerie trabalho = MontagemDeSeries.tipo(metodologia, "WORKING", Papel.TRABALHO, ConteudoTreino.CARGA_TRABALHO);
-            if (quantidade != null && trabalho == null) {
-                problema(aba, l.numero(), null, "TIPO_FORA_DA_METODOLOGIA");
-            } else if (quantidade != null) {
-                for (int i = 0; i < quantidade; i++) {
-                    series.add(new Serie(UUID.randomUUID(), trabalho.codigo().trim(), amrap ? null : min, amrap ? null : max,
-                            amrap ? Boolean.TRUE : null, Carga.de(ConteudoTreino.CARGA_TRABALHO), falha ? Esforco.deRir(0) : null,
-                            null, null, null, null));
-                }
+            Celula colunaDescanso = LigacaoDeAbas.celula(l, r.coluna(Campo.DESCANSO));
+            String textoDescanso = ReconhecimentoDeAbas.vazia(colunaDescanso) || colunaDescanso.erro() ? ""
+                    : linhaUnica(colunaDescanso.texto());
+            Integer daColuna = colunaDescanso != null && !colunaDescanso.numero() ? LeitorDePrescricao.descanso(textoDescanso) : null;
+            if (daColuna != null) {
+                descanso = daColuna;
             }
-            if (quantidade == null && (min != null || amrap || falha)) {
-                Celula c = LigacaoDeAbas.celula(l, r.coluna(Campo.REPETICOES));
-                String reps = ReconhecimentoDeAbas.vazia(c) ? "" : c.numero()
-                        ? (min.equals(max) ? String.valueOf(min) : min + " a " + max) : linhaUnica(c.texto());
-                if (!reps.isEmpty() && !foraDasSeries.contains(reps)) {
-                    foraDasSeries.add(reps);
-                }
+            MontagemDeSeries.PorPrescricao res = MontagemDeSeries.porPrescricao(new MontagemDeSeries.Prescrita(quantidade, min,
+                    max, piramide, amrap, falha, duracao, descanso, rir, rpe, tecnicasDiferentes ? null : tecnica), metodologia);
+            res.avisos().forEach(a -> problema(aba, l.numero(), null, a));
+            if (!textoDescanso.isEmpty() && (daColuna == null || res.series().isEmpty())) {
+                obs.add("Descanso: " + textoDescanso);
             }
-            if (!foraDasSeries.isEmpty()) {
-                obs.add("Prescrição na planilha: " + String.join("; ", foraDasSeries));
+            obs.addAll(res.observacoes());
+            List<String> texto = res.series().isEmpty() || res.manterTexto() ? todos : foraDasSeries;
+            if (!texto.isEmpty()) {
+                obs.add("Prescrição na planilha: " + String.join("; ", texto));
             }
-            return series;
+            return res.series();
         }
 
         /** Orientações do treino: as colunas de texto da linha da rotina que não são identificação, com o título. */
