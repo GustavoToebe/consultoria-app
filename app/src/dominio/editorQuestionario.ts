@@ -2,7 +2,7 @@ import type {
   CondicaoPergunta, ConteudoQuestionario, DestinoNoPerfil, FinalidadeQuestionario, OpcaoPergunta, PerguntaAtualizacao, SecaoAtualizacao, TipoPergunta,
 } from '../api/tipos';
 import { mover, remover, substituir } from './editorTreino';
-import { controlaCondicao, LIMITES_QUESTIONARIO as L, temOpcoes, TIPO_DO_DESTINO, type ProblemaDoQuestionario } from './questionario';
+import { controlaCondicao, LIMITES_QUESTIONARIO as L, temOpcoes, TIPO_DO_DESTINO, TIPOS_FORA_DA_INSCRICAO, type ProblemaDoQuestionario } from './questionario';
 import { novoUid } from './uid';
 
 /**
@@ -53,9 +53,16 @@ export const TIPOS_PARA_ADICIONAR: readonly { tipo: TipoPergunta; descricao: str
   { tipo: 'FOTOS', descricao: 'O aluno anexa de 1 a 6 fotos (você escolhe quantas). Só aparece para o aluno quando o envio de fotos está ligado no servidor.' },
 ];
 
-/** Os tipos que valem para a finalidade (a anamnese não tem data da atualização; o endereço só existe na anamnese). */
+/**
+ * Os tipos que valem para a finalidade (a anamnese não tem data da atualização; o endereço só existe na anamnese; a
+ * inscrição fica sem os de `TIPOS_FORA_DA_INSCRICAO`, D5).
+ */
 export const tiposParaAdicionar = (finalidade: FinalidadeQuestionario) =>
-  TIPOS_PARA_ADICIONAR.filter((t) => (finalidade === 'ATUALIZACAO' || !t.soAtualizacao) && (finalidade === 'ANAMNESE' || !t.soAnamnese));
+  TIPOS_PARA_ADICIONAR.filter((t) => (finalidade === 'ATUALIZACAO' || !t.soAtualizacao) && (finalidade === 'ANAMNESE' || !t.soAnamnese)
+    && (finalidade !== 'INSCRICAO' || !TIPOS_FORA_DA_INSCRICAO.includes(t.tipo)));
+
+/** A página pública de inscrição não mostra imagem (D6); atualização e anamnese aceitam na pergunta e na opção. */
+export const aceitaImagem = (finalidade: FinalidadeQuestionario) => finalidade !== 'INSCRICAO';
 
 /**
  * Grupos da folha "Adicionar pergunta" (revisão de telas de 19/10: eram 17 botões soltos). Todo tipo do menu está em
@@ -132,8 +139,9 @@ export function normalizarQuestionario(c: Partial<ConteudoQuestionario> | null |
  */
 export function paraApi(c: ConteudoQuestionario, finalidade: FinalidadeQuestionario = 'ATUALIZACAO'): ConteudoQuestionario {
   const texto = (v: string | undefined) => (v != null && v.trim() !== '' ? v : undefined);
+  const imagemPermitida = aceitaImagem(finalidade);
   const opcao = (o: OpcaoPergunta, comImagem: boolean, comSexo: boolean): OpcaoPergunta => ({
-    id: o.id, rotulo: o.rotulo, imagemId: comImagem ? texto(o.imagemId) : undefined,
+    id: o.id, rotulo: o.rotulo, imagemId: comImagem && imagemPermitida ? texto(o.imagemId) : undefined,
     valorNoCadastro: comSexo && (o.valorNoCadastro === 'MASCULINO' || o.valorNoCadastro === 'FEMININO' || o.valorNoCadastro === 'OUTRO') ? o.valorNoCadastro : undefined,
   });
   return {
@@ -166,7 +174,7 @@ export function paraApi(c: ConteudoQuestionario, finalidade: FinalidadeQuestiona
           casas: numerico ? p.casas : undefined,
           rotuloMin: nota ? texto(p.rotuloMin) : undefined,
           rotuloMax: nota ? texto(p.rotuloMax) : undefined,
-          imagemId: texto(p.imagemId),
+          imagemId: imagemPermitida ? texto(p.imagemId) : undefined,
           somentePassado: p.tipo === 'DATA' && p.somentePassado === true ? true : undefined,
           linhas: p.tipo === 'GRADE' ? p.linhas?.map((o) => opcao(o, false, false)) : undefined,
           colunas: p.tipo === 'GRADE' ? p.colunas?.map((o) => opcao(o, false, false)) : undefined,

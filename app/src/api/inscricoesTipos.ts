@@ -1,4 +1,4 @@
-import type { ConviteGerado, Marca } from './tipos';
+import type { ConteudoQuestionario, ConviteGerado, Marca, RespostasAtualizacao } from './tipos';
 
 /** Espelho dos DTOs de `inscricoes/InscricaoDtos` da API (inscrição por link e CRM de interessados). */
 export type SituacaoInscricao = 'NOVA' | 'EM_CONTATO' | 'EM_NEGOCIACAO' | 'ACEITA' | 'RECUSADA' | 'DESISTIU';
@@ -23,6 +23,18 @@ export type OrigemInformada = 'INDICACAO' | 'INSTAGRAM' | 'GOOGLE' | 'OUTRA';
 /** Origem da equipe (pode corrigir a informada): as quatro e campanha. */
 export type Origem = OrigemInformada | 'CAMPANHA';
 
+/**
+ * Campos fixos da página "Quero ser aluno" que o treinador pode esconder (D4 de
+ * `docs/planos/inscricao-com-perguntas-proprias.md`). Nome, WhatsApp e a ciência do texto nunca se escondem.
+ */
+export type CampoDaInscricao = 'EMAIL' | 'SEXO' | 'OBJETIVO' | 'INTERESSE' | 'MODALIDADE' | 'PREVISAO_INICIO' | 'ORIGEM';
+
+/** Perguntas do treinador na página pública: só o necessário para responder; `versaoId` volta no envio. */
+export interface PerguntasDaInscricao {
+  versaoId: string;
+  conteudo: ConteudoQuestionario;
+}
+
 export interface InscricaoPublica {
   consultoria: Marca;
   /** Texto de apresentação e privacidade da consultoria; com texto, a ciência é obrigatória. */
@@ -30,6 +42,10 @@ export interface InscricaoPublica {
   /** Identifica o texto mostrado; volta no envio para a API conferir que a ciência é do texto atual. */
   textoVersao: string | null;
   aberta: boolean;
+  /** Campos fixos visíveis (os que o treinador não escondeu). */
+  campos: CampoDaInscricao[];
+  /** Perguntas do padrão de inscrição publicado; nulo sem padrão. */
+  perguntas: PerguntasDaInscricao | null;
 }
 
 export interface InscricaoPublicaRequest {
@@ -37,7 +53,6 @@ export interface InscricaoPublicaRequest {
   whatsapp: string;
   email: string | null;
   objetivo: string | null;
-  observacao: string | null;
   sexo?: string | null;
   interesse?: Interesse | null;
   modalidade?: ModalidadeDesejada | null;
@@ -49,6 +64,9 @@ export interface InscricaoPublicaRequest {
   /** `textoVersao` da página que a pessoa leu (409 `TEXTO_ALTERADO` se a equipe trocou o texto nesse meio-tempo). */
   textoVersao: string | null;
   turnstileToken?: string;
+  /** `perguntas.versaoId` da página (409 `PERGUNTAS_ALTERADAS` se a consultoria trocou as perguntas); nulo sem perguntas. */
+  questionarioVersaoId: string | null;
+  respostas: RespostasAtualizacao | null;
 }
 
 export interface ConfiguracaoInscricao {
@@ -58,6 +76,8 @@ export interface ConfiguracaoInscricao {
   link: string | null;
   responsavelId: string | null;
   texto: string | null;
+  /** Campos fixos escondidos da página. */
+  camposOcultos: CampoDaInscricao[];
   versao: number | null;
 }
 
@@ -272,6 +292,18 @@ export interface InscricaoDetalhe {
   notas: NotaInscricao[];
   retornos: RetornoInscricao[];
   eventos: EventoInscricao[];
+  /**
+   * Respostas às perguntas do treinador, com a versão respondida (`modelo`). Nulo sem respostas ou, na inscrição aceita,
+   * para quem não lê dado sensível do aluno.
+   */
+  respostas: RespostasDaInscricao | null;
+}
+
+export interface RespostasDaInscricao {
+  questionarioVersaoId: string;
+  questionarioVersaoNumero: number;
+  modelo: ConteudoQuestionario;
+  respostas: RespostasAtualizacao;
 }
 
 export interface AlterarInscricaoRequest {

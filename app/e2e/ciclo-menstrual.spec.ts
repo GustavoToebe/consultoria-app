@@ -3,6 +3,7 @@ import { expect, test, type Page, type Route } from '@playwright/test';
 import type { AlunoDetalhe, AnamneseDetalhe, Atualizacao, CicloDaAluna, DiaDeCicloApi, EuResponse, PastaResumo, RegistroDeCicloApi, RegistroPeso } from '../src/api/tipos';
 import { ALUNO, erroApi, json, MARCA, sessao, simularApi, TREINADOR } from './api-falsa';
 import { sessaoDeAluno } from './aluno';
+import { paginaPublica } from './inscricoes-falsas';
 
 const ALUNO_ID = 'a0000000-0000-4000-8000-000000000002';
 const ANAMNESE_ID = 'n0000000-0000-4000-8000-000000000001';
@@ -268,7 +269,7 @@ for (const largura of [390, 1280]) {
 test('inscrição envia o sexo quando a pessoa escolhe', async ({ page }) => {
   const codigo = 'codigo-de-teste-abcdefghijk';
   const { pedidos } = await simularApi(page, {
-    [`GET /publico/inscricoes/${codigo}`]: { corpo: { consultoria: MARCA, texto: null, aberta: true } },
+    [`GET /publico/inscricoes/${codigo}`]: { corpo: paginaPublica() },
     [`POST /publico/inscricoes/${codigo}`]: { status: 202, corpo: { mensagem: 'Recebemos sua inscrição. A equipe vai falar com você.' } },
   });
   await page.goto(`/inscricao/${codigo}`);

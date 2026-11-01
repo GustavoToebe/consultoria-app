@@ -29,6 +29,7 @@ import type {
 import type { PerfilEquipe, PerfilEquipeRequest, PermissaoEquipe, MembroEquipe, ConviteEquipe, ResponsavelEquipe, PaginaAuditoria } from './equipeTipos';
 import type {
   AceiteInscricao,
+  CampoDaInscricao,
   AcaoDaMensagem,
   AlterarInscricaoRequest,
   ConfiguracaoInscricao,
@@ -421,6 +422,10 @@ export const alterarConfiguracaoInscricao = (corpo: ConfiguracaoInscricaoRequest
   requisicao<ConfiguracaoInscricao>('/inscricoes/configuracao', { metodo: 'PUT', corpo });
 
 /** Troca o código: o link anterior para de valer na hora. */
+/** Campos fixos escondidos da página pública (lista inteira; vazia = todos visíveis). */
+export const esconderCamposDaInscricao = (camposOcultos: CampoDaInscricao[], versao: number | null) =>
+  requisicao<ConfiguracaoInscricao>('/inscricoes/configuracao/campos-ocultos', { metodo: 'PUT', corpo: { camposOcultos, versao } });
+
 export const novoLinkInscricao = (versao: number | null) =>
   requisicao<ConfiguracaoInscricao>('/inscricoes/configuracao/novo-link', { metodo: 'POST', corpo: { versao } });
 

@@ -11,6 +11,7 @@ import {
   chipsDosFiltros, filtrarQuestionarios, PUBLICACOES, SEM_FILTROS, semOFiltro, SITUACOES_DO_QUESTIONARIO, type ChaveDoFiltro,
   type FiltrosDeQuestionarios,
 } from '../../dominio/filtrosDeQuestionarios';
+import { AVISO_SAUDE_NA_INSCRICAO } from '../../dominio/inscricoes';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useAviso } from '../../ui/Aviso';
 import { BarraDeFiltros } from '../../ui/BarraDeFiltros';
@@ -29,6 +30,7 @@ import { Permitido } from '../../ui/Permitido';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 import { CelulaDoFiltro } from '../SeletoresDeFiltro';
+import { CamposFixosDaInscricao } from './CamposFixosDaInscricao';
 
 const irParaEditor = (id: string) => router.push(`/treinador/planejamento/questionario/${id}`);
 
@@ -43,17 +45,38 @@ export function linhaDeUso(q: Pick<QuestionarioResumo, 'uso'>) {
   return partes.length ? partes.join(' · ') : 'Sem uso ainda';
 }
 
+/** Textos da lista por finalidade (o resto da tela é igual nas três abas). */
+const TEXTOS: Record<FinalidadeQuestionario, { titulo: string; descricao: string; novo: string; buscar: string; ver: string; vazio: string }> = {
+  ATUALIZACAO: {
+    titulo: 'Questionários de atualização', novo: 'Novo questionário', buscar: 'Buscar questionário', ver: 'Ver questionários',
+    descricao: 'O check-in que o aluno responde a cada período. O padrão vale para quem não tem outro escolhido na ficha ou na pasta.',
+    vazio: 'Nenhum questionário ainda.',
+  },
+  ANAMNESE: {
+    titulo: 'Anamneses', novo: 'Nova anamnese', buscar: 'Buscar anamnese', ver: 'Ver anamneses',
+    descricao: 'O questionário inicial que você envia ao aluno pela ficha dele (cartão Anamnese). Ele responde no app, logado; a versão enviada não muda depois.',
+    vazio: 'Nenhuma anamnese ainda. Crie uma em branco e monte as seções.',
+  },
+  INSCRICAO: {
+    titulo: 'Perguntas da inscrição', novo: 'Novas perguntas', buscar: 'Buscar perguntas', ver: 'Ver perguntas',
+    descricao: 'As perguntas da página "Quero ser aluno", embaixo dos campos fixos. A página usa sempre o padrão publicado; as respostas aparecem na inscrição, em Interessados.',
+    vazio: 'Nenhuma pergunta de inscrição ainda.',
+  },
+};
+
 /**
- * Abas "Atualização" e "Anamnese" do Planejamento. Atualização: os questionários que o aluno responde no check-in; o
+ * Abas "Atualização", "Anamnese" e "Inscrição" do Planejamento. Atualização: os questionários que o aluno responde no check-in; o
  * padrão vale para quem não tem outro escolhido (na ficha do aluno ou na pasta). Anamnese: os questionários que a
- * equipe envia ao aluno pela ficha; o padrão é só o primeiro sugerido. "Novo questionário" é o único botão primário.
+ * equipe envia ao aluno pela ficha; o padrão é só o primeiro sugerido. Inscrição: as perguntas da página pública "Quero
+ * ser aluno" (a página usa só o padrão) e, acima da lista, os campos fixos que o treinador pode esconder. "Novo
+ * questionário" é o único botão primário.
  */
 export function ListaDeQuestionarios({ finalidade = 'ATUALIZACAO', pedirNovo, aoConsumirNovo }: {
   finalidade?: FinalidadeQuestionario; pedirNovo: boolean; aoConsumirNovo: () => void;
 }) {
   const { avisar } = useAviso();
   const { pode } = useSessao();
-  const anamnese = finalidade === 'ANAMNESE';
+  const textos = TEXTOS[finalidade];
   // Filtros (`docs/planos/filtros-nas-listas.md`, D12): a situação vai à API; busca e publicação filtram o que veio.
   const [filtros, setFiltros] = useState<FiltrosDeQuestionarios>(SEM_FILTROS);
   const arquivados = filtros.situacao === 'ARQUIVADOS';
@@ -85,14 +108,13 @@ export function ListaDeQuestionarios({ finalidade = 'ATUALIZACAO', pedirNovo, ao
   const fecharNovo = () => setNovoAberto(false);
 
   return <>
-    <Cartao titulo={anamnese ? 'Anamneses' : 'Questionários de atualização'}
-      descricao={anamnese ? 'O questionário inicial que você envia ao aluno pela ficha dele (cartão Anamnese). Ele responde no app, logado; a versão enviada não muda depois.'
-        : 'O check-in que o aluno responde a cada período. O padrão vale para quem não tem outro escolhido na ficha ou na pasta.'}
-      acoes={<Permitido codigo="QUESTIONARIO_ALTERAR"><Botao rotulo={anamnese ? 'Nova anamnese' : 'Novo questionário'} aoTocar={() => setNovoAberto(true)} /></Permitido>}>
+    {finalidade === 'INSCRICAO' ? <CamposFixosDaInscricao /> : null}
+    <Cartao titulo={textos.titulo} descricao={textos.descricao}
+      acoes={<Permitido codigo="QUESTIONARIO_ALTERAR"><Botao rotulo={textos.novo} aoTocar={() => setNovoAberto(true)} /></Permitido>}>
       {/* Busca e o botão "Filtros" (situação e publicação), como nas outras listas. */}
-      <BarraDeFiltros busca={{ valor: busca, aoMudar: setBusca, rotulo: anamnese ? 'Buscar anamnese' : 'Buscar questionário', placeholder: 'Nome ou descrição' }}
+      <BarraDeFiltros busca={{ valor: busca, aoMudar: setBusca, rotulo: textos.buscar, placeholder: 'Nome ou descrição' }}
         valor={filtros} aoAplicar={setFiltros} limpo={SEM_FILTROS} chips={chips} aoTirar={(chave) => setFiltros(semOFiltro(filtros, chave as ChaveDoFiltro))}
-        rotuloDoResultado={anamnese ? 'Ver anamneses' : 'Ver questionários'}
+        rotuloDoResultado={textos.ver}
         seletores={(atuais, mudar) => <>
           <CelulaDoFiltro><Escolha rotulo="Situação" opcoes={[...SITUACOES_DO_QUESTIONARIO]} valor={atuais.situacao} aoMudar={(situacao) => mudar({ ...atuais, situacao })} /></CelulaDoFiltro>
           <CelulaDoFiltro><Escolha rotulo="Publicação" opcoes={[...PUBLICACOES]} valor={atuais.publicacao} aoMudar={(publicacao) => mudar({ ...atuais, publicacao })} /></CelulaDoFiltro>
@@ -100,7 +122,7 @@ export function ListaDeQuestionarios({ finalidade = 'ATUALIZACAO', pedirNovo, ao
       {lista.erro ? <MensagemErro texto={textoDoErro(lista.erro)} erro={lista.erro} tentarDeNovo={lista.recarregar} /> : null}
       {!lista.dados && lista.carregando ? <Esqueleto /> : null}
       {lista.dados?.length && filtrados?.length === 0 ? <Vazio texto={filtros.publicacao ? 'Nenhum questionário com essa busca e esses filtros.' : 'Nenhum questionário com essa busca.'} /> : null}
-      {lista.dados?.length === 0 ? <Vazio texto={arquivados ? 'Nenhum questionário arquivado.' : anamnese ? 'Nenhuma anamnese ainda. Crie uma em branco e monte as seções.' : 'Nenhum questionário ainda.'} /> : null}
+      {lista.dados?.length === 0 ? <Vazio texto={arquivados ? 'Nenhum questionário arquivado.' : textos.vazio} /> : null}
       {filtrados?.length ? <ListaDeLinhas>{filtrados.map((q) =>
         <LinhaDoQuestionario key={q.id} q={q} ocupado={ocupado === q.id} podeAlterar={podeAlterar} aoAbrir={() => irParaEditor(q.id)} aoMenu={podeAlterar ? () => setMenu(q) : undefined} />)}</ListaDeLinhas> : null}
     </Cartao>
@@ -157,19 +179,21 @@ function LinhaDoQuestionario({ q, ocupado, podeAlterar, aoAbrir, aoMenu }: {
 
 function FormularioNovo({ finalidade, aoFechar }: { finalidade: FinalidadeQuestionario; aoFechar: () => void }) {
   const anamnese = finalidade === 'ANAMNESE';
+  const inscricao = finalidade === 'INSCRICAO';
   const [nome, setNome] = useState('');
   const [descricao, setDescricao] = useState('');
-  // Anamnese começa em branco: não há modelo da plataforma para ela.
-  const [origem, setOrigem] = useState<OrigemQuestionario>(anamnese ? 'VAZIO' : 'FABRICA');
+  // Anamnese e inscrição começam em branco: não há modelo da plataforma para elas.
+  const [origem, setOrigem] = useState<OrigemQuestionario>(anamnese || inscricao ? 'VAZIO' : 'FABRICA');
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
-  return <Folha visivel titulo={anamnese ? 'Nova anamnese' : 'Novo questionário'} aoFechar={aoFechar} rodape={<Botao rotulo="Criar e editar" desabilitado={!nome.trim()} motivo="Informe o nome." carregando={salvando} aoTocar={() => {
+  return <Folha visivel titulo={TEXTOS[finalidade].novo} aoFechar={aoFechar} rodape={<Botao rotulo="Criar e editar" desabilitado={!nome.trim()} motivo="Informe o nome." carregando={salvando} aoTocar={() => {
     setSalvando(true); setErro(null);
     criarQuestionario({ nome: nome.trim(), descricao: descricao.trim() || null, origem, finalidade }).then((d) => { aoFechar(); irParaEditor(d.id); }, (e: unknown) => { setErro(e); setSalvando(false); });
   }} />}>
     <Campo rotulo={anamnese ? 'Nome da anamnese' : 'Nome do questionário'} valor={nome} aoMudar={setNome} maxLength={120} />
     <Campo rotulo="Descrição (opcional)" valor={descricao} aoMudar={setDescricao} linhas={3} maxLength={400} />
-    {anamnese ? <Texto variante="suave">Começa com uma seção vazia. Use seções para dividir (dados, rotina, treino, alimentação) e condições para mostrar perguntas só quando fazem sentido.</Texto> : <>
+    {inscricao ? <Texto variante="suave">Começa com uma seção vazia. A página usa só o padrão: depois de publicar, defina este como padrão para ele aparecer. {AVISO_SAUDE_NA_INSCRICAO}</Texto>
+      : anamnese ? <Texto variante="suave">Começa com uma seção vazia. Use seções para dividir (dados, rotina, treino, alimentação) e condições para mostrar perguntas só quando fazem sentido.</Texto> : <>
       <Escolha rotulo="Começar de" valor={origem} aoMudar={setOrigem} opcoes={[{ valor: 'FABRICA', rotulo: 'Modelo da plataforma' }, { valor: 'VAZIO', rotulo: 'Em branco' }]} />
       <Texto variante="suave">{origem === 'FABRICA' ? 'Traz as perguntas do questionário original para você ajustar.' : 'Começa com uma seção vazia.'}</Texto>
     </>}

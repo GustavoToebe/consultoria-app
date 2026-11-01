@@ -4,9 +4,9 @@ import {
   moverParaSecao, moverPergunta, moverSecao, normalizarQuestionario, novaOpcao, novaPergunta, novaSecao, paraApi, podeAdicionar,
   podeAdicionarSecao, podeDestacar, podeDuplicar, removerPergunta, removerSecao, TIPOS_PARA_ADICIONAR, tiposParaAdicionar,
   controlesAnteriores, posicaoDaPergunta, textoDaCondicao, alterarCondicaoDaSecao, datasDaPesagem, destinosPossiveis, podeUsarDestino,
-  gruposParaAdicionar, alterarDescricaoDaSecao,
+  gruposParaAdicionar, alterarDescricaoDaSecao, aceitaImagem,
 } from './editorQuestionario';
-import { errosDoQuestionario, escalaDaNota, LIMITES_QUESTIONARIO, maximoDeFotos, validarQuestionario } from './questionario';
+import { errosDoQuestionario, escalaDaNota, LIMITES_QUESTIONARIO, maximoDeFotos, TIPOS_FORA_DA_INSCRICAO, validarQuestionario } from './questionario';
 
 let mockContador = 0;
 jest.mock('./uid', () => ({ novoUid: () => `uid-${++mockContador}` }));
@@ -17,6 +17,33 @@ const p = (id: string, tipo: TipoPergunta = 'TEXTO', extra: Partial<PerguntaAtua
 const base = (): ConteudoQuestionario => ({
   formato: 2, instrucoes: [],
   secoes: [{ uid: 's1', titulo: 'A', perguntas: [p('a'), p('b'), p('c')] }, { uid: 's2', titulo: 'B', perguntas: [p('d')] }],
+});
+
+describe('inscrição (D5 e D6)', () => {
+  it('o menu da inscrição fica sem FOTOS, ENDERECO, PESO, NOTAS_POR_DIA e DATA_AUTOMATICA, e cada tipo oferecido publica', () => {
+    const oferecidos = tiposParaAdicionar('INSCRICAO').map((t) => t.tipo);
+    for (const fora of TIPOS_FORA_DA_INSCRICAO) expect(oferecidos).not.toContain(fora);
+    expect(oferecidos).toEqual(expect.arrayContaining(['TEXTO', 'TEXTO_LONGO', 'ESCOLHA_UNICA', 'SIM_NAO', 'ACEITE', 'INFORMATIVO', 'GRADE']));
+    for (const tipo of oferecidos) {
+      const nova = novaPergunta(tipo);
+      const rotular = (l?: { id: string; rotulo: string }[]) => l?.map((o, k) => ({ ...o, rotulo: `Item ${k}` }));
+      const preenchida = { ...nova, rotulo: 'Texto', opcoes: rotular(nova.opcoes), linhas: rotular(nova.linhas), colunas: rotular(nova.colunas),
+        texto: tipo === 'ACEITE' ? 'Regras fictícias.' : nova.texto };
+      const c: ConteudoQuestionario = { instrucoes: [], secoes: [{ uid: 'x', titulo: 'Seção', perguntas: [preenchida] }] };
+      expect(errosDoQuestionario(paraApi(c, 'INSCRICAO'), 'INSCRICAO')).toEqual([]);
+    }
+  });
+  it('a inscrição não leva imagem: o envio tira a da pergunta e a das opções', () => {
+    const img = '0b6f9a1e-5c3d-4e2a-9f7b-1a2b3c4d5e6f';
+    const c: ConteudoQuestionario = { instrucoes: [], secoes: [{ uid: 'x', titulo: 'Seção', perguntas: [
+      p('e', 'ESCOLHA_UNICA', { imagemId: img, opcoes: [{ id: 'a', rotulo: 'A', imagemId: img }, { id: 'b', rotulo: 'B' }] })] }] };
+    const [e] = paraApi(c, 'INSCRICAO').secoes[0].perguntas;
+    expect(e.imagemId).toBeUndefined();
+    expect(e.opcoes?.[0].imagemId).toBeUndefined();
+    expect(aceitaImagem('INSCRICAO')).toBe(false);
+    expect(aceitaImagem('ANAMNESE')).toBe(true);
+    expect(paraApi(c, 'ANAMNESE').secoes[0].perguntas[0].imagemId).toBe(img);
+  });
 });
 
 describe('fábricas', () => {

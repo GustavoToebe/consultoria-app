@@ -38,17 +38,21 @@ export function gruposLiberados(liberadas?: readonly string[]): GrupoDeModelos[]
 /** As abas dos questionários moram no Planejamento ao lado dos grupos de modelos: uma por finalidade. */
 export const ABA_ATUALIZACAO = 'Atualização';
 export const ABA_ANAMNESE = 'Anamnese';
+/** Perguntas do treinador na página pública "Quero ser aluno" (questionário de finalidade INSCRICAO). */
+export const ABA_INSCRICAO = 'Inscrição';
+/** As abas de questionário, na ordem do Planejamento. */
+export const ABAS_DE_QUESTIONARIO = [ABA_ATUALIZACAO, ABA_ANAMNESE, ABA_INSCRICAO] as const;
 
 /** Valor de `?aba=` de uma aba do Planejamento: o rótulo sem acento nem maiúscula (`treino`, `dieta`, `atualizacao`). */
 export const slugDaAba = (rotulo: string): string => rotulo.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLocaleLowerCase();
 
 /**
  * Aba aberta pelo endereço (`?aba=`). A aba é um passo do histórico, então o voltar a desfaz. Só entram as abas que o
- * perfil pode ver (modelos com `MODELO_LER`, Atualização e Anamnese com `QUESTIONARIO_LER`); sem parâmetro ou com um que não vale,
+ * perfil pode ver (modelos com `MODELO_LER`, Atualização, Anamnese e Inscrição com `QUESTIONARIO_LER`); sem parâmetro ou com um que não vale,
  * abre a primeira.
  */
 export function abaDoPlanejamento(parametro: string | string[] | undefined, veModelos: boolean, veAtualizacao: boolean, liberadas?: readonly string[]): string {
-  const rotulos = [...(veModelos ? gruposLiberados(liberadas).map((g) => g.rotulo) : []), ...(veAtualizacao ? [ABA_ATUALIZACAO, ABA_ANAMNESE] : [])];
+  const rotulos = [...(veModelos ? gruposLiberados(liberadas).map((g) => g.rotulo) : []), ...(veAtualizacao ? ABAS_DE_QUESTIONARIO : [])];
   const pedida = Array.isArray(parametro) ? parametro[0] : parametro;
   return rotulos.find((r) => slugDaAba(r) === pedida) ?? rotulos[0] ?? GRUPOS_DE_MODELOS[0].rotulo;
 }

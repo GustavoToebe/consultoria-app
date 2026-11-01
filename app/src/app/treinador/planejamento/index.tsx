@@ -11,7 +11,7 @@ import { agruparPorColecao, filtrarModelos, resumoDeModelos } from '../../../dom
 import { mensagemCopiaCriada } from '../../../dominio/planoDoAluno';
 import { AplicarAoAluno } from '../../../treinador/planejamento/AplicarAoAluno';
 import { ListaDeQuestionarios } from '../../../treinador/questionarios/ListaDeQuestionarios';
-import { ABA_ANAMNESE, ABA_ATUALIZACAO, abaDoPlanejamento, CATEGORIAS, conteudoInicial, gruposLiberados, metadadosDoModelo, rotuloNovoModelo, slugDaAba, usoDoModelo } from '../../../treinador/planejamento/modelos';
+import { ABA_ANAMNESE, ABA_ATUALIZACAO, ABA_INSCRICAO, ABAS_DE_QUESTIONARIO, abaDoPlanejamento, CATEGORIAS, conteudoInicial, gruposLiberados, metadadosDoModelo, rotuloNovoModelo, slugDaAba, usoDoModelo } from '../../../treinador/planejamento/modelos';
 import { Abas } from '../../../ui/Abas';
 import { useAviso } from '../../../ui/Aviso';
 import { Botao } from '../../../ui/Botao';
@@ -52,8 +52,9 @@ export default function Planejamento() {
   const aba = abaDoPlanejamento(abaPedida, veModelos, veAtualizacao, funcionalidadesDoPlano);
   const grupos = gruposLiberados(funcionalidadesDoPlano);
   const emAnamnese = aba === ABA_ANAMNESE;
-  // As duas abas de questionário (atualização e anamnese) têm o próprio "novo" e nenhuma lista de modelos.
-  const emAtualizacao = aba === ABA_ATUALIZACAO || emAnamnese;
+  const emInscricao = aba === ABA_INSCRICAO;
+  // As três abas de questionário (atualização, anamnese e inscrição) têm o próprio "novo" e nenhuma lista de modelos.
+  const emAtualizacao = aba === ABA_ATUALIZACAO || emAnamnese || emInscricao;
   const [formularioAberto, setFormulario] = useState<Receita | 'novo' | null>(null);
   const formulario = formularioAberto;
   const fecharFormulario = () => setFormulario(null);
@@ -98,11 +99,11 @@ export default function Planejamento() {
   };
   return <Tela bordas={['top']} largura={LARGURA_LISTA}>
     <Cabecalho titulo="Planejamento" mostrarMarca="celular" />
-    <Texto variante="suave">{emAnamnese ? 'Monte as anamneses que você envia ao aluno pela ficha dele.' : emAtualizacao ? 'Monte os questionários de atualização que o aluno responde a cada período.' : 'Monte modelos, vincule metodologias às semanas e reutilize nos alunos. Cada aplicação cria uma cópia independente.'}</Texto>
-    <Abas abas={[...(veModelos ? grupos.map((g) => ({ valor: g.rotulo, rotulo: g.rotulo })) : []), ...(veAtualizacao ? [ABA_ATUALIZACAO, ABA_ANAMNESE].map((r) => ({ valor: r, rotulo: r })) : [])]}
+    <Texto variante="suave">{emInscricao ? 'Monte as perguntas da página "Quero ser aluno", embaixo dos campos fixos.' : emAnamnese ? 'Monte as anamneses que você envia ao aluno pela ficha dele.' : emAtualizacao ? 'Monte os questionários de atualização que o aluno responde a cada período.' : 'Monte modelos, vincule metodologias às semanas e reutilize nos alunos. Cada aplicação cria uma cópia independente.'}</Texto>
+    <Abas abas={[...(veModelos ? grupos.map((g) => ({ valor: g.rotulo, rotulo: g.rotulo })) : []), ...(veAtualizacao ? ABAS_DE_QUESTIONARIO.map((r) => ({ valor: r, rotulo: r })) : [])]}
       ativa={aba}
       aoMudar={(rotulo) => { if (rotulo !== aba) router.push({ pathname: '/treinador/planejamento', params: { aba: slugDaAba(rotulo) } }); }} />
-    {emAtualizacao ? <ListaDeQuestionarios key={aba} finalidade={emAnamnese ? 'ANAMNESE' : 'ATUALIZACAO'} pedirNovo={pedirNovo === '1'} aoConsumirNovo={() => router.setParams({ novo: undefined })} /> : null}
+    {emAtualizacao ? <ListaDeQuestionarios key={aba} finalidade={emInscricao ? 'INSCRICAO' : emAnamnese ? 'ANAMNESE' : 'ATUALIZACAO'} pedirNovo={pedirNovo === '1'} aoConsumirNovo={() => router.setParams({ novo: undefined })} /> : null}
     {!emAtualizacao && grupo.tipos.length > 1 ? (
       <FaixaDeChips quebrar accessibilityLabel={`Modelos de ${grupo.rotulo.toLocaleLowerCase()}`}>
         <Escolha descricao={`Modelos de ${grupo.rotulo.toLocaleLowerCase()}`} valor={tipo} aoMudar={setTipo} opcoes={CATEGORIAS.filter((c) => grupo.tipos.includes(c.valor))} />

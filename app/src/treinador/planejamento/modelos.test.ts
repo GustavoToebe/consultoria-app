@@ -1,5 +1,5 @@
 import type { TipoReceita } from '../../api/tipos';
-import { ABA_ANAMNESE, ABA_ATUALIZACAO, abaDoPlanejamento, avisoModeloSalvo, CATEGORIAS, GRUPOS_DE_MODELOS, gruposLiberados, metadadosDoModelo, nomeDoModelo, rotuloNovoModelo, rotuloSalvarComo, slugDaAba, usoDoModelo } from './modelos';
+import { ABA_ANAMNESE, ABA_ATUALIZACAO, ABA_INSCRICAO, abaDoPlanejamento, avisoModeloSalvo, CATEGORIAS, GRUPOS_DE_MODELOS, gruposLiberados, metadadosDoModelo, nomeDoModelo, rotuloNovoModelo, rotuloSalvarComo, slugDaAba, usoDoModelo } from './modelos';
 
 describe('organização da tela Planejamento', () => {
   it('cada tipo aparece uma vez, no grupo certo e na ordem pedida', () => {
@@ -37,6 +37,9 @@ describe('aba do Planejamento pelo endereço', () => {
     expect(abaDoPlanejamento('atualizacao', true, true)).toBe(ABA_ATUALIZACAO);
     expect(abaDoPlanejamento('anamnese', true, true)).toBe(ABA_ANAMNESE);
     expect(abaDoPlanejamento('anamnese', true, false)).toBe('Treino');
+    expect(abaDoPlanejamento('inscricao', true, true)).toBe(ABA_INSCRICAO);
+    expect(abaDoPlanejamento('inscricao', false, true)).toBe(ABA_INSCRICAO);
+    expect(slugDaAba(ABA_INSCRICAO)).toBe('inscricao');
     expect(abaDoPlanejamento(undefined, true, true)).toBe('Treino');
     expect(abaDoPlanejamento('qualquer', true, true)).toBe('Treino');
     expect(abaDoPlanejamento(['mobilidade', 'dieta'], true, false)).toBe('Mobilidade');

@@ -4,6 +4,10 @@ import { useEffect, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
 import { enviarInscricao, inscricaoPublica } from '../../api/rotas';
+import type { RespostaAtualizacao, RespostasAtualizacao } from '../../api/tipos';
+import type { CampoDaInscricao } from '../../api/inscricoesTipos';
+import { QuestionarioAtualizacao } from '../../aluno/atualizacao/QuestionarioAtualizacao';
+import { errosRespostasAtualizacao } from '../../dominio/respostasAtualizacao';
 import {
   corpoDaInscricao,
   errosDaInscricao,
@@ -16,6 +20,7 @@ import {
   origemDoLink,
   ORIGENS_INFORMADAS,
   PREVISOES,
+  respostasDaPagina,
   type DadosDaInscricao,
 } from '../../dominio/inscricoes';
 import { mensagemDaVerificacao, MOTIVO_VERIFICANDO, rotuloDoEnvio } from '../../dominio/verificacaoHumana';
@@ -37,10 +42,12 @@ import { useVerificacaoHumana } from '../../ui/useVerificacaoHumana';
 import { VerificacaoHumana } from '../../ui/VerificacaoHumana';
 
 /**
- * Inscrição pública pelo link da consultoria (`/inscricao/<codigo>`), sem conta: nome, WhatsApp, e-mail, objetivo e
- * observação, mais a ciência do texto da consultoria quando ela tem um. O código fica no endereço (é o link que a
- * consultoria divulga, não um segredo de uso único). Fora das áreas logadas: segue o tema do aparelho e mostra a marca
- * da consultoria. Depois do envio só a mensagem neutra; nada da fila nem de outras pessoas aparece.
+ * Inscrição pública pelo link da consultoria (`/inscricao/<codigo>`), sem conta: nome e WhatsApp sempre, os campos fixos
+ * que o treinador não escondeu (e-mail, sexo, objetivo e as perguntas rápidas), as perguntas do treinador (o padrão de
+ * inscrição publicado, no mesmo formulário da anamnese) e a ciência do texto da consultoria quando ela tem um. O código
+ * fica no endereço (é o link que a consultoria divulga, não um segredo de uso único). Fora das áreas logadas: segue o
+ * tema do aparelho e mostra a marca da consultoria. Depois do envio só a mensagem neutra; nada da fila nem de outras
+ * pessoas aparece.
  */
 export default function Inscricao() {
   const { codigo: bruto, origem } = useLocalSearchParams<{ codigo?: string; origem?: string }>();
@@ -51,6 +58,7 @@ export default function Inscricao() {
   const verificacao = useVerificacaoHumana();
   const [dados, setDados] = useState<DadosDaInscricao>(INSCRICAO_VAZIA);
   const [ciencia, setCiencia] = useState(false);
+  const [respostas, setRespostas] = useState<RespostasAtualizacao>({});
   const [campos, setCampos] = useState<Record<string, string>>({});
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -62,6 +70,18 @@ export default function Inscricao() {
     setDados((d) => ({ ...d, [campo]: valor }));
 
   const texto = pagina.dados?.texto ?? null;
+  const visiveis = pagina.dados?.campos ?? [];
+  const mostra = (c: CampoDaInscricao) => visiveis.includes(c);
+  const perguntas = pagina.dados?.perguntas ?? null;
+  const responder = (id: string, valor: RespostaAtualizacao) => {
+    setRespostas((r) => ({ ...r, [id]: valor }));
+    setCampos((c) => {
+      if (!(id in c)) return c;
+      const resto = { ...c };
+      delete resto[id];
+      return resto;
+    });
+  };
   // Aba do navegador com o nome da consultoria (o layout raiz não a conhece: aqui não há sessão).
   const nomeDaConsultoria = pagina.dados?.consultoria.nome;
   useEffect(() => {
@@ -69,7 +89,10 @@ export default function Inscricao() {
   }, [nomeDaConsultoria]);
 
   const enviar = async () => {
-    const locais = errosDaInscricao(dados, !!texto, ciencia);
+    const locais = {
+      ...errosDaInscricao(dados, !!texto, ciencia, visiveis),
+      ...(perguntas ? errosRespostasAtualizacao(perguntas.conteudo, respostas) : {}),
+    };
     setCampos(locais);
     if (Object.keys(locais).length) {
       setErro('Confira os campos destacados.');
@@ -82,7 +105,8 @@ export default function Inscricao() {
     let falha: unknown;
     try {
       const resposta = await enviarInscricao(codigo,
-        corpoDaInscricao(dados, !!texto && ciencia, verificacao.token, pagina.dados?.textoVersao ?? null, origemLink));
+        corpoDaInscricao(dados, !!texto && ciencia, verificacao.token, pagina.dados?.textoVersao ?? null, origemLink, visiveis,
+          perguntas ? { versaoId: perguntas.versaoId, respostas: respostasDaPagina(perguntas.conteudo, respostas) } : null));
       setRecebida(resposta.mensagem);
     } catch (e) {
       falha = e;
@@ -92,6 +116,13 @@ export default function Inscricao() {
         setCiencia(false);
         pagina.recarregar();
         setErro('O texto da consultoria mudou. Leia o texto novo, marque a ciência e envie de novo.');
+        setCampos({});
+        return;
+      }
+      if (codigoApi(e) === 'PERGUNTAS_ALTERADAS') {
+        // A consultoria trocou as perguntas: mostra as novas. O que foi digitado fica (o que não existe mais não vai).
+        pagina.recarregar();
+        setErro('As perguntas da consultoria mudaram. Confira as perguntas e envie de novo.');
         setCampos({});
         return;
       }
@@ -138,28 +169,32 @@ export default function Inscricao() {
         <Campo rotulo="WhatsApp com DDD" valor={dados.whatsapp} aoMudar={mudar('whatsapp')} erro={campos.whatsapp}
           keyboardType="phone-pad" inputMode="tel" autoComplete="tel" textContentType="telephoneNumber" maxLength={20}
           placeholder="DDD + número" />
-        <Campo rotulo="E-mail (opcional)" valor={dados.email} aoMudar={mudar('email')} erro={campos.email}
+        {mostra('EMAIL') ? <Campo rotulo="E-mail (opcional)" valor={dados.email} aoMudar={mudar('email')} erro={campos.email}
           autoCapitalize="none" keyboardType="email-address" inputMode="email" autoComplete="email"
-          maxLength={LIMITES_INSCRICAO.email} ajuda="Usado só para o convite de acesso ao app, se você virar aluno." />
-        <Escolha rotulo="Sexo (opcional)" valor={dados.sexo} aoMudar={mudar('sexo')} distribuida
-          opcoes={[{ valor: '', rotulo: 'Não informar' }, ...OPCOES_DE_SEXO]} />
-        <Campo rotulo="Objetivo (opcional)" valor={dados.objetivo} aoMudar={mudar('objetivo')} erro={campos.objetivo}
+          maxLength={LIMITES_INSCRICAO.email} ajuda="Usado só para o convite de acesso ao app, se você virar aluno." /> : null}
+        {mostra('SEXO') ? <Escolha rotulo="Sexo (opcional)" valor={dados.sexo} aoMudar={mudar('sexo')} distribuida
+          opcoes={[{ valor: '', rotulo: 'Não informar' }, ...OPCOES_DE_SEXO]} /> : null}
+        {mostra('OBJETIVO') ? <Campo rotulo="Objetivo (opcional)" valor={dados.objetivo} aoMudar={mudar('objetivo')} erro={campos.objetivo}
           linhas={3} maxLength={LIMITES_INSCRICAO.objetivo}
-          ajuda="Em poucas palavras. Informações de saúde ficam para depois, se a inscrição for aceita." />
-        <Campo rotulo="Observação (opcional)" valor={dados.observacao} aoMudar={mudar('observacao')} erro={campos.observacao}
-          linhas={3} maxLength={LIMITES_INSCRICAO.observacao} />
+          ajuda="Em poucas palavras. Informações de saúde ficam para depois, se a inscrição for aceita." /> : null}
       </Cartao>
-      {/* Perguntas rápidas, todas opcionais: ajudam a equipe a direcionar o primeiro contato. */}
-      <Cartao titulo="Perguntas rápidas" descricao="Opcionais. Ajudam a equipe a falar com você sobre o que importa.">
-        <Escolha rotulo="O que você procura?" valor={dados.interesse} aoMudar={escolher('interesse')} distribuida
-          opcoes={opcoesOpcionais(INTERESSES)} />
-        <Escolha rotulo="Como prefere o acompanhamento?" valor={dados.modalidade} aoMudar={escolher('modalidade')} distribuida
-          opcoes={opcoesOpcionais(MODALIDADES_DESEJADAS)} />
-        <Escolha rotulo="Quando quer começar?" valor={dados.previsaoInicio} aoMudar={escolher('previsaoInicio')} distribuida
-          opcoes={opcoesOpcionais(PREVISOES)} />
-        <Escolha rotulo="Como conheceu a consultoria?" valor={dados.origem} aoMudar={escolher('origem')} distribuida
-          opcoes={opcoesOpcionais(ORIGENS_INFORMADAS)} />
-      </Cartao>
+      {/* Perguntas rápidas, todas opcionais: ajudam a equipe a direcionar o primeiro contato. Some se o treinador esconder as quatro. */}
+      {mostra('INTERESSE') || mostra('MODALIDADE') || mostra('PREVISAO_INICIO') || mostra('ORIGEM') ? (
+        <Cartao titulo="Perguntas rápidas" descricao="Opcionais. Ajudam a equipe a falar com você sobre o que importa.">
+          {mostra('INTERESSE') ? <Escolha rotulo="O que você procura?" valor={dados.interesse} aoMudar={escolher('interesse')} distribuida
+            opcoes={opcoesOpcionais(INTERESSES)} /> : null}
+          {mostra('MODALIDADE') ? <Escolha rotulo="Como prefere o acompanhamento?" valor={dados.modalidade} aoMudar={escolher('modalidade')} distribuida
+            opcoes={opcoesOpcionais(MODALIDADES_DESEJADAS)} /> : null}
+          {mostra('PREVISAO_INICIO') ? <Escolha rotulo="Quando quer começar?" valor={dados.previsaoInicio} aoMudar={escolher('previsaoInicio')} distribuida
+            opcoes={opcoesOpcionais(PREVISOES)} /> : null}
+          {mostra('ORIGEM') ? <Escolha rotulo="Como conheceu a consultoria?" valor={dados.origem} aoMudar={escolher('origem')} distribuida
+            opcoes={opcoesOpcionais(ORIGENS_INFORMADAS)} /> : null}
+        </Cartao>
+      ) : null}
+      {/* Perguntas do treinador (o padrão de inscrição publicado), no mesmo formulário da anamnese, uma seção por cartão. */}
+      {perguntas ? (
+        <QuestionarioAtualizacao modelo={perguntas.conteudo} respostas={respostas} aoMudar={responder} erros={campos} />
+      ) : null}
       {texto ? (
         <Cartao titulo="Antes de enviar" descricao={`Texto de ${consultoria.nome}.`}>
           <Texto selectable>{texto}</Texto>

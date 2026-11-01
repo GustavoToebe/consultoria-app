@@ -1,12 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import type { AceiteInscricao, InscricaoDetalhe, InscricaoResumo, PaginaInscricoes } from '../src/api/inscricoesTipos';
-import { erroApi, json, MARCA, type RespostasApi, sessao, simularApi, TREINADOR } from './api-falsa';
-import { CODIGO, contagensFalsas, detalheFalso, resumoFalso, rotasDaTela } from './inscricoes-falsas';
+import { erroApi, json, type RespostasApi, sessao, simularApi, TREINADOR } from './api-falsa';
+import { CODIGO, contagensFalsas, detalheFalso, paginaPublica, resumoFalso, rotasDaTela } from './inscricoes-falsas';
 
 test('inscrição pública: confere os campos, exige a ciência do texto e mostra a mensagem neutra depois do envio', async ({ page }) => {
   const { pedidos, naoTratadas, errosDaPagina } = await simularApi(page, {
-    [`GET /publico/inscricoes/${CODIGO}`]: { corpo: { consultoria: MARCA, texto: 'Usamos seus dados só para falar com você.', textoVersao: 'versao-1', aberta: true } },
+    [`GET /publico/inscricoes/${CODIGO}`]: { corpo: paginaPublica({ texto: 'Usamos seus dados só para falar com você.', textoVersao: 'versao-1' }) },
     [`POST /publico/inscricoes/${CODIGO}`]: { status: 202, corpo: { mensagem: 'Recebemos sua inscrição. A equipe vai falar com você.' } },
   });
   await page.goto(`/inscricao/${CODIGO}`);
@@ -37,7 +37,6 @@ test('inscrição pública: confere os campos, exige a ciência do texto e mostr
     whatsapp: '(11) 98765-4321',
     email: null,
     objetivo: 'Ganhar condicionamento.',
-    observacao: null,
     interesse: null,
     modalidade: null,
     previsaoInicio: null,
@@ -45,6 +44,8 @@ test('inscrição pública: confere os campos, exige a ciência do texto e mostr
     origemLink: null,
     cienciaPrivacidade: true,
     textoVersao: 'versao-1',
+    questionarioVersaoId: null,
+    respostas: null,
   });
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);
