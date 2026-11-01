@@ -1,5 +1,7 @@
 package br.com.treinos.api.importacao.completa;
 
+import br.com.treinos.api.alunos.Aluno;
+import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.biblioteca.Alimento;
 import br.com.treinos.api.biblioteca.AlimentoRepository;
 import br.com.treinos.api.biblioteca.Ergogenico;
@@ -30,13 +32,16 @@ public class PlanilhaCompletaService {
 
     private final SuplementoRepository suplementos;
     private final ErgogenicoRepository ergogenicos;
+    private final AlunoRepository alunos;
 
     public PlanilhaCompletaService(ExercicioRepository exercicios, AlimentoRepository alimentos,
-                                   SuplementoRepository suplementos, ErgogenicoRepository ergogenicos) {
+                                   SuplementoRepository suplementos, ErgogenicoRepository ergogenicos,
+                                   AlunoRepository alunos) {
         this.exercicios = exercicios;
         this.alimentos = alimentos;
         this.suplementos = suplementos;
         this.ergogenicos = ergogenicos;
+        this.alunos = alunos;
     }
 
     public Analise analisar(String nomeDoArquivo, byte[] bytes) {
@@ -47,7 +52,9 @@ public class PlanilhaCompletaService {
         boolean dieta = AcessoAtual.pode("PASTA_ALTERAR") && AcessoAtual.pode("DIETA_ALTERAR");
         List<String> nomesDeSuplementos = dieta ? suplementos.findAll().stream().map(Suplemento::getNome).toList() : null;
         List<String> nomesDeErgogenicos = dieta ? ergogenicos.findAll().stream().map(Ergogenico::getNome).toList() : List.of();
+        // Os nomes dos alunos só servem para dizer se o aluno da aba (ou do bloco) já existe; não voltam na resposta.
+        List<String> nomesDeAlunos = alunos.findAll().stream().filter(a -> !a.isAnonimizado()).map(Aluno::getNome).toList();
         return AnaliseDaPlanilha.analisar(leitura, daBiblioteca, alimentosDaBiblioteca, nomesDeSuplementos, nomesDeErgogenicos,
-                LocalDate.now(Fuso.BRASILIA));
+                nomesDeAlunos, LocalDate.now(Fuso.BRASILIA));
     }
 }

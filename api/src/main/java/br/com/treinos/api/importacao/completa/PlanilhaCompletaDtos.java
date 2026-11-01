@@ -31,9 +31,29 @@ public final class PlanilhaCompletaDtos {
     public record PerguntaDeSuplemento(String nome, String sugestao, int ocorrencias) {
     }
 
-    /** {@code linhaDoCabecalho} = número da linha no arquivo (0 = sem cabeçalho); {@code campos} = campo → coluna (0 = A). */
+    /**
+     * {@code linhaDoCabecalho} = número da linha no arquivo (0 = sem cabeçalho); {@code campos} = campo → coluna (0 = A).
+     * {@code formato}: {@code TABELA} (liga por coluna), {@code UM_ALUNO} (a aba é de um aluno, pelo nome dela) ou
+     * {@code BLOCOS} (vários alunos, cada um com o nome em cima da tabela); {@code blocos} = as tabelas da aba de um aluno
+     * ou em blocos (vazio na tabela). {@code tipoSalvo} = o tipo que o treinador deu a esta aba (pelos títulos das
+     * colunas) numa importação anterior, nulo sem resposta salva.
+     */
     public record Aba(int indice, String nome, String tipo, int linhaDoCabecalho, int linhas, Map<String, Integer> campos,
-                      List<Aviso> avisos) {
+                      List<Aviso> avisos, String formato, List<BlocoDaAba> blocos, String tipoSalvo) {
+    }
+
+    /**
+     * Uma tabela da aba de um aluno ou em blocos: a linha do cabeçalho, o tipo, o aluno como está na planilha (o nome da
+     * aba ou o título do bloco; nulo = nenhum), a {@code situacao} dele ({@code PLANILHA} = está na aba de alunos,
+     * {@code EXISTENTE} = já é aluno da consultoria, {@code NOVO} = entra só com o nome, {@code AMBIGUO} = há mais de um
+     * aluno com o nome e o bloco não entra, {@code SEM_ALUNO}), o título da tabela (divisão ou refeição) e as linhas.
+     * Só volta ao próprio treinador, na análise; nada disso é guardado.
+     */
+    public record BlocoDaAba(int linha, String tipo, String aluno, String situacao, String titulo, int linhas) {
+        @Override
+        public String toString() {
+            return "BlocoDaAba[linha=" + linha + "]"; // nunca o nome do aluno
+        }
     }
 
     public record Aviso(String codigo, int linha, int coluna) {

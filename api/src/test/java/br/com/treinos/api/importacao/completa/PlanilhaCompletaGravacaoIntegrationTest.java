@@ -55,8 +55,13 @@ class PlanilhaCompletaGravacaoIntegrationTest extends AbstractIntegrationTest {
     }
 
     private JsonNode enviar(JsonNode login, String acao, String respostas, String hash, int esperado) throws Exception {
+        return enviar(PLANILHA, login, acao, respostas, hash, esperado);
+    }
+
+    private JsonNode enviar(byte[] planilha, JsonNode login, String acao, String respostas, String hash, int esperado)
+            throws Exception {
         MockMultipartHttpServletRequestBuilder pedido = multipart(BASE + acao)
-                .file(new MockMultipartFile("arquivo", "planilha.xlsx", "application/octet-stream", PLANILHA));
+                .file(new MockMultipartFile("arquivo", "planilha.xlsx", "application/octet-stream", planilha));
         if (respostas != null) {
             pedido.file(new MockMultipartFile("respostas", "", "application/json", respostas.getBytes(StandardCharsets.UTF_8)));
         }
@@ -243,5 +248,55 @@ class PlanilhaCompletaGravacaoIntegrationTest extends AbstractIntegrationTest {
         desfazer(api.novoTreinador(), id, 404);
         desfazer(treinador, UUID.randomUUID().toString(), 404);
         assertThat(contar("aluno", id, "")).isEqualTo(5);
+    }
+
+    // ----------------------------------------------------------------------------------- fase 2 (01/11)
+
+    /** Uma aba por aluno (o nome do aluno no nome da aba) e, na mesma planilha, uma aba com dois alunos em blocos. */
+    private static byte[] planilhaPorAluno() {
+        Map<String, List<List<Object>>> abas = new java.util.LinkedHashMap<>();
+        abas.put("Ana Fictícia", List.of(
+                PlanilhaDeTeste.linha("Treino A"),
+                PlanilhaDeTeste.linha("Exercício", "Séries", "Repetições", "Descanso"),
+                PlanilhaDeTeste.linha("Supino fictício", 4, "8-12", "90s"),
+                PlanilhaDeTeste.linha("Treino B"),
+                PlanilhaDeTeste.linha("Exercício", "Séries", "Repetições", "Descanso"),
+                PlanilhaDeTeste.linha("Remada fictícia", 3, "12-10-8", "1 min")));
+        abas.put("Treinos", List.of(
+                PlanilhaDeTeste.linha("Aluno: Bruno Inventado"),
+                PlanilhaDeTeste.linha("Exercício", "Prescrição"),
+                PlanilhaDeTeste.linha("Agachamento fictício", "4x10 RIR 2"),
+                PlanilhaDeTeste.linha("Aluno: Carla Exemplo"),
+                PlanilhaDeTeste.linha("Exercício", "Prescrição"),
+                PlanilhaDeTeste.linha("Prancha fictícia", "3x30s")));
+        return PlanilhaDeTeste.xlsx(abas);
+    }
+
+    @Test
+    void umaAbaPorAlunoEBlocosCriamOsAlunosPeloNomeEODesfazerApaga() throws Exception {
+        byte[] planilha = planilhaPorAluno();
+        JsonNode analise = enviar(planilha, treinador, "analisar", null, null, 200);
+        assertThat(analise.path("abas").get(0).path("formato").asString()).isEqualTo("UM_ALUNO");
+        assertThat(analise.path("abas").get(1).path("formato").asString()).isEqualTo("BLOCOS");
+        assertThat(analise.path("abas").get(1).path("blocos").get(1).path("situacao").asString()).isEqualTo("NOVO");
+
+        JsonNode previa = enviar(planilha, treinador, "previa", null, null, 200);
+        assertThat(previa.path("criacao").path("alunosNovos").asInt()).isEqualTo(3);
+        assertThat(previa.path("criacao").path("pastas").asInt()).isEqualTo(3);
+        JsonNode feito = enviar(planilha, treinador, "confirmar", null, previa.path("hash").asString(), 200);
+        String id = feito.path("importacaoId").asString();
+        assertThat(contar("aluno", id, "")).isEqualTo(3);
+        assertThat(contar("plano_treino", id, " and versao_publicada = 0 and publicado_em is null")).isEqualTo(3);
+        String rascunho = jdbc.queryForObject("select p.rascunho::text from plano_treino p join aluno a on a.id = p.aluno_id "
+                + "where p.importacao_id = ?::uuid and a.nome = ?", String.class, id, "Ana Fictícia");
+        assertThat(rascunho).contains("\"descansoSegundos\":90").contains("Treino A").contains("Treino B");
+        // O histórico não guarda o nome do aluno que está no nome da aba.
+        assertThat(jdbc.queryForObject("select erros::text from importacao where id = ?::uuid", String.class, id))
+                .doesNotContain("Ana Fictícia");
+
+        JsonNode d = desfazer(treinador, id, 200);
+        assertThat(parte(d, "ALUNO").path("apagados").asInt()).isEqualTo(3);
+        assertThat(parte(d, "PLANO_TREINO").path("apagados").asInt()).isEqualTo(3);
+        assertThat(api.get("/alunos", treinador, 200).path("total").asInt()).isZero();
     }
 }
