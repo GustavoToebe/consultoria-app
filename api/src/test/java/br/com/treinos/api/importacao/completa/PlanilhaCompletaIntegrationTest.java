@@ -76,13 +76,32 @@ class PlanilhaCompletaIntegrationTest extends AbstractIntegrationTest {
         assertThat(resumo.path("nomesDeExercicio").path("certo").asInt()).isEqualTo(3);
         assertThat(a.path("problemasPorTipo").path("LINHA_SEM_LIGACAO").asInt()).isEqualTo(3);
 
-        String corpo = a.toString();
+        // Quem pode gravar a dieta recebe os nomes da aba de suplementos (para decidir entre suplementação e
+        // medicação); em nenhum outro lugar da resposta eles aparecem.
+        assertThat(a.path("suplementos").toString()).contains("Remédio Fictício");
+        JsonNode semSuplementos = a.deepCopy();
+        ((tools.jackson.databind.node.ObjectNode) semSuplementos).remove("suplementos");
+        String corpo = semSuplementos.toString();
         for (String proibido : new String[] {"Aluno Um", "um@example.com", "nao-e-email", "80.5", "Intra fictício",
                 "Remédio Fictício", "Algo de terceiros"}) {
             assertThat(corpo).as(proibido).doesNotContain(proibido);
         }
         assertThat(api.get("/alunos", treinador, 200).path("total").asInt()).isZero();
         assertThat(api.get("/importacoes", treinador, 200).path("total").asInt()).isZero();
+    }
+
+    @Test
+    void semPermissaoDeDietaOsNomesDosSuplementosNaoVoltam() throws Exception {
+        String perfil = api.post("/perfis", treinador, Map.of("nome", "Perfil " + UUID.randomUUID(),
+                "permissoes", java.util.Set.of("ALUNO_LER", "ALUNO_ALTERAR")), 200).path("id").asString();
+        JsonNode convite = api.post("/usuarios/convites", treinador, Map.of("nome", "Membro fictício",
+                "email", ApiDeTeste.emailUnico("membro"), "perfilId", perfil), 200);
+        JsonNode membro = api.post("/publico/convites-equipe/aceitar", null,
+                Map.of("codigo", convite.path("codigo").asString(), "senha", ApiDeTeste.SENHA), 200);
+
+        JsonNode a = analisar(membro, "planilha.xlsx", PlanilhaDeTeste.xlsx(PlanilhaDeTeste.abasDoTreinador()), 200);
+        assertThat(a.path("suplementos").isEmpty()).isTrue();
+        assertThat(a.toString()).doesNotContain("Remédio Fictício");
     }
 
     @Test
