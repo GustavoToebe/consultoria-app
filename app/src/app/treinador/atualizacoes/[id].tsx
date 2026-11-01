@@ -36,8 +36,8 @@ import { useCarregar } from '../../../ui/useCarregar';
  */
 export default function AtualizacaoTreinador() {
   const {pode}=useSessao();
-  const {id,alunoId,situacao,meus}=useLocalSearchParams<{id:string;alunoId?:string;situacao?:string;meus?:string}>();
-  const fila=filaDosParametros(situacao,meus);
+  const {id,alunoId,situacao,meus,responsavel,de,ate}=useLocalSearchParams<{id:string;alunoId?:string;situacao?:string;meus?:string;responsavel?:string;de?:string;ate?:string}>();
+  const fila=filaDosParametros(situacao,meus,{responsavel,de,ate});
   const detalhe=useCarregar(id==='previa'?alunoId??null:id??null,()=>
     id==='previa' ? atualizacaoDoAluno(alunoId!) : detalheAtualizacao(id));
   const a=detalhe.dados;
@@ -133,12 +133,12 @@ function ProximaDaFila({fila,pastaAtual}:{fila:FilaDeAtualizacoes;pastaAtual:str
   const proxima=async()=>{
     setBuscando(true);
     try {
-      const item=proximaDaFila(await listarAtualizacoes(fila.situacao,fila.meus),pastaAtual);
+      const item=proximaDaFila(await listarAtualizacoes(fila.situacao,fila.meus,{responsavel:fila.responsavel,de:fila.de,ate:fila.ate}),pastaAtual);
       if(item)router.replace(caminhoAtualizacaoTreinador(item,fila) as never);
       else setAcabou(true);
     }catch(erro){avisar(textoDoErro(erro),'perigo');}
     finally{setBuscando(false);}
   };
-  if(acabou)return <Cartao titulo="Nada mais para revisar"><Texto>Você chegou ao fim desta lista.</Texto><LinkTexto texto="Voltar para a lista" href={caminhoListaAtualizacoes(fila.situacao,fila.meus)} /></Cartao>;
+  if(acabou)return <Cartao titulo="Nada mais para revisar"><Texto>Você chegou ao fim desta lista.</Texto><LinkTexto texto="Voltar para a lista" href={caminhoListaAtualizacoes(fila.situacao,fila.meus,fila)} /></Cartao>;
   return <Botao rotulo="Próxima ›" rotuloAcessivel="Abrir a próxima atualização da lista" tipo="secundario" carregando={buscando} aoTocar={()=>void proxima()} />;
 }

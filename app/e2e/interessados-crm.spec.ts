@@ -241,14 +241,20 @@ for (const largura of [390, 1280]) {
           return json(route, { itens, total: 2 });
         },
       });
-      await expect(page.getByRole('button', { name: 'Novas · 2' })).toBeVisible();
       await page.getByLabel('Buscar').fill('ana');
       await expect(page.getByText('Nada encontrado para esta busca.')).toBeVisible();
       expect(pedidos.some((p) => p.caminho === '/inscricoes' && p.busca.get('busca') === 'ana')).toBe(true);
       await page.getByLabel('Buscar').fill('');
       await expect(page.getByText('Pessoa Fictícia 1', { exact: true })).toBeVisible();
-      await page.getByRole('button', { name: 'Meus', exact: true }).click();
+      // Situação (com a contagem) e responsável ficam no painel de filtros (PC) ou na folha "Filtros" (celular).
+      await page.getByRole('button', { name: /^Filtros, / }).click();
+      const painel = largura < 768 ? page.getByRole('dialog', { name: 'Filtros' }) : page.locator('body');
+      await expect(painel.getByRole('button', { name: 'Novas · 2' })).toBeVisible();
+      await painel.getByRole('radiogroup', { name: 'Responsável' }).getByRole('button', { name: 'Meus', exact: true }).click();
+      if (largura < 768) await page.getByRole('button', { name: 'Ver inscrições' }).click();
       await expect(page.getByText('Nenhuma inscrição atribuída a você nesta lista.')).toBeVisible();
+      await expect(page).toHaveURL(/meus=true/);
+      await expect(page.getByRole('button', { name: 'Tirar filtro: Responsável: Meus' })).toBeVisible();
       expect(naoTratadas).toEqual([]);
       expect(errosDaPagina).toEqual([]);
     });

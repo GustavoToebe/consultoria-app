@@ -1,35 +1,61 @@
-import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { espaco } from '../../tema/tokens';
+import { chipDeUmaOpcao, chipDeVarias } from '../../dominio/filtrosDaBiblioteca';
+import { BarraDeFiltros } from '../../ui/BarraDeFiltros';
 import { Campo } from '../../ui/Campo';
-import { Escolha } from '../../ui/Escolha';
-import { EscolhaEmFolha, OPCOES_PARA_BUSCAR } from '../../ui/EscolhaEmFolha';
+import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
+import { CelulaDoFiltro, UmaOpcao } from '../SeletoresDeFiltro';
+
+interface Busca { rotulo: string; placeholder: string; valor: string; aoMudar: (v: string) => void }
+
+/** Filtro de uma opção (fatores, categoria): `todos` é o valor de "nada filtrado". */
+export interface FiltroDeUmaOpcao<T extends string> {
+  tipo: 'uma';
+  rotulo: string;
+  valor: T;
+  todos: T;
+  opcoes: { valor: T; rotulo: string }[];
+  aoMudar: (v: T) => void;
+}
+
+/** Filtro de várias opções (grupos): nada marcado = todos. */
+export interface FiltroDeVarias {
+  tipo: 'varias';
+  rotulo: string;
+  rotuloDeTodos: string;
+  opcoes: { valor: string; rotulo: string }[];
+  marcados: ReadonlySet<string>;
+  aoMudar: (m: Set<string>) => void;
+}
 
 /**
- * Barra única das abas da Biblioteca (revisão de telas de 19/10: cada aba tinha um jeito): busca com placeholder e,
- * ao lado, o filtro. Mesma ordem em todas: busca → filtro → lista.
+ * Barra única das abas da Biblioteca: a mesma barra de filtros das outras listas (`ui/BarraDeFiltros`; busca, botão
+ * "Filtros", "Filtrado por"), com o filtro de cada aba (grupo, fatores ou categoria) no painel. Sem filtro (lista ainda
+ * sem categorias, por exemplo) fica só a busca.
  */
-export function BarraDaBiblioteca({ rotulo, placeholder, valor, aoMudar, children }: {
-  rotulo: string; placeholder: string; valor: string; aoMudar: (v: string) => void; children?: ReactNode;
-}) {
+export function BarraDaBiblioteca<T extends string>({ rotulo, placeholder, valor, aoMudar, filtro }: Busca & { filtro?: FiltroDeUmaOpcao<T> | FiltroDeVarias | null }) {
+  if (!filtro) {
+    return <View style={estilos.busca}><Campo rotulo={rotulo} valor={valor} aoMudar={aoMudar} placeholder={placeholder} autoCorrect={false} /></View>;
+  }
+  if (filtro.tipo === 'uma') {
+    return (
+      <BarraDeFiltros busca={{ rotulo, placeholder, valor, aoMudar }} valor={filtro.valor} aoAplicar={filtro.aoMudar} limpo={filtro.todos}
+        chips={chipDeUmaOpcao(filtro.rotulo, filtro.valor, filtro.todos, filtro.opcoes)} aoTirar={() => filtro.aoMudar(filtro.todos)}
+        seletores={(atual, mudar) => <CelulaDoFiltro><UmaOpcao rotulo={filtro.rotulo} valor={atual} opcoes={filtro.opcoes} aoMudar={mudar} /></CelulaDoFiltro>} />
+    );
+  }
   return (
-    <View style={estilos.barra}>
-      <View style={estilos.busca}><Campo rotulo={rotulo} valor={valor} aoMudar={aoMudar} placeholder={placeholder} autoCorrect={false} /></View>
-      {children}
-    </View>
+    <BarraDeFiltros busca={{ rotulo, placeholder, valor, aoMudar }} valor={filtro.marcados} aoAplicar={(m) => filtro.aoMudar(new Set(m))} limpo={new Set<string>()}
+      chips={chipDeVarias(filtro.rotulo, filtro.marcados, filtro.opcoes)} aoTirar={() => filtro.aoMudar(new Set())}
+      seletores={(atual, mudar) => (
+        <CelulaDoFiltro>
+          {/* Os grupos passam de uma dúzia: lista suspensa com busca em vez de linhas de chips. */}
+          <SelecaoMultiplaSuspensa rotulo={filtro.rotulo} rotuloDeTodos={filtro.rotuloDeTodos} opcoes={filtro.opcoes} marcados={atual} aoMudar={mudar} />
+        </CelulaDoFiltro>
+      )} />
   );
 }
 
-/** Filtro com o componente certo pelo número de opções: chips até oito, folha com busca acima disso. */
-export function FiltroDaBiblioteca<T extends string>({ rotulo, valor, opcoes, aoMudar }: { rotulo: string; valor: T; opcoes: { valor: T; rotulo: string }[]; aoMudar: (v: T) => void }) {
-  return opcoes.length > OPCOES_PARA_BUSCAR
-    ? <EscolhaEmFolha rotulo={rotulo} valor={valor} opcoes={opcoes} aoMudar={aoMudar} style={estilos.aoPe} />
-    : <Escolha rotulo={rotulo} valor={valor} opcoes={opcoes} aoMudar={aoMudar} />;
-}
-
 const estilos = StyleSheet.create({
-  barra: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: espaco(1.5) },
   busca: { flexGrow: 1, flexBasis: 220, maxWidth: 480 },
-  aoPe: { alignSelf: 'flex-end' },
 });

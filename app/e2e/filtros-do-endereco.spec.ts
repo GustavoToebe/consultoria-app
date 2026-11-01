@@ -175,6 +175,10 @@ test('Financeiro ?situacao=VENCIDA com meus=true: só as vencidas, "Vencidas" e 
   await expect(page.getByText('Aluna Atrasada', { exact: true })).toBeVisible();
   await expect(page.getByText('Aluno Vencendo', { exact: true })).toHaveCount(0);
   await expect(page.getByText('Aluna Paga', { exact: true })).toHaveCount(0);
+  // Os filtros do endereço aparecem como chips no "Filtrado por" e marcados no painel de filtros.
+  await expect(page.getByRole('button', { name: 'Tirar filtro: Situação: Vencidas' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Tirar filtro: Responsável: Meus' })).toBeVisible();
+  await page.getByRole('button', { name: /^Filtros, / }).click();
   await expect(opcao(page, 'Situação', 'Vencidas')).toHaveAttribute('aria-checked', 'true');
   await expect(opcao(page, 'Responsável', 'Meus')).toHaveAttribute('aria-checked', 'true');
   const ultimo = pedidos.filter((p) => p.caminho === '/financeiro/cobrancas').at(-1);
@@ -192,20 +196,23 @@ for (const largura of [390, 1280]) {
   test(`Financeiro ?situacao=ABERTA&vencimento=PROXIMOS_7_DIAS em ${largura}px: só as abertas que vencem até 26/10; limpar tira a janela`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const { pedidos, naoTratadas, errosDaPagina } = await abrirFinanceiro(page, '/treinador/financeiro?aba=cobrancas&situacao=ABERTA&vencimento=PROXIMOS_7_DIAS');
-    await expect(page.getByText('Vencimento de hoje até 26/10/2026')).toBeVisible();
+    const chipDaJanela = page.getByRole('button', { name: 'Tirar filtro: Vencimento: de hoje até 26/10/2026' });
+    await expect(chipDaJanela).toBeVisible();
     await expect(page.getByText('Aluno Vencendo', { exact: true })).toBeVisible();
     await expect(page.getByText('Aluno Depois', { exact: true })).toHaveCount(0);
     await expect(page.getByText('Aluna Atrasada', { exact: true })).toHaveCount(0);
     await expect(page.getByText('Aluna Paga', { exact: true })).toHaveCount(0);
-    await expect(opcao(page, 'Situação', 'Em aberto')).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByRole('button', { name: 'Tirar filtro: Situação: Em aberto' })).toBeVisible();
     const comJanela = pedidos.filter((p) => p.caminho === '/financeiro/cobrancas').at(-1);
     expect([comJanela?.busca.get('situacao'), comJanela?.busca.get('de'), comJanela?.busca.get('ate')]).toEqual(['ABERTA', '2026-10-19', '2026-10-26']);
 
-    await page.getByRole('button', { name: 'Limpar filtro: Vencimento de hoje até 26/10/2026' }).click();
+    // O ✕ do chip tira só a janela; a situação fica.
+    await chipDaJanela.click();
     await expect(page).toHaveURL(/\/treinador\/financeiro\?aba=cobrancas&situacao=ABERTA$/);
     await expect(page.getByText('Aluno Depois', { exact: true })).toBeVisible();
     await expect(page.getByText('Aluna Atrasada', { exact: true })).toBeVisible();
-    await expect(opcao(page, 'Situação', 'Em aberto')).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByRole('button', { name: 'Tirar filtro: Situação: Em aberto' })).toBeVisible();
+    await expect(chipDaJanela).toHaveCount(0);
     const semJanela = pedidos.filter((p) => p.caminho === '/financeiro/cobrancas').at(-1);
     expect(semJanela?.busca.get('de')).toBeNull();
     expect(naoTratadas).toEqual([]);
@@ -218,11 +225,30 @@ test('Financeiro com valores desconhecidos no endereço: Todas, sem janela e sem
   const { pedidos, naoTratadas, errosDaPagina } = await abrirFinanceiro(page, '/treinador/financeiro?aba=cobrancas&situacao=QUALQUER&vencimento=ONTEM&meus=talvez');
   await expect(page.getByText('Aluna Paga', { exact: true })).toBeVisible();
   await expect(page.getByText('Aluno Depois', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Tirar filtro/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Limpar filtro/ })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Filtros, nenhum ligado' }).click();
   await expect(opcao(page, 'Situação', 'Todas')).toHaveAttribute('aria-checked', 'true');
   await expect(opcao(page, 'Responsável', 'Todos')).toHaveAttribute('aria-checked', 'true');
-  await expect(page.getByRole('button', { name: /Limpar filtro/ })).toHaveCount(0);
   const ultimo = pedidos.filter((p) => p.caminho === '/financeiro/cobrancas').at(-1);
   expect([ultimo?.busca.get('situacao'), ultimo?.busca.get('de'), ultimo?.busca.get('meus')]).toEqual([null, null, null]);
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);
 });
+
+for (const largura of [390, 1280]) {
+  test(`Financeiro ?aba=lancamentos&de=&ate= em ${largura}px: o período vai ao pedido e o ✕ do chip tira`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { pedidos, naoTratadas, errosDaPagina } = await abrirFinanceiro(page, '/treinador/financeiro?aba=lancamentos&de=2026-10-01&ate=2026-10-31');
+    const chip = page.getByRole('button', { name: 'Tirar filtro: Data: 01/10/2026 a 31/10/2026' });
+    await expect(chip).toBeVisible();
+    const comPeriodo = pedidos.filter((p) => p.caminho === '/financeiro/lancamentos').at(-1);
+    expect([comPeriodo?.busca.get('de'), comPeriodo?.busca.get('ate')]).toEqual(['2026-10-01', '2026-10-31']);
+
+    await chip.click();
+    await expect(page).toHaveURL(/\/treinador\/financeiro\?aba=lancamentos$/);
+    await expect.poll(() => pedidos.filter((p) => p.caminho === '/financeiro/lancamentos').at(-1)?.busca.get('de')).toBeNull();
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+}

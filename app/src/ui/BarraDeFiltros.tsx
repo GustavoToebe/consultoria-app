@@ -19,8 +19,8 @@ export interface ChipDaBarra {
 }
 
 interface Props<T> {
-  /** Campo de busca (sempre à vista). */
-  busca: { valor: string; aoMudar: (texto: string) => void; rotulo?: string; placeholder?: string };
+  /** Campo de busca (sempre à vista). Sem ele, a barra é só o botão "Filtros" (lista sem busca útil na API). */
+  busca?: { valor: string; aoMudar: (texto: string) => void; rotulo?: string; placeholder?: string };
   /** Os filtros em vigor. */
   valor: T;
   /** Grava os filtros escolhidos (ex.: no endereço). No celular só quando a folha fecha (ver abaixo). */
@@ -49,10 +49,11 @@ export function rotuloDoBotaoDeFiltros(quantos: number): string {
  * Barra de filtros das listas (padrão da Central: busca + botão de filtros que abre os filtros avançados). Linha de
  * cima: o campo de busca, o botão "Filtros" com o número de filtros ligados e "Limpar filtros" quando há algum. No PC
  * (janela ≥ 768) o botão abre e fecha um cartão "Filtros avançados" logo abaixo, com os seletores em grade; no celular
- * abre uma `Folha` "Filtros". Embaixo, "Filtrado por" com um chip por filtro, cada um com o ✕ que o tira. Feita para
- * servir também a Interessados, Atualizações e Financeiro: quem usa decide os seletores e o que cada chip significa.
+ * abre uma `Folha` "Filtros". Embaixo, "Filtrado por" com um chip por filtro, cada um com o ✕ que o tira. Serve a todas
+ * as listas do treinador (`docs/planos/filtros-nas-listas.md`): quem usa decide os seletores e o que cada chip significa.
  *
- * No PC cada escolha vale na hora. Na folha do celular as escolhas ficam num rascunho e só são gravadas quando ela fecha
+ * No PC cada escolha vale na hora (a de um seletor que abre a própria Folha, como `EscolhaEmFolha`, quando ela fecha, pelo
+ * mesmo motivo do celular). Na folha do celular as escolhas ficam num rascunho e só são gravadas quando ela fecha
  * (X, tocar fora ou "Ver resultado"), depois do histórico assentar (`depoisDeFecharAsFolhas`): gravar no endereço com a
  * Folha aberta cairia na entrada de histórico dela e o fechar desfaria a escolha.
  */
@@ -83,9 +84,11 @@ export function BarraDeFiltros<T>({ busca, valor, aoAplicar, limpo, chips, aoTir
   return (
     <View style={estilos.raiz}>
       <View style={estilos.linha}>
-        <View style={estilos.busca}>
-          <Campo rotulo={busca.rotulo ?? 'Buscar'} valor={busca.valor} aoMudar={busca.aoMudar} placeholder={busca.placeholder} autoCapitalize="none" />
-        </View>
+        {busca ? (
+          <View style={estilos.busca}>
+            <Campo rotulo={busca.rotulo ?? 'Buscar'} valor={busca.valor} aoMudar={busca.aoMudar} placeholder={busca.placeholder} autoCapitalize="none" />
+          </View>
+        ) : null}
         <View style={estilos.botoes}>
           <Pressable
             accessibilityRole="button"
@@ -108,7 +111,8 @@ export function BarraDeFiltros<T>({ busca, valor, aoAplicar, limpo, chips, aoTir
       </View>
       {aberto && !emFolha ? (
         <Cartao titulo={tituloDoPainel}>
-          <View style={estilos.grade}>{seletores(valor, aoAplicar)}</View>
+          {/* Seletor que abre a própria Folha (`EscolhaEmFolha`) escolhe com ela aberta: grava depois que ela fecha. */}
+          <View style={estilos.grade}>{seletores(valor, (filtros) => depoisDeFecharAsFolhas(() => aoAplicar(filtros)))}</View>
         </Cartao>
       ) : null}
       {aberto && emFolha && rascunho ? (

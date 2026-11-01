@@ -3,16 +3,21 @@ import { MessageSquareText } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import type { EtapaAberta, FiltroInscricoes, InscricaoResumo, Origem } from '../../api/inscricoesTipos';
+import type { EtapaAberta, InscricaoResumo } from '../../api/inscricoesTipos';
 import { contagensInscricoes, listarInscricoes, responsaveisEquipe, retornosPendentes } from '../../api/rotas';
 import { hojeEmBrasilia } from '../../dominio/agendaPresencial';
 import { instanteRelativo } from '../../dominio/datasRelativas';
+import { paraSetParams } from '../../dominio/filtrosComuns';
+import {
+  chaveDosFiltros as chaveDaFila, CHAVES_DO_ENDERECO, chipsDosFiltros, filtrosDaFila, filtrosVisiveis, lerDoEndereco, limpos, MEUS,
+  OPCOES_FILTRO_ORIGEM, opcoesDeResponsavel, paraEndereco, paraEnderecoSemSituacao, semOFiltro, temOutrosFiltros,
+  type ChaveDoFiltro, type FiltrosDeInteressados,
+} from '../../dominio/filtrosDeInteressados';
 import { dataParaTela } from '../../dominio/formatos';
 import {
   estadoVazio,
   ETAPAS_ABERTAS,
   FILTROS_INSCRICOES,
-  OPCOES_ORIGEM,
   paginaQueSobra,
   seloDaSituacao,
   seloDoRetorno,
@@ -26,15 +31,15 @@ import { FolhaDaInscricao, type PedidoDaFolha } from '../../treinador/interessad
 import { FolhaModelosDeMensagem } from '../../treinador/interessados/FolhaModelosDeMensagem';
 import { Indicadores } from '../../treinador/interessados/Indicadores';
 import { QuadroKanban, type FiltrosDoQuadro } from '../../treinador/interessados/QuadroKanban';
-import { EscolhaResponsabilidade, type Responsabilidade } from '../../treinador/EscolhaResponsabilidade';
+import { EscolhaResponsabilidade } from '../../treinador/EscolhaResponsabilidade';
 import { FiltroDoEndereco } from '../../treinador/FiltroDoEndereco';
+import { CelulaDoFiltro, UmaOpcao } from '../../treinador/SeletoresDeFiltro';
 import { Abas } from '../../ui/Abas';
+import { BarraDeFiltros } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
-import { Campo } from '../../ui/Campo';
 import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
-import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
@@ -45,8 +50,6 @@ import { Texto } from '../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../ui/useCarregar';
 
 const TAMANHO_PAGINA = 30;
-const TODOS = '';
-const NENHUM = 'nenhum';
 
 type Visao = 'lista' | 'kanban' | 'indicadores';
 const VISOES: { valor: Visao; rotulo: string }[] = [
@@ -55,7 +58,6 @@ const VISOES: { valor: Visao; rotulo: string }[] = [
   { valor: 'indicadores', rotulo: 'Indicadores' },
 ];
 
-type FiltroDeOrigem = '' | Origem | 'NAO_INFORMADA';
 /** `?retornos=ATE_HOJE`: só os retornos atrasados ou de hoje (o mini-cartão "Retornos" do Início). */
 const RETORNOS_ATE_HOJE = 'ATE_HOJE';
 
@@ -77,33 +79,29 @@ function rotuloDasEtapas(etapas: readonly EtapaAberta[]): string {
   }).join(' ou ');
 }
 
-const OPCOES_FILTRO_ORIGEM: { valor: FiltroDeOrigem; rotulo: string }[] = [
-  { valor: '', rotulo: 'Todas' },
-  ...OPCOES_ORIGEM,
-  { valor: 'NAO_INFORMADA', rotulo: 'Não informada' },
-];
-
 /**
  * Interessados: o link de inscrição da consultoria e o atendimento de quem se inscreveu por ele, em lista, em Kanban por
- * etapa ou nos indicadores (a visão mora no endereço, `?visao=`). Busca, responsável e origem valem nas duas primeiras;
- * as contagens seguem os mesmos filtros. Tocar abre a folha com contato, proposta, retornos, histórico e as decisões.
+ * etapa ou nos indicadores (a visão mora no endereço, `?visao=`). Na barra de filtros, busca, responsável e origem valem
+ * nas duas primeiras e a situação na Lista (`docs/planos/filtros-nas-listas.md`, D6); as contagens seguem os mesmos
+ * filtros. Situação, responsável e origem moram no endereço (`?situacao=&meus=&responsavel=&origem=`). Tocar abre a folha com contato, proposta, retornos, histórico e as decisões.
  * Ninguém vira aluno sem um aceite explícito, e o app nunca envia mensagem sozinho.
  */
 export default function Interessados() {
-  const { pode } = useSessao();
+  const { pode, usuario } = useSessao();
   // `?situacao=NOVA` vem do contador "Interessados novos" do Início; `?meus=true`, do filtro "Meus" de lá. Os mini-cartões
   // do painel trazem `?retornos=ATE_HOJE` (na Lista) e `?visao=kanban&etapas=EM_CONTATO,EM_NEGOCIACAO`; trocar de visão
   // pelas abas leva só a `visao`, então o filtro do endereço sai junto.
-  const { situacao: situacaoInicial, visao: visaoPedida, meus: meusPedido, retornos: retornosPedidos, etapas: etapasPedidas } =
-    useLocalSearchParams<{ situacao?: string; visao?: string; meus?: string; retornos?: string; etapas?: string | string[] }>();
+  const parametros = useLocalSearchParams<{ situacao?: string; visao?: string; meus?: string; responsavel?: string; origem?: string; retornos?: string; etapas?: string | string[] }>();
+  const { visao: visaoPedida, retornos: retornosPedidos, etapas: etapasPedidas } = parametros;
   const visao: Visao = VISOES.find((v) => v.valor === visaoPedida)?.valor ?? 'lista';
   const soRetornos = visao === 'lista' && retornosPedidos === RETORNOS_ATE_HOJE;
   const etapas = visao === 'kanban' ? etapasDoEndereco(etapasPedidas) : null;
-  const setVisao = (valor: Visao) => { if (valor !== visao) router.push({ pathname: '/treinador/interessados', params: { visao: valor } }); };
-  const [filtro, setFiltro] = useState<FiltroInscricoes>(FILTROS_INSCRICOES.find((f) => f.valor === situacaoInicial)?.valor ?? 'ABERTAS');
-  const [escopo, setEscopo] = useState<Responsabilidade>(meusPedido === 'true' ? 'meus' : 'todos');
-  const [responsavel, setResponsavel] = useState<string>(TODOS);
-  const [origem, setOrigem] = useState<FiltroDeOrigem>('');
+  const filtrosDaTela = lerDoEndereco(parametros);
+  // Trocar de visão leva o responsável e a origem; a situação, os retornos e as etapas são de uma visão só.
+  const setVisao = (valor: Visao) => {
+    if (valor !== visao) router.push({ pathname: '/treinador/interessados', params: { visao: valor, ...paraEnderecoSemSituacao(filtrosDaTela) } });
+  };
+  const filtro = filtrosDaTela.situacao;
   const [buscaDigitada, setBuscaDigitada] = useState('');
   const busca = useAtrasado(buscaDigitada.trim(), 300);
   const [pagina, setPagina] = useState(0);
@@ -111,14 +109,9 @@ export default function Interessados() {
   const [modelos, setModelos] = useState(false);
   // Toda alteração (folha, Kanban) muda a rodada: lista, contagens, retornos e colunas recarregam juntos.
   const [rodada, setRodada] = useState(0);
-  const meus = escopo === 'meus';
-  const filtros: FiltrosDoQuadro = {
-    meus,
-    busca: busca || undefined,
-    responsavel: !meus && responsavel ? responsavel : undefined,
-    origem: origem || undefined,
-  };
-  const chaveDosFiltros = `${meus}|${busca}|${filtros.responsavel ?? ''}|${origem}`;
+  const meus = filtrosDaTela.responsavel === MEUS;
+  const filtros: FiltrosDoQuadro = filtrosDaFila(filtrosDaTela, busca);
+  const chaveDosFiltros = chaveDaFila(filtrosDaTela, busca);
   const lista = useCarregar(visao === 'lista' && !soRetornos ? `${filtro}|${chaveDosFiltros}|${pagina}|${rodada}` : null, () =>
     listarInscricoes({ ...filtros, situacao: filtro, pagina }));
   const contagens = useCarregar(visao !== 'indicadores' && !soRetornos ? `contagens|${chaveDosFiltros}|${rodada}` : null, () => contagensInscricoes(filtros));
@@ -127,7 +120,11 @@ export default function Interessados() {
   const responsaveis = useCarregar('responsaveis-inscricao', () => responsaveisEquipe());
   const recarregar = useCallback(() => setRodada((r) => r + 1), []);
   useFocusEffect(useCallback(() => { recarregar(); }, [recarregar]));
-  const mudarFiltro = (aplicar: () => void) => { aplicar(); setPagina(0); };
+  // Trocar um filtro troca o endereço sem empilhar histórico (o voltar sai da tela) e volta à página 1.
+  const aplicar = (novos: FiltrosDeInteressados) => {
+    setPagina(0);
+    router.setParams(paraSetParams(CHAVES_DO_ENDERECO, paraEndereco(novos)));
+  };
   const dados = lista.dados;
   const paginas = dados ? Math.max(1, Math.ceil(dados.total / TAMANHO_PAGINA)) : 1;
   // A última página esvaziou (aceitar ou encerrar tira a inscrição do filtro): volta para a última que ainda tem itens,
@@ -140,12 +137,16 @@ export default function Interessados() {
     const n = !c ? undefined : f.valor === 'ABERTAS' ? c.abertas : f.valor === 'TODAS' ? c.todas : c.porSituacao[f.valor];
     return { valor: f.valor, rotulo: n === undefined ? f.rotulo : `${f.rotulo} · ${n}` };
   });
-  const vazio = estadoVazio({ filtro, meus, busca, temFiltros: !!filtros.responsavel || !!origem });
+  const vazio = estadoVazio({ filtro, meus, busca, temFiltros: temOutrosFiltros(filtrosDaTela) });
+  const visaoDosFiltros = visao === 'kanban' ? 'kanban' : 'lista';
+  const nomeDe = (id: string) => (responsaveis.dados ?? []).find((r) => r.id === id)?.nome ?? null;
+  const chips = chipsDosFiltros(filtrosDaTela, visaoDosFiltros, nomeDe);
+  const visiveis = filtrosVisiveis(visaoDosFiltros);
   const abrir = (id: string, pedido?: PedidoDaFolha) => setAberta({ id, pedido });
   const hoje = hojeEmBrasilia();
   const retornosDoFiltro = soRetornos && retornos.dados ? retornosAteHoje(retornos.dados, hoje) : undefined;
-  // Limpar o filtro do endereço fica na mesma visão e mantém o "Meus" de agora.
-  const manterEscopo = meus ? { meus: 'true' } : {};
+  // Limpar o filtro do endereço fica na mesma visão e mantém o responsável e a origem de agora.
+  const manterEscopo = paraEnderecoSemSituacao(filtrosDaTela);
   const limparRetornos = () => router.replace({ pathname: '/treinador/interessados', params: manterEscopo });
   const limparEtapas = () => router.replace({ pathname: '/treinador/interessados', params: { visao: 'kanban', ...manterEscopo } });
 
@@ -166,7 +167,8 @@ export default function Interessados() {
               origem e situação valem para as inscrições, então ficam de fora até limpar o filtro. */}
           <FiltroDoEndereco rotulo="Retornos atrasados ou de hoje" aoLimpar={limparRetornos} />
           <View style={estilos.filtros}>
-            <EscolhaResponsabilidade valor={escopo} aoMudar={setEscopo} />
+            <EscolhaResponsabilidade valor={meus ? 'meus' : 'todos'}
+              aoMudar={(v) => router.setParams({ meus: v === 'meus' ? 'true' : undefined, responsavel: undefined })} />
           </View>
           {retornos.erro ? <MensagemErro texto={textoDoErro(retornos.erro)} erro={retornos.erro} tentarDeNovo={retornos.recarregar} /> : null}
           {!retornos.dados && retornos.carregando ? <Esqueleto /> : null}
@@ -180,23 +182,16 @@ export default function Interessados() {
         <>
           {etapas ? <FiltroDoEndereco rotulo={rotuloDasEtapas(etapas)} aoLimpar={limparEtapas} /> : null}
           <CartaoRetornos retornos={retornos.dados} aoAbrir={(id) => abrir(id)} />
-          <View style={estilos.filtros}>
-            <View style={estilos.busca}>
-              <Campo rotulo="Buscar" valor={buscaDigitada} aoMudar={(t) => mudarFiltro(() => setBuscaDigitada(t))}
-                placeholder="Nome, e-mail ou WhatsApp" autoCapitalize="none" />
-            </View>
-            <EscolhaResponsabilidade valor={escopo} aoMudar={(v) => mudarFiltro(() => setEscopo(v))} />
-            {!meus ? (
-              <EscolhaEmFolha rotulo="De quem" valor={responsavel} aoMudar={(v) => mudarFiltro(() => setResponsavel(v))}
-                opcoes={[{ valor: TODOS, rotulo: 'Toda a equipe' }, { valor: NENHUM, rotulo: 'Sem responsável' },
-                  ...(responsaveis.dados ?? []).map((r) => ({ valor: r.id, rotulo: r.nome }))]} />
-            ) : null}
-            <EscolhaEmFolha rotulo="Origem" valor={origem} aoMudar={(v) => mudarFiltro(() => setOrigem(v))} opcoes={OPCOES_FILTRO_ORIGEM} />
-          </View>
+          {/* Ordem das listas: busca → filtros (botão "Filtros" com o painel e o "Filtrado por"). */}
+          <BarraDeFiltros
+            busca={{ valor: buscaDigitada, aoMudar: (t) => { setBuscaDigitada(t); setPagina(0); }, placeholder: 'Nome, e-mail ou WhatsApp' }}
+            valor={filtrosDaTela} aoAplicar={aplicar} limpo={limpos(filtrosDaTela, visaoDosFiltros)} chips={chips}
+            aoTirar={(chave) => aplicar(semOFiltro(filtrosDaTela, chave as ChaveDoFiltro))}
+            rotuloDoResultado="Ver inscrições"
+            seletores={(atuais, mudar) => <SeletoresDeInteressados visiveis={visiveis} filtros={atuais} aoMudar={mudar}
+              opcoesDeSituacao={opcoesDeSituacao} opcoesDeResponsavel={opcoesDeResponsavel(responsaveis.dados ?? [], usuario?.id)} />} />
           {visao === 'lista' ? (
             <>
-              {/* Oito situações: a escolha quebra linha dentro da largura da tela (sem a caixa, ela passava da borda no celular). */}
-              <View style={estilos.caber}><Escolha rotulo="Situação" opcoes={opcoesDeSituacao} valor={filtro} aoMudar={(v) => mudarFiltro(() => setFiltro(v))} /></View>
               {lista.erro ? <MensagemErro texto={textoDoErro(lista.erro)} erro={lista.erro} tentarDeNovo={lista.recarregar} /> : null}
               {!dados && lista.carregando ? <Esqueleto /> : null}
               {dados && dados.itens.length === 0 ? <Vazio titulo={vazio.titulo} texto={vazio.texto} /> : null}
@@ -234,6 +229,35 @@ export default function Interessados() {
   );
 }
 
+/**
+ * Seletores do painel de filtros: situação (só na Lista, com a contagem de cada uma), responsável e origem, uma opção
+ * cada (a rota aceita um responsável só).
+ */
+function SeletoresDeInteressados({ visiveis, filtros, aoMudar, opcoesDeSituacao, opcoesDeResponsavel }: {
+  visiveis: readonly ChaveDoFiltro[];
+  filtros: FiltrosDeInteressados;
+  aoMudar: (f: FiltrosDeInteressados) => void;
+  opcoesDeSituacao: { valor: FiltrosDeInteressados['situacao']; rotulo: string }[];
+  opcoesDeResponsavel: { valor: string; rotulo: string }[];
+}) {
+  return (
+    <>
+      {visiveis.includes('situacao') ? (
+        <CelulaDoFiltro>
+          {/* Oito situações: a escolha quebra linha dentro da célula. */}
+          <View style={estilos.caber}><Escolha rotulo="Situação" opcoes={opcoesDeSituacao} valor={filtros.situacao} aoMudar={(situacao) => aoMudar({ ...filtros, situacao })} /></View>
+        </CelulaDoFiltro>
+      ) : null}
+      <CelulaDoFiltro>
+        <UmaOpcao rotulo="Responsável" valor={filtros.responsavel} opcoes={opcoesDeResponsavel} aoMudar={(responsavel) => aoMudar({ ...filtros, responsavel })} />
+      </CelulaDoFiltro>
+      <CelulaDoFiltro>
+        <UmaOpcao rotulo="Origem" valor={filtros.origem} opcoes={OPCOES_FILTRO_ORIGEM} aoMudar={(origem) => aoMudar({ ...filtros, origem })} />
+      </CelulaDoFiltro>
+    </>
+  );
+}
+
 function nomeDoResponsavel(i: InscricaoResumo): string {
   if (i.responsavelNome) return i.responsavelNome;
   return i.responsavelId ? 'Membro inativo' : 'Sem responsável';
@@ -264,7 +288,6 @@ function Situacao({ inscricao }: { inscricao: InscricaoResumo }) {
 
 const estilos = StyleSheet.create({
   filtros: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(3), rowGap: espaco(1.5), alignItems: 'flex-end' },
-  busca: { flexGrow: 1, flexBasis: 240, maxWidth: 420 },
   selos: { flexDirection: 'row', gap: espaco(0.75), flexWrap: 'wrap', alignItems: 'center' },
   caber: { flexShrink: 1, maxWidth: '100%' },
   esmaecido: { opacity: 0.6 },
