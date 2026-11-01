@@ -235,3 +235,20 @@ test('Financeiro com valores desconhecidos no endereço: Todas, sem janela e sem
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);
 });
+
+for (const largura of [390, 1280]) {
+  test(`Financeiro ?aba=lancamentos&de=&ate= em ${largura}px: o período vai ao pedido e o ✕ do chip tira`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { pedidos, naoTratadas, errosDaPagina } = await abrirFinanceiro(page, '/treinador/financeiro?aba=lancamentos&de=2026-10-01&ate=2026-10-31');
+    const chip = page.getByRole('button', { name: 'Tirar filtro: Data: 01/10/2026 a 31/10/2026' });
+    await expect(chip).toBeVisible();
+    const comPeriodo = pedidos.filter((p) => p.caminho === '/financeiro/lancamentos').at(-1);
+    expect([comPeriodo?.busca.get('de'), comPeriodo?.busca.get('ate')]).toEqual(['2026-10-01', '2026-10-31']);
+
+    await chip.click();
+    await expect(page).toHaveURL(/\/treinador\/financeiro\?aba=lancamentos$/);
+    await expect.poll(() => pedidos.filter((p) => p.caminho === '/financeiro/lancamentos').at(-1)?.busca.get('de')).toBeNull();
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+}

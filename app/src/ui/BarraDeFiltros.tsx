@@ -52,7 +52,8 @@ export function rotuloDoBotaoDeFiltros(quantos: number): string {
  * abre uma `Folha` "Filtros". Embaixo, "Filtrado por" com um chip por filtro, cada um com o ✕ que o tira. Serve a todas
  * as listas do treinador (`docs/planos/filtros-nas-listas.md`): quem usa decide os seletores e o que cada chip significa.
  *
- * No PC cada escolha vale na hora. Na folha do celular as escolhas ficam num rascunho e só são gravadas quando ela fecha
+ * No PC cada escolha vale na hora (a de um seletor que abre a própria Folha, como `EscolhaEmFolha`, quando ela fecha, pelo
+ * mesmo motivo do celular). Na folha do celular as escolhas ficam num rascunho e só são gravadas quando ela fecha
  * (X, tocar fora ou "Ver resultado"), depois do histórico assentar (`depoisDeFecharAsFolhas`): gravar no endereço com a
  * Folha aberta cairia na entrada de histórico dela e o fechar desfaria a escolha.
  */
@@ -110,7 +111,8 @@ export function BarraDeFiltros<T>({ busca, valor, aoAplicar, limpo, chips, aoTir
       </View>
       {aberto && !emFolha ? (
         <Cartao titulo={tituloDoPainel}>
-          <View style={estilos.grade}>{seletores(valor, aoAplicar)}</View>
+          {/* Seletor que abre a própria Folha (`EscolhaEmFolha`) escolhe com ela aberta: grava depois que ela fecha. */}
+          <View style={estilos.grade}>{seletores(valor, (filtros) => depoisDeFecharAsFolhas(() => aoAplicar(filtros)))}</View>
         </Cartao>
       ) : null}
       {aberto && emFolha && rascunho ? (
