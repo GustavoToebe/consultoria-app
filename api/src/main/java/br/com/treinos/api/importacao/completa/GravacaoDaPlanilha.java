@@ -107,13 +107,14 @@ public class GravacaoDaPlanilha {
     private final VideoUrls videos;
     private final ValidadorTreino validador;
     private final JsonMapper json;
+    private final GuardaDasRespostas guarda;
 
     public GravacaoDaPlanilha(ExercicioRepository exercicios, AlimentoRepository alimentos,
                               SuplementoRepository suplementos, ErgogenicoRepository ergogenicos, AlunoRepository alunos,
                               RegistroPesoRepository pesos, PastaRepository pastas, PlanoTreinoRepository treinos,
                               PlanoDietaRepository dietas, ImportacaoRepository importacoes, ReceitaService receitas,
                               PlanoDaConsultoria plano, ConsultoriaRepository consultorias, Auditoria auditoria,
-                              VideoUrls videos, ValidadorTreino validador, JsonMapper json) {
+                              VideoUrls videos, ValidadorTreino validador, JsonMapper json, GuardaDasRespostas guarda) {
         this.exercicios = exercicios;
         this.alimentos = alimentos;
         this.suplementos = suplementos;
@@ -131,6 +132,7 @@ public class GravacaoDaPlanilha {
         this.videos = videos;
         this.validador = validador;
         this.json = json;
+        this.guarda = guarda;
     }
 
     @Transactional(readOnly = true)
@@ -176,7 +178,7 @@ public class GravacaoDaPlanilha {
         }
         Montagem m = antes.exerciciosNovos().isEmpty() ? antes : MontagemDaImportacao.montar(leitura, respostas, contexto());
 
-        Map<Integer, UUID> novos = new HashMap<>();
+        Map<Dono, UUID> novos = new HashMap<>();
         for (AlunoNovo a : m.alunosNovos()) {
             Aluno aluno = new Aluno(a.nome(), a.email(), a.objetivo(), a.observacoes(), null);
             aluno.alterarSituacao(a.ativo(), Instant.now());
@@ -188,7 +190,7 @@ public class GravacaoDaPlanilha {
                 plano.exigirVagaDeAluno();
             }
             alunos.saveAndFlush(aluno);
-            novos.put(a.linha(), aluno.getId());
+            novos.put(a.dono(), aluno.getId());
         }
         for (PesoNovo p : m.pesos()) {
             RegistroPeso peso = new RegistroPeso(alunoDe(p.dono(), novos), p.data(), p.kg(), p.observacao(), eu.usuarioId());
@@ -215,6 +217,9 @@ public class GravacaoDaPlanilha {
                 dietas.saveAndFlush(d);
             }
         }
+        // As respostas ficam guardadas na consultoria e voltam marcadas na próxima análise (as de suplemento, só com a
+        // dieta, como na análise). Na mesma transação: se a confirmação desfaz, elas também.
+        guarda.guardar(respostas, leitura, AcessoAtual.pode("PASTA_ALTERAR") && AcessoAtual.pode("DIETA_ALTERAR"));
         auditoria.registrarEvento("IMPORTACAO_CONCLUIDA", "IMPORTACAO", id, "Importou dados de planilha completa.");
         return new Confirmacao(id, situacao, criacao(m, criacao.exercicios()), m.partesPuladas(), validacao(m),
                 m.problemas().size(), porTipo(m.problemas()));
@@ -247,8 +252,8 @@ public class GravacaoDaPlanilha {
                 videos::valida);
     }
 
-    private static UUID alunoDe(Dono dono, Map<Integer, UUID> novos) {
-        UUID id = dono.existente() != null ? dono.existente() : novos.get(dono.linha());
+    private static UUID alunoDe(Dono dono, Map<Dono, UUID> novos) {
+        UUID id = dono.existente() != null ? dono.existente() : novos.get(dono);
         if (id == null) {
             throw new IllegalStateException("Dono sem aluno gravado.");
         }
@@ -331,14 +336,18 @@ public class GravacaoDaPlanilha {
         return contagem;
     }
 
-    /** Histórico: aba e linha, campo e o código do problema; nunca o valor da célula. */
-    private static List<Erro> erros(Montagem m) {
+    /**
+     * Histórico: aba e linha, campo e o código do problema; nunca o valor da célula. A aba que tem o nome de um aluno
+     * (aba de um aluno ou em blocos) vira "Aba N": o histórico fica um ano e não leva nome de aluno.
+     */
+    static List<Erro> erros(Montagem m) {
         List<Erro> erros = new ArrayList<>();
         for (Problema p : m.problemas()) {
             if (erros.size() == ERROS_GUARDADOS) {
                 break;
             }
-            erros.add(new Erro(p.linha(), p.campo() == null ? "" : p.campo(), p.aba() + ": " + p.tipo()));
+            String aba = m.abasComNomeDeAluno().getOrDefault(p.aba(), p.aba());
+            erros.add(new Erro(p.linha(), p.campo() == null ? "" : p.campo(), aba + ": " + p.tipo()));
         }
         return erros;
     }

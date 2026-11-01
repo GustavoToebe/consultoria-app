@@ -3,17 +3,19 @@ import { expect, test, type Page } from '@playwright/test';
 import { erroApi, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
 
 /**
- * Planilha completa (fase 1): a página inteira que lê as abas, deixa trocar o tipo e responder os nomes, mostra a prévia
+ * Planilha completa (fases 1 e 2): a página inteira que lê as abas, deixa trocar o tipo e responder os nomes, mostra a prévia
  * em frases e confirma em rascunho; a guarda de saída; o 409 PREVIA_DESATUALIZADA; e o "Desfazer importação" no
- * histórico. API falsa, dados fictícios (nomes de exercício e de aba; a API nunca manda dado de aluno). 390 e 1280.
+ * histórico; na fase 2, o formato e o aluno de cada aba (um aluno por aba, blocos) e as respostas guardadas de uma
+ * importação anterior (marcadas, com o aviso, e esquecidas). API falsa, dados fictícios (nomes de exercício, de aba e os
+ * nomes de aluno que a própria planilha traz no nome da aba ou no bloco). 390 e 1280.
  */
 const ID = 'i0000000-0000-4000-8000-000000000099';
 const ANALISE = {
   abas: [
-    { indice: 0, nome: 'Alunos', tipo: 'ALUNOS', linhaDoCabecalho: 1, linhas: 3, campos: { CODIGO: 0, ALUNO: 1 }, avisos: [] },
-    { indice: 1, nome: 'Rotinas', tipo: 'ROTINAS', linhaDoCabecalho: 1, linhas: 2, campos: { CODIGO: 0 }, avisos: [] },
-    { indice: 2, nome: 'Exercícios', tipo: 'TREINO', linhaDoCabecalho: 1, linhas: 5, campos: { EXERCICIO: 2 }, avisos: [] },
-    { indice: 3, nome: 'Notas', tipo: 'DESCONHECIDA', linhaDoCabecalho: 0, linhas: 4, campos: {}, avisos: [] },
+    { indice: 0, nome: 'Alunos', tipo: 'ALUNOS', linhaDoCabecalho: 1, linhas: 3, campos: { CODIGO: 0, ALUNO: 1 }, avisos: [], formato: 'TABELA', blocos: [], tipoSalvo: null },
+    { indice: 1, nome: 'Rotinas', tipo: 'ROTINAS', linhaDoCabecalho: 1, linhas: 2, campos: { CODIGO: 0 }, avisos: [], formato: 'TABELA', blocos: [], tipoSalvo: null },
+    { indice: 2, nome: 'Exercícios', tipo: 'TREINO', linhaDoCabecalho: 1, linhas: 5, campos: { EXERCICIO: 2 }, avisos: [], formato: 'TABELA', blocos: [], tipoSalvo: null },
+    { indice: 3, nome: 'Notas', tipo: 'DESCONHECIDA', linhaDoCabecalho: 0, linhas: 4, campos: {}, avisos: [], formato: 'TABELA', blocos: [], tipoSalvo: null },
   ],
   ligacoes: [
     { abaFilha: 1, colunaFilha: 1, abaMae: 0, colunaMae: 0, por: 'CODIGO', ligadas: 2, naoLigadas: 0, ambiguas: 0, pendentes: [] },
@@ -27,14 +29,41 @@ const ANALISE = {
   },
   problemas: [], problemasAlem: 0, problemasPorTipo: {},
   exercicios: [
-    { nome: 'Supino reto c/ hal.', nivel: 'PROVAVEL', sugestao: 'Supino reto com halteres', origem: 'BIBLIOTECA', nota: 0.7, ocorrencias: 3 },
-    { nome: 'Xyzzy fictício', nivel: 'NENHUM', sugestao: null, origem: null, nota: 0, ocorrencias: 1 },
+    { nome: 'Supino reto c/ hal.', nivel: 'PROVAVEL', sugestao: 'Supino reto com halteres', origem: 'BIBLIOTECA', nota: 0.7, ocorrencias: 3, respostaSalva: null, idSalvo: null },
+    { nome: 'Xyzzy fictício', nivel: 'NENHUM', sugestao: null, origem: null, nota: 0, ocorrencias: 1, respostaSalva: null, idSalvo: null },
   ],
   alimentos: [],
   suplementos: [
-    { nome: 'Creatina', sugestao: 'SUPLEMENTO', ocorrencias: 2 },
-    { nome: 'Remédio Fictício', sugestao: null, ocorrencias: 1 },
+    { nome: 'Creatina', sugestao: 'SUPLEMENTO', ocorrencias: 2, destinoSalvo: null },
+    { nome: 'Remédio Fictício', sugestao: null, ocorrencias: 1, destinoSalvo: null },
   ],
+  respostasSalvas: 0,
+};
+/**
+ * Fase 2: uma aba de um aluno (o nome da aba), uma aba com dois alunos em blocos e respostas guardadas de uma importação
+ * anterior (o tipo de uma aba, um nome e um suplemento). Nomes fictícios.
+ */
+const BLOCO = { linha: 2, tipo: 'TREINO', aluno: 'Ana Fictícia', situacao: 'NOVO', titulo: 'Treino A', linhas: 3 };
+const ANALISE_FASE2 = {
+  ...ANALISE,
+  respostasSalvas: 5,
+  ligacoes: [],
+  abas: [
+    { indice: 0, nome: 'Ana Fictícia', tipo: 'TREINO', linhaDoCabecalho: 2, linhas: 4, campos: { EXERCICIO: 0, SERIES: 1 }, avisos: [],
+      formato: 'UM_ALUNO', blocos: [BLOCO, { ...BLOCO, linha: 7, titulo: 'Treino B', linhas: 1 }], tipoSalvo: null },
+    { indice: 1, nome: 'Treinos', tipo: 'TREINO', linhaDoCabecalho: 2, linhas: 2, campos: { EXERCICIO: 0, PRESCRICAO: 1 }, avisos: [],
+      formato: 'BLOCOS', tipoSalvo: null, blocos: [
+        { ...BLOCO, aluno: 'Bruno Inventado', situacao: 'EXISTENTE', titulo: null, linhas: 1 },
+        { ...BLOCO, linha: 5, aluno: 'Carla Exemplo', situacao: 'AMBIGUO', titulo: null, linhas: 1 },
+      ] },
+    { indice: 2, nome: 'Notas', tipo: 'DESCONHECIDA', linhaDoCabecalho: 1, linhas: 4, campos: {}, avisos: [], formato: 'TABELA', blocos: [],
+      tipoSalvo: 'IGNORAR' },
+  ],
+  exercicios: [
+    { ...ANALISE.exercicios[0], respostaSalva: 'BIBLIOTECA', idSalvo: 'e1' },
+    ANALISE.exercicios[1],
+  ],
+  suplementos: [ANALISE.suplementos[0], { ...ANALISE.suplementos[1], destinoSalvo: 'SENSIVEL' }],
 };
 const CRIACAO = {
   alunosNovos: 3, alunosNovosInativos: 0, alunosReaproveitados: 0, pesos: 4, pesosIniciais: 0, pesosJaRegistrados: 0,
@@ -88,9 +117,9 @@ function respostasDoPedido(corpo: string): unknown {
   return JSON.parse(corpo.slice(inicio, corpo.indexOf('\r\n--', inicio)));
 }
 
-async function preparar(page: Page, largura: number, opcoes: { desatualizadaUmaVez?: boolean } = {}) {
+async function preparar(page: Page, largura: number, opcoes: { desatualizadaUmaVez?: boolean; analise?: unknown } = {}) {
   await page.setViewportSize({ width: largura, height: 900 });
-  const pedidos = { analisar: 0, previa: 0, confirmar: [] as string[], desfazer: 0, respostas: null as unknown };
+  const pedidos = { analisar: 0, previa: 0, confirmar: [] as string[], desfazer: 0, respostas: null as unknown, esquecer: 0 };
   let desatualizada = opcoes.desatualizadaUmaVez ?? false;
   const api = await simularApi(page, {
     ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'BIBLIOTECA_LER'] })),
@@ -101,7 +130,11 @@ async function preparar(page: Page, largura: number, opcoes: { desatualizadaUmaV
     'GET /exercicios': { corpo: [{ id: 'e1', nome: 'Supino reto com halteres', grupoMuscular: 'Peito' }, { id: 'e2', nome: 'Remada curvada fictícia', grupoMuscular: 'Costas' }] },
     'POST /importacoes/planilha-completa/analisar': (_p, route) => {
       pedidos.analisar += 1;
-      return json(route, ANALISE);
+      return json(route, opcoes.analise ?? ANALISE);
+    },
+    'DELETE /importacoes/planilha-completa/respostas-salvas': (_p, route) => {
+      pedidos.esquecer += 1;
+      return json(route, { apagadas: 5 });
     },
     'POST /importacoes/planilha-completa/previa': (_p, route) => {
       pedidos.previa += 1;
@@ -246,6 +279,58 @@ for (const largura of [390, 1280]) {
     await expect(page.getByText('Treinos: 1 apagado; 1 ficou (1 já publicado).')).toBeVisible();
     await expect(page.getByText('Exercícios da biblioteca: 1 ficou (1 em uso por algo criado depois).')).toBeVisible();
     expect(pedidos.desfazer).toBe(1);
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`planilha completa (fase 2): formato de cada aba, respostas salvas marcadas e esquecidas em ${largura}px`, async ({ page }) => {
+    const { naoTratadas, errosDaPagina, pedidos } = await preparar(page, largura, { analise: ANALISE_FASE2 });
+    await abrirELer(page);
+
+    // O formato e o aluno de cada aba; o bloco ambíguo aparece como "não entra".
+    await expect(page.getByText(/^Um aluno por aba, 2 tabelas · /)).toBeVisible();
+    await expect(page.getByText('De Ana Fictícia (aluno novo, entra só com o nome).')).toBeVisible();
+    await expect(page.getByText(/^Vários alunos em blocos \(2 tabelas\) · /)).toBeVisible();
+    await expect(page.getByText('2 alunos: Bruno Inventado e Carla Exemplo.')).toBeVisible();
+    await expect(page.getByText('Linha 2 · 1 linha · Bruno Inventado (já é seu aluno)')).toBeVisible();
+    await expect(page.getByText('Linha 5 · 1 linha · Carla Exemplo (há mais de um aluno com esse nome: não entra)')).toBeVisible();
+
+    // A resposta guardada já vem marcada, com o aviso discreto.
+    await expect(page.getByRole('button', { name: /^Tipo da aba “Notas”: Ignorar esta aba/ })).toBeVisible();
+    await expect(page.getByText('Respondido na importação anterior')).toHaveCount(1);
+    await expect(page.getByText('5 respostas guardadas das importações anteriores: 3 vieram marcadas aqui.', { exact: false })).toBeVisible();
+    await page.getByRole('button', { name: 'Continuar' }).click();
+    await expect(page.getByRole('button', { name: /^Resposta para “Supino reto c\/ hal.”: Biblioteca: Supino reto com halteres/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Destino de “Remédio Fictício”: Medicação e ergogênicos/ })).toBeVisible();
+    await expect(page.getByText('Respondido na importação anterior')).toHaveCount(2);
+    await page.getByRole('button', { name: 'Gerar prévia' }).click();
+    await expect(page.getByText('Vai criar 3 alunos, sem convite.')).toBeVisible();
+    expect(pedidos.respostas).toEqual({
+      abas: [{ indice: 2, tipo: 'IGNORAR' }],
+      ligacoes: [],
+      exercicios: [{ nome: 'Supino reto c/ hal.', acao: 'BIBLIOTECA', id: 'e1' }],
+      alimentos: [],
+      suplementos: [{ nome: 'Remédio Fictício', destino: 'SENSIVEL' }],
+    });
+
+    // Esquecer: pede confirmação; Cancelar não apaga; Esquecer tira as marcas que vieram delas.
+    await page.getByRole('button', { name: 'Voltar' }).click();
+    await page.getByRole('button', { name: 'Voltar' }).click();
+    await page.getByRole('button', { name: 'Esquecer as respostas salvas' }).click();
+    await expect(page.getByText('Esquecer as respostas salvas?')).toBeVisible();
+    await page.getByRole('button', { name: 'Cancelar' }).click();
+    expect(pedidos.esquecer).toBe(0);
+    await page.getByRole('button', { name: 'Esquecer as respostas salvas' }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Esquecer' }).click();
+    await expect(page.getByText('5 respostas salvas foram esquecidas.')).toBeVisible();
+    expect(pedidos.esquecer).toBe(1);
+    await expect(page.getByRole('button', { name: /^Tipo da aba “Notas”: Não reconhecida/ })).toBeVisible();
+    await expect(page.getByText('Respondido na importação anterior')).toHaveCount(0);
+    await expect(page.getByText('Esquecer as respostas salvas', { exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Continuar' }).click();
+    await page.getByRole('button', { name: 'Gerar prévia' }).click();
+    await expect(page.getByText('Vai criar 3 alunos, sem convite.')).toBeVisible();
+    expect(pedidos.respostas).toEqual({ abas: [], ligacoes: [], exercicios: [], alimentos: [], suplementos: [] });
     expect(naoTratadas).toEqual([]);
     expect(errosDaPagina).toEqual([]);
   });

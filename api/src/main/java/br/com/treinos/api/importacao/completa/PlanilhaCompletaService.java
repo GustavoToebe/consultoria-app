@@ -1,5 +1,7 @@
 package br.com.treinos.api.importacao.completa;
 
+import br.com.treinos.api.alunos.Aluno;
+import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.biblioteca.Alimento;
 import br.com.treinos.api.biblioteca.AlimentoRepository;
 import br.com.treinos.api.biblioteca.Ergogenico;
@@ -15,10 +17,11 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
- * Análise da planilha completa (fase 1 da frente "Importar planilha completa"): só lê, nada é gravado nem auditado e o
- * arquivo não fica guardado. A planilha é lida e analisada fora de transação; a biblioteca da consultoria (exercícios e
+ * Análise da planilha completa (frente "Importar planilha completa"): só lê, nada é gravado nem auditado e o arquivo não
+ * fica guardado. Lê também as respostas que a consultoria guardou em importações anteriores ({@link GuardaDasRespostas}). A planilha é lida e analisada fora de transação; a biblioteca da consultoria (exercícios e
  * alimentos ativos, já filtrados pelo {@code @TenantId}) é lida pelos repositórios, cada um na sua transação curta de
  * leitura.
  */
@@ -30,24 +33,42 @@ public class PlanilhaCompletaService {
 
     private final SuplementoRepository suplementos;
     private final ErgogenicoRepository ergogenicos;
+    private final AlunoRepository alunos;
+    private final GuardaDasRespostas guarda;
 
     public PlanilhaCompletaService(ExercicioRepository exercicios, AlimentoRepository alimentos,
-                                   SuplementoRepository suplementos, ErgogenicoRepository ergogenicos) {
+                                   SuplementoRepository suplementos, ErgogenicoRepository ergogenicos,
+                                   AlunoRepository alunos, GuardaDasRespostas guarda) {
         this.exercicios = exercicios;
         this.alimentos = alimentos;
         this.suplementos = suplementos;
         this.ergogenicos = ergogenicos;
+        this.alunos = alunos;
+        this.guarda = guarda;
     }
 
     public Analise analisar(String nomeDoArquivo, byte[] bytes) {
         LeituraDasAbas.Leitura leitura = LeituraDasAbas.ler(nomeDoArquivo, bytes);
-        List<String> daBiblioteca = exercicios.buscarAtivos("%").stream().map(Exercicio::getNome).toList();
-        List<String> alimentosDaBiblioteca = alimentos.buscarAtivos("%").stream().map(Alimento::getNome).toList();
+        List<Exercicio> exerciciosAtivos = exercicios.buscarAtivos("%");
+        List<Alimento> alimentosAtivos = alimentos.buscarAtivos("%");
+        List<String> daBiblioteca = exerciciosAtivos.stream().map(Exercicio::getNome).toList();
+        List<String> alimentosDaBiblioteca = alimentosAtivos.stream().map(Alimento::getNome).toList();
         // Os nomes da aba de suplementos (que podem ser de medicação) só voltam a quem pode gravar a dieta.
         boolean dieta = AcessoAtual.pode("PASTA_ALTERAR") && AcessoAtual.pode("DIETA_ALTERAR");
         List<String> nomesDeSuplementos = dieta ? suplementos.findAll().stream().map(Suplemento::getNome).toList() : null;
         List<String> nomesDeErgogenicos = dieta ? ergogenicos.findAll().stream().map(Ergogenico::getNome).toList() : List.of();
+        // Os nomes dos alunos só servem para dizer se o aluno da aba (ou do bloco) já existe; não voltam na resposta.
+        List<String> nomesDeAlunos = alunos.findAll().stream().filter(a -> !a.isAnonimizado()).map(Aluno::getNome).toList();
+        // As respostas de importações anteriores voltam como sugestão; as de suplemento, só a quem pode gravar a dieta.
+        RespostasSalvas salvas = guarda.carregar(dieta,
+                exerciciosAtivos.stream().map(Exercicio::getId).collect(Collectors.toSet()),
+                alimentosAtivos.stream().map(Alimento::getId).collect(Collectors.toSet()));
         return AnaliseDaPlanilha.analisar(leitura, daBiblioteca, alimentosDaBiblioteca, nomesDeSuplementos, nomesDeErgogenicos,
-                LocalDate.now(Fuso.BRASILIA));
+                nomesDeAlunos, salvas, LocalDate.now(Fuso.BRASILIA));
+    }
+
+    /** "Esquecer as respostas salvas": apaga as da consultoria e devolve quantas eram. */
+    public int esquecerRespostas() {
+        return guarda.esquecer();
     }
 }

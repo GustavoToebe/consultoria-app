@@ -7,8 +7,12 @@ import br.com.treinos.api.consultoria.ConfiguracaoConsultoria.TipoDeSerie;
 import br.com.treinos.api.importacao.LeitorDePlanilha.Celula;
 import br.com.treinos.api.importacao.completa.LeitorDePrescricao.ErroDaFaixa;
 import br.com.treinos.api.treino.ConteudoTreino;
+import br.com.treinos.api.consultoria.ConfiguracaoConsultoria.TecnicaDaMetodologia;
+import br.com.treinos.api.importacao.completa.LeitorDePrescricao.TecnicaEscrita;
 import br.com.treinos.api.treino.ConteudoTreino.Carga;
+import br.com.treinos.api.treino.ConteudoTreino.Esforco;
 import br.com.treinos.api.treino.ConteudoTreino.Serie;
+import br.com.treinos.api.treino.ConteudoTreino.Tecnica;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -29,6 +33,9 @@ import java.util.UUID;
  * <p>O tipo vem da metodologia da consultoria pelo código ({@code FEEDER}, {@code WORKING}, {@code TOP_SET},
  * {@code BACK_OFF}) e, sem ele, pelo papel. Tipo que a metodologia não tem não vira série (aviso
  * {@code TIPO_FORA_DA_METODOLOGIA}). Os avisos são códigos fixos, sem valor da planilha.
+ *
+ * <p>O formato livre (uma coluna de prescrição, ou séries e repetições separadas) é o {@link #porPrescricao}: o que o
+ * {@link LeitorDePrescricao} entendeu vira séries do tipo de trabalho da metodologia.
  */
 public final class MontagemDeSeries {
 
@@ -178,6 +185,153 @@ public final class MontagemDeSeries {
             }
         }
         return new Resultado(List.copyOf(series), List.copyOf(avisos), recuperada && nWs > 0);
+    }
+
+    /**
+     * O que foi entendido da prescrição escrita (de uma ou mais colunas da linha, já juntado): {@code series} = a
+     * quantidade escrita; {@code piramide} = as repetições de cada série; {@code duracaoSegundos} = série por tempo;
+     * {@code tecnica} = a técnica estruturada escrita, com os números que vieram junto.
+     */
+    public record Prescrita(Integer series, Integer repsMin, Integer repsMax, List<Integer> piramide, boolean amrap,
+                            boolean falha, Integer duracaoSegundos, Integer descansoSegundos, Integer rir, BigDecimal rpe,
+                            TecnicaEscrita tecnica) {
+    }
+
+    /**
+     * {@code manterTexto} = o texto da planilha precisa ir para a observação (técnica posta com padrões da metodologia,
+     * técnica ou pirâmide que não deu para usar); {@code observacoes} = linhas a acrescentar na observação do exercício
+     * (a duração da série por tempo).
+     */
+    public record PorPrescricao(List<Serie> series, List<String> avisos, boolean manterTexto, List<String> observacoes) {
+    }
+
+    /**
+     * Séries do formato livre: só nascem quando a quantidade está escrita ("3x10", a coluna "Séries") ou é a pirâmide
+     * (uma série por número). Todas do tipo de trabalho da metodologia, com carga de trabalho (nunca um número), as
+     * repetições entendidas (ou sem elas), AMRAP só quando escrito, "até a falha" como RIR 0, o RIR ou o RPE de um valor
+     * só e o descanso escrito. Série por tempo nasce sem repetições e a duração vai para a observação (como no resto do
+     * projeto). A técnica (rest pause, cluster ou drop-set) só entra se a metodologia da consultoria a tem e se fica
+     * completa com o que foi escrito mais o padrão da metodologia (o mesmo que o editor preenche ao escolher a técnica);
+     * senão a série fica sem técnica e o texto fica na observação. Avisos com códigos fixos, sem valor da planilha.
+     */
+    public static PorPrescricao porPrescricao(Prescrita p, ConfiguracaoConsultoria metodologia) {
+        List<String> avisos = new ArrayList<>();
+        List<String> observacoes = new ArrayList<>();
+        boolean manter = false;
+        Integer quantidade = p.series();
+        List<Integer> piramide = p.piramide();
+        if (piramide != null && quantidade != null && quantidade != piramide.size()) {
+            avisos.add("PIRAMIDE_DIFERENTE_DAS_SERIES");
+            return new PorPrescricao(List.of(), List.copyOf(avisos), true, List.of());
+        }
+        if (piramide != null) {
+            quantidade = piramide.size();
+        }
+        if (quantidade == null) {
+            return new PorPrescricao(List.of(), List.of(), false, List.of());
+        }
+        TipoDeSerie trabalho = tipo(metodologia, "WORKING", Papel.TRABALHO, ConteudoTreino.CARGA_TRABALHO);
+        if (trabalho == null) {
+            avisos.add("TIPO_FORA_DA_METODOLOGIA");
+            return new PorPrescricao(List.of(), List.copyOf(avisos), true, List.of());
+        }
+
+        Esforco esforco = null;
+        Integer rir = p.falha() ? Integer.valueOf(0) : p.rir();
+        if ((p.falha() && p.rir() != null && p.rir() != 0) || (rir != null && p.rpe() != null)) {
+            avisos.add("ESFORCO_CONFLITANTE");
+            manter = true;
+        } else if (rir != null) {
+            esforco = Esforco.deRir(rir);
+        } else if (p.rpe() != null) {
+            esforco = new Esforco(null, p.rpe());
+        }
+
+        Integer min = p.amrap() ? null : p.repsMin();
+        Integer max = p.amrap() ? null : p.repsMax();
+        if (p.duracaoSegundos() != null) {
+            min = null;
+            max = null;
+            observacoes.add("Duração de cada série: " + duracao(p.duracaoSegundos()));
+        }
+
+        Tecnica tecnica = null;
+        if (p.tecnica() != null) {
+            manter = true; // a técnica entra com padrões da metodologia: o texto da planilha fica para conferir
+            tecnica = tecnica(p.tecnica(), metodologia, avisos);
+            if (tecnica != null && ConteudoTreino.CLUSTER.equals(tecnica.tipo())) {
+                int soma = tecnica.blocos().stream().mapToInt(Integer::intValue).sum();
+                boolean bate = piramide == null && !p.amrap() && p.duracaoSegundos() == null
+                        && (min == null || (min == soma && max != null && max == soma));
+                if (bate) {
+                    min = soma;
+                    max = soma;
+                } else {
+                    avisos.add("CLUSTER_DIFERENTE_DAS_REPETICOES");
+                    tecnica = null;
+                }
+            }
+        }
+
+        List<Serie> series = new ArrayList<>();
+        for (int i = 0; i < quantidade; i++) {
+            Integer rMin = piramide != null ? piramide.get(i) : min;
+            Integer rMax = piramide != null ? piramide.get(i) : max;
+            boolean comTecnica = tecnica != null && (!p.tecnica().soNaUltima() || i == quantidade - 1);
+            series.add(new Serie(UUID.randomUUID(), trabalho.codigo().trim(), rMin, rMax, p.amrap() ? Boolean.TRUE : null,
+                    Carga.de(ConteudoTreino.CARGA_TRABALHO), esforco, p.descansoSegundos(), comTecnica ? tecnica : null,
+                    null, null));
+        }
+        return new PorPrescricao(List.copyOf(series), List.copyOf(avisos), manter, List.copyOf(observacoes));
+    }
+
+    /**
+     * A técnica completa: o que foi escrito e, no que faltou, o padrão da metodologia. Técnica fora da metodologia ou
+     * que continua incompleta (cluster sem blocos, por exemplo) = null com aviso.
+     */
+    static Tecnica tecnica(TecnicaEscrita e, ConfiguracaoConsultoria metodologia, List<String> avisos) {
+        String tipo = switch (e.tipo()) {
+            case REST_PAUSE -> ConteudoTreino.REST_PAUSE;
+            case CLUSTER -> ConteudoTreino.CLUSTER;
+            case DROP_SET -> ConteudoTreino.DROP_SET;
+            case SUPERSET -> null;
+        };
+        TecnicaDaMetodologia daMetodologia = tipo == null || metodologia == null || metodologia.tecnicas() == null
+                ? null : metodologia.tecnica(tipo);
+        if (daMetodologia == null) {
+            avisos.add("TECNICA_FORA_DA_METODOLOGIA");
+            return null;
+        }
+        Tecnica padrao = daMetodologia.padrao() == null ? Tecnica.vazia(tipo) : daMetodologia.padrao();
+        Integer seg = e.pausaSegundos();
+        Integer resp = e.pausaRespiracoes();
+        if (seg == null && resp == null) {
+            seg = padrao.pausaSegundos();
+            resp = padrao.pausaRespiracoes();
+        }
+        Tecnica t = switch (tipo) {
+            case ConteudoTreino.REST_PAUSE -> Tecnica.restPause(seg, resp, e.pausas() != null ? e.pausas()
+                    : padrao.pausas() != null ? padrao.pausas() : Integer.valueOf(1));
+            case ConteudoTreino.CLUSTER -> Tecnica.cluster(e.blocos(), seg, resp);
+            default -> Tecnica.dropSet(e.quedas() != null ? e.quedas() : padrao.quedas(),
+                    e.reducaoPercentual() != null ? e.reducaoPercentual() : padrao.reducaoPercentual(),
+                    padrao.repsPorQueda(), e.pausaSegundos() != null ? e.pausaSegundos() : padrao.pausaSegundos());
+        };
+        if (!t.problemas().isEmpty()) {
+            avisos.add("TECNICA_INCOMPLETA");
+            return null;
+        }
+        return t;
+    }
+
+    /** "30 s", "1 min", "1 min 30 s". */
+    static String duracao(int segundos) {
+        int min = segundos / 60;
+        int seg = segundos % 60;
+        if (min == 0) {
+            return seg + " s";
+        }
+        return seg == 0 ? min + " min" : min + " min " + seg + " s";
     }
 
     /** Quantidade de séries de um tipo: ausente = 0; não inteiro ou negativo = inválida; acima de 10 = ignorada. */

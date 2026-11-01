@@ -122,15 +122,31 @@ public final class MontagemDaImportacao {
                            Predicate<String> videoValido) {
     }
 
-    /** Dono das linhas: o aluno novo (linha na aba de alunos) ou o que já existe. */
-    public record Dono(Integer linha, UUID existente) {
-    }
+    /**
+     * Dono das linhas: o aluno novo (linha na aba de alunos), o que já existe, ou o aluno novo que só tem o nome (o nome
+     * da aba de um aluno ou o título de um bloco; {@code chave} = o nome comparável).
+     */
+    public record Dono(Integer linha, UUID existente, String chave) {
+        public Dono(Integer linha, UUID existente) {
+            this(linha, existente, null);
+        }
 
-    public record AlunoNovo(int linha, String nome, String email, String telefone, String objetivo, String observacoes,
-                            boolean ativo) {
         @Override
         public String toString() {
-            return "AlunoNovo[linha=" + linha + "]"; // nunca o nome, o e-mail nem o telefone
+            return "Dono[linha=" + linha + "]"; // nunca a chave (é o nome do aluno)
+        }
+    }
+
+    /** {@code linha} = a linha na aba de alunos (nulo no aluno que veio do nome da aba ou do título de um bloco). */
+    public record AlunoNovo(Dono dono, String nome, String email, String telefone, String objetivo, String observacoes,
+                            boolean ativo) {
+        public Integer linha() {
+            return dono.linha();
+        }
+
+        @Override
+        public String toString() {
+            return "AlunoNovo[linha=" + dono.linha() + "]"; // nunca o nome, o e-mail nem o telefone
         }
     }
 
@@ -151,10 +167,14 @@ public final class MontagemDaImportacao {
         }
     }
 
+    /**
+     * {@code abasComNomeDeAluno} = os nomes das abas que são o nome de um aluno (aba de um aluno ou em blocos): o
+     * histórico guarda "Aba N" no lugar deles.
+     */
     public record Montagem(List<AlunoNovo> alunosNovos, int alunosReaproveitados, List<PesoNovo> pesos, int pesosIniciais,
                            int pesosJaRegistrados, List<ExercicioNovo> exerciciosNovos, List<PlanosDoAluno> planos,
                            int suplementosSensiveisPulados, int faixasRecuperadasDeData, List<Problema> problemas, int linhas,
-                           List<PartePulada> partesPuladas, Pendencias pendencias) {
+                           List<PartePulada> partesPuladas, Pendencias pendencias, Map<String, String> abasComNomeDeAluno) {
         @Override
         public String toString() {
             return "Montagem"; // só contagens saem daqui por texto
@@ -217,6 +237,12 @@ public final class MontagemDaImportacao {
         private int faixasDeData;
         private int sensiveisPulados;
         private int alunosAbaIndice = -1;
+        private final List<AlunoNovo> novos = new ArrayList<>();
+        private int reaproveitados;
+        private Long vagas;
+        private final Map<String, List<AlunoExistente>> existentesPorNome = new HashMap<>();
+        /** Aluno de cada nome de aba ou de bloco (a chave do nome), já resolvido. */
+        private final Map<String, Achado> donosPorNome = new HashMap<>();
 
         Execucao(Leitura leitura, RespostasDaPlanilha respostas, Contexto ctx) {
             this.leitura = leitura;
@@ -244,11 +270,14 @@ public final class MontagemDaImportacao {
                 alimentoPorId.put(a.id(), a);
             }
             this.metodologia = ctx.metodologia() != null ? ctx.metodologia().configuracao() : ConfiguracaoConsultoria.padrao();
+            this.vagas = ctx.vagas();
+            for (AlunoExistente e : ctx.alunos()) {
+                existentesPorNome.computeIfAbsent(Normalizacao.chaveDoNome(e.nome()), k -> new ArrayList<>()).add(e);
+            }
         }
 
         Montagem executar() {
-            List<AlunoNovo> novos = new ArrayList<>();
-            int reaproveitados = alunos(novos);
+            alunos();
             List<PartePulada> puladas = new ArrayList<>();
             boolean temSensivel = abas.stream().anyMatch(a -> a.indice() == alunosAbaIndice
                     && (a.reconhecimento().tem(Campo.OBJETIVO) || a.reconhecimento().tem(Campo.OBSERVACAO)));
@@ -295,9 +324,15 @@ public final class MontagemDaImportacao {
             int linhas = abas.stream().filter(a -> a.tipo() != TipoDeAba.DESCONHECIDA).mapToInt(a -> a.dados().size()).sum();
             Pendencias pendencias = new Pendencias(exerciciosProvaveis.size(), alimentosProvaveis.size(), ligacoesAmbiguas,
                     suplementosPendentes.size());
+            Map<String, String> abasComNome = new LinkedHashMap<>();
+            for (AbaReconhecida a : abas) {
+                if (!a.emTabela() && FormatoDasAbas.alunoDoNomeDaAba(a.nome()).isPresent()) {
+                    abasComNome.put(a.nome(), "Aba " + (a.indice() + 1));
+                }
+            }
             return new Montagem(List.copyOf(novos), reaproveitados, List.copyOf(pesos), iniciaisEJa[0], iniciaisEJa[1],
                     List.copyOf(exerciciosNovos.values()), List.copyOf(planos), sensiveisPulados, faixasDeData,
-                    List.copyOf(problemas), linhas, List.copyOf(puladas), pendencias);
+                    List.copyOf(problemas), linhas, List.copyOf(puladas), pendencias, Map.copyOf(abasComNome));
         }
 
         private void problema(AbaReconhecida aba, int linha, Campo campo, String tipo) {
@@ -306,26 +341,22 @@ public final class MontagemDaImportacao {
 
         // ------------------------------------------------------------------------------------------------ alunos
 
-        /** Alunos da primeira aba de alunos (a mãe das ligações). Devolve quantos já existiam e foram reaproveitados. */
-        private int alunos(List<AlunoNovo> novos) {
+        /** Alunos da primeira aba de alunos (a mãe das ligações); os que já existiam contam como reaproveitados. */
+        private void alunos() {
             AbaReconhecida aba = abas.stream().filter(a -> a.tipo() == TipoDeAba.ALUNOS).findFirst().orElse(null);
             if (aba == null) {
-                return 0;
+                return;
             }
             alunosAbaIndice = aba.indice();
             Reconhecimento r = aba.reconhecimento();
             int cCodigo = r.coluna(Campo.CODIGO);
             Set<String> codigos = new HashSet<>();
             Map<String, AlunoExistente> porEmail = new HashMap<>();
-            Map<String, List<AlunoExistente>> porNome = new HashMap<>();
             for (AlunoExistente e : ctx.alunos()) {
                 if (e.email() != null && !e.email().isBlank()) {
                     porEmail.putIfAbsent(Emails.normalizar(e.email()), e);
                 }
-                porNome.computeIfAbsent(Normalizacao.chaveDoNome(e.nome()), k -> new ArrayList<>()).add(e);
             }
-            Long vagas = ctx.vagas();
-            int reaproveitados = 0;
             for (Linha l : aba.dados()) {
                 String codigo = AnaliseDaPlanilha.texto(l, cCodigo).toLowerCase(Locale.ROOT);
                 if (cCodigo >= 0 && codigo.isEmpty()) {
@@ -355,7 +386,7 @@ public final class MontagemDaImportacao {
                 }
                 AlunoExistente existente = email.isEmpty() ? null : porEmail.get(Emails.normalizar(email));
                 if (existente == null) {
-                    List<AlunoExistente> mesmos = porNome.getOrDefault(Normalizacao.chaveDoNome(nome), List.of());
+                    List<AlunoExistente> mesmos = existentesPorNome.getOrDefault(Normalizacao.chaveDoNome(nome), List.of());
                     if (mesmos.size() > 1) {
                         problema(aba, l.numero(), Campo.ALUNO, "ALUNO_EXISTENTE_AMBIGUO");
                         continue;
@@ -380,16 +411,72 @@ public final class MontagemDaImportacao {
                         }
                         vagas--;
                     }
-                    novos.add(new AlunoNovo(l.numero(), nome, email.isEmpty() ? null : email, telefone(aba, l),
+                    dono = new Dono(l.numero(), null);
+                    novos.add(new AlunoNovo(dono, nome, email.isEmpty() ? null : email, telefone(aba, l),
                             sensivel(aba, l, Campo.OBJETIVO, OBJETIVO), sensivel(aba, l, Campo.OBSERVACAO, OBSERVACOES_ALUNO),
                             ativo));
-                    dono = new Dono(l.numero(), null);
                 }
                 alunosPorLinha.put(l.numero(), dono);
                 nomes.put(dono, nome);
                 guardarPesoInicial(aba, l, dono);
             }
-            return reaproveitados;
+        }
+
+        /**
+         * O aluno de uma aba de um aluno ou de um bloco, pelo nome (uma vez por nome): o da aba de alunos da planilha com
+         * esse nome; senão o que já existe na consultoria com esse nome (só um); senão um aluno novo, só com o nome
+         * (ativo, sem convite, conta a vaga do plano). Nome que aparece em mais de um aluno não liga nada.
+         */
+        private Achado donoPorNome(String nome) {
+            String limpo = linhaUnica(nome);
+            if (limpo.isEmpty()) {
+                return new Achado(null, "BLOCO_SEM_ALUNO");
+            }
+            if (limpo.length() > NOME_ALUNO) {
+                return new Achado(null, "NOME_LONGO_DEMAIS");
+            }
+            String k = Normalizacao.chaveDoNome(limpo);
+            return donosPorNome.computeIfAbsent(k, x -> resolverPorNome(limpo, x));
+        }
+
+        private Achado resolverPorNome(String nome, String chave) {
+            AbaReconhecida abaDeAlunos = alunosAbaIndice < 0 ? null : abas.get(alunosAbaIndice);
+            if (abaDeAlunos != null) {
+                int coluna = abaDeAlunos.reconhecimento().coluna(Campo.ALUNO);
+                List<Linha> mesmas = abaDeAlunos.dados().stream()
+                        .filter(l -> chave.equals(Normalizacao.chaveDoNome(AnaliseDaPlanilha.texto(l, coluna)))).toList();
+                if (mesmas.size() > 1) {
+                    return new Achado(null, "ALUNO_DO_BLOCO_AMBIGUO");
+                }
+                if (mesmas.size() == 1) {
+                    Dono d = alunosPorLinha.get(mesmas.getFirst().numero());
+                    return d == null ? new Achado(null, "ALUNO_FORA") : new Achado(d, null);
+                }
+            }
+            List<AlunoExistente> mesmos = existentesPorNome.getOrDefault(chave, List.of());
+            if (mesmos.size() > 1) {
+                return new Achado(null, "ALUNO_EXISTENTE_AMBIGUO");
+            }
+            if (mesmos.size() == 1) {
+                AlunoExistente e = mesmos.getFirst();
+                if (e.anonimizado()) {
+                    return new Achado(null, "ALUNO_ANONIMIZADO");
+                }
+                Dono d = new Dono(null, e.id());
+                reaproveitados++;
+                nomes.put(d, nome);
+                return new Achado(d, null);
+            }
+            if (vagas != null) {
+                if (vagas <= 0) {
+                    return new Achado(null, "LIMITE_DO_PLANO");
+                }
+                vagas--;
+            }
+            Dono d = new Dono(null, null, chave);
+            novos.add(new AlunoNovo(d, nome, null, null, null, null, true));
+            nomes.put(d, nome);
+            return new Achado(d, null);
         }
 
         private String telefone(AbaReconhecida aba, Linha l) {
@@ -516,10 +603,31 @@ public final class MontagemDaImportacao {
             return escolhidos;
         }
 
-        /** Linhas das abas do tipo, por dono (na ordem das abas e das linhas); a linha sem dono vira problema. */
+        /**
+         * Linhas das abas do tipo, por dono (na ordem das abas e das linhas); a linha sem dono vira problema. Na aba de um
+         * aluno ou em blocos, cada bloco vai inteiro ao aluno do nome (o bloco sem aluno vira um problema só, na linha
+         * do cabeçalho), e a linha leva a parte do bloco (com o título dele).
+         */
         private Map<Dono, List<Object[]>> linhasPorDono(TipoDeAba tipo) {
             Map<Dono, List<Object[]>> porDono = new LinkedHashMap<>();
             for (AbaReconhecida aba : abas) {
+                if (!aba.emTabela()) {
+                    for (AbaReconhecida parte : aba.partes()) {
+                        FormatoDasAbas.Bloco b = parte.bloco();
+                        if (parte.tipo() != tipo || b == null || parte.dados().isEmpty()) {
+                            continue;
+                        }
+                        Achado a = donoPorNome(b.aluno());
+                        if (a.dono() == null) {
+                            problema(parte, b.linhaDoCabecalho(), Campo.ALUNO, a.motivo());
+                            continue;
+                        }
+                        for (Linha l : parte.dados()) {
+                            porDono.computeIfAbsent(a.dono(), k -> new ArrayList<>()).add(new Object[] {parte, l});
+                        }
+                    }
+                    continue;
+                }
                 if (aba.tipo() != tipo) {
                     continue;
                 }
@@ -718,7 +826,7 @@ public final class MontagemDaImportacao {
                     Linha l = (Linha) par[1];
                     Reconhecimento r = aba.reconhecimento();
                     String letra = linhaUnica(AnaliseDaPlanilha.texto(l, r.coluna(Campo.LETRA_TREINO))).toUpperCase(Locale.ROOT);
-                    String nomeTreino = linhaUnica(AnaliseDaPlanilha.texto(l, r.coluna(Campo.NOME_TREINO)));
+                    String nomeTreino = nomeDoTreino(aba, l);
                     if (r.tem(Campo.LETRA_TREINO) && letra.isEmpty()) {
                         problema(aba, l.numero(), Campo.LETRA_TREINO, "EXERCICIO_SEM_LETRA_DO_TREINO");
                         continue;
@@ -757,7 +865,7 @@ public final class MontagemDaImportacao {
             AbaReconhecida aba = (AbaReconhecida) doTreino.getFirst()[0];
             Linha primeira = (Linha) doTreino.getFirst()[1];
             Reconhecimento r = aba.reconhecimento();
-            String nome = linhaUnica(AnaliseDaPlanilha.texto(primeira, r.coluna(Campo.NOME_TREINO)));
+            String nome = nomeDoTreino(aba, primeira);
             if (nome.isEmpty()) {
                 nome = chave.isEmpty() ? "Treino" : "Treino " + chave;
                 if (r.tem(Campo.NOME_TREINO) || r.tem(Campo.LETRA_TREINO)) {
@@ -791,6 +899,13 @@ public final class MontagemDaImportacao {
                     List.copyOf(exercicios), List.of());
         }
 
+        /** O nome do treino da linha: a coluna "Nome do treino"; sem ela, o título do bloco (aba de um aluno ou blocos). */
+        private String nomeDoTreino(AbaReconhecida aba, Linha l) {
+            String nome = linhaUnica(AnaliseDaPlanilha.texto(l, aba.reconhecimento().coluna(Campo.NOME_TREINO)));
+            FormatoDasAbas.Bloco b = aba.bloco();
+            return nome.isEmpty() && b != null && b.titulo() != null ? linhaUnica(b.titulo()) : nome;
+        }
+
         private ExercicioPlano exercicioDaLinha(AbaReconhecida aba, Linha l) {
             Reconhecimento r = aba.reconhecimento();
             String completo = linhaUnica(AnaliseDaPlanilha.texto(l, r.coluna(Campo.EXERCICIO)));
@@ -818,9 +933,11 @@ public final class MontagemDaImportacao {
             boolean formatoDeContagem = r.tem(Campo.SERIES_TRABALHO) || r.tem(Campo.SERIES_PREPARACAO)
                     || r.tem(Campo.TOP_SET) || r.tem(Campo.BACK_OFF);
             List<Serie> series = formatoDeContagem ? seriesPorContagem(aba, l) : seriesPorPrescricao(aba, l, obs);
-            String descanso = linhaUnica(AnaliseDaPlanilha.texto(l, r.coluna(Campo.DESCANSO)));
-            if (!descanso.isEmpty()) {
-                obs.add("Descanso: " + descanso);
+            if (formatoDeContagem) {
+                String descanso = linhaUnica(AnaliseDaPlanilha.texto(l, r.coluna(Campo.DESCANSO)));
+                if (!descanso.isEmpty()) {
+                    obs.add("Descanso: " + descanso);
+                }
             }
             if (series.isEmpty()) {
                 problema(aba, l.numero(), null, "EXERCICIO_SEM_SERIE");
@@ -856,24 +973,34 @@ public final class MontagemDaImportacao {
         }
 
         /**
-         * Formato livre (uma coluna de prescrição, ou séries e repetições separadas): só nasce série quando a quantidade de
-         * séries está escrita; todas do tipo de trabalho da metodologia, com as repetições entendidas (ou sem elas), AMRAP
-         * só quando escrito e "até a falha" como RIR 0. O texto original da prescrição vai para a observação sempre que
-         * algo dele não coube nas séries (carga em kg, técnica, sobra ou repetição sem quantidade de séries).
+         * Formato livre (uma coluna de prescrição, ou séries e repetições separadas): o que o {@link LeitorDePrescricao}
+         * entende das colunas da linha é juntado (o primeiro valor de cada coisa vale) e vira séries pelo
+         * {@link MontagemDeSeries#porPrescricao}. O descanso vem da coluna "Descanso" (só tempo com unidade) ou do texto
+         * da prescrição. O texto original vai para a observação sempre que algo dele não coube nas séries (carga em kg,
+         * técnica, sobra), quando nenhuma série nasceu, ou quando a técnica entrou com o padrão da metodologia.
          */
         private List<Serie> seriesPorPrescricao(AbaReconhecida aba, Linha l, List<String> obs) {
             Reconhecimento r = aba.reconhecimento();
             Integer quantidade = null;
             Integer min = null;
             Integer max = null;
+            List<Integer> piramide = null;
             boolean amrap = false;
             boolean falha = false;
+            Integer duracao = null;
+            Integer descanso = null;
+            Integer rir = null;
+            BigDecimal rpe = null;
+            LeitorDePrescricao.TecnicaEscrita tecnica = null;
+            boolean tecnicasDiferentes = false;
             List<String> foraDasSeries = new ArrayList<>();
+            List<String> todos = new ArrayList<>();
             for (Campo campo : List.of(Campo.SERIES, Campo.PRESCRICAO, Campo.REPETICOES, Campo.CARGA)) {
                 Celula c = LigacaoDeAbas.celula(l, r.coluna(campo));
                 if (ReconhecimentoDeAbas.vazia(c) || c.erro()) {
                     continue;
                 }
+                todos.add(c.numero() ? c.texto() : linhaUnica(c.texto()));
                 if (campo == Campo.SERIES && c.numero()) {
                     MontagemDeSeries.Numero n = MontagemDeSeries.numero(c);
                     boolean ok = n.valor() != null && n.valor().stripTrailingZeros().scale() <= 0
@@ -890,43 +1017,52 @@ public final class MontagemDaImportacao {
                 if (p.faixaDeData()) {
                     faixasDeData++;
                 }
-                if (quantidade == null && p.series() != null) {
+                if (p.piramide() != null && piramide == null && min == null) {
+                    piramide = p.piramide();
+                    if (quantidade == null && campo != Campo.REPETICOES) {
+                        quantidade = p.series();
+                    }
+                } else if (quantidade == null && p.series() != null) {
                     quantidade = p.series();
                 }
-                if (min == null && p.repsMin() != null) {
+                if (min == null && piramide == null && p.repsMin() != null) {
                     min = p.repsMin();
                     max = p.repsMax();
                 }
                 amrap |= p.amrap();
                 falha |= p.ateAFalha();
+                duracao = duracao == null ? p.duracaoSegundos() : duracao;
+                descanso = descanso == null ? p.descansoSegundos() : descanso;
+                rir = rir == null ? p.rir() : rir;
+                rpe = rpe == null ? p.rpe() : rpe;
+                if (p.tecnica() != null) {
+                    tecnicasDiferentes |= tecnica != null && tecnica.tipo() != p.tecnica().tipo();
+                    tecnica = tecnica == null ? p.tecnica() : tecnica;
+                }
                 boolean tudoNasSeries = p.cargaKg() == null && p.tecnicas().isEmpty() && p.sobra().isEmpty();
                 if (!tudoNasSeries && !c.numero()) {
                     foraDasSeries.add(linhaUnica(c.texto()));
                 }
             }
-            List<Serie> series = new ArrayList<>();
-            TipoDeSerie trabalho = MontagemDeSeries.tipo(metodologia, "WORKING", Papel.TRABALHO, ConteudoTreino.CARGA_TRABALHO);
-            if (quantidade != null && trabalho == null) {
-                problema(aba, l.numero(), null, "TIPO_FORA_DA_METODOLOGIA");
-            } else if (quantidade != null) {
-                for (int i = 0; i < quantidade; i++) {
-                    series.add(new Serie(UUID.randomUUID(), trabalho.codigo().trim(), amrap ? null : min, amrap ? null : max,
-                            amrap ? Boolean.TRUE : null, Carga.de(ConteudoTreino.CARGA_TRABALHO), falha ? Esforco.deRir(0) : null,
-                            null, null, null, null));
-                }
+            Celula colunaDescanso = LigacaoDeAbas.celula(l, r.coluna(Campo.DESCANSO));
+            String textoDescanso = ReconhecimentoDeAbas.vazia(colunaDescanso) || colunaDescanso.erro() ? ""
+                    : linhaUnica(colunaDescanso.texto());
+            Integer daColuna = colunaDescanso != null && !colunaDescanso.numero() ? LeitorDePrescricao.descanso(textoDescanso) : null;
+            if (daColuna != null) {
+                descanso = daColuna;
             }
-            if (quantidade == null && (min != null || amrap || falha)) {
-                Celula c = LigacaoDeAbas.celula(l, r.coluna(Campo.REPETICOES));
-                String reps = ReconhecimentoDeAbas.vazia(c) ? "" : c.numero()
-                        ? (min.equals(max) ? String.valueOf(min) : min + " a " + max) : linhaUnica(c.texto());
-                if (!reps.isEmpty() && !foraDasSeries.contains(reps)) {
-                    foraDasSeries.add(reps);
-                }
+            MontagemDeSeries.PorPrescricao res = MontagemDeSeries.porPrescricao(new MontagemDeSeries.Prescrita(quantidade, min,
+                    max, piramide, amrap, falha, duracao, descanso, rir, rpe, tecnicasDiferentes ? null : tecnica), metodologia);
+            res.avisos().forEach(a -> problema(aba, l.numero(), null, a));
+            if (!textoDescanso.isEmpty() && (daColuna == null || res.series().isEmpty())) {
+                obs.add("Descanso: " + textoDescanso);
             }
-            if (!foraDasSeries.isEmpty()) {
-                obs.add("Prescrição na planilha: " + String.join("; ", foraDasSeries));
+            obs.addAll(res.observacoes());
+            List<String> texto = res.series().isEmpty() || res.manterTexto() ? todos : foraDasSeries;
+            if (!texto.isEmpty()) {
+                obs.add("Prescrição na planilha: " + String.join("; ", texto));
             }
-            return series;
+            return res.series();
         }
 
         /** Orientações do treino: as colunas de texto da linha da rotina que não são identificação, com o título. */
@@ -1041,7 +1177,7 @@ public final class MontagemDaImportacao {
                 Celula ref = LigacaoDeAbas.celula(l, r.coluna(Campo.REFEICAO));
                 String chave;
                 if (!r.tem(Campo.REFEICAO)) {
-                    chave = linhaUnica(AnaliseDaPlanilha.texto(l, r.coluna(Campo.TITULO))).toLowerCase(Locale.ROOT);
+                    chave = tituloDaRefeicao(aba, l).toLowerCase(Locale.ROOT);
                 } else if (ReconhecimentoDeAbas.vazia(ref)) {
                     problema(aba, l.numero(), Campo.REFEICAO, "ITEM_SEM_REFEICAO");
                     continue;
@@ -1137,7 +1273,7 @@ public final class MontagemDaImportacao {
                 }
                 opcoes.add(new ConteudoDieta.Opcao(UUID.randomUUID(), e.getKey(), List.copyOf(itens)));
             }
-            String titulo = linhaUnica(AnaliseDaPlanilha.texto(primeira, r.coluna(Campo.TITULO)));
+            String titulo = tituloDaRefeicao(aba, primeira);
             if (titulo.isEmpty() && numero == null && !chave.isEmpty()) {
                 titulo = linhaUnica(AnaliseDaPlanilha.texto(primeira, r.coluna(Campo.REFEICAO)));
             }
@@ -1149,6 +1285,13 @@ public final class MontagemDaImportacao {
             return new ConteudoDieta.Refeicao(UUID.randomUUID(), cortar(aba, primeira.numero(), Campo.TITULO, titulo, REFEICAO_NOME),
                     null, obs.isEmpty() ? null : cortar(aba, primeira.numero(), Campo.OBSERVACAO, obs, REFEICAO_OBS),
                     List.copyOf(opcoes));
+        }
+
+        /** O título da refeição: a coluna "Título"; sem ela, o título do bloco (aba de um aluno ou blocos). */
+        private String tituloDaRefeicao(AbaReconhecida aba, Linha l) {
+            String titulo = linhaUnica(AnaliseDaPlanilha.texto(l, aba.reconhecimento().coluna(Campo.TITULO)));
+            FormatoDasAbas.Bloco b = aba.bloco();
+            return titulo.isEmpty() && b != null && b.titulo() != null ? linhaUnica(b.titulo()) : titulo;
         }
 
         private ConteudoDieta.Item item(AbaReconhecida aba, Linha l) {

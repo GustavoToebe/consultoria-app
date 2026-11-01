@@ -263,7 +263,7 @@ class PapeisBancoIntegrationTest extends AbstractIntegrationTest {
             try (ConfigurableApplicationContext api = subirApi(banco, migrador, app,
                     contexto -> contexto.getBeanFactory().registerSingleton("leitorDoLockTimeout", leitorDoLockTimeout(lockTimeoutDoFlyway)))) {
                 assertThat(api.isRunning()).isTrue();
-                // Prova que o leitor rodou (50 migrations) e que todas viram 60 s (60000 ms); lista vazia seria teste sem efeito.
+                // Prova que o leitor rodou (51 migrations) e que todas viram 60 s (60000 ms); lista vazia seria teste sem efeito.
                 assertThat(lockTimeoutDoFlyway).isNotEmpty().containsOnly("60000");
                 // O limite é só do Flyway: o datasource da API segue com o padrão do Postgres (0 = esperar).
                 try (Connection c = api.getBean(DataSource.class).getConnection()) {
@@ -299,7 +299,7 @@ class PapeisBancoIntegrationTest extends AbstractIntegrationTest {
             var primeira = Flyway.configure().dataSource(urlDe(banco), migrador, SENHA_MIGRADOR).locations("classpath:db/migration")
                     .placeholders(papel).load().migrate();
             assertThat(primeira.success).isTrue();
-            assertThat(primeira.migrationsExecuted).isEqualTo(50);
+            assertThat(primeira.migrationsExecuted).isEqualTo(51);
             try (Connection c = como(banco, app, SENHA_APP); Statement st = c.createStatement()) {
                 assertThatThrownBy(() -> st.executeQuery("SELECT * FROM flyway_schema_history")).hasMessageContaining("permission denied");
             }

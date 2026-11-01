@@ -22,7 +22,7 @@ export const ACOES_AUDITORIA:Record<string,string>={
   ALUNO_QUESTIONARIO_ALTERADO:'Questionário do aluno alterado',
   LESAO_REGISTRADA:'Lesão registrada',LESAO_ALTERADA:'Lesão editada',PESO_REGISTRADO:'Peso registrado',
   AVALIACAO_FISICA_REGISTRADA:'Avaliação física registrada',AVALIACAO_FISICA_ALTERADA:'Avaliação física editada',AVALIACAO_FISICA_EXCLUIDA:'Avaliação física excluída',
-  IMPORTACAO_CONCLUIDA:'Importação de planilha confirmada',IMPORTACAO_DESFEITA:'Importação da planilha completa desfeita',
+  IMPORTACAO_CONCLUIDA:'Importação de planilha confirmada',IMPORTACAO_DESFEITA:'Importação da planilha completa desfeita',IMPORTACAO_RESPOSTAS_ESQUECIDAS:'Respostas salvas da planilha completa esquecidas',
   ATUALIZACAO_FEEDBACK:'Feedback de atualização enviado ou editado',MARCA_ALTERADA:'Marca alterada',
   LOGO_ALTERADA:'Logo alterada',LOGO_REMOVIDA:'Logo removida',
   PLANO_COMERCIAL_CRIADO:'Plano comercial criado',PLANO_COMERCIAL_ALTERADO:'Plano comercial editado',PLANO_COMERCIAL_ARQUIVADO:'Plano comercial arquivado',
