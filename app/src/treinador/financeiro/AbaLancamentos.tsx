@@ -1,5 +1,5 @@
 import { Plus } from 'lucide-react-native';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -7,9 +7,16 @@ import type { LancamentoResponse, TipoDeLancamento } from '../../api/financeiroT
 import { alterarLancamento, criarLancamento, excluirLancamento, listarLancamentos, painelFinanceiro } from '../../api/rotas';
 import { hojeEmBrasilia, LIMITES, periodoDoMes, validarLancamento } from '../../dominio/financeiro';
 import { dataSemAnoCorrente } from '../../dominio/datasRelativas';
+import { paraSetParams, temPeriodo } from '../../dominio/filtrosComuns';
+import {
+  CHAVES_DE_LANCAMENTOS, chipsDosLancamentos, lancamentosParaEndereco, lerLancamentosDoEndereco, SEM_FILTROS_DE_LANCAMENTOS,
+  type FiltrosDeLancamentos,
+} from '../../dominio/filtrosDoFinanceiro';
 import { centavosDaTela, centavosParaCampo, centavosParaTela, dataDaTela, dataParaTela } from '../../dominio/formatos';
 import { espaco } from '../../tema/tokens';
+import { CamposDePeriodo, CelulaDoFiltro } from '../SeletoresDeFiltro';
 import { useAviso } from '../../ui/Aviso';
+import { BarraDeFiltros } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { CampoLeitura } from '../../ui/CampoLeitura';
@@ -39,12 +46,20 @@ const rotuloDoTipo = (t: TipoDeLancamento) => (t === 'SAIDA' ? 'Saída' : 'Entra
 /**
  * Lançamentos avulsos da consultoria (aluguel, equipamento, entrada que não vem de plano). Entram no "Resultado do mês
  * (entradas − saídas registradas)". Categoria é texto livre. Criar, editar e excluir exigem `FINANCEIRO_ALTERAR`; a
- * edição e a exclusão levam a versão vista, e um 409 recarrega a lista.
+ * edição e a exclusão levam a versão vista, e um 409 recarrega a lista. O período (data do lançamento) fica na barra de
+ * filtros, no endereço junto do `?aba=lancamentos` (`?de=&ate=`).
  */
 export function AbaLancamentos({ podeAlterar }: { podeAlterar: boolean }) {
   const [pagina, setPagina] = useState(0);
   const [aberto, setAberto] = useState<LancamentoResponse | 'novo' | null>(null);
-  const lista = useCarregar(`lancamentos|${pagina}`, () => listarLancamentos({ pagina }));
+  const filtros = lerLancamentosDoEndereco(useLocalSearchParams<{ de?: string; ate?: string }>());
+  const { de, ate } = filtros.periodo;
+  const lista = useCarregar(`lancamentos|${de ?? ''}|${ate ?? ''}|${pagina}`, () => listarLancamentos({ pagina, de: de ?? undefined, ate: ate ?? undefined }));
+  const aplicar = (novos: FiltrosDeLancamentos) => {
+    setPagina(0);
+    router.setParams(paraSetParams(CHAVES_DE_LANCAMENTOS, lancamentosParaEndereco(novos)));
+  };
+  const filtrado = temPeriodo(filtros.periodo);
   const mes = periodoDoMes(hojeEmBrasilia());
   const resultado = useCarregar(`lancamentos-resultado|${mes.de}`, () => painelFinanceiro({ ...mes, meus: false }));
   const dados = lista.dados;
@@ -62,10 +77,16 @@ export function AbaLancamentos({ podeAlterar }: { podeAlterar: boolean }) {
       </View>
       {resultado.erro ? <MensagemErro texto={textoDoErro(resultado.erro)} erro={resultado.erro} tentarDeNovo={recarregarResultado} /> : null}
       {resultado.dados ? <ResultadoDoMes resultado={resultado.dados.resultadoDoMes} /> : null}
+      <BarraDeFiltros valor={filtros} aoAplicar={aplicar} limpo={SEM_FILTROS_DE_LANCAMENTOS} chips={chipsDosLancamentos(filtros)}
+        aoTirar={() => aplicar(SEM_FILTROS_DE_LANCAMENTOS)} rotuloDoResultado="Ver lançamentos"
+        seletores={(atuais, mudar) => (
+          <CelulaDoFiltro><CamposDePeriodo rotulo="Data do lançamento" valor={atuais.periodo} aoMudar={(periodo) => mudar({ periodo })} /></CelulaDoFiltro>
+        )} />
       {lista.erro ? <MensagemErro texto={textoDoErro(lista.erro)} erro={lista.erro} tentarDeNovo={recarregarLista} /> : null}
       {!dados && lista.carregando ? <Esqueleto /> : null}
       {dados && dados.itens.length === 0 ? (
-        <Vazio titulo="Nenhum lançamento" texto={podeAlterar ? 'Toque em Novo lançamento para registrar a primeira entrada ou saída.' : 'Os lançamentos registrados pela equipe aparecem aqui.'} />
+        filtrado ? <Vazio titulo="Nenhum lançamento nesse período" texto="Tente outras datas." acao={{ rotulo: 'Limpar filtros', aoTocar: () => aplicar(SEM_FILTROS_DE_LANCAMENTOS) }} />
+          : <Vazio titulo="Nenhum lançamento" texto={podeAlterar ? 'Toque em Novo lançamento para registrar a primeira entrada ou saída.' : 'Os lançamentos registrados pela equipe aparecem aqui.'} />
       ) : null}
       {dados && dados.itens.length > 0 ? (
         <Cartao descricao={`${dados.total} ${dados.total === 1 ? 'lançamento' : 'lançamentos'}, do mais recente ao mais antigo. Toque na linha para abrir.`}>

@@ -1,11 +1,9 @@
 import { Permitido } from '../../ui/Permitido';
 import { Pencil, Plus, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
 
 import { alterarExercicio, criarExercicio, inativarExercicio, listarExercicios } from '../../api/rotas';
 import type { Exercicio, ExercicioRequest, Modalidade } from '../../api/tipos';
-import { espaco } from '../../tema/tokens';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
@@ -26,8 +24,8 @@ import { erroDoVideo } from '../../dominio/video';
 import { MODALIDADES } from '../../dominio/modalidades';
 import { normalizar } from '../treino/FolhaBiblioteca';
 import { DemonstracaoDoExercicio } from '../../ui/DemonstracaoDoExercicio';
-import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
 import { marcadosExistentes } from '../../dominio/selecaoMultiplaSuspensa';
+import { BarraDaBiblioteca } from './BarraDaBiblioteca';
 import { ImagemDoExercicioEditor } from './ImagemDoExercicioEditor';
 
 const OPCOES_MODALIDADE = Object.entries(MODALIDADES).map(([valor, rotulo]) => ({ valor: valor as Modalidade, rotulo }));
@@ -68,13 +66,8 @@ export function AbaExercicios() {
       titulo="Exercícios da biblioteca"
       descricao="Os exercícios que você escolhe ao montar o treino, com vídeo quando houver."
       acoes={<Permitido codigo="BIBLIOTECA_ALTERAR"><Botao rotulo="Novo exercício" Icone={Plus} aoTocar={() => setEditando('novo')} /></Permitido>}>
-      <View style={estilos.filtros}>
-        <View style={estilos.busca}>
-          <Campo rotulo="Buscar exercício" valor={busca} aoMudar={setBusca} placeholder="Nome ou grupo" />
-        </View>
-        {/* Os grupos passam de uma dúzia: lista em folha com busca em vez de cinco linhas de chips. */}
-        {grupos.length > 0 ? <SelecaoMultiplaSuspensa rotulo="Grupo muscular" rotuloDeTodos="Todos os grupos" opcoes={opcoesDeGrupo} marcados={gruposMarcados} aoMudar={setGruposMarcados} style={estilos.aoPeDoCampo} /> : null}
-      </View>
+      <BarraDaBiblioteca rotulo="Buscar exercício" placeholder="Nome ou grupo" valor={busca} aoMudar={setBusca}
+        filtro={grupos.length > 0 ? { tipo: 'varias', rotulo: 'Grupo muscular', rotuloDeTodos: 'Todos os grupos', opcoes: opcoesDeGrupo, marcados: gruposAtivos, aoMudar: setGruposMarcados } : null} />
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && lista.length === 0 ? (
@@ -179,8 +172,3 @@ function FolhaExercicio({ inicial, aoFechar, aoSalvar, aoTirar, aoImagemMudou }:
   );
 }
 
-const estilos = StyleSheet.create({
-  filtros: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: espaco(1.5) },
-  aoPeDoCampo: { alignSelf: 'flex-end' },
-  busca: { flexGrow: 1, flexBasis: 220, maxWidth: 480 },
-});

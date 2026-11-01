@@ -40,6 +40,8 @@ test('catálogo: marcar vários grupos filtra por "ou", Marcar todos age só no 
   await expect(page.getByText('Supino reto', { exact: true })).toBeVisible();
   await expect(page.getByText('Tríceps testa', { exact: true })).toBeVisible();
 
+  // O grupo fica no painel "Filtros avançados" da barra de filtros (o botão "Filtros" abre).
+  await page.getByRole('button', { name: 'Filtros, nenhum ligado' }).click();
   const campo = page.getByRole('button', { name: 'Grupo: Todos. Escolher.' });
   await campo.click();
   const painel = page.getByRole('dialog', { name: 'Grupo' });
@@ -66,6 +68,9 @@ test('catálogo: marcar vários grupos filtra por "ou", Marcar todos age só no 
   await page.keyboard.press('Escape');
   await expect(painel).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Grupo: Peito. Escolher.' })).toBeVisible();
+  // O "Filtrado por" mostra o grupo, e o ✕ do chip tira o filtro.
+  await page.getByRole('button', { name: 'Tirar filtro: Grupo: Peito' }).click();
+  await expect.poll(() => consultas.at(-1)).toBe('');
 
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);
@@ -156,6 +161,7 @@ test('exercícios da biblioteca: filtro de vários grupos no cliente', async ({ 
   });
   await page.goto('/treinador/biblioteca');
   await expect(page.getByText('Agacho', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Filtros, nenhum ligado' }).click();
   await page.getByRole('button', { name: 'Grupo muscular: Todos os grupos. Escolher.' }).click();
   const painel = page.getByRole('dialog', { name: 'Grupo muscular' });
   await painel.getByRole('checkbox', { name: 'Peito' }).click();
@@ -164,6 +170,8 @@ test('exercícios da biblioteca: filtro de vários grupos no cliente', async ({ 
   await expect(page.getByText('Supino', { exact: true })).toBeVisible();
   await expect(page.getByText('Remada', { exact: true })).toBeVisible();
   await expect(page.getByText('Agacho', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Filtros, 1 ligado' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Tirar filtro: Grupo muscular: Costas, Peito' })).toBeVisible();
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);
 });

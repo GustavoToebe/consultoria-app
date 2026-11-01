@@ -49,24 +49,37 @@ export function atualizacaoDaPasta(pastaId: string, atual: Atualizacao | null | 
   if (atual?.pastaId === pastaId) return atual;
   return historico.find(a => a.pastaId === pastaId) ?? null;
 }
-/** Lista de onde o treinador veio: a revisão em fila segue o mesmo filtro (`?situacao=&meus=`). */
-export interface FilaDeAtualizacoes { situacao: SituacaoAtualizacao; meus: boolean }
+/**
+ * Lista de onde o treinador veio: a revisão em fila segue o mesmo filtro (`?situacao=&meus=`, e o responsável e o
+ * período da barra de filtros, `?responsavel=&de=&ate=`).
+ */
+export interface FilaDeAtualizacoes { situacao: SituacaoAtualizacao; meus: boolean; responsavel?: string; de?: string; ate?: string }
 const SITUACOES_DA_FILA: readonly SituacaoAtualizacao[] = ['PARA_REVISAR', 'ATRASADAS', 'AVISARAM_ATRASO', 'PROXIMAS'];
-export function filaDosParametros(situacao: string | undefined, meus: string | undefined): FilaDeAtualizacoes | null {
+const ID_DA_FILA = /^[0-9a-z-]{8,64}$/i;
+const DATA_DA_FILA = /^\d{4}-\d{2}-\d{2}$/;
+export function filaDosParametros(situacao: string | undefined, meus: string | undefined,
+  extra: { responsavel?: string; de?: string; ate?: string } = {}): FilaDeAtualizacoes | null {
   const achada = SITUACOES_DA_FILA.find((s) => s === situacao);
-  return achada ? { situacao: achada, meus: meus === 'true' } : null;
+  if (!achada) return null;
+  const fila: FilaDeAtualizacoes = { situacao: achada, meus: meus === 'true' };
+  if (!fila.meus && extra.responsavel && ID_DA_FILA.test(extra.responsavel)) fila.responsavel = extra.responsavel;
+  if (extra.de && extra.ate && DATA_DA_FILA.test(extra.de) && DATA_DA_FILA.test(extra.ate)) { fila.de = extra.de; fila.ate = extra.ate; }
+  return fila;
 }
+/** O resto do endereço da fila: `&responsavel=` e `&de=&ate=` quando há. */
+const restoDaFila = (fila: FilaDeAtualizacoes) =>
+  `${fila.responsavel ? `&responsavel=${encodeURIComponent(fila.responsavel)}` : ''}${fila.de && fila.ate ? `&de=${fila.de}&ate=${fila.ate}` : ''}`;
 export const caminhoAtualizacaoTreinador = (a: Pick<Atualizacao,'id'|'alunoId'>, fila?: FilaDeAtualizacoes | null) => {
   const base = a.id ? `/treinador/atualizacoes/${a.id}` : `/treinador/atualizacoes/previa?alunoId=${a.alunoId}`;
   if (!fila) return base;
-  return `${base}${a.id ? '?' : '&'}situacao=${fila.situacao}${fila.meus ? '&meus=true' : ''}`;
+  return `${base}${a.id ? '?' : '&'}situacao=${fila.situacao}${fila.meus ? '&meus=true' : ''}${restoDaFila(fila)}`;
 };
 /** "Próxima ›": a primeira da lista que não é a atual (ao responder, a atual sai de "Para revisar"). */
 export const proximaDaFila = <T extends { pastaId: string | null }>(itens: readonly T[], pastaAtual: string | null): T | null =>
   itens.find((i) => i.pastaId !== pastaAtual) ?? null;
 /** Lista aberta a partir de um contador do Início: leva junto o escopo "Meus alunos", para o total bater com a lista. */
-export const caminhoListaAtualizacoes = (situacao: string, meus: boolean) =>
-  `/treinador/atualizacoes?situacao=${situacao}${meus ? '&meus=true' : ''}`;
+export const caminhoListaAtualizacoes = (situacao: string, meus: boolean, fila?: Omit<FilaDeAtualizacoes, 'situacao' | 'meus'>) =>
+  `/treinador/atualizacoes?situacao=${situacao}${meus ? '&meus=true' : ''}${fila ? restoDaFila({ situacao: 'PARA_REVISAR', meus, ...fila }) : ''}`;
 /**
  * Selo da atualização para o treinador. `texto` diz de quê ("Atualização em 15 dias") e serve fora das telas de
  * atualização (lista de alunos, pastas, resumo da ficha); `curto` ("Em 15 dias") serve onde o assunto já é a

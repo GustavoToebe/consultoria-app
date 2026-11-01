@@ -447,7 +447,7 @@ export function textoDaColuna(carregados: number, total: number | null | undefin
 
 export function estadoVazio(p: { filtro: FiltroInscricoes; meus: boolean; busca: string; temFiltros: boolean }): { titulo: string; texto: string } {
   if (p.busca.trim()) return { titulo: 'Nada encontrado para esta busca.', texto: 'Confira o nome, o e-mail ou os dígitos do WhatsApp.' };
-  if (p.meus) return { titulo: 'Nenhuma inscrição atribuída a você nesta lista.', texto: 'Veja em "Todos" as inscrições da equipe.' };
+  if (p.meus) return { titulo: 'Nenhuma inscrição atribuída a você nesta lista.', texto: 'Escolha "Toda a equipe" no filtro de responsável para ver as inscrições de todos.' };
   if (p.temFiltros) return { titulo: 'Nenhuma inscrição com estes filtros.', texto: 'Tire um filtro para ver mais.' };
   if (p.filtro === 'ABERTAS') return { titulo: 'Nenhuma inscrição nesta lista', texto: 'Divulgue o link de inscrição: quem se inscrever aparece aqui.' };
   return { titulo: 'Nenhuma inscrição nesta lista', texto: 'Tente outra situação.' };

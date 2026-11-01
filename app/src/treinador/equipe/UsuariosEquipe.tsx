@@ -3,6 +3,8 @@ import { useState } from 'react';
 import { Platform, Share, View } from 'react-native';
 import * as api from '../../api/rotas';
 import type { ConviteEquipe, MembroEquipe, PerfilEquipe } from '../../api/equipeTipos';
+import { naOrdem } from '../../dominio/filtrosComuns';
+import { chipsDosFiltros, filtrarMembros, SEM_FILTROS, semOFiltro, SITUACOES_DO_MEMBRO, type ChaveDoFiltro, type FiltrosDeMembros } from '../../dominio/filtrosDeMembros';
 import { dataHoraParaTela } from '../../dominio/formatos';
 import { MOTIVO_FORA_DO_PLANO } from '../../dominio/funcionalidadesDoPlano';
 import { perfisAtribuiveis, podeCancelarConvite, podeEditarMembro } from '../../dominio/perfilEquipe';
@@ -10,21 +12,24 @@ import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
+import { BarraDeFiltros } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
 import { CaixaSelecao } from '../../ui/CaixaSelecao';
 import { Campo } from '../../ui/Campo';
 import { CampoLeitura } from '../../ui/CampoLeitura';
 import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
-import { MensagemErro } from '../../ui/Estados';
+import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { NoPlano } from '../../ui/NoPlano';
 import { Permitido } from '../../ui/Permitido';
+import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useAvisoDoPlano } from '../../ui/useAvisoDoPlano';
+import { CelulaDoFiltro } from '../SeletoresDeFiltro';
 import { useAtorEquipe } from './useAtorEquipe';
 
 export function UsuariosEquipe({membros,perfis,recarregar}:{membros:MembroEquipe[];perfis:PerfilEquipe[];recarregar:()=>void}) {
@@ -35,10 +40,21 @@ export function UsuariosEquipe({membros,perfis,recarregar}:{membros:MembroEquipe
   // Equipe fora do plano: dá para ver e desativar membros, mas não convidar nem renovar convite.
   const convidaLiberado=temFuncionalidade('EQUIPE');
   const {cores}=useTema();
+  // Filtros da lista (`docs/planos/filtros-nas-listas.md`, D11): a lista vem inteira, então filtram aqui.
+  const [busca,setBusca]=useState('');const [filtros,setFiltros]=useState<FiltrosDeMembros>(SEM_FILTROS);
+  const visiveis=filtrarMembros(membros,filtros,busca);const chips=chipsDosFiltros(filtros,perfis);
+  const opcoesDePerfil=perfis.map(p=>({valor:p.id,rotulo:p.nome}));
   const cancelarConvite=async()=>{if(!cancelar)return;setOcupado(true);try{await api.cancelarConviteEquipe(cancelar.id);avisar('Convite cancelado.','sucesso');setCancelar(null);recarregar();}catch(e){avisar(textoDoErro(e),'perigo');setCancelar(null);}finally{setOcupado(false);}};
   return <>
     <Cartao titulo="Membros da equipe" descricao="Convide pessoas por e-mail e escolha o perfil de cada uma." acoes={<NoPlano funcionalidade="EQUIPE"><Permitido codigo="USUARIO_ALTERAR"><Botao rotulo="Convidar membro" aoTocar={()=>setEditar('novo')}/></Permitido></NoPlano>}>
-    {membros.map(m=><Cartao key={m.id} titulo={m.nome} style={{backgroundColor:cores.superficie2}} acoes={<Selo texto={m.convitePendente?'Convite pendente':m.ativo?'Ativo':'Inativo'} tipo={m.convitePendente?'atencao':m.ativo?'sucesso':'neutro'}/>}>
+    <BarraDeFiltros busca={{valor:busca,aoMudar:setBusca,placeholder:'Nome ou e-mail'}} valor={filtros} aoAplicar={setFiltros} limpo={SEM_FILTROS} chips={chips}
+      aoTirar={(chave)=>setFiltros(semOFiltro(filtros,chave as ChaveDoFiltro))} rotuloDoResultado="Ver membros"
+      seletores={(atuais,mudar)=><>
+        <CelulaDoFiltro><SelecaoMultiplaSuspensa rotulo="Situação" opcoes={SITUACOES_DO_MEMBRO} marcados={new Set(atuais.situacoes)} aoMudar={(m)=>mudar({...atuais,situacoes:naOrdem(m,SITUACOES_DO_MEMBRO)})} rotuloDeTodos="Todas"/></CelulaDoFiltro>
+        <CelulaDoFiltro><SelecaoMultiplaSuspensa rotulo="Perfil" opcoes={opcoesDePerfil} marcados={new Set(atuais.perfis)} aoMudar={(m)=>mudar({...atuais,perfis:naOrdem(m,opcoesDePerfil)})} rotuloDeTodos="Todos"/></CelulaDoFiltro>
+      </>}/>
+    {membros.length&&!visiveis.length?<Vazio titulo="Nenhum membro encontrado" texto="Tente outro nome ou tire algum filtro." acao={chips.length?{rotulo:'Limpar filtros',aoTocar:()=>setFiltros(SEM_FILTROS)}:undefined}/>:null}
+    {visiveis.map(m=><Cartao key={m.id} titulo={m.nome} style={{backgroundColor:cores.superficie2}} acoes={<Selo texto={m.convitePendente?'Convite pendente':m.ativo?'Ativo':'Inativo'} tipo={m.convitePendente?'atencao':m.ativo?'sucesso':'neutro'}/>}>
       <Texto variante="suave">{m.email} · {m.perfilNome}</Texto>
       <Texto variante="suave">{m.convitePendente?`Convite até ${dataHoraParaTela(m.conviteExpiraEm)}`:`Último acesso: ${dataHoraParaTela(m.ultimoAcesso)||'—'}`}</Texto>
       {podeEditarMembro(ator,m,perfis)&&(convidaLiberado||!m.convitePendente)?<Permitido codigo="USUARIO_ALTERAR"><Botao rotulo={m.convitePendente?'Renovar convite':'Editar'} rotuloAcessivel={m.convitePendente?`Renovar convite de ${m.nome}`:`Editar ${m.nome}`} tipo="secundario" aoTocar={()=>setEditar(m)}/></Permitido>:null}

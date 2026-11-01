@@ -27,7 +27,7 @@ import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDaLista, ListaDeLinhas } from '../../ui/LinhaDaLista';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Permitido } from '../../ui/Permitido';
-import { BarraDaBiblioteca, FiltroDaBiblioteca } from './BarraDaBiblioteca';
+import { BarraDaBiblioteca } from './BarraDaBiblioteca';
 import { useCarregar } from '../../ui/useCarregar';
 
 /** Suplementos da consultoria: nome, marca, categoria, porção, sabores e link do produto. Não somam nada na dieta. */
@@ -66,10 +66,9 @@ export function AbaSuplementos() {
       titulo="Suplementos da biblioteca"
       descricao="Os produtos que você escolhe na sugestão de suplementação da dieta. Só nome, porção e link: nada é somado."
       acoes={<Permitido codigo="BIBLIOTECA_ALTERAR"><Botao rotulo="Novo suplemento" Icone={Plus} aoTocar={() => setEditando('novo')} /></Permitido>}>
-      <BarraDaBiblioteca rotulo="Buscar suplemento" placeholder="Nome, marca ou categoria" valor={busca} aoMudar={setBusca}>
-        {categorias.length ? <FiltroDaBiblioteca rotulo="Categoria" valor={categoria} aoMudar={setCategoria}
-          opcoes={[{ valor: '', rotulo: 'Todas' }, ...categorias.map((c) => ({ valor: c, rotulo: c }))]} /> : null}
-      </BarraDaBiblioteca>
+      <BarraDaBiblioteca rotulo="Buscar suplemento" placeholder="Nome, marca ou categoria" valor={busca} aoMudar={setBusca}
+        filtro={categorias.length ? { tipo: 'uma', rotulo: 'Categoria', valor: categoria, todos: '', aoMudar: setCategoria,
+          opcoes: [{ valor: '', rotulo: 'Todas' }, ...categorias.map((c) => ({ valor: c, rotulo: c }))] } : null} />
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && lista.length === 0 ? (
