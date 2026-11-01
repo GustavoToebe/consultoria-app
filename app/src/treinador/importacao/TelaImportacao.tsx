@@ -14,6 +14,7 @@ import {
 } from '../../dominio/assistenteDaImportacao';
 import { DESTINOS, destinosPermitidos, faltandoColuna, sugerirMapeamento, type Destino, type DestinoDaImportacao } from '../../dominio/mapeamentoDaImportacao';
 import { dataHoraParaTela } from '../../dominio/formatos';
+import { DESTINO_PLANILHA_COMPLETA, ROTULO_PLANILHA_COMPLETA } from '../../dominio/planilhaCompleta';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, LARGURA_MAXIMA, RAIO, espaco, fontes } from '../../tema/tokens';
@@ -38,6 +39,7 @@ import { useCarregar } from '../../ui/useCarregar';
 import { baixarCsv } from '../financeiro/baixarCsv';
 import { TelaDoEditor } from '../plano/TelaDoEditor';
 import { formulario, type ArquivoEscolhido } from './formularioDaImportacao';
+import { CartaoDaPlanilhaCompleta, DetalheDaPlanilha } from './planilhaCompleta/NoHistorico';
 
 const SITUACAO: Record<string, { texto: string; tipo: TipoSelo }> = {
   CONCLUIDA: { texto: 'Concluída', tipo: 'sucesso' },
@@ -64,7 +66,7 @@ function abrirModelo(nome: string) {
 }
 
 /** Rótulo do destino ("Alunos"), ou o próprio id se a versão da API trouxer um destino que o app não conhece. */
-const rotuloDoDestino = (id: string) => DESTINOS.find((d) => d.id === id)?.rotulo ?? id;
+const rotuloDoDestino = (id: string) => DESTINOS.find((d) => d.id === id)?.rotulo ?? (id === DESTINO_PLANILHA_COMPLETA ? ROTULO_PLANILHA_COMPLETA : id);
 
 /**
  * Lista do que já foi importado; "Nova importação" abre o assistente em etapas numa tela inteira
@@ -192,13 +194,13 @@ function FolhaDetalhe({ id, aoFechar }: { id: string; aoFechar: () => void }) {
       acaoNoTopo={selo ? <Selo texto={selo.texto} tipo={selo.tipo} /> : undefined}>
       {erro ? <MensagemErro texto={textoDoErroDaApi(erro)} tentarDeNovo={recarregar} /> : null}
       {carregando && !dados ? <Esqueleto cartoes={1} /> : null}
-      {dados ? <ResultadoDaImportacao dados={dados} /> : null}
+      {dados ? (dados.destino === DESTINO_PLANILHA_COMPLETA ? <DetalheDaPlanilha dados={dados} /> : <ResultadoDaImportacao dados={dados} />) : null}
     </Folha>
   );
 }
 
 /** Números lado a lado (quebram linha no celular), como o resumo da validação. */
-function Numeros({ itens }: { itens: { rotulo: string; valor: number; tipo?: 'perigo' | 'sucesso' }[] }) {
+export function Numeros({ itens }: { itens: { rotulo: string; valor: number; tipo?: 'perigo' | 'sucesso' }[] }) {
   const { cores } = useTema();
   return (
     <View style={estilos.numeros}>
@@ -434,6 +436,7 @@ export function AssistenteDaImportacao() {
         {etapa === 1 ? (
           <>
             <CartoesDeDestino destinos={destinos} valor={destino?.id ?? null} aoMudar={escolherDestino} />
+            <CartaoDaPlanilhaCompleta />
             <Cartao titulo="Carregue seu arquivo de dados (.xlsx, .csv)" descricao="Nada é gravado antes de você confirmar no fim.">
               <ZonaDeArquivo arquivo={arquivo} aoEscolher={escolherArquivo} />
             </Cartao>
@@ -724,7 +727,7 @@ function CelulaDaPlanilha({ largura, linha, coluna, valor, ajustada, cortada, er
   );
 }
 
-function ZonaDeArquivo({ arquivo, aoEscolher }: { arquivo: ArquivoEscolhido | null; aoEscolher: (arquivo: ArquivoEscolhido) => void }) {
+export function ZonaDeArquivo({ arquivo, aoEscolher }: { arquivo: ArquivoEscolhido | null; aoEscolher: (arquivo: ArquivoEscolhido) => void }) {
   const { cores } = useTema();
   const idDaEntrada = `arquivo-da-planilha-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const [arrastando, setArrastando] = useState(false);

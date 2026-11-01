@@ -118,7 +118,11 @@ import type {
   PastaResumo,
   PastaVigenteResposta,
   PlanoResumo,
+  AnaliseDaPlanilha,
   ColunasDaImportacao,
+  ConfirmacaoDaPlanilha,
+  ImportacaoDesfeita,
+  PreviaDaPlanilha,
   DetalheDeImportacao,
   PaginaDeImportacao,
   PreviaDeImportacao,
@@ -801,6 +805,15 @@ export const previaDaImportacao = (destino: string, arquivo: FormData) =>
   requisicao<PreviaDeImportacao>(`/importacoes/${seg(destino)}/previa`, { metodo: 'POST', corpoBruto: arquivo });
 export const confirmarImportacao = (destino: string, arquivo: FormData, hash: string) =>
   requisicao<DetalheDeImportacao>(`/importacoes/${seg(destino)}?hash=${encodeURIComponent(hash)}`, { metodo: 'POST', corpoBruto: arquivo });
+/** Planilha completa: a análise e a prévia só leem; a confirmação grava em rascunho; o desfazer apaga o intocado. */
+export const analisarPlanilhaCompleta = (arquivo: FormData) =>
+  requisicao<AnaliseDaPlanilha>('/importacoes/planilha-completa/analisar', { metodo: 'POST', corpoBruto: arquivo });
+export const previaDaPlanilhaCompleta = (arquivo: FormData) =>
+  requisicao<PreviaDaPlanilha>('/importacoes/planilha-completa/previa', { metodo: 'POST', corpoBruto: arquivo });
+export const confirmarPlanilhaCompleta = (arquivo: FormData, hash: string) =>
+  requisicao<ConfirmacaoDaPlanilha>(`/importacoes/planilha-completa/confirmar?hash=${encodeURIComponent(hash)}`, { metodo: 'POST', corpoBruto: arquivo });
+export const desfazerImportacao = (id: string) =>
+  requisicao<ImportacaoDesfeita>(`/importacoes/${seg(id)}/desfazer`, { metodo: 'POST' });
 
 // ---- Treinador: receitas ----
 

@@ -44,6 +44,22 @@ public abstract class PlanoBase {
 
     private LocalDate fim;
 
+    /**
+     * Importação da planilha completa que criou a linha (V049); nulo = criada à mão. O "Desfazer" da importação só olha
+     * as linhas com este id. Gravado só na criação.
+     */
+    @Column(name = "importacao_id", updatable = false)
+    private UUID importacaoId;
+
+    public UUID getImportacaoId() {
+        return importacaoId;
+    }
+
+    /** Antes de gravar a linha nova: liga à importação que a cria. */
+    public void marcarImportacao(UUID importacao) {
+        this.importacaoId = importacao;
+    }
+
     @Column(name = "pasta_id")
     private UUID pastaId;
 
