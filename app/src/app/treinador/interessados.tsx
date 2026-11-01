@@ -9,9 +9,9 @@ import { hojeEmBrasilia } from '../../dominio/agendaPresencial';
 import { instanteRelativo } from '../../dominio/datasRelativas';
 import { paraSetParams } from '../../dominio/filtrosComuns';
 import {
-  chaveDosFiltros as chaveDaFila, CHAVES_DO_ENDERECO, chipsDosFiltros, filtrosDaFila, filtrosVisiveis, lerDoEndereco, limpos, MEUS,
+  chaveDosFiltros as chaveDaFila, CHAVES_DO_ENDERECO, chipsDosFiltros, ehSoMeus, filtrosDaFila, filtrosVisiveis, lerDoEndereco, limpos,
   OPCOES_FILTRO_ORIGEM, opcoesDeResponsavel, paraEndereco, paraEnderecoSemSituacao, semOFiltro, temOutrosFiltros,
-  type ChaveDoFiltro, type FiltrosDeInteressados,
+  type ChaveDoFiltro, type FiltroDeOrigem, type FiltrosDeInteressados,
 } from '../../dominio/filtrosDeInteressados';
 import { dataParaTela } from '../../dominio/formatos';
 import {
@@ -33,7 +33,8 @@ import { Indicadores } from '../../treinador/interessados/Indicadores';
 import { QuadroKanban, type FiltrosDoQuadro } from '../../treinador/interessados/QuadroKanban';
 import { EscolhaResponsabilidade } from '../../treinador/EscolhaResponsabilidade';
 import { FiltroDoEndereco } from '../../treinador/FiltroDoEndereco';
-import { CelulaDoFiltro, UmaOpcao } from '../../treinador/SeletoresDeFiltro';
+import { CamposDePeriodo, CelulaDoFiltro } from '../../treinador/SeletoresDeFiltro';
+import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
 import { Abas } from '../../ui/Abas';
 import { BarraDeFiltros } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
@@ -81,9 +82,10 @@ function rotuloDasEtapas(etapas: readonly EtapaAberta[]): string {
 
 /**
  * Interessados: o link de inscrição da consultoria e o atendimento de quem se inscreveu por ele, em lista, em Kanban por
- * etapa ou nos indicadores (a visão mora no endereço, `?visao=`). Na barra de filtros, busca, responsável e origem valem
- * nas duas primeiras e a situação na Lista (`docs/planos/filtros-nas-listas.md`, D6); as contagens seguem os mesmos
- * filtros. Situação, responsável e origem moram no endereço (`?situacao=&meus=&responsavel=&origem=`). Tocar abre a folha com contato, proposta, retornos, histórico e as decisões.
+ * etapa ou nos indicadores (a visão mora no endereço, `?visao=`). Na barra de filtros, busca, responsáveis, origens,
+ * entrada e última atividade valem nas duas primeiras e a situação na Lista (`docs/planos/filtros-nas-listas.md`, D6 e
+ * lote 2); as contagens seguem os mesmos filtros. Tudo menos a busca mora no endereço
+ * (`?situacao=&meus=&responsavel=&origem=&de=&ate=&atividadeDe=&atividadeAte=`). Tocar abre a folha com contato, proposta, retornos, histórico e as decisões.
  * Ninguém vira aluno sem um aceite explícito, e o app nunca envia mensagem sozinho.
  */
 export default function Interessados() {
@@ -91,7 +93,7 @@ export default function Interessados() {
   // `?situacao=NOVA` vem do contador "Interessados novos" do Início; `?meus=true`, do filtro "Meus" de lá. Os mini-cartões
   // do painel trazem `?retornos=ATE_HOJE` (na Lista) e `?visao=kanban&etapas=EM_CONTATO,EM_NEGOCIACAO`; trocar de visão
   // pelas abas leva só a `visao`, então o filtro do endereço sai junto.
-  const parametros = useLocalSearchParams<{ situacao?: string; visao?: string; meus?: string; responsavel?: string; origem?: string; retornos?: string; etapas?: string | string[] }>();
+  const parametros = useLocalSearchParams<{ situacao?: string; visao?: string; meus?: string; responsavel?: string; origem?: string; de?: string; ate?: string; atividadeDe?: string; atividadeAte?: string; retornos?: string; etapas?: string | string[] }>();
   const { visao: visaoPedida, retornos: retornosPedidos, etapas: etapasPedidas } = parametros;
   const visao: Visao = VISOES.find((v) => v.valor === visaoPedida)?.valor ?? 'lista';
   const soRetornos = visao === 'lista' && retornosPedidos === RETORNOS_ATE_HOJE;
@@ -109,8 +111,8 @@ export default function Interessados() {
   const [modelos, setModelos] = useState(false);
   // Toda alteração (folha, Kanban) muda a rodada: lista, contagens, retornos e colunas recarregam juntos.
   const [rodada, setRodada] = useState(0);
-  const meus = filtrosDaTela.responsavel === MEUS;
-  const filtros: FiltrosDoQuadro = filtrosDaFila(filtrosDaTela, busca);
+  const meus = ehSoMeus(filtrosDaTela);
+  const filtros: FiltrosDoQuadro = filtrosDaFila(filtrosDaTela, busca, usuario?.id);
   const chaveDosFiltros = chaveDaFila(filtrosDaTela, busca);
   const lista = useCarregar(visao === 'lista' && !soRetornos ? `${filtro}|${chaveDosFiltros}|${pagina}|${rodada}` : null, () =>
     listarInscricoes({ ...filtros, situacao: filtro, pagina }));
@@ -230,8 +232,8 @@ export default function Interessados() {
 }
 
 /**
- * Seletores do painel de filtros: situação (só na Lista, com a contagem de cada uma), responsável e origem, uma opção
- * cada (a rota aceita um responsável só).
+ * Seletores do painel de filtros: situação (só na Lista, com a contagem de cada uma), responsáveis e origens (várias de
+ * cada, nada marcado = todos), entrada e última atividade (De/Até).
  */
 function SeletoresDeInteressados({ visiveis, filtros, aoMudar, opcoesDeSituacao, opcoesDeResponsavel }: {
   visiveis: readonly ChaveDoFiltro[];
@@ -249,10 +251,18 @@ function SeletoresDeInteressados({ visiveis, filtros, aoMudar, opcoesDeSituacao,
         </CelulaDoFiltro>
       ) : null}
       <CelulaDoFiltro>
-        <UmaOpcao rotulo="Responsável" valor={filtros.responsavel} opcoes={opcoesDeResponsavel} aoMudar={(responsavel) => aoMudar({ ...filtros, responsavel })} />
+        <SelecaoMultiplaSuspensa rotulo="Responsável" opcoes={opcoesDeResponsavel} marcados={new Set(filtros.responsaveis)} rotuloDeTodos="Toda a equipe"
+          aoMudar={(m) => aoMudar({ ...filtros, responsaveis: [...m] })} style={estilos.cheio} />
       </CelulaDoFiltro>
       <CelulaDoFiltro>
-        <UmaOpcao rotulo="Origem" valor={filtros.origem} opcoes={OPCOES_FILTRO_ORIGEM} aoMudar={(origem) => aoMudar({ ...filtros, origem })} />
+        <SelecaoMultiplaSuspensa rotulo="Origem" opcoes={OPCOES_FILTRO_ORIGEM} marcados={new Set(filtros.origens)} rotuloDeTodos="Todas"
+          aoMudar={(m) => aoMudar({ ...filtros, origens: OPCOES_FILTRO_ORIGEM.map((o) => o.valor).filter((v) => m.has(v)) as FiltroDeOrigem[] })} style={estilos.cheio} />
+      </CelulaDoFiltro>
+      <CelulaDoFiltro>
+        <CamposDePeriodo rotulo="Entrada" valor={filtros.entrada} aoMudar={(entrada) => aoMudar({ ...filtros, entrada })} />
+      </CelulaDoFiltro>
+      <CelulaDoFiltro>
+        <CamposDePeriodo rotulo="Última atividade" valor={filtros.atividade} aoMudar={(atividade) => aoMudar({ ...filtros, atividade })} />
       </CelulaDoFiltro>
     </>
   );
@@ -290,6 +300,7 @@ const estilos = StyleSheet.create({
   filtros: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(3), rowGap: espaco(1.5), alignItems: 'flex-end' },
   selos: { flexDirection: 'row', gap: espaco(0.75), flexWrap: 'wrap', alignItems: 'center' },
   caber: { flexShrink: 1, maxWidth: '100%' },
+  cheio: { alignSelf: 'stretch' },
   esmaecido: { opacity: 0.6 },
   paginacao: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), flexWrap: 'wrap' },
 });

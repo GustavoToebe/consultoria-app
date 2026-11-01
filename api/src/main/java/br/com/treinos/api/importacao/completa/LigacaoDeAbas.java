@@ -30,10 +30,39 @@ public final class LigacaoDeAbas {
 
     public enum Por { CODIGO, NOME }
 
-    /** Uma aba já reconhecida, com as linhas de dados (sem o cabeçalho). */
-    public record AbaReconhecida(int indice, String nome, Reconhecimento reconhecimento, List<Linha> dados) {
+    /**
+     * Uma aba já reconhecida, com as linhas de dados (sem o cabeçalho). Na aba de um aluno ou em blocos
+     * ({@link FormatoDasAbas}), {@code blocos} traz cada tabela com o aluno e o título; {@code reconhecimento} é o do
+     * primeiro bloco e {@code dados} são as linhas de todos. Uma "parte" ({@link #partes()}) é a aba vista por um bloco só.
+     */
+    public record AbaReconhecida(int indice, String nome, Reconhecimento reconhecimento, List<Linha> dados,
+                                 FormatoDasAbas.FormatoDaAba formato, List<FormatoDasAbas.Bloco> blocos) {
+
+        /** Aba em tabela (a fase 1). */
+        public AbaReconhecida(int indice, String nome, Reconhecimento reconhecimento, List<Linha> dados) {
+            this(indice, nome, reconhecimento, dados, FormatoDasAbas.FormatoDaAba.TABELA, List.of());
+        }
+
         TipoDeAba tipo() {
             return reconhecimento.tipo();
+        }
+
+        boolean emTabela() {
+            return formato == FormatoDasAbas.FormatoDaAba.TABELA;
+        }
+
+        /** A aba inteira (tabela) ou uma parte por bloco, cada uma com o reconhecimento e as linhas do bloco. */
+        List<AbaReconhecida> partes() {
+            if (emTabela() || (blocos.size() == 1 && dados.equals(blocos.getFirst().dados()))) {
+                return List.of(this);
+            }
+            return blocos.stream().map(b -> new AbaReconhecida(indice, nome, b.reconhecimento(), b.dados(), formato, List.of(b)))
+                    .toList();
+        }
+
+        /** O bloco de uma parte (nulo na tabela). */
+        FormatoDasAbas.Bloco bloco() {
+            return emTabela() || blocos.size() != 1 ? null : blocos.getFirst();
         }
     }
 
@@ -61,6 +90,9 @@ public final class LigacaoDeAbas {
         Optional<AbaReconhecida> planos = primeira(abas, TipoDeAba.PLANOS_DE_DIETA);
         List<Ligacao> saida = new ArrayList<>();
         for (AbaReconhecida aba : abas) {
+            if (!aba.emTabela()) {
+                continue; // a aba de um aluno (ou em blocos) diz o aluno pelo nome, não por coluna
+            }
             Reconhecimento r = aba.reconhecimento();
             Optional<Ligacao> ligacao = switch (aba.tipo()) {
                 case PESOS, ROTINAS, PLANOS_DE_DIETA -> alunos.flatMap(m -> aoAluno(aba, m));

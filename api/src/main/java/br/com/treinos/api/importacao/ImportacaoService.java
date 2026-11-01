@@ -13,8 +13,8 @@ import br.com.treinos.api.importacao.ImportacaoDtos.Pagina;
 import br.com.treinos.api.importacao.ImportacaoDtos.Previa;
 import br.com.treinos.api.security.UsuarioAutenticado;
 import br.com.treinos.api.tenant.TenantContext;
-import br.com.treinos.api.web.Buscas;
 import br.com.treinos.api.web.Exigir;
+import br.com.treinos.api.web.Fuso;
 import br.com.treinos.api.web.NaoEncontradoException;
 import br.com.treinos.api.web.ValidacaoException;
 import org.springframework.data.domain.PageRequest;
@@ -188,8 +188,20 @@ public class ImportacaoService {
         return detalhe(gravada, eu.usuarioId());
     }
 
+    /** Tipo do arquivo no filtro do histórico: só a extensão fica gravada (o nome do arquivo não é guardado, LGPD). */
+    public enum TipoDeArquivo { XLSX, CSV }
+
+    /**
+     * Histórico paginado, mais novas primeiro, só dos destinos que o perfil vê. Filtros opcionais e combinados com E:
+     * {@code destino}, {@code situacao}, {@code arquivo} ({@code xlsx} ou {@code csv}, a extensão gravada) e período
+     * {@code de}/{@code ate} pela data da importação (dias de Brasília, cada ponta opcional). Arquivo desconhecido = 400
+     * {@code FILTRO_INVALIDO}; período invertido = 400 {@code PERIODO_INVALIDO}.
+     */
     @Transactional(readOnly = true)
-    public Pagina listar(String destino, String situacao, String busca, int pagina) {
+    public Pagina listar(String destino, String situacao, String arquivo, java.time.LocalDate de, java.time.LocalDate ate,
+                         int pagina) {
+        TipoDeArquivo tipo = br.com.treinos.api.web.FiltrosDeLista.umEnum(TipoDeArquivo.class, arquivo, "arquivo");
+        br.com.treinos.api.web.FiltrosDeLista.exigirPeriodo(de, ate, 0, "PERIODO_INVALIDO");
         List<String> visiveis = visiveis();
         if (destino != null && !destino.isBlank()) {
             if (!PERMISSAO.containsKey(destino) && !SO_NO_HISTORICO.containsKey(destino)) {
@@ -206,8 +218,12 @@ public class ImportacaoService {
         if (situacaoFiltro != null && !Set.of("CONCLUIDA", "CONCLUIDA_COM_ERROS", "FALHOU").contains(situacaoFiltro)) {
             throw new ValidacaoException("Situação inválida.", "ARQUIVO_INVALIDO", List.of());
         }
+        java.time.Instant inicio = de == null ? java.time.Instant.EPOCH : de.atStartOfDay(Fuso.BRASILIA).toInstant();
+        java.time.Instant fim = ate == null ? java.time.Instant.parse("9999-12-31T00:00:00Z")
+                : ate.plusDays(1).atStartOfDay(Fuso.BRASILIA).toInstant();
         var paginaDados = importacoes.buscar(visiveis, destino == null || destino.isBlank() ? null : destino,
-                situacaoFiltro, Buscas.padrao(busca), PageRequest.of(Math.max(0, pagina), PAGINA));
+                situacaoFiltro, tipo == null ? "" : "." + tipo.name().toLowerCase(java.util.Locale.ROOT), inicio, fim,
+                PageRequest.of(Math.max(0, pagina), PAGINA));
         List<Item> itens = paginaDados.getContent().stream().map(i -> new Item(i.getId(), i.getNomeArquivo(),
                 i.getDestino(), nomeDe(i.getUsuarioId()), i.getCriadoEm(), i.getLinhas(), i.getSituacao())).toList();
         return new Pagina(itens, paginaDados.getTotalElements(), Math.max(0, pagina));

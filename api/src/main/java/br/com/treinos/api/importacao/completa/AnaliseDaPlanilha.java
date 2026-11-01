@@ -13,6 +13,7 @@ import br.com.treinos.api.importacao.completa.LigacaoDeAbas.AbaReconhecida;
 import br.com.treinos.api.importacao.completa.PlanilhaCompletaDtos.Aba;
 import br.com.treinos.api.importacao.completa.PlanilhaCompletaDtos.Analise;
 import br.com.treinos.api.importacao.completa.PlanilhaCompletaDtos.Aviso;
+import br.com.treinos.api.importacao.completa.PlanilhaCompletaDtos.BlocoDaAba;
 import br.com.treinos.api.importacao.completa.PlanilhaCompletaDtos.Contagem;
 import br.com.treinos.api.importacao.completa.PlanilhaCompletaDtos.Ligacao;
 import br.com.treinos.api.importacao.completa.PlanilhaCompletaDtos.LinhaAmbigua;
@@ -131,6 +132,18 @@ public final class AnaliseDaPlanilha {
     public static Analise analisar(Leitura leitura, Collection<String> exerciciosDaBiblioteca,
                                    Collection<String> alimentosDaBiblioteca, Collection<String> suplementosDaBiblioteca,
                                    Collection<String> ergogenicosDaBiblioteca, LocalDate hoje) {
+        return analisar(leitura, exerciciosDaBiblioteca, alimentosDaBiblioteca, suplementosDaBiblioteca,
+                ergogenicosDaBiblioteca, List.of(), RespostasSalvas.NENHUMA, hoje);
+    }
+
+    /**
+     * Com {@code alunosExistentes} (os nomes dos alunos da consultoria), a aba de um aluno e os blocos dizem de qual aluno
+     * são e se ele vem da aba de alunos da planilha, já existe, é novo ou é ambíguo (como a montagem vai decidir).
+     */
+    public static Analise analisar(Leitura leitura, Collection<String> exerciciosDaBiblioteca,
+                                   Collection<String> alimentosDaBiblioteca, Collection<String> suplementosDaBiblioteca,
+                                   Collection<String> ergogenicosDaBiblioteca, Collection<String> alunosExistentes,
+                                   RespostasSalvas salvas, LocalDate hoje) {
         List<AbaReconhecida> abas = reconhecerAbas(leitura, Map.of());
 
         List<LigacaoDeAbas.Ligacao> ligacoes = LigacaoDeAbas.ligarTodas(abas);
@@ -147,6 +160,19 @@ public final class AnaliseDaPlanilha {
         abas.stream().filter(a -> a.tipo() == TipoDeAba.ALUNOS)
                 .forEach(a -> alunos(a, leitura.data1904(), hoje, contas, problemas));
         for (AbaReconhecida aba : abas) {
+            if (!aba.emTabela()) {
+                for (AbaReconhecida parte : aba.partes()) {
+                    switch (parte.tipo()) {
+                        case TREINO -> treino(parte, leitura.data1904(), contas, exercicios, problemas);
+                        case DIETA -> dieta(parte, contas, alimentos, problemas);
+                        case SUPLEMENTOS -> suplementos(parte, contas, suplementos, problemas);
+                        default -> {
+                            // Só treino, dieta e suplementos ficam em blocos.
+                        }
+                    }
+                }
+                continue;
+            }
             switch (aba.tipo()) {
                 case PESOS -> pesos(aba, porFilha.get(aba.indice()), leitura.data1904(), hoje, contas, problemas);
                 case TREINO -> treino(aba, leitura.data1904(), contas, exercicios, problemas);
@@ -193,20 +219,24 @@ public final class AnaliseDaPlanilha {
         exerciciosDaBiblioteca.forEach(n -> daBiblioteca.add(CasamentoDeNomes.chave(n)));
         List<String> candidatos = new ArrayList<>(exerciciosDaBiblioteca);
         candidatos.addAll(listaDaPlanilha);
-        Casados deExercicios = casar(exercicios, new CasamentoDeNomes.Indice(candidatos), daBiblioteca);
+        Casados deExercicios = casar(exercicios, new CasamentoDeNomes.Indice(candidatos), daBiblioteca, salvas.exercicios());
         Set<String> alimentosConhecidos = new HashSet<>();
         alimentosDaBiblioteca.forEach(n -> alimentosConhecidos.add(CasamentoDeNomes.chave(n)));
-        Casados deAlimentos = casar(alimentos, new CasamentoDeNomes.Indice(alimentosDaBiblioteca), alimentosConhecidos);
+        Casados deAlimentos = casar(alimentos, new CasamentoDeNomes.Indice(alimentosDaBiblioteca), alimentosConhecidos,
+                salvas.alimentos());
 
         Resumo resumo = new Resumo(contas.alunos, contas.alunosInativos, contas.pesos, contas.pesosIniciais,
                 contas.iniciaisNoHistorico, contas.treinos.size(), contas.exercicios,
                 contas.refeicoes.size(), contas.itensDeDieta, contas.suplementos, contas.exerciciosNaLista,
                 deExercicios.contagem(), deAlimentos.contagem(), contas.prescricoes, contas.naoEntendidas, contas.comSobra,
                 contas.faixasDeData);
-        return new Analise(abas.stream().map(AnaliseDaPlanilha::aba).toList(), ligacoes.stream().map(AnaliseDaPlanilha::ligacao).toList(),
+        AlunosDosBlocos donos = new AlunosDosBlocos(abas, alunosExistentes);
+        return new Analise(abas.stream().map(a -> aba(a, donos, tipoSalvo(salvas, assinaturaDosTitulos(leitura, a)))).toList(),
+                ligacoes.stream().map(AnaliseDaPlanilha::ligacao).toList(),
                 resumo, List.copyOf(problemas.lista), problemas.alem, problemas.porTipo, deExercicios.perguntas(), deAlimentos.perguntas(),
                 suplementosDaBiblioteca == null ? List.of()
-                        : perguntasDeSuplemento(suplementos, suplementosDaBiblioteca, ergogenicosDaBiblioteca));
+                        : perguntasDeSuplemento(suplementos, suplementosDaBiblioteca, ergogenicosDaBiblioteca, salvas.suplementos()),
+                salvas.total());
     }
 
     /**
@@ -219,6 +249,27 @@ public final class AnaliseDaPlanilha {
         for (AbaLida lida : leitura.abas()) {
             Reconhecimento r = ReconhecimentoDeAbas.reconhecer(lida.linhas());
             TipoDeAba confirmado = tipos.get(lida.indice());
+            // Trocada pelo treinador para um tipo que não é de bloco (ou ignorada), a aba é lida como tabela.
+            boolean podeSerBloco = confirmado == null || confirmado == TipoDeAba.TREINO || confirmado == TipoDeAba.DIETA
+                    || confirmado == TipoDeAba.SUPLEMENTOS;
+            FormatoDasAbas.Separacao separacao = podeSerBloco ? FormatoDasAbas.separar(lida.nome(), lida.linhas(), r)
+                    : FormatoDasAbas.Separacao.TABELA;
+            if (separacao.formato() != FormatoDasAbas.FormatoDaAba.TABELA) {
+                // O tipo confirmado pelo treinador vale para todos os blocos da aba.
+                List<FormatoDasAbas.Bloco> blocos = new ArrayList<>();
+                List<Linha> dados = new ArrayList<>();
+                for (FormatoDasAbas.Bloco b : separacao.blocos()) {
+                    Reconhecimento rb = b.reconhecimento();
+                    if (confirmado != null && confirmado != rb.tipo()) {
+                        rb = new Reconhecimento(confirmado, rb.linhaDoCabecalho(), rb.posicaoDoCabecalho(), rb.campos(), rb.avisos());
+                    }
+                    blocos.add(new FormatoDasAbas.Bloco(b.aluno(), b.titulo(), b.linhaDoCabecalho(), rb, b.dados()));
+                    dados.addAll(b.dados());
+                }
+                abas.add(new AbaReconhecida(lida.indice(), lida.nome(), blocos.getFirst().reconhecimento(), List.copyOf(dados),
+                        separacao.formato(), List.copyOf(blocos)));
+                continue;
+            }
             if (confirmado != null && confirmado != r.tipo()) {
                 r = new Reconhecimento(confirmado, r.linhaDoCabecalho(), r.posicaoDoCabecalho(), r.campos(), r.avisos());
             }
@@ -237,7 +288,8 @@ public final class AnaliseDaPlanilha {
     }
 
     /** Casa cada nome distinto: a contagem por nível e as perguntas (provável e nenhum), as mais frequentes primeiro. */
-    private static Casados casar(Ocorrencias vistos, CasamentoDeNomes.Indice indice, Set<String> chavesDaBiblioteca) {
+    private static Casados casar(Ocorrencias vistos, CasamentoDeNomes.Indice indice, Set<String> chavesDaBiblioteca,
+                                 Map<String, RespostasSalvas.NomeSalvo> salvas) {
         int certo = 0;
         int provavel = 0;
         int nenhum = 0;
@@ -256,7 +308,12 @@ public final class AnaliseDaPlanilha {
             }
             String origem = r.candidato() == null ? null
                     : chavesDaBiblioteca.contains(CasamentoDeNomes.chave(r.candidato())) ? "BIBLIOTECA" : "PLANILHA";
-            saida.add(new Pergunta(e.getValue(), r.nivel().name(), r.candidato(), origem, r.nota(), vezes));
+            RespostasSalvas.NomeSalvo salva = salvas.get(e.getKey());
+            if (salva != null && "ACEITAR".equals(salva.acao()) && r.candidato() == null) {
+                salva = null; // "aceitar" sem sugestão não tem o que aceitar
+            }
+            saida.add(new Pergunta(e.getValue(), r.nivel().name(), r.candidato(), origem, r.nota(), vezes,
+                    salva == null ? null : salva.acao(), salva == null ? null : salva.id()));
         }
         saida.sort(Comparator.comparingInt(Pergunta::ocorrencias).reversed()
                 .thenComparing(p -> p.nome().toLowerCase(Locale.ROOT)));
@@ -401,7 +458,7 @@ public final class AnaliseDaPlanilha {
             contas.exercicios++;
             exercicios.add(nome);
             contas.treinos.add(aba.indice() + "|" + texto(l, referencia).toLowerCase(Locale.ROOT) + "|"
-                    + texto(l, treino).toLowerCase(Locale.ROOT));
+                    + texto(l, treino).toLowerCase(Locale.ROOT) + chaveDoBloco(aba));
             for (Campo campo : List.of(Campo.PRESCRICAO, Campo.SERIES, Campo.REPETICOES, Campo.CARGA)) {
                 Celula c = LigacaoDeAbas.celula(l, r.coluna(campo));
                 if (!ReconhecimentoDeAbas.vazia(c)) {
@@ -458,7 +515,7 @@ public final class AnaliseDaPlanilha {
             contas.itensDeDieta++;
             alimentos.add(alimento);
             contas.refeicoes.add(aba.indice() + "|" + texto(l, referencia).toLowerCase(Locale.ROOT) + "|"
-                    + texto(l, refeicao).toLowerCase(Locale.ROOT));
+                    + texto(l, refeicao).toLowerCase(Locale.ROOT) + chaveDoBloco(aba));
         }
     }
 
@@ -482,25 +539,116 @@ public final class AnaliseDaPlanilha {
     /** Nomes distintos da aba de suplementos com a sugestão de destino; a ordem é a da planilha. */
     private static List<PerguntaDeSuplemento> perguntasDeSuplemento(Map<String, String[]> nomes,
                                                                    Collection<String> suplementos,
-                                                                   Collection<String> ergogenicos) {
+                                                                   Collection<String> ergogenicos,
+                                                                   Map<String, String> salvos) {
         List<String> ergo = ergogenicos.stream().map(MontagemDaImportacao::nomeDeSuplemento).toList();
         List<String> supl = suplementos.stream().map(MontagemDaImportacao::nomeDeSuplemento).toList();
         List<PerguntaDeSuplemento> saida = new ArrayList<>();
         nomes.forEach((k, v) -> {
             String sugestao = ergo.stream().anyMatch(e -> MontagemDaImportacao.parecido(k, e)) ? "SENSIVEL"
                     : supl.stream().anyMatch(e -> MontagemDaImportacao.parecido(k, e)) ? "SUPLEMENTO" : null;
-            saida.add(new PerguntaDeSuplemento(v[0], sugestao, Integer.parseInt(v[1])));
+            saida.add(new PerguntaDeSuplemento(v[0], sugestao, Integer.parseInt(v[1]), salvos.get(k)));
         });
         return List.copyOf(saida);
     }
 
-    private static Aba aba(AbaReconhecida a) {
+    /** No bloco (aba de um aluno ou blocos), o aluno e o título separam as divisões e as refeições na contagem. */
+    private static String chaveDoBloco(AbaReconhecida parte) {
+        FormatoDasAbas.Bloco b = parte.bloco();
+        return b == null ? "" : "|" + Normalizacao.chaveDoNome(b.aluno()) + "|" + Normalizacao.chaveDoNome(b.titulo());
+    }
+
+    /**
+     * De qual aluno é cada bloco, pela mesma regra da montagem: a aba de alunos da planilha (um com o nome:
+     * {@code PLANILHA}; mais de um: {@code AMBIGUO}); senão os alunos da consultoria (um: {@code EXISTENTE}; mais de
+     * um: {@code AMBIGUO}); senão {@code NOVO}. Sem nome: {@code SEM_ALUNO}.
+     */
+    private static final class AlunosDosBlocos {
+        private final Map<String, Integer> naPlanilha = new HashMap<>();
+        private final Map<String, Integer> existentes = new HashMap<>();
+
+        AlunosDosBlocos(List<AbaReconhecida> abas, Collection<String> nomesExistentes) {
+            abas.stream().filter(a -> a.tipo() == TipoDeAba.ALUNOS && a.emTabela()).findFirst().ifPresent(a -> {
+                int coluna = a.reconhecimento().coluna(Campo.ALUNO);
+                for (Linha l : a.dados()) {
+                    String k = Normalizacao.chaveDoNome(texto(l, coluna));
+                    if (!k.isEmpty()) {
+                        naPlanilha.merge(k, 1, Integer::sum);
+                    }
+                }
+            });
+            for (String n : nomesExistentes) {
+                existentes.merge(Normalizacao.chaveDoNome(n), 1, Integer::sum);
+            }
+        }
+
+        String situacao(String aluno) {
+            String k = Normalizacao.chaveDoNome(aluno);
+            if (k.isEmpty()) {
+                return "SEM_ALUNO";
+            }
+            Integer p = naPlanilha.get(k);
+            if (p != null) {
+                return p == 1 ? "PLANILHA" : "AMBIGUO";
+            }
+            Integer e = existentes.get(k);
+            if (e != null) {
+                return e == 1 ? "EXISTENTE" : "AMBIGUO";
+            }
+            return "NOVO";
+        }
+    }
+
+    /**
+     * Assinatura dos títulos das colunas de uma aba (para guardar o tipo que o treinador deu a ela): sha256 dos títulos do
+     * cabeçalho em palavras normalizadas (sem acento, sem caixa). Nunca o texto. Sem cabeçalho = null.
+     */
+    static String assinaturaDosTitulos(Leitura leitura, AbaReconhecida aba) {
+        int numero = aba.reconhecimento().linhaDoCabecalho();
+        if (numero <= 0 || aba.indice() >= leitura.abas().size()) {
+            return null;
+        }
+        Linha cabecalho = leitura.abas().get(aba.indice()).linhas().stream().filter(l -> l.numero() == numero).findFirst()
+                .orElse(null);
+        if (cabecalho == null) {
+            return null;
+        }
+        List<String> titulos = new ArrayList<>();
+        for (Celula c : cabecalho.celulas()) {
+            titulos.add(c.numero() || c.erro() ? "" : String.join(" ", Normalizacao.palavras(c.texto())));
+        }
+        while (!titulos.isEmpty() && titulos.getLast().isEmpty()) {
+            titulos.removeLast();
+        }
+        if (titulos.isEmpty()) {
+            return null;
+        }
+        try {
+            java.security.MessageDigest sha = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] h = sha.digest(("titulos-v1|" + String.join("|", titulos)).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(h);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /** O tipo guardado para a assinatura (nula = aba sem cabeçalho, sem tipo guardado). */
+    private static String tipoSalvo(RespostasSalvas salvas, String assinatura) {
+        return assinatura == null ? null : salvas.abas().get(assinatura);
+    }
+
+    private static Aba aba(AbaReconhecida a, AlunosDosBlocos donos, String tipoSalvo) {
         Reconhecimento r = a.reconhecimento();
         Map<String, Integer> campos = new LinkedHashMap<>();
         r.campos().entrySet().stream().sorted(Map.Entry.comparingByKey())
                 .forEach(e -> campos.put(e.getKey().name(), e.getValue()));
         List<Aviso> avisos = r.avisos().stream().map(v -> new Aviso(v.codigo(), v.linha(), v.coluna())).toList();
-        return new Aba(a.indice(), a.nome(), r.tipo().name(), r.linhaDoCabecalho(), a.dados().size(), campos, avisos);
+        List<BlocoDaAba> blocos = a.blocos().stream()
+                .map(b -> new BlocoDaAba(b.linhaDoCabecalho(), b.reconhecimento().tipo().name(), b.aluno(),
+                        donos.situacao(b.aluno()), b.titulo(), b.dados().size()))
+                .toList();
+        return new Aba(a.indice(), a.nome(), r.tipo().name(), r.linhaDoCabecalho(), a.dados().size(), campos, avisos,
+                a.formato().name(), blocos, tipoSalvo);
     }
 
     private static Ligacao ligacao(LigacaoDeAbas.Ligacao l) {

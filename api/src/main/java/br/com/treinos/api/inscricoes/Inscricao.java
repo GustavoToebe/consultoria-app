@@ -18,7 +18,9 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.TenantId;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -155,6 +157,17 @@ public class Inscricao {
     @Column(name = "relacionada_a")
     private UUID relacionadaA;
 
+    /**
+     * Versão do questionário de inscrição respondida no envio (D9) e as respostas já validadas por ela, sempre juntas.
+     * Nulas quando a consultoria não tinha padrão de inscrição publicado. Dado pessoal: nunca em log nem na auditoria.
+     */
+    @Column(name = "questionario_versao_id", updatable = false)
+    private UUID questionarioVersaoId;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb", updatable = false)
+    private String respostas;
+
     /** Coluna gerada no banco (nome sem acento, em minúsculas), lida pela busca. */
     @Column(name = "nome_busca", insertable = false, updatable = false)
     private String nomeBusca;
@@ -240,6 +253,14 @@ public class Inscricao {
     public String getOrigemLink() { return origemLink; }
     public Origem getOrigem() { return origem; }
     public UUID getRelacionadaA() { return relacionadaA; }
+    public UUID getQuestionarioVersaoId() { return questionarioVersaoId; }
+    public String getRespostas() { return respostas; }
+
+    /** Só na criação (as colunas não mudam depois): a versão respondida e as respostas, em JSON, já validadas. */
+    void responder(UUID questionarioVersaoId, String respostas) {
+        this.questionarioVersaoId = questionarioVersaoId;
+        this.respostas = respostas;
+    }
 
     /** Qualificação e origem do formulário público (só na criação). A origem da equipe começa por elas. */
     void qualificar(Interesse interesse, ModalidadeDesejada modalidade, PrevisaoInicio previsao,

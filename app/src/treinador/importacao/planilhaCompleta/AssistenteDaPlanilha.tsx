@@ -3,15 +3,20 @@ import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
-import { analisarPlanilhaCompleta, confirmarPlanilhaCompleta, listarAlimentos, listarExercicios, previaDaPlanilhaCompleta } from '../../../api/rotas';
+import {
+  analisarPlanilhaCompleta, confirmarPlanilhaCompleta, esquecerRespostasDaPlanilha, listarAlimentos, listarExercicios,
+  previaDaPlanilhaCompleta,
+} from '../../../api/rotas';
 import type { AnaliseDaPlanilha, ConfirmacaoDaPlanilha, PerguntaDaPlanilha, PreviaDaPlanilha, RespostasDaPlanilha } from '../../../api/tipos';
 import { tipoDoArquivo } from '../../../dominio/assistenteDaImportacao';
 import {
-  ETAPAS_DA_PLANILHA, NOMES_POR_PAGINA, ROTULOS_DO_DESTINO, SEM_RESPOSTAS, aceitarSugestoesDeSuplemento, aceitarTodosOsProvaveis,
-  chaveDaLigacao, errosDosProblemas, escolherLigacao, escolherTipo, filtrarPorNome, frasesDaCriacao, linhasAmbiguas,
-  motivoParaNaoAvancar, opcoesDaPergunta, opcoesDoSuplemento, opcoesDoTipoDaAba, pendencias, respostaDoValor,
-  respostasParaApi, responderNome, responderSuplemento, rotuloDoTipoDeAba, textoDaLeitura, textoDaLigacao, textoDaPartePulada,
-  tipoDaAba, valorDaResposta, type EstadoDasRespostas, type EtapaDaPlanilha, type TipoEscolhido,
+  AVISO_RESPONDIDO_ANTES, ETAPAS_DA_PLANILHA, NOMES_POR_PAGINA, ROTULOS_DO_DESTINO, SEM_RESPOSTAS, abaRespondidaAntes,
+  aceitarSugestoesDeSuplemento, aceitarTodosOsProvaveis, blocoFicaDeFora, chaveDaLigacao, errosDosProblemas, escolherLigacao,
+  escolherTipo, filtrarPorNome, frasesDaCriacao, linhasAmbiguas, motivoParaNaoAvancar, nomeRespondidoAntes, opcoesDaPergunta,
+  opcoesDoSuplemento, opcoesDoTipoDaAba, pendencias, respostaDoValor, respostasParaApi, respostasSalvasMarcadas, responderNome,
+  responderSuplemento, rotuloDoTipoDeAba, semRespostasSalvas, suplementoRespondidoAntes, textoDaLeitura, textoDaLigacao,
+  textoDaPartePulada, textoDasRespostasSalvas, textoDoBloco, textoDoFormato, textoDosAlunosDaAba, tipoDaAba, valorDaResposta,
+  type EstadoDasRespostas, type EtapaDaPlanilha, type TipoEscolhido,
 } from '../../../dominio/planilhaCompleta';
 import { useSessao } from '../../../sessao/SessaoProvider';
 import { useTema } from '../../../tema/TemaProvider';
@@ -26,6 +31,7 @@ import { Esqueleto } from '../../../ui/Esqueleto';
 import { Alerta, MensagemErro } from '../../../ui/Estados';
 import { useGuardaDeSaida, useSaidaGuardada } from '../../../ui/GuardaDeSaida';
 import { LinhaDeAcoes } from '../../../ui/LinhaDeAcoes';
+import { PainelConfirmacao } from '../../../ui/PainelConfirmacao';
 import { Texto } from '../../../ui/Texto';
 import { codigoApi, textoDoErro } from '../../../ui/erros';
 import { useCarregar } from '../../../ui/useCarregar';
@@ -36,6 +42,8 @@ import { ProblemasAgrupados } from './ProblemasAgrupados';
 
 /** Abaixo desta largura o indicador de etapas vira "Etapa N de 5". */
 const LARGURA_ESTREITA = 600;
+/** Quantas tabelas de uma aba em blocos a lista mostra (o resto só conta). */
+const BLOCOS_MOSTRADOS = 30;
 
 /** FormData da planilha completa: o arquivo e, quando há, as respostas como JSON na parte `respostas`. */
 async function formularioDaPlanilha(arquivo: ArquivoEscolhido, respostas?: RespostasDaPlanilha): Promise<FormData> {
@@ -53,7 +61,9 @@ async function formularioDaPlanilha(arquivo: ArquivoEscolhido, respostas?: Respo
  * sair no meio pergunta antes, pela guarda de saída. Só regras fixas, sem IA: a API reconhece as abas e casa os nomes, e
  * aqui o treinador confirma ou troca. Nada é gravado antes de "Confirmar importação", e treinos e dietas entram em
  * rascunho. A tela não mostra dado de aluno: a API só manda contagens, nomes de aba e nomes de exercício, alimento e
- * suplemento.
+ * suplemento (na aba de um aluno ou em blocos, o nome do aluno como está na própria planilha, para conferir de quem é).
+ * As respostas guardadas de importações anteriores já vêm marcadas, com o aviso "Respondido na importação anterior", e
+ * podem ser esquecidas aqui mesmo.
  */
 export function AssistenteDaPlanilha() {
   const { pode } = useSessao();
@@ -98,7 +108,8 @@ export function AssistenteDaPlanilha() {
     formularioDaPlanilha(arquivo).then(analisarPlanilhaCompleta).then((a) => {
       if (meu !== pedido.current) return;
       setAnalise(a);
-      setRespostas(SEM_RESPOSTAS);
+      // As respostas das importações anteriores já vêm marcadas (o treinador confere e troca o que quiser).
+      setRespostas(respostasSalvasMarcadas(a));
       setOcupado(false);
       setEtapa(2);
     }, (e: unknown) => {
@@ -159,6 +170,14 @@ export function AssistenteDaPlanilha() {
     }
   };
 
+  /** Depois de esquecer: a leitura sem as marcas e as respostas sem as que vieram delas. */
+  const aoEsquecer = () => {
+    if (!analise) return;
+    const limpo = semRespostasSalvas(analise, respostas);
+    setAnalise(limpo.analise);
+    mudarRespostas(limpo.estado);
+  };
+
   const voltar = () => {
     setErro(null);
     if (etapa > 1 && etapa < 5) setEtapa((etapa - 1) as EtapaDaPlanilha);
@@ -205,7 +224,7 @@ export function AssistenteDaPlanilha() {
           </>
         ) : null}
 
-        {etapa === 2 && analise ? <EtapaDasAbas analise={analise} respostas={respostas} aoMudar={mudarRespostas} /> : null}
+        {etapa === 2 && analise ? <EtapaDasAbas analise={analise} respostas={respostas} aoMudar={mudarRespostas} aoEsquecer={aoEsquecer} /> : null}
 
         {etapa === 3 && analise ? <EtapaDosNomes analise={analise} respostas={respostas} aoMudar={mudarRespostas}
           podeBiblioteca={pode('BIBLIOTECA_LER')} /> : null}
@@ -255,8 +274,52 @@ function Etapas({ etapa, estreita }: { etapa: EtapaDaPlanilha; estreita: boolean
   );
 }
 
-/** Etapa 2: o tipo reconhecido de cada aba (trocar ou ignorar), as ligações e as linhas ambíguas. */
-function EtapaDasAbas({ analise, respostas, aoMudar }: { analise: AnaliseDaPlanilha; respostas: EstadoDasRespostas; aoMudar: (r: EstadoDasRespostas) => void }) {
+/**
+ * As respostas guardadas das importações anteriores: quantas vieram marcadas e o botão para esquecer todas (com
+ * confirmação). Só aparece quando a consultoria tem alguma guardada.
+ */
+function RespostasSalvas({ analise, respostas, aoEsquecer }: { analise: AnaliseDaPlanilha; respostas: EstadoDasRespostas; aoEsquecer: () => void }) {
+  const { avisar } = useAviso();
+  const [perguntar, setPerguntar] = useState(false);
+  const [esquecendo, setEsquecendo] = useState(false);
+  const [erro, setErro] = useState<unknown>(null);
+  if (analise.respostasSalvas === 0) return null;
+  const esquecer = () => {
+    setEsquecendo(true);
+    setErro(null);
+    esquecerRespostasDaPlanilha().then((r) => {
+      setEsquecendo(false);
+      setPerguntar(false);
+      aoEsquecer();
+      avisar(r.apagadas === 1 ? 'Uma resposta salva foi esquecida.' : `${r.apagadas} respostas salvas foram esquecidas.`);
+    }, (e: unknown) => {
+      setEsquecendo(false);
+      setPerguntar(false);
+      setErro(e);
+    });
+  };
+  return (
+    <Cartao titulo="Respostas das importações anteriores">
+      <Texto>{textoDasRespostasSalvas(analise, respostas)}</Texto>
+      {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
+      <LinhaDeAcoes><Botao rotulo="Esquecer as respostas salvas" tipo="secundario" aoTocar={() => setPerguntar(true)} /></LinhaDeAcoes>
+      <PainelConfirmacao visivel={perguntar} titulo="Esquecer as respostas salvas?" perigo carregando={esquecendo}
+        mensagem="Apaga todas as respostas guardadas das importações anteriores (tipos das abas, nomes e suplementos). As desta tela que vieram delas saem; o que você trocou aqui fica. Nada mais muda."
+        rotuloConfirmar="Esquecer" aoConfirmar={esquecer} aoCancelar={() => setPerguntar(false)} />
+    </Cartao>
+  );
+}
+
+/** O aviso discreto ao lado do que veio marcado pela importação anterior. */
+function RespondidoAntes() {
+  const { cores } = useTema();
+  return <Texto variante="pequeno" cor={cores.textoSuave}>{AVISO_RESPONDIDO_ANTES}</Texto>;
+}
+
+/** Etapa 2: o tipo reconhecido de cada aba (trocar ou ignorar), o formato e o aluno de cada aba, as ligações e as linhas ambíguas. */
+function EtapaDasAbas({ analise, respostas, aoMudar, aoEsquecer }: {
+  analise: AnaliseDaPlanilha; respostas: EstadoDasRespostas; aoMudar: (r: EstadoDasRespostas) => void; aoEsquecer: () => void;
+}) {
   const { cores } = useTema();
   const opcoes = opcoesDoTipoDaAba();
   const ambiguas = linhasAmbiguas(analise);
@@ -264,15 +327,29 @@ function EtapaDasAbas({ analise, respostas, aoMudar }: { analise: AnaliseDaPlani
   return (
     <>
       <Texto>{textoDaLeitura(analise)}</Texto>
+      <RespostasSalvas analise={analise} respostas={respostas} aoEsquecer={aoEsquecer} />
       <Cartao titulo="Abas da planilha" descricao="Cada aba foi reconhecida pelos títulos das colunas. Troque o tipo se estiver errado, ou ignore a aba.">
         {analise.abas.map((a) => {
           const tipo = tipoDaAba(analise, respostas, a.indice);
           const trocado = respostas.tipos[a.indice] !== undefined;
+          const formato = textoDoFormato(a);
+          const alunos = textoDosAlunosDaAba(a);
+          const ignorada = tipo === 'IGNORAR' || tipo === 'DESCONHECIDA';
           return (
             <View key={a.indice} style={[estilos.item, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
               <View style={estilos.textos}>
                 <Texto variante="bloco">{`“${a.nome}”`}</Texto>
-                <Texto variante="suave">{`${a.linhas} ${a.linhas === 1 ? 'linha' : 'linhas'} · ${Object.keys(a.campos).length} colunas reconhecidas${trocado ? ` · reconhecida como ${rotuloDoTipoDeAba(a.tipo)}` : ''}`}</Texto>
+                <Texto variante="suave">{`${formato ? `${formato} · ` : ''}${a.linhas} ${a.linhas === 1 ? 'linha' : 'linhas'} · ${Object.keys(a.campos).length} colunas reconhecidas${trocado ? ` · reconhecida como ${rotuloDoTipoDeAba(a.tipo)}` : ''}`}</Texto>
+                {alunos && !ignorada ? <Texto>{alunos}</Texto> : null}
+                {a.formato === 'BLOCOS' && !ignorada ? (
+                  <View style={estilos.blocos}>
+                    {a.blocos.slice(0, BLOCOS_MOSTRADOS).map((b) => (
+                      <Texto key={b.linha} variante="pequeno" cor={blocoFicaDeFora(b) ? cores.perigo : cores.textoSuave}>{textoDoBloco(b)}</Texto>
+                    ))}
+                    {a.blocos.length > BLOCOS_MOSTRADOS ? <Texto variante="pequeno" cor={cores.textoSuave}>{`E mais ${a.blocos.length - BLOCOS_MOSTRADOS} tabelas.`}</Texto> : null}
+                  </View>
+                ) : null}
+                {abaRespondidaAntes(analise, respostas, a) ? <RespondidoAntes /> : null}
               </View>
               <EscolhaEmFolha rotulo={`Tipo da aba “${a.nome}”`} rotuloDoValor={rotuloDoTipoDeAba(tipo)} valor={tipo} opcoes={opcoes.some((o) => o.valor === tipo) ? opcoes : [{ valor: tipo, rotulo: rotuloDoTipoDeAba(tipo), detalhe: '' }, ...opcoes]}
                 aoMudar={(v: TipoEscolhido) => aoMudar(escolherTipo(analise, respostas, a.indice, v))} />
@@ -355,6 +432,7 @@ function ListaDeNomes({ titulo, lista, perguntas, respostas, aoMudar, biblioteca
             <View style={estilos.textos}>
               <Texto variante="bloco">{x.nome}</Texto>
               <Texto variante="suave">{`${x.ocorrencias} ${x.ocorrencias === 1 ? 'vez' : 'vezes'} na planilha${x.sugestao ? ` · sugestão: “${x.sugestao}”` : ' · sem sugestão'}`}</Texto>
+              {nomeRespondidoAntes(x, r) ? <RespondidoAntes /> : null}
             </View>
             <EscolhaEmFolha rotulo={`Resposta para “${x.nome}”`} titulo={`O que fazer com “${x.nome}”`} valor={valor} rotuloDoValor={rotuloDoValor}
               opcoes={opcoes} aoMudar={(v: string) => aoMudar(responderNome(respostas, lista, x.nome, respostaDoValor(v)))} />
@@ -385,6 +463,7 @@ function ListaDeSuplementos({ analise, respostas, aoMudar }: { analise: AnaliseD
             <View style={estilos.textos}>
               <Texto variante="bloco">{x.nome}</Texto>
               <Texto variante="suave">{`${x.ocorrencias} ${x.ocorrencias === 1 ? 'vez' : 'vezes'}${x.sugestao ? ` · sugestão: ${ROTULOS_DO_DESTINO[x.sugestao]}` : ' · a biblioteca não reconhece'}`}</Texto>
+              {suplementoRespondidoAntes(x, respostas.suplementos[x.nome]) ? <RespondidoAntes /> : null}
             </View>
             <EscolhaEmFolha rotulo={`Destino de “${x.nome}”`} valor={valor} rotuloDoValor={opcoes.find((o) => o.valor === valor)?.rotulo}
               opcoes={opcoes} aoMudar={(v: string) => aoMudar(responderSuplemento(respostas, x.nome, v === '' ? null : v as 'SUPLEMENTO' | 'SENSIVEL'))} />
@@ -457,4 +536,5 @@ const estilos = StyleSheet.create({
   nomeDaEtapa: { flexShrink: 1 },
   item: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1.5), borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5) },
   textos: { flexGrow: 1, flexBasis: 220, gap: 2 },
+  blocos: { gap: 2, marginTop: espaco(0.5) },
 });

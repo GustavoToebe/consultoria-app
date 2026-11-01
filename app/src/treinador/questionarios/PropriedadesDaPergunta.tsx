@@ -6,7 +6,7 @@ import type { ConteudoQuestionario, DestinoNoPerfil, FinalidadeQuestionario, Opc
 import { ImagemDaPergunta } from '../../aluno/atualizacao/ImagemDaPergunta';
 import { FotoRecusada } from '../../aluno/atualizacao/fotos/prepararFoto';
 import {
-  aceitaAjudaAutomatica, aceitaDestaque, aceitaObrigatoria, condicaoPara, controlesAnteriores, datasDaPesagem, destinosPossiveis, novaOpcao,
+  aceitaAjudaAutomatica, aceitaDestaque, aceitaImagem, aceitaObrigatoria, condicaoPara, controlesAnteriores, datasDaPesagem, destinosPossiveis, novaOpcao,
   podeDestacar, podeUsarDestino, posicaoDaPergunta,
 } from '../../dominio/editorQuestionario';
 import { ROTULO_DO_DESTINO } from '../../dominio/anamnese';
@@ -44,6 +44,8 @@ export function PropriedadesDaPergunta({ pergunta: p, conteudo, problemas, somen
   const { cores } = useTema();
   const opcoes = p.opcoes ?? [];
   const destaque = podeDestacar(conteudo, p.id);
+  // A página pública de inscrição não mostra imagem (D6): sem o botão de enviar.
+  const comImagem = aceitaImagem(finalidade);
   if (somenteLeitura) return <Texto variante="suave">{p.ajuda || 'Sem texto de ajuda.'}</Texto>;
   return <View style={estilos.bloco}>
     {problemas.map((m) => <Texto key={m} variante="pequeno" cor={cores.perigo}>{m}</Texto>)}
@@ -69,7 +71,7 @@ export function PropriedadesDaPergunta({ pergunta: p, conteudo, problemas, somen
       <Texto variante="suave">A resposta guarda a versão do questionário: se você mudar o texto e publicar, quem já aceitou continua com o texto que aceitou.</Texto>
     </> : null}
 
-    {temOpcoes(p.tipo) ? <ListaDeItens titulo="Opções" itens={opcoes} minimo={L.opcoesMinimo} maximo={L.opcoesMaximo} nome="opção" comImagem
+    {temOpcoes(p.tipo) ? <ListaDeItens titulo="Opções" itens={opcoes} minimo={L.opcoesMinimo} maximo={L.opcoesMaximo} nome="opção" comImagem={comImagem}
       sexo={p.destino === 'SEXO'} aoMudar={(novas) => aoMudar({ opcoes: novas })} /> : null}
     {p.tipo === 'GRADE' ? <>
       <ListaDeItens titulo="Linhas" itens={p.linhas ?? []} minimo={L.linhasMinimo} maximo={L.linhasMaximo} nome="linha" aoMudar={(linhas) => aoMudar({ linhas })} />
@@ -97,8 +99,8 @@ export function PropriedadesDaPergunta({ pergunta: p, conteudo, problemas, somen
       </View>
       : <Texto variante="pequeno">{destaque.motivo}</Texto>) : null}
 
-    <ImagemDoItem imagemId={p.imagemId} rotulo={p.tipo === 'INFORMATIVO' ? 'Imagem (opcional)' : 'Imagem de referência (opcional)'}
-      aoMudar={(imagemId) => aoMudar({ imagemId })} />
+    {comImagem ? <ImagemDoItem imagemId={p.imagemId} rotulo={p.tipo === 'INFORMATIVO' ? 'Imagem (opcional)' : 'Imagem de referência (opcional)'}
+      aoMudar={(imagemId) => aoMudar({ imagemId })} /> : null}
     <EditorDeCondicao conteudo={conteudo} perguntaId={p.id} condicao={p.mostrarSe} aoMudar={(mostrarSe) => aoMudar({ mostrarSe })} />
   </View>;
 }

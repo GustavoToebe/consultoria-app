@@ -33,7 +33,7 @@ public class QuestionarioController {
 
     @PreAuthorize("hasAuthority('PERM_QUESTIONARIO_LER')")
     @GetMapping("/questionarios")
-    public List<QuestionarioResumo> listar(@RequestParam(defaultValue = "false") boolean arquivados,
+    public List<QuestionarioResumo> listar(@RequestParam(defaultValue = "false") String arquivados,
                                            @RequestParam(defaultValue = "ATUALIZACAO") Finalidade finalidade) {
         return questionarios.listar(arquivados, finalidade);
     }

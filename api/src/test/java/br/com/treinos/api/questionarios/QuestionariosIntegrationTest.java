@@ -304,7 +304,7 @@ class QuestionariosIntegrationTest extends AbstractIntegrationTest {
         JsonNode troca = api.post("/questionarios/" + outro.path("id").asString() + "/padrao", treinador, null, 200);
         assertThat(troca.path("padrao").asBoolean()).isTrue();
         api.post("/questionarios/" + outro.path("id").asString() + "/padrao", treinador, null, 200);
-        assertThat(banco.queryForObject("select count(*) from questionario where consultoria_id=? and padrao",
+        assertThat(banco.queryForObject("select count(*) from questionario where consultoria_id=? and padrao and finalidade='ATUALIZACAO'",
                 Integer.class, consultoria())).isEqualTo(1);
         assertThat(api.get("/questionarios/" + padraoId, treinador, 200).path("padrao").asBoolean()).isFalse();
         // A segunda chamada em "outro" (já é o padrão) responde 200 e não audita.
@@ -353,6 +353,15 @@ class QuestionariosIntegrationTest extends AbstractIntegrationTest {
                 .map(o -> o.path("nome").asString())).containsExactly("Alfa fictício");
         assertThat(api.get("/questionarios/opcoes", treinador, 200).valueStream().map(o -> o.path("nome").asString()))
                 .doesNotContain("Alfa fictício");
+
+        // "todos": ativos e arquivados juntos (o padrão primeiro); valor desconhecido = 400 sem repetir o valor.
+        assertThat(api.get("/questionarios?arquivados=todos", treinador, 200).valueStream()
+                .map(o -> o.path("nome").asString()).toList()).containsExactly("Padrão", "Alfa fictício", "Beta rascunho");
+        JsonNode erro = api.get("/questionarios?arquivados=talvez", treinador, 400);
+        assertThat(erro.path("codigo").asString()).isEqualTo("FILTRO_INVALIDO");
+        assertThat(erro.toString()).doesNotContain("talvez");
+        assertThat(api.get("/questionarios?arquivados=todos", api.novoTreinador(), 200).valueStream()
+                .map(o -> o.path("nome").asString())).doesNotContain("Alfa fictício");
 
         // Nome ocupado por um ativo: não desarquiva.
         criar("Alfa fictício", "VAZIO");

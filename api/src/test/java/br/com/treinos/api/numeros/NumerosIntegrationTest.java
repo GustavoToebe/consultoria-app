@@ -460,10 +460,12 @@ class NumerosIntegrationTest extends AbstractIntegrationTest {
         UUID aluno = api.criarAluno(admin, "Aluno para o relatório");
         UUID consultoria = consultoriaDe(aluno);
         atualizacao(consultoria, aluno, versaoDoQuestionario(consultoria), hoje, null, Timestamp.from(java.time.Instant.now()));
-        // Pasta vencida sem linha no mês passado: também fica fechada sem as permissões do painel.
+        // Pasta vencida sem linha no mês passado: também fica fechada sem as permissões do painel. Vence no dia 1º: a
+        // pasta da atualização de hoje começa 27 dias antes de hoje, e num dia 10 ela já seria a vigente nos primeiros
+        // dias do mês (a vencida deixaria de contar). O dia 1º do mês passado fica sempre antes desse início.
         banco.update("update consultoria set criado_em=? where id=?", quando(atual.minusMonths(5), 1, 12, 0), consultoria);
         banco.update("update aluno set criado_em=? where id=?", quando(atual.minusMonths(5), 2, 12, 0), aluno);
-        pastaSemLinha(consultoria, aluno, atual.minusMonths(1).atDay(10), "plano_treino");
+        pastaSemLinha(consultoria, aluno, atual.minusMonths(1).atDay(1), "plano_treino");
 
         JsonNode semPainel = membroComPermissoes(Set.of("ALUNO_LER"));
         api.get("/numeros", semPainel, 403);

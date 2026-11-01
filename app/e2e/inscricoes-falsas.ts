@@ -1,9 +1,17 @@
-import type { ContagensInscricoes, InscricaoDetalhe, InscricaoResumo } from '../src/api/inscricoesTipos';
-import { type RespostasApi, TREINADOR } from './api-falsa';
+import type { CampoDaInscricao, ContagensInscricoes, InscricaoDetalhe, InscricaoPublica, InscricaoResumo } from '../src/api/inscricoesTipos';
+import { MARCA, type RespostasApi, TREINADOR } from './api-falsa';
 
 /** Inscrições fictícias e as rotas que a tela Interessados sempre consulta. Só dados fictícios. */
 
 export const CODIGO = 'codigo-de-teste-abcdefghijk';
+
+/** Os campos fixos que a página pública mostra quando o treinador não esconde nenhum. */
+export const CAMPOS_FIXOS: CampoDaInscricao[] = ['EMAIL', 'SEXO', 'OBJETIVO', 'INTERESSE', 'MODALIDADE', 'PREVISAO_INICIO', 'ORIGEM'];
+
+/** `GET /publico/inscricoes/{codigo}`: sem texto, com todos os campos fixos e sem perguntas, salvo o que vier em `extra`. */
+export function paginaPublica(extra: Partial<InscricaoPublica> = {}): InscricaoPublica {
+  return { consultoria: MARCA, texto: null, textoVersao: null, aberta: true, campos: CAMPOS_FIXOS, perguntas: null, ...extra };
+}
 
 export function idDe(n: number): string {
   return `i0000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
@@ -61,6 +69,7 @@ export function detalheFalso(r: InscricaoResumo, extra: Partial<InscricaoDetalhe
     notas: [],
     retornos: [],
     eventos: [],
+    respostas: null,
     ...extra,
   };
 }

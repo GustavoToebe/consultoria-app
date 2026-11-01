@@ -250,7 +250,12 @@ for (const largura of [390, 1280]) {
       await page.getByRole('button', { name: /^Filtros, / }).click();
       const painel = largura < 768 ? page.getByRole('dialog', { name: 'Filtros' }) : page.locator('body');
       await expect(painel.getByRole('button', { name: 'Novas · 2' })).toBeVisible();
-      await painel.getByRole('radiogroup', { name: 'Responsável' }).getByRole('button', { name: 'Meus', exact: true }).click();
+      // Responsável é de várias opções (nada marcado = toda a equipe): marcar só "Meus" vira `meus=true`.
+      await painel.getByRole('button', { name: 'Responsável: Toda a equipe. Escolher.' }).click();
+      const lista = page.getByRole('dialog', { name: 'Responsável' });
+      await lista.getByRole('checkbox', { name: 'Meus' }).click();
+      if (largura < 768) await lista.getByRole('button', { name: 'Fechar' }).click();
+      else await page.keyboard.press('Escape');
       if (largura < 768) await page.getByRole('button', { name: 'Ver inscrições' }).click();
       await expect(page.getByText('Nenhuma inscrição atribuída a você nesta lista.')).toBeVisible();
       await expect(page).toHaveURL(/meus=true/);

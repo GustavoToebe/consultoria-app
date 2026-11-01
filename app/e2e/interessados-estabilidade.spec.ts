@@ -1,8 +1,8 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 
 import type { InscricaoDetalhe, InscricaoResumo } from '../src/api/inscricoesTipos';
-import { erroApi, json, MARCA, type RespostasApi, sessao, simularApi, TREINADOR } from './api-falsa';
-import { CODIGO, detalheFalso, resumoFalso, rotasDaTela } from './inscricoes-falsas';
+import { erroApi, json, type RespostasApi, sessao, simularApi, TREINADOR } from './api-falsa';
+import { CODIGO, detalheFalso, paginaPublica, resumoFalso, rotasDaTela } from './inscricoes-falsas';
 
 /**
  * Achados da análise de 29/10 na tela Interessados: texto da consultoria trocado no meio do preenchimento (B2), última
@@ -31,8 +31,8 @@ test('inscrição pública: texto trocado enquanto a pessoa preenchia pede a ci�
     [`GET /publico/inscricoes/${CODIGO}`]: (_p, route) => {
       leituras += 1;
       return json(route, leituras === 1
-        ? { consultoria: MARCA, texto: 'Texto fictício antigo.', textoVersao: 'versao-a', aberta: true }
-        : { consultoria: MARCA, texto: 'Texto fictício novo.', textoVersao: 'versao-b', aberta: true });
+        ? paginaPublica({ texto: 'Texto fictício antigo.', textoVersao: 'versao-a' })
+        : paginaPublica({ texto: 'Texto fictício novo.', textoVersao: 'versao-b' }));
     },
     [`POST /publico/inscricoes/${CODIGO}`]: (_p, route) => {
       envios += 1;

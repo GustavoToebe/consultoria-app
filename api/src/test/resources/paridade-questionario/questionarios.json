@@ -8100,6 +8100,415 @@
   "avisos": []
  },
  {
+  "nome": "inscricao_tipos_permitidos_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "obs",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta obs",
+       "obrigatoria": false
+      },
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta t",
+       "obrigatoria": false
+      },
+      {
+       "id": "n",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n",
+       "obrigatoria": false
+      },
+      {
+       "id": "s",
+       "tipo": "SIM_NAO",
+       "rotulo": "Pergunta s",
+       "obrigatoria": false
+      },
+      {
+       "id": "e",
+       "tipo": "ESCOLHA_UNICA",
+       "rotulo": "Pergunta e",
+       "obrigatoria": false,
+       "opcoes": [
+        {
+         "id": "o0",
+         "rotulo": "Opção 0"
+        },
+        {
+         "id": "o1",
+         "rotulo": "Opção 1"
+        },
+        {
+         "id": "o2",
+         "rotulo": "Opção 2"
+        }
+       ]
+      },
+      {
+       "id": "m",
+       "tipo": "MULTIPLA_ESCOLHA",
+       "rotulo": "Pergunta m",
+       "obrigatoria": false,
+       "opcoes": [
+        {
+         "id": "o0",
+         "rotulo": "Opção 0"
+        },
+        {
+         "id": "o1",
+         "rotulo": "Opção 1"
+        }
+       ]
+      },
+      {
+       "id": "num",
+       "tipo": "NUMERO",
+       "rotulo": "Pergunta num",
+       "obrigatoria": false,
+       "unidade": "kg"
+      },
+      {
+       "id": "d",
+       "tipo": "DATA",
+       "rotulo": "Pergunta d",
+       "obrigatoria": false,
+       "somentePassado": true
+      },
+      {
+       "id": "fone",
+       "tipo": "TELEFONE",
+       "rotulo": "Pergunta fone",
+       "obrigatoria": false
+      },
+      {
+       "id": "mail",
+       "tipo": "EMAIL",
+       "rotulo": "Pergunta mail",
+       "obrigatoria": false
+      },
+      {
+       "id": "g",
+       "tipo": "GRADE",
+       "rotulo": "Pergunta g",
+       "obrigatoria": false,
+       "linhas": [
+        {
+         "id": "l0",
+         "rotulo": "Linha 0"
+        },
+        {
+         "id": "l1",
+         "rotulo": "Linha 1"
+        }
+       ],
+       "colunas": [
+        {
+         "id": "c0",
+         "rotulo": "Coluna 0"
+        },
+        {
+         "id": "c1",
+         "rotulo": "Coluna 1"
+        },
+        {
+         "id": "c2",
+         "rotulo": "Coluna 2"
+        }
+       ]
+      },
+      {
+       "id": "a",
+       "tipo": "ACEITE",
+       "rotulo": "Pergunta a",
+       "obrigatoria": false,
+       "texto": "Regras da consultoria (texto fictício).",
+       "declaracao": "Li e concordo."
+      },
+      {
+       "id": "info",
+       "tipo": "INFORMATIVO",
+       "rotulo": "Pergunta info",
+       "obrigatoria": false,
+       "texto": "Explicação (fictícia)."
+      },
+      {
+       "id": "cond",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta cond",
+       "obrigatoria": false,
+       "mostrarSe": {
+        "perguntaId": "s",
+        "valores": [
+         "sim"
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": [],
+  "finalidade": "INSCRICAO"
+ },
+ {
+  "nome": "inscricao_tipos_proibidos",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "Pergunta f",
+       "obrigatoria": false
+      },
+      {
+       "id": "e",
+       "tipo": "ENDERECO",
+       "rotulo": "Pergunta e",
+       "obrigatoria": false
+      },
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "nd",
+       "tipo": "NOTAS_POR_DIA",
+       "rotulo": "Pergunta nd",
+       "obrigatoria": false,
+       "dias": [
+        1
+       ]
+      },
+      {
+       "id": "da",
+       "tipo": "DATA_AUTOMATICA",
+       "rotulo": "Pergunta da",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[0].tipo",
+   "secoes[0].perguntas[1].tipo",
+   "secoes[0].perguntas[2].tipo",
+   "secoes[0].perguntas[3].tipo",
+   "secoes[0].perguntas[4].tipo"
+  ],
+  "avisos": [],
+  "finalidade": "INSCRICAO"
+ },
+ {
+  "nome": "inscricao_sem_peso_nao_avisa",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta t",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": [],
+  "finalidade": "INSCRICAO"
+ },
+ {
+  "nome": "inscricao_imagem_na_pergunta_e_na_opcao",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "e",
+       "tipo": "ESCOLHA_UNICA",
+       "rotulo": "Pergunta e",
+       "obrigatoria": false,
+       "imagemId": "0b6f9a1e-5c3d-4e2a-9f7b-1a2b3c4d5e6f",
+       "opcoes": [
+        {
+         "id": "a",
+         "rotulo": "A",
+         "imagemId": "0b6f9a1e-5c3d-4e2a-9f7b-1a2b3c4d5e6f"
+        },
+        {
+         "id": "b",
+         "rotulo": "B"
+        }
+       ]
+      },
+      {
+       "id": "i",
+       "tipo": "INFORMATIVO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false,
+       "texto": "x",
+       "imagemId": "abc"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[0].imagemId",
+   "secoes[0].perguntas[0].opcoes[0].imagemId",
+   "secoes[0].perguntas[1].imagemId"
+  ],
+  "avisos": [],
+  "finalidade": "INSCRICAO"
+ },
+ {
+  "nome": "inscricao_destinos",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "o",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta o",
+       "obrigatoria": false,
+       "destino": "OBJETIVO"
+      },
+      {
+       "id": "c",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta c",
+       "obrigatoria": false,
+       "destino": "CPF"
+      },
+      {
+       "id": "f",
+       "tipo": "TELEFONE",
+       "rotulo": "Pergunta f",
+       "obrigatoria": false,
+       "destino": "TELEFONE"
+      },
+      {
+       "id": "s",
+       "tipo": "ESCOLHA_UNICA",
+       "rotulo": "Pergunta s",
+       "obrigatoria": false,
+       "destino": "SEXO",
+       "opcoes": [
+        {
+         "id": "m",
+         "rotulo": "Masculino",
+         "valorNoCadastro": "MASCULINO"
+        },
+        {
+         "id": "f",
+         "rotulo": "Feminino",
+         "valorNoCadastro": "FEMININO"
+        },
+        {
+         "id": "n",
+         "rotulo": "Prefiro não dizer"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[0].destino",
+   "secoes[0].perguntas[1].destino",
+   "secoes[0].perguntas[2].destino",
+   "secoes[0].perguntas[3].destino"
+  ],
+  "avisos": [],
+  "finalidade": "INSCRICAO"
+ },
+ {
+  "nome": "inscricao_ajuda_automatica",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta t",
+       "obrigatoria": false,
+       "ajudaAutomatica": "MEDIA_DIAS_TREINO"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[0].ajudaAutomatica"
+  ],
+  "avisos": [],
+  "finalidade": "INSCRICAO"
+ },
+ {
+  "nome": "inscricao_padrao_da_v050",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "inscricao-mais",
+     "titulo": "Mais sobre você",
+     "perguntas": [
+      {
+       "id": "observacao",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Observação",
+       "obrigatoria": false,
+       "ajuda": "Algo mais que a equipe deva saber? Informações de saúde ficam para depois, se a inscrição for aceita."
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": [],
+  "finalidade": "INSCRICAO"
+ },
+ {
   "nome": "fabrica_v2",
   "conteudo": {
    "secoes": [

@@ -1,6 +1,6 @@
 # Filtros nas listas (barra de filtros em todas as telas)
 
-Situação: Lote 1 pronto na branch (só app); Lote 2 (API) planejado · Onde: branch `claude/filtros-nas-listas-lote1` (31/10) · Atualizado: 01/11/2026
+Situação: Lote 1 na main (só app); Lote 2 (API e app) pronto na branch `filtros-lote2` · Atualizado: 01/11/2026
 
 ## Objetivo
 Levar a barra de filtros da lista de alunos (`ui/BarraDeFiltros`: busca, botão "Filtros" com a contagem, painel no PC,
@@ -38,7 +38,8 @@ Lote 1 usa só o que a API já aceita hoje; o que pediria parâmetro novo fica n
 - [x] 11. AGENTS.md, Ajuda e guia do treinador — commit: o seguinte a 5f6c307
 
 ## Lote 2 (API)
-Filtros que fazem sentido nas telas mas que a rota ainda não aceita (nada disso foi feito no lote 1):
+Filtros que fazem sentido nas telas mas que a rota não aceitava no lote 1. **Feito** (branch `filtros-lote2`, 01/11):
+API no commit 2d233f5, app no 6a39951.
 
 | Tela | Filtro | Parâmetro proposto |
 | --- | --- | --- |
@@ -54,6 +55,17 @@ Filtros que fazem sentido nas telas mas que a rota ainda não aceita (nada disso
 | Importação | Trocar a `busca` (só acha a extensão, o nome não é guardado) por um filtro explícito | `arquivo=xlsx|csv` |
 | Planejamento › questionários | Ativos e arquivados juntos | `arquivados=todos` em `GET /questionarios` |
 
+### Decisões do lote 2
+| # | Decisão | Valor | Quem decidiu |
+| --- | --- | --- | --- |
+| D14 | Leitura comum | `web/FiltrosDeLista`: repetível por `?a=1&a=2` ou `?a=1,2`, até 50 valores (400 acima), valor desconhecido = 400 `FILTRO_INVALIDO` citando só o nome do parâmetro; responsável com `nenhum` e `meus` junto de `responsavel` = 400 em Atualizações e Interessados (antes Interessados ignorava o `responsavel` com `meus`); membro escolhido de fora = 404 (`equipe/MembrosDoFiltro`; na Auditoria qualquer usuário da consultoria, porque o aluno também é autor) | Claude |
+| D15 | Atualizações | `GET /atualizacoes/contagens` novo, com os mesmos filtros da lista: as abas voltam a ter número com pessoa, busca ou data (o `/painel` continua para o ponto do menu e o Início). Vários responsáveis leem o escopo inteiro e recortam em Java pelo `responsavelId` (entrou na `LinhaAtualizacao`); um só vai à consulta, como antes | Claude |
+| D16 | Interessados | Lista e contagens saem de `FilaDeInscricoesService` (fora do `InscricaoService`, que outro trabalho mexe); filtro em `Specification` (`FiltrosDaFila`), contagem por situação em seis `count` (a Specification não agrupa). Os dois períodos valem também nas contagens, para o número de cada situação e as colunas do Kanban baterem com a lista | Claude |
+| D17 | Cobranças | `forma=MANUAL` = baixa com provedor `MANUAL`; `ONLINE` = baixa de um provedor; as duas só pegam cobrança com baixa (aberta e cancelada não). Situações em OU; ABERTA já inclui VENCIDA; só abertas e/ou vencidas vêm das mais antigas. `alunoId`/`planoId` de fora = 404. No app, um aluno só chega pelo endereço ("Ver no Financeiro" na ficha); escolher aluno num seletor ficou de fora (a busca pelo nome cobre) | Claude |
+| D18 | Lançamentos | `categoria` repetível, comparada sem caixa, lida por `getParameterValues` (categoria é texto livre e pode ter vírgula); `GET /financeiro/lancamentos/categorias` dá as já usadas ao seletor. No endereço do app a vírgula de dentro da categoria vira `~1` (e `~` vira `~0`) | Claude |
+| D19 | Auditoria | `usuarioId=sistema` filtra os eventos sem autor; a ação é conferida só pelo formato (`[A-Z][A-Z0-9_]*`, a API não tem catálogo), o app só oferece as do catálogo | Claude |
+| D20 | Importação e Questionários | `arquivo=xlsx|csv` no lugar da `busca` (sem compatibilidade) e período pela data da importação; `arquivados=false|true|todos` | Claude |
+
 ## Fora do escopo
 - Agenda, Números e Modelos do Planejamento (pedido do Gustavo).
 - Interessados › Indicadores (tem o próprio período) e a fila de retornos `?retornos=ATE_HOJE` (fica com a faixa do endereço e o Todos/Meus).
@@ -62,4 +74,7 @@ Filtros que fazem sentido nas telas mas que a rota ainda não aceita (nada disso
 ## O que ficou para trás
 - Os filtros da Biblioteca, dos Questionários e dos Membros ficam no estado da tela (não no endereço): trocar de aba já começa do zero, e a lista vem inteira (D2). Se o Gustavo quiser o link com o filtro, é só levar para o endereço como nas outras.
 - Na Biblioteca o filtro do catálogo e o de exercícios só têm teste de tela em 1280 px (o spec da Biblioteca roda numa largura só).
-- A contagem das abas de Atualizações some com uma pessoa ou uma data escolhida: o `/painel` só conhece Todos/Meus (contagem por filtro seria parâmetro novo, Lote 2).
+- (Resolvido no lote 2: as abas de Atualizações contam pelos mesmos filtros.)
+- Cobranças: escolher um aluno pelo painel de filtros (hoje só pelo endereço, "Ver no Financeiro" da ficha, ou pela busca do nome).
+- Lançamentos: "Sem categoria" como opção do filtro.
+- Os testes de integração do lote 2 foram escritos sem Docker na máquina do agente: compilam, mas só rodam na CI (`AtualizacoesPorPeriodoEResponsavelIntegrationTest`, `InscricoesFiltrosIntegrationTest`, `CobrancasFiltrosIntegrationTest`, `AuditoriaFiltrosIntegrationTest`, `ImportacaoIntegrationTest.historicoFiltraPorArquivoEPeriodo`, `QuestionariosIntegrationTest`).

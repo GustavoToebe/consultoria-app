@@ -52,11 +52,11 @@ class EquipeMigrationIntegrationTest extends AbstractIntegrationTest {
         UUID usuario = UUID.fromString(treinador.path("usuario").path("id").asString());
         UUID consultoria = banco.queryForObject("select consultoria_id from usuario where id=?", UUID.class, usuario);
         assertThat(banco.queryForObject(
-                "select count(*) from questionario where consultoria_id = ? and padrao and versao_publicada = 1 and not arquivado",
+                "select count(*) from questionario where consultoria_id = ? and padrao and finalidade = 'ATUALIZACAO' and versao_publicada = 1 and not arquivado",
                 Integer.class, consultoria)).isEqualTo(1);
         assertThat(banco.queryForObject(
                 "select v.conteudo->>'formato' from questionario_versao v join questionario q on q.id = v.questionario_id"
-                        + " where q.consultoria_id = ? and q.padrao", String.class, consultoria)).isEqualTo("2");
+                        + " where q.consultoria_id = ? and q.padrao and q.finalidade = 'ATUALIZACAO'", String.class, consultoria)).isEqualTo("2");
         assertThat(banco.queryForObject(
                 "select count(*) from questionario_versao v, jsonb_array_elements(v.conteudo->'secoes') s,"
                         + " jsonb_array_elements(s->'perguntas') p where v.consultoria_id = ? and p->>'id' = 'treino_dias'"

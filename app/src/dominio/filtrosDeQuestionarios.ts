@@ -2,10 +2,11 @@ import type { QuestionarioResumo } from '../api/tipos';
 import { paraBusca } from './filtrosComuns';
 
 /**
- * Filtros das abas Atualização e Anamnese do Planejamento (`docs/planos/filtros-nas-listas.md`, D12): a situação (ativos
- * ou arquivados) vai à API (`?arquivados=`); a busca e a publicação filtram a lista que veio inteira. Funções puras.
+ * Filtros das abas Atualização e Anamnese do Planejamento (`docs/planos/filtros-nas-listas.md`, D12 e lote 2): a situação
+ * (ativos, arquivados ou todos) vai à API (`?arquivados=false|true|todos`); a busca e a publicação filtram a lista que
+ * veio inteira. Funções puras.
  */
-export type SituacaoDoQuestionario = 'ATIVOS' | 'ARQUIVADOS';
+export type SituacaoDoQuestionario = 'ATIVOS' | 'ARQUIVADOS' | 'TODOS';
 export type PublicacaoDoQuestionario = '' | 'PUBLICADOS' | 'NUNCA_PUBLICADOS' | 'ALTERADOS';
 
 export interface FiltrosDeQuestionarios {
@@ -20,7 +21,11 @@ export const SEM_FILTROS: FiltrosDeQuestionarios = { situacao: 'ATIVOS', publica
 export const SITUACOES_DO_QUESTIONARIO: readonly { valor: SituacaoDoQuestionario; rotulo: string }[] = [
   { valor: 'ATIVOS', rotulo: 'Ativos' },
   { valor: 'ARQUIVADOS', rotulo: 'Arquivados' },
+  { valor: 'TODOS', rotulo: 'Todos' },
 ];
+
+/** O parâmetro `arquivados` da rota. */
+export const arquivadosDaApi = (s: SituacaoDoQuestionario): boolean | 'todos' => (s === 'TODOS' ? 'todos' : s === 'ARQUIVADOS');
 
 export const PUBLICACOES: readonly { valor: PublicacaoDoQuestionario; rotulo: string }[] = [
   { valor: '', rotulo: 'Todos' },
@@ -48,7 +53,7 @@ export interface ChipDeFiltro { chave: ChaveDoFiltro; texto: string }
 
 export function chipsDosFiltros(f: FiltrosDeQuestionarios): ChipDeFiltro[] {
   return [
-    ...(f.situacao === 'ARQUIVADOS' ? [{ chave: 'situacao' as const, texto: 'Situação: Arquivados' }] : []),
+    ...(f.situacao !== 'ATIVOS' ? [{ chave: 'situacao' as const, texto: `Situação: ${f.situacao === 'TODOS' ? 'Ativos e arquivados' : 'Arquivados'}` }] : []),
     ...(f.publicacao ? [{ chave: 'publicacao' as const, texto: `Publicação: ${PUBLICACOES.find((p) => p.valor === f.publicacao)?.rotulo ?? ''}` }] : []),
   ];
 }

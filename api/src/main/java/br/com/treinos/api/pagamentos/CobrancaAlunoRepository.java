@@ -72,6 +72,26 @@ public interface CobrancaAlunoRepository extends JpaRepository<CobrancaAluno, UU
 
     String CONTAGEM = "select count(c) from CobrancaAluno c join Aluno a on a.id = c.alunoId ";
 
+    /**
+     * Filtros da lista {@code GET /financeiro/cobrancas} (lote 2 dos filtros). Situações: sem nenhuma, todas; as gravadas
+     * vêm em {@code situacoes} ({@code filtraSituacoes}) e VENCIDA (aberta com vencimento antes de hoje, calculada) em
+     * {@code soVencidas}, as duas em OU. {@code forma}: vazio = qualquer; {@code MANUAL} = baixa registrada pelo treinador
+     * (provedor {@code MANUAL}); {@code ONLINE} = baixa confirmada por um provedor (as duas só em cobranças com baixa).
+     * {@code nome} é o padrão do LIKE no nome do aluno ({@code busca} liga).
+     */
+    String FILTRO_DA_LISTA = "where ((:filtraSituacoes = false and :soVencidas = false) "
+            + "or (:filtraSituacoes = true and c.situacao in :situacoes) "
+            + "or (:soVencidas = true and c.situacao = :aberta and c.vencimento < :hoje)) "
+            + "and c.vencimento between :de and :ate and (:alunoId is null or c.alunoId = :alunoId) "
+            + "and (:responsavelId is null or a.responsavelId = :responsavelId) "
+            + "and (:planoId is null or k.planoComercialId = :planoId) "
+            + "and (:forma = '' or (c.forma is not null and ((:forma = 'MANUAL' and c.provedor = 'MANUAL') "
+            + "or (:forma = 'ONLINE' and c.provedor <> 'MANUAL')))) "
+            + "and (:busca = false or lower(a.nome) like :nome escape '\\') ";
+
+    String CONTAGEM_DA_LISTA = "select count(c) from CobrancaAluno c join Aluno a on a.id = c.alunoId "
+            + "join ContratacaoAluno k on k.id = c.contratacaoId ";
+
     @Query("select c.contratacaoId as contratacaoId, c.alunoId as alunoId from CobrancaAluno c where c.id = :id")
     Optional<Referencias> referenciasDe(UUID id);
 
@@ -128,6 +148,18 @@ public interface CobrancaAlunoRepository extends JpaRepository<CobrancaAluno, UU
     @Query(value = LINHA + FILTRO + "order by c.vencimento desc, c.id desc", countQuery = CONTAGEM + FILTRO)
     Page<LinhaDeCobranca> listarDecrescente(boolean todas, CobrancaAluno.Situacao situacao, boolean soVencidas,
             LocalDate hoje, LocalDate de, LocalDate ate, UUID alunoId, UUID responsavelId, Pageable pagina);
+
+    /** A lista filtrada ({@link #FILTRO_DA_LISTA}), das mais antigas: só abertas e vencidas. */
+    @Query(value = LINHA + FILTRO_DA_LISTA + "order by c.vencimento asc, c.id asc", countQuery = CONTAGEM_DA_LISTA + FILTRO_DA_LISTA)
+    Page<LinhaDeCobranca> filtrarCrescente(boolean filtraSituacoes, Collection<CobrancaAluno.Situacao> situacoes,
+            boolean soVencidas, CobrancaAluno.Situacao aberta, LocalDate hoje, LocalDate de, LocalDate ate, UUID alunoId,
+            UUID responsavelId, UUID planoId, String forma, boolean busca, String nome, Pageable pagina);
+
+    /** A lista filtrada ({@link #FILTRO_DA_LISTA}), das mais recentes: as demais combinações. */
+    @Query(value = LINHA + FILTRO_DA_LISTA + "order by c.vencimento desc, c.id desc", countQuery = CONTAGEM_DA_LISTA + FILTRO_DA_LISTA)
+    Page<LinhaDeCobranca> filtrarDecrescente(boolean filtraSituacoes, Collection<CobrancaAluno.Situacao> situacoes,
+            boolean soVencidas, CobrancaAluno.Situacao aberta, LocalDate hoje, LocalDate de, LocalDate ate, UUID alunoId,
+            UUID responsavelId, UUID planoId, String forma, boolean busca, String nome, Pageable pagina);
 
     @Query(LINHA + "where c.alunoId = :alunoId order by c.competencia desc, c.id desc")
     List<LinhaDeCobranca> doAluno(UUID alunoId);

@@ -40,6 +40,10 @@ public class InscricaoConfiguracao {
 
     private String texto;
 
+    /** Campos fixos escondidos da página ({@link CampoDaInscricao}), separados por vírgula; vazio = todos visíveis. */
+    @Column(name = "campos_ocultos", nullable = false)
+    private String camposOcultos = "";
+
     @Column(name = "atualizada_em", nullable = false)
     private Instant atualizadaEm = Instant.now();
 
@@ -61,6 +65,12 @@ public class InscricaoConfiguracao {
     public String getTexto() { return texto; }
     public Instant getAtualizadaEm() { return atualizadaEm; }
     public Long getVersao() { return versao; }
+    public java.util.Set<CampoDaInscricao> getCamposOcultos() { return CampoDaInscricao.ler(camposOcultos); }
+
+    void esconder(java.util.Set<CampoDaInscricao> campos) {
+        this.camposOcultos = CampoDaInscricao.escrever(campos);
+        this.atualizadaEm = Instant.now();
+    }
 
     void alterar(boolean aberta, UUID responsavelId, String texto) {
         this.aberta = aberta;

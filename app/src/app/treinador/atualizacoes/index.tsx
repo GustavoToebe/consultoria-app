@@ -1,16 +1,17 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { listarAtualizacoes, painelTreinador, responsaveisEquipe } from '../../../api/rotas';
+import { contagensAtualizacoes, listarAtualizacoes, responsaveisEquipe } from '../../../api/rotas';
 import type { ResponsavelEquipe } from '../../../api/equipeTipos';
 import type { SituacaoAtualizacao } from '../../../api/tipos';
 import { caminhoAtualizacaoTreinador, statusAtualizacaoTreinador } from '../../../dominio/atualizacao';
 import { dataSemAnoCorrente } from '../../../dominio/datasRelativas';
 import { paraSetParams } from '../../../dominio/filtrosComuns';
 import {
-  CHAVES_DO_ENDERECO, chaveDosFiltros, chipsDosFiltros, contagensValem, filtrarPorNome, lerDoEndereco, MAXIMO_DIAS, opcoesDeResponsavel,
+  CHAVES_DO_ENDERECO, chaveDosFiltros, chipsDosFiltros, lerDoEndereco, MAXIMO_DIAS, opcoesDeResponsavel,
   paraEndereco, pedidoDaApi, SEM_FILTROS, semOFiltro, type ChaveDoFiltro, type FiltrosDeAtualizacoes,
 } from '../../../dominio/filtrosDeAtualizacoes';
-import { CamposDePeriodo, CelulaDoFiltro, UmaOpcao } from '../../../treinador/SeletoresDeFiltro';
+import { CamposDePeriodo, CelulaDoFiltro } from '../../../treinador/SeletoresDeFiltro';
+import { SelecaoMultiplaSuspensa } from '../../../ui/SelecaoMultiplaSuspensa';
 import { BarraDeFiltros } from '../../../ui/BarraDeFiltros';
 import { ICONE_DO_SELO } from '../../../treinador/iconesDosSelos';
 import { LARGURA_LISTA } from '../../../tema/tokens';
@@ -23,7 +24,7 @@ import { textoDoErro } from '../../../ui/erros';
 import { LinhaDaLista, ListaDeLinhas } from '../../../ui/LinhaDaLista';
 import { Tela } from '../../../ui/Tela';
 import { Texto } from '../../../ui/Texto';
-import { useCarregar } from '../../../ui/useCarregar';
+import { useAtrasado, useCarregar } from '../../../ui/useCarregar';
 import { useSessao } from '../../../sessao/SessaoProvider';
 
 const ABAS:{valor:SituacaoAtualizacao;rotulo:string}[]=[
@@ -32,33 +33,36 @@ const ABAS:{valor:SituacaoAtualizacao;rotulo:string}[]=[
 ];
 /**
  * Atualizações enviadas pelos alunos: a situação nas abas (`?situacao=`, com a contagem) e, na barra de filtros, a busca
- * pelo nome (local: a lista vem inteira), o responsável e a data (`docs/planos/filtros-nas-listas.md`, D5). Os filtros
- * moram no endereço (`?meus=true` ou `?responsavel=<id>`, `?de=&ate=`) e seguem para a revisão em fila.
+ * pelo nome, os responsáveis (vários) e a data (`docs/planos/filtros-nas-listas.md`, D5 e lote 2). Tudo vai à API (a
+ * busca 300 ms depois de digitar); as abas contam com os mesmos filtros (`GET /atualizacoes/contagens`). Responsáveis e
+ * data moram no endereço (`?meus=true` ou `?responsavel=<id>,nenhum`, `?de=&ate=`) e seguem, com a busca, para a
+ * revisão em fila.
  */
 export default function ListaAtualizacoes() {
-  const parametros=useLocalSearchParams<{situacao?:string;meus?:string;responsavel?:string;de?:string;ate?:string}>();
+  const parametros=useLocalSearchParams<{situacao?:string;meus?:string;responsavel?:string;de?:string;ate?:string;busca?:string}>();
   const filtro=ABAS.find(a=>a.valor===parametros.situacao)?.valor??'PARA_REVISAR';
   const filtros=lerDoEndereco(parametros);
-  const pedido=pedidoDaApi(filtros);
-  const meus=pedido.meus;
-  const [busca,setBusca]=useState('');
-  const lista=useCarregar(`${filtro}:${chaveDosFiltros(filtros)}`,()=>listarAtualizacoes(filtro,pedido.meus,pedido.filtro));
+  const {usuario}=useSessao();
+  // A busca vem do endereço só ao abrir (o "Voltar para a lista" da fila a traz); depois é digitada aqui.
+  const [busca,setBusca]=useState(()=>typeof parametros.busca==='string'?parametros.busca.slice(0,100):'');
+  const buscaAtrasada=useAtrasado(busca.trim(),300);
+  const pedido=pedidoDaApi(filtros,buscaAtrasada,usuario?.id);
+  const chave=chaveDosFiltros(filtros,buscaAtrasada);
+  const lista=useCarregar(`${filtro}:${chave}`,()=>listarAtualizacoes(filtro,pedido.meus,pedido.filtro));
   const {recarregar}=lista;
-  // Contagem de cada aba vem do painel (mesmo filtro "Meus alunos"); se falhar, as abas ficam sem número. Com uma pessoa
-  // ou uma data o painel não bate com a lista: as abas ficam sem número.
-  const {pode,usuario}=useSessao();
-  // `/painel` exige PAINEL_VER: sem ela as abas ficam sem número, sem chamar a API à toa.
-  const painel=useCarregar(pode('PAINEL_VER')&&contagensValem(filtros)?`painel-atualizacoes:${meus}`:null,()=>painelTreinador(meus));
-  const contagens:Partial<Record<SituacaoAtualizacao,number>>=painel.dados&&contagensValem(filtros)?{PARA_REVISAR:painel.dados.atualizacoesParaRevisar,ATRASADAS:painel.dados.atualizacoesAtrasadas,AVISARAM_ATRASO:painel.dados.atualizacoesAvisaramAtraso,PROXIMAS:painel.dados.atualizacoesProximas}:{};
-  const recarregarPainel=painel.recarregar;
+  // Contagem de cada aba com os mesmos filtros da lista; se falhar, as abas ficam sem número (nunca um número errado).
+  const contagem=useCarregar(`contagens-atualizacoes:${chave}`,()=>contagensAtualizacoes(pedido.meus,pedido.filtro));
+  const contagens:Partial<Record<SituacaoAtualizacao,number>>=contagem.dados??{};
+  const recarregarContagens=contagem.recarregar;
   const responsaveis=useCarregar('responsaveis-atualizacoes',()=>responsaveisEquipe().catch(():ResponsavelEquipe[]=>[])).dados??[];
   const nomeDe=(id:string)=>responsaveis.find(r=>r.id===id)?.nome??null;
-  const itens=filtrarPorNome(lista.dados??[],busca).sort((x,y)=>(x.dataAtualizacao??'').localeCompare(y.dataAtualizacao??''));
-  useFocusEffect(useCallback(()=>{recarregar();recarregarPainel();},[recarregar,recarregarPainel]));
+  const itens=[...(lista.dados??[])].sort((x,y)=>(x.dataAtualizacao??'').localeCompare(y.dataAtualizacao??''));
+  useFocusEffect(useCallback(()=>{recarregar();recarregarContagens();},[recarregar,recarregarContagens]));
   // Trocar um filtro troca o endereço sem empilhar histórico (o voltar sai da tela); a aba fica.
   const aplicar=(novos:FiltrosDeAtualizacoes)=>router.setParams(paraSetParams(CHAVES_DO_ENDERECO,paraEndereco(novos)));
   const chips=chipsDosFiltros(filtros,nomeDe);
-  const fila={situacao:filtro,meus,...(pedido.filtro.responsavel?{responsavel:pedido.filtro.responsavel}:{}),...(pedido.filtro.de&&pedido.filtro.ate?{de:pedido.filtro.de,ate:pedido.filtro.ate}:{})};
+  const responsavelDaFila=pedido.filtro.responsavel&&typeof pedido.filtro.responsavel!=='string'?pedido.filtro.responsavel.join(','):undefined;
+  const fila={situacao:filtro,meus:pedido.meus,...(responsavelDaFila?{responsavel:responsavelDaFila}:{}),...(pedido.filtro.de&&pedido.filtro.ate?{de:pedido.filtro.de,ate:pedido.filtro.ate}:{}),...(buscaAtrasada?{busca:buscaAtrasada}:{})};
   const filtrado=chips.length>0||!!busca.trim();
   return <Tela largura={LARGURA_LISTA} bordas={['top']}>
     <Cabecalho titulo="Atualizações" mostrarMarca="celular" />
@@ -66,7 +70,7 @@ export default function ListaAtualizacoes() {
     <BarraDeFiltros busca={{valor:busca,aoMudar:setBusca,placeholder:'Nome do aluno'}} valor={filtros} aoAplicar={aplicar} limpo={SEM_FILTROS}
       chips={chips} aoTirar={(chave)=>aplicar(semOFiltro(filtros,chave as ChaveDoFiltro))} rotuloDoResultado="Ver atualizações"
       seletores={(atuais,mudar)=><>
-        <CelulaDoFiltro><UmaOpcao rotulo="Responsável" valor={atuais.responsavel} opcoes={opcoesDeResponsavel(responsaveis,usuario?.id)} aoMudar={(responsavel)=>mudar({...atuais,responsavel})} /></CelulaDoFiltro>
+        <CelulaDoFiltro><SelecaoMultiplaSuspensa rotulo="Responsável" opcoes={opcoesDeResponsavel(responsaveis,usuario?.id)} marcados={new Set(atuais.responsaveis)} aoMudar={(m)=>mudar({...atuais,responsaveis:[...m]})} rotuloDeTodos="Todos" style={{alignSelf:'stretch'}} /></CelulaDoFiltro>
         <CelulaDoFiltro><CamposDePeriodo rotulo="Data da atualização" osDois maximoDias={MAXIMO_DIAS} valor={atuais.periodo} aoMudar={(periodo)=>mudar({...atuais,periodo})} /></CelulaDoFiltro>
       </>} />
     {/* A aba (situação) é um passo do histórico; os filtros da barra vão junto. */}

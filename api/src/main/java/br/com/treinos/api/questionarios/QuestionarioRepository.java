@@ -23,6 +23,9 @@ public interface QuestionarioRepository extends JpaRepository<Questionario, UUID
 
     List<Questionario> findByArquivadoAndFinalidadeOrderByNomeAsc(boolean arquivado, Finalidade finalidade);
 
+    /** Ativos e arquivados juntos ({@code arquivados=todos} na lista). */
+    List<Questionario> findByFinalidadeOrderByNomeAsc(Finalidade finalidade);
+
     /** Contagens para a lista (uma consulta por tipo de uso, sem N+1). Todas passam pelo @TenantId. */
     @Query("select new br.com.treinos.api.questionarios.ContagemPorQuestionario(a.questionarioId, count(a)) "
             + "from Aluno a where a.questionarioId is not null group by a.questionarioId")
@@ -40,6 +43,16 @@ public interface QuestionarioRepository extends JpaRepository<Questionario, UUID
     @Query("select new br.com.treinos.api.questionarios.ContagemPorQuestionario(v.questionarioId, count(n)) "
             + "from Anamnese n, QuestionarioVersao v where n.questionarioVersaoId = v.id group by v.questionarioId")
     List<ContagemPorQuestionario> contarAnamneses();
+
+    /** Inscrições recebidas por questionário (contam como envios: a inscrição guarda a versão respondida). */
+    @Query("select new br.com.treinos.api.questionarios.ContagemPorQuestionario(v.questionarioId, count(i)) "
+            + "from Inscricao i, QuestionarioVersao v where i.questionarioVersaoId = v.id group by v.questionarioId")
+    List<ContagemPorQuestionario> contarInscricoes();
+
+    /** Quantas inscrições (em qualquer situação) responderam alguma versão deste questionário (impede excluir). */
+    @Query("select count(i) from Inscricao i, QuestionarioVersao v "
+            + "where i.questionarioVersaoId = v.id and v.questionarioId = :id")
+    long contarInscricoesDo(UUID id);
 
     /** Quantos envios apontam para alguma versão deste questionário (impede excluir). */
     @Query("select count(t) from Atualizacao t, QuestionarioVersao v "

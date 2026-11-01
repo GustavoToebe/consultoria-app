@@ -18,6 +18,8 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import br.com.treinos.api.questionarios.ConteudoQuestionario;
+import tools.jackson.databind.JsonNode;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -35,9 +37,20 @@ public final class InscricaoDtos {
     /**
      * O que a página pública mostra: a marca (com a URL pública da logo, se houver) e o texto da consultoria.
      * {@code textoVersao} identifica o texto mostrado (sha256): o envio devolve o mesmo valor, e o servidor recusa a
-     * ciência de um texto que mudou enquanto a pessoa preenchia. Nulo sem texto.
+     * ciência de um texto que mudou enquanto a pessoa preenchia. Nulo sem texto. {@code campos}: os campos fixos que o
+     * treinador não escondeu (nome, WhatsApp e ciência sempre aparecem e não estão na lista). {@code perguntas}: as do
+     * padrão de inscrição publicado, nulo sem padrão.
      */
-    public record InscricaoPublica(MarcaPublica consultoria, String texto, String textoVersao, boolean aberta) {
+    public record InscricaoPublica(MarcaPublica consultoria, String texto, String textoVersao, boolean aberta,
+                                   List<CampoDaInscricao> campos, PerguntasDaInscricao perguntas) {
+    }
+
+    /**
+     * Perguntas do treinador na página pública: só o necessário para responder (sem nome do questionário, resumo do
+     * treinador, imagem nem destino no cadastro). {@code versaoId} volta no envio: pergunta trocada no meio do
+     * preenchimento é 409 {@code PERGUNTAS_ALTERADAS}.
+     */
+    public record PerguntasDaInscricao(UUID versaoId, ConteudoQuestionario conteudo) {
     }
 
     /**
@@ -49,7 +62,6 @@ public final class InscricaoDtos {
             @NotBlank @Size(max = 30) String whatsapp,
             @Email @Size(max = 254) String email,
             @Size(max = 500) String objetivo,
-            @Size(max = 1000) String observacao,
             Boolean cienciaPrivacidade,
             /** {@code textoVersao} recebido na página: confere que a ciência é do texto atual. */
             @Size(max = 64) String textoVersao,
@@ -62,7 +74,11 @@ public final class InscricaoDtos {
             PrevisaoInicio previsaoInicio,
             OrigemInformada origem,
             /** Parâmetro {@code ?origem=} do link; fora de {@code [a-z0-9_-]{1,40}} é ignorado (não recusa a inscrição). */
-            @Size(max = 200) String origemLink) {
+            @Size(max = 200) String origemLink,
+            /** {@code perguntas.versaoId} recebido na página; nulo quando a página não tinha perguntas. */
+            UUID questionarioVersaoId,
+            /** Respostas às perguntas do treinador, por id da pergunta (as mesmas regras da atualização e da anamnese). */
+            JsonNode respostas) {
     }
 
     /** Resposta neutra: não diz nada sobre a fila nem sobre outras inscrições. */
@@ -71,9 +87,16 @@ public final class InscricaoDtos {
 
     // ---- Configuração do link ----
 
-    /** {@code codigo} e {@code link} nulos até o link ser gerado pela primeira vez. */
+    /**
+     * {@code codigo} e {@code link} nulos até o link ser gerado pela primeira vez. {@code camposOcultos}: os campos fixos
+     * escondidos da página.
+     */
     public record ConfiguracaoResponse(boolean aberta, String codigo, String link, UUID responsavelId, String texto,
-                                       Long versao) {
+                                       List<CampoDaInscricao> camposOcultos, Long versao) {
+    }
+
+    /** Campos fixos escondidos da página, sempre a lista inteira; {@code versao} nula só quando ainda não há configuração. */
+    public record CamposOcultosRequest(@NotNull @Size(max = 7) List<@NotNull CampoDaInscricao> camposOcultos, Long versao) {
     }
 
     /** {@code versao} nula só quando ainda não há configuração; {@code responsavelId} nulo = sem responsável. */
@@ -151,7 +174,15 @@ public final class InscricaoDtos {
                                    UUID responsavelId, String responsavelNome, UUID alunoId, Instant aceitaEm,
                                    Relacionada relacionadaA, Proposta proposta, Instant criadaEm, Instant atualizadaEm,
                                    Instant ultimaAtividadeEm, Long versao, Duplicidade duplicidade, List<Nota> notas,
-                                   List<Retorno> retornos, List<Evento> eventos) {
+                                   List<Retorno> retornos, List<Evento> eventos, RespostasDaInscricao respostas) {
+    }
+
+    /**
+     * Respostas às perguntas do treinador com a versão respondida (o modelo, para mostrar o rótulo de cada pergunta).
+     * Nulo sem respostas; na inscrição aceita, só para quem tem {@code ALUNO_SENSIVEL_LER} (como o objetivo).
+     */
+    public record RespostasDaInscricao(UUID questionarioVersaoId, int questionarioVersaoNumero, JsonNode modelo,
+                                       JsonNode respostas) {
     }
 
     /**
@@ -261,7 +292,8 @@ public final class InscricaoDtos {
                                      String observacao, Instant cienciaEm, String cienciaTexto,
                                      List<NotaExportada> notas, String sexo, Interesse interesse,
                                      ModalidadeDesejada modalidadeDesejada, PrevisaoInicio previsaoInicio,
-                                     OrigemInformada origemInformada, PropostaExportada proposta) {
+                                     OrigemInformada origemInformada, PropostaExportada proposta,
+                                     UUID questionarioVersaoId, JsonNode respostas) {
     }
 
     /** Os termos que a consultoria propôs à pessoa (nulo sem proposta). */

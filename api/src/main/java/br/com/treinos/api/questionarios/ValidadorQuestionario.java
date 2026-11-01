@@ -36,7 +36,7 @@ import static br.com.treinos.api.questionarios.TipoPergunta.GRADE;
 import static br.com.treinos.api.questionarios.TipoPergunta.INFORMATIVO;
 
 /**
- * Regras de publicação do questionário (atualização e anamnese). Confere só a forma; nunca avalia se uma pergunta é
+ * Regras de publicação do questionário (atualização, anamnese e inscrição). Confere só a forma; nunca avalia se uma pergunta é
  * adequada. Os caminhos
  * ({@code secoes[0].perguntas[1].opcoes[2].rotulo}) e as regras são os mesmos de {@code errosDoQuestionario} em
  * {@code app/src/dominio/questionario.ts}: mudou uma regra, muda a outra (o teste de paridade confere os caminhos).
@@ -50,6 +50,15 @@ public class ValidadorQuestionario {
     private static final Set<TipoPergunta> COM_DESTAQUE = EnumSet.of(NOTA, NUMERO, SIM_NAO, ESCOLHA_UNICA);
     private static final Set<TipoPergunta> COM_AJUDA_AUTOMATICA = EnumSet.of(TEXTO, NUMERO);
     private static final Set<TipoPergunta> UNICOS = EnumSet.of(PESO, DATA_AUTOMATICA);
+    /**
+     * Tipos fora da página pública de inscrição (D5): quem preenche ainda não é aluno nem tem login, então nada de foto,
+     * endereço, peso, notas da semana ou data da atualização. Mesmo conjunto de {@code TIPOS_FORA_DA_INSCRICAO} em
+     * {@code app/src/dominio/questionario.ts}.
+     */
+    public static final Set<TipoPergunta> FORA_DA_INSCRICAO = EnumSet.of(FOTOS, TipoPergunta.ENDERECO, PESO, NOTAS_POR_DIA,
+            DATA_AUTOMATICA);
+    /** A página pública não mostra imagem (D6): pedir a imagem exigiria uma rota pública nova servindo arquivo da consultoria. */
+    private static final String SEM_IMAGEM_NA_INSCRICAO = "A página de inscrição não mostra imagem.";
 
     /** Questionário de atualização (o de sempre). */
     public ResultadoValidacao validar(ConteudoQuestionario conteudo) {
@@ -190,7 +199,9 @@ public class ValidadorQuestionario {
         if (p.ajuda() != null && p.ajuda().length() > LimitesQuestionario.AJUDA_TAMANHO) {
             c.erro(cp + ".ajuda", "Ajuda longa demais.");
         }
-        if (p.imagemId() != null && !IMAGEM.matcher(p.imagemId()).matches()) {
+        if (p.imagemId() != null && estado.finalidade == Finalidade.INSCRICAO) {
+            c.erro(cp + ".imagemId", SEM_IMAGEM_NA_INSCRICAO);
+        } else if (p.imagemId() != null && !IMAGEM.matcher(p.imagemId()).matches()) {
             c.erro(cp + ".imagemId", "Imagem inválida.");
         }
         condicao(c, estado, p.mostrarSe(), cp);
@@ -208,6 +219,9 @@ public class ValidadorQuestionario {
         if (estado.finalidade == Finalidade.ATUALIZACAO && tipo == TipoPergunta.ENDERECO) {
             c.erro(cp + ".tipo", "Este tipo só vale no questionário de anamnese.");
         }
+        if (estado.finalidade == Finalidade.INSCRICAO && FORA_DA_INSCRICAO.contains(tipo)) {
+            c.erro(cp + ".tipo", "Este tipo não vale no formulário de inscrição.");
+        }
         if (UNICOS.contains(tipo) && !estado.tipos.add(tipo)) {
             c.erro(cp + ".tipo", "Este tipo só pode aparecer uma vez.");
         }
@@ -220,14 +234,14 @@ public class ValidadorQuestionario {
         } else if (tipo == TEXTO_LONGO) {
             estado.capacidadeDeTexto += LimitesQuestionario.TEXTO_LONGO_CAPACIDADE;
         }
-        opcoes(c, p, cp);
+        opcoes(c, p, cp, estado.finalidade == Finalidade.INSCRICAO ? SEM_IMAGEM_NA_INSCRICAO : null);
         dias(c, p, cp);
         numero(c, p, cp);
         escala(c, p, cp);
         destaque(c, estado, p, cp);
         if (p.ajudaAutomatica() != null && !COM_AJUDA_AUTOMATICA.contains(tipo)) {
             c.erro(cp + ".ajudaAutomatica", "Este tipo não tem ajuda automática.");
-        } else if (p.ajudaAutomatica() != null && estado.finalidade == Finalidade.ANAMNESE) {
+        } else if (p.ajudaAutomatica() != null && estado.finalidade != Finalidade.ATUALIZACAO) {
             c.erro(cp + ".ajudaAutomatica", "Esta ajuda só vale no questionário de atualização.");
         }
         if (p.somentePassado() != null && tipo != DATA) {
@@ -328,8 +342,10 @@ public class ValidadorQuestionario {
             }
             return;
         }
-        lista(c, p.linhas(), cp + ".linhas", LimitesQuestionario.LINHAS_MINIMO, LimitesQuestionario.LINHAS_MAXIMO, "linhas", false);
-        lista(c, p.colunas(), cp + ".colunas", LimitesQuestionario.COLUNAS_MINIMO, LimitesQuestionario.COLUNAS_MAXIMO, "colunas", false);
+        lista(c, p.linhas(), cp + ".linhas", LimitesQuestionario.LINHAS_MINIMO, LimitesQuestionario.LINHAS_MAXIMO, "linhas",
+                "Só opção de escolha tem imagem.");
+        lista(c, p.colunas(), cp + ".colunas", LimitesQuestionario.COLUNAS_MINIMO, LimitesQuestionario.COLUNAS_MAXIMO, "colunas",
+                "Só opção de escolha tem imagem.");
     }
 
     /**
@@ -361,19 +377,24 @@ public class ValidadorQuestionario {
         }
     }
 
-    private static void opcoes(ResultadoValidacao.Coletor c, Pergunta p, String cp) {
+    /** {@code semImagem}: nulo = a opção pode ter imagem; senão, a mensagem de quando ela traz uma. */
+    private static void opcoes(ResultadoValidacao.Coletor c, Pergunta p, String cp, String semImagem) {
         if (!p.tipo().temOpcoes()) {
             if (p.opcoes() != null) {
                 c.erro(cp + ".opcoes", "Este tipo não tem opções.");
             }
             return;
         }
-        lista(c, p.opcoes(), cp + ".opcoes", LimitesQuestionario.OPCOES_MINIMO, LimitesQuestionario.OPCOES_MAXIMO, "opções", true);
+        lista(c, p.opcoes(), cp + ".opcoes", LimitesQuestionario.OPCOES_MINIMO, LimitesQuestionario.OPCOES_MAXIMO, "opções",
+                semImagem);
     }
 
-    /** Opções de escolha, linhas e colunas da GRADE: mesma regra de quantidade, id e texto sem repetir. */
+    /**
+     * Opções de escolha, linhas e colunas da GRADE: mesma regra de quantidade, id e texto sem repetir. {@code semImagem}
+     * nulo = imagem permitida (o formato é conferido); senão, é a mensagem do erro quando o item traz imagem.
+     */
     private static void lista(ResultadoValidacao.Coletor c, List<Opcao> itens, String caminho, int minimo, int maximo,
-                              String nome, boolean comImagem) {
+                              String nome, String semImagem) {
         int n = itens == null ? 0 : itens.size();
         if (n < minimo || n > maximo) {
             c.erro(caminho, "Use de " + minimo + " a " + maximo + " " + nome + ".");
@@ -398,8 +419,8 @@ public class ValidadorQuestionario {
             } else if (!rotulos.add(normalizar(o.rotulo()))) {
                 c.erro(co + ".rotulo", "Texto repetido.");
             }
-            if (o.imagemId() != null && (!comImagem || !IMAGEM.matcher(o.imagemId()).matches())) {
-                c.erro(co + ".imagemId", comImagem ? "Imagem inválida." : "Só opção de escolha tem imagem.");
+            if (o.imagemId() != null && (semImagem != null || !IMAGEM.matcher(o.imagemId()).matches())) {
+                c.erro(co + ".imagemId", semImagem != null ? semImagem : "Imagem inválida.");
             }
         }
     }

@@ -29,7 +29,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Gestão dos questionários da consultoria (atualização e anamnese). Tudo passa pelo {@code @TenantId}: questionário, aluno ou
+ * Gestão dos questionários da consultoria (atualização, anamnese e inscrição). Tudo passa pelo {@code @TenantId}: questionário, aluno ou
  * pasta de outra consultoria nem aparece (404). Sem SQL nativo. Nome, descrição e conteúdo não vão para log nem para a
  * auditoria (os resumos são fixos).
  */
@@ -69,10 +69,21 @@ public class QuestionarioService {
 
     // ---------------------------------------------------------------- leitura
 
+    /**
+     * {@code arquivados}: {@code false} (padrão, só os ativos), {@code true} (só os arquivados) ou {@code todos} (os dois
+     * juntos); outro valor = 400 {@code FILTRO_INVALIDO}, sem repetir o valor. O padrão vem primeiro, o resto por nome.
+     */
     @Transactional(readOnly = true)
-    public List<QuestionarioResumo> listar(boolean arquivados, Finalidade finalidade) {
+    public List<QuestionarioResumo> listar(String arquivados, Finalidade finalidade) {
+        String valor = arquivados == null || arquivados.isBlank() ? "false" : arquivados.trim().toLowerCase(java.util.Locale.ROOT);
+        List<Questionario> lista = switch (valor) {
+            case "false" -> questionarios.findByArquivadoAndFinalidadeOrderByNomeAsc(false, finalidade);
+            case "true" -> questionarios.findByArquivadoAndFinalidadeOrderByNomeAsc(true, finalidade);
+            case "todos" -> questionarios.findByFinalidadeOrderByNomeAsc(finalidade);
+            default -> throw br.com.treinos.api.web.FiltrosDeLista.invalido("arquivados");
+        };
         Usos usos = usos();
-        return questionarios.findByArquivadoAndFinalidadeOrderByNomeAsc(arquivados, finalidade).stream()
+        return lista.stream()
                 .sorted(Comparator.comparing((Questionario q) -> !q.isPadrao()))
                 .map(q -> resumo(q, usos.de(q.getId()))).toList();
     }
@@ -106,6 +117,9 @@ public class QuestionarioService {
         Finalidade finalidade = r.finalidade() == null ? Finalidade.ATUALIZACAO : r.finalidade();
         if (finalidade == Finalidade.ANAMNESE && r.origem() == Origem.FABRICA) {
             throw new br.com.plataforma.comum.web.BadRequestException("Ainda não há modelo da plataforma para anamnese: comece em branco.");
+        }
+        if (finalidade == Finalidade.INSCRICAO && r.origem() == Origem.FABRICA) {
+            throw new br.com.plataforma.comum.web.BadRequestException("Não há modelo da plataforma para a inscrição: comece em branco ou duplique o padrão.");
         }
         exigirNomeLivre(nome, null);
         String rascunho = r.origem() == Origem.FABRICA
@@ -183,7 +197,11 @@ public class QuestionarioService {
         q.definirPadrao(true);
         Questionario gravado = gravar(q);
         auditoria.registrarEvento("QUESTIONARIO_PADRAO_ALTERADO", "QUESTIONARIO", gravado.getId(),
-                q.getFinalidade() == Finalidade.ANAMNESE ? "Trocou a anamnese padrão." : "Trocou o questionário de atualização padrão.");
+                switch (q.getFinalidade()) {
+                    case ANAMNESE -> "Trocou a anamnese padrão.";
+                    case INSCRICAO -> "Trocou as perguntas padrão da página de inscrição.";
+                    case ATUALIZACAO -> "Trocou o questionário de atualização padrão.";
+                });
         return detalhe(gravado);
     }
 
@@ -221,8 +239,8 @@ public class QuestionarioService {
     }
 
     /**
-     * Só sem uso: o padrão e o que já teve envio (a atualização guarda a versão respondida) ou anamnese atribuída (a
-     * atribuição guarda a versão) ficam; o app oferece arquivar. Aluno e pasta que o escolheram voltam a nulo pela chave
+     * Só sem uso: o padrão e o que já teve envio (a atualização guarda a versão respondida), anamnese atribuída (a
+     * atribuição guarda a versão) ou inscrição recebida (a inscrição guarda a versão respondida) ficam; o app oferece arquivar. Aluno e pasta que o escolheram voltam a nulo pela chave
      * estrangeira.
      */
     @Transactional
@@ -234,7 +252,8 @@ public class QuestionarioService {
             throw new ConflictException("O questionário padrão não pode ser excluído. Escolha outro padrão antes.",
                     "QUESTIONARIO_PADRAO");
         }
-        if (questionarios.contarEnviosDo(q.getId()) > 0 || questionarios.contarAnamnesesDo(q.getId()) > 0) {
+        if (questionarios.contarEnviosDo(q.getId()) > 0 || questionarios.contarAnamnesesDo(q.getId()) > 0
+                || questionarios.contarInscricoesDo(q.getId()) > 0) {
             throw new ConflictException("Este questionário já foi respondido por alunos. Arquive em vez de excluir.",
                     "QUESTIONARIO_EM_USO");
         }
@@ -468,6 +487,7 @@ public class QuestionarioService {
         questionarios.contarPastas().forEach(c -> p.put(c.questionarioId(), c.total()));
         questionarios.contarEnvios().forEach(c -> e.put(c.questionarioId(), c.total()));
         questionarios.contarAnamneses().forEach(c -> e.merge(c.questionarioId(), c.total(), Long::sum));
+        questionarios.contarInscricoes().forEach(c -> e.merge(c.questionarioId(), c.total(), Long::sum));
         return new Usos(a, p, e);
     }
 

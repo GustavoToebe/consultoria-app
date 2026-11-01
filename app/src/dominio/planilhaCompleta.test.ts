@@ -6,14 +6,17 @@ import {
   ondeDaAba, opcoesDaPergunta, opcoesDoTipoDaAba, pendencias, respostaDoValor, responderNome, responderSuplemento,
   respostasParaApi, resumoDoDesfazer, rotuloDoTipoDeAba, textoDaLeitura, textoDaLigacao, textoDaParteDesfeita,
   textoDaPartePulada, textoDoProblema, tipoDaAba, valorDaResposta,
+  AVISO_RESPONDIDO_ANTES, abaRespondidaAntes, alunosDaAba, blocoFicaDeFora, nomeRespondidoAntes, quantasRespostasSalvasMarcadas,
+  respostasSalvasMarcadas, semRespostasSalvas, suplementoRespondidoAntes, textoDaSituacaoDoAluno, textoDasRespostasSalvas,
+  textoDoBloco, textoDoFormato, textoDosAlunosDaAba,
 } from './planilhaCompleta';
 
 const ANALISE: AnaliseDaPlanilha = {
   abas: [
-    { indice: 0, nome: 'Alunos', tipo: 'ALUNOS', linhaDoCabecalho: 1, linhas: 3, campos: { ALUNO: 1 }, avisos: [] },
-    { indice: 1, nome: 'Rotinas', tipo: 'ROTINAS', linhaDoCabecalho: 1, linhas: 2, campos: {}, avisos: [] },
-    { indice: 2, nome: 'Exercícios', tipo: 'TREINO', linhaDoCabecalho: 1, linhas: 5, campos: {}, avisos: [] },
-    { indice: 3, nome: 'Notas', tipo: 'DESCONHECIDA', linhaDoCabecalho: 0, linhas: 4, campos: {}, avisos: [] },
+    { indice: 0, nome: 'Alunos', tipo: 'ALUNOS', linhaDoCabecalho: 1, linhas: 3, campos: { ALUNO: 1 }, avisos: [], formato: 'TABELA', blocos: [], tipoSalvo: null },
+    { indice: 1, nome: 'Rotinas', tipo: 'ROTINAS', linhaDoCabecalho: 1, linhas: 2, campos: {}, avisos: [], formato: 'TABELA', blocos: [], tipoSalvo: null },
+    { indice: 2, nome: 'Exercícios', tipo: 'TREINO', linhaDoCabecalho: 1, linhas: 5, campos: {}, avisos: [], formato: 'TABELA', blocos: [], tipoSalvo: null },
+    { indice: 3, nome: 'Notas', tipo: 'DESCONHECIDA', linhaDoCabecalho: 0, linhas: 4, campos: {}, avisos: [], formato: 'TABELA', blocos: [], tipoSalvo: null },
   ],
   ligacoes: [
     { abaFilha: 1, colunaFilha: 1, abaMae: 0, colunaMae: 0, por: 'CODIGO', ligadas: 2, naoLigadas: 0, ambiguas: 0, pendentes: [] },
@@ -27,14 +30,15 @@ const ANALISE: AnaliseDaPlanilha = {
   },
   problemas: [], problemasAlem: 0, problemasPorTipo: {},
   exercicios: [
-    { nome: 'Supino reto c/ hal.', nivel: 'PROVAVEL', sugestao: 'Supino reto com halteres', origem: 'BIBLIOTECA', nota: 0.7, ocorrencias: 3 },
-    { nome: 'Xyzzy fictício', nivel: 'NENHUM', sugestao: null, origem: null, nota: 0, ocorrencias: 1 },
+    { nome: 'Supino reto c/ hal.', nivel: 'PROVAVEL', sugestao: 'Supino reto com halteres', origem: 'BIBLIOTECA', nota: 0.7, ocorrencias: 3, respostaSalva: null, idSalvo: null },
+    { nome: 'Xyzzy fictício', nivel: 'NENHUM', sugestao: null, origem: null, nota: 0, ocorrencias: 1, respostaSalva: null, idSalvo: null },
   ],
-  alimentos: [{ nome: 'Arroz fictício', nivel: 'PROVAVEL', sugestao: 'Arroz branco', origem: 'BIBLIOTECA', nota: 0.6, ocorrencias: 2 }],
+  alimentos: [{ nome: 'Arroz fictício', nivel: 'PROVAVEL', sugestao: 'Arroz branco', origem: 'BIBLIOTECA', nota: 0.6, ocorrencias: 2, respostaSalva: null, idSalvo: null }],
   suplementos: [
-    { nome: 'Creatina', sugestao: 'SUPLEMENTO', ocorrencias: 2 },
-    { nome: 'Remédio Fictício', sugestao: null, ocorrencias: 1 },
+    { nome: 'Creatina', sugestao: 'SUPLEMENTO', ocorrencias: 2, destinoSalvo: null },
+    { nome: 'Remédio Fictício', sugestao: null, ocorrencias: 1, destinoSalvo: null },
   ],
+  respostasSalvas: 0,
 };
 
 const CRIACAO: CriacaoDaPlanilha = {
@@ -168,4 +172,104 @@ test('leitura, ligação e motivo para não avançar', () => {
   expect(motivoParaNaoAvancar(1, { arquivoAceito: false, ocupado: false, temAnalise: false })).toBe('Envie um arquivo .xlsx ou .csv.');
   expect(motivoParaNaoAvancar(1, { arquivoAceito: true, ocupado: false, temAnalise: false })).toBeNull();
   expect(motivoParaNaoAvancar(2, { arquivoAceito: true, ocupado: true, temAnalise: true })).toBe('Aguarde.');
+});
+
+// ------------------------------------------------------------------------------------------- fase 2 (01/11)
+
+describe('formatos: uma aba por aluno e blocos', () => {
+  const blocoAna = { linha: 2, tipo: 'TREINO' as const, aluno: 'Ana Fictícia', situacao: 'NOVO' as const, titulo: 'Treino A', linhas: 4 };
+  const umAluno = { formato: 'UM_ALUNO' as const, blocos: [blocoAna, { ...blocoAna, linha: 9, titulo: 'Treino B', linhas: 1 }] };
+  const emBlocos = {
+    formato: 'BLOCOS' as const,
+    blocos: [
+      { ...blocoAna, aluno: 'Bruno Inventado', situacao: 'PLANILHA' as const, titulo: null },
+      { ...blocoAna, aluno: 'Carla Exemplo', situacao: 'AMBIGUO' as const },
+      { ...blocoAna, aluno: 'carla exemplo', situacao: 'AMBIGUO' as const },
+      { ...blocoAna, aluno: null, situacao: 'SEM_ALUNO' as const },
+    ],
+  };
+
+  test('o formato em palavras (nada na tabela)', () => {
+    expect(textoDoFormato({ formato: 'TABELA', blocos: [] })).toBeNull();
+    expect(textoDoFormato(umAluno)).toBe('Um aluno por aba, 2 tabelas');
+    expect(textoDoFormato({ formato: 'UM_ALUNO', blocos: [blocoAna] })).toBe('Um aluno por aba');
+    expect(textoDoFormato(emBlocos)).toBe('Vários alunos em blocos (4 tabelas)');
+  });
+
+  test('de quem é a aba: os alunos sem repetir (sem caixa e sem acento), com a situação', () => {
+    expect(textoDosAlunosDaAba({ formato: 'TABELA', blocos: [] })).toBeNull();
+    expect(textoDosAlunosDaAba(umAluno)).toBe('De Ana Fictícia (aluno novo, entra só com o nome).');
+    expect(alunosDaAba(emBlocos).map((a) => a.aluno)).toEqual(['Bruno Inventado', 'Carla Exemplo', null]);
+    expect(textoDosAlunosDaAba(emBlocos)).toBe('3 alunos: Bruno Inventado, Carla Exemplo e sem aluno.');
+  });
+
+  test('cada bloco: linha, título, linhas e o aluno; ambíguo e sem aluno ficam de fora', () => {
+    expect(textoDoBloco(blocoAna)).toBe('Linha 2 · Treino A · 4 linhas · Ana Fictícia (aluno novo, entra só com o nome)');
+    expect(textoDoBloco(emBlocos.blocos[3])).toBe('Linha 2 · Treino A · 4 linhas · sem aluno: não entra');
+    expect(textoDaSituacaoDoAluno('EXISTENTE')).toBe('já é seu aluno');
+    expect(blocoFicaDeFora(emBlocos.blocos[1])).toBe(true);
+    expect(blocoFicaDeFora(blocoAna)).toBe(false);
+  });
+
+  test('os problemas novos têm texto', () => {
+    for (const codigo of ['BLOCO_SEM_ALUNO', 'ALUNO_DO_BLOCO_AMBIGUO', 'PIRAMIDE_DIFERENTE_DAS_SERIES', 'ESFORCO_CONFLITANTE',
+      'TECNICA_FORA_DA_METODOLOGIA', 'TECNICA_INCOMPLETA', 'CLUSTER_DIFERENTE_DAS_REPETICOES']) {
+      expect(textoDoProblema(codigo)).not.toContain('Outro problema');
+    }
+  });
+});
+
+describe('respostas salvas por consultoria', () => {
+  const COM_SALVAS: AnaliseDaPlanilha = {
+    ...ANALISE,
+    respostasSalvas: 9,
+    abas: ANALISE.abas.map((a) => (a.indice === 3 ? { ...a, tipoSalvo: 'IGNORAR' } : a.indice === 0 ? { ...a, tipoSalvo: 'ALUNOS' } : a)),
+    exercicios: [
+      { ...ANALISE.exercicios[0], respostaSalva: 'BIBLIOTECA', idSalvo: 'ex-1' },
+      // "Aceitar" sem sugestão não tem o que aceitar: não volta marcado.
+      { ...ANALISE.exercicios[1], respostaSalva: 'ACEITAR', idSalvo: null },
+    ],
+    alimentos: [{ ...ANALISE.alimentos[0], respostaSalva: 'ACEITAR', idSalvo: null }],
+    suplementos: [ANALISE.suplementos[0], { ...ANALISE.suplementos[1], destinoSalvo: 'SENSIVEL' }],
+  };
+
+  test('voltam marcadas ao ler a planilha (só o que ainda vale)', () => {
+    const e = respostasSalvasMarcadas(COM_SALVAS);
+    expect(e.tipos).toEqual({ 3: 'IGNORAR' }); // o tipo salvo igual ao reconhecido não vira resposta
+    expect(e.exercicios).toEqual({ 'Supino reto c/ hal.': { acao: 'BIBLIOTECA', id: 'ex-1' } });
+    expect(e.alimentos).toEqual({ 'Arroz fictício': { acao: 'ACEITAR' } });
+    expect(e.suplementos).toEqual({ 'Remédio Fictício': 'SENSIVEL' });
+    expect(respostasParaApi(COM_SALVAS, e).abas).toEqual([{ indice: 3, tipo: 'IGNORAR' }]);
+    expect(respostasSalvasMarcadas(ANALISE)).toEqual(SEM_RESPOSTAS);
+  });
+
+  test('o aviso aparece enquanto a resposta é a da importação anterior; trocar tira o aviso', () => {
+    let e = respostasSalvasMarcadas(COM_SALVAS);
+    expect(abaRespondidaAntes(COM_SALVAS, e, COM_SALVAS.abas[3])).toBe(true);
+    expect(abaRespondidaAntes(COM_SALVAS, e, COM_SALVAS.abas[0])).toBe(false);
+    expect(nomeRespondidoAntes(COM_SALVAS.exercicios[0], e.exercicios['Supino reto c/ hal.'])).toBe(true);
+    expect(suplementoRespondidoAntes(COM_SALVAS.suplementos[1], e.suplementos['Remédio Fictício'])).toBe(true);
+    expect(quantasRespostasSalvasMarcadas(COM_SALVAS, e)).toBe(4);
+    e = responderNome(e, 'exercicios', 'Supino reto c/ hal.', { acao: 'BIBLIOTECA', id: 'ex-2' });
+    expect(nomeRespondidoAntes(COM_SALVAS.exercicios[0], e.exercicios['Supino reto c/ hal.'])).toBe(false);
+    e = escolherTipo(COM_SALVAS, e, 3, 'PESOS');
+    expect(abaRespondidaAntes(COM_SALVAS, e, COM_SALVAS.abas[3])).toBe(false);
+    expect(quantasRespostasSalvasMarcadas(COM_SALVAS, e)).toBe(2);
+    expect(textoDasRespostasSalvas(COM_SALVAS, e)).toBe('9 respostas guardadas das importações anteriores: 2 vieram marcadas aqui. Confira e troque o que precisar; as que você mudar ficam guardadas ao confirmar.');
+    expect(textoDasRespostasSalvas({ ...COM_SALVAS, respostasSalvas: 1 }, SEM_RESPOSTAS)).toBe('1 resposta guardada das importações anteriores; nenhuma vale para esta planilha.');
+  });
+
+  test('esquecer tira as marcas e só as respostas que vieram delas (o que foi trocado aqui fica)', () => {
+    let e = respostasSalvasMarcadas(COM_SALVAS);
+    e = responderNome(e, 'exercicios', 'Supino reto c/ hal.', { acao: 'MANTER' });
+    const depois = semRespostasSalvas(COM_SALVAS, e);
+    expect(depois.analise.respostasSalvas).toBe(0);
+    expect(depois.analise.abas.every((a) => a.tipoSalvo === null)).toBe(true);
+    expect(depois.analise.exercicios.every((p) => p.respostaSalva === null && p.idSalvo === null)).toBe(true);
+    expect(depois.estado.tipos).toEqual({});
+    expect(depois.estado.exercicios).toEqual({ 'Supino reto c/ hal.': { acao: 'MANTER' } });
+    expect(depois.estado.alimentos).toEqual({});
+    expect(depois.estado.suplementos).toEqual({});
+    expect(AVISO_RESPONDIDO_ANTES).toBe('Respondido na importação anterior');
+  });
 });

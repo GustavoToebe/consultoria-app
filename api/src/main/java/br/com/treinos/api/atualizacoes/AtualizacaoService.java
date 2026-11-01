@@ -55,11 +55,13 @@ public class AtualizacaoService {
     private final JsonMapper json;
     private final br.com.treinos.api.auth.UsuarioRepository usuarios;
     private final FotoService fotos;
+    private final br.com.treinos.api.equipe.MembrosDoFiltro membros;
     public AtualizacaoService(AtualizacaoRepository atualizacoes, QuestionarioResolver questionarios,
             PastaRepository pastas, PastaVigente vigente, AlunoRepository alunos,
             RegistroPesoRepository pesos, ResumoPeriodoService resumos, ValidadorAtualizacao validador, JsonMapper json,
-            br.com.treinos.api.auth.UsuarioRepository usuarios, FotoService fotos) {
-        this.usuarios=usuarios; this.fotos=fotos;
+            br.com.treinos.api.auth.UsuarioRepository usuarios, FotoService fotos,
+            br.com.treinos.api.equipe.MembrosDoFiltro membros) {
+        this.usuarios=usuarios; this.fotos=fotos; this.membros=membros;
         this.atualizacoes = atualizacoes; this.questionarios = questionarios; this.pastas = pastas;
         this.vigente = vigente; this.alunos = alunos; this.pesos = pesos;
         this.resumos = resumos; this.validador = validador; this.json = json;
@@ -198,29 +200,74 @@ public class AtualizacaoService {
 
     /** Maior período de {@code de}/{@code ate} da lista, em dias (inclusive as pontas): o Ano da agenda do calendário. */
     public static final int JANELA_MAXIMA_DIAS = 366;
+
+    /**
+     * Filtros da lista e das contagens (lote 2 de {@code docs/planos/filtros-nas-listas.md}): responsáveis (ids de membros
+     * e/ou "sem responsável"; o "Meus alunos" chega como o id de quem pede), busca pelo nome do aluno (sem acento, sem
+     * diferença de caixa) e período ({@code de}/{@code ate}, dias de Brasília, os dois ou nenhum).
+     */
+    public record FiltroDaLista(FiltrosDeLista.Responsaveis responsaveis, String busca, LocalDate de, LocalDate ate) {
+
+        public static FiltroDaLista nenhum() {
+            return new FiltroDaLista(FiltrosDeLista.Responsaveis.NENHUM, null, null, null);
+        }
+
+        public static FiltroDaLista de(UUID responsavelId, LocalDate de, LocalDate ate) {
+            return new FiltroDaLista(responsavelId == null ? FiltrosDeLista.Responsaveis.NENHUM
+                    : FiltrosDeLista.Responsaveis.so(responsavelId), null, de, ate);
+        }
+    }
+
+    /**
+     * Lê o pedido da rota: {@code meus=true} junto de {@code responsavel} = 400 {@code FILTRO_INVALIDO}; responsável que não
+     * é membro desta consultoria = 404; período pela metade, invertido ou maior que {@value #JANELA_MAXIMA_DIAS} dias = 400
+     * {@code PERIODO_INVALIDO}.
+     */
+    @Transactional(readOnly = true)
+    public FiltroDaLista lerFiltro(boolean meus, UUID eu, List<String> responsavel, String busca, LocalDate de, LocalDate ate) {
+        FiltrosDeLista.Responsaveis r = FiltrosDeLista.Responsaveis.ler(responsavel, meus);
+        membros.exigir(r.ids());
+        exigirPeriodo(de, ate);
+        return new FiltroDaLista(meus ? FiltrosDeLista.Responsaveis.so(eu) : r, Buscas.opcional(busca), de, ate);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ItemDaLista> listar(String situacao, UUID responsavelId, LocalDate de, LocalDate ate) {
+        return listar(situacao, FiltroDaLista.de(responsavelId, de, ate));
+    }
+
     /**
      * Com {@code de} e {@code ate} (dias de Brasília, os dois ou nenhum; até {@value #JANELA_MAXIMA_DIAS} dias, 400
      * {@code PERIODO_INVALIDO}) a lista fica só com as atualizações cuja data cai no período; em {@code PROXIMAS} o período
      * substitui a janela de hoje a 7 dias de hoje e continua só com as ainda abertas (inclui as já atrasadas daquele dia).
-     * Sem período, nada muda. {@code responsavelId}: "Meus alunos" ou o membro escolhido (quem chama já conferiu).
+     * Sem período, nada muda. Responsáveis e busca recortam os alunos (quem chama já conferiu os membros).
      */
     @Transactional(readOnly = true)
-    public List<ItemDaLista> listar(String situacao, UUID responsavelId, LocalDate de, LocalDate ate) {
+    public List<ItemDaLista> listar(String situacao, FiltroDaLista f) {
         if (!SITUACOES.contains(situacao)) throw new BadRequestException("Situação inválida.");
-        if ((de == null) != (ate == null)) throw new BadRequestException("Informe o período inteiro (de e ate).", "PERIODO_INVALIDO");
-        if (de != null && ate.isBefore(de)) throw new BadRequestException("A data final vem antes da inicial.", "PERIODO_INVALIDO");
-        if (de != null && java.time.temporal.ChronoUnit.DAYS.between(de, ate) + 1 > JANELA_MAXIMA_DIAS)
-            throw new BadRequestException("Escolha um período de até " + JANELA_MAXIMA_DIAS + " dias.", "PERIODO_INVALIDO");
-        return classificar(responsavelId).stream().filter(c -> pertence(situacao, c, de, ate)).map(c -> new ItemDaLista(
+        exigirPeriodo(f.de(), f.ate());
+        return classificar(f).stream().filter(c -> pertence(situacao, c, f.de(), f.ate())).map(c -> new ItemDaLista(
             c.linha().atualizacaoId(),c.linha().pastaId(),c.linha().alunoId(),c.linha().nomeAluno(),c.linha().data(),
             c.regras().fase(),c.regras().diasParaData(),c.regras().diasDeAtraso(),c.linha().atrasoAte())).toList();
     }
     @Transactional(readOnly = true)
     public Map<String,Long> contar(UUID responsavelId) {
-        List<Classificada> todas = classificar(responsavelId);
+        return contar(FiltroDaLista.de(responsavelId, null, null));
+    }
+
+    /** Quantas há em cada situação (as abas) com os mesmos filtros da lista: a mesma consulta e a mesma classificação. */
+    @Transactional(readOnly = true)
+    public Map<String,Long> contar(FiltroDaLista f) {
+        exigirPeriodo(f.de(), f.ate());
+        List<Classificada> todas = classificar(f);
         Map<String,Long> contagem = new LinkedHashMap<>();
-        for (String situacao : SITUACOES) contagem.put(situacao, todas.stream().filter(c -> pertence(situacao, c)).count());
+        for (String situacao : SITUACOES) contagem.put(situacao, todas.stream().filter(c -> pertence(situacao, c, f.de(), f.ate())).count());
         return contagem;
+    }
+
+    private static void exigirPeriodo(LocalDate de, LocalDate ate) {
+        if ((de == null) != (ate == null)) throw new BadRequestException("Informe o período inteiro (de e ate).", "PERIODO_INVALIDO");
+        FiltrosDeLista.exigirPeriodo(de, ate, JANELA_MAXIMA_DIAS, "PERIODO_INVALIDO");
     }
     /**
      * Alunos ativos do escopo que têm pasta vigente com período (mesma consulta da lista e dos contadores). Quem não está
@@ -231,21 +278,21 @@ public class AtualizacaoService {
         return atualizacoes.linhasDoPainel(responsavelId).stream().map(LinhaAtualizacao::alunoId)
             .collect(java.util.stream.Collectors.toSet());
     }
-    private List<Classificada> classificar(UUID responsavelId) {
+    /**
+     * Um responsável só vai à consulta (como o "Meus"); vários, ou "sem responsável", leem o escopo inteiro e recortam
+     * aqui pelo responsável de cada linha. A busca compara o nome sem acento ({@link Buscas#semAcento}).
+     */
+    private List<Classificada> classificar(FiltroDaLista f) {
         LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
-        return atualizacoes.linhasDoPainel(responsavelId).stream().map(l -> new Classificada(l,
-            RegrasAtualizacao.calcular(hoje,l.data(),l.atrasoAte(),l.estado()))).toList();
+        FiltrosDeLista.Responsaveis r = f.responsaveis();
+        UUID unico = r.ids().size() == 1 && !r.semResponsavel() ? r.ids().iterator().next() : null;
+        String termo = Buscas.semAcento(f.busca());
+        String procurado = termo.length() > 100 ? termo.substring(0, 100) : termo;
+        return atualizacoes.linhasDoPainel(unico).stream()
+            .filter(l -> r.aceita(l.responsavelId()))
+            .filter(l -> procurado.isEmpty() || Buscas.semAcento(l.nomeAluno()).contains(procurado))
+            .map(l -> new Classificada(l, RegrasAtualizacao.calcular(hoje,l.data(),l.atrasoAte(),l.estado()))).toList();
     }
-    /** O membro escolhido como filtro "responsável" precisa ser da consultoria da sessão e da equipe (senão 404). */
-    @Transactional(readOnly = true)
-    public UUID exigirResponsavel(UUID id) {
-        return usuarios.findById(id)
-            .filter(u -> u.getConsultoriaId().equals(br.com.treinos.api.tenant.TenantContext.get())
-                && u.getPapel() == br.com.treinos.api.auth.Papel.TREINADOR)
-            .map(br.com.treinos.api.auth.Usuario::getId)
-            .orElseThrow(() -> new NaoEncontradoException("Responsável não encontrado."));
-    }
-    private static boolean pertence(String situacao, Classificada c) { return pertence(situacao, c, null, null); }
     private static boolean pertence(String situacao, Classificada c, LocalDate de, LocalDate ate) {
         String fase = c.regras().fase();
         boolean aberta = !List.of("ENVIADA","REVISADA").contains(fase);

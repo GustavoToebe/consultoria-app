@@ -13,19 +13,19 @@ import br.com.treinos.api.auditoria.Auditar;
 import br.com.treinos.api.auditoria.Auditoria;
 import br.com.treinos.api.consultoria.ConsultoriaRepository;
 import br.com.treinos.api.equipe.AcessoAtual;
-import br.com.treinos.api.inscricoes.Crm.Origem;
 import br.com.treinos.api.inscricoes.Crm.TipoEvento;
 import br.com.treinos.api.inscricoes.InscricaoDtos.AceitarRequest;
 import br.com.treinos.api.inscricoes.InscricaoDtos.AceiteResponse;
 import br.com.treinos.api.inscricoes.InscricaoDtos.AlterarInscricaoRequest;
-import br.com.treinos.api.inscricoes.InscricaoDtos.Contagens;
 import br.com.treinos.api.inscricoes.InscricaoDtos.EncerrarRequest;
 import br.com.treinos.api.inscricoes.InscricaoDtos.EtapaRequest;
 import br.com.treinos.api.inscricoes.InscricaoDtos.InscricaoDetalhe;
 import br.com.treinos.api.inscricoes.InscricaoDtos.InscricaoPublicaRequest;
 import br.com.treinos.api.inscricoes.InscricaoDtos.NotaRequest;
-import br.com.treinos.api.inscricoes.InscricaoDtos.PaginaInscricoes;
 import br.com.treinos.api.inscricoes.InscricaoDtos.ReabrirRequest;
+import br.com.treinos.api.atualizacoes.ValidadorAtualizacao;
+import br.com.treinos.api.questionarios.ConteudoQuestionario;
+import br.com.treinos.api.questionarios.QuestionarioResolver;
 import br.com.treinos.api.questionarios.QuestionarioService;
 import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.web.Buscas;
@@ -35,19 +35,16 @@ import br.com.treinos.api.web.Fuso;
 import br.com.treinos.api.web.MuitasRequisicoesException;
 import br.com.treinos.api.web.NaoEncontradoException;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.EnumMap;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -74,7 +71,6 @@ public class InscricaoService {
     private final InscricaoRepository inscricoes;
     private final InscricaoNotaRepository notas;
     private final InscricaoConfiguracaoRepository configuracoes;
-    private final InscricaoRetornoRepository retornos;
     private final ResponsaveisDaInscricao responsaveis;
     private final HistoricoDaInscricao historico;
     private final DetalheDaInscricao detalhes;
@@ -84,14 +80,18 @@ public class InscricaoService {
     private final QuestionarioService questionarios;
     private final Auditoria auditoria;
     private final ConsultoriaRepository consultorias;
+    private final QuestionarioResolver resolver;
+    private final ValidadorAtualizacao validadorDeRespostas;
+    private final JsonMapper json;
     private final int limiteDiario;
 
     public InscricaoService(InscricaoRepository inscricoes, InscricaoNotaRepository notas,
-                            InscricaoConfiguracaoRepository configuracoes, InscricaoRetornoRepository retornos,
+                            InscricaoConfiguracaoRepository configuracoes,
                             ResponsaveisDaInscricao responsaveis, HistoricoDaInscricao historico,
                             DetalheDaInscricao detalhes, AlunoService alunos, ConviteService convites,
                             AnamneseService anamneses, QuestionarioService questionarios, Auditoria auditoria,
-                            ConsultoriaRepository consultorias,
+                            ConsultoriaRepository consultorias, QuestionarioResolver resolver,
+                            ValidadorAtualizacao validadorDeRespostas, JsonMapper json,
                             @Value("${treinos.limites.inscricao-consultoria-dia:200}") int limiteDiario) {
         if (limiteDiario < 1) {
             throw new IllegalArgumentException("Limite diário de inscrições inválido.");
@@ -100,7 +100,6 @@ public class InscricaoService {
         this.inscricoes = inscricoes;
         this.notas = notas;
         this.configuracoes = configuracoes;
-        this.retornos = retornos;
         this.responsaveis = responsaveis;
         this.historico = historico;
         this.detalhes = detalhes;
@@ -110,14 +109,29 @@ public class InscricaoService {
         this.questionarios = questionarios;
         this.auditoria = auditoria;
         this.consultorias = consultorias;
+        this.resolver = resolver;
+        this.validadorDeRespostas = validadorDeRespostas;
+        this.json = json;
     }
 
     // ---- Público (com a consultoria do link no TenantContext) ----
 
-    /** Texto do link aberto; o código é conferido de novo aqui (pode ter mudado depois da busca). */
+    /**
+     * O que a página pública do link aberto mostra: o texto, os campos fixos visíveis e as perguntas do padrão de
+     * inscrição publicado (só o necessário para responder; nulo sem padrão). O código é conferido de novo aqui (pode ter
+     * mudado depois da busca).
+     */
+    public record PaginaDoLink(String texto, List<CampoDaInscricao> campos, InscricaoDtos.PerguntasDaInscricao perguntas) {
+    }
+
     @Transactional(readOnly = true)
-    public String textoDoLink(String codigo) {
-        return linkAberto(codigo).getTexto();
+    public PaginaDoLink paginaDoLink(String codigo) {
+        InscricaoConfiguracao link = linkAberto(codigo);
+        InscricaoDtos.PerguntasDaInscricao perguntas = resolver.padraoDaInscricao()
+                .map(v -> new InscricaoDtos.PerguntasDaInscricao(v.versaoId(),
+                        PerguntasPublicas.de(json.readValue(v.conteudo(), ConteudoQuestionario.class))))
+                .orElse(null);
+        return new PaginaDoLink(link.getTexto(), List.copyOf(CampoDaInscricao.visiveis(link.getCamposOcultos())), perguntas);
     }
 
     /**
@@ -134,6 +148,14 @@ public class InscricaoService {
      *
      * <p>Com texto, a ciência vale só para o texto que a pessoa viu (achado B2): o envio traz a {@code textoVersao} da
      * página e, se a equipe trocou o texto nesse meio-tempo, é 409 {@code TEXTO_ALTERADO} e a página mostra o texto novo.
+     *
+     * <p>Campos fixos que o treinador escondeu (D4) são ignorados se chegarem (a página pode ser de antes da mudança).
+     * As respostas às perguntas do treinador (D9) são validadas pela versão publicada do padrão de inscrição, com as regras
+     * da atualização e da anamnese (422 {@code INSCRICAO_INVALIDA}, por id da pergunta, sem repetir o valor), e gravadas com
+     * a versão fixada. A página manda a versão que mostrou: outra versão (ou respostas sem versão, ou versão sem padrão)
+     * é 409 {@code PERGUNTAS_ALTERADAS} e a página recarrega as perguntas. Sem versão e sem respostas vale como "não
+     * respondeu" (a pergunta obrigatória ainda recusa). Nada disso vai a log nem à auditoria; o aceite não copia as
+     * respostas para o cadastro.
      */
     @Transactional
     public void registrarPublica(String codigo, InscricaoPublicaRequest r) {
@@ -152,15 +174,44 @@ public class InscricaoService {
         }
         String whatsapp = Formatos.telefone(r.whatsapp());
         UUID responsavel = responsaveis.ativo(link.getResponsavelId()) ? link.getResponsavelId() : null;
-        if (r.sexo() != null && !r.sexo().isBlank() && Sexo.ler(r.sexo()) == null) {
+        Set<CampoDaInscricao> ocultos = link.getCamposOcultos();
+        String sexo = ocultos.contains(CampoDaInscricao.SEXO) ? null : r.sexo();
+        if (sexo != null && !sexo.isBlank() && Sexo.ler(sexo) == null) {
             throw new br.com.treinos.api.web.ValidacaoException("Confira os campos.", "INSCRICAO_INVALIDA",
                     List.of(new br.com.plataforma.comum.web.ApiError.FieldError("sexo", "Escolha Masculino, Feminino ou Outro.")));
         }
-        Inscricao nova = new Inscricao(r.nome().trim(), whatsapp, Buscas.opcional(r.email()), Buscas.opcional(r.objetivo()),
-                Buscas.opcional(r.observacao()), texto, responsavel, Sexo.ler(r.sexo()));
-        nova.qualificar(r.interesse(), r.modalidade(), r.previsaoInicio(), r.origem(), Crm.origemLinkValida(r.origemLink()));
+        Inscricao nova = new Inscricao(r.nome().trim(), whatsapp,
+                ocultos.contains(CampoDaInscricao.EMAIL) ? null : Buscas.opcional(r.email()),
+                ocultos.contains(CampoDaInscricao.OBJETIVO) ? null : Buscas.opcional(r.objetivo()),
+                null, texto, responsavel, Sexo.ler(sexo));
+        nova.qualificar(ocultos.contains(CampoDaInscricao.INTERESSE) ? null : r.interesse(),
+                ocultos.contains(CampoDaInscricao.MODALIDADE) ? null : r.modalidade(),
+                ocultos.contains(CampoDaInscricao.PREVISAO_INICIO) ? null : r.previsaoInicio(),
+                ocultos.contains(CampoDaInscricao.ORIGEM) ? null : r.origem(), Crm.origemLinkValida(r.origemLink()));
+        responderPerguntas(nova, r.questionarioVersaoId(), r.respostas());
         Inscricao gravada = inscricoes.saveAndFlush(nova);
         historico.registrar(gravada, TipoEvento.CRIADA, null, null, null, null);
+    }
+
+    /** Confere a versão das perguntas e valida as respostas por ela (regras no javadoc de {@link #registrarPublica}). */
+    private void responderPerguntas(Inscricao nova, UUID versaoEnviada, JsonNode enviadas) {
+        boolean temRespostas = enviadas != null && !enviadas.isNull() && !enviadas.isMissingNode()
+                && !(enviadas.isObject() && enviadas.isEmpty());
+        var padrao = resolver.padraoDaInscricao();
+        if (padrao.isEmpty()) {
+            if (versaoEnviada != null || temRespostas) throw perguntasAlteradas();
+            return;
+        }
+        UUID versao = padrao.get().versaoId();
+        if (versaoEnviada != null ? !versaoEnviada.equals(versao) : temRespostas) throw perguntasAlteradas();
+        JsonNode limpas = validadorDeRespostas.validar(json.readTree(padrao.get().conteudo()),
+                temRespostas ? enviadas : json.createObjectNode(), false, "INSCRICAO_INVALIDA", LocalDate.now(Fuso.BRASILIA));
+        nova.responder(versao, json.writeValueAsString(limpas));
+    }
+
+    private static ConflictException perguntasAlteradas() {
+        return new ConflictException("A consultoria mudou as perguntas enquanto você preenchia. Confira as perguntas e envie de novo.",
+                "PERGUNTAS_ALTERADAS");
     }
 
     private InscricaoConfiguracao linkAberto(String codigo) {
@@ -169,45 +220,6 @@ public class InscricaoService {
     }
 
     // ---- Fila da equipe ----
-
-    /**
-     * Filtros da fila. {@code situacao}: {@code ABERTAS} (padrão: nova, em contato, em negociação), {@code TODAS} ou uma
-     * situação. {@code meus} = as inscrições com quem pede; {@code responsavel} = id de um membro ou {@code nenhum}
-     * (ignorado com {@code meus}); {@code origem} = uma origem ou {@code NAO_INFORMADA}; {@code busca} = nome (sem acento),
-     * e-mail ou dígitos do WhatsApp (4 ou mais).
-     */
-    public record Filtro(String situacao, UUID meus, String responsavel, String origem, String busca) {
-    }
-
-    /** Mais novas primeiro, em páginas de até 100. */
-    @Transactional(readOnly = true)
-    public PaginaInscricoes listar(Filtro f, int pagina, int tamanho) {
-        Consulta c = Consulta.de(f);
-        Page<Inscricao> page = inscricoes.buscar(situacoes(f.situacao()), c.responsavelId, c.semResponsavel, c.origem,
-                c.semOrigem, c.busca, c.nome, c.texto, c.digitos, c.digitosPadrao,
-                PageRequest.of(Math.max(0, pagina), Math.clamp(tamanho, 1, 100)));
-        return new PaginaInscricoes(detalhes.resumos(page.getContent()), page.getTotalElements());
-    }
-
-    /**
-     * Quantas há em cada situação com os mesmos filtros (sem a situação) e os retornos pendentes das abertas: atrasados
-     * (antes de hoje) e de hoje, de Brasília ({@code meus} = os retornos com quem pede).
-     */
-    @Transactional(readOnly = true)
-    public Contagens contar(Filtro f) {
-        Consulta c = Consulta.de(f);
-        Map<SituacaoInscricao, Long> por = new EnumMap<>(SituacaoInscricao.class);
-        for (SituacaoInscricao s : SituacaoInscricao.values()) por.put(s, 0L);
-        inscricoes.contarPorSituacao(c.responsavelId, c.semResponsavel, c.origem, c.semOrigem, c.busca, c.nome, c.texto,
-                c.digitos, c.digitosPadrao).forEach(p -> por.put(p.situacao(), p.quantidade()));
-        long abertas = SituacaoInscricao.ABERTAS.stream().mapToLong(por::get).sum();
-        long todas = por.values().stream().mapToLong(Long::longValue).sum();
-        LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
-        long atrasados = retornos.contarPendentes(SituacaoInscricao.ABERTAS, f.meus(), LocalDate.of(1900, 1, 1),
-                hoje.minusDays(1));
-        long deHoje = retornos.contarPendentes(SituacaoInscricao.ABERTAS, f.meus(), hoje, hoje);
-        return new Contagens(por, abertas, todas, atrasados, deHoje);
-    }
 
     @Transactional(readOnly = true)
     public InscricaoDetalhe detalhe(UUID id) {
@@ -407,17 +419,6 @@ public class InscricaoService {
         }
     }
 
-    private static Set<SituacaoInscricao> situacoes(String situacao) {
-        String valor = situacao == null || situacao.isBlank() ? "ABERTAS" : situacao.trim().toUpperCase(Locale.ROOT);
-        if (valor.equals("ABERTAS")) return SituacaoInscricao.ABERTAS;
-        if (valor.equals("TODAS")) return EnumSet.allOf(SituacaoInscricao.class);
-        try {
-            return EnumSet.of(SituacaoInscricao.valueOf(valor));
-        } catch (IllegalArgumentException e) {
-            throw new BadRequestException("Situação precisa ser ABERTAS, TODAS ou uma situação da inscrição.");
-        }
-    }
-
     static void exigirVersao(Inscricao i, Long versao) {
         if (versao == null || !versao.equals(i.getVersao())) {
             throw new ConflictException("Outra pessoa ou aba alterou esta inscrição. Recarregue para ver a versão atual.",
@@ -436,49 +437,5 @@ public class InscricaoService {
 
     static NaoEncontradoException naoEncontrada() {
         return new NaoEncontradoException("Inscrição não encontrada.");
-    }
-
-    /** Parâmetros já prontos para a consulta da fila (padrões do LIKE e flags). */
-    private record Consulta(UUID responsavelId, boolean semResponsavel, Origem origem, boolean semOrigem, boolean busca,
-                            String nome, String texto, String digitos, String digitosPadrao) {
-
-        static Consulta de(Filtro f) {
-            UUID responsavel = f.meus();
-            boolean semResponsavel = false;
-            if (responsavel == null && f.responsavel() != null && !f.responsavel().isBlank()) {
-                if (f.responsavel().trim().equalsIgnoreCase("nenhum")) {
-                    semResponsavel = true;
-                } else {
-                    try {
-                        responsavel = UUID.fromString(f.responsavel().trim());
-                    } catch (IllegalArgumentException e) {
-                        throw new BadRequestException("Responsável precisa ser o id de um membro ou \"nenhum\".");
-                    }
-                }
-            }
-            Origem origem = null;
-            boolean semOrigem = false;
-            if (f.origem() != null && !f.origem().isBlank()) {
-                String valor = f.origem().trim().toUpperCase(Locale.ROOT);
-                if (valor.equals("NAO_INFORMADA")) {
-                    semOrigem = true;
-                } else {
-                    try {
-                        origem = Origem.valueOf(valor);
-                    } catch (IllegalArgumentException e) {
-                        throw new BadRequestException("Origem desconhecida.");
-                    }
-                }
-            }
-            String texto = f.busca() == null ? "" : f.busca().trim();
-            boolean busca = !texto.isEmpty();
-            String digitos = texto.replaceAll("\\D", "");
-            // O WhatsApp é gravado sem o +55 (Formatos.telefone), então o número colado com o código do país também acha.
-            if ((digitos.length() == 12 || digitos.length() == 13) && digitos.startsWith("55")) digitos = digitos.substring(2);
-            if (digitos.length() < 4) digitos = "";
-            if (digitos.length() > 20) digitos = digitos.substring(0, 20);
-            return new Consulta(responsavel, semResponsavel, origem, semOrigem, busca, Buscas.padraoSemAcento(texto),
-                    Buscas.padrao(texto), digitos, "%" + digitos + "%");
-        }
     }
 }

@@ -4,7 +4,7 @@ import { View } from 'react-native';
 import { listarAuditoria,pessoasAuditoria } from '../../api/rotas';
 import { paraSetParams } from '../../dominio/filtrosComuns';
 import {
-  CHAVES_DO_ENDERECO, chipsDosFiltros, lerDoEndereco, paraEndereco, pedidoDaApi, SEM_FILTROS, semOFiltro,
+  CHAVES_DO_ENDERECO, chipsDosFiltros, lerDoEndereco, opcoesDePessoa, paraEndereco, pedidoDaApi, SEM_FILTROS, semOFiltro,
   type ChaveDoFiltro, type FiltrosDeAuditoria, type ParametrosDoEndereco,
 } from '../../dominio/filtrosDeAuditoria';
 import { dataHoraParaTela } from '../../dominio/formatos';
@@ -14,7 +14,7 @@ import { BarraDeFiltros } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
-import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
+import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
 import { Tabela } from '../../ui/Tabela';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro,Vazio } from '../../ui/Estados';
@@ -24,12 +24,12 @@ import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 import { ACOES_AUDITORIA } from '../../treinador/equipe/acoesAuditoria';
 
-const OPCOES_DE_ACAO=[{valor:'',rotulo:'Todas as ações'},...Object.entries(ACOES_AUDITORIA).map(([codigo,nome])=>({valor:codigo,rotulo:nome}))];
+const OPCOES_DE_ACAO=Object.entries(ACOES_AUDITORIA).map(([codigo,nome])=>({valor:codigo,rotulo:nome})).sort((a,b)=>a.rotulo.localeCompare(b.rotulo,'pt-BR'));
 
 /**
- * Auditoria: eventos da consultoria. Pessoa, ação e período ficam na barra de filtros (`docs/planos/filtros-nas-listas.md`,
- * D9), no endereço (`?usuarioId=&acao=&de=&ate=`), e valem na hora. Período incompleto ou inválido não busca: fica o
- * último período válido.
+ * Auditoria: eventos da consultoria. Pessoas (várias, e "Sistema"), ações (várias) e período ficam na barra de filtros
+ * (`docs/planos/filtros-nas-listas.md`, D9 e lote 2), no endereço (`?usuarioId=&acao=&de=&ate=`, várias numa vírgula), e
+ * valem na hora. Período incompleto ou inválido não busca: fica o último período válido.
  */
 export default function Auditoria() {
   const filtros=lerDoEndereco(useLocalSearchParams<Record<keyof ParametrosDoEndereco,string>>(),ACOES_AUDITORIA);
@@ -44,9 +44,9 @@ export default function Auditoria() {
   return <Tela largura={LARGURA_LISTA} bordas={['top']}><Cabecalho titulo="Auditoria" subtitulo="Ações feitas na consultoria, guardadas por um ano. Valores clínicos não aparecem."/>
     <BarraDeFiltros valor={filtros} aoAplicar={aplicar} limpo={SEM_FILTROS} chips={chips} aoTirar={(chave)=>aplicar(semOFiltro(filtros,chave as ChaveDoFiltro))}
       rotuloDoResultado="Ver eventos" seletores={(atuais,mudar)=><>
-        {/* Pessoa e ação com o mesmo padrão: botão "Rótulo: valor" que abre a lista com busca. */}
-        <CelulaDoFiltro><EscolhaEmFolha rotulo="Pessoa" valor={atuais.usuarioId} aoMudar={(usuarioId)=>mudar({...atuais,usuarioId})} opcoes={[{valor:'',rotulo:'Todas as pessoas'},...(membros??[]).map(m=>({valor:m.id,rotulo:m.nome}))]}/></CelulaDoFiltro>
-        <CelulaDoFiltro><EscolhaEmFolha rotulo="Ação" titulo="Filtrar por ação" valor={atuais.acao} aoMudar={(acao)=>mudar({...atuais,acao})} opcoes={OPCOES_DE_ACAO}/></CelulaDoFiltro>
+        {/* Pessoa e ação com o mesmo padrão: várias opções com busca (nada marcado = todas). */}
+        <CelulaDoFiltro><SelecaoMultiplaSuspensa rotulo="Pessoa" opcoes={opcoesDePessoa(membros??[])} marcados={new Set(atuais.pessoas)} rotuloDeTodos="Todas as pessoas" aoMudar={(m)=>mudar({...atuais,pessoas:[...m]})} style={{alignSelf:'stretch'}}/></CelulaDoFiltro>
+        <CelulaDoFiltro><SelecaoMultiplaSuspensa rotulo="Ação" opcoes={OPCOES_DE_ACAO} marcados={new Set(atuais.acoes)} rotuloDeTodos="Todas as ações" aoMudar={(m)=>mudar({...atuais,acoes:[...m]})} style={{alignSelf:'stretch'}}/></CelulaDoFiltro>
         <CelulaDoFiltro><CamposDePeriodo valor={atuais.periodo} aoMudar={(periodo)=>mudar({...atuais,periodo})}/></CelulaDoFiltro>
       </>}/>
     {erroPessoas?<MensagemErro texto={textoDoErro(erroPessoas)} tentarDeNovo={recarregarPessoas}/>:null}

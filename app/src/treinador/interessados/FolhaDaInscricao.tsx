@@ -26,6 +26,7 @@ import {
   reabrirInscricao,
 } from '../../api/rotas';
 import type { OpcaoQuestionario } from '../../api/tipos';
+import { QuestionarioAtualizacao } from '../../aluno/atualizacao/QuestionarioAtualizacao';
 import { centavosParaTela, dataHoraParaTela, SEM_DADO } from '../../dominio/formatos';
 import { rotuloDoSexo } from '../../dominio/sexo';
 import {
@@ -397,7 +398,8 @@ function Conteudo({ dados, responsaveis, rascunhos, aoFechar, aoMudarLista, aoAt
       <Cartao titulo="O que a pessoa escreveu">
         <CampoLeitura rotulo="Sexo" valor={dados.sexo ? rotuloDoSexo(dados.sexo) : 'Prefiro não informar'} />
         <CampoLeitura rotulo="Objetivo" valor={dados.objetivo} />
-        <CampoLeitura rotulo="Observação" valor={dados.observacao} />
+        {/* A "Observação" deixou de ser campo fixo (virou pergunta do treinador); só as inscrições de antes a têm. */}
+        {dados.observacao ? <CampoLeitura rotulo="Observação" valor={dados.observacao} /> : null}
         <CampoLeitura rotulo="O que procura" valor={rotuloOpcional(INTERESSES, dados.interesse)} />
         <CampoLeitura rotulo="Acompanhamento" valor={rotuloOpcional(MODALIDADES_DESEJADAS, dados.modalidadeDesejada)} />
         <CampoLeitura rotulo="Quando quer começar" valor={rotuloOpcional(PREVISOES, dados.previsaoInicio)} />
@@ -406,6 +408,14 @@ function Conteudo({ dados, responsaveis, rascunhos, aoFechar, aoMudarLista, aoAt
         <CampoLeitura rotulo="Ciência do texto da consultoria"
           valor={dados.cienciaEm ? `Marcada em ${dataHoraParaTela(dados.cienciaEm)}` : 'Não havia texto de privacidade'} />
       </Cartao>
+
+      {/* Respostas às perguntas da página (D9), na versão que a pessoa respondeu; só leitura. O aceite não as copia. */}
+      {dados.respostas ? <>
+        <Cartao titulo="Respostas às perguntas da página">
+          <Texto variante="pequeno">{`Versão ${dados.respostas.questionarioVersaoNumero} das perguntas. Não vão para o cadastro do aluno no aceite.`}</Texto>
+        </Cartao>
+        <QuestionarioAtualizacao modelo={dados.respostas.modelo} respostas={dados.respostas.respostas} />
+      </> : null}
 
       {encerrada ? (
         <Cartao titulo={dados.situacao === 'RECUSADA' ? 'Inscrição recusada' : 'A pessoa desistiu'}

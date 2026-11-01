@@ -1,6 +1,7 @@
 import { codigoApi, emailValido, errosPorCampo, formatarTelefone, somenteDigitos, telefoneValido } from '@plataforma/web';
 
 import type {
+  CampoDaInscricao,
   DuplicidadeInscricao,
   Encerramento,
   EtapaAberta,
@@ -20,8 +21,9 @@ import type {
   PropostaInscricao,
   SituacaoInscricao,
 } from '../api/inscricoesTipos';
-import type { OpcaoQuestionario } from '../api/tipos';
+import type { ConteudoQuestionario, OpcaoQuestionario, RespostasAtualizacao } from '../api/tipos';
 import { centavosDaTela, SEM_DADO } from './formatos';
+import { respostasParaEnviar } from './respostasAtualizacao';
 
 /**
  * Regras puras da inscrição por link e da fila de interessados. As validações espelham a API (`InscricaoPublicaRequest`
@@ -33,7 +35,7 @@ export type TipoDeSelo = 'sucesso' | 'atencao' | 'perigo' | 'neutro';
 
 /** Limites dos campos (mesmos do `@Size` da API). */
 export const LIMITES_INSCRICAO = {
-  nome: 120, email: 254, objetivo: 500, observacao: 1000, texto: 2000, nota: 2000,
+  nome: 120, email: 254, objetivo: 500, texto: 2000, nota: 2000,
   motivoDetalhe: 300, motivoReabertura: 200, condicoes: 500, planoNome: 120, retorno: 200,
   modeloNome: 60, modeloTexto: 1000,
 } as const;
@@ -192,13 +194,40 @@ export function textoDaDuplicidade(d: DuplicidadeInscricao | null | undefined): 
 /** Há algo para avisar como possível duplicidade. */
 export const temDuplicidade = (d: DuplicidadeInscricao | null | undefined) => textoDaDuplicidade(d) !== null;
 
+/**
+ * Campos fixos que o treinador pode esconder da página (D4 de `docs/planos/inscricao-com-perguntas-proprias.md`), na
+ * ordem da página. Nome, WhatsApp e a ciência do texto nunca se escondem e não estão aqui.
+ */
+export const CAMPOS_DA_INSCRICAO: readonly { valor: CampoDaInscricao; rotulo: string; uso: string }[] = [
+  { valor: 'EMAIL', rotulo: 'E-mail', uso: 'Usado no convite de acesso ao app, se a pessoa virar aluno.' },
+  { valor: 'SEXO', rotulo: 'Sexo', uso: 'Vai para o cadastro do aluno no aceite.' },
+  { valor: 'OBJETIVO', rotulo: 'Objetivo', uso: 'Vai para o cadastro do aluno no aceite.' },
+  { valor: 'INTERESSE', rotulo: 'O que procura', uso: 'Aparece no CRM.' },
+  { valor: 'MODALIDADE', rotulo: 'Como prefere o acompanhamento', uso: 'Aparece no CRM.' },
+  { valor: 'PREVISAO_INICIO', rotulo: 'Quando quer começar', uso: 'Aparece no CRM.' },
+  { valor: 'ORIGEM', rotulo: 'Como conheceu a consultoria', uso: 'Aparece no CRM e nos indicadores por origem.' },
+];
+
+/** Todos os campos fixos (o que a página mostra sem nada escondido). */
+export const TODOS_OS_CAMPOS: readonly CampoDaInscricao[] = CAMPOS_DA_INSCRICAO.map((c) => c.valor);
+
+/** Liga ou desliga um campo na lista de escondidos, sempre na ordem da página e sem repetir. */
+export function alternarCampoOculto(ocultos: readonly CampoDaInscricao[], campo: CampoDaInscricao, esconder: boolean): CampoDaInscricao[] {
+  const conjunto = new Set(ocultos);
+  if (esconder) conjunto.add(campo);
+  else conjunto.delete(campo);
+  return TODOS_OS_CAMPOS.filter((c) => conjunto.has(c));
+}
+
+/** Aviso fixo do editor das perguntas da inscrição (D7): não dá para impedir por regra, porque o texto é livre. */
+export const AVISO_SAUDE_NA_INSCRICAO = 'Não peça informação de saúde aqui; ela fica para a anamnese, depois do aceite.';
+
 /** Campos da página pública, como a pessoa digita. */
 export interface DadosDaInscricao {
   nome: string;
   whatsapp: string;
   email: string;
   objetivo: string;
-  observacao: string;
   sexo: string;
   /** Qualificação rápida (opcional; vazio = não informado). */
   interesse: Interesse | '';
@@ -208,14 +237,19 @@ export interface DadosDaInscricao {
 }
 
 export const INSCRICAO_VAZIA: DadosDaInscricao = {
-  nome: '', whatsapp: '', email: '', objetivo: '', observacao: '', sexo: '', interesse: '', modalidade: '', previsaoInicio: '', origem: '',
+  nome: '', whatsapp: '', email: '', objetivo: '', sexo: '', interesse: '', modalidade: '', previsaoInicio: '', origem: '',
 };
 
 /** Máscara do WhatsApp enquanto digita: `(11) 98765-4321`. */
 export const mascaraWhatsapp = (texto: string) => formatarTelefone(texto);
 
-/** Erros por campo antes de enviar (vazio = pode enviar). `exigeCiencia` quando a consultoria tem texto. */
-export function errosDaInscricao(d: DadosDaInscricao, exigeCiencia: boolean, ciencia: boolean): Record<string, string> {
+/**
+ * Erros por campo antes de enviar (vazio = pode enviar). `exigeCiencia` quando a consultoria tem texto; `campos` são os
+ * fixos visíveis (o escondido não é conferido nem enviado).
+ */
+export function errosDaInscricao(d: DadosDaInscricao, exigeCiencia: boolean, ciencia: boolean,
+  campos: readonly CampoDaInscricao[] = TODOS_OS_CAMPOS): Record<string, string> {
+  const mostra = (c: CampoDaInscricao) => campos.includes(c);
   const erros: Record<string, string> = {};
   const nome = d.nome.trim();
   if (!nome) erros.nome = 'Informe seu nome.';
@@ -223,36 +257,52 @@ export function errosDaInscricao(d: DadosDaInscricao, exigeCiencia: boolean, cie
   if (!d.whatsapp.trim()) erros.whatsapp = 'Informe o WhatsApp com DDD.';
   else if (!telefoneValido(d.whatsapp)) erros.whatsapp = 'WhatsApp inválido. Informe o DDD e o número.';
   const email = d.email.trim();
-  if (email && (!emailValido(email) || email.length > LIMITES_INSCRICAO.email)) erros.email = 'E-mail inválido.';
-  if (d.objetivo.trim().length > LIMITES_INSCRICAO.objetivo) erros.objetivo = `Use até ${LIMITES_INSCRICAO.objetivo} caracteres.`;
-  if (d.observacao.trim().length > LIMITES_INSCRICAO.observacao) {
-    erros.observacao = `Use até ${LIMITES_INSCRICAO.observacao} caracteres.`;
-  }
+  if (mostra('EMAIL') && email && (!emailValido(email) || email.length > LIMITES_INSCRICAO.email)) erros.email = 'E-mail inválido.';
+  if (mostra('OBJETIVO') && d.objetivo.trim().length > LIMITES_INSCRICAO.objetivo) erros.objetivo = `Use até ${LIMITES_INSCRICAO.objetivo} caracteres.`;
   if (exigeCiencia && !ciencia) erros.cienciaPrivacidade = 'Marque que você leu o texto acima.';
   return erros;
 }
 
 /**
+ * O que vai das perguntas do treinador: só as respostas das perguntas desta versão que estão visíveis (a escondida pela
+ * condição não vai; a de uma pergunta que saiu numa versão nova, também não).
+ */
+export function respostasDaPagina(modelo: ConteudoQuestionario, respostas: RespostasAtualizacao): RespostasAtualizacao {
+  const ids = new Set(modelo.secoes.flatMap((s) => s.perguntas.map((p) => p.id)));
+  return Object.fromEntries(Object.entries(respostasParaEnviar(modelo, respostas)).filter(([id]) => ids.has(id)));
+}
+
+/** As perguntas do treinador respondidas: a versão que a página mostrou e as respostas (só as visíveis vão). */
+export interface RespostasDoEnvio {
+  versaoId: string;
+  respostas: RespostasAtualizacao;
+}
+
+/**
  * Corpo do envio: textos sem espaços nas pontas e vazio = nulo. O token só vai quando há. `textoVersao` é a do texto que
- * a página mostrou (a API recusa a ciência de um texto que mudou).
+ * a página mostrou (a API recusa a ciência de um texto que mudou). Campo fixo escondido (`campos` são os visíveis) vai
+ * nulo. `perguntas` nulo = a página não tinha perguntas.
  */
 export function corpoDaInscricao(d: DadosDaInscricao, ciencia: boolean, token: string | null,
-  textoVersao: string | null = null, origemLink: string | null = null): InscricaoPublicaRequest {
+  textoVersao: string | null = null, origemLink: string | null = null,
+  campos: readonly CampoDaInscricao[] = TODOS_OS_CAMPOS, perguntas: RespostasDoEnvio | null = null): InscricaoPublicaRequest {
   const opcional = (t: string) => (t.trim() ? t.trim() : null);
+  const mostra = (c: CampoDaInscricao) => campos.includes(c);
   const corpo: InscricaoPublicaRequest = {
     nome: d.nome.trim(),
     whatsapp: d.whatsapp.trim(),
-    email: opcional(d.email),
-    objetivo: opcional(d.objetivo),
-    observacao: opcional(d.observacao),
-    ...(d.sexo ? { sexo: d.sexo } : {}),
-    interesse: d.interesse || null,
-    modalidade: d.modalidade || null,
-    previsaoInicio: d.previsaoInicio || null,
-    origem: d.origem || null,
+    email: mostra('EMAIL') ? opcional(d.email) : null,
+    objetivo: mostra('OBJETIVO') ? opcional(d.objetivo) : null,
+    ...(d.sexo && mostra('SEXO') ? { sexo: d.sexo } : {}),
+    interesse: mostra('INTERESSE') ? d.interesse || null : null,
+    modalidade: mostra('MODALIDADE') ? d.modalidade || null : null,
+    previsaoInicio: mostra('PREVISAO_INICIO') ? d.previsaoInicio || null : null,
+    origem: mostra('ORIGEM') ? d.origem || null : null,
     origemLink,
     cienciaPrivacidade: ciencia,
     textoVersao,
+    questionarioVersaoId: perguntas?.versaoId ?? null,
+    respostas: perguntas ? perguntas.respostas : null,
   };
   if (token) corpo.turnstileToken = token;
   return corpo;

@@ -15,6 +15,14 @@ import java.util.regex.Pattern;
  * "rest pause"...) por regras fixas. Devolve o que entendeu e o texto que sobrou, que vai para a observação. O que não
  * entende não preenche: nunca inventa série, repetição nem carga.
  *
+ * <p>Fase 2 (01/11): também a pirâmide ("10-8-6", "4x12/10/8/6": uma série por número), a série por tempo ("3x30s",
+ * "3x1min", sem repetições; a duração vai para a observação), o descanso escrito ("desc 60s", "descanso: 1min30",
+ * {@code 90"}), RIR e RPE de um valor só ("RIR 2", "2 RIR", "RPE 8,5"; faixa como "RIR 1-2" não é lida e fica na sobra)
+ * e os detalhes da técnica quando há uma só técnica estruturada escrita (rest pause: segundos, respirações, pausas ou
+ * micro-séries; cluster: os blocos "4+4+2" ou "3 blocos de 4" e a pausa; drop-set: quedas e redução em %), com "na
+ * última" para pôr a técnica só na última série. Cadência ("cadência 3-1-2") nunca vira pirâmide. Trecho reconhecido mas
+ * que não cabe num campo (faixa de RIR ou de descanso) é só reservado: não é lido por outra regra e continua na sobra.
+ *
  * <p>A faixa de repetições que o Excel transformou em data ("8-12" virou 08/12) é recuperada como o
  * {@code faixaDeRepeticoes} do {@code planos-lib.mjs}: o dia e o mês, do menor para o maior, só se os dois estão entre 1 e
  * 50 e o ano (quando há) entre {@value #ANO_MINIMO_DA_DATA} e {@value #ANO_MAXIMO_DA_DATA}.
@@ -34,6 +42,18 @@ public final class LeitorDePrescricao {
     public enum Tecnica { REST_PAUSE, DROP_SET, CLUSTER, SUPERSET }
 
     public enum ErroDaFaixa { VAZIA, INVALIDA, DATA }
+
+    /**
+     * A técnica estruturada escrita (só quando há uma só) e os números escritos junto dela; nulo = não estava escrito.
+     * {@code soNaUltima} = "na última (série)".
+     */
+    public record TecnicaEscrita(Tecnica tipo, Integer pausaSegundos, Integer pausaRespiracoes, Integer pausas,
+                                 java.util.List<Integer> blocos, Integer quedas, Integer reducaoPercentual,
+                                 boolean soNaUltima) {
+        static TecnicaEscrita so(Tecnica tipo) {
+            return new TecnicaEscrita(tipo, null, null, null, null, null, null, false);
+        }
+    }
 
     /** Faixa de repetições: {@code min}/{@code max} ou {@code erro}; {@code deData} = recuperada de uma data do Excel. */
     public record Faixa(Integer min, Integer max, boolean deData, ErroDaFaixa erro) {
@@ -56,15 +76,27 @@ public final class LeitorDePrescricao {
 
     /**
      * O que foi entendido (nulo = não estava escrito ou não foi entendido) e a {@code sobra}: o texto original sem os
-     * trechos entendidos, sem pontuação solta nas pontas ("" quando nada sobrou).
+     * trechos entendidos, sem pontuação solta nas pontas ("" quando nada sobrou). {@code piramide} = as repetições de
+     * cada série, na ordem (3 a 10 números); {@code duracaoSegundos} = série por tempo; {@code tecnica} = a técnica
+     * estruturada com os detalhes, só quando há uma só ({@code tecnicas} traz todas as palavras de técnica achadas).
      */
     public record Prescricao(Integer series, Integer repsMin, Integer repsMax, boolean amrap, boolean ateAFalha,
-                             BigDecimal cargaKg, Set<Tecnica> tecnicas, boolean faixaDeData, String sobra) {
+                             BigDecimal cargaKg, Set<Tecnica> tecnicas, boolean faixaDeData, String sobra,
+                             java.util.List<Integer> piramide, Integer duracaoSegundos, Integer descansoSegundos,
+                             Integer rir, BigDecimal rpe, TecnicaEscrita tecnica) {
 
         static final Prescricao VAZIA = new Prescricao(null, null, null, false, false, null, Set.of(), false, "");
 
+        /** Sem os campos da fase 2 (pirâmide, tempo, descanso, esforço e detalhes da técnica). */
+        public Prescricao(Integer series, Integer repsMin, Integer repsMax, boolean amrap, boolean ateAFalha,
+                          BigDecimal cargaKg, Set<Tecnica> tecnicas, boolean faixaDeData, String sobra) {
+            this(series, repsMin, repsMax, amrap, ateAFalha, cargaKg, tecnicas, faixaDeData, sobra, null, null, null, null,
+                    null, null);
+        }
+
         public boolean entendeuAlgo() {
-            return series != null || repsMin != null || amrap || ateAFalha || cargaKg != null || !tecnicas.isEmpty();
+            return series != null || repsMin != null || amrap || ateAFalha || cargaKg != null || !tecnicas.isEmpty()
+                    || piramide != null || duracaoSegundos != null || descansoSegundos != null || rir != null || rpe != null;
         }
 
         /** Tinha texto e nada foi entendido. */
@@ -88,7 +120,8 @@ public final class LeitorDePrescricao {
     private static final String REPS = "(?:\\s*(?:repeticoes|repeticao|reps|rep))?";
     private static final String ATE = "\\s*(?:-|–|a|ate|/)\\s*";
     private static final Pattern SERIES_X_REPS = Pattern.compile(
-            ANTES + "(\\d{1,2})\\s*[x×]\\s*(\\d{1,3})(?:" + ATE + "(\\d{1,3}))?" + DEPOIS + REPS + "(?![a-z])");
+            ANTES + "(\\d{1,2})\\s*[x×]\\s*(\\d{1,3})(?:" + ATE + "(\\d{1,3}))?" + DEPOIS + REPS + "(?![a-z])"
+                    + "(?!\\s*(?:-|–|/)\\s*\\d)");
     private static final Pattern SERIES_X_FALHA = Pattern.compile(
             ANTES + "(\\d{1,2})\\s*[x×]\\s*(?:ate\\s+a\\s+|ate\\s+)?(falha|amrap)(?![a-z])");
     private static final Pattern SERIES_DE = Pattern.compile(
@@ -101,10 +134,47 @@ public final class LeitorDePrescricao {
     private static final Pattern AMRAP = Pattern.compile("(?<![a-z])amrap(?![a-z])");
     private static final Pattern FALHA = Pattern.compile("(?<![a-z])(?:ate\\s+a\\s+|ate\\s+)?falha(?![a-z])");
     private static final Pattern REST_PAUSE = Pattern.compile("(?<![a-z])rest[\\s-]?pause(?![a-z])");
-    private static final Pattern DROP = Pattern.compile("(?<![a-z])(?:drop[\\s-]?sets?|drop)(?![a-z])");
+    private static final Pattern DROP = Pattern.compile("(?<![a-z])(?:drop[\\s-]?sets?|drops?)(?![a-z])");
     private static final Pattern CLUSTER = Pattern.compile("(?<![a-z])cluster(?![a-z])");
     private static final Pattern SUPERSET = Pattern.compile(
             "(?<![a-z])(?:bi[\\s-]?sets?|super[\\s-]?sets?|super[\\s-]?series?|bi[\\s-]?series?|bisseries?)(?![a-z])");
+    /** Segundos e minutos escritos: "30s", "30 seg", 30", 30'', "1min", "1,5 min", 1', "1min30", 1'30". */
+    private static final String SEG = "(?:''|’’|\"|”|″|segundos|segundo|segs|seg|s)";
+    private static final String MIN = "(?:minutos|minuto|mins|min|'|’|′)";
+    private static final String TEMPO = "(?:(?<s>\\d{1,4})\\s*" + SEG + "|(?<m>\\d{1,2}(?:[.,]5)?)\\s*" + MIN
+            + "(?:\\s*(?<ms>\\d{1,2})\\s*" + SEG + "?)?)(?![a-z\\d])";
+    private static final Pattern SERIES_X_TEMPO = Pattern.compile(ANTES + "(?<series>\\d{1,2})\\s*[x×]\\s*" + TEMPO);
+    private static final Pattern DESCANSO_ROTULADO = Pattern.compile(
+            "(?<![a-z])(?:descanso|descansar|desc|intervalo|int)\\.?\\s*(?:de\\s+)?:?\\s*" + TEMPO);
+    private static final Pattern DESCANSO_ASPAS = Pattern.compile(ANTES + "(\\d{1,4})\\s*(?:''|’’|\"|”|″)(?![a-z\\d])");
+    private static final Pattern TEMPO_SOLTO = Pattern.compile(ANTES + TEMPO);
+    private static final Pattern FAIXA_ANTES = Pattern.compile("\\d\\s*(?:-|–|/|a|ate)\\s*$");
+    private static final Pattern FAIXA_DEPOIS = Pattern.compile("^\\s*(?:-|–|/|a|ate)\\s*\\d");
+    private static final Pattern RIR = Pattern.compile("(?<![a-z])rir\\s*:?\\s*(\\d{1,2})(?![\\d]|[.,]\\d)");
+    private static final Pattern RIR_DEPOIS = Pattern.compile("(?<![\\d.,])(\\d{1,2})\\s*(?:de\\s+)?rir(?![a-z])");
+    private static final Pattern RPE = Pattern.compile("(?<![a-z])rpe\\s*:?\\s*(\\d{1,2}(?:[.,]\\d)?)(?![\\d]|[.,]\\d)");
+    private static final Pattern CADENCIA = Pattern.compile(
+            "(?<![a-z])(?:cadencia|tempo|ritmo)\\s*:?\\s*[\\dx](?:\\s*[-–/]\\s*[\\dx]){2,3}");
+    private static final String LISTA = "(\\d{1,3}(?:\\s*[-–/,]\\s*\\d{1,3}){2,9})(?!\\d|[.,]\\d|\\s*[-–/,]\\s*\\d)";
+    private static final Pattern PIRAMIDE_COM_SERIES = Pattern.compile(
+            ANTES + "(\\d{1,2})\\s*[x×]\\s*" + LISTA + REPS + "(?![a-z])");
+    private static final Pattern PIRAMIDE = Pattern.compile(ANTES + LISTA + REPS + "(?![a-z])");
+    private static final Pattern NUMEROS = Pattern.compile("\\d+");
+    private static final Pattern RESPIRACOES = Pattern.compile(ANTES + "(\\d{1,2})\\s*respira(?:coes|cao)(?![a-z])");
+    private static final Pattern PAUSAS = Pattern.compile(ANTES + "(\\d)\\s*(?:pausas?|paradas?)(?![a-z])");
+    private static final Pattern MICRO_SERIES = Pattern.compile(ANTES + "(\\d{1,2})\\s*micro[\\s-]?series?(?![a-z])");
+    private static final Pattern BLOCOS_SOMA = Pattern.compile(
+            ANTES + "(?:(\\d{1,2})\\s*[x×]\\s*)?\\(?\\s*(\\d{1,2}(?:\\s*\\+\\s*\\d{1,2}){1,9})\\s*\\)?" + DEPOIS);
+    private static final Pattern BLOCOS_IGUAIS = Pattern.compile(ANTES + "(\\d{1,2})\\s*blocos?\\s*de\\s*(\\d{1,2})" + DEPOIS
+            + REPS + "(?![a-z])");
+    private static final Pattern QUEDAS = Pattern.compile(ANTES + "(\\d)\\s*(?:quedas?|drops?)(?![a-z])");
+    private static final Pattern REDUCAO = Pattern.compile(ANTES + "(\\d{1,2})\\s*%");
+    private static final Pattern SERIES_X_TECNICA = Pattern.compile(
+            ANTES + "(\\d{1,2})\\s*[x×]\\s*(?=(?:cluster|rest[\\s-]?pause|drop))");
+    private static final Pattern NA_ULTIMA = Pattern.compile(
+            "(?<![a-z])(?:so\\s+|apenas\\s+|somente\\s+)?na\\s+ultima(?:\\s+serie)?(?![a-z])");
+    /** Quantos caracteres depois da palavra da técnica o tempo da pausa pode aparecer ("rest pause de 15 s"). */
+    private static final int PERTO_DA_TECNICA = 25;
     private static final Pattern FAIXA_ESCRITA = Pattern.compile("^(\\d{1,3})\\s*(?:a|à|-|–)\\s*(\\d{1,3})$");
     private static final Pattern NUMERO_SOLTO = Pattern.compile("^(\\d{1,3})$");
     private static final Pattern DATA_ISO = Pattern.compile(
@@ -223,6 +293,14 @@ public final class LeitorDePrescricao {
             return new Prescricao(null, inteira.min(), inteira.max(), false, false, null, Set.of(), inteira.deData(), "");
         }
         Leitura l = new Leitura(original);
+        // A ordem importa: cada regra só usa o trecho que nenhuma outra usou (ou reservou) antes.
+        l.seriesPorTempo();
+        l.descansoRotulado();
+        l.tecnicaEscrita();
+        l.descansoComAspas();
+        l.esforco();
+        l.cadencia();
+        l.piramide();
         l.seriesERepeticoes();
         l.seriesAteAFalha();
         l.seriesDe();
@@ -230,7 +308,34 @@ public final class LeitorDePrescricao {
         l.faixa();
         l.repeticoes();
         l.marcas();
-        return new Prescricao(l.series, l.repsMin, l.repsMax, l.amrap, l.falha, l.carga, Set.copyOf(l.tecnicas), false, l.sobra());
+        return new Prescricao(l.series, l.repsMin, l.repsMax, l.amrap, l.falha, l.carga, Set.copyOf(l.tecnicas), false,
+                l.sobra(), l.piramide, l.duracao, l.descanso, l.rir, l.rpe, l.tecnicaFinal());
+    }
+
+    /** Segundos de um {@link #TEMPO} casado (minutos × 60 + segundos); fora de 0 a 3600 ou minuto quebrado = null. */
+    private static Integer segundos(Matcher m) {
+        if (m.group("s") != null) {
+            int s = Integer.parseInt(m.group("s"));
+            return s <= 3600 ? s : null;
+        }
+        BigDecimal minutos = new BigDecimal(m.group("m").replace(',', '.'));
+        BigDecimal total = minutos.multiply(BigDecimal.valueOf(60));
+        if (m.group("ms") != null) {
+            int ms = Integer.parseInt(m.group("ms"));
+            if (ms >= 60 || minutos.stripTrailingZeros().scale() > 0) {
+                return null;
+            }
+            total = total.add(BigDecimal.valueOf(ms));
+        }
+        return total.stripTrailingZeros().scale() <= 0 && total.compareTo(BigDecimal.valueOf(3600)) <= 0
+                ? total.intValueExact() : null;
+    }
+
+    /** O descanso de uma célula da coluna "Descanso": só o tempo com unidade ("60s", "1min", 90"); senão null. */
+    public static Integer descanso(String texto) {
+        String t = Normalizacao.dobrar(texto == null ? "" : texto.strip());
+        Matcher m = Pattern.compile("^(?:(?:descanso|desc|intervalo)\\.?\\s*:?\\s*)?" + TEMPO + "$").matcher(t);
+        return m.matches() ? segundos(m) : null;
     }
 
     private static boolean inteiro(BigDecimal n) {
@@ -249,11 +354,317 @@ public final class LeitorDePrescricao {
         private boolean falha;
         private BigDecimal carga;
         private final Set<Tecnica> tecnicas = EnumSet.noneOf(Tecnica.class);
+        /** Trecho reconhecido que não coube em campo nenhum: nenhuma outra regra o usa, mas ele continua na sobra. */
+        private final boolean[] reservado;
+        private java.util.List<Integer> piramide;
+        private Integer duracao;
+        private Integer descanso;
+        private Integer rir;
+        private BigDecimal rpe;
+        private Tecnica unica;
+        private Integer pausaSegundos;
+        private Integer pausaRespiracoes;
+        private Integer pausas;
+        private java.util.List<Integer> blocos;
+        private Integer quedas;
+        private Integer reducao;
+        private boolean soNaUltima;
 
         Leitura(String original) {
             this.original = original;
             this.dobrado = Normalizacao.dobrar(original);
             this.usado = new boolean[original.length()];
+            this.reservado = new boolean[original.length()];
+        }
+
+        /** "3x30s", "3 x 1 min": séries por tempo (sem repetições). */
+        void seriesPorTempo() {
+            Matcher m = SERIES_X_TEMPO.matcher(dobrado);
+            while (m.find()) {
+                Integer s = series(m.group("series"));
+                Integer seg = segundos(m);
+                if (series == null && s != null && seg != null && seg > 0 && livre(m) && !faixaDepois(m.end())) {
+                    series = s;
+                    duracao = seg;
+                    usar(m);
+                }
+            }
+        }
+
+        /** "desc 60s", "descanso: 1min30", "intervalo de 90"". */
+        void descansoRotulado() {
+            Matcher m = DESCANSO_ROTULADO.matcher(dobrado);
+            while (m.find()) {
+                Integer seg = segundos(m);
+                if (descanso == null && seg != null && livre(m) && !faixaDepois(m.end())) {
+                    descanso = seg;
+                    usar(m);
+                }
+            }
+        }
+
+        /** 90" sozinho é descanso; "60-90"" (faixa) só é reservado. */
+        void descansoComAspas() {
+            Matcher m = DESCANSO_ASPAS.matcher(dobrado);
+            while (m.find()) {
+                if (!livre(m)) {
+                    continue;
+                }
+                int seg = Integer.parseInt(m.group(1));
+                boolean faixa = FAIXA_ANTES.matcher(dobrado.substring(0, m.start())).find();
+                if (faixa || descanso != null || seg > 3600) {
+                    reservar(m.start(), m.end());
+                } else {
+                    descanso = seg;
+                    usar(m);
+                }
+            }
+        }
+
+        /** RIR e RPE de um valor só; com os dois, ou com faixa, nada é lido (o trecho fica na sobra). */
+        void esforco() {
+            java.util.List<int[]> trechos = new java.util.ArrayList<>();
+            Integer achadoRir = null;
+            boolean rirRuim = false;
+            for (Pattern p : new Pattern[] {RIR, RIR_DEPOIS}) {
+                Matcher m = p.matcher(dobrado);
+                while (m.find()) {
+                    if (!livre(m)) {
+                        continue;
+                    }
+                    int v = Integer.parseInt(m.group(1));
+                    if (faixaDepois(m.end()) || v > 5 || achadoRir != null) {
+                        rirRuim = true;
+                        reservar(m.start(), m.end());
+                    } else {
+                        achadoRir = v;
+                        usar(m);
+                        trechos.add(new int[] {m.start(), m.end()});
+                    }
+                }
+            }
+            BigDecimal achadoRpe = null;
+            boolean rpeRuim = false;
+            Matcher m = RPE.matcher(dobrado);
+            while (m.find()) {
+                if (!livre(m)) {
+                    continue;
+                }
+                BigDecimal v = new BigDecimal(m.group(1).replace(',', '.'));
+                boolean valido = v.compareTo(BigDecimal.ONE) >= 0 && v.compareTo(BigDecimal.TEN) <= 0
+                        && v.remainder(new BigDecimal("0.5")).signum() == 0;
+                if (faixaDepois(m.end()) || !valido || achadoRpe != null) {
+                    rpeRuim = true;
+                    reservar(m.start(), m.end());
+                } else {
+                    achadoRpe = v.stripTrailingZeros().scale() < 0 ? v.setScale(0) : v.stripTrailingZeros();
+                    usar(m);
+                    trechos.add(new int[] {m.start(), m.end()});
+                }
+            }
+            if (rirRuim || rpeRuim || (achadoRir != null && achadoRpe != null)) {
+                // Esforço que não dá para ler com certeza: nada é lido e o texto volta para a sobra.
+                for (int[] t : trechos) {
+                    for (int i = t[0]; i < t[1]; i++) {
+                        usado[i] = false;
+                        reservado[i] = true;
+                    }
+                }
+                return;
+            }
+            rir = achadoRir;
+            rpe = achadoRpe;
+        }
+
+        /** "cadência 3-1-2": nunca vira pirâmide nem faixa (fica na sobra). */
+        void cadencia() {
+            Matcher m = CADENCIA.matcher(dobrado);
+            while (m.find()) {
+                if (livre(m)) {
+                    reservar(m.start(), m.end());
+                }
+            }
+        }
+
+        /** "10-8-6" (uma série por número) ou "4x12/10/8/6" (só quando as séries são tantas quantos os números). */
+        void piramide() {
+            Matcher m = PIRAMIDE_COM_SERIES.matcher(dobrado);
+            while (m.find()) {
+                java.util.List<Integer> reps = numeros(m.group(2));
+                Integer s = series(m.group(1));
+                if (piramide != null || series != null || reps == null || s == null || !livre(m)) {
+                    continue;
+                }
+                if (s != reps.size()) {
+                    reservar(m.start(), m.end()); // "4x12/10/8": as séries não batem com os números
+                    continue;
+                }
+                series = s;
+                piramide = reps;
+                usar(m);
+            }
+            m = PIRAMIDE.matcher(dobrado);
+            while (m.find()) {
+                java.util.List<Integer> reps = numeros(m.group(1));
+                if (piramide != null || series != null || reps == null || !livre(m)) {
+                    continue;
+                }
+                series = reps.size();
+                piramide = reps;
+                usar(m);
+            }
+        }
+
+        /** Os números da pirâmide (1 a 500, ao menos dois diferentes); senão null. */
+        private java.util.List<Integer> numeros(String trecho) {
+            java.util.List<Integer> saida = new java.util.ArrayList<>();
+            Matcher n = NUMEROS.matcher(trecho);
+            while (n.find()) {
+                int v = Integer.parseInt(n.group());
+                if (v < 1 || v > REPETICOES_MAXIMAS) {
+                    return null;
+                }
+                saida.add(v);
+            }
+            boolean distintos = saida.stream().distinct().count() > 1;
+            return saida.size() >= 3 && saida.size() <= SERIES_MAXIMAS && distintos ? java.util.List.copyOf(saida) : null;
+        }
+
+        /**
+         * Os detalhes da técnica, só quando há uma só técnica estruturada escrita (rest pause, cluster ou drop-set):
+         * duas técnicas na mesma célula não são lidas (ficam como palavra e na sobra).
+         */
+        void tecnicaEscrita() {
+            Set<Tecnica> achadas = EnumSet.noneOf(Tecnica.class);
+            int fim = -1;
+            for (Object[] par : new Object[][] {{REST_PAUSE, Tecnica.REST_PAUSE}, {DROP, Tecnica.DROP_SET},
+                    {CLUSTER, Tecnica.CLUSTER}}) {
+                Matcher m = ((Pattern) par[0]).matcher(dobrado);
+                if (m.find()) {
+                    achadas.add((Tecnica) par[1]);
+                    fim = m.end();
+                }
+            }
+            Matcher q = QUEDAS.matcher(dobrado);
+            boolean quedasEscritas = q.find();
+            if (quedasEscritas) {
+                achadas.add(Tecnica.DROP_SET);
+            }
+            tecnicas.addAll(achadas);
+            if (achadas.size() != 1) {
+                return;
+            }
+            unica = achadas.iterator().next();
+            Matcher sx = SERIES_X_TECNICA.matcher(dobrado);
+            if (series == null && sx.find() && livre(sx) && series(sx.group(1)) != null) {
+                series = series(sx.group(1)); // "3x rest pause", "3x cluster 4+4+2"
+                usar(sx);
+            }
+            Matcher ultima = NA_ULTIMA.matcher(dobrado);
+            if (ultima.find() && livre(ultima)) {
+                soNaUltima = true;
+                usar(ultima);
+            }
+            switch (unica) {
+                case REST_PAUSE -> {
+                    pausaPerto(fim);
+                    respiracoes();
+                    Matcher m = PAUSAS.matcher(dobrado);
+                    if (m.find() && livre(m)) {
+                        pausas = Integer.parseInt(m.group(1));
+                        usar(m);
+                    }
+                    m = MICRO_SERIES.matcher(dobrado);
+                    if (pausas == null && m.find() && livre(m) && Integer.parseInt(m.group(1)) >= 2) {
+                        pausas = Integer.parseInt(m.group(1)) - 1;
+                        usar(m);
+                    }
+                }
+                case CLUSTER -> {
+                    Matcher m = BLOCOS_SOMA.matcher(dobrado);
+                    if (m.find() && livre(m)) {
+                        java.util.List<Integer> b = new java.util.ArrayList<>();
+                        Matcher n = NUMEROS.matcher(m.group(2));
+                        while (n.find()) {
+                            b.add(Integer.parseInt(n.group()));
+                        }
+                        blocos = java.util.List.copyOf(b);
+                        if (m.group(1) != null && series(m.group(1)) != null) {
+                            series = series(m.group(1));
+                        }
+                        usar(m);
+                    }
+                    m = BLOCOS_IGUAIS.matcher(dobrado);
+                    if (blocos == null && m.find() && livre(m)) {
+                        int quantos = Integer.parseInt(m.group(1));
+                        int cada = Integer.parseInt(m.group(2));
+                        if (quantos >= 2 && quantos <= 10) {
+                            blocos = java.util.Collections.nCopies(quantos, cada);
+                            usar(m);
+                        }
+                    }
+                    pausaPerto(fim);
+                    respiracoes();
+                }
+                case DROP_SET -> {
+                    Matcher m = QUEDAS.matcher(dobrado);
+                    if (m.find() && livre(m)) {
+                        quedas = Integer.parseInt(m.group(1));
+                        usar(m);
+                    }
+                    m = REDUCAO.matcher(dobrado);
+                    if (m.find() && livre(m)) {
+                        reducao = Integer.parseInt(m.group(1));
+                        usar(m);
+                    }
+                    pausaPerto(fim);
+                }
+                default -> {
+                    // Superset é um grupo de exercícios, não técnica da série.
+                }
+            }
+        }
+
+        /** O tempo logo depois da palavra da técnica é a pausa dela ("rest pause 15s", "cluster (20")"). */
+        private void pausaPerto(int fimDaPalavra) {
+            if (fimDaPalavra < 0) {
+                return;
+            }
+            Matcher m = TEMPO_SOLTO.matcher(dobrado);
+            while (m.find()) {
+                if (m.start() >= fimDaPalavra && m.start() - fimDaPalavra <= PERTO_DA_TECNICA && livre(m)
+                        && !faixaDepois(m.end())) {
+                    pausaSegundos = segundos(m);
+                    if (pausaSegundos != null) {
+                        usar(m);
+                    }
+                    return;
+                }
+            }
+        }
+
+        private void respiracoes() {
+            Matcher m = RESPIRACOES.matcher(dobrado);
+            if (m.find() && livre(m)) {
+                pausaRespiracoes = Integer.parseInt(m.group(1));
+                usar(m);
+            }
+        }
+
+        TecnicaEscrita tecnicaFinal() {
+            return unica == null ? null
+                    : new TecnicaEscrita(unica, pausaSegundos, pausaRespiracoes, pausas, blocos, quedas, reducao, soNaUltima);
+        }
+
+        /** O texto logo depois do trecho continua uma faixa ("60-90s", "RIR 1-2"). */
+        private boolean faixaDepois(int fim) {
+            return FAIXA_DEPOIS.matcher(dobrado.substring(fim)).find();
+        }
+
+        private void reservar(int inicio, int fim) {
+            for (int i = inicio; i < fim; i++) {
+                reservado[i] = true;
+            }
         }
 
         void seriesERepeticoes() {
@@ -406,7 +817,7 @@ public final class LeitorDePrescricao {
 
         private boolean livre(Matcher m) {
             for (int i = m.start(); i < m.end(); i++) {
-                if (usado[i]) {
+                if (usado[i] || reservado[i]) {
                     return false;
                 }
             }

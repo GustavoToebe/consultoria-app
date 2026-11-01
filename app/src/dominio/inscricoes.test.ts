@@ -4,8 +4,12 @@ import {
   alunoDoConflito,
   anamneseInicialDoAceite,
   opcoesDeAnamneseDoAceite,
+  alternarCampoOculto,
+  CAMPOS_DA_INSCRICAO,
   corpoDaInscricao,
   paginaQueSobra,
+  respostasDaPagina,
+  TODOS_OS_CAMPOS,
   errosDaInscricao,
   INSCRICAO_VAZIA,
   linkDoWhatsApp,
@@ -137,7 +141,6 @@ describe('formulário público', () => {
   it('limites iguais aos da API e ciência quando a consultoria tem texto', () => {
     expect(errosDaInscricao({ ...ok, nome: 'a'.repeat(121) }, false, false).nome).toBeDefined();
     expect(errosDaInscricao({ ...ok, objetivo: 'a'.repeat(501) }, false, false).objetivo).toBeDefined();
-    expect(errosDaInscricao({ ...ok, observacao: 'a'.repeat(1001) }, false, false).observacao).toBeDefined();
     expect(errosDaInscricao(ok, true, false).cienciaPrivacidade).toBeDefined();
     expect(errosDaInscricao(ok, true, true)).toEqual({});
   });
@@ -148,7 +151,6 @@ describe('formulário público', () => {
       whatsapp: '(11) 98765-4321',
       email: null,
       objetivo: 'Força',
-      observacao: null,
       interesse: null,
       modalidade: null,
       previsaoInicio: null,
@@ -156,12 +158,44 @@ describe('formulário público', () => {
       origemLink: null,
       cienciaPrivacidade: true,
       textoVersao: null,
+      questionarioVersaoId: null,
+      respostas: null,
     });
     const qualificada = corpoDaInscricao({ ...ok, interesse: 'TREINO', modalidade: 'NAO_SEI', previsaoInicio: 'ESTE_MES', origem: 'INSTAGRAM' },
       false, null, null, 'instagram');
     expect(qualificada).toMatchObject({ interesse: 'TREINO', modalidade: 'NAO_SEI', previsaoInicio: 'ESTE_MES', origem: 'INSTAGRAM', origemLink: 'instagram' });
     expect(corpoDaInscricao(ok, false, 'tok').turnstileToken).toBe('tok');
     expect(corpoDaInscricao(ok, true, null, 'abc123').textoVersao).toBe('abc123');
+  });
+
+  it('campo fixo escondido não é conferido nem enviado', () => {
+    const visiveis = TODOS_OS_CAMPOS.filter((c) => c !== 'EMAIL' && c !== 'ORIGEM' && c !== 'SEXO');
+    expect(errosDaInscricao({ ...ok, email: 'sem-arroba' }, false, false, visiveis)).toEqual({});
+    const corpo = corpoDaInscricao({ ...ok, email: 'pessoa@exemplo.com', origem: 'INSTAGRAM', sexo: 'FEMININO', interesse: 'DIETA' },
+      false, null, null, null, visiveis);
+    expect(corpo).toMatchObject({ email: null, origem: null, interesse: 'DIETA' });
+    expect('sexo' in corpo).toBe(false);
+  });
+
+  it('as perguntas do treinador vão com a versão que a página mostrou', () => {
+    const corpo = corpoDaInscricao(ok, false, null, null, null, TODOS_OS_CAMPOS, { versaoId: 'v1', respostas: { observacao: 'Texto fictício' } });
+    expect(corpo).toMatchObject({ questionarioVersaoId: 'v1', respostas: { observacao: 'Texto fictício' } });
+  });
+
+  it('das perguntas do treinador só vão as visíveis desta versão', () => {
+    const modelo = { instrucoes: [], secoes: [{ uid: 's', titulo: 'S', perguntas: [
+      { id: 'treina', tipo: 'SIM_NAO' as const, rotulo: 'Treina?', obrigatoria: false },
+      { id: 'onde', tipo: 'TEXTO' as const, rotulo: 'Onde?', obrigatoria: false, mostrarSe: { perguntaId: 'treina', valores: ['sim'] } },
+    ] }] };
+    expect(respostasDaPagina(modelo, { treina: false, onde: 'Some', saiu: 'x' })).toEqual({ treina: false });
+    expect(respostasDaPagina(modelo, { treina: true, onde: 'Academia' })).toEqual({ treina: true, onde: 'Academia' });
+  });
+
+  it('esconder e mostrar campo mantém a ordem da página', () => {
+    expect(alternarCampoOculto(['ORIGEM'], 'EMAIL', true)).toEqual(['EMAIL', 'ORIGEM']);
+    expect(alternarCampoOculto(['EMAIL', 'ORIGEM'], 'EMAIL', false)).toEqual(['ORIGEM']);
+    expect(alternarCampoOculto(['EMAIL'], 'EMAIL', true)).toEqual(['EMAIL']);
+    expect(CAMPOS_DA_INSCRICAO.map((c) => c.valor)).toEqual(TODOS_OS_CAMPOS);
   });
 });
 

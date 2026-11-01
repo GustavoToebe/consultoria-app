@@ -6,7 +6,8 @@ import { defineConfig, devices } from '@playwright/test';
  * da tela de verdade (React Native Web, folhas, painéis) sem o back nem o banco. Não rodam na CI (minutos do Actions):
  * `npm run e2e` antes de mexer nessas telas. `PW_CHROMIUM` aponta um Chromium já instalado, se for preciso.
  */
-const PORTA = 8099;
+// `E2E_PORTA` deixa várias cópias do projeto rodarem os testes de tela ao mesmo tempo.
+const PORTA = Number(process.env.E2E_PORTA ?? 8099);
 
 export default defineConfig({
   testDir: './e2e',

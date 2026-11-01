@@ -2,6 +2,7 @@ package br.com.treinos.api.inscricoes;
 
 import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.auditoria.Auditar;
+import br.com.treinos.api.inscricoes.InscricaoDtos.CamposOcultosRequest;
 import br.com.treinos.api.inscricoes.InscricaoDtos.ConfiguracaoRequest;
 import br.com.treinos.api.inscricoes.InscricaoDtos.ConfiguracaoResponse;
 import br.com.treinos.api.inscricoes.InscricaoDtos.NovoLinkRequest;
@@ -11,11 +12,13 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.EnumSet;
+import java.util.List;
 import java.util.Objects;
 
 /**
  * Link de inscrição da consultoria da sessão: ligar/desligar, responsável padrão, texto de apresentação e privacidade e
- * "Gerar novo link" (troca o código; o antigo para de valer na hora). A linha nasce no primeiro salvar ou gerar link;
+ * "Gerar novo link" (troca o código; o antigo para de valer na hora) e os campos fixos escondidos da página (D4). A linha nasce no primeiro salvar ou gerar link;
  * antes disso a leitura devolve tudo desligado e sem código. Lock otimista pela {@code versao}.
  */
 @Service
@@ -36,7 +39,7 @@ public class ConfiguracaoInscricaoService {
     @Transactional(readOnly = true)
     public ConfiguracaoResponse ler() {
         return configuracoes.atual().map(this::resposta)
-                .orElseGet(() -> new ConfiguracaoResponse(false, null, null, null, null, null));
+                .orElseGet(() -> new ConfiguracaoResponse(false, null, null, null, null, List.of(), null));
     }
 
     @Transactional
@@ -45,6 +48,20 @@ public class ConfiguracaoInscricaoService {
     public ConfiguracaoResponse alterar(ConfiguracaoRequest r) {
         InscricaoConfiguracao c = paraAlterar(r.versao());
         c.alterar(r.aberta(), responsaveis.exigirValido(r.responsavelId()), Buscas.opcional(r.texto()));
+        return resposta(gravar(c));
+    }
+
+    /**
+     * Esconde da página os campos fixos da lista (sempre a lista inteira; vazia = todos visíveis). Nome, WhatsApp e a
+     * ciência do texto não estão no {@link CampoDaInscricao} e nunca se escondem. Sem configuração ainda, ela nasce
+     * desligada, como no primeiro salvar.
+     */
+    @Transactional
+    @Auditar(acao = "INSCRICAO_CONFIGURACAO_ALTERADA", entidade = "INSCRICAO_CONFIGURACAO",
+            resumo = "Alterou os campos da página de inscrição.")
+    public ConfiguracaoResponse esconderCampos(CamposOcultosRequest r) {
+        InscricaoConfiguracao c = paraAlterar(r.versao());
+        c.esconder(r.camposOcultos().isEmpty() ? EnumSet.noneOf(CampoDaInscricao.class) : EnumSet.copyOf(r.camposOcultos()));
         return resposta(gravar(c));
     }
 
@@ -81,7 +98,7 @@ public class ConfiguracaoInscricaoService {
 
     private ConfiguracaoResponse resposta(InscricaoConfiguracao c) {
         return new ConfiguracaoResponse(c.isAberta(), c.getCodigo(), appUrl + "/inscricao/" + c.getCodigo(),
-                c.getResponsavelId(), c.getTexto(), c.getVersao());
+                c.getResponsavelId(), c.getTexto(), List.copyOf(c.getCamposOcultos()), c.getVersao());
     }
 
     private static ConflictException conflito() {

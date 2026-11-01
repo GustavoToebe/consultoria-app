@@ -1,7 +1,7 @@
 import type { CondicaoPergunta, ConteudoQuestionario, DestinoNoPerfil, FinalidadeQuestionario, OpcaoPergunta, PerguntaAtualizacao, TipoPergunta } from '../api/tipos';
 
 /**
- * Limites do questionário (atualização e anamnese). Mudou um valor, muda também `LimitesQuestionario` no Java
+ * Limites do questionário (atualização, anamnese e inscrição). Mudou um valor, muda também `LimitesQuestionario` no Java
  * (`api/.../questionarios`): o teste de paridade lê `limites.json` e confere os dois lados.
  * Tamanho de texto conta unidades UTF-16 (`.length`), igual ao `String.length` do Java.
  */
@@ -89,6 +89,13 @@ const TIPOS = TIPOS_DE_PERGUNTA;
 const COM_DESTAQUE: readonly TipoPergunta[] = ['NOTA', 'NUMERO', 'SIM_NAO', 'ESCOLHA_UNICA'];
 const COM_AJUDA_AUTOMATICA: readonly TipoPergunta[] = ['TEXTO', 'NUMERO'];
 const UNICOS: readonly TipoPergunta[] = ['PESO', 'DATA_AUTOMATICA'];
+/**
+ * Tipos fora da página pública de inscrição (D5 de `docs/planos/inscricao-com-perguntas-proprias.md`): quem preenche ainda
+ * não é aluno nem tem login. Mesmo conjunto de `ValidadorQuestionario.FORA_DA_INSCRICAO` no Java.
+ */
+export const TIPOS_FORA_DA_INSCRICAO: readonly TipoPergunta[] = ['FOTOS', 'ENDERECO', 'PESO', 'NOTAS_POR_DIA', 'DATA_AUTOMATICA'];
+/** A página pública não mostra imagem (D6). */
+const SEM_IMAGEM_NA_INSCRICAO = 'A página de inscrição não mostra imagem.';
 /** Tipo de pergunta que alimenta cada campo do cadastro (igual a `DestinoNoPerfil` do Java). */
 export const TIPO_DO_DESTINO: Record<DestinoNoPerfil, TipoPergunta> = { PESO: 'PESO', OBJETIVO: 'TEXTO', CPF: 'TEXTO', TELEFONE: 'TELEFONE', ENDERECO: 'ENDERECO', SEXO: 'ESCOLHA_UNICA' };
 
@@ -207,26 +214,28 @@ function pergunta(p: PerguntaAtualizacao, cp: string, estado: Estado, erro: Erro
   if (vazio(p.rotulo)) erro(`${cp}.rotulo`, 'Pergunta sem texto.');
   else if (p.rotulo.length > L.rotuloTamanho) erro(`${cp}.rotulo`, 'Texto longo demais.');
   if (p.ajuda != null && p.ajuda.length > L.ajudaTamanho) erro(`${cp}.ajuda`, 'Ajuda longa demais.');
-  if (p.imagemId != null && !IMAGEM.test(p.imagemId)) erro(`${cp}.imagemId`, 'Imagem inválida.');
+  if (p.imagemId != null && estado.finalidade === 'INSCRICAO') erro(`${cp}.imagemId`, SEM_IMAGEM_NA_INSCRICAO);
+  else if (p.imagemId != null && !IMAGEM.test(p.imagemId)) erro(`${cp}.imagemId`, 'Imagem inválida.');
   condicao(p.mostrarSe, cp, estado, erro);
   // Tipo desconhecido não existe no Java (a leitura falha); aqui é só defesa contra dado velho ou de outro app.
   if (p.tipo == null || !TIPOS.includes(p.tipo)) { erro(`${cp}.tipo`, 'Falta o tipo.'); return; }
   if (p.id != null && !estado.anteriores.has(p.id)) estado.anteriores.set(p.id, p);
   if (estado.finalidade === 'ANAMNESE' && p.tipo === 'DATA_AUTOMATICA') erro(`${cp}.tipo`, 'Este tipo só vale no questionário de atualização.');
-  if (estado.finalidade !== 'ANAMNESE' && p.tipo === 'ENDERECO') erro(`${cp}.tipo`, 'Este tipo só vale no questionário de anamnese.');
+  if (estado.finalidade === 'ATUALIZACAO' && p.tipo === 'ENDERECO') erro(`${cp}.tipo`, 'Este tipo só vale no questionário de anamnese.');
+  if (estado.finalidade === 'INSCRICAO' && TIPOS_FORA_DA_INSCRICAO.includes(p.tipo)) erro(`${cp}.tipo`, 'Este tipo não vale no formulário de inscrição.');
   if (UNICOS.includes(p.tipo) && estado.tipos.has(p.tipo)) erro(`${cp}.tipo`, 'Este tipo só pode aparecer uma vez.');
   if (p.tipo === 'FOTOS' && ++estado.fotos > L.perguntasFotos) erro(`${cp}.tipo`, `No máximo ${L.perguntasFotos} perguntas de fotos.`);
   estado.tipos.add(p.tipo);
   if (p.tipo === 'TEXTO') estado.capacidadeDeTexto += L.textoCurtoCapacidade;
   else if (p.tipo === 'TEXTO_LONGO') estado.capacidadeDeTexto += L.textoLongoCapacidade;
-  opcoes(p, cp, erro);
+  opcoes(p, cp, estado.finalidade === 'INSCRICAO' ? SEM_IMAGEM_NA_INSCRICAO : null, erro);
   dias(p, cp, erro);
   numero(p, cp, erro);
   escala(p, cp, erro);
   destaque(p, cp, estado, erro);
   if (p.ajudaAutomatica != null && !COM_AJUDA_AUTOMATICA.includes(p.tipo)) {
     erro(`${cp}.ajudaAutomatica`, 'Este tipo não tem ajuda automática.');
-  } else if (p.ajudaAutomatica != null && estado.finalidade === 'ANAMNESE') {
+  } else if (p.ajudaAutomatica != null && estado.finalidade !== 'ATUALIZACAO') {
     erro(`${cp}.ajudaAutomatica`, 'Esta ajuda só vale no questionário de atualização.');
   }
   if (p.somentePassado != null && p.tipo !== 'DATA') erro(`${cp}.somentePassado`, 'Este tipo não tem esta opção.');
@@ -286,8 +295,8 @@ function grade(p: PerguntaAtualizacao, cp: string, erro: Erro) {
     if (p.colunas != null) erro(`${cp}.colunas`, 'Este tipo não tem colunas.');
     return;
   }
-  lista(p.linhas, `${cp}.linhas`, L.linhasMinimo, L.linhasMaximo, 'linhas', false, erro);
-  lista(p.colunas, `${cp}.colunas`, L.colunasMinimo, L.colunasMaximo, 'colunas', false, erro);
+  lista(p.linhas, `${cp}.linhas`, L.linhasMinimo, L.linhasMaximo, 'linhas', 'Só opção de escolha tem imagem.', erro);
+  lista(p.colunas, `${cp}.colunas`, L.colunasMinimo, L.colunasMaximo, 'colunas', 'Só opção de escolha tem imagem.', erro);
 }
 
 /** Condição: aponta para uma pergunta de escolha já vista e lista respostas que existem nela, sem repetir. */
@@ -314,17 +323,21 @@ function condicao(m: CondicaoPergunta | undefined, base: string, estado: Estado,
   }
 }
 
-function opcoes(p: PerguntaAtualizacao, cp: string, erro: Erro) {
+/** `semImagem`: nulo = a opção pode ter imagem; senão, a mensagem de quando ela traz uma. */
+function opcoes(p: PerguntaAtualizacao, cp: string, semImagem: string | null, erro: Erro) {
   const L = LIMITES_QUESTIONARIO;
   if (!temOpcoes(p.tipo)) {
     if (p.opcoes != null) erro(`${cp}.opcoes`, 'Este tipo não tem opções.');
     return;
   }
-  lista(p.opcoes, `${cp}.opcoes`, L.opcoesMinimo, L.opcoesMaximo, 'opções', true, erro);
+  lista(p.opcoes, `${cp}.opcoes`, L.opcoesMinimo, L.opcoesMaximo, 'opções', semImagem, erro);
 }
 
-/** Opções de escolha, linhas e colunas da GRADE: mesma regra de quantidade, id e texto sem repetir. */
-function lista(itens: OpcaoPergunta[] | undefined, caminho: string, minimo: number, maximo: number, nome: string, comImagem: boolean, erro: Erro) {
+/**
+ * Opções de escolha, linhas e colunas da GRADE: mesma regra de quantidade, id e texto sem repetir. `semImagem` nulo =
+ * imagem permitida (o formato é conferido); senão, é a mensagem do erro quando o item traz imagem.
+ */
+function lista(itens: OpcaoPergunta[] | undefined, caminho: string, minimo: number, maximo: number, nome: string, semImagem: string | null, erro: Erro) {
   const L = LIMITES_QUESTIONARIO;
   const n = itens?.length ?? 0;
   if (n < minimo || n > maximo) erro(caminho, `Use de ${minimo} a ${maximo} ${nome}.`);
@@ -339,7 +352,7 @@ function lista(itens: OpcaoPergunta[] | undefined, caminho: string, minimo: numb
     else if (o.rotulo.length > L.opcaoTamanho) erro(`${co}.rotulo`, 'Texto longo demais.');
     else if (rotulos.has(normalizarOpcao(o.rotulo))) erro(`${co}.rotulo`, 'Texto repetido.');
     else rotulos.add(normalizarOpcao(o.rotulo));
-    if (o.imagemId != null && (!comImagem || !IMAGEM.test(o.imagemId))) erro(`${co}.imagemId`, comImagem ? 'Imagem inválida.' : 'Só opção de escolha tem imagem.');
+    if (o.imagemId != null && (semImagem != null || !IMAGEM.test(o.imagemId))) erro(`${co}.imagemId`, semImagem ?? 'Imagem inválida.');
   });
 }
 

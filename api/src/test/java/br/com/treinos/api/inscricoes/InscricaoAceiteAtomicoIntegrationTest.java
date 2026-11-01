@@ -99,7 +99,6 @@ class InscricaoAceiteAtomicoIntegrationTest extends AbstractIntegrationTest {
         corpo.put("whatsapp", "11987654321");
         corpo.put("email", email);
         corpo.put("objetivo", "Objetivo fictício");
-        corpo.put("observacao", "Observação fictícia");
         api.post("/publico/inscricoes/" + codigo, null, corpo, 202);
 
         JsonNode lista = api.get("/inscricoes", admin, 200);
