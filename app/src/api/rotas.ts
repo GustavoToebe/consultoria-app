@@ -119,6 +119,10 @@ import type {
   Lesao,
   PastaResumo,
   PastaVigenteResposta,
+  CopiarPastaRequest,
+  CopiarPastaResposta,
+  PesoSugeridoDaPasta,
+  PublicarPastaResposta,
   PlanoResumo,
   AnaliseDaPlanilha,
   ColunasDaImportacao,
@@ -893,6 +897,20 @@ export const replicarPasta = (id: string, dados: DadosPasta) =>
 
 export const finalizarPasta = (id: string, dados: import('./tipos').FinalizarPastaRequest) =>
   requisicao<PastaResumo>(`/pastas/${seg(id)}/finalizar`, { metodo: 'POST', corpo: dados });
+
+/**
+ * Publica o rascunho de treino, dieta e mobilidade da pasta de uma vez. 422 `PLANO_INVALIDO`/`CONFIRMAR_AVISOS` traz a lista
+ * por plano em `fieldErrors` (`treino.<caminho>`) e nada é publicado.
+ */
+export const publicarPasta = (id: string, confirmarAvisos: boolean) =>
+  requisicao<PublicarPastaResposta>(`/pastas/${seg(id)}/publicar`, { metodo: 'POST', corpo: { confirmarAvisos } });
+
+/** Copia a pasta para outro aluno: pasta nova no destino, tudo em rascunho, sem ergogênicos e sem o questionário escolhido. */
+export const copiarPastaParaAluno = (id: string, dados: CopiarPastaRequest) =>
+  requisicao<CopiarPastaResposta>(`/pastas/${seg(id)}/copiar-para-aluno`, { metodo: 'POST', corpo: dados });
+
+/** Peso da atualização enviada da pasta (`ALUNO_SENSIVEL_LER` + `ATUALIZACAO_LER`); sem peso, ambos `null`. */
+export const pesoSugeridoDaPasta = (id: string) => requisicao<PesoSugeridoDaPasta>(`/pastas/${seg(id)}/peso-sugerido`);
 
 export const reabrirPasta = (id: string) => requisicao<PastaResumo>(`/pastas/${seg(id)}/reabrir`, { metodo: 'POST' });
 

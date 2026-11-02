@@ -115,7 +115,7 @@ public class AtualizacaoService {
             if (!ids.isEmpty()) fotos.ligar(alunoId, pastaId, atualizacaoId, perguntaId, ids);
         }
     }
-    private static String idDaPergunta(JsonNode conteudo, String tipo) {
+    static String idDaPergunta(JsonNode conteudo, String tipo) {
         for (var secao : conteudo.path("secoes")) for (var p : secao.path("perguntas"))
             if (tipo.equals(p.path("tipo").asString())) return p.path("id").asString();
         return "";

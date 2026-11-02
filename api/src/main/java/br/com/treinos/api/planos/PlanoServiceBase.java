@@ -225,6 +225,15 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
     @Transactional
     @br.com.treinos.api.auditoria.Auditar(acao="PLANO_COPIADO",entidade="PLANO",resumo="Copiou um plano para outro aluno.")
     public PlanoDetalhe<C> copiarParaAluno(UUID origemId, UUID destinoId, UUID pastaId, String titulo) {
+        return copiarParaAlunoSemAuditoria(origemId, destinoId, pastaId, titulo);
+    }
+
+    /**
+     * A mesma cópia de {@link #copiarParaAluno}, sem a auditoria própria do plano: quem copia a pasta inteira grava uma
+     * linha só ({@code PASTA_COPIADA}), em vez de uma por plano.
+     */
+    @Transactional
+    public PlanoDetalhe<C> copiarParaAlunoSemAuditoria(UUID origemId, UUID destinoId, UUID pastaId, String titulo) {
         P origem = origemCopiavel(origemId, destinoId);
         PastaPlano pasta = Optional.ofNullable(pastaDoAluno(pastaId, destinoId)).orElseThrow(
                 () -> new NaoEncontradoException("Pasta não encontrada."));

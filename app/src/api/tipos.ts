@@ -887,6 +887,49 @@ export interface FinalizarPastaRequest {
   observacao: string | null;
 }
 
+/** Publicar tudo: `confirmarAvisos` tem o sentido da publicação de um plano só. */
+export interface PublicarPastaRequest {
+  confirmarAvisos: boolean;
+}
+
+/** Versão que a pasta publicou de cada plano; `tipo` em minúsculas, como o prefixo dos erros (`treino.<caminho>`). */
+export interface PlanoPublicadoNaPasta {
+  tipo: TipoPlano;
+  planoId: string;
+  versao: number;
+}
+
+/** Plano que ficou como estava: já publicado e sem alteração no rascunho depois disso. */
+export interface PlanoPuladoNaPasta {
+  tipo: TipoPlano;
+  planoId: string;
+}
+
+/** Listas vazias nas duas = nada a publicar. */
+export interface PublicarPastaResposta {
+  publicados: PlanoPublicadoNaPasta[];
+  pulados: PlanoPuladoNaPasta[];
+}
+
+/** O destino recebe uma pasta nova com este título e período (opcionais, como em `DadosPasta`). */
+export interface CopiarPastaRequest {
+  alunoId: string;
+  titulo: string;
+  inicio: string | null;
+  fim: string | null;
+}
+
+export interface CopiarPastaResposta {
+  pastaId: string;
+  planos: { tipo: TipoPlano; planoId: string }[];
+}
+
+/** Peso e data gravados pela atualização enviada da pasta; ambos `null` quando não há (nunca zero). */
+export interface PesoSugeridoDaPasta {
+  pesoKg: number | null;
+  data: string | null;
+}
+
 export interface PlanoResumo {
   id: string;
   alunoId: string;
