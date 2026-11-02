@@ -5,7 +5,7 @@ import { agrupar, descreverGrupo, textoCarga, textoEsforcoDoGrupo } from './agru
 import { calcularCargasDoExercicio, metaDaSerie, textoDaOrigem } from './cargas';
 import { alterarEsforcoDaSerie, alterarGrupo, alterarPercentuais, cargaDoModo, modosDeCarga, seriesDaReceita } from './editorTreino';
 import { carga, exercicio, rir, rpe, serie, sessao } from './exemplosDeTreino.apoioTeste';
-import { mostraRpe } from './metodologia';
+import { mostraRpe, mostraRpeNoPapel } from './metodologia';
 import { CONFIGURACAO_PADRAO } from './metodologiaPadrao';
 import { previaDoGrupo } from './resumoDaSerie';
 import { problemasDaCarga, problemasDaSerie } from './validacaoDeSerie';
@@ -233,6 +233,14 @@ describe('mostraRpe', () => {
     expect(mostraRpe(CONFIGURACAO_PADRAO, 'FEEDER')).toBe(false);
     expect(mostraRpe(CONFIGURACAO_PADRAO, 'WARM_UP', rir(2))).toBe(false);
     expect(mostraRpe(CONFIGURACAO_PADRAO, 'WARM_UP', rpe(6))).toBe(true);
+  });
+
+  it('o esforço padrão do tipo na metodologia segue a mesma regra pelo papel', () => {
+    expect(mostraRpeNoPapel('AQUECIMENTO', null)).toBe(false);
+    expect(mostraRpeNoPapel('PREPARACAO', rir(1))).toBe(false);
+    expect(mostraRpeNoPapel('PREPARACAO', rpe(7))).toBe(true);
+    expect(mostraRpeNoPapel('TRABALHO', null)).toBe(true);
+    expect(mostraRpeNoPapel('POS_TRABALHO', null)).toBe(true);
   });
 
   it('mostra nos outros papéis e em tipo fora da metodologia', () => {

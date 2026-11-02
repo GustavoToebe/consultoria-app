@@ -30,18 +30,18 @@ editor ficam coerentes (C03, C14).
 | D10 | Plano antigo | sem compatibilidade com o legado (regra do AGENTS.md até o primeiro cliente): prescrição antiga não é migrada | regra do projeto |
 
 ## Passos
-Andamento em 02/11/2026 (tudo na worktree `wt-editor-series`, branch `editor-de-series-reuniao`, a partir da main `210d828c`; **nada commitado ainda**):
+Andamento em 02/11/2026 (tudo na worktree `wt-editor-series`, branch `editor-de-series-reuniao`, a partir da main `210d828c`):
 - Passo 1 feito: o explorador mapeou RIR/`Esforco` (0–5 em `ConteudoTreino`, `validacaoDeSerie.ts`, `opcoesDoEditor.ts`), `carga.modo`/`deTrabalho`, agrupamento (`agrupamento.ts`: a chave inclui rir e rpe, é o que precisa mudar) e os testes que fixam 0..5.
 - Passo 2 feito (commit 8a00dd86; testes da API e do app verdes; `mvn verify` completo ainda por rodar): RIR 0–10, `CARGA_FIXA`/`valorKg`, agrupamento só pela forma do esforço, textos C03 e C14. Ficou de fora: D6 (leitor da planilha reconhecer "12 kg"): quebraria MESMA_CARGA e percentuais da série WS importada; o kg segue na observação. Decisões de 02/11/2026: a API aceita `CARGA_FIXA` em série de TRABALHO e o editor não a esconde (D4); app antigo com pacote que tem `CARGA_FIXA`: aceito, sem compatibilidade até o primeiro cliente, mas a revisão do Opus precisa confirmar o comportamento real (laço de descarte e download, ou tela em branco?) e eu aviso o Gustavo antes do PR; conferir também se `IndiceVersao` (progresso e recordes) trata a série com carga fixa de TRABALHO sem inventar carga.
-- Passo 3 (editor) vai para o `executor-front` depois do passo 2 e do merge do que ele entregar; passo 4 depois do 3.
+- Passos 2 a 4 feitos nos commits 8a00dd86 e 3f3b2374 (editor, aluno, meta, PDF e glossário). Passo 5: Ajuda feita em 02/11/2026 (sem commit ainda); guias PDF, e2e e `AGENTS.md` por fazer.
 - App antigo com pacote que tem `CARGA_FIXA` (conferido em 02/11/2026 no código de `origin/main`: `formatoDoPacote.ts` aceita só 6 modos e 4 chaves em `carga`): **sem laço, mas tela sem plano e sem erro**. Ao abrir, o app baixa o pacote (`AlunoProvider.tsx:478-494`), grava sem validar e relê (`lerPacote`); o pacote inteiro é recusado e apagado (`repositorioLocal.ts:364-371`), levando treino e dieta, inclusive o que já estava salvo e funcionando. Não há mensagem; repete a cada abertura e a cada sincronização com envio. Sem internet, o aluno vê "Conecte-se uma vez para baixar o treino". Só atinge o aluno cujo plano tem série com carga fixa (`valorKg` só sai no JSON nessa forma). Aceito pelo Gustavo (sem compatibilidade até o primeiro cliente); por isso o passo 5b (APK novo).
 - Riscos a olhar na revisão: pacote offline com app antigo (RIR 10, `CARGA_FIXA`), limite de RIR no leitor da planilha (não localizado), RPE escondido só na UI (a API não muda).
 
 - [x] 1. Mapear todos os usos de RIR/`Esforco`, de `carga.modo` e de `deTrabalho` (explorador) — explorador — feito em 02/11/2026 (sem commit; só leitura)
 - [x] 2. API e domínio: RIR 0–10, `CARGA_FIXA` (`ConteudoTreino`/`Carga.problemas`, `ValidadorTreino`, `dominio/validacaoDoTreino`, `formatoDoPacote`, `dominio/cargas`, referência de percentual), fixtures regeradas; testes — executor — feito em `wt-editor-series` — commit: 8a00dd86
-- [ ] 3. Editor: RIR por série na linha do %, agrupamento mantido, RPE escondido nos papéis AQUECIMENTO/PREPARACAO, forma de carga fixa (C03 e C14 já no commit 8a00dd86) — executor-front — em andamento em `wt-editor-series` — commit: —
-- [ ] 4. Aluno, meta, PDF, texto do histórico, glossário e (opcional) leitor da planilha — executor — commit: —
-- [ ] 5. Ajuda (`ajuda/conteudo.ts`), guias regerados, e2e `editor-series` e `series-metodologia` com o caso novo (inclui WS 3x12 com 12 kg e Back off em % depois dela mostrando o aviso), `AGENTS.md` só no item das séries — commit: —
+- [x] 3. Editor: RIR por série na linha do %, agrupamento mantido, RPE escondido nos papéis AQUECIMENTO/PREPARACAO, forma de carga fixa (C03 e C14 já no commit 8a00dd86) — executor-front — feito em `wt-editor-series` — commit: 3f3b2374
+- [x] 4. Aluno, meta, PDF, texto do histórico, glossário e (opcional) leitor da planilha — executor — commit: 3f3b2374 (conferido no código em 02/11/2026: `serieDoAluno.dicaDaCarga`, `cargas` (sugestão), `resumoDaSerie` (meta), `agrupamento` e `pdfTreino` (kg), aviso "Carga: atualize o app para ver" e `AlunoProvider`; o histórico mostra só o nome do tipo da série, sem texto de carga prescrita, então nada a mudar; o glossário do PDF explica "RIR 0 = até a falha" e não cita faixa; leitor da planilha ficou fora, ver D6)
+- [ ] 5. Ajuda (`ajuda/conteudo.ts`), guias regerados, e2e `editor-series` e `series-metodologia` com o caso novo (inclui WS 3x12 com 12 kg e Back off em % depois dela mostrando o aviso; feito, junto com o RPE escondido também no padrão da metodologia), `AGENTS.md` só no item das séries — **feito só a Ajuda** (verbetes "Carga e esforço", "Cadência e isometria" e, para o aluno, "Carga, esforço e repetições"; `docs/series-tipos-tecnicas.md` com RIR 0 a 10); **falta** regerar os guias PDF, os e2e e o `AGENTS.md` (linhas 276-280 ainda dizem RIR 0–5) — commit: —
 - [ ] 5b. **Passos do Gustavo:** (1) gerar APK novo antes de usar carga fixa com aluno no celular (o app instalado antigo não conhece a forma); (2) conferir num app antigo de verdade, com um plano que tenha carga fixa, o que o aluno vê (esperado: pacote recusado e tela sem plano, como descrito no andamento) e, no app novo, a tela "Carga: atualize o app para ver" com um modo inventado — Gustavo — pendente
 - [ ] 6. Revisão do **Opus** (contrato da API e offline) antes do PR — `advisor` (Opus); se indisponível, agente `revisor` (Opus, leitura) e avisar o Gustavo. A revisão do diff pelo Sonnet não a substitui. O corpo do PR traz a linha "Revisão (Opus): feita por <advisor|revisor> — apontou: … — resolvido: …" — commit: —
 
@@ -58,4 +58,8 @@ Andamento em 02/11/2026 (tudo na worktree `wt-editor-series`, branch `editor-de-
 - Libras, conversão de unidade, progressão automática, calculadora RPE/RIR.
 
 ## O que ficou para trás
-- —
+- D6 (leitor da planilha reconhecer "12 kg") fica fora por decisão do Gustavo: o kg segue na observação.
+- Trocar o tipo do grupo reaplica o esforço do tipo e perde os RIR por série (comportamento de antes).
+- O botão "Diminuir" do RIR no 0 fica desabilitado sem motivo escrito (`IconeBotao` não aceita `motivo`).
+- Em 390 px o RIR fica logo abaixo do % da série, não ao lado.
+- "Repetir" (`mesmaPrescricao`) deixa de aparecer entre séries do mesmo grupo com RIR diferentes.

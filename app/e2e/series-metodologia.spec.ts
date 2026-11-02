@@ -11,7 +11,7 @@ const serieInicial: Serie = {
 
 async function modelo(page: Page, tipo: Receita['tipo'], metodologia: Configuracao = CONFIGURACAO_PADRAO) {
   let atual: Receita = { id: 'm0000000-0000-4000-8000-000000000001', tipo, nome: 'Modelo de teste', descricao: null, pastaId: null, ordem: 1, versao: 1,
-    conteudo: tipo === 'METODOLOGIA' ? structuredClone(CONFIGURACAO_PADRAO) : { series: [serieInicial] } };
+    conteudo: tipo === 'METODOLOGIA' ? structuredClone(metodologia) : { series: [serieInicial] } };
   const { pedidos, errosDaPagina, naoTratadas } = await simularApi(page, {
     ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'MODELO_LER', 'MODELO_ALTERAR'] })),
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },
@@ -257,7 +257,12 @@ for (const largura of [390, 1280]) {
     const rpe = page.getByRole('textbox', { name: 'RPE (1 a 10, de meio em meio)', exact: true });
     const mensagem = 'RPE precisa ficar entre 1 e 10, de meio em meio.';
     const salvar = page.getByRole('button', { name: 'Salvar modelo', exact: true });
+    // O aquecimento não oferece RPE no esforço padrão (o mesmo das séries); o Back off oferece.
     await page.getByRole('button', { name: 'Aquecimento, recolhido', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'RIR', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'RPE', exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Aquecimento, aberto', exact: true }).click();
+    await page.getByRole('button', { name: 'Back off, recolhido', exact: true }).click();
     await page.getByRole('button', { name: 'RPE', exact: true }).click();
     // RPE escolhido e ainda sem valor equivale a "sem esforço": nenhum erro, nenhuma lista de problemas.
     await expect(rpe).toHaveValue('');
@@ -267,7 +272,7 @@ for (const largura of [390, 1280]) {
     await rpe.fill('11');
     await expect(page.getByText(mensagem).first()).toBeVisible();
     await expect(page.getByText('1 problema para salvar')).toBeVisible();
-    await expect(page.getByRole('button', { name: /Ir para Tipo “Aquecimento” · Esforço padrão: RPE precisa ficar entre 1 e 10/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Ir para Tipo “Back off” · Esforço padrão: RPE precisa ficar entre 1 e 10/ })).toBeVisible();
     await expect(salvar).toBeDisabled();
     // Apagar o valor volta a "sem esforço" e destrava; o corpo salvo leva esforço nulo, não um objeto vazio.
     await rpe.fill('');
@@ -275,14 +280,31 @@ for (const largura of [390, 1280]) {
     await expect(salvar).toBeEnabled();
     await salvar.click();
     await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(1);
-    expect((api.salvo().conteudo as Configuracao).tipos[0]).toMatchObject({ codigo: 'WARM_UP', esforcoPadrao: null });
+    expect((api.salvo().conteudo as Configuracao).tipos[4]).toMatchObject({ codigo: 'BACK_OFF', esforcoPadrao: null });
     // Valor válido, de meio em meio, é gravado como digitado. Salvar recarrega o editor: o cartão volta recolhido e sem esforço.
-    await page.getByRole('button', { name: 'Aquecimento, recolhido', exact: true }).click();
+    await page.getByRole('button', { name: 'Back off, recolhido', exact: true }).click();
     await page.getByRole('button', { name: 'RPE', exact: true }).click();
     await rpe.fill('8,5');
     await salvar.click();
     await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(2);
-    expect((api.salvo().conteudo as Configuracao).tipos[0].esforcoPadrao).toMatchObject({ rpe: 8.5, rir: null });
+    expect((api.salvo().conteudo as Configuracao).tipos[4].esforcoPadrao).toMatchObject({ rpe: 8.5, rir: null });
+    expect(api.errosDaPagina).toEqual([]);
+    expect(api.naoTratadas).toEqual([]);
+  });
+
+  test(`metodologia: aquecimento com RPE já gravado no padrão continua mostrando e editando o RPE (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const metodologia = structuredClone(CONFIGURACAO_PADRAO);
+    metodologia.tipos[0].esforcoPadrao = { rir: null, rpe: 6 };
+    const api = await modelo(page, 'METODOLOGIA', metodologia);
+    await page.getByRole('button', { name: 'Aquecimento, recolhido', exact: true }).click();
+    const rpe = page.getByRole('textbox', { name: 'RPE (1 a 10, de meio em meio)', exact: true });
+    await expect(page.getByRole('button', { name: 'RPE', exact: true })).toHaveAttribute('aria-checked', 'true');
+    await expect(rpe).toHaveValue('6');
+    await rpe.fill('7');
+    await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();
+    await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(1);
+    expect((api.salvo().conteudo as Configuracao).tipos[0].esforcoPadrao).toMatchObject({ rpe: 7, rir: null });
     expect(api.errosDaPagina).toEqual([]);
     expect(api.naoTratadas).toEqual([]);
   });

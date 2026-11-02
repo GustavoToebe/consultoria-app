@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import type { Configuracao, ModalidadeComPadrao, PadraoPorModalidade } from '../../api/tipos';
 import type { TipoEmEdicao } from '../../dominio/edicaoMetodologia';
 import { cargaDoModo } from '../../dominio/editorTreino';
-import { copiarCarga, copiarEsforco, PAPEIS, resumoDoTipo, tipoTrabalho } from '../../dominio/metodologia';
+import { copiarCarga, copiarEsforco, mostraRpeNoPapel, PAPEIS, resumoDoTipo, tipoTrabalho } from '../../dominio/metodologia';
 import type { Problemas } from '../../dominio/validacaoDeSerie';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
@@ -94,8 +94,10 @@ export function CartaoDoTipo({ tipo: t, config, problemas: p, posicao, total, ab
         <Texto variante="rotulo">Carga padrão</Texto>
         <PadraoDeCarga carga={t.cargaPadrao} config={config} papel={t.papel} aoMudar={(cargaPadrao) => aoMudar({ cargaPadrao })} erros={subProblemas(p, 'cargaPadrao')} />
 
+        {/* Aquecimento e preparação não oferecem RPE (como na série); um RPE já gravado continua visível e editável. */}
         <Texto variante="rotulo">Esforço padrão</Texto>
-        <CamposDoEsforco esforco={t.esforcoPadrao} aoMudar={(esforcoPadrao) => aoMudar({ esforcoPadrao })} erros={subProblemas(p, 'esforcoPadrao')} rotulo="Esforço" />
+        <CamposDoEsforco esforco={t.esforcoPadrao} aoMudar={(esforcoPadrao) => aoMudar({ esforcoPadrao })} erros={subProblemas(p, 'esforcoPadrao')} rotulo="Esforço"
+          semRpe={!mostraRpeNoPapel(t.papel, t.esforcoPadrao)} />
       </View>
 
       <View style={estilos.secao}>
@@ -108,7 +110,8 @@ export function CartaoDoTipo({ tipo: t, config, problemas: p, posicao, total, ab
             <Escolha rotulo={m.rotulo} valor={propria ? 'PROPRIA' : 'PADRAO'} opcoes={USO} aoMudar={(uso) => aoUsoDaModalidade(m.valor, uso)} />
             {propria ? <View style={estilos.variacao}>
               <PadraoDeCarga carga={propria.carga} config={config} papel={t.papel} aoMudar={(carga) => mudarPadraoDaModalidade(m.valor, { carga })} erros={subProblemas(erros, 'carga')} rotulo={`Carga em ${m.rotulo.toLowerCase()}`} />
-              <CamposDoEsforco esforco={propria.esforco} aoMudar={(esforco) => mudarPadraoDaModalidade(m.valor, { esforco })} erros={subProblemas(erros, 'esforco')} rotulo={`Esforço em ${m.rotulo.toLowerCase()}`} />
+              <CamposDoEsforco esforco={propria.esforco} aoMudar={(esforco) => mudarPadraoDaModalidade(m.valor, { esforco })} erros={subProblemas(erros, 'esforco')} rotulo={`Esforço em ${m.rotulo.toLowerCase()}`}
+                semRpe={!mostraRpeNoPapel(t.papel, propria.esforco)} />
             </View> : null}
           </View>;
         })}
