@@ -45,7 +45,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | "Quero ser aluno" com as perguntas do treinador (questionário de inscrição) | [inscricao-com-perguntas-proprias.md](inscricao-com-perguntas-proprias.md) | `main` (b4ff455, PR #32) | Concluída em 01/11/2026 | 02/11/2026 |
 | Filtros avançados da lista de alunos (busca, painel de filtros, "Filtrado por"; Início abre a lista filtrada) | [filtros-da-lista-de-alunos.md](filtros-da-lista-de-alunos.md) | `main` (6b4b343, PR #28) | Concluída em 31/10/2026 | 02/11/2026 |
 | Filtros nas outras listas (Atualizações, Interessados, Financeiro, Biblioteca, Questionários, Auditoria, Importação, Equipe), lotes 1 e 2 | [filtros-nas-listas.md](filtros-nas-listas.md) | `main` (lote 1: 0f96ab7, PR #30; lote 2: b4ff455, PR #32) | Concluída em 01/11/2026 | 02/11/2026 |
-| Agenda estilo Google, ajustes do PDF de 02/11 (barra reta, "Mês ▾", filtro de várias situações, painel rápido + "Mais opções", início até fim) | [agenda-estilo-google.md](agenda-estilo-google.md) | `main` (PR #33) | Concluída em 02/11/2026 | 02/11/2026 |
+| Agenda estilo Google, ajustes do PDF de 02/11 (barra reta, "Mês ▾", filtro de várias situações, painel rápido + "Mais opções", início até fim) | [agenda-estilo-google.md](agenda-estilo-google.md) | `main` (6fd58f0, PR #33) | Concluída em 02/11/2026 | 02/11/2026 |
 
 ## Pendências soltas
 
