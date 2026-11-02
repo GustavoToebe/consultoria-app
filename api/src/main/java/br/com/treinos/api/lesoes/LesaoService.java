@@ -6,6 +6,7 @@ import br.com.treinos.api.lesoes.LesaoDtos.LesaoResponse;
 import br.com.plataforma.comum.web.BadRequestException;
 import br.com.treinos.api.web.Buscas;
 import br.com.treinos.api.web.Exigir;
+import br.com.treinos.api.web.FaixaDeData;
 import br.com.treinos.api.web.NaoEncontradoException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,6 +59,9 @@ public class LesaoService {
     }
 
     private static void preencher(LesaoAluno l, LesaoRequest r) {
+        FaixaDeData.exigir("LESAO_INVALIDA",
+                FaixaDeData.REGISTRO.campo("dataInicio", "Início da lesão", r.dataInicio()),
+                FaixaDeData.REGISTRO.campo("dataFim", "Fim da lesão", r.dataFim()));
         if (r.dataInicio() != null && r.dataFim() != null && r.dataFim().isBefore(r.dataInicio())) {
             throw new BadRequestException("A data de fim não pode ser antes do início.");
         }

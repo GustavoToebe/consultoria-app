@@ -184,6 +184,25 @@ describe('PDF do treino: esforço (RIR e RPE)', () => {
   });
 });
 
+describe('PDF do treino: RIR até 10, RIR por série e carga fixa', () => {
+  it('RIR 10 sai como 10 RIR', () => {
+    const html = documentoTreino(dadosDoTreino(treinoCom(exercicio('e', { series: [s('x', 'WORKING', 3, 6, carga('CARGA_TRABALHO'), rir(10))] })))).corpo;
+    expect(html).toContain('1x3 a 6 - WS · 10 RIR');
+  });
+
+  it('séries iguais com RIR diferentes saem numa linha só, com o RIR de cada uma', () => {
+    const series = [3, 2, 2, 1].map((v, i) => s(`w${i}`, 'WORKING', 6, 8, carga('CARGA_TRABALHO'), rir(v)));
+    const html = documentoTreino(dadosDoTreino(treinoCom(exercicio('e', { series })))).corpo;
+    expect(html).toContain('4x6 a 8 - WS · RIR 3, 2, 2, 1');
+  });
+
+  it('a carga fixa sai em kg', () => {
+    const fixa = { ...carga('CARGA_FIXA'), valorKg: 12 };
+    const html = documentoTreino(dadosDoTreino(treinoCom(exercicio('e', { series: [s('x', 'WARM_UP', 10, 10, fixa)] })))).corpo;
+    expect(html).toContain('1x10 - Aquecimento · 12 kg');
+  });
+});
+
 describe('PDF do treino: top set e back off pela referência', () => {
   const top = s('top', 'TOP_SET', null, null, carga('ACIMA_DA_ANTERIOR', 1, 5));
   const back = [s('b1', 'BACK_OFF', 6, 8, carga('ABAIXO_DA_REFERENCIA', 15, null, 'top')), s('b2', 'BACK_OFF', 6, 8, carga('ABAIXO_DA_REFERENCIA', 15, null, 'top'))];
@@ -429,7 +448,9 @@ describe('PDF da dieta: medicação e ergogênicos', () => {
     expect(h).toContain('Medicação e ergogênicos');
     expect(h).toContain('Item de teste A');
     expect(h).toContain('Princípio de Teste');
-    expect(h).toContain('<td>200 mg/ml</td>');
+    // C54: concentração fica na biblioteca e no editor; o PDF mostra só a dose prescrita.
+    expect(h).not.toContain('200 mg/ml');
+    expect(h).not.toContain('<th>Concentração</th>');
     expect(h).toContain('<td>Dose de teste</td>');
     expect(h).toContain('<td>—</td>');
     expect(h).not.toContain('<th>Prescrição</th>');

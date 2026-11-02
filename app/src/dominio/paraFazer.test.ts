@@ -23,6 +23,13 @@ describe('atualização nas pendências', () => {
     expect(avisou.detalhe).toBe('Você avisou que vai responder até 25/10.');
   });
 
+  it('atrasada há mais de um ano mostra desde quando, não os dias (C76)', () => {
+    const selo = itemDaAtualizacao({ ...base, fase: 'ATRASADA', diasDeAtraso: 644943 }, '2026-11-02').selo;
+    expect(selo?.tipo).toBe('perigo');
+    expect(selo?.texto).toMatch(/^Atrasada desde \d{2}\/\d{2}\/\d{4}$/);
+    expect(itemDaAtualizacao({ ...base, fase: 'ATRASADA', diasDeAtraso: 400 }, '2026-11-02').selo?.texto).toBe('Atrasada desde 28/09/2025');
+  });
+
   it('atrasada é a única em vermelho', () => {
     expect(itemDaAtualizacao({ ...base, fase: 'ATRASADA', diasDeAtraso: 1 }).selo).toEqual({ texto: 'Atrasada 1 dia', tipo: 'perigo' });
     expect(itemDaAtualizacao({ ...base, fase: 'ATRASADA', diasDeAtraso: 4 }).selo?.texto).toBe('Atrasada 4 dias');

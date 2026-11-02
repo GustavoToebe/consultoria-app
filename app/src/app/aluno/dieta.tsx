@@ -151,9 +151,7 @@ function Dieta({ versao, salva, aguaNoCartao = false }: { versao: VersaoDetalhe<
           {ergogenicos.map((e) => (
             <View key={e.uid} style={[estilos.item, { borderColor: cores.borda }]}>
               <Texto numerico style={estilos.forte}>{e.nome || '—'}</Texto>
-              {e.principioAtivo || e.concentracao ? (
-                <Texto numerico variante="suave">{[e.principioAtivo, e.concentracao].filter(Boolean).join(' · ')}</Texto>
-              ) : null}
+              {e.principioAtivo ? <Texto numerico variante="suave">{e.principioAtivo}</Texto> : null}
               <LinhasDoComplemento item={e} />
               {e.prescricao ? <Texto numerico variante="suave">Prescrição: {e.prescricao}</Texto> : null}
             </View>

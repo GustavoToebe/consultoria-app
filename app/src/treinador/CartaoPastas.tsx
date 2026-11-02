@@ -16,7 +16,8 @@ import { NOTAS_DA_RENOVACAO, PASSOS_DA_RENOVACAO, TITULO_ORDEM_DA_RENOVACAO } fr
 import { corpoDaFinalizacao, dataDoPesoDaAtualizacao, dataInicialDoPeso, notaDoPesoJaRegistrado, pesoDaAtualizacao, pesoSugeridoSemEdicao, substituiPesoDaAtualizacao, textoDoPesoDaAtualizacao } from '../dominio/pesoNaFinalizacao';
 import { mensagemPastaCopiada, motivoParaNaoCopiar, notaDoPesoSugerido, podeSugerirPeso } from '../dominio/publicarPasta';
 import { rotuloAbrirFicha } from '../dominio/planoDoAluno';
-import { dataDaTela, dataParaTela, hojeIso, numeroParaTela } from '../dominio/formatos';
+import { dataDaTelaNaFaixa } from '../dominio/datasValidas';
+import { dataParaTela, hojeIso, numeroParaTela } from '../dominio/formatos';
 import { dataSemAnoCorrente, periodoCurto } from '../dominio/datasRelativas';
 import { precisaRenovar } from '../dominio/resumoDoAluno';
 import { dadosDaRenovacao, diasDoPeriodo, fimQueAcompanha, periodoInicial, proximoPeriodo } from '../dominio/periodo';
@@ -79,8 +80,8 @@ export function useRenovarPasta(diasAtualizacao: number | null, aoRenovar: () =>
   const dados = renovar ? dadosDaRenovacao(renovar, hojeIso(), diasAtualizacao) : null;
   const painel = (
     <PainelConfirmacao visivel={!!renovar} titulo={`Renovar a pasta “${renovar?.titulo ?? ''}”?`}
-      mensagem={dados ? `Cria a pasta “${dados.titulo}” para ${dados.texto}, com cópia em rascunho dos treinos, dietas e mobilidades. A pasta atual continua como está; para escolher o título ou as datas, use “Copiar para outro período” na pasta.` : ''}
-      rotuloConfirmar="Renovar pasta" carregando={renovando} aoCancelar={() => setRenovar(null)} aoConfirmar={() => {
+      mensagem={dados?.erro ? `${dados.erro}. Para escolher as datas, use “Copiar para outro período” na pasta.` : dados ? `Cria a pasta “${dados.titulo}” para ${dados.texto}, com cópia em rascunho dos treinos, dietas e mobilidades. A pasta atual continua como está; para escolher o título ou as datas, use “Copiar para outro período” na pasta.` : ''}
+      rotuloConfirmar="Renovar pasta" carregando={renovando} desabilitado={!!dados?.erro} motivo={dados?.erro ?? undefined} aoCancelar={() => setRenovar(null)} aoConfirmar={() => {
         if (!renovar || !dados) return;
         setRenovando(true);
         replicarPasta(renovar.id, { titulo: dados.titulo, inicio: dados.inicio, fim: dados.fim }).then(
@@ -307,8 +308,8 @@ function FolhaPasta({ alunoId, modo, diasAtualizacao, aoFechar, aoSalvar }: { al
   const [fimManual, setFimManual] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
-  const ini = dataDaTela(inicio);
-  const fi = dataDaTela(fim);
+  const ini = dataDaTelaNaFaixa(inicio, 'PLANEJAMENTO');
+  const fi = dataDaTelaNaFaixa(fim, 'PLANEJAMENTO');
   const fimAntes = !!ini && !!fi && fi < ini;
   const valido = titulo.trim() !== '' && ini !== undefined && fi !== undefined && !fimAntes;
   const dias = diasDoPeriodo(inicio, fim);
@@ -378,10 +379,10 @@ function FolhaPasta({ alunoId, modo, diasAtualizacao, aoFechar, aoSalvar }: { al
       <Campo rotulo="Título" valor={titulo} aoMudar={setTitulo} maxLength={120} placeholder="Ex.: Plano 17" />
       <View style={estilos.datas}>
         <View style={estilos.data}>
-          <CampoData rotulo="Início" valor={inicio} aoMudar={mudarInicio} />
+          <CampoData rotulo="Início" nome="Início da pasta" regra="PLANEJAMENTO" valor={inicio} aoMudar={mudarInicio} />
         </View>
         <View style={estilos.data}>
-          <CampoData rotulo="Fim" valor={fim} aoMudar={mudarFim} erro={fimAntes ? 'O fim vem antes do início.' : null} />
+          <CampoData rotulo="Fim" nome="Fim da pasta" regra="PLANEJAMENTO" valor={fim} aoMudar={mudarFim} erro={fimAntes ? 'O fim vem antes do início.' : null} />
         </View>
       </View>
       {dias ? <Texto variante="suave" numerico>Período: {inicio} a {fim} · {dias === 1 ? '1 dia' : `${dias} dias`}</Texto> : null}
@@ -439,7 +440,7 @@ function FolhaFinalizar({ pasta, alunoId, atualizacao, aoFechar, aoFinalizar }: 
   const [observacao, setObservacao] = useState('');
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
-  const dataIso = dataDaTela(data);
+  const dataIso = dataDaTelaNaFaixa(data, 'REGISTRO');
   const valido = dataIso !== undefined && (peso !== null || observacao.trim() === '');
   // Peso que a atualização enviada já gravou na data dela: só com as duas permissões (peso e atualização são sensíveis).
   const dataDoPeso = pode('ALUNO_SENSIVEL_LER') && pode('ATUALIZACAO_LER') ? dataDoPesoDaAtualizacao(atualizacao) : null;
@@ -499,7 +500,7 @@ function FolhaFinalizar({ pasta, alunoId, atualizacao, aoFechar, aoFinalizar }: 
               ? 'Só preencha o peso se houver uma pesagem nova. Ele entra no registro do aluno com a data e a observação abaixo.'
               : 'O peso opcional entra no registro do aluno com a data e a observação abaixo.'}
       </Texto>
-      <CampoData rotulo="Data do peso" valor={data} aoMudar={setData} />
+      <CampoData rotulo="Data do peso" regra="REGISTRO" valor={data} aoMudar={setData} />
       <CampoNumerico rotulo="Peso (opcional)" sufixo="kg" valor={peso} aoMudar={setPeso} />
       {jaRegistrado && sugerido !== null ? (
         <Texto variante="suave" numerico>{notaDoPesoJaRegistrado(sugerido, sugestao.dados?.data ?? null, hoje)}</Texto>

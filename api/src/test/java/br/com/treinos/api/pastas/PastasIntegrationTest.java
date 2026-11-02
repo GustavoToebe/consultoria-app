@@ -47,7 +47,7 @@ class PastasIntegrationTest extends AbstractIntegrationTest {
 
         // Observação sem peso e peso no futuro são recusados e a pasta continua aberta.
         api.post("/pastas/" + pasta + "/finalizar", treinador, Map.of("observacao", "sem peso"), 400);
-        api.post("/pastas/" + pasta + "/finalizar", treinador, Map.of("pesoKg", 80.5, "data", "2999-01-01"), 400);
+        api.post("/pastas/" + pasta + "/finalizar", treinador, Map.of("pesoKg", 80.5, "data", "2999-01-01"), 422);
         assertThat(api.get("/alunos/" + aluno + "/pastas", treinador, 200).get(0).get("concluidaEm").isNull()).isTrue();
 
         JsonNode finalizada = api.post("/pastas/" + pasta + "/finalizar", treinador,

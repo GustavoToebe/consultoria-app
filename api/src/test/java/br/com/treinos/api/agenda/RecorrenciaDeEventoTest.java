@@ -1,7 +1,9 @@
 package br.com.treinos.api.agenda;
 
+import br.com.plataforma.comum.web.ApiError;
 import br.com.plataforma.comum.web.BadRequestException;
 import br.com.treinos.api.agenda.RecorrenciaDeEvento.Regra;
+import br.com.treinos.api.web.ValidacaoException;
 import org.junit.jupiter.api.Test;
 
 import java.time.DayOfWeek;
@@ -225,11 +227,31 @@ class RecorrenciaDeEventoTest {
         recusa(d("2030-01-01"), new Regra(TipoDeRecorrencia.SEMANAL, Set.of(DayOfWeek.WEDNESDAY), d("2030-01-01"), null));
     }
 
+    /** C76: a data do evento e o "até" seguem a faixa de planejamento (2000 até 31/12 do ano de hoje + 5), 422 com o campo. */
     @Test
-    void recusaDatasForaDoIntervaloEValoresNulos() {
-        recusa(d("1999-12-31"), Regra.NENHUMA);
-        recusa(d("2101-01-01"), Regra.NENHUMA);
-        recusa(d("2030-01-01"), porData(TipoDeRecorrencia.DIARIA, "2101-01-01"));
+    void recusaDatasForaDaFaixaDePlanejamentoComOCampoCerto() {
+        LocalDate hoje = d("2026-11-02");
+        // Bordas: aceita 01/01/2000 e 31/12/2031; recusa 31/12/1999 e 01/01/2032.
+        RecorrenciaDeEvento.validar(d("2000-01-01"), Regra.NENHUMA, hoje);
+        RecorrenciaDeEvento.validar(d("2031-12-31"), Regra.NENHUMA, hoje);
+        RecorrenciaDeEvento.validar(d("2030-01-01"), porData(TipoDeRecorrencia.DIARIA, "2031-12-31"), hoje);
+        assertThatThrownBy(() -> RecorrenciaDeEvento.validar(d("1999-12-31"), Regra.NENHUMA, hoje))
+                .isInstanceOfSatisfying(ValidacaoException.class, e -> {
+                    assertThat(e.getCodigo()).isEqualTo("EVENTO_INVALIDO");
+                    assertThat(e.getProblemas()).extracting(ApiError.FieldError::field).containsExactly("data");
+                    assertThat(e.getProblemas().toString()).doesNotContain("1999");
+                });
+        assertThatThrownBy(() -> RecorrenciaDeEvento.validar(d("2032-01-01"), Regra.NENHUMA, hoje))
+                .isInstanceOf(ValidacaoException.class);
+        assertThatThrownBy(() -> RecorrenciaDeEvento.validar(d("2030-01-01"), porData(TipoDeRecorrencia.DIARIA, "2032-01-01"), hoje))
+                .isInstanceOfSatisfying(ValidacaoException.class, e -> {
+                    assertThat(e.getCodigo()).isEqualTo("REPETICAO_INVALIDA");
+                    assertThat(e.getProblemas()).extracting(ApiError.FieldError::field).containsExactly("repeticao.ate");
+                });
+    }
+
+    @Test
+    void recusaValoresNulos() {
         recusa(null, Regra.NENHUMA);
         recusa(d("2030-01-01"), null);
         recusa(d("2030-01-01"), new Regra(null, Set.of(), null, null));

@@ -5,10 +5,9 @@ import br.com.treinos.api.inscricoes.Crm.TipoEvento;
 import br.com.treinos.api.inscricoes.InscricaoDtos.InscricaoDetalhe;
 import br.com.treinos.api.inscricoes.InscricaoDtos.RetornoPendente;
 import br.com.treinos.api.inscricoes.InscricaoDtos.RetornoRequest;
+import br.com.treinos.api.web.FaixaDeData;
 import br.com.treinos.api.web.Fuso;
 import br.com.treinos.api.web.NaoEncontradoException;
-import br.com.treinos.api.web.ValidacaoException;
-import br.com.plataforma.comum.web.ApiError.FieldError;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -134,13 +133,9 @@ public class RetornosService {
         }
     }
 
-    /** Data entre um ano atrás e dois anos à frente (Brasília): fora disso é engano de digitação. */
+    /** Faixa de planejamento (C76): 01/01/2000 até 31/12 do ano de hoje + 5. Fora disso é engano de digitação. */
     private static void validarData(LocalDate data) {
-        LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
-        if (data.isBefore(hoje.minusYears(1)) || data.isAfter(hoje.plusYears(2))) {
-            throw new ValidacaoException("Confira a data do retorno.", "RETORNO_INVALIDO",
-                    List.of(new FieldError("data", "Use uma data entre um ano atrás e dois anos à frente.")));
-        }
+        FaixaDeData.exigir("RETORNO_INVALIDO", FaixaDeData.PLANEJAMENTO.campo("data", "Data do retorno", data));
     }
 
     private static void exigirVersao(InscricaoRetorno r, Long versao) {

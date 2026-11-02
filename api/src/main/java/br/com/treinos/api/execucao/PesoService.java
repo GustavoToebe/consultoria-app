@@ -3,16 +3,14 @@ package br.com.treinos.api.execucao;
 import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.PesoRequest;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.PesoResponse;
-import br.com.plataforma.comum.web.BadRequestException;
 import br.com.treinos.api.web.Buscas;
 import br.com.treinos.api.web.Exigir;
-import br.com.treinos.api.web.Fuso;
+import br.com.treinos.api.web.FaixaDeData;
 import br.com.treinos.api.web.NaoEncontradoException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -53,9 +51,7 @@ public class PesoService {
     @br.com.treinos.api.auditoria.Auditar(acao="PESO_REGISTRADO",entidade="PESO",resumo="Registrou ou alterou um peso.")
     public List<PesoResponse> registrar(UUID alunoId, PesoRequest r, UUID usuarioId) {
         exigirAlunoParaGravar(alunoId);
-        if (r.data().isAfter(LocalDate.now(Fuso.BRASILIA))) {
-            throw new BadRequestException("A data do peso não pode ser no futuro.");
-        }
+        FaixaDeData.exigir("PESO_INVALIDO", FaixaDeData.REGISTRO.campo("data", "Data do peso", r.data()));
         String observacao = Buscas.opcional(r.observacao());
         pesos.findByAlunoIdAndData(alunoId, r.data()).ifPresentOrElse(
                 p -> p.alterar(r.pesoKg(), observacao, usuarioId),

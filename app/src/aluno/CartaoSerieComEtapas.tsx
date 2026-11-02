@@ -11,6 +11,7 @@ import {
   todasComSituacao, type AcaoNaEtapa, type EtapaPrevista,
 } from '../dominio/etapas';
 import { numeroParaTela } from '../dominio/formatos';
+import { TEXTO_CARGA_ILEGIVEL } from '../dominio/modoDeCarga';
 import { nomeDaSerieDeTrabalho } from '../dominio/metodologia';
 import { estruturaDaSerie } from '../dominio/resumoDaSerie';
 import { temEtapaEmPercentual } from '../dominio/validacaoDeSerie';
@@ -30,7 +31,10 @@ interface Props {
   calculada: SerieCalculada;
   numero: number;
   data: string;
+  /** Sem campo de peso: exercício sem carga ou série de forma de carga desconhecida (`cargaIlegivel`). */
   semCarga: boolean;
+  /** A forma de carga da série é mais nova que o app: mostra o texto "atualize o app" no lugar da carga. */
+  cargaIlegivel?: boolean;
   metodologia?: Configuracao;
   /** Nome da série de trabalho da configuração ("WS") e as séries do exercício: só para a frase de onde saiu a carga. */
   tipoTrabalho?: string;
@@ -111,6 +115,7 @@ export function CartaoSerieComEtapas(p: Props) {
     <View style={[estilos.serie, { borderColor: feita ? cores.sucesso : cores.borda, backgroundColor: feita ? `${cores.sucesso}29` : cores.superficie2 }]}>
       <CabecalhoDaSerie numero={p.numero} tipo={selos.tipo} tecnica={selos.tecnica} naoRegistrada={!feita && etapas.length === 0 && !semDetalhe} />
       <MetaDaSerie texto={estruturaDaSerie(s, p.metodologia)} />
+      {p.cargaIlegivel ? <Texto numerico variante="pequeno">{TEXTO_CARGA_ILEGIVEL}</Texto> : null}
       {p.anterior != null ? <LinhaDoUltimoRegistro texto={p.anterior} numero={p.numero} /> : null}
       {!p.semCarga && !comPercentual && sugestaoDaSerie != null && !feita ? <LinhaDaSugestao sugestao={sugestaoDaSerie} origem={origem} /> : null}
       {!p.semCarga && referenciaCongelada ? <Texto numerico variante="pequeno">{referenciaCongelada}</Texto> : null}

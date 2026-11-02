@@ -44,7 +44,7 @@ function problemasDaCarga(c) {
 function problemasDoEsforco(e) {
   const p = [];
   if (e.rir == null && e.rpe == null) p.push('vazio');
-  if (e.rir != null && (e.rir < 0 || e.rir > 5)) p.push('rir');
+  if (e.rir != null && (e.rir < 0 || e.rir > 10)) p.push('rir');
   if (e.rpe != null && (e.rpe < 1 || e.rpe > 10 || (e.rpe * 2) % 1 !== 0)) p.push('rpe');
   if (e.rir != null && e.rpe != null) p.push('rir+rpe');
   return p;

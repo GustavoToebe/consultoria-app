@@ -8,7 +8,8 @@ import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { excluirPlano, criarPlano, listarPlanos, listarReceitas, replicarPlano, versaoPlano } from '../api/rotas';
 import type { ConteudoDieta, PastaResumo, PlanoResumo, TipoPlano } from '../api/tipos';
 import { normalizarDieta } from '../dominio/dieta';
-import { dataDaTela, dataParaTela } from '../dominio/formatos';
+import { dataDaTelaNaFaixa } from '../dominio/datasValidas';
+import { dataParaTela } from '../dominio/formatos';
 import { proximoPeriodo } from '../dominio/periodo';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
@@ -283,8 +284,8 @@ function FolhaReplicar({ tipo, plano, aoFechar, aoNavegar }: { tipo: TipoPlano; 
   const [fim, setFim] = useState(sugestao.fim);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
-  const ini = dataDaTela(inicio);
-  const fi = dataDaTela(fim);
+  const ini = dataDaTelaNaFaixa(inicio, 'PLANEJAMENTO');
+  const fi = dataDaTelaNaFaixa(fim, 'PLANEJAMENTO');
   const valido = titulo.trim() !== '' && (naPasta || (ini !== undefined && fi !== undefined));
 
   const replicar = () => {
@@ -332,10 +333,10 @@ function FolhaReplicar({ tipo, plano, aoFechar, aoNavegar }: { tipo: TipoPlano; 
       {naPasta ? null : (
         <View style={estilos.datas}>
           <View style={estilos.data}>
-            <CampoData rotulo="Início" valor={inicio} aoMudar={setInicio} />
+            <CampoData rotulo="Início" nome="Início do plano" regra="PLANEJAMENTO" valor={inicio} aoMudar={setInicio} />
           </View>
           <View style={estilos.data}>
-            <CampoData rotulo="Fim" valor={fim} aoMudar={setFim} />
+            <CampoData rotulo="Fim" nome="Fim do plano" regra="PLANEJAMENTO" valor={fim} aoMudar={setFim} />
           </View>
         </View>
       )}

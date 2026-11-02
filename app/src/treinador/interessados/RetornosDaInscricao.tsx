@@ -5,7 +5,8 @@ import type { ResponsavelEquipe } from '../../api/equipeTipos';
 import type { InscricaoDetalhe, RetornoInscricao } from '../../api/inscricoesTipos';
 import { alterarRetorno, concluirRetorno, marcarRetorno } from '../../api/rotas';
 import { hojeEmBrasilia } from '../../dominio/agendaPresencial';
-import { dataDaTela, dataHoraParaTela, dataParaTela, SEM_DADO } from '../../dominio/formatos';
+import { dataDaTelaNaFaixa, erroDaData } from '../../dominio/datasValidas';
+import { dataHoraParaTela, dataParaTela, SEM_DADO } from '../../dominio/formatos';
 import { estaAberta, LIMITES_INSCRICAO, seloDoRetorno } from '../../dominio/inscricoes';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, RAIO } from '../../tema/tokens';
@@ -108,9 +109,9 @@ function FormularioDoRetorno({ inicial, padraoResponsavel, responsaveis, ocupado
   const [data, setData] = useState(inicial ? dataParaTela(inicial.data) : '');
   const [responsavelId, setResponsavelId] = useState(inicial?.responsavelId ?? padraoResponsavel ?? SEM_RESPONSAVEL);
   const [tentou, setTentou] = useState(false);
-  const iso = dataDaTela(data);
+  const iso = dataDaTelaNaFaixa(data, 'PLANEJAMENTO');
   const erroDescricao = !descricao.trim() ? 'Escreva o que fazer.' : null;
-  const erroData = !iso ? 'Informe a data.' : null;
+  const erroData = !iso ? erroDaData(data, 'Data do retorno', 'PLANEJAMENTO') ?? 'Informe a data.' : null;
   const salvar = () => {
     setTentou(true);
     if (erroDescricao || erroData || !iso) return;
@@ -120,7 +121,7 @@ function FormularioDoRetorno({ inicial, padraoResponsavel, responsaveis, ocupado
     <View style={estilos.formulario}>
       <Campo rotulo="O que fazer" valor={descricao} aoMudar={setDescricao} maxLength={LIMITES_INSCRICAO.retorno}
         erro={tentou ? erroDescricao : null} placeholder="Ex.: ligar para falar do plano" />
-      <CampoData rotulo="Data do retorno" valor={data} aoMudar={setData} erro={tentou ? erroData : null} />
+      <CampoData rotulo="Data do retorno" regra="PLANEJAMENTO" valor={data} aoMudar={setData} erro={tentou ? erroData : null} />
       <EscolhaEmFolha rotulo="Responsável" valor={responsavelId} aoMudar={setResponsavelId}
         opcoes={[{ valor: SEM_RESPONSAVEL, rotulo: 'Sem responsável' }, ...responsaveis.map((r) => ({ valor: r.id, rotulo: r.nome }))]}
         rotuloDoValor="Membro inativo" />

@@ -120,7 +120,7 @@ export function TelaImportacao() {
               opcoes={[{ valor: '' as const, rotulo: 'Todos' }, ...ARQUIVOS]} />
           </CelulaDoFiltro>
           <CelulaDoFiltro>
-            <CamposDePeriodo rotulo="Data da importação" valor={atuais.periodo} aoMudar={(periodo) => mudar({ ...atuais, periodo })} />
+            <CamposDePeriodo rotulo="Data da importação" regra="PLANEJAMENTO" valor={atuais.periodo} aoMudar={(periodo) => mudar({ ...atuais, periodo })} />
           </CelulaDoFiltro>
         </>} />
       {lista.erro ? <MensagemErro texto={textoDoErroDaApi(lista.erro)} tentarDeNovo={lista.recarregar} /> : null}

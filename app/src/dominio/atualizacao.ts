@@ -3,6 +3,18 @@ import { comMaiuscula, dataSemAnoCorrente } from './datasRelativas';
 import { dataParaTela, hojeIso, somarDias } from './formatos';
 
 export const DIAS_MAXIMOS_DE_ATRASO = 15;
+/**
+ * Acima disso o atraso não é contado em dias ("atrasada há 644943 dias" não diz nada): o texto passa a "desde dd/mm/aaaa".
+ * Igual a `RegrasAtualizacao.DIAS_MAXIMOS_PARA_CONTAR_ATRASO` na API (que só guarda a constante: o texto é do app, e o
+ * `diasDeAtraso` da resposta continua inteiro, porque painel e números dependem dele).
+ */
+export const DIAS_MAXIMOS_PARA_CONTAR_ATRASO = 365;
+const diasPorExtenso = (n: number) => `${n} ${n === 1 ? 'dia' : 'dias'}`;
+/** O prazo que venceu, em DD/MM/AAAA: `hoje − diasDeAtraso` (a data do aviso de atraso, se houve, senão a original). */
+export const desdeQuandoAtrasou = (diasDeAtraso: number, hoje: string = hojeIso()) => dataParaTela(somarDias(hoje, -diasDeAtraso));
+/** "há 5 dias" ou, acima de 365 dias, "desde 02/11/2024". */
+export const atrasoEmTexto = (diasDeAtraso: number, hoje: string = hojeIso()) =>
+  diasDeAtraso > DIAS_MAXIMOS_PARA_CONTAR_ATRASO ? `desde ${desdeQuandoAtrasou(diasDeAtraso, hoje)}` : `há ${diasPorExtenso(diasDeAtraso)}`;
 const diasEntre = (de: string, ate: string) => Math.round((Date.parse(ate) - Date.parse(de)) / 86_400_000);
 export const prazoAtualizacao = (data: string, atrasoAte: string | null) => atrasoAte && atrasoAte > data ? atrasoAte : data;
 
@@ -34,11 +46,11 @@ export const linkCartaoAtualizacao = (a: Atualizacao) =>
 /** Com o aviso de atraso dado, o cartão segue na tela inicial até o envio. */
 export const mostrarCartaoAtualizacao = (a: Atualizacao) =>
   a.fase === 'REVISADA' ? !!a.feedback?.naoLido : a.fase !== 'NENHUMA' || !!a.atrasoAte;
-export function statusAtualizacao(a: Atualizacao) {
+export function statusAtualizacao(a: Atualizacao, hoje: string = hojeIso()) {
   const data = dataParaTela(a.atrasoAte ?? a.dataAtualizacao);
   if (a.fase === 'REVISADA') return { texto: a.feedback?.naoLido ? 'Seu treinador respondeu sua atualização' : 'Revisada', tipo: 'sucesso' as const };
   if (a.fase === 'ENVIADA') return { texto: 'Enviada. Aguardando o treinador', tipo: 'sucesso' as const };
-  if (a.fase === 'ATRASADA') return { texto: `Atualização atrasada há ${a.diasDeAtraso} ${a.diasDeAtraso === 1 ? 'dia' : 'dias'}`, tipo: 'perigo' as const };
+  if (a.fase === 'ATRASADA') return { texto: `Atualização atrasada ${atrasoEmTexto(a.diasDeAtraso, hoje)}`, tipo: 'perigo' as const };
   if (a.atrasoAte) return { texto: `Você avisou: nova data ${data}`, tipo: 'atencao' as const };
   if (a.fase === 'ABERTA') return { texto: `Responda sua atualização até ${data}`, tipo: 'atencao' as const };
   return { texto: `Sua atualização é em ${a.diasParaData} dias (${data})`, tipo: 'neutro' as const };
@@ -98,7 +110,7 @@ export function statusAtualizacaoTreinador(a:Pick<AtualizacaoDaLista,'fase'|'dia
   const selo=(curto:string,tipo:'atencao'|'sucesso'|'perigo'|'neutro',texto=`Atualização ${curto[0].toLowerCase()}${curto.slice(1)}`)=>({texto,curto,tipo});
   if(a.fase==='ENVIADA')return selo('Para revisar','atencao');
   if(a.fase==='REVISADA')return selo('Revisada','sucesso');
-  if(a.fase==='ATRASADA')return selo(`Atrasada há ${a.diasDeAtraso} ${a.diasDeAtraso===1?'dia':'dias'}`,'perigo');
+  if(a.fase==='ATRASADA')return selo(`Atrasada ${atrasoEmTexto(a.diasDeAtraso,hoje)}`,'perigo');
   if(a.atrasoAte)return selo(`Adiada para ${paraQuando(a.atrasoAte,hoje)}`,'atencao');
   return selo(comMaiuscula(emDias(a.diasParaData)),'neutro');
 }

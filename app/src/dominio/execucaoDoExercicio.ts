@@ -1,7 +1,7 @@
 import type { ExercicioPlano } from '../api/tipos';
 
 /**
- * Execução do exercício (pesquisa de técnicas de 19/10): cadência e isometria valem para o exercício todo e são só o
+ * Cadência e isometria do exercício (pesquisa de técnicas de 19/10): cadência e isometria valem para o exercício todo e são só o
  * que o treinador escreveu. Mesmas regras do `ValidadorTreino`: cadência em 4 partes separadas por hífen, cada uma de
  * 0 a 9 segundos ou X (explosivo), na ordem descida-pausa embaixo-subida-pausa em cima; isometria de 1 a 120 s.
  */

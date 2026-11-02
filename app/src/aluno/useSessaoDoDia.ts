@@ -7,6 +7,7 @@ import type { ExercicioPlano, Serie, UltimaCarga } from '../api/tipos';
 import { ehSerieDeTrabalho } from '../dominio/cargas';
 import { tipoTrabalho as tipoTrabalhoDaMetodologia } from '../dominio/metodologia';
 import { CONFIGURACAO_PADRAO } from '../dominio/metodologiaPadrao';
+import { semCargaNaSerieIlegivel } from '../dominio/modoDeCarga';
 import { normalizarTreino } from '../dominio/editorTreino';
 import { hojeIso } from '../dominio/formatos';
 import { recordesDoExercicio, seriesComRecorde, type Recorde } from '../dominio/recordesPessoais';
@@ -88,8 +89,11 @@ export function useSessaoDoDia(uid: string | undefined, dataDaRota: string | und
     treino ? ultimaVez({ anteriores: anterioresDoPacote, exercicio: e, versaoId: treino.versaoId, data, registros: aluno.registros, exerciciosDaVersao }) : null;
 
   /** Grava a série e devolve os recordes que ela bate (vazio se nenhum), para a tela avisar na hora. */
-  const registrar = (e: ExercicioPlano, serieUid: string, d: DadosSerie): Recorde[] => {
+  const registrar = (e: ExercicioPlano, serieUid: string, dadosDaTela: DadosSerie): Recorde[] => {
     if (!treino || !sessao) return [];
+    // Série de forma de carga que o app não lê: o ✓ e as repetições valem, a carga nunca (garantia única da regra, mesmo
+    // que a tela deixasse passar um número).
+    const d = semCargaNaSerieIlegivel(e.series.find((s) => s.uid === serieUid) ?? { carga: null }, dadosDaTela);
     const novos = d.concluida
       ? recordesDe(e, { serieUid, carga: d.carga, repeticoes: d.repeticoes, concluida: true })[serieUid] ?? []
       : [];

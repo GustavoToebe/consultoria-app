@@ -56,6 +56,7 @@ public class IndicadoresDeInscricoes {
     public Indicadores calcular(LocalDate de, LocalDate ate) {
         LocalDate fimDia = ate == null ? LocalDate.now(Fuso.BRASILIA) : ate;
         LocalDate inicioDia = de == null ? fimDia.minusDays(29) : de;
+        br.com.treinos.api.web.FiltrosDeLista.exigirPeriodoNaFaixa(de, ate, 0, "PERIODO_INVALIDO");
         if (inicioDia.isAfter(fimDia) || ChronoUnit.DAYS.between(inicioDia, fimDia) >= DIAS_MAXIMOS) {
             throw new BadRequestException("Escolha um período de até " + DIAS_MAXIMOS + " dias, com o início antes do fim.",
                     "PERIODO_INVALIDO");

@@ -4,6 +4,7 @@ import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import type { AnteriorDoExercicio, Configuracao, DemonstracaoDoAluno, EtapaRegistrada, ExercicioPlano, OrigemDaReferencia, Serie, UltimaCarga } from '../api/tipos';
+import { cargaIlegivel as cargaDeFormaDesconhecida } from '../dominio/modoDeCarga';
 import { ajustarCarga, calcularCargasDoExercicio, cargaQueContaComoReferencia, passoDaCarga, seriesSeguintesDependemDesta, textoDaOrigem, usaCargaDeTrabalho, type SerieCalculada } from '../dominio/cargas';
 import { etapasDaSerie } from '../dominio/etapas';
 import { textosDeExecucao } from '../dominio/execucaoDoExercicio';
@@ -106,6 +107,9 @@ export function ExercicioAluno(p: Props) {
   const passo = passoDaCarga(e, p.config.arredondamentoKg);
   const semCarga = e.unidade === 'nenhuma';
   const cardio = ehExercicioDeCardio(e);
+  // Série cuja forma de carga o app não conhece (treinador usou algo mais novo): sem campo de peso, sem sugestão, carga "—".
+  // O ✓ e as repetições seguem valendo (regra e texto em `dominio/modoDeCarga`).
+  const cargaIlegivel = (s: Serie) => !semCarga && !cardio && cargaDeFormaDesconhecida(s.carga);
   const video = videoValido(e.videoUrl);
   const comoFazer = [
     ...(!e.progressao ? ['Foco em controle, não em carga.'] : []),
@@ -114,7 +118,7 @@ export function ExercicioAluno(p: Props) {
   const temComoFazer = !!e.observacao || comoFazer.length > 0;
   const ultima = cardio ? null : (p.ultimaVez ?? null);
   /** "60 kg × 8" da mesma série da última vez; `null` = sem a linha (nunca feito). */
-  const anterior = (i: number) => (ultima ? textoDoAnterior(anteriorDaSerie(ultima, e, i), semCarga) : null);
+  const anterior = (i: number) => (ultima ? textoDoAnterior(anteriorDaSerie(ultima, e, i), semCarga || cargaIlegivel(e.series[i])) : null);
 
   const abrirVideo = () => {
     if (!e.videoUrl || !videoValido(e.videoUrl)) return;
@@ -211,7 +215,8 @@ export function ExercicioAluno(p: Props) {
             calculada={c}
             numero={i + 1}
             data={p.data}
-            semCarga={semCarga}
+            semCarga={semCarga || cargaIlegivel(c.serie)}
+            cargaIlegivel={cargaIlegivel(c.serie)}
             metodologia={p.config.metodologia}
             tipoTrabalho={p.config.tipoTrabalho}
             seriesDoExercicio={e.series}
@@ -230,6 +235,7 @@ export function ExercicioAluno(p: Props) {
             calculada={c}
             indice={i}
             semCarga={semCarga}
+            cargaIlegivel={cargaIlegivel(c.serie)}
             tipoTrabalho={p.config.tipoTrabalho}
             metodologia={p.config.metodologia}
             seriesDoExercicio={e.series}
@@ -237,7 +243,7 @@ export function ExercicioAluno(p: Props) {
             passo={i === proximaAFazer ? passo : null}
             ativa={i === proximaAFazer}
             registro={p.registroDe(c.serie.uid)}
-            repetir={i > 0 ? repeticaoDaAnterior(e.series[i - 1], c.serie, p.registroDe(e.series[i - 1]!.uid), semCarga) : null}
+            repetir={i > 0 ? repeticaoDaAnterior(e.series[i - 1], c.serie, p.registroDe(e.series[i - 1]!.uid), semCarga || cargaIlegivel(c.serie)) : null}
             ultimaDoExercicio={feitas === e.series.length - 1}
             recordes={p.recordes?.[c.serie.uid] ?? null}
             anterior={anterior(i)}
@@ -254,6 +260,7 @@ function CartaoSerie({
   calculada,
   indice,
   semCarga,
+  cargaIlegivel,
   tipoTrabalho,
   metodologia,
   seriesDoExercicio,
@@ -271,6 +278,8 @@ function CartaoSerie({
   calculada: SerieCalculada;
   indice: number;
   semCarga: boolean;
+  /** A forma de carga da série é mais nova que o app: sem campo de peso nem sugestão; o texto "atualize o app" vai na meta. */
+  cargaIlegivel: boolean;
   tipoTrabalho: string;
   metodologia?: Configuracao;
   /** As séries do exercício: dão o nome da série de referência do back off. */
@@ -309,7 +318,9 @@ function CartaoSerie({
   const repsAcompanhadas = acompanharPendente(pendenteDasReps, registro?.repeticoes);
   if (cargaAcompanhada !== pendenteDaCarga) setPendenteDaCarga(cargaAcompanhada);
   if (repsAcompanhadas !== pendenteDasReps) setPendenteDasReps(repsAcompanhadas);
-  const carga = registro ? (valorExibido(cargaAcompanhada, registro.carga) ?? null) : cargaDigitada !== undefined ? cargaDigitada : calculada.sugestao;
+  const carga = cargaIlegivel ? null : registro ? (valorExibido(cargaAcompanhada, registro.carga) ?? null) : cargaDigitada !== undefined ? cargaDigitada : calculada.sugestao;
+  // Sem campo de peso: exercício sem carga ou série de forma de carga desconhecida (a meta continua mostrando o texto da carga).
+  const semCampoDePeso = semCarga || cargaIlegivel;
   const reps = registro ? (valorExibido(repsAcompanhadas, registro.repeticoes) ?? null) : repsDigitadas;
   const feita = !!registro?.concluida;
   const reduzido = useMovimentoReduzido();
@@ -325,13 +336,13 @@ function CartaoSerie({
   const pausa = s.tecnica?.pausaSegundos != null && s.tecnica.pausaSegundos > 0 ? s.tecnica.pausaSegundos : null;
 
   // De onde saiu o peso sugerido (A9): a frase troca o genérico "Peso sugerido pelo plano"; a dica fica para o que falta.
-  const origem = semCarga ? null : textoDaOrigem(calculada, { tipoTrabalho, metodologia, series: seriesDoExercicio });
-  const mostrarSugestao = !semCarga && !feita && calculada.sugestao != null;
-  const dica = ativa && !semCarga && !registro && !(mostrarSugestao && origem)
+  const origem = semCampoDePeso ? null : textoDaOrigem(calculada, { tipoTrabalho, metodologia, series: seriesDoExercicio });
+  const mostrarSugestao = !semCampoDePeso && !feita && calculada.sugestao != null;
+  const dica = ativa && !semCampoDePeso && !registro && !(mostrarSugestao && origem)
     ? dicaDaCarga(s, { sugestao: calculada.sugestao, digitou: cargaDigitada !== undefined, tipoTrabalho, metodologia, seriesDoExercicio })
     : null;
   // A carga só entra na conta das séries seguintes com o ✓ (regra de sempre, N15): a dica diz isso enquanto não foi marcada.
-  const avisoDoMarcar = !semCarga && !registro && (ativa || cargaDigitada !== undefined) && seriesSeguintesDependemDesta(seriesDoExercicio, indice);
+  const avisoDoMarcar = !semCampoDePeso && !registro && (ativa || cargaDigitada !== undefined) && seriesSeguintesDependemDesta(seriesDoExercicio, indice);
 
   const mudar = (parcial: Partial<DadosSerie>) => {
     if (registro) {
@@ -367,7 +378,7 @@ function CartaoSerie({
       ) : null}
       <RotuloDeHoje />
       <View style={estilos.campos}>
-        {semCarga ? null : (
+        {semCampoDePeso ? null : (
           <CampoNumericoGrande
             rotulo="Peso"
             rotuloOculto
@@ -393,13 +404,13 @@ function CartaoSerie({
           ultimaDoExercicio={ultimaDoExercicio}
           desabilitado={invalido}
           rotulo={invalido ? `Série ${numero} feita: corrija o número antes de marcar` : `Série ${numero} feita`}
-          aoTocar={() => aoRegistrar({ carga: semCarga ? null : carga, repeticoes: reps, concluida: !feita })}
+          aoTocar={() => aoRegistrar({ carga: semCampoDePeso ? null : carga, repeticoes: reps, concluida: !feita })}
         />
       </View>
       {invalido ? <Texto variante="pequeno" cor={cores.perigo}>Corrija o número para marcar a série.</Texto> : null}
       {mostrarSugestao ? <LinhaDaSugestao sugestao={calculada.sugestao!} origem={origem} /> : null}
       {avisoDoMarcar ? <Texto numerico variante="pequeno">As séries seguintes só usam este peso depois que você marcar ✓.</Texto> : null}
-      {!semCarga && passo !== null ? (
+      {!semCampoDePeso && passo !== null ? (
         <AjusteDeCarga passo={passo} rotulo={`peso da série ${numero}`}
           aoAjustar={(sentido) => mudar({ carga: ajustarCarga(carga, calculada.sugestao, passo, sentido) })} />
       ) : null}

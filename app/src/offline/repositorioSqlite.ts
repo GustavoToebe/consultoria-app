@@ -278,14 +278,21 @@ export class RepositorioSqlite implements RepositorioLocal {
       const salvo = await this.lerDocumento<unknown>(b, 'pacote');
       if (pacoteNoFormatoAtual(salvo)) return salvo;
       await b.rodar('delete from kv where chave = ?', ['pacote']);
+      // Só havendo algo recusado: nada salvo não é recusa (e depois do "Sair" `emFila` nem chega aqui).
+      if (salvo !== null) await this.gravarDocumento(b, 'pacoteRecusado', true);
       return null;
     });
   }
 
   salvarPacote(pacote: PainelAluno): Promise<void> {
-    return this.emFila(undefined, (b) =>
-      this.gravarDocumento(b, 'pacote', { pacote, salvoEm: this.agora().toISOString() }),
-    );
+    return this.emFila(undefined, async (b) => {
+      await b.rodar('delete from kv where chave = ?', ['pacoteRecusado']);
+      await this.gravarDocumento(b, 'pacote', { pacote, salvoEm: this.agora().toISOString() });
+    });
+  }
+
+  lerPacoteRecusado(): Promise<boolean> {
+    return this.emFila(false, async (b) => (await this.lerDocumento<boolean>(b, 'pacoteRecusado')) === true);
   }
 
   lerDieta(): Promise<VersaoDetalhe<ConteudoDieta> | null> {

@@ -4,6 +4,7 @@ import { ErroApi } from '../../api/cliente';
 import { plano as buscarPlano, publicarPlano, salvarRascunho, validarPlano, receita, salvarConteudoReceita } from '../../api/rotas';
 import type { PlanoDetalhe, PlanoResumo, Problema, TipoPlano, VersaoResumo } from '../../api/tipos';
 import { detalheDoModelo } from '../../dominio/modelos';
+import { dataDaTelaNaFaixa } from '../../dominio/datasValidas';
 import { dataDaTela, dataParaTela } from '../../dominio/formatos';
 import { textoDoErro } from '../../ui/erros';
 import { useGuardaDeSaida } from '../../ui/GuardaDeSaida';
@@ -27,6 +28,15 @@ export type ResultadoPublicacao =
   | { tipo: 'erros'; erros: Problema[] }
   | { tipo: 'avisos'; avisos: Problema[] }
   | { tipo: 'falha'; mensagem: string };
+
+/**
+ * O período do plano na tela. O da pasta já vem pronto (a API ignora o do corpo e a pessoa não o edita aqui), então vale
+ * como está; plano fora de pasta é editável e segue a faixa do planejamento.
+ */
+function datasDoPlano(e: { plano: PlanoResumo; inicio: string; fim: string }) {
+  if (e.plano.pastaId) return { inicio: dataDaTela(e.inicio), fim: dataDaTela(e.fim) };
+  return { inicio: dataDaTelaNaFaixa(e.inicio, 'PLANEJAMENTO'), fim: dataDaTelaNaFaixa(e.fim, 'PLANEJAMENTO') };
+}
 
 function problemas(erro: ErroApi): Problema[] {
   return erro.campos.map((c) => ({ caminho: c.field, mensagem: c.message }));
@@ -103,8 +113,7 @@ export function usePlanoEditor<C>(tipo: TipoPlano, id: string | undefined, norma
       const e = atual.current;
       if (!e || !id) return Promise.resolve(false);
       if (e.revisao === e.salvoEm) return Promise.resolve(true);
-      const inicio = dataDaTela(e.inicio);
-      const fim = dataDaTela(e.fim);
+      const { inicio, fim } = datasDoPlano(e);
       if (inicio === undefined || fim === undefined || !e.titulo.trim()) {
         falhaAoSalvar.current = null;
         return Promise.resolve(false);
@@ -187,7 +196,7 @@ export function usePlanoEditor<C>(tipo: TipoPlano, id: string | undefined, norma
   let situacao: SituacaoRascunho = 'salvo';
   if (erroSalvar) situacao = erroSalvar;
   else if (salvando) situacao = 'salvando';
-  else if (estado && (dataDaTela(estado.inicio) === undefined || dataDaTela(estado.fim) === undefined)) {
+  else if (estado && (datasDoPlano(estado).inicio === undefined || datasDoPlano(estado).fim === undefined)) {
     situacao = 'dataInvalida';
   } else if (estado && estado.revisao !== estado.salvoEm) situacao = 'pendente';
 

@@ -1,5 +1,5 @@
 import type { Atualizacao } from '../api/tipos';
-import { atualizacaoDaPasta, caminhoAtualizacaoTreinador, caminhoListaAtualizacoes, faseAtualizacao, filaDosParametros, filtroDaFila, formularioSomenteLeitura, limitesNovaDataAtraso, linkCartaoAtualizacao, mostrarCartaoAtualizacao, novaDataAtrasoValida, emDias, proximaDaFila, statusAtualizacaoTreinador } from './atualizacao';
+import { atrasoEmTexto, DIAS_MAXIMOS_PARA_CONTAR_ATRASO, desdeQuandoAtrasou, statusAtualizacao, atualizacaoDaPasta, caminhoAtualizacaoTreinador, caminhoListaAtualizacoes, faseAtualizacao, filaDosParametros, filtroDaFila, formularioSomenteLeitura, limitesNovaDataAtraso, linkCartaoAtualizacao, mostrarCartaoAtualizacao, novaDataAtrasoValida, emDias, proximaDaFila, statusAtualizacaoTreinador } from './atualizacao';
 
 describe('datas da atualização iguais às do servidor', () => {
   it.each([['2026-10-05','NENHUMA',4,0],['2026-10-06','AVISO',3,0],['2026-10-07','AVISO',2,0],
@@ -113,6 +113,25 @@ describe('revisão em fila', () => {
     expect(proximaDaFila(itens, null)?.pastaId).toBe('p1');
     expect(proximaDaFila([{ pastaId: 'p1' }], 'p1')).toBeNull();
     expect(proximaDaFila([], 'p1')).toBeNull();
+  });
+});
+
+describe('atraso com teto (C76)', () => {
+  const HOJE = '2026-11-02';
+  it('até 365 dias conta os dias; acima disso diz desde quando, sem somar anos de dias', () => {
+    expect(DIAS_MAXIMOS_PARA_CONTAR_ATRASO).toBe(365);
+    expect(atrasoEmTexto(1, HOJE)).toBe('há 1 dia');
+    expect(atrasoEmTexto(365, HOJE)).toBe('há 365 dias');
+    expect(atrasoEmTexto(366, HOJE)).toBe('desde 01/11/2025');
+    expect(atrasoEmTexto(644943, HOJE)).toBe(`desde ${desdeQuandoAtrasou(644943, HOJE)}`);
+    expect(atrasoEmTexto(644943, HOJE)).not.toContain('644943');
+  });
+  it('o texto do aluno e do treinador seguem a mesma regra', () => {
+    const base = { fase: 'ATRASADA', diasDeAtraso: 400, diasParaData: -400, atrasoAte: null } as const;
+    expect(statusAtualizacaoTreinador(base, HOJE)).toEqual({ texto: 'Atualização atrasada desde 28/09/2025', curto: 'Atrasada desde 28/09/2025', tipo: 'perigo' });
+    expect(statusAtualizacao({ ...base, dataAtualizacao: '2025-09-28', feedback: null } as unknown as Atualizacao, HOJE))
+      .toEqual({ texto: 'Atualização atrasada desde 28/09/2025', tipo: 'perigo' });
+    expect(statusAtualizacao({ ...base, diasDeAtraso: 3, dataAtualizacao: '2026-10-30', feedback: null } as unknown as Atualizacao, HOJE).texto).toBe('Atualização atrasada há 3 dias');
   });
 });
 

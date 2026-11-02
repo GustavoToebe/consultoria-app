@@ -1,6 +1,7 @@
 import { type ReactNode, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { type RegraDeData, dataDaTelaNaFaixa } from '../dominio/datasValidas';
 import { periodoDigitado, type Periodo } from '../dominio/filtrosComuns';
 import { dataDaTela, dataParaTela } from '../dominio/formatos';
 import { espaco } from '../tema/tokens';
@@ -33,19 +34,25 @@ export function UmaOpcao<T extends string>({ rotulo, valor, opcoes, aoMudar }: {
  * sentido (vazio ou data válida, fim depois do início; com `osDois`, as duas datas ou nenhuma), então uma data pela
  * metade não apaga o filtro em vigor. Quando o período muda por fora (✕ do chip, "Limpar filtros"), os campos acompanham.
  */
-export function CamposDePeriodo({ rotulo = 'Período', valor, aoMudar, osDois = false, maximoDias }: {
+export function CamposDePeriodo({ rotulo = 'Período', valor, aoMudar, osDois = false, maximoDias, regra }: {
   rotulo?: string; valor: Periodo; aoMudar: (p: Periodo) => void; osDois?: boolean; maximoDias?: number;
+  /**
+   * Faixa das duas datas (`dominio/datasValidas`): fora dela o campo mostra a mensagem e o filtro em vigor não muda.
+   * Sem `regra` as datas não são conferidas (os filtros do financeiro ficam como estão).
+   */
+  regra?: RegraDeData;
 }) {
+  const ler = (t: string) => (regra ? dataDaTelaNaFaixa(t, regra) : dataDaTela(t));
   const chave = `${valor.de ?? ''}|${valor.ate ?? ''}`;
   const [texto, setTexto] = useState({ de: dataParaTela(valor.de), ate: dataParaTela(valor.ate), chave });
   // O período mudou por fora: os campos passam a mostrar o novo (padrão "ajustar o estado quando a prop muda").
   if (texto.chave !== chave) setTexto({ de: dataParaTela(valor.de), ate: dataParaTela(valor.ate), chave });
-  const resultado = periodoDigitado(dataDaTela(texto.de), dataDaTela(texto.ate), osDois, maximoDias);
+  const resultado = periodoDigitado(ler(texto.de), ler(texto.ate), osDois, maximoDias);
   const problema = 'problema' in resultado ? resultado.problema : null;
   const mudar = (campo: 'de' | 'ate', t: string) => {
     const novo = { ...texto, [campo]: t };
     setTexto(novo);
-    const r = periodoDigitado(dataDaTela(novo.de), dataDaTela(novo.ate), osDois, maximoDias);
+    const r = periodoDigitado(ler(novo.de), ler(novo.ate), osDois, maximoDias);
     if ('periodo' in r && (r.periodo.de !== valor.de || r.periodo.ate !== valor.ate)) aoMudar(r.periodo);
   };
   return (
@@ -53,11 +60,11 @@ export function CamposDePeriodo({ rotulo = 'Período', valor, aoMudar, osDois = 
       <Texto variante="rotulo">{rotulo}</Texto>
       <View style={estilos.datas}>
         <View style={estilos.data}>
-          <CampoData rotulo="De" valor={texto.de} aoMudar={(t) => mudar('de', t)} />
+          <CampoData rotulo="De" nome={`${rotulo}, data inicial`} regra={regra} valor={texto.de} aoMudar={(t) => mudar('de', t)} />
         </View>
         <View style={estilos.data}>
           {/* Data impossível o próprio campo avisa ("Data inválida."). */}
-          <CampoData rotulo="Até" valor={texto.ate} aoMudar={(t) => mudar('ate', t)} erro={problema === 'ordem' ? 'Fim antes do início.' : null} />
+          <CampoData rotulo="Até" nome={`${rotulo}, data final`} regra={regra} valor={texto.ate} aoMudar={(t) => mudar('ate', t)} erro={problema === 'ordem' ? 'Fim antes do início.' : null} />
         </View>
       </View>
       {problema === 'par' ? <Texto variante="pequeno">Preencha as duas datas.</Texto> : null}

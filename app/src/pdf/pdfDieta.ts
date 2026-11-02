@@ -174,10 +174,10 @@ ${r.observacao ? `<div class="suave">${escLinhas(r.observacao)}</div>` : ''}${es
           .join('')}</tbody></table></div>`
       : '',
     ergogenicos.length
-      ? `${barra}<div class="bloco">${sec('Medicação e ergogênicos')}<table class="dark"><thead><tr><th>Item</th><th>Concentração</th><th>Dose</th><th>Horário</th><th>Obs</th>${comPrescricao ? '<th>Prescrição</th>' : ''}</tr></thead><tbody>${ergogenicos
+      ? `${barra}<div class="bloco">${sec('Medicação e ergogênicos')}<table class="dark"><thead><tr><th>Item</th><th>Dose</th><th>Horário</th><th>Obs</th>${comPrescricao ? '<th>Prescrição</th>' : ''}</tr></thead><tbody>${ergogenicos
           .map(
             (e) =>
-              `<tr><td>${esc(e.nome) || '—'}${e.principioAtivo ? `<br><span class="suave">${esc(e.principioAtivo)}</span>` : ''}</td><td>${esc(e.concentracao) || '—'}</td><td>${esc(e.dose) || '—'}</td><td>${esc(e.horario) || '—'}</td><td>${esc(e.observacao) || '—'}</td>${comPrescricao ? `<td>${esc(e.prescricao) || '—'}</td>` : ''}</tr>`,
+              `<tr><td>${esc(e.nome) || '—'}${e.principioAtivo ? `<br><span class="suave">${esc(e.principioAtivo)}</span>` : ''}</td><td>${esc(e.dose) || '—'}</td><td>${esc(e.horario) || '—'}</td><td>${esc(e.observacao) || '—'}</td>${comPrescricao ? `<td>${esc(e.prescricao) || '—'}</td>` : ''}</tr>`,
           )
           .join('')}</tbody></table></div>`
       : '',

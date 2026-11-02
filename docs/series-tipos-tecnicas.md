@@ -7,7 +7,7 @@ Os blocos A a F (formato de 22/10, com papéis, regras de faixas e técnicas por
 | Área | Antes (A–F) | Agora (G) |
 | --- | --- | --- |
 | Tipo da série | Texto livre (o nome); "Só técnica" permitia série sem tipo | Código estável do tipo (`WARM_UP`, `FEEDER`, `WORKING`, `TOP_SET`, `BACK_OFF`), sempre obrigatório fora do cardio. O nome exibido vem da metodologia e pode mudar sem perder as séries. |
-| Carga e esforço | `intensidade` com modo, percentual, RIR e RPE misturados | `carga` (modo, percentual mín./máx., série de referência) e `esforco` (RIR de 0 a 5 ou RPE de 1 a 10, nunca os dois) separados. RPE saiu dos modos de carga. |
+| Carga e esforço | `intensidade` com modo, percentual, RIR e RPE misturados | `carga` (modo, percentual mín./máx., série de referência) e `esforco` (RIR de 0 a 10 ou RPE de 1 a 10, nunca os dois) separados. RPE saiu dos modos de carga. |
 | Série de trabalho | `modo == CARGA_TRABALHO`, e uma série em RPE não era de trabalho | Continua `carga.modo == CARGA_TRABALHO`; como o RPE agora é esforço, uma WS em RPE segue sendo de trabalho. |
 | Técnica | Três técnicas; rest pause e cluster podiam nascer sem tipo | Seis técnicas (rest pause, cluster, drop set, myo-reps, partial reps com região, forced reps com parceiro), sempre dentro de uma série com tipo, em geral a WS. |
 | Back off | Percentual da WS ou acima da anterior | Também "abaixo da referência": redução de 1 a 50% sobre a carga registrada na série de referência escolhida (uma série anterior do exercício). |

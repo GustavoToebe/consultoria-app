@@ -131,11 +131,15 @@ test('padrão de técnica pode ser parcial mas respeita os valores e a técnica 
 test('carga e esforço padrão do tipo e da modalidade', () => {
   const config = copia();
   config.tipos[2].porModalidade = {
-    LIVRE: { carga: { modo: 'ACIMA_DA_ANTERIOR', percentualMin: 120, percentualMax: null, referenciaUid: null }, esforco: { rir: 9, rpe: null } },
+    LIVRE: { carga: { modo: 'ACIMA_DA_ANTERIOR', percentualMin: 120, percentualMax: null, referenciaUid: null }, esforco: { rir: 11, rpe: null } },
   };
   const p = problemasDaMetodologia(config);
   expect(p['tipos[2].porModalidade.LIVRE.carga.percentualMin']).toBeDefined();
   expect(p['tipos[2].porModalidade.LIVRE.esforco.rir']).toBeDefined();
+  // A carga fixa é da série de um exercício: não vale como padrão do tipo nem da modalidade.
+  const fixa = copia();
+  fixa.tipos[0].cargaPadrao = { modo: 'CARGA_FIXA', percentualMin: null, percentualMax: null, referenciaUid: null, valorKg: 12 };
+  expect(problemasDaMetodologia(fixa)['tipos[0].cargaPadrao.modo']).toContain('carga fixa');
   // Back off sem referência é válido num padrão: a referência só nasce na série.
   const back = copia();
   back.tipos[4].cargaPadrao = { modo: 'ABAIXO_DA_REFERENCIA', percentualMin: 15, percentualMax: null, referenciaUid: null };

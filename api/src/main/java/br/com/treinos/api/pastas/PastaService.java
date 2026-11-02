@@ -33,6 +33,7 @@ import br.com.plataforma.comum.web.BadRequestException;
 import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.web.Exigir;
 import br.com.treinos.api.web.ConflitoComRecursoException;
+import br.com.treinos.api.web.FaixaDeData;
 import br.com.treinos.api.web.Fuso;
 import br.com.treinos.api.web.NaoEncontradoException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -450,6 +451,9 @@ public class PastaService {
     }
 
     private static void exigirPeriodo(LocalDate inicio, LocalDate fim) {
+        FaixaDeData.exigir("PERIODO_INVALIDO",
+                FaixaDeData.PLANEJAMENTO.campo("inicio", "Início da pasta", inicio),
+                FaixaDeData.PLANEJAMENTO.campo("fim", "Fim da pasta", fim));
         if (inicio != null && fim != null && fim.isBefore(inicio)) {
             throw new BadRequestException("O fim do período não pode ser antes do início.");
         }

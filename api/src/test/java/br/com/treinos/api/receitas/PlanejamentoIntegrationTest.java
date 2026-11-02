@@ -230,7 +230,7 @@ class PlanejamentoIntegrationTest extends AbstractIntegrationTest {
         api.post("/receitas", treinador, Map.of("tipo", "SERIES", "nome", "Inválido", "conteudo",
                 Map.of("series", List.of(Map.of("repsMin", 3, "repsMax", 6)))), 400);
         api.post("/receitas", treinador, Map.of("tipo", "SERIES", "nome", "Inválido", "conteudo", Map.of("series",
-                List.of(Map.of("tipo", "WORKING", "esforco", Map.of("rir", 9))))), 400);
+                List.of(Map.of("tipo", "WORKING", "esforco", Map.of("rir", 11))))), 400);
         api.post("/receitas", treinador, Map.of("tipo", "SERIES", "nome", "Série boa", "conteudo", Map.of("series",
                 List.of(Map.of("tipo", "WORKING", "repsMin", 3, "repsMax", 6, "carga", Map.of("modo", "CARGA_TRABALHO"),
                         "esforco", Map.of("rir", 1),

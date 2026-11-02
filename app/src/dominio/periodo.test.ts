@@ -20,8 +20,15 @@ it('próximo ciclo começa no dia seguinte ao fim e dura o mesmo tanto', () => {
 describe('renovar pasta', () => {
   it('usa o próximo ciclo da pasta, com datas ISO para a API', () => {
     expect(dadosDaRenovacao({ titulo: 'Plano 16', inicio: '2026-10-01', fim: '2026-10-30' }, '2026-10-13', 28)).toEqual({
-      titulo: 'Plano 16 (renovada)', inicio: '2026-10-31', fim: '2026-11-29', texto: '31/10/2026 a 29/11/2026',
+      titulo: 'Plano 16 (renovada)', inicio: '2026-10-31', fim: '2026-11-29', texto: '31/10/2026 a 29/11/2026', erro: null,
     });
+  });
+
+  it('pasta de origem com ano absurdo: não envia datas e diz o campo, sem repetir o valor', () => {
+    const r = dadosDaRenovacao({ titulo: 'Plano', inicio: '0260-01-01', fim: '0260-01-30' }, '2026-10-13', 28);
+    expect(r).toMatchObject({ inicio: null, fim: null, texto: 'sem período definido' });
+    expect(r.erro).toBe('Início da pasta nova: use uma data entre 01/01/2000 e 31/12/2031');
+    expect(r.erro).not.toContain('0260');
   });
 
   it('pasta sem fim parte de hoje pelo ciclo do aluno; sem ciclo, só o início', () => {

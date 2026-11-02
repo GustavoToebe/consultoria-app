@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react-native';
+import { Minus, Plus } from 'lucide-react-native';
 import { Children, useState, type ReactNode } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import type { Cardio, Carga, CargaDaEtapa, Configuracao, Esforco, ModoDeCarga, PapelDaSerie, RegiaoDasParciais, Retomada, Tecnica } from '../../api/tipos';
@@ -6,14 +6,16 @@ import { blocosIguais, blocosSeValidos, blocosValidos, lerBlocos, listaDeBlocosI
 import { modosDeCarga } from '../../dominio/editorTreino';
 import { REGIOES_DAS_PARCIAIS } from '../../dominio/metodologia';
 import { aoTrocarUnidade, outraUnidade, pausaEmDuasUnidades, unidadeVisivel, type UnidadeDaPausa } from '../../dominio/pausaDaTecnica';
-import { problemasDaTecnica, type Problemas } from '../../dominio/validacaoDeSerie';
+import { problemasDaTecnica, RIR_MAXIMO, type Problemas } from '../../dominio/validacaoDeSerie';
+import { mascaraDeNumero } from '../../dominio/formatos';
 import { escalar } from '../../dominio/preferencias';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, LARGURA_MENU_LATERAL } from '../../tema/tokens';
+import { espaco, fontes, LARGURA_MENU_LATERAL, RAIO } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { CampoNumerico, Interruptor } from '../../ui/Campos';
 import { Escolha } from '../../ui/Escolha';
+import { IconeBotao } from '../../ui/IconeBotao';
 import { Texto } from '../../ui/Texto';
 import { BotaoDeAbrir, BotaoDeTexto } from './BotaoDeAbrir';
 import {
@@ -61,13 +63,15 @@ export function AvisoDoCampo({ mensagem }: { mensagem?: string | null }) {
 // ---- Carga ----
 
 /** A forma de carga (carga de trabalho, % da WS, mesma carga, acima da anterior, abaixo da referência, sem carga). */
-export function EscolhaDeCarga({ carga, config, papel, aoMudarModo, erro, rotulo = 'Carga', rotuloVisivel = true, ajuda: ajudaPropria }: {
+export function EscolhaDeCarga({ carga, config, papel, aoMudarModo, erro, rotulo = 'Carga', rotuloVisivel = true, ajuda: ajudaPropria, exercicioComCarga = false }: {
   carga: Carga | null | undefined; config: Configuracao | null; papel?: PapelDaSerie | null;
   aoMudarModo: (modo: ModoDeCarga) => void; erro?: string | null; rotulo?: string;
   /** Falso quando o título da seção já diz o mesmo: o rótulo fica só para o leitor de tela. */
   rotuloVisivel?: boolean;
   /** Ajuda no lugar da padrão da forma de carga (o Cluster junta a dele numa linha só). */
   ajuda?: string;
+  /** Série de um exercício com carga (fora do cardio): só então a carga fixa em kg é oferecida (`modosDeCarga`). */
+  exercicioComCarga?: boolean;
 }) {
   const modo = carga?.modo ?? 'NENHUMA';
   const ajuda = ajudaPropria ?? ajudaDaCarga(modo, config);
@@ -75,7 +79,7 @@ export function EscolhaDeCarga({ carga, config, papel, aoMudarModo, erro, rotulo
   // recolhidas (reunião de 30/10). A divisão usa a forma gravada quando o campo abriu: escolher uma das "outras" não a
   // faz pular para a linha de cima enquanto a pessoa ainda está olhando. Nenhuma forma válida some.
   const [modoAoAbrir] = useState(modo);
-  const { principais, outras } = modosDeCarga(config, papel, modoAoAbrir);
+  const { principais, outras } = modosDeCarga(config, papel, modoAoAbrir, exercicioComCarga);
   const [verOutras, setVerOutras] = useState(false);
   const daOutras = outras.some((o) => o.valor === modo);
   const abertas = verOutras || daOutras;
@@ -97,9 +101,11 @@ export function EscolhaDeCarga({ carga, config, papel, aoMudarModo, erro, rotulo
  * O percentual (mínimo e máximo opcional) das formas de carga que têm faixa; nada nas outras. Com várias séries, quem
  * chama passa `semAjuda` e mostra a ajuda uma vez só, embaixo de todas (teste local de 30/10).
  */
-export function FaixaDeCarga({ carga, config, prefixo = '', aoMudar, erros, semAjuda = false }: {
+export function FaixaDeCarga({ carga, config, prefixo = '', aoMudar, erros, semAjuda = false, aoLado }: {
   carga: Carga | null | undefined; config: Configuracao | null; prefixo?: string;
   aoMudar: (min: number | null, max: number | null) => void; erros: Problemas; semAjuda?: boolean;
+  /** Mais uma célula na mesma linha, depois do máximo (o RIR daquela série, no grupo de séries). */
+  aoLado?: ReactNode;
 }) {
   const rotulos = rotulosDaFaixa(carga?.modo, config);
   if (!rotulos) return null;
@@ -109,8 +115,45 @@ export function FaixaDeCarga({ carga, config, prefixo = '', aoMudar, erros, semA
       aoMudar={(v) => aoMudar(v, carga?.percentualMax ?? null)} erro={erros.percentualMin} ajuda={semAjuda ? undefined : rotulos.ajuda} /></View>
     <View style={estilos.campo}><CampoNumerico rotulo={`${prefixo}${rotulos.maximo}`} sufixo="%" valor={carga?.percentualMax ?? null}
       aoMudar={(v) => aoMudar(carga?.percentualMin ?? null, v)} erro={erros.percentualMax} /></View>
+    {aoLado}
   </View>;
 }
+
+/**
+ * Os kg da carga fixa: decimal com vírgula, até 2 casas (a máscara não deixa passar a terceira). O rótulo não repete o
+ * nome da opção ("Carga fixa (kg)"), para o leitor de tela não ouvir dois controles com o mesmo nome. Libras não existem.
+ */
+export function CampoDaCargaFixa({ valor, aoMudar, erro }: { valor: number | null | undefined; aoMudar: (kg: number | null) => void; erro?: string | null }) {
+  return <CampoSozinho>
+    <CampoNumerico rotulo="Peso da carga fixa" sufixo="kg" valor={valor ?? null} mascara={(t) => mascaraDeNumero(t, 2)} aoMudar={aoMudar} erro={erro} />
+  </CampoSozinho>;
+}
+
+/**
+ * RIR de UMA série do grupo, num passo de − e +, de 0 ("falha") a 10. Fica na linha do percentual daquela série (ou na
+ * lista do esforço, sem percentual): onze chips por série não caberiam em 390 px. O passo não sai da faixa; um valor
+ * gravado fora dela (planilha antiga) aparece com o erro da validação.
+ */
+export function RirDaSerie({ numero, valor, aoMudar, erro }: { numero: number; valor: number; aoMudar: (rir: number) => void; erro?: string | null }) {
+  const { cores, fatorTexto } = useTema();
+  const rotulo = `Série ${numero} · RIR`;
+  const falha = valor === 0;
+  return <View style={estilos.rir}>
+    <Texto variante="rotulo" cor={cores.texto}>{rotulo}</Texto>
+    <View style={estilos.passo}>
+      <IconeBotao moldura Icone={Minus} rotulo={`Diminuir o RIR da série ${numero}`} desabilitado={valor <= 0} aoTocar={() => aoMudar(Math.min(valor - 1, RIR_MAXIMO))} />
+      <View accessible accessibilityLabel={`${rotulo}: ${falha ? '0, até a falha' : valor}`} accessibilityLiveRegion="polite"
+        style={[estilos.valorDoRir, { minWidth: escalar(LARGURA_DO_RIR, fatorTexto), borderColor: erro ? cores.perigo : cores.bordaCampo, backgroundColor: cores.campo }]}>
+        <Texto numerico style={estilos.textoDoRir} cor={cores.texto}>{falha ? 'falha' : String(valor)}</Texto>
+      </View>
+      <IconeBotao moldura Icone={Plus} rotulo={`Aumentar o RIR da série ${numero}`} desabilitado={valor >= RIR_MAXIMO} aoTocar={() => aoMudar(Math.max(valor + 1, 0))} />
+    </View>
+    <ErroDoCampo mensagem={erro} />
+  </View>;
+}
+
+/** Cabe "falha" no tamanho de texto padrão; cresce com o texto da pessoa. */
+const LARGURA_DO_RIR = 64;
 
 /** Série de referência do "abaixo da referência": só as anteriores do exercício. */
 export function ReferenciaDaCarga({ opcoes, valor, aoMudar, erro }: {
@@ -163,30 +206,45 @@ export function CamposDasRepeticoes({ valor, aoMudar, erros, rotulo = 'Repetiç�
 // ---- Esforço ----
 
 /**
- * Esforço percebido: RIR (0 a 5) ou RPE (1 a 10, de meio em meio), nunca os dois. A forma escolhida fica com a tela
+ * Esforço percebido: RIR (0 a 10) ou RPE (1 a 10, de meio em meio), nunca os dois. A forma escolhida fica com a tela
  * enquanto o esforço ainda está vazio ("RIR" sem número não seria lembrado só pelo valor).
+ *
+ * No grupo de séries (`variasSeries`) o valor escolhido aqui vale para todas: o rótulo diz isso. Com RIR diferente em cada
+ * série (`rirDeCadaSerie`, "3, 2, 2, 1"), nenhum número fica marcado, para não parecer que o grupo tem o RIR da primeira; só
+ * um toque aqui troca todas. `semRpe` tira a opção RPE (séries de aquecimento e preparação, `mostraRpe`).
  */
-export function CamposDoEsforco({ esforco, aoMudar, erros, rotulo = 'Esforço', rotuloVisivel = true }: {
+export function CamposDoEsforco({ esforco, aoMudar, erros, rotulo = 'Esforço', rotuloVisivel = true, semRpe = false, variasSeries = false, rirDeCadaSerie }: {
   esforco: Esforco | null | undefined; aoMudar: (e: Esforco | null) => void; erros: Problemas; rotulo?: string;
   /** Falso quando o título da seção já diz o mesmo: o rótulo fica só para o leitor de tela. */
   rotuloVisivel?: boolean;
+  semRpe?: boolean;
+  variasSeries?: boolean;
+  /** Os RIR do grupo em texto, quando não são todos iguais; nulo ou ausente quando são. */
+  rirDeCadaSerie?: string | null;
 }) {
   const [escolhida, setEscolhida] = useState<FormaDeEsforco>(formaDoEsforco(esforco));
   const doValor = formaDoEsforco(esforco);
-  const forma = doValor === 'NENHUM' ? escolhida : doValor;
+  // Escolheu RPE (ainda sem número) e o tipo virou aquecimento: a opção sumiu, então vale "não prescrito".
+  const forma = doValor !== 'NENHUM' ? doValor : semRpe && escolhida === 'RPE' ? 'NENHUM' : escolhida;
+  const formas = semRpe && doValor !== 'RPE' ? FORMAS_DE_ESFORCO.filter((f) => f.valor !== 'RPE') : FORMAS_DE_ESFORCO;
   const mudarForma = (f: FormaDeEsforco) => {
     setEscolhida(f);
     if (f !== forma || f === 'NENHUM') aoMudar(null);
   };
+  const misto = !!rirDeCadaSerie;
   return <View style={estilos.bloco}>
-    <Escolha rotulo={rotuloVisivel ? rotulo : undefined} descricao={rotulo} opcoes={FORMAS_DE_ESFORCO} valor={forma} aoMudar={mudarForma} />
+    <Escolha rotulo={rotuloVisivel ? rotulo : undefined} descricao={rotulo} opcoes={formas} valor={forma} aoMudar={mudarForma} />
     {forma === 'RIR' ? <>
-      <Escolha rotulo="RIR (repetições na reserva)" opcoes={OPCOES_DE_RIR} valor={esforco?.rir ?? null} aoMudar={(rir) => aoMudar({ rir, rpe: null })} />
-      {esforco?.rir === 0 ? <Texto variante="pequeno">RIR 0: o aluno vai até a falha.</Texto> : null}
+      <Escolha rotulo={variasSeries ? 'RIR de todas as séries' : 'RIR (repetições na reserva)'} opcoes={OPCOES_DE_RIR} valor={misto ? null : esforco?.rir ?? null}
+        aoMudar={(rir) => aoMudar({ rir, rpe: null })} />
+      {misto ? <Texto variante="pequeno">Cada série tem o seu RIR ({rirDeCadaSerie}). Escolher um número aqui troca o de todas.</Texto>
+        : variasSeries ? <Texto variante="pequeno">Vale para todas as séries. Para mudar só uma, use o RIR da própria série.</Texto> : null}
+      {!misto && esforco?.rir === 0 ? <Texto variante="pequeno">RIR 0: o aluno vai até a falha.</Texto> : null}
       <ErroDoCampo mensagem={erros.rir} />
     </> : null}
     {forma === 'RPE' ? <CampoSozinho>
-      <CampoNumerico rotulo="RPE (1 a 10, de meio em meio)" valor={esforco?.rpe ?? null} aoMudar={(rpe) => aoMudar({ rir: null, rpe })} erro={erros.rpe} ajuda="Esforço percebido. Ex.: 8 ou 8,5." />
+      <CampoNumerico rotulo={variasSeries ? 'RPE de todas as séries (1 a 10, de meio em meio)' : 'RPE (1 a 10, de meio em meio)'} valor={esforco?.rpe ?? null}
+        aoMudar={(rpe) => aoMudar({ rir: null, rpe })} erro={erros.rpe} ajuda="Esforço percebido. Ex.: 8 ou 8,5." />
     </CampoSozinho> : null}
   </View>;
 }
@@ -591,4 +649,8 @@ const estilos = StyleSheet.create({
   etapa: { gap: espaco(0.5) },
   linhaDaEtapa: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(0.75) },
   retomada: { gap: espaco(1), borderLeftWidth: 2, paddingLeft: espaco(1.5) },
+  rir: { gap: espaco(0.5) },
+  passo: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75) },
+  valorDoRir: { height: 40, paddingHorizontal: espaco(1), borderWidth: 1, borderRadius: RAIO, alignItems: 'center', justifyContent: 'center' },
+  textoDoRir: { fontFamily: fontes.negrito, fontSize: 15, lineHeight: 20 },
 });

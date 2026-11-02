@@ -91,7 +91,7 @@ class ParidadeQuestionarioTest {
         daqui.put("telefoneDigitosMaximo", LimitesQuestionario.TELEFONE_DIGITOS_MAXIMO);
         daqui.put("emailTamanho", LimitesQuestionario.EMAIL_TAMANHO);
         daqui.put("dataAnoMinimo", LimitesQuestionario.DATA_ANO_MINIMO);
-        daqui.put("dataAnoMaximo", LimitesQuestionario.DATA_ANO_MAXIMO);
+        daqui.put("dataAnosAFrente", LimitesQuestionario.DATA_ANOS_A_FRENTE);
         daqui.put("imagemBytes", LimitesQuestionario.IMAGEM_BYTES);
         daqui.put("imagemLado", LimitesQuestionario.IMAGEM_LADO);
         daqui.put("objetivoTamanho", LimitesQuestionario.OBJETIVO_TAMANHO);

@@ -83,10 +83,10 @@ export function repeticoesNaForma(forma: FormaDasRepeticoes, r: { repsMin?: numb
   return { repsMin: r.repsMin ?? null, repsMax: r.repsMax ?? null, amrap: false };
 }
 
-/** RIR de 0 a 5; o 0 diz o que significa. */
+/** RIR de 0 a 10; o 0 diz o que significa. */
 export const OPCOES_DE_RIR: { valor: number; rotulo: string }[] = [
   { valor: 0, rotulo: '0 · até a falha' },
-  ...[1, 2, 3, 4, 5].map((valor) => ({ valor, rotulo: String(valor) })),
+  ...[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((valor) => ({ valor, rotulo: String(valor) })),
 ];
 
 // ---- Tipo, técnica e combinação ----
@@ -141,9 +141,16 @@ export function opcoesDeCombinacao(config: Configuracao | null | undefined): { v
   return tipos.map((t) => ({ valor: t, rotulo: nomeDaCombinacao(config, t) }));
 }
 
-/** Séries ANTES da posição `ate`, para a série de referência do "abaixo da referência": "Série 2 · Top set". */
+/**
+ * Séries ANTES da posição `ate`, para a série de referência do "abaixo da referência": "Série 2 · Top set". A série de
+ * carga fixa não entra (os kg são do treinador, não uma carga que o aluno registrou); a numeração é a da lista inteira.
+ */
 export function opcoesDeReferencia(series: readonly Serie[], ate: number, config: Configuracao | null | undefined): { valor: string; rotulo: string }[] {
-  return series.slice(0, Math.max(0, ate)).map((s, i) => ({ valor: s.uid, rotulo: `Série ${i + 1} · ${nomeDoTipo(config, s.tipo) || 'sem tipo'}` }));
+  return series
+    .slice(0, Math.max(0, ate))
+    .map((s, i) => ({ s, i }))
+    .filter(({ s }) => s.carga?.modo !== 'CARGA_FIXA')
+    .map(({ s, i }) => ({ valor: s.uid, rotulo: `Série ${i + 1} · ${nomeDoTipo(config, s.tipo) || 'sem tipo'}` }));
 }
 
 // ---- Carga ----
@@ -181,6 +188,8 @@ export function ajudaDaCarga(modo: ModoDeCarga | null | undefined, config: Confi
       return `A carga que o aluno informa para o dia: é a referência da ${ws} e dos percentuais.`;
     case 'MESMA_CARGA':
       return `A carga da última série de trabalho feita antes, no mesmo exercício.`;
+    case 'CARGA_FIXA':
+      return 'Os kg que você escreve: o aluno vê o peso pronto. Não conta como série de trabalho nem serve de base para percentuais.';
     case 'NENHUMA':
       return 'O aluno não recebe sugestão de carga.';
     default:
@@ -322,11 +331,15 @@ export const CARGA_DA_SERIE: CargaDaEtapa = { modo: 'DA_SERIE', percentual: null
 /** Retomada nova: até a falha (AMRAP) com a carga da série, o mesmo que o Rest-pause sem retomadas escritas. */
 export const RETOMADA_PADRAO: Retomada = { repsMin: null, repsMax: null, amrap: true, carga: CARGA_DA_SERIE };
 
-/** "Da série" ou "% da WS". */
+/**
+ * "Carga da série" ou o percentual, com o MESMO texto da carga da série (`modosDeCarga`): "Percentual da carga de trabalho
+ * (WS)" (C03, reunião de 30/10: "% da WS" não batia com o resto do editor).
+ */
 export function opcoesDaCargaDaEtapa(ws: string): { valor: ModoDaCargaDaEtapa; rotulo: string }[] {
+  const nome = ws?.trim();
   return [
     { valor: 'DA_SERIE', rotulo: 'Carga da série' },
-    { valor: 'PERCENTUAL_WS', rotulo: `% da ${ws || 'série de trabalho'}` },
+    { valor: 'PERCENTUAL_WS', rotulo: nome && nome !== 'série de trabalho' ? `Percentual da carga de trabalho (${nome})` : 'Percentual da carga de trabalho' },
   ];
 }
 

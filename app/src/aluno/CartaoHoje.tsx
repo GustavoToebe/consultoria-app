@@ -2,11 +2,11 @@ import { Moon } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { contagem } from '../dominio/contagens';
-import type { EstadoDoHoje } from '../dominio/inicioDoAluno';
+import { TEXTO_PACOTE_RECUSADO, type EstadoDoHoje } from '../dominio/inicioDoAluno';
 import { nomeComDia, rotuloDoTipo } from '../dominio/semana';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
-import { MensagemErro } from '../ui/Estados';
+import { Alerta, MensagemErro } from '../ui/Estados';
 import { Texto } from '../ui/Texto';
 
 interface Props {
@@ -29,6 +29,9 @@ export function CartaoHoje({ estado, aoVerTreino, aoEscolher, erro }: Props) {
   const { cores, marca, sobreMarca } = useTema();
   const neutro = { backgroundColor: cores.superficie, borderColor: cores.borda };
 
+  if (estado.tipo === 'recusado') {
+    return <View testID="pacote-recusado"><Alerta tom="atencao" texto={TEXTO_PACOTE_RECUSADO} /></View>;
+  }
   if (estado.tipo === 'erro') {
     return <MensagemErro texto={erro?.texto ?? 'Não foi possível carregar o seu treino.'} tentarDeNovo={erro?.aoTentarDeNovo} erro={erro?.causa} />;
   }
