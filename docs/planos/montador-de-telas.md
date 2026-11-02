@@ -1,6 +1,6 @@
 # Montador de telas
 
-Situação: Em andamento · Onde: branch `montador-de-telas` · Atualizado: 02/11/2026
+Situação: Feito · Onde: branch `montador-de-telas` (PR para a `main`) · Atualizado: 02/11/2026
 
 ## Objetivo
 Criar uma tela exclusiva de desenvolvimento (`/montador`) em que o Gustavo monta o rascunho de uma tela nova empilhando os componentes reais de `app/src/ui/`, alterna largura (celular 390 px ou PC 1280 px) e tema (claro, areia, escuro) e exporta ou importa um JSON validado para enviar ao Claude junto com um print.
@@ -17,10 +17,10 @@ Criar uma tela exclusiva de desenvolvimento (`/montador`) em que o Gustavo monta
 | 7 | Exportar, importar e limites | Rascunho salvo em `localStorage` (`montador:rascunho`, só web, falha silenciosa). `lerJson` valida versão, tipos conhecidos, props declaradas e tipos, restrições de filhos (`listaDeLinhas` só `linha`, `linhaDeBotoes` só `botao`), até 500 blocos, profundidade até 6, texto até 2.000 caracteres por campo e JSON até 200 KB; nenhum texto vira HTML | Gustavo (especificação de 02/11) |
 
 ## Passos
-- [x] 1. Plano da frente (`docs/planos/montador-de-telas.md`) e linha no `docs/planos/README.md` — commit/run: —
-- [ ] 2. Regras puras e validação em `app/src/dominio/montador.ts` + testes unitários em `app/src/dominio/montador.test.ts` — commit/run: —
-- [ ] 3. Catálogo (`catalogo.tsx`), modelos iniciais (`modelosIniciais.ts`), peças (`Paleta.tsx`, `Prancheta.tsx`, `Propriedades.tsx`) e rota `app/src/app/montador/index.tsx` — commit/run: —
-- [ ] 4. Atualização de `AGENTS.md`, verificações (`npm run typecheck && npm run lint && npm test`), conferência do export de produção e prints em 390 e 1280 px — commit/run: —
+- [x] 1. Plano da frente (`docs/planos/montador-de-telas.md`) e linha no `docs/planos/README.md` — commit/run: `4f4782f0`
+- [x] 2. Regras puras e validação em `app/src/dominio/montador.ts` + testes unitários em `app/src/dominio/montador.test.ts` — commit/run: `7273a6b0`
+- [x] 3. Catálogo (`catalogo.tsx`), modelos iniciais (`modelosIniciais.ts`), peças (`Paleta.tsx`, `Prancheta.tsx`, `Propriedades.tsx`) e rota `app/src/app/montador/index.tsx` — commit/run: `32c6347b`
+- [x] 4. Atualização de `AGENTS.md`, teste de tela `app/e2e/montador.spec.ts`, verificações (`npm run typecheck && npm run lint && npm test`), conferência do export de produção e prints em 390 e 1280 px — commit/run: neste commit
 
 ## Fora do escopo
 - Versão 2 (fora deste PR):

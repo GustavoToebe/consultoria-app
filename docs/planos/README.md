@@ -54,7 +54,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Visual da reunião: cor por tipo de série, dieta, histórico e receitas (C35, C50, C74, C45, C16), **Frente G, leva 2** | [cores-por-tipo-de-serie.md](cores-por-tipo-de-serie.md) | prévia em `docs/prototipos/` | Planejando: só a prévia; código depois do ok do Gustavo | 02/11/2026 |
 | Receitas em blocos e as receitas do treinador do piloto (C16, C17) | [receitas-em-blocos.md](receitas-em-blocos.md) | — | Planejando: janela agrupada na Frente G; cadastro aguarda a lista do treinador | 02/11/2026 |
 | Supervisão da equipe pelo dono e limite de alunos por treinador (C65, C79) | [supervisao-da-equipe.md](supervisao-da-equipe.md) | — | Planejando (só decisões, sem código) | 02/11/2026 |
-| Montador de telas (rascunho visual com componentes reais do app e JSON para o Claude) | [montador-de-telas.md](montador-de-telas.md) | branch `montador-de-telas` | Em andamento | 02/11/2026 |
+| Montador de telas (rascunho visual com componentes reais do app e JSON para o Claude) | [montador-de-telas.md](montador-de-telas.md) | branch `montador-de-telas` (PR para a `main`) | Feito (versão 1) | 02/11/2026 |
 
 ## Pendências soltas
 
