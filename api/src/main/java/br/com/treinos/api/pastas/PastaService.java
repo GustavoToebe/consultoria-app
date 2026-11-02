@@ -15,6 +15,7 @@ import br.com.treinos.api.pastas.PastaDtos.CopiarPastaRequest;
 import br.com.treinos.api.pastas.PastaDtos.CopiarPastaResposta;
 import br.com.treinos.api.pastas.PastaDtos.FinalizarRequest;
 import br.com.treinos.api.pastas.PastaDtos.PlanoCopiadoDaPasta;
+import br.com.treinos.api.pastas.PastaDtos.PlanoPuladoNaCopia;
 import br.com.treinos.api.pastas.PastaDtos.PlanoPublicadoNaPasta;
 import br.com.treinos.api.pastas.PastaDtos.PlanoPuladoNaPasta;
 import br.com.treinos.api.pastas.PastaDtos.PublicarPastaResposta;
@@ -31,8 +32,10 @@ import br.com.treinos.api.treino.PlanoTreinoService;
 import br.com.plataforma.comum.web.BadRequestException;
 import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.web.Exigir;
+import br.com.treinos.api.web.ConflitoComRecursoException;
 import br.com.treinos.api.web.Fuso;
 import br.com.treinos.api.web.NaoEncontradoException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,6 +44,9 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -201,27 +207,35 @@ public class PastaService {
      * "Publicar tudo": publica o rascunho de treino, dieta e mobilidade da pasta de uma vez, numa transação só.
      * Ordem: pasta (404, também a arquivada) → cálculo dos planos pendentes → permissão de publicar de CADA tipo que
      * tem plano pendente (403; treino e mobilidade pedem a do treino, dieta a da dieta; tipo sem alteração não pede
-     * permissão e, sem nenhum pendente, nenhuma permissão específica é exigida além da da rota) → validação de todos os
-     * planos a publicar → só então publica. Um erro em qualquer plano ({@code PLANO_INVALIDO}) ou aviso sem
+     * permissão e, sem nenhum pendente, nenhuma permissão específica é exigida além da da rota) → um só plano pendente
+     * por tipo (409 {@code PLANOS_PENDENTES_DUPLICADOS}) → as versões que a tela viu (409 {@code CONFLITO_EDICAO}: plano
+     * pendente com versão diferente da enviada em {@code versoes}, ou ausente dela) → validação de todos os planos a
+     * publicar → só então publica. Tudo isso antes de qualquer efeito e antes de o {@code confirmarAvisos} valer, para a
+     * confirmação nunca cobrir um aviso que ninguém viu. Um erro em qualquer plano ({@code PLANO_INVALIDO}) ou aviso sem
      * {@code confirmarAvisos} ({@code CONFIRMAR_AVISOS}) devolve 422 com a lista por plano e nada é publicado. Cada
      * publicação passa pelo {@code publicar} do serviço do tipo (a mesma versão imutável e a mesma auditoria da rota
-     * individual). Plano sem publicação, ou com o rascunho alterado depois da última (inclusive pela mudança de período
-     * da pasta), entra; plano já publicado e sem alteração é pulado, sem versão nova. Plano arquivado não entra, e
-     * mobilidade só com a funcionalidade ligada no plano da consultoria.
+     * individual), com a versão que a tela enviou. Chamada simultânea nunca publica duas vezes nem pela metade: o lock
+     * otimista (tratado pela biblioteca como 409 {@code CONFLITO_EDICAO}) e a versão única do plano (convertida aqui no
+     * mesmo 409) derrubam a segunda e a transação inteira volta. Plano sem publicação, ou com o rascunho alterado depois
+     * da última (inclusive pela mudança de período da pasta), entra; plano já publicado e sem alteração é pulado, sem
+     * versão nova, e só aparece em {@code pulados} se a pessoa pode ler o tipo ({@code TREINO_LER} para treino e
+     * mobilidade, {@code DIETA_LER} para dieta). Plano arquivado não entra, e mobilidade só com a funcionalidade ligada
+     * no plano da consultoria.
      */
     @Transactional
-    public PublicarPastaResposta publicarTudo(UUID id, boolean confirmarAvisos, UUID usuarioId) {
+    public PublicarPastaResposta publicarTudo(UUID id, boolean confirmarAvisos, Map<UUID, Long> versoes, UUID usuarioId) {
         buscarAtiva(id);
         List<Alvo> alvos = planosDaPasta(id);
         List<Alvo> aPublicar = alvos.stream().filter(Alvo::pendente).toList();
         exigirPermissaoDosAlvos(aPublicar, "PUBLICAR");
+        exigirUmPendentePorTipo(aPublicar);
+        exigirVersoesDaTela(aPublicar, versoes);
         List<FieldError> erros = new ArrayList<>();
         List<FieldError> avisos = new ArrayList<>();
         for (Alvo a : aPublicar) {
             var resultado = a.servico().validar(a.plano().getId());
-            boolean repetido = aPublicar.stream().filter(o -> o.tipo().equals(a.tipo())).count() > 1;
-            resultado.erros().forEach(p -> erros.add(new FieldError(campo(a, repetido, p.caminho()), p.mensagem())));
-            resultado.avisos().forEach(p -> avisos.add(new FieldError(campo(a, repetido, p.caminho()), p.mensagem())));
+            resultado.erros().forEach(p -> erros.add(new FieldError(campo(a, p.caminho()), p.mensagem())));
+            resultado.avisos().forEach(p -> avisos.add(new FieldError(campo(a, p.caminho()), p.mensagem())));
         }
         if (!erros.isEmpty()) {
             throw new ValidacaoException("Há planos com erros que impedem a publicação. Nada foi publicado.",
@@ -232,14 +246,82 @@ public class PastaService {
         }
         // Antes de publicar: depois, os publicados também deixam de ter alteração pendente.
         List<PlanoPuladoNaPasta> pulados = alvos.stream().filter(a -> !aPublicar.contains(a))
+                .filter(a -> AcessoAtual.pode(permissaoDeLeitura(a)))
                 .map(a -> new PlanoPuladoNaPasta(a.tipo(), a.plano().getId())).toList();
         List<PlanoPublicadoNaPasta> publicados = new ArrayList<>();
-        for (Alvo a : aPublicar) {
-            var publicado = a.servico().publicar(a.plano().getId(),
-                    new PublicarRequest(a.plano().getVersao(), confirmarAvisos), usuarioId);
-            publicados.add(new PlanoPublicadoNaPasta(a.tipo(), a.plano().getId(), publicado.plano().versaoPublicada()));
+        try {
+            for (Alvo a : aPublicar) {
+                var publicado = a.servico().publicar(a.plano().getId(),
+                        new PublicarRequest(versoes.get(a.plano().getId()), confirmarAvisos), usuarioId);
+                publicados.add(new PlanoPublicadoNaPasta(a.tipo(), a.plano().getId(), publicado.plano().versaoPublicada()));
+            }
+        } catch (DataIntegrityViolationException corrida) {
+            // Outra chamada publicou o mesmo plano ao mesmo tempo: só a violação da versão (ou do plano ativo) vira 409;
+            // qualquer outra restrição é defeito e sobe como erro. A transação inteira volta.
+            if (violouVersaoDoPlano(corrida)) throw conflitoDeEdicao();
+            throw corrida;
         }
         return new PublicarPastaResposta(List.copyOf(publicados), pulados);
+    }
+
+    /** Restrições que uma publicação simultânea do mesmo plano fere: versão única do plano e plano ativo único do aluno. */
+    private static final Set<String> RESTRICOES_DA_PUBLICACAO = Set.of(
+            "plano_treino_versao_plano_id_numero_key", "plano_dieta_versao_plano_id_numero_key",
+            "plano_mobilidade_versao_plano_id_numero_key", "ux_plano_treino_ativo", "ux_plano_dieta_ativo",
+            "ux_plano_mobilidade_ativo");
+
+    /** Só olha o nome da restrição, nunca a mensagem do banco. */
+    static boolean violouVersaoDoPlano(DataIntegrityViolationException e) {
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            if (t instanceof org.hibernate.exception.ConstraintViolationException c
+                    && RESTRICOES_DA_PUBLICACAO.contains(c.getConstraintName())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static ConflictException conflitoDeEdicao() {
+        return new ConflictException("Outra pessoa alterou os planos desta pasta. Recarregue e confira antes de publicar. "
+                + "Nada foi publicado.", "CONFLITO_EDICAO");
+    }
+
+    /**
+     * Dois ou mais planos pendentes do mesmo tipo: a pasta não sabe qual publicar (o aluno passaria a ver o último). 409
+     * {@code PLANOS_PENDENTES_DUPLICADOS}, com um item em {@code fieldErrors} por plano ({@code field} = o tipo,
+     * {@code message} = o id do plano).
+     */
+    private static void exigirUmPendentePorTipo(List<Alvo> aPublicar) {
+        List<FieldError> repetidos = new ArrayList<>();
+        List<String> tipos = new ArrayList<>();
+        for (String tipo : List.of("treino", "dieta", "mobilidade")) {
+            List<Alvo> doTipo = aPublicar.stream().filter(a -> a.tipo().equals(tipo)).toList();
+            if (doTipo.size() > 1) {
+                tipos.add(tipo);
+                doTipo.forEach(a -> repetidos.add(new FieldError(tipo, a.plano().getId().toString())));
+            }
+        }
+        if (!repetidos.isEmpty()) {
+            throw new ConflitoComRecursoException("A pasta tem mais de um plano de " + String.join(" e de ", tipos)
+                    + " com alteração a publicar. Deixe só um por tipo (arquive ou publique o outro) e tente de novo. "
+                    + "Nada foi publicado.", "PLANOS_PENDENTES_DUPLICADOS", repetidos);
+        }
+    }
+
+    /**
+     * A tela só publica o que viu: todo plano pendente precisa estar em {@code versoes} com a versão que ele tem agora.
+     * Rascunho salvo por outra pessoa depois (ou plano que ficou pendente depois) = 409 {@code CONFLITO_EDICAO}.
+     */
+    private static void exigirVersoesDaTela(List<Alvo> aPublicar, Map<UUID, Long> versoes) {
+        for (Alvo a : aPublicar) {
+            if (!Objects.equals(versoes.get(a.plano().getId()), a.plano().getVersao())) {
+                throw conflitoDeEdicao();
+            }
+        }
+    }
+
+    private static String permissaoDeLeitura(Alvo a) {
+        return a.tipo().equals("dieta") ? "DIETA_LER" : "TREINO_LER";
     }
 
     /**
@@ -271,7 +353,23 @@ public class PastaService {
             copiados.add(new PlanoCopiadoDaPasta(a.tipo(), copia.plano().id()));
         }
         auditoria.registrarEvento("PASTA_COPIADA", "PASTA", nova.getId(), "Copiou uma pasta de plano para outro aluno.");
-        return new CopiarPastaResposta(nova.getId(), List.copyOf(copiados));
+        return new CopiarPastaResposta(nova.getId(), List.copyOf(copiados), puladosDaCopia(id));
+    }
+
+    /** Motivo fixo de {@code pulados} na cópia: a funcionalidade não está no plano da consultoria. */
+    public static final String MOTIVO_FORA_DO_PLANO = "FUNCIONALIDADE_FORA_DO_PLANO";
+
+    /**
+     * O que a origem tinha e a cópia não levou: hoje só a mobilidade, quando a funcionalidade está desligada no plano da
+     * consultoria. Só diz que existe a quem pode ler o tipo ({@code TREINO_LER}); arquivada não conta.
+     */
+    private List<PlanoPuladoNaCopia> puladosDaCopia(UUID pastaId) {
+        if (plano.funcionalidadeLiberada(br.com.treinos.api.conta.RecursosDoApp.FUNCIONALIDADE_MOBILIDADE)
+                || !AcessoAtual.pode("TREINO_LER")) {
+            return List.of();
+        }
+        boolean temMobilidade = mobilidades.findByPastaId(pastaId).stream().anyMatch(p -> !p.isArquivado());
+        return temMobilidade ? List.of(new PlanoPuladoNaCopia("mobilidade", MOTIVO_FORA_DO_PLANO)) : List.of();
     }
 
     /** Um plano da pasta com o serviço do tipo; {@code tipo} é o que vai no corpo e no prefixo dos erros. */
@@ -306,10 +404,9 @@ public class PastaService {
         if (alvos.stream().anyMatch(a -> a.tipo().equals("dieta"))) AcessoAtual.exigir("DIETA_" + sufixo);
     }
 
-    /** {@code treino.<caminho>}; com mais de um plano do mesmo tipo a publicar, {@code treino[<planoId>].<caminho>}. */
-    private static String campo(Alvo alvo, boolean repetido, String caminho) {
-        String base = repetido ? alvo.tipo() + "[" + alvo.plano().getId() + "]" : alvo.tipo();
-        return caminho == null || caminho.isBlank() ? base : base + "." + caminho;
+    /** {@code treino.<caminho>}: com um só plano pendente por tipo, o tipo basta para achar o plano. */
+    private static String campo(Alvo alvo, String caminho) {
+        return caminho == null || caminho.isBlank() ? alvo.tipo() : alvo.tipo() + "." + caminho;
     }
 
     /** Pasta que existe nesta consultoria e não foi arquivada; senão 404. */

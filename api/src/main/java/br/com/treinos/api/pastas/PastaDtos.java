@@ -11,6 +11,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /** Contratos HTTP das pastas de plano. */
@@ -33,15 +34,23 @@ public final class PastaDtos {
     public record PastaVigenteResposta(PastaResumo pasta) {
     }
 
-    /** Publicar tudo: {@code confirmarAvisos} tem o mesmo sentido da publicação de um plano só. */
-    public record PublicarPastaRequest(boolean confirmarAvisos) {
+    /**
+     * Publicar tudo. {@code confirmarAvisos} tem o mesmo sentido da publicação de um plano só. {@code versoes} é
+     * {@code {planoId: versao}} (a {@code versao} do lock otimista de cada plano) dos planos da pasta que a tela viu:
+     * obrigatório, pode ser vazio. Plano pendente cuja versão atual difira da enviada, ou que não esteja no mapa, dá 409
+     * {@code CONFLITO_EDICAO} e nada é publicado. Ids a mais no mapa são ignorados.
+     */
+    public record PublicarPastaRequest(boolean confirmarAvisos, @NotNull Map<UUID, @NotNull Long> versoes) {
     }
 
     /** {@code tipo}: {@code treino}, {@code dieta} ou {@code mobilidade}. */
     public record PlanoPublicadoNaPasta(String tipo, UUID planoId, int versao) {
     }
 
-    /** Plano que ficou como estava: já publicado e sem alteração no rascunho depois disso. */
+    /**
+     * Plano que ficou como estava: já publicado e sem alteração no rascunho depois disso. Só aparecem os tipos que a
+     * pessoa pode ler ({@code TREINO_LER} para treino e mobilidade, {@code DIETA_LER} para dieta).
+     */
     public record PlanoPuladoNaPasta(String tipo, UUID planoId) {
     }
 
@@ -56,7 +65,15 @@ public final class PastaDtos {
     public record PlanoCopiadoDaPasta(String tipo, UUID planoId) {
     }
 
-    public record CopiarPastaResposta(UUID pastaId, List<PlanoCopiadoDaPasta> planos) {
+    /**
+     * Tipo de plano da origem que a cópia não levou. {@code tipo} em minúsculas, como em {@link PlanoCopiadoDaPasta};
+     * {@code motivo} é um código fixo ({@link PastaService#MOTIVO_FORA_DO_PLANO}). Sem dado de pessoa.
+     */
+    public record PlanoPuladoNaCopia(String tipo, String motivo) {
+    }
+
+    /** {@code pulados}: o que existia na origem e não foi copiado (mobilidade com a funcionalidade desligada no plano). */
+    public record CopiarPastaResposta(UUID pastaId, List<PlanoCopiadoDaPasta> planos, List<PlanoPuladoNaCopia> pulados) {
     }
 
     /** Peso (e a data dele) que a atualização enviada da pasta gravou; ambos nulos quando não há. Nunca zero. */
