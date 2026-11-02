@@ -93,6 +93,11 @@ describe('exercício', () => {
     expect(caminhos(validarExercicio(comSeries([ws('a')], { modalidade: 'CARDIO' }), null).erros).sort()).toEqual(['series[0].carga', 'series[0].repsMin', 'series[0].tipo', 'series[0].cardio'].sort());
   });
 
+  it('exercício de cardio recusa kg solto na carga, como a API', () => {
+    const comKg = serie('c', { tipo: null, repsMin: null, repsMax: null, carga: { modo: 'NENHUMA', valorKg: 12 }, cardio: { duracaoMin: 20 } });
+    expect(caminhos(validarExercicio(comSeries([comKg], { modalidade: 'CARDIO', progressao: false }), CONFIGURACAO_PADRAO).erros)).toEqual(['series[0].carga.valorKg']);
+  });
+
   it('série de trabalho é a de carga de trabalho, nunca pelo nome do tipo', () => {
     expect(serieDeTrabalho(ws('a'))).toBe(true);
     expect(serieDeTrabalho(serie('b', { tipo: 'WS', carga: carga('MESMA_CARGA') }))).toBe(false);

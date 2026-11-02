@@ -86,6 +86,7 @@ function validarExercicioNoColetor(c: Coletor, e: ExercicioPlano, caminho: strin
   const tiposAvisados = new Set<string>();
   const tecnicasAvisadas = new Set<string>();
   const anteriores = new Set<string>();
+  const fixas = new Set<string>();
   series.forEach((s, k) => {
     const cs = junta(caminho, `series[${k}]`);
     c.uid(s.uid, cs);
@@ -100,6 +101,11 @@ function validarExercicioNoColetor(c: Coletor, e: ExercicioPlano, caminho: strin
       if (modo === 'ABAIXO_DA_REFERENCIA' && referencia && !anteriores.has(referencia)) {
         c.erro(junta(cs, 'carga.referenciaUid'), 'A referência precisa ser uma série anterior, no mesmo exercício.');
       }
+      if (modo === 'ABAIXO_DA_REFERENCIA' && referencia && fixas.has(referencia)) {
+        c.erro(junta(cs, 'carga.referenciaUid'), 'Carga fixa não serve de referência: escolha uma série com a carga do aluno.');
+      }
+      if (modo === 'CARGA_FIXA' && e.unidade === 'nenhuma') c.erro(junta(cs, 'carga.modo'), 'Carga fixa só em exercício com carga.');
+      if (modo === 'CARGA_FIXA' && s.uid) fixas.add(s.uid);
       if (e.unidade === 'nenhuma' && s.tecnica?.tipo === 'CLUSTER' && s.tecnica.cargasDosBlocos != null) {
         c.erro(junta(cs, 'tecnica.cargasDosBlocos'), 'Exercício sem carga não tem carga por bloco.');
       }

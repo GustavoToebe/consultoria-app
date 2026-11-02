@@ -4,10 +4,10 @@ import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import type { Configuracao, Serie } from '../../api/tipos';
 import { agrupar, descreverGrupo, tituloDoGrupoDeSeries, type GrupoDeSeries } from '../../dominio/agrupamento';
 import { blocosValidos } from '../../dominio/blocos';
-import { adicionarSerie, alterarGrupo, alterarPercentuais, DESCANSO_MAXIMO_SEGUNDOS, LIMITE_SERIES, moverGrupo, mudarQuantidade, novoExercicio, removerGrupo, tecnicaVazia, type AlteracaoDeGrupo } from '../../dominio/editorTreino';
+import { adicionarSerie, alterarEsforcoDaSerie, alterarGrupo, alterarPercentuais, DESCANSO_MAXIMO_SEGUNDOS, LIMITE_SERIES, moverGrupo, mudarQuantidade, novoExercicio, removerGrupo, tecnicaVazia, type AlteracaoDeGrupo } from '../../dominio/editorTreino';
 import { explicacaoDoCatalogo } from '../../dominio/catalogoMetodologia';
 import { assinaturaDoEsforco, marcaConfere, origemAposConteudo, origemAoTrocarTipo, podeRestPauseNaUltima, restPauseNestaSerie, textoDaContagemDeSeries, textoDaRevisaoDoEsforco, type MarcaDeOrigem } from '../../dominio/exemplosDePrescricao';
-import { codigoTrabalho, esforcoInicial, explicacaoDaTecnica, explicacaoDoTipo, nomeDaSerieDeTrabalho, nomeDoTipo, papelDe, padraoDaTecnica, tecnicaDescritiva, tipoPorCodigo } from '../../dominio/metodologia';
+import { codigoTrabalho, esforcoInicial, explicacaoDaTecnica, explicacaoDoTipo, mostraRpe, nomeDaSerieDeTrabalho, nomeDoTipo, papelDe, padraoDaTecnica, tecnicaDescritiva, tipoPorCodigo } from '../../dominio/metodologia';
 import { CONFIGURACAO_PADRAO } from '../../dominio/metodologiaPadrao';
 import { previaDoGrupo, ROTULO_DA_OBSERVACAO_DA_SERIE } from '../../dominio/resumoDaSerie';
 import { validarExercicio } from '../../dominio/validacaoDoTreino';
@@ -24,7 +24,7 @@ import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Selo, type TipoSelo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { BotaoDeAbrir } from './BotaoDeAbrir';
-import { AvisoDoCampo, CampoSozinho, CamposDaTecnica, CamposDasRepeticoes, CamposDoCardio, CamposDoEsforco, ErroDoCampo, EscolhaDeCarga, FaixaDeCarga, ReferenciaDaCarga, useCamposLadoALado } from './CamposDaPrescricao';
+import { AvisoDoCampo, CampoDaCargaFixa, CampoSozinho, CamposDaTecnica, CamposDasRepeticoes, CamposDoCardio, CamposDoEsforco, ErroDoCampo, EscolhaDeCarga, FaixaDeCarga, ReferenciaDaCarga, RirDaSerie, useCamposLadoALado } from './CamposDaPrescricao';
 import {
   type EscolhaDeTecnica,
   opcoesDeReferencia,
@@ -47,6 +47,11 @@ interface Props {
   aoUsarReceita?: () => void;
   /** Exercício sem carga (elástico, peso corporal): a prévia não fala de carga. */
   semCarga?: boolean;
+  /**
+   * Séries de um exercício com carga, fora do cardio: só aí a carga fixa em kg é oferecida. Falso na receita de séries,
+   * que não é de um exercício (a mesma regra da metodologia).
+   */
+  exercicioComCarga?: boolean;
   /** `false` no grupo cujo descanso é depois da volta: a leitura não repete o descanso da série. */
   descansoPorSerie?: boolean;
   /** Número e nome do exercício: a faixa curta no topo do grupo aberto diz de qual exercício são as séries. */
@@ -61,7 +66,7 @@ interface Props {
  * aviso da validação (a mesma da publicação) e a prévia diz como o aluno vai ler. Exercício de cardio só tem a prescrição de
  * cardio.
  */
-export function EditorSeries({ series, config, modalidade, aoMudar, aoUsarReceita, semCarga = false, descansoPorSerie = true, numeroDoExercicio, nomeDoExercicio }: Props) {
+export function EditorSeries({ series, config, modalidade, aoMudar, aoUsarReceita, semCarga = false, exercicioComCarga = false, descansoPorSerie = true, numeroDoExercicio, nomeDoExercicio }: Props) {
   const { cores } = useTema();
   const cfg = config ?? CONFIGURACAO_PADRAO;
   const cardio = modalidade === 'CARDIO';
@@ -147,6 +152,12 @@ export function EditorSeries({ series, config, modalidade, aoMudar, aoUsarReceit
     }
     aoMudar(novas);
   };
+  /** RIR de uma série só (índice na lista do exercício): o grupo continua um só, e a marca de "veio do padrão" sai dela. */
+  const rirDaSerie = (indice: number, valor: number) => {
+    const alvo = series[indice];
+    if (alvo) gravarOrigem([alvo], false);
+    aoMudar(alterarEsforcoDaSerie(series, indice, valor));
+  };
   const quantidade = (g: GrupoDeSeries, n: number) => {
     const novas = mudarQuantidade(series, g, n, cfg);
     const conhecidas = new Set(series.map((s) => s.uid));
@@ -154,7 +165,7 @@ export function EditorSeries({ series, config, modalidade, aoMudar, aoUsarReceit
     aoMudar(novas);
   };
   return <View style={estilos.lista}>
-    {grupos.map((g, i) => <EditorGrupo key={g.series[0].uid} grupo={g} series={series} config={cfg} cardio={cardio} semCarga={semCarga} descansoPorSerie={descansoPorSerie}
+    {grupos.map((g, i) => <EditorGrupo key={g.series[0].uid} grupo={g} series={series} config={cfg} cardio={cardio} semCarga={semCarga} exercicioComCarga={exercicioComCarga} descansoPorSerie={descansoPorSerie}
       tipos={tipos} podeMais={!cheio} primeiro={i === 0} ultimo={i === grupos.length - 1} numero={i + 1}
       exercicio={numeroDoExercicio != null ? `Exercício ${numeroDoExercicio} · ${nomeDoExercicio?.trim() || 'sem nome'}` : null}
       porSerie={validacao.porSerieErros}
@@ -165,6 +176,7 @@ export function EditorSeries({ series, config, modalidade, aoMudar, aoUsarReceit
       aoQuantidade={(n) => quantidade(g, n)}
       aoRestPauseNaUltima={() => aoMudar(restPauseNestaSerie(series, g, cfg))}
       aoPercentuais={(j, min, max) => aoMudar(alterarPercentuais(series, g.inicio + j, min, max))}
+      aoRir={(j, valor) => rirDaSerie(g.inicio + j, valor)}
       aoRemover={() => aoMudar(removerGrupo(series, g))} />)}
     {series.length === 0 ? <Texto variante="suave">Nenhuma série ainda.</Texto> : null}
     <ErroDoCampo mensagem={validacao.daLista.series} />
@@ -240,16 +252,18 @@ function Explicacao({ texto }: { texto: string }) {
 }
 
 interface PropsDoGrupo {
-  grupo: GrupoDeSeries; series: Serie[]; config: Configuracao; cardio: boolean; semCarga: boolean; descansoPorSerie: boolean;
+  grupo: GrupoDeSeries; series: Serie[]; config: Configuracao; cardio: boolean; semCarga: boolean; exercicioComCarga: boolean; descansoPorSerie: boolean;
   tipos: { valor: string; rotulo: string; foraDaMetodologia: boolean }[]; podeMais: boolean; primeiro: boolean; ultimo: boolean; numero: number;
   /** "Exercício 2 · Supino reto", na faixa curta do topo do grupo aberto; nulo sem ela. */
   exercicio: string | null;
   porSerie: ReturnType<typeof problemasPorSerie>;
   aberto: boolean; esforcoVeioDoPadrao: boolean; aoAlternar: () => void; aoMover: (d: -1 | 1) => void; aoAlterar: (m: AlteracaoDeGrupo) => void;
-  aoQuantidade: (n: number) => void; aoRestPauseNaUltima: () => void; aoPercentuais: (i: number, min: number | null, max: number | null) => void; aoRemover: () => void;
+  aoQuantidade: (n: number) => void; aoRestPauseNaUltima: () => void; aoPercentuais: (i: number, min: number | null, max: number | null) => void;
+  /** RIR de uma série do grupo (`i` = posição dentro do grupo). */
+  aoRir: (i: number, valor: number) => void; aoRemover: () => void;
 }
 
-function EditorGrupo({ grupo: g, series, config, cardio, semCarga, descansoPorSerie, tipos, podeMais, primeiro, ultimo, numero, exercicio, porSerie, aberto, esforcoVeioDoPadrao, aoAlternar, aoMover, aoAlterar, aoQuantidade, aoRestPauseNaUltima, aoPercentuais, aoRemover }: PropsDoGrupo) {
+function EditorGrupo({ grupo: g, series, config, cardio, semCarga, exercicioComCarga, descansoPorSerie, tipos, podeMais, primeiro, ultimo, numero, exercicio, porSerie, aberto, esforcoVeioDoPadrao, aoAlternar, aoMover, aoAlterar, aoQuantidade, aoRestPauseNaUltima, aoPercentuais, aoRir, aoRemover }: PropsDoGrupo) {
   const { cores, bordas } = useTema();
   const largo = useCamposLadoALado();
   // Explicações do tipo e da técnica começam recolhidas; o "O que é?" abre.
@@ -273,6 +287,16 @@ function EditorGrupo({ grupo: g, series, config, cardio, semCarga, descansoPorSe
   const opcoesTecnica = opcoesDeTecnica(config, s.tecnica?.tipo);
   const nomeTecnica = s.tecnica ? opcoesTecnica.find((o) => o.valor === s.tecnica?.tipo)?.rotulo ?? null : null;
   const recuo = espaco(largo ? 2.5 : 2);
+  const comPercentual = modo === 'PERCENTUAL_WS' || modo === 'ACIMA_DA_ANTERIOR' || modo === 'ABAIXO_DA_REFERENCIA';
+  // RIR por série (D2): só em grupo de mais de uma série com RIR (a forma é a mesma no grupo inteiro, `agrupamento`).
+  const rirPorSerie = !cardio && g.series.length > 1 && s.esforco?.rir != null;
+  const rires = g.series.map((x) => x.esforco?.rir ?? null);
+  const rirDeCadaSerie = rirPorSerie && rires.some((v) => v !== rires[0]) ? rires.map((v) => (v === 0 ? 'falha' : v ?? '—')).join(', ') : null;
+  const rirDa = (j: number) => {
+    const valor = g.series[j].esforco?.rir;
+    return valor == null ? null : <RirDaSerie key={`rir-${g.series[j].uid}`} numero={j + 1} valor={valor} aoMudar={(v) => aoRir(j, v)}
+      erro={porSerie[g.inicio + j]?.erros['esforco.rir']} />;
+  };
   const borda = nivel === 'perigo' ? cores.perigo : aberto ? cores.bordaCampo : cores.borda;
   return <View style={[estilos.grupo, { borderWidth: bordas.item, borderColor: borda, backgroundColor: aberto ? cores.superficie : cores.superficie2 }]}>
     {/* 1ª linha: o tipo como o treinador lê ("Preparação · FS"); 2ª: os números ("3x3 - FS 50% · 70% · 85% da WS"). */}
@@ -325,10 +349,14 @@ function EditorGrupo({ grupo: g, series, config, cardio, semCarga, descansoPorSe
 
       {secoes.carga ? <Secao titulo="Carga">
         <EscolhaDeCarga carga={s.carga} config={config} papel={papelDe(config, s.tipo)} aoMudarModo={(m) => aoAlterar({ modo: m })} erro={erros['carga.modo'] ?? erros.carga} rotuloVisivel={false}
-          ajuda={cluster && modo === 'CARGA_TRABALHO' && !semCarga ? AJUDA_DA_CARGA_DO_CLUSTER : undefined} />
-        {modo === 'PERCENTUAL_WS' || modo === 'ACIMA_DA_ANTERIOR' || modo === 'ABAIXO_DA_REFERENCIA' ? <View style={estilos.bloco}>
+          ajuda={cluster && modo === 'CARGA_TRABALHO' && !semCarga ? AJUDA_DA_CARGA_DO_CLUSTER : undefined} exercicioComCarga={exercicioComCarga} />
+        {/* Os kg são do grupo: kg diferentes já separam as séries em grupos (`agrupamento`). */}
+        {modo === 'CARGA_FIXA' ? <CampoDaCargaFixa valor={s.carga?.valorKg} aoMudar={(valorKg) => aoAlterar({ carga: { modo: 'CARGA_FIXA', valorKg } })} erro={erros['carga.valorKg']} /> : null}
+        {comPercentual ? <View style={estilos.bloco}>
+          {/* Uma linha por série: o percentual dela e, com RIR, o RIR dela, lado a lado (reunião de 30/10, D2). */}
           {g.series.map((x, j) => <FaixaDeCarga key={x.uid} carga={x.carga} config={config} prefixo={g.series.length > 1 ? `Série ${j + 1} · ` : ''}
-            aoMudar={(min, max) => aoPercentuais(j, min, max)} erros={subProblemas(porSerie[g.inicio + j]?.erros, 'carga')} semAjuda={g.series.length > 1} />)}
+            aoMudar={(min, max) => aoPercentuais(j, min, max)} erros={subProblemas(porSerie[g.inicio + j]?.erros, 'carga')} semAjuda={g.series.length > 1}
+            aoLado={rirPorSerie ? rirDa(j) : undefined} />)}
           {g.series.length > 1 && rotulosDaFaixa(modo, config)?.ajuda ? <Texto variante="pequeno">{rotulosDaFaixa(modo, config)?.ajuda}</Texto> : null}
         </View> : null}
         {modo === 'ABAIXO_DA_REFERENCIA' ? <ReferenciaDaCarga opcoes={referencias} valor={s.carga?.referenciaUid} aoMudar={(referenciaUid) => aoAlterar({ carga: { referenciaUid } })} erro={erros['carga.referenciaUid']} /> : null}
@@ -337,7 +365,10 @@ function EditorGrupo({ grupo: g, series, config, cardio, semCarga, descansoPorSe
 
       <View style={largo ? estilos.lado : estilos.empilhado}>
       {secoes.esforco ? <Secao titulo="Esforço" style={largo ? estilos.ladoMaior : null}>
-        <CamposDoEsforco esforco={s.esforco} aoMudar={(esforco) => aoAlterar({ esforco })} erros={subProblemas(erros, 'esforco')} rotulo="Esforço percebido" rotuloVisivel={false} />
+        <CamposDoEsforco esforco={s.esforco} aoMudar={(esforco) => aoAlterar({ esforco })} erros={subProblemas(erros, 'esforco')} rotulo="Esforço percebido" rotuloVisivel={false}
+          semRpe={!mostraRpe(config, s.tipo, s.esforco)} variasSeries={g.series.length > 1} rirDeCadaSerie={rirDeCadaSerie} />
+        {/* Sem percentual não há linha por série na carga: o RIR de cada série fica aqui, lado a lado no PC. */}
+        {rirPorSerie && !comPercentual ? <View style={estilos.rires}>{g.series.map((_, j) => rirDa(j))}</View> : null}
         {cluster ? <Texto variante="pequeno">{textoDaRevisaoDoEsforco(esforcoVeioDoPadrao, nomeDoTipo(config, s.tipo))}</Texto> : null}
         <AvisoDoCampo mensagem={avisos['esforco.rir']} />
       </Secao> : null}
@@ -440,6 +471,7 @@ const estilos = StyleSheet.create({
   tituloDaPrevia: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), flexWrap: 'wrap' },
   juntos: { gap: espaco(0.5) },
   bloco: { gap: espaco(1) },
+  rires: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5), alignItems: 'flex-start' },
   explicacao: { borderLeftWidth: 2, paddingLeft: espaco(1.5), paddingVertical: espaco(0.5) },
   previa: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(0.75) },
   contador: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },

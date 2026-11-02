@@ -10,6 +10,7 @@ import {
   letraDaDivisao,
   primeiroNome,
   rotuloDaDivisao,
+  TEXTO_PACOTE_RECUSADO,
 } from './inicioDoAluno';
 
 const exercicio = (uid: string): ExercicioPlano => ({
@@ -120,6 +121,17 @@ describe('estado do Hoje', () => {
     expect(estadoDoHoje({ ...base, conteudo: null, carregando: true })).toEqual({ tipo: 'carregando' });
     // Com plano salvo no aparelho, uma falha de rede não esconde o treino.
     expect(estadoDoHoje({ ...base, conteudo: treino(sessao('a', 1)), erro: true })).toMatchObject({ tipo: 'treino' });
+  });
+
+  it('pacote recusado por formato: sem plano legível vira "recusado", antes de erro, carregando e "não publicado"', () => {
+    expect(TEXTO_PACOTE_RECUSADO).toBe('Seu treinador usou algo novo. Atualize o app para ver o plano.');
+    expect(estadoDoHoje({ ...base, conteudo: null, recusado: true })).toEqual({ tipo: 'recusado' });
+    expect(estadoDoHoje({ ...base, conteudo: null, recusado: true, erro: true })).toEqual({ tipo: 'recusado' });
+    expect(estadoDoHoje({ ...base, conteudo: null, recusado: true, carregando: true })).toEqual({ tipo: 'recusado' });
+    // Sem a marca, o resto segue como antes.
+    expect(estadoDoHoje({ ...base, conteudo: null, recusado: false })).toEqual({ tipo: 'preparando' });
+    // Com plano legível a marca não esconde o treino.
+    expect(estadoDoHoje({ ...base, conteudo: treino(sessao('a', 1)), recusado: true })).toMatchObject({ tipo: 'treino' });
   });
 
   it('letra e rótulo da divisão', () => {

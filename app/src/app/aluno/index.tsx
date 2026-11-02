@@ -26,7 +26,7 @@ import { Tela } from '../../ui/Tela';
  * a mobilidade ficam na aba Treino. Sempre o plano em uso. Em 390 o botão do treino de hoje precisa aparecer na primeira tela.
  */
 export default function InicioAluno() {
-  const { pacote, carregando, erroPacote, tentarDeNovo } = useAluno();
+  const { pacote, carregando, erroPacote, pacoteRecusado, tentarDeNovo } = useAluno();
   const { usuario } = useSessao();
   const dieta = useDietaDoAluno();
   const hoje = hojeIso();
@@ -36,7 +36,7 @@ export default function InicioAluno() {
   const dietaDoPlano = dieta.dados ? dieta.dados.dieta : undefined;
   const estadoDaDieta = dietaNoInicio({ conteudo: dietaDoPlano === undefined ? undefined : dietaDoPlano?.conteudo ?? null, erro: !!dieta.erro });
   const semPacote = !pacote;
-  const estadoHoje = estadoDoHoje({ conteudo, dia: diaDaSemana(), carregando: semPacote && carregando, erro: semPacote && !carregando && !!erroPacote });
+  const estadoHoje = estadoDoHoje({ conteudo, dia: diaDaSemana(), carregando: semPacote && carregando, erro: semPacote && !carregando && !!erroPacote, recusado: semPacote && pacoteRecusado });
 
   return (
     <Tela bordas={['top']} largura={720}>

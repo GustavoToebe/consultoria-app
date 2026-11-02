@@ -54,9 +54,14 @@ public record ConteudoTreino(
     public static final String ACIMA_DA_ANTERIOR = "ACIMA_DA_ANTERIOR";
     /** Carga abaixo da carga registrada hoje numa série anterior do exercício ({@code referenciaUid}), em % (back off). */
     public static final String ABAIXO_DA_REFERENCIA = "ABAIXO_DA_REFERENCIA";
+    /**
+     * Carga fixa em kg ({@code valorKg}): o treinador escreve o peso. Não é série de trabalho (não dá a carga do dia) e não
+     * serve de referência para percentual, mesma carga nem abaixo da referência. Só em exercício com carga.
+     */
+    public static final String CARGA_FIXA = "CARGA_FIXA";
     public static final String NENHUMA = "NENHUMA";
     public static final List<String> MODOS = List.of(CARGA_TRABALHO, PERCENTUAL_WS, MESMA_CARGA, ACIMA_DA_ANTERIOR,
-            ABAIXO_DA_REFERENCIA, NENHUMA);
+            ABAIXO_DA_REFERENCIA, CARGA_FIXA, NENHUMA);
 
     /**
      * Técnicas da série. As seis estruturadas têm campos próprios. As onze descritivas só levam o tipo: o aluno lê a
@@ -306,7 +311,8 @@ public record ConteudoTreino(
 
         /** Mesma série apontando a referência da carga para outro uid (cópia com uids novos). */
         Serie comReferencia(UUID novaReferencia) {
-            return comCarga(new Carga(carga.modo(), carga.percentualMin(), carga.percentualMax(), novaReferencia));
+            return comCarga(new Carga(carga.modo(), carga.percentualMin(), carga.percentualMax(), novaReferencia,
+                    carga.valorKg()));
         }
     }
 
@@ -314,25 +320,39 @@ public record ConteudoTreino(
      * Carga da série. {@code percentualMin}/{@code percentualMax} formam a faixa de {@code PERCENTUAL_WS} ("85 a 90% da
      * WS"), de {@code ACIMA_DA_ANTERIOR} ("+1 a 5% sobre a anterior") e de {@code ABAIXO_DA_REFERENCIA} ("reduzir 10 a
      * 15% da série de referência"); máximo nulo = valor único. {@code referenciaUid} só vale em
-     * {@code ABAIXO_DA_REFERENCIA}: uma série anterior do mesmo exercício. Nula = {@code NENHUMA}.
+     * {@code ABAIXO_DA_REFERENCIA}: uma série anterior do mesmo exercício. {@code valorKg} só vale em
+     * {@code CARGA_FIXA}: o peso em kg (maior que zero, até {@link #VALOR_KG_MAXIMO}, no máximo 2 casas) e, nessa forma,
+     * não há percentual nem referência. Nula = {@code NENHUMA}.
+     *
+     * <p>{@code valorKg} sai do JSON só quando existe: o app já instalado confere as chaves da carga do pacote offline e
+     * recusaria o plano salvo se toda carga trouxesse o campo novo (mesmo caminho de {@code Tecnica.cargasDosBlocos}).</p>
      */
     public record Carga(
             @Size(max = 30) String modo,
             BigDecimal percentualMin,
             BigDecimal percentualMax,
-            UUID referenciaUid) {
+            UUID referenciaUid,
+            @JsonInclude(JsonInclude.Include.NON_NULL) BigDecimal valorKg) {
+
+        /** Teto da carga fixa, o mesmo da leitura da planilha completa. */
+        public static final BigDecimal VALOR_KG_MAXIMO = new BigDecimal("1000");
 
         public static Carga de(String modo) {
-            return new Carga(modo, null, null, null);
+            return new Carga(modo, null, null, null, null);
         }
 
         public static Carga percentual(String modo, int min, Integer max) {
-            return new Carga(modo, BigDecimal.valueOf(min), max == null ? null : BigDecimal.valueOf(max), null);
+            return new Carga(modo, BigDecimal.valueOf(min), max == null ? null : BigDecimal.valueOf(max), null, null);
         }
 
         public static Carga abaixoDa(UUID referencia, int min, Integer max) {
             return new Carga(ABAIXO_DA_REFERENCIA, BigDecimal.valueOf(min), max == null ? null : BigDecimal.valueOf(max),
-                    referencia);
+                    referencia, null);
+        }
+
+        /** Carga fixa em kg. */
+        public static Carga fixa(BigDecimal kg) {
+            return new Carga(CARGA_FIXA, null, null, null, kg);
         }
 
         /** Problemas por campo de uma carga de série, com a referência obrigatória no back off (vazio = válida). */
@@ -360,9 +380,24 @@ public record ConteudoTreino(
                         p.put("referenciaUid", "Escolha a série de referência.");
                     }
                 }
+                case CARGA_FIXA -> {
+                    if (valorKg == null || valorKg.signum() <= 0 || valorKg.compareTo(VALOR_KG_MAXIMO) > 0
+                            || valorKg.stripTrailingZeros().scale() > 2) {
+                        p.put("valorKg", "Carga fixa: maior que zero e até " + VALOR_KG_MAXIMO.toPlainString() + " kg.");
+                    }
+                    if (percentualMin != null || percentualMax != null) {
+                        p.put("percentualMin", "Carga fixa não leva percentual.");
+                    }
+                    if (referenciaUid != null) {
+                        p.put("referenciaUid", "Carga fixa não leva série de referência.");
+                    }
+                }
                 default -> {
                     // CARGA_TRABALHO, MESMA_CARGA e NENHUMA não têm parâmetro.
                 }
+            }
+            if (!CARGA_FIXA.equals(m) && valorKg != null) {
+                p.put("valorKg", "Só a carga fixa leva valor em kg.");
             }
             return p;
         }
@@ -379,12 +414,15 @@ public record ConteudoTreino(
     }
 
     /**
-     * Esforço da série: {@code rir} (repetições na reserva, 0 a 5; 0 é "até a falha") ou {@code rpe} (1 a 10, de
+     * Esforço da série: {@code rir} (repetições na reserva, 0 a 10; 0 é "até a falha") ou {@code rpe} (1 a 10, de
      * meio em meio), nunca os dois. Sem nenhum dos dois, a série não tem esforço prescrito.
      */
     public record Esforco(Integer rir, BigDecimal rpe) {
 
         private static final BigDecimal MEIO = new BigDecimal("0.5");
+
+        /** Maior RIR aceito (0 é "até a falha"). */
+        public static final int RIR_MAXIMO = 10;
 
         public static Esforco deRir(int valor) {
             return new Esforco(valor, null);
@@ -401,8 +439,8 @@ public record ConteudoTreino(
 
         public Map<String, String> problemas() {
             Map<String, String> p = new LinkedHashMap<>();
-            if (rir != null && (rir < 0 || rir > 5)) {
-                p.put("rir", "RIR entre 0 (até a falha) e 5.");
+            if (rir != null && (rir < 0 || rir > RIR_MAXIMO)) {
+                p.put("rir", "RIR entre 0 (até a falha) e " + RIR_MAXIMO + ".");
             }
             if (rpe != null && (rpe.compareTo(BigDecimal.ONE) < 0 || rpe.compareTo(BigDecimal.TEN) > 0
                     || rpe.remainder(MEIO).signum() != 0)) {

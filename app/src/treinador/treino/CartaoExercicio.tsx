@@ -202,10 +202,11 @@ export function CartaoExercicio(p: Props) {
           ) : null}
           <View style={[estilos.divisor, { backgroundColor: cores.borda }]} />
           <Texto variante="secao">{cardio ? 'Cardio' : 'Séries'}</Texto>
-          <EditorSeries modalidade={e.modalidade} series={e.series} config={p.config} semCarga={e.unidade === 'nenhuma'} descansoPorSerie={p.descansoPorSerie !== false} aoMudar={(series) => mudar({ series })} aoUsarReceita={p.aoUsarReceita}
+          <EditorSeries modalidade={e.modalidade} series={e.series} config={p.config} semCarga={e.unidade === 'nenhuma'}
+            exercicioComCarga={e.unidade !== 'nenhuma' && e.modalidade !== 'CARDIO'} descansoPorSerie={p.descansoPorSerie !== false} aoMudar={(series) => mudar({ series })} aoUsarReceita={p.aoUsarReceita}
             numeroDoExercicio={p.posicao + 1} nomeDoExercicio={e.nome} />
           <View style={[estilos.divisor, { backgroundColor: cores.borda }]} />
-          <CabecalhoDeGrupo titulo="Execução (opcional)" resumo={execucaoAberta ? undefined : resumoDaExecucao(e)} aberto={execucaoAberta} aoAlternar={() => setExecucaoAberta((v) => !v)} />
+          <CabecalhoDeGrupo titulo="Cadência e isometria (opcional)" resumo={execucaoAberta ? undefined : resumoDaExecucao(e)} aberto={execucaoAberta} aoAlternar={() => setExecucaoAberta((v) => !v)} />
           {execucaoAberta ? <View style={estilos.linhaExecucao}>
             <View style={estilos.cadencia}>
               <Campo

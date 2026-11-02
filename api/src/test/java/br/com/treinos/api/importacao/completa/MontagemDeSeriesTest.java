@@ -196,6 +196,9 @@ class MontagemDeSeriesTest {
         assertThat(livre("3x10 desc 60s").series()).allMatch(s -> s.descansoSegundos() == 60);
         assertThat(livre("4x8 90\"").series()).allMatch(s -> s.descansoSegundos() == 90);
         assertThat(livre("3x10 RIR 2").series()).allMatch(s -> s.esforco().rir() == 2 && s.esforco().rpe() == null);
+        assertThat(livre("3x10 RIR 10").series()).allMatch(s -> s.esforco().rir() == 10 && s.esforco().rpe() == null);
+        // RIR 11 passa do limite: o esforço não é lido e o texto fica para conferir.
+        assertThat(livre("3x10 RIR 11").series()).allMatch(s -> s.esforco() == null);
         assertThat(livre("3x10 RPE 8,5").series()).allMatch(s -> s.esforco().rpe().compareTo(new BigDecimal("8.5")) == 0);
         // "Até a falha" com RIR 2 não combina: sem esforço e o texto fica.
         MontagemDeSeries.PorPrescricao conflito = livre("3x10 falha RIR 2");

@@ -38,8 +38,8 @@ describe('esforço', () => {
     expect(formaDoEsforco({ rir: 0 })).toBe('RIR');
     expect(formaDoEsforco({ rpe: 8.5 })).toBe('RPE');
   });
-  it('o RIR vai de 0 a 5 e o 0 diz até a falha', () => {
-    expect(OPCOES_DE_RIR.map((o) => o.valor)).toEqual([0, 1, 2, 3, 4, 5]);
+  it('o RIR vai de 0 a 10 e o 0 diz até a falha', () => {
+    expect(OPCOES_DE_RIR.map((o) => o.valor)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
     expect(OPCOES_DE_RIR[0].rotulo).toBe('0 · até a falha');
   });
 });

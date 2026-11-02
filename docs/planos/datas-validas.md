@@ -1,6 +1,6 @@
 # Datas válidas (faixa por tipo de campo, atraso com teto) e dois ajustes de texto
 
-Situação: Em andamento · Onde: branch `datas-validas` (worktree `wt-datas-validas`) · Atualizado: 02/11/2026 · Registro: reunião de 30/10, C76 (mais C68 e C54) · Frente A da leva 1
+Situação: Concluída (PR #38, mesclado em 02/11/2026) · Onde: branch `datas-validas` (worktree `wt-datas-validas`) · Atualizado: 02/11/2026 · Registro: reunião de 30/10, C76 (mais C68 e C54) · Frente A da leva 1
 
 ## Objetivo
 Na reunião de 30/10, a conta de teste do treinador ficou com pastas e atualizações no ano 0260/0261, e o aluno via

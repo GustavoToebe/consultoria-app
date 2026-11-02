@@ -72,6 +72,7 @@ export function dicaDaCarga(
   }
   if (situacao.sugestao === null || situacao.digitou) return null;
   if (modo === 'MESMA_CARGA') return `Mesma carga da ${situacao.tipoTrabalho}; mude se usar outra.`;
+  if (modo === 'CARGA_FIXA') return 'Carga definida pelo treinador; mude se usar outra.';
   if (modo === 'ABAIXO_DA_REFERENCIA') {
     return `Peso calculado sobre a carga que você registrou hoje na série de referência${referencia ? ` (${referencia})` : ''}; mude se usar outro.`;
   }

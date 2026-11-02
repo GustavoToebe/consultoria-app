@@ -57,9 +57,16 @@ export function dietaNoInicio(entrada: { conteudo: ConteudoDieta | null | undefi
 
 // ---- Hoje ----
 
+/**
+ * O pacote do plano chegou num formato que este app não lê e foi descartado (`offline/formatoDoPacote`): o aluno vê esta
+ * frase no Início e no Treino, em vez de uma tela vazia ou "treino sendo preparado".
+ */
+export const TEXTO_PACOTE_RECUSADO = 'Seu treinador usou algo novo. Atualize o app para ver o plano.';
+
 export type EstadoDoHoje =
   | { tipo: 'carregando' }
   | { tipo: 'erro' }
+  | { tipo: 'recusado' }
   | { tipo: 'preparando' }
   | { tipo: 'sem-dia-fixo' }
   /** `sessao` é a de hoje quando é descanso programado (pode trazer o cardio); nula = nenhuma sessão marcada hoje. */
@@ -79,13 +86,15 @@ export function rotuloDaDivisao(conteudo: ConteudoTreino, sessao: Sessao): strin
 }
 
 /**
- * O que o cartão "Hoje" mostra. `conteudo` nulo: falha (`erro`) ganha de tudo e nunca vira "não publicado"; ainda
+ * O que o cartão "Hoje" mostra. `conteudo` nulo: pacote recusado por formato (`recusado`) ganha de tudo; falha (`erro`) nunca vira "não publicado"; ainda
  * lendo é `carregando`; senão o treinador não publicou o treino. Com plano: sem nenhum dia fixo = escolher a divisão; dia
  * sem sessão, ou sessão de descanso sem exercício, = descanso programado.
  */
-export function estadoDoHoje(entrada: { conteudo: ConteudoTreino | null; dia: number; carregando: boolean; erro: boolean }): EstadoDoHoje {
-  const { conteudo, dia, carregando, erro } = entrada;
+export function estadoDoHoje(entrada: { conteudo: ConteudoTreino | null; dia: number; carregando: boolean; erro: boolean; recusado?: boolean }): EstadoDoHoje {
+  const { conteudo, dia, carregando, erro, recusado } = entrada;
   if (!conteudo) {
+    // Pacote recusado por formato: dizer isso ganha de erro de rede, de "carregando" e de "ainda não publicado".
+    if (recusado) return { tipo: 'recusado' };
     if (erro) return { tipo: 'erro' };
     return carregando ? { tipo: 'carregando' } : { tipo: 'preparando' };
   }

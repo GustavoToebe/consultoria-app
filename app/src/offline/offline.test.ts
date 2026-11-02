@@ -103,6 +103,39 @@ describe.each(implementacoes)('offline do aluno – %s', (_nome, criarAparelho) 
     expect((await repo.lerPacote())?.pacote).toEqual(atual);
   });
 
+  it('pacote recusado por outro motivo de formato deixa a marca "pacoteRecusado" até um pacote válido ser salvo; a fila fica', async () => {
+    const repo = aparelho('u1');
+    // Nada salvo ainda: não há o que recusar.
+    expect(await repo.lerPacote()).toBeNull();
+    expect(await repo.lerPacoteRecusado()).toBe(false);
+    await repo.registrar(serie('fila'));
+    await repo.salvarPacote({ aluno: { nome: 'Fictício' } } as never); // sem a configuração: fora do formato atual
+    expect(await repo.lerPacote()).toBeNull();
+    expect(await repo.lerPacoteRecusado()).toBe(true);
+    // A marca sobrevive a outra leitura (o pacote recusado já foi apagado) e ao uso normal do aparelho.
+    expect(await repo.lerPacote()).toBeNull();
+    expect(await repo.lerPacoteRecusado()).toBe(true);
+    expect(await repo.listar()).toHaveLength(1);
+    // Um pacote válido salvo limpa a marca.
+    const atual = { treino: null, marca: { nome: 'X' }, configuracao: { tipoTrabalho: 'WS', arredondamentoKg: 0.5 } } as unknown as Parameters<RepositorioLocal['salvarPacote']>[0];
+    await repo.salvarPacote(atual);
+    expect(await repo.lerPacoteRecusado()).toBe(false);
+    expect((await repo.lerPacote())?.pacote).toEqual(atual);
+    expect(await repo.lerPacoteRecusado()).toBe(false);
+    expect(await repo.listar()).toHaveLength(1);
+  });
+
+  it('a marca do pacote recusado é de cada aluno e sai junto com o resto ao sair da conta', async () => {
+    const ana = aparelho('u1');
+    const bia = aparelho('u2');
+    await ana.salvarPacote({ aluno: { nome: 'Fictício' } } as never);
+    expect(await ana.lerPacote()).toBeNull();
+    expect(await ana.lerPacoteRecusado()).toBe(true);
+    expect(await bia.lerPacoteRecusado()).toBe(false);
+    await ana.apagarTudo();
+    expect(await aparelho('u1').lerPacoteRecusado()).toBe(false);
+  });
+
   it('etapas da série (Cluster, Rest-pause) persistem ao reabrir, são trocadas inteiras e vão no envio (T18)', async () => {
     const etapas: EtapaRegistrada[] = [
       { posicao: 1, repeticoes: 4, carga: 40, situacao: 'FEITA' },
