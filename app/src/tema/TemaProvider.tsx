@@ -65,7 +65,10 @@ export function TemaProvider({ children }: { children: ReactNode }) {
             () => lerPreferencias(usuarioId),
             (preferencias) => AsyncStorage.setItem(chaveDasPreferencias(usuarioId), JSON.stringify(preferencias)),
           )
-        : null,
+        : criarArmazemDePreferencias(
+            async () => ({ ...PREFERENCIAS_PADRAO }),
+            async () => undefined,
+          ),
     [usuarioId],
   );
   useEffect(() => {
@@ -79,7 +82,7 @@ export function TemaProvider({ children }: { children: ReactNode }) {
   );
   const preferenciasLidas = useSyncExternalStore(
     useCallback((aviso: () => void) => armazem?.assinar(aviso) ?? (() => undefined), [armazem]),
-    () => armazem?.lidas() ?? true,
+    () => (usuarioId ? (armazem?.lidas() ?? true) : true),
     () => false,
   );
   const gravar = useCallback((parcial: Partial<Preferencias>) => armazem?.escolher(parcial), [armazem]);

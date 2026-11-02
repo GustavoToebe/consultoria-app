@@ -13,10 +13,12 @@ import {
   nomeDoArquivoJson,
   paraJson,
   remover,
+  TIPOS_DE_BLOCO,
   VERSAO_MONTADOR,
   type Bloco,
   type Rascunho,
 } from './montador';
+import { criarRascunhoDeModelo, MODELOS_INICIAIS } from '../montador/modelosIniciais';
 
 let mockContadorUid = 0;
 jest.mock('./uid', () => ({ novoUid: () => `uid-${++mockContadorUid}` }));
@@ -341,5 +343,23 @@ describe('auxiliares de formatação e leitura', () => {
       { rotulo: '01/10', valor: 78.5 },
       { rotulo: '15/10', valor: 80 },
     ]);
+  });
+
+  it('valida todos os tipos do catálogo e todos os modelos iniciais em ida e volta JSON', () => {
+    const todosOsTipos: Rascunho = {
+      versao: VERSAO_MONTADOR,
+      nome: 'Catálogo completo',
+      largura: 1280,
+      tema: 'claro',
+      blocos: TIPOS_DE_BLOCO.map((tipo) => criarBloco(tipo)),
+    };
+    const lidoCatalogo = lerJson(paraJson(todosOsTipos));
+    expect(lidoCatalogo).toEqual({ ok: true, rascunho: todosOsTipos });
+
+    for (const modelo of MODELOS_INICIAIS) {
+      const rascunho = criarRascunhoDeModelo(modelo.chave);
+      const lido = lerJson(paraJson(rascunho));
+      expect(lido).toEqual({ ok: true, rascunho });
+    }
   });
 });

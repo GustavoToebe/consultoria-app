@@ -455,7 +455,8 @@ export const DEFINICOES_DE_BLOCO: Record<TipoDeBloco, DefinicaoDeBloco> = {
 
 /** Libera a tela `/montador` apenas em desenvolvimento (`__DEV__`) ou quando `EXPO_PUBLIC_MONTADOR === '1'`. */
 export function montadorLiberado(): boolean {
-  const dev = Boolean((globalThis as { __DEV__?: unknown }).__DEV__);
+  const devGlobal = (globalThis as { __DEV__?: unknown }).__DEV__;
+  const dev = typeof devGlobal === 'boolean' ? devGlobal : typeof __DEV__ !== 'undefined' && Boolean(__DEV__);
   return dev || process.env.EXPO_PUBLIC_MONTADOR === '1';
 }
 
@@ -491,11 +492,6 @@ function contarBlocos(blocos: readonly Bloco[]): number {
     total += 1 + (b.filhos ? contarBlocos(b.filhos) : 0);
   }
   return total;
-}
-
-function alturaDaSubarvore(bloco: Bloco): number {
-  if (!bloco.filhos || bloco.filhos.length === 0) return 1;
-  return 1 + Math.max(...bloco.filhos.map(alturaDaSubarvore));
 }
 
 /** Procura um bloco pelo `id` em toda a árvore. */
