@@ -71,7 +71,7 @@ export default function ListaAtualizacoes() {
       chips={chips} aoTirar={(chave)=>aplicar(semOFiltro(filtros,chave as ChaveDoFiltro))} rotuloDoResultado="Ver atualizações"
       seletores={(atuais,mudar)=><>
         <CelulaDoFiltro><SelecaoMultiplaSuspensa rotulo="Responsável" opcoes={opcoesDeResponsavel(responsaveis,usuario?.id)} marcados={new Set(atuais.responsaveis)} aoMudar={(m)=>mudar({...atuais,responsaveis:[...m]})} rotuloDeTodos="Todos" style={{alignSelf:'stretch'}} /></CelulaDoFiltro>
-        <CelulaDoFiltro><CamposDePeriodo rotulo="Data da atualização" osDois maximoDias={MAXIMO_DIAS} valor={atuais.periodo} aoMudar={(periodo)=>mudar({...atuais,periodo})} /></CelulaDoFiltro>
+        <CelulaDoFiltro><CamposDePeriodo rotulo="Data da atualização" regra="PLANEJAMENTO" osDois maximoDias={MAXIMO_DIAS} valor={atuais.periodo} aoMudar={(periodo)=>mudar({...atuais,periodo})} /></CelulaDoFiltro>
       </>} />
     {/* A aba (situação) é um passo do histórico; os filtros da barra vão junto. */}
     <Abas abas={ABAS.map(a=>({...a,contagem:contagens[a.valor]}))} ativa={filtro} aoMudar={valor=>{ if(valor!==filtro) router.push({pathname:'/treinador/atualizacoes',params:{situacao:valor,...paraEndereco(filtros)}}); }} />

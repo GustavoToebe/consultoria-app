@@ -77,9 +77,12 @@ public final class LimitesQuestionario {
     public static final int TELEFONE_DIGITOS_MINIMO = 10;
     public static final int TELEFONE_DIGITOS_MAXIMO = 13;
     public static final int EMAIL_TAMANHO = 254;
-    /** Resposta de DATA fica entre 1900 e 2100 (e, com {@code somentePassado}, até hoje no horário de Brasília). */
+    /**
+     * Resposta de DATA fica entre 01/01/1900 e 31/12 do ano de hoje + {@value #DATA_ANOS_A_FRENTE} (e, com
+     * {@code somentePassado}, até hoje no horário de Brasília): {@code FaixaDeData.REGISTRO} e {@code DATA_COM_FUTURO}.
+     */
     public static final int DATA_ANO_MINIMO = 1900;
-    public static final int DATA_ANO_MAXIMO = 2100;
+    public static final int DATA_ANOS_A_FRENTE = 5;
     /** Imagem da pergunta ou da opção: PNG ou JPEG, no banco, regravada sem metadados. */
     public static final int IMAGEM_BYTES = 300_000;
     public static final int IMAGEM_LADO = 1600;

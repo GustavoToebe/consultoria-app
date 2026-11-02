@@ -47,7 +47,7 @@ export default function Auditoria() {
         {/* Pessoa e ação com o mesmo padrão: várias opções com busca (nada marcado = todas). */}
         <CelulaDoFiltro><SelecaoMultiplaSuspensa rotulo="Pessoa" opcoes={opcoesDePessoa(membros??[])} marcados={new Set(atuais.pessoas)} rotuloDeTodos="Todas as pessoas" aoMudar={(m)=>mudar({...atuais,pessoas:[...m]})} style={{alignSelf:'stretch'}}/></CelulaDoFiltro>
         <CelulaDoFiltro><SelecaoMultiplaSuspensa rotulo="Ação" opcoes={OPCOES_DE_ACAO} marcados={new Set(atuais.acoes)} rotuloDeTodos="Todas as ações" aoMudar={(m)=>mudar({...atuais,acoes:[...m]})} style={{alignSelf:'stretch'}}/></CelulaDoFiltro>
-        <CelulaDoFiltro><CamposDePeriodo valor={atuais.periodo} aoMudar={(periodo)=>mudar({...atuais,periodo})}/></CelulaDoFiltro>
+        <CelulaDoFiltro><CamposDePeriodo regra="PLANEJAMENTO" valor={atuais.periodo} aoMudar={(periodo)=>mudar({...atuais,periodo})}/></CelulaDoFiltro>
       </>}/>
     {erroPessoas?<MensagemErro texto={textoDoErro(erroPessoas)} tentarDeNovo={recarregarPessoas}/>:null}
     {erro?<MensagemErro texto={textoDoErro(erro)} tentarDeNovo={recarregar}/>:null}{carregando&&!dados?<Esqueleto/>:null}

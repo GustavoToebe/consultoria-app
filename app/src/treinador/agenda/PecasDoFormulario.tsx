@@ -60,6 +60,8 @@ interface PropsDoHorario {
   compacto?: boolean;
   /** Esconde o início e o fim (evento de dia inteiro). */
   semHoras?: boolean;
+  /** O nome da data na mensagem da faixa ("Data do compromisso"); sem ele, "Data". */
+  nomeDaData?: string;
 }
 
 /**
@@ -74,7 +76,7 @@ export function CamposDoHorario(p: PropsDoHorario) {
   const fimAtual = fimDaHora(p.hora, p.duracao);
   const data = (
     <View style={p.compacto ? estilos.dataCompacta : estilos.data}>
-      <CampoData rotulo="Data" valor={p.data} aoMudar={p.aoMudarData} erro={p.erros.data} rotuloOculto={p.compacto} />
+      <CampoData rotulo="Data" nome={p.nomeDaData} regra="PLANEJAMENTO" valor={p.data} aoMudar={p.aoMudarData} erro={p.erros.data} rotuloOculto={p.compacto} />
     </View>
   );
   const horas = p.semHoras ? null : <>

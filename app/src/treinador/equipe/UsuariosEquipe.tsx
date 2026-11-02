@@ -79,16 +79,17 @@ function EditorUsuario({membro,perfis,aoFechar,recarregar}:{membro:MembroEquipe|
   const reativacaoBloqueada=!!membro&&!membro.convitePendente&&!membro.ativo&&!temFuncionalidade('EQUIPE');
   const salvar=async()=>{setConfirmar(false);setOcupado(true);setErro(null);try{if(novo)setConvite(await api.convidarMembro({nome:nome.trim(),email:email.trim(),perfilId}));else{await api.alterarMembro(membro.id,{nome:nome.trim(),perfilId:euMesmo?membro.perfilId:perfilId,ativo:euMesmo?membro.ativo:ativo});avisar('Membro atualizado.','sucesso');aoFechar();}recarregar();}catch(e){if(avisarDoPlano(e))aoFechar();else setErro(e);}finally{setOcupado(false);}};
   const copiar=async(texto:string)=>{try{await Clipboard.setStringAsync(texto);avisar('Copiado.','sucesso');}catch{avisar('Selecione o texto e copie à mão.','neutro');}};
-  const compartilhar=async()=>{if(!convite)return;try{if(Platform.OS==='web'){if(typeof navigator.share==='function')await navigator.share({title:'Convite para a equipe',url:convite.link});else await copiar(convite.link);}else await Share.share({message:convite.link});}catch{avisar('Não foi possível compartilhar. Use Copiar link.','neutro');}};
+  const compartilhar=async()=>{if(!convite)return;try{if(Platform.OS==='web'){if(typeof navigator.share==='function')await navigator.share({title:'Convite para a equipe',url:convite.link});else await copiar(convite.link);}else await Share.share({message:convite.link});}catch{avisar('Não foi possível compartilhar. Use Copiar link do convite.','neutro');}};
   return <>
-    <Folha visivel titulo={convite?'Convite criado':novo?'Convidar membro':'Editar membro'} aoFechar={aoFechar} rodape={convite?<Botao rotulo="Concluir" aoTocar={aoFechar}/>:<><Botao rotulo="Cancelar" tipo="secundario" aoTocar={aoFechar}/><Botao rotulo={novo?'Gerar convite':'Salvar membro'} carregando={ocupado} desabilitado={!nome.trim()||(!perfilId&&!euMesmo)||(novo&&!email.trim())} aoTocar={()=>{if(!novo&&membro?.ativo&&!ativo)setConfirmar(true);else void salvar();}}/></>}>
+    <Folha visivel titulo={convite?'Convite criado':novo?'Convidar membro':'Editar membro'} aoFechar={aoFechar} rodape={convite?<Botao rotulo="Concluir" aoTocar={aoFechar}/>:<><Botao rotulo="Cancelar" tipo="secundario" aoTocar={aoFechar}/><Botao rotulo={novo?'Enviar convite':'Salvar membro'} carregando={ocupado} desabilitado={!nome.trim()||(!perfilId&&!euMesmo)||(novo&&!email.trim())} aoTocar={()=>{if(!novo&&membro?.ativo&&!ativo)setConfirmar(true);else void salvar();}}/></>}>
       {convite?<>
-        {convite.emailEnviado?<Texto>Enviamos o link para {email.trim()}. Você também pode copiá-lo abaixo.</Texto>:null}
+        {convite.emailEnviado?<Texto>O e-mail do convite já foi enviado para {email.trim()}. Use o link só se precisar mandar por outro meio.</Texto>:<Texto>O e-mail do convite não foi enviado agora. Copie o link e mande ao membro.</Texto>}
         <Texto>Válido até {dataHoraParaTela(convite.expiraEm)}. O link só pode ser usado uma vez.</Texto>
         <Texto selectable>{convite.codigo}</Texto><Botao rotulo="Copiar código" tipo="secundario" aoTocar={()=>void copiar(convite.codigo)}/>
         <Texto selectable>{convite.link}</Texto>
-        <View style={{flexDirection:'row',gap:espaco(1),flexWrap:'wrap'}}><Botao rotulo="Copiar link" tipo="secundario" aoTocar={()=>void copiar(convite.link)}/><Botao rotulo="Compartilhar convite" tipo="secundario" aoTocar={()=>void compartilhar()}/></View>
+        <View style={{flexDirection:'row',gap:espaco(1),flexWrap:'wrap'}}><Botao rotulo="Copiar link do convite" tipo="secundario" aoTocar={()=>void copiar(convite.link)}/><Botao rotulo="Compartilhar convite" tipo="secundario" aoTocar={()=>void compartilhar()}/></View>
       </>:<>
+        {novo?<Texto variante="suave">O convite vai por e-mail na hora, se o envio de e-mails estiver ligado. O link fica disponível depois, para copiar se precisar.</Texto>:null}
         {membro?.convitePendente?<Texto variante="suave">Gerar outro convite invalida o anterior.</Texto>:null}
         <Campo rotulo="Nome do membro" valor={nome} aoMudar={setNome} maxLength={120}/>
         {novo?<Campo rotulo="E-mail do membro" valor={email} aoMudar={setEmail} keyboardType="email-address" autoCapitalize="none" maxLength={254}/>:<Texto>{email}</Texto>}

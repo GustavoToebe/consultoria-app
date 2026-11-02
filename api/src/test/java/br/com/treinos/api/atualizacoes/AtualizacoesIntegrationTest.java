@@ -183,6 +183,18 @@ class AtualizacoesIntegrationTest extends AbstractIntegrationTest {
         enviar(respostas(),200);
         api.post("/aluno/atualizacao/atraso",loginAluno,Map.of("pastaId",pastaAtual(),"novaData",hoje.plusDays(2)),409);
     }
+    /** C76: a nova data confere a faixa de planejamento antes da janela data..data+15; a mensagem não repete o valor. */
+    @Test void atrasoConfereANovaDataNaFaixaDePlanejamento() throws Exception {
+        publicarPasta(hoje.plusDays(1));
+        JsonNode erro = api.post("/aluno/atualizacao/atraso",loginAluno,Map.of("pastaId",pastaAtual(),"novaData","0260-11-01"),422);
+        assertThat(erro.path("codigo").asString()).isEqualTo("ATUALIZACAO_INVALIDA");
+        assertThat(erro.path("fieldErrors").get(0).path("field").asString()).isEqualTo("novaData");
+        assertThat(erro.path("fieldErrors").get(0).path("message").asString()).startsWith("Nova data: use uma data entre 01/01/2000 e 31/12/");
+        assertThat(erro.toString()).doesNotContain("0260");
+        String depoisDoTeto = LocalDate.of(hoje.getYear()+5,12,31).plusDays(1).toString();
+        assertThat(api.post("/aluno/atualizacao/atraso",loginAluno,Map.of("pastaId",pastaAtual(),"novaData",depoisDoTeto),422).toString()).doesNotContain(depoisDoTeto);
+        api.post("/aluno/atualizacao/atraso",loginAluno,Map.of("pastaId",pastaAtual(),"novaData",hoje.plusDays(5)),200);
+    }
     @Test void atrasoNaoAceitaDataAntesDaOriginalEMantemFormularioAberto() throws Exception {
         publicarPasta(hoje.plusDays(1));
         JsonNode erro = api.post("/aluno/atualizacao/atraso",loginAluno,Map.of("pastaId",pastaAtual(),"novaData",hoje),422);

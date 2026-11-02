@@ -71,4 +71,43 @@ for (const largura of [390, 1280]) {
     expect(post?.corpo).toEqual({ titulo: 'Plano 18', inicio: '2026-12-21', fim: '2027-01-04' });
     expect(errosDaPagina).toEqual([]);
   });
+
+  // C76 (reunião de 30/10): a pasta no ano 0261 não passa. A mensagem fica no próprio campo e o Salvar trava.
+  test(`pasta nova: início em 0261 é recusado no campo e trava o Salvar (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { pedidos, errosDaPagina } = await simularApi(page, {
+      ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'PASTA_ALTERAR'] })),
+      'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
+      'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+      [`GET /alunos/${ALUNO_ID}`]: { corpo: FICHA },
+      [`GET /alunos/${ALUNO_ID}/pastas`]: { corpo: PASTAS },
+      [`POST /alunos/${ALUNO_ID}/pastas`]: { corpo: { ...PASTAS[1], id: 'p3', titulo: 'Plano 18' } },
+    });
+
+    await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+    await page.getByRole('button', { name: 'Nova pasta' }).click();
+    const folha = page.getByRole('dialog');
+    await folha.getByLabel('Título').fill('Plano 18');
+    const inicio = folha.getByRole('textbox', { name: 'Início' });
+    const fim = folha.getByRole('textbox', { name: 'Fim' });
+    const salvar = folha.getByRole('button', { name: 'Salvar' });
+
+    await inicio.fill('05/05/0261');
+    // A máscara não troca o ano digitado, e a faixa vale o relógio do aparelho (2000 até 31/12 daqui a 5 anos).
+    await expect(inicio).toHaveValue('05/05/0261');
+    await expect(folha.getByText(/^Início da pasta: use uma data entre 01\/01\/2000 e 31\/12\/\d{4}$/)).toBeVisible();
+    await expect(salvar).toBeDisabled();
+
+    // O fim também é conferido (aqui passando do teto de 5 anos), e voltar a uma data boa destrava o Salvar.
+    await inicio.fill('01/11/2026');
+    await expect(folha.getByText(/use uma data entre/)).toHaveCount(0);
+    await fim.fill('15/11/2099');
+    await expect(folha.getByText(/^Fim da pasta: use uma data entre 01\/01\/2000 e 31\/12\/\d{4}$/)).toBeVisible();
+    await expect(salvar).toBeDisabled();
+    await fim.fill('15/11/2026');
+    await expect(salvar).toBeEnabled();
+
+    expect(pedidos.filter((p) => p.metodo === 'POST' && p.caminho.endsWith('/pastas'))).toHaveLength(0);
+    expect(errosDaPagina).toEqual([]);
+  });
 }

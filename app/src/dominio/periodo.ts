@@ -1,3 +1,4 @@
+import { dataDaTelaNaFaixa, erroDaData } from './datasValidas';
 import { dataDaTela, dataParaTela, somarDias } from './formatos';
 
 /**
@@ -12,8 +13,8 @@ export function periodoInicial(hoje: string, dias: number | null | undefined): {
 
 /** Quantos dias o período tem, contando o primeiro e o último (01/11 a 15/11 = 15); nulo se faltar data ou o fim vier antes. */
 export function diasDoPeriodo(inicio: string, fim: string): number | null {
-  const ini = dataDaTela(inicio);
-  const fi = dataDaTela(fim);
+  const ini = dataDaTelaNaFaixa(inicio, 'PLANEJAMENTO');
+  const fi = dataDaTelaNaFaixa(fim, 'PLANEJAMENTO');
   if (!ini || !fi || fi < ini) return null;
   return Math.round((Date.parse(fi) - Date.parse(ini)) / 86_400_000) + 1;
 }
@@ -23,7 +24,7 @@ export function diasDoPeriodo(inicio: string, fim: string): number | null {
  * Início incompleto ou inválido devolve nulo, e o fim que já estava na tela fica.
  */
 export function fimQueAcompanha(inicio: string, dias: number | null): string | null {
-  const ini = dataDaTela(inicio);
+  const ini = dataDaTelaNaFaixa(inicio, 'PLANEJAMENTO');
   if (!ini || !dias || dias < 1) return null;
   return dataParaTela(somarDias(ini, dias - 1));
 }
@@ -46,12 +47,14 @@ export function dadosDaRenovacao(
   pasta: { titulo: string; inicio: string | null; fim: string | null },
   hoje: string,
   diasAtualizacao: number | null | undefined,
-): { titulo: string; inicio: string | null; fim: string | null; texto: string } {
+): { titulo: string; inicio: string | null; fim: string | null; texto: string; erro: string | null } {
   const sugestao = pasta.fim ? proximoPeriodo(pasta) : periodoInicial(hoje, diasAtualizacao);
-  const inicio = dataDaTela(sugestao.inicio) ?? null;
-  const fim = dataDaTela(sugestao.fim) ?? null;
+  // Período fora da faixa (pasta de origem com ano absurdo, ou a renovação passando do limite): nada é enviado.
+  const erro = erroDaData(sugestao.inicio, 'Início da pasta nova', 'PLANEJAMENTO', hoje) ?? erroDaData(sugestao.fim, 'Fim da pasta nova', 'PLANEJAMENTO', hoje);
+  const inicio = erro ? null : dataDaTela(sugestao.inicio) ?? null;
+  const fim = erro ? null : dataDaTela(sugestao.fim) ?? null;
   const texto = inicio && fim ? `${sugestao.inicio} a ${sugestao.fim}` : inicio ? `a partir de ${sugestao.inicio}` : 'sem período definido';
-  return { titulo: `${pasta.titulo} (renovada)`.slice(0, 120), inicio, fim, texto };
+  return { titulo: `${pasta.titulo} (renovada)`.slice(0, 120), inicio, fim, texto, erro };
 }
 
 /**

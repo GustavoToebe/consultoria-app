@@ -5,7 +5,8 @@ import { StyleSheet, View } from 'react-native';
 
 import { alterarLesao, excluirLesao, listarLesoes, registrarLesao } from '../api/rotas';
 import type { Lesao, SituacaoLesao } from '../api/tipos';
-import { dataDaTela, dataParaTela } from '../dominio/formatos';
+import { dataDaTelaNaFaixa } from '../dominio/datasValidas';
+import { dataParaTela } from '../dominio/formatos';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, RAIO } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
@@ -111,8 +112,8 @@ function FolhaLesao({ alunoId, lesao, aoFechar, aoSalvar }: { alunoId: string; l
   const [observacao, setObservacao] = useState(lesao?.observacao ?? '');
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
-  const ini = dataDaTela(inicio);
-  const fi = dataDaTela(fim);
+  const ini = dataDaTelaNaFaixa(inicio, 'REGISTRO');
+  const fi = dataDaTelaNaFaixa(fim, 'REGISTRO');
   const valido = regiao.trim() !== '' && ini !== undefined && fi !== undefined;
 
   const salvar = () => {
@@ -149,10 +150,10 @@ function FolhaLesao({ alunoId, lesao, aoFechar, aoSalvar }: { alunoId: string; l
       <Escolha rotulo="Situação" opcoes={SITUACOES} valor={situacao} aoMudar={setSituacao} />
       <View style={estilos.datas}>
         <View style={estilos.data}>
-          <CampoData rotulo="Início (opcional)" valor={inicio} aoMudar={setInicio} />
+          <CampoData rotulo="Início (opcional)" nome="Início da lesão" regra="REGISTRO" valor={inicio} aoMudar={setInicio} />
         </View>
         <View style={estilos.data}>
-          <CampoData rotulo="Fim (opcional)" valor={fim} aoMudar={setFim} />
+          <CampoData rotulo="Fim (opcional)" nome="Fim da lesão" regra="REGISTRO" valor={fim} aoMudar={setFim} />
         </View>
       </View>
       <Campo rotulo="Observação (opcional)" valor={observacao} aoMudar={setObservacao} maxLength={500} multiline />

@@ -318,6 +318,12 @@ class InscricoesCrmIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.get("/inscricoes/contagens", admin, 200).path("retornosHoje").asLong()).isEqualTo(1);
         // Data absurda: 422.
         api.post("/inscricoes/" + id + "/retornos", admin, mapa("descricao", "Longe", "data", "2099-01-01"), 422);
+        // C76: faixa de planejamento (2000 até o fim do ano + 5), campo "data", sem repetir o valor.
+        JsonNode ano0260 = api.post("/inscricoes/" + id + "/retornos", admin, mapa("descricao", "Antigo", "data", "0260-11-01"), 422);
+        assertThat(ano0260.path("codigo").asString()).isEqualTo("RETORNO_INVALIDO");
+        assertThat(ano0260.path("fieldErrors").get(0).path("field").asString()).isEqualTo("data");
+        assertThat(ano0260.toString()).doesNotContain("0260");
+        api.post("/inscricoes/" + id + "/retornos", admin, mapa("descricao", "Antigo", "data", "1999-12-31"), 422);
 
         long vr2 = reagendado.path("retornos").get(0).path("versao").asLong();
         JsonNode concluido = api.post("/inscricoes/retornos/" + retornoId + "/concluir", admin, mapa("versao", vr2), 200);
