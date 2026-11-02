@@ -183,10 +183,34 @@ async function abrirAgenda(page: Page, estado: Estado, opcoes: { permissoes?: st
   });
 }
 
+/** O rótulo do "dias úteis" na lista da repetição (como no Google). */
+const DIAS_UTEIS = 'Todos os dias da semana (segunda a sexta-feira)';
+
 /** Uma opção de `Escolha` (grupo com o rótulo dado). */
 const opcao = (onde: Locator | Page, grupo: string, rotulo: string) =>
   onde.getByRole('radiogroup', { name: grupo }).getByRole('button', { name: rotulo, exact: true });
-const visao = (page: Page, rotulo: string) => opcao(page, 'Visão do calendário', rotulo);
+/** O botão "Mês ▾" da barra: o nome diz a visão atual. */
+const botaoDaVisao = (page: Page, rotulo: string) => page.getByRole('button', { name: `Visão do calendário: ${rotulo}`, exact: true });
+/** Troca a visão pelo menu suspenso da barra (o item é `menuitemradio`; o menu fecha ao escolher). */
+async function escolherVisao(page: Page, rotulo: string) {
+  await page.getByRole('button', { name: /^Visão do calendário: / }).click();
+  const menu = page.getByRole('menu', { name: 'Visão do calendário', exact: true });
+  await menu.getByRole('menuitemradio', { name: rotulo, exact: true }).click();
+  await expect(menu).toBeHidden();
+}
+
+/**
+ * Escolhe numa lista suspensa (`EscolhaEmFolha`): o botão "Rótulo: valor. Escolher." abre uma folha com rádios, que fecha
+ * ao escolher. O título da folha é o rótulo, a não ser que se diga outro.
+ */
+async function escolherNaLista(page: Page, onde: Locator, rotulo: string, opcaoEscolhida: string, titulo = rotulo) {
+  await onde.getByRole('button', { name: new RegExp(`^${rotulo}: .*\. Escolher\.$`) }).click();
+  const lista = page.getByRole('dialog', { name: titulo, exact: true });
+  await lista.getByRole('radio', { name: opcaoEscolhida, exact: true }).click();
+  await expect(lista).toBeHidden();
+}
+const escolherInicio = (page: Page, folha: Locator, hora: string) => escolherNaLista(page, folha, 'Início', hora, 'Início (Brasília)');
+const escolherRepeticao = (page: Page, folha: Locator, rotulo: string) => escolherNaLista(page, folha, 'Repetição', rotulo);
 
 const doCaminho = (pedidos: PedidoFalso[], metodo: string, caminho: string) => pedidos.filter((p) => p.metodo === metodo && p.caminho === caminho);
 const ultimo = (pedidos: PedidoFalso[], caminho: string) => doCaminho(pedidos, 'GET', caminho).at(-1);
@@ -221,30 +245,32 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       const { naoTratadas, errosDaPagina, pedidos } = await abrirAgenda(page, estado);
       await page.goto('/treinador/agenda');
 
-      // Um h1 só; a Semana de hoje (o padrão) com o "Hoje" desabilitado e o motivo.
+      // Um h1 só; a Semana de hoje (o padrão). O "Hoje" fica sempre habilitado (a barra não muda de altura com um motivo).
       await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
       await expect(page.getByRole('heading', { level: 1 })).toHaveText('Agenda');
       await expect(page.getByRole('heading', { name: '19 – 25 de out. de 2026', exact: true })).toBeVisible();
-      await expect(visao(page, 'Semana')).toHaveAttribute('aria-checked', 'true');
-      await expect(page.getByRole('button', { name: 'Hoje', exact: true })).toBeDisabled();
-      await expect(page.getByText('Hoje já está na tela.')).toBeVisible();
+      await expect(botaoDaVisao(page, 'Semana')).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Hoje', exact: true })).toBeEnabled();
+      await expect(page.getByText('Hoje já está na tela.')).toHaveCount(0);
+      // "Hoje" já no período de hoje não mexe no endereço.
+      await page.getByRole('button', { name: 'Hoje', exact: true }).click();
+      await expect.poll(() => endereco(page)).toBe('/treinador/agenda');
       await expect(page.getByRole('button', { name: 'Abrir compromisso de Ana Fictícia, 09:00', exact: true })).toBeVisible();
       expect([ultimo(pedidos, '/agenda/compromissos')?.busca.get('de'), ultimo(pedidos, '/agenda/compromissos')?.busca.get('ate')]).toEqual(['2026-10-19', '2026-10-25']);
 
-      // Seta: troca a data sem empilhar; "Hoje" volta a valer.
+      // Seta: troca a data sem empilhar.
       await page.getByRole('button', { name: 'Próxima semana', exact: true }).click();
       await expect.poll(() => endereco(page)).toBe('/treinador/agenda?data=2026-10-26');
       await expect(page.getByRole('heading', { name: '26 de out. – 1 de nov. de 2026', exact: true })).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Hoje', exact: true })).toBeEnabled();
 
       // Mês pela barra (empilha) e o voltar do navegador volta à Semana na mesma data.
-      await visao(page, 'Mês').click();
+      await escolherVisao(page, 'Mês');
       await expect.poll(() => endereco(page)).toBe('/treinador/agenda?visao=mes&data=2026-10-26');
       await expect.poll(() => ultimo(pedidos, '/agenda/compromissos')?.busca.get('de')).toBe('2026-09-28');
       expect(ultimo(pedidos, '/agenda/compromissos')?.busca.get('ate')).toBe('2026-11-08');
       await page.goBack();
       await expect.poll(() => endereco(page)).toBe('/treinador/agenda?data=2026-10-26');
-      await expect(visao(page, 'Semana')).toHaveAttribute('aria-checked', 'true');
+      await expect(botaoDaVisao(page, 'Semana')).toBeVisible();
 
       // "Hoje" tira a data do endereço.
       await page.getByRole('button', { name: 'Hoje', exact: true }).click();
@@ -252,7 +278,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await expect(page.getByRole('heading', { name: '19 – 25 de out. de 2026', exact: true })).toBeVisible();
 
       // Ano: as setas andam um ano; voltar ao ano de hoje tira a data.
-      await visao(page, 'Ano').click();
+      await escolherVisao(page, 'Ano');
       await expect.poll(() => endereco(page)).toBe('/treinador/agenda?visao=ano');
       await page.getByRole('button', { name: 'Próximo ano', exact: true }).click();
       await expect.poll(() => endereco(page)).toBe('/treinador/agenda?visao=ano&data=2027-10-19');
@@ -261,16 +287,42 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await expect.poll(() => endereco(page)).toBe('/treinador/agenda?visao=ano');
 
       // Dia: a seta anda um dia; o voltar desfaz a troca de visão (volta ao Ano).
-      await visao(page, 'Dia').click();
+      await escolherVisao(page, 'Dia');
       await expect.poll(() => endereco(page)).toBe('/treinador/agenda?visao=dia');
       await page.getByRole('button', { name: 'Dia anterior', exact: true }).click();
       await expect.poll(() => endereco(page)).toBe('/treinador/agenda?visao=dia&data=2026-10-18');
       await expect(page.getByRole('heading', { name: '18 de outubro de 2026', exact: true })).toBeVisible();
       await page.goBack();
       await expect.poll(() => endereco(page)).toBe('/treinador/agenda?visao=ano');
-      await expect(visao(page, 'Ano')).toHaveAttribute('aria-checked', 'true');
+      await expect(botaoDaVisao(page, 'Ano')).toBeVisible();
 
       if (!celular) {
+        // O menu da visão: ✓ (aria-checked) na atual, a letra do atalho ao lado; setas andam, Enter escolhe, Esc fecha e o
+        // foco volta ao botão.
+        const menu = page.getByRole('menu', { name: 'Visão do calendário', exact: true });
+        await botaoDaVisao(page, 'Ano').click();
+        await expect(menu.getByRole('menuitemradio')).toHaveCount(4);
+        await expect(menu.getByRole('menuitemradio', { name: 'Ano', exact: true })).toHaveAttribute('aria-checked', 'true');
+        await expect(menu.getByRole('menuitemradio', { name: 'Dia', exact: true })).toHaveAttribute('aria-checked', 'false');
+        await expect(menu.getByText('Y', { exact: true })).toBeVisible();
+        await expect(menu.getByRole('menuitemradio', { name: 'Ano', exact: true })).toBeFocused();
+        await page.keyboard.press('Escape');
+        await expect(menu).toBeHidden();
+        await expect(botaoDaVisao(page, 'Ano')).toBeFocused();
+        await expect.poll(() => endereco(page)).toBe('/treinador/agenda?visao=ano');
+        await botaoDaVisao(page, 'Ano').click();
+        // Com o menu aberto, a letra do atalho não troca a visão por trás dele.
+        await page.keyboard.press('m');
+        await expect(menu).toBeVisible();
+        await expect.poll(() => endereco(page)).toBe('/treinador/agenda?visao=ano');
+        await page.keyboard.press('ArrowUp');
+        await expect(menu.getByRole('menuitemradio', { name: 'Mês', exact: true })).toBeFocused();
+        await page.keyboard.press('Enter');
+        await expect(menu).toBeHidden();
+        await expect.poll(() => endereco(page)).toBe('/treinador/agenda?visao=mes');
+        await page.goBack();
+        await expect.poll(() => endereco(page)).toBe('/treinador/agenda?visao=ano');
+
         // Atalhos de teclado (web): D, W, M e Y trocam a visão e empilham como a barra.
         await page.keyboard.press('d');
         await expect.poll(() => endereco(page)).toBe('/treinador/agenda?visao=dia');
@@ -285,7 +337,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
         await expect.poll(() => endereco(page)).toBe('/treinador/agenda?visao=ano');
         await page.goBack();
         await expect.poll(() => endereco(page)).toBe('/treinador/agenda?visao=mes');
-        await expect(visao(page, 'Mês')).toHaveAttribute('aria-checked', 'true');
+        await expect(botaoDaVisao(page, 'Mês')).toBeVisible();
       }
       expect(naoTratadas).toEqual([]);
       expect(errosDaPagina).toEqual([]);
@@ -337,7 +389,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
 
         // Mês no PC: célula com os itens do dia; o toque abre o Dia.
         await page.getByRole('button', { name: 'Hoje', exact: true }).click();
-        await visao(page, 'Mês').click();
+        await escolherVisao(page, 'Mês');
         const celula = page.getByRole('button', { name: 'segunda-feira, 19 de outubro de 2026, hoje, 3 itens. Abrir o dia', exact: true });
         await expect(celula).toBeVisible();
         await expect(celula.getByText('09:00 Ana Fictícia')).toBeVisible();
@@ -359,7 +411,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
         await semRolagemHorizontal(page);
 
         // Mês compacto: pontos (decorativos) e o nome diz quantos itens; a lista embaixo é a do dia escolhido.
-        await visao(page, 'Mês').click();
+        await escolherVisao(page, 'Mês');
         await expect.poll(() => endereco(page)).toBe('/treinador/agenda?visao=mes');
         const dia19 = page.getByRole('button', { name: 'segunda-feira, 19 de outubro de 2026, hoje, 3 itens', exact: true });
         await expect(dia19).toHaveAttribute('aria-selected', 'true');
@@ -373,7 +425,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
         await expect(page.getByText('Nada marcado', { exact: true })).toBeVisible();
 
         // Ano: um mês por linha, rolando com a tela.
-        await visao(page, 'Ano').click();
+        await escolherVisao(page, 'Ano');
         await expect.poll(() => endereco(page)).toBe('/treinador/agenda?visao=ano&data=2026-10-21');
         const dezembro = page.getByRole('button', { name: 'Abrir dezembro de 2026', exact: true });
         await expect(page.getByRole('button', { name: 'Abrir janeiro de 2026', exact: true })).toBeVisible();
@@ -463,23 +515,27 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await expect(folha.getByText(PRIVACIDADE, { exact: true })).toBeVisible();
       await expect(folha.getByLabel('Data', { exact: true })).toHaveValue('19/10/2026');
 
+      // Painel rápido: título grande "Adicionar título", horário em listas, "Mais opções" e o primário "Salvar".
+      await expect(folha.getByPlaceholder('Adicionar título')).toBeVisible();
+      await expect(folha.getByRole('button', { name: 'Mais opções', exact: true })).toBeVisible();
+      await expect(folha.getByRole('button', { name: 'Repetição: Não se repete. Escolher.', exact: true })).toBeVisible();
       // Sem título e hora: o erro fica junto do campo e nada vai à API.
-      await folha.getByRole('button', { name: 'Criar evento', exact: true }).click();
+      await folha.getByRole('button', { name: 'Salvar', exact: true }).click();
       await expect(folha.getByText('Informe o título.')).toBeVisible();
       await expect(folha.getByText('Confira os campos destacados.')).toBeVisible();
       expect(doCaminho(pedidos, 'POST', '/agenda/agendas')).toEqual([]);
 
       await folha.getByLabel('Título', { exact: true }).fill('Estudo de teste');
-      await folha.getByLabel('Hora (Brasília)').fill('0900');
-      await expect(folha.getByLabel('Hora (Brasília)')).toHaveValue('09:00');
-      await opcao(folha, 'Repetição', 'Dias úteis (segunda a sexta)').click();
+      await escolherInicio(page, folha, '09:00');
+      await expect(folha.getByRole('button', { name: 'Fim: 10:00 (1 h). Escolher.', exact: true })).toBeVisible();
+      await escolherRepeticao(page, folha, DIAS_UTEIS);
       await expect(folha.getByText('Feriados não são pulados: cancele só a ocorrência do feriado.', { exact: true })).toBeVisible();
       await expect(opcao(folha, 'Termina', 'Nunca')).toHaveAttribute('aria-checked', 'true');
       // A ajuda dos dias úteis some nos outros tipos.
-      await opcao(folha, 'Repetição', 'Todo dia').click();
+      await escolherRepeticao(page, folha, 'Todos os dias');
       await expect(folha.getByText('Feriados não são pulados: cancele só a ocorrência do feriado.')).toHaveCount(0);
-      await opcao(folha, 'Repetição', 'Dias úteis (segunda a sexta)').click();
-      await folha.getByRole('button', { name: 'Criar evento', exact: true }).click();
+      await escolherRepeticao(page, folha, DIAS_UTEIS);
+      await folha.getByRole('button', { name: 'Salvar', exact: true }).click();
       await expect(folha).toBeHidden();
 
       // A "Pessoal" vai antes, e o evento leva o id que a API devolveu.
@@ -588,7 +644,9 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       const doAvulso = page.getByRole('dialog', { name: 'Evento', exact: true });
       await expect(doAvulso.getByText('Não se repete', { exact: true })).toBeVisible();
       await doAvulso.getByRole('button', { name: 'Editar', exact: true }).click();
-      await expect(editar.getByRole('radiogroup', { name: 'Repetição' })).toHaveCount(0);
+      // A edição abre direto no formulário completo.
+      await expect(editar.getByRole('heading', { name: 'Quando', exact: true })).toBeVisible();
+      await expect(editar.getByRole('button', { name: /^Repetição: / })).toHaveCount(0);
       await expect(editar.getByText(/faz parte de uma série/)).toHaveCount(0);
       await editar.getByLabel('Título', { exact: true }).fill('Reunião alterada');
       const leiturasAntes = doCaminho(pedidos, 'GET', '/agenda/eventos/ev-avulso').length;
@@ -660,7 +718,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await expect.poll(atualizacoes).toEqual(['false', null, '2026-01-01']);
       // Trocar de visão mantém o filtro no endereço.
       await page.goto('/treinador/agenda?meus=true');
-      await visao(page, 'Ano').click();
+      await escolherVisao(page, 'Ano');
       await expect.poll(() => endereco(page)).toBe('/treinador/agenda?visao=ano&meus=true');
       await expect.poll(resumo).toEqual([null, TREINADOR.id, '2026-01-01']);
 
@@ -801,19 +859,69 @@ test.describe('filtros em Folha e preferências (1280 px)', () => {
   });
 });
 
+for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
+  test.describe(`evento: painel rápido e formulário completo (${largura} px)`, () => {
+    test.use({ viewport: { width: largura, height: altura } });
+
+    test('"Personalizar…" na repetição abre o completo com o semanal do dia e o foco na repetição', async ({ page }) => {
+      const estado: Estado = { agendas: [agenda('g1', 'Pessoal', 'AZUL')], eventos: [], compromissos: [] };
+      const { pedidos, naoTratadas, errosDaPagina } = await abrirAgenda(page, estado);
+      await page.goto('/treinador/agenda');
+      await page.getByRole('button', { name: 'Criar', exact: true }).click();
+      await page.getByRole('menuitem', { name: /^Evento\./ }).click();
+      const folha = page.getByRole('dialog', { name: 'Novo evento', exact: true });
+      // Rápido: sem os dias da semana nem as partes do completo.
+      await expect(folha.getByRole('button', { name: 'Mais opções', exact: true })).toBeVisible();
+      await expect(folha.getByRole('heading', { name: 'Quando', exact: true })).toHaveCount(0);
+      const larguraRapida = (await folha.boundingBox())?.width ?? 0;
+
+      await folha.getByLabel('Título', { exact: true }).fill('Estudo de teste');
+      await escolherInicio(page, folha, '09:00');
+      await escolherRepeticao(page, folha, 'Personalizar…');
+      // Completo: as partes, os dias da semana (a segunda-feira da data) e o foco na lista da repetição.
+      await expect(folha.getByRole('heading', { name: 'Quando', exact: true })).toBeVisible();
+      await expect(folha.getByRole('heading', { name: 'Detalhes', exact: true })).toBeVisible();
+      await expect(folha.getByRole('button', { name: 'Mais opções', exact: true })).toHaveCount(0);
+      const repeticao = folha.getByRole('button', { name: 'Repetição: Semanal: cada segunda-feira. Escolher.', exact: true });
+      await expect(repeticao).toBeVisible();
+      await expect(repeticao).toBeFocused();
+      await expect(folha.getByRole('checkbox', { name: 'Segunda-feira' })).toBeChecked();
+      // O que já estava escrito continua; no PC o completo é mais largo.
+      await expect(folha.getByLabel('Título', { exact: true })).toHaveValue('Estudo de teste');
+      await expect(folha.getByRole('button', { name: 'Início: 09:00. Escolher.', exact: true })).toBeVisible();
+      if (largura >= 1024) expect((await folha.boundingBox())?.width ?? 0).toBeGreaterThan(larguraRapida + 200);
+
+      await folha.getByRole('checkbox', { name: 'Quarta-feira' }).click();
+      await expect(folha.getByRole('button', { name: 'Repetição: Semanal: segunda e quarta. Escolher.', exact: true })).toBeVisible();
+      await folha.getByRole('button', { name: 'Salvar', exact: true }).click();
+      await expect(folha).toBeHidden();
+      expect(doCaminho(pedidos, 'POST', '/agenda/eventos').map((p) => (p.corpo as EventoRequest).repeticao)).toEqual([
+        { tipo: 'SEMANAL', diasDaSemana: ['MONDAY', 'WEDNESDAY'] },
+      ]);
+      expect(naoTratadas).toEqual([]);
+      expect(errosDaPagina).toEqual([]);
+    });
+  });
+}
+
 test.describe('filtros em Folha (390 px)', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test('escolher "Agendados" na folha Agendas e filtros grava ?situacao=AGENDADO e filtra', async ({ page }) => {
+  test('marcar "Agendados" no filtro Compromissos (lista suspensa dentro da folha) grava ?situacao=AGENDADO e filtra', async ({ page }) => {
     const estado: Estado = { agendas: [agenda('g1', 'Pessoal', 'AZUL')], eventos: [], compromissos: [compromisso('k1', [ANA], HOJE, '09:00')] };
     const { pedidos } = await abrirAgenda(page, estado);
     await page.goto('/treinador/agenda');
     await page.getByRole('button', { name: 'Agendas e filtros', exact: true }).click();
     const folha = page.getByRole('dialog', { name: 'Agendas e filtros', exact: true });
-    await opcao(folha, 'Compromissos', 'Agendados').click();
-    // Esperado: a folha continua aberta com "Agendados" marcado (é só um filtro dentro dela).
+    // "Compromissos: Todas" no padrão do "Responsável": abre a lista com caixas (no celular, outra folha).
+    await folha.getByRole('button', { name: 'Compromissos: Todas. Escolher.', exact: true }).click();
+    const lista = page.getByRole('dialog', { name: 'Compromissos', exact: true });
+    await lista.getByRole('checkbox', { name: 'Agendados', exact: true }).click();
+    await expect(lista.getByRole('checkbox', { name: 'Agendados', exact: true })).toBeChecked();
+    await lista.getByRole('button', { name: 'Fechar', exact: true }).click();
+    // A folha dos filtros continua aberta, com o filtro no campo.
     await expect(folha).toBeVisible({ timeout: 3000 });
-    await expect(opcao(folha, 'Compromissos', 'Agendados')).toHaveAttribute('aria-checked', 'true');
+    await expect(folha.getByRole('button', { name: 'Compromissos: Agendados. Escolher.', exact: true })).toBeVisible();
     await folha.getByRole('button', { name: 'Fechar', exact: true }).click();
     await expect.poll(() => endereco(page), { timeout: 3000 }).toBe('/treinador/agenda?situacao=AGENDADO');
     expect(ultimo(pedidos, '/agenda/compromissos')?.busca.get('situacao')).toBe('AGENDADO');
@@ -892,11 +1000,11 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
           ? { quantidade: 3, datas: ['2026-10-20', '2026-10-21', '2026-10-22'], incompleto: false } : SEM_CRUZAMENTO));
       // Sem hora não há pergunta.
       await folha.getByLabel('Título', { exact: true }).fill('Estudo de teste');
-      await opcao(folha, 'Repetição', 'Todo dia').click();
+      await escolherRepeticao(page, folha, 'Todos os dias');
       expect(cruzamentos(pedidos)).toEqual([]);
 
       const resposta = page.waitForResponse(URL_DO_CRUZAMENTO);
-      await folha.getByLabel('Hora (Brasília)').fill('0900');
+      await escolherInicio(page, folha, '09:00');
       await resposta;
       const aviso = folha.getByText('Cruza com 3 horários: 20/10, 21/10 e 22/10. Dá para salvar mesmo assim.', { exact: true });
       await expect(aviso).toBeVisible();
@@ -906,9 +1014,9 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       });
 
       // Sem repetição a API diz zero: o aviso some.
-      await opcao(folha, 'Repetição', 'Não se repete').click();
+      await escolherRepeticao(page, folha, 'Não se repete');
       await expect(aviso).toHaveCount(0);
-      await opcao(folha, 'Repetição', 'Todo dia').click();
+      await escolherRepeticao(page, folha, 'Todos os dias');
       await expect(aviso).toBeVisible();
       // Dia inteiro não pergunta e não avisa.
       const antes = cruzamentos(pedidos).length;
@@ -918,8 +1026,8 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await expect(aviso).toBeVisible();
       expect(cruzamentos(pedidos).slice(antes).every((c) => !c.diaInteiro)).toBe(true);
 
-      // O aviso não trava: "Criar evento" salva direto, sem pergunta nem espera.
-      await folha.getByRole('button', { name: 'Criar evento', exact: true }).click();
+      // O aviso não trava: "Salvar" salva direto, sem pergunta nem espera.
+      await folha.getByRole('button', { name: 'Salvar', exact: true }).click();
       await expect(folha).toBeHidden();
       expect(doCaminho(pedidos, 'POST', '/agenda/eventos').map((p) => (p.corpo as EventoRequest).repeticao)).toEqual([{ tipo: 'DIARIA' }]);
       expect(naoTratadas).toEqual([]);
@@ -930,8 +1038,8 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       const { folha } = await abrirNovoEvento(page, {
         corpo: { quantidade: 400, datas: ['2026-10-20', '2026-10-21', '2026-10-22', '2026-10-23', '2026-10-26'], incompleto: true },
       });
-      await folha.getByLabel('Hora (Brasília)').fill('0900');
-      await opcao(folha, 'Repetição', 'Dias úteis (segunda a sexta)').click();
+      await escolherInicio(page, folha, '09:00');
+      await escolherRepeticao(page, folha, DIAS_UTEIS);
       await expect(folha.getByText(
         'Cruza com 400 horários, pode haver mais: 20/10, 21/10, 22/10, 23/10, 26/10 e outros. Dá para salvar mesmo assim.', { exact: true },
       )).toBeVisible();
@@ -940,7 +1048,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
     test('quantidade 0 não mostra aviso', async ({ page }) => {
       const { folha, pedidos } = await abrirNovoEvento(page, { corpo: SEM_CRUZAMENTO });
       const resposta = page.waitForResponse(URL_DO_CRUZAMENTO);
-      await folha.getByLabel('Hora (Brasília)').fill('0900');
+      await escolherInicio(page, folha, '09:00');
       await resposta;
       expect(cruzamentos(pedidos)).toHaveLength(1);
       await expect(folha.getByText(AVISO)).toHaveCount(0);
@@ -954,17 +1062,17 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       test(`${caso}: sem aviso nem erro, e salvar funciona`, async ({ page }) => {
         const { folha, pedidos, errosDaPagina } = await abrirNovoEvento(page, resposta);
         await folha.getByLabel('Título', { exact: true }).fill('Estudo de teste');
-        await opcao(folha, 'Repetição', 'Todo dia').click();
+        await escolherRepeticao(page, folha, 'Todos os dias');
         const terminou = Promise.race([
           page.waitForEvent('requestfinished', (r) => URL_DO_CRUZAMENTO.test(r.url())),
           page.waitForEvent('requestfailed', (r) => URL_DO_CRUZAMENTO.test(r.url())),
         ]);
-        await folha.getByLabel('Hora (Brasília)').fill('0900');
+        await escolherInicio(page, folha, '09:00');
         await terminou;
         expect(cruzamentos(pedidos)).toHaveLength(1);
         await expect(folha.getByText(AVISO)).toHaveCount(0);
         await expect(folha.getByRole('alert')).toHaveCount(0);
-        await folha.getByRole('button', { name: 'Criar evento', exact: true }).click();
+        await folha.getByRole('button', { name: 'Salvar', exact: true }).click();
         await expect(folha).toBeHidden();
         expect(doCaminho(pedidos, 'POST', '/agenda/eventos')).toHaveLength(1);
         await expect(page.getByRole('alert')).toHaveCount(0);

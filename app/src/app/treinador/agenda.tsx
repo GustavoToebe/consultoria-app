@@ -8,7 +8,7 @@ import {
   alternarAgendaOculta, deslocarCalendario, diasDoPeriodo, type ItemDoCalendario, lerEnderecoDoCalendario, modoDaVisao, periodoDoCalendario,
   type VisaoDoCalendario, visaoDoAtalho,
 } from '../../dominio/agendaCalendario';
-import { hojeEmBrasilia, lerSituacao, OPCOES_SITUACAO } from '../../dominio/agendaPresencial';
+import { hojeEmBrasilia, lerSituacoes, OPCOES_SITUACAO, parametroDasSituacoes } from '../../dominio/agendaPresencial';
 import { caminhoListaAtualizacoes } from '../../dominio/atualizacao';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
@@ -28,7 +28,6 @@ import { VisaoDoMes } from '../../treinador/agenda/VisaoDoMes';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
-import { Escolha } from '../../ui/Escolha';
 import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
@@ -36,6 +35,7 @@ import { textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
 import { depoisDeFecharAsFolhas, portalDaFolhaDoTopo } from '../../ui/historicoDasFolhas';
 import { LinkTexto } from '../../ui/LinkTexto';
+import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
 import { Selo } from '../../ui/Selo';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
@@ -46,7 +46,7 @@ const LARGURA_DO_PAINEL_LATERAL = 960;
 const TODA_A_EQUIPE = '';
 const SO_OS_MEUS = 'meus';
 
-type Parametros = { meus?: string; membro?: string; visao?: string; data?: string; situacao?: string; novo?: string };
+type Parametros = { meus?: string; membro?: string; visao?: string; data?: string; situacao?: string | string[]; novo?: string };
 
 const NOMES_DAS_FONTES: Record<string, string> = {
   agendas: 'Agendas', compromissos: 'Compromissos', eventos: 'Eventos', atualizacoes: 'Atualizações', resumo: 'Resumo do ano',
@@ -98,12 +98,12 @@ export default function AgendaDoTreinador() {
   const filtrosDoEndereco: Parametros = { ...p, ...ajuste };
   const meus = filtrosDoEndereco.meus === 'true';
   const membro = !meus && permissoes.equipe && filtrosDoEndereco.membro ? filtrosDoEndereco.membro : null;
-  const situacao = permissoes.agenda ? lerSituacao(filtrosDoEndereco.situacao) : null;
+  const situacoes = useMemo(() => (permissoes.agenda ? lerSituacoes(filtrosDoEndereco.situacao) : []), [permissoes.agenda, filtrosDoEndereco.situacao]);
   const modo = modoDaVisao(visao, larguraDaJanela);
   const lateral = largura >= LARGURA_DO_PAINEL_LATERAL;
 
   const cal = useCalendario(permissoes, {
-    visao, data, meus, membro, situacao, usuarioId: usuario?.id ?? null, ocultasGravadas: preferencias.agendasOcultas, preferenciasLidas,
+    visao, data, meus, membro, situacoes, usuarioId: usuario?.id ?? null, ocultasGravadas: preferencias.agendasOcultas, preferenciasLidas,
   });
   const { recarregarTudo } = cal;
   useFocusEffect(useCallback(() => { recarregarTudo(); }, [recarregarTudo]));
@@ -112,7 +112,7 @@ export default function AgendaDoTreinador() {
   const ir = (novos: Partial<Parametros>, como: 'replace' | 'push') => {
     const atual: Parametros = {
       visao: visao === 'semana' ? undefined : visao, data: data === hoje ? undefined : data,
-      meus: meus ? 'true' : undefined, membro: membro ?? undefined, situacao: situacao ?? undefined,
+      meus: meus ? 'true' : undefined, membro: membro ?? undefined, situacao: parametroDasSituacoes(situacoes),
     };
     const juntos = { ...atual, ...novos };
     const params = Object.fromEntries(Object.entries(juntos).filter(([, v]) => v !== undefined && v !== '')) as Record<string, string>;
@@ -184,14 +184,12 @@ export default function AgendaDoTreinador() {
   const alternar = (chave: string) => escolherPreferencia({ agendasOcultas: alternarAgendaOculta(cal.ocultas, chave) });
 
   const { de, ate } = periodoDoCalendario(visao, data);
-  const noPeriodoDeHoje = visao === 'mes' ? data.slice(0, 7) === hoje.slice(0, 7) : visao === 'ano' ? data.slice(0, 4) === hoje.slice(0, 4)
-    : de <= hoje && hoje <= ate;
   const nomesDasAgendas = useMemo(() => new Map((cal.agendas ?? []).map((a) => [a.id, a.nome])), [cal.agendas]);
   const itens = cal.itens ?? [];
   const vazio = cal.pronto && itens.length === 0 && cal.semData.length === 0 && (visao !== 'ano' || (cal.contagem?.size ?? 0) === 0);
   const comSemData = cal.semData.length > 0 && de <= hoje && hoje <= ate;
 
-  const filtros = <Filtros meus={meus} membro={membro} situacao={situacao} permissoes={permissoes} cal={cal} usuarioId={usuario?.id ?? null}
+  const filtros = <Filtros meus={meus} membro={membro} situacoes={situacoes} permissoes={permissoes} cal={cal} usuarioId={usuario?.id ?? null}
     aoMudar={aoMudarFiltro} />;
   const painel = cal.painelDeAgendas.length ? <PainelDeAgendas agendas={cal.painelDeAgendas} pessoais={cal.agendas} carregando={cal.agendasCarregando}
     podeAlterar={podeAlterar} aoAlternar={alternar} aoMudar={() => { cal.recarregarAgendas(); cal.recarregarEventos(); }} /> : null;
@@ -219,8 +217,8 @@ export default function AgendaDoTreinador() {
     {offline ? null : cal.erros.map((e) => <MensagemErro key={e.chave} texto={`${NOMES_DAS_FONTES[e.chave] ?? 'Agenda'}: ${textoDoErro(e.erro)}`} erro={e.erro}
       tentarDeNovo={e.tentarDeNovo} />)}
   </>;
-  const barra = <BarraDoCalendario visao={visao} data={data} noPeriodoDeHoje={noPeriodoDeHoje} aoMudarVisao={mudarVisao}
-    aoDeslocar={(s) => escolherData(deslocarCalendario(visao, data, s))} aoHoje={() => ir({ data: undefined }, 'replace')}
+  const barra = <BarraDoCalendario visao={visao} data={data} aoMudarVisao={mudarVisao} aoMudarMenuAberto={setMenuAberto}
+    aoDeslocar={(s) => escolherData(deslocarCalendario(visao, data, s))} aoHoje={() => { if (data !== hoje) ir({ data: undefined }, 'replace'); }}
     extra={lateral ? undefined : <Botao rotulo="Agendas e filtros" tipo="secundario" Icone={SlidersHorizontal} aoTocar={() => setPainelAberto(true)} />} />;
 
   return <Tela largura={LARGURA_LISTA} bordas={['top']}>
@@ -270,8 +268,8 @@ export default function AgendaDoTreinador() {
  * Filtros da agenda (bloco com faixa): o responsável (D19: toda a equipe, só os meus ou um membro, nas três fontes), a
  * situação dos compromissos e o contador de atualizações atrasadas com o link para a lista.
  */
-function Filtros({ meus, membro, situacao, permissoes, cal, usuarioId, aoMudar }: {
-  meus: boolean; membro: string | null; situacao: ReturnType<typeof lerSituacao>;
+function Filtros({ meus, membro, situacoes, permissoes, cal, usuarioId, aoMudar }: {
+  meus: boolean; membro: string | null; situacoes: ReturnType<typeof lerSituacoes>;
   permissoes: { agenda: boolean; equipe: boolean };
   cal: ReturnType<typeof useCalendario>; usuarioId: string | null; aoMudar: (novos: Partial<Parametros>) => void;
 }) {
@@ -285,12 +283,12 @@ function Filtros({ meus, membro, situacao, permissoes, cal, usuarioId, aoMudar }
   return (
     <Cartao titulo="Filtros">
       <EscolhaEmFolha rotulo="Responsável" titulo="Mostrar a agenda de" valor={valor} opcoes={opcoes} rotuloDoValor={nomeDoMembro}
-        carregando={cal.equipeCarregando}
+        carregando={cal.equipeCarregando} style={estilos.campoDoFiltro}
         aoMudar={(v) => aoMudar({ meus: v === SO_OS_MEUS ? 'true' : undefined, membro: v && v !== SO_OS_MEUS ? v : undefined })} />
       {permissoes.agenda ? <>
-        <Escolha rotulo="Compromissos" valor={situacao ?? 'TODAS'} opcoes={OPCOES_SITUACAO}
-          aoMudar={(v) => aoMudar({ situacao: v === 'TODAS' ? undefined : v })} />
-        {situacao ? <Texto variante="suave">Com vários alunos, aparecem os compromissos em que algum aluno está nessa situação.</Texto> : null}
+        <SelecaoMultiplaSuspensa rotulo="Compromissos" opcoes={OPCOES_SITUACAO} marcados={new Set<string>(situacoes)} rotuloDeTodos="Todas"
+          style={estilos.campoDoFiltro} aoMudar={(m) => aoMudar({ situacao: parametroDasSituacoes(lerSituacoes([...m])) })} />
+        {situacoes.length ? <Texto variante="suave">Com vários alunos, aparecem os compromissos em que algum aluno está em alguma dessas situações.</Texto> : null}
       </> : null}
       {cal.atrasadas ? <View style={estilos.atrasadas}>
         <Selo texto={cal.atrasadas} tipo="perigo" Icone={iconeDoTom('perigo')} />
@@ -305,5 +303,7 @@ const estilos = StyleSheet.create({
   lateral: { gap: espaco(3) },
   principal: { flex: 1, minWidth: 0, gap: espaco(2) },
   painelDaFolha: { gap: espaco(3) },
+  // Os dois filtros com a mesma largura, um embaixo do outro (os dois com cara de campo).
+  campoDoFiltro: { alignSelf: 'stretch' },
   atrasadas: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(1.5) },
 });

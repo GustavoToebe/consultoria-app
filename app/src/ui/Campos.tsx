@@ -19,11 +19,14 @@ export function CampoData({
   valor,
   aoMudar,
   erro,
+  rotuloOculto,
 }: {
   rotulo: string;
   valor: string;
   aoMudar: (texto: string) => void;
   erro?: string | null;
+  /** Sem o rótulo em cima (o ícone ao lado já diz o que é); o leitor de tela continua lendo o `rotulo`. */
+  rotuloOculto?: boolean;
 }) {
   const invalida = valor.length === 10 && dataDaTela(valor) === undefined;
   const [ancora, setAncora] = useState<Ancora | null>(null);
@@ -34,6 +37,7 @@ export function CampoData({
     <Campo
       numerico
       rotulo={rotulo}
+      rotuloOculto={rotuloOculto}
       valor={valor}
       aoMudar={(t) => aoMudar(mascaraData(t))}
       placeholder="DD/MM/AAAA"

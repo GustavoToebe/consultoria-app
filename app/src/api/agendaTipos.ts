@@ -120,7 +120,8 @@ export interface FiltroCompromissos {
   de: string;
   ate: string;
   responsavel?: string | null;
-  situacao?: SituacaoCompromisso | null;
+  /** Vários valem como OU (o compromisso com algum aluno em alguma delas); vazio ou ausente = todas. */
+  situacoes?: readonly SituacaoCompromisso[];
 }
 
 /** Aviso de aluno ocupado: `ignorar` é o próprio compromisso, ao remarcar. */
@@ -288,12 +289,12 @@ export interface FiltroEventos {
   agendas?: readonly string[] | null;
 }
 
-/** Resumo do Ano (até 366 dias): `responsavel`, `situacao` e `agendas` filtram como nas listagens. */
+/** Resumo do Ano (até 366 dias): `responsavel`, `situacoes` e `agendas` filtram como nas listagens. */
 export interface FiltroResumo {
   de: string;
   ate: string;
   responsavel?: string | null;
-  situacao?: SituacaoCompromisso | null;
+  situacoes?: readonly SituacaoCompromisso[];
   agendas?: readonly string[] | null;
 }
 

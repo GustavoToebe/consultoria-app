@@ -3,11 +3,17 @@ import type {
   EventoDetalhe, EventoRequest, OcorrenciaDeEvento, RepeticaoDeEvento, TipoDeRepeticaoDeEvento,
 } from '../api/agendaTipos';
 import { CHAVES_DA_AGENDA } from '../tema/tokens';
-import { DIAS_DA_SEMANA, diaDaSemanaDaData, horaValida } from './agendaPresencial';
+import { DIAS_DA_SEMANA, DIAS_NO_TEXTO, diaDaSemanaDaData, horaValida, juntarComE } from './agendaPresencial';
 import { dataSemAnoCorrente } from './datasRelativas';
 import { dataDaTela, dataParaTela, diaDaSemanaIso, somarDias } from './formatos';
 
-export { AJUDA_DIAS_UTEIS, OPCOES_DE_DIA_DA_SEMANA, OPCOES_DE_REPETICAO, alternarDiaDaRepeticao, mascaraHora, horaValida } from './agendaPresencial';
+// Início–fim e rótulos da repetição são os mesmos do compromisso (o evento passa `LIMITES_DO_EVENTO` nos limites de duração e
+// `FormularioDaRepeticaoDoEvento` em `rotuloDaRepeticaoAtual`: só `tipo` e `dias` importam).
+export {
+  AJUDA_DIAS_UTEIS, OPCOES_DE_DIA_DA_SEMANA, OPCOES_DE_REPETICAO, alternarDiaDaRepeticao, mascaraHora, horaValida,
+  PERSONALIZAR_REPETICAO, duracaoEntre, erroDoFim, fimDaHora, horaDosMinutos, inicioMudou, minutosDaHora, opcoesDaRepeticao, opcoesDoFim,
+  opcoesDoInicio, rotuloDaRepeticaoAtual, terminaNoDiaSeguinte, horaDigitada, opcaoDigitadaDoInicio, opcaoDigitadaDoFim,
+} from './agendaPresencial';
 
 /**
  * Regras do formulário do evento pessoal (sem aluno) e das agendas pessoais, espelho de `EventoAgendaService`,
@@ -133,11 +139,6 @@ export function repeticaoDoEvento(f: FormularioDaRepeticaoDoEvento, primeira: st
   if (ate && primeira && ate < primeiroDiaDaRegra(primeira, f.tipo, dias)) erros.ate = 'A data final não pode ser antes do primeiro dia do evento.';
   return Object.keys(erros).length ? { erros, repeticao: null } : { erros, repeticao };
 }
-
-const DIAS_NO_TEXTO: Record<DiaDaSemana, string> = {
-  MONDAY: 'segunda', TUESDAY: 'terça', WEDNESDAY: 'quarta', THURSDAY: 'quinta', FRIDAY: 'sexta', SATURDAY: 'sábado', SUNDAY: 'domingo',
-};
-const juntarComE = (itens: readonly string[]) => (itens.length <= 1 ? itens.join('') : `${itens.slice(0, -1).join(', ')} e ${itens[itens.length - 1]}`);
 
 /**
  * A repetição gravada por extenso, para o detalhe do evento: "Não se repete", "Toda semana: segunda e quarta, até 30/11",

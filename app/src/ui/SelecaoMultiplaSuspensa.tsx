@@ -70,7 +70,7 @@ export function SelecaoMultiplaSuspensa({ rotulo, opcoes, marcados, aoMudar, rot
         accessibilityLabel={`${rotulo}: ${textoDosMarcados(opcoes, vigentes, rotuloDeTodos)}. Escolher.`}
         accessibilityState={{ expanded: aberta }}
         onPress={abrir}
-        style={(estado) => [estilos.campo, { borderColor: cores.borda, backgroundColor: sobre(estado) ? cores.superficie3 : 'transparent' }, style]}>
+        style={(estado) => [estilos.campo, { borderColor: cores.bordaCampo, backgroundColor: sobre(estado) ? cores.superficie3 : cores.campo }, style]}>
         <View style={estilos.textos}>
           <Texto variante="pequeno" numberOfLines={1}>{rotulo}</Texto>
           <View style={estilos.chips}>
