@@ -19,10 +19,10 @@ compromisso" (e o "Novo evento") como painel rápido com "Mais opções".
 | 7 | Alcance | Compromisso e Evento ganham o mesmo visual | Gustavo (02/11) |
 
 ## Passos
-- [x] 1. Regras puras em `dominio/` com teste (situações em lista, início–fim, rótulos da repetição) — executor — commit: —
-- [x] 2. Telas: barra, menu da visão, filtro, painel rápido + Mais opções (compromisso e evento) e e2e — executor-front — commit: —
-- [x] 3. Verificação: typecheck, lint, 3408 testes, e2e inteiro (474 ok; 2 falhas do ciclo menstrual por data, fora desta frente) e capturas em 1280 e 390 px — executor-front — commit: —
-- [ ] 4. Revisão (advisor) e commit na branch; push só com a liberação do Gustavo — commit: —
+- [x] 1. Regras puras em `dominio/` com teste (situações em lista, início–fim, rótulos da repetição) — executor — commit: 3b848e67
+- [x] 2. Telas: barra, menu da visão, filtro, painel rápido + Mais opções (compromisso e evento) e e2e — executor-front — commit: 3b848e67
+- [x] 3. Verificação: typecheck, lint, 3408 testes, e2e inteiro (474 ok; 2 falhas do ciclo menstrual por data, fora desta frente) e capturas em 1280 e 390 px — executor-front — commit: 3b848e67
+- [x] 4. Revisão (advisor) e commit na branch; push só com a liberação do Gustavo — commit: 3b848e67 + ajuste da revisão
 
 ## Fora do escopo
 - "Mensal na terceira quarta-feira" (o back repete no mesmo dia do mês).
