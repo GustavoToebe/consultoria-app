@@ -13,7 +13,7 @@ import {
   textoDaOcorrencia, textoDeAlunosOcupados, textoDoCancelamentoDoAluno, textoDoCancelamentoInteiro, textoDoErroDaAgenda,
 } from '../../dominio/agendaPresencial';
 import { useSessao } from '../../sessao/SessaoProvider';
-import { espaco } from '../../tema/tokens';
+import { espaco, LARGURA_EDITOR } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { Escolha } from '../../ui/Escolha';
 import { Alerta, MensagemErro } from '../../ui/Estados';
@@ -41,8 +41,10 @@ interface Props {
 
 /**
  * Folha do compromisso com aluno: detalhe (participantes com a situação de cada um, editar, cancelar ou reabrir o
- * compromisso inteiro) ou formulário (novo, com repetição; editar). Cada compromisso aberto é uma folha nova (a `key` é o
- * id), então nada do anterior sobra. A observação é dado sensível: só aparece com `ALUNO_SENSIVEL_LER` e só se edita com
+ * compromisso inteiro) ou formulário (novo, com repetição; editar). O novo abre no painel rápido do Google Agenda (linhas
+ * com ícone, largura da folha comum) e o rodapé tem "Mais opções" + "Marcar compromisso"; "Mais opções", o "Personalizar…" da
+ * repetição e a edição usam o formulário completo, em `LARGURA_EDITOR` (sem caminho de volta ao rápido: os campos são os
+ * mesmos, nada se perde). Cada compromisso aberto é uma folha nova (a `key` é o id), então nada do anterior sobra. A observação é dado sensível: só aparece com `ALUNO_SENSIVEL_LER` e só se edita com
  * `ALUNO_SENSIVEL_ALTERAR` (a API também ignora sem a permissão).
  */
 export function FolhaCompromisso(props: Props) {
@@ -62,6 +64,8 @@ function FolhaAberta({ aberto, dataSugerida, hoje, responsaveis, carregados, aoF
   const c = aberto && aberto !== 'novo' ? aberto : null;
   const novo = aberto === 'novo';
   const [modo, setModo] = useState<'detalhe' | 'formulario'>(novo ? 'formulario' : 'detalhe');
+  // O novo abre no painel rápido (D4); "Mais opções" e a edição mostram o formulário completo.
+  const [completo, setCompleto] = useState(!novo);
 
   // Formulário (novo ou editar): o estado mora aqui para os botões irem ao rodapé fixo da folha.
   const formInicial = (): FormularioDoCompromisso => (c ? formularioDoCompromisso(c)
@@ -192,7 +196,8 @@ function FolhaAberta({ aberto, dataSugerida, hoje, responsaveis, carregados, aoF
   const titulo = novo ? 'Novo compromisso' : modo === 'formulario' ? 'Editar compromisso' : 'Compromisso';
   const rodape = modo === 'formulario' ? <>
     {linhaDaMensagem}
-    <Botao rotulo="Cancelar" tipo="secundario" aoTocar={novo ? aoFechar : voltarAoDetalhe} />
+    {completo ? <Botao rotulo="Cancelar" tipo="secundario" aoTocar={novo ? aoFechar : voltarAoDetalhe} />
+      : <Botao rotulo="Mais opções" tipo="secundario" aoTocar={() => setCompleto(true)} />}
     <Botao rotulo={c ? 'Salvar alterações' : 'Marcar compromisso'} aoTocar={salvar} carregando={salvando} desabilitado={salvando} motivo="Salvando." />
   </> : c && pode('AGENDA_ALTERAR') && acaoInteiro ? <>
     {linhaDaMensagem}
@@ -215,11 +220,12 @@ function FolhaAberta({ aberto, dataSugerida, hoje, responsaveis, carregados, aoF
   </View> : null;
 
   return (
-    <Folha visivel={aberto !== null} titulo={titulo} aoFechar={aoFechar} rodape={rodape}>
+    <Folha visivel={aberto !== null} titulo={titulo} aoFechar={aoFechar} rodape={rodape}
+      largura={modo === 'formulario' && completo ? LARGURA_EDITOR : undefined}>
       {modo === 'formulario' ? (
         <CamposDoCompromisso form={form} erros={erros} errosDaRepeticao={errosDaRepeticao} mudar={mudar} mudarRepeticao={mudarRepeticao}
           nomes={nomes} responsaveis={responsaveis} nomeDoResponsavel={c?.responsavelNome ?? null} comObservacao={comObservacao}
-          comRepeticao={!c} hoje={hoje} avisos={avisos} sobreASerie={sobreASerie}
+          comRepeticao={!c} hoje={hoje} avisos={avisos} sobreASerie={sobreASerie} completo={completo} aoMaisOpcoes={() => setCompleto(true)}
           aoAdicionarAluno={(id, nome) => { setNomes((n) => ({ ...n, [id]: nome })); mudar('alunoIds', adicionarParticipante(form.alunoIds, id)); }}
           aoRemoverAluno={(id) => mudar('alunoIds', removerParticipante(form.alunoIds, id))} />
       ) : c ? (

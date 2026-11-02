@@ -6,6 +6,7 @@ import type { AtualizacaoDaLista } from '../api/tipos';
 import type { TipoSelo } from '../ui/Selo';
 import { compararItens, rotuloDoDia } from './agenda';
 import { dataSemAnoCorrente } from './datasRelativas';
+import { naOrdem } from './filtrosComuns';
 import { dataDaTela, dataParaTela, diaDaSemanaIso, somarDias } from './formatos';
 
 /**
@@ -234,6 +235,65 @@ export const OPCOES_DE_REPETICAO: readonly { valor: TipoDeRepeticao | 'NENHUMA';
   { valor: 'MENSAL', rotulo: 'Todo mês' },
   { valor: 'ANUAL', rotulo: 'Todo ano' },
 ];
+
+/** Os dias da semana por extenso, curtos, para frases ("segunda, quarta e sexta"). */
+export const DIAS_NO_TEXTO: Record<DiaDaSemana, string> = {
+  MONDAY: 'segunda', TUESDAY: 'terça', WEDNESDAY: 'quarta', THURSDAY: 'quinta', FRIDAY: 'sexta', SATURDAY: 'sábado', SUNDAY: 'domingo',
+};
+/** "a", "a e b", "a, b e c". */
+export const juntarComE = (itens: readonly string[]) => (itens.length <= 1 ? itens.join('') : `${itens.slice(0, -1).join(', ')} e ${itens[itens.length - 1]}`);
+
+/** Valor especial do seletor de repetição: a tela abre o formulário completo. Não é um tipo da API. */
+export const PERSONALIZAR_REPETICAO = 'PERSONALIZAR';
+export type ValorDaOpcaoDeRepeticao = TipoDeRepeticao | 'NENHUMA' | typeof PERSONALIZAR_REPETICAO;
+
+const MESES_POR_EXTENSO = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+
+/** A data ISO (AAAA-MM-DD) como ano, mês e dia; `null` se não existir no calendário. */
+function partesDaDataIso(iso: string | null): { mes: number; dia: number } | null {
+  const m = iso ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso) : null;
+  if (!m) return null;
+  const [ano, mes, dia] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  return mes >= 1 && mes <= 12 && dia >= 1 && dia <= diasNoMes(ano, mes) ? { mes, dia } : null;
+}
+
+/** "quarta-feira", "sábado": o dia por extenso, em minúsculas. */
+const diaPorExtenso = (dia: DiaDaSemana) => (OPCOES_DE_DIA_DA_SEMANA.find((o) => o.valor === dia)?.completo ?? '').toLowerCase();
+
+/**
+ * As opções do seletor de repetição no estilo Google, para a data do compromisso (AAAA-MM-DD): "Não se repete", "Todos os
+ * dias", "Semanal: cada quarta-feira", "Mensal no dia 18", "Anual em 18 de novembro", "Todos os dias da semana (segunda a
+ * sexta-feira)" e "Personalizar…". Sem data (ou inválida): "Semanal", "Mensal", "Anual". O mensal é sempre o mesmo dia do
+ * mês (`mesmoDiaDoMes`), por isso "no dia N" e não "na terceira quarta-feira". A data da tela chega como DD/MM/AAAA: converta
+ * com `dataDaTela` antes.
+ */
+export function opcoesDaRepeticao(dataIso: string | null): { valor: ValorDaOpcaoDeRepeticao; rotulo: string }[] {
+  const data = partesDaDataIso(dataIso);
+  const dia = data && dataIso ? diaDaSemanaDaData(dataIso) : null;
+  return [
+    { valor: 'NENHUMA', rotulo: 'Não se repete' },
+    { valor: 'DIARIA', rotulo: 'Todos os dias' },
+    { valor: 'SEMANAL', rotulo: dia ? `Semanal: cada ${diaPorExtenso(dia)}` : 'Semanal' },
+    { valor: 'MENSAL', rotulo: data ? `Mensal no dia ${data.dia}` : 'Mensal' },
+    { valor: 'ANUAL', rotulo: data ? `Anual em ${data.dia} de ${MESES_POR_EXTENSO[data.mes - 1]}` : 'Anual' },
+    { valor: 'DIAS_UTEIS', rotulo: 'Todos os dias da semana (segunda a sexta-feira)' },
+    { valor: PERSONALIZAR_REPETICAO, rotulo: 'Personalizar…' },
+  ];
+}
+
+/**
+ * O texto do botão "Repetição: …" para o que o formulário tem: o rótulo de {@link opcoesDaRepeticao} e, no semanal, os dias
+ * marcados ("Semanal: cada quarta-feira" com um dia; "Semanal: segunda, quarta e sexta" com vários). Serve ao compromisso e
+ * ao evento (só usa `tipo` e `dias`).
+ */
+export function rotuloDaRepeticaoAtual(r: { tipo: TipoDeRepeticao | 'NENHUMA'; dias: readonly DiaDaSemana[] }, dataIso: string | null): string {
+  if (r.tipo === 'SEMANAL') {
+    const dias = DIAS_DA_SEMANA.filter((d) => r.dias.includes(d));
+    if (dias.length === 1) return `Semanal: cada ${diaPorExtenso(dias[0])}`;
+    if (dias.length > 1) return `Semanal: ${juntarComE(dias.map((d) => DIAS_NO_TEXTO[d]))}`;
+  }
+  return opcoesDaRepeticao(dataIso).find((o) => o.valor === r.tipo)?.rotulo ?? '';
+}
 
 /** Ajuda do "Dias úteis" (segunda a sexta, sem feriados): vale no compromisso e no evento. */
 export const AJUDA_DIAS_UTEIS = 'Feriados não são pulados: cancele só a ocorrência do feriado.';
@@ -491,16 +551,27 @@ export function seloDaSituacao(situacao: SituacaoCompromisso): { texto: string; 
   return SITUACOES[situacao] ?? { texto: situacao, tipo: 'neutro' };
 }
 
-export const OPCOES_SITUACAO: { valor: SituacaoCompromisso | 'TODAS'; rotulo: string }[] = [
-  { valor: 'TODAS', rotulo: 'Todas' },
+/** As situações do filtro, na ordem fixa da tela. Nada marcado = todas (padrão da `SelecaoMultiplaSuspensa`). */
+export const OPCOES_SITUACAO: { valor: SituacaoCompromisso; rotulo: string }[] = [
   { valor: 'AGENDADO', rotulo: 'Agendados' },
   { valor: 'REALIZADO', rotulo: 'Realizados' },
   { valor: 'FALTOU', rotulo: 'Faltas' },
   { valor: 'CANCELADO', rotulo: 'Cancelados' },
 ];
 
-export function lerSituacao(valor: string | null | undefined): SituacaoCompromisso | null {
-  return valor === 'AGENDADO' || valor === 'REALIZADO' || valor === 'FALTOU' || valor === 'CANCELADO' ? valor : null;
+/**
+ * Lê `?situacao=AGENDADO,FALTOU` (vírgula; o Expo Router também entrega `situacao` repetida como lista). Valor desconhecido e
+ * repetido é ignorado e o resultado sai na ordem de {@link OPCOES_SITUACAO}; vazio = todas.
+ */
+export function lerSituacoes(param: string | string[] | undefined): SituacaoCompromisso[] {
+  const partes = (Array.isArray(param) ? param : param ? [param] : []).flatMap((p) => p.split(',')).map((p) => p.trim());
+  return naOrdem(new Set(partes), OPCOES_SITUACAO);
+}
+
+/** O inverso de {@link lerSituacoes}, na ordem fixa: `AGENDADO,FALTOU`; lista vazia = `undefined` (sem parâmetro). */
+export function parametroDasSituacoes(situacoes: readonly SituacaoCompromisso[]): string | undefined {
+  const marcadas = naOrdem(new Set<string>(situacoes), OPCOES_SITUACAO);
+  return marcadas.length ? marcadas.join(',') : undefined;
 }
 
 /** "09:00–10:00", ou "23:30–00:30 (termina no dia seguinte)" quando atravessa a meia-noite. */
@@ -515,6 +586,165 @@ export function textoDaDuracao(minutos: number): string {
   const m = minutos % 60;
   if (!h) return `${m} min`;
   return m ? `${h} h ${m} min` : `${h} h`;
+}
+
+// ---- Início e fim (estilo Google Agenda) ----
+//
+// O formulário continua guardando `hora` + `duracao` (o contrato com a API não muda); o fim é sempre derivado deles. O
+// compromisso e o evento podem atravessar a meia-noite (ver `textoDoHorario` e o cabeçalho do arquivo), então o fim "volta"
+// no relógio: 23:30 + 1 h = 00:30 do dia seguinte. Quem barra o excesso é o máximo de duração do tipo
+// (`LIMITES_COMPROMISSO` ou `LIMITES_DO_EVENTO`), nunca as 23:59.
+
+const MINUTOS_NO_DIA = 24 * 60;
+/** De quanto em quanto tempo o Google oferece início e fim. */
+export const PASSO_DO_HORARIO = 15;
+
+/** `{ duracaoMinima, duracaoMaxima }` de `LIMITES_COMPROMISSO` ou de `LIMITES_DO_EVENTO`. */
+export interface LimitesDeDuracao { duracaoMinima: number; duracaoMaxima: number }
+
+/** "09:30" → 570; `null` se não for uma hora válida (00:00 a 23:59). */
+export function minutosDaHora(hora: string): number | null {
+  if (!horaValida(hora)) return null;
+  const [h, m] = hora.trim().split(':').map(Number);
+  return h * 60 + m;
+}
+
+/** 570 → "09:30". Passou de 24 h, volta ao relógio (1470 → "00:30"). */
+export function horaDosMinutos(minutos: number): string {
+  const n = ((Math.round(minutos) % MINUTOS_NO_DIA) + MINUTOS_NO_DIA) % MINUTOS_NO_DIA;
+  return `${doisDigitos(Math.floor(n / 60))}:${doisDigitos(n % 60)}`;
+}
+
+/** A duração do formulário (texto de inteiros) ou número inteiro positivo; senão `null`. */
+function minutosDeDuracao(duracao: string | number): number | null {
+  const n = typeof duracao === 'number' ? duracao : /^\d+$/.test(duracao.trim()) ? Number(duracao.trim()) : NaN;
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+/** Hora do fim (HH:MM) de um início e uma duração; passou da meia-noite, é a hora do dia seguinte. `null` se a entrada é inválida. */
+export function fimDaHora(hora: string, duracao: string | number): string | null {
+  const inicio = minutosDaHora(hora);
+  const minutos = minutosDeDuracao(duracao);
+  return inicio === null || minutos === null ? null : horaDosMinutos(inicio + minutos);
+}
+
+/** O fim cai no dia seguinte? Terminar à meia-noite em ponto ainda é o mesmo dia (como em {@link textoDoHorario}). */
+export function terminaNoDiaSeguinte(hora: string, duracao: string | number): boolean {
+  const inicio = minutosDaHora(hora);
+  const minutos = minutosDeDuracao(duracao);
+  return inicio !== null && minutos !== null && inicio + minutos > MINUTOS_NO_DIA;
+}
+
+/**
+ * Minutos entre o início e o fim digitados (HH:MM). Fim antes do início conta como o dia seguinte (23:30 → 00:30 = 60);
+ * fim igual ao início, ou hora inválida, é `null` (o máximo de duração do tipo barra o que passar de lá: ver {@link erroDoFim}).
+ */
+export function duracaoEntre(inicio: string, fim: string): number | null {
+  const a = minutosDaHora(inicio);
+  const b = minutosDaHora(fim);
+  if (a === null || b === null || a === b) return null;
+  return b > a ? b - a : b + MINUTOS_NO_DIA - a;
+}
+
+/** Os inícios de 15 em 15 min, de 00:00 a 23:45. `atual` fora dessa grade (hora digitada ou compromisso antigo) entra no seu lugar. */
+export function opcoesDoInicio(atual?: string): { valor: string; rotulo: string }[] {
+  const horas: string[] = [];
+  for (let m = 0; m < MINUTOS_NO_DIA; m += PASSO_DO_HORARIO) horas.push(horaDosMinutos(m));
+  const minutosAtual = atual === undefined ? null : minutosDaHora(atual);
+  if (minutosAtual !== null && !horas.includes(horaDosMinutos(minutosAtual))) {
+    horas.push(horaDosMinutos(minutosAtual));
+    horas.sort();
+  }
+  return horas.map((h) => ({ valor: h, rotulo: h }));
+}
+
+export interface OpcaoDoFim {
+  /** A duração em minutos, como texto: é o que o formulário guarda em `duracao` (e não ambígua quando o fim é no dia seguinte). */
+  valor: string;
+  /** "17:30 (1 h)", "00:30 (1 h, dia seguinte)". */
+  rotulo: string;
+  /** A hora do fim (HH:MM). */
+  fim: string;
+  diaSeguinte: boolean;
+}
+
+/**
+ * Os fins possíveis para um início: de início + 15 min até o máximo de duração do tipo, de 15 em 15 min, com a duração no
+ * rótulo ("17:30 (1 h)", "18:00 (1 h 30 min)"). `duracaoAtual` fora da grade (ex.: 50 min de um compromisso antigo) e dentro
+ * dos limites entra no seu lugar. Início inválido = lista vazia.
+ */
+export function opcoesDoFim(inicio: string, limites: LimitesDeDuracao, duracaoAtual?: string | number): OpcaoDoFim[] {
+  if (minutosDaHora(inicio) === null) return [];
+  const duracoes: number[] = [];
+  for (let d = PASSO_DO_HORARIO; d <= limites.duracaoMaxima; d += PASSO_DO_HORARIO) if (d >= limites.duracaoMinima) duracoes.push(d);
+  const atual = duracaoAtual === undefined ? null : minutosDeDuracao(duracaoAtual);
+  if (atual !== null && atual >= limites.duracaoMinima && atual <= limites.duracaoMaxima && !duracoes.includes(atual)) {
+    duracoes.push(atual);
+    duracoes.sort((x, y) => x - y);
+  }
+  return duracoes.map((d) => opcaoDoFim(inicio, d));
+}
+
+/** A opção do fim para um início válido e uma duração: "17:30 (1 h)", "00:30 (1 h, dia seguinte)". */
+function opcaoDoFim(inicio: string, duracao: number): OpcaoDoFim {
+  const fim = horaDosMinutos((minutosDaHora(inicio) ?? 0) + duracao);
+  const diaSeguinte = terminaNoDiaSeguinte(inicio, duracao);
+  return { valor: String(duracao), rotulo: `${fim} (${textoDaDuracao(duracao)}${diaSeguinte ? ', dia seguinte' : ''})`, fim, diaSeguinte };
+}
+
+/**
+ * A hora digitada na busca das listas de início e fim: "0910" e "910" (pela {@link mascaraHora}), "09:10", "9:10", "9h10"
+ * e "9.10" viram "09:10". Incompleta, inválida (25:00, 09:60) ou com outra coisa = `null`.
+ */
+export function horaDigitada(texto: string): string | null {
+  const t = texto.trim();
+  const separada = /^(\d{1,2})\s*[:hH.]\s*(\d{2})$/.exec(t);
+  const hora = separada ? `${separada[1].padStart(2, '0')}:${separada[2]}` : /^\d{3,4}$/.test(t) ? mascaraHora(t.padStart(4, '0')) : null;
+  return hora !== null && minutosDaHora(hora) !== null ? hora : null;
+}
+
+/** O que a busca da lista oferece para o que foi digitado: a opção, um aviso de por que não vale ou nada (texto que não é hora). */
+export type OpcaoDigitada<O> = { opcao: O } | { aviso: string } | null;
+
+/** Início digitado fora da grade de 15 min ("09:10"): vira uma opção da lista. Qualquer minuto vale. */
+export function opcaoDigitadaDoInicio(texto: string): OpcaoDigitada<{ valor: string; rotulo: string }> {
+  const hora = horaDigitada(texto);
+  return hora === null ? null : { opcao: { valor: hora, rotulo: hora } };
+}
+
+/**
+ * Fim digitado ("09:30" com início 09:10): a opção com a duração no valor, como as da lista ("09:30 (20 min)"), ou o aviso de
+ * {@link erroDoFim} (antes do início não existe: passa da meia-noite e termina no dia seguinte; fora dos limites do tipo, o
+ * aviso diz o mínimo ou o máximo). Sem início válido = `null` (a lista do fim nem aparece).
+ */
+export function opcaoDigitadaDoFim(inicio: string, texto: string, limites: LimitesDeDuracao): OpcaoDigitada<OpcaoDoFim> {
+  const hora = horaDigitada(texto);
+  if (hora === null || minutosDaHora(inicio) === null) return null;
+  const erro = erroDoFim(inicio, hora, limites);
+  const duracao = duracaoEntre(inicio, hora);
+  return erro || duracao === null ? { aviso: erro ?? 'O fim precisa ser depois do início.' } : { opcao: opcaoDoFim(inicio, duracao) };
+}
+
+/**
+ * Mudar o início: o fim acompanha, porque a duração se mantém (o fim é derivado de `hora` + `duracao`). Nada é encurtado: o
+ * que passa da meia-noite termina no dia seguinte, como a API já aceita.
+ */
+export function inicioMudou<F extends { hora: string; duracao: string }>(form: F, novaHora: string): F {
+  return { ...form, hora: novaHora };
+}
+
+/**
+ * Erro do par início–fim digitado (HH:MM), em texto curto, ou `null`. Início inválido não é problema do fim (o campo do início
+ * tem o seu). Fim igual ao início, duração abaixo do mínimo e acima do máximo do tipo.
+ */
+export function erroDoFim(inicio: string, fim: string, limites: LimitesDeDuracao): string | null {
+  if (minutosDaHora(inicio) === null) return null;
+  if (minutosDaHora(fim) === null) return 'Use HH:MM, de 00:00 a 23:59.';
+  const minutos = duracaoEntre(inicio, fim);
+  if (minutos === null) return 'O fim precisa ser depois do início.';
+  if (minutos < limites.duracaoMinima) return `A duração mínima é ${textoDaDuracao(limites.duracaoMinima)}.`;
+  if (minutos > limites.duracaoMaxima) return `A duração máxima é ${textoDaDuracao(limites.duracaoMaxima)}.`;
+  return null;
 }
 
 /** Linha de metadados na agenda: "Compromisso · 09:00–10:00 · Sala 2 · com Ana" e, numa série, "· Ocorrência 3 de 10". */

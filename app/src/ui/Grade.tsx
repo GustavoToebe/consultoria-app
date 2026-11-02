@@ -14,14 +14,13 @@ export function Grade({ children, gap = espaco(1) }: { children: ReactNode; gap?
   const colunas = colunasPorLargura(largura);
   const itens = Children.toArray(children);
   const aoMedir = (e: LayoutChangeEvent) => setLargura(e.nativeEvent.layout.width);
-  if (colunas === 1) {
-    return <View onLayout={aoMedir} style={{ gap }}>{itens}</View>;
-  }
-  // Largura exata da célula: o espaço total entre colunas sai da largura medida.
-  const celula = (largura - gap * (colunas - 1)) / colunas;
+  // Largura exata da célula: o espaço total entre colunas sai da largura medida. A mesma árvore em 1 e em várias colunas
+  // (cada item numa célula com a mesma chave): passar de 1 para 2 colunas depois da medida não remonta os campos, que
+  // perderiam o foco e o que estava sendo digitado.
+  const celula = colunas === 1 ? undefined : (largura - gap * (colunas - 1)) / colunas;
   return (
-    <View onLayout={aoMedir} style={[estilos.linha, { gap }]}>
-      {itens.map((item, i) => <View key={i} style={{ width: celula }}>{item}</View>)}
+    <View onLayout={aoMedir} style={[colunas === 1 ? null : estilos.linha, { gap }]}>
+      {itens.map((item, i) => <View key={i} style={celula === undefined ? undefined : { width: celula }}>{item}</View>)}
     </View>
   );
 }

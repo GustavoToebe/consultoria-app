@@ -558,7 +558,7 @@ export const aceitarInscricao = (id: string, dados: { convidar: boolean; anamnes
 export const listarCompromissos = (filtro: FiltroCompromissos) => {
   const q = new URLSearchParams({ de: filtro.de, ate: filtro.ate });
   if (filtro.responsavel) q.set('responsavel', filtro.responsavel);
-  if (filtro.situacao) q.set('situacao', filtro.situacao);
+  for (const s of filtro.situacoes ?? []) q.append('situacao', s);
   return requisicao<Compromisso[]>(`/agenda/compromissos?${q.toString()}`);
 };
 /** `?escopo=` só quando não é `ESTA` (o padrão da API); compromisso avulso aceita só `ESTA`. */
@@ -628,7 +628,7 @@ export const excluirEvento = (id: string, versao: number, alvo: AlvoDoEvento = {
 export const resumoDaAgenda = (filtro: FiltroResumo) => {
   const q = new URLSearchParams({ de: filtro.de, ate: filtro.ate });
   if (filtro.responsavel) q.set('responsavel', filtro.responsavel);
-  if (filtro.situacao) q.set('situacao', filtro.situacao);
+  for (const s of filtro.situacoes ?? []) q.append('situacao', s);
   for (const id of filtro.agendas ?? []) q.append('agendas', id);
   return requisicao<ResumoDaAgenda>(`/agenda/resumo?${q.toString()}`);
 };

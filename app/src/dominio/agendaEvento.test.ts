@@ -29,6 +29,10 @@ import {
   textoDoCruzamento,
   textoDoErroDoCalendario,
   trocarTipoDaRepeticaoDoEvento,
+  erroDoFim,
+  opcoesDaRepeticao,
+  opcoesDoFim,
+  rotuloDaRepeticaoAtual,
   SEM_REPETICAO_DO_EVENTO,
   type FormularioDoEvento,
 } from './agendaEvento';
@@ -62,6 +66,32 @@ describe('constantes do evento', () => {
     expect(LIMITES_DA_AGENDA).toEqual({ nome: 40, agendas: 20 });
     expect(AJUDA_DIAS_UTEIS).toMatch(/Feriados/);
     expect(PRIVACIDADE_DO_EVENTO).toMatch(/aluno/);
+  });
+});
+
+describe('início–fim e rótulos da repetição do evento', () => {
+  it('o fim do evento vai até 24 h (LIMITES_DO_EVENTO), com rótulos como os do Google', () => {
+    const fins = opcoesDoFim('09:00', LIMITES_DO_EVENTO);
+    expect(fins).toHaveLength(96); // 15 min a 24 h
+    expect(fins.find((o) => o.valor === '90')?.rotulo).toBe('10:30 (1 h 30 min)');
+    expect(fins[95]).toMatchObject({ valor: '1440', rotulo: '09:00 (24 h, dia seguinte)', diaSeguinte: true });
+    expect(opcoesDoFim('09:00', LIMITES_DO_EVENTO, '5')[0].valor).toBe('5');
+  });
+
+  it('erros do fim usam os limites do evento', () => {
+    expect(erroDoFim('09:00', '09:00', LIMITES_DO_EVENTO)).toBe('O fim precisa ser depois do início.');
+    expect(erroDoFim('09:00', '09:04', LIMITES_DO_EVENTO)).toBe('A duração mínima é 5 min.');
+    expect(erroDoFim('09:00', '08:59', LIMITES_DO_EVENTO)).toBeNull(); // 23 h 59 min, dentro das 24 h
+    expect(erroDoFim('09:00', '21:00', { ...LIMITES_DO_EVENTO, duracaoMaxima: 600 })).toBe('A duração máxima é 10 h.');
+  });
+
+  it('opções e rótulo atual da repetição valem para o evento (2026-11-18 é quarta)', () => {
+    expect(opcoesDaRepeticao('2026-11-18').map((o) => o.rotulo)[2]).toBe('Semanal: cada quarta-feira');
+    expect(opcoesDaRepeticao(null)[4].rotulo).toBe('Anual');
+    const r = { ...SEM_REPETICAO_DO_EVENTO, tipo: 'SEMANAL' as const, dias: ['MONDAY', 'WEDNESDAY', 'FRIDAY'] as ('MONDAY' | 'WEDNESDAY' | 'FRIDAY')[] };
+    expect(rotuloDaRepeticaoAtual(r, '2026-11-18')).toBe('Semanal: segunda, quarta e sexta');
+    expect(rotuloDaRepeticaoAtual({ ...r, tipo: 'MENSAL' }, '2026-11-18')).toBe('Mensal no dia 18');
+    expect(rotuloDaRepeticaoAtual(SEM_REPETICAO_DO_EVENTO, '2026-11-18')).toBe('Não se repete');
   });
 });
 

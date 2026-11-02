@@ -11,7 +11,7 @@ import {
   ROTULOS_DAS_CORES_DA_AGENDA, ROTULOS_DO_ESCOPO_DO_EVENTO, textoDaRepeticaoDoEvento, textoDeExcluirEvento, textoDoCruzamento, textoDoErroDoCalendario,
 } from '../../dominio/agendaEvento';
 import { useSessao } from '../../sessao/SessaoProvider';
-import { espaco } from '../../tema/tokens';
+import { espaco, LARGURA_EDITOR } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { CampoLeitura } from '../../ui/CampoLeitura';
 import { Escolha } from '../../ui/Escolha';
@@ -48,7 +48,9 @@ interface Props {
 
 /**
  * Folha do evento pessoal: detalhe (título, quando, agenda, repetição, local, descrição; Editar e Excluir com
- * `AGENDA_ALTERAR`) ou formulário. Numa série, salvar e excluir perguntam o escopo; mudar a data só vale em "Somente este" e
+ * `AGENDA_ALTERAR`) ou formulário. O evento novo abre no painel rápido do Google Agenda (título grande "Adicionar título",
+ * linhas com ícone) com "Mais opções" + "Salvar" no rodapé; "Mais opções", o "Personalizar…" da repetição e a edição usam o
+ * formulário completo, em `LARGURA_EDITOR` (sem a lista de agendas, a folha comum basta). Numa série, salvar e excluir perguntam o escopo; mudar a data só vale em "Somente este" e
  * a agenda só na série toda. 409 de versão relê o evento e avisa. Cada evento aberto é uma folha nova (a `key`).
  */
 export function FolhaEvento(props: Props) {
@@ -72,6 +74,8 @@ function FolhaAberta({ aberto, agendas, erroDasAgendas, recarregarAgendas, hoje,
   const lista = agendas ?? [];
 
   const [modo, setModo] = useState<'detalhe' | 'formulario'>(novo ? 'formulario' : 'detalhe');
+  // O novo abre no painel rápido (D4); "Mais opções" e a edição mostram o formulário completo.
+  const [completo, setCompleto] = useState(!novo);
   const [form, setForm] = useState<FormularioDoEvento>(() => formularioDeEventoNovo(agendaDoFormulario(lista)?.id ?? '', novo?.data ?? hoje, novo?.hora ?? ''));
   const [erros, setErros] = useState<ErrosDoEvento>({});
   const [errosDaRepeticao, setErrosDaRepeticao] = useState<ErrosDaRepeticaoDoEvento>({});
@@ -214,8 +218,9 @@ function FolhaAberta({ aberto, agendas, erroDasAgendas, recarregarAgendas, hoje,
     <Botao rotulo="Cancelar" tipo="secundario" aoTocar={novo ? aoFechar : () => { limpar(); setModo('detalhe'); }} />
   </> : modo === 'formulario' ? <>
     {linhaDaMensagem}
-    <Botao rotulo="Cancelar" tipo="secundario" aoTocar={novo ? aoFechar : () => { limpar(); setModo('detalhe'); }} />
-    <Botao rotulo={e ? 'Salvar alterações' : 'Criar evento'} aoTocar={salvar} carregando={salvando} desabilitado={salvando} motivo="Salvando." />
+    {completo ? <Botao rotulo="Cancelar" tipo="secundario" aoTocar={novo ? aoFechar : () => { limpar(); setModo('detalhe'); }} />
+      : <Botao rotulo="Mais opções" tipo="secundario" aoTocar={() => setCompleto(true)} />}
+    <Botao rotulo={e ? 'Salvar alterações' : 'Salvar'} aoTocar={salvar} carregando={salvando} desabilitado={salvando} motivo="Salvando." />
   </> : e && podeAlterar ? <>
     {linhaDaMensagem}
     <Botao rotulo="Excluir" tipo="perigoTexto" aoTocar={pedirExcluir} desabilitado={salvando} motivo="Salvando." />
@@ -231,14 +236,16 @@ function FolhaAberta({ aberto, agendas, erroDasAgendas, recarregarAgendas, hoje,
   </Texto> : null;
 
   return (
-    <Folha visivel={aberto !== null} titulo={titulo} aoFechar={aoFechar} rodape={rodape}>
+    <Folha visivel={aberto !== null} titulo={titulo} aoFechar={aoFechar} rodape={rodape}
+      largura={modo === 'formulario' && completo && !semListaDeAgendas ? LARGURA_EDITOR : undefined}>
       {semListaDeAgendas ? (
         erroDasAgendas ? <MensagemErro texto={`Não deu para carregar as suas agendas. ${textoDoErro(erroDasAgendas)}`} erro={erroDasAgendas}
           tentarDeNovo={recarregarAgendas} />
           : <Esqueleto texto="Carregando as suas agendas" cartoes={1} />
       ) : modo === 'formulario' ? (
         <CamposDoEvento form={formComAgenda} erros={erros} errosDaRepeticao={errosDaRepeticao} mudar={mudar} mudarRepeticao={mudarRepeticao}
-          agendas={lista} comRepeticao={!e || serie} hoje={hoje} sobreASerie={sobreASerie} aviso={textoDoAviso} />
+          agendas={lista} comRepeticao={!e || serie} hoje={hoje} sobreASerie={sobreASerie} aviso={textoDoAviso}
+          completo={completo} aoMaisOpcoes={() => setCompleto(true)} />
       ) : e ? (
         <DetalheDoEvento evento={e} agendas={lista} hoje={hoje} />
       ) : detalhe.erro ? (
