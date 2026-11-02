@@ -56,7 +56,7 @@ export const MODOS: { valor: ModoDeCarga; rotulo: string }[] = [
   { valor: 'ACIMA_DA_ANTERIOR', rotulo: 'Acima da anterior' },
   { valor: 'ABAIXO_DA_REFERENCIA', rotulo: 'Abaixo da referência' },
   { valor: 'MESMA_CARGA', rotulo: 'Mesma carga da série de trabalho' },
-  // Peso em kg escolhido pelo treinador (`valorKg`). Só em exercício com carga e fora do papel de trabalho (ver `modosDeCarga`).
+  // Peso em kg escolhido pelo treinador (`valorKg`). Só em exercício com carga, em qualquer papel (ver `modosDeCarga`).
   { valor: 'CARGA_FIXA', rotulo: 'Carga fixa (kg)' },
   // `NENHUMA` é a série sem sugestão de carga; o exercício "sem carga" (elástico, peso corporal) é a `unidade`, outra decisão.
   { valor: 'NENHUMA', rotulo: 'Sem sugestão de carga' },
@@ -77,7 +77,8 @@ export interface ModosDeCarga {
 const ORDEM_POR_PAPEL: Partial<Record<PapelDaSerie, ModoDeCarga[]>> = {
   AQUECIMENTO: ['NENHUMA', 'PERCENTUAL_WS', 'CARGA_FIXA', 'CARGA_TRABALHO'],
   PREPARACAO: ['PERCENTUAL_WS', 'NENHUMA', 'CARGA_FIXA', 'CARGA_TRABALHO'],
-  TRABALHO: ['CARGA_TRABALHO', 'ACIMA_DA_ANTERIOR', 'MESMA_CARGA', 'NENHUMA'],
+  // A fixa entra na WS ("3x12 com 12 kg"), mas atrás de "Outras formas de carga": o padrão continua a carga de trabalho.
+  TRABALHO: ['CARGA_TRABALHO', 'ACIMA_DA_ANTERIOR', 'MESMA_CARGA', 'CARGA_FIXA', 'NENHUMA'],
   POS_TRABALHO: ['PERCENTUAL_WS', 'ABAIXO_DA_REFERENCIA', 'MESMA_CARGA', 'ACIMA_DA_ANTERIOR', 'CARGA_FIXA', 'CARGA_TRABALHO', 'NENHUMA'],
 };
 
@@ -89,9 +90,10 @@ const PRINCIPAIS_POR_PAPEL = 2;
  * trabalho (WS)", "Mesma carga da WS"): o percentual sempre diz de onde sai, nunca do 1RM. O papel do tipo ordena; as duas
  * primeiras ficam em `principais` e, se a série já grava outra forma (`atual`; nula = `NENHUMA`), ela também, para nunca
  * sumir atrás de "Outras formas de carga". As formas aparecem todas, menos a `CARGA_FIXA`, que só entra com
- * `exercicioComCarga` (exercício com unidade, fora do cardio) e fora do papel TRABALHO (a série desse papel conta como de
- * trabalho no registro e nos recordes); a série que já é fixa a mantém na lista. Sem `exercicioComCarga` (a prescrição
- * padrão de um tipo da metodologia não é de um exercício), ela não é oferecida.
+ * `exercicioComCarga` (exercício com unidade, fora do cardio), em qualquer papel; no TRABALHO ela fica em "outras" (o
+ * padrão da WS é a carga de trabalho) e, mesmo numa WS, não é série de trabalho nem base de percentual. A série que já é
+ * fixa a mantém na lista (entre as principais, como toda forma gravada). Sem `exercicioComCarga` (a prescrição padrão de
+ * um tipo da metodologia, ou uma receita de séries, não é de um exercício), ela não é oferecida.
  */
 export function modosDeCarga(
   config: Configuracao | null | undefined,
@@ -100,7 +102,7 @@ export function modosDeCarga(
   exercicioComCarga = false,
 ): ModosDeCarga {
   const base = tipoTrabalho(config);
-  const fixaOferecida = atual === 'CARGA_FIXA' || (exercicioComCarga && papel !== 'TRABALHO');
+  const fixaOferecida = atual === 'CARGA_FIXA' || exercicioComCarga;
   const todos = fixaOferecida ? MODOS : MODOS.filter((m) => m.valor !== 'CARGA_FIXA');
   const ordem = papel ? ORDEM_POR_PAPEL[papel] : undefined;
   const ordenadas = ordem

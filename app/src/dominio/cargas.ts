@@ -2,6 +2,7 @@ import type { Configuracao, ExercicioPlano, OrigemDaReferencia, Serie } from '..
 import { nomeDaReferencia, textoCardio, textoCarga, textoDasRepeticoes, textoEsforco, textoTecnica } from './agrupamento';
 import { numeroParaTela } from './formatos';
 import { tipoPorCodigo, tipoTrabalho as tipoTrabalhoDaMetodologia } from './metodologia';
+import { cargaIlegivel } from './modoDeCarga';
 import { temEtapaEmPercentual } from './validacaoDeSerie';
 
 /**
@@ -143,8 +144,11 @@ export function calcularCargasDoExercicio(
     let sugestao: number | null = null;
     const carga = serie.carga;
     const percentual = carga?.percentualMin ?? null;
-    const referencia = semCarga ? null : referenciaDaSerie(series, indice, cargaTrabalho, cargasDoDia);
-    if (!semCarga && !serie.cardio) {
+    // Forma de carga que o app não conhece: sem sugestão e sem referência (a etapa em % congelaria uma base para uma carga
+    // que o app não lê). O texto "atualize o app" vem do `metaDaSerie`.
+    const ilegivel = cargaIlegivel(carga);
+    const referencia = semCarga || ilegivel ? null : referenciaDaSerie(series, indice, cargaTrabalho, cargasDoDia);
+    if (!semCarga && !ilegivel && !serie.cardio) {
       switch (modo(serie)) {
         case 'CARGA_TRABALHO':
         case 'MESMA_CARGA':

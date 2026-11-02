@@ -124,6 +124,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Modelos importados do Saraiva (C72): ele apaga pela tela; nada no banco | Gustavo (Saraiva) | reunião 30/10, C72 |
 | Datas ruins já gravadas em produção (anos 0260/0261): não contar nem corrigir sem a ordem do Gustavo (leitura só por `claude_leitura`) | Gustavo decide | [datas-validas.md](datas-validas.md) (D7), reunião 30/10, C76 |
 | Retestes do Gustavo (roteiro em `Documents\Reunioes\2026-10-30\roteiro-reteste.md`): exercício × série (C04), formulário da série (C12), atualização do aluno na web (C27), timer, vídeo e avanço no APK (C38), compromisso FUTURO no Início do aluno (C57) | Gustavo | reunião 30/10 |
+| App antigo × treinador novo: o pacote offline tolera forma de carga desconhecida (a série mostra "Carga: atualize o app para ver", sem campo de peso nem sugestão; o ✓ vale com a carga em branco) e, recusado por outro motivo de formato, o Início e o Treino dizem "Seu treinador usou algo novo. Atualize o app para ver o plano." (feito no código). Falta atualizar o item do `formatoDoPacote` no `AGENTS.md` (ainda diz que `carga` é estrita) e conferir à mão num app velho contra um plano com modo novo | Claude (o `AGENTS.md`); Gustavo (conferência) | editor-de-series-rir-e-carga-fixa |
 
 ## Limitações aceitas (não são pendência)
 

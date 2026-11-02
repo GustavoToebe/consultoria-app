@@ -4,6 +4,7 @@ import { blocosIguais, blocosValidos, somaDosBlocos } from './blocos';
 import { rotuloDescanso } from './descanso';
 import { metaDaRetomada, textoDaCargaDaEtapa } from './etapas';
 import { nomeDaSerieDeTrabalho } from './metodologia';
+import { cargaIlegivel, TEXTO_CARGA_ILEGIVEL } from './modoDeCarga';
 import { temEtapaEmPercentual } from './validacaoDeSerie';
 
 /**
@@ -101,7 +102,10 @@ export function previaDoGrupo(
   const linhas: string[] = [];
   const modo = primeira.carga?.modo ?? 'NENHUMA';
   const ws = nomeDaSerieDeTrabalho(config);
-  if (!contexto.semCarga && modo !== 'NENHUMA') {
+  if (!contexto.semCarga && cargaIlegivel(primeira.carga)) {
+    // Forma de carga mais nova que o app: o texto fixo, uma vez (já traz o "Carga:").
+    linhas.push(TEXTO_CARGA_ILEGIVEL);
+  } else if (!contexto.semCarga && modo !== 'NENHUMA') {
     let carga: string;
     if (modo === 'CARGA_TRABALHO') carga = 'carga de trabalho (a base do dia, que o aluno informa)';
     else if (modo === 'MESMA_CARGA') carga = textoCarga(primeira.carga, ws);

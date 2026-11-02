@@ -2,6 +2,7 @@ import type { Cardio, Carga, CargaDaEtapa, Configuracao, Esforco, Serie, Tecnica
 import { blocosValidos, somaDosBlocos, textoDeBlocos } from './blocos';
 import { numeroParaTela } from './formatos';
 import { explicacaoDoCatalogo } from './catalogoMetodologia';
+import { cargaIlegivel, TEXTO_CARGA_ILEGIVEL } from './modoDeCarga';
 import { explicacaoDaTecnica, nomeDaTecnica, nomeDoTipo, rotuloDoPapel, tecnicaDescritiva, tipoPorCodigo, tipoTrabalho } from './metodologia';
 import { textoDaFaixa, textoDosPercentuais } from './percentuais';
 
@@ -128,6 +129,8 @@ export function textoEsforcoDoGrupo(grupo: { series: readonly Pick<Serie, 'esfor
  * Toda faixa sai de `percentuais.textoDaFaixa`: o mesmo texto no editor, no PDF e na meta do aluno.
  */
 export function textoCarga(c: Carga | null | undefined, nomeDaWs?: string | null, nomeDaReferencia?: string | null): string {
+  // Forma de carga mais nova que o app: o texto fixo no lugar da carga (nunca um valor inventado).
+  if (cargaIlegivel(c)) return TEXTO_CARGA_ILEGIVEL;
   const daWs = nomeDaWs ? ` da ${nomeDaWs}` : '';
   switch (c?.modo) {
     case 'PERCENTUAL_WS':

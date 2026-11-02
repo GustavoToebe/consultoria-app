@@ -51,6 +51,17 @@ describe('carga fixa: validação', () => {
     expect(mensagens(validarExercicio(refFixa, null).erros)).toContain('Carga fixa não serve de referência: escolha uma série com a carga do aluno.');
   });
 
+  it('WS de 12 kg seguida de Back off em %: avisa que não há série de trabalho (a fixa não é a base do %)', () => {
+    const aviso = 'Há série em % da WS sem série de trabalho: a referência será a carga de trabalho que o aluno digitar.';
+    const backOff = serie('bo', { tipo: 'BACK_OFF', repsMin: 8, repsMax: 8, carga: carga('PERCENTUAL_WS', 85) });
+    const wsFixa = serie('ws', { repsMin: 12, repsMax: 12, carga: fixa(12) });
+    const comFixa = validarExercicio(exercicio('e', { unidade: 'kg', series: [wsFixa, backOff] }), CONFIGURACAO_PADRAO);
+    expect(comFixa.erros).toEqual([]);
+    expect(mensagens(comFixa.avisos)).toContain(aviso);
+    const comTrabalho = validarExercicio(exercicio('e', { unidade: 'kg', series: [serie('ws', { repsMin: 12, repsMax: 12 }), backOff] }), CONFIGURACAO_PADRAO);
+    expect(mensagens(comTrabalho.avisos)).not.toContain(aviso);
+  });
+
   it('não é série de trabalho: não vira base da mesma carga', () => {
     const e = exercicio('e', { series: [aquecimento('a'), serie('b', { tipo: 'FEEDER', carga: carga('MESMA_CARGA') })] });
     expect(mensagens(validarExercicio(e, null).erros)).toContain('Mesma carga da WS: precisa de uma série de trabalho antes, no mesmo exercício.');
@@ -93,14 +104,22 @@ describe('carga fixa: texto, meta e sugestão', () => {
 });
 
 describe('carga fixa: editor', () => {
-  it('só é oferecida em exercício com carga e fora do papel de trabalho; a série que já é fixa a mantém', () => {
+  it('só é oferecida em exercício com carga, em todos os papéis; a série que já é fixa a mantém', () => {
     expect(modos()).not.toContain('CARGA_FIXA');
-    expect(modos('AQUECIMENTO', null, true)).toContain('CARGA_FIXA');
-    expect(modos('PREPARACAO', null, true)).toContain('CARGA_FIXA');
-    expect(modos('POS_TRABALHO', null, true)).toContain('CARGA_FIXA');
-    expect(modos('TRABALHO', null, true)).not.toContain('CARGA_FIXA');
+    expect(modos('TRABALHO')).not.toContain('CARGA_FIXA');
+    for (const papel of ['AQUECIMENTO', 'PREPARACAO', 'TRABALHO', 'POS_TRABALHO', 'OUTRO', null] as const) {
+      expect(modos(papel, null, true)).toContain('CARGA_FIXA');
+    }
     expect(modos('TRABALHO', 'CARGA_FIXA', true)).toContain('CARGA_FIXA');
     expect(modos('AQUECIMENTO', 'CARGA_FIXA')).toContain('CARGA_FIXA');
+  });
+
+  it('na série de trabalho fica em "Outras formas de carga": o padrão continua a carga de trabalho', () => {
+    const ws = modosDeCarga(CONFIGURACAO_PADRAO, 'TRABALHO', 'CARGA_TRABALHO', true);
+    expect(ws.principais.map((m) => m.valor)).toEqual(['CARGA_TRABALHO', 'ACIMA_DA_ANTERIOR']);
+    expect(ws.outras.map((m) => m.valor)).toContain('CARGA_FIXA');
+    // Já gravada, sobe para as principais (a forma escolhida nunca fica escondida).
+    expect(modosDeCarga(CONFIGURACAO_PADRAO, 'TRABALHO', 'CARGA_FIXA', true).principais.map((m) => m.valor)).toContain('CARGA_FIXA');
   });
 
   it('nasce vazia (kg nulos) e some ao trocar de forma; as outras formas não ganham valorKg', () => {
@@ -139,10 +158,10 @@ describe('pacote offline com carga fixa', () => {
     },
   });
 
-  it('aceita valorKg numérico e recusa texto', () => {
+  it('aceita valorKg numérico e recusa texto; chave a mais na carga é tolerada (treinador mais novo que o app)', () => {
     expect(pacoteNoFormatoAtual(pacote(fixa(12)))).toBe(true);
     expect(pacoteNoFormatoAtual(pacote({ ...fixa(12), valorKg: '12' }))).toBe(false);
-    expect(pacoteNoFormatoAtual(pacote({ ...fixa(12), outro: 1 }))).toBe(false);
+    expect(pacoteNoFormatoAtual(pacote({ ...fixa(12), outro: 1 }))).toBe(true); // invertido de propósito: a carga é a parte tolerante
   });
 });
 
@@ -193,6 +212,18 @@ describe('RIR de 0 a 10, por série, dentro do mesmo grupo', () => {
     const series = quatro();
     const [g] = agrupar(series);
     expect(alterarGrupo(series, g, { esforco: rir(4) }, CONFIGURACAO_PADRAO).map((s) => s.esforco?.rir)).toEqual([4, 4, 4, 4]);
+  });
+
+  it('mexer em outro campo do grupo não apaga o RIR de cada série', () => {
+    const series = quatro();
+    const [g] = agrupar(series);
+    const mudancas = [
+      { repsMin: 10, repsMax: 12 }, { descansoSegundos: 90 }, { modo: 'ACIMA_DA_ANTERIOR' as const },
+      { carga: { modo: 'CARGA_FIXA' as const, valorKg: 12 } }, { tecnica: null }, { amrap: true },
+    ];
+    for (const mudanca of mudancas) {
+      expect(alterarGrupo(series, g, mudanca, CONFIGURACAO_PADRAO).map((s) => s.esforco?.rir)).toEqual([3, 2, 2, 1]);
+    }
   });
 });
 

@@ -113,6 +113,12 @@ interface ValorAluno {
   /** Não deu para baixar o pacote e não há nada salvo. */
   erroPacote: unknown;
   /**
+   * O pacote chegou, mas num formato que este app não lê (o treinador usou algo mais novo que o app instalado) e foi
+   * descartado: a tela diz "Seu treinador usou algo novo. Atualize o app para ver o plano." em vez de ficar vazia.
+   * Some quando um pacote legível é salvo.
+   */
+  pacoteRecusado: boolean;
+  /**
    * Registros do aparelho mais as séries que já estão no servidor e o aparelho não tem (outro aparelho, ou antes de
    * sair e entrar de novo), estas com situação `ENVIADO`. Na mesma série e dia, o do aparelho ganha.
    */
@@ -246,6 +252,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
   }, []);
   const [carregando, setCarregando] = useState(true);
   const [erroPacote, setErroPacote] = useState<unknown>(null);
+  const [pacoteRecusado, setPacoteRecusado] = useState(false);
   const [registros, setRegistros] = useState<RegistroLocal[]>([]);
   const [mobilidadeLocal, setMobilidadeLocal] = useState<RegistroMobilidadeLocal[]>([]);
   const [marcasDoServidor, setMarcasDoServidor] = useState<RegistroMobilidadeFeito[]>([]);
@@ -404,6 +411,8 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       await repositorio.salvarPacote(novo);
       if(novo.atualizacao)await atualizarAtualizacao(novo.atualizacao);
       setPacote(await repositorio.lerPacote());
+      // A marca vem depois da leitura: `salvarPacote` a limpa e `lerPacote` a põe de novo se o pacote novo também for recusado.
+      setPacoteRecusado(await repositorio.lerPacoteRecusado());
       setErroPacote(null);
       atualizarMarca(novo.marca);
       await baixarMobilidade();
@@ -476,8 +485,11 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
   useEffect(() => {
     let vivo = true;
     repositorio.descartarFilaRetidaVencida().then(() => repositorio.retomarFilaRetida()).catch(() => undefined).then(() => descartarConclusoesForaDaJanela()).then(() => Promise.all([repositorio.lerPacote(), repositorio.listar(), repositorio.lerCargasDeTrabalho(),repositorio.lerAtualizacao(),repositorio.lerMobilidade(),repositorio.listarMobilidade(),repositorio.lerDemonstracoes(),repositorio.listarSessoesConcluidas(),repositorio.lerIniciosDoTreino(),repositorio.listarAgua()])).then(
-      ([p, r, c, a, m, ml, dem, cl, ini, ag]) => {
+      async (lidos) => [...lidos, await repositorio.lerPacoteRecusado()] as const,
+    ).then(
+      ([p, r, c, a, m, ml, dem, cl, ini, ag, recusado]) => {
         if (!vivo) return;
+        setPacoteRecusado(recusado);
         setAguaLocal(ag);
         setConclusoesLocais(cl);
         setInicios(ini);
@@ -679,6 +691,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       demonstracoes,
       carregando,
       erroPacote,
+      pacoteRecusado,
       registros: todos,
       carregarSemanaDoServidor,
       semanaDoAparelho,
@@ -710,7 +723,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       sincronizarAgora: sincronizar,
       tentarDeNovo,
     };
-  }, [atualizacao,atualizarAtualizacao,descanso, iniciarDescanso, reservarDescanso, cancelarDescansoDe, ajustarDescanso, pularDescanso, repositorio, escolhida, escolherPasta, pacote, mobilidade, demonstracoes, carregando, erroPacote, registros, doServidor, mobilidadeLocal, marcasDoServidor, marcarMobilidade, aguaLocal, aguaDoServidor, marcarAgua, conclusoesLocais, conclusoesDoServidor, totalDoServidor, inicios, retornoHabilitado, sessoesConcluidasNoAparelho, falhasDeConclusao, concluirTreino, reabrirTreino, carregarSemanaDoServidor, semanaDoAparelho, cargas, pendentes, envio, mensagemEnvio, online, registrar, salvarCargaDeTrabalho, sincronizar, tentarDeNovo]);
+  }, [atualizacao,atualizarAtualizacao,descanso, iniciarDescanso, reservarDescanso, cancelarDescansoDe, ajustarDescanso, pularDescanso, repositorio, escolhida, escolherPasta, pacote, mobilidade, demonstracoes, carregando, erroPacote, pacoteRecusado, registros, doServidor, mobilidadeLocal, marcasDoServidor, marcarMobilidade, aguaLocal, aguaDoServidor, marcarAgua, conclusoesLocais, conclusoesDoServidor, totalDoServidor, inicios, retornoHabilitado, sessoesConcluidasNoAparelho, falhasDeConclusao, concluirTreino, reabrirTreino, carregarSemanaDoServidor, semanaDoAparelho, cargas, pendentes, envio, mensagemEnvio, online, registrar, salvarCargaDeTrabalho, sincronizar, tentarDeNovo]);
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }
