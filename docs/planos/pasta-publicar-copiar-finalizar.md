@@ -1,0 +1,52 @@
+# Pasta: publicar tudo, copiar a pasta para outro aluno, peso ao finalizar
+
+Situação: Planejando · Onde: branch `pasta-publicar-copiar` (worktree `wt-pasta`) · Atualizado: 02/11/2026 · Registro: reunião de 30/10, C21, C25, C22 (mais a cópia da pasta inteira) · Frente D da leva 1
+
+## Objetivo
+A cada renovação, o treinador entra em cada plano só para publicar ("editar, não tem nada, só publico"). Passa a haver
+um botão que publica os rascunhos da pasta de uma vez. Também passa a copiar a pasta inteira para outro aluno e a
+finalizar a pasta com o peso já preenchido.
+
+## O que o código faz hoje (main 19b1fd6)
+- Cada plano é publicado no seu editor; não existe publicação conjunta.
+- `CopiarPlanoService` copia **um** plano para outro aluno; a pasta inteira não.
+- Finalizar pasta (`CartaoPastas.tsx:390`) começa com o peso vazio, por escolha; há aviso de substituição.
+- A sobra do `?pastaId` está no README (pendência "Voltar à pasta").
+
+## Decisões (Gustavo, 02/11/2026; não perguntar de novo)
+| # | Decisão | Valor | Quem decidiu |
+| --- | --- | --- | --- |
+| D1 | C21 "Publicar tudo" | na Folha da pasta; publica num passo os rascunhos de treino, dieta e mobilidade da pasta | Gustavo |
+| D2 | Permissão | a de publicar de cada tipo presente, conferida **antes de qualquer efeito** | Gustavo |
+| D3 | Atomicidade | valida todos antes: problema em um = nenhum publicado, com a lista por plano e o mesmo tratamento de `CONFIRMAR_AVISOS` | Gustavo |
+| D4 | Versão e auditoria | cada publicação gera a sua versão imutável e a sua auditoria; plano sem rascunho alterado é pulado | Gustavo |
+| D5 | Copiar a pasta para outro aluno | mesmas regras do `CopiarPlanoService`: o destino recebe tudo em **rascunho**, sem ergogênicos e sem o questionário escolhido | Gustavo |
+| D6 | Recusas e permissões da cópia | outra consultoria = 404; destino anonimizado = 409; exige `PASTA_ALTERAR` + `ALUNO_LER` + o `*_ALTERAR` de cada tipo; auditoria com resumo fixo | Gustavo |
+| D7 | Tela da cópia | ⋯ da pasta → "Copiar pasta para outro aluno", com aviso e o atalho para abrir a ficha | Gustavo |
+| D8 | C25 Finalizar pasta | pré-preencher o peso com o da atualização daquela pasta (só com `ALUNO_SENSIVEL_LER` + `ATUALIZACAO_LER`), editável e com o aviso de substituição que já existe | Gustavo |
+| D9 | C22 | resolver a sobra do `?pastaId` | Gustavo |
+| D10 | Ajuda | explicar que ajuste no meio do ciclo = editar e publicar na mesma pasta (versão nova); ciclo novo = "Renovar pasta". O modelo de uma pasta por ciclo **não muda** | Gustavo |
+
+## Passos
+- [ ] 1. Mapear `PastaService`, `CopiarPlanoService`, `PlanoServiceBase.publicar`, `CartaoPastas` e o fluxo do `?pastaId` (explorador) — explorador — commit: —
+- [ ] 2. API: `POST` de publicação conjunta da pasta (permissões antes de tudo, validar todos, publicar só se todos passarem, versão e auditoria por plano), testes de integração (um com erro = nenhum publicado; sem permissão de um tipo = nada muda; outra consultoria 404) — executor — commit: —
+- [ ] 3. API: cópia da pasta para outro aluno (D5/D6) reaproveitando `CopiarPlanoService`/`paraCopiaDeOutroAluno`; testes de integração — executor — commit: —
+- [ ] 4. API: peso sugerido da atualização da pasta no finalizar, com as duas permissões — executor — commit: —
+- [ ] 5. Tela: "Publicar tudo" na Folha da pasta com lista por plano; ⋯ → "Copiar pasta para outro aluno"; peso pré-preenchido; `?pastaId` — executor-front — commit: —
+- [ ] 6. Ajuda (D10), guias regerados, e2e da Folha da pasta, `AGENTS.md` só no item das pastas — commit: —
+- [ ] 7. Revisão do Opus (permissão, LGPD, contrato) antes do PR — advisor/revisor — commit: —
+
+## Critérios de aceite
+- Publicar tudo com treino válido e dieta inválida: nada é publicado e a tela lista o problema da dieta.
+- Plano sem rascunho alterado é pulado, sem versão nova.
+- A cópia da pasta chega ao destino em rascunho, sem ergogênicos e sem questionário; ficha de outra consultoria dá 404.
+- O peso do finalizar vem preenchido só para quem tem as duas permissões.
+
+## Arquivos em comum com outras frentes
+- `CartaoPastas.tsx` (Frente A mexe só nos campos de data), `ajuda/conteudo.ts`, guias, `AGENTS.md`.
+
+## Fora do escopo
+- Mudar o modelo de uma pasta por ciclo; contrato de ciclos.
+
+## O que ficou para trás
+- —
