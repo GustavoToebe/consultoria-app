@@ -44,13 +44,12 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | "Quero ser aluno" com as perguntas do treinador (questionário de inscrição) | [inscricao-com-perguntas-proprias.md](inscricao-com-perguntas-proprias.md) | branch `inscricao-perguntas` | Implementada, aguardando revisão (guias PDF a regenerar na junção) | 01/11/2026 |
 | Filtros avançados da lista de alunos (busca, painel de filtros, "Filtrado por"; Início abre a lista filtrada) | [filtros-da-lista-de-alunos.md](filtros-da-lista-de-alunos.md) | branch (31/10) | Pronta na branch; falta o `mvn verify` com Docker | 31/10/2026 |
 | Filtros nas outras listas (Atualizações, Interessados, Financeiro, Biblioteca, Questionários, Auditoria, Importação, Equipe), lotes 1 e 2 | [filtros-nas-listas.md](filtros-nas-listas.md) | lote 1 na main; lote 2 na branch `filtros-lote2` (01/11) | Lote 2 (API e app) pronto na branch, aguardando revisão | 01/11/2026 |
-| Agenda estilo Google, ajustes do PDF de 02/11 (barra reta, "Mês ▾", filtro de várias situações, painel rápido + "Mais opções", início até fim) | [agenda-estilo-google.md](agenda-estilo-google.md) | branch `ajustes-primeira-semana-de-novembro` | Pronta na branch, aguardando revisão (guia PDF a regenerar na junção) | 02/11/2026 |
+| Agenda estilo Google, ajustes do PDF de 02/11 (barra reta, "Mês ▾", filtro de várias situações, painel rápido + "Mais opções", início até fim) | [agenda-estilo-google.md](agenda-estilo-google.md) | branch `ajustes-primeira-semana-de-novembro` | PR aberto para a `main`, aguardando revisão (guia PDF regerado) | 02/11/2026 |
 
 ## Pendências soltas
 
 | Pendência | Quem | Origem |
 | --- | --- | --- |
-| Agenda: regerar `app/public/guias/guia-treinador.pdf` (`node scripts/guias/gerar.mjs`), porque a Ajuda da agenda mudou | Claude, na junção com a main | agenda-estilo-google |
 | Agenda: no "Mais opções" não há como voltar ao painel rápido (fechar e abrir de novo) | Claude, quando o Gustavo pedir | agenda-estilo-google |
 | e2e `ciclo-menstrual.spec.ts:223` falha quando hoje − 8 dias cai no mês anterior (o calendário abre no mês atual); fixar o relógio no spec | Claude | agenda-estilo-google (achado no e2e de 02/11) |
 | Início, Primeiros passos: "Abrir Metodologias" leva à Biblioteca sem abrir o chip de metodologias | Claude, quando o Gustavo pedir | atualizacao-visual-app-full (passo 9) |
