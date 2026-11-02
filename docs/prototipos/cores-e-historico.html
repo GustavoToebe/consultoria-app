@@ -89,6 +89,8 @@ table.dados tr.menor td { background: #FEF3C7; font-weight: 700; }
 .marcar { width: 48px; height: 48px; border-radius: 12px; border: 2px solid var(--bordaCampo); background: var(--superficie); display: grid; place-items: center; color: var(--texto); flex-shrink: 0; }
 .marcar.feito { background: var(--sucesso); border-color: var(--sucesso); color: var(--superficie); }
 .linha-campos { display: flex; align-items: flex-end; gap: 8px; }
+.dica { font-size: 13px; color: var(--textoSuave); margin-top: -2px; }
+.dica b { color: var(--texto); font-weight: 600; }
 .esqueleto { background: var(--superficie3); border-radius: 8px; height: 14px; }
 .esqueleto.alto { height: 72px; border-radius: 12px; }
 @media (prefers-reduced-motion: no-preference) { .esqueleto { animation: pulsa 1.2s ease-in-out infinite alternate; } }
@@ -136,8 +138,19 @@ table.dados tr.menor td { background: #FEF3C7; font-weight: 700; }
 .progresso-etapas { display: flex; gap: 4px; }
 .progresso-etapas i { flex: 1; height: 6px; border-radius: 3px; background: var(--divisor); }
 .progresso-etapas i.f { background: var(--tipo); }
-.legenda { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--textoSuave); }
-.legenda span { display: inline-flex; align-items: center; gap: 5px; }
+/* legenda "O que significa cada cor": recolhida por padrão, abre por botão (aria-expanded) */
+.legenda-cores { border: 1px solid var(--borda); border-radius: 12px; background: var(--superficie); }
+.legenda-cores > button { width: 100%; min-height: 44px; border: 0; background: none; color: var(--texto); font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px; padding: 0 12px; text-align: left; border-radius: 12px; }
+.legenda-cores > button .pontos { display: inline-flex; gap: 3px; margin-left: auto; }
+.legenda-cores > button .pontos .ponto { width: 8px; height: 8px; }
+.legenda { list-style: none; margin: 0; padding: 4px 12px 12px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--texto); border-top: 1px solid var(--divisor); padding-top: 10px; }
+.legenda[hidden] { display: none; }
+.legenda li { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.legenda li b { color: var(--tipo, var(--texto)); }
+.legenda .amostra-feita { width: 16px; height: 16px; border-radius: 4px; background: var(--sucesso); color: var(--superficie); display: inline-grid; place-items: center; flex-shrink: 0; }
+.legenda .amostra-tecnica { min-height: 22px; font-size: 11px; padding: 0 6px; }
+.gira { display: inline-grid; }
+@media (prefers-reduced-motion: no-preference) { .gira { transition: transform .15s ease-out; } }
 .faixa-treino { display: flex; gap: 8px; flex-wrap: wrap; }
 .faixa-treino div { flex: 1; min-width: 90px; background: var(--superficie2); border: 1px solid var(--borda); border-radius: 12px; padding: 8px 10px; }
 .faixa-treino b { display: block; font-size: 16px; font-variant-numeric: tabular-nums; }
@@ -185,7 +198,11 @@ table.dados tr.menor td { background: #FEF3C7; font-weight: 700; }
 .dia > button .t { flex: 1; display: flex; flex-direction: column; }
 .dia > button .t small { color: var(--textoSuave); font-size: 13px; }
 .dia .conteudo { padding: 0 12px 12px 46px; display: flex; flex-direction: column; gap: 8px; }
-.dia .ex b { font-weight: 600; display: block; }
+.dia .ex { display: flex; flex-direction: column; gap: 2px; }
+.dia .ex > b { font-weight: 600; }
+.series-do-dia { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 13px; }
+.series-do-dia span { display: inline-flex; align-items: center; gap: 5px; }
+.series-do-dia b { color: var(--tipo); font-weight: 700; }
 .grafico { width: 100%; height: 140px; display: block; }
 .l1280 .duas { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .duas { display: grid; grid-template-columns: 1fr; gap: 12px; }
@@ -229,7 +246,7 @@ table.dados tr.menor td { background: #FEF3C7; font-weight: 700; }
 <main class="doc">
   <header>
     <h1>Prévia: cor por tipo de série, dieta, histórico e "Usar receita"</h1>
-    <p>Reunião de 30/10 (C35, C50, C74, C45, C16) e decisões D1 a D8 de <code>docs/planos/cores-por-tipo-de-serie.md</code>. Só dados fictícios ("Aluno Exemplo", exercícios genéricos). Use os botões no topo para trocar o tema (claro, areia, escuro) e a largura (390 e 1280 px). Nada aqui é código do app.</p>
+    <p>Reunião de 30/10 (C35, C50, C74, C45, C16) e decisões D1 a D17 de <code>docs/planos/cores-por-tipo-de-serie.md</code>. Só dados fictícios ("Aluno Exemplo", exercícios genéricos). Use os botões no topo para trocar o tema (claro, areia, escuro) e a largura (390 e 1280 px). Nada aqui é código do app.</p>
     <div id="tokens-propostos"></div>
   </header>
 
@@ -241,6 +258,8 @@ table.dados tr.menor td { background: #FEF3C7; font-weight: 700; }
       <li><b>Série concluída</b> continua com a borda e o fundo verdes (status); a barra do tipo fica.</li>
       <li><b>Cluster e Rest-pause em um bloco só:</b> as etapas viram linhas dentro de uma caixa única (sem borda de cartão em cada uma), a pausa vira um conector entre elas e há um "N de M" com barra segmentada. Ações iguais às de hoje: ✓, Não fiz, Desfazer, Concluir série / Reabrir, Pausa.</li>
       <li><b>Tipo de papel "Outro"</b> não ganha cor: marcador vazado (contorno pontilhado), para não parecer o cinza de status.</li>
+      <li><b>Carga sugerida é dica, nunca valor no campo</b> (C31, decisão D1 da Frente C): na série ainda não feita, repetições e carga ficam vazias e a dica aparece logo abaixo dos campos ("Sugestão: 51 kg · Última vez: 51 kg × 8"; sem registro anterior, "Primeira vez: escolha a carga"). Na série feita (✓) aparece o que foi registrado.</li>
+      <li><b>Legenda "O que significa cada cor"</b> (D13): logo abaixo do título, recolhida por padrão; o botão (44 px, <code>aria-expanded</code>) mostra os cinco pontos e abre a lista por papel, mais o verde de série feita e a etiqueta cinza de técnica. A mesma legenda está no "Usar receita".</li>
     </ul>
     <div class="estados" data-estado="execucao"></div>
     <div class="rolagem"><div id="q-execucao"></div></div>
@@ -249,7 +268,7 @@ table.dados tr.menor td { background: #FEF3C7; font-weight: 700; }
   <section id="c50" aria-labelledby="t-c50">
     <h2 id="t-c50">C50/C74 · Mais cor na dieta (refeições e unidades)</h2>
     <ul class="decisoes">
-      <li>Cada refeição ganha uma cor de identificação pela ordem (a mesma paleta já testada das agendas, <code>PALETA_DA_AGENDA</code>): faixa tingida, barra à esquerda e o número da refeição num quadrado cheio.</li>
+      <li>Cada refeição ganha uma cor de identificação pela ordem (a mesma paleta já testada das agendas, <code>PALETA_DA_AGENDA</code>): faixa tingida, barra à esquerda e o número da refeição num quadrado cheio. Aqui não há série colorida ao lado, então a ordem fica como estava (D14).</li>
       <li>A quantidade com a unidade ("150 g", "2 unidades") vira uma etiqueta forte com o tingido da refeição; o texto fica na cor do texto (contraste conferido).</li>
       <li>Macros (P, C, G) seguem sem cor própria: cor nova ali seria mais um código para decorar.</li>
     </ul>
@@ -259,9 +278,9 @@ table.dados tr.menor td { background: #FEF3C7; font-weight: 700; }
   <section id="c45" aria-labelledby="t-c45">
     <h2 id="t-c45">C45 · Histórico do aluno reorganizado (com C74 nos cabeçalhos por divisão)</h2>
     <ul class="decisoes">
-      <li><b>Três visões em abas</b> num cartão só: Por divisão, Por dia e Geral (hoje "Geral" é o cartão Progresso por exercício). Logo abaixo das abas, uma faixa "Mostrando" diz o período de cada visão: as duas primeiras usam a pasta em uso (sem pasta com período, últimos 30 dias); a Geral, o último ano, de todas as pastas, como o app já busca.</li>
-      <li><b>Por dia</b> deixa de ser lista corrida: agrupa por semana (segunda a domingo, como a Agenda), com cabeçalho "Semana de dd/mm a dd/mm", resumo só com contagens (dias treinados, sessões) e uma tira com os 7 dias marcados pela letra da divisão. A semana mais recente abre; as outras ficam fechadas. Cada dia é uma linha que abre os exercícios.</li>
-      <li><b>Por divisão</b>: cabeçalho de cada divisão com a cor de identificação e a letra (C74).</li>
+      <li><b>Abas iguais às do app</b> (D10): "Registros e cargas" continua com Por divisão e Por dia; o <b>Progresso por exercício</b> continua cartão separado, igual ao da ficha. Cada um ganha uma faixa "Mostrando" com o período: as abas usam a pasta em uso (sem pasta com período, últimos 30 dias); o Progresso, o último ano, de todas as pastas, como o app já busca.</li>
+      <li><b>Por dia</b> deixa de ser lista corrida: agrupa por semana (segunda a domingo, como a Agenda), com cabeçalho "Semana de dd/mm a dd/mm" e o resumo da semana <b>só com contagens</b> (dias treinados, sessões; sem nome e sem peso ou volume, D15) e uma tira com os 7 dias marcados pela letra da divisão. A semana mais recente abre; as outras ficam fechadas. Cada dia é uma linha que abre os exercícios, com as séries marcadas pelo ponto e pelo nome do tipo na cor (a mesma da execução).</li>
+      <li><b>Por divisão</b>: cabeçalho de cada divisão com a cor de identificação e a letra (C74). Como aqui divisão e série coloridas ficam juntas, a ordem das divisões começa pelas cores mais longe dos tipos (D14): terra, oliva e ardósia, que cobrem quase todos os planos e não lembram nenhum tipo de série; depois turquesa, magenta, violeta, azul e índigo. O índigo é quase a cor do Trabalho (ΔE 5,9 no claro, 8,1 no escuro) e fica no fim; a conta está na tabela de contraste.</li>
     </ul>
     <div class="estados" data-estado="historico"></div>
     <div class="rolagem"><div id="q-historico"></div></div>
@@ -270,9 +289,9 @@ table.dados tr.menor td { background: #FEF3C7; font-weight: 700; }
   <section id="c16" aria-labelledby="t-c16">
     <h2 id="t-c16">C16 · Janela "Usar receita" agrupada por bloco e por técnica</h2>
     <ul class="decisoes">
-      <li><b>Dois níveis:</b> coleção (o "bloco", recolhível, como hoje) e, dentro dela, a técnica que as séries da receita usam ("Sem técnica", "Cluster", "Rest pause"...). Receita com mais de uma técnica fica em "Várias técnicas".</li>
-      <li><b>Completas primeiro</b> dentro de cada técnica, com a etiqueta "Completa" (leitura proposta: a receita vai da preparação, ou do aquecimento, até a série de trabalho).</li>
-      <li>A composição ganha os pontos de cor por tipo e uma faixa fina com os segmentos (a mesma cor da execução); o texto "FS ×3 · WS ×1" continua. Busca e "Sequência" ficam.</li>
+      <li><b>Dois níveis:</b> coleção (o "bloco", recolhível, como hoje) e, dentro dela, a técnica que as séries da receita usam ("Sem técnica", "Cluster", "Rest pause"...). Receita com duas técnicas aparece <b>nos dois grupos</b>, com a linha "Usa Rest pause e Drop-set · também em …" (D12); a contagem da coleção conta cada receita uma vez.</li>
+      <li><b>Completas primeiro</b> dentro de cada técnica, com a etiqueta "Completa": a receita começa no aquecimento ou na preparação e chega à série de trabalho, com o Back off quando houver (D11). Nos exemplos, toda completa vai até o Back off, e "Ver sequência" mostra da primeira série ao Back off.</li>
+      <li>A composição ganha os pontos de cor por tipo e uma faixa fina com os segmentos (a mesma cor da execução); o texto "FS ×3 · WS ×1" continua. Busca e "Sequência" ficam. A legenda "O que significa cada cor" fica recolhida no topo da folha (D13).</li>
     </ul>
     <div class="estados" data-estado="receitas"></div>
     <div class="rolagem"><div id="q-receitas"></div></div>
@@ -307,6 +326,13 @@ const PALETA_DA_AGENDA = {
   escuro: { AZUL:'#4A90F7', INDIGO:'#8B7CF0', VIOLETA:'#C07DE8', MAGENTA:'#E8579F', TURQUESA:'#2BBFC9', ARDOSIA:'#8FA3B8', TERRA:'#BE8068', OLIVA:'#A8B53F' },
 };
 const ORDEM_DA_IDENTIFICACAO = ['AZUL','VIOLETA','TURQUESA','MAGENTA','INDIGO','TERRA','OLIVA','ARDOSIA'];
+/* D14: onde divisões coloridas aparecem junto de séries coloridas (Histórico, as duas abas e a tira dos 7 dias), a ordem
+   começa pelas cores mais longe dos quatro tipos. Critério: menor ΔE até tipoAquecimento/Preparação/Trabalho/PósTrabalho,
+   no pior dos dois temas; as três primeiras passam de 15 (o mínimo "entre tipos"), cobrem quase todos os planos e não
+   lembram nenhum tipo de série (Gustavo, 02/11/2026). O índigo fica a ΔE 5,9/8,1 do Trabalho: na prática é a mesma cor,
+   por isso vai para o fim. A ardósia é a 3ª aqui (no Histórico não há selo neutro ao lado); nas refeições segue em 8ª (D16). */
+const ORDEM_DAS_DIVISOES = ['TERRA','OLIVA','ARDOSIA','TURQUESA','MAGENTA','VIOLETA','AZUL','INDIGO'];
+const DIVISOES_LONGE_DOS_TIPOS = 3;
 const MARCA_FICTICIA = '#C2410C';
 
 const grupoDoTema = (tema) => (tema === 'escuro' ? 'escuro' : 'claro');
@@ -352,6 +378,7 @@ function paresDeContraste() {
       par(token, hex, 'série concluída (verde 0x29)', feita, 'nome do tipo na série feita (texto)', 4.5);
       par(token, hex, 'superficie3 (faixa, etapa atual)', c.superficie3, 'nome do tipo sobre faixa (texto)', 4.5);
       par(token, hex, 'superficie (cartão, etapas)', c.superficie, 'barra, ponto e segmento (não textual)', 3);
+      par(token, hex, 'superficie (legenda, semana do Histórico)', c.superficie, 'nome do papel na legenda e nas séries do dia (texto)', 4.5);
       par(token, hex, 'fundo (página)', c.fundo, 'barra encostada na página (não textual)', 3);
     }
     par('bordaCampo (tipo "Outro", vazado)', c.bordaCampo, 'superficie2 (cartão da série)', c.superficie2, 'contorno do marcador vazado (não textual)', 3);
@@ -380,13 +407,19 @@ function distancias() {
     const ks = Object.keys(tipos);
     for (let i = 0; i < ks.length; i++) for (let j = i + 1; j < ks.length; j++) linhas.push({ grupo: g, cor: ks[i], hex: tipos[ks[i]], outra: ks[j], outraHex: tipos[ks[j]], de: distancia(tipos[ks[i]], tipos[ks[j]]), minimo: 15 });
     for (const k of ORDEM_DA_IDENTIFICACAO) linhas.push({ grupo: g, cor: 'ident ' + k, hex: PALETA_DA_AGENDA[g][k], outra: 'neutro', outraHex: c.neutro, de: distancia(PALETA_DA_AGENDA[g][k], c.neutro), minimo: 25, informativo: true });
+    ORDEM_DAS_DIVISOES.forEach((k, i) => {
+      for (const [token, hex] of Object.entries(tipos)) {
+        const de = distancia(PALETA_DA_AGENDA[g][k], hex);
+        linhas.push({ grupo: g, cor: `divisão ${i + 1}ª ${k}`, hex: PALETA_DA_AGENDA[g][k], outra: token, outraHex: hex, de, minimo: 15, divisao: true, informativo: i >= DIVISOES_LONGE_DOS_TIPOS });
+      }
+    });
   }
   return linhas;
 }
 /*CORES-FIM*/
 
 /* ====================== estado da prévia ====================== */
-const estado = { tema: 'claro', largura: 390, execucao: 'normal', historico: 'normal', aba: 'dia', receitas: 'normal', semanasAbertas: new Set(['s1']), diasAbertos: new Set(['d31']), colecoesFechadas: new Set(), sequencias: new Set() };
+const estado = { tema: 'claro', largura: 390, execucao: 'normal', historico: 'normal', aba: 'dia', receitas: 'normal', semanasAbertas: new Set(['s1']), diasAbertos: new Set(['d31']), colecoesFechadas: new Set(), sequencias: new Set(), legendas: new Set() };
 try { const s = JSON.parse(localStorage.getItem('previa-frente-g') || 'null'); if (s) { estado.tema = s.tema || 'claro'; estado.largura = s.largura || 390; } } catch (e) { /* sem armazenamento */ }
 const guardar = () => { try { localStorage.setItem('previa-frente-g', JSON.stringify({ tema: estado.tema, largura: estado.largura })); } catch (e) { /* nada */ } };
 
@@ -411,8 +444,9 @@ function variaveis(tema) {
   v.feitaFundo = fundoDaSerieFeita(c); v.perigoTingido = tingido(c.perigo, c.superficie);
   return Object.entries(v).map(([k, x]) => `--${k}:${x}`).join(';');
 }
-function ident(tema, indice) {
-  const hex = PALETA_DA_AGENDA[grupoDoTema(tema)][ORDEM_DA_IDENTIFICACAO[indice % ORDEM_DA_IDENTIFICACAO.length]];
+/* `ordem`: ORDEM_DA_IDENTIFICACAO (refeições, sem série colorida ao lado) ou ORDEM_DAS_DIVISOES (Histórico, D14). */
+function ident(tema, indice, ordem = ORDEM_DA_IDENTIFICACAO) {
+  const hex = PALETA_DA_AGENDA[grupoDoTema(tema)][ordem[indice % ordem.length]];
   return `--ident:${hex};--identTingido:${tingido(hex, BASE[tema].superficie)};--identSobre:${textoSobre(hex)}`;
 }
 const corDoPapel = (papel) => (papel ? `--tipo:var(--${Object.keys(PAPEL_DO_TOKEN).find((k) => PAPEL_DO_TOKEN[k] === papel)})` : '');
@@ -435,16 +469,22 @@ function cabDaSerie(n, tipoNome, papel, { tecnica, selo } = {}) {
     ${tecnica ? `<span class="etiqueta">${tecnica} ${ic('info', 14)}</span>` : ''}${selo || ''}</div>`;
 }
 const meta = (t, extra) => `<div class="meta" role="group" aria-label="Meta: ${t}"><p class="secao">Meta</p><span class="valor num">${t}</span>${extra ? `<span class="pequeno suave">${extra}</span>` : ''}</div>`;
-const campos = (reps, kg, feito, rotulo) => `<div class="linha-campos"><div class="campo-num"><span class="v">${reps ?? ''}</span><span class="u">reps</span></div><div class="campo-num"><span class="v">${kg ?? ''}</span><span class="u">kg</span></div><button class="marcar ${feito ? 'feito' : ''}" aria-label="${rotulo}" aria-pressed="${feito}">${ic('check', 22)}</button></div>`;
+/* C31 (Frente C, D1): a sugestão é dica, nunca valor no campo. Série não feita = reps e carga VAZIOS, com a dica logo
+   abaixo ("Sugestão: 60 kg · Última vez: 60 kg × 7"; sem anterior, "Primeira vez: escolha a carga"). Feita = o registrado. */
+let idDaDica = 0;
+const campos = (reps, kg, feito, rotulo, dica) => {
+  const id = dica && !feito ? `dica-${++idDaDica}` : '';
+  return `<div class="linha-campos"><div class="campo-num"><span class="v">${feito ? reps ?? '' : ''}</span><span class="u">reps</span></div><div class="campo-num" ${id ? `aria-describedby="${id}"` : ''}><span class="v">${feito ? kg ?? '' : ''}</span><span class="u">kg</span></div><button class="marcar ${feito ? 'feito' : ''}" aria-label="${rotulo}" aria-pressed="${feito}">${ic('check', 22)}</button></div>${id ? `<span class="dica num" id="${id}">${dica}</span>` : ''}`;
+};
+const dica = (sugestao, ultima) => (ultima ? `<b>Sugestão: ${sugestao}</b> · Última vez: ${ultima}` : '<b>Primeira vez: escolha a carga</b>');
 
 function serieSimples(n, tipo, papel, o) {
   return `<div class="serie ${o.feita ? 'feita' : ''} ${papel ? '' : 'vazado'}" style="${corDoPapel(papel)}">
     ${cabDaSerie(n, tipo, papel, { tecnica: o.tecnica, selo: o.feita ? '' : '<span class="selo neutro">Ainda não registrado</span>' })}
     ${meta(o.meta)}
-    ${o.ultimo ? `<span class="linha-info num"><b>Último registro</b> ${o.ultimo}</span>` : ''}
-    ${o.sugerido && !o.feita ? `<span class="linha-info num"><b>Sugerido:</b> ${o.sugerido}</span>` : ''}
+    ${o.feita && o.ultimo ? `<span class="linha-info num"><b>Último registro</b> ${o.ultimo}</span>` : ''}
     <p class="secao">Hoje</p>
-    ${campos(o.reps, o.kg, o.feita, `Série ${n} ${o.feita ? 'feita' : 'a fazer'}`)}
+    ${campos(o.reps, o.kg, o.feita, `Série ${n} ${o.feita ? 'feita' : 'a fazer'}`, o.feita ? null : dica(o.sugestao, o.ultimaVez))}
     ${o.feita ? `<span class="pequeno" style="color:var(--sucesso)">Série feita.</span>` : ''}
     ${o.descanso ? `<span class="pequeno suave">Descanso depois da série: ${o.descanso}</span>` : ''}
   </div>`;
@@ -457,7 +497,7 @@ function serieComEtapas(n, tipo, papel, o) {
     const conector = i < o.etapas.length - 1 ? `<div class="conector">${ic('timer', 14)} ${o.pausa}${e.estado === 'feita' ? `<button class="btn">${ic('timer', 14)} Pausa</button>` : ''}</div>` : '';
     return `<div class="etapa ${atual ? 'atual' : ''} ${e.estado === 'feita' ? 'feita' : ''}">
       <span class="rot num"><span class="n">${e.estado === 'feita' ? ic('check', 14) : i + 1}</span>${e.rotulo} · Meta ${e.meta}${e.estado === 'feita' ? '<span class="pequeno suave" style="font-weight:400">feito</span>' : ''}${atual ? '<span class="pequeno suave" style="font-weight:400">· próximo</span>' : ''}</span>
-      ${e.estado === 'pendente' ? `<span class="pequeno suave num">Carga: a da série (${o.kg} kg sugeridos)</span>` : campos(e.reps, e.kg, e.estado === 'feita', `${e.rotulo} ${e.estado === 'feita' ? 'feito' : ''}, série ${n}`)}
+      ${e.estado === 'pendente' ? `<span class="dica num"><b>Sugestão: ${o.kg} kg</b></span>` : campos(e.reps, e.kg, e.estado === 'feita', `${e.rotulo} ${e.estado === 'feita' ? 'feito' : ''}, série ${n}`, dica(`${o.kg} kg`, e.ultimaVez))}
       ${atual ? `<div><button class="btn fantasma">Não fiz</button></div>` : ''}
     </div>${conector}`;
   }).join('');
@@ -465,7 +505,6 @@ function serieComEtapas(n, tipo, papel, o) {
     ${cabDaSerie(n, tipo, papel, { tecnica: o.tecnica, selo: '<span class="selo neutro">Em andamento</span>' })}
     ${meta(o.meta, o.metaExtra)}
     <span class="linha-info num"><b>Último registro</b> ${o.ultimo}</span>
-    <span class="linha-info num"><b>Sugerido:</b> ${o.kg} kg · ${o.origem}</span>
     <p class="secao">Hoje · ${o.nomeEtapas} da série</p>
     <div class="etapas" role="list" aria-label="${o.nomeEtapas} da série ${n}">${linhas}</div>
     <div class="progresso-etapas" aria-hidden="true">${o.etapas.map((e) => `<i class="${e.estado === 'feita' ? 'f' : ''}"></i>`).join('')}</div>
@@ -476,26 +515,37 @@ function serieComEtapas(n, tipo, papel, o) {
   </div>`;
 }
 
-const legendaDeTipos = () => `<div class="legenda" aria-label="Cores dos tipos de série">
-  <span style="${corDoPapel('AQUECIMENTO')}"><i class="ponto"></i>Aquecimento</span><span style="${corDoPapel('PREPARACAO')}"><i class="ponto"></i>Preparação (FS)</span>
-  <span style="${corDoPapel('TRABALHO')}"><i class="ponto"></i>Trabalho (WS, Top set)</span><span style="${corDoPapel('POS_TRABALHO')}"><i class="ponto"></i>Pós-trabalho (Back off)</span>
-  <span><i class="ponto vazado"></i>Outro</span></div>`;
+/* Legenda curta, recolhida por padrão. `id` separa as legendas de cada quadro (cada uma abre sozinha). */
+const PAPEIS_DA_LEGENDA = [['AQUECIMENTO', 'Aquecimento', 'prepara o corpo, sem carga de trabalho'], ['PREPARACAO', 'Preparação', 'FS: chega perto da carga'], ['TRABALHO', 'Trabalho', 'WS e Top set: a série que conta'], ['POS_TRABALHO', 'Pós-trabalho', 'Back off: depois da de trabalho']];
+function legendaDeTipos(id) {
+  const aberta = estado.legendas.has(id);
+  return `<div class="legenda-cores">
+    <button id="leg-${id}" data-legenda="${id}" aria-expanded="${aberta}" aria-controls="leg-c-${id}">${ic('info', 18)}<span>O que significa cada cor</span>
+      <span class="pontos" aria-hidden="true">${PAPEIS_DA_LEGENDA.map(([p]) => `<i class="ponto" style="${corDoPapel(p)}"></i>`).join('')}<i class="ponto vazado"></i></span>
+      <span class="gira" style="transform:rotate(${aberta ? 180 : 0}deg)">${ic('baixo')}</span></button>
+    <ul class="legenda" id="leg-c-${id}" ${aberta ? '' : 'hidden'}>
+      ${PAPEIS_DA_LEGENDA.map(([p, nome, o]) => `<li style="${corDoPapel(p)}"><i class="ponto" aria-hidden="true"></i><b>${nome}</b><span class="suave">${o}</span></li>`).join('')}
+      <li><i class="ponto vazado" aria-hidden="true"></i><b>Outro</b><span class="suave">sem cor (ex.: mobilidade)</span></li>
+      <li><span class="amostra-feita" aria-hidden="true">${ic('check', 12)}</span><b>Verde</b><span class="suave">série feita; não é tipo</span></li>
+      <li><span class="etiqueta amostra-tecnica" aria-hidden="true">Cluster ${ic('info', 12)}</span><b>Etiqueta cinza</b><span class="suave">técnica (Cluster, Rest pause, Drop-set)</span></li>
+    </ul></div>`;
+}
 
 function telaExecucao() {
   const offline = estado.execucao === 'offline';
   const corpo = `<div class="coluna">
     ${cabecalho('Supino reto com barra', 'Peso livre · Exercício 2 de 5 · Treino A (sex 31/10)')}
-    ${offline ? `<div class="alerta neutro" role="status">${ic('semRede')}<div><b>Sem conexão.</b> <span class="pequeno">O que você marcar fica salvo neste aparelho e vai para o treinador quando a internet voltar.</span></div></div>` : ''}
+    ${legendaDeTipos('cluster')}
+    ${offline ?`<div class="alerta neutro" role="status">${ic('semRede')}<div><b>Sem conexão.</b> <span class="pequeno">O que você marcar fica salvo neste aparelho e vai para o treinador quando a internet voltar.</span></div></div>` : ''}
     <div class="cartao"><div class="corpo"><div class="faixa-treino num"><div><b>18 min</b><small>Duração</small></div><div><b>1.284 kg</b><small>Volume</small></div><div><b>5/16</b><small>Séries</small></div></div></div></div>
     <div class="cartao"><div class="faixa"><div class="tit"><b>Séries</b><small>Toque no nome do tipo para ver o que é.</small></div></div>
       <div class="corpo">
-        ${legendaDeTipos()}
         ${serieSimples(1, 'Aquecimento', 'AQUECIMENTO', { feita: true, meta: '10 a 15 reps · sem sugestão de carga', ultimo: '20 kg × 12', reps: 12, kg: 20 })}
         ${serieSimples(2, 'FS', 'PREPARACAO', { feita: true, meta: '3 reps · 70% da WS', ultimo: '42 kg × 3', reps: 3, kg: 42 })}
         ${serieSimples(3, 'FS', 'PREPARACAO', { feita: true, meta: '3 reps · 85% a 90% da WS', ultimo: '52 kg × 3', reps: 3, kg: 52 })}
         ${serieComEtapas(4, 'WS', 'TRABALHO', { tecnica: 'Cluster', meta: '4+2+2 = 8 reps · carga de trabalho · 1 RIR', metaExtra: 'Pausa entre blocos: 15 s', ultimo: '60 kg × 4+2+2 = 8', kg: 60, origem: 'a carga de trabalho do último treino', nomeEtapas: 'Blocos', pausa: 'Pausa entre blocos: 15 s', total: '4 reps até agora', descanso: '2 min',
-          etapas: [{ rotulo: 'Bloco 1', meta: '4', estado: 'feita', reps: 4, kg: 60 }, { rotulo: 'Bloco 2', meta: '2', estado: 'atual', reps: null, kg: 60 }, { rotulo: 'Bloco 3', meta: '2', estado: 'pendente' }] })}
-        ${serieSimples(5, 'Back off', 'POS_TRABALHO', { feita: false, meta: '6 a 8 reps · 85% da WS', ultimo: '51 kg × 8', sugerido: '51 kg · 85% da WS registrada nesta sessão', reps: null, kg: 51, descanso: '1 min 30 s' })}
+          etapas: [{ rotulo: 'Bloco 1', meta: '4', estado: 'feita', reps: 4, kg: 60 }, { rotulo: 'Bloco 2', meta: '2', estado: 'atual', reps: null, kg: null, ultimaVez: '60 kg × 2' }, { rotulo: 'Bloco 3', meta: '2', estado: 'pendente' }] })}
+        ${serieSimples(5, 'Back off', 'POS_TRABALHO', { feita: false, meta: '6 a 8 reps · 85% da WS', ultimo: '51 kg × 8', sugestao: '51 kg', ultimaVez: '51 kg × 8', reps: null, kg: null, descanso: '1 min 30 s' })}
       </div></div>
     <button class="btn primario cheio">Próximo: Crucifixo com halteres ${ic('seta')}</button>
   </div>`;
@@ -505,12 +555,13 @@ function telaExecucao() {
 function telaRestPause() {
   const corpo = `<div class="coluna">
     ${cabecalho('Desenvolvimento com halteres', 'Peso livre · Exercício 4 de 5 · Treino A (sex 31/10)')}
+    ${legendaDeTipos('restpause')}
     <div class="cartao"><div class="faixa"><div class="tit"><b>Séries</b><small>WS e Top set têm a mesma cor (os dois são de trabalho); o nome escrito separa.</small></div></div>
       <div class="corpo">
         ${serieSimples(1, 'WS', 'TRABALHO', { feita: true, meta: '3 a 6 reps · carga de trabalho · 1 RIR', ultimo: '18 kg × 6', reps: 6, kg: 18 })}
         ${serieComEtapas(2, 'Top set', 'TRABALHO', { tecnica: 'Rest pause', meta: '1 a 5% acima da anterior · até a falha, 1 pausa', metaExtra: 'Pausa antes da retomada: 20 s', ultimo: '19 kg × 5+2 = 7', kg: 19, origem: '5% acima da série 1', nomeEtapas: 'Etapas', pausa: 'Pausa antes da retomada: 20 s', total: '5 reps até agora', descanso: '2 min',
-          etapas: [{ rotulo: 'Etapa inicial', meta: 'até a falha', estado: 'feita', reps: 5, kg: 19 }, { rotulo: 'Retomada', meta: 'até a falha', estado: 'atual', reps: null, kg: 19 }] })}
-        ${serieSimples(3, 'Mobilidade final', null, { feita: false, meta: '10 reps · sem sugestão de carga', ultimo: '—', reps: null, kg: null })}
+          etapas: [{ rotulo: 'Etapa inicial', meta: 'até a falha', estado: 'feita', reps: 5, kg: 19 }, { rotulo: 'Retomada', meta: 'até a falha', estado: 'atual', reps: null, kg: null, ultimaVez: '19 kg × 2' }] })}
+        ${serieSimples(3, 'Mobilidade final', null, { feita: false, meta: '10 reps · sem sugestão de carga', ultimo: null, ultimaVez: null, reps: null, kg: null })}
       </div></div>
   </div>`;
   return quadro(corpo + barraAluno('treino'), 'Execução · Rest-pause e tipo "Outro"');
@@ -561,19 +612,29 @@ const SEMANAS = [
     { id: 'd13', data: 'Seg 13/10', div: 0, ex: [['Supino reto com barra', 'WS 56 kg × 6', 'Volume de carga: 336 kg']] }] },
 ];
 const NOMES_DIAS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+const identDaDivisao = (i) => ident(estado.tema, i, ORDEM_DAS_DIVISOES);
+/* Séries do dia com o ponto do tipo (a mesma cor da execução): é aqui que divisão e série coloridas ficam juntas (D14). */
+const PAPEL_DO_NOME = { Aquecimento: 'AQUECIMENTO', FS: 'PREPARACAO', WS: 'TRABALHO', 'Top set': 'TRABALHO', 'Back off': 'POS_TRABALHO' };
+const seriesDoDia = (texto) => `<span class="series-do-dia num">${texto.split(' · ').map((s) => {
+  const nome = Object.keys(PAPEL_DO_NOME).find((n) => s.startsWith(n + ' '));
+  return nome ? `<span style="${corDoPapel(PAPEL_DO_NOME[nome])}"><i class="ponto" aria-hidden="true"></i><b>${nome}</b>${s.slice(nome.length)}</span>` : `<span>${s}</span>`;
+}).join('')}</span>`;
 
-function faixaPeriodo() {
-  const geral = estado.aba === 'geral';
-  const ultimos = estado.historico === 'ultimos30';
-  const titulo = geral ? 'Último ano: 03/11/2025 a 02/11/2026' : ultimos ? 'Últimos 30 dias: 04/10 a 02/11/2026' : 'Plano em uso: 13/10 a 09/11/2026';
-  const sub = geral ? 'Todas as pastas. Aqui não muda com o plano escolhido.' : ultimos ? 'Inclui treinos de mais de um plano.' : 'Pasta "Ciclo de outubro". Mudar o plano em uso muda este período.';
-  const acao = geral ? '' : ultimos ? '<button class="btn fantasma acao">Voltar ao período do plano</button>' : '<button class="btn fantasma acao">Ver últimos 30 dias</button>';
+/* Faixa "Mostrando": diz o período de cada visão. Por divisão e Por dia usam o mesmo período (o da pasta em uso). */
+function faixaPeriodo({ titulo, sub, acao = '' }) {
   return `<div class="periodo" role="note" aria-label="Período mostrado">${ic('cal', 20)}<div><span class="secao suave" style="display:block">Mostrando</span><b class="num">${titulo}</b><span class="pequeno suave">${sub}</span></div>${acao}</div>`;
+}
+function periodoDosRegistros() {
+  const ultimos = estado.historico === 'ultimos30';
+  const visao = estado.aba === 'divisao' ? 'Cargas de cada divisão' : 'Treinos dia a dia';
+  return faixaPeriodo(ultimos
+    ? { titulo: `Últimos 30 dias: 04/10 a 02/11/2026`, sub: `${visao}. Inclui treinos de mais de um plano.`, acao: '<button class="btn fantasma acao">Voltar ao período do plano</button>' }
+    : { titulo: 'Plano em uso: 13/10 a 09/11/2026', sub: `${visao} da pasta "Ciclo de outubro". Mudar o plano em uso muda este período.`, acao: '<button class="btn fantasma acao">Ver últimos 30 dias</button>' });
 }
 
 function visaoPorDivisao() {
   const linhas = [['31/10', '60 kg', '4+2+2 = 8', '5'], ['25/10', '58 kg', '6', '2'], ['20/10', '58 kg', '5', '1'], ['13/10', '56 kg', '6', '1']];
-  return DIVISOES.map((d, i) => `<div class="cartao" style="${ident(estado.tema, i)}">
+  return DIVISOES.map((d, i) => `<div class="cartao" style="${identDaDivisao(i)}">
     <div class="faixa ident"><span class="letra" aria-hidden="true">${d.letra}</span><div class="tit"><b>Treino ${d.letra} · ${d.nome}</b><small class="num">${i === 0 ? '3 exercícios · 4 treinos no período' : i === 1 ? '2 exercícios · 3 treinos no período' : '2 exercícios · 3 treinos no período'}</small></div><button class="ib" aria-label="Recolher treino ${d.letra}" aria-expanded="true">${ic('baixo')}</button></div>
     <div class="corpo">${i === 0 ? `<div class="exercicio-hist"><div class="cab"><b>Supino reto com barra</b><span class="pequeno suave">4 sessões</span></div>
       <table class="tabela-cargas"><thead><tr><th>Data</th><th class="r">Carga</th><th class="r">Reps</th><th class="r">Séries</th></tr></thead><tbody>${linhas.map((l) => `<tr><td><b>${l[0]}</b></td><td class="r"><b>${l[1]}</b></td><td class="r">${l[2]}</td><td class="r suave">${l[3]}</td></tr>`).join('')}</tbody></table></div>
@@ -587,25 +648,36 @@ function visaoPorDia() {
     const treinados = s.dias.filter(Boolean).length;
     const tira = `<div class="dias-semana" aria-label="Dias treinados na semana">${s.dias.map((d, i) => {
       const di = d ? DIVISOES.findIndex((x) => x.letra === d) : -1;
-      return `<div><span>${NOMES_DIAS[i]}</span><span class="marca-dia ${d ? 'com' : ''}" style="${d ? ident(estado.tema, di) : ''}" aria-label="${NOMES_DIAS[i]}: ${d ? 'treino ' + d : 'sem treino'}">${d || ''}</span></div>`;
+      return `<div><span>${NOMES_DIAS[i]}</span><span class="marca-dia ${d ? 'com' : ''}" style="${d ? identDaDivisao(di) : ''}" aria-label="${NOMES_DIAS[i]}: ${d ? 'treino ' + d : 'sem treino'}">${d || ''}</span></div>`;
     }).join('')}</div>`;
     const dias = s.lista.map((dia) => {
       const ab = estado.diasAbertos.has(dia.id);
       const d = DIVISOES[dia.div];
-      return `<div class="dia" style="${ident(estado.tema, dia.div)}"><button data-dia="${dia.id}" aria-expanded="${ab}"><span class="letra p" aria-hidden="true">${d.letra}</span><span class="t"><b class="num">${dia.data} · Treino ${d.letra}</b><small>${d.nome} · ${dia.ex.length} ${dia.ex.length === 1 ? 'exercício' : 'exercícios'}</small></span><span class="gira" style="display:inline-grid;transform:rotate(${ab ? 180 : 0}deg)">${ic('baixo')}</span></button>
-        ${ab ? `<div class="conteudo">${dia.ex.map(([n, series, vol]) => `<div class="ex"><b>${n}</b><span class="pequeno suave num">${series}</span><br><span class="pequeno suave num">${vol}</span></div>`).join('')}</div>` : ''}</div>`;
+      return `<div class="dia" style="${identDaDivisao(dia.div)}"><button data-dia="${dia.id}" aria-expanded="${ab}"><span class="letra p" aria-hidden="true">${d.letra}</span><span class="t"><b class="num">${dia.data} · Treino ${d.letra}</b><small>${d.nome} · ${dia.ex.length} ${dia.ex.length === 1 ? 'exercício' : 'exercícios'}</small></span><span class="gira" style="display:inline-grid;transform:rotate(${ab ? 180 : 0}deg)">${ic('baixo')}</span></button>
+        ${ab ? `<div class="conteudo">${dia.ex.map(([n, series, vol]) => `<div class="ex"><b>${n}</b>${seriesDoDia(series)}<span class="pequeno suave num">${vol}</span></div>`).join('')}</div>` : ''}</div>`;
     }).join('');
     return `<div class="semana ${aberta ? '' : 'fechada'}"><button class="cab" data-semana="${s.id}" aria-expanded="${aberta}"><span class="tit"><b class="num">${s.titulo}${s.atual ? ' · esta semana' : ''}</b><small class="num">${treinados} dias treinados · ${s.lista.length} sessões</small></span><span class="gira" style="display:inline-grid;transform:rotate(${aberta ? 180 : 0}deg)">${ic('baixo')}</span></button>
       ${aberta ? tira + dias : ''}</div>`;
   }).join('');
 }
 
-function visaoGeral() {
+/* Progresso por exercício: cartão à parte, igual ao da ficha (CartaoProgresso, último ano, todas as pastas).
+   Só ganha a faixa "Mostrando"; o conteúdo é o de hoje. */
+function cartaoProgresso() {
+  const e = estado.historico;
+  const titulo = '<div class="faixa"><div class="tit"><b>Progresso por exercício</b></div>' + (e === 'normal' || e === 'ultimos30' || e === 'vazio' ? '<button class="btn">Escolher exercícios</button>' : '') + '</div>';
+  if (e === 'carregando') return `<div class="cartao">${titulo}<div class="corpo"><div class="esqueleto" style="width:50%"></div><div class="esqueleto alto"></div></div></div>`;
+  if (e === 'erro') return `<div class="cartao">${titulo}<div class="corpo"><div class="alerta perigo" role="alert">${ic('alerta')}<div><b>Não foi possível carregar o progresso.</b><div style="margin-top:8px"><button class="btn">Tentar de novo</button></div></div></div></div></div>`;
+  if (e === 'offline') return `<div class="cartao">${titulo}<div class="corpo"><span class="suave pequeno">Aparece quando a internet voltar.</span></div></div>`;
   const pts = [[0, 50], [1, 52], [2, 52], [3, 54], [4, 55], [5, 56], [6, 58], [7, 58], [8, 60]];
   const x = (i) => 20 + i * 70, y = (v) => 120 - (v - 48) * 9;
-  return `<div class="cartao"><div class="faixa"><div class="tit"><b>Supino reto com barra</b><small>Carga de trabalho por treino</small></div><button class="btn">Escolher exercícios</button></div>
-    <div class="corpo"><svg class="grafico" viewBox="0 0 600 140" preserveAspectRatio="none" aria-hidden="true"><polyline fill="none" stroke="var(--texto)" stroke-width="2.5" points="${pts.map(([i, v]) => `${x(i)},${y(v)}`).join(' ')}"/>${pts.map(([i, v]) => `<circle cx="${x(i)}" cy="${y(v)}" r="4" fill="var(--superficie)" stroke="var(--texto)" stroke-width="2"/>`).join('')}</svg>
-    <span class="pequeno num">De 50 kg (09/2026) a 60 kg (31/10/2026) · 9 treinos</span></div></div>`;
+  return `<div class="cartao">${titulo}
+    <div class="corpo">
+      ${faixaPeriodo({ titulo: 'Último ano: 03/11/2025 a 02/11/2026', sub: 'Todas as pastas. Não muda com o plano em uso.' })}
+      <div class="exercicio-hist"><div class="cab"><b>Supino reto com barra</b><span class="pequeno suave">Carga de trabalho por treino</span></div>
+      <div style="padding:10px"><svg class="grafico" viewBox="0 0 600 140" preserveAspectRatio="none" aria-hidden="true"><polyline fill="none" stroke="var(--texto)" stroke-width="2.5" points="${pts.map(([i, v]) => `${x(i)},${y(v)}`).join(' ')}"/>${pts.map(([i, v]) => `<circle cx="${x(i)}" cy="${y(v)}" r="4" fill="var(--superficie)" stroke="var(--texto)" stroke-width="2"/>`).join('')}</svg>
+      <span class="pequeno num">De 50 kg (09/2026) a 60 kg (31/10/2026) · 9 treinos</span></div></div>
+    </div></div>`;
 }
 
 function telaHistorico() {
@@ -615,53 +687,60 @@ function telaHistorico() {
   else if (e === 'vazio') conteudo = `<div class="vazio"><b>Sem treinos registrados neste plano</b><span class="suave pequeno">Os treinos que você registrar neste plano aparecem aqui.</span><button class="btn">Ver últimos 30 dias</button></div>`;
   else if (e === 'erro') conteudo = `<div class="alerta perigo" role="alert">${ic('alerta')}<div><b>Não foi possível carregar o histórico.</b><br><span class="pequeno">Tente de novo em instantes.</span><div style="margin-top:8px"><button class="btn">Tentar de novo</button></div></div></div>`;
   else if (e === 'offline') conteudo = `<div class="alerta neutro" role="status">${ic('semRede')}<div><b>Sem conexão.</b><br><span class="pequeno">O histórico do servidor aparece quando a internet voltar. Os treinos ainda não enviados estão no cartão "Ainda não enviados".</span></div></div>`;
-  else conteudo = estado.aba === 'divisao' ? visaoPorDivisao() : estado.aba === 'dia' ? visaoPorDia() : visaoGeral();
-  const abas = [['divisao', 'Por divisão'], ['dia', 'Por dia'], ['geral', 'Geral']];
+  else conteudo = estado.aba === 'divisao' ? visaoPorDivisao() : visaoPorDia();
+  /* as mesmas abas do app (VISOES de CartaoRegistros): não há aba "Geral" */
+  const abas = [['divisao', 'Por divisão'], ['dia', 'Por dia']];
   const corpo = `<div class="coluna">
     ${cabecalho('Histórico', null, false)}
     <div class="cartao"><div class="faixa"><div class="tit"><b>Registros e cargas</b></div>${e === 'normal' || e === 'ultimos30' ? '<button class="btn">PDF</button>' : ''}</div>
       <div class="corpo">
         <div class="abas" role="tablist" aria-label="Visões do histórico">${abas.map(([k, r]) => `<button class="aba" role="tab" data-aba="${k}" aria-selected="${estado.aba === k}">${r}</button>`).join('')}</div>
-        ${e === 'offline' || e === 'erro' ? '' : faixaPeriodo()}
+        ${e === 'offline' || e === 'erro' ? '' : periodoDosRegistros()}
         ${conteudo}
       </div></div>
+    ${cartaoProgresso()}
     <div class="cartao"><div class="faixa"><div class="tit"><b>Peso</b></div></div><div class="corpo"><span class="suave pequeno">(Fica como está hoje; fora do escopo desta prévia.)</span></div></div>
   </div>`;
   return quadro(corpo + barraAluno('historico'), 'Histórico');
 }
 
 /* ====================== C16: Usar receita ====================== */
-/* séries: [papel, nome, quantas] */
+/* séries: [papel, nome, quantas]; tecnicas: as que as séries usam (vazio = "Sem técnica").
+   Receita com duas técnicas aparece nos dois grupos (D12), com "Também em". "Completa" é calculada (D11). */
 const COLECOES = [
-  { nome: 'Força (básicos)', grupos: [
-    { tecnica: 'Sem técnica', receitas: [
-      { nome: 'Aquecimento, 3 FS, WS e 2 Back off', completa: true, series: [['AQUECIMENTO', 'Aquecimento', 1], ['PREPARACAO', 'FS', 3], ['TRABALHO', 'WS', 1], ['POS_TRABALHO', 'Back off', 2]], desc: 'A sequência padrão para os básicos.', seq: ['Aquecimento: 10 a 15 reps', 'FS: 3 reps · 50% · 70% · 85% a 90% da WS', 'WS: 3 a 6 reps · carga de trabalho · 1 RIR', 'Back off: 6 a 8 reps · 85% da WS (2 séries)'] },
-      { nome: '2 WS e Back off', completa: false, series: [['TRABALHO', 'WS', 2], ['POS_TRABALHO', 'Back off', 1]], desc: 'Para o segundo exercício do grupo muscular.' }] },
-    { tecnica: 'Cluster', receitas: [
-      { nome: 'Exemplo: FS, WS e Cluster', completa: true, series: [['PREPARACAO', 'FS', 2], ['TRABALHO', 'WS', 1]], desc: 'WS em blocos 4+2+2, pausa de 15 s.' },
-      { nome: 'Exemplo: FS e Cluster', completa: false, series: [['TRABALHO', 'WS', 1]], desc: 'Só a WS em blocos, sem preparação.' }] },
-    { tecnica: 'Rest pause', receitas: [
-      { nome: 'WS e Top set com rest pause', completa: false, series: [['TRABALHO', 'WS', 1], ['TRABALHO', 'Top set', 1]], desc: 'Top set até a falha com 1 pausa de 20 s.' }] }] },
-  { nome: 'Hipertrofia', grupos: [
-    { tecnica: 'Drop-set', receitas: [
-      { nome: 'FS, WS e drop na última', completa: true, series: [['PREPARACAO', 'FS', 1], ['TRABALHO', 'WS', 2]], desc: 'Uma queda de 20% na última WS.' }] },
-    { tecnica: 'Várias técnicas', receitas: [
-      { nome: 'Top set com rest pause e back off em drop', completa: false, series: [['TRABALHO', 'Top set', 1], ['POS_TRABALHO', 'Back off', 1]], desc: 'Rest pause no Top set e drop-set no Back off.' }] }] },
-  { nome: 'Sem coleção', grupos: [
-    { tecnica: 'Sem técnica', receitas: [
-      { nome: 'Mobilidade e 2 WS', completa: false, series: [[null, 'Mobilidade', 1], ['TRABALHO', 'WS', 2]], desc: null }] }] },
+  { nome: 'Força (básicos)', receitas: [
+    { nome: 'Aquecimento, 3 FS, WS e 2 Back off', tecnicas: [], series: [['AQUECIMENTO', 'Aquecimento', 1], ['PREPARACAO', 'FS', 3], ['TRABALHO', 'WS', 1], ['POS_TRABALHO', 'Back off', 2]], desc: 'A sequência padrão para os básicos.', seq: ['Aquecimento: 10 a 15 reps · sem carga de trabalho', 'FS: 3 reps · 50% · 70% · 85% a 90% da WS', 'WS: 3 a 6 reps · carga de trabalho · 1 RIR', 'Back off: 6 a 8 reps · 85% da WS (2 séries)'] },
+    { nome: '2 WS e Back off', tecnicas: [], series: [['TRABALHO', 'WS', 2], ['POS_TRABALHO', 'Back off', 1]], desc: 'Para o segundo exercício do grupo muscular.' },
+    { nome: 'FS, WS em Cluster e Back off', tecnicas: ['Cluster'], series: [['PREPARACAO', 'FS', 2], ['TRABALHO', 'WS', 1], ['POS_TRABALHO', 'Back off', 1]], desc: 'WS em blocos 4+2+2, pausa de 15 s.', seq: ['FS: 3 reps · 70% · 85% da WS', 'WS em Cluster: 4+2+2 = 8 reps · pausa de 15 s entre blocos · 1 RIR', 'Back off: 6 a 8 reps · 85% da WS'] },
+    { nome: 'Só a WS em Cluster', tecnicas: ['Cluster'], series: [['TRABALHO', 'WS', 1]], desc: 'Só a WS em blocos, sem preparação.' },
+    { nome: 'WS e Top set com rest pause', tecnicas: ['Rest pause'], series: [['TRABALHO', 'WS', 1], ['TRABALHO', 'Top set', 1]], desc: 'Top set até a falha com 1 pausa de 20 s.' }] },
+  { nome: 'Hipertrofia', receitas: [
+    { nome: 'FS, 2 WS com drop na última e Back off', tecnicas: ['Drop-set'], series: [['PREPARACAO', 'FS', 1], ['TRABALHO', 'WS', 2], ['POS_TRABALHO', 'Back off', 1]], desc: 'Uma queda de 20% na última WS.', seq: ['FS: 3 reps · 80% da WS', 'WS: 8 a 10 reps · carga de trabalho (2 séries; a última com drop de 20%)', 'Back off: 10 a 12 reps · 75% da WS'] },
+    { nome: 'FS, Top set com rest pause e Back off em drop', tecnicas: ['Rest pause', 'Drop-set'], series: [['PREPARACAO', 'FS', 2], ['TRABALHO', 'Top set', 1], ['POS_TRABALHO', 'Back off', 1]], desc: 'Rest pause no Top set e drop-set no Back off.', seq: ['FS: 3 reps · 70% · 85% do Top set', 'Top set em Rest pause: até a falha · 1 pausa de 20 s', 'Back off em Drop-set: 8 a 10 reps · 80% do Top set, depois −20%'] }] },
+  { nome: 'Sem coleção', receitas: [
+    { nome: 'Mobilidade e 2 WS', tecnicas: [], series: [[null, 'Mobilidade', 1], ['TRABALHO', 'WS', 2]], desc: null }] },
 ];
+/* D11: começa no aquecimento ou na preparação e chega à série de trabalho (o Back off entra quando houver). */
+const ehCompleta = (r) => ['AQUECIMENTO', 'PREPARACAO'].includes(r.series[0][0]) && r.series.some(([p]) => p === 'TRABALHO');
+const SEM_TECNICA = 'Sem técnica';
+function gruposPorTecnica(receitas) {
+  const grupos = new Map();
+  for (const r of receitas) for (const t of r.tecnicas.length ? r.tecnicas : [SEM_TECNICA]) { if (!grupos.has(t)) grupos.set(t, []); grupos.get(t).push(r); }
+  return [...grupos.entries()].sort(([a], [b]) => (a === SEM_TECNICA ? -1 : b === SEM_TECNICA ? 1 : a.localeCompare(b, 'pt-BR'))).map(([tecnica, rs]) => ({ tecnica, receitas: rs }));
+}
 
-function cartaoReceita(r) {
-  const chave = r.nome;
+function cartaoReceita(r, grupo) {
+  const chave = r.nome + '|' + grupo;
   const total = r.series.reduce((s, x) => s + x[2], 0);
   const aberta = estado.sequencias.has(chave);
+  const outras = r.tecnicas.filter((t) => t !== grupo);
   return `<div class="receita">
-    <div class="l1"><b>${r.nome}</b>${r.completa ? '<span class="etiqueta">Completa</span>' : ''}</div>
+    <div class="l1"><b>${r.nome}</b>${ehCompleta(r) ? '<span class="etiqueta">Completa</span>' : ''}</div>
+    ${outras.length ? `<span class="pequeno suave">Usa ${r.tecnicas.join(' e ')} · também em ${outras.join(', ')}</span>` : ''}
     <div class="faixa-composicao" aria-hidden="true">${r.series.map(([p, , q]) => `<i class="${p ? '' : 'vazado'}" style="${corDoPapel(p)};flex:${q}"></i>`).join('')}</div>
     <div class="composicao num" aria-label="Composição: ${r.series.map(([, n, q]) => `${n} vezes ${q}`).join(', ')}">${r.series.map(([p, n, q]) => `<span style="${corDoPapel(p)}"><i class="ponto ${p ? '' : 'vazado'}"></i>${n} ×${q}</span>`).join('<span class="suave" aria-hidden="true">·</span>')}<span class="suave">· ${total} séries</span></div>
     ${r.desc ? `<span class="pequeno suave">${r.desc}</span>` : ''}
-    ${aberta && r.seq ? `<div class="sequencia num"><b>Sequência</b>${r.seq.map((l) => `<span>${l}</span>`).join('')}</div>` : ''}
+    ${aberta && r.seq ? `<div class="sequencia num"><b>Sequência${ehCompleta(r) && r.series.some(([p]) => p === 'POS_TRABALHO') ? ', da primeira série ao Back off' : ''}</b>${r.seq.map((l) => `<span>${l}</span>`).join('')}</div>` : ''}
     <div class="acoes"><button class="btn">Usar esta receita</button>${r.seq ? `<button class="btn fantasma" data-seq="${chave}" aria-expanded="${aberta}">${aberta ? 'Esconder sequência' : 'Ver sequência'}</button>` : ''}</div>
   </div>`;
 }
@@ -672,12 +751,13 @@ function telaReceitas() {
   if (e === 'carregando') lista = '<div class="esqueleto alto"></div><div class="esqueleto alto"></div><span class="suave pequeno" role="status">Carregando receitas…</span>';
   else if (e === 'vazio') lista = '<div class="vazio"><b>Nenhuma receita com essa busca.</b><span class="suave pequeno">Busque pelo nome, pela descrição ou pelas séries (ex.: back off).</span></div>';
   else if (e === 'erro') lista = `<div class="alerta perigo" role="alert">${ic('alerta')}<div><b>Não foi possível carregar as receitas.</b><div style="margin-top:8px"><button class="btn">Tentar de novo</button></div></div></div>`;
-  else if (e === 'semColecoes') lista = `<span class="pequeno suave">Sem as coleções (erro ou sem permissão), a lista fica só por técnica.</span>` + COLECOES.flatMap((c) => c.grupos).reduce((acc, g) => { const ex = acc.find((x) => x.tecnica === g.tecnica); if (ex) ex.receitas.push(...g.receitas); else acc.push({ tecnica: g.tecnica, receitas: [...g.receitas] }); return acc; }, []).map(grupoTecnica).join('');
+  else if (e === 'semColecoes') lista = `<span class="pequeno suave">Sem as coleções (erro ou sem permissão), a lista fica só por técnica.</span>` + gruposPorTecnica(COLECOES.flatMap((c) => c.receitas)).map(grupoTecnica).join('');
   else lista = COLECOES.map((c) => {
     const fechada = estado.colecoesFechadas.has(c.nome);
-    const n = c.grupos.reduce((s, g) => s + g.receitas.length, 0);
-    return `<div class="cartao"><div class="faixa"><div class="tit"><b>${c.nome}</b><small>${n} ${n === 1 ? 'receita' : 'receitas'} · ${c.grupos.map((g) => g.tecnica).join(', ')}</small></div><button class="ib" data-colecao="${c.nome}" aria-expanded="${!fechada}" aria-label="${fechada ? 'Abrir' : 'Recolher'} ${c.nome}"><span class="gira" style="display:inline-grid;transform:rotate(${fechada ? 0 : 180}deg)">${ic('baixo')}</span></button></div>
-      ${fechada ? '' : `<div class="corpo">${c.grupos.map(grupoTecnica).join('')}</div>`}</div>`;
+    const n = c.receitas.length; /* receitas distintas: a de duas técnicas conta uma vez */
+    const grupos = gruposPorTecnica(c.receitas);
+    return `<div class="cartao"><div class="faixa"><div class="tit"><b>${c.nome}</b><small>${n} ${n === 1 ? 'receita' : 'receitas'} · ${grupos.map((g) => g.tecnica).join(', ')}</small></div><button class="ib" data-colecao="${c.nome}" aria-expanded="${!fechada}" aria-label="${fechada ? 'Abrir' : 'Recolher'} ${c.nome}"><span class="gira" style="display:inline-grid;transform:rotate(${fechada ? 0 : 180}deg)">${ic('baixo')}</span></button></div>
+      ${fechada ? '' : `<div class="corpo">${grupos.map(grupoTecnica).join('')}</div>`}</div>`;
   }).join('');
   const editor = `<div class="editor-fundo" aria-hidden="true"><div class="cartao"><div class="faixa"><div class="tit"><b>Treino de Aluno Exemplo</b><small>Rascunho · Treino A</small></div></div><div class="corpo"><div class="esqueleto" style="width:40%"></div><div class="esqueleto alto"></div><div class="esqueleto alto"></div></div></div></div><div class="veu"></div>`;
   const folha = `<div class="folha" role="dialog" aria-modal="true" aria-labelledby="t-folha">
@@ -685,14 +765,14 @@ function telaReceitas() {
     <div class="rolar">
       <span class="pequeno suave">Substitui as séries deste exercício. Dá para desfazer logo depois.</span>
       <label class="campo-busca">${ic('busca')}<span>${e === 'vazio' ? '<span style="color:var(--texto)">pirâmide 21</span>' : 'Nome, descrição ou séries (ex.: back off)'}</span></label>
-      ${e === 'normal' || e === 'semColecoes' ? legendaDeTipos() : ''}
+      ${e === 'normal' || e === 'semColecoes' ? legendaDeTipos('receitas') : ''}
       ${lista}
     </div></div>`;
   return quadro(`<div style="height:${estado.largura === 390 ? 820 : 760}px;position:relative">${editor}${folha}</div>`, 'Editor › Usar receita');
 }
 function grupoTecnica(g) {
-  const ordenadas = [...g.receitas].sort((a, b) => Number(b.completa) - Number(a.completa));
-  return `<div class="grupo-tecnica"><h3 class="secao">${g.tecnica}<small>${ordenadas.length} ${ordenadas.length === 1 ? 'receita' : 'receitas'}${ordenadas.some((r) => r.completa) && ordenadas.length > 1 ? ' · completas primeiro' : ''}</small></h3>${ordenadas.map(cartaoReceita).join('')}</div>`;
+  const ordenadas = [...g.receitas].sort((a, b) => Number(ehCompleta(b)) - Number(ehCompleta(a)));
+  return `<div class="grupo-tecnica"><h3 class="secao">${g.tecnica}<small>${ordenadas.length} ${ordenadas.length === 1 ? 'receita' : 'receitas'}${ordenadas.some(ehCompleta) && ordenadas.length > 1 ? ' · completas primeiro' : ''}</small></h3>${ordenadas.map((r) => cartaoReceita(r, g.tecnica)).join('')}</div>`;
 }
 
 /* ====================== tokens propostos e tabela ====================== */
@@ -702,7 +782,8 @@ function tokensPropostos() {
   return `<table class="dados" style="max-width:1000px"><thead><tr><th>Token proposto</th><th>Papel</th><th>Matiz</th><th>Claro e areia</th><th>Escuro</th><th>Matiz (Lab, graus)</th></tr></thead><tbody>
     ${Object.keys(nomes).map((k) => `<tr><td><code>${k}</code></td><td>${nomes[k][0]}</td><td>${nomes[k][1]}</td><td>${st(TIPOS.claro[k])}</td><td>${st(TIPOS.escuro[k])}</td><td class="r">${matiz(TIPOS.claro[k])} / ${matiz(TIPOS.escuro[k])}</td></tr>`).join('')}
     <tr><td><code>bordaCampo</code> (já existe)</td><td>Outro</td><td>sem cor: marcador vazado</td><td>${st(BASE.claro.bordaCampo)}</td><td>${st(BASE.escuro.bordaCampo)}</td><td class="r">—</td></tr>
-    <tr><td><code>corDeIdentificacao(i)</code> = <code>PALETA_DA_AGENDA</code> na ordem ${ORDEM_DA_IDENTIFICACAO.join(', ')}</td><td>divisão do treino e refeição</td><td>já existe</td><td colspan="2">${ORDEM_DA_IDENTIFICACAO.map((k) => `<span class="amostra" style="background:${PALETA_DA_AGENDA.claro[k]}"></span>`).join('')} / ${ORDEM_DA_IDENTIFICACAO.map((k) => `<span class="amostra" style="background:${PALETA_DA_AGENDA.escuro[k]}"></span>`).join('')}</td><td class="r">—</td></tr>
+    <tr><td><code>corDeIdentificacao(i)</code> = <code>PALETA_DA_AGENDA</code> na ordem ${ORDEM_DA_IDENTIFICACAO.join(', ')}</td><td>refeição da dieta (sem série colorida ao lado)</td><td>já existe</td><td colspan="2">${ORDEM_DA_IDENTIFICACAO.map((k) => `<span class="amostra" style="background:${PALETA_DA_AGENDA.claro[k]}"></span>`).join('')} / ${ORDEM_DA_IDENTIFICACAO.map((k) => `<span class="amostra" style="background:${PALETA_DA_AGENDA.escuro[k]}"></span>`).join('')}</td><td class="r">—</td></tr>
+    <tr><td><code>corDaDivisao(i)</code> = <code>PALETA_DA_AGENDA</code> na ordem ${ORDEM_DAS_DIVISOES.join(', ')}</td><td>divisão do treino no Histórico (junto das séries coloridas, D14)</td><td>já existe</td><td colspan="2">${ORDEM_DAS_DIVISOES.map((k) => `<span class="amostra" style="background:${PALETA_DA_AGENDA.claro[k]}"></span>`).join('')} / ${ORDEM_DAS_DIVISOES.map((k) => `<span class="amostra" style="background:${PALETA_DA_AGENDA.escuro[k]}"></span>`).join('')}</td><td class="r">—</td></tr>
     <tr><td colspan="6" class="suave">Status (para comparar): sucesso ${matiz(BASE.claro.sucesso)}°, atenção ${matiz(BASE.claro.atencao)}°, perigo ${matiz(BASE.claro.perigo)}° (claro). Os tipos ficam entre ${Math.min(...Object.values(TIPOS.claro).map(matiz))}° e ${Math.max(...Object.values(TIPOS.claro).map(matiz))}°, a faixa do ciano ao magenta, longe do verde, do âmbar e do vermelho.</td></tr>
     </tbody></table>`;
 }
@@ -714,17 +795,20 @@ function tabelaContraste() {
   const falhas = pares.filter((p) => p.razao < p.minimo);
   const dist = distancias();
   const falhasDist = dist.filter((d) => !d.informativo && d.de < d.minimo);
+  const divisoes = dist.filter((d) => d.divisao && !d.informativo);
+  const menorDivisao = divisoes.reduce((m, d) => (d.de < m.de ? d : m));
   const amostra = (hex) => `<span class="amostra" style="background:${hex}"></span><code>${hex}</code>`;
   return `<div class="resumo-contraste"><b>${pares.length} pares</b> · ${falhas.length ? `<span style="color:#B71C1C">${falhas.length} abaixo do mínimo</span>` : 'nenhum abaixo do mínimo'}.<br>
     Menor razão de texto: <b>${menorTexto.razao.toFixed(2)}:1</b> (${menorTexto.cor} sobre ${menorTexto.sobre}, ${menorTexto.tema}).<br>
     Menor razão não textual: <b>${menorNaoTexto.razao.toFixed(2)}:1</b> (${menorNaoTexto.cor} sobre ${menorNaoTexto.sobre}, ${menorNaoTexto.tema}).<br>
-    Distância dos tipos até sucesso, atenção, perigo e neutro: menor ΔE ${Math.min(...dist.filter((d) => d.minimo === 25 && !d.informativo).map((d) => d.de)).toFixed(1)} (mínimo 25); entre tipos: menor ΔE ${Math.min(...dist.filter((d) => d.minimo === 15).map((d) => d.de)).toFixed(1)} (mínimo 15). ${falhasDist.length ? falhasDist.length + ' abaixo.' : 'Nenhuma abaixo.'}</div>
+    Distância dos tipos até sucesso, atenção, perigo e neutro: menor ΔE ${Math.min(...dist.filter((d) => d.minimo === 25 && !d.informativo).map((d) => d.de)).toFixed(1)} (mínimo 25); entre tipos: menor ΔE ${Math.min(...dist.filter((d) => d.minimo === 15 && !d.divisao).map((d) => d.de)).toFixed(1)} (mínimo 15). ${falhasDist.length ? falhasDist.length + ' abaixo.' : 'Nenhuma abaixo.'}<br>
+    Divisões no Histórico (D14), ordem ${ORDEM_DAS_DIVISOES.join(', ')}: as ${DIVISOES_LONGE_DOS_TIPOS} primeiras ficam a ΔE ${menorDivisao.de.toFixed(1)} ou mais de qualquer tipo (${menorDivisao.cor} × ${menorDivisao.outra}, ${menorDivisao.grupo}; mínimo 15). Da 4ª em diante a distância é só informativa: o índigo fica a ΔE ${dist.filter((d) => d.divisao && d.cor.endsWith('INDIGO') && d.outra === 'tipoTrabalho').map((d) => d.de.toFixed(1)).join(' / ')} do Trabalho (claro / escuro), por isso fica no fim.</div>
     <table class="dados"><thead><tr><th>Tema</th><th>Cor</th><th>Sobre</th><th>Uso</th><th class="r">Razão</th><th class="r">Mínimo</th><th>Passa</th></tr></thead><tbody>
     ${pares.map((p) => `<tr class="${p === menor ? 'menor' : ''}"><td>${p.tema}</td><td>${p.cor} ${amostra(p.hex)}</td><td>${p.sobre} ${amostra(p.sobreHex)}</td><td>${p.uso}</td><td class="r">${p.razao.toFixed(2)}:1</td><td class="r">${p.minimo}:1</td><td>${p.razao >= p.minimo ? 'sim' : 'NÃO'}</td></tr>`).join('')}
     </tbody></table>
     <h3 style="margin:18px 0 6px;font-size:16px">Distância das cores (ΔE CIE76)</h3>
     <table class="dados"><thead><tr><th>Grupo</th><th>Cor</th><th>Comparada com</th><th class="r">ΔE</th><th class="r">Mínimo</th><th>Passa</th></tr></thead><tbody>
-    ${dist.map((d) => `<tr><td>${d.grupo === 'claro' ? 'claro e areia' : 'escuro'}</td><td>${d.cor} ${amostra(d.hex)}</td><td>${d.outra} ${amostra(d.outraHex)}</td><td class="r">${d.de.toFixed(1)}</td><td class="r">${d.minimo}</td><td>${d.de >= d.minimo ? 'sim' : d.informativo ? 'abaixo (só informativo: divisão/refeição não fica perto de selo neutro)' : 'NÃO'}</td></tr>`).join('')}
+    ${dist.map((d) => `<tr><td>${d.grupo === 'claro' ? 'claro e areia' : 'escuro'}</td><td>${d.cor} ${amostra(d.hex)}</td><td>${d.outra} ${amostra(d.outraHex)}</td><td class="r">${d.de.toFixed(1)}</td><td class="r">${d.minimo}</td><td>${d.de >= d.minimo ? 'sim' : d.informativo ? (d.divisao ? 'abaixo (só informativo: da 4ª divisão em diante)' : 'abaixo (só informativo: divisão/refeição não fica perto de selo neutro)') : 'NÃO'}</td></tr>`).join('')}
     </tbody></table>`;
 }
 
@@ -764,6 +848,7 @@ document.addEventListener('click', (ev) => {
   else if (d.dia) { const s = estado.diasAbertos; s.has(d.dia) ? s.delete(d.dia) : s.add(d.dia); }
   else if (d.colecao) { const s = estado.colecoesFechadas; s.has(d.colecao) ? s.delete(d.colecao) : s.add(d.colecao); }
   else if (d.seq) { const s = estado.sequencias; s.has(d.seq) ? s.delete(d.seq) : s.add(d.seq); }
+  else if (d.legenda) { const s = estado.legendas; s.has(d.legenda) ? s.delete(d.legenda) : s.add(d.legenda); }
   else return;
   const foco = b.id || null;
   render();
