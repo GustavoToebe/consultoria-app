@@ -69,6 +69,20 @@ class PastasIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void finalizarSemPesoNaoCriaRegistroNemAuditoriaDePesoEComPesoCria() throws Exception {
+        String semPeso = novaPasta("Plano 20", "2026-09-01", "2026-09-30").get("id").asString();
+        api.post("/pastas/" + semPeso + "/finalizar", treinador, Map.of(), 200);
+        assertThat(api.get("/alunos/" + aluno + "/pesos", treinador, 200)).isEmpty();
+        assertThat(api.get("/auditoria?acao=PESO_REGISTRADO", treinador, 200).path("total").asInt()).isZero();
+        assertThat(api.get("/auditoria?acao=PASTA_FINALIZADA", treinador, 200).path("total").asInt()).isEqualTo(1);
+
+        String comPeso = novaPasta("Plano 21", "2026-10-01", "2026-10-30").get("id").asString();
+        api.post("/pastas/" + comPeso + "/finalizar", treinador, Map.of("pesoKg", 90, "data", "2026-10-20"), 200);
+        assertThat(api.get("/alunos/" + aluno + "/pesos", treinador, 200)).hasSize(1);
+        assertThat(api.get("/auditoria?acao=PESO_REGISTRADO", treinador, 200).path("total").asInt()).isEqualTo(1);
+    }
+
+    @Test
     void planosDaPastaNascemComOPeriodoDela() throws Exception {
         String pasta = novaPasta("Plano 16", "2026-10-05", "2026-10-20").get("id").asString();
         JsonNode treino = api.post("/alunos/" + aluno + "/planos-treino", treinador,

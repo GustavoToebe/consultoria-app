@@ -201,7 +201,10 @@ const TREINADOR: Guia = {
       titulo: 'Pastas de plano',
       itens: [
         { titulo: 'Período', texto: 'O período da pasta vale para todos os planos dela. Mudar a pasta altera só os rascunhos.' },
-        { titulo: 'Finalizar e reabrir', texto: 'Finalizar dá a pasta como concluída e pode registrar o peso do aluno. Dá para reabrir depois.' },
+        { titulo: 'Finalizar e reabrir', texto: 'Finalizar dá a pasta como concluída e pode registrar o peso do aluno. Para quem pode ver o peso, o campo já vem preenchido com o da atualização desta pasta: confira antes de salvar. Dá para reabrir depois.' },
+        { titulo: 'Ajustar no meio do ciclo ou começar um ciclo novo', texto: 'Para ajustar no meio do ciclo, edite o plano e publique na mesma pasta: isso gera uma versão nova. Para um ciclo novo, use "Renovar pasta".' },
+        { titulo: 'Publicar tudo', texto: 'Na pasta, "Publicar tudo" publica de uma vez os planos com rascunho alterado. Se um plano tiver problema, nenhum é publicado e a lista diz qual. Plano sem alteração é pulado. Pede a permissão de publicar de cada tipo que seria publicado.' },
+        { titulo: 'Copiar pasta para outro aluno', texto: 'No menu ⋯ da pasta, "Copiar pasta para outro aluno" cria uma pasta nova no destino com os planos em rascunho, sem os ergogênicos e sem o questionário. Nada é publicado para o aluno.' },
         { titulo: 'Replicar', texto: 'Cria uma pasta nova com cópia dos planos publicados, como rascunhos, para o próximo ciclo.' },
         { titulo: 'Filtro', texto: 'Escolha Todas, Abertas ou Concluídas acima da lista de pastas.' },
       ],

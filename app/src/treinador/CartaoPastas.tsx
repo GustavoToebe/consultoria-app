@@ -13,7 +13,7 @@ import { SeletorDeQuestionario } from './questionarios/SeletorDeQuestionario';
 import type { Atualizacao, PastaResumo, Receita } from '../api/tipos';
 import { atualizacaoDaPasta, caminhoAtualizacaoTreinador, statusAtualizacaoTreinador } from '../dominio/atualizacao';
 import { NOTAS_DA_RENOVACAO, PASSOS_DA_RENOVACAO, TITULO_ORDEM_DA_RENOVACAO } from '../dominio/ordemDaRenovacao';
-import { dataDoPesoDaAtualizacao, pesoDaAtualizacao, substituiPesoDaAtualizacao, textoDoPesoDaAtualizacao } from '../dominio/pesoNaFinalizacao';
+import { corpoDaFinalizacao, dataDoPesoDaAtualizacao, dataInicialDoPeso, notaDoPesoJaRegistrado, pesoDaAtualizacao, pesoSugeridoSemEdicao, substituiPesoDaAtualizacao, textoDoPesoDaAtualizacao } from '../dominio/pesoNaFinalizacao';
 import { mensagemPastaCopiada, motivoParaNaoCopiar, notaDoPesoSugerido, podeSugerirPeso } from '../dominio/publicarPasta';
 import { rotuloAbrirFicha } from '../dominio/planoDoAluno';
 import { dataDaTela, dataParaTela, hojeIso, numeroParaTela } from '../dominio/formatos';
@@ -421,13 +421,17 @@ function FolhaFinalizar({ pasta, alunoId, atualizacao, aoFechar, aoFinalizar }: 
 }) {
   const { pode } = useSessao();
   const { avisar } = useAviso();
-  const [data, setData] = useState(dataParaTela(hojeIso()));
-  // D8 (02/11): o peso nasce com o da atualização desta pasta (`GET /pastas/{id}/peso-sugerido`), editável, para o
-  // treinador conferir antes de salvar. Só com as permissões do dado sensível, da atualização e de gravar o peso. A
-  // resposta chega depois de a folha abrir: vale enquanto a pessoa não mexeu no campo. Falha ou sem peso = campo vazio,
-  // sem erro na tela. O peso nunca vai a log.
+  const [hoje] = useState(hojeIso);
+  // D8 (02/11): o peso e a data nascem com os da atualização desta pasta (`GET /pastas/{id}/peso-sugerido`), editáveis.
+  // Só com as permissões do dado sensível, da atualização e de gravar o peso. A resposta chega depois de a folha abrir:
+  // vale enquanto a pessoa não mexeu no campo. Falha ou sem peso = peso vazio e data de hoje, sem erro na tela. Sem
+  // edição (valor, data e observação como vieram) finalizar não grava o peso de novo: `corpoDaFinalizacao`. O peso
+  // nunca vai a log.
   const sugestao = useCarregar(podeSugerirPeso(pode) ? `peso-sugerido:${pasta.id}` : null, () => pesoSugeridoDaPasta(pasta.id));
   const sugerido = sugestao.erro ? null : sugestao.dados?.pesoKg ?? null;
+  const dataInicial = dataInicialDoPeso(sugestao.erro ? null : sugestao.dados, hoje);
+  const [dataDigitada, setData] = useState<string | null>(null);
+  const data = dataDigitada ?? dataParaTela(dataInicial);
   const [digitado, setDigitado] = useState<{ valor: number | null } | null>(null);
   const peso = digitado ? digitado.valor : sugerido;
   const setPeso = (valor: number | null) => setDigitado({ valor });
@@ -441,14 +445,18 @@ function FolhaFinalizar({ pasta, alunoId, atualizacao, aoFechar, aoFinalizar }: 
   const dataDoPeso = pode('ALUNO_SENSIVEL_LER') && pode('ATUALIZACAO_LER') ? dataDoPesoDaAtualizacao(atualizacao) : null;
   const pesos = useCarregar(dataDoPeso ? `pesos-finalizar:${alunoId}:${dataDoPeso}` : null, () => pesosDoAluno(alunoId));
   const registrado = pesoDaAtualizacao(pesos.dados, dataDoPeso);
-  const substitui = substituiPesoDaAtualizacao(dataIso, registrado, peso);
+  const formulario = { podeGravarPeso: pode('ALUNO_SENSIVEL_ALTERAR'), sugerido, peso, dataIso, dataInicial, observacao };
+  // Sugerido e intacto: já está no registro, nada a substituir nem a conferir.
+  const jaRegistrado = pesoSugeridoSemEdicao(formulario);
+  const substitui = !jaRegistrado && substituiPesoDaAtualizacao(dataIso, registrado, peso);
 
   const salvar = () => {
     if (!valido) return;
     setSalvando(true);
     setErro(null);
-    const comPeso = pode('ALUNO_SENSIVEL_ALTERAR') && peso !== null;
-    finalizarPasta(pasta.id, { data: comPeso ? dataIso ?? null : null, pesoKg: comPeso ? peso : null, observacao: comPeso ? observacao.trim() || null : null }).then(
+    const corpo = corpoDaFinalizacao(formulario);
+    const comPeso = corpo.pesoKg !== null;
+    finalizarPasta(pasta.id, corpo).then(
       () => {
         avisar(comPeso ? 'Pasta finalizada e peso registrado.' : 'Pasta finalizada.', 'sucesso');
         aoFinalizar(comPeso);
@@ -478,19 +486,24 @@ function FolhaFinalizar({ pasta, alunoId, atualizacao, aoFechar, aoFinalizar }: 
         Finalizar não troca o que o aluno vê: ele passa a usar a pasta nova quando você publica o treino, a dieta ou a
         mobilidade dela.
       </Texto>
-      {registrado ? <Texto numerico>{textoDoPesoDaAtualizacao(registrado)}</Texto> : null}
+      {/* Intacto, a nota junto do campo já diz o mesmo: a linha sairia repetida. */}
+      {registrado && !jaRegistrado ? <Texto numerico>{textoDoPesoDaAtualizacao(registrado)}</Texto> : null}
       {dataDoPeso && pesos.erro ? <Texto variante="suave">Não foi possível conferir o peso da atualização.</Texto> : null}
       <Permitido codigo="ALUNO_SENSIVEL_ALTERAR">
       <Texto variante="suave">
-        {comSugestao
-          ? 'O peso entra no registro do aluno com a data e a observação abaixo. Para finalizar sem registrar peso, apague o campo.'
-          : registrado
-            ? 'Só preencha o peso se houver uma pesagem nova. Ele entra no registro do aluno com a data e a observação abaixo.'
-            : 'O peso opcional entra no registro do aluno com a data e a observação abaixo.'}
+        {jaRegistrado
+          ? 'Este peso já está no registro do aluno: finalizar assim não grava de novo. Mude o valor ou a data só se houver uma pesagem nova.'
+          : comSugestao
+            ? 'O peso entra no registro do aluno com a data e a observação abaixo. Para finalizar sem registrar peso, apague o campo.'
+            : registrado
+              ? 'Só preencha o peso se houver uma pesagem nova. Ele entra no registro do aluno com a data e a observação abaixo.'
+              : 'O peso opcional entra no registro do aluno com a data e a observação abaixo.'}
       </Texto>
       <CampoData rotulo="Data do peso" valor={data} aoMudar={setData} />
       <CampoNumerico rotulo="Peso (opcional)" sufixo="kg" valor={peso} aoMudar={setPeso} />
-      {comSugestao ? <Alerta tom="atencao" texto={notaDoPesoSugerido(sugestao.dados?.data ?? null)} /> : null}
+      {jaRegistrado && sugerido !== null ? (
+        <Texto variante="suave" numerico>{notaDoPesoJaRegistrado(sugerido, sugestao.dados?.data ?? null, hoje)}</Texto>
+      ) : comSugestao ? <Alerta tom="atencao" texto={notaDoPesoSugerido(sugestao.dados?.data ?? null)} /> : null}
       {substitui && registrado ? (
         <Alerta tom="atencao" titulo="Vai substituir o peso da atualização"
           texto={`Já há ${numeroParaTela(registrado.pesoKg, 1)} kg registrado em ${dataParaTela(registrado.data)}. Um peso por dia: finalizar com esta data troca esse peso pelo novo. Para manter os dois, use outra data.`} />

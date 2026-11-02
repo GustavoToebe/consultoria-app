@@ -23,24 +23,21 @@ finalizar a pasta com o peso já preenchido.
 | D5 | Copiar a pasta para outro aluno | mesmas regras do `CopiarPlanoService`: o destino recebe tudo em **rascunho**, sem ergogênicos e sem o questionário escolhido | Gustavo |
 | D6 | Recusas e permissões da cópia | outra consultoria = 404; destino anonimizado = 409; exige `PASTA_ALTERAR` + `ALUNO_LER` + o `*_ALTERAR` de cada tipo; auditoria com resumo fixo | Gustavo |
 | D7 | Tela da cópia | ⋯ da pasta → "Copiar pasta para outro aluno", com aviso e o atalho para abrir a ficha | Gustavo |
-| D8 | C25 Finalizar pasta | pré-preencher o peso com o da atualização daquela pasta (só com `ALUNO_SENSIVEL_LER` + `ATUALIZACAO_LER`), editável e com o aviso de substituição que já existe | Gustavo |
+| D8 | C25 Finalizar pasta | (revisada em 02/11/2026) pré-preencher o peso com o da atualização daquela pasta (só com `ALUNO_SENSIVEL_LER` + `ATUALIZACAO_LER`), editável. **Se o valor sugerido não foi editado, o finalizar NÃO grava peso**: ele já foi registrado no envio da atualização, com a data dela; a tela mostra "90 kg, da atualização de 20/10 (já registrado)". Se o treinador mudar o valor ou a data (ou preencher a observação, que exige peso), grava normalmente, com o aviso de substituição que já existe. Sem sugestão, igual a antes | Gustavo |
 | D9 | C22 | resolver a sobra do `?pastaId` | Gustavo |
 | D10 | Ajuda | explicar que ajuste no meio do ciclo = editar e publicar na mesma pasta (versão nova); ciclo novo = "Renovar pasta". O modelo de uma pasta por ciclo **não muda** | Gustavo |
 
 ## Passos
-Andamento em 02/11/2026 (tudo na worktree `wt-pasta`, branch `pasta-publicar-copiar`, a partir da main `210d828c`; **nada commitado ainda**):
-- Passo 1 feito: o explorador mapeou `PlanoServiceBase`, `PastaService`, `PastaController`, `CopiarPlanoService`, `Auditoria`, `rotas.ts` e `CartaoPastas.tsx`. Achado: o comentário em `CartaoPastas.tsx:390` diz que o peso da atualização nunca é copiado para o finalizar; isso contradiz a D8 e deve ser corrigido junto com o passo 5.
-- Passos 2 a 4 feitos (commit 797b9751; 16 testes novos + regressão verdes; `mvn verify` completo ainda por rodar): o `executor` fez só a API (e `rotas.ts`, `tipos.ts`, `acoesAuditoria.ts` no app). Decisões já passadas a ele: peso pré-preenchido pelo front com aviso de substituição; a rota `peso-sugerido` confere `ALUNO_SENSIVEL_LER` + `ATUALIZACAO_LER` no servidor; "pulado" = plano publicado com rascunho não alterado depois da publicação (sem migration; se precisar, ele para e avisa); auditoria `PASTA_COPIADA` com resumo fixo; validação de todos numa transação só; mobilidade só com a funcionalidade do plano.
-- Passo 5 (tela): `executor-front` em andamento em `wt-pasta` (Publicar tudo, Copiar pasta, peso no finalizar, `?pastaId`).
-- Permissão do "Publicar tudo" mudou em 02/11/2026 (D2 acima): só dos tipos com alteração. O `executor` ajusta a API e os testes (Nutricionista publica a dieta com treino sem alteração; 403 quando o treino também tem alteração; pasta sem nada alterado); o `executor-front` ajusta a tela e a api-falsa.
+Andamento em 02/11/2026 (tudo na worktree `wt-pasta`, branch `pasta-publicar-copiar`, a partir da main `210d828c`):
+- Passos 2 a 5 feitos nos commits 797b9751, 3394019d e b0e27e44. O passo 6 está em andamento (Ajuda e `AGENTS.md` feitos; faltam guias regerados e e2e); o 7 (revisão do Opus) vem antes do PR.
 - Conflito previsto com a Frente A em `CartaoPastas.tsx` e `PastaService`: quem abrir o PR depois faz `git merge origin/main` e regera os guias.
 
 - [x] 1. Mapear `PastaService`, `CopiarPlanoService`, `PlanoServiceBase.publicar`, `CartaoPastas` e o fluxo do `?pastaId` (explorador) — explorador — feito em 02/11/2026 (sem commit; só leitura)
 - [x] 2. API: `POST` de publicação conjunta da pasta (permissões antes de tudo, validar todos, publicar só se todos passarem, versão e auditoria por plano), testes de integração (um com erro = nenhum publicado; sem permissão de um tipo = nada muda; outra consultoria 404) — executor — feito em `wt-pasta` — commit: 797b9751
 - [x] 3. API: cópia da pasta para outro aluno (D5/D6) reaproveitando `CopiarPlanoService`/`paraCopiaDeOutroAluno`; testes de integração — executor — feito em `wt-pasta` — commit: 797b9751
 - [x] 4. API: peso sugerido da atualização da pasta no finalizar, com as duas permissões — executor — feito em `wt-pasta` — commit: 797b9751
-- [ ] 5. Tela: "Publicar tudo" na Folha da pasta com lista por plano; ⋯ → "Copiar pasta para outro aluno"; peso pré-preenchido; `?pastaId` — executor-front — commit: —
-- [ ] 6. Ajuda (D10), guias regerados, e2e da Folha da pasta, `AGENTS.md` só no item das pastas — commit: —
+- [x] 5. Tela: "Publicar tudo" na Folha da pasta com lista por plano; ⋯ → "Copiar pasta para outro aluno"; peso pré-preenchido; `?pastaId` — executor-front — commit: b0e27e44
+- [ ] 6. Ajuda (D10) — feito em 02/11/2026 (sem commit); `AGENTS.md` só nos itens das pastas — feito em 02/11/2026 (sem commit); e2e da Folha da pasta (3 casos novos do peso sugerido em `pasta-e-atualizacao.spec.ts`, D8); teste de API do finalizar sem peso (sem registro nem auditoria de peso; com peso, cria); guias regerados — pendente (eu, antes do PR) — commit: —
 - [ ] 7. Revisão do **Opus** (permissão, LGPD, contrato) antes do PR — `advisor` (Opus); se indisponível, agente `revisor` (Opus, leitura) e avisar o Gustavo. A revisão do diff pelo Sonnet não a substitui. O corpo do PR traz a linha "Revisão (Opus): feita por <advisor|revisor> — apontou: … — resolvido: …" — commit: —
 
 ## Critérios de aceite
@@ -56,4 +53,10 @@ Andamento em 02/11/2026 (tudo na worktree `wt-pasta`, branch `pasta-publicar-cop
 - Mudar o modelo de uma pasta por ciclo; contrato de ciclos.
 
 ## O que ficou para trás
-- —
+- (b) O botão "Publicar tudo" fica oculto sem `TREINO_PUBLICAR` nem `DIETA_PUBLICAR` (a rota exige uma das duas).
+- (c) O item "Copiar pasta para outro aluno" no ⋯ não tem estado desabilitado: sem o `*_ALTERAR` de um tipo presente, mostra o motivo e a Folha avisa.
+- (d) `router.dismissTo` (VoltarParaAPasta) testado só na web, não no celular.
+- (e) Dois planos do mesmo tipo a publicar: o campo do erro `tipo[<planoId>].<caminho>` não tem teste.
+- (f) Mobilidade com a funcionalidade desligada no plano: implementada e sem teste.
+- (g) O campo de data da cópia usa o campo existente; a Frente A cuida da faixa. Quem abrir o PR depois faz `git merge origin/main` e regera os guias.
+- (h) Guias PDF: regerados por mim antes do PR (`node scripts/guias/gerar.mjs`). Quem abrir o PR depois faz `git merge origin/main` e regera de novo, porque PDF binário não se mescla.

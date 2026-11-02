@@ -82,6 +82,14 @@ async function abrir(page: Page, permissoesExtras: string[], extras: RespostasAp
 }
 
 const LINHA_DO_PESO = /Peso já registrado na data da atualização: 82,4 kg em 20\/10/;
+const NOTA_JA_REGISTRADO = '82,4 kg, da atualização de 20/10 (já registrado)';
+const SUBSTITUI = 'Vai substituir o peso da atualização';
+
+/** Hoje como o campo de data mostra (dd/mm/aaaa, fuso local). */
+function hojeNaTela(): string {
+  const d = new Date();
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+}
 
 for (const largura of [390, 1280]) {
   test(`finalizar: mostra o peso da atualização, sem peso sugerido o campo começa vazio e avisa da substituição (${largura}px)`, async ({ page }) => {
@@ -107,9 +115,11 @@ for (const largura of [390, 1280]) {
     const peso = folha.getByRole('textbox', { name: 'Peso (opcional)' });
     await expect(peso).toHaveValue('');
     await expect(folha.getByText(/Peso preenchido com o da atualização/)).toHaveCount(0);
+    // Sem sugestão, a data nasce hoje.
+    const data = folha.getByRole('textbox', { name: 'Data do peso' });
+    await expect(data).toHaveValue(hojeNaTela());
 
     // Peso novo na data da atualização: avisa que substitui; em outra data, não.
-    const data = folha.getByRole('textbox', { name: 'Data do peso' });
     await data.fill('20/10/2026');
     await peso.fill('81,9');
     await expect(folha.getByText('Vai substituir o peso da atualização')).toBeVisible();
@@ -351,27 +361,73 @@ for (const largura of [390, 1280]) {
     expect(errosDaPagina).toEqual([]);
   });
 
-  test(`finalizar: o peso nasce com o da atualização da pasta, com a nota para conferir (${largura}px)`, async ({ page }) => {
+  test(`finalizar: peso e data nascem com os da atualização e, sem edição, não gravam peso de novo (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { pedidos, errosDaPagina } = await abrirComPasta(page, { pesoSugerido: { pesoKg: 82.4, data: '2026-10-20' } });
+    await page.getByRole('dialog', { name: 'Plano 17' }).getByRole('button', { name: 'Finalizar pasta' }).click();
+    const folha = page.getByRole('dialog', { name: 'Finalizar “Plano 17”' });
+    await expect(folha.getByRole('textbox', { name: 'Peso (opcional)' })).toHaveValue('82,4');
+    await expect(folha.getByRole('textbox', { name: 'Data do peso' })).toHaveValue('20/10/2026');
+    await expect(folha.getByText(NOTA_JA_REGISTRADO)).toBeVisible();
+    await expect(folha.getByText(/finalizar assim não grava de novo/)).toBeVisible();
+    // Intacto não substitui nada nem pede conferência, e a linha do peso não sai repetida.
+    await expect(folha.getByText(SUBSTITUI)).toHaveCount(0);
+    await expect(folha.getByText(/Peso preenchido com o da atualização/)).toHaveCount(0);
+    await expect(folha.getByText(LINHA_DO_PESO)).toHaveCount(0);
+
+    await folha.getByRole('button', { name: 'Finalizar pasta' }).click();
+    await expect(folha).toHaveCount(0);
+    await expect(page.getByText('Pasta finalizada.', { exact: true })).toBeVisible();
+    const post = pedidos.find((p) => p.metodo === 'POST' && p.caminho === `/pastas/${PASTA_ID}/finalizar`);
+    expect(post?.corpo).toEqual({ data: null, pesoKg: null, observacao: null });
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`finalizar: só a observação conta como edição e grava na data da atualização, substituindo (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { pedidos, errosDaPagina } = await abrirComPasta(page, { pesoSugerido: { pesoKg: 82.4, data: '2026-10-20' } });
+    await page.getByRole('dialog', { name: 'Plano 17' }).getByRole('button', { name: 'Finalizar pasta' }).click();
+    const folha = page.getByRole('dialog', { name: 'Finalizar “Plano 17”' });
+    await expect(folha.getByText(NOTA_JA_REGISTRADO)).toBeVisible();
+
+    await folha.getByRole('textbox', { name: 'Observação (opcional)' }).fill('Em jejum');
+    await expect(folha.getByText(NOTA_JA_REGISTRADO)).toHaveCount(0);
+    await expect(folha.getByText('Peso preenchido com o da atualização de 20/10/2026; confira antes de salvar.')).toBeVisible();
+    await expect(folha.getByText(SUBSTITUI)).toBeVisible();
+    await expect(folha.getByText(LINHA_DO_PESO)).toBeVisible();
+
+    await folha.getByRole('button', { name: 'Finalizar pasta' }).click();
+    await expect(folha).toHaveCount(0);
+    const post = pedidos.find((p) => p.metodo === 'POST' && p.caminho === `/pastas/${PASTA_ID}/finalizar`);
+    expect(post?.corpo).toEqual({ data: '2026-10-20', pesoKg: 82.4, observacao: 'Em jejum' });
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`finalizar: valor e data editados gravam o peso novo (${largura}px)`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const { pedidos, errosDaPagina } = await abrirComPasta(page, { pesoSugerido: { pesoKg: 82.4, data: '2026-10-20' } });
     await page.getByRole('dialog', { name: 'Plano 17' }).getByRole('button', { name: 'Finalizar pasta' }).click();
     const folha = page.getByRole('dialog', { name: 'Finalizar “Plano 17”' });
     const peso = folha.getByRole('textbox', { name: 'Peso (opcional)' });
     await expect(peso).toHaveValue('82,4');
-    await expect(folha.getByText('Peso preenchido com o da atualização de 20/10/2026; confira antes de salvar.')).toBeVisible();
 
-    // Na data do peso da atualização, o aviso de substituição continua.
+    // "82,40" é o mesmo número: continua sem edição.
+    await peso.fill('82,40');
+    await expect(folha.getByText(NOTA_JA_REGISTRADO)).toBeVisible();
+
+    // Outra data é edição: sai a nota, entra a conferência; fora da data da atualização, nada a substituir.
     const data = folha.getByRole('textbox', { name: 'Data do peso' });
-    await data.fill('20/10/2026');
-    await expect(folha.getByText('Vai substituir o peso da atualização')).toBeVisible();
     await data.fill('31/10/2026');
-    await expect(folha.getByText('Vai substituir o peso da atualização')).toHaveCount(0);
+    await expect(folha.getByText(NOTA_JA_REGISTRADO)).toHaveCount(0);
+    await expect(folha.getByText(/Peso preenchido com o da atualização/)).toBeVisible();
+    await expect(folha.getByText(SUBSTITUI)).toHaveCount(0);
 
-    // Editável: o valor digitado vale e a nota some.
+    // Valor novo: a nota de conferência some.
     await peso.fill('81,9');
     await expect(folha.getByText(/Peso preenchido com o da atualização/)).toHaveCount(0);
     await folha.getByRole('button', { name: 'Finalizar pasta' }).click();
     await expect(folha).toHaveCount(0);
+    await expect(page.getByText('Pasta finalizada e peso registrado.')).toBeVisible();
     const post = pedidos.find((p) => p.metodo === 'POST' && p.caminho === `/pastas/${PASTA_ID}/finalizar`);
     expect(post?.corpo).toEqual({ data: '2026-10-31', pesoKg: 81.9, observacao: null });
     expect(errosDaPagina).toEqual([]);
@@ -384,7 +440,9 @@ for (const largura of [390, 1280]) {
     const folha = page.getByRole('dialog', { name: 'Finalizar “Plano 17”' });
     await expect.poll(() => pedidos.some((p) => p.caminho === `/pastas/${PASTA_ID}/peso-sugerido`)).toBe(true);
     await expect(folha.getByRole('textbox', { name: 'Peso (opcional)' })).toHaveValue('');
+    await expect(folha.getByRole('textbox', { name: 'Data do peso' })).toHaveValue(hojeNaTela());
     await expect(folha.getByText(/Peso preenchido com o da atualização/)).toHaveCount(0);
+    await expect(folha.getByText(/já registrado\)/)).toHaveCount(0);
     await expect(folha.getByText(LINHA_DO_PESO)).toBeVisible();
     expect(errosDaPagina).toEqual([]);
   });
