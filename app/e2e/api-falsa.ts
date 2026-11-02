@@ -1,6 +1,6 @@
 import type { Page, Route } from '@playwright/test';
 
-import type { EuResponse, LoginResponse, Marca, UsuarioResumo } from '../src/api/tipos';
+import type { EuResponse, LoginResponse, Marca, PesoSugeridoDaPasta, PlanoResumo, TipoPlano, UsuarioResumo } from '../src/api/tipos';
 
 /**
  * API falsa dos testes de tela (`page.route` em `/api/**`, a mesma origem da web servida). As respostas vão por
@@ -50,8 +50,8 @@ export const PERMISSOES_TREINADOR = [
   'INSCRICAO_LER', 'INSCRICAO_ALTERAR', 'ANAMNESE_LER', 'ANAMNESE_ALTERAR', 'QUESTIONARIO_LER',
 ];
 
-export function erroApi(status: number, mensagem: string, codigo: string | null = null) {
-  return { status, corpo: { status, message: mensagem, codigo, fieldErrors: [] } };
+export function erroApi(status: number, mensagem: string, codigo: string | null = null, fieldErrors: { field: string; message: string }[] = []) {
+  return { status, corpo: { status, message: mensagem, codigo, fieldErrors } };
 }
 
 function casar(rota: string, chave: string): boolean {
@@ -165,4 +165,81 @@ export async function sessao(page: Page, usuario: UsuarioResumo, extra: Partial<
     ? { 'GET /inscricoes/contagens': { corpo: { porSituacao: {}, abertas: 0, todas: 0, retornosAtrasados: 0, retornosHoje: 0 } } }
     : {};
   return { 'POST /auth/refresh': { corpo: login }, 'GET /eu': { corpo: eu }, ...contagens };
+}
+
+/** Um plano da pasta simulada, com o tipo (o `PlanoResumo` não o traz). Mutável: publicar muda a versão. */
+export interface PlanoDaPastaFalsa {
+  tipo: TipoPlano;
+  plano: PlanoResumo;
+}
+
+/** O que a pasta simulada responde em "Publicar tudo", "Copiar pasta para outro aluno" e "peso sugerido". */
+export interface PastaFalsa {
+  alunoId: string;
+  pastaId: string;
+  planos: PlanoDaPastaFalsa[];
+  /** As permissões da sessão: a de publicar só é pedida dos tipos com alteração (403 e nada publicado). */
+  permissoes: readonly string[];
+  /** Problemas da validação de cada plano, com o campo já no formato da API (`dieta.<caminho>`). */
+  erros?: { field: string; message: string }[];
+  avisos?: { field: string; message: string }[];
+  /** `null` = sem peso na atualização; `'erro'` = a rota falha (500). */
+  pesoSugerido?: PesoSugeridoDaPasta | 'erro';
+  /** Resposta da cópia: sucesso (padrão) ou um erro da API. */
+  copia?: { status: number; codigo: string | null; mensagem: string };
+}
+
+const PERMISSAO_DE_PUBLICAR: Record<TipoPlano, string> = { treino: 'TREINO_PUBLICAR', dieta: 'DIETA_PUBLICAR', mobilidade: 'TREINO_PUBLICAR' };
+const PREFIXO_DAS_ROTAS: Record<TipoPlano, string> = { treino: 'planos-treino', dieta: 'planos-dieta', mobilidade: 'planos-mobilidade' };
+
+/**
+ * Rotas da pasta como a API (commit 797b9751 com o ajuste de 02/11): as listas de planos do aluno, `POST
+ * /pastas/{id}/publicar` tudo ou nada (permissão de publicar só dos tipos com alteração → 403; erro em qualquer plano →
+ * 422 `PLANO_INVALIDO`; aviso sem `confirmarAvisos` → 422 `CONFIRMAR_AVISOS`; nos três nada muda), a cópia para outro
+ * aluno e o peso sugerido. Plano com alteração = nunca publicado ou rascunho alterado depois da última publicação.
+ */
+export function rotasDaPasta(p: PastaFalsa): RespostasApi {
+  const pendente = (x: PlanoDaPastaFalsa) => x.plano.versaoPublicada === 0 || x.plano.rascunhoAlteradoDepoisDePublicar;
+  const lista = (tipo: TipoPlano): Resposta => (_pedido, route) => json(route, p.planos.filter((x) => x.tipo === tipo).map((x) => x.plano));
+  return {
+    [`GET /alunos/${p.alunoId}/${PREFIXO_DAS_ROTAS.treino}`]: lista('treino'),
+    [`GET /alunos/${p.alunoId}/${PREFIXO_DAS_ROTAS.dieta}`]: lista('dieta'),
+    [`GET /alunos/${p.alunoId}/${PREFIXO_DAS_ROTAS.mobilidade}`]: lista('mobilidade'),
+    [`POST /pastas/${p.pastaId}/publicar`]: (pedido, route) => {
+      const confirmar = (pedido.corpo as { confirmarAvisos?: boolean } | null)?.confirmarAvisos === true;
+      const aPublicar = p.planos.filter(pendente);
+      if (aPublicar.some((x) => !p.permissoes.includes(PERMISSAO_DE_PUBLICAR[x.tipo]))) {
+        const e = erroApi(403, 'Sem permissão.', 'PERMISSAO_NEGADA');
+        return json(route, e.corpo, e.status);
+      }
+      if (p.erros?.length) {
+        const e = erroApi(422, 'Há planos com erros que impedem a publicação. Nada foi publicado.', 'PLANO_INVALIDO', p.erros);
+        return json(route, e.corpo, e.status);
+      }
+      if (p.avisos?.length && !confirmar) {
+        const e = erroApi(422, 'Confira os avisos antes de publicar. Nada foi publicado.', 'CONFIRMAR_AVISOS', p.avisos);
+        return json(route, e.corpo, e.status);
+      }
+      const pulados = p.planos.filter((x) => !pendente(x)).map((x) => ({ tipo: x.tipo, planoId: x.plano.id }));
+      const publicados = aPublicar.map((x) => {
+        x.plano = { ...x.plano, versaoPublicada: x.plano.versaoPublicada + 1, rascunhoAlteradoDepoisDePublicar: false };
+        return { tipo: x.tipo, planoId: x.plano.id, versao: x.plano.versaoPublicada };
+      });
+      return json(route, { publicados, pulados });
+    },
+    [`POST /pastas/${p.pastaId}/copiar-para-aluno`]: (_pedido, route) => {
+      if (p.copia) {
+        const e = erroApi(p.copia.status, p.copia.mensagem, p.copia.codigo);
+        return json(route, e.corpo, e.status);
+      }
+      return json(route, { pastaId: 'f0000000-0000-4000-8000-0000000000c1', planos: p.planos.map((x) => ({ tipo: x.tipo, planoId: `copia-${x.plano.id}` })) });
+    },
+    [`GET /pastas/${p.pastaId}/peso-sugerido`]: (_pedido, route) => {
+      if (p.pesoSugerido === 'erro') {
+        const e = erroApi(500, 'Erro.');
+        return json(route, e.corpo, e.status);
+      }
+      return json(route, p.pesoSugerido ?? { pesoKg: null, data: null });
+    },
+  };
 }

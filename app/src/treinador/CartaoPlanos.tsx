@@ -36,6 +36,7 @@ import { useAvisoDoPlano } from '../ui/useAvisoDoPlano';
 import { useCarregar } from '../ui/useCarregar';
 import { CopiarParaAluno } from './CopiarParaAluno';
 import { FolhaDeAcoes, type AcaoDoMenu } from './FolhaDeAcoes';
+import type { CargaDosPlanos } from './usePlanosDaPasta';
 
 const NOMES: Record<TipoPlano, { titulo: string; plural: string; novo: string; receita: 'PLANO_TREINO' | 'PLANO_DIETA' | 'MOBILIDADE'; rota: string }> = {
   treino: { titulo: 'Treino', plural: 'Treinos', novo: 'Novo treino', receita: 'PLANO_TREINO', rota: '/treinador/treinos' },
@@ -76,11 +77,16 @@ export function SelosDoPlano({ plano }: { plano: PlanoResumo }) {
  * Treinos ou dietas do aluno dentro de uma pasta (o período é o da pasta). Criar (em branco, receita ou cópia),
  * abrir, PDF e replicar. `geracao` muda quando a pasta muda o período.
  */
-export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar }: { tipo: TipoPlano; alunoId: string; pasta: PastaResumo; geracao?: number; aoNavegar?: () => void }) {
+export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar, carga }: {
+  tipo: TipoPlano; alunoId: string; pasta: PastaResumo; geracao?: number; aoNavegar?: () => void;
+  /** Lista já carregada por quem chama (a Folha da pasta divide a mesma com o "Publicar tudo"); sem ela, o cartão busca. */
+  carga?: CargaDosPlanos;
+}) {
   const { width } = useWindowDimensions();
   const rotuloCurto = width < LARGURA_ROTULO_CURTO;
   const { cores } = useTema();
-  const todos = useCarregar(`${tipo}:${alunoId}:${geracao}`, () => listarPlanos(tipo, alunoId));
+  const propria = useCarregar(carga ? null : `${tipo}:${alunoId}:${geracao}`, () => listarPlanos(tipo, alunoId));
+  const todos = carga ?? propria;
   const { erro, carregando, recarregar } = todos;
   const dados = todos.dados ? todos.dados.filter((p) => p.pastaId === pasta.id) : null;
   const animar = usePrimeiraLista(!!dados);

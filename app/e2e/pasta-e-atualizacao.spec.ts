@@ -1,15 +1,19 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import type { AlunoDetalhe, Atualizacao, ConteudoDieta, PastaResumo, PlanoDetalhe, RegistroPeso } from '../src/api/tipos';
-import { ALUNO, MARCA, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type RespostasApi } from './api-falsa';
+import type { AlunoDetalhe, AlunoResumo, Atualizacao, ConteudoDieta, PastaResumo, PlanoDetalhe, PlanoResumo, RegistroPeso } from '../src/api/tipos';
+import {
+  ALUNO, MARCA, PERMISSOES_TREINADOR, rotasDaPasta, sessao, simularApi, TREINADOR,
+  type PastaFalsa, type PlanoDaPastaFalsa, type RespostasApi,
+} from './api-falsa';
 
 /**
  * Reunião de 30/10 (Análise 4): caminho do treinador mais claro na renovação do ciclo.
- * - Finalizar a pasta mostra o peso que a atualização já gravou, nunca o copia para o campo e avisa quando um peso novo
- *   na mesma data vai substituí-lo.
+ * - Finalizar a pasta mostra o peso que a atualização já gravou e avisa quando um peso novo na mesma data vai
+ *   substituí-lo. Desde a D8 o campo nasce com o peso sugerido da atualização da pasta, com a nota para conferir.
  * - "Voltar à pasta" nos editores do plano do aluno leva à ficha com a Folha da pasta aberta, passa pela guarda de saída
- *   e funciona com o editor aberto direto pela URL.
+ *   e funciona com o editor aberto direto pela URL. O `?pastaId=` sai do endereço depois de abrir a Folha (C22).
  * - A atualização ao lado do editor é um `<a href>` que abre sempre em outra aba.
+ * - "Publicar tudo" da Folha da pasta (C21, tudo ou nada, problemas por plano) e "Copiar pasta para outro aluno" (D7).
  * Dados fictícios.
  */
 const ALUNO_ID = 'a0000000-0000-4000-8000-000000000002';
@@ -80,9 +84,12 @@ async function abrir(page: Page, permissoesExtras: string[], extras: RespostasAp
 const LINHA_DO_PESO = /Peso já registrado na data da atualização: 82,4 kg em 20\/10/;
 
 for (const largura of [390, 1280]) {
-  test(`finalizar: mostra o peso da atualização, o campo começa vazio e avisa da substituição (${largura}px)`, async ({ page }) => {
+  test(`finalizar: mostra o peso da atualização, sem peso sugerido o campo começa vazio e avisa da substituição (${largura}px)`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
-    const { pedidos, errosDaPagina } = await abrir(page, ['ATUALIZACAO_LER']);
+    // Sem peso sugerido (a atualização da pasta não trouxe peso): o campo fica vazio.
+    const { pedidos, errosDaPagina } = await abrir(page, ['ATUALIZACAO_LER'], {
+      [`GET /pastas/${PASTA_ID}/peso-sugerido`]: { corpo: { pesoKg: null, data: null } },
+    });
     await page.goto(`/treinador/alunos/${ALUNO_ID}?pastaId=${PASTA_ID}`);
 
     const pasta = page.getByRole('dialog', { name: 'Plano 17' });
@@ -97,9 +104,9 @@ for (const largura of [390, 1280]) {
     await pasta.getByRole('button', { name: 'Finalizar pasta' }).click();
     const folha = page.getByRole('dialog', { name: 'Finalizar “Plano 17”' });
     await expect(folha.getByText(LINHA_DO_PESO)).toBeVisible();
-    // Nunca pré-preenchido com o peso antigo.
     const peso = folha.getByRole('textbox', { name: 'Peso (opcional)' });
     await expect(peso).toHaveValue('');
+    await expect(folha.getByText(/Peso preenchido com o da atualização/)).toHaveCount(0);
 
     // Peso novo na data da atualização: avisa que substitui; em outra data, não.
     const data = folha.getByRole('textbox', { name: 'Data do peso' });
@@ -120,12 +127,14 @@ for (const largura of [390, 1280]) {
 
   test(`finalizar: sem ATUALIZACAO_LER a linha do peso não aparece (${largura}px)`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
-    const { errosDaPagina } = await abrir(page, []);
+    const { errosDaPagina, pedidos } = await abrir(page, []);
     await page.goto(`/treinador/alunos/${ALUNO_ID}?pastaId=${PASTA_ID}`);
     await page.getByRole('dialog', { name: 'Plano 17' }).getByRole('button', { name: 'Finalizar pasta' }).click();
     const folha = page.getByRole('dialog', { name: 'Finalizar “Plano 17”' });
     await expect(folha.getByRole('textbox', { name: 'Peso (opcional)' })).toHaveValue('');
     await expect(folha.getByText(LINHA_DO_PESO)).toHaveCount(0);
+    // Sem as permissões o peso sugerido nem é pedido (dado sensível).
+    expect(pedidos.some((p) => p.caminho.endsWith('/peso-sugerido'))).toBe(false);
     expect(errosDaPagina).toEqual([]);
   });
 
@@ -137,8 +146,9 @@ for (const largura of [390, 1280]) {
     const voltar = page.getByRole('link', { name: 'Voltar à pasta' });
     await expect(voltar).toHaveAttribute('href', `/treinador/alunos/${ALUNO_ID}?pastaId=${PASTA_ID}`);
     await voltar.click();
-    await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${ALUNO_ID}\\?pastaId=${PASTA_ID}$`));
     await expect(page.getByRole('dialog', { name: 'Plano 17' })).toBeVisible();
+    // C22: aberta a Folha, o `?pastaId=` sai do endereço (recarregar não a reabre).
+    await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${ALUNO_ID}$`));
     expect(errosDaPagina).toEqual([]);
   });
 
@@ -152,9 +162,9 @@ for (const largura of [390, 1280]) {
     await expect(page.getByText('Sair sem salvar?')).toBeVisible();
     expect(new URL(page.url()).pathname).toBe(`/treinador/dietas/${PLANO_ID}`);
     await page.getByRole('button', { name: 'Sair sem salvar' }).click();
-    await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${ALUNO_ID}\\?pastaId=${PASTA_ID}$`));
     const pasta = page.getByRole('dialog', { name: 'Plano 17' });
     await expect(pasta).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${ALUNO_ID}$`));
 
     // O editor saiu da pilha: navegar a partir da ficha não traz a pergunta de volta.
     await pasta.getByRole('button', { name: 'Fechar', exact: true }).click();
@@ -181,6 +191,222 @@ for (const largura of [390, 1280]) {
     await expect(link).toHaveAttribute('href', `/treinador/atualizacoes/${ATUALIZACAO_ID}`);
     // O "Voltar à pasta" continua sendo o da pasta do plano.
     await expect(page.getByRole('link', { name: 'Voltar à pasta' })).toHaveAttribute('href', `/treinador/alunos/${ALUNO_ID}?pastaId=${PASTA_RENOVADA.id}`);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+// Treino já publicado e sem alteração (fica de fora do "Publicar tudo"); a dieta nunca foi publicada.
+const TREINO: PlanoResumo = {
+  id: 'b0000000-0000-4000-8000-000000000001', alunoId: ALUNO_ID, pastaId: PASTA_ID, titulo: 'Treino do Plano 17',
+  inicio: '2026-10-06', fim: '2026-10-20', ativo: true, versaoPublicada: 2, publicadoEm: '2026-10-06T12:00:00Z',
+  rascunhoAlteradoDepoisDePublicar: false, versao: 3,
+};
+const DESTINO: AlunoResumo = {
+  id: 'a0000000-0000-4000-8000-0000000000b1', nome: 'Aluna Destino', ativo: true, temAcesso: true, planoAtivo: null, ultimoRegistro: null,
+};
+/** Permissões de quem publica e copia a pasta inteira (somadas às de `abrir`). */
+const PERMISSOES_DA_PASTA = ['TREINO_LER', 'TREINO_ALTERAR', 'TREINO_PUBLICAR', 'DIETA_PUBLICAR', 'ATUALIZACAO_LER'];
+
+/** A ficha com a pasta simulada por `rotasDaPasta` (planos mutáveis: publicar muda a versão). */
+async function abrirComPasta(page: Page, extra: Partial<PastaFalsa> = {}, permissoes = PERMISSOES_DA_PASTA, respostas: RespostasApi = {}) {
+  const planos: PlanoDaPastaFalsa[] = [{ tipo: 'treino', plano: { ...TREINO } }, { tipo: 'dieta', plano: { ...DIETA.plano } }];
+  const pasta: PastaFalsa = {
+    alunoId: ALUNO_ID, pastaId: PASTA_ID, planos,
+    permissoes: [...PERMISSOES_TREINADOR, 'PASTA_ALTERAR', 'DIETA_LER', 'DIETA_ALTERAR', ...permissoes], ...extra,
+  };
+  const api = await abrir(page, permissoes, { ...rotasDaPasta(pasta), ...respostas });
+  await page.goto(`/treinador/alunos/${ALUNO_ID}?pastaId=${PASTA_ID}`);
+  return { ...api, pasta };
+}
+
+for (const largura of [390, 1280]) {
+  test(`publicar tudo: erro na dieta não publica nada e lista o problema por plano (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { pedidos, errosDaPagina } = await abrirComPasta(page, { erros: [{ field: 'dieta.refeicoes', message: 'Inclua ao menos uma refeição.' }] });
+    const folha = page.getByRole('dialog', { name: 'Plano 17' });
+    await expect(folha.getByText('Rascunho', { exact: true })).toBeVisible();
+
+    await folha.getByRole('button', { name: 'Publicar tudo da pasta Plano 17' }).click();
+    await expect(folha.getByText('Nada foi publicado', { exact: true })).toBeVisible();
+    await expect(folha.getByText('Dieta: Dieta do Plano 17')).toBeVisible();
+    await expect(folha.getByText('Inclua ao menos uma refeição.')).toBeVisible();
+    await expect(folha.getByRole('button', { name: 'Abrir Dieta: Dieta do Plano 17' })).toBeVisible();
+    // Nada mudou: a dieta segue em rascunho e só a rota da pasta foi chamada (nenhuma publicação plano a plano).
+    await expect(folha.getByText('Rascunho', { exact: true })).toBeVisible();
+    expect(pedidos.filter((p) => p.metodo === 'POST' && p.caminho.endsWith('/publicar')).map((p) => [p.caminho, p.corpo]))
+      .toEqual([[`/pastas/${PASTA_ID}/publicar`, { confirmarAvisos: false }]]);
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`publicar tudo: com sucesso diz quantos foram publicados e os selos mudam (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { errosDaPagina } = await abrirComPasta(page);
+    const folha = page.getByRole('dialog', { name: 'Plano 17' });
+    await expect(folha.getByText('Rascunho', { exact: true })).toBeVisible();
+    await folha.getByRole('button', { name: 'Publicar tudo da pasta Plano 17' }).click();
+    await expect(folha.getByText('1 publicado, 1 sem alteração.')).toBeVisible();
+    // A Folha continua aberta e recarrega os planos: a dieta passa a v1 e o treino segue na v2.
+    await expect(folha.getByText('Publicado v1', { exact: true })).toBeVisible();
+    await expect(folha.getByText('Publicado v2', { exact: true })).toBeVisible();
+    await expect(folha.getByText('Rascunho', { exact: true })).toHaveCount(0);
+
+    // De novo, sem nada alterado: nada para publicar.
+    await folha.getByRole('button', { name: 'Publicar tudo da pasta Plano 17' }).click();
+    await expect(folha.getByText('Nada para publicar: os planos já estão publicados e sem alteração.')).toBeVisible();
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`publicar tudo: avisos pedem "Publicar mesmo assim" (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { pedidos, errosDaPagina } = await abrirComPasta(page, { avisos: [{ field: 'dieta.aguaLitros', message: 'Sem água por dia.' }] });
+    const folha = page.getByRole('dialog', { name: 'Plano 17' });
+    await folha.getByRole('button', { name: 'Publicar tudo da pasta Plano 17' }).click();
+    await expect(folha.getByText('Nada foi publicado ainda', { exact: true })).toBeVisible();
+    await expect(folha.getByText('Sem água por dia.')).toBeVisible();
+    await folha.getByRole('button', { name: 'Publicar mesmo assim' }).click();
+    await expect(folha.getByText('1 publicado, 1 sem alteração.')).toBeVisible();
+    expect(pedidos.filter((p) => p.caminho === `/pastas/${PASTA_ID}/publicar`).map((p) => p.corpo))
+      .toEqual([{ confirmarAvisos: false }, { confirmarAvisos: true }]);
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`publicar tudo: sem a permissão de publicar a dieta alterada, o botão fica desabilitado com o motivo (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const permissoes = PERMISSOES_DA_PASTA.filter((p) => p !== 'DIETA_PUBLICAR');
+    const { pedidos, errosDaPagina } = await abrirComPasta(page, {}, permissoes);
+    const folha = page.getByRole('dialog', { name: 'Plano 17' });
+    await expect(folha.getByText('Falta permissão para publicar a dieta.')).toBeVisible();
+    await expect(folha.getByRole('button', { name: 'Publicar tudo da pasta Plano 17' })).toBeDisabled();
+    expect(pedidos.some((p) => p.caminho.endsWith('/publicar'))).toBe(false);
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`publicar tudo: sem ler o treino o botão fica ativo e o 403 da API é explicado (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    // Sem TREINO_LER a Folha não sabe se o treino tem alteração; ele tem, e falta TREINO_PUBLICAR: a API recusa tudo.
+    const permissoes = PERMISSOES_DA_PASTA.filter((p) => p !== 'TREINO_LER' && p !== 'TREINO_PUBLICAR');
+    const planos: PlanoDaPastaFalsa[] = [
+      { tipo: 'treino', plano: { ...TREINO, rascunhoAlteradoDepoisDePublicar: true } },
+      { tipo: 'dieta', plano: { ...DIETA.plano } },
+    ];
+    const { pedidos, errosDaPagina } = await abrirComPasta(page, { planos }, permissoes);
+    const folha = page.getByRole('dialog', { name: 'Plano 17' });
+    const botao = folha.getByRole('button', { name: 'Publicar tudo da pasta Plano 17' });
+    await expect(botao).toBeEnabled();
+    await botao.click();
+    await expect(folha.getByText('Você não tem permissão para publicar todos os planos com alteração desta pasta. Nada foi publicado.')).toBeVisible();
+    await expect(folha.getByText('Rascunho', { exact: true })).toBeVisible();
+    expect(pedidos.filter((p) => p.metodo === 'POST' && p.caminho.endsWith('/publicar')).map((p) => p.caminho)).toEqual([`/pastas/${PASTA_ID}/publicar`]);
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`copiar pasta para outro aluno: aviso, aluno, título e o atalho para a ficha (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { pedidos, errosDaPagina } = await abrirComPasta(page, {}, PERMISSOES_DA_PASTA, {
+      'GET /alunos': { corpo: { itens: [{ ...DESTINO, id: ALUNO_ID, nome: ALUNO.nome }, DESTINO], total: 2 } },
+      [`GET /alunos/${DESTINO.id}`]: { corpo: { ...FICHA, id: DESTINO.id, nome: DESTINO.nome } },
+      [`GET /alunos/${DESTINO.id}/pastas`]: { corpo: [] },
+    });
+    await page.getByRole('dialog', { name: 'Plano 17' }).getByRole('button', { name: 'Mais ações da pasta Plano 17' }).click();
+    await page.getByRole('button', { name: /Copiar pasta para outro aluno/ }).click();
+
+    const folha = page.getByRole('dialog', { name: 'Copiar pasta para outro aluno' });
+    await expect(folha.getByText('Os planos chegam como rascunho, sem os ergogênicos da dieta e sem o questionário escolhido; nada é publicado para o aluno.')).toBeVisible();
+    await expect(folha.getByRole('textbox', { name: 'Título da nova pasta' })).toHaveValue('Plano 17');
+    await expect(folha.getByText('Escolha o aluno.')).toBeVisible();
+    await expect(folha.getByRole('button', { name: 'Copiar pasta', exact: true })).toBeDisabled();
+
+    // O próprio aluno não aparece entre os destinos.
+    await folha.getByRole('button', { name: 'Aluno: Escolher. Escolher.' }).click();
+    const escolha = page.getByRole('dialog', { name: 'Escolher aluno' });
+    await expect(escolha.getByRole('radio', { name: ALUNO.nome })).toHaveCount(0);
+    await escolha.getByRole('radio', { name: DESTINO.nome }).click();
+    await expect(escolha).toHaveCount(0);
+    await folha.getByRole('textbox', { name: 'Título da nova pasta' }).fill('Plano 17 da Aluna');
+    await folha.getByRole('button', { name: 'Copiar pasta', exact: true }).click();
+
+    await expect(folha).toHaveCount(0);
+    await expect(page.getByText('Pasta copiada para Aluna Destino, com os planos em rascunho.')).toBeVisible();
+    const post = pedidos.find((p) => p.metodo === 'POST' && p.caminho === `/pastas/${PASTA_ID}/copiar-para-aluno`);
+    expect(post?.corpo).toEqual({ alunoId: DESTINO.id, titulo: 'Plano 17 da Aluna', inicio: null, fim: null });
+    // Nunca navega sozinho: só pelo atalho do aviso.
+    expect(new URL(page.url()).pathname).toBe(`/treinador/alunos/${ALUNO_ID}`);
+    await page.getByRole('button', { name: 'Abrir ficha de Aluna Destino' }).click();
+    await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${DESTINO.id}$`));
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`copiar pasta: aluno anonimizado mostra o motivo na folha (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { errosDaPagina } = await abrirComPasta(page, { copia: { status: 409, codigo: 'ALUNO_ANONIMIZADO', mensagem: 'Aluno anonimizado.' } }, PERMISSOES_DA_PASTA, {
+      'GET /alunos': { corpo: { itens: [DESTINO], total: 1 } },
+    });
+    await page.getByRole('dialog', { name: 'Plano 17' }).getByRole('button', { name: 'Mais ações da pasta Plano 17' }).click();
+    await page.getByRole('button', { name: /Copiar pasta para outro aluno/ }).click();
+    const folha = page.getByRole('dialog', { name: 'Copiar pasta para outro aluno' });
+    await folha.getByRole('button', { name: 'Aluno: Escolher. Escolher.' }).click();
+    await page.getByRole('dialog', { name: 'Escolher aluno' }).getByRole('radio', { name: DESTINO.nome }).click();
+    await folha.getByRole('button', { name: 'Copiar pasta', exact: true }).click();
+    await expect(folha.getByText(/Este aluno foi anonimizado/)).toBeVisible();
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`finalizar: o peso nasce com o da atualização da pasta, com a nota para conferir (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { pedidos, errosDaPagina } = await abrirComPasta(page, { pesoSugerido: { pesoKg: 82.4, data: '2026-10-20' } });
+    await page.getByRole('dialog', { name: 'Plano 17' }).getByRole('button', { name: 'Finalizar pasta' }).click();
+    const folha = page.getByRole('dialog', { name: 'Finalizar “Plano 17”' });
+    const peso = folha.getByRole('textbox', { name: 'Peso (opcional)' });
+    await expect(peso).toHaveValue('82,4');
+    await expect(folha.getByText('Peso preenchido com o da atualização de 20/10/2026; confira antes de salvar.')).toBeVisible();
+
+    // Na data do peso da atualização, o aviso de substituição continua.
+    const data = folha.getByRole('textbox', { name: 'Data do peso' });
+    await data.fill('20/10/2026');
+    await expect(folha.getByText('Vai substituir o peso da atualização')).toBeVisible();
+    await data.fill('31/10/2026');
+    await expect(folha.getByText('Vai substituir o peso da atualização')).toHaveCount(0);
+
+    // Editável: o valor digitado vale e a nota some.
+    await peso.fill('81,9');
+    await expect(folha.getByText(/Peso preenchido com o da atualização/)).toHaveCount(0);
+    await folha.getByRole('button', { name: 'Finalizar pasta' }).click();
+    await expect(folha).toHaveCount(0);
+    const post = pedidos.find((p) => p.metodo === 'POST' && p.caminho === `/pastas/${PASTA_ID}/finalizar`);
+    expect(post?.corpo).toEqual({ data: '2026-10-31', pesoKg: 81.9, observacao: null });
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`finalizar: falha no peso sugerido deixa o campo vazio, sem erro na tela (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { pedidos, errosDaPagina } = await abrirComPasta(page, { pesoSugerido: 'erro' });
+    await page.getByRole('dialog', { name: 'Plano 17' }).getByRole('button', { name: 'Finalizar pasta' }).click();
+    const folha = page.getByRole('dialog', { name: 'Finalizar “Plano 17”' });
+    await expect.poll(() => pedidos.some((p) => p.caminho === `/pastas/${PASTA_ID}/peso-sugerido`)).toBe(true);
+    await expect(folha.getByRole('textbox', { name: 'Peso (opcional)' })).toHaveValue('');
+    await expect(folha.getByText(/Peso preenchido com o da atualização/)).toHaveCount(0);
+    await expect(folha.getByText(LINHA_DO_PESO)).toBeVisible();
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`C22: o ?pastaId= sai do endereço, recarregar não reabre e "Voltar à pasta" volta à mesma ficha (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { errosDaPagina } = await abrirComPasta(page);
+    const folha = page.getByRole('dialog', { name: 'Plano 17' });
+    await expect(folha).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${ALUNO_ID}$`));
+    await page.reload();
+    const linha = page.getByRole('button', { name: /^Pasta Plano 17, aberta/ });
+    await expect(linha).toBeVisible();
+    await expect(folha).toHaveCount(0);
+
+    // Da ficha para o editor e de volta: a Folha reabre na ficha que já estava aberta.
+    await linha.click();
+    await folha.getByRole('button', { name: 'Editar dieta do aluno' }).click();
+    await expect(page).toHaveURL(new RegExp(`/treinador/dietas/${PLANO_ID}$`));
+    await page.getByRole('link', { name: 'Voltar à pasta' }).click();
+    await expect(folha).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${ALUNO_ID}$`));
     expect(errosDaPagina).toEqual([]);
   });
 }

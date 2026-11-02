@@ -4,8 +4,9 @@ import { hojeIso, numeroParaTela } from './formatos';
 
 /**
  * Peso na finalização da pasta (reunião de 30/10): a atualização enviada já grava o peso respondido na data dela
- * (`AtualizacaoService`, só com a pergunta PESO respondida). A folha "Finalizar" mostra esse peso para o treinador não
- * digitar de novo, nunca o copia para o campo e avisa quando um peso novo na mesma data vai substituí-lo.
+ * (`AtualizacaoService`, só com a pergunta PESO respondida). A folha "Finalizar" mostra esse peso e avisa quando um peso
+ * novo na mesma data vai substituí-lo. Desde a D8 (02/11) o campo já nasce com o peso da atualização da pasta (rota
+ * `peso-sugerido`, `podeSugerirPeso` em `publicarPasta.ts`), editável e com a nota para conferir antes de salvar.
  */
 type Peso = Pick<RegistroPeso, 'data' | 'pesoKg'>;
 
