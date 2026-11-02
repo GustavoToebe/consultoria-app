@@ -1,4 +1,5 @@
 import type { CondicaoPergunta, ConteudoQuestionario, DestinoNoPerfil, FinalidadeQuestionario, OpcaoPergunta, PerguntaAtualizacao, TipoPergunta } from '../api/tipos';
+import { ANO_INICIAL_DE_REGISTRO, ANOS_A_FRENTE } from './datasValidas';
 
 /**
  * Limites do questionário (atualização, anamnese e inscrição). Mudou um valor, muda também `LimitesQuestionario` no Java
@@ -57,9 +58,9 @@ export const LIMITES_QUESTIONARIO = {
   telefoneDigitosMinimo: 10,
   telefoneDigitosMaximo: 13,
   emailTamanho: 254,
-  /** Resposta de DATA entre 1900 e 2100 (com `somentePassado`, até hoje). */
-  dataAnoMinimo: 1900,
-  dataAnoMaximo: 2100,
+  /** Resposta de DATA a partir de 1900; o fim é hoje (com `somentePassado`) ou 31/12 do ano de hoje + `dataAnosAFrente`. */
+  dataAnoMinimo: ANO_INICIAL_DE_REGISTRO,
+  dataAnosAFrente: ANOS_A_FRENTE,
   /** Imagem da pergunta ou da opção (o servidor confere de novo e regrava sem metadados). */
   imagemBytes: 300_000,
   imagemLado: 1600,

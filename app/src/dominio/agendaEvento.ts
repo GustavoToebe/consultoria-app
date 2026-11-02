@@ -5,6 +5,7 @@ import type {
 import { CHAVES_DA_AGENDA } from '../tema/tokens';
 import { DIAS_DA_SEMANA, DIAS_NO_TEXTO, diaDaSemanaDaData, horaValida, juntarComE } from './agendaPresencial';
 import { dataSemAnoCorrente } from './datasRelativas';
+import { dataNaFaixa, mensagemDaFaixa } from './datasValidas';
 import { dataDaTela, dataParaTela, diaDaSemanaIso, somarDias } from './formatos';
 
 // Início–fim e rótulos da repetição são os mesmos do compromisso (o evento passa `LIMITES_DO_EVENTO` nos limites de duração e
@@ -70,11 +71,6 @@ export type CampoDaRepeticaoDoEvento = 'tipo' | 'dias' | 'fim' | 'ate' | 'vezes'
 export type ErrosDaRepeticaoDoEvento = Partial<Record<CampoDaRepeticaoDoEvento, string>>;
 
 const ehFimDeSemana = (iso: string) => diaDaSemanaIso(iso) >= 6;
-const dataNoIntervalo = (iso: string) => {
-  const ano = Number(iso.slice(0, 4));
-  return ano >= LIMITES_DO_EVENTO.anoMinimo && ano <= LIMITES_DO_EVENTO.anoMaximo;
-};
-const FORA_DO_INTERVALO = `Use datas entre ${LIMITES_DO_EVENTO.anoMinimo} e ${LIMITES_DO_EVENTO.anoMaximo}.`;
 
 /** Trocar o tipo: "Toda semana" já nasce com o dia da semana da data marcado; os outros tipos não guardam dias. */
 export function trocarTipoDaRepeticaoDoEvento(r: FormularioDaRepeticaoDoEvento, tipo: TipoDeRepeticaoDeEvento, dataDoFormulario: string):
@@ -125,7 +121,7 @@ export function repeticaoDoEvento(f: FormularioDaRepeticaoDoEvento, primeira: st
     const data = dataDaTela(f.ate);
     if (data === null) erros.ate = 'Informe a data final.';
     else if (data === undefined) erros.ate = 'Data final inválida.';
-    else if (!dataNoIntervalo(data)) erros.ate = FORA_DO_INTERVALO;
+    else if (!dataNaFaixa(data, 'PLANEJAMENTO')) erros.ate = mensagemDaFaixa('Última data da repetição', 'PLANEJAMENTO');
     else { ate = data; repeticao.ate = data; }
   } else if (f.fim === 'VEZES') {
     const texto = f.vezes.trim();
@@ -299,7 +295,7 @@ export function pedidoDoEvento(f: FormularioDoEvento, opcoes: OpcoesDoPedidoDoEv
   if (descricao.length > LIMITES_DO_EVENTO.descricao) erros.descricao = `Use até ${LIMITES_DO_EVENTO.descricao} caracteres.`;
   const dataDoFormulario = dataDaTela(f.data);
   if (!dataDoFormulario) erros.data = dataDoFormulario === null ? 'Informe a data.' : 'Data inválida.';
-  else if (!dataNoIntervalo(dataDoFormulario)) erros.data = FORA_DO_INTERVALO;
+  else if (!dataNaFaixa(dataDoFormulario, 'PLANEJAMENTO')) erros.data = mensagemDaFaixa('Data do evento', 'PLANEJAMENTO');
   let hora: string | null = null;
   let duracaoMinutos: number | null = null;
   if (!f.diaInteiro) {

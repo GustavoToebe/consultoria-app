@@ -85,6 +85,25 @@ public final class FiltrosDeLista {
         }
     }
 
+    /**
+     * Como {@link #exigirPeriodo}, antes conferindo cada ponta na faixa de planejamento (C76: 01/01/2000 até 31/12 do ano
+     * de hoje + 5). Fora da faixa é 422 com o mesmo {@code codigo} e o parâmetro ({@code de} ou {@code ate}) em {@code fieldErrors}; a mensagem diz a faixa e nunca repete o valor recebido.
+     * Só para filtros de lista do treinador (o financeiro tem as próprias faixas e não usa este).
+     */
+    public static void exigirPeriodoNaFaixa(LocalDate de, LocalDate ate, int maximoDias, String codigo) {
+        LocalDate hoje = FaixaDeData.hoje();
+        for (var ponta : new FaixaDeData.Campo[] {
+                FaixaDeData.PLANEJAMENTO.campo("de", "Data inicial", de),
+                FaixaDeData.PLANEJAMENTO.campo("ate", "Data final", ate)}) {
+            if (ponta.valor() != null && !ponta.faixa().aceita(ponta.valor(), hoje)) {
+                String mensagem = ponta.faixa().mensagem(ponta.rotulo(), hoje);
+                throw new ValidacaoException(mensagem, codigo,
+                        java.util.List.of(new br.com.plataforma.comum.web.ApiError.FieldError(ponta.campo(), mensagem)));
+            }
+        }
+        exigirPeriodo(de, ate, maximoDias, codigo);
+    }
+
     /** A mensagem cita só o nome do parâmetro, nunca o valor recebido. */
     public static BadRequestException invalido(String campo) {
         return new BadRequestException("Filtro " + campo + " com valor desconhecido.", CODIGO);

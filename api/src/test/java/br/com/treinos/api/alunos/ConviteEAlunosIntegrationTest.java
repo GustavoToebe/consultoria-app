@@ -145,7 +145,7 @@ class ConviteEAlunosIntegrationTest extends AbstractIntegrationTest {
         assertThat(pesos.get(0).get("variacao").decimalValue()).isEqualByComparingTo("-0.9");
         assertThat(pesos.get(1).get("variacao").isNull()).isTrue();
 
-        api.post("/alunos/" + aluno + "/pesos", treinador, Map.of("data", hoje.plusDays(1).toString(), "pesoKg", 80), 400);
+        api.post("/alunos/" + aluno + "/pesos", treinador, Map.of("data", hoje.plusDays(1).toString(), "pesoKg", 80), 422);
         api.delete("/alunos/" + aluno + "/pesos/" + pesos.get(0).get("id").asString(), treinador, 204);
         assertThat(api.get("/alunos/" + aluno + "/pesos", treinador, 200)).hasSize(1);
     }

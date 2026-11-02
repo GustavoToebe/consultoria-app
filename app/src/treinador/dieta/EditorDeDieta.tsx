@@ -9,7 +9,8 @@ import { uidsComProblema } from '../../dominio/caminhos';
 import { AGUA_MAXIMA, AGUA_MINIMA, aguaValida, aplicarReceitaDeDieta, itensSemValorNoTotal, type ItemSemValor, novaRefeicao, novoItem, normalizarDieta, textoDoMacro, textoItensSemValor, totalDoDia } from '../../dominio/dieta';
 import { mover, remover, substituir } from '../../dominio/editorTreino';
 import { linhaDeErgogenico } from '../../dominio/ergogenicos';
-import { dataDaTela, dataParaTela, numeroParaTela, SEM_DADO } from '../../dominio/formatos';
+import { dataDaTelaNaFaixa } from '../../dominio/datasValidas';
+import { dataParaTela, numeroParaTela, SEM_DADO } from '../../dominio/formatos';
 import { descricaoDaPorcao, linhaDeSuplementacao } from '../../dominio/suplementos';
 import { novoUid } from '../../dominio/uid';
 import { useSessao } from '../../sessao/SessaoProvider';
@@ -456,10 +457,12 @@ function CamposDaDieta({ conteudo, aoMudar }: { conteudo: ConteudoDieta; aoMudar
         <View style={estilos.campoSup}>
           <CampoData
             rotulo="Data de início (opcional)"
+            nome="Data de início da dieta"
+            regra="PLANEJAMENTO"
             valor={inicio}
             aoMudar={(t) => {
               setInicio(t);
-              const iso = dataDaTela(t);
+              const iso = dataDaTelaNaFaixa(t, 'PLANEJAMENTO');
               if (iso !== undefined) aoMudar({ dataInicio: iso });
             }}
           />

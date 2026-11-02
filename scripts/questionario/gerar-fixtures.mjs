@@ -349,15 +349,22 @@ r('fotos_desligadas_sem_resposta_obrigatoria', Q(F({ obrigatoria: true })), {}, 
 // Tipos novos (dados fictícios).
 const D = (extra = {}) => ({ id: 'd', tipo: 'DATA', rotulo: 'd', obrigatoria: false, ...extra });
 const HOJE = { hoje: '2026-10-19' };
-r('data_valida', Q(D()), { d: '1990-05-10' });
-r('data_inexistente', Q(D()), { d: '1990-02-30' }, ['d']);
-r('data_formato_br', Q(D()), { d: '10/05/1990' }, ['d']);
-r('data_ano_1899', Q(D()), { d: '1899-12-31' }, ['d']);
-r('data_ano_2101', Q(D()), { d: '2101-01-01' }, ['d']);
+r('data_valida', Q(D()), { d: '1990-05-10' }, [], HOJE);
+r('data_inexistente', Q(D()), { d: '1990-02-30' }, ['d'], HOJE);
+r('data_formato_br', Q(D()), { d: '10/05/1990' }, ['d'], HOJE);
+// Faixa da pergunta DATA (C76): de 01/01/1900 até 31/12 do ano de hoje + 5 (2031, com hoje fixo em 2026); com somentePassado, até hoje.
+r('data_ano_1899', Q(D()), { d: '1899-12-31' }, ['d'], HOJE);
+r('data_ano_1900_primeiro_dia_ok', Q(D()), { d: '1900-01-01' }, [], HOJE);
+r('data_ano_0260', Q(D()), { d: '0260-11-01' }, ['d'], HOJE);
+r('data_ultimo_dia_do_ano_mais_5_ok', Q(D()), { d: '2031-12-31' }, [], HOJE);
+r('data_primeiro_dia_do_ano_mais_6', Q(D()), { d: '2032-01-01' }, ['d'], HOJE);
+r('data_ano_2101', Q(D()), { d: '2101-01-01' }, ['d'], HOJE);
 r('data_hoje_somente_passado_ok', Q(D({ somentePassado: true })), { d: '2026-10-19' }, [], HOJE);
 r('data_amanha_somente_passado', Q(D({ somentePassado: true })), { d: '2026-10-20' }, ['d'], HOJE);
+r('data_1900_somente_passado_ok', Q(D({ somentePassado: true })), { d: '1900-01-01' }, [], HOJE);
+r('data_1899_somente_passado', Q(D({ somentePassado: true })), { d: '1899-12-31' }, ['d'], HOJE);
 r('data_futura_sem_restricao_ok', Q(D()), { d: '2030-01-01' }, [], HOJE);
-r('data_numero', Q(D()), { d: 19900510 }, ['d']);
+r('data_numero', Q(D()), { d: 19900510 }, ['d'], HOJE);
 const T = (extra = {}) => ({ id: 'f', tipo: 'TELEFONE', rotulo: 'f', obrigatoria: false, ...extra });
 r('telefone_valido', Q(T()), { f: '(45) 99999-8888' });
 r('telefone_com_55', Q(T()), { f: '+55 45 99999-8888' });
@@ -504,7 +511,7 @@ const limites = {
   numeroAbsoluto: 1000000000, fotosPorPergunta: 6, perguntasFotos: 6, notaMinPadrao: 0, notaMinMaximo: 1, notaMaxMinimo: 2,
   notaMaxPadrao: 10, rotuloPontaTamanho: 40, descricaoSecaoTamanho: 4000, linhasMinimo: 1, linhasMaximo: 30, colunasMinimo: 2, colunasMaximo: 10,
   textoInformativoTamanho: 4000, declaracaoTamanho: 200, telefoneTamanho: 25, telefoneDigitosMinimo: 10,
-  telefoneDigitosMaximo: 13, emailTamanho: 254, dataAnoMinimo: 1900, dataAnoMaximo: 2100, imagemBytes: 300000, imagemLado: 1600,
+  telefoneDigitosMaximo: 13, emailTamanho: 254, dataAnoMinimo: 1900, dataAnosAFrente: 5, imagemBytes: 300000, imagemLado: 1600,
   objetivoTamanho: 200, cpfTamanho: 14, enderecoCepTamanho: 9, enderecoLogradouroTamanho: 200, enderecoNumeroTamanho: 20,
   enderecoComplementoTamanho: 100, enderecoBairroTamanho: 100, enderecoCidadeTamanho: 100, enderecoUfTamanho: 2,
 };

@@ -258,7 +258,7 @@ function FolhaAvaliacao({ alunoId, avaliacao, aoFechar, aoSalvar }: { alunoId: s
         </>
       }>
       <View style={estilos.campoData}>
-        <CampoData rotulo="Data" valor={data} aoMudar={setData} erro={campos.data} />
+        <CampoData rotulo="Data" nome="Data da avaliação" regra="REGISTRO" valor={data} aoMudar={setData} erro={campos.data} />
       </View>
       <Texto variante="secao" nivel={3}>Circunferências (cm)</Texto>
       <Texto variante="pequeno">Preencha só o que foi medido; ao menos uma medida. O peso vem do registro de peso da mesma data.</Texto>

@@ -1,4 +1,5 @@
 import type { AvaliacaoFisica, CampoDaMedida, DadosAvaliacaoFisica, MedidasCorporais } from '../api/avaliacaoFisicaTipos';
+import { dataNaFaixa, mensagemDaFaixa } from './datasValidas';
 import { SEM_DADO } from './formatos';
 
 /**
@@ -12,7 +13,6 @@ export const MEDIDA_MAXIMA_CM = 300;
 export const OBSERVACAO_MAXIMA = 1000;
 export const COMPARAR_MINIMO = 2;
 export const COMPARAR_MAXIMO = 4;
-const PRIMEIRA_DATA = '1900-01-01';
 
 /** Na ordem da tela, do PDF e da API (`Medidas.porCampo`). */
 export const MEDIDAS: readonly { campo: CampoDaMedida; rotulo: string }[] = [
@@ -52,8 +52,7 @@ function casasDecimais(v: number): number {
 export function problemasDaAvaliacao(d: DadosAvaliacaoFisica, hoje: string): Record<string, string> {
   const erros: Record<string, string> = {};
   if (!d.data) erros.data = 'Informe a data da avaliação.';
-  else if (d.data > hoje) erros.data = 'A data não pode ser no futuro.';
-  else if (d.data < PRIMEIRA_DATA) erros.data = 'Confira a data.';
+  else if (!dataNaFaixa(d.data, 'REGISTRO', hoje)) erros.data = mensagemDaFaixa('Data da avaliação', 'REGISTRO', hoje);
   let alguma = false;
   for (const { campo } of MEDIDAS) {
     const v = d.medidas[campo];

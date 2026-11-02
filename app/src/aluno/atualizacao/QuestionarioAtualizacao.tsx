@@ -9,6 +9,7 @@ import {
   ajudaDoNumero, alternarMarcado, colunasDasOpcoes, escolhaParaSimNao, NAO_SE_APLICA, progressoDasSecoes,
   respostasDaGrade, simNaoParaEscolha, textoDaNota, textoDaResposta, textoDoProgresso, type SimNao,
 } from '../../dominio/atualizacaoQuestionario';
+import { erroDaData, regraDaPerguntaData } from '../../dominio/datasValidas';
 import { dataDaTela, dataParaTela, mascaraDeNumero, numeroParaTela } from '../../dominio/formatos';
 import { textoDaParte } from '../../dominio/paginasDoQuestionario';
 import { escalaDaNota, LIMITES_QUESTIONARIO as L, TIPOS_DE_PERGUNTA } from '../../dominio/questionario';
@@ -253,7 +254,7 @@ function Controle({ p, valor, dataAtualizacao, resumo, erro, nota, carregarFotoD
     <CaixaSelecao rotulo={p.declaracao ?? 'Li e concordo.'} marcado={valor === true} aoMudar={(marcado) => aoMudar(marcado ? true : null)} />
     {ajudaTexto}{mensagemErro}
   </View>;
-  if (p.tipo === 'DATA') return <CampoDeData rotulo={rotulo} valor={valor} ajuda={ajuda ?? (p.somentePassado ? 'Hoje ou antes.' : undefined)} erro={erro} aoMudar={aoMudar} />;
+  if (p.tipo === 'DATA') return <CampoDeData rotulo={rotulo} valor={valor} ajuda={ajuda ?? (p.somentePassado ? 'Hoje ou antes.' : undefined)} erro={erro} somentePassado={p.somentePassado === true} aoMudar={aoMudar} />;
   // Telefone e CPF só aceitam números e se formatam enquanto se digita ("(45) 99999-8888", "123.456.789-09"): o servidor aceita
   // exatamente essas formas.
   if (p.tipo === 'TELEFONE') return <Campo rotulo={rotulo} valor={typeof valor === 'string' ? mascaraTelefone(valor) : ''} aoMudar={(t) => aoMudar(mascaraTelefone(t))}
@@ -371,12 +372,13 @@ function OpcoesComImagem({ p, valor, aoMudar }: { p: PerguntaAtualizacao; valor:
  * Data digitada DD/MM/AAAA (com o calendário do campo). A resposta é AAAA-MM-DD; enquanto o texto não é uma data inteira
  * ele vai como está, e a conferência do envio aponta o campo (o rascunho não perde o que foi digitado).
  */
-function CampoDeData({ rotulo, valor, ajuda, erro, aoMudar }: {
-  rotulo: string; valor: RespostaAtualizacao; ajuda?: string; erro?: string; aoMudar: (valor: RespostaAtualizacao) => void;
+function CampoDeData({ rotulo, valor, ajuda, erro, somentePassado, aoMudar }: {
+  rotulo: string; valor: RespostaAtualizacao; ajuda?: string; erro?: string; somentePassado: boolean; aoMudar: (valor: RespostaAtualizacao) => void;
 }) {
   const [texto, setTexto] = useState(() => (typeof valor === 'string' ? dataParaTela(valor) || valor : ''));
   return <View style={estilos.pergunta}>
-    <CampoData rotulo={rotulo} valor={texto} erro={erro} aoMudar={(t) => {
+    {/* Data fora da faixa (nascimento antes de 1900, ano 0260): a mensagem do campo, no lugar do aviso genérico do envio. */}
+    <CampoData rotulo={rotulo} valor={texto} erro={erroDaData(texto, rotulo, regraDaPerguntaData(somentePassado)) ?? erro} aoMudar={(t) => {
       setTexto(t);
       const iso = dataDaTela(t);
       aoMudar(t.trim() === '' ? null : typeof iso === 'string' ? iso : t);

@@ -87,7 +87,7 @@ export function CamposDoCompromisso(p: Props) {
   });
 
   const horario = <CamposDoHorario data={form.data} hora={form.hora} duracao={form.duracao} limites={LIMITES_COMPROMISSO} compacto={!completo}
-    erros={{ data: erros.data, hora: erros.hora, duracao: erros.duracao }} aoMudarData={(t) => mudar('data', t)}
+    erros={{ data: erros.data, hora: erros.hora, duracao: erros.duracao }} aoMudarData={(t) => mudar('data', t)} nomeDaData="Data do compromisso"
     aoMudarHora={(h) => mudar('hora', h)} aoMudarDuracao={(d) => mudar('duracao', d)} />;
   const repeticao = p.comRepeticao ? (
     <View ref={repeticaoRef} style={estilos.grupo}>
@@ -224,7 +224,7 @@ function DetalhesDaRepeticao({ repeticao: r, data, erros, hoje, comDias, aoMudar
         {erros.dias ? <ErroDoCampo texto={erros.dias} /> : null}
         <Escolha rotulo="Termina" valor={r.fim} opcoes={OPCOES_DO_FIM} aoMudar={(fim) => aoMudar({ ...r, fim })} />
         {r.fim === 'DATA'
-          ? <CampoData rotulo="Última data" valor={r.ate} aoMudar={(ate) => aoMudar({ ...r, ate })} erro={erros.ate} />
+          ? <CampoData rotulo="Última data" nome="Última data da repetição" regra="PLANEJAMENTO" valor={r.ate} aoMudar={(ate) => aoMudar({ ...r, ate })} erro={erros.ate} />
           : <Campo rotulo="Quantas vezes" valor={r.vezes} aoMudar={(t) => aoMudar({ ...r, vezes: t.replace(/\D/g, '').slice(0, 2) })}
             erro={erros.vezes} ajuda={`De ${OCORRENCIAS_MINIMO} a ${OCORRENCIAS_MAXIMO}, contando a primeira.`}
             keyboardType="number-pad" inputMode="numeric" maxLength={2} numerico />}

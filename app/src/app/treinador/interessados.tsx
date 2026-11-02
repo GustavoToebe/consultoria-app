@@ -259,10 +259,10 @@ function SeletoresDeInteressados({ visiveis, filtros, aoMudar, opcoesDeSituacao,
           aoMudar={(m) => aoMudar({ ...filtros, origens: OPCOES_FILTRO_ORIGEM.map((o) => o.valor).filter((v) => m.has(v)) as FiltroDeOrigem[] })} style={estilos.cheio} />
       </CelulaDoFiltro>
       <CelulaDoFiltro>
-        <CamposDePeriodo rotulo="Entrada" valor={filtros.entrada} aoMudar={(entrada) => aoMudar({ ...filtros, entrada })} />
+        <CamposDePeriodo rotulo="Entrada" regra="PLANEJAMENTO" valor={filtros.entrada} aoMudar={(entrada) => aoMudar({ ...filtros, entrada })} />
       </CelulaDoFiltro>
       <CelulaDoFiltro>
-        <CamposDePeriodo rotulo="Última atividade" valor={filtros.atividade} aoMudar={(atividade) => aoMudar({ ...filtros, atividade })} />
+        <CamposDePeriodo rotulo="Última atividade" regra="PLANEJAMENTO" valor={filtros.atividade} aoMudar={(atividade) => aoMudar({ ...filtros, atividade })} />
       </CelulaDoFiltro>
     </>
   );

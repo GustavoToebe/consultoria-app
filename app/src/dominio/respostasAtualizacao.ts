@@ -2,6 +2,7 @@ import type { CondicaoPergunta, ConteudoQuestionario, PerguntaAtualizacao, Respo
 import { cpfValido, telefoneValido as telefoneDoCadastroValido } from '@plataforma/web';
 
 import { CAMPOS_DO_ENDERECO, errosDoEndereco } from './cadastroDoAluno';
+import { dataNaFaixa, regraDaPerguntaData } from './datasValidas';
 import { hojeIso } from './formatos';
 import { escalaDaNota, LIMITES_QUESTIONARIO, maximoDeFotos } from './questionario';
 
@@ -41,7 +42,7 @@ function fotosValidas(p: PerguntaAtualizacao, v: unknown) {
   return v.every((id) => typeof id === 'string' && UUID.test(id) && !vistos.has(id.toLowerCase()) && !!vistos.add(id.toLowerCase()));
 }
 
-/** AAAA-MM-DD de verdade (sem 30/02), entre 1900 e 2100; com `somentePassado`, até `hoje`. */
+/** AAAA-MM-DD de verdade (sem 30/02), de 1900 até hoje com `somentePassado` e, sem ele, até 31/12 do ano de hoje + 5. */
 function dataValida(p: PerguntaAtualizacao, v: unknown, hoje: string) {
   if (typeof v !== 'string') return false;
   const m = DATA.exec(v);
@@ -49,8 +50,7 @@ function dataValida(p: PerguntaAtualizacao, v: unknown, hoje: string) {
   const [a, mes, dia] = [Number(m[1]), Number(m[2]), Number(m[3])];
   const d = new Date(Date.UTC(a, mes - 1, dia));
   if (d.getUTCFullYear() !== a || d.getUTCMonth() !== mes - 1 || d.getUTCDate() !== dia) return false;
-  if (a < LIMITES_QUESTIONARIO.dataAnoMinimo || a > LIMITES_QUESTIONARIO.dataAnoMaximo) return false;
-  return !(p.somentePassado === true && v > hoje);
+  return dataNaFaixa(v, regraDaPerguntaData(p.somentePassado), hoje);
 }
 
 /** Só dígitos, espaço, parênteses, +, - e ponto; de 10 a 13 dígitos (DDD + número, com ou sem o 55). */

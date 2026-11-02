@@ -22,7 +22,7 @@ describe('validação (espelho de ValidacaoDaAvaliacao)', () => {
 
   it('data obrigatória, não futura nem antes de 1900', () => {
     expect(Object.keys(problemasDaAvaliacao({ data: null, medidas: medidas({ cintura: 80 }), observacao: null }, HOJE))).toEqual(['data']);
-    expect(problemasDaAvaliacao({ data: '2026-10-29', medidas: medidas({ cintura: 80 }), observacao: null }, HOJE).data).toBe('A data não pode ser no futuro.');
+    expect(problemasDaAvaliacao({ data: '2026-10-29', medidas: medidas({ cintura: 80 }), observacao: null }, HOJE).data).toBe('Data da avaliação: use uma data entre 01/01/1900 e hoje');
     expect(Object.keys(problemasDaAvaliacao({ data: '1899-12-31', medidas: medidas({ cintura: 80 }), observacao: null }, HOJE))).toEqual(['data']);
   });
 

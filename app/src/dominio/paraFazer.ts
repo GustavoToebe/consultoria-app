@@ -3,9 +3,10 @@ import type { CobrancaDoAluno } from '../api/financeiroTipos';
 import type { Atualizacao } from '../api/tipos';
 import type { TipoSelo } from '../ui/Selo';
 import { dataEmBrasilia, horaEmBrasilia } from './agendaPresencial';
+import { DIAS_MAXIMOS_PARA_CONTAR_ATRASO, desdeQuandoAtrasou } from './atualizacao';
 import { dataSemAnoCorrente } from './datasRelativas';
 import { informacaoDaCobranca, pagamentoPendente, type ComoPagar } from './financeiro';
-import { centavosParaTela, dataCurta } from './formatos';
+import { centavosParaTela, dataCurta, hojeIso } from './formatos';
 
 export interface ItemParaFazer {
   titulo: string;
@@ -29,7 +30,7 @@ export const ITEM_ANAMNESE: ItemParaFazer = {
  * curto e diz de quê ("Até 20/10", "Atrasada 2 dias") e a frase vai no detalhe. Vermelho só para atrasada, verde para
  * enviada/resposta nova e neutro para o resto (âmbar e vermelho juntos na mesma lista faziam tudo parecer urgente).
  */
-export function itemDaAtualizacao(a: Atualizacao): ItemParaFazer {
+export function itemDaAtualizacao(a: Atualizacao, hoje: string = hojeIso()): ItemParaFazer {
   const titulo = 'Atualização do período';
   const data = a.atrasoAte ?? a.dataAtualizacao;
   const dia = data ? dataCurta(data) : '—';
@@ -40,7 +41,7 @@ export function itemDaAtualizacao(a: Atualizacao): ItemParaFazer {
     return { titulo, detalhe: 'Enviada. Aguardando o treinador.', selo: { texto: 'Enviada', tipo: 'sucesso' }, responder: false };
   }
   if (a.fase === 'ATRASADA') {
-    const dias = `${a.diasDeAtraso} ${a.diasDeAtraso === 1 ? 'dia' : 'dias'}`;
+    const dias = a.diasDeAtraso > DIAS_MAXIMOS_PARA_CONTAR_ATRASO ? `desde ${desdeQuandoAtrasou(a.diasDeAtraso, hoje)}` : `${a.diasDeAtraso} ${a.diasDeAtraso === 1 ? 'dia' : 'dias'}`;
     return { titulo, detalhe: `Era para ${dia}. O rascunho fica salvo neste aparelho.`, selo: { texto: `Atrasada ${dias}`, tipo: 'perigo' }, responder: true };
   }
   if (a.fase === 'ABERTA') {
