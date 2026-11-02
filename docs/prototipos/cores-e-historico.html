@@ -1,0 +1,775 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prévia · Cores por tipo de série, dieta, histórico e receitas (Frente G)</title>
+<style>
+/* Prévia da Frente G (02/11/2026): C35, C50/C74, C45 e C16. Dados fictícios. Nada aqui fala com a API.
+   Sem biblioteca, sem fonte externa: a pilha do sistema no lugar da Inter. */
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.4; background: #E4E4E7; color: #111114; -webkit-font-smoothing: antialiased; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+.num { font-variant-numeric: tabular-nums; }
+:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+@media (prefers-reduced-motion: no-preference) {
+  .anima { transition: background-color .12s, border-color .12s, transform .12s; }
+  .gira { transition: transform .15s; }
+}
+
+/* ---------- barra da prévia (fora do app, cores fixas) ---------- */
+.previa-barra { position: sticky; top: 0; z-index: 50; background: #111114; color: #F4F4F5; padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; }
+.previa-barra b { font-size: 14px; }
+.previa-barra .grupo { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.previa-barra .grupo > span { font-size: 12px; color: #A1A1AA; margin-right: 2px; }
+.previa-barra button { min-height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid #52525B; background: #18181B; color: #F4F4F5; font-weight: 600; font-size: 13px; }
+.previa-barra button[aria-pressed="true"] { background: #F4F4F5; color: #111114; border-color: #F4F4F5; }
+.previa-barra nav { display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px; }
+.previa-barra nav a { color: #E4E4E7; }
+.doc { max-width: 1340px; margin: 0 auto; padding: 24px 16px 64px; display: flex; flex-direction: column; gap: 28px; }
+.doc > header h1 { font-size: 24px; line-height: 30px; margin: 0 0 6px; }
+.doc p { margin: 0 0 8px; max-width: 900px; }
+.doc section > h2 { font-size: 20px; margin: 0 0 4px; }
+.doc section > .nota { color: #3F3F46; font-size: 13px; margin-bottom: 12px; max-width: 900px; }
+.doc ul.decisoes { margin: 0 0 12px; padding-left: 20px; max-width: 980px; font-size: 13px; }
+.doc ul.decisoes li { margin-bottom: 4px; }
+.rolagem { overflow-x: auto; padding-bottom: 8px; }
+.estados { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; font-size: 12px; }
+.estados button { min-height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid #A1A1AA; background: #fff; font-weight: 600; font-size: 12px; }
+.estados button[aria-pressed="true"] { background: #111114; color: #fff; border-color: #111114; }
+table.dados { border-collapse: collapse; font-size: 12px; background: #fff; width: 100%; }
+table.dados th, table.dados td { border: 1px solid #D4D4D8; padding: 4px 8px; text-align: left; vertical-align: middle; }
+table.dados th { background: #F4F4F5; position: sticky; top: 52px; }
+table.dados td.r { text-align: right; font-variant-numeric: tabular-nums; }
+table.dados tr.menor td { background: #FEF3C7; font-weight: 700; }
+.amostra { display: inline-block; width: 14px; height: 14px; border-radius: 3px; border: 1px solid #0003; vertical-align: -2px; margin-right: 4px; }
+.resumo-contraste { background: #fff; border: 1px solid #D4D4D8; border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; font-size: 13px; }
+
+/* ---------- quadro (o "aparelho") ---------- */
+.quadro { background: var(--fundo); color: var(--texto); border: 1px solid #A1A1AA; border-radius: 16px; overflow: hidden; position: relative; margin: 0 auto; }
+.quadro.l390 { width: 390px; }
+.quadro.l1280 { width: 1280px; }
+.quadro .rotulo-quadro { position: absolute; top: 6px; right: 10px; font-size: 11px; color: var(--textoSuave); z-index: 3; }
+
+/* ---------- peças do app (tokens por variável, nunca hex) ---------- */
+.coluna { padding: 16px 16px 24px; display: flex; flex-direction: column; gap: 24px; }
+.l1280 .coluna { max-width: 720px; margin: 0 auto; padding: 24px 0 32px; }
+.cabecalho { display: flex; align-items: center; gap: 8px; }
+.cabecalho .titulos { flex: 1; min-width: 0; }
+.h1 { font-size: 24px; line-height: 30px; font-weight: 700; margin: 0; letter-spacing: -.01em; }
+.sub { color: var(--textoSuave); font-size: 13px; margin: 2px 0 0; }
+.ib { width: 44px; height: 44px; display: inline-grid; place-items: center; border-radius: 12px; border: 1px solid var(--bordaCampo); background: var(--superficie); color: var(--texto); flex-shrink: 0; }
+.cartao { background: var(--superficie); border: 2px solid var(--borda); border-radius: 12px; overflow: hidden; }
+.faixa { background: var(--superficie3); border-bottom: 3px solid var(--bordaCampo); padding: 10px 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: 52px; }
+.faixa .tit { flex: 1; min-width: 160px; display: flex; flex-direction: column; gap: 2px; }
+.faixa .tit b { font-size: 16px; }
+.faixa .tit small { color: var(--textoSuave); font-size: 13px; }
+.corpo { padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.suave { color: var(--textoSuave); }
+.pequeno { font-size: 13px; }
+.secao { font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; margin: 0; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 12px; border: 1px solid var(--bordaCampo); background: var(--superficie); color: var(--texto); font-weight: 600; }
+.btn.primario { background: var(--marca); border-color: var(--marca); color: var(--sobreMarca); }
+.btn.fantasma { border-color: transparent; background: transparent; }
+.btn.cheio { width: 100%; }
+.btn[disabled] { opacity: 1; color: var(--textoSuave); border-style: dashed; cursor: not-allowed; }
+.motivo { font-size: 12px; color: var(--textoSuave); }
+.selo { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--c); color: var(--c); border-radius: 8px; padding: 2px 6px; font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; white-space: nowrap; }
+.selo.sucesso { --c: var(--sucesso); } .selo.atencao { --c: var(--atencao); } .selo.perigo { --c: var(--perigo); } .selo.neutro { --c: var(--neutro); }
+/* técnica: etiqueta neutra com "i" (o SeloComExplicacao), nunca cor de tipo nem de status */
+.etiqueta { display: inline-flex; align-items: center; gap: 4px; min-height: 28px; padding: 0 8px; border: 1px solid var(--bordaCampo); border-radius: 6px; font-size: 12px; font-weight: 600; color: var(--texto); background: var(--superficie); white-space: nowrap; }
+.abas { display: flex; border-bottom: 1px solid var(--borda); gap: 4px; overflow-x: auto; }
+.aba { min-height: 44px; padding: 0 14px; border: 0; background: none; color: var(--textoSuave); font-weight: 600; border-bottom: 3px solid transparent; white-space: nowrap; }
+.aba[aria-selected="true"] { color: var(--texto); border-bottom-color: var(--marca); }
+.campo-num { display: flex; align-items: stretch; height: 48px; border: 1px solid var(--bordaCampo); border-radius: 12px; background: var(--campo); overflow: hidden; min-width: 0; flex: 1; max-width: 140px; }
+.campo-num span.v { flex: 1; display: flex; align-items: center; padding: 0 10px; font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.campo-num span.u { display: grid; place-items: center; padding: 0 8px; background: var(--superficie3); color: var(--textoSuave); font-size: 13px; border-left: 1px solid var(--bordaCampo); }
+.marcar { width: 48px; height: 48px; border-radius: 12px; border: 2px solid var(--bordaCampo); background: var(--superficie); display: grid; place-items: center; color: var(--texto); flex-shrink: 0; }
+.marcar.feito { background: var(--sucesso); border-color: var(--sucesso); color: var(--superficie); }
+.linha-campos { display: flex; align-items: flex-end; gap: 8px; }
+.esqueleto { background: var(--superficie3); border-radius: 8px; height: 14px; }
+.esqueleto.alto { height: 72px; border-radius: 12px; }
+@media (prefers-reduced-motion: no-preference) { .esqueleto { animation: pulsa 1.2s ease-in-out infinite alternate; } }
+@keyframes pulsa { from { opacity: 1; } to { opacity: .55; } }
+.alerta { border: 1px solid var(--c); border-radius: 12px; padding: 12px 14px; display: flex; gap: 10px; align-items: flex-start; background: var(--alertaFundo); color: var(--c); }
+.alerta.perigo { --c: var(--perigo); --alertaFundo: var(--perigoTingido); }
+.alerta.neutro { --c: var(--texto); --alertaFundo: var(--superficie3); border-color: var(--bordaCampo); }
+.vazio { text-align: center; padding: 20px 8px; display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.vazio b { font-size: 16px; }
+
+/* barra inferior do aluno (limitada a 720 no PC) */
+.barra-aluno { border-top: 1px solid var(--borda); background: var(--superficie); }
+.barra-aluno .itens { display: flex; }
+.l1280 .barra-aluno .itens { max-width: 720px; margin: 0 auto; }
+.barra-aluno button { flex: 1; min-height: 56px; border: 0; background: none; color: var(--textoSuave); font-size: 11px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+.barra-aluno button.ativo { color: var(--marcaTexto); font-weight: 700; }
+.sinc { display: flex; justify-content: center; padding: 6px; font-size: 12px; color: var(--textoSuave); border-top: 1px solid var(--divisor); background: var(--superficie); }
+
+/* ====================== C35: série com cor por tipo ====================== */
+/* Marcador do tipo = barra de 6 px à esquerda + ponto antes do nome + nome na cor. Forma diferente da do status
+   (status é selo de contorno em caixa alta). A série concluída continua com a borda e o tingido verdes. */
+.serie { position: relative; border: 1px solid var(--borda); border-left: 6px solid var(--tipo); border-radius: 12px; background: var(--superficie2); padding: 12px 12px 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.serie.feita { border-color: var(--sucesso); border-left-color: var(--tipo); background: var(--feitaFundo); }
+.serie.vazado { border-left: 6px dashed var(--bordaCampo); }
+.serie .cab { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; }
+.serie .nome { font-size: 16px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+.ponto { width: 10px; height: 10px; border-radius: 50%; background: var(--tipo); display: inline-block; flex-shrink: 0; }
+.ponto.vazado { background: transparent; border: 2px solid var(--bordaCampo); }
+.tipo-nome { color: var(--tipo); text-decoration: underline dotted; text-underline-offset: 3px; background: none; border: 0; padding: 0; font-weight: 700; font-size: 16px; min-height: 32px; }
+.vazado-nome { color: var(--texto); }
+.meta { background: var(--superficie3); border-left: 3px solid var(--bordaCampo); border-radius: 12px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; }
+.meta .valor { font-size: 16px; font-weight: 600; line-height: 22px; }
+.linha-info { font-size: 13px; }
+.linha-info b { font-weight: 600; }
+/* bloco único do Cluster / Rest-pause: uma caixa, etapas como linhas, pausa como conector */
+.etapas { border: 1px solid var(--borda); border-radius: 12px; background: var(--superficie); overflow: hidden; }
+.etapa { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.etapa + .conector + .etapa, .etapa + .etapa { border-top: 1px solid var(--divisor); }
+.etapa.atual { background: var(--superficie3); box-shadow: inset 3px 0 0 var(--bordaCampo); }
+.etapa .rot { font-weight: 600; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.etapa .rot .n { width: 24px; height: 24px; border-radius: 6px; display: inline-grid; place-items: center; font-size: 12px; font-weight: 700; border: 1px solid var(--bordaCampo); background: var(--superficie); }
+.etapa.feita .rot .n { background: var(--sucesso); border-color: var(--sucesso); color: var(--superficie); }
+.conector { display: flex; align-items: center; gap: 8px; padding: 4px 12px; font-size: 12px; color: var(--textoSuave); border-top: 1px dashed var(--divisor); border-bottom: 1px dashed var(--divisor); background: var(--superficie2); }
+.conector .btn { min-height: 36px; padding: 0 10px; font-size: 12px; margin-left: auto; }
+.progresso-etapas { display: flex; gap: 4px; }
+.progresso-etapas i { flex: 1; height: 6px; border-radius: 3px; background: var(--divisor); }
+.progresso-etapas i.f { background: var(--tipo); }
+.legenda { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--textoSuave); }
+.legenda span { display: inline-flex; align-items: center; gap: 5px; }
+.faixa-treino { display: flex; gap: 8px; flex-wrap: wrap; }
+.faixa-treino div { flex: 1; min-width: 90px; background: var(--superficie2); border: 1px solid var(--borda); border-radius: 12px; padding: 8px 10px; }
+.faixa-treino b { display: block; font-size: 16px; font-variant-numeric: tabular-nums; }
+.faixa-treino small { color: var(--textoSuave); font-size: 12px; }
+.lado-a-lado { display: grid; grid-template-columns: 1fr; gap: 24px; }
+
+/* ====================== identificação (divisão e refeição) ====================== */
+/* Faixa tingida + barra + quadrado com letra/número na cor (forma diferente do ponto do tipo). */
+.faixa.ident { background: var(--identTingido); border-left: 6px solid var(--ident); border-bottom-color: var(--bordaCampo); }
+.letra { width: 32px; height: 32px; border-radius: 8px; background: var(--ident); color: var(--identSobre); display: inline-grid; place-items: center; font-weight: 800; font-size: 15px; flex-shrink: 0; }
+.letra.p { width: 24px; height: 24px; font-size: 12px; border-radius: 6px; }
+.qtd { display: inline-flex; align-items: center; min-height: 26px; padding: 0 8px; border-radius: 6px; background: var(--identTingido); border: 1px solid var(--ident); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.item-dieta + .item-dieta { border-top: 1px solid var(--divisor); padding-top: 10px; }
+.item-dieta { display: flex; flex-direction: column; gap: 4px; }
+.item-dieta .l1 { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.item-dieta .l1 b { font-weight: 600; }
+.totais { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.totais div { background: var(--superficie2); border: 1px solid var(--borda); border-radius: 12px; padding: 8px; text-align: center; }
+.totais b { display: block; font-size: 18px; font-variant-numeric: tabular-nums; }
+.totais small { font-size: 12px; color: var(--textoSuave); }
+.escolha-opcoes { background: var(--superficie3); border-left: 3px solid var(--bordaCampo); border-radius: 12px; padding: 8px 10px; }
+
+/* ====================== C45: histórico ====================== */
+.periodo { display: flex; gap: 10px; align-items: flex-start; background: var(--superficie2); border: 1px solid var(--bordaCampo); border-radius: 12px; padding: 10px 12px; }
+.periodo b { display: block; }
+.periodo .acao { margin-left: auto; }
+.tabela-cargas { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.tabela-cargas th { text-align: left; font-size: 12px; color: var(--textoSuave); font-weight: 600; border-bottom: 1px solid var(--bordaCampo); padding: 6px 8px; }
+.tabela-cargas td { border-bottom: 1px solid var(--divisor); padding: 8px; }
+.tabela-cargas .r { text-align: right; }
+.exercicio-hist { border: 1px solid var(--borda); border-radius: 12px; overflow: hidden; }
+.exercicio-hist .cab { background: var(--superficie2); padding: 8px 10px; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.semana { border: 2px solid var(--borda); border-radius: 12px; overflow: hidden; background: var(--superficie); }
+.semana > button.cab { width: 100%; text-align: left; border: 0; background: var(--superficie3); border-bottom: 3px solid var(--bordaCampo); min-height: 56px; padding: 8px 12px; display: flex; align-items: center; gap: 10px; color: var(--texto); }
+.semana.fechada > button.cab { border-bottom: 0; }
+.semana .cab .tit { flex: 1; display: flex; flex-direction: column; }
+.semana .cab .tit b { font-size: 15px; }
+.semana .cab .tit small { color: var(--textoSuave); font-size: 13px; }
+.dias-semana { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; padding: 10px 12px 0; }
+.dias-semana div { text-align: center; font-size: 11px; color: var(--textoSuave); display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.dias-semana .marca-dia { width: 26px; height: 26px; border-radius: 6px; border: 1px dashed var(--divisor); display: grid; place-items: center; font-size: 12px; font-weight: 800; }
+.dias-semana .marca-dia.com { border: 0; background: var(--ident); color: var(--identSobre); }
+.dia { border-top: 1px solid var(--divisor); }
+.dia > button { width: 100%; border: 0; background: none; min-height: 56px; padding: 8px 12px; display: flex; align-items: center; gap: 10px; text-align: left; color: var(--texto); }
+.dia > button .t { flex: 1; display: flex; flex-direction: column; }
+.dia > button .t small { color: var(--textoSuave); font-size: 13px; }
+.dia .conteudo { padding: 0 12px 12px 46px; display: flex; flex-direction: column; gap: 8px; }
+.dia .ex b { font-weight: 600; display: block; }
+.grafico { width: 100%; height: 140px; display: block; }
+.l1280 .duas { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.duas { display: grid; grid-template-columns: 1fr; gap: 12px; }
+
+/* ====================== C16: Usar receita ====================== */
+.editor-fundo { padding: 16px; display: flex; flex-direction: column; gap: 12px; filter: saturate(.7); }
+.veu { position: absolute; inset: 0; background: rgba(0,0,0,.45); }
+.folha { position: absolute; background: var(--superficie); border: 2px solid var(--borda); display: flex; flex-direction: column; overflow: hidden; z-index: 2; }
+.l1280 .folha { width: 600px; left: 50%; transform: translateX(-50%); top: 40px; bottom: 40px; border-radius: 12px; }
+.l390 .folha { left: 0; right: 0; top: 48px; bottom: 0; border-radius: 16px 16px 0 0; }
+.folha > .faixa { flex-shrink: 0; }
+.folha .rolar > * { flex-shrink: 0; }
+.folha .rolar { overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+.campo-busca { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px; border: 1px solid var(--bordaCampo); border-radius: 12px; background: var(--campo); color: var(--textoSuave); }
+.grupo-tecnica { display: flex; flex-direction: column; gap: 8px; }
+.grupo-tecnica > .secao { display: flex; gap: 8px; align-items: center; }
+.grupo-tecnica + .grupo-tecnica > .secao { border-top: 1px solid var(--divisor); padding-top: 10px; }
+.grupo-tecnica > .secao small { text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--textoSuave); font-size: 12px; }
+.receita { border: 1px solid var(--borda); border-radius: 12px; background: var(--superficie2); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.receita .l1 { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.receita .l1 b { font-size: 15px; }
+.composicao { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 13px; }
+.composicao span { display: inline-flex; align-items: center; gap: 5px; }
+.faixa-composicao { display: flex; height: 6px; border-radius: 3px; overflow: hidden; gap: 2px; }
+.faixa-composicao i { display: block; height: 100%; background: var(--tipo); }
+.faixa-composicao i.vazado { background: transparent; box-shadow: inset 0 0 0 1px var(--bordaCampo); }
+.sequencia { border-left: 3px solid var(--bordaCampo); padding-left: 10px; font-size: 13px; display: flex; flex-direction: column; gap: 2px; }
+.receita .acoes { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+</style>
+</head>
+<body>
+<div class="previa-barra" role="toolbar" aria-label="Controles da prévia">
+  <b>Prévia · Frente G</b>
+  <div class="grupo" id="ctl-tema"><span>Tema</span></div>
+  <div class="grupo" id="ctl-largura"><span>Largura</span></div>
+  <nav aria-label="Seções">
+    <a href="#c35">C35 Execução</a><a href="#c50">C50/C74 Dieta</a><a href="#c45">C45 Histórico</a><a href="#c16">C16 Usar receita</a><a href="#contraste">Contraste</a>
+  </nav>
+</div>
+
+<main class="doc">
+  <header>
+    <h1>Prévia: cor por tipo de série, dieta, histórico e "Usar receita"</h1>
+    <p>Reunião de 30/10 (C35, C50, C74, C45, C16) e decisões D1 a D8 de <code>docs/planos/cores-por-tipo-de-serie.md</code>. Só dados fictícios ("Aluno Exemplo", exercícios genéricos). Use os botões no topo para trocar o tema (claro, areia, escuro) e a largura (390 e 1280 px). Nada aqui é código do app.</p>
+    <div id="tokens-propostos"></div>
+  </header>
+
+  <section id="c35" aria-labelledby="t-c35">
+    <h2 id="t-c35">C35 · Execução do aluno com cor por tipo de série</h2>
+    <ul class="decisoes">
+      <li><b>A cor sai do papel do tipo</b> (Aquecimento, Preparação, Trabalho, Pós-trabalho), não do código: os tipos são livres em cada metodologia (até 20), o papel é fixo. Por isso WS e Top set têm a mesma cor (os dois são Trabalho); o nome escrito separa os dois.</li>
+      <li><b>Forma do marcador:</b> barra de 6 px à esquerda do cartão, ponto antes do nome e o nome do tipo na cor (com sublinhado pontilhado, o toque que abre a explicação). Status continua sendo selo de contorno em caixa alta; a técnica continua numa etiqueta neutra com "i". A cor nunca é a única informação: o nome do tipo fica escrito (D7).</li>
+      <li><b>Série concluída</b> continua com a borda e o fundo verdes (status); a barra do tipo fica.</li>
+      <li><b>Cluster e Rest-pause em um bloco só:</b> as etapas viram linhas dentro de uma caixa única (sem borda de cartão em cada uma), a pausa vira um conector entre elas e há um "N de M" com barra segmentada. Ações iguais às de hoje: ✓, Não fiz, Desfazer, Concluir série / Reabrir, Pausa.</li>
+      <li><b>Tipo de papel "Outro"</b> não ganha cor: marcador vazado (contorno pontilhado), para não parecer o cinza de status.</li>
+    </ul>
+    <div class="estados" data-estado="execucao"></div>
+    <div class="rolagem"><div id="q-execucao"></div></div>
+  </section>
+
+  <section id="c50" aria-labelledby="t-c50">
+    <h2 id="t-c50">C50/C74 · Mais cor na dieta (refeições e unidades)</h2>
+    <ul class="decisoes">
+      <li>Cada refeição ganha uma cor de identificação pela ordem (a mesma paleta já testada das agendas, <code>PALETA_DA_AGENDA</code>): faixa tingida, barra à esquerda e o número da refeição num quadrado cheio.</li>
+      <li>A quantidade com a unidade ("150 g", "2 unidades") vira uma etiqueta forte com o tingido da refeição; o texto fica na cor do texto (contraste conferido).</li>
+      <li>Macros (P, C, G) seguem sem cor própria: cor nova ali seria mais um código para decorar.</li>
+    </ul>
+    <div class="rolagem"><div id="q-dieta"></div></div>
+  </section>
+
+  <section id="c45" aria-labelledby="t-c45">
+    <h2 id="t-c45">C45 · Histórico do aluno reorganizado (com C74 nos cabeçalhos por divisão)</h2>
+    <ul class="decisoes">
+      <li><b>Três visões em abas</b> num cartão só: Por divisão, Por dia e Geral (hoje "Geral" é o cartão Progresso por exercício). Logo abaixo das abas, uma faixa "Mostrando" diz o período de cada visão: as duas primeiras usam a pasta em uso (sem pasta com período, últimos 30 dias); a Geral, o último ano, de todas as pastas, como o app já busca.</li>
+      <li><b>Por dia</b> deixa de ser lista corrida: agrupa por semana (segunda a domingo, como a Agenda), com cabeçalho "Semana de dd/mm a dd/mm", resumo só com contagens (dias treinados, sessões) e uma tira com os 7 dias marcados pela letra da divisão. A semana mais recente abre; as outras ficam fechadas. Cada dia é uma linha que abre os exercícios.</li>
+      <li><b>Por divisão</b>: cabeçalho de cada divisão com a cor de identificação e a letra (C74).</li>
+    </ul>
+    <div class="estados" data-estado="historico"></div>
+    <div class="rolagem"><div id="q-historico"></div></div>
+  </section>
+
+  <section id="c16" aria-labelledby="t-c16">
+    <h2 id="t-c16">C16 · Janela "Usar receita" agrupada por bloco e por técnica</h2>
+    <ul class="decisoes">
+      <li><b>Dois níveis:</b> coleção (o "bloco", recolhível, como hoje) e, dentro dela, a técnica que as séries da receita usam ("Sem técnica", "Cluster", "Rest pause"...). Receita com mais de uma técnica fica em "Várias técnicas".</li>
+      <li><b>Completas primeiro</b> dentro de cada técnica, com a etiqueta "Completa" (leitura proposta: a receita vai da preparação, ou do aquecimento, até a série de trabalho).</li>
+      <li>A composição ganha os pontos de cor por tipo e uma faixa fina com os segmentos (a mesma cor da execução); o texto "FS ×3 · WS ×1" continua. Busca e "Sequência" ficam.</li>
+    </ul>
+    <div class="estados" data-estado="receitas"></div>
+    <div class="rolagem"><div id="q-receitas"></div></div>
+  </section>
+
+  <section id="contraste" aria-labelledby="t-contraste">
+    <h2 id="t-contraste">Contraste e distância das cores de status</h2>
+    <p class="nota">Calculado aqui mesmo, com a fórmula de <code>app/src/tema/tokens.ts</code> (luminância WCAG 2.x, <code>tingido</code> com alfa 0x18 e ΔE CIE76 do <code>tokens.test.ts</code>), a partir do mesmo objeto de cores que pinta as telas acima. Texto ≥ 4,5:1; elemento não textual ≥ 3:1; distância de status ≥ 25 (a mesma das agendas).</p>
+    <div id="tabela-contraste"></div>
+  </section>
+</main>
+
+<script>
+'use strict';
+/*CORES-INICIO*/
+/* Uma fonte só: as telas, a tabela e o script de conferência (node) leem este bloco. Valores de base copiados de
+   app/src/tema/tokens.ts (CLARO, AREIA, ESCURO e PALETA_DA_AGENDA); as quatro cores de tipo são as novas. */
+const BASE = {
+  claro: { fundo:'#F7F7F8', superficie:'#FFFFFF', superficie2:'#F4F4F5', superficie3:'#E7E7EA', faixaForte:'#DCDCE1', divisor:'#D4D4D8', borda:'#B9B9C0', campo:'#FFFFFF', bordaCampo:'#80808A', texto:'#111114', textoSuave:'#52525B', sucesso:'#176E3C', atencao:'#875710', perigo:'#B71C1C', neutro:'#616169' },
+  areia: { fundo:'#FAF9F6', superficie:'#FFFFFF', superficie2:'#F7F5F0', superficie3:'#E7E3DB', faixaForte:'#DDD6CA', divisor:'#DDD8CF', borda:'#B9B3A9', campo:'#FFFFFF', bordaCampo:'#77736B', texto:'#111114', textoSuave:'#52525B', sucesso:'#176E3C', atencao:'#875710', perigo:'#B71C1C', neutro:'#616169' },
+  escuro: { fundo:'#0A0A0C', superficie:'#18181B', superficie2:'#222226', superficie3:'#2C2C31', faixaForte:'#34343B', divisor:'#36363C', borda:'#4C4C55', campo:'#0F0F12', bordaCampo:'#76767E', texto:'#F4F4F5', textoSuave:'#A1A1AA', sucesso:'#2BB36A', atencao:'#D9962C', perigo:'#F0666B', neutro:'#9A9AA3' },
+};
+/* Tokens novos (passo 3 do plano: entram em Cores de tema/tokens.ts). O areia usa os do claro, como os status. */
+const TIPOS = {
+  claro:  { tipoAquecimento:'#006B8F', tipoPreparacao:'#1F5FC4', tipoTrabalho:'#5B3CC4', tipoPosTrabalho:'#A02D8F' },
+  escuro: { tipoAquecimento:'#4CC3E0', tipoPreparacao:'#6FA3F5', tipoTrabalho:'#A78BFA', tipoPosTrabalho:'#E27AD0' },
+};
+const PAPEL_DO_TOKEN = { tipoAquecimento:'AQUECIMENTO', tipoPreparacao:'PREPARACAO', tipoTrabalho:'TRABALHO', tipoPosTrabalho:'POS_TRABALHO' };
+/* Identificação de divisão e refeição: reaproveita a paleta das agendas (já testada a 3:1 e longe dos status), por ordem. */
+const PALETA_DA_AGENDA = {
+  claro:  { AZUL:'#1B6FD6', INDIGO:'#4B3FBF', VIOLETA:'#9333B8', MAGENTA:'#C0306F', TURQUESA:'#0B7F8A', ARDOSIA:'#51677E', TERRA:'#A64F43', OLIVA:'#758418' },
+  escuro: { AZUL:'#4A90F7', INDIGO:'#8B7CF0', VIOLETA:'#C07DE8', MAGENTA:'#E8579F', TURQUESA:'#2BBFC9', ARDOSIA:'#8FA3B8', TERRA:'#BE8068', OLIVA:'#A8B53F' },
+};
+const ORDEM_DA_IDENTIFICACAO = ['AZUL','VIOLETA','TURQUESA','MAGENTA','INDIGO','TERRA','OLIVA','ARDOSIA'];
+const MARCA_FICTICIA = '#C2410C';
+
+const grupoDoTema = (tema) => (tema === 'escuro' ? 'escuro' : 'claro');
+function luminancia(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => { const s = v / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; });
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+}
+function contraste(a, b) { const [x, y] = [luminancia(a), luminancia(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); }
+function misturar(cor, alvo, t) {
+  const a = parseInt(cor.slice(1), 16), b = parseInt(alvo.slice(1), 16);
+  const ch = (d) => Math.round(((a >> d) & 255) * (1 - t) + ((b >> d) & 255) * t);
+  return '#' + [16, 8, 0].map((d) => ch(d).toString(16).padStart(2, '0').toUpperCase()).join('');
+}
+const tingido = (cor, base) => misturar(base, cor, 0x18 / 255);
+const textoSobre = (fundo) => (contraste(fundo, '#FFFFFF') >= contraste(fundo, '#000000') ? '#FFFFFF' : '#000000');
+function marcaParaTexto(marca, fundo) {
+  const alvo = luminancia(fundo) < 0.18 ? '#FFFFFF' : '#000000';
+  for (let t = 0; t <= 1.0001; t += 0.04) { const cor = misturar(marca, alvo, Math.min(t, 1)); if (contraste(cor, fundo) >= 4.5) return cor; }
+  return alvo;
+}
+/* Fundo da série concluída, como no CartaoSerieComEtapas: `${sucesso}29` sobre o cartão. */
+const fundoDaSerieFeita = (c) => misturar(c.superficie, c.sucesso, 0x29 / 255);
+function lab(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => { const s = c / 255; return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; });
+  const x = (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047, y = 0.2126 * r + 0.7152 * g + 0.0722 * b, z = (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883;
+  const f = (t) => (t > 216 / 24389 ? Math.cbrt(t) : ((24389 / 27) * t + 16) / 116);
+  return [116 * f(y) - 16, 500 * (f(x) - f(y)), 200 * (f(y) - f(z))];
+}
+const distancia = (a, b) => Math.hypot(...lab(a).map((v, i) => v - lab(b)[i]));
+const matiz = (hex) => { const [, a, b] = lab(hex); return Math.round(((Math.atan2(b, a) * 180) / Math.PI + 360) % 360); };
+
+/** Todos os pares de contraste das cores novas (e das reaproveitadas em uso novo), por tema. */
+function paresDeContraste() {
+  const pares = [];
+  for (const tema of ['claro', 'areia', 'escuro']) {
+    const c = BASE[tema], tipos = TIPOS[grupoDoTema(tema)], ident = PALETA_DA_AGENDA[grupoDoTema(tema)];
+    const feita = fundoDaSerieFeita(c);
+    const par = (cor, hex, sobre, sobreHex, uso, minimo) => pares.push({ tema, cor, hex, sobre, sobreHex, uso, minimo, razao: contraste(hex, sobreHex) });
+    for (const [token, hex] of Object.entries(tipos)) {
+      par(token, hex, 'superficie2 (cartão da série)', c.superficie2, 'nome do tipo (texto)', 4.5);
+      par(token, hex, 'série concluída (verde 0x29)', feita, 'nome do tipo na série feita (texto)', 4.5);
+      par(token, hex, 'superficie3 (faixa, etapa atual)', c.superficie3, 'nome do tipo sobre faixa (texto)', 4.5);
+      par(token, hex, 'superficie (cartão, etapas)', c.superficie, 'barra, ponto e segmento (não textual)', 3);
+      par(token, hex, 'fundo (página)', c.fundo, 'barra encostada na página (não textual)', 3);
+    }
+    par('bordaCampo (tipo "Outro", vazado)', c.bordaCampo, 'superficie2 (cartão da série)', c.superficie2, 'contorno do marcador vazado (não textual)', 3);
+    for (const chave of ORDEM_DA_IDENTIFICACAO) {
+      const hex = ident[chave], tg = tingido(hex, c.superficie);
+      par('ident ' + chave, hex, 'superficie (cartão)', c.superficie, 'barra e borda da etiqueta (não textual)', 3);
+      par('ident ' + chave, hex, 'faixa tingida da própria cor', tg, 'barra encostada na faixa (não textual)', 3);
+      par('letra (' + (textoSobre(hex) === '#FFFFFF' ? 'branco' : 'preto') + ')', textoSobre(hex), 'ident ' + chave, hex, 'letra da divisão / número da refeição (texto)', 4.5);
+      par('texto', c.texto, 'tingido ' + chave, tg, 'título da faixa e etiqueta da unidade (texto)', 4.5);
+      par('textoSuave', c.textoSuave, 'tingido ' + chave, tg, 'resumo da faixa: horário, contagem (texto)', 4.5);
+    }
+    const marcaTexto = marcaParaTexto(MARCA_FICTICIA, c.superficie);
+    par('marcaTexto (marca fictícia)', marcaTexto, 'superficie', c.superficie, 'item ativo da barra do aluno (texto)', 4.5);
+  }
+  return pares;
+}
+
+/** Distância (ΔE CIE76) de cada cor de tipo até os status e entre os tipos. */
+function distancias() {
+  const linhas = [];
+  for (const g of ['claro', 'escuro']) {
+    const c = BASE[g], tipos = TIPOS[g];
+    for (const [token, hex] of Object.entries(tipos)) {
+      for (const s of ['sucesso', 'atencao', 'perigo', 'neutro']) linhas.push({ grupo: g, cor: token, hex, outra: s, outraHex: c[s], de: distancia(hex, c[s]), minimo: 25 });
+    }
+    const ks = Object.keys(tipos);
+    for (let i = 0; i < ks.length; i++) for (let j = i + 1; j < ks.length; j++) linhas.push({ grupo: g, cor: ks[i], hex: tipos[ks[i]], outra: ks[j], outraHex: tipos[ks[j]], de: distancia(tipos[ks[i]], tipos[ks[j]]), minimo: 15 });
+    for (const k of ORDEM_DA_IDENTIFICACAO) linhas.push({ grupo: g, cor: 'ident ' + k, hex: PALETA_DA_AGENDA[g][k], outra: 'neutro', outraHex: c.neutro, de: distancia(PALETA_DA_AGENDA[g][k], c.neutro), minimo: 25, informativo: true });
+  }
+  return linhas;
+}
+/*CORES-FIM*/
+
+/* ====================== estado da prévia ====================== */
+const estado = { tema: 'claro', largura: 390, execucao: 'normal', historico: 'normal', aba: 'dia', receitas: 'normal', semanasAbertas: new Set(['s1']), diasAbertos: new Set(['d31']), colecoesFechadas: new Set(), sequencias: new Set() };
+try { const s = JSON.parse(localStorage.getItem('previa-frente-g') || 'null'); if (s) { estado.tema = s.tema || 'claro'; estado.largura = s.largura || 390; } } catch (e) { /* sem armazenamento */ }
+const guardar = () => { try { localStorage.setItem('previa-frente-g', JSON.stringify({ tema: estado.tema, largura: estado.largura })); } catch (e) { /* nada */ } };
+
+/* ====================== ícones (traço do lucide, desenhados aqui) ====================== */
+const IC = {
+  voltar: '<path d="m15 18-6-6 6-6"/>', baixo: '<path d="m6 9 6 6 6-6"/>', direita: '<path d="m9 18 6-6-6-6"/>', check: '<path d="M20 6 9 17l-5-5"/>',
+  timer: '<path d="M10 2h4"/><path d="M12 14l3-3"/><circle cx="12" cy="14" r="8"/>', info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  cal: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>', busca: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>', semRede: '<path d="M12 20h.01"/><path d="M8.5 16.4a5 5 0 0 1 7 0"/><path d="M2 8.8a15 15 0 0 1 4.2-2.6"/><path d="M22 8.8a15 15 0 0 0-11.3-3.7"/><path d="m2 2 20 20"/>',
+  desfazer: '<path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/>', alerta: '<circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/>',
+  inicio: '<path d="M3 10 12 3l9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>', treino: '<path d="M6 5v14"/><path d="M18 5v14"/><path d="M3 9v6"/><path d="M21 9v6"/><path d="M6 12h12"/>',
+  dieta: '<path d="M12 6c-2-3-7-2-7 3 0 6 4 11 7 11s7-5 7-11c0-5-5-6-7-3z"/><path d="M12 6c0-2 1-3 3-4"/>', historico: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/>',
+  conta: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>', seta: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>', receita: '<path d="M4 4h12a4 4 0 0 1 4 4v12H8a4 4 0 0 1-4-4z"/><path d="M8 8h8"/><path d="M8 12h8"/>',
+};
+const ic = (n, t = 18) => `<svg width="${t}" height="${t}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[n]}</svg>`;
+
+/* ====================== variáveis de cor do quadro ====================== */
+function variaveis(tema) {
+  const c = BASE[tema], t = TIPOS[grupoDoTema(tema)];
+  const v = { ...c, ...t };
+  v.marca = MARCA_FICTICIA; v.sobreMarca = textoSobre(MARCA_FICTICIA); v.marcaTexto = marcaParaTexto(MARCA_FICTICIA, c.superficie);
+  v.feitaFundo = fundoDaSerieFeita(c); v.perigoTingido = tingido(c.perigo, c.superficie);
+  return Object.entries(v).map(([k, x]) => `--${k}:${x}`).join(';');
+}
+function ident(tema, indice) {
+  const hex = PALETA_DA_AGENDA[grupoDoTema(tema)][ORDEM_DA_IDENTIFICACAO[indice % ORDEM_DA_IDENTIFICACAO.length]];
+  return `--ident:${hex};--identTingido:${tingido(hex, BASE[tema].superficie)};--identSobre:${textoSobre(hex)}`;
+}
+const corDoPapel = (papel) => (papel ? `--tipo:var(--${Object.keys(PAPEL_DO_TOKEN).find((k) => PAPEL_DO_TOKEN[k] === papel)})` : '');
+
+function quadro(conteudo, rotulo) {
+  return `<div class="quadro l${estado.largura}" style="${variaveis(estado.tema)}"><span class="rotulo-quadro">${rotulo} · ${estado.largura} px · ${estado.tema}</span>${conteudo}</div>`;
+}
+function barraAluno(ativa) {
+  const itens = [['inicio', 'Início'], ['treino', 'Treino'], ['dieta', 'Dieta'], ['historico', 'Histórico'], ['conta', 'Conta']];
+  return `<div class="sinc">${estado.execucao === 'offline' && ativa === 'treino' ? 'Sem conexão · 6 registros salvos neste aparelho' : 'Tudo enviado'}</div>
+  <nav class="barra-aluno" aria-label="Menu do aluno"><div class="itens">${itens.map(([k, r]) => `<button class="${k === ativa ? 'ativo' : ''}" ${k === ativa ? 'aria-current="page"' : ''}>${ic(k, 22)}${r}</button>`).join('')}</div></nav>`;
+}
+const cabecalho = (titulo, sub, voltar = true) => `<div class="cabecalho">${voltar ? `<button class="ib" aria-label="Voltar">${ic('voltar', 20)}</button>` : ''}<div class="titulos"><h2 class="h1">${titulo}</h2>${sub ? `<p class="sub num">${sub}</p>` : ''}</div></div>`;
+
+/* ====================== C35: execução ====================== */
+function cabDaSerie(n, tipoNome, papel, { tecnica, selo } = {}) {
+  const vazado = !papel;
+  return `<div class="cab"><span class="nome"><span class="ponto ${vazado ? 'vazado' : ''}" aria-hidden="true"></span>Série ${n} <span aria-hidden="true">·</span>
+    <button class="tipo-nome ${vazado ? 'vazado-nome' : ''}" aria-label="${tipoNome}, série ${n}: o que é?">${tipoNome}</button></span>
+    ${tecnica ? `<span class="etiqueta">${tecnica} ${ic('info', 14)}</span>` : ''}${selo || ''}</div>`;
+}
+const meta = (t, extra) => `<div class="meta" role="group" aria-label="Meta: ${t}"><p class="secao">Meta</p><span class="valor num">${t}</span>${extra ? `<span class="pequeno suave">${extra}</span>` : ''}</div>`;
+const campos = (reps, kg, feito, rotulo) => `<div class="linha-campos"><div class="campo-num"><span class="v">${reps ?? ''}</span><span class="u">reps</span></div><div class="campo-num"><span class="v">${kg ?? ''}</span><span class="u">kg</span></div><button class="marcar ${feito ? 'feito' : ''}" aria-label="${rotulo}" aria-pressed="${feito}">${ic('check', 22)}</button></div>`;
+
+function serieSimples(n, tipo, papel, o) {
+  return `<div class="serie ${o.feita ? 'feita' : ''} ${papel ? '' : 'vazado'}" style="${corDoPapel(papel)}">
+    ${cabDaSerie(n, tipo, papel, { tecnica: o.tecnica, selo: o.feita ? '' : '<span class="selo neutro">Ainda não registrado</span>' })}
+    ${meta(o.meta)}
+    ${o.ultimo ? `<span class="linha-info num"><b>Último registro</b> ${o.ultimo}</span>` : ''}
+    ${o.sugerido && !o.feita ? `<span class="linha-info num"><b>Sugerido:</b> ${o.sugerido}</span>` : ''}
+    <p class="secao">Hoje</p>
+    ${campos(o.reps, o.kg, o.feita, `Série ${n} ${o.feita ? 'feita' : 'a fazer'}`)}
+    ${o.feita ? `<span class="pequeno" style="color:var(--sucesso)">Série feita.</span>` : ''}
+    ${o.descanso ? `<span class="pequeno suave">Descanso depois da série: ${o.descanso}</span>` : ''}
+  </div>`;
+}
+
+function serieComEtapas(n, tipo, papel, o) {
+  const feitas = o.etapas.filter((e) => e.estado === 'feita').length;
+  const linhas = o.etapas.map((e, i) => {
+    const atual = e.estado === 'atual';
+    const conector = i < o.etapas.length - 1 ? `<div class="conector">${ic('timer', 14)} ${o.pausa}${e.estado === 'feita' ? `<button class="btn">${ic('timer', 14)} Pausa</button>` : ''}</div>` : '';
+    return `<div class="etapa ${atual ? 'atual' : ''} ${e.estado === 'feita' ? 'feita' : ''}">
+      <span class="rot num"><span class="n">${e.estado === 'feita' ? ic('check', 14) : i + 1}</span>${e.rotulo} · Meta ${e.meta}${e.estado === 'feita' ? '<span class="pequeno suave" style="font-weight:400">feito</span>' : ''}${atual ? '<span class="pequeno suave" style="font-weight:400">· próximo</span>' : ''}</span>
+      ${e.estado === 'pendente' ? `<span class="pequeno suave num">Carga: a da série (${o.kg} kg sugeridos)</span>` : campos(e.reps, e.kg, e.estado === 'feita', `${e.rotulo} ${e.estado === 'feita' ? 'feito' : ''}, série ${n}`)}
+      ${atual ? `<div><button class="btn fantasma">Não fiz</button></div>` : ''}
+    </div>${conector}`;
+  }).join('');
+  return `<div class="serie" style="${corDoPapel(papel)}">
+    ${cabDaSerie(n, tipo, papel, { tecnica: o.tecnica, selo: '<span class="selo neutro">Em andamento</span>' })}
+    ${meta(o.meta, o.metaExtra)}
+    <span class="linha-info num"><b>Último registro</b> ${o.ultimo}</span>
+    <span class="linha-info num"><b>Sugerido:</b> ${o.kg} kg · ${o.origem}</span>
+    <p class="secao">Hoje · ${o.nomeEtapas} da série</p>
+    <div class="etapas" role="list" aria-label="${o.nomeEtapas} da série ${n}">${linhas}</div>
+    <div class="progresso-etapas" aria-hidden="true">${o.etapas.map((e) => `<i class="${e.estado === 'feita' ? 'f' : ''}"></i>`).join('')}</div>
+    <span class="pequeno num"><b>${feitas} de ${o.etapas.length} ${o.nomeEtapas.toLowerCase()} ${o.nomeEtapas === 'Blocos' ? 'feitos' : 'feitas'}</b> · ${o.total}</span>
+    <span class="pequeno suave">Execução parcial salva. Conclua quando terminar ou marque o que não fez.</span>
+    <div><button class="btn cheio" disabled aria-describedby="motivo-${n}">Concluir série</button><span class="motivo" id="motivo-${n}">Marque cada ${o.nomeEtapas === 'Blocos' ? 'bloco' : 'etapa'} como feito ou não feito.</span></div>
+    <span class="pequeno suave">Descanso depois da série: ${o.descanso}</span>
+  </div>`;
+}
+
+const legendaDeTipos = () => `<div class="legenda" aria-label="Cores dos tipos de série">
+  <span style="${corDoPapel('AQUECIMENTO')}"><i class="ponto"></i>Aquecimento</span><span style="${corDoPapel('PREPARACAO')}"><i class="ponto"></i>Preparação (FS)</span>
+  <span style="${corDoPapel('TRABALHO')}"><i class="ponto"></i>Trabalho (WS, Top set)</span><span style="${corDoPapel('POS_TRABALHO')}"><i class="ponto"></i>Pós-trabalho (Back off)</span>
+  <span><i class="ponto vazado"></i>Outro</span></div>`;
+
+function telaExecucao() {
+  const offline = estado.execucao === 'offline';
+  const corpo = `<div class="coluna">
+    ${cabecalho('Supino reto com barra', 'Peso livre · Exercício 2 de 5 · Treino A (sex 31/10)')}
+    ${offline ? `<div class="alerta neutro" role="status">${ic('semRede')}<div><b>Sem conexão.</b> <span class="pequeno">O que você marcar fica salvo neste aparelho e vai para o treinador quando a internet voltar.</span></div></div>` : ''}
+    <div class="cartao"><div class="corpo"><div class="faixa-treino num"><div><b>18 min</b><small>Duração</small></div><div><b>1.284 kg</b><small>Volume</small></div><div><b>5/16</b><small>Séries</small></div></div></div></div>
+    <div class="cartao"><div class="faixa"><div class="tit"><b>Séries</b><small>Toque no nome do tipo para ver o que é.</small></div></div>
+      <div class="corpo">
+        ${legendaDeTipos()}
+        ${serieSimples(1, 'Aquecimento', 'AQUECIMENTO', { feita: true, meta: '10 a 15 reps · sem sugestão de carga', ultimo: '20 kg × 12', reps: 12, kg: 20 })}
+        ${serieSimples(2, 'FS', 'PREPARACAO', { feita: true, meta: '3 reps · 70% da WS', ultimo: '42 kg × 3', reps: 3, kg: 42 })}
+        ${serieSimples(3, 'FS', 'PREPARACAO', { feita: true, meta: '3 reps · 85% a 90% da WS', ultimo: '52 kg × 3', reps: 3, kg: 52 })}
+        ${serieComEtapas(4, 'WS', 'TRABALHO', { tecnica: 'Cluster', meta: '4+2+2 = 8 reps · carga de trabalho · 1 RIR', metaExtra: 'Pausa entre blocos: 15 s', ultimo: '60 kg × 4+2+2 = 8', kg: 60, origem: 'a carga de trabalho do último treino', nomeEtapas: 'Blocos', pausa: 'Pausa entre blocos: 15 s', total: '4 reps até agora', descanso: '2 min',
+          etapas: [{ rotulo: 'Bloco 1', meta: '4', estado: 'feita', reps: 4, kg: 60 }, { rotulo: 'Bloco 2', meta: '2', estado: 'atual', reps: null, kg: 60 }, { rotulo: 'Bloco 3', meta: '2', estado: 'pendente' }] })}
+        ${serieSimples(5, 'Back off', 'POS_TRABALHO', { feita: false, meta: '6 a 8 reps · 85% da WS', ultimo: '51 kg × 8', sugerido: '51 kg · 85% da WS registrada nesta sessão', reps: null, kg: 51, descanso: '1 min 30 s' })}
+      </div></div>
+    <button class="btn primario cheio">Próximo: Crucifixo com halteres ${ic('seta')}</button>
+  </div>`;
+  return quadro(corpo + barraAluno('treino'), 'Execução · Cluster');
+}
+
+function telaRestPause() {
+  const corpo = `<div class="coluna">
+    ${cabecalho('Desenvolvimento com halteres', 'Peso livre · Exercício 4 de 5 · Treino A (sex 31/10)')}
+    <div class="cartao"><div class="faixa"><div class="tit"><b>Séries</b><small>WS e Top set têm a mesma cor (os dois são de trabalho); o nome escrito separa.</small></div></div>
+      <div class="corpo">
+        ${serieSimples(1, 'WS', 'TRABALHO', { feita: true, meta: '3 a 6 reps · carga de trabalho · 1 RIR', ultimo: '18 kg × 6', reps: 6, kg: 18 })}
+        ${serieComEtapas(2, 'Top set', 'TRABALHO', { tecnica: 'Rest pause', meta: '1 a 5% acima da anterior · até a falha, 1 pausa', metaExtra: 'Pausa antes da retomada: 20 s', ultimo: '19 kg × 5+2 = 7', kg: 19, origem: '5% acima da série 1', nomeEtapas: 'Etapas', pausa: 'Pausa antes da retomada: 20 s', total: '5 reps até agora', descanso: '2 min',
+          etapas: [{ rotulo: 'Etapa inicial', meta: 'até a falha', estado: 'feita', reps: 5, kg: 19 }, { rotulo: 'Retomada', meta: 'até a falha', estado: 'atual', reps: null, kg: 19 }] })}
+        ${serieSimples(3, 'Mobilidade final', null, { feita: false, meta: '10 reps · sem sugestão de carga', ultimo: '—', reps: null, kg: null })}
+      </div></div>
+  </div>`;
+  return quadro(corpo + barraAluno('treino'), 'Execução · Rest-pause e tipo "Outro"');
+}
+
+/* ====================== C50/C74: dieta ====================== */
+const REFEICOES = [
+  { nome: 'Café da manhã', hora: '07:30', opcoes: ['A', 'B'], itens: [['Ovo inteiro', '2 unidades', '140 kcal · P 12 g · C 1 g · G 10 g'], ['Pão integral', '50 g', '125 kcal · P 5 g · C 21 g · G 2 g'], ['Mamão', '150 g', '60 kcal · P 1 g · C 15 g · G 0 g']] },
+  { nome: 'Almoço', hora: '12:30', opcoes: ['A'], itens: [['Arroz branco cozido', '120 g', '154 kcal · P 3 g · C 34 g · G 0 g'], ['Feijão cozido', '1 concha (80 g)', '61 kcal · P 4 g · C 11 g · G 0 g'], ['Peito de frango grelhado', '150 g', '240 kcal · P 47 g · C 0 g · G 5 g'], ['Salada de folhas', 'à vontade', '—']] },
+  { nome: 'Lanche da tarde', hora: '16:00', opcoes: ['A'], itens: [['Iogurte natural', '170 g', '100 kcal · P 7 g · C 9 g · G 4 g'], ['Aveia em flocos', '30 g', '113 kcal · P 4 g · C 20 g · G 2 g']] },
+  { nome: 'Jantar', hora: '20:00', opcoes: ['A'], itens: [['Batata-doce cozida', '150 g', '116 kcal · P 2 g · C 28 g · G 0 g'], ['Patinho moído', '120 g', '190 kcal · P 32 g · C 0 g · G 6 g']] },
+];
+function telaDieta() {
+  const refs = REFEICOES.map((r, i) => `<div class="cartao" style="${ident(estado.tema, i)}">
+    <div class="faixa ident"><span class="letra num" aria-hidden="true">${i + 1}</span><div class="tit"><b>${r.nome}</b><small class="num">Horário: ${r.hora} · ${r.itens.length} itens</small></div></div>
+    <div class="corpo">
+      ${r.opcoes.length > 1 ? `<div class="escolha-opcoes"><b>Escolha uma das opções: A ou B</b><br><span class="pequeno suave">As opções não se somam: o total do dia conta só a opção A.</span></div>
+        <div class="abas" role="tablist"><button class="aba" role="tab" aria-selected="true">Opção A</button><button class="aba" role="tab" aria-selected="false">Opção B</button></div>` : ''}
+      ${r.itens.map(([nome, qtd, macros]) => `<div class="item-dieta"><div class="l1"><b>${nome}</b><span class="qtd">${qtd}</span></div><span class="pequeno suave num">${macros}</span></div>`).join('')}
+    </div></div>`).join('');
+  const corpo = `<div class="coluna">
+    ${cabecalho('Dieta', null, false)}
+    <p class="suave" style="margin:0">A dieta que o seu treinador publicou, só para consulta.</p>
+    <div class="cartao"><div class="corpo"><b style="font-size:16px">Dieta de novembro</b><span class="suave pequeno num">Início: 01/11/2026 · Nutricionista Exemplo</span></div></div>
+    <div class="cartao"><div class="faixa"><div class="tit"><b>Total do dia</b><small>Soma da opção A de cada refeição.</small></div></div>
+      <div class="corpo"><div class="totais num"><div><b>1.399</b><small>kcal</small></div><div><b>117 g</b><small>P</small></div><div><b>139 g</b><small>C</small></div><div><b>29 g</b><small>G</small></div></div>
+      <span class="pequeno suave">P = proteína · C = carboidrato · G = gordura</span></div></div>
+    ${refs}
+  </div>`;
+  return quadro(corpo + barraAluno('dieta'), 'Dieta');
+}
+
+/* ====================== C45: histórico ====================== */
+const DIVISOES = [{ letra: 'A', nome: 'Peito e tríceps' }, { letra: 'B', nome: 'Costas e bíceps' }, { letra: 'C', nome: 'Pernas' }];
+const SEMANAS = [
+  { id: 's1', titulo: 'Semana de 27/10 a 02/11', atual: true, dias: [null, 'B', null, 'C', 'A', null, null], lista: [
+    { id: 'd31', data: 'Sex 31/10', div: 0, ex: [['Supino reto com barra', 'Aquecimento 20 kg × 12 · FS 42 kg × 3 · FS 52 kg × 3 · WS 60 kg × 4+2+2 = 8 · Back off 51 kg × 8', 'Volume de carga: 1.284 kg'], ['Crucifixo com halteres', 'WS 14 kg × 10 · WS 14 kg × 9', 'Volume de carga: 266 kg'], ['Tríceps na polia', 'WS 25 kg × 12 · Back off 20 kg × 15', 'Volume de carga: 600 kg']] },
+    { id: 'd30', data: 'Qui 30/10', div: 2, ex: [['Agachamento livre', 'FS 50 kg × 3 · WS 80 kg × 6', 'Volume de carga: 630 kg']] },
+    { id: 'd28', data: 'Ter 28/10', div: 1, ex: [['Remada curvada', 'FS 40 kg × 3 · WS 55 kg × 8', 'Volume de carga: 560 kg']] }] },
+  { id: 's2', titulo: 'Semana de 20/10 a 26/10', dias: ['A', null, 'B', null, 'C', 'A', null], lista: [
+    { id: 'd25', data: 'Sáb 25/10', div: 0, ex: [['Supino reto com barra', 'WS 58 kg × 6 · Back off 49 kg × 8', 'Volume de carga: 740 kg']] },
+    { id: 'd24', data: 'Sex 24/10', div: 2, ex: [['Agachamento livre', 'WS 78 kg × 6', 'Volume de carga: 468 kg']] },
+    { id: 'd22', data: 'Qua 22/10', div: 1, ex: [['Remada curvada', 'WS 52 kg × 8', 'Volume de carga: 416 kg']] },
+    { id: 'd20', data: 'Seg 20/10', div: 0, ex: [['Supino reto com barra', 'WS 58 kg × 5', 'Volume de carga: 290 kg']] }] },
+  { id: 's3', titulo: 'Semana de 13/10 a 19/10', dias: ['A', null, 'B', null, 'C', null, null], lista: [
+    { id: 'd17', data: 'Sex 17/10', div: 2, ex: [['Agachamento livre', 'WS 76 kg × 6', 'Volume de carga: 456 kg']] },
+    { id: 'd15', data: 'Qua 15/10', div: 1, ex: [['Remada curvada', 'WS 50 kg × 8', 'Volume de carga: 400 kg']] },
+    { id: 'd13', data: 'Seg 13/10', div: 0, ex: [['Supino reto com barra', 'WS 56 kg × 6', 'Volume de carga: 336 kg']] }] },
+];
+const NOMES_DIAS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+
+function faixaPeriodo() {
+  const geral = estado.aba === 'geral';
+  const ultimos = estado.historico === 'ultimos30';
+  const titulo = geral ? 'Último ano: 03/11/2025 a 02/11/2026' : ultimos ? 'Últimos 30 dias: 04/10 a 02/11/2026' : 'Plano em uso: 13/10 a 09/11/2026';
+  const sub = geral ? 'Todas as pastas. Aqui não muda com o plano escolhido.' : ultimos ? 'Inclui treinos de mais de um plano.' : 'Pasta "Ciclo de outubro". Mudar o plano em uso muda este período.';
+  const acao = geral ? '' : ultimos ? '<button class="btn fantasma acao">Voltar ao período do plano</button>' : '<button class="btn fantasma acao">Ver últimos 30 dias</button>';
+  return `<div class="periodo" role="note" aria-label="Período mostrado">${ic('cal', 20)}<div><span class="secao suave" style="display:block">Mostrando</span><b class="num">${titulo}</b><span class="pequeno suave">${sub}</span></div>${acao}</div>`;
+}
+
+function visaoPorDivisao() {
+  const linhas = [['31/10', '60 kg', '4+2+2 = 8', '5'], ['25/10', '58 kg', '6', '2'], ['20/10', '58 kg', '5', '1'], ['13/10', '56 kg', '6', '1']];
+  return DIVISOES.map((d, i) => `<div class="cartao" style="${ident(estado.tema, i)}">
+    <div class="faixa ident"><span class="letra" aria-hidden="true">${d.letra}</span><div class="tit"><b>Treino ${d.letra} · ${d.nome}</b><small class="num">${i === 0 ? '3 exercícios · 4 treinos no período' : i === 1 ? '2 exercícios · 3 treinos no período' : '2 exercícios · 3 treinos no período'}</small></div><button class="ib" aria-label="Recolher treino ${d.letra}" aria-expanded="true">${ic('baixo')}</button></div>
+    <div class="corpo">${i === 0 ? `<div class="exercicio-hist"><div class="cab"><b>Supino reto com barra</b><span class="pequeno suave">4 sessões</span></div>
+      <table class="tabela-cargas"><thead><tr><th>Data</th><th class="r">Carga</th><th class="r">Reps</th><th class="r">Séries</th></tr></thead><tbody>${linhas.map((l) => `<tr><td><b>${l[0]}</b></td><td class="r"><b>${l[1]}</b></td><td class="r">${l[2]}</td><td class="r suave">${l[3]}</td></tr>`).join('')}</tbody></table></div>
+      <div class="exercicio-hist"><div class="cab"><b>Crucifixo com halteres</b><span class="pequeno suave">1 sessão</span></div><table class="tabela-cargas"><thead><tr><th>Data</th><th class="r">Carga</th><th class="r">Reps</th><th class="r">Séries</th></tr></thead><tbody><tr><td><b>31/10</b></td><td class="r"><b>14 kg</b></td><td class="r">10</td><td class="r suave">2</td></tr></tbody></table></div>`
+      : `<span class="pequeno suave">Recolhido na prévia para encurtar; abre igual ao treino A.</span>`}</div></div>`).join('');
+}
+
+function visaoPorDia() {
+  return SEMANAS.map((s) => {
+    const aberta = estado.semanasAbertas.has(s.id);
+    const treinados = s.dias.filter(Boolean).length;
+    const tira = `<div class="dias-semana" aria-label="Dias treinados na semana">${s.dias.map((d, i) => {
+      const di = d ? DIVISOES.findIndex((x) => x.letra === d) : -1;
+      return `<div><span>${NOMES_DIAS[i]}</span><span class="marca-dia ${d ? 'com' : ''}" style="${d ? ident(estado.tema, di) : ''}" aria-label="${NOMES_DIAS[i]}: ${d ? 'treino ' + d : 'sem treino'}">${d || ''}</span></div>`;
+    }).join('')}</div>`;
+    const dias = s.lista.map((dia) => {
+      const ab = estado.diasAbertos.has(dia.id);
+      const d = DIVISOES[dia.div];
+      return `<div class="dia" style="${ident(estado.tema, dia.div)}"><button data-dia="${dia.id}" aria-expanded="${ab}"><span class="letra p" aria-hidden="true">${d.letra}</span><span class="t"><b class="num">${dia.data} · Treino ${d.letra}</b><small>${d.nome} · ${dia.ex.length} ${dia.ex.length === 1 ? 'exercício' : 'exercícios'}</small></span><span class="gira" style="display:inline-grid;transform:rotate(${ab ? 180 : 0}deg)">${ic('baixo')}</span></button>
+        ${ab ? `<div class="conteudo">${dia.ex.map(([n, series, vol]) => `<div class="ex"><b>${n}</b><span class="pequeno suave num">${series}</span><br><span class="pequeno suave num">${vol}</span></div>`).join('')}</div>` : ''}</div>`;
+    }).join('');
+    return `<div class="semana ${aberta ? '' : 'fechada'}"><button class="cab" data-semana="${s.id}" aria-expanded="${aberta}"><span class="tit"><b class="num">${s.titulo}${s.atual ? ' · esta semana' : ''}</b><small class="num">${treinados} dias treinados · ${s.lista.length} sessões</small></span><span class="gira" style="display:inline-grid;transform:rotate(${aberta ? 180 : 0}deg)">${ic('baixo')}</span></button>
+      ${aberta ? tira + dias : ''}</div>`;
+  }).join('');
+}
+
+function visaoGeral() {
+  const pts = [[0, 50], [1, 52], [2, 52], [3, 54], [4, 55], [5, 56], [6, 58], [7, 58], [8, 60]];
+  const x = (i) => 20 + i * 70, y = (v) => 120 - (v - 48) * 9;
+  return `<div class="cartao"><div class="faixa"><div class="tit"><b>Supino reto com barra</b><small>Carga de trabalho por treino</small></div><button class="btn">Escolher exercícios</button></div>
+    <div class="corpo"><svg class="grafico" viewBox="0 0 600 140" preserveAspectRatio="none" aria-hidden="true"><polyline fill="none" stroke="var(--texto)" stroke-width="2.5" points="${pts.map(([i, v]) => `${x(i)},${y(v)}`).join(' ')}"/>${pts.map(([i, v]) => `<circle cx="${x(i)}" cy="${y(v)}" r="4" fill="var(--superficie)" stroke="var(--texto)" stroke-width="2"/>`).join('')}</svg>
+    <span class="pequeno num">De 50 kg (09/2026) a 60 kg (31/10/2026) · 9 treinos</span></div></div>`;
+}
+
+function telaHistorico() {
+  const e = estado.historico;
+  let conteudo;
+  if (e === 'carregando') conteudo = '<div class="esqueleto" style="width:60%"></div><div class="esqueleto alto"></div><div class="esqueleto alto"></div><span class="suave pequeno" role="status">Carregando o histórico…</span>';
+  else if (e === 'vazio') conteudo = `<div class="vazio"><b>Sem treinos registrados neste plano</b><span class="suave pequeno">Os treinos que você registrar neste plano aparecem aqui.</span><button class="btn">Ver últimos 30 dias</button></div>`;
+  else if (e === 'erro') conteudo = `<div class="alerta perigo" role="alert">${ic('alerta')}<div><b>Não foi possível carregar o histórico.</b><br><span class="pequeno">Tente de novo em instantes.</span><div style="margin-top:8px"><button class="btn">Tentar de novo</button></div></div></div>`;
+  else if (e === 'offline') conteudo = `<div class="alerta neutro" role="status">${ic('semRede')}<div><b>Sem conexão.</b><br><span class="pequeno">O histórico do servidor aparece quando a internet voltar. Os treinos ainda não enviados estão no cartão "Ainda não enviados".</span></div></div>`;
+  else conteudo = estado.aba === 'divisao' ? visaoPorDivisao() : estado.aba === 'dia' ? visaoPorDia() : visaoGeral();
+  const abas = [['divisao', 'Por divisão'], ['dia', 'Por dia'], ['geral', 'Geral']];
+  const corpo = `<div class="coluna">
+    ${cabecalho('Histórico', null, false)}
+    <div class="cartao"><div class="faixa"><div class="tit"><b>Registros e cargas</b></div>${e === 'normal' || e === 'ultimos30' ? '<button class="btn">PDF</button>' : ''}</div>
+      <div class="corpo">
+        <div class="abas" role="tablist" aria-label="Visões do histórico">${abas.map(([k, r]) => `<button class="aba" role="tab" data-aba="${k}" aria-selected="${estado.aba === k}">${r}</button>`).join('')}</div>
+        ${e === 'offline' || e === 'erro' ? '' : faixaPeriodo()}
+        ${conteudo}
+      </div></div>
+    <div class="cartao"><div class="faixa"><div class="tit"><b>Peso</b></div></div><div class="corpo"><span class="suave pequeno">(Fica como está hoje; fora do escopo desta prévia.)</span></div></div>
+  </div>`;
+  return quadro(corpo + barraAluno('historico'), 'Histórico');
+}
+
+/* ====================== C16: Usar receita ====================== */
+/* séries: [papel, nome, quantas] */
+const COLECOES = [
+  { nome: 'Força (básicos)', grupos: [
+    { tecnica: 'Sem técnica', receitas: [
+      { nome: 'Aquecimento, 3 FS, WS e 2 Back off', completa: true, series: [['AQUECIMENTO', 'Aquecimento', 1], ['PREPARACAO', 'FS', 3], ['TRABALHO', 'WS', 1], ['POS_TRABALHO', 'Back off', 2]], desc: 'A sequência padrão para os básicos.', seq: ['Aquecimento: 10 a 15 reps', 'FS: 3 reps · 50% · 70% · 85% a 90% da WS', 'WS: 3 a 6 reps · carga de trabalho · 1 RIR', 'Back off: 6 a 8 reps · 85% da WS (2 séries)'] },
+      { nome: '2 WS e Back off', completa: false, series: [['TRABALHO', 'WS', 2], ['POS_TRABALHO', 'Back off', 1]], desc: 'Para o segundo exercício do grupo muscular.' }] },
+    { tecnica: 'Cluster', receitas: [
+      { nome: 'Exemplo: FS, WS e Cluster', completa: true, series: [['PREPARACAO', 'FS', 2], ['TRABALHO', 'WS', 1]], desc: 'WS em blocos 4+2+2, pausa de 15 s.' },
+      { nome: 'Exemplo: FS e Cluster', completa: false, series: [['TRABALHO', 'WS', 1]], desc: 'Só a WS em blocos, sem preparação.' }] },
+    { tecnica: 'Rest pause', receitas: [
+      { nome: 'WS e Top set com rest pause', completa: false, series: [['TRABALHO', 'WS', 1], ['TRABALHO', 'Top set', 1]], desc: 'Top set até a falha com 1 pausa de 20 s.' }] }] },
+  { nome: 'Hipertrofia', grupos: [
+    { tecnica: 'Drop-set', receitas: [
+      { nome: 'FS, WS e drop na última', completa: true, series: [['PREPARACAO', 'FS', 1], ['TRABALHO', 'WS', 2]], desc: 'Uma queda de 20% na última WS.' }] },
+    { tecnica: 'Várias técnicas', receitas: [
+      { nome: 'Top set com rest pause e back off em drop', completa: false, series: [['TRABALHO', 'Top set', 1], ['POS_TRABALHO', 'Back off', 1]], desc: 'Rest pause no Top set e drop-set no Back off.' }] }] },
+  { nome: 'Sem coleção', grupos: [
+    { tecnica: 'Sem técnica', receitas: [
+      { nome: 'Mobilidade e 2 WS', completa: false, series: [[null, 'Mobilidade', 1], ['TRABALHO', 'WS', 2]], desc: null }] }] },
+];
+
+function cartaoReceita(r) {
+  const chave = r.nome;
+  const total = r.series.reduce((s, x) => s + x[2], 0);
+  const aberta = estado.sequencias.has(chave);
+  return `<div class="receita">
+    <div class="l1"><b>${r.nome}</b>${r.completa ? '<span class="etiqueta">Completa</span>' : ''}</div>
+    <div class="faixa-composicao" aria-hidden="true">${r.series.map(([p, , q]) => `<i class="${p ? '' : 'vazado'}" style="${corDoPapel(p)};flex:${q}"></i>`).join('')}</div>
+    <div class="composicao num" aria-label="Composição: ${r.series.map(([, n, q]) => `${n} vezes ${q}`).join(', ')}">${r.series.map(([p, n, q]) => `<span style="${corDoPapel(p)}"><i class="ponto ${p ? '' : 'vazado'}"></i>${n} ×${q}</span>`).join('<span class="suave" aria-hidden="true">·</span>')}<span class="suave">· ${total} séries</span></div>
+    ${r.desc ? `<span class="pequeno suave">${r.desc}</span>` : ''}
+    ${aberta && r.seq ? `<div class="sequencia num"><b>Sequência</b>${r.seq.map((l) => `<span>${l}</span>`).join('')}</div>` : ''}
+    <div class="acoes"><button class="btn">Usar esta receita</button>${r.seq ? `<button class="btn fantasma" data-seq="${chave}" aria-expanded="${aberta}">${aberta ? 'Esconder sequência' : 'Ver sequência'}</button>` : ''}</div>
+  </div>`;
+}
+
+function telaReceitas() {
+  const e = estado.receitas;
+  let lista;
+  if (e === 'carregando') lista = '<div class="esqueleto alto"></div><div class="esqueleto alto"></div><span class="suave pequeno" role="status">Carregando receitas…</span>';
+  else if (e === 'vazio') lista = '<div class="vazio"><b>Nenhuma receita com essa busca.</b><span class="suave pequeno">Busque pelo nome, pela descrição ou pelas séries (ex.: back off).</span></div>';
+  else if (e === 'erro') lista = `<div class="alerta perigo" role="alert">${ic('alerta')}<div><b>Não foi possível carregar as receitas.</b><div style="margin-top:8px"><button class="btn">Tentar de novo</button></div></div></div>`;
+  else if (e === 'semColecoes') lista = `<span class="pequeno suave">Sem as coleções (erro ou sem permissão), a lista fica só por técnica.</span>` + COLECOES.flatMap((c) => c.grupos).reduce((acc, g) => { const ex = acc.find((x) => x.tecnica === g.tecnica); if (ex) ex.receitas.push(...g.receitas); else acc.push({ tecnica: g.tecnica, receitas: [...g.receitas] }); return acc; }, []).map(grupoTecnica).join('');
+  else lista = COLECOES.map((c) => {
+    const fechada = estado.colecoesFechadas.has(c.nome);
+    const n = c.grupos.reduce((s, g) => s + g.receitas.length, 0);
+    return `<div class="cartao"><div class="faixa"><div class="tit"><b>${c.nome}</b><small>${n} ${n === 1 ? 'receita' : 'receitas'} · ${c.grupos.map((g) => g.tecnica).join(', ')}</small></div><button class="ib" data-colecao="${c.nome}" aria-expanded="${!fechada}" aria-label="${fechada ? 'Abrir' : 'Recolher'} ${c.nome}"><span class="gira" style="display:inline-grid;transform:rotate(${fechada ? 0 : 180}deg)">${ic('baixo')}</span></button></div>
+      ${fechada ? '' : `<div class="corpo">${c.grupos.map(grupoTecnica).join('')}</div>`}</div>`;
+  }).join('');
+  const editor = `<div class="editor-fundo" aria-hidden="true"><div class="cartao"><div class="faixa"><div class="tit"><b>Treino de Aluno Exemplo</b><small>Rascunho · Treino A</small></div></div><div class="corpo"><div class="esqueleto" style="width:40%"></div><div class="esqueleto alto"></div><div class="esqueleto alto"></div></div></div></div><div class="veu"></div>`;
+  const folha = `<div class="folha" role="dialog" aria-modal="true" aria-labelledby="t-folha">
+    <div class="faixa"><div class="tit"><b id="t-folha" style="font-size:18px">Usar receita</b><small>Supino reto com barra</small></div><button class="ib" aria-label="Fechar">${ic('x')}</button></div>
+    <div class="rolar">
+      <span class="pequeno suave">Substitui as séries deste exercício. Dá para desfazer logo depois.</span>
+      <label class="campo-busca">${ic('busca')}<span>${e === 'vazio' ? '<span style="color:var(--texto)">pirâmide 21</span>' : 'Nome, descrição ou séries (ex.: back off)'}</span></label>
+      ${e === 'normal' || e === 'semColecoes' ? legendaDeTipos() : ''}
+      ${lista}
+    </div></div>`;
+  return quadro(`<div style="height:${estado.largura === 390 ? 820 : 760}px;position:relative">${editor}${folha}</div>`, 'Editor › Usar receita');
+}
+function grupoTecnica(g) {
+  const ordenadas = [...g.receitas].sort((a, b) => Number(b.completa) - Number(a.completa));
+  return `<div class="grupo-tecnica"><h3 class="secao">${g.tecnica}<small>${ordenadas.length} ${ordenadas.length === 1 ? 'receita' : 'receitas'}${ordenadas.some((r) => r.completa) && ordenadas.length > 1 ? ' · completas primeiro' : ''}</small></h3>${ordenadas.map(cartaoReceita).join('')}</div>`;
+}
+
+/* ====================== tokens propostos e tabela ====================== */
+function tokensPropostos() {
+  const nomes = { tipoAquecimento: ['Aquecimento', 'ciano'], tipoPreparacao: ['Preparação (FS)', 'azul'], tipoTrabalho: ['Trabalho (WS, Top set)', 'violeta'], tipoPosTrabalho: ['Pós-trabalho (Back off)', 'magenta'] };
+  const st = (hex) => `<span class="amostra" style="background:${hex}"></span><code>${hex}</code>`;
+  return `<table class="dados" style="max-width:1000px"><thead><tr><th>Token proposto</th><th>Papel</th><th>Matiz</th><th>Claro e areia</th><th>Escuro</th><th>Matiz (Lab, graus)</th></tr></thead><tbody>
+    ${Object.keys(nomes).map((k) => `<tr><td><code>${k}</code></td><td>${nomes[k][0]}</td><td>${nomes[k][1]}</td><td>${st(TIPOS.claro[k])}</td><td>${st(TIPOS.escuro[k])}</td><td class="r">${matiz(TIPOS.claro[k])} / ${matiz(TIPOS.escuro[k])}</td></tr>`).join('')}
+    <tr><td><code>bordaCampo</code> (já existe)</td><td>Outro</td><td>sem cor: marcador vazado</td><td>${st(BASE.claro.bordaCampo)}</td><td>${st(BASE.escuro.bordaCampo)}</td><td class="r">—</td></tr>
+    <tr><td><code>corDeIdentificacao(i)</code> = <code>PALETA_DA_AGENDA</code> na ordem ${ORDEM_DA_IDENTIFICACAO.join(', ')}</td><td>divisão do treino e refeição</td><td>já existe</td><td colspan="2">${ORDEM_DA_IDENTIFICACAO.map((k) => `<span class="amostra" style="background:${PALETA_DA_AGENDA.claro[k]}"></span>`).join('')} / ${ORDEM_DA_IDENTIFICACAO.map((k) => `<span class="amostra" style="background:${PALETA_DA_AGENDA.escuro[k]}"></span>`).join('')}</td><td class="r">—</td></tr>
+    <tr><td colspan="6" class="suave">Status (para comparar): sucesso ${matiz(BASE.claro.sucesso)}°, atenção ${matiz(BASE.claro.atencao)}°, perigo ${matiz(BASE.claro.perigo)}° (claro). Os tipos ficam entre ${Math.min(...Object.values(TIPOS.claro).map(matiz))}° e ${Math.max(...Object.values(TIPOS.claro).map(matiz))}°, a faixa do ciano ao magenta, longe do verde, do âmbar e do vermelho.</td></tr>
+    </tbody></table>`;
+}
+function tabelaContraste() {
+  const pares = paresDeContraste();
+  const menor = pares.reduce((m, p) => (p.razao / p.minimo < m.razao / m.minimo ? p : m), pares[0]);
+  const menorTexto = pares.filter((p) => p.minimo === 4.5).reduce((m, p) => (p.razao < m.razao ? p : m));
+  const menorNaoTexto = pares.filter((p) => p.minimo === 3).reduce((m, p) => (p.razao < m.razao ? p : m));
+  const falhas = pares.filter((p) => p.razao < p.minimo);
+  const dist = distancias();
+  const falhasDist = dist.filter((d) => !d.informativo && d.de < d.minimo);
+  const amostra = (hex) => `<span class="amostra" style="background:${hex}"></span><code>${hex}</code>`;
+  return `<div class="resumo-contraste"><b>${pares.length} pares</b> · ${falhas.length ? `<span style="color:#B71C1C">${falhas.length} abaixo do mínimo</span>` : 'nenhum abaixo do mínimo'}.<br>
+    Menor razão de texto: <b>${menorTexto.razao.toFixed(2)}:1</b> (${menorTexto.cor} sobre ${menorTexto.sobre}, ${menorTexto.tema}).<br>
+    Menor razão não textual: <b>${menorNaoTexto.razao.toFixed(2)}:1</b> (${menorNaoTexto.cor} sobre ${menorNaoTexto.sobre}, ${menorNaoTexto.tema}).<br>
+    Distância dos tipos até sucesso, atenção, perigo e neutro: menor ΔE ${Math.min(...dist.filter((d) => d.minimo === 25 && !d.informativo).map((d) => d.de)).toFixed(1)} (mínimo 25); entre tipos: menor ΔE ${Math.min(...dist.filter((d) => d.minimo === 15).map((d) => d.de)).toFixed(1)} (mínimo 15). ${falhasDist.length ? falhasDist.length + ' abaixo.' : 'Nenhuma abaixo.'}</div>
+    <table class="dados"><thead><tr><th>Tema</th><th>Cor</th><th>Sobre</th><th>Uso</th><th class="r">Razão</th><th class="r">Mínimo</th><th>Passa</th></tr></thead><tbody>
+    ${pares.map((p) => `<tr class="${p === menor ? 'menor' : ''}"><td>${p.tema}</td><td>${p.cor} ${amostra(p.hex)}</td><td>${p.sobre} ${amostra(p.sobreHex)}</td><td>${p.uso}</td><td class="r">${p.razao.toFixed(2)}:1</td><td class="r">${p.minimo}:1</td><td>${p.razao >= p.minimo ? 'sim' : 'NÃO'}</td></tr>`).join('')}
+    </tbody></table>
+    <h3 style="margin:18px 0 6px;font-size:16px">Distância das cores (ΔE CIE76)</h3>
+    <table class="dados"><thead><tr><th>Grupo</th><th>Cor</th><th>Comparada com</th><th class="r">ΔE</th><th class="r">Mínimo</th><th>Passa</th></tr></thead><tbody>
+    ${dist.map((d) => `<tr><td>${d.grupo === 'claro' ? 'claro e areia' : 'escuro'}</td><td>${d.cor} ${amostra(d.hex)}</td><td>${d.outra} ${amostra(d.outraHex)}</td><td class="r">${d.de.toFixed(1)}</td><td class="r">${d.minimo}</td><td>${d.de >= d.minimo ? 'sim' : d.informativo ? 'abaixo (só informativo: divisão/refeição não fica perto de selo neutro)' : 'NÃO'}</td></tr>`).join('')}
+    </tbody></table>`;
+}
+
+/* ====================== montagem ====================== */
+function controles() {
+  const temas = [['claro', 'Claro'], ['areia', 'Areia'], ['escuro', 'Escuro']];
+  document.getElementById('ctl-tema').innerHTML = '<span>Tema</span>' + temas.map(([k, r]) => `<button data-tema="${k}" aria-pressed="${estado.tema === k}">${r}</button>`).join('');
+  document.getElementById('ctl-largura').innerHTML = '<span>Largura</span>' + [390, 1280].map((l) => `<button data-largura="${l}" aria-pressed="${estado.largura === l}">${l} px</button>`).join('');
+  const opcoes = {
+    execucao: [['normal', 'Com internet'], ['offline', 'Sem internet']],
+    historico: [['normal', 'Normal'], ['ultimos30', 'Últimos 30 dias'], ['carregando', 'Carregando'], ['vazio', 'Vazio'], ['erro', 'Erro'], ['offline', 'Sem internet']],
+    receitas: [['normal', 'Normal'], ['semColecoes', 'Sem coleções'], ['carregando', 'Carregando'], ['vazio', 'Busca sem resultado'], ['erro', 'Erro']],
+  };
+  for (const el of document.querySelectorAll('.estados')) {
+    const k = el.dataset.estado;
+    el.innerHTML = '<span>Estado:</span>' + opcoes[k].map(([v, r]) => `<button data-estado-de="${k}" data-valor="${v}" aria-pressed="${estado[k] === v}">${r}</button>`).join('');
+  }
+}
+function render() {
+  controles();
+  document.getElementById('tokens-propostos').innerHTML = tokensPropostos();
+  document.getElementById('q-execucao').innerHTML = `<div class="lado-a-lado">${telaExecucao()}${telaRestPause()}</div>`;
+  document.getElementById('q-dieta').innerHTML = telaDieta();
+  document.getElementById('q-historico').innerHTML = telaHistorico();
+  document.getElementById('q-receitas').innerHTML = telaReceitas();
+  document.getElementById('tabela-contraste').innerHTML = tabelaContraste();
+}
+document.addEventListener('click', (ev) => {
+  const b = ev.target.closest('button');
+  if (!b) return;
+  const d = b.dataset;
+  if (d.tema) { estado.tema = d.tema; guardar(); }
+  else if (d.largura) { estado.largura = Number(d.largura); guardar(); }
+  else if (d.estadoDe) estado[d.estadoDe] = d.valor;
+  else if (d.aba) estado.aba = d.aba;
+  else if (d.semana) { const s = estado.semanasAbertas; s.has(d.semana) ? s.delete(d.semana) : s.add(d.semana); }
+  else if (d.dia) { const s = estado.diasAbertos; s.has(d.dia) ? s.delete(d.dia) : s.add(d.dia); }
+  else if (d.colecao) { const s = estado.colecoesFechadas; s.has(d.colecao) ? s.delete(d.colecao) : s.add(d.colecao); }
+  else if (d.seq) { const s = estado.sequencias; s.has(d.seq) ? s.delete(d.seq) : s.add(d.seq); }
+  else return;
+  const foco = b.id || null;
+  render();
+  if (foco) document.getElementById(foco)?.focus();
+});
+render();
+</script>
+</body>
+</html>
