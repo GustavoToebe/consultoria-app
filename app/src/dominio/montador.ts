@@ -453,11 +453,9 @@ export const DEFINICOES_DE_BLOCO: Record<TipoDeBloco, DefinicaoDeBloco> = {
   },
 };
 
-/** Libera a tela `/montador` apenas em desenvolvimento (`__DEV__`) ou quando `EXPO_PUBLIC_MONTADOR === '1'`. */
+/** Libera a tela `/montador` apenas fora de produção (`NODE_ENV !== 'production'`) ou quando `EXPO_PUBLIC_MONTADOR === '1'`. */
 export function montadorLiberado(): boolean {
-  const devGlobal = (globalThis as { __DEV__?: unknown }).__DEV__;
-  const dev = typeof devGlobal === 'boolean' ? devGlobal : typeof __DEV__ !== 'undefined' && Boolean(__DEV__);
-  return dev || process.env.EXPO_PUBLIC_MONTADOR === '1';
+  return process.env.NODE_ENV !== 'production' || process.env.EXPO_PUBLIC_MONTADOR === '1';
 }
 
 export function ehTipoDeBloco(valor: unknown): valor is TipoDeBloco {

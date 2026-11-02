@@ -1,5 +1,5 @@
 import * as Clipboard from 'expo-clipboard';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -19,6 +19,7 @@ import {
   type TemaDoMontador,
   type TipoDeBloco,
 } from '../../dominio/montador';
+import type { Preferencias } from '../../dominio/preferencias';
 import { criarRascunhoDeModelo, MODELOS_INICIAIS, type ChaveModeloInicial } from '../../montador/modelosIniciais';
 import { Paleta } from '../../montador/Paleta';
 import { Prancheta } from '../../montador/Prancheta';
@@ -71,7 +72,7 @@ export default function TelaMontador() {
 }
 
 function MontadorConteudo() {
-  const { cores, escolherPreferencia } = useTema();
+  const { cores, preferencias, preferenciasLidas, escolherPreferencia } = useTema();
   const { avisar } = useAviso();
   const { width } = useWindowDimensions();
   const largo = width >= LARGURA_MENU_EXPANDIDO;
@@ -92,9 +93,31 @@ function MontadorConteudo() {
 
   const blocoSelecionado = selecionadoId ? buscarBloco(rascunho.blocos, selecionadoId) : null;
 
+  // Guarda o tema que estava em uso ao abrir o Montador e o restaura ao desmontar a tela.
+  const temaAnteriorRef = useRef<Preferencias['tema'] | null>(null);
+  const escolherPreferenciaRef = useRef(escolherPreferencia);
   useEffect(() => {
+    escolherPreferenciaRef.current = escolherPreferencia;
+  }, [escolherPreferencia]);
+
+  useEffect(() => {
+    if (!preferenciasLidas) {
+      temaAnteriorRef.current = null;
+      return;
+    }
+    if (temaAnteriorRef.current === null) {
+      temaAnteriorRef.current = preferencias.tema;
+    }
     escolherPreferencia({ tema: temaParaPreferencia(rascunho.tema) });
-  }, [rascunho.tema, escolherPreferencia]);
+  }, [preferenciasLidas, preferencias.tema, rascunho.tema, escolherPreferencia]);
+
+  useEffect(() => {
+    return () => {
+      if (temaAnteriorRef.current !== null) {
+        escolherPreferenciaRef.current({ tema: temaAnteriorRef.current });
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return;

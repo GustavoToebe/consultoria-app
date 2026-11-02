@@ -34,40 +34,44 @@ function rascunhoVazio(): Rascunho {
 }
 
 describe('montadorLiberado', () => {
-  const globalComDev = globalThis as { __DEV__?: boolean };
-  const devOriginal = globalComDev.__DEV__;
-  const envOriginal = process.env.EXPO_PUBLIC_MONTADOR;
+  const env = process.env as Record<string, string | undefined>;
+  const nodeEnvOriginal = env.NODE_ENV;
+  const montadorOriginal = env.EXPO_PUBLIC_MONTADOR;
 
   afterEach(() => {
-    globalComDev.__DEV__ = devOriginal;
-    if (envOriginal === undefined) {
-      delete process.env.EXPO_PUBLIC_MONTADOR;
+    if (nodeEnvOriginal === undefined) {
+      delete env.NODE_ENV;
     } else {
-      process.env.EXPO_PUBLIC_MONTADOR = envOriginal;
+      env.NODE_ENV = nodeEnvOriginal;
+    }
+    if (montadorOriginal === undefined) {
+      delete env.EXPO_PUBLIC_MONTADOR;
+    } else {
+      env.EXPO_PUBLIC_MONTADOR = montadorOriginal;
     }
   });
 
-  it('devolve false quando __DEV__ é falso e EXPO_PUBLIC_MONTADOR não está definida', () => {
-    globalComDev.__DEV__ = false;
-    delete process.env.EXPO_PUBLIC_MONTADOR;
+  it('devolve false com NODE_ENV=production e sem EXPO_PUBLIC_MONTADOR', () => {
+    env.NODE_ENV = 'production';
+    delete env.EXPO_PUBLIC_MONTADOR;
     expect(montadorLiberado()).toBe(false);
   });
 
-  it('devolve false quando __DEV__ é falso e EXPO_PUBLIC_MONTADOR tem outro valor', () => {
-    globalComDev.__DEV__ = false;
-    process.env.EXPO_PUBLIC_MONTADOR = '0';
+  it('devolve false com NODE_ENV=production e EXPO_PUBLIC_MONTADOR diferente de 1', () => {
+    env.NODE_ENV = 'production';
+    env.EXPO_PUBLIC_MONTADOR = '0';
     expect(montadorLiberado()).toBe(false);
   });
 
-  it('devolve true quando __DEV__ é verdadeiro', () => {
-    globalComDev.__DEV__ = true;
-    delete process.env.EXPO_PUBLIC_MONTADOR;
+  it('devolve true com NODE_ENV=production e EXPO_PUBLIC_MONTADOR=1', () => {
+    env.NODE_ENV = 'production';
+    env.EXPO_PUBLIC_MONTADOR = '1';
     expect(montadorLiberado()).toBe(true);
   });
 
-  it('devolve true quando EXPO_PUBLIC_MONTADOR é 1 mesmo com __DEV__ falso', () => {
-    globalComDev.__DEV__ = false;
-    process.env.EXPO_PUBLIC_MONTADOR = '1';
+  it('devolve true fora de produção mesmo sem EXPO_PUBLIC_MONTADOR', () => {
+    env.NODE_ENV = 'development';
+    delete env.EXPO_PUBLIC_MONTADOR;
     expect(montadorLiberado()).toBe(true);
   });
 });
