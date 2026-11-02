@@ -1,5 +1,5 @@
 import type { AgendaPessoal, EventoDetalhe, OcorrenciaDeEvento } from '../api/agendaTipos';
-import { instanteDeBrasilia } from './agendaPresencial';
+import { instanteDeBrasilia, LIMITES_COMPROMISSO } from './agendaPresencial';
 import {
   AJUDA_DIAS_UTEIS,
   LIMITES_DA_AGENDA,
@@ -29,7 +29,9 @@ import {
   textoDoCruzamento,
   textoDoErroDoCalendario,
   trocarTipoDaRepeticaoDoEvento,
+  duracaoEntre,
   erroDoFim,
+  opcaoDigitadaDoFim,
   opcoesDaRepeticao,
   opcoesDoFim,
   rotuloDaRepeticaoAtual,
@@ -79,10 +81,21 @@ describe('início–fim e rótulos da repetição do evento', () => {
   });
 
   it('erros do fim usam os limites do evento', () => {
-    expect(erroDoFim('09:00', '09:00', LIMITES_DO_EVENTO)).toBe('O fim precisa ser depois do início.');
     expect(erroDoFim('09:00', '09:04', LIMITES_DO_EVENTO)).toBe('A duração mínima é 5 min.');
     expect(erroDoFim('09:00', '08:59', LIMITES_DO_EVENTO)).toBeNull(); // 23 h 59 min, dentro das 24 h
     expect(erroDoFim('09:00', '21:00', { ...LIMITES_DO_EVENTO, duracaoMaxima: 600 })).toBe('A duração máxima é 10 h.');
+  });
+
+  it('fim igual ao início é um evento de 24 h; no compromisso (até 8 h) continua recusado', () => {
+    expect(duracaoEntre('09:00', '09:00', LIMITES_DO_EVENTO.duracaoMaxima)).toBe(1440);
+    expect(erroDoFim('09:00', '09:00', LIMITES_DO_EVENTO)).toBeNull();
+    expect(opcaoDigitadaDoFim('09:00', '0900', LIMITES_DO_EVENTO)).toEqual({
+      opcao: { valor: '1440', rotulo: '09:00 (24 h, dia seguinte)', fim: '09:00', diaSeguinte: true },
+    });
+    expect(duracaoEntre('09:00', '09:00', LIMITES_COMPROMISSO.duracaoMaxima)).toBeNull();
+    expect(duracaoEntre('09:00', '09:00')).toBeNull();
+    expect(erroDoFim('09:00', '09:00', LIMITES_COMPROMISSO)).toBe('O fim precisa ser depois do início.');
+    expect(opcaoDigitadaDoFim('09:00', '09:00', LIMITES_COMPROMISSO)).toEqual({ aviso: 'O fim precisa ser depois do início.' });
   });
 
   it('opções e rótulo atual da repetição valem para o evento (2026-11-18 é quarta)', () => {

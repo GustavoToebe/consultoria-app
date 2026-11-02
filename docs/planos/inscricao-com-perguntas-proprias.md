@@ -1,6 +1,6 @@
 # "Quero ser aluno" com as perguntas do treinador
 
-Situação: Implementada na branch `inscricao-perguntas`, aguardando revisão · Onde: branch `inscricao-perguntas` · Atualizado: 01/11/2026
+Situação: Concluída em 01/11/2026 · Onde: `main` (b4ff455, PR #32, CI verde) · Atualizado: 02/11/2026
 
 ## Objetivo
 Cada treinador monta as perguntas da página pública "Quero ser aluno", como já monta as da anamnese e da atualização.
@@ -37,6 +37,6 @@ Hoje as perguntas dessa página são fixas e iguais para todas as consultorias.
 - Copiar respostas da inscrição para a anamnese.
 
 ## O que ficou para trás
-- Guias PDF (`node scripts/guias/gerar.mjs`) não regenerados nesta branch: o coordenador regenera na junção com as outras frentes.
+- Guias PDF (`node scripts/guias/gerar.mjs`) não regenerados nesta branch: regenerados na junção com as outras frentes (PR #32).
 - Testes de integração rodados num PostgreSQL 16 local (sem Docker aqui), não no 18 do Testcontainers; a CI confere no 18.
 - Imagem nas perguntas da inscrição (D6) e um formulário por campanha seguem fora do escopo.

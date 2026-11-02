@@ -1,6 +1,6 @@
 # Filtros nas listas (barra de filtros em todas as telas)
 
-Situação: Lote 1 na main (só app); Lote 2 (API e app) pronto na branch `filtros-lote2` · Atualizado: 01/11/2026
+Situação: Concluída em 01/11/2026 · Onde: `main` (lote 1: 0f96ab7, PR #30; lote 2: b4ff455, PR #32, CI verde) · Atualizado: 02/11/2026
 
 ## Objetivo
 Levar a barra de filtros da lista de alunos (`ui/BarraDeFiltros`: busca, botão "Filtros" com a contagem, painel no PC,
