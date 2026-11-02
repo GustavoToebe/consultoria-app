@@ -24,7 +24,7 @@ de texto: o convite da equipe (C68) e o "Outros" da dieta (C54).
 | D3 | **Registro**: peso, avaliação física, lesão, finalizar pasta | de 1900 até hoje; futuro não | Gustavo |
 | D4 | **Nascimento e pergunta DATA** do questionário | 1900 até hoje com `somentePassado`; sem ele, até o ano atual + 5 | Gustavo |
 | D5 | Atraso acima de 365 dias | mostrar "Atrasada desde dd/mm/aaaa" em vez de contar os dias (`dominio/atualizacao.ts` e `RegrasAtualizacao`) | Gustavo |
-| D6 | Mensagem de erro | no próprio campo (app); 422 na API que diz o campo e **não repete o valor** | Gustavo |
+| D6 | Mensagem de erro | no próprio campo (app). Na API: **campo de corpo (formulário)** = 422 que diz o campo e **não repete o valor**; **filtros de período `de`/`ate` (query: atualizações, auditoria, importações, interessados)** = 400 `PERIODO_INVALIDO`, o código que já existia, só com a faixa nova, e a mensagem diz qual parâmetro veio errado ("Data inicial" ou "Data final") sem repetir o valor (revisada em 02/11/2026) | Gustavo |
 | D7 | Datas ruins já gravadas em produção | não corrigir nem contar sem ordem do Gustavo | Gustavo |
 | D8 | C68 | o botão "Gerar convite" da equipe deixa claro que o e-mail já foi enviado e que o link é só para copiar se precisar | Gustavo |
 | D9 | C54 | em "Outros", o aluno e o PDF da dieta mostram só a dose prescrita; concentração e apresentação ficam na biblioteca e no editor do treinador | Gustavo |
@@ -35,19 +35,15 @@ financeiro segue "registro" (já é não futura) e o ciclo só muda se for preci
 O que ficar fora das três regras é anotado aqui antes do código.
 
 ## Passos
-Andamento em 02/11/2026 (tudo na worktree `wt-datas-validas`, branch `datas-validas`, a partir da main `210d828c`; **nada commitado ainda**):
-- Passo 1 feito: o explorador mapeou os usos de `dataDaTela`/`CampoData` (23 arquivos) e as datas da API; a classificação nas três regras está nas decisões D2 a D4. Financeiro e ciclo ficam fora.
-- Passos 2 a 5: o `executor` está trabalhando (lógica em `dominio/` e API); o Sonnet revisa o diff quando ele voltar. Não marcar feito antes de `npm test`/`mvn verify` verdes e do commit.
-- Passo 6 espera o executor, para não haver dois agentes no mesmo arquivo (`UsuariosEquipe.tsx`, `dieta.tsx`, `pdfDieta.ts`). Atenção: o "Gerar convite" do aluno (`CartaoAcesso.tsx`) é outro fluxo e não muda.
-- Passos 7 e 8 ainda não começaram.
+Andamento em 02/11/2026 (worktree `wt-datas-validas`, branch `datas-validas`): passos 2 a 6 feitos no commit 677d5b2c. Passo 7 feito na worktree, **sem commit ainda**, menos os guias PDF (outro agente regera quando a Ajuda estiver final). Passo 8 não começou.
 
 - [x] 1. Listar **todos** os usos de `dataDaTela` e das datas na API (explorador) e classificar cada um em Planejamento, Registro ou Nascimento/DATA — explorador — feito em 02/11/2026 (sem commit; só leitura)
-- [ ] 2. Reproduzir como o 0260 entrou (editar o ano com `mascaraData`) e cobrir com teste — executor — em andamento em `wt-datas-validas` — commit: —
-- [ ] 3. Regra pura `dataNaFaixa` em `dominio/` com teste; cada campo chama com a sua faixa e mostra a mensagem no próprio campo — executor — em andamento em `wt-datas-validas` — commit: —
-- [ ] 4. API: o mesmo validador comum nas rotas dos três grupos, 422 com o campo e sem o valor; teste de integração por rota — executor — em andamento em `wt-datas-validas` — commit: —
-- [ ] 5. Teto do atraso: "Atrasada desde dd/mm/aaaa" acima de 365 dias, no app e em `RegrasAtualizacao` — executor — em andamento em `wt-datas-validas` — commit: —
-- [ ] 6. C68 (texto do "Gerar convite") e C54 (dose prescrita em "Outros" no aluno e no PDF da dieta) — executor-rapido, revisado pelo Sonnet — commit: —
-- [ ] 7. Ajuda (`ajuda/conteudo.ts`), guias regerados, e2e dos campos mexidos (390 e 1280 px), `AGENTS.md` só no item das datas — commit: —
+- [x] 2. Reproduzir como o 0260 entrou (editar o ano com `mascaraData`) e cobrir com teste — executor — commit: 677d5b2c
+- [x] 3. Regra pura `dataNaFaixa` em `dominio/` com teste; cada campo chama com a sua faixa e mostra a mensagem no próprio campo — executor — commit: 677d5b2c
+- [x] 4. API: o mesmo validador comum nas rotas dos três grupos, 422 com o campo e sem o valor; teste de integração por rota — executor — commit: 677d5b2c
+- [x] 5. Teto do atraso: "Atrasada desde dd/mm/aaaa" acima de 365 dias, no app e em `RegrasAtualizacao` — executor — commit: 677d5b2c
+- [x] 6. C68 (texto do "Gerar convite") e C54 (dose prescrita em "Outros" no aluno e no PDF da dieta) — executor-rapido, revisado pelo Sonnet — commit: 677d5b2c
+- [~] 7. Ajuda (`ajuda/conteudo.ts`: verbete "Datas" em Pastas de plano, "Lesões e peso" e "Convidar um membro"), `AGENTS.md` só no item da atualização/datas, e2e dos campos mexidos (390 e 1280 px: `datas-validas.spec.ts` novo com peso, lesão e avaliação física; casos novos em `pasta-periodo`, `pasta-e-atualizacao` (finalizar), `agenda-presencial` e `anamnese` (nascimento 1960); a data do peso de `pasta-e-atualizacao` saiu de 31/10/2026 para 15/03/2025, porque o registro não aceita o futuro) — feito na worktree, sem commit. **Pendente: guias PDF regerados (outro agente, depois que a Ajuda estiver final)** — commit: —
 - [ ] 8. Revisão do **Opus** (contrato da API) antes do PR — `advisor` (Opus); se indisponível, agente `revisor` (Opus, leitura) e avisar o Gustavo. A revisão do diff pelo Sonnet não a substitui. O corpo do PR traz a linha "Revisão (Opus): feita por <advisor|revisor> — apontou: … — resolvido: …" — commit: —
 
 ## Critérios de aceite
@@ -64,4 +60,9 @@ Andamento em 02/11/2026 (tudo na worktree `wt-datas-validas`, branch `datas-vali
 - Corrigir ou contar datas ruins em produção (D7).
 
 ## O que ficou para trás
-- —
+- Data de início da dieta validada só no app (`dominio` e `EditorDeDieta`); o `ValidadorDieta` da API está fora desta entrega.
+- Importação por planilha tem faixa própria (até 2040), fora das três regras.
+- O calendário da agenda navega de 2000 a 2100: ocorrências depois do teto de planejamento (ano+5) aparecem, mas não são editáveis.
+- `hojeIso` do app usa o fuso do aparelho e a API usa Brasília: perto da meia-noite, o "hoje" dos dois pode divergir em um dia.
+- Dados ruins já gravados (D7) não foram tocados: uma atualização com data 0260 mostrará "Atrasada desde dd/mm/0261", o que é esperado.
+- Guias PDF (`app/public/guias/*.pdf`) ainda sem regerar com os verbetes novos da Ajuda (outro agente).

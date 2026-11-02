@@ -87,7 +87,7 @@ public final class FiltrosDeLista {
 
     /**
      * Como {@link #exigirPeriodo}, antes conferindo cada ponta na faixa de planejamento (C76: 01/01/2000 até 31/12 do ano
-     * de hoje + 5). Fora da faixa é 422 com o mesmo {@code codigo} e o parâmetro ({@code de} ou {@code ate}) em {@code fieldErrors}; a mensagem diz a faixa e nunca repete o valor recebido.
+     * de hoje + 5). Fora da faixa é 400 com o mesmo {@code codigo} ({@code PERIODO_INVALIDO}, o que já existia); a mensagem diz qual parâmetro veio errado ("Data inicial" ou "Data final"); a mensagem diz a faixa e nunca repete o valor recebido.
      * Só para filtros de lista do treinador (o financeiro tem as próprias faixas e não usa este).
      */
     public static void exigirPeriodoNaFaixa(LocalDate de, LocalDate ate, int maximoDias, String codigo) {
@@ -96,9 +96,7 @@ public final class FiltrosDeLista {
                 FaixaDeData.PLANEJAMENTO.campo("de", "Data inicial", de),
                 FaixaDeData.PLANEJAMENTO.campo("ate", "Data final", ate)}) {
             if (ponta.valor() != null && !ponta.faixa().aceita(ponta.valor(), hoje)) {
-                String mensagem = ponta.faixa().mensagem(ponta.rotulo(), hoje);
-                throw new ValidacaoException(mensagem, codigo,
-                        java.util.List.of(new br.com.plataforma.comum.web.ApiError.FieldError(ponta.campo(), mensagem)));
+                throw new BadRequestException(ponta.faixa().mensagem(ponta.rotulo(), hoje), codigo);
             }
         }
         exigirPeriodo(de, ate, maximoDias, codigo);

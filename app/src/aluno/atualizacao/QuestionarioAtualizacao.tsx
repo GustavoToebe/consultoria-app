@@ -378,7 +378,7 @@ function CampoDeData({ rotulo, valor, ajuda, erro, somentePassado, aoMudar }: {
   const [texto, setTexto] = useState(() => (typeof valor === 'string' ? dataParaTela(valor) || valor : ''));
   return <View style={estilos.pergunta}>
     {/* Data fora da faixa (nascimento antes de 1900, ano 0260): a mensagem do campo, no lugar do aviso genérico do envio. */}
-    <CampoData rotulo={rotulo} valor={texto} erro={erroDaData(texto, rotulo, regraDaPerguntaData(somentePassado)) ?? erro} aoMudar={(t) => {
+    <CampoData rotulo={rotulo} valor={texto} erro={erroDaData(texto, rotulo.replace(/\s*\*$/, ''), regraDaPerguntaData(somentePassado)) ?? erro} aoMudar={(t) => {
       setTexto(t);
       const iso = dataDaTela(t);
       aoMudar(t.trim() === '' ? null : typeof iso === 'string' ? iso : t);

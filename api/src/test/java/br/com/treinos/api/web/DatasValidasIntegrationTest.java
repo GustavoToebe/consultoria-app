@@ -252,7 +252,7 @@ class DatasValidasIntegrationTest extends AbstractIntegrationTest {
             assertThat(r.get("codigo").asString()).isEqualTo("PERIODO_INVALIDO");
             assertThat(r.get("message").asString()).isEqualTo("Data inicial: use uma data entre 01/01/2000 e 31/12/" + teto.getYear());
             assertThat(r.toString()).doesNotContain("0260");
-            JsonNode depois = api.get(rota + "?de=2026-11-01&ate=" + depoisDoTeto, treinador, 422);
+            JsonNode depois = api.get(rota + "?de=2026-11-01&ate=" + depoisDoTeto, treinador, 400);
             assertThat(depois.get("message").asString()).startsWith("Data final: use uma data entre");
             assertThat(depois.toString()).doesNotContain(depoisDoTeto);
             api.get(rota + "?de=2000-01-01&ate=2000-01-31", treinador, 200);
