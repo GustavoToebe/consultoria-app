@@ -1,6 +1,6 @@
 # Filtros avançados da lista de alunos
 
-Situação: Pronta na branch (falta o `mvn verify` com Docker e o merge) · Onde: branch `worktree-agent-a2aaa2df55b4fdccf` (31/10) · Atualizado: 31/10/2026
+Situação: Concluída em 31/10/2026 · Onde: `main` (6b4b343, PR #28; o `mvn verify` com Docker rodou verde na CI do PR) · Atualizado: 02/11/2026
 
 ## Objetivo
 Na lista de alunos do treinador, achar quem precisa de atenção sem rolar a lista inteira: busca, um botão "Filtros" que

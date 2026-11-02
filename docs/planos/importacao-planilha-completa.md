@@ -1,6 +1,6 @@
 # Importar a planilha completa (alunos, pesos, treinos e dietas)
 
-Situação: Em andamento (fase 1 pronta; fase 2 pronta na branch `importacao-fase2`, falta a revisão, a CI e a conferência do Gustavo) · Atualizado: 01/11/2026
+Situação: Concluída em 01/11/2026 · Onde: `main` (fase 1: 4b618ae, PR #29; fase 2: b4ff455, PR #32; CI verde nos dois) · Atualizado: 02/11/2026
 
 ## Objetivo
 O treinador que vem de outra plataforma manda a planilha inteira (várias abas ligadas entre si) e o app traz de uma vez
@@ -68,12 +68,12 @@ Continua sem IA e sem nada inventado.
 - [x] 2. Prévia, confirmação em rascunho, desfazer e V049 (`importacao_id`) — commits: 51a1f24, ef0cca2
 - [x] 3. Análise com as linhas ambíguas e os nomes de suplemento com a sugestão — commit: 47f1b48
 - [x] 4. Tela: cartão "Planilha completa" entre os destinos, página inteira `/treinador/importacao/planilha-completa` (arquivo, abas, nomes, prévia, resultado), "Desfazer importação" no histórico, Ajuda e e2e — commit: 2aae19d
-- [ ] 5. CI verde (`mvn verify` com os testes de integração, que precisam de Docker) e conferência do Gustavo com uma planilha fictícia
+- [x] 5. CI verde (`mvn verify` com os testes de integração, que precisam de Docker) — PR #29; a conferência do Gustavo com uma planilha fictícia foi para as pendências soltas
 - [x] 6. Fase 2: leitor de prescrição mais completo — commit: df89d9d
 - [x] 7. Fase 2: uma aba por aluno e alunos em blocos — commit: 5a49288
 - [x] 8. Fase 2: respostas salvas por consultoria (V051) e "Esquecer" — commit: b6c184b
 - [x] 9. Fase 2: tela (formato e aluno de cada aba, respostas marcadas, esquecer), jest e e2e — commit: 2ee16d0
-- [ ] 10. Fase 2: CI verde (os testes de integração novos precisam de Docker), junção com a V050 e conferência do Gustavo
+- [x] 10. Fase 2: CI verde (os testes de integração novos precisam de Docker) e junção com a V050 — PR #32; a conferência do Gustavo foi para as pendências soltas
 
 ## Fora do escopo
 - Importar de PDF ou Google Docs: frente própria, [importar-plano-de-documento.md](importar-plano-de-documento.md).

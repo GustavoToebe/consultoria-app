@@ -1,6 +1,6 @@
 # Agenda estilo Google (ajustes do PDF de 02/11)
 
-Situação: PR aberto para a `main`, aguardando revisão · Onde: branch `ajustes-primeira-semana-de-novembro` · Atualizado: 02/11/2026
+Situação: Concluída em 02/11/2026 · Onde: `main` (6fd58f0, PR #33, CI verde; publicar verde no run 41522158187) · Atualizado: 02/11/2026
 
 ## Objetivo
 Deixar a Agenda do treinador mais parecida com o Google Agenda, como o Gustavo pediu no PDF "Ajuste agenda": a barra do
@@ -23,7 +23,7 @@ compromisso" (e o "Novo evento") como painel rápido com "Mais opções".
 - [x] 2. Telas: barra, menu da visão, filtro, painel rápido + Mais opções (compromisso e evento) e e2e — executor-front — commit: 3b848e67
 - [x] 3. Verificação: typecheck, lint, 3408 testes, e2e inteiro (474 ok; 2 falhas do ciclo menstrual por data, fora desta frente) e capturas em 1280 e 390 px — executor-front — commit: 3b848e67
 - [x] 4. Revisão (advisor) e commit na branch — commit: 3b848e67 + 0fa42d9d (ajuste da revisão)
-- [x] 5. Junção com a `origin/main` (b4ff455, já estava em dia), guia do treinador em PDF regerado e push da branch com PR para a `main` (liberado pelo Gustavo em 02/11) — commit: (este)
+- [x] 5. Junção com a `origin/main` (b4ff455, já estava em dia), guia do treinador em PDF regerado e push da branch com PR para a `main` (liberado pelo Gustavo em 02/11) — commit: 0a6f27cc, PR #33 (squash 6fd58f0 na `main`, publicar verde no run 41522158187)
 
 ## Fora do escopo
 - "Mensal na terceira quarta-feira" (o back repete no mesmo dia do mês).
@@ -31,5 +31,6 @@ compromisso" (e o "Novo evento") como painel rápido com "Mais opções".
 
 ## O que ficou para trás
 - Voltar do "Mais opções" para o painel rápido.
-- e2e do ciclo menstrual dependente da data (achado aqui, não é desta frente).
+- e2e do ciclo menstrual dependente da data (achado aqui, não é desta frente): corrigido no PR de documentação e testes de 02/11.
+- Evento de 24 h (fim igual ao início): corrigido no mesmo PR.
 - (cada sobra também vai para "Pendências soltas" no README)

@@ -198,7 +198,9 @@ const HOJE = hoje();
 const INICIO_ATUAL = deslocar(HOJE, -10);
 const INICIO_ANTERIOR = deslocar(INICIO_ATUAL, -28);
 const DIA_LUTEO = deslocar(INICIO_ATUAL, -6);
-const DIA_SINTOMA = deslocar(INICIO_ATUAL, 2);
+// O calendário abre no mês corrente: do dia 1 ao 8, hoje − 8 cairia no mês anterior, então vale o dia 1 (ainda no ciclo atual).
+const PRIMEIRO_DO_MES = `${HOJE.slice(0, 7)}-01`;
+const DIA_SINTOMA = deslocar(INICIO_ATUAL, 2) < PRIMEIRO_DO_MES ? PRIMEIRO_DO_MES : deslocar(INICIO_ATUAL, 2);
 
 const PASTA: PastaResumo = {
   id: 'p0000000-0000-4000-8000-000000000001', alunoId: ALUNO_ID, titulo: 'Pasta de janeiro',

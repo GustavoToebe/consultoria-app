@@ -1,6 +1,6 @@
 # Ajustes do vídeo de 30/10 (Análise 4: lotes A e B)
 
-Situação: Concluída (PR aberto) · Onde: branch `ajustes-video-30-10` (PR para a `main`) · Atualizado: 31/10/2026
+Situação: Concluída em 31/10/2026 · Onde: `main` (a0175d3, PR #26, CI verde) · Atualizado: 02/11/2026
 
 ## Objetivo
 Ajustar o que já existe no editor de treino, na tela do aluno e no caminho do treinador, sem funcionalidade nova, como
@@ -54,14 +54,14 @@ referência foi conferida no código atual. A análise em si fica fora do git.
 
 ## Passos
 - [x] 0. Plano no repositório, capturas "antes" e `dominio/percentuais.ts` (formatador único, com teste) — commits `0fa8eb8e`, `2f645fab`
-- [ ] 1. Editor, Lote A 1 a 7 (cabeçalho do exercício e do grupo, percentuais, rótulos, modalidade, contadores, estrutura de semana, receitas de séries) — commit `e52f7802`
-- [ ] 2. Aluno, Lote B 1 (reproduzir a carga, estado por estado; sem erro na fórmula, achado de digitação assíncrona corrigido com `valorPendente`) — commit `42c90b4c`
-- [ ] 3. Aluno, Lote A 8 a 12 (série, origem da carga, "Outros", variação de peso, dieta e contraste) — commits `42c90b4c`, `a477abdb`
-- [ ] 4. Aluno, Lote B 5 e 6 (concluir treino, histórico vazio) — commits `42c90b4c`, `a477abdb`
-- [ ] 5. Caminho do treinador, Lote A 13 e Lote B 2 a 4 (ordem da renovação, atualização ao lado, voltar à pasta, peso na finalização) — commit `186e49cf`
-- [ ] 6. Lote B 8 (CRM: reproduzir e relatar; achado real: busca por WhatsApp com +55) — commit `5a88e46f`
-- [ ] 7. Lote A 14 (Agenda) — commit `27590a0c`
-- [ ] 8. Ajuda, guias em PDF, `AGENTS.md`, ligação das peças no `EditorDeTreino` — commits `601d19d5`, `a1300447` (merge da `main`: `b4f5baba`)
+- [x] 1. Editor, Lote A 1 a 7 (cabeçalho do exercício e do grupo, percentuais, rótulos, modalidade, contadores, estrutura de semana, receitas de séries) — commit `e52f7802`
+- [x] 2. Aluno, Lote B 1 (reproduzir a carga, estado por estado; sem erro na fórmula, achado de digitação assíncrona corrigido com `valorPendente`) — commit `42c90b4c`
+- [x] 3. Aluno, Lote A 8 a 12 (série, origem da carga, "Outros", variação de peso, dieta e contraste) — commits `42c90b4c`, `a477abdb`
+- [x] 4. Aluno, Lote B 5 e 6 (concluir treino, histórico vazio) — commits `42c90b4c`, `a477abdb`
+- [x] 5. Caminho do treinador, Lote A 13 e Lote B 2 a 4 (ordem da renovação, atualização ao lado, voltar à pasta, peso na finalização) — commit `186e49cf`
+- [x] 6. Lote B 8 (CRM: reproduzir e relatar; achado real: busca por WhatsApp com +55) — commit `5a88e46f`
+- [x] 7. Lote A 14 (Agenda) — commit `27590a0c`
+- [x] 8. Ajuda, guias em PDF, `AGENTS.md`, ligação das peças no `EditorDeTreino` — commits `601d19d5`, `a1300447` (merge da `main`: `b4f5baba`)
 - [x] 9. Lote B 7 (impressão, só relatório), e2e completo, capturas "depois", revisão, PR — commits `a2b1bcfe`, `49d4b411` (merge da `main`: `825704df`); `mvn verify` 1750 testes, Jest 3291, e2e 425 de 426 (a falha é a oscilação de subpixel já listada no README)
 
 ## Fora do escopo

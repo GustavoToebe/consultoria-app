@@ -637,12 +637,14 @@ export function terminaNoDiaSeguinte(hora: string, duracao: string | number): bo
 
 /**
  * Minutos entre o início e o fim digitados (HH:MM). Fim antes do início conta como o dia seguinte (23:30 → 00:30 = 60);
- * fim igual ao início, ou hora inválida, é `null` (o máximo de duração do tipo barra o que passar de lá: ver {@link erroDoFim}).
+ * hora inválida é `null` (o máximo de duração do tipo barra o que passar de lá: ver {@link erroDoFim}). Fim igual ao início
+ * são 24 h só quando o tipo aceita 24 h (`duracaoMaxima` de 1440, o evento); senão (o compromisso, ou sem limite) é `null`.
  */
-export function duracaoEntre(inicio: string, fim: string): number | null {
+export function duracaoEntre(inicio: string, fim: string, duracaoMaxima?: number): number | null {
   const a = minutosDaHora(inicio);
   const b = minutosDaHora(fim);
-  if (a === null || b === null || a === b) return null;
+  if (a === null || b === null) return null;
+  if (a === b) return duracaoMaxima !== undefined && duracaoMaxima >= MINUTOS_NO_DIA ? MINUTOS_NO_DIA : null;
   return b > a ? b - a : b + MINUTOS_NO_DIA - a;
 }
 
@@ -721,7 +723,7 @@ export function opcaoDigitadaDoFim(inicio: string, texto: string, limites: Limit
   const hora = horaDigitada(texto);
   if (hora === null || minutosDaHora(inicio) === null) return null;
   const erro = erroDoFim(inicio, hora, limites);
-  const duracao = duracaoEntre(inicio, hora);
+  const duracao = duracaoEntre(inicio, hora, limites.duracaoMaxima);
   return erro || duracao === null ? { aviso: erro ?? 'O fim precisa ser depois do início.' } : { opcao: opcaoDoFim(inicio, duracao) };
 }
 
@@ -735,12 +737,12 @@ export function inicioMudou<F extends { hora: string; duracao: string }>(form: F
 
 /**
  * Erro do par início–fim digitado (HH:MM), em texto curto, ou `null`. Início inválido não é problema do fim (o campo do início
- * tem o seu). Fim igual ao início, duração abaixo do mínimo e acima do máximo do tipo.
+ * tem o seu). Fim igual ao início (menos no tipo que aceita 24 h, o evento), duração abaixo do mínimo e acima do máximo do tipo.
  */
 export function erroDoFim(inicio: string, fim: string, limites: LimitesDeDuracao): string | null {
   if (minutosDaHora(inicio) === null) return null;
   if (minutosDaHora(fim) === null) return 'Use HH:MM, de 00:00 a 23:59.';
-  const minutos = duracaoEntre(inicio, fim);
+  const minutos = duracaoEntre(inicio, fim, limites.duracaoMaxima);
   if (minutos === null) return 'O fim precisa ser depois do início.';
   if (minutos < limites.duracaoMinima) return `A duração mínima é ${textoDaDuracao(limites.duracaoMinima)}.`;
   if (minutos > limites.duracaoMaxima) return `A duração máxima é ${textoDaDuracao(limites.duracaoMaxima)}.`;
