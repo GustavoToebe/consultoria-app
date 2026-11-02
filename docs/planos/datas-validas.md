@@ -35,7 +35,7 @@ financeiro segue "registro" (já é não futura) e o ciclo só muda se for preci
 O que ficar fora das três regras é anotado aqui antes do código.
 
 ## Passos
-Andamento em 02/11/2026 (worktree `wt-datas-validas`, branch `datas-validas`): passos 2 a 6 feitos no commit 677d5b2c. Passo 7 feito (commit 26200904 e guias no commit seguinte). Passo 8 (Opus) pendente.
+Andamento em 02/11/2026 (worktree `wt-datas-validas`, branch `datas-validas`): passos 2 a 6 feitos no commit 677d5b2c. Passo 7 feito (commit 26200904 e guias no commit seguinte). Passo 8 feito (revisão do Opus por `revisor`, ajustes aplicados).
 
 - [x] 1. Listar **todos** os usos de `dataDaTela` e das datas na API (explorador) e classificar cada um em Planejamento, Registro ou Nascimento/DATA — explorador — feito em 02/11/2026 (sem commit; só leitura)
 - [x] 2. Reproduzir como o 0260 entrou (editar o ano com `mascaraData`) e cobrir com teste — executor — commit: 677d5b2c
@@ -44,7 +44,7 @@ Andamento em 02/11/2026 (worktree `wt-datas-validas`, branch `datas-validas`): p
 - [x] 5. Teto do atraso: "Atrasada desde dd/mm/aaaa" acima de 365 dias, no app e em `RegrasAtualizacao` — executor — commit: 677d5b2c
 - [x] 6. C68 (texto do "Gerar convite") e C54 (dose prescrita em "Outros" no aluno e no PDF da dieta) — executor-rapido, revisado pelo Sonnet — commit: 677d5b2c
 - [x] 7. Ajuda (`ajuda/conteudo.ts`: verbete "Datas" em Pastas de plano, "Lesões e peso" e "Convidar um membro"), `AGENTS.md` só no item da atualização/datas, e2e dos campos mexidos (390 e 1280 px: `datas-validas.spec.ts` novo com peso, lesão e avaliação física; casos novos em `pasta-periodo`, `pasta-e-atualizacao` (finalizar), `agenda-presencial` e `anamnese` (nascimento 1960); a data do peso de `pasta-e-atualizacao` saiu de 31/10/2026 para 15/03/2025, porque o registro não aceita o futuro) e guias PDF regerados — feito em 02/11/2026: typecheck, lint e jest (219 suítes, 3429 testes) verdes, e2e dos cinco specs 44/44, `mvn verify` 1921 testes sem falha — commit: 26200904 (código, Ajuda, AGENTS.md, e2e) e o seguinte (guias PDF)
-- [ ] 8. Revisão do **Opus** (contrato da API) antes do PR — `advisor` (Opus); se indisponível, agente `revisor` (Opus, leitura) e avisar o Gustavo. A revisão do diff pelo Sonnet não a substitui. O corpo do PR traz a linha "Revisão (Opus): feita por <advisor|revisor> — apontou: … — resolvido: …" — commit: —
+- [x] 8. Revisão do **Opus** (contrato da API) antes do PR — agente `revisor` (Opus, leitura; o `advisor` só enxerga a conversa e não lê os diffs) — feito em 02/11/2026. Apontou: (1) teste esperando 422 em filtro de período, que a decisão D6 manda ser 400; (2) `/inscricoes/indicadores` aceitava datas fora da faixa; (3) aviso quando o e-mail do convite não foi enviado (C68) e texto "enviado na hora" sem condição; (4) textos do `AGENTS.md`. Resolvido: teste corrigido para 400 e `/inscricoes/indicadores` entrou no laço dos filtros, faixa aplicada em `IndicadoresDeInscricoes`, `UsuariosEquipe.tsx` e `AGENTS.md` ajustados; `mvn verify`, jest, typecheck e lint verdes depois dos ajustes — commit: ver o commit de fechamento da frente
 
 ## Critérios de aceite
 - Ano 0261 recusado em pasta, agenda, peso e lesão, com mensagem no campo, em 390 e 1280 px.
@@ -65,3 +65,7 @@ Andamento em 02/11/2026 (worktree `wt-datas-validas`, branch `datas-validas`): p
 - O calendário da agenda navega de 2000 a 2100: ocorrências depois do teto de planejamento (ano+5) aparecem, mas não são editáveis.
 - `hojeIso` do app usa o fuso do aparelho e a API usa Brasília: perto da meia-noite, o "hoje" dos dois pode divergir em um dia.
 - Dados ruins já gravados (D7) não foram tocados: uma atualização com data 0260 mostrará "Atrasada desde dd/mm/0261", o que é esperado.
+- Atraso: `desdeQuandoAtrasou` ainda sai de `prazoAtualizacao` (pode divergir da data original em atualização com "vou atrasar").
+- `paraFazer.ts:44` e o teste `atualizacao.test.ts:126` (tautológico) não foram revistos.
+- `hojeEmBrasilia()` em `datasValidas.ts` não tem teste próprio de virada de dia.
+- C54: `concentracao` continua no JSON do aluno (só a tela e o PDF deixaram de mostrar); decidir se a API também omite.

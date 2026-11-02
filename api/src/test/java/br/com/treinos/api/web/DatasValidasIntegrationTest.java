@@ -247,8 +247,8 @@ class DatasValidasIntegrationTest extends AbstractIntegrationTest {
     @Test
     void filtrosDePeriodoDasListasConferemAFaixaDePlanejamento() throws Exception {
         String depoisDoTeto = teto.plusDays(1).toString();
-        for (String rota : List.of("/atualizacoes", "/auditoria", "/importacoes", "/inscricoes")) {
-            JsonNode r = api.get(rota + "?de=0260-01-01&ate=2026-11-01", treinador, 422);
+        for (String rota : List.of("/atualizacoes", "/auditoria", "/importacoes", "/inscricoes", "/inscricoes/indicadores")) {
+            JsonNode r = api.get(rota + "?de=0260-01-01&ate=2026-11-01", treinador, 400);
             assertThat(r.get("codigo").asString()).isEqualTo("PERIODO_INVALIDO");
             assertThat(r.get("message").asString()).isEqualTo("Data inicial: use uma data entre 01/01/2000 e 31/12/" + teto.getYear());
             assertThat(r.toString()).doesNotContain("0260");
