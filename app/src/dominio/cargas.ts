@@ -9,7 +9,8 @@ import { temEtapaEmPercentual } from './validacaoDeSerie';
  * trabalho que o próprio aluno informa e sobre o que ele já registrou hoje: nunca inventa carga nem repetição.
  * Sugestão é só sugestão; o que o aluno digita é gravado exatamente como digitou.
  *
- * Série de trabalho = `carga.modo === 'CARGA_TRABALHO'` (espelho de `Serie.deTrabalho()` da API). O rótulo
+ * Série de trabalho = `carga.modo === 'CARGA_TRABALHO'` (espelho de `Serie.deTrabalho()` da API). `CARGA_FIXA` (kg escritos
+ * pelo treinador) não é de trabalho e não serve de base para "% da WS", "mesma carga" nem "abaixo da referência". O rótulo
  * `tipoTrabalho` ("WS") só aparece nos textos; nunca se compara com `Serie.tipo`, que é código.
  */
 
@@ -124,7 +125,7 @@ export function sugestaoSobreReferencia(s: Serie, referencia: number | null, pas
  * @param cargasDoDia cargas já registradas hoje, por `serieUid` (para a referência das séries em %).
  *
  * Por forma de carga: `CARGA_TRABALHO` = a carga de trabalho do dia; `PERCENTUAL_WS` = % da referência da WS (acima);
- * `MESMA_CARGA` = a própria referência da WS; `ACIMA_DA_ANTERIOR` = a série imediatamente anterior mais o percentual;
+ * `MESMA_CARGA` = a própria referência da WS; `CARGA_FIXA` = os kg do treinador, sem arredondar; `ACIMA_DA_ANTERIOR` = a série imediatamente anterior mais o percentual;
  * `ABAIXO_DA_REFERENCIA` = a carga registrada hoje na série `referenciaUid` (anterior no exercício) menos o percentual,
  * e sem registro dela não há sugestão; `NENHUMA` = nada. Em faixa ("85 a 90%", "1 a 5%") vale o percentual MÍNIMO.
  * Resultado arredondado pelo passo da metodologia (exceto carga de trabalho e mesma carga, que repetem o número).
@@ -149,6 +150,9 @@ export function calcularCargasDoExercicio(
         case 'MESMA_CARGA':
         case 'PERCENTUAL_WS':
           sugestao = sugestaoSobreReferencia(serie, referencia?.valor ?? null, config.arredondamentoKg);
+          break;
+        case 'CARGA_FIXA':
+          sugestao = carga?.valorKg ?? null;
           break;
         case 'ACIMA_DA_ANTERIOR': {
           const anterior = indice > 0 ? cargasDoDia[series[indice - 1].uid] : null;
@@ -204,6 +208,8 @@ export function textoDaOrigem(calculada: SerieCalculada, nomes: NomesDaOrigem = 
   switch (modo(serie)) {
     case 'CARGA_TRABALHO':
       return referencia ? 'carga da base do dia' : null;
+    case 'CARGA_FIXA':
+      return 'carga definida pelo treinador';
     case 'MESMA_CARGA':
       return referencia ? `mesma carga ${daReferencia}` : null;
     case 'PERCENTUAL_WS':

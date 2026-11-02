@@ -268,7 +268,13 @@ class LeitorDePrescricaoTest {
         assertThat(faixa.rir()).isNull();
         assertThat(faixa.repsMin()).isEqualTo(10);
         assertThat(faixa.sobra()).isEqualTo("RIR 1-2");
-        assertThat(LeitorDePrescricao.ler("3x10 RIR 7").rir()).isNull();
+        // O RIR vai de 0 a 10 (0 = até a falha): "RIR 7" e "RIR 10" são lidos; "RIR 11" não é e o texto fica na sobra.
+        assertThat(LeitorDePrescricao.ler("3x10 RIR 7").rir()).isEqualTo(7);
+        assertThat(LeitorDePrescricao.ler("3x10 RIR 10").rir()).isEqualTo(10);
+        Prescricao rirAlto = LeitorDePrescricao.ler("3x10 RIR 11");
+        assertThat(rirAlto.rir()).isNull();
+        assertThat(rirAlto.repsMin()).isEqualTo(10);
+        assertThat(rirAlto.sobra()).isEqualTo("RIR 11");
         assertThat(LeitorDePrescricao.ler("3x10 RPE 8,3").rpe()).isNull();
         Prescricao dois = LeitorDePrescricao.ler("3x10 RIR 2 RPE 8");
         assertThat(dois.rir()).isNull();

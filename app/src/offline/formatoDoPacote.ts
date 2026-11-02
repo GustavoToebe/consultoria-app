@@ -8,7 +8,7 @@ const campos = (v: Objeto, permitidos: readonly string[]) => Object.keys(v).ever
 const lista = (v: unknown, conferir: (x: unknown) => boolean) => Array.isArray(v) && v.every(conferir);
 const todos = (v: Objeto, chaves: readonly string[], conferir: (x: unknown) => boolean) => chaves.every((k) => conferir(v[k]));
 
-const MODOS_DE_CARGA = ['CARGA_TRABALHO', 'PERCENTUAL_WS', 'MESMA_CARGA', 'ACIMA_DA_ANTERIOR', 'ABAIXO_DA_REFERENCIA', 'NENHUMA'];
+const MODOS_DE_CARGA = ['CARGA_TRABALHO', 'PERCENTUAL_WS', 'MESMA_CARGA', 'ACIMA_DA_ANTERIOR', 'ABAIXO_DA_REFERENCIA', 'CARGA_FIXA', 'NENHUMA'];
 const TIPOS_DE_TECNICA = [
   'REST_PAUSE', 'CLUSTER', 'DROP_SET', 'MYO_REPS', 'PARTIAL_REPS', 'FORCED_REPS',
   'NEGATIVA', 'SUPER_SLOW', 'VINTE_E_UM', 'EMOM', 'PIRAMIDE_CRESCENTE', 'PIRAMIDE_DECRESCENTE',
@@ -30,10 +30,10 @@ const CAMPOS_NUMERICOS_DA_TECNICA = [
   'repsAssistidas',
 ] as const;
 
-/** Carga nula é "sem carga"; o `modo` é um dos seis e os números e a referência têm o tipo certo. */
+/** Carga nula é "sem carga"; o `modo` é um dos sete e os números e a referência têm o tipo certo. */
 function carga(v: unknown): boolean {
   if (v == null) return true;
-  return objeto(v) && campos(v, ['modo', 'percentualMin', 'percentualMax', 'referenciaUid']) && MODOS_DE_CARGA.includes(String(v.modo)) && numero(v.percentualMin) && numero(v.percentualMax) && texto(v.referenciaUid);
+  return objeto(v) && campos(v, ['modo', 'percentualMin', 'percentualMax', 'referenciaUid', 'valorKg']) && MODOS_DE_CARGA.includes(String(v.modo)) && numero(v.percentualMin) && numero(v.percentualMax) && texto(v.referenciaUid) && numero(v.valorKg);
 }
 
 function esforco(v: unknown): boolean {

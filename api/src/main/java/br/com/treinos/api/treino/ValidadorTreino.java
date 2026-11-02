@@ -134,6 +134,7 @@ public class ValidadorTreino {
         Set<String> tiposAvisados = new HashSet<>();
         Set<String> tecnicasAvisadas = new HashSet<>();
         Set<UUID> anteriores = new HashSet<>();
+        Set<UUID> fixas = new HashSet<>();
         for (int k = 0; k < series.size(); k++) {
             Serie x = series.get(k);
             String cx = ce + ".series[" + k + "]";
@@ -151,10 +152,17 @@ public class ValidadorTreino {
                     c.aviso(cx + ".carga.modo",
                             "Acima da anterior na primeira série do exercício: o aluno não terá carga anterior de referência.");
                 }
-                if (ConteudoTreino.ABAIXO_DA_REFERENCIA.equals(modo) && x.carga().referenciaUid() != null
-                        && !anteriores.contains(x.carga().referenciaUid())) {
-                    c.erro(cx + ".carga.referenciaUid",
-                            "A referência precisa ser uma série anterior, no mesmo exercício.");
+                if (ConteudoTreino.ABAIXO_DA_REFERENCIA.equals(modo) && x.carga().referenciaUid() != null) {
+                    if (!anteriores.contains(x.carga().referenciaUid())) {
+                        c.erro(cx + ".carga.referenciaUid",
+                                "A referência precisa ser uma série anterior, no mesmo exercício.");
+                    } else if (fixas.contains(x.carga().referenciaUid())) {
+                        c.erro(cx + ".carga.referenciaUid",
+                                "Carga fixa não serve de referência: escolha uma série com a carga do aluno.");
+                    }
+                }
+                if (ConteudoTreino.CARGA_FIXA.equals(modo) && "nenhuma".equals(e.unidade())) {
+                    c.erro(cx + ".carga.modo", "Carga fixa só em exercício com carga.");
                 }
                 if ("nenhuma".equals(e.unidade()) && x.tecnica() != null) {
                     etapasSemCarga(c, x.tecnica(), cx);
@@ -167,6 +175,9 @@ public class ValidadorTreino {
             trabalhoAntes |= x.deTrabalho();
             if (x.uid() != null) {
                 anteriores.add(x.uid());
+                if (ConteudoTreino.CARGA_FIXA.equals(x.modo())) {
+                    fixas.add(x.uid());
+                }
             }
         }
         if (temPercentual && !temTrabalho) {

@@ -56,6 +56,8 @@ export const MODOS: { valor: ModoDeCarga; rotulo: string }[] = [
   { valor: 'ACIMA_DA_ANTERIOR', rotulo: 'Acima da anterior' },
   { valor: 'ABAIXO_DA_REFERENCIA', rotulo: 'Abaixo da referência' },
   { valor: 'MESMA_CARGA', rotulo: 'Mesma carga da série de trabalho' },
+  // Peso em kg escolhido pelo treinador (`valorKg`). Só em exercício com carga e fora do papel de trabalho (ver `modosDeCarga`).
+  { valor: 'CARGA_FIXA', rotulo: 'Carga fixa (kg)' },
   // `NENHUMA` é a série sem sugestão de carga; o exercício "sem carga" (elástico, peso corporal) é a `unidade`, outra decisão.
   { valor: 'NENHUMA', rotulo: 'Sem sugestão de carga' },
 ];
@@ -73,10 +75,10 @@ export interface ModosDeCarga {
 
 /** Ordem das formas de carga por papel do tipo: as mais usadas primeiro. Papel sem ordem (ou "Outro") usa a de `MODOS`. */
 const ORDEM_POR_PAPEL: Partial<Record<PapelDaSerie, ModoDeCarga[]>> = {
-  AQUECIMENTO: ['NENHUMA', 'PERCENTUAL_WS', 'CARGA_TRABALHO'],
-  PREPARACAO: ['PERCENTUAL_WS', 'NENHUMA', 'CARGA_TRABALHO'],
+  AQUECIMENTO: ['NENHUMA', 'PERCENTUAL_WS', 'CARGA_FIXA', 'CARGA_TRABALHO'],
+  PREPARACAO: ['PERCENTUAL_WS', 'NENHUMA', 'CARGA_FIXA', 'CARGA_TRABALHO'],
   TRABALHO: ['CARGA_TRABALHO', 'ACIMA_DA_ANTERIOR', 'MESMA_CARGA', 'NENHUMA'],
-  POS_TRABALHO: ['PERCENTUAL_WS', 'ABAIXO_DA_REFERENCIA', 'MESMA_CARGA', 'ACIMA_DA_ANTERIOR', 'CARGA_TRABALHO', 'NENHUMA'],
+  POS_TRABALHO: ['PERCENTUAL_WS', 'ABAIXO_DA_REFERENCIA', 'MESMA_CARGA', 'ACIMA_DA_ANTERIOR', 'CARGA_FIXA', 'CARGA_TRABALHO', 'NENHUMA'],
 };
 
 /** Quantas opções do papel ficam sempre à vista; as demais vão para "Outras formas de carga". */
@@ -86,12 +88,24 @@ const PRINCIPAIS_POR_PAPEL = 2;
  * As formas de carga do editor, com a base escrita pelo nome da série de trabalho da metodologia ("Percentual da carga de
  * trabalho (WS)", "Mesma carga da WS"): o percentual sempre diz de onde sai, nunca do 1RM. O papel do tipo ordena; as duas
  * primeiras ficam em `principais` e, se a série já grava outra forma (`atual`; nula = `NENHUMA`), ela também, para nunca
- * sumir atrás de "Outras formas de carga". Nenhuma forma é proibida: todas as seis estão numa das duas listas.
+ * sumir atrás de "Outras formas de carga". As formas aparecem todas, menos a `CARGA_FIXA`, que só entra com
+ * `exercicioComCarga` (exercício com unidade, fora do cardio) e fora do papel TRABALHO (a série desse papel conta como de
+ * trabalho no registro e nos recordes); a série que já é fixa a mantém na lista. Sem `exercicioComCarga` (a prescrição
+ * padrão de um tipo da metodologia não é de um exercício), ela não é oferecida.
  */
-export function modosDeCarga(config: Configuracao | null | undefined, papel?: PapelDaSerie | null, atual?: ModoDeCarga | null): ModosDeCarga {
+export function modosDeCarga(
+  config: Configuracao | null | undefined,
+  papel?: PapelDaSerie | null,
+  atual?: ModoDeCarga | null,
+  exercicioComCarga = false,
+): ModosDeCarga {
   const base = tipoTrabalho(config);
+  const fixaOferecida = atual === 'CARGA_FIXA' || (exercicioComCarga && papel !== 'TRABALHO');
+  const todos = fixaOferecida ? MODOS : MODOS.filter((m) => m.valor !== 'CARGA_FIXA');
   const ordem = papel ? ORDEM_POR_PAPEL[papel] : undefined;
-  const ordenadas = ordem ? [...ordem.map((valor) => MODOS.find((m) => m.valor === valor)!), ...MODOS.filter((m) => !ordem.includes(m.valor))] : MODOS;
+  const ordenadas = ordem
+    ? [...ordem.flatMap((valor) => todos.filter((m) => m.valor === valor)), ...todos.filter((m) => !ordem.includes(m.valor))]
+    : todos;
   const opcoes = ordenadas.map((m): OpcaoDeModo => {
     if (!base) return { ...m };
     if (m.valor === 'PERCENTUAL_WS') return { ...m, rotulo: `Percentual da carga de trabalho (${base})` };
@@ -138,9 +152,10 @@ export const LIMITE_SERIES = 30;
 /** Descanso aceito pelo servidor (`ValidadorTreino`): de 0 a 1 hora, em segundos. */
 export const DESCANSO_MAXIMO_SEGUNDOS = 3600;
 
-/** Carga só com a forma (os números o treinador preenche); `NENHUMA` é `null`, como o servidor aceita. */
+/** Carga só com a forma (os números o treinador preenche); `NENHUMA` é `null`, como o servidor aceita. A fixa leva `valorKg` vazio. */
 export function cargaDoModo(modo: ModoDeCarga): Carga | null {
   if (modo === 'NENHUMA') return null;
+  if (modo === 'CARGA_FIXA') return { modo, percentualMin: null, percentualMax: null, referenciaUid: null, valorKg: null };
   return { modo, percentualMin: null, percentualMax: null, referenciaUid: null };
 }
 
@@ -332,7 +347,7 @@ export function remover<T>(lista: T[], indice: number): T[] {
 function comPercentuais(series: Serie[], faixas: FaixaPercentual[]): Serie[] {
   return series.map((s, i) => ({
     ...s,
-    carga: { ...(s.carga ?? cargaDoModo('PERCENTUAL_WS')!), modo: 'PERCENTUAL_WS', percentualMin: faixas[i].min, percentualMax: faixas[i].max, referenciaUid: null },
+    carga: { modo: 'PERCENTUAL_WS', percentualMin: faixas[i].min, percentualMax: faixas[i].max, referenciaUid: null },
   }));
 }
 
@@ -447,6 +462,22 @@ export function alterarGrupo(
   return trocarGrupo(series, grupo, novas);
 }
 
+/**
+ * Esforço de UMA série do grupo expandido (RIR por série, na mesma linha do %): troca só o número dentro da forma que a
+ * série já tem (RIR ou RPE), sem mexer nas outras. O valor de RIR/RPE não separa grupos (`agrupamento.chave`), então as
+ * séries seguem juntas. Série sem esforço, valor nulo, índice fora da lista ou série de cardio não mudam: tirar o esforço
+ * ou trocar RIR por RPE só numa série quebraria a forma do grupo e é decisão do grupo todo (`alterarGrupo`). O número
+ * não é validado aqui (a validação mostra o erro no campo).
+ */
+export function alterarEsforcoDaSerie(series: Serie[], indice: number, valor: number | null): Serie[] {
+  return series.map((s, i) => {
+    if (i !== indice || valor == null || !s.esforco) return s;
+    if (s.esforco.rir != null) return { ...s, esforco: { rir: valor, rpe: null } };
+    if (s.esforco.rpe != null) return { ...s, esforco: { rir: null, rpe: valor } };
+    return s;
+  });
+}
+
 /** Faixa de % de uma série só (o grupo expandido): mantém a forma se já é por %, senão vira "% da série de trabalho". */
 export function alterarPercentuais(series: Serie[], indice: number, min: number | null, max: number | null): Serie[] {
   return series.map((s, i) => {
@@ -494,7 +525,15 @@ function serieNormalizada(s: Partial<Serie>, uid: string): Serie {
     repsMin: s.repsMin ?? null,
     repsMax: s.repsMax ?? null,
     amrap: s.amrap ? true : null,
-    carga: s.carga ? { modo: s.carga.modo, percentualMin: s.carga.percentualMin ?? null, percentualMax: s.carga.percentualMax ?? null, referenciaUid: s.carga.referenciaUid ?? null } : null,
+    carga: s.carga
+      ? {
+          modo: s.carga.modo,
+          percentualMin: s.carga.percentualMin ?? null,
+          percentualMax: s.carga.percentualMax ?? null,
+          referenciaUid: s.carga.referenciaUid ?? null,
+          ...(s.carga.valorKg != null ? { valorKg: s.carga.valorKg } : {}),
+        }
+      : null,
     esforco: copiarEsforco(s.esforco),
     descansoSegundos: s.descansoSegundos ?? null,
     tecnica: s.tecnica ? { ...tecnicaVazia(s.tecnica.tipo), ...s.tecnica, blocos: s.tecnica.blocos ? [...s.tecnica.blocos] : null } : null,

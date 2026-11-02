@@ -334,6 +334,10 @@ public record ConfiguracaoConsultoria(
         if (carga == null) {
             return;
         }
+        if (ConteudoTreino.CARGA_FIXA.equals(carga.modo())) {
+            // Os kg são do exercício, não de um tipo de série: o padrão copiaria o mesmo peso para qualquer exercício.
+            throw new BadRequestException("Carga padrão de " + nome + ": a carga fixa só vale na série de um exercício.");
+        }
         Map<String, String> problemas = carga.problemas(false);
         if (!problemas.isEmpty()) {
             throw new BadRequestException("Carga padrão de " + nome + ": " + problemas.values().iterator().next());

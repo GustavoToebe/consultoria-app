@@ -227,6 +227,12 @@ class MetodologiaTest {
         recusa(comTipos(List.of(tipo("WS", Papel.TRABALHO, null, null,
                 Map.of("LIVRE", new PadraoPorModalidade(Carga.percentual("PERCENTUAL_WS", 0, null), null)), null))),
                 "Carga padrão de WS");
+        // Os kg da carga fixa são da série de um exercício: o padrão de um tipo (nem o da modalidade) não os leva.
+        recusa(comTipos(List.of(tipo("FS", Papel.PREPARACAO, Carga.fixa(new java.math.BigDecimal("12")), null, null, null))),
+                "carga fixa só vale na série de um exercício");
+        recusa(comTipos(List.of(tipo("FS", Papel.PREPARACAO, null, null,
+                Map.of("LIVRE", new PadraoPorModalidade(Carga.fixa(new java.math.BigDecimal("12")), null)), null))),
+                "carga fixa só vale na série de um exercício");
         // A referência do back off só existe na série: o padrão da metodologia não a exige.
         assertThatNoException().isThrownBy(() -> ConfiguracaoConsultoria.validar(comTipos(List.of(tipo("WS",
                 Papel.TRABALHO, Carga.percentual("ABAIXO_DA_REFERENCIA", 10, 15), null, null, null)))));
@@ -238,7 +244,9 @@ class MetodologiaTest {
     @Test
     void esforcoPadraoInformadoPrecisaDeValorValido() {
         recusa(comTipos(List.of(tipo("WS", Papel.TRABALHO, null, new Esforco(null, null), null, null))), "informe o RIR ou o RPE");
-        recusa(comTipos(List.of(tipo("WS", Papel.TRABALHO, null, Esforco.deRir(6), null, null))), "RIR");
+        recusa(comTipos(List.of(tipo("WS", Papel.TRABALHO, null, Esforco.deRir(11), null, null))), "RIR");
+        assertThatNoException().isThrownBy(() -> ConfiguracaoConsultoria.validar(comTipos(List.of(tipo("WS",
+                Papel.TRABALHO, null, Esforco.deRir(10), null, null)))));
         recusa(comTipos(List.of(tipo("WS", Papel.TRABALHO, null, new Esforco(1, new BigDecimal("8")), null, null))),
                 "RIR ou RPE");
         recusa(comTipos(List.of(tipo("WS", Papel.TRABALHO, null, Esforco.deRpe("8.3"), null, null))), "meio em meio");

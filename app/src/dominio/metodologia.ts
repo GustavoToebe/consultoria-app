@@ -202,6 +202,17 @@ export function papelDe(config: Configuracao | null | undefined, codigo: string 
   return tipoPorCodigo(config, codigo)?.papel ?? null;
 }
 
+/**
+ * O campo de RPE aparece na série? Não nas de papel AQUECIMENTO e PREPARACAO (o esforço dessas séries é RIR ou nada), a
+ * menos que o RPE já esteja gravado nela: então continua visível e editável. Só de apresentação: a API aceita RPE em
+ * qualquer série. Tipo fora da metodologia (sem papel) mostra, como antes.
+ */
+export function mostraRpe(config: Configuracao | null | undefined, codigo: string | null | undefined, esforco?: Esforco | null): boolean {
+  if (esforco?.rpe != null) return true;
+  const papel = papelDe(config, codigo);
+  return papel !== 'AQUECIMENTO' && papel !== 'PREPARACAO';
+}
+
 /** A técnica está na metodologia desta consultoria (pelo tipo, mesmo que o nome tenha sido trocado). */
 export function tecnicaNaMetodologia(config: Configuracao | null | undefined, tipo: TipoDeTecnica): boolean {
   return (config?.tecnicas ?? []).some((t) => t.tipo === tipo);

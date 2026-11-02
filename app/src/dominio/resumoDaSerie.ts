@@ -1,5 +1,5 @@
 import type { CargaDaEtapa, Configuracao, Serie } from '../api/tipos';
-import { faixa, textoCardio, textoCarga, textoDosPercentuaisDoGrupo, textoEsforco, textoPausa, textoTecnica } from './agrupamento';
+import { faixa, textoCardio, textoCarga, textoDosPercentuaisDoGrupo, textoEsforcoDoGrupo, textoPausa, textoTecnica } from './agrupamento';
 import { blocosIguais, blocosValidos, somaDosBlocos } from './blocos';
 import { rotuloDescanso } from './descanso';
 import { metaDaRetomada, textoDaCargaDaEtapa } from './etapas';
@@ -85,7 +85,7 @@ export interface PreviaDoGrupo {
 
 /**
  * Prévia de um grupo de séries iguais (as `series` são as do exercício: dão o nome da referência e a posição). Percentuais
- * diferentes por série saem juntos ("50% · 70% · 85% a 90% da WS", `percentuais.textoDosPercentuais`). `referencia` é a origem da carga já em texto (ver
+ * diferentes por série saem juntos ("50% · 70% · 85% a 90% da WS", `percentuais.textoDosPercentuais`); RIR diferente por série também ("RIR 2, 2, 1"). `referencia` é a origem da carga já em texto (ver
  * `referenciaDaCarga` no editor), para o treinador saber de onde sai a sugestão.
  */
 export function previaDoGrupo(
@@ -105,12 +105,14 @@ export function previaDoGrupo(
     let carga: string;
     if (modo === 'CARGA_TRABALHO') carga = 'carga de trabalho (a base do dia, que o aluno informa)';
     else if (modo === 'MESMA_CARGA') carga = textoCarga(primeira.carga, ws);
+    else if (modo === 'CARGA_FIXA') carga = textoCarga(primeira.carga, ws);
     else carga = textoDosPercentuaisDoGrupo(grupo, series, config, ws);
-    linhas.push(`Carga: ${carga}`);
+    // Carga fixa sem os kg ainda (o treinador não preencheu): sem linha, nunca um valor inventado.
+    if (carga || modo !== 'CARGA_FIXA') linhas.push(`Carga: ${carga}`);
     if (contexto.referencia) linhas.push(contexto.referencia);
   }
   linhas.push(...(contexto.semCarga ? [] : linhasDasEtapas(primeira, config)));
-  const esforco = textoEsforco(primeira.esforco);
+  const esforco = textoEsforcoDoGrupo(grupo);
   if (esforco) linhas.push(`Esforço: ${esforco}`);
   const comEtapas = primeira.tecnica?.tipo === 'CLUSTER' || primeira.tecnica?.tipo === 'REST_PAUSE';
   if (contexto.descansoPorSerie !== false) {

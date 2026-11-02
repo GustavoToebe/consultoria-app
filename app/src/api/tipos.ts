@@ -586,23 +586,27 @@ export type TipoSessao = 'TREINO' | 'DESCANSO_ATIVO' | 'DESCANSO' | 'ACESSORIOS'
  * Formas de carga. Percentual é sempre da série de trabalho (WS); 1RM não existe. `CARGA_TRABALHO` é a série de trabalho
  * (a referência do dia). `MESMA_CARGA` = a da última série de trabalho feita antes no exercício. `ACIMA_DA_ANTERIOR` =
  * a série imediatamente anterior mais um percentual (top set). `ABAIXO_DA_REFERENCIA` = a carga registrada hoje na
- * série `referenciaUid`, menos um percentual (back off).
+ * série `referenciaUid`, menos um percentual (back off). `CARGA_FIXA` = o peso em kg que o treinador escreveu (`valorKg`):
+ * não é série de trabalho e não serve de referência para percentual, mesma carga nem back off; só em exercício com carga.
  */
-export type ModoDeCarga = 'CARGA_TRABALHO' | 'PERCENTUAL_WS' | 'MESMA_CARGA' | 'ACIMA_DA_ANTERIOR' | 'ABAIXO_DA_REFERENCIA' | 'NENHUMA';
+export type ModoDeCarga = 'CARGA_TRABALHO' | 'PERCENTUAL_WS' | 'MESMA_CARGA' | 'ACIMA_DA_ANTERIOR' | 'ABAIXO_DA_REFERENCIA' | 'CARGA_FIXA' | 'NENHUMA';
 
 /**
  * Carga da série. `percentualMin`/`percentualMax` formam a faixa de `PERCENTUAL_WS` (1 a 200), `ACIMA_DA_ANTERIOR` (1 a
  * 100) e `ABAIXO_DA_REFERENCIA` (redução de 1 a 50); máximo nulo = valor único. `referenciaUid` só vale em
- * `ABAIXO_DA_REFERENCIA`: uma série anterior do mesmo exercício. Nula (a série inteira) = `NENHUMA`.
+ * `ABAIXO_DA_REFERENCIA`: uma série anterior do mesmo exercício. `valorKg` só vale em `CARGA_FIXA` (maior que zero, até
+ * 1000, no máximo 2 casas; sem percentual nem referência); o servidor só o manda quando existe. Nula (a série inteira) =
+ * `NENHUMA`.
  */
 export interface Carga {
   modo: ModoDeCarga;
   percentualMin?: number | null;
   percentualMax?: number | null;
   referenciaUid?: string | null;
+  valorKg?: number | null;
 }
 
-/** Esforço da série: `rir` (0 a 5; 0 = até a falha) ou `rpe` (1 a 10, de meio em meio), nunca os dois. */
+/** Esforço da série: `rir` (0 a 10; 0 = até a falha) ou `rpe` (1 a 10, de meio em meio), nunca os dois. */
 export interface Esforco {
   rir?: number | null;
   rpe?: number | null;

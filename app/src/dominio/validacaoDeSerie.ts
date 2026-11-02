@@ -11,7 +11,13 @@ import { tecnicaDescritiva, TIPOS_DE_TECNICA } from './metodologia';
  */
 export type Problemas = Record<string, string>;
 
-export const MODOS_DE_CARGA: readonly ModoDeCarga[] = ['CARGA_TRABALHO', 'PERCENTUAL_WS', 'MESMA_CARGA', 'ACIMA_DA_ANTERIOR', 'ABAIXO_DA_REFERENCIA', 'NENHUMA'];
+export const MODOS_DE_CARGA: readonly ModoDeCarga[] = ['CARGA_TRABALHO', 'PERCENTUAL_WS', 'MESMA_CARGA', 'ACIMA_DA_ANTERIOR', 'ABAIXO_DA_REFERENCIA', 'CARGA_FIXA', 'NENHUMA'];
+
+/** Teto da carga fixa em kg (`Carga.VALOR_KG_MAXIMO` da API, o mesmo da leitura da planilha). */
+export const VALOR_KG_MAXIMO = 1000;
+
+/** Maior RIR (`Esforco.RIR_MAXIMO` da API); 0 é "até a falha". */
+export const RIR_MAXIMO = 10;
 
 const inteiro = (v: number | null | undefined): v is number => v != null && Number.isInteger(v);
 const numero = (v: number | null | undefined): v is number => v != null && Number.isFinite(v);
@@ -47,16 +53,24 @@ export function problemasDaCarga(carga: Carga | null | undefined, exigeReferenci
   else if (modo === 'ABAIXO_DA_REFERENCIA') {
     faixaDePercentual(p, carga, 50, 'Abaixo da referência: redução entre 1 e 50.');
     if (exigeReferencia && !carga.referenciaUid) p.referenciaUid = 'Escolha a série de referência.';
+  } else if (modo === 'CARGA_FIXA') {
+    const kg = carga.valorKg;
+    if (!numero(kg) || kg <= 0 || kg > VALOR_KG_MAXIMO || Math.abs(Math.round(kg * 100) - kg * 100) > 1e-6) {
+      p.valorKg = `Carga fixa: maior que zero e até ${VALOR_KG_MAXIMO} kg.`;
+    }
+    if (carga.percentualMin != null || carga.percentualMax != null) p.percentualMin = 'Carga fixa não leva percentual.';
+    if (carga.referenciaUid) p.referenciaUid = 'Carga fixa não leva série de referência.';
   }
+  if (modo !== 'CARGA_FIXA' && carga.valorKg != null) p.valorKg = 'Só a carga fixa leva valor em kg.';
   return p;
 }
 
-/** Esforço: RIR de 0 a 5 ou RPE de 1 a 10 de meio em meio, nunca os dois (o aviso dos dois vence a faixa do RPE). */
+/** Esforço: RIR de 0 a 10 ou RPE de 1 a 10 de meio em meio, nunca os dois (o aviso dos dois vence a faixa do RPE). */
 export function problemasDoEsforco(esforco: Esforco | null | undefined): Problemas {
   const p: Problemas = {};
   if (!esforco) return p;
   const { rir, rpe } = esforco;
-  if (rir != null && !dentro(rir, 0, 5)) p.rir = 'RIR entre 0 (até a falha) e 5.';
+  if (rir != null && !dentro(rir, 0, RIR_MAXIMO)) p.rir = `RIR entre 0 (até a falha) e ${RIR_MAXIMO}.`;
   if (rpe != null && (!numero(rpe) || rpe < 1 || rpe > 10 || !Number.isInteger(rpe * 2))) p.rpe = 'RPE precisa ficar entre 1 e 10, de meio em meio.';
   if (rir != null && rpe != null) p.rpe = 'Use RIR ou RPE, não os dois.';
   return p;

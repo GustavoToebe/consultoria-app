@@ -3,6 +3,13 @@ import { PAPEIS, tecnicaDescritiva, TIPOS_DE_GRUPO, TIPOS_DE_TECNICA } from './m
 import { chaveDeTipo, codigoDoNovoTipo, codigoValido, MAXIMO_DO_NOME, mensagemTipoECombinacao, mensagemTipoETecnica, nomeDeCombinacao, nomeDeTecnica, NOMES_DE_COMBINACAO, NOMES_DE_TECNICA } from './tiposDeSerie';
 import { esforcoVazio, problemasDaCarga, problemasDaTecnica, problemasDoEsforco, type Problemas } from './validacaoDeSerie';
 
+/** Carga padrão do tipo: as regras da carga, e sem carga fixa (os kg são da série de um exercício; a API recusa também). */
+function problemasDaCargaPadrao(carga: Carga | null | undefined) {
+  const p = problemasDaCarga(carga, false);
+  if (carga?.modo === 'CARGA_FIXA') p.modo = 'A carga fixa só vale na série de um exercício.';
+  return p;
+}
+
 type FaixaEmEdicao = { min: number | null; max: number | null };
 export type TipoEmEdicao = Omit<TipoDeSerie, 'repeticoes' | 'regraPercentuais'> & {
   repeticoes: FaixaEmEdicao | null;
@@ -41,7 +48,7 @@ function comPrefixo(destino: Problemas, prefixo: string, problemas: Problemas) {
 
 /** Carga e esforço padrão de um tipo (ou da variação por modalidade): faixas da API; a referência do back off não é exigida. */
 function problemasDoPadrao(destino: Problemas, prefixo: string, carga: Carga | null | undefined, esforco: Esforco | null | undefined) {
-  comPrefixo(destino, `${prefixo}.carga`, problemasDaCarga(carga, false));
+  comPrefixo(destino, `${prefixo}.carga`, problemasDaCargaPadrao(carga));
   // Esforço sem RIR nem RPE equivale a "sem esforço": `metodologiaParaSalvar` o tira, então não trava o salvar.
   if (!esforcoVazio(esforco)) comPrefixo(destino, `${prefixo}.esforco`, problemasDoEsforco(esforco));
 }
@@ -79,7 +86,7 @@ export function problemasDaMetodologia(c: MetodologiaEmEdicao): Problemas {
     if (r && (r.min != null || r.max != null) && (!dentro(r.min, 0, 500) || !dentro(r.max, r.min ?? 0, 500))) {
       p[`${em}.repeticoes`] = 'Repetições: mínima e máxima de 0 a 500, com a máxima maior ou igual à mínima.';
     }
-    comPrefixo(p, `${em}.cargaPadrao`, problemasDaCarga(t.cargaPadrao, false));
+    comPrefixo(p, `${em}.cargaPadrao`, problemasDaCargaPadrao(t.cargaPadrao));
     if (!esforcoVazio(t.esforcoPadrao)) comPrefixo(p, `${em}.esforcoPadrao`, problemasDoEsforco(t.esforcoPadrao));
     for (const [modalidade, padrao] of Object.entries(t.porModalidade ?? {}) as [string, PadraoPorModalidade | null][]) {
       if (!MODALIDADES_COM_PADRAO.includes(modalidade) || padrao == null) {
