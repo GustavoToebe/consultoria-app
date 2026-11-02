@@ -261,11 +261,12 @@ class PastaPublicarCopiarPesoIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void semPermissaoDePublicarUmTipoPresenteNadaMuda() throws Exception {
+    void semPermissaoDePublicarUmTipoPendenteNadaMuda() throws Exception {
         String pasta = pasta();
         String treino = treino(pasta, true);
         String dieta = dieta(pasta, dieta("Almoço"));
 
+        // Os dois nunca foram publicados: ambos os tipos estão pendentes e os dois pedem a permissão.
         comPermissoes("TREINO_LER", "TREINO_PUBLICAR");
         publicar(pasta, true, 403);
         comPermissoes("DIETA_LER", "DIETA_PUBLICAR");
@@ -275,9 +276,100 @@ class PastaPublicarCopiarPesoIntegrationTest extends AbstractIntegrationTest {
         assertThat(versoesPublicadas("plano_treino", treino)).isZero();
         assertThat(versoesPublicadas("plano_dieta", dieta)).isZero();
         assertThat(auditorias("TREINO_PUBLICADO")).isZero();
+        assertThat(auditorias("DIETA_PUBLICADA")).isZero();
 
         comPermissoes("TREINO_LER", "TREINO_PUBLICAR", "DIETA_LER", "DIETA_PUBLICAR");
         assertThat(publicar(pasta, true, 200).path("publicados")).hasSize(2);
+    }
+
+    /** Altera o rascunho do treino já publicado (fica "alterado desde a publicação"). */
+    private void alterarTreino(String treino) throws Exception {
+        JsonNode atual = api.get("/planos-treino/" + treino, treinador, 200);
+        api.put("/planos-treino/" + treino + "/rascunho", treinador, ApiDeTeste.rascunho("Treino",
+                comObjetivo(ApiDeTeste.treino().conteudo(), NO_RASCUNHO), atual.path("plano").path("versao").asLong()), 200);
+    }
+
+    private void alterarDieta(String dieta) throws Exception {
+        JsonNode atual = api.get("/planos-dieta/" + dieta, treinador, 200);
+        api.put("/planos-dieta/" + dieta + "/rascunho", treinador, ApiDeTeste.rascunho("Dieta",
+                comObjetivo(dieta("Almoço"), NO_RASCUNHO), atual.path("plano").path("versao").asLong()), 200);
+    }
+
+    @Test
+    void soOTipoAlteradoPedeAPermissaoNutricionistaPublicaADietaEPulaOTreinoIntacto() throws Exception {
+        String pasta = pasta();
+        String treino = treino(pasta, true);
+        String dieta = dieta(pasta, dieta("Almoço"));
+        publicar(pasta, true, 200);
+        alterarDieta(dieta);
+        int treinosPublicados = auditorias("TREINO_PUBLICADO");
+        int dietasPublicadas = auditorias("DIETA_PUBLICADA");
+
+        comPermissoes("DIETA_LER", "DIETA_PUBLICAR"); // sem TREINO_PUBLICAR
+        JsonNode resposta = publicar(pasta, true, 200);
+
+        assertThat(resposta.path("publicados")).hasSize(1);
+        assertThat(resposta.path("publicados").get(0).path("tipo").asString()).isEqualTo("dieta");
+        assertThat(resposta.path("publicados").get(0).path("planoId").asString()).isEqualTo(dieta);
+        assertThat(resposta.path("publicados").get(0).path("versao").asInt()).isEqualTo(2);
+        assertThat(resposta.path("pulados")).hasSize(1);
+        assertThat(resposta.path("pulados").get(0).path("tipo").asString()).isEqualTo("treino");
+        assertThat(resposta.path("pulados").get(0).path("planoId").asString()).isEqualTo(treino);
+        assertThat(versoesPublicadas("plano_dieta", dieta)).isEqualTo(2);
+        assertThat(versoesPublicadas("plano_treino", treino)).isEqualTo(1);
+        assertThat(auditorias("DIETA_PUBLICADA")).isEqualTo(dietasPublicadas + 1);
+        assertThat(auditorias("TREINO_PUBLICADO")).isEqualTo(treinosPublicados);
+    }
+
+    @Test
+    void nutricionistaRecebe403QuandoOTreinoTambemTemRascunhoAlteradoENadaEPublicado() throws Exception {
+        String pasta = pasta();
+        String treino = treino(pasta, true);
+        String dieta = dieta(pasta, dieta("Almoço"));
+        publicar(pasta, true, 200);
+        alterarTreino(treino);
+        alterarDieta(dieta);
+        int treinosPublicados = auditorias("TREINO_PUBLICADO");
+        int dietasPublicadas = auditorias("DIETA_PUBLICADA");
+
+        comPermissoes("DIETA_LER", "DIETA_PUBLICAR"); // falta TREINO_PUBLICAR, e o treino está pendente
+        publicar(pasta, true, 403);
+
+        assertThat(versoesPublicadas("plano_dieta", dieta)).isEqualTo(1);
+        assertThat(versoesPublicadas("plano_treino", treino)).isEqualTo(1);
+        assertThat(auditorias("DIETA_PUBLICADA")).isEqualTo(dietasPublicadas);
+        assertThat(auditorias("TREINO_PUBLICADO")).isEqualTo(treinosPublicados);
+
+        comPermissoes("TREINO_LER", "TREINO_PUBLICAR", "DIETA_LER", "DIETA_PUBLICAR");
+        assertThat(publicar(pasta, true, 200).path("publicados")).hasSize(2);
+    }
+
+    @Test
+    void pastaIntactaDa200SemPublicarNadaENaoPedePermissaoDeTipoNenhum() throws Exception {
+        String pasta = pasta();
+        String treino = treino(pasta, true);
+        String dieta = dieta(pasta, dieta("Almoço"));
+        publicar(pasta, true, 200);
+        int treinosPublicados = auditorias("TREINO_PUBLICADO");
+        int dietasPublicadas = auditorias("DIETA_PUBLICADA");
+
+        // Só a permissão de dieta, e depois só a de treino: sem pendentes nenhuma permissão de tipo é exigida.
+        for (String permissao : List.of("DIETA_PUBLICAR", "TREINO_PUBLICAR")) {
+            comPermissoes(permissao);
+            JsonNode nada = publicar(pasta, true, 200);
+            assertThat(nada.path("publicados")).isEmpty();
+            assertThat(nada.path("pulados")).hasSize(2);
+            assertThat(nada.path("pulados").valueStream().map(p -> p.path("planoId").asString()))
+                    .containsExactlyInAnyOrder(treino, dieta);
+        }
+        assertThat(versoesPublicadas("plano_treino", treino)).isEqualTo(1);
+        assertThat(versoesPublicadas("plano_dieta", dieta)).isEqualTo(1);
+        assertThat(banco.queryForObject("select count(*) from plano_treino_versao where plano_id = ?::uuid", Integer.class, treino))
+                .isEqualTo(1);
+        assertThat(banco.queryForObject("select count(*) from plano_dieta_versao where plano_id = ?::uuid", Integer.class, dieta))
+                .isEqualTo(1);
+        assertThat(auditorias("TREINO_PUBLICADO")).isEqualTo(treinosPublicados);
+        assertThat(auditorias("DIETA_PUBLICADA")).isEqualTo(dietasPublicadas);
     }
 
     @Test

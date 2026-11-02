@@ -70,7 +70,7 @@ public class PastaController {
 
     /**
      * Publica o rascunho de treino, dieta e mobilidade da pasta de uma vez. A rota abre com a permissão de publicar de
-     * treino OU de dieta; o serviço confere a de CADA tipo presente na pasta, antes de qualquer efeito.
+     * treino OU de dieta; o serviço confere a de CADA tipo que seria publicado (plano pendente), antes de qualquer efeito.
      */
     @PreAuthorize("hasAuthority('PERM_TREINO_PUBLICAR') or hasAuthority('PERM_DIETA_PUBLICAR')")
     @PostMapping("/pastas/{id}/publicar")

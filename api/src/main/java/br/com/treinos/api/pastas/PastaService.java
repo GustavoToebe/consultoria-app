@@ -199,7 +199,9 @@ public class PastaService {
 
     /**
      * "Publicar tudo": publica o rascunho de treino, dieta e mobilidade da pasta de uma vez, numa transação só.
-     * Ordem: pasta (404, também a arquivada) → permissão de publicar de CADA tipo presente (403) → validação de todos os
+     * Ordem: pasta (404, também a arquivada) → cálculo dos planos pendentes → permissão de publicar de CADA tipo que
+     * tem plano pendente (403; treino e mobilidade pedem a do treino, dieta a da dieta; tipo sem alteração não pede
+     * permissão e, sem nenhum pendente, nenhuma permissão específica é exigida além da da rota) → validação de todos os
      * planos a publicar → só então publica. Um erro em qualquer plano ({@code PLANO_INVALIDO}) ou aviso sem
      * {@code confirmarAvisos} ({@code CONFIRMAR_AVISOS}) devolve 422 com a lista por plano e nada é publicado. Cada
      * publicação passa pelo {@code publicar} do serviço do tipo (a mesma versão imutável e a mesma auditoria da rota
@@ -211,8 +213,8 @@ public class PastaService {
     public PublicarPastaResposta publicarTudo(UUID id, boolean confirmarAvisos, UUID usuarioId) {
         buscarAtiva(id);
         List<Alvo> alvos = planosDaPasta(id);
-        exigirPermissaoDosAlvos(alvos, "PUBLICAR");
         List<Alvo> aPublicar = alvos.stream().filter(Alvo::pendente).toList();
+        exigirPermissaoDosAlvos(aPublicar, "PUBLICAR");
         List<FieldError> erros = new ArrayList<>();
         List<FieldError> avisos = new ArrayList<>();
         for (Alvo a : aPublicar) {
