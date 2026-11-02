@@ -399,6 +399,9 @@ public class ValidadorTreino {
         if (x.carga() != null && !ConteudoTreino.NENHUMA.equals(x.modo())) {
             p.put("carga", "Série de cardio não tem carga.");
         }
+        if (x.carga() != null && x.carga().valorKg() != null) {
+            p.put("carga.valorKg", "Série de cardio não tem carga em kg.");
+        }
         if (x.esforco() != null && !x.esforco().vazio()) {
             p.put("esforco", "Série de cardio não tem esforço (RIR ou RPE).");
         }

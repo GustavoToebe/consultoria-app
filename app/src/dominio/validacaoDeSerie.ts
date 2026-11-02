@@ -239,6 +239,7 @@ function problemasDaSerieDeCardio(p: Problemas, s: Serie): void {
   else for (const [campo, mensagem] of Object.entries(problemasDoCardio(s.cardio))) p[`cardio.${campo}`] = mensagem;
   if (s.tipo?.trim()) p.tipo = 'Série de cardio não tem tipo.';
   if (s.carga && (s.carga.modo ?? 'NENHUMA') !== 'NENHUMA') p.carga = 'Série de cardio não tem carga.';
+  if (s.carga?.valorKg != null) p['carga.valorKg'] = 'Série de cardio não tem carga em kg.';
   if (!esforcoVazio(s.esforco)) p.esforco = 'Série de cardio não tem esforço (RIR ou RPE).';
   if (s.repsMin != null || s.repsMax != null || s.amrap === true) p.repsMin = 'Série de cardio não tem repetições.';
   if (s.tecnica) p.tecnica = 'Série de cardio não tem técnica.';

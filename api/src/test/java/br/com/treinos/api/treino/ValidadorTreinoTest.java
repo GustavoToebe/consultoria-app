@@ -673,6 +673,10 @@ class ValidadorTreinoTest {
         assertThat(caminhosDeErro(conteudo(List.of(semCarga)))).contains(SERIE0 + ".carga.modo");
         assertThat(caminhosDeErro(conteudo(List.of(exercicioDeCardio(
                 cardio(new Cardio(20, null, null, null, null)).comCarga(Carga.fixa(new BigDecimal("12")))))))).contains(SERIE0 + ".carga");
+        // Kg solto na carga NENHUMA de uma série de cardio também é recusado (o app antigo apagaria o pacote).
+        assertThat(caminhosDeErro(conteudo(List.of(exercicioDeCardio(
+                cardio(new Cardio(20, null, null, null, null)).comCarga(
+                        new Carga("NENHUMA", null, null, null, new BigDecimal("12")))))))).contains(SERIE0 + ".carga.valorKg");
     }
 
     // ---- Carga por bloco e retomadas (docs/series-etapas.md, lote C) ----
