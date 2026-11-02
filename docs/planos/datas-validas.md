@@ -35,7 +35,7 @@ financeiro segue "registro" (já é não futura) e o ciclo só muda se for preci
 O que ficar fora das três regras é anotado aqui antes do código.
 
 ## Passos
-Andamento em 02/11/2026 (worktree `wt-datas-validas`, branch `datas-validas`): passos 2 a 6 feitos no commit 677d5b2c. Passo 7 feito na worktree, **sem commit ainda**, menos os guias PDF (outro agente regera quando a Ajuda estiver final). Passo 8 não começou.
+Andamento em 02/11/2026 (worktree `wt-datas-validas`, branch `datas-validas`): passos 2 a 6 feitos no commit 677d5b2c. Passo 7 feito (commit 26200904 e guias no commit seguinte). Passo 8 (Opus) pendente.
 
 - [x] 1. Listar **todos** os usos de `dataDaTela` e das datas na API (explorador) e classificar cada um em Planejamento, Registro ou Nascimento/DATA — explorador — feito em 02/11/2026 (sem commit; só leitura)
 - [x] 2. Reproduzir como o 0260 entrou (editar o ano com `mascaraData`) e cobrir com teste — executor — commit: 677d5b2c
@@ -43,7 +43,7 @@ Andamento em 02/11/2026 (worktree `wt-datas-validas`, branch `datas-validas`): p
 - [x] 4. API: o mesmo validador comum nas rotas dos três grupos, 422 com o campo e sem o valor; teste de integração por rota — executor — commit: 677d5b2c
 - [x] 5. Teto do atraso: "Atrasada desde dd/mm/aaaa" acima de 365 dias, no app e em `RegrasAtualizacao` — executor — commit: 677d5b2c
 - [x] 6. C68 (texto do "Gerar convite") e C54 (dose prescrita em "Outros" no aluno e no PDF da dieta) — executor-rapido, revisado pelo Sonnet — commit: 677d5b2c
-- [~] 7. Ajuda (`ajuda/conteudo.ts`: verbete "Datas" em Pastas de plano, "Lesões e peso" e "Convidar um membro"), `AGENTS.md` só no item da atualização/datas, e2e dos campos mexidos (390 e 1280 px: `datas-validas.spec.ts` novo com peso, lesão e avaliação física; casos novos em `pasta-periodo`, `pasta-e-atualizacao` (finalizar), `agenda-presencial` e `anamnese` (nascimento 1960); a data do peso de `pasta-e-atualizacao` saiu de 31/10/2026 para 15/03/2025, porque o registro não aceita o futuro) — feito na worktree, sem commit. **Pendente: guias PDF regerados (outro agente, depois que a Ajuda estiver final)** — commit: —
+- [x] 7. Ajuda (`ajuda/conteudo.ts`: verbete "Datas" em Pastas de plano, "Lesões e peso" e "Convidar um membro"), `AGENTS.md` só no item da atualização/datas, e2e dos campos mexidos (390 e 1280 px: `datas-validas.spec.ts` novo com peso, lesão e avaliação física; casos novos em `pasta-periodo`, `pasta-e-atualizacao` (finalizar), `agenda-presencial` e `anamnese` (nascimento 1960); a data do peso de `pasta-e-atualizacao` saiu de 31/10/2026 para 15/03/2025, porque o registro não aceita o futuro) e guias PDF regerados — feito em 02/11/2026: typecheck, lint e jest (219 suítes, 3429 testes) verdes, e2e dos cinco specs 44/44, `mvn verify` 1921 testes sem falha — commit: 26200904 (código, Ajuda, AGENTS.md, e2e) e o seguinte (guias PDF)
 - [ ] 8. Revisão do **Opus** (contrato da API) antes do PR — `advisor` (Opus); se indisponível, agente `revisor` (Opus, leitura) e avisar o Gustavo. A revisão do diff pelo Sonnet não a substitui. O corpo do PR traz a linha "Revisão (Opus): feita por <advisor|revisor> — apontou: … — resolvido: …" — commit: —
 
 ## Critérios de aceite
@@ -65,4 +65,3 @@ Andamento em 02/11/2026 (worktree `wt-datas-validas`, branch `datas-validas`): p
 - O calendário da agenda navega de 2000 a 2100: ocorrências depois do teto de planejamento (ano+5) aparecem, mas não são editáveis.
 - `hojeIso` do app usa o fuso do aparelho e a API usa Brasília: perto da meia-noite, o "hoje" dos dois pode divergir em um dia.
 - Dados ruins já gravados (D7) não foram tocados: uma atualização com data 0260 mostrará "Atrasada desde dd/mm/0261", o que é esperado.
-- Guias PDF (`app/public/guias/*.pdf`) ainda sem regerar com os verbetes novos da Ajuda (outro agente).
