@@ -29,7 +29,7 @@ finalizar a pasta com o peso já preenchido.
 
 ## Passos
 Andamento em 02/11/2026 (tudo na worktree `wt-pasta`, branch `pasta-publicar-copiar`, a partir da main `210d828c`):
-- Passos 2 a 5 feitos nos commits 797b9751, 3394019d e b0e27e44. O passo 6 está em andamento (Ajuda e `AGENTS.md` feitos; faltam guias regerados e e2e); o 7 (revisão do Opus) vem antes do PR.
+- Passos 2 a 6 feitos nos commits 797b9751, 3394019d, b0e27e44 e 33c4ee44 (guias no commit seguinte). O passo 7 (revisão do Opus) vem antes do PR.
 - Conflito previsto com a Frente A em `CartaoPastas.tsx` e `PastaService`: quem abrir o PR depois faz `git merge origin/main` e regera os guias.
 
 - [x] 1. Mapear `PastaService`, `CopiarPlanoService`, `PlanoServiceBase.publicar`, `CartaoPastas` e o fluxo do `?pastaId` (explorador) — explorador — feito em 02/11/2026 (sem commit; só leitura)
@@ -37,7 +37,7 @@ Andamento em 02/11/2026 (tudo na worktree `wt-pasta`, branch `pasta-publicar-cop
 - [x] 3. API: cópia da pasta para outro aluno (D5/D6) reaproveitando `CopiarPlanoService`/`paraCopiaDeOutroAluno`; testes de integração — executor — feito em `wt-pasta` — commit: 797b9751
 - [x] 4. API: peso sugerido da atualização da pasta no finalizar, com as duas permissões — executor — feito em `wt-pasta` — commit: 797b9751
 - [x] 5. Tela: "Publicar tudo" na Folha da pasta com lista por plano; ⋯ → "Copiar pasta para outro aluno"; peso pré-preenchido; `?pastaId` — executor-front — commit: b0e27e44
-- [ ] 6. Ajuda (D10) — feito em 02/11/2026 (sem commit); `AGENTS.md` só nos itens das pastas — feito em 02/11/2026 (sem commit); e2e da Folha da pasta (3 casos novos do peso sugerido em `pasta-e-atualizacao.spec.ts`, D8); teste de API do finalizar sem peso (sem registro nem auditoria de peso; com peso, cria); guias regerados — pendente (eu, antes do PR) — commit: —
+- [x] 6. Ajuda (D10) — feito em 02/11/2026 (sem commit); `AGENTS.md` só nos itens das pastas — feito em 02/11/2026 (sem commit); e2e da Folha da pasta (3 casos novos do peso sugerido em `pasta-e-atualizacao.spec.ts`, D8); teste de API do finalizar sem peso (sem registro nem auditoria de peso; com peso, cria); guias regerados — feito em 02/11/2026: typecheck, lint e jest verdes, e2e `pasta-e-atualizacao` 36/36, `mvn verify` 1912 testes e `PastasIntegrationTest` (9) sem falha — commit: 33c4ee44 e o seguinte (guias PDF)
 - [ ] 7. Revisão do **Opus** (permissão, LGPD, contrato) antes do PR — `advisor` (Opus); se indisponível, agente `revisor` (Opus, leitura) e avisar o Gustavo. A revisão do diff pelo Sonnet não a substitui. O corpo do PR traz a linha "Revisão (Opus): feita por <advisor|revisor> — apontou: … — resolvido: …" — commit: —
 
 ## Critérios de aceite
