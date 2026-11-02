@@ -22,6 +22,7 @@ O treinador pediu cor em vários momentos (tipo de série na execução do aluno
 | D5 | C16 | receitas agrupadas por bloco e técnica no "Usar receita" (ver [receitas-em-blocos.md](receitas-em-blocos.md)) | Gustavo |
 | D6 | Cor de identificação × status | a cor de tipo de série **não pode se confundir** com verde, âmbar e vermelho (status); seguir o design-system | Gustavo |
 | D7 | A cor nunca é a única informação | o selo de texto fica | regra de acessibilidade |
+| D8 | Dados da prévia | a prévia em `docs/prototipos/` usa **só dados fictícios**; nenhum print nem texto da produção (a conta real do Saraiva não entra no repositório) | Gustavo |
 
 ## Passos
 - [ ] 1. Prévia HTML (390 e 1280 px; claro, areia, escuro; razões de contraste anotadas) de C35, C50/C74, C45 e C16 — executor-front — commit: —
@@ -36,7 +37,7 @@ O treinador pediu cor em vários momentos (tipo de série na execução do aluno
 - Cada visão do Histórico diz o período que mostra.
 
 ## Fora do escopo
-- Trocar a cor da marca. Código antes do ok da prévia.
+- Trocar a cor da marca. Código antes do ok da prévia. Print ou dado da produção na prévia.
 
 ## O que ficou para trás
 - —
