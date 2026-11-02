@@ -41,7 +41,7 @@ record FiltrosDaFila(Set<UUID> responsaveis, boolean semResponsavel, Set<Crm.Ori
         static final Periodo QUALQUER = new Periodo(null, null);
 
         static Periodo de(LocalDate de, LocalDate ate) {
-            FiltrosDeLista.exigirPeriodo(de, ate, 0, CODIGO_PERIODO);
+            FiltrosDeLista.exigirPeriodoNaFaixa(de, ate, 0, CODIGO_PERIODO);
             return new Periodo(de == null ? null : de.atStartOfDay(Fuso.BRASILIA).toInstant(),
                     ate == null ? null : ate.plusDays(1).atStartOfDay(Fuso.BRASILIA).toInstant());
         }

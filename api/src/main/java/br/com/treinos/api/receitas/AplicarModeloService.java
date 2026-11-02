@@ -9,6 +9,7 @@ import br.com.treinos.api.planos.dto.PlanoDtos.*;
 import br.com.plataforma.comum.web.BadRequestException;
 import br.com.treinos.api.web.NaoEncontradoException;
 import br.com.treinos.api.web.Exigir;
+import br.com.treinos.api.web.FaixaDeData;
 import jakarta.validation.constraints.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,6 +60,10 @@ public class AplicarModeloService {
         if (tipo == Receita.Tipo.MOBILIDADE) plano.exigirFuncionalidade(br.com.treinos.api.conta.RecursosDoApp.FUNCIONALIDADE_MOBILIDADE);
         boolean comMobilidade = plano.funcionalidadeLiberada(br.com.treinos.api.conta.RecursosDoApp.FUNCIONALIDADE_MOBILIDADE);
         if (r.pastaId() == null) AcessoAtual.exigir("PASTA_ALTERAR"); // vai criar uma pasta nova
+        // Antes de qualquer gravação: o período digitado entra na pasta nova e nos planos (faixa de planejamento, C76).
+        FaixaDeData.exigir("PERIODO_INVALIDO",
+                FaixaDeData.PLANEJAMENTO.campo("inicio", "Início do período", r.inicio()),
+                FaixaDeData.PLANEJAMENTO.campo("fim", "Fim do período", r.fim()));
         UUID pastaId=r.pastaId();
         if (pastaId == null) pastaId=pastas.criar(r.alunoId(), new PastaDtos.PastaRequest(r.titulo(),r.inicio(),r.fim())).id();
         else Exigir.existe(repositorioPastas.findById(pastaId).filter(p -> !p.isArquivado() && p.getAlunoId().equals(r.alunoId())),

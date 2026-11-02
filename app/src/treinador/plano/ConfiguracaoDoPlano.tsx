@@ -46,10 +46,10 @@ export function ConfiguracaoDoPlano<C>({ editor, modelo, recolhido, descricao, c
       ) : (
         <View style={estilos.datas}>
           <View style={estilos.data}>
-            <CampoData rotulo="Início" valor={e.inicio} aoMudar={(inicio) => editor.alterar(() => ({ inicio }))} />
+            <CampoData rotulo="Início" nome="Início do plano" regra="PLANEJAMENTO" valor={e.inicio} aoMudar={(inicio) => editor.alterar(() => ({ inicio }))} />
           </View>
           <View style={estilos.data}>
-            <CampoData rotulo="Fim" valor={e.fim} aoMudar={(fim) => editor.alterar(() => ({ fim }))} />
+            <CampoData rotulo="Fim" nome="Fim do plano" regra="PLANEJAMENTO" valor={e.fim} aoMudar={(fim) => editor.alterar(() => ({ fim }))} />
           </View>
         </View>
       )}

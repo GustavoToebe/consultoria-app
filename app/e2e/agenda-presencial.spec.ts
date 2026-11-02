@@ -232,6 +232,49 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       expect(errosDaPagina).toEqual([]);
     });
 
+    // C76 (reunião de 30/10): data do compromisso é "planejamento" (01/01/2000 até 31/12 daqui a 5 anos; hoje fixo em 2026).
+    // "Marcar compromisso" só desabilita enquanto salva: com a data fora da faixa, o toque mostra a mensagem e não chama a API.
+    test('data em 0261 ou depois do teto de 5 anos: a mensagem fica no campo e o Marcar compromisso não chama a API', async ({ page }) => {
+      const lista: Compromisso[] = [];
+      const { pedidos, errosDaPagina } = await abrirComoTreinador(page, lista, {
+        extra: {
+          'POST /agenda/compromissos': (p, route) => {
+            const corpo = p.corpo as { hora: string; data: string };
+            const novo = compromisso('k9', [ANA], corpo.data, corpo.hora);
+            lista.push(novo);
+            return json(route, novo);
+          },
+        },
+      });
+      await page.goto('/treinador/agenda');
+      await novoCompromisso(page);
+      const folha = page.getByRole('dialog', { name: 'Novo compromisso' });
+      await adicionarAluno(page, folha, 'Ana Fictícia');
+      await escolherInicio(page, folha, '09:30');
+      const data = folha.getByLabel('Data', { exact: true });
+      const mensagem = folha.getByText('Data do compromisso: use uma data entre 01/01/2000 e 31/12/2031');
+      const marcar = folha.getByRole('button', { name: 'Marcar compromisso', exact: true });
+
+      for (const invalida of ['05/05/0261', '01/01/2040']) {
+        await data.fill(invalida);
+        await expect(data).toHaveValue(invalida);
+        await expect(mensagem).toBeVisible();
+        await marcar.click();
+        await expect(mensagem).toBeVisible();
+        await expect(folha).toBeVisible();
+        expect(corposDe(pedidos, 'POST', '/agenda/compromissos')).toEqual([]);
+      }
+
+      await data.fill('20/10/2026');
+      await expect(mensagem).toHaveCount(0);
+      await marcar.click();
+      await expect(folha).toBeHidden();
+      expect(corposDe(pedidos, 'POST', '/agenda/compromissos')).toEqual([
+        { alunoIds: [ANA.id], responsavelId: TREINADOR.id, data: '2026-10-20', hora: '09:30', duracaoMinutos: 60, local: null, observacao: null },
+      ]);
+      expect(errosDaPagina).toEqual([]);
+    });
+
     test('série semanal: dias a partir da segunda, fim obrigatório, prévia e 409 com as datas que conflitam', async ({ page }) => {
       const lista: Compromisso[] = [];
       let tentativas = 0;

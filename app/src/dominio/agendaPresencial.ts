@@ -7,6 +7,7 @@ import type { TipoSelo } from '../ui/Selo';
 import { compararItens, rotuloDoDia } from './agenda';
 import { dataSemAnoCorrente } from './datasRelativas';
 import { naOrdem } from './filtrosComuns';
+import { dataNaFaixa, mensagemDaFaixa } from './datasValidas';
 import { dataDaTela, dataParaTela, diaDaSemanaIso, somarDias } from './formatos';
 
 /**
@@ -965,7 +966,8 @@ export function repeticaoDoFormulario(f: FormularioDaRepeticao, primeira: string
   if (f.tipo === 'SEMANAL') repeticao.diasDaSemana = DIAS_DA_SEMANA.filter((d) => f.dias.includes(d));
   if (f.fim === 'DATA') {
     const ate = dataDaTela(f.ate);
-    if (ate) repeticao.ate = ate;
+    if (ate && !dataNaFaixa(ate, 'PLANEJAMENTO')) erros.ate = mensagemDaFaixa('Última data da repetição', 'PLANEJAMENTO');
+    else if (ate) repeticao.ate = ate;
     else erros.ate = ate === null ? 'Informe a data final.' : 'Data final inválida.';
   } else {
     const texto = f.vezes.trim();
@@ -993,6 +995,7 @@ export function pedidoDoFormulario(f: FormularioDoCompromisso, comObservacao: bo
   if (!f.responsavelId) erros.responsavelId = 'Escolha o responsável.';
   const data = dataDaTela(f.data);
   if (!data) erros.data = data === null ? 'Informe a data.' : 'Data inválida.';
+  else if (!dataNaFaixa(data, 'PLANEJAMENTO')) erros.data = mensagemDaFaixa('Data do compromisso', 'PLANEJAMENTO');
   const hora = f.hora.trim();
   if (!hora) erros.hora = 'Informe a hora.';
   else if (!horaValida(hora)) erros.hora = 'Use HH:MM, de 00:00 a 23:59.';

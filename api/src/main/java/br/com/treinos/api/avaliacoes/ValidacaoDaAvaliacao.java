@@ -3,6 +3,7 @@ package br.com.treinos.api.avaliacoes;
 import br.com.plataforma.comum.web.ApiError;
 import br.com.treinos.api.avaliacoes.AvaliacaoFisicaDtos.AvaliacaoRequest;
 import br.com.treinos.api.avaliacoes.AvaliacaoFisicaDtos.Medidas;
+import br.com.treinos.api.web.FaixaDeData;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -21,7 +22,6 @@ final class ValidacaoDaAvaliacao {
     static final BigDecimal MINIMO_CM = BigDecimal.valueOf(5);
     static final BigDecimal MAXIMO_CM = BigDecimal.valueOf(300);
     static final int OBSERVACAO_MAXIMA = 1000;
-    static final LocalDate PRIMEIRA_DATA = LocalDate.of(1900, 1, 1);
 
     private ValidacaoDaAvaliacao() { }
 
@@ -33,10 +33,8 @@ final class ValidacaoDaAvaliacao {
         List<ApiError.FieldError> erros = new ArrayList<>();
         if (r.data() == null) {
             erros.add(new ApiError.FieldError("data", "Informe a data da avaliação."));
-        } else if (r.data().isAfter(hoje)) {
-            erros.add(new ApiError.FieldError("data", "A data não pode ser no futuro."));
-        } else if (r.data().isBefore(PRIMEIRA_DATA)) {
-            erros.add(new ApiError.FieldError("data", "Confira a data."));
+        } else if (!FaixaDeData.REGISTRO.aceita(r.data(), hoje)) {
+            erros.add(new ApiError.FieldError("data", FaixaDeData.REGISTRO.mensagem("Data da avaliação", hoje)));
         }
         Medidas medidas = r.medidas() == null ? Medidas.VAZIAS : r.medidas();
         boolean alguma = false;

@@ -16,6 +16,7 @@ import br.com.treinos.api.planos.dto.PlanoDtos.VersaoResumo;
 import br.com.plataforma.comum.web.BadRequestException;
 import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.web.Exigir;
+import br.com.treinos.api.web.FaixaDeData;
 import br.com.treinos.api.web.NaoEncontradoException;
 import br.com.treinos.api.web.ValidacaoException;
 import org.springframework.transaction.annotation.Transactional;
@@ -128,12 +129,20 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
             conteudo = vazio();
         }
         PastaPlano pasta = pastaDoAluno(r.pastaId(), alunoId);
+        if (pasta == null) exigirPeriodoNaFaixa(r.inicio(), r.fim());
         P novo = novoPlano(alunoId, r.titulo().trim(), pasta != null ? pasta.getInicio() : r.inicio(),
                 pasta != null ? pasta.getFim() : r.fim(), escrever(conteudo));
         if (pasta != null) {
             novo.definirPasta(pasta.getId());
         }
         return detalhe(planos.saveAndFlush(novo));
+    }
+
+    /** Plano sem pasta guarda o próprio período: faixa de planejamento (C76). Com pasta, quem dá o período é a pasta. */
+    private static void exigirPeriodoNaFaixa(java.time.LocalDate inicio, java.time.LocalDate fim) {
+        FaixaDeData.exigir("PERIODO_INVALIDO",
+                FaixaDeData.PLANEJAMENTO.campo("inicio", "Início do plano", inicio),
+                FaixaDeData.PLANEJAMENTO.campo("fim", "Fim do plano", fim));
     }
 
     @Transactional
@@ -150,6 +159,7 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
         exigirMesmaVersao(plano, r.versao());
         // Plano em pasta: a pasta dá o período (como no criar); início e fim do corpo são ignorados.
         PastaPlano pasta = plano.getPastaId() == null ? null : pastas.findById(plano.getPastaId()).orElse(null);
+        if (pasta == null) exigirPeriodoNaFaixa(r.inicio(), r.fim());
         plano.salvarRascunho(r.titulo().trim(), pasta != null ? pasta.getInicio() : r.inicio(),
                 pasta != null ? pasta.getFim() : r.fim(),
                 escrever(paraGravarRascunho(r.conteudo(), ler(plano.getRascunho()), plano)));
@@ -201,6 +211,7 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
         String base = origem.getVersaoPublicada() == 0 ? origem.getRascunho()
                 : versao(origem, origem.getVersaoPublicada()).getConteudo();
         PastaPlano pasta = pastaDoAluno(r.pastaId(), origem.getAlunoId());
+        if (pasta == null) exigirPeriodoNaFaixa(r.inicio(), r.fim());
         P novo = novoPlano(origem.getAlunoId(), r.titulo().trim(), pasta != null ? pasta.getInicio() : r.inicio(),
                 pasta != null ? pasta.getFim() : r.fim(), escrever(comUidsNovos(ler(base))));
         if (pasta != null) {

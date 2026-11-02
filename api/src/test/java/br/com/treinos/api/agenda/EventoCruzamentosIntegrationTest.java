@@ -192,19 +192,21 @@ class EventoCruzamentosIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void alcanceDeUmAnoAPartirDoPrimeiroDiaComAPontaInclusive() throws Exception {
-        LocalDate limite = SEGUNDA.plusYears(1);
+        // Uma segunda-feira (11/03/2030) para o limite de um ano cair dentro da faixa de planejamento (C76: até 31/12 do ano + 5).
+        LocalDate primeiro = SEGUNDA.minusDays(364);
+        LocalDate limite = primeiro.plusYears(1);
         criar("Passou de um ano", limite.plusDays(1), "10:00", 60, null);
-        assertThat(cruza(SEGUNDA, "10:00", 60, diaria()).path("quantidade").asInt()).isZero();
+        assertThat(cruza(primeiro, "10:00", 60, diaria()).path("quantidade").asInt()).isZero();
 
         criar("No limite", limite, "10:00", 60, null);
-        JsonNode noLimite = cruza(SEGUNDA, "10:00", 60, diaria());
+        JsonNode noLimite = cruza(primeiro, "10:00", 60, diaria());
         assertThat(noLimite.path("quantidade").asInt()).isEqualTo(1);
         assertThat(datas(noLimite)).containsExactly(limite.toString());
 
-        criar("Antes do limite", SEGUNDA.plusDays(300), "09:30", 60, null);
-        JsonNode dois = cruza(SEGUNDA, "10:00", 60, diaria());
+        criar("Antes do limite", primeiro.plusDays(300), "09:30", 60, null);
+        JsonNode dois = cruza(primeiro, "10:00", 60, diaria());
         assertThat(dois.path("quantidade").asInt()).isEqualTo(2);
-        assertThat(datas(dois)).containsExactly(SEGUNDA.plusDays(300).toString(), limite.toString());
+        assertThat(datas(dois)).containsExactly(primeiro.plusDays(300).toString(), limite.toString());
     }
 
     @Test
@@ -340,9 +342,10 @@ class EventoCruzamentosIntegrationTest extends AbstractIntegrationTest {
     @Test
     void compromissoNoUltimoDiaDoAlcanceConta() throws Exception {
         UUID aluno = api.criarAluno(admin, "Aluno Fictício do Compromisso");
-        LocalDate limite = SEGUNDA.plusYears(1);
+        LocalDate primeiro = SEGUNDA.minusDays(364); // dentro da faixa de planejamento (C76)
+        LocalDate limite = primeiro.plusYears(1);
         compromisso(admin, admin, aluno, limite, "10:30", 60);
-        JsonNode r = cruza(SEGUNDA, "10:00", 60, diaria());
+        JsonNode r = cruza(primeiro, "10:00", 60, diaria());
         assertThat(datas(r)).containsExactly(limite.toString());
     }
 

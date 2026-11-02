@@ -32,4 +32,17 @@ class RegrasAtualizacaoTest {
         assertThat(RegrasAtualizacao.novaDataValida(data.plusDays(3), data, data.plusDays(2))).isFalse();
         assertThat(RegrasAtualizacao.novaDataValida(data.plusDays(3), data, data.plusDays(3))).isTrue();
     }
+    /**
+     * C76: o teto do atraso é do app (acima dele o texto vira "desde dd/mm/aaaa"); a API guarda a mesma constante e
+     * continua devolvendo os dias inteiros, porque painel e contagens dependem deles.
+     */
+    @Test void tetoDoAtrasoIgualAoDoAppEDiasSemCorte() {
+        assertThat(RegrasAtualizacao.DIAS_MAXIMOS_PARA_CONTAR_ATRASO).isEqualTo(365);
+        var data = LocalDate.of(2000, 1, 1);
+        var hoje = LocalDate.of(2026, 11, 2);
+        var situacao = RegrasAtualizacao.calcular(hoje, data, null, null);
+        assertThat(situacao.fase()).isEqualTo("ATRASADA");
+        assertThat(situacao.diasDeAtraso()).isGreaterThan(RegrasAtualizacao.DIAS_MAXIMOS_PARA_CONTAR_ATRASO)
+                .isEqualTo(java.time.temporal.ChronoUnit.DAYS.between(data, hoje));
+    }
 }

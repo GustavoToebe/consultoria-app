@@ -2,6 +2,7 @@ import { Switch } from '../components/ui/switch';
 import { useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
+import { type RegraDeData, erroDaData } from '../dominio/datasValidas';
 import { dataDaTela, dataParaTela, mascaraData, numeroDaTela, numeroParaTela } from '../dominio/formatos';
 import { escalar } from '../dominio/preferencias';
 import { useTema } from '../tema/TemaProvider';
@@ -20,11 +21,20 @@ export function CampoData({
   aoMudar,
   erro,
   rotuloOculto,
+  regra,
+  nome,
 }: {
   rotulo: string;
   valor: string;
   aoMudar: (texto: string) => void;
   erro?: string | null;
+  /**
+   * Faixa de datas do campo (`dominio/datasValidas`): fora dela o campo mostra a mensagem junto ao valor. Sem `regra` o
+   * campo não confere a faixa (financeiro e ciclo ficam como estão). Quem salva trava com `dataDaTelaNaFaixa`.
+   */
+  regra?: RegraDeData;
+  /** O nome do campo na mensagem da faixa ("Início da pasta"); sem ele, o `rotulo`. */
+  nome?: string;
   /** Sem o rótulo em cima (o ícone ao lado já diz o que é); o leitor de tela continua lendo o `rotulo`. */
   rotuloOculto?: boolean;
 }) {
@@ -44,7 +54,7 @@ export function CampoData({
       keyboardType="number-pad"
       inputMode="numeric"
       maxLength={10}
-      erro={erro ?? (invalida ? 'Data inválida.' : null)}
+      erro={erro ?? (regra ? erroDaData(valor, nome ?? rotulo, regra) : null) ?? (invalida ? 'Data inválida.' : null)}
       acao={
         <View ref={botao} collapsable={false}>
           <BotaoCalendario aoTocar={() => botao.current?.measureInWindow((x, y, w, h) => setAncora({ x, y, w, h }))} />

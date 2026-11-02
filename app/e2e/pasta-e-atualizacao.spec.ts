@@ -106,7 +106,8 @@ for (const largura of [390, 1280]) {
     await data.fill('20/10/2026');
     await peso.fill('81,9');
     await expect(folha.getByText('Vai substituir o peso da atualização')).toBeVisible();
-    await data.fill('31/10/2026');
+    // Data fixa no passado: o peso é "registro" e não aceita o futuro, então uma data perto de hoje quebraria com o relógio.
+    await data.fill('15/03/2025');
     await expect(folha.getByText('Vai substituir o peso da atualização')).toHaveCount(0);
 
     // Finalizar sem peso novo continua possível.
@@ -115,6 +116,34 @@ for (const largura of [390, 1280]) {
     await expect(page.getByRole('dialog', { name: 'Finalizar “Plano 17”' })).toHaveCount(0);
     const post = pedidos.find((p) => p.metodo === 'POST' && p.caminho === `/pastas/${PASTA_ID}/finalizar`);
     expect(post?.corpo).toEqual({ data: null, pesoKg: null, observacao: null });
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  // C76: o peso é "registro" (de 1900 até hoje). Ano 0261 e data futura mostram a mensagem no campo e travam o Finalizar.
+  test(`finalizar: data do peso em 0261 ou no futuro é recusada no campo e trava o Finalizar (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { pedidos, errosDaPagina } = await abrir(page, ['ATUALIZACAO_LER']);
+    await page.goto(`/treinador/alunos/${ALUNO_ID}?pastaId=${PASTA_ID}`);
+    await page.getByRole('dialog', { name: 'Plano 17' }).getByRole('button', { name: 'Finalizar pasta' }).click();
+    const folha = page.getByRole('dialog', { name: 'Finalizar “Plano 17”' });
+    const data = folha.getByRole('textbox', { name: 'Data do peso' });
+    const finalizar = folha.getByRole('button', { name: 'Finalizar pasta' });
+    const mensagem = folha.getByText('Data do peso: use uma data entre 01/01/1900 e hoje');
+
+    await expect(finalizar).toBeEnabled();
+    await data.fill('15/03/0261');
+    await expect(data).toHaveValue('15/03/0261');
+    await expect(mensagem).toBeVisible();
+    await expect(finalizar).toBeDisabled();
+
+    await data.fill('01/01/2099');
+    await expect(mensagem).toBeVisible();
+    await expect(finalizar).toBeDisabled();
+
+    await data.fill('15/03/2025');
+    await expect(mensagem).toHaveCount(0);
+    await expect(finalizar).toBeEnabled();
+    expect(pedidos.filter((p) => p.caminho === `/pastas/${PASTA_ID}/finalizar`)).toHaveLength(0);
     expect(errosDaPagina).toEqual([]);
   });
 

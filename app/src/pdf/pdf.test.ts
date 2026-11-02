@@ -448,7 +448,9 @@ describe('PDF da dieta: medicação e ergogênicos', () => {
     expect(h).toContain('Medicação e ergogênicos');
     expect(h).toContain('Item de teste A');
     expect(h).toContain('Princípio de Teste');
-    expect(h).toContain('<td>200 mg/ml</td>');
+    // C54: concentração fica na biblioteca e no editor; o PDF mostra só a dose prescrita.
+    expect(h).not.toContain('200 mg/ml');
+    expect(h).not.toContain('<th>Concentração</th>');
     expect(h).toContain('<td>Dose de teste</td>');
     expect(h).toContain('<td>—</td>');
     expect(h).not.toContain('<th>Prescrição</th>');

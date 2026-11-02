@@ -5,7 +5,8 @@ import { StyleSheet, View } from 'react-native';
 
 import { excluirPeso, pesosDoAluno, registrarPeso } from '../api/rotas';
 import type { RegistroPeso } from '../api/tipos';
-import { dataCurta, dataDaTela, dataParaTela, hojeIso, numeroParaTela } from '../dominio/formatos';
+import { dataDaTelaNaFaixa } from '../dominio/datasValidas';
+import { dataCurta, dataParaTela, hojeIso, numeroParaTela } from '../dominio/formatos';
 import { avisoDoGrafico } from '../dominio/progresso';
 import { variacoesDoPeso } from '../dominio/variacaoDoPeso';
 import { useSessao } from '../sessao/SessaoProvider';
@@ -45,7 +46,7 @@ export function CartaoPeso({ alunoId }: { alunoId: string }) {
   const [excluir, setExcluir] = useState<RegistroPeso | null>(null);
   const [visao, setVisao] = useState<'lista' | 'grafico'>('lista');
   const campos = errosPorCampo(erroSalvar);
-  const dataIso = dataDaTela(data);
+  const dataIso = dataDaTelaNaFaixa(data, 'REGISTRO');
 
   const [registrando, setRegistrando] = useState(false);
   const fecharRegistro = () => { setRegistrando(false); setErroSalvar(null); };
@@ -145,7 +146,7 @@ export function CartaoPeso({ alunoId }: { alunoId: string }) {
         </>}>
           <View style={estilos.form}>
             <View style={estilos.campoData}>
-              <CampoData rotulo="Data" valor={data} aoMudar={setData} erro={campos.data} />
+              <CampoData rotulo="Data" nome="Data do peso" regra="REGISTRO" valor={data} aoMudar={setData} erro={campos.data} />
             </View>
             <View style={estilos.campo}>
               <CampoNumerico rotulo="Peso" sufixo="kg" valor={peso} aoMudar={setPeso} erro={campos.pesoKg} />

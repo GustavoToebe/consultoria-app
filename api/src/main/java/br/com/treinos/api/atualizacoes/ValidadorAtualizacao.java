@@ -5,6 +5,7 @@ import br.com.plataforma.comum.web.BadRequestException;
 import br.com.treinos.api.alunos.RegrasDoEndereco;
 import br.com.treinos.api.alunos.dto.AlunoDtos.Endereco;
 import br.com.treinos.api.questionarios.LimitesQuestionario;
+import br.com.treinos.api.web.FaixaDeData;
 import br.com.treinos.api.web.Formatos;
 import br.com.treinos.api.web.Fuso;
 import br.com.treinos.api.web.ValidacaoException;
@@ -198,7 +199,10 @@ public class ValidadorAtualizacao {
         return "TEXTO".equals(tipo) ? LimitesQuestionario.TEXTO_CURTO_CAPACIDADE : LimitesQuestionario.TEXTO_LONGO_CAPACIDADE;
     }
 
-    /** AAAA-MM-DD de verdade (sem 31/02), entre 1900 e 2100; com {@code somentePassado}, até hoje. */
+    /**
+     * AAAA-MM-DD de verdade (sem 31/02), de 1900 até 31/12 do ano de hoje + 5; com {@code somentePassado}, até hoje
+     * ({@link FaixaDeData}).
+     */
     private static boolean data(JsonNode p, JsonNode v, LocalDate hoje) {
         if (!v.isString() || !DATA.matcher(v.asString()).matches()) {
             return false;
@@ -209,10 +213,8 @@ public class ValidadorAtualizacao {
         } catch (DateTimeException invalida) {
             return false;
         }
-        if (d.getYear() < LimitesQuestionario.DATA_ANO_MINIMO || d.getYear() > LimitesQuestionario.DATA_ANO_MAXIMO) {
-            return false;
-        }
-        return !(p.path("somentePassado").asBoolean(false) && d.isAfter(hoje));
+        FaixaDeData faixa = p.path("somentePassado").asBoolean(false) ? FaixaDeData.REGISTRO : FaixaDeData.DATA_COM_FUTURO;
+        return faixa.aceita(d, hoje);
     }
 
     /** Só dígitos, espaço, parênteses, +, - e ponto; de 10 a 13 dígitos (DDD + número, com ou sem o 55). */

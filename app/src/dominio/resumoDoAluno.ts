@@ -1,3 +1,4 @@
+import { atrasoEmTexto } from './atualizacao';
 import { dataRelativa } from './datasRelativas';
 
 /** Quantos dias antes do fim a pasta já pede renovação (o ciclo seguinte precisa estar pronto antes). */
@@ -52,8 +53,7 @@ export function proximoPassoDoAluno(entrada: {
   if (!aluno.ativo) return { texto: 'Aluno inativo. Para voltar a acompanhar, reative pelo menu ⋯.', acao: null, tipo: 'neutro' };
   if (atualizacao?.fase === 'ENVIADA') return { texto: 'A atualização chegou. Revise as respostas e mande o feedback.', acao: 'revisar', tipo: 'atencao' };
   if (atualizacao?.fase === 'ATRASADA') {
-    const d = atualizacao.diasDeAtraso;
-    return { texto: `A atualização está atrasada há ${d} ${d === 1 ? 'dia' : 'dias'}. Vale falar com o aluno.`, acao: null, tipo: 'perigo' };
+    return { texto: `A atualização está atrasada ${atrasoEmTexto(atualizacao.diasDeAtraso, hoje)}. Vale falar com o aluno.`, acao: null, tipo: 'perigo' };
   }
   if (pasta && precisaRenovar(pasta, pastas, hoje)) {
     const quando = pasta.fim && pasta.fim < hoje ? `terminou ${dataRelativa(pasta.fim, hoje)}` : `termina ${dataRelativa(pasta.fim, hoje)}`;

@@ -201,7 +201,7 @@ public class ImportacaoService {
     public Pagina listar(String destino, String situacao, String arquivo, java.time.LocalDate de, java.time.LocalDate ate,
                          int pagina) {
         TipoDeArquivo tipo = br.com.treinos.api.web.FiltrosDeLista.umEnum(TipoDeArquivo.class, arquivo, "arquivo");
-        br.com.treinos.api.web.FiltrosDeLista.exigirPeriodo(de, ate, 0, "PERIODO_INVALIDO");
+        br.com.treinos.api.web.FiltrosDeLista.exigirPeriodoNaFaixa(de, ate, 0, "PERIODO_INVALIDO");
         List<String> visiveis = visiveis();
         if (destino != null && !destino.isBlank()) {
             if (!PERMISSAO.containsKey(destino) && !SO_NO_HISTORICO.containsKey(destino)) {
