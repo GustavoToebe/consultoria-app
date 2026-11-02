@@ -60,8 +60,12 @@ describe('caminhos da API', () => {
 
   it('agenda presencial: período e filtros na query, id codificado, corpo em JSON', async () => {
     await expect(listarCompromissos({ de: '2026-11-02', ate: '2026-11-09' })).resolves.toBe('/agenda/compromissos?de=2026-11-02&ate=2026-11-09');
-    await expect(listarCompromissos({ de: '2026-11-02', ate: '2026-11-02', responsavel: 'u/1', situacao: 'CANCELADO' }))
+    await expect(listarCompromissos({ de: '2026-11-02', ate: '2026-11-02', responsavel: 'u/1', situacoes: ['CANCELADO'] }))
       .resolves.toBe('/agenda/compromissos?de=2026-11-02&ate=2026-11-02&responsavel=u%2F1&situacao=CANCELADO');
+    await expect(listarCompromissos({ de: '2026-11-02', ate: '2026-11-09', situacoes: ['AGENDADO', 'FALTOU'] }))
+      .resolves.toBe('/agenda/compromissos?de=2026-11-02&ate=2026-11-09&situacao=AGENDADO&situacao=FALTOU');
+    await expect(listarCompromissos({ de: '2026-11-02', ate: '2026-11-09', situacoes: [] }))
+      .resolves.toBe('/agenda/compromissos?de=2026-11-02&ate=2026-11-09');
     const corpo = { alunoIds: ['a', 'b'], responsavelId: 'r', data: '2026-11-02', hora: '09:00', duracaoMinutos: 60, local: null, observacao: null };
     await criarCompromisso(corpo);
     expect(requisicao).toHaveBeenLastCalledWith('/agenda/compromissos', { metodo: 'POST', corpo });
@@ -137,8 +141,8 @@ describe('caminhos da API', () => {
     await excluirEvento('e/1', 4, { escopo: 'TODAS', ocorrencia: '2026-11-05' });
     expect(requisicao).toHaveBeenLastCalledWith('/agenda/eventos/e%2F1?versao=4&escopo=TODAS&ocorrencia=2026-11-05', { metodo: 'DELETE' });
     await expect(resumoDaAgenda({ de: '2026-01-01', ate: '2026-12-31' })).resolves.toBe('/agenda/resumo?de=2026-01-01&ate=2026-12-31');
-    await expect(resumoDaAgenda({ de: '2026-01-01', ate: '2026-12-31', responsavel: 'u/1', situacao: 'AGENDADO', agendas: ['a'] }))
-      .resolves.toBe('/agenda/resumo?de=2026-01-01&ate=2026-12-31&responsavel=u%2F1&situacao=AGENDADO&agendas=a');
+    await expect(resumoDaAgenda({ de: '2026-01-01', ate: '2026-12-31', responsavel: 'u/1', situacoes: ['AGENDADO', 'FALTOU'], agendas: ['a'] }))
+      .resolves.toBe('/agenda/resumo?de=2026-01-01&ate=2026-12-31&responsavel=u%2F1&situacao=AGENDADO&situacao=FALTOU&agendas=a');
   });
 
   it('atualizações: `meus` como sempre; `responsavel` troca o `meus`; de/ate só em par', async () => {

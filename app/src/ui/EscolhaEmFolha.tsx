@@ -35,6 +35,11 @@ interface Props<T> {
   /** Conteúdo depois da lista (paginação, erro, "Organizar..."). */
   rodape?: ReactNode;
   textoVazio?: string;
+  /**
+   * Valor digitado (ex.: hora fora da grade de 15 min): a busca local aparece sempre, com o `rotulo` dado, e o texto vira
+   * uma opção no topo da lista (Enter escolhe) ou um aviso de por que não vale. A regra é de quem chama (`dominio/`).
+   */
+  digitado?: { rotulo: string; opcao: (texto: string) => { opcao: OpcaoDaFolha<T> } | { aviso: string } | null };
   /** Mostra o esqueleto no lugar de "nenhuma opção" enquanto as opções chegam. */
   carregando?: boolean;
   desabilitado?: boolean;
@@ -53,18 +58,28 @@ export const OPCOES_PARA_BUSCAR = 8;
  */
 export function EscolhaEmFolha<T extends string | number | null>({
   rotulo, valor, opcoes, aoMudar, titulo, rotuloDoValor, busca, rodape, textoVazio = 'Nenhuma opção encontrada.', carregando, desabilitado, style,
+  digitado,
 }: Props<T>) {
   const { cores } = useTema();
   const [aberta, setAberta] = useState(false);
   const [filtro, setFiltro] = useState('');
   const escolhida = opcoes.find((o) => o.valor === valor);
   const textoDoValor = escolhida?.rotulo ?? rotuloDoValor ?? '—';
-  const comBuscaLocal = !busca && opcoes.length > OPCOES_PARA_BUSCAR;
+  const comBuscaLocal = !busca && (!!digitado || opcoes.length > OPCOES_PARA_BUSCAR);
   const termo = semAcento(filtro.trim());
-  const visiveis = comBuscaLocal && termo ? opcoes.filter((o) => semAcento(`${o.rotulo} ${o.detalhe ?? ''}`).includes(termo)) : opcoes;
+  const filtradas = comBuscaLocal && termo ? opcoes.filter((o) => semAcento(`${o.rotulo} ${o.detalhe ?? ''}`).includes(termo)) : opcoes;
+  // O digitado vai no topo; se já é uma das opções, é ela (sem repetir).
+  const doTexto = digitado && filtro.trim() ? digitado.opcao(filtro) : null;
+  const opcaoDoTexto = doTexto && 'opcao' in doTexto ? (opcoes.find((o) => o.valor === doTexto.opcao.valor) ?? doTexto.opcao) : null;
+  const avisoDoTexto = doTexto && 'aviso' in doTexto ? doTexto.aviso : null;
+  const visiveis = opcaoDoTexto ? [opcaoDoTexto, ...filtradas.filter((o) => o.valor !== opcaoDoTexto.valor)] : filtradas;
   const fechar = () => {
     setAberta(false);
     setFiltro('');
+  };
+  const escolher = (v: T) => {
+    aoMudar(v);
+    fechar();
   };
   return (
     <>
@@ -84,7 +99,9 @@ export function EscolhaEmFolha<T extends string | number | null>({
       {aberta ? (
         <Folha visivel titulo={titulo ?? rotulo} aoFechar={fechar}>
           {busca ? <Campo rotulo={busca.rotulo ?? 'Buscar'} valor={busca.valor} aoMudar={busca.aoMudar} autoCorrect={false} /> : null}
-          {comBuscaLocal ? <Campo rotulo="Buscar" valor={filtro} aoMudar={setFiltro} autoCorrect={false} /> : null}
+          {comBuscaLocal ? <Campo rotulo={digitado?.rotulo ?? 'Buscar'} valor={filtro} aoMudar={setFiltro} autoCorrect={false}
+            onSubmitEditing={opcaoDoTexto ? () => escolher(opcaoDoTexto.valor) : undefined} /> : null}
+          {avisoDoTexto ? <Texto variante="pequeno" cor={cores.perigo} accessibilityLiveRegion="polite">{avisoDoTexto}</Texto> : null}
           <View accessibilityRole="radiogroup" accessibilityLabel={rotulo} style={estilos.lista}>
             {visiveis.length === 0 ? (carregando ? <Esqueleto texto="Carregando opções" cartoes={2} /> : <Texto variante="suave">{textoVazio}</Texto>) : null}
             {visiveis.map((o) => {
@@ -96,10 +113,7 @@ export function EscolhaEmFolha<T extends string | number | null>({
                   accessibilityLabel={o.detalhe ? `${o.rotulo}, ${o.detalhe}` : o.rotulo}
                   accessibilityState={{ checked: ativa }}
                   aria-checked={ativa}
-                  onPress={() => {
-                    aoMudar(o.valor);
-                    fechar();
-                  }}
+                  onPress={() => escolher(o.valor)}
                   style={(estado) => [estilos.opcao, { borderColor: ativa ? cores.texto : cores.borda, backgroundColor: ativa ? cores.texto : sobre(estado) ? cores.superficie3 : cores.superficie2 }]}>
                   <View style={estilos.textosOpcao}>
                     <Texto style={[estilos.rotuloOpcao, { color: ativa ? cores.fundo : cores.texto }]}>{o.rotulo}</Texto>

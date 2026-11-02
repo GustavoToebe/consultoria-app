@@ -33,7 +33,8 @@ export interface FiltrosDoCalendario {
   meus: boolean;
   /** Outro membro escolhido (D19): `responsavel` nas três fontes. */
   membro: string | null;
-  situacao: SituacaoCompromisso | null;
+  /** Vazio = todas. Na ordem fixa de `OPCOES_SITUACAO` (a chave de cache depende da ordem). */
+  situacoes: readonly SituacaoCompromisso[];
   usuarioId: string | null;
   /** A preferência `agendasOcultas` como está gravada (pode ter id de agenda apagada). */
   ocultasGravadas: readonly string[];
@@ -74,9 +75,10 @@ export function useCalendario(permissoes: PermissoesDoCalendario, f: FiltrosDoCa
   const verAtualizacoes = permissoes.atualizacoes && !escondida(AGENDA_ATUALIZACOES);
 
   const lidas = f.preferenciasLidas;
-  const chaveCompromissos = lidas && verCompromissos && !ano ? `c:${de}:${ate}:${responsavel ?? ''}:${f.situacao ?? ''}` : null;
+  const chaveDasSituacoes = f.situacoes.join(',');
+  const chaveCompromissos = lidas && verCompromissos && !ano ? `c:${de}:${ate}:${responsavel ?? ''}:${chaveDasSituacoes}` : null;
   const compromissos = useCarregar(chaveCompromissos, async (chave) => ({
-    chave, itens: await listarCompromissos({ de, ate, responsavel, situacao: f.situacao }),
+    chave, itens: await listarCompromissos({ de, ate, responsavel, situacoes: f.situacoes }),
   }));
 
   // Eventos só depois de saber as agendas (sem nenhuma, ou todas escondidas, não pede).
@@ -93,9 +95,9 @@ export function useCalendario(permissoes: PermissoesDoCalendario, f: FiltrosDoCa
 
   // Ano: o resumo por dia (compromissos e eventos, só contagens). Com a leitura das agendas falhando, vai sem os eventos.
   const resumoPronto = !permissoes.agenda || !lidas ? false : agendasLidas || !!agendas.erro;
-  const chaveResumo = ano && resumoPronto ? `r:${de}:${responsavel ?? ''}:${f.situacao ?? ''}:${idsDasAgendas}` : null;
+  const chaveResumo = ano && resumoPronto ? `r:${de}:${responsavel ?? ''}:${chaveDasSituacoes}:${idsDasAgendas}` : null;
   const resumo = useCarregar(chaveResumo, async (chave) => ({
-    chave, dias: (await resumoDaAgenda({ de, ate, responsavel, situacao: f.situacao, agendas: escolha.ids })).dias,
+    chave, dias: (await resumoDaAgenda({ de, ate, responsavel, situacoes: f.situacoes, agendas: escolha.ids })).dias,
   }));
 
   const equipe = useCarregar(permissoes.equipe && (permissoes.agenda || permissoes.atualizacoes) ? 'agenda-equipe' : null, () => responsaveisEquipe());

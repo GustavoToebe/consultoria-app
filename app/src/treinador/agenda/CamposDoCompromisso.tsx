@@ -1,14 +1,14 @@
-import { X } from 'lucide-react-native';
-import { type ReactNode, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { AlignLeft, Clock, MapPin, UserRound, Users, X } from 'lucide-react-native';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import type { DiaDaSemana } from '../../api/agendaTipos';
 import type { ResponsavelEquipe } from '../../api/equipeTipos';
 import { listarAlunos } from '../../api/rotas';
 import {
-  ALUNOS_MAXIMO, alternarDiaDaRepeticao, DURACOES_SUGERIDAS, type ErrosDaRepeticao, type ErrosDoCompromisso, type FormularioDaRepeticao,
-  AJUDA_DIAS_UTEIS, type FormularioDoCompromisso, LIMITES_COMPROMISSO, mascaraHora, OCORRENCIAS_MAXIMO, OCORRENCIAS_MINIMO, OPCOES_DE_DIA_DA_SEMANA,
-  OPCOES_DE_REPETICAO, repeticaoDoFormulario, textoDaDuracao, textoDaPrevisao, trocarTipoDaRepeticao,
+  ALUNOS_MAXIMO, alternarDiaDaRepeticao, type ErrosDaRepeticao, type ErrosDoCompromisso, type FormularioDaRepeticao,
+  AJUDA_DIAS_UTEIS, type FormularioDoCompromisso, LIMITES_COMPROMISSO, OCORRENCIAS_MAXIMO, OCORRENCIAS_MINIMO, OPCOES_DE_DIA_DA_SEMANA,
+  repeticaoDoFormulario, textoDaPrevisao, trocarTipoDaRepeticao,
 } from '../../dominio/agendaPresencial';
 import { dataDaTela } from '../../dominio/formatos';
 import { useTema } from '../../tema/TemaProvider';
@@ -20,11 +20,14 @@ import { Escolha } from '../../ui/Escolha';
 import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
 import { MensagemErro } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
+import { Grade } from '../../ui/Grade';
+import { depoisDeFecharAsFolhas } from '../../ui/historicoDasFolhas';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../ui/useCarregar';
+import { CamposDoHorario, LinhaComIcone, SeletorDaRepeticao, TituloDaParte } from './PecasDoFormulario';
 
 /** Alunos por página de `GET /alunos` (igual à API). */
 const TAMANHO_PAGINA = 30;
@@ -46,6 +49,10 @@ interface Props {
   /** A repetição só aparece ao marcar um compromisso novo (remarcar nunca repete). */
   comRepeticao: boolean;
   hoje: string;
+  /** Formulário completo ("Mais opções" e a edição); sem isto, o painel rápido com linhas de ícone. */
+  completo: boolean;
+  /** Passa para o formulário completo ("Personalizar…" da repetição). */
+  aoMaisOpcoes: () => void;
   /** Avisos que não bloqueiam (aluno ocupado, responsável com outro compromisso), logo depois do horário. */
   avisos?: ReactNode;
   /** Linha sobre a série, no topo (ocorrência e o que a data mudada alcança). */
@@ -53,40 +60,96 @@ interface Props {
 }
 
 /**
- * Campos do compromisso com aluno: os participantes (de 1 a 20, chips com remover e a busca para adicionar), responsável,
- * data, hora, duração, a repetição (só ao marcar), local e observação. Os botões ficam no rodapé da folha, fora da
- * rolagem, para o teclado do celular não cobri-los. Toda regra vem de `dominio/agendaPresencial`.
+ * Campos do compromisso com aluno, em dois jeitos (D4): o painel rápido do Google Agenda (linhas com o ícone à esquerda:
+ * horário e repetição, alunos, responsável, local, observação) e o formulário completo em duas partes ("Quando" e "Alunos e
+ * detalhes"), com os dias da semana do semanal. O horário é início–fim (D5) e a repetição, a lista com os rótulos do Google
+ * (D6). Os botões ficam no rodapé da folha, fora da rolagem, para o teclado do celular não cobri-los. Toda regra vem de
+ * `dominio/agendaPresencial`.
  */
 export function CamposDoCompromisso(p: Props) {
-  const { form, erros, mudar } = p;
-  const opcoesResponsavel = p.responsaveis.map((r) => ({ valor: r.id, rotulo: r.nome }));
-  const duracaoSugerida = DURACOES_SUGERIDAS.find((d) => String(d) === form.duracao.trim()) ?? null;
+  const { form, erros, mudar, completo } = p;
+  const r = form.repeticao;
+  const opcoesResponsavel = p.responsaveis.map((x) => ({ valor: x.id, rotulo: x.nome }));
+
+  // "Personalizar…": sem repetição vira o semanal do dia da data; abre o completo com o foco na repetição. Espera a folha da
+  // lista fechar (ela entra no histórico do navegador) antes de trocar o formulário.
+  const repeticaoRef = useRef<View>(null);
+  const [focarRepeticao, setFocarRepeticao] = useState(0);
+  useEffect(() => {
+    if (!focarRepeticao || Platform.OS !== 'web') return undefined;
+    const relogio = setTimeout(() => focarDentro(repeticaoRef.current), 0);
+    return () => clearTimeout(relogio);
+  }, [focarRepeticao]);
+  const personalizar = () => depoisDeFecharAsFolhas(() => {
+    if (r.tipo === 'NENHUMA') p.mudarRepeticao(trocarTipoDaRepeticao(r, 'SEMANAL', form.data));
+    p.aoMaisOpcoes();
+    setFocarRepeticao((n) => n + 1);
+  });
+
+  const horario = <CamposDoHorario data={form.data} hora={form.hora} duracao={form.duracao} limites={LIMITES_COMPROMISSO} compacto={!completo}
+    erros={{ data: erros.data, hora: erros.hora, duracao: erros.duracao }} aoMudarData={(t) => mudar('data', t)}
+    aoMudarHora={(h) => mudar('hora', h)} aoMudarDuracao={(d) => mudar('duracao', d)} />;
+  const repeticao = p.comRepeticao ? (
+    <View ref={repeticaoRef} style={estilos.grupo}>
+      <SeletorDaRepeticao tipo={r.tipo} dias={r.dias} data={form.data} aoPersonalizar={personalizar}
+        aoEscolher={(tipo) => p.mudarRepeticao(trocarTipoDaRepeticao({ ...r, dias: [] }, tipo, form.data))} />
+      <DetalhesDaRepeticao repeticao={r} data={form.data} erros={p.errosDaRepeticao} hoje={p.hoje} comDias={completo} aoMudar={p.mudarRepeticao} />
+    </View>
+  ) : null;
+  const participantes = <Participantes alunoIds={form.alunoIds} nomes={p.nomes} erro={erros.alunoIds} aoAdicionar={p.aoAdicionarAluno}
+    aoRemover={p.aoRemoverAluno} />;
+  const responsavel = <View style={estilos.grupo}>
+    <EscolhaEmFolha rotulo="Responsável" titulo="Escolher responsável" valor={form.responsavelId} opcoes={opcoesResponsavel}
+      rotuloDoValor={p.nomeDoResponsavel ?? 'Escolher'} aoMudar={(id) => mudar('responsavelId', id)}
+      textoVazio="Nenhum membro ativo na equipe." />
+    {erros.responsavelId ? <ErroDoCampo texto={erros.responsavelId} /> : null}
+  </View>;
+  const local = <Campo rotulo="Local (opcional)" rotuloOculto={!completo} valor={form.local} aoMudar={(t) => mudar('local', t)} erro={erros.local}
+    maxLength={LIMITES_COMPROMISSO.local} placeholder={completo ? 'Ex.: Sala 2, academia, online' : 'Adicionar local'} />;
+  const observacao = p.comObservacao ? <Campo rotulo="Observação (opcional)" rotuloOculto={!completo} valor={form.observacao}
+    aoMudar={(t) => mudar('observacao', t)} erro={erros.observacao} linhas={3} maxLength={LIMITES_COMPROMISSO.observacao}
+    placeholder={completo ? undefined : 'Adicionar observação'} ajuda="Só a equipe vê. Os alunos não veem a observação." /> : null;
+
+  if (!completo) {
+    return (
+      <View style={estilos.coluna}>
+        {p.sobreASerie}
+        <LinhaComIcone Icone={Clock}>{horario}{p.avisos}{repeticao}</LinhaComIcone>
+        <LinhaComIcone Icone={Users}>{participantes}</LinhaComIcone>
+        <LinhaComIcone Icone={UserRound}>{responsavel}</LinhaComIcone>
+        <LinhaComIcone Icone={MapPin}>{local}</LinhaComIcone>
+        {observacao ? <LinhaComIcone Icone={AlignLeft}>{observacao}</LinhaComIcone> : null}
+      </View>
+    );
+  }
   return (
     <View style={estilos.coluna}>
       {p.sobreASerie}
-      <Participantes alunoIds={form.alunoIds} nomes={p.nomes} erro={erros.alunoIds} aoAdicionar={p.aoAdicionarAluno} aoRemover={p.aoRemoverAluno} />
-      <EscolhaEmFolha rotulo="Responsável" titulo="Escolher responsável" valor={form.responsavelId} opcoes={opcoesResponsavel}
-        rotuloDoValor={p.nomeDoResponsavel ?? 'Escolher'} aoMudar={(id) => mudar('responsavelId', id)}
-        textoVazio="Nenhum membro ativo na equipe." />
-      {erros.responsavelId ? <ErroDoCampo texto={erros.responsavelId} /> : null}
-      <CampoData rotulo="Data" valor={form.data} aoMudar={(t) => mudar('data', t)} erro={erros.data} />
-      <Campo rotulo="Hora (Brasília)" valor={form.hora} aoMudar={(t) => mudar('hora', mascaraHora(t))} erro={erros.hora}
-        placeholder="HH:MM" keyboardType="number-pad" inputMode="numeric" maxLength={5} numerico />
-      <Escolha rotulo="Duração" valor={duracaoSugerida} opcoes={DURACOES_SUGERIDAS.map((d) => ({ valor: d, rotulo: textoDaDuracao(d) }))}
-        aoMudar={(d) => { if (d !== null) mudar('duracao', String(d)); }} />
-      <Campo rotulo="Duração em minutos" valor={form.duracao} aoMudar={(t) => mudar('duracao', t.replace(/\D/g, '').slice(0, 3))}
-        erro={erros.duracao} ajuda={`De ${LIMITES_COMPROMISSO.duracaoMinima} a ${LIMITES_COMPROMISSO.duracaoMaxima} minutos.`}
-        keyboardType="number-pad" inputMode="numeric" numerico />
-      {p.avisos}
-      {p.comRepeticao ? <CamposDaRepeticao repeticao={form.repeticao} data={form.data} erros={p.errosDaRepeticao} hoje={p.hoje}
-        aoMudar={p.mudarRepeticao} /> : null}
-      <Campo rotulo="Local (opcional)" valor={form.local} aoMudar={(t) => mudar('local', t)} erro={erros.local}
-        maxLength={LIMITES_COMPROMISSO.local} placeholder="Ex.: Sala 2, academia, online" />
-      {p.comObservacao ? <Campo rotulo="Observação (opcional)" valor={form.observacao} aoMudar={(t) => mudar('observacao', t)}
-        erro={erros.observacao} linhas={3} maxLength={LIMITES_COMPROMISSO.observacao}
-        ajuda="Só a equipe vê. Os alunos não veem a observação." /> : null}
+      <Grade gap={espaco(3)}>
+        <View style={estilos.parte}>
+          <TituloDaParte texto="Quando" />
+          {horario}
+          {p.avisos}
+          {repeticao}
+        </View>
+        <View style={estilos.parte}>
+          <TituloDaParte texto="Alunos e detalhes" />
+          {participantes}
+          {responsavel}
+          {local}
+          {observacao}
+        </View>
+      </Grade>
     </View>
   );
+}
+
+/** Leva o foco ao primeiro controle de um bloco (web) e o traz para a vista, sem animação. */
+export function focarDentro(bloco: View | null) {
+  const el = bloco as unknown as HTMLElement | null;
+  if (!el?.querySelector) return;
+  el.scrollIntoView?.({ block: 'nearest' });
+  (el.querySelector('[role="checkbox"],[role="button"],button,input') as HTMLElement | null)?.focus?.();
 }
 
 /** Os alunos escolhidos em chips (com remover) e o "Adicionar" com a busca da API, sem repetir e até o máximo. */
@@ -142,22 +205,22 @@ const OPCOES_DO_FIM: { valor: FormularioDaRepeticao['fim']; rotulo: string }[] =
 ];
 
 /**
- * Repetição ao marcar (D4): não repete, todo dia, dias úteis, toda semana (com os dias, de segunda a domingo), todo mês
- * ou todo ano; o fim é obrigatório (numa data ou de 2 a 52 vezes). A prévia "N compromissos, de X a Y" usa a mesma regra
- * da API; os erros aparecem junto do campo depois de tentar salvar.
+ * O resto da repetição ao marcar, depois da lista do tipo: os dias no semanal (só no formulário completo; no rápido o
+ * semanal é o dia da data), o fim (obrigatório: numa data ou de 2 a 52 vezes) e a prévia "N compromissos, de X a Y", com a
+ * mesma regra da API. Os erros aparecem junto do campo depois de tentar salvar.
  */
-function CamposDaRepeticao({ repeticao: r, data, erros, hoje, aoMudar }: {
-  repeticao: FormularioDaRepeticao; data: string; erros: ErrosDaRepeticao; hoje: string; aoMudar: (r: FormularioDaRepeticao) => void;
+function DetalhesDaRepeticao({ repeticao: r, data, erros, hoje, comDias, aoMudar }: {
+  repeticao: FormularioDaRepeticao; data: string; erros: ErrosDaRepeticao; hoje: string; comDias: boolean;
+  aoMudar: (r: FormularioDaRepeticao) => void;
 }) {
   const primeira = dataDaTela(data) || null;
   const { previsao } = repeticaoDoFormulario(r, primeira);
   return (
-    <View style={estilos.grupo}>
-      <Escolha rotulo="Repetição" valor={r.tipo} opcoes={[...OPCOES_DE_REPETICAO]} aoMudar={(tipo) => aoMudar(trocarTipoDaRepeticao(r, tipo, data))} />
+    <>
       {erros.tipo ? <ErroDoCampo texto={erros.tipo} /> : null}
       {r.tipo === 'DIAS_UTEIS' ? <Texto variante="suave">{AJUDA_DIAS_UTEIS}</Texto> : null}
       {r.tipo === 'NENHUMA' ? null : <>
-        {r.tipo === 'SEMANAL' ? <DiasDaSemana dias={r.dias} aoMudar={(dias) => aoMudar({ ...r, dias })} /> : null}
+        {r.tipo === 'SEMANAL' && comDias ? <DiasDaSemana dias={r.dias} aoMudar={(dias) => aoMudar({ ...r, dias })} /> : null}
         {erros.dias ? <ErroDoCampo texto={erros.dias} /> : null}
         <Escolha rotulo="Termina" valor={r.fim} opcoes={OPCOES_DO_FIM} aoMudar={(fim) => aoMudar({ ...r, fim })} />
         {r.fim === 'DATA'
@@ -172,7 +235,7 @@ function CamposDaRepeticao({ repeticao: r, data, erros, hoje, aoMudar }: {
               : <Texto variante="suave">Informe a data e o fim para ver quantos compromissos serão marcados.</Texto>}
         </View>
       </>}
-    </View>
+    </>
   );
 }
 
@@ -208,6 +271,7 @@ export function ErroDoCampo({ texto }: { texto: string }) {
 
 const estilos = StyleSheet.create({
   coluna: { gap: espaco(2) },
+  parte: { gap: espaco(2) },
   grupo: { gap: espaco(1) },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
   chip: { flexDirection: 'row', alignItems: 'center', maxWidth: '100%', minHeight: ALVO_TOQUE, paddingLeft: espaco(1.5), borderWidth: 1, borderRadius: RAIO },

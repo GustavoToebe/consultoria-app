@@ -5,7 +5,9 @@ import {
   escoposPermitidos, nomesDosParticipantes, OCORRENCIAS_MAXIMO, previsaoDaSerie, removerParticipante, repeticaoDoFormulario,
   resumoDosParticipantes, seloDoCompromisso, SEM_REPETICAO, situacaoDoCompromisso, textoDaOcorrencia, textoDaPrevisao,
   textoDeAlunosOcupados, textoDoConflitoPorData, vagasNoCompromisso, conflitoNaLista, dataEmBrasilia, deslocarReferencia, diasDaAgenda, diasDoCompromisso, formularioDoCompromisso,
-  formularioNovo, hojeEmBrasilia, horaEmBrasilia, horaValida, instanteDeBrasilia, intervaloDoPedido, lerDataDeReferencia, lerSituacao,
+  formularioNovo, hojeEmBrasilia, horaEmBrasilia, horaValida, instanteDeBrasilia, intervaloDoPedido, lerDataDeReferencia, lerSituacoes, OPCOES_SITUACAO, parametroDasSituacoes,
+  duracaoEntre, erroDoFim, fimDaHora, horaDigitada, horaDosMinutos, opcaoDigitadaDoFim, opcaoDigitadaDoInicio, inicioMudou, LIMITES_COMPROMISSO, minutosDaHora, opcoesDaRepeticao, opcoesDoFim,
+  opcoesDoInicio, PERSONALIZAR_REPETICAO, rotuloDaRepeticaoAtual, terminaNoDiaSeguinte,
   lerVisao, mascaraHora, metadadosDoCompromisso, pedidoDoFormulario, periodoDaVisao, resumoDoDia, seloDaSituacao, sobrepoe,
   textoDaDuracao, textoDoHorario, textosDoCompromissoDoAluno, tituloDoPeriodo,
   alternarDiaDaRepeticao, avisadosAoCancelar, explicacaoDoEscopo, filtroDeAlunosOcupados, mudouAData, nomesPorExtenso,
@@ -69,8 +71,25 @@ describe('visões Dia e Semana', () => {
     expect(lerDataDeReferencia('2026-02-30', '2026-11-03')).toBe('2026-11-03');
     expect(lerDataDeReferencia('ontem', '2026-11-03')).toBe('2026-11-03');
     expect(lerDataDeReferencia('2026-12-01', '2026-11-03')).toBe('2026-12-01');
-    expect(lerSituacao('FALTOU')).toBe('FALTOU');
-    expect(lerSituacao('TODAS')).toBeNull();
+  });
+
+  it('situações do filtro: ordem fixa, sem desconhecido nem repetido, vazio = todas', () => {
+    expect(lerSituacoes('FALTOU')).toEqual(['FALTOU']);
+    expect(lerSituacoes('FALTOU,AGENDADO')).toEqual(['AGENDADO', 'FALTOU']);
+    expect(lerSituacoes('CANCELADO,TODAS,AGENDADO,AGENDADO, REALIZADO ,faltou')).toEqual(['AGENDADO', 'REALIZADO', 'CANCELADO']);
+    expect(lerSituacoes(['CANCELADO', 'AGENDADO,FALTOU', 'AGENDADO'])).toEqual(['AGENDADO', 'FALTOU', 'CANCELADO']);
+    expect(lerSituacoes('TODAS')).toEqual([]);
+    expect(lerSituacoes('')).toEqual([]);
+    expect(lerSituacoes(undefined)).toEqual([]);
+    expect(lerSituacoes([])).toEqual([]);
+    expect(OPCOES_SITUACAO.map((o) => o.valor)).toEqual(['AGENDADO', 'REALIZADO', 'FALTOU', 'CANCELADO']);
+  });
+
+  it('o parâmetro das situações é o inverso da leitura', () => {
+    expect(parametroDasSituacoes([])).toBeUndefined();
+    expect(parametroDasSituacoes(['FALTOU', 'AGENDADO'])).toBe('AGENDADO,FALTOU');
+    expect(parametroDasSituacoes(lerSituacoes('CANCELADO,AGENDADO'))).toBe('AGENDADO,CANCELADO');
+    expect(lerSituacoes(parametroDasSituacoes(['REALIZADO', 'CANCELADO']))).toEqual(['REALIZADO', 'CANCELADO']);
   });
 
   it('semana = o dia e os 7 seguintes (como antes); setas andam 1 ou 7 dias', () => {
@@ -514,3 +533,180 @@ describe('ajuda dos dias úteis', () => {
     expect(AJUDA_DIAS_UTEIS).toBe('Feriados não são pulados: cancele só a ocorrência do feriado.');
   });
 });
+
+describe('início e fim (estilo Google)', () => {
+  it('converte hora e minutos', () => {
+    expect(minutosDaHora('09:30')).toBe(570);
+    expect(minutosDaHora('23:59')).toBe(1439);
+    expect(minutosDaHora('24:00')).toBeNull();
+    expect(minutosDaHora('9:30')).toBeNull();
+    expect(horaDosMinutos(570)).toBe('09:30');
+    expect(horaDosMinutos(1470)).toBe('00:30');
+    expect(horaDosMinutos(-30)).toBe('23:30');
+  });
+
+  it('o fim é início + duração, com a volta do relógio quando passa da meia-noite', () => {
+    expect(fimDaHora('09:00', '60')).toBe('10:00');
+    expect(fimDaHora('09:00', 90)).toBe('10:30');
+    expect(fimDaHora('23:45', 15)).toBe('00:00');
+    expect(fimDaHora('23:30', 60)).toBe('00:30');
+    expect(fimDaHora('25:00', 60)).toBeNull();
+    expect(fimDaHora('09:00', 'abc')).toBeNull();
+    expect(fimDaHora('09:00', 0)).toBeNull();
+    expect(fimDaHora('09:00', '')).toBeNull();
+  });
+
+  it('só é dia seguinte quando passa da meia-noite (terminar às 00:00 em ponto é o mesmo dia)', () => {
+    expect(terminaNoDiaSeguinte('23:30', 60)).toBe(true);
+    expect(terminaNoDiaSeguinte('23:45', 15)).toBe(false);
+    expect(terminaNoDiaSeguinte('09:00', 60)).toBe(false);
+    expect(terminaNoDiaSeguinte('xx', 60)).toBe(false);
+  });
+
+  it('a duração entre início e fim: fim antes do início é o dia seguinte; igual ou inválido, nulo', () => {
+    expect(duracaoEntre('09:00', '10:30')).toBe(90);
+    expect(duracaoEntre('23:30', '00:30')).toBe(60);
+    expect(duracaoEntre('10:00', '09:00')).toBe(1380);
+    expect(duracaoEntre('10:00', '10:00')).toBeNull();
+    expect(duracaoEntre('10:00', '24:00')).toBeNull();
+    expect(duracaoEntre('', '10:00')).toBeNull();
+  });
+
+  it('inícios de 15 em 15 min, de 00:00 a 23:45; a hora fora da grade entra no lugar', () => {
+    const inicios = opcoesDoInicio();
+    expect(inicios).toHaveLength(96);
+    expect(inicios[0]).toEqual({ valor: '00:00', rotulo: '00:00' });
+    expect(inicios[1].valor).toBe('00:15');
+    expect(inicios[95].valor).toBe('23:45');
+    const comAtual = opcoesDoInicio('09:10').map((o) => o.valor);
+    expect(comAtual).toHaveLength(97);
+    expect(comAtual.slice(36, 39)).toEqual(['09:00', '09:10', '09:15']);
+    expect(opcoesDoInicio('09:15')).toHaveLength(96);
+    expect(opcoesDoInicio('lixo')).toHaveLength(96);
+  });
+
+  it('fins de início + 15 min até o máximo do tipo, com a duração no rótulo', () => {
+    const fins = opcoesDoFim('16:30', LIMITES_COMPROMISSO);
+    expect(fins).toHaveLength(32); // 15 a 480 min
+    expect(fins[0]).toEqual({ valor: '15', rotulo: '16:45 (15 min)', fim: '16:45', diaSeguinte: false });
+    expect(fins.find((o) => o.valor === '60')?.rotulo).toBe('17:30 (1 h)');
+    expect(fins.find((o) => o.valor === '90')?.rotulo).toBe('18:00 (1 h 30 min)');
+    expect(fins[31]).toMatchObject({ valor: '480', rotulo: '00:30 (8 h, dia seguinte)', diaSeguinte: true });
+    expect(opcoesDoFim('xx', LIMITES_COMPROMISSO)).toEqual([]);
+  });
+
+  it('o fim em 23:45 atravessa a meia-noite sem teto em 23:59', () => {
+    const fins = opcoesDoFim('23:45', { duracaoMinima: 5, duracaoMaxima: 60 });
+    expect(fins.map((o) => o.rotulo)).toEqual(['00:00 (15 min)', '00:15 (30 min, dia seguinte)', '00:30 (45 min, dia seguinte)', '00:45 (1 h, dia seguinte)']);
+  });
+
+  it('a duração atual fora da grade e dentro dos limites aparece na ordem', () => {
+    const fins = opcoesDoFim('09:00', LIMITES_COMPROMISSO, '50');
+    expect(fins.map((o) => o.valor).slice(0, 5)).toEqual(['15', '30', '45', '50', '60']);
+    expect(opcoesDoFim('09:00', LIMITES_COMPROMISSO, 600)).toHaveLength(32);
+    expect(opcoesDoFim('09:00', LIMITES_COMPROMISSO, 45)).toHaveLength(32);
+  });
+
+  it('mudar o início mantém a duração: o fim acompanha', () => {
+    const form = { hora: '09:00', duracao: '90', local: 'Sala' };
+    const novo = inicioMudou(form, '14:15');
+    expect(novo).toEqual({ hora: '14:15', duracao: '90', local: 'Sala' });
+    expect(fimDaHora(novo.hora, novo.duracao)).toBe('15:45');
+    expect(form.hora).toBe('09:00');
+    expect(fimDaHora(inicioMudou(form, '23:30').hora, form.duracao)).toBe('01:00');
+  });
+
+  it('erro do fim: igual ao início, abaixo do mínimo e acima do máximo', () => {
+    expect(erroDoFim('09:00', '10:00', LIMITES_COMPROMISSO)).toBeNull();
+    expect(erroDoFim('23:30', '00:30', LIMITES_COMPROMISSO)).toBeNull();
+    expect(erroDoFim('09:00', '09:00', LIMITES_COMPROMISSO)).toBe('O fim precisa ser depois do início.');
+    expect(erroDoFim('09:00', '09:03', LIMITES_COMPROMISSO)).toBe('A duração mínima é 5 min.');
+    expect(erroDoFim('09:00', '09:05', LIMITES_COMPROMISSO)).toBeNull();
+    expect(erroDoFim('09:00', '17:00', LIMITES_COMPROMISSO)).toBeNull();
+    expect(erroDoFim('09:00', '17:01', LIMITES_COMPROMISSO)).toBe('A duração máxima é 8 h.');
+    expect(erroDoFim('10:00', '09:00', LIMITES_COMPROMISSO)).toBe('A duração máxima é 8 h.');
+    expect(erroDoFim('09:00', '25:00', LIMITES_COMPROMISSO)).toBe('Use HH:MM, de 00:00 a 23:59.');
+    expect(erroDoFim('', '10:00', LIMITES_COMPROMISSO)).toBeNull();
+  });
+});
+
+describe('rótulos da repetição (estilo Google)', () => {
+  it('com a data: dia da semana, dia do mês e dia e mês do ano (2026-11-18 é quarta)', () => {
+    const opcoes = opcoesDaRepeticao('2026-11-18');
+    expect(opcoes.map((o) => o.valor)).toEqual(['NENHUMA', 'DIARIA', 'SEMANAL', 'MENSAL', 'ANUAL', 'DIAS_UTEIS', PERSONALIZAR_REPETICAO]);
+    expect(opcoes.map((o) => o.rotulo)).toEqual([
+      'Não se repete', 'Todos os dias', 'Semanal: cada quarta-feira', 'Mensal no dia 18', 'Anual em 18 de novembro',
+      'Todos os dias da semana (segunda a sexta-feira)', 'Personalizar…',
+    ]);
+  });
+
+  it('cada dia da semana sai por extenso', () => {
+    expect(opcoesDaRepeticao('2026-11-21')[2].rotulo).toBe('Semanal: cada sábado');
+    expect(opcoesDaRepeticao('2026-11-22')[2].rotulo).toBe('Semanal: cada domingo');
+    expect(opcoesDaRepeticao('2026-11-23')[2].rotulo).toBe('Semanal: cada segunda-feira');
+    expect(opcoesDaRepeticao('2026-03-01')[4].rotulo).toBe('Anual em 1 de março');
+  });
+
+  it('sem data, ou com data inexistente, os rótulos são curtos', () => {
+    for (const data of [null, '', '18/11/2026', '2026-02-30', '2026-13-01']) {
+      expect(opcoesDaRepeticao(data).map((o) => o.rotulo)).toEqual([
+        'Não se repete', 'Todos os dias', 'Semanal', 'Mensal', 'Anual', 'Todos os dias da semana (segunda a sexta-feira)', 'Personalizar…',
+      ]);
+    }
+  });
+
+  it('o rótulo atual mostra os dias marcados no semanal', () => {
+    type R = Parameters<typeof rotuloDaRepeticaoAtual>[0];
+    const r = (tipo: R['tipo'], dias: R['dias'] = []): R => ({ tipo, dias });
+    expect(rotuloDaRepeticaoAtual(r('NENHUMA'), '2026-11-18')).toBe('Não se repete');
+    expect(rotuloDaRepeticaoAtual(r('DIARIA'), '2026-11-18')).toBe('Todos os dias');
+    expect(rotuloDaRepeticaoAtual(r('SEMANAL', ['WEDNESDAY']), '2026-11-18')).toBe('Semanal: cada quarta-feira');
+    expect(rotuloDaRepeticaoAtual(r('SEMANAL', ['FRIDAY', 'MONDAY', 'WEDNESDAY']), '2026-11-18')).toBe('Semanal: segunda, quarta e sexta');
+    expect(rotuloDaRepeticaoAtual(r('SEMANAL', ['MONDAY', 'WEDNESDAY']), null)).toBe('Semanal: segunda e quarta');
+    expect(rotuloDaRepeticaoAtual(r('SEMANAL'), '2026-11-18')).toBe('Semanal: cada quarta-feira');
+    expect(rotuloDaRepeticaoAtual(r('SEMANAL'), null)).toBe('Semanal');
+    expect(rotuloDaRepeticaoAtual(r('MENSAL'), '2026-11-18')).toBe('Mensal no dia 18');
+    expect(rotuloDaRepeticaoAtual(r('ANUAL'), null)).toBe('Anual');
+  });
+});
+
+describe('hora digitada nas listas de início e fim', () => {
+  it('aceita 4 ou 3 dígitos e hora com separador; recusa o resto', () => {
+    expect(['0910', '910', '09:10', '9:10', '9h10', '9.10', ' 09:10 '].map(horaDigitada)).toEqual(Array(7).fill('09:10'));
+    expect(['', '9', '09', '091', '09:1', '25:00', '09:60', '2400', 'abc', '09:10x', '12345'].map(horaDigitada)).toEqual(Array(11).fill(null));
+    expect(horaDigitada('23:59')).toBe('23:59');
+    expect(horaDigitada('0000')).toBe('00:00');
+  });
+
+  it('início: qualquer minuto vira opção', () => {
+    expect(opcaoDigitadaDoInicio('0910')).toEqual({ opcao: { valor: '09:10', rotulo: '09:10' } });
+    expect(opcaoDigitadaDoInicio('09:1')).toBeNull();
+  });
+
+  it('fim: a opção leva a duração no valor, como as da lista', () => {
+    expect(opcaoDigitadaDoFim('09:10', '0930', LIMITES_COMPROMISSO)).toEqual({
+      opcao: { valor: '20', rotulo: '09:30 (20 min)', fim: '09:30', diaSeguinte: false },
+    });
+    // Antes do início é o dia seguinte (atravessa a meia-noite), dentro do máximo.
+    expect(opcaoDigitadaDoFim('23:30', '00:20', LIMITES_COMPROMISSO)).toEqual({
+      opcao: { valor: '50', rotulo: '00:20 (50 min, dia seguinte)', fim: '00:20', diaSeguinte: true },
+    });
+  });
+
+  it('fim fora dos limites ou igual ao início dá o aviso de erroDoFim', () => {
+    expect(opcaoDigitadaDoFim('09:00', '09:03', LIMITES_COMPROMISSO)).toEqual({ aviso: 'A duração mínima é 5 min.' });
+    expect(opcaoDigitadaDoFim('09:00', '17:05', LIMITES_COMPROMISSO)).toEqual({ aviso: 'A duração máxima é 8 h.' });
+    expect(opcaoDigitadaDoFim('09:00', '09:00', LIMITES_COMPROMISSO)).toEqual({ aviso: 'O fim precisa ser depois do início.' });
+    // O evento vai até 24 h: 17:05 cabe nele.
+    expect(opcaoDigitadaDoFim('09:00', '17:05', LIMITES_DO_EVENTO_PARA_TESTE)).toEqual({
+      opcao: { valor: '485', rotulo: '17:05 (8 h 5 min)', fim: '17:05', diaSeguinte: false },
+    });
+  });
+
+  it('sem início válido ou texto que não é hora: nada', () => {
+    expect(opcaoDigitadaDoFim('', '0930', LIMITES_COMPROMISSO)).toBeNull();
+    expect(opcaoDigitadaDoFim('09:00', 'sala', LIMITES_COMPROMISSO)).toBeNull();
+  });
+});
+
+const LIMITES_DO_EVENTO_PARA_TESTE = { duracaoMinima: 5, duracaoMaxima: 1440 };

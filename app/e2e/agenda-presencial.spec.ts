@@ -97,6 +97,19 @@ async function abrirComoTreinador(page: Page, lista: Compromisso[], opcoes: {
 const opcao = (onde: Locator | Page, grupo: string, rotulo: string) =>
   onde.getByRole('radiogroup', { name: grupo }).getByRole('button', { name: rotulo, exact: true });
 
+/**
+ * Escolhe numa lista suspensa (`EscolhaEmFolha`): o botão "Rótulo: valor. Escolher." abre uma folha com rádios, que fecha
+ * ao escolher. O título da folha é o rótulo, a não ser que se diga outro.
+ */
+async function escolherNaLista(page: Page, onde: Locator, rotulo: string, opcaoEscolhida: string, titulo = rotulo) {
+  await onde.getByRole('button', { name: new RegExp(`^${rotulo}: .*\. Escolher\.$`) }).click();
+  const lista = page.getByRole('dialog', { name: titulo, exact: true });
+  await lista.getByRole('radio', { name: opcaoEscolhida, exact: true }).click();
+  await expect(lista).toBeHidden();
+}
+/** O início do compromisso (o fim acompanha: a duração se mantém). */
+const escolherInicio = (page: Page, folha: Locator, hora: string) => escolherNaLista(page, folha, 'Início', hora, 'Início (Brasília)');
+
 /** Abre a busca "Aluno: Adicionar" da folha e escolhe o aluno. */
 async function adicionarAluno(page: Page, folha: Locator, nome: string) {
   await folha.getByRole('button', { name: /^Aluno: Adicionar/ }).click();
@@ -180,8 +193,19 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       // O responsável já vem com quem está marcando; a data, com o dia da agenda.
       await expect(folha.getByRole('button', { name: /^Responsável: Treinadora Teste/ })).toBeVisible();
       await expect(folha.getByLabel('Data', { exact: true })).toHaveValue('19/10/2026');
-      await folha.getByLabel('Hora (Brasília)').fill('0930');
-      await expect(folha.getByLabel('Hora (Brasília)')).toHaveValue('09:30');
+      // Painel rápido: início "até" fim em listas (o fim acompanha o início, com a duração no rótulo); "Mais opções" no rodapé.
+      await expect(folha.getByRole('button', { name: 'Mais opções', exact: true })).toBeVisible();
+      await expect(folha.getByText('Escolha o início para ver o fim.')).toBeVisible();
+      await escolherInicio(page, folha, '09:30');
+      await expect(folha.getByRole('button', { name: 'Início: 09:30. Escolher.', exact: true })).toBeVisible();
+      await expect(folha.getByRole('button', { name: 'Fim: 10:30 (1 h). Escolher.', exact: true })).toBeVisible();
+      // O fim vai de início + 15 min até o máximo do compromisso (8 h); não há mais duração digitada.
+      await folha.getByRole('button', { name: 'Fim: 10:30 (1 h). Escolher.', exact: true }).click();
+      const fins = page.getByRole('dialog', { name: 'Fim (Brasília)', exact: true }).getByRole('radio');
+      await expect(fins.first()).toHaveAccessibleName('09:45 (15 min)');
+      await expect(fins.last()).toHaveAccessibleName('17:30 (8 h)');
+      await page.getByRole('dialog', { name: 'Fim (Brasília)', exact: true }).getByRole('radio', { name: '10:30 (1 h)', exact: true }).click();
+      await expect(folha.getByRole('textbox', { name: 'Duração em minutos' })).toHaveCount(0);
       // Avisos que não bloqueiam: o responsável com outro compromisso na lista e o aluno ocupado (a API diz quem).
       await expect(folha.getByText(/já tem um compromisso das 09:00 às 10:00/)).toBeVisible();
       await expect(folha.getByText('Atenção: Bruno Exemplo já tem outro compromisso nesse horário. Dá para salvar mesmo assim.')).toBeVisible();
@@ -193,7 +217,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await folha.getByRole('button', { name: 'Marcar compromisso', exact: true }).click();
       await expect(folha.getByText('O responsável já tem compromisso nesse horário em 19/10. Escolha outro horário.')).toBeVisible();
       await expect(folha.getByRole('button', { name: 'Remover Carla Teste', exact: true })).toBeVisible();
-      await folha.getByLabel('Hora (Brasília)').fill('1000');
+      await escolherInicio(page, folha, '10:00');
       await expect(folha.getByText(/Escolha outro horário/)).toHaveCount(0);
       await folha.getByRole('button', { name: 'Marcar compromisso', exact: true }).click();
       await expect(folha).toBeHidden();
@@ -227,19 +251,34 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await novoCompromisso(page);
       const folha = page.getByRole('dialog', { name: 'Novo compromisso' });
       await adicionarAluno(page, folha, 'Ana Fictícia');
-      await folha.getByLabel('Hora (Brasília)').fill('0800');
+      await escolherInicio(page, folha, '08:00');
 
+      // A repetição é uma lista com os rótulos do Google para a data (segunda-feira, 19/10).
+      await folha.getByRole('button', { name: 'Repetição: Não se repete. Escolher.', exact: true }).click();
+      await expect(page.getByRole('dialog', { name: 'Repetição', exact: true }).getByRole('radio')).toHaveText([
+        'Não se repete', 'Todos os dias', 'Semanal: cada segunda-feira', 'Mensal no dia 19', 'Anual em 19 de outubro',
+        'Todos os dias da semana (segunda a sexta-feira)', 'Personalizar…',
+      ]);
+      await page.getByRole('dialog', { name: 'Repetição', exact: true }).getByRole('button', { name: 'Fechar', exact: true }).click();
       // Dias úteis não pulam feriado: a ajuda diz o que fazer, e some nos outros tipos.
-      await opcao(folha, 'Repetição', 'Dias úteis (segunda a sexta)').click();
+      await escolherNaLista(page, folha, 'Repetição', 'Todos os dias da semana (segunda a sexta-feira)');
       await expect(folha.getByText('Feriados não são pulados: cancele só a ocorrência do feriado.')).toBeVisible();
-      // Toda semana já vem com a segunda-feira (o dia da data); a semana começa na segunda.
-      await opcao(folha, 'Repetição', 'Toda semana').click();
+      // Semanal já vem com a segunda-feira (o dia da data); no painel rápido aparecem o "Termina" e a prévia, sem os dias.
+      await escolherNaLista(page, folha, 'Repetição', 'Semanal: cada segunda-feira');
+      await expect(folha.getByText('Feriados não são pulados: cancele só a ocorrência do feriado.')).toHaveCount(0);
+      await expect(folha.getByRole('radiogroup', { name: 'Termina' })).toBeVisible();
+      await expect(folha.getByRole('group', { name: 'Dias da semana' })).toHaveCount(0);
+      // "Mais opções": o formulário completo, com os dias da semana (a semana começa na segunda).
+      await folha.getByRole('button', { name: 'Mais opções', exact: true }).click();
+      await expect(folha.getByRole('heading', { name: 'Quando', exact: true })).toBeVisible();
+      await expect(folha.getByRole('button', { name: 'Mais opções', exact: true })).toHaveCount(0);
       const dias = folha.getByRole('group', { name: 'Dias da semana' }).getByRole('checkbox');
       await expect(dias).toHaveCount(7);
       await expect(dias.first()).toHaveAccessibleName('Segunda-feira');
       await expect(folha.getByRole('checkbox', { name: 'Segunda-feira' })).toBeChecked();
       await folha.getByRole('checkbox', { name: 'Quarta-feira' }).click();
       await expect(folha.getByRole('checkbox', { name: 'Quarta-feira' })).toBeChecked();
+      await expect(folha.getByRole('button', { name: 'Repetição: Semanal: segunda e quarta. Escolher.', exact: true })).toBeVisible();
       await expect(folha.getByText('Informe a data e o fim para ver quantos compromissos serão marcados.')).toBeVisible();
 
       // O fim é obrigatório: sem o número de vezes, o erro aparece junto do campo.
@@ -254,7 +293,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await expect(folha.getByText('O responsável já tem compromisso nesse horário nestas datas: 21/10 e 28/10. Escolha outro horário.')).toBeVisible();
       // O formulário fica: troca só a hora e marca a série.
       await expect(folha.getByText('6 compromissos, de 19/10 a 04/11')).toBeVisible();
-      await folha.getByLabel('Hora (Brasília)').fill('0700');
+      await escolherInicio(page, folha, '07:00');
       await folha.getByRole('button', { name: 'Marcar compromisso', exact: true }).click();
       await expect(folha).toBeHidden();
       if (naLista) await expect(page.getByText('Compromisso · 07:00–08:00 · Sala 2 · com Treinadora Teste · Ocorrência 1 de 6')).toBeVisible();
@@ -265,6 +304,61 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
         { alunoIds: [ANA.id], responsavelId: TREINADOR.id, data: '2026-10-19', hora: '08:00', duracaoMinutos: 60, local: null, observacao: null, repeticao },
         { alunoIds: [ANA.id], responsavelId: TREINADOR.id, data: '2026-10-19', hora: '07:00', duracaoMinutos: 60, local: null, observacao: null, repeticao },
       ]);
+      expect(naoTratadas).toEqual([]);
+      expect(errosDaPagina).toEqual([]);
+    });
+
+    test('hora digitada fora da grade (09:10 até 09:30, 20 min) e "Personalizar…" levam a duração e o semanal à API', async ({ page }) => {
+      const lista: Compromisso[] = [];
+      const { naoTratadas, errosDaPagina, pedidos } = await abrirComoTreinador(page, lista, {
+        extra: {
+          'POST /agenda/compromissos': (p, route) => {
+            const corpo = p.corpo as { hora: string; data: string };
+            const novo = compromisso('k8', [ANA], corpo.data, corpo.hora);
+            lista.push(novo);
+            return json(route, novo);
+          },
+        },
+      });
+      await page.goto('/treinador/agenda');
+      await novoCompromisso(page);
+      const folha = page.getByRole('dialog', { name: 'Novo compromisso' });
+      await adicionarAluno(page, folha, 'Ana Fictícia');
+
+      // Início: a busca aceita qualquer minuto, e o digitado vira a opção do topo.
+      await folha.getByRole('button', { name: /^Início: / }).click();
+      const inicios = page.getByRole('dialog', { name: 'Início (Brasília)', exact: true });
+      await inicios.getByLabel('Buscar ou digitar (HH:MM)').fill('0910');
+      await expect(inicios.getByRole('radio').first()).toHaveAccessibleName('09:10');
+      await inicios.getByRole('radio', { name: '09:10', exact: true }).click();
+      await expect(inicios).toBeHidden();
+      await expect(folha.getByRole('button', { name: 'Fim: 10:10 (1 h). Escolher.', exact: true })).toBeVisible();
+
+      // Fim: abaixo do mínimo avisa e não vira opção; 09:30 vira 20 min.
+      await folha.getByRole('button', { name: /^Fim: / }).click();
+      const fins = page.getByRole('dialog', { name: 'Fim (Brasília)', exact: true });
+      await fins.getByLabel('Buscar ou digitar (HH:MM)').fill('09:12');
+      await expect(fins.getByText('A duração mínima é 5 min.')).toBeVisible();
+      await fins.getByLabel('Buscar ou digitar (HH:MM)').fill('09:30');
+      await fins.getByRole('radio', { name: '09:30 (20 min)', exact: true }).click();
+      await expect(fins).toBeHidden();
+      await expect(folha.getByRole('button', { name: 'Fim: 09:30 (20 min). Escolher.', exact: true })).toBeVisible();
+
+      // "Personalizar…": o completo com o semanal da segunda-feira (dia da data) e o foco na repetição; o horário fica.
+      await escolherNaLista(page, folha, 'Repetição', 'Personalizar…');
+      await expect(folha.getByRole('heading', { name: 'Quando', exact: true })).toBeVisible();
+      const repeticao = folha.getByRole('button', { name: 'Repetição: Semanal: cada segunda-feira. Escolher.', exact: true });
+      await expect(repeticao).toBeFocused();
+      await expect(folha.getByRole('checkbox', { name: 'Segunda-feira' })).toBeChecked();
+      await expect(folha.getByRole('button', { name: 'Fim: 09:30 (20 min). Escolher.', exact: true })).toBeVisible();
+      await folha.getByLabel('Quantas vezes').fill('4');
+      await folha.getByRole('button', { name: 'Marcar compromisso', exact: true }).click();
+      await expect(folha).toBeHidden();
+
+      expect(corposDe(pedidos, 'POST', '/agenda/compromissos')).toEqual([{
+        alunoIds: [ANA.id], responsavelId: TREINADOR.id, data: '2026-10-19', hora: '09:10', duracaoMinutos: 20, local: null, observacao: null,
+        repeticao: { tipo: 'SEMANAL', diasDaSemana: ['MONDAY'], vezes: 4 },
+      }]);
       expect(naoTratadas).toEqual([]);
       expect(errosDaPagina).toEqual([]);
     });
@@ -295,10 +389,12 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
 
       const folha = page.getByRole('dialog', { name: 'Editar compromisso' });
       await expect(folha.getByText(/Ocorrência 3 de 10\. Ao salvar, você escolhe/)).toBeVisible();
-      // Remarcar nunca repete: sem a seção de repetição.
-      await expect(folha.getByRole('radiogroup', { name: 'Repetição' })).toHaveCount(0);
+      // A edição abre direto no formulário completo; remarcar nunca repete: sem a lista da repetição.
+      await expect(folha.getByRole('heading', { name: 'Quando', exact: true })).toBeVisible();
+      await expect(folha.getByRole('button', { name: /^Repetição: / })).toHaveCount(0);
+      await expect(folha.getByRole('button', { name: 'Fim: 16:00 (1 h). Escolher.', exact: true })).toBeVisible();
       await folha.getByRole('button', { name: 'Remover Davi Modelo', exact: true }).click();
-      await folha.getByLabel('Hora (Brasília)').fill('1600');
+      await escolherInicio(page, folha, '16:00');
       // Ao remarcar, o aviso de aluno ocupado ignora o próprio compromisso (consulta depois de parar de digitar).
       await expect.poll(() => pedidos.some((p) => p.caminho === '/agenda/compromissos/alunos-ocupados'
         && p.busca.get('ignorar') === 'k4' && p.busca.get('hora') === '16:00')).toBe(true);
