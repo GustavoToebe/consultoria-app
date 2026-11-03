@@ -1,6 +1,6 @@
 # Execução do aluno: carga como dica, ✓ com painel, meta, contador e retestes
 
-Situação: Planejando · Onde: branch `execucao-do-aluno` (worktree `wt-execucao`), **depois do merge da Frente B** (usa a carga fixa) · Atualizado: 02/11/2026 · Registro: reunião de 30/10, C31, C39, C36, C37, C32/C40, C30, C33, C26 · Frente C da leva 2
+Situação: Em andamento (só falta a revisão, passo 6) · Onde: branch `execucao-do-aluno` (worktree `wt-execucao`), **depois do merge da Frente B** (usa a carga fixa) · Atualizado: 02/11/2026 · Registro: reunião de 30/10, C31, C39, C36, C37, C32/C40, C30, C33, C26 · Frente C da leva 2
 
 ## Objetivo
 Na hora de registrar, o aluno vê o que fez da última vez, a meta de repetições junto do campo de carga, e a carga
@@ -33,12 +33,12 @@ trabalho.
 | D11 | Progressão (Gustavo, 03/11/2026) | **agora, nesta frente:** aviso "passou de N repetições" na execução do aluno, só texto e nunca um valor em kg; regra pura em `dominio/` com jest e um caso no e2e da execução. **Depois:** os critérios da sugestão de progressão esperam os dados dos 5 alunos; até lá a carga fica só como dica (D1, C31) | Gustavo |
 
 ## Passos
-- [ ] 1. Domínio: contagem só de trabalho (D6), dica de carga e painel do ✓ como regras puras em `dominio/`, com teste — executor — commit: —
-- [ ] 2. Descobrir o portão de C32/C40 e escrever o relatório para o Gustavo (D7), sem mexer na VPS — explorador + executor — commit: —
-- [ ] 3. Tela: dica "Sugestão · Última vez", meta maior ao lado do campo, painel do ✓ (offline), histórico "Feito, sem carga"; e2e — executor-front — commit: —
-- [ ] 3b. Aviso "passou de N repetições" (D11): regra pura em `dominio/` com jest, texto na execução e um caso no e2e da execução — executor (regra) + executor-front (tela) — commit: —
-- [ ] 4. Reproduzir C30, C33 e C26 no e2e (e corrigir só se for defeito) — executor — commit: —
-- [ ] 5. Ajuda, guias regerados, `AGENTS.md` só no item da execução — commit: —
+- [x] 1. Domínio: contagem só de trabalho (D6), dica de carga e painel do ✓ como regras puras em `dominio/`, com teste — executor — commit: —
+- [x] 2. Descobrir o portão de C32/C40 e escrever o relatório para o Gustavo (D7), sem mexer na VPS — explorador + executor — commit: —
+- [x] 3. Tela: dica "Sugestão · Última vez", meta maior ao lado do campo, painel do ✓ (offline), histórico "Feito, sem carga"; e2e — executor-front — commit: —
+- [x] 3b. Aviso "passou de N repetições" (D11): regra pura em `dominio/` com jest, texto na execução e um caso no e2e da execução — executor (regra) + executor-front (tela) — commit: —
+- [x] 4. Reproduzir C30, C33 e C26 no e2e (e corrigir só se for defeito) — executor — commit: — (`e2e/execucao-retestes.spec.ts`: nenhum defeito reproduzido; C30 é a regra de 31/10, mantida, com o aviso na própria WS; na tabela "Por divisão" só "Feito, sem carga" foge do "—")
+- [x] 5. Ajuda, guias regerados, `AGENTS.md` só no item da execução — commit: —
 - [ ] 6. Revisão do Opus (offline, idempotência) antes do PR — advisor/revisor — commit: —
 
 ## Relatório do passo 2 (C32/C40, D7): o que a chave `TREINOS_RETORNO_HABILITADO` liga (para o Gustavo decidir)
@@ -71,4 +71,6 @@ trabalho.
   (decidido não mudar; Powerlifting não se faz, ver o README); mexer na VPS.
 
 ## O que ficou para trás
-- —
+- Conferência da C31 contra a prévia da Frente G (4bad4704, 03/11): a dica já batia no texto; ajustado o visual (a "Sugestão" em destaque e "Última vez" em peso normal, `partesDaDica`). A prévia mostra "Primeira vez" sempre que falta a última vez, mas nunca a mostra com sugestão e sem última vez; o app segue dizendo só "Sugestão: X kg" nesse caso (não esconde a sugestão).
+- Aviso do D11 vale para as séries de papel TRABALHO e POS_TRABALHO da metodologia (as do contador, D6), em qualquer modo de carga; fica de fora AMRAP, cardio, técnica (Cluster, Rest-pause), aquecimento e tipo desconhecido. Revisar quando os critérios de progressão vierem.
+- **Aberto (decisão do Gustavo):** o cartão da série com etapas (Cluster, Rest-pause; `CartaoSerieComEtapas`/`LinhaDaEtapa`) ainda **preenche o campo de peso com a sugestão** e mostra "Sugerido: X kg" / "Carga sugerida: X kg", ao contrário da C31 (campo vazio e dica "Sugestão: X kg") e da prévia (`serieComEtapas`). Ajustar pede decidir se o ✓ da etapa também abre o painel "Fez com X kg?" (D2); não foi mexido. Só a origem ("da última vez") foi alinhada.
