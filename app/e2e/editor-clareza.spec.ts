@@ -98,6 +98,12 @@ for (const largura of [390, 1280]) {
     await expect(page.getByRole('textbox', { name: 'Série 3 · Mínimo (%)', exact: true })).toHaveValue('85');
     await expect(page.getByRole('textbox', { name: 'Série 3 · Máximo (%)', exact: true })).toHaveValue('90');
     expect(await semRolagemDeLado(page)).toBe(true);
+    // C2: o lixo do exercício (IconeBotao com moldura) tem 44×44 de alvo e a moldura de 40 centrada.
+    const lixo = page.getByRole('button', { name: 'Remover Agachamento fictício', exact: true });
+    const alvo = (await lixo.boundingBox())!;
+    expect(Math.min(alvo.width, alvo.height)).toBeGreaterThanOrEqual(43.5);
+    const desenho = (await lixo.locator(':scope > div').first().boundingBox())!;
+    expect([Math.round(desenho.width), Math.round(desenho.height)]).toEqual([40, 40]);
     await page.screenshot({ path: testInfo.outputPath('editor-clareza.png'), fullPage: true });
     // Mover o grupo FS para baixo muda só a ordem das séries do exercício.
     await page.getByRole('button', { name: 'Mover grupo de séries para baixo', exact: true }).first().click();

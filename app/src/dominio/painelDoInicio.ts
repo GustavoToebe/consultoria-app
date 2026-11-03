@@ -502,7 +502,8 @@ function cabecalho(id: BlocoDoPainelId, meus: boolean, extra: { periodo?: string
   const titulo = TITULOS_DOS_BLOCOS[id];
   return {
     id, titulo, periodo: extra.periodo ?? null, escopo: meus ? SO_OS_MEUS : null, meus, temFiltro: true,
-    rotuloDoFiltro: `${titulo}: ${meus ? 'mostrando só os meus alunos' : 'mostrando todos os alunos'}. ${meus ? 'Mostrar todos' : 'Mostrar só os meus'}`,
+    // O funil sozinho não diz o que é: o nome começa pelo filtro, diz o que está valendo e o que o toque faz.
+    rotuloDoFiltro: `Filtro de ${titulo}: ${meus ? 'mostrando só os meus alunos' : 'mostrando todos os alunos'}. ${meus ? 'Mostrar todos' : 'Mostrar só os meus'}`,
     abrir: enderecoDoBloco(id, meus),
   };
 }

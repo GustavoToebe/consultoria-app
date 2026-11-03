@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import type { AlunoDetalhe, AnamneseDetalhe, AnamneseResumo, ConteudoQuestionario } from '../src/api/tipos';
 import { ALUNO, erroApi, json, sessao, simularApi, TREINADOR } from './api-falsa';
@@ -337,6 +337,116 @@ for (const { largura, altura } of [{ largura: 1280, altura: 900 }, { largura: 39
     expect(await topo(cpf)).toBeLessThan(await topo(acesso));
     await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
     await expect(cpf).toHaveCount(0);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Auditoria de UI/UX de 03/11, lote 1: guarda de saída no formulário do aluno (C7), um h1 só com a trilha (C1) e os
+// botões de ícone com 44×44 de alvo e a moldura de 40 por dentro (C2).
+// ---------------------------------------------------------------------------------------------------------------------
+
+const NOVO_ID = 'a0000000-0000-4000-8000-000000000009';
+const NOVO: AlunoDetalhe = { ...FICHA, id: NOVO_ID, nome: 'Aluno Novo Fictício', telefone: null, objetivo: null, cpf: null, endereco: null, versao: 0 };
+const titulosDeNivel1 = (page: Page) => page.locator('h1, [role="heading"][aria-level="1"]');
+const sairSemSalvar = (page: Page) => page.getByText('Sair sem salvar?', { exact: true });
+
+/** Alvo do botão de ícone (o `Pressable`) e o desenho dentro dele, arredondados. */
+async function medidas(botao: Locator) {
+  const alvo = (await botao.boundingBox())!;
+  const desenho = (await botao.locator(':scope > div').first().boundingBox())!;
+  return { alvo: [Math.round(alvo.width), Math.round(alvo.height)], desenho: [Math.round(desenho.width), Math.round(desenho.height)] };
+}
+
+for (const largura of [390, 1280]) {
+  test(`novo aluno (${largura}px): um h1 só; sem alteração sai direto; com o nome digitado pergunta; cadastrar vai à ficha sem perguntar`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { errosDaPagina, pedidos } = await simularApi(page, {
+      ...(await sessao(page, TREINADOR)),
+      ...ROTAS_DA_FICHA,
+      'GET /responsaveis': { corpo: [{ id: TREINADOR.id, nome: TREINADOR.nome }] },
+      'GET /alunos': { corpo: { itens: [], total: 0 } },
+      'POST /alunos': { corpo: NOVO },
+      [`GET /alunos/${NOVO_ID}`]: { corpo: NOVO },
+    });
+    await page.goto('/treinador/alunos/novo');
+    await expect(page.getByRole('heading', { name: 'Novo aluno', level: 1 })).toBeVisible();
+    // C1: a trilha (só com o menu lateral) é navegação, não título.
+    await expect(page.getByRole('navigation', { name: 'Trilha' })).toHaveCount(largura >= 768 ? 1 : 0);
+    await expect(titulosDeNivel1(page)).toHaveCount(1);
+    // C2: a seta de voltar tem 44×44 de alvo, com a moldura de 40 centrada.
+    expect(await medidas(page.getByRole('button', { name: 'Voltar', exact: true }))).toEqual({ alvo: [44, 44], desenho: [40, 40] });
+
+    // Sem alteração: sai direto.
+    await page.getByRole('button', { name: 'Voltar', exact: true }).click();
+    await expect(page).toHaveURL(/\/treinador\/alunos$/);
+    await expect(sairSemSalvar(page)).toHaveCount(0);
+
+    // Com o nome digitado: o Voltar abre o painel na tela; "Continuar editando" fica com o que foi digitado.
+    await page.goto('/treinador/alunos/novo');
+    await page.getByLabel('Nome', { exact: true }).fill('Aluno Novo Fictício');
+    await page.getByRole('button', { name: 'Voltar', exact: true }).click();
+    await expect(sairSemSalvar(page)).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath(`novo-aluno-guarda-${largura}.png`) });
+    await page.getByRole('button', { name: 'Continuar editando', exact: true }).click();
+    await expect(sairSemSalvar(page)).toHaveCount(0);
+    await expect(page).toHaveURL(/\/treinador\/alunos\/novo$/);
+    await expect(page.getByLabel('Nome', { exact: true })).toHaveValue('Aluno Novo Fictício');
+
+    // Cadastrar: vai à ficha sem perguntar, e o voltar do navegador não cai de novo no formulário.
+    await page.getByRole('button', { name: 'Cadastrar', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${NOVO_ID}$`));
+    await expect(page.getByRole('heading', { name: 'Aluno Novo Fictício', level: 1 })).toBeVisible();
+    await expect(sairSemSalvar(page)).toHaveCount(0);
+    expect(pedidos.filter((p) => p.metodo === 'POST' && p.caminho === '/alunos')).toHaveLength(1);
+    await page.goBack();
+    await expect(page).toHaveURL(/\/treinador\/alunos$/);
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`ficha (${largura}px): editar e sair pergunta; salvar e sair não; o ⋯ tem 44×44 com a moldura de 40`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { errosDaPagina } = await simularApi(page, {
+      ...(await sessao(page, TREINADOR)),
+      ...ROTAS_DA_FICHA,
+      ...CEP_SEM_RESULTADO,
+      'GET /responsaveis': { corpo: [{ id: TREINADOR.id, nome: TREINADOR.nome }] },
+      'GET /alunos': { corpo: { itens: [], total: 0 } },
+      [`GET /alunos/${ALUNO_ID}`]: { corpo: FICHA },
+      [`PUT /alunos/${ALUNO_ID}`]: (p, route) => json(route, { ...FICHA, ...(p.corpo as object), versao: 2 }),
+    });
+    await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+    await expect(page.getByRole('heading', { name: ALUNO.nome, level: 1 })).toBeVisible();
+    await expect(titulosDeNivel1(page)).toHaveCount(1);
+    expect(await medidas(page.getByRole('button', { name: 'Mais ações do aluno', exact: true }))).toEqual({ alvo: [44, 44], desenho: [40, 40] });
+
+    // Abrir a edição sem mexer não deixa nada pendente.
+    await page.getByRole('button', { name: 'Editar', exact: true }).click();
+    await expect(page.getByLabel('Nome', { exact: true })).toHaveValue(ALUNO.nome);
+    await page.getByRole('button', { name: 'Voltar', exact: true }).click();
+    await expect(page).toHaveURL(/\/treinador\/alunos$/);
+    await expect(sairSemSalvar(page)).toHaveCount(0);
+
+    // Com alteração: o Voltar pergunta; depois de salvar, a saída volta a ser direta.
+    await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+    await page.getByRole('button', { name: 'Editar', exact: true }).click();
+    await page.getByLabel('Cidade').fill('Outra Cidade');
+    await page.getByRole('button', { name: 'Voltar', exact: true }).click();
+    await expect(sairSemSalvar(page)).toBeVisible();
+    await page.getByRole('button', { name: 'Continuar editando', exact: true }).click();
+    await page.getByRole('button', { name: 'Salvar', exact: true }).click();
+    await expect(page.getByText('Dados salvos.')).toBeVisible();
+    await page.getByRole('button', { name: 'Voltar', exact: true }).click();
+    await expect(page).toHaveURL(/\/treinador\/alunos$/);
+    await expect(sairSemSalvar(page)).toHaveCount(0);
+
+    // E o "Sair sem salvar" de fato sai.
+    await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+    await page.getByRole('button', { name: 'Editar', exact: true }).click();
+    await page.getByLabel('Cidade').fill('Mais Uma Cidade');
+    await page.getByRole('button', { name: 'Voltar', exact: true }).click();
+    await page.getByRole('button', { name: 'Sair sem salvar', exact: true }).click();
+    await expect(page).toHaveURL(/\/treinador\/alunos$/);
     expect(errosDaPagina).toEqual([]);
   });
 }

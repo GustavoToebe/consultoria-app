@@ -528,6 +528,7 @@ describe('faixa de cada bloco (Todos/Meus e abrir)', () => {
       const t = bloco(id);
       const m = bloco(id, fontes(), ctxCom(), { meus: true });
       expect(t.temFiltro && m.temFiltro).toBe(true);
+      expect(t.rotuloDoFiltro.startsWith(`Filtro de ${t.titulo}: `)).toBe(true);
       expect(t.rotuloDoFiltro).toContain('Mostrar só os meus');
       expect(m.rotuloDoFiltro).toContain('Mostrar todos');
       expect(m.escopo).toBe('Só os meus alunos');

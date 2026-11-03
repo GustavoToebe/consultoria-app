@@ -2,7 +2,7 @@ import { AvisoDeRecorde, type RecordeParaAvisar } from '../../../../aluno/AvisoD
 import { CabecalhoDoGrupo } from '../../../../aluno/CabecalhoDoGrupo';
 import { DescansoManual } from '../../../../aluno/DescansoManual';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, ArrowRight, Check, List } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, List } from 'lucide-react-native';
 import { useCallback, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -36,7 +36,7 @@ import { Texto } from '../../../../ui/Texto';
  * "Anterior" e "Lista do dia", para o aluno andar fora de ordem sem precisar subir até a seta do topo (pedido do
  * Saraiva na reunião de 17/10: o aluno pula exercício, troca a ordem e volta à lista quando quer). Num bi-set,
  * supersérie ou circuito o "Próximo" é a vez no grupo (`vezNoGrupo`) até o grupo acabar; no último exercício,
- * "Concluir treino" com o resumo do dia.
+ * "Concluir treino" com o resumo do dia (com a chave do retorno desligada, "Voltar à lista do dia", secundário).
  */
 export default function ExercicioDaSessao() {
   const { uid, exercicio: exercicioUid, data: dataDaRota } = useLocalSearchParams<{ uid: string; exercicio: string; data?: string }>();
@@ -178,7 +178,8 @@ export default function ExercicioDaSessao() {
         ) : (
           <>
             <Texto numerico variante="suave">{resumoDoDia}</Texto>
-            <Botao rotulo="Concluir treino" Icone={Check} cheio aoTocar={() => router.replace(voltar)} />
+            {/* Chave desligada: nada é concluído, então o botão não promete isso e não é primário (auditoria de 03/11). */}
+            <Botao rotulo="Voltar à lista do dia" Icone={List} tipo="secundario" cheio aoTocar={() => router.replace(voltar)} />
           </>
         )}
         <LinhaDeAcoes alinhar="entre">

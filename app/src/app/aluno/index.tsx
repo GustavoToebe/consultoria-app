@@ -12,7 +12,7 @@ import { useDietaDoAluno } from '../../aluno/useDietaDoAluno';
 import { caminhoDaSessao } from '../../aluno/useSessaoDoDia';
 import { normalizarTreino } from '../../dominio/editorTreino';
 import { diaDaSemana, hojeIso } from '../../dominio/formatos';
-import { dietaNoInicio, estadoDoHoje } from '../../dominio/inicioDoAluno';
+import { dietaNoInicio, estadoDoHoje, proximoTreino } from '../../dominio/inicioDoAluno';
 import { useAluno } from '../../offline/AlunoProvider';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { textoDoErro } from '../../ui/erros';
@@ -36,7 +36,8 @@ export default function InicioAluno() {
   const dietaDoPlano = dieta.dados ? dieta.dados.dieta : undefined;
   const estadoDaDieta = dietaNoInicio({ conteudo: dietaDoPlano === undefined ? undefined : dietaDoPlano?.conteudo ?? null, erro: !!dieta.erro });
   const semPacote = !pacote;
-  const estadoHoje = estadoDoHoje({ conteudo, dia: diaDaSemana(), carregando: semPacote && carregando, erro: semPacote && !carregando && !!erroPacote, recusado: semPacote && pacoteRecusado });
+  const dia = diaDaSemana();
+  const estadoHoje = estadoDoHoje({ conteudo, dia, carregando: semPacote && carregando, erro: semPacote && !carregando && !!erroPacote, recusado: semPacote && pacoteRecusado });
 
   return (
     <Tela bordas={['top']} largura={720}>
@@ -45,6 +46,7 @@ export default function InicioAluno() {
       {dietaDoPlano?.conteudo.aguaLitros ? <CartaoAguaDoDia compacto metaLitros={dietaDoPlano.conteudo.aguaLitros} /> : null}
       <SecaoHojeDoInicio
         estado={estadoHoje}
+        proximo={estadoHoje.tipo === 'descanso' ? proximoTreino(conteudo, dia) : null}
         hoje={hoje}
         carregando={semPacote && carregando}
         erro={semPacote && erroPacote ? { texto: `${textoDoErro(erroPacote)} Conecte-se uma vez para baixar o treino; depois ele funciona sem internet.`, aoTentarDeNovo: () => void tentarDeNovo(), causa: erroPacote } : undefined}
@@ -59,11 +61,13 @@ export default function InicioAluno() {
 /** Título "Hoje" e o cartão do dia. "Escolher treino" abre a aba Treino, onde estão as divisões. */
 function SecaoHojeDoInicio({
   estado,
+  proximo,
   hoje,
   carregando,
   erro,
 }: {
   estado: ReturnType<typeof estadoDoHoje>;
+  proximo: string | null;
   hoje: string;
   carregando: boolean;
   erro?: { texto: string; aoTentarDeNovo: () => void; causa?: unknown };
@@ -73,6 +77,7 @@ function SecaoHojeDoInicio({
       {carregando && estado.tipo === 'carregando' ? <Esqueleto texto="Carregando seu treino" cartoes={1} /> : (
         <CartaoHoje
           estado={estado}
+          proximo={proximo}
           erro={erro}
           aoVerTreino={() => estado.tipo === 'treino' && router.push(caminhoDaSessao(estado.sessao.uid, hoje))}
           aoEscolher={() => router.push('/aluno/treino')}

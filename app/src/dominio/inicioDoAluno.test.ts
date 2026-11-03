@@ -9,6 +9,7 @@ import {
   estadoDoHoje,
   letraDaDivisao,
   primeiroNome,
+  proximoTreino,
   rotuloDaDivisao,
   TEXTO_PACOTE_RECUSADO,
 } from './inicioDoAluno';
@@ -172,5 +173,36 @@ describe('divisões da semana', () => {
 
   it('sem nenhuma vez dentro do período, hoje', () => {
     expect(dataParaAbrir(sessao('b', 3), '2026-10-19', '2026-10-20', '2026-10-19')).toBe('2026-10-19');
+  });
+});
+
+describe('próximo treino no dia de descanso', () => {
+  const QUARTA = 3;
+  const DOMINGO = 7;
+  it('próximo dia com treino na mesma semana, com o dia e o nome da divisão', () => {
+    const conteudo = treino(sessao('a', SEGUNDA), sessao('b', 4), sessao('c', 6));
+    expect(proximoTreino(conteudo, QUARTA)).toBe('Quinta · Sessão b');
+    expect(proximoTreino(conteudo, 5)).toBe('Sábado · Sessão c');
+  });
+
+  it('virada da semana: depois do último treino da semana vem o primeiro da seguinte', () => {
+    const conteudo = treino(sessao('a', SEGUNDA), sessao('b', QUARTA));
+    expect(proximoTreino(conteudo, DOMINGO)).toBe('Segunda · Sessão a');
+    expect(proximoTreino(conteudo, 5)).toBe('Segunda · Sessão a');
+  });
+
+  it('pula sessão de descanso e sessão sem exercício; descanso ativo com exercício é treino', () => {
+    const conteudo = treino(sessao('d', 4, 0, 'DESCANSO'), sessao('v', 5, 0), sessao('x', 6, 2, 'DESCANSO_ATIVO'));
+    expect(proximoTreino(conteudo, QUARTA)).toBe('Sábado · Sessão x');
+  });
+
+  it('plano sem dia fixo, sem plano ou só com o descanso de hoje: sem linha', () => {
+    expect(proximoTreino(treino(sessao('a', null), sessao('b', null)), QUARTA)).toBeNull();
+    expect(proximoTreino(null, QUARTA)).toBeNull();
+    expect(proximoTreino(treino(sessao('a', QUARTA, 0, 'DESCANSO')), QUARTA)).toBeNull();
+  });
+
+  it('nome que já começa pelo dia não repete o dia', () => {
+    expect(proximoTreino(treino(sessao('a', SEGUNDA, 5, 'TREINO', { nome: 'Segunda: peito' })), DOMINGO)).toBe('Segunda: peito');
   });
 });
