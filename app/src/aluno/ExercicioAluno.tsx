@@ -29,6 +29,7 @@ import { CampoNumericoGrande } from '../ui/Campos';
 import { Cartao } from '../ui/Cartao';
 import { DemonstracaoDoExercicio } from '../ui/DemonstracaoDoExercicio';
 import { IconeBotao } from '../ui/IconeBotao';
+import { ProvedorDaPrevia } from '../ui/emPrevia';
 import { sobre } from '../ui/sobre';
 import { Texto } from '../ui/Texto';
 import { useMovimentoReduzido } from '../ui/useMovimentoReduzido';
@@ -79,6 +80,28 @@ interface Props {
   recordes?: Record<string, Recorde[]>;
   /** A última vez do exercício (coluna "Anterior", Engajamento 0.3); nulo = nunca feito ou chave desligada (sem a linha). */
   ultimaVez?: AnteriorDoExercicio | null;
+  /**
+   * "Ver como o aluno" (C34), só leitura: os botões de marcar e registrar ficam desabilitados e nada é gravado nem lido do
+   * aparelho (as ações viram nada, não há registro, pausa nem demonstração). Quem monta a prévia não precisa passar mais nada.
+   */
+  previa?: boolean;
+}
+
+const SEM_EFEITO = () => undefined;
+
+/**
+ * Na prévia as ações viram nada, o aparelho não é lido (`registroDe` sempre vazio) e a demonstração, que busca a imagem pela
+ * rota do aluno, não aparece. Um lugar só, para a garantia não depender de quem monta a tela.
+ */
+export function ExercicioAluno(props: Props) {
+  const p: Props = props.previa
+    ? { ...props, registroDe: SEM_EFEITO, aoMudarCargaDoDia: SEM_EFEITO, aoRegistrar: SEM_EFEITO, aoIniciarPausa: undefined, aoCancelarPausa: undefined, acaoDescanso: undefined, demonstracao: null }
+    : props;
+  return (
+    <ProvedorDaPrevia value={!!props.previa}>
+      <CorpoDoExercicio {...p} />
+    </ProvedorDaPrevia>
+  );
 }
 
 /**
@@ -87,7 +110,7 @@ interface Props {
  * descanso como ícones; a carga de trabalho do dia em uma linha `[−] campo [+]`; e um cartão por série com a meta, o
  * descanso e a técnica da própria série. Os −/+ do peso aparecem só na próxima série a fazer. O ✓ grava no aparelho.
  */
-export function ExercicioAluno(p: Props) {
+function CorpoDoExercicio(p: Props) {
   const { cores } = useTema();
   const { avisar } = useAviso();
   const e = p.exercicio;

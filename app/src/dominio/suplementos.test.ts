@@ -14,7 +14,7 @@ import {
 } from './suplementos';
 
 const s = (nome: string, extra: Partial<SuplementoDaBiblioteca> = {}): SuplementoDaBiblioteca => ({
-  id: nome, nome, marca: 'Marca de Teste', categoria: null, porcao: null, porcoesPorEmbalagem: null, sabores: [], link: null, ...extra,
+  id: nome, nome, marca: 'Marca de Teste', categoria: null, porcao: null, porcoesPorEmbalagem: null, sabores: [], link: null, cupom: null, ...extra,
 });
 
 describe('porção', () => {
@@ -41,9 +41,14 @@ describe('textos do cartão', () => {
   });
   it('linha da dieta traz nome com marca e link; o resto fica vazio', () => {
     expect(linhaDeSuplementacao(s('Creatina', { marca: 'Heavy Suppz', link: ' https://exemplo.com/p ' }), 'u1')).toEqual({
-      uid: 'u1', nome: 'Creatina (Heavy Suppz)', dose: '', horario: '', observacao: '', link: 'https://exemplo.com/p',
+      uid: 'u1', nome: 'Creatina (Heavy Suppz)', dose: '', horario: '', observacao: '', link: 'https://exemplo.com/p', cupom: null,
     });
     expect(linhaDeSuplementacao(s('Creatina', { marca: null }), 'u2')).toMatchObject({ nome: 'Creatina', link: null });
+  });
+  it('o cupom da biblioteca vai para a linha da dieta sem os espaços das pontas; em branco vira nulo', () => {
+    expect(linhaDeSuplementacao(s('Creatina', { cupom: '  TESTE10 ' }), 'u1')).toMatchObject({ cupom: 'TESTE10' });
+    expect(linhaDeSuplementacao(s('Creatina', { cupom: '   ' }), 'u2')).toMatchObject({ cupom: null });
+    expect(linhaDeSuplementacao(s('Creatina', { cupom: null }), 'u3')).toMatchObject({ cupom: null });
   });
   it('link fora da regra não vai para a dieta', () => {
     expect(linhaDeSuplementacao(s('A', { link: 'javascript:alert(1)' }), 'u')).toMatchObject({ link: null });

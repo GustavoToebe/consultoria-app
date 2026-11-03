@@ -66,7 +66,7 @@ public class ImportacaoService {
             "exercicios", List.of("nome", "grupo", "equipamento", "modalidade", "video", "observacoes"),
             "alimentos", List.of("nome", "quantidade", "unidade", "kcal", "proteina", "carboidrato", "gordura",
                     "gramas", "fonte", "fc", "fcc", "grupo"),
-            "suplementos", List.of("nome", "marca", "categoria", "porcao", "porcoes", "sabores", "link"),
+            "suplementos", List.of("nome", "marca", "categoria", "porcao", "porcoes", "sabores", "link", "cupom"),
             "outros", List.of("nome", "categoria", "principio", "concentracao", "apresentacao", "observacao"));
     private static final Map<String, List<String>> OBRIGATORIOS = Map.of(
             "alunos", List.of("nome"),

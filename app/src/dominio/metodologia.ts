@@ -14,6 +14,7 @@ import type {
   TipoDeTecnica,
 } from '../api/tipos';
 import { numeroParaTela } from './formatos';
+import { CONFIGURACAO_PADRAO } from './metodologiaPadrao';
 import { textoDaFaixa } from './percentuais';
 
 /**
@@ -169,6 +170,15 @@ export function copiarEsforco(e: Esforco | null | undefined): Esforco | null {
 export function tipoTrabalho(config: Configuracao | null | undefined): string | null {
   const t = config?.tipos?.find((x) => x.papel === 'TRABALHO');
   return t?.nome.trim() || null;
+}
+
+/**
+ * O que a execução do aluno lê da configuração do treino: a metodologia copiada na versão (senão a padrão) e o nome da série
+ * de trabalho dela; `base` (o `configuracao` do pacote) é só a reserva do arredondamento e do nome.
+ */
+export function configDoTreino(conteudo: Pick<ConteudoTreino, 'metodologia'>, base: { arredondamentoKg: number; tipoTrabalho: string }) {
+  const metodologia = conteudo.metodologia?.configuracao ?? CONFIGURACAO_PADRAO;
+  return { ...base, tipoTrabalho: tipoTrabalho(metodologia) ?? base.tipoTrabalho, metodologia };
 }
 
 /** Código do primeiro tipo de trabalho (o que a série de trabalho grava em `tipo`), como `codigoTrabalho()` da API. */

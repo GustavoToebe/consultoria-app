@@ -4,7 +4,8 @@ import { StyleSheet, View } from 'react-native';
 
 import { execucoesDoAluno } from '../api/rotas';
 import type { PastaResumo } from '../api/tipos';
-import { dataParaTela, hojeIso } from '../dominio/formatos';
+import { hojeEmBrasilia } from '../dominio/financeiro';
+import { dataParaTela } from '../dominio/formatos';
 import { letrasDasDivisoes } from '../dominio/historicoDoAluno';
 import { cargasPorDivisao, filtrarPorSessoes, intervaloDeRegistros, nomeDaDivisao, periodoMisturaVersoes, TEXTO_PERIODO_MISTURA_VERSOES, textoDoHistoricoVazio } from '../dominio/relatorio';
 import { espaco } from '../tema/tokens';
@@ -47,7 +48,8 @@ export function CartaoRegistros({ aluno, pasta }: { aluno: { id: string; nome: s
   const [gerando, setGerando] = useState(false);
   // Dentro da pasta, o período é o dela (sem os filtros de 14/30/60 dias) e só entram os treinos dela.
   const daPasta = !!pasta?.inicio && !!pasta.fim;
-  const { de, ate } = intervaloDeRegistros(hojeIso(), Number(dias), pasta);
+  const hoje = hojeEmBrasilia();
+  const { de, ate } = intervaloDeRegistros(hoje, Number(dias), pasta);
   const { dados, erro, carregando, recarregar } = useCarregar(`exec:${aluno.id}:${de}:${ate}`, () =>
     execucoesDoAluno(aluno.id, de, ate),
   );
@@ -91,7 +93,7 @@ export function CartaoRegistros({ aluno, pasta }: { aluno: { id: string; nome: s
         ) : null}
         {filtrados && periodoMisturaVersoes(filtrados) ? <Texto numerico variante="pequeno">{TEXTO_PERIODO_MISTURA_VERSOES}</Texto> : null}
         {dados && visao === 'divisao' ? <CargasPorDivisao divisoes={divisoes} letras={letras} /> : null}
-        {filtrados && visao === 'dia' ? <HistoricoPorSemana dias={filtrados} nomeDaSessao={nomeDaSessao} letras={letras} /> : null}
+        {filtrados && visao === 'dia' ? <HistoricoPorSemana dias={filtrados} nomeDaSessao={nomeDaSessao} letras={letras} periodo={{ de, ate }} hoje={hoje} /> : null}
       </Cartao>
   );
 }
