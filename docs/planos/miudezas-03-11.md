@@ -1,6 +1,6 @@
 # Miudezas de 03/11
 
-Situação: Em revisão (PR aberto) · Onde: branch `miudezas-03-11` · Atualizado: 03/11/2026
+Situação: Concluída em 03/11/2026 (PR #44, `60e906e`, em produção às 00h35) · Onde: `main` · Atualizado: 03/11/2026
 
 ## Objetivo
 Fechar pendências pequenas soltas: a data de início da dieta, o separador do CSV da importação, o `.gitattributes` dos CSV, o 429 da inscrição, o atalho dos Primeiros passos, o aviso de `accessible={false}` na web e os e2e intermitentes.
