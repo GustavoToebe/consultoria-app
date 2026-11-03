@@ -8,7 +8,7 @@ import { dataCurta, numeroParaTela } from './formatos';
  * data, de todos os registros do aluno (a rota não tem período), já com sinal, e nulo no primeiro. Aqui nada é recalculado
  * nem inventado: a data do "desde" só aparece quando esse registro anterior está na lista que a tela recebeu e a conta
  * `peso − anterior` confere com a variação da API. Lista por período que cortou o anterior = sem "desde".
- * Só direção: nenhuma cor de julgamento ("aumentou" não é bom nem ruim); o sistema não interpreta o peso.
+ * Só direção e número; a cor é da meta que o treinador decidiu (`corDaVariacaoDoPeso`), nunca do app.
  */
 
 export type SetaDoPeso = 'sobe' | 'desce' | 'igual';

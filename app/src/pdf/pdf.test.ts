@@ -6,7 +6,7 @@ import { normalizarTreino } from '../dominio/editorTreino';
 import { carga, exercicio, grupo, rir, rpe, serie, sessao, tecnica } from '../dominio/exemplosDeTreino.apoioTeste';
 import { normalizarMobilidade } from '../dominio/mobilidade';
 import { cabecalhoDoPdf, cssBase, esc, link, type Documento } from './html';
-import { contraste, marcaParaTexto } from '../tema/tokens';
+import { CLARO, contraste, marcaParaTexto } from '../tema/tokens';
 import type { LinhaCarga } from '../dominio/relatorio';
 import { documentoCargas } from './pdfCargas';
 import { documentoDieta } from './pdfDieta';
@@ -335,6 +335,37 @@ describe('PDF da dieta', () => {
   it('o nome do aluno e a emissão ficam só no cabeçalho, não repetidos na identificação', () => {
     expect(html.match(/Aluno Demonstração/g)).toHaveLength(1);
     expect(html).not.toContain('<td>Nome</td>');
+  });
+
+  describe('acompanhamento de peso: cor pela meta, seta e sinal sempre', () => {
+    const pesos = (meta?: 'REDUZIR' | 'AUMENTAR' | 'SEM_META') => [
+      { id: 'p1', data: '2026-10-01', pesoKg: 80, variacao: null, observacao: null, metaDoPeso: meta },
+      { id: 'p2', data: '2026-10-08', pesoKg: 79.3, variacao: -0.7, observacao: null, metaDoPeso: meta },
+      { id: 'p3', data: '2026-10-15', pesoKg: 80.5, variacao: 1.2, observacao: null, metaDoPeso: meta },
+    ];
+    const corpo = (meta?: 'REDUZIR' | 'AUMENTAR' | 'SEM_META') => documentoDieta({ ...base, versao: 1, conteudo: dieta, pesos: pesos(meta) }).corpo;
+    const celula = (html: string, texto: string) => html.match(new RegExp(`<td[^>]*>${texto.replace('+', '\\+')}</td>`))?.[0];
+
+    it('REDUZIR: queda verde e aumento vermelho', () => {
+      const html = corpo('REDUZIR');
+      expect(celula(html, '▼ −0,7 kg')).toBe(`<td style="color:${CLARO.sucesso}">▼ −0,7 kg</td>`);
+      expect(celula(html, '▲ +1,2 kg')).toBe(`<td style="color:${CLARO.perigo}">▲ +1,2 kg</td>`);
+      expect(html).toContain('<td>—</td>');
+    });
+
+    it('AUMENTAR: o contrário', () => {
+      const html = corpo('AUMENTAR');
+      expect(celula(html, '▼ −0,7 kg')).toBe(`<td style="color:${CLARO.perigo}">▼ −0,7 kg</td>`);
+      expect(celula(html, '▲ +1,2 kg')).toBe(`<td style="color:${CLARO.sucesso}">▲ +1,2 kg</td>`);
+    });
+
+    it('SEM_META ou sem meta: seta e sinal, sem cor; nunca a cor da marca', () => {
+      for (const html of [corpo('SEM_META'), corpo()]) {
+        expect(celula(html, '▼ −0,7 kg')).toBe('<td>▼ −0,7 kg</td>');
+        expect(celula(html, '▲ +1,2 kg')).toBe('<td>▲ +1,2 kg</td>');
+      }
+      expect(corpo('REDUZIR')).not.toMatch(new RegExp(`<td style="color:${marca.corPrimaria}">[▲▼]`, 'i'));
+    });
   });
 
   it('suplementação vazia e peso sem registro não aparecem', () => {

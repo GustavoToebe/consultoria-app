@@ -345,8 +345,11 @@ export interface AlunoRequest {
   /** CPF e endereço só seguem com `ALUNO_SENSIVEL_ALTERAR`; sem a permissão a API ignora e preserva o que está salvo. */
   cpf?: string | null;
   endereco?: EnderecoDoAluno | null;
-  /** Meta do peso do aluno; `null` = vale a da consultoria. Como CPF e endereço, só segue com `ALUNO_SENSIVEL_ALTERAR`. */
-  metaDoPeso?: MetaDoPeso | null;
+  /**
+   * Meta do peso do aluno. Ausente ou `null` = não mexe; `PADRAO_DA_CONSULTORIA` volta ao padrão (a API grava nulo). Como
+   * CPF e endereço, só vale com `ALUNO_SENSIVEL_ALTERAR`. Conversão do campo em `dominio/metaDoPesoNaFicha`.
+   */
+  metaDoPeso?: MetaDoPeso | 'PADRAO_DA_CONSULTORIA' | null;
   versao?: number | null;
   /** Dias do ciclo do aluno (1 a 365): sugere o fim do período ao criar uma pasta. */
   diasAtualizacao?: number | null;

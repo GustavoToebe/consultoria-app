@@ -8,6 +8,7 @@ import { StyleSheet, View } from 'react-native';
 import { aluno as buscarAluno, alterarAluno, alterarSituacaoAluno, consultoria as buscarConsultoria, escolherQuestionarioDoAluno } from '../../../api/rotas';
 import { enderecoParaLeitura, NOTA_TELEFONE_SEM_ACESSO } from '../../../dominio/cadastroDoAluno';
 import { rotuloDoSexo } from '../../../dominio/sexo';
+import { textoDaMeta } from '../../../dominio/metaDoPesoNaFicha';
 import { cicloDoAluno, textoDoCiclo } from '../../../dominio/periodo';
 import type { AlunoDetalhe } from '../../../api/tipos';
 import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
@@ -117,7 +118,8 @@ export default function FichaAluno() {
           {retornoHabilitado && pode('REGISTRO_LER') ? <CartaoTreinosConcluidos alunoId={aluno.id} /> : null}
           {retornoHabilitado && pode('REGISTRO_LER') ? <CartaoRecordesDaSemana alunoId={aluno.id} /> : null}
           <Permitido codigo="REGISTRO_LER"><CartaoProgresso alunoId={aluno.id} /></Permitido>
-          <Permitido codigo="ALUNO_SENSIVEL_LER"><CartaoPeso key={geracaoPeso} alunoId={aluno.id} /></Permitido>
+          {/* A meta na chave: salvar outra meta na ficha busca o peso de novo, e as cores vêm da meta de cada item. */}
+          <Permitido codigo="ALUNO_SENSIVEL_LER"><CartaoPeso key={`${geracaoPeso}:${aluno.metaDoPeso ?? ''}`} alunoId={aluno.id} /></Permitido>
           <Permitido codigo="ALUNO_SENSIVEL_LER"><CartaoAvaliacaoFisica alunoId={aluno.id} alunoNome={aluno.nome} anonimizado={aluno.anonimizado} /></Permitido>
           {pode('ATUALIZACAO_LER') && pode('ALUNO_SENSIVEL_LER') ? (
             <CartaoFotos alunoId={aluno.id} autorizadoEm={aluno.usoDeImagemAutorizadoEm} aoRecarregar={recarregar} />
@@ -257,6 +259,7 @@ function DadosDoAluno({ aluno, padrao, aoAlterar, temFoto, aoRecarregar }: {
             <CampoLeitura rotulo="Nova atualização a cada" valor={textoDoCiclo(aluno.diasAtualizacao, padrao)} numerico />
             <SeletorDeQuestionario rotulo="Questionário de atualização" valor={aluno.questionarioId} rotuloDoNulo="Padrão da consultoria" podeAlterar={false}
               aoEscolher={async () => {}} />
+            <Permitido codigo="ALUNO_SENSIVEL_LER"><CampoLeitura rotulo="Meta do peso" valor={textoDaMeta(aluno.metaDoPeso)} /></Permitido>
             <Permitido codigo="ALUNO_SENSIVEL_LER"><CampoLeitura rotulo="Observações" valor={aluno.observacoes} /></Permitido>
             <LinhaDoCicloNaFicha alunoId={aluno.id} />
           </View>
