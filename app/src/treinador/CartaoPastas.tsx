@@ -517,7 +517,7 @@ function FolhaFinalizar({ pasta, alunoId, atualizacao, aoFechar, aoFinalizar }: 
         <Alerta tom="atencao" titulo="Vai substituir o peso da atualização"
           texto={`Já há ${numeroParaTela(registrado.pesoKg, 1)} kg registrado em ${dataParaTela(registrado.data)}. Um peso por dia: finalizar com esta data troca esse peso pelo novo. Para manter os dois, use outra data.`} />
       ) : null}
-      <Campo rotulo="Observação (opcional)" valor={observacao} aoMudar={setObservacao} maxLength={300} ajuda="Só é gravada junto com o peso. O aluno vê esta observação no histórico de peso e no PDF da dieta." />
+      <Campo rotulo="Observação (opcional)" valor={observacao} aoMudar={setObservacao} maxLength={300} ajuda="Só é gravada junto com o peso. Só a equipe vê esta observação." />
       </Permitido>
       {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
     </Folha>

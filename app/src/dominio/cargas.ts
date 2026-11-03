@@ -184,6 +184,8 @@ export interface NomesDaOrigem {
   metodologia?: Configuracao | null;
   /** As séries do exercício: dão o tipo da série anterior e da série de referência. */
   series?: readonly Serie[];
+  /** Sem base do dia gravada a conta parte da última carga (D1): o texto diz "da última vez", não "da base do dia". */
+  baseDaUltimaVez?: boolean;
 }
 
 const SEM_NOME_DA_WS = 'carga de trabalho';
@@ -207,11 +209,12 @@ export function textoDaOrigem(calculada: SerieCalculada, nomes: NomesDaOrigem = 
   const percentual = min == null ? null : `${numeroParaTela(min)}%`;
   // Em faixa ("85% a 90%") a conta usa só o mínimo: o texto diz isso para o número não parecer errado ao lado da meta.
   const daFaixa = min != null && max != null && max > min ? ', mínimo da faixa' : '';
-  const daReferencia = referencia?.origem === 'WS_ANTERIOR' ? `da ${nomeDaWs} registrada nesta sessão` : 'da base do dia';
+  const base = nomes.baseDaUltimaVez ? 'última vez' : 'base do dia';
+  const daReferencia = referencia?.origem === 'WS_ANTERIOR' ? `da ${nomeDaWs} registrada nesta sessão` : `da ${base}`;
 
   switch (modo(serie)) {
     case 'CARGA_TRABALHO':
-      return referencia ? 'carga da base do dia' : null;
+      return referencia ? `carga da ${base}` : null;
     case 'CARGA_FIXA':
       return 'carga definida pelo treinador';
     case 'MESMA_CARGA':

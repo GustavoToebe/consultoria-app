@@ -14,20 +14,24 @@ export interface DadosPdfCargas {
   emitidoEm: Date;
 }
 
+export const TEXTO_FEITO_SEM_CARGA_NA_TABELA = 'Feito, sem carga';
+
 /**
  * Carga da linha: "75 kg", "Sem carga" (peso corporal), "Carga variável" (etapas com cargas diferentes; nunca a maior nem a
- * última) ou "—" (sem série de trabalho registrada).
+ * última), "Feito, sem carga" (D4: a série de trabalho foi marcada sem carga; única exceção ao "—") ou "—" (nada registrado).
  */
 export function textoCarga(l: LinhaCarga): string {
   if (l.carga !== null) return `${numeroParaTela(l.carga)} kg`;
   if (l.cargaVariavel) return 'Carga variável';
-  return l.semCarga ? 'Sem carga' : '—';
+  if (l.semCarga) return 'Sem carga';
+  return l.feitoSemCarga ? TEXTO_FEITO_SEM_CARGA_NA_TABELA : '—';
 }
 
-/** Repetições da linha: os blocos da série por etapa ("4+4+4+2 = 14"), "6 reps" ou "—". */
+/** Repetições da linha: os blocos da série por etapa ("4+4+4+2 = 14"), "6 reps" ou "—" (na tabela só "Feito, sem carga" foge do "—"). */
 export function textoReps(l: LinhaCarga): string {
   if (l.etapas !== null) return l.etapas;
-  return l.repeticoes === null ? '—' : `${l.repeticoes} reps`;
+  if (l.repeticoes === null) return '—';
+  return `${l.repeticoes} reps`;
 }
 
 /** Última coluna: o volume do exercício no dia e, embaixo, as observações do aluno; "—" sem nenhum dos dois. */

@@ -27,6 +27,11 @@ export interface LinhaCarga {
   /** Séries com algo registrado no dia. */
   series: number;
   semCarga: boolean;
+  /**
+   * Só havia série de trabalho feita sem carga (exercício com peso): a linha diz "Feito, sem carga" (D4). É a única exceção ao
+   * "—" na tabela; `repeticoes` leva as da série, se o aluno as informou.
+   */
+  feitoSemCarga: boolean;
   observacoes: string[];
 }
 
@@ -102,10 +107,12 @@ export function cargasPorDivisao(dias: DiaDeTreino[], sessoesDoPlano?: Map<strin
         const comCarga = doTrabalho.filter((x) => x.carga !== null).sort((a, b) => (b.carga ?? 0) - (a.carga ?? 0))[0];
         // Sem série de trabalho de carga única, a por etapas sem carga comum ainda mostra os blocos; a carga fica de fora.
         const trabalho = comCarga ?? doTrabalho.find((x) => x.etapas);
+        const feitaSemCarga = trabalho ? undefined : doTrabalho.find((x) => x.unidade !== 'nenhuma' && x.carga === null);
         exercicio.linhas.push({
           data: dia.data,
           carga: trabalho?.carga ?? null,
-          repeticoes: trabalho ? trabalho.repeticoes : null,
+          repeticoes: trabalho ? trabalho.repeticoes : (feitaSemCarga?.repeticoes ?? null),
+          feitoSemCarga: !!feitaSemCarga,
           etapas: trabalho?.etapas ? repeticoesDasEtapas(trabalho) : null,
           cargaVariavel: !!trabalho && trabalho.carga === null && temCargasDiferentes(trabalho),
           volume: volumeDoExercicio(e.series),
@@ -155,8 +162,12 @@ export function ultimoRegistroDaDivisao(d: DivisaoRelatorio): string | null {
   return ultima;
 }
 
+/** Série feita sem carga e sem repetições no histórico (D4): no lugar do "—". */
+export const TEXTO_FEITO_SEM_CARGA = 'feito, sem carga';
+
 /**
- * "WS 32 kg × 5"; o que o aluno não informou aparece como "—" (nunca presumido). Série sem carga e sem repetições (cardio,
+ * "WS 32 kg × 5"; o que o aluno não informou numa série feita é dito por extenso (nunca presumido): "WS feito, sem carga",
+ * "WS sem carga × 7", "WS 60 kg × sem repetições" (só em série concluída); série não marcada, o que falta é "—". Série sem carga e sem repetições (cardio,
  * que o aluno só marca) sai "Cardio feito"; não marcada, "Cardio —". Série registrada por etapa (Cluster, Rest-pause) mostra
  * cada etapa feita: "WS 40 kg × 4+4+4+2 = 14", com carga variável "WS 40 kg × 4 + 42,5 kg × 4 = 8"; o total só aparece
  * quando o servidor o calculou (todas as etapas com situação), senão a linha diz "parcial".
@@ -165,8 +176,13 @@ export function textoSerie(s: SerieFeita): string {
   const tipo = s.tipo?.trim() || 'Série';
   if (s.etapas) return `${tipo} ${textoDasEtapas(s, s.etapas)}`;
   if (s.unidade === 'nenhuma' && s.repeticoes == null && s.carga == null) return `${tipo} ${s.concluida ? 'feito' : '—'}`;
-  const carga = s.unidade === 'nenhuma' ? '' : `${numeroParaTela(s.carga)} kg × `;
-  return `${tipo} ${carga}${s.repeticoes ?? '—'}`;
+  if (s.unidade === 'nenhuma') return `${tipo} ${s.repeticoes ?? '—'}`;
+  // D4 (02/11): o que o aluno não informou numa série feita é dito por extenso, não "—".
+  if (s.carga == null && s.repeticoes == null) return `${tipo} ${s.concluida ? TEXTO_FEITO_SEM_CARGA : '—'}`;
+  // "Sem carga"/"sem repetições" só numa série concluída; na não marcada a ausência é "—".
+  const falta = (texto: string) => (s.concluida ? texto : '—');
+  const carga = s.carga == null ? falta('sem carga') : `${numeroParaTela(s.carga)} kg`;
+  return `${tipo} ${carga} × ${s.repeticoes ?? falta('sem repetições')}`;
 }
 
 const repsDaEtapa = (e: EtapaRegistrada) => (e.repeticoes == null ? '—' : String(e.repeticoes));

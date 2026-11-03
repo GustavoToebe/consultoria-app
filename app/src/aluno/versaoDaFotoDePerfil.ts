@@ -1,8 +1,9 @@
 import { useSyncExternalStore } from 'react';
 
 /**
- * Número que muda quando o aluno troca ou apaga a foto de perfil: o início e a Conta usam na chave da imagem e baixam
- * de novo. Só em memória (a foto em si nunca fica guardada no aparelho).
+ * Número que muda quando a foto de perfil é trocada ou apagada (pelo aluno, na Conta, ou pela equipe, na ficha): o
+ * início, a Conta e o topo da ficha usam na chave da imagem e baixam de novo. Só em memória (a foto em si nunca fica
+ * guardada no aparelho).
  */
 let versao = 0;
 const ouvintes = new Set<() => void>();

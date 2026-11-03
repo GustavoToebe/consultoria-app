@@ -1,5 +1,6 @@
 import type { AnteriorDoExercicio, AnterioresDoPacote, EtapaRegistrada, ExercicioPlano, SerieAnterior } from '../api/tipos';
 import { dataCurta, numeroParaTela } from './formatos';
+import { TEXTO_FEITO_SEM_CARGA } from './relatorio';
 
 /**
  * Coluna "Anterior" do treino ao vivo (frente Engajamento, passo 0.3): o que o aluno fez na mesma série da última vez
@@ -87,7 +88,12 @@ export function anteriorDaSerie(ultima: AnteriorDoExercicio | null, exercicio: E
 
 const repsDaEtapa = (e: EtapaRegistrada) => (e.repeticoes == null ? '—' : String(e.repeticoes));
 
-/** "60 kg × 8", "15 reps", "40 kg × 4+4+2", "4+4+2 (carga variável)"; sem nada registrado, "—". */
+/**
+ * "60 kg × 8", "15 reps", "40 kg × 4+4+2", "4+4+2 (carga variável)". A série anterior é sempre uma série FEITA (servidor
+ * e aparelho só trazem as concluídas): o que o aluno não informou é dito por extenso (D4, 02/11), "feito, sem carga",
+ * "60 kg × sem repetições" e "feito" no exercício sem carga. "—" fica para a série que não casou com nenhuma e para a
+ * série por etapas sem etapa feita.
+ */
 export function textoDoAnterior(s: SerieAnterior | null, semCarga: boolean): string {
   if (!s) return '—';
   if (s.etapas) {
@@ -100,8 +106,11 @@ export function textoDoAnterior(s: SerieAnterior | null, semCarga: boolean): str
     if (comum != null) return `${numeroParaTela(comum)} kg × ${reps}`;
     return cargas.some((c) => c != null) ? `${reps} (carga variável)` : reps;
   }
-  if (s.carga == null || semCarga) return s.repeticoes == null ? '—' : `${s.repeticoes} reps`;
-  return `${numeroParaTela(s.carga)} kg × ${s.repeticoes ?? '—'}`;
+  if (s.carga == null || semCarga) {
+    if (s.repeticoes != null) return `${s.repeticoes} reps`;
+    return semCarga ? 'feito' : TEXTO_FEITO_SEM_CARGA;
+  }
+  return `${numeroParaTela(s.carga)} kg × ${s.repeticoes ?? 'sem repetições'}`;
 }
 
 /** Linha de cima das séries: "Último registro: o que você fez em 23/10." */

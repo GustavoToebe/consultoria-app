@@ -50,6 +50,8 @@ for (const largura of [390, 1280]) {
       const { pedidos, errosDaPagina } = await abrirFicha(page);
       await page.getByRole('button', { name: 'Registrar peso' }).click();
       const folha = page.getByRole('dialog', { name: 'Registrar peso' });
+      // A observação do peso é só da equipe: o formulário diz isso.
+      await expect(folha.getByText('Só a equipe vê esta observação.', { exact: true })).toBeVisible();
       const data = folha.getByLabel('Data', { exact: true });
       const registrar = folha.getByRole('button', { name: 'Registrar', exact: true });
       await folha.getByRole('textbox', { name: 'Peso (kg)', exact: true }).fill('80,5');

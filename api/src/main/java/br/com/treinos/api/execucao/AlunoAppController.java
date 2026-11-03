@@ -99,6 +99,6 @@ public class AlunoAppController {
     @PreAuthorize("hasRole('ALUNO')")
     @GetMapping("/pesos")
     public List<PesoResponse> pesos(@AuthenticationPrincipal UsuarioAutenticado eu) {
-        return pesos.listar(AlunoAppService.alunoDaSessao(eu));
+        return pesos.listarParaAluno(AlunoAppService.alunoDaSessao(eu));
     }
 }
