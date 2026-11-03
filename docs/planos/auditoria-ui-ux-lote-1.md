@@ -65,8 +65,8 @@ O escopo foi definido pelo Gustavo em 03/11 e só mexe no app; nada muda na API.
   - C10 (passeio guardado no servidor).
 
 ## Passos
-- [ ] 1. Guardar o relatório em `docs/planos/auditoria-ui-ux-2026-11-03.md`, com a nota do commit auditado e a marca nos dois achados já resolvidos — commit: —
-- [ ] 2. PR A: a a e e j a l, com e2e em 390 e 1280 px (inclui o `exercicio-aluno`) — commit: —
+- [x] 1. Guardar o relatório em `docs/planos/auditoria-ui-ux-2026-11-03.md`, com a nota do commit auditado e a marca nos dois achados já resolvidos — commit: `e572dbe8`
+- [x] 2. PR A: a a e e j a l, com e2e em 390 e 1280 px (inclui o `exercicio-aluno`) — commit: `ebd3ac9d`
 - [ ] 3. PR B: f, g, h e i, branch própria saída da `main`, depois do PR A — commit: —
 
 ## Fora do escopo
@@ -79,3 +79,4 @@ O escopo foi definido pelo Gustavo em 03/11 e só mexe no app; nada muda na API.
 
 ## O que ficou para trás
 - (cada sobra também vai para "Pendências soltas" no README)
+- PR A (`ebd3ac9d`): o `IconeBotao` com moldura ficou 4 px maior por fora (alvo de 44) em todas as telas; conferido só na web (e2e), falta olhar no Android e no iOS, e o `IconeBotao` com moldura no tema escuro não teve captura.
