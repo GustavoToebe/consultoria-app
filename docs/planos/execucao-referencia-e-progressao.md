@@ -30,14 +30,36 @@ trabalho.
 | D8 | C30 | reproduzir no e2e. Se o Back off só recalcula depois do ✓ da WS por causa da regra de 31/10, **manter a regra** e deixar o aviso visível na própria série; se for defeito, corrigir | Gustavo |
 | D9 | C33 | reproduzir no e2e a digitação da carga na web e o "0 kg" no aquecimento | Gustavo |
 | D10 | C26 | reproduzir no e2e as cargas do período anterior no período novo | Gustavo |
+| D11 | Progressão (Gustavo, 03/11/2026) | **agora, nesta frente:** aviso "passou de N repetições" na execução do aluno, só texto e nunca um valor em kg; regra pura em `dominio/` com jest e um caso no e2e da execução. **Depois:** os critérios da sugestão de progressão esperam os dados dos 5 alunos; até lá a carga fica só como dica (D1, C31) | Gustavo |
 
 ## Passos
 - [ ] 1. Domínio: contagem só de trabalho (D6), dica de carga e painel do ✓ como regras puras em `dominio/`, com teste — executor — commit: —
 - [ ] 2. Descobrir o portão de C32/C40 e escrever o relatório para o Gustavo (D7), sem mexer na VPS — explorador + executor — commit: —
 - [ ] 3. Tela: dica "Sugestão · Última vez", meta maior ao lado do campo, painel do ✓ (offline), histórico "Feito, sem carga"; e2e — executor-front — commit: —
+- [ ] 3b. Aviso "passou de N repetições" (D11): regra pura em `dominio/` com jest, texto na execução e um caso no e2e da execução — executor (regra) + executor-front (tela) — commit: —
 - [ ] 4. Reproduzir C30, C33 e C26 no e2e (e corrigir só se for defeito) — executor — commit: —
 - [ ] 5. Ajuda, guias regerados, `AGENTS.md` só no item da execução — commit: —
 - [ ] 6. Revisão do Opus (offline, idempotência) antes do PR — advisor/revisor — commit: —
+
+## Relatório do passo 2 (C32/C40, D7): o que a chave `TREINOS_RETORNO_HABILITADO` liga (para o Gustavo decidir)
+- **A chave não liga só "Última vez", "Anterior" e "Bom trabalho"**: liga todo o retorno. Junto vêm: rotas `@ExigeRetorno`
+  (recordes da semana, sessões concluídas, "Visto"), `recordes` e `anteriores` no pacote do aluno, botão Concluir treino,
+  faixa do treino ao vivo, "Bom trabalho", medalha de recorde, fila offline das conclusões, semana completa e os cartões
+  do treinador (recordes da semana, treinos concluídos, `sessoesConcluidas7Dias` do painel), mais as seções `soComRetorno` da Ajuda.
+- **Com a chave desligada o aluno vê:** o cartão "Carga de trabalho" com "Última vez: X kg × Y em data" (vem de `ultimasCargas`,
+  que **não** depende da chave; foi o "Sem registro anterior" visto na reunião quando não há registro no período). Não vê a
+  linha "Anterior" por série nem a "Última vez" da sessão (vêm de `anteriores`, com a chave).
+- **Alternativa (separar os "anteriores" do resto do retorno), ~80 a 150 linhas, sem migration:** propriedade nova
+  `treinos.anteriores.habilitado` (padrão `false`), `AlunoAppService` passa a chamar `anteriores.doPacote` por ela,
+  `GET /eu` ganha `anterioresHabilitado`, `SessaoProvider`/`useSessaoDoDia` trocam o portão e `formatoDoPacote` aceita `anteriores`
+  ausente. Pede variável de ambiente nova no deploy (a VPS não foi tocada). Risco: "Anterior" e "Última vez" do cartão usam
+  fontes diferentes e podem divergir.
+- **Pendente de confirmar na implementação:** se `formatoDoPacote.ts` (l.187 e 204) rejeita pacote sem `recordes`/`anteriores` quando a chave está desligada.
+- **Decisão do Gustavo (02/11/2026): não ligar a chave e não separar os "anteriores".** A dica da C31 usa o "Última vez" que já
+  existe (`ultimasCargas`, o mesmo do cartão "Carga de trabalho", independente da chave) e fica ao lado do campo de carga:
+  "Sugestão: 60 kg · Última vez: 60 kg × 7". Com a chave ligada no futuro, continua igual (uma fonte só para essa linha).
+  A linha "Anterior" por série e o "Bom trabalho" seguem atrás de `TREINOS_RETORNO_HABILITADO`, no portão do `engajamento.md`
+  (linha de base com os 5 alunos, depois 2 semanas ligada; testar a imagem do "Bom trabalho" no APK antes).
 
 ## Critérios de aceite
 - O campo de carga nunca vem preenchido pela sugestão; a dica aparece ao lado.
@@ -45,7 +67,8 @@ trabalho.
 - Um treino com 2 aquecimentos e 4 de trabalho conta "x de 4".
 
 ## Fora do escopo
-- Sugerir quanto subir de carga; aviso de teto da meta; RPE/1RM (decidido não mudar); mexer na VPS.
+- Sugerir quanto subir de carga e os critérios da sugestão de progressão (esperam os dados dos 5 alunos, D11); RPE/1RM
+  (decidido não mudar; Powerlifting não se faz, ver o README); mexer na VPS.
 
 ## O que ficou para trás
 - —
