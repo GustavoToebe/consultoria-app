@@ -1,4 +1,5 @@
 import { coresComBordasReforcadas, coresComContraste } from '../dominio/preferencias';
+import { coresDoDesabilitado } from './desabilitado';
 import { coresDoMarcar } from './marcar';
 import { AREIA, CLARO, ESCURO, contraste, textoSobre, tingido, type Cores } from '../tema/tokens';
 
@@ -43,7 +44,7 @@ describe.each(VARIANTES)('peças comuns no tema %s', (_nome, cores) => {
     expect(contraste(cores.textoSuave, cores.superficie)).toBeGreaterThanOrEqual(4.5);
   });
 
-  it('Alerta: texto na cor do tom sobre o fundo opaco `tingido` (não depende de onde a caixa está)', () => {
+  it('Alerta e Selo: texto na cor do tom sobre o fundo opaco `tingido` (não depende de onde a caixa está)', () => {
     for (const tom of [cores.perigo, cores.atencao, cores.sucesso]) {
       expect(contraste(tom, tingido(tom, cores.superficie))).toBeGreaterThanOrEqual(4.5);
     }
@@ -73,6 +74,14 @@ describe.each(VARIANTES)('peças comuns no tema %s', (_nome, cores) => {
   it('BotaoMarcar desabilitado (prévia): ícone `textoSuave` sobre a faixa `superficie3` ≥ 4,5:1 (sem opacidade)', () => {
     const c = coresDoMarcar(cores, { feito: false, desabilitado: true, pressionado: false });
     expect(contraste(c.icone, c.fundo)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('desabilitado (D3): fundo `superficie3`, texto e ícone `textoSuave` ≥ 4,5:1, sem a marca nem opacidade', () => {
+    const c = coresDoDesabilitado(cores);
+    expect(c).toEqual({ fundo: cores.superficie3, borda: cores.borda, texto: cores.textoSuave });
+    expect(contraste(c.texto, c.fundo)).toBeGreaterThanOrEqual(4.5);
+    // O botão fantasma desabilitado fica sem fundo: o texto cai direto no cartão e no fundo da tela.
+    for (const s of [cores.fundo, cores.superficie]) expect(contraste(c.texto, s)).toBeGreaterThanOrEqual(4.5);
   });
 
   it('Cabecalho: selo "Sem conexão" com ícone (neutro sobre `tingido`)', () => {

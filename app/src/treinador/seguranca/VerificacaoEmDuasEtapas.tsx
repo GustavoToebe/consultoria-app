@@ -166,7 +166,7 @@ export function VerificacaoEmDuasEtapas() {
               <Botao rotulo="Abrir no autenticador" tipo="secundario" Icone={ExternalLink}
                 aoTocar={() => {
                   Linking.openURL(preparacao.otpauthUri).catch(() =>
-                    avisar('Nenhum aplicativo autenticador abriu o link. Use o QR code ou o segredo.', 'perigo'));
+                    avisar('Nenhum aplicativo autenticador abriu o link. Use o QR code ou o segredo.', 'atencao'));
                 }} />
             ) : null}
           </LinhaDeAcoes>

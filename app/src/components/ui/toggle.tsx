@@ -56,7 +56,6 @@ function Toggle({
       <TogglePrimitive.Root
         className={cn(
           toggleVariants({ variant, size }),
-          props.disabled && 'opacity-50',
           props.pressed && 'bg-accent',
           className
         )}
