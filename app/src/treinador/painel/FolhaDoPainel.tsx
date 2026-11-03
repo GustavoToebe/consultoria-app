@@ -42,7 +42,7 @@ export function FolhaDoPainel({ titulo, folha, situacao, aoFechar, topo }: {
               </View>
             ) : null}
           </>
-        )}
+        ) : null}
       </View>
     </Folha>
   );
