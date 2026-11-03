@@ -1,6 +1,6 @@
 # Visual da reunião de 30/10: cor por tipo de série, dieta, histórico e receitas (prévia primeiro)
 
-Situação: Planejando · Onde: prévia HTML em `docs/prototipos/`, **sem código do app até o ok do Gustavo** · Atualizado: 02/11/2026 · Registro: reunião de 30/10, C35, C50, C74, C45, C16 · Frente G da leva 2
+Situação: Prévia pronta: aguarda o ok do Gustavo · Onde: prévia HTML em `docs/prototipos/cores-por-tipo-de-serie.html`, **sem código do app até o ok do Gustavo** · Atualizado: 03/11/2026 · Registro: reunião de 30/10, C35, C50, C74, C45, C16 · Frente G da leva 2
 
 ## Objetivo
 O treinador pediu cor em vários momentos (tipo de série na execução do aluno, "uma bagunça", 58:00; Cluster como bloco
@@ -25,7 +25,7 @@ O treinador pediu cor em vários momentos (tipo de série na execução do aluno
 | D8 | Dados da prévia | a prévia em `docs/prototipos/` usa **só dados fictícios**; nenhum print nem texto da produção (a conta real do Saraiva não entra no repositório) | Gustavo |
 
 ## Passos
-- [ ] 1. Prévia HTML (390 e 1280 px; claro, areia, escuro; razões de contraste anotadas) de C35, C50/C74, C45 e C16 — executor-front — commit: —
+- [x] 1. Prévia HTML (390 e 1280 px; claro, areia, escuro; razões de contraste anotadas) de C35, C50/C74, C45 e C16 — executor-front — commit: 168e8467
 - [ ] 2. Gustavo aprova ou pede ajuste na prévia — Gustavo — commit: —
 - [ ] 3. Tokens por tipo e por divisão em `tema/tokens.ts` com teste de contraste (`tokens.test.ts`) — executor-front — commit: —
 - [ ] 4. Execução do aluno: cor por tipo; Cluster/Rest-pause como bloco único — executor-front — commit: —
@@ -38,6 +38,14 @@ O treinador pediu cor em vários momentos (tipo de série na execução do aluno
 
 ## Fora do escopo
 - Trocar a cor da marca. Código antes do ok da prévia. Print ou dado da produção na prévia.
+
+## Prévia (passo 1, 03/11)
+`docs/prototipos/cores-por-tipo-de-serie.html` (autocontido, dados fictícios). No topo, o bloco "O que decidir" com as 8
+escolhas para o passo 2; embaixo, a tabela de contraste calculada na própria página (fórmulas de `tokens.ts` e do teste da
+paleta das agendas). Paleta proposta (claro e areia / escuro): Ciano `#00698A`/`#3CC3D6` (Aquecimento), Azul
+`#1A5CBA`/`#62A0F8` (FS), Índigo `#4B3FBF`/`#A196F5` (WS), Violeta `#8A2DB0`/`#CF8DEE` (Top set, só na opção "por tipo"),
+Magenta `#A3237F`/`#F07AC8` (Back off). Mínimos: texto 5,02 (claro), 4,84 (areia), 5,23 (escuro); barra 4,54 / 4,29 /
+4,65; ΔE do status ≥ 45; ΔE do cinza ≥ 26. Ardósia, terra e oliva ficaram de fora (cinza, âmbar, verde).
 
 ## O que ficou para trás
 - —
