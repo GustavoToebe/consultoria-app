@@ -658,6 +658,8 @@ export const alterarMarca = (dados: {
   versao: number;
   diasAtualizacaoPadrao: number | null;
   textosFasesCiclo?: import('./tipos').TextosDasFases | null;
+  /** Ausente mantém a gravada. */
+  metaDoPeso?: import('./tipos').MetaDoPeso;
 }) => requisicao<ConsultoriaResponse>('/consultoria/marca', { metodo: 'PUT', corpo: dados });
 
 /** `arquivo`: FormData já montado (web: File; nativo: objeto com bytes(), `anexarArquivoDoAparelho`). */
