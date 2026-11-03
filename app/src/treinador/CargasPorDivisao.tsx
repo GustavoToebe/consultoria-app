@@ -61,7 +61,7 @@ export function CargasPorDivisao({ divisoes }: { divisoes: DivisaoRelatorio[] })
                   colunas={[
                     { chave: 'data', titulo: 'Data', largura: larguraData, principal: true, render: (l) => <Texto numerico style={estilos.forte}>{dataParaTela(l.data)}</Texto> },
                     { chave: 'carga', titulo: 'Carga', flex: 1.8, alinhar: 'direita', render: (l) => <Texto numerico style={estilos.carga}>{textoCarga(l)}</Texto> },
-                    { chave: 'reps', titulo: 'Reps', flex: 1.3, alinhar: 'direita', render: (l) => <Texto numerico>{l.etapas ?? l.repeticoes ?? '—'}</Texto> },
+                    { chave: 'reps', titulo: 'Reps', flex: 1.3, alinhar: 'direita', render: (l) => <Texto numerico>{l.etapas ?? l.repeticoes ?? (l.carga !== null ? 'sem repetições' : '—')}</Texto> },
                     { chave: 'series', titulo: 'Séries', flex: 0.8, alinhar: 'direita', render: (l) => <Texto numerico variante="suave">{l.series}</Texto> },
                   ]}
                   detalhe={(l) => detalheDaLinha(l, cores.atencao)}

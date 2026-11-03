@@ -86,8 +86,9 @@ export default function TreinoConcluido() {
     );
   }
 
-  const total = totalDeSeries(sessao);
-  const feitas = sessao.exercicios.reduce((n, e) => n + dia.feitas(e), 0);
+  // Só as séries de trabalho e pós-trabalho (D6), como a faixa e o "Concluir treino".
+  const total = totalDeSeries(sessao, dia.config.metodologia);
+  const feitas = sessao.exercicios.reduce((n, e) => n + dia.feitasNaContagem(e), 0);
   const frase = fraseDoNumero(aluno.totalConcluidos, data, hoje);
   const recordes = sessao.exercicios.flatMap((e) =>
     Object.values(dia.recordesDe(e)).flatMap((lista) => lista.map((r) => `${e.nome}: ${textoDoRecorde(r)}`)),

@@ -60,13 +60,14 @@ export default function SessaoAluno() {
     );
   }
 
-  const total = totalDeSeries(sessao);
-  const feitas = sessao.exercicios.reduce((n, e) => n + dia.feitas(e), 0);
+  // "x de y séries" conta só trabalho e pós-trabalho (D6); o exercício pendente continua olhando todas as séries.
+  const total = totalDeSeries(sessao, dia.config.metodologia);
+  const feitas = sessao.exercicios.reduce((n, e) => n + dia.feitasNaContagem(e), 0);
   const pendente = sessao.exercicios.find((e) => dia.feitas(e) < e.series.length);
   const datas = sessao.exercicios.length ? datasDaSessao(sessao, dia.treino.inicio, dia.treino.fim, hoje) : [];
   const abrir = (exercicioUid: string) => router.push(caminhoDaSessao(sessao.uid, data, exercicioUid));
   // "Concluir treino" no topo e no rodapé (some com a chave desligada): os dois leem a mesma conclusão.
-  const conclusao = { versaoId: dia.treino.versaoId, sessao, data, hoje, feita: (serieUid: string) => !!dia.registroDe(serieUid)?.concluida };
+  const conclusao = { versaoId: dia.treino.versaoId, sessao, data, hoje, metodologia: dia.config.metodologia, feita: (serieUid: string) => !!dia.registroDe(serieUid)?.concluida };
 
   return (
     <Tela bordas={['top']} largura={720}>

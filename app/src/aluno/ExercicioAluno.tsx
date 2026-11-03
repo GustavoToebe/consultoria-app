@@ -1,11 +1,13 @@
 import { ChevronDown, ChevronUp, PlayCircle, Repeat, Timer } from 'lucide-react-native';
-import { useEffect, useState, type ReactNode } from 'react';
-import { Linking, Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Linking, Pressable, StyleSheet, View, type TextInput } from 'react-native';
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import type { AnteriorDoExercicio, Configuracao, DemonstracaoDoAluno, EtapaRegistrada, ExercicioPlano, OrigemDaReferencia, Serie, UltimaCarga } from '../api/tipos';
 import { cargaIlegivel as cargaDeFormaDesconhecida } from '../dominio/modoDeCarga';
-import { ajustarCarga, calcularCargasDoExercicio, cargaQueContaComoReferencia, passoDaCarga, seriesSeguintesDependemDesta, textoDaOrigem, usaCargaDeTrabalho, type SerieCalculada } from '../dominio/cargas';
+import { ajustarCarga, calcularCargasDoExercicio, cargaQueContaComoReferencia, ehSerieDeTrabalho, passoDaCarga, seriesSeguintesDependemDesta, textoDaOrigem, usaCargaDeTrabalho, type SerieCalculada } from '../dominio/cargas';
+import { dicaDeCarga, TEXTO_PRIMEIRA_VEZ } from '../dominio/dicaDeCarga';
+import { aplicarEscolhaDoPainel, decidirCheck, type EscolhaDoPainel } from '../dominio/painelDoCheck';
 import { etapasDaSerie } from '../dominio/etapas';
 import { textosDeExecucao } from '../dominio/execucaoDoExercicio';
 import { dataCurta, dataParaTela, numeroParaTela } from '../dominio/formatos';
@@ -30,8 +32,9 @@ import { Texto } from '../ui/Texto';
 import { useMovimentoReduzido } from '../ui/useMovimentoReduzido';
 import { CartaoSerieComEtapas } from './CartaoSerieComEtapas';
 import { CartaoSerieDeCardio } from './CartaoSerieDeCardio';
-import { CabecalhoDaSerie, LinhaDaSugestao, LinhaDoUltimoRegistro, MetaDaSerie, RotuloDeHoje } from './PartesDaSerie';
-import { dicaDaCarga, ehExercicioDeCardio, selosDaSerie, textosDaSerie } from './serieDoAluno';
+import { PainelDoCheck } from './PainelDoCheck';
+import { CabecalhoDaSerie, DicaDoCampo, LinhaDoUltimoRegistro, MetaAoLado, RotuloDeHoje } from './PartesDaSerie';
+import { dicaDaCarga, ehExercicioDeCardio, partesDaMeta, selosDaSerie, textosDaSerie } from './serieDoAluno';
 
 export interface DadosSerie {
   carga: number | null;
@@ -89,11 +92,12 @@ export function ExercicioAluno(p: Props) {
   const [comoFazerAberto, abrirComoFazer] = useState(false);
   const base = p.cargaDoDia ?? p.ultima?.carga ?? null;
   // A base digitada chega gravada depois (B1, 30/10): a caixa mostra o que foi digitado até lá. A conta das séries continua
-  // usando só a base gravada (`base`), como antes.
+  // usando só a base gravada (`base`), como antes. A caixa só mostra o que o aluno digitou (D1, 02/11): a última vez é
+  // dica, nunca valor escrito no campo; sem nada digitado, as sugestões das séries continuam saindo dela.
   const [pendenteDaBase, setPendenteDaBase] = useState<ValorPendente<number | null> | undefined>(undefined);
   const baseAcompanhada = acompanharPendente(pendenteDaBase, p.cargaDoDia);
   if (baseAcompanhada !== pendenteDaBase) setPendenteDaBase(baseAcompanhada);
-  const baseNaCaixa = baseAcompanhada ? baseAcompanhada.valor : base;
+  const baseNaCaixa = baseAcompanhada ? baseAcompanhada.valor : p.cargaDoDia;
   const mudarBase = (v: number | null) => {
     setPendenteDaBase(digitarPendente(baseAcompanhada, v, p.cargaDoDia));
     p.aoMudarCargaDoDia(v);
@@ -169,7 +173,7 @@ export function ExercicioAluno(p: Props) {
           <Texto variante="rotulo">Carga de trabalho ({p.config.tipoTrabalho}) · {dataCurta(p.data)}</Texto>
           <View style={estilos.linhaPasso}>
             {passo !== null ? (
-              <BotaoDePasso sentido={-1} passo={passo} rotulo="carga de trabalho" aoAjustar={(s) => mudarBase(ajustarCarga(baseNaCaixa, null, passo, s))} />
+              <BotaoDePasso sentido={-1} passo={passo} rotulo="carga de trabalho" aoAjustar={(s) => mudarBase(ajustarCarga(baseNaCaixa, base, passo, s))} />
             ) : null}
             <CampoNumericoGrande
               rotulo="Carga de trabalho do dia"
@@ -179,7 +183,7 @@ export function ExercicioAluno(p: Props) {
               aoMudar={mudarBase}
             />
             {passo !== null ? (
-              <BotaoDePasso sentido={1} passo={passo} rotulo="carga de trabalho" aoAjustar={(s) => mudarBase(ajustarCarga(baseNaCaixa, null, passo, s))} />
+              <BotaoDePasso sentido={1} passo={passo} rotulo="carga de trabalho" aoAjustar={(s) => mudarBase(ajustarCarga(baseNaCaixa, base, passo, s))} />
             ) : null}
           </View>
           <Texto numerico variante="pequeno">
@@ -188,7 +192,7 @@ export function ExercicioAluno(p: Props) {
               : 'Sem registro anterior.'}
           </Texto>
           <Texto numerico variante="pequeno">
-            {`É o ponto de partida do dia. Depois que você registrar a ${p.config.tipoTrabalho} nesta sessão (com o ✓), as séries em "% da ${p.config.tipoTrabalho}" passam a sair dela.`}
+            {`É o ponto de partida do dia${p.cargaDoDia == null && p.ultima?.carga != null ? '; sem nada aqui, as sugestões saem da última vez' : ''}. Depois que você registrar a ${p.config.tipoTrabalho} nesta sessão (com o ✓), as séries em "% da ${p.config.tipoTrabalho}" passam a sair dela.`}
           </Texto>
         </Cartao>
       ) : null}
@@ -247,6 +251,8 @@ export function ExercicioAluno(p: Props) {
             ultimaDoExercicio={feitas === e.series.length - 1}
             recordes={p.recordes?.[c.serie.uid] ?? null}
             anterior={anterior(i)}
+            ultimaCarga={p.ultima}
+            baseDaUltimaVez={p.cargaDoDia == null && p.ultima?.carga != null}
             aoRegistrar={(d) => p.aoRegistrar(c.serie.uid, d)}
             aoIniciarPausa={p.aoIniciarPausa}
           />
@@ -274,6 +280,8 @@ function CartaoSerie({
   aoIniciarPausa,
   recordes,
   anterior,
+  ultimaCarga,
+  baseDaUltimaVez,
 }: {
   calculada: SerieCalculada;
   indice: number;
@@ -288,7 +296,7 @@ function CartaoSerie({
   descansoNaSerie: boolean;
   /** Passo dos botões + e − do peso; `null` esconde os botões (só a próxima série a fazer os mostra). */
   passo: number | null;
-  /** É a próxima série a fazer: mostra a dica da carga sugerida. */
+  /** É a próxima série a fazer: mostra o aviso de que as seguintes dependem desta. */
   ativa: boolean;
   registro: RegistroLocal | undefined;
   /** "Repetir 40 kg × 6": só quando a anterior tem a mesma prescrição e algo registrado (`repeticaoDaAnterior`). */
@@ -298,17 +306,29 @@ function CartaoSerie({
   aoIniciarPausa?: (segundos: number) => void;
   /** Recordes pessoais desta série na data (vazio ou nulo = nenhum). */
   recordes: Recorde[] | null;
-  /** O que foi feito nesta série da última vez ("60 kg × 8" ou "—"); nulo = sem a linha. */
+  /** O que foi feito nesta série da última vez ("60 kg × 8" ou "—"); nulo = sem a linha (chave do retorno desligada). */
   anterior: string | null;
+  /**
+   * Última carga de trabalho do exercício (`pacote.ultimasCargas` + aparelho; independe da chave do retorno, D7): é o
+   * "Última vez" da dica nas séries de trabalho. Nula = o exercício nunca teve carga de trabalho registrada.
+   */
+  ultimaCarga: UltimaCarga | null;
+  /** Sem base do dia gravada, a conta parte da última carga: a origem da dica diz "da última vez", não "da base do dia". */
+  baseDaUltimaVez: boolean;
 }) {
   const { cores } = useTema();
-  // Antes de gravar, a carga acompanha a sugestão até o aluno mexer; as repetições começam vazias.
-  const [cargaDigitada, setCargaDigitada] = useState<number | null | undefined>(undefined);
+  // Antes de gravar, os dois campos começam vazios (D1 e D3, 02/11): a sugestão é só dica ao lado, nunca valor no campo.
+  const [cargaDigitada, setCargaDigitada] = useState<number | null>(null);
   const [repsDigitadas, setRepsDigitadas] = useState<number | null>(null);
   // Texto que não é número ("abc") deixava marcar a série com o valor nulo: o ✓ fica travado até corrigir.
   const [cargaInvalida, setCargaInvalida] = useState(false);
   const [repsInvalidas, setRepsInvalidas] = useState(false);
   const invalido = cargaInvalida || repsInvalidas;
+  // Painel do ✓ (D2): aberto com a sugestão que ele pergunta; fecha ao escolher, ao digitar a carga ou com a série feita.
+  const [painel, setPainel] = useState<number | null>(null);
+  const campoDaCarga = useRef<TextInput>(null);
+  // Largura da área "Hoje": abaixo de LARGURA_UMA_LINHA a meta e o peso ficam numa linha e as repetições e o ✓ na de baixo.
+  const [largura, setLargura] = useState<number | null>(null);
   // Série já gravada: o número digitado só volta gravado depois (B1, 30/10). Até lá a caixa mostra o digitado, senão ela
   // voltava ao antigo e a tecla seguinte somava a ele ("5", "0" gravava 420). Some quando a gravação chega ou o registro muda por fora.
   // `undefined` no gravado = sem registro (o pendente cai); `null` = campo vazio gravado.
@@ -318,7 +338,7 @@ function CartaoSerie({
   const repsAcompanhadas = acompanharPendente(pendenteDasReps, registro?.repeticoes);
   if (cargaAcompanhada !== pendenteDaCarga) setPendenteDaCarga(cargaAcompanhada);
   if (repsAcompanhadas !== pendenteDasReps) setPendenteDasReps(repsAcompanhadas);
-  const carga = cargaIlegivel ? null : registro ? (valorExibido(cargaAcompanhada, registro.carga) ?? null) : cargaDigitada !== undefined ? cargaDigitada : calculada.sugestao;
+  const carga = cargaIlegivel ? null : registro ? (valorExibido(cargaAcompanhada, registro.carga) ?? null) : cargaDigitada;
   // Sem campo de peso: exercício sem carga ou série de forma de carga desconhecida (a meta continua mostrando o texto da carga).
   const semCampoDePeso = semCarga || cargaIlegivel;
   const reps = registro ? (valorExibido(repsAcompanhadas, registro.repeticoes) ?? null) : repsDigitadas;
@@ -332,19 +352,27 @@ function CartaoSerie({
   const s = calculada.serie;
   const numero = indice + 1;
   const textos = textosDaSerie(s, { tipoTrabalho, semCarga, metodologia, seriesDoExercicio, descansoPorSerie: descansoNaSerie });
+  const meta = partesDaMeta(textos.valorDaMeta);
   const selos = selosDaSerie(s, metodologia);
   const pausa = s.tecnica?.pausaSegundos != null && s.tecnica.pausaSegundos > 0 ? s.tecnica.pausaSegundos : null;
 
-  // De onde saiu o peso sugerido (A9): a frase troca o genérico "Peso sugerido pelo plano"; a dica fica para o que falta.
-  const origem = semCampoDePeso ? null : textoDaOrigem(calculada, { tipoTrabalho, metodologia, series: seriesDoExercicio });
-  const mostrarSugestao = !semCampoDePeso && !feita && calculada.sugestao != null;
-  const dica = ativa && !semCampoDePeso && !registro && !(mostrarSugestao && origem)
-    ? dicaDaCarga(s, { sugestao: calculada.sugestao, digitou: cargaDigitada !== undefined, tipoTrabalho, metodologia, seriesDoExercicio })
-    : null;
+  // Dica ao lado do campo (D1): "Sugestão: 60 kg · Última vez: 60 kg × 7". A "Última vez" é a da carga de trabalho do
+  // exercício (D7), então só entra nas séries de trabalho; nas outras a dica fica com a sugestão. "Primeira vez" só quando o
+  // exercício nunca teve carga registrada; o Back off sem a referência registrada diz o que falta.
+  const origemDoDominio = semCampoDePeso || calculada.sugestao == null ? null : textoDaOrigem(calculada, { tipoTrabalho, metodologia, series: seriesDoExercicio });
+  // Com a caixa da base vazia (D1), "da base do dia" não diria a verdade: a conta partiu da última carga.
+  const origem = baseDaUltimaVez && origemDoDominio ? origemDoDominio.replace('base do dia', 'última vez') : origemDoDominio;
+  const faltaReferencia = semCampoDePeso ? null : dicaDaCarga(s, { sugestao: calculada.sugestao, metodologia, seriesDoExercicio });
+  const dicaDoDominio = dicaDeCarga({ sugestaoKg: calculada.sugestao, ultima: ehSerieDeTrabalho(s) ? ultimaCarga : null, semCampoDePeso });
+  const dica = feita ? null : (faltaReferencia ?? (dicaDoDominio === TEXTO_PRIMEIRA_VEZ && ultimaCarga ? null : dicaDoDominio));
   // A carga só entra na conta das séries seguintes com o ✓ (regra de sempre, N15): a dica diz isso enquanto não foi marcada.
-  const avisoDoMarcar = !semCampoDePeso && !registro && (ativa || cargaDigitada !== undefined) && seriesSeguintesDependemDesta(seriesDoExercicio, indice);
+  const avisoDoMarcar = !semCampoDePeso && !registro && (ativa || cargaDigitada !== null) && seriesSeguintesDependemDesta(seriesDoExercicio, indice);
+
+  const decisao = decidirCheck({ feita, carga: semCampoDePeso ? null : carga, repeticoes: reps, sugestaoKg: calculada.sugestao, semCampoDePeso });
+  const painelAberto = painel !== null && !feita;
 
   const mudar = (parcial: Partial<DadosSerie>) => {
+    if ('carga' in parcial) setPainel(null);
     if (registro) {
       if ('carga' in parcial) setPendenteDaCarga(digitarPendente(cargaAcompanhada, parcial.carga ?? null, registro.carga));
       if ('repeticoes' in parcial) setPendenteDasReps(digitarPendente(repsAcompanhadas, parcial.repeticoes ?? null, registro.repeticoes));
@@ -356,10 +384,68 @@ function CartaoSerie({
     }
   };
 
+  // ✓: com a carga vazia e sugestão, abre o painel na tela; senão grava o que está nos campos (inclusive desmarcar).
+  const marcar = () => {
+    if (decisao.acao === 'PAINEL') {
+      setPainel(decisao.sugestaoKg);
+      return;
+    }
+    setPainel(null);
+    aoRegistrar(decisao.gravar);
+  };
+
+  const escolher = (escolha: EscolhaDoPainel) => {
+    if (painel === null) return;
+    const r = aplicarEscolhaDoPainel(escolha, painel, reps);
+    setPainel(null);
+    if (r.gravar) aoRegistrar(r.gravar);
+    else campoDaCarga.current?.focus();
+  };
+
+  const umaLinha = largura === null || largura >= LARGURA_UMA_LINHA;
+  const metaAoLado = (
+    <View style={umaLinha ? estilos.metaNaLinha : estilos.metaEmCima}>
+      <MetaAoLado repeticoes={meta.repeticoes} resto={meta.resto} descanso={textos.descanso} numero={numero} />
+    </View>
+  );
+  const campoDoPeso = semCampoDePeso ? null : (
+    <CampoNumericoGrande
+      ref={campoDaCarga}
+      rotulo="Peso"
+      rotuloOculto
+      rotuloAcessivel={`Peso da série ${numero}, em quilos`}
+      sufixo="kg"
+      valor={carga}
+      aoMudar={(v) => mudar({ carga: v })}
+      aoValidade={(v) => setCargaInvalida(!v)}
+    />
+  );
+  const repsEMarcar = (
+    <>
+      <CampoNumericoGrande
+        rotulo="Reps"
+        rotuloOculto
+        rotuloAcessivel={`Repetições da série ${numero}`}
+        sufixo="reps"
+        inteiro
+        valor={reps}
+        aoMudar={(v) => mudar({ repeticoes: v })}
+        aoValidade={(v) => setRepsInvalidas(!v)}
+      />
+      <BotaoMarcar
+        feito={feita}
+        ultimaDoExercicio={ultimaDoExercicio}
+        desabilitado={invalido}
+        semVibrar={decisao.acao === 'PAINEL'}
+        rotulo={invalido ? `Série ${numero} feita: corrija o número antes de marcar` : `Série ${numero} feita`}
+        aoTocar={marcar}
+      />
+    </>
+  );
+
   return (
     <Animated.View style={[estilos.serie, { borderColor: feita ? cores.sucesso : cores.borda }, fundo]}>
       <CabecalhoDaSerie numero={numero} tipo={selos.tipo} tecnica={selos.tecnica} recordes={recordes} naoRegistrada={!feita} />
-      <MetaDaSerie texto={textos.valorDaMeta} complemento={textos.descanso} />
       {textos.alvoExtra ? <Texto numerico variante="pequeno">Observação desta série: {textos.alvoExtra}</Texto> : null}
       {textos.amrap ? <Texto numerico variante="pequeno">AMRAP: faça o máximo de repetições que conseguir e anote quantas fez.</Texto> : null}
       {textos.tecnica ? (
@@ -377,38 +463,28 @@ function CartaoSerie({
         </Texto>
       ) : null}
       <RotuloDeHoje />
-      <View style={estilos.campos}>
-        {semCampoDePeso ? null : (
-          <CampoNumericoGrande
-            rotulo="Peso"
-            rotuloOculto
-            rotuloAcessivel={`Peso da série ${numero}, em quilos`}
-            sufixo="kg"
-            valor={carga}
-            aoMudar={(v) => mudar({ carga: v })}
-            aoValidade={(v) => setCargaInvalida(!v)}
-          />
+      {/* D5: a meta de repetições, grande, ao lado do campo de carga. Largo: meta, peso, reps e ✓ numa linha; estreito,
+          meta e peso em cima e reps e ✓ embaixo (para os números nos campos continuarem legíveis). */}
+      <View style={estilos.hoje} onLayout={(ev) => setLargura(ev.nativeEvent.layout.width)}>
+        {umaLinha ? (
+          <View style={estilos.linhaDosCampos}>
+            {metaAoLado}
+            {campoDoPeso}
+            {repsEMarcar}
+          </View>
+        ) : (
+          <>
+            <View style={estilos.linhaDosCampos}>
+              {metaAoLado}
+              {campoDoPeso}
+            </View>
+            <View style={estilos.linhaDosCampos}>{repsEMarcar}</View>
+          </>
         )}
-        <CampoNumericoGrande
-          rotulo="Reps"
-          rotuloOculto
-          rotuloAcessivel={`Repetições da série ${numero}`}
-          sufixo="reps"
-          inteiro
-          valor={reps}
-          aoMudar={(v) => mudar({ repeticoes: v })}
-          aoValidade={(v) => setRepsInvalidas(!v)}
-        />
-        <BotaoMarcar
-          feito={feita}
-          ultimaDoExercicio={ultimaDoExercicio}
-          desabilitado={invalido}
-          rotulo={invalido ? `Série ${numero} feita: corrija o número antes de marcar` : `Série ${numero} feita`}
-          aoTocar={() => aoRegistrar({ carga: semCampoDePeso ? null : carga, repeticoes: reps, concluida: !feita })}
-        />
       </View>
       {invalido ? <Texto variante="pequeno" cor={cores.perigo}>Corrija o número para marcar a série.</Texto> : null}
-      {mostrarSugestao ? <LinhaDaSugestao sugestao={calculada.sugestao!} origem={origem} /> : null}
+      {dica ? <DicaDoCampo dica={dica} origem={origem} numero={numero} /> : null}
+      {painelAberto ? <PainelDoCheck sugestaoKg={painel} numero={numero} aoEscolher={escolher} /> : null}
       {avisoDoMarcar ? <Texto numerico variante="pequeno">As séries seguintes só usam este peso depois que você marcar ✓.</Texto> : null}
       {!semCampoDePeso && passo !== null ? (
         <AjusteDeCarga passo={passo} rotulo={`peso da série ${numero}`}
@@ -418,11 +494,13 @@ function CartaoSerie({
         <Botao rotulo={repetir.rotulo} rotuloAcessivel={`${repetir.rotulo} da série ${indice} e marcar a série ${numero} como feita`} tipo="fantasma" Icone={Repeat}
           aoTocar={() => aoRegistrar({ carga: repetir.carga, repeticoes: repetir.repeticoes, concluida: true })} />
       ) : null}
-      {dica ? <Texto numerico variante="pequeno">{dica}</Texto> : null}
       {registro?.situacao === 'FALHOU' ? <Texto numerico variante="pequeno" cor={cores.perigo}>Não enviado: {registro.motivo}</Texto> : null}
     </Animated.View>
   );
 }
+
+/** Abaixo desta largura da área "Hoje" (celular de 390 px) a meta e o peso ficam numa linha e as reps e o ✓ na outra. */
+const LARGURA_UMA_LINHA = 440;
 
 const estilos = StyleSheet.create({
   exercicio: { gap: espaco(1.5) },
@@ -437,5 +515,8 @@ const estilos = StyleSheet.create({
   serie: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(1) },
   tecnica: { gap: espaco(1), alignItems: 'flex-start' },
   tecnicaTexto: { fontFamily: fontes.semi },
-  campos: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(1), maxWidth: 480 },
+  hoje: { gap: espaco(1), maxWidth: 560 },
+  linhaDosCampos: { flexDirection: 'row', alignItems: 'stretch', gap: espaco(1) },
+  metaNaLinha: { flexGrow: 1.3, flexShrink: 1, flexBasis: 0, minWidth: 0 },
+  metaEmCima: { flex: 1, minWidth: 0 },
 });

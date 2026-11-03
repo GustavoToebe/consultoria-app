@@ -11,7 +11,7 @@ import { semCargaNaSerieIlegivel } from '../dominio/modoDeCarga';
 import { normalizarTreino } from '../dominio/editorTreino';
 import { hojeIso } from '../dominio/formatos';
 import { recordesDoExercicio, seriesComRecorde, type Recorde } from '../dominio/recordesPessoais';
-import { podeRegistrarEm } from '../dominio/semana';
+import { podeRegistrarEm, seriesDaContagem } from '../dominio/semana';
 import { ultimaVez } from '../dominio/seriesAnteriores';
 import { useAluno } from '../offline/AlunoProvider';
 import { useSessao } from '../sessao/SessaoProvider';
@@ -44,6 +44,8 @@ export function useSessaoDoDia(uid: string | undefined, dataDaRota: string | und
 
   const registroDe = (serieUid: string) => (treino ? aluno.registroDe(treino.versaoId, serieUid, data) : undefined);
   const feitas = (e: ExercicioPlano) => e.series.filter((s) => registroDe(s.uid)?.concluida).length;
+  /** Feitas só entre as séries da contagem "x de y" (trabalho e pós-trabalho, D6); `feitas` segue contando todas. */
+  const feitasNaContagem = (e: ExercicioPlano) => seriesDaContagem(e, metodologia).filter((s) => registroDe(s.uid)?.concluida).length;
   const cargaDoDia = (e: ExercicioPlano) => aluno.cargasDeTrabalho[`${e.uid}|${data}`] ?? null;
   /** A divisão tem alguma série feita nesta data (o ✓ do chip em "Outras datas"). */
   const treinouEm = (d: string) =>
@@ -135,6 +137,7 @@ export function useSessaoDoDia(uid: string | undefined, dataDaRota: string | und
     config,
     registroDe,
     feitas,
+    feitasNaContagem,
     cargaDoDia,
     treinouEm,
     ultimaCarga,

@@ -24,10 +24,14 @@ export function textoCarga(l: LinhaCarga): string {
   return l.semCarga ? 'Sem carga' : '—';
 }
 
-/** Repetições da linha: os blocos da série por etapa ("4+4+4+2 = 14"), "6 reps" ou "—". */
+/**
+ * Repetições da linha: os blocos da série por etapa ("4+4+4+2 = 14"), "6 reps" ou "—". Com carga, a linha saiu de uma série
+ * de trabalho feita: sem repetições informadas é "sem repetições", não "—" (D4, 02/11).
+ */
 export function textoReps(l: LinhaCarga): string {
   if (l.etapas !== null) return l.etapas;
-  return l.repeticoes === null ? '—' : `${l.repeticoes} reps`;
+  if (l.repeticoes === null) return l.carga !== null ? 'sem repetições' : '—';
+  return `${l.repeticoes} reps`;
 }
 
 /** Última coluna: o volume do exercício no dia e, embaixo, as observações do aluno; "—" sem nenhum dos dois. */

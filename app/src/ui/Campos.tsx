@@ -1,5 +1,5 @@
 import { Switch } from '../components/ui/switch';
-import { useRef, useState } from 'react';
+import { useRef, useState, type Ref } from 'react';
 import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { type RegraDeData, erroDaData } from '../dominio/datasValidas';
@@ -179,10 +179,13 @@ export function CampoNumericoGrande({
   ajuda,
   rotuloOculto,
   aoValidade,
+  ref,
 }: {
   rotulo: string;
   valor: number | null;
   aoMudar: (valor: number | null) => void;
+  /** A caixa de texto, para quem precisa levar o foco a ela (o "Outra carga" do painel do ✓). */
+  ref?: Ref<TextInput>;
   inteiro?: boolean;
   sufixo?: string;
   /** Sem o rótulo em cima (a unidade dentro da caixa já diz o que é; o leitor de tela lê `rotuloAcessivel`). */
@@ -206,6 +209,7 @@ export function CampoNumericoGrande({
       {rotuloOculto ? null : <Texto variante="rotulo" cor={cores.texto}>{rotulo}</Texto>}
       <View style={[estilos.caixa, destaque && estilos.caixaDestaque, { backgroundColor: cores.campo, borderColor: corBorda, borderWidth: 1 + destaqueBorda, paddingHorizontal: espaco(1.5) - destaqueBorda }]}>
         <TextInput
+          ref={ref}
           accessibilityLabel={rotuloAcessivel ?? rotulo}
           aria-invalid={lido === undefined}
           value={texto}

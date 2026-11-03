@@ -1,6 +1,6 @@
-import type { Sessao } from '../api/tipos';
+import type { Configuracao, Sessao } from '../api/tipos';
 import { somarDias } from './formatos';
-import { totalDeSeries } from './semana';
+import { seriesDaContagem, totalDeSeries } from './semana';
 
 /**
  * Regras puras de "Concluir treino" (frente Engajamento, passo 0.1). Espelham as do servidor para o app nunca produzir
@@ -49,11 +49,16 @@ export function conclusaoForaDaJanela(data: string, hoje: string): boolean {
 
 /**
  * Séries previstas na sessão e quantas estão feitas. `feita` diz se a série (pelo `uid`) está concluída na data da
- * tela (o `registroDe(uid)?.concluida` do `useSessaoDoDia`).
+ * tela (o `registroDe(uid)?.concluida` do `useSessaoDoDia`). Com a `metodologia` (a da versão do treino), só contam as
+ * séries de trabalho e pós-trabalho (D6), no total e nas feitas; sem ela, todas.
  */
-export function contagemDeSeries(sessao: Sessao, feita: (serieUid: string) => boolean): { total: number; feitas: number } {
-  const feitas = sessao.exercicios.reduce((n, e) => n + e.series.filter((s) => feita(s.uid)).length, 0);
-  return { total: totalDeSeries(sessao), feitas };
+export function contagemDeSeries(
+  sessao: Sessao,
+  feita: (serieUid: string) => boolean,
+  metodologia?: Configuracao | null,
+): { total: number; feitas: number } {
+  const feitas = sessao.exercicios.reduce((n, e) => n + seriesDaContagem(e, metodologia).filter((s) => feita(s.uid)).length, 0);
+  return { total: totalDeSeries(sessao, metodologia), feitas };
 }
 
 /**
