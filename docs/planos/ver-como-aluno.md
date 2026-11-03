@@ -35,7 +35,10 @@ gravado e os botões de marcar não fazem nada.
 - Sem histórico do aluno: a prévia não mostra a última carga, os recordes nem o "Anterior".
 - A prévia mostra o rascunho como está, mesmo que ele ainda não passe na publicação.
 - Sem a demonstração do exercício (imagem) e sem a água na prévia.
-- Na prévia os botões −/+ da carga (`ui/AjusteDeCarga`) e os campos de peso e repetições continuam ativos: mudam só o que está na tela e não gravam nada (o ✓ e o "Repetir" ficam desabilitados).
+- Na prévia os botões −/+ da carga (`ui/AjusteDeCarga`) e os campos de peso e repetições continuam ativos: mudam só o que está na tela e não gravam nada (o ✓ fica desabilitado e o "Repetir" não aparece, porque não há registro anterior).
 - Fora da prévia: "Outras datas", Próximo/Anterior entre exercícios, "Concluir treino", a `FaixaDoTreino` e a demonstração do exercício.
+- O passo dos −/+ na prévia é fixo em 0,5 kg (`BASE_SEM_PACOTE`); o aluno vê o `arredondamentoKg` da consultoria, que pode ser outro.
+- Se o `GET /alimentos/fatores` falhar, a prévia da dieta inteira fica só com o erro e o "Tentar de novo" (daria para mostrar sem os fatores, com um aviso).
+- O e2e confere só a rede; um retrato das chaves do `localStorage` antes e depois da Folha prenderia também o "nada gravado no aparelho" (revisão, opcional).
 - A ordem dos títulos (h2/h3) dentro da Folha não foi revista para o leitor de tela.
 - D6 (botão também para quem só lê o plano) sem e2e próprio; a prévia não foi conferida no aparelho nativo, só na web (390 e 1280 px).
