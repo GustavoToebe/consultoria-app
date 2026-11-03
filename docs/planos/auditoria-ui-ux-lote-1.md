@@ -75,6 +75,7 @@ O escopo foi definido pelo Gustavo em 03/11 e só mexe no app; nada muda na API.
 - [x] 2. PR A: a a e e j a l, com e2e em 390 e 1280 px (inclui o `exercicio-aluno`) — commit: `ebd3ac9d`
 - [x] 2b. PR A mesclado na `main` (#54, squash `3d65e04b`)
 - [x] 3. PR B: f, g, h e i, mais D7 e D8, na branch `auditoria-ui-ux-lote-1-b` saída da `main` em `3d65e04b` — commit: `60074116`
+- [x] 4. Responsável no `FormAluno`: na edição, sem responsável o campo abre vazio; a opção "Sem responsável" deixa tirar de propósito. Salvar sem mexer não grava quem está editando — commit: este
 
 ## Fora do escopo
 - O lote 2 virou as frentes paralelas de 03/11 (aluno, peças, treinador e, depois do merge do PR B, `auditoria-ficha`), cada uma com plano próprio em `docs/planos/`. C3 ficou com a frente 4 (`auditoria-pecas`); C8 (paginação da Biblioteca) e os cinco erros engolidos, com a frente 5 (treinador).
@@ -89,4 +90,4 @@ O escopo foi definido pelo Gustavo em 03/11 e só mexe no app; nada muda na API.
 - PR B: "Seu envio" na atualização do aluno ficou de fora: o texto vem do seed da V001 na API (questionário padrão), não do app; trocar pede migration nova.
 - PR B, e2e completo (03/11): 673 passaram, 8 pulados e 1 falha intermitente em `links-do-menu.spec.ts:36` (o `expect.poll` não viu a guia nova do Ctrl+clique em 10 s, com a máquina carregada por outras frentes); o spec sozinho pela trava, `--repeat-each=3`, passou 6 de 6. O PR B não mexe nesse caminho (o `LinkTexto` deixa o Ctrl+clique para o navegador).
 - PR B: a guarda de saída agora vale em todo `ItemDeLista`/`LinhaDaLista`/`LinkTexto` que abre tela (D7). No celular, "Criar e abrir" e "Replicar e abrir" marcavam a pergunta dentro da Folha que estava fechando: a Folha marca o fechamento e o diálogo vai para a de baixo, ou para a raiz. Coberto por teste jest (`Platform.OS` `android`); ainda precisa ser conferido no APK. Falta olhar no celular o `history.go(-1)` com uma Folha aberta e o tema escuro das telas públicas com erro no campo.
-- PR B, conferências que já existiam na `main`: aluno sem responsável no `FormAluno` passa a ser de quem editou ao salvar sem mexer; a inscrição (foco no primeiro erro e erro da `Escolha`) não coube no padrão das telas públicas. As duas estão em "Pendências soltas". O assistente da importação pergunta depois de escolher um destino entre vários; a lista do histórico não pergunta sem nada pendente.
+- PR B, conferências que já existiam na `main`: o responsável vazio do `FormAluno` foi corrigido neste commit (a edição abre vazia e há "Sem responsável"). A inscrição (foco no primeiro erro e erro da `Escolha`) continua em "Pendências soltas". O assistente da importação pergunta depois de escolher um destino entre vários; a lista do histórico não pergunta sem nada pendente.

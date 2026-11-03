@@ -156,7 +156,6 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | N24/N25 cores: cor da marca só para destaque e ação, tom próprio para erro e alerta, cinza para desabilitado; uma cor por situação, igual no aluno e no treinador; regra escrita em `docs/design-e-front.md`. Frente própria ("cores", executor-front) depois do merge da frente 4 (`auditoria-pecas`, dona do `tema/tokens.ts`) | Claude, depois do merge da frente 4 | auditoria-ui-ux 2ª passada (Gustavo, 03/11) |
 | N29 menu do treinador em grupos com título (Alunos e acompanhamento / Negócio / Configurações): vai na frente 6 (`auditoria-ficha`), junto do D11 | Claude, na frente 6 | auditoria-ui-ux 2ª passada (Gustavo, 03/11) |
 | Verificações que o Playwright não cobre: anamnese num celular de verdade, leitor de tela (TalkBack/VoiceOver) e contraste medido com ferramenta | Gustavo, com o APK | auditoria-ui-ux 2ª passada (Gustavo, 03/11) |
-| FormAluno: aluno sem responsável abre a edição já com o id de quem está editando; salvar sem mexer grava essa pessoa. Já era assim na `main` antes do PR B | Claude, quando o Gustavo pedir | auditoria-ui-ux-lote-1 (PR B, conferência) |
 | Inscrição pública: foco no primeiro erro e erro nos campos de escolha. `Escolha` não tem `erro` e as outras telas públicas só mostram erro no `Campo`; sem componente novo | Claude, quando o Gustavo pedir | auditoria-ui-ux-lote-1 (PR B) |
 
 ## Limitações aceitas (não são pendência)
