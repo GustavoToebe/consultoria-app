@@ -1,6 +1,6 @@
 import type { Page, Route } from '@playwright/test';
 
-import type { EuResponse, LoginResponse, Marca, PesoSugeridoDaPasta, PlanoPuladoNaCopia, PlanoResumo, TipoPlano, UsuarioResumo } from '../src/api/tipos';
+import type { EuResponse, Exercicio, LoginResponse, Marca, PesoSugeridoDaPasta, PlanoPuladoNaCopia, PlanoResumo, TipoPlano, UsuarioResumo } from '../src/api/tipos';
 
 /**
  * API falsa dos testes de tela (`page.route` em `/api/**`, a mesma origem da web servida). As respostas vão por
@@ -290,5 +290,24 @@ export function rotasDaPasta(p: PastaFalsa): RespostasApi {
       }
       return json(route, p.pesoSugerido ?? { pesoKg: null, data: null });
     },
+  };
+}
+
+/**
+ * `GET /exercicios/pagina` como o servidor responde: busca sem acento em nome e grupo, grupos repetidos (OU), páginas de
+ * `tamanho` e `grupos` de toda a lista. Guarda cada consulta recebida em `consultas`, para o teste conferir o que a tela pediu.
+ */
+export function paginaDeExerciciosFalsa(todos: Exercicio[], consultas: string[] = []): Resposta {
+  const semAcento = (t: string) => t.normalize('NFD').replace(/\p{Mn}/gu, '').toLowerCase();
+  return (pedido, route) => {
+    consultas.push(pedido.busca.toString());
+    const termo = semAcento(pedido.busca.get('busca') ?? '');
+    const escolhidos = pedido.busca.getAll('grupo');
+    const tamanho = Number(pedido.busca.get('tamanho') ?? 30);
+    const pagina = Number(pedido.busca.get('pagina') ?? 0);
+    const casaram = todos.filter((e) => (escolhidos.length === 0 || escolhidos.includes(e.grupoMuscular?.trim() ?? ''))
+      && (!termo || semAcento(`${e.nome} ${e.grupoMuscular ?? ''}`).includes(termo)));
+    const grupos = [...new Set(todos.map((e) => e.grupoMuscular?.trim()).filter((g): g is string => !!g))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    return json(route, { itens: casaram.slice(pagina * tamanho, (pagina + 1) * tamanho), total: casaram.length, grupos });
   };
 }
