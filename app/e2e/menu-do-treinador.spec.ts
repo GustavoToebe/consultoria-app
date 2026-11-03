@@ -52,14 +52,20 @@ test('PC (1280×720): o passeio traz para a tela o item que a lista rolada escon
   await abrir(page, 1280, 720, TODAS, { passeioVisto: false });
   const passeio = page.getByRole('dialog');
   await expect(passeio.getByText('Boas-vindas')).toBeVisible();
-  for (let i = 0; i < 20 && !(await passeio.getByText('Importação', { exact: true }).isVisible()); i++) {
+  const passos: string[] = [];
+  for (let i = 0; i < 20; i++) {
+    const nome = ((await passeio.getAttribute('aria-label')) ?? '').replace('Passeio pelo menu: ', '');
+    passos.push(nome);
+    if (nome === 'Importação' || nome === 'Ajuda') await expect(menu(page).getByRole('link', { name: nome, exact: true })).toBeInViewport();
+    if (nome === 'Ajuda') break;
     await passeio.getByRole('button', { name: 'Próximo' }).click();
+    await expect(passeio).not.toHaveAttribute('aria-label', `Passeio pelo menu: ${nome}`);
   }
-  await expect(passeio).toHaveAttribute('aria-label', 'Passeio pelo menu: Importação');
-  await expect(menu(page).getByRole('link', { name: 'Importação', exact: true })).toBeInViewport();
-  await passeio.getByRole('button', { name: 'Próximo' }).click();
-  await expect(passeio).toHaveAttribute('aria-label', 'Passeio pelo menu: Ajuda');
-  await expect(menu(page).getByRole('link', { name: 'Ajuda', exact: true })).toBeInViewport();
+  expect(passos).toContain('Importação');
+  // O passeio segue a ordem do menu (D6): os passos que apontam um item vêm na mesma ordem dos links.
+  const links = await menu(page).getByRole('link').evaluateAll((ls) => ls.map((l) => l.getAttribute('aria-label') ?? ''));
+  const doMenu = passos.filter((p) => links.includes(p));
+  expect(doMenu).toEqual(links.filter((l) => doMenu.includes(l)));
 });
 
 test('PC (1280×720): o item da tela aberta não fica cortado no fim da lista', async ({ page }) => {
@@ -87,8 +93,8 @@ for (const [largura, altura] of [[900, 720], [768, 1024]] as const) {
       expect(rotulo!.visivel, `${rotulo!.texto} visível`).toBe(true);
       expect(rotulo!.cabe, `${rotulo!.texto} sem reticências`).toBe(true);
     }
-    // "Planejamento" usa o rótulo curto da barra do celular; o leitor de tela ouve o nome inteiro.
-    expect(await rotuloDoLink(menu(page).getByRole('link', { name: 'Planejamento', exact: true }))).toMatchObject({ texto: 'Planos' });
+    // "Planejamento" usa o rótulo curto da barra do celular; o nome acessível começa pelo visível (WCAG 2.5.3) e diz o inteiro.
+    expect(await rotuloDoLink(menu(page).getByRole('link', { name: 'Planos (Planejamento)', exact: true }))).toMatchObject({ texto: 'Planos' });
     // Sem título no trilho (só o fio), mas o grupo continua com nome para o leitor de tela.
     await expect(menu(page).getByText('Negócio', { exact: true })).toHaveCount(0);
     await expect(menu(page).getByRole('group', { name: 'Negócio' })).toHaveCount(1);
@@ -118,7 +124,7 @@ test('PC minimizado por escolha: só ícone e a dica ao passar o mouse, como ant
 test('celular (390): a barra inferior é a de antes, sem grupos', async ({ page }) => {
   const { errosDaPagina } = await abrir(page, 390, 844);
   const nomes = await menu(page).getByRole('link').evaluateAll((ls) => ls.map((l) => l.getAttribute('aria-label')));
-  expect(nomes).toEqual(['Início', 'Alunos', 'Biblioteca', 'Planejamento', 'Perfil']);
+  expect(nomes).toEqual(['Início', 'Alunos', 'Biblioteca', 'Planos (Planejamento)', 'Perfil']);
   await expect(menu(page).getByText('Planos', { exact: true })).toBeVisible();
   await expect(menu(page).getByRole('group')).toHaveCount(0);
   expect(errosDaPagina).toEqual([]);

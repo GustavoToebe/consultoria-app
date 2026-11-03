@@ -16,7 +16,7 @@ import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, LARGURA_MENU_EXPANDIDO, LARGURA_MENU_LATERAL, RAIO } from '../tema/tokens';
 import { useSaidaGuardada } from './GuardaDeSaida';
 import { MarcaTitulo } from './MarcaTitulo';
-import { useAlvoDoPasseio } from './Passeio';
+import { ROLAGEM_DO_MENU, useAlvoDoPasseio } from './Passeio';
 import { propsDeLink } from './propsDeLink';
 import { sobre } from './sobre';
 import { Texto } from './Texto';
@@ -106,7 +106,7 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
           {/* A lista rola quando não cabe na altura. No PC minimizado não: a dica sai para fora do trilho e a rolagem a cortaria.
               A barra de rolagem aparece só no menu aberto: no trilho ela comeria a largura dos rótulos (o item cortado embaixo já avisa). */}
           {recolhido && !trilho ? <View style={estilos.blocos}>{blocos}</View> : (
-            <ScrollView style={estilos.rolagem} showsVerticalScrollIndicator={!trilho} contentContainerStyle={[estilos.blocos, estilos.folgaDoFoco]}>{blocos}</ScrollView>
+            <ScrollView nativeID={ROLAGEM_DO_MENU} style={estilos.rolagem} showsVerticalScrollIndicator={!trilho} contentContainerStyle={[estilos.blocos, estilos.folgaDoFoco]}>{blocos}</ScrollView>
           )}
           {trilho ? null : (
             <Pressable
@@ -162,6 +162,8 @@ function ItemNavegacao({ item, lateral, recolhido, trilho }: { item: ItemMenu; l
   // Trilho do tablet (768 a 1023): o rótulo curto embaixo do ícone, como na barra inferior; tablet de toque não tem "passar o mouse".
   const rotuloEmbaixo = !!lateral && !!trilho;
   const rotulo = !lateral || rotuloEmbaixo ? rotuloCurtoDoMenu(item) : item.rotulo;
+  // WCAG 2.5.3: o nome acessível começa pelo texto visível ("Planos (Planejamento)").
+  const nomeAcessivel = rotulo === item.rotulo ? item.rotulo : `${rotulo} (${item.rotulo})`;
   // No PC minimizado (só ícones) o nome aparece ao passar o mouse ou ao focar pelo teclado: ícones parecidos se confundem.
   const comDica = !!lateral && !!recolhido && !trilho;
   const no = useRef<View | null>(null);
@@ -177,7 +179,7 @@ function ItemNavegacao({ item, lateral, recolhido, trilho }: { item: ItemMenu; l
     <Pressable
       ref={ref}
       accessibilityRole="link"
-      accessibilityLabel={ponto ? `${item.rotulo}, pendência` : item.rotulo}
+      accessibilityLabel={ponto ? `${nomeAcessivel}, pendência` : nomeAcessivel}
       accessibilityState={{ selected: ativo }}
       // O leitor de tela da web não recebe o `selected` de um link: `aria-current` diz qual é a página atual.
       aria-current={ativo ? 'page' : undefined}
