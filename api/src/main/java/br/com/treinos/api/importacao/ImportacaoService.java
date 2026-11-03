@@ -107,7 +107,7 @@ public class ImportacaoService {
     public Colunas colunas(String destino, String nome, byte[] bytes, int aba, int linhaDoCabecalho) {
         exigir(destino);
         conferirLinhaDoCabecalho(linhaDoCabecalho);
-        var planilha = LeitorDePlanilha.ler(nome, bytes, aba);
+        var planilha = LeitorDePlanilha.ler(nome, bytes, aba, linhaDoCabecalho);
         List<String> colunas = new ArrayList<>();
         int posicaoDoCabecalho = ConfiguracaoDaImportacao.posicaoDoCabecalho(planilha, linhaDoCabecalho);
         if (posicaoDoCabecalho >= 0) {
@@ -150,7 +150,7 @@ public class ImportacaoService {
         exigir(destino);
         ConfiguracaoDaImportacao config = configuracao(destino, configuracao);
         AjustesDaImportacao ajustes = ajustes(configuracao);
-        var planilha = ajustes.aplicar(LeitorDePlanilha.ler(nome, bytes, config.aba()), config.linhaDoCabecalho());
+        var planilha = ajustes.aplicar(LeitorDePlanilha.ler(nome, bytes, config.aba(), config.linhaDoCabecalho()), config.linhaDoCabecalho());
         conferirTamanho(planilha, config);
         var resultado = gravador.processar(destino, planilha, config, null, false);
         int mostrados = Math.min(ERROS_NA_PREVIA, resultado.erros().size());
@@ -165,7 +165,7 @@ public class ImportacaoService {
         exigir(destino);
         ConfiguracaoDaImportacao config = configuracao(destino, configuracao);
         AjustesDaImportacao ajustes = ajustes(configuracao);
-        var planilha = ajustes.aplicar(LeitorDePlanilha.ler(nome, bytes, config.aba()), config.linhaDoCabecalho());
+        var planilha = ajustes.aplicar(LeitorDePlanilha.ler(nome, bytes, config.aba(), config.linhaDoCabecalho()), config.linhaDoCabecalho());
         conferirTamanho(planilha, config);
         String calculado = hash(bytes, destino, config, ajustes);
         if (hash == null || !MessageDigest.isEqual(calculado.getBytes(StandardCharsets.UTF_8),

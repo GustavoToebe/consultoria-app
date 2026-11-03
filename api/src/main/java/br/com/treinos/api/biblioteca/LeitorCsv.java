@@ -35,11 +35,16 @@ public final class LeitorCsv {
      * Passou de {@code maximo} linhas (contando a primeira) recusa o arquivo.
      */
     public static List<Linha> lerLivre(String texto, int maximo) {
+        return lerLivre(texto, maximo, 1);
+    }
+
+    /** Como {@link #lerLivre(String, int)}, com o separador decidido pela linha do cabeçalho escolhida (1 = a primeira). */
+    public static List<Linha> lerLivre(String texto, int maximo, int linhaDoCabecalho) {
         String normalizado = normalizar(texto);
         if (normalizado.isBlank()) {
             throw new BadRequestException("O arquivo está vazio.");
         }
-        return registros(normalizado, separador(normalizado), maximo, "O arquivo passa de 5.000 linhas.").stream()
+        return registros(normalizado, separador(normalizado, linhaDoCabecalho), maximo, "O arquivo passa de 5.000 linhas.").stream()
                 .map(l -> new Linha(l.numero(), l.campos().stream().map(String::trim).toList()))
                 .toList();
     }
@@ -49,7 +54,7 @@ public final class LeitorCsv {
         if (normalizado.isBlank()) {
             throw new BadRequestException("O arquivo está vazio.");
         }
-        char separador = separador(normalizado);
+        char separador = separador(normalizado, 1);
         // O cabeçalho conta como o primeiro registro; os de dados passam de LINHAS_MAXIMAS recusam o arquivo.
         List<Linha> registros = registros(normalizado, separador, LINHAS_MAXIMAS + 1,
                 "Máximo de " + LINHAS_MAXIMAS + " linhas por importação.");
@@ -70,13 +75,16 @@ public final class LeitorCsv {
         return t.replace("\r\n", "\n").replace('\r', '\n').strip();
     }
 
-    /** Decidido pela primeira linha, sem contar o que está entre aspas (a linha só termina fora delas). */
-    private static char separador(String normalizado) {
+    /**
+     * Decidido pela linha do cabeçalho (a primeira quando não há outra), sem contar o que está entre aspas (a linha só
+     * termina fora delas). Linha em branco vale a próxima com texto; número fora do arquivo vale a primeira.
+     */
+    private static char separador(String normalizado, int linhaDoCabecalho) {
         int pontoEVirgula = 0;
         int virgula = 0;
         boolean entreAspas = false;
         boolean inicioDeCampo = true;
-        for (int i = 0; i < normalizado.length(); i++) {
+        for (int i = inicioDaLinha(normalizado, linhaDoCabecalho); i < normalizado.length(); i++) {
             char c = normalizado.charAt(i);
             if (entreAspas) {
                 if (c == '"') {
@@ -96,6 +104,26 @@ public final class LeitorCsv {
             }
         }
         return pontoEVirgula >= virgula ? ';' : ',';
+    }
+
+    private static int inicioDaLinha(String texto, int linha) {
+        int inicio = 0;
+        for (int n = 1; n < linha; n++) {
+            int quebra = texto.indexOf('\n', inicio);
+            if (quebra < 0) {
+                return 0;
+            }
+            inicio = quebra + 1;
+        }
+        // Linha em branco: vale a próxima com texto (a normalização já tirou as do fim).
+        while (inicio < texto.length()) {
+            int quebra = texto.indexOf('\n', inicio);
+            if (quebra < 0 || !texto.substring(inicio, quebra).isBlank()) {
+                break;
+            }
+            inicio = quebra + 1;
+        }
+        return inicio;
     }
 
     /**

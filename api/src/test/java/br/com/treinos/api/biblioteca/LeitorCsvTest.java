@@ -95,4 +95,20 @@ class LeitorCsvTest {
         assertThat(tabela.linhas().get(0).campos()).containsExactly("Ana", "a\nb");
         assertThat(tabela.linhas().get(1).numero()).isEqualTo(4);
     }
+
+    @Test
+    void separadorSaiDaLinhaDoCabecalhoEscolhida() {
+        // Título com vírgulas na linha 1 e cabeçalho com ponto e vírgula na linha 3.
+        String texto = "Alunos, atualizado em 03/11, versão 2, ok\n\nnome;email;tel\nAna;a@e.com;1\n";
+
+        var linhas = LeitorCsv.lerLivre(texto, 100, 3);
+        assertThat(linhas.get(1).campos()).containsExactly("nome", "email", "tel");
+        assertThat(linhas.get(2).campos()).containsExactly("Ana", "a@e.com", "1");
+
+        // Sem informar a linha, vale a primeira (comportamento de sempre).
+        assertThat(LeitorCsv.lerLivre(texto, 100).get(1).campos()).hasSize(1);
+        // Linha fora do arquivo ou 0 (sem cabeçalho) volta à primeira.
+        assertThat(LeitorCsv.lerLivre(texto, 100, 99).get(0).campos()).hasSize(4);
+        assertThat(LeitorCsv.lerLivre(texto, 100, 0).get(0).campos()).hasSize(4);
+    }
 }
