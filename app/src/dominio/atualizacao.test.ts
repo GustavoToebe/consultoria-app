@@ -170,5 +170,7 @@ describe('fraseDeTreinosNoPeriodo (N17)', () => {
   it('sem média só os treinos; sem dado do período, "—"', () => {
     expect(fraseDeTreinosNoPeriodo(3, null)).toBe('3 treinos registrados no período');
     expect(fraseDeTreinosNoPeriodo(null, null)).toBe('Treinos registrados no período: —');
+    expect(fraseDeTreinosNoPeriodo(undefined, undefined)).toBe('Treinos registrados no período: —');
+    expect(fraseDeTreinosNoPeriodo(3, undefined)).toBe('3 treinos registrados no período');
   });
 });

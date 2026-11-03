@@ -64,12 +64,17 @@ function horaPorExtenso(hhmm: string): string {
   return `${Number(m[1])}h${m[2] === '00' ? '' : m[2]}`;
 }
 
+/** "a" concorda com a hora: a 0h e a 1h são singular ("à 1h", "da 1h"), as outras plural ("às 9h", "das 9h"). */
+const singular = (hhmm: string) => /^0?[01]:/.test(hhmm);
+
 /**
  * O horário no nome acessível do compromisso: "das 9h às 10h" quando há fim, e só o início ("09:00") quando não há,
- * como era antes de existir o fim.
+ * como era antes de existir o fim. shortcut: o fim no dia seguinte ("das 23h às 0h") não é indicado; dizer "do dia
+ * seguinte" quando a agenda tiver compromisso que vira o dia.
  */
 export function horarioNoRotuloDoCompromisso(hora: string, horaFim?: string | null): string {
-  return horaFim ? `das ${horaPorExtenso(hora)} às ${horaPorExtenso(horaFim)}` : hora;
+  if (!horaFim) return hora;
+  return `${singular(hora) ? 'da' : 'das'} ${horaPorExtenso(hora)} ${singular(horaFim) ? 'à' : 'às'} ${horaPorExtenso(horaFim)}`;
 }
 
 /**

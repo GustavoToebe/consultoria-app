@@ -138,8 +138,8 @@ export const podeResponderAtualizacao = (a: Atualizacao, hoje: string) =>
  * N17: "1 treino registrado no período (≈0,2 por semana)". Conta os dias com treino registrado no app, que é o que a
  * API sabe; sem o dado do período, "—" (nunca zero inventado). A média só aparece quando a API a manda.
  */
-export function fraseDeTreinosNoPeriodo(diasComTreino: number | null, mediaPorSemana: number | null): string {
-  if (diasComTreino === null) return 'Treinos registrados no período: —';
+export function fraseDeTreinosNoPeriodo(diasComTreino: number | null | undefined, mediaPorSemana: number | null | undefined): string {
+  if (diasComTreino == null) return 'Treinos registrados no período: —';
   const quantos = diasComTreino === 1 ? '1 treino registrado' : diasComTreino === 0 ? 'Nenhum treino registrado' : `${diasComTreino} treinos registrados`;
-  return `${quantos} no período${mediaPorSemana === null ? '' : ` (≈${numeroParaTela(mediaPorSemana, 1)} por semana)`}`;
+  return `${quantos} no período${mediaPorSemana == null ? '' : ` (≈${numeroParaTela(mediaPorSemana, 1)} por semana)`}`;
 }

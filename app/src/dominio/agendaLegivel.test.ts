@@ -62,7 +62,13 @@ describe('horarioNoRotuloDoCompromisso', () => {
   it('com fim: das X às Y, sem zero à esquerda e sem minutos zerados', () => {
     expect(horarioNoRotuloDoCompromisso('09:00', '10:00')).toBe('das 9h às 10h');
     expect(horarioNoRotuloDoCompromisso('09:30', '10:45')).toBe('das 9h30 às 10h45');
-    expect(horarioNoRotuloDoCompromisso('15:00', '00:30')).toBe('das 15h às 0h30');
+    expect(horarioNoRotuloDoCompromisso('15:00', '00:30')).toBe('das 15h à 0h30');
+    expect(horarioNoRotuloDoCompromisso('23:00', '00:00')).toBe('das 23h à 0h');
+  });
+  it('concorda com a 0h e a 1h (singular)', () => {
+    expect(horarioNoRotuloDoCompromisso('01:00', '02:00')).toBe('da 1h às 2h');
+    expect(horarioNoRotuloDoCompromisso('00:30', '01:00')).toBe('da 0h30 à 1h');
+    expect(horarioNoRotuloDoCompromisso('11:00', '12:00')).toBe('das 11h às 12h');
   });
   it('sem fim: só o início, como veio', () => {
     expect(horarioNoRotuloDoCompromisso('09:00')).toBe('09:00');

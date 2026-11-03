@@ -15,7 +15,7 @@ public interface ExercicioRepository extends JpaRepository<Exercicio, UUID> {
     List<Exercicio> buscarAtivos(String padrao);
 
     /** Todos os ativos da consultoria (o isolamento é do {@code @TenantId}); a página filtra em memória, sem acento. */
-    @Query("select e from Exercicio e where e.ativo = true order by lower(e.nome)")
+    @Query("select e from Exercicio e where e.ativo = true order by lower(e.nome), e.id")
     List<Exercicio> todosAtivos();
 
     @Query("select count(e) > 0 from Exercicio e where e.ativo = true and lower(e.nome) = :nome and e.id <> :exceto")

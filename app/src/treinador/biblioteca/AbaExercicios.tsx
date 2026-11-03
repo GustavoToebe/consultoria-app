@@ -24,7 +24,7 @@ import { espaco } from '../../tema/tokens';
 import { erroDoVideo } from '../../dominio/video';
 import { MODALIDADES } from '../../dominio/modalidades';
 import { DemonstracaoDoExercicio } from '../../ui/DemonstracaoDoExercicio';
-import { marcadosExistentes } from '../../dominio/selecaoMultiplaSuspensa';
+import { gruposDaConsulta, marcadosExistentes } from '../../dominio/selecaoMultiplaSuspensa';
 import { BarraDaBiblioteca } from './BarraDaBiblioteca';
 import { ImagemDoExercicioEditor } from './ImagemDoExercicioEditor';
 
@@ -42,21 +42,25 @@ export function AbaExercicios() {
   const [pagina, setPagina] = useState(0);
   const [gruposMarcados, setGruposMarcados] = useState<Set<string>>(new Set());
   const buscaAtrasada = useAtrasado(busca.trim());
-  const gruposEscolhidos = [...gruposMarcados].sort();
+  // Os grupos da última resposta: a consulta só leva os marcados que ainda existem (senão "Todos os grupos" na tela e 0 no servidor).
+  const [gruposConhecidos, setGruposConhecidos] = useState<string[]>([]);
+  const gruposEscolhidos = gruposDaConsulta(gruposMarcados, gruposConhecidos);
   // Chave própria da página: a 'biblioteca-exercicios' é da lista inteira, usada em outras telas.
   const chave = JSON.stringify(['biblioteca-exercicios-pagina', pagina, buscaAtrasada, gruposEscolhidos]);
   const { dados, erro, carregando, recarregar } = useCarregar(chave, () =>
     listarExerciciosPagina({ texto: buscaAtrasada, grupos: gruposEscolhidos, pagina }));
   const [editando, setEditando] = useState<Exercicio | 'novo' | null>(null);
   const [inativar, setInativar] = useState<Exercicio | null>(null);
-  const grupos = dados?.grupos ?? [];
+  // Guardar a lista de grupos da resposta durante o render (não em efeito): a próxima consulta já sai com os grupos certos.
+  if (dados && dados.grupos !== gruposConhecidos) setGruposConhecidos(dados.grupos);
+  const grupos = dados?.grupos ?? gruposConhecidos;
   const opcoesDeGrupo = grupos.map((g) => ({ valor: g, rotulo: g }));
   // Grupo que já não existe (o último exercício dele saiu) não filtra: sem isso a lista ficaria vazia sem explicação.
   const gruposAtivos = marcadosExistentes(opcoesDeGrupo, gruposMarcados);
   const lista = dados?.itens ?? [];
   const total = dados?.total ?? 0;
   const paginas = Math.max(1, Math.ceil(total / TAMANHO_DA_PAGINA_DE_EXERCICIOS));
-  const semFiltro = !buscaAtrasada && gruposMarcados.size === 0;
+  const semFiltro = !buscaAtrasada && gruposEscolhidos.length === 0;
   const mudarBusca = (texto: string) => { setBusca(texto); setPagina(0); };
   const mudarGrupos = (novos: Set<string>) => { setGruposMarcados(novos); setPagina(0); };
 

@@ -188,6 +188,13 @@ class BibliotecaIntegrationTest extends AbstractIntegrationTest {
         JsonNode ultima = api.get("/exercicios/pagina?tamanho=3&pagina=2", treinador, 200);
         assertThat(ultima.get("itens")).hasSize(1);
         assertThat(api.get("/exercicios/pagina?tamanho=3&pagina=9", treinador, 200).get("itens")).isEmpty();
+        // Páginas seguidas não repetem nem perdem exercício (ordem estável: nome e, no empate, id).
+        java.util.Set<String> ids = new java.util.HashSet<>();
+        for (int pg = 0; pg < 4; pg++) {
+            api.get("/exercicios/pagina?tamanho=2&pagina=" + pg, treinador, 200).get("itens")
+                    .forEach(item -> ids.add(item.get("id").asString()));
+        }
+        assertThat(ids).hasSize(7);
 
         // Sem acento, em nome e grupo, e só da consultoria (a "Remada da outra consultoria" não entra no total).
         assertThat(api.get("/exercicios/pagina?busca=ELEVACAO", treinador, 200).get("total").asInt()).isEqualTo(1);
