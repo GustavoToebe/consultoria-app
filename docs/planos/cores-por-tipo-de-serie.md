@@ -37,9 +37,9 @@ O treinador pediu cor em vários momentos (tipo de série na execução do aluno
 - [x] 1. Prévia HTML (390 e 1280 px; claro, areia, escuro; razões de contraste anotadas) de C35, C50/C74, C45 e C16 — executor-front — commit: 168e8467
 - [x] 2. Gustavo aprova ou pede ajuste na prévia — Gustavo — aprovada como proposta em 03/11 (D9 a D17)
 - [x] 3. Tokens por tipo e por divisão em `tema/tokens.ts` com teste de contraste (`tokens.test.ts`) — executor-front — commit: 5f529724 (`PALETA_DE_IDENTIFICACAO`, `coresDeIdentificacao`, `useTema().identificacao`; chave por `dominio/corDaSerie`: `corDoTipoDeSerie`, `corDaDivisao`, `corDaRefeicao`)
-- [ ] 4. Execução do aluno: cor por tipo; Cluster/Rest-pause como bloco único; peso das etapas pela D17 — executor-front — commit: —
-- [ ] 5. Dieta do aluno e histórico por divisão com cor; reorganização do Histórico (C45); e2e em 390 e 1280 px — executor-front — commit: —
-- [ ] 6. Janela "Usar receita" agrupada (C16) — executor-front — commit: —
+- [x] 4. Execução do aluno: cor por tipo; Cluster/Rest-pause como bloco único; peso das etapas pela D17 — executor-front — commit: `8beab13e`
+- [x] 5. Dieta do aluno e histórico por divisão com cor; reorganização do Histórico (C45); e2e em 390 e 1280 px — executor-front — commit: `06e9d308`
+- [x] 6. Janela "Usar receita" agrupada (C16) — executor-front — commit: `b802112a`
 
 ## Critérios de aceite
 - Nenhuma cor de tipo de série tem a mesma aparência de um status; contraste AA nos três temas.
