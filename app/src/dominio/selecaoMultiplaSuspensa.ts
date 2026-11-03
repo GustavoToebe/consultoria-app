@@ -43,6 +43,14 @@ export function marcadosExistentes(opcoes: readonly OpcaoDaSelecao[], marcados: 
   return new Set([...marcados].filter((v) => existentes.has(v)));
 }
 
+/**
+ * Grupos que vão na consulta do servidor: só os marcados que ainda existem na lista (ordenados, para a chave da consulta).
+ * O seletor já mostra "Todos os grupos" quando o grupo marcado sumiu; a consulta tem de dizer o mesmo.
+ */
+export function gruposDaConsulta(marcados: ReadonlySet<string>, gruposConhecidos: readonly string[]): string[] {
+  return [...marcadosExistentes(gruposConhecidos.map((g) => ({ valor: g, rotulo: g })), marcados)].sort();
+}
+
 /** Marcados na ordem da lista: os `CHIPS_VISIVEIS` primeiros viram chips e o resto, "+N". */
 export function resumoDosMarcados(opcoes: readonly OpcaoDaSelecao[], marcados: ReadonlySet<string>, maximo = CHIPS_VISIVEIS) {
   const rotulos = opcoes.filter((o) => marcados.has(o.valor)).map((o) => o.rotulo);

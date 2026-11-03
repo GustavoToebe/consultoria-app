@@ -86,6 +86,7 @@ import type {
   CatalogoAlimento,
   CatalogoExercicio,
   PaginaCatalogo,
+  PaginaDeExercicios,
   ConsumoDoPlano,
   ConsultoriaResponse,
   ConteudoDieta,
@@ -778,6 +779,14 @@ export const excluirPeso = (id: string, pesoId: string) =>
 const busca = (texto?: string) => (texto ? `?busca=${encodeURIComponent(texto)}` : '');
 
 export const listarExercicios = (texto?: string) => requisicao<Exercicio[]>(`/exercicios${busca(texto)}`);
+export const TAMANHO_DA_PAGINA_DE_EXERCICIOS = 30;
+/** Uma página da aba Exercícios: busca sem acento e grupos (OU) no servidor; `grupos` do retorno não aplica o filtro de grupo. */
+export const listarExerciciosPagina = (filtro: { texto?: string; grupos?: readonly string[]; pagina: number }) => {
+  const q = new URLSearchParams({ pagina: String(filtro.pagina), tamanho: String(TAMANHO_DA_PAGINA_DE_EXERCICIOS) });
+  if (filtro.texto) q.append('busca', filtro.texto);
+  for (const g of filtro.grupos ?? []) q.append('grupo', g);
+  return requisicao<PaginaDeExercicios>(`/exercicios/pagina?${q.toString()}`);
+};
 export const criarExercicio = (dados: ExercicioRequest) =>
   requisicao<Exercicio>('/exercicios', { metodo: 'POST', corpo: dados });
 export const alterarExercicio = (id: string, dados: ExercicioRequest) =>

@@ -138,7 +138,7 @@ export function PreferenciasDoApp({ comTitulo = true, extras }: { comTitulo?: bo
       <Cartao titulo="Gráficos">
         <Interruptor
           rotulo="Mostrar gráficos de progresso e de peso"
-          ajuda="Desligado, as telas mostram só as listas."
+          ajuda="Com o interruptor desligado, as telas mostram só as listas."
           valor={preferencias.graficos}
           aoMudar={(graficos) => mudar({ graficos })}
         />
@@ -148,7 +148,7 @@ export function PreferenciasDoApp({ comTitulo = true, extras }: { comTitulo?: bo
         <Cartao titulo="Navegador">
           <Interruptor
             rotulo="Barras de rolagem escuras no tema escuro"
-            ajuda="Desligado, as barras de rolagem ficam claras mesmo com o tema escuro."
+            ajuda="Com o interruptor desligado, as barras de rolagem ficam claras mesmo no tema escuro."
             valor={preferencias.barrasEscuras}
             aoMudar={(barrasEscuras) => mudar({ barrasEscuras })}
           />

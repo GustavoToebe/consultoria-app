@@ -173,8 +173,9 @@ public class FinanceiroService {
         List<MesDoPainel> serie = new ArrayList<>();
         for (YearMonth mes = primeiro; !mes.isAfter(ultimo); mes = mes.plusMonths(1)) {
             Long rec = recebido.get(mes);
-            Long ent = entradas.get(mes);
-            Long sai = saidas.get(mes);
+            // Mês até o corrente sem lançamento é 0; o futuro e o "Meus" seguem sem dado (nulo).
+            Long ent = meus ? null : entradas.getOrDefault(mes, mes.isAfter(atual) ? null : 0L);
+            Long sai = meus ? null : saidas.getOrDefault(mes, mes.isAfter(atual) ? null : 0L);
             serie.add(new MesDoPainel(mes.toString(), mes.equals(atual), rec,
                     mes.atEndOfMonth().isBefore(hoje) ? null : previsto.get(mes), ent, sai,
                     meus ? null : resultado(rec, ent, sai)));
@@ -218,8 +219,9 @@ public class FinanceiroService {
         if (responsavelId != null) {
             return new ResultadoDoMes(ROTULO_RESULTADO, mes.toString(), recebido, null, null, null);
         }
-        Long entradas = null;
-        Long saidas = null;
+        // Mês sem lançamento é R$ 0,00 (decisão de 03/11): só o que o filtro "Meus" não cobre fica nulo.
+        Long entradas = 0L;
+        Long saidas = 0L;
         for (var linha : lancamentos.somaPorMes(mes.atDay(1), mes.atEndOfMonth())) {
             if (linha.getTipo() == TipoDeLancamento.ENTRADA) {
                 entradas = linha.getTotal();

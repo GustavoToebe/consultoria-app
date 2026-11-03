@@ -13,7 +13,7 @@ import { Texto } from '../../ui/Texto';
 export function ResultadoDoMes({ resultado, somenteMeus }: { resultado: ResultadoApi | null | undefined; somenteMeus?: boolean }) {
   const r = resultadoDoMesParaTela(resultado);
   return (
-    <Cartao titulo={r.rotulo} descricao={`Mês de ${r.mes}`}>
+    <Cartao titulo={r.rotulo} descricao={r.descricao}>
       <CamposEmLinha>
         <CampoLeitura rotulo="Recebido das cobranças" valor={r.recebido} numerico />
         <CampoLeitura rotulo="Entradas avulsas" valor={r.entradas} numerico />

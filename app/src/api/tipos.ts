@@ -458,6 +458,13 @@ export interface CatalogoAlimento {
   fonteFatores: string | null;
 }
 
+/** Página de exercícios da consultoria; `grupos` são todos os grupos dela, sem o filtro de grupo. */
+export interface PaginaDeExercicios {
+  itens: Exercicio[];
+  total: number;
+  grupos: string[];
+}
+
 /** `total` é quantos itens casaram com a busca; `itens` vem limitado. */
 export interface PaginaCatalogo<T> {
   itens: T[];

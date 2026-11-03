@@ -39,7 +39,7 @@ const contagens = (extra: Partial<ContagensInscricoes> = {}): ContagensInscricoe
 const financeiro = (extra: Record<string, unknown> = {}): PainelFinanceiro => ({
   serie: [
     { mes: '2026-09', parcial: false, recebidoCentavos: 500000, previstoCentavos: null, entradasAvulsasCentavos: 20000, saidasAvulsasCentavos: 10000, resultadoCentavos: null },
-    { mes: '2026-10', parcial: true, recebidoCentavos: null, previstoCentavos: null, entradasAvulsasCentavos: null, saidasAvulsasCentavos: null, resultadoCentavos: null },
+    { mes: '2026-10', parcial: true, recebidoCentavos: null, previstoCentavos: null, entradasAvulsasCentavos: 0, saidasAvulsasCentavos: 0, resultadoCentavos: null },
   ],
   // O cartão do período soma 6 meses: não pode ser lido como "recebido no mês".
   cartoes: { recebidoCentavos: 9_999_900 },
@@ -457,14 +457,14 @@ describe('reaisSemCentavos', () => {
 });
 
 describe('Recebido e lançamentos (barras)', () => {
-  it('uma barra por mês, rótulos de mês, parcial marcado e mês sem dado como "—"', () => {
+  it('uma barra por mês, rótulos de mês, parcial marcado, recebido sem dado como "—" e lançamento sem lançamento como 0', () => {
     const b = bloco('recebido');
     const g = b.grafico;
     if (!g || g.tipo !== 'barras') throw new Error('esperava barras');
     expect(g.desenhar).toBe(true);
     expect(g.meses.map((m) => m.rotulo)).toEqual(['set/2026', 'out/2026']);
     expect(g.meses[0]).toMatchObject({ recebido: 500000, lancamentos: 20000, recebidoTexto: 'R$ 5.000', parcial: false });
-    expect(g.meses[1]).toMatchObject({ recebido: null, lancamentos: null, recebidoTexto: '—', parcial: true });
+    expect(g.meses[1]).toMatchObject({ recebido: null, lancamentos: 0, recebidoTexto: '—', parcial: true });
     expect(g.maximo).toBe(500000);
     expect(g.semDados).toBe(false);
     expect(g.notas.join(' ')).toContain('em andamento');
@@ -487,6 +487,9 @@ describe('Recebido e lançamentos (barras)', () => {
   it('todos os meses sem valor: semDados; /financeiro/painel falhou: bloco falhou, carregando: carregando', () => {
     const vazio = barrasDoRecebido([{ mes: '2026-10', parcial: true, recebidoCentavos: null, entradasAvulsasCentavos: null, saidasAvulsasCentavos: null }] as never, false, true);
     expect(vazio).toMatchObject({ semDados: true, maximo: 0 });
+    // Como a API manda desde o N14 (D9): mês sem lançamento é 0, não nulo; o Início passa a mostrar as barras zeradas em vez da tabela "—".
+    const zerado = barrasDoRecebido([{ mes: '2026-10', parcial: true, recebidoCentavos: null, entradasAvulsasCentavos: 0, saidasAvulsasCentavos: 0 }] as never, false, true);
+    expect(zerado).toMatchObject({ semDados: false, maximo: 0 });
     expect(bloco('recebido', fontes({ financeiro: FONTE_FALHOU })).falhou).toBe(true);
     expect(bloco('recebido', fontes({ financeiro: FONTE_FALHOU })).grafico).toBeNull();
     expect(bloco('recebido', fontes({ financeiro: FONTE_CARREGANDO })).carregando).toBe(true);

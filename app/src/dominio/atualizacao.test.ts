@@ -1,5 +1,5 @@
 import type { Atualizacao } from '../api/tipos';
-import { atrasoEmTexto, DIAS_MAXIMOS_PARA_CONTAR_ATRASO, desdeQuandoAtrasou, statusAtualizacao, atualizacaoDaPasta, caminhoAtualizacaoTreinador, caminhoListaAtualizacoes, faseAtualizacao, filaDosParametros, filtroDaFila, formularioSomenteLeitura, limitesNovaDataAtraso, linkCartaoAtualizacao, mostrarCartaoAtualizacao, novaDataAtrasoValida, emDias, proximaDaFila, statusAtualizacaoTreinador } from './atualizacao';
+import { atrasoEmTexto, DIAS_MAXIMOS_PARA_CONTAR_ATRASO, desdeQuandoAtrasou, statusAtualizacao, atualizacaoDaPasta, caminhoAtualizacaoTreinador, caminhoListaAtualizacoes, faseAtualizacao, filaDosParametros, filtroDaFila, formularioSomenteLeitura, limitesNovaDataAtraso, linkCartaoAtualizacao, mostrarCartaoAtualizacao, novaDataAtrasoValida, emDias, fraseDeTreinosNoPeriodo, proximaDaFila, statusAtualizacaoTreinador } from './atualizacao';
 
 describe('datas da atualização iguais às do servidor', () => {
   it.each([['2026-10-05','NENHUMA',4,0],['2026-10-06','AVISO',3,0],['2026-10-07','AVISO',2,0],
@@ -157,5 +157,20 @@ describe('selo da atualização para o treinador', () => {
   });
   it('emDias', () => {
     expect([emDias(0), emDias(1), emDias(-1), emDias(4), emDias(-3)]).toEqual(['hoje', 'amanhã', 'ontem', 'em 4 dias', 'há 3 dias']);
+  });
+});
+
+describe('fraseDeTreinosNoPeriodo (N17)', () => {
+  it('diz quantos treinos e a média por semana', () => {
+    expect(fraseDeTreinosNoPeriodo(1, 0.2)).toBe('1 treino registrado no período (≈0,2 por semana)');
+    expect(fraseDeTreinosNoPeriodo(8, 4)).toBe('8 treinos registrados no período (≈4 por semana)');
+    expect(fraseDeTreinosNoPeriodo(0, 0)).toBe('Nenhum treino registrado no período (≈0 por semana)');
+  });
+
+  it('sem média só os treinos; sem dado do período, "—"', () => {
+    expect(fraseDeTreinosNoPeriodo(3, null)).toBe('3 treinos registrados no período');
+    expect(fraseDeTreinosNoPeriodo(null, null)).toBe('Treinos registrados no período: —');
+    expect(fraseDeTreinosNoPeriodo(undefined, undefined)).toBe('Treinos registrados no período: —');
+    expect(fraseDeTreinosNoPeriodo(3, undefined)).toBe('3 treinos registrados no período');
   });
 });

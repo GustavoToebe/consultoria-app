@@ -57,9 +57,29 @@ export function fundoDoItemDaAgenda({ cor, base, textos, graficos = [], proporca
   return base;
 }
 
+/** "09:00" vira "9h"; "09:30", "9h30". Texto que não é hora fica como veio. */
+function horaPorExtenso(hhmm: string): string {
+  const m = /^(\d{1,2}):(\d{2})/.exec(hhmm);
+  if (!m) return hhmm;
+  return `${Number(m[1])}h${m[2] === '00' ? '' : m[2]}`;
+}
+
+/** "a" concorda com a hora: a 0h e a 1h são singular ("à 1h", "da 1h"), as outras plural ("às 9h", "das 9h"). */
+const singular = (hhmm: string) => /^0?[01]:/.test(hhmm);
+
+/**
+ * O horário no nome acessível do compromisso: "das 9h às 10h" quando há fim, e só o início ("09:00") quando não há,
+ * como era antes de existir o fim. shortcut: o fim no dia seguinte ("das 23h às 0h") não é indicado; dizer "do dia
+ * seguinte" quando a agenda tiver compromisso que vira o dia.
+ */
+export function horarioNoRotuloDoCompromisso(hora: string, horaFim?: string | null): string {
+  if (!horaFim) return hora;
+  return `${singular(hora) ? 'da' : 'das'} ${horaPorExtenso(hora)} ${singular(horaFim) ? 'à' : 'às'} ${horaPorExtenso(horaFim)}`;
+}
+
 /**
  * O status do compromisso no fim do nome acessível (", cancelado", ", realizado", ", 2 de 3 realizados · 1 faltou"). Vazio
- * quando todos ainda estão agendados: o nome continua o de antes ("Abrir compromisso de Ana, 09:00").
+ * quando todos ainda estão agendados: o nome continua o de antes ("Abrir compromisso de Ana, das 9h às 10h").
  */
 export function statusNoRotuloDoCompromisso(c: Pick<Compromisso, 'cancelado' | 'participantes'>): string {
   if (!c.cancelado && c.participantes.every((p) => p.situacao === 'AGENDADO')) return '';

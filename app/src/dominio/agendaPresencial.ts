@@ -118,6 +118,9 @@ export function nomesDosParticipantes(c: Pick<Compromisso, 'participantes'>): st
   return `${nomes[0]}, ${nomes[1]} +${nomes.length - 2}`;
 }
 
+/** Todos os nomes, separados por vírgula, sem o "+2": o rótulo que aparece ao passar o mouse ou focar o compromisso. */
+export const nomesCompletos = (c: Pick<Compromisso, 'participantes'>): string => (c.participantes.length ? c.participantes.map(nomeDe).join(', ') : SEM_NOME);
+
 /** Os mesmos nomes para o leitor de tela, sem o "+2": "Ana, Bruno e mais 2". */
 export function nomesPorExtenso(c: Pick<Compromisso, 'participantes'>): string {
   const nomes = c.participantes.map(nomeDe);

@@ -28,8 +28,10 @@ RUN --mount=type=secret,id=gh_token,required=false \
 
 FROM eclipse-temurin:25-jre-alpine
 # Pacotes do Alpine atualizados na construção: correção publicada depois da imagem base (ex.: libexpat, 19/10) não
-# espera a próxima tag da imagem para passar no Trivy.
-RUN apk upgrade --no-cache
+# espera a próxima tag da imagem para passar no Trivy. O cache de camadas da CI (type=gha) reaproveita esta linha
+# enquanto o texto dela não muda: o mínimo explícito do libexpat (CVE-2026-117610 e CVE-2026-118370, 03/11) força a
+# camada nova. Na próxima correção do Alpine, subir o mínimo aqui.
+RUN apk upgrade --no-cache && apk add --no-cache 'libexpat>=2.10.0-r0'
 RUN addgroup -S treinos && adduser -S treinos -G treinos
 WORKDIR /app
 COPY --from=build /src/target/treinos-api-*.jar app.jar

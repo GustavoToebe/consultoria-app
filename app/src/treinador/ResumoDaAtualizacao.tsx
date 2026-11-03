@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 import type { Atualizacao, ConteudoQuestionario } from '../api/tipos';
 import { resumoDoTreinador } from '../dominio/atualizacaoQuestionario';
+import { fraseDeTreinosNoPeriodo } from '../dominio/atualizacao';
 import { numeroParaTela } from '../dominio/formatos';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, RAIO } from '../tema/tokens';
@@ -51,7 +52,7 @@ export function ResumoDaAtualizacao({atualizacao:a,modelo,selo,descricao}: {atua
         <Texto variante="rotulo">{rotulo}</Texto><Texto variante="destaque" numerico cor={cor}>{valor}</Texto>
       </View>)}
     </View>:null}
-    <Texto>Média de {numeroParaTela(resumo.mediaDiasPorSemana,1)} dias com treino por semana (registrado no app)</Texto>
+    <Texto>{fraseDeTreinosNoPeriodo(resumo.diasComTreino,resumo.mediaDiasPorSemana)}</Texto>
     <LinhaDoCicloNaAtualizacao alunoId={a.alunoId} pastaId={a.pastaId} data={a.dataAtualizacao} />
     {perguntasFotos.map(p=>{
       const fotos=idsDeFotos(a.respostas?.[p.id]);

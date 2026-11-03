@@ -202,7 +202,7 @@ function Inadimplencia({ painel, lista, buscando, podeAlterar, aoAbrir, aoRegist
   const itens = lista.dados?.itens ?? [];
   return (
     <Cartao titulo="Inadimplência" descricao={i.detalhe}
-      acoes={<Texto variante="destaque" numerico accessibilityLabel={`Inadimplência: ${i.percentual}`}>{i.percentual}</Texto>}>
+      acoes={<Texto variante="destaque" numerico accessibilityLabel={`Inadimplência: ${i.comBase}`}>{i.comBase}</Texto>}>
       {lista.erro ? <MensagemErro texto={textoDoErro(lista.erro)} erro={lista.erro} tentarDeNovo={lista.recarregar} /> : null}
       {lista.dados ? (
         <Texto variante="rotulo">

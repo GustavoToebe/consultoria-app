@@ -162,8 +162,8 @@ fundo da página (quase branco: #F7F7F8)
   - editor: 1040;
   - lista e painel: até 1800;
   - aluno: 720.
-- Pontos de quebra: abaixo de 768 px é celular (barra inferior); de 768 a 1023, menu lateral só com ícones; a
-  partir de 1024, menu lateral completo.
+- Pontos de quebra: abaixo de 768 px é celular (barra inferior); de 768 a 1023, menu lateral em trilho, com o
+  rótulo curto embaixo de cada ícone; a partir de 1024, menu lateral completo, em grupos com título.
 
 ### 4.4 Peças principais
 

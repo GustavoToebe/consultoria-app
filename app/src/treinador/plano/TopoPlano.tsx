@@ -9,7 +9,7 @@ import type { ConteudoDieta, ConteudoTreino, Problema, ResultadoValidacao, TipoP
 import { normalizarDieta } from '../../dominio/dieta';
 import { localizar } from '../../dominio/caminhos';
 import { textoDosProblemas, uidsDoPrimeiroProblema } from '../../dominio/problemasDoPlano';
-import { infoDoPlano, seloDoEditor } from '../../dominio/barraDoEditor';
+import { infoDoPlano, motivoSemPublicar, seloDoEditor } from '../../dominio/barraDoEditor';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, fontes, LARGURA_MENU_LATERAL, RAIO } from '../../tema/tokens';
@@ -129,6 +129,7 @@ export function BarraDoPlano<C>({ tipo, editor, aoProblemas }: Props<C>) {
   };
 
   const selo = seloDoEditor(editor.situacao, editor.salvoAs, { versao: e.plano.versaoPublicada, alterado: e.plano.rascunhoAlteradoDepoisDePublicar });
+  const semPublicar = motivoSemPublicar(editor.situacao, { versao: e.plano.versaoPublicada, alterado: e.plano.rascunhoAlteradoDepoisDePublicar, ativo: e.plano.ativo });
   const info = escritaLiberada
     ? infoDoPlano({ inicio: e.inicio, fim: e.fim, daPasta: !!e.plano.pastaId, publicadoEm: ultima?.publicadoEm ?? null })
     : 'Disponível em outro plano: dá para consultar, mas não salvar nem publicar.';
@@ -168,7 +169,9 @@ export function BarraDoPlano<C>({ tipo, editor, aoProblemas }: Props<C>) {
               motivo={editor.situacao === 'dataInvalida' ? 'Confira o título e as datas.' : editor.situacao === 'conflito' ? 'Recarregue o plano antes.' : undefined}
               aoTocar={salvar}
             />
-            <Permitido codigo={PERMISSOES_DO_PLANO[tipo].publicar}><Botao rotulo="Publicar" Icone={Send} carregando={publicando} aoTocar={() => publicar(false)} /></Permitido>
+            <Permitido codigo={PERMISSOES_DO_PLANO[tipo].publicar}>
+              <Botao rotulo="Publicar" Icone={Send} carregando={publicando} desabilitado={!!semPublicar} motivo={semPublicar} aoTocar={() => publicar(false)} />
+            </Permitido>
           </>
         ) : null}
       </BarraDoEditor>

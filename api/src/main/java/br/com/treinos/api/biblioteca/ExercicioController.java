@@ -2,6 +2,7 @@ package br.com.treinos.api.biblioteca;
 
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ExercicioRequest;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ExercicioResponse;
+import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ExerciciosPagina;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ImportacaoResultado;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ImportarCatalogoRequest;
 import jakarta.validation.Valid;
@@ -34,6 +35,15 @@ public class ExercicioController {
     @GetMapping
     public List<ExercicioResponse> listar(@RequestParam(required = false) String busca) {
         return biblioteca.listarExercicios(busca);
+    }
+
+    @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_LER')")
+    @GetMapping("/pagina")
+    public ExerciciosPagina pagina(@RequestParam(required = false) String busca,
+                                   @RequestParam(name = "grupo", required = false) List<String> grupos,
+                                   @RequestParam(required = false) Integer pagina,
+                                   @RequestParam(required = false) Integer tamanho) {
+        return biblioteca.paginaDeExercicios(busca, grupos, pagina, tamanho);
     }
 
     @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_ALTERAR')")

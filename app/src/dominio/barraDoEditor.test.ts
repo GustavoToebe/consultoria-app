@@ -1,4 +1,4 @@
-import { dataSemAnoCorrente, infoDoPlano, quandoPublicado, seloDoEditor } from './barraDoEditor';
+import { dataSemAnoCorrente, infoDoPlano, motivoSemPublicar, quandoPublicado, seloDoEditor } from './barraDoEditor';
 
 const AGORA = new Date(2026, 9, 19, 20, 0);
 
@@ -26,6 +26,22 @@ describe('seloDoEditor', () => {
     expect(seloDoEditor('salvo', new Date(2026, 9, 19, 14, 30), { versao: 1, alterado: true }).texto).toBe('Salvo às 14:30');
     // Publicou depois de salvar: vale a publicação.
     expect(seloDoEditor('salvo', new Date(2026, 9, 19, 14, 30), { versao: 2, alterado: false }).texto).toBe('Publicado v2');
+  });
+});
+
+describe('motivoSemPublicar', () => {
+  const publicado = { versao: 2, alterado: false, ativo: true };
+
+  it('publicado, ativo e sem alteração: desabilitado com o motivo', () => {
+    expect(motivoSemPublicar('salvo', publicado)).toBe('Nada mudou desde a v2 publicada.');
+  });
+
+  it('alteração (salva ou por salvar), nunca publicado ou plano inativo: habilitado', () => {
+    expect(motivoSemPublicar('salvo', { ...publicado, alterado: true })).toBeUndefined();
+    expect(motivoSemPublicar('pendente', publicado)).toBeUndefined();
+    expect(motivoSemPublicar('erro', publicado)).toBeUndefined();
+    expect(motivoSemPublicar('salvo', { ...publicado, versao: 0 })).toBeUndefined();
+    expect(motivoSemPublicar('salvo', { ...publicado, ativo: false })).toBeUndefined();
   });
 });
 
