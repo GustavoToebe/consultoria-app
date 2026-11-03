@@ -22,13 +22,22 @@ O treinador pediu cor em vários momentos (tipo de série na execução do aluno
 | D5 | C16 | receitas agrupadas por bloco e técnica no "Usar receita" (ver [receitas-em-blocos.md](receitas-em-blocos.md)) | Gustavo |
 | D6 | Cor de identificação × status | a cor de tipo de série **não pode se confundir** com verde, âmbar e vermelho (status); seguir o design-system | Gustavo |
 | D7 | A cor nunca é a única informação | o selo de texto fica | regra de acessibilidade |
+| D9 | Cor por tipo × por papel (prévia, escolha 1) | **por tipo**: Aquecimento ciano, FS azul, WS índigo, Top set violeta, Back off magenta; tipo criado pelo treinador usa a cor do papel; papel "Outro" sem cor | Gustavo, 03/11 |
+| D10 | Como a cor aparece na série (escolha 2) | **barra lateral de 6 px + selo colorido**; o cartão continua branco | Gustavo, 03/11 |
+| D11 | Paleta (escolha 3) | ciano, azul, índigo, violeta e magenta da prévia, ≥ 4,5:1 nos três temas; sem verde, âmbar, vermelho nem cinza | Gustavo, 03/11 |
+| D12 | Cluster e Rest-pause (escolha 4) | **um cartão por série** com os blocos/retomadas dentro, a pausa entre eles, "Feito até agora: X de Y reps" e "Concluir série" no rodapé; o bloco da vez marcado com "agora" | Gustavo, 03/11 |
+| D13 | Divisões A, B, C (escolha 5) | **com cor** (A azul, B magenta, C ciano) na letra, na barra e no cabeçalho, só no Histórico; lá as séries ficam em texto | Gustavo, 03/11 |
+| D14 | Dieta (escolha 6) | quantidade e unidade numa **etiqueta grande à direita com a cor da refeição** e barra na refeição | Gustavo, 03/11 |
+| D15 | Histórico (escolha 7, C45) | cada cartão diz o período na faixa; "Registros e cargas" com a escolha do período (pasta atual, anterior, últimos 30 dias) e uma frase do que mostra; "Por dia" vira semana → dia (cabeçalho da semana com os 7 dias marcados, um cartão por dia treinado com a data à esquerda e a divisão no cabeçalho) | Gustavo, 03/11 |
+| D16 | "Usar receita" (escolha 8, C16) | busca no topo; seções recolhíveis: receitas completas, depois Aquecimento, Preparação, Trabalho, Pós-trabalho e uma por técnica (Cluster, Rest pause, Drop-set); cada receita uma vez, com a sequência colorida por tipo | Gustavo, 03/11 |
+| D17 | Peso nas séries com etapas (pendência da Frente C) | o peso da etapa nasce vazio com "Sugestão: X kg"; o painel "Fez com X kg?" aparece **uma vez por série**, no primeiro ✓ de etapa com o peso vazio; o peso confirmado preenche as etapas vazias daquela série; nunca grava peso sem confirmação. Entra no passo 4 | Gustavo, 03/11 |
 | D8 | Dados da prévia | a prévia em `docs/prototipos/` usa **só dados fictícios**; nenhum print nem texto da produção (a conta real do Saraiva não entra no repositório) | Gustavo |
 
 ## Passos
 - [x] 1. Prévia HTML (390 e 1280 px; claro, areia, escuro; razões de contraste anotadas) de C35, C50/C74, C45 e C16 — executor-front — commit: 168e8467
-- [ ] 2. Gustavo aprova ou pede ajuste na prévia — Gustavo — commit: —
+- [x] 2. Gustavo aprova ou pede ajuste na prévia — Gustavo — aprovada como proposta em 03/11 (D9 a D17)
 - [ ] 3. Tokens por tipo e por divisão em `tema/tokens.ts` com teste de contraste (`tokens.test.ts`) — executor-front — commit: —
-- [ ] 4. Execução do aluno: cor por tipo; Cluster/Rest-pause como bloco único — executor-front — commit: —
+- [ ] 4. Execução do aluno: cor por tipo; Cluster/Rest-pause como bloco único; peso das etapas pela D17 — executor-front — commit: —
 - [ ] 5. Dieta do aluno e histórico por divisão com cor; reorganização do Histórico (C45); e2e em 390 e 1280 px — executor-front — commit: —
 - [ ] 6. Janela "Usar receita" agrupada (C16) — executor-front — commit: —
 
