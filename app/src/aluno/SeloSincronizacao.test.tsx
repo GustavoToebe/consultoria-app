@@ -80,4 +80,12 @@ describe('SeloSincronizacao no rodapé', () => {
     await remontar({ online: true, pendentes: 0, falhas: [{}] });
     expect(texto()).toContain('Falha ao enviar');
   });
+
+  it('"Enviando…" com a fila vazia não aparece; com algo na fila aparece', async () => {
+    mockAtual = { ...estado, envio: 'enviando' };
+    await montar();
+    expect(arvore.toJSON()).toBeNull();
+    await remontar({ pendentes: 1 });
+    expect(texto()).toContain('Enviando');
+  });
 });

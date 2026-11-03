@@ -14,7 +14,7 @@ export const ATRASO_SEM_CONEXAO_MS = 2500;
  * — salvo no aparelho"; vermelho "Falha ao enviar — tentar de novo" (toque para reenviar).
  * `noRodape` (todas as telas, acima da barra) só aparece com algo a dizer: com tudo enviado não mostra "Sincronizado" (N28);
  * a Conta mostra o estado completo. No rodapé o "Sem conexão" sem nada pendente espera `ATRASO_SEM_CONEXAO_MS` sem rede;
- * pendente e falha aparecem na hora.
+ * pendente e falha aparecem na hora; "Enviando…" com a fila vazia não aparece.
  */
 export function SeloSincronizacao({ noRodape = false }: { noRodape?: boolean }) {
   const { pendentes, falhas, falhasDeMobilidade, falhasDeConclusao, falhasDeAgua, envio, online, tentarDeNovo } = useAluno();
@@ -31,6 +31,8 @@ export function SeloSincronizacao({ noRodape = false }: { noRodape?: boolean }) 
     };
   }, [soSemRede]);
   if (noRodape && estado.tipo === 'sucesso') return null;
+  // "Enviando…" sem nada na fila é só a conferência ao abrir ou voltar ao app: no rodapé não há o que dizer.
+  if (noRodape && envio === 'enviando' && pendentes === 0 && !estado.tentar) return null;
   if (soSemRede && !passouOAtraso) return null;
   const selo = estado.tentar ? (
     <Pressable accessibilityRole="button" accessibilityLabel="Falha ao enviar. Tentar de novo" onPress={() => void tentarDeNovo()}>
