@@ -41,7 +41,7 @@ jest.mock('./TipoDaSerieComExplicacao', () => ({
 }));
 jest.mock('../tema/TemaProvider', () => ({
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  useTema: () => ({ cores: require('../tema/tokens').ESCURO, bordas: { bloco: 2, item: 2 }, marca: '#E11D48', sobreMarca: '#FFFFFF', fatorTexto: 1, preferencias: { animacoes: false } }),
+  useTema: () => ({ cores: require('../tema/tokens').ESCURO, identificacao: require('../tema/tokens').coresDeIdentificacao(require('../tema/tokens').ESCURO, true), bordas: { bloco: 2, item: 2 }, marca: '#E11D48', sobreMarca: '#FFFFFF', fatorTexto: 1, preferencias: { animacoes: false } }),
 }));
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports

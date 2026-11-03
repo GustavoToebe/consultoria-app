@@ -2,7 +2,6 @@ import { Medal } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 
 import { partesDaDica } from '../dominio/dicaDeCarga';
-import { numeroParaTela } from '../dominio/formatos';
 import { textoDoRecorde, type Recorde } from '../dominio/recordesPessoais';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../tema/tokens';
@@ -43,7 +42,7 @@ export function CabecalhoDaSerie({ numero, tipo, tecnica, recordes, naoRegistrad
         {tipo ? (
           <>
             <Texto style={estilos.nome} accessibilityElementsHidden importantForAccessibility="no">·</Texto>
-            <TipoDaSerieComExplicacao nome={tipo.nome} explicacao={tipo.explicacao} numero={numero} />
+            <TipoDaSerieComExplicacao nome={tipo.nome} explicacao={tipo.explicacao} numero={numero} cor={tipo.cor} />
           </>
         ) : null}
       </View>
@@ -52,6 +51,17 @@ export function CabecalhoDaSerie({ numero, tipo, tecnica, recordes, naoRegistrad
       {naoRegistrada ? <Selo texto="Ainda não registrado" tipo="neutro" /> : null}
     </View>
   );
+}
+
+/** Largura da barra lateral do cartão da série com a cor do tipo (Frente G, D10: barra de 6 px + selo colorido). */
+export const LARGURA_DA_BARRA_DO_TIPO = 6;
+
+/**
+ * A barra lateral do cartão da série na cor de identificação do tipo (`useTema().identificacao[chave].cor`); sem cor, nada
+ * (a borda de sempre). A cor nunca é a única informação: o selo com o nome do tipo continua (D7).
+ */
+export function barraDoTipo(cor: string | null): { borderLeftWidth: number; borderLeftColor: string } | null {
+  return cor ? { borderLeftWidth: LARGURA_DA_BARRA_DO_TIPO, borderLeftColor: cor } : null;
 }
 
 /** A meta do treinador em destaque: rótulo "Meta" e o texto maior, na cor do texto, numa faixa própria. */
@@ -88,13 +98,14 @@ export function MetaAoLado({ repeticoes, resto, descanso, numero }: { repeticoes
 
 /**
  * A dica ao lado do campo (D1, 02/11): "Sugestão: 60 kg · Última vez: 60 kg × 7" (ou "Primeira vez: escolha a carga") e,
- * menor, de onde saiu a sugestão. Só texto: a carga nunca vai para o campo sem o aluno escolher.
+ * menor, de onde saiu a sugestão. Só texto: a carga nunca vai para o campo sem o aluno escolher. `de` = "o bloco 2 da
+ * série 3" na etapa (Frente G, D17: mesma dica, ao lado do campo de peso da etapa).
  */
-export function DicaDoCampo({ dica, origem, numero }: { dica: string; origem: string | null; numero: number }) {
+export function DicaDoCampo({ dica, origem, numero, de }: { dica: string; origem: string | null; numero: number; de?: string }) {
   const { cores } = useTema();
   const { destaque, resto } = partesDaDica(dica);
   return (
-    <View style={estilos.dica} accessible accessibilityLabel={`Dica da série ${numero}: ${dica}${origem ? `. ${origem}` : ''}`}>
+    <View style={estilos.dica} accessible accessibilityLabel={`Dica ${de ? `d${de}` : `da série ${numero}`}: ${dica}${origem ? `. ${origem}` : ''}`}>
       <Texto numerico style={estilos.restoDaDica} cor={cores.textoSuave}>
         {destaque ? <Texto numerico style={estilos.textoDaDica} cor={cores.texto}>{destaque}</Texto> : null}
         {destaque && resto ? ' · ' : null}
@@ -118,17 +129,6 @@ export function LinhaDoUltimoRegistro({ texto, numero }: { texto: string; numero
 /** Rótulo da área do que o aluno faz hoje (peso, repetições e o ✓). */
 export function RotuloDeHoje() {
   return <Texto variante="secao" nivel={3} style={estilos.hoje}>Hoje</Texto>;
-}
-
-/** "Sugerido: 33,5 kg · 80% da WS registrada nesta sessão": o peso sugerido e de onde ele saiu (só a frase; a conta é do domínio). */
-export function LinhaDaSugestao({ sugestao, origem }: { sugestao: number; origem: string | null }) {
-  return (
-    <Texto numerico variante="pequeno">
-      <Texto numerico variante="pequeno" style={estilos.rotuloDaLinha}>Sugerido: </Texto>
-      {`${numeroParaTela(sugestao)} kg`}
-      {origem ? ` · ${origem}` : ''}
-    </Texto>
-  );
 }
 
 const estilos = StyleSheet.create({
