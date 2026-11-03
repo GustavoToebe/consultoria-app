@@ -25,6 +25,18 @@ interface Props {
   /** Nome da divisão da sessão (o mesmo das "Cargas por divisão"), para dar a mesma letra e a mesma cor. */
   nomeDaSessao: (s: SessaoDoDia) => string;
   letras: ReadonlyMap<string, string>;
+  /** Datas do período buscado (obrigatório): os dias da semana cortada que ficam fora dele aparecem neutros e não contam. */
+  periodo: { de: string; ate: string };
+  /** O dia de hoje (Brasília, D4): o que vem depois dele e ainda é do período "ainda não chegou" (D9). */
+  hoje: string;
+}
+
+interface MarcaDoDia {
+  data: string;
+  foraDoPeriodo: boolean;
+  aindaNaoChegou: boolean;
+  /** Uma por sessão do dia (D3): a grade mostra todas. */
+  sessoes: { letra: string | null; nome: string }[];
 }
 
 /**
@@ -32,15 +44,15 @@ interface Props {
  * no dia treinado) e, embaixo, um cartão por dia treinado, a data à esquerda e a divisão no cabeçalho, com o que foi
  * registrado em cada exercício. As séries ficam em texto (sem a cor por tipo); a cor é só da divisão.
  */
-export function HistoricoPorSemana({ dias, nomeDaSessao, letras }: Props) {
-  const semanas = semanasDoHistorico(dias);
+export function HistoricoPorSemana({ dias, nomeDaSessao, letras, periodo, hoje }: Props) {
+  const semanas = semanasDoHistorico(dias, periodo, hoje);
   const animar = usePrimeiraLista(semanas.length > 0, semanas.map((s) => s.inicio).join('|'));
   const letraDe = (s: SessaoDoDia) => letraDaDivisaoNoHistorico(letras, nomeDaSessao(s));
   return (
     <View style={estilos.lista}>
       {semanas.map((semana, i) => (
         <EntradaEmCascata key={semana.inicio} indice={i} animar={animar} style={estilos.semana}>
-          <CabecalhoDaSemana titulo={tituloDaSemana(semana)} resumo={treinosDaSemana(semana)} marcas={semana.marcas.map((m) => (m.dia ? { data: m.data, letra: letraDe(m.dia.sessoes[0]), nome: nomeDaSessao(m.dia.sessoes[0]) } : null))} />
+          <CabecalhoDaSemana titulo={tituloDaSemana(semana)} resumo={treinosDaSemana(semana)} marcas={semana.marcas.map((m) => ({ data: m.data, foraDoPeriodo: m.foraDoPeriodo, aindaNaoChegou: m.aindaNaoChegou, sessoes: (m.dia?.sessoes ?? []).map((x) => ({ letra: letraDe(x), nome: nomeDaSessao(x) })) }))} />
           {semana.dias.map((dia) => (
             <View key={dia.data} style={estilos.dia}>
               <DataDoDia data={dia.data} />
@@ -57,33 +69,39 @@ export function HistoricoPorSemana({ dias, nomeDaSessao, letras }: Props) {
   );
 }
 
-function CabecalhoDaSemana({ titulo, resumo, marcas }: { titulo: string; resumo: string; marcas: ({ data: string; letra: string | null; nome: string } | null)[] }) {
+function CabecalhoDaSemana({ titulo, resumo, marcas }: { titulo: string; resumo: string; marcas: MarcaDoDia[] }) {
   const { cores, identificacao } = useTema();
-  const treinados = marcas.flatMap((m) => (m ? [`${partesDaData(m.data).nomeDoDia}, ${m.nome}`] : []));
+  const treinados = marcas.filter((m) => m.sessoes.length).map((m) => `${partesDaData(m.data).nomeDoDia}, ${m.sessoes.map((x) => (x.letra ? `${x.nome} (${x.letra})` : x.nome)).join(' e ')}`);
+  const fora = marcas.filter((m) => m.foraDoPeriodo);
+  const futuros = marcas.filter((m) => m.aindaNaoChegou);
+  const nomes = (lista: MarcaDoDia[]) => lista.map((m) => partesDaData(m.data).nomeDoDia).join(', ');
+  const rotulo = `Dias com treino: ${treinados.join('; ') || 'nenhum'}${fora.length ? `. Fora do período: ${nomes(fora)}` : ''}${futuros.length ? `. Ainda não chegou: ${nomes(futuros)}` : ''}`;
   return (
     <View style={[estilos.cabecalhoDaSemana, { borderBottomColor: cores.bordaCampo }]}>
       <View style={estilos.textosDaSemana}>
         <Texto variante="subtitulo" numerico nivel={3}>{titulo}</Texto>
         <Texto variante="suave">{resumo}</Texto>
+        {fora.length ? <Texto variante="pequeno">Fora do período: {fora.map((m) => partesDaData(m.data).sigla).join(', ')}</Texto> : null}
       </View>
-      <View style={estilos.marcas} accessible accessibilityLabel={`Dias com treino: ${treinados.join('; ') || 'nenhum'}`}>
-        {marcas.map((m, i) => {
-          const cor = m?.letra ? identificacao[corDaLetra(m.letra)] : null;
-          return (
-            <View
-              key={i}
-              style={[
-                estilos.marca,
-                m
-                  ? { borderWidth: 2, borderColor: cor?.cor ?? cores.texto, backgroundColor: cor?.fundo ?? cores.superficie3 }
-                  : { borderWidth: 1, borderColor: cores.borda, backgroundColor: cores.superficie },
-              ]}>
-              <Texto cor={m ? (cor?.cor ?? cores.texto) : cores.textoSuave} style={estilos.textoDaMarca}>
-                {m ? (m.letra ?? '•') : LETRAS_DA_SEMANA[i]}
-              </Texto>
-            </View>
-          );
-        })}
+      <View style={estilos.marcas} accessible accessibilityLabel={rotulo}>
+        {marcas.map((m, i) => (
+          <View key={i} style={estilos.diaDaGrade}>
+            {m.sessoes.length ? (
+              m.sessoes.map((x, j) => {
+                const cor = x.letra ? identificacao[corDaLetra(x.letra)] : null;
+                return (
+                  <View key={j} style={[estilos.marca, { borderWidth: 2, borderColor: cor?.cor ?? cores.texto, backgroundColor: cor?.fundo ?? cores.superficie3 }]}>
+                    <Texto cor={cor?.cor ?? cores.texto} style={estilos.textoDaMarca}>{x.letra ?? '•'}</Texto>
+                  </View>
+                );
+              })
+            ) : (
+              <View style={[estilos.marca, { borderWidth: 1, borderColor: cores.borda, backgroundColor: m.foraDoPeriodo || m.aindaNaoChegou ? 'transparent' : cores.superficie }, m.foraDoPeriodo ? estilos.foraDoPeriodo : null]}>
+                <Texto cor={cores.textoSuave} style={estilos.textoDaMarca}>{LETRAS_DA_SEMANA[i]}</Texto>
+              </View>
+            )}
+          </View>
+        ))}
       </View>
     </View>
   );
@@ -129,7 +147,9 @@ const estilos = StyleSheet.create({
   semana: { gap: espaco(1.25) },
   cabecalhoDaSemana: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1.25), paddingBottom: espaco(1), borderBottomWidth: LINHA_DA_FAIXA - 1 },
   textosDaSemana: { flexGrow: 1, flexBasis: 160, gap: 1 },
-  marcas: { flexDirection: 'row', gap: 4 },
+  marcas: { flexDirection: 'row', alignItems: 'flex-start', gap: 4 },
+  diaDaGrade: { gap: 4 },
+  foraDoPeriodo: { borderStyle: 'dashed' },
   marca: { width: 26, height: 26, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
   textoDaMarca: { fontFamily: fontes.negrito, fontSize: 12, lineHeight: 15 },
   dia: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(1.25) },
