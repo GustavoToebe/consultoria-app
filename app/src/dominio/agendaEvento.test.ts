@@ -14,6 +14,7 @@ import {
   escoposParaExcluirEvento,
   explicacaoDoEscopoDoEvento,
   formularioDeEventoNovo,
+  linhaDoCompletoDoEvento,
   formularioDoEvento,
   garantirAgendaPadrao,
   mudouAAgendaDoEvento,
@@ -204,6 +205,32 @@ describe('escopos de série', () => {
     expect(textoDeExcluirEvento('ESTA', true)).toMatch(/Os outros da série continuam/);
     expect(textoDeExcluirEvento('SEGUINTES', true)).toMatch(/anteriores continuam/);
     expect(textoDeExcluirEvento('TODAS', true)).toMatch(/série inteira/);
+  });
+});
+
+describe('linha do completo no painel rápido', () => {
+  const novo = formularioDeEventoNovo('a1', HOJE);
+
+  it('nenhum campo do completo preenchido não tem linha, e o semanal da lista também não', () => {
+    expect(linhaDoCompletoDoEvento(novo)).toBeNull();
+    expect(linhaDoCompletoDoEvento({
+      ...novo, repeticao: trocarTipoDaRepeticaoDoEvento(novo.repeticao, 'SEMANAL', novo.data),
+    })).toBeNull();
+    expect(linhaDoCompletoDoEvento({ ...novo, descricao: '   ' })).toBeNull();
+  });
+
+  it('repetição personalizada cita só repetição', () => {
+    const semanal = trocarTipoDaRepeticaoDoEvento(novo.repeticao, 'SEMANAL', novo.data);
+    expect(linhaDoCompletoDoEvento({
+      ...novo, repeticao: { ...semanal, dias: ['THURSDAY', 'MONDAY'] },
+    })).toBe('Também preenchido em Mais opções: repetição.');
+  });
+
+  it('dois campos saem na ordem do formulário', () => {
+    const semanal = trocarTipoDaRepeticaoDoEvento(novo.repeticao, 'SEMANAL', novo.data);
+    expect(linhaDoCompletoDoEvento({
+      ...novo, descricao: 'Pauta fictícia', repeticao: { ...semanal, fim: 'VEZES', vezes: '4' },
+    })).toBe('Também preenchido em Mais opções: repetição, descrição.');
   });
 });
 

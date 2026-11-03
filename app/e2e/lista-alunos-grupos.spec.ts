@@ -108,8 +108,11 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await expect(page.getByRole('checkbox')).toHaveCount(0);
 
       const lapis = page.getByRole('button', { name: 'Editar cadastro de Ana Fictícia', exact: true });
-      // 0,5 px de folga: o arredondamento de subpixel às vezes mede 39,99997.
-      expect((await lapis.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(39.5);
+      // C2: alvo de 44×44 (0,5 px de folga de subpixel), com a moldura de 40 centrada por dentro.
+      const alvo = (await lapis.boundingBox())!;
+      expect(Math.min(alvo.width, alvo.height)).toBeGreaterThanOrEqual(43.5);
+      const desenho = (await lapis.locator(':scope > div').first().boundingBox())!;
+      expect([Math.round(desenho.width), Math.round(desenho.height)]).toEqual([40, 40]);
       await lapis.click();
 
       await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${id(1)}$`));

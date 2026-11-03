@@ -8,8 +8,28 @@ interface Estado<T> {
 }
 
 /**
- * Carrega dados da API para uma tela. `chave` muda → busca de novo (`null` = não buscar ainda). Enquanto recarrega,
- * os dados anteriores continuam na tela. O estado só muda no retorno da promessa (regra do React 19 para efeitos).
+ * O que a tela pode mostrar agora. Trocar a `chave` mantém os dados da chave anterior até a resposta nova: as listas
+ * não piscam. `dadosDeOutraChave` avisa que esses dados não são da chave pedida. Recarregar a mesma chave também
+ * mantém os dados, sem essa marca. `dados`, `erro` e `carregando` seguem o de antes desta marca.
+ */
+export function leituraDoCarregamento<T>(
+  estado: { chave: string; rodada: number; dados?: T; erro?: unknown } | null,
+  chave: string | null,
+  rodada: number,
+): { dados: T | undefined; erro: unknown; carregando: boolean; dadosDeOutraChave: boolean } {
+  const mesmaChave = estado !== null && estado.chave === chave;
+  const emDia = mesmaChave && estado.rodada === rodada;
+  return {
+    dados: estado?.dados,
+    erro: emDia ? estado.erro : undefined,
+    carregando: chave !== null && !emDia,
+    dadosDeOutraChave: estado !== null && chave !== null && estado.chave !== chave,
+  };
+}
+
+/**
+ * Carrega dados da API para uma tela. `chave` muda → busca de novo (`null` = não buscar ainda). O estado só muda no
+ * retorno da promessa (regra do React 19 para efeitos).
  */
 export function useCarregar<T>(chave: string | null, buscar: (chave: string) => Promise<T>) {
   const [estado, setEstado] = useState<Estado<T> | null>(null);
@@ -45,14 +65,7 @@ export function useCarregar<T>(chave: string | null, buscar: (chave: string) => 
     [],
   );
 
-  const emDia = estado !== null && estado.chave === chave && estado.rodada === rodada;
-  return {
-    dados: estado?.dados,
-    erro: emDia ? estado.erro : undefined,
-    carregando: chave !== null && !emDia,
-    recarregar,
-    definir,
-  };
+  return { ...leituraDoCarregamento(estado, chave, rodada), recarregar, definir };
 }
 
 /** Valor que só muda depois de `ms` sem mudanças (busca enquanto digita). */

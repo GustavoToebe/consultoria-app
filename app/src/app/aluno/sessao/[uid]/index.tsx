@@ -52,7 +52,8 @@ export default function SessaoAluno() {
     return (
       <Tela bordas={['top']} largura={720}>
         <Cabecalho titulo="Treino" voltar="/aluno/treino" />
-        <Vazio texto="Esta sessão não está mais no seu plano. Volte para ver o treino atual." />
+        <Vazio texto="Esta sessão não está mais no seu plano. Volte para ver o treino atual."
+          acao={{ rotulo: 'Ver meu treino', aoTocar: () => router.replace('/aluno/treino') }} />
       </Tela>
     );
   }
@@ -95,6 +96,10 @@ export default function SessaoAluno() {
         {data !== hoje ? <Texto variante="suave">Você está registrando o treino de {dataParaTela(data)}.</Texto> : null}
         <ConcluirTreino {...conclusao} tipo="secundario" avisarDataFutura />
       </Cartao>
+      {/* Logo depois do cartão do dia, antes de "Outras datas": em 390×844 o começar aparece sem rolar (auditoria de 03/11). */}
+      {pendente ? (
+        <Botao rotulo={feitas ? `Continuar: ${pendente.nome}` : 'Começar treino'} Icone={Play} cheio aoTocar={() => abrir(pendente.uid)} />
+      ) : null}
       {datas.length > 1 ? (
         <Cartao titulo="Outras datas">
           <Texto variante="suave">Para registrar este treino em outro dia do período, escolha a data.</Texto>
@@ -113,9 +118,6 @@ export default function SessaoAluno() {
           {sessao.cardio ? <Texto>Cardio: {sessao.cardio}</Texto> : null}
           {sessao.observacao ? <Texto variante="suave">{sessao.observacao}</Texto> : null}
         </Cartao>
-      ) : null}
-      {pendente ? (
-        <Botao rotulo={feitas ? `Continuar: ${pendente.nome}` : 'Começar treino'} Icone={Play} cheio aoTocar={() => abrir(pendente.uid)} />
       ) : null}
       <ExerciciosDoDia
         sessao={sessao}

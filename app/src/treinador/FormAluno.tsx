@@ -21,6 +21,7 @@ import { MensagemErro } from '../ui/Estados';
 import { codigoApi, errosPorCampo, textoDoErro } from '../ui/erros';
 import { Texto } from '../ui/Texto';
 import { useAvisoDoPlano } from '../ui/useAvisoDoPlano';
+import { useGuardaDeSaida } from '../ui/GuardaDeSaida';
 
 interface Props {
   inicial?: AlunoDetalhe;
@@ -50,7 +51,8 @@ function diasDoCampo(texto: string): number | null {
  */
 export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPadrao = null, noAcompanhamento }: Props) {
   const {pode,usuario}=useSessao();
-  const [responsavelId,setResponsavelId]=useState(inicial?.responsavelId??usuario?.id??'');
+  // Na edição, vazio continua vazio: salvar sem mexer não grava quem está editando. No aluno novo, começa com quem cadastra.
+  const [responsavelId,setResponsavelId]=useState(inicial ? (inicial.responsavelId ?? '') : (usuario?.id ?? ''));
   const {dados:responsaveis,erro:erroResponsaveis,recarregar}=useCarregar('responsaveis-form',()=>responsaveisEquipe());
   const [nome, setNome] = useState(inicial?.nome ?? '');
   const [sexo, setSexo] = useState(inicial?.sexo ?? '');
@@ -77,6 +79,11 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
   const errosEndereco = comSensivel ? errosDoEndereco(endereco) : {};
   const dadosInvalidos = !!erroTelefone || !!erroCpf || Object.keys(errosEndereco).length > 0;
   const cpfEmUso = codigoApi(erro) === CPF_EM_USO ? MENSAGEM_CPF_EM_USO : undefined;
+  // C7: qualquer campo diferente do que abriu deixa a saída guardada ("Sair sem salvar?"). O retrato é o da primeira
+  // renderização; o questionário da ficha grava na hora e não entra. Quem salva e sai usa `useSairSemPerguntar`.
+  const retrato = JSON.stringify([nome, sexo, email, telefone, objetivo, cpf, endereco, observacoes, meta, dias, responsavelId]);
+  const [retratoInicial] = useState(retrato);
+  useGuardaDeSaida(retrato !== retratoInicial);
 
   const salvar = () => {
     if (!nome.trim() || diasInvalidos || dadosInvalidos) {
@@ -103,7 +110,7 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
       () => setSalvando(false),
       (e: unknown) => {
         setSalvando(false);
-        // Limite do plano: o aviso explica (com "Ver minha conta") e o formulário fica como está, sem erro de campo.
+        // Limite do plano: o aviso explica (com "Ver assinatura e faturas") e o formulário fica como está, sem erro de campo.
         if (!avisarDoPlano(e)) setErro(e);
       },
     );
@@ -139,7 +146,7 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
       </Permitido>
       <Texto variante="secao" style={estilos.secao}>Acompanhamento</Texto>
       {noAcompanhamento}
-      {responsaveis?<Escolha rotulo="Treinador responsável" opcoes={responsaveis.map(r=>({valor:r.id,rotulo:r.nome}))} valor={responsavelId} aoMudar={setResponsavelId}/>:null}
+      {responsaveis?<Escolha rotulo="Treinador responsável" opcoes={[{valor:'',rotulo:'Sem responsável'},...responsaveis.map(r=>({valor:r.id,rotulo:r.nome}))]} valor={responsavelId} aoMudar={setResponsavelId}/>:null}
       {erroResponsaveis?<MensagemErro texto={textoDoErro(erroResponsaveis)} tentarDeNovo={recarregar}/>:null}
       <Campo
         numerico

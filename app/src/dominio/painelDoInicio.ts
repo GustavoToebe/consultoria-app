@@ -187,6 +187,20 @@ export function fonteDaConsulta<T>(c: { dados?: T | null; erro?: unknown; carreg
   return FONTE_FALHOU;
 }
 
+/**
+ * Lista de uma Folha do painel. Carregando não é falha: a Folha mostra o esqueleto, sem os números da consulta
+ * anterior e sem o alerta de erro. Falha, recurso desligado ou dado que não monta a lista viram `falhou`.
+ */
+export function listaDaFolha<T>(
+  fonte: Fonte<T>,
+  montar: (dados: T) => FolhaDoPainel | null,
+): { situacao: 'carregando' | 'falhou' | 'pronta'; dados: FolhaDoPainel | null } {
+  if (fonte.situacao === 'carregando') return { situacao: 'carregando', dados: null };
+  if (fonte.situacao !== 'pronta') return { situacao: 'falhou', dados: null };
+  const dados = montar(fonte.dados);
+  return dados ? { situacao: 'pronta', dados } : { situacao: 'falhou', dados: null };
+}
+
 export interface FontesDoPainel {
   /** `GET /painel?meus=&dias=` do escopo do bloco. */
   painel?: Fonte<PainelTreinador>;
@@ -502,7 +516,8 @@ function cabecalho(id: BlocoDoPainelId, meus: boolean, extra: { periodo?: string
   const titulo = TITULOS_DOS_BLOCOS[id];
   return {
     id, titulo, periodo: extra.periodo ?? null, escopo: meus ? SO_OS_MEUS : null, meus, temFiltro: true,
-    rotuloDoFiltro: `${titulo}: ${meus ? 'mostrando só os meus alunos' : 'mostrando todos os alunos'}. ${meus ? 'Mostrar todos' : 'Mostrar só os meus'}`,
+    // O funil sozinho não diz o que é: o nome começa pelo filtro, diz o que está valendo e o que o toque faz.
+    rotuloDoFiltro: `Filtro de ${titulo}: ${meus ? 'mostrando só os meus alunos' : 'mostrando todos os alunos'}. ${meus ? 'Mostrar todos' : 'Mostrar só os meus'}`,
     abrir: enderecoDoBloco(id, meus),
   };
 }

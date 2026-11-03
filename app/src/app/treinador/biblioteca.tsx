@@ -27,8 +27,8 @@ export default function Biblioteca() {
   return (
     <Tela bordas={['top']} largura={LARGURA_LISTA}>
       <Cabecalho titulo="Biblioteca" mostrarMarca="celular" />
-      <Texto variante="suave">Exercícios, alimentos e suplementos que você usa nos planos: cadastre ou importe do catálogo.</Texto>
-      {destinosPermitidos(pode).length > 0 ? <LinkTexto href="/treinador/importacao" texto="Importar planilha" /> : null}
+      <Texto variante="suave">Exercícios, alimentos e suplementos que você usa nos planos: cadastre, copie do catálogo pronto ou importe da sua planilha.</Texto>
+      {destinosPermitidos(pode).length > 0 ? <LinkTexto href="/treinador/importacao" texto="Importar da sua planilha" /> : null}
       <Abas abas={abas} ativa={aba} aoMudar={setAba} />
       {aba === 'exercicios' ? <AbaExercicios /> : null}
       {aba === 'alimentos' ? <AbaAlimentos /> : null}

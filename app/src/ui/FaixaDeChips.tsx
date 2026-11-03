@@ -18,8 +18,8 @@ interface Props {
   quebrar?: boolean;
 }
 
-/** Largura do esmaecido em cada borda. */
-const LARGURA_ESMAECIDO = 28;
+/** Largura do esmaecido em cada borda (as `Abas` também a usam como folga ao rolar a aba ativa para a vista). */
+export const LARGURA_ESMAECIDO = 28;
 
 /**
  * Chips em linha única com rolagem horizontal e, quando há mais do que cabe, um esmaecido na borda que indica que

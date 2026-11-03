@@ -7,6 +7,7 @@ import { nomeComDia, rotuloDoTipo } from '../dominio/semana';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
 import { Alerta, MensagemErro } from '../ui/Estados';
+import { LinkTexto } from '../ui/LinkTexto';
 import { Texto } from '../ui/Texto';
 
 interface Props {
@@ -17,6 +18,8 @@ interface Props {
   aoEscolher: () => void;
   /** Falha ao carregar o plano: texto da API e "Tentar de novo". */
   erro?: { texto: string; aoTentarDeNovo: () => void; causa?: unknown };
+  /** Dia de descanso: "Quarta · Treino B" (`dominio/inicioDoAluno.proximoTreino`); nulo = a linha some. */
+  proximo?: string | null;
 }
 
 /**
@@ -25,7 +28,7 @@ interface Props {
  * todo um toque: a ação é o botão "Ver meu treino →", que abre a lista do dia (cada exercício se abre e se marca por lá).
  * Falha ao carregar nunca é mostrada como "treino não publicado".
  */
-export function CartaoHoje({ estado, aoVerTreino, aoEscolher, erro }: Props) {
+export function CartaoHoje({ estado, aoVerTreino, aoEscolher, erro, proximo }: Props) {
   const { cores, marca, sobreMarca } = useTema();
   const neutro = { backgroundColor: cores.superficie, borderColor: cores.borda };
 
@@ -55,6 +58,9 @@ export function CartaoHoje({ estado, aoVerTreino, aoEscolher, erro }: Props) {
           <Texto variante="bloco" nivel={3}>Hoje é dia de descanso.</Texto>
         </View>
         {cardio ? <Texto variante="suave">{estado.sessao ? `${rotuloDoTipo(estado.sessao)} · ${cardio}` : cardio}</Texto> : null}
+        {proximo ? <Texto numerico>Próximo treino: {proximo}</Texto> : null}
+        {/* Quem treina fora do dia previsto acha a saída aqui; secundário, porque descansar é o plano de hoje. */}
+        <View style={estilos.linhaDoLink}><LinkTexto href="/aluno/treino" texto="Treinar mesmo assim" /></View>
       </View>
     );
   }
@@ -93,6 +99,8 @@ const estilos = StyleSheet.create({
   cartao: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(0.75) },
   carregando: { minHeight: 140, opacity: 0.6 },
   linhaDescanso: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
+  // O link fica do tamanho do texto (a linha inteira não é toque).
+  linhaDoLink: { flexDirection: 'row' },
   rotulo: { fontFamily: fontes.negrito, letterSpacing: 1 },
   nome: { fontFamily: fontes.negrito, fontSize: 24, lineHeight: 30 },
   detalhe: { opacity: 0.92 },

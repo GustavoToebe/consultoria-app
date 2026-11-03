@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 import { router, usePathname } from 'expo-router';
 import { useSessao } from '../sessao/SessaoProvider';
-import { podeAcessarTela } from '../dominio/permissoes';
-import { SemPermissao } from './Estados';
+import { moduloDesligadoDaTela, podeAcessarTela } from '../dominio/permissoes';
+import { ModuloDesligado, SemPermissao } from './Estados';
 import { Tela } from './Tela';
 
 export function Permitido({codigo,children}:{codigo:string;children:ReactNode}) {
@@ -13,7 +13,10 @@ export function GuardaDePermissao({children}:{children:ReactNode}) {
   const caminho=usePathname();const {pode,pagamentosHabilitados,perfilEquipe}=useSessao();
   if(!podeAcessarTela(caminho,pode,pagamentosHabilitados,!!perfilEquipe?.acessoTotal)) {
     const inicio = caminho.startsWith('/aluno') ? '/aluno' : '/treinador';
-    return <Tela><SemPermissao acao={{ rotulo: 'Voltar ao início', aoTocar: () => router.replace(inicio) }} /></Tela>;
+    const acao = { rotulo: 'Voltar ao início', aoTocar: () => router.replace(inicio) };
+    // Módulo desligado ganha da permissão: ninguém, nem o administrador, abriria a tela pedindo acesso (C4).
+    const desligado = moduloDesligadoDaTela(caminho, pagamentosHabilitados);
+    return <Tela>{desligado ? <ModuloDesligado {...desligado} acao={acao} /> : <SemPermissao acao={acao} />}</Tela>;
   }
   return <>{children}</>;
 }

@@ -101,6 +101,16 @@ for (const largura of [390, 1280]) {
     await expect(page.getByRole('img', { name: /^Recebido \(bruto\) e entradas avulsas por mês/ })).toBeVisible();
     await expect(page.getByLabel('Ativos com acesso: 21')).toBeVisible();
     await expect(page.getByLabel('Inativos: 3')).toBeVisible();
+    // C9: o texto "Alunos" no meio da rosca tem 12 px (o piso de texto do app), não mais 11.
+    await expect(page.locator('svg text', { hasText: /^Alunos$/ })).toHaveCSS('font-size', '12px');
+    // C2: os três ícones de cada bloco (abrir, atualizar, filtro) têm 44×44 de alvo; o filtro em "Meus" tem a moldura de 40.
+    const icones = page.getByRole('button', { name: /^(Abrir |Atualizar |Filtro de )/ });
+    expect(await icones.count()).toBeGreaterThanOrEqual(3);
+    for (const caixa of await icones.evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => [r.width, r.height]))) {
+      expect(Math.min(...caixa)).toBeGreaterThanOrEqual(43.5);
+    }
+    const filtroMeus = page.getByRole('button', { name: /^Filtro de .*: mostrando só os meus alunos/ }).first();
+    expect((await filtroMeus.locator(':scope > div').first().boundingBox())!.width).toBeCloseTo(40, 0);
     // Só contagens nos blocos: nenhum nome de aluno fora das Folhas.
     await expect(page.getByText('Aluno Fictício 1', { exact: true })).toHaveCount(0);
     // O membro (sem acesso total) começa em "Meus" em todos os blocos.
@@ -114,11 +124,11 @@ for (const largura of [390, 1280]) {
 test('Todos/Meus é de cada bloco, fica gravado e o Voltar ao padrão limpa; atualizar recarrega só o bloco', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   const { pedidos } = await abrir(page);
-  const filtro = page.getByRole('button', { name: /^Interessados: mostrando só os meus alunos/ });
+  const filtro = page.getByRole('button', { name: /^Filtro de Interessados: mostrando só os meus alunos/ });
   await expect(filtro).toBeVisible();
   await expect(page.getByText('Só os meus alunos')).toHaveCount(8);
   await filtro.click();
-  await expect(page.getByRole('button', { name: /^Interessados: mostrando todos os alunos/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Filtro de Interessados: mostrando todos os alunos/ })).toBeVisible();
   await expect(page.getByText('Só os meus alunos')).toHaveCount(7);
   await expect.poll(() => pedidos.filter((p) => p.caminho === '/inscricoes/contagens' && p.busca.get('meus') === 'false').length).toBe(1);
   const agendaAntes = pedidos.filter((p) => p.caminho === '/agenda/resumo').length;
@@ -129,14 +139,14 @@ test('Todos/Meus é de cada bloco, fica gravado e o Voltar ao padrão limpa; atu
 
   // A escolha de cada bloco fica gravada: depois de recarregar, Interessados continua em Todos e os outros em Meus.
   await page.reload();
-  await expect(page.getByRole('button', { name: /^Interessados: mostrando todos os alunos/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Filtro de Interessados: mostrando todos os alunos/ })).toBeVisible();
   await expect(page.getByText('Só os meus alunos')).toHaveCount(7);
   // Voltar ao padrão, no Editar, devolve todos os blocos ao padrão do perfil (Meus, para quem não tem acesso total).
   await page.getByRole('button', { name: 'Editar os blocos do Início' }).click();
   const folha = page.getByRole('dialog', { name: 'Editar o Início' });
   await folha.getByRole('button', { name: 'Voltar ao padrão' }).click();
   await folha.getByRole('button', { name: 'Concluir' }).click();
-  await expect(page.getByRole('button', { name: /^Interessados: mostrando só os meus alunos/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Filtro de Interessados: mostrando só os meus alunos/ })).toBeVisible();
   await expect(page.getByText('Só os meus alunos')).toHaveCount(8);
 });
 
@@ -264,6 +274,18 @@ for (const largura of [390, 1280]) {
     expect(errosDaPagina).toEqual([]);
   });
 }
+
+test('primeiros passos: "Abrir Metodologias" abre o Planejamento já no chip Metodologias', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const { errosDaPagina } = await abrir(page, {
+    aparelho: SEM_PASSOS, painel: PAINEL_COM_ACESSO, permissoes: [...TODAS, 'MODELO_LER'],
+    extra: { 'GET /receitas': { corpo: [] }, 'GET /receitas/pastas': { corpo: [] } },
+  });
+  await page.getByRole('button', { name: /^Abrir Metodologias/ }).click();
+  await expect(page).toHaveURL(/\/treinador\/planejamento\?aba=treino&tipo=metodologia$/);
+  await expect(page.getByRole('heading', { name: 'Metodologias', exact: true })).toBeVisible();
+  expect(errosDaPagina).toEqual([]);
+});
 
 test('dispensar pede confirmação, e a Ajuda traz os primeiros passos de volta', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });

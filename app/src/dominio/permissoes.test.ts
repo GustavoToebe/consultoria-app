@@ -1,4 +1,4 @@
-import { PERMISSOES_DO_PLANO, pode, podeAcessarTela } from './permissoes';
+import { moduloDesligadoDaTela, PERMISSOES_DO_PLANO, pode, podeAcessarTela } from './permissoes';
 
 const ADMIN_SEM_CONTA = ['PAINEL_VER','ALUNO_LER','EQUIPE_LER','MARCA_ALTERAR','AUDITORIA_LER'];
 describe('navegação de membros da equipe', () => {
@@ -50,7 +50,7 @@ describe('navegação de membros da equipe', () => {
     expect(podeAcessarTela('/treinador/marca', acesso(['MARCA_ALTERAR']), false, true)).toBe(true);
     expect(podeAcessarTela('/treinador/marca', acesso([]), false, true)).toBe(true);
   });
-  it('Meus dados e Ajustes são de todos; Minha conta exige CONTA_LER', () => {
+  it('Meus dados e Ajustes são de todos; Assinatura e faturas exige CONTA_LER', () => {
     expect(podeAcessarTela('/treinador/meus-dados', acesso([]))).toBe(true);
     expect(podeAcessarTela('/treinador/ajustes', acesso([]))).toBe(true);
     expect(podeAcessarTela('/treinador/minha-conta', acesso(ADMIN_SEM_CONTA))).toBe(false);
@@ -75,5 +75,16 @@ describe('navegação de membros da equipe', () => {
     expect(podeAcessarTela('/treinador/mobilidades/um-id', acesso(['DIETA_LER','DIETA_ALTERAR']))).toBe(false);
     expect(PERMISSOES_DO_PLANO.mobilidade).toEqual(PERMISSOES_DO_PLANO.treino);
     expect(PERMISSOES_DO_PLANO.dieta).toEqual({ ler: 'DIETA_LER', alterar: 'DIETA_ALTERAR', publicar: 'DIETA_PUBLICAR' });
+  });
+});
+
+describe('módulo desligado (C4)', () => {
+  it('Financeiro com os pagamentos desligados diz que o módulo está desligado, para qualquer perfil', () => {
+    expect(moduloDesligadoDaTela('/treinador/financeiro', false)).toEqual({ titulo: 'Financeiro indisponível', texto: 'Os pagamentos não estão ativos nesta instalação do app.' });
+    expect(moduloDesligadoDaTela('/treinador/financeiro')).not.toBeNull();
+  });
+  it('com os pagamentos ligados, ou em outra tela, não há módulo desligado (vale a permissão)', () => {
+    expect(moduloDesligadoDaTela('/treinador/financeiro', true)).toBeNull();
+    expect(moduloDesligadoDaTela('/treinador/equipe', false)).toBeNull();
   });
 });

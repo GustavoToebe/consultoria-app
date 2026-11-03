@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { deixarParaONavegador, type CliqueDoNavegador } from '../dominio/cliqueDeLink';
+import { mesmaTela } from '../dominio/mesmaTela';
 import { voltarAutomatico } from '../dominio/telas';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
@@ -70,15 +71,20 @@ export function Cabecalho({ titulo, subtitulo, trilha, acoes, mostrarMarca, volt
         ) : null}
         <View style={estilos.esquerda}>
           {trilha && trilha.length > 1 && width >= LARGURA_MENU_LATERAL ? (
-            <View style={estilos.trilha} accessibilityRole="header" accessibilityLabel={`Você está em: ${trilha.map((p) => p.rotulo).join(', ')}`}>
+            // C1: a trilha é navegação (`<nav aria-label="Trilha">` na web), nunca título: o h1 é só o título da tela.
+            <View style={estilos.trilha} role="navigation" aria-label="Trilha">
               {trilha.map((p, i) => (
                 <View key={`${i}:${p.rotulo}`} style={estilos.passo}>
                   {i > 0 ? <Texto variante="pequeno" accessible={false}>›</Texto> : null}
                   {p.href && i < trilha.length - 1 ? (
                     <Link href={p.href} accessibilityRole="link" style={estilos.alvoPasso}
                       onPress={(e) => {
-                        // Com alteração pendente a trilha pergunta antes; sem, o link segue como sempre. Ctrl/Cmd+clique abre
-                        // outra guia, e a guia atual não perde nada.
+                        // A mesma tela não sai e não pergunta. Com alteração pendente a trilha pergunta antes; sem, o
+                        // link segue como sempre. Ctrl/Cmd+clique abre outra guia, e a guia atual não perde nada.
+                        if (p.href && mesmaTela(caminho, p.href)) {
+                          e.preventDefault();
+                          return;
+                        }
                         if (!pendente() || !p.href || deixarParaONavegador(e as unknown as CliqueDoNavegador)) return;
                         e.preventDefault();
                         const destino = p.href;
@@ -115,8 +121,8 @@ const estilos = StyleSheet.create({
     gap: espaco(1),
   },
   inicio: { flexDirection: 'row', alignItems: 'flex-start', flexShrink: 1, gap: espaco(0.5) },
-  // Com moldura (40 px) a seta encosta na coluna e fica centrada na primeira linha do título (30 px).
-  seta: { marginRight: espaco(0.5), marginTop: -5 },
+  // O alvo da seta tem 44 px (moldura de 40 por dentro): a margem a centra na primeira linha do título (30 px).
+  seta: { marginRight: espaco(0.5), marginTop: -7 },
   esquerda: { flexShrink: 1, gap: espaco(0.5) },
   // A trilha é a primeira linha: os passos têm 44 px de alvo, mas a margem negativa evita um buraco acima do título.
   trilha: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(0.5), marginTop: -espaco(1.5) },
