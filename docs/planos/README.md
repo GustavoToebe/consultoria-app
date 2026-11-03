@@ -171,6 +171,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Menu do tablet e grupos do N29 num tablet de verdade (Android, 768 a 1023 px): rótulo embaixo do ícone, rolagem do menu e toque | Gustavo, no aparelho | auditoria-ficha (passos 6 e 13) |
 | Verificações que o Playwright não cobre: anamnese num celular de verdade, leitor de tela (TalkBack/VoiceOver) e contraste medido com ferramenta | Gustavo, com o APK | auditoria-ui-ux 2ª passada (Gustavo, 03/11) |
 | Inscrição pública: foco no primeiro erro e erro nos campos de escolha. `Escolha` não tem `erro` e as outras telas públicas só mostram erro no `Campo`; sem componente novo | Claude, quando o Gustavo pedir | auditoria-ui-ux-lote-1 (PR B) |
+| Regerar `app/public/guias/guia-treinador.pdf` no PC (`node scripts/guias/gerar.mjs`): a Ajuda passou a dizer "Financeiro, em Negócio" (grupos do menu, D24) e o PDF ficou com o texto anterior, porque gerado no Linux da nuvem sai com outras fontes | Claude local, no próximo commit do app | auditoria-ficha (D24) |
 
 ## Limitações aceitas (não são pendência)
 
