@@ -140,6 +140,11 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | App antigo × treinador novo: o pacote offline tolera forma de carga desconhecida (a série mostra "Carga: atualize o app para ver", sem campo de peso nem sugestão; o ✓ vale com a carga em branco) e, recusado por outro motivo de formato, o Início e o Treino dizem "Seu treinador usou algo novo. Atualize o app para ver o plano." (feito no código). Falta atualizar o item do `formatoDoPacote` no `AGENTS.md` (ainda diz que `carga` é estrita) e conferir à mão num app velho contra um plano com modo novo | Claude (o `AGENTS.md`); Gustavo (conferência) | editor-de-series-rir-e-carga-fixa |
 | e2e `agenda-calendario.spec.ts:866` intermitente, sem diagnóstico (nada alterado nas miudezas) | Claude, quando o Gustavo pedir | [miudezas-03-11.md](miudezas-03-11.md) |
 | O `expo start` reescreve o `app/tsconfig.json`; conferir o diff antes de cada commit do app | Claude, quando o Gustavo pedir | [miudezas-03-11.md](miudezas-03-11.md) |
+| Ficha do aluno em edição: as saídas de dentro da página (Revisar atualização no resumo e nas pastas, editar plano, Publicar tudo, recordes) navegam sem o "Sair sem salvar?" e a alteração some; embrulhar os `router.push` em `useSaidaGuardada().confirmar` (uns 10 pontos) e um e2e | Claude, quando o Gustavo pedir | auditoria-ui-ux-lote-1 (revisão do PR A, 1.1) |
+| Ficha do aluno: "Cancelar" da edição descarta sem perguntar (o do aluno novo pergunta); decidir se pergunta também | Gustavo decide | auditoria-ui-ux-lote-1 (revisão do PR A, 1.2) |
+| e2e de "Abrir Metodologias" confere URL e título, não o estado selecionado do chip | Claude, quando o Gustavo pedir | auditoria-ui-ux-lote-1 (revisão do PR A, 1.3) |
+| "Próximo treino" do dia de descanso ignora o fim da pasta (no último dia aponta para a segunda depois do fim) | Claude, quando o Gustavo pedir | auditoria-ui-ux-lote-1 (revisão do PR A, 1.4) |
+| Novo aluno aberto direto pelo link: "Cancelar" faz `router.back()` sem histórico; usar o mesmo fallback da seta (`canGoBack ? back : replace`) | Claude, quando o Gustavo pedir | auditoria-ui-ux-lote-1 (revisão do PR A, 1.5) |
 
 ## Limitações aceitas (não são pendência)
 

@@ -80,3 +80,4 @@ O escopo foi definido pelo Gustavo em 03/11 e só mexe no app; nada muda na API.
 ## O que ficou para trás
 - (cada sobra também vai para "Pendências soltas" no README)
 - PR A (`ebd3ac9d`): o `IconeBotao` com moldura ficou 4 px maior por fora (alvo de 44) em todas as telas; conferido só na web (e2e), falta olhar no Android e no iOS, e o `IconeBotao` com moldura no tema escuro não teve captura.
+- Opcionais da revisão independente do PR A (1.1 a 1.5): em "Pendências soltas" do README; nenhum bloqueava.
