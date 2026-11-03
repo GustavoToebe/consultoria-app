@@ -107,8 +107,10 @@ export interface MarcaDaSemana {
   data: string;
   /** O dia com treino (`null` = sem treino). */
   dia: DiaDeTreino | null;
-  /** O dia está fora do período buscado: a semana foi cortada e ele não foi consultado (não é "sem treino"). */
+  /** O dia está fora do período buscado: antes do início ou depois do fim (não é "sem treino"). */
   foraDoPeriodo: boolean;
+  /** O dia é depois de hoje e ainda faz parte do período (ou o período termina hoje): neutro, não é "sem treino" (D9). */
+  aindaNaoChegou: boolean;
 }
 
 export interface SemanaDoHistorico {
@@ -125,10 +127,13 @@ export interface SemanaDoHistorico {
 /**
  * "Por dia" em semanas (segunda a domingo), da mais recente à mais antiga; dentro, os dias com treino do mais recente ao
  * mais antigo. Dia sem sessão não aparece (não existe treino a mostrar). Só entram os dias de dentro do período (D1 e D5
- * do plano `historico-ajustes-g`): os da semana cortada que ficam fora dele são marcados `foraDoPeriodo`.
+ * do plano `historico-ajustes-g`): os da semana cortada antes do início ou depois do fim são `foraDoPeriodo`; os depois de
+ * `hoje` que ainda são do período são `aindaNaoChegou` (D9). Período que termina hoje (os últimos 30 dias) foi cortado em
+ * hoje, então o dia seguinte ainda não chegou, não está fora.
  */
-export function semanasDoHistorico(dias: readonly DiaDeTreino[], periodo: { de: string; ate: string }): SemanaDoHistorico[] {
+export function semanasDoHistorico(dias: readonly DiaDeTreino[], periodo: { de: string; ate: string }, hoje: string): SemanaDoHistorico[] {
   const dentro = (data: string) => data >= periodo.de && data <= periodo.ate;
+  const aindaNaoChegou = (data: string) => data > hoje && data >= periodo.de && (data <= periodo.ate || periodo.ate === hoje);
   const semanas = new Map<string, DiaDeTreino[]>();
   for (const dia of [...dias].filter((d) => d.sessoes.length && dentro(d.data)).sort((a, b) => b.data.localeCompare(a.data))) {
     const inicio = somarDias(dia.data, -(diaDaSemanaIso(dia.data) - 1));
@@ -140,7 +145,8 @@ export function semanasDoHistorico(dias: readonly DiaDeTreino[], periodo: { de: 
     dias: lista,
     marcas: Array.from({ length: 7 }, (_, i) => {
       const data = somarDias(inicio, i);
-      return { data, dia: lista.find((d) => d.data === data) ?? null, foraDoPeriodo: !dentro(data) };
+      const futuro = aindaNaoChegou(data);
+      return { data, dia: lista.find((d) => d.data === data) ?? null, foraDoPeriodo: !dentro(data) && !futuro, aindaNaoChegou: futuro };
     }),
   }));
 }

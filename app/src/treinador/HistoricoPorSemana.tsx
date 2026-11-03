@@ -27,11 +27,14 @@ interface Props {
   letras: ReadonlyMap<string, string>;
   /** Datas do período buscado (obrigatório): os dias da semana cortada que ficam fora dele aparecem neutros e não contam. */
   periodo: { de: string; ate: string };
+  /** O dia de hoje (Brasília, D4): o que vem depois dele e ainda é do período "ainda não chegou" (D9). */
+  hoje: string;
 }
 
 interface MarcaDoDia {
   data: string;
   foraDoPeriodo: boolean;
+  aindaNaoChegou: boolean;
   /** Uma por sessão do dia (D3): a grade mostra todas. */
   sessoes: { letra: string | null; nome: string }[];
 }
@@ -41,15 +44,15 @@ interface MarcaDoDia {
  * no dia treinado) e, embaixo, um cartão por dia treinado, a data à esquerda e a divisão no cabeçalho, com o que foi
  * registrado em cada exercício. As séries ficam em texto (sem a cor por tipo); a cor é só da divisão.
  */
-export function HistoricoPorSemana({ dias, nomeDaSessao, letras, periodo }: Props) {
-  const semanas = semanasDoHistorico(dias, periodo);
+export function HistoricoPorSemana({ dias, nomeDaSessao, letras, periodo, hoje }: Props) {
+  const semanas = semanasDoHistorico(dias, periodo, hoje);
   const animar = usePrimeiraLista(semanas.length > 0, semanas.map((s) => s.inicio).join('|'));
   const letraDe = (s: SessaoDoDia) => letraDaDivisaoNoHistorico(letras, nomeDaSessao(s));
   return (
     <View style={estilos.lista}>
       {semanas.map((semana, i) => (
         <EntradaEmCascata key={semana.inicio} indice={i} animar={animar} style={estilos.semana}>
-          <CabecalhoDaSemana titulo={tituloDaSemana(semana)} resumo={treinosDaSemana(semana)} marcas={semana.marcas.map((m) => ({ data: m.data, foraDoPeriodo: m.foraDoPeriodo, sessoes: (m.dia?.sessoes ?? []).map((x) => ({ letra: letraDe(x), nome: nomeDaSessao(x) })) }))} />
+          <CabecalhoDaSemana titulo={tituloDaSemana(semana)} resumo={treinosDaSemana(semana)} marcas={semana.marcas.map((m) => ({ data: m.data, foraDoPeriodo: m.foraDoPeriodo, aindaNaoChegou: m.aindaNaoChegou, sessoes: (m.dia?.sessoes ?? []).map((x) => ({ letra: letraDe(x), nome: nomeDaSessao(x) })) }))} />
           {semana.dias.map((dia) => (
             <View key={dia.data} style={estilos.dia}>
               <DataDoDia data={dia.data} />
@@ -70,7 +73,9 @@ function CabecalhoDaSemana({ titulo, resumo, marcas }: { titulo: string; resumo:
   const { cores, identificacao } = useTema();
   const treinados = marcas.filter((m) => m.sessoes.length).map((m) => `${partesDaData(m.data).nomeDoDia}, ${m.sessoes.map((x) => (x.letra ? `${x.nome} (${x.letra})` : x.nome)).join(' e ')}`);
   const fora = marcas.filter((m) => m.foraDoPeriodo);
-  const rotulo = `Dias com treino: ${treinados.join('; ') || 'nenhum'}${fora.length ? `. Fora do período: ${fora.map((m) => partesDaData(m.data).nomeDoDia).join(', ')}` : ''}`;
+  const futuros = marcas.filter((m) => m.aindaNaoChegou);
+  const nomes = (lista: MarcaDoDia[]) => lista.map((m) => partesDaData(m.data).nomeDoDia).join(', ');
+  const rotulo = `Dias com treino: ${treinados.join('; ') || 'nenhum'}${fora.length ? `. Fora do período: ${nomes(fora)}` : ''}${futuros.length ? `. Ainda não chegou: ${nomes(futuros)}` : ''}`;
   return (
     <View style={[estilos.cabecalhoDaSemana, { borderBottomColor: cores.bordaCampo }]}>
       <View style={estilos.textosDaSemana}>
@@ -91,7 +96,7 @@ function CabecalhoDaSemana({ titulo, resumo, marcas }: { titulo: string; resumo:
                 );
               })
             ) : (
-              <View style={[estilos.marca, { borderWidth: 1, borderColor: cores.borda, backgroundColor: m.foraDoPeriodo ? 'transparent' : cores.superficie }, m.foraDoPeriodo ? estilos.foraDoPeriodo : null]}>
+              <View style={[estilos.marca, { borderWidth: 1, borderColor: cores.borda, backgroundColor: m.foraDoPeriodo || m.aindaNaoChegou ? 'transparent' : cores.superficie }, m.foraDoPeriodo ? estilos.foraDoPeriodo : null]}>
                 <Texto cor={cores.textoSuave} style={estilos.textoDaMarca}>{LETRAS_DA_SEMANA[i]}</Texto>
               </View>
             )}

@@ -14,10 +14,14 @@ período, letra da divisão que não contradiz o nome, dia com duas sessões e o
 | D3 | Dia com duas sessões | a grade e o rótulo acessível mostram as duas | Gustavo |
 | D4 | "Hoje" do Histórico | o dia de Brasília, como o `hojeDoCiclo` (`hojeEmBrasilia`) | Gustavo |
 | D5 | O que a semana conta | treinos (sessões) dentro do período: dia com duas sessões conta 2; a contagem, a grade e o rótulo acessível concordam | Claude |
+| D6 | Rótulo da divisão repetida | o rótulo acessível diz o nome e a letra que aparece na grade: "Treino A - Pernas (A2)", nunca só "(A)" | Claude, registrado a pedido do Gustavo (03/11) |
+| D7 | Linha "Fora do período" | embaixo do título da semana cortada, "Fora do período: SEG, TER, QUA" (siglas); o rótulo acessível da grade repete com os nomes dos dias; semana sem dia fora não tem a linha | Claude, registrado a pedido do Gustavo (03/11) |
+| D8 | "Hoje" do Progresso | o `CartaoProgresso` (ficha e Histórico) também usa o dia de Brasília (`hojeEmBrasilia`), como o Histórico (D4); passa do escopo do Histórico e vai na descrição do PR | Claude, registrado a pedido do Gustavo (03/11) |
+| D9 | Dias depois de hoje | não são "fora do período": "fora" é só antes do início ou depois do fim da pasta (ou do período buscado). Dia depois de hoje que ainda é do período fica neutro (sem tracejado), não entra na linha "Fora do período", não conta como sem treino e o rótulo acessível diz "Ainda não chegou: …". Período cortado em hoje (últimos 30 dias, `ate` = hoje): o dia seguinte também "ainda não chegou". Limite aceito: pasta que termina exatamente hoje é lida como cortada, e o dia seguinte sai "ainda não chegou" em vez de "fora" (os dois são neutros e não contam) | Gustavo (03/11) |
 
 ## Passos
-- [ ] 1. (a) e (d): período e "hoje" de Brasília em `dominio/historicoDoAluno.ts`, com jest — executor — commit: —
-- [ ] 2. (b) e (c): letra das divisões e as duas sessões do dia, na grade e no rótulo acessível, com jest — executor — commit: —
+- [x] 1. (a) e (d): período e "hoje" de Brasília em `dominio/historicoDoAluno.ts`, com jest — executor — commit: badcb274
+- [x] 2. (b) e (c): letra das divisões e as duas sessões do dia, na grade e no rótulo acessível, com jest — executor — commit: badcb274
 - [ ] 3. e2e `cores-historico-dieta` em 390 e 1280 px; README risca a pendência da etapa (D17, PR #49) — executor-rapido — commit: —
 
 ## Fora do escopo

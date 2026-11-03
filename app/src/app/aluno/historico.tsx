@@ -167,7 +167,7 @@ export default function HistoricoAluno() {
         ) : null}
         {historico.dados && periodoMisturaVersoes(historico.dados) ? <Texto numerico variante="pequeno">{TEXTO_PERIODO_MISTURA_VERSOES}</Texto> : null}
         {historico.dados && visao === 'divisao' ? <CargasPorDivisao divisoes={divisoes} letras={letras} /> : null}
-        {historico.dados && visao === 'dia' ? <HistoricoPorSemana dias={historico.dados} nomeDaSessao={nomeDaSessao} letras={letras} periodo={{ de, ate }} /> : null}
+        {historico.dados && visao === 'dia' ? <HistoricoPorSemana dias={historico.dados} nomeDaSessao={nomeDaSessao} letras={letras} periodo={{ de, ate }} hoje={hoje} /> : null}
       </Cartao>
 
       <CartaoProgresso />
