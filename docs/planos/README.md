@@ -60,6 +60,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Cupom no suplemento (C51) | [cupom-suplemento.md](cupom-suplemento.md) | main (PR #52, 78d2664b) | Concluída | 03/11/2026 |
 | Histórico: detalhes que sobraram da Frente G (dias fora do período, letras, duas sessões, hoje de Brasília) | [historico-ajustes-g.md](historico-ajustes-g.md) | branch `historico-ajustes-g` | Em andamento | 03/11/2026 |
 | Miudezas de 03/11 (dieta, CSV, 429 da inscrição, Primeiros passos, ícones, e2e intermitentes) | [miudezas-03-11.md](miudezas-03-11.md) | `main` (60e906e, PR #44) | Concluída em 03/11/2026 (em produção às 00h35; D1 e D2 confirmados) | 03/11/2026 |
+| Auditoria de UI/UX, peças compartilhadas (Folha com um diálogo e retorno do foco, cores da Folha e do Botão pelo tema, Kanban com movimento reduzido) | [auditoria-pecas.md](auditoria-pecas.md) | branch `auditoria-pecas` | Planejando | 03/11/2026 |
 
 ## Pendências soltas
 
