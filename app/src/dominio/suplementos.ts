@@ -9,6 +9,9 @@ import { linkParaAbrir } from './links';
 
 export const MAX_SABORES = 20;
 
+/** Tamanho máximo do cupom (igual à API: 40 caracteres depois do strip; a tela limita a digitação). */
+export const MAX_CUPOM = 40;
+
 /** "2 dosadores (15g) · 30 porções". Número puro vira "N porções"; texto ("cerca de 26") ganha "porções". */
 export function descricaoDaPorcao(s: Pick<SuplementoDaBiblioteca, 'porcao' | 'porcoesPorEmbalagem'>): string {
   const porcao = s.porcao?.trim() || SEM_DADO;
@@ -57,11 +60,11 @@ export function nomeParaDieta(s: Pick<SuplementoDaBiblioteca, 'nome' | 'marca'>)
 }
 
 /**
- * Linha de suplementação da dieta a partir de um produto da biblioteca: nome com a marca e o link copiados; dose,
+ * Linha de suplementação da dieta a partir de um produto da biblioteca: nome com a marca, o link e o cupom copiados; dose,
  * horário e observação ficam vazios para o treinador escrever. Link que não passa na regra não vai junto.
  */
-export function linhaDeSuplementacao(s: Pick<SuplementoDaBiblioteca, 'nome' | 'marca' | 'link'>, uid: string): Suplemento {
-  return { uid, nome: nomeParaDieta(s), dose: '', horario: '', observacao: '', link: linkParaAbrir(s.link) };
+export function linhaDeSuplementacao(s: Pick<SuplementoDaBiblioteca, 'nome' | 'marca' | 'link' | 'cupom'>, uid: string): Suplemento {
+  return { uid, nome: nomeParaDieta(s), dose: '', horario: '', observacao: '', link: linkParaAbrir(s.link), cupom: s.cupom?.trim() || null };
 }
 
 /** Busca sem acento e sem caixa, no nome e na marca; categoria vazia = todas. */

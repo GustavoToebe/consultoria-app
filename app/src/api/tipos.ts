@@ -843,6 +843,8 @@ export interface Suplemento {
   observacao: string;
   /** Link https do produto (copiado da biblioteca); nulo quando não há. */
   link: string | null;
+  /** Cupom de desconto do produto (copiado da biblioteca, até 40); nulo ou ausente quando não há. */
+  cupom?: string | null;
 }
 
 /** Medicação ou ergogênico da dieta do aluno (dado sensível). Dose, horário e prescrição são texto do treinador. */
@@ -1569,7 +1571,7 @@ export interface ConsumoDoPlano {
   itens: ItemDoConsumo[];
 }
 
-/** Suplemento da biblioteca: só nome, marca, categoria, porção, sabores e link. Sem valor nutricional nem dose. */
+/** Suplemento da biblioteca: só nome, marca, categoria, porção, sabores, link e cupom. Sem valor nutricional nem dose. */
 export interface SuplementoDaBiblioteca {
   id: string;
   nome: string;
@@ -1579,6 +1581,8 @@ export interface SuplementoDaBiblioteca {
   porcoesPorEmbalagem: string | null;
   sabores: string[];
   link: string | null;
+  /** Texto livre até 40 caracteres, opcional; mais que isso a API responde 422 no campo `cupom`. */
+  cupom: string | null;
 }
 export type SuplementoDaBibliotecaRequest = Omit<SuplementoDaBiblioteca, 'id'>;
 

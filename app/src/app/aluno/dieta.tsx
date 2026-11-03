@@ -1,6 +1,7 @@
 import { TotaisAnimados } from '../../ui/TotaisAnimados';
+import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
-import { Droplet, ExternalLink, FileDown, ShoppingCart } from 'lucide-react-native';
+import { Copy, Droplet, ExternalLink, FileDown, ShoppingCart } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -166,6 +167,7 @@ function Dieta({ versao, salva, aguaNoCartao = false }: { versao: VersaoDetalhe<
               <Texto numerico style={estilos.forte}>{s.nome || '—'}</Texto>
               <LinhasDoComplemento item={s} />
               {linkParaAbrir(s.link) ? <VerProduto link={s.link} /> : null}
+              {s.cupom?.trim() ? <CupomDoProduto uid={s.uid} nome={s.nome} cupom={s.cupom.trim()} /> : null}
             </View>
           ))}
         </Cartao>
@@ -199,6 +201,32 @@ function VerProduto({ link }: { link: string | null }) {
         tipo="secundario"
         Icone={ExternalLink}
         aoTocar={() => { void abrirLinkExterno(link).then((ok) => { if (!ok) avisar('Não foi possível abrir o link.', 'perigo'); }); }}
+      />
+    </View>
+  );
+}
+
+/** Cupom do produto, como o treinador escreveu, com o botão de copiar. Nada é calculado nem aplicado pelo app. */
+function CupomDoProduto({ uid, nome, cupom }: { uid: string; nome: string; cupom: string }) {
+  const { avisar } = useAviso();
+  const copiar = async () => {
+    try {
+      await Clipboard.setStringAsync(cupom);
+      avisar('Copiado.', 'sucesso');
+    } catch {
+      avisar('Selecione o texto e copie à mão.', 'neutro');
+    }
+  };
+  return (
+    <View style={estilos.produto}>
+      <Texto numerico selectable>Cupom: {cupom}</Texto>
+      <Botao
+        rotulo="Copiar cupom"
+        rotuloAcessivel={`Copiar cupom${nome ? ` de ${nome}` : ''}`}
+        testID={`copiar-cupom-${uid}`}
+        tipo="secundario"
+        Icone={Copy}
+        aoTocar={() => { void copiar(); }}
       />
     </View>
   );
@@ -286,5 +314,5 @@ const estilos = StyleSheet.create({
   item: { borderTopWidth: 1, paddingTop: espaco(1), gap: 2 },
   escolha: { borderRadius: RAIO, borderLeftWidth: 3, paddingVertical: espaco(1), paddingHorizontal: espaco(1.25), gap: 2 },
   totalDaRefeicao: { borderTopWidth: 2, paddingTop: espaco(1), marginTop: espaco(0.5) },
-  produto: { alignItems: 'flex-start', paddingTop: espaco(0.5) },
+  produto: { alignItems: 'flex-start', paddingTop: espaco(0.5), gap: espaco(0.5) },
 });

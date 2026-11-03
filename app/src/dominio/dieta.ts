@@ -145,6 +145,7 @@ export function normalizarDieta(conteudo: unknown): ConteudoDieta {
       horario: s.horario ?? '',
       observacao: s.observacao ?? '',
       link: s.link ?? null,
+      cupom: s.cupom ?? null,
     })),
     // Nulo é "sem acesso" (a API não manda): continua nulo, para o editor não criar uma lista que apagaria a real.
     ergogenicos: c.ergogenicos
