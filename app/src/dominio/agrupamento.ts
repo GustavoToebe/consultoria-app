@@ -5,6 +5,7 @@ import { explicacaoDoCatalogo } from './catalogoMetodologia';
 import { cargaIlegivel, TEXTO_CARGA_ILEGIVEL } from './modoDeCarga';
 import { explicacaoDaTecnica, nomeDaTecnica, nomeDoTipo, rotuloDoPapel, tecnicaDescritiva, tipoPorCodigo, tipoTrabalho } from './metodologia';
 import { textoDaFaixa, textoDosPercentuais } from './percentuais';
+import { textoDaCarga, type UnidadeDeCarga } from './unidadeDeCarga';
 
 /**
  * Séries consecutivas iguais (tipo, faixa de repetições, forma de carga, esforço, técnica, observação da série) aparecem
@@ -128,7 +129,7 @@ export function textoEsforcoDoGrupo(grupo: { series: readonly Pick<Serie, 'esfor
  * ("WS"); sem ele, só "85%" e "mesma carga". `nomeDaReferencia` é o nome do tipo da série de referência do back off.
  * Toda faixa sai de `percentuais.textoDaFaixa`: o mesmo texto no editor, no PDF e na meta do aluno.
  */
-export function textoCarga(c: Carga | null | undefined, nomeDaWs?: string | null, nomeDaReferencia?: string | null): string {
+export function textoCarga(c: Carga | null | undefined, nomeDaWs?: string | null, nomeDaReferencia?: string | null, unidade: UnidadeDeCarga = 'kg'): string {
   // Forma de carga mais nova que o app: o texto fixo no lugar da carga (nunca um valor inventado).
   if (cargaIlegivel(c)) return TEXTO_CARGA_ILEGIVEL;
   const daWs = nomeDaWs ? ` da ${nomeDaWs}` : '';
@@ -140,7 +141,7 @@ export function textoCarga(c: Carga | null | undefined, nomeDaWs?: string | null
     case 'MESMA_CARGA':
       return `mesma carga${daWs}`;
     case 'CARGA_FIXA':
-      return c.valorKg != null ? `${numeroParaTela(c.valorKg)} kg` : '';
+      return c.valorKg != null ? textoDaCarga(c.valorKg, unidade) : '';
     case 'ABAIXO_DA_REFERENCIA':
       return `${textoDaFaixa(c.percentualMin, c.percentualMax)} abaixo da referência${nomeDaReferencia ? ` (${nomeDaReferencia})` : ''}`;
     default:

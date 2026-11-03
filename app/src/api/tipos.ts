@@ -57,6 +57,8 @@ export interface EuResponse {
   cicloHabilitado?: boolean;
   /** "Concluir treino" (retorno ao aluno) ligado na plataforma; falso ou ausente = o app esconde tudo e não consulta nem envia. */
   retornoHabilitado?: boolean;
+  /** Escolha de kg ou lb para ver e digitar a carga ligada na plataforma; falso ou ausente = o app esconde a escolha e usa kg. */
+  unidadeDeCargaHabilitada?: boolean;
   usuario: UsuarioResumo;
   marca: Marca;
   aluno?: { id: string; nome: string; sexo?: string | null };

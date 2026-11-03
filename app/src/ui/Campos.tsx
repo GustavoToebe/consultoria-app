@@ -183,6 +183,7 @@ export function CampoNumericoGrande({
   ajuda,
   rotuloOculto,
   aoValidade,
+  mascara,
   ref,
 }: {
   rotulo: string;
@@ -196,6 +197,8 @@ export function CampoNumericoGrande({
   rotuloOculto?: boolean;
   /** Avisa a cada digitação se o texto é número (ou vazio): quem grava trava o ✓ enquanto não for. */
   aoValidade?: (valido: boolean) => void;
+  /** Ajusta o texto a cada digitação (a carga em libra, com 1 casa); sem ela, vale o que foi digitado. */
+  mascara?: (texto: string) => string;
   /** Rótulo completo para o leitor de tela ("Peso da série 2"). */
   rotuloAcessivel?: string;
   /** Caixa maior (carga de trabalho do dia). */
@@ -205,7 +208,7 @@ export function CampoNumericoGrande({
 }) {
   const { cores, fatorTexto } = useTema();
   const [foco, setFoco] = useState(false);
-  const { texto, lido, mudar } = useNumeroDigitado(valor, aoMudar, inteiro, aoValidade);
+  const { texto, lido, mudar } = useNumeroDigitado(valor, aoMudar, inteiro, aoValidade, mascara);
   const corBorda = lido === undefined ? cores.perigo : foco ? cores.anelFoco : cores.bordaCampo;
   const destaqueBorda = foco || lido === undefined ? 1 : 0;
   return (

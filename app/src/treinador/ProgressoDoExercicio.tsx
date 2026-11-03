@@ -3,8 +3,9 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { progressoAluno, progressoDoAluno } from '../api/rotas';
-import { dataCurta, dataParaTela, numeroParaTela, SEM_DADO } from '../dominio/formatos';
+import { dataCurta, dataParaTela, SEM_DADO } from '../dominio/formatos';
 import { linhasDaTabela, pontosDoGrafico, resumoDoProgresso, textoDoResumo } from '../dominio/progresso';
+import { kgParaTela, textoDaCarga } from '../dominio/unidadeDeCarga';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
@@ -14,6 +15,7 @@ import { textoDoErro } from '../ui/erros';
 import { GraficoLinha } from '../ui/GraficoLinha';
 import { IconeBotao } from '../ui/IconeBotao';
 import { larguraDaData } from '../ui/larguraDaData';
+import { useUnidadeDeCarga } from '../ui/unidadeDeCargaEmUso';
 import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
 
@@ -31,11 +33,13 @@ export function ProgressoDoExercicio({ alunoId, exercicioId, nome, grupo, aoTira
   alunoId?: string; exercicioId: string; nome: string; grupo: string; aoTirar: () => void;
 }) {
   const { cores, preferencias, fatorTexto } = useTema();
+  // Aluno na unidade dele; o treinador (sem provedor) segue em kg.
+  const unidade = useUnidadeDeCarga();
   const colData = { width: larguraDaData(fatorTexto), flexShrink: 0 } as const;
   const { dados, erro, carregando, recarregar } = useCarregar(`prog:${alunoId ?? 'eu'}:${exercicioId}`, () =>
     alunoId ? progressoDoAluno(alunoId, exercicioId) : progressoAluno(exercicioId));
   const [todas, setTodas] = useState(false);
-  const resumo = dados ? textoDoResumo(resumoDoProgresso(dados)) : null;
+  const resumo = dados ? textoDoResumo(resumoDoProgresso(dados), unidade) : null;
   const pontos = dados ? pontosDoGrafico(dados) : [];
   const linhas = dados ? linhasDaTabela(dados, todas ? null : DATAS_RECENTES) : [];
   return (
@@ -53,8 +57,8 @@ export function ProgressoDoExercicio({ alunoId, exercicioId, nome, grupo, aoTira
       {resumo ? <Texto variante="suave" numerico>{resumo}</Texto> : null}
       {preferencias.graficos && pontos.length >= 2 ? (
         <GraficoLinha
-          pontos={pontos.map((p) => ({ rotulo: dataCurta(p.data), valor: p.carga, data: p.data }))}
-          unidade="kg"
+          pontos={pontos.map((p) => ({ rotulo: dataCurta(p.data), valor: kgParaTela(p.carga, unidade) ?? p.carga, data: p.data }))}
+          unidade={unidade}
           descricao={`Maior carga de trabalho de ${nome} por data`}
           semUltimo
         />
@@ -70,7 +74,7 @@ export function ProgressoDoExercicio({ alunoId, exercicioId, nome, grupo, aoTira
             <View key={p.data} style={[estilos.linha, estilos.linhaDeDados, { borderColor: cores.borda }]}>
               <Texto numerico style={[colData, estilos.forte]}>{dataParaTela(p.data)}</Texto>
               <Texto numerico style={[estilos.colNumero, estilos.carga]}>
-                {p.maiorCargaTrabalho === null ? SEM_DADO : `${numeroParaTela(p.maiorCargaTrabalho)} kg`}
+                {p.maiorCargaTrabalho === null ? SEM_DADO : textoDaCarga(p.maiorCargaTrabalho, unidade)}
               </Texto>
               <Texto numerico style={estilos.colNumero}>{p.repeticoes ?? SEM_DADO}</Texto>
             </View>

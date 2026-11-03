@@ -1,6 +1,7 @@
 import type { Configuracao, ExercicioPlano, OrigemDaReferencia, Serie } from '../api/tipos';
 import { nomeDaReferencia, textoCardio, textoCarga, textoDasRepeticoes, textoEsforco, textoTecnica } from './agrupamento';
 import { numeroParaTela } from './formatos';
+import type { UnidadeDeCarga } from './unidadeDeCarga';
 import { tipoPorCodigo, tipoTrabalho as tipoTrabalhoDaMetodologia } from './metodologia';
 import { cargaIlegivel } from './modoDeCarga';
 import { temEtapaEmPercentual } from './validacaoDeSerie';
@@ -45,7 +46,7 @@ export const ehSerieDeTrabalho = (s: Serie): boolean => modo(s) === 'CARGA_TRABA
  * Texto da meta da série, como o aluno vê na tela. `series` (as do exercício) dá o nome da série de referência do back off;
  * série de cardio mostra a prescrição de cardio.
  */
-export function metaDaSerie(s: Serie, tipoTrabalho: string, semCarga = false, metodologia?: Configuracao, series: readonly Serie[] = []): string {
+export function metaDaSerie(s: Serie, tipoTrabalho: string, semCarga = false, metodologia?: Configuracao, series: readonly Serie[] = [], unidade: UnidadeDeCarga = 'kg'): string {
   if (s.cardio) return `Meta: ${textoCardio(s.cardio)}`;
   const partes: string[] = [];
   partes.push(s.amrap ? 'AMRAP' : `${textoDasRepeticoes(s)} reps`);
@@ -53,7 +54,7 @@ export function metaDaSerie(s: Serie, tipoTrabalho: string, semCarga = false, me
   if (!semCarga && modo(s) === 'CARGA_TRABALHO') {
     partes.push('carga de trabalho');
   } else if (!semCarga) {
-    const carga = textoCarga(s.carga, tipoTrabalho, nomeDaReferencia(s, series, metodologia));
+    const carga = textoCarga(s.carga, tipoTrabalho, nomeDaReferencia(s, series, metodologia), unidade);
     if (carga) partes.push(carga);
   }
   if (esforco) partes.push(esforco);

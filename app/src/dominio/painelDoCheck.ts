@@ -1,4 +1,4 @@
-import { numeroParaTela } from './formatos';
+import { textoDaCarga, type UnidadeDeCarga } from './unidadeDeCarga';
 
 /**
  * Painel do ✓ (D2, 02/11): marcar a série feita com a carga vazia e com sugestão não grava no escuro. Abre na própria
@@ -55,8 +55,9 @@ export interface PainelDoCheck {
 }
 
 /** Textos do painel: "Fez com 60 kg?" e as três opções, nesta ordem. */
-export function painelDoCheck(sugestaoKg: number): PainelDoCheck {
-  const kg = `${numeroParaTela(sugestaoKg)} kg`;
+export function painelDoCheck(sugestaoKg: number, unidade: UnidadeDeCarga = 'kg'): PainelDoCheck {
+  // Só o texto muda: "Sim" continua gravando `sugestaoKg`, em kg, sem passar por libra.
+  const kg = textoDaCarga(sugestaoKg, unidade);
   return {
     pergunta: `Fez com ${kg}?`,
     opcoes: [
