@@ -23,7 +23,7 @@ com um botão de copiar. O app não calcula nada, não aplica desconto e não re
 ## Passos
 - [x] 1. API: V053, campo no suplemento e no suplemento da dieta, validação, cópia para a dieta, teste de integração — executor — commit: 544cd474
 - [x] 2. App: campo na Biblioteca › Suplementos, cupom com copiar na dieta do aluno, jest no domínio, e2e da dieta do aluno — executor — commit: 544cd474
-- [ ] 3. Planilha, Ajuda e AGENTS.md (modelos e guias gerados de novo, se mudarem) — executor-rapido — commit: 8fe1a4e0
+- [x] 3. Planilha, Ajuda e AGENTS.md (modelos e guias gerados de novo, se mudarem) — executor-rapido — commit: 8fe1a4e0
 
 ## Fora do escopo
 - Cálculo de desconto, validade do cupom, recomendação de suplemento (D3).
@@ -35,3 +35,4 @@ com um botão de copiar. O app não calcula nada, não aplica desconto e não re
 - A API usa `strip()` e o app usa `trim()` para limpar o cupom; só muda com espaços Unicode raros.
 - No teste da importação, a conferência de que a mensagem não repete o valor olha só a lista `erros`.
 - A planilha completa não lê o cupom (D9).
+- Revisão independente (opcionais): o `ValidadorDieta` só confere o tamanho do cupom e não o normaliza, então um cupom só de espaços mandado direto pela API do rascunho seria publicado como está (o editor mostraria "Cupom:" vazio; o app não manda isso); os testes da biblioteca conferem o campo `cupom`, mas não o código `SUPLEMENTO_INVALIDO`; falta um e2e de dieta antiga sem a propriedade `cupom` (só há `cupom: null`); o modelo `.xlsx` não foi aberto na revisão (o `.csv` e o `gerar-modelos.mjs` têm a coluna).
