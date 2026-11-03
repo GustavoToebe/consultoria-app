@@ -1,6 +1,6 @@
 # Visual da reunião de 30/10: cor por tipo de série, dieta, histórico e receitas (prévia primeiro)
 
-Situação: Prévia pronta: aguarda o ok do Gustavo · Onde: prévia HTML em `docs/prototipos/cores-por-tipo-de-serie.html`, **sem código do app até o ok do Gustavo** · Atualizado: 03/11/2026 · Registro: reunião de 30/10, C35, C50, C74, C45, C16 · Frente G da leva 2
+Situação: Prévia aprovada (03/11); tokens prontos (passo 3); falta a execução, a dieta, o histórico e as receitas · Onde: prévia HTML em `docs/prototipos/cores-por-tipo-de-serie.html`; código no app · Atualizado: 03/11/2026 · Registro: reunião de 30/10, C35, C50, C74, C45, C16 · Frente G da leva 2
 
 ## Objetivo
 O treinador pediu cor em vários momentos (tipo de série na execução do aluno, "uma bagunça", 58:00; Cluster como bloco
@@ -36,7 +36,7 @@ O treinador pediu cor em vários momentos (tipo de série na execução do aluno
 ## Passos
 - [x] 1. Prévia HTML (390 e 1280 px; claro, areia, escuro; razões de contraste anotadas) de C35, C50/C74, C45 e C16 — executor-front — commit: 168e8467
 - [x] 2. Gustavo aprova ou pede ajuste na prévia — Gustavo — aprovada como proposta em 03/11 (D9 a D17)
-- [ ] 3. Tokens por tipo e por divisão em `tema/tokens.ts` com teste de contraste (`tokens.test.ts`) — executor-front — commit: —
+- [x] 3. Tokens por tipo e por divisão em `tema/tokens.ts` com teste de contraste (`tokens.test.ts`) — executor-front — commit: 5f529724 (`PALETA_DE_IDENTIFICACAO`, `coresDeIdentificacao`, `useTema().identificacao`; chave por `dominio/corDaSerie`: `corDoTipoDeSerie`, `corDaDivisao`, `corDaRefeicao`)
 - [ ] 4. Execução do aluno: cor por tipo; Cluster/Rest-pause como bloco único; peso das etapas pela D17 — executor-front — commit: —
 - [ ] 5. Dieta do aluno e histórico por divisão com cor; reorganização do Histórico (C45); e2e em 390 e 1280 px — executor-front — commit: —
 - [ ] 6. Janela "Usar receita" agrupada (C16) — executor-front — commit: —
