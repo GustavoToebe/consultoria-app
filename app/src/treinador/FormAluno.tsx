@@ -51,7 +51,8 @@ function diasDoCampo(texto: string): number | null {
  */
 export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPadrao = null, noAcompanhamento }: Props) {
   const {pode,usuario}=useSessao();
-  const [responsavelId,setResponsavelId]=useState(inicial?.responsavelId??usuario?.id??'');
+  // Na edição, vazio continua vazio: salvar sem mexer não grava quem está editando. No aluno novo, começa com quem cadastra.
+  const [responsavelId,setResponsavelId]=useState(inicial ? (inicial.responsavelId ?? '') : (usuario?.id ?? ''));
   const {dados:responsaveis,erro:erroResponsaveis,recarregar}=useCarregar('responsaveis-form',()=>responsaveisEquipe());
   const [nome, setNome] = useState(inicial?.nome ?? '');
   const [sexo, setSexo] = useState(inicial?.sexo ?? '');
@@ -109,7 +110,7 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
       () => setSalvando(false),
       (e: unknown) => {
         setSalvando(false);
-        // Limite do plano: o aviso explica (com "Ver minha conta") e o formulário fica como está, sem erro de campo.
+        // Limite do plano: o aviso explica (com "Ver assinatura e faturas") e o formulário fica como está, sem erro de campo.
         if (!avisarDoPlano(e)) setErro(e);
       },
     );
@@ -145,7 +146,7 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
       </Permitido>
       <Texto variante="secao" style={estilos.secao}>Acompanhamento</Texto>
       {noAcompanhamento}
-      {responsaveis?<Escolha rotulo="Treinador responsável" opcoes={responsaveis.map(r=>({valor:r.id,rotulo:r.nome}))} valor={responsavelId} aoMudar={setResponsavelId}/>:null}
+      {responsaveis?<Escolha rotulo="Treinador responsável" opcoes={[{valor:'',rotulo:'Sem responsável'},...responsaveis.map(r=>({valor:r.id,rotulo:r.nome}))]} valor={responsavelId} aoMudar={setResponsavelId}/>:null}
       {erroResponsaveis?<MensagemErro texto={textoDoErro(erroResponsaveis)} tentarDeNovo={recarregar}/>:null}
       <Campo
         numerico

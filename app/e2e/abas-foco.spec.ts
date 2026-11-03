@@ -190,3 +190,44 @@ for (const tema of ['claro', 'escuro'] as const) {
     });
   }
 }
+
+/**
+ * C5 (auditoria de UI/UX de 03/11): a aba ativa vem inteira para a vista, fora do esmaecido (28 px) das bordas, ao abrir
+ * por link uma aba do fim (`?aba=`) e ao tocar numa aba meio escondida. No celular as sete abas do Planejamento não cabem.
+ */
+const ESMAECIDO = 28;
+
+/** Caixa da aba e da rolagem horizontal que a contém, e quanto a rolagem andou. */
+function posicaoNaFaixa(aba: Locator) {
+  return aba.evaluate((e) => {
+    let rolagem: HTMLElement | null = e.parentElement;
+    while (rolagem && !['auto', 'scroll'].includes(getComputedStyle(rolagem).overflowX)) rolagem = rolagem.parentElement;
+    const a = e.getBoundingClientRect();
+    const r = rolagem!.getBoundingClientRect();
+    return { esquerda: a.left - r.left, direita: r.right - a.right, rolou: rolagem!.scrollLeft, sobra: rolagem!.scrollWidth - rolagem!.clientWidth };
+  });
+}
+
+test('390px: a aba aberta por ?aba= e a tocada vêm inteiras para a vista, fora do esmaecido', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await simularApi(page, {
+    ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'MODELO_LER'] })),
+    'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+    'GET /receitas': { corpo: [] },
+    'GET /pastas-modelos': { corpo: [] },
+    'GET /questionarios': { corpo: [] },
+  });
+  await page.goto('/treinador/planejamento?aba=anamnese');
+  const anamnese = page.getByRole('tab', { name: 'Anamnese', exact: true });
+  await expect(anamnese).toHaveAttribute('aria-selected', 'true');
+  await expect.poll(async () => (await posicaoNaFaixa(anamnese)).rolou).toBeGreaterThan(0);
+  const aberta = await posicaoNaFaixa(anamnese);
+  expect(aberta.sobra).toBeGreaterThan(0);
+  expect(aberta.esquerda).toBeGreaterThanOrEqual(ESMAECIDO - 1);
+  expect(aberta.direita).toBeGreaterThanOrEqual(ESMAECIDO - 1);
+
+  // A primeira aba, agora escondida à esquerda: o toque a traz de volta, sem nada cortado.
+  await page.getByRole('tab', { name: 'Treino', exact: true }).click();
+  await expect(page.getByRole('tab', { name: 'Treino', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await expect.poll(async () => (await posicaoNaFaixa(page.getByRole('tab', { name: 'Treino', exact: true }))).esquerda).toBeGreaterThanOrEqual(-0.5);
+});

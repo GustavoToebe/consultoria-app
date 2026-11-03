@@ -102,7 +102,7 @@ describe('catálogo de telas', () => {
     expect(tituloDaPagina('/treinador/financeiro', 'Saraiva Team')).toBe('Financeiro · Saraiva Team');
   });
 
-  it('"faturas" e "assinatura" acham a Minha conta, não o Financeiro', () => {
+  it('"faturas" e "assinatura" acham Assinatura e faturas, não o Financeiro', () => {
     const conta = telasPermitidas(com(['CONTA_LER']));
     expect(ids(buscarTelas('faturas', conta))).toEqual(['minha-conta']);
     expect(ids(buscarTelas('assinatura', conta))).toEqual(['minha-conta']);
@@ -226,7 +226,7 @@ describe('nome da tela atual', () => {
     expect(nomeDaTela('/treinador/perfil')).toBe('Perfil');
     expect(nomeDaTela('/treinador/meus-dados')).toBe('Meus dados');
     expect(nomeDaTela('/treinador/ajustes')).toBe('Ajustes');
-    expect(nomeDaTela('/treinador/minha-conta')).toBe('Minha conta');
+    expect(nomeDaTela('/treinador/minha-conta')).toBe('Assinatura e faturas');
     expect(nomeDaTela('/treinador/desconhecido')).toBeNull();
   });
 });

@@ -10,7 +10,7 @@ import type {
 import { SEM_DADO } from './formatos';
 
 /**
- * Regras de apresentação da Minha conta (sem tela): rótulos, selos e formatos. A API manda os dados prontos (documento,
+ * Regras de apresentação de Assinatura e faturas (sem tela): rótulos, selos e formatos. A API manda os dados prontos (documento,
  * CEP e telefone já formatados); aqui só se escolhe o texto. Ausência de dado é "—", nunca valor inventado.
  */
 

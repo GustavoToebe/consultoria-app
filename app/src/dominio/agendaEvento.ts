@@ -225,6 +225,33 @@ export interface FormularioDoEvento {
 
 export type ErrosDoEvento = Partial<Record<keyof FormularioDoEvento, string>>;
 
+const diasIguais = (a: readonly DiaDaSemana[], b: readonly DiaDaSemana[]) => {
+  const na = DIAS_DA_SEMANA.filter((d) => a.includes(d));
+  const nb = DIAS_DA_SEMANA.filter((d) => b.includes(d));
+  return na.length === nb.length && na.every((d, i) => d === nb[i]);
+};
+
+/**
+ * A repetição que a lista do painel rápido grava sozinha. Dias a mais ou um fim diferente do padrão ("Nunca")
+ * só se ajustam no formulário completo.
+ */
+function repeticaoPersonalizada(r: FormularioDaRepeticaoDoEvento, data: string): boolean {
+  const preset = trocarTipoDaRepeticaoDoEvento({ ...SEM_REPETICAO_DO_EVENTO, dias: [] }, r.tipo, data);
+  return r.fim !== preset.fim || r.ate.trim() !== preset.ate.trim() || r.vezes.trim() !== preset.vezes.trim() || !diasIguais(r.dias, preset.dias);
+}
+
+/**
+ * Campos que o formulário completo guarda e o painel rápido não mostra por inteiro, quando fogem do padrão de um
+ * evento novo. Nomes na ordem do formulário (Quando, depois Detalhes). Vazio = sem a linha.
+ * Título, dia inteiro, agenda e local ficam no painel rápido.
+ */
+export function linhaDoCompletoDoEvento(form: FormularioDoEvento): string | null {
+  const nomes: string[] = [];
+  if (repeticaoPersonalizada(form.repeticao, form.data)) nomes.push('repetição');
+  if (form.descricao.trim()) nomes.push('descrição');
+  return nomes.length ? `Também preenchido em Mais opções: ${nomes.join(', ')}.` : null;
+}
+
 /** Evento novo; `hora` já preenchida quando a pessoa tocou num horário da grade. */
 export function formularioDeEventoNovo(agendaId: string, data: string, hora = ''): FormularioDoEvento {
   return {

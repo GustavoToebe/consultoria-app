@@ -10,7 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTema } from '../tema/TemaProvider';
 import { espaco, LARGURA_MENU_LATERAL, LINHA_DA_FAIXA, RAIO, VEU } from '../tema/tokens';
-import { useFolhaNoHistorico } from './historicoDasFolhas';
+import { marcarFolhaDoTopoFechando, useFolhaNoHistorico } from './historicoDasFolhas';
 import { IconeBotao } from './IconeBotao';
 import { RolagemComTopo } from './RolagemComTopo';
 import { Texto } from './Texto';
@@ -53,8 +53,13 @@ export function Folha({ visivel, titulo, aoFechar, children, rodape, largura, ac
   // inteira deixou a tela) e de novo no `onDismiss`, quando a camada do Modal some. Antes disso a trava de foco do Modal,
   // que fica um render a mais depois do `visible={false}`, puxaria o foco de volta para dentro.
   const quemAbriuRef = useRef<HTMLElement | null>(null);
-  return <Modal ref={semPapelNoModal} transparent visible={visivel} animationType="none" onRequestClose={aoFechar} onDismiss={() => devolverFoco(quemAbriuRef)}>
-    {visivel ? <Painel titulo={titulo} aoFechar={aoFechar} rodape={rodape} largura={largura} acaoNoTopo={acaoNoTopo} faixa={faixa} quemAbriuRef={quemAbriuRef}>{children}</Painel> : null}
+  // Marca antes do `aoFechar`: no celular o diálogo que nascer neste toque não pode ir para dentro desta Folha.
+  const fechar = useCallback(() => {
+    marcarFolhaDoTopoFechando();
+    aoFechar();
+  }, [aoFechar]);
+  return <Modal ref={semPapelNoModal} transparent visible={visivel} animationType="none" onRequestClose={fechar} onDismiss={() => devolverFoco(quemAbriuRef)}>
+    {visivel ? <Painel titulo={titulo} aoFechar={fechar} rodape={rodape} largura={largura} acaoNoTopo={acaoNoTopo} faixa={faixa} quemAbriuRef={quemAbriuRef}>{children}</Painel> : null}
   </Modal>;
 }
 

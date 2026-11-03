@@ -16,6 +16,7 @@ import { Botao } from '../ui/Botao';
 import { Cartao } from '../ui/Cartao';
 import { CampoLeitura } from '../ui/CampoLeitura';
 import { FotoDePerfil } from '../ui/FotoDePerfil';
+import { useSaidaGuardada } from '../ui/GuardaDeSaida';
 import { Selo } from '../ui/Selo';
 import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
@@ -37,6 +38,8 @@ export function ResumoDoAluno({ aluno, acompanhamento, aoRenovar, aoSaberDaFoto,
   children?: ReactNode;
 }) {
   const { pode } = useSessao();
+  // Os dados do aluno se editam neste cartão: sair para a revisão com a edição aberta pergunta antes (D7).
+  const { confirmar } = useSaidaGuardada();
   // Muda quando a equipe troca ou remove a foto: o círculo baixa de novo.
   const versaoDaFoto = useVersaoDaFotoDePerfil();
   const { cores } = useTema();
@@ -56,7 +59,7 @@ export function ResumoDoAluno({ aluno, acompanhamento, aoRenovar, aoSaberDaFoto,
   const f = dados?.frequencia ?? null;
   const corFaixa = passo.tipo === 'perigo' ? cores.perigo : passo.tipo === 'atencao' ? cores.atencao : cores.borda;
   const acao = passo.acao === 'revisar' && a && pode('ATUALIZACAO_LER')
-    ? <Botao rotulo="Revisar atualização" aoTocar={() => router.push(caminhoAtualizacaoTreinador(a))} />
+    ? <Botao rotulo="Revisar atualização" aoTocar={() => confirmar(() => router.push(caminhoAtualizacaoTreinador(a)))} />
     : passo.acao === 'renovar' && pasta && pode('PASTA_ALTERAR')
       ? <Botao rotulo="Renovar pasta" aoTocar={() => aoRenovar(pasta)} />
       : null;
