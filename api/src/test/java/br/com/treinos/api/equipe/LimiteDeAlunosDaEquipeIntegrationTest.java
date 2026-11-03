@@ -99,6 +99,18 @@ class LimiteDeAlunosDaEquipeIntegrationTest extends AbstractIntegrationTest {
         assertThat(limiteNosNumeros(admin, membro).asInt()).as("o valor anterior fica").isEqualTo(7);
     }
 
+    /** D14 pede um inteiro: decimal, texto, booleano e número fora do int não são arredondados nem convertidos, e o valor anterior fica. */
+    @Test
+    void decimalTextoOuOutroTipoNaoSaoConvertidosE422NoCampo() throws Exception {
+        api.put(rota(membro), admin, corpo(7), 204);
+        for (Object invalido : new Object[] {1.5, 7.0, "7", "abc", true, 99999999999L}) {
+            JsonNode erro = api.put(rota(membro), admin, Map.of("limite", invalido), 422);
+            assertThat(erro.path("fieldErrors").get(0).path("field").asString()).as("campo de %s", invalido).isEqualTo("limite");
+            assertThat(erro.path("message").asString() + " " + erro.path("fieldErrors")).doesNotContain(String.valueOf(invalido));
+        }
+        assertThat(limiteNosNumeros(admin, membro).asInt()).as("o valor anterior fica").isEqualTo(7);
+    }
+
     @Test
     void soOAdministradorGrava() throws Exception {
         // Assistente: não tem nem a permissão da rota.
@@ -123,6 +135,8 @@ class LimiteDeAlunosDaEquipeIntegrationTest extends AbstractIntegrationTest {
         api.put(rota(membro), membro.login(), corpo(null), 403);
         // Sem login.
         api.put(rota(membro), null, corpo(3), 401);
+        // Quem não é Administrador leva 403 sem que o membro sequer seja procurado (a conferência vem antes da trava e da leitura).
+        api.put("/usuarios/" + UUID.randomUUID() + "/limite-de-alunos", gestor.login(), corpo(3), 403);
 
         assertThat(limiteNosNumeros(admin, membro).isNull()).isTrue();
         assertThat(auditoriasDoLimite(membro)).isEmpty();

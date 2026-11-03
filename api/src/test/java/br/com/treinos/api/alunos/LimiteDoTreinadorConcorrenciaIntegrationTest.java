@@ -4,6 +4,9 @@ import br.com.treinos.api.AbstractIntegrationTest;
 import br.com.treinos.api.ApiDeTeste;
 import br.com.treinos.api.LimiteDoTreinadorDeTeste;
 import br.com.treinos.api.LimiteDoTreinadorDeTeste.Membro;
+import br.com.plataforma.comum.web.ConflictException;
+import br.com.treinos.api.auth.UsuarioRepository;
+import br.com.treinos.api.tenant.TenantContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -13,6 +16,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import tools.jackson.databind.JsonNode;
@@ -32,6 +36,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Disputa pela última vaga do mesmo membro (D9, D12): duas ou mais requisições chegam juntas por uma barreira; só as que
@@ -48,6 +53,9 @@ class LimiteDoTreinadorConcorrenciaIntegrationTest extends AbstractIntegrationTe
     @Autowired private MockMvc mvc;
     @Autowired private JsonMapper json;
     @Autowired private JdbcTemplate banco;
+    @Autowired private TransactionTemplate transacao;
+    @Autowired private UsuarioRepository usuarios;
+    @Autowired private LimiteDoTreinador limiteDoTreinador;
 
     private ApiDeTeste api;
     private JsonNode admin;
@@ -196,5 +204,25 @@ class LimiteDoTreinadorConcorrenciaIntegrationTest extends AbstractIntegrationTe
         exigirResultado(r, 2);
         assertThat(lim.ativosDe(membro)).isEqualTo(1);
         assertThat(lim.ativosDe(outro)).isEqualTo(1);
+    }
+
+    /**
+     * O limite muda entre a hora em que a operação carregou o membro (já no cache do Hibernate, com limite nulo) e a conferência:
+     * a conferência trava a consultoria e lê o limite por consulta escalar, que não passa pelo cache, então enxerga o novo valor.
+     */
+    @Test
+    void limiteMudadoDepoisDeCarregarOMembroNoCacheValeNaConferencia() throws Exception {
+        UUID consultoria = banco.queryForObject("select consultoria_id from usuario where id = ?::uuid", UUID.class, membro.id());
+        UUID id = UUID.fromString(membro.id());
+        assertThatThrownBy(() -> TenantContext.executarComo(consultoria, () -> transacao.execute(status -> {
+            assertThat(usuarios.findById(id).orElseThrow().getLimiteDeAlunos()).isNull(); // no cache, sem limite
+            try { // outra thread = outra conexão: grava e confirma (na desta thread o JdbcTemplate entraria na mesma transação)
+                pool.submit(() -> banco.update("update usuario set limite_de_alunos = 0 where id = ?", id)).get(SEGUNDOS, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                throw new AssertionError(e);
+            }
+            limiteDoTreinador.exigirVaga(id, 1, null);
+            return null;
+        }))).isInstanceOf(ConflictException.class);
     }
 }

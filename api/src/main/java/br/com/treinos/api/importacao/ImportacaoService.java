@@ -146,13 +146,13 @@ public class ImportacaoService {
         return new Colunas(planilha.abas(), planilha.aba(), colunas, linhas, amostra, numeros, amostra.size() < linhas, cortadas);
     }
 
-    public Previa previa(String destino, String nome, byte[] bytes, String configuracao) {
+    public Previa previa(UUID importador, String destino, String nome, byte[] bytes, String configuracao) {
         exigir(destino);
         ConfiguracaoDaImportacao config = configuracao(destino, configuracao);
         AjustesDaImportacao ajustes = ajustes(configuracao);
         var planilha = ajustes.aplicar(LeitorDePlanilha.ler(nome, bytes, config.aba(), config.linhaDoCabecalho()), config.linhaDoCabecalho());
         conferirTamanho(planilha, config);
-        var resultado = gravador.processar(destino, planilha, config, null, false);
+        var resultado = gravador.processar(destino, planilha, config, importador, false); // o importador é o responsável do aluno novo: a prévia confere o limite dele
         int mostrados = Math.min(ERROS_NA_PREVIA, resultado.erros().size());
         return new Previa(hash(bytes, destino, config, ajustes), resultado.linhas(), resultado.novos(), resultado.atualizados(),
                 resultado.ignorados(), resultado.comErro(), resultado.erros().subList(0, mostrados),

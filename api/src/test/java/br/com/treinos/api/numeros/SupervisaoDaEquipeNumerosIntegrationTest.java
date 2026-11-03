@@ -185,11 +185,11 @@ class SupervisaoDaEquipeNumerosIntegrationTest extends AbstractIntegrationTest {
     /** D16: como o resto de Números, as duas contagens de atualização exigem ATUALIZACAO_LER e ALUNO_SENSIVEL_LER. */
     @Test
     void atualizacoesFicamNulasSemAsDuasPermissoes() throws Exception {
-        JsonNode soPainel = api.get("/numeros", membroComPermissoes(Set.of("PAINEL_VER")), 200);
+        JsonNode soPainel = api.get("/numeros", membroComPermissoes(Set.of("PAINEL_VER", "EQUIPE_LER")), 200);
         // ATUALIZACAO_LER exige ALUNO_SENSIVEL_LER; o perfil sem ATUALIZACAO_LER mas com o dado sensível também fica nulo.
-        JsonNode soSensivel = api.get("/numeros", membroComPermissoes(Set.of("PAINEL_VER", "ALUNO_LER", "ALUNO_SENSIVEL_LER")), 200);
+        JsonNode soSensivel = api.get("/numeros", membroComPermissoes(Set.of("PAINEL_VER", "EQUIPE_LER", "ALUNO_LER", "ALUNO_SENSIVEL_LER")), 200);
         JsonNode completo = api.get("/numeros", membroComPermissoes(
-                Set.of("PAINEL_VER", "ALUNO_LER", "ALUNO_SENSIVEL_LER", "ATUALIZACAO_LER")), 200);
+                Set.of("PAINEL_VER", "EQUIPE_LER", "ALUNO_LER", "ALUNO_SENSIVEL_LER", "ATUALIZACAO_LER")), 200);
 
         for (JsonNode corpo : new JsonNode[] {soPainel, soSensivel}) {
             JsonNode l1 = linha(corpo, m1);
@@ -205,6 +205,27 @@ class SupervisaoDaEquipeNumerosIntegrationTest extends AbstractIntegrationTest {
         assertThat(completo.path("semResponsavel").path("atualizacoesParaRevisar").asLong()).isEqualTo(1);
 
         api.get("/numeros", membroComPermissoes(Set.of("ALUNO_LER")), 403);
+    }
+
+    /** A supervisão é do dono (Gustavo, 03/11): sem EQUIPE_LER os dois campos saem nulos, não listas vazias; o resto de Números segue. */
+    @Test
+    void equipeESemResponsavelSoSaemComEquipeLer() throws Exception {
+        JsonNode soPainel = api.get("/numeros", membroComPermissoes(Set.of("PAINEL_VER", "ALUNO_LER")), 200);
+        assertThat(soPainel.has("equipe")).isTrue();
+        assertThat(soPainel.path("equipe").isNull()).isTrue();
+        assertThat(soPainel.has("semResponsavel")).isTrue();
+        assertThat(soPainel.path("semResponsavel").isNull()).isTrue();
+        assertThat(soPainel.path("meses")).hasSize(6);
+        assertThat(soPainel.toString()).doesNotContain(m1.id()).doesNotContain(m1.nome());
+
+        JsonNode comEquipe = api.get("/numeros", membroComPermissoes(Set.of("PAINEL_VER", "EQUIPE_LER")), 200);
+        assertThat(comEquipe.path("equipe").isArray()).isTrue();
+        assertThat(linha(comEquipe, m1).path("alunosAtivos").asLong()).isEqualTo(4);
+        assertThat(comEquipe.path("semResponsavel").path("alunosAtivos").asLong()).isEqualTo(1);
+
+        JsonNode oAdmin = api.get("/numeros", admin, 200);
+        assertThat(oAdmin.path("equipe").isArray()).isTrue();
+        assertThat(oAdmin.path("semResponsavel").isObject()).isTrue();
     }
 
     @Test

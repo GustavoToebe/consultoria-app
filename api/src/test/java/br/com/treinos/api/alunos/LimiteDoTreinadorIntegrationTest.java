@@ -288,7 +288,6 @@ class LimiteDoTreinadorIntegrationTest extends AbstractIntegrationTest {
     /** D6: inativo e anonimizado não contam. */
     @Test
     void soAlunosAtivosOcupamVaga() throws Exception {
-        lim.limite(membro, 2);
         UUID inativo = lim.aluno(membro);
         UUID anonimizado = lim.aluno(membro);
         lim.aluno(membro);
@@ -296,6 +295,7 @@ class LimiteDoTreinadorIntegrationTest extends AbstractIntegrationTest {
         // Estado de banco que a API sozinha não produz (anonimizar exige inativo): prova que o filtro olha o anonimizado.
         banco.update("update aluno set anonimizado_em = now() where id = ?", anonimizado);
         assertThat(lim.ativosDe(membro)).isEqualTo(1);
+        lim.limite(membro, 2); // depois de criar os três: com o limite antes, o terceiro já seria barrado
 
         lim.editarResponsavel(lim.aluno(null), membro.id(), 200); // 1 ativo + 1 novo = 2
         lim.editarResponsavel(lim.aluno(null), membro.id(), 409); // agora sim, cheio

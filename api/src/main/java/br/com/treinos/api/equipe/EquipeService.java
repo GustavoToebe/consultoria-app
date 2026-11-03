@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.beans.factory.annotation.Value;
+import tools.jackson.databind.JsonNode;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -97,7 +98,7 @@ public class EquipeService {
         List<UsuarioResponse> lista=new ArrayList<>();
         for(var u:usuarios.findByConsultoriaIdAndPapelOrderByNomeAsc(TenantContext.get(),Papel.TREINADOR)) lista.add(usuarioResponse(u));
         for(var c:convites.findByUsadoEmIsNullOrderByCriadoEmDesc()) {
-            var p=perfil(c.getPerfilId());lista.add(new UsuarioResponse(c.getId(),c.getNome(),c.getEmail(),p.getId(),p.getNome(),false,true,c.getExpiraEm(),null));
+            var p=perfil(c.getPerfilId());lista.add(new UsuarioResponse(c.getId(),c.getNome(),c.getEmail(),p.getId(),p.getNome(),false,true,c.getExpiraEm(),null,null));
         }
         return List.copyOf(lista);
     }
@@ -203,12 +204,34 @@ public class EquipeService {
     private Usuario usuario(UUID id) { return usuarios.buscarParaAlterar(id).filter(u -> u.getConsultoriaId().equals(TenantContext.get()) && u.getPapel()==Papel.TREINADOR).orElseThrow(EquipeService::naoEncontrado); }
     private void travar() { Exigir.existe(consultorias.travar(TenantContext.get()),EquipeService::naoEncontrado); }
     private PerfilResponse perfilResponse(Perfil p) { return new PerfilResponse(p.getId(),p.getNome(),p.getDescricao(),p.isAcessoTotal(),p.isSistema(),p.isAtivo(),p.isAcessoTotal()?CatalogoPermissoes.CODIGOS:p.getPermissoes(),usuarios.countByConsultoriaIdAndPerfilId(TenantContext.get(),p.getId()),p.getVersao()); }
-    private UsuarioResponse usuarioResponse(Usuario u) { var p=perfil(u.getPerfilId());return new UsuarioResponse(u.getId(),u.getNome(),u.getEmail(),p.getId(),p.getNome(),u.isAtivo(),false,null,u.getUltimoLoginEm()); }
+    private UsuarioResponse usuarioResponse(Usuario u) { var p=perfil(u.getPerfilId());return new UsuarioResponse(u.getId(),u.getNome(),u.getEmail(),p.getId(),p.getNome(),u.isAtivo(),false,null,u.getUltimoLoginEm(),u.getLimiteDeAlunos()); }
     private boolean nomeExiste(String nome,UUID exceto) { return perfis.findAllByOrderByNomeAsc().stream().anyMatch(p -> !p.getId().equals(exceto) && p.getNome().equalsIgnoreCase(nome.trim())); }
     private void nomeDisponivel(String nome,UUID exceto) { if(nomeExiste(nome,exceto)) throw new ConflictException("Já existe um perfil com este nome.","NOME_EM_USO"); }
     private static void exigirEditavel(Perfil p) { if(p.isSistema()) throw new ConflictException("O perfil Administrador é do sistema.","PERFIL_DE_SISTEMA"); }
     private static NaoEncontradoException naoEncontrado() { return new NaoEncontradoException("Recurso não encontrado."); }
     public static NaoEncontradoException conviteInvalido() { return new NaoEncontradoException("Convite inválido ou expirado."); }
-    // Assinatura mínima (fase 1 dos testes): não grava, não valida, não audita; a fase 2 põe a regra.
-    public void definirLimiteDeAlunos(UUID id,Integer limite) { }
+    /**
+     * Limite de alunos do membro (D13, D14): só o Administrador (perfil de acesso total) grava; {@code null} apaga; de 0 a 999, senão 422
+     * no campo {@code limite} sem repetir o valor. Rota própria, para o {@code PUT /usuarios/{id}} não apagar o limite sem querer.
+     * Não mexe em aluno nenhum (D4). A auditoria tem resumo fixo, sem o valor nem o nome.
+     */
+    @Transactional
+    @br.com.treinos.api.auditoria.Auditar(acao="USUARIO_LIMITE_DE_ALUNOS_ALTERADO",entidade="USUARIO",resumo="Alterou o limite de alunos de um membro.")
+    public void definirLimiteDeAlunos(UUID id,JsonNode corpo) {
+        if(!ator().administrador()) throw negada("Somente administradores definem o limite de alunos.");
+        travar();var u=usuario(id);
+        Integer limite=null;
+        if(corpo!=null && !corpo.isNull()) {
+            // Só número inteiro de verdade: 1.5, 7.0, "7" e true não são arredondados nem convertidos (D14).
+            if(!corpo.isIntegralNumber() || !corpo.canConvertToInt()) throw limiteInvalido();
+            limite=corpo.intValue();
+        }
+        if(limite!=null && (limite<0 || limite>LIMITE_MAXIMO_DE_ALUNOS)) throw limiteInvalido();
+        u.alterarLimiteDeAlunos(limite);usuarios.saveAndFlush(u);
+    }
+    private static final int LIMITE_MAXIMO_DE_ALUNOS=999;
+    private static ValidacaoException limiteInvalido() {
+        return new ValidacaoException("Confira os campos.","LIMITE_DE_ALUNOS_INVALIDO",List.of(new ApiError.FieldError("limite",
+            "Informe um número inteiro de 0 a "+LIMITE_MAXIMO_DE_ALUNOS+", ou deixe em branco para não ter limite.")));
+    }
 }

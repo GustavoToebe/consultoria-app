@@ -54,6 +54,10 @@ public class Usuario {
     @Column(nullable = false)
     private boolean ativo = true;
 
+    /** Quantos alunos ativos o membro pode ter como responsável; nulo = sem limite (V054). Só o Administrador grava. */
+    @Column(name = "limite_de_alunos")
+    private Integer limiteDeAlunos;
+
     @Column(name = "credenciais_versao", nullable = false)
     private long credenciaisVersao;
 
@@ -111,6 +115,8 @@ public class Usuario {
         return papel;
     }
 
+    public Integer getLimiteDeAlunos() { return limiteDeAlunos; }
+    public void alterarLimiteDeAlunos(Integer limite) { this.limiteDeAlunos=limite; }
     public void alterarNome(String nome) { this.nome=nome; }
     public void alterarTelefone(String telefone) { this.telefone=telefone; }
     public void alterarPerfil(UUID perfilId) {

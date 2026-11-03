@@ -173,6 +173,8 @@ class ImportacaoLimiteDoTreinadorIntegrationTest extends AbstractIntegrationTest
 
         JsonNode[] r = importar(admin, csv, config);
         assertThat(r[0].path("comErro").asInt()).isEqualTo(1);
+        // Sem a coluna "responsavel" não houve escolha: o texto não fala em "escolhido".
+        assertThat(r[0].path("erros").get(0).path("motivo").asString()).isEqualTo("O responsável do aluno já atingiu o limite de alunos.");
         assertThat(r[1].path("atualizados").asInt()).isZero();
         assertThat(lim.ativo(dele)).isFalse();
         assertThat(lim.ativosDe(membro)).isEqualTo(1);
@@ -229,5 +231,47 @@ class ImportacaoLimiteDoTreinadorIntegrationTest extends AbstractIntegrationTest
                 config("IGNORAR", Map.of("nome", 0, "email", 1)));
         assertThat(dele2[1].path("novos").asInt()).isZero();
         assertThat(lim.ativosDe(membro)).isEqualTo(2);
+    }
+
+    /**
+     * Membro acima do limite (D4): 3 ativos e limite 1, saldo -2. A linha 1 tira um aluno dele e a linha 2 põe um novo: ainda
+     * sobra -1, então a linha 2 fica de fora, na prévia e na confirmação (a prévia não pode cortar as vagas em zero).
+     */
+    @Test
+    void membroAcimaDoLimiteQueTiraUmERecebeOutroNaMesmaImportacaoNaoCabePreviaEConfirmacaoIguais() throws Exception {
+        Membro outro = lim.membro();
+        UUID dele = lim.aluno(membro);
+        lim.alunos(membro, 2);
+        lim.limite(membro, 1);
+        String email = unico("sai");
+        banco.update("update aluno set email = ? where id = ?", email, dele);
+        String novoNome = "Novo Fictício " + UUID.randomUUID();
+        String csv = linhas("nome;email;responsavel", lim.nomeDe(dele) + ";" + email + ";" + outro.email(),
+                novoNome + ";" + unico("entra") + ";" + membro.email());
+        String config = config("ATUALIZAR", Map.of("nome", 0, "email", 1, "responsavel", 2));
+
+        JsonNode[] r = importar(admin, csv, config);
+        assertThat(r[0].path("comErro").asInt()).as("prévia").isEqualTo(1);
+        assertThat(r[0].path("novos").asInt()).isZero();
+        assertThat(r[1].path("comErro").asInt()).as("confirmação").isEqualTo(1);
+        assertThat(r[1].path("novos").asInt()).isZero();
+        assertThat(r[1].path("atualizados").asInt()).isEqualTo(1);
+        assertThat(lim.ativosDe(membro)).isEqualTo(2);
+        assertThat(lim.responsavelDe(dele)).isEqualTo(outro.id());
+    }
+
+    /** O texto diz "você" quando o responsável é o próprio importador (sem coluna) e "o responsável escolhido" quando a coluna aponta outro. */
+    @Test
+    void textoDoErroDependeDeQuemEOResponsavel() throws Exception {
+        lim.limite(membro, 1);
+        lim.aluno(membro);
+        String config = config("IGNORAR", Map.of("nome", 0, "email", 1));
+        JsonNode proprio = previa(membro.login(), linhas("nome;email", "Eu Fictício " + UUID.randomUUID() + ";" + unico("eu")), config);
+        assertThat(proprio.path("erros").get(0).path("motivo").asString()).isEqualTo("Você já atingiu o limite de alunos.");
+
+        String comColuna = config("IGNORAR", Map.of("nome", 0, "email", 1, "responsavel", 2));
+        JsonNode escolhido = previa(admin, linhas("nome;email;responsavel",
+                "Outro Fictício " + UUID.randomUUID() + ";" + unico("ou") + ";" + membro.email()), comColuna);
+        assertThat(escolhido.path("erros").get(0).path("motivo").asString()).isEqualTo("O responsável escolhido já atingiu o limite de alunos.");
     }
 }

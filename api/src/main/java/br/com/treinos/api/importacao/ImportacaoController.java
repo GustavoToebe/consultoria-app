@@ -85,7 +85,7 @@ public class ImportacaoController {
                          @RequestPart("arquivo") MultipartFile arquivo, @RequestPart("configuracao") String configuracao)
             throws IOException {
         limites.previaDeImportacao(eu.usuarioId());
-        return service.previa(destino, arquivo.getOriginalFilename(), arquivo.getBytes(), configuracao);
+        return service.previa(eu.usuarioId(), destino, arquivo.getOriginalFilename(), arquivo.getBytes(), configuracao);
     }
 
     @PostMapping(value = "/{destino}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

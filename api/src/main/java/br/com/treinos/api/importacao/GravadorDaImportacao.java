@@ -4,6 +4,7 @@ import br.com.plataforma.comum.web.BadRequestException;
 import br.com.treinos.api.alunos.Aluno;
 import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.alunos.AlunoService;
+import br.com.treinos.api.alunos.LimiteDoTreinador;
 import br.com.treinos.api.alunos.RegrasDoEndereco;
 import br.com.treinos.api.alunos.dto.AlunoDtos.Endereco;
 import br.com.treinos.api.auth.Papel;
@@ -44,11 +45,13 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -79,6 +82,7 @@ class GravadorDaImportacao {
     private final AlunoService alunoService;
     private final UsuarioRepository usuarios;
     private final PlanoDaConsultoria plano;
+    private final LimiteDoTreinador limiteDoTreinador;
     private final RegistroPesoRepository pesos;
     private final ExercicioRepository exercicios;
     private final AlimentoRepository alimentos;
@@ -90,7 +94,9 @@ class GravadorDaImportacao {
     GravadorDaImportacao(AlunoRepository alunos, AlunoService alunoService, UsuarioRepository usuarios,
                          PlanoDaConsultoria plano, RegistroPesoRepository pesos, ExercicioRepository exercicios,
                          AlimentoRepository alimentos, SuplementoRepository suplementos,
-                         ErgogenicoRepository ergogenicos, VideoUrls videos, JsonMapper json) {
+                         ErgogenicoRepository ergogenicos, VideoUrls videos, JsonMapper json,
+                         LimiteDoTreinador limiteDoTreinador) {
+        this.limiteDoTreinador = limiteDoTreinador;
         this.alunos = alunos;
         this.alunoService = alunoService;
         this.usuarios = usuarios;
@@ -142,11 +148,12 @@ class GravadorDaImportacao {
             }
         }
         Vagas vagas = new Vagas(plano.vagasDeAluno());
+        VagasDoTreinador doTreinador = new VagasDoTreinador(limiteDoTreinador, gravar);
         for (Linha linha : dados) {
             conta.amostra(linha, config, CAMPOS_ALUNO);
             try {
                 marcar(linha);
-                gravarAluno(linha, config, usuarioId, gravar, conta, indice, equipe, vagas);
+                gravarAluno(linha, config, usuarioId, gravar, conta, indice, equipe, vagas, doTreinador);
             } catch (FalhaDaLinha e) {
                 conta.falha(e.linha, e.campo, e.motivo);
             }
@@ -154,7 +161,7 @@ class GravadorDaImportacao {
     }
 
     private void gravarAluno(Linha linha, ConfiguracaoDaImportacao config, UUID usuarioId, boolean gravar, Conta conta,
-                             Indice indice, Map<String, Usuario> equipe, Vagas vagas) {
+                             Indice indice, Map<String, Usuario> equipe, Vagas vagas, VagasDoTreinador doTreinador) {
         Leitura chave = obrigatoria(linha, config, config.chave());
         if ("cpf".equals(config.chave())) {
             formato(linha.numero(), "cpf", () -> Formatos.cpf(chave.texto()));
@@ -188,11 +195,24 @@ class GravadorDaImportacao {
         UUID responsavel = responsavelFinal(novo, atual == null ? null : atual.getResponsavelId(), leitura(linha, config, "responsavel"), equipe, usuarioId, linha.numero());
         String telefone = telefoneFinal(leitura(linha, config, "telefone"), linha.numero());
         boolean reativa = !novo && !atual.isAtivo() && ativo;
+        // Limite do treinador (D7, D8, D15): só quando a linha dá um aluno ativo a um responsável que ainda não o tinha ativo.
+        UUID ocupavaVagaDe = !novo && atual.isAtivo() ? atual.getResponsavelId() : null;
+        UUID passaAOcuparDe = ativo ? responsavel : null;
+        if (passaAOcuparDe != null && !passaAOcuparDe.equals(ocupavaVagaDe) && !doTreinador.cabe(passaAOcuparDe)) {
+            Leitura coluna = leitura(linha, config, "responsavel");
+            // "escolhido" só quando a linha trouxe a coluna; reativar sem ela devolve o aluno ao responsável que já tinha.
+            throw falha(linha, "responsavel", passaAOcuparDe.equals(usuarioId)
+                    ? "Você já atingiu o limite de alunos."
+                    : coluna.mapeado() && !coluna.vazio()
+                    ? "O responsável escolhido já atingiu o limite de alunos."
+                    : "O responsável do aluno já atingiu o limite de alunos.");
+        }
         if ((novo && ativo) || reativa) {
             if (!vagas.reservar(gravar, plano)) {
                 throw falha(linha, "situacao", "Limite de alunos do plano");
             }
         }
+        doTreinador.reservar(ocupavaVagaDe, passaAOcuparDe);
         if (novo && (nome == null || nome.isBlank())) {
             throw falha(linha, "nome", "Informe o nome.");
         }
@@ -1006,6 +1026,34 @@ class GravadorDaImportacao {
             return Leitura.comErro();
         }
         return new Leitura(celula.texto() == null ? "" : celula.texto().trim(), celula.numero(), false, true);
+    }
+
+    /**
+     * Vagas dos responsáveis na importação. Na confirmação o banco já tem as linhas anteriores (cada uma é gravada e descarregada
+     * antes da próxima) e a consultoria está travada; na prévia nada é gravado, então {@code saldo} acompanha o que as linhas
+     * anteriores mudariam: +1 para quem passa a ter o aluno ativo, -1 para quem deixa de ter.
+     */
+    private static final class VagasDoTreinador {
+        private final LimiteDoTreinador limite;
+        private final boolean gravar;
+        private final Map<UUID, Long> saldo = new HashMap<>();
+
+        VagasDoTreinador(LimiteDoTreinador limite, boolean gravar) {
+            this.limite = limite;
+            this.gravar = gravar;
+        }
+
+        boolean cabe(UUID responsavel) {
+            Long vagas = limite.vagas(responsavel, null);
+            return vagas == null || vagas - (gravar ? 0 : saldo.getOrDefault(responsavel, 0L)) > 0;
+        }
+
+        void reservar(UUID deixa, UUID passa) {
+            if (!Objects.equals(deixa, passa)) {
+                if (deixa != null) saldo.merge(deixa, -1L, Long::sum);
+                if (passa != null) saldo.merge(passa, 1L, Long::sum);
+            }
+        }
     }
 
     private static final class Vagas {

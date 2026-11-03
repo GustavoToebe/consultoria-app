@@ -42,7 +42,7 @@ public class EquipeController {
     public ResponseEntity<Void> cancelarConvite(@PathVariable UUID id) { equipe.cancelarConvite(id);return ResponseEntity.noContent().build(); }
     @PreAuthorize("hasAuthority('PERM_USUARIO_ALTERAR')") @PutMapping("/usuarios/{id}")
     public UsuarioResponse usuario(@PathVariable UUID id,@RequestBody @Valid UsuarioRequest r) { return equipe.alterarUsuario(id,r); }
-    // Assinatura mínima (fase 1 dos testes): ainda sem regra, a fase 2 troca a autoridade pela do Administrador e grava.
+    // Só o Administrador (o service confere o perfil de acesso total); o PreAuthorize é a porta de entrada da equipe.
     @PreAuthorize("hasAuthority('PERM_USUARIO_ALTERAR')") @PutMapping("/usuarios/{id}/limite-de-alunos")
     public ResponseEntity<Void> limiteDeAlunos(@PathVariable UUID id,@RequestBody LimiteDeAlunosRequest r) { equipe.definirLimiteDeAlunos(id,r.limite());return ResponseEntity.noContent().build(); }
 }
