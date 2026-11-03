@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import type { IndicadoresInscricoes, InscricaoDetalhe, InscricaoResumo } from '../src/api/inscricoesTipos';
 import { json, type RespostasApi, sessao, simularApi, TREINADOR } from './api-falsa';
@@ -65,9 +65,13 @@ for (const largura of [390, 1280]) {
       expect(etapa?.corpo).toEqual({ situacao: 'EM_CONTATO', versao: 1 });
 
       // Para Aceita: abre a confirmação do aceite; nada é cadastrado só por mover.
+      // Pelo teclado: a folha "Mover" fecha e a da inscrição abre; o foco fica no diálogo novo, sem voltar ao "Mover para".
       await page.getByRole('button', { name: 'Mover Pessoa Fictícia 2 para' }).click();
-      await page.getByRole('button', { name: 'Aceitar (cadastrar aluno)' }).click();
+      await page.getByRole('button', { name: 'Aceitar (cadastrar aluno)' }).focus();
+      await page.keyboard.press('Enter');
       await expect(page.getByText('Aceitar inscrição?')).toBeVisible();
+      await page.waitForTimeout(300);
+      expect(await page.evaluate(() => !!document.activeElement?.closest('[role="dialog"], [role="alertdialog"]'))).toBe(true);
       await expect(page.getByText('Conferir antes de aceitar')).toBeVisible();
       expect(pedidos.some((p) => p.caminho.endsWith('/aceitar'))).toBe(false);
       expect(naoTratadas).toEqual([]);
@@ -313,17 +317,8 @@ for (const largura of [390, 1280]) {
   });
 }
 
-test('Kanban no PC: arrastar o cartão para outra coluna aberta manda PUT /etapa com a versão', async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 900 });
-  const novas = [resumoFalso(1)];
-  const { pedidos, naoTratadas, errosDaPagina } = await abrir(page, {
-    'GET /inscricoes/contagens': { corpo: contagensFalsas({ NOVA: 1 }) },
-    'GET /inscricoes': (p, route) => json(route, p.busca.get('situacao') === 'NOVA' ? { itens: novas, total: 1 } : { itens: [], total: 0 }),
-    [`PUT /inscricoes/${idDe(1)}/etapa`]: { corpo: detalheFalso(novas[0], { situacao: 'EM_NEGOCIACAO', versao: 2 }) },
-  }, '/treinador/interessados?visao=kanban');
-  const cartao = page.getByRole('button', { name: 'Abrir inscrição de Pessoa Fictícia 1' });
-  await expect(cartao).toBeVisible();
-  const destino = page.getByRole('list', { name: /^Em negociação/ });
+/** Toque longo no cartão e arraste até perto do topo da coluna; `noMeio` roda com o botão ainda apertado. */
+async function arrastar(page: Page, cartao: Locator, destino: Locator, noMeio?: () => Promise<void>) {
   const de = await cartao.boundingBox();
   const para = await destino.boundingBox();
   if (!de || !para) throw new Error('sem medidas');
@@ -336,12 +331,47 @@ test('Kanban no PC: arrastar o cartão para outra coluna aberta manda PUT /etapa
     await page.mouse.move(de.x + de.width / 2 + ((para.x + para.width / 2) - (de.x + de.width / 2)) * k / passos,
       de.y + de.height / 2 + ((para.y + 60) - (de.y + de.height / 2)) * k / passos);
   }
+  await noMeio?.();
   await page.mouse.up();
+}
+
+async function abrirComUmaNova(page: Page) {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const novas = [resumoFalso(1)];
+  const api = await abrir(page, {
+    'GET /inscricoes/contagens': { corpo: contagensFalsas({ NOVA: 1 }) },
+    'GET /inscricoes': (p, route) => json(route, p.busca.get('situacao') === 'NOVA' ? { itens: novas, total: 1 } : { itens: [], total: 0 }),
+    [`PUT /inscricoes/${idDe(1)}/etapa`]: { corpo: detalheFalso(novas[0], { situacao: 'EM_NEGOCIACAO', versao: 2 }) },
+  }, '/treinador/interessados?visao=kanban');
+  const cartao = page.getByRole('button', { name: 'Abrir inscrição de Pessoa Fictícia 1' });
+  await expect(cartao).toBeVisible();
+  return { ...api, cartao, destino: page.getByRole('list', { name: /^Em negociação/ }) };
+}
+
+test('Kanban no PC: arrastar o cartão para outra coluna aberta manda PUT /etapa com a versão', async ({ page }) => {
+  const { pedidos, naoTratadas, errosDaPagina, cartao, destino } = await abrirComUmaNova(page);
+  await arrastar(page, cartao, destino);
   await expect(page.getByText('Pessoa Fictícia 1: Em negociação.')).toBeVisible();
   const etapa = pedidos.find((p) => p.metodo === 'PUT' && p.caminho.endsWith('/etapa'));
   expect(etapa?.corpo).toEqual({ situacao: 'EM_NEGOCIACAO', versao: 1 });
   // Soltar não abre a folha: o detalhe da inscrição nem é pedido.
   expect(pedidos.some((p) => p.metodo === 'GET' && p.caminho === `/inscricoes/${idDe(1)}`)).toBe(false);
+  expect(naoTratadas).toEqual([]);
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('Kanban com movimento reduzido: o cartão não segue o mouse, e soltar na coluna ainda move', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const { pedidos, naoTratadas, errosDaPagina, cartao, destino } = await abrirComUmaNova(page);
+  const antes = (await cartao.boundingBox())!;
+  await arrastar(page, cartao, destino, async () => {
+    // No meio do arraste o cartão continua onde estava.
+    const agora = (await cartao.boundingBox())!;
+    expect(Math.abs(agora.x - antes.x)).toBeLessThan(2);
+    expect(Math.abs(agora.y - antes.y)).toBeLessThan(2);
+  });
+  await expect(page.getByText('Pessoa Fictícia 1: Em negociação.')).toBeVisible();
+  expect(pedidos.find((p) => p.metodo === 'PUT' && p.caminho.endsWith('/etapa'))?.corpo).toEqual({ situacao: 'EM_NEGOCIACAO', versao: 1 });
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);
 });
