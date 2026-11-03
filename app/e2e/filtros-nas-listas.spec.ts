@@ -60,7 +60,7 @@ const PERFIS: PerfilEquipe[] = [
 function membro(n: number, nome: string, extra: Partial<MembroEquipe> = {}): MembroEquipe {
   return {
     id: `m0000000-0000-4000-8000-00000000000${n}`, nome, email: `${nome.split(' ')[0].toLowerCase()}@exemplo.test`, perfilId: 'p-1',
-    perfilNome: 'Treinador', ativo: true, convitePendente: false, conviteExpiraEm: null, ultimoAcesso: null, ...extra,
+    perfilNome: 'Treinador', ativo: true, convitePendente: false, conviteExpiraEm: null, ultimoAcesso: null, limiteDeAlunos: null, ...extra,
   };
 }
 
