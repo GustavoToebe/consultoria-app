@@ -333,6 +333,14 @@ export const baixarFotoDePerfil = () => requisicao<Blob>('/aluno/foto-perfil', {
 export const baixarFotoDePerfilDoAluno = (alunoId: string) =>
   requisicao<Blob>(`/alunos/${seg(alunoId)}/foto-perfil`, { binario: true, limiteMs: 30000 });
 
+/** Equipe (ALUNO_ALTERAR): troca a foto de perfil do aluno. `arquivo`: FormData com `arquivo` (JPEG já reduzido e sem EXIF). */
+export const trocarFotoDePerfilDoAluno = (alunoId: string, arquivo: FormData) =>
+  requisicao<{ atualizadaEm: string }>(`/alunos/${seg(alunoId)}/foto-perfil`, { metodo: 'PUT', corpoBruto: arquivo, limiteMs: 60000 });
+
+/** Equipe (ALUNO_ALTERAR): apaga a foto de perfil do aluno (204, mesmo sem foto). */
+export const removerFotoDePerfilDoAluno = (alunoId: string) =>
+  requisicao<void>(`/alunos/${seg(alunoId)}/foto-perfil`, { metodo: 'DELETE' });
+
 export const baixarFotoDoTreinador = (atualizacaoId: string, fotoId: string) =>
   requisicao<Blob>(`/atualizacoes/${seg(atualizacaoId)}/fotos/${seg(fotoId)}`, { binario: true, limiteMs: 60000 });
 
