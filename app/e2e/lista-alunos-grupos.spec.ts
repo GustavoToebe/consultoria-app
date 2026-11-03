@@ -148,6 +148,15 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       // Acima do lápis (fora do botão) ainda é o link: a faixa do botão não deixa ponto morto.
       await page.goBack();
       await expect(linkAna).toBeVisible();
+      await expect(lapis).toBeVisible();
+      // Voltar remonta a lista: com a máquina cheia as caixas ainda mexiam ao ser lidas e o clique caía no lápis.
+      let anterior = '';
+      await expect.poll(async () => {
+        const atual = JSON.stringify([await linkAna.boundingBox(), await lapis.boundingBox()]);
+        const parou = atual === anterior;
+        anterior = atual;
+        return parou;
+      }, { intervals: [100] }).toBe(true);
       const doLink = await linkAna.boundingBox();
       const lapisDeNovo = await lapis.boundingBox();
       await page.mouse.click(lapisDeNovo!.x + lapisDeNovo!.width / 2, doLink!.y + 3);

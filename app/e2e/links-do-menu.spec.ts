@@ -23,12 +23,11 @@ test('menu lateral: cada item é um link com href e o Ctrl+clique abre em outra 
   await expect(biblioteca).toHaveAttribute('href', '/treinador/biblioteca');
   await expect(page.getByRole('link', { name: 'Alunos', exact: true })).toHaveAttribute('href', '/treinador/alunos');
 
-  const nova = context.waitForEvent('page');
+  // A guia nasce em branco, não tem a API simulada (o app dela volta ao Entrar assim que carrega) e só depois pede o href:
+  // a prova é a requisição de navegação, não a URL final da guia.
+  const pedido = context.waitForEvent('request', (r) => r.isNavigationRequest() && new URL(r.url()).pathname === '/treinador/biblioteca');
   await biblioteca.click({ modifiers: ['Control'] });
-  const guia = await nova;
-  // A guia nasce em branco e só depois carrega o href; esperar o load pega o about:blank.
-  await guia.waitForURL(/\/treinador\/biblioteca/);
-  expect(new URL(guia.url()).pathname).toBe('/treinador/biblioteca');
+  await pedido;
   // A guia de origem não saiu do lugar.
   expect(new URL(page.url()).pathname).toBe(`/treinador/planejamento/modelo/${ID}`);
   expect(errosDaPagina).toEqual([]);
