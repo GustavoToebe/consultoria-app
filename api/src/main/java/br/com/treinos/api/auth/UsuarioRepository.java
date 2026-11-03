@@ -15,6 +15,13 @@ public interface UsuarioRepository extends JpaRepository<Usuario, UUID> {
     long countByConsultoriaIdAndPerfilId(UUID consultoriaId,UUID perfilId);
     long countByConsultoriaIdAndPapelAndAtivoTrue(UUID consultoriaId, Papel papel);
 
+    /**
+     * Limite de alunos do membro (nulo = sem limite, ou membro de outra consultoria). Consulta escalar: não passa pelo cache do
+     * Hibernate, então vê o que outra transação acabou de gravar. {@code Usuario} não tem {@code @TenantId}: filtra a consultoria.
+     */
+    @Query("select u.limiteDeAlunos from Usuario u where u.id = :id and u.consultoriaId = :consultoriaId")
+    Optional<Integer> limiteDeAlunos(UUID id, UUID consultoriaId);
+
     /** O e-mail já chega normalizado ({@code Emails.normalizar}); o índice único é em {@code lower(email)}. */
     @Query("select u from Usuario u where lower(u.email) = :email")
     Optional<Usuario> buscarPorEmail(String email);

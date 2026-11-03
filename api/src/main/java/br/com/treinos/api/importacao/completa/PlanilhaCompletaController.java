@@ -58,7 +58,7 @@ public class PlanilhaCompletaController {
     public Previa previa(@AuthenticationPrincipal UsuarioAutenticado eu, @RequestPart("arquivo") MultipartFile arquivo,
                          @RequestPart(value = "respostas", required = false) String respostas) throws IOException {
         limites.previaDeImportacao(eu.usuarioId());
-        return gravacao.previa(arquivo.getOriginalFilename(), arquivo.getBytes(), respostas);
+        return gravacao.previa(eu.usuarioId(), arquivo.getOriginalFilename(), arquivo.getBytes(), respostas);
     }
 
     @PostMapping(value = "/planilha-completa/confirmar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

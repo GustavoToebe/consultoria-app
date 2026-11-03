@@ -1,6 +1,9 @@
 package br.com.treinos.api.numeros;
 
 import br.com.treinos.api.atualizacoes.RegrasAtualizacao;
+import br.com.treinos.api.auth.Papel;
+import br.com.treinos.api.auth.Usuario;
+import br.com.treinos.api.auth.UsuarioRepository;
 import br.com.treinos.api.consultoria.ConsultoriaRepository;
 import br.com.treinos.api.equipe.AcessoAtual;
 import br.com.treinos.api.tenant.TenantContext;
@@ -14,8 +17,10 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -58,6 +63,15 @@ import java.util.UUID;
  *
  * <p>Os dois campos de atualização seguem o painel: sem {@code ATUALIZACAO_LER} e {@code ALUNO_SENSIVEL_LER} saem
  * {@code null} (o painel também não mostra esses contadores a quem não tem as duas).
+ *
+ * <p><b>Equipe (supervisão, D1 e D16).</b> Uma linha por membro <i>ativo</i> da equipe (o desativado some), com os alunos ativos que
+ * ele tem como responsável (a mesma contagem do limite de alunos, D6), o limite dele (nulo = sem limite) e duas contagens de
+ * atualização de alunos ativos de hoje: <i>atrasadas</i> = ainda não enviadas, com o prazo vencido, da pasta vigente no prazo, dentro
+ * dos seis meses da janela (a mesma regra do "atrasada" dos meses, sem as já enviadas fora do prazo); <i>para revisar</i> = enviadas
+ * e ainda não revisadas, de qualquer data. Mais a linha "Sem responsável": alunos sem responsável ou cujo responsável não é mais
+ * membro ativo (ninguém está supervisionando). Nenhum nome nem id de aluno sai; os dois campos de atualização seguem a mesma
+ * permissão do resto ({@code null} sem as duas). <b>A tabela inteira ({@code equipe} e {@code semResponsavel}) só sai com
+ * {@code EQUIPE_LER}</b> (D17): sem ela os dois campos são {@code null}, não listas vazias, e o resto de Números segue com {@code PAINEL_VER}.
  */
 @Service
 public class NumerosService {
@@ -68,15 +82,26 @@ public class NumerosService {
                              Long atualizacoesAtrasadas) {
     }
 
-    public record Numeros(List<MesNumeros> meses) {
+    /** Uma linha da tabela da equipe: o membro, os alunos ativos dele e o limite ao lado (D16). */
+    public record LinhaDaEquipe(UUID usuarioId, String nome, long alunosAtivos, Integer limiteDeAlunos,
+                                Long atualizacoesAtrasadas, Long atualizacoesParaRevisar) {
+    }
+
+    /** A linha "Sem responsável" da tabela da equipe. */
+    public record SemResponsavel(long alunosAtivos, Long atualizacoesAtrasadas, Long atualizacoesParaRevisar) {
+    }
+
+    public record Numeros(List<MesNumeros> meses, List<LinhaDaEquipe> equipe, SemResponsavel semResponsavel) {
     }
 
     private final NumerosRepository repositorio;
     private final ConsultoriaRepository consultorias;
+    private final UsuarioRepository usuarios;
 
-    public NumerosService(NumerosRepository repositorio, ConsultoriaRepository consultorias) {
+    public NumerosService(NumerosRepository repositorio, ConsultoriaRepository consultorias, UsuarioRepository usuarios) {
         this.repositorio = repositorio;
         this.consultorias = consultorias;
+        this.usuarios = usuarios;
     }
 
     @Transactional(readOnly = true)
@@ -92,7 +117,8 @@ public class NumerosService {
         YearMonth primeiro = corrente.minusMonths(MESES - 1L);
         boolean veAtualizacoes = AcessoAtual.pode("ATUALIZACAO_LER") && AcessoAtual.pode("ALUNO_SENSIVEL_LER");
 
-        Map<YearMonth, long[]> porMes = veAtualizacoes ? contarAtualizacoes(primeiro, corrente, hoje) : Map.of();
+        Map<UUID, Long> atrasadasPorAluno = new HashMap<>();
+        Map<YearMonth, long[]> porMes = veAtualizacoes ? contarAtualizacoes(primeiro, corrente, hoje, atrasadasPorAluno) : Map.of();
 
         List<MesNumeros> meses = new ArrayList<>();
         for (YearMonth mes = primeiro; !mes.isAfter(corrente); mes = mes.plusMonths(1)) {
@@ -108,11 +134,56 @@ public class NumerosService {
             meses.add(new MesNumeros(mes.toString(), parcial, ativos,
                     atualizacoes == null ? null : atualizacoes[0], atualizacoes == null ? null : atualizacoes[1]));
         }
-        return new Numeros(List.copyOf(meses));
+        // Supervisão da equipe é do dono (Gustavo, 03/11): sem EQUIPE_LER os dois campos saem nulos, não listas vazias.
+        EquipeDosNumeros equipe = AcessoAtual.pode("EQUIPE_LER")
+                ? equipe(consultoriaId, veAtualizacoes ? atrasadasPorAluno : null) : new EquipeDosNumeros(null, null);
+        return new Numeros(List.copyOf(meses), equipe.linhas(), equipe.semResponsavel());
+    }
+
+    private record EquipeDosNumeros(List<LinhaDaEquipe> linhas, SemResponsavel semResponsavel) {
+    }
+
+    /** A tabela da equipe (D16). {@code atrasadasPorAluno} nulo = sem permissão para as contagens de atualização. */
+    private EquipeDosNumeros equipe(UUID consultoriaId, Map<UUID, Long> atrasadasPorAluno) {
+        List<Usuario> membros = usuarios.findByConsultoriaIdAndPapelOrderByNomeAsc(consultoriaId, Papel.TREINADOR).stream()
+                .filter(Usuario::isAtivo).toList();
+        Set<UUID> idsDosMembros = new HashSet<>();
+        membros.forEach(m -> idsDosMembros.add(m.getId()));
+
+        // Quem responde por cada aluno ativo; responsável que não é mais membro ativo conta como "sem responsável".
+        Map<UUID, UUID> donos = new HashMap<>();
+        Map<UUID, long[]> porDono = new HashMap<>(); // [alunosAtivos, atrasadas, paraRevisar]; chave nula = sem responsável
+        for (ResponsavelDoAluno a : repositorio.responsaveisDosAlunosAtivos()) {
+            UUID dono = idsDosMembros.contains(a.responsavelId()) ? a.responsavelId() : null;
+            donos.put(a.alunoId(), dono);
+            porDono.computeIfAbsent(dono, d -> new long[3])[0]++;
+        }
+        if (atrasadasPorAluno != null) {
+            atrasadasPorAluno.forEach((aluno, n) -> {
+                if (donos.containsKey(aluno)) {
+                    porDono.get(donos.get(aluno))[1] += n;
+                }
+            });
+            for (UUID aluno : repositorio.alunosComAtualizacaoParaRevisar()) {
+                if (donos.containsKey(aluno)) {
+                    porDono.get(donos.get(aluno))[2]++;
+                }
+            }
+        }
+        boolean com = atrasadasPorAluno != null;
+        List<LinhaDaEquipe> linhas = new ArrayList<>();
+        for (Usuario m : membros) {
+            long[] c = porDono.getOrDefault(m.getId(), new long[3]);
+            linhas.add(new LinhaDaEquipe(m.getId(), m.getNome(), c[0], m.getLimiteDeAlunos(),
+                    com ? c[1] : null, com ? c[2] : null));
+        }
+        long[] sem = porDono.getOrDefault(null, new long[3]);
+        return new EquipeDosNumeros(List.copyOf(linhas), new SemResponsavel(sem[0], com ? sem[1] : null, com ? sem[2] : null));
     }
 
     /** {@code [noPrazo, atrasadas]} por mês do prazo; mês sem atualização contável não aparece no mapa. */
-    private Map<YearMonth, long[]> contarAtualizacoes(YearMonth primeiro, YearMonth corrente, LocalDate hoje) {
+    private Map<YearMonth, long[]> contarAtualizacoes(YearMonth primeiro, YearMonth corrente, LocalDate hoje,
+                                                      Map<UUID, Long> atrasadasPorAluno) {
         Map<YearMonth, long[]> porMes = new HashMap<>();
         VigenciaNaData vigencia = new VigenciaNaData(repositorio.pastasCandidatasAVigente(corrente.atEndOfMonth()));
         List<LinhaPrazo> linhas = repositorio.prazosNaJanela(primeiro.atDay(1), corrente.atEndOfMonth());
@@ -130,6 +201,7 @@ public class NumerosService {
                     && eVigenteNoPrazo(vigencia, linha.alunoId(), linha.pastaId(),
                             linha.pastaFim() != null ? linha.pastaFim() : linha.dataAtualizacao())) {
                 indice = 1;
+                atrasadasPorAluno.merge(linha.alunoId(), 1L, Long::sum); // ainda sem envio: é o que a tabela da equipe mostra
             } else {
                 continue;
             }
@@ -142,6 +214,7 @@ public class NumerosService {
                 continue;
             }
             porMes.computeIfAbsent(YearMonth.from(prazo), m -> new long[2])[1]++;
+            atrasadasPorAluno.merge(pasta.alunoId(), 1L, Long::sum);
         }
         return porMes;
     }

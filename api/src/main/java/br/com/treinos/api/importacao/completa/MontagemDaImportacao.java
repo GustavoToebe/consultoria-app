@@ -114,12 +114,22 @@ public final class MontagemDaImportacao {
 
     /**
      * O que a montagem precisa saber da consultoria. {@code metodologia} = a padrão (nula = a de série do sistema, só para
-     * os códigos dos tipos); {@code vagas} = vagas de aluno ativo livres (nulo = sem limite).
+     * os códigos dos tipos); {@code vagas} = vagas de aluno ativo livres (nulo = sem limite); {@code vagasDoImportador} =
+     * quantos alunos ativos o importador (que vira o responsável de todo aluno novo) ainda comporta no limite dele (nulo = sem limite;
+     * <b>pode ser negativo</b> se ele já passou do limite, D4: só vale a recusa quando é zero ou menos).
      */
     public record Contexto(List<ExercicioDaBiblioteca> exercicios, List<AlimentoDaBiblioteca> alimentos,
                            List<String> suplementos, List<String> ergogenicos, List<AlunoExistente> alunos,
-                           ConteudoTreino.Metodologia metodologia, Long vagas, Permissoes permissoes, LocalDate hoje,
-                           Predicate<String> videoValido) {
+                           ConteudoTreino.Metodologia metodologia, Long vagas, Long vagasDoImportador, Permissoes permissoes,
+                           LocalDate hoje, Predicate<String> videoValido) {
+        /** Sem limite por treinador (testes da montagem e quem não tem importador). */
+        public Contexto(List<ExercicioDaBiblioteca> exercicios, List<AlimentoDaBiblioteca> alimentos,
+                        List<String> suplementos, List<String> ergogenicos, List<AlunoExistente> alunos,
+                        ConteudoTreino.Metodologia metodologia, Long vagas, Permissoes permissoes, LocalDate hoje,
+                        Predicate<String> videoValido) {
+            this(exercicios, alimentos, suplementos, ergogenicos, alunos, metodologia, vagas, null, permissoes, hoje,
+                    videoValido);
+        }
     }
 
     /**
@@ -240,6 +250,7 @@ public final class MontagemDaImportacao {
         private final List<AlunoNovo> novos = new ArrayList<>();
         private int reaproveitados;
         private Long vagas;
+        private Long vagasDoImportador;
         private final Map<String, List<AlunoExistente>> existentesPorNome = new HashMap<>();
         /** Aluno de cada nome de aba ou de bloco (a chave do nome), já resolvido. */
         private final Map<String, Achado> donosPorNome = new HashMap<>();
@@ -271,6 +282,7 @@ public final class MontagemDaImportacao {
             }
             this.metodologia = ctx.metodologia() != null ? ctx.metodologia().configuracao() : ConfiguracaoConsultoria.padrao();
             this.vagas = ctx.vagas();
+            this.vagasDoImportador = ctx.vagasDoImportador();
             for (AlunoExistente e : ctx.alunos()) {
                 existentesPorNome.computeIfAbsent(Normalizacao.chaveDoNome(e.nome()), k -> new ArrayList<>()).add(e);
             }
@@ -404,12 +416,12 @@ public final class MontagemDaImportacao {
                 } else {
                     String status = Normalizacao.chaveDoNome(AnaliseDaPlanilha.texto(l, r.coluna(Campo.STATUS)));
                     boolean ativo = status.isEmpty() || AnaliseDaPlanilha.ATIVO.matcher(status).matches();
-                    if (ativo && vagas != null) {
-                        if (vagas <= 0) {
-                            problema(aba, l.numero(), Campo.ALUNO, "LIMITE_DO_PLANO");
+                    if (ativo) {
+                        String recusa = reservarVaga();
+                        if (recusa != null) {
+                            problema(aba, l.numero(), Campo.ALUNO, recusa);
                             continue;
                         }
-                        vagas--;
                     }
                     dono = new Dono(l.numero(), null);
                     novos.add(new AlunoNovo(dono, nome, email.isEmpty() ? null : email, telefone(aba, l),
@@ -467,16 +479,34 @@ public final class MontagemDaImportacao {
                 nomes.put(d, nome);
                 return new Achado(d, null);
             }
-            if (vagas != null) {
-                if (vagas <= 0) {
-                    return new Achado(null, "LIMITE_DO_PLANO");
-                }
-                vagas--;
+            String recusa = reservarVaga();
+            if (recusa != null) {
+                return new Achado(null, recusa);
             }
             Dono d = new Dono(null, null, chave);
             novos.add(new AlunoNovo(d, nome, null, null, null, null, true));
             nomes.put(d, nome);
             return new Achado(d, null);
+        }
+
+        /**
+         * Reserva a vaga de um aluno novo ativo: a do plano e a do importador (D7). {@code null} = reservou; senão o código do
+         * problema, e nenhuma das duas é consumida.
+         */
+        private String reservarVaga() {
+            if (vagas != null && vagas <= 0) {
+                return "LIMITE_DO_PLANO";
+            }
+            if (vagasDoImportador != null && vagasDoImportador <= 0) {
+                return "LIMITE_DO_TREINADOR";
+            }
+            if (vagas != null) {
+                vagas--;
+            }
+            if (vagasDoImportador != null) {
+                vagasDoImportador--;
+            }
+            return null;
         }
 
         private String telefone(AbaReconhecida aba, Linha l) {
