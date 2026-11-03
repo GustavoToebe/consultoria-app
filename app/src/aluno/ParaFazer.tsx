@@ -64,7 +64,7 @@ export function ParaFazer() {
             detalhe={aviso.detalhe}
             Icone={CalendarDays}
             selo={aviso.selo ?? undefined}
-            aoTocar={() => { marcarVisto(aviso.id); rolarAte([CHAVE_DOS_COMPROMISSOS]); }}
+            aoTocar={() => { aviso.ids.forEach(marcarVisto); rolarAte([CHAVE_DOS_COMPROMISSOS]); }}
           />
         ))}
       </Grade>

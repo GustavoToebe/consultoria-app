@@ -7,7 +7,7 @@ import { meusDados, salvarMeusDados } from '../api/rotas';
 import type { MeusDadosResponse } from '../api/tipos';
 import { CAMPOS_DO_ENDERECO, CPF_EM_USO, enderecoParaLeitura, MENSAGEM_CPF_EM_USO, mascaraCpf, mascaraTelefone } from '../dominio/cadastroDoAluno';
 import {
-  ALUNO_ANONIMIZADO, corpoDoPut, cpfEditavel, CPF_SO_PELO_TREINADOR, ehConflitoDeEdicao, errosDoForm, errosDoServidor, formDeMeusDados,
+  ALUNO_ANONIMIZADO, corpoDoPut, cpfEditavel, CPF_SO_PELO_TREINADOR, ehConflitoDeEdicao, emailParaLeitura, errosDoForm, errosDoServidor, formDeMeusDados,
   houveMudanca, mensagemDeErroMeusDados, temErros, TEXTO_SO_LEITURA, type ErrosMeusDados, type FormMeusDados,
 } from '../dominio/meusDados';
 import { OPCOES_DE_SEXO, rotuloDoSexo, sexoDoCampo } from '../dominio/sexo';
@@ -73,15 +73,16 @@ export function CartaoMeusDados() {
   );
 }
 
-/** Nome, e-mail do cadastro e e-mail de acesso: o aluno lê, quem muda é o treinador (uma frase para os três). */
+/** Nome e um e-mail (o de acesso); quem muda é o treinador. Se o cadastro tem outro e-mail, uma nota diz isso. */
 function SoLeitura({ resp }: { resp: MeusDadosResponse }) {
+  const email = emailParaLeitura(resp);
   return (
     <View style={estilos.bloco}>
       <CamposEmLinha minimo={200}>
         <CampoLeitura rotulo="Nome" valor={resp.nome} />
-        <CampoLeitura rotulo="E-mail do cadastro" valor={resp.email} />
-        <CampoLeitura rotulo="E-mail de acesso" valor={resp.emailDeAcesso} />
+        <CampoLeitura rotulo={email.rotulo} valor={email.valor} />
       </CamposEmLinha>
+      {email.nota ? <Texto variante="pequeno">{email.nota}</Texto> : null}
       <Texto variante="pequeno">{TEXTO_SO_LEITURA}</Texto>
     </View>
   );
