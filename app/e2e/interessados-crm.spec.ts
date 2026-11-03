@@ -275,11 +275,35 @@ for (const largura of [390, 1280]) {
       });
       await page.getByLabel('Buscar').fill('fictícia');
       await expect(page.getByText('Nada encontrado para esta busca.')).toBeVisible();
-      await expect(page.getByText('Encontrada em: Aceitas (1).')).toBeVisible();
+      await expect(page.getByText('Também há inscrições em: Aceitas (1).')).toBeVisible();
       await page.getByRole('button', { name: 'Ver todas' }).click();
       await expect(page.getByText('Pessoa Fictícia 7', { exact: true })).toBeVisible();
-      await expect(page.getByText('Encontrada em:')).toHaveCount(0);
+      await expect(page.getByText('Também há inscrições em:')).toHaveCount(0);
       expect(pedidos.some((p) => p.caminho === '/inscricoes' && p.busca.get('situacao') === 'TODAS' && p.busca.get('busca') === 'fictícia')).toBe(true);
+      expect(naoTratadas).toEqual([]);
+      expect(errosDaPagina).toEqual([]);
+    });
+
+    test('contagem de outra busca não vale: sem "Ver todas" enquanto as contagens novas não chegam', async ({ page }) => {
+      let soltar: () => void = () => {};
+      const segurada = new Promise<void>((r) => { soltar = r; });
+      const aceita = resumoFalso(7, { situacao: 'ACEITA' });
+      const { naoTratadas, errosDaPagina } = await abrir(page, {
+        // A busca "ana" tem aceita; a "zzz" não tem nada, e a resposta das contagens dela demora.
+        'GET /inscricoes/contagens': async (p, route) => {
+          if (p.busca.get('busca') === 'zzz') await segurada;
+          return json(route, contagensFalsas(p.busca.get('busca') === 'ana' ? { ACEITA: 1 } : {}));
+        },
+        'GET /inscricoes': (p, route) => json(route, p.busca.get('situacao') === 'TODAS' ? { itens: [aceita], total: 1 } : { itens: [], total: 0 }),
+      });
+      await page.getByLabel('Buscar').fill('ana');
+      await expect(page.getByText('Também há inscrições em: Aceitas (1).')).toBeVisible();
+      await page.getByLabel('Buscar').fill('zzz');
+      await expect(page.getByText('Nada encontrado para esta busca.')).toBeVisible();
+      await expect(page.getByText('Também há inscrições em:')).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Ver todas' })).toHaveCount(0);
+      soltar();
+      await expect(page.getByText('Confira o nome, o e-mail ou os dígitos do WhatsApp.')).toBeVisible();
       expect(naoTratadas).toEqual([]);
       expect(errosDaPagina).toEqual([]);
     });

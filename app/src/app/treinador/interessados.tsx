@@ -139,7 +139,8 @@ export default function Interessados() {
     const n = !c ? undefined : f.valor === 'ABERTAS' ? c.abertas : f.valor === 'TODAS' ? c.todas : c.porSituacao[f.valor];
     return { valor: f.valor, rotulo: n === undefined ? f.rotulo : `${f.rotulo} · ${n}` };
   });
-  const vazio = estadoVazio({ filtro, meus, busca, temFiltros: temOutrosFiltros(filtrosDaTela), contagens: c });
+  const vazio = estadoVazio({ filtro, meus, busca, temFiltros: temOutrosFiltros(filtrosDaTela), // Contagem de outra busca (a troca ainda carrega) não vale: melhor sem a dica do que com ela errada.
+    contagens: contagens.dadosDeOutraChave ? null : c });
   const visaoDosFiltros = visao === 'kanban' ? 'kanban' : 'lista';
   const nomeDe = (id: string) => (responsaveis.dados ?? []).find((r) => r.id === id)?.nome ?? null;
   const chips = chipsDosFiltros(filtrosDaTela, visaoDosFiltros, nomeDe);

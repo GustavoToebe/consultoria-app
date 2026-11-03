@@ -512,7 +512,7 @@ export function estadoVazio(p: {
     ? FILTROS_INSCRICOES.filter((f) => f.valor !== p.filtro && f.valor !== 'ABERTAS' && f.valor !== 'TODAS' && p.contagens!.porSituacao[f.valor] > 0)
       .map((f) => `${f.rotulo} (${p.contagens!.porSituacao[f.valor as SituacaoInscricao]})`)
     : [];
-  return onde.length ? { titulo: base.titulo, texto: `Encontrada em: ${onde.join(', ')}.`, verTodas: true } : { ...base, verTodas: false };
+  return onde.length ? { titulo: base.titulo, texto: `Também há inscrições em: ${onde.join(', ')}.`, verTodas: true } : { ...base, verTodas: false };
 }
 
 function estadoVazioBase(p: { filtro: FiltroInscricoes; meus: boolean; busca: string; temFiltros: boolean }): { titulo: string; texto: string } {
