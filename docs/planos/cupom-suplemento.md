@@ -23,7 +23,7 @@ com um botão de copiar. O app não calcula nada, não aplica desconto e não re
 ## Passos
 - [x] 1. API: V053, campo no suplemento e no suplemento da dieta, validação, cópia para a dieta, teste de integração — executor — commit: 544cd474
 - [x] 2. App: campo na Biblioteca › Suplementos, cupom com copiar na dieta do aluno, jest no domínio, e2e da dieta do aluno — executor — commit: 544cd474
-- [ ] 3. Planilha, Ajuda e AGENTS.md (modelos e guias gerados de novo, se mudarem) — executor-rapido — commit: —
+- [ ] 3. Planilha, Ajuda e AGENTS.md (modelos e guias gerados de novo, se mudarem) — executor-rapido — commit: 8fe1a4e0
 
 ## Fora do escopo
 - Cálculo de desconto, validade do cupom, recomendação de suplemento (D3).
