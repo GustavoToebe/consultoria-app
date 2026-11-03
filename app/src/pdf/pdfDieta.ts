@@ -182,10 +182,10 @@ ${r.observacao ? `<div class="suave">${escLinhas(r.observacao)}</div>` : ''}${es
           .join('')}</tbody></table></div>`
       : '',
     d.pesos.length
-      ? `${barra}<div class="bloco">${sec('Acompanhamento de peso')}<table class="dark"><thead><tr><th>Atualização</th><th>Data</th><th>Peso</th><th>Variação</th><th>Obs</th></tr></thead><tbody>${d.pesos
+      ? `${barra}<div class="bloco">${sec('Acompanhamento de peso')}<table class="dark"><thead><tr><th>Atualização</th><th>Data</th><th>Peso</th><th>Variação</th></tr></thead><tbody>${d.pesos
           .map(
             (p, n) =>
-              `<tr><td>Atualização ${n + 1}</td><td>${esc(dataParaTela(p.data))}</td><td>${esc(numeroParaTela(p.pesoKg))} kg</td><td${p.variacao !== null && p.variacao > 0 ? ` style="color:${cor}"` : ''}>${esc(variacao(p.variacao))}</td><td>${esc(p.observacao) || '—'}</td></tr>`,
+              `<tr><td>Atualização ${n + 1}</td><td>${esc(dataParaTela(p.data))}</td><td>${esc(numeroParaTela(p.pesoKg))} kg</td><td${p.variacao !== null && p.variacao > 0 ? ` style="color:${cor}"` : ''}>${esc(variacao(p.variacao))}</td></tr>`,
           )
           .join('')}</tbody></table></div>`
       : '',

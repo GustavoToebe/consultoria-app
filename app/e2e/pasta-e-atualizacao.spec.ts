@@ -496,7 +496,7 @@ for (const largura of [390, 1280]) {
     await expect(folha.getByText(/Peso preenchido com o da atualização/)).toHaveCount(0);
     await expect(folha.getByText(LINHA_DO_PESO)).toHaveCount(0);
     // A observação é só da equipe: o formulário diz isso logo abaixo do campo.
-    await expect(folha.getByText('O aluno vê esta observação no histórico de peso e no PDF da dieta.', { exact: false })).toBeVisible();
+    await expect(folha.getByText('Só a equipe vê esta observação.', { exact: false })).toBeVisible();
 
     await folha.getByRole('button', { name: 'Finalizar pasta' }).click();
     await expect(folha).toHaveCount(0);

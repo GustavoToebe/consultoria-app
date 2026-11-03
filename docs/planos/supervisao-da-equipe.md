@@ -13,18 +13,22 @@ treinador da equipe (1:56 a 1:58).
 - Não há fluxo de revisão ou aprovação antes de publicar.
 - O limite de alunos é da consultoria (direitos do plano), não do treinador.
 
-## Decisões (todas em aberto)
-| # | Decisão | Opções | Quem decidiu |
+## Decisões (Gustavo, 03/11/2026; não perguntar de novo)
+| # | Decisão | Valor | Quem decidiu |
 | --- | --- | --- | --- |
-| D1 | Forma da supervisão | (a) fila "para revisar" do dono, depois de publicado; (b) aprovação antes de publicar | Gustavo |
-| D2 | Alcance | só membros marcados como "precisa de revisão", ou todos | Gustavo |
-| D3 | Alunos por treinador | aviso configurável, sem limite rígido | Gustavo |
+| D1 | Supervisão (C65) | versão pequena: em Números, uma tabela por membro da equipe só com contagens (alunos ativos, atualizações atrasadas e para revisar), **sem nome de aluno**; nada de fila de revisão nem aprovação antes de publicar | Gustavo |
+| D2 | Limite de alunos (C79) | campo "Limite de alunos" no cadastro de cada membro da equipe, que só o Administrador edita; em branco = sem limite | Gustavo |
+| D3 | Acima do limite | pôr alguém como responsável de um aluno acima do limite: a API recusa com 409 e mensagem clara, em todos os caminhos (criar aluno, trocar o responsável, ação em lote, aceite de inscrição e planilha) | Gustavo |
+| D4 | Quem já passou | quem já está acima do limite não perde nenhum aluno | Gustavo |
+| D5 | Quando | sem código agora: as duas entram depois da leva 2 | Gustavo |
 
 ## Passos
-- [ ] 1. Decidir D1 a D3 com o treinador do piloto (mexe em permissões e na publicação: revisão do Opus obrigatória) — commit: —
+- [ ] 1. Limite de alunos (D2 a D4): migration, API nos cinco caminhos com 409 e teste de cada um, campo no cadastro da equipe (permissões e tenant: revisão do Opus obrigatória) — executor + executor-front — commit: —
+- [ ] 2. Tabela da supervisão em Números (D1), só contagens, com teste de que nenhum nome de aluno sai na rota — executor + executor-front — commit: —
 
 ## Fora do escopo
-- Qualquer código antes das decisões (C65 e C79 ficam em "Pendências soltas").
+- Fila "para revisar" do dono e aprovação antes de publicar (D1).
+- Tirar aluno de quem já passou do limite (D4).
 
 ## O que ficou para trás
 - —
