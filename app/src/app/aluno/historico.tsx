@@ -8,7 +8,8 @@ import { ErroApi } from '../../api/cliente';
 import { historicoAluno, pastasDoAluno } from '../../api/rotas';
 import type { ExercicioPlano, Sessao } from '../../api/tipos';
 import { normalizarTreino } from '../../dominio/editorTreino';
-import { dataParaTela, hojeIso } from '../../dominio/formatos';
+import { dataParaTela } from '../../dominio/formatos';
+import { hojeEmBrasilia } from '../../dominio/financeiro';
 import { CONFIGURACAO_PADRAO } from '../../dominio/metodologiaPadrao';
 import {
   DIAS_DO_HISTORICO,
@@ -61,7 +62,7 @@ export default function HistoricoAluno() {
   const [gerando, setGerando] = useState(false);
   // `null` = o padrão: a pasta em uso, se tem período; senão os últimos 30 dias.
   const [escolhido, setEscolhido] = useState<PeriodoDoHistorico | null>(null);
-  const hoje = hojeIso();
+  const hoje = hojeEmBrasilia(); // D4: o dia de Brasília, não o do fuso do aparelho
   // Plano em uso (o escolhido para consulta ou o vigente), como no seletor de plano. A pasta anterior é a de antes dela
   // na lista do aluno; as datas vão para a mesma rota de sempre. A busca espera a lista de pastas para não consultar duas vezes.
   const pastas = useCarregar(`pastas-aluno:${pacote?.pacote.geradoEm ?? ''}`, () => pastasDoAluno());
@@ -166,7 +167,7 @@ export default function HistoricoAluno() {
         ) : null}
         {historico.dados && periodoMisturaVersoes(historico.dados) ? <Texto numerico variante="pequeno">{TEXTO_PERIODO_MISTURA_VERSOES}</Texto> : null}
         {historico.dados && visao === 'divisao' ? <CargasPorDivisao divisoes={divisoes} letras={letras} /> : null}
-        {historico.dados && visao === 'dia' ? <HistoricoPorSemana dias={historico.dados} nomeDaSessao={nomeDaSessao} letras={letras} /> : null}
+        {historico.dados && visao === 'dia' ? <HistoricoPorSemana dias={historico.dados} nomeDaSessao={nomeDaSessao} letras={letras} periodo={{ de, ate }} /> : null}
       </Cartao>
 
       <CartaoProgresso />

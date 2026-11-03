@@ -1,4 +1,5 @@
 import type { DiaDeTreino } from '../api/tipos';
+import { hojeEmBrasilia } from './financeiro';
 import {
   corDaLetra,
   fraseDoHistorico,
@@ -67,10 +68,12 @@ describe('período do histórico', () => {
   });
 });
 
+const PERIODO_DE_OUTUBRO = { de: '2026-10-01', ate: '2026-10-31' };
+
 describe('semana → dia', () => {
   test('agrupa de segunda a domingo, do mais recente ao mais antigo', () => {
     // 2026-10-05 é segunda; 2026-10-11, domingo.
-    const semanas = semanasDoHistorico([dia('2026-10-07'), dia('2026-10-13'), dia('2026-10-11', ['Treino B']), dia('2026-10-05', [])]);
+    const semanas = semanasDoHistorico([dia('2026-10-07'), dia('2026-10-13'), dia('2026-10-11', ['Treino B']), dia('2026-10-05', [])], PERIODO_DE_OUTUBRO);
     expect(semanas.map((s) => [s.inicio, s.fim])).toEqual([['2026-10-12', '2026-10-18'], ['2026-10-05', '2026-10-11']]);
     expect(semanas[1].dias.map((d) => d.data)).toEqual(['2026-10-11', '2026-10-07']);
     expect(semanas[1].marcas.map((m) => (m.dia ? m.dia.sessoes[0].sessao : null))).toEqual([null, null, 'Treino A', null, null, null, 'Treino B']);
@@ -79,8 +82,29 @@ describe('semana → dia', () => {
     expect(treinosDaSemana(semanas[0])).toBe('1 treino');
   });
 
+  test('dia fora do período fica neutro e não conta (D1 e D5)', () => {
+    // 2026-09-28 é segunda: a semana de 28/09 a 04/10 é cortada em 01/10.
+    const semanas = semanasDoHistorico([dia('2026-09-30'), dia('2026-10-02'), dia('2026-10-03')], PERIODO_DE_OUTUBRO);
+    expect(semanas).toHaveLength(1);
+    expect(semanas[0].dias.map((d) => d.data)).toEqual(['2026-10-03', '2026-10-02']);
+    expect(semanas[0].marcas.map((m) => m.foraDoPeriodo)).toEqual([true, true, true, false, false, false, false]);
+    expect(treinosDaSemana(semanas[0])).toBe('2 treinos');
+    // O fim do período corta a ponta de cima: 2026-11-02 é segunda, e a semana só tem 02/11 a 03/11 dentro.
+    const fim = semanasDoHistorico([dia('2026-11-03')], { de: '2026-10-05', ate: '2026-11-03' });
+    expect(fim[0].marcas.map((m) => m.foraDoPeriodo)).toEqual([false, false, true, true, true, true, true]);
+    // Semana inteira fora do período: não aparece.
+    expect(semanasDoHistorico([dia('2026-09-15')], PERIODO_DE_OUTUBRO)).toEqual([]);
+  });
+
+  test('dia com duas sessões conta 2 treinos e traz as duas', () => {
+    const semanas = semanasDoHistorico([dia('2026-10-07', ['Treino A', 'Treino B']), dia('2026-10-08')], PERIODO_DE_OUTUBRO);
+    expect(treinosDaSemana(semanas[0])).toBe('3 treinos');
+    expect(semanas[0].marcas[2].dia?.sessoes.map((s) => s.sessao)).toEqual(['Treino A', 'Treino B']);
+    expect(treinosDaSemana(semanasDoHistorico([dia('2026-10-07', ['Treino A', 'Treino B'])], PERIODO_DE_OUTUBRO)[0])).toBe('2 treinos');
+  });
+
   test('sem dias, nenhuma semana', () => {
-    expect(semanasDoHistorico([])).toEqual([]);
+    expect(semanasDoHistorico([], PERIODO_DE_OUTUBRO)).toEqual([]);
   });
 
   test('partes da data', () => {
@@ -102,8 +126,31 @@ describe('letra e cor da divisão', () => {
     expect(letras.get('segunda - treino b - costas')).toBe('B');
     expect(letras.get('a - peito')).toBe('A');
     expect(letras.get('pernas')).toBe('C');
-    // Segundo nome com a mesma letra não a repete.
-    expect(letras.get('treino b')).toBe('D');
+    // A repetida não perde a letra do nome: ganha número, na ordem em que aparece (D2).
+    expect(letras.get('treino b')).toBe('B2');
+  });
+
+  test('"A", "A2", "A3" e a cor é a da primeira letra', () => {
+    const letras = letrasDasDivisoes(['Treino A - Peito', 'Treino A - Costas', 'Treino B', 'Treino A - Pernas']);
+    expect([...letras.values()]).toEqual(['A', 'A2', 'B', 'A3']);
+    expect(corDaLetra('A2')).toBe(corDaLetra('A'));
+    expect(corDaLetra('B3')).toBe(corDaLetra('B'));
+  });
+
+  test('divisão sem letra pega a próxima letra que nenhum nome diz, mesmo se o nome vem depois', () => {
+    const letras = letrasDasDivisoes(['Pernas', 'Treino A - Peito', 'Treino A - Costas', 'Treino C', 'Ombros']);
+    expect(letras.get('pernas')).toBe('B');
+    expect(letras.get('treino a - peito')).toBe('A');
+    expect(letras.get('treino a - costas')).toBe('A2');
+    expect(letras.get('treino c')).toBe('C');
+    expect(letras.get('ombros')).toBe('D');
+  });
+
+  test('mesmo nome com espaços e maiúsculas é a mesma divisão, sem número', () => {
+    const letras = letrasDasDivisoes(['Treino A - Peito', '  treino a - PEITO ', 'Treino A - Costas']);
+    expect(letras.size).toBe(2);
+    expect(letraDaDivisaoNoHistorico(letras, ' TREINO A - peito')).toBe('A');
+    expect(letraDaDivisaoNoHistorico(letras, 'treino a - costas')).toBe('A2');
   });
 
   test('nome repetido conta uma vez', () => {
@@ -112,5 +159,16 @@ describe('letra e cor da divisão', () => {
 
   test('cores: A azul, B magenta, C ciano, em ciclo', () => {
     expect(['A', 'B', 'C', 'D', 'E', 'F'].map(corDaLetra)).toEqual(['AZUL', 'MAGENTA', 'CIANO', 'VIOLETA', 'INDIGO', 'AZUL']);
+  });
+});
+
+describe('"hoje" de Brasília (D4)', () => {
+  // 01:30 UTC de 04/11 ainda é 22:30 de 03/11 em Brasília, qualquer que seja o fuso da máquina.
+  const instante = new Date('2026-11-04T01:30:00Z');
+
+  test('o dia é o de Brasília e os últimos 30 dias terminam nele', () => {
+    const hoje = hojeEmBrasilia(instante);
+    expect(hoje).toBe('2026-11-03');
+    expect(intervaloDoPeriodo('ULTIMOS_30', hoje, null, null)).toEqual({ de: '2026-10-05', ate: '2026-11-03' });
   });
 });

@@ -103,24 +103,34 @@ export function partesDaData(iso: string): { sigla: string; dia: string; mes: st
   return { sigla: SIGLAS_DO_DIA[i], dia: d, mes: MESES[Number(m) - 1] ?? '', nomeDoDia: NOMES_DO_DIA[i] };
 }
 
+export interface MarcaDaSemana {
+  data: string;
+  /** O dia com treino (`null` = sem treino). */
+  dia: DiaDeTreino | null;
+  /** O dia está fora do período buscado: a semana foi cortada e ele não foi consultado (não é "sem treino"). */
+  foraDoPeriodo: boolean;
+}
+
 export interface SemanaDoHistorico {
   /** Segunda-feira da semana (ISO). */
   inicio: string;
   /** Domingo da semana (ISO). */
   fim: string;
-  /** Dias com treino, do mais recente ao mais antigo. */
+  /** Dias com treino dentro do período, do mais recente ao mais antigo. */
   dias: DiaDeTreino[];
-  /** Os sete dias, de segunda a domingo: a data e o dia com treino (`null` = sem treino). */
-  marcas: { data: string; dia: DiaDeTreino | null }[];
+  /** Os sete dias, de segunda a domingo. */
+  marcas: MarcaDaSemana[];
 }
 
 /**
  * "Por dia" em semanas (segunda a domingo), da mais recente à mais antiga; dentro, os dias com treino do mais recente ao
- * mais antigo. Dia sem sessão não aparece (não existe treino a mostrar).
+ * mais antigo. Dia sem sessão não aparece (não existe treino a mostrar). Só entram os dias de dentro do período (D1 e D5
+ * do plano `historico-ajustes-g`): os da semana cortada que ficam fora dele são marcados `foraDoPeriodo`.
  */
-export function semanasDoHistorico(dias: readonly DiaDeTreino[]): SemanaDoHistorico[] {
+export function semanasDoHistorico(dias: readonly DiaDeTreino[], periodo: { de: string; ate: string }): SemanaDoHistorico[] {
+  const dentro = (data: string) => data >= periodo.de && data <= periodo.ate;
   const semanas = new Map<string, DiaDeTreino[]>();
-  for (const dia of [...dias].filter((d) => d.sessoes.length).sort((a, b) => b.data.localeCompare(a.data))) {
+  for (const dia of [...dias].filter((d) => d.sessoes.length && dentro(d.data)).sort((a, b) => b.data.localeCompare(a.data))) {
     const inicio = somarDias(dia.data, -(diaDaSemanaIso(dia.data) - 1));
     semanas.set(inicio, [...(semanas.get(inicio) ?? []), dia]);
   }
@@ -130,7 +140,7 @@ export function semanasDoHistorico(dias: readonly DiaDeTreino[]): SemanaDoHistor
     dias: lista,
     marcas: Array.from({ length: 7 }, (_, i) => {
       const data = somarDias(inicio, i);
-      return { data, dia: lista.find((d) => d.data === data) ?? null };
+      return { data, dia: lista.find((d) => d.data === data) ?? null, foraDoPeriodo: !dentro(data) };
     }),
   }));
 }
@@ -140,9 +150,10 @@ export function tituloDaSemana(s: Pick<SemanaDoHistorico, 'inicio' | 'fim'>): st
   return `Semana de ${ddmm(s.inicio)} a ${ddmm(s.fim)}`;
 }
 
-/** "1 treino", "3 treinos" (dias com treino na semana). */
+/** "1 treino", "3 treinos" (sessões dentro do período: dia com duas sessões conta 2). */
 export function treinosDaSemana(s: Pick<SemanaDoHistorico, 'dias'>): string {
-  return s.dias.length === 1 ? '1 treino' : `${s.dias.length} treinos`;
+  const n = s.dias.reduce((total, d) => total + d.sessoes.length, 0);
+  return n === 1 ? '1 treino' : `${n} treinos`;
 }
 
 /* ---------------- letra e cor da divisão (D13) ---------------- */
@@ -157,28 +168,29 @@ function letraDoNome(nome: string): string | null {
 }
 
 /**
- * A letra de cada divisão do histórico, pelo nome (chave sem caixa): a que o nome já diz ("Treino B") e, para as outras,
- * a próxima letra livre na ordem em que chegam (a das "Cargas por divisão", que é a da semana). Mesma letra = mesma cor
- * nas duas visões. Só rótulo do histórico: a letra não existe no plano.
+ * O rótulo de cada divisão do histórico, pelo nome (chave sem caixa nem espaços nas pontas). Duas passadas (D2): 1) toda
+ * divisão cujo nome diz uma letra fica com ela, e a repetida ganha número na ordem em que chega ("A", "A2", "A3");
+ * 2) as sem letra no nome pegam a próxima letra que nenhum nome diz. A cor é a da primeira letra (`corDaLetra`), então
+ * "A2" tem a cor de "A". Mesmo rótulo nas duas visões. Só rótulo do histórico: a letra não existe no plano.
  */
 export function letrasDasDivisoes(nomes: readonly string[]): Map<string, string> {
   const letras = new Map<string, string>();
-  const usadas = new Set<string>();
+  const vezes = new Map<string, number>();
   const unicos = [...new Map(nomes.map((n) => [chaveDoNome(n), n])).values()];
   for (const nome of unicos) {
     const letra = letraDoNome(nome);
-    if (letra && !usadas.has(letra)) {
-      letras.set(chaveDoNome(nome), letra);
-      usadas.add(letra);
-    }
+    if (!letra) continue;
+    const n = (vezes.get(letra) ?? 0) + 1;
+    vezes.set(letra, n);
+    letras.set(chaveDoNome(nome), n === 1 ? letra : `${letra}${n}`);
   }
   let proxima = 0;
   for (const nome of unicos) {
     if (letras.has(chaveDoNome(nome))) continue;
-    while (usadas.has(String.fromCharCode(65 + (proxima % 26))) && usadas.size < 26) proxima++;
+    while (vezes.has(String.fromCharCode(65 + (proxima % 26))) && vezes.size < 26) proxima++;
     const letra = String.fromCharCode(65 + (proxima % 26));
     letras.set(chaveDoNome(nome), letra);
-    usadas.add(letra);
+    vezes.set(letra, 1);
     proxima++;
   }
   return letras;
@@ -189,7 +201,7 @@ export function letraDaDivisaoNoHistorico(letras: ReadonlyMap<string, string>, n
   return letras.get(chaveDoNome(nome)) ?? null;
 }
 
-/** A cor da letra (A azul, B magenta, C ciano...), em ciclo. */
+/** A cor da letra (A azul, B magenta, C ciano...), em ciclo; só o primeiro caractere conta ("A2" = a cor de "A"). */
 export function corDaLetra(letra: string): ChaveDeIdentificacao {
   return corDaDivisao(letra.toUpperCase().charCodeAt(0) - 65);
 }
