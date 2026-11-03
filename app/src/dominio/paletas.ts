@@ -1,4 +1,5 @@
-import { CLARO, contraste, ESCURO } from '../tema/tokens';
+import type { Tema } from '../api/tipos';
+import { CLARO, contraste, ESCURO, PALETAS as PALETAS_DO_TEMA } from '../tema/tokens';
 
 export interface Paleta {
   id: string;
@@ -68,15 +69,20 @@ export function avisoDeMarcaPertoDeStatus(hex: string): string | null {
 }
 
 /**
- * Confere a cor da marca contra o texto branco que vai por cima (≥ 4,5, a mesma régua das paletas) e contra o fundo dos
- * dois temas (≥ 3). Não usa `textoSobre` aqui: ele escolhe branco ou preto e o melhor dos dois nunca fica abaixo de
- * 4,58, então nunca bloquearia.
+ * Confere a cor da marca contra o texto branco que vai por cima (≥ 4,5, a mesma régua das paletas), contra o fundo e o
+ * cartão da paleta escolhida (decisão 4 de `docs/planos/paletas-da-marca.md`) e contra o fundo do Escuro e do Claro, que
+ * o aluno ainda pode escolher nas Preferências (≥ 3). Não usa `textoSobre` aqui: ele escolhe branco ou preto e o melhor
+ * dos dois nunca fica abaixo de 4,58, então nunca bloquearia.
  */
-export function avaliarMarca(hex: string): AvaliacaoDaMarca {
+export function avaliarMarca(hex: string, tema: Tema): AvaliacaoDaMarca {
   if (!/^#[0-9A-Fa-f]{6}$/.test(hex)) return { bloqueia: null, aviso: null };
   const bloqueia = contraste(hex, '#FFFFFF') < 4.5 ? 'Esta cor deixa o texto dos botões difícil de ler.' : null;
-  const apagadoNoEscuro = contraste(hex, ESCURO.fundo) < 3;
-  const apagadoNoClaro = contraste(hex, CLARO.fundo) < 3;
-  const onde = apagadoNoEscuro && apagadoNoClaro ? 'Nos dois temas' : apagadoNoEscuro ? 'No tema escuro' : apagadoNoClaro ? 'No tema claro' : null;
-  return { bloqueia, aviso: onde ? `${onde}, ícones e o menu ativo ficam apagados.` : null };
+  const apagada = (...fundos: string[]) => fundos.some((f) => contraste(hex, f) < 3);
+  const { nome, cores } = PALETAS_DO_TEMA[tema];
+  const onde = [
+    apagada(cores.fundo, cores.superficie) ? `na paleta ${nome}` : null,
+    tema !== 'ESCURO' && apagada(ESCURO.fundo) ? 'no tema escuro' : null,
+    tema !== 'CLARO' && apagada(CLARO.fundo) ? 'no tema claro' : null,
+  ].filter(Boolean).join(' e ');
+  return { bloqueia, aviso: onde ? `${onde.charAt(0).toUpperCase()}${onde.slice(1)}, ícones e o menu ativo ficam apagados.` : null };
 }

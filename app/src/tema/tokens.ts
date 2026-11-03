@@ -182,18 +182,18 @@ export const LAVANDA: Cores = { ...CLARO, fundo: '#F7F8FF', superficie3: '#E6E0F
 export const CEU: Cores = { ...CLARO, fundo: '#F0F7FF', superficie3: '#DBEAFE' };
 export const ROSA: Cores = { ...CLARO, fundo: '#FFF9FB', superficie3: '#FCE7F3' };
 
-/** Código da paleta (= `Tema` da API, o `temaPadrao` da consultoria) → cores e modo. Fonte única do modo. */
-export const PALETAS: Record<Tema, { cores: Cores; modo: ModoDoTema }> = {
-  ESCURO: { cores: ESCURO, modo: 'ESCURO' },
-  MEIA_NOITE: { cores: MEIA_NOITE, modo: 'ESCURO' },
-  AMEIXA: { cores: AMEIXA, modo: 'ESCURO' },
-  OCEANO: { cores: OCEANO, modo: 'ESCURO' },
-  CAFE: { cores: CAFE, modo: 'ESCURO' },
-  CLARO: { cores: CLARO, modo: 'CLARO' },
-  AREIA: { cores: AREIA, modo: 'CLARO' },
-  LAVANDA: { cores: LAVANDA, modo: 'CLARO' },
-  CEU: { cores: CEU, modo: 'CLARO' },
-  ROSA: { cores: ROSA, modo: 'CLARO' },
+/** Código da paleta (= `Tema` da API, o `temaPadrao` da consultoria) → nome na tela, cores e modo. Fonte única do modo. */
+export const PALETAS: Record<Tema, { nome: string; cores: Cores; modo: ModoDoTema }> = {
+  ESCURO: { nome: 'Escuro', cores: ESCURO, modo: 'ESCURO' },
+  MEIA_NOITE: { nome: 'Meia-noite', cores: MEIA_NOITE, modo: 'ESCURO' },
+  AMEIXA: { nome: 'Ameixa', cores: AMEIXA, modo: 'ESCURO' },
+  OCEANO: { nome: 'Oceano', cores: OCEANO, modo: 'ESCURO' },
+  CAFE: { nome: 'Café', cores: CAFE, modo: 'ESCURO' },
+  CLARO: { nome: 'Claro', cores: CLARO, modo: 'CLARO' },
+  AREIA: { nome: 'Areia', cores: AREIA, modo: 'CLARO' },
+  LAVANDA: { nome: 'Lavanda', cores: LAVANDA, modo: 'CLARO' },
+  CEU: { nome: 'Céu', cores: CEU, modo: 'CLARO' },
+  ROSA: { nome: 'Rosa', cores: ROSA, modo: 'CLARO' },
 };
 
 export const modoDaPaleta = (codigo: Tema): ModoDoTema => PALETAS[codigo].modo;

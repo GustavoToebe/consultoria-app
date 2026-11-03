@@ -10,7 +10,7 @@ import { OPCOES_DA_META } from '../../dominio/metaDoPesoNaFicha';
 import { avaliarMarca, avisoDeMarcaPertoDeStatus, paletaDaCor, PALETAS } from '../../dominio/paletas';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
-import { CLARO, ESCURO, espaco, fontes, RAIO, textoSobre, type Cores } from '../../tema/tokens';
+import { espaco, fontes, MARCA_NEUTRA, PALETAS as PALETAS_DO_TEMA, RAIO, textoSobre, type Cores } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
@@ -35,7 +35,7 @@ interface Props {
   aoConflito: () => void;
 }
 
-/** Nome, cor, fonte do título, tema padrão e logo, com prévia do topo do app do aluno nos dois temas. */
+/** Nome, cor, fonte do título, paleta padrão e logo, com prévia do topo do app do aluno na paleta escolhida. */
 export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
   const { atualizarMarca, cicloHabilitado } = useSessao();
   const { avisar } = useAviso();
@@ -73,7 +73,7 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
   const [erro, setErro] = useState<unknown>(null);
   const campos = errosPorCampo(erro);
   const corValida = HEX.test(cor);
-  const avaliacao = avaliarMarca(cor);
+  const avaliacao = avaliarMarca(cor, tema);
   const pertoDeStatus = avisoDeMarcaPertoDeStatus(cor);
   // O botão de salvar só aparece quando algo mudou (logo salva na hora, à parte).
   const alterado =
@@ -162,8 +162,7 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
     <>
       <Cartao titulo="Prévia do app do aluno" descricao="Acompanha o que você escolhe abaixo.">
         <View style={estilos.previas}>
-          <Previa marca={previa} cores={ESCURO} rotulo="Tema escuro" />
-          <Previa marca={previa} cores={CLARO} rotulo="Tema claro" />
+          <Previa marca={previa} tema={tema} />
         </View>
       </Cartao>
       <Cartao titulo="Identidade" descricao="Nome e logo que os alunos veem no topo do app.">
@@ -191,7 +190,7 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
               }}
               amostra={
                 <View style={[estilos.amostra, { backgroundColor: p.cor }]}>
-                  <Texto style={[estilos.inicial, { color: '#FFFFFF' }]}>{p.nome.charAt(0)}</Texto>
+                  <Texto style={[estilos.inicial, { color: textoSobre(p.cor) }]}>{p.nome.charAt(0)}</Texto>
                 </View>
               }
             />
@@ -202,8 +201,8 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
             selecionada={personalizada}
             aoEscolher={() => setPersonalizada(true)}
             amostra={
-              <View style={[estilos.amostra, { backgroundColor: corValida ? cor : '#52525B' }]}>
-                <Texto style={[estilos.inicial, { color: '#FFFFFF' }]}>#</Texto>
+              <View style={[estilos.amostra, { backgroundColor: corValida ? cor : MARCA_NEUTRA }]}>
+                <Texto style={[estilos.inicial, { color: textoSobre(corValida ? cor : MARCA_NEUTRA) }]}>#</Texto>
               </View>
             }
           />
@@ -221,7 +220,7 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
           </View>
         ) : null}
         {avaliacao.bloqueia ? <MensagemErro texto={avaliacao.bloqueia} /> : null}
-        {!avaliacao.bloqueia && avaliacao.aviso ? <Texto variante="suave">{avaliacao.aviso}</Texto> : null}
+        {!avaliacao.bloqueia && avaliacao.aviso ? <Texto variante="suave" testID="aviso-marca-apagada">{avaliacao.aviso}</Texto> : null}
         {pertoDeStatus ? <Texto variante="suave" testID="aviso-marca-perto-de-status">{pertoDeStatus}</Texto> : null}
       </Cartao>
       <Cartao titulo="Fonte do nome" descricao="Vale para quem não usa logo. O nome aparece em cada fonte.">
@@ -238,19 +237,22 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
           ))}
         </GradeDeOpcoes>
       </Cartao>
-      <Cartao titulo="Tema padrão dos alunos" descricao="Cada pessoa ainda pode trocar o tema na própria conta.">
-        <GradeDeOpcoes rotulo="Tema padrão dos alunos">
-          {(['ESCURO', 'CLARO'] as const).map((t) => (
-            <OpcaoCartao
-              key={t}
-              titulo={t === 'ESCURO' ? 'Escuro' : 'Claro'}
-              descricao={t === 'ESCURO' ? 'Fundo preto, bom à noite e na academia' : 'Fundo claro, bom ao ar livre'}
-              selecionada={tema === t}
-              aoEscolher={() => setTema(t)}
-              amostra={<MiniaturaDoTema cores={t === 'ESCURO' ? ESCURO : CLARO} marca={corValida ? cor : inicial.corPrimaria} />}
-            />
-          ))}
-        </GradeDeOpcoes>
+      <Cartao titulo="Paleta padrão dos alunos" descricao="Fundo e cartões do app. Cada pessoa ainda pode trocar para o Escuro, o Claro ou a Areia na própria conta.">
+        {(['ESCURO', 'CLARO'] as const).map((modo) => (
+          <GradeDeOpcoes key={modo} rotulo={modo === 'ESCURO' ? 'Escuras' : 'Claras'}>
+            {CODIGOS_DAS_PALETAS.filter((c) => PALETAS_DO_TEMA[c].modo === modo).map((c) => (
+              <OpcaoCartao
+                key={c}
+                titulo={PALETAS_DO_TEMA[c].nome}
+                selecionada={tema === c}
+                aoEscolher={() => setTema(c)}
+                amostra={<MiniaturaDoTema cores={PALETAS_DO_TEMA[c].cores} marca={corValida ? cor : inicial.corPrimaria} />}
+              />
+            ))}
+          </GradeDeOpcoes>
+        ))}
+        {/* A mesma checagem do cartão Cor, repetida aqui: em 390 px quem troca a paleta não vê o cartão de cima. */}
+        {!avaliacao.bloqueia && avaliacao.aviso ? <Texto variante="suave" testID="aviso-marca-apagada-na-paleta">{avaliacao.aviso}</Texto> : null}
       </Cartao>
       <Cartao titulo="Acompanhamento" descricao="Vale para os alunos sem ciclo ou meta própria no cadastro.">
         <View style={estilos.campoDias}>
@@ -298,24 +300,33 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
   );
 }
 
-/** Miniatura do app num tema: fundo, um cartão e uma barra na cor da marca. */
+/** Os códigos na ordem do `PALETAS` do tema: escuras primeiro, depois as claras. */
+const CODIGOS_DAS_PALETAS = Object.keys(PALETAS_DO_TEMA) as Tema[];
+
+/** Miniatura do app numa paleta: fundo, faixa do título, um cartão com uma linha de texto e o botão na cor da marca. */
 function MiniaturaDoTema({ cores, marca }: { cores: Cores; marca: string }) {
   return (
     <View style={[estilos.miniatura, { backgroundColor: cores.fundo, borderColor: cores.borda }]}>
-      <View style={[estilos.miniaturaBarra, { backgroundColor: marca }]} />
-      <View style={[estilos.miniaturaCartao, { backgroundColor: cores.superficie, borderColor: cores.borda }]} />
+      <View style={[estilos.miniaturaFaixa, { backgroundColor: cores.superficie3 }]} />
+      <View style={[estilos.miniaturaCartao, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
+        <View style={[estilos.miniaturaLinha, { backgroundColor: cores.texto }]} />
+        <View style={[estilos.miniaturaBotao, { backgroundColor: marca }]} />
+      </View>
     </View>
   );
 }
 
-/** Topo do app do aluno com as cores fixas de um tema (independe do tema de quem está editando). */
-function Previa({ marca, cores, rotulo }: { marca: Marca; cores: Cores; rotulo: string }) {
+/** Topo do app do aluno com as cores fixas da paleta escolhida (independe do tema de quem está editando). */
+function Previa({ marca, tema }: { marca: Marca; tema: Tema }) {
   const { cores: atuais } = useTema();
+  const { nome, cores } = PALETAS_DO_TEMA[tema];
   return (
     <View style={estilos.previa}>
-      <Texto variante="suave">{rotulo}</Texto>
-      <View style={[estilos.telaPrevia, { backgroundColor: cores.fundo, borderColor: atuais.borda }]}>
-        <MarcaTitulo marca={marca} />
+      <Texto variante="suave">{`Paleta ${nome}`}</Texto>
+      <View testID="previa-da-paleta" style={[estilos.telaPrevia, { backgroundColor: cores.fundo, borderColor: atuais.borda }]}>
+        <View style={[estilos.faixaPrevia, { backgroundColor: cores.superficie3 }]}>
+          <MarcaTitulo marca={marca} fundo={cores.superficie3} />
+        </View>
         <View style={[estilos.cartaoPrevia, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
           <Texto style={[estilos.tituloPrevia, { color: cores.texto }]}>Treino de hoje</Texto>
           <Texto style={{ color: cores.textoSuave }}>Segunda - Costas</Texto>
@@ -332,8 +343,9 @@ const estilos = StyleSheet.create({
   campoDias: { maxWidth: 280 },
   meta: { gap: espaco(0.5) },
   previas: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(2) },
-  previa: { flex: 1, minWidth: 240, gap: espaco(0.5) },
-  telaPrevia: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(1) },
+  previa: { flex: 1, minWidth: 240, maxWidth: 480, gap: espaco(0.5) },
+  telaPrevia: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(1.5) },
+  faixaPrevia: { borderRadius: RAIO, paddingHorizontal: espaco(1.5), paddingVertical: espaco(1) },
   cartaoPrevia: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(0.5) },
   tituloPrevia: { fontFamily: fontes.semi },
   botaoPrevia: { borderRadius: RAIO, paddingVertical: espaco(1), alignItems: 'center', marginTop: espaco(0.5) },
@@ -343,8 +355,10 @@ const estilos = StyleSheet.create({
   logo: { gap: espaco(0.75) },
   amostra: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   inicial: { fontFamily: fontes.negrito, fontSize: 18 },
-  miniatura: { width: 40, height: 40, borderWidth: 1, borderRadius: RAIO, padding: 5, gap: 4 },
-  miniaturaBarra: { height: 6, width: 18, borderRadius: 3 },
-  miniaturaCartao: { flex: 1, borderWidth: 1, borderRadius: 4 },
+  miniatura: { width: 40, height: 40, borderWidth: 1, borderRadius: RAIO, padding: 4, gap: 3 },
+  miniaturaFaixa: { height: 7, borderRadius: 2 },
+  miniaturaCartao: { flex: 1, borderWidth: 1, borderRadius: 3, padding: 3, justifyContent: 'space-between' },
+  miniaturaLinha: { height: 2, width: '70%', borderRadius: 1 },
+  miniaturaBotao: { height: 5, borderRadius: 2 },
   botoesEsquerda: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
 });
