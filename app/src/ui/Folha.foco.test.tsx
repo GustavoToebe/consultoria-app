@@ -23,7 +23,7 @@ jest.mock('../tema/TemaProvider', () => ({
   useTema: () => ({ cores: require('../tema/tokens').ESCURO, bordas: { bloco: 2, item: 2 }, marca: '#E11D48', sobreMarca: '#FFFFFF', fatorTexto: 1, preferencias: { animacoes: false } }),
 }));
 
-const folha = (visivel: boolean) => createElement(Folha, { visivel, titulo: 'T', aoFechar: () => undefined, children: null });
+const folha = (visivel: boolean) => <Folha visivel={visivel} titulo="T" aoFechar={() => undefined}>{null}</Folha>;
 
 it('Folha no celular: o clique do leitor dentro do painel vira o gatilho e o foco volta a ele ao fechar', async () => {
   jest.useFakeTimers();
