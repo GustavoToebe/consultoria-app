@@ -65,6 +65,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Miudezas de 03/11 (dieta, CSV, 429 da inscrição, Primeiros passos, ícones, e2e intermitentes) | [miudezas-03-11.md](miudezas-03-11.md) | `main` (60e906e, PR #44) | Concluída em 03/11/2026 (em produção às 00h35; D1 e D2 confirmados) | 03/11/2026 |
 | Auditoria de UI/UX, peças compartilhadas (Folha com um diálogo e retorno do foco, cores da Folha e do Botão pelo tema, Kanban com movimento reduzido) | [auditoria-pecas.md](auditoria-pecas.md) | branch `auditoria-pecas` | Código feito, aguardando PR | 03/11/2026 |
 | Paletas da marca (a consultoria escolhe a cor de fundo do app dos alunos numa lista fechada e testada) | [paletas-da-marca.md](paletas-da-marca.md) | — | Planejando: lista cortada em 03/11 (11 paletas, prévia em `docs/prototipos/`); espera a frente de cores da auditoria | 03/11/2026 |
+| Documentação de 03/11 (roteiro do aluno fictício em [engajamento.md](engajamento.md), conferência das três liberações da Cloudflare) | [docs-pendencias-03-11.md](docs-pendencias-03-11.md) | branch `docs-pendencias-03-11` | Em andamento: commit local, sem push | 03/11/2026 |
 
 ## Pendências soltas
 
@@ -173,6 +174,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | "Todas as telas" e a busca (`dominio/telas.ts`) ainda usam as seções antigas (Dia a dia, Planos, Consultoria), não os grupos do menu do N29 | Gustavo decide; Claude faz | auditoria-ficha (D24) |
 | Verificações que o Playwright não cobre: anamnese num celular de verdade, leitor de tela (TalkBack/VoiceOver) e contraste medido com ferramenta | Gustavo, com o APK | auditoria-ui-ux 2ª passada (Gustavo, 03/11) |
 | Inscrição pública: foco no primeiro erro e erro nos campos de escolha. `Escolha` não tem `erro` e as outras telas públicas só mostram erro no `Campo`; sem componente novo | Claude, quando o Gustavo pedir | auditoria-ui-ux-lote-1 (PR B) |
+| Conferir em produção o retorno com um aluno fictício: concluir treino, "Bom trabalho!", recordes, "Visto" do treinador e, no fim, inativar e anonimizar (roteiro no fim de [engajamento.md](engajamento.md)). Quem faz = Gustavo; o Claude não acessa produção | Gustavo | engajamento |
 
 ## Limitações aceitas (não são pendência)
 

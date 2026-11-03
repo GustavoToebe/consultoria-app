@@ -190,3 +190,25 @@ Do 0.2 (28/10/2026):
 - Texto da Ajuda (`ajuda/conteudo.ts`) sobre recordes: fica para o último passo, com o do 0.1.
 - `AnonimizacaoService`/`receber` não conferem `aluno.anonimizado` (igual a execuções e mobilidade); só uma requisição que já passou do filtro poderia regravar um comentário depois da anonimização.
 - Ambiente: `app/node_modules` do worktree é uma junction para o checkout principal. O `npm run e2e` puro pode abrir em branco por causa do cache do Metro; usar `expo export --clear` antes. Nunca `rm -rf` na junction (usar `cmd /c rmdir`).
+
+## Roteiro: conferir o retorno em produção com um aluno fictício (quem faz: Gustavo)
+
+O Claude não acessa produção; quem executa é o Gustavo. Use só dados fictícios: nome "Teste Engajamento (fictício)" e um e-mail de teste que você controla. Nada de aluno real, CPF, telefone, peso ou dieta de pessoa.
+
+Criar o aluno:
+1. Cadastre o aluno fictício pelo treinador e defina o acesso dele pela ficha (e-mail de teste e senha provisória; o rótulo exato você confere na tela). Entre no app com ele; o primeiro acesso pede a troca da senha.
+2. Monte uma pasta com treino publicado que tenha séries simples (sem cluster, rest-pause nem etapas: o recorde só conta nelas).
+
+Conferir (com `TREINOS_RETORNO_HABILITADO` ligada):
+3. Como aluno, marque uma série com carga maior que a anterior do mesmo exercício. Esperado: aviso "Recorde pessoal · <exercício>" no topo da tela do exercício e medalha no lugar do número da série.
+4. Toque em "Concluir treino" (topo ou rodapé da tela do dia). Esperado: abre "Bom trabalho!" com "Este é o seu Nº treino", resumo e "Recordes pessoais" do dia. Se abrir a tela antiga, a chave não está valendo: pare e avise.
+5. Na mesma tela, conferir o selo "Treino concluído" com duração e volume.
+6. Como treinador (outra conta da consultoria), abra a ficha do aluno fictício, cartão de treinos concluídos (últimos 14 dias): toque em "Marcar como visto". Esperado: aparece "Visto". Conferir também "Recordes da semana" no Início e na ficha.
+7. Como aluno, atualize a lista do dia (o "Visto" chega quando o app baixa as conclusões de novo). Esperado: selo "Visto pelo treinador" no treino concluído e no "Bom trabalho!".
+
+Apagar ao fim:
+8. Como treinador com permissão de Administrador, na ficha do aluno fictício: inative o aluno e depois anonimize. A anonimização pede o nome do aluno para conferir; digite o nome fictício exato. Esperado: nome, e-mail, senha, telefone, CPF e endereço apagados; pastas, treinos e execuções (carga e repetições) ficam sem nome.
+9. Alternativa, feita pelo próprio aluno: em Conta, último cartão "Excluir minha conta", com a senha e a palavra EXCLUIR. Ele fica inativo e anonimizado, e o login deixa de entrar.
+10. Conferir que o nome fictício não aparece mais na lista de alunos.
+
+Se algum passo falhar, anote o número do passo e a mensagem da tela (sem print com dado real) e avise o Claude.
