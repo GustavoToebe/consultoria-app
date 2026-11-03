@@ -79,7 +79,7 @@ referência foi conferida no código atual. A análise em si fica fora do git.
   - CRM: avisar na busca vazia quando há resultado em outro filtro ("Encontrada em: Aceitas (1). Ver Todas"); mensagem
     própria para o limite de envio (429) no link público; inscrição reaberta mantém a data original de criação.
   - Agenda: fundo tingido na lista do celular (precisa de `fundo` em `ui/LinhaDaLista`) e nome acessível só com o horário
-    de início. O status "Cancelado" na visão do mês foi escrito no lote pendencias-app-03-11. O nome acessível não mudou:
+    de início. O status "Cancelado" na visão do mês foi escrito no lote pendencias-app-03-11, commit `6c15ed46`. O nome acessível não mudou:
     o `wt-auditoria-treinador` tem o e2e da agenda sem commit, e ele fixa o nome atual.
   - Aluno: editar outra etapa com um salvamento em voo ainda monta o registro a partir do dado antigo (pede mudança em
     `aplicarAcao`); `avisoDoGrafico` pode reaproveitar o texto de domínio do B6.
