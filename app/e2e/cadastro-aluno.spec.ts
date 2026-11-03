@@ -414,6 +414,29 @@ for (const largura of [390, 1280]) {
     expect(errosDaPagina).toEqual([]);
   });
 
+  test(`novo aluno aberto direto (${largura}px): Cancelar vai à lista; com o nome digitado pergunta antes`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { errosDaPagina } = await simularApi(page, {
+      ...(await sessao(page, TREINADOR)),
+      ...ROTAS_DA_FICHA,
+      'GET /responsaveis': { corpo: [{ id: TREINADOR.id, nome: TREINADOR.nome }] },
+      'GET /alunos': { corpo: { itens: [], total: 0 } },
+    });
+    await page.goto('/treinador/alunos/novo');
+    await expect(page.getByRole('heading', { name: 'Novo aluno', level: 1 })).toBeVisible();
+    await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
+    await expect(page).toHaveURL(/\/treinador\/alunos$/);
+    await expect(sairSemSalvar(page)).toHaveCount(0);
+
+    await page.goto('/treinador/alunos/novo');
+    await page.getByLabel('Nome', { exact: true }).fill('Aluno Novo Fictício');
+    await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
+    await expect(sairSemSalvar(page)).toBeVisible();
+    await page.getByRole('button', { name: 'Sair sem salvar', exact: true }).click();
+    await expect(page).toHaveURL(/\/treinador\/alunos$/);
+    expect(errosDaPagina).toEqual([]);
+  });
+
   test(`ficha (${largura}px): editar e sair pergunta; salvar e sair não; o ⋯ tem 44×44 com a moldura de 40`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const { errosDaPagina } = await simularApi(page, {

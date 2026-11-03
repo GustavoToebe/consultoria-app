@@ -6,7 +6,7 @@ import { escalar } from '../dominio/preferencias';
 import { useTema } from '../tema/TemaProvider';
 import { espaco } from '../tema/tokens';
 import { faixasSobrePontos, type FaixaDoGrafico } from '../dominio/cicloMenstrual';
-import { caminhoSuave, marcasDoEixo } from '../dominio/grafico';
+import { caminhoSuave, fracaoNoEixo, marcasDoEixo } from '../dominio/grafico';
 import { Texto } from './Texto';
 
 export interface PontoGrafico {
@@ -21,7 +21,8 @@ const MARGEM_BASE = { topo: 14, base: 24, esq: 58, dir: 18 };
 
 /**
  * Gráfico de linha (SVG): curva suave com a área abaixo preenchida, pontos nos registros e eixo vertical com a
- * unidade ("82 kg"). Pontos já na ordem do eixo horizontal; só desenha o que foi registrado. A linha é da cor do texto,
+ * unidade ("82 kg"). O eixo horizontal acompanha a data quando todo ponto a traz; sem data, o espaço segue a lista.
+ * Pontos já na ordem do eixo; só desenha o que foi registrado. A linha é da cor do texto,
  * nunca da marca (a marca não é dado). `semUltimo`: quem já mostra o resumo "Último…" acima não repete a linha de baixo.
  */
 export function GraficoLinha({ pontos, unidade, descricao, semUltimo, faixas }: {
@@ -44,7 +45,7 @@ export function GraficoLinha({ pontos, unidade, descricao, semUltimo, faixas }: 
   const w = Math.max(largura, 1);
   const areaW = w - MARGEM.esq - MARGEM.dir;
   const areaH = ALTURA - MARGEM.topo - MARGEM.base;
-  const x = (i: number) => MARGEM.esq + (pontos.length === 1 ? areaW / 2 : (i / (pontos.length - 1)) * areaW);
+  const x = (i: number) => MARGEM.esq + fracaoNoEixo(pontos, i) * areaW;
   const y = (v: number) => MARGEM.topo + (1 - (v - min) / (max - min)) * areaH;
   const marcas = marcasDoEixo(min, max);
   const passoRotulo = Math.max(1, Math.ceil(pontos.length / Math.max(Math.floor(areaW / 72), 1)));

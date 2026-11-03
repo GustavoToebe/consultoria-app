@@ -6,7 +6,7 @@ import { periodoDoCalendario } from './agendaCalendario';
 import {
   alternarBloco, barrasDoRecebido, blocoDisponivel, BLOCOS_DO_PAINEL, blocosParaEditar, blocosPermitidos, blocosVisiveis,
   chaveDaConsulta, compromissosDaSemana, consultaDaAgenda, consultasDoBloco, enderecoDoBloco, FONTE_CARREGANDO, FONTE_DESLIGADA,
-  FONTE_FALHOU, fontePronta, folhaPastasARenovar, folhaRecordes, folhaSemRegistro, fonteDaConsulta, inicioSemAlunos, moverBloco,
+  FONTE_FALHOU, fontePronta, folhaPastasARenovar, folhaRecordes, folhaSemRegistro, fonteDaConsulta, inicioSemAlunos, listaDaFolha, moverBloco,
   montarBloco, PAINEL_DO_INICIO_PADRAO, periodoDoFinanceiroNoPainel, reaisSemCentavos, resumoDaFolha, roscaDosAlunos,
   type BlocoDoPainel, type BlocoDoPainelId, type ContextoDoPainel, type FontesDoPainel, type OpcoesDoBloco, type PainelDoInicioPreferido,
 } from './painelDoInicio';
@@ -163,6 +163,23 @@ describe('fonteDaConsulta', () => {
     expect(fonteDaConsulta({ dados: undefined, carregando: true })).toEqual(FONTE_CARREGANDO);
     expect(fonteDaConsulta({ dados: null, carregando: false })).toEqual(FONTE_FALHOU);
     expect(fonteDaConsulta({ dados: undefined, carregando: false })).toEqual(FONTE_FALHOU);
+  });
+
+  it('recarregar a mesma consulta mantém os dados como prontos', () => {
+    expect(fonteDaConsulta({ dados: { a: 1 }, carregando: true })).toEqual(fontePronta({ a: 1 }));
+  });
+});
+
+describe('listaDaFolha', () => {
+  const lista = { id: 'semRegistro' as const, titulo: 't', escopo: null, total: 1, resumo: '1 aluno.', vazio: null, itens: [] };
+  const montar = (n: number) => (n > 0 ? lista : null);
+
+  it('carregando não é falha; falha e dado que não monta a lista são falha', () => {
+    expect(listaDaFolha(FONTE_CARREGANDO, montar)).toEqual({ situacao: 'carregando', dados: null });
+    expect(listaDaFolha(FONTE_FALHOU, montar)).toEqual({ situacao: 'falhou', dados: null });
+    expect(listaDaFolha(FONTE_DESLIGADA, montar)).toEqual({ situacao: 'falhou', dados: null });
+    expect(listaDaFolha(fontePronta(0), montar)).toEqual({ situacao: 'falhou', dados: null });
+    expect(listaDaFolha(fontePronta(3), montar)).toEqual({ situacao: 'pronta', dados: lista });
   });
 });
 
