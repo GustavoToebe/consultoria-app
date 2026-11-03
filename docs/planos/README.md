@@ -150,6 +150,9 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Chave do retorno ligada em 03/11 (D10): conferir na tela com um aluno fictício de produção (não existe conta fictícia lá hoje) | Gustavo decide se cria a conta | auditoria-ui-ux-lote-1 (D10), engajamento |
 | "Seu envio" na atualização do aluno (texto i do lote 1): vem do questionário padrão do seed V001 na API; trocar pede migration nova | Claude, quando houver migration de questionário | auditoria-ui-ux-lote-1 (PR B) |
 | Guarda de saída global (D7, PR B) conferida só na web: olhar no celular o `LinkTexto` com alteração pendente, o voltar com uma Folha aberta e as telas públicas com erro no campo no tema escuro | Claude, no próximo teste no APK | auditoria-ui-ux-lote-1 (PR B) |
+| N24/N25 cores: cor da marca só para destaque e ação, tom próprio para erro e alerta, cinza para desabilitado; uma cor por situação, igual no aluno e no treinador; regra escrita em `docs/design-e-front.md`. Frente própria ("cores", executor-front) depois do merge da frente 4 (`auditoria-pecas`, dona do `tema/tokens.ts`) | Claude, depois do merge da frente 4 | auditoria-ui-ux 2ª passada (Gustavo, 03/11) |
+| N29 menu do treinador em grupos com título (Alunos e acompanhamento / Negócio / Configurações): vai na frente 6 (`auditoria-ficha`), junto do D11 | Claude, na frente 6 | auditoria-ui-ux 2ª passada (Gustavo, 03/11) |
+| Verificações que o Playwright não cobre: anamnese num celular de verdade, leitor de tela (TalkBack/VoiceOver) e contraste medido com ferramenta | Gustavo, com o APK | auditoria-ui-ux 2ª passada (Gustavo, 03/11) |
 
 ## Limitações aceitas (não são pendência)
 

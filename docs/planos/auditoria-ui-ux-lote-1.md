@@ -77,6 +77,7 @@ O escopo foi definido pelo Gustavo em 03/11 e só mexe no app; nada muda na API.
 
 ## Fora do escopo
 - O lote 2 virou as frentes paralelas de 03/11 (aluno, peças, treinador e, depois do merge do PR B, `auditoria-ficha`), cada uma com plano próprio em `docs/planos/`. C3 ficou com a frente 4 (`auditoria-pecas`); C8 (paginação da Biblioteca) e os cinco erros engolidos, com a frente 5 (treinador).
+- Achados novos da 2ª passada (Gustavo, 03/11): N26, N27 e N30 entraram na frente 5; N28, na frente 3; N29 vai para a frente 6 com o D11; N24/N25 (cores) viram uma frente própria depois do merge da frente 4. Os dois últimos e as verificações manuais estão em "Pendências soltas" do README.
 - C10 fica de fora (D9).
 - O resto do relatório.
 
