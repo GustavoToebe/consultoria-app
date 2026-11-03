@@ -140,6 +140,23 @@ class MarcaELogoIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void paletasDaMarcaGravamELemEOCodigoForaDaListaE400() throws Exception {
+        long versao = api.get("/consultoria", treinador, 200).get("versao").asLong();
+        for (String paleta : List.of("MEIA_NOITE", "AMEIXA", "OCEANO", "CAFE", "AREIA", "LAVANDA", "CEU", "ROSA", "ESCURO")) {
+            JsonNode salva = api.put("/consultoria/marca", treinador, Map.of("nome", "SARAIVA TEAM", "corPrimaria", "#C62828",
+                    "fonteTitulo", "PADRAO", "temaPadrao", paleta, "versao", versao), 200);
+            assertThat(salva.get("marca").get("temaPadrao").asString()).isEqualTo(paleta);
+            assertThat(api.get("/consultoria", treinador, 200).get("marca").get("temaPadrao").asString()).isEqualTo(paleta);
+            versao = salva.get("versao").asLong();
+        }
+        // Fora da lista (inclusive a Brisa, que saiu na conferência de contraste) é 400, não 500 do banco.
+        for (String fora : List.of("BRISA", "NEON", "escuro", "")) {
+            api.put("/consultoria/marca", treinador, Map.of("nome", "SARAIVA TEAM", "corPrimaria", "#C62828",
+                    "fonteTitulo", "PADRAO", "temaPadrao", fora, "versao", versao), 400);
+        }
+    }
+
+    @Test
     void marcaComLockOtimistaEValidacao() throws Exception {
         JsonNode atual = api.get("/consultoria", treinador, 200);
         long versao = atual.get("versao").asLong();
