@@ -60,7 +60,7 @@ Andamento em 02/11/2026 (worktree `wt-datas-validas`, branch `datas-validas`): p
 - Corrigir ou contar datas ruins em produção (D7).
 
 ## O que ficou para trás
-- Data de início da dieta validada só no app (`dominio` e `EditorDeDieta`); o `ValidadorDieta` da API está fora desta entrega.
+- ~~Data de início da dieta validada só no app~~ · a API já valida em `ValidadorDieta.dataDeInicio` (`FaixaDeData.PLANEJAMENTO`, 01/01/2000 até 31/12 do ano atual + 5, fuso de Brasília; 422 `PLANO_INVALIDO` no campo `dataInicio`, sem repetir o valor). Commit `ba824985` (miudezas-03-11). Conferido de novo no lote pendencias-app-03-11-b: o código já estava na main, sem mudança nova.
 - Importação por planilha tem faixa própria (até 2040), fora das três regras.
 - O calendário da agenda navega de 2000 a 2100: ocorrências depois do teto de planejamento (ano+5) aparecem, mas não são editáveis.
 - `hojeIso` do app usa o fuso do aparelho e a API usa Brasília: perto da meia-noite, o "hoje" dos dois pode divergir em um dia.
