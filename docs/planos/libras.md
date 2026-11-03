@@ -1,6 +1,6 @@
 # Libras (lb) na carga: fase 1, regra pura e lado do aluno (N04)
 
-Situação: Em andamento · Onde: branch `libras-fase-1` · Atualizado: 03/11/2026
+Situação: Fase 1 pronta para revisão · Onde: branch `libras-fase-1` · Atualizado: 03/11/2026
 
 ## Objetivo
 O aluno que pensa em libras escolhe `lb` em Perfil › Preferências e passa a digitar e ler as cargas em libras, sem que
@@ -26,15 +26,33 @@ nada do que está guardado mude: a carga continua em **kg** no aparelho, na fila
 | 14 | Peso corporal | Fora: peso do aluno (atualização, avaliação, fotos, dieta) segue em kg. "Libras" aqui é só carga de exercício | decidido pelo Claude em 03/11, conferir com o Gustavo |
 
 ## Passos
-- [x] 1. Plano e índice (este arquivo) — commit: ver `git log` da branch
-- [ ] 2. Regra pura `dominio/unidadeDeCarga.ts` com teste (ida e volta, arredondamento, passo, zero e vazio, enormes, negativos, "62,5") e preferência em `preferencias.ts`
-- [ ] 3. API: `TREINOS_UNIDADE_CARGA_HABILITADA` (propriedade, `GET /eu`, `application-test.yml`, teste do desligado); app lê `unidadeDeCargaHabilitada` no perfil
-- [ ] 4. Aluno: escolha em Preferências (só com a chave ligada) e carga na execução, dica, Anterior, recordes, histórico, relatório e PDF de cargas do aluno
-- [ ] 5. e2e `unidade-de-carga.spec.ts` (390 e 1280 px): digitar em lb, ver, recarregar, o corpo enviado à API está em kg; chave desligada = sem a escolha
-- [ ] 6. Lista final dos lugares de "kg" tratados e dos que ficam para a fase 2 (abaixo) e `AGENTS.md`
+- [x] 1. Plano e índice (este arquivo) — commit a652f128
+- [x] 2. Regra pura `dominio/unidadeDeCarga.ts` com teste (ida e volta de 0,1 em 0,1 lb até o teto do banco, arredondamento, passo, zero e vazio, enormes, negativos, "62,5") e preferência em `preferencias.ts`
+- [x] 3. API: `TREINOS_UNIDADE_CARGA_HABILITADA` (propriedade, `GET /eu`, `application-test.yml`, testes do desligado e do ligado); app lê `unidadeDeCargaHabilitada` no perfil
+- [x] 4. Aluno: escolha em Preferências (só com a chave ligada) e carga na execução, dica, Anterior, recordes, histórico, relatório e PDF de cargas do aluno
+- [x] 5. e2e `unidade-de-carga.spec.ts` (390 e 1280 px): digitar em lb, ver, recarregar, o corpo enviado à API está em kg; chave desligada = sem a escolha
+- [x] 6. Lista final dos lugares de "kg" tratados e dos que ficam para a fase 2 (abaixo) e `AGENTS.md`
 
 ## Lugares de "kg" de carga
-Tratados na fase 1 e adiados para a fase 2: preenchido ao fim do passo 4.
+Como funciona: o contexto `ContextoDaUnidadeDeCarga` (`ui/unidadeDeCargaEmUso`, padrão kg) só é provido no layout do aluno
+(`ui/ProvedorDaUnidadeDeCarga`: chave ligada + aluno + preferência `lb`). Treinador, "Ver como aluno" e os testes que não o
+provêm ficam em kg sem mudar nada. As funções de texto da carga ganharam `unidade` como último parâmetro opcional (padrão `kg`).
+
+**Tratados na fase 1 (aluno):**
+- Campo de peso da série e das etapas (`ui/CampoDeCarga`), rótulo acessível "em libras"/"em quilos", botões −/+ (`ui/AjusteDeCarga`, rótulo do passo).
+- Dica "Sugestão / Última vez / Primeira vez" (`dominio/dicaDeCarga`), "Anterior" (`dominio/seriesAnteriores`, `aluno/LinhaDoAnterior`), "Repetir 40 kg × 6" (`dominio/repetirSerie`).
+- Painel "Fez com X?" e suas três opções (`dominio/painelDoCheck`, `aluno/PainelDoCheck`): "Sim" grava a sugestão em kg.
+- Etapas (Cluster, Rest-pause): referência, "Feito até agora", peso das etapas (`dominio/etapas`, `dominio/pesoDasEtapas`, `aluno/CartaoSerieComEtapas`).
+- Recordes: aviso ao marcar, medalha, "Bom trabalho!" (`dominio/recordesPessoais`, `aluno/AvisoDeRecorde`, `PartesDaSerie`, `app/aluno/sessao/[uid]/concluido`).
+- Treino ao vivo (`dominio/treinoAoVivo`, `aluno/FaixaDoTreino`): volume; carga fixa e meta da série (`dominio/agrupamento`, `dominio/cargas.metaDaSerie`, `aluno/CartaoExercicioDoDia`).
+- Histórico do aluno: "Ainda não enviados", Por dia, Por divisão, progresso do exercício (resumo, gráfico, tabela) e o PDF de cargas do aluno (`app/aluno/historico`, `dominio/relatorio`, `dominio/progresso`, `pdf/pdfCargas`, `treinador/CargasPorDivisao|HistoricoPorSemana|ProgressoDoExercicio`, que leem a unidade do contexto e no treinador seguem em kg).
+
+**Ficam para a fase 2 (treinador) ou fora, de propósito:**
+- Editor do plano: "Carga fixa (kg)", `validacaoDeSerie` ("até N kg"), `edicaoMetodologia` ("arredondamento ... kg"), metodologia e receitas.
+- PDF, relatório, progresso, recordes da semana e "Treinos concluídos" vistos pelo treinador (`dominio/retornoDoTreinador`, `dominio/painelDoInicio`): leem kg e mostram em kg até o treinador ter a própria preferência.
+- Peso corporal em qualquer tela (atualização, avaliação física, fotos, dieta, lista de compras): é kg, decisão 14.
+- Textos de ajuda (`ajuda/conteudo.ts`) e a descrição do arredondamento na Marca: citam "kg" como exemplo.
+- Importação de planilha e exportação LGPD: kg, são do treinador.
 
 ## Riscos
 - Esquecer um lugar e o aluno ver "kg" onde esperava "lb": a lista acima é a garantia; o que sobrar de aluno vira correção.
@@ -46,6 +64,7 @@ Tratados na fase 1 e adiados para a fase 2: preenchido ao fim do passo 4.
 2. Escolher lb, abrir um exercício: o campo de peso diz "lb", os botões −/+ dizem "1,1 lb" (para 0,5 kg), "Sugestão" e "Última vez" saem em lb.
 3. Digitar 100 lb, marcar a série, recarregar: continua 100 lb; no histórico também. Voltar para kg: a mesma série mostra 45,36 kg.
 4. Conferir que o plano (visto pelo treinador) não mudou.
+5. "Restaurar padrão" em Preferências volta a carga para kg.
 
 ## Fora do escopo
 - Fase 2: preferência e telas do treinador (editor de carga fixa, PDF e relatório do treinador, progresso, recordes da semana, treino ao vivo). Ver "Pendências soltas" do README.
