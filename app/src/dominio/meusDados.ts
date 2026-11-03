@@ -16,6 +16,19 @@ import { sexoDoCampo } from './sexo';
 /** Nome, e-mail do cadastro e e-mail de acesso são só leitura; a mensagem é a mesma para os três. */
 export const TEXTO_SO_LEITURA = 'Para mudar, fale com o seu treinador.';
 
+/**
+ * E-mail único na leitura: o de acesso é o principal (é com ele que o aluno entra); sem ele, o do cadastro. A nota só
+ * aparece quando os dois existem e são diferentes (sem diferenciar maiúsculas).
+ */
+export function emailParaLeitura(resp: Pick<MeusDadosResponse, 'email' | 'emailDeAcesso'>): { rotulo: string; valor: string | null; nota: string | null } {
+  const acesso = resp.emailDeAcesso?.trim() || null;
+  const cadastro = resp.email?.trim() || null;
+  const diferente = !!acesso && !!cadastro && acesso.toLowerCase() !== cadastro.toLowerCase();
+  return { rotulo: acesso ? 'E-mail de acesso' : 'E-mail do cadastro', valor: acesso ?? cadastro, nota: diferente ? NOTA_OUTRO_EMAIL : null };
+}
+
+export const NOTA_OUTRO_EMAIL = 'Seu treinador usa outro e-mail no seu cadastro.';
+
 /** Formulário: tudo texto; sexo vazio = "Não informado". */
 export interface FormMeusDados {
   telefone: string;

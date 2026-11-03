@@ -117,6 +117,12 @@ export function proximaPendente(etapas: readonly EtapaRegistrada[] | null | unde
 /** Todas as etapas têm situação (feita ou não realizada): a série pode ser concluída. */
 export const todasComSituacao = (etapas: readonly EtapaRegistrada[] | null | undefined, quantas: number): boolean => proximaPendente(etapas, quantas) === null;
 
+/** O selo do cabeçalho da série com etapas: "Não feita" só quando TODAS as etapas previstas foram marcadas como não realizadas. */
+export function seloDaSerieComEtapas(feita: boolean, etapas: readonly EtapaRegistrada[], quantas: number): 'FEITA' | 'NAO_FEITA' | null {
+  if (feita) return 'FEITA';
+  return etapas.length > 0 && etapas.every((e) => e.situacao === 'NAO_REALIZADA') && todasComSituacao(etapas, quantas) ? 'NAO_FEITA' : null;
+}
+
 /**
  * Total da série: a soma das repetições das etapas feitas, só quando nenhuma está pendente e toda feita tem repetições;
  * senão `null` (parcial). Igual ao `SincronizacaoService.totalDasEtapas`.

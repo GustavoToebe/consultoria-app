@@ -20,6 +20,8 @@ interface Props {
   erro?: { texto: string; aoTentarDeNovo: () => void; causa?: unknown };
   /** Dia de descanso: "Quarta · Treino B" (`dominio/inicioDoAluno.proximoTreino`); nulo = a linha some. */
   proximo?: string | null;
+  /** Treino de hoje já concluído (N3): o cartão diz isso, com o resultado, e a ação vira "Ver resumo". `texto` vem de `textoDoHojeConcluido`. */
+  concluido?: { texto: string; aoVerResumo: () => void } | null;
 }
 
 /**
@@ -28,7 +30,7 @@ interface Props {
  * todo um toque: a ação é o botão "Ver meu treino →", que abre a lista do dia (cada exercício se abre e se marca por lá).
  * Falha ao carregar nunca é mostrada como "treino não publicado".
  */
-export function CartaoHoje({ estado, aoVerTreino, aoEscolher, erro, proximo }: Props) {
+export function CartaoHoje({ estado, aoVerTreino, aoEscolher, erro, proximo, concluido }: Props) {
   const { cores, marca, sobreMarca } = useTema();
   const neutro = { backgroundColor: cores.superficie, borderColor: cores.borda };
 
@@ -79,17 +81,17 @@ export function CartaoHoje({ estado, aoVerTreino, aoEscolher, erro, proximo }: P
       {treino ? <Texto variante="secao" cor={sobreMarca} style={estilos.rotulo}>{estado.rotulo}</Texto> : null}
       <Texto nivel={3} style={[estilos.nome, { color: sobreMarca }]}>{treino ? estado.sessao.nome : 'Qual é o treino de hoje?'}</Texto>
       <Texto cor={sobreMarca} style={estilos.detalhe}>
-        {treino ? contagem(estado.sessao.exercicios.length, 'exercício', 'exercícios') : 'Seu plano não tem dia fixo. Escolha uma divisão.'}
+        {treino ? (concluido ? concluido.texto : contagem(estado.sessao.exercicios.length, 'exercício', 'exercícios')) : 'Seu plano não tem dia fixo. Escolha uma divisão.'}
       </Texto>
       <View style={estilos.acao}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={treino ? `Ver meu treino: ${estado.sessao.nome}` : 'Escolher treino'}
-          onPress={treino ? aoVerTreino : aoEscolher}
+          accessibilityLabel={treino ? (concluido ? `Ver resumo do treino: ${estado.sessao.nome}` : `Ver meu treino: ${estado.sessao.nome}`) : 'Escolher treino'}
+          onPress={treino ? (concluido ? concluido.aoVerResumo : aoVerTreino) : aoEscolher}
           style={({ pressed }) => [estilos.botao, { backgroundColor: sobreMarca, opacity: pressed ? 0.85 : 1 }]}>
-          <Texto style={[estilos.botaoTexto, { color: marca }]}>{treino ? 'Ver meu treino →' : 'Escolher treino'}</Texto>
+          <Texto style={[estilos.botaoTexto, { color: marca }]}>{treino ? (concluido ? 'Ver resumo →' : 'Ver meu treino →') : 'Escolher treino'}</Texto>
         </Pressable>
-        {treino ? <Texto variante="pequeno" cor={sobreMarca} style={estilos.nota}>Consulte a lista antes de começar.</Texto> : null}
+        {treino && !concluido ? <Texto variante="pequeno" cor={sobreMarca} style={estilos.nota}>Consulte a lista antes de começar.</Texto> : null}
       </View>
     </View>
   );

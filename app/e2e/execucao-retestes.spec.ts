@@ -67,7 +67,7 @@ async function abrir(page: Page, series: Serie[], ultimasCargas: Record<string, 
 const peso = (page: Page, n: number) => page.getByRole('textbox', { name: `Peso da série ${n}, em quilos`, exact: true });
 const reps = (page: Page, n: number) => page.getByRole('textbox', { name: `Repetições da série ${n}`, exact: true });
 const marcar = (page: Page, n: number) => page.getByRole('checkbox', { name: `Série ${n} feita`, exact: true });
-const AVISO_DO_MARCAR = 'As séries seguintes só usam este peso depois que você marcar ✓.';
+const AVISO_DO_MARCAR = 'As séries seguintes só usam este peso depois que você marcar a série como feita.';
 
 test('C30: o Back off só recalcula depois do ✓ da WS (regra de 31/10), e a própria série avisa', async ({ page }) => {
   const api = await abrir(page, [ws, backOff]);

@@ -115,6 +115,9 @@ export function ProvedorDoPasseio({ usuarioId, passos, children }: { usuarioId: 
   );
 }
 
+/** Altura do selo de sincronização do aluno (e a folga dele) que o balão do passeio não pode cobrir. */
+const RESERVA_DO_SELO = 40;
+
 interface Medida { area: Tamanho; alvo: Retangulo | null }
 
 function Sobreposicao({ passos, indice, mudar, dispensar, origem, nos }: {
@@ -168,7 +171,10 @@ function Sobreposicao({ passos, indice, mudar, dispensar, origem, nos }: {
   const area = medida?.area ?? { largura: janela.width, altura: janela.height };
   const largura = larguraDoBalao(area);
   const pronto = !!medida && alturaBalao !== null;
-  const posicao = posicaoDoBalao(medida?.alvo ?? null, area, { largura, altura: alturaBalao ?? 0 });
+  // Item da barra de baixo: o selo de sincronização fica logo acima dela, então o balão sobe além dele e não o esconde.
+  const alvo = medida?.alvo ?? null;
+  const alvoDoBalao = alvo && alvo.y > area.altura / 2 ? { ...alvo, y: alvo.y - RESERVA_DO_SELO, altura: alvo.altura + RESERVA_DO_SELO } : alvo;
+  const posicao = posicaoDoBalao(alvoDoBalao, area, { largura, altura: alturaBalao ?? 0 });
   const recorte = medida?.alvo ? recorteDoDestaque(medida.alvo, area) : null;
   const vela = 'rgba(0, 0, 0, 0.6)';
 
