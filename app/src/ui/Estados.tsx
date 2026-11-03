@@ -146,10 +146,22 @@ export function Alerta({ tom, titulo, texto, children }: { tom: TomDoAlerta; tit
  * Erro na própria tela, com o texto da API e, se der, um "tentar de novo" (só quando repetir pode resolver: nunca para
  * 400, 403, 404 ou 409). Frase padrão do HTTP em inglês ("Bad Request") vira português.
  */
-export function MensagemErro({ texto, tentarDeNovo, erro }: { texto: string; tentarDeNovo?: () => void; erro?: unknown }) {
+/**
+ * Erro com o texto da API. `tentarDeNovo` só aparece quando o problema pode passar; `acao` é a saída da tela (o "Voltar à
+ * lista" de um endereço que não existe), para a pessoa não ficar sem caminho.
+ */
+export function MensagemErro({ texto, tentarDeNovo, erro, acao }: {
+  texto: string; tentarDeNovo?: () => void; erro?: unknown; acao?: { rotulo: string; aoTocar: () => void };
+}) {
+  const tentar = !!tentarDeNovo && valeTentarDeNovo(erro);
   return (
     <Alerta tom="perigo" texto={textoSemIngles(texto, erro)}>
-      {tentarDeNovo && valeTentarDeNovo(erro) ? <Botao rotulo="Tentar de novo" tipo="secundario" aoTocar={tentarDeNovo} /> : null}
+      {tentar || acao ? (
+        <View style={estilos.acoesDoErro}>
+          {tentar ? <Botao rotulo="Tentar de novo" tipo="secundario" aoTocar={tentarDeNovo} /> : null}
+          {acao ? <Botao rotulo={acao.rotulo} tipo="secundario" aoTocar={acao.aoTocar} /> : null}
+        </View>
+      ) : null}
     </Alerta>
   );
 }
@@ -166,6 +178,7 @@ const estilos = StyleSheet.create({
   faixa: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(1.5), borderWidth: 1, borderRadius: RAIO, padding: espaco(2) },
   faixaTextos: { flex: 1, gap: espaco(0.5) },
   faixaAcao: { marginTop: espaco(1) },
+  acoesDoErro: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
   incompleto: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5) },
   textoIncompleto: { flexShrink: 1 },
 });

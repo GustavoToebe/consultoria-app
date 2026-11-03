@@ -27,7 +27,7 @@ export function textoDaResposta(p: PerguntaAtualizacao, valor: RespostaAtualizac
   if (!respondida(valor)) return SEM_DADO;
   switch (p.tipo) {
     case 'PESO': return typeof valor === 'number' ? `${numeroParaTela(valor, 1)} kg` : SEM_DADO;
-    case 'NOTA': return typeof valor === 'number' ? numeroParaTela(valor, 0) : SEM_DADO;
+    case 'NOTA': return textoDaNota(p, valor);
     case 'NUMERO':
       return typeof valor === 'number' ? `${numeroParaTela(valor, p.casas ?? 0)}${p.unidade ? ` ${p.unidade}` : ''}` : SEM_DADO;
     case 'SIM_NAO': return typeof valor === 'boolean' ? (valor ? 'Sim' : 'Não') : SEM_DADO;
@@ -39,7 +39,7 @@ export function textoDaResposta(p: PerguntaAtualizacao, valor: RespostaAtualizac
     }
     case 'NOTAS_POR_DIA':
       if (typeof valor !== 'object' || valor === null || Array.isArray(valor)) return SEM_DADO;
-      return (p.dias ?? []).map((d) => `Dia ${d}: ${valor[String(d)] ?? SEM_DADO}`).join('\n');
+      return (p.dias ?? []).map((d) => `Dia ${d}: ${textoDaNota({ min: 0, max: 10 }, valor[String(d)])}`).join('\n');
     case 'TEXTO':
     case 'TEXTO_LONGO':
     case 'TELEFONE':
@@ -62,6 +62,7 @@ export interface ResumoDoTreinador {
   /** Nulo quando o questionário não tem pergunta PESO; com a pergunta e sem resposta, `valor` é nulo (mostra "—"). */
   peso: { valor: number | null; variacao: number | null } | null;
   destaques: { id: string; rotulo: string; texto: string }[];
+  diasComTreino: number | null;
   mediaDiasPorSemana: number | null;
   pesoAnterior: number | null;
 }
@@ -85,6 +86,7 @@ export function resumoDoTreinador(
     destaques: perguntasDestaque(modelo).map((p) => ({
       id: p.id, rotulo: cortar(p.rotuloCurto?.trim() || p.rotulo), texto: textoDaResposta(p, respostasDe[p.id]),
     })),
+    diasComTreino: resumo?.diasComTreino ?? null,
     mediaDiasPorSemana: resumo?.mediaDiasPorSemana ?? null,
     pesoAnterior,
   };
@@ -124,11 +126,12 @@ export function rascunhoVigente(rascunho: RascunhoAtualizacao | null, atualizaca
 
 /** Por seção visível: quantas perguntas respondíveis estão respondidas (para o "3 de 5" e a barra do formulário). */
 export function progressoDasSecoes(modelo: ConteudoQuestionario, respostas: RespostasAtualizacao, fotosLigadas = false) {
-  const { escondidas, secoesEscondidas } = avaliarRespostas(modelo, respostas, fotosLigadas);
+  // `erros` também guarda a resposta fora do formato (data de nascimento inválida): ela não conta como respondida (N16).
+  const { erros, escondidas, secoesEscondidas } = avaliarRespostas(modelo, respostas, fotosLigadas);
   return modelo.secoes.map((secao, i) => {
     if (secoesEscondidas.has(i)) return null;
     const contam = secao.perguntas.filter((p) => !semResposta(p.tipo) && !escondidas.has(p.id) && (p.tipo !== 'FOTOS' || fotosLigadas));
-    return { respondidas: contam.filter((p) => respondidaNaPergunta(p, respostas[p.id]) && gradeCompleta(p, respostas[p.id])).length, total: contam.length };
+    return { respondidas: contam.filter((p) => respondidaNaPergunta(p, respostas[p.id]) && gradeCompleta(p, respostas[p.id]) && !erros[p.id]).length, total: contam.length };
   });
 }
 
@@ -166,9 +169,12 @@ export function ajudaDoNumero(p: PerguntaAtualizacao): string {
   return faixa ? `${faixa}, ${decimais}.` : `${decimais[0].toUpperCase()}${decimais.slice(1)}.`;
 }
 
-/** "7 de 10": a nota na leitura, com a ponta de cima (uma escala de 1 a 5 não se confunde com uma de 0 a 10). */
+/** N27: a nota nunca vai sem a escala. "7/10" quando ela começa em 1; "7 de 0 a 10" quando começa em 0 (o zero não se confunde com falta de resposta). */
 export function textoDaNota(p: Pick<PerguntaAtualizacao, 'min' | 'max'>, valor: RespostaAtualizacao | undefined): string {
-  return typeof valor === 'number' ? `${numeroParaTela(valor, 0)} de ${escalaDaNota(p).max}` : SEM_DADO;
+  if (typeof valor !== 'number') return SEM_DADO;
+  const { min, max } = escalaDaNota(p);
+  const nota = numeroParaTela(valor, 0);
+  return min === 0 ? `${nota} de 0 a ${max}` : `${nota}/${max}`;
 }
 
 /** GRADE na leitura: uma linha por item, com a coluna escolhida ou "—". */

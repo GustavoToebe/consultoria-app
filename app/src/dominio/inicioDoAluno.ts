@@ -112,11 +112,14 @@ export function estadoDoHoje(entrada: { conteudo: ConteudoTreino | null; dia: nu
 /**
  * Dia de descanso: "Quarta · Treino B", a próxima sessão com treino (com exercício e que não é descanso) a partir de
  * amanhã, pela mesma semana do cartão (`diaSemana` 1 = segunda … 7 = domingo; depois do domingo vem a segunda).
- * Sessão sem dia fixo não entra; sem nenhuma, `null` e a linha some.
+ * Só vale dentro do período do plano: se a data dessa sessão passa de `fim` (inclusive), ou se `hoje` já passou do
+ * fim, não há próximo treino. Sessão sem dia fixo não entra; sem nenhuma, `null` e a linha some.
  */
-export function proximoTreino(conteudo: ConteudoTreino | null, dia: number): string | null {
-  if (!conteudo) return null;
+export function proximoTreino(conteudo: ConteudoTreino | null, hoje: string, fim: string | null): string | null {
+  if (!conteudo || (fim && hoje > fim)) return null;
+  const dia = diaDaSemanaIso(hoje);
   for (let passo = 1; passo < 7; passo++) {
+    if (fim && somarDias(hoje, passo) > fim) return null;
     const d = ((dia - 1 + passo) % 7) + 1;
     const s = conteudo.sessoes.find((x) => x.diaSemana === d);
     if (s && s.tipo !== 'DESCANSO' && s.exercicios.length > 0) return nomeComDia(s);

@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { Plus, Save, Send, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
@@ -60,7 +61,8 @@ export function EditorQuestionario({ id }: { id: string }) {
   if (!e) {
     return <Tela bordas={['top']} largura={LARGURA_EDITOR}>
       <Cabecalho titulo="Questionário" voltar="/treinador/planejamento" />
-      {editor.erroCarga ? <MensagemErro texto={textoDoErro(editor.erroCarga)} erro={editor.erroCarga} tentarDeNovo={editor.recarregar} /> : <Esqueleto />}
+      {editor.erroCarga ? <MensagemErro texto={textoDoErro(editor.erroCarga)} erro={editor.erroCarga} tentarDeNovo={editor.recarregar}
+          acao={{ rotulo: 'Voltar à lista', aoTocar: () => router.navigate('/treinador/planejamento') }} /> : <Esqueleto />}
     </Tela>;
   }
 

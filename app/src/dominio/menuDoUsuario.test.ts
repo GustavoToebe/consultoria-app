@@ -7,7 +7,7 @@ describe('menu do usuário', () => {
     expect(itens[itens.length - 1].href).toBeNull();
     expect(itens.slice(0, -1).every((i) => i.href?.startsWith('/treinador/'))).toBe(true);
   });
-  it('Minha conta entra entre Segurança e Ajustes só com CONTA_LER', () => {
+  it('Assinatura e faturas entra entre Segurança e Ajustes só com CONTA_LER', () => {
     const com = itensDoMenuDoUsuario((c) => c === 'CONTA_LER');
     expect(com.map((i) => i.id)).toEqual(['meus-dados', 'seguranca', 'minha-conta', 'ajustes', 'sair']);
     expect(com[2].href).toBe('/treinador/minha-conta');

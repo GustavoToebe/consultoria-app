@@ -146,7 +146,8 @@ for (const largura of [390, 1280]) {
     await confirmar(page).click();
 
     await expect(folha(page)).toHaveCount(0);
-    await expect(page.getByText('Treino concluído.')).toBeVisible();
+    // N9: nenhum aviso "Treino concluído." sobre a tela nova.
+    await expect(page.getByText('Treino concluído.', { exact: true })).toHaveCount(0);
     // Abre o "Bom trabalho!" (0.4): 4 no servidor + este = o 5º. A lista do dia volta pelo botão.
     await expect(page).toHaveURL(/\/aluno\/sessao\/sx\/concluido\?data=2026-10-19$/);
     await expect(page.getByText('Este é o seu 5º treino.', { exact: true })).toBeVisible();

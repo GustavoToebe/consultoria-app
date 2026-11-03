@@ -284,6 +284,8 @@ export function versoesDoPlanoNoPeriodo(dias: readonly DiaDeTreino[]): number {
 export const periodoMisturaVersoes = (dias: readonly DiaDeTreino[]): boolean => versoesDoPlanoNoPeriodo(dias) > 1;
 
 export const TEXTO_SEM_REGISTROS_NO_PERIODO = 'Nenhum registro neste período.';
+/** Há registro, mas nenhuma série de trabalho completa (com carga e repetições): não há o que mostrar no progresso (N4). */
+export const TEXTO_SEM_PROGRESSO_NO_PERIODO = 'Nenhuma série completa, com carga e repetições, neste período.';
 /** Onde ligar os gráficos muda com o papel: o treinador tem Perfil › Preferências; o aluno, a Conta. */
 export const TEXTO_GRAFICOS_DESLIGADOS = 'Os gráficos estão desligados em Perfil › Preferências.';
 export const TEXTO_GRAFICOS_DESLIGADOS_ALUNO = 'Os gráficos estão desligados em Conta › Aparência e preferências.';
@@ -297,8 +299,9 @@ export type PapelDoHistorico = 'ALUNO' | 'TREINADOR';
  * está vazio; com registro e gráficos desligados (preferência `graficos`), a parte de gráfico some e a tela diz onde ligar
  * (o caminho depende do papel); com registro e gráficos ligados não há estado vazio (`null`).
  */
-export function textoDoHistoricoVazio({ temRegistros, graficosLigados, papel = 'TREINADOR' }: { temRegistros: boolean; graficosLigados: boolean; papel?: PapelDoHistorico }): string | null {
+export function textoDoHistoricoVazio({ temRegistros, graficosLigados, papel = 'TREINADOR', semProgresso = false }: { temRegistros: boolean; graficosLigados: boolean; papel?: PapelDoHistorico; semProgresso?: boolean }): string | null {
   if (!temRegistros) return TEXTO_SEM_REGISTROS_NO_PERIODO;
+  if (semProgresso) return TEXTO_SEM_PROGRESSO_NO_PERIODO;
   if (graficosLigados) return null;
   return papel === 'ALUNO' ? TEXTO_GRAFICOS_DESLIGADOS_ALUNO : TEXTO_GRAFICOS_DESLIGADOS;
 }

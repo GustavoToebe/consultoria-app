@@ -36,7 +36,7 @@ const ABA_RECEBIMENTO: { valor: Aba; rotulo: string } = { valor: 'recebimento', 
  * Financeiro: o que os alunos pagam ao treinador (planos comerciais, cobranças, painel e lançamentos avulsos). Só com
  * `FINANCEIRO_LER` e o módulo de pagamentos ligado para a consultoria (a guarda é `podeAcessarTela`); `FINANCEIRO_ALTERAR`
  * liberta os botões que mudam algo. Só online: nada do financeiro fica guardado no aparelho. Não confundir com a
- * assinatura da consultoria, que fica em Minha conta.
+ * assinatura da consultoria, que fica em Assinatura e faturas.
  */
 export default function FinanceiroDoTreinador() {
   const { pode, recebimentoOnlineHabilitado } = useSessao();

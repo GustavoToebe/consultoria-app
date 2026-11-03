@@ -9,6 +9,7 @@ import { Campo } from '../ui/Campo';
 import { Folha } from '../ui/Folha';
 import { IconeBotao } from '../ui/IconeBotao';
 import { Texto } from '../ui/Texto';
+import { RotuloDoIcone } from './RotuloDoIcone';
 const COLUNAS = 3;
 /**
  * Descanso iniciado à mão (o automático só começa ao marcar uma série com descanso no plano). Abre por um ícone na
@@ -25,7 +26,7 @@ export function DescansoManual({ sugeridoSegundos }: { sugeridoSegundos?: number
  const soDigitos=(texto:string)=>texto.replace(/\D/g,'').slice(0,2);
  const prontos=DESCANSOS_PRONTOS.filter(s=>s!==sugeridoSegundos);
  const linhas=Array.from({length:Math.ceil(prontos.length/COLUNAS)},(_,i)=>prontos.slice(i*COLUNAS,(i+1)*COLUNAS));
- return <><IconeBotao Icone={Timer} rotulo="Iniciar descanso" aoTocar={()=>abrir(true)} />
+ return <><RotuloDoIcone texto="Descanso"><IconeBotao Icone={Timer} rotulo="Iniciar descanso" aoTocar={()=>abrir(true)} /></RotuloDoIcone>
   <Folha visivel={aberto} titulo="Iniciar descanso" aoFechar={()=>abrir(false)}>
    <View style={{gap:16}}>
     {sugeridoSegundos ? <Botao rotulo={`Descanso do plano: ${rotuloDescanso(sugeridoSegundos)}`} cheio aoTocar={()=>iniciar(sugeridoSegundos)} /> : null}

@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 
 import type { ResultadoValidacao } from '../../api/tipos';
@@ -36,7 +36,8 @@ export default function EditorDeMobilidade() {
     return (
       <Tela bordas={['top']} largura={LARGURA_EDITOR}>
         <Cabecalho titulo="Plano de mobilidade" voltar="/treinador/alunos" />
-        {editor.erroCarga ? <MensagemErro texto={textoDoErro(editor.erroCarga)} erro={editor.erroCarga} tentarDeNovo={editor.recarregar} /> : <Esqueleto />}
+        {editor.erroCarga ? <MensagemErro texto={textoDoErro(editor.erroCarga)} erro={editor.erroCarga} tentarDeNovo={editor.recarregar}
+          acao={{ rotulo: 'Voltar à lista', aoTocar: () => router.navigate('/treinador/alunos') }} /> : <Esqueleto />}
       </Tela>
     );
   }

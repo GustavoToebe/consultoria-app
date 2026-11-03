@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
-import type { ExercicioPlano, Serie, UltimaCarga } from '../api/tipos';
+import type { Configuracao, ExercicioPlano, Serie, UltimaCarga } from '../api/tipos';
+import { AVISO_SEM_CARGA } from '../dominio/avisoDaSerie';
 import { carga, exercicio as exercicioDeTeste, serie as serieDeTeste } from '../dominio/exemplosDeTreino.apoioTeste';
 import type { RegistroLocal } from '../offline/repositorioLocal';
 import { ExercicioAluno, type DadosSerie } from './ExercicioAluno';
@@ -74,7 +75,7 @@ interface Controle {
   fila: (() => void)[];
 }
 
-function Harness({ exercicio, baseInicial, ultima, controle, ponte }: { exercicio: ExercicioPlano; baseInicial: number | null; ultima: UltimaCarga | null; controle: Controle; ponte: (p: { base: number | null; mudarVisivel: (visivel: boolean) => void }) => void }) {
+function Harness({ exercicio, baseInicial, ultima, controle, ponte, metodologia }: { metodologia?: Configuracao; exercicio: ExercicioPlano; baseInicial: number | null; ultima: UltimaCarga | null; controle: Controle; ponte: (p: { base: number | null; mudarVisivel: (visivel: boolean) => void }) => void }) {
   const [base, setBase] = useState<number | null>(baseInicial);
   const [, forcar] = useState(0);
   const [visivel, setVisivel] = useState(true);
@@ -90,7 +91,7 @@ function Harness({ exercicio, baseInicial, ultima, controle, ponte }: { exercici
       cargaDoDia={base}
       ultima={ultima}
       registroDe={(uid) => controle.registros.get(uid)}
-      config={CONFIG}
+      config={metodologia ? { ...CONFIG, metodologia } : CONFIG}
       aoMudarCargaDoDia={(carga) => (controle.adiar ? controle.fila.push(() => setBase(carga)) : setBase(carga))}
       aoRegistrar={(serieUid, dados) => {
         controle.gravacoes.push({ serieUid, dados });
@@ -137,11 +138,11 @@ afterEach(async () => {
   });
 });
 
-async function montar(exercicio: ExercicioPlano, baseInicial: number | null = 40, ultima: UltimaCarga | null = null) {
+async function montar(exercicio: ExercicioPlano, baseInicial: number | null = 40, ultima: UltimaCarga | null = null, metodologia?: Configuracao) {
   const controle: Controle = { registros: new Map(), gravacoes: [], base: () => null, mudarVisivel: () => undefined, adiar: false, fila: [] };
   let arvore!: Arvore;
   await Renderer.act(async () => {
-    arvore = Renderer.create(<Harness exercicio={exercicio} baseInicial={baseInicial} ultima={ultima} controle={controle} ponte={(p) => { controle.base = () => p.base; controle.mudarVisivel = p.mudarVisivel; }} />);
+    arvore = Renderer.create(<Harness metodologia={metodologia} exercicio={exercicio} baseInicial={baseInicial} ultima={ultima} controle={controle} ponte={(p) => { controle.base = () => p.base; controle.mudarVisivel = p.mudarVisivel; }} />);
     montados.push(arvore);
   });
   const achar = (rotulo: string, prop: 'onChangeText' | 'onPress') => {
@@ -168,6 +169,8 @@ async function montar(exercicio: ExercicioPlano, baseInicial: number | null = 40
     dica: (n: number) => dicaDa(n)?.dica ?? null,
     /** A sugestão de peso da série `n` lida na dica ("Sugestão: 32 kg" → '32'); `null` = sem sugestão. */
     sugestao: (n: number) => dicaDa(n)?.dica.match(/Sugestão: ([\d,]+) kg/)?.[1] ?? null,
+    /** O aviso do N6 está na tela? */
+    avisoSemCarga: () => JSON.stringify(arvore.toJSON()).includes(AVISO_SEM_CARGA),
     /** O painel do ✓ da série `n` está aberto? */
     painel: (n: number) => arvore.root.findAll((x) => x.props.accessibilityLabel === `Sem carga, série ${n}`).length > 0,
     /** Toca uma opção do painel do ✓ da série `n` ("Sim, 40 kg", "Outra carga", "Sem carga"). */
@@ -557,23 +560,24 @@ describe('A8/A9 · o cartão da série diz o que é meta, o que é hoje e de ond
     expect(textos(t).some((x) => x.startsWith('Sugestão: 4'))).toBe(false); // série feita não mostra a dica
   });
 
-  it('a WS ainda sem ✓ avisa que as seguintes só acompanham depois de marcar; o Back off não avisa', async () => {
+  it('a WS ainda não marcada como feita avisa que as seguintes só acompanham depois de marcar; o Back off não avisa', async () => {
     const t = await montar(treino(ws('w'), backOff('b1')));
-    const aviso = 'As séries seguintes só usam este peso depois que você marcar ✓.';
+    const aviso = 'As séries seguintes só usam este peso depois que você marcar a série como feita.';
     expect(textos(t).filter((x) => x === aviso)).toHaveLength(1);
     await t.marcar(1);
     await t.escolher(1, 'Sim, 40 kg');
     expect(textos(t)).not.toContain(aviso);
   });
 
-  it('"Ainda não registrado" some ao marcar; "Hoje" e a meta (repetições grandes ao lado do peso) aparecem em cada série', async () => {
+  it('só a série registrada tem selo ("Feita"); "Hoje" e a meta (repetições grandes ao lado do peso) aparecem em cada série', async () => {
     const t = await montar(treino(ws('w'), backOff('b1')));
-    expect(textos(t).filter((x) => x === 'Ainda não registrado')).toHaveLength(2);
+    expect(textos(t)).not.toContain('Ainda não registrado');
+    expect(textos(t)).not.toContain('Feita');
     expect(textos(t).filter((x) => x === 'Hoje')).toHaveLength(2);
     expect(textos(t)).toEqual(expect.arrayContaining(['3 a 6 reps', 'carga de trabalho'])); // D5: repetições e o resto da meta
     await t.digitarPeso(1, '40');
     await t.marcar(1);
-    expect(textos(t).filter((x) => x === 'Ainda não registrado')).toHaveLength(1);
+    expect(textos(t).filter((x) => x === 'Feita')).toHaveLength(1);
   });
 
   it('observação do treinador aparece como "Observação desta série", nunca "Alvo extra"', async () => {
@@ -585,6 +589,47 @@ describe('A8/A9 · o cartão da série diz o que é meta, o que é hoje e de ond
 
   it('a base do dia explica que é o ponto de partida e que a WS registrada passa a valer', async () => {
     const t = await montar(treino(ws('w'), backOff('b1')));
-    expect(textos(t)).toContain('É o ponto de partida do dia. Depois que você registrar a WS nesta sessão (com o ✓), as séries em "% da WS" passam a sair dela.');
+    expect(textos(t)).toContain('É o ponto de partida do dia. Depois que você registrar a WS nesta sessão (marcando a série como feita), as séries em "% da WS" passam a sair dela.');
+  });
+});
+
+describe('N6 · série marcada sem kg avisa que não entra no progresso (D3 e D6 da auditoria do aluno)', () => {
+  const comTopSetDeTrabalho = { tipos: [{ codigo: 'TOP_SET', nome: 'Top set', papel: 'TRABALHO' }] } as unknown as Configuracao;
+  const marcarSemKg = async (t: Awaited<ReturnType<typeof montar>>) => {
+    await t.digitarReps(1, '5');
+    await t.marcar(1); // sem base e sem sugestão, o ✓ grava direto com o kg vazio
+    expect(t.controle.gravacoes.at(-1)).toMatchObject({ dados: { carga: null, repeticoes: 5, concluida: true } });
+  };
+
+  it('kg vazio num exercício com carga: o aviso aparece junto da série', async () => {
+    const t = await montar(treino(ws('w')), null);
+    expect(t.avisoSemCarga()).toBe(false);
+    await marcarSemKg(t);
+    expect(t.avisoSemCarga()).toBe(true);
+  });
+
+  it('Top set que a metodologia marca como TRABALHO também avisa; sem essa marca da metodologia, não', async () => {
+    const a = await montar(treino(acima('t')), null, null, comTopSetDeTrabalho);
+    await marcarSemKg(a);
+    expect(a.avisoSemCarga()).toBe(true);
+    const b = await montar(treino(acima('t')), null);
+    await marcarSemKg(b);
+    expect(b.avisoSemCarga()).toBe(false);
+  });
+
+  it('reps vazias e kg preenchido: sem aviso', async () => {
+    const t = await montar(treino(ws('w')), null);
+    await t.digitarPeso(1, '40');
+    await t.marcar(1);
+    expect(t.controle.gravacoes.at(-1)).toMatchObject({ dados: { carga: 40, repeticoes: null, concluida: true } });
+    expect(t.avisoSemCarga()).toBe(false);
+  });
+
+  it('exercício sem carga (peso do corpo): sem aviso', async () => {
+    const t = await montar({ ...treino(ws('w')), unidade: 'nenhuma' }, null);
+    await t.digitarReps(1, '12');
+    await t.marcar(1);
+    expect(t.controle.gravacoes.at(-1)).toMatchObject({ dados: { carga: null, repeticoes: 12, concluida: true } });
+    expect(t.avisoSemCarga()).toBe(false);
   });
 });

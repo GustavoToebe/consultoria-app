@@ -80,6 +80,9 @@ export function useFontesDoPainel(consultas: readonly ConsultaDoPainel[]) {
     return fonteDaConsulta<T>({ dados: v.dados as T | undefined, erro: v.erro, carregando: v.carregando });
   };
 
+  /** A Folha do Início usa isto: dado de outra chave não entra na lista. Os cartões continuam com `fonte`. */
+  const dadosDeOutraChave = (c: ConsultaDoPainel) => vagas[vagaDe(c)].dadosDeOutraChave;
+
   /** As fontes de um bloco, no formato de `montarBloco`. */
   const fontesDe = (cs: readonly ConsultaDoPainel[]): FontesDoPainel => {
     const f: Record<string, Fonte<unknown>> = {};
@@ -96,5 +99,5 @@ export function useFontesDoPainel(consultas: readonly ConsultaDoPainel[]) {
     for (const vaga of new Set(cs.map(vagaDe))) todas[nomes.indexOf(vaga)]?.();
   }, [r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11]);
 
-  return { fonte, fontesDe, recarregar };
+  return { fonte, dadosDeOutraChave, fontesDe, recarregar };
 }

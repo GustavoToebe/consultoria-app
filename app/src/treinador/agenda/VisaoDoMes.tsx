@@ -8,6 +8,7 @@ import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, LINHA_DA_FAIXA, RAIO } from '../../tema/tokens';
 import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
+import { textoDoItemNoMes } from '../../dominio/agendaLegivel';
 import { horarioDoItem, useCorDaAgenda } from './itemDaAgenda';
 
 /** Itens por célula no Mês do PC antes do "+N". */
@@ -92,7 +93,10 @@ function Celula({ celula, itens, compacta, aoTocar }: { celula: CelulaDoDia; ite
           <View key={item.chave} style={[estilos.chip, item.cancelado && estilos.esmaecido]}>
             <View style={[estilos.ponto, { backgroundColor: corDe(item.cor) }]} />
             <Texto variante="pequeno" numberOfLines={1} style={[estilos.textoDoChip, item.cancelado && estilos.riscado]}>
-              {item.diaInteiro || item.origem === 'ATUALIZACAO' ? item.titulo : `${horarioDoItem(item).split('–')[0]} ${item.titulo}`}
+              {textoDoItemNoMes({
+                titulo: item.titulo, diaInteiro: item.diaInteiro, origem: item.origem, cancelado: item.cancelado,
+                inicioCurto: horarioDoItem(item).split('–')[0],
+              })}
             </Texto>
           </View>
         ))}

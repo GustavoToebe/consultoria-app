@@ -7,6 +7,7 @@ import type { FolhaDoPainel as DadosDaFolha, ItemDaFolha } from '../../dominio/p
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco } from '../../tema/tokens';
 import { Alerta } from '../../ui/Estados';
+import { Esqueleto } from '../../ui/Esqueleto';
 import { Folha } from '../../ui/Folha';
 import { propsDeLink } from '../../ui/propsDeLink';
 import { sobre } from '../../ui/sobre';
@@ -17,17 +18,19 @@ const iniciais = (nome: string) =>
 
 /**
  * Lista de um cartão do painel numa `Folha` (sem registro, a renovar, recordes): a linha de cima diz quantos são
- * ("Mostrando 20 de 34 alunos."), cada linha abre a ficha do aluno. `folha` nula com a Folha aberta: a consulta
- * deixou de responder (o cartão já fecha nesse caso; aqui só por segurança).
+ * ("Mostrando 20 de 34 alunos."), cada linha abre a ficha do aluno. Enquanto a consulta da chave atual não responde,
+ * mostra o esqueleto (sem os números da chave anterior e sem o alerta). O alerta só aparece quando a consulta falhou.
  */
-export function FolhaDoPainel({ titulo, folha, aoFechar, topo }: {
-  titulo: string; folha: DadosDaFolha | null; aoFechar: () => void; topo?: ReactNode;
+export function FolhaDoPainel({ titulo, folha, situacao, aoFechar, topo }: {
+  titulo: string; folha: DadosDaFolha | null; situacao: 'carregando' | 'falhou' | 'pronta'; aoFechar: () => void; topo?: ReactNode;
 }) {
   return (
     <Folha visivel titulo={folha?.titulo ?? titulo} aoFechar={aoFechar}>
       <View style={estilos.corpo}>
         {topo}
-        {!folha ? <Alerta tom="perigo" texto="A lista não carregou. Feche e toque em atualizar no bloco." /> : (
+        {situacao === 'carregando' ? <Esqueleto texto="Carregando a lista" cartoes={2} /> : null}
+        {situacao === 'falhou' ? <Alerta tom="perigo" texto="A lista não carregou. Feche e toque em atualizar no bloco." /> : null}
+        {situacao === 'pronta' && folha ? (
           <>
             {folha.resumo || folha.escopo ? (
               <Texto variante="suave" numerico>{[folha.resumo, folha.escopo].filter(Boolean).join(' · ')}</Texto>
@@ -39,7 +42,7 @@ export function FolhaDoPainel({ titulo, folha, aoFechar, topo }: {
               </View>
             ) : null}
           </>
-        )}
+        ) : null}
       </View>
     </Folha>
   );

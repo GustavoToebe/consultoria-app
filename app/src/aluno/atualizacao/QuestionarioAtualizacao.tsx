@@ -78,7 +78,7 @@ export function QuestionarioAtualizacao({ modelo, respostas, aoMudar, erros = {}
   const perguntas = (secao: SecaoAtualizacao) => <View style={estilos.perguntas}>
     {secao.perguntas.map((p) => {
       if (escondidas.has(p.id)) {
-        return leitura ? <View key={p.id} style={estilos.pergunta}><Texto variante="rotulo">{p.rotulo}</Texto><Texto variante="suave">{NAO_SE_APLICA}</Texto></View> : null;
+        return leitura ? <View key={p.id} style={estilos.pergunta}><Texto variante="rotulo" cor={cores.texto}>{p.rotulo}</Texto><Texto variante="suave">{NAO_SE_APLICA}</Texto></View> : null;
       }
       return <View key={p.id} collapsable={false}
         ref={(view) => {
@@ -162,12 +162,12 @@ function Controle({ p, valor, dataAtualizacao, resumo, erro, nota, carregarFotoD
   const ajudaTexto = ajuda ? <Texto variante="pequeno">{ajuda}</Texto> : null;
   // Mesmo tom e região viva do erro do `Campo`, para todos os controles avisarem igual.
   const mensagemErro = erro ? <Texto variante="pequeno" cor={cores.perigo} accessibilityLiveRegion="polite">{erro}</Texto> : null;
-  if (p.tipo === 'DATA_AUTOMATICA') return <View style={estilos.pergunta}><Texto variante="rotulo">{p.rotulo}</Texto><Texto numerico>{dataParaTela(dataAtualizacao ?? null) || '—'}</Texto></View>;
+  if (p.tipo === 'DATA_AUTOMATICA') return <View style={estilos.pergunta}><Texto variante="rotulo" cor={cores.texto}>{p.rotulo}</Texto><Texto numerico>{dataParaTela(dataAtualizacao ?? null) || '—'}</Texto></View>;
   if (p.tipo === 'FOTOS') return <View style={estilos.pergunta}>
     <CampoFotos pergunta={p} valor={valor} carregarDaEquipe={carregarFotoDaEquipe} rotulo={aoMudar ? rotulo : p.rotulo} />{mensagemErro}
   </View>;
   if (!TIPOS_DE_PERGUNTA.includes(p.tipo)) return <View style={estilos.pergunta}>
-    <Texto variante="rotulo">{p.rotulo}</Texto><Texto variante="pequeno">{aoMudar ? 'Atualize o app para responder esta pergunta.' : 'Atualize o app para ver esta resposta.'}</Texto>
+    <Texto variante="rotulo" cor={cores.texto}>{p.rotulo}</Texto><Texto variante="pequeno">{aoMudar ? 'Atualize o app para responder esta pergunta.' : 'Atualize o app para ver esta resposta.'}</Texto>
   </View>;
   if (!aoMudar) return <Leitura p={p} valor={valor} ajuda={ajudaTexto} />;
   if (p.tipo === 'PESO') return <CampoNumerico rotulo={rotulo} valor={typeof valor === 'number' ? valor : null}
@@ -191,7 +191,7 @@ function Controle({ p, valor, dataAtualizacao, resumo, erro, nota, carregarFotoD
     {ajudaTexto}{mensagemErro}
   </View>;
   if (temImagemNasOpcoes(p)) return <View style={estilos.pergunta}>
-    <Texto variante="rotulo">{rotulo}</Texto>
+    <Texto variante="rotulo" cor={cores.texto}>{rotulo}</Texto>
     {ajudaTexto}
     <OpcoesComImagem p={p} valor={valor} aoMudar={aoMudar} />
     {mensagemErro}
@@ -211,7 +211,7 @@ function Controle({ p, valor, dataAtualizacao, resumo, erro, nota, carregarFotoD
     const opcoes = p.opcoes ?? [];
     const marcadas = Array.isArray(valor) ? valor : [];
     return <View style={estilos.pergunta}>
-      <Texto variante="rotulo">{rotulo}</Texto>
+      <Texto variante="rotulo" cor={cores.texto}>{rotulo}</Texto>
       {ajudaTexto}
       {opcoes.map((o) => <CaixaSelecao key={o.id} rotulo={o.rotulo} marcado={marcadas.includes(o.id)}
         aoMudar={() => aoMudar(alternarMarcado(marcadas, opcoes, o.id))} />)}
@@ -221,7 +221,7 @@ function Controle({ p, valor, dataAtualizacao, resumo, erro, nota, carregarFotoD
   if (p.tipo === 'NOTAS_POR_DIA') {
     // Vários dias numa pergunta: o deslizante cabe numa linha por dia (os números tocáveis da NOTA ocupariam duas).
     const dias = typeof valor === 'object' && valor !== null && !Array.isArray(valor) ? valor as Record<string, number | null> : {};
-    return <View style={estilos.pergunta}><Texto variante="rotulo">{rotulo}</Texto>
+    return <View style={estilos.pergunta}><Texto variante="rotulo" cor={cores.texto}>{rotulo}</Texto>
       {ajudaTexto}
       {(p.dias ?? []).map((d) => <EscalaDeNota key={d} rotulo={`Dia ${d}`} valor={dias[String(d)] ?? null}
         aoMudar={(n) => aoMudar({ ...dias, [String(d)]: n })} />)}
@@ -229,7 +229,7 @@ function Controle({ p, valor, dataAtualizacao, resumo, erro, nota, carregarFotoD
     </View>;
   }
   if (p.tipo === 'GRADE') return <View style={estilos.pergunta}>
-    <Texto variante="rotulo">{rotulo}</Texto>
+    <Texto variante="rotulo" cor={cores.texto}>{rotulo}</Texto>
     {ajudaTexto}
     <GradeParaResponder p={p} valor={valor} aoMudar={aoMudar} faltando={!!erro} />
     {mensagemErro}
@@ -237,7 +237,7 @@ function Controle({ p, valor, dataAtualizacao, resumo, erro, nota, carregarFotoD
   if (p.tipo === 'ENDERECO') {
     const atual = enderecoParaForm(typeof valor === 'object' && valor !== null && !Array.isArray(valor) ? valor as Record<string, string> : null);
     return <View style={estilos.pergunta}>
-      <Texto variante="rotulo">{rotulo}</Texto>
+      <Texto variante="rotulo" cor={cores.texto}>{rotulo}</Texto>
       {ajudaTexto}
       {nota ? <Texto variante="pequeno">{nota}</Texto> : null}
       <CamposDeEndereco valor={atual} aoMudar={(e) => aoMudar(respostaDeEndereco(e))} erros={erro ? errosDoEndereco(atual) : undefined}
@@ -246,7 +246,7 @@ function Controle({ p, valor, dataAtualizacao, resumo, erro, nota, carregarFotoD
     </View>;
   }
   if (p.tipo === 'ACEITE') return <View style={estilos.pergunta}>
-    <Texto variante="rotulo">{rotulo}</Texto>
+    <Texto variante="rotulo" cor={cores.texto}>{rotulo}</Texto>
     {/* O texto (regras, termo) num quadro próprio: lê-se como um documento, separado da caixa de aceitar. */}
     {p.texto?.trim() ? <View style={[estilos.documento, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
       <TextoFormatado texto={p.texto} />
@@ -282,7 +282,7 @@ function Leitura({ p, valor, ajuda }: { p: PerguntaAtualizacao; valor: RespostaA
   else if (p.tipo === 'NOTA') resposta = <Texto numerico>{textoDaNota(p, valor)}</Texto>;
   else resposta = <Texto>{textoDaResposta(p, valor)}</Texto>;
   return <View style={estilos.pergunta}>
-    <Texto variante="rotulo">{p.rotulo}</Texto>
+    <Texto variante="rotulo" cor={cores.texto}>{p.rotulo}</Texto>
     {p.tipo === 'ACEITE' ? <TextoFormatado texto={p.texto} variante="suave" /> : null}
     {resposta}
     {ajuda}
