@@ -68,6 +68,35 @@ for (const largura of [390, 1280]) {
       expect(errosDaPagina).toEqual([]);
     });
 
+    test('entrar, crie sua senha: verificação recusada vai ao topo; regra e fieldErrors da senha nova, ao campo', async ({ page }) => {
+      const login = rotaTrocavel(erroApi(401, 'Crie a sua senha para entrar.', 'TROCA_DE_SENHA_NECESSARIA'));
+      const { errosDaPagina } = await simularApi(page, { 'POST /auth/login': login.rota });
+      await page.goto('/entrar');
+      await page.getByLabel('E-mail', { exact: true }).fill('pessoa.ficticia@exemplo.com');
+      await page.getByLabel('Senha', { exact: true }).fill('provisoria-ficticia');
+      await page.getByRole('button', { name: 'Entrar', exact: true }).click();
+      await expect(page.getByRole('heading', { name: 'Crie sua senha' })).toBeVisible();
+
+      const nova = page.getByLabel('Nova senha', { exact: true });
+      const repetida = page.getByLabel('Repita a nova senha');
+      const salvar = page.getByRole('button', { name: 'Salvar e entrar' });
+      await nova.fill('senha-nova-ficticia');
+      await repetida.fill('senha-nova-ficticia');
+
+      login.estado.valor = erroApi(400, 'Verificação recusada.', 'VERIFICACAO_HUMANA');
+      await salvar.click();
+      await erroNoTopo(page, 'Não foi possível confirmar que você é uma pessoa. Tente de novo.', [nova, repetida]);
+
+      login.estado.valor = erroApi(400, 'A nova senha precisa ser diferente da que o treinador passou.');
+      await salvar.click();
+      await erroNoCampo(page, nova, 'A nova senha precisa ser diferente da que o treinador passou.');
+
+      login.estado.valor = erroApi(400, 'Dados inválidos.', 'VALIDACAO', [{ field: 'novaSenha', message: 'Senha nova fora da regra.' }]);
+      await salvar.click();
+      await erroNoCampo(page, nova, 'Senha nova fora da regra.');
+      expect(errosDaPagina).toEqual([]);
+    });
+
     test('convite do aluno: código vazio e campos do acesso no campo; 404 e 409 no topo; 422 no campo', async ({ page }) => {
       const consulta = rotaTrocavel(erroApi(404, 'Convite não encontrado ou vencido.'));
       const aceite = rotaTrocavel(erroApi(422, 'Dados inválidos.', 'VALIDACAO', [{ field: 'email', message: 'E-mail em formato inválido.' }]));
@@ -189,9 +218,9 @@ for (const largura of [390, 1280]) {
       await erroNoCampo(page, senha, 'Escolha uma senha menos comum.');
 
       // O token não é campo da tela: o erro dele vai ao topo, junto com o do campo que a tela mostra.
-      redefinir.estado.valor = erroApi(422, 'Dados inválidos.', 'VALIDACAO', [{ field: 'token', message: 'Obrigatório.' }]);
+      redefinir.estado.valor = erroApi(422, 'Dados inválidos.', 'VALIDACAO', [{ field: 'token', message: 'Link inválido ou vencido.' }]);
       await salvar.click();
-      await erroNoTopo(page, 'Dados inválidos.', [senha, confirmacao]);
+      await erroNoTopo(page, 'Link inválido ou vencido.', [senha, confirmacao]);
 
       redefinir.estado.valor = erroApi(503, 'O envio de e-mail está fora do ar. Tente mais tarde.', 'REDEFINICAO_INDISPONIVEL');
       await salvar.click();

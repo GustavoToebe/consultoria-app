@@ -12,7 +12,7 @@ import { Campo } from '../ui/Campo';
 import { CampoSenha } from '../ui/CampoSenha';
 import { Cartao } from '../ui/Cartao';
 import { MensagemErro } from '../ui/Estados';
-import { focarPrimeiroComErro, separarErros, textoDoErro } from '../ui/erros';
+import { errosPorCampo, focarPrimeiroComErro, separarErros, textoDoErro } from '../ui/erros';
 import { LinkTexto } from '../ui/LinkTexto';
 import { BotaoPublico, TelaPublica } from '../ui/TelaPublica';
 import { useVerificacaoHumana } from '../ui/useVerificacaoHumana';
@@ -85,8 +85,10 @@ export default function Entrar() {
         setPedirCodigo(true);
       } else if (pedeNovaSenha(e)) {
         setCriarSenha(true);
-      } else if (criarSenha && (e as { status?: unknown }).status === 400) {
-        // Regra da senha nova (tamanho, igual ao e-mail, igual à provisória): embaixo do campo.
+      } else if (criarSenha && (e as { status?: unknown }).status === 400 && !mensagemDaVerificacao(e)
+        && Object.keys(errosPorCampo(e)).length === 0) {
+        // Regra da senha nova (tamanho, igual ao e-mail, igual à provisória): embaixo do campo. A verificação humana
+        // recusada e o erro que já aponta o campo seguem pelo `separarErros`.
         mostrar({ novaSenha: textoDoErro(e) }, null);
       } else {
         const separados = separarErros(e, refs.map(([c]) => c), mensagemDaVerificacao(e) ?? textoDoErro(e));

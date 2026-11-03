@@ -23,12 +23,14 @@ export function separarErros(erro: unknown, naTela: readonly string[], geral: st
 } {
   const todos = errosPorCampo(erro);
   const campos: Record<string, string> = {};
-  let fora = false;
+  const fora: string[] = [];
   for (const [campo, mensagem] of Object.entries(todos)) {
     if (naTela.includes(campo)) campos[campo] = mensagem;
-    else fora = true;
+    else fora.push(mensagem);
   }
-  return { campos, geral: Object.keys(campos).length === 0 || fora ? geral : null };
+  // O campo que a tela não mostra só tem onde aparecer no alerta: vai a mensagem dele, não o texto genérico.
+  if (fora.length > 0) return { campos, geral: fora.join(' ') };
+  return { campos, geral: Object.keys(campos).length === 0 ? geral : null };
 }
 
 /** Leva o foco ao primeiro campo com erro, na ordem da tela (`refs`: nome do campo e o ref do `Campo`). */

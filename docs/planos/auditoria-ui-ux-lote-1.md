@@ -20,6 +20,7 @@ O escopo foi definido pelo Gustavo em 03/11 e só mexe no app; nada muda na API.
 | D9 | C10 (passeio guardado no servidor) | Não agora. Sem código. | Gustavo, 03/11 |
 | D10 | Chave do retorno (`TREINOS_RETORNO_HABILITADO`) | Ligada na produção em 03/11 às 12:39 (antes ausente, valia `false`); health `UP` depois. Falta conferir na tela com um aluno fictício. Registro em `engajamento.md`. | Gustavo, 03/11 |
 | D11 | Menu do tablet | De 768 a 1024 px, um rótulo curto embaixo de cada ícone, como na barra inferior, sem mudar o PC nem o celular; e2e em 900 px. Vai na frente 6 (`auditoria-ficha`), depois do merge do PR B. | Gustavo, 03/11 |
+| D12 | Ícones dos blocos do Início e lápis da linha de alunos | Ficam, só com o alvo de 44 px. | Gustavo, 03/11 |
 
 ### Escopo em código (passo 4 da mensagem)
 - **a.** "Concluir treino" com a chave do retorno desligada vira "Voltar à lista do dia", botão secundário (`[exercicio].tsx`).
@@ -77,7 +78,7 @@ O escopo foi definido pelo Gustavo em 03/11 e só mexe no app; nada muda na API.
 
 ## Fora do escopo
 - O lote 2 virou as frentes paralelas de 03/11 (aluno, peças, treinador e, depois do merge do PR B, `auditoria-ficha`), cada uma com plano próprio em `docs/planos/`. C3 ficou com a frente 4 (`auditoria-pecas`); C8 (paginação da Biblioteca) e os cinco erros engolidos, com a frente 5 (treinador).
-- Achados novos da 2ª passada (Gustavo, 03/11): N26, N27 e N30 entraram na frente 5; N28, na frente 3; N29 vai para a frente 6 com o D11; N24/N25 (cores) viram uma frente própria depois do merge da frente 4. Os dois últimos e as verificações manuais estão em "Pendências soltas" do README.
+- Achados novos da 2ª passada (Gustavo, 03/11): N26 e N27 entraram na frente 5 (o N27 passou para a frente 3 por patch, porque mexe em `dominio/atualizacaoQuestionario.ts`); N30 ("Hoje já está na tela" da Agenda) já estava resolvido na `main`; N28, na frente 3; N29 vai para a frente 6 com o D11; N24/N25 (cores) viram uma frente própria depois do merge da frente 4. Os dois últimos e as verificações manuais estão em "Pendências soltas" do README.
 - C10 fica de fora (D9).
 - O resto do relatório.
 
@@ -86,4 +87,5 @@ O escopo foi definido pelo Gustavo em 03/11 e só mexe no app; nada muda na API.
 - PR A (`ebd3ac9d`): o `IconeBotao` com moldura ficou 4 px maior por fora (alvo de 44) em todas as telas; conferido só na web (e2e), falta olhar no Android e no iOS, e o `IconeBotao` com moldura no tema escuro não teve captura.
 - Opcionais da revisão independente do PR A: 1.1 e 1.2 entram no PR B (D7, D8); 1.3 a 1.5 ficam em "Pendências soltas" do README.
 - PR B: "Seu envio" na atualização do aluno ficou de fora: o texto vem do seed da V001 na API (questionário padrão), não do app; trocar pede migration nova.
+- PR B, e2e completo (03/11): 673 passaram, 8 pulados e 1 falha intermitente em `links-do-menu.spec.ts:36` (o `expect.poll` não viu a guia nova do Ctrl+clique em 10 s, com a máquina carregada por outras frentes); o spec sozinho pela trava, `--repeat-each=3`, passou 6 de 6. O PR B não mexe nesse caminho (o `LinkTexto` deixa o Ctrl+clique para o navegador).
 - PR B: a guarda de saída agora vale em todo `ItemDeLista`/`LinhaDaLista`/`LinkTexto` que abre tela (D7); conferido só na web (e2e). Falta olhar no celular o `preventDefault` do `LinkTexto`, o `history.go(-1)` com uma Folha aberta e o tema escuro das telas públicas com erro no campo.

@@ -11,10 +11,12 @@ describe('separarErros', () => {
     });
   });
 
-  it('campo que a tela não mostra (token do link) vai ao alerta, junto dos que ela mostra', () => {
-    expect(separarErros(comCampos(['token', 'Obrigatório.'], ['novaSenha', 'Curta.']), ['novaSenha'])).toEqual({
-      campos: { novaSenha: 'Curta.' }, geral: 'Dados inválidos.',
+  it('campo que a tela não mostra (token do link) vai ao alerta com a mensagem dele, junto dos que ela mostra', () => {
+    expect(separarErros(comCampos(['token', 'Link inválido.'], ['novaSenha', 'Curta.']), ['novaSenha'])).toEqual({
+      campos: { novaSenha: 'Curta.' }, geral: 'Link inválido.',
     });
+    expect(separarErros(comCampos(['token', 'Link inválido.'], ['codigo', 'Vencido.']), ['novaSenha']).geral)
+      .toBe('Link inválido. Vencido.');
   });
 
   it('erro sem campo (401, 409, rede) fica no alerta, com o texto dado por quem chamou', () => {

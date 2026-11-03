@@ -25,6 +25,7 @@ import { Esqueleto } from '../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
 import { Folha } from '../ui/Folha';
+import { depoisDeFecharAsFolhas } from '../ui/historicoDasFolhas';
 import { FolhaPdfDieta } from '../ui/FolhaPdfDieta';
 import { IconeBotao } from '../ui/IconeBotao';
 import { LinhaDeAcoes } from '../ui/LinhaDeAcoes';
@@ -180,11 +181,12 @@ type Origem = 'branco' | 'receita' | 'copia';
 
 /**
  * Plano novo (criado ou replicado) abre no editor pela guarda de saída. Com algo pendente na ficha a lista já busca de
- * novo, antes da pergunta: quem escolhe "Continuar editando" vê o plano que acabou de criar.
+ * novo, antes da pergunta: quem escolhe "Continuar editando" vê o plano que acabou de criar. A pergunta espera a Folha
+ * fechar (na web): aberta junto, ia para dentro da Folha que está saindo e sumia com ela.
  */
 function abrirOCriado(saida: ReturnType<typeof useSaidaGuardada>, aoCriar: (() => void) | undefined, abrir: () => void) {
   if (saida.pendente()) aoCriar?.();
-  saida.confirmar(abrir);
+  depoisDeFecharAsFolhas(() => saida.confirmar(abrir));
 }
 
 function FolhaNovoPlano({

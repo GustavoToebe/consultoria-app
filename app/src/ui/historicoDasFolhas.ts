@@ -191,8 +191,12 @@ function remover(id: string) {
   agendar();
 }
 
-/** Portal da Folha aberta por último (o diálogo "Sair sem salvar?" precisa aparecer por cima dela). Só na web. A guarda não é Folha. */
+/** No celular as Folhas não entram no histórico, mas o "Sair sem salvar?" também precisa do portal da do topo. */
+const abertasNoNativo: { id: string; portal: () => PortalDaFolhaValor }[] = [];
+
+/** Portal da Folha aberta por último (o diálogo "Sair sem salvar?" precisa aparecer por cima dela). A guarda não é Folha. */
 export function portalDaFolhaDoTopo(): PortalDaFolhaValor | undefined {
+  if (!web()) return abertasNoNativo.at(-1)?.portal();
   return abertas.findLast((a) => !a.guarda)?.portal();
 }
 
@@ -203,7 +207,10 @@ export function useFolhaNoHistorico(aoFechar: () => void, portal: PortalDaFolhaV
   const valorPortal = useRef(portal);
   useEffect(() => { fechar.current = aoFechar; valorPortal.current = portal; });
   useEffect(() => {
-    if (!web()) return;
+    if (!web()) {
+      abertasNoNativo.push({ id, portal: () => valorPortal.current });
+      return () => { const i = abertasNoNativo.findIndex((a) => a.id === id); if (i >= 0) abertasNoNativo.splice(i, 1); };
+    }
     registrar({ id, tela: idDoEstado(), fechar: () => fechar.current(), portal: () => valorPortal.current });
     return () => remover(id);
   }, [id]);

@@ -54,6 +54,8 @@ export function Abas<T extends string>({ abas, ativa, aoMudar, fundo }: Props<T>
     onContentSizeChange: (w: number) => {
       medidas.onContentSizeChange(w);
       vista.current.total = w;
+      // Os rótulos medem depois da rolagem: sem isto, a aba ativa no fim da faixa não entra na vista na abertura.
+      mostrar(ativa, false);
     },
     onScroll: (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       medidas.onScroll(e);

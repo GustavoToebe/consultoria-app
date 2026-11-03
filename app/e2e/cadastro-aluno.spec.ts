@@ -541,6 +541,46 @@ for (const largura of [390, 1280]) {
     expect(errosDaPagina).toEqual([]);
   });
 
+  // Revisão do PR B (1.2): "Criar e abrir" de dentro da Folha da pasta com a ficha alterada pergunta depois que a Folha
+  // fecha (antes a pergunta ia para a Folha que estava saindo e sumia com ela, sem perguntar).
+  test(`ficha (${largura}px): "Criar e abrir" um treino com a edição alterada pergunta antes de abrir o editor`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const PLANO_ID = 'b0000000-0000-4000-8000-000000000031';
+    const { errosDaPagina } = await simularApi(page, {
+      ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'ATUALIZACAO_LER', 'PASTA_ALTERAR', 'TREINO_LER', 'TREINO_ALTERAR'] })),
+      ...ROTAS_DA_FICHA,
+      ...CEP_SEM_RESULTADO,
+      'GET /responsaveis': { corpo: [{ id: TREINADOR.id, nome: TREINADOR.nome }] },
+      [`GET /alunos/${ALUNO_ID}`]: { corpo: FICHA },
+      [`GET /alunos/${ALUNO_ID}/pastas`]: { corpo: [PASTA] },
+      [`GET /alunos/${ALUNO_ID}/planos-treino`]: { corpo: [] },
+      [`GET /alunos/${ALUNO_ID}/planos-dieta`]: { corpo: [] },
+      [`GET /alunos/${ALUNO_ID}/planos-mobilidade`]: { corpo: [] },
+      [`POST /alunos/${ALUNO_ID}/planos-treino`]: { corpo: { plano: { id: PLANO_ID } } },
+    });
+    const criarEAbrir = async () => {
+      await page.getByRole('dialog', { name: 'Plano 17' }).getByRole('button', { name: 'Novo treino', exact: true }).click();
+      await page.getByRole('dialog', { name: /^Novo treino em/ }).getByRole('button', { name: 'Criar e abrir', exact: true }).click();
+    };
+    await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+    await page.getByRole('button', { name: 'Editar', exact: true }).click();
+    await page.getByLabel('Nome', { exact: true }).fill('Nome Trocado Fictício');
+    await page.getByRole('button', { name: /^Pasta Plano 17, aberta/ }).click();
+
+    await criarEAbrir();
+    await expect(sairSemSalvar(page)).toBeVisible();
+    await page.getByRole('button', { name: 'Continuar editando', exact: true }).click();
+    await expect(sairSemSalvar(page)).toHaveCount(0);
+    await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${ALUNO_ID}$`));
+    await expect(page.getByLabel('Nome', { exact: true })).toHaveValue('Nome Trocado Fictício');
+
+    // "Continuar editando" volta para a Folha da pasta, que segue aberta.
+    await criarEAbrir();
+    await page.getByRole('button', { name: 'Sair sem salvar', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/treinador/treinos/${PLANO_ID}`));
+    expect(errosDaPagina).toEqual([]);
+  });
+
   // D8: o "Cancelar" da edição só pergunta quando algum campo mudou.
   test(`ficha (${largura}px): "Cancelar" sem alteração fecha direto; com alteração pergunta e "Sair sem salvar" descarta`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
