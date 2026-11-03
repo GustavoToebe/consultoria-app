@@ -4,6 +4,7 @@ import { Navigator, Redirect, Slot, usePathname } from 'expo-router';
 import { Platform } from 'react-native';
 import { useEffect } from 'react';
 import { listarInscricoes, painelTreinador } from '../../api/rotas';
+import { naOrdemDoMenu } from '../../dominio/gruposDoMenu';
 import { primeiraTelaPermitida } from '../../dominio/primeiraTela';
 import { telasDaOrigem, telasPermitidas } from '../../dominio/telas';
 import { useSessao } from '../../sessao/SessaoProvider';
@@ -24,25 +25,24 @@ import { GUIAS } from '../../ajuda/conteudo';
  * Biblioteca, Planejamento e Perfil; Atualizações, Interessados, Equipe, Importação, Ajuda e Auditoria ficam no menu lateral e
  * no celular abrem pelo Início (Atualizações) ou pelos atalhos do Perfil. Marca fica no menu da conta, só para o Administrador.
  */
-const ITENS: ItemMenu[] = [
+// Ordem, grupo e `tambem` de cada item vêm de MENU_DO_TREINADOR (dominio/gruposDoMenu), a mesma fonte de "Todas as telas" (D24).
+const ITENS: ItemMenu[] = naOrdemDoMenu<ItemMenu>([
   { rotulo: 'Início', href: '/treinador', caminho: '/treinador', Icone: House, exato: true, tambemNoCelular: telasDaOrigem('/treinador') },
-  // Grupos do menu lateral (N29, D6 de auditoria-ficha); a ordem de Início, Alunos, Biblioteca, Planejamento e Perfil, a da barra do celular, não muda.
-  { rotulo: 'Alunos', href: '/treinador/alunos', caminho: '/treinador/alunos', Icone: ContactRound, grupo: 'Alunos e acompanhamento' },
-  { rotulo: 'Atualizações', href: '/treinador/atualizacoes', caminho: '/treinador/atualizacoes', Icone: ClipboardCheck, soLateral: true, grupo: 'Alunos e acompanhamento' },
-  { rotulo: 'Agenda', href: '/treinador/agenda', caminho: '/treinador/agenda', Icone: CalendarDays, soLateral: true, grupo: 'Alunos e acompanhamento' },
-  { rotulo: 'Biblioteca', href: '/treinador/biblioteca', caminho: '/treinador/biblioteca', Icone: BookOpen, grupo: 'Alunos e acompanhamento' },
-  { rotulo: 'Planejamento', rotuloCurto: 'Planos', href: '/treinador/planejamento', caminho: '/treinador/planejamento', Icone: NotebookTabs, grupo: 'Alunos e acompanhamento' },
-  { rotulo: 'Interessados', href: '/treinador/interessados', caminho: '/treinador/interessados', Icone: Inbox, soLateral: true, grupo: 'Negócio' },
-  { rotulo: 'Financeiro', href: '/treinador/financeiro', caminho: '/treinador/financeiro', Icone: Wallet, soLateral: true, grupo: 'Negócio' },
-  { rotulo: 'Números', href: '/treinador/numeros', caminho: '/treinador/numeros', Icone: ChartColumn, soLateral: true, grupo: 'Negócio' },
+  { rotulo: 'Alunos', href: '/treinador/alunos', caminho: '/treinador/alunos', Icone: ContactRound },
+  { rotulo: 'Atualizações', href: '/treinador/atualizacoes', caminho: '/treinador/atualizacoes', Icone: ClipboardCheck, soLateral: true },
+  { rotulo: 'Agenda', href: '/treinador/agenda', caminho: '/treinador/agenda', Icone: CalendarDays, soLateral: true },
+  { rotulo: 'Biblioteca', href: '/treinador/biblioteca', caminho: '/treinador/biblioteca', Icone: BookOpen },
+  { rotulo: 'Planejamento', rotuloCurto: 'Planos', href: '/treinador/planejamento', caminho: '/treinador/planejamento', Icone: NotebookTabs },
+  { rotulo: 'Interessados', href: '/treinador/interessados', caminho: '/treinador/interessados', Icone: Inbox, soLateral: true },
+  { rotulo: 'Financeiro', href: '/treinador/financeiro', caminho: '/treinador/financeiro', Icone: Wallet, soLateral: true },
+  { rotulo: 'Números', href: '/treinador/numeros', caminho: '/treinador/numeros', Icone: ChartColumn, soLateral: true },
   // A barra de topo (com o cartão do usuário) é só da web; num tablet nativo largo o Perfil continua no menu lateral.
-  { rotulo: 'Perfil', href: '/treinador/perfil', caminho: '/treinador/perfil', Icone: CircleUserRound, soCelular: Platform.OS === 'web', grupo: 'Configurações', tambem: ['/treinador/meus-dados', '/treinador/seguranca', '/treinador/ajustes', '/treinador/minha-conta', '/treinador/marca'], tambemNoCelular: telasDaOrigem('/treinador/perfil') },
-  { rotulo: 'Equipe', href: '/treinador/equipe', caminho: '/treinador/equipe', Icone: UsersRound, soLateral:true, grupo: 'Configurações' },
-  { rotulo: 'Importação', href: '/treinador/importacao', caminho: '/treinador/importacao', Icone: FileUp, soLateral: true, grupo: 'Configurações' },
-  // Termos e privacidade abre pela Ajuda no PC.
-  { rotulo: 'Ajuda', href: '/treinador/ajuda', caminho: '/treinador/ajuda', Icone: LifeBuoy, soLateral: true, grupo: 'Configurações', tambem: ['/treinador/termos'] },
-  { rotulo: 'Auditoria', href: '/treinador/auditoria', caminho: '/treinador/auditoria', Icone: History, soLateral:true, grupo: 'Configurações' },
-];
+  { rotulo: 'Perfil', href: '/treinador/perfil', caminho: '/treinador/perfil', Icone: CircleUserRound, soCelular: Platform.OS === 'web', tambemNoCelular: telasDaOrigem('/treinador/perfil') },
+  { rotulo: 'Equipe', href: '/treinador/equipe', caminho: '/treinador/equipe', Icone: UsersRound, soLateral:true },
+  { rotulo: 'Importação', href: '/treinador/importacao', caminho: '/treinador/importacao', Icone: FileUp, soLateral: true },
+  { rotulo: 'Ajuda', href: '/treinador/ajuda', caminho: '/treinador/ajuda', Icone: LifeBuoy, soLateral: true },
+  { rotulo: 'Auditoria', href: '/treinador/auditoria', caminho: '/treinador/auditoria', Icone: History, soLateral:true },
+]);
 
 /**
  * N1: quem não tem o Início (sem PAINEL_VER) e abre só `/treinador` vai para a primeira tela que pode abrir, em vez de cair

@@ -293,7 +293,7 @@ const TREINADOR: Guia = {
     {
       titulo: 'Financeiro (cobrar seus alunos)',
       itens: [
-        { titulo: 'Quem vê', texto: 'Financeiro aparece no menu (em Consultoria) só quando o módulo está ligado para a consultoria e para quem tem a permissão Financeiro.' },
+        { titulo: 'Quem vê', texto: 'Financeiro aparece no menu (em Negócio) só quando o módulo está ligado para a consultoria e para quem tem a permissão Financeiro.' },
         { titulo: 'O que é', texto: 'Aqui você cobra os seus alunos: cria planos comerciais, contrata um plano na ficha do aluno e registra os pagamentos. O app não cobra nem recebe dinheiro; você registra o que recebeu. Não tem nada a ver com o plano de treino nem com a assinatura da Central.' },
         { titulo: 'Planos comerciais', texto: 'Em Planos, toque em Novo plano e informe o nome, o valor e a periodicidade (mensal, trimestral, semestral, anual ou parcela única). Arquivar guarda o plano sem apagá-lo; os arquivados aparecem em Mostrar arquivados.' },
         { titulo: 'Contratar na ficha', texto: 'Na ficha do aluno, toque em Contratar plano e escolha o plano. Se deixar o valor em branco, vale o do plano; um valor diferente pede o motivo. Escolha o dia do vencimento (de 1 a 31); em meses mais curtos, vale o último dia do mês.' },
