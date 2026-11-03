@@ -66,7 +66,7 @@ class MfaIntegrationTest extends AbstractIntegrationTest {
         JsonNode preparacao = api.post("/eu/mfa/preparar", treinador, Map.of("senha", ApiDeTeste.SENHA), 200);
         String segredo = preparacao.get("segredo").asString();
         assertThat(preparacao.get("otpauthUri").asString())
-                .startsWith("otpauth://totp/Treinos:").contains("secret=" + segredo).contains("issuer=Treinos");
+                .startsWith("otpauth://totp/Overtraining:").contains("secret=" + segredo).contains("issuer=Overtraining");
 
         long passo = Instant.now().getEpochSecond() / 30;
         JsonNode codigoErrado = api.post("/eu/mfa/ativar", treinador,

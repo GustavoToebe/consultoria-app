@@ -9,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { urlDaApi } from '../api/cliente';
 import type { Marca } from '../api/tipos';
+import { NOME_DO_PRODUTO } from '../dominio/produto';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, LARGURA_MENU_EXPANDIDO, LARGURA_MENU_LATERAL, RAIO } from '../tema/tokens';
@@ -179,7 +180,7 @@ function ItemNavegacao({ item, lateral, recolhido }: { item: ItemMenu; lateral?:
 /** Topo do trilho: a logo da consultoria ou a inicial do nome, para o menu de ícones não ficar sem dono. */
 function MarcaDoTrilho({ marca }: { marca: Marca | null }) {
   const { cores, marca: cor, sobreMarca } = useTema();
-  const nome = marca?.nome?.trim() || 'Treinos';
+  const nome = marca?.nome?.trim() || NOME_DO_PRODUTO;
   if (marca?.logoUrl) {
     return (
       <View accessibilityRole="image" accessibilityLabel={nome} style={estilos.topoTrilho}>

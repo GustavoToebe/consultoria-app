@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { urlDaApi } from '../api/cliente';
 import type { Marca } from '../api/tipos';
+import { NOME_DO_PRODUTO } from '../dominio/produto';
 import { useTema } from '../tema/TemaProvider';
 import { fontes, marcaParaTexto } from '../tema/tokens';
 import { Texto } from './Texto';
@@ -17,7 +18,7 @@ export function MarcaTitulo({ marca, tamanho = 'medio', nivel }: { marca: Marca 
   const grande = tamanho === 'grande';
   const pequeno = tamanho === 'pequeno';
   if (!marca) {
-    return <Texto variante="titulo" nivel={nivel}>Treinos</Texto>;
+    return <Texto variante="titulo" nivel={nivel}>{NOME_DO_PRODUTO}</Texto>;
   }
   // A cor da própria marca: na tela de convite (antes do login) o tema ainda é neutro.
   const cor = marca.corPrimaria ? marcaParaTexto(marca.corPrimaria, cores.superficie3) : marcaTexto;

@@ -39,7 +39,7 @@ ou deploy. Em `app/`, leia também o `app/AGENTS.md` antes de implementar.
   aplicáveis e envia aos subagentes o escopo e as regras pertinentes. Não tratar
   uma saída truncada como leitura completa; relatar comando, resultado e lacunas.
 
-Plataforma para **vários treinadores**, cada um com sua consultoria isolada, montarem treino e dieta dos alunos.
+**Overtraining** (nome do produto, decidido em 03/11; `dominio/produto.ts` no app, `expo.name`, emissor do MFA e o nome padrão do e-mail; os nomes internos `treinos`/`TREINOS_*`/`br.com.treinos` não mudam): plataforma para **vários treinadores**, cada um com sua consultoria isolada, montarem treino e dieta dos alunos.
 O aluno vê o plano e registra carga e repetições no celular ou na web, inclusive sem internet. O Saraiva
 (Saraiva Team) é o primeiro treinador. Idioma do código, comentários, mensagens de erro, interface e commits:
 **português**.

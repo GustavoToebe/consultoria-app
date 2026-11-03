@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Treinos",
+    "name": "Overtraining",
     "slug": "treinos",
     "version": "0.1.0",
     "orientation": "portrait",
@@ -72,8 +72,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "O Treinos usa suas fotos só para você anexar à atualização enviada ao seu treinador.",
-          "cameraPermission": "O Treinos usa a câmera só para você tirar fotos da atualização enviada ao seu treinador.",
+          "photosPermission": "O Overtraining usa suas fotos só para você anexar à atualização enviada ao seu treinador.",
+          "cameraPermission": "O Overtraining usa a câmera só para você tirar fotos da atualização enviada ao seu treinador.",
           "microphonePermission": false
         }
       ]

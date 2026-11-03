@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import type { Marca } from '../api/tipos';
+import { NOME_DO_PRODUTO } from '../dominio/produto';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO, textoSobre } from '../tema/tokens';
 import { MarcaTitulo } from './MarcaTitulo';
@@ -47,9 +48,9 @@ export function TelaPublica({ titulo, subtitulo, marca, children }: {
 /** Símbolo e nome do produto. A marca de cada consultoria só aparece depois do login. */
 function TopoDoProduto() {
   return (
-    <View style={estilos.produto} accessibilityRole="image" accessibilityLabel="Treinos">
+    <View style={estilos.produto} accessibilityRole="image" accessibilityLabel={NOME_DO_PRODUTO}>
       <Image source={SIMBOLO} style={estilos.simbolo} contentFit="contain" accessible={false} />
-      <Texto style={estilos.nomeDoProduto} accessible={false}>Treinos</Texto>
+      <Texto style={estilos.nomeDoProduto} accessible={false}>{NOME_DO_PRODUTO}</Texto>
     </View>
   );
 }
