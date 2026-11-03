@@ -51,6 +51,19 @@ test('inscrição pública: confere os campos, exige a ciência do texto e mostr
   expect(errosDaPagina).toEqual([]);
 });
 
+test('inscrição pública: limite de envios (429) mostra o texto do formulário, não o do login', async ({ page }) => {
+  await simularApi(page, {
+    [`GET /publico/inscricoes/${CODIGO}`]: { corpo: paginaPublica() },
+    [`POST /publico/inscricoes/${CODIGO}`]: erroApi(429, 'Muitas tentativas de acesso. Aguarde e tente novamente.', 'LOGIN_LIMITADO'),
+  });
+  await page.goto(`/inscricao/${CODIGO}`);
+  await page.getByLabel('Nome').fill('Pessoa Fictícia');
+  await page.getByLabel('WhatsApp com DDD').pressSequentially('11987654321');
+  await page.getByRole('button', { name: 'Enviar inscrição' }).click();
+  await expect(page.getByText('Recebemos muitos envios deste endereço. Aguarde alguns minutos e envie de novo.')).toBeVisible();
+  await expect(page.getByText(/tentativas de acesso/)).toHaveCount(0);
+});
+
 test('inscrição pública: link desligado ou inexistente mostra o erro, sem formulário', async ({ page }) => {
   await simularApi(page, {
     [`GET /publico/inscricoes/${CODIGO}`]: { status: 404, corpo: { status: 404, message: 'Link de inscrição não encontrado.', codigo: 'NAO_ENCONTRADO' } },

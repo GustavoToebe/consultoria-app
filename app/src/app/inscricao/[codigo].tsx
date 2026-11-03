@@ -3,6 +3,7 @@ import { CircleCheck } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
+import { ErroApi } from '../../api/cliente';
 import { enviarInscricao, inscricaoPublica } from '../../api/rotas';
 import type { RespostaAtualizacao, RespostasAtualizacao } from '../../api/tipos';
 import type { CampoDaInscricao } from '../../api/inscricoesTipos';
@@ -21,6 +22,7 @@ import {
   ORIGENS_INFORMADAS,
   PREVISOES,
   respostasDaPagina,
+  TEXTO_LIMITE_DA_INSCRICAO,
   type DadosDaInscricao,
 } from '../../dominio/inscricoes';
 import { mensagemDaVerificacao, MOTIVO_VERIFICANDO, rotuloDoEnvio } from '../../dominio/verificacaoHumana';
@@ -126,7 +128,7 @@ export default function Inscricao() {
         setCampos({});
         return;
       }
-      setErro(mensagemDaVerificacao(e) ?? textoDoErro(e));
+      setErro(e instanceof ErroApi && e.status === 429 ? TEXTO_LIMITE_DA_INSCRICAO : mensagemDaVerificacao(e) ?? textoDoErro(e));
       setCampos(errosPorCampo(e));
     } finally {
       setEnviando(false);
