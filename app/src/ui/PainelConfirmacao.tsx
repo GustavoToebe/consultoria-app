@@ -1,5 +1,6 @@
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from '../components/ui/alert-dialog';
 import { ESTILOS_TEXTO } from './tipografia';
+import { TriangleAlert } from 'lucide-react-native';
 import { useRef, type ReactNode } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
@@ -31,7 +32,8 @@ interface Props {
  * Confirmação na própria tela. Nada de `alert()`/`confirm()` do navegador nem `Alert.alert` (não funciona na web).
  * Para o leitor de tela é um `alertdialog` com o título como nome; ao fechar, o foco volta a quem abriu.
  * Visual de bloco (passo 1 da atualização visual, 30/10): borda do bloco e o título numa faixa `superficie3` com a linha
- * de 3 px embaixo, como o topo da `Folha`; a pergunta e os botões ficam no corpo.
+ * de 3 px embaixo, como o topo da `Folha`; a pergunta e os botões ficam no corpo. O botão destrutivo leva ícone (D10 de
+ * `docs/planos/auditoria-cores.md`): com a marca vermelha ele e o primário ficam da mesma cor, e a forma é que os distingue.
  */
 export function PainelConfirmacao(props: Props) {
   const { cores, bordas } = useTema();
@@ -62,6 +64,7 @@ export function PainelConfirmacao(props: Props) {
               <Botao
                 rotulo={props.rotuloConfirmar}
                 tipo={props.perigo ? 'perigo' : 'primario'}
+                Icone={props.perigo ? TriangleAlert : undefined}
                 carregando={props.carregando}
                 desabilitado={props.desabilitado}
                 rotuloAcessivel={props.desabilitado && props.motivo ? `${props.rotuloConfirmar}. ${props.motivo}` : undefined}
