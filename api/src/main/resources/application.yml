@@ -89,6 +89,10 @@ treinos:
   # respondem 503 RETORNO_INDISPONIVEL e o app esconde tudo (GET /eu traz retornoHabilitado).
   retorno:
     habilitado: ${TREINOS_RETORNO_HABILITADO:false}
+  # Escolha de kg ou lb para o aluno ver e digitar a carga. Desligado por padrão: o app esconde a escolha e usa kg (GET /eu traz
+  # unidadeDeCargaHabilitada). A carga é guardada sempre em kg; nenhuma rota depende desta chave.
+  unidade-carga:
+    habilitado: ${TREINOS_UNIDADE_CARGA_HABILITADA:false}
   # Fotos da atualização do aluno (dado sensível, bucket privado S3/R2). Desligado por padrão: a pergunta FOTOS fica sem envio.
   # Ligado, a API só sobe com endpoint, bucket, chave e segredo; segredos só em variável de ambiente, sem valor padrão.
   fotos:
