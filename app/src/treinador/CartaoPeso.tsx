@@ -9,6 +9,7 @@ import type { RegistroPeso } from '../api/tipos';
 import { tomDaVariacaoDoPeso } from '../dominio/corDaVariacaoDoPeso';
 import { dataDaTelaNaFaixa } from '../dominio/datasValidas';
 import { dataCurta, dataParaTela, hojeIso, numeroParaTela } from '../dominio/formatos';
+import { periodoDesdeOPrimeiro } from '../dominio/historicoDoAluno';
 import { avisoDoGrafico } from '../dominio/progresso';
 import { TEXTO_GRAFICOS_DESLIGADOS_ALUNO } from '../dominio/relatorio';
 import { variacoesDoPeso } from '../dominio/variacaoDoPeso';
@@ -126,7 +127,7 @@ export function CartaoPeso({ alunoId }: { alunoId?: string }) {
   }
 
   return (
-    <Cartao titulo="Peso" descricao={daEquipe ? 'Evolução do peso ao longo do tempo.' : 'Seus registros de peso, do mais recente ao mais antigo.'}
+    <Cartao titulo="Peso" periodo={dados ? periodoDesdeOPrimeiro(dados.map((p) => p.data)) : undefined} descricao={daEquipe ? 'Evolução do peso ao longo do tempo.' : 'Seus registros de peso, do mais recente ao mais antigo.'}
       acoes={podeGravar ? <Botao rotulo="Registrar peso" tipo="secundario" Icone={Plus} aoTocar={() => setRegistrando(true)} /> : null}>
       {erro && !semConexao ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {semConexao ? <Texto variante="suave">Sem conexão.</Texto> : null}

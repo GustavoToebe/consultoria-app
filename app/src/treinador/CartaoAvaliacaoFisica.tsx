@@ -15,6 +15,7 @@ import {
   podeComparar, problemasDaAvaliacao, serieDaMedida, type LinhaDaComparacao,
 } from '../dominio/avaliacaoFisica';
 import { dataCurta, dataDaTela, dataParaTela, hojeIso, mascaraDeNumero } from '../dominio/formatos';
+import { periodoDesdeOPrimeiro } from '../dominio/historicoDoAluno';
 import { TEXTO_GRAFICOS_DESLIGADOS, TEXTO_GRAFICOS_DESLIGADOS_ALUNO } from '../dominio/relatorio';
 import { imprimir } from '../pdf/imprimir';
 import { logoComoDataUri } from '../pdf/logo';
@@ -129,6 +130,7 @@ export function CartaoAvaliacaoFisica(p: Props) {
   return (
     <Cartao
       titulo="Avaliação física"
+      periodo={dados ? periodoDesdeOPrimeiro(dados.map((a) => a.data)) : undefined}
       descricao={daEquipe ? 'Circunferências em centímetros, por data.' : 'Suas medidas registradas pelo seu treinador, em centímetros.'}
       acoes={podeGravar ? <Botao rotulo="Nova avaliação" tipo="secundario" Icone={Plus} aoTocar={() => setEditando('nova')} /> : null}>
       {erro && !semConexao ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}

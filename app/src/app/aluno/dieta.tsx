@@ -11,6 +11,7 @@ import { useDietaDoAluno } from '../../aluno/useDietaDoAluno';
 import { ErroApi } from '../../api/cliente';
 import { pesosAluno } from '../../api/rotas';
 import type { ConteudoDieta, Refeicao, VersaoDetalhe } from '../../api/tipos';
+import { corDaRefeicao } from '../../dominio/corDaSerie';
 import { normalizarDieta, somar, textoDaAgua, textoEscolhaDasOpcoes, totalDoDia } from '../../dominio/dieta';
 import { ergogenicosPreenchidos } from '../../dominio/ergogenicos';
 import { linhasDoComplemento } from '../../dominio/linhasDoComplemento';
@@ -143,8 +144,8 @@ function Dieta({ versao, salva, aguaNoCartao = false }: { versao: VersaoDetalhe<
         <Texto variante="pequeno">P = proteína · C = carboidrato · G = gordura</Texto>
         {Object.values(totalDoDia(c)).some((v) => v === null) ? <Incompleto texto="Há itens sem valor nutricional informado; o total não os soma." /> : null}
       </Cartao>
-      {c.refeicoes.map((r) => (
-        <CartaoRefeicaoAluno key={r.uid} refeicao={r} />
+      {c.refeicoes.map((r, i) => (
+        <CartaoRefeicaoAluno key={r.uid} refeicao={r} indice={i} />
       ))}
       {ergogenicos.length ? (
         <Cartao titulo="Medicação e ergogênicos">
@@ -203,13 +204,20 @@ function VerProduto({ link }: { link: string | null }) {
   );
 }
 
-function CartaoRefeicaoAluno({ refeicao }: { refeicao: Refeicao }) {
-  const { cores } = useTema();
+/**
+ * Refeição da dieta do aluno (Frente G, D14): uma barra na cor da refeição (pela ordem no dia) e, em cada item, a
+ * quantidade e a unidade numa etiqueta grande à direita, na mesma cor. Só apresentação: a cor identifica a refeição, não
+ * diz status, e a quantidade é a que o treinador escreveu (sem quantidade, "—").
+ */
+function CartaoRefeicaoAluno({ refeicao, indice }: { refeicao: Refeicao; indice: number }) {
+  const { cores, identificacao } = useTema();
+  const cor = identificacao[corDaRefeicao(indice)];
   const [ativa, setAtiva] = useState(0);
   const opcao = refeicao.opcoes[Math.min(ativa, refeicao.opcoes.length - 1)];
   const escolha = textoEscolhaDasOpcoes(refeicao.opcoes.map((o) => o.rotulo));
   return (
     <Cartao
+      style={{ borderLeftWidth: BARRA_DA_REFEICAO, borderLeftColor: cor.cor }}
       cabecalho={
         // A12: o nome da refeição é o título; o horário vem embaixo, com o nome dele (antes "07:30 · Café" numa linha só).
         <CabecalhoDeGrupo titulo={refeicao.nome || 'Refeição'} resumo={refeicao.horario ? `Horário: ${refeicao.horario}` : undefined} />
@@ -229,14 +237,25 @@ function CartaoRefeicaoAluno({ refeicao }: { refeicao: Refeicao }) {
           aoMudar={(v) => setAtiva(Number(v))}
         />
       ) : null}
-      {opcao?.itens.map((i) => (
-        <View key={i.uid} style={[estilos.item, { borderColor: cores.borda }]}>
-          <Texto numerico style={estilos.forte}>
-            {i.nome} — {numeroParaTela(i.quantidade)} {i.unidade}
-          </Texto>
-          <Texto numerico variante="suave">{textoTotais(somar([i]))}</Texto>
-        </View>
-      ))}
+      {opcao?.itens.map((i) => {
+        const quantidade = numeroParaTela(i.quantidade);
+        const unidade = i.quantidade === null ? '' : (i.unidade ?? '').trim();
+        return (
+          <View key={i.uid} style={[estilos.itemComQuantidade, { borderColor: cores.borda }]}>
+            <View style={estilos.nomeDoItem}>
+              <Texto numerico style={estilos.forte}>{i.nome}</Texto>
+              <Texto numerico variante="suave">{textoTotais(somar([i]))}</Texto>
+            </View>
+            <View
+              style={[estilos.quantidade, { borderColor: cor.cor, backgroundColor: cor.fundo }]}
+              accessible
+              accessibilityLabel={`Quantidade: ${unidade ? `${quantidade} ${unidade}` : quantidade}`}>
+              <Texto numerico cor={cor.cor} style={estilos.valorDaQuantidade}>{quantidade}</Texto>
+              {unidade ? <Texto numerico cor={cor.cor} style={estilos.unidadeDaQuantidade}>{unidade}</Texto> : null}
+            </View>
+          </View>
+        );
+      })}
       {opcao ? (
         <View style={[estilos.totalDaRefeicao, { borderColor: cores.bordaCampo }]}>
           <Texto numerico style={estilos.forte} cor={cores.texto}>
@@ -250,7 +269,15 @@ function CartaoRefeicaoAluno({ refeicao }: { refeicao: Refeicao }) {
 }
 
 
+/** Barra lateral da refeição, como a do tipo de série (D10). */
+const BARRA_DA_REFEICAO = 6;
+
 const estilos = StyleSheet.create({
+  itemComQuantidade: { borderTopWidth: 1, paddingTop: espaco(1), flexDirection: 'row', alignItems: 'center', gap: espaco(1.5) },
+  nomeDoItem: { flex: 1, minWidth: 0, gap: 2 },
+  quantidade: { flexDirection: 'row', alignItems: 'baseline', gap: espaco(0.5), borderWidth: 1, borderRadius: 10, paddingVertical: espaco(0.75), paddingHorizontal: espaco(1.5), flexShrink: 0, maxWidth: '50%' },
+  valorDaQuantidade: { fontFamily: fontes.negrito, fontSize: 18, lineHeight: 22 },
+  unidadeDaQuantidade: { fontFamily: fontes.negrito, fontSize: 14, lineHeight: 18, flexShrink: 1 },
   agua: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
   total: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(0.5) },
   textoTotal: { fontFamily: fontes.semi, fontSize: 16 },
