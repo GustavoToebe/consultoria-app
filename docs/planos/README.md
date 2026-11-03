@@ -55,7 +55,8 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Visual da reunião: cor por tipo de série, dieta, histórico e receitas (C35, C50, C74, C45, C16), **Frente G, leva 2** | [cores-por-tipo-de-serie.md](cores-por-tipo-de-serie.md) | `main` (3aed50c, PR #49) | Concluída em 03/11/2026 (em produção às 08h22) | 03/11/2026 |
 | Receitas em blocos e as receitas do treinador do piloto (C16, C17) | [receitas-em-blocos.md](receitas-em-blocos.md) | — | Planejando: janela agrupada na Frente G; cadastro aguarda a lista do treinador | 02/11/2026 |
 | Supervisão da equipe pelo dono e limite de alunos por treinador (C65, C79) | [supervisao-da-equipe.md](supervisao-da-equipe.md) | — | Planejando (só decisões, sem código) | 02/11/2026 |
-| Cupom no suplemento (C51) | [cupom-suplemento.md](cupom-suplemento.md) | branch `cupom-suplemento` | Em revisão (PR aberto) | 03/11/2026 |
+| Ver como o aluno no editor do plano (C34) | [ver-como-aluno.md](ver-como-aluno.md) | branch `ver-como-aluno` (PR #53) | Em revisão (PR aberto) | 03/11/2026 |
+| Cupom no suplemento (C51) | [cupom-suplemento.md](cupom-suplemento.md) | main (PR #52, 78d2664b) | Concluída | 03/11/2026 |
 | Histórico: detalhes que sobraram da Frente G (dias fora do período, letras, duas sessões, hoje de Brasília) | [historico-ajustes-g.md](historico-ajustes-g.md) | branch `historico-ajustes-g` | Em andamento | 03/11/2026 |
 | Miudezas de 03/11 (dieta, CSV, 429 da inscrição, Primeiros passos, ícones, e2e intermitentes) | [miudezas-03-11.md](miudezas-03-11.md) | `main` (60e906e, PR #44) | Concluída em 03/11/2026 (em produção às 00h35; D1 e D2 confirmados) | 03/11/2026 |
 
@@ -130,7 +131,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Migração assistida (C69): sem código novo. A importação da planilha completa cobre o caso; a assistência é fazermos a primeira importação junto com o treinador. Volta depois do teste com os 5 alunos | Gustavo, depois do teste com os 5 alunos | reunião 30/10, C69 (decidido em 03/11) |
 | Mercado Pago do aluno (C63): **não fazer**. O próximo passo é o teste de R$ 1 da InfinitePay (Gustavo) e ligá-la; Mercado Pago só se o Saraiva não puder usar a InfinitePay | Gustavo (teste de R$ 1) | reunião 30/10, C63 (decidido em 03/11) |
 | **Powerlifting** (decisão, 03/11): **não fazer**. Pede percentual do 1RM e calculadora por RPE, o oposto da regra atual (percentual sempre da WS). Só se entrar um treinador de powerlifting como cliente | Gustavo (se entrar esse cliente) | reunião 30/10 |
-| "Ver como aluno" (C34), decidido em 03/11: em vez de entrar como o aluno, uma prévia "como o aluno vê" no editor do treino e da dieta, só leitura e sem sessão nova. Até lá, a janela anônima com um aluno de teste. Depois da leva 2 | Claude, depois da leva 2 | reunião 30/10, C34 |
+| Cupom no PDF da dieta: item pequeno, depois dos itens 2 (C34) e 3 (C65/C79) | Claude, depois do item 3 | Gustavo, 03/11 |
 | Modelos importados do Saraiva (C72): ele apaga pela tela; nada no banco | Gustavo (Saraiva) | reunião 30/10, C72 |
 | Datas ruins já gravadas em produção (anos 0260/0261), decidido em 03/11: contagem por `claude_leitura` (só o número e os ids das pastas, sem nome), só com o ok do Gustavo na hora; quem corrige é o treinador pela tela; nunca `UPDATE` no banco | Gustavo (ok para a contagem) | [datas-validas.md](datas-validas.md) (D7), reunião 30/10, C76 |
 | Data de início da dieta validada só no app (`dominio` e `EditorDeDieta`): validar também na API (`ValidadorDieta`) com a regra de planejamento (01/01/2000 até 31/12 do ano atual + 5) | Claude, quando o Gustavo pedir | [datas-validas.md](datas-validas.md), PR #38 |

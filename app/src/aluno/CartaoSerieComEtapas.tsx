@@ -23,6 +23,7 @@ import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
 import { BotaoMarcar } from '../ui/BotaoMarcar';
+import { useEmPrevia } from '../ui/emPrevia';
 import { CampoNumericoGrande } from '../ui/Campos';
 import { Texto } from '../ui/Texto';
 import type { DadosSerie } from './ExercicioAluno';
@@ -70,6 +71,7 @@ interface Props {
  */
 export function CartaoSerieComEtapas(p: Props) {
   const { cores, identificacao } = useTema();
+  const emPrevia = useEmPrevia();
   const s = p.calculada.serie;
   const previstas = etapasDaSerie(s) ?? [];
   const quantas = previstas.length;
@@ -166,11 +168,11 @@ export function CartaoSerieComEtapas(p: Props) {
       <View style={estilos.rodape}>
         <Texto numerico style={estilos.feito} cor={cores.texto}>{feitoAteAgora(etapas, previstas, cluster ? 'blocos' : 'etapas', feita)}</Texto>
         {feita ? (
-          <Botao rotulo="Reabrir" rotuloAcessivel={`Reabrir a série ${p.numero}`} tipo="fantasma" Icone={RotateCcw} aoTocar={() => agir({ tipo: 'REABRIR' })} />
+          <Botao rotulo="Reabrir" rotuloAcessivel={`Reabrir a série ${p.numero}`} tipo="fantasma" Icone={RotateCcw} desabilitado={emPrevia} aoTocar={() => agir({ tipo: 'REABRIR' })} />
         ) : (
           <Botao rotulo="Concluir série" rotuloAcessivel={`Concluir a série ${p.numero}`} tipo={todasComSituacao(etapas, quantas) ? 'primario' : 'secundario'}
             // O motivo ("Falta o bloco 3 para concluir.") aparece embaixo do botão desabilitado.
-            desabilitado={!todasComSituacao(etapas, quantas)} motivo={falta ?? `Marque cada ${cluster ? 'bloco' : 'etapa'} como feito ou não feito.`}
+            desabilitado={emPrevia || !todasComSituacao(etapas, quantas)} motivo={falta ?? `Marque cada ${cluster ? 'bloco' : 'etapa'} como feito ou não feito.`}
             aoTocar={() => agir({ tipo: 'CONCLUIR' })} />
         )}
       </View>
@@ -204,6 +206,7 @@ function LinhaDaEtapa({ prevista, numeroDaSerie, registrada, atual, comDivisao, 
   painelJaUsado: boolean;
 }) {
   const { cores } = useTema();
+  const emPrevia = useEmPrevia();
   // Antes de marcar: as repetições começam vazias (a meta não vira realizado) e o peso também (D17): a sugestão é só dica.
   // `undefined` = o aluno ainda não mexeu no campo de peso (vale o peso já dado na série); `null` = apagou de propósito.
   const [repsDigitadas, setRepsDigitadas] = useState<number | null>(null);
@@ -279,7 +282,7 @@ function LinhaDaEtapa({ prevista, numeroDaSerie, registrada, atual, comDivisao, 
           <Texto numerico variante="pequeno">{`Meta ${prevista.meta}${cargaPrevista ? ` · ${cargaPrevista}` : ''}${situacao}`}</Texto>
         </View>
         {naoRealizada ? (
-          <Botao rotulo="Desfazer" rotuloAcessivel={`Desfazer: ${nome} não ${feito}`} tipo="fantasma" aoTocar={() => agir({ tipo: 'DESFAZER', posicao })} />
+          <Botao rotulo="Desfazer" rotuloAcessivel={`Desfazer: ${nome} não ${feito}`} tipo="fantasma" desabilitado={emPrevia} aoTocar={() => agir({ tipo: 'DESFAZER', posicao })} />
         ) : (
           <View style={estilos.campos}>
             {semCarga ? null : (
@@ -299,7 +302,7 @@ function LinhaDaEtapa({ prevista, numeroDaSerie, registrada, atual, comDivisao, 
       {invalido ? <Texto variante="pequeno" cor={cores.perigo}>Corrija o número para marcar.</Texto> : null}
       {dica ? <DicaDoCampo dica={dica} origem={origem} numero={numeroDaSerie} de={`${prevista.rotulo.startsWith('Bloco') ? 'o' : 'a'} ${nome}`} /> : null}
       {painel !== null ? <PainelDoCheck sugestaoKg={painel} numero={numeroDaSerie} aoEscolher={escolher} /> : null}
-      {!feita && !naoRealizada ? <Botao rotulo="Não fiz" rotuloAcessivel={`Não fiz: ${nome}`} tipo="fantasma" aoTocar={() => agir({ tipo: 'NAO_REALIZADA', posicao })} /> : null}
+      {!feita && !naoRealizada ? <Botao rotulo="Não fiz" rotuloAcessivel={`Não fiz: ${nome}`} tipo="fantasma" desabilitado={emPrevia} aoTocar={() => agir({ tipo: 'NAO_REALIZADA', posicao })} /> : null}
     </View>
   );
 }
