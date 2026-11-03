@@ -17,10 +17,11 @@ gravado e os botões de marcar não fazem nada.
 | D5 | Largura | no PC o conteúdo fica na largura de um celular dentro da Folha, para parecer a tela do aluno | Claude |
 | D6 | Onde vale | editor de treino e de dieta do aluno; fora do modo modelo (`BarraDoModeloDoEditor`) e da mobilidade. O botão fica fora do `escritaLiberada`, como o PDF: quem só lê o plano também vê a prévia | Claude |
 | D7 | O que a publicação copia | a dieta passa por `comFatoresDaBiblioteca` (grupo e fatores, `GET /alimentos/fatores`), como a prévia que já existe; o resto mostra o rascunho como está. O que a publicação ainda copia da biblioteca e o rascunho não tem fica registrado em "O que ficou para trás" | Claude |
+| D8 | "Copiar cupom" na prévia | continua funcionando: copiar não grava nada nem chama a API. O "Ver produto" também abre o link fora do app | Gustavo |
 
 ## Passos
 - [x] 1. Regra pura em `dominio/` (rascunho → o que o aluno vê, com jest) e o modo leitura nos componentes do aluno que forem usados — executor — commit: 70f09125
-- [ ] 2. Folha "Ver como o aluno" na `BarraDoPlano` (treino e dieta), e2e em 390 e 1280 px que confere que nada além de GET sai — executor-front — commit: —
+- [x] 2. Folha "Ver como o aluno" na `BarraDoPlano` (treino e dieta), e2e em 390 e 1280 px que confere que nada além de GET sai — executor-front — commit: a09df4f6 (merge da main com o cupom: 7c5738dd)
 - [ ] 3. Ajuda (`ajuda/conteudo.ts`, guias gerados de novo) e AGENTS.md — executor-rapido — commit: —
 
 ## Fora do escopo
@@ -34,4 +35,7 @@ gravado e os botões de marcar não fazem nada.
 - Sem histórico do aluno: a prévia não mostra a última carga, os recordes nem o "Anterior".
 - A prévia mostra o rascunho como está, mesmo que ele ainda não passe na publicação.
 - Sem a demonstração do exercício (imagem) e sem a água na prévia.
-- Item 1 (cupom, C51) mexe em `app/aluno/dieta.tsx`, que este passo extraiu para `aluno/DietaDoAluno.tsx`: no merge com a main depois do cupom, o "Copiar cupom" vai para o `DietaDoAluno`.
+- Na prévia os botões −/+ da carga (`ui/AjusteDeCarga`) e os campos de peso e repetições continuam ativos: mudam só o que está na tela e não gravam nada (o ✓ e o "Repetir" ficam desabilitados).
+- Fora da prévia: "Outras datas", Próximo/Anterior entre exercícios, "Concluir treino", a `FaixaDoTreino` e a demonstração do exercício.
+- A ordem dos títulos (h2/h3) dentro da Folha não foi revista para o leitor de tela.
+- D6 (botão também para quem só lê o plano) sem e2e próprio; a prévia não foi conferida no aparelho nativo, só na web (390 e 1280 px).
