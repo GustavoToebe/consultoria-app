@@ -41,11 +41,35 @@ public final class AlunoDtos {
     }
 
     /**
+     * A meta do peso como o cliente a manda na ficha: as três da consultoria mais {@code PADRAO_DA_CONSULTORIA} (grava
+     * nulo). Enum só do request, para esse valor nunca chegar ao enum da consultoria nem à coluna.
+     */
+    public enum MetaDoPesoPedida {
+        REDUZIR(br.com.treinos.api.consultoria.MetaDoPeso.REDUZIR),
+        AUMENTAR(br.com.treinos.api.consultoria.MetaDoPeso.AUMENTAR),
+        SEM_META(br.com.treinos.api.consultoria.MetaDoPeso.SEM_META),
+        PADRAO_DA_CONSULTORIA(null);
+
+        private final br.com.treinos.api.consultoria.MetaDoPeso meta;
+
+        MetaDoPesoPedida(br.com.treinos.api.consultoria.MetaDoPeso meta) {
+            this.meta = meta;
+        }
+
+        /** O que vai para a coluna; nulo = padrão da consultoria. */
+        public br.com.treinos.api.consultoria.MetaDoPeso paraMeta() {
+            return meta;
+        }
+    }
+
+    /**
      * {@code versao} só no PUT (lock otimista); no POST vai nulo. {@code telefone}, {@code cpf} e {@code endereco} são
      * dados pessoais; {@code cpf} e {@code endereco} exigem {@code ALUNO_SENSIVEL_ALTERAR} (sem ela são ignorados e o que
      * está gravado fica). {@code telefone}: nulo = não mexe; em branco = apaga; sem acesso, fica no cadastro do
-     * aluno até o acesso existir (V048). {@code metaDoPeso} (nulo = padrão da consultoria) é dado sensível e, como CPF e
-     * endereço, sem {@code ALUNO_SENSIVEL_ALTERAR} é ignorado (o gravado fica); com ela, o {@code PUT} o substitui.
+     * aluno até o acesso existir (V048). {@code metaDoPeso} é dado sensível e, como CPF e endereço, sem
+     * {@code ALUNO_SENSIVEL_ALTERAR} é ignorado (o gravado fica). Com ela, como o {@code sexo}: ausente ou nulo no
+     * {@code PUT} não mexe no gravado; {@code PADRAO_DA_CONSULTORIA} volta ao padrão (grava nulo). No {@code POST},
+     * ausente, nulo e {@code PADRAO_DA_CONSULTORIA} dão nulo.
      */
     public record AlunoRequest(
             @NotBlank @Size(max = 120) String nome,
@@ -58,7 +82,7 @@ public final class AlunoDtos {
             Long versao,
             @Min(1) @Max(365) Integer diasAtualizacao, UUID responsavelId,
             @Size(max = 10) String sexo,
-            br.com.treinos.api.consultoria.MetaDoPeso metaDoPeso) {
+            MetaDoPesoPedida metaDoPeso) {
 
         /** Dado pessoal e de saúde: o texto padrão do record os mostraria. */
         @Override

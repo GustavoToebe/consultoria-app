@@ -55,13 +55,28 @@ class MetaDoPesoIntegrationTest extends AbstractIntegrationTest {
                 Map.of("codigo", convite.get("codigo").asString(), "senha", ApiDeTeste.SENHA), 200);
     }
 
-    /** PUT da ficha com a versão atual lida pelo administrador; {@code meta} nulo manda o campo nulo (= padrão). */
+    /** PUT da ficha com a versão atual lida pelo administrador; {@code meta} nulo manda o campo nulo (= não mexe). */
     private JsonNode gravarFicha(JsonNode quem, UUID aluno, String meta, int status) throws Exception {
+        Map<String, Object> corpo = corpoDaFicha(aluno);
+        corpo.put("metaDoPeso", meta);
+        return api.put("/alunos/" + aluno, quem, corpo, status);
+    }
+
+    /** PUT da ficha sem o campo {@code metaDoPeso} (um APK antigo, por exemplo). */
+    private JsonNode gravarFichaSemOCampo(JsonNode quem, UUID aluno) throws Exception {
+        return api.put("/alunos/" + aluno, quem, corpoDaFicha(aluno), 200);
+    }
+
+    private Map<String, Object> corpoDaFicha(UUID aluno) throws Exception {
         Map<String, Object> corpo = new LinkedHashMap<>();
         corpo.put("nome", "Aluno Meta Fictício");
         corpo.put("versao", api.get("/alunos/" + aluno, treinador, 200).get("versao").asLong());
-        corpo.put("metaDoPeso", meta);
-        return api.put("/alunos/" + aluno, quem, corpo, status);
+        return corpo;
+    }
+
+    private int auditoriasDaMeta(UUID aluno) {
+        return banco.queryForObject("select count(*) from auditoria where acao = 'ALUNO_META_DO_PESO_ALTERADA'"
+                + " and entidade_id = ?", Integer.class, aluno);
     }
 
     private void definirMetaDaConsultoria(String meta) throws Exception {
@@ -127,15 +142,23 @@ class MetaDoPesoIntegrationTest extends AbstractIntegrationTest {
         JsonNode comSensivel = membro(treinador, Set.of("ALUNO_LER", "ALUNO_SENSIVEL_LER"));
         assertThat(api.get("/alunos/" + aluno, comSensivel, 200).get("metaDoPeso").asString()).isEqualTo("AUMENTAR");
 
-        // Sem ALUNO_SENSIVEL_ALTERAR a meta do corpo é ignorada (200, sem 403) e a gravada fica.
+        // Sem ALUNO_SENSIVEL_ALTERAR o valor do corpo é ignorado (200, sem 403), inclusive o explícito, e a gravada fica.
         JsonNode soAlterar = membro(treinador, Set.of("ALUNO_LER", "ALUNO_ALTERAR"));
         gravarFicha(soAlterar, aluno, "SEM_META", 200);
+        gravarFicha(soAlterar, aluno, "PADRAO_DA_CONSULTORIA", 200);
         gravarFicha(soAlterar, aluno, null, 200);
         assertThat(api.get("/alunos/" + aluno, treinador, 200).get("metaDoPeso").asString()).isEqualTo("AUMENTAR");
 
-        // Com a permissão o PUT substitui; nulo volta ao padrão da consultoria.
+        // Com a permissão, ausente ou nulo não mexe; só o valor explícito PADRAO_DA_CONSULTORIA volta ao padrão.
+        gravarFichaSemOCampo(treinador, aluno);
         gravarFicha(treinador, aluno, null, 200);
+        assertThat(api.get("/alunos/" + aluno, treinador, 200).get("metaDoPeso").asString()).isEqualTo("AUMENTAR");
+        gravarFicha(treinador, aluno, "PADRAO_DA_CONSULTORIA", 200);
         assertThat(api.get("/alunos/" + aluno, treinador, 200).has("metaDoPeso")).isFalse();
+        assertThat(banco.queryForObject("select meta_do_peso from aluno where id = ?", String.class, aluno)).isNull();
+
+        // PADRAO quando já é o padrão não audita.
+        gravarFicha(treinador, aluno, "PADRAO_DA_CONSULTORIA", 200);
 
         // Auditoria: uma linha por mudança real, sem o valor (dado sensível).
         List<String> resumos = banco.queryForList("select resumo from auditoria where acao = 'ALUNO_META_DO_PESO_ALTERADA'"
@@ -180,9 +203,41 @@ class MetaDoPesoIntegrationTest extends AbstractIntegrationTest {
                 Map.of("data", hoje.minusDays(1).toString(), "pesoKg", 79.5), 200);
         assertThat(aposRegistrar.get(0).get("metaDoPeso").asString()).isEqualTo("AUMENTAR");
 
-        // Volta ao padrão quando a do aluno é limpa.
-        gravarFicha(treinador, aluno, null, 200);
+        // Volta ao padrão da consultoria só com o valor explícito.
+        gravarFicha(treinador, aluno, "PADRAO_DA_CONSULTORIA", 200);
         assertThat(api.get("/aluno/pesos", login, 200).get(0).get("metaDoPeso").asString()).isEqualTo("SEM_META");
+    }
+
+    @Test
+    void putSemOCampoOuComNuloPreservaAMetaEValorInvalidoDa400() throws Exception {
+        UUID aluno = api.criarAluno(treinador, "Aluno Meta Fictício");
+        gravarFicha(treinador, aluno, "SEM_META", 200);
+
+        gravarFichaSemOCampo(treinador, aluno);
+        gravarFicha(treinador, aluno, null, 200);
+        assertThat(api.get("/alunos/" + aluno, treinador, 200).get("metaDoPeso").asString()).isEqualTo("SEM_META");
+        assertThat(auditoriasDaMeta(aluno)).isEqualTo(1); // só a mudança real
+
+        gravarFicha(treinador, aluno, "EMAGRECER", 400);
+        assertThat(api.get("/alunos/" + aluno, treinador, 200).get("metaDoPeso").asString()).isEqualTo("SEM_META");
+    }
+
+    @Test
+    void criarComPadraoDaConsultoriaGravaNulo() throws Exception {
+        Map<String, Object> corpo = new LinkedHashMap<>();
+        corpo.put("nome", "Aluno Meta Fictício");
+        corpo.put("metaDoPeso", "PADRAO_DA_CONSULTORIA");
+        UUID aluno = UUID.fromString(api.post("/alunos", treinador, corpo, 200).get("id").asString());
+        assertThat(banco.queryForObject("select meta_do_peso from aluno where id = ?", String.class, aluno)).isNull();
+        assertThat(api.get("/alunos/" + aluno, treinador, 200).has("metaDoPeso")).isFalse();
+    }
+
+    @Test
+    void marcaRejeitaPadraoDaConsultoria() throws Exception {
+        JsonNode atual = api.get("/consultoria", treinador, 200);
+        api.put("/consultoria/marca", treinador, Map.of("nome", "SARAIVA TEAM", "corPrimaria", "#C62828", "fonteTitulo", "PADRAO",
+                "temaPadrao", "CLARO", "versao", atual.get("versao").asLong(), "metaDoPeso", "PADRAO_DA_CONSULTORIA"), 400);
+        assertThat(api.get("/consultoria", treinador, 200).get("metaDoPeso").asString()).isEqualTo("REDUZIR");
     }
 
     @Test

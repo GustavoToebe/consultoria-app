@@ -248,7 +248,7 @@ public class AlunoService {
             exigirCpfLivre(dados.cpf(), null);
             aluno.alterarCpf(dados.cpf());
             aluno.alterarEndereco(dados.endereco());
-            aluno.alterarMetaDoPeso(r.metaDoPeso());
+            if (r.metaDoPeso() != null) aluno.alterarMetaDoPeso(r.metaDoPeso().paraMeta());
         }
         var auth=org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
         if(auth!=null && auth.getPrincipal() instanceof br.com.treinos.api.security.UsuarioAutenticado eu) aluno.alterarResponsavel(eu.usuarioId());
@@ -289,8 +289,9 @@ public class AlunoService {
             if (dados.cpf() != null && !dados.cpf().equals(aluno.getCpf())) exigirCpfLivre(dados.cpf(), aluno.getId());
             aluno.alterarCpf(dados.cpf());
             aluno.alterarEndereco(dados.endereco());
-            if (r.metaDoPeso() != aluno.getMetaDoPeso()) { // null = padrão da consultoria; auditoria sem o valor (sensível)
-                aluno.alterarMetaDoPeso(r.metaDoPeso());
+            // Como o sexo: ausente/nulo não mexe; PADRAO_DA_CONSULTORIA grava nulo. Auditoria sem o valor (sensível).
+            if (r.metaDoPeso() != null && r.metaDoPeso().paraMeta() != aluno.getMetaDoPeso()) {
+                aluno.alterarMetaDoPeso(r.metaDoPeso().paraMeta());
                 auditoria.registrarEvento("ALUNO_META_DO_PESO_ALTERADA", "ALUNO", aluno.getId(), "Alterou a meta do peso do aluno.");
             }
         }
