@@ -145,7 +145,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | ~~Ficha do aluno: "Cancelar" da edição descarta sem perguntar (o do aluno novo pergunta); decidir se pergunta também~~ | ~~Gustavo decide~~ | ~~auditoria-ui-ux-lote-1 (revisão do PR A, 1.2)~~ · vai no PR B (auditoria-ui-ux-lote-1, D8: pergunta só se algum campo mudou) |
 | e2e de "Abrir Metodologias" confere URL e título, não o estado selecionado do chip | Claude, quando o Gustavo pedir | auditoria-ui-ux-lote-1 (revisão do PR A, 1.3) |
 | "Próximo treino" do dia de descanso ignora o fim da pasta (no último dia aponta para a segunda depois do fim) | Claude, quando o Gustavo pedir | auditoria-ui-ux-lote-1 (revisão do PR A, 1.4) |
-| Novo aluno aberto direto pelo link: "Cancelar" faz `router.back()` sem histórico; usar o mesmo fallback da seta (`canGoBack ? back : replace`) | Claude, quando o Gustavo pedir | auditoria-ui-ux-lote-1 (revisão do PR A, 1.5) |
+| ~~Novo aluno aberto direto pelo link: "Cancelar" faz `router.back()` sem histórico; usar o mesmo fallback da seta (`canGoBack ? back : replace`)~~ | ~~Claude, quando o Gustavo pedir~~ | ~~auditoria-ui-ux-lote-1 (revisão do PR A, 1.5)~~ · feito no lote pendencias-app-03-11-b |
 | "Quero ser aluno" em duas partes: decidido em 03/11 que não agora; reavaliar depois do teste com 5 alunos, pelos Indicadores de Interessados | Gustavo decide, depois do teste | auditoria-ui-ux-lote-1 (D6) |
 | ~~C10 (passeio guardado no servidor)~~ | ~~Gustavo decide~~ | ~~auditoria-ui-ux-lote-1~~ · decidido em 03/11: não agora (D9) |
 | Chave do retorno ligada em 03/11 (D10): conferir na tela com um aluno fictício de produção (não existe conta fictícia lá hoje) | Gustavo decide se cria a conta | auditoria-ui-ux-lote-1 (D10), engajamento |
