@@ -244,6 +244,19 @@ describe('texto da origem da carga (clareza para o aluno, sem mudar a conta)', (
     expect(textoDaOrigem(calculadas[1], { ...nomes, series })).toBe('80% da base do dia');
   });
 
+  it('baseDaUltimaVez: com a caixa da base vazia o texto diz "última vez", sem mexer na sugestão', () => {
+    const series = [ws('w'), backOff('b', 80), serie('m', 'FEEDER', { carga: carga('MESMA_CARGA') })];
+    const calculadas = calcularCargasDoExercicio(exercicio(series), 40, {}, CONFIG);
+    const daUltima = { ...nomes, series, baseDaUltimaVez: true };
+    expect(textoDaOrigem(calculadas[0], daUltima)).toBe('carga da última vez');
+    expect(textoDaOrigem(calculadas[1], daUltima)).toBe('80% da última vez');
+    expect(textoDaOrigem(calculadas[2], daUltima)).toBe('mesma carga da última vez');
+    expect(textoDaOrigem(calculadas[1], { ...nomes, series })).toBe('80% da base do dia');
+    // A WS registrada nesta sessão não é "última vez".
+    const comWs = calcularCargasDoExercicio(exercicio(series), 40, { w: 42 }, CONFIG);
+    expect(textoDaOrigem(comWs[1], daUltima)).toBe('80% da WS registrada nesta sessão');
+  });
+
   it('o nome da WS vem da metodologia; sem ela, do nome informado; sem nenhum, "carga de trabalho"', () => {
     const series = [ws('w'), backOff('b', 80)];
     const renomeada = { ...CONFIGURACAO_PADRAO, tipos: CONFIGURACAO_PADRAO.tipos.map((t) => (t.papel === 'TRABALHO' ? { ...t, nome: 'Trabalho' } : t)) };

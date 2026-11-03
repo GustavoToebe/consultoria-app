@@ -131,8 +131,8 @@ describe('série com forma de carga que o app não conhece', () => {
     expect(t.temCampo('Peso da série 2, em quilos')).toBe(false);
     expect(t.vezesDoTexto()).toBe(1);
     const depoisDaSerie2 = t.textos().slice(t.textos().indexOf('Série 2'));
-    expect(depoisDaSerie2.some((x) => x.startsWith('Sugerido'))).toBe(false);
-    expect(t.textos().some((x) => x.startsWith('Sugerido: 40 kg'))).toBe(true); // a série legível ao lado segue com a sugestão
+    expect(depoisDaSerie2.some((x) => x.startsWith('Sugestão'))).toBe(false);
+    expect(t.textos().some((x) => x.startsWith('Sugestão: 40 kg'))).toBe(true); // a série legível ao lado segue com a dica
   });
 
   it('o ✓ continua funcionando e grava a série com a carga em branco', async () => {
@@ -153,7 +153,8 @@ describe('série com forma de carga que o app não conhece', () => {
 
   it('a série legível anterior, já registrada, não passa a carga dela para a série ilegível', async () => {
     const t = await montar(treino(ws('w'), nova('n')));
-    await t.marcar('Série 1 feita');
+    await t.marcar('Série 1 feita'); // campo vazio com sugestão: abre o painel (D2)
+    await t.marcar('Sim, 40 kg, série 1');
     expect(t.gravacoes.at(-1)?.dados.carga).toBe(40);
     expect(t.temCampo('Peso da série 2, em quilos')).toBe(false);
     expect(t.textos().some((x) => x.startsWith('Repetir'))).toBe(false);

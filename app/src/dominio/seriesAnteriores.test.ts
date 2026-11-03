@@ -112,8 +112,10 @@ describe('coluna "Anterior" (Engajamento 0.3, espelho de SeriesAnterioresTest)',
     const base = { tipo: 'WORKING', ordem: 1, etapas: null };
     expect(textoDoAnterior({ ...base, carga: null, repeticoes: 15 }, true)).toBe('15 reps');
     expect(textoDoAnterior({ ...base, carga: 40, repeticoes: 15 }, true)).toBe('15 reps');
-    expect(textoDoAnterior({ ...base, carga: 40, repeticoes: null }, false)).toBe('40 kg × —');
-    expect(textoDoAnterior({ ...base, carga: null, repeticoes: null }, false)).toBe('—');
+    // A série anterior é sempre feita: o que faltou é dito por extenso (D4), nunca "—".
+    expect(textoDoAnterior({ ...base, carga: 40, repeticoes: null }, false)).toBe('40 kg × sem repetições');
+    expect(textoDoAnterior({ ...base, carga: null, repeticoes: null }, false)).toBe('feito, sem carga');
+    expect(textoDoAnterior({ ...base, carga: null, repeticoes: null }, true)).toBe('feito');
     const etapa = (posicao: number, repeticoes: number | null, carga: number | null, situacao: 'FEITA' | 'NAO_REALIZADA' = 'FEITA') => ({ posicao, repeticoes, carga, situacao });
     expect(textoDoAnterior({ ...base, carga: 40, repeticoes: 10, etapas: [etapa(2, 4, 40), etapa(1, 4, 40), etapa(3, 2, 40)] }, false)).toBe('40 kg × 4+4+2');
     expect(textoDoAnterior({ ...base, carga: null, repeticoes: 8, etapas: [etapa(1, 4, 40), etapa(2, 4, 35)] }, false)).toBe('4+4 (carga variável)');

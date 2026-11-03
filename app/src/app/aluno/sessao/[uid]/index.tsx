@@ -18,7 +18,8 @@ import { contagem } from '../../../../dominio/contagens';
 import { dataParaTela } from '../../../../dominio/formatos';
 import { textoDaContagem } from '../../../../dominio/recordesPessoais';
 import { descansoSoDoGrupo } from '../../../../dominio/textoDoGrupo';
-import { datasDaSessao, nomeComDia, totalDeSeries } from '../../../../dominio/semana';
+import { contagemDeSeries } from '../../../../dominio/conclusaoDoTreino';
+import { contagemDoExercicio, datasDaSessao, nomeComDia } from '../../../../dominio/semana';
 import { useSessao } from '../../../../sessao/SessaoProvider';
 import { useTema } from '../../../../tema/TemaProvider';
 import { espaco, RAIO } from '../../../../tema/tokens';
@@ -60,13 +61,13 @@ export default function SessaoAluno() {
     );
   }
 
-  const total = totalDeSeries(sessao);
-  const feitas = sessao.exercicios.reduce((n, e) => n + dia.feitas(e), 0);
+  // "x de y séries" conta só trabalho e pós-trabalho (D6); o exercício pendente continua olhando todas as séries.
+  const { total, feitas } = contagemDeSeries(sessao, dia.estaFeita, dia.config.metodologia);
   const pendente = sessao.exercicios.find((e) => dia.feitas(e) < e.series.length);
   const datas = sessao.exercicios.length ? datasDaSessao(sessao, dia.treino.inicio, dia.treino.fim, hoje) : [];
   const abrir = (exercicioUid: string) => router.push(caminhoDaSessao(sessao.uid, data, exercicioUid));
   // "Concluir treino" no topo e no rodapé (some com a chave desligada): os dois leem a mesma conclusão.
-  const conclusao = { versaoId: dia.treino.versaoId, sessao, data, hoje, feita: (serieUid: string) => !!dia.registroDe(serieUid)?.concluida };
+  const conclusao = { versaoId: dia.treino.versaoId, sessao, data, hoje, metodologia: dia.config.metodologia, feita: (serieUid: string) => !!dia.registroDe(serieUid)?.concluida };
 
   return (
     <Tela bordas={['top']} largura={720}>
@@ -130,7 +131,7 @@ export default function SessaoAluno() {
             <CartaoExercicioDoDia
               exercicio={e}
               posicao={i}
-              feitas={dia.feitas(e)}
+              contagem={contagemDoExercicio(e, dia.estaFeita, dia.config.metodologia)}
               cargaDoDia={dia.cargaDoDia(e)}
               ultima={dia.ultimaCarga(e.exercicioId)}
               tipoTrabalho={dia.config.tipoTrabalho}

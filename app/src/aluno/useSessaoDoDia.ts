@@ -44,6 +44,8 @@ export function useSessaoDoDia(uid: string | undefined, dataDaRota: string | und
 
   const registroDe = (serieUid: string) => (treino ? aluno.registroDe(treino.versaoId, serieUid, data) : undefined);
   const feitas = (e: ExercicioPlano) => e.series.filter((s) => registroDe(s.uid)?.concluida).length;
+  /** A série está concluída nesta data (o `feita` das contagens de `dominio/semana` e `dominio/conclusaoDoTreino`). */
+  const estaFeita = (serieUid: string) => !!registroDe(serieUid)?.concluida;
   const cargaDoDia = (e: ExercicioPlano) => aluno.cargasDeTrabalho[`${e.uid}|${data}`] ?? null;
   /** A divisão tem alguma série feita nesta data (o ✓ do chip em "Outras datas"). */
   const treinouEm = (d: string) =>
@@ -135,6 +137,7 @@ export function useSessaoDoDia(uid: string | undefined, dataDaRota: string | und
     config,
     registroDe,
     feitas,
+    estaFeita,
     cargaDoDia,
     treinouEm,
     ultimaCarga,

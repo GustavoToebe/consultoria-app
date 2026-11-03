@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import { StyleSheet, View, type TextInput } from 'react-native';
 import Animated, { FadeIn, ReduceMotion } from 'react-native-reanimated';
 
-import type { Sessao } from '../api/tipos';
+import type { Configuracao, Sessao } from '../api/tipos';
 import {
   COMENTARIO_MAXIMO,
   contagemDeSeries,
@@ -50,6 +50,8 @@ interface Props {
   /** Dia do treino na tela e o "hoje" do aparelho. */
   data: string;
   hoje: string;
+  /** Metodologia da versão: a contagem "x de y" e o Completa/Parcial olham só as séries de trabalho e pós-trabalho (D6). */
+  metodologia: Configuracao | null;
   /** A série (pelo `uid`) está feita nesta data? Dá a sugestão "Fiz tudo"/"Fiz em parte". */
   feita: (serieUid: string) => boolean;
   /**
@@ -71,7 +73,7 @@ const OPCOES_DO_RESULTADO = (['COMPLETA', 'PARCIAL'] as const).map((valor) => ({
  * `retornoHabilitado` desligada não desenha nada. Funciona sem internet: grava no aparelho e entra na fila.
  * O comentário é dado do aluno: nunca vai a aviso, log ou mensagem de erro.
  */
-export function ConcluirTreino({ versaoId, sessao, data, hoje, feita, tipo, cheio, avisarDataFutura }: Props) {
+export function ConcluirTreino({ versaoId, sessao, data, hoje, metodologia, feita, tipo, cheio, avisarDataFutura }: Props) {
   const { retornoHabilitado } = useSessao();
   const { sessaoConcluidaDe, inicioDoTreino, concluirTreino, reabrirTreino } = useAluno();
   const { avisar } = useAviso();
@@ -99,12 +101,12 @@ export function ConcluirTreino({ versaoId, sessao, data, hoje, feita, tipo, chei
 
   const conclusao = sessaoConcluidaDe(versaoId, sessao.uid, data);
   // B5 (30/10): com todas as séries marcadas o botão diz "Revisar e concluir treino"; o toque continua só abrindo a Folha.
-  const marcadas = contagemDeSeries(sessao, feita);
+  const marcadas = contagemDeSeries(sessao, feita, metodologia);
   const rotulo = rotuloDoConcluir(marcadas.total, marcadas.feitas);
 
   // Estado da Folha montado no toque (nunca num efeito): sugestão pelas séries marcadas e duração desde a 1ª série.
   const abrir = () => {
-    const c = contagemDeSeries(sessao, feita);
+    const c = contagemDeSeries(sessao, feita, metodologia);
     setContagem(c);
     setResultado(sugestaoDoResultado(c.total, c.feitas));
     setMinutos(campoDaDuracao(duracaoDoTreino(inicioDoTreino(versaoId, sessao.uid, data), new Date())));

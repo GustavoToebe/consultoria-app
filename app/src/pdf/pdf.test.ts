@@ -528,7 +528,7 @@ describe('html', () => {
 });
 
 describe('PDF de cargas', () => {
-  const LINHA: LinhaCarga = { data: '2026-10-07', carga: null, repeticoes: null, etapas: null, cargaVariavel: false, volume: null, series: 1, semCarga: false, observacoes: [] };
+  const LINHA: LinhaCarga = { data: '2026-10-07', carga: null, repeticoes: null, etapas: null, cargaVariavel: false, volume: null, series: 1, semCarga: false, feitoSemCarga: false, observacoes: [] };
   const pdfDe = (...linhas: LinhaCarga[]) => documentoCargas({
     marca,
     logoDataUri: null,
@@ -539,6 +539,12 @@ describe('PDF de cargas', () => {
     rodapePdf: null,
     emitidoEm: new Date('2026-10-14T12:00:00Z'),
   }).corpo;
+
+  it('série de trabalho feita sem carga: "Feito, sem carga" é a única exceção ao "—" (D4)', () => {
+    const corpo = pdfDe({ ...LINHA, feitoSemCarga: true });
+    expect(corpo).toContain('<td class="carga">Feito, sem carga</td>');
+    expect(corpo).not.toContain('sem repetições');
+  });
 
   it('série por etapa: os blocos com o total do servidor, a carga comum e o volume', () => {
     const corpo = pdfDe({ ...LINHA, carga: 40, repeticoes: 14, etapas: '4+4+4+2 = 14', volume: { valor: 560, completo: true } });
