@@ -1,5 +1,5 @@
 import type { DiaDeTreino, EtapaRegistrada, SerieFeita, Sessao } from '../api/tipos';
-import { textoCarga } from '../pdf/pdfCargas';
+import { textoCarga, textoReps } from '../pdf/pdfCargas';
 import { dataCurta, diaDaSemanaIso } from './formatos';
 import { cargasPorDivisao, filtrarPorSessoes, intervaloDeRegistros, opcoesDeProgresso, partesDaDivisao, periodoMisturaVersoes, TEXTO_PERIODO_MISTURA_VERSOES, textoDoHistoricoVazio, totalDeRegistros, ultimoRegistroDaDivisao, versoesDoPlanoNoPeriodo } from './relatorio';
 import { marcasDoEixo } from './grafico';
@@ -167,6 +167,45 @@ describe('cargas por divisão com séries por etapa', () => {
     const l = linhaDe(serie({ carga: 75, repeticoes: 6 }));
     expect(l).toMatchObject({ carga: 75, repeticoes: 6, etapas: null, cargaVariavel: false, volume: { valor: 450, completo: true } });
     expect(linhaDe(serie({ trabalho: false, carga: null, unidade: 'nenhuma', repeticoes: null }))).toMatchObject({ etapas: null, volume: null, semCarga: true });
+  });
+});
+
+describe('tabela "Por divisão": "Feito, sem carga" é a única exceção ao "—" (D4)', () => {
+  const linhaDe = (...series: SerieFeita[]) =>
+    cargasPorDivisao([dia('2026-10-07', 'Costas', 'c', [{ exercicioUid: 'e', exercicioId: 'remada', nome: 'Remada', series }])])[0].exercicios[0].linhas[0];
+
+  it('WS feita sem carga e sem repetições: carga "Feito, sem carga" e repetições "—"', () => {
+    const l = linhaDe(serie({ carga: null, repeticoes: null }));
+    expect(l).toMatchObject({ carga: null, repeticoes: null, feitoSemCarga: true, semCarga: false });
+    expect(textoCarga(l)).toBe('Feito, sem carga');
+    expect(textoReps(l)).toBe('—');
+  });
+
+  it('WS feita sem carga mas com repetições: as repetições aparecem junto', () => {
+    const l = linhaDe(serie({ carga: null, repeticoes: 7 }));
+    expect(textoCarga(l)).toBe('Feito, sem carga');
+    expect(textoReps(l)).toBe('7 reps');
+  });
+
+  it('com carga e sem repetições: a carga e "—" nas repetições (nada de "sem repetições" na tabela)', () => {
+    const l = linhaDe(serie({ carga: 60, repeticoes: null }));
+    expect(l.feitoSemCarga).toBe(false);
+    expect(textoCarga(l)).toBe('60 kg');
+    expect(textoReps(l)).toBe('—');
+  });
+
+  it('outra série do dia com carga vale mais; só aquecimento feito sem carga não vira "Feito, sem carga"', () => {
+    expect(linhaDe(serie({ carga: null, repeticoes: null }), serie({ carga: 60, repeticoes: 6 }))).toMatchObject({ carga: 60, repeticoes: 6, feitoSemCarga: false });
+    const soAquecimento = linhaDe(serie({ trabalho: false, carga: null, repeticoes: null }));
+    expect(soAquecimento.feitoSemCarga).toBe(false);
+    expect(textoCarga(soAquecimento)).toBe('—');
+    expect(textoReps(soAquecimento)).toBe('—');
+  });
+
+  it('exercício sem carga (barra fixa) segue "Sem carga"', () => {
+    const l = linhaDe(serie({ unidade: 'nenhuma', carga: null, repeticoes: 10 }));
+    expect(l.feitoSemCarga).toBe(false);
+    expect(textoCarga(l)).toBe('Sem carga');
   });
 });
 

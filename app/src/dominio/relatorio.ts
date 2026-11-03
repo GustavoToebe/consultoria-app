@@ -27,6 +27,11 @@ export interface LinhaCarga {
   /** Séries com algo registrado no dia. */
   series: number;
   semCarga: boolean;
+  /**
+   * Só havia série de trabalho feita sem carga (exercício com peso): a linha diz "Feito, sem carga" (D4). É a única exceção ao
+   * "—" na tabela; `repeticoes` leva as da série, se o aluno as informou.
+   */
+  feitoSemCarga: boolean;
   observacoes: string[];
 }
 
@@ -102,10 +107,12 @@ export function cargasPorDivisao(dias: DiaDeTreino[], sessoesDoPlano?: Map<strin
         const comCarga = doTrabalho.filter((x) => x.carga !== null).sort((a, b) => (b.carga ?? 0) - (a.carga ?? 0))[0];
         // Sem série de trabalho de carga única, a por etapas sem carga comum ainda mostra os blocos; a carga fica de fora.
         const trabalho = comCarga ?? doTrabalho.find((x) => x.etapas);
+        const feitaSemCarga = trabalho ? undefined : doTrabalho.find((x) => x.unidade !== 'nenhuma' && x.carga === null);
         exercicio.linhas.push({
           data: dia.data,
           carga: trabalho?.carga ?? null,
-          repeticoes: trabalho ? trabalho.repeticoes : null,
+          repeticoes: trabalho ? trabalho.repeticoes : (feitaSemCarga?.repeticoes ?? null),
+          feitoSemCarga: !!feitaSemCarga,
           etapas: trabalho?.etapas ? repeticoesDasEtapas(trabalho) : null,
           cargaVariavel: !!trabalho && trabalho.carga === null && temCargasDiferentes(trabalho),
           volume: volumeDoExercicio(e.series),
