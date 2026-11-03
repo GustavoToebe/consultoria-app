@@ -142,6 +142,8 @@ function Sobreposicao({ passos, indice, mudar, dispensar, origem, nos }: {
     let vivo = true;
     const raiz = origem.current;
     const no = passo.alvo ? nos.current.get(passo.alvo) : undefined;
+    // Web: a lista do menu rola quando não cabe na altura; o item vem para a área visível antes de ser medido.
+    if (Platform.OS === 'web') (no as unknown as HTMLElement | undefined)?.scrollIntoView?.({ block: 'nearest' });
     raiz?.measureInWindow((ox, oy, largura, altura) => {
       if (!no) {
         if (vivo) setMedida({ area: { largura, altura }, alvo: null });

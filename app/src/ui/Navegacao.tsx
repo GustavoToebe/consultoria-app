@@ -1,10 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { ReactNode } from 'react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { router, Slot, usePathname, type Href } from 'expo-router';
 import { PanelLeftClose, PanelLeftOpen, type LucideIcon } from 'lucide-react-native';
 import { Image } from 'expo-image';
-import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { urlDaApi } from '../api/cliente';
@@ -164,9 +164,18 @@ function ItemNavegacao({ item, lateral, recolhido, trilho }: { item: ItemMenu; l
   const rotulo = !lateral || rotuloEmbaixo ? rotuloCurtoDoMenu(item) : item.rotulo;
   // No PC minimizado (só ícones) o nome aparece ao passar o mouse ou ao focar pelo teclado: ícones parecidos se confundem.
   const comDica = !!lateral && !!recolhido && !trilho;
+  const no = useRef<View | null>(null);
+  const ref = useCallback((n: View | null) => {
+    no.current = n;
+    alvo(n);
+  }, [alvo]);
+  // Web, menu lateral que rola (não o PC minimizado): o item da tela aberta não fica cortado no fim da lista.
+  useEffect(() => {
+    if (Platform.OS === 'web' && lateral && ativo && !comDica) (no.current as unknown as HTMLElement | null)?.scrollIntoView?.({ block: 'nearest' });
+  }, [lateral, ativo, comDica]);
   return (
     <Pressable
-      ref={alvo}
+      ref={ref}
       accessibilityRole="link"
       accessibilityLabel={ponto ? `${item.rotulo}, pendência` : item.rotulo}
       accessibilityState={{ selected: ativo }}

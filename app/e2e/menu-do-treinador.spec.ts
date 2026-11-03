@@ -8,10 +8,10 @@ import { PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa
  */
 const TODAS = [...PERMISSOES_TREINADOR, 'ATUALIZACAO_LER', 'AGENDA_LER', 'BIBLIOTECA_LER', 'MODELO_LER', 'FINANCEIRO_LER', 'EQUIPE_LER', 'AUDITORIA_LER'];
 
-async function abrir(page: Page, largura: number, altura: number, permissoes = TODAS) {
+async function abrir(page: Page, largura: number, altura: number, permissoes = TODAS, aparelho = {}) {
   await page.setViewportSize({ width: largura, height: altura });
   const { errosDaPagina } = await simularApi(page, {
-    ...(await sessao(page, TREINADOR, { permissoes, pagamentosHabilitados: true })),
+    ...(await sessao(page, TREINADOR, { permissoes, pagamentosHabilitados: true }, aparelho)),
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },
   });
   await page.goto('/treinador/ajuda');
@@ -46,6 +46,25 @@ test('PC (1280): três grupos com título, na ordem do D6, e o fim do menu alcan
   await auditoria.scrollIntoViewIfNeeded();
   await expect(auditoria).toBeInViewport();
   expect(errosDaPagina).toEqual([]);
+});
+
+test('PC (1280×720): o passeio traz para a tela o item que a lista rolada escondia', async ({ page }) => {
+  await abrir(page, 1280, 720, TODAS, { passeioVisto: false });
+  const passeio = page.getByRole('dialog');
+  await expect(passeio.getByText('Boas-vindas')).toBeVisible();
+  for (let i = 0; i < 20 && !(await passeio.getByText('Importação', { exact: true }).isVisible()); i++) {
+    await passeio.getByRole('button', { name: 'Próximo' }).click();
+  }
+  await expect(passeio).toHaveAttribute('aria-label', 'Passeio pelo menu: Importação');
+  await expect(menu(page).getByRole('link', { name: 'Importação', exact: true })).toBeInViewport();
+  await passeio.getByRole('button', { name: 'Próximo' }).click();
+  await expect(passeio).toHaveAttribute('aria-label', 'Passeio pelo menu: Ajuda');
+  await expect(menu(page).getByRole('link', { name: 'Ajuda', exact: true })).toBeInViewport();
+});
+
+test('PC (1280×720): o item da tela aberta não fica cortado no fim da lista', async ({ page }) => {
+  await abrir(page, 1280, 720);
+  await expect(menu(page).getByRole('link', { name: 'Ajuda', exact: true })).toBeInViewport({ ratio: 1 });
 });
 
 test('perfil sem nenhum item de Negócio: o grupo some com o título', async ({ page }) => {
