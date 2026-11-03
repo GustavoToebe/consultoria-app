@@ -26,6 +26,8 @@ interface Props {
   /** Ocupa a largura toda (entrar, ação única da tela no celular). Sem isto o botão tem o tamanho do texto. */
   cheio?: boolean;
   style?: StyleProp<ViewStyle>;
+  /** Identificador para os testes de tela. */
+  testID?: string;
 }
 
 /**
@@ -34,7 +36,7 @@ interface Props {
  * `perigo` (preenchido, `perigoFundo`) é só para o botão de confirmação do painel. O rótulo quebra em até duas
  * linhas e nunca estoura o cartão; vários botões lado a lado vão numa `LinhaDeAcoes`.
  */
-export function Botao({ rotulo, rotuloAcessivel, aoTocar, tipo = 'primario', Icone, desabilitado, motivo, carregando, cheio, style }: Props) {
+export function Botao({ rotulo, rotuloAcessivel, aoTocar, tipo = 'primario', Icone, desabilitado, motivo, carregando, cheio, style, testID }: Props) {
   const { cores, marca, sobreMarca } = useTema();
   const inativo = desabilitado || carregando;
   const semFundo = tipo === 'fantasma' || tipo === 'perigoTexto';
@@ -46,6 +48,7 @@ export function Botao({ rotulo, rotuloAcessivel, aoTocar, tipo = 'primario', Ico
     <Button
       variant={tipo === 'primario' ? 'default' : tipo === 'perigo' ? 'destructive' : tipo === 'secundario' ? 'outline' : 'ghost'}
       accessibilityRole="button"
+      testID={testID}
       accessibilityLabel={rotuloAcessivel ?? rotulo}
       accessibilityHint={explicacao}
       accessibilityState={{ disabled: !!inativo, busy: !!carregando }}

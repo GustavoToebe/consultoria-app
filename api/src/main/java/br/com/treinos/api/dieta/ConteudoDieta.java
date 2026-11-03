@@ -129,7 +129,9 @@ public record ConteudoDieta(
             @Size(max = 120) String dose,
             @Size(max = 120) String horario,
             @Size(max = 500) String observacao,
-            @Size(max = 500) String link) {
+            @Size(max = 500) String link,
+            // até 40 caracteres depois do strip, conferido na publicação (ValidadorDieta); o @Size só limita o rascunho
+            @Size(max = 500) String cupom) {
     }
 
     /** Item copiado da biblioteca (nome, princípio ativo, concentração); o resto o treinador escreve. */
@@ -186,7 +188,7 @@ public record ConteudoDieta(
                                 i.manual(), i.fatorCorrecao(), i.fatorCoccao(), i.grupo())).toList())).toList(), r.modoDePreparo()))
                 .toList();
         List<Suplemento> suplementos = suplementacaoOuVazio().stream().map(s -> new Suplemento(novo.get(), s.nome(),
-                s.dose(), s.horario(), s.observacao(), s.link())).toList();
+                s.dose(), s.horario(), s.observacao(), s.link(), s.cupom())).toList();
         List<Ergogenico> medicacao = ergogenicos == null ? null : ergogenicos.stream().map(e -> new Ergogenico(novo.get(),
                 e.nome(), e.principioAtivo(), e.concentracao(), e.dose(), e.horario(), e.observacao(),
                 e.prescricao())).toList();

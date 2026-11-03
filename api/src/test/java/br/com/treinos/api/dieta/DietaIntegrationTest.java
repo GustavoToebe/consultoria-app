@@ -137,11 +137,11 @@ class DietaIntegrationTest extends AbstractIntegrationTest {
                 new Opcao(UUID.randomUUID(), "A", List.of(item("Arroz branco cozido", "150", "191.7"))))));
 
         ConteudoDieta ruim = new ConteudoDieta(null, null, null, refeicoes, List.of(), null, List.of(
-                new ConteudoDieta.Suplemento(UUID.randomUUID(), "Item de teste A", null, null, null, "javascript:alert(1)"),
-                new ConteudoDieta.Suplemento(UUID.randomUUID(), "Item de teste B", null, null, null, "http://exemplo.com/p"),
-                new ConteudoDieta.Suplemento(UUID.randomUUID(), "Item de teste C", null, null, null, "https://exemplo.com/p"),
-                new ConteudoDieta.Suplemento(UUID.randomUUID(), "Item de teste D", null, null, null, null),
-                new ConteudoDieta.Suplemento(UUID.randomUUID(), "Item de teste E", null, null, null, "  ")));
+                new ConteudoDieta.Suplemento(UUID.randomUUID(), "Item de teste A", null, null, null, "javascript:alert(1)", null),
+                new ConteudoDieta.Suplemento(UUID.randomUUID(), "Item de teste B", null, null, null, "http://exemplo.com/p", null),
+                new ConteudoDieta.Suplemento(UUID.randomUUID(), "Item de teste C", null, null, null, "https://exemplo.com/p", null),
+                new ConteudoDieta.Suplemento(UUID.randomUUID(), "Item de teste D", null, null, null, null, null),
+                new ConteudoDieta.Suplemento(UUID.randomUUID(), "Item de teste E", null, null, null, "  ", null)));
         JsonNode salvo = api.put("/planos-dieta/" + id + "/rascunho", treinador,
                 ApiDeTeste.rascunho("Dieta", ruim, plano.get("plano").get("versao").asLong()), 200);
         JsonNode v = api.post("/planos-dieta/" + id + "/validar", treinador, null, 200);
@@ -150,8 +150,8 @@ class DietaIntegrationTest extends AbstractIntegrationTest {
 
         ConteudoDieta bom = new ConteudoDieta(null, null, null, refeicoes, List.of(), null, List.of(
                 new ConteudoDieta.Suplemento(UUID.randomUUID(), "Item de teste C", "1 dose", null, null,
-                        "https://exemplo.com/p"),
-                new ConteudoDieta.Suplemento(UUID.randomUUID(), "Item de teste D", null, null, null, null)));
+                        "https://exemplo.com/p", null),
+                new ConteudoDieta.Suplemento(UUID.randomUUID(), "Item de teste D", null, null, null, null, null)));
         JsonNode corrigido = api.put("/planos-dieta/" + id + "/rascunho", treinador,
                 ApiDeTeste.rascunho("Dieta", bom, salvo.get("plano").get("versao").asLong()), 200);
         assertThat(api.post("/planos-dieta/" + id + "/validar", treinador, null, 200).get("erros")).isEmpty();
@@ -161,6 +161,46 @@ class DietaIntegrationTest extends AbstractIntegrationTest {
         JsonNode suplementacao = api.get("/aluno/dieta", alunoLogado, 200).get("dieta").get("conteudo").get("suplementacao");
         assertThat(suplementacao.get(0).get("link").asString()).isEqualTo("https://exemplo.com/p");
         assertThat(suplementacao.get(1).get("link").isNull()).isTrue();
+    }
+
+    @Test
+    void cupomDaSuplementacaoTemAte40CaracteresNaPublicacaoEChegaAoAluno() throws Exception {
+        ApiDeTeste api = new ApiDeTeste(mvc, json);
+        JsonNode treinador = api.novoTreinador();
+        UUID aluno = api.criarAluno(treinador, "Aluno Fictício");
+        JsonNode alunoLogado = api.convidarEEntrar(treinador, aluno);
+        JsonNode plano = api.post("/alunos/" + aluno + "/planos-dieta", treinador, Map.of("titulo", "Dieta"), 200);
+        String id = plano.get("plano").get("id").asString();
+        List<Refeicao> refeicoes = List.of(refeicao("Almoço", "12:00", List.of(
+                new Opcao(UUID.randomUUID(), "A", List.of(item("Arroz branco cozido", "150", "191.7"))))));
+        String longo = "C".repeat(41);
+
+        ConteudoDieta ruim = new ConteudoDieta(null, null, null, refeicoes, List.of(), null, List.of(
+                new ConteudoDieta.Suplemento(UUID.randomUUID(), "Item de teste A", null, null, null, null, longo),
+                new ConteudoDieta.Suplemento(UUID.randomUUID(), "Item de teste B", null, null, null, null, "  " + "C".repeat(40) + "  ")));
+        JsonNode salvo = api.put("/planos-dieta/" + id + "/rascunho", treinador,
+                ApiDeTeste.rascunho("Dieta", ruim, plano.get("plano").get("versao").asLong()), 200);
+        JsonNode v = api.post("/planos-dieta/" + id + "/validar", treinador, null, 200);
+        assertThat(v.get("erros").valueStream().map(e -> e.get("caminho").asString()))
+                .containsExactly("suplementacao[0].cupom");
+        assertThat(v.get("erros").toString()).doesNotContain(longo);
+        JsonNode recusada = api.post("/planos-dieta/" + id + "/publicar", treinador,
+                Map.of("versao", salvo.get("plano").get("versao").asLong(), "confirmarAvisos", true), 422);
+        assertThat(recusada.path("codigo").asString()).isEqualTo("PLANO_INVALIDO");
+        assertThat(recusada.toString()).doesNotContain(longo);
+
+        ConteudoDieta bom = new ConteudoDieta(null, null, null, refeicoes, List.of(), null, List.of(
+                new ConteudoDieta.Suplemento(UUID.randomUUID(), "Item de teste C", null, null, null,
+                        "https://exemplo.com/p", "TESTE10"),
+                new ConteudoDieta.Suplemento(UUID.randomUUID(), "Item de teste D", null, null, null, null, null)));
+        JsonNode corrigido = api.put("/planos-dieta/" + id + "/rascunho", treinador,
+                ApiDeTeste.rascunho("Dieta", bom, salvo.get("plano").get("versao").asLong()), 200);
+        api.post("/planos-dieta/" + id + "/publicar", treinador,
+                Map.of("versao", corrigido.get("plano").get("versao").asLong(), "confirmarAvisos", true), 200);
+
+        JsonNode suplementacao = api.get("/aluno/dieta", alunoLogado, 200).get("dieta").get("conteudo").get("suplementacao");
+        assertThat(suplementacao.get(0).get("cupom").asString()).isEqualTo("TESTE10");
+        assertThat(suplementacao.get(1).get("cupom").isNull()).isTrue();
     }
 
     @Test

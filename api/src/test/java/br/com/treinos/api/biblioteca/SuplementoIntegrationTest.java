@@ -66,6 +66,50 @@ class SuplementoIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void cupomCriaEditaComStripEEmBrancoViraNulo() throws Exception {
+        var api = new ApiDeTeste(mvc, json);
+        var login = api.novoTreinador();
+        Map<String, Object> corpo = suplemento("Item de teste CP", null, null);
+        corpo.put("cupom", "  TESTE10  ");
+        JsonNode criado = api.post("/suplementos", login, corpo, 200);
+        assertThat(criado.path("cupom").asString()).isEqualTo("TESTE10");
+        String id = criado.path("id").asString();
+        assertThat(api.get("/suplementos", login, 200).valueStream()
+                .filter(s -> s.path("id").asString().equals(id)).findFirst().orElseThrow().path("cupom").asString())
+                .isEqualTo("TESTE10");
+
+        corpo.put("cupom", "TESTE20");
+        assertThat(api.put("/suplementos/" + id, login, corpo, 200).path("cupom").asString()).isEqualTo("TESTE20");
+        corpo.put("cupom", "C".repeat(40));
+        assertThat(api.put("/suplementos/" + id, login, corpo, 200).path("cupom").asString()).hasSize(40);
+        corpo.put("cupom", "   ");
+        assertThat(api.put("/suplementos/" + id, login, corpo, 200).path("cupom").isNull()).isTrue();
+        corpo.remove("cupom");
+        assertThat(api.put("/suplementos/" + id, login, corpo, 200).path("cupom").isNull()).isTrue();
+    }
+
+    @Test
+    void cupomComMaisDe40CaracteresDa422NoCampoSemRepetirOValor() throws Exception {
+        var api = new ApiDeTeste(mvc, json);
+        var login = api.novoTreinador();
+        String longo = "X".repeat(41);
+        Map<String, Object> corpo = suplemento("Item de teste CL", null, null);
+        corpo.put("cupom", longo);
+        JsonNode erro = api.post("/suplementos", login, corpo, 422);
+        assertThat(erro.path("fieldErrors").valueStream().map(f -> f.path("field").asString()).toList())
+                .containsExactly("cupom");
+        assertThat(erro.toString()).doesNotContain(longo);
+        // O strip vem antes da contagem: 40 mais espaços passa, 41 depois do strip não.
+        corpo.put("cupom", "  " + "X".repeat(40) + "  ");
+        String id = api.post("/suplementos", login, corpo, 200).path("id").asString();
+        corpo.put("cupom", " " + longo + " ");
+        JsonNode naEdicao = api.put("/suplementos/" + id, login, corpo, 422);
+        assertThat(naEdicao.path("fieldErrors").valueStream().map(f -> f.path("field").asString()).toList())
+                .containsExactly("cupom");
+        assertThat(naEdicao.toString()).doesNotContain(longo);
+    }
+
+    @Test
     void nomeRepetidoIgnoraAcentoEMaiusculas() throws Exception {
         var api = new ApiDeTeste(mvc, json);
         var login = api.novoTreinador();
@@ -116,6 +160,21 @@ class SuplementoIntegrationTest extends AbstractIntegrationTest {
         // O mesmo nome é livre na outra consultoria.
         api.post("/suplementos", outra, suplemento("Item de teste C", null, null), 200);
         assertThat(api.get("/suplementos", dona, 200)).hasSize(PADRAO + 1);
+    }
+
+    @Test
+    void cupomDeUmaConsultoriaNaoApareceNaOutra() throws Exception {
+        var api = new ApiDeTeste(mvc, json);
+        var dona = api.novoTreinador();
+        var outra = api.novoTreinador();
+        Map<String, Object> corpo = suplemento("Item de teste CI", null, null);
+        corpo.put("cupom", "TESTE10");
+        String id = api.post("/suplementos", dona, corpo, 200).path("id").asString();
+        assertThat(api.get("/suplementos", outra, 200).toString()).doesNotContain(id).doesNotContain("TESTE10");
+        corpo.put("cupom", "OUTRO");
+        api.put("/suplementos/" + id, outra, corpo, 404);
+        assertThat(api.get("/suplementos", dona, 200).valueStream().filter(s -> s.path("id").asString().equals(id))
+                .findFirst().orElseThrow().path("cupom").asString()).isEqualTo("TESTE10");
     }
 
     @Test

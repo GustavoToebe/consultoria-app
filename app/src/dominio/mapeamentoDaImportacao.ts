@@ -118,6 +118,7 @@ export const DESTINOS: readonly Destino[] = [
       campo('porcoes', 'Porções', false, ['porcoes por embalagem']),
       campo('sabores', 'Sabores', false, ['sabor']),
       campo('link', 'Link', false, ['url']),
+      campo('cupom', 'Cupom', false, ['cupom de desconto']),
     ],
   },
   {

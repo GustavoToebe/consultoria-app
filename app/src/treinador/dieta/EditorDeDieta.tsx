@@ -226,7 +226,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
       </Cartao>
 
       <Cartao faixa titulo="Suplementação" nivel={3} recolhivel recolhido={c.suplementacao.length === 0}>
-        <Texto variante="suave">Campo livre do treinador. O sistema só guarda e mostra o que for escrito aqui; da biblioteca vêm só o nome e o link do produto. A dose é a que você prescreve, não a porção da embalagem.</Texto>
+        <Texto variante="suave">Campo livre do treinador. O sistema só guarda e mostra o que for escrito aqui; da biblioteca vêm só o nome, o link e o cupom do produto. A dose é a que você prescreve, não a porção da embalagem.</Texto>
         {c.suplementacao.map((s, si) => {
           const mudarS = (parcial: Partial<typeof s>) => mudar({ suplementacao: substituir(c.suplementacao, si, { ...s, ...parcial }) });
           return (
@@ -250,6 +250,12 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
                     <Botao rotulo="Tirar link" tipo="perigoTexto" Icone={Link2Off} aoTocar={() => mudarS({ link: null })} />
                   </View>
                 ) : null}
+                {s.cupom ? (
+                  <View style={estilos.acoes}>
+                    <Texto numerico variante="suave">Cupom: {s.cupom}</Texto>
+                    <Botao rotulo="Tirar cupom" tipo="perigoTexto" aoTocar={() => mudarS({ cupom: null })} />
+                  </View>
+                ) : null}
               </View>
               <IconeBotao Icone={Trash2} rotulo={`Remover ${s.nome || 'linha'}`} cor={cores.perigo} aoTocar={() => comDesfazer(`Suplementação “${s.nome || si + 1}” removida.`, (a) => ({ ...a, suplementacao: remover(a.suplementacao, si) }))} />
             </View>
@@ -261,7 +267,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
             rotulo="Adicionar linha"
             tipo="secundario"
             Icone={Plus}
-            aoTocar={() => mudar({ suplementacao: [...c.suplementacao, { uid: novoUid(), nome: '', dose: '', horario: '', observacao: '', link: null }] })}
+            aoTocar={() => mudar({ suplementacao: [...c.suplementacao, { uid: novoUid(), nome: '', dose: '', horario: '', observacao: '', link: null, cupom: null }] })}
           />
         </View>
       </Cartao>
