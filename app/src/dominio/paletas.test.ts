@@ -45,6 +45,11 @@ describe('paletas da marca', () => {
       expect(avisoDeMarcaPertoDeStatus('#7C3AED')).toBeNull();
     });
 
+    it('seis das doze Cores prontas avisam (decisão do Gustavo: pode ser ruído demais), as outras seis não', () => {
+      const avisam = PALETAS.filter((p) => avisoDeMarcaPertoDeStatus(p.cor)).map((p) => p.id);
+      expect(avisam).toEqual(['vermelho', 'laranja', 'ambar', 'verde', 'esmeralda', 'bronze']);
+    });
+
     it('só avisa: a avaliação que bloqueia o Salvar não muda', () => {
       expect(avaliarMarca('#C62828')).toEqual({ bloqueia: null, aviso: null });
     });

@@ -29,7 +29,7 @@ A regra escrita e a tabela "situação → cor", com o contraste medido, estão 
 | D13 | "Vencida há N dias" | Só na pendência "Pagamento em aberto" do Início do aluno (`seloDeVencida`): dias de `vencimento` até hoje, mínimo 1, "1 dia" no singular. O selo do "Meu plano" e o do treinador continuam "Vencida" (o cartão já mostra a data). | Decidido pelo Claude em 03/11, conferir com o Gustavo |
 | D14 | Cobrança que vence em até 3 dias (pendência do Início) | `atencao` "Vence dd/mm", como a "Em aberto" do D11, nos dois ramos (com e sem o "Pagar" no celular). | Decidido pelo Claude em 03/11, conferir com o Gustavo |
 | D15 | Aviso de atenção (`useAviso`, D5) | Borda `atencao`, ícone de triângulo (erro usa círculo) e fica até ser fechado, como o de erro; só o de sucesso some sozinho. | Decidido pelo Claude em 03/11, conferir com o Gustavo |
-| D16 | Aviso de marca perto de status (D10) | `avisoDeMarcaPertoDeStatus` usa o mesmo ΔE CIE76 de 25 que o `tokens.test.ts` exige das agendas, contra `sucesso`, `atencao` e `perigo` do claro e do escuro. Texto neutro abaixo da cor, sem bloquear o Salvar. O botão destrutivo do `PainelConfirmacao` ganha o ícone `TriangleAlert`; o "rótulo do resultado" já vem do chamador ("Inativar", "Remover"). | Decidido pelo Claude em 03/11, conferir com o Gustavo |
+| D16 | Aviso de marca perto de status (D10) | `avisoDeMarcaPertoDeStatus` usa o mesmo ΔE CIE76 de 25 que o `tokens.test.ts` exige das agendas, contra `sucesso`, `atencao` e `perigo` do claro e do escuro. Texto neutro abaixo da cor, sem bloquear o Salvar. **Avisam seis das doze Cores prontas** (Vermelho intenso, Laranja, Âmbar, Verde, Esmeralda e Bronze; o teste fixa a lista) e a marca padrão `#C62828` das consultorias novas: pode ser ruído demais. Alternativa mais enxuta: avisar só perto do `perigo`. O botão destrutivo do `PainelConfirmacao` ganha o ícone `TriangleAlert`; o "rótulo do resultado" já vem do chamador ("Inativar", "Remover"). | Decidido pelo Claude em 03/11, conferir com o Gustavo |
 
 ## Inventário (03/11, sobre `3d65e04b`)
 
@@ -137,7 +137,8 @@ porta 8106.
   - Arquivos: `app/src/ui/Selo.tsx`, `app/src/ui/contrasteDasPecas.test.ts` e `app/e2e/editor-clareza.spec.ts`.
   - Aceite:
     - o jest confere cada tom sobre o próprio `tingido` ≥ 4,5 nos três temas;
-    - o e2e confere com `toHaveCSS('background-color')` o selo "Cardio" na faixa do exercício, no claro e no escuro.
+    - o e2e confere com `toHaveCSS('background-color')` o selo "Fora da biblioteca" (neutro) na faixa do exercício, no
+      claro e no escuro (o "Cardio" não ganhou caso próprio).
 - [x] 6. **Aviso de rodapé com tom de atenção** (`executor-front`; feito pela sessão principal). Commit: 350c89e5 e, no `FormMarca`, 2818fdd5
   - Arquivos: `app/src/ui/Aviso.tsx`, `app/src/treinador/marca/FormMarca.tsx`,
     `app/src/treinador/seguranca/VerificacaoEmDuasEtapas.tsx`,
