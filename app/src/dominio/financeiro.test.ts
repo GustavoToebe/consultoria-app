@@ -260,7 +260,9 @@ describe('contas do painel', () => {
     const com = inadimplenciaParaTela({ percentual: 12.5, vencidoCentavos: 30000, cobradoCentavos: 240000 });
     expect(com.percentual).toBe('12,5%');
     expect(com.comBase).toBe('12,5% · R$ 300,00 de R$ 2.400,00');
-    expect(com.detalhe).toContain(NOTA_CONSIDERA_GERADAS);
+    // A base aparece uma vez só, ao lado do percentual; a descrição não repete os valores.
+    expect(com.detalhe).toBe(`Em aberto do total que já venceu · ${NOTA_CONSIDERA_GERADAS}`);
+    expect(com.detalhe).not.toContain('R$');
     const sem = inadimplenciaParaTela({ percentual: null, vencidoCentavos: null, cobradoCentavos: null });
     expect(sem.percentual).toBe('—');
     expect(sem.comBase).toBe('—');

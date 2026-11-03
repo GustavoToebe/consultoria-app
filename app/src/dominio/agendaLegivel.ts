@@ -67,14 +67,24 @@ function horaPorExtenso(hhmm: string): string {
 /** "a" concorda com a hora: a 0h e a 1h são singular ("à 1h", "da 1h"), as outras plural ("às 9h", "das 9h"). */
 const singular = (hhmm: string) => /^0?[01]:/.test(hhmm);
 
+/** Minutos desde a meia-noite de "HH:MM"; `null` quando o texto não é hora. */
+function minutosDoDia(hhmm: string): number | null {
+  const m = /^(\d{1,2}):(\d{2})/.exec(hhmm);
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+}
+
 /**
  * O horário no nome acessível do compromisso: "das 9h às 10h" quando há fim, e só o início ("09:00") quando não há,
- * como era antes de existir o fim. shortcut: o fim no dia seguinte ("das 23h às 0h") não é indicado; dizer "do dia
- * seguinte" quando a agenda tiver compromisso que vira o dia.
+ * como era antes de existir o fim. Fim no dia seguinte ("das 23h à 0h do dia seguinte"): a duração vai de 5 a 480
+ * minutos, então fim igual ou antes do início (na hora de Brasília) só acontece quando o compromisso passa da
+ * meia-noite (decisão D18 do Gustavo, 03/11).
  */
 export function horarioNoRotuloDoCompromisso(hora: string, horaFim?: string | null): string {
   if (!horaFim) return hora;
-  return `${singular(hora) ? 'da' : 'das'} ${horaPorExtenso(hora)} ${singular(horaFim) ? 'à' : 'às'} ${horaPorExtenso(horaFim)}`;
+  const inicio = minutosDoDia(hora);
+  const fim = minutosDoDia(horaFim);
+  const diaSeguinte = inicio !== null && fim !== null && fim <= inicio ? ' do dia seguinte' : '';
+  return `${singular(hora) ? 'da' : 'das'} ${horaPorExtenso(hora)} ${singular(horaFim) ? 'à' : 'às'} ${horaPorExtenso(horaFim)}${diaSeguinte}`;
 }
 
 /**
