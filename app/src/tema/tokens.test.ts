@@ -1,4 +1,20 @@
-import { AREIA, CHAVES_DA_AGENDA, CLARO, ESCURO, PALETA_DA_AGENDA, contraste, corDaAgenda, marcaParaTexto, textoSobre, tingido } from './tokens';
+import { coresComBordasReforcadas, coresComContraste } from '../dominio/preferencias';
+import {
+  AREIA,
+  CHAVES_DA_AGENDA,
+  CHAVES_DE_IDENTIFICACAO,
+  CLARO,
+  ESCURO,
+  PALETA_DA_AGENDA,
+  PALETA_DE_IDENTIFICACAO,
+  contraste,
+  corDaAgenda,
+  coresDeIdentificacao,
+  marcaParaTexto,
+  textoSobre,
+  tingido,
+  type Cores,
+} from './tokens';
 
 it.each([CLARO, ESCURO, AREIA])('preserva contraste AA nos detalhes de todas as superfícies', (cores) => {
   for (const superficie of [cores.superficie, cores.superficie2, cores.superficie3]) {
@@ -150,3 +166,70 @@ test.each([['claro', CLARO], ['escuro', ESCURO], ['areia', AREIA]] as const)(
     }
   },
 );
+
+// ---- Cores de identificação: tipo de série, divisão e refeição (Frente G, D6, D9 a D14) ----
+
+/** Os três temas, cada um também com contraste alto e com bordas reforçadas (que não podem derrubar o contraste). */
+const TEMAS_DA_IDENTIFICACAO: [string, Cores, boolean][] = [
+  ['claro', CLARO, false],
+  ['areia', AREIA, false],
+  ['escuro', ESCURO, true],
+].flatMap(([nome, base, escuro]) => [
+  [nome as string, base as Cores, escuro as boolean],
+  [`${nome} com contraste alto`, coresComContraste(base as Cores, 'ALTO', escuro as boolean), escuro as boolean],
+  [`${nome} com bordas reforçadas`, coresComBordasReforcadas(base as Cores, true), escuro as boolean],
+]) as [string, Cores, boolean][];
+
+/** Mais longe do status que a paleta das agendas: o tipo de série aparece ao lado dos selos Pronta/Atenção/Corrigir. */
+const DISTANCIA_DA_IDENTIFICACAO_AO_STATUS = 40;
+/** Do cinza "encerrado" (neutro): ardósia ficou de fora da paleta por ficar perto dele. */
+const DISTANCIA_DA_IDENTIFICACAO_AO_NEUTRO = 20;
+
+describe.each(TEMAS_DA_IDENTIFICACAO)('cores de identificação (%s)', (_nome, cores, escuro) => {
+  const identificacao = coresDeIdentificacao(cores, escuro);
+
+  it('tem as cinco chaves, todas #RRGGBB, e o tom vem da paleta do modo', () => {
+    expect(Object.keys(identificacao).sort()).toEqual([...CHAVES_DE_IDENTIFICACAO].sort());
+    for (const chave of CHAVES_DE_IDENTIFICACAO) {
+      expect(identificacao[chave].cor).toBe(PALETA_DE_IDENTIFICACAO[escuro ? 'escuro' : 'claro'][chave]);
+      expect(identificacao[chave].cor).toMatch(/^#[0-9A-F]{6}$/);
+      expect(identificacao[chave].fundo).toBe(tingido(identificacao[chave].cor, cores.superficie));
+    }
+  });
+
+  it('serve de texto (4,5:1) sobre superficie, superficie2, superficie3 e o fundo do próprio selo', () => {
+    for (const chave of CHAVES_DE_IDENTIFICACAO) {
+      const { cor, fundo } = identificacao[chave];
+      for (const base of [cores.superficie, cores.superficie2, cores.superficie3, fundo]) {
+        expect(contraste(cor, base)).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
+  it('a barra lateral aparece (3:1) também sobre a faixa forte do exercício', () => {
+    for (const chave of CHAVES_DE_IDENTIFICACAO) {
+      expect(contraste(identificacao[chave].cor, cores.faixaForte)).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it('nenhuma se parece com sucesso, atenção, perigo nem com o cinza neutro (cor não diz status)', () => {
+    for (const chave of CHAVES_DE_IDENTIFICACAO) {
+      const { cor } = identificacao[chave];
+      for (const status of [cores.sucesso, cores.atencao, cores.perigo, cores.perigoFundo]) {
+        expect(distanciaDeCor(cor, status)).toBeGreaterThanOrEqual(DISTANCIA_DA_IDENTIFICACAO_AO_STATUS);
+      }
+      expect(distanciaDeCor(cor, cores.neutro)).toBeGreaterThanOrEqual(DISTANCIA_DA_IDENTIFICACAO_AO_NEUTRO);
+      expect(distanciaDeCor(cor, cores.textoSuave)).toBeGreaterThanOrEqual(DISTANCIA_DA_IDENTIFICACAO_AO_NEUTRO);
+    }
+  });
+
+  it('as cinco se distinguem entre si', () => {
+    for (let i = 0; i < CHAVES_DE_IDENTIFICACAO.length; i++) {
+      for (let j = i + 1; j < CHAVES_DE_IDENTIFICACAO.length; j++) {
+        const a = identificacao[CHAVES_DE_IDENTIFICACAO[i]].cor;
+        const b = identificacao[CHAVES_DE_IDENTIFICACAO[j]].cor;
+        expect(distanciaDeCor(a, b)).toBeGreaterThanOrEqual(DISTANCIA_ENTRE_AGENDAS);
+      }
+    }
+  });
+});

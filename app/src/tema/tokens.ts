@@ -137,6 +137,42 @@ export function corDaAgenda(chave: string | null | undefined, escuro: boolean): 
   return (CHAVES_DA_AGENDA as readonly string[]).includes(chave ?? '') ? paleta[chave as CorDaAgenda] : paleta.ARDOSIA;
 }
 
+/**
+ * Paleta de IDENTIFICAÇÃO (Frente G, D9 a D14, prévia `docs/prototipos/cores-por-tipo-de-serie.html` aprovada em 03/11):
+ * a cor diz QUAL tipo de série, divisão ou refeição é, nunca status (D6); o selo de texto continua (D7). Só ciano, azul,
+ * índigo, violeta e magenta: sem verde, âmbar, vermelho nem cinza (D11). Claro e areia usam a mesma cor; o escuro, a
+ * variante clara. Cada cor passa 4,5:1 como texto sobre `superficie`, `superficie2`, `superficie3` e o próprio fundo
+ * tingido do selo nos três temas (`tokens.test.ts`). Fica fora de `Cores`, como a paleta das agendas: não muda com o
+ * contraste alto nem com as bordas reforçadas, que não mexem nas superfícies.
+ */
+export type ChaveDeIdentificacao = 'CIANO' | 'AZUL' | 'INDIGO' | 'VIOLETA' | 'MAGENTA';
+
+export const CHAVES_DE_IDENTIFICACAO: readonly ChaveDeIdentificacao[] = ['CIANO', 'AZUL', 'INDIGO', 'VIOLETA', 'MAGENTA'];
+
+export const PALETA_DE_IDENTIFICACAO: Record<'claro' | 'escuro', Record<ChaveDeIdentificacao, string>> = {
+  claro: { CIANO: '#00698A', AZUL: '#1A5CBA', INDIGO: '#4B3FBF', VIOLETA: '#8A2DB0', MAGENTA: '#A3237F' },
+  escuro: { CIANO: '#3CC3D6', AZUL: '#62A0F8', INDIGO: '#A196F5', VIOLETA: '#CF8DEE', MAGENTA: '#F07AC8' },
+};
+
+/** Uma cor de identificação já resolvida para o tema: `cor` (texto, ícone, barra lateral) e `fundo` (selo, opaco). */
+export interface CorDeIdentificacao {
+  cor: string;
+  fundo: string;
+}
+
+/**
+ * As cinco cores de identificação para as cores do tema em uso: `cor` da paleta do modo e `fundo` = `tingido` da cor sobre
+ * a `superficie` (o mesmo fundo do selo com ícone). `useTema().identificacao` entrega o resultado.
+ */
+export function coresDeIdentificacao(cores: Cores, escuro: boolean): Record<ChaveDeIdentificacao, CorDeIdentificacao> {
+  const paleta = PALETA_DE_IDENTIFICACAO[escuro ? 'escuro' : 'claro'];
+  const resultado = {} as Record<ChaveDeIdentificacao, CorDeIdentificacao>;
+  for (const chave of CHAVES_DE_IDENTIFICACAO) {
+    resultado[chave] = { cor: paleta[chave], fundo: tingido(paleta[chave], cores.superficie) };
+  }
+  return resultado;
+}
+
 /** Cor neutra para telas sem marca (entrar, cadastro). */
 export const MARCA_NEUTRA = '#52525B';
 
