@@ -22,10 +22,19 @@ período, letra da divisão que não contradiz o nome, dia com duas sessões e o
 ## Passos
 - [x] 1. (a) e (d): período e "hoje" de Brasília em `dominio/historicoDoAluno.ts`, com jest — executor — commit: badcb274
 - [x] 2. (b) e (c): letra das divisões e as duas sessões do dia, na grade e no rótulo acessível, com jest — executor — commit: badcb274
-- [ ] 3. e2e `cores-historico-dieta` em 390 e 1280 px; README risca a pendência da etapa (D17, PR #49) — executor-rapido — commit: —
+- [x] 3. e2e `cores-historico-dieta` em 390 e 1280 px; README risca a pendência da etapa (D17, PR #49); dias depois de hoje (D9) — executor-rapido — commit: 733e817f
 
 ## Fora do escopo
 - Mudar as cores por tipo de divisão ou o desenho do Histórico.
 
+## Revisão independente (03/11)
+Nada bloqueante. Opcionais aplicados no mesmo PR, por serem pequenos:
+- dia com treino depois do "hoje" de Brasília (registro com a data do aparelho, em outro fuso) não sai "ainda não chegou" (jest);
+- o e2e roda com o navegador em UTC e o relógio às 22:30 de Brasília, para falhar se o "hoje" voltar a ser o do aparelho;
+- o rótulo "(A2)" é exato no e2e;
+- o e2e conta as letras desenhadas na grade.
+
 ## O que ficou para trás
-- —
+- O dia que ainda não chegou tem o mesmo desenho do dia sem treino na grade. A diferença está só na contagem e no rótulo acessível.
+- Uma pasta que termina exatamente hoje é lida como período cortado (D9). O dia seguinte sai "ainda não chegou" em vez de "fora do período". Nos dois casos o dia fica neutro e não conta.
+- A mesma divisão pode virar "A" num período e "A2" em outro, porque a ordem das divisões muda com o período (D2).

@@ -113,6 +113,10 @@ describe('semana → dia', () => {
     // A busca cortada em hoje (últimos 30 dias, ate = hoje): o dia seguinte ainda não chegou, não está fora.
     const [cortada] = semanasDoHistorico([dia('2026-11-03')], { de: '2026-10-05', ate: '2026-11-03' }, '2026-11-03');
     expect(cortada.marcas.map((m) => (m.foraDoPeriodo ? 'fora' : m.aindaNaoChegou ? 'futuro' : 'dentro'))).toEqual(['dentro', 'dentro', 'futuro', 'futuro', 'futuro', 'futuro', 'futuro']);
+    // Treino com data depois do hoje de Brasília (aparelho em outro fuso): o dia já chegou, a grade e a contagem concordam.
+    const [adiantado] = semanasDoHistorico([dia('2026-10-13'), dia('2026-10-16')], PERIODO_DE_OUTUBRO, '2026-10-15');
+    expect(adiantado.marcas.map((m) => m.aindaNaoChegou)).toEqual([false, false, false, false, false, true, true]);
+    expect(treinosDaSemana(adiantado)).toBe('2 treinos');
   });
 
   test('dia com duas sessões conta 2 treinos e traz as duas', () => {

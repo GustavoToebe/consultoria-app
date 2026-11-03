@@ -70,9 +70,12 @@ const pasta = (id: string, titulo: string, inicio: string, fim: string, atual: b
 });
 const PASTAS = [pasta('p-out', 'Outubro', '2026-10-01', '2026-10-31', true), pasta('p-set', 'Setembro', '2026-09-01', '2026-09-30', false)];
 
-/** O "hoje" do aparelho (meio-dia em São Paulo): 15/10/2026 é quinta, e a semana de 12/10 a 18/10 ainda tem dias por vir (D9). */
+/**
+ * O "hoje" é 22:30 em Brasília com o navegador em UTC (já é o dia seguinte no aparelho): só o `hojeEmBrasilia` dá o dia
+ * certo (D4, D8). 15/10/2026 é quinta, e a semana de 12/10 a 18/10 ainda tem dias por vir (D9).
+ */
 async function historico(page: Page, hoje = '2026-10-15', dias: DiaDeTreino[] = OUTUBRO) {
-  await page.clock.setFixedTime(new Date(`${hoje}T12:00:00-03:00`));
+  await page.clock.setFixedTime(new Date(`${hoje}T22:30:00-03:00`));
   const pedidos: string[] = [];
   const api = await simularApi(page, {
     ...(await sessaoDeAluno(page)),
@@ -87,6 +90,8 @@ async function historico(page: Page, hoje = '2026-10-15', dias: DiaDeTreino[] = 
   await page.goto('/aluno/historico');
   return { ...api, pedidos };
 }
+
+test.use({ timezoneId: 'UTC' });
 
 const borda = (page: Page, testId: string) => page.getByTestId(testId).first().evaluate((el) => getComputedStyle(el).borderLeftColor);
 
@@ -159,7 +164,9 @@ for (const nomeDoTema of ['claro', 'escuro'] as const) {
       await expect(page.getByLabel('Dias com treino: quarta, Treino A - Peito (A); sexta, Treino B - Costas (B)', { exact: true })).toBeVisible();
       // Dia com duas sessões: as duas na grade, no nome lido e nos cartões do dia.
       // Os dias depois de hoje (15/10) ainda não chegaram: neutros, sem a linha "Fora do período", só no nome lido (D9).
-      await expect(page.getByLabel('Dias com treino: terça, Treino A - Peito (A); quinta, Treino B - Costas (B) e Treino A - Pernas (A2). Ainda não chegou: sexta, sábado, domingo', { exact: true })).toBeVisible();
+      const grade = page.getByLabel('Dias com treino: terça, Treino A - Peito (A); quinta, Treino B - Costas (B) e Treino A - Pernas (A2). Ainda não chegou: sexta, sábado, domingo', { exact: true });
+      await expect(grade).toBeVisible();
+      for (const letra of ['A', 'B', 'A2']) await expect(grade.getByText(letra, { exact: true })).toHaveCount(1);
       await expect(page.getByText(/^Fora do período: /)).toHaveCount(1);
       await expect(page.getByTestId('divisao-B')).toHaveCount(2);
       await expect(page.getByTestId('divisao-A2')).toHaveCount(2);
@@ -193,7 +200,7 @@ for (const nomeDoTema of ['claro', 'escuro'] as const) {
       await page.getByText('Por dia', { exact: true }).click();
       await expect(page.getByText(/^Semana de /)).toHaveText(['Semana de 28/09 a 04/10']);
       await expect(page.getByText('Fora do período: SEG, TER, QUA', { exact: true })).toBeVisible();
-      await expect(page.getByLabel(/^Dias com treino: sexta, Treino A - Pernas \(A2?\)\. Fora do período: segunda, terça, quarta\. Ainda não chegou: domingo$/)).toBeVisible();
+      await expect(page.getByLabel(/^Dias com treino: sexta, Treino A - Pernas \(A2\)\. Fora do período: segunda, terça, quarta\. Ainda não chegou: domingo$/)).toBeVisible();
       await expect(page.getByText('1 treino', { exact: true })).toBeVisible();
       expect(await semRolagemDeLado(page)).toBe(true);
       await page.getByText('Fora do período: SEG, TER, QUA', { exact: true }).scrollIntoViewIfNeeded();

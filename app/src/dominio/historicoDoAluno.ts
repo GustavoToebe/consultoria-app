@@ -145,8 +145,10 @@ export function semanasDoHistorico(dias: readonly DiaDeTreino[], periodo: { de: 
     dias: lista,
     marcas: Array.from({ length: 7 }, (_, i) => {
       const data = somarDias(inicio, i);
-      const futuro = aindaNaoChegou(data);
-      return { data, dia: lista.find((d) => d.data === data) ?? null, foraDoPeriodo: !dentro(data) && !futuro, aindaNaoChegou: futuro };
+      const dia = lista.find((d) => d.data === data) ?? null;
+      // Dia com treino já chegou, mesmo depois do "hoje" de Brasília (registro com a data do aparelho, em outro fuso).
+      const futuro = !dia && aindaNaoChegou(data);
+      return { data, dia, foraDoPeriodo: !dentro(data) && !futuro, aindaNaoChegou: futuro };
     }),
   }));
 }
