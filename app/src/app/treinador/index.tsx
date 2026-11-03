@@ -16,6 +16,7 @@ import {
   folhaPastasARenovar,
   folhaRecordes,
   folhaSemRegistro,
+  FONTE_CARREGANDO,
   FRASE_INICIO_SEM_ALUNOS,
   FRASE_NENHUM_BLOCO,
   hojeEmBrasilia,
@@ -117,7 +118,7 @@ export default function InicioTreinador() {
     ...(verInteressados ? [interessadosPadrao] : []),
     ...[...porBloco.values()].flat(),
   ], [verPainel, painelTodos, painelPadrao, verInteressados, interessadosPadrao, porBloco]);
-  const { fonte, fontesDe, recarregar } = useFontesDoPainel(consultas);
+  const { fonte, dadosDeOutraChave, fontesDe, recarregar } = useFontesDoPainel(consultas);
 
   // Ao voltar para a tela (não na primeira vez), recarrega tudo e relê o aparelho: cadastrou o aluno ou ligou o link e voltou.
   const consultasAtuais = useRef(consultas);
@@ -217,14 +218,17 @@ export default function InicioTreinador() {
   const folha = (() => {
     if (!folhaAberta) return null;
     const { id, meus } = folhaAberta;
+    const paraAFolha = <T,>(c: ConsultaDoPainel): Fonte<T> => (dadosDeOutraChave(c) ? FONTE_CARREGANDO : fonte<T>(c));
     if (id === 'recordes') {
+      const consulta = { fonte: 'recordes', meus } as const;
       return {
         titulo: 'Recordes dos últimos 7 dias',
-        ...listaDaFolha(fonte<RecordesDaSemana>({ fonte: 'recordes', meus }), (r) =>
+        ...listaDaFolha(paraAFolha<RecordesDaSemana>(consulta), (r) =>
           Array.isArray(r.series) ? folhaRecordes(r, { meus, hoje }) : null),
       };
     }
-    const fontePainel = fonte<PainelTreinador>({ fonte: 'painel', meus, dias });
+    const consultaPainel = { fonte: 'painel', meus, dias } as const;
+    const fontePainel = paraAFolha<PainelTreinador>(consultaPainel);
     if (id === 'semRegistro') {
       return {
         titulo: `Sem registro há ${dias} dias`,
