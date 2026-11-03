@@ -37,21 +37,24 @@ public class MarcaService {
             @NotNull Long versao,
             /** Ciclo de atualização padrão da consultoria (1 a 365 dias); nulo = sem padrão. */
             @Min(1) @Max(365) Integer diasAtualizacaoPadrao,
-            br.com.treinos.api.ciclo.CicloDtos.TextosDasFases textosFasesCiclo) {
+            br.com.treinos.api.ciclo.CicloDtos.TextosDasFases textosFasesCiclo,
+            /** Meta do peso padrão dos alunos; nulo = não muda a gravada (a coluna nunca é nula). */
+            MetaDoPeso metaDoPeso) {
 
         public MarcaRequest(String nome, String corPrimaria, Consultoria.Fonte fonteTitulo, Consultoria.Tema temaPadrao,
                             Long versao) {
-            this(nome, corPrimaria, fonteTitulo, temaPadrao, versao, null, null);
+            this(nome, corPrimaria, fonteTitulo, temaPadrao, versao, null, null, null);
         }
 
         public MarcaRequest(String nome, String corPrimaria, Consultoria.Fonte fonteTitulo, Consultoria.Tema temaPadrao,
                             Long versao, Integer diasAtualizacaoPadrao) {
-            this(nome, corPrimaria, fonteTitulo, temaPadrao, versao, diasAtualizacaoPadrao, null);
+            this(nome, corPrimaria, fonteTitulo, temaPadrao, versao, diasAtualizacaoPadrao, null, null);
         }
     }
 
     public record ConsultoriaResponse(MarcaPublica marca, Long versao, Integer diasAtualizacaoPadrao,
-                                     br.com.treinos.api.ciclo.CicloDtos.TextosDasFases textosFasesCiclo) {
+                                     br.com.treinos.api.ciclo.CicloDtos.TextosDasFases textosFasesCiclo,
+                                     MetaDoPeso metaDoPeso) {
     }
 
     private final ConsultoriaRepository consultorias;
@@ -59,9 +62,11 @@ public class MarcaService {
     private final UsuarioRepository usuarios;
     private final PerfilRepository perfis;
     private final br.com.treinos.api.ciclo.CicloMenstrualService ciclo;
+    private final br.com.treinos.api.auditoria.Auditoria auditoria;
 
     public MarcaService(ConsultoriaRepository consultorias, LogoRepositorio logos, UsuarioRepository usuarios, PerfilRepository perfis,
-                        br.com.treinos.api.ciclo.CicloMenstrualService ciclo) {
+                        br.com.treinos.api.ciclo.CicloMenstrualService ciclo, br.com.treinos.api.auditoria.Auditoria auditoria) {
+        this.auditoria = auditoria;
         this.consultorias = consultorias;
         this.logos = logos;
         this.usuarios = usuarios;
@@ -96,6 +101,11 @@ public class MarcaService {
         c.alterarMarca(r.nome().trim(), r.corPrimaria().toUpperCase(java.util.Locale.ROOT),
                 r.fonteTitulo(), r.temaPadrao(), r.diasAtualizacaoPadrao());
         c.definirTextosFasesCiclo(ciclo.textosParaGravar(r.textosFasesCiclo()));
+        if (r.metaDoPeso() != null && r.metaDoPeso() != c.getMetaDoPeso()) {
+            c.definirMetaDoPeso(r.metaDoPeso());
+            auditoria.registrarEvento("CONSULTORIA_META_DO_PESO_ALTERADA", "CONSULTORIA", c.getId(),
+                    "Alterou a meta do peso padrão dos alunos.");
+        }
         consultorias.saveAndFlush(c);
         return resposta(c);
     }
@@ -187,7 +197,8 @@ public class MarcaService {
     }
 
     private ConsultoriaResponse resposta(Consultoria c) {
-        return new ConsultoriaResponse(MarcaPublica.de(c), c.getVersao(), c.getDiasAtualizacaoPadrao(), ciclo.textos(c.getId()));
+        return new ConsultoriaResponse(MarcaPublica.de(c), c.getVersao(), c.getDiasAtualizacaoPadrao(), ciclo.textos(c.getId()),
+                c.getMetaDoPeso());
     }
 
     private Consultoria buscar(UUID consultoriaId) {

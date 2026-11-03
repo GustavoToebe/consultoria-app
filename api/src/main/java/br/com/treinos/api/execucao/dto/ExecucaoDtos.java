@@ -97,8 +97,12 @@ public final class ExecucaoDtos {
             @Size(max = 300) String observacao) {
     }
 
-    /** {@code variacao}: diferença para o registro anterior (por data); nulo no primeiro. */
-    public record PesoResponse(UUID id, LocalDate data, BigDecimal pesoKg, BigDecimal variacao, String observacao) {
+    /**
+     * {@code variacao}: diferença para o registro anterior (por data); nulo no primeiro. {@code metaDoPeso}: a meta
+     * efetiva do aluno (a dele ou, se não tem, a da consultoria), igual em todos os itens; o app só pinta a variação.
+     */
+    public record PesoResponse(UUID id, LocalDate data, BigDecimal pesoKg, BigDecimal variacao, String observacao,
+                               br.com.treinos.api.consultoria.MetaDoPeso metaDoPeso) {
     }
 
     // ---- Pacote do aluno (offline) ----

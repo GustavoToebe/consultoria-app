@@ -44,7 +44,8 @@ public final class AlunoDtos {
      * {@code versao} só no PUT (lock otimista); no POST vai nulo. {@code telefone}, {@code cpf} e {@code endereco} são
      * dados pessoais; {@code cpf} e {@code endereco} exigem {@code ALUNO_SENSIVEL_ALTERAR} (sem ela são ignorados e o que
      * está gravado fica). {@code telefone}: nulo = não mexe; em branco = apaga; sem acesso, fica no cadastro do
-     * aluno até o acesso existir (V048).
+     * aluno até o acesso existir (V048). {@code metaDoPeso} (nulo = padrão da consultoria) é dado sensível e, como CPF e
+     * endereço, sem {@code ALUNO_SENSIVEL_ALTERAR} é ignorado (o gravado fica); com ela, o {@code PUT} o substitui.
      */
     public record AlunoRequest(
             @NotBlank @Size(max = 120) String nome,
@@ -56,7 +57,8 @@ public final class AlunoDtos {
             Endereco endereco,
             Long versao,
             @Min(1) @Max(365) Integer diasAtualizacao, UUID responsavelId,
-            @Size(max = 10) String sexo) {
+            @Size(max = 10) String sexo,
+            br.com.treinos.api.consultoria.MetaDoPeso metaDoPeso) {
 
         /** Dado pessoal e de saúde: o texto padrão do record os mostraria. */
         @Override
@@ -65,7 +67,7 @@ public final class AlunoDtos {
         }
 
         public AlunoRequest(String nome,String email,String objetivo,String observacoes,Long versao,Integer diasAtualizacao,UUID responsavelId) {
-            this(nome,email,null,objetivo,observacoes,null,null,versao,diasAtualizacao,responsavelId,null);
+            this(nome,email,null,objetivo,observacoes,null,null,versao,diasAtualizacao,responsavelId,null,null);
         }
 
         public AlunoRequest(String nome,String email,String objetivo,String observacoes,Long versao,Integer diasAtualizacao) {
@@ -109,7 +111,10 @@ public final class AlunoDtos {
                                @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
                                Instant usoDeImagemAutorizadoEm,
                                @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
-                               String sexo) {
+                               String sexo,
+                               /** Meta própria do aluno; omitida sem {@code ALUNO_SENSIVEL_LER} e quando vale a da consultoria (nulo). */
+                               @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+                               br.com.treinos.api.consultoria.MetaDoPeso metaDoPeso) {
         /**
          * {@code usuario} é o do aluno (o chamador o busca pelo {@code usuarioId}); nulo se ele ainda não tem acesso. Dele
          * saem o telefone e o e-mail de login (com {@code ALUNO_LER}) e se a senha provisória do treinador ainda não foi trocada.
@@ -127,7 +132,8 @@ public final class AlunoDtos {
                     // Anonimizado: o e-mail do usuário é só o marcador da anonimização.
                     ler && usuario != null && !a.isAnonimizado() ? usuario.getEmail() : null, usuario != null && usuario.isTrocarSenha(),
                     sensivel ? a.getUsoDeImagemAutorizadoEm() : null,
-                    ler && a.getSexo() != null ? a.getSexo().name() : null);
+                    ler && a.getSexo() != null ? a.getSexo().name() : null,
+                    sensivel ? a.getMetaDoPeso() : null);
         }
     }
 
