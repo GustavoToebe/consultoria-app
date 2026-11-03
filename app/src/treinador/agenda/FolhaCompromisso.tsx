@@ -43,8 +43,8 @@ interface Props {
  * Folha do compromisso com aluno: detalhe (participantes com a situação de cada um, editar, cancelar ou reabrir o
  * compromisso inteiro) ou formulário (novo, com repetição; editar). O novo abre no painel rápido do Google Agenda (linhas
  * com ícone, largura da folha comum) e o rodapé tem "Mais opções" + "Marcar compromisso"; "Mais opções", o "Personalizar…" da
- * repetição e a edição usam o formulário completo, em `LARGURA_EDITOR` (sem caminho de volta ao rápido: os campos são os
- * mesmos, nada se perde). Cada compromisso aberto é uma folha nova (a `key` é o id), então nada do anterior sobra. A observação é dado sensível: só aparece com `ALUNO_SENSIVEL_LER` e só se edita com
+ * repetição e a edição usam o formulário completo, em `LARGURA_EDITOR`. No compromisso novo, "Menos opções" volta ao
+ * painel rápido sem apagar o que foi digitado. A edição já abre no completo e não tem esse botão. Cada compromisso aberto é uma folha nova (a `key` é o id), então nada do anterior sobra. A observação é dado sensível: só aparece com `ALUNO_SENSIVEL_LER` e só se edita com
  * `ALUNO_SENSIVEL_ALTERAR` (a API também ignora sem a permissão).
  */
 export function FolhaCompromisso(props: Props) {
@@ -196,6 +196,7 @@ function FolhaAberta({ aberto, dataSugerida, hoje, responsaveis, carregados, aoF
   const titulo = novo ? 'Novo compromisso' : modo === 'formulario' ? 'Editar compromisso' : 'Compromisso';
   const rodape = modo === 'formulario' ? <>
     {linhaDaMensagem}
+    {novo && completo ? <Botao rotulo="Menos opções" tipo="secundario" aoTocar={() => setCompleto(false)} /> : null}
     {completo ? <Botao rotulo="Cancelar" tipo="secundario" aoTocar={novo ? aoFechar : voltarAoDetalhe} />
       : <Botao rotulo="Mais opções" tipo="secundario" aoTocar={() => setCompleto(true)} />}
     <Botao rotulo={c ? 'Salvar alterações' : 'Marcar compromisso'} aoTocar={salvar} carregando={salvando} desabilitado={salvando} motivo="Salvando." />

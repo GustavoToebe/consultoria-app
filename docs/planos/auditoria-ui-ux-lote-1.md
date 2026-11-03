@@ -75,7 +75,7 @@ O escopo foi definido pelo Gustavo em 03/11 e só mexe no app; nada muda na API.
 - [x] 2. PR A: a a e e j a l, com e2e em 390 e 1280 px (inclui o `exercicio-aluno`) — commit: `ebd3ac9d`
 - [x] 2b. PR A mesclado na `main` (#54, squash `3d65e04b`)
 - [x] 3. PR B: f, g, h e i, mais D7 e D8, na branch `auditoria-ui-ux-lote-1-b` saída da `main` em `3d65e04b` — commit: `60074116`
-- [x] 4. Responsável no `FormAluno`: na edição, sem responsável o campo abre vazio; a opção "Sem responsável" deixa tirar de propósito. Salvar sem mexer não grava quem está editando — commit: este
+- [x] 4. Responsável no `FormAluno`: na edição, sem responsável o campo abre vazio; a opção "Sem responsável" deixa tirar de propósito. Salvar sem mexer não grava quem está editando — commit: `fd6c4b6d` (#59)
 
 ## Fora do escopo
 - O lote 2 virou as frentes paralelas de 03/11 (aluno, peças, treinador e, depois do merge do PR B, `auditoria-ficha`), cada uma com plano próprio em `docs/planos/`. C3 ficou com a frente 4 (`auditoria-pecas`); C8 (paginação da Biblioteca) e os cinco erros engolidos, com a frente 5 (treinador).
