@@ -102,7 +102,7 @@ porta 8106.
   - Arquivos: `docs/design-e-front.md`, `docs/planos/auditoria-cores.md` e `docs/planos/README.md` (só a linha
     desta frente).
 - [x] 2. **Tom igual nos dois lados: domínio** (`executor`). A frente 3 (#63) já estava na `main`; a frente 5 não, e a
-  sobreposição é só de arquivo (ver "Sobreposição com a frente 5"). Commit: HASH_DOMINIO
+  sobreposição é só de arquivo (ver "Sobreposição com a frente 5"). Commit: a8164a2a
   - Arquivos:
     - `app/src/dominio/paraFazer.ts` e `paraFazer.test.ts`;
     - `app/src/dominio/anamnese.ts` e `anamnese.test.ts`;
@@ -116,7 +116,7 @@ porta 8106.
     cobrança em aberto `atencao`, D11).
     Textos novos: "Vencida há N dias" (aluno) e "Enviada · aguardando revisão" (aluno). O `gruposDeAlunos.ts` não muda.
 - [x] 3. **Desabilitado cinza nas peças** (`executor-front`; feito pela sessão principal). A frente 4 (#64) já estava na
-  `main`. Commit: HASH_PECAS
+  `main`. Commit: dbaa03f7
   - Arquivos: `app/src/ui/Botao.tsx`, `TelaPublica.tsx`, `IconeBotao.tsx`, `Escolha.tsx`, `EscolhaEmFolha.tsx`,
     `CaixaSelecao.tsx`, `SelecaoMultiplaSuspensa.tsx` e `BotaoMarcar.tsx`; `app/src/components/ui/button.tsx`,
     `input.tsx`, `toggle-group.tsx`, `toggle.tsx`, `label.tsx` e `tabs.tsx`; `app/src/ui/contrasteDasPecas.test.ts`;
@@ -127,25 +127,25 @@ porta 8106.
     - o jest confere `textoSuave` sobre `superficie3` ≥ 4,5 nos três temas e no contraste alto;
     - o e2e confere com `toHaveCSS` que um `Botao` primário desabilitado tem fundo `superficie3` e texto
       `textoSuave`, e não a marca.
-- [x] 4. **Desabilitado cinza nas telas que pintam à mão** (`executor-front`; feito pela sessão principal). Commit: HASH_PECAS
+- [x] 4. **Desabilitado cinza nas telas que pintam à mão** (`executor-front`; feito pela sessão principal). Commit: dbaa03f7
   - Arquivos: `app/src/treinador/treino/EditorDeTreino.tsx` (PR B), `app/src/treinador/dieta/EditorDeDieta.tsx`
     (PR B), `app/src/treinador/questionarios/SecoesDoQuestionario.tsx`,
     `app/src/treinador/marca/FolhaDoCatalogo.tsx` e `app/src/aluno/atualizacao/QuestionarioAtualizacao.tsx`
     (frente 3).
   - Aceite: os mesmos tokens do passo 3; os e2e dos editores e da atualização continuam verdes.
-- [x] 5. **Selo opaco** (`executor-front`; feito pela sessão principal). Commit: HASH_SELO
+- [x] 5. **Selo opaco** (`executor-front`; feito pela sessão principal). Commit: 350c89e5
   - Arquivos: `app/src/ui/Selo.tsx`, `app/src/ui/contrasteDasPecas.test.ts` e `app/e2e/editor-clareza.spec.ts`.
   - Aceite:
     - o jest confere cada tom sobre o próprio `tingido` ≥ 4,5 nos três temas;
     - o e2e confere com `toHaveCSS('background-color')` o selo "Cardio" na faixa do exercício, no claro e no escuro.
-- [x] 6. **Aviso de rodapé com tom de atenção** (`executor-front`; feito pela sessão principal). Commit: HASH_SELO
+- [x] 6. **Aviso de rodapé com tom de atenção** (`executor-front`; feito pela sessão principal). Commit: 350c89e5 e, no `FormMarca`, 2818fdd5
   - Arquivos: `app/src/ui/Aviso.tsx`, `app/src/treinador/marca/FormMarca.tsx`,
     `app/src/treinador/seguranca/VerificacaoEmDuasEtapas.tsx`,
     `app/src/treinador/interessados/RespostaComModelo.tsx` (frente 4) e
     `app/src/aluno/financeiro/CartaoMeuPlano.tsx` (frente 3).
   - Aceite: os quatro alertas do inventário saem em âmbar, com ícone. O de erro continua vermelho e fica até ser
     fechado.
-- [x] 7. **Marca parecida com erro** (D10). Commit: HASH_MARCA
+- [x] 7. **Marca parecida com erro** (D10). Commit: 2818fdd5
   - 7a (`executor`): `app/src/dominio/paletas.ts` e `paletas.test.ts`, com o aviso de cor perto de um status, pela
     distância já usada em `tokens.test.ts`.
   - 7b (`executor-front`): `app/src/treinador/marca/FormMarca.tsx` (o aviso) e `app/src/ui/PainelConfirmacao.tsx`
@@ -154,7 +154,7 @@ porta 8106.
     aparece na Marca e não bloqueia o Salvar.
 - [x] 8. **Exceções da marca** (D8 e D9: "manter"). Sem código: a lista fechada da seção 4.5 ganhou as duas linhas,
   no mesmo commit destas respostas. Commit: 5be35f16
-- [x] 9. **Ponteiros** (`executor-rapido`; feito pela sessão principal). Commit: HASH_DOCS
+- [x] 9. **Ponteiros** (`executor-rapido`; feito pela sessão principal). Commit: 29278146
   - Arquivos: `AGENTS.md` (linha "Design": "tabela situação → cor em `docs/design-e-front.md` 4.5") e
     `app/src/tema/tokens.ts` (o comentário do topo aponta para a mesma tabela).
 
