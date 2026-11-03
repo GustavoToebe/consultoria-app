@@ -304,7 +304,7 @@ public class PastaService {
         }
         if (!repetidos.isEmpty()) {
             throw new ConflitoComRecursoException("A pasta tem mais de um plano de " + String.join(" e de ", tipos)
-                    + " com alteração a publicar. Deixe só um por tipo (arquive ou publique o outro) e tente de novo. "
+                    + " com alteração a publicar. Deixe só um por tipo: arquive o que não deve ir ao aluno e tente de novo. "
                     + "Nada foi publicado.", "PLANOS_PENDENTES_DUPLICADOS", repetidos);
         }
     }

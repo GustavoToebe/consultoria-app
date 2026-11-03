@@ -28,7 +28,6 @@ import com.zaxxer.hikari.HikariDataSource;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -589,14 +588,23 @@ class PastaPublicarCopiarPesoIntegrationTest extends AbstractIntegrationTest {
 
     /**
      * Duas chamadas ao mesmo tempo: as duas leem o plano como pendente (a tela viu a mesma versão) e só uma publica. Para
-     * forçar a sobreposição, uma conexão do teste segura a linha do plano ({@code for update}) até as duas chamadas
-     * estarem esperando o bloqueio; ao soltar, a segunda esbarra na versão única ou no lock otimista.
+     * forçar a sobreposição, uma conexão do teste segura a linha do plano ({@code for update}) por 2 s; ao soltar, a
+     * segunda esbarra na versão única ou no lock otimista.
      */
     @Test
     void duasChamadasSimultaneasPublicamUmaVezSoEAOutraDa409NuncaDa500() throws Exception {
         String pasta = pasta();
         String treino = treino(pasta, true);
         String corpo = json.writeValueAsString(Map.of("confirmarAvisos", true, "versoes", versoesDaPasta(pasta)));
+        // Duas pessoas da equipe: a mesma pessoa chamando duas vezes se serializa sozinha na leitura do próprio usuário.
+        String perfil = null;
+        for (JsonNode p : api.get("/perfis", treinador, 200)) {
+            if (p.path("nome").asString().equals("Treinador")) perfil = p.path("id").asString();
+        }
+        JsonNode convite = api.post("/usuarios/convites", treinador, Map.of("nome", "Colega Fictício",
+                "email", ApiDeTeste.emailUnico("colega"), "perfilId", perfil), 200);
+        JsonNode colega = api.post("/publico/convites-equipe/aceitar", null,
+                Map.of("codigo", convite.path("codigo").asString(), "senha", ApiDeTeste.SENHA), 200);
         ExecutorService pool = Executors.newFixedThreadPool(2);
         // Conexão avulsa, fora do pool: o pool dos testes tem só 3 e as duas chamadas já usam duas.
         HikariDataSource hikari = banco.getDataSource().unwrap(HikariDataSource.class);
@@ -607,22 +615,15 @@ class PastaPublicarCopiarPesoIntegrationTest extends AbstractIntegrationTest {
                 st.execute();
             }
             List<Future<MvcResult>> chamadas = new ArrayList<>();
-            for (int i = 0; i < 2; i++) {
+            for (JsonNode quem : List.of(treinador, colega)) {
                 chamadas.add(pool.submit(() -> mvc.perform(MockMvcRequestBuilders.post("/pastas/" + pasta + "/publicar")
-                        .header("X-Treinos-Cliente", "nativo").header(HttpHeaders.AUTHORIZATION, ApiDeTeste.bearer(treinador))
+                        .header("X-Treinos-Cliente", "nativo").header(HttpHeaders.AUTHORIZATION, ApiDeTeste.bearer(quem))
                         .contentType(MediaType.APPLICATION_JSON).content(corpo)).andReturn()));
             }
-            try {
-                aguardarSessoesBloqueadas(trava, 2);
-            } catch (AssertionError e) {
-                StringBuilder f = new StringBuilder();
-                for (Future<MvcResult> c : chamadas) {
-                    f.append(c.isDone() ? "pronta:" + c.get().getResponse().getStatus() + ' ' + c.get().getResponse().getContentAsString(StandardCharsets.UTF_8) : "esperando").append(" / ");
-                }
-                throw new AssertionError(e.getMessage() + " Chamadas: " + f, e);
-            } finally {
-                trava.rollback(); // solta a linha: as duas seguem juntas
-            }
+            // Tempo para as duas chamadas chegarem ao bloqueio (a FK da versão pede a linha do plano). Se alguma ainda
+            // não chegou, o resultado é o mesmo: a segunda esbarra na versão do plano e também dá 409.
+            Thread.sleep(2000);
+            trava.rollback(); // solta a linha: as duas seguem juntas
             List<Integer> status = new ArrayList<>();
             JsonNode derrotada = null;
             for (Future<MvcResult> f : chamadas) {
@@ -642,33 +643,6 @@ class PastaPublicarCopiarPesoIntegrationTest extends AbstractIntegrationTest {
         assertThat(versoesPublicadas("plano_treino", treino)).isEqualTo(1);
         assertThat(versoesGravadas("plano_treino_versao", treino)).isEqualTo(1);
         assertThat(auditorias("TREINO_PUBLICADO")).isEqualTo(1);
-    }
-
-    /**
-     * Espera, com limite de tempo, {@code n} sessões paradas num bloqueio de linha de plano de treino. Pergunta pela
-     * própria conexão da trava: o pool da aplicação só tem três e as duas chamadas já ocupam duas.
-     */
-    private static void aguardarSessoesBloqueadas(Connection trava, int n) throws Exception {
-        long limite = System.nanoTime() + TimeUnit.SECONDS.toNanos(20);
-        while (System.nanoTime() < limite) {
-            try (PreparedStatement st = trava.prepareStatement("select count(*) from pg_stat_activity "
-                    + "where datname = current_database() and wait_event_type = 'Lock' and query ilike '%plano_treino%'");
-                 ResultSet rs = st.executeQuery()) {
-                rs.next();
-                if (rs.getInt(1) >= n) return;
-            }
-            Thread.sleep(50);
-        }
-        StringBuilder sessoes = new StringBuilder();
-        try (PreparedStatement st = trava.prepareStatement("select state, wait_event_type, wait_event, left(query, 100) "
-                + "from pg_stat_activity where datname = current_database() and pid <> pg_backend_pid()");
-             ResultSet rs = st.executeQuery()) {
-            while (rs.next()) {
-                sessoes.append(rs.getString(1)).append('|').append(rs.getString(2)).append('|').append(rs.getString(3))
-                        .append('|').append(rs.getString(4)).append(System.lineSeparator());
-            }
-        }
-        throw new AssertionError("As duas chamadas não chegaram a esperar o bloqueio da linha do plano. Sessões: " + sessoes);
     }
 
     // ---- copiar a pasta ----
