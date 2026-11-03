@@ -1,6 +1,7 @@
 import { Medal } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 
+import { partesDaDica } from '../dominio/dicaDeCarga';
 import { numeroParaTela } from '../dominio/formatos';
 import { textoDoRecorde, type Recorde } from '../dominio/recordesPessoais';
 import { useTema } from '../tema/TemaProvider';
@@ -65,6 +66,45 @@ export function MetaDaSerie({ texto, complemento }: { texto: string; complemento
   );
 }
 
+/**
+ * A meta ao lado do campo de carga (D5, 02/11): rótulo "Meta", as repetições grandes ("3 a 6 reps") e, menores, o resto
+ * da prescrição e o descanso. Mesmo visual da `MetaDaSerie` (faixa `superficie3` com borda à esquerda), mas compacta, para
+ * caber na linha do peso e das repetições.
+ */
+export function MetaAoLado({ repeticoes, resto, descanso, numero }: { repeticoes: string; resto: string | null; descanso: string | null; numero: number }) {
+  const { cores } = useTema();
+  const complemento = [resto, descanso].filter(Boolean).join(' · ');
+  return (
+    <View
+      style={[estilos.metaAoLado, { backgroundColor: cores.superficie3, borderLeftColor: cores.bordaCampo }]}
+      accessible
+      accessibilityLabel={`Meta da série ${numero}: ${repeticoes}${complemento ? `. ${complemento}` : ''}`}>
+      <Texto variante="secao">Meta</Texto>
+      <Texto numerico style={estilos.repsDaMeta} cor={cores.texto}>{repeticoes}</Texto>
+      {complemento ? <Texto numerico variante="pequeno">{complemento}</Texto> : null}
+    </View>
+  );
+}
+
+/**
+ * A dica ao lado do campo (D1, 02/11): "Sugestão: 60 kg · Última vez: 60 kg × 7" (ou "Primeira vez: escolha a carga") e,
+ * menor, de onde saiu a sugestão. Só texto: a carga nunca vai para o campo sem o aluno escolher.
+ */
+export function DicaDoCampo({ dica, origem, numero }: { dica: string; origem: string | null; numero: number }) {
+  const { cores } = useTema();
+  const { destaque, resto } = partesDaDica(dica);
+  return (
+    <View style={estilos.dica} accessible accessibilityLabel={`Dica da série ${numero}: ${dica}${origem ? `. ${origem}` : ''}`}>
+      <Texto numerico style={estilos.restoDaDica} cor={cores.textoSuave}>
+        {destaque ? <Texto numerico style={estilos.textoDaDica} cor={cores.texto}>{destaque}</Texto> : null}
+        {destaque && resto ? ' · ' : null}
+        {resto}
+      </Texto>
+      {origem ? <Texto numerico variante="pequeno">{origem}</Texto> : null}
+    </View>
+  );
+}
+
 /** "Último registro 60 kg × 8": a mesma série da última vez ("—" = não casou com nenhuma ou não foi feita). */
 export function LinhaDoUltimoRegistro({ texto, numero }: { texto: string; numero: number }) {
   return (
@@ -100,4 +140,9 @@ const estilos = StyleSheet.create({
   linha: { flexDirection: 'row', alignItems: 'baseline', gap: espaco(0.75), flexWrap: 'wrap' },
   rotuloDaLinha: { fontFamily: fontes.semi },
   hoje: { marginTop: espaco(0.5) },
+  metaAoLado: { borderRadius: RAIO, borderLeftWidth: 3, paddingVertical: espaco(0.75), paddingHorizontal: espaco(1), gap: 2, justifyContent: 'center', minHeight: 52 },
+  repsDaMeta: { fontFamily: fontes.semi, fontSize: 20, lineHeight: 26 },
+  dica: { gap: 2 },
+  textoDaDica: { fontFamily: fontes.semi, fontSize: 14, lineHeight: 20 },
+  restoDaDica: { fontFamily: fontes.normal, fontSize: 14, lineHeight: 20 },
 });

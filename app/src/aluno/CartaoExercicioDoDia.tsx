@@ -22,7 +22,7 @@ import { ehExercicioDeCardio } from './serieDoAluno';
 export function CartaoExercicioDoDia({
   exercicio: e,
   posicao,
-  feitas,
+  contagem: { total, feitas },
   cargaDoDia,
   ultima,
   tipoTrabalho,
@@ -33,7 +33,8 @@ export function CartaoExercicioDoDia({
 }: {
   exercicio: ExercicioPlano;
   posicao: number;
-  feitas: number;
+  /** A contagem da D6 (`contagemDoExercicio`): a mesma do título do exercício e da faixa. */
+  contagem: { total: number; feitas: number };
   cargaDoDia: number | null;
   ultima: UltimaCarga | null;
   tipoTrabalho: string;
@@ -45,8 +46,9 @@ export function CartaoExercicioDoDia({
   aoAbrir: () => void;
 }) {
   const { cores } = useTema();
-  const total = e.series.length;
   const completo = total > 0 && feitas >= total;
+  // Só aquecimento: nada entra na contagem, mas as séries continuam planejadas.
+  const planejadas = total || e.series.length;
   const cardio = ehExercicioDeCardio(e);
   const resumo = cardio
     ? null
@@ -86,10 +88,12 @@ export function CartaoExercicioDoDia({
           </Texto>
         ) : (
           <Texto numerico variante="suave" style={estilos.carga}>
-            {total} {total === 1 ? 'série planejada' : 'séries planejadas'}
+            {planejadas} {planejadas === 1 ? 'série planejada' : 'séries planejadas'}
           </Texto>
         )}
-        <Selo texto={`${feitas}/${total} séries`} tipo={completo ? 'sucesso' : feitas ? 'atencao' : 'neutro'} />
+        {total > 0 ? (
+          <Selo texto={`${feitas}/${total} séries`} tipo={completo ? 'sucesso' : feitas ? 'atencao' : 'neutro'} />
+        ) : null}
       </View>
     </Pressable>
   );

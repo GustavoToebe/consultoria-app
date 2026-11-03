@@ -14,12 +14,12 @@ import { useTelaAcesa } from '../../../../aluno/useTelaAcesa';
 import { useAluno } from '../../../../offline/AlunoProvider';
 import { caminhoDaSessao, useSessaoDoDia } from '../../../../aluno/useSessaoDoDia';
 import { posicaoNoGrupo } from '../../../../dominio/combinacoes';
-import { podeConcluirEm } from '../../../../dominio/conclusaoDoTreino';
+import { contagemDeSeries, podeConcluirEm } from '../../../../dominio/conclusaoDoTreino';
 import { concluirEmDestaque } from '../../../../dominio/destaqueDaConclusao';
 import { dataCurta } from '../../../../dominio/formatos';
 import { textoDaContagem } from '../../../../dominio/recordesPessoais';
 import { MODALIDADES } from '../../../../dominio/modalidades';
-import { nomeComDia, totalDeSeries } from '../../../../dominio/semana';
+import { nomeComDia } from '../../../../dominio/semana';
 import { vezNoGrupo } from '../../../../dominio/vezNoGrupo';
 import { espaco, fontes } from '../../../../tema/tokens';
 import { Botao } from '../../../../ui/Botao';
@@ -77,9 +77,9 @@ export default function ExercicioDaSessao() {
   const depoisDoGrupo = sessao.exercicios[noGrupo ? noGrupo.grupo.inicio + noGrupo.tamanho : posicao + 1];
   const proximo = vez ?? depoisDoGrupo;
   const ir = (destino: string) => router.replace(caminhoDaSessao(sessao.uid, data, destino));
-  const feitasNoDia = sessao.exercicios.reduce((n, x) => n + dia.feitas(x), 0);
-  const totalNoDia = totalDeSeries(sessao);
-  const conclusao = { versaoId: dia.treino.versaoId, sessao, data, hoje: dia.hoje, feita: (serieUid: string) => !!dia.registroDe(serieUid)?.concluida };
+  // "x de y séries" do dia: só trabalho e pós-trabalho (D6); a vez no grupo segue olhando todas as séries.
+  const { total: totalNoDia, feitas: feitasNoDia } = contagemDeSeries(sessao, dia.estaFeita, dia.config.metodologia);
+  const conclusao = { versaoId: dia.treino.versaoId, sessao, data, hoje: dia.hoje, metodologia: dia.config.metodologia, feita: (serieUid: string) => !!dia.registroDe(serieUid)?.concluida };
   // Descanso do plano: o da próxima série a fazer (ou o da primeira que tiver), primeira opção da folha.
   const aFazer = e.series.find((s) => !dia.registroDe(s.uid)?.concluida);
   // Em superset, circuito etc. o descanso do plano é o do grupo (depois da volta); em pré e pós-exaustão, o de cada série.
@@ -177,9 +177,7 @@ export default function ExercicioDaSessao() {
           </>
         ) : (
           <>
-            <Texto numerico variante="suave">
-              {feitasNoDia} de {totalNoDia} {totalNoDia === 1 ? 'série feita' : 'séries feitas'} neste treino.
-            </Texto>
+            <Texto numerico variante="suave">{resumoDoDia}</Texto>
             <Botao rotulo="Concluir treino" Icone={Check} cheio aoTocar={() => router.replace(voltar)} />
           </>
         )}

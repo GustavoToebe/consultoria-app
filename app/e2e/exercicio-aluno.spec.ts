@@ -18,12 +18,13 @@ for (const largura of [390, 1280]) test(`aluno: carga de trabalho editável, exp
   const ultimo = (uid: string) => enviados.filter((r) => r.serieUid === uid).at(-1);
   await page.goto('/aluno/sessao/tecnicas/exemplo?data=2026-10-19');
 
-  // Série inteira (WS): a carga vem da base do dia e continua editável.
+  // Série inteira (WS): a carga da base do dia é dica ao lado do campo, que continua vazio (D1, 02/11).
   const peso1 = page.getByRole('textbox', { name: 'Peso da série 1, em quilos', exact: true });
   await expect(peso1).toHaveValue('');
   await expect(peso1).toHaveAttribute('placeholder', '—');
   await page.getByRole('textbox', { name: 'Carga de trabalho do dia', exact: true }).fill('40');
-  await expect(peso1).toHaveValue('40');
+  await expect(peso1).toHaveValue('');
+  await expect(page.getByText(/^Sugestão: 40 kg/).first()).toBeVisible();
   await expect(page.getByText(/até a falha/).last()).toBeVisible();
   await page.getByRole('button', { name: 'Explicação de WS, série 1', exact: true }).click();
   await expect(page.getByRole('dialog').getByText(/Working set:/)).toBeVisible();

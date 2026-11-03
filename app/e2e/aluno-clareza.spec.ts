@@ -41,19 +41,25 @@ for (const largura of [390, 1280]) {
     // A base do dia diz que é o ponto de partida.
     await expect(page.getByText(/^É o ponto de partida do dia\./)).toBeVisible();
 
-    // Com a base, a WS mostra o sugerido e a origem; a próxima série parte desta, então o aviso do ✓ aparece.
+    // Com a base, a WS mostra a sugestão como dica (o campo segue vazio, D1) e a origem; a próxima série parte desta,
+    // então o aviso do ✓ aparece.
     await page.getByRole('textbox', { name: 'Carga de trabalho do dia', exact: true }).fill('100');
-    await expect(page.getByRole('textbox', { name: 'Peso da série 1, em quilos', exact: true })).toHaveValue('100');
-    await expect(page.getByText(/^Sugerido: 100 kg · carga da base do dia$/)).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Peso da série 1, em quilos', exact: true })).toHaveValue('');
+    await expect(page.getByText('Sugestão: 100 kg', { exact: true })).toBeVisible();
+    await expect(page.getByText('carga da base do dia', { exact: true })).toBeVisible();
     await expect(page.getByText('As séries seguintes só usam este peso depois que você marcar ✓.', { exact: true })).toBeVisible();
 
-    // Marcar: "Ainda não registrado" some só dessa série e a sugestão dela sai (feita não sugere).
+    // Marcar com o peso vazio pergunta "Fez com 100 kg?" (D2); "Sim" grava. "Ainda não registrado" some só dessa série e
+    // a sugestão dela sai (feita não sugere).
     await page.getByRole('textbox', { name: 'Repetições da série 1', exact: true }).fill('5');
     await page.getByRole('checkbox', { name: 'Série 1 feita', exact: true }).click();
+    await expect(page.getByText('Fez com 100 kg?', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Sim, 100 kg, série 1', exact: true }).click();
     await expect(page.getByText('Ainda não registrado', { exact: true })).toHaveCount(2);
-    await expect(page.getByText(/^Sugerido: 100 kg · carga da base do dia$/)).toHaveCount(0);
+    await expect(page.getByText('Sugestão: 100 kg', { exact: true })).toHaveCount(0);
     // O Top set parte da WS registrada e diz isso.
-    await expect(page.getByText(/^Sugerido: 105 kg · 5% acima da série anterior/)).toBeVisible();
+    await expect(page.getByText('Sugestão: 105 kg', { exact: true })).toBeVisible();
+    await expect(page.getByText(/^5% acima da série anterior/)).toBeVisible();
     await expect.poll(() => enviados.filter((r) => r.serieUid === 'ws' && r.concluida).length).toBeGreaterThan(0);
     // O corpo enviado é o de sempre: carga e repetições digitadas.
     expect(enviados.filter((r) => r.serieUid === 'ws').at(-1)).toMatchObject({ carga: 100, repeticoes: 5, concluida: true });

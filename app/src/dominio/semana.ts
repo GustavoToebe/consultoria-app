@@ -1,6 +1,7 @@
-import type { ConteudoTreino, Sessao } from '../api/tipos';
+import type { Configuracao, ConteudoTreino, ExercicioPlano, Serie, Sessao } from '../api/tipos';
 import { DIAS_SEMANA, TIPOS_SESSAO } from './editorTreino';
 import { diaDaSemanaIso, somarDias } from './formatos';
+import { papelDe } from './metodologia';
 
 /** Sessão marcada para o dia da semana (1 = segunda). Sem sessão naquele dia → `null`. */
 export function sessaoDoDia(conteudo: ConteudoTreino, dia: number): Sessao | null {
@@ -22,9 +23,46 @@ export function rotuloDoTipo(s: Sessao): string {
   return TIPOS_SESSAO.find((t) => t.valor === s.tipo)?.rotulo ?? s.tipo;
 }
 
-/** Total de séries da sessão (para "3 de 18 séries feitas"). */
-export function totalDeSeries(s: Sessao): number {
-  return s.exercicios.reduce((n, e) => n + e.series.length, 0);
+/**
+ * A série entra na contagem "x de y séries" (D6, 02/11)? Só as de papel TRABALHO e POS_TRABALHO; aquecimento, preparação
+ * e "outro" ficam de fora. O papel é do TIPO da série na metodologia (`Serie.tipo` é o código). Sem metodologia, sem tipo
+ * (cardio) ou com tipo que a metodologia não conhece não há papel para excluir: a série conta, para o contador nunca
+ * esconder uma série que ninguém sabe classificar.
+ */
+export function serieContaNaContagem(serie: Pick<Serie, 'tipo'>, metodologia?: Configuracao | null): boolean {
+  const papel = papelDe(metodologia, serie.tipo);
+  return papel === null || papel === 'TRABALHO' || papel === 'POS_TRABALHO';
+}
+
+/** As séries do exercício que entram na contagem (ver `serieContaNaContagem`). */
+export function seriesDaContagem<S extends Pick<Serie, 'tipo'>>(e: { series: readonly S[] }, metodologia?: Configuracao | null): S[] {
+  return e.series.filter((s) => serieContaNaContagem(s, metodologia));
+}
+
+/** Quantas séries de um exercício entram na contagem. */
+export function totalDoExercicio(e: Pick<ExercicioPlano, 'series'>, metodologia?: Configuracao | null): number {
+  return seriesDaContagem(e, metodologia).length;
+}
+
+/**
+ * "x de y séries" de um exercício: a ÚNICA conta da contagem (D6). A tela do exercício, a faixa do treino, a lista do dia e
+ * o "Bom trabalho" (`contagemDeSeries`) saem dela. `feita` diz se a série (pelo `uid`) está concluída na data da tela.
+ */
+export function contagemDoExercicio(
+  e: Pick<ExercicioPlano, 'series'>,
+  feita: (serieUid: string) => boolean,
+  metodologia?: Configuracao | null,
+): { total: number; feitas: number } {
+  const contadas = seriesDaContagem(e, metodologia);
+  return { total: contadas.length, feitas: contadas.filter((s) => feita(s.uid)).length };
+}
+
+/**
+ * Total de séries da sessão para "3 de 18 séries feitas": só as de trabalho e pós-trabalho quando a metodologia é
+ * informada (D6); sem ela, todas.
+ */
+export function totalDeSeries(s: Sessao, metodologia?: Configuracao | null): number {
+  return s.exercicios.reduce((n, e) => n + totalDoExercicio(e, metodologia), 0);
 }
 
 /** Quantos dias para trás e para frente a API aceita registro (igual a `SincronizacaoService.DIAS_PARA_TRAS`). */

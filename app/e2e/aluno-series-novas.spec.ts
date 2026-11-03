@@ -28,14 +28,17 @@ for (const largura of [390, 1280]) {
     // Sem a carga do Top set registrada, o Back off não tem de onde calcular.
     await expect(peso(3)).toHaveValue('');
     await page.getByRole('textbox', { name: 'Repetições da série 1', exact: true }).fill('5');
+    // Peso vazio com sugestão: o ✓ pergunta "Fez com 80 kg?" (D2) e o "Sim" grava a sugestão.
     await page.getByRole('checkbox', { name: 'Série 1 feita', exact: true }).click();
-    // O Top set sobe 5% sobre a anterior (80 kg): 84 kg.
-    await expect(peso(2)).toHaveValue('84');
+    await page.getByRole('button', { name: 'Sim, 80 kg, série 1', exact: true }).click();
+    // O Top set sobe 5% sobre a anterior (80 kg): 84 kg, como dica (o campo segue vazio).
+    await expect(page.getByText(/^Sugestão: 84 kg/)).toBeVisible();
+    await expect(peso(2)).toHaveValue('');
     await peso(2).fill('100');
     await page.getByRole('textbox', { name: 'Repetições da série 2', exact: true }).fill('3');
     await page.getByRole('checkbox', { name: 'Série 2 feita', exact: true }).click();
     // Back off = 10% abaixo dos 100 kg do Top set.
-    await expect(peso(3)).toHaveValue('90');
+    await expect(page.getByText(/^Sugestão: 90 kg/)).toBeVisible();
     await expect(page.getByText(/10% abaixo/).first()).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath('top-set-back-off.png'), fullPage: true });
