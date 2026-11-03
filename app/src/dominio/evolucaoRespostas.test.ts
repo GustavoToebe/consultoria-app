@@ -57,7 +57,11 @@ describe('textoDoValor e unidadeDoGrafico', () => {
 describe('gráfico e lista', () => {
   const s = serie({ pontos: [ponto('2026-04-01', 8), ponto('2026-01-31', 6), ponto('2026-03-02', 0)] });
   it('gráfico do mais antigo ao mais novo, com a data curta', () => {
-    expect(pontosDoGrafico(s)).toEqual([{ rotulo: '31/01', valor: 6 }, { rotulo: '02/03', valor: 0 }, { rotulo: '01/04', valor: 8 }]);
+    expect(pontosDoGrafico(s)).toEqual([
+      { rotulo: '31/01', valor: 6, data: '2026-01-31' },
+      { rotulo: '02/03', valor: 0, data: '2026-03-02' },
+      { rotulo: '01/04', valor: 8, data: '2026-04-01' },
+    ]);
   });
   it('lista da mais recente para a mais antiga; o limite guarda as mais recentes', () => {
     expect(linhasDaLista(s, null).map((p) => p.data)).toEqual(['2026-04-01', '2026-03-02', '2026-01-31']);

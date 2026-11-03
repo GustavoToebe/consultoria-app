@@ -61,6 +61,10 @@ totais de `FlywayMigrationIntegrationTest` e `PapeisBancoIntegrationTest` não m
 - A D escreveu no Finalizar "O aluno vê esta observação no histórico de peso e no PDF da dieta", verdade sem a E. Com a E,
   `GET /aluno/pesos` devolve a observação nula e o PDF da dieta só é gerado pelo aluno com esses pesos: o texto voltou a
   "Só a equipe vê esta observação." (decisão de 02/11) e a coluna "Obs" do "Acompanhamento de peso" saiu do PDF.
+
+## Eixo do gráfico pela data
+O eixo do `GraficoLinha` passou a acompanhar a data (`fracaoNoEixo` em `dominio/grafico.ts`): datas próximas ficam próximas. Rótulos e o mínimo de 2 pontos não mudaram. Peso e medidas já mandavam a data; progresso e evolução das respostas passaram a mandar. Lote pendencias-app-03-11-b.
+
 ## O que ficou para trás
 - O botão "Registrar peso" (`CartaoPeso`) aparece para aluno anonimizado e a API responde 409; esconder como a avaliação
   física faz (já era assim antes da frente). Sem código agora (Gustavo, 02/11).
