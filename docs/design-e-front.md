@@ -194,7 +194,7 @@ Duas regras. Plano e passos em `docs/planos/auditoria-cores.md`.
 
 A cor nunca fala sozinha: todo status leva texto, e todo erro ou alerta leva ícone. A regra vale para qualquer marca:
 a cor da marca muda por consultoria, mas `sucesso`, `atencao` e `perigo` são fixos no tema (`tema/tokens.ts`) e nunca
-vêm da marca; por isso o status de cobrança também leva sempre o texto ("Em aberto", "Vencida", "Paga") e o ícone.
+vêm da marca; por isso o status de cobrança também leva sempre o texto ("Em aberto", "Vencida", "Paga"). O ícone no selo de cobrança ficou como pendência: o `Selo` com `Icone` vira pílula, e isso mudaria o desenho dele.
 
 **Onde a marca pode aparecer (lista fechada):**
 - ação principal: `Botao primario` e, nas telas públicas da consultoria, `BotaoPublico`;

@@ -34,9 +34,10 @@ describe('paletas da marca', () => {
   });
 
   describe('marca parecida com uma cor de status (D10)', () => {
-    it('o vermelho intenso lembra o erro e o verde lembra o sucesso', () => {
+    it('o vermelho intenso lembra o erro; verde e âmbar não avisam', () => {
       expect(avisoDeMarcaPertoDeStatus('#C62828')).toMatch(/erro \(vermelho\)/);
-      expect(avisoDeMarcaPertoDeStatus('#15803D')).toMatch(/sucesso/);
+      expect(avisoDeMarcaPertoDeStatus('#15803D')).toBeNull();
+      expect(avisoDeMarcaPertoDeStatus('#A16207')).toBeNull();
       expect(avisoDeMarcaPertoDeStatus('#c62828')).not.toBeNull();
     });
 
@@ -45,9 +46,9 @@ describe('paletas da marca', () => {
       expect(avisoDeMarcaPertoDeStatus('#7C3AED')).toBeNull();
     });
 
-    it('seis das doze Cores prontas avisam (decisão do Gustavo: pode ser ruído demais), as outras seis não', () => {
+    it('das doze Cores prontas só o Vermelho intenso e o Laranja avisam', () => {
       const avisam = PALETAS.filter((p) => avisoDeMarcaPertoDeStatus(p.cor)).map((p) => p.id);
-      expect(avisam).toEqual(['vermelho', 'laranja', 'ambar', 'verde', 'esmeralda', 'bronze']);
+      expect(avisam).toEqual(['vermelho', 'laranja']);
     });
 
     it('só avisa: a avaliação que bloqueia o Salvar não muda', () => {

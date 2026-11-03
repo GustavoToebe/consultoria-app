@@ -52,23 +52,19 @@ function lab(hex: string): [number, number, number] {
   return [116 * f(y) - 16, 500 * (f(x) - f(y)), 200 * (f(y) - f(z))];
 }
 
-/** Distância mínima (ΔE CIE76) da marca às cores de status; a mesma que o `tokens.test.ts` exige das agendas. */
+/** Distância mínima (ΔE CIE76) da marca ao vermelho de erro; a mesma que o `tokens.test.ts` exige das agendas. */
 export const DISTANCIA_DO_STATUS = 25;
 
-const NOME_DO_STATUS = { sucesso: 'sucesso (verde)', atencao: 'atenção (âmbar)', perigo: 'erro (vermelho)' } as const;
-
 /**
- * D10 do `docs/planos/auditoria-cores.md`: marca parecida com uma cor de status nos dois temas. Só avisa, nunca bloqueia
- * o Salvar; a tela distingue pela forma (ícone e rótulo) e não pela cor. Cor inválida ou longe de todos: `null`.
+ * D10 do `docs/planos/auditoria-cores.md`: marca parecida com o vermelho de erro (`perigo`) em um dos dois temas. Só avisa,
+ * nunca bloqueia o Salvar; a tela distingue pela forma (ícone e texto) e não pela cor. Verde e âmbar não avisam (decisão
+ * de 03/11: avisar nas seis cores prontas viraria ruído). Cor inválida ou longe do vermelho: `null`.
  */
 export function avisoDeMarcaPertoDeStatus(hex: string): string | null {
   if (!/^#[0-9A-Fa-f]{6}$/.test(hex)) return null;
   const alvo = lab(hex);
-  for (const chave of ['sucesso', 'atencao', 'perigo'] as const) {
-    const perto = [CLARO, ESCURO].some((t) => Math.hypot(...lab(t[chave]).map((v, i) => v - alvo[i])) < DISTANCIA_DO_STATUS);
-    if (perto) return `Esta cor lembra a de ${NOME_DO_STATUS[chave]}. Avisos e botões de confirmação continuam distintos pelo ícone e pelo texto.`;
-  }
-  return null;
+  const perto = [CLARO, ESCURO].some((t) => Math.hypot(...lab(t.perigo).map((v, i) => v - alvo[i])) < DISTANCIA_DO_STATUS);
+  return perto ? 'Esta cor lembra a de erro (vermelho). Avisos e botões de confirmação continuam distintos pelo ícone e pelo texto.' : null;
 }
 
 /**

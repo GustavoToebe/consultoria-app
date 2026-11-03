@@ -51,7 +51,7 @@ export function Escolha<T extends string | number | null>({ opcoes, valor, aoMud
                 estilos.opcao,
                 compacta && estilos.opcaoCompacta,
                 distribuida && estilos.opcaoDistribuida,
-                {
+                { // Desabilitada e selecionada ao mesmo tempo fica igual à desabilitada não selecionada (hoje nenhuma tela faz isso).
                   backgroundColor: o.desabilitada ? coresDoDesabilitado(cores).fundo : ativo ? cores.texto : cores.superficie2,
                   borderColor: o.desabilitada ? coresDoDesabilitado(cores).borda : ativo ? cores.texto : cores.borda,
                 },

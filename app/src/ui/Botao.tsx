@@ -4,7 +4,7 @@ import { ActivityIndicator, StyleSheet, View, type StyleProp, type ViewStyle } f
 
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO, textoSobre } from '../tema/tokens';
-import { coresDoDesabilitado } from './desabilitado';
+import { coresDoDesabilitado, visualDoInativo } from './desabilitado';
 import { Texto } from './Texto';
 
 type Tipo = 'primario' | 'secundario' | 'perigo' | 'fantasma' | 'perigoTexto';
@@ -42,9 +42,10 @@ export function Botao({ rotulo, rotuloAcessivel, aoTocar, tipo = 'primario', Ico
   const inativo = desabilitado || carregando;
   const semFundo = tipo === 'fantasma' || tipo === 'perigoTexto';
   const cinza = coresDoDesabilitado(cores);
-  const fundo = inativo && !semFundo ? cinza.fundo : tipo === 'primario' ? marca : tipo === 'perigo' ? cores.perigoFundo : 'transparent';
-  const texto = inativo ? cinza.texto : tipo === 'primario' ? sobreMarca : tipo === 'perigo' ? textoSobre(cores.perigoFundo) : tipo === 'perigoTexto' ? cores.perigo : cores.texto;
-  const borda = inativo && !semFundo ? cinza.borda : tipo === 'secundario' ? cores.borda : fundo;
+  const visual = visualDoInativo(desabilitado, carregando);
+  const fundo = visual.cinza && !semFundo ? cinza.fundo : tipo === 'primario' ? marca : tipo === 'perigo' ? cores.perigoFundo : 'transparent';
+  const texto = visual.cinza ? cinza.texto : tipo === 'primario' ? sobreMarca : tipo === 'perigo' ? textoSobre(cores.perigoFundo) : tipo === 'perigoTexto' ? cores.perigo : cores.texto;
+  const borda = visual.cinza && !semFundo ? cinza.borda : tipo === 'secundario' ? cores.borda : fundo;
   const explicacao = desabilitado && !carregando && motivo ? motivo : undefined;
   const botao = (
     <Button
@@ -61,7 +62,7 @@ export function Botao({ rotulo, rotuloAcessivel, aoTocar, tipo = 'primario', Ico
         {
           backgroundColor: semFundo && pressed && !inativo ? cores.superficie3 : fundo,
           borderColor: semFundo && pressed && !inativo ? cores.superficie3 : borda,
-          opacity: pressed && !semFundo && !inativo ? 0.8 : 1,
+          opacity: visual.apagado ? 0.5 : pressed && !semFundo && !inativo ? 0.8 : 1,
         },
         cheio && estilos.cheio,
         explicacao ? null : style,

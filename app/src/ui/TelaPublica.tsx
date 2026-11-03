@@ -5,7 +5,7 @@ import { ActivityIndicator, Pressable, StyleSheet, useWindowDimensions, View } f
 import type { Marca } from '../api/tipos';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO, textoSobre } from '../tema/tokens';
-import { coresDoDesabilitado } from './desabilitado';
+import { coresDoDesabilitado, visualDoInativo } from './desabilitado';
 import { MarcaTitulo } from './MarcaTitulo';
 import { Tela } from './Tela';
 import { Texto } from './Texto';
@@ -73,14 +73,15 @@ export function BotaoPublico({ rotulo, aoTocar, carregando, desabilitado, motivo
   const { cores } = useTema();
   const inativo = !!desabilitado || !!carregando;
   const cinza = coresDoDesabilitado(cores);
-  const fundo = inativo ? cinza.fundo : cor ?? cores.texto;
-  const letra = inativo ? cinza.texto : cor ? textoSobre(cor) : cores.fundo;
+  const visual = visualDoInativo(desabilitado, carregando);
+  const fundo = visual.cinza ? cinza.fundo : cor ?? cores.texto;
+  const letra = visual.cinza ? cinza.texto : cor ? textoSobre(cor) : cores.fundo;
   const explicacao = desabilitado && !carregando && motivo ? motivo : undefined;
   return (
     <View style={estilos.comMotivo}>
       <Pressable accessibilityRole="button" accessibilityLabel={rotulo} accessibilityHint={explicacao}
         accessibilityState={{ disabled: inativo, busy: !!carregando }} disabled={inativo} onPress={aoTocar}
-        style={({ pressed }) => [estilos.botao, { backgroundColor: fundo, borderColor: inativo ? cinza.borda : fundo, opacity: pressed && !inativo ? 0.85 : 1 }]}>
+        style={({ pressed }) => [estilos.botao, { backgroundColor: fundo, borderColor: visual.cinza ? cinza.borda : fundo, opacity: visual.apagado ? 0.5 : pressed && !inativo ? 0.85 : 1 }]}>
         {carregando ? <ActivityIndicator size="small" color={letra} /> : null}
         <Texto numberOfLines={2} style={[estilos.rotulo, { color: letra }]}>{rotulo}</Texto>
       </Pressable>
