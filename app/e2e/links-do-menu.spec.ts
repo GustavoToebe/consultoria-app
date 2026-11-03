@@ -23,11 +23,17 @@ test('menu lateral: cada item é um link com href e o Ctrl+clique abre em outra 
   await expect(biblioteca).toHaveAttribute('href', '/treinador/biblioteca');
   await expect(page.getByRole('link', { name: 'Alunos', exact: true })).toHaveAttribute('href', '/treinador/alunos');
 
-  // A guia nasce em branco, não tem a API simulada (o app dela volta ao Entrar assim que carrega) e só depois pede o href:
-  // a prova é a requisição de navegação, não a URL final da guia.
-  const pedido = context.waitForEvent('request', (r) => r.isNavigationRequest() && new URL(r.url()).pathname === '/treinador/biblioteca');
+  // A guia nasce em branco, não tem a API simulada (o app dela volta ao Entrar assim que carrega) e só depois carrega o href:
+  // guarda todo endereço por onde ela passa desde que nasce, para a volta ao Entrar não esconder a ida à Biblioteca.
+  const enderecos: string[] = [];
+  context.on('page', (guia) => {
+    enderecos.push(guia.url());
+    guia.on('framenavigated', (quadro) => {
+      if (quadro === guia.mainFrame()) enderecos.push(quadro.url());
+    });
+  });
   await biblioteca.click({ modifiers: ['Control'] });
-  await pedido;
+  await expect.poll(() => enderecos.some((e) => e.startsWith('http') && new URL(e).pathname === '/treinador/biblioteca')).toBe(true);
   // A guia de origem não saiu do lugar.
   expect(new URL(page.url()).pathname).toBe(`/treinador/planejamento/modelo/${ID}`);
   expect(errosDaPagina).toEqual([]);

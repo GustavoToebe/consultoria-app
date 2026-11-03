@@ -85,9 +85,10 @@ for (const largura of [390, 1280, 3440]) {
     await expect(page.getByRole('button', { name: 'Baixar imagem' })).toBeDisabled();
     await expect(page.getByText('O aluno ainda não autorizou o uso das fotos.').first()).toBeVisible();
     await page.getByRole('button', { name: 'Fechar' }).click();
-    // Fechar a Folha mexe no histórico do navegador; recarregar com isso em andamento aborta a navegação (ERR_ABORTED).
+    // Fechar a Folha volta a entrada dela no histórico (`history.go`, assíncrono); recarregar antes do `popstate` aborta a
+    // navegação (ERR_ABORTED). Espera a entrada da Folha sair do histórico.
     await expect(page.getByRole('dialog', { name: 'Gerar imagem' })).toHaveCount(0);
-    await page.waitForLoadState('networkidle');
+    await page.waitForFunction(() => !(window.history.state as { folhaNivel?: number } | null)?.folhaNivel);
 
     await page.route(`**/api/alunos/${ALUNO_ID}`, async (route) => {
       if (route.request().method() !== 'GET') return route.fallback();
