@@ -18,7 +18,7 @@ import { useFavoritos } from './useFavoritos';
  * Barra de topo do treinador na web (o `Navegacao` só a monta com o menu lateral): busca "O que você deseja fazer?"
  * à esquerda, o botão "Todas as telas" (com favoritos; só ícone no trilho até 1024 px) e o cartão do usuário à
  * direita. O nome da tela não se repete aqui: ele é o h1 da própria tela e o título da aba do navegador. O cartão do
- * usuário fica realçado nas telas da conta (Meus dados, Segurança, Minha conta, Marca, Ajustes). No celular não existe.
+ * usuário fica realçado nas telas da conta (Meus dados, Segurança, Assinatura e faturas, Marca, Ajustes). No celular não existe.
  */
 export function BarraTopo() {
   const caminho = usePathname();

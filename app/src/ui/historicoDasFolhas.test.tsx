@@ -192,3 +192,54 @@ describe('depoisDeFecharAsFolhas com o navegador lento (o popstate passa das esp
     expect(depois).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('portalDaFolhaDoTopo no celular', () => {
+  it('devolve o portal da Folha aberta por último e some quando ela fecha', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    jest.replaceProperty((require('react-native') as typeof import('react-native')).Platform, 'OS', 'ios');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const React = require('react') as typeof import('react');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const Renderer = require('react-test-renderer') as typeof import('react-test-renderer');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const historico = require('./historicoDasFolhas') as typeof import('./historicoDasFolhas');
+    function FolhaFalsa({ nome }: { nome: string }) {
+      historico.useFolhaNoHistorico(() => undefined, { nome, elemento: null });
+      return null;
+    }
+    const folhas = (nomes: string[]) => React.createElement(React.Fragment, null, nomes.map((n) => React.createElement(FolhaFalsa, { key: n, nome: n })));
+    let raiz!: import('react-test-renderer').ReactTestRenderer;
+    Renderer.act(() => { raiz = Renderer.create(folhas(['a', 'b'])); });
+    expect(historico.portalDaFolhaDoTopo()?.nome).toBe('b');
+    Renderer.act(() => { raiz.update(folhas(['a'])); });
+    expect(historico.portalDaFolhaDoTopo()?.nome).toBe('a');
+    Renderer.act(() => { raiz.update(folhas([])); });
+    expect(historico.portalDaFolhaDoTopo()).toBeUndefined();
+  });
+
+  it('no Android, a Folha que está fechando fica de fora: vale a de baixo, ou a raiz', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    jest.replaceProperty((require('react-native') as typeof import('react-native')).Platform, 'OS', 'android');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const React = require('react') as typeof import('react');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const Renderer = require('react-test-renderer') as typeof import('react-test-renderer');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const historico = require('./historicoDasFolhas') as typeof import('./historicoDasFolhas');
+    function FolhaFalsa({ nome }: { nome: string }) {
+      historico.useFolhaNoHistorico(() => undefined, { nome, elemento: null });
+      return null;
+    }
+    const folhas = (nomes: string[]) => React.createElement(React.Fragment, null, nomes.map((n) => React.createElement(FolhaFalsa, { key: n, nome: n })));
+    let raiz!: import('react-test-renderer').ReactTestRenderer;
+    Renderer.act(() => { raiz = Renderer.create(folhas(['pasta', 'novo-treino'])); });
+    expect(historico.portalDaFolhaDoTopo()?.nome).toBe('novo-treino');
+    historico.marcarFolhaDoTopoFechando();
+    expect(historico.portalDaFolhaDoTopo()?.nome).toBe('pasta');
+    Renderer.act(() => { raiz.update(folhas(['pasta'])); });
+    expect(historico.portalDaFolhaDoTopo()?.nome).toBe('pasta');
+    historico.marcarFolhaDoTopoFechando();
+    expect(historico.portalDaFolhaDoTopo()).toBeUndefined();
+    Renderer.act(() => { raiz.unmount(); });
+  });
+});

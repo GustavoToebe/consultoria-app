@@ -6,7 +6,7 @@ const ABAS: readonly { valor: AbaDaBiblioteca; rotulo: string; permissao: string
   { valor: 'alimentos', rotulo: 'Alimentos', permissao: null },
   { valor: 'suplementos', rotulo: 'Suplementos', permissao: null },
   { valor: 'ergogenicos', rotulo: 'Outros', permissao: 'ERGOGENICO_LER' },
-  { valor: 'catalogo', rotulo: 'Importar do catálogo', permissao: null },
+  { valor: 'catalogo', rotulo: 'Copiar do catálogo pronto', permissao: null },
 ];
 
 /** Só as abas que o perfil pode abrir: sem a permissão, a aba nem aparece. */

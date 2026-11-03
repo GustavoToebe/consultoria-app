@@ -22,7 +22,7 @@ const ABAS: { valor: Aba; rotulo: string }[] = [
 ];
 
 /**
- * Minha conta (só com `CONTA_LER`): cadastro, assinatura e faturas da consultoria e o consumo do plano. Só consulta. Enquanto
+ * Assinatura e faturas (rota `/treinador/minha-conta`, só com `CONTA_LER`): cadastro, assinatura e faturas da consultoria e o consumo do plano. Só consulta. Enquanto
  * a Central não está ligada, `previa` vem verdadeiro e a tela avisa que os dados são de demonstração.
  */
 export default function MinhaConta() {
@@ -34,9 +34,9 @@ export default function MinhaConta() {
   const consumo = useCarregar('consumo-do-plano', () => consumoDoPlano());
   return (
     <Tela bordas={['top']} largura={LARGURA_EDITOR}>
-      <Cabecalho titulo="Minha conta" subtitulo="Assinatura da consultoria: cadastro, plano e faturas." />
+      <Cabecalho titulo="Assinatura e faturas" subtitulo="Cadastro da consultoria, plano contratado e faturas." />
       {conta.dados?.previa ? (
-        <Alerta tom="atencao" titulo="Prévia" texto="Dados de demonstração. Os dados reais virão da central de contratação." />
+        <Alerta tom="atencao" titulo="Prévia" texto="Dados de demonstração. Os dados reais da sua assinatura aparecem aqui quando estiverem disponíveis." />
       ) : null}
       {conta.carregando && !conta.dados ? <Esqueleto /> : null}
       {conta.erro ? (

@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
-import type { AlunoDetalhe, AnamneseDetalhe, AnamneseResumo, ConteudoQuestionario } from '../src/api/tipos';
-import { ALUNO, erroApi, json, sessao, simularApi, TREINADOR } from './api-falsa';
+import type { AlunoDetalhe, AnamneseDetalhe, AnamneseResumo, Atualizacao, ConteudoQuestionario, PastaResumo } from '../src/api/tipos';
+import { ALUNO, erroApi, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
 import { sessaoDeAluno } from './aluno';
 
 /**
@@ -347,6 +347,16 @@ for (const { largura, altura } of [{ largura: 1280, altura: 900 }, { largura: 39
 // ---------------------------------------------------------------------------------------------------------------------
 
 const NOVO_ID = 'a0000000-0000-4000-8000-000000000009';
+const ATUALIZACAO_ID = 'e0000000-0000-4000-8000-000000000005';
+const PASTA: PastaResumo = {
+  id: 'f0000000-0000-4000-8000-000000000017', alunoId: ALUNO_ID, titulo: 'Plano 17', inicio: '2026-10-06', fim: '2026-10-20', concluidaEm: null,
+};
+const ATUALIZACAO_ENVIADA: Atualizacao = {
+  id: ATUALIZACAO_ID, pastaId: 'f0000000-0000-4000-8000-000000000017', alunoId: ALUNO_ID, nomeAluno: ALUNO.nome,
+  dataAtualizacao: '2026-10-20', fase: 'ENVIADA', diasParaData: -11, diasDeAtraso: 0, atrasoAte: null, atrasoMotivo: null,
+  questionarioVersaoNumero: 1, questionarioVersaoId: 'q0000000-0000-4000-8000-000000000001', questionarioNome: 'Padrão',
+  modelo: null, respostas: null, enviadaEm: '2026-10-20T12:00:00Z', feedback: null, versao: 1, resumo: null,
+};
 const NOVO: AlunoDetalhe = { ...FICHA, id: NOVO_ID, nome: 'Aluno Novo Fictício', telefone: null, objetivo: null, cpf: null, endereco: null, versao: 0 };
 const titulosDeNivel1 = (page: Page) => page.locator('h1, [role="heading"][aria-level="1"]');
 const sairSemSalvar = (page: Page) => page.getByText('Sair sem salvar?', { exact: true });
@@ -447,6 +457,166 @@ for (const largura of [390, 1280]) {
     await page.getByRole('button', { name: 'Voltar', exact: true }).click();
     await page.getByRole('button', { name: 'Sair sem salvar', exact: true }).click();
     await expect(page).toHaveURL(/\/treinador\/alunos$/);
+    expect(errosDaPagina).toEqual([]);
+  });
+  // D7: navegar de dentro da ficha com a edição aberta passa pela mesma pergunta (o layout é Slot: sem isto o push
+  // desmontava o formulário sem perguntar).
+  test(`ficha (${largura}px): "Revisar atualização" com a edição alterada pergunta; sem alteração vai direto`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { errosDaPagina } = await simularApi(page, {
+      ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'ATUALIZACAO_LER'] })),
+      ...ROTAS_DA_FICHA,
+      ...CEP_SEM_RESULTADO,
+      'GET /responsaveis': { corpo: [{ id: TREINADOR.id, nome: TREINADOR.nome }] },
+      [`GET /alunos/${ALUNO_ID}`]: { corpo: FICHA },
+      [`GET /alunos/${ALUNO_ID}/atualizacao`]: { corpo: ATUALIZACAO_ENVIADA },
+      [`GET /atualizacoes/${ATUALIZACAO_ID}`]: { corpo: ATUALIZACAO_ENVIADA },
+    });
+    const revisar = page.getByRole('button', { name: 'Revisar atualização', exact: true });
+    const destino = new RegExp(`/treinador/atualizacoes/${ATUALIZACAO_ID}`);
+
+    // Com o nome mudado: pergunta; "Continuar editando" fica na ficha com o que foi digitado.
+    await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+    await page.getByRole('button', { name: 'Editar', exact: true }).click();
+    await page.getByLabel('Nome', { exact: true }).fill('Nome Trocado Fictício');
+    await revisar.click();
+    await expect(sairSemSalvar(page)).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath(`ficha-revisar-guarda-${largura}.png`) });
+    await page.getByRole('button', { name: 'Continuar editando', exact: true }).click();
+    await expect(sairSemSalvar(page)).toHaveCount(0);
+    await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${ALUNO_ID}$`));
+    await expect(page.getByLabel('Nome', { exact: true })).toHaveValue('Nome Trocado Fictício');
+
+    // "Sair sem salvar" segue para a revisão.
+    await revisar.click();
+    await page.getByRole('button', { name: 'Sair sem salvar', exact: true }).click();
+    await expect(page).toHaveURL(destino);
+
+    // Sem alteração (edição aberta e intacta): vai direto, sem painel.
+    await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+    await page.getByRole('button', { name: 'Editar', exact: true }).click();
+    await expect(page.getByLabel('Nome', { exact: true })).toHaveValue(ALUNO.nome);
+    await revisar.click();
+    await expect(page).toHaveURL(destino);
+    await expect(sairSemSalvar(page)).toHaveCount(0);
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  // D7 de dentro de uma Folha: a pergunta aparece na própria Folha; "Continuar editando" deixa a Folha aberta e o nome
+  // como estava; "Sair sem salvar" fecha a Folha e vai à revisão, e o voltar do navegador cai na ficha limpa.
+  test(`ficha (${largura}px): sair pela Folha da pasta com a edição alterada pergunta ali e o voltar cai na ficha`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { errosDaPagina } = await simularApi(page, {
+      ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'ATUALIZACAO_LER', 'PASTA_ALTERAR'] })),
+      ...ROTAS_DA_FICHA,
+      ...CEP_SEM_RESULTADO,
+      'GET /responsaveis': { corpo: [{ id: TREINADOR.id, nome: TREINADOR.nome }] },
+      [`GET /alunos/${ALUNO_ID}`]: { corpo: FICHA },
+      [`GET /alunos/${ALUNO_ID}/pastas`]: { corpo: [PASTA] },
+      [`GET /alunos/${ALUNO_ID}/atualizacao`]: { corpo: ATUALIZACAO_ENVIADA },
+      [`GET /alunos/${ALUNO_ID}/atualizacoes`]: { corpo: [ATUALIZACAO_ENVIADA] },
+      [`GET /atualizacoes/${ATUALIZACAO_ID}`]: { corpo: ATUALIZACAO_ENVIADA },
+    });
+    const folha = page.getByRole('dialog');
+    await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+    await page.getByRole('button', { name: 'Editar', exact: true }).click();
+    await page.getByLabel('Nome', { exact: true }).fill('Nome Trocado Fictício');
+    await page.getByRole('button', { name: /^Pasta Plano 17, aberta/ }).click();
+    const revisarNaFolha = folha.getByRole('button', { name: 'Revisar atualização', exact: true });
+    await revisarNaFolha.click();
+    await expect(folha.getByText('Sair sem salvar?', { exact: true })).toBeVisible();
+    await folha.getByRole('button', { name: 'Continuar editando', exact: true }).click();
+    await expect(sairSemSalvar(page)).toHaveCount(0);
+    await expect(revisarNaFolha).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${ALUNO_ID}$`));
+
+    await revisarNaFolha.click();
+    await folha.getByRole('button', { name: 'Sair sem salvar', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/treinador/atualizacoes/${ATUALIZACAO_ID}`));
+    await page.goBack();
+    await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${ALUNO_ID}$`));
+    await expect(page.getByRole('heading', { name: ALUNO.nome, level: 1 })).toBeVisible();
+    await expect(sairSemSalvar(page)).toHaveCount(0);
+    await expect(folha).toHaveCount(0);
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  // Revisão do PR B (1.2): "Criar e abrir" de dentro da Folha da pasta com a ficha alterada pergunta depois que a Folha
+  // fecha (antes a pergunta ia para a Folha que estava saindo e sumia com ela, sem perguntar).
+  test(`ficha (${largura}px): "Criar e abrir" um treino com a edição alterada pergunta antes de abrir o editor`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const PLANO_ID = 'b0000000-0000-4000-8000-000000000031';
+    const { errosDaPagina } = await simularApi(page, {
+      ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'ATUALIZACAO_LER', 'PASTA_ALTERAR', 'TREINO_LER', 'TREINO_ALTERAR'] })),
+      ...ROTAS_DA_FICHA,
+      ...CEP_SEM_RESULTADO,
+      'GET /responsaveis': { corpo: [{ id: TREINADOR.id, nome: TREINADOR.nome }] },
+      [`GET /alunos/${ALUNO_ID}`]: { corpo: FICHA },
+      [`GET /alunos/${ALUNO_ID}/pastas`]: { corpo: [PASTA] },
+      [`GET /alunos/${ALUNO_ID}/planos-treino`]: { corpo: [] },
+      [`GET /alunos/${ALUNO_ID}/planos-dieta`]: { corpo: [] },
+      [`GET /alunos/${ALUNO_ID}/planos-mobilidade`]: { corpo: [] },
+      [`POST /alunos/${ALUNO_ID}/planos-treino`]: { corpo: { plano: { id: PLANO_ID } } },
+    });
+    const criarEAbrir = async () => {
+      await page.getByRole('dialog', { name: 'Plano 17' }).getByRole('button', { name: 'Novo treino', exact: true }).click();
+      await page.getByRole('dialog', { name: /^Novo treino em/ }).getByRole('button', { name: 'Criar e abrir', exact: true }).click();
+    };
+    await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+    await page.getByRole('button', { name: 'Editar', exact: true }).click();
+    await page.getByLabel('Nome', { exact: true }).fill('Nome Trocado Fictício');
+    await page.getByRole('button', { name: /^Pasta Plano 17, aberta/ }).click();
+
+    await criarEAbrir();
+    await expect(sairSemSalvar(page)).toBeVisible();
+    await page.getByRole('button', { name: 'Continuar editando', exact: true }).click();
+    await expect(sairSemSalvar(page)).toHaveCount(0);
+    await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${ALUNO_ID}$`));
+    await expect(page.getByLabel('Nome', { exact: true })).toHaveValue('Nome Trocado Fictício');
+
+    // "Continuar editando" volta para a Folha da pasta, que segue aberta.
+    await criarEAbrir();
+    await page.getByRole('button', { name: 'Sair sem salvar', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/treinador/treinos/${PLANO_ID}`));
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  // D8: o "Cancelar" da edição só pergunta quando algum campo mudou. A pergunta é descartar a edição, não sair da ficha.
+  test(`ficha (${largura}px): "Cancelar" sem alteração fecha direto; com alteração pergunta "Descartar alterações?"`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { errosDaPagina, pedidos } = await simularApi(page, {
+      ...(await sessao(page, TREINADOR)),
+      ...ROTAS_DA_FICHA,
+      ...CEP_SEM_RESULTADO,
+      'GET /responsaveis': { corpo: [{ id: TREINADOR.id, nome: TREINADOR.nome }] },
+      [`GET /alunos/${ALUNO_ID}`]: { corpo: FICHA },
+    });
+    const nome = page.getByLabel('Nome', { exact: true });
+    const cancelar = page.getByRole('button', { name: 'Cancelar', exact: true });
+    await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+
+    await page.getByRole('button', { name: 'Editar', exact: true }).click();
+    await cancelar.click();
+    await expect(nome).toHaveCount(0);
+    await expect(sairSemSalvar(page)).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Editar', exact: true }).click();
+    await nome.fill('Nome Trocado Fictício');
+    await cancelar.click();
+    await expect(page.getByText('Descartar alterações?', { exact: true })).toBeVisible();
+    await expect(sairSemSalvar(page)).toHaveCount(0);
+    await page.getByRole('button', { name: 'Continuar editando', exact: true }).click();
+    await expect(nome).toHaveValue('Nome Trocado Fictício');
+    await cancelar.click();
+    await page.getByRole('button', { name: 'Descartar', exact: true }).click();
+    await expect(nome).toHaveCount(0);
+    await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${ALUNO_ID}$`));
+    await expect(page.getByText(ALUNO.nome).first()).toBeVisible();
+    // Descartar não grava nada, e a saída volta a ser direta.
+    expect(pedidos.filter((p) => p.metodo === 'PUT')).toHaveLength(0);
+    await page.getByRole('button', { name: 'Voltar', exact: true }).click();
+    await expect(page).toHaveURL(/\/treinador\/alunos$/);
+    await expect(sairSemSalvar(page)).toHaveCount(0);
     expect(errosDaPagina).toEqual([]);
   });
 }

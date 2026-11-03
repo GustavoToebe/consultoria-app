@@ -64,6 +64,7 @@ Andamento em 02/11/2026 (worktree `wt-datas-validas`, branch `datas-validas`): p
 - Importação por planilha tem faixa própria (até 2040), fora das três regras.
 - O calendário da agenda navega de 2000 a 2100: ocorrências depois do teto de planejamento (ano+5) aparecem, mas não são editáveis.
 - `hojeIso` do app usa o fuso do aparelho e a API usa Brasília: perto da meia-noite, o "hoje" dos dois pode divergir em um dia.
+- Contagem do D7 feita em 03/11/2026 (`claude_leitura`, transação só de leitura, com o ok do Gustavo): 2 pastas, 3 planos de treino, 2 de dieta, 2 de mobilidade e 1 atualização com ano fora da faixa, todos da consultoria de teste do Gustavo. Os ids foram mandados ao Gustavo na conversa (não ficam no git); a correção é do treinador, pela tela.
 - Dados ruins já gravados (D7) não foram tocados: uma atualização com data 0260 mostrará "Atrasada desde dd/mm/0261", o que é esperado.
 - Atraso: `desdeQuandoAtrasou` ainda sai de `prazoAtualizacao` (pode divergir da data original em atualização com "vou atrasar").
 - `paraFazer.ts:44` e o teste `atualizacao.test.ts:126` (tautológico) não foram revistos.

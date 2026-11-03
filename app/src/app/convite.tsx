@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Platform, StyleSheet, View, type TextInput } from 'react-native';
 
 import * as rotas from '../api/rotas';
 import type { ConvitePublico } from '../api/tipos';
@@ -10,7 +10,7 @@ import { Campo } from '../ui/Campo';
 import { CampoSenha } from '../ui/CampoSenha';
 import { Cartao } from '../ui/Cartao';
 import { Carregando, MensagemErro } from '../ui/Estados';
-import { textoDoErro } from '../ui/erros';
+import { erroDeSenhaNoCampo, focarPrimeiroComErro, separarErros } from '../ui/erros';
 import { LinkTexto } from '../ui/LinkTexto';
 import { BotaoPublico, TelaPublica } from '../ui/TelaPublica';
 
@@ -25,6 +25,12 @@ export default function Convite() {
   const [convite, setConvite] = useState<ConvitePublico | null>(null);
   const [carregando, setCarregando] = useState(!!doLink);
   const [erro, setErro] = useState<string | null>(null);
+  // Erro de cada campo (C6), pelos nomes da API; o alerta fica para o erro do servidor (convite vencido, rede).
+  const [campos, setCampos] = useState<Record<string, string>>({});
+  const refCodigo = useRef<TextInput>(null);
+  const refEmail = useRef<TextInput>(null);
+  const refSenha = useRef<TextInput>(null);
+  const refConfirmar = useRef<TextInput>(null);
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [confirmar, setConfirmar] = useState('');
@@ -37,12 +43,16 @@ export default function Convite() {
         if (ativo()) {
           setConvite(encontrado);
           setErro(null);
+          setCampos({});
         }
       })
       .catch((e: unknown) => {
         if (ativo()) {
           setConvite(null);
-          setErro(textoDoErro(e));
+          const separados = separarErros(e, ['codigo']);
+          setCampos(separados.campos);
+          setErro(separados.geral);
+          focarPrimeiroComErro(separados.campos, [['codigo', refCodigo]]);
         }
       })
       .finally(() => {
@@ -69,25 +79,47 @@ export default function Convite() {
 
   const consultar = (valor: string) => {
     if (!valor.trim()) {
-      setErro('Digite o código do convite.');
+      setCampos({ codigo: 'Digite o código do convite.' });
+      setErro(null);
+      refCodigo.current?.focus();
       return;
     }
     setCarregando(true);
     setErro(null);
+    setCampos({});
     buscar(valor, () => true);
   };
 
+  const refsDoAceite = [['email', refEmail], ['senha', refSenha], ['confirmar', refConfirmar]] as const;
   const aceitar = async () => {
-    if (!email.trim()) return setErro('Informe seu e-mail.');
-    if (senha.length < 8) return setErro('A senha precisa ter pelo menos 8 caracteres.');
-    if (senha !== confirmar) return setErro('As senhas não conferem.');
-    setEnviando(true);
+    const locais: Record<string, string> = {};
+    if (!email.trim()) locais.email = 'Informe seu e-mail.';
+    if (senha.length < 8) locais.senha = 'A senha precisa ter pelo menos 8 caracteres.';
+    else if (senha !== confirmar) locais.confirmar = 'As senhas não conferem.';
+    setCampos(locais);
     setErro(null);
+    if (Object.keys(locais).length) {
+      focarPrimeiroComErro(locais, refsDoAceite);
+      return;
+    }
+    setEnviando(true);
     try {
       await sessao.aceitarConvite(codigo.trim().toUpperCase(), email, senha);
       router.replace('/');
     } catch (e) {
-      setErro(textoDoErro(e));
+      const senhaRecusada = erroDeSenhaNoCampo(e);
+      if (senhaRecusada) {
+        const locais = { senha: senhaRecusada };
+        setCampos(locais);
+        setErro(null);
+        focarPrimeiroComErro(locais, refsDoAceite);
+      } else {
+        // O código não está mais na tela (passo do acesso): erro nele vai ao alerta.
+        const separados = separarErros(e, refsDoAceite.map(([c]) => c));
+        setCampos(separados.campos);
+        setErro(separados.geral);
+        focarPrimeiroComErro(separados.campos, refsDoAceite);
+      }
     } finally {
       setEnviando(false);
     }
@@ -100,19 +132,19 @@ export default function Convite() {
       marca={convite?.consultoria}>
       {!convite ? (
         <Cartao>
-          <Campo rotulo="Código do convite" valor={codigo} aoMudar={setCodigo} autoCapitalize="characters"
+          <Campo ref={refCodigo} rotulo="Código do convite" valor={codigo} aoMudar={setCodigo} erro={campos.codigo} autoCapitalize="characters"
             autoCorrect={false} maxLength={20} onSubmitEditing={() => consultar(codigo)} />
           {erro ? <MensagemErro texto={erro} /> : null}
           {carregando ? <Carregando /> : <BotaoPublico rotulo="Continuar" aoTocar={() => consultar(codigo)} />}
         </Cartao>
       ) : (
         <Cartao>
-          <Campo rotulo="Seu e-mail" valor={email} aoMudar={setEmail} autoCapitalize="none"
+          <Campo ref={refEmail} rotulo="Seu e-mail" valor={email} aoMudar={setEmail} erro={campos.email} autoCapitalize="none"
             keyboardType="email-address" inputMode="email" autoComplete="email" />
-          <CampoSenha rotulo="Crie uma senha" valor={senha} aoMudar={setSenha} autoComplete="new-password"
+          <CampoSenha ref={refSenha} rotulo="Crie uma senha" valor={senha} aoMudar={setSenha} erro={campos.senha} autoComplete="new-password"
             ajuda="Mínimo de 8 caracteres." />
-          <CampoSenha rotulo="Confirmar senha" valor={confirmar} aoMudar={setConfirmar}
-            autoComplete="new-password" />
+          <CampoSenha ref={refConfirmar} rotulo="Confirmar senha" valor={confirmar} aoMudar={setConfirmar} erro={campos.confirmar}
+            autoComplete="new-password" onSubmitEditing={() => void aceitar()} returnKeyType="go" />
           {erro ? <MensagemErro texto={erro} /> : null}
           <BotaoPublico rotulo="Criar meu acesso" aoTocar={aceitar} carregando={enviando} cor={convite.consultoria.corPrimaria} />
         </Cartao>

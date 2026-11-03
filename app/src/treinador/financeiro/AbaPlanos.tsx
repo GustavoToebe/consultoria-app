@@ -30,7 +30,7 @@ import { ListaOuTabela } from './ListaOuTabela';
 
 /**
  * Planos comerciais da consultoria (o que o aluno contrata do treinador; não confundir com a assinatura da consultoria
- * em Minha conta). Criar, editar e arquivar exigem `FINANCEIRO_ALTERAR`. Arquivar não apaga as contratações que já usam o plano.
+ * em Assinatura e faturas). Criar, editar e arquivar exigem `FINANCEIRO_ALTERAR`. Arquivar não apaga as contratações que já usam o plano.
  */
 export function AbaPlanos({ podeAlterar }: { podeAlterar: boolean }) {
   const [arquivados, setArquivados] = useState(false);
