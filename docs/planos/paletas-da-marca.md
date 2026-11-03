@@ -1,6 +1,6 @@
 # Paletas da marca (a consultoria escolhe a cor de fundo do app dos alunos)
 
-Situação: Em andamento (passos 2 a 4 feitos; falta a tela Marca, passo 5) · Onde: branch `paletas-da-marca` · Atualizado: 03/11/2026 (10 paletas: a Brisa saiu no teste de contraste)
+Situação: Em andamento (passos 2 a 5 feitos; falta a conferência e a revisão, passos 6 e 7) · Onde: branch `paletas-da-marca` · Atualizado: 03/11/2026 (10 paletas: a Brisa saiu no teste de contraste)
 
 ## Objetivo
 Hoje a consultoria escolhe só "Tema padrão dos alunos": Escuro ou Claro. A ideia é oferecer, na tela Marca, uma lista
@@ -63,6 +63,8 @@ Nas escuras, os tons que a paleta não traz (`superficie2`, `superficie3`, `faix
 | 5 | App antigo no celular que recebe um código novo | Aceito: o `TemaProvider` antigo cai no ESCURO para valor que não conhece; some com o APK novo (sem compatibilidade com o legado, regra do AGENTS.md; ninguém fica sem usar o app) | Gustavo, 03/11/2026 |
 | 6 | Brisa fora da lista (passo 2) | A faixa `#D5E5E5` reprovou no teste da agenda (`contrasteDaAgenda.test.ts`): o item da agenda em cima da faixa Brisa não chega a tingir os 6% mínimos de 30/10 com a cor OLIVA, porque o fundo tingido já está em 3,03:1 com a própria cor (limite de 3:1); falha nos quatro cenários (padrão, contraste alto, bordas reforçadas e os dois). Regra do plano: paleta que falha sai, não se ajusta cor por paleta. Ficam 10 paletas. **A conferir pelo Gustavo** | Claude (regra do passo 2), 03/11/2026 |
 | 7 | `faixaForte` das escuras | A prévia não calcula esse tom; o passo 2 usou a faixa + 0,03 de mistura com branco (Meia-noite `#263540`, Ameixa `#3E275C`, Oceano `#2A314A`, Café `#3E2E24`), a mesma ideia do Escuro (faixa 0,09 → forte 0,12). Passa os testes (forte mais claro que a faixa; barra de identificação 3:1). **A conferir pelo Gustavo na tela** | Claude, 03/11/2026 |
+| 8 | Cartão das paletas na tela Marca (passo 5) | "Tema padrão dos alunos" virou "Paleta padrão dos alunos", com dois grupos "Escuras" e "Claras" de `OpcaoCartao` (o mesmo cartão da Cor e da Fonte: borda de 2 px e ✓ na escolhida, alvo ≥ 44 px, 1 coluna no celular e 2 no PC) e a miniatura de 40 px com fundo, faixa do título, cartão, uma linha de texto e o botão na cor da marca de cada paleta. A prévia virou uma só, na paleta escolhida ("Paleta Ameixa"), com a faixa do título e o nome na cor legível sobre a faixa. O aviso da cor também aparece embaixo das paletas (no celular quem troca a paleta não vê o cartão Cor). **Decidido pelo Claude em 03/11, conferir com o Gustavo** | Claude, 03/11/2026 |
+| 9 | Checagem da cor (decisão 4) | Mede o fundo **e o cartão** da paleta escolhida (≥ 3:1), mais o fundo do Escuro e do Claro, que o aluno ainda pode escolher nas Preferências; texto "Na paleta Oceano, ícones e o menu ativo ficam apagados." (com "e no tema escuro/claro" quando também some lá). Só avisa, nunca trava o Salvar. Efeito: contando o cartão, Índigo e Magenta das Cores prontas passam a avisar já no Escuro (cartão `#18181B`), e nas escuras 8 das 12 prontas avisam (no Oceano: Vermelho intenso, Esmeralda, Turquesa, Ciano, Índigo, Roxo, Magenta e Bronze); nas claras nenhuma. Se ficar ruidoso, medir só o fundo. **Decidido pelo Claude em 03/11, conferir com o Gustavo** | Claude, 03/11/2026 |
 
 ## Passos
 - [x] 0. Esperar a frente de cores da auditoria (vermelho da marca separado do erro, desabilitado cinza), que mexe no
@@ -86,9 +88,9 @@ Nas escuras, os tons que a paleta não traz (`superficie2`, `superficie3`, `faix
   `ui/PreferenciasDoApp.tsx:36` (o ternário vira `PALETAS[temaPadrao]`), e os `modo === 'ESCURO'` de `app/_layout.tsx:67`
   e `:81` e `treinador/agenda/itemDaAgenda.tsx:107` conferidos (devem seguir o modo, não o código). Teste em
   `tema/TemaProvider.test.tsx` (uma escura, uma clara e a escolha da pessoa vencendo). `app/_layout.tsx` e `itemDaAgenda.tsx` já seguem `modo` (não o código): sem mudança. **executor** — commit/run: `2dfa6c50`
-- [ ] 5. **Tela Marca** (`treinador/marca/FormMarca.tsx:234-243`): "Tema padrão dos alunos" vira duas linhas de
+- [x] 5. **Tela Marca** (`treinador/marca/FormMarca.tsx:234-243`): "Tema padrão dos alunos" vira duas linhas de
   miniaturas (Escuras / Claras) no `GradeDeOpcoes` com `MiniaturaDoTema`, e a `Previa` (:159) mostra a paleta escolhida.
-  A checagem da cor personalizada mede contra a paleta (decisão 4). **executor-front** — commit/run: —
+  A checagem da cor personalizada mede contra a paleta (decisão 4). Feito (decisões 8 e 9); sem o perfil Administrador a Marca já não abre ("Sem acesso a esta tela"), então não há estado só leitura a fazer. E2e `e2e/marca-paletas.spec.ts` (390 e 1280, claro e escuro). **executor-front** — commit/run: `1bf7668e`
 - [ ] 6. **Conferência**: `npm run typecheck && npm run lint && npm test`, `mvn verify`, e2e da Marca (escolher uma
   paleta, salvar, recarregar, o Início do aluno abre nela) e passada no local com Playwright em 390 e 1280 px nas
   paletas aprovadas (capturas fora de `docs/`). **executor-rapido** devolve só as falhas — commit/run: —
@@ -103,5 +105,4 @@ Nas escuras, os tons que a paleta não traz (`superficie2`, `superficie3`, `faix
   e o rosa dela briga com o vermelho de erro).
 
 ## O que ficou para trás
-- Passo 5: `FormMarca`, `Previa` e `MiniaturaDoTema` ainda mostram só Escuro/Claro (o typecheck passa porque `Tema` é a união inteira). A checagem da cor personalizada (`dominio/paletas.ts`, decisão 4) ainda mede só ESCURO/CLARO.
-- Passo 6: e2e da Marca com uma paleta nova fica para depois da tela (hoje o e2e só enxerga os dois botões).
+- Passo 6: o e2e da tela (`marca-paletas.spec.ts`) confere o PUT; falta o caminho inteiro (salvar, recarregar e o Início do aluno abrir na paleta) e a passada no local.
