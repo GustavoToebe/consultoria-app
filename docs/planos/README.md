@@ -59,6 +59,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Auditoria de UI/UX, lote 1 (concluir, guarda no cadastro, trilha, `IconeBotao` 44 px, módulo desligado, dia de descanso, "Começar treino", Metodologias; PR B: erros por campo, abas, rosca, textos). Relatório: [auditoria-ui-ux-2026-11-03.md](auditoria-ui-ux-2026-11-03.md) | [auditoria-ui-ux-lote-1.md](auditoria-ui-ux-lote-1.md) | branch `auditoria-ui-ux-lote-1` (PR A) | Em andamento | 03/11/2026 |
 | Cupom no suplemento (C51) | [cupom-suplemento.md](cupom-suplemento.md) | main (PR #52, 78d2664b) | Concluída | 03/11/2026 |
 | Histórico: detalhes que sobraram da Frente G (dias fora do período, letras, duas sessões, hoje de Brasília) | [historico-ajustes-g.md](historico-ajustes-g.md) | branch `historico-ajustes-g` | Em andamento | 03/11/2026 |
+| Auditoria de UI/UX, frente 6: ficha, Início do treinador, Novo aluno, "Ver N alunos", limite de login (N11, N12, N15, N21, N22) e menu do tablet com grupos (N29) | [auditoria-ficha.md](auditoria-ficha.md) | branch `auditoria-ficha` | Planejando (só plano; depende do PR B e das frentes Peças e Treinador) | 03/11/2026 |
 | Miudezas de 03/11 (dieta, CSV, 429 da inscrição, Primeiros passos, ícones, e2e intermitentes) | [miudezas-03-11.md](miudezas-03-11.md) | `main` (60e906e, PR #44) | Concluída em 03/11/2026 (em produção às 00h35; D1 e D2 confirmados) | 03/11/2026 |
 
 ## Pendências soltas
