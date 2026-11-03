@@ -1,6 +1,6 @@
 # Execução do aluno: carga como dica, ✓ com painel, meta, contador e retestes
 
-Situação: Em revisão (PR aberto, passos 1 a 6 feitos) · Onde: branch `execucao-referencia-e-progressao` (worktree `wt-execucao`) · Atualizado: 03/11/2026 · Registro: reunião de 30/10, C31, C39, C36, C37, C32/C40, C30, C33, C26 · Frente C da leva 2
+Situação: Concluída em 02/11/2026 (PR #42, `73fe034`, em produção às 23h14) · Onde: `main` · Atualizado: 03/11/2026 · Registro: reunião de 30/10, C31, C39, C36, C37, C32/C40, C30, C33, C26 · Frente C da leva 2
 
 ## Objetivo
 Na hora de registrar, o aluno vê o que fez da última vez, a meta de repetições junto do campo de carga, e a carga

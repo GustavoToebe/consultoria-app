@@ -1,6 +1,6 @@
 # Peso, medidas e foto de perfil: Histórico do aluno, gráfico por medida, foto trocada pelo treinador
 
-Situação: Planejando · Onde: branch `peso-medidas-foto` (worktree `wt-peso-medidas`), **leva 2** · Atualizado: 02/11/2026 · Registro: reunião de 30/10, C42, C43, C44, C46 · Frente E da leva 2
+Situação: Concluída em 02/11/2026 (PR #41, `2320c1e`, deploy verde às 22h27) · Onde: `main`, **leva 2** · Atualizado: 02/11/2026 · Registro: reunião de 30/10, C42, C43, C44, C46 · Frente E da leva 2
 
 ## Objetivo
 O Histórico do aluno não tem o peso nem o gráfico (1:40 da reunião); a avaliação física só compara datas em tabela; o
