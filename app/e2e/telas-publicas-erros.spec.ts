@@ -78,6 +78,7 @@ for (const largura of [390, 1280]) {
       await expect(page.getByRole('heading', { name: 'Crie sua senha' })).toBeVisible();
 
       const nova = page.getByLabel('Nova senha', { exact: true });
+      await expect(nova).toBeFocused();
       const repetida = page.getByLabel('Repita a nova senha');
       const salvar = page.getByRole('button', { name: 'Salvar e entrar' });
       await nova.fill('senha-nova-ficticia');
@@ -139,6 +140,10 @@ for (const largura of [390, 1280]) {
       await criar.click();
       await erroNoCampo(page, email, 'E-mail em formato inválido.');
 
+      aceite.estado.valor = erroApi(400, 'A senha não pode ser igual ao e-mail.');
+      await criar.click();
+      await erroNoCampo(page, senha, 'A senha não pode ser igual ao e-mail.');
+
       aceite.estado.valor = erroApi(409, 'Este convite já foi usado.');
       await criar.click();
       await erroNoTopo(page, 'Este convite já foi usado.', [email, senha, confirmar]);
@@ -169,6 +174,10 @@ for (const largura of [390, 1280]) {
       aceite.estado.valor = erroApi(400, 'Senha fraca demais.', null, [{ field: 'senha', message: 'Escolha uma senha menos comum.' }]);
       await criar.click();
       await erroNoCampo(page, senha, 'Escolha uma senha menos comum.');
+
+      aceite.estado.valor = erroApi(400, 'A senha não pode ser igual ao e-mail.');
+      await criar.click();
+      await erroNoCampo(page, senha, 'A senha não pode ser igual ao e-mail.');
       expect(errosDaPagina).toEqual([]);
     });
 
@@ -216,6 +225,17 @@ for (const largura of [390, 1280]) {
       await confirmacao.fill('senha-ficticia-1');
       await salvar.click();
       await erroNoCampo(page, senha, 'Escolha uma senha menos comum.');
+
+      redefinir.estado.valor = erroApi(400, 'A senha precisa ter pelo menos 8 caracteres.');
+      await salvar.click();
+      await erroNoCampo(page, senha, 'A senha precisa ter pelo menos 8 caracteres.');
+
+      redefinir.estado.valor = erroApi(401, 'Código incorreto.', 'MFA_CODIGO_INVALIDO');
+      await salvar.click();
+      const codigo = page.getByLabel('Código de verificação', { exact: true });
+      await expect(codigo).toBeFocused();
+      await erroNoCampo(page, codigo, 'Código incorreto.');
+      await codigo.fill('123456');
 
       // O token não é campo da tela: o erro dele vai ao topo, junto com o do campo que a tela mostra.
       redefinir.estado.valor = erroApi(422, 'Dados inválidos.', 'VALIDACAO', [{ field: 'token', message: 'Link inválido ou vencido.' }]);

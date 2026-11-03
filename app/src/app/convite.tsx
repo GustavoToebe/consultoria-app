@@ -10,7 +10,7 @@ import { Campo } from '../ui/Campo';
 import { CampoSenha } from '../ui/CampoSenha';
 import { Cartao } from '../ui/Cartao';
 import { Carregando, MensagemErro } from '../ui/Estados';
-import { focarPrimeiroComErro, separarErros } from '../ui/erros';
+import { erroDeSenhaNoCampo, focarPrimeiroComErro, separarErros } from '../ui/erros';
 import { LinkTexto } from '../ui/LinkTexto';
 import { BotaoPublico, TelaPublica } from '../ui/TelaPublica';
 
@@ -107,11 +107,19 @@ export default function Convite() {
       await sessao.aceitarConvite(codigo.trim().toUpperCase(), email, senha);
       router.replace('/');
     } catch (e) {
-      // O código não está mais na tela (passo do acesso): erro nele vai ao alerta.
-      const separados = separarErros(e, refsDoAceite.map(([c]) => c));
-      setCampos(separados.campos);
-      setErro(separados.geral);
-      focarPrimeiroComErro(separados.campos, refsDoAceite);
+      const senhaRecusada = erroDeSenhaNoCampo(e);
+      if (senhaRecusada) {
+        const locais = { senha: senhaRecusada };
+        setCampos(locais);
+        setErro(null);
+        focarPrimeiroComErro(locais, refsDoAceite);
+      } else {
+        // O código não está mais na tela (passo do acesso): erro nele vai ao alerta.
+        const separados = separarErros(e, refsDoAceite.map(([c]) => c));
+        setCampos(separados.campos);
+        setErro(separados.geral);
+        focarPrimeiroComErro(separados.campos, refsDoAceite);
+      }
     } finally {
       setEnviando(false);
     }

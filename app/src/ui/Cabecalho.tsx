@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { deixarParaONavegador, type CliqueDoNavegador } from '../dominio/cliqueDeLink';
+import { mesmaTela } from '../dominio/mesmaTela';
 import { voltarAutomatico } from '../dominio/telas';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
@@ -78,8 +79,12 @@ export function Cabecalho({ titulo, subtitulo, trilha, acoes, mostrarMarca, volt
                   {p.href && i < trilha.length - 1 ? (
                     <Link href={p.href} accessibilityRole="link" style={estilos.alvoPasso}
                       onPress={(e) => {
-                        // Com alteração pendente a trilha pergunta antes; sem, o link segue como sempre. Ctrl/Cmd+clique abre
-                        // outra guia, e a guia atual não perde nada.
+                        // A mesma tela não sai e não pergunta. Com alteração pendente a trilha pergunta antes; sem, o
+                        // link segue como sempre. Ctrl/Cmd+clique abre outra guia, e a guia atual não perde nada.
+                        if (p.href && mesmaTela(caminho, p.href)) {
+                          e.preventDefault();
+                          return;
+                        }
                         if (!pendente() || !p.href || deixarParaONavegador(e as unknown as CliqueDoNavegador)) return;
                         e.preventDefault();
                         const destino = p.href;

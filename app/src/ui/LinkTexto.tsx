@@ -1,7 +1,8 @@
-import { Link, router, type Href } from 'expo-router';
+import { Link, router, usePathname, type Href } from 'expo-router';
 import { StyleSheet } from 'react-native';
 
 import { deixarParaONavegador, type CliqueDoNavegador } from '../dominio/cliqueDeLink';
+import { mesmaTela } from '../dominio/mesmaTela';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, fontes } from '../tema/tokens';
 import { useSaidaGuardada } from './GuardaDeSaida';
@@ -15,8 +16,13 @@ import { Texto } from './Texto';
  */
 export function LinkTexto({ href, texto }: { href: Href; texto: string }) {
   const { cores } = useTema();
+  const caminho = usePathname();
   const { confirmar, pendente } = useSaidaGuardada();
   const aoTocar = (clique: CliqueDoNavegador & { preventDefault?: () => void }) => {
+    if (mesmaTela(caminho, href)) {
+      clique.preventDefault?.();
+      return;
+    }
     if (!pendente() || deixarParaONavegador(clique)) return;
     clique.preventDefault?.();
     confirmar(() => router.navigate(href));

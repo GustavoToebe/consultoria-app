@@ -581,8 +581,8 @@ for (const largura of [390, 1280]) {
     expect(errosDaPagina).toEqual([]);
   });
 
-  // D8: o "Cancelar" da edição só pergunta quando algum campo mudou.
-  test(`ficha (${largura}px): "Cancelar" sem alteração fecha direto; com alteração pergunta e "Sair sem salvar" descarta`, async ({ page }) => {
+  // D8: o "Cancelar" da edição só pergunta quando algum campo mudou. A pergunta é descartar a edição, não sair da ficha.
+  test(`ficha (${largura}px): "Cancelar" sem alteração fecha direto; com alteração pergunta "Descartar alterações?"`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const { errosDaPagina, pedidos } = await simularApi(page, {
       ...(await sessao(page, TREINADOR)),
@@ -603,11 +603,12 @@ for (const largura of [390, 1280]) {
     await page.getByRole('button', { name: 'Editar', exact: true }).click();
     await nome.fill('Nome Trocado Fictício');
     await cancelar.click();
-    await expect(sairSemSalvar(page)).toBeVisible();
+    await expect(page.getByText('Descartar alterações?', { exact: true })).toBeVisible();
+    await expect(sairSemSalvar(page)).toHaveCount(0);
     await page.getByRole('button', { name: 'Continuar editando', exact: true }).click();
     await expect(nome).toHaveValue('Nome Trocado Fictício');
     await cancelar.click();
-    await page.getByRole('button', { name: 'Sair sem salvar', exact: true }).click();
+    await page.getByRole('button', { name: 'Descartar', exact: true }).click();
     await expect(nome).toHaveCount(0);
     await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${ALUNO_ID}$`));
     await expect(page.getByText(ALUNO.nome).first()).toBeVisible();

@@ -10,7 +10,7 @@ import { Campo } from '../ui/Campo';
 import { CampoSenha } from '../ui/CampoSenha';
 import { Cartao } from '../ui/Cartao';
 import { MensagemErro } from '../ui/Estados';
-import { focarPrimeiroComErro, separarErros } from '../ui/erros';
+import { erroDeSenhaNoCampo, focarPrimeiroComErro, separarErros } from '../ui/erros';
 import { LinkTexto } from '../ui/LinkTexto';
 import { BotaoPublico, TelaPublica } from '../ui/TelaPublica';
 import { Texto } from '../ui/Texto';
@@ -72,10 +72,18 @@ export default function ConviteEquipe() {
       await sessao.aceitarConviteEquipe(codigo.trim(), senha);
       router.replace('/treinador');
     } catch (e) {
-      const separados = separarErros(e, refs.map(([c]) => c));
-      setCampos(separados.campos);
-      setErro(separados.geral);
-      focarPrimeiroComErro(separados.campos, refs);
+      const senhaRecusada = erroDeSenhaNoCampo(e);
+      if (senhaRecusada) {
+        const locais = { senha: senhaRecusada };
+        setCampos(locais);
+        setErro(null);
+        focarPrimeiroComErro(locais, refs);
+      } else {
+        const separados = separarErros(e, refs.map(([c]) => c));
+        setCampos(separados.campos);
+        setErro(separados.geral);
+        focarPrimeiroComErro(separados.campos, refs);
+      }
     } finally {
       setOcupado(false);
     }

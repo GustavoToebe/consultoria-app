@@ -216,4 +216,30 @@ describe('portalDaFolhaDoTopo no celular', () => {
     Renderer.act(() => { raiz.update(folhas([])); });
     expect(historico.portalDaFolhaDoTopo()).toBeUndefined();
   });
+
+  it('no Android, a Folha que está fechando fica de fora: vale a de baixo, ou a raiz', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    jest.replaceProperty((require('react-native') as typeof import('react-native')).Platform, 'OS', 'android');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const React = require('react') as typeof import('react');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const Renderer = require('react-test-renderer') as typeof import('react-test-renderer');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const historico = require('./historicoDasFolhas') as typeof import('./historicoDasFolhas');
+    function FolhaFalsa({ nome }: { nome: string }) {
+      historico.useFolhaNoHistorico(() => undefined, { nome, elemento: null });
+      return null;
+    }
+    const folhas = (nomes: string[]) => React.createElement(React.Fragment, null, nomes.map((n) => React.createElement(FolhaFalsa, { key: n, nome: n })));
+    let raiz!: import('react-test-renderer').ReactTestRenderer;
+    Renderer.act(() => { raiz = Renderer.create(folhas(['pasta', 'novo-treino'])); });
+    expect(historico.portalDaFolhaDoTopo()?.nome).toBe('novo-treino');
+    historico.marcarFolhaDoTopoFechando();
+    expect(historico.portalDaFolhaDoTopo()?.nome).toBe('pasta');
+    Renderer.act(() => { raiz.update(folhas(['pasta'])); });
+    expect(historico.portalDaFolhaDoTopo()?.nome).toBe('pasta');
+    historico.marcarFolhaDoTopoFechando();
+    expect(historico.portalDaFolhaDoTopo()).toBeUndefined();
+    Renderer.act(() => { raiz.unmount(); });
+  });
 });

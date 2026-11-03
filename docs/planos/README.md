@@ -149,12 +149,14 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | ~~C10 (passeio guardado no servidor)~~ | ~~Gustavo decide~~ | ~~auditoria-ui-ux-lote-1~~ · decidido em 03/11: não agora (D9) |
 | Chave do retorno ligada em 03/11 (D10): conferir na tela com um aluno fictício de produção (não existe conta fictícia lá hoje) | Gustavo decide se cria a conta | auditoria-ui-ux-lote-1 (D10), engajamento |
 | "Seu envio" na atualização do aluno (texto i do lote 1): vem do questionário padrão do seed V001 na API; trocar pede migration nova | Claude, quando houver migration de questionário | auditoria-ui-ux-lote-1 (PR B) |
-| Guarda de saída global (D7, PR B) conferida só na web: olhar no celular o `LinkTexto` com alteração pendente, o voltar com uma Folha aberta e as telas públicas com erro no campo no tema escuro | Claude, no próximo teste no APK | auditoria-ui-ux-lote-1 (PR B) |
+| Guarda de saída dentro da Folha no celular (D7, PR B) coberta por teste jest; ainda conferir no APK. Também no celular: o voltar com uma Folha aberta e as telas públicas com erro no campo no tema escuro | Gustavo, no APK | auditoria-ui-ux-lote-1 (PR B) |
 | e2e intermitente: `links-do-menu.spec.ts:36` (Ctrl+clique do menu não abriu a guia em 10 s no e2e completo com a máquina carregada; sozinho, 6 de 6) | Claude, se voltar a falhar | auditoria-ui-ux-lote-1 (PR B) |
 | Folha da pasta: treinos no topo e "Finalizar" discreto | Espera o Saraiva | Gustavo, 03/11 |
 | N24/N25 cores: cor da marca só para destaque e ação, tom próprio para erro e alerta, cinza para desabilitado; uma cor por situação, igual no aluno e no treinador; regra escrita em `docs/design-e-front.md`. Frente própria ("cores", executor-front) depois do merge da frente 4 (`auditoria-pecas`, dona do `tema/tokens.ts`) | Claude, depois do merge da frente 4 | auditoria-ui-ux 2ª passada (Gustavo, 03/11) |
 | N29 menu do treinador em grupos com título (Alunos e acompanhamento / Negócio / Configurações): vai na frente 6 (`auditoria-ficha`), junto do D11 | Claude, na frente 6 | auditoria-ui-ux 2ª passada (Gustavo, 03/11) |
 | Verificações que o Playwright não cobre: anamnese num celular de verdade, leitor de tela (TalkBack/VoiceOver) e contraste medido com ferramenta | Gustavo, com o APK | auditoria-ui-ux 2ª passada (Gustavo, 03/11) |
+| FormAluno: aluno sem responsável abre a edição já com o id de quem está editando; salvar sem mexer grava essa pessoa. Já era assim na `main` antes do PR B | Claude, quando o Gustavo pedir | auditoria-ui-ux-lote-1 (PR B, conferência) |
+| Inscrição pública: foco no primeiro erro e erro nos campos de escolha. `Escolha` não tem `erro` e as outras telas públicas só mostram erro no `Campo`; sem componente novo | Claude, quando o Gustavo pedir | auditoria-ui-ux-lote-1 (PR B) |
 
 ## Limitações aceitas (não são pendência)
 

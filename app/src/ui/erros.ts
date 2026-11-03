@@ -33,6 +33,30 @@ export function separarErros(erro: unknown, naTela: readonly string[], geral: st
   return { campos, geral: Object.keys(campos).length === 0 ? geral : null };
 }
 
+function statusDoErro(erro: unknown): number | null {
+  if (typeof erro === 'object' && erro !== null && 'status' in erro && typeof (erro as { status: unknown }).status === 'number') {
+    return (erro as { status: number }).status;
+  }
+  return null;
+}
+
+/**
+ * Regra de senha que a API devolve como 400 sem `fieldErrors` (tamanho, igual ao e-mail, igual à provisória): vai para
+ * o campo da senha, como no Entrar. Link inválido, verificação humana e erro que já aponta um campo ficam de fora.
+ */
+export function erroDeSenhaNoCampo(erro: unknown): string | null {
+  const codigo = codigoApi(erro);
+  if (codigo === 'LINK_INVALIDO' || codigo === 'VERIFICACAO_HUMANA' || codigo === 'MFA_CODIGO_INVALIDO') return null;
+  if (statusDoErro(erro) !== 400 || Object.keys(errosPorCampo(erro)).length > 0) return null;
+  return textoDoErro(erro);
+}
+
+/** Código de verificação recusado: embaixo do campo, não no alerta. */
+export function erroDeMfaNoCampo(erro: unknown): string | null {
+  if (codigoApi(erro) !== 'MFA_CODIGO_INVALIDO') return null;
+  return textoDoErro(erro);
+}
+
 /** Leva o foco ao primeiro campo com erro, na ordem da tela (`refs`: nome do campo e o ref do `Campo`). */
 export function focarPrimeiroComErro(campos: Record<string, string>, refs: readonly (readonly [string, RefObject<TextInput | null>])[]): void {
   refs.find(([campo]) => campos[campo])?.[1].current?.focus();

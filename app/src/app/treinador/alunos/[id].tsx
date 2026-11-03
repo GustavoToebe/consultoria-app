@@ -204,9 +204,10 @@ function DadosDoAluno({ aluno, padrao, aoAlterar, temFoto, aoRecarregar }: {
 }) {
   const { pode } = useSessao();
   const { avisar } = useAviso();
-  // "Cancelar" com algum campo mudado pergunta, como sair da tela (D8); sem alteração, `confirmar` fecha na hora.
-  const { confirmar } = useSaidaGuardada();
+  // "Cancelar" com algum campo mudado pergunta "Descartar alterações?" (não é sair da ficha). Sem alteração, fecha na hora.
+  const { pendente } = useSaidaGuardada();
   const [editando, setEditando] = useState(false);
+  const [descartar, setDescartar] = useState(false);
   const { editar } = useLocalSearchParams<{ editar?: string }>();
   const podeEditar = !aluno.anonimizado && pode('ALUNO_ALTERAR');
   useEffect(() => {
@@ -226,7 +227,7 @@ function DadosDoAluno({ aluno, padrao, aoAlterar, temFoto, aoRecarregar }: {
           inicial={aluno}
           diasPadrao={padrao}
           rotuloSalvar="Salvar"
-          aoCancelar={() => confirmar(() => setEditando(false))}
+          aoCancelar={() => { if (pendente()) setDescartar(true); else setEditando(false); }}
           // O questionário fica na seção Acompanhamento, mas grava na hora (não espera o Salvar), como antes.
           noAcompanhamento={<SeletorDeQuestionario rotulo="Questionário de atualização" valor={aluno.questionarioId} rotuloDoNulo="Padrão da consultoria" podeAlterar={pode('ALUNO_ALTERAR')}
             aoEscolher={async (questionarioId) => { aoAlterar(await escolherQuestionarioDoAluno(aluno.id, questionarioId)); avisar('Questionário trocado.', 'sucesso'); }} />}
@@ -269,6 +270,16 @@ function DadosDoAluno({ aluno, padrao, aoAlterar, temFoto, aoRecarregar }: {
           </View>
         </View>
       )}
+      <PainelConfirmacao
+        visivel={descartar}
+        titulo="Descartar alterações?"
+        mensagem="Há alterações que ainda não foram salvas. Se descartar agora, elas serão perdidas."
+        rotuloConfirmar="Descartar"
+        rotuloCancelar="Continuar editando"
+        perigo
+        aoConfirmar={() => { setDescartar(false); setEditando(false); }}
+        aoCancelar={() => setDescartar(false)}
+      />
       <CartaoAcesso aluno={aluno} aoAlterar={aoAlterar} />
     </View>
   );

@@ -1,5 +1,5 @@
 import { ErroApi } from '../api/cliente';
-import { focarPrimeiroComErro, separarErros } from './erros';
+import { erroDeMfaNoCampo, erroDeSenhaNoCampo, focarPrimeiroComErro, separarErros } from './erros';
 
 const comCampos = (...campos: [string, string][]) =>
   new ErroApi(400, 'VALIDACAO', 'Dados inválidos.', campos.map(([field, message]) => ({ field, message })));
@@ -24,6 +24,22 @@ describe('separarErros', () => {
       campos: {}, geral: 'E-mail ou senha incorretos.',
     });
     expect(separarErros(new ErroApi(0, null, 'Sem conexão.'), ['email'], 'Outro texto.').geral).toBe('Outro texto.');
+  });
+});
+
+describe('erro no campo das telas públicas', () => {
+  it('regra de senha (400 sem campo) vai para o campo; link, verificação humana e MFA não', () => {
+    expect(erroDeSenhaNoCampo(new ErroApi(400, null, 'A senha precisa ter pelo menos 8 caracteres.')))
+      .toBe('A senha precisa ter pelo menos 8 caracteres.');
+    expect(erroDeSenhaNoCampo(new ErroApi(400, 'LINK_INVALIDO', 'Este link não funciona mais.'))).toBeNull();
+    expect(erroDeSenhaNoCampo(new ErroApi(400, 'VERIFICACAO_HUMANA', 'Confirme que você é uma pessoa.'))).toBeNull();
+    expect(erroDeSenhaNoCampo(comCampos(['novaSenha', 'Curta.']))).toBeNull();
+    expect(erroDeSenhaNoCampo(new ErroApi(401, null, 'E-mail ou senha incorretos.'))).toBeNull();
+  });
+
+  it('código de verificação recusado vai para o campo do código', () => {
+    expect(erroDeMfaNoCampo(new ErroApi(401, 'MFA_CODIGO_INVALIDO', 'Código incorreto.'))).toBe('Código incorreto.');
+    expect(erroDeMfaNoCampo(new ErroApi(401, 'MFA_NECESSARIO', 'Informe o código.'))).toBeNull();
   });
 });
 

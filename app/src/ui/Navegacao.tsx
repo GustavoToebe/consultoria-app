@@ -8,6 +8,7 @@ import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { urlDaApi } from '../api/cliente';
+import { mesmaTela } from '../dominio/mesmaTela';
 import type { Marca } from '../api/tipos';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
@@ -150,7 +151,7 @@ function ItemNavegacao({ item, lateral, recolhido }: { item: ItemMenu; lateral?:
       accessibilityState={{ selected: ativo }}
       // O leitor de tela da web não recebe o `selected` de um link: `aria-current` diz qual é a página atual.
       aria-current={ativo ? 'page' : undefined}
-      {...propsDeLink(item.href, () => confirmar(() => router.navigate(item.href)))}
+      {...propsDeLink(item.href, () => { if (!mesmaTela(caminho, item.href)) confirmar(() => router.navigate(item.href)); })}
       onHoverIn={comDica ? () => setDica(true) : undefined}
       onHoverOut={comDica ? () => setDica(false) : undefined}
       onFocus={comDica ? () => setDica(true) : undefined}

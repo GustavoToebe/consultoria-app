@@ -1,8 +1,9 @@
-import { router, type Href } from 'expo-router';
+import { router, usePathname, type Href } from 'expo-router';
 import { Check, ChevronRight } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
+import { mesmaTela } from '../dominio/mesmaTela';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, LARGURA_MENU_EXPANDIDO, LARGURA_MENU_LATERAL, RAIO } from '../tema/tokens';
 import {
@@ -92,6 +93,7 @@ export function LinhaDaLista(p: PropsDaLinha) {
   const { width } = useWindowDimensions();
   const largo = width >= (p.colunas ? LARGURA_DAS_COLUNAS : LARGURA_MENU_LATERAL);
   const [ativo, setAtivo] = useState(false);
+  const caminho = usePathname();
   const { confirmar } = useSaidaGuardada();
   const selos = p.selos ?? [];
   const escolhida = !!(p.marcado || p.marcar?.marcado);
@@ -151,8 +153,9 @@ export function LinhaDaLista(p: PropsDaLinha) {
   if (p.href !== undefined) {
     const href = p.href;
     // Abrir outra tela passa pela guarda de saída (a ficha com os dados em edição pergunta antes, D7).
+    // A mesma tela (o recorde da semana dentro da própria ficha) não sai e não pergunta.
     const navegar = p.aoAbrir ?? (() => router.navigate(href));
-    const abrir = () => confirmar(navegar);
+    const abrir = () => { if (!mesmaTela(caminho, href)) confirmar(navegar); };
     const link = (
       <Pressable
         accessibilityRole="link"

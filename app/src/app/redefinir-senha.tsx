@@ -10,7 +10,7 @@ import { Campo } from '../ui/Campo';
 import { CampoSenha } from '../ui/CampoSenha';
 import { Cartao } from '../ui/Cartao';
 import { MensagemErro } from '../ui/Estados';
-import { focarPrimeiroComErro, separarErros } from '../ui/erros';
+import { erroDeMfaNoCampo, erroDeSenhaNoCampo, focarPrimeiroComErro, separarErros } from '../ui/erros';
 import { LinkTexto } from '../ui/LinkTexto';
 import { BotaoPublico, TelaPublica } from '../ui/TelaPublica';
 import { Texto } from '../ui/Texto';
@@ -43,6 +43,11 @@ export default function RedefinirSenha() {
     }
   }, []);
 
+  // O campo do código só existe depois que a API pede: o foco vai para ele quando o passo aparece.
+  useEffect(() => {
+    if (pedirCodigo) refCodigo.current?.focus();
+  }, [pedirCodigo]);
+
   const refs = [['novaSenha', refSenha], ['confirmacao', refConfirmacao], ...(pedirCodigo ? [['codigoMfa', refCodigo] as const] : [])] as const;
   const mostrar = (locais: Record<string, string>, geral: string | null) => {
     setCampos(locais);
@@ -72,9 +77,18 @@ export default function RedefinirSenha() {
       if (pedeCodigoMfa(e)) {
         setPedirCodigo(true);
       } else {
-        const separados = separarErros(e, refs.map(([c]) => c));
-        mostrar(separados.campos, separados.geral);
-        setLinkPerdido(typeof e === 'object' && e !== null && (e as { codigo?: unknown }).codigo === 'LINK_INVALIDO');
+        const mfa = erroDeMfaNoCampo(e);
+        const senhaRecusada = erroDeSenhaNoCampo(e);
+        if (mfa) {
+          setPedirCodigo(true);
+          mostrar({ codigoMfa: mfa }, null);
+        } else if (senhaRecusada) {
+          mostrar({ novaSenha: senhaRecusada }, null);
+        } else {
+          const separados = separarErros(e, refs.map(([c]) => c));
+          mostrar(separados.campos, separados.geral);
+          setLinkPerdido(typeof e === 'object' && e !== null && (e as { codigo?: unknown }).codigo === 'LINK_INVALIDO');
+        }
       }
     } finally {
       setEnviando(false);

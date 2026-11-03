@@ -43,7 +43,8 @@ export function GuardaDeSaida({ children }: { children: ReactNode }) {
         rotuloConfirmar="Sair sem salvar"
         rotuloCancelar="Continuar editando"
         perigo
-        // Com uma Folha aberta (web) a pergunta iria para trás do Modal dela: vai para dentro da Folha do topo.
+        // Com uma Folha aberta a pergunta iria para trás do Modal dela. No celular, a que está fechando fica de fora
+        // (a de baixo, ou a raiz). Na web, vai para dentro da Folha do topo.
         portal={acao !== null ? portalDaFolhaDoTopo() : undefined}
         aoConfirmar={sair}
         aoCancelar={() => setAcao(null)}

@@ -42,14 +42,16 @@ export function RoscaDosAlunos({ rosca }: { rosca: RoscaDoPainel }) {
         ) : null}
         <View accessibilityRole="list" accessibilityLabel={`${rosca.titulo}. Total ${rosca.total}`} style={estilos.legenda}>
           {rosca.fatias.map((f) => (
-            <Pressable key={f.chave} accessibilityRole="link" accessibilityLabel={`${f.rotulo}: ${f.valor}. Ver na lista de alunos`}
-              {...propsDeLink(f.href as Href, () => router.push(f.href as Href))}
-              style={(e) => [estilos.itemDaLegenda, { backgroundColor: sobre(e) ? cores.superficie3 : 'transparent' }]}>
-              <View style={[estilos.bolinha, { backgroundColor: cores[f.cor] }]} />
-              <Texto style={estilos.rotulo}>{f.rotulo}</Texto>
-              <Texto variante="bloco" numerico>{String(f.valor)}</Texto>
-              <ChevronRight size={16} color={cores.textoSuave} strokeWidth={2} />
-            </Pressable>
+            <View key={f.chave} role="listitem">
+              <Pressable accessibilityRole="link" accessibilityLabel={`${f.rotulo}: ${f.valor}. Ver na lista de alunos`}
+                {...propsDeLink(f.href as Href, () => router.push(f.href as Href))}
+                style={(e) => [estilos.itemDaLegenda, { backgroundColor: sobre(e) ? cores.superficie3 : 'transparent' }]}>
+                <View style={[estilos.bolinha, { backgroundColor: cores[f.cor] }]} />
+                <Texto style={estilos.rotulo}>{f.rotulo}</Texto>
+                <Texto variante="bloco" numerico>{String(f.valor)}</Texto>
+                <ChevronRight size={16} color={cores.textoSuave} strokeWidth={2} />
+              </Pressable>
+            </View>
           ))}
         </View>
       </View>

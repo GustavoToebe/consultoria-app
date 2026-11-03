@@ -1,5 +1,5 @@
 import { Redirect, router } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, type TextInput } from 'react-native';
 
 import { normalizarCodigo, pedeCodigoMfa } from '../dominio/mfa';
@@ -40,6 +40,14 @@ export default function Entrar() {
   const refCodigo = useRef<TextInput>(null);
   const refNovaSenha = useRef<TextInput>(null);
   const refRepetida = useRef<TextInput>(null);
+  // "Crie sua senha" e o código de verificação entram no lugar dos campos anteriores: o foco vai para o campo novo.
+  useEffect(() => {
+    if (criarSenha) refNovaSenha.current?.focus();
+  }, [criarSenha]);
+  useEffect(() => {
+    if (pedirCodigo) refCodigo.current?.focus();
+  }, [pedirCodigo]);
+
   if (sessao.situacao === 'autenticado') {
     return <Redirect href="/" />;
   }
