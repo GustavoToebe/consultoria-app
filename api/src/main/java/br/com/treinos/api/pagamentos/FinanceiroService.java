@@ -1,6 +1,7 @@
 package br.com.treinos.api.pagamentos;
 
 import br.com.plataforma.comum.web.BadRequestException;
+import br.com.treinos.api.consultoria.ConsultoriaRepository;
 import br.com.treinos.api.pagamentos.CobrancaAlunoRepository.PorForma;
 import br.com.treinos.api.pagamentos.CobrancaAlunoRepository.PorPlano;
 import br.com.treinos.api.pagamentos.CobrancaAlunoRepository.Soma;
@@ -19,6 +20,7 @@ import br.com.treinos.api.pagamentos.PagamentosDtos.Periodo;
 import br.com.treinos.api.pagamentos.PagamentosDtos.ProximosRecebimentos;
 import br.com.treinos.api.pagamentos.PagamentosDtos.ResultadoDoMes;
 import br.com.treinos.api.pagamentos.PagamentosDtos.ValorEQuantidade;
+import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.web.Fuso;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -57,12 +59,14 @@ public class FinanceiroService {
     private final CobrancaAlunoRepository cobrancas;
     private final ContratacaoAlunoRepository contratacoes;
     private final LancamentoFinanceiroRepository lancamentos;
+    private final ConsultoriaRepository consultorias;
 
     public FinanceiroService(CobrancaAlunoRepository cobrancas, ContratacaoAlunoRepository contratacoes,
-                             LancamentoFinanceiroRepository lancamentos) {
+                             LancamentoFinanceiroRepository lancamentos, ConsultoriaRepository consultorias) {
         this.cobrancas = cobrancas;
         this.contratacoes = contratacoes;
         this.lancamentos = lancamentos;
+        this.consultorias = consultorias;
     }
 
     // ---- GET /financeiro/numeros ----
@@ -145,15 +149,41 @@ public class FinanceiroService {
         List<PagamentosDtos.PorPlano> porPlano = inicio.isAfter(hoje) ? List.of()
                 : cobrancas.pagasPorPlano(PAGA, inicio, ateHoje, responsavelId).stream().map(FinanceiroService::plano).toList();
 
+        YearMonth mesDaCriacao = meus ? null : mesDaCriacao();
         return new Painel(new Periodo(inicio, fim), meus, cartoes,
-                serie(primeiro, ultimo, atual, hoje, responsavelId), inadimplencia, porForma, porPlano,
+                serie(primeiro, ultimo, atual, hoje, responsavelId, mesDaCriacao), inadimplencia, porForma, porPlano,
                 movimento(primeiro, ultimo, responsavelId), proximos(hoje, responsavelId),
-                resultadoDoMes(atual, hoje, responsavelId), new Liquido(false,
+                resultadoDoMes(atual, hoje, responsavelId, mesDaCriacao), new Liquido(false,
                         "O líquido precisa das taxas do provedor, que ainda não estão informadas.", recebidoTotal));
     }
 
+    /**
+     * O mês (em Brasília) em que a consultoria foi criada. Antes dele não há o que contar: entradas e saídas avulsas ficam
+     * nulas ("sem dado"), a mesma regra do {@code /numeros} (decisão D19 do Gustavo, 03/11). Sem a consultoria da sessão,
+     * nulo, e nenhum mês é cortado.
+     */
+    private YearMonth mesDaCriacao() {
+        UUID consultoriaId = TenantContext.get();
+        if (consultoriaId == null) {
+            return null;
+        }
+        return consultorias.findById(consultoriaId)
+                .map(c -> c.getCriadoEm() == null ? null : YearMonth.from(c.getCriadoEm().atZone(Fuso.BRASILIA)))
+                .orElse(null);
+    }
+
+    /** Entrada ou saída avulsa do mês: o total; sem lançamento, 0 do mês da criação até o corrente; fora disso, nulo. */
+    private static Long avulsoDoMes(Map<YearMonth, Long> totais, YearMonth mes, YearMonth atual, YearMonth mesDaCriacao) {
+        Long total = totais.get(mes);
+        if (total != null) {
+            return total;
+        }
+        boolean antesDaConsultoria = mesDaCriacao != null && mes.isBefore(mesDaCriacao);
+        return mes.isAfter(atual) || antesDaConsultoria ? null : 0L;
+    }
+
     private List<MesDoPainel> serie(YearMonth primeiro, YearMonth ultimo, YearMonth atual, LocalDate hoje,
-                                    UUID responsavelId) {
+                                    UUID responsavelId, YearMonth mesDaCriacao) {
         LocalDate inicio = primeiro.atDay(1);
         LocalDate fim = ultimo.atEndOfMonth();
         boolean meus = responsavelId != null;
@@ -173,9 +203,10 @@ public class FinanceiroService {
         List<MesDoPainel> serie = new ArrayList<>();
         for (YearMonth mes = primeiro; !mes.isAfter(ultimo); mes = mes.plusMonths(1)) {
             Long rec = recebido.get(mes);
-            // Mês até o corrente sem lançamento é 0; o futuro e o "Meus" seguem sem dado (nulo).
-            Long ent = meus ? null : entradas.getOrDefault(mes, mes.isAfter(atual) ? null : 0L);
-            Long sai = meus ? null : saidas.getOrDefault(mes, mes.isAfter(atual) ? null : 0L);
+            // Mês sem lançamento, da criação da consultoria até o corrente, é 0; antes da criação, o futuro e o "Meus" seguem
+            // sem dado (nulo).
+            Long ent = meus ? null : avulsoDoMes(entradas, mes, atual, mesDaCriacao);
+            Long sai = meus ? null : avulsoDoMes(saidas, mes, atual, mesDaCriacao);
             serie.add(new MesDoPainel(mes.toString(), mes.equals(atual), rec,
                     mes.atEndOfMonth().isBefore(hoje) ? null : previsto.get(mes), ent, sai,
                     meus ? null : resultado(rec, ent, sai)));
@@ -214,21 +245,20 @@ public class FinanceiroService {
         return new ValorEQuantidade(s.getTotal(), s.getQuantidade());
     }
 
-    private ResultadoDoMes resultadoDoMes(YearMonth mes, LocalDate hoje, UUID responsavelId) {
+    private ResultadoDoMes resultadoDoMes(YearMonth mes, LocalDate hoje, UUID responsavelId, YearMonth mesDaCriacao) {
         Long recebido = cobrancas.pagasPorPagamento(PAGA, mes.atDay(1), hoje, responsavelId).getTotal();
         if (responsavelId != null) {
             return new ResultadoDoMes(ROTULO_RESULTADO, mes.toString(), recebido, null, null, null);
         }
-        // Mês sem lançamento é R$ 0,00 (decisão de 03/11): só o que o filtro "Meus" não cobre fica nulo.
-        Long entradas = 0L;
-        Long saidas = 0L;
+        // Mês sem lançamento é R$ 0,00 (decisão de 03/11): só o que o filtro "Meus" não cobre, e o mês anterior à criação
+        // da consultoria (D19), ficam nulos.
+        Map<YearMonth, Long> totaisDeEntrada = new HashMap<>();
+        Map<YearMonth, Long> totaisDeSaida = new HashMap<>();
         for (var linha : lancamentos.somaPorMes(mes.atDay(1), mes.atEndOfMonth())) {
-            if (linha.getTipo() == TipoDeLancamento.ENTRADA) {
-                entradas = linha.getTotal();
-            } else {
-                saidas = linha.getTotal();
-            }
+            (linha.getTipo() == TipoDeLancamento.ENTRADA ? totaisDeEntrada : totaisDeSaida).put(mes, linha.getTotal());
         }
+        Long entradas = avulsoDoMes(totaisDeEntrada, mes, mes, mesDaCriacao);
+        Long saidas = avulsoDoMes(totaisDeSaida, mes, mes, mesDaCriacao);
         return new ResultadoDoMes(ROTULO_RESULTADO, mes.toString(), recebido, entradas, saidas,
                 resultado(recebido, entradas, saidas));
     }
