@@ -3,7 +3,7 @@ import { contagem } from './contagens';
 import { normalizarDieta } from './dieta';
 import { DIAS_SEMANA } from './editorTreino';
 import { diaDaSemanaIso, somarDias } from './formatos';
-import { rotuloDoTipo, sessoesDaSemana } from './semana';
+import { nomeComDia, rotuloDoTipo, sessoesDaSemana } from './semana';
 
 /**
  * Regras do Início do aluno (a tela só desenha). Nada aqui inventa dado: dia, água e contagens vêm do plano publicado
@@ -107,6 +107,21 @@ export function estadoDoHoje(entrada: { conteudo: ConteudoTreino | null; dia: nu
   }
   if (sessao.exercicios.length === 0) return { tipo: 'sem-exercicios', sessao };
   return { tipo: 'treino', sessao, rotulo: rotuloDaDivisao(conteudo, sessao) };
+}
+
+/**
+ * Dia de descanso: "Quarta · Treino B", a próxima sessão com treino (com exercício e que não é descanso) a partir de
+ * amanhã, pela mesma semana do cartão (`diaSemana` 1 = segunda … 7 = domingo; depois do domingo vem a segunda).
+ * Sessão sem dia fixo não entra; sem nenhuma, `null` e a linha some.
+ */
+export function proximoTreino(conteudo: ConteudoTreino | null, dia: number): string | null {
+  if (!conteudo) return null;
+  for (let passo = 1; passo < 7; passo++) {
+    const d = ((dia - 1 + passo) % 7) + 1;
+    const s = conteudo.sessoes.find((x) => x.diaSemana === d);
+    if (s && s.tipo !== 'DESCANSO' && s.exercicios.length > 0) return nomeComDia(s);
+  }
+  return null;
 }
 
 // ---- Divisões ----

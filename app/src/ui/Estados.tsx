@@ -1,4 +1,4 @@
-import { CircleAlert, CircleCheck, Inbox, Info, Lock, TriangleAlert, type LucideIcon } from 'lucide-react-native';
+import { CircleAlert, CircleCheck, Inbox, Info, Lock, PowerOff, TriangleAlert, type LucideIcon } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
@@ -18,33 +18,44 @@ export function Carregando({ texto }: { texto?: string }) {
   );
 }
 
-export function Vazio({ titulo, texto, Icone = Inbox, acao }: {
+export function Vazio({ titulo, texto, Icone = Inbox, acao, nivel }: {
   titulo?: string;
   texto: string;
   Icone?: LucideIcon;
   acao?: { rotulo: string; aoTocar: () => void };
+  /** Nível do título quando o estado é a tela inteira (`1` = o h1 da tela). */
+  nivel?: 1 | 2 | 3;
 }) {
   const { cores } = useTema();
   return (
     <View style={estilos.centro}>
       <Icone size={32} color={cores.textoSuave} aria-hidden />
-      {titulo ? <Texto variante="subtitulo" style={estilos.textoCentro}>{titulo}</Texto> : null}
+      {titulo ? <Texto variante="subtitulo" nivel={nivel} style={estilos.textoCentro}>{titulo}</Texto> : null}
       <Texto variante="suave" style={estilos.textoCentro}>{texto}</Texto>
-      {acao ? <Botao rotulo={acao.rotulo} tipo="secundario" aoTocar={acao.aoTocar} /> : null}
+      {acao ? <Botao rotulo={acao.rotulo} tipo="secundario" aoTocar={acao.aoTocar} style={estilos.acaoNoCentro} /> : null}
     </View>
   );
 }
 
-/** Tela que o perfil não pode abrir: título, explicação e uma saída, em vez de uma linha solta. */
+/** Tela que o perfil não pode abrir: título (o h1 da tela), explicação e uma saída, em vez de uma linha solta. */
 export function SemPermissao({ acao }: { acao?: { rotulo: string; aoTocar: () => void } }) {
   return (
     <Vazio
       Icone={Lock}
+      nivel={1}
       titulo="Sem acesso a esta tela"
       texto="Seu perfil não tem permissão para abrir esta tela. Peça a um administrador da consultoria."
       acao={acao}
     />
   );
+}
+
+/**
+ * Tela de um módulo desligado nesta instalação (`dominio/permissoes.moduloDesligadoDaTela`): não é falta de permissão,
+ * então o texto não manda pedir a ninguém. Título é o h1 da tela.
+ */
+export function ModuloDesligado({ titulo, texto, acao }: { titulo: string; texto: string; acao?: { rotulo: string; aoTocar: () => void } }) {
+  return <Vazio Icone={PowerOff} nivel={1} titulo={titulo} texto={texto} acao={acao} />;
 }
 
 /**
@@ -146,6 +157,8 @@ export function MensagemErro({ texto, tentarDeNovo, erro }: { texto: string; ten
 const estilos = StyleSheet.create({
   centro: { alignItems: 'center', justifyContent: 'center', gap: espaco(1.5), padding: espaco(4) },
   textoCentro: { textAlign: 'center' },
+  // O Botao se alinha à esquerda por padrão; no estado centrado ele acompanha o título e o texto.
+  acaoNoCentro: { alignSelf: 'center', marginTop: espaco(1) },
   erro: { flexDirection: 'row', alignItems: 'flex-start', borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(1.25) },
   // O ícone acompanha a primeira linha do texto (21 px do corpo, 22 do subtítulo).
   iconeDoAlerta: { paddingTop: 2, flexShrink: 0 },
