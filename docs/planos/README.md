@@ -64,6 +64,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Auditoria de UI/UX, frente 6: ficha, Início do treinador, Novo aluno, "Ver N alunos", limite de login (N11, N12, N15, N21, N22) e menu do tablet com grupos (N29) | [auditoria-ficha.md](auditoria-ficha.md) | branch `auditoria-ficha` | Em andamento: menu do tablet (D11 do lote 1) e N29 prontos para revisão; o resto do plano espera | 03/11/2026 |
 | Miudezas de 03/11 (dieta, CSV, 429 da inscrição, Primeiros passos, ícones, e2e intermitentes) | [miudezas-03-11.md](miudezas-03-11.md) | `main` (60e906e, PR #44) | Concluída em 03/11/2026 (em produção às 00h35; D1 e D2 confirmados) | 03/11/2026 |
 | Auditoria de UI/UX, peças compartilhadas (Folha com um diálogo e retorno do foco, cores da Folha e do Botão pelo tema, Kanban com movimento reduzido) | [auditoria-pecas.md](auditoria-pecas.md) | branch `auditoria-pecas` | Código feito, aguardando PR | 03/11/2026 |
+| Foco do leitor de tela ao fechar a Folha no celular (D4 da auditoria das peças) | [foco-da-folha-nativo.md](foco-da-folha-nativo.md) | branch `foco-da-folha-nativo` | Em andamento | 03/11/2026 |
 | Paletas da marca (a consultoria escolhe a cor de fundo do app dos alunos numa lista fechada e testada) | [paletas-da-marca.md](paletas-da-marca.md) | — | Planejando: lista cortada em 03/11 (11 paletas, prévia em `docs/prototipos/`); espera a frente de cores da auditoria | 03/11/2026 |
 
 ## Pendências soltas
