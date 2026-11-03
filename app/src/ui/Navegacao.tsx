@@ -70,6 +70,7 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
   const trilho = width < LARGURA_MENU_EXPANDIDO;
   const [recolhidoPorEscolha, setRecolhido] = useState(false);
   const recolhido = trilho || recolhidoPorEscolha;
+  const { trilho: refDoTrilho, atual: dicaAtual, mostrar: mostrarDica, esconder: esconderDica, aoRolar: medirDica } = useDicaDoTrilho();
   useEffect(() => {
     AsyncStorage.getItem(CHAVE_MENU_RECOLHIDO).then((v) => setRecolhido(v === '1'), () => undefined);
   }, []);
@@ -80,6 +81,7 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
   };
 
   if (lateral) {
+    const comDica = recolhido && !trilho;
     // Grupos (N29): título no menu aberto; no trilho, um fio. O leitor de tela ouve o nome do grupo nos dois.
     const blocos = gruposDoMenu(itens.filter((item) => !item.soCelular)).map((bloco, i) => (
       <View key={bloco.grupo ?? ''} role={bloco.grupo ? 'group' : undefined} aria-label={bloco.grupo} style={estilos.bloco}>
@@ -89,13 +91,15 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
           <Texto variante="secao" aria-hidden numberOfLines={2} style={estilos.tituloGrupo}>{bloco.grupo}</Texto>
         )}
         {bloco.itens.map((item) => (
-          <ItemNavegacao key={item.caminho} item={item} lateral recolhido={recolhido} trilho={trilho} />
+          <ItemNavegacao key={item.caminho} item={item} lateral recolhido={recolhido} trilho={trilho}
+            aoMostrarDica={comDica ? mostrarDica : undefined} aoEsconderDica={comDica ? esconderDica : undefined} />
         ))}
       </View>
     ));
     return (
       <View style={[estilos.linha, { backgroundColor: cores.fundo }]}>
         <SafeAreaView edges={['top', 'bottom', 'left']}
+          ref={refDoTrilho}
           accessibilityRole="menubar"
           style={[estilos.lateral, recolhido && (trilho ? estilos.lateralTrilho : estilos.lateralRecolhido), { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
           {recolhido ? <MarcaDoTrilho marca={marca} /> : (
@@ -103,11 +107,12 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
               <MarcaTitulo marca={marca} />
             </View>
           )}
-          {/* A lista rola quando não cabe na altura. No PC minimizado não: a dica sai para fora do trilho e a rolagem a cortaria.
-              A barra de rolagem aparece só no menu aberto: no trilho ela comeria a largura dos rótulos (o item cortado embaixo já avisa). */}
-          {recolhido && !trilho ? <View style={estilos.blocos}>{blocos}</View> : (
-            <ScrollView nativeID={ROLAGEM_DO_MENU} style={estilos.rolagem} showsVerticalScrollIndicator={!trilho} contentContainerStyle={[estilos.blocos, estilos.folgaDoFoco]}>{blocos}</ScrollView>
-          )}
+          {/* A lista rola quando não cabe na altura, e o "Minimizar"/"Expandir" fica fixo embaixo (D20). No PC minimizado a dica
+              é desenhada no trilho, fora da rolagem, que a cortaria. A barra de rolagem aparece só no menu aberto: nos trilhos
+              ela comeria a largura dos ícones e dos rótulos (o item cortado embaixo já avisa). */}
+          <ScrollView nativeID={ROLAGEM_DO_MENU} style={estilos.rolagem} showsVerticalScrollIndicator={!recolhido}
+            onScroll={comDica ? medirDica : undefined} scrollEventThrottle={32}
+            contentContainerStyle={[estilos.blocos, estilos.folgaDoFoco]}>{blocos}</ScrollView>
           {trilho ? null : (
             <Pressable
               accessibilityRole="button"
@@ -118,6 +123,11 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
               {recolhido ? null : <Texto style={[estilos.rotuloLateral, { color: cores.textoSuave }]}>Minimizar</Texto>}
             </Pressable>
           )}
+          {comDica && dicaAtual ? (
+            <View pointerEvents="none" accessible={false} style={[estilos.dica, { top: dicaAtual.topo, backgroundColor: cores.texto }]}>
+              <Texto numberOfLines={1} style={[estilos.textoDica, { color: cores.fundo }]}>{dicaAtual.texto}</Texto>
+            </View>
+          ) : null}
         </SafeAreaView>
         <View style={estilos.conteudo}>
           {topo}
@@ -146,12 +156,19 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
   );
 }
 
-function ItemNavegacao({ item, lateral, recolhido, trilho }: { item: ItemMenu; lateral?: boolean; recolhido?: boolean; trilho?: boolean }) {
+function ItemNavegacao({ item, lateral, recolhido, trilho, aoMostrarDica, aoEsconderDica }: {
+  item: ItemMenu;
+  lateral?: boolean;
+  recolhido?: boolean;
+  trilho?: boolean;
+  /** PC minimizado: o nome do item ao passar o mouse ou focar, desenhado pelo trilho (fora da lista que rola). */
+  aoMostrarDica?: (texto: string, no: View | null) => void;
+  aoEsconderDica?: () => void;
+}) {
   const caminho = usePathname();
   const { cores, marcaTexto, marca, sobreMarca } = useTema();
   const { confirmar } = useSaidaGuardada();
   const alvo = useAlvoDoPasseio(`menu:${item.caminho}`);
-  const [dica, setDica] = useState(false);
   const casa = (base: string) => caminho === base || caminho.startsWith(`${base}/`);
   const ativo = (item.exato ? caminho === item.caminho : casa(item.caminho)) || !!item.tambem?.some(casa)
     || (!lateral && !!item.tambemNoCelular?.some(casa));
@@ -171,10 +188,11 @@ function ItemNavegacao({ item, lateral, recolhido, trilho }: { item: ItemMenu; l
     no.current = n;
     alvo(n);
   }, [alvo]);
-  // Web, menu lateral que rola (não o PC minimizado): o item da tela aberta não fica cortado no fim da lista.
+  // Web, menu lateral (a lista rola em todos os modos): o item da tela aberta não fica cortado no fim da lista.
   useEffect(() => {
-    if (Platform.OS === 'web' && lateral && ativo && !comDica) (no.current as unknown as HTMLElement | null)?.scrollIntoView?.({ block: 'nearest' });
-  }, [lateral, ativo, comDica]);
+    if (Platform.OS === 'web' && lateral && ativo) (no.current as unknown as HTMLElement | null)?.scrollIntoView?.({ block: 'nearest' });
+  }, [lateral, ativo]);
+  const mostrarDica = () => aoMostrarDica?.(item.rotulo, no.current);
   return (
     <Pressable
       ref={ref}
@@ -184,10 +202,10 @@ function ItemNavegacao({ item, lateral, recolhido, trilho }: { item: ItemMenu; l
       // O leitor de tela da web não recebe o `selected` de um link: `aria-current` diz qual é a página atual.
       aria-current={ativo ? 'page' : undefined}
       {...propsDeLink(item.href, () => { if (!mesmaTela(caminho, item.href)) confirmar(() => router.navigate(item.href)); })}
-      onHoverIn={comDica ? () => setDica(true) : undefined}
-      onHoverOut={comDica ? () => setDica(false) : undefined}
-      onFocus={comDica ? () => setDica(true) : undefined}
-      onBlur={comDica ? () => setDica(false) : undefined}
+      onHoverIn={comDica ? mostrarDica : undefined}
+      onHoverOut={comDica ? aoEsconderDica : undefined}
+      onFocus={comDica ? mostrarDica : undefined}
+      onBlur={comDica ? aoEsconderDica : undefined}
       style={(estado) => [
         lateral ? estilos.itemLateral : estilos.itemInferior,
         lateral && recolhido && (rotuloEmbaixo ? estilos.itemTrilho : estilos.itemRecolhido),
@@ -202,13 +220,39 @@ function ItemNavegacao({ item, lateral, recolhido, trilho }: { item: ItemMenu; l
       {recolhido && !rotuloEmbaixo ? null : (
         <Texto numberOfLines={1} style={[lateral && !rotuloEmbaixo ? estilos.rotuloLateral : estilos.rotuloInferior, rotuloEmbaixo && estilos.rotuloTrilho, { color: cor }]}>{rotulo}</Texto>
       )}
-      {comDica && dica ? (
-        <View pointerEvents="none" accessible={false} style={[estilos.dica, { backgroundColor: cores.texto }]}>
-          <Texto numberOfLines={1} style={[estilos.textoDica, { color: cores.fundo }]}>{item.rotulo}</Texto>
-        </View>
-      ) : null}
     </Pressable>
   );
+}
+
+/**
+ * Dica do PC minimizado numa camada do próprio trilho (D20): a lista de ícones rola quando a janela é baixa, e a dica, que
+ * sai para a direita do trilho, seria cortada se morasse dentro do item. O item avisa ao ganhar o mouse ou o foco; o trilho
+ * mede onde ele está (`measureLayout`, já com a rolagem) e desenha a dica ali. Ao rolar, mede de novo. Uma medida que chega
+ * depois de o mouse sair (ou de outro item entrar) é descartada.
+ */
+function useDicaDoTrilho() {
+  const trilho = useRef<View | null>(null);
+  const alvo = useRef<{ texto: string; no: View } | null>(null);
+  const [atual, setAtual] = useState<{ texto: string; topo: number } | null>(null);
+  const medir = useCallback(() => {
+    const pedido = alvo.current;
+    if (!pedido || !trilho.current) return;
+    pedido.no.measureLayout(
+      trilho.current as never,
+      (_x, y) => { if (alvo.current === pedido) setAtual({ texto: pedido.texto, topo: y + DICA_ABAIXO_DO_TOPO }); },
+      () => undefined,
+    );
+  }, []);
+  const mostrar = useCallback((texto: string, no: View | null) => {
+    if (!no) return;
+    alvo.current = { texto, no };
+    medir();
+  }, [medir]);
+  const esconder = useCallback(() => {
+    alvo.current = null;
+    setAtual(null);
+  }, []);
+  return { trilho, atual, mostrar, esconder, aoRolar: medir };
 }
 
 /** Topo do trilho: a logo da consultoria ou a inicial do nome, para o menu de ícones não ficar sem dono. */
@@ -232,6 +276,8 @@ function MarcaDoTrilho({ marca }: { marca: Marca | null }) {
 }
 
 const CHAVE_MENU_RECOLHIDO = 'menu-lateral-recolhido';
+/** A dica fica 8 px abaixo do topo do item, como quando morava dentro dele. */
+const DICA_ABAIXO_DO_TOPO = 8;
 
 const estilos = StyleSheet.create({
   linha: { flex: 1, flexDirection: 'row' },
@@ -268,7 +314,8 @@ const estilos = StyleSheet.create({
   // Esticado na largura do item: com `numberOfLines`, nome que não coube vira reticências em vez de vazar do trilho.
   rotuloTrilho: { alignSelf: 'stretch', textAlign: 'center' },
   ponto: { position: 'absolute', right: -5, top: -3, width: 9, height: 9, borderRadius: 5, borderWidth: 1 },
-  dica: { position: 'absolute', left: 64, top: 8, paddingHorizontal: espaco(1), paddingVertical: 4, borderRadius: 6, zIndex: 50 },
+  // Posição no trilho (72 px): o item começa em 12, e a dica, 64 px depois dele, como antes.
+  dica: { position: 'absolute', left: 76, paddingHorizontal: espaco(1), paddingVertical: 4, borderRadius: 6, zIndex: 50 },
   textoDica: { fontFamily: fontes.semi, fontSize: 13 },
   topoTrilho: { alignItems: 'center', marginBottom: espaco(1) },
   logoTrilho: { width: 44, height: 44 },
