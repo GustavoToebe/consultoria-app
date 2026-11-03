@@ -36,6 +36,7 @@
   td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   .falha { color: var(--falha); font-weight: 700; }
   .passa { color: var(--ok); }
+  .info { color: #3f3f46; }
   .amostra { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(0,0,0,.25); margin-right: 6px; vertical-align: -1px; }
   h4 { margin: 14px 0 6px; font-size: 13px; }
   .mini { border-radius: 16px; padding: 16px; min-height: 320px; }
@@ -55,7 +56,7 @@
 <header class="topo">
   <h1>Paletas da marca</h1>
   <p>Prévia do Início do aluno nas 15 paletas do plano. Texto, verde, âmbar e vermelho são os do Escuro ou do Claro em <code>app/src/tema/tokens.ts</code>. O botão usa o vermelho intenso da marca, <code>#C62828</code>.</p>
-  <p class="nota">O contraste é a função <code>contraste()</code> do mesmo arquivo. Abaixo de 4,5:1 o texto fica vermelho, contra o fundo, o cartão e a faixa do título. Abaixo de 3:1, a borda contra o cartão também. A coluna da faixa mede a cor como texto ou ícone em cima dela (um título ou um ⋯). O botão vermelho com texto branco não entra nessa conta. A borda do cartão hoje é decorativa: no <code>tokens.ts</code> ela não precisa de 3:1 e fica acima de 1,9:1. Esta página marca 3:1 assim mesmo, para o corte. A separação da própria faixa contra o fundo e contra o cartão aparece em cada cartão e no resumo, fora da régua do texto.</p>
+  <p class="nota">O contraste e a <code>marcaParaTexto</code> são as funções de <code>app/src/tema/tokens.ts</code>, sem alteração. A marca no texto é <code>marcaParaTexto</code> da cor pura sobre a faixa, como em <code>TemaProvider</code>. Abaixo de 4,5:1 esse tom, o texto, o texto suave, o verde, o âmbar e o vermelho ficam vermelhos, contra o fundo, o cartão e a faixa. O botão é texto branco sobre a marca pura. A borda do cartão fica na tabela como informação, na régua de 1,9:1 do <code>tokens.ts</code>, e não entra em quem passa. A separação da faixa também não entra.</p>
 </header>
 <nav class="secoes">
   <a href="#resumo">Resumo</a>
@@ -66,7 +67,7 @@
   <section id="resumo" class="resumo"></section>
   <section id="escuras">
     <h2>Escuras</h2>
-    <p class="nota">Nas paletas novas, o que a tabela não traz sai clareando o cartão em direção ao branco, com a mistura do <code>tokens.ts</code> (<code>0</code> = cartão, <code>1</code> = branco). Passos: campo 0,02; superficie2 0,04; superficie3 0,09; divisor 0,13; borda 0,23; borda do campo 0,41. São os arredondamentos que mais se aproximam do Escuro, menos o campo: no Escuro ele é mais escuro que o cartão; aqui ele também clareia. Escuro, Claro e Areia usam os valores literais do arquivo.</p>
+    <p class="nota">Nas paletas novas, a faixa é o tom mais claro a partir do cartão, em direção ao branco, no qual texto, texto suave, verde, âmbar e vermelho ainda passam a 4,5:1. Se nenhum tom passar, a faixa usa a distância do Escuro até a faixa dele. Os outros tons clareiam o cartão nos passos de antes, sem passar da faixa. Nenhuma cor de status muda. Escuro, Claro e Areia usam os valores literais do arquivo.</p>
     <div class="grade" data-modo="escuro"></div>
   </section>
   <section id="claras">
@@ -92,7 +93,8 @@ var AREIA = {
   divisor: '#DDD8CF', borda: '#B9B3A9', campo: '#FFFFFF', bordaCampo: '#77736B'
 };
 var MARCA = '#C62828';
-var PASSOS = { campo: 0.02, superficie2: 0.04, superficie3: 0.09, divisor: 0.13, borda: 0.23, bordaCampo: 0.41 };
+/* Passos antigos, abaixo da faixa do Escuro ou acima dela. Os que passam da faixa nova são cortados nela. */
+var PASSOS_BASE = { campo: 0.02, superficie2: 0.04, divisor: 0.13, borda: 0.23, bordaCampo: 0.41 };
 var PALETAS = [
   { codigo: 'ESCURO', nome: 'Escuro', modo: 'escuro', origem: 'já existe', fundo: ESCURO.fundo, cartao: ESCURO.superficie, literal: ESCURO },
   { codigo: 'MEIA_NOITE', nome: 'Meia-noite', modo: 'escuro', origem: 'Midnight', fundo: '#06141B', cartao: '#11212D' },
@@ -136,6 +138,55 @@ function misturar(cor, alvo, t) {
   return '#' + [16, 8, 0].map(function (d) { return canal(d).toString(16).padStart(2, '0').toUpperCase(); }).join('');
 }
 
+/* Copiada de tokens.ts. Não alterar a conta. */
+function marcaParaTexto(marca, fundo) {
+  if (!/^#[0-9a-f]{6}$/i.test(marca.trim())) return marca;
+  var alvo = luminancia(fundo) < 0.18 ? '#FFFFFF' : '#000000';
+  for (var t = 0; t <= 1.0001; t += 0.04) {
+    var cor = misturar(marca.trim(), alvo, Math.min(t, 1));
+    if (contraste(cor, fundo) >= 4.5) return cor;
+  }
+  return alvo;
+}
+
+function passoDoEscuro() {
+  var melhor = 0;
+  var melhorDist = 1e9;
+  for (var i = 0; i <= 100; i++) {
+    var t = i / 100;
+    var cor = misturar(ESCURO.superficie, '#FFFFFF', t);
+    var A = parseInt(cor.slice(1), 16);
+    var B = parseInt(ESCURO.superficie3.slice(1), 16);
+    var dist = 0;
+    [16, 8, 0].forEach(function (desl) {
+      dist += Math.abs(((A >> desl) & 255) - ((B >> desl) & 255));
+    });
+    if (dist < melhorDist) { melhorDist = dist; melhor = t; }
+  }
+  return melhor;
+}
+
+var PASSO_DO_ESCURO = passoDoEscuro();
+
+function statusPassa(cor, modo) {
+  var st = statusDe(modo);
+  var cores = [st.texto, st.textoSuave, st.sucesso, st.atencao, st.perigo];
+  for (var i = 0; i < cores.length; i++) {
+    if (contraste(cores[i], cor) < 4.5) return false;
+  }
+  return true;
+}
+
+function faixaEscura(cartao) {
+  var tFaixa = null;
+  for (var i = 0; i <= 100; i++) {
+    var t = i / 100;
+    if (statusPassa(misturar(cartao, '#FFFFFF', t), 'escuro')) tFaixa = t;
+  }
+  if (tFaixa === null) return { t: PASSO_DO_ESCURO, fallback: true };
+  return { t: tFaixa, fallback: false };
+}
+
 function tonsDe(p) {
   if (p.literal) {
     return {
@@ -145,9 +196,22 @@ function tonsDe(p) {
     };
   }
   if (p.modo === 'escuro') {
-    var tons = { fundo: p.fundo, superficie: p.cartao, origemDosTons: 'cartão clareado em passos fixos' };
-    Object.keys(PASSOS).forEach(function (chave) {
-      tons[chave] = misturar(p.cartao, '#FFFFFF', PASSOS[chave]);
+    var faixa = faixaEscura(p.cartao);
+    var passos = { superficie3: faixa.t };
+    Object.keys(PASSOS_BASE).forEach(function (chave) {
+      passos[chave] = Math.min(PASSOS_BASE[chave], faixa.t);
+    });
+    var tons = {
+      fundo: p.fundo,
+      superficie: p.cartao,
+      passos: passos,
+      fallback: faixa.fallback,
+      origemDosTons: faixa.fallback
+        ? 'nenhum tom passou a 4,5:1; a faixa ficou na distância do Escuro'
+        : 'faixa no tom mais claro em que o texto e os status ainda passam a 4,5:1'
+    };
+    Object.keys(passos).forEach(function (chave) {
+      tons[chave] = misturar(p.cartao, '#FFFFFF', passos[chave]);
     });
     return tons;
   }
@@ -170,49 +234,77 @@ function fmt(n) {
 function medir(p) {
   var tons = tonsDe(p);
   var st = statusDe(p.modo);
+  var marcaTexto = marcaParaTexto(MARCA, tons.superficie3);
   var linhas = [
-    ['Texto', st.texto, 4.5],
-    ['Texto suave', st.textoSuave, 4.5],
-    ['Verde', st.sucesso, 4.5],
-    ['Âmbar', st.atencao, 4.5],
-    ['Vermelho', st.perigo, 4.5],
-    ['Cor da marca', MARCA, 4.5]
+    ['Texto', st.texto],
+    ['Texto suave', st.textoSuave],
+    ['Verde', st.sucesso],
+    ['Âmbar', st.atencao],
+    ['Vermelho', st.perigo],
+    ['Marca no texto', marcaTexto]
   ].map(function (item) {
     var noFundo = contraste(item[1], tons.fundo);
     var noCartao = contraste(item[1], tons.superficie);
     var naFaixa = contraste(item[1], tons.superficie3);
     return {
       nome: item[0], cor: item[1], fundo: noFundo, cartao: noCartao, faixa: naFaixa,
-      falhaFundo: noFundo < item[2], falhaCartao: noCartao < item[2], falhaFaixa: naFaixa < item[2], borda: false
+      falhaFundo: noFundo < 4.5, falhaCartao: noCartao < 4.5, falhaFaixa: naFaixa < 4.5,
+      contaFundo: true, contaCartao: true, contaFaixa: true
     };
   });
-  [['Borda', tons.borda], ['Borda do campo', tons.bordaCampo]].forEach(function (item) {
-    var noCartao = contraste(item[1], tons.superficie);
-    linhas.push({
-      nome: item[0], cor: item[1], fundo: null, cartao: noCartao, faixa: null,
-      falhaFundo: false, falhaCartao: noCartao < 3, falhaFaixa: false, borda: true
-    });
+  var noBotao = contraste('#FFFFFF', MARCA);
+  linhas.push({
+    nome: 'Botão', cor: '#FFFFFF', fundo: noBotao, cartao: null, faixa: null,
+    falhaFundo: noBotao < 4.5, falhaCartao: false, falhaFaixa: false,
+    contaFundo: true, contaCartao: false, contaFaixa: false, rotuloFundo: 'sobre a marca'
+  });
+  var bordaNoCartao = contraste(tons.borda, tons.superficie);
+  linhas.push({
+    nome: 'Borda do cartão', cor: tons.borda, fundo: null, cartao: bordaNoCartao, faixa: null,
+    falhaFundo: false, falhaCartao: bordaNoCartao < 1.9, falhaFaixa: false,
+    contaFundo: false, contaCartao: false, contaFaixa: false, info: true, regua: '1,9'
+  });
+  var linhaNoCartao = contraste(tons.bordaCampo, tons.superficie);
+  linhas.push({
+    nome: 'Linha de 3 px', cor: tons.bordaCampo, fundo: null, cartao: linhaNoCartao, faixa: null,
+    falhaFundo: false, falhaCartao: false, falhaFaixa: false,
+    contaFundo: false, contaCartao: false, contaFaixa: false, info: true
   });
   var falhas = [];
   linhas.forEach(function (linha) {
-    if (linha.falhaFundo) falhas.push(linha.nome + ' contra o fundo (' + fmt(linha.fundo) + ':1)');
-    if (linha.falhaCartao) falhas.push(linha.nome + ' contra o cartão (' + fmt(linha.cartao) + ':1)');
-    if (linha.falhaFaixa) falhas.push(linha.nome + ' contra a faixa (' + fmt(linha.faixa) + ':1)');
+    if (linha.contaFundo && linha.falhaFundo) falhas.push(linha.nome + ' contra o fundo (' + fmt(linha.fundo) + ':1)');
+    if (linha.contaCartao && linha.falhaCartao) falhas.push(linha.nome + ' contra o cartão (' + fmt(linha.cartao) + ':1)');
+    if (linha.contaFaixa && linha.falhaFaixa) falhas.push(linha.nome + ' contra a faixa (' + fmt(linha.faixa) + ':1)');
   });
+  if (noBotao < 4.5) {
+    /* já entrou como "Botão contra o fundo"; troca o texto para não dizer fundo */
+    falhas = falhas.map(function (texto) {
+      return texto.indexOf('Botão contra o fundo') === 0 ? 'Botão, texto branco sobre a marca (' + fmt(noBotao) + ':1)' : texto;
+    });
+  }
   return {
     tons: tons,
     linhas: linhas,
     falhas: falhas,
+    marcaTexto: marcaTexto,
     faixaNoFundo: contraste(tons.superficie3, tons.fundo),
-    faixaNoCartao: contraste(tons.superficie3, tons.superficie)
+    faixaNoCartao: contraste(tons.superficie3, tons.superficie),
+    linhaNoCartao: linhaNoCartao
   };
 }
 
-function celula(valor, falha) {
+function celula(linha, campo) {
+  var valor = linha[campo];
   if (valor === null) return '<td class="num">—</td>';
-  var classe = falha ? 'falha' : 'passa';
+  var falha = campo === 'fundo' ? linha.falhaFundo : campo === 'cartao' ? linha.falhaCartao : linha.falhaFaixa;
+  if (linha.info) {
+    var extraInfo = falha && linha.regua ? ' abaixo de ' + linha.regua : '';
+    var prefixo = linha.rotuloFundo && campo === 'fundo' ? linha.rotuloFundo + ' ' : '';
+    return '<td class="num info">' + prefixo + fmt(valor) + ':1' + extraInfo + '</td>';
+  }
   var extra = falha ? ' abaixo' : '';
-  return '<td class="num ' + classe + '">' + fmt(valor) + ':1' + extra + '</td>';
+  var prefixoConta = linha.rotuloFundo && campo === 'fundo' ? linha.rotuloFundo + ' ' : '';
+  return '<td class="num ' + (falha ? 'falha' : 'passa') + '">' + prefixoConta + fmt(valor) + ':1' + extra + '</td>';
 }
 
 function desenhar(p, medida) {
@@ -220,21 +312,29 @@ function desenhar(p, medida) {
   var st = statusDe(p.modo);
   var artigo = document.createElement('article');
   artigo.id = p.codigo;
+  function origemDoPasso(chave, textoClaro, textoFaixa) {
+    if (p.literal) return '';
+    if (p.modo === 'claro') return textoClaro;
+    var passo = tons.passos[chave];
+    var texto = 'passo ' + fmt(passo);
+    if (chave === 'superficie3' && tons.fallback) texto += ', distância do Escuro';
+    return texto;
+  }
   var rotulos = [
     ['Fundo', tons.fundo, ''],
     ['Cartão', tons.superficie, ''],
-    ['Item (superficie2)', tons.superficie2, p.literal ? '' : (p.modo === 'escuro' ? 'passo 0,04' : 'Claro')],
-    ['Faixa (superficie3)', tons.superficie3, p.faixa ? 'segundo tom da paleta' : (p.literal ? '' : 'passo 0,09')],
-    ['Divisor', tons.divisor, p.literal ? '' : (p.modo === 'escuro' ? 'passo 0,13' : 'Claro')],
-    ['Borda', tons.borda, p.literal ? '' : (p.modo === 'escuro' ? 'passo 0,23' : 'Claro')],
-    ['Campo', tons.campo, p.literal ? '' : (p.modo === 'escuro' ? 'passo 0,02' : 'Claro')],
-    ['Borda do campo', tons.bordaCampo, p.literal ? '' : (p.modo === 'escuro' ? 'passo 0,41' : 'Claro')]
+    ['Item (superficie2)', tons.superficie2, origemDoPasso('superficie2', 'Claro')],
+    ['Faixa (superficie3)', tons.superficie3, p.faixa ? 'segundo tom da paleta' : origemDoPasso('superficie3', '')],
+    ['Divisor', tons.divisor, origemDoPasso('divisor', 'Claro')],
+    ['Borda', tons.borda, origemDoPasso('borda', 'Claro')],
+    ['Campo', tons.campo, origemDoPasso('campo', 'Claro')],
+    ['Borda do campo', tons.bordaCampo, origemDoPasso('bordaCampo', 'Claro')]
   ];
   var linhasTons = rotulos.map(function (item) {
     return '<tr><td><span class="amostra" style="background:' + item[1] + '"></span>' + item[0] + '</td><td><code>' + item[1] + '</code></td><td>' + item[2] + '</td></tr>';
   }).join('');
   var linhasContraste = medida.linhas.map(function (linha) {
-    return '<tr><td><span class="amostra" style="background:' + linha.cor + '"></span>' + linha.nome + '</td><td><code>' + linha.cor + '</code></td>' + celula(linha.fundo, linha.falhaFundo) + celula(linha.cartao, linha.falhaCartao) + celula(linha.faixa, linha.falhaFaixa) + '</tr>';
+    return '<tr><td><span class="amostra" style="background:' + linha.cor + '"></span>' + linha.nome + '</td><td><code>' + linha.cor + '</code></td>' + celula(linha, 'fundo') + celula(linha, 'cartao') + celula(linha, 'faixa') + '</tr>';
   }).join('');
   artigo.innerHTML =
     '<header><h3>' + p.nome + '</h3><code>' + p.codigo + '</code><span class="origem">' + p.origem + '</span></header>' +
@@ -254,7 +354,7 @@ function desenhar(p, medida) {
       '<div><p class="nota">' + tons.origemDosTons + '</p>' +
         '<h4>Tons do chão</h4><table><thead><tr><th>Token</th><th>Valor</th><th>De onde</th></tr></thead><tbody>' + linhasTons + '</tbody></table>' +
         '<h4>Contraste</h4><table><thead><tr><th>Cor</th><th>Valor</th><th class="num">Contra o fundo</th><th class="num">Contra o cartão</th><th class="num">Contra a faixa</th></tr></thead><tbody>' + linhasContraste + '</tbody></table>' +
-        '<p class="nota">A faixa <code>' + tons.superficie3 + '</code> tem ' + fmt(medida.faixaNoFundo) + ':1 contra o fundo e ' + fmt(medida.faixaNoCartao) + ':1 contra o cartão. A linha de 3 px embaixo da faixa é o que separa o título quando esses dois ficam baixos.</p>' +
+        '<p class="nota">A faixa <code>' + tons.superficie3 + '</code> tem ' + fmt(medida.faixaNoFundo) + ':1 contra o fundo e ' + fmt(medida.faixaNoCartao) + ':1 contra o cartão. A linha de 3 px (<code>' + tons.bordaCampo + '</code>) tem ' + fmt(medida.linhaNoCartao) + ':1 contra o cartão. O botão é texto branco sobre <code>' + MARCA + '</code>.</p>' +
       '</div></div>';
   return artigo;
 }
@@ -263,7 +363,7 @@ var medidas = PALETAS.map(function (p) { return { paleta: p, medida: medir(p) };
 var passam = medidas.filter(function (item) { return item.medida.falhas.length === 0; });
 var resumo = document.getElementById('resumo');
 var intro = document.createElement('p');
-intro.innerHTML = '<strong>' + passam.length + ' de 15 passam inteiras.</strong> Régua: texto a 4,5:1 contra o fundo, o cartão e a faixa; borda e borda do campo a 3:1 contra o cartão. A separação da faixa não entra nessa conta.';
+intro.innerHTML = '<strong>' + passam.length + ' de 15 passam inteiras.</strong> Régua: texto, texto suave, verde, âmbar, vermelho e a marca no texto a 4,5:1 contra o fundo, o cartão e a faixa; o botão, texto branco sobre a marca pura, a 4,5:1. A borda do cartão (1,9:1) e a separação da faixa não entram.';
 resumo.appendChild(intro);
 ['escuro', 'claro'].forEach(function (modo) {
   var grupo = medidas.filter(function (item) { return item.paleta.modo === modo; });
@@ -280,21 +380,19 @@ resumo.appendChild(intro);
   });
   resumo.appendChild(lista);
 });
-var sepTitulo = document.createElement('h2');
-sepTitulo.textContent = 'Separação da faixa';
-resumo.appendChild(sepTitulo);
-var sepNota = document.createElement('p');
-sepNota.className = 'nota';
-sepNota.textContent = 'Contraste da própria faixa contra o fundo e contra o cartão. Não é a régua de 4,5:1. Quando fica perto de 1:1, o título quase não se destaca e a linha de 3 px embaixo da faixa é que marca o fim.';
-resumo.appendChild(sepNota);
-var sepLista = document.createElement('ul');
-medidas.forEach(function (item) {
-  var li = document.createElement('li');
-  li.innerHTML = '<a href="#' + item.paleta.codigo + '"><code>' + item.paleta.codigo + '</code></a> ' +
-    fmt(item.medida.faixaNoFundo) + ':1 contra o fundo, ' + fmt(item.medida.faixaNoCartao) + ':1 contra o cartão.';
-  sepLista.appendChild(li);
-});
-resumo.appendChild(sepLista);
+var quase = medidas.filter(function (item) { return item.medida.faixaNoCartao < 1.1; });
+var obsTitulo = document.createElement('h2');
+obsTitulo.textContent = 'Faixa quase invisível';
+resumo.appendChild(obsTitulo);
+var obs = document.createElement('p');
+obs.className = 'nota';
+if (quase.length === 0) {
+  obs.textContent = 'Nenhuma faixa fica abaixo de 1,10:1 contra o cartão. Esta observação não entra na régua.';
+} else {
+  obs.textContent = 'Abaixo de 1,10:1 contra o cartão, a faixa quase não se separa dele. Não entra na régua: ' +
+    quase.map(function (item) { return item.paleta.nome + ' (' + fmt(item.medida.faixaNoCartao) + ':1)'; }).join(', ') + '.';
+}
+resumo.appendChild(obs);
 
 medidas.forEach(function (item) {
   var grade = document.querySelector('.grade[data-modo="' + item.paleta.modo + '"]');
