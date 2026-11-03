@@ -177,32 +177,51 @@ describe('divisões da semana', () => {
 });
 
 describe('próximo treino no dia de descanso', () => {
-  const QUARTA = 3;
-  const DOMINGO = 7;
+  // 2026-10-21 é quarta; 10-23 sexta; 10-25 domingo.
+  const QUARTA = '2026-10-21';
+  const SEXTA = '2026-10-23';
+  const DOMINGO = '2026-10-25';
   it('próximo dia com treino na mesma semana, com o dia e o nome da divisão', () => {
     const conteudo = treino(sessao('a', SEGUNDA), sessao('b', 4), sessao('c', 6));
-    expect(proximoTreino(conteudo, QUARTA)).toBe('Quinta · Sessão b');
-    expect(proximoTreino(conteudo, 5)).toBe('Sábado · Sessão c');
+    expect(proximoTreino(conteudo, QUARTA, null)).toBe('Quinta · Sessão b');
+    expect(proximoTreino(conteudo, SEXTA, null)).toBe('Sábado · Sessão c');
   });
 
   it('virada da semana: depois do último treino da semana vem o primeiro da seguinte', () => {
-    const conteudo = treino(sessao('a', SEGUNDA), sessao('b', QUARTA));
-    expect(proximoTreino(conteudo, DOMINGO)).toBe('Segunda · Sessão a');
-    expect(proximoTreino(conteudo, 5)).toBe('Segunda · Sessão a');
+    const conteudo = treino(sessao('a', SEGUNDA), sessao('b', 3));
+    expect(proximoTreino(conteudo, DOMINGO, null)).toBe('Segunda · Sessão a');
+    expect(proximoTreino(conteudo, SEXTA, '2026-11-30')).toBe('Segunda · Sessão a');
   });
 
   it('pula sessão de descanso e sessão sem exercício; descanso ativo com exercício é treino', () => {
     const conteudo = treino(sessao('d', 4, 0, 'DESCANSO'), sessao('v', 5, 0), sessao('x', 6, 2, 'DESCANSO_ATIVO'));
-    expect(proximoTreino(conteudo, QUARTA)).toBe('Sábado · Sessão x');
+    expect(proximoTreino(conteudo, QUARTA, null)).toBe('Sábado · Sessão x');
   });
 
   it('plano sem dia fixo, sem plano ou só com o descanso de hoje: sem linha', () => {
-    expect(proximoTreino(treino(sessao('a', null), sessao('b', null)), QUARTA)).toBeNull();
-    expect(proximoTreino(null, QUARTA)).toBeNull();
-    expect(proximoTreino(treino(sessao('a', QUARTA, 0, 'DESCANSO')), QUARTA)).toBeNull();
+    expect(proximoTreino(treino(sessao('a', null), sessao('b', null)), QUARTA, null)).toBeNull();
+    expect(proximoTreino(null, QUARTA, null)).toBeNull();
+    expect(proximoTreino(treino(sessao('a', 3, 0, 'DESCANSO')), QUARTA, null)).toBeNull();
   });
 
   it('nome que já começa pelo dia não repete o dia', () => {
-    expect(proximoTreino(treino(sessao('a', SEGUNDA, 5, 'TREINO', { nome: 'Segunda: peito' })), DOMINGO)).toBe('Segunda: peito');
+    expect(proximoTreino(treino(sessao('a', SEGUNDA, 5, 'TREINO', { nome: 'Segunda: peito' })), DOMINGO, null)).toBe('Segunda: peito');
+  });
+
+  it('respeita o fim da pasta: no último dia, ou com a próxima sessão depois dele, não há próximo treino', () => {
+    const conteudo = treino(sessao('a', SEGUNDA), sessao('b', 3));
+    expect(proximoTreino(conteudo, DOMINGO, DOMINGO)).toBeNull();
+    expect(proximoTreino(conteudo, SEXTA, '2026-10-25')).toBeNull();
+  });
+
+  it('o fim é inclusivo: a sessão que cai no último dia ainda é o próximo treino', () => {
+    const conteudo = treino(sessao('a', SEGUNDA), sessao('b', 6));
+    expect(proximoTreino(conteudo, SEXTA, '2026-10-24')).toBe('Sábado · Sessão b');
+  });
+
+  it('dia de descanso no meio da pasta e dia depois do fim', () => {
+    const conteudo = treino(sessao('a', SEGUNDA), sessao('b', 4));
+    expect(proximoTreino(conteudo, QUARTA, '2026-12-31')).toBe('Quinta · Sessão b');
+    expect(proximoTreino(conteudo, '2026-10-26', '2026-10-25')).toBeNull();
   });
 });

@@ -541,20 +541,25 @@ for (const largura of [390, 1280]) {
       [`GET /atualizacoes/${ATUALIZACAO_ID}`]: { corpo: ATUALIZACAO_ENVIADA },
     });
     const folha = page.getByRole('dialog');
+    // A pergunta é um `alertdialog` por cima da Folha; o `dialog` é só o painel dela (C3, um diálogo por vez para o leitor de tela).
+    const pergunta = page.getByRole('alertdialog');
     await page.goto(`/treinador/alunos/${ALUNO_ID}`);
     await page.getByRole('button', { name: 'Editar', exact: true }).click();
     await page.getByLabel('Nome', { exact: true }).fill('Nome Trocado Fictício');
     await page.getByRole('button', { name: /^Pasta Plano 17, aberta/ }).click();
     const revisarNaFolha = folha.getByRole('button', { name: 'Revisar atualização', exact: true });
     await revisarNaFolha.click();
-    await expect(folha.getByText('Sair sem salvar?', { exact: true })).toBeVisible();
-    await folha.getByRole('button', { name: 'Continuar editando', exact: true }).click();
+    await expect(pergunta.getByText('Sair sem salvar?', { exact: true })).toBeVisible();
+    // O foco está na pergunta e, ao "Continuar editando", volta para dentro da Folha (não para a página atrás dela).
+    await expect.poll(() => page.evaluate(() => !!document.activeElement?.closest('[role="alertdialog"]'))).toBe(true);
+    await pergunta.getByRole('button', { name: 'Continuar editando', exact: true }).click();
     await expect(sairSemSalvar(page)).toHaveCount(0);
+    await expect.poll(() => page.evaluate(() => !!document.activeElement?.closest('[role="dialog"]'))).toBe(true);
     await expect(revisarNaFolha).toBeVisible();
     await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${ALUNO_ID}$`));
 
     await revisarNaFolha.click();
-    await folha.getByRole('button', { name: 'Sair sem salvar', exact: true }).click();
+    await pergunta.getByRole('button', { name: 'Sair sem salvar', exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/treinador/atualizacoes/${ATUALIZACAO_ID}`));
     await page.goBack();
     await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${ALUNO_ID}$`));

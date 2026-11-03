@@ -269,7 +269,7 @@ test('anamnese em páginas: avançar confere a página, voltar mantém as respos
   // Enviada: tudo numa rolagem, só leitura, a grade como lista.
   await expect(page.getByText('Parte 1 de 3')).toHaveCount(0);
   await expect(page.getByText('Sintomas e regras')).toBeVisible();
-  await expect(page.getByText('7 de 10')).toBeVisible();
+  await expect(page.getByText('7/10')).toBeVisible();
   await expect(page.getByText('Ocasionalmente')).toBeVisible();
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);

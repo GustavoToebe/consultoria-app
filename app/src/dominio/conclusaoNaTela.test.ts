@@ -5,6 +5,7 @@ import {
   segundosDoCampo,
   soMinutos,
   textoDaDuracao,
+  textoDoHojeConcluido,
   textoDasSeriesMarcadas,
 } from './conclusaoNaTela';
 
@@ -13,6 +14,12 @@ describe('textos de "Concluir treino"', () => {
     expect(resumoDaConclusao({ resultado: 'COMPLETA', duracaoSegundos: 3120 })).toBe('Fiz tudo · 52 min');
     expect(resumoDaConclusao({ resultado: 'PARCIAL', duracaoSegundos: null })).toBe('Fiz em parte');
     expect(resumoDaConclusao({ resultado: null, duracaoSegundos: null })).toBe('');
+  });
+
+  it('o cartão Hoje do Início diz que o treino foi concluído, com o resultado (N3)', () => {
+    expect(textoDoHojeConcluido({ resultado: 'COMPLETA', duracaoSegundos: 3120 })).toBe('Treino concluído · Fiz tudo · 52 min');
+    expect(textoDoHojeConcluido({ resultado: 'PARCIAL', duracaoSegundos: null })).toBe('Treino concluído · Fiz em parte');
+    expect(textoDoHojeConcluido({ resultado: null, duracaoSegundos: null })).toBe('Treino concluído');
   });
 
   it('a duração nunca sai "0 min"', () => {

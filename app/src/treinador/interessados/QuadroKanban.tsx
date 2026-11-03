@@ -35,6 +35,7 @@ import { Folha } from '../../ui/Folha';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
+import { useMovimentoReduzido } from '../../ui/useMovimentoReduzido';
 import type { PedidoDaFolha } from './FolhaDaInscricao';
 
 /** Cartões por vez em cada coluna; "Carregar mais" soma outro tanto, até o máximo de uma página da API. */
@@ -195,6 +196,8 @@ function CartaoDoQuadro({ item, movendo, aoAbrir, aoMover, aoComecarArrasto, aoS
   aoSoltar: (x: number, y: number) => void;
 }) {
   const { cores } = useTema();
+  const reduzido = useMovimentoReduzido();
+  const realce = cores.anelFoco;
   const x = useSharedValue(0);
   const y = useSharedValue(0);
   const arrastando = useSharedValue(0);
@@ -210,6 +213,8 @@ function CartaoDoQuadro({ item, movendo, aoAbrir, aoMover, aoComecarArrasto, aoS
   const estilo = useAnimatedStyle(() => {
     const a = arrastando.get();
     if (!a) return {};
+    // Movimento reduzido: o cartão não segue o dedo; fica no lugar com a borda realçada e soltar na coluna continua valendo.
+    if (reduzido) return { borderColor: realce };
     return { transform: [{ translateX: x.get() }, { translateY: y.get() }], zIndex: 10, opacity: 0.9 };
   });
   const gesto = Gesture.Pan().activateAfterLongPress(250)

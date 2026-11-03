@@ -1,7 +1,7 @@
 import type { DiaDeTreino, EtapaRegistrada, SerieFeita, Sessao } from '../api/tipos';
 import { textoCarga, textoReps } from '../pdf/pdfCargas';
 import { dataCurta, diaDaSemanaIso } from './formatos';
-import { cargasPorDivisao, filtrarPorSessoes, intervaloDeRegistros, opcoesDeProgresso, partesDaDivisao, periodoMisturaVersoes, TEXTO_PERIODO_MISTURA_VERSOES, textoDoHistoricoVazio, totalDeRegistros, ultimoRegistroDaDivisao, versoesDoPlanoNoPeriodo } from './relatorio';
+import { cargasPorDivisao, filtrarPorSessoes, intervaloDeRegistros, opcoesDeProgresso, partesDaDivisao, periodoMisturaVersoes, TEXTO_PERIODO_MISTURA_VERSOES, TEXTO_SEM_PROGRESSO_NO_PERIODO, textoDoHistoricoVazio, totalDeRegistros, ultimoRegistroDaDivisao, versoesDoPlanoNoPeriodo } from './relatorio';
 import { marcasDoEixo } from './grafico';
 import { datasDaSessao, nomeComDia, podeRegistrarEm } from './semana';
 
@@ -319,6 +319,12 @@ describe('histórico: versões do plano e estado vazio (B6)', () => {
     expect(textoDoHistoricoVazio({ temRegistros: false, graficosLigados: false })).toBe('Nenhum registro neste período.');
     expect(textoDoHistoricoVazio({ temRegistros: true, graficosLigados: false })).toBe('Os gráficos estão desligados em Perfil › Preferências.');
     expect(textoDoHistoricoVazio({ temRegistros: true, graficosLigados: true })).toBeNull();
+  });
+
+  it('N4: com registro mas sem série completa, o texto diz o motivo; sem registro, continua "Nenhum registro"', () => {
+    expect(textoDoHistoricoVazio({ temRegistros: true, graficosLigados: true, semProgresso: true })).toBe('Nenhuma série completa, com carga e repetições, neste período.');
+    expect(textoDoHistoricoVazio({ temRegistros: false, graficosLigados: true, semProgresso: true })).toBe('Nenhum registro neste período.');
+    expect(TEXTO_SEM_PROGRESSO_NO_PERIODO).toContain('Nenhuma série completa');
   });
 
   it('o caminho para ligar os gráficos depende do papel: aluno na Conta, treinador no Perfil', () => {

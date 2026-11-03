@@ -27,6 +27,12 @@ export function resumoDaConclusao(c: Pick<ConclusaoDoTreino, 'resultado' | 'dura
     .join(' · ');
 }
 
+/** Linha do cartão "Hoje" do Início depois de concluir (N3): "Treino concluído · Fiz tudo · 52 min". */
+export function textoDoHojeConcluido(c: Pick<ConclusaoDoTreino, 'resultado' | 'duracaoSegundos'>): string {
+  const resumo = resumoDaConclusao(c);
+  return resumo ? `Treino concluído · ${resumo}` : 'Treino concluído';
+}
+
 /** O campo de minutos aceita só dígitos (no máximo 3: até 6 h cabe em 360). */
 export function soMinutos(texto: string): string {
   return texto.replace(/\D/g, '').slice(0, 3);

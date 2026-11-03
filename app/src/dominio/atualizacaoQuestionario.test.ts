@@ -29,7 +29,7 @@ describe('textoDaResposta', () => {
     expect(textoDaResposta(p('dor'), true)).toBe('Sim');
     expect(textoDaResposta(p('dor'), null)).toBe('—');
     expect(textoDaResposta(p('passos'), 0)).toBe('0 mil');
-    expect(textoDaResposta(p('sono'), 0)).toBe('0');
+    expect(textoDaResposta(p('sono'), 0)).toBe('0 de 0 a 10');
     expect(textoDaResposta(p('sono'), undefined)).toBe('—');
   });
   it('formata peso, número com casas e unidade, e escolhas pelo rótulo', () => {
@@ -46,7 +46,7 @@ describe('textoDaResposta', () => {
   });
   it('notas por dia mostram cada dia', () => {
     const dias: PerguntaAtualizacao = { id: 'd', tipo: 'NOTAS_POR_DIA', rotulo: 'Dias', obrigatoria: false, dias: [1, 2] };
-    expect(textoDaResposta(dias, { '1': 0, '2': null })).toBe('Dia 1: 0\nDia 2: —');
+    expect(textoDaResposta(dias, { '1': 0, '2': null })).toBe('Dia 1: 0 de 0 a 10\nDia 2: —');
   });
 });
 
@@ -65,11 +65,12 @@ describe('resumoDoTreinador', () => {
     const r = resumoDoTreinador(modelo, { peso: 80.5, sono: 0, dor: false, humor: 'a', passos: 12 }, resumoApi);
     expect(r.peso).toEqual({ valor: 80.5, variacao: -0.5 });
     expect(r.destaques).toEqual([
-      { id: 'sono', rotulo: 'Sono', texto: '0' },
+      { id: 'sono', rotulo: 'Sono', texto: '0 de 0 a 10' },
       { id: 'dor', rotulo: 'Sentiu dor?', texto: 'Não' },
       { id: 'humor', rotulo: 'Humor', texto: 'Ruim' },
       { id: 'passos', rotulo: 'Passos', texto: '12 mil' },
     ]);
+    expect(r.diasComTreino).toBe(8);
     expect(r.mediaDiasPorSemana).toBe(4);
     expect(r.pesoAnterior).toBe(81);
   });
@@ -80,7 +81,7 @@ describe('resumoDoTreinador', () => {
   it('sem pergunta PESO e sem destaque, só os dados do período; sem resumo da API tudo nulo', () => {
     const simples: ConteudoQuestionario = { instrucoes: [], secoes: [{ titulo: 'x', perguntas: [p('obs')] }] };
     const r = resumoDoTreinador({ ...simples, secoes: [{ titulo: 'x', perguntas: [{ ...p('obs'), destaque: false }] }] }, { obs: 'ok' }, null);
-    expect(r).toEqual({ peso: null, destaques: [], mediaDiasPorSemana: null, pesoAnterior: null });
+    expect(r).toEqual({ peso: null, destaques: [], diasComTreino: null, mediaDiasPorSemana: null, pesoAnterior: null });
   });
   it('corta rótulo de destaque comprido sem nome curto', () => {
     const longo: ConteudoQuestionario = { instrucoes: [], secoes: [{ titulo: 'x', perguntas: [{ ...p('sono'), rotuloCurto: undefined }] }] };
@@ -199,8 +200,9 @@ describe('tipos da anamnese', () => {
 
 describe('apoio da nota, da grade e das opções com imagem', () => {
   it('nota na leitura leva a ponta de cima; sem resposta, "—"', () => {
-    expect(textoDaNota({ min: 1, max: 5 }, 4)).toBe('4 de 5');
-    expect(textoDaNota({}, 0)).toBe('0 de 10');
+    expect(textoDaNota({ min: 1, max: 5 }, 4)).toBe('4/5');
+    expect(textoDaNota({}, 0)).toBe('0 de 0 a 10');
+    expect(textoDaNota({ min: 1, max: 10 }, 7)).toBe('7/10');
     expect(textoDaNota({}, null)).toBe('—');
   });
 
@@ -216,6 +218,16 @@ describe('apoio da nota, da grade e das opções com imagem', () => {
       linhas: [{ id: 'a', rotulo: 'A' }, { id: 'b', rotulo: 'B' }], colunas: [{ id: 'x', rotulo: 'X' }] }] }] };
     expect(progressoDasSecoes(m, { g: { a: 'x' } })).toEqual([{ respondidas: 0, total: 1 }]);
     expect(progressoDasSecoes(m, { g: { a: 'x', b: 'x' } })).toEqual([{ respondidas: 1, total: 1 }]);
+  });
+
+  it('N16: resposta fora do formato (data inválida, texto onde cabe número) não entra em "N de M respondidas"', () => {
+    const m: ConteudoQuestionario = { instrucoes: [], secoes: [{ titulo: 'S', perguntas: [
+      { id: 'nasc', tipo: 'DATA', rotulo: 'Nascimento', obrigatoria: true, somentePassado: true },
+      { id: 'tel', tipo: 'TELEFONE', rotulo: 'Telefone', obrigatoria: false },
+      { id: 'nome', tipo: 'TEXTO', rotulo: 'Nome', obrigatoria: false },
+    ] }] };
+    expect(progressoDasSecoes(m, { nasc: '31/02/1990', tel: '12', nome: 'Ana' })).toEqual([{ respondidas: 1, total: 3 }]);
+    expect(progressoDasSecoes(m, { nasc: '1990-02-10', tel: '(45) 99999-8888', nome: 'Ana' })).toEqual([{ respondidas: 3, total: 3 }]);
   });
 
   it('opções com imagem: 2 por linha no celular, 3 ou 4 no PC', () => {
