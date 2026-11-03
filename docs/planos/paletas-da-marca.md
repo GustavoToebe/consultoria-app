@@ -93,7 +93,7 @@ Nas escuras, os tons que a paleta não traz (`superficie2`, `superficie3`, `faix
   A checagem da cor personalizada mede contra a paleta (decisão 4). Feito (decisões 8 e 9); sem o perfil Administrador a Marca já não abre ("Sem acesso a esta tela"), então não há estado só leitura a fazer. E2e `e2e/marca-paletas.spec.ts` (390 e 1280, claro e escuro). **executor-front** — commit/run: `1bf7668e`
 - [ ] 6. **Conferência**: `npm run typecheck && npm run lint && npm test`, `mvn verify`, e2e da Marca (escolher uma
   paleta, salvar, recarregar, o Início do aluno abre nela) e passada no local com Playwright em 390 e 1280 px nas
-  paletas aprovadas (capturas fora de `docs/`). **executor-rapido** devolve só as falhas — commit/run: —
+  paletas aprovadas (capturas fora de `docs/`). **executor-rapido** devolve só as falhas. Feito até aqui: `e2e/paleta-do-aluno.spec.ts` (caminho inteiro em 390 e 1280: Oceano salva e volta selecionado; aluno abre o Início na paleta; Claro pessoal vence; "Padrão da consultoria" volta; código desconhecido). **Achado:** código de tema desconhecido vindo da API (ex.: `FUTURA`) deixa a tela do aluno branca (`PALETAS[codigo]` sem fallback em `TemaProvider.tsx:114` e `PreferenciasDoApp.tsx:36`); o teste está com `test.fail` até o app cair no Escuro. Falta: `mvn verify` e a passada local com capturas — commit/run: —
 - [ ] 7. **Revisão** pelo advisor (contrato da marca, migration, contraste) e um push só. — commit/run: —
 
 ## Fora do escopo
@@ -105,4 +105,4 @@ Nas escuras, os tons que a paleta não traz (`superficie2`, `superficie3`, `faix
   e o rosa dela briga com o vermelho de erro).
 
 ## O que ficou para trás
-- Passo 6: o e2e da tela (`marca-paletas.spec.ts`) confere o PUT; falta o caminho inteiro (salvar, recarregar e o Início do aluno abrir na paleta) e a passada no local.
+- Passo 6: o caminho inteiro está em `paleta-do-aluno.spec.ts`; falta a passada no local com capturas e corrigir o fallback do código de tema desconhecido (ver o passo 6).
