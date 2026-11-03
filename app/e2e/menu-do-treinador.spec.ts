@@ -114,10 +114,39 @@ test('PC minimizado por escolha: só ícone e a dica ao passar o mouse, como ant
   const biblioteca = menu(page).getByRole('link', { name: 'Biblioteca', exact: true });
   expect(await rotuloDoLink(biblioteca)).toBeNull();
   await biblioteca.hover();
-  await expect(biblioteca.getByText('Biblioteca', { exact: true })).toBeVisible();
+  // A dica mora no trilho, fora da lista que rola (D20), e aparece ao lado do item.
+  const dica = menu(page).getByText('Biblioteca', { exact: true });
+  await expect(dica).toBeVisible();
+  const [caixaDoItem, caixaDaDica] = [await biblioteca.boundingBox(), await dica.boundingBox()];
+  expect(caixaDaDica!.x).toBeGreaterThan(caixaDoItem!.x + caixaDoItem!.width);
+  expect(Math.abs(caixaDaDica!.y + caixaDaDica!.height / 2 - (caixaDoItem!.y + caixaDoItem!.height / 2))).toBeLessThan(caixaDoItem!.height / 2);
+  await page.mouse.move(640, 400);
+  await expect(dica).toHaveCount(0);
   await expect(menu(page).getByText('Negócio', { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Expandir menu' }).click();
   await expect(menu(page).getByText('Negócio', { exact: true })).toBeVisible();
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('PC minimizado em janela baixa (1280×720): o "Expandir" fica à vista e a lista rola com a dica no lugar (D20)', async ({ page }) => {
+  const { errosDaPagina } = await abrir(page, 1280, 720);
+  await page.getByRole('button', { name: 'Minimizar menu' }).click();
+  const expandir = page.getByRole('button', { name: 'Expandir menu' });
+  await expect(expandir).toBeInViewport({ ratio: 1 });
+  // O último item chega rolando a lista de ícones, e a dica dele aparece ao lado, inteira, sem a rolagem cortar.
+  const auditoria = menu(page).getByRole('link', { name: 'Auditoria', exact: true });
+  await auditoria.scrollIntoViewIfNeeded();
+  await expect(auditoria).toBeInViewport({ ratio: 1 });
+  await auditoria.hover();
+  const dica = menu(page).getByText('Auditoria', { exact: true });
+  await expect(dica).toBeInViewport({ ratio: 1 });
+  const [caixaDoItem, caixaDaDica] = [await auditoria.boundingBox(), await dica.boundingBox()];
+  expect(Math.abs(caixaDaDica!.y + caixaDaDica!.height / 2 - (caixaDoItem!.y + caixaDoItem!.height / 2))).toBeLessThan(caixaDoItem!.height / 2);
+  // A página não rola junto: só a lista do menu.
+  expect(await page.evaluate(() => document.scrollingElement?.scrollTop ?? 0)).toBe(0);
+  await expandir.click();
+  await expect(menu(page).getByText('Negócio', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Minimizar menu' })).toBeInViewport({ ratio: 1 });
   expect(errosDaPagina).toEqual([]);
 });
 

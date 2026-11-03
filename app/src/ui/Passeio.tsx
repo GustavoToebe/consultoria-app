@@ -145,8 +145,8 @@ function Sobreposicao({ passos, indice, mudar, dispensar, origem, nos }: {
     let vivo = true;
     const raiz = origem.current;
     const no = passo.alvo ? nos.current.get(passo.alvo) : undefined;
-    // Web: a lista do menu rola quando não cabe na altura; o item vem para a área visível antes de ser medido. Só dentro
-    // dessa rolagem: fora dela (PC minimizado, que não rola) o `scrollIntoView` rolaria a página.
+    // Web: a lista do menu rola quando não cabe na altura (em todos os modos do menu lateral, D20); o item vem para a área
+    // visível antes de ser medido. Só dentro dessa rolagem: fora dela (a barra do celular) o `scrollIntoView` rolaria a página.
     const el = Platform.OS === 'web' ? (no as unknown as HTMLElement | undefined) : undefined;
     if (el?.closest?.(`#${ROLAGEM_DO_MENU}`)) el.scrollIntoView({ block: 'nearest' });
     raiz?.measureInWindow((ox, oy, largura, altura) => {
