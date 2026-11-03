@@ -490,6 +490,16 @@ describe('Recebido e lançamentos (barras)', () => {
     // Como a API manda desde o N14 (D9): mês sem lançamento é 0, não nulo; o Início passa a mostrar as barras zeradas em vez da tabela "—".
     const zerado = barrasDoRecebido([{ mes: '2026-10', parcial: true, recebidoCentavos: null, entradasAvulsasCentavos: 0, saidasAvulsasCentavos: 0 }] as never, false, true);
     expect(zerado).toMatchObject({ semDados: false, maximo: 0 });
+    // Meses antes da criação da consultoria (D19, Gustavo 03/11): a API manda nulo, e o Início mostra "—" sem barra,
+    // nunca um zero de mentira; da criação em diante, 0.
+    const comCriacao = barrasDoRecebido([
+      { mes: '2026-08', parcial: false, recebidoCentavos: null, entradasAvulsasCentavos: null, saidasAvulsasCentavos: null },
+      { mes: '2026-09', parcial: false, recebidoCentavos: null, entradasAvulsasCentavos: 0, saidasAvulsasCentavos: 0 },
+    ] as never, false, true);
+    expect(comCriacao.semDados).toBe(false);
+    expect(comCriacao.meses[0]).toMatchObject({ lancamentos: null, lancamentosTexto: '—', recebidoTexto: '—' });
+    expect(comCriacao.meses[1]).toMatchObject({ lancamentos: 0, lancamentosTexto: reaisSemCentavos(0), recebidoTexto: '—' });
+    expect(comCriacao.descricao).toContain('sem dado');
     expect(bloco('recebido', fontes({ financeiro: FONTE_FALHOU })).falhou).toBe(true);
     expect(bloco('recebido', fontes({ financeiro: FONTE_FALHOU })).grafico).toBeNull();
     expect(bloco('recebido', fontes({ financeiro: FONTE_CARREGANDO })).carregando).toBe(true);
