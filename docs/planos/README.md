@@ -66,7 +66,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Auditoria de UI/UX: cores por situação (marca só em destaque e ação, desabilitado cinza, uma cor por situação no aluno e no treinador; N24 e N25 da 2ª passada) | [auditoria-cores.md](auditoria-cores.md) | branch `auditoria-cores` | Código pronto, aguardando revisor (passos 2 a 7 e 9 feitos; decisões D12 a D19 para o Gustavo conferir) | 03/11/2026 |
 | Auditoria de UI/UX, peças compartilhadas (Folha com um diálogo e retorno do foco, cores da Folha e do Botão pelo tema, Kanban com movimento reduzido) | [auditoria-pecas.md](auditoria-pecas.md) | branch `auditoria-pecas` | Código feito, aguardando PR | 03/11/2026 |
 | Paletas da marca (a consultoria escolhe a cor de fundo do app dos alunos numa lista fechada e testada) | [paletas-da-marca.md](paletas-da-marca.md) | — | Planejando: lista cortada em 03/11 (11 paletas, prévia em `docs/prototipos/`); espera a frente de cores da auditoria | 03/11/2026 |
-| Libras na carga, fase 1: regra pura e lado do aluno (N04; chave `TREINOS_UNIDADE_CARGA_HABILITADA`, desligada) | [libras.md](libras.md) | branch `libras-fase-1` | Em andamento | 03/11/2026 |
+| Libras na carga, fase 1: regra pura e lado do aluno (N04; chave `TREINOS_UNIDADE_CARGA_HABILITADA`, desligada) | [libras.md](libras.md) | branch `libras-fase-1` | Fase 1 pronta para revisão | 03/11/2026 |
 
 ## Pendências soltas
 

@@ -121,6 +121,9 @@ for (const largura of [390, 1280]) {
 
     // Histórico do aluno na unidade dele; o envio à API continua em kg.
     await page.goto('/aluno/historico');
+    // Por divisão (a aba padrão) e o progresso do exercício: a carga em libras, nenhum "kg" de carga na tela.
+    await expect(page.getByLabel('Cargas de Supino de teste', { exact: true }).getByText('132,3 lb', { exact: true })).toBeVisible();
+    await expect(page.getByText(/ kg/)).toHaveCount(0);
     await page.getByText('Por dia', { exact: true }).click();
     await expect(page.getByText(/WS 100 lb × sem repetições/)).toBeVisible();
     await semEstourar(page);

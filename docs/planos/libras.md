@@ -27,11 +27,11 @@ nada do que está guardado mude: a carga continua em **kg** no aparelho, na fila
 
 ## Passos
 - [x] 1. Plano e índice (este arquivo) — commit a652f128
-- [x] 2. Regra pura `dominio/unidadeDeCarga.ts` com teste (ida e volta de 0,1 em 0,1 lb até o teto do banco, arredondamento, passo, zero e vazio, enormes, negativos, "62,5") e preferência em `preferencias.ts`
-- [x] 3. API: `TREINOS_UNIDADE_CARGA_HABILITADA` (propriedade, `GET /eu`, `application-test.yml`, testes do desligado e do ligado); app lê `unidadeDeCargaHabilitada` no perfil
-- [x] 4. Aluno: escolha em Preferências (só com a chave ligada) e carga na execução, dica, Anterior, recordes, histórico, relatório e PDF de cargas do aluno
-- [x] 5. e2e `unidade-de-carga.spec.ts` (390 e 1280 px): digitar em lb, ver, recarregar, o corpo enviado à API está em kg; chave desligada = sem a escolha
-- [x] 6. Lista final dos lugares de "kg" tratados e dos que ficam para a fase 2 (abaixo) e `AGENTS.md`
+- [x] 2. (8554281b) Regra pura `dominio/unidadeDeCarga.ts` com teste (ida e volta de 0,1 em 0,1 lb até o teto do banco, arredondamento, passo, zero e vazio, enormes, negativos, "62,5") e preferência em `preferencias.ts`
+- [x] 3. (2454f4e9 e 8554281b) API: `TREINOS_UNIDADE_CARGA_HABILITADA` (propriedade, `GET /eu`, `application-test.yml`, testes do desligado e do ligado); app lê `unidadeDeCargaHabilitada` no perfil
+- [x] 4. (8554281b) Aluno: escolha em Preferências (só com a chave ligada) e carga na execução, dica, Anterior, recordes, histórico, relatório e PDF de cargas do aluno
+- [x] 5. (8554281b) e2e `unidade-de-carga.spec.ts` (390 e 1280 px): digitar em lb, ver, recarregar, o corpo enviado à API está em kg; chave desligada = sem a escolha
+- [x] 6. (este commit) Lista final dos lugares de "kg" tratados e dos que ficam para a fase 2 (abaixo) e `AGENTS.md`
 
 ## Lugares de "kg" de carga
 Como funciona: o contexto `ContextoDaUnidadeDeCarga` (`ui/unidadeDeCargaEmUso`, padrão kg) só é provido no layout do aluno
