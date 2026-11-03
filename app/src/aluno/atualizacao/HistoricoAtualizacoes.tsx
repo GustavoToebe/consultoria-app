@@ -7,9 +7,8 @@ import { periodoDesdeOPrimeiro } from '../../dominio/historicoDoAluno';
 import { Cartao } from '../../ui/Cartao';
 import { MensagemErro } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
-import { LinkTexto } from '../../ui/LinkTexto';
+import { LinhaDaLista, ListaDeLinhas } from '../../ui/LinhaDaLista';
 import { Esqueleto } from '../../ui/Esqueleto';
-import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 
@@ -21,9 +20,8 @@ export function HistoricoAtualizacoes() {
     {historico.erro ? <MensagemErro texto={textoDoErro(historico.erro)} /> : null}
     {historico.carregando ? <Esqueleto texto="Carregando atualizações" cartoes={1} /> : null}
     {historico.dados?.length === 0 ? <Texto variante="suave">Você ainda não enviou atualizações.</Texto> : null}
-    {historico.dados?.map(a => <Cartao key={a.id}>
-      <LinkTexto texto={`Atualização · ${dataParaTela(a.dataAtualizacao)}`} href={`/aluno/atualizacao?id=${a.id}`} />
-      <Selo {...statusAtualizacao(a)} />
-    </Cartao>)}
+    {historico.dados?.length ? <ListaDeLinhas>
+      {historico.dados.map(a => <LinhaDaLista key={a.id} titulo={`Atualização · ${dataParaTela(a.dataAtualizacao)}`} selos={[statusAtualizacao(a)]} href={`/aluno/atualizacao?id=${a.id}`} />)}
+    </ListaDeLinhas> : null}
   </Cartao>;
 }

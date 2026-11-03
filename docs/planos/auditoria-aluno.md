@@ -23,7 +23,7 @@ cujos achados N1 a N23 usam os mesmos IDs. Esta é a frente 3 de 5 em paralelo (
 
 ## Passos
 Cada passo é um item; o executor de cada um é o `executor` (Sonnet), salvo o que mexe só em texto. Aceite entre parênteses.
-Código e testes prontos na branch; falta o item que espera o PR B (se `LinhaDaLista` não for usada, ver "O que ficou para trás").
+Código e testes prontos na branch.
 
 - [x] N3. Cartão HOJE do início depois do treino concluído (Fiz tudo ou Fiz em parte); a ação vira "Ver resumo" (abre o "Bom trabalho!" do dia). Aceite: concluído o treino do dia, o cartão diz que foi concluído com o resultado e o botão é "Ver resumo"; com o retorno desligado nada muda. — feito na branch `auditoria-aluno`
 - [x] N4. Histórico: com registros que não entram no progresso, o texto diz o motivo: "Nenhuma série completa, com carga e repetições, neste período". Aceite: o "Progresso por exercício" não diz "Nenhum registro neste período" quando há registro. Mexe em `treinador/CartaoProgresso.tsx` e `dominio/relatorio.ts` (D7). — feito na branch `auditoria-aluno`
@@ -36,7 +36,7 @@ Código e testes prontos na branch; falta o item que espera o PR B (se `LinhaDaL
 - [x] N9. No "Bom trabalho!", o aviso "Treino concluído." não cobre o cartão (some, porque a tela já diz). Aceite: depois de concluir não há aviso sobreposto. — feito na branch `auditoria-aluno`
 - [x] N10. Todo rótulo de pergunta da atualização com a mesma cor e o mesmo peso. Aceite: rótulos de nota, fotos, grupo e escolha iguais ao de "Peso (em jejum)". `ui/SeletorDeNota.tsx` e `ui/EscalaDeNota.tsx` (rótulo suave) ficam com esta frente pelo D7. — feito na branch `auditoria-aluno`
 - [x] N16. O contador da anamnese não conta resposta inválida. Aceite: data de nascimento inválida não entra em "N de M respondidas". — feito na branch `auditoria-aluno`
-- [ ] Histórico: linha inteira tocável (sem link sublinhado dentro de cartão). **Espera o merge do PR B** (`LinhaDaLista`). — commit/run: —
+- [x] Histórico: linha inteira tocável (sem link sublinhado dentro de cartão): as atualizações do Histórico usam `LinhaDaLista` (`aluno/atualizacao/HistoricoAtualizacoes.tsx`). — feito na branch `auditoria-aluno`
 - [x] Conta: um e-mail principal (o de acesso) e, se o do cadastro for diferente, a nota "Seu treinador usa outro e-mail no seu cadastro." Aceite: a tela mostra um único e-mail como principal. — feito na branch `auditoria-aluno`
 - [x] Treino e Mobilidade: estado de carregamento e de erro quando o pacote ainda não chegou. Aceite: a tela não fica em branco. — feito na branch `auditoria-aluno`
 - [x] "Ver vídeo" da Mobilidade abre o link como a Dieta (`abrirLinkExterno`). — feito na branch `auditoria-aluno`
@@ -51,7 +51,6 @@ Código e testes prontos na branch; falta o item que espera o PR B (se `LinhaDaL
 ## Limites e pendências soltas
 - N6 no cartão por etapas (Cluster, Rest-pause): o aviso de série sem carga só vale no cartão comum; as etapas não têm esse aviso.
 - N28 oculta só o "Sincronizado"; "Sem conexão" continua no rodapé, mas só aparece depois de 2,5 s sem rede (Gustavo, 03/11). O atraso vale para o "Sem conexão" sem nada pendente; pendente e falha aparecem na hora.
-- Histórico com linha tocável: espera o merge do PR B (`LinhaDaLista`).
 - N19, remover foto com 28 px e os textos da Ajuda: seguem como pendência solta.
 
 ## Fora do escopo
@@ -62,4 +61,4 @@ Código e testes prontos na branch; falta o item que espera o PR B (se `LinhaDaL
 - Cartão "Próximo treino" no início em dia de descanso: já existe na `main`; só o limite do fim da pasta entra aqui (D9).
 
 ## O que ficou para trás
-- (preencher ao fim; cada sobra também vai para "Pendências soltas" no README)
+- Nada além das pendências soltas acima (N19, remover foto com 28 px, textos da Ajuda, aviso da série nas etapas, intermitente do `links-do-menu`).
