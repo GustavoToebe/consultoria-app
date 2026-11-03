@@ -8,8 +8,9 @@ import { modoComReferenciaExterna, sugestaoSobreReferencia, textoDaOrigem, type 
 import { rotuloDescanso } from '../dominio/descanso';
 import {
   aplicarAcao, etapasDaSerie, faltaParaConcluir, feitoAteAgora, origemDaPausa, pausaDaAcao, proximaPendente, sugestaoDaEtapa, textoDaCargaDaEtapa,
-  textoDaReferenciaCongelada, todasComSituacao, type AcaoNaEtapa, type EtapaPrevista,
+  seloDaSerieComEtapas, textoDaReferenciaCongelada, todasComSituacao, type AcaoNaEtapa, type EtapaPrevista,
 } from '../dominio/etapas';
+import { textoDoNumeroInvalido } from '../dominio/avisoDaSerie';
 import { numeroParaTela } from '../dominio/formatos';
 import { TEXTO_CARGA_ILEGIVEL } from '../dominio/modoDeCarga';
 import { nomeDaSerieDeTrabalho } from '../dominio/metodologia';
@@ -127,7 +128,7 @@ export function CartaoSerieComEtapas(p: Props) {
   return (
     <View testID={`serie-${s.uid}`}
       style={[estilos.serie, { borderColor: feita ? cores.sucesso : cores.borda, backgroundColor: feita ? `${cores.sucesso}29` : cores.superficie }, barra]}>
-      <CabecalhoDaSerie numero={p.numero} tipo={selos.tipo} tecnica={selos.tecnica} naoRegistrada={!feita && etapas.length === 0 && !semDetalhe} />
+      <CabecalhoDaSerie numero={p.numero} tipo={selos.tipo} tecnica={selos.tecnica} registro={seloDaSerieComEtapas(feita, etapas, quantas)} />
       <MetaDaSerie texto={estruturaDaSerie(s, p.metodologia)} />
       {p.cargaIlegivel ? <Texto numerico variante="pequeno">{TEXTO_CARGA_ILEGIVEL}</Texto> : null}
       {p.anterior != null ? <LinhaDoUltimoRegistro texto={p.anterior} numero={p.numero} /> : null}
@@ -299,10 +300,10 @@ function LinhaDaEtapa({ prevista, numeroDaSerie, registrada, atual, comDivisao, 
           </View>
         )}
       </View>
-      {invalido ? <Texto variante="pequeno" cor={cores.perigo}>Corrija o número para marcar.</Texto> : null}
+      {invalido ? <Texto variante="pequeno" cor={cores.perigo} accessibilityLiveRegion="polite">{textoDoNumeroInvalido(cargaInvalida, repsInvalidas)}</Texto> : null}
       {dica ? <DicaDoCampo dica={dica} origem={origem} numero={numeroDaSerie} de={`${prevista.rotulo.startsWith('Bloco') ? 'o' : 'a'} ${nome}`} /> : null}
       {painel !== null ? <PainelDoCheck sugestaoKg={painel} numero={numeroDaSerie} aoEscolher={escolher} /> : null}
-      {!feita && !naoRealizada ? <Botao rotulo="Não fiz" rotuloAcessivel={`Não fiz: ${nome}`} tipo="fantasma" desabilitado={emPrevia} aoTocar={() => agir({ tipo: 'NAO_REALIZADA', posicao })} /> : null}
+      {!feita && !naoRealizada ? <Botao rotulo="Não fiz" rotuloAcessivel={`Não fiz: ${nome}`} tipo="secundario" desabilitado={emPrevia} aoTocar={() => agir({ tipo: 'NAO_REALIZADA', posicao })} /> : null}
     </View>
   );
 }

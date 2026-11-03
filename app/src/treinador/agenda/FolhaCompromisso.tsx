@@ -9,7 +9,7 @@ import {
 import {
   type AcaoDeSituacao, acaoDeCancelamento, adicionarParticipante, conflitoNaLista, type ErrosDaRepeticao, type ErrosDoCompromisso,
   escoposPermitidos, explicacaoDoEscopo, filtroDeAlunosOcupados, type FormularioDaRepeticao, type FormularioDoCompromisso,
-  formularioDoCompromisso, formularioNovo, intervaloDoPedido, mudouAData, pedidoDoFormulario, removerParticipante, ROTULOS_DO_ESCOPO,
+  formularioDoCompromisso, formularioNovo, intervaloDoPedido, linhaDoCompletoDoCompromisso, mudouAData, pedidoDoFormulario, removerParticipante, ROTULOS_DO_ESCOPO,
   textoDaOcorrencia, textoDeAlunosOcupados, textoDoCancelamentoDoAluno, textoDoCancelamentoInteiro, textoDoErroDaAgenda,
 } from '../../dominio/agendaPresencial';
 import { useSessao } from '../../sessao/SessaoProvider';
@@ -43,8 +43,9 @@ interface Props {
  * Folha do compromisso com aluno: detalhe (participantes com a situação de cada um, editar, cancelar ou reabrir o
  * compromisso inteiro) ou formulário (novo, com repetição; editar). O novo abre no painel rápido do Google Agenda (linhas
  * com ícone, largura da folha comum) e o rodapé tem "Mais opções" + "Marcar compromisso"; "Mais opções", o "Personalizar…" da
- * repetição e a edição usam o formulário completo, em `LARGURA_EDITOR` (sem caminho de volta ao rápido: os campos são os
- * mesmos, nada se perde). Cada compromisso aberto é uma folha nova (a `key` é o id), então nada do anterior sobra. A observação é dado sensível: só aparece com `ALUNO_SENSIVEL_LER` e só se edita com
+ * repetição e a edição usam o formulário completo, em `LARGURA_EDITOR`. No compromisso novo, "Menos opções" volta ao
+ * painel rápido sem apagar o que foi digitado. Se sobrou campo do completo diferente do padrão, o rodapé diz o que
+ * será salvo. A edição já abre no completo e não tem esse botão. Cada compromisso aberto é uma folha nova (a `key` é o id), então nada do anterior sobra. A observação é dado sensível: só aparece com `ALUNO_SENSIVEL_LER` e só se edita com
  * `ALUNO_SENSIVEL_ALTERAR` (a API também ignora sem a permissão).
  */
 export function FolhaCompromisso(props: Props) {
@@ -194,8 +195,11 @@ function FolhaAberta({ aberto, dataSugerida, hoje, responsaveis, carregados, aoF
   const ocupado = salvando || enviando !== null;
 
   const titulo = novo ? 'Novo compromisso' : modo === 'formulario' ? 'Editar compromisso' : 'Compromisso';
+  const avisoDoCompleto = novo && !completo ? linhaDoCompletoDoCompromisso(form) : null;
   const rodape = modo === 'formulario' ? <>
     {linhaDaMensagem}
+    {avisoDoCompleto ? <Texto variante="suave" style={estilos.mensagem}>{avisoDoCompleto}</Texto> : null}
+    {novo && completo ? <Botao rotulo="Menos opções" tipo="secundario" aoTocar={() => setCompleto(false)} /> : null}
     {completo ? <Botao rotulo="Cancelar" tipo="secundario" aoTocar={novo ? aoFechar : voltarAoDetalhe} />
       : <Botao rotulo="Mais opções" tipo="secundario" aoTocar={() => setCompleto(true)} />}
     <Botao rotulo={c ? 'Salvar alterações' : 'Marcar compromisso'} aoTocar={salvar} carregando={salvando} desabilitado={salvando} motivo="Salvando." />

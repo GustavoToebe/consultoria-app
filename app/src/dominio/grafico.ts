@@ -1,3 +1,19 @@
+/**
+ * Fração de 0 a 1 do ponto no eixo horizontal. Com data ISO em todos os pontos, o espaço acompanha o intervalo
+ * (datas iguais ficam no mesmo lugar). Sem data em algum ponto, volta à posição na lista. Um ponto só fica no meio:
+ * quem desenha continua exigindo dois para a linha.
+ */
+export function fracaoNoEixo(pontos: readonly { data?: string }[], indice: number): number {
+  const n = pontos.length;
+  if (n <= 1) return 0.5;
+  if (pontos.some((p) => !p.data)) return indice / (n - 1);
+  const tempos = pontos.map((p) => Date.parse(`${p.data}T00:00:00Z`));
+  const min = Math.min(...tempos);
+  const max = Math.max(...tempos);
+  if (max === min) return 0;
+  return (tempos[indice] - min) / (max - min);
+}
+
 /** Escolhe 3 a 5 marcas redondas dentro de [min, max] para o eixo vertical. */
 export function marcasDoEixo(min: number, max: number): number[] {
   const faixa = max - min;
@@ -17,7 +33,8 @@ export interface PontoXY {
 
 /**
  * Caminho SVG de uma curva suave que passa por todos os pontos (cúbica monótona, Fritsch–Butland): não passa
- * dos valores registrados nem cria subidas e descidas que o peso não teve. `x` deve ser crescente.
+ * dos valores registrados nem cria subidas e descidas que o peso não teve. `x` não pode diminuir;
+ * trechos com o mesmo x (datas iguais) viram reta, para não dividir por zero.
  */
 export function caminhoSuave(pontos: PontoXY[]): string {
   const n = pontos.length;
@@ -26,6 +43,7 @@ export function caminhoSuave(pontos: PontoXY[]): string {
   if (n === 1) return `M${p(pontos[0])}`;
   if (n === 2) return `M${p(pontos[0])}L${p(pontos[1])}`;
   const h = pontos.slice(1).map((a, i) => a.x - pontos[i].x);
+  if (h.some((v) => v === 0)) return `M${p(pontos[0])}${pontos.slice(1).map((a) => `L${p(a)}`).join('')}`;
   const m = pontos.slice(1).map((a, i) => (a.y - pontos[i].y) / h[i]);
   const t = pontos.map((_, i) => {
     if (i === 0) return m[0];

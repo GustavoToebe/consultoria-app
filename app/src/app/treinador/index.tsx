@@ -16,10 +16,12 @@ import {
   folhaPastasARenovar,
   folhaRecordes,
   folhaSemRegistro,
+  FONTE_CARREGANDO,
   FRASE_INICIO_SEM_ALUNOS,
   FRASE_NENHUM_BLOCO,
   hojeEmBrasilia,
   inicioSemAlunos,
+  listaDaFolha,
   montarBloco,
   MOTIVO_EDITAR_SEM_ALUNOS,
   type BlocoDoPainelId,
@@ -116,7 +118,7 @@ export default function InicioTreinador() {
     ...(verInteressados ? [interessadosPadrao] : []),
     ...[...porBloco.values()].flat(),
   ], [verPainel, painelTodos, painelPadrao, verInteressados, interessadosPadrao, porBloco]);
-  const { fonte, fontesDe, recarregar } = useFontesDoPainel(consultas);
+  const { fonte, dadosDeOutraChave, fontesDe, recarregar } = useFontesDoPainel(consultas);
 
   // Ao voltar para a tela (não na primeira vez), recarrega tudo e relê o aparelho: cadastrou o aluno ou ligou o link e voltou.
   const consultasAtuais = useRef(consultas);
@@ -216,13 +218,27 @@ export default function InicioTreinador() {
   const folha = (() => {
     if (!folhaAberta) return null;
     const { id, meus } = folhaAberta;
+    const paraAFolha = <T,>(c: ConsultaDoPainel): Fonte<T> => (dadosDeOutraChave(c) ? FONTE_CARREGANDO : fonte<T>(c));
     if (id === 'recordes') {
-      const r = dadosDe(fonte<RecordesDaSemana>({ fonte: 'recordes', meus }));
-      return { titulo: 'Recordes dos últimos 7 dias', dados: r && Array.isArray(r.series) ? folhaRecordes(r, { meus, hoje }) : null };
+      const consulta = { fonte: 'recordes', meus } as const;
+      return {
+        titulo: 'Recordes dos últimos 7 dias',
+        ...listaDaFolha(paraAFolha<RecordesDaSemana>(consulta), (r) =>
+          Array.isArray(r.series) ? folhaRecordes(r, { meus, hoje }) : null),
+      };
     }
-    const p = dadosDe(fonte<PainelTreinador>({ fonte: 'painel', meus, dias }));
-    if (id === 'semRegistro') return { titulo: `Sem registro há ${dias} dias`, dados: p && Array.isArray(p.alunosSemRegistro) ? folhaSemRegistro(p, { dias, meus, hoje }) : null };
-    return { titulo: 'A renovar em 7 dias', dados: p && Array.isArray(p.pastasParaRenovar) ? folhaPastasARenovar(p, { meus, hoje }) : null };
+    const consultaPainel = { fonte: 'painel', meus, dias } as const;
+    const fontePainel = paraAFolha<PainelTreinador>(consultaPainel);
+    if (id === 'semRegistro') {
+      return {
+        titulo: `Sem registro há ${dias} dias`,
+        ...listaDaFolha(fontePainel, (p) => (Array.isArray(p.alunosSemRegistro) ? folhaSemRegistro(p, { dias, meus, hoje }) : null)),
+      };
+    }
+    return {
+      titulo: 'A renovar em 7 dias',
+      ...listaDaFolha(fontePainel, (p) => (Array.isArray(p.pastasParaRenovar) ? folhaPastasARenovar(p, { meus, hoje }) : null)),
+    };
   })();
 
   const motivoEditar = semAlunos ? MOTIVO_EDITAR_SEM_ALUNOS : offline ? MOTIVO_SEM_INTERNET : undefined;
@@ -283,7 +299,7 @@ export default function InicioTreinador() {
       </View>
 
       {folhaAberta && folha ? (
-        <FolhaDoPainel titulo={folha.titulo} folha={folha.dados} aoFechar={() => setFolhaAberta(null)}
+        <FolhaDoPainel titulo={folha.titulo} situacao={folha.situacao} folha={folha.dados} aoFechar={() => setFolhaAberta(null)}
           topo={folhaAberta.id === 'semRegistro' ? (
             <Escolha descricao="Dias sem registro" opcoes={OPCOES_DIAS_SEM_REGISTRO.map((n) => ({ valor: n, rotulo: `${n} dias` }))} valor={dias}
               aoMudar={(n) => escolherPreferencia({ diasSemRegistro: n })} />

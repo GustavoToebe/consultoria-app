@@ -46,7 +46,7 @@ const porData = (a: PontoDeResposta, b: PontoDeResposta) => (a.data < b.data ? -
 
 /** Pontos do gráfico, do mais antigo ao mais novo (não depende da ordem da API). */
 export const pontosDoGrafico = (s: SerieDeResposta) =>
-  [...s.pontos].sort(porData).map((p) => ({ rotulo: dataCurta(p.data), valor: p.valor }));
+  [...s.pontos].sort(porData).map((p) => ({ rotulo: dataCurta(p.data), valor: p.valor, data: p.data }));
 
 /** O gráfico só aparece com a preferência ligada e 2 pontos ou mais; a lista aparece sempre. */
 export const mostraGrafico = (s: SerieDeResposta | null, graficosLigados: boolean) => graficosLigados && !!s && s.pontos.length >= 2;

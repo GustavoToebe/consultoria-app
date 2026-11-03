@@ -53,7 +53,7 @@ export function ProgressoDoExercicio({ alunoId, exercicioId, nome, grupo, aoTira
       {resumo ? <Texto variante="suave" numerico>{resumo}</Texto> : null}
       {preferencias.graficos && pontos.length >= 2 ? (
         <GraficoLinha
-          pontos={pontos.map((p) => ({ rotulo: dataCurta(p.data), valor: p.carga }))}
+          pontos={pontos.map((p) => ({ rotulo: dataCurta(p.data), valor: p.carga, data: p.data }))}
           unidade="kg"
           descricao={`Maior carga de trabalho de ${nome} por data`}
           semUltimo

@@ -187,6 +187,20 @@ export function fonteDaConsulta<T>(c: { dados?: T | null; erro?: unknown; carreg
   return FONTE_FALHOU;
 }
 
+/**
+ * Lista de uma Folha do painel. Carregando não é falha: a Folha mostra o esqueleto, sem os números da consulta
+ * anterior e sem o alerta de erro. Falha, recurso desligado ou dado que não monta a lista viram `falhou`.
+ */
+export function listaDaFolha<T>(
+  fonte: Fonte<T>,
+  montar: (dados: T) => FolhaDoPainel | null,
+): { situacao: 'carregando' | 'falhou' | 'pronta'; dados: FolhaDoPainel | null } {
+  if (fonte.situacao === 'carregando') return { situacao: 'carregando', dados: null };
+  if (fonte.situacao !== 'pronta') return { situacao: 'falhou', dados: null };
+  const dados = montar(fonte.dados);
+  return dados ? { situacao: 'pronta', dados } : { situacao: 'falhou', dados: null };
+}
+
 export interface FontesDoPainel {
   /** `GET /painel?meus=&dias=` do escopo do bloco. */
   painel?: Fonte<PainelTreinador>;

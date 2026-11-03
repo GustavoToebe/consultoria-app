@@ -1,10 +1,12 @@
-import { router, type Href } from 'expo-router';
+import { router, usePathname, type Href } from 'expo-router';
 import { ChevronRight, type LucideIcon } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { mesmaTela } from '../dominio/mesmaTela';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
+import { useSaidaGuardada } from './GuardaDeSaida';
 import { propsDeLink } from './propsDeLink';
 import { Selo, type TipoSelo } from './Selo';
 import { sobre } from './sobre';
@@ -37,9 +39,14 @@ interface Props {
  */
 export function ItemDeLista({ titulo, detalhe, Icone, selo, href, aoTocar, rotulo, direita, perigo, children }: Props) {
   const { cores } = useTema();
+  const caminho = usePathname();
+  const { confirmar } = useSaidaGuardada();
+  // Item que abre outra tela passa pela guarda de saída (tela com alteração não salva pergunta antes); sem nada
+  // pendente, `confirmar` navega na hora. Item que só executa uma ação (`aoTocar` sem `href`) não pergunta.
+  // A mesma tela não sai e não pergunta.
   const abrir = () => {
-    if (aoTocar) aoTocar();
-    else if (href) router.navigate(href);
+    if (!href) aoTocar?.();
+    else if (!mesmaTela(caminho, href)) confirmar(() => (aoTocar ? aoTocar() : router.navigate(href)));
   };
   const corTexto = perigo ? cores.perigo : cores.texto;
   return (

@@ -1,11 +1,12 @@
 import { FileDown, PlayCircle } from 'lucide-react-native';
 import { useState } from 'react';
-import { Linking, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { DatasDaMobilidade } from '../../aluno/DatasDaMobilidade';
 import { SeletorPlano } from '../../aluno/SeletorPlano';
 import type { ConteudoMobilidadeApi, VersaoDetalhe } from '../../api/tipos';
 import { dataCurta, hojeIso } from '../../dominio/formatos';
+import { TEXTO_PACOTE_RECUSADO } from '../../dominio/inicioDoAluno';
 import { itemParaTela, mobilidadeParaExibir, normalizarMobilidade } from '../../dominio/mobilidade';
 import { contagemDoDia, dataInicialDaMobilidade, datasDaMobilidade, feitosDoDia, textoDaContagem } from '../../dominio/mobilidadeFeita';
 import { useAluno } from '../../offline/AlunoProvider';
@@ -22,7 +23,9 @@ import { NoPlano } from '../../ui/NoPlano';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
 import { Cartao } from '../../ui/Cartao';
-import { Vazio } from '../../ui/Estados';
+import { abrirLinkExterno } from '../../ui/abrirLinkExterno';
+import { Esqueleto } from '../../ui/Esqueleto';
+import { Alerta, MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
@@ -33,14 +36,19 @@ import { Texto } from '../../ui/Texto';
  * internet. A mobilidade vem do aparelho, que guarda a última vista online. Plano de outra pasta é só consulta.
  */
 export default function MobilidadeAluno() {
-  const { mobilidade, escolhida } = useAluno();
+  const { mobilidade, escolhida, pacote, pacoteRecusado, carregando, erroPacote, tentarDeNovo } = useAluno();
   const versao = mobilidadeParaExibir(mobilidade, escolhida ? { mobilidade: escolhida.planos.mobilidade } : null);
   return (
     <Tela bordas={['top']} largura={720}>
       <Cabecalho titulo="Mobilidade" />
       <Texto variante="suave">Mobilidade e alongamentos do seu treinador, com vídeo quando houver.</Texto>
       <SeletorPlano rotulo={null} />
-      {versao ? <ConteudoDaMobilidade versao={versao} /> : <Vazio titulo="Sem mobilidade" texto={escolhida ? 'Este plano não tem mobilidade publicada.' : 'Seu treinador ainda não publicou a mobilidade.'} />}
+      {!pacote && pacoteRecusado ? <View testID="pacote-recusado"><Alerta tom="atencao" texto={TEXTO_PACOTE_RECUSADO} /></View> : null}
+      {!pacote && !pacoteRecusado && carregando ? <Esqueleto texto="Carregando a mobilidade" cartoes={2} /> : null}
+      {!pacote && !pacoteRecusado && !carregando && erroPacote ? (
+        <MensagemErro texto={`${textoDoErro(erroPacote)} Conecte-se uma vez para baixar a mobilidade; depois ela funciona sem internet.`} erro={erroPacote} tentarDeNovo={() => void tentarDeNovo()} />
+      ) : null}
+      {versao ? <ConteudoDaMobilidade versao={versao} /> : pacote ? <Vazio titulo="Sem mobilidade" texto={escolhida ? 'Este plano não tem mobilidade publicada.' : 'Seu treinador ainda não publicou a mobilidade.'} /> : null}
     </Tela>
   );
 }
@@ -87,8 +95,8 @@ export function ConteudoDaMobilidade({ versao }: { versao: VersaoDetalhe<Conteud
     }
   };
   const abrirVideo = (url: string) => {
-    // Abre fora do app (navegador ou app do YouTube), sem token nem cookie.
-    Linking.openURL(url).catch(() => avisar('Não foi possível abrir o vídeo.', 'perigo'));
+    // Abre fora do app (navegador ou app do YouTube), sem token nem cookie; só link https seguro.
+    void abrirLinkExterno(url).then((ok) => { if (!ok) avisar('Não foi possível abrir o vídeo.', 'perigo'); });
   };
   return (
     <>

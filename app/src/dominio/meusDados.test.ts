@@ -3,7 +3,7 @@ import { ErroApi } from '@plataforma/web';
 import type { MeusDadosResponse } from '../api/tipos';
 import { CPF_EM_USO, ENDERECO_VAZIO, MENSAGEM_CPF_EM_USO } from './cadastroDoAluno';
 import {
-  corpoDoPut, cpfEditavel, ehConflitoDeEdicao, errosDoForm, errosDoServidor, formDeMeusDados, houveMudanca, MENSAGEM_ANONIMIZADO,
+  corpoDoPut, cpfEditavel, ehConflitoDeEdicao, errosDoForm, emailParaLeitura, errosDoServidor, formDeMeusDados, houveMudanca, MENSAGEM_ANONIMIZADO,
   MENSAGEM_CAMPOS_INVALIDOS, MENSAGEM_CONFLITO, MENSAGEM_CPF_SO_PELO_TREINADOR, mensagemDeErroMeusDados, temErros, TEXTO_SO_LEITURA,
 } from './meusDados';
 
@@ -23,6 +23,18 @@ const erroApi = (status: number, codigo: string | null, campos: { field: string;
 describe('texto de só leitura', () => {
   it('é o mesmo para nome, e-mail e e-mail de acesso', () => {
     expect(TEXTO_SO_LEITURA).toBe('Para mudar, fale com o seu treinador.');
+  });
+});
+
+describe('emailParaLeitura', () => {
+  it('o de acesso é o principal; a nota só aparece quando o do cadastro é outro', () => {
+    expect(emailParaLeitura(RESP)).toEqual({ rotulo: 'E-mail de acesso', valor: 'acesso@exemplo.test', nota: 'Seu treinador usa outro e-mail no seu cadastro.' });
+    expect(emailParaLeitura({ email: 'A@exemplo.test', emailDeAcesso: 'a@exemplo.test' }).nota).toBeNull();
+  });
+
+  it('sem e-mail de acesso, mostra o do cadastro; sem nenhum, valor nulo (vira "—")', () => {
+    expect(emailParaLeitura(SEM_NADA)).toEqual({ rotulo: 'E-mail do cadastro', valor: 'aluno@exemplo.test', nota: null });
+    expect(emailParaLeitura({ email: '', emailDeAcesso: null }).valor).toBeNull();
   });
 });
 

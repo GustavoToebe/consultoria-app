@@ -1,6 +1,6 @@
 import { Redirect, router } from 'expo-router';
-import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { StyleSheet, View, type TextInput } from 'react-native';
 
 import { normalizarCodigo, pedeCodigoMfa } from '../dominio/mfa';
 import { errosDaNovaSenha, pedeNovaSenha } from '../dominio/senhaProvisoria';
@@ -12,7 +12,7 @@ import { Campo } from '../ui/Campo';
 import { CampoSenha } from '../ui/CampoSenha';
 import { Cartao } from '../ui/Cartao';
 import { MensagemErro } from '../ui/Estados';
-import { textoDoErro } from '../ui/erros';
+import { errosPorCampo, focarPrimeiroComErro, separarErros, textoDoErro } from '../ui/erros';
 import { LinkTexto } from '../ui/LinkTexto';
 import { BotaoPublico, TelaPublica } from '../ui/TelaPublica';
 import { useVerificacaoHumana } from '../ui/useVerificacaoHumana';
@@ -31,31 +31,57 @@ export default function Entrar() {
   const [criarSenha, setCriarSenha] = useState(false);
   const [novaSenha, setNovaSenha] = useState('');
   const [repetida, setRepetida] = useState('');
-  const [errosSenha, setErrosSenha] = useState<{ nova?: string; repetida?: string }>({});
+  // Erro de cada campo (C6), pelos nomes da API (`fieldErrors`); o alerta fica só para o erro do servidor.
+  const [campos, setCampos] = useState<Record<string, string>>({});
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const refEmail = useRef<TextInput>(null);
+  const refSenha = useRef<TextInput>(null);
+  const refCodigo = useRef<TextInput>(null);
+  const refNovaSenha = useRef<TextInput>(null);
+  const refRepetida = useRef<TextInput>(null);
+  // "Crie sua senha" e o código de verificação entram no lugar dos campos anteriores: o foco vai para o campo novo.
+  useEffect(() => {
+    if (criarSenha) refNovaSenha.current?.focus();
+  }, [criarSenha]);
+  useEffect(() => {
+    if (pedirCodigo) refCodigo.current?.focus();
+  }, [pedirCodigo]);
+
   if (sessao.situacao === 'autenticado') {
     return <Redirect href="/" />;
   }
 
+  // Campos na tela em cada passo, na ordem do foco; erro da API num campo de fora (a senha provisória) vai ao alerta.
+  const refs = criarSenha
+    ? ([['novaSenha', refNovaSenha], ['repetida', refRepetida]] as const)
+    : ([['email', refEmail], ['senha', refSenha], ...(pedirCodigo ? [['codigoMfa', refCodigo] as const] : [])] as const);
+  const mostrar = (locais: Record<string, string>, geral: string | null) => {
+    setCampos(locais);
+    setErro(geral);
+    focarPrimeiroComErro(locais, refs);
+  };
+
   const enviar = async () => {
-    if (!email.trim() || !senha) {
-      setErro('Informe e-mail e senha.');
-      return;
-    }
-    if (pedirCodigo && !codigo.trim()) {
-      setErro('Informe o código de verificação.');
-      return;
-    }
+    const locais: Record<string, string> = {};
     if (criarSenha) {
-      const locais = errosDaNovaSenha(novaSenha, repetida);
-      setErrosSenha(locais);
-      if (locais.nova || locais.repetida) return;
+      const nova = errosDaNovaSenha(novaSenha, repetida);
+      if (nova.nova) locais.novaSenha = nova.nova;
+      if (nova.repetida) locais.repetida = nova.repetida;
+    } else {
+      if (!email.trim()) locais.email = 'Informe o e-mail.';
+      if (!senha) locais.senha = 'Informe a senha.';
+      if (pedirCodigo && !codigo.trim()) locais.codigoMfa = 'Informe o código de verificação.';
+    }
+    if (Object.keys(locais).length) {
+      mostrar(locais, null);
+      return;
     }
     // O Enter nos campos chama `enviar` sem passar pelo botão desabilitado.
     if (verificacao.aguardando) return;
     setEnviando(true);
     setErro(null);
+    setCampos({});
     let falha: unknown;
     try {
       await sessao.entrar(email, senha, pedirCodigo ? normalizarCodigo(codigo) : undefined, verificacao.token ?? undefined,
@@ -67,11 +93,14 @@ export default function Entrar() {
         setPedirCodigo(true);
       } else if (pedeNovaSenha(e)) {
         setCriarSenha(true);
-      } else if (criarSenha && (e as { status?: unknown }).status === 400) {
-        // Regra da senha nova (tamanho, igual ao e-mail, igual à provisória): embaixo do campo.
-        setErrosSenha({ nova: textoDoErro(e) });
+      } else if (criarSenha && (e as { status?: unknown }).status === 400 && !mensagemDaVerificacao(e)
+        && Object.keys(errosPorCampo(e)).length === 0) {
+        // Regra da senha nova (tamanho, igual ao e-mail, igual à provisória): embaixo do campo. A verificação humana
+        // recusada e o erro que já aponta o campo seguem pelo `separarErros`.
+        mostrar({ novaSenha: textoDoErro(e) }, null);
       } else {
-        setErro(mensagemDaVerificacao(e) ?? textoDoErro(e));
+        const separados = separarErros(e, refs.map(([c]) => c), mensagemDaVerificacao(e) ?? textoDoErro(e));
+        mostrar(separados.campos, separados.geral);
       }
     } finally {
       setEnviando(false);
@@ -85,7 +114,7 @@ export default function Entrar() {
     setSenha('');
     setNovaSenha('');
     setRepetida('');
-    setErrosSenha({});
+    setCampos({});
     setErro(null);
   };
 
@@ -97,19 +126,19 @@ export default function Entrar() {
       <Cartao>
         {criarSenha ? (
           <>
-            <CampoSenha rotulo="Nova senha" valor={novaSenha} aoMudar={setNovaSenha} erro={errosSenha.nova}
+            <CampoSenha ref={refNovaSenha} rotulo="Nova senha" valor={novaSenha} aoMudar={setNovaSenha} erro={campos.novaSenha}
               autoComplete="new-password" textContentType="newPassword" ajuda="Mínimo de 8 caracteres." />
-            <CampoSenha rotulo="Repita a nova senha" valor={repetida} aoMudar={setRepetida} erro={errosSenha.repetida}
+            <CampoSenha ref={refRepetida} rotulo="Repita a nova senha" valor={repetida} aoMudar={setRepetida} erro={campos.repetida}
               autoComplete="new-password" textContentType="newPassword" onSubmitEditing={enviar} returnKeyType="go" />
           </>
         ) : (
           <>
-            <Campo rotulo="E-mail" valor={email} aoMudar={setEmail} autoCapitalize="none" autoComplete="email"
+            <Campo ref={refEmail} rotulo="E-mail" valor={email} aoMudar={setEmail} erro={campos.email} autoCapitalize="none" autoComplete="email"
               keyboardType="email-address" inputMode="email" textContentType="emailAddress" />
-            <CampoSenha rotulo="Senha" valor={senha} aoMudar={setSenha} autoComplete="current-password"
+            <CampoSenha ref={refSenha} rotulo="Senha" valor={senha} aoMudar={setSenha} erro={campos.senha} autoComplete="current-password"
               textContentType="password" onSubmitEditing={enviar} returnKeyType="go" />
             {pedirCodigo ? (
-              <Campo rotulo="Código de verificação" valor={codigo} aoMudar={setCodigo} autoCapitalize="none" autoComplete="one-time-code"
+              <Campo ref={refCodigo} rotulo="Código de verificação" valor={codigo} aoMudar={setCodigo} erro={campos.codigoMfa} autoCapitalize="none" autoComplete="one-time-code"
                 ajuda="Do aplicativo autenticador. Sem o celular, use um código de recuperação."
                 onSubmitEditing={enviar} returnKeyType="go" />
             ) : null}

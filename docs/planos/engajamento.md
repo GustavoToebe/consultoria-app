@@ -11,6 +11,7 @@ constância e esforço feito; nunca corpo, dieta restritiva ou tempo de uso.
 
 ## Regras da frente
 - Tudo atrás de `TREINOS_RETORNO_HABILITADO` (padrão false). Nada vai para a `main` sem aprovação do Gustavo.
+- Chave ligada em produção em 03/11/2026, às 12:39, autorizada pelo Gustavo (antes: ausente no `consultoria.env`, valendo o padrão false; depois: `true` no contêiner, health UP). Para desligar: a linha com `false` e `recriar.sh consultoria api`; as conclusões do aparelho ficam `LOCAL` e voltam a ser enviadas quando a chave voltar.
 - Branch com merge da `main` antes de cada passo (nunca rebase). Migration da branch é renumerada se a `main` ganhar outra.
 - Passa-se de etapa só pelo portão.
 
@@ -88,7 +89,7 @@ confiáveis e números comparados · 2→3 moderação, push e adicional decidid
 - `2cd5e48` treino ao vivo (0.3).
 
 ## Passo 0.4: como ficou (28/10)
-- **Quando abre:** logo depois de "Concluir treino" (a Folha fecha, o aviso "Treino concluído." aparece e o app vai para `/aluno/sessao/<sessão>/concluido?data=`; o voltar retorna à tela de onde veio) e pelo botão "Ver resumo" ao lado de "Reabrir" no treino concluído. Treino não concluído (reaberto, recusado pelo servidor) ou chave desligada: "Este treino não está concluído." e "Voltar à lista do dia".
+- **Quando abre:** logo depois de "Concluir treino" (a Folha fecha e o app vai para `/aluno/sessao/<sessão>/concluido?data=`, sem aviso por cima: a tela já diz que concluiu, N9 de 03/11; o voltar retorna à tela de onde veio) e pelo botão "Ver resumo" ao lado de "Reabrir" no treino concluído. Treino não concluído (reaberto, recusado pelo servidor) ou chave desligada: "Este treino não está concluído." e "Voltar à lista do dia".
 - **Tela:** "Bom trabalho!" (h1) com o treino e a data; frase do número; selo "Treino concluído" com resultado e duração; a mesma faixa do 0.3 (duração declarada, volume, séries); "Recordes pessoais" do dia (do 0.2); cartão "Compartilhar" com a prévia, "Mostrar o volume no cartão" (desligado) e os botões; "Voltar à lista do dia".
 - **Número do treino (decisão):** é o `totalConcluidos` (todo o histórico do servidor + o que o aparelho ainda não confirmou). Hoje: "Este é o seu 12º treino."; outra data: "Você já concluiu 12 treinos." (o total não diz a posição de um treino antigo); sem total (nunca baixou): nenhuma frase, e o cartão diz "Treino concluído".
 - **Cartão (P8):** SVG 1080 × 1920 (Stories) em `aluno/CartaoDoTreino`: faixa com a cor da marca, logo (se já em memória ou com internet, a mesma do PDF) e nome da consultoria; "12º treino"; o treino e a data; calendário do mês com os dias treinados marcados (dia com treino concluído ou com série feita que o app conhece; a cor da marca, ou branco se ela some no fundo) e o dia do treino com anel; "2 dias treinados em outubro"; volume só ligado. Sem nome do aluno, peso, foto, medidas ou dieta. Cores e fonte fixas (é uma imagem; não segue o tema). Regras puras em `dominio/cartaoDoTreino.ts`.

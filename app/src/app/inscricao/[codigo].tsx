@@ -142,9 +142,9 @@ export default function Inscricao() {
       <TelaPublica titulo="Inscrição">
         <MensagemErro texto={codigo ? textoDoErro(pagina.erro) : 'Link de inscrição incompleto. Peça o link à consultoria.'}
           tentarDeNovo={codigo ? pagina.recarregar : undefined} erro={pagina.erro ?? undefined} />
-        <Texto variante="suave">Confira o link com a consultoria. Já é aluno? Entre no app.</Texto>
+        {/* Um texto só (o da API ou o do link incompleto já diz o que fazer); quem já é aluno tem o link abaixo. */}
         <View style={estilos.links}>
-          <LinkTexto href="/entrar" texto="Ir para Entrar" />
+          <LinkTexto href="/entrar" texto="Já sou aluno: entrar no app" />
         </View>
       </TelaPublica>
     );

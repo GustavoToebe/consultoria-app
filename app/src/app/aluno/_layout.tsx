@@ -1,7 +1,5 @@
 import { BarraDescanso } from '../../aluno/BarraDescanso';
 import { SeloSincronizacao } from '../../aluno/SeloSincronizacao';
-import { StyleSheet, View } from 'react-native';
-import { espaco } from '../../tema/tokens';
 import { CalendarDays, Dumbbell, House, Salad, UserRound } from 'lucide-react-native';
 
 import { AlunoProvider, useAluno } from '../../offline/AlunoProvider';
@@ -75,12 +73,9 @@ function MenuAluno() {
 function RodapeAluno() {
   return (
     <>
-      <View style={estilos.sincronizacao}><SeloSincronizacao /></View>
+      <SeloSincronizacao noRodape />
       <BarraDescanso />
     </>
   );
 }
 
-const estilos = StyleSheet.create({
-  sincronizacao: { alignItems: 'center', paddingVertical: espaco(0.5) },
-});
