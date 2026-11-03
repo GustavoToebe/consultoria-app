@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native';
 
 import type { CorDaAgenda, SituacaoCompromisso } from '../../api/agendaTipos';
 import type { ItemDoCalendario } from '../../dominio/agendaCalendario';
-import { fundoDoItemDaAgenda, LARGURA_DA_FAIXA, statusNoRotuloDoCompromisso } from '../../dominio/agendaLegivel';
+import { fundoDoItemDaAgenda, horarioNoRotuloDoCompromisso, LARGURA_DA_FAIXA, statusNoRotuloDoCompromisso } from '../../dominio/agendaLegivel';
 import { nomesPorExtenso, seloDaSituacao, seloDoCompromisso, situacaoDoCompromisso } from '../../dominio/agendaPresencial';
 import { caminhoAtualizacaoTreinador, statusAtualizacaoTreinador } from '../../dominio/atualizacao';
 import { dataSemAnoCorrente } from '../../dominio/datasRelativas';
@@ -26,7 +26,7 @@ export function horarioDoItem(item: ItemDoCalendario): string {
 }
 
 /**
- * Nome do item para o leitor de tela. O do compromisso é o mesmo da lista de antes ("Abrir compromisso de Ana, 15:00"), em
+ * Nome do item para o leitor de tela. O do compromisso diz o início e o fim ("Abrir compromisso de Ana, das 15h às 16h"), em
  * qualquer visão, com o status no fim quando não é "todos agendados" (", cancelado", ", realizado", ", 1 faltou"): no bloco
  * curto o status é só ícone e o nome é quem o diz. O evento diz o título e a hora; a atualização, o aluno, o dia e o selo
  * quando ele diz algo a mais.
@@ -35,7 +35,7 @@ export function rotuloDoItem(item: ItemDoCalendario, hoje: string): string {
   const f = item.fonte;
   if (f.origem === 'COMPROMISSO') {
     const c = f.compromisso;
-    return `Abrir compromisso de ${nomesPorExtenso(c)}, ${c.hora}${statusNoRotuloDoCompromisso(c)}`;
+    return `Abrir compromisso de ${nomesPorExtenso(c)}, ${horarioNoRotuloDoCompromisso(c.hora, c.horaFim)}${statusNoRotuloDoCompromisso(c)}`;
   }
   if (f.origem === 'EVENTO') return `Abrir evento ${item.titulo}, ${item.diaInteiro ? 'dia inteiro' : f.ocorrencia.hora ?? ''}${item.cancelado ? ', cancelado' : ''}`;
   const selo = statusAtualizacaoTreinador(f.atualizacao, hoje);

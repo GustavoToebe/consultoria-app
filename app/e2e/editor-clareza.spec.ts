@@ -216,3 +216,26 @@ for (const nomeDoTema of ['claro', 'escuro'] as const) {
     });
   }
 }
+
+for (const largura of [390, 1280]) {
+  test(`editor: remover a sessão fica no ⋯, com "Desfazer", e "Adicionar exercício" vem primeiro (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const api = await planoComDoisExercicios(page);
+    // Remover a sessão não é mais um botão solto no rodapé: fica só no ⋯ do cabeçalho.
+    await expect(page.getByRole('button', { name: 'Remover sessão', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^Mais ações da sessão/ })).toHaveCount(1);
+    await page.getByRole('button', { name: 'Adicionar sessão', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Remover sessão', exact: true })).toHaveCount(0);
+    // O primeiro controle da linha de adição é "Adicionar exercício".
+    const adicionar = (await page.getByRole('button', { name: 'Adicionar exercício', exact: true }).boundingBox())!;
+    const modelos = (await page.getByRole('button', { name: 'Modelos prontos', exact: true }).boundingBox())!;
+    expect(adicionar.y < modelos.y || (adicionar.y === modelos.y && adicionar.x < modelos.x)).toBe(true);
+    await page.getByRole('button', { name: /^Mais ações da sessão/ }).first().click();
+    await page.getByText('Remover sessão', { exact: true }).click();
+    await expect(page.getByText(/Sessão “.*” removida\./)).toBeVisible();
+    await page.getByRole('button', { name: 'Desfazer', exact: true }).click();
+    await expect(page.getByRole('button', { name: /^Mais ações da sessão/ }).first()).toBeVisible();
+    expect(api.errosDaPagina).toEqual([]);
+    expect(api.naoTratadas).toEqual([]);
+  });
+}

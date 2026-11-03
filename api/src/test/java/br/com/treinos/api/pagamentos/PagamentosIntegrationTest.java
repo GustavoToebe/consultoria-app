@@ -335,7 +335,7 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         assertThat(painelA.get("movimentoDeAlunos").get(5).get("contratacoesNovas").asLong()).isEqualTo(2);
         assertThat(painelA.get("resultadoDoMes").get("recebidoCentavos").asLong()).isEqualTo(11111);
         assertThat(painelA.get("resultadoDoMes").get("entradasAvulsasCentavos").asLong()).isEqualTo(4444);
-        assertThat(nulo(painelA.get("resultadoDoMes").get("saidasAvulsasCentavos"))).isTrue();
+        assertThat(painelA.get("resultadoDoMes").get("saidasAvulsasCentavos").asLong()).isZero();
         assertThat(painelA.get("resultadoDoMes").get("resultadoCentavos").asLong()).isEqualTo(11111 + 4444);
         assertThat(painelA.toString()).doesNotContain("Beta");
         JsonNode numerosA = api.get("/financeiro/numeros?meses=6", admin, 200);
@@ -1310,6 +1310,23 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         assertThat(painel.get("resultadoDoMes").get("rotulo").asString()).isEqualTo(FinanceiroService.ROTULO_RESULTADO);
         assertThat(painel.get("porForma")).isEmpty();
         assertThat(painel.get("somenteMeus").asBoolean()).isFalse();
+
+        // Mês sem lançamento: até o corrente é R$ 0,00; o "Meus" não cobre lançamento e segue nulo.
+        JsonNode semLancamento = painel.get("resultadoDoMes");
+        assertThat(semLancamento.get("entradasAvulsasCentavos").asLong()).isZero();
+        assertThat(semLancamento.get("saidasAvulsasCentavos").asLong()).isZero();
+        assertThat(nulo(semLancamento.get("recebidoCentavos"))).isTrue();
+        for (JsonNode mes : painel.get("serie")) {
+            assertThat(mes.get("entradasAvulsasCentavos").asLong()).isZero();
+            assertThat(mes.get("saidasAvulsasCentavos").asLong()).isZero();
+        }
+        JsonNode meusVazio = api.get("/financeiro/painel?meus=true", admin, 200);
+        assertThat(nulo(meusVazio.get("resultadoDoMes").get("entradasAvulsasCentavos"))).isTrue();
+        assertThat(nulo(meusVazio.get("serie").get(5).get("entradasAvulsasCentavos"))).isTrue();
+        // Mês futuro segue sem dado (nulo), nunca zero.
+        JsonNode futuro = api.get("/financeiro/painel?de=" + hoje + "&ate=" + hoje.plusMonths(2), admin, 200).get("serie");
+        assertThat(nulo(futuro.get(futuro.size() - 1).get("entradasAvulsasCentavos"))).isTrue();
+        assertThat(futuro.get(0).get("entradasAvulsasCentavos").asLong()).isZero();
     }
 
     @Test
@@ -1503,7 +1520,7 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         assertThat(semBaixa.get("porForma")).isEmpty();
         assertThat(semBaixa.get("porPlano")).isEmpty();
         assertThat(nulo(semBaixa.get("resultadoDoMes").get("recebidoCentavos"))).isTrue();
-        assertThat(nulo(semBaixa.get("resultadoDoMes").get("resultadoCentavos"))).isTrue();
+        assertThat(semBaixa.get("resultadoDoMes").get("resultadoCentavos").asLong()).isZero();
     }
 
     @Test

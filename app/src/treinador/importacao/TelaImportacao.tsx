@@ -463,7 +463,7 @@ export function AssistenteDaImportacao() {
           <>
             <CartoesDeDestino destinos={destinos} valor={destino?.id ?? null} aoMudar={escolherDestino} />
             <CartaoDaPlanilhaCompleta />
-            <Cartao titulo="Carregue seu arquivo de dados (.xlsx, .csv)" descricao="Nada é gravado antes de você confirmar no fim.">
+            <Cartao titulo="Carregue seu arquivo de dados (.xlsx, .csv)">
               <ZonaDeArquivo arquivo={arquivo} aoEscolher={escolherArquivo} />
             </Cartao>
             {destino ? (

@@ -75,3 +75,32 @@ export function ultimoRegistroDaLinha(ultimoRegistro: string | null, hoje: strin
   const dias = Math.round((Date.parse(hoje.slice(0, 10)) - Date.parse(ultimoRegistro.slice(0, 10))) / 86_400_000);
   return { texto: comMaiuscula(dataRelativa(ultimoRegistro, hoje)), suave: dias > DIAS_ULTIMO_REGISTRO_SUAVE };
 }
+
+/**
+ * Colunas da lista no PC (N2): "Atualização" só com as duas permissões que a mostram; "Último registro" só com
+ * `REGISTRO_LER` (sem ela a coluna seria "Nunca registrou" em toda linha, o que é falso).
+ */
+export function colunasDaLista<C extends { chave: string }>(colunas: readonly C[], ve: { atualizacao: boolean; registro: boolean }): C[] {
+  return colunas.filter((c) => (c.chave !== 'atualizacao' || ve.atualizacao) && (c.chave !== 'ultimo' || ve.registro));
+}
+
+/** Linha de metadados do celular: o plano e, para quem vê registros, o último registro ("Nunca registrou" se não houver). */
+export function metadadosDaLinha(plano: string | null, ultimoRegistro: string | null, veRegistro: boolean): string {
+  const base = plano ?? 'Sem plano ativo';
+  if (!veRegistro) return base;
+  return `${base} · ${ultimoRegistro ? `Último registro ${dataRelativa(ultimoRegistro)}` : 'Nunca registrou'}`;
+}
+
+/**
+ * Texto do vazio da lista de alunos. `chaves` são os filtros ligados; quem começa em "Meus alunos" e não é responsável
+ * de ninguém (só esse filtro) lê isso, e não "nenhum aluno passa nesses filtros" (N2). O "Limpar filtros" fica só na
+ * barra de filtros (N23).
+ */
+export function vazioDaLista(o: { termo: string; chaves: readonly string[]; responsaveis: readonly string[] }): { titulo: string; texto: string; verTodos: boolean } {
+  if (o.termo) return { titulo: 'Nenhum aluno encontrado', texto: 'Tente buscar por outro nome.', verTodos: false };
+  if (o.chaves.length === 0) return { titulo: 'Nenhum aluno ainda', texto: 'Cadastre seu primeiro aluno para montar os planos.', verTodos: false };
+  if (o.chaves.length === 1 && o.chaves[0] === 'responsavel' && o.responsaveis.length === 1 && o.responsaveis[0] === 'meus') {
+    return { titulo: 'Nenhum aluno seu', texto: 'Você não é responsável por nenhum aluno.', verTodos: true };
+  }
+  return { titulo: 'Nenhum aluno encontrado', texto: 'Nenhum aluno passa nesses filtros. Tire algum dos filtros acima.', verTodos: false };
+}

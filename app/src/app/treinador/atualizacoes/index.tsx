@@ -1,7 +1,7 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { contagensAtualizacoes, listarAtualizacoes, responsaveisEquipe } from '../../../api/rotas';
-import type { ResponsavelEquipe } from '../../../api/equipeTipos';
+import { ErroApi } from '../../../api/cliente';
 import type { SituacaoAtualizacao } from '../../../api/tipos';
 import { caminhoAtualizacaoTreinador, statusAtualizacaoTreinador } from '../../../dominio/atualizacao';
 import { dataSemAnoCorrente } from '../../../dominio/datasRelativas';
@@ -54,7 +54,10 @@ export default function ListaAtualizacoes() {
   const contagem=useCarregar(`contagens-atualizacoes:${chave}`,()=>contagensAtualizacoes(pedido.meus,pedido.filtro));
   const contagens:Partial<Record<SituacaoAtualizacao,number>>=contagem.dados??{};
   const recarregarContagens=contagem.recarregar;
-  const responsaveis=useCarregar('responsaveis-atualizacoes',()=>responsaveisEquipe().catch(():ResponsavelEquipe[]=>[])).dados??[];
+  const listaDeResponsaveis=useCarregar('responsaveis-atualizacoes',()=>responsaveisEquipe());
+  const responsaveis=listaDeResponsaveis.dados??[];
+  // Sem permissão para ver a equipe (403) o filtro fica só com "Todos" e "Meus", sem aviso; qualquer outra falha avisa.
+  const erroDosResponsaveis=listaDeResponsaveis.erro instanceof ErroApi&&listaDeResponsaveis.erro.status===403?null:listaDeResponsaveis.erro;
   const nomeDe=(id:string)=>responsaveis.find(r=>r.id===id)?.nome??null;
   const itens=[...(lista.dados??[])].sort((x,y)=>(x.dataAtualizacao??'').localeCompare(y.dataAtualizacao??''));
   useFocusEffect(useCallback(()=>{recarregar();recarregarContagens();},[recarregar,recarregarContagens]));
@@ -75,6 +78,7 @@ export default function ListaAtualizacoes() {
       </>} />
     {/* A aba (situação) é um passo do histórico; os filtros da barra vão junto. */}
     <Abas abas={ABAS.map(a=>({...a,contagem:contagens[a.valor]}))} ativa={filtro} aoMudar={valor=>{ if(valor!==filtro) router.push({pathname:'/treinador/atualizacoes',params:{situacao:valor,...paraEndereco(filtros)}}); }} />
+    {erroDosResponsaveis?<MensagemErro texto={`Não foi possível carregar a lista de responsáveis do filtro. ${textoDoErro(erroDosResponsaveis)}`} erro={erroDosResponsaveis} tentarDeNovo={listaDeResponsaveis.recarregar} />:null}
     {lista.erro?<MensagemErro texto={textoDoErro(lista.erro)} tentarDeNovo={recarregar} />:null}
     {lista.carregando?<Esqueleto />:null}
     {!lista.carregando && lista.dados && itens.length===0?<Vazio titulo={filtrado?'Nenhuma atualização com esses filtros':'Nenhuma atualização nesta lista'} texto={filtrado?'Tire algum filtro ou limpe a busca.':'As atualizações aparecem conforme o período da pasta e o envio do aluno.'}

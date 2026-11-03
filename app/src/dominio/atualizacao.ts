@@ -1,6 +1,6 @@
 import type { Atualizacao, AtualizacaoDaLista, FaseAtualizacao, SituacaoAtualizacao } from '../api/tipos';
 import { comMaiuscula, dataSemAnoCorrente } from './datasRelativas';
-import { dataParaTela, hojeIso, somarDias } from './formatos';
+import { dataParaTela, hojeIso, numeroParaTela, somarDias } from './formatos';
 
 export const DIAS_MAXIMOS_DE_ATRASO = 15;
 /**
@@ -133,3 +133,13 @@ export function emDias(dias:number):string {
 }
 export const podeResponderAtualizacao = (a: Atualizacao, hoje: string) =>
   !!a.dataAtualizacao && a.fase !== 'ENVIADA' && a.fase !== 'REVISADA' && hoje >= somarDias(a.dataAtualizacao, -1);
+
+/**
+ * N17: "1 treino registrado no período (≈0,2 por semana)". Conta os dias com treino registrado no app, que é o que a
+ * API sabe; sem o dado do período, "—" (nunca zero inventado). A média só aparece quando a API a manda.
+ */
+export function fraseDeTreinosNoPeriodo(diasComTreino: number | null | undefined, mediaPorSemana: number | null | undefined): string {
+  if (diasComTreino == null) return 'Treinos registrados no período: —';
+  const quantos = diasComTreino === 1 ? '1 treino registrado' : diasComTreino === 0 ? 'Nenhum treino registrado' : `${diasComTreino} treinos registrados`;
+  return `${quantos} no período${mediaPorSemana == null ? '' : ` (≈${numeroParaTela(mediaPorSemana, 1)} por semana)`}`;
+}

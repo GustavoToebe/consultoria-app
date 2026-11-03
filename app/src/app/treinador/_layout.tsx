@@ -1,10 +1,11 @@
 import { BookOpen, CalendarDays, ChartColumn, CircleUserRound, ClipboardCheck, ContactRound, FileUp, House, Inbox, NotebookTabs, UsersRound, History, LifeBuoy, Wallet } from 'lucide-react-native';
 
-import { Navigator, Slot, usePathname } from 'expo-router';
+import { Navigator, Redirect, Slot, usePathname } from 'expo-router';
 import { Platform } from 'react-native';
 import { useEffect } from 'react';
 import { listarInscricoes, painelTreinador } from '../../api/rotas';
-import { telasDaOrigem } from '../../dominio/telas';
+import { primeiraTelaPermitida } from '../../dominio/primeiraTela';
+import { telasDaOrigem, telasPermitidas } from '../../dominio/telas';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useCarregar } from '../../ui/useCarregar';
 import { podeAcessarTela } from '../../dominio/permissoes';
@@ -41,6 +42,18 @@ const ITENS: ItemMenu[] = [
   { rotulo: 'Auditoria', href: '/treinador/auditoria', caminho: '/treinador/auditoria', Icone: History, soLateral:true },
 ];
 
+/**
+ * N1: quem não tem o Início (sem PAINEL_VER) e abre só `/treinador` vai para a primeira tela que pode abrir, em vez de cair
+ * em "Sem acesso". Só essa rota; as outras seguem na guarda. Sem tela nenhuma, fica o aviso (não há laço: o destino nunca é o Início).
+ */
+function SemInicio() {
+  const {pode,funcionalidadesDoPlano,pagamentosHabilitados,perfilEquipe}=useSessao();const caminho=usePathname();
+  const administrador=!!perfilEquipe?.acessoTotal;
+  if(caminho!=='/treinador'||podeAcessarTela(caminho,pode,pagamentosHabilitados,administrador)) return null;
+  const destino=primeiraTelaPermitida(telasPermitidas(pode,undefined,funcionalidadesDoPlano,pagamentosHabilitados,administrador));
+  return destino?<Redirect href={destino as never} />:null;
+}
+
 export default function LayoutTreinador() {
   const {pode,recarregarPerfil,usuario,pagamentosHabilitados}=useSessao();const caminho=usePathname();
   useLimparFavoritosAoSair();
@@ -63,6 +76,7 @@ export default function LayoutTreinador() {
   return (
     <Navigator><GuardaDePapel papel="TREINADOR"><GuardaDeSaida>
       {/* Passeio pelo menu no primeiro acesso (depois dos termos, que a GuardaDePapel cobra); revisto pela Ajuda. */}
+      <SemInicio />
       <ProvedorDoPasseio key={usuario?.id ?? ''} usuarioId={usuario?.id ?? ''} passos={usuario ? GUIAS.treinador.passeio : []}>
         <Navegacao topo={Platform.OS === 'web' ? <BarraTopo /> : undefined} itens={ITENS.filter(i=>podeAcessarTela(i.caminho,pode,pagamentosHabilitados)).map(comPontos)} conteudo={<GuardaDePermissao><Slot /></GuardaDePermissao>} />
       </ProvedorDoPasseio>
