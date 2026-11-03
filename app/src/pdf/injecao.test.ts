@@ -1,3 +1,4 @@
+/** @jest-environment jsdom */
 import { CONFIGURACAO_PADRAO } from '../dominio/metodologiaPadrao';
 import type { ConteudoDieta, Marca } from '../api/tipos';
 import { normalizarDieta } from '../dominio/dieta';
@@ -12,6 +13,7 @@ import { ajustarQuantidade, gravarAvulso, itensDoAluno, MARCACOES_VAZIAS } from 
 import { documentoListaDeCompras } from './pdfListaDeCompras';
 import { documentoMobilidade } from './pdfMobilidade';
 import { documentoTreino } from './pdfTreino';
+import { montarCorpo } from './imprimir.web';
 
 jest.mock('../dominio/uid', () => ({ novoUid: () => 'uid' }));
 
@@ -97,6 +99,26 @@ function conferirVariacao(nome: string, gerar: (entrada: never) => Documento, en
     expect([...atributos(html)].filter((a) => !atributos(limpo).has(a))).toEqual([]);
     expect(comEvento(html)).toEqual([]);
     expect(html).not.toContain('<script');
+  });
+
+  // O que a web põe na página (montarCorpo) é igual ao HTML do gerador: a higienização não tira nada de documento real.
+  const corpoPeloNavegador = (corpo: string) => {
+    const raiz = document.createElement('div');
+    raiz.append(montarCorpo(corpo));
+    return raiz;
+  };
+  const corpoDeReferencia = (corpo: string) => {
+    const raiz = document.createElement('div');
+    raiz.innerHTML = corpo; // só o teste: o comportamento antigo a preservar
+    return raiz;
+  };
+  it(`${nome}: montarCorpo devolve o mesmo que o innerHTML antigo, atacado ou não, e sem nó ativo`, () => {
+    for (const corpo of [doc.corpo, gerar(trocarPorX(entrada, poupar) as never).corpo]) {
+      const novo = corpoPeloNavegador(corpo);
+      expect(novo.innerHTML).toBe(corpoDeReferencia(corpo).innerHTML);
+      expect(novo.querySelectorAll('script, style, iframe, object, embed, form, svg').length).toBe(0);
+      expect([...novo.querySelectorAll('*')].flatMap((e) => e.getAttributeNames()).filter((n) => /^on/i.test(n))).toEqual([]);
+    }
   });
 
   it(`${nome}: o texto sai escapado (o ataque aparece como texto, não como marcação)`, () => {

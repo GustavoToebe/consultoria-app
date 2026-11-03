@@ -11,10 +11,16 @@ const noCorpo = (html: string) => {
 };
 
 describe('montarCorpo (impressão na web)', () => {
-  it('não usa innerHTML para atribuir o documento', () => {
-    const fonte = readFileSync(join(__dirname, 'imprimir.web.ts'), 'utf8');
-    expect(fonte).not.toMatch(/\.(innerHTML|outerHTML)\s*=/);
-    expect(fonte).not.toContain('insertAdjacentHTML');
+  describe('trava de código-fonte: nada de HTML por texto direto na página', () => {
+    const PROIBIDO = /\.(innerHTML|outerHTML)\s*[-+*/%|&?^<>]*=|insertAdjacentHTML|createContextualFragment|document\.write/;
+    it('imprimir.web.ts não atribui HTML por texto', () => {
+      expect(readFileSync(join(__dirname, 'imprimir.web.ts'), 'utf8')).not.toMatch(PROIBIDO);
+    });
+    it('a trava pega atribuição, concatenação e os atalhos', () => {
+      for (const amostra of ['a.innerHTML = x', 'a.innerHTML += x', 'a.innerHTML||=x', 'a.outerHTML = x', 'a.insertAdjacentHTML("x", y)', 'document.write(x)']) {
+        expect(amostra).toMatch(PROIBIDO);
+      }
+    });
   });
 
   it('mantém o resultado do innerHTML para o HTML que os geradores escrevem', () => {
@@ -59,6 +65,42 @@ describe('montarCorpo (impressão na web)', () => {
       await new Promise((r) => setTimeout(r, 20));
       raiz.remove();
       expect(marca.__executou).toBeUndefined();
+    });
+
+    it.each([
+      '<a href="java&#9;script:alert(1)">x</a>',
+      '<a href="java&#10;script:alert(1)">x</a>',
+      '<a href="  JaVaScRiPt:alert(1)">x</a>',
+      '<a href="vbscript:x">x</a>',
+      '<a href="data:text/html,<script>alert(1)</script>">x</a>',
+      '<img src="data:image/svg+xml,<svg onload=alert(1)>">',
+      '<svg><a xlink:href="javascript:alert(1)"><text>x</text></a></svg>',
+      '<svg><a><animate attributeName="href" values="javascript:alert(1)"/><text>x</text></a></svg>',
+      '<svg><set attributeName="href" to="javascript:alert(1)"/></svg>',
+      '<form action="javascript:alert(1)"><button formaction="javascript:alert(1)">b</button></form>',
+      '<div><button formaction="javascript:alert(1)">b</button></div>',
+    ])('endereço ou elemento perigoso é removido: %s', (html) => {
+      const raiz = noCorpo(html);
+      expect(raiz.querySelectorAll('script, svg, animate, set, form').length).toBe(0);
+      for (const e of raiz.querySelectorAll('*')) {
+        for (const nome of e.getAttributeNames()) {
+          expect(e.getAttribute(nome) ?? '').not.toMatch(/script|text\/html|svg/i);
+        }
+      }
+    });
+
+    it('<style> no corpo sai, mas o atributo style continua', () => {
+      const raiz = noCorpo('<style>body{display:none}</style><div style="background:#C62828;color:#fff">x</div>');
+      expect(raiz.querySelector('style')).toBeNull();
+      expect(raiz.querySelector('div')?.getAttribute('style')).toBe('background:#C62828;color:#fff');
+    });
+
+    it('endereços legítimos ficam: https, mailto, âncora, relativo e a logo em data:image/png', () => {
+      const raiz = noCorpo(
+        '<a href="https://youtu.be/abc">v</a><a href="mailto:a@b.c">m</a><a href="#x">a</a><a href="/rel">r</a><img src="data:image/png;base64,AAAA" alt="l">',
+      );
+      expect([...raiz.querySelectorAll('a')].map((a) => a.getAttribute('href'))).toEqual(['https://youtu.be/abc', 'mailto:a@b.c', '#x', '/rel']);
+      expect(raiz.querySelector('img')?.getAttribute('src')).toBe('data:image/png;base64,AAAA');
     });
 
     it('texto escapado pelo gerador continua texto', () => {
