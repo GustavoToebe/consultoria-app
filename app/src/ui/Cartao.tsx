@@ -1,10 +1,10 @@
 import { Card } from '../components/ui/card';
-import { ChevronDown, ChevronUp } from 'lucide-react-native';
+import { CalendarDays, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { Children, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
-import { BORDA_BLOCO, espaco, LARGURA_MENU_LATERAL, LINHA_DA_FAIXA, RAIO } from '../tema/tokens';
+import { BORDA_BLOCO, espaco, fontes, LARGURA_MENU_LATERAL, LINHA_DA_FAIXA, RAIO } from '../tema/tokens';
 import { Texto } from './Texto';
 
 interface Props {
@@ -30,13 +30,18 @@ interface Props {
    * faixa atrapalha (cartão de destaque com cor própria, por exemplo).
    */
   faixa?: boolean;
+  /**
+   * O período que o cartão mostra, numa pílula embaixo do título ("Pasta atual: 01/10 a 31/10", "Desde o primeiro
+   * registro"): cada visão do Histórico diz o que está mostrando (Frente G, D15).
+   */
+  periodo?: string;
   /** Antes do título, na mesma linha: a bolinha na cor do estado nos grupos da lista de alunos. Decorativo: o título diz o estado. */
   marcador?: ReactNode;
   style?: StyleProp<ViewStyle>;
 }
 
 /** Cartão flat: superfície, borda de 2 px, cantos de 12 px, sem sombra; a faixa do título tem linha de 3 px embaixo. Separa seções, dias, exercícios. */
-export function Cartao({ children, cabecalho, titulo, descricao, acoes, rodape, recolhivel, recolhido = false, nivel = 2, faixa = true, marcador, style }: Props) {
+export function Cartao({ children, cabecalho, titulo, descricao, acoes, rodape, recolhivel, recolhido = false, nivel = 2, faixa = true, marcador, periodo, style }: Props) {
   const { cores, bordas } = useTema();
   const { width } = useWindowDimensions();
   const [fechado, setFechado] = useState(recolhivel ? recolhido : false);
@@ -64,6 +69,12 @@ export function Cartao({ children, cabecalho, titulo, descricao, acoes, rodape, 
             ) : titulo && marcador ? (
               <View style={estilos.comMarcador}>{marcador}<Texto variante="bloco" nivel={nivel} style={estilos.titulo}>{titulo}</Texto></View>
             ) : titulo ? <Texto variante="bloco" nivel={nivel} style={estilos.titulo}>{titulo}</Texto> : null}
+            {periodo ? (
+              <View style={[estilos.periodo, { borderColor: cores.bordaCampo, backgroundColor: cores.superficie }]} accessibilityLabel={`Período: ${periodo}`}>
+                <CalendarDays size={14} color={cores.texto} />
+                <Texto numerico variante="pequeno" cor={cores.texto} style={estilos.textoDoPeriodo}>{periodo}</Texto>
+              </View>
+            ) : null}
             {descricao && !fechado ? <Texto variante="suave">{descricao}</Texto> : null}
           </View>
           {acoes ? <View style={estilos.acoes}>{acoes}</View> : null}
@@ -86,6 +97,8 @@ const estilos = StyleSheet.create({
   faixa: { paddingVertical: espaco(1.5), borderBottomWidth: LINHA_DA_FAIXA },
   faixaFechada: { borderBottomWidth: 0 },
   tituloBotao: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75), flexShrink: 1, minHeight: 44 },
+  periodo: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: espaco(0.75), borderWidth: 1, borderRadius: 999, paddingVertical: 3, paddingHorizontal: espaco(1.25), maxWidth: '100%', marginTop: 2 },
+  textoDoPeriodo: { fontFamily: fontes.semi, flexShrink: 1 },
   acoes: { flexDirection: 'row', gap: espaco(1), flexWrap: 'wrap', maxWidth: '100%' },
   // `marginTop: 'auto'` empurra o rodapé para a base quando o cartão é esticado pela grade.
   rodape: { marginTop: 'auto' },

@@ -81,6 +81,15 @@ export function filtrarPorSessoes(dias: DiaDeTreino[], uids: Set<string> | null)
 const chaveDoNome = (nome: string) => nome.trim().toLowerCase();
 
 /**
+ * Nome da divisão de uma sessão registrada, o mesmo das "Cargas por divisão": com o plano, o dia e o nome ("Quarta -
+ * Pernas"); sem ele, o nome gravado no registro. A visão por semana usa este nome para dar a mesma letra e a mesma cor.
+ */
+export function nomeDaDivisao(s: { sessaoUid: string; sessao: string }, sessoesDoPlano?: Map<string, Sessao>): string {
+  const doPlano = sessoesDoPlano?.get(s.sessaoUid);
+  return doPlano ? nomeComDia(doPlano, ' - ') : s.sessao;
+}
+
+/**
  * @param sessoesDoPlano sessões do plano atual (por uid), para dar o dia ("Quarta - Pernas") e a ordem da semana.
  *   Sem elas, a divisão usa o nome gravado e a ordem do dia em que o aluno mais treinou.
  */
@@ -89,7 +98,7 @@ export function cargasPorDivisao(dias: DiaDeTreino[], sessoesDoPlano?: Map<strin
   for (const dia of [...dias].sort((a, b) => a.data.localeCompare(b.data))) {
     for (const s of dia.sessoes) {
       const doPlano = sessoesDoPlano?.get(s.sessaoUid);
-      const nome = doPlano ? nomeComDia(doPlano, ' - ') : s.sessao;
+      const nome = nomeDaDivisao(s, sessoesDoPlano);
       const chave = chaveDoNome(nome);
       const divisao = divisoes.get(chave) ?? { chave, nome, exercicios: [], ordem: [] };
       divisoes.set(chave, divisao);
