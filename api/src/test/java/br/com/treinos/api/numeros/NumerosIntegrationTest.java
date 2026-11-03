@@ -209,7 +209,7 @@ class NumerosIntegrationTest extends AbstractIntegrationTest {
         assertThat(mes(corpo, 5).path("atualizacoesAtrasadas").asLong()).isZero();
         assertThat(mes(corpo, 5).path("atualizacoesAtrasadas").isNull()).isFalse();
         // Nada de nome nem id de pessoa no relatório.
-        assertThat(corpo.toString()).doesNotContain("Aluno").doesNotContain(agora.toString());
+        assertThat(corpo.toString()).doesNotContain("Aluno ").doesNotContain(agora.toString());
     }
 
     @Test

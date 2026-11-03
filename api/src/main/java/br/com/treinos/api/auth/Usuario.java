@@ -8,6 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.DynamicUpdate;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -18,8 +19,12 @@ import java.util.UUID;
  *
  * <p>{@code credenciaisVersao} vai no JWT (claim {@code cv}). Trocar senha ou desativar incrementa a versão: o Bearer
  * antigo é recusado na hora, sem esperar os 15 minutos.</p>
+ *
+ * <p>{@code @DynamicUpdate}: o UPDATE leva só as colunas que mudaram. O login carrega o usuário sem trava e sem versão; com o
+ * UPDATE de todas as colunas ele regravaria o {@code limite_de_alunos} (ou o {@code ativo}) lido antes de outra transação mudá-lo.</p>
  */
 @Entity
+@DynamicUpdate
 @Table(name = "usuario")
 public class Usuario {
 
@@ -53,6 +58,10 @@ public class Usuario {
 
     @Column(nullable = false)
     private boolean ativo = true;
+
+    /** Quantos alunos ativos o membro pode ter como responsável; nulo = sem limite (V054). Só o Administrador grava. */
+    @Column(name = "limite_de_alunos")
+    private Integer limiteDeAlunos;
 
     @Column(name = "credenciais_versao", nullable = false)
     private long credenciaisVersao;
@@ -111,6 +120,8 @@ public class Usuario {
         return papel;
     }
 
+    public Integer getLimiteDeAlunos() { return limiteDeAlunos; }
+    public void alterarLimiteDeAlunos(Integer limite) { this.limiteDeAlunos=limite; }
     public void alterarNome(String nome) { this.nome=nome; }
     public void alterarTelefone(String telefone) { this.telefone=telefone; }
     public void alterarPerfil(UUID perfilId) {

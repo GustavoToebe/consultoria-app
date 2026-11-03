@@ -8,6 +8,10 @@ test('ações de convite de equipe têm rótulo no filtro da auditoria', () => {
   for (const acao of ['USUARIO_CONVIDADO', 'CONVITE_EQUIPE_ACEITO', 'CONVITE_EQUIPE_CANCELADO']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
 });
 
+test('o limite de alunos do membro tem rótulo no filtro da auditoria', () => {
+  expect(ACOES_AUDITORIA.USUARIO_LIMITE_DE_ALUNOS_ALTERADO).toBeTruthy();
+});
+
 test('publicar e copiar plano para outro aluno têm rótulo no filtro da auditoria, por tipo', () => {
   for (const acao of ['TREINO_PUBLICADO', 'DIETA_PUBLICADA', 'TREINO_COPIADO', 'DIETA_COPIADA', 'MOBILIDADE_COPIADA', 'PASTA_COPIADA']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
 });

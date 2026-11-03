@@ -64,6 +64,7 @@ public class AlunoService {
     private final br.com.treinos.api.agenda.AgendaService agenda;
     private final ConsultoriaRepository consultorias;
     private final br.com.treinos.api.pastas.PastaRepository pastas;
+    private final LimiteDoTreinador limiteDoTreinador;
 
     public AlunoService(AlunoRepository alunos, UsuarioRepository usuarios, Autenticador autenticador,
                         PlanoTreinoRepository planos, ExecucaoSerieRepository execucoes,br.com.treinos.api.auditoria.Auditoria auditoria,
@@ -71,7 +72,8 @@ public class AlunoService {
                         br.com.treinos.api.pagamentos.PagamentosDoAluno pagamentos,
                         br.com.treinos.api.ciclo.CicloMenstrualService ciclo,
                         br.com.treinos.api.agenda.AgendaService agenda, ConsultoriaRepository consultorias,
-                        br.com.treinos.api.pastas.PastaRepository pastas) {
+                        br.com.treinos.api.pastas.PastaRepository pastas, LimiteDoTreinador limiteDoTreinador) {
+        this.limiteDoTreinador = limiteDoTreinador;
         this.pastas = pastas;
         this.agenda = agenda;
         this.consultorias = consultorias;
@@ -254,6 +256,8 @@ public class AlunoService {
         if(auth!=null && auth.getPrincipal() instanceof br.com.treinos.api.security.UsuarioAutenticado eu) aluno.alterarResponsavel(eu.usuarioId());
         else usuarios.findByConsultoriaIdAndPapelOrderByNomeAsc(br.com.treinos.api.tenant.TenantContext.get(),br.com.treinos.api.auth.Papel.TREINADOR).stream().findFirst().ifPresent(u -> aluno.alterarResponsavel(u.getId()));
         definirResponsavel(aluno,r.responsavelId());
+        // O responsável final (o criador ou o escolhido) recebe um aluno ativo novo: só ele é conferido (D7, D8).
+        limiteDoTreinador.exigirVaga(aluno.getResponsavelId(), 1, null);
         aplicarSexo(aluno, r.sexo());
         return detalheDe(gravar(aluno));
     }
@@ -283,6 +287,11 @@ public class AlunoService {
         exigirEscritaSensivel(r);
         boolean sensivel = br.com.treinos.api.equipe.AcessoAtual.pode("ALUNO_SENSIVEL_ALTERAR");
         Dados dados = Dados.de(r, sensivel);
+        // D15: só confere quando o aluno termina ativo com um responsável novo (manter o mesmo, ou editar inativo, nunca é barrado).
+        // Antes de mexer no aluno: a consultoria é travada antes de qualquer escrita nele (D9), sem esperar a descarga do Hibernate.
+        if (aluno.isAtivo() && r.responsavelId() != null && !r.responsavelId().equals(aluno.getResponsavelId())) {
+            limiteDoTreinador.exigirVaga(responsavelValido(r.responsavelId()).getId(), 1, aluno.getId());
+        }
         aluno.alterarDados(r.nome().trim(), email(r.email()), sensivel ? Buscas.opcional(r.objetivo()) : aluno.getObjetivo(),
                 sensivel ? Buscas.opcional(r.observacoes()) : aluno.getObservacoes(), r.diasAtualizacao());
         if (sensivel) { // sem a permissão, CPF, endereço e meta do peso do corpo são ignorados e o que está gravado fica
@@ -319,7 +328,10 @@ public class AlunoService {
         Aluno aluno = alunos.buscarParaAlterar(id).orElseThrow(AlunoService::naoEncontrado);
         if (ativo) {
             exigirNaoAnonimizado(aluno);
-            if (!aluno.isAtivo()) plano.exigirVagaDeAluno(); // reativar ocupa uma vaga; PATCH em quem já está ativo não
+            if (!aluno.isAtivo()) { // reativar ocupa uma vaga; PATCH em quem já está ativo não
+                plano.exigirVagaDeAluno();
+                limiteDoTreinador.exigirVaga(aluno.getResponsavelId(), 1, aluno.getId()); // e uma vaga do responsável (D7)
+            }
         }
         aplicarSituacao(aluno, ativo);
         return detalheDe(alunos.saveAndFlush(aluno));
@@ -409,10 +421,14 @@ public class AlunoService {
     /** Responsável tem de ser treinador ativo da mesma consultoria; sem id, não muda nada. Usado também pelo lote. */
     void definirResponsavel(Aluno aluno,UUID id) {
         if(id==null) return;
-        var u=usuarios.findById(id).filter(v -> v.getConsultoriaId().equals(br.com.treinos.api.tenant.TenantContext.get())
+        aluno.alterarResponsavel(responsavelValido(id).getId());
+    }
+
+    /** O responsável de um aluno: treinador ativo da consultoria da sessão (404 se não for). Usado também pelo lote. */
+    Usuario responsavelValido(UUID id) {
+        return usuarios.findById(id).filter(v -> v.getConsultoriaId().equals(br.com.treinos.api.tenant.TenantContext.get())
                 && v.isAtivo() && v.getPapel()==br.com.treinos.api.auth.Papel.TREINADOR)
                 .orElseThrow(() -> new NaoEncontradoException("Responsável não encontrado."));
-        aluno.alterarResponsavel(u.getId());
     }
 
     /** Objetivo e observações sem a permissão são recusados (403). CPF e endereço, ao contrário, são ignorados (ver {@link AlunoRequest}). */
