@@ -28,6 +28,9 @@ import { Texto } from '../ui/Texto';
 import { TotaisAnimados } from '../ui/TotaisAnimados';
 import { ModoDePreparo } from './ModoDePreparo';
 
+/** Por que a lista de compras e o PDF ficam desabilitados na prévia do treinador. */
+const MOTIVO_NA_PREVIA = 'Só o aluno abre isto no app dele.';
+
 /**
  * A dieta publicada do aluno (só leitura): título, orientações, total do dia, refeições com opções, medicação e
  * suplementação. Só por props: é a aba Dieta do aluno e a prévia do treinador ("Ver como o aluno", `previa`), que não têm
@@ -90,7 +93,7 @@ export function DietaDoAluno({
           <Texto numerico>{c.observacoes}</Texto>
         </Cartao>
       ) : null}
-      <Botao rotulo="Lista de compras" tipo="secundario" cheio Icone={ShoppingCart} desabilitado={previa} aoTocar={() => { if (!previa) router.push('/aluno/lista-de-compras'); }} />
+      <Botao rotulo="Lista de compras" tipo="secundario" cheio Icone={ShoppingCart} desabilitado={previa} motivo={previa ? MOTIVO_NA_PREVIA : undefined} aoTocar={() => { if (!previa) router.push('/aluno/lista-de-compras'); }} />
       <Cartao titulo="Total do dia" descricao="Soma da opção A de cada refeição.">
         <TotaisAnimados totais={totalDoDia(c)} />
         <Texto variante="pequeno">P = proteína · C = carboidrato · G = gordura</Texto>
@@ -123,7 +126,7 @@ export function DietaDoAluno({
         </Cartao>
       ) : null}
       {previa || aoBaixarPdf ? (
-        <NoPlano funcionalidade="PDF"><Botao rotulo="Baixar PDF da dieta" tipo="secundario" cheio Icone={FileDown} desabilitado={previa} aoTocar={() => { if (!previa) setFolhaPdf(true); }} /></NoPlano>
+        <NoPlano funcionalidade="PDF"><Botao rotulo="Baixar PDF da dieta" tipo="secundario" cheio Icone={FileDown} desabilitado={previa} motivo={previa ? MOTIVO_NA_PREVIA : undefined} aoTocar={() => { if (!previa) setFolhaPdf(true); }} /></NoPlano>
       ) : null}
       {previa || !aoBaixarPdf ? null : <FolhaPdfDieta visivel={folhaPdf} aoFechar={() => setFolhaPdf(false)} conteudo={c} versao={versao.numero} aoBaixar={aoBaixarPdf} />}
     </>
