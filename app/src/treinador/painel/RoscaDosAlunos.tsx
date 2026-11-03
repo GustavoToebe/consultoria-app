@@ -35,7 +35,7 @@ export function RoscaDosAlunos({ rosca }: { rosca: RoscaDoPainel }) {
                 <Circle key={f.chave} cx={50} cy={50} r={RAIO_DA_ROSCA} fill="none" stroke={cores[f.cor]} strokeWidth={TRACO}
                   strokeDasharray={`${f.fracao * VOLTA} ${VOLTA}`} strokeDashoffset={-f.inicio * VOLTA} transform="rotate(-90 50 50)" />
               ))}
-              <SvgTexto x={50} y={43} fontSize={11} fill={cores.textoSuave} textAnchor="middle">Alunos</SvgTexto>
+              <SvgTexto x={50} y={43} fontSize={12} fill={cores.textoSuave} textAnchor="middle">Alunos</SvgTexto>
               <SvgTexto x={50} y={63} fontSize={18} fontWeight="bold" fill={cores.texto} textAnchor="middle">{String(rosca.total)}</SvgTexto>
             </Svg>
           </View>

@@ -25,7 +25,7 @@ export const ICONES_DO_MENU: Record<IdDoItemDoMenu, LucideIcon> = {
 };
 
 /**
- * Cartão do usuário na barra de topo: nome, perfil na equipe e seta. Abre o menu (Meus dados, Minha conta, Marca
+ * Cartão do usuário na barra de topo: nome, perfil na equipe e seta. Abre o menu (Meus dados, Assinatura e faturas, Marca
  * para o Administrador, Ajustes, Sair). Fecha com Esc e com clique fora; setas escolhem e Enter abre. Sair pede a confirmação de sempre.
  */
 export function CartaoDoUsuario({ compacto, ativo: naConta }: { compacto?: boolean; ativo?: boolean } = {}) {

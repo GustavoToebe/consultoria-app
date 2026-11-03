@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
+import { useSaidaGuardada } from './GuardaDeSaida';
 import { propsDeLink } from './propsDeLink';
 import { Selo, type TipoSelo } from './Selo';
 import { sobre } from './sobre';
@@ -37,9 +38,12 @@ interface Props {
  */
 export function ItemDeLista({ titulo, detalhe, Icone, selo, href, aoTocar, rotulo, direita, perigo, children }: Props) {
   const { cores } = useTema();
+  const { confirmar } = useSaidaGuardada();
+  // Item que abre outra tela passa pela guarda de saída (tela com alteração não salva pergunta antes); sem nada
+  // pendente, `confirmar` navega na hora. Item que só executa uma ação (`aoTocar` sem `href`) não pergunta.
   const abrir = () => {
-    if (aoTocar) aoTocar();
-    else if (href) router.navigate(href);
+    if (!href) aoTocar?.();
+    else confirmar(() => (aoTocar ? aoTocar() : router.navigate(href)));
   };
   const corTexto = perigo ? cores.perigo : cores.texto;
   return (

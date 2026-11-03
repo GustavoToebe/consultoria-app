@@ -65,7 +65,8 @@ export default function ExercicioDaSessao() {
     return (
       <Tela bordas={['top']} largura={720}>
         <Cabecalho titulo="Exercício" voltar="/aluno/treino" />
-        <Vazio texto="Este exercício não está mais no seu plano. Volte para ver o treino atual." />
+        <Vazio texto="Este exercício não está mais no seu plano. Volte para ver o treino atual."
+          acao={{ rotulo: 'Ver meu treino', aoTocar: () => router.replace('/aluno/treino') }} />
       </Tela>
     );
   }

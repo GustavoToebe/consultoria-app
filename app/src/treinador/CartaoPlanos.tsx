@@ -15,6 +15,7 @@ import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, RAIO } from '../tema/tokens';
 import { useAviso } from '../ui/Aviso';
+import { useSaidaGuardada } from '../ui/GuardaDeSaida';
 import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
 import { CampoData } from '../ui/Campos';
@@ -92,6 +93,9 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar, car
   const dados = todos.dados ? todos.dados.filter((p) => p.pastaId === pasta.id) : null;
   const animar = usePrimeiraLista(!!dados);
   const { avisar } = useAviso();
+  // Saídas para outra tela passam pela guarda (a ficha pode estar com os dados do aluno em edição, D7); fechar a Folha
+  // (`aoNavegar`) vai junto, para o "Continuar editando" deixar tudo como estava.
+  const { confirmar } = useSaidaGuardada();
   const { temFuncionalidade, pode } = useSessao();
   // Mobilidade fora do plano: a API só bloqueia escrita; o que já existe continua em leitura e pode ser excluído.
   const escritaLiberada = tipo !== 'mobilidade' || temFuncionalidade('MOBILIDADE');
@@ -143,7 +147,7 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar, car
           {/* "Editar" é o que se faz todo dia e vem primeiro; o resto (PDF, duplicar, copiar, excluir) fica no ⋯.
               `LinhaDeAcoes` nunca passa da largura do cartão (em 390 px os cinco botões estouravam a folha). */}
           <LinhaDeAcoes>
-            {podeAlterar ? <Botao rotulo={rotuloCurto ? 'Editar' : rotuloEditarPlano(tipo)} rotuloAcessivel={rotuloEditarPlano(tipo)} tipo="secundario" Icone={Pencil} aoTocar={() => { aoNavegar?.(); router.push(rotaDoEditor(tipo, p.id)); }} /> : null}
+            {podeAlterar ? <Botao rotulo={rotuloCurto ? 'Editar' : rotuloEditarPlano(tipo)} rotuloAcessivel={rotuloEditarPlano(tipo)} tipo="secundario" Icone={Pencil} aoTocar={() => confirmar(() => { aoNavegar?.(); router.push(rotaDoEditor(tipo, p.id)); })} /> : null}
             {acoesDoMenu(p).some(Boolean) ? <IconeBotao Icone={Ellipsis} moldura rotulo={`Mais ações de ${p.titulo}`} aoTocar={() => setMenu(p)} /> : null}
           </LinhaDeAcoes>
         </EntradaEmCascata>
@@ -162,17 +166,26 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar, car
         if (!excluir) return; const id = excluir.id; setExcluir(null);
         excluirPlano(tipo, id).then(recarregar, (e: unknown) => avisar(textoDoErro(e), 'perigo'));
       }} />
-      {novo ? <FolhaNovoPlano tipo={tipo} alunoId={alunoId} pasta={pasta} planos={todos.dados ?? []} aoFechar={() => setNovo(false)} aoNavegar={aoNavegar} /> : null}
-      {replicando ? <FolhaReplicar tipo={tipo} plano={replicando} aoFechar={() => setReplicando(null)} aoNavegar={aoNavegar} /> : null}
+      {novo ? <FolhaNovoPlano tipo={tipo} alunoId={alunoId} pasta={pasta} planos={todos.dados ?? []} aoFechar={() => setNovo(false)} aoNavegar={aoNavegar} aoCriar={recarregar} /> : null}
+      {replicando ? <FolhaReplicar tipo={tipo} plano={replicando} aoFechar={() => setReplicando(null)} aoNavegar={aoNavegar} aoCriar={recarregar} /> : null}
       {copiando ? <CopiarParaAluno tipo={tipo} plano={copiando} aoNavegar={aoNavegar} aoFechar={() => setCopiando(null)} aoCopiar={(destinoId, nome) => {
         setCopiando(null);
-        avisar(mensagemPlanoCopiado(tipo, nome), 'sucesso', { rotulo: rotuloAbrirFicha(nome), aoTocar: () => { aoNavegar?.(); router.push(`/treinador/alunos/${destinoId}`); } });
+        avisar(mensagemPlanoCopiado(tipo, nome), 'sucesso', { rotulo: rotuloAbrirFicha(nome), aoTocar: () => confirmar(() => { aoNavegar?.(); router.push(`/treinador/alunos/${destinoId}`); }) });
       }} /> : null}
     </Cartao>
   );
 }
 
 type Origem = 'branco' | 'receita' | 'copia';
+
+/**
+ * Plano novo (criado ou replicado) abre no editor pela guarda de saída. Com algo pendente na ficha a lista já busca de
+ * novo, antes da pergunta: quem escolhe "Continuar editando" vê o plano que acabou de criar.
+ */
+function abrirOCriado(saida: ReturnType<typeof useSaidaGuardada>, aoCriar: (() => void) | undefined, abrir: () => void) {
+  if (saida.pendente()) aoCriar?.();
+  saida.confirmar(abrir);
+}
 
 function FolhaNovoPlano({
   tipo,
@@ -181,6 +194,7 @@ function FolhaNovoPlano({
   planos,
   aoFechar,
   aoNavegar,
+  aoCriar,
 }: {
   tipo: TipoPlano;
   alunoId: string;
@@ -188,7 +202,10 @@ function FolhaNovoPlano({
   planos: PlanoResumo[];
   aoFechar: () => void;
   aoNavegar?: () => void;
+  /** O plano foi criado mas a pessoa ficou na ficha ("Continuar editando"): a lista busca de novo para mostrá-lo. */
+  aoCriar?: () => void;
 }) {
+  const saida = useSaidaGuardada();
   const receitas = useCarregar(NOMES[tipo].receita, () => listarReceitas(NOMES[tipo].receita));
   const [titulo, setTitulo] = useState(pasta.titulo);
   const [origem, setOrigem] = useState<Origem>('branco');
@@ -217,8 +234,7 @@ function FolhaNovoPlano({
     }).then(
       (d) => {
         aoFechar();
-        aoNavegar?.();
-        router.push(rotaDoEditor(tipo, d.plano.id));
+        abrirOCriado(saida, aoCriar, () => { aoNavegar?.(); router.push(rotaDoEditor(tipo, d.plano.id)); });
       },
       (e: unknown) => {
         setSalvando(false);
@@ -274,8 +290,11 @@ function FolhaNovoPlano({
   );
 }
 
-function FolhaReplicar({ tipo, plano, aoFechar, aoNavegar }: { tipo: TipoPlano; plano: PlanoResumo; aoFechar: () => void; aoNavegar?: () => void }) {
+function FolhaReplicar({ tipo, plano, aoFechar, aoNavegar, aoCriar }: {
+  tipo: TipoPlano; plano: PlanoResumo; aoFechar: () => void; aoNavegar?: () => void; aoCriar?: () => void;
+}) {
   const { avisar } = useAviso();
+  const saida = useSaidaGuardada();
   const avisarDoPlano = useAvisoDoPlano(aoNavegar);
   const naPasta = plano.pastaId !== null;
   const sugestao = proximoPeriodo(plano);
@@ -301,8 +320,7 @@ function FolhaReplicar({ tipo, plano, aoFechar, aoNavegar }: { tipo: TipoPlano; 
       (d) => {
         aoFechar();
         avisar('Plano replicado. Edite só o que mudar e publique.', 'sucesso');
-        aoNavegar?.();
-        router.push(rotaDoEditor(tipo, d.plano.id));
+        abrirOCriado(saida, aoCriar, () => { aoNavegar?.(); router.push(rotaDoEditor(tipo, d.plano.id)); });
       },
       (e: unknown) => {
         setSalvando(false);
