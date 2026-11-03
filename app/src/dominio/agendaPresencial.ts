@@ -541,7 +541,7 @@ export function resumoDoDia(compromissos: number, atualizacoes: number, eventos 
 // ---- Textos ----
 
 const SITUACOES: Record<SituacaoCompromisso, { texto: string; tipo: TipoSelo }> = {
-  AGENDADO: { texto: 'Agendado', tipo: 'atencao' },
+  AGENDADO: { texto: 'Agendado', tipo: 'neutro' },
   REALIZADO: { texto: 'Realizado', tipo: 'sucesso' },
   FALTOU: { texto: 'Faltou', tipo: 'perigo' },
   CANCELADO: { texto: 'Cancelado', tipo: 'neutro' },

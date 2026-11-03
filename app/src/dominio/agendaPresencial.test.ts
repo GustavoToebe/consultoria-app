@@ -141,7 +141,7 @@ describe('visões Dia e Semana', () => {
 
 describe('textos', () => {
   it('selo da situação com texto e cor de significado (nunca a marca)', () => {
-    expect(seloDaSituacao('AGENDADO')).toEqual({ texto: 'Agendado', tipo: 'atencao' });
+    expect(seloDaSituacao('AGENDADO')).toEqual({ texto: 'Agendado', tipo: 'neutro' });
     expect(seloDaSituacao('REALIZADO')).toEqual({ texto: 'Realizado', tipo: 'sucesso' });
     expect(seloDaSituacao('FALTOU')).toEqual({ texto: 'Faltou', tipo: 'perigo' });
     expect(seloDaSituacao('CANCELADO')).toEqual({ texto: 'Cancelado', tipo: 'neutro' });
@@ -320,7 +320,7 @@ describe('participantes', () => {
     expect(resumoDosParticipantes({ cancelado: false, participantes: [participante('1', 'REALIZADO'), participante('2', 'FALTOU'), participante('3', 'FALTOU'), participante('4', 'CANCELADO')] }))
       .toBe('1 de 4 realizados · 2 faltaram · 1 cancelado');
     expect(seloDoCompromisso({ cancelado: false, participantes: [participante('1', 'CANCELADO'), participante('2', 'CANCELADO')] })).toEqual({ texto: 'Cancelado', tipo: 'neutro' });
-    expect(seloDoCompromisso({ cancelado: false, participantes: tres }).tipo).toBe('atencao');
+    expect(seloDoCompromisso({ cancelado: false, participantes: tres }).tipo).toBe('neutro');
   });
 
   it('cancelar o compromisso inteiro pede confirmação; cancelado reabre sem confirmar', () => {

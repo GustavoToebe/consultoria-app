@@ -46,10 +46,12 @@ export const linkCartaoAtualizacao = (a: Atualizacao) =>
 /** Com o aviso de atraso dado, o cartão segue na tela inicial até o envio. */
 export const mostrarCartaoAtualizacao = (a: Atualizacao) =>
   a.fase === 'REVISADA' ? !!a.feedback?.naoLido : a.fase !== 'NENHUMA' || !!a.atrasoAte;
+/** Enviada, vista pelo aluno: quem espera é ele, então neutro (D2); o texto diz o que falta. */
+export const SELO_ENVIADA_DO_ALUNO = { texto: 'Enviada · aguardando revisão', tipo: 'neutro' } as const;
 export function statusAtualizacao(a: Atualizacao, hoje: string = hojeIso()) {
   const data = dataParaTela(a.atrasoAte ?? a.dataAtualizacao);
   if (a.fase === 'REVISADA') return { texto: a.feedback?.naoLido ? 'Seu treinador respondeu sua atualização' : 'Revisada', tipo: 'sucesso' as const };
-  if (a.fase === 'ENVIADA') return { texto: 'Enviada. Aguardando o treinador', tipo: 'sucesso' as const };
+  if (a.fase === 'ENVIADA') return SELO_ENVIADA_DO_ALUNO;
   if (a.fase === 'ATRASADA') return { texto: `Atualização atrasada ${atrasoEmTexto(a.diasDeAtraso, hoje)}`, tipo: 'perigo' as const };
   if (a.atrasoAte) return { texto: `Você avisou: nova data ${data}`, tipo: 'atencao' as const };
   if (a.fase === 'ABERTA') return { texto: `Responda sua atualização até ${data}`, tipo: 'atencao' as const };
@@ -111,7 +113,7 @@ export function statusAtualizacaoTreinador(a:Pick<AtualizacaoDaLista,'fase'|'dia
   if(a.fase==='ENVIADA')return selo('Para revisar','atencao');
   if(a.fase==='REVISADA')return selo('Revisada','sucesso');
   if(a.fase==='ATRASADA')return selo(`Atrasada ${atrasoEmTexto(a.diasDeAtraso,hoje)}`,'perigo');
-  if(a.atrasoAte)return selo(`Adiada para ${paraQuando(a.atrasoAte,hoje)}`,'atencao');
+  if(a.atrasoAte)return selo(`Adiada para ${paraQuando(a.atrasoAte,hoje)}`,'neutro');
   return selo(comMaiuscula(emDias(a.diasParaData)),'neutro');
 }
 /**
