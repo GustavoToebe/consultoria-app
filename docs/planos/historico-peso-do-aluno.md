@@ -33,13 +33,13 @@ totais de `FlywayMigrationIntegrationTest` e `PapeisBancoIntegrationTest` não m
   do campo: "O aluno vê esta observação."
 
 ## Passos
-- [x] 1. Conferir se alguma rota do aluno já entrega os próprios pesos; se não, rota nova com tenant e aluno da sessão e teste de isolamento — executor — `GET /aluno/pesos` já existia; só o teste de isolamento é novo (`PesosDoAlunoIntegrationTest`); commit: —
-- [ ] 2. Cartão Peso no Histórico do aluno, reaproveitando o da ficha — executor-front — commit: —
-- [ ] 3. Gráfico por medida (seleção da medida, um eixo, sem interpolar ausentes) na ficha e no Histórico — executor-front — commit: —
-- [ ] 4. API da foto de perfil pela equipe (`ALUNO_ALTERAR`, 404 de outra consultoria, 409 anonimizado, auditoria) e tela na ficha — executor + executor-front — commit: —
+- [x] 1. Conferir se alguma rota do aluno já entrega os próprios pesos; se não, rota nova com tenant e aluno da sessão e teste de isolamento — executor — `GET /aluno/pesos` já existia; só o teste de isolamento é novo (`PesosDoAlunoIntegrationTest`); commit: `6d1486a4`
+- [x] 2. Cartão Peso no Histórico do aluno, reaproveitando o da ficha — executor-front — commit: `0c334f6b`
+- [x] 3. Gráfico por medida (seleção da medida, um eixo, sem interpolar ausentes) na ficha e no Histórico — executor-front — commit: `0c334f6b`
+- [x] 4. API da foto de perfil pela equipe (`ALUNO_ALTERAR`, 404 de outra consultoria, 409 anonimizado, auditoria) e tela na ficha — executor + executor-front — commit: `6d1486a4` (API), `0c334f6b` (tela), `b913ba08` (trava antes de limpar)
 - [x] 5. Data da lesão, se faltar (migration; subir o total em `FlywayMigrationIntegrationTest` e `PapeisBancoIntegrationTest`) — executor — resolvido sem código novo: a data já existe desde a V001 (D6); commit: —
-- [ ] 6. Ajuda, guias regerados, e2e, `AGENTS.md` só nos itens de peso, avaliação, foto e lesão — commit: —
-- [ ] 7. Revisão do Opus (LGPD, permissão) antes do PR — advisor/revisor — commit: —
+- [x] 6. Ajuda, guias regerados, e2e, `AGENTS.md` só nos itens de peso, avaliação, foto e lesão — commit: `0c334f6b` (Ajuda, e2e), `b913ba08` (guias, `AGENTS.md`)
+- [x] 7. Revisão do Opus (LGPD, permissão) antes do PR — advisor/revisor — commit: `b913ba08` — apontou a pré-leitura sem trava na foto pela equipe (anonimização no meio passaria); corrigido travando e conferindo antes de limpar o JPEG
 
 ## Critérios de aceite
 - O aluno vê só o próprio peso; a variação não tem cor de aprovação.
@@ -56,6 +56,11 @@ totais de `FlywayMigrationIntegrationTest` e `PapeisBancoIntegrationTest` não m
   acende o anel: o `@rn-primitives/tabs` chama `focus()` no `mousedown`). Conferido em 390 e 1280 px, claro e escuro.
 - As abas usam tabindex móvel: só a aba ativa é parada do Tab; as outras se alcançam com as setas.
 
+
+## Encontro com a Frente D (merge da main c7a2f67)
+- A D escreveu no Finalizar "O aluno vê esta observação no histórico de peso e no PDF da dieta", verdade sem a E. Com a E,
+  `GET /aluno/pesos` devolve a observação nula e o PDF da dieta só é gerado pelo aluno com esses pesos: o texto voltou a
+  "Só a equipe vê esta observação." (decisão de 02/11) e a coluna "Obs" do "Acompanhamento de peso" saiu do PDF.
 ## O que ficou para trás
 - O botão "Registrar peso" (`CartaoPeso`) aparece para aluno anonimizado e a API responde 409; esconder como a avaliação
   física faz (já era assim antes da frente). Sem código agora (Gustavo, 02/11).

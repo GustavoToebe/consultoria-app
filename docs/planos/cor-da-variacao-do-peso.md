@@ -12,6 +12,8 @@ decidiu.
   "bom ou ruim".
 - Os mesmos cartões de peso são tocados pela Frente E (`CartaoPeso` e o Histórico do aluno); por isso o código desta
   frente só começa depois do merge da E.
+- Ponto conhecido: o PDF da dieta (`pdf/pdfDieta.ts`, "Acompanhamento de peso") já pinta a variação positiva com a cor
+  da marca, o que contraria a D2 da E. A F decide a cor do PDF junto com a das telas (passos 3 e 4).
 
 ## Decisões (Gustavo, 03/11/2026; não perguntar de novo)
 | # | Decisão | Valor | Quem decidiu |
