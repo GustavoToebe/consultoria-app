@@ -36,10 +36,10 @@ const FICHA: AlunoDetalhe = {
   emailDeAcesso: 'ana@exemplo.test', aguardandoPrimeiroAcesso: false,
 };
 
-async function abrir(page: Page, { veAtualizacao = true } = {}) {
-  const itens = veAtualizacao ? ALUNOS : ALUNOS.map((a) => ({ ...a, atualizacao: null }));
+async function abrir(page: Page, { veAtualizacao = true, veRegistro = true, alunos = ALUNOS } = {}) {
+  const itens = veAtualizacao ? alunos : alunos.map((a) => ({ ...a, atualizacao: null }));
   return simularApi(page, {
-    ...(await sessao(page, TREINADOR, { permissoes: veAtualizacao ? [...PERMISSOES_TREINADOR, 'ATUALIZACAO_LER'] : PERMISSOES_TREINADOR })),
+    ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, ...(veAtualizacao ? ['ATUALIZACAO_LER'] : []), ...(veRegistro ? ['REGISTRO_LER'] : [])] })),
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },
     'GET /painel': { corpo: { atualizacoesParaRevisar: 1, atualizacoesAtrasadas: 1, atualizacoesAvisaramAtraso: 0, atualizacoesProximas: 0, alunosAtivos: 5, alunosSemRegistro: [], ultimasExecucoes: [], planosTerminando: [] } },
     'GET /alunos': { corpo: { itens, total: itens.length } },
@@ -219,6 +219,28 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       if (largura >= 1024) await expect(page.getByText('Plano em uso', { exact: true })).toHaveCount(1);
 
       expect(naoTratadas).toEqual([]);
+      expect(errosDaPagina).toEqual([]);
+    });
+
+    test('N2: sem REGISTRO_LER some a coluna Último registro e a linha não diz "Nunca registrou"', async ({ page }) => {
+      const { errosDaPagina } = await abrir(page, { veRegistro: false });
+      await page.goto('/treinador/alunos');
+
+      await expect(linkDe(page, 'Eva Amostra')).toBeVisible();
+      await expect(page.getByText('Último registro', { exact: true })).toHaveCount(0);
+      await expect(page.getByText('Nunca registrou')).toHaveCount(0);
+      await expect(linkDe(page, 'Eva Amostra')).not.toHaveAttribute('aria-label', /Nunca registrou/);
+      expect(errosDaPagina).toEqual([]);
+    });
+
+    test('N2 e N23: quem não é responsável de ninguém lê isso no vazio, com um só "Limpar filtros"', async ({ page }) => {
+      const { errosDaPagina } = await abrir(page, { alunos: [] });
+      await page.goto('/treinador/alunos');
+
+      await expect(page.getByText('Você não é responsável por nenhum aluno.')).toBeVisible();
+      await expect(page.getByText('Nenhum aluno passa nesses filtros')).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Ver todos os alunos' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Limpar filtros', exact: true })).toHaveCount(1);
       expect(errosDaPagina).toEqual([]);
     });
   });

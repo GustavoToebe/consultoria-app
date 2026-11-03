@@ -1,5 +1,5 @@
 import type { FaseAtualizacao } from '../api/tipos';
-import { agruparAlunos, primeiroNome, ultimoRegistroDaLinha } from './gruposDeAlunos';
+import { agruparAlunos, colunasDaLista, metadadosDaLinha, primeiroNome, ultimoRegistroDaLinha, vazioDaLista } from './gruposDeAlunos';
 
 type Aluno = { id: string; atualizacao?: { fase: FaseAtualizacao } | null };
 const a = (id: string, fase?: FaseAtualizacao | null): Aluno => (fase === undefined ? { id } : { id, atualizacao: fase === null ? null : { fase } });
@@ -96,5 +96,50 @@ describe('ultimoRegistroDaLinha', () => {
   it('7 dias não é suave; 8 dias é, e vira data curta', () => {
     expect(ultimoRegistroDaLinha('2026-10-12', HOJE)).toEqual({ texto: 'Há 7 dias', suave: false });
     expect(ultimoRegistroDaLinha('2026-10-11', HOJE)).toEqual({ texto: '11/10', suave: true });
+  });
+});
+
+describe('colunasDaLista (N2)', () => {
+  const todas = ['aluno', 'plano', 'atualizacao', 'ultimo', 'responsavel'].map((chave) => ({ chave }));
+  const chaves = (ve: { atualizacao: boolean; registro: boolean }) => colunasDaLista(todas, ve).map((c) => c.chave);
+
+  it('sem REGISTRO_LER a coluna Último registro some; sem atualização, a de Atualização', () => {
+    expect(chaves({ atualizacao: true, registro: true })).toEqual(['aluno', 'plano', 'atualizacao', 'ultimo', 'responsavel']);
+    expect(chaves({ atualizacao: true, registro: false })).toEqual(['aluno', 'plano', 'atualizacao', 'responsavel']);
+    expect(chaves({ atualizacao: false, registro: false })).toEqual(['aluno', 'plano', 'responsavel']);
+  });
+});
+
+describe('metadadosDaLinha (N2)', () => {
+  it('com REGISTRO_LER diz o último registro ou "Nunca registrou"', () => {
+    expect(metadadosDaLinha(null, null, true)).toBe('Sem plano ativo · Nunca registrou');
+    expect(metadadosDaLinha('Treino A', null, true)).toBe('Treino A · Nunca registrou');
+    expect(metadadosDaLinha('Treino A', '2026-10-30', true)).toMatch(/^Treino A · Último registro /);
+  });
+
+  it('sem REGISTRO_LER não afirma que o aluno nunca registrou', () => {
+    expect(metadadosDaLinha('Treino A', null, false)).toBe('Treino A');
+    expect(metadadosDaLinha(null, null, false)).toBe('Sem plano ativo');
+  });
+});
+
+describe('vazioDaLista (N2, N23)', () => {
+  it('busca, lista vazia e filtros têm textos próprios', () => {
+    expect(vazioDaLista({ termo: 'ana', chaves: ['situacao'], responsaveis: [] })).toMatchObject({ titulo: 'Nenhum aluno encontrado', verTodos: false });
+    expect(vazioDaLista({ termo: '', chaves: [], responsaveis: [] })).toMatchObject({ titulo: 'Nenhum aluno ainda', verTodos: false });
+    const filtrado = vazioDaLista({ termo: '', chaves: ['situacao', 'responsavel'], responsaveis: ['meus'] });
+    expect(filtrado.texto).toBe('Nenhum aluno passa nesses filtros. Tire algum dos filtros acima.');
+    expect(filtrado.verTodos).toBe(false);
+  });
+
+  it('só "Meus alunos" sem nenhum aluno: "Você não é responsável por nenhum aluno"', () => {
+    expect(vazioDaLista({ termo: '', chaves: ['responsavel'], responsaveis: ['meus'] }))
+      .toEqual({ titulo: 'Nenhum aluno seu', texto: 'Você não é responsável por nenhum aluno.', verTodos: true });
+    // Meus junto de outra pessoa não é o caso.
+    expect(vazioDaLista({ termo: '', chaves: ['responsavel'], responsaveis: ['meus', 'x'] }).verTodos).toBe(false);
+  });
+
+  it('o texto do vazio não manda "limpar" (o botão é um só, na barra de filtros)', () => {
+    expect(vazioDaLista({ termo: '', chaves: ['acesso'], responsaveis: [] }).texto).not.toMatch(/limpe/i);
   });
 });

@@ -10,9 +10,8 @@ import type { ResponsavelEquipe } from '../../../api/equipeTipos';
 import { listarAlunos, responsaveisEquipe } from '../../../api/rotas';
 import type { AlunoResumo } from '../../../api/tipos';
 import { statusAtualizacaoTreinador } from '../../../dominio/atualizacao';
-import { dataRelativa } from '../../../dominio/datasRelativas';
 import { SEM_DADO } from '../../../dominio/formatos';
-import { agruparAlunos, primeiroNome, ultimoRegistroDaLinha, type TomDoGrupo } from '../../../dominio/gruposDeAlunos';
+import { agruparAlunos, colunasDaLista, metadadosDaLinha, primeiroNome, ultimoRegistroDaLinha, vazioDaLista, type TomDoGrupo } from '../../../dominio/gruposDeAlunos';
 import { LIMITE_LOTE, textoDaSelecao } from '../../../dominio/loteDeAlunos';
 import {
   chaveDosFiltros, chipsDosFiltros, filtrosVisiveis, lerDoEndereco, paraEndereco, pedidoDaApi, permissoesDosFiltros, SEM_FILTROS,
@@ -51,9 +50,6 @@ const COLUNAS: readonly ColunaDaLista[] = [
   { chave: 'ultimo', rotulo: 'Último registro', peso: 1.1 },
   { chave: 'responsavel', rotulo: 'Responsável', peso: 1.1 },
 ];
-/** Sem ver atualizações a API manda `atualizacao` nula: a coluna não aparece (seria "—" em toda linha). */
-const COLUNAS_SEM_ATUALIZACAO = COLUNAS.filter((c) => c.chave !== 'atualizacao');
-
 /** Ícone do selo da atualização, como os selos do editor de treino; o texto continua dizendo o estado. */
 const ICONE_DO_SELO: Record<TipoSelo, LucideIcon> = { sucesso: CircleCheck, atencao: TriangleAlert, perigo: CircleAlert, neutro: CalendarClock };
 
@@ -68,6 +64,7 @@ export default function Alunos() {
   // Sem as duas permissões a API manda a atualização nula: um grupo só ("Alunos") e sem a coluna Atualização.
   const veAtualizacao = pode('ATUALIZACAO_LER') && pode('ALUNO_SENSIVEL_LER');
   const podeEditar = pode('ALUNO_ALTERAR');
+  const veRegistro = pode('REGISTRO_LER');
   // Nome do responsável (primeiro nome) pela rota que já existe; se falhar, a coluna fica "—" e a lista segue.
   const responsaveis = useCarregar('responsaveis-da-lista', () => responsaveisEquipe().catch((): ResponsavelEquipe[] => [])).dados ?? [];
   const nomeDoResponsavel = (id: string | null | undefined) => {
@@ -113,12 +110,13 @@ export default function Alunos() {
   const paginas = dados ? Math.max(1, Math.ceil(dados.total / TAMANHO_PAGINA)) : 1;
   // Grupos da página que veio (D1): Para revisar, Atrasados, Em dia e Sem pasta com período; grupo vazio não aparece.
   const grupos = agruparAlunos(dados?.itens ?? [], veAtualizacao);
-  const colunas = veAtualizacao ? COLUNAS : COLUNAS_SEM_ATUALIZACAO;
+  // Sem ver atualizações a API manda `atualizacao` nula (coluna "—" em toda linha); sem REGISTRO_LER, "Último registro" não existe (N2).
+  const colunas = colunasDaLista(COLUNAS, { atualizacao: veAtualizacao, registro: veRegistro });
   // A entrada em cascata segue a ordem da tela, de um grupo para o outro.
   const inicios = grupos.map((_, i) => grupos.slice(0, i).reduce((n, g) => n + g.itens.length, 0));
   const nomeCompleto = (id: string) => responsaveis.find((r) => r.id === id)?.nome ?? null;
   const chips = chipsDosFiltros(filtros, nomeCompleto);
-  const filtrado = chips.length > 0;
+  const vazio = vazioDaLista({ termo, chaves: chips.map((c) => c.chave), responsaveis: filtros.responsaveis });
 
   return (
     <View style={estilos.raiz}>
@@ -156,10 +154,10 @@ export default function Alunos() {
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && dados.itens.length === 0 ? (
         <Vazio
-          titulo={termo || filtrado ? 'Nenhum aluno encontrado' : 'Nenhum aluno ainda'}
-          texto={termo ? 'Tente buscar por outro nome.' : filtrado ? 'Nenhum aluno passa nesses filtros. Tire algum ou limpe os filtros.' : 'Cadastre seu primeiro aluno para montar os planos.'}
-          acao={filtrado ? { rotulo: 'Limpar filtros', aoTocar: () => aplicar(SEM_FILTROS) }
-            : termo || !pode('ALUNO_ALTERAR') ? undefined : { rotulo: 'Cadastrar aluno', aoTocar: () => router.push('/treinador/alunos/novo') }}
+          titulo={vazio.titulo}
+          texto={vazio.texto}
+          acao={vazio.verTodos ? { rotulo: 'Ver todos os alunos', aoTocar: () => aplicar(semOFiltro(filtros, 'responsavel')) }
+            : termo || chips.length || !podeEditar ? undefined : { rotulo: 'Cadastrar aluno', aoTocar: () => router.push('/treinador/alunos/novo') }}
         />
       ) : null}
       <View style={[estilos.lista, carregando && dados ? estilos.esmaecido : null]}>
@@ -169,7 +167,7 @@ export default function Alunos() {
             <ListaDeLinhas emColunas>
               {g.itens.map((a, i) => (
                 <EntradaEmCascata key={a.id} indice={inicios[gi] + i} animar={animar}>
-                  <LinhaAluno aluno={a} colunas={colunas} responsavel={nomeDoResponsavel(a.responsavelId)} podeEditar={podeEditar}
+                  <LinhaAluno aluno={a} colunas={colunas} responsavel={nomeDoResponsavel(a.responsavelId)} podeEditar={podeEditar} veRegistro={veRegistro}
                     selecionando={selecionando} marcado={marcados.has(a.id)} aoMarcar={() => alternar(a.id)} />
                 </EntradaEmCascata>
               ))}
@@ -225,6 +223,7 @@ interface PropsDaLinhaAluno {
   /** Primeiro nome do responsável; nulo = "—". */
   responsavel: string | null;
   podeEditar: boolean;
+  veRegistro: boolean;
   selecionando: boolean;
   marcado: boolean;
   aoMarcar: () => void;
@@ -237,7 +236,7 @@ interface PropsDaLinhaAluno {
  * da seta, fora do link. No PC a linha é linha de tabela (divisória e realce, sem caixa). No Selecionar a linha inteira
  * vira a caixa de marcar (sem link, sem lápis).
  */
-function LinhaAluno({ aluno, colunas, responsavel, podeEditar, selecionando, marcado, aoMarcar }: PropsDaLinhaAluno) {
+function LinhaAluno({ aluno, colunas, responsavel, podeEditar, veRegistro, selecionando, marcado, aoMarcar }: PropsDaLinhaAluno) {
   const atualizacao = aluno.atualizacao ? statusAtualizacaoTreinador(aluno.atualizacao) : null;
   const ultimo = ultimoRegistroDaLinha(aluno.ultimoRegistro);
   const plano = aluno.planoAtivo?.titulo ?? null;
@@ -268,7 +267,7 @@ function LinhaAluno({ aluno, colunas, responsavel, podeEditar, selecionando, mar
     responsavel: <Texto numberOfLines={1} cor={responsavel ? undefined : 'suave'}>{responsavel ?? SEM_DADO}</Texto>,
   };
   // Celular: o que as colunas mostram vira uma linha de metadados e o selo da atualização embaixo do nome.
-  const metadados = `${plano ?? 'Sem plano ativo'} · ${aluno.ultimoRegistro ? `Último registro ${dataRelativa(aluno.ultimoRegistro)}` : 'Nunca registrou'}`;
+  const metadados = metadadosDaLinha(plano, aluno.ultimoRegistro, veRegistro);
   const selos = seloDaAtualizacao ? [seloDaAtualizacao] : [];
   const comColunas = { definicao: colunas, celulas };
   if (selecionando) {
@@ -281,7 +280,7 @@ function LinhaAluno({ aluno, colunas, responsavel, podeEditar, selecionando, mar
     atualizacao?.texto,
     ...excecoes.map((s) => s.texto),
     plano ?? 'Sem plano ativo',
-    aluno.ultimoRegistro ? `Último registro: ${ultimo.texto.toLowerCase()}` : ultimo.texto,
+    veRegistro ? (aluno.ultimoRegistro ? `Último registro: ${ultimo.texto.toLowerCase()}` : ultimo.texto) : null,
     responsavel ? `Responsável: ${responsavel}` : null,
   ].filter(Boolean).join('. ');
   return (
