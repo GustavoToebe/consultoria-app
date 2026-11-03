@@ -6,6 +6,7 @@ import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTimin
 import type { AnteriorDoExercicio, Configuracao, DemonstracaoDoAluno, EtapaRegistrada, ExercicioPlano, OrigemDaReferencia, Serie, UltimaCarga } from '../api/tipos';
 import { cargaIlegivel as cargaDeFormaDesconhecida } from '../dominio/modoDeCarga';
 import { ajustarCarga, calcularCargasDoExercicio, cargaQueContaComoReferencia, ehSerieDeTrabalho, passoDaCarga, seriesSeguintesDependemDesta, textoDaOrigem, usaCargaDeTrabalho, type SerieCalculada } from '../dominio/cargas';
+import { avisoDeRepeticoes } from '../dominio/avisoDeRepeticoes';
 import { dicaDeCarga, TEXTO_PRIMEIRA_VEZ } from '../dominio/dicaDeCarga';
 import { aplicarEscolhaDoPainel, decidirCheck, type EscolhaDoPainel } from '../dominio/painelDoCheck';
 import { etapasDaSerie } from '../dominio/etapas';
@@ -226,6 +227,7 @@ export function ExercicioAluno(p: Props) {
             seriesDoExercicio={e.series}
             arredondamentoKg={p.config.arredondamentoKg}
             descansoNaSerie={p.descansoNaSerie ?? true}
+            baseDaUltimaVez={p.cargaDoDia == null && p.ultima?.carga != null}
             registro={p.registroDe(c.serie.uid)}
             execucao={p.chaveDaExecucao(c.serie.uid)}
             anterior={anterior(i)}
@@ -359,14 +361,16 @@ function CartaoSerie({
   // Dica ao lado do campo (D1): "Sugestão: 60 kg · Última vez: 60 kg × 7". A "Última vez" é a da carga de trabalho do
   // exercício (D7), então só entra nas séries de trabalho; nas outras a dica fica com a sugestão. "Primeira vez" só quando o
   // exercício nunca teve carga registrada; o Back off sem a referência registrada diz o que falta.
-  const origemDoDominio = semCampoDePeso || calculada.sugestao == null ? null : textoDaOrigem(calculada, { tipoTrabalho, metodologia, series: seriesDoExercicio });
   // Com a caixa da base vazia (D1), "da base do dia" não diria a verdade: a conta partiu da última carga.
-  const origem = baseDaUltimaVez && origemDoDominio ? origemDoDominio.replace('base do dia', 'última vez') : origemDoDominio;
+  const origem = semCampoDePeso || calculada.sugestao == null ? null : textoDaOrigem(calculada, { tipoTrabalho, metodologia, series: seriesDoExercicio, baseDaUltimaVez });
   const faltaReferencia = semCampoDePeso ? null : dicaDaCarga(s, { sugestao: calculada.sugestao, metodologia, seriesDoExercicio });
   const dicaDoDominio = dicaDeCarga({ sugestaoKg: calculada.sugestao, ultima: ehSerieDeTrabalho(s) ? ultimaCarga : null, semCampoDePeso });
   const dica = feita ? null : (faltaReferencia ?? (dicaDoDominio === TEXTO_PRIMEIRA_VEZ && ultimaCarga ? null : dicaDoDominio));
   // A carga só entra na conta das séries seguintes com o ✓ (regra de sempre, N15): a dica diz isso enquanto não foi marcada.
   const avisoDoMarcar = !semCampoDePeso && !registro && (ativa || cargaDigitada !== null) && seriesSeguintesDependemDesta(seriesDoExercicio, indice);
+
+  // D11: só texto, nunca um valor em kg.
+  const avisoDasReps = avisoDeRepeticoes(s, reps, metodologia);
 
   const decisao = decidirCheck({ feita, carga: semCampoDePeso ? null : carga, repeticoes: reps, sugestaoKg: calculada.sugestao, semCampoDePeso });
   const painelAberto = painel !== null && !feita;
@@ -484,6 +488,7 @@ function CartaoSerie({
       </View>
       {invalido ? <Texto variante="pequeno" cor={cores.perigo}>Corrija o número para marcar a série.</Texto> : null}
       {dica ? <DicaDoCampo dica={dica} origem={origem} numero={numero} /> : null}
+      {avisoDasReps ? <Texto numerico variante="pequeno" cor={cores.texto} accessibilityLiveRegion="polite">{avisoDasReps}</Texto> : null}
       {painelAberto ? <PainelDoCheck sugestaoKg={painel} numero={numero} aoEscolher={escolher} /> : null}
       {avisoDoMarcar ? <Texto numerico variante="pequeno">As séries seguintes só usam este peso depois que você marcar ✓.</Texto> : null}
       {!semCampoDePeso && passo !== null ? (

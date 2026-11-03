@@ -137,11 +137,11 @@ for (const largura of [390, 1280]) {
     await expect(page.getByText('2 de 4 séries feitas', { exact: true })).toBeVisible();
 
     // D4: o histórico diz o que faltou numa série feita, no lugar do "—". Por divisão (a aba padrão), a linha do dia é a
-    // WS com carga: 60 kg e "sem repetições".
+    // WS com carga: 60 kg e "—" nas repetições (a tabela só troca o "—" por "Feito, sem carga", ver execucao-retestes).
     await page.goto('/aluno/historico');
     const tabela = page.getByLabel('Cargas de Supino de teste', { exact: true });
     await expect(tabela.getByText('60 kg', { exact: true })).toBeVisible();
-    await expect(tabela.getByText('sem repetições', { exact: true })).toBeVisible();
+    await expect(tabela.getByText('sem repetições', { exact: true })).toHaveCount(0);
     await page.getByText('Por dia', { exact: true }).click();
     await expect(page.getByText(/WS feito, sem carga/)).toBeVisible();
     await expect(page.getByText(/WS 60 kg × sem repetições/)).toBeVisible();
@@ -191,5 +191,28 @@ test('sem internet: o painel do ✓ funciona e a série fica salva no aparelho',
   await expect(marcar(page, 3)).toBeChecked();
   await expect(peso(page, 3)).toHaveValue('60');
   await page.context().setOffline(false);
+  expect(api.errosDaPagina).toEqual([]);
+});
+
+test('passou do máximo da meta: aviso só em texto (D11), nunca um valor em kg nem carga escrita no campo', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  const api = await abrir(page, false);
+  await page.goto(EXERCICIO);
+  const reps = (n: number) => page.getByRole('textbox', { name: `Repetições da série ${n}`, exact: true });
+  const AVISO = 'Passou de 8 repetições, o máximo da meta.';
+
+  await reps(3).fill('8');
+  await expect(page.getByText(AVISO, { exact: true })).toHaveCount(0);
+  await reps(3).fill('9');
+  await expect(page.getByText(AVISO, { exact: true })).toHaveCount(1);
+  // Só texto: o peso continua vazio e o aviso não cita kg.
+  await expect(peso(page, 3)).toHaveValue('');
+  expect(AVISO).not.toMatch(/kg/);
+  // Aquecimento (meta 12 a 15) não avisa, mesmo passando do máximo.
+  await reps(1).fill('20');
+  await expect(page.getByText(/^Passou de 15/)).toHaveCount(0);
+  await reps(3).fill('7');
+  await expect(page.getByText(AVISO, { exact: true })).toHaveCount(0);
+  await semEstourar(page);
   expect(api.errosDaPagina).toEqual([]);
 });
