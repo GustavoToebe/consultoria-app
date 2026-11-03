@@ -1,5 +1,5 @@
-import { consultoria, fatoresDosAlimentos } from '../../api/rotas';
-import type { ConteudoDieta, FatoresDoAlimento } from '../../api/tipos';
+import { consultoria } from '../../api/rotas';
+import type { ConteudoDieta } from '../../api/tipos';
 import { alimentosDaDieta, comFatoresDaBiblioteca, NOTA_DA_PREVIA } from '../../dominio/listaDeCompras';
 import { imprimir } from '../../pdf/imprimir';
 import { logoComoDataUri } from '../../pdf/logo';
@@ -12,16 +12,7 @@ import { ListaDeCompras, type EscolhaDaLista } from '../../ui/ListaDeCompras';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
-
-/** Mesmo teto da rota `GET /alimentos/fatores`. */
-const IDS_POR_PEDIDO = 200;
-
-/** Fatores atuais dos alimentos, em pedidos de até 200 ids (uma dieta de verdade cabe em um). */
-async function buscarFatores(ids: string[]): Promise<FatoresDoAlimento[]> {
-  const partes: string[][] = [];
-  for (let i = 0; i < ids.length; i += IDS_POR_PEDIDO) partes.push(ids.slice(i, i + IDS_POR_PEDIDO));
-  return (await Promise.all(partes.map(fatoresDosAlimentos))).flat();
-}
+import { buscarFatores } from './buscarFatores';
 
 /**
  * Prévia da lista de compras no editor da dieta (plano do aluno ou modelo do Planejamento), para o treinador conferir

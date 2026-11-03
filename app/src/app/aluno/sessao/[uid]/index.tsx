@@ -1,28 +1,24 @@
 import Animated, { FadeInUp, ReduceMotion } from 'react-native-reanimated';
 import { useMovimentoReduzido } from '../../../../ui/useMovimentoReduzido';
-import { EntradaEmCascata, usePrimeiraLista } from '../../../../ui/EntradaEmCascata';
+import { usePrimeiraLista } from '../../../../ui/EntradaEmCascata';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Medal, Play } from 'lucide-react-native';
-import { Fragment } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { CabecalhoDoGrupo } from '../../../../aluno/CabecalhoDoGrupo';
-import { CartaoExercicioDoDia } from '../../../../aluno/CartaoExercicioDoDia';
 import { ConcluirTreino } from '../../../../aluno/ConcluirTreino';
 import { DatasDaDivisao } from '../../../../aluno/DatasDaDivisao';
+import { ExerciciosDoDia } from '../../../../aluno/ExerciciosDoDia';
 import { FaixaDoTreino } from '../../../../aluno/FaixaDoTreino';
 import { useTelaAcesa } from '../../../../aluno/useTelaAcesa';
 import { caminhoDaSessao, useSessaoDoDia } from '../../../../aluno/useSessaoDoDia';
-import { gruposDaSessao } from '../../../../dominio/combinacoes';
 import { contagem } from '../../../../dominio/contagens';
 import { dataParaTela } from '../../../../dominio/formatos';
 import { textoDaContagem } from '../../../../dominio/recordesPessoais';
-import { descansoSoDoGrupo } from '../../../../dominio/textoDoGrupo';
 import { contagemDeSeries } from '../../../../dominio/conclusaoDoTreino';
 import { contagemDoExercicio, datasDaSessao, nomeComDia } from '../../../../dominio/semana';
 import { useSessao } from '../../../../sessao/SessaoProvider';
 import { useTema } from '../../../../tema/TemaProvider';
-import { espaco, RAIO } from '../../../../tema/tokens';
+import { espaco } from '../../../../tema/tokens';
 import { BarraProgresso } from '../../../../ui/BarraProgresso';
 import { Botao } from '../../../../ui/Botao';
 import { Cabecalho } from '../../../../ui/Cabecalho';
@@ -121,39 +117,17 @@ export default function SessaoAluno() {
       {pendente ? (
         <Botao rotulo={feitas ? `Continuar: ${pendente.nome}` : 'Começar treino'} Icone={Play} cheio aoTocar={() => abrir(pendente.uid)} />
       ) : null}
-      {gruposDaSessao(sessao, dia.config.metodologia).map((g) => {
-        // Nos grupos em que o descanso é depois da volta, a série não mostra o descanso dela.
-        const descansoNaSerie = !(g.nome && g.grupo && descansoSoDoGrupo(g.grupo));
-        const cartoes = g.exercicios.map((e, j) => {
-          const i = g.inicio + j;
-          return (
-            <EntradaEmCascata key={e.uid} indice={i} animar={animar}>
-            <CartaoExercicioDoDia
-              exercicio={e}
-              posicao={i}
-              contagem={contagemDoExercicio(e, dia.estaFeita, dia.config.metodologia)}
-              cargaDoDia={dia.cargaDoDia(e)}
-              ultima={dia.ultimaCarga(e.exercicioId)}
-              tipoTrabalho={dia.config.tipoTrabalho}
-              metodologia={dia.config.metodologia}
-              descansoNaSerie={descansoNaSerie}
-              href={caminhoDaSessao(sessao.uid, data, e.uid)}
-              aoAbrir={() => abrir(e.uid)}
-            />
-            </EntradaEmCascata>
-          );
-        });
-        // Exercícios feitos juntos (superset, circuito, pré e pós-exaustão...) aparecem numa moldura com o nome da combinação,
-        // a ordem, as voltas e o descanso depois do grupo.
-        return g.nome ? (
-          <View key={`grupo-${g.exercicios[0].uid}`} style={[estilos.grupo, { borderColor: cores.bordaCampo }]}>
-            <CabecalhoDoGrupo bloco={g} metodologia={dia.config.metodologia} />
-            {cartoes}
-          </View>
-        ) : (
-          <Fragment key={g.exercicios[0].uid}>{cartoes}</Fragment>
-        );
-      })}
+      <ExerciciosDoDia
+        sessao={sessao}
+        metodologia={dia.config.metodologia}
+        tipoTrabalho={dia.config.tipoTrabalho}
+        contagemDe={(e) => contagemDoExercicio(e, dia.estaFeita, dia.config.metodologia)}
+        cargaDoDia={dia.cargaDoDia}
+        ultimaCarga={(e) => dia.ultimaCarga(e.exercicioId)}
+        href={(e) => caminhoDaSessao(sessao.uid, data, e.uid)}
+        aoAbrir={(e) => abrir(e.uid)}
+        animar={animar}
+      />
       {/* Rodapé: primário só quando já não há o "Começar/Continuar" lá em cima (um primário por área). */}
       <ConcluirTreino {...conclusao} tipo={pendente ? 'secundario' : 'primario'} cheio />
       <Texto variante="suave">Cada série marcada fica salva no aparelho na hora e é enviada quando houver internet.</Texto>
@@ -162,8 +136,6 @@ export default function SessaoAluno() {
 }
 
 const estilos = StyleSheet.create({
-  // Moldura do bi-set/supersérie com `bordaCampo` (a `borda` de cartão quase sumia no tema escuro).
-  grupo: { borderWidth: 1, borderLeftWidth: 4, borderRadius: RAIO, padding: espaco(1.25), gap: espaco(1) },
   recordes: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75) },
   linhaResumo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), flexWrap: 'wrap' },
 });

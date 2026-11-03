@@ -5,8 +5,7 @@ import { useEffect } from 'react';
 
 import type { ExercicioPlano, Serie, UltimaCarga } from '../api/tipos';
 import { ehSerieDeTrabalho } from '../dominio/cargas';
-import { tipoTrabalho as tipoTrabalhoDaMetodologia } from '../dominio/metodologia';
-import { CONFIGURACAO_PADRAO } from '../dominio/metodologiaPadrao';
+import { configDoTreino } from '../dominio/metodologia';
 import { semCargaNaSerieIlegivel } from '../dominio/modoDeCarga';
 import { normalizarTreino } from '../dominio/editorTreino';
 import { hojeIso } from '../dominio/formatos';
@@ -34,8 +33,7 @@ export function useSessaoDoDia(uid: string | undefined, dataDaRota: string | und
   const sessao = treino ? normalizarTreino(treino.conteudo).sessoes.find((s) => s.uid === uid) : undefined;
   // O nome da série de trabalho ("WS") sai da metodologia copiada na versão do treino; o do pacote é só a reserva.
   const base = aluno.pacote?.pacote.configuracao ?? { arredondamentoKg: 0.5, tipoTrabalho: 'WS' };
-  const metodologia = treino?.conteudo.metodologia?.configuracao ?? CONFIGURACAO_PADRAO;
-  const config = { ...base, tipoTrabalho: tipoTrabalhoDaMetodologia(metodologia) ?? base.tipoTrabalho, metodologia };
+  const config = configDoTreino(treino?.conteudo ?? {}, base);
   // O que já foi registrado no servidor (outro aparelho, ou antes de sair e entrar de novo) aparece como feito.
   const { carregarSemanaDoServidor } = aluno;
   useEffect(() => {
