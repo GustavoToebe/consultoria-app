@@ -345,6 +345,18 @@ describe('CRM: estados vazios, retornos, proposta e indicadores', () => {
     expect(estadoVazio({ filtro: 'ABERTAS', meus: false, busca: '', temFiltros: false }).texto).toContain('Divulgue o link');
   });
 
+  it('lista vazia com resultado em outra situação: diz onde (contagens já carregadas) e oferece Ver todas', () => {
+    const c = { porSituacao: { NOVA: 0, EM_CONTATO: 0, EM_NEGOCIACAO: 0, ACEITA: 1, RECUSADA: 0, DESISTIU: 2 }, abertas: 0, todas: 3, retornosAtrasados: 0, retornosHoje: 0 };
+    const v = estadoVazio({ filtro: 'ABERTAS', meus: false, busca: 'ana', temFiltros: false, contagens: c });
+    expect(v).toEqual({ titulo: 'Nada encontrado para esta busca.', texto: 'Encontrada em: Aceitas (1), Desistiram (2).', verTodas: true });
+    // A situação em que já está não se repete; sem resultado em lugar nenhum, o texto de sempre.
+    expect(estadoVazio({ filtro: 'ACEITA', meus: false, busca: 'ana', temFiltros: false, contagens: c }).texto).toBe('Encontrada em: Desistiram (2).');
+    const nada = { ...c, porSituacao: { ...c.porSituacao, ACEITA: 0, DESISTIU: 0 }, todas: 0 };
+    expect(estadoVazio({ filtro: 'ABERTAS', meus: false, busca: 'ana', temFiltros: false, contagens: nada }))
+      .toMatchObject({ texto: 'Confira o nome, o e-mail ou os dígitos do WhatsApp.', verTodas: false });
+    expect(estadoVazio({ filtro: 'TODAS', meus: false, busca: '', temFiltros: false, contagens: nada }).verTodas).toBe(false);
+  });
+
   it('retorno atrasado, de hoje ou futuro', () => {
     expect(seloDoRetorno('2026-10-28', '2026-10-29')).toEqual({ texto: 'Atrasado', tipo: 'perigo' });
     expect(seloDoRetorno('2026-10-29', '2026-10-29')).toEqual({ texto: 'Hoje', tipo: 'atencao' });

@@ -267,6 +267,23 @@ for (const largura of [390, 1280]) {
       expect(errosDaPagina).toEqual([]);
     });
 
+    test('busca sem resultado na lista aberta, mas com aceita: diz onde está e "Ver todas" mostra', async ({ page }) => {
+      const aceita = resumoFalso(7, { situacao: 'ACEITA' });
+      const { pedidos, naoTratadas, errosDaPagina } = await abrir(page, {
+        'GET /inscricoes/contagens': { corpo: contagensFalsas({ ACEITA: 1 }) },
+        'GET /inscricoes': (p, route) => json(route, p.busca.get('situacao') === 'TODAS' ? { itens: [aceita], total: 1 } : { itens: [], total: 0 }),
+      });
+      await page.getByLabel('Buscar').fill('fictícia');
+      await expect(page.getByText('Nada encontrado para esta busca.')).toBeVisible();
+      await expect(page.getByText('Encontrada em: Aceitas (1).')).toBeVisible();
+      await page.getByRole('button', { name: 'Ver todas' }).click();
+      await expect(page.getByText('Pessoa Fictícia 7', { exact: true })).toBeVisible();
+      await expect(page.getByText('Encontrada em:')).toHaveCount(0);
+      expect(pedidos.some((p) => p.caminho === '/inscricoes' && p.busca.get('situacao') === 'TODAS' && p.busca.get('busca') === 'fictícia')).toBe(true);
+      expect(naoTratadas).toEqual([]);
+      expect(errosDaPagina).toEqual([]);
+    });
+
     test('semelhantes: abre a lista e "É a mesma pessoa" relaciona sem juntar nada', async ({ page }) => {
       const r = resumoFalso(1, { duplicidade: { alunoExistente: false, alunoId: null, outrasInscricoesAbertas: 0, outrasInscricoesAnteriores: 1 } });
       const { estado, rotas } = comUma(r, detalheFalso(r));
