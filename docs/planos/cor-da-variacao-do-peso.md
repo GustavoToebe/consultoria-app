@@ -30,8 +30,8 @@ decidiu.
 - [x] 2. API: ler/gravar a meta na Marca (`MARCA_ALTERAR`) e na ficha (`ALUNO_SENSIVEL_LER`/`ALTERAR`), `metaDoPeso` efetiva nas rotas de peso do treinador e do aluno, exportação, anonimização e excluir conta; auditoria com resumo fixo — executor — commit: 3f3e9e2f
 - [x] 3. Regra pura da cor em `dominio/` (direção × meta → tom neutro/positivo/problema) com jest — executor — commit: 87b7217a
 - [x] 4. Telas: campo na Marca e na ficha, cor na lista do peso, no Histórico do aluno e no "Peso anterior", linha de explicação (D4) — executor-front — commit: o `wip:` da passagem de 03/11 (ver Passagem)
-- [ ] 5. Testes: integração (permissão, padrão, override, exportação, anonimização) e e2e em 390 e 1280 nos três temas; Ajuda, guias regerados e `AGENTS.md` só no item do peso — commit: —
-- [ ] 6. Revisão do Opus (LGPD, permissão) antes do PR — advisor/revisor — commit: —
+- [x] 5. Testes: integração (permissão, padrão, override, exportação, anonimização) e e2e em 390 e 1280 nos três temas; Ajuda, guias regerados e `AGENTS.md` só no item do peso — commit: b5eddaa7, o `wip:` da passagem e os guias regerados depois do merge da main (03/11, nuvem)
+- [x] 6. Revisão do Opus (LGPD, permissão) antes do PR — revisor — 03/11, nuvem: nada bloqueia; guias regerados; dois opcionais ficaram em "O que ficou para trás"
 
 ## Critérios de aceite
 - Sem meta definida na ficha, vale a da consultoria; com meta na ficha, vale a do aluno; `SEM_META` e variação zero ficam neutros.
@@ -42,10 +42,11 @@ decidiu.
 - Cor no gráfico (continua neutro); sugerir meta ou opinar sobre o peso.
 
 ## O que ficou para trás
-- —
+- Opcional (revisão de 03/11): na leitura da ficha, "Padrão da consultoria" não diz qual é o padrão; poderia mostrar "Padrão da consultoria (Reduzir)" com a meta da consultoria que a ficha já busca.
+- Opcional (revisão de 03/11): o Resumo da atualização arredonda a variação a uma casa e a lista do peso a duas; 0,04 kg fica colorido na lista e neutro no resumo (coerente com o número de cada tela).
 
 ## Passagem (03/11, noite)
-Trabalho parado a pedido do Gustavo para passar ao Claude da nuvem. Branch `cor-da-variacao-do-peso`, saiu da main `2320c1e8`; **ainda sem `git merge origin/main`** e sem PR.
+Trabalho parado a pedido do Gustavo para passar ao Claude da nuvem. Branch `cor-da-variacao-do-peso`, saiu da main `2320c1e8`; (na passagem, ainda sem `git merge origin/main` e sem PR; o merge entrou em `c88a536d`, com a C, em 03/11 na nuvem).
 
 **Prontos (com commit):**
 - Passos 1 a 3 e a API do passo 5: `3f3e9e2f` (V052, meta da consultoria e do aluno, efetiva nas rotas de peso, exportação, anonimização, auditoria; `MetaDoPesoIntegrationTest`) e `87b7217a` (regra pura `dominio/corDaVariacaoDoPeso` com jest, tipos, `acoesAuditoria.ts`).
@@ -75,3 +76,5 @@ Trabalho parado a pedido do Gustavo para passar ao Claude da nuvem. Branch `cor-
 - PDF da dieta: a coluna da variação diz "▲ +1,2 kg" (antes "+1,2"), com os tons de status do tema claro; a cor da marca saiu.
 - A descrição do cartão Acompanhamento da Marca virou "Vale para os alunos sem ciclo ou meta própria no cadastro."; embaixo dos dois campos há uma frase explicando as cores.
 - A meta entrou na chave do `CartaoPeso`: as cores mudam logo depois de salvar a ficha.
+
+**Fechamento (03/11, nuvem):** `git merge origin/main` em `c88a536d` (sem conflito, já com a C); `mvn verify` 1978 testes, 0 falhas; typecheck e lint verdes; jest 230 suítes, 3587 testes, 0 falhas; e2e na 8103, 21 specs (os da F, os que tocam peso, ficha, atualização e PDF, e os do aluno da C): 188 passaram e 4 falharam só por fuso (o `hojeNaTela` do `pasta-e-atualizacao` usava o relógio da máquina, em UTC na nuvem; com `TZ=America/Sao_Paulo`, 46/46; o teste é corrigido nas miudezas); guias regerados no Linux (Chromium, sem a fonte Segoe UI: mesmo texto e mesmo número de páginas).
