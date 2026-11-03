@@ -184,11 +184,17 @@ fundo da página (quase branco: #F7F7F8)
 Duas regras. Plano e passos em `docs/planos/auditoria-cores.md`.
 
 1. **A cor da marca serve só para destaque e ação.** Erro e alerta têm tom próprio, e desabilitado é cinza.
-2. **Cada situação tem uma cor só, a mesma no aluno e no treinador.** A cor segue a situação do registro, não quem
-   olha; muda só o texto. Por exemplo, a atualização enviada diz "Enviada. Aguardando o treinador" ao aluno e "Para
-   revisar" ao treinador, as duas em âmbar (a confirmar: dúvida 2 do plano).
+2. **Uma cor por situação, e âmbar só para quem precisa agir.** Quem espera vê neutro, e o texto diz quem age. Por
+   exemplo, a atualização enviada diz "Enviada · aguardando revisão" ao aluno, em neutro, e "Para revisar" ao
+   treinador, em âmbar.
 
-A cor nunca fala sozinha: todo status leva texto, e todo erro ou alerta leva ícone.
+   **Exceção: status de cobrança** (Gustavo, 03/11). Segue os três tons que aluno e treinador já conhecem de outros
+   apps, mesmo para quem só espera: Em aberto `atencao`, Vencida `perigo`, Paga `sucesso`, Cancelada e Isenta `neutro`
+   (`dominio/minhaConta.situacaoDaCobrancaParaTela`; o mesmo vale para as cobranças do Financeiro).
+
+A cor nunca fala sozinha: todo status leva texto, e todo erro ou alerta leva ícone. A regra vale para qualquer marca:
+a cor da marca muda por consultoria, mas `sucesso`, `atencao` e `perigo` são fixos no tema (`tema/tokens.ts`) e nunca
+vêm da marca; por isso o status de cobrança também leva sempre o texto ("Em aberto", "Vencida", "Paga") e o ícone.
 
 **Onde a marca pode aparecer (lista fechada):**
 - ação principal: `Botao primario` e, nas telas públicas da consultoria, `BotaoPublico`;
@@ -197,18 +203,19 @@ A cor nunca fala sozinha: todo status leva texto, e todo erro ou alerta leva íc
 - nome da marca (`MarcaTitulo`) e a inicial no trilho do menu (`MarcaDoTrilho`);
 - dia de hoje e ações do `Calendario`;
 - PDFs: faixa, título das seções, cabeçalho das tabelas e valores em destaque (carga e quantidade);
-- prévias da Marca e das Preferências.
+- prévias da Marca e das Preferências;
+- barra da sessão no editor de treino (`CartaoSessao`);
+- dia treinado no cartão para compartilhar (`cartaoDoTreino`).
 
-Qualquer outro lugar precisa de decisão nova. Em aberto: a barra da sessão no editor de treino e o dia treinado no
-cartão para compartilhar (dúvidas 4 e 5 do plano).
+Qualquer outro lugar precisa de decisão nova.
 
 | Situação | Tom (token) | Quando usar | Exemplos | Aluno e treinador | Mínimo WCAG AA | Pior valor medido (claro · areia · escuro) |
 | --- | --- | --- | --- | --- | --- | --- |
 | Ação e destaque | fundo `marca` com texto `sobreMarca`; em texto ou ícone, `marcaTexto` | Só nos lugares da lista acima | "Salvar", menu ativo, cartão Hoje | Sim | 4,5:1 (texto) | `sobreMarca` sobre `marca` ≥ 4,5 (`avaliarMarca` recusa menos); `marcaTexto` ≥ 4,5 por construção (`marcaParaTexto`) |
 | Positivo, concluído | `sucesso` | Terminou bem e não falta nada | Paga, Ativa, Revisada, Sincronizado, Treino concluído, Realizado, Com acesso, Publicado | Sim | 4,5:1 | 5,11 · 4,92 · 5,13 (sobre `superficie3`) |
-| Pendente, alguém precisa agir | `atencao` | Falta uma ação de alguém, mas nada impede de seguir | Em aberto, Rascunho, Para revisar, Responder até, Adiada, Aguardando, Pausada, Contestada, Alterações não salvas | Sim | 4,5:1 | 5,00 · 4,82 · 5,52 (sobre `superficie3`) |
-| Problema, erro ou atraso | `perigo` em texto e borda; `perigoFundo` em botão preenchido com texto branco | Algo deu errado, impede de seguir ou passou do prazo; ação destrutiva | Atrasada, Vencida (no aluno, a confirmar: dúvida 1 do plano), Falhou, Faltou, Corrigir, Falha ao salvar, erro de campo | Sim | 4,5:1 | 5,32 · 5,13 · 4,51 (sobre `superficie3`); branco sobre `perigoFundo`: 6,57 · 6,57 · 5,62 |
-| Encerrado, inativo ou informativo | `neutro` | Acabou, foi desligado, ou é só informação (inclusive o que ainda vai acontecer, a confirmar: dúvida 3 do plano) | Cancelada, Estornada, Encerrada, Arquivado, Inativo, Pasta concluída, Dispensada, Sem conexão, "Em 15 dias" | Sim | 4,5:1 | 4,97 · 4,79 · 4,98 (sobre `superficie3`) |
+| Pendente, alguém precisa agir | `atencao` | Falta uma ação de alguém, mas nada impede de seguir | Em aberto, Rascunho, Para revisar, Responder até, Adiada, Pausada, Contestada, Alterações não salvas | Só quem age (a cobrança Em aberto, para os dois: exceção acima) | 4,5:1 | 5,00 · 4,82 · 5,52 (sobre `superficie3`) |
+| Problema, erro ou atraso | `perigo` em texto e borda; `perigoFundo` em botão preenchido com texto branco | Algo deu errado, impede de seguir ou passou do prazo; ação destrutiva | Atrasada, "Vencida há N dias", Falhou, Faltou, Corrigir, Falha ao salvar, erro de campo | Sim | 4,5:1 | 5,32 · 5,13 · 4,51 (sobre `superficie3`); branco sobre `perigoFundo`: 6,57 · 6,57 · 5,62 |
+| Encerrado, inativo ou informativo | `neutro` | Acabou, foi desligado, ou é só informação, inclusive o que ainda vai acontecer, sempre com a data; também quem espera a ação de outro | Cancelada, Estornada, Encerrada, Arquivado, Inativo, Pasta concluída, Dispensada, Sem conexão, "Em 15 dias", "Enviada · aguardando revisão" (quem espera) | Sim | 4,5:1 | 4,97 · 4,79 · 4,98 (sobre `superficie3`) |
 | Desabilitado | fundo `superficie3`, borda `borda`, texto e ícone `textoSuave`, sem opacidade e sem a marca | Controle que não pode ser usado agora | Botão com `motivo` ("Preencha o nome"), opção indisponível, ✓ na prévia | Sim | Isento pela WCAG 1.4.3; o `motivo` abaixo é texto comum (4,5:1) | `textoSuave` sobre `superficie3`: 6,26 · 6,04 · 5,42 |
 | Seleção | invertida: fundo `texto`, letra `fundo` | Opção escolhida (chips, `Escolha`, calendário, `Interruptor`) | Chip marcado | Sim | 4,5:1 | igual a texto sobre fundo |
 | Identificação | paletas próprias (`PALETA_DE_IDENTIFICACAO`, agendas, fases) | Diz *qual* coisa é, nunca status | Tipo de série, refeição, agenda, fase do ciclo | Sim | 4,5:1 (texto); 3:1 (marcador) | conferido em `tokens.test.ts` |
