@@ -56,7 +56,7 @@
 <header class="topo">
   <h1>Paletas da marca</h1>
   <p>Prévia do Início do aluno nas 15 paletas do plano. Texto, verde, âmbar e vermelho são os do Escuro ou do Claro em <code>app/src/tema/tokens.ts</code>. O botão usa o vermelho intenso da marca, <code>#C62828</code>.</p>
-  <p class="nota">O contraste e a <code>marcaParaTexto</code> são as funções de <code>app/src/tema/tokens.ts</code>, sem alteração. A marca no texto é <code>marcaParaTexto</code> da cor pura sobre a faixa, como em <code>TemaProvider</code>. Entram em quem passa: texto, texto suave, verde, âmbar, vermelho e a marca no texto a 4,5:1 contra o fundo, o cartão e a faixa; o botão, texto branco sobre a marca pura, a 4,5:1; a borda do cartão a 1,9:1 contra o cartão, 1,25:1 contra a faixa e 1,8:1 contra o fundo; a borda do campo a 3:1 contra o campo e contra a faixa (a moldura do X, do Voltar e do ⋯). A separação da faixa não entra.</p>
+  <p class="nota">O contraste, a <code>marcaParaTexto</code> e o <code>tingido</code> são as funções de <code>app/src/tema/tokens.ts</code>, sem alteração. A marca no texto é <code>marcaParaTexto</code> da cor pura sobre a faixa, como em <code>TemaProvider</code>. Entram em quem passa: texto, texto suave, verde, âmbar, vermelho e a marca no texto a 4,5:1 contra o fundo, o cartão e a faixa; o botão, texto branco sobre a marca pura, a 4,5:1; texto, texto suave e verde a 4,5:1 sobre a série feita (verde com alfa 0x29 sobre o item); verde, âmbar e vermelho a 4,5:1 sobre o tingido do cartão; neutro a 4,5:1 sobre o item, a faixa e o tingido; a borda do cartão a 1,9:1 contra o cartão, 1,25:1 contra a faixa e 1,8:1 contra o fundo; a borda do campo a 3:1 contra o campo e contra a faixa (a moldura do X, do Voltar e do ⋯). A separação da faixa não entra.</p>
 </header>
 <nav class="secoes">
   <a href="#resumo">Resumo</a>
@@ -67,7 +67,7 @@
   <section id="resumo" class="resumo"></section>
   <section id="escuras">
     <h2>Escuras</h2>
-    <p class="nota">Nas paletas novas, a faixa é o tom mais claro a partir do cartão, em direção ao branco, no qual texto, texto suave, verde, âmbar e vermelho ainda passam a 4,5:1. Se nenhum tom passar, a faixa usa a distância do Escuro até a faixa dele. O teto desse passo vale só para o item (<code>superficie2</code>) e o campo. Borda, borda do campo e divisor ficam nos passos 0,23, 0,41 e 0,13. Nenhuma cor de status muda. Escuro, Claro e Areia usam os valores literais do arquivo.</p>
+    <p class="nota">Nas paletas novas, o item fica igual ao cartão usado. Violeta, Oceano, Oliva, Café e Petróleo usam um cartão mais escuro que o original, o mais claro em que a série feita, o tingido e o neutro ainda passam a 4,5:1. A tabela mostra o original ao lado do usado. A faixa é o tom mais claro a partir desse cartão, em direção ao branco, no qual texto, texto suave, verde, âmbar e vermelho ainda passam a 4,5:1. Se nenhum tom passar, a faixa usa a distância do Escuro até a faixa dele. O teto desse passo vale só para o campo. Borda, borda do campo e divisor ficam nos passos 0,23, 0,41 e 0,13. Nenhuma cor de status muda. Escuro, Claro e Areia usam os valores literais do arquivo.</p>
     <div class="grade" data-modo="escuro"></div>
   </section>
   <section id="claras">
@@ -81,30 +81,30 @@
 var ESCURO = {
   fundo: '#0A0A0C', superficie: '#18181B', superficie2: '#222226', superficie3: '#2C2C31',
   divisor: '#36363C', borda: '#4C4C55', campo: '#0F0F12', bordaCampo: '#76767E',
-  texto: '#F4F4F5', textoSuave: '#A1A1AA', sucesso: '#2BB36A', atencao: '#D9962C', perigo: '#F0666B'
+  texto: '#F4F4F5', textoSuave: '#A1A1AA', sucesso: '#2BB36A', atencao: '#D9962C', perigo: '#F0666B', neutro: '#9A9AA3'
 };
 var CLARO = {
   fundo: '#F7F7F8', superficie: '#FFFFFF', superficie2: '#F4F4F5', superficie3: '#E7E7EA',
   divisor: '#D4D4D8', borda: '#B9B9C0', campo: '#FFFFFF', bordaCampo: '#80808A',
-  texto: '#111114', textoSuave: '#52525B', sucesso: '#176E3C', atencao: '#875710', perigo: '#B71C1C'
+  texto: '#111114', textoSuave: '#52525B', sucesso: '#176E3C', atencao: '#875710', perigo: '#B71C1C', neutro: '#616169'
 };
 var AREIA = {
   fundo: '#FAF9F6', superficie: '#FFFFFF', superficie2: '#F7F5F0', superficie3: '#E7E3DB',
   divisor: '#DDD8CF', borda: '#B9B3A9', campo: '#FFFFFF', bordaCampo: '#77736B'
 };
 var MARCA = '#C62828';
-/* O teto da faixa corta só os fundos. Borda, borda do campo e divisor ficam nestes passos. */
-var PASSOS_BASE = { campo: 0.02, superficie2: 0.04, divisor: 0.13, borda: 0.23, bordaCampo: 0.41 };
-var PASSOS_COM_TETO = { campo: true, superficie2: true };
+/* O item fica igual ao cartão. O teto da faixa corta só o campo. Borda, borda do campo e divisor ficam nestes passos. */
+var PASSOS_BASE = { campo: 0.02, superficie2: 0, divisor: 0.13, borda: 0.23, bordaCampo: 0.41 };
+var PASSOS_COM_TETO = { campo: true };
 var PALETAS = [
   { codigo: 'ESCURO', nome: 'Escuro', modo: 'escuro', origem: 'já existe', fundo: ESCURO.fundo, cartao: ESCURO.superficie, literal: ESCURO },
-  { codigo: 'MEIA_NOITE', nome: 'Meia-noite', modo: 'escuro', origem: 'Midnight', fundo: '#06141B', cartao: '#11212D' },
-  { codigo: 'AMEIXA', nome: 'Ameixa', modo: 'escuro', origem: 'Plum', fundo: '#190019', cartao: '#2B124C' },
-  { codigo: 'VIOLETA', nome: 'Violeta', modo: 'escuro', origem: 'Purple Haze', fundo: '#0E0B1D', cartao: '#2A1E4D' },
-  { codigo: 'OCEANO', nome: 'Oceano', modo: 'escuro', origem: 'Arctic Blue', fundo: '#0B132B', cartao: '#1C2541' },
-  { codigo: 'OLIVA', nome: 'Oliva', modo: 'escuro', origem: 'Olive Luxe', fundo: '#0B0F0D', cartao: '#1F2A1F' },
-  { codigo: 'CAFE', nome: 'Café', modo: 'escuro', origem: 'Mocha Earth', fundo: '#1A120E', cartao: '#3A2418' },
-  { codigo: 'PETROLEO', nome: 'Petróleo', modo: 'escuro', origem: 'Teal', fundo: '#05161A', cartao: '#072E33' },
+  { codigo: 'MEIA_NOITE', nome: 'Meia-noite', modo: 'escuro', origem: 'Midnight', fundo: '#06141B', cartao: '#11212D', cartaoOriginal: '#11212D' },
+  { codigo: 'AMEIXA', nome: 'Ameixa', modo: 'escuro', origem: 'Plum', fundo: '#190019', cartao: '#2B124C', cartaoOriginal: '#2B124C' },
+  { codigo: 'VIOLETA', nome: 'Violeta', modo: 'escuro', origem: 'Purple Haze', fundo: '#0E0B1D', cartao: '#261B46', cartaoOriginal: '#2A1E4D' },
+  { codigo: 'OCEANO', nome: 'Oceano', modo: 'escuro', origem: 'Arctic Blue', fundo: '#0B132B', cartao: '#1A223C', cartaoOriginal: '#1C2541' },
+  { codigo: 'OLIVA', nome: 'Oliva', modo: 'escuro', origem: 'Olive Luxe', fundo: '#0B0F0D', cartao: '#1B241B', cartaoOriginal: '#1F2A1F' },
+  { codigo: 'CAFE', nome: 'Café', modo: 'escuro', origem: 'Mocha Earth', fundo: '#1A120E', cartao: '#301E14', cartaoOriginal: '#3A2418' },
+  { codigo: 'PETROLEO', nome: 'Petróleo', modo: 'escuro', origem: 'Teal', fundo: '#05161A', cartao: '#062529', cartaoOriginal: '#072E33' },
   { codigo: 'CLARO', nome: 'Claro', modo: 'claro', origem: 'já existe', fundo: CLARO.fundo, cartao: CLARO.superficie, literal: CLARO },
   { codigo: 'AREIA', nome: 'Areia', modo: 'claro', origem: 'já existe (hoje só nas Preferências)', fundo: AREIA.fundo, cartao: AREIA.superficie, literal: Object.assign({}, CLARO, AREIA) },
   { codigo: 'LAVANDA', nome: 'Lavanda', modo: 'claro', origem: 'Lavender', fundo: '#F7F8FF', cartao: '#FFFFFF', faixa: '#E6E0FF' },
@@ -137,6 +137,12 @@ function misturar(cor, alvo, t) {
     return Math.round(((a >> desl) & 255) * (1 - t) + ((b >> desl) & 255) * t);
   };
   return '#' + [16, 8, 0].map(function (d) { return canal(d).toString(16).padStart(2, '0').toUpperCase(); }).join('');
+}
+
+/* Copiada de tokens.ts. Fundo opaco: a cor com alfa 0x18 sobre a base. */
+function tingido(cor, base) {
+  if (!/^#[0-9a-f]{6}$/i.test(cor) || !/^#[0-9a-f]{6}$/i.test(base)) return base;
+  return misturar(base, cor, 0x18 / 255);
 }
 
 /* Copiada de tokens.ts. Não alterar a conta. */
@@ -225,7 +231,10 @@ function tonsDe(p) {
 
 function statusDe(modo) {
   var base = modo === 'escuro' ? ESCURO : CLARO;
-  return { texto: base.texto, textoSuave: base.textoSuave, sucesso: base.sucesso, atencao: base.atencao, perigo: base.perigo };
+  return {
+    texto: base.texto, textoSuave: base.textoSuave, sucesso: base.sucesso,
+    atencao: base.atencao, perigo: base.perigo, neutro: base.neutro
+  };
 }
 
 function fmt(n) {
@@ -275,8 +284,44 @@ function medir(p) {
     falhaFundo: campoDaBorda < 3, falhaCartao: false, falhaFaixa: bordaCampoNaFaixa < 3,
     contaFundo: true, contaCartao: false, contaFaixa: true, rotuloFundo: 'contra o campo'
   });
+  var feita = misturar(tons.superficie2, st.sucesso, 0x29 / 255);
+  [
+    ['Série feita, texto', st.texto],
+    ['Série feita, texto suave', st.textoSuave],
+    ['Série feita, verde', st.sucesso]
+  ].forEach(function (item) {
+    var razao = contraste(item[1], feita);
+    linhas.push({
+      nome: item[0], cor: item[1], fundo: razao, cartao: null, faixa: null,
+      falhaFundo: razao < 4.5, falhaCartao: false, falhaFaixa: false,
+      contaFundo: true, contaCartao: false, contaFaixa: false, rotuloFundo: 'sobre a série feita'
+    });
+  });
+  [
+    ['Alerta verde', st.sucesso],
+    ['Alerta âmbar', st.atencao],
+    ['Alerta vermelho', st.perigo]
+  ].forEach(function (item) {
+    var razao = contraste(item[1], tingido(item[1], tons.superficie));
+    linhas.push({
+      nome: item[0], cor: item[1], fundo: razao, cartao: null, faixa: null,
+      falhaFundo: razao < 4.5, falhaCartao: false, falhaFaixa: false,
+      contaFundo: true, contaCartao: false, contaFaixa: false, rotuloFundo: 'sobre o tingido'
+    });
+  });
+  var neutroNoItem = contraste(st.neutro, tons.superficie2);
+  var neutroNoTingido = contraste(st.neutro, tingido(st.neutro, tons.superficie));
+  var neutroNaFaixa = contraste(st.neutro, tons.superficie3);
+  linhas.push({
+    nome: 'Neutro', cor: st.neutro, fundo: neutroNoItem, cartao: neutroNoTingido, faixa: neutroNaFaixa,
+    falhaFundo: neutroNoItem < 4.5, falhaCartao: neutroNoTingido < 4.5, falhaFaixa: neutroNaFaixa < 4.5,
+    contaFundo: true, contaCartao: true, contaFaixa: true,
+    rotuloFundo: 'sobre o item', rotuloCartao: 'sobre o tingido', rotuloFaixa: 'sobre a faixa'
+  });
   function lugar(linha, campo) {
     if (campo === 'fundo' && linha.rotuloFundo) return linha.rotuloFundo;
+    if (campo === 'cartao' && linha.rotuloCartao) return linha.rotuloCartao;
+    if (campo === 'faixa' && linha.rotuloFaixa) return linha.rotuloFaixa;
     if (campo === 'fundo') return 'contra o fundo';
     if (campo === 'cartao') return 'contra o cartão';
     return 'contra a faixa';
@@ -308,7 +353,8 @@ function celula(linha, campo) {
     return '<td class="num info">' + prefixo + fmt(valor) + ':1' + extraInfo + '</td>';
   }
   var extra = falha ? ' abaixo' : '';
-  var prefixoConta = linha.rotuloFundo && campo === 'fundo' ? linha.rotuloFundo + ' ' : '';
+  var rotulo = campo === 'fundo' ? linha.rotuloFundo : campo === 'cartao' ? linha.rotuloCartao : linha.rotuloFaixa;
+  var prefixoConta = rotulo ? rotulo + ' ' : '';
   return '<td class="num ' + (falha ? 'falha' : 'passa') + '">' + prefixoConta + fmt(valor) + ':1' + extra + '</td>';
 }
 
@@ -321,13 +367,20 @@ function desenhar(p, medida) {
     if (p.literal) return '';
     if (p.modo === 'claro') return textoClaro;
     var passo = tons.passos[chave];
+    if (chave === 'superficie2' && passo === 0) return 'igual ao cartão';
     var texto = 'passo ' + fmt(passo);
     if (chave === 'superficie3' && tons.fallback) texto += ', distância do Escuro';
     return texto;
   }
+  var deOndeCartao = '';
+  if (p.cartaoOriginal && p.cartaoOriginal !== tons.superficie) {
+    deOndeCartao = '<span class="amostra" style="background:' + p.cartaoOriginal + '"></span>original <code>' + p.cartaoOriginal + '</code>';
+  } else if (p.cartaoOriginal) {
+    deOndeCartao = 'igual ao original';
+  }
   var rotulos = [
     ['Fundo', tons.fundo, ''],
-    ['Cartão', tons.superficie, ''],
+    ['Cartão', tons.superficie, deOndeCartao],
     ['Item (superficie2)', tons.superficie2, origemDoPasso('superficie2', 'Claro')],
     ['Faixa (superficie3)', tons.superficie3, p.faixa ? 'segundo tom da paleta' : origemDoPasso('superficie3', '')],
     ['Divisor', tons.divisor, origemDoPasso('divisor', 'Claro')],
@@ -368,7 +421,7 @@ var medidas = PALETAS.map(function (p) { return { paleta: p, medida: medir(p) };
 var passam = medidas.filter(function (item) { return item.medida.falhas.length === 0; });
 var resumo = document.getElementById('resumo');
 var intro = document.createElement('p');
-intro.innerHTML = '<strong>' + passam.length + ' de 15 passam inteiras.</strong> Régua: texto, texto suave, verde, âmbar, vermelho e a marca no texto a 4,5:1 contra o fundo, o cartão e a faixa; o botão, texto branco sobre a marca pura, a 4,5:1; borda do cartão a 1,9:1 contra o cartão, 1,25:1 contra a faixa e 1,8:1 contra o fundo; borda do campo a 3:1 contra o campo e contra a faixa. A separação da faixa não entra.';
+intro.innerHTML = '<strong>' + passam.length + ' de 15 passam inteiras.</strong> Régua: texto, texto suave, verde, âmbar, vermelho e a marca no texto a 4,5:1 contra o fundo, o cartão e a faixa; o botão, texto branco sobre a marca pura, a 4,5:1; texto, texto suave e verde a 4,5:1 sobre a série feita; verde, âmbar e vermelho a 4,5:1 sobre o tingido do cartão; neutro a 4,5:1 sobre o item, a faixa e o tingido; borda do cartão a 1,9:1 contra o cartão, 1,25:1 contra a faixa e 1,8:1 contra o fundo; borda do campo a 3:1 contra o campo e contra a faixa. A separação da faixa não entra.';
 resumo.appendChild(intro);
 ['escuro', 'claro'].forEach(function (modo) {
   var grupo = medidas.filter(function (item) { return item.paleta.modo === modo; });
