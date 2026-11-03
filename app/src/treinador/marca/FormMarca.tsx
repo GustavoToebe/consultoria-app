@@ -5,7 +5,8 @@ import { StyleSheet, View } from 'react-native';
 
 import { ErroApi } from '../../api/cliente';
 import { alterarMarca, consultoria as buscarConsultoria, enviarLogo, removerLogo } from '../../api/rotas';
-import type { ConsultoriaResponse, Fonte, Marca, Tema } from '../../api/tipos';
+import type { ConsultoriaResponse, Fonte, Marca, MetaDoPeso, Tema } from '../../api/tipos';
+import { OPCOES_DA_META } from '../../dominio/metaDoPesoNaFicha';
 import { avaliarMarca, paletaDaCor, PALETAS } from '../../dominio/paletas';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
@@ -14,6 +15,7 @@ import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { CampoNumerico } from '../../ui/Campos';
+import { Escolha } from '../../ui/Escolha';
 import { Cartao } from '../../ui/Cartao';
 import { MensagemErro } from '../../ui/Estados';
 import { errosPorCampo, textoDoErro } from '../../ui/erros';
@@ -46,6 +48,8 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
   const [fonte, setFonte] = useState<Fonte>(inicial.fonteTitulo);
   const [tema, setTema] = useState<Tema>(inicial.temaPadrao);
   const [dias, setDias] = useState<number | null>(consultoria.diasAtualizacaoPadrao ?? null);
+  const metaSalva: MetaDoPeso = consultoria.metaDoPeso ?? 'REDUZIR';
+  const [meta, setMeta] = useState<MetaDoPeso>(metaSalva);
   const textosIniciais = consultoria.textosFasesCiclo;
   const [fases, setFases] = useState({
     menstrual: textosIniciais?.menstrual ?? '',
@@ -77,13 +81,14 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
     fonte !== inicial.fonteTitulo ||
     tema !== inicial.temaPadrao ||
     dias !== (consultoria.diasAtualizacaoPadrao ?? null) ||
+    meta !== metaSalva ||
     JSON.stringify(textosAtuais) !== JSON.stringify(textosSalvos);
   const previa: Marca = { ...inicial, nome: nome || inicial.nome, corPrimaria: corValida ? cor : inicial.corPrimaria, fonteTitulo: fonte, temaPadrao: tema, logoUrl };
 
   const salvar = () => {
     setSalvando(true);
     setErro(null);
-    alterarMarca({ nome: nome.trim(), corPrimaria: cor, fonteTitulo: fonte, temaPadrao: tema, versao: consultoria.versao, diasAtualizacaoPadrao: dias, textosFasesCiclo: textosAtuais }).then(
+    alterarMarca({ nome: nome.trim(), corPrimaria: cor, fonteTitulo: fonte, temaPadrao: tema, versao: consultoria.versao, diasAtualizacaoPadrao: dias, textosFasesCiclo: textosAtuais, metaDoPeso: meta }).then(
       (c) => {
         setSalvando(false);
         aoSalvar(c);
@@ -245,7 +250,7 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
           ))}
         </GradeDeOpcoes>
       </Cartao>
-      <Cartao titulo="Acompanhamento" descricao="Vale para quem não tem um ciclo próprio no cadastro do aluno.">
+      <Cartao titulo="Acompanhamento" descricao="Vale para os alunos sem ciclo ou meta própria no cadastro.">
         <View style={estilos.campoDias}>
           <CampoNumerico
             rotulo="Nova atualização a cada (dias)"
@@ -255,6 +260,10 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
             erro={campos.diasAtualizacaoPadrao ?? (diasValidos ? null : 'Use de 1 a 365 dias.')}
             ajuda="Preenche o início e o fim de cada pasta nova. Vazio = sem padrão."
           />
+        </View>
+        <View style={estilos.meta}>
+          <Escolha rotulo="Meta do peso dos alunos" valor={meta} aoMudar={setMeta} opcoes={OPCOES_DA_META} />
+          <Texto variante="pequeno">Pinta a variação do peso: verde na direção da meta, vermelho contra; sem meta, sem cor. Na ficha de cada aluno dá para trocar.</Texto>
         </View>
         {cicloHabilitado ? (
         <Cartao titulo="Ciclo menstrual: textos das fases" recolhivel recolhido
@@ -319,6 +328,7 @@ function Previa({ marca, cores, rotulo }: { marca: Marca; cores: Cores; rotulo: 
 
 const estilos = StyleSheet.create({
   campoDias: { maxWidth: 280 },
+  meta: { gap: espaco(0.5) },
   previas: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(2) },
   previa: { flex: 1, minWidth: 240, gap: espaco(0.5) },
   telaPrevia: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(1) },
