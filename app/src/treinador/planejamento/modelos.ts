@@ -57,6 +57,12 @@ export function abaDoPlanejamento(parametro: string | string[] | undefined, veMo
   return rotulos.find((r) => slugDaAba(r) === pedida) ?? rotulos[0] ?? GRUPOS_DE_MODELOS[0].rotulo;
 }
 
+/** O chip pedido no endereço (`?tipo=metodologia`, minúsculo); texto que não é tipo de modelo vale como sem pedido. */
+export function tipoDoPlanejamento(parametro: string | string[] | undefined): TipoReceita | null {
+  const pedido = (Array.isArray(parametro) ? parametro[0] : parametro)?.toUpperCase();
+  return GRUPOS_DE_MODELOS.flatMap((g) => g.tipos).find((t) => t === pedido) ?? null;
+}
+
 export const CATEGORIAS: { valor: TipoReceita; rotulo: string; descricao: string }[] =
   GRUPOS_DE_MODELOS.flatMap((g) => g.tipos.map((valor) => ({ valor, ...INFORMACOES[valor] })));
 
