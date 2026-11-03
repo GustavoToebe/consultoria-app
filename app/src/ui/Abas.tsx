@@ -26,7 +26,7 @@ export function Abas<T extends string>({ abas, ativa, aoMudar, fundo }: Props<T>
   return (
     <Tabs value={ativa} onValueChange={(v) => aoMudar(v as T)} style={[estilos.borda, { borderColor: cores.borda }]}>
       <View style={estilos.area}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={estilos.linha} {...medidas}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={estilos.rolagem} contentContainerStyle={estilos.conteudoRolagem} {...medidas}>
         <TabsList style={estilos.linha}>
           {abas.map((a) => {
             const sel = a.valor === ativa;
@@ -58,10 +58,19 @@ export function Abas<T extends string>({ abas, ativa, aoMudar, fundo }: Props<T>
   );
 }
 
+/** Largura do anel (2 px) mais o afastamento (2 px) do `:focus-visible` do `global.css`. */
+const FOLGA_DO_ANEL = 4;
+/** O gatilho (web) fica 1 px mais alto que a lista (`h-[calc(100%-1px)]` contra o `minHeight` da aba): sem este pixel a borda de baixo do anel perde 1 px. */
+const PIXEL_DO_GATILHO = 1;
+
 const estilos = StyleSheet.create({
   borda: { borderBottomWidth: 1 },
   area: { position: 'relative' },
   linha: { flexDirection: 'row' },
+  // A rolagem corta tudo que passa da sua caixa, e o anel de foco (2 px + 2 px de folga, global.css) passa da aba:
+  // a folga dentro do conteúdo é devolvida com margem negativa, então o layout não muda.
+  rolagem: { marginHorizontal: -FOLGA_DO_ANEL, marginTop: -FOLGA_DO_ANEL, marginBottom: -(FOLGA_DO_ANEL + PIXEL_DO_GATILHO) },
+  conteudoRolagem: { flexDirection: 'row', paddingHorizontal: FOLGA_DO_ANEL, paddingTop: FOLGA_DO_ANEL, paddingBottom: FOLGA_DO_ANEL + PIXEL_DO_GATILHO },
   aba: {
     // 44 px de alvo mais o sublinhado, que entra na própria altura.
     minHeight: ALVO_TOQUE + LINHA_DA_FAIXA,

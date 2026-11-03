@@ -45,10 +45,19 @@ class DatasValidasIntegrationTest extends AbstractIntegrationTest {
         aluno = api.criarAluno(treinador, "Aluno Datas Fictício");
     }
 
+    /**
+     * O valor recusado fora das mensagens da resposta. Confere só {@code message} e {@code fieldErrors}: o corpo
+     * inteiro traz o {@code timestamp} em UTC, que depois das 21h de Brasília cai na data de "amanhã".
+     */
+    private static void semOValor(JsonNode resposta, String valorProibido) {
+        assertThat(resposta.path("message").asString("")).doesNotContain(valorProibido);
+        assertThat(resposta.path("fieldErrors").toString()).doesNotContain(valorProibido);
+    }
+
     /** O erro no campo certo e o valor recusado fora do texto da resposta. */
     private static void recusa(JsonNode resposta, String campo, String valorProibido) {
         assertThat(resposta.get("fieldErrors")).extracting(e -> e.get("field").asString()).contains(campo);
-        assertThat(resposta.toString()).doesNotContain(valorProibido);
+        semOValor(resposta, valorProibido);
     }
 
     private static void recusaComCodigo(JsonNode resposta, String codigo, String campo, String valorProibido) {
@@ -251,10 +260,10 @@ class DatasValidasIntegrationTest extends AbstractIntegrationTest {
             JsonNode r = api.get(rota + "?de=0260-01-01&ate=2026-11-01", treinador, 400);
             assertThat(r.get("codigo").asString()).isEqualTo("PERIODO_INVALIDO");
             assertThat(r.get("message").asString()).isEqualTo("Data inicial: use uma data entre 01/01/2000 e 31/12/" + teto.getYear());
-            assertThat(r.toString()).doesNotContain("0260");
+            semOValor(r, "0260");
             JsonNode depois = api.get(rota + "?de=2026-11-01&ate=" + depoisDoTeto, treinador, 400);
             assertThat(depois.get("message").asString()).startsWith("Data final: use uma data entre");
-            assertThat(depois.toString()).doesNotContain(depoisDoTeto);
+            semOValor(depois, depoisDoTeto);
             api.get(rota + "?de=2000-01-01&ate=2000-01-31", treinador, 200);
         }
     }

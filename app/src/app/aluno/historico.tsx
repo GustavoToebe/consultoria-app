@@ -6,25 +6,23 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ErroApi } from '../../api/cliente';
-import { historicoAluno, pastasDoAluno, pesosAluno } from '../../api/rotas';
+import { historicoAluno, pastasDoAluno } from '../../api/rotas';
 import type { ExercicioPlano, Sessao } from '../../api/tipos';
 import { normalizarTreino } from '../../dominio/editorTreino';
-import { dataParaTela, hojeIso, numeroParaTela } from '../../dominio/formatos';
+import { dataParaTela, hojeIso } from '../../dominio/formatos';
 import { CONFIGURACAO_PADRAO } from '../../dominio/metodologiaPadrao';
 import { cargasPorDivisao, intervaloDeRegistros, periodoMisturaVersoes, TEXTO_PERIODO_MISTURA_VERSOES, textoDoHistoricoVazio, textoSerie } from '../../dominio/relatorio';
-import { variacoesDoPeso, type VariacaoDoPeso as VariacaoCalculada } from '../../dominio/variacaoDoPeso';
 import { useAluno } from '../../offline/AlunoProvider';
 import type { RegistroLocal } from '../../offline/repositorioLocal';
 import { imprimir } from '../../pdf/imprimir';
 import { logoComoDataUri } from '../../pdf/logo';
 import { documentoCargas } from '../../pdf/pdfCargas';
-import { useTema } from '../../tema/TemaProvider';
-import { espaco, fontes } from '../../tema/tokens';
+import { fontes } from '../../tema/tokens';
 import { CargasPorDivisao } from '../../treinador/CargasPorDivisao';
 import { CartaoAvaliacaoFisica } from '../../treinador/CartaoAvaliacaoFisica';
+import { CartaoPeso } from '../../treinador/CartaoPeso';
 import { CartaoProgresso } from '../../treinador/CartaoProgresso';
 import { DiaRegistros, VISOES, type VisaoRegistros } from '../../treinador/CartaoRegistros';
-import { LegendaDaVariacao, VariacaoDoPeso } from '../../treinador/VariacaoDoPeso';
 import { Abas } from '../../ui/Abas';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
@@ -43,7 +41,7 @@ const DIAS = 30;
 
 /**
  * Histórico: o que ainda está só no aparelho, os treinos registrados no período do plano em uso (sem plano com período,
- * os últimos 30 dias), o progresso por exercício e o peso.
+ * os últimos 30 dias), o progresso por exercício, o peso (lista e gráfico) e a avaliação física.
  */
 export default function HistoricoAluno() {
   const { registros, pacote, escolhida, falhas, tentarDeNovo, online } = useAluno();
@@ -62,7 +60,6 @@ export default function HistoricoAluno() {
   const { de, ate } = intervaloDeRegistros(hoje, DIAS, daPasta ? (pasta ?? undefined) : undefined);
   const aguardandoPastas = pastas.carregando && !pastas.dados;
   const historico = useCarregar(aguardandoPastas ? null : `hist:${de}:${ate}`, () => historicoAluno(de, ate));
-  const pesos = useCarregar('pesos-aluno', () => pesosAluno());
   const naoEnviados = registros.filter((r) => r.situacao !== 'ENVIADO' && r.concluida);
 
   // Nomes vêm do plano salvo (o registro guarda só os uids).
@@ -80,9 +77,6 @@ export default function HistoricoAluno() {
   for (const { sessao } of nomes.values()) sessoes.set(sessao.uid, sessao);
   const divisoes = historico.dados ? cargasPorDivisao(historico.dados, sessoes) : [];
   const vazio = textoDoHistoricoVazio({ temRegistros: false, graficosLigados: true, papel: 'ALUNO' });
-  // A11: a variação do peso diz contra quando ("desde 12/10"), igual à ficha do treinador.
-  const pesosRecentes = [...(pesos.dados ?? [])].sort((a, b) => b.data.localeCompare(a.data));
-  const variacoes = variacoesDoPeso(pesos.dados ?? []);
 
   const pdf = () => {
     if (!pacote) return;
@@ -163,21 +157,8 @@ export default function HistoricoAluno() {
 
       <CartaoProgresso />
 
-      <Cartao titulo="Peso">
-        {pesos.dados?.length ? (
-          // Mais recente primeiro, como nas outras listas do aluno.
-          <>
-            {pesosRecentes.map((p) => (
-              <LinhaPeso key={p.id} data={p.data} peso={p.pesoKg} variacao={variacoes[p.id] ?? null} />
-            ))}
-            {pesosRecentes.some((p) => variacoes[p.id]) ? <LegendaDaVariacao /> : null}
-          </>
-        ) : pesos.carregando ? (
-          <Esqueleto texto="Carregando pesos" cartoes={1} />
-        ) : (
-          <Texto numerico variante="suave">{pesos.erro ? 'Sem conexão.' : 'Nenhum registro de peso.'}</Texto>
-        )}
-      </Cartao>
+      {/* O mesmo cartão da ficha, só leitura (lista e gráfico); o peso não fica guardado no aparelho. */}
+      <CartaoPeso />
 
       <CartaoAvaliacaoFisica online={online} />
     </Tela>
@@ -193,23 +174,7 @@ function agrupar(lista: RegistroLocal[]): [string, RegistroLocal[]][] {
   return [...grupos];
 }
 
-function LinhaPeso({ data, peso, variacao }: { data: string; peso: number; variacao: VariacaoCalculada | null }) {
-  const { cores } = useTema();
-  return (
-    <View style={[estilos.peso, { borderColor: cores.borda }]}>
-      <Texto numerico style={estilos.coluna}>{dataParaTela(data)}</Texto>
-      <Texto numerico style={[estilos.forte, estilos.coluna]}>{numeroParaTela(peso)} kg</Texto>
-      <View style={[estilos.coluna, estilos.variacao]}>
-        <VariacaoDoPeso variacao={variacao} />
-      </View>
-    </View>
-  );
-}
-
 const estilos = StyleSheet.create({
   linha: { gap: 2 },
   forte: { fontFamily: fontes.semi },
-  peso: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', borderTopWidth: 1, paddingTop: espaco(1), gap: espaco(1) },
-  coluna: { flex: 1 },
-  variacao: { alignItems: 'flex-end' },
 });

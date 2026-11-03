@@ -2,7 +2,7 @@ import { useSessao } from '../../../sessao/SessaoProvider';
 import { Permitido } from '../../../ui/Permitido';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ellipsis, Pencil, UserCheck, UserMinus } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { aluno as buscarAluno, alterarAluno, alterarSituacaoAluno, consultoria as buscarConsultoria, escolherQuestionarioDoAluno } from '../../../api/rotas';
@@ -30,6 +30,7 @@ import { CartaoAnamnese } from '../../../treinador/anamnese/CartaoAnamnese';
 import { LinhaDoCicloNaFicha } from '../../../treinador/ciclo/CicloNaFicha';
 import { CartaoPlanoContratado } from '../../../treinador/financeiro/CartaoPlanoContratado';
 import { FormAluno } from '../../../treinador/FormAluno';
+import { FotoDePerfilPelaEquipe } from '../../../treinador/FotoDePerfilPelaEquipe';
 import { AcoesDePrivacidade } from '../../../treinador/privacidade/AcoesDePrivacidade';
 import { ResponsavelAluno } from '../../../treinador/equipe/ResponsavelAluno';
 import { SeletorDeQuestionario } from '../../../treinador/questionarios/SeletorDeQuestionario';
@@ -68,6 +69,26 @@ export default function FichaAluno() {
   const renovacao = useRenovarPasta(aluno ? cicloDoAluno(aluno.diasAtualizacao, padrao) : null, mudouPastas);
   const [menu, setMenu] = useState(false);
   const [confirmarSituacao, setConfirmarSituacao] = useState(false);
+  // Sabido pela foto do topo (o Resumo a baixa); `null` até lá.
+  const [temFoto, setTemFoto] = useState<boolean | null>(null);
+  // `?pastaId=` ("Voltar à pasta", "Abrir pasta" da atualização) abre a Folha da pasta e sai do endereço na hora, como o
+  // `?editar=1`: recarregar a ficha não reabre a Folha e o voltar do navegador não tem passo sobrando (C22). O pedido
+  // guarda o id e uma contagem: a Folha abre de novo quando outro pedido chega com a ficha já na tela (o "Voltar à
+  // pasta" volta a esta ficha pela pilha em vez de empilhar outra).
+  const [pedidoDePasta, setPedidoDePasta] = useState<{ id?: string; vez: number }>({ id: pastaId, vez: 0 });
+  const pastaVista = useRef(pastaId);
+  useEffect(() => {
+    if (!pastaId) { pastaVista.current = undefined; return; }
+    const novo = pastaVista.current !== pastaId;
+    pastaVista.current = pastaId;
+    let vivo = true;
+    void Promise.resolve().then(() => {
+      if (!vivo) return;
+      if (novo) setPedidoDePasta((p) => ({ id: pastaId, vez: p.vez + 1 }));
+      router.setParams({ pastaId: undefined });
+    });
+    return () => { vivo = false; };
+  }, [pastaId]);
   const temMenu = !!aluno && ((pode('ALUNO_ALTERAR') && !aluno.anonimizado) || pode('ALUNO_EXPORTAR') || (pode('ALUNO_ANONIMIZAR') && !aluno.ativo && !aluno.anonimizado));
 
   return (
@@ -78,10 +99,10 @@ export default function FichaAluno() {
       {!aluno && carregando ? <Esqueleto /> : null}
       {aluno ? (
         <>
-          <ResumoDoAluno aluno={aluno} acompanhamento={acompanhamento} aoRenovar={renovacao.pedir}>
-            <DadosDoAluno aluno={aluno} padrao={padrao} aoAlterar={definir} />
+          <ResumoDoAluno aluno={aluno} acompanhamento={acompanhamento} aoRenovar={renovacao.pedir} aoSaberDaFoto={setTemFoto}>
+            <DadosDoAluno aluno={aluno} padrao={padrao} aoAlterar={definir} temFoto={temFoto} aoRecarregar={recarregar} />
           </ResumoDoAluno>
-          <CartaoPastas key={`${aluno.id}:${pastaId??''}`} pastaInicialId={pastaId} alunoId={aluno.id} alunoNome={aluno.nome} diasAtualizacao={cicloDoAluno(aluno.diasAtualizacao, padrao)}
+          <CartaoPastas key={`${aluno.id}:${pedidoDePasta.vez}`} pastaInicialId={pedidoDePasta.id} alunoId={aluno.id} alunoNome={aluno.nome} diasAtualizacao={cicloDoAluno(aluno.diasAtualizacao, padrao)}
             geracao={geracaoPastas} aoMudar={mudouPastas} aoGravarPeso={() => setGeracaoPeso((g) => g + 1)} />
           {/* Frequência, Mobilidade e Água são o mesmo tipo de contagem: lado a lado no PC, uma embaixo da outra no celular. */}
           {pode('REGISTRO_LER') ? (
@@ -167,13 +188,16 @@ function ConfirmarSituacao({ aluno, visivel, aoFechar, aoAlterar }: { aluno: Alu
 
 /**
  * Dados do aluno, dentro do cartão de cima da ficha: só leitura em grade (Cadastro, Dados pessoais e Acompanhamento,
- * as mesmas seções do formulário) até "Editar", que abre o formulário ali mesmo. O acesso ao app fica nessa mesma
+ * as mesmas seções do formulário) até "Editar", que abre o formulário ali mesmo. Em Cadastro, quem pode editar troca ou
+ * remove a foto de perfil (a foto em si está no topo do mesmo cartão). O acesso ao app fica nessa mesma
  * área, numa linha (situação, e-mail de acesso e senha). O questionário de atualização também se troca no modo de
  * edição (fora dele é um campo de leitura, como os outros).
  * `?editar=1` (o lápis da lista de alunos) abre já editando, para quem pode editar, e sai do endereço na hora, como o
  * `?novo=1` do Planejamento: o voltar do navegador não tem passo sobrando.
  */
-function DadosDoAluno({ aluno, padrao, aoAlterar }: { aluno: AlunoDetalhe; padrao: number | null; aoAlterar: (a: AlunoDetalhe) => void }) {
+function DadosDoAluno({ aluno, padrao, aoAlterar, temFoto, aoRecarregar }: {
+  aluno: AlunoDetalhe; padrao: number | null; aoAlterar: (a: AlunoDetalhe) => void; temFoto: boolean | null; aoRecarregar: () => void;
+}) {
   const { pode } = useSessao();
   const { avisar } = useAviso();
   const [editando, setEditando] = useState(false);
@@ -217,6 +241,8 @@ function DadosDoAluno({ aluno, padrao, aoAlterar }: { aluno: AlunoDetalhe; padra
             <CampoLeitura rotulo="Telefone" valor={aluno.telefone} />
             {!aluno.temAcesso && !aluno.anonimizado ? <Texto variante="pequeno">{NOTA_TELEFONE_SEM_ACESSO}</Texto> : null}
             <Permitido codigo="ALUNO_SENSIVEL_LER"><CampoLeitura rotulo="Objetivo" valor={aluno.objetivo} /></Permitido>
+            {/* C44: a equipe troca ou remove a foto de perfil (só com ALUNO_ALTERAR e aluno não anonimizado). */}
+            {podeEditar ? <FotoDePerfilPelaEquipe alunoId={aluno.id} alunoNome={aluno.nome} temFoto={temFoto} aoAnonimizado={aoRecarregar} /> : null}
           </View>
           <Permitido codigo="ALUNO_SENSIVEL_LER">
             <View style={estilos.colunaDados}>

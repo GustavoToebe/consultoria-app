@@ -891,6 +891,62 @@ export interface FinalizarPastaRequest {
   observacao: string | null;
 }
 
+/**
+ * Publicar tudo: `confirmarAvisos` tem o sentido da publicação de um plano só. `versoes` é obrigatório: `{planoId:
+ * versao}` (a `versao` do `PlanoResumo`, o lock do rascunho) de cada plano pendente que a tela leu. Pendente com versão
+ * diferente ou ausente = 409 `CONFLITO_EDICAO` e nada é publicado; pode ser `{}` só em pasta sem pendentes.
+ */
+export interface PublicarPastaRequest {
+  confirmarAvisos: boolean;
+  versoes: Record<string, number>;
+}
+
+/** Versão que a pasta publicou de cada plano; `tipo` em minúsculas, como o prefixo dos erros (`treino.<caminho>`). */
+export interface PlanoPublicadoNaPasta {
+  tipo: TipoPlano;
+  planoId: string;
+  versao: number;
+}
+
+/** Plano que ficou como estava: já publicado e sem alteração no rascunho depois disso. */
+export interface PlanoPuladoNaPasta {
+  tipo: TipoPlano;
+  planoId: string;
+}
+
+/** Listas vazias nas duas = nada a publicar. `pulados` traz só os tipos que a pessoa pode ler. */
+export interface PublicarPastaResposta {
+  publicados: PlanoPublicadoNaPasta[];
+  pulados: PlanoPuladoNaPasta[];
+}
+
+/** O destino recebe uma pasta nova com este título e período (opcionais, como em `DadosPasta`). */
+export interface CopiarPastaRequest {
+  alunoId: string;
+  titulo: string;
+  inicio: string | null;
+  fim: string | null;
+}
+
+/** Tipo que a cópia deixou de fora: hoje só a mobilidade, quando a funcionalidade não está no plano da consultoria. */
+export interface PlanoPuladoNaCopia {
+  tipo: TipoPlano;
+  motivo: 'FUNCIONALIDADE_FORA_DO_PLANO';
+}
+
+/** A cópia leva a versão publicada de cada plano (o rascunho, se nunca foi publicado), sempre como rascunho no destino. */
+export interface CopiarPastaResposta {
+  pastaId: string;
+  planos: { tipo: TipoPlano; planoId: string }[];
+  pulados: PlanoPuladoNaCopia[];
+}
+
+/** Peso e data gravados pela atualização enviada da pasta; ambos `null` quando não há (nunca zero). */
+export interface PesoSugeridoDaPasta {
+  pesoKg: number | null;
+  data: string | null;
+}
+
 export interface PlanoResumo {
   id: string;
   alunoId: string;

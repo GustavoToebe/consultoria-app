@@ -46,6 +46,17 @@ public class PesoService {
         return lista;
     }
 
+    /**
+     * Rota do próprio aluno: a observação é anotação da equipe e nunca chega a ele, então sai nula aqui no servidor
+     * (o app não é a barreira).
+     */
+    @Transactional(readOnly = true)
+    public List<PesoResponse> listarParaAluno(UUID alunoId) {
+        return listar(alunoId).stream()
+                .map(p -> new PesoResponse(p.id(), p.data(), p.pesoKg(), p.variacao(), null))
+                .toList();
+    }
+
     /** Uma medida por dia: registrar de novo na mesma data substitui. */
     @Transactional
     @br.com.treinos.api.auditoria.Auditar(acao="PESO_REGISTRADO",entidade="PESO",resumo="Registrou ou alterou um peso.")

@@ -25,7 +25,7 @@ de texto: o convite da equipe (C68) e o "Outros" da dieta (C54).
 | D4 | **Nascimento e pergunta DATA** do questionário | 1900 até hoje com `somentePassado`; sem ele, até o ano atual + 5 | Gustavo |
 | D5 | Atraso acima de 365 dias | mostrar "Atrasada desde dd/mm/aaaa" em vez de contar os dias (`dominio/atualizacao.ts` e `RegrasAtualizacao`) | Gustavo |
 | D6 | Mensagem de erro | no próprio campo (app). Na API: **campo de corpo (formulário)** = 422 que diz o campo e **não repete o valor**; **filtros de período `de`/`ate` (query: atualizações, auditoria, importações, interessados)** = 400 `PERIODO_INVALIDO`, o código que já existia, só com a faixa nova, e a mensagem diz qual parâmetro veio errado ("Data inicial" ou "Data final") sem repetir o valor (revisada em 02/11/2026) | Gustavo |
-| D7 | Datas ruins já gravadas em produção | não corrigir nem contar sem ordem do Gustavo | Gustavo |
+| D7 | Datas ruins já gravadas em produção (anos 0260/0261) | (Gustavo, 03/11) primeiro uma contagem pelo usuário só de leitura (`claude_leitura`): só o número e os ids das pastas, sem nome; a contagem só roda com o ok do Gustavo, na hora. Quem corrige é o próprio treinador pela tela, porque as datas novas já são validadas. **Nunca `UPDATE` no banco** | Gustavo |
 | D8 | C68 | o botão "Gerar convite" da equipe deixa claro que o e-mail já foi enviado e que o link é só para copiar se precisar | Gustavo |
 | D9 | C54 | em "Outros", o aluno e o PDF da dieta mostram só a dose prescrita; concentração e apresentação ficam na biblioteca e no editor do treinador | Gustavo |
 
