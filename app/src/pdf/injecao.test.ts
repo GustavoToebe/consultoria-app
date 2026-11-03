@@ -16,8 +16,8 @@ import { documentoTreino } from './pdfTreino';
 jest.mock('../dominio/uid', () => ({ novoUid: () => 'uid' }));
 
 /**
- * Trava de segurança do `innerHTML` de `imprimir.web.ts`: os cinco geradores montam HTML por texto e a web o injeta na
- * página, então um campo de texto livre sem `esc()` viraria XSS armazenado. Aqui TODA string das entradas vira um
+ * Trava de segurança da impressão na web: os cinco geradores montam HTML por texto e `imprimir.web.ts` o lê por
+ * `DOMParser` e o põe na página (sem `innerHTML`; a segunda barreira está em `imprimir.web.dom.test.ts`), então um campo de texto livre sem `esc()` viraria XSS armazenado. Aqui TODA string das entradas vira um
  * ataque (com o caminho do campo dentro dele), menos as chaves que só LIGAM objetos entre si (`LIGACAO`: se mudassem de
  * valor, o grupo perderia os exercícios e o PDF mostraria menos). Campo novo de texto livre entra no teste sozinho; se
  * ele sair sem `esc()`, o teste aponta o caminho.

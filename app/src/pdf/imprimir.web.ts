@@ -25,8 +25,7 @@ export async function imprimir(d: Documento): Promise<void> {
 }`;
   const conteudo = document.createElement('div');
   conteudo.className = 'doc';
-  // O HTML foi montado com esc() em todo texto do usuário (pdf/html.ts).
-  conteudo.innerHTML = d.corpo;
+  conteudo.append(montarCorpo(d.corpo));
   bloco.append(estilo, conteudo);
   document.body.append(bloco);
 
@@ -45,6 +44,30 @@ export async function imprimir(d: Documento): Promise<void> {
   // Se outra impressão começou durante a espera, esta já foi desfeita: não imprime um bloco que não existe mais.
   if (limparAnterior !== limpar) return;
   window.print();
+}
+
+/** O que um documento de impressão nunca precisa ter: o gerador não escreve nenhum destes. */
+const ELEMENTOS_PROIBIDOS = 'script, iframe, object, embed, base, link, meta, form';
+
+/**
+ * Lê o HTML do gerador num documento inerte (`DOMParser`: nada executa nem carrega) e devolve os nós já importados, sem
+ * `innerHTML`. O texto do usuário já passa por `esc()` (pdf/html.ts); aqui fica a segunda barreira. Higieniza ANTES de
+ * importar porque um `<script>` vindo do `DOMParser` e posto na página pode executar (o do `innerHTML` não): tira
+ * elementos ativos, atributos `on*` e `javascript:`.
+ */
+export function montarCorpo(html: string): DocumentFragment {
+  const lido = new DOMParser().parseFromString(html, 'text/html');
+  lido.querySelectorAll(ELEMENTOS_PROIBIDOS).forEach((e) => e.remove());
+  for (const e of lido.body.querySelectorAll('*')) {
+    for (const nome of e.getAttributeNames()) {
+      if (/^on/i.test(nome) || (/^(href|src|xlink:href|action|formaction)$/i.test(nome) && /^[\s\u0000-\u001f]*javascript:/i.test(e.getAttribute(nome) ?? ''))) {
+        e.removeAttribute(nome);
+      }
+    }
+  }
+  const fragmento = document.createDocumentFragment();
+  for (const no of Array.from(lido.body.childNodes)) fragmento.append(document.importNode(no, true));
+  return fragmento;
 }
 
 /** Prazo total para as imagens do documento; passado dele, imprime com o que carregou. */
