@@ -1,5 +1,6 @@
 import { coresComBordasReforcadas, coresComContraste } from '../dominio/preferencias';
-import { AREIA, CLARO, ESCURO, contraste, tingido, type Cores } from '../tema/tokens';
+import { coresDoMarcar } from './marcar';
+import { AREIA, CLARO, ESCURO, contraste, textoSobre, tingido, type Cores } from '../tema/tokens';
 
 /**
  * Pares de cor que as peças comuns de `ui/` usam depois do passo 1 da atualização visual (30/10), conferidos em todos os
@@ -50,6 +51,28 @@ describe.each(VARIANTES)('peças comuns no tema %s', (_nome, cores) => {
 
   it('IconeBotao moldura: borda `bordaCampo` ≥ 3:1 contra o cartão e contra a faixa onde fica (o ⋯ e o X da Folha)', () => {
     for (const s of [cores.fundo, cores.superficie, cores.superficie3]) expect(contraste(cores.bordaCampo, s)).toBeGreaterThanOrEqual(3);
+  });
+
+  it('Botao perigo: rótulo `textoSobre(perigoFundo)` sobre o `perigoFundo` (sem cor fixa no botão)', () => {
+    expect(contraste(textoSobre(cores.perigoFundo), cores.perigoFundo)).toBeGreaterThanOrEqual(4.5);
+    // Era o `#FFFFFF` fixo: o visual do botão não muda em nenhum tema.
+    expect(textoSobre(cores.perigoFundo)).toBe('#FFFFFF');
+  });
+
+  it('Botao perigoTexto e secundário: `perigo` e `texto` sobre o cartão, a faixa e o fundo', () => {
+    for (const s of [cores.fundo, cores.superficie, cores.superficie3]) {
+      expect(contraste(cores.perigo, s)).toBeGreaterThanOrEqual(4.5);
+      expect(contraste(cores.texto, s)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it('QuadroKanban com movimento reduzido: borda `anelFoco` do cartão arrastado ≥ 3:1 sobre o cartão e a coluna', () => {
+    for (const s of [cores.superficie, cores.superficie2]) expect(contraste(cores.anelFoco, s)).toBeGreaterThanOrEqual(3);
+  });
+
+  it('BotaoMarcar desabilitado (prévia): ícone `textoSuave` sobre a faixa `superficie3` ≥ 4,5:1 (sem opacidade)', () => {
+    const c = coresDoMarcar(cores, { feito: false, desabilitado: true, pressionado: false });
+    expect(contraste(c.icone, c.fundo)).toBeGreaterThanOrEqual(4.5);
   });
 
   it('Cabecalho: selo "Sem conexão" com ícone (neutro sobre `tingido`)', () => {

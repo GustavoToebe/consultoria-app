@@ -11,7 +11,7 @@ public final class EquipeDtos {
     public record PerfilResponse(UUID id,String nome,String descricao,boolean acessoTotal,boolean sistema,boolean ativo,
                                  Set<String> permissoes,long usuarios,Long versao) { }
     public record UsuarioResponse(UUID id,String nome,String email,UUID perfilId,String perfilNome,boolean ativo,
-                                  boolean convitePendente,Instant conviteExpiraEm,Instant ultimoAcesso) { }
+                                  boolean convitePendente,Instant conviteExpiraEm,Instant ultimoAcesso,Integer limiteDeAlunos) { }
     public record ConviteRequest(@NotBlank @Size(max=120) String nome,@NotBlank @Email @Size(max=254) String email,
                                 @NotNull UUID perfilId) { }
     /** {@code emailEnviado}: o link também foi por e-mail; senão quem convidou copia o link da resposta. */

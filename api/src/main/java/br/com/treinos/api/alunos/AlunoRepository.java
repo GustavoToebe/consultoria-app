@@ -54,4 +54,12 @@ public interface AlunoRepository extends JpaRepository<Aluno, UUID>, JpaSpecific
     @Query("select count(a) from Aluno a where a.ativo = false and a.anonimizadoEm is null "
             + "and (:responsavelId is null or a.responsavelId = :responsavelId)")
     long contarInativosNaoAnonimizadosDoEscopo(UUID responsavelId);
+
+    /**
+     * Alunos ativos e não anonimizados do responsável: a contagem do limite de alunos do treinador (D6) e a mesma dos Números.
+     * {@code exceto} tira da conta um aluno que já pode estar gravado com o responsável (o que a operação está mexendo); nulo = ninguém.
+     */
+    @Query("select count(a) from Aluno a where a.responsavelId = :responsavelId and a.ativo = true and a.anonimizadoEm is null "
+            + "and (:exceto is null or a.id <> :exceto)")
+    long contarAtivosDoResponsavel(UUID responsavelId, UUID exceto);
 }
