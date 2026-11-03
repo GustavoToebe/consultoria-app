@@ -1,6 +1,6 @@
 # Ver como o aluno (C34)
 
-Situação: Em andamento · Onde: branch `ver-como-aluno` (um PR) · Atualizado: 03/11/2026 · Registro: reunião de 30/10, C34
+Situação: Em revisão (PR #53) · Onde: branch `ver-como-aluno` (um PR) · Atualizado: 03/11/2026 · Registro: reunião de 30/10, C34
 
 ## Objetivo
 No editor do plano de treino e de dieta do aluno, o treinador abre uma prévia "como o aluno vê", só de leitura, com o
