@@ -18,15 +18,16 @@ import { TipoDaSerieComExplicacao } from './TipoDaSerieComExplicacao';
  */
 
 /**
- * "Série 3 · Back off" (o tipo é o toque da explicação), o selo da técnica e, enquanto a série não foi marcada, o selo
- * neutro "Ainda não registrado". Com recorde, a medalha e o selo "Recorde" (verde: é um fato concluído).
+ * "Série 3 · Back off" (o tipo é o toque da explicação), o selo da técnica e, só na série já registrada, o selo "Feita" ou
+ * "Não feita" (série sem registro não tem selo). Com recorde, a medalha e o selo "Recorde" (verde: é um fato concluído).
  */
-export function CabecalhoDaSerie({ numero, tipo, tecnica, recordes, naoRegistrada }: {
+export function CabecalhoDaSerie({ numero, tipo, tecnica, recordes, registro }: {
   numero: number;
   tipo: SeloDaSerie | null;
   tecnica: SeloDaSerie | null;
   recordes?: Recorde[] | null;
-  naoRegistrada: boolean;
+  /** Só a série registrada tem selo (auditoria 03/11): sem registro, os campos já dizem que está vazia. */
+  registro: 'FEITA' | 'NAO_FEITA' | null;
 }) {
   const { cores } = useTema();
   const comRecorde = !!recordes?.length;
@@ -48,7 +49,8 @@ export function CabecalhoDaSerie({ numero, tipo, tecnica, recordes, naoRegistrad
       </View>
       {tecnica ? <SeloComExplicacao nome={tecnica.nome} explicacao={tecnica.explicacao} rotuloAcessivel={`Explicação de ${tecnica.nome}, série ${numero}`} /> : null}
       {comRecorde ? <Selo texto="Recorde" tipo="sucesso" /> : null}
-      {naoRegistrada ? <Selo texto="Ainda não registrado" tipo="neutro" /> : null}
+      {registro === 'FEITA' ? <Selo texto="Feita" tipo="sucesso" /> : null}
+      {registro === 'NAO_FEITA' ? <Selo texto="Não feita" tipo="neutro" /> : null}
     </View>
   );
 }

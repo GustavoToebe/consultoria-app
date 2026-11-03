@@ -3,7 +3,7 @@ import { serie, tecnica } from './exemplosDeTreino.apoioTeste';
 import { descansoAoIniciar, iniciarDescanso, semDescansoDe, type Descanso } from './descanso';
 import {
   aplicarAcao, cargaComum, comEtapa, etapasDaSerie, ligaPausaInterna, origemDaPausa, pausaDaAcao, proximaPendente, quantidadeDeEtapas, feitoAteAgora, faltaParaConcluir,
-  semEtapa, somarVolumes, todasComSituacao, totalDasEtapas, volumeDaSerie,
+  semEtapa, seloDaSerieComEtapas, somarVolumes, todasComSituacao, totalDasEtapas, volumeDaSerie,
 } from './etapas';
 
 const feita = (posicao: number, repeticoes: number | null, carga: number | null = 40): EtapaRegistrada => ({ posicao, repeticoes, carga, situacao: 'FEITA' });
@@ -193,5 +193,15 @@ describe('rodapé do cartão único (Frente G, D12)', () => {
     const rp = etapasDaSerie(serie('r', { repsMin: 6, repsMax: 8, tecnica: tecnica('REST_PAUSE', { pausaSegundos: 20 }) }))!;
     expect(faltaParaConcluir([feita(1, 7)], rp)).toBe('Falta a retomada para concluir.');
     expect(faltaParaConcluir([], rp)).toBe('Faltam 2 etapas para concluir.');
+  });
+});
+
+describe('selo "Não feita" da série com etapas', () => {
+  it('só com todas as etapas previstas marcadas como não realizadas', () => {
+    expect(seloDaSerieComEtapas(false, [naoFeita(1), naoFeita(2)], 2)).toBe('NAO_FEITA');
+    expect(seloDaSerieComEtapas(false, [naoFeita(1)], 2)).toBeNull(); // falta marcar a etapa 2
+    expect(seloDaSerieComEtapas(false, [], 2)).toBeNull();
+    expect(seloDaSerieComEtapas(false, [naoFeita(1), feita(2, 4)], 2)).toBeNull();
+    expect(seloDaSerieComEtapas(true, [naoFeita(1), naoFeita(2)], 2)).toBe('FEITA');
   });
 });

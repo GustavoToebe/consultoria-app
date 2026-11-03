@@ -92,9 +92,10 @@ export function itemDoPagamento(
 /** Quantos avisos aparecem de uma vez em "Suas pendências"; a API devolve até 20 (os mais novos primeiro). */
 export const AVISOS_VISIVEIS = 5;
 
-/** Item de aviso: `id` é o do aviso, para marcar como visto ao tocar. */
+/** Item de aviso: `ids` são os avisos que tocar marca como vistos (um, ou todos os "novos" do grupo); `id` é o primeiro. */
 export interface ItemDoAviso extends ItemParaFazer {
   id: string;
+  ids: string[];
   tipo: TipoAvisoCompromisso;
 }
 
@@ -119,16 +120,28 @@ export function textoDoAviso(a: Pick<AvisoDeCompromisso, 'tipo' | 'inicio' | 're
  */
 export function itemDoAviso(a: AvisoDeCompromisso, hoje: string): ItemDoAviso {
   return {
-    id: a.id, tipo: a.tipo, titulo: textoDoAviso(a, hoje), detalhe: 'Toque para ver seus compromissos.',
+    id: a.id, ids: [a.id], tipo: a.tipo, titulo: textoDoAviso(a, hoje), detalhe: 'Toque para ver seus compromissos.',
     selo: { texto: SELO_DO_AVISO[a.tipo] ?? 'Aviso', tipo: 'neutro' }, responder: false,
   };
 }
 
 /**
+ * Dois ou mais avisos "novo compromisso" viram um item só, "4 compromissos novos" (N8 da auditoria: 4 avisos separados
+ * inflavam o "Suas pendências: 7"). Tocar nele marca todos como vistos. Remarcado e cancelado seguem um por item, porque
+ * cada um diz um horário diferente. Um "novo" sozinho continua com a frase completa.
+ */
+export function itemDosNovos(novos: readonly AvisoDeCompromisso[]): ItemDoAviso {
+  return {
+    id: novos[0].id, ids: novos.map((n) => n.id), tipo: 'NOVO', titulo: `${novos.length} compromissos novos`,
+    detalhe: 'Toque para ver seus compromissos.', selo: { texto: SELO_DO_AVISO.NOVO, tipo: 'neutro' }, responder: false,
+  };
+}
+
+/**
  * Os avisos da lista da API (não vistos, mais novos primeiro: a ordem da API se mantém) como itens, sem repetir `id` e sem
- * aviso de data inválida; no máximo {@link AVISOS_VISIVEIS} aparecem e `ocultos` conta os que ficam para depois (cada um
- * some quando o aluno vê o anterior). `total` (com os ocultos) é o que o ponto da aba Início e a contagem das pendências
- * usam.
+ * aviso de data inválida, com os "novos" agrupados num item (no lugar do primeiro deles); no máximo {@link AVISOS_VISIVEIS}
+ * aparecem e `ocultos` conta os itens que ficam para depois (cada um some quando o aluno vê o anterior). `total` (com os
+ * ocultos) é o que o ponto da aba Início e a contagem das pendências usam.
  */
 export function avisosDoInicio(avisos: readonly AvisoDeCompromisso[] | null | undefined, hoje: string):
   { itens: ItemDoAviso[]; ocultos: number; total: number } {
@@ -139,8 +152,13 @@ export function avisosDoInicio(avisos: readonly AvisoDeCompromisso[] | null | un
     vistos.add(a.id);
     validos.push(a);
   }
-  const itens = validos.slice(0, AVISOS_VISIVEIS).map((a) => itemDoAviso(a, hoje));
-  return { itens, ocultos: validos.length - itens.length, total: validos.length };
+  const novos = validos.filter((a) => a.tipo === 'NOVO');
+  const todos = validos.flatMap((a) => {
+    if (novos.length < 2 || a.tipo !== 'NOVO') return [itemDoAviso(a, hoje)];
+    return a === novos[0] ? [itemDosNovos(novos)] : [];
+  });
+  const itens = todos.slice(0, AVISOS_VISIVEIS);
+  return { itens, ocultos: todos.length - itens.length, total: todos.length };
 }
 
 /** Há aviso de compromisso não visto (o ponto na aba Início). */

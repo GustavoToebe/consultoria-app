@@ -60,7 +60,7 @@ export function CampoFotos({ pergunta: p, valor, carregarDaEquipe, rotulo }: Pro
       </Pressable>
     );
 
-  const cabecalho = <Texto variante="rotulo">{rotulo}</Texto>;
+  const cabecalho = <Texto variante="rotulo" cor={cores.texto}>{rotulo}</Texto>;
   const ajuda = p.ajuda ? <Texto variante="pequeno">{p.ajuda}</Texto> : null;
 
   // Treinador, ou aluno com a atualização já enviada.

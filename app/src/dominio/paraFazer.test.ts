@@ -1,7 +1,7 @@
 import type { Atualizacao } from '../api/tipos';
 import type { CobrancaDoAluno } from '../api/financeiroTipos';
 import type { AvisoDeCompromisso } from '../api/agendaTipos';
-import { AVISOS_VISIVEIS, avisosDoInicio, ITEM_ANAMNESE, itemDaAtualizacao, itemDoAviso, itemDoPagamento, temAvisoDeCompromisso, textoDoAviso } from './paraFazer';
+import { AVISOS_VISIVEIS, avisosDoInicio, ITEM_ANAMNESE, itemDaAtualizacao, itemDoAviso, itemDoPagamento, itemDosNovos, temAvisoDeCompromisso, textoDoAviso } from './paraFazer';
 
 const base = { id: 'a', pastaId: 'p', alunoId: 'x', nomeAluno: null, dataAtualizacao: '2026-10-20', fase: 'AVISO', diasParaData: 3, diasDeAtraso: 0,
   atrasoAte: null, atrasoMotivo: null, questionarioVersaoNumero: 1, questionarioVersaoId: 'v', questionarioNome: null, modelo: null, respostas: null,
@@ -126,7 +126,7 @@ describe('aviso de compromisso nas pendências (D12)', () => {
 
   it('o item: frase no título, selo neutro com o tipo, sem botão de responder e com o id para marcar visto', () => {
     expect(itemDoAviso(aviso({ tipo: 'CANCELADO' }), hoje)).toEqual({
-      id: 'v1', tipo: 'CANCELADO', titulo: 'Compromisso cancelado: 05/11 às 09:00 com Ana', detalhe: 'Toque para ver seus compromissos.',
+      id: 'v1', ids: ['v1'], tipo: 'CANCELADO', titulo: 'Compromisso cancelado: 05/11 às 09:00 com Ana', detalhe: 'Toque para ver seus compromissos.',
       selo: { texto: 'Cancelado', tipo: 'neutro' }, responder: false,
     });
     expect(itemDoAviso(aviso({ tipo: 'REMARCADO' }), hoje).selo).toEqual({ texto: 'Remarcado', tipo: 'neutro' });
@@ -134,12 +134,37 @@ describe('aviso de compromisso nas pendências (D12)', () => {
   });
 
   it('mantém a ordem da API (mais novos primeiro) e limita o que aparece', () => {
-    const lista = Array.from({ length: 8 }, (_, i) => aviso({ id: `v${i}`, inicio: `2026-11-0${i + 1}T12:00:00Z` }));
+    const lista = Array.from({ length: 8 }, (_, i) => aviso({ id: `v${i}`, tipo: 'REMARCADO', inicio: `2026-11-0${i + 1}T12:00:00Z` }));
     const { itens, ocultos, total } = avisosDoInicio(lista, hoje);
     expect(itens.map((i) => i.id)).toEqual(['v0', 'v1', 'v2', 'v3', 'v4']);
     expect(itens).toHaveLength(AVISOS_VISIVEIS);
     expect(ocultos).toBe(3);
     expect(total).toBe(8);
+  });
+
+  it('N8: vários "novo compromisso" viram um item só, no lugar do primeiro, e contam como uma pendência', () => {
+    const lista = [
+      aviso({ id: 'n1' }), aviso({ id: 'r1', tipo: 'REMARCADO' }), aviso({ id: 'n2' }), aviso({ id: 'n3' }), aviso({ id: 'n4' }),
+      aviso({ id: 'c1', tipo: 'CANCELADO' }),
+    ];
+    const { itens, ocultos, total } = avisosDoInicio(lista, hoje);
+    expect(itens.map((i) => i.titulo)).toEqual([
+      '4 compromissos novos',
+      'Compromisso remarcado: agora 05/11 às 09:00 com Ana',
+      'Compromisso cancelado: 05/11 às 09:00 com Ana',
+    ]);
+    expect(itens[0].ids).toEqual(['n1', 'n2', 'n3', 'n4']);
+    expect(itens[0].selo).toEqual({ texto: 'Novo', tipo: 'neutro' });
+    expect(total).toBe(3);
+    expect(ocultos).toBe(0);
+    expect(itemDosNovos([aviso({ id: 'a' }), aviso({ id: 'b' })]).titulo).toBe('2 compromissos novos');
+  });
+
+  it('N8: um "novo" sozinho mantém a frase completa', () => {
+    const { itens, total } = avisosDoInicio([aviso({ id: 'n1' }), aviso({ id: 'r1', tipo: 'REMARCADO' })], hoje);
+    expect(itens[0].titulo).toBe('Novo compromisso: 05/11 às 09:00 com Ana');
+    expect(itens[0].ids).toEqual(['n1']);
+    expect(total).toBe(2);
   });
 
   it('sem aviso, nulo ou lista vazia: nada e sem ponto; id repetido e data inválida não entram', () => {

@@ -41,7 +41,7 @@ export function SeletorDeNota({ rotulo, valor, aoMudar, minimo = 0, maximo = 10,
   const pontas = rotuloMinimo?.trim() || rotuloMaximo?.trim();
   return (
     <View style={estilos.campo}>
-      <Texto variante="rotulo">{rotulo}</Texto>
+      <Texto variante="rotulo" cor={cores.texto}>{rotulo}</Texto>
       <View onLayout={(e: LayoutChangeEvent) => setLargura(e.nativeEvent.layout.width)} style={estilos.medida}>
         <View accessibilityRole="radiogroup" accessibilityLabel={rotulo} style={[estilos.grade, largura > 0 && { width: larguraDaGrade }]}>
           {numeros.map((n) => {

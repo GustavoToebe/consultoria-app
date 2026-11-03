@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import type { AnamneseDetalhe, Atualizacao } from '../src/api/tipos';
-import { ALUNO, erroApi, simularApi, type RespostasApi } from './api-falsa';
+import type { AnamneseDetalhe, Atualizacao, SessoesConcluidasResponse } from '../src/api/tipos';
+import { ALUNO, erroApi, sessao, simularApi, type RespostasApi } from './api-falsa';
 import { dietaFalsa, fixarHoje, sessaoDeAlunoComTreino, sessaoFalsa, SESSOES_COM_DIAS } from './aluno';
 
 /**
@@ -138,6 +138,26 @@ test('"Ver meu treino" abre a lista do dia de hoje', async ({ page }) => {
   await page.getByRole('button', { name: /^Ver meu treino/ }).click();
   await expect(page).toHaveURL(/\/aluno\/sessao\/sa\?data=2026-10-19$/);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Segunda · Peito e tríceps');
+});
+
+test('N3: treino de hoje concluído: o cartão diz "Treino concluído · …" e "Ver resumo" abre o "Bom trabalho!"', async ({ page }) => {
+  const VERSAO = 't0000000-0000-4000-8000-000000000002';
+  await abrirInicio(page, {
+    extra: {
+      ...(await sessao(page, ALUNO, { retornoHabilitado: true })),
+      'GET /aluno/sessoes-concluidas': {
+        corpo: {
+          totalConcluidos: 3,
+          sessoes: [{ planoVersaoId: VERSAO, sessaoUid: 'sa', data: '2026-10-19', concluida: true, resultado: 'COMPLETA', duracaoSegundos: 3120, comentario: null }],
+        } satisfies SessoesConcluidasResponse,
+      },
+    },
+  });
+  await expect(page.getByText('Treino concluído · Fiz tudo · 52 min', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Ver meu treino/ })).toHaveCount(0);
+  await page.getByRole('button', { name: /^Ver resumo do treino/ }).click();
+  await expect(page).toHaveURL(/\/aluno\/sessao\/sa\/concluido\?data=2026-10-19$/);
+  await expect(page.getByRole('heading', { name: 'Bom trabalho!' })).toBeVisible();
 });
 
 test('a divisão de outro dia abre a próxima vez dela e a tela do dia deixa escolher outra data', async ({ page }) => {

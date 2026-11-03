@@ -23,7 +23,8 @@ import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
 import { textoDoErro } from '../../ui/erros';
-import { Alerta, Vazio } from '../../ui/Estados';
+import { Alerta, MensagemErro, Vazio } from '../../ui/Estados';
+import { Esqueleto } from '../../ui/Esqueleto';
 import { Grade } from '../../ui/Grade';
 import { NoPlano } from '../../ui/NoPlano';
 import { Tela } from '../../ui/Tela';
@@ -36,7 +37,7 @@ import { ConteudoDaMobilidade } from './mobilidade';
  * plano publicado.
  */
 export default function TreinoAluno() {
-  const { pacote, escolhida, mobilidade, pacoteRecusado } = useAluno();
+  const { pacote, escolhida, mobilidade, pacoteRecusado, carregando, erroPacote, tentarDeNovo } = useAluno();
   const animar = usePrimeiraLista(!!pacote);
   const { avisar } = useAviso();
   const [gerandoPdf, setGerandoPdf] = useState(false);
@@ -79,6 +80,10 @@ export default function TreinoAluno() {
     <Tela bordas={['top']} largura={720}>
       <Cabecalho titulo="Treino" subtitulo="As divisões da semana, do jeito que o treinador montou." />
       {!pacote && pacoteRecusado ? <View testID="pacote-recusado"><Alerta tom="atencao" texto={TEXTO_PACOTE_RECUSADO} /></View> : null}
+      {!pacote && !pacoteRecusado && carregando ? <Esqueleto texto="Carregando seu treino" cartoes={2} /> : null}
+      {!pacote && !pacoteRecusado && !carregando && erroPacote ? (
+        <MensagemErro texto={`${textoDoErro(erroPacote)} Conecte-se uma vez para baixar o treino; depois ele funciona sem internet.`} erro={erroPacote} tentarDeNovo={() => void tentarDeNovo()} />
+      ) : null}
       {pacote ? <SeletorPlano soComVarios rotulo={treino ? `${treino.titulo}${periodo ? ` · ${periodo}` : ''}` : null} /> : null}
       {somenteLeitura ? <Texto variante="suave">Você está vendo outro plano. Para registrar uma série, volte ao plano em uso.</Texto> : null}
       {pacote && !treino ? <Vazio titulo="Sem treino" texto={somenteLeitura ? 'Este plano só tem dieta publicada.' : 'Seu treinador ainda não publicou um treino.'} /> : null}
