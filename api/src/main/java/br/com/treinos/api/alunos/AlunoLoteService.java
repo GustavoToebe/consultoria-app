@@ -29,9 +29,11 @@ public class AlunoLoteService {
     private final AlunoService alunoService;
     private final QuestionarioService questionarios;
     private final Auditoria auditoria;
+    private final LimiteDoTreinador limiteDoTreinador;
 
     public AlunoLoteService(AlunoRepository alunos, AlunoService alunoService, QuestionarioService questionarios,
-                            Auditoria auditoria) {
+                            Auditoria auditoria, LimiteDoTreinador limiteDoTreinador) {
+        this.limiteDoTreinador = limiteDoTreinador;
         this.alunos = alunos;
         this.alunoService = alunoService;
         this.questionarios = questionarios;
@@ -40,8 +42,17 @@ public class AlunoLoteService {
 
     @Transactional
     public Resultado trocarResponsavel(List<UUID> ids, UUID responsavelId) {
+        if (responsavelId != null) {
+            alunoService.travarConsultoria(); // D9: a consultoria antes dos alunos, como a vaga do plano e a agenda
+        }
         List<Aluno> selecionados = travar(ids);
         selecionados.forEach(AlunoService::exigirNaoAnonimizado);
+        if (responsavelId != null) {
+            // D15: só os selecionados ativos que ainda não são do membro ocupam vaga nele; tudo ou nada, antes de mexer em qualquer um.
+            UUID novo = alunoService.responsavelValido(responsavelId).getId();
+            long chegando = selecionados.stream().filter(Aluno::isAtivo).filter(a -> !novo.equals(a.getResponsavelId())).count();
+            limiteDoTreinador.exigirVaga(novo, chegando, null);
+        }
         int alterados = 0;
         for (Aluno aluno : selecionados) {
             UUID anterior = aluno.getResponsavelId();
