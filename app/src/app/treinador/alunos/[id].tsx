@@ -2,7 +2,7 @@ import { useSessao } from '../../../sessao/SessaoProvider';
 import { Permitido } from '../../../ui/Permitido';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ellipsis, Pencil, UserCheck, UserMinus } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { aluno as buscarAluno, alterarAluno, alterarSituacaoAluno, consultoria as buscarConsultoria, escolherQuestionarioDoAluno } from '../../../api/rotas';
@@ -68,6 +68,24 @@ export default function FichaAluno() {
   const renovacao = useRenovarPasta(aluno ? cicloDoAluno(aluno.diasAtualizacao, padrao) : null, mudouPastas);
   const [menu, setMenu] = useState(false);
   const [confirmarSituacao, setConfirmarSituacao] = useState(false);
+  // `?pastaId=` ("Voltar à pasta", "Abrir pasta" da atualização) abre a Folha da pasta e sai do endereço na hora, como o
+  // `?editar=1`: recarregar a ficha não reabre a Folha e o voltar do navegador não tem passo sobrando (C22). O pedido
+  // guarda o id e uma contagem: a Folha abre de novo quando outro pedido chega com a ficha já na tela (o "Voltar à
+  // pasta" volta a esta ficha pela pilha em vez de empilhar outra).
+  const [pedidoDePasta, setPedidoDePasta] = useState<{ id?: string; vez: number }>({ id: pastaId, vez: 0 });
+  const pastaVista = useRef(pastaId);
+  useEffect(() => {
+    if (!pastaId) { pastaVista.current = undefined; return; }
+    const novo = pastaVista.current !== pastaId;
+    pastaVista.current = pastaId;
+    let vivo = true;
+    void Promise.resolve().then(() => {
+      if (!vivo) return;
+      if (novo) setPedidoDePasta((p) => ({ id: pastaId, vez: p.vez + 1 }));
+      router.setParams({ pastaId: undefined });
+    });
+    return () => { vivo = false; };
+  }, [pastaId]);
   const temMenu = !!aluno && ((pode('ALUNO_ALTERAR') && !aluno.anonimizado) || pode('ALUNO_EXPORTAR') || (pode('ALUNO_ANONIMIZAR') && !aluno.ativo && !aluno.anonimizado));
 
   return (
@@ -81,7 +99,7 @@ export default function FichaAluno() {
           <ResumoDoAluno aluno={aluno} acompanhamento={acompanhamento} aoRenovar={renovacao.pedir}>
             <DadosDoAluno aluno={aluno} padrao={padrao} aoAlterar={definir} />
           </ResumoDoAluno>
-          <CartaoPastas key={`${aluno.id}:${pastaId??''}`} pastaInicialId={pastaId} alunoId={aluno.id} alunoNome={aluno.nome} diasAtualizacao={cicloDoAluno(aluno.diasAtualizacao, padrao)}
+          <CartaoPastas key={`${aluno.id}:${pedidoDePasta.vez}`} pastaInicialId={pedidoDePasta.id} alunoId={aluno.id} alunoNome={aluno.nome} diasAtualizacao={cicloDoAluno(aluno.diasAtualizacao, padrao)}
             geracao={geracaoPastas} aoMudar={mudouPastas} aoGravarPeso={() => setGeracaoPeso((g) => g + 1)} />
           {/* Frequência, Mobilidade e Água são o mesmo tipo de contagem: lado a lado no PC, uma embaixo da outra no celular. */}
           {pode('REGISTRO_LER') ? (

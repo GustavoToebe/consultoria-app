@@ -99,10 +99,13 @@ export function CampoNumerico({
   rotuloOculto,
   sufixoNaCaixa,
   erroSemTexto,
+  aoDigitar,
 }: {
   rotulo: string;
   valor: number | null;
   aoMudar: (valor: number | null) => void;
+  /** Avisa a cada digitação, mesmo que o texto ainda não seja número (",", "-"): `aoMudar` só vem com número válido. */
+  aoDigitar?: () => void;
   /** Nome para o leitor de tela quando o rótulo visível se repete na tela. */
   rotuloAcessivel?: string;
   inteiro?: boolean;
@@ -122,7 +125,7 @@ export function CampoNumerico({
   /** O erro marca a caixa e vai ao leitor de tela; o texto fica com quem usa (campo estreito numa linha). */
   erroSemTexto?: boolean;
 }) {
-  const { texto, lido, mudar } = useNumeroDigitado(valor, aoMudar, inteiro, aoValidade, mascara);
+  const { texto, lido, mudar } = useNumeroDigitado(valor, aoMudar, inteiro, aoValidade, mascara, aoDigitar);
   return (
     <Campo
       numerico
@@ -143,7 +146,7 @@ export function CampoNumerico({
 }
 
 /** Texto do campo numérico: guarda o que foi digitado e só repassa quando é número (ou vazio = `null`). */
-function useNumeroDigitado(valor: number | null, aoMudar: (valor: number | null) => void, inteiro?: boolean, aoValidade?: (valido: boolean) => void, mascara?: (texto: string) => string) {
+function useNumeroDigitado(valor: number | null, aoMudar: (valor: number | null) => void, inteiro?: boolean, aoValidade?: (valido: boolean) => void, mascara?: (texto: string) => string, aoDigitar?: () => void) {
   const [texto, setTexto] = useState(valor === null ? '' : numeroParaTela(valor, 3));
   const [anterior, setAnterior] = useState(valor);
   if (valor !== anterior) {
@@ -152,6 +155,7 @@ function useNumeroDigitado(valor: number | null, aoMudar: (valor: number | null)
     if (numeroDaTela(texto, inteiro) !== valor) setTexto(valor === null ? '' : numeroParaTela(valor, 3));
   }
   const mudar = (digitado: string) => {
+    aoDigitar?.();
     const t = mascara ? mascara(digitado) : digitado;
     setTexto(t);
     const n = numeroDaTela(t, inteiro);

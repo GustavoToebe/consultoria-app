@@ -22,7 +22,12 @@ const TAMANHO_PAGINA = 30;
  * valem para a busca, a página e o aluno em tela: enquanto a nova chega, nada da anterior fica para escolher (senão
  * dava para tocar num aluno de outra página ou numa pasta do aluno anterior).
  */
-export function useEscolhaDeAlunoEPasta({ alunoInicial, excluirAlunoId }: { alunoInicial?: string; excluirAlunoId?: string } = {}) {
+export function useEscolhaDeAlunoEPasta({ alunoInicial, excluirAlunoId, soAluno = false }: {
+  alunoInicial?: string;
+  excluirAlunoId?: string;
+  /** Só o aluno (a cópia da pasta inteira sempre cria uma pasta nova no destino): não busca nem pede a pasta. */
+  soAluno?: boolean;
+} = {}) {
   const { pode } = useSessao();
   const [busca, setBusca] = useState('');
   const [alunoId, setAlunoId] = useState(alunoInicial ?? '');
@@ -35,22 +40,25 @@ export function useEscolhaDeAlunoEPasta({ alunoInicial, excluirAlunoId }: { alun
   const doAlunos = dadosEmDia(alunos.dados, alunos.carregando);
   const itens = (doAlunos?.itens ?? []).filter((a) => a.id !== excluirAlunoId);
   const temMais = !!doAlunos && doAlunos.itens.length > 0 && pagina * TAMANHO_PAGINA + doAlunos.itens.length < doAlunos.total;
-  const pastas = useCarregar(`pastas-destino:${alunoId}`, () => (alunoId ? listarPastas(alunoId) : Promise.resolve([])));
-  const carregandoPastas = !!alunoId && pastas.carregando;
+  const pastas = useCarregar(soAluno ? null : `pastas-destino:${alunoId}`, () => (alunoId ? listarPastas(alunoId) : Promise.resolve([])));
+  const carregandoPastas = !soAluno && !!alunoId && pastas.carregando;
   const destinos = destinosParaAplicar(pode('PASTA_ALTERAR'), alunoId ? dadosEmDia(pastas.dados, pastas.carregando) ?? null : null);
   const escolhido = pastaEscolhida ?? destinos.padrao;
   const destino = escolhido ?? '';
   const motivo = !alunoId
     ? 'Escolha o aluno.'
-    : carregandoPastas
-      ? 'Carregando as pastas do aluno.'
-      : destinos.semDestino
-        ? 'Este aluno não tem pasta aberta para receber a cópia.'
-        : escolhido === null
-          ? 'Escolha a pasta onde a cópia entra.'
-          : undefined;
+    : soAluno
+      ? undefined
+      : carregandoPastas
+        ? 'Carregando as pastas do aluno.'
+        : destinos.semDestino
+          ? 'Este aluno não tem pasta aberta para receber a cópia.'
+          : escolhido === null
+            ? 'Escolha a pasta onde a cópia entra.'
+            : undefined;
   return {
     alunoInicial,
+    soAluno,
     alunoId,
     /** Pasta de destino; vazio = criar pasta nova (só com `PASTA_ALTERAR`). Só vale com `destinoEscolhido`. */
     destino,
@@ -107,10 +115,14 @@ export function EscolhaDeAlunoEPasta({ escolha }: { escolha: ReturnType<typeof u
           }
         />
       ) : null}
-      {escolha.carregandoPastas ? <Esqueleto texto="Carregando pastas" cartoes={1} /> : null}
-      {escolha.alunoId && !escolha.carregandoPastas && !destinos.semDestino ? <Escolha rotulo="Onde a cópia entra" valor={escolha.destinoEscolhido ? escolha.destino : null} opcoes={destinos.opcoes} aoMudar={escolha.escolherPasta} /> : null}
-      {escolha.alunoId && !escolha.carregandoPastas && destinos.semDestino ? <Texto>{SEM_PASTA_PARA_APLICAR}</Texto> : null}
-      {pastas.erro ? <MensagemErro texto={textoDoErro(pastas.erro)} tentarDeNovo={pastas.recarregar} /> : null}
+      {escolha.soAluno ? null : (
+        <>
+          {escolha.carregandoPastas ? <Esqueleto texto="Carregando pastas" cartoes={1} /> : null}
+          {escolha.alunoId && !escolha.carregandoPastas && !destinos.semDestino ? <Escolha rotulo="Onde a cópia entra" valor={escolha.destinoEscolhido ? escolha.destino : null} opcoes={destinos.opcoes} aoMudar={escolha.escolherPasta} /> : null}
+          {escolha.alunoId && !escolha.carregandoPastas && destinos.semDestino ? <Texto>{SEM_PASTA_PARA_APLICAR}</Texto> : null}
+          {pastas.erro ? <MensagemErro texto={textoDoErro(pastas.erro)} tentarDeNovo={pastas.recarregar} /> : null}
+        </>
+      )}
     </>
   );
 }

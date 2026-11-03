@@ -33,6 +33,15 @@ public class ConflitoComRecursoException extends ApiException {
         this.problemas = valores.stream().map(v -> new ApiError.FieldError(campo, v)).toList();
     }
 
+    /**
+     * 409 com a lista de problemas já montada (um item por recurso, {@code field} = o nome do recurso e {@code message} =
+     * o id dele). Só valores sem dado pessoal.
+     */
+    public ConflitoComRecursoException(String mensagem, String codigo, List<ApiError.FieldError> problemas) {
+        super(HttpStatus.CONFLICT, mensagem, codigo);
+        this.problemas = List.copyOf(problemas);
+    }
+
     public List<ApiError.FieldError> getProblemas() {
         return problemas;
     }
