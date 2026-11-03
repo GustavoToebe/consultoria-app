@@ -198,6 +198,10 @@ function remover(id: string) {
  */
 const abertasNoNativo: { id: string; fechando: boolean; portal: () => PortalDaFolhaValor }[] = [];
 
+/** Quantas Folhas já abriram no celular (só cresce): quem fecha uma vê se outra abriu enquanto esperava. */
+let aberturasNoNativo = 0;
+export const quantasFolhasJaAbriramNoNativo = () => aberturasNoNativo;
+
 /** Portal da Folha aberta por último que não está fechando. Sem nenhuma, a raiz. Na web a lista nativa nem entra. */
 export function portalDaFolhaDoTopo(): PortalDaFolhaValor | undefined {
   if (!web()) {
@@ -223,6 +227,7 @@ export function useFolhaNoHistorico(aoFechar: () => void, portal: PortalDaFolhaV
   useEffect(() => { fechar.current = aoFechar; valorPortal.current = portal; });
   useEffect(() => {
     if (!web()) {
+      aberturasNoNativo += 1;
       abertasNoNativo.push({ id, fechando: false, portal: () => valorPortal.current });
       return () => { const i = abertasNoNativo.findIndex((a) => a.id === id); if (i >= 0) abertasNoNativo.splice(i, 1); };
     }

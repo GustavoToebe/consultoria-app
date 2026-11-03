@@ -4,11 +4,19 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 
 import { ATRASO_DO_FOCO_MS, JANELA_DO_GATILHO_MS } from '../dominio/focoDaFolha';
 import { lembrarGatilho, useDevolverFocoNoNativo } from './focoDaFolha';
+import { useFolhaNoHistorico } from './historicoDasFolhas';
 
 /** Painel de mentira: só o gancho, montado quando a Folha abre e desmontado quando fecha. */
 function Painel({ filho }: { filho?: ReactNode }) {
   useDevolverFocoNoNativo();
   return filho ?? null;
+}
+
+/** Folha que abre (entra na lista das abertas do celular) e também devolve o foco ao sair. */
+function FolhaDeVerdade() {
+  useFolhaNoHistorico(() => undefined, { nome: 'p', elemento: null });
+  useDevolverFocoNoNativo();
+  return null;
 }
 
 const gatilho = (conectado = true) => ({ isConnected: conectado });
@@ -95,6 +103,24 @@ describe.each(['ios', 'android'] as const)('foco da Folha no %s', (so) => {
   it('ignora o toque comum (com pointerType): o alvo seria o filho mais fundo', async () => {
     lembrarGatilho({ target: gatilho(), nativeEvent: { pointerType: 'touch' } });
     clicar(null);
+    await abrirEFechar({});
+    expect(enviar).not.toHaveBeenCalled();
+  });
+
+  it('desiste se outra Folha abriu enquanto esperava (a guarda "Sair sem salvar?" na Folha de baixo)', async () => {
+    clicar(gatilho());
+    const raiz: { current?: ReactTestRenderer } = {};
+    await act(async () => { raiz.current = create(createElement(FolhaDeVerdade)); });
+    // Fecha e, no mesmo instante, abre outra.
+    await act(async () => { raiz.current?.update(createElement(Painel, { filho: createElement(FolhaDeVerdade) })); });
+    await passar(ATRASO_DO_FOCO_MS);
+    expect(enviar).not.toHaveBeenCalled();
+  });
+
+  it('a próxima Folha aberta sem clique não herda o gatilho da anterior', async () => {
+    clicar(gatilho());
+    await abrirEFechar({});
+    enviar.mockClear();
     await abrirEFechar({});
     expect(enviar).not.toHaveBeenCalled();
   });
