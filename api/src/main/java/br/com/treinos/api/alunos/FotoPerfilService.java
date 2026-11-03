@@ -53,12 +53,11 @@ public class FotoPerfilService {
      */
     @Transactional
     public Instant gravarPelaEquipe(UUID alunoId, byte[] recebido) {
-        // Confere sem travar (404/409 vêm antes do 422 do arquivo); a limpeza do JPEG roda antes da trava da linha.
-        AlunoService.exigirNaoAnonimizado(
-                alunos.findById(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado.")));
-        byte[] jpeg = limpar(recebido);
+        // Uma leitura só, já travada: uma pré-leitura sem trava deixaria a instância antiga no contexto e a anonimização
+        // feita no meio passaria. 404/409 vêm antes do 422 do arquivo.
         Aluno aluno = alunos.buscarParaAlterar(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
         AlunoService.exigirNaoAnonimizado(aluno);
+        byte[] jpeg = limpar(recebido);
         FotoPerfil foto = fotos.findById(alunoId).orElseGet(() -> new FotoPerfil(alunoId));
         foto.trocar(jpeg, Instant.now());
         Instant quando = fotos.saveAndFlush(foto).getAtualizadaEm();
