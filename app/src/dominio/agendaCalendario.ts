@@ -1,6 +1,6 @@
 import type { AgendaPessoal, Compromisso, CorDaAgenda, DiaDoResumo, OcorrenciaDeEvento } from '../api/agendaTipos';
 import type { AtualizacaoDaLista } from '../api/tipos';
-import { dataEmBrasilia, horaEmBrasilia, instanteDeBrasilia, situacaoDoCompromisso, nomesDosParticipantes } from './agendaPresencial';
+import { dataEmBrasilia, horaEmBrasilia, instanteDeBrasilia, situacaoDoCompromisso, nomesCompletos, nomesDosParticipantes } from './agendaPresencial';
 import { diaDaSemanaIso, somarDias } from './formatos';
 import { LARGURA_MENU_LATERAL } from '../tema/tokens';
 import { AGENDAS_OCULTAS_MAXIMO } from './preferencias';
@@ -397,6 +397,9 @@ export interface ItemDoCalendario {
 }
 
 const diaDoFim = (fim: string) => dataEmBrasilia(new Date(Date.parse(fim) - 1));
+
+/** O nome inteiro para o rótulo ao passar o mouse ou focar: o compromisso lista todos os alunos (o título abrevia). */
+export const tituloCompleto = (item: ItemDoCalendario): string => (item.fonte.origem === 'COMPROMISSO' ? nomesCompletos(item.fonte.compromisso) : item.titulo);
 
 export function itemDeCompromisso(c: Compromisso): ItemDoCalendario {
   return {

@@ -255,7 +255,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       // "Hoje" já no período de hoje não mexe no endereço.
       await page.getByRole('button', { name: 'Hoje', exact: true }).click();
       await expect.poll(() => endereco(page)).toBe('/treinador/agenda');
-      await expect(page.getByRole('button', { name: 'Abrir compromisso de Ana Fictícia, 09:00', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Abrir compromisso de Ana Fictícia, das 9h às 10h', exact: true })).toBeVisible();
       expect([ultimo(pedidos, '/agenda/compromissos')?.busca.get('de'), ultimo(pedidos, '/agenda/compromissos')?.busca.get('ate')]).toEqual(['2026-10-19', '2026-10-25']);
 
       // Seta: troca a data sem empilhar.
@@ -352,7 +352,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       };
       const { naoTratadas, errosDaPagina, pedidos } = await abrirAgenda(page, estado);
       await page.goto('/treinador/agenda');
-      const doCompromisso = page.getByRole('button', { name: 'Abrir compromisso de Ana Fictícia, 09:00', exact: true });
+      const doCompromisso = page.getByRole('button', { name: 'Abrir compromisso de Ana Fictícia, das 9h às 10h', exact: true });
       const doEvento = page.getByRole('button', { name: 'Abrir evento Consulta pessoal, 10:00', exact: true });
       await expect(doCompromisso).toBeVisible();
       await expect(doEvento).toBeVisible();
@@ -438,6 +438,38 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       expect(errosDaPagina).toEqual([]);
     });
 
+    test('Hoje e as setas ficam alinhados e o nome inteiro do compromisso aparece ao passar o mouse ou focar', async ({ page }) => {
+      const outros: AlunoResumo[] = ['Bia Fictícia', 'Caio Fictício', 'Dani Fictícia'].map((nome, i) => ({ ...ANA, id: `a000000${i + 5}-0000-4000-8000-000000000001`, nome }));
+      const estado: Estado = { agendas: [], eventos: [], compromissos: [compromisso('k4', [ANA, ...outros], HOJE, '09:00')] };
+      const { naoTratadas, errosDaPagina } = await abrirAgenda(page, estado);
+      await page.goto('/treinador/agenda');
+      const hoje = page.getByRole('button', { name: 'Hoje', exact: true });
+      await expect(hoje).toBeVisible();
+
+      // O centro vertical do "Hoje" e o das setas coincidem (a barra não desalinha em 390 px).
+      const centro = async (l: Locator) => { const b = (await l.boundingBox())!; return b.y + b.height / 2; };
+      const setas = [page.getByRole('button', { name: 'Semana anterior', exact: true }), page.getByRole('button', { name: 'Próxima semana', exact: true })];
+      for (const seta of setas) expect(Math.abs((await centro(seta)) - (await centro(hoje)))).toBeLessThanOrEqual(1);
+      await expect(page.getByText('Hoje já está na tela.')).toHaveCount(0);
+
+      // Na grade (PC), o título é abreviado no bloco e o nome inteiro aparece ao passar o mouse ou ao focar.
+      if (celular) return;
+      const bloco = page.getByRole('button', { name: /^Abrir compromisso de Ana Fictícia, Bia Fictícia e mais 2/ });
+      const inteiro = page.getByText('Ana Fictícia, Bia Fictícia, Caio Fictício, Dani Fictícia');
+      await expect(bloco).toBeVisible();
+      await expect(inteiro).toHaveCount(0);
+      await bloco.hover();
+      await expect(inteiro).toBeVisible();
+      await page.mouse.move(0, 0);
+      await expect(inteiro).toHaveCount(0);
+      await bloco.focus();
+      await expect(inteiro).toBeVisible();
+      await bloco.blur();
+      await expect(inteiro).toHaveCount(0);
+      expect(naoTratadas).toEqual([]);
+      expect(errosDaPagina).toEqual([]);
+    });
+
     test('esconder e mostrar uma agenda some e volta com os itens; a escolha fica no aparelho ao recarregar', async ({ page }) => {
       const estado: Estado = {
         agendas: [agenda('g1', 'Pessoal', 'AZUL'), agenda('g2', 'Estudos', 'VIOLETA')],
@@ -451,7 +483,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await page.goto('/treinador/agenda');
       const leitura = page.getByRole('button', { name: 'Abrir evento Leitura de teste, 16:00', exact: true });
       const consulta = page.getByRole('button', { name: 'Abrir evento Consulta pessoal, 10:00', exact: true });
-      const doCompromisso = page.getByRole('button', { name: 'Abrir compromisso de Ana Fictícia, 09:00', exact: true });
+      const doCompromisso = page.getByRole('button', { name: 'Abrir compromisso de Ana Fictícia, das 9h às 10h', exact: true });
       await expect(leitura).toBeVisible();
       await expect(consulta).toBeVisible();
       await expect(doCompromisso).toBeVisible();
@@ -690,7 +722,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       };
       // O filtro é lido do endereço (`?meus=true` / `?membro=`); aqui se entra por ele. Escolher pela folha está no fim do arquivo.
       await page.goto('/treinador/agenda');
-      await expect(page.getByRole('button', { name: 'Abrir compromisso de Ana Fictícia, 09:00', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Abrir compromisso de Ana Fictícia, das 9h às 10h', exact: true })).toBeVisible();
       // Toda a equipe: atualizações com meus=false; compromissos sem responsável.
       await expect.poll(atualizacoes).toEqual(['false', null, '2026-10-19']);
       expect(compromissos()).toEqual([null, null, '2026-10-19']);
@@ -760,7 +792,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       };
       const { naoTratadas, errosDaPagina, pedidos } = await abrirAgenda(page, estado, { permissoes: ['AGENDA_LER', 'ATUALIZACAO_LER'] });
       await page.goto('/treinador/agenda');
-      await expect(page.getByRole('button', { name: 'Abrir compromisso de Ana Fictícia, 09:00', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Abrir compromisso de Ana Fictícia, das 9h às 10h', exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Criar', exact: true })).toHaveCount(0);
       const onde = await painel(page);
       await expect(onde.getByRole('checkbox', { name: 'Pessoal, cor Azul. Mostrar na agenda', exact: true })).toBeChecked();

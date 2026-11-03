@@ -57,9 +57,24 @@ export function fundoDoItemDaAgenda({ cor, base, textos, graficos = [], proporca
   return base;
 }
 
+/** "09:00" vira "9h"; "09:30", "9h30". Texto que não é hora fica como veio. */
+function horaPorExtenso(hhmm: string): string {
+  const m = /^(\d{1,2}):(\d{2})/.exec(hhmm);
+  if (!m) return hhmm;
+  return `${Number(m[1])}h${m[2] === '00' ? '' : m[2]}`;
+}
+
+/**
+ * O horário no nome acessível do compromisso: "das 9h às 10h" quando há fim, e só o início ("09:00") quando não há,
+ * como era antes de existir o fim.
+ */
+export function horarioNoRotuloDoCompromisso(hora: string, horaFim?: string | null): string {
+  return horaFim ? `das ${horaPorExtenso(hora)} às ${horaPorExtenso(horaFim)}` : hora;
+}
+
 /**
  * O status do compromisso no fim do nome acessível (", cancelado", ", realizado", ", 2 de 3 realizados · 1 faltou"). Vazio
- * quando todos ainda estão agendados: o nome continua o de antes ("Abrir compromisso de Ana, 09:00").
+ * quando todos ainda estão agendados: o nome continua o de antes ("Abrir compromisso de Ana, das 9h às 10h").
  */
 export function statusNoRotuloDoCompromisso(c: Pick<Compromisso, 'cancelado' | 'participantes'>): string {
   if (!c.cancelado && c.participantes.every((p) => p.situacao === 'AGENDADO')) return '';

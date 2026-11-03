@@ -18,6 +18,7 @@ import {
   itemDeAtualizacao,
   itemDeCompromisso,
   itemDeEvento,
+  tituloCompleto,
   lerDataDoCalendario,
   agendaNoCelular,
   lerEnderecoDoCalendario,
@@ -243,6 +244,15 @@ describe('itens do calendário', () => {
     expect(itemDeCompromisso(compromisso('c2', em(HOJE, '10:00'), em(HOJE, '11:00'), { cancelado: true, serieId: 's' }))).toMatchObject({ cancelado: true, recorrente: true });
     // Termina exatamente à meia-noite: não toca o dia seguinte.
     expect(itemDeCompromisso(compromisso('c3', em(HOJE, '23:00'), em('2026-10-30', '00:00'))).dataFim).toBe(HOJE);
+  });
+
+  it('tituloCompleto: o compromisso lista todos os alunos; evento e atualização ficam com o título', () => {
+    const quatro = compromisso('c4', em(HOJE, '09:00'), em(HOJE, '10:00'), {
+      participantes: ['Ana', 'Bia', 'Caio', 'Dani'].map((nome, i) => ({ id: `p${i}`, nome, situacao: 'AGENDADO' as const })),
+    });
+    expect(itemDeCompromisso(quatro).titulo).toBe('Ana, Bia +2');
+    expect(tituloCompleto(itemDeCompromisso(quatro))).toBe('Ana, Bia, Caio, Dani');
+    expect(tituloCompleto(itemDeEvento(ocorrencia('e9', 'a1', em(HOJE, '09:00'), em(HOJE, '10:00')), []))).toBe('Evento e9');
   });
 
   it('evento: chave por ocorrência, cor da agenda e cor neutra quando a agenda sumiu', () => {
