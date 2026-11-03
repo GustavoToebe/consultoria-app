@@ -8,8 +8,8 @@ Fechar pendências pequenas soltas: a data de início da dieta, o separador do C
 ## Decisões
 | # | Decisão | Valor | Quem decidiu |
 | --- | --- | --- | --- |
-| D1 | Data de início da dieta | Segue `FaixaDeData.PLANEJAMENTO`; data em texto inválida (ex.: "2026-02-31") também dá erro em `dataInicio` | Claude (executor), a confirmar com o Gustavo |
-| D2 | Destino do passo "Metodologia" dos Primeiros passos | Planejamento no chip Metodologias (`/treinador/planejamento?aba=treino&tipo=metodologia`), não a Biblioteca | Claude (executor), a confirmar com o Gustavo |
+| D1 | Data de início da dieta | Segue `FaixaDeData.PLANEJAMENTO`; data em texto inválida (ex.: "2026-02-31") também dá erro em `dataInicio` | Claude (executor); confirmado pelo Gustavo em 03/11 |
+| D2 | Destino do passo "Metodologia" dos Primeiros passos | Planejamento no chip Metodologias (`/treinador/planejamento?aba=treino&tipo=metodologia`), não a Biblioteca | Claude (executor); confirmado pelo Gustavo em 03/11 |
 | D3 | Separador do CSV | Decidido pela linha do cabeçalho escolhida (`linhaDoCabecalho`), não pela primeira linha do arquivo | pendência do README (linha 83) |
 
 ## Passos
@@ -51,7 +51,7 @@ Fechar pendências pequenas soltas: a data de início da dieta, o separador do C
 - O "hoje" do `pasta-e-atualizacao` passou a ser contado em Brasília (falhava das 21h à meia-noite em máquina UTC).
 - Revisão independente: nada bloqueia. Aplicados: texto neutro no 429 da inscrição (o teto diário da consultoria também dá 429 e "deste endereço"/"alguns minutos" era falso), ordem dos comentários em `inscricoes.ts`, `AGENTS.md` com o separador do CSV e o `?tipo=`.
 - Verificação depois do último merge: `mvn verify` verde; typecheck e lint verdes; jest 230 suítes, 3588 testes; e2e completo 601 passaram, 0 falharam, 8 pulados (com `TZ=America/Sao_Paulo`); `inscricao` de novo com o texto novo, 11 de 11.
-- Fica para o Gustavo: confirmar D1 e D2; conferir o passo 7 em `/entrar`, `/inscricao/x` e nas telas do aluno (a revisão confirmou que o lucide já põe `aria-hidden` e que nada muda no visual).
+- D1 e D2 confirmados pelo Gustavo em 03/11. Fica para o Gustavo: conferir o passo 7 em `/entrar`, `/inscricao/x` e nas telas do aluno (a revisão confirmou que o lucide já põe `aria-hidden` e que nada muda no visual).
 
 ## Fora do escopo
 - `agenda-calendario.spec.ts:866` intermitente: sem diagnóstico (Pendências soltas).
