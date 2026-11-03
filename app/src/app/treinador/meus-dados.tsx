@@ -11,7 +11,7 @@ import { TrocarSenha } from '../../ui/TrocarSenha';
 
 /**
  * Meus dados: acesso (e-mail de entrada), seus dados na equipe (nome e telefone) e troca de senha. Aberta pelo cartão
- * do usuário. "Conta" ficou só para a assinatura ("Minha conta"); aqui o cartão do e-mail se chama "Acesso".
+ * do usuário. "Conta" ficou só para a assinatura ("Assinatura e faturas", rota `minha-conta`); aqui o cartão do e-mail se chama "Acesso".
  */
 export default function MeusDados() {
   const { usuario } = useSessao();

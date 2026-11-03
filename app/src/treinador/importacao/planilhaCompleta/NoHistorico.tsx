@@ -1,5 +1,4 @@
 import { FileStack, Undo2 } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -12,7 +11,6 @@ import { espaco } from '../../../tema/tokens';
 import { Botao } from '../../../ui/Botao';
 import { Cartao } from '../../../ui/Cartao';
 import { Alerta, MensagemErro } from '../../../ui/Estados';
-import { useSaidaGuardada } from '../../../ui/GuardaDeSaida';
 import { ItemDeLista } from '../../../ui/ItemDeLista';
 import { LinhaDeAcoes } from '../../../ui/LinhaDeAcoes';
 import { PainelConfirmacao } from '../../../ui/PainelConfirmacao';
@@ -26,13 +24,11 @@ import { ProblemasAgrupados } from './ProblemasAgrupados';
  */
 export function CartaoDaPlanilhaCompleta() {
   const { pode } = useSessao();
-  const router = useRouter();
-  const { confirmar } = useSaidaGuardada();
   if (!pode('ALUNO_ALTERAR')) return null;
   return (
     <ItemDeLista titulo="Planilha completa (alunos, pesos, treinos e dietas)" Icone={FileStack}
       detalhe="Várias abas ligadas de uma vez, como a planilha de outra plataforma. Treinos e dietas entram em rascunho."
-      href={CAMINHO_PLANILHA_COMPLETA} aoTocar={() => confirmar(() => router.push(CAMINHO_PLANILHA_COMPLETA))} />
+      href={CAMINHO_PLANILHA_COMPLETA} />
   );
 }
 

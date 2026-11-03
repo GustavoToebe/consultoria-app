@@ -25,6 +25,7 @@ import { FILTROS_PASTAS, filtrarPastas, type FiltroPastas } from '../dominio/pas
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, LARGURA_EDITOR, RAIO } from '../tema/tokens';
 import { useAviso } from '../ui/Aviso';
+import { useSaidaGuardada } from '../ui/GuardaDeSaida';
 import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
 import { CampoData, CampoNumerico } from '../ui/Campos';
@@ -103,6 +104,9 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
   const [modo, setModo] = useState<Modo | null>(null);
   const [filtro, setFiltro] = useState<FiltroPastas>('todas');
   const { avisar } = useAviso();
+  // Saídas para outra tela passam pela guarda (os dados do aluno podem estar em edição na ficha, D7); fechar a Folha da
+  // pasta vai junto, para o "Continuar editando" deixar a Folha aberta como estava.
+  const { confirmar } = useSaidaGuardada();
   const [excluir, setExcluir] = useState<PastaResumo | null>(null);
   const [salvarModelo, setSalvarModelo] = useState<PastaResumo | null>(null);
   const [finalizar, setFinalizar] = useState<PastaResumo | null>(null);
@@ -170,7 +174,7 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
         ) : null}
         {visiveis.map((p) => (
           <LinhaPasta key={p.id} pasta={p} atualizacao={daPasta(p.id)} aoAbrir={() => setAbertaId(p.id)} hoje={hoje}
-            aoRevisar={(a) => router.push(caminhoAtualizacaoTreinador(a))}
+            aoRevisar={(a) => confirmar(() => router.push(caminhoAtualizacaoTreinador(a)))}
             aoRenovar={pode('PASTA_ALTERAR') && precisaRenovar(p, dados ?? [], hoje) ? () => renovacao.pedir(p) : undefined} />
         ))}
       </Cartao>
@@ -200,7 +204,7 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
             aoEscolher={async (questionarioId) => { await escolherQuestionarioDaPasta(aberta.id, questionarioId); recarregar(); recarregarAtualizacoes(); }} />
           {/* A atualização fecha o período e é o ponto central do acompanhamento: fica logo abaixo das ações. */}
           {verAtualizacoes ? <AtualizacaoDaPasta atualizacao={daPasta(aberta.id)} carregando={!atualizacoes} destaque={revisarNaFolha}
-            aoAbrir={(a) => { setAbertaId(null); router.push(caminhoAtualizacaoTreinador(a)); }} /> : null}
+            aoAbrir={(a) => confirmar(() => { setAbertaId(null); router.push(caminhoAtualizacaoTreinador(a)); })} /> : null}
           <OrdemDaRenovacao />
           <Texto variante="secao">Planos desta pasta</Texto>
           {/* Sem permissão de publicar nenhum tipo, o botão não existe para a pessoa; com a de um tipo só, ele aparece e
@@ -233,7 +237,7 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
       {copiar ? <CopiarPastaParaAluno pasta={copiar} planos={planosEmFoco.planos} carregandoPlanos={planosEmFoco.carregando} aoFechar={() => setCopiar(null)}
         aoCopiar={(destinoId, nome, pulados) => {
           setCopiar(null);
-          avisar(mensagemPastaCopiada(nome, pulados), 'sucesso', { rotulo: rotuloAbrirFicha(nome), aoTocar: () => router.push(`/treinador/alunos/${encodeURIComponent(destinoId)}`) });
+          avisar(mensagemPastaCopiada(nome, pulados), 'sucesso', { rotulo: rotuloAbrirFicha(nome), aoTocar: () => confirmar(() => router.push(`/treinador/alunos/${encodeURIComponent(destinoId)}`)) });
         }} /> : null}
       {renovacao.painel}
       <PainelConfirmacao visivel={!!excluir} titulo={`Excluir pasta “${excluir?.titulo ?? ''}”?`} mensagem="A pasta e seus planos saem da lista. Os planos deixam de estar ativos; versões publicadas e registros dos alunos são preservados." rotuloConfirmar="Excluir pasta e planos" perigo aoCancelar={() => setExcluir(null)} aoConfirmar={() => {

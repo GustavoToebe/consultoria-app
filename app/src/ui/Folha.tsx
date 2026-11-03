@@ -10,7 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTema } from '../tema/TemaProvider';
 import { espaco, LARGURA_MENU_LATERAL, LINHA_DA_FAIXA, RAIO } from '../tema/tokens';
-import { useFolhaNoHistorico } from './historicoDasFolhas';
+import { marcarFolhaDoTopoFechando, useFolhaNoHistorico } from './historicoDasFolhas';
 import { IconeBotao } from './IconeBotao';
 import { RolagemComTopo } from './RolagemComTopo';
 import { Texto } from './Texto';
@@ -48,8 +48,13 @@ interface Props {
  * de tela é um diálogo modal com o nome do título; na web o foco entra no primeiro controle do conteúdo.
  */
 export function Folha({ visivel, titulo, aoFechar, children, rodape, largura, acaoNoTopo, faixa }: Props) {
-  return <Modal transparent visible={visivel} animationType="none" onRequestClose={aoFechar}>
-    {visivel ? <Painel titulo={titulo} aoFechar={aoFechar} rodape={rodape} largura={largura} acaoNoTopo={acaoNoTopo} faixa={faixa}>{children}</Painel> : null}
+  // Marca antes do `aoFechar`: no celular o diálogo que nascer neste toque não pode ir para dentro desta Folha.
+  const fechar = useCallback(() => {
+    marcarFolhaDoTopoFechando();
+    aoFechar();
+  }, [aoFechar]);
+  return <Modal transparent visible={visivel} animationType="none" onRequestClose={fechar}>
+    {visivel ? <Painel titulo={titulo} aoFechar={fechar} rodape={rodape} largura={largura} acaoNoTopo={acaoNoTopo} faixa={faixa}>{children}</Painel> : null}
   </Modal>;
 }
 

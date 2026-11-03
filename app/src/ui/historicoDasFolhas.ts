@@ -191,9 +191,28 @@ function remover(id: string) {
   agendar();
 }
 
-/** Portal da Folha aberta por último (o diálogo "Sair sem salvar?" precisa aparecer por cima dela). Só na web. A guarda não é Folha. */
+/**
+ * No celular as Folhas não entram no histórico, mas o "Sair sem salvar?" também precisa do portal da do topo.
+ * `fechando` é marcado na hora do toque (antes da pintura): o efeito que tira a Folha da lista só roda depois, e o
+ * Modal ainda anima. Sem essa marca o diálogo nascia dentro da Folha que está saindo e sumia com ela.
+ */
+const abertasNoNativo: { id: string; fechando: boolean; portal: () => PortalDaFolhaValor }[] = [];
+
+/** Portal da Folha aberta por último que não está fechando. Sem nenhuma, a raiz. Na web a lista nativa nem entra. */
 export function portalDaFolhaDoTopo(): PortalDaFolhaValor | undefined {
+  if (!web()) {
+    for (let i = abertasNoNativo.length - 1; i >= 0; i--) {
+      if (!abertasNoNativo[i].fechando) return abertasNoNativo[i].portal();
+    }
+    return undefined;
+  }
   return abertas.findLast((a) => !a.guarda)?.portal();
+}
+
+/** A Folha do topo está fechando. No celular o diálogo da guarda passa a usar a de baixo, ou a raiz. Na web não faz nada. */
+export function marcarFolhaDoTopoFechando() {
+  const topo = abertasNoNativo.at(-1);
+  if (topo) topo.fechando = true;
 }
 
 /** Chamado pelo painel da Folha enquanto está aberto. `portal` devolve o valor atual (o elemento chega depois da montagem). */
@@ -203,7 +222,10 @@ export function useFolhaNoHistorico(aoFechar: () => void, portal: PortalDaFolhaV
   const valorPortal = useRef(portal);
   useEffect(() => { fechar.current = aoFechar; valorPortal.current = portal; });
   useEffect(() => {
-    if (!web()) return;
+    if (!web()) {
+      abertasNoNativo.push({ id, fechando: false, portal: () => valorPortal.current });
+      return () => { const i = abertasNoNativo.findIndex((a) => a.id === id); if (i >= 0) abertasNoNativo.splice(i, 1); };
+    }
     registrar({ id, tela: idDoEstado(), fechar: () => fechar.current(), portal: () => valorPortal.current });
     return () => remover(id);
   }, [id]);

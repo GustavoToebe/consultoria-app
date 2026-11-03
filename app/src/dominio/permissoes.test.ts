@@ -50,7 +50,7 @@ describe('navegação de membros da equipe', () => {
     expect(podeAcessarTela('/treinador/marca', acesso(['MARCA_ALTERAR']), false, true)).toBe(true);
     expect(podeAcessarTela('/treinador/marca', acesso([]), false, true)).toBe(true);
   });
-  it('Meus dados e Ajustes são de todos; Minha conta exige CONTA_LER', () => {
+  it('Meus dados e Ajustes são de todos; Assinatura e faturas exige CONTA_LER', () => {
     expect(podeAcessarTela('/treinador/meus-dados', acesso([]))).toBe(true);
     expect(podeAcessarTela('/treinador/ajustes', acesso([]))).toBe(true);
     expect(podeAcessarTela('/treinador/minha-conta', acesso(ADMIN_SEM_CONTA))).toBe(false);

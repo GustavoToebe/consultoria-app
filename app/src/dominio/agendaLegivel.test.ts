@@ -2,7 +2,7 @@ import type { Participante } from '../api/agendaTipos';
 import { CLARO, contraste, ESCURO } from '../tema/tokens';
 import {
   arranjoDoBloco, CONTRASTE_DO_GRAFICO, CONTRASTE_DO_TEXTO, fundoDoItemDaAgenda, horarioNoRotuloDoCompromisso, LARGURA_PARA_SELO, LARGURA_PARA_SELO_AO_LADO, misturarCores,
-  PROPORCAO_DO_TINGIDO, statusNoDiaInteiro, statusNoRotuloDoCompromisso,
+  PROPORCAO_DO_TINGIDO, statusNoDiaInteiro, statusNoRotuloDoCompromisso, textoDoItemNoMes,
 } from './agendaLegivel';
 
 const p = (situacao: Participante['situacao'], n = 1): Participante => ({ id: `a${n}`, nome: `Aluno ${n}`, situacao });
@@ -68,6 +68,16 @@ describe('horarioNoRotuloDoCompromisso', () => {
     expect(horarioNoRotuloDoCompromisso('09:00')).toBe('09:00');
     expect(horarioNoRotuloDoCompromisso('09:00', null)).toBe('09:00');
     expect(horarioNoRotuloDoCompromisso('09:00', '')).toBe('09:00');
+  });
+});
+
+describe('textoDoItemNoMes', () => {
+  const item = { titulo: 'Ana Fictícia', diaInteiro: false, origem: 'COMPROMISSO', cancelado: false, inicioCurto: '09:00' };
+  it('escreve Cancelado no mês e deixa o item normal só com hora e título', () => {
+    expect(textoDoItemNoMes(item)).toBe('09:00 Ana Fictícia');
+    expect(textoDoItemNoMes({ ...item, cancelado: true })).toBe('09:00 Ana Fictícia · Cancelado');
+    expect(textoDoItemNoMes({ ...item, diaInteiro: true, cancelado: true })).toBe('Ana Fictícia · Cancelado');
+    expect(textoDoItemNoMes({ ...item, origem: 'ATUALIZACAO', titulo: 'Bruno', cancelado: true })).toBe('Bruno · Cancelado');
   });
 });
 

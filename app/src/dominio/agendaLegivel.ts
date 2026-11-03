@@ -126,3 +126,14 @@ export function statusNoDiaInteiro(largura: number, temStatus: boolean, linha = 
   if (!temStatus) return null;
   return largura >= (LARGURA_PARA_SELO_AO_LADO * linha) / 16 ? 'selo' : 'icone';
 }
+
+/**
+ * Texto do item na célula do mês: hora de início e título (ou só o título no dia inteiro e na atualização).
+ * Cancelado escreve a palavra; o riscado sozinho não diz o status.
+ */
+export function textoDoItemNoMes(item: {
+  titulo: string; diaInteiro: boolean; origem: string; cancelado: boolean; inicioCurto: string;
+}): string {
+  const base = item.diaInteiro || item.origem === 'ATUALIZACAO' ? item.titulo : `${item.inicioCurto} ${item.titulo}`;
+  return item.cancelado ? `${base} · Cancelado` : base;
+}

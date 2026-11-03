@@ -35,21 +35,23 @@ export function RoscaDosAlunos({ rosca }: { rosca: RoscaDoPainel }) {
                 <Circle key={f.chave} cx={50} cy={50} r={RAIO_DA_ROSCA} fill="none" stroke={cores[f.cor]} strokeWidth={TRACO}
                   strokeDasharray={`${f.fracao * VOLTA} ${VOLTA}`} strokeDashoffset={-f.inicio * VOLTA} transform="rotate(-90 50 50)" />
               ))}
-              <SvgTexto x={50} y={43} fontSize={11} fill={cores.textoSuave} textAnchor="middle">Alunos</SvgTexto>
+              <SvgTexto x={50} y={43} fontSize={12} fill={cores.textoSuave} textAnchor="middle">Alunos</SvgTexto>
               <SvgTexto x={50} y={63} fontSize={18} fontWeight="bold" fill={cores.texto} textAnchor="middle">{String(rosca.total)}</SvgTexto>
             </Svg>
           </View>
         ) : null}
         <View accessibilityRole="list" accessibilityLabel={`${rosca.titulo}. Total ${rosca.total}`} style={estilos.legenda}>
           {rosca.fatias.map((f) => (
-            <Pressable key={f.chave} accessibilityRole="link" accessibilityLabel={`${f.rotulo}: ${f.valor}. Ver na lista de alunos`}
-              {...propsDeLink(f.href as Href, () => router.push(f.href as Href))}
-              style={(e) => [estilos.itemDaLegenda, { backgroundColor: sobre(e) ? cores.superficie3 : 'transparent' }]}>
-              <View style={[estilos.bolinha, { backgroundColor: cores[f.cor] }]} />
-              <Texto style={estilos.rotulo}>{f.rotulo}</Texto>
-              <Texto variante="bloco" numerico>{String(f.valor)}</Texto>
-              <ChevronRight size={16} color={cores.textoSuave} strokeWidth={2} />
-            </Pressable>
+            <View key={f.chave} role="listitem">
+              <Pressable accessibilityRole="link" accessibilityLabel={`${f.rotulo}: ${f.valor}. Ver na lista de alunos`}
+                {...propsDeLink(f.href as Href, () => router.push(f.href as Href))}
+                style={(e) => [estilos.itemDaLegenda, { backgroundColor: sobre(e) ? cores.superficie3 : 'transparent' }]}>
+                <View style={[estilos.bolinha, { backgroundColor: cores[f.cor] }]} />
+                <Texto style={estilos.rotulo}>{f.rotulo}</Texto>
+                <Texto variante="bloco" numerico>{String(f.valor)}</Texto>
+                <ChevronRight size={16} color={cores.textoSuave} strokeWidth={2} />
+              </Pressable>
+            </View>
           ))}
         </View>
       </View>

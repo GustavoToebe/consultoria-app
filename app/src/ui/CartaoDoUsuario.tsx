@@ -3,6 +3,7 @@ import { ChevronDown, CreditCard, LogOut, Palette, ShieldCheck, SlidersHorizonta
 import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { deixarParaONavegador, type CliqueDoNavegador } from '../dominio/cliqueDeLink';
 import { itensDoMenuDoUsuario, type IdDoItemDoMenu } from '../dominio/menuDoUsuario';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
@@ -25,7 +26,7 @@ export const ICONES_DO_MENU: Record<IdDoItemDoMenu, LucideIcon> = {
 };
 
 /**
- * Cartão do usuário na barra de topo: nome, perfil na equipe e seta. Abre o menu (Meus dados, Minha conta, Marca
+ * Cartão do usuário na barra de topo: nome, perfil na equipe e seta. Abre o menu (Meus dados, Assinatura e faturas, Marca
  * para o Administrador, Ajustes, Sair). Fecha com Esc e com clique fora; setas escolhem e Enter abre. Sair pede a confirmação de sempre.
  */
 export function CartaoDoUsuario({ compacto, ativo: naConta }: { compacto?: boolean; ativo?: boolean } = {}) {
@@ -99,6 +100,15 @@ export function CartaoDoUsuario({ compacto, ativo: naConta }: { compacto?: boole
                   {...(item.href !== null
                     ? propsDeLink(item.href as Href, () => escolher(item.id, item.href))
                     : { onPress: () => escolher(item.id, item.href) })}
+                  onPress={(evento) => {
+                    // Ctrl/Cmd+clique abre outra guia e o menu ficava aberto por cima da tela.
+                    if (item.href !== null && deixarParaONavegador(evento as unknown as CliqueDoNavegador)) {
+                      fechar();
+                      return;
+                    }
+                    if (item.href !== null) propsDeLink(item.href as Href, () => escolher(item.id, item.href)).onPress(evento);
+                    else escolher(item.id, item.href);
+                  }}
                   onHoverIn={() => setAtivo(i)}
                   style={(estado) => [estilos.item, (i === ativo || sobre(estado)) && { backgroundColor: cores.superficie3 }]}>
                   <Icone size={18} color={perigo ? cores.perigo : cores.textoSuave} strokeWidth={2} />

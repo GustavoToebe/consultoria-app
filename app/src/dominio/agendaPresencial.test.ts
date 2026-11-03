@@ -1,11 +1,11 @@
-import type { Compromisso, Participante, Repeticao } from '../api/agendaTipos';
+import type { Compromisso, DiaDaSemana, Participante, Repeticao } from '../api/agendaTipos';
 import type { AtualizacaoDaLista } from '../api/tipos';
 import {
   acaoDeCancelamento, acoesDeSituacao, adicionarParticipante, AJUDA_DIAS_UTEIS, ALUNOS_MAXIMO, datasEmConflito, erroDosParticipantes, escopoPermitido,
   escoposPermitidos, nomesDosParticipantes, OCORRENCIAS_MAXIMO, previsaoDaSerie, removerParticipante, repeticaoDoFormulario,
   resumoDosParticipantes, seloDoCompromisso, SEM_REPETICAO, situacaoDoCompromisso, textoDaOcorrencia, textoDaPrevisao,
   textoDeAlunosOcupados, textoDoConflitoPorData, vagasNoCompromisso, conflitoNaLista, dataEmBrasilia, deslocarReferencia, diasDaAgenda, diasDoCompromisso, formularioDoCompromisso,
-  formularioNovo, hojeEmBrasilia, horaEmBrasilia, horaValida, instanteDeBrasilia, intervaloDoPedido, lerDataDeReferencia, lerSituacoes, OPCOES_SITUACAO, parametroDasSituacoes,
+  formularioNovo, hojeEmBrasilia, horaEmBrasilia, horaValida, instanteDeBrasilia, intervaloDoPedido, lerDataDeReferencia, lerSituacoes, linhaDoCompletoDoCompromisso, OPCOES_SITUACAO, parametroDasSituacoes,
   duracaoEntre, erroDoFim, fimDaHora, horaDigitada, horaDosMinutos, opcaoDigitadaDoFim, opcaoDigitadaDoInicio, inicioMudou, LIMITES_COMPROMISSO, minutosDaHora, opcoesDaRepeticao, opcoesDoFim,
   opcoesDoInicio, PERSONALIZAR_REPETICAO, rotuloDaRepeticaoAtual, terminaNoDiaSeguinte,
   lerVisao, mascaraHora, metadadosDoCompromisso, pedidoDoFormulario, periodoDaVisao, resumoDoDia, seloDaSituacao, sobrepoe,
@@ -235,6 +235,37 @@ describe('formulário', () => {
 const participante = (id: string, situacao: Participante['situacao'] = 'AGENDADO', nome: string | null = `Aluno ${id}`): Participante => ({ id, nome, situacao });
 const comParticipantes = (participantes: Participante[], extra: Partial<Compromisso> = {}) =>
   compromisso({ id: 'c', inicio: '2026-11-10T12:00:00Z', fim: '2026-11-10T13:00:00Z', participantes, ...extra });
+
+describe('linha do completo no painel rápido', () => {
+  const novo = formularioNovo('r1', '2026-11-02');
+
+  it('nenhum campo do completo preenchido não tem linha, e o semanal da lista também não', () => {
+    expect(linhaDoCompletoDoCompromisso(novo)).toBeNull();
+    expect(linhaDoCompletoDoCompromisso({
+      ...novo, repeticao: trocarTipoDaRepeticao(novo.repeticao, 'SEMANAL', novo.data),
+    })).toBeNull();
+    expect(linhaDoCompletoDoCompromisso({ ...novo, alunoIds: ['a1'], observacao: '   ' })).toBeNull();
+  });
+
+  it('repetição personalizada cita só repetição', () => {
+    const semanal = trocarTipoDaRepeticao(novo.repeticao, 'SEMANAL', novo.data);
+    expect(linhaDoCompletoDoCompromisso({
+      ...novo, repeticao: { ...semanal, dias: ['MONDAY', 'WEDNESDAY'] },
+    })).toBe('Também preenchido em Mais opções: repetição.');
+  });
+
+  it('dois campos saem na ordem do formulário', () => {
+    const semanal = trocarTipoDaRepeticao(novo.repeticao, 'SEMANAL', novo.data);
+    const dias: DiaDaSemana[] = ['MONDAY', 'WEDNESDAY'];
+    const personalizada = { ...semanal, dias };
+    expect(linhaDoCompletoDoCompromisso({
+      ...novo, observacao: 'Levar a ficha', repeticao: personalizada,
+    })).toBe('Também preenchido em Mais opções: repetição, observação.');
+    expect(linhaDoCompletoDoCompromisso({
+      ...novo, alunoIds: ['a1', 'a2'], observacao: 'Levar a ficha', repeticao: personalizada,
+    })).toBe('Também preenchido em Mais opções: repetição, alunos, observação.');
+  });
+});
 
 describe('participantes', () => {
   it('o máximo é 20 e a lista não repete aluno', () => {

@@ -7,7 +7,7 @@ import { dataComDiaDaSemana } from '../../dominio/agendaCalendario';
 import {
   agendaDoFormulario, alvoDoEvento, ehSerieDeEventos, type ErrosDaRepeticaoDoEvento, type ErrosDoEvento, escoposDoEvento, escoposParaExcluirEvento,
   explicacaoDoEscopoDoEvento, type FormularioDaRepeticaoDoEvento, type FormularioDoEvento, formularioDeEventoNovo, formularioDoEvento,
-  garantirAgendaPadrao, mudouAAgendaDoEvento, mudouADataDoEvento, NOME_DA_AGENDA_PADRAO, pedidoDeCruzamento, pedidoDoEvento,
+  garantirAgendaPadrao, linhaDoCompletoDoEvento, mudouAAgendaDoEvento, mudouADataDoEvento, NOME_DA_AGENDA_PADRAO, pedidoDeCruzamento, pedidoDoEvento,
   ROTULOS_DAS_CORES_DA_AGENDA, ROTULOS_DO_ESCOPO_DO_EVENTO, textoDaRepeticaoDoEvento, textoDeExcluirEvento, textoDoCruzamento, textoDoErroDoCalendario,
 } from '../../dominio/agendaEvento';
 import { useSessao } from '../../sessao/SessaoProvider';
@@ -50,7 +50,9 @@ interface Props {
  * Folha do evento pessoal: detalhe (título, quando, agenda, repetição, local, descrição; Editar e Excluir com
  * `AGENDA_ALTERAR`) ou formulário. O evento novo abre no painel rápido do Google Agenda (título grande "Adicionar título",
  * linhas com ícone) com "Mais opções" + "Salvar" no rodapé; "Mais opções", o "Personalizar…" da repetição e a edição usam o
- * formulário completo, em `LARGURA_EDITOR` (sem a lista de agendas, a folha comum basta). Numa série, salvar e excluir perguntam o escopo; mudar a data só vale em "Somente este" e
+ * formulário completo, em `LARGURA_EDITOR` (sem a lista de agendas, a folha comum basta). No evento novo, "Menos opções"
+ * volta ao painel rápido sem apagar o que foi digitado. Se sobrou campo do completo diferente do padrão, o rodapé diz
+ * o que será salvo. A edição já abre no completo e não tem esse botão. Numa série, salvar e excluir perguntam o escopo; mudar a data só vale em "Somente este" e
  * a agenda só na série toda. 409 de versão relê o evento e avisa. Cada evento aberto é uma folha nova (a `key`).
  */
 export function FolhaEvento(props: Props) {
@@ -214,10 +216,13 @@ function FolhaAberta({ aberto, agendas, erroDasAgendas, recarregarAgendas, hoje,
   // O formulário só abre sabendo as agendas: carregando, espera; falhou, diz e deixa tentar de novo (sem beco sem saída).
   const semListaDeAgendas = modo === 'formulario' && agendas === null;
   const titulo = novo ? 'Novo evento' : modo === 'formulario' ? 'Editar evento' : 'Evento';
+  const avisoDoCompleto = novo && !completo && !semListaDeAgendas ? linhaDoCompletoDoEvento(formComAgenda) : null;
   const rodape = semListaDeAgendas ? <>
     <Botao rotulo="Cancelar" tipo="secundario" aoTocar={novo ? aoFechar : () => { limpar(); setModo('detalhe'); }} />
   </> : modo === 'formulario' ? <>
     {linhaDaMensagem}
+    {avisoDoCompleto ? <Texto variante="suave" style={estilos.mensagem}>{avisoDoCompleto}</Texto> : null}
+    {novo && completo ? <Botao rotulo="Menos opções" tipo="secundario" aoTocar={() => setCompleto(false)} /> : null}
     {completo ? <Botao rotulo="Cancelar" tipo="secundario" aoTocar={novo ? aoFechar : () => { limpar(); setModo('detalhe'); }} />
       : <Botao rotulo="Mais opções" tipo="secundario" aoTocar={() => setCompleto(true)} />}
     <Botao rotulo={e ? 'Salvar alterações' : 'Salvar'} aoTocar={salvar} carregando={salvando} desabilitado={salvando} motivo="Salvando." />
