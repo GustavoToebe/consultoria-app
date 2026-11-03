@@ -1,4 +1,4 @@
-import { AREIA, contraste, CLARO, ESCURO } from '../tema/tokens';
+import { contraste, PALETAS } from '../tema/tokens';
 import { BLOCOS_DO_PAINEL } from './painelBlocos';
 import {
   AGENDAS_OCULTAS_MAXIMO,
@@ -37,7 +37,7 @@ describe('preferências pessoais', () => {
     expect(PREFERENCIAS_PADRAO.bordasReforcadas).toBe(false);
     expect(normalizarPreferencias({ bordasReforcadas: 'sim' }).bordasReforcadas).toBe(false);
     expect(normalizarPreferencias({ bordasReforcadas: true }).bordasReforcadas).toBe(true);
-    for (const base of [CLARO, ESCURO, AREIA]) {
+    for (const { cores: base } of Object.values(PALETAS)) {
       expect(coresComBordasReforcadas(base, false)).toBe(base);
       const r = coresComBordasReforcadas(base, true);
       expect(r.borda).toBe(base.bordaCampo);
@@ -115,11 +115,7 @@ describe('preferências pessoais', () => {
     expect(escalar(16, 1)).toBe(16);
   });
 
-  it.each([
-    ['escuro', ESCURO, true],
-    ['claro', CLARO, false],
-    ['claro areia', AREIA, false],
-  ])('contraste alto no tema %s: borda nítida e texto secundário ≥ 7:1 em todas as superfícies', (_nome, base, escuro) => {
+  it.each(Object.entries(PALETAS).map(([codigo, p]) => [codigo, p.cores, p.modo === 'ESCURO'] as const))('contraste alto no tema %s: borda nítida e texto secundário ≥ 7:1 em todas as superfícies', (_nome, base, escuro) => {
     const alto = coresComContraste(base, 'ALTO', escuro);
     expect(alto.borda).toBe(base.bordaCampo);
     for (const superficie of [alto.fundo, alto.superficie, alto.superficie2, alto.superficie3]) {

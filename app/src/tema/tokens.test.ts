@@ -1,11 +1,11 @@
 import { coresComBordasReforcadas, coresComContraste } from '../dominio/preferencias';
 import {
-  AREIA,
   CHAVES_DA_AGENDA,
   CHAVES_DE_IDENTIFICACAO,
   CLARO,
   ESCURO,
   PALETA_DA_AGENDA,
+  PALETAS,
   PALETA_DE_IDENTIFICACAO,
   contraste,
   corDaAgenda,
@@ -16,13 +16,16 @@ import {
   type Cores,
 } from './tokens';
 
-it.each([CLARO, ESCURO, AREIA])('preserva contraste AA nos detalhes de todas as superfícies', (cores) => {
+/** Todas as paletas da marca (decisão 1 do plano `paletas-da-marca`): cada teste de contraste percorre a lista inteira. */
+const TODAS: [string, Cores, boolean][] = Object.entries(PALETAS).map(([codigo, p]) => [codigo, p.cores, p.modo === 'ESCURO']);
+
+it.each(TODAS)('%s: preserva contraste AA nos detalhes de todas as superfícies', (_codigo, cores) => {
   for (const superficie of [cores.superficie, cores.superficie2, cores.superficie3]) {
     expect(contraste(cores.textoSuave, superficie)).toBeGreaterThanOrEqual(4.5);
   }
 });
 
-it.each([CLARO, ESCURO, AREIA])('status e neutro servem de texto em todas as superfícies', (cores) => {
+it.each(TODAS)('%s: status e neutro servem de texto em todas as superfícies', (_codigo, cores) => {
   for (const cor of [cores.sucesso, cores.atencao, cores.perigo, cores.neutro]) {
     for (const superficie of [cores.superficie, cores.superficie2, cores.superficie3]) {
       expect(contraste(cor, superficie)).toBeGreaterThanOrEqual(4.5);
@@ -51,7 +54,7 @@ describe('marcaParaTexto', () => {
   });
 });
 
-it.each([CLARO, ESCURO, AREIA])('campo, borda e cartão se distinguem do fundo e entre si', (cores) => {
+it.each(TODAS)('%s: campo, borda e cartão se distinguem do fundo e entre si', (_codigo, cores) => {
   expect(contraste(cores.bordaCampo, cores.campo)).toBeGreaterThanOrEqual(3);
   // Reunião de 29/10: a borda do cartão tem de aparecer (1,9:1 ou mais), também sobre a faixa do cabeçalho.
   expect(contraste(cores.borda, cores.superficie)).toBeGreaterThanOrEqual(1.9);
@@ -97,8 +100,8 @@ const distanciaDeCor = (a: string, b: string) => Math.hypot(...lab(a).map((v, i)
 const DISTANCIA_DO_STATUS = 25;
 const DISTANCIA_ENTRE_AGENDAS = 15;
 
-describe.each([['claro', CLARO], ['escuro', ESCURO]] as const)('paleta das agendas (%s)', (tema, cores) => {
-  const paleta = PALETA_DA_AGENDA[tema];
+describe.each(TODAS)('paleta das agendas (%s)', (_codigo, cores, escuro) => {
+  const paleta = PALETA_DA_AGENDA[escuro ? 'escuro' : 'claro'];
 
   it('tem as oito chaves da API, todas #RRGGBB', () => {
     expect(Object.keys(paleta).sort()).toEqual([...CHAVES_DA_AGENDA].sort());
@@ -147,7 +150,7 @@ function fundoDoAlerta(cor: string, fundo: string): string {
   return `#${[0, 1, 2].map((i) => Math.round(canal(cor, i) * a + canal(fundo, i) * (1 - a)).toString(16).padStart(2, '0')).join('')}`;
 }
 
-test.each([['claro', CLARO], ['escuro', ESCURO], ['areia', AREIA]] as const)(
+test.each(TODAS)(
   'texto da caixa de aviso (perigo, atenção, sucesso) legível sobre o próprio fundo no tema %s',
   (_nome, cores) => {
     for (const tom of ['perigo', 'atencao', 'sucesso'] as const) {
@@ -158,7 +161,7 @@ test.each([['claro', CLARO], ['escuro', ESCURO], ['areia', AREIA]] as const)(
   },
 );
 
-test.each([['claro', CLARO], ['escuro', ESCURO], ['areia', AREIA]] as const)(
+test.each(TODAS)(
   'selo com ícone (Pronta, Atenção, Corrigir): texto legível sobre o fundo opaco, em qualquer faixa, no tema %s',
   (_nome, cores) => {
     for (const tom of ['perigo', 'atencao', 'sucesso'] as const) {
@@ -170,11 +173,7 @@ test.each([['claro', CLARO], ['escuro', ESCURO], ['areia', AREIA]] as const)(
 // ---- Cores de identificação: tipo de série, divisão e refeição (Frente G, D6, D9 a D14) ----
 
 /** Os três temas, cada um também com contraste alto e com bordas reforçadas (que não podem derrubar o contraste). */
-const TEMAS_DA_IDENTIFICACAO: [string, Cores, boolean][] = [
-  ['claro', CLARO, false],
-  ['areia', AREIA, false],
-  ['escuro', ESCURO, true],
-].flatMap(([nome, base, escuro]) => [
+const TEMAS_DA_IDENTIFICACAO: [string, Cores, boolean][] = TODAS.flatMap(([nome, base, escuro]) => [
   [nome as string, base as Cores, escuro as boolean],
   [`${nome} com contraste alto`, coresComContraste(base as Cores, 'ALTO', escuro as boolean), escuro as boolean],
   [`${nome} com bordas reforçadas`, coresComBordasReforcadas(base as Cores, true), escuro as boolean],

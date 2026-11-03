@@ -19,16 +19,15 @@ import { useSessao } from '../sessao/SessaoProvider';
 import { definirVibracaoLigada } from '../ui/vibrar';
 import { criarArmazemDePreferencias } from './armazemDePreferencias';
 import {
-  AREIA,
-  CLARO,
   coresDeIdentificacao,
-  ESCURO,
   MARCA_NEUTRA,
   marcaParaTexto,
+  PALETAS,
   textoSobre,
   type ChaveDeIdentificacao,
   type CorDeIdentificacao,
   type Cores,
+  type ModoDoTema,
 } from './tokens';
 
 /**
@@ -39,7 +38,7 @@ import {
  */
 interface ValorTema {
   /** Tema em uso agora (escuro ou claro), já resolvido: consultoria, escolha da pessoa ou aparelho. */
-  modo: Tema;
+  modo: ModoDoTema;
   cores: Cores;
   /** Espessura da borda do bloco e do item (2 px; 3 px no bloco com "Bordas reforçadas"). */
   bordas: { bloco: number; item: number };
@@ -105,17 +104,15 @@ export function TemaProvider({ children }: { children: ReactNode }) {
     const doAparelho: Tema = esquemaDoAparelho === 'light' ? 'CLARO' : 'ESCURO';
     // Tela pública (sem consultoria conhecida) segue o aparelho; logado, o padrão é o da marca do treinador.
     const doTreinador: Tema = sessao.marca?.temaPadrao ?? doAparelho;
-    // "Claro areia" é o modo claro com outra paleta (fundo e faixas em tom areia).
-    const modo: Tema =
-      preferencias.tema === 'ESCURO' || preferencias.tema === 'CLARO'
+    // A preferência da pessoa (Escuro, Claro, Areia, Sistema) vence a paleta da consultoria; o modo sai da paleta.
+    const codigo: Tema =
+      preferencias.tema === 'ESCURO' || preferencias.tema === 'CLARO' || preferencias.tema === 'AREIA'
         ? preferencias.tema
-        : preferencias.tema === 'AREIA'
-          ? 'CLARO'
-          : preferencias.tema === 'SISTEMA'
-            ? doAparelho
-            : doTreinador;
+        : preferencias.tema === 'SISTEMA'
+          ? doAparelho
+          : doTreinador;
+    const { cores: base, modo } = PALETAS[codigo];
     const marca = sessao.marca?.corPrimaria ?? MARCA_NEUTRA;
-    const base = modo === 'CLARO' ? (preferencias.tema === 'AREIA' ? AREIA : CLARO) : ESCURO;
     const cores = coresComBordasReforcadas(coresComContraste(base, preferencias.contraste, modo !== 'CLARO'), preferencias.bordasReforcadas);
     return {
       modo,

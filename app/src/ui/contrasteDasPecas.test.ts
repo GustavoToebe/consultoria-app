@@ -1,14 +1,14 @@
 import { coresComBordasReforcadas, coresComContraste } from '../dominio/preferencias';
 import { coresDoDesabilitado } from './desabilitado';
 import { coresDoMarcar } from './marcar';
-import { AREIA, CLARO, ESCURO, contraste, textoSobre, tingido, type Cores } from '../tema/tokens';
+import { PALETAS, contraste, textoSobre, tingido, type Cores } from '../tema/tokens';
 
 /**
  * Pares de cor que as peças comuns de `ui/` usam depois do passo 1 da atualização visual (30/10), conferidos em todos os
  * temas, com contraste alto e com "Bordas reforçadas": texto ≥ 4,5:1 e borda de controle ≥ 3:1 (WCAG 1.4.3 e 1.4.11).
  * O Jest não monta as peças (o lucide é ESM); quem mudar uma cor nelas atualiza o par aqui.
  */
-const BASES: [string, Cores, boolean][] = [['claro', CLARO, false], ['claro areia', AREIA, false], ['escuro', ESCURO, true]];
+const BASES: [string, Cores, boolean][] = Object.entries(PALETAS).map(([codigo, p]) => [codigo, p.cores, p.modo === 'ESCURO']);
 const VARIANTES: [string, Cores][] = BASES.flatMap(([nome, base, escuro]) => [false, true].flatMap((alto) => [false, true].map((reforcadas): [string, Cores] => [
   `${nome}${alto ? ', contraste alto' : ''}${reforcadas ? ', bordas reforçadas' : ''}`,
   coresComBordasReforcadas(coresComContraste(base, alto ? 'ALTO' : 'PADRAO', escuro), reforcadas),
