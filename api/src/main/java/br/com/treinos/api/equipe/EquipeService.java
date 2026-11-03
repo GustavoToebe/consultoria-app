@@ -209,4 +209,6 @@ public class EquipeService {
     private static void exigirEditavel(Perfil p) { if(p.isSistema()) throw new ConflictException("O perfil Administrador é do sistema.","PERFIL_DE_SISTEMA"); }
     private static NaoEncontradoException naoEncontrado() { return new NaoEncontradoException("Recurso não encontrado."); }
     public static NaoEncontradoException conviteInvalido() { return new NaoEncontradoException("Convite inválido ou expirado."); }
+    // Assinatura mínima (fase 1 dos testes): não grava, não valida, não audita; a fase 2 põe a regra.
+    public void definirLimiteDeAlunos(UUID id,Integer limite) { }
 }
