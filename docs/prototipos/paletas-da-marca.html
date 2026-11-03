@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prévia · Paletas da marca</title>
+<style>
+  :root { --tinta: #111114; --papel: #f4f4f5; --linha: #d4d4d8; --falha: #b71c1c; --ok: #176e3c; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { font-family: system-ui, "Segoe UI", sans-serif; background: var(--papel); color: var(--tinta); line-height: 1.4; }
+  a { color: inherit; }
+  header.topo { padding: 28px 20px 8px; max-width: 1100px; margin: 0 auto; }
+  header.topo h1 { font-size: 28px; margin: 0 0 8px; }
+  header.topo p { margin: 0 0 8px; max-width: 68ch; }
+  nav.secoes { display: flex; gap: 12px; padding: 0 20px 8px; max-width: 1100px; margin: 0 auto; }
+  nav.secoes a { font-weight: 700; }
+  main { max-width: 1100px; margin: 0 auto; padding: 8px 20px 48px; }
+  section { margin-top: 28px; }
+  h2 { font-size: 22px; margin: 0 0 12px; }
+  .resumo { background: #fff; border: 1px solid var(--linha); border-radius: 12px; padding: 16px 18px; }
+  .resumo p { margin: 0 0 8px; }
+  .resumo ul { margin: 8px 0 0; padding-left: 18px; }
+  .nota { color: #3f3f46; font-size: 14px; }
+  .grade { display: flex; flex-direction: column; gap: 20px; }
+  article { background: #fff; border: 1px solid var(--linha); border-radius: 12px; padding: 16px; }
+  article header { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: baseline; margin-bottom: 12px; }
+  article h3 { margin: 0; font-size: 18px; }
+  article code { font-size: 13px; }
+  .origem { color: #52525b; font-size: 14px; }
+  .lado { display: grid; grid-template-columns: 280px 1fr; gap: 16px; align-items: start; }
+  @media (max-width: 760px) { .lado { grid-template-columns: 1fr; } }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--linha); vertical-align: top; }
+  th { color: #52525b; font-weight: 600; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .falha { color: var(--falha); font-weight: 700; }
+  .passa { color: var(--ok); }
+  .amostra { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(0,0,0,.25); margin-right: 6px; vertical-align: -1px; }
+  h4 { margin: 14px 0 6px; font-size: 13px; }
+  .mini { border-radius: 16px; padding: 16px; min-height: 320px; }
+  .ola { margin: 0; font-size: 22px; font-weight: 700; }
+  .suave { margin: 2px 0 12px; font-size: 13px; }
+  .bloco { border-width: 2px; border-style: solid; border-radius: 12px; overflow: hidden; }
+  .faixa { padding: 10px 12px; font-weight: 700; border-bottom: 3px solid; }
+  .item { margin: 10px; padding: 10px 12px; border-width: 1px; border-style: solid; border-radius: 12px; }
+  .item b { display: block; }
+  .item span { font-size: 13px; }
+  .selos { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 10px 10px; }
+  .selo { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; border: 1px solid; border-radius: 8px; padding: 2px 6px; }
+  .btn { display: block; margin: 0 10px 12px; text-align: center; font-weight: 700; border-radius: 12px; padding: 10px 12px; }
+</style>
+</head>
+<body>
+<header class="topo">
+  <h1>Paletas da marca</h1>
+  <p>Prévia do Início do aluno nas 15 paletas do plano. Texto, verde, âmbar e vermelho são os do Escuro ou do Claro em <code>app/src/tema/tokens.ts</code>. O botão usa o vermelho intenso da marca, <code>#C62828</code>.</p>
+  <p class="nota">O contraste é a função <code>contraste()</code> do mesmo arquivo. Abaixo de 4,5:1 o texto fica vermelho. Abaixo de 3:1, a borda contra o cartão também. A borda do cartão hoje é decorativa: no <code>tokens.ts</code> ela não precisa de 3:1 e fica acima de 1,9:1. Esta página marca 3:1 assim mesmo, para o corte.</p>
+</header>
+<nav class="secoes">
+  <a href="#resumo">Resumo</a>
+  <a href="#escuras">Escuras</a>
+  <a href="#claras">Claras</a>
+</nav>
+<main>
+  <section id="resumo" class="resumo"></section>
+  <section id="escuras">
+    <h2>Escuras</h2>
+    <p class="nota">Nas paletas novas, o que a tabela não traz sai clareando o cartão em direção ao branco, com a mistura do <code>tokens.ts</code> (<code>0</code> = cartão, <code>1</code> = branco). Passos: campo 0,02; superficie2 0,04; superficie3 0,09; divisor 0,13; borda 0,23; borda do campo 0,41. São os arredondamentos que mais se aproximam do Escuro, menos o campo: no Escuro ele é mais escuro que o cartão; aqui ele também clareia. Escuro, Claro e Areia usam os valores literais do arquivo.</p>
+    <div class="grade" data-modo="escuro"></div>
+  </section>
+  <section id="claras">
+    <h2>Claras</h2>
+    <p class="nota">O cartão é branco. O segundo tom da tabela é a faixa do título (<code>superficie3</code>). Os outros tons das paletas novas são os do Claro.</p>
+    <div class="grade" data-modo="claro"></div>
+  </section>
+</main>
+<script>
+/* Copiado de app/src/tema/tokens.ts (main 0bab0c2f). Não alterar a conta. */
+var ESCURO = {
+  fundo: '#0A0A0C', superficie: '#18181B', superficie2: '#222226', superficie3: '#2C2C31',
+  divisor: '#36363C', borda: '#4C4C55', campo: '#0F0F12', bordaCampo: '#76767E',
+  texto: '#F4F4F5', textoSuave: '#A1A1AA', sucesso: '#2BB36A', atencao: '#D9962C', perigo: '#F0666B'
+};
+var CLARO = {
+  fundo: '#F7F7F8', superficie: '#FFFFFF', superficie2: '#F4F4F5', superficie3: '#E7E7EA',
+  divisor: '#D4D4D8', borda: '#B9B9C0', campo: '#FFFFFF', bordaCampo: '#80808A',
+  texto: '#111114', textoSuave: '#52525B', sucesso: '#176E3C', atencao: '#875710', perigo: '#B71C1C'
+};
+var AREIA = {
+  fundo: '#FAF9F6', superficie: '#FFFFFF', superficie2: '#F7F5F0', superficie3: '#E7E3DB',
+  divisor: '#DDD8CF', borda: '#B9B3A9', campo: '#FFFFFF', bordaCampo: '#77736B'
+};
+var MARCA = '#C62828';
+var PASSOS = { campo: 0.02, superficie2: 0.04, superficie3: 0.09, divisor: 0.13, borda: 0.23, bordaCampo: 0.41 };
+var PALETAS = [
+  { codigo: 'ESCURO', nome: 'Escuro', modo: 'escuro', origem: 'já existe', fundo: ESCURO.fundo, cartao: ESCURO.superficie, literal: ESCURO },
+  { codigo: 'MEIA_NOITE', nome: 'Meia-noite', modo: 'escuro', origem: 'Midnight', fundo: '#06141B', cartao: '#11212D' },
+  { codigo: 'AMEIXA', nome: 'Ameixa', modo: 'escuro', origem: 'Plum', fundo: '#190019', cartao: '#2B124C' },
+  { codigo: 'VIOLETA', nome: 'Violeta', modo: 'escuro', origem: 'Purple Haze', fundo: '#0E0B1D', cartao: '#2A1E4D' },
+  { codigo: 'OCEANO', nome: 'Oceano', modo: 'escuro', origem: 'Arctic Blue', fundo: '#0B132B', cartao: '#1C2541' },
+  { codigo: 'OLIVA', nome: 'Oliva', modo: 'escuro', origem: 'Olive Luxe', fundo: '#0B0F0D', cartao: '#1F2A1F' },
+  { codigo: 'CAFE', nome: 'Café', modo: 'escuro', origem: 'Mocha Earth', fundo: '#1A120E', cartao: '#3A2418' },
+  { codigo: 'PETROLEO', nome: 'Petróleo', modo: 'escuro', origem: 'Teal', fundo: '#05161A', cartao: '#072E33' },
+  { codigo: 'CLARO', nome: 'Claro', modo: 'claro', origem: 'já existe', fundo: CLARO.fundo, cartao: CLARO.superficie, literal: CLARO },
+  { codigo: 'AREIA', nome: 'Areia', modo: 'claro', origem: 'já existe (hoje só nas Preferências)', fundo: AREIA.fundo, cartao: AREIA.superficie, literal: Object.assign({}, CLARO, AREIA) },
+  { codigo: 'LAVANDA', nome: 'Lavanda', modo: 'claro', origem: 'Lavender', fundo: '#F7F8FF', cartao: '#FFFFFF', faixa: '#E6E0FF' },
+  { codigo: 'CEU', nome: 'Céu', modo: 'claro', origem: 'Ocean Blue', fundo: '#F0F7FF', cartao: '#FFFFFF', faixa: '#DBEAFE' },
+  { codigo: 'MENTA', nome: 'Menta', modo: 'claro', origem: 'Mint', fundo: '#F8FFFE', cartao: '#FFFFFF', faixa: '#E6FFFB' },
+  { codigo: 'ROSA', nome: 'Rosa', modo: 'claro', origem: 'Rose', fundo: '#FFF9FB', cartao: '#FFFFFF', faixa: '#FCE7F3' },
+  { codigo: 'BRISA', nome: 'Brisa', modo: 'claro', origem: 'Pastel Breeze', fundo: '#F1F7F7', cartao: '#FFFFFF', faixa: '#D5E5E5' }
+];
+
+function luminancia(hex) {
+  var valor = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!valor) return 0;
+  var n = parseInt(valor[1], 16);
+  var canais = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(function (c) {
+    var s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * canais[0] + 0.7152 * canais[1] + 0.0722 * canais[2];
+}
+
+function contraste(a, b) {
+  var par = [luminancia(a), luminancia(b)].sort(function (x, y) { return y - x; });
+  return (par[0] + 0.05) / (par[1] + 0.05);
+}
+
+function misturar(cor, alvo, t) {
+  var a = parseInt(cor.slice(1), 16);
+  var b = parseInt(alvo.slice(1), 16);
+  var canal = function (desl) {
+    return Math.round(((a >> desl) & 255) * (1 - t) + ((b >> desl) & 255) * t);
+  };
+  return '#' + [16, 8, 0].map(function (d) { return canal(d).toString(16).padStart(2, '0').toUpperCase(); }).join('');
+}
+
+function tonsDe(p) {
+  if (p.literal) {
+    return {
+      fundo: p.fundo, superficie: p.cartao, superficie2: p.literal.superficie2, superficie3: p.literal.superficie3,
+      divisor: p.literal.divisor, borda: p.literal.borda, campo: p.literal.campo, bordaCampo: p.literal.bordaCampo,
+      origemDosTons: 'valores de tokens.ts'
+    };
+  }
+  if (p.modo === 'escuro') {
+    var tons = { fundo: p.fundo, superficie: p.cartao, origemDosTons: 'cartão clareado em passos fixos' };
+    Object.keys(PASSOS).forEach(function (chave) {
+      tons[chave] = misturar(p.cartao, '#FFFFFF', PASSOS[chave]);
+    });
+    return tons;
+  }
+  return {
+    fundo: p.fundo, superficie: '#FFFFFF', superficie2: CLARO.superficie2, superficie3: p.faixa,
+    divisor: CLARO.divisor, borda: CLARO.borda, campo: CLARO.campo, bordaCampo: CLARO.bordaCampo,
+    origemDosTons: 'faixa da paleta; o resto é o Claro'
+  };
+}
+
+function statusDe(modo) {
+  var base = modo === 'escuro' ? ESCURO : CLARO;
+  return { texto: base.texto, textoSuave: base.textoSuave, sucesso: base.sucesso, atencao: base.atencao, perigo: base.perigo };
+}
+
+function fmt(n) {
+  return n.toFixed(2).replace('.', ',');
+}
+
+function medir(p) {
+  var tons = tonsDe(p);
+  var st = statusDe(p.modo);
+  var linhas = [
+    ['Texto', st.texto, 4.5],
+    ['Texto suave', st.textoSuave, 4.5],
+    ['Verde', st.sucesso, 4.5],
+    ['Âmbar', st.atencao, 4.5],
+    ['Vermelho', st.perigo, 4.5],
+    ['Cor da marca', MARCA, 4.5]
+  ].map(function (item) {
+    var noFundo = contraste(item[1], tons.fundo);
+    var noCartao = contraste(item[1], tons.superficie);
+    return { nome: item[0], cor: item[1], fundo: noFundo, cartao: noCartao, falhaFundo: noFundo < item[2], falhaCartao: noCartao < item[2], borda: false };
+  });
+  [['Borda', tons.borda], ['Borda do campo', tons.bordaCampo]].forEach(function (item) {
+    var noCartao = contraste(item[1], tons.superficie);
+    linhas.push({ nome: item[0], cor: item[1], fundo: null, cartao: noCartao, falhaFundo: false, falhaCartao: noCartao < 3, borda: true });
+  });
+  var falhas = [];
+  linhas.forEach(function (linha) {
+    if (linha.falhaFundo) falhas.push(linha.nome + ' contra o fundo (' + fmt(linha.fundo) + ':1)');
+    if (linha.falhaCartao) falhas.push(linha.nome + ' contra o cartão (' + fmt(linha.cartao) + ':1)');
+  });
+  return { tons: tons, linhas: linhas, falhas: falhas };
+}
+
+function celula(valor, falha) {
+  if (valor === null) return '<td class="num">—</td>';
+  var classe = falha ? 'falha' : 'passa';
+  var extra = falha ? ' abaixo' : '';
+  return '<td class="num ' + classe + '">' + fmt(valor) + ':1' + extra + '</td>';
+}
+
+function desenhar(p, medida) {
+  var tons = medida.tons;
+  var st = statusDe(p.modo);
+  var artigo = document.createElement('article');
+  artigo.id = p.codigo;
+  var rotulos = [
+    ['Fundo', tons.fundo, ''],
+    ['Cartão', tons.superficie, ''],
+    ['Item (superficie2)', tons.superficie2, p.literal ? '' : (p.modo === 'escuro' ? 'passo 0,04' : 'Claro')],
+    ['Faixa (superficie3)', tons.superficie3, p.faixa ? 'segundo tom da paleta' : (p.literal ? '' : 'passo 0,09')],
+    ['Divisor', tons.divisor, p.literal ? '' : (p.modo === 'escuro' ? 'passo 0,13' : 'Claro')],
+    ['Borda', tons.borda, p.literal ? '' : (p.modo === 'escuro' ? 'passo 0,23' : 'Claro')],
+    ['Campo', tons.campo, p.literal ? '' : (p.modo === 'escuro' ? 'passo 0,02' : 'Claro')],
+    ['Borda do campo', tons.bordaCampo, p.literal ? '' : (p.modo === 'escuro' ? 'passo 0,41' : 'Claro')]
+  ];
+  var linhasTons = rotulos.map(function (item) {
+    return '<tr><td><span class="amostra" style="background:' + item[1] + '"></span>' + item[0] + '</td><td><code>' + item[1] + '</code></td><td>' + item[2] + '</td></tr>';
+  }).join('');
+  var linhasContraste = medida.linhas.map(function (linha) {
+    return '<tr><td><span class="amostra" style="background:' + linha.cor + '"></span>' + linha.nome + '</td><td><code>' + linha.cor + '</code></td>' + celula(linha.fundo, linha.falhaFundo) + celula(linha.cartao, linha.falhaCartao) + '</tr>';
+  }).join('');
+  artigo.innerHTML =
+    '<header><h3>' + p.nome + '</h3><code>' + p.codigo + '</code><span class="origem">' + p.origem + '</span></header>' +
+    '<div class="lado"><div class="mini" style="background:' + tons.fundo + ';color:' + st.texto + '">' +
+      '<p class="ola">Olá, Ana.</p>' +
+      '<p class="suave" style="color:' + st.textoSuave + '">Treino de hoje</p>' +
+      '<div class="bloco" style="background:' + tons.superficie + ';border-color:' + tons.borda + '">' +
+        '<div class="faixa" style="background:' + tons.superficie3 + ';border-bottom-color:' + tons.bordaCampo + '">Treino A</div>' +
+        '<div class="item" style="background:' + tons.superficie2 + ';border-color:' + tons.borda + '"><b>Agachamento</b><span style="color:' + st.textoSuave + '">3 séries</span></div>' +
+        '<div class="selos">' +
+          '<span class="selo" style="color:' + st.sucesso + ';border-color:' + st.sucesso + '">Em dia</span>' +
+          '<span class="selo" style="color:' + st.atencao + ';border-color:' + st.atencao + '">Pendente</span>' +
+          '<span class="selo" style="color:' + st.perigo + ';border-color:' + st.perigo + '">Atrasada</span>' +
+        '</div>' +
+        '<div class="btn" style="background:' + MARCA + ';color:#FFFFFF">Começar</div>' +
+      '</div></div>' +
+      '<div><p class="nota">' + tons.origemDosTons + '</p>' +
+        '<h4>Tons do chão</h4><table><thead><tr><th>Token</th><th>Valor</th><th>De onde</th></tr></thead><tbody>' + linhasTons + '</tbody></table>' +
+        '<h4>Contraste</h4><table><thead><tr><th>Cor</th><th>Valor</th><th class="num">Contra o fundo</th><th class="num">Contra o cartão</th></tr></thead><tbody>' + linhasContraste + '</tbody></table>' +
+      '</div></div>';
+  return artigo;
+}
+
+var medidas = PALETAS.map(function (p) { return { paleta: p, medida: medir(p) }; });
+var passam = medidas.filter(function (item) { return item.medida.falhas.length === 0; });
+var resumo = document.getElementById('resumo');
+var intro = document.createElement('p');
+intro.innerHTML = '<strong>' + passam.length + ' de 15 passam inteiras.</strong> Régua: texto a 4,5:1 contra o fundo e contra o cartão; borda e borda do campo a 3:1 contra o cartão.';
+resumo.appendChild(intro);
+['escuro', 'claro'].forEach(function (modo) {
+  var grupo = medidas.filter(function (item) { return item.paleta.modo === modo; });
+  var ok = grupo.filter(function (item) { return item.medida.falhas.length === 0; }).length;
+  var titulo = document.createElement('h2');
+  titulo.textContent = (modo === 'escuro' ? 'Escuras' : 'Claras') + ': ' + ok + ' de ' + grupo.length;
+  resumo.appendChild(titulo);
+  var lista = document.createElement('ul');
+  grupo.forEach(function (item) {
+    var li = document.createElement('li');
+    var link = '<a href="#' + item.paleta.codigo + '"><code>' + item.paleta.codigo + '</code> ' + item.paleta.nome + '</a>';
+    li.innerHTML = item.medida.falhas.length === 0 ? link + ' passa.' : link + ' falha em ' + item.medida.falhas.join('; ') + '.';
+    lista.appendChild(li);
+  });
+  resumo.appendChild(lista);
+});
+
+medidas.forEach(function (item) {
+  var grade = document.querySelector('.grade[data-modo="' + item.paleta.modo + '"]');
+  grade.appendChild(desenhar(item.paleta, item.medida));
+});
+if (location.hash) {
+  var alvo = document.getElementById(location.hash.slice(1));
+  if (alvo) alvo.scrollIntoView();
+}
+</script>
+</body>
+</html>

@@ -66,9 +66,9 @@ Nas escuras, os tons que a paleta não traz (`superficie2`, `superficie3`, `faix
 - [ ] 0. Esperar a frente de cores da auditoria (vermelho da marca separado do erro, desabilitado cinza), que mexe no
   `tokens.ts`. Conferido em 03/11 com `git branch -r`: `editor-de-treino-visual` e `atualizacao-visual-app-full` não
   estão mais no remoto, então não travam este passo. Começar a partir da `main` atualizada. — commit/run: —
-- [ ] 1. **Prévia** em `docs/prototipos/paletas-da-marca.html`: a mesma tela (Início do aluno, lista e um cartão com
+- [x] 1. **Prévia** em `docs/prototipos/paletas-da-marca.html`: a mesma tela (Início do aluno, lista e um cartão com
   selos verde/âmbar/vermelho e botão da marca) nas 15 paletas, com o contraste medido ao lado. O Gustavo corta a lista
-  aqui (decisão 1). **executor-front** — commit/run: —
+  aqui (decisão 1). Prévia feita, aguardando o corte do Gustavo. **executor-front** — commit/run: este commit
 - [ ] 2. **Tokens** (`app/src/tema/tokens.ts`): as paletas como objetos `Cores` literais (`{ ...ESCURO, fundo, ... }` /
   `{ ...CLARO, ... }`), um mapa único `PALETAS` (código → cores e modo) e `modoDaPaleta`. Os testes que hoje listam
   `[CLARO, ESCURO, AREIA]` à mão passam a percorrer `PALETAS`: `tema/tokens.test.ts` (linhas 3, 9, 38, 134, 145),
