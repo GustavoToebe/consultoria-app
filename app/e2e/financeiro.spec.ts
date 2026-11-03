@@ -45,7 +45,7 @@ test('visão geral com dados: cartões, líquido indisponível, resultado do mê
 
   // Previsto, atrasado e inadimplência dizem que só contam as cobranças já geradas.
   await expect(page.getByText('considera as cobranças já geradas').first()).toBeVisible();
-  await expect(page.getByText('12,5%', { exact: true })).toBeVisible();
+  await expect(page.getByText('12,5% · R$ 300,00 de R$ 2.400,00', { exact: true })).toBeVisible();
 
   // Líquido: indisponível, com o bruto; nada de desconto inventado.
   await expect(page.getByText('Líquido para você')).toBeVisible();
