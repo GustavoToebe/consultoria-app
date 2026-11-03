@@ -1,4 +1,4 @@
-import type { PlanoResumo, PublicarPastaResposta, TipoPlano } from '../api/tipos';
+import type { PlanoPuladoNaCopia, PlanoResumo, PublicarPastaResposta, TipoPlano } from '../api/tipos';
 import { dataParaTela } from './formatos';
 import { PERMISSOES_DO_PLANO } from './permissoes';
 
@@ -58,6 +58,43 @@ export function motivoParaNaoPublicar(planos: PlanosDaPasta, pode: (codigo: stri
 }
 
 /**
+ * Estado do "Publicar tudo" diante das listas de planos. Duas travas, sem enviar nada à API:
+ * - alguma lista está sendo buscada de novo (`atualizando`: depois de publicar, de um 409 ou de um "Tentar de novo"; os
+ *   dados antigos ainda estão na tela, e um clique agora mandaria versões velhas e daria "Os planos mudaram" outra vez):
+ *   "Atualizando os planos…";
+ * - a lista de um tipo falhou ao carregar (`falhou`): o tipo fica desconhecido e fora de `versoes`, e publicar assim bateria
+ *   num 409 que a tela explicaria errado. O motivo diz qual tipo e a tela oferece "Tentar de novo" só para essas listas.
+ * Sem trava vale o motivo de permissão ({@link motivoParaNaoPublicar}). `falhou` considera só as listas buscadas (as que a
+ * pessoa lê); a mobilidade fora do plano da consultoria não conta, porque a API a pula. `planos` `null` (nada chegou) não
+ * trava aqui: quem chama já trata a primeira carga.
+ */
+export interface SituacaoDoPublicar {
+  podePublicar: boolean;
+  /** `null` = liberado. */
+  motivo: string | null;
+  /** Tipos cuja lista falhou, na ordem treino, dieta, mobilidade (vazio enquanto atualiza). */
+  tiposComFalha: TipoPlano[];
+}
+
+export const MOTIVO_ATUALIZANDO_OS_PLANOS = 'Atualizando os planos…';
+
+export function situacaoDoPublicar(
+  planos: PlanosDaPasta | null,
+  falhou: Partial<Record<TipoPlano, boolean>>,
+  comMobilidade: boolean,
+  pode: (codigo: string) => boolean,
+  atualizando = false,
+): SituacaoDoPublicar {
+  if (atualizando) return { podePublicar: false, motivo: MOTIVO_ATUALIZANDO_OS_PLANOS, tiposComFalha: [] };
+  const tiposComFalha = TIPOS_DA_PASTA.filter((t) => falhou[t] === true && (t !== 'mobilidade' || comMobilidade));
+  if (tiposComFalha.length) {
+    return { podePublicar: false, motivo: `Não foi possível carregar ${juntar(tiposComFalha)}. Tente de novo.`, tiposComFalha };
+  }
+  const motivo = planos ? motivoParaNaoPublicar(planos, pode) : null;
+  return { podePublicar: motivo === null, motivo, tiposComFalha: [] };
+}
+
+/**
  * Motivo da cópia para outro aluno desabilitada: falta o `*_ALTERAR` de um tipo presente na pasta (a API exige o de
  * cada tipo presente, publicado ou não). `null` = liberado; tipo desconhecido não trava.
  */
@@ -65,6 +102,65 @@ export function motivoParaNaoCopiar(planos: PlanosDaPasta, pode: (codigo: string
   const faltam = TIPOS_DA_PASTA.filter((t) => (planos[t] ?? []).length > 0 && !pode(PERMISSOES_DO_PLANO[t].alterar));
   return faltam.length ? `Falta permissão para alterar ${juntar(faltam)}.` : null;
 }
+
+/**
+ * `versoes` do "Publicar tudo": `{planoId: versao}` de cada plano pendente que a tela leu (a `versao` do rascunho, o lock
+ * do `PlanoResumo`). A API recusa com 409 `CONFLITO_EDICAO` o pendente com outra versão ou ausente, então a publicação só
+ * cobre o que a pessoa viu. Tipo desconhecido (`null`: não lido ou lista que não chegou) não entra, e `planos` `null` dá
+ * `{}`. Montar na hora do clique, com a lista do momento (também no "Publicar mesmo assim"). O botão fica travado
+ * enquanto uma lista falha ou é buscada de novo ({@link situacaoDoPublicar}), então a lista do clique é sempre a que a tela terminou de ler.
+ */
+export function versoesDosPendentes(planos: PlanosDaPasta | null): Record<string, number> {
+  const versoes: Record<string, number> = {};
+  if (!planos) return versoes;
+  for (const tipo of TIPOS_DA_PASTA) {
+    for (const p of planos[tipo] ?? []) if (planoPendente(p)) versoes[p.id] = p.versao;
+  }
+  return versoes;
+}
+
+/** 409 `CONFLITO_EDICAO` do "Publicar tudo": os planos mudaram desde que a tela os leu. A tela recarrega e avisa. */
+export const TEXTO_DO_CONFLITO_DA_PUBLICACAO =
+  'Os planos mudaram enquanto você olhava. Nada foi publicado; confira e publique de novo.';
+
+const ARTIGOS_DO_TIPO: Record<TipoPlano, { um: string; nome: string }> = {
+  treino: { um: 'um', nome: 'treino' },
+  dieta: { um: 'uma', nome: 'dieta' },
+  mobilidade: { um: 'uma', nome: 'mobilidade' },
+};
+
+/** "A", "A e B", "A, B e C". */
+function listaComE(itens: readonly string[]): string {
+  if (itens.length <= 1) return itens.join('');
+  return `${itens.slice(0, -1).join(', ')} e ${itens[itens.length - 1]}`;
+}
+
+/**
+ * 409 `PLANOS_PENDENTES_DUPLICADOS`: o tipo vem em `fieldErrors[].field` (`treino`, `dieta`, `mobilidade`) e a mensagem é o
+ * id do plano. Uma frase por tipo, na ordem treino, dieta, mobilidade, sem repetir, com o título de cada plano repetido
+ * quando a lista da tela o conhece (sem ele, só o tipo). A saída é ARQUIVAR o que não deve ir ao aluno (na tela, "Excluir
+ * plano" do ⋯): publicar um deles pelo editor e depois o "Publicar tudo" publicaria o outro e `desativarOutros` tiraria o
+ * primeiro do ar sem ninguém perceber. Campo fora disso é ignorado e, sem nenhum tipo reconhecido, devolve `null` (quem
+ * chama mostra a mensagem da API). Nada é publicado e a tela não tenta de novo.
+ */
+export function textoDosPendentesDuplicados(
+  campos: readonly { field: string; message?: string }[],
+  planos: PlanosDaPasta | null = null,
+): string | null {
+  const frases = TIPOS_DA_PASTA.filter((t) => campos.some((c) => c.field === t)).map((t) => {
+    const { um, nome } = ARTIGOS_DO_TIPO[t];
+    const titulos = campos
+      .filter((c) => c.field === t)
+      .map((c) => (planos?.[t] ?? []).find((p) => p.id === c.message)?.titulo)
+      .filter((titulo): titulo is string => !!titulo)
+      .map((titulo) => `“${titulo}”`);
+    return `Há mais de ${um} ${nome} pendente nesta pasta${titulos.length ? ` (${listaComE(titulos)})` : ''}.`;
+  });
+  return frases.length ? `${frases.join(' ')} Nada foi publicado. ${ORIENTACAO_DOS_DUPLICADOS}` : null;
+}
+
+/** Fecha o texto do 409 de pendentes duplicados: o que fazer. */
+export const ORIENTACAO_DOS_DUPLICADOS = 'Arquive o que não deve ir ao aluno (⋯ › Excluir plano) e publique de novo.';
 
 /** Aviso depois do 200: "2 publicados, 1 sem alteração." ou, sem nada publicado, que não havia o que publicar. */
 export function resumoDaPublicacao(r: Pick<PublicarPastaResposta, 'publicados' | 'pulados'>): string {
@@ -90,13 +186,12 @@ export interface ProblemasPorPlano {
   problemas: ProblemaDoPlano[];
 }
 
-const PREFIXO = /^(treino|dieta|mobilidade)(?:\[([^\]]+)\])?(?:\.(.*))?$/s;
+const PREFIXO = /^(treino|dieta|mobilidade)(?:\.(.*))?$/s;
 
 /**
- * Agrupa os `fieldErrors` do 422 do "Publicar tudo" por plano. O campo é `treino`, `treino.<caminho>` ou, com dois
- * planos do mesmo tipo a publicar, `treino[<planoId>].<caminho>`. O nome vem do plano pelo id; sem id, do único plano
- * pendente daquele tipo (a API só põe o id quando há mais de um); senão, só o tipo. Campo fora desse formato vai para
- * "Outros" (nunca some). Só a mensagem vai para a tela: sem o conteúdo do plano, o caminho cru não diz nada ao treinador.
+ * Agrupa os `fieldErrors` do 422 do "Publicar tudo" por plano. O campo é `treino` ou `treino.<caminho>`; a API só valida
+ * um plano pendente por tipo (dois são o 409 `PLANOS_PENDENTES_DUPLICADOS`), então o nome vem do único pendente do tipo;
+ * sem ele (tipo não lido), só o tipo. Campo fora desse formato vai para "Outros" (nunca some). Só a mensagem vai para a tela: sem o conteúdo do plano, o caminho cru não diz nada ao treinador.
  * Ordem: a dos planos na resposta (a API valida treino, dieta e mobilidade, nessa ordem).
  */
 export function agruparProblemasPorPlano(
@@ -107,14 +202,13 @@ export function agruparProblemasPorPlano(
   for (const c of campos) {
     const m = PREFIXO.exec(c.field);
     const tipo = (m?.[1] as TipoPlano | undefined) ?? null;
-    const planoId = m?.[2] ?? null;
     let chave = 'outros';
     let titulo = 'Outros';
     let idDoPlano: string | null = null;
     if (tipo) {
       const daPasta = planos[tipo] ?? [];
-      const plano = planoId ? daPasta.find((p) => p.id === planoId) : soUm(daPasta.filter(planoPendente));
-      chave = planoId ? `${tipo}[${planoId}]` : tipo;
+      const plano = soUm(daPasta.filter(planoPendente));
+      chave = tipo;
       titulo = plano ? `${NOME[tipo]}: ${plano.titulo}` : NOME[tipo];
       idDoPlano = plano?.id ?? null;
     }
@@ -160,12 +254,16 @@ export function textoDoErroDaCopia(e: ErroResumido): string {
 
 /** Aviso fixo da Folha da cópia (D5): o que vai e o que não vai. */
 export const AVISO_DA_COPIA_DA_PASTA =
-  'Os planos chegam como rascunho, sem os ergogênicos da dieta e sem o questionário escolhido; nada é publicado para o aluno.';
+  'Copia a versão publicada de cada plano (o rascunho, se ainda não foi publicado). Os planos chegam como rascunho, sem os ergogênicos da dieta e sem o questionário escolhido; nada é publicado para o aluno.';
 
-/** Aviso depois de copiar a pasta. */
-export function mensagemPastaCopiada(nomeDoAluno: string | null | undefined): string {
+/**
+ * Aviso depois de copiar a pasta. Com a mobilidade em `pulados` (funcionalidade fora do plano da consultoria), diz que
+ * ela não foi copiada.
+ */
+export function mensagemPastaCopiada(nomeDoAluno: string | null | undefined, pulados: readonly Pick<PlanoPuladoNaCopia, 'tipo'>[] = []): string {
   const nome = nomeDoAluno?.trim();
-  return `Pasta copiada para ${nome || 'o aluno'}, com os planos em rascunho.`;
+  const base = `Pasta copiada para ${nome || 'o aluno'}, com os planos em rascunho.`;
+  return pulados.some((p) => p.tipo === 'mobilidade') ? `${base} A mobilidade não foi copiada porque está fora do plano da consultoria.` : base;
 }
 
 /**

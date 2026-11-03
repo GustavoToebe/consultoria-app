@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { ErroApi } from '../api/cliente';
 import { copiarPastaParaAluno } from '../api/rotas';
-import type { PastaResumo } from '../api/tipos';
+import type { PastaResumo, PlanoPuladoNaCopia } from '../api/tipos';
 import { dataDaTela } from '../dominio/formatos';
 import { AVISO_DA_COPIA_DA_PASTA, motivoParaNaoCopiar, textoDoErroDaCopia, type PlanosDaPasta } from '../dominio/publicarPasta';
 import { useSessao } from '../sessao/SessaoProvider';
@@ -25,12 +25,12 @@ interface Props {
   carregandoPlanos: boolean;
   aoFechar: () => void;
   /** Depois de copiar: quem chama fecha e avisa, com o atalho para a ficha do destino. */
-  aoCopiar: (alunoId: string, nomeDoAluno: string | null) => void;
+  aoCopiar: (alunoId: string, nomeDoAluno: string | null, pulados: PlanoPuladoNaCopia[]) => void;
 }
 
 /**
  * "Copiar pasta para outro aluno" (D7): cria uma pasta nova no aluno escolhido, com cópia de cada plano em rascunho
- * (a partir da última versão publicada), sem os ergogênicos da dieta e sem o questionário escolhido. Nada é publicado
+ * (a partir da última versão publicada; mobilidade fora do plano é pulada e a resposta avisa), sem os ergogênicos da dieta e sem o questionário escolhido. Nada é publicado
  * e a pasta de origem não muda. Quem renderiza já checou `PASTA_ALTERAR` + `ALUNO_LER`; aqui falta só o `*_ALTERAR` de
  * cada tipo presente (a API confere tudo de novo). O período é opcional, como na pasta nova.
  */
@@ -58,8 +58,8 @@ export function CopiarPastaParaAluno({ pasta, planos, carregandoPlanos, aoFechar
     setErro(null);
     setSalvando(true);
     try {
-      await copiarPastaParaAluno(pasta.id, { alunoId: escolha.alunoId, titulo: titulo.trim(), inicio: ini ?? null, fim: fi ?? null });
-      aoCopiar(escolha.alunoId, escolha.nomeDoAluno);
+      const r = await copiarPastaParaAluno(pasta.id, { alunoId: escolha.alunoId, titulo: titulo.trim(), inicio: ini ?? null, fim: fi ?? null });
+      aoCopiar(escolha.alunoId, escolha.nomeDoAluno, r.pulados ?? []);
     } catch (e) {
       setSalvando(false);
       // Limite ou funcionalidade fora do plano: o aviso fica fora da Folha (que é um Modal), então ela fecha antes.

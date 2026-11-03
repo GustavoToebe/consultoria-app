@@ -8,6 +8,7 @@ import {
   pesoDaAtualizacao,
   pesoSugeridoSemEdicao,
   substituiPesoDaAtualizacao,
+  sugestaoParaPreencher,
   textoDoPesoDaAtualizacao,
 } from './pesoNaFinalizacao';
 
@@ -139,6 +140,34 @@ describe('corpoDaFinalizacao (D8: peso sugerido sem edição não é gravado de 
   it('campo apagado ou sem permissão para gravar: sem peso', () => {
     expect(corpoDaFinalizacao({ ...intacto, peso: null })).toEqual(SEM_PESO);
     expect(corpoDaFinalizacao({ ...intacto, peso: 89.5, podeGravarPeso: false })).toEqual(SEM_PESO);
+  });
+});
+
+describe('sugestaoParaPreencher (a sugestão que chega depois não sobrescreve o que a pessoa já digitou)', () => {
+  const sugestao = { pesoKg: 90, data: '2026-10-20' };
+
+  it('sem ter mexido antes de ela chegar, preenche', () => {
+    expect(sugestaoParaPreencher(sugestao, false)).toBe(sugestao);
+  });
+
+  it('mexeu em peso, data ou observação antes: nenhum campo recebe a sugestão', () => {
+    expect(sugestaoParaPreencher(sugestao, true)).toBeNull();
+  });
+
+  it('sem sugestão, nada a preencher', () => {
+    expect(sugestaoParaPreencher(null, false)).toBeNull();
+    expect(sugestaoParaPreencher(undefined, false)).toBeNull();
+  });
+
+  it('peso digitado antes: a data nasce hoje (não pula para a da atualização) e o peso digitado vai como peso novo', () => {
+    const aplicada = sugestaoParaPreencher(sugestao, true);
+    const dataInicial = dataInicialDoPeso(aplicada, '2026-11-02');
+    expect(dataInicial).toBe('2026-11-02');
+    const f: FormularioDaFinalizacao = {
+      podeGravarPeso: true, sugerido: aplicada?.pesoKg ?? null, peso: 88, dataIso: dataInicial, dataInicial, observacao: '',
+    };
+    expect(pesoSugeridoSemEdicao(f)).toBe(false);
+    expect(corpoDaFinalizacao(f)).toEqual({ data: '2026-11-02', pesoKg: 88, observacao: null });
   });
 });
 

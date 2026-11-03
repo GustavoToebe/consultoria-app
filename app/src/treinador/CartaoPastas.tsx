@@ -13,7 +13,7 @@ import { SeletorDeQuestionario } from './questionarios/SeletorDeQuestionario';
 import type { Atualizacao, PastaResumo, Receita } from '../api/tipos';
 import { atualizacaoDaPasta, caminhoAtualizacaoTreinador, statusAtualizacaoTreinador } from '../dominio/atualizacao';
 import { NOTAS_DA_RENOVACAO, PASSOS_DA_RENOVACAO, TITULO_ORDEM_DA_RENOVACAO } from '../dominio/ordemDaRenovacao';
-import { corpoDaFinalizacao, dataDoPesoDaAtualizacao, dataInicialDoPeso, notaDoPesoJaRegistrado, pesoDaAtualizacao, pesoSugeridoSemEdicao, substituiPesoDaAtualizacao, textoDoPesoDaAtualizacao } from '../dominio/pesoNaFinalizacao';
+import { corpoDaFinalizacao, dataDoPesoDaAtualizacao, dataInicialDoPeso, notaDoPesoJaRegistrado, pesoDaAtualizacao, pesoSugeridoSemEdicao, substituiPesoDaAtualizacao, sugestaoParaPreencher, textoDoPesoDaAtualizacao } from '../dominio/pesoNaFinalizacao';
 import { mensagemPastaCopiada, motivoParaNaoCopiar, notaDoPesoSugerido, podeSugerirPeso } from '../dominio/publicarPasta';
 import { rotuloAbrirFicha } from '../dominio/planoDoAluno';
 import { dataDaTelaNaFaixa } from '../dominio/datasValidas';
@@ -206,7 +206,7 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
           {/* Sem permissão de publicar nenhum tipo, o botão não existe para a pessoa; com a de um tipo só, ele aparece e
               fica desabilitado com o motivo quando o outro tipo tem alteração. */}
           {podePublicarAlgo ? <PublicarTudoDaPasta key={aberta.id} pasta={aberta} planos={planosEmFoco.planos} carregando={planosEmFoco.carregando}
-            aoPublicar={aoPublicar} aoNavegar={() => setAbertaId(null)} /> : null}
+            atualizando={planosEmFoco.atualizando} falhou={planosEmFoco.falhou} aoTentarDeNovo={planosEmFoco.recarregarFalhas} aoPublicar={aoPublicar} aoRecarregar={aoPublicar} aoNavegar={() => setAbertaId(null)} /> : null}
           <Permitido codigo={PERMISSOES_DO_PLANO.treino.ler}><CartaoPlanos tipo="treino" alunoId={alunoId} pasta={aberta} geracao={geracao} carga={planosEmFoco.cargas.treino} aoNavegar={() => setAbertaId(null)} /></Permitido>
           <Permitido codigo={PERMISSOES_DO_PLANO.dieta.ler}><CartaoPlanos tipo="dieta" alunoId={alunoId} pasta={aberta} geracao={geracao} carga={planosEmFoco.cargas.dieta} aoNavegar={() => setAbertaId(null)} /></Permitido>
           <Permitido codigo={PERMISSOES_DO_PLANO.mobilidade.ler}><CartaoPlanos tipo="mobilidade" alunoId={alunoId} pasta={aberta} geracao={geracao} carga={planosEmFoco.cargas.mobilidade} aoNavegar={() => setAbertaId(null)} /></Permitido>
@@ -231,9 +231,9 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
         await salvarPastaComoModelo(salvarModelo.id, nome, descricao); setSalvarModelo(null); avisar('Pacote salvo.', 'sucesso');
       }} /> : null}
       {copiar ? <CopiarPastaParaAluno pasta={copiar} planos={planosEmFoco.planos} carregandoPlanos={planosEmFoco.carregando} aoFechar={() => setCopiar(null)}
-        aoCopiar={(destinoId, nome) => {
+        aoCopiar={(destinoId, nome, pulados) => {
           setCopiar(null);
-          avisar(mensagemPastaCopiada(nome), 'sucesso', { rotulo: rotuloAbrirFicha(nome), aoTocar: () => router.push(`/treinador/alunos/${encodeURIComponent(destinoId)}`) });
+          avisar(mensagemPastaCopiada(nome, pulados), 'sucesso', { rotulo: rotuloAbrirFicha(nome), aoTocar: () => router.push(`/treinador/alunos/${encodeURIComponent(destinoId)}`) });
         }} /> : null}
       {renovacao.painel}
       <PainelConfirmacao visivel={!!excluir} titulo={`Excluir pasta “${excluir?.titulo ?? ''}”?`} mensagem="A pasta e seus planos saem da lista. Os planos deixam de estar ativos; versões publicadas e registros dos alunos são preservados." rotuloConfirmar="Excluir pasta e planos" perigo aoCancelar={() => setExcluir(null)} aoConfirmar={() => {
@@ -425,19 +425,27 @@ function FolhaFinalizar({ pasta, alunoId, atualizacao, aoFechar, aoFinalizar }: 
   const [hoje] = useState(hojeIso);
   // D8 (02/11): o peso e a data nascem com os da atualização desta pasta (`GET /pastas/{id}/peso-sugerido`), editáveis.
   // Só com as permissões do dado sensível, da atualização e de gravar o peso. A resposta chega depois de a folha abrir:
-  // vale enquanto a pessoa não mexeu no campo. Falha ou sem peso = peso vazio e data de hoje, sem erro na tela. Sem
-  // edição (valor, data e observação como vieram) finalizar não grava o peso de novo: `corpoDaFinalizacao`. O peso
-  // nunca vai a log.
+  // ela só PREENCHE se a pessoa ainda não mexeu em peso, data ou observação antes de ela chegar (`sugestaoParaPreencher`);
+  // se mexeu, nenhum campo recebe a sugestão (a data não pula para a da atualização). A decisão vale na chegada e não
+  // muda depois: mexer depois de preenchido é edição normal. Falha ou sem peso = peso vazio e data de hoje, sem erro na
+  // tela. Sem edição (valor, data e observação como vieram) finalizar não grava o peso de novo: `corpoDaFinalizacao`. O
+  // peso nunca vai a log.
   const sugestao = useCarregar(podeSugerirPeso(pode) ? `peso-sugerido:${pasta.id}` : null, () => pesoSugeridoDaPasta(pasta.id));
-  const sugerido = sugestao.erro ? null : sugestao.dados?.pesoKg ?? null;
-  const dataInicial = dataInicialDoPeso(sugestao.erro ? null : sugestao.dados, hoje);
-  const [dataDigitada, setData] = useState<string | null>(null);
+  const sugestaoChegou = !!sugestao.dados || !!sugestao.erro;
+  const [mexeuAntesDaSugestao, setMexeuAntesDaSugestao] = useState(false);
+  const marcarMexida = () => { if (!sugestaoChegou) setMexeuAntesDaSugestao(true); };
+  const sugestaoDaPasta = sugestaoParaPreencher(sugestao.erro ? null : sugestao.dados, mexeuAntesDaSugestao);
+  const sugerido = sugestaoDaPasta?.pesoKg ?? null;
+  const dataInicial = dataInicialDoPeso(sugestaoDaPasta, hoje);
+  const [dataDigitada, setDataDigitada] = useState<string | null>(null);
+  const setData = (texto: string) => { marcarMexida(); setDataDigitada(texto); };
   const data = dataDigitada ?? dataParaTela(dataInicial);
   const [digitado, setDigitado] = useState<{ valor: number | null } | null>(null);
   const peso = digitado ? digitado.valor : sugerido;
-  const setPeso = (valor: number | null) => setDigitado({ valor });
+  const setPeso = (valor: number | null) => { marcarMexida(); setDigitado({ valor }); };
   const comSugestao = sugerido !== null && peso === sugerido;
-  const [observacao, setObservacao] = useState('');
+  const [observacao, setObservacaoDigitada] = useState('');
+  const setObservacao = (texto: string) => { marcarMexida(); setObservacaoDigitada(texto); };
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
   const dataIso = dataDaTelaNaFaixa(data, 'REGISTRO');
@@ -501,15 +509,15 @@ function FolhaFinalizar({ pasta, alunoId, atualizacao, aoFechar, aoFinalizar }: 
               : 'O peso opcional entra no registro do aluno com a data e a observação abaixo.'}
       </Texto>
       <CampoData rotulo="Data do peso" regra="REGISTRO" valor={data} aoMudar={setData} />
-      <CampoNumerico rotulo="Peso (opcional)" sufixo="kg" valor={peso} aoMudar={setPeso} />
+      <CampoNumerico rotulo="Peso (opcional)" sufixo="kg" valor={peso} aoMudar={setPeso} aoDigitar={marcarMexida} />
       {jaRegistrado && sugerido !== null ? (
-        <Texto variante="suave" numerico>{notaDoPesoJaRegistrado(sugerido, sugestao.dados?.data ?? null, hoje)}</Texto>
-      ) : comSugestao ? <Alerta tom="atencao" texto={notaDoPesoSugerido(sugestao.dados?.data ?? null)} /> : null}
+        <Texto variante="suave" numerico>{notaDoPesoJaRegistrado(sugerido, sugestaoDaPasta?.data ?? null, hoje)}</Texto>
+      ) : comSugestao ? <Alerta tom="atencao" texto={notaDoPesoSugerido(sugestaoDaPasta?.data ?? null)} /> : null}
       {substitui && registrado ? (
         <Alerta tom="atencao" titulo="Vai substituir o peso da atualização"
           texto={`Já há ${numeroParaTela(registrado.pesoKg, 1)} kg registrado em ${dataParaTela(registrado.data)}. Um peso por dia: finalizar com esta data troca esse peso pelo novo. Para manter os dois, use outra data.`} />
       ) : null}
-      <Campo rotulo="Observação (opcional)" valor={observacao} aoMudar={setObservacao} maxLength={300} ajuda="Só é gravada junto com o peso." />
+      <Campo rotulo="Observação (opcional)" valor={observacao} aoMudar={setObservacao} maxLength={300} ajuda="Só é gravada junto com o peso. O aluno vê esta observação no histórico de peso e no PDF da dieta." />
       </Permitido>
       {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
     </Folha>

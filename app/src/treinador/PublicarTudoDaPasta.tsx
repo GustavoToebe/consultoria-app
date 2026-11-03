@@ -10,9 +10,12 @@ import { PERMISSOES_DO_PLANO } from '../dominio/permissoes';
 import {
   agruparProblemasPorPlano,
   contagemDeProblemas,
-  motivoParaNaoPublicar,
   resumoDaPublicacao,
+  situacaoDoPublicar,
+  TEXTO_DO_CONFLITO_DA_PUBLICACAO,
   textoDoErroDaPublicacao,
+  textoDosPendentesDuplicados,
+  versoesDosPendentes,
   type PlanosDaPasta,
   type ProblemasPorPlano,
 } from '../dominio/publicarPasta';
@@ -29,7 +32,11 @@ import { rotaDoEditor } from './CartaoPlanos';
 
 type Resultado =
   | { tipo: 'publicado'; texto: string }
-  | { tipo: 'erros' | 'avisos'; grupos: ProblemasPorPlano[] }
+  | { tipo: 'erros'; grupos: ProblemasPorPlano[] }
+  /** `versoes` = as da tentativa que voltou com os avisos: "Publicar mesmo assim" reenvia exatamente essas, nunca as de uma recarga posterior. */
+  | { tipo: 'avisos'; grupos: ProblemasPorPlano[]; versoes: ReturnType<typeof versoesDosPendentes> }
+  | { tipo: 'conflito' }
+  | { tipo: 'duplicados'; texto: string }
   | { tipo: 'falha'; texto: string };
 
 interface Props {
@@ -38,8 +45,16 @@ interface Props {
   planos: PlanosDaPasta | null;
   /** Primeira carga dos planos ainda a caminho. */
   carregando: boolean;
+  /** Alguma lista de planos está sendo buscada de novo: o botão espera, para não mandar versões velhas. */
+  atualizando: boolean;
+  /** Tipos cuja lista de planos falhou ao carregar: o botão fica desabilitado até a lista chegar. */
+  falhou: Partial<Record<TipoPlano, boolean>>;
+  /** Busca de novo só as listas (dos tipos indicados) que falharam. */
+  aoTentarDeNovo: (tipos: TipoPlano[]) => void;
   /** Depois de publicar algo: a Folha, os selos e o resumo da ficha buscam de novo. */
   aoPublicar: () => void;
+  /** Os planos mudaram desde que a tela os leu (409 `CONFLITO_EDICAO`): a Folha, os selos e o resumo buscam de novo. */
+  aoRecarregar: () => void;
   /** Antes de abrir o editor de um plano (fecha a Folha, que é um Modal). */
   aoNavegar: () => void;
 }
@@ -47,26 +62,39 @@ interface Props {
 /**
  * "Publicar tudo" da Folha da pasta (C21): publica de uma vez os rascunhos alterados de treino, dieta e mobilidade.
  * A API valida todos antes e é tudo ou nada: com erro em um plano, ou aviso ainda não confirmado, nada é publicado e a
- * lista vem por plano. Botão secundário (o primário da Folha é Finalizar/Reabrir). O resultado fica aqui mesmo, dentro
+ * lista vem por plano. O pedido leva a versão de cada plano pendente que a tela leu (`versoes`): se mudou, a API responde
+ * 409 e a tela recarrega e avisa; dois pendentes do mesmo tipo (409) pedem arquivar o que não deve ir ao aluno, sem tentar de novo.
+ * Lista de planos que falhou ou sendo buscada de novo trava o botão com o motivo visível (a que falhou ganha "Tentar de novo"),
+ * para nunca mandar `versoes` incompletas ou velhas. Botão secundário (o primário da Folha é Finalizar/Reabrir). O resultado fica aqui mesmo, dentro
  * da Folha: o aviso do rodapé ficaria atrás dela, e um painel de confirmação seria um modal sobre outro.
  */
-export function PublicarTudoDaPasta({ pasta, planos, carregando, aoPublicar, aoNavegar }: Props) {
-  const { pode } = useSessao();
+export function PublicarTudoDaPasta({ pasta, planos, carregando, atualizando, falhou, aoTentarDeNovo, aoPublicar, aoRecarregar, aoNavegar }: Props) {
+  const { pode, temFuncionalidade } = useSessao();
   const [publicando, setPublicando] = useState(false);
   const [resultado, setResultado] = useState<Resultado | null>(null);
-  // Só trava quando falta a permissão de um tipo QUE TEM alteração; o resto (tipo não lido, lista que falhou) a API decide.
-  const motivo = carregando ? 'Carregando os planos da pasta.' : planos ? motivoParaNaoPublicar(planos, pode) : null;
+  // Lista que falhou ou sendo buscada de novo deixa o botão desabilitado com o motivo (nada vai à API; a que falhou
+  // ganha o "Tentar de novo"); sem isso, só trava quando falta a permissão de um tipo QUE TEM alteração; o resto (tipo
+  // não lido) a API decide.
+  const situacao = situacaoDoPublicar(planos, falhou, temFuncionalidade('MOBILIDADE'), pode, atualizando);
+  const motivo = carregando ? 'Carregando os planos da pasta.' : situacao.motivo;
 
-  const publicar = async (confirmarAvisos: boolean) => {
+  const publicar = async (confirmarAvisos: boolean, versoesDosAvisos?: ReturnType<typeof versoesDosPendentes>) => {
+    if (!situacao.podePublicar) return;
     setPublicando(true);
+    const versoes = versoesDosAvisos ?? versoesDosPendentes(planos);
     try {
-      const r = await publicarPasta(pasta.id, confirmarAvisos);
+      const r = await publicarPasta(pasta.id, { confirmarAvisos, versoes });
       setResultado({ tipo: 'publicado', texto: resumoDaPublicacao(r) });
       if (r.publicados.length) aoPublicar();
     } catch (e) {
-      if (e instanceof ErroApi && (e.codigo === 'PLANO_INVALIDO' || e.codigo === 'CONFIRMAR_AVISOS')) {
+      if (e instanceof ErroApi && e.codigo === 'CONFLITO_EDICAO') {
+        setResultado({ tipo: 'conflito' });
+        aoRecarregar();
+      } else if (e instanceof ErroApi && e.codigo === 'PLANOS_PENDENTES_DUPLICADOS') {
+        setResultado({ tipo: 'duplicados', texto: textoDosPendentesDuplicados(e.campos, planos) ?? textoDoErro(e) });
+      } else if (e instanceof ErroApi && (e.codigo === 'PLANO_INVALIDO' || e.codigo === 'CONFIRMAR_AVISOS')) {
         const grupos = agruparProblemasPorPlano(e.campos, planos ?? { treino: null, dieta: null, mobilidade: null });
-        setResultado({ tipo: e.codigo === 'PLANO_INVALIDO' ? 'erros' : 'avisos', grupos });
+        setResultado(e.codigo === 'PLANO_INVALIDO' ? { tipo: 'erros', grupos } : { tipo: 'avisos', grupos, versoes });
       } else {
         setResultado({ tipo: 'falha', texto: e instanceof ErroApi ? textoDoErroDaPublicacao({ status: e.status, codigo: e.codigo, mensagem: textoDoErro(e) }) : textoDoErro(e) });
       }
@@ -89,11 +117,16 @@ export function PublicarTudoDaPasta({ pasta, planos, carregando, aoPublicar, aoN
       <LinhaDeAcoes>
         <Botao rotulo="Publicar tudo" rotuloAcessivel={`Publicar tudo da pasta ${pasta.titulo}`} tipo="secundario" Icone={Send}
           carregando={publicando} desabilitado={!!motivo} motivo={motivo ?? undefined} aoTocar={() => void publicar(false)} />
+        {!carregando && situacao.tiposComFalha.length ? (
+          <Botao rotulo="Tentar de novo" rotuloAcessivel="Tentar carregar os planos de novo" tipo="fantasma" aoTocar={() => aoTentarDeNovo(situacao.tiposComFalha)} />
+        ) : null}
       </LinhaDeAcoes>
       {/* Região viva: o leitor de tela anuncia o resultado sem tirar o foco do botão. */}
       <View accessibilityLiveRegion="polite" style={estilos.bloco}>
         {resultado?.tipo === 'publicado' ? <Alerta tom="sucesso" texto={resultado.texto} /> : null}
         {resultado?.tipo === 'falha' ? <Alerta tom="perigo" texto={resultado.texto} /> : null}
+        {resultado?.tipo === 'conflito' ? <Alerta tom="atencao" titulo="Nada foi publicado" texto={TEXTO_DO_CONFLITO_DA_PUBLICACAO} /> : null}
+        {resultado?.tipo === 'duplicados' ? <Alerta tom="atencao" titulo="Nada foi publicado" texto={resultado.texto} /> : null}
         {resultado?.tipo === 'erros' ? (
           <Alerta tom="perigo" titulo="Nada foi publicado" texto="Corrija os planos abaixo e publique de novo.">
             <ListaPorPlano grupos={resultado.grupos} tom="perigo" aoAbrir={abrir} />
@@ -103,7 +136,8 @@ export function PublicarTudoDaPasta({ pasta, planos, carregando, aoPublicar, aoN
           <Alerta tom="atencao" titulo="Nada foi publicado ainda" texto="Os planos podem ser publicados, mas confira os avisos:">
             <ListaPorPlano grupos={resultado.grupos} tom="atencao" aoAbrir={abrir} />
             <LinhaDeAcoes>
-              <Botao rotulo="Publicar mesmo assim" tipo="secundario" Icone={Send} carregando={publicando} aoTocar={() => void publicar(true)} />
+              <Botao rotulo="Publicar mesmo assim" tipo="secundario" Icone={Send} carregando={publicando}
+                desabilitado={!!motivo} motivo={motivo ?? undefined} aoTocar={() => void publicar(true, resultado.versoes)} />
               <Botao rotulo="Cancelar" tipo="fantasma" desabilitado={publicando} aoTocar={() => setResultado(null)} />
             </LinhaDeAcoes>
           </Alerta>

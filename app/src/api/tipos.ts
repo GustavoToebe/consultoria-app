@@ -891,9 +891,14 @@ export interface FinalizarPastaRequest {
   observacao: string | null;
 }
 
-/** Publicar tudo: `confirmarAvisos` tem o sentido da publicação de um plano só. */
+/**
+ * Publicar tudo: `confirmarAvisos` tem o sentido da publicação de um plano só. `versoes` é obrigatório: `{planoId:
+ * versao}` (a `versao` do `PlanoResumo`, o lock do rascunho) de cada plano pendente que a tela leu. Pendente com versão
+ * diferente ou ausente = 409 `CONFLITO_EDICAO` e nada é publicado; pode ser `{}` só em pasta sem pendentes.
+ */
 export interface PublicarPastaRequest {
   confirmarAvisos: boolean;
+  versoes: Record<string, number>;
 }
 
 /** Versão que a pasta publicou de cada plano; `tipo` em minúsculas, como o prefixo dos erros (`treino.<caminho>`). */
@@ -909,7 +914,7 @@ export interface PlanoPuladoNaPasta {
   planoId: string;
 }
 
-/** Listas vazias nas duas = nada a publicar. */
+/** Listas vazias nas duas = nada a publicar. `pulados` traz só os tipos que a pessoa pode ler. */
 export interface PublicarPastaResposta {
   publicados: PlanoPublicadoNaPasta[];
   pulados: PlanoPuladoNaPasta[];
@@ -923,9 +928,17 @@ export interface CopiarPastaRequest {
   fim: string | null;
 }
 
+/** Tipo que a cópia deixou de fora: hoje só a mobilidade, quando a funcionalidade não está no plano da consultoria. */
+export interface PlanoPuladoNaCopia {
+  tipo: TipoPlano;
+  motivo: 'FUNCIONALIDADE_FORA_DO_PLANO';
+}
+
+/** A cópia leva a versão publicada de cada plano (o rascunho, se nunca foi publicado), sempre como rascunho no destino. */
 export interface CopiarPastaResposta {
   pastaId: string;
   planos: { tipo: TipoPlano; planoId: string }[];
+  pulados: PlanoPuladoNaCopia[];
 }
 
 /** Peso e data gravados pela atualização enviada da pasta; ambos `null` quando não há (nunca zero). */

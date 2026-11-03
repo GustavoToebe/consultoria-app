@@ -28,5 +28,13 @@ export function usePlanosDaPasta(alunoId: string, pastaId: string | null, geraca
     : null;
   /** Primeira carga de algum tipo ainda a caminho: a tela espera antes de liberar o que depende dela. */
   const carregando = Object.values(cargas).some((c) => c.carregando && !c.dados);
-  return { cargas, planos, carregando };
+  /** Alguma lista sendo buscada (de novo ou pela primeira vez): o "Publicar tudo" espera, ou mandaria versões velhas. */
+  const atualizando = Object.values(cargas).some((c) => c.carregando);
+  /** Tipos cuja lista falhou ao carregar (só os que a pessoa lê são buscados). */
+  const falhou: Partial<Record<TipoPlano, boolean>> = { treino: !!treino.erro, dieta: !!dieta.erro, mobilidade: !!mobilidade.erro };
+  /** Busca de novo só as listas dos tipos indicados que falharam. */
+  const recarregarFalhas = (tipos: TipoPlano[]) => {
+    for (const tipo of tipos) if (cargas[tipo].erro) cargas[tipo].recarregar();
+  };
+  return { cargas, planos, carregando, atualizando, falhou, recarregarFalhas };
 }

@@ -1,6 +1,6 @@
 import type { Page, Route } from '@playwright/test';
 
-import type { EuResponse, LoginResponse, Marca, PesoSugeridoDaPasta, PlanoResumo, TipoPlano, UsuarioResumo } from '../src/api/tipos';
+import type { EuResponse, LoginResponse, Marca, PesoSugeridoDaPasta, PlanoPuladoNaCopia, PlanoResumo, TipoPlano, UsuarioResumo } from '../src/api/tipos';
 
 /**
  * API falsa dos testes de tela (`page.route` em `/api/**`, a mesma origem da web servida). As respostas vão por
@@ -187,29 +187,72 @@ export interface PastaFalsa {
   pesoSugerido?: PesoSugeridoDaPasta | 'erro';
   /** Resposta da cópia: sucesso (padrão) ou um erro da API. */
   copia?: { status: number; codigo: string | null; mensagem: string };
+  /** `pulados` da resposta da cópia (padrão: nenhum). */
+  copiaPulados?: PlanoPuladoNaCopia[];
+  /**
+   * Ids de planos que "outra pessoa salvou" depois de a tela ler a lista: no primeiro "Publicar tudo" a versão deles sobe
+   * antes da conferência (a tela mandou a velha, 409 `CONFLITO_EDICAO`) e as listas seguintes já trazem a nova.
+   */
+  outraPessoaSalvou?: string[];
+  /** Tipos cuja lista de planos falha (500) nas primeiras chamadas e depois responde normal (o "Tentar de novo"). */
+  listaFalhaNaPrimeiraVez?: TipoPlano[];
 }
 
 const PERMISSAO_DE_PUBLICAR: Record<TipoPlano, string> = { treino: 'TREINO_PUBLICAR', dieta: 'DIETA_PUBLICAR', mobilidade: 'TREINO_PUBLICAR' };
+const PERMISSAO_DE_LER: Record<TipoPlano, string> = { treino: 'TREINO_LER', dieta: 'DIETA_LER', mobilidade: 'TREINO_LER' };
 const PREFIXO_DAS_ROTAS: Record<TipoPlano, string> = { treino: 'planos-treino', dieta: 'planos-dieta', mobilidade: 'planos-mobilidade' };
 
 /**
- * Rotas da pasta como a API (commit 797b9751 com o ajuste de 02/11): as listas de planos do aluno, `POST
- * /pastas/{id}/publicar` tudo ou nada (permissão de publicar só dos tipos com alteração → 403; erro em qualquer plano →
- * 422 `PLANO_INVALIDO`; aviso sem `confirmarAvisos` → 422 `CONFIRMAR_AVISOS`; nos três nada muda), a cópia para outro
- * aluno e o peso sugerido. Plano com alteração = nunca publicado ou rascunho alterado depois da última publicação.
+ * Rotas da pasta como a API (commit 797b9751 com o ajuste de 02/11 e os itens 1 a 5 da revisão): as listas de planos do
+ * aluno e `POST /pastas/{id}/publicar` tudo ou nada, na ordem da API: `versoes` obrigatório (400) → permissão de publicar
+ * só dos tipos com alteração (403) → dois pendentes do mesmo tipo (409 `PLANOS_PENDENTES_DUPLICADOS`, tipo em
+ * `fieldErrors[].field` e id do plano na mensagem) → versão de cada pendente igual à `versao` do plano, ausente ou
+ * diferente = 409 `CONFLITO_EDICAO` → erro em qualquer plano (422 `PLANO_INVALIDO`) → aviso sem `confirmarAvisos` (422
+ * `CONFIRMAR_AVISOS`); em todos nada muda. `pulados` só traz tipos que a sessão lê. Também a cópia para outro aluno
+ * (com `pulados`) e o peso sugerido. Plano com alteração = nunca publicado ou rascunho alterado depois da última publicação.
  */
 export function rotasDaPasta(p: PastaFalsa): RespostasApi {
   const pendente = (x: PlanoDaPastaFalsa) => x.plano.versaoPublicada === 0 || x.plano.rascunhoAlteradoDepoisDePublicar;
-  const lista = (tipo: TipoPlano): Resposta => (_pedido, route) => json(route, p.planos.filter((x) => x.tipo === tipo).map((x) => x.plano));
+  const aindaFalha = new Set(p.listaFalhaNaPrimeiraVez ?? []);
+  const lista = (tipo: TipoPlano): Resposta => (_pedido, route) => {
+    if (aindaFalha.delete(tipo)) {
+      const e = erroApi(500, 'Erro.');
+      return json(route, e.corpo, e.status);
+    }
+    return json(route, p.planos.filter((x) => x.tipo === tipo).map((x) => x.plano));
+  };
+  let jaSalvaramPorFora = false;
   return {
     [`GET /alunos/${p.alunoId}/${PREFIXO_DAS_ROTAS.treino}`]: lista('treino'),
     [`GET /alunos/${p.alunoId}/${PREFIXO_DAS_ROTAS.dieta}`]: lista('dieta'),
     [`GET /alunos/${p.alunoId}/${PREFIXO_DAS_ROTAS.mobilidade}`]: lista('mobilidade'),
     [`POST /pastas/${p.pastaId}/publicar`]: (pedido, route) => {
-      const confirmar = (pedido.corpo as { confirmarAvisos?: boolean } | null)?.confirmarAvisos === true;
+      const corpo = pedido.corpo as { confirmarAvisos?: boolean; versoes?: Record<string, number> } | null;
+      const confirmar = corpo?.confirmarAvisos === true;
+      if (!corpo?.versoes || typeof corpo.versoes !== 'object') {
+        const e = erroApi(400, 'Informe as versões dos planos.', 'REQUISICAO_INVALIDA', [{ field: 'versoes', message: 'não deve ser nulo' }]);
+        return json(route, e.corpo, e.status);
+      }
+      // A outra pessoa salva depois de a tela ler a lista e antes deste pedido (uma vez só).
+      if (!jaSalvaramPorFora && p.outraPessoaSalvou?.length) {
+        jaSalvaramPorFora = true;
+        for (const x of p.planos) if (p.outraPessoaSalvou.includes(x.plano.id)) x.plano = { ...x.plano, versao: x.plano.versao + 1 };
+      }
       const aPublicar = p.planos.filter(pendente);
       if (aPublicar.some((x) => !p.permissoes.includes(PERMISSAO_DE_PUBLICAR[x.tipo]))) {
         const e = erroApi(403, 'Sem permissão.', 'PERMISSAO_NEGADA');
+        return json(route, e.corpo, e.status);
+      }
+      const repetidos = (['treino', 'dieta', 'mobilidade'] as const).flatMap((tipo) => {
+        const doTipo = aPublicar.filter((x) => x.tipo === tipo);
+        return doTipo.length > 1 ? doTipo.map((x) => ({ field: tipo, message: x.plano.id })) : [];
+      });
+      if (repetidos.length) {
+        const e = erroApi(409, 'A pasta tem mais de um plano com alteração a publicar do mesmo tipo. Nada foi publicado.', 'PLANOS_PENDENTES_DUPLICADOS', repetidos);
+        return json(route, e.corpo, e.status);
+      }
+      if (aPublicar.some((x) => corpo.versoes?.[x.plano.id] !== x.plano.versao)) {
+        const e = erroApi(409, 'Outra pessoa alterou os planos desta pasta. Recarregue e confira antes de publicar. Nada foi publicado.', 'CONFLITO_EDICAO');
         return json(route, e.corpo, e.status);
       }
       if (p.erros?.length) {
@@ -220,7 +263,7 @@ export function rotasDaPasta(p: PastaFalsa): RespostasApi {
         const e = erroApi(422, 'Confira os avisos antes de publicar. Nada foi publicado.', 'CONFIRMAR_AVISOS', p.avisos);
         return json(route, e.corpo, e.status);
       }
-      const pulados = p.planos.filter((x) => !pendente(x)).map((x) => ({ tipo: x.tipo, planoId: x.plano.id }));
+      const pulados = p.planos.filter((x) => !pendente(x) && p.permissoes.includes(PERMISSAO_DE_LER[x.tipo])).map((x) => ({ tipo: x.tipo, planoId: x.plano.id }));
       const publicados = aPublicar.map((x) => {
         x.plano = { ...x.plano, versaoPublicada: x.plano.versaoPublicada + 1, rascunhoAlteradoDepoisDePublicar: false };
         return { tipo: x.tipo, planoId: x.plano.id, versao: x.plano.versaoPublicada };
@@ -232,7 +275,13 @@ export function rotasDaPasta(p: PastaFalsa): RespostasApi {
         const e = erroApi(p.copia.status, p.copia.mensagem, p.copia.codigo);
         return json(route, e.corpo, e.status);
       }
-      return json(route, { pastaId: 'f0000000-0000-4000-8000-0000000000c1', planos: p.planos.map((x) => ({ tipo: x.tipo, planoId: `copia-${x.plano.id}` })) });
+      return json(route, {
+        pastaId: 'f0000000-0000-4000-8000-0000000000c1',
+        planos: p.planos
+          .filter((x) => !(p.copiaPulados ?? []).some((pulado) => pulado.tipo === x.tipo))
+          .map((x) => ({ tipo: x.tipo, planoId: `copia-${x.plano.id}` })),
+        pulados: p.copiaPulados ?? [],
+      });
     },
     [`GET /pastas/${p.pastaId}/peso-sugerido`]: (_pedido, route) => {
       if (p.pesoSugerido === 'erro') {

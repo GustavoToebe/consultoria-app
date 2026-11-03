@@ -55,6 +55,16 @@ export function dataInicialDoPeso(sugestao: { pesoKg: number | null; data: strin
   return sugestao && sugestao.pesoKg !== null && sugestao.data ? sugestao.data.slice(0, 10) : hoje;
 }
 
+/**
+ * A sugestão de peso que chega depois de a Folha abrir só PREENCHE os campos se a pessoa ainda não mexeu em peso, data ou
+ * observação antes de ela chegar (`mexeuAntesDeChegar`). Se mexeu, nenhum campo recebe a sugestão (vale para todos ou para
+ * nenhum: preencher só o que sobrou trocaria a data debaixo de quem digitou o peso). Quem chama marca `mexeuAntesDeChegar`
+ * só enquanto a resposta não chegou; depois disso a decisão não muda e mexer num campo preenchido é edição normal.
+ */
+export function sugestaoParaPreencher<T>(sugestao: T | null | undefined, mexeuAntesDeChegar: boolean): T | null {
+  return mexeuAntesDeChegar ? null : sugestao ?? null;
+}
+
 const mesmoNumero = (a: number, b: number) => Math.abs(a - b) < 1e-9;
 
 /** O peso sugerido ficou como veio: mesmo valor, a data que o campo trouxe e sem observação (que só vai com peso). */

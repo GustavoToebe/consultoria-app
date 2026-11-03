@@ -122,6 +122,7 @@ import type {
   CopiarPastaRequest,
   CopiarPastaResposta,
   PesoSugeridoDaPasta,
+  PublicarPastaRequest,
   PublicarPastaResposta,
   PlanoResumo,
   AnaliseDaPlanilha,
@@ -900,10 +901,11 @@ export const finalizarPasta = (id: string, dados: import('./tipos').FinalizarPas
 
 /**
  * Publica o rascunho de treino, dieta e mobilidade da pasta de uma vez. 422 `PLANO_INVALIDO`/`CONFIRMAR_AVISOS` traz a lista
- * por plano em `fieldErrors` (`treino.<caminho>`) e nada é publicado.
+ * por plano em `fieldErrors` (`treino.<caminho>`); 409 `CONFLITO_EDICAO` (versão que a tela leu não é mais a do plano, ou
+ * chamada simultânea perdida) e 409 `PLANOS_PENDENTES_DUPLICADOS` (dois pendentes do mesmo tipo). Em todos, nada é publicado.
  */
-export const publicarPasta = (id: string, confirmarAvisos: boolean) =>
-  requisicao<PublicarPastaResposta>(`/pastas/${seg(id)}/publicar`, { metodo: 'POST', corpo: { confirmarAvisos } });
+export const publicarPasta = (id: string, dados: PublicarPastaRequest) =>
+  requisicao<PublicarPastaResposta>(`/pastas/${seg(id)}/publicar`, { metodo: 'POST', corpo: dados });
 
 /** Copia a pasta para outro aluno: pasta nova no destino, tudo em rascunho, sem ergogênicos e sem o questionário escolhido. */
 export const copiarPastaParaAluno = (id: string, dados: CopiarPastaRequest) =>
