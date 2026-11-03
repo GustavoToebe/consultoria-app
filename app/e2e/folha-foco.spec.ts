@@ -54,6 +54,14 @@ for (const [onde, largura] of [['PC', 1280], ['celular', 390]] as const) {
     await page.keyboard.press('Enter');
     await expect(folha).toHaveCount(0);
     await expect(abrir).toBeFocused();
+    // Tocar no véu (fora do painel) também fecha e devolve o foco a quem abriu; só no PC há véu à vista.
+    if (onde === 'PC') {
+      await page.keyboard.press('Enter');
+      await expect(folha).toBeVisible();
+      await page.mouse.click(5, 5);
+      await expect(folha).toHaveCount(0);
+      await expect(abrir).toBeFocused();
+    }
     expect(naoTratadas).toEqual([]);
     expect(errosDaPagina).toEqual([]);
   });

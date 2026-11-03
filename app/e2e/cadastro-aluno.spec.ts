@@ -527,8 +527,11 @@ for (const largura of [390, 1280]) {
     const revisarNaFolha = folha.getByRole('button', { name: 'Revisar atualização', exact: true });
     await revisarNaFolha.click();
     await expect(pergunta.getByText('Sair sem salvar?', { exact: true })).toBeVisible();
+    // O foco está na pergunta e, ao "Continuar editando", volta para dentro da Folha (não para a página atrás dela).
+    await expect.poll(() => page.evaluate(() => !!document.activeElement?.closest('[role="alertdialog"]'))).toBe(true);
     await pergunta.getByRole('button', { name: 'Continuar editando', exact: true }).click();
     await expect(sairSemSalvar(page)).toHaveCount(0);
+    await expect.poll(() => page.evaluate(() => !!document.activeElement?.closest('[role="dialog"]'))).toBe(true);
     await expect(revisarNaFolha).toBeVisible();
     await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${ALUNO_ID}$`));
 

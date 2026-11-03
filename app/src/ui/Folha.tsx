@@ -83,9 +83,11 @@ function semPapelNoModal(modal: Modal | null) {
 
 function devolverFoco(quemAbriuRef: RefObject<HTMLElement | null>) {
   const alvo = quemAbriuRef.current;
-  // Fechar esta folha abrindo outro diálogo ("Mover para" → Aceitar): o foco já está nele e fica lá.
+  // Fechar esta folha abrindo outro diálogo ("Mover para" → Aceitar): o foco já está nele e fica lá. Já o diálogo que
+  // contém quem abriu (a Folha mãe, com esta por cima) não conta: o foco volta ao gatilho dentro dela.
   const atual = typeof document === 'undefined' ? null : document.activeElement;
-  if (!alvo?.isConnected || atual?.closest?.('[role="dialog"], [role="alertdialog"]')) return;
+  const dialogoDoFoco = atual?.closest?.('[role="dialog"], [role="alertdialog"]');
+  if (!alvo?.isConnected || (dialogoDoFoco && !dialogoDoFoco.contains(alvo))) return;
   alvo.focus();
 }
 

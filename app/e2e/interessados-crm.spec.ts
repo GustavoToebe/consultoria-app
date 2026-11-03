@@ -70,8 +70,7 @@ for (const largura of [390, 1280]) {
       await page.getByRole('button', { name: 'Aceitar (cadastrar aluno)' }).focus();
       await page.keyboard.press('Enter');
       await expect(page.getByText('Aceitar inscrição?')).toBeVisible();
-      await page.waitForTimeout(300);
-      expect(await page.evaluate(() => !!document.activeElement?.closest('[role="dialog"], [role="alertdialog"]'))).toBe(true);
+      await expect.poll(() => page.evaluate(() => !!document.activeElement?.closest('[role="dialog"], [role="alertdialog"]'))).toBe(true);
       await expect(page.getByText('Conferir antes de aceitar')).toBeVisible();
       expect(pedidos.some((p) => p.caminho.endsWith('/aceitar'))).toBe(false);
       expect(naoTratadas).toEqual([]);
