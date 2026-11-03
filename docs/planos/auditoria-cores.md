@@ -1,6 +1,6 @@
 # Auditoria de UI/UX: cores por situação
 
-Situação: Planejando (dúvidas respondidas em 03/11) · Onde: branch `auditoria-cores` (worktree `wt-auditoria-cores`, saída da `main` em `3d65e04b`) · Atualizado: 03/11/2026
+Situação: Código pronto para revisão (passos 2 a 7 e 9; falta só o revisor) · Onde: branch `auditoria-cores` (worktree `wt-auditoria-cores`, saída da `main` em `3d65e04b`, com a `main` mesclada até o PR #64) · Atualizado: 03/11/2026
 
 ## Objetivo
 Cada cor passa a dizer uma coisa só:
@@ -25,6 +25,11 @@ A regra escrita e a tabela "situação → cor", com o contraste medido, estão 
 | D9 | Dia treinado no cartão para compartilhar (`cartaoDoTreino`) | Fica na cor da marca, como exceção escrita. | Gustavo, 03/11 (resposta 5) |
 | D11 | Status de cobrança | Exceção ao D2: segue os três tons comuns aos apps, para quem paga e para quem espera. Em aberto `atencao`, Vencida `perigo`, Paga `sucesso`, Cancelada e Isenta `neutro` (`dominio/minhaConta.situacaoDaCobrancaParaTela` já faz assim; o Financeiro segue igual). Vale para qualquer marca: `sucesso`, `atencao` e `perigo` são fixos no tema e nunca vêm da cor da consultoria, e o status sempre leva texto e ícone. | Gustavo, 03/11 |
 | D10 | Marca parecida com erro | Distinguir pela forma: o confirmar destrutivo ganha ícone e o rótulo do resultado; o erro continua com ícone e fundo `tingido`; a Marca ganha um aviso que não bloqueia o Salvar. | Gustavo, 03/11 (resposta 6) |
+| D12 | Anamnese pendente no Início do aluno (`ITEM_ANAMNESE`, "Pendente") | Fica `neutro`, como estava. A tabela só decidiu o "Para responder" (`atencao`, `seloDaAnamnese`); o D2 pediria âmbar aqui também, porque quem age é o aluno. Opção mais conservadora: não mexer no que a tabela não cobre. | Decidido pelo Claude em 03/11, conferir com o Gustavo |
+| D13 | "Vencida há N dias" | Só na pendência "Pagamento em aberto" do Início do aluno (`seloDeVencida`): dias de `vencimento` até hoje, mínimo 1, "1 dia" no singular. O selo do "Meu plano" e o do treinador continuam "Vencida" (o cartão já mostra a data). | Decidido pelo Claude em 03/11, conferir com o Gustavo |
+| D14 | Cobrança que vence em até 3 dias (pendência do Início) | `atencao` "Vence dd/mm", como a "Em aberto" do D11, nos dois ramos (com e sem o "Pagar" no celular). | Decidido pelo Claude em 03/11, conferir com o Gustavo |
+| D15 | Aviso de atenção (`useAviso`, D5) | Borda `atencao`, ícone de triângulo (erro usa círculo) e fica até ser fechado, como o de erro; só o de sucesso some sozinho. | Decidido pelo Claude em 03/11, conferir com o Gustavo |
+| D16 | Aviso de marca perto de status (D10) | `avisoDeMarcaPertoDeStatus` usa o mesmo ΔE CIE76 de 25 que o `tokens.test.ts` exige das agendas, contra `sucesso`, `atencao` e `perigo` do claro e do escuro. Texto neutro abaixo da cor, sem bloquear o Salvar. O botão destrutivo do `PainelConfirmacao` ganha o ícone `TriangleAlert`; o "rótulo do resultado" já vem do chamador ("Inativar", "Remover"). | Decidido pelo Claude em 03/11, conferir com o Gustavo |
 
 ## Inventário (03/11, sobre `3d65e04b`)
 
@@ -93,11 +98,11 @@ Todo passo de tela fecha com typecheck, lint, jest e o e2e da tela em 390 e 1280
 porta 8106.
 
 - [x] 1. Regra e tabela em `docs/design-e-front.md` (4.1 e 4.2 apontam para a 4.5), este plano e a linha no índice.
-  Sem espera. Commit: —
+  Sem espera. Commit: 5be35f16
   - Arquivos: `docs/design-e-front.md`, `docs/planos/auditoria-cores.md` e `docs/planos/README.md` (só a linha
     desta frente).
-- [ ] 2. **Tom igual nos dois lados: domínio** (`executor`). Espera o merge da frente 5 (`atualizacao.ts`) e o da
-  frente 3 (`paraFazer.ts`). Commit: —
+- [x] 2. **Tom igual nos dois lados: domínio** (`executor`). A frente 3 (#63) já estava na `main`; a frente 5 não, e a
+  sobreposição é só de arquivo (ver "Sobreposição com a frente 5"). Commit: HASH_DOMINIO
   - Arquivos:
     - `app/src/dominio/paraFazer.ts` e `paraFazer.test.ts`;
     - `app/src/dominio/anamnese.ts` e `anamnese.test.ts`;
@@ -107,10 +112,11 @@ porta 8106.
     - `app/src/dominio/lembretesDeCobranca.ts` e `lembretesDeCobranca.test.ts` (Financeiro: conferir se é da frente 5);
     - novo `app/src/dominio/corPorSituacao.test.ts`.
   - Aceite: o `corPorSituacao.test.ts` chama as funções do aluno e as do treinador para cada linha da tabela de
-    divergências e confere o tom da coluna "Decidido" (quem age, `atencao`; quem espera, `neutro`; vencida, `perigo`).
+    divergências e confere o tom da coluna "Decidido" (quem age, `atencao`; quem espera, `neutro`; vencida, `perigo`;
+    cobrança em aberto `atencao`, D11).
     Textos novos: "Vencida há N dias" (aluno) e "Enviada · aguardando revisão" (aluno). O `gruposDeAlunos.ts` não muda.
-- [ ] 3. **Desabilitado cinza nas peças** (`executor-front`). Espera o merge da frente 4 (`Botao.tsx` e
-  `contrasteDasPecas.test.ts`). Commit: —
+- [x] 3. **Desabilitado cinza nas peças** (`executor-front`; feito pela sessão principal). A frente 4 (#64) já estava na
+  `main`. Commit: HASH_PECAS
   - Arquivos: `app/src/ui/Botao.tsx`, `TelaPublica.tsx`, `IconeBotao.tsx`, `Escolha.tsx`, `EscolhaEmFolha.tsx`,
     `CaixaSelecao.tsx`, `SelecaoMultiplaSuspensa.tsx` e `BotaoMarcar.tsx`; `app/src/components/ui/button.tsx`,
     `input.tsx`, `toggle-group.tsx`, `toggle.tsx`, `label.tsx` e `tabs.tsx`; `app/src/ui/contrasteDasPecas.test.ts`;
@@ -121,27 +127,25 @@ porta 8106.
     - o jest confere `textoSuave` sobre `superficie3` ≥ 4,5 nos três temas e no contraste alto;
     - o e2e confere com `toHaveCSS` que um `Botao` primário desabilitado tem fundo `superficie3` e texto
       `textoSuave`, e não a marca.
-- [ ] 4. **Desabilitado cinza nas telas que pintam à mão** (`executor-front`). Espera o merge do PR B (editores) e
-  da frente 3 (`QuestionarioAtualizacao`). Commit: —
+- [x] 4. **Desabilitado cinza nas telas que pintam à mão** (`executor-front`; feito pela sessão principal). Commit: HASH_PECAS
   - Arquivos: `app/src/treinador/treino/EditorDeTreino.tsx` (PR B), `app/src/treinador/dieta/EditorDeDieta.tsx`
     (PR B), `app/src/treinador/questionarios/SecoesDoQuestionario.tsx`,
     `app/src/treinador/marca/FolhaDoCatalogo.tsx` e `app/src/aluno/atualizacao/QuestionarioAtualizacao.tsx`
     (frente 3).
   - Aceite: os mesmos tokens do passo 3; os e2e dos editores e da atualização continuam verdes.
-- [ ] 5. **Selo opaco** (`executor-front`). Espera o merge da frente 4 (`contrasteDasPecas.test.ts`). Commit: —
+- [x] 5. **Selo opaco** (`executor-front`; feito pela sessão principal). Commit: HASH_SELO
   - Arquivos: `app/src/ui/Selo.tsx`, `app/src/ui/contrasteDasPecas.test.ts` e `app/e2e/editor-clareza.spec.ts`.
   - Aceite:
     - o jest confere cada tom sobre o próprio `tingido` ≥ 4,5 nos três temas;
     - o e2e confere com `toHaveCSS('background-color')` o selo "Cardio" na faixa do exercício, no claro e no escuro.
-- [ ] 6. **Aviso de rodapé com tom de atenção** (`executor-front`). Espera o merge da frente 4 (`RespostaComModelo`)
-  e da frente 3 (`CartaoMeuPlano`). Commit: —
+- [x] 6. **Aviso de rodapé com tom de atenção** (`executor-front`; feito pela sessão principal). Commit: HASH_SELO
   - Arquivos: `app/src/ui/Aviso.tsx`, `app/src/treinador/marca/FormMarca.tsx`,
     `app/src/treinador/seguranca/VerificacaoEmDuasEtapas.tsx`,
     `app/src/treinador/interessados/RespostaComModelo.tsx` (frente 4) e
     `app/src/aluno/financeiro/CartaoMeuPlano.tsx` (frente 3).
   - Aceite: os quatro alertas do inventário saem em âmbar, com ícone. O de erro continua vermelho e fica até ser
     fechado.
-- [ ] 7. **Marca parecida com erro** (D10). Commit: —
+- [x] 7. **Marca parecida com erro** (D10). Commit: HASH_MARCA
   - 7a (`executor`): `app/src/dominio/paletas.ts` e `paletas.test.ts`, com o aviso de cor perto de um status, pela
     distância já usada em `tokens.test.ts`.
   - 7b (`executor-front`): `app/src/treinador/marca/FormMarca.tsx` (o aviso) e `app/src/ui/PainelConfirmacao.tsx`
@@ -149,9 +153,8 @@ porta 8106.
   - Aceite: com a marca `#C62828`, o painel destrutivo e o primário se distinguem sem depender da cor; o aviso
     aparece na Marca e não bloqueia o Salvar.
 - [x] 8. **Exceções da marca** (D8 e D9: "manter"). Sem código: a lista fechada da seção 4.5 ganhou as duas linhas,
-  no mesmo commit destas respostas. Commit: —
-- [ ] 9. **Ponteiros** (`executor-rapido`). Espera o merge do PR B (`AGENTS.md`) e da frente 4 (`tokens.ts`).
-  Commit: —
+  no mesmo commit destas respostas. Commit: 5be35f16
+- [x] 9. **Ponteiros** (`executor-rapido`; feito pela sessão principal). Commit: HASH_DOCS
   - Arquivos: `AGENTS.md` (linha "Design": "tabela situação → cor em `docs/design-e-front.md` 4.5") e
     `app/src/tema/tokens.ts` (o comentário do topo aponta para a mesma tabela).
 
@@ -165,5 +168,16 @@ porta 8106.
   pelo `avaliarMarca`.
 - Central e Servirea (Angular).
 
+## Sobreposição com a frente 5 (`auditoria-treinador`, ainda não mesclada)
+Conferida em 03/11 com `git diff origin/main...auditoria-treinador`: a frente 5 mexe em `atualizacao.ts` (a frase
+`fraseDeTreinosNoPeriodo` e um import) e em `agendaPresencial.ts` (a `nomesCompletos`); este plano mexe em outras linhas
+dos mesmos arquivos (`SELO_ENVIADA_DO_ALUNO` e o "Adiada para" em `atualizacao.ts`; o `AGENDADO` em `agendaPresencial.ts`).
+Não há conflito de texto. `lembretesDeCobranca.ts`, `paraFazer.ts` e `anamnese.ts` a frente 5 não toca. Quem mesclar
+depois roda `agendaPresencial.test.ts` e `atualizacao.test.ts`.
+
 ## O que ficou para trás
-- (nada ainda)
+- Casos fora da tabela, que mantêm o tom de antes (ver também as Pendências soltas do README): `ITEM_ANAMNESE` (D12),
+  `CartaoAcesso`, inscrições `AGUARDANDO`, cobrança `CONTESTADA` e as cores do consumo da conta.
+- `ui/BotaoMarcar.tsx`: o ✓ desabilitado da prévia já era cinza (`coresDoMarcar`, `textoSuave` sobre `superficie3`,
+  conferido em `contrasteDasPecas.test.ts`); não mudou.
+- O e2e do aviso de erro (vermelho, fica até fechar) não ganhou caso novo: o de atenção cobre o caminho do `useAviso`.
