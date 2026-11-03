@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 import type { MembroEquipe, PerfilEquipe } from '../src/api/equipeTipos';
 import type { NumerosDaConsultoria } from '../src/api/tipos';
 import { ERRO_DO_LIMITE } from '../src/dominio/limiteDeAlunos';
+import { CLARO, ESCURO } from '../src/tema/tokens';
 import { erroApi, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type RespostasApi } from './api-falsa';
 
 /**
@@ -30,6 +31,9 @@ const NUMEROS: NumerosDaConsultoria = {
   ],
   semResponsavel: { alunosAtivos: 3, atualizacoesAtrasadas: 0, atualizacoesParaRevisar: 1 },
 };
+
+const TEMAS = { CLARO, ESCURO } as const;
+const rgb = (hex: string) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`;
 
 const BASE: RespostasApi = {
   'GET /inscricoes': { corpo: { itens: [], total: 0 } },
@@ -74,7 +78,10 @@ for (const largura of [390, 1280]) {
 
       // Fora da faixa: erro no campo, Salvar desabilitado com o motivo, nada enviado.
       await page.getByRole('button', { name: 'Editar Bia Exemplo' }).click();
-      // O campo aceita no máximo 3 caracteres (999); sinal, vírgula ou letra é recusado.
+      // Fora da faixa e não inteiro: o erro aparece e nada é cortado para um número válido.
+      await campo.fill('1000');
+      await expect(folha.getByText(ERRO_DO_LIMITE)).toBeVisible();
+      await expect(campo).toHaveValue('1000');
       await campo.fill('1,5');
       await expect(folha.getByText(ERRO_DO_LIMITE)).toBeVisible();
       await expect(folha.getByRole('button', { name: 'Salvar membro' })).toBeDisabled();
@@ -148,6 +155,8 @@ for (const largura of [390, 1280]) {
         await expect(tabela.getByText('Acima do limite')).toBeVisible();
         await expect(tabela.getByText('4 / sem limite')).toBeVisible();
         await expect(tabela.getByText('Sem responsável')).toBeVisible();
+        // O tema pedido valeu: o texto da linha tem a cor do tema (sem isso, claro e escuro seriam o mesmo teste).
+        expect(await tabela.getByText('Sem responsável').evaluate((e) => getComputedStyle(e).color)).toBe(rgb(TEMAS[tema].texto));
         // Sem a permissão das atualizações, a API manda nulo: "—", nunca zero.
         await expect(tabela.getByText('—')).toHaveCount(2);
         await expect(page.getByText(/Na equipe, atrasadas/)).toBeVisible();

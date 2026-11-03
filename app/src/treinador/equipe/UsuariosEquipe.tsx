@@ -1,4 +1,5 @@
 import * as Clipboard from 'expo-clipboard';
+import { CircleSlash } from 'lucide-react-native';
 import { useState } from 'react';
 import { Platform, Share, View } from 'react-native';
 import * as api from '../../api/rotas';
@@ -31,6 +32,7 @@ import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useAvisoDoPlano } from '../../ui/useAvisoDoPlano';
 import { CelulaDoFiltro } from '../SeletoresDeFiltro';
+import { ICONE_DO_SELO } from '../iconesDosSelos';
 import { useAtorEquipe } from './useAtorEquipe';
 
 export function UsuariosEquipe({membros,perfis,recarregar}:{membros:MembroEquipe[];perfis:PerfilEquipe[];recarregar:()=>void}) {
@@ -55,7 +57,7 @@ export function UsuariosEquipe({membros,perfis,recarregar}:{membros:MembroEquipe
         <CelulaDoFiltro><SelecaoMultiplaSuspensa rotulo="Perfil" opcoes={opcoesDePerfil} marcados={new Set(atuais.perfis)} aoMudar={(m)=>mudar({...atuais,perfis:naOrdem(m,opcoesDePerfil)})} rotuloDeTodos="Todos"/></CelulaDoFiltro>
       </>}/>
     {membros.length&&!visiveis.length?<Vazio titulo="Nenhum membro encontrado" texto="Tente outro nome ou tire algum filtro." acao={chips.length?{rotulo:'Limpar filtros',aoTocar:()=>setFiltros(SEM_FILTROS)}:undefined}/>:null}
-    {visiveis.map(m=><Cartao key={m.id} titulo={m.nome} style={{backgroundColor:cores.superficie2}} acoes={<Selo texto={m.convitePendente?'Convite pendente':m.ativo?'Ativo':'Inativo'} tipo={m.convitePendente?'atencao':m.ativo?'sucesso':'neutro'}/>}>
+    {visiveis.map(m=><Cartao key={m.id} titulo={m.nome} style={{backgroundColor:cores.superficie2}} acoes={<SeloDoMembro membro={m}/>}>
       <Texto variante="suave">{m.email} · {m.perfilNome}</Texto>
       <Texto variante="suave">{m.convitePendente?`Convite até ${dataHoraParaTela(m.conviteExpiraEm)}`:`Último acesso: ${dataHoraParaTela(m.ultimoAcesso)||'—'} · ${textoDoLimite(m.limiteDeAlunos)}`}</Texto>
       {podeEditarMembro(ator,m,perfis)&&(convidaLiberado||!m.convitePendente)?<Permitido codigo="USUARIO_ALTERAR"><Botao rotulo={m.convitePendente?'Renovar convite':'Editar'} rotuloAcessivel={m.convitePendente?`Renovar convite de ${m.nome}`:`Editar ${m.nome}`} tipo="secundario" aoTocar={()=>setEditar(m)}/></Permitido>:null}
@@ -65,6 +67,11 @@ export function UsuariosEquipe({membros,perfis,recarregar}:{membros:MembroEquipe
     <PainelConfirmacao visivel={!!cancelar} titulo="Cancelar convite?" mensagem={`O link enviado para ${cancelar?.email??''} deixa de funcionar.`} perigo rotuloConfirmar="Cancelar convite" carregando={ocupado} aoConfirmar={()=>void cancelarConvite()} aoCancelar={()=>setCancelar(null)}/>
     {editar?<EditorUsuario membro={editar==='novo'?null:editar} perfis={perfis} aoFechar={()=>setEditar(null)} recarregar={recarregar}/>:null}
   </>;
+}
+/** Situação do membro no selo do estilo novo (pílula com ícone e texto; status nunca na cor da marca). */
+function SeloDoMembro({membro:m}:{membro:MembroEquipe}) {
+  const tipo=m.convitePendente?'atencao':m.ativo?'sucesso':'neutro';
+  return <Selo texto={m.convitePendente?'Convite pendente':m.ativo?'Ativo':'Inativo'} tipo={tipo} Icone={tipo==='neutro'?CircleSlash:ICONE_DO_SELO[tipo]}/>;
 }
 function EditorUsuario({membro,perfis,aoFechar,recarregar}:{membro:MembroEquipe|null;perfis:PerfilEquipe[];aoFechar:()=>void;recarregar:()=>void}) {
   const novo=!membro||membro.convitePendente;
@@ -107,11 +114,11 @@ function EditorUsuario({membro,perfis,aoFechar,recarregar}:{membro:MembroEquipe|
         {novo?<Texto variante="suave">O convite vai por e-mail na hora, se o envio de e-mails estiver ligado. O link fica disponível depois, para copiar se precisar.</Texto>:null}
         {membro?.convitePendente?<Texto variante="suave">Gerar outro convite invalida o anterior.</Texto>:null}
         <Campo rotulo="Nome do membro" valor={nome} aoMudar={setNome} maxLength={120}/>
-        {novo?<Campo rotulo="E-mail do membro" valor={email} aoMudar={setEmail} keyboardType="email-address" autoCapitalize="none" maxLength={254}/>:<Texto>{email}</Texto>}
+        {novo?<Campo rotulo="E-mail do membro" valor={email} aoMudar={setEmail} keyboardType="email-address" autoCapitalize="none" maxLength={254}/>:<CampoLeitura rotulo="E-mail do membro" valor={email}/>}
         {euMesmo?<><CampoLeitura rotulo="Perfil do membro" valor={membro.perfilNome}/><Texto variante="pequeno">Você não pode trocar o próprio perfil nem se desativar. Peça a outro administrador.</Texto></>
           :<Escolha rotulo="Perfil do membro" opcoes={opcoes.map(p=>({valor:p.id,rotulo:p.nome}))} valor={perfilId} aoMudar={setPerfilId}/>}
         {!novo&&!euMesmo?<CaixaSelecao rotulo="Membro ativo" marcado={ativo} aoMudar={setAtivo} desabilitado={reativacaoBloqueada} ajuda={reativacaoBloqueada?`${MOTIVO_FORA_DO_PLANO}.`:undefined}/>:null}
-        {mostraLimite?<Campo rotulo="Limite de alunos (opcional)" valor={limiteTexto} aoMudar={(t)=>{setLimiteTexto(t);setErroDoLimite(null);}} numerico keyboardType="number-pad" inputMode="numeric" maxLength={3} placeholder="Sem limite"
+        {mostraLimite?<Campo rotulo="Limite de alunos (opcional)" valor={limiteTexto} aoMudar={(t)=>{setLimiteTexto(t);setErroDoLimite(null);}} numerico keyboardType="number-pad" inputMode="numeric" maxLength={4} placeholder="Sem limite"
           erro={erroDoLimite??(leituraDoLimite.ok?null:leituraDoLimite.erro)} ajuda={AJUDA_DO_LIMITE}/>
           :!novo?<><CampoLeitura rotulo="Limite de alunos" valor={textoDoLimite(limiteGravado)}/><Texto variante="pequeno">Só um administrador altera o limite de alunos.</Texto></>:null}
       </>}

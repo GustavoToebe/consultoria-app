@@ -20,7 +20,7 @@ import { useCarregar } from '../../ui/useCarregar';
 
 /**
  * Números da consultoria: só contagens dos últimos 6 meses (`GET /numeros`, `PAINEL_VER`, a guarda é `podeAcessarTela`).
- * Sem nomes de pessoas. Valor que a API manda nulo aparece como "—" (nunca zero inventado); o mês corrente vem marcado
+ * Sem nome nem id de aluno. Valor que a API manda nulo aparece como "—" (nunca zero inventado); o mês corrente vem marcado
  * "até hoje" porque ainda não terminou. A tabela da equipe (supervisão, D1 e D16) só aparece quando a API a manda (com
  * `EQUIPE_LER`, D17): uma linha por membro ativo e "Sem responsável", só contagens, nunca nome nem id de aluno.
  */
@@ -65,9 +65,9 @@ export default function NumerosDoTreinador() {
         { chave: 'revisar', titulo: 'Para revisar', alinhar: 'direita', render: l => <Texto numerico>{contagemParaTela(l.paraRevisar)}</Texto> },
       ]} /> : <Vazio titulo="Ninguém na equipe" texto="Quando houver membros ativos, cada um aparece aqui." />}
     </Cartao> : null}
-    {meses && meses.length > 0 ? <Cartao titulo="Como contamos">
-      <Texto variante="suave">{REGRA_ALUNOS_ATIVOS}</Texto>
-      <Texto variante="suave">{REGRA_ATUALIZACOES}</Texto>
+    {(meses && meses.length > 0) || equipe ? <Cartao titulo="Como contamos">
+      {meses && meses.length > 0 ? <Texto variante="suave">{REGRA_ALUNOS_ATIVOS}</Texto> : null}
+      {meses && meses.length > 0 ? <Texto variante="suave">{REGRA_ATUALIZACOES}</Texto> : null}
       {equipe ? <Texto variante="suave">{REGRA_DA_EQUIPE}</Texto> : null}
       {equipe ? <Texto variante="suave">{REGRA_DA_EQUIPE_ATUALIZACOES}</Texto> : null}
     </Cartao> : null}
