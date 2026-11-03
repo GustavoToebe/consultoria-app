@@ -174,10 +174,9 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | N24/N25 cores: cor da marca só para destaque e ação, tom próprio para erro e alerta, cinza para desabilitado; uma cor por situação, igual no aluno e no treinador; regra escrita em `docs/design-e-front.md`. Frente própria ("cores", executor-front) depois do merge da frente 4 (`auditoria-pecas`, dona do `tema/tokens.ts`) | Claude, depois do merge da frente 4 | auditoria-ui-ux 2ª passada (Gustavo, 03/11) |
 | ~~N29 menu do treinador em grupos com título (Alunos e acompanhamento / Negócio / Configurações): vai na frente 6 (`auditoria-ficha`), junto do D11~~ | ~~Claude, na frente 6~~ | ~~auditoria-ui-ux 2ª passada (Gustavo, 03/11)~~ · feito na branch `auditoria-ficha` (passos 7 e 13); nomes dos grupos e rótulo do trilho a conferir com o Gustavo (D4, D6) |
 | Menu do tablet e grupos do N29 num tablet de verdade (Android, 768 a 1023 px): rótulo embaixo do ícone, rolagem do menu e toque | Gustavo, no aparelho | auditoria-ficha (passos 6 e 13) |
-| PC com o menu minimizado em janela baixa (abaixo de uns 780 px): a lista não rola (a dica sairia cortada) e o "Expandir" sai da tela; os fios somam 39 px, o resto já vinha de antes; resolver pede a dica numa camada fora do trilho | Claude, quando o Gustavo pedir | auditoria-ficha (D20) |
-| "Todas as telas" e a busca (`dominio/telas.ts`) ainda usam as seções antigas (Dia a dia, Planos, Consultoria), não os grupos do menu do N29 | Gustavo decide; Claude faz | auditoria-ficha (D24) |
 | Verificações que o Playwright não cobre: anamnese num celular de verdade, leitor de tela (TalkBack/VoiceOver) e contraste medido com ferramenta | Gustavo, com o APK | auditoria-ui-ux 2ª passada (Gustavo, 03/11) |
 | Inscrição pública: foco no primeiro erro e erro nos campos de escolha. `Escolha` não tem `erro` e as outras telas públicas só mostram erro no `Campo`; sem componente novo | Claude, quando o Gustavo pedir | auditoria-ui-ux-lote-1 (PR B) |
+| Regerar `app/public/guias/guia-treinador.pdf` no PC (`node scripts/guias/gerar.mjs`): a Ajuda passou a dizer "Financeiro, em Negócio" (grupos do menu, D24) e o PDF ficou com o texto anterior, porque gerado no Linux da nuvem sai com outras fontes | Claude local, no próximo commit do app | auditoria-ficha (D24) |
 
 ## Limitações aceitas (não são pendência)
 

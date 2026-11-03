@@ -22,8 +22,8 @@ interface Props {
 }
 
 /**
- * Painel "Todas as telas": busca no topo e uma lista única das telas que o usuário pode abrir, com um título por seção
- * na ordem do menu (antes eram cartões soltos, alguns com um item só, em outra ordem). A estrela marca favorita; os
+ * Painel "Todas as telas": busca no topo e uma lista única das telas que o usuário pode abrir, nos grupos do menu lateral
+ * (o Início no topo, sem título; D24 de `auditoria-ficha`). A estrela marca favorita; os
  * favoritos aparecem na busca da barra de topo quando o campo está vazio. Ações (como "Novo aluno") só existem na busca.
  */
 export function TodasAsTelas({ visivel, aoFechar, permitidas, favoritos, aoAlternarFavorito }: Props) {
@@ -41,8 +41,8 @@ export function TodasAsTelas({ visivel, aoFechar, permitidas, favoritos, aoAlter
       <Campo rotulo="Buscar tela" valor={texto} aoMudar={setTexto} autoCorrect={false} />
       {grupos.length === 0 ? <Texto variante="suave">Nenhuma tela encontrada. Tente outra palavra.</Texto> : null}
       {grupos.map((grupo) => (
-        <View key={grupo.secao} style={estilos.grupo}>
-          <Texto variante="secao" nivel={2}>{grupo.secao}</Texto>
+        <View key={grupo.secao ?? 'topo'} style={estilos.grupo}>
+          {grupo.secao ? <Texto variante="secao" nivel={2}>{grupo.secao}</Texto> : null}
           <View style={estilos.lista}>
             {grupo.telas.map((tela) => (
               <LinhaDaTela key={tela.id} tela={tela} favorita={favoritos.includes(tela.id)}
