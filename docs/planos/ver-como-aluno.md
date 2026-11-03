@@ -22,7 +22,7 @@ gravado e os botões de marcar não fazem nada.
 ## Passos
 - [x] 1. Regra pura em `dominio/` (rascunho → o que o aluno vê, com jest) e o modo leitura nos componentes do aluno que forem usados — executor — commit: 70f09125
 - [x] 2. Folha "Ver como o aluno" na `BarraDoPlano` (treino e dieta), e2e em 390 e 1280 px que confere que nada além de GET sai — executor-front — commit: a09df4f6 (merge da main com o cupom: 7c5738dd)
-- [ ] 3. Ajuda (`ajuda/conteudo.ts`, guias gerados de novo) e AGENTS.md — executor-rapido — commit: —
+- [x] 3. Ajuda (`ajuda/conteudo.ts`, guias gerados de novo) e AGENTS.md — sessão principal (mudança pequena, sem delegar) — commit: 750c98dd
 
 ## Fora do escopo
 - Prévia da mobilidade e do modelo do Planejamento (D6).
