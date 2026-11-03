@@ -55,6 +55,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Visual da reunião: cor por tipo de série, dieta, histórico e receitas (C35, C50, C74, C45, C16), **Frente G, leva 2** | [cores-por-tipo-de-serie.md](cores-por-tipo-de-serie.md) | `main` (3aed50c, PR #49) | Concluída em 03/11/2026 (em produção às 08h22) | 03/11/2026 |
 | Receitas em blocos e as receitas do treinador do piloto (C16, C17) | [receitas-em-blocos.md](receitas-em-blocos.md) | — | Planejando: janela agrupada na Frente G; cadastro aguarda a lista do treinador | 02/11/2026 |
 | Supervisão da equipe pelo dono e limite de alunos por treinador (C65, C79) | [supervisao-da-equipe.md](supervisao-da-equipe.md) | — | Planejando (só decisões, sem código) | 02/11/2026 |
+| Cupom no suplemento (C51) | [cupom-suplemento.md](cupom-suplemento.md) | branch `cupom-suplemento` | Em andamento | 03/11/2026 |
 | Miudezas de 03/11 (dieta, CSV, 429 da inscrição, Primeiros passos, ícones, e2e intermitentes) | [miudezas-03-11.md](miudezas-03-11.md) | `main` (60e906e, PR #44) | Concluída em 03/11/2026 (em produção às 00h35; D1 e D2 confirmados) | 03/11/2026 |
 
 ## Pendências soltas
