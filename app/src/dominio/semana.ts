@@ -45,6 +45,19 @@ export function totalDoExercicio(e: Pick<ExercicioPlano, 'series'>, metodologia?
 }
 
 /**
+ * "x de y séries" de um exercício: a ÚNICA conta da contagem (D6). A tela do exercício, a faixa do treino, a lista do dia e
+ * o "Bom trabalho" (`contagemDeSeries`) saem dela. `feita` diz se a série (pelo `uid`) está concluída na data da tela.
+ */
+export function contagemDoExercicio(
+  e: Pick<ExercicioPlano, 'series'>,
+  feita: (serieUid: string) => boolean,
+  metodologia?: Configuracao | null,
+): { total: number; feitas: number } {
+  const contadas = seriesDaContagem(e, metodologia);
+  return { total: contadas.length, feitas: contadas.filter((s) => feita(s.uid)).length };
+}
+
+/**
  * Total de séries da sessão para "3 de 18 séries feitas": só as de trabalho e pós-trabalho quando a metodologia é
  * informada (D6); sem ela, todas.
  */

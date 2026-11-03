@@ -191,6 +191,12 @@ test('sem internet: o painel do ✓ funciona e a série fica salva no aparelho',
   await expect(marcar(page, 3)).toBeChecked();
   await expect(peso(page, 3)).toHaveValue('60');
   await page.context().setOffline(false);
+  // A fila reenvia a série quando a internet volta: a mesma série, o mesmo id (o servidor é idempotente), carga 60 e uma só vez.
+  await expect.poll(() => api.enviados.filter((r) => r.serieUid === 'ws1').length).toBeGreaterThan(0);
+  const daWs = api.enviados.filter((r) => r.serieUid === 'ws1');
+  expect(new Set(daWs.map((r) => r.id)).size).toBe(1);
+  expect(daWs.at(-1)).toMatchObject({ carga: 60, concluida: true });
+  expect(daWs).toHaveLength(1);
   expect(api.errosDaPagina).toEqual([]);
 });
 

@@ -15,6 +15,11 @@ describe('texto da série no histórico', () => {
     expect(textoSerie(feita({ unidade: 'nenhuma', repeticoes: 12, carga: null }))).toBe('WS 12');
   });
 
+  it('série não marcada: o que falta é "—", nunca "sem carga" nem "sem repetições"', () => {
+    expect(textoSerie(feita({ carga: null, repeticoes: 7, concluida: false }))).toBe('WS — × 7');
+    expect(textoSerie(feita({ carga: 60, repeticoes: null, concluida: false }))).toBe('WS 60 kg × —');
+  });
+
   it('cardio (sem carga nem repetições) sai "feito" ou "—", nunca "null"', () => {
     expect(textoSerie(feita({ tipo: 'Cardio', unidade: 'nenhuma', carga: null, repeticoes: null, trabalho: false }))).toBe('Cardio feito');
     expect(textoSerie(feita({ tipo: 'Cardio', unidade: 'nenhuma', carga: null, repeticoes: null, concluida: false }))).toBe('Cardio —');

@@ -202,6 +202,13 @@ describe('tabela "Por divisão": "Feito, sem carga" é a única exceção ao "�
     expect(textoReps(soAquecimento)).toBe('—');
   });
 
+  it('série NÃO marcada sem carga nunca vira "Feito, sem carga": o exercício nem entra na tabela (ausência é "—")', () => {
+    const dias = [dia('2026-10-07', 'Costas', 'c', [{ exercicioUid: 'e', exercicioId: 'remada', nome: 'Remada', series: [serie({ carga: null, repeticoes: null, concluida: false })] }])];
+    expect(cargasPorDivisao(dias)).toEqual([]);
+    // Marcada e não marcada no mesmo exercício: só a marcada dá a linha.
+    expect(linhaDe(serie({ carga: null, repeticoes: null, concluida: false }), serie({ carga: null, repeticoes: null }))).toMatchObject({ feitoSemCarga: true });
+  });
+
   it('exercício sem carga (barra fixa) segue "Sem carga"', () => {
     const l = linhaDe(serie({ unidade: 'nenhuma', carga: null, repeticoes: 10 }));
     expect(l.feitoSemCarga).toBe(false);

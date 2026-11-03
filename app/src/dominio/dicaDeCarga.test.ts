@@ -1,4 +1,4 @@
-import { dicaDeCarga, partesDaDica, textoDaUltimaVez, TEXTO_PRIMEIRA_VEZ } from './dicaDeCarga';
+import { dicaDeCarga, partesDaDica, textoDaUltimaCarga, TEXTO_PRIMEIRA_VEZ } from './dicaDeCarga';
 
 describe('dica de carga (D1)', () => {
   it('sugestão e última vez juntas', () => {
@@ -23,15 +23,15 @@ describe('dica de carga (D1)', () => {
   });
 
   it('texto da última vez: carga sem repetições, repetições sem carga e etapas', () => {
-    expect(textoDaUltimaVez({ carga: 60, repeticoes: null })).toBe('60 kg');
-    expect(textoDaUltimaVez({ carga: null, repeticoes: 12 })).toBe('12 reps');
-    expect(textoDaUltimaVez({ carga: null, repeticoes: 1 })).toBe('1 rep');
-    expect(textoDaUltimaVez(null)).toBeNull();
+    expect(textoDaUltimaCarga({ carga: 60, repeticoes: null })).toBe('60 kg');
+    expect(textoDaUltimaCarga({ carga: null, repeticoes: 12 })).toBe('12 reps');
+    expect(textoDaUltimaCarga({ carga: null, repeticoes: 1 })).toBe('1 rep');
+    expect(textoDaUltimaCarga(null)).toBeNull();
     const etapas = [
       { posicao: 1, repeticoes: 4, carga: 40, situacao: 'FEITA' as const },
       { posicao: 2, repeticoes: 4, carga: 40, situacao: 'FEITA' as const },
     ];
-    expect(textoDaUltimaVez({ carga: 40, repeticoes: 8, etapas })).toBe('40 kg × 4+4');
+    expect(textoDaUltimaCarga({ carga: 40, repeticoes: 8, etapas })).toBe('40 kg × 4+4');
   });
 
   it('partes da dica: sugestão e "Primeira vez" em destaque; o resto em peso normal', () => {

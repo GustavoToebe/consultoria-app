@@ -31,6 +31,7 @@ trabalho.
 | D9 | C33 | reproduzir no e2e a digitação da carga na web e o "0 kg" no aquecimento | Gustavo |
 | D10 | C26 | reproduzir no e2e as cargas do período anterior no período novo | Gustavo |
 | D11 | Progressão (Gustavo, 03/11/2026) | **agora, nesta frente:** aviso "passou de N repetições" na execução do aluno, só texto e nunca um valor em kg; regra pura em `dominio/` com jest e um caso no e2e da execução. **Depois:** os critérios da sugestão de progressão esperam os dados dos 5 alunos; até lá a carga fica só como dica (D1, C31) | Gustavo |
+| D12 | Alcance do aviso D11 (Gustavo, 03/11/2026) | só nas séries de papel trabalho e pós-trabalho (as do contador, D6). Fora: AMRAP e cardio (sem teto), aquecimento (passar do teto não importa), técnica ou etapas (repetições por bloco/etapa) | Gustavo |
 
 ## Passos
 - [x] 1. Domínio: contagem só de trabalho (D6), dica de carga e painel do ✓ como regras puras em `dominio/`, com teste — executor — commit: —
@@ -72,5 +73,5 @@ trabalho.
 
 ## O que ficou para trás
 - Conferência da C31 contra a prévia da Frente G (4bad4704, 03/11): a dica já batia no texto; ajustado o visual (a "Sugestão" em destaque e "Última vez" em peso normal, `partesDaDica`). A prévia mostra "Primeira vez" sempre que falta a última vez, mas nunca a mostra com sugestão e sem última vez; o app segue dizendo só "Sugestão: X kg" nesse caso (não esconde a sugestão).
-- Aviso do D11 vale para as séries de papel TRABALHO e POS_TRABALHO da metodologia (as do contador, D6), em qualquer modo de carga; fica de fora AMRAP, cardio, técnica (Cluster, Rest-pause), aquecimento e tipo desconhecido. Revisar quando os critérios de progressão vierem.
-- **Aberto (decisão do Gustavo):** o cartão da série com etapas (Cluster, Rest-pause; `CartaoSerieComEtapas`/`LinhaDaEtapa`) ainda **preenche o campo de peso com a sugestão** e mostra "Sugerido: X kg" / "Carga sugerida: X kg", ao contrário da C31 (campo vazio e dica "Sugestão: X kg") e da prévia (`serieComEtapas`). Ajustar pede decidir se o ✓ da etapa também abre o painel "Fez com X kg?" (D2); não foi mexido. Só a origem ("da última vez") foi alinhada.
+- Alcance do aviso D11: decidido na D12.
+- **Pendência (Gustavo, 03/11: fora desta frente, porque abrir o painel a cada etapa atrapalha no meio de um Cluster com pausas de 15 s):** o cartão da série com etapas (Cluster, Rest-pause; `CartaoSerieComEtapas`/`LinhaDaEtapa`) ainda **preenche o campo de peso com a sugestão**. Pede regra própria; a regra proposta, para decidir depois: o peso da etapa nasce vazio com "Sugestão: X kg", como nas outras séries; o painel "Fez com X kg?" aparece **uma vez por série**, no primeiro ✓ de etapa com o peso vazio; o peso confirmado preenche as etapas vazias daquela série; nunca grava peso sem confirmação.

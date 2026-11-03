@@ -1,6 +1,6 @@
 import type { Configuracao, Sessao } from '../api/tipos';
 import { somarDias } from './formatos';
-import { seriesDaContagem, totalDeSeries } from './semana';
+import { contagemDoExercicio } from './semana';
 
 /**
  * Regras puras de "Concluir treino" (frente Engajamento, passo 0.1). Espelham as do servidor para o app nunca produzir
@@ -57,8 +57,13 @@ export function contagemDeSeries(
   feita: (serieUid: string) => boolean,
   metodologia?: Configuracao | null,
 ): { total: number; feitas: number } {
-  const feitas = sessao.exercicios.reduce((n, e) => n + seriesDaContagem(e, metodologia).filter((s) => feita(s.uid)).length, 0);
-  return { total: totalDeSeries(sessao, metodologia), feitas };
+  return sessao.exercicios.reduce(
+    (soma, e) => {
+      const c = contagemDoExercicio(e, feita, metodologia);
+      return { total: soma.total + c.total, feitas: soma.feitas + c.feitas };
+    },
+    { total: 0, feitas: 0 },
+  );
 }
 
 /**

@@ -22,7 +22,8 @@ import {
 import { resumoDaConclusao } from '../../../../dominio/conclusaoNaTela';
 import { dataParaTela } from '../../../../dominio/formatos';
 import { textoDoRecorde } from '../../../../dominio/recordesPessoais';
-import { nomeComDia, totalDeSeries } from '../../../../dominio/semana';
+import { contagemDeSeries } from '../../../../dominio/conclusaoDoTreino';
+import { nomeComDia } from '../../../../dominio/semana';
 import { textoDoVolumeAoVivo, volumeDaSessao } from '../../../../dominio/treinoAoVivo';
 import { useAluno } from '../../../../offline/AlunoProvider';
 import { logoComoDataUri } from '../../../../pdf/logo';
@@ -87,8 +88,7 @@ export default function TreinoConcluido() {
   }
 
   // Só as séries de trabalho e pós-trabalho (D6), como a faixa e o "Concluir treino".
-  const total = totalDeSeries(sessao, dia.config.metodologia);
-  const feitas = sessao.exercicios.reduce((n, e) => n + dia.feitasNaContagem(e), 0);
+  const { total, feitas } = contagemDeSeries(sessao, dia.estaFeita, dia.config.metodologia);
   const frase = fraseDoNumero(aluno.totalConcluidos, data, hoje);
   const recordes = sessao.exercicios.flatMap((e) =>
     Object.values(dia.recordesDe(e)).flatMap((lista) => lista.map((r) => `${e.nome}: ${textoDoRecorde(r)}`)),

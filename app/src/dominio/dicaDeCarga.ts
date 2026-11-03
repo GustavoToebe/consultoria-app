@@ -28,7 +28,7 @@ export interface EntradaDaDica {
 }
 
 /** "60 kg × 7", "60 kg", "7 reps"; `null` quando a última vez não tem carga nem repetições. */
-export function textoDaUltimaVez(ultima: UltimaVezDaSerie | null): string | null {
+export function textoDaUltimaCarga(ultima: UltimaVezDaSerie | null): string | null {
   if (!ultima) return null;
   if (ultima.etapas) {
     const t = textoDoAnterior({ tipo: '', ordem: 0, carga: ultima.carga, repeticoes: ultima.repeticoes, etapas: ultima.etapas }, false);
@@ -48,7 +48,7 @@ export function dicaDeCarga(e: EntradaDaDica): string | null {
   if (e.semCampoDePeso) return null;
   const partes: string[] = [];
   if (e.sugestaoKg != null) partes.push(`Sugestão: ${numeroParaTela(e.sugestaoKg)} kg`);
-  const ultima = textoDaUltimaVez(e.ultima);
+  const ultima = textoDaUltimaCarga(e.ultima);
   if (ultima) partes.push(`Última vez: ${ultima}`);
   return partes.length ? partes.join(' · ') : TEXTO_PRIMEIRA_VEZ;
 }

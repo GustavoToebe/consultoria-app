@@ -8,6 +8,7 @@ import { cargaIlegivel as cargaDeFormaDesconhecida } from '../dominio/modoDeCarg
 import { ajustarCarga, calcularCargasDoExercicio, cargaQueContaComoReferencia, ehSerieDeTrabalho, passoDaCarga, seriesSeguintesDependemDesta, textoDaOrigem, usaCargaDeTrabalho, type SerieCalculada } from '../dominio/cargas';
 import { avisoDeRepeticoes } from '../dominio/avisoDeRepeticoes';
 import { dicaDeCarga, TEXTO_PRIMEIRA_VEZ } from '../dominio/dicaDeCarga';
+import { contagemDoExercicio } from '../dominio/semana';
 import { aplicarEscolhaDoPainel, decidirCheck, type EscolhaDoPainel } from '../dominio/painelDoCheck';
 import { etapasDaSerie } from '../dominio/etapas';
 import { textosDeExecucao } from '../dominio/execucaoDoExercicio';
@@ -107,7 +108,10 @@ export function ExercicioAluno(p: Props) {
   // Só a carga de série feita (ou com etapa feita) serve de referência: desmarcar tira da conta (31/10).
   for (const s of e.series) cargasDoDia[s.uid] = cargaQueContaComoReferencia(p.registroDe(s.uid));
   const calculadas = calcularCargasDoExercicio(e, base, cargasDoDia, p.config);
+  // `feitas` (todas as séries) só decide a vibração do último ✓ (`ultimaDoExercicio`); o contador na tela é `contagem`.
   const feitas = e.series.filter((s) => p.registroDe(s.uid)?.concluida).length;
+  // "x de y feitas": a mesma conta da faixa e do "Bom trabalho" (D6, `contagemDoExercicio`); sem série contada, não aparece.
+  const contagem = contagemDoExercicio(e, (uid) => !!p.registroDe(uid)?.concluida, p.config.metodologia);
   const proximaAFazer = e.series.findIndex((s) => !p.registroDe(s.uid)?.concluida);
   const passo = passoDaCarga(e, p.config.arredondamentoKg);
   const semCarga = e.unidade === 'nenhuma';
@@ -199,9 +203,11 @@ export function ExercicioAluno(p: Props) {
       ) : null}
       <View style={estilos.tituloSeries}>
         <Texto variante="bloco">Séries</Texto>
-        <Texto numerico variante="pequeno">
-          {feitas} de {e.series.length} feitas
-        </Texto>
+        {contagem.total > 0 ? (
+          <Texto numerico variante="pequeno">
+            {contagem.feitas} de {contagem.total} feitas
+          </Texto>
+        ) : null}
       </View>
       {textoDaUltimaVez(ultima) ? <Texto numerico variante="pequeno">{textoDaUltimaVez(ultima)}</Texto> : null}
       {calculadas.map((c, i) =>
@@ -374,6 +380,8 @@ function CartaoSerie({
 
   const decisao = decidirCheck({ feita, carga: semCampoDePeso ? null : carga, repeticoes: reps, sugestaoKg: calculada.sugestao, semCampoDePeso });
   const painelAberto = painel !== null && !feita;
+  // O painel não sobrevive à série marcada por outro caminho (como o "Repetir"): zera na hora, sem efeito.
+  if (feita && painel !== null) setPainel(null);
 
   const mudar = (parcial: Partial<DadosSerie>) => {
     if ('carga' in parcial) setPainel(null);
