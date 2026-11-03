@@ -19,7 +19,7 @@ gravado e os botões de marcar não fazem nada.
 | D7 | O que a publicação copia | a dieta passa por `comFatoresDaBiblioteca` (grupo e fatores, `GET /alimentos/fatores`), como a prévia que já existe; o resto mostra o rascunho como está. O que a publicação ainda copia da biblioteca e o rascunho não tem fica registrado em "O que ficou para trás" | Claude |
 
 ## Passos
-- [ ] 1. Regra pura em `dominio/` (rascunho → o que o aluno vê, com jest) e o modo leitura nos componentes do aluno que forem usados — executor — commit: —
+- [x] 1. Regra pura em `dominio/` (rascunho → o que o aluno vê, com jest) e o modo leitura nos componentes do aluno que forem usados — executor — commit: 70f09125
 - [ ] 2. Folha "Ver como o aluno" na `BarraDoPlano` (treino e dieta), e2e em 390 e 1280 px que confere que nada além de GET sai — executor-front — commit: —
 - [ ] 3. Ajuda (`ajuda/conteudo.ts`, guias gerados de novo) e AGENTS.md — executor-rapido — commit: —
 
@@ -28,4 +28,10 @@ gravado e os botões de marcar não fazem nada.
 - Simular registros, recordes, "última vez" ou o progresso da semana do aluno.
 
 ## O que ficou para trás
-- —
+- Os fatores da dieta vêm do `GET /alimentos/fatores` na hora da prévia; se a biblioteca mudar até a publicação, o aluno verá os da publicação.
+- Sem `ERGOGENICO_LER` o editor não recebe os ergogênicos, então a prévia da dieta sai sem eles mesmo que o aluno os veja.
+- O id, o número e a data da versão são simulados (a versão seguinte à publicada, "agora").
+- Sem histórico do aluno: a prévia não mostra a última carga, os recordes nem o "Anterior".
+- A prévia mostra o rascunho como está, mesmo que ele ainda não passe na publicação.
+- Sem a demonstração do exercício (imagem) e sem a água na prévia.
+- Item 1 (cupom, C51) mexe em `app/aluno/dieta.tsx`, que este passo extraiu para `aluno/DietaDoAluno.tsx`: no merge com a main depois do cupom, o "Copiar cupom" vai para o `DietaDoAluno`.
