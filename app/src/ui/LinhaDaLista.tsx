@@ -1,14 +1,16 @@
-import { router, type Href } from 'expo-router';
+import { router, usePathname, type Href } from 'expo-router';
 import { Check, ChevronRight } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
+import { mesmaTela } from '../dominio/mesmaTela';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, LARGURA_MENU_EXPANDIDO, LARGURA_MENU_LATERAL, RAIO } from '../tema/tokens';
 import {
   BORDA_DA_LINHA, DIREITA_DO_BOTAO_AO_LADO, ESPACO_ENTRE_COLUNAS, estiloDaColuna, LARGURA_DO_BOTAO_AO_LADO, margensDoCabecalho, RECUO_DA_LINHA,
   type ColunaDaLista,
 } from './colunasDaLista';
+import { useSaidaGuardada } from './GuardaDeSaida';
 import { propsDeLink } from './propsDeLink';
 import { rotuloDaLinha, type SeloDaLinha } from './rotuloDaLinha';
 import { Selo } from './Selo';
@@ -91,6 +93,8 @@ export function LinhaDaLista(p: PropsDaLinha) {
   const { width } = useWindowDimensions();
   const largo = width >= (p.colunas ? LARGURA_DAS_COLUNAS : LARGURA_MENU_LATERAL);
   const [ativo, setAtivo] = useState(false);
+  const caminho = usePathname();
+  const { confirmar } = useSaidaGuardada();
   const selos = p.selos ?? [];
   const escolhida = !!(p.marcado || p.marcar?.marcado);
   // Em colunas no PC a linha é linha de tabela: sem caixa, só a divisória embaixo (a borda transparente mantém o 1 px
@@ -148,7 +152,10 @@ export function LinhaDaLista(p: PropsDaLinha) {
 
   if (p.href !== undefined) {
     const href = p.href;
-    const abrir = p.aoAbrir ?? (() => router.navigate(href));
+    // Abrir outra tela passa pela guarda de saída (a ficha com os dados em edição pergunta antes, D7).
+    // A mesma tela (o recorde da semana dentro da própria ficha) não sai e não pergunta.
+    const navegar = p.aoAbrir ?? (() => router.navigate(href));
+    const abrir = () => { if (!mesmaTela(caminho, href)) confirmar(navegar); };
     const link = (
       <Pressable
         accessibilityRole="link"

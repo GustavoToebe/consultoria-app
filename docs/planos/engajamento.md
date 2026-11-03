@@ -11,6 +11,7 @@ constância e esforço feito; nunca corpo, dieta restritiva ou tempo de uso.
 
 ## Regras da frente
 - Tudo atrás de `TREINOS_RETORNO_HABILITADO` (padrão false). Nada vai para a `main` sem aprovação do Gustavo.
+- Chave ligada em produção em 03/11/2026, às 12:39, autorizada pelo Gustavo (antes: ausente no `consultoria.env`, valendo o padrão false; depois: `true` no contêiner, health UP). Para desligar: a linha com `false` e `recriar.sh consultoria api`; as conclusões do aparelho ficam `LOCAL` e voltam a ser enviadas quando a chave voltar.
 - Branch com merge da `main` antes de cada passo (nunca rebase). Migration da branch é renumerada se a `main` ganhar outra.
 - Passa-se de etapa só pelo portão.
 

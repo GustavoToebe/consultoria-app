@@ -1,6 +1,6 @@
 import { Redirect } from 'expo-router';
-import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { StyleSheet, View, type TextInput } from 'react-native';
 
 import { pedirRedefinicaoDeSenha } from '../api/rotas';
 import { mensagemDaVerificacao, MOTIVO_VERIFICANDO, rotuloDoEnvio } from '../dominio/verificacaoHumana';
@@ -10,7 +10,7 @@ import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
 import { Cartao } from '../ui/Cartao';
 import { MensagemErro } from '../ui/Estados';
-import { textoDoErro } from '../ui/erros';
+import { separarErros, textoDoErro } from '../ui/erros';
 import { LinkTexto } from '../ui/LinkTexto';
 import { BotaoPublico, TelaPublica } from '../ui/TelaPublica';
 import { Texto } from '../ui/Texto';
@@ -23,6 +23,9 @@ export default function EsqueciSenha() {
   const verificacao = useVerificacaoHumana();
   const [email, setEmail] = useState('');
   const [erro, setErro] = useState<string | null>(null);
+  // Erro do campo (C6): vazio ou recusado pela API fica embaixo do e-mail; o alerta é só para o erro do servidor.
+  const [erroEmail, setErroEmail] = useState<string | null>(null);
+  const refEmail = useRef<TextInput>(null);
   const [enviando, setEnviando] = useState(false);
   const [pedido, setPedido] = useState(false);
 
@@ -32,20 +35,26 @@ export default function EsqueciSenha() {
 
   const enviar = async () => {
     if (!email.trim()) {
-      setErro('Informe o e-mail.');
+      setErroEmail('Informe o e-mail.');
+      setErro(null);
+      refEmail.current?.focus();
       return;
     }
     // O Enter no campo chama `enviar` sem passar pelo botão desabilitado.
     if (verificacao.aguardando) return;
     setEnviando(true);
     setErro(null);
+    setErroEmail(null);
     let falha: unknown;
     try {
       await pedirRedefinicaoDeSenha(email.trim(), verificacao.token ?? undefined);
       setPedido(true);
     } catch (e) {
       falha = e;
-      setErro(mensagemDaVerificacao(e) ?? textoDoErro(e));
+      const separados = separarErros(e, ['email'], mensagemDaVerificacao(e) ?? textoDoErro(e));
+      setErroEmail(separados.campos.email ?? null);
+      setErro(separados.geral);
+      if (separados.campos.email) refEmail.current?.focus();
     } finally {
       setEnviando(false);
       // Token de uso único: gasto com a tentativa (sucesso ou erro).
@@ -66,7 +75,7 @@ export default function EsqueciSenha() {
         </Cartao>
       ) : (
         <Cartao>
-          <Campo rotulo="E-mail da sua conta" valor={email} aoMudar={setEmail} autoCapitalize="none" autoComplete="email"
+          <Campo ref={refEmail} rotulo="E-mail da sua conta" valor={email} aoMudar={setEmail} erro={erroEmail} autoCapitalize="none" autoComplete="email"
             keyboardType="email-address" inputMode="email" textContentType="emailAddress" maxLength={254}
             onSubmitEditing={enviar} returnKeyType="send" />
           {erro ? <MensagemErro texto={erro} /> : null}

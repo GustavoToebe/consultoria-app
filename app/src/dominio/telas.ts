@@ -47,7 +47,7 @@ export const TELAS: readonly TelaDoCatalogo[] = [
   // "sair" não abre tela (é o último item do cartão do usuário); "senha" acha as duas telas que tratam dela.
   { id: 'meus-dados', rotulo: 'Meus dados', secao: 'Sua conta', href: '/treinador/meus-dados', palavras: ['nome', 'email', 'telefone', 'senha', 'trocar senha', 'perfil', 'acesso'], permissao: null },
   { id: 'seguranca', rotulo: 'Segurança', secao: 'Sua conta', href: '/treinador/seguranca', palavras: ['senha', 'verificacao em duas etapas', 'duas etapas', '2fa', 'mfa', 'autenticador', 'codigo', 'codigos de recuperacao', 'qr'], permissao: null },
-  { id: 'minha-conta', rotulo: 'Minha conta', secao: 'Sua conta', href: '/treinador/minha-conta', palavras: ['plano', 'assinatura', 'faturas', 'boleto', 'contrato', 'cadastro da consultoria', 'consumo', 'limites'], permissao: null },
+  { id: 'minha-conta', rotulo: 'Assinatura e faturas', secao: 'Sua conta', href: '/treinador/minha-conta', palavras: ['minha conta', 'plano', 'assinatura', 'faturas', 'boleto', 'contrato', 'cadastro da consultoria', 'consumo', 'limites'], permissao: null },
   { id: 'marca', rotulo: 'Marca', secao: 'Sua conta', href: '/treinador/marca', palavras: ['logo', 'cores', 'tema', 'identidade', 'visual', 'nome'], permissao: null },
   { id: 'ajustes', rotulo: 'Ajustes', secao: 'Sua conta', href: '/treinador/ajustes', palavras: ['preferencias', 'tema', 'escuro', 'claro', 'contraste', 'tamanho do texto', 'fonte', 'animacoes', 'vibracao'], permissao: null },
 
@@ -170,7 +170,7 @@ const TITULOS_DE_SUBTELAS: readonly [string, string][] = [
   ['/treinador/meus-dados', 'Meus dados'],
   ['/treinador/seguranca', 'Segurança'],
   ['/treinador/ajustes', 'Ajustes'],
-  ['/treinador/minha-conta', 'Minha conta'],
+  ['/treinador/minha-conta', 'Assinatura e faturas'],
   ['/treinador/termos', 'Termos e privacidade'],
 ];
 

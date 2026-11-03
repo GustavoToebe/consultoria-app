@@ -23,6 +23,7 @@ import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
+import { useSaidaGuardada } from '../ui/GuardaDeSaida';
 import { Alerta } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
 import { LinhaDeAcoes } from '../ui/LinhaDeAcoes';
@@ -70,6 +71,7 @@ interface Props {
  */
 export function PublicarTudoDaPasta({ pasta, planos, carregando, atualizando, falhou, aoTentarDeNovo, aoPublicar, aoRecarregar, aoNavegar }: Props) {
   const { pode, temFuncionalidade } = useSessao();
+  const { confirmar } = useSaidaGuardada();
   const [publicando, setPublicando] = useState(false);
   const [resultado, setResultado] = useState<Resultado | null>(null);
   // Lista que falhou ou sendo buscada de novo deixa o botão desabilitado com o motivo (nada vai à API; a que falhou
@@ -103,10 +105,11 @@ export function PublicarTudoDaPasta({ pasta, planos, carregando, atualizando, fa
     }
   };
 
-  const abrir = (tipo: TipoPlano, planoId: string) => {
+  // Passa pela guarda (a ficha pode estar com os dados do aluno em edição, D7); a Folha só fecha se a pessoa sair.
+  const abrir = (tipo: TipoPlano, planoId: string) => confirmar(() => {
     aoNavegar();
     router.push(rotaDoEditor(tipo, planoId));
-  };
+  });
 
   return (
     <View style={estilos.bloco}>

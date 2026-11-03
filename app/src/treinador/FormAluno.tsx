@@ -109,7 +109,7 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
       () => setSalvando(false),
       (e: unknown) => {
         setSalvando(false);
-        // Limite do plano: o aviso explica (com "Ver minha conta") e o formulário fica como está, sem erro de campo.
+        // Limite do plano: o aviso explica (com "Ver assinatura e faturas") e o formulário fica como está, sem erro de campo.
         if (!avisarDoPlano(e)) setErro(e);
       },
     );
