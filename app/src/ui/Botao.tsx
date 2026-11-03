@@ -3,7 +3,7 @@ import type { LucideIcon } from 'lucide-react-native';
 import { ActivityIndicator, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, RAIO, textoSobre } from '../tema/tokens';
 import { Texto } from './Texto';
 
 type Tipo = 'primario' | 'secundario' | 'perigo' | 'fantasma' | 'perigoTexto';
@@ -41,7 +41,7 @@ export function Botao({ rotulo, rotuloAcessivel, aoTocar, tipo = 'primario', Ico
   const inativo = desabilitado || carregando;
   const semFundo = tipo === 'fantasma' || tipo === 'perigoTexto';
   const fundo = tipo === 'primario' ? marca : tipo === 'perigo' ? cores.perigoFundo : 'transparent';
-  const texto = tipo === 'primario' ? sobreMarca : tipo === 'perigo' ? '#FFFFFF' : tipo === 'perigoTexto' ? cores.perigo : cores.texto;
+  const texto = tipo === 'primario' ? sobreMarca : tipo === 'perigo' ? textoSobre(cores.perigoFundo) : tipo === 'perigoTexto' ? cores.perigo : cores.texto;
   const borda = tipo === 'secundario' ? cores.borda : fundo;
   const explicacao = desabilitado && !carregando && motivo ? motivo : undefined;
   const botao = (

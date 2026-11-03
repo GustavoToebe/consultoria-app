@@ -175,6 +175,11 @@ export function coresDeIdentificacao(cores: Cores, escuro: boolean): Record<Chav
 
 /** Cor neutra para telas sem marca (entrar, cadastro). */
 export const MARCA_NEUTRA = '#52525B';
+/**
+ * Véu atrás das folhas: o mesmo preto translúcido nos três temas (escurece o que está por trás, no escuro também).
+ * É decorativo: quem separa o painel do fundo é a borda do bloco, não o véu.
+ */
+export const VEU = 'rgba(0,0,0,0.55)';
 
 export const espaco = (n: number) => n * 8;
 /** Cantos de 12 px (protótipo do editor, 30/10: o Gustavo escolheu 12 em vez de 8). */
