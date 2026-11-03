@@ -1,6 +1,6 @@
 # Paletas da marca (a consultoria escolhe a cor de fundo do app dos alunos)
 
-Situação: Planejando · Onde: — · Atualizado: 03/11/2026 (lista cortada: 11 paletas)
+Situação: Em andamento (passos 2 a 4 feitos; falta a tela Marca, passo 5) · Onde: branch `paletas-da-marca` · Atualizado: 03/11/2026 (10 paletas: a Brisa saiu no teste de contraste)
 
 ## Objetivo
 Hoje a consultoria escolhe só "Tema padrão dos alunos": Escuro ou Claro. A ideia é oferecer, na tela Marca, uma lista
@@ -46,7 +46,7 @@ escuro).
 | `CEU` | Céu | claro | #F0F7FF | #DBEAFE (faixa) | Ocean Blue |
 | `MENTA` | Menta | claro | #F8FFFE | #E6FFFB (faixa) | Mint (fora: corte de 03/11) |
 | `ROSA` | Rosa | claro | #FFF9FB | #FCE7F3 (faixa) | Rose |
-| `BRISA` | Brisa | claro | #F1F7F7 | #D5E5E5 (faixa) | Pastel Breeze |
+| `BRISA` | Brisa | claro | #F1F7F7 | #D5E5E5 (faixa) | Pastel Breeze (fora: teste de contraste de 03/11, ver a decisão 6) |
 
 Nas claras o cartão continua branco (como no CLARO e no AREIA) e o segundo tom vira a faixa do título (`superficie3`).
 Nas escuras, os tons que a paleta não traz (`superficie2`, `superficie3`, `faixaForte`, `divisor`, `borda`, `campo`,
@@ -61,29 +61,31 @@ Nas escuras, os tons que a paleta não traz (`superficie2`, `superficie3`, `faix
 | 3 | O treinador vê o app dele na paleta escolhida? | Sim, pelo mesmo "Da consultoria" de hoje, para ver o que o aluno vê; pode trocar nas Preferências | Gustavo, 03/11/2026 |
 | 4 | Cor da marca personalizada × paleta | A checagem da cor (`avaliacao.bloqueia` no `FormMarca`, `dominio/paletas.ts`) passa a medir contra o fundo e o cartão da paleta escolhida, não só ESCURO/CLARO (uma cor que passa no Escuro pode sumir no Petróleo) | Gustavo, 03/11/2026 |
 | 5 | App antigo no celular que recebe um código novo | Aceito: o `TemaProvider` antigo cai no ESCURO para valor que não conhece; some com o APK novo (sem compatibilidade com o legado, regra do AGENTS.md; ninguém fica sem usar o app) | Gustavo, 03/11/2026 |
+| 6 | Brisa fora da lista (passo 2) | A faixa `#D5E5E5` reprovou no teste da agenda (`contrasteDaAgenda.test.ts`): o item da agenda em cima da faixa Brisa não chega a tingir os 6% mínimos de 30/10 com a cor OLIVA, porque o fundo tingido já está em 3,03:1 com a própria cor (limite de 3:1); falha nos quatro cenários (padrão, contraste alto, bordas reforçadas e os dois). Regra do plano: paleta que falha sai, não se ajusta cor por paleta. Ficam 10 paletas. **A conferir pelo Gustavo** | Claude (regra do passo 2), 03/11/2026 |
+| 7 | `faixaForte` das escuras | A prévia não calcula esse tom; o passo 2 usou a faixa + 0,03 de mistura com branco (Meia-noite `#263540`, Ameixa `#3E275C`, Oceano `#2A314A`, Café `#3E2E24`), a mesma ideia do Escuro (faixa 0,09 → forte 0,12). Passa os testes (forte mais claro que a faixa; barra de identificação 3:1). **A conferir pelo Gustavo na tela** | Claude, 03/11/2026 |
 
 ## Passos
-- [ ] 0. Esperar a frente de cores da auditoria (vermelho da marca separado do erro, desabilitado cinza), que mexe no
+- [x] 0. Esperar a frente de cores da auditoria (vermelho da marca separado do erro, desabilitado cinza), que mexe no
   `tokens.ts`. Conferido em 03/11 com `git branch -r`: `editor-de-treino-visual` e `atualizacao-visual-app-full` não
-  estão mais no remoto, então não travam este passo. Começar a partir da `main` atualizada. — commit/run: —
+  estão mais no remoto, então não travam este passo. Começar a partir da `main` atualizada. — commit/run: `77263a77` (#70, já na branch)
 - [x] 1. **Prévia** em `docs/prototipos/paletas-da-marca.html`: a mesma tela (Início do aluno, lista e um cartão com
   selos verde/âmbar/vermelho e botão da marca) nas 15 paletas, com o contraste medido ao lado. O Gustavo corta a lista
   aqui (decisão 1). Prévia feita e lista cortada em 03/11 (11 paletas, decisão 1). **executor-front** — commit/run: f7f5e087 (#57), 64da6020 (#58)
-- [ ] 2. **Tokens** (`app/src/tema/tokens.ts`): as paletas como objetos `Cores` literais (`{ ...ESCURO, fundo, ... }` /
+- [x] 2. **Tokens** (`app/src/tema/tokens.ts`): as paletas como objetos `Cores` literais (`{ ...ESCURO, fundo, ... }` /
   `{ ...CLARO, ... }`), um mapa único `PALETAS` (código → cores e modo) e `modoDaPaleta`. Os testes que hoje listam
   `[CLARO, ESCURO, AREIA]` à mão passam a percorrer `PALETAS`: `tema/tokens.test.ts` (linhas 3, 9, 38, 134, 145),
   `ui/contrasteDasPecas.test.ts:9`, `treinador/agenda/contrasteDaAgenda.test.ts:13`, `dominio/preferencias.test.ts:40`
-  e `:121`. Paleta que falhar em qualquer teste sai da lista (não se ajusta status por paleta). **executor** — commit/run: —
-- [ ] 3. **API**: migration `a próxima migration livre na hora (hoje seria V054)` troca o `consultoria_tema_padrao_check` (V001:198) pela lista nova e alarga
+  e `:121`. Paleta que falhar em qualquer teste sai da lista (não se ajusta status por paleta). Feito: os testes percorrem `PALETAS` (inclusive os de contraste alto e bordas reforçadas e os da identificação) e a Brisa saiu (decisão 6). **executor** — commit/run: `2dfa6c50`
+- [x] 3. **API**: migration `V055__paletas_da_marca.sql` troca o `consultoria_tema_padrao_check` (V001:198) pela lista nova e alarga
   `tema_padrao` para `varchar(20)`; `Consultoria.Tema` (Consultoria.java:29) ganha os códigos; `MarcaRequest`
   (MarcaService.java:32) não muda de forma (já é o enum, valor fora = 400). Testes: `MarcaELogoIntegrationTest` grava e
   lê uma paleta nova e recusa código inexistente; subir o total em 1 a partir do que estiver na main em `FlywayMigrationIntegrationTest` e
-  `PapeisBancoIntegrationTest` (**executor-rapido** só para os totais). **executor** — commit/run: —
-- [ ] 4. **App, tema**: `api/tipos.ts:7` (`Tema` com os códigos), `TemaProvider.tsx:91-104` (o modo sai de
+  `PapeisBancoIntegrationTest` (**executor-rapido** só para os totais). Feito, com a lista de 10 códigos (sem a Brisa); `AGENTS.md` cita a V055. **executor** — commit/run: `8621d098`
+- [x] 4. **App, tema**: `api/tipos.ts:7` (`Tema` com os códigos), `TemaProvider.tsx:91-104` (o modo sai de
   `modoDaPaleta`, a base de `PALETAS[codigo]`; preferência Escuro/Claro/Areia/Sistema da pessoa continua vencendo),
   `ui/PreferenciasDoApp.tsx:36` (o ternário vira `PALETAS[temaPadrao]`), e os `modo === 'ESCURO'` de `app/_layout.tsx:67`
   e `:81` e `treinador/agenda/itemDaAgenda.tsx:107` conferidos (devem seguir o modo, não o código). Teste em
-  `tema/TemaProvider.test.tsx` (uma escura e uma clara). **executor** — commit/run: —
+  `tema/TemaProvider.test.tsx` (uma escura, uma clara e a escolha da pessoa vencendo). `app/_layout.tsx` e `itemDaAgenda.tsx` já seguem `modo` (não o código): sem mudança. **executor** — commit/run: `2dfa6c50`
 - [ ] 5. **Tela Marca** (`treinador/marca/FormMarca.tsx:234-243`): "Tema padrão dos alunos" vira duas linhas de
   miniaturas (Escuras / Claras) no `GradeDeOpcoes` com `MiniaturaDoTema`, e a `Previa` (:159) mostra a paleta escolhida.
   A checagem da cor personalizada mede contra a paleta (decisão 4). **executor-front** — commit/run: —
@@ -101,4 +103,5 @@ Nas escuras, os tons que a paleta não traz (`superficie2`, `superficie3`, `faix
   e o rosa dela briga com o vermelho de erro).
 
 ## O que ficou para trás
-- (nada ainda)
+- Passo 5: `FormMarca`, `Previa` e `MiniaturaDoTema` ainda mostram só Escuro/Claro (o typecheck passa porque `Tema` é a união inteira). A checagem da cor personalizada (`dominio/paletas.ts`, decisão 4) ainda mede só ESCURO/CLARO.
+- Passo 6: e2e da Marca com uma paleta nova fica para depois da tela (hoje o e2e só enxerga os dois botões).
