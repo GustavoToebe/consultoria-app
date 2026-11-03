@@ -1,6 +1,6 @@
 # Execução do aluno: carga como dica, ✓ com painel, meta, contador e retestes
 
-Situação: Em andamento (só falta a revisão, passo 6) · Onde: branch `execucao-do-aluno` (worktree `wt-execucao`), **depois do merge da Frente B** (usa a carga fixa) · Atualizado: 02/11/2026 · Registro: reunião de 30/10, C31, C39, C36, C37, C32/C40, C30, C33, C26 · Frente C da leva 2
+Situação: Em revisão (PR aberto, passos 1 a 6 feitos) · Onde: branch `execucao-referencia-e-progressao` (worktree `wt-execucao`) · Atualizado: 03/11/2026 · Registro: reunião de 30/10, C31, C39, C36, C37, C32/C40, C30, C33, C26 · Frente C da leva 2
 
 ## Objetivo
 Na hora de registrar, o aluno vê o que fez da última vez, a meta de repetições junto do campo de carga, e a carga
@@ -34,13 +34,13 @@ trabalho.
 | D12 | Alcance do aviso D11 (Gustavo, 03/11/2026) | só nas séries de papel trabalho e pós-trabalho (as do contador, D6). Fora: AMRAP e cardio (sem teto), aquecimento (passar do teto não importa), técnica ou etapas (repetições por bloco/etapa) | Gustavo |
 
 ## Passos
-- [x] 1. Domínio: contagem só de trabalho (D6), dica de carga e painel do ✓ como regras puras em `dominio/`, com teste — executor — commit: —
-- [x] 2. Descobrir o portão de C32/C40 e escrever o relatório para o Gustavo (D7), sem mexer na VPS — explorador + executor — commit: —
-- [x] 3. Tela: dica "Sugestão · Última vez", meta maior ao lado do campo, painel do ✓ (offline), histórico "Feito, sem carga"; e2e — executor-front — commit: —
-- [x] 3b. Aviso "passou de N repetições" (D11): regra pura em `dominio/` com jest, texto na execução e um caso no e2e da execução — executor (regra) + executor-front (tela) — commit: —
-- [x] 4. Reproduzir C30, C33 e C26 no e2e (e corrigir só se for defeito) — executor — commit: — (`e2e/execucao-retestes.spec.ts`: nenhum defeito reproduzido; C30 é a regra de 31/10, mantida, com o aviso na própria WS; na tabela "Por divisão" só "Feito, sem carga" foge do "—")
-- [x] 5. Ajuda, guias regerados, `AGENTS.md` só no item da execução — commit: —
-- [ ] 6. Revisão do Opus (offline, idempotência) antes do PR — advisor/revisor — commit: —
+- [x] 1. Domínio: contagem só de trabalho (D6), dica de carga e painel do ✓ como regras puras em `dominio/`, com teste — executor — commit: 75e9f519
+- [x] 2. Descobrir o portão de C32/C40 e escrever o relatório para o Gustavo (D7), sem mexer na VPS — explorador + executor — commit: c97da7d2
+- [x] 3. Tela: dica "Sugestão · Última vez", meta maior ao lado do campo, painel do ✓ (offline), histórico "Feito, sem carga"; e2e — executor-front — commit: 75e9f519, 2a9ea98a
+- [x] 3b. Aviso "passou de N repetições" (D11): regra pura em `dominio/` com jest, texto na execução e um caso no e2e da execução — executor (regra) + executor-front (tela) — commit: 02733e9a
+- [x] 4. Reproduzir C30, C33 e C26 no e2e (e corrigir só se for defeito) — executor — commit: d9f1de3a (`e2e/execucao-retestes.spec.ts`: nenhum defeito reproduzido; C30 é a regra de 31/10, mantida, com o aviso na própria WS; na tabela "Por divisão" só "Feito, sem carga" foge do "—")
+- [x] 5. Ajuda, guias regerados, `AGENTS.md` só no item da execução — commit: d0934a3f, 63bb379c
+- [x] 6. Revisão do Opus (offline, idempotência) antes do PR — advisor/revisor — commit: 58178e5c
 
 ## Relatório do passo 2 (C32/C40, D7): o que a chave `TREINOS_RETORNO_HABILITADO` liga (para o Gustavo decidir)
 - **A chave não liga só "Última vez", "Anterior" e "Bom trabalho"**: liga todo o retorno. Junto vêm: rotas `@ExigeRetorno`
