@@ -17,6 +17,9 @@ export function lembrarGatilho(evento: { target: unknown; nativeEvent?: object }
   ultimo = { no: evento.target as HostInstance, quando: Date.now() };
 }
 
+/** Props para a raiz do app e o painel da Folha. Os tipos TS do RN 0.86 ainda não trazem o `onClickCapture` (o runtime tem). */
+export const capturaDoGatilho = { onClickCapture: lembrarGatilho } as object;
+
 /** Painel da Folha: guarda o gatilho ao abrir e, ao sair, devolve o foco a ele (cada Folha, empilhada ou não, tem o seu). */
 export function useDevolverFocoNoNativo() {
   const [gatilho] = useState(() => (Platform.OS !== 'web' && gatilhoRecente(ultimo, Date.now()) ? ultimo : null));

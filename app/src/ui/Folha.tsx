@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, LARGURA_MENU_LATERAL, LINHA_DA_FAIXA, RAIO, VEU } from '../tema/tokens';
 import { marcarFolhaDoTopoFechando, useFolhaNoHistorico } from './historicoDasFolhas';
-import { lembrarGatilho, useDevolverFocoNoNativo } from './focoDaFolha';
+import { capturaDoGatilho, useDevolverFocoNoNativo } from './focoDaFolha';
 import { IconeBotao } from './IconeBotao';
 import { RolagemComTopo } from './RolagemComTopo';
 import { Texto } from './Texto';
@@ -163,7 +163,7 @@ function Painel({titulo,aoFechar,children,rodape,largura,acaoNoTopo,faixa,quemAb
   }, [focarConteudo]);
   return (
     <PortalDaFolha.Provider value={valorPortal}>
-    <GestureHandlerRootView style={{flex:1}} onClickCapture={lembrarGatilho}>
+    <GestureHandlerRootView style={{flex:1}} {...capturaDoGatilho}>
       <KeyboardAvoidingView style={estilos.fundoArea} behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}>
       <View style={[estilos.fundo, centralizado ? estilos.fundoCentral : estilos.fundoInferior]}>
         {web
