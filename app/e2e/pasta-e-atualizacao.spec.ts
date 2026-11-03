@@ -87,10 +87,13 @@ const SUBSTITUI = 'Vai substituir o peso da atualização';
 const AVISO_DA_COPIA =
   'Copia a versão publicada de cada plano (o rascunho, se ainda não foi publicado). Os planos chegam como rascunho, sem os ergogênicos da dieta e sem o questionário escolhido; nada é publicado para o aluno.';
 
-/** Hoje como o campo de data mostra (dd/mm/aaaa, fuso local). */
+/**
+ * Hoje como o campo de data mostra (dd/mm/aaaa). O app conta o dia em Brasília (e o navegador do teste roda em
+ * `America/Sao_Paulo`); o relógio da máquina que roda o teste pode estar em outro fuso (UTC na nuvem e na CI), e das 21h
+ * à meia-noite de Brasília o "hoje" local já seria amanhã.
+ */
 function hojeNaTela(): string {
-  const d = new Date();
-  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+  return new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date());
 }
 
 for (const largura of [390, 1280]) {
