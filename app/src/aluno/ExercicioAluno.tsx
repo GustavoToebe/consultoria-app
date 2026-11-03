@@ -7,6 +7,8 @@ import type { AnteriorDoExercicio, Configuracao, DemonstracaoDoAluno, EtapaRegis
 import { cargaIlegivel as cargaDeFormaDesconhecida } from '../dominio/modoDeCarga';
 import { ajustarCarga, calcularCargasDoExercicio, cargaQueContaComoReferencia, ehSerieDeTrabalho, passoDaCarga, seriesSeguintesDependemDesta, textoDaOrigem, usaCargaDeTrabalho, type SerieCalculada } from '../dominio/cargas';
 import { avisoDeRepeticoes } from '../dominio/avisoDeRepeticoes';
+import { avisoDeSerieSemCarga, textoDoNumeroInvalido } from '../dominio/avisoDaSerie';
+import { papelDe } from '../dominio/metodologia';
 import { dicaDeCarga, TEXTO_PRIMEIRA_VEZ } from '../dominio/dicaDeCarga';
 import { contagemDoExercicio } from '../dominio/semana';
 import { aplicarEscolhaDoPainel, decidirCheck, type EscolhaDoPainel } from '../dominio/painelDoCheck';
@@ -36,6 +38,7 @@ import { useMovimentoReduzido } from '../ui/useMovimentoReduzido';
 import { CartaoSerieComEtapas } from './CartaoSerieComEtapas';
 import { CartaoSerieDeCardio } from './CartaoSerieDeCardio';
 import { PainelDoCheck } from './PainelDoCheck';
+import { RotuloDoIcone } from './RotuloDoIcone';
 import { barraDoTipo, CabecalhoDaSerie, DicaDoCampo, LinhaDoUltimoRegistro, MetaAoLado, RotuloDeHoje } from './PartesDaSerie';
 import { dicaDaCarga, ehExercicioDeCardio, partesDaMeta, selosDaSerie, textosDaSerie } from './serieDoAluno';
 
@@ -184,7 +187,7 @@ function CorpoDoExercicio(p: Props) {
           ) : (
             <View style={estilos.espaco} />
           )}
-          {video ? <IconeBotao Icone={PlayCircle} rotulo={`Ver vídeo de ${e.nome}`} aoTocar={abrirVideo} /> : null}
+          {video ? <RotuloDoIcone texto="Vídeo"><IconeBotao Icone={PlayCircle} rotulo={`Ver vídeo de ${e.nome}`} aoTocar={abrirVideo} /></RotuloDoIcone> : null}
           {p.acaoDescanso}
         </View>
       ) : null}
@@ -220,7 +223,7 @@ function CorpoDoExercicio(p: Props) {
               : 'Sem registro anterior.'}
           </Texto>
           <Texto numerico variante="pequeno">
-            {`É o ponto de partida do dia${p.cargaDoDia == null && p.ultima?.carga != null ? '; sem nada aqui, as sugestões saem da última vez' : ''}. Depois que você registrar a ${p.config.tipoTrabalho} nesta sessão (com o ✓), as séries em "% da ${p.config.tipoTrabalho}" passam a sair dela.`}
+            {`É o ponto de partida do dia${p.cargaDoDia == null && p.ultima?.carga != null ? '; sem nada aqui, as sugestões saem da última vez' : ''}. Depois que você registrar a ${p.config.tipoTrabalho} nesta sessão (marcando a série como feita), as séries em "% da ${p.config.tipoTrabalho}" passam a sair dela.`}
           </Texto>
         </Cartao>
       ) : null}
@@ -404,6 +407,8 @@ function CartaoSerie({
   const avisoDasReps = avisoDeRepeticoes(s, reps, metodologia);
 
   const decisao = decidirCheck({ feita, carga: semCampoDePeso ? null : carga, repeticoes: reps, sugestaoKg: calculada.sugestao, semCampoDePeso });
+  // N6: série marcada sem kg num exercício com carga não entra no progresso; o aviso fica junto da série.
+  const semCargaNaSerie = avisoDeSerieSemCarga({ feita, carga, semCampoDePeso, ehTrabalho: ehSerieDeTrabalho(s) || papelDe(metodologia, s.tipo) === 'TRABALHO' });
   const painelAberto = painel !== null && !feita;
   // O painel não sobrevive à série marcada por outro caminho (como o "Repetir"): zera na hora, sem efeito.
   if (feita && painel !== null) setPainel(null);
@@ -482,7 +487,7 @@ function CartaoSerie({
 
   return (
     <Animated.View testID={`serie-${s.uid}`} style={[estilos.serie, { borderColor: feita ? cores.sucesso : cores.borda }, barra, fundo]}>
-      <CabecalhoDaSerie numero={numero} tipo={selos.tipo} tecnica={selos.tecnica} recordes={recordes} naoRegistrada={!feita} />
+      <CabecalhoDaSerie numero={numero} tipo={selos.tipo} tecnica={selos.tecnica} recordes={recordes} registro={feita ? 'FEITA' : null} />
       {textos.alvoExtra ? <Texto numerico variante="pequeno">Observação desta série: {textos.alvoExtra}</Texto> : null}
       {textos.amrap ? <Texto numerico variante="pequeno">AMRAP: faça o máximo de repetições que conseguir e anote quantas fez.</Texto> : null}
       {textos.tecnica ? (
@@ -519,11 +524,12 @@ function CartaoSerie({
           </>
         )}
       </View>
-      {invalido ? <Texto variante="pequeno" cor={cores.perigo}>Corrija o número para marcar a série.</Texto> : null}
+      {invalido ? <Texto variante="pequeno" cor={cores.perigo} accessibilityLiveRegion="polite">{textoDoNumeroInvalido(cargaInvalida, repsInvalidas)}</Texto> : null}
+      {semCargaNaSerie ? <Texto variante="pequeno" cor={cores.texto} accessibilityLiveRegion="polite">{semCargaNaSerie}</Texto> : null}
       {dica ? <DicaDoCampo dica={dica} origem={origem} numero={numero} /> : null}
       {avisoDasReps ? <Texto numerico variante="pequeno" cor={cores.texto} accessibilityLiveRegion="polite">{avisoDasReps}</Texto> : null}
       {painelAberto ? <PainelDoCheck sugestaoKg={painel} numero={numero} aoEscolher={escolher} /> : null}
-      {avisoDoMarcar ? <Texto numerico variante="pequeno">As séries seguintes só usam este peso depois que você marcar ✓.</Texto> : null}
+      {avisoDoMarcar ? <Texto numerico variante="pequeno">As séries seguintes só usam este peso depois que você marcar a série como feita.</Texto> : null}
       {!semCampoDePeso && passo !== null ? (
         <AjusteDeCarga passo={passo} rotulo={`peso da série ${numero}`}
           aoAjustar={(sentido) => mudar({ carga: ajustarCarga(carga, calculada.sugestao, passo, sentido) })} />

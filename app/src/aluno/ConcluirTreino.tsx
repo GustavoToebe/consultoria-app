@@ -130,8 +130,8 @@ export function ConcluirTreino({ versaoId, sessao, data, hoje, metodologia, feit
       if (r.ok) {
         vibrar.sucesso();
         setAberto(false);
-        avisar('Treino concluído.', 'sucesso');
-        // "Bom trabalho!" (Engajamento 0.4): o voltar traz de volta a esta tela.
+        // "Bom trabalho!" (Engajamento 0.4): o voltar traz de volta a esta tela. Sem aviso por cima (N9 da auditoria): a tela
+        // nova já diz "Treino concluído" e o aviso cobria o cartão.
         router.push(caminhoDaConclusao(sessao.uid, data));
         return;
       }
