@@ -31,6 +31,7 @@ import { EscolhaEmFolha, OPCOES_PARA_BUSCAR } from '../../ui/EscolhaEmFolha';
 import { EscalaDeNota } from '../../ui/EscalaDeNota';
 import { useRolagem } from '../../ui/RolagemComTopo';
 import { SeletorDeNota } from '../../ui/SeletorDeNota';
+import { coresDoDesabilitado } from '../../ui/desabilitado';
 import { Texto } from '../../ui/Texto';
 import { TextoFormatado } from '../../ui/TextoFormatado';
 import { useControleDeFotos } from './fotos/ControleDeFotos';
@@ -352,8 +353,7 @@ function OpcoesComImagem({ p, valor, aoMudar }: { p: PerguntaAtualizacao; valor:
           borderWidth: marcado ? 2 : 1,
           padding: marcado ? espaco(1) - 1 : espaco(1),
           borderColor: marcado ? cores.texto : cores.borda,
-          backgroundColor: marcado || pressed ? cores.superficie3 : cores.superficie2,
-          opacity: !aoMudar && !marcado ? 0.55 : 1,
+          backgroundColor: !aoMudar && !marcado ? coresDoDesabilitado(cores).fundo : marcado || pressed ? cores.superficie3 : cores.superficie2,
         }]}>
         {o.imagemId ? <ImagemDaOpcao id={o.imagemId} descricao={`Imagem da opção ${o.rotulo}`} largura={imagem} />
           : <View style={[estilos.semImagem, { height: Math.round(imagem * 0.75), borderColor: cores.borda }]} />}
@@ -361,7 +361,7 @@ function OpcoesComImagem({ p, valor, aoMudar }: { p: PerguntaAtualizacao; valor:
           <View style={[unica ? estilos.bolinha : estilos.caixinha, { borderColor: marcado ? cores.texto : cores.bordaCampo, backgroundColor: marcado ? cores.texto : cores.campo }]}>
             {marcado ? <Check size={14} color={cores.fundo} /> : null}
           </View>
-          <Texto style={estilos.rotuloDaOpcao}>{o.rotulo}</Texto>
+          <Texto style={estilos.rotuloDaOpcao} cor={!aoMudar && !marcado ? cores.textoSuave : undefined}>{o.rotulo}</Texto>
         </View>
       </Pressable>;
     }) : null}

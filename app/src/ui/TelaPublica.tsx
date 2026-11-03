@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, StyleSheet, useWindowDimensions, View } f
 import type { Marca } from '../api/tipos';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO, textoSobre } from '../tema/tokens';
+import { coresDoDesabilitado } from './desabilitado';
 import { MarcaTitulo } from './MarcaTitulo';
 import { Tela } from './Tela';
 import { Texto } from './Texto';
@@ -70,15 +71,16 @@ export function BotaoPublico({ rotulo, aoTocar, carregando, desabilitado, motivo
   cor?: string | null;
 }) {
   const { cores } = useTema();
-  const fundo = cor ?? cores.texto;
-  const letra = cor ? textoSobre(cor) : cores.fundo;
   const inativo = !!desabilitado || !!carregando;
+  const cinza = coresDoDesabilitado(cores);
+  const fundo = inativo ? cinza.fundo : cor ?? cores.texto;
+  const letra = inativo ? cinza.texto : cor ? textoSobre(cor) : cores.fundo;
   const explicacao = desabilitado && !carregando && motivo ? motivo : undefined;
   return (
     <View style={estilos.comMotivo}>
       <Pressable accessibilityRole="button" accessibilityLabel={rotulo} accessibilityHint={explicacao}
         accessibilityState={{ disabled: inativo, busy: !!carregando }} disabled={inativo} onPress={aoTocar}
-        style={({ pressed }) => [estilos.botao, { backgroundColor: fundo, opacity: inativo ? 0.5 : pressed ? 0.85 : 1 }]}>
+        style={({ pressed }) => [estilos.botao, { backgroundColor: fundo, borderColor: inativo ? cinza.borda : fundo, opacity: pressed && !inativo ? 0.85 : 1 }]}>
         {carregando ? <ActivityIndicator size="small" color={letra} /> : null}
         <Texto numberOfLines={2} style={[estilos.rotulo, { color: letra }]}>{rotulo}</Texto>
       </Pressable>
@@ -95,7 +97,7 @@ const estilos = StyleSheet.create({
   simbolo: { width: 36, height: 36, borderRadius: 8 },
   nomeDoProduto: { fontFamily: fontes.negrito, fontSize: 18 },
   comMotivo: { alignSelf: 'stretch', gap: espaco(0.5) },
-  botao: { minHeight: ALVO_TOQUE, borderRadius: RAIO, paddingHorizontal: espaco(2), paddingVertical: espaco(0.75), flexDirection: 'row', gap: espaco(1), alignItems: 'center', justifyContent: 'center' },
+  botao: { minHeight: ALVO_TOQUE, borderRadius: RAIO, borderWidth: 1, paddingHorizontal: espaco(2), paddingVertical: espaco(0.75), flexDirection: 'row', gap: espaco(1), alignItems: 'center', justifyContent: 'center' },
   rotulo: { fontFamily: fontes.semi, fontSize: 15, textAlign: 'center', flexShrink: 1 },
   motivo: { textAlign: 'center' },
 });
