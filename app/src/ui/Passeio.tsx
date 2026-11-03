@@ -45,6 +45,9 @@ const Contexto = createContext<Valor>({ situacao: 'encerrada', dispensar: () => 
 
 export const usePasseio = (): Pick<Valor, 'situacao' | 'dispensar' | 'rever'> => useContext(Contexto);
 
+/** `nativeID` da lista do menu que rola (`ui/Navegacao`): o passeio só rola o alvo para a tela quando ele está nela. */
+export const ROLAGEM_DO_MENU = 'rolagem-do-menu';
+
 /** `ref` para o item que o passeio destaca (`menu:<caminho>`). Item fora da tela sai do registro sozinho. */
 export function useAlvoDoPasseio(id: string): (no: View | null) => void {
   const { registrar } = useContext(Contexto);
@@ -142,6 +145,10 @@ function Sobreposicao({ passos, indice, mudar, dispensar, origem, nos }: {
     let vivo = true;
     const raiz = origem.current;
     const no = passo.alvo ? nos.current.get(passo.alvo) : undefined;
+    // Web: a lista do menu rola quando não cabe na altura; o item vem para a área visível antes de ser medido. Só dentro
+    // dessa rolagem: fora dela (PC minimizado, que não rola) o `scrollIntoView` rolaria a página.
+    const el = Platform.OS === 'web' ? (no as unknown as HTMLElement | undefined) : undefined;
+    if (el?.closest?.(`#${ROLAGEM_DO_MENU}`)) el.scrollIntoView({ block: 'nearest' });
     raiz?.measureInWindow((ox, oy, largura, altura) => {
       if (!no) {
         if (vivo) setMedida({ area: { largura, altura }, alvo: null });
