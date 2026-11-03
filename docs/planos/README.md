@@ -65,6 +65,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Miudezas de 03/11 (dieta, CSV, 429 da inscrição, Primeiros passos, ícones, e2e intermitentes) | [miudezas-03-11.md](miudezas-03-11.md) | `main` (60e906e, PR #44) | Concluída em 03/11/2026 (em produção às 00h35; D1 e D2 confirmados) | 03/11/2026 |
 | Auditoria de UI/UX, peças compartilhadas (Folha com um diálogo e retorno do foco, cores da Folha e do Botão pelo tema, Kanban com movimento reduzido) | [auditoria-pecas.md](auditoria-pecas.md) | branch `auditoria-pecas` | Código feito, aguardando PR | 03/11/2026 |
 | Paletas da marca (a consultoria escolhe a cor de fundo do app dos alunos numa lista fechada e testada) | [paletas-da-marca.md](paletas-da-marca.md) | — | Planejando: lista cortada em 03/11 (11 paletas, prévia em `docs/prototipos/`); espera a frente de cores da auditoria | 03/11/2026 |
+| Impressão na web sem `innerHTML` (`imprimir.web.ts` monta o documento por `DOMParser`, higienizado) | [impressao-sem-innerhtml.md](impressao-sem-innerhtml.md) | branch `impressao-sem-innerhtml` | Em andamento | 03/11/2026 |
 
 ## Pendências soltas
 
@@ -100,7 +101,6 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Trivy, mesma exceção no Servirea: pronta na branch `deps-front-28-10` (116587 e 111943 no `.trivyignore` do front; brotli e curl por `apk upgrade` na imagem), PR #16 aberto, CI verde, aguarda o merge; ver [dependabot-28-10.md](dependabot-28-10.md). Os `.trivyignore-terceiros` do Servirea seguem com o próximo lote dele | Claude | run 40714486714 |
 | PDF no celular: copiar o arquivo do `expo-print` em vez de passar o PDF todo em base64 (`pdf/imprimir.ts`). Só provando no APK, Android e iPhone | Gustavo (aparelho) | PDFs, item 4 |
 | Conferir no APK que a logo grande sai reduzida no PDF do aluno e do treinador | Gustavo | PDFs, item 2 |
-| `imprimir.web.ts` sem `innerHTML`: não recomendado agora (a trava de teste cobre); Gustavo pode reabrir | Gustavo decide | revisão de segurança 28/10, item 3 |
 | Cloudflare: a regra "Bloqueio por pais (Fase 6B)" (`adfb3957…`) bloqueia tudo fora do Brasil. Decisão do Gustavo (28/10): por enquanto **fica**. O que ela libera e bloqueia hoje: `cloudflare-regras.md` na Central (PR #25) | Gustavo decide | cloudflare-turnstile |
 | **Exceção obrigatória da regra de país (a):** antes de mandar o app para revisão da Apple/Google (TestFlight ou Play Store), liberar a revisão na regra `adfb3957…`, porque os revisores acessam de fora do Brasil (login e API falhariam). Ver também se `/.well-known/` precisa ser liberado | Gustavo (Cloudflare) | cloudflare-turnstile |
 | **Exceção obrigatória da regra de país (b):** antes de ligar a InfinitePay no consultoria, liberar `/api/publico/pagamentos/` na regra `adfb3957…` (o webhook dele não fica em `/webhooks/`, que é o que a regra libera hoje) | Gustavo (Cloudflare) | cloudflare-turnstile |
