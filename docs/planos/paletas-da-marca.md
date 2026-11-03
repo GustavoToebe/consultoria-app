@@ -1,6 +1,6 @@
 # Paletas da marca (a consultoria escolhe a cor de fundo do app dos alunos)
 
-Situação: Planejando · Onde: — · Atualizado: 03/11/2026
+Situação: Planejando · Onde: — · Atualizado: 03/11/2026 (lista cortada: 11 paletas)
 
 ## Objetivo
 Hoje a consultoria escolhe só "Tema padrão dos alunos": Escuro ou Claro. A ideia é oferecer, na tela Marca, uma lista
@@ -37,14 +37,14 @@ escuro).
 | `AREIA` | Areia | claro | #FAF9F6 | #FFFFFF | já existe (hoje só nas Preferências) |
 | `MEIA_NOITE` | Meia-noite | escuro | #06141B | #11212D | Midnight |
 | `AMEIXA` | Ameixa | escuro | #190019 | #2B124C | Plum |
-| `VIOLETA` | Violeta | escuro | #0E0B1D | #2A1E4D | Purple Haze |
+| `VIOLETA` | Violeta | escuro | #0E0B1D | #2A1E4D | Purple Haze (fora: corte de 03/11) |
 | `OCEANO` | Oceano | escuro | #0B132B | #1C2541 | Arctic Blue |
-| `OLIVA` | Oliva | escuro | #0B0F0D | #1F2A1F | Olive Luxe |
+| `OLIVA` | Oliva | escuro | #0B0F0D | #1F2A1F | Olive Luxe (fora: corte de 03/11) |
 | `CAFE` | Café | escuro | #1A120E | #3A2418 | Mocha Earth |
-| `PETROLEO` | Petróleo | escuro | #05161A | #072E33 | Teal |
+| `PETROLEO` | Petróleo | escuro | #05161A | #072E33 | Teal (fora: corte de 03/11) |
 | `LAVANDA` | Lavanda | claro | #F7F8FF | #E6E0FF (faixa) | Lavender |
 | `CEU` | Céu | claro | #F0F7FF | #DBEAFE (faixa) | Ocean Blue |
-| `MENTA` | Menta | claro | #F8FFFE | #E6FFFB (faixa) | Mint |
+| `MENTA` | Menta | claro | #F8FFFE | #E6FFFB (faixa) | Mint (fora: corte de 03/11) |
 | `ROSA` | Rosa | claro | #FFF9FB | #FCE7F3 (faixa) | Rose |
 | `BRISA` | Brisa | claro | #F1F7F7 | #D5E5E5 (faixa) | Pastel Breeze |
 
@@ -56,7 +56,7 @@ Nas escuras, os tons que a paleta não traz (`superficie2`, `superficie3`, `faix
 ## Decisões
 | # | Decisão | Valor | Quem decidiu |
 | --- | --- | --- | --- |
-| 1 | Lista final de paletas (a tabela acima) | Começar com as 15 da tabela e cortar no passo 1, olhando a prévia (meta: umas 10; Café e Oliva, por exemplo, podem ficar parecidas demais) | Gustavo, 03/11/2026 |
+| 1 | Lista final de paletas (a tabela acima) | 11 paletas, cortadas olhando a prévia: escuras Escuro, Meia-noite, Ameixa, Oceano e Café; claras Claro, Areia, Lavanda, Céu, Rosa e Brisa. Saem Menta (a faixa do título some, 1,05:1 contra o cartão), Oliva, Petróleo e Violeta (parecidas com as que ficam). Oceano e Café usam o cartão ajustado da prévia (`#1A223C` e `#301E14`), e a faixa e os tons derivados das escuras saem da prévia, não do passo fixo | Gustavo, 03/11/2026 |
 | 2 | O aluno também escolhe paleta nas Preferências? | Não: a paleta é a identidade da consultoria. O aluno continua com Escuro / Claro / Areia / Sistema / "Da consultoria"; a paleta chega por "Da consultoria" (o padrão), e quem prefere o neutro troca | Gustavo, 03/11/2026 |
 | 3 | O treinador vê o app dele na paleta escolhida? | Sim, pelo mesmo "Da consultoria" de hoje, para ver o que o aluno vê; pode trocar nas Preferências | Gustavo, 03/11/2026 |
 | 4 | Cor da marca personalizada × paleta | A checagem da cor (`avaliacao.bloqueia` no `FormMarca`, `dominio/paletas.ts`) passa a medir contra o fundo e o cartão da paleta escolhida, não só ESCURO/CLARO (uma cor que passa no Escuro pode sumir no Petróleo) | Gustavo, 03/11/2026 |
@@ -68,7 +68,7 @@ Nas escuras, os tons que a paleta não traz (`superficie2`, `superficie3`, `faix
   estão mais no remoto, então não travam este passo. Começar a partir da `main` atualizada. — commit/run: —
 - [x] 1. **Prévia** em `docs/prototipos/paletas-da-marca.html`: a mesma tela (Início do aluno, lista e um cartão com
   selos verde/âmbar/vermelho e botão da marca) nas 15 paletas, com o contraste medido ao lado. O Gustavo corta a lista
-  aqui (decisão 1). Prévia feita, aguardando o corte do Gustavo. **executor-front** — commit/run: este commit
+  aqui (decisão 1). Prévia feita e lista cortada em 03/11 (11 paletas, decisão 1). **executor-front** — commit/run: f7f5e087 (#57), 64da6020 (#58)
 - [ ] 2. **Tokens** (`app/src/tema/tokens.ts`): as paletas como objetos `Cores` literais (`{ ...ESCURO, fundo, ... }` /
   `{ ...CLARO, ... }`), um mapa único `PALETAS` (código → cores e modo) e `modoDaPaleta`. Os testes que hoje listam
   `[CLARO, ESCURO, AREIA]` à mão passam a percorrer `PALETAS`: `tema/tokens.test.ts` (linhas 3, 9, 38, 134, 145),
