@@ -39,6 +39,8 @@ interface Props {
   /** Nome da série de trabalho da configuração ("WS") e as séries do exercício: só para a frase de onde saiu a carga. */
   tipoTrabalho?: string;
   seriesDoExercicio?: readonly Serie[];
+  /** Sem base do dia gravada a conta parte da última carga: a origem diz "da última vez", não "da base do dia". */
+  baseDaUltimaVez?: boolean;
   /** Passo do arredondamento (sugestão sobre a referência congelada). */
   arredondamentoKg: number;
   /** O descanso da série vale (falso no grupo cujo descanso é depois da volta). */
@@ -89,7 +91,7 @@ export function CartaoSerieComEtapas(p: Props) {
     : comPercentual ? textoDaReferenciaCongelada(p.calculada.referencia?.valor, p.calculada.referencia?.origem) : null;
   const semDetalhe = !!registro && !registro.etapas && (registro.repeticoes != null || registro.carga != null || registro.concluida);
   // De onde saiu a carga sugerida (A9). Com a referência já congelada na primeira etapa, a linha dela já diz a origem.
-  const origem = p.semCarga || registro?.referenciaCarga != null ? null : textoDaOrigem(p.calculada, { tipoTrabalho: p.tipoTrabalho, metodologia: p.metodologia, series: p.seriesDoExercicio });
+  const origem = p.semCarga || registro?.referenciaCarga != null ? null : textoDaOrigem(p.calculada, { tipoTrabalho: p.tipoTrabalho, metodologia: p.metodologia, series: p.seriesDoExercicio, baseDaUltimaVez: p.baseDaUltimaVez });
 
   const agir = (acao: AcaoNaEtapa) => {
     const gravacao = aplicarAcao(registro, acao, quantas, p.calculada.referencia);

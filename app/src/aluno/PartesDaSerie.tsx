@@ -1,6 +1,7 @@
 import { Medal } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 
+import { partesDaDica } from '../dominio/dicaDeCarga';
 import { numeroParaTela } from '../dominio/formatos';
 import { textoDoRecorde, type Recorde } from '../dominio/recordesPessoais';
 import { useTema } from '../tema/TemaProvider';
@@ -91,9 +92,14 @@ export function MetaAoLado({ repeticoes, resto, descanso, numero }: { repeticoes
  */
 export function DicaDoCampo({ dica, origem, numero }: { dica: string; origem: string | null; numero: number }) {
   const { cores } = useTema();
+  const { destaque, resto } = partesDaDica(dica);
   return (
     <View style={estilos.dica} accessible accessibilityLabel={`Dica da série ${numero}: ${dica}${origem ? `. ${origem}` : ''}`}>
-      <Texto numerico style={estilos.textoDaDica} cor={cores.texto}>{dica}</Texto>
+      <Texto numerico style={estilos.restoDaDica} cor={cores.textoSuave}>
+        {destaque ? <Texto numerico style={estilos.textoDaDica} cor={cores.texto}>{destaque}</Texto> : null}
+        {destaque && resto ? ' · ' : null}
+        {resto}
+      </Texto>
       {origem ? <Texto numerico variante="pequeno">{origem}</Texto> : null}
     </View>
   );
@@ -138,4 +144,5 @@ const estilos = StyleSheet.create({
   repsDaMeta: { fontFamily: fontes.semi, fontSize: 20, lineHeight: 26 },
   dica: { gap: 2 },
   textoDaDica: { fontFamily: fontes.semi, fontSize: 14, lineHeight: 20 },
+  restoDaDica: { fontFamily: fontes.normal, fontSize: 14, lineHeight: 20 },
 });

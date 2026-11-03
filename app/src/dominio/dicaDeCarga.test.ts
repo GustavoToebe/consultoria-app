@@ -1,4 +1,4 @@
-import { dicaDeCarga, textoDaUltimaVez, TEXTO_PRIMEIRA_VEZ } from './dicaDeCarga';
+import { dicaDeCarga, partesDaDica, textoDaUltimaVez, TEXTO_PRIMEIRA_VEZ } from './dicaDeCarga';
 
 describe('dica de carga (D1)', () => {
   it('sugestão e última vez juntas', () => {
@@ -32,5 +32,13 @@ describe('dica de carga (D1)', () => {
       { posicao: 2, repeticoes: 4, carga: 40, situacao: 'FEITA' as const },
     ];
     expect(textoDaUltimaVez({ carga: 40, repeticoes: 8, etapas })).toBe('40 kg × 4+4');
+  });
+
+  it('partes da dica: sugestão e "Primeira vez" em destaque; o resto em peso normal', () => {
+    expect(partesDaDica('Sugestão: 60 kg · Última vez: 60 kg × 7')).toEqual({ destaque: 'Sugestão: 60 kg', resto: 'Última vez: 60 kg × 7' });
+    expect(partesDaDica('Sugestão: 60 kg')).toEqual({ destaque: 'Sugestão: 60 kg', resto: null });
+    expect(partesDaDica(TEXTO_PRIMEIRA_VEZ)).toEqual({ destaque: TEXTO_PRIMEIRA_VEZ, resto: null });
+    expect(partesDaDica('Última vez: 60 kg × 7')).toEqual({ destaque: null, resto: 'Última vez: 60 kg × 7' });
+    expect(partesDaDica('Registre a carga da série de referência (Top set) para ver o peso sugerido.').destaque).toBeNull();
   });
 });

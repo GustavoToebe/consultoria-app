@@ -52,3 +52,13 @@ export function dicaDeCarga(e: EntradaDaDica): string | null {
   if (ultima) partes.push(`Última vez: ${ultima}`);
   return partes.length ? partes.join(' · ') : TEXTO_PRIMEIRA_VEZ;
 }
+
+/**
+ * A dica em duas partes para a tela, como na prévia da Frente G (4bad4704): "Sugestão: 60 kg" ou "Primeira vez: escolha a
+ * carga" em destaque e o resto ("Última vez: 60 kg × 7") em peso normal. Outro texto (ex.: o que falta registrar) não tem destaque.
+ */
+export function partesDaDica(dica: string): { destaque: string | null; resto: string | null } {
+  const [primeira, ...demais] = dica.split(' · ');
+  if (primeira === TEXTO_PRIMEIRA_VEZ || primeira.startsWith('Sugestão: ')) return { destaque: primeira, resto: demais.length ? demais.join(' · ') : null };
+  return { destaque: null, resto: dica };
+}
