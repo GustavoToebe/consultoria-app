@@ -106,7 +106,7 @@ export function PrimeirosPassosConcluidos({ passos, aoAcao, aoFechar }: {
         acoes={(
           <>
             <Botao rotulo={aberto ? 'Esconder' : 'Ver'} rotuloAcessivel={aberto ? 'Esconder os primeiros passos' : 'Ver os primeiros passos'} tipo="fantasma" aoTocar={() => setAberto((v) => !v)} />
-            <IconeBotao Icone={X} rotulo={l.rotuloFechar} aoTocar={aoFechar} />
+            <IconeBotao Icone={X} moldura rotulo={l.rotuloFechar} aoTocar={aoFechar} />
           </>
         )} />
     )}>

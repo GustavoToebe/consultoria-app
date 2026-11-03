@@ -76,7 +76,7 @@ O escopo foi definido pelo Gustavo em 03/11 e só mexe no app; nada muda na API.
 - [x] 2b. PR A mesclado na `main` (#54, squash `3d65e04b`)
 - [x] 3. PR B: f, g, h e i, mais D7 e D8, na branch `auditoria-ui-ux-lote-1-b` saída da `main` em `3d65e04b` — commit: `60074116`
 - [x] 4. Responsável no `FormAluno`: na edição, sem responsável o campo abre vazio; a opção "Sem responsável" deixa tirar de propósito. Salvar sem mexer não grava quem está editando — commit: `fd6c4b6d` (#59)
-- [x] 5. Novo aluno aberto direto pelo link: "Cancelar" usa o mesmo caminho da seta (`canGoBack ? back : replace` para a lista). Os outros "Cancelar" de cadastro fecham painel ou a edição na própria ficha; nenhum outro navegava com `router.back()` — lote pendencias-app-03-11-b
+- [x] 5. Novo aluno aberto direto pelo link: "Cancelar" usa o mesmo caminho da seta (`canGoBack ? back : replace` para a lista). Os outros "Cancelar" de cadastro fecham painel ou a edição na própria ficha; nenhum outro navegava com `router.back()` — lote pendencias-app-03-11-b, commit `a905d9fe`
 
 ## Fora do escopo
 - O lote 2 virou as frentes paralelas de 03/11 (aluno, peças, treinador e, depois do merge do PR B, `auditoria-ficha`), cada uma com plano próprio em `docs/planos/`. C3 ficou com a frente 4 (`auditoria-pecas`); C8 (paginação da Biblioteca) e os cinco erros engolidos, com a frente 5 (treinador).
@@ -87,7 +87,7 @@ O escopo foi definido pelo Gustavo em 03/11 e só mexe no app; nada muda na API.
 ## O que ficou para trás
 - (cada sobra também vai para "Pendências soltas" no README)
 - PR A (`ebd3ac9d`): o `IconeBotao` com moldura ficou 4 px maior por fora (alvo de 44) em todas as telas; conferido só na web (e2e), falta olhar no Android e no iOS, e o `IconeBotao` com moldura no tema escuro não teve captura.
-- Opcionais da revisão independente do PR A: 1.1 e 1.2 entram no PR B (D7, D8); 1.3 e 1.4 ficam em "Pendências soltas" do README. 1.5 (Cancelar do aluno novo) sai no lote pendencias-app-03-11-b.
+- Opcionais da revisão independente do PR A: 1.1 e 1.2 entram no PR B (D7, D8); 1.3 e 1.4 ficam em "Pendências soltas" do README. 1.5 (Cancelar do aluno novo) saiu no lote pendencias-app-03-11-b, commit `a905d9fe`.
 - PR B: "Seu envio" na atualização do aluno ficou de fora: o texto vem do seed da V001 na API (questionário padrão), não do app; trocar pede migration nova.
 - PR B, e2e completo (03/11): 673 passaram, 8 pulados e 1 falha intermitente em `links-do-menu.spec.ts:36` (o `expect.poll` não viu a guia nova do Ctrl+clique em 10 s, com a máquina carregada por outras frentes); o spec sozinho pela trava, `--repeat-each=3`, passou 6 de 6. O PR B não mexe nesse caminho (o `LinkTexto` deixa o Ctrl+clique para o navegador).
 - PR B: a guarda de saída agora vale em todo `ItemDeLista`/`LinhaDaLista`/`LinkTexto` que abre tela (D7). No celular, "Criar e abrir" e "Replicar e abrir" marcavam a pergunta dentro da Folha que estava fechando: a Folha marca o fechamento e o diálogo vai para a de baixo, ou para a raiz. Coberto por teste jest (`Platform.OS` `android`); ainda precisa ser conferido no APK. Falta olhar no celular o `history.go(-1)` com uma Folha aberta e o tema escuro das telas públicas com erro no campo.

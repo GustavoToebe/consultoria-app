@@ -20,6 +20,7 @@ import {
   FRASE_NENHUM_BLOCO,
   hojeEmBrasilia,
   inicioSemAlunos,
+  listaDaFolha,
   montarBloco,
   MOTIVO_EDITAR_SEM_ALUNOS,
   type BlocoDoPainelId,
@@ -217,12 +218,23 @@ export default function InicioTreinador() {
     if (!folhaAberta) return null;
     const { id, meus } = folhaAberta;
     if (id === 'recordes') {
-      const r = dadosDe(fonte<RecordesDaSemana>({ fonte: 'recordes', meus }));
-      return { titulo: 'Recordes dos últimos 7 dias', dados: r && Array.isArray(r.series) ? folhaRecordes(r, { meus, hoje }) : null };
+      return {
+        titulo: 'Recordes dos últimos 7 dias',
+        ...listaDaFolha(fonte<RecordesDaSemana>({ fonte: 'recordes', meus }), (r) =>
+          Array.isArray(r.series) ? folhaRecordes(r, { meus, hoje }) : null),
+      };
     }
-    const p = dadosDe(fonte<PainelTreinador>({ fonte: 'painel', meus, dias }));
-    if (id === 'semRegistro') return { titulo: `Sem registro há ${dias} dias`, dados: p && Array.isArray(p.alunosSemRegistro) ? folhaSemRegistro(p, { dias, meus, hoje }) : null };
-    return { titulo: 'A renovar em 7 dias', dados: p && Array.isArray(p.pastasParaRenovar) ? folhaPastasARenovar(p, { meus, hoje }) : null };
+    const fontePainel = fonte<PainelTreinador>({ fonte: 'painel', meus, dias });
+    if (id === 'semRegistro') {
+      return {
+        titulo: `Sem registro há ${dias} dias`,
+        ...listaDaFolha(fontePainel, (p) => (Array.isArray(p.alunosSemRegistro) ? folhaSemRegistro(p, { dias, meus, hoje }) : null)),
+      };
+    }
+    return {
+      titulo: 'A renovar em 7 dias',
+      ...listaDaFolha(fontePainel, (p) => (Array.isArray(p.pastasParaRenovar) ? folhaPastasARenovar(p, { meus, hoje }) : null)),
+    };
   })();
 
   const motivoEditar = semAlunos ? MOTIVO_EDITAR_SEM_ALUNOS : offline ? MOTIVO_SEM_INTERNET : undefined;
@@ -283,7 +295,7 @@ export default function InicioTreinador() {
       </View>
 
       {folhaAberta && folha ? (
-        <FolhaDoPainel titulo={folha.titulo} folha={folha.dados} aoFechar={() => setFolhaAberta(null)}
+        <FolhaDoPainel titulo={folha.titulo} situacao={folha.situacao} folha={folha.dados} aoFechar={() => setFolhaAberta(null)}
           topo={folhaAberta.id === 'semRegistro' ? (
             <Escolha descricao="Dias sem registro" opcoes={OPCOES_DIAS_SEM_REGISTRO.map((n) => ({ valor: n, rotulo: `${n} dias` }))} valor={dias}
               aoMudar={(n) => escolherPreferencia({ diasSemRegistro: n })} />

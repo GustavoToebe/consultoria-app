@@ -63,7 +63,7 @@ totais de `FlywayMigrationIntegrationTest` e `PapeisBancoIntegrationTest` não m
   "Só a equipe vê esta observação." (decisão de 02/11) e a coluna "Obs" do "Acompanhamento de peso" saiu do PDF.
 
 ## Eixo do gráfico pela data
-O eixo do `GraficoLinha` passou a acompanhar a data (`fracaoNoEixo` em `dominio/grafico.ts`): datas próximas ficam próximas. Rótulos e o mínimo de 2 pontos não mudaram. Peso e medidas já mandavam a data; progresso e evolução das respostas passaram a mandar. Lote pendencias-app-03-11-b.
+O eixo do `GraficoLinha` passou a acompanhar a data (`fracaoNoEixo` em `dominio/grafico.ts`): datas próximas ficam próximas. Rótulos e o mínimo de 2 pontos não mudaram. Peso e medidas já mandavam a data; progresso e evolução das respostas passaram a mandar. Lote pendencias-app-03-11-b, commit `58a315c0`.
 
 ## O que ficou para trás
 - O botão "Registrar peso" (`CartaoPeso`) aparece para aluno anonimizado e a API responde 409; esconder como a avaliação
