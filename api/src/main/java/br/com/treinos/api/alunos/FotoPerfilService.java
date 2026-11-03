@@ -1,6 +1,7 @@
 package br.com.treinos.api.alunos;
 
 import br.com.plataforma.comum.web.ForbiddenException;
+import br.com.treinos.api.auditoria.Auditoria;
 import br.com.treinos.api.fotos.FotoException;
 import br.com.treinos.api.fotos.JpegSemMetadados;
 import br.com.treinos.api.security.UsuarioAutenticado;
@@ -27,9 +28,12 @@ public class FotoPerfilService {
     private final FotoPerfilRepository fotos;
     private final AlunoRepository alunos;
 
-    public FotoPerfilService(FotoPerfilRepository fotos, AlunoRepository alunos) {
+    private final Auditoria auditoria;
+
+    public FotoPerfilService(FotoPerfilRepository fotos, AlunoRepository alunos, Auditoria auditoria) {
         this.fotos = fotos;
         this.alunos = alunos;
+        this.auditoria = auditoria;
     }
 
     @Transactional
@@ -41,6 +45,39 @@ public class FotoPerfilService {
         FotoPerfil foto = fotos.findById(alunoId).orElseGet(() -> new FotoPerfil(alunoId));
         foto.trocar(jpeg, Instant.now());
         return fotos.saveAndFlush(foto).getAtualizadaEm();
+    }
+
+    /**
+     * Troca pela equipe (a permissão {@code ALUNO_ALTERAR} é conferida na rota): as mesmas regras da troca pelo aluno.
+     * Aluno de outra consultoria some pelo filtro do tenant (404); anonimizado = 409. Auditoria com resumo fixo.
+     */
+    @Transactional
+    public Instant gravarPelaEquipe(UUID alunoId, byte[] recebido) {
+        // Confere sem travar (404/409 vêm antes do 422 do arquivo); a limpeza do JPEG roda antes da trava da linha.
+        AlunoService.exigirNaoAnonimizado(
+                alunos.findById(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado.")));
+        byte[] jpeg = limpar(recebido);
+        Aluno aluno = alunos.buscarParaAlterar(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
+        AlunoService.exigirNaoAnonimizado(aluno);
+        FotoPerfil foto = fotos.findById(alunoId).orElseGet(() -> new FotoPerfil(alunoId));
+        foto.trocar(jpeg, Instant.now());
+        Instant quando = fotos.saveAndFlush(foto).getAtualizadaEm();
+        auditoria.registrarEvento("ALUNO_FOTO_PERFIL_ALTERADA_PELA_EQUIPE", "ALUNO", alunoId,
+                "Trocou a foto de perfil do aluno.");
+        return quando;
+    }
+
+    /** Remoção pela equipe: idempotente (sem foto, 204 sem auditar); aluno de outra consultoria = 404. */
+    @Transactional
+    public void removerPelaEquipe(UUID alunoId) {
+        Aluno aluno = alunos.buscarParaAlterar(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
+        Optional<FotoPerfil> existente = fotos.findById(aluno.getId());
+        if (existente.isPresent()) {
+            fotos.delete(existente.get());
+            fotos.flush();
+            auditoria.registrarEvento("ALUNO_FOTO_PERFIL_REMOVIDA_PELA_EQUIPE", "ALUNO", alunoId,
+                    "Removeu a foto de perfil do aluno.");
+        }
     }
 
     @Transactional
