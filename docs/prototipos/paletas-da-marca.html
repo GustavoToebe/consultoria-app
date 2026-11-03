@@ -55,7 +55,7 @@
 <header class="topo">
   <h1>Paletas da marca</h1>
   <p>Prévia do Início do aluno nas 15 paletas do plano. Texto, verde, âmbar e vermelho são os do Escuro ou do Claro em <code>app/src/tema/tokens.ts</code>. O botão usa o vermelho intenso da marca, <code>#C62828</code>.</p>
-  <p class="nota">O contraste é a função <code>contraste()</code> do mesmo arquivo. Abaixo de 4,5:1 o texto fica vermelho. Abaixo de 3:1, a borda contra o cartão também. A borda do cartão hoje é decorativa: no <code>tokens.ts</code> ela não precisa de 3:1 e fica acima de 1,9:1. Esta página marca 3:1 assim mesmo, para o corte.</p>
+  <p class="nota">O contraste é a função <code>contraste()</code> do mesmo arquivo. Abaixo de 4,5:1 o texto fica vermelho, contra o fundo, o cartão e a faixa do título. Abaixo de 3:1, a borda contra o cartão também. A coluna da faixa mede a cor como texto ou ícone em cima dela (um título ou um ⋯). O botão vermelho com texto branco não entra nessa conta. A borda do cartão hoje é decorativa: no <code>tokens.ts</code> ela não precisa de 3:1 e fica acima de 1,9:1. Esta página marca 3:1 assim mesmo, para o corte. A separação da própria faixa contra o fundo e contra o cartão aparece em cada cartão e no resumo, fora da régua do texto.</p>
 </header>
 <nav class="secoes">
   <a href="#resumo">Resumo</a>
@@ -180,18 +180,32 @@ function medir(p) {
   ].map(function (item) {
     var noFundo = contraste(item[1], tons.fundo);
     var noCartao = contraste(item[1], tons.superficie);
-    return { nome: item[0], cor: item[1], fundo: noFundo, cartao: noCartao, falhaFundo: noFundo < item[2], falhaCartao: noCartao < item[2], borda: false };
+    var naFaixa = contraste(item[1], tons.superficie3);
+    return {
+      nome: item[0], cor: item[1], fundo: noFundo, cartao: noCartao, faixa: naFaixa,
+      falhaFundo: noFundo < item[2], falhaCartao: noCartao < item[2], falhaFaixa: naFaixa < item[2], borda: false
+    };
   });
   [['Borda', tons.borda], ['Borda do campo', tons.bordaCampo]].forEach(function (item) {
     var noCartao = contraste(item[1], tons.superficie);
-    linhas.push({ nome: item[0], cor: item[1], fundo: null, cartao: noCartao, falhaFundo: false, falhaCartao: noCartao < 3, borda: true });
+    linhas.push({
+      nome: item[0], cor: item[1], fundo: null, cartao: noCartao, faixa: null,
+      falhaFundo: false, falhaCartao: noCartao < 3, falhaFaixa: false, borda: true
+    });
   });
   var falhas = [];
   linhas.forEach(function (linha) {
     if (linha.falhaFundo) falhas.push(linha.nome + ' contra o fundo (' + fmt(linha.fundo) + ':1)');
     if (linha.falhaCartao) falhas.push(linha.nome + ' contra o cartão (' + fmt(linha.cartao) + ':1)');
+    if (linha.falhaFaixa) falhas.push(linha.nome + ' contra a faixa (' + fmt(linha.faixa) + ':1)');
   });
-  return { tons: tons, linhas: linhas, falhas: falhas };
+  return {
+    tons: tons,
+    linhas: linhas,
+    falhas: falhas,
+    faixaNoFundo: contraste(tons.superficie3, tons.fundo),
+    faixaNoCartao: contraste(tons.superficie3, tons.superficie)
+  };
 }
 
 function celula(valor, falha) {
@@ -220,7 +234,7 @@ function desenhar(p, medida) {
     return '<tr><td><span class="amostra" style="background:' + item[1] + '"></span>' + item[0] + '</td><td><code>' + item[1] + '</code></td><td>' + item[2] + '</td></tr>';
   }).join('');
   var linhasContraste = medida.linhas.map(function (linha) {
-    return '<tr><td><span class="amostra" style="background:' + linha.cor + '"></span>' + linha.nome + '</td><td><code>' + linha.cor + '</code></td>' + celula(linha.fundo, linha.falhaFundo) + celula(linha.cartao, linha.falhaCartao) + '</tr>';
+    return '<tr><td><span class="amostra" style="background:' + linha.cor + '"></span>' + linha.nome + '</td><td><code>' + linha.cor + '</code></td>' + celula(linha.fundo, linha.falhaFundo) + celula(linha.cartao, linha.falhaCartao) + celula(linha.faixa, linha.falhaFaixa) + '</tr>';
   }).join('');
   artigo.innerHTML =
     '<header><h3>' + p.nome + '</h3><code>' + p.codigo + '</code><span class="origem">' + p.origem + '</span></header>' +
@@ -239,7 +253,8 @@ function desenhar(p, medida) {
       '</div></div>' +
       '<div><p class="nota">' + tons.origemDosTons + '</p>' +
         '<h4>Tons do chão</h4><table><thead><tr><th>Token</th><th>Valor</th><th>De onde</th></tr></thead><tbody>' + linhasTons + '</tbody></table>' +
-        '<h4>Contraste</h4><table><thead><tr><th>Cor</th><th>Valor</th><th class="num">Contra o fundo</th><th class="num">Contra o cartão</th></tr></thead><tbody>' + linhasContraste + '</tbody></table>' +
+        '<h4>Contraste</h4><table><thead><tr><th>Cor</th><th>Valor</th><th class="num">Contra o fundo</th><th class="num">Contra o cartão</th><th class="num">Contra a faixa</th></tr></thead><tbody>' + linhasContraste + '</tbody></table>' +
+        '<p class="nota">A faixa <code>' + tons.superficie3 + '</code> tem ' + fmt(medida.faixaNoFundo) + ':1 contra o fundo e ' + fmt(medida.faixaNoCartao) + ':1 contra o cartão. A linha de 3 px embaixo da faixa é o que separa o título quando esses dois ficam baixos.</p>' +
       '</div></div>';
   return artigo;
 }
@@ -248,7 +263,7 @@ var medidas = PALETAS.map(function (p) { return { paleta: p, medida: medir(p) };
 var passam = medidas.filter(function (item) { return item.medida.falhas.length === 0; });
 var resumo = document.getElementById('resumo');
 var intro = document.createElement('p');
-intro.innerHTML = '<strong>' + passam.length + ' de 15 passam inteiras.</strong> Régua: texto a 4,5:1 contra o fundo e contra o cartão; borda e borda do campo a 3:1 contra o cartão.';
+intro.innerHTML = '<strong>' + passam.length + ' de 15 passam inteiras.</strong> Régua: texto a 4,5:1 contra o fundo, o cartão e a faixa; borda e borda do campo a 3:1 contra o cartão. A separação da faixa não entra nessa conta.';
 resumo.appendChild(intro);
 ['escuro', 'claro'].forEach(function (modo) {
   var grupo = medidas.filter(function (item) { return item.paleta.modo === modo; });
@@ -265,6 +280,21 @@ resumo.appendChild(intro);
   });
   resumo.appendChild(lista);
 });
+var sepTitulo = document.createElement('h2');
+sepTitulo.textContent = 'Separação da faixa';
+resumo.appendChild(sepTitulo);
+var sepNota = document.createElement('p');
+sepNota.className = 'nota';
+sepNota.textContent = 'Contraste da própria faixa contra o fundo e contra o cartão. Não é a régua de 4,5:1. Quando fica perto de 1:1, o título quase não se destaca e a linha de 3 px embaixo da faixa é que marca o fim.';
+resumo.appendChild(sepNota);
+var sepLista = document.createElement('ul');
+medidas.forEach(function (item) {
+  var li = document.createElement('li');
+  li.innerHTML = '<a href="#' + item.paleta.codigo + '"><code>' + item.paleta.codigo + '</code></a> ' +
+    fmt(item.medida.faixaNoFundo) + ':1 contra o fundo, ' + fmt(item.medida.faixaNoCartao) + ':1 contra o cartão.';
+  sepLista.appendChild(li);
+});
+resumo.appendChild(sepLista);
 
 medidas.forEach(function (item) {
   var grade = document.querySelector('.grade[data-modo="' + item.paleta.modo + '"]');
