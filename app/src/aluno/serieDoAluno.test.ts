@@ -13,8 +13,8 @@ describe('selos da série', () => {
   it('tipo e técnica são selos separados, pelo nome da metodologia e nunca pelo código', () => {
     const s = serie('a', { tipo: 'WORKING', tecnica: tecnica('REST_PAUSE', { pausas: 1, pausaSegundos: 20 }) });
     const selos = selosDaSerie(s, metodologia);
-    expect(selos.tipo).toEqual({ nome: 'Trabalho', explicacao: 'Série principal.' });
-    expect(selos.tecnica).toEqual({ nome: 'Muscle Round', explicacao: 'Pausa curta e continue.' });
+    expect(selos.tipo).toEqual({ nome: 'Trabalho', explicacao: 'Série principal.', cor: 'INDIGO' });
+    expect(selos.tecnica).toEqual({ nome: 'Muscle Round', explicacao: 'Pausa curta e continue.', cor: null });
     expect(JSON.stringify(selos)).not.toMatch(/WORKING|REST_PAUSE/);
   });
 
@@ -23,6 +23,18 @@ describe('selos da série', () => {
     const soTecnica = selosDaSerie(serie('b', { tipo: null, tecnica: tecnica('DROP_SET', { quedas: 1 }) }), metodologia);
     expect(soTecnica.tipo).toBeNull();
     expect(soTecnica.tecnica).not.toBeNull();
+  });
+
+  it('cor do tipo (Frente G, D9): pelo código padrão; tipo do treinador pela cor do papel; "Outro" e fora da metodologia sem cor', () => {
+    const comTipos = {
+      ...metodologia,
+      tipos: [...metodologia.tipos, { ...metodologia.tipos[2], codigo: 'PESADA', nome: 'Pesada', papel: 'TRABALHO' as const }, { ...metodologia.tipos[2], codigo: 'TECNICA', nome: 'Técnica', papel: 'OUTRO' as const }],
+    };
+    expect(selosDaSerie(serie('a', { tipo: 'WARM_UP' }), comTipos).tipo?.cor).toBe('CIANO');
+    expect(selosDaSerie(serie('a', { tipo: 'BACK_OFF' }), comTipos).tipo?.cor).toBe('MAGENTA');
+    expect(selosDaSerie(serie('a', { tipo: 'PESADA' }), comTipos).tipo?.cor).toBe('INDIGO');
+    expect(selosDaSerie(serie('a', { tipo: 'TECNICA' }), comTipos).tipo?.cor).toBeNull();
+    expect(selosDaSerie(serie('a', { tipo: 'DESCONHECIDO' }), comTipos).tipo?.cor).toBeNull();
   });
 
   it('explicação ausente fica nula (a tela diz que o treinador não escreveu)', () => {

@@ -3,7 +3,9 @@ import { leituraDaTecnica, nomeDaReferencia } from '../dominio/agrupamento';
 import { metaDaSerie } from '../dominio/cargas';
 import { rotuloDescanso } from '../dominio/descanso';
 import { numeroParaTela } from '../dominio/formatos';
-import { explicacaoDaTecnica, explicacaoDoTipo, nomeDaTecnica, nomeDoTipo } from '../dominio/metodologia';
+import { corDoTipoDeSerie } from '../dominio/corDaSerie';
+import { explicacaoDaTecnica, explicacaoDoTipo, nomeDaTecnica, nomeDoTipo, papelDe } from '../dominio/metodologia';
+import type { ChaveDeIdentificacao } from '../tema/tokens';
 
 /**
  * O que o cartão da série mostra ao aluno, em funções puras (a tela só desenha). O tipo da série sai SEMPRE pelo nome da
@@ -14,14 +16,21 @@ export interface SeloDaSerie {
   nome: string;
   /** Explicação da metodologia; nula = o treinador não escreveu. */
   explicacao: string | null;
+  /**
+   * Cor de identificação do tipo (Frente G, D9): pelo código dos cinco tipos padrão, senão pelo papel na metodologia da
+   * versão; `null` = sem cor (papel "Outro", tipo fora da metodologia ou a técnica). Nunca a única informação (D7).
+   */
+  cor: ChaveDeIdentificacao | null;
 }
 
-/** Os dois selos da série: o tipo (WS, Back off...) e a técnica (Rest pause...), cada um com a sua explicação. */
+/** Os dois selos da série: o tipo (WS, Back off...), com a cor de identificação, e a técnica (Rest pause...), sem cor; cada um com a sua explicação. */
 export function selosDaSerie(serie: Pick<Serie, 'tipo' | 'tecnica'>, metodologia?: Configuracao | null): { tipo: SeloDaSerie | null; tecnica: SeloDaSerie | null } {
   const nomeDoTipoDaSerie = nomeDoTipo(metodologia, serie.tipo);
   return {
-    tipo: nomeDoTipoDaSerie ? { nome: nomeDoTipoDaSerie, explicacao: explicacaoDoTipo(metodologia, serie.tipo) } : null,
-    tecnica: serie.tecnica ? { nome: nomeDaTecnica(metodologia, serie.tecnica.tipo), explicacao: explicacaoDaTecnica(metodologia, serie.tecnica.tipo) } : null,
+    tipo: nomeDoTipoDaSerie
+      ? { nome: nomeDoTipoDaSerie, explicacao: explicacaoDoTipo(metodologia, serie.tipo), cor: corDoTipoDeSerie(serie.tipo, papelDe(metodologia, serie.tipo)) }
+      : null,
+    tecnica: serie.tecnica ? { nome: nomeDaTecnica(metodologia, serie.tecnica.tipo), explicacao: explicacaoDaTecnica(metodologia, serie.tecnica.tipo), cor: null } : null,
   };
 }
 

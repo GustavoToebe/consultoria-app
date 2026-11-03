@@ -34,7 +34,9 @@ for (const largura of [390, 1280]) test(`aluno: carga de trabalho editável, exp
   // Rest-pause: etapa inicial feita (liga a pausa antes da retomada), retomada não feita, concluir.
   const concluir2 = page.getByRole('button', { name: 'Concluir a série 2', exact: true });
   await expect(concluir2).toBeDisabled();
-  await expect(page.getByRole('textbox', { name: 'Peso, etapa inicial da série 2, em quilos', exact: true })).toHaveValue('40');
+  // O peso da etapa nasce vazio, com a sugestão ao lado (D17); digitado, o ✓ marca direto, sem o painel.
+  await expect(page.getByRole('textbox', { name: 'Peso, etapa inicial da série 2, em quilos', exact: true })).toHaveValue('');
+  await expect(page.getByLabel(/^Dica da etapa inicial da série 2: Sugestão: 40 kg/)).toBeVisible();
   await page.getByRole('textbox', { name: 'Peso, etapa inicial da série 2, em quilos', exact: true }).fill('42');
   await page.getByRole('textbox', { name: 'Repetições feitas, etapa inicial da série 2', exact: true }).fill('8');
   const etapaInicial = page.getByRole('checkbox', { name: 'Etapa inicial feita, série 2', exact: true });
@@ -45,7 +47,10 @@ for (const largura of [390, 1280]) test(`aluno: carga de trabalho editável, exp
   await etapaInicial.click();
   await expect(page.getByText('Pausa antes da retomada', { exact: false }).first()).toBeVisible();
   await expect(faltam(20)).toBeVisible();
-  await expect(page.getByText('Execução parcial: 8 reps em 1 de 2 etapas')).toBeVisible();
+  await expect(page.getByText('Feito até agora: 8 reps', { exact: true })).toBeVisible();
+  await expect(page.getByText('Falta a retomada para concluir.', { exact: true })).toBeVisible();
+  // O peso dado na etapa inicial preenche a retomada, que ainda estava vazia.
+  await expect(page.getByRole('textbox', { name: 'Peso, retomada da série 2, em quilos', exact: true })).toHaveValue('42');
 
   // Passam 5 s: editar as repetições, gravar e sincronizar não reiniciam a pausa (continua em 15 s).
   await passaram(5);
@@ -77,7 +82,7 @@ for (const largura of [390, 1280]) test(`aluno: carga de trabalho editável, exp
   await pular.click();
   await expect(pular).toHaveCount(0);
   await expect(etapaInicial).toBeChecked();
-  await expect(page.getByText('Execução parcial: 8 reps em 1 de 2 etapas')).toBeVisible();
+  await expect(page.getByText('Feito até agora: 8 reps', { exact: true })).toBeVisible();
   await expect.poll(() => ultimo('rest')?.etapas?.length).toBe(1);
   expect(ultimo('rest')).toMatchObject({ concluida: false, repeticoes: null, carga: 42, referenciaCarga: 40, referenciaOrigem: 'BASE_DO_DIA' });
   await page.getByRole('button', { name: 'Não fiz: retomada da série 2', exact: true }).click();
@@ -90,23 +95,29 @@ for (const largura of [390, 1280]) test(`aluno: carga de trabalho editável, exp
     etapas: [{ posicao: 1, repeticoes: 8, carga: 42, situacao: 'FEITA' }, { posicao: 2, repeticoes: null, carga: null, situacao: 'NAO_REALIZADA' }],
   });
 
-  // Cluster: o bloco 2 pede 90% da WS sobre a mesma referência (40 kg → 36 kg); pausa só em respirações não tem cronômetro.
-  await expect(page.getByText('Bloco 2 · Meta 2 reps · 90% da WS')).toBeVisible();
-  await expect(page.getByRole('textbox', { name: 'Peso, bloco 1 da série 3, em quilos', exact: true })).toHaveValue('40');
-  await expect(page.getByRole('textbox', { name: 'Peso, bloco 2 da série 3, em quilos', exact: true })).toHaveValue('36');
+  // Cluster: o bloco 2 pede 90% da WS sobre a mesma referência (40 kg → 36 kg, só como sugestão); pausa só em respirações
+  // não tem cronômetro. Os campos nascem vazios (D17).
+  await expect(page.getByText(/^Meta 2 reps · 90% da WS/)).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Peso, bloco 1 da série 3, em quilos', exact: true })).toHaveValue('');
+  await expect(page.getByRole('textbox', { name: 'Peso, bloco 2 da série 3, em quilos', exact: true })).toHaveValue('');
+  await expect(page.getByLabel(/^Dica do bloco 2 da série 3: Sugestão: 36 kg/)).toBeVisible();
   await expect(page.getByRole('button', { name: /pausa.*série 3/i })).toHaveCount(0);
   await page.getByRole('textbox', { name: 'Repetições feitas, bloco 1 da série 3', exact: true }).fill('4');
   await page.getByRole('checkbox', { name: 'Bloco 1 feito, série 3', exact: true }).click();
-  await expect(page.getByText('Execução parcial: 4 reps em 1 de 2 blocos')).toBeVisible();
+  await page.getByRole('button', { name: 'Sim, 40 kg, série 3', exact: true }).click();
+  await expect(page.getByText('Feito até agora: 4 de 6 reps', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Concluir a série 3', exact: true })).toBeDisabled();
-  await page.getByText('Bloco 2 · Meta 2 reps · 90% da WS').scrollIntoViewIfNeeded();
+  await page.getByText(/^Meta 2 reps · 90% da WS/).scrollIntoViewIfNeeded();
   await page.screenshot({ path: testInfo.outputPath('cluster-parcial.png') });
   await expect.poll(() => ultimo('cluster')?.etapas?.length).toBe(1);
   expect(ultimo('cluster')).toMatchObject({ concluida: false, repeticoes: null, referenciaCarga: 40 });
+  expect(ultimo('cluster')?.etapas?.[0]).toMatchObject({ carga: 40, repeticoes: 4 });
+  // O bloco 2 tem carga própria (90% da WS): é outra carga, com o seu primeiro ✓ (e o peso de 40 kg não o preenche).
   await page.getByRole('textbox', { name: 'Repetições feitas, bloco 2 da série 3', exact: true }).fill('2');
   await page.getByRole('checkbox', { name: 'Bloco 2 feito, série 3', exact: true }).click();
+  await page.getByRole('button', { name: 'Sim, 36 kg, série 3', exact: true }).click();
   await page.getByRole('button', { name: 'Concluir a série 3', exact: true }).click();
-  await expect(page.getByText('Realizadas: 6 reps · 2 de 2 blocos')).toBeVisible();
+  await expect(page.getByText('Feito: 6 de 6 reps', { exact: true })).toBeVisible();
   await expect.poll(() => ultimo('cluster')?.concluida).toBe(true);
   expect(ultimo('cluster')).toMatchObject({ repeticoes: 6, carga: null });
   expect(errosDaPagina).toEqual([]);

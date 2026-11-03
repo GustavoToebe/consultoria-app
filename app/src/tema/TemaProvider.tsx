@@ -18,7 +18,18 @@ import {
 import { useSessao } from '../sessao/SessaoProvider';
 import { definirVibracaoLigada } from '../ui/vibrar';
 import { criarArmazemDePreferencias } from './armazemDePreferencias';
-import { AREIA, CLARO, ESCURO, MARCA_NEUTRA, marcaParaTexto, textoSobre, type Cores } from './tokens';
+import {
+  AREIA,
+  CLARO,
+  coresDeIdentificacao,
+  ESCURO,
+  MARCA_NEUTRA,
+  marcaParaTexto,
+  textoSobre,
+  type ChaveDeIdentificacao,
+  type CorDeIdentificacao,
+  type Cores,
+} from './tokens';
 
 /**
  * Tema e preferências visuais de cada pessoa (tema, contraste, tamanho do texto, animações, vibração). Ficam no
@@ -40,6 +51,12 @@ interface ValorTema {
    * continuam com `marca`.
    */
   marcaTexto: string;
+  /**
+   * Cores de identificação (tipo de série, divisão, refeição) no tema em uso: a chave vem de `dominio/corDaSerie`
+   * (`corDoTipoDeSerie`, `corDaDivisao`, `corDaRefeicao`); `cor` para texto, ícone e barra, `fundo` para o selo.
+   * Nunca dizem status e nunca vêm sem o texto do selo.
+   */
+  identificacao: Record<ChaveDeIdentificacao, CorDeIdentificacao>;
   preferencias: Preferencias;
   /** A leitura das preferências gravadas terminou; antes disso `preferencias` é o padrão. */
   preferenciasLidas: boolean;
@@ -108,6 +125,7 @@ export function TemaProvider({ children }: { children: ReactNode }) {
       sobreMarca: textoSobre(marca),
       // Contra a superfície de pior contraste: `superficie3` é a mais clara no escuro e a mais escura no claro.
       marcaTexto: marcaParaTexto(marca, cores.superficie3),
+      identificacao: coresDeIdentificacao(cores, modo !== 'CLARO'),
       preferencias,
       preferenciasLidas,
       fatorTexto: fatorDoTexto(preferencias.tamanhoTexto),

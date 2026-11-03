@@ -36,6 +36,7 @@ import {
   type PedidoDeComparacao,
 } from '../dominio/comparacaoDeFotos';
 import { dataParaTela, numeroParaTela, SEM_DADO } from '../dominio/formatos';
+import { periodoDesdeOPrimeiro } from '../dominio/historicoDoAluno';
 import { alternarComLimite } from '../dominio/selecaoMultipla';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
@@ -77,7 +78,7 @@ export function CartaoFotos({ alunoId, autorizadoEm, aoRecarregar }: {
       : baixarFotoDoTreinador(foto.origemId, foto.fotoId);
   };
   return (
-    <Cartao titulo="Fotos" descricao="Fotos enviadas na anamnese e nas atualizações.">
+    <Cartao titulo="Fotos" periodo={dados ? periodoDesdeOPrimeiro(dados.map((f) => f.data)) : undefined} descricao="Fotos enviadas na anamnese e nas atualizações.">
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && dados.length === 0 ? <Texto variante="suave">Nenhuma foto enviada ainda.</Texto> : null}

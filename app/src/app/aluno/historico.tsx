@@ -1,4 +1,3 @@
-import { EntradaEmCascata, usePrimeiraLista } from '../../ui/EntradaEmCascata';
 import { HistoricoAtualizacoes } from '../../aluno/atualizacao/HistoricoAtualizacoes';
 import { nomeDaSerieNoHistorico } from '../../aluno/serieDoAluno';
 import { FileDown } from 'lucide-react-native';
@@ -11,7 +10,18 @@ import type { ExercicioPlano, Sessao } from '../../api/tipos';
 import { normalizarTreino } from '../../dominio/editorTreino';
 import { dataParaTela, hojeIso } from '../../dominio/formatos';
 import { CONFIGURACAO_PADRAO } from '../../dominio/metodologiaPadrao';
-import { cargasPorDivisao, intervaloDeRegistros, periodoMisturaVersoes, TEXTO_PERIODO_MISTURA_VERSOES, textoDoHistoricoVazio, textoSerie } from '../../dominio/relatorio';
+import {
+  DIAS_DO_HISTORICO,
+  fraseDoHistorico,
+  intervaloDoPeriodo,
+  letrasDasDivisoes,
+  opcoesDePeriodo,
+  pastaAnterior,
+  periodoValido,
+  rotuloDoPeriodo,
+  type PeriodoDoHistorico,
+} from '../../dominio/historicoDoAluno';
+import { cargasPorDivisao, nomeDaDivisao, periodoMisturaVersoes, TEXTO_PERIODO_MISTURA_VERSOES, textoDoHistoricoVazio, textoSerie } from '../../dominio/relatorio';
 import { useAluno } from '../../offline/AlunoProvider';
 import type { RegistroLocal } from '../../offline/repositorioLocal';
 import { imprimir } from '../../pdf/imprimir';
@@ -22,7 +32,9 @@ import { CargasPorDivisao } from '../../treinador/CargasPorDivisao';
 import { CartaoAvaliacaoFisica } from '../../treinador/CartaoAvaliacaoFisica';
 import { CartaoPeso } from '../../treinador/CartaoPeso';
 import { CartaoProgresso } from '../../treinador/CartaoProgresso';
-import { DiaRegistros, VISOES, type VisaoRegistros } from '../../treinador/CartaoRegistros';
+import { VISOES, type VisaoRegistros } from '../../treinador/CartaoRegistros';
+import { HistoricoPorSemana } from '../../treinador/HistoricoPorSemana';
+import { Escolha } from '../../ui/Escolha';
 import { Abas } from '../../ui/Abas';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
@@ -37,27 +49,27 @@ import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 
-const DIAS = 30;
-
 /**
- * Histórico: o que ainda está só no aparelho, os treinos registrados no período do plano em uso (sem plano com período,
- * os últimos 30 dias), o progresso por exercício, o peso (lista e gráfico) e a avaliação física.
+ * Histórico: o que ainda está só no aparelho, os treinos registrados no período escolhido (a pasta em uso, a anterior ou
+ * os últimos 30 dias; Frente G, D15), o progresso por exercício, o peso (lista e gráfico) e a avaliação física. Cada
+ * cartão diz na faixa o período que mostra.
  */
 export default function HistoricoAluno() {
   const { registros, pacote, escolhida, falhas, tentarDeNovo, online } = useAluno();
   const { avisar } = useAviso();
-  const animar = usePrimeiraLista(true);
   const [visao, setVisao] = useState<VisaoRegistros>('divisao');
   const [gerando, setGerando] = useState(false);
-  // Pasta nova ainda sem treino: "Sem treinos no período" escondia a semana anterior. O aluno pode ver os últimos 30 dias.
-  const [ultimosDias, setUltimosDias] = useState(false);
+  // `null` = o padrão: a pasta em uso, se tem período; senão os últimos 30 dias.
+  const [escolhido, setEscolhido] = useState<PeriodoDoHistorico | null>(null);
   const hoje = hojeIso();
-  // Plano em uso (o escolhido para consulta ou o vigente), como no seletor de plano. O período é o da pasta; sem
-  // conexão ou sem período, valem os últimos 30 dias. A busca espera a lista de pastas para não consultar duas vezes.
+  // Plano em uso (o escolhido para consulta ou o vigente), como no seletor de plano. A pasta anterior é a de antes dela
+  // na lista do aluno; as datas vão para a mesma rota de sempre. A busca espera a lista de pastas para não consultar duas vezes.
   const pastas = useCarregar(`pastas-aluno:${pacote?.pacote.geradoEm ?? ''}`, () => pastasDoAluno());
   const pasta = escolhida?.pasta ?? pastas.dados?.find((p) => p.atual) ?? null;
-  const daPasta = !!pasta?.inicio && !!pasta.fim && !ultimosDias;
-  const { de, ate } = intervaloDeRegistros(hoje, DIAS, daPasta ? (pasta ?? undefined) : undefined);
+  const anterior = pastaAnterior(pastas.dados ?? [], pasta);
+  const periodo = periodoValido(escolhido, pasta, anterior);
+  const opcoesDoPeriodo = opcoesDePeriodo(pasta, anterior);
+  const { de, ate } = intervaloDoPeriodo(periodo, hoje, pasta, anterior);
   const aguardandoPastas = pastas.carregando && !pastas.dados;
   const historico = useCarregar(aguardandoPastas ? null : `hist:${de}:${ate}`, () => historicoAluno(de, ate));
   const naoEnviados = registros.filter((r) => r.situacao !== 'ENVIADO' && r.concluida);
@@ -76,6 +88,9 @@ export default function HistoricoAluno() {
   const sessoes = new Map<string, Sessao>();
   for (const { sessao } of nomes.values()) sessoes.set(sessao.uid, sessao);
   const divisoes = historico.dados ? cargasPorDivisao(historico.dados, sessoes) : [];
+  const nomeDaSessao = (s: { sessaoUid: string; sessao: string }) => nomeDaDivisao(s, sessoes);
+  // A mesma letra e a mesma cor da divisão nas duas visões (D13): primeiro a ordem das cargas, depois o que só a semana tem.
+  const letras = letrasDasDivisoes([...divisoes.map((d) => d.nome), ...(historico.dados ?? []).flatMap((d) => d.sessoes.map(nomeDaSessao))]);
   const vazio = textoDoHistoricoVazio({ temRegistros: false, graficosLigados: true, papel: 'ALUNO' });
 
   const pdf = () => {
@@ -133,26 +148,25 @@ export default function HistoricoAluno() {
       ) : null}
 
       <Cartao
-        titulo={daPasta ? 'Registros e cargas' : `Treinos dos últimos ${DIAS} dias`}
+        titulo="Registros e cargas"
+        periodo={rotuloDoPeriodo(periodo, de, ate)}
         acoes={divisoes.length ? <NoPlano funcionalidade="PDF"><Botao rotulo="PDF" tipo="secundario" Icone={FileDown} carregando={gerando} aoTocar={pdf} /></NoPlano> : null}>
-        {daPasta ? <Texto numerico variante="suave">Período do plano: {dataParaTela(de)} a {dataParaTela(ate)}</Texto> : null}
+        {opcoesDoPeriodo.length > 1 ? <Escolha rotulo="Período" opcoes={opcoesDoPeriodo} valor={periodo} aoMudar={setEscolhido} /> : null}
         <Abas abas={VISOES} ativa={visao} aoMudar={setVisao} />
+        {historico.dados && historico.dados.length ? <Texto numerico variante="pequeno">{fraseDoHistorico(visao, de, ate)}</Texto> : null}
         {semConexao ? <Texto numerico variante="suave">Sem conexão: o histórico do servidor aparece quando voltar a internet.</Texto> : null}
         {historico.erro && !semConexao ? <MensagemErro texto={textoDoErro(historico.erro)} erro={historico.erro} tentarDeNovo={historico.recarregar} /> : null}
         {!historico.dados && historico.carregando ? <Esqueleto /> : null}
         {historico.dados && historico.dados.length === 0 ? (
           // B6: o motivo do vazio sai do domínio (o mesmo texto da ficha do treinador).
           <>
-            <Vazio titulo={vazio ?? 'Sem registros'} texto={daPasta ? 'Os treinos que você registrar neste plano aparecem aqui.' : 'Os treinos que você registrar aparecem aqui.'} />
-            {daPasta ? <Botao rotulo={`Ver os últimos ${DIAS} dias`} tipo="secundario" aoTocar={() => setUltimosDias(true)} /> : null}
+            <Vazio titulo={vazio ?? 'Sem registros'} texto={periodo === 'ULTIMOS_30' ? 'Os treinos que você registrar aparecem aqui.' : 'Os treinos que você registrar neste plano aparecem aqui.'} />
+            {periodo !== 'ULTIMOS_30' ? <Botao rotulo={`Ver os últimos ${DIAS_DO_HISTORICO} dias`} tipo="secundario" aoTocar={() => setEscolhido('ULTIMOS_30')} /> : null}
           </>
         ) : null}
         {historico.dados && periodoMisturaVersoes(historico.dados) ? <Texto numerico variante="pequeno">{TEXTO_PERIODO_MISTURA_VERSOES}</Texto> : null}
-        {ultimosDias ? <Botao rotulo="Voltar ao período do plano" tipo="fantasma" aoTocar={() => setUltimosDias(false)} /> : null}
-        {historico.dados && visao === 'divisao' ? <CargasPorDivisao divisoes={divisoes} /> : null}
-        {historico.dados && visao === 'dia'
-          ? [...historico.dados].sort((a, b) => b.data.localeCompare(a.data)).map((d, i) => <EntradaEmCascata key={d.data} indice={i} animar={animar}><DiaRegistros dia={d} /></EntradaEmCascata>)
-          : null}
+        {historico.dados && visao === 'divisao' ? <CargasPorDivisao divisoes={divisoes} letras={letras} /> : null}
+        {historico.dados && visao === 'dia' ? <HistoricoPorSemana dias={historico.dados} nomeDaSessao={nomeDaSessao} letras={letras} /> : null}
       </Cartao>
 
       <CartaoProgresso />

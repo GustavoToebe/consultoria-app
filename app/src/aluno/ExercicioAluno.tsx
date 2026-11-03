@@ -35,7 +35,7 @@ import { useMovimentoReduzido } from '../ui/useMovimentoReduzido';
 import { CartaoSerieComEtapas } from './CartaoSerieComEtapas';
 import { CartaoSerieDeCardio } from './CartaoSerieDeCardio';
 import { PainelDoCheck } from './PainelDoCheck';
-import { CabecalhoDaSerie, DicaDoCampo, LinhaDoUltimoRegistro, MetaAoLado, RotuloDeHoje } from './PartesDaSerie';
+import { barraDoTipo, CabecalhoDaSerie, DicaDoCampo, LinhaDoUltimoRegistro, MetaAoLado, RotuloDeHoje } from './PartesDaSerie';
 import { dicaDaCarga, ehExercicioDeCardio, partesDaMeta, selosDaSerie, textosDaSerie } from './serieDoAluno';
 
 export interface DadosSerie {
@@ -324,7 +324,7 @@ function CartaoSerie({
   /** Sem base do dia gravada, a conta parte da última carga: a origem da dica diz "da última vez", não "da base do dia". */
   baseDaUltimaVez: boolean;
 }) {
-  const { cores } = useTema();
+  const { cores, identificacao } = useTema();
   // Antes de gravar, os dois campos começam vazios (D1 e D3, 02/11): a sugestão é só dica ao lado, nunca valor no campo.
   const [cargaDigitada, setCargaDigitada] = useState<number | null>(null);
   const [repsDigitadas, setRepsDigitadas] = useState<number | null>(null);
@@ -356,12 +356,14 @@ function CartaoSerie({
   useEffect(() => {
     progresso.set(reduzido ? (feita ? 1 : 0) : withTiming(feita ? 1 : 0, { duration: feita ? 200 : 150 }));
   }, [feita, reduzido, progresso]);
-  const fundo = useAnimatedStyle(() => ({ backgroundColor: interpolateColor(progresso.get(), [0, 1], [cores.superficie2, `${cores.sucesso}29`]) }));
+  // O cartão fica na superfície (Frente G, D10): a cor do tipo é só a barra e o selo; o verde da série feita é status.
+  const fundo = useAnimatedStyle(() => ({ backgroundColor: interpolateColor(progresso.get(), [0, 1], [cores.superficie, `${cores.sucesso}29`]) }));
   const s = calculada.serie;
   const numero = indice + 1;
   const textos = textosDaSerie(s, { tipoTrabalho, semCarga, metodologia, seriesDoExercicio, descansoPorSerie: descansoNaSerie });
   const meta = partesDaMeta(textos.valorDaMeta);
   const selos = selosDaSerie(s, metodologia);
+  const barra = barraDoTipo(selos.tipo?.cor ? identificacao[selos.tipo.cor].cor : null);
   const pausa = s.tecnica?.pausaSegundos != null && s.tecnica.pausaSegundos > 0 ? s.tecnica.pausaSegundos : null;
 
   // Dica ao lado do campo (D1): "Sugestão: 60 kg · Última vez: 60 kg × 7". A "Última vez" é a da carga de trabalho do
@@ -456,7 +458,7 @@ function CartaoSerie({
   );
 
   return (
-    <Animated.View style={[estilos.serie, { borderColor: feita ? cores.sucesso : cores.borda }, fundo]}>
+    <Animated.View testID={`serie-${s.uid}`} style={[estilos.serie, { borderColor: feita ? cores.sucesso : cores.borda }, barra, fundo]}>
       <CabecalhoDaSerie numero={numero} tipo={selos.tipo} tecnica={selos.tecnica} recordes={recordes} naoRegistrada={!feita} />
       {textos.alvoExtra ? <Texto numerico variante="pequeno">Observação desta série: {textos.alvoExtra}</Texto> : null}
       {textos.amrap ? <Texto numerico variante="pequeno">AMRAP: faça o máximo de repetições que conseguir e anote quantas fez.</Texto> : null}
