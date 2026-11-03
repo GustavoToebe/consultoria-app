@@ -56,7 +56,7 @@
 <header class="topo">
   <h1>Paletas da marca</h1>
   <p>Prévia do Início do aluno nas 15 paletas do plano. Texto, verde, âmbar e vermelho são os do Escuro ou do Claro em <code>app/src/tema/tokens.ts</code>. O botão usa o vermelho intenso da marca, <code>#C62828</code>.</p>
-  <p class="nota">O contraste e a <code>marcaParaTexto</code> são as funções de <code>app/src/tema/tokens.ts</code>, sem alteração. A marca no texto é <code>marcaParaTexto</code> da cor pura sobre a faixa, como em <code>TemaProvider</code>. Abaixo de 4,5:1 esse tom, o texto, o texto suave, o verde, o âmbar e o vermelho ficam vermelhos, contra o fundo, o cartão e a faixa. O botão é texto branco sobre a marca pura. A borda do cartão fica na tabela como informação, na régua de 1,9:1 do <code>tokens.ts</code>, e não entra em quem passa. A separação da faixa também não entra.</p>
+  <p class="nota">O contraste e a <code>marcaParaTexto</code> são as funções de <code>app/src/tema/tokens.ts</code>, sem alteração. A marca no texto é <code>marcaParaTexto</code> da cor pura sobre a faixa, como em <code>TemaProvider</code>. Entram em quem passa: texto, texto suave, verde, âmbar, vermelho e a marca no texto a 4,5:1 contra o fundo, o cartão e a faixa; o botão, texto branco sobre a marca pura, a 4,5:1; a borda do cartão a 1,9:1 contra o cartão, 1,25:1 contra a faixa e 1,8:1 contra o fundo; a borda do campo a 3:1 contra o campo e contra a faixa (a moldura do X, do Voltar e do ⋯). A separação da faixa não entra.</p>
 </header>
 <nav class="secoes">
   <a href="#resumo">Resumo</a>
@@ -67,7 +67,7 @@
   <section id="resumo" class="resumo"></section>
   <section id="escuras">
     <h2>Escuras</h2>
-    <p class="nota">Nas paletas novas, a faixa é o tom mais claro a partir do cartão, em direção ao branco, no qual texto, texto suave, verde, âmbar e vermelho ainda passam a 4,5:1. Se nenhum tom passar, a faixa usa a distância do Escuro até a faixa dele. Os outros tons clareiam o cartão nos passos de antes, sem passar da faixa. Nenhuma cor de status muda. Escuro, Claro e Areia usam os valores literais do arquivo.</p>
+    <p class="nota">Nas paletas novas, a faixa é o tom mais claro a partir do cartão, em direção ao branco, no qual texto, texto suave, verde, âmbar e vermelho ainda passam a 4,5:1. Se nenhum tom passar, a faixa usa a distância do Escuro até a faixa dele. O teto desse passo vale só para o item (<code>superficie2</code>) e o campo. Borda, borda do campo e divisor ficam nos passos 0,23, 0,41 e 0,13. Nenhuma cor de status muda. Escuro, Claro e Areia usam os valores literais do arquivo.</p>
     <div class="grade" data-modo="escuro"></div>
   </section>
   <section id="claras">
@@ -93,8 +93,9 @@ var AREIA = {
   divisor: '#DDD8CF', borda: '#B9B3A9', campo: '#FFFFFF', bordaCampo: '#77736B'
 };
 var MARCA = '#C62828';
-/* Passos antigos, abaixo da faixa do Escuro ou acima dela. Os que passam da faixa nova são cortados nela. */
+/* O teto da faixa corta só os fundos. Borda, borda do campo e divisor ficam nestes passos. */
 var PASSOS_BASE = { campo: 0.02, superficie2: 0.04, divisor: 0.13, borda: 0.23, bordaCampo: 0.41 };
+var PASSOS_COM_TETO = { campo: true, superficie2: true };
 var PALETAS = [
   { codigo: 'ESCURO', nome: 'Escuro', modo: 'escuro', origem: 'já existe', fundo: ESCURO.fundo, cartao: ESCURO.superficie, literal: ESCURO },
   { codigo: 'MEIA_NOITE', nome: 'Meia-noite', modo: 'escuro', origem: 'Midnight', fundo: '#06141B', cartao: '#11212D' },
@@ -199,7 +200,7 @@ function tonsDe(p) {
     var faixa = faixaEscura(p.cartao);
     var passos = { superficie3: faixa.t };
     Object.keys(PASSOS_BASE).forEach(function (chave) {
-      passos[chave] = Math.min(PASSOS_BASE[chave], faixa.t);
+      passos[chave] = PASSOS_COM_TETO[chave] ? Math.min(PASSOS_BASE[chave], faixa.t) : PASSOS_BASE[chave];
     });
     var tons = {
       fundo: p.fundo,
@@ -258,30 +259,34 @@ function medir(p) {
     falhaFundo: noBotao < 4.5, falhaCartao: false, falhaFaixa: false,
     contaFundo: true, contaCartao: false, contaFaixa: false, rotuloFundo: 'sobre a marca'
   });
+  var bordaNoFundo = contraste(tons.borda, tons.fundo);
   var bordaNoCartao = contraste(tons.borda, tons.superficie);
+  var bordaNaFaixa = contraste(tons.borda, tons.superficie3);
   linhas.push({
-    nome: 'Borda do cartão', cor: tons.borda, fundo: null, cartao: bordaNoCartao, faixa: null,
-    falhaFundo: false, falhaCartao: bordaNoCartao < 1.9, falhaFaixa: false,
-    contaFundo: false, contaCartao: false, contaFaixa: false, info: true, regua: '1,9'
+    nome: 'Borda do cartão', cor: tons.borda, fundo: bordaNoFundo, cartao: bordaNoCartao, faixa: bordaNaFaixa,
+    falhaFundo: bordaNoFundo < 1.8, falhaCartao: bordaNoCartao < 1.9, falhaFaixa: bordaNaFaixa < 1.25,
+    contaFundo: true, contaCartao: true, contaFaixa: true
   });
+  var campoDaBorda = contraste(tons.bordaCampo, tons.campo);
   var linhaNoCartao = contraste(tons.bordaCampo, tons.superficie);
+  var bordaCampoNaFaixa = contraste(tons.bordaCampo, tons.superficie3);
   linhas.push({
-    nome: 'Linha de 3 px', cor: tons.bordaCampo, fundo: null, cartao: linhaNoCartao, faixa: null,
-    falhaFundo: false, falhaCartao: false, falhaFaixa: false,
-    contaFundo: false, contaCartao: false, contaFaixa: false, info: true
+    nome: 'Borda do campo', cor: tons.bordaCampo, fundo: campoDaBorda, cartao: linhaNoCartao, faixa: bordaCampoNaFaixa,
+    falhaFundo: campoDaBorda < 3, falhaCartao: false, falhaFaixa: bordaCampoNaFaixa < 3,
+    contaFundo: true, contaCartao: false, contaFaixa: true, rotuloFundo: 'contra o campo'
   });
+  function lugar(linha, campo) {
+    if (campo === 'fundo' && linha.rotuloFundo) return linha.rotuloFundo;
+    if (campo === 'fundo') return 'contra o fundo';
+    if (campo === 'cartao') return 'contra o cartão';
+    return 'contra a faixa';
+  }
   var falhas = [];
   linhas.forEach(function (linha) {
-    if (linha.contaFundo && linha.falhaFundo) falhas.push(linha.nome + ' contra o fundo (' + fmt(linha.fundo) + ':1)');
-    if (linha.contaCartao && linha.falhaCartao) falhas.push(linha.nome + ' contra o cartão (' + fmt(linha.cartao) + ':1)');
-    if (linha.contaFaixa && linha.falhaFaixa) falhas.push(linha.nome + ' contra a faixa (' + fmt(linha.faixa) + ':1)');
+    if (linha.contaFundo && linha.falhaFundo) falhas.push(linha.nome + ' ' + lugar(linha, 'fundo') + ' (' + fmt(linha.fundo) + ':1)');
+    if (linha.contaCartao && linha.falhaCartao) falhas.push(linha.nome + ' ' + lugar(linha, 'cartao') + ' (' + fmt(linha.cartao) + ':1)');
+    if (linha.contaFaixa && linha.falhaFaixa) falhas.push(linha.nome + ' ' + lugar(linha, 'faixa') + ' (' + fmt(linha.faixa) + ':1)');
   });
-  if (noBotao < 4.5) {
-    /* já entrou como "Botão contra o fundo"; troca o texto para não dizer fundo */
-    falhas = falhas.map(function (texto) {
-      return texto.indexOf('Botão contra o fundo') === 0 ? 'Botão, texto branco sobre a marca (' + fmt(noBotao) + ':1)' : texto;
-    });
-  }
   return {
     tons: tons,
     linhas: linhas,
@@ -363,7 +368,7 @@ var medidas = PALETAS.map(function (p) { return { paleta: p, medida: medir(p) };
 var passam = medidas.filter(function (item) { return item.medida.falhas.length === 0; });
 var resumo = document.getElementById('resumo');
 var intro = document.createElement('p');
-intro.innerHTML = '<strong>' + passam.length + ' de 15 passam inteiras.</strong> Régua: texto, texto suave, verde, âmbar, vermelho e a marca no texto a 4,5:1 contra o fundo, o cartão e a faixa; o botão, texto branco sobre a marca pura, a 4,5:1. A borda do cartão (1,9:1) e a separação da faixa não entram.';
+intro.innerHTML = '<strong>' + passam.length + ' de 15 passam inteiras.</strong> Régua: texto, texto suave, verde, âmbar, vermelho e a marca no texto a 4,5:1 contra o fundo, o cartão e a faixa; o botão, texto branco sobre a marca pura, a 4,5:1; borda do cartão a 1,9:1 contra o cartão, 1,25:1 contra a faixa e 1,8:1 contra o fundo; borda do campo a 3:1 contra o campo e contra a faixa. A separação da faixa não entra.';
 resumo.appendChild(intro);
 ['escuro', 'claro'].forEach(function (modo) {
   var grupo = medidas.filter(function (item) { return item.paleta.modo === modo; });
