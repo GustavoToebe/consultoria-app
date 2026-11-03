@@ -60,7 +60,7 @@ test('inscrição pública: limite de envios (429) mostra o texto do formulário
   await page.getByLabel('Nome').fill('Pessoa Fictícia');
   await page.getByLabel('WhatsApp com DDD').pressSequentially('11987654321');
   await page.getByRole('button', { name: 'Enviar inscrição' }).click();
-  await expect(page.getByText('Recebemos muitos envios deste endereço. Aguarde alguns minutos e envie de novo.')).toBeVisible();
+  await expect(page.getByText('Recebemos muitos envios agora. Tente de novo mais tarde.')).toBeVisible();
   await expect(page.getByText(/tentativas de acesso/)).toHaveCount(0);
 });
 

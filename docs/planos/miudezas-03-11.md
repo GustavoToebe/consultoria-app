@@ -1,6 +1,6 @@
 # Miudezas de 03/11
 
-Situação: Em andamento (passagem para o Claude da nuvem) · Onde: branch `miudezas-03-11` · Atualizado: 03/11/2026
+Situação: Em revisão (PR aberto) · Onde: branch `miudezas-03-11` · Atualizado: 03/11/2026
 
 ## Objetivo
 Fechar pendências pequenas soltas: a data de início da dieta, o separador do CSV da importação, o `.gitattributes` dos CSV, o 429 da inscrição, o atalho dos Primeiros passos, o aviso de `accessible={false}` na web e os e2e intermitentes.
@@ -18,9 +18,9 @@ Fechar pendências pequenas soltas: a data de início da dieta, o separador do C
 - [x] 3. Separador do CSV pela linha do cabeçalho (`LeitorCsv.lerLivre`, `LeitorDePlanilha.ler`, `ImportacaoService`, testes) — commit: `28f011cf`
 - [x] 4. `*.csv text eol=lf` no `.gitattributes` (`node --test` de `scripts/importacao`: 7 de 7) — commit: `6df49feb`
 - [x] 5. 429 da inscrição com texto próprio (`TEXTO_LIMITE_DA_INSCRICAO`, `[codigo].tsx`, e2e `inscricao`) — commit: `5e1b3c25`
-- [~] 6. Primeiros passos abre o Planejamento em Metodologias (`tipoDoPlanejamento` em `modelos.ts`, `?tipo=` em `planejamento/index.tsx`, e2e novo em `planejamento-colecoes`) — commit: `7afe1c45` (wip: o e2e novo não rodou)
+- [x] 6. Primeiros passos abre o Planejamento em Metodologias (`tipoDoPlanejamento` em `modelos.ts`, `?tipo=` em `planejamento/index.tsx`, e2e novo em `planejamento-colecoes`) — commit: `7afe1c45` (e2e novo verde no e2e completo de 03/11)
 - [x] 7. Ícones lucide com `aria-hidden` em vez de `accessible={false}` (`Estados.tsx`, `CartaoAguaDoDia`, `CartaoDietaDoInicio`, `CartaoHoje`, `FolhaDoPainel`) — commit: `94c0e1a3`
-- [~] 8. e2e intermitentes: esperas em `series-metodologia`, `comparacao-de-fotos`, `pasta-e-atualizacao`, `links-do-menu`, `lista-alunos-grupos` — commit: `6030076d` (wip)
+- [x] 8. e2e intermitentes: esperas em `series-metodologia`, `comparacao-de-fotos`, `pasta-e-atualizacao`, `links-do-menu`, `lista-alunos-grupos` — commits: `6030076d`, `00fff3c0` ("hoje" em Brasília), `96471004` (esperas pela condição real)
 
 ## Passagem (03/11, noite)
 
@@ -44,6 +44,14 @@ Fechar pendências pequenas soltas: a data de início da dieta, o separador do C
 - Não feito: `git merge origin/main` e PR (ficam com o Gustavo).
 
 **Falta:** rodar o e2e completo na 8101; a revisão do Opus; o diagnóstico de `agenda-calendario:866`; conferir o passo 7 em `/entrar`, `/inscricao/x` e no aluno; confirmar D1 e D2 com o Gustavo; o merge da main e o PR.
+
+## Fechamento (03/11, nuvem)
+- `git merge origin/main` duas vezes (C e depois F), sem conflito.
+- Na nuvem, as esperas de `links-do-menu` (evento de requisição) e `comparacao-de-fotos` (`networkidle`) não seguravam: 5 de 5 e 3 de 5 falhas. Trocadas por condições reais (endereços da guia nova desde que nasce; a entrada da Folha sai do histórico antes do reload): 54 de 54 em 6 repetições.
+- O "hoje" do `pasta-e-atualizacao` passou a ser contado em Brasília (falhava das 21h à meia-noite em máquina UTC).
+- Revisão independente: nada bloqueia. Aplicados: texto neutro no 429 da inscrição (o teto diário da consultoria também dá 429 e "deste endereço"/"alguns minutos" era falso), ordem dos comentários em `inscricoes.ts`, `AGENTS.md` com o separador do CSV e o `?tipo=`.
+- Verificação depois do último merge: `mvn verify` verde; typecheck e lint verdes; jest 230 suítes, 3588 testes; e2e completo 601 passaram, 0 falharam, 8 pulados (com `TZ=America/Sao_Paulo`); `inscricao` de novo com o texto novo, 11 de 11.
+- Fica para o Gustavo: confirmar D1 e D2; conferir o passo 7 em `/entrar`, `/inscricao/x` e nas telas do aluno (a revisão confirmou que o lucide já põe `aria-hidden` e que nada muda no visual).
 
 ## Fora do escopo
 - `agenda-calendario.spec.ts:866` intermitente: sem diagnóstico (Pendências soltas).
