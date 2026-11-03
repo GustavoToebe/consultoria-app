@@ -13,6 +13,8 @@ import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
 import { ICONES_DO_MENU } from '../../ui/CartaoDoUsuario';
 import { ConfirmarSaida } from '../../ui/ConfirmarSaida';
+import { textoDoErro } from '../../ui/erros';
+import { MensagemErro } from '../../ui/Estados';
 import { ItemDeLista } from '../../ui/ItemDeLista';
 import { Permitido } from '../../ui/Permitido';
 import { Tela } from '../../ui/Tela';
@@ -49,6 +51,7 @@ export default function PerfilTreinador() {
         </View>
       </Cartao>
       <Cartao titulo="Atalhos" descricao="Páginas de apoio e de gestão da consultoria.">
+        {novas.erro ? <MensagemErro texto={`Não foi possível contar as inscrições novas. ${textoDoErro(novas.erro)}`} erro={novas.erro} tentarDeNovo={novas.recarregar} /> : null}
         <View style={estilos.lista}>
           <Permitido codigo="AGENDA_LER"><ItemDeLista href="/treinador/agenda" Icone={CalendarDays} titulo="Agenda" detalhe="Compromissos presenciais com os alunos, por dia ou semana" /></Permitido>
           <Permitido codigo="INSCRICAO_LER"><ItemDeLista href="/treinador/interessados" Icone={Inbox} titulo="Interessados" detalhe="Link de inscrição e a fila de quem quer ser aluno"
