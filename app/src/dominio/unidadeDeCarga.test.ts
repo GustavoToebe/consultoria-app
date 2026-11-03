@@ -15,7 +15,8 @@ import {
 describe('conversão e arredondamento', () => {
   it('usa o fator exato de 0,45359237 kg por libra', () => {
     expect(KG_POR_LIBRA).toBe(0.45359237);
-    expect(telaParaKg(100, 'lb')).toBe(45.36);
+    expect(telaParaKg(100, 'lb')).toBe(45.35); // 45,35 e 45,36 mostram 100,0 lb; vale o múltiplo de 0,05
+    expect(kgParaTela(45.35, 'lb')).toBe(100);
     expect(kgParaTela(45.36, 'lb')).toBe(100);
   });
 
@@ -50,9 +51,28 @@ describe('conversão e arredondamento', () => {
     }
   });
 
-  it('o que está guardado em kg só muda se a pessoa digitar de novo', () => {
-    // 62,5 kg aparece como 137,8 lb; quem digita 137,8 grava 62,51 (valor novo, escolha dela), mas nunca sem digitar.
-    expect(telaParaKg(137.8, 'lb')).toBe(62.51);
+  it('a volta kg → lb → kg não deriva: digitar o que se vê grava o mesmo kg (sem 60,01, sem recorde falso)', () => {
+    // Última vez 60 kg, a dica mostra 132,3 lb; o aluno digita 132,3 e o guardado continua 60.
+    expect(kgParaTela(60, 'lb')).toBe(132.3);
+    expect(telaParaKg(132.3, 'lb')).toBe(60);
+    expect(telaParaKg(137.8, 'lb')).toBe(62.5); // 62,5 kg = 137,8 lb
+    expect(kgParaTela(62.5, 'lb')).toBe(137.8);
+    expect(telaParaKg(kgParaTela(62.25, 'lb') as number, 'lb')).toBe(62.25);
+    expect(telaParaKg(kgParaTela(62.5, 'lb') as number, 'lb')).toBe(62.5);
+  });
+
+  it('todo kg múltiplo de 0,05 (o arredondamento da metodologia) até o teto do banco volta igual', () => {
+    for (let vinteavos = 0; vinteavos <= 40000; vinteavos++) {
+      const kg = vinteavos / 20;
+      const lb = kgParaTela(kg, 'lb') as number;
+      expect(telaParaKg(lb, 'lb')).toBe(kg);
+    }
+  });
+
+  it('sem múltiplo de 0,05 na janela do número, vale o arredondamento normal de 2 casas (e ainda lê o mesmo número)', () => {
+    // 0,1 lb ≈ 0,045 kg < 0,05: às vezes nenhum múltiplo cabe. 30,7 lb = 13,9253 kg (janela 13,9026 a 13,9480, entre 13,90 e 13,95).
+    expect(telaParaKg(30.7, 'lb')).toBe(13.93);
+    expect(kgParaTela(13.93, 'lb')).toBe(30.7);
   });
 
   it('zero, vazio e inválidos', () => {
@@ -72,7 +92,7 @@ describe('conversão e arredondamento', () => {
     expect(Number.isFinite(kgParaTela(1e12, 'lb'))).toBe(true);
     expect(kgParaTela(1e9, 'lb')).toBe(2204622621.8);
     expect(kgParaTela(-10, 'lb')).toBe(-22);
-    expect(telaParaKg(-22, 'lb')).toBe(-9.98);
+    expect(telaParaKg(-22, 'lb')).toBe(-10);
   });
 
   it('texto com vírgula "62,5" vira 62,5 e converte', () => {
@@ -114,12 +134,12 @@ describe('passo dos botões − e + na unidade do aluno', () => {
   it('o passo continua o arredondamentoKg: o valor novo é kg + passo, sem passo novo em libra', () => {
     const passo = passoDaCarga({ unidade: 'kg' }, 0.5) as number;
     expect(passo).toBe(0.5);
-    // Aluno em lb digitou 100 lb = 45,36 kg; "+" soma 0,5 kg e o campo passa a mostrar 101,1 lb.
-    const depois = ajustarCarga(45.36, null, passo, 1);
-    expect(depois).toBe(45.86);
+    // Aluno em lb digitou 100 lb = 45,35 kg; "+" soma 0,5 kg e o campo passa a mostrar 101,1 lb.
+    const depois = ajustarCarga(45.35, null, passo, 1);
+    expect(depois).toBe(45.85);
     expect(kgParaTela(depois, 'lb')).toBe(101.1);
     // "−" volta ao kg exato: os botões não derivam.
-    expect(ajustarCarga(depois, null, passo, -1)).toBe(45.36);
+    expect(ajustarCarga(depois, null, passo, -1)).toBe(45.35);
     expect(kgParaTela(ajustarCarga(depois, null, passo, -1), 'lb')).toBe(100);
   });
 

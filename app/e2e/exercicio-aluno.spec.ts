@@ -22,7 +22,7 @@ for (const largura of [390, 1280]) test(`aluno: carga de trabalho editável, exp
   const peso1 = page.getByRole('textbox', { name: 'Peso da série 1, em quilos', exact: true });
   await expect(peso1).toHaveValue('');
   await expect(peso1).toHaveAttribute('placeholder', '—');
-  await page.getByRole('textbox', { name: 'Carga de trabalho do dia', exact: true }).fill('40');
+  await page.getByRole('textbox', { name: 'Carga de trabalho do dia, em quilos', exact: true }).fill('40');
   await expect(peso1).toHaveValue('');
   await expect(page.getByText(/^Sugestão: 40 kg/).first()).toBeVisible();
   await expect(page.getByText(/até a falha/).last()).toBeVisible();

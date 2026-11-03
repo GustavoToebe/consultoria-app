@@ -65,7 +65,7 @@ for (const tema of ['CLARO', 'ESCURO'] as const) {
       }
 
       // D12: o Cluster é um cartão só, com os três blocos dentro, a pausa entre eles e o rodapé.
-      await page.getByRole('textbox', { name: 'Carga de trabalho do dia', exact: true }).fill('40');
+      await page.getByRole('textbox', { name: 'Carga de trabalho do dia, em quilos', exact: true }).fill('40');
       const cartao = page.getByTestId('serie-cluster');
       const blocos = cartao.getByRole('group', { name: 'Blocos do Cluster, série 3' });
       await expect(blocos).toBeVisible();

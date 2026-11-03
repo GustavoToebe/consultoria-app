@@ -162,7 +162,7 @@ async function montar(exercicio: ExercicioPlano, baseInicial: number | null = 40
     /** Texto que está na caixa do peso da série `n` (1, 2, ...). */
     peso: (n: number) => (achar(`Peso da série ${n}, em quilos`, 'onChangeText').props.value as string),
     digitarPeso: (n: number, texto: string) => Renderer.act(async () => achar(`Peso da série ${n}, em quilos`, 'onChangeText').props.onChangeText(texto)),
-    digitarBase: (texto: string) => Renderer.act(async () => achar('Carga de trabalho do dia', 'onChangeText').props.onChangeText(texto)),
+    digitarBase: (texto: string) => Renderer.act(async () => achar('Carga de trabalho do dia, em quilos', 'onChangeText').props.onChangeText(texto)),
     digitarReps: (n: number, texto: string) => Renderer.act(async () => achar(`Repetições da série ${n}`, 'onChangeText').props.onChangeText(texto)),
     marcar: (n: number) => Renderer.act(async () => achar(`Série ${n} feita`, 'onPress').props.onPress()),
     /** Texto da dica ao lado do campo da série `n` (sem a origem), ou `null` sem dica. */
@@ -175,8 +175,8 @@ async function montar(exercicio: ExercicioPlano, baseInicial: number | null = 40
     painel: (n: number) => arvore.root.findAll((x) => x.props.accessibilityLabel === `Sem carga, série ${n}`).length > 0,
     /** Toca uma opção do painel do ✓ da série `n` ("Sim, 40 kg", "Outra carga", "Sem carga"). */
     escolher: (n: number, rotulo: string) => Renderer.act(async () => achar(`${rotulo}, série ${n}`, 'onPress').props.onPress()),
-    caixaDaBase: () => achar('Carga de trabalho do dia', 'onChangeText').props.value as string,
-    temBase: () => arvore.root.findAll((x) => x.props.accessibilityLabel === 'Carga de trabalho do dia').length > 0,
+    caixaDaBase: () => achar('Carga de trabalho do dia, em quilos', 'onChangeText').props.value as string,
+    temBase: () => arvore.root.findAll((x) => x.props.accessibilityLabel === 'Carga de trabalho do dia, em quilos').length > 0,
     remontar: async () => {
       await Renderer.act(async () => controle.mudarVisivel(false));
       await Renderer.act(async () => controle.mudarVisivel(true));

@@ -24,7 +24,7 @@ for (const largura of [390, 1280]) {
     await page.setViewportSize({ width: largura, height: 900 });
     const api = await abrir(page, sessaoComTopSetEBackOff(), '/aluno/sessao/topo/agacho?data=2026-10-19');
     const peso = (n: number) => page.getByRole('textbox', { name: `Peso da série ${n}, em quilos`, exact: true });
-    await page.getByRole('textbox', { name: 'Carga de trabalho do dia', exact: true }).fill('80');
+    await page.getByRole('textbox', { name: 'Carga de trabalho do dia, em quilos', exact: true }).fill('80');
     // Sem a carga do Top set registrada, o Back off não tem de onde calcular.
     await expect(peso(3)).toHaveValue('');
     await page.getByRole('textbox', { name: 'Repetições da série 1', exact: true }).fill('5');

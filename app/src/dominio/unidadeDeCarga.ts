@@ -33,10 +33,24 @@ export function kgParaTela(kg: number | null | undefined, unidade: UnidadeDeCarg
   return unidade === 'kg' ? kg : arredondar(kg / KG_POR_LIBRA, CASAS_EM_LIBRA);
 }
 
-/** Número digitado na unidade da pessoa → kg a guardar (2 casas). Em kg, o próprio valor, como sempre foi. */
+/** Passo da grade de kg preferida ao converter (todo `arredondamentoKg` da metodologia é múltiplo dele). */
+const GRADE_EM_KG = 0.05;
+
+/**
+ * Número digitado na unidade da pessoa → kg a guardar (2 casas). Em kg, o próprio valor, como sempre foi.
+ *
+ * Em libra, vários kg de 2 casas mostram o mesmo número (a janela de 0,1 lb tem ~0,045 kg). Entre eles, prefere o
+ * múltiplo de 0,05 kg: assim a carga que veio do plano ou de um registro em kg (60 kg = "132,3 lb") volta igual quando o
+ * aluno digita o que está vendo (132,3 → 60, não 60,01), sem recorde falso nem "mesma carga" que deixa de casar. Como a
+ * janela é menor que 0,05, há no máximo um múltiplo nela: todo kg múltiplo de 0,05 faz ida e volta exata. Sem múltiplo
+ * na janela, vale o arredondamento normal de 2 casas, que também lê de volta o mesmo número em lb.
+ */
 export function telaParaKg(valor: number | null | undefined, unidade: UnidadeDeCarga): number | null {
   if (!finito(valor)) return null;
-  return unidade === 'kg' ? valor : arredondar(valor * KG_POR_LIBRA, CASAS_GUARDADAS_KG);
+  if (unidade === 'kg') return valor;
+  const exato = valor * KG_POR_LIBRA;
+  const naGrade = arredondar(Math.round(exato / GRADE_EM_KG) * GRADE_EM_KG, CASAS_GUARDADAS_KG);
+  return kgParaTela(naGrade, 'lb') === arredondar(valor, CASAS_EM_LIBRA) ? naGrade : arredondar(exato, CASAS_GUARDADAS_KG);
 }
 
 /** O número de "62,5 kg" ou "137,8 lb" sem a unidade (vírgula decimal); sem valor, "—". */

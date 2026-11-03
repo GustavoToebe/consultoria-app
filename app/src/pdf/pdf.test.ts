@@ -201,6 +201,13 @@ describe('PDF do treino: RIR até 10, RIR por série e carga fixa', () => {
     const html = documentoTreino(dadosDoTreino(treinoCom(exercicio('e', { series: [s('x', 'WARM_UP', 10, 10, fixa)] })))).corpo;
     expect(html).toContain('1x10 - Aquecimento · 12 kg');
   });
+
+  it('a carga fixa sai na unidade de quem baixa (o aluno em libras); sem unidade, em kg', () => {
+    const fixa = { ...carga('CARGA_FIXA'), valorKg: 12 };
+    const dados = dadosDoTreino(treinoCom(exercicio('e', { series: [s('x', 'WARM_UP', 10, 10, fixa)] })));
+    expect(documentoTreino({ ...dados, unidade: 'lb' }).corpo).toContain('1x10 - Aquecimento · 26,5 lb');
+    expect(documentoTreino({ ...dados, unidade: 'kg' }).corpo).toContain('· 12 kg');
+  });
 });
 
 describe('PDF do treino: top set e back off pela referência', () => {

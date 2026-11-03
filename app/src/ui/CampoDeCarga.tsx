@@ -16,12 +16,14 @@ type Props = Omit<ComponentProps<typeof CampoNumericoGrande>, 'valor' | 'aoMudar
  * mesmo número arredondado que a tela mostra (`kgParaTela`), então digitar 100 lb e ler de volta dá 100 sem o campo
  * reescrever o que a pessoa digita. `rotuloAcessivel` leva só o nome ("Peso da série 2"); a unidade por extenso entra aqui.
  */
-export function CampoDeCarga({ valorKg, aoMudarKg, rotuloAcessivel, ...resto }: Props) {
+export function CampoDeCarga({ valorKg, aoMudarKg, rotuloAcessivel, rotulo, ...resto }: Props) {
   const unidade = useUnidadeDeCarga();
   return (
     <CampoNumericoGrande
       {...resto}
-      rotuloAcessivel={rotuloAcessivel ? `${rotuloAcessivel}, em ${nomeDaUnidade(unidade)}` : undefined}
+      rotulo={rotulo}
+      // Sem rótulo acessível próprio o leitor lê o rótulo visível ("Carga de trabalho do dia"): a unidade vale nos dois.
+      rotuloAcessivel={`${rotuloAcessivel ?? rotulo}, em ${nomeDaUnidade(unidade)}`}
       sufixo={unidade}
       mascara={mascaraDaCarga(unidade)}
       valor={kgParaTela(valorKg, unidade)}

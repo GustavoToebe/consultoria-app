@@ -72,7 +72,7 @@ const AVISO_DO_MARCAR = 'As séries seguintes só usam este peso depois que voc�
 test('C30: o Back off só recalcula depois do ✓ da WS (regra de 31/10), e a própria série avisa', async ({ page }) => {
   const api = await abrir(page, [ws, backOff]);
   await page.goto(EXERCICIO);
-  await page.getByRole('textbox', { name: 'Carga de trabalho do dia', exact: true }).fill('40');
+  await page.getByRole('textbox', { name: 'Carga de trabalho do dia, em quilos', exact: true }).fill('40');
   await expect(page.getByText(/^Sugestão: 32 kg/)).toBeVisible();
   // O aviso fica na própria WS (a série a fazer), com ou sem carga digitada, até ela ser marcada.
   await expect(page.getByText(AVISO_DO_MARCAR, { exact: true })).toHaveCount(1);
@@ -140,7 +140,7 @@ test('C26: a carga do período anterior aparece no período novo (sem registro n
   await expect(page.getByText('Última vez: 60 kg × 7 em 28/09/2026.', { exact: true })).toBeVisible();
   await expect(page.getByText('Sugestão: 60 kg · Última vez: 60 kg × 7', { exact: true })).toBeVisible();
   await expect(peso(page, 1)).toHaveValue('');
-  await expect(page.getByRole('textbox', { name: 'Carga de trabalho do dia', exact: true })).toHaveValue('');
+  await expect(page.getByRole('textbox', { name: 'Carga de trabalho do dia, em quilos', exact: true })).toHaveValue('');
 
   await page.goto('/aluno/sessao/sx/sxe2?data=2026-10-19');
   await expect(page.getByText('Sem registro anterior.', { exact: true })).toBeVisible();

@@ -8,7 +8,7 @@ import { ALUNO, json, sessao, simularApi } from './api-falsa';
  * Unidade da carga (Libras, fase 1, `docs/planos/libras.md`): com a chave da plataforma ligada, o aluno escolhe kg ou lb em
  * Preferências; a carga continua guardada e enviada SEMPRE em kg, a libra só aparece e é digitada na tela (campo, dica,
  * painel "Fez com X?", histórico). Chave desligada: a escolha nem aparece e o app segue em kg, mesmo com `lb` salvo de antes.
- * Números fictícios; relógio em segunda, 19/10/2026, 12:00. 60 kg = 132,3 lb; 100 lb = 45,36 kg.
+ * Números fictícios; relógio em segunda, 19/10/2026, 12:00. 60 kg = 132,3 lb; 100 lb = 45,35 kg (o múltiplo de 0,05 kg que volta a 100 lb).
  */
 const EXERCICIO = '/aluno/sessao/sx/sxe1?data=2026-10-19';
 
@@ -81,7 +81,7 @@ const abrirPreferencias = async (page: Page) => {
 const semEstourar = async (page: Page) => expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
 for (const largura of [390, 1280]) {
-  test(`aluno em libras: digita 100 lb, a API recebe 45,36 kg, e volta a kg sem derrubar nada (${largura} px)`, async ({ page }, testInfo) => {
+  test(`aluno em libras: digita 100 lb, a API recebe 45,35 kg, e volta a kg sem derrubar nada (${largura} px)`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const api = await abrir(page, { chave: true });
 
@@ -100,12 +100,12 @@ for (const largura of [390, 1280]) {
     await semEstourar(page);
     await page.screenshot({ path: testInfo.outputPath(`lb-${largura}.png`), fullPage: true });
 
-    // Digita 100 lb e marca: o servidor recebe 45,36 kg (nunca 100).
+    // Digita 100 lb e marca: o servidor recebe 45,35 kg (nunca 100).
     await pesoEm(page, 2, 'libras').fill('100');
     await marcar(page, 2).click();
     await expect(marcar(page, 2)).toBeChecked();
     await expect(pesoEm(page, 2, 'libras')).toHaveValue('100');
-    await expect.poll(() => api.enviados.filter((r) => r.serieUid === 'ws1').at(-1)).toMatchObject({ carga: 45.36, concluida: true });
+    await expect.poll(() => api.enviados.filter((r) => r.serieUid === 'ws1').at(-1)).toMatchObject({ carga: 45.35, concluida: true });
 
     // Painel "Fez com X?" na unidade do aluno; "Sim" grava a sugestão em kg (60), não 132,3.
     await marcar(page, 3).click();
@@ -114,8 +114,11 @@ for (const largura of [390, 1280]) {
     await expect(marcar(page, 3)).toBeChecked();
     await expect.poll(() => api.enviados.filter((r) => r.serieUid === 'ws2').at(-1)).toMatchObject({ carga: 60, concluida: true });
     await expect(pesoEm(page, 3, 'libras')).toHaveValue('132,3');
+    // Daqui em diante nada novo pode ser enviado: recarregar, ver o histórico e trocar de unidade não regravam carga.
+    const enviadosAntes = api.enviados.length;
+    expect(enviadosAntes).toBeGreaterThan(0);
 
-    // Recarregar: o que está guardado em kg volta em libras sem derivar (45,36 kg -> 100 lb).
+    // Recarregar: o que está guardado em kg volta em libras sem derivar (45,35 kg -> 100 lb).
     await page.reload();
     await expect(pesoEm(page, 2, 'libras')).toHaveValue('100');
 
@@ -128,13 +131,13 @@ for (const largura of [390, 1280]) {
     await expect(page.getByText(/WS 100 lb × sem repetições/)).toBeVisible();
     await semEstourar(page);
 
-    // Voltar a kg: a mesma série mostra 45,36 kg e nada foi reenviado em outra unidade.
+    // Voltar a kg: a mesma série mostra 45,35 kg e nada foi reenviado em outra unidade.
     await abrirPreferencias(page);
     await opcao(page, 'Quilos (kg)').click();
     await page.goto(EXERCICIO);
-    await expect(pesoEm(page, 2, 'quilos')).toHaveValue('45,36');
+    await expect(pesoEm(page, 2, 'quilos')).toHaveValue('45,35');
     await expect(pesoEm(page, 3, 'quilos')).toHaveValue('60');
-    expect(api.enviados.every((r) => r.carga === null || r.carga <= 60)).toBe(true);
+    expect(api.enviados).toHaveLength(enviadosAntes);
     expect(api.errosDaPagina).toEqual([]);
   });
 }
@@ -153,5 +156,15 @@ test('chave desligada: sem a escolha e tudo em kg, mesmo com lb salvo de antes',
   await pesoEm(page, 2, 'quilos').fill('62,5');
   await marcar(page, 2).click();
   await expect.poll(() => api.enviados.filter((r) => r.serieUid === 'ws1').at(-1)).toMatchObject({ carga: 62.5, concluida: true });
+  expect(api.errosDaPagina).toEqual([]);
+});
+
+test('controle da chave: o mesmo lb salvo, com a chave ligada, mostra o campo em libras', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  const api = await abrir(page, { chave: true, preferida: 'lb' });
+  await page.goto(EXERCICIO);
+  await expect(pesoEm(page, 2, 'libras')).toHaveValue('');
+  await expect(page.getByText('Sugestão: 132,3 lb · Última vez: 132,3 lb × 7', { exact: true })).toHaveCount(3);
+  await expect(page.getByText(/ kg/)).toHaveCount(0);
   expect(api.errosDaPagina).toEqual([]);
 });

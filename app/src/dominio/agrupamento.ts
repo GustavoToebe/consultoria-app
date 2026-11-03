@@ -380,7 +380,7 @@ export function leituraDaTecnica(serie: Serie, config?: Configuracao | null, con
  * ficam só com o nome da técnica, porque os blocos e a pausa vão numa linha própria logo abaixo. `semObservacao` (PDF): a
  * observação da série (`alvoExtra`) sai da linha, porque ganha a dela ("Observação desta série: …").
  */
-export function descreverGrupo(grupo: GrupoDeSeries, config?: Configuracao | null, series: readonly Serie[] = [], opcoes: { etapasAParte?: boolean; semObservacao?: boolean } = {}): string {
+export function descreverGrupo(grupo: GrupoDeSeries, config?: Configuracao | null, series: readonly Serie[] = [], opcoes: { etapasAParte?: boolean; semObservacao?: boolean; unidade?: UnidadeDeCarga } = {}): string {
   const primeira = grupo.series[0];
   if (primeira.cardio) return `${grupo.series.length}x ${textoCardio(primeira.cardio)}`;
   const ws = tipoTrabalho(config);
@@ -399,7 +399,7 @@ export function descreverGrupo(grupo: GrupoDeSeries, config?: Configuracao | nul
     const esforco = textoEsforcoDoGrupo(grupo);
     if (esforco) partes.push(`· ${esforco}`);
   } else {
-    const texto = [textoCarga(primeira.carga, ws), textoEsforcoDoGrupo(grupo)].filter(Boolean).join(' · ');
+    const texto = [textoCarga(primeira.carga, ws, null, opcoes.unidade), textoEsforcoDoGrupo(grupo)].filter(Boolean).join(' · ');
     if (texto) partes.push(`· ${texto}`);
   }
   if (!opcoes.semObservacao && primeira.alvoExtra?.trim()) partes.push(`· ${primeira.alvoExtra.trim()}`);

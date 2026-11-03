@@ -174,6 +174,7 @@ export function calcularCargasDoExercicio(
           break;
       }
     }
+    // `meta` fica em kg: a tela do aluno monta o texto da meta em `aluno/serieDoAluno` (com a unidade dele) e não lê este campo.
     return { serie, sugestao, referencia, meta: metaDaSerie(serie, config.tipoTrabalho, semCarga, config.metodologia, series) };
   });
 }
