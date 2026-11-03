@@ -93,8 +93,14 @@ function EditorUsuario({membro,perfis,aoFechar,recarregar}:{membro:MembroEquipe|
   const euMesmo=!!membro&&!membro.convitePendente&&membro.id===usuario?.id;
   // Reativar membro inativo conta no limite do plano: fora do plano de equipe fica desabilitado.
   const reativacaoBloqueada=!!membro&&!membro.convitePendente&&!membro.ativo&&!temFuncionalidade('EQUIPE');
-  const salvar=async()=>{setConfirmar(false);setOcupado(true);setErro(null);setErroDoLimite(null);let membroSalvo=false;try{if(novo)setConvite(await api.convidarMembro({nome:nome.trim(),email:email.trim(),perfilId}));else{
-    await api.alterarMembro(membro.id,{nome:nome.trim(),perfilId:euMesmo?membro.perfilId:perfilId,ativo:euMesmo?membro.ativo:ativo});membroSalvo=true;
+  // Depois de uma falha parcial (membro salvo, limite não), a nova tentativa parte do que a API devolveu: não repete o
+  // PUT do membro se nada dele mudou desde então, nem pede de novo "Desativar membro?" (D25).
+  const [salvo,setSalvo]=useState<MembroEquipe|null>(null);
+  const atual=salvo??membro;
+  const corpoDoMembro=atual&&!novo?{nome:nome.trim(),perfilId:euMesmo?atual.perfilId:perfilId,ativo:euMesmo?atual.ativo:ativo}:null;
+  const membroMudou=!salvo||!corpoDoMembro||corpoDoMembro.nome!==salvo.nome||corpoDoMembro.perfilId!==salvo.perfilId||corpoDoMembro.ativo!==salvo.ativo;
+  const salvar=async()=>{setConfirmar(false);setOcupado(true);setErro(null);setErroDoLimite(null);let membroSalvo=!membroMudou;try{if(novo||!membro||!corpoDoMembro)setConvite(await api.convidarMembro({nome:nome.trim(),email:email.trim(),perfilId}));else{
+    if(membroMudou){setSalvo(await api.alterarMembro(membro.id,corpoDoMembro));membroSalvo=true;}
     // Rota própria do limite, só quando mudou (cada gravação é auditada). Vai depois: o 422 dela não desfaz o resto.
     if(mostraLimite&&leituraDoLimite.ok&&leituraDoLimite.limite!==limiteGravado)await api.definirLimiteDeAlunos(membro.id,leituraDoLimite.limite);
     avisar('Membro atualizado.','sucesso');aoFechar();}recarregar();}
@@ -103,7 +109,7 @@ function EditorUsuario({membro,perfis,aoFechar,recarregar}:{membro:MembroEquipe|
   const copiar=async(texto:string)=>{try{await Clipboard.setStringAsync(texto);avisar('Copiado.','sucesso');}catch{avisar('Selecione o texto e copie à mão.','neutro');}};
   const compartilhar=async()=>{if(!convite)return;try{if(Platform.OS==='web'){if(typeof navigator.share==='function')await navigator.share({title:'Convite para a equipe',url:convite.link});else await copiar(convite.link);}else await Share.share({message:convite.link});}catch{avisar('Não foi possível compartilhar. Use Copiar link do convite.','neutro');}};
   return <>
-    <Folha visivel titulo={convite?'Convite criado':novo?'Convidar membro':'Editar membro'} aoFechar={aoFechar} rodape={convite?<Botao rotulo="Concluir" aoTocar={aoFechar}/>:<><Botao rotulo="Cancelar" tipo="secundario" aoTocar={aoFechar}/><Botao rotulo={novo?'Enviar convite':'Salvar membro'} carregando={ocupado} desabilitado={!nome.trim()||(!perfilId&&!euMesmo)||(novo&&!email.trim())||limiteInvalido} motivo={limiteInvalido?'Corrija o limite de alunos.':undefined} aoTocar={()=>{if(!novo&&membro?.ativo&&!ativo)setConfirmar(true);else void salvar();}}/></>}>
+    <Folha visivel titulo={convite?'Convite criado':novo?'Convidar membro':'Editar membro'} aoFechar={aoFechar} rodape={convite?<Botao rotulo="Concluir" aoTocar={aoFechar}/>:<><Botao rotulo="Cancelar" tipo="secundario" aoTocar={aoFechar}/><Botao rotulo={novo?'Enviar convite':'Salvar membro'} carregando={ocupado} desabilitado={!nome.trim()||(!perfilId&&!euMesmo)||(novo&&!email.trim())||limiteInvalido} motivo={limiteInvalido?'Corrija o limite de alunos.':undefined} aoTocar={()=>{if(!novo&&atual?.ativo&&!ativo)setConfirmar(true);else void salvar();}}/></>}>
       {convite?<>
         {convite.emailEnviado?<Texto>O e-mail do convite já foi enviado para {email.trim()}. Use o link só se precisar mandar por outro meio.</Texto>:<Texto>O e-mail do convite não foi enviado agora. Copie o link e mande ao membro.</Texto>}
         <Texto>Válido até {dataHoraParaTela(convite.expiraEm)}. O link só pode ser usado uma vez.</Texto>

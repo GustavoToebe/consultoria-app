@@ -58,12 +58,12 @@ export default function NumerosDoTreinador() {
       </Cartao>
     </> : null}
     {equipe ? <Cartao titulo="Equipe" descricao="Alunos ativos de cada membro hoje, com o limite ao lado. Só contagens.">
-      {equipe.length ? <Tabela rotulo="Alunos e atualizações de cada membro da equipe" larguraMinima={640} linhas={equipe} chave={l => l.chave} colunas={[
+      <Tabela rotulo="Alunos e atualizações de cada membro da equipe" larguraMinima={640} linhas={equipe} chave={l => l.chave} colunas={[
         { chave: 'nome', titulo: 'Membro', principal: true, flex: 1.6, render: l => <Texto>{l.nome}</Texto> },
         { chave: 'alunos', titulo: 'Alunos ativos / limite', flex: 1.4, alinhar: 'direita', render: l => <AlunosELimite linha={l} /> },
         { chave: 'atrasadas', titulo: 'Atrasadas', alinhar: 'direita', render: l => <Texto numerico>{contagemParaTela(l.atrasadas)}</Texto> },
         { chave: 'revisar', titulo: 'Para revisar', alinhar: 'direita', render: l => <Texto numerico>{contagemParaTela(l.paraRevisar)}</Texto> },
-      ]} /> : <Vazio titulo="Ninguém na equipe" texto="Quando houver membros ativos, cada um aparece aqui." />}
+      ]} />
     </Cartao> : null}
     {(meses && meses.length > 0) || equipe ? <Cartao titulo="Como contamos">
       {meses && meses.length > 0 ? <Texto variante="suave">{REGRA_ALUNOS_ATIVOS}</Texto> : null}

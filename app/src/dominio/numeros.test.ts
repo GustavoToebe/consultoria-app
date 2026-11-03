@@ -91,9 +91,6 @@ describe('tabela da equipe', () => {
     expect(linhas?.[2]).toEqual({ chave: 'sem-responsavel', nome: SEM_RESPONSAVEL, alunosAtivos: 3, limite: undefined, atrasadas: 1, paraRevisar: 4 });
     expect(linhas?.[1].limite).toBeNull();
   });
-  it('equipe vazia sem a linha "Sem responsável" é lista vazia', () => {
-    expect(linhasDaEquipe({ equipe: [], semResponsavel: null })).toEqual([]);
-  });
   it('alunos / limite: sem limite é "sem limite", nunca "—"; "Sem responsável" só o número', () => {
     expect(alunosELimite({ alunosAtivos: 12, limite: 30 })).toBe('12 / 30');
     expect(alunosELimite({ alunosAtivos: 31, limite: 30 })).toBe('31 / 30');

@@ -46,6 +46,10 @@ async function preparar(page: Page, largura: number, tema: 'CLARO' | 'ESCURO' = 
   await page.addInitScript(([id, t]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: t })), [TREINADOR.id, tema]);
 }
 
+/** Os PUT em ordem: `membro` (`/usuarios/{id}`) ou `limite` (`/usuarios/{id}/limite-de-alunos`). */
+const puts = (pedidos: { metodo: string; caminho: string }[]) =>
+  pedidos.filter((p) => p.metodo === 'PUT' && p.caminho.startsWith('/usuarios/')).map((p) => (p.caminho.endsWith('/limite-de-alunos') ? 'limite' : 'membro'));
+
 const limitesPedidos = (pedidos: { metodo: string; caminho: string; corpo: unknown }[]) =>
   pedidos.filter((p) => p.metodo === 'PUT' && p.caminho.endsWith('/limite-de-alunos'));
 
@@ -76,9 +80,9 @@ for (const largura of [390, 1280]) {
       await expect(folha).toHaveCount(0);
       expect(limitesPedidos(pedidos)).toEqual([]);
 
-      // Fora da faixa: erro no campo, Salvar desabilitado com o motivo, nada enviado.
+      // Fora da faixa e não inteiro: o erro aparece no campo, nada é cortado para um número válido, Salvar desabilitado
+      // com o motivo e nada enviado.
       await page.getByRole('button', { name: 'Editar Bia Exemplo' }).click();
-      // Fora da faixa e não inteiro: o erro aparece e nada é cortado para um número válido.
       await campo.fill('1000');
       await expect(folha.getByText(ERRO_DO_LIMITE)).toBeVisible();
       await expect(campo).toHaveValue('1000');
@@ -99,25 +103,61 @@ for (const largura of [390, 1280]) {
       await expect(folha).toHaveCount(0);
       await expect(page.getByText('Último acesso: — · Sem limite de alunos')).toBeVisible();
       expect(limitesPedidos(pedidos).map((p) => p.corpo)).toEqual([{ limite: 20 }, { limite: null }]);
+      // Ordem: o membro é gravado antes do limite, em cada salvar.
+      expect(puts(pedidos)).toEqual(['membro', 'membro', 'limite', 'membro', 'limite']);
       expect(naoTratadas).toEqual([]);
       expect(errosDaPagina).toEqual([]);
     });
 
-    test('Administrador: 422 do limite fica no campo e avisa que o resto foi salvo', async ({ page }) => {
+    test('Administrador: falha parcial e nova tentativa sem repetir o membro nem a confirmação', async ({ page }) => {
       await preparar(page, largura);
-      const { naoTratadas, errosDaPagina } = await simularApi(page, {
+      let tentativasDoLimite = 0;
+      const { pedidos, naoTratadas, errosDaPagina } = await simularApi(page, {
         ...(await sessao(page, TREINADOR, ADMIN)), ...BASE,
         'GET /usuarios': { corpo: [BIA] },
-        'PUT /usuarios/{id}': { corpo: BIA },
-        'PUT /usuarios/{id}/limite-de-alunos': erroApi(422, 'Confira os campos.', 'LIMITE_DE_ALUNOS_INVALIDO', [{ field: 'limite', message: 'Limite recusado pela API.' }]),
+        'PUT /usuarios/{id}': (p, route) => json(route, { ...BIA, ...(p.corpo as object) }),
+        // A primeira gravação do limite é recusada (422 no campo); a segunda passa.
+        'PUT /usuarios/{id}/limite-de-alunos': (_p, route) => (++tentativasDoLimite === 1
+          ? json(route, erroApi(422, 'Confira os campos.', 'LIMITE_DE_ALUNOS_INVALIDO', [{ field: 'limite', message: 'Limite recusado pela API.' }]).corpo, 422)
+          : route.fulfill({ status: 204 })),
+      });
+      await page.goto('/treinador/equipe');
+      await page.getByRole('button', { name: 'Editar Bia Exemplo' }).click();
+      const folha = page.getByRole('dialog', { name: 'Editar membro' });
+      await folha.getByRole('checkbox', { name: 'Membro ativo' }).click();
+      await folha.getByRole('textbox', { name: 'Limite de alunos (opcional)' }).fill('7');
+      await folha.getByRole('button', { name: 'Salvar membro' }).click();
+      await page.getByRole('button', { name: 'Desativar membro', exact: true }).click();
+      await expect(folha.getByText('Limite recusado pela API.')).toBeVisible();
+      await expect(page.getByText('Nome, perfil e situação foram salvos; o limite de alunos não.')).toBeVisible();
+      expect(puts(pedidos)).toEqual(['membro', 'limite']);
+
+      // Nova tentativa: só o limite vai, e o "Desativar membro?" não aparece de novo (o membro já está inativo).
+      await folha.getByRole('textbox', { name: 'Limite de alunos (opcional)' }).fill('8');
+      await folha.getByRole('button', { name: 'Salvar membro' }).click();
+      await expect(folha).toHaveCount(0);
+      await expect(page.getByText('Desativar membro?')).toHaveCount(0);
+      expect(puts(pedidos)).toEqual(['membro', 'limite', 'limite']);
+      expect(limitesPedidos(pedidos).map((p) => p.corpo)).toEqual([{ limite: 7 }, { limite: 8 }]);
+      expect(naoTratadas).toEqual([]);
+      expect(errosDaPagina).toEqual([]);
+    });
+
+    test('Administrador: se o membro não é salvo, o limite não é chamado', async ({ page }) => {
+      await preparar(page, largura);
+      const { pedidos, naoTratadas, errosDaPagina } = await simularApi(page, {
+        ...(await sessao(page, TREINADOR, ADMIN)), ...BASE,
+        'GET /usuarios': { corpo: [BIA] },
+        'PUT /usuarios/{id}': erroApi(403, 'Você não pode alterar este membro.', 'PERMISSAO_NEGADA'),
+        'PUT /usuarios/{id}/limite-de-alunos': { status: 204 },
       });
       await page.goto('/treinador/equipe');
       await page.getByRole('button', { name: 'Editar Bia Exemplo' }).click();
       const folha = page.getByRole('dialog', { name: 'Editar membro' });
       await folha.getByRole('textbox', { name: 'Limite de alunos (opcional)' }).fill('7');
       await folha.getByRole('button', { name: 'Salvar membro' }).click();
-      await expect(folha.getByText('Limite recusado pela API.')).toBeVisible();
-      await expect(page.getByText('Nome, perfil e situação foram salvos; o limite de alunos não.')).toBeVisible();
+      await expect(folha.getByText('Você não pode alterar este membro.')).toBeVisible();
+      expect(puts(pedidos)).toEqual(['membro']);
       expect(naoTratadas).toEqual([]);
       expect(errosDaPagina).toEqual([]);
     });
