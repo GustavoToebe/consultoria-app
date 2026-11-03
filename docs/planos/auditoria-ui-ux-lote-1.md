@@ -1,6 +1,6 @@
 # Auditoria de UI/UX, lote 1
 
-Situação: Em andamento · Onde: branch `auditoria-ui-ux-lote-1` (PR A); f a i num PR B, depois · Atualizado: 03/11/2026
+Situação: Em andamento · Onde: PR A mesclado (#54, squash `3d65e04b`); PR B na branch `auditoria-ui-ux-lote-1-b` · Atualizado: 03/11/2026
 
 ## Objetivo
 Aplicar o lote 1 da auditoria de UI/UX de 03/11 (relatório em [auditoria-ui-ux-2026-11-03.md](auditoria-ui-ux-2026-11-03.md)).
@@ -15,6 +15,8 @@ O escopo foi definido pelo Gustavo em 03/11 e só mexe no app; nada muda na API.
 | D4 | Arquivos compartilhados com o item 3 (`supervisao-da-equipe`) | Este lote é dono do `FormAluno` e do `AcoesEmLote`. O item 3 trata o 409 novo por `dominio/erroDoPlano.ts`/`ui/useAvisoDoPlano` e não mexe nesses dois. | Claude |
 | D5 | Metodologias | Continuam dentro da aba Treino do Planejamento, sem aba própria. | Gustavo, 03/11 |
 | D6 | "Quero ser aluno" | Continua numa página só. Reavaliar depois do teste com 5 alunos, olhando os Indicadores de Interessados. | Gustavo, 03/11 |
+| D7 | Saídas de dentro da ficha em edição (revisão do PR A, 1.1) | Entram no item b (C7), no PR B: todo botão que navega de dentro da ficha com o formulário aberto passa pela guarda (`useSaidaGuardada().confirmar`): Revisar atualização (resumo e pastas), editar plano, Publicar tudo, recordes e qualquer outro achado. e2e: editar o nome na ficha, tocar em "Revisar" e ver o "Sair sem salvar?". | Gustavo, 03/11 |
+| D8 | "Cancelar" da edição na ficha (revisão do PR A, 1.2) | Pergunta só se algum campo mudou, igual ao aluno novo; sem alteração, cancela direto. No PR B. | Gustavo, 03/11 |
 
 ### Escopo em código (passo 4 da mensagem)
 - **a.** "Concluir treino" com a chave do retorno desligada vira "Voltar à lista do dia", botão secundário (`[exercicio].tsx`).
@@ -67,7 +69,8 @@ O escopo foi definido pelo Gustavo em 03/11 e só mexe no app; nada muda na API.
 ## Passos
 - [x] 1. Guardar o relatório em `docs/planos/auditoria-ui-ux-2026-11-03.md`, com a nota do commit auditado e a marca nos dois achados já resolvidos — commit: `e572dbe8`
 - [x] 2. PR A: a a e e j a l, com e2e em 390 e 1280 px (inclui o `exercicio-aluno`) — commit: `ebd3ac9d`
-- [ ] 3. PR B: f, g, h e i, branch própria saída da `main`, depois do PR A — commit: —
+- [x] 2b. PR A mesclado na `main` (#54, squash `3d65e04b`)
+- [ ] 3. PR B: f, g, h e i, mais D7 e D8, na branch `auditoria-ui-ux-lote-1-b` saída da `main` em `3d65e04b` — commit: —
 
 ## Fora do escopo
 - Lote 2 (só no plano, depois):
@@ -80,4 +83,4 @@ O escopo foi definido pelo Gustavo em 03/11 e só mexe no app; nada muda na API.
 ## O que ficou para trás
 - (cada sobra também vai para "Pendências soltas" no README)
 - PR A (`ebd3ac9d`): o `IconeBotao` com moldura ficou 4 px maior por fora (alvo de 44) em todas as telas; conferido só na web (e2e), falta olhar no Android e no iOS, e o `IconeBotao` com moldura no tema escuro não teve captura.
-- Opcionais da revisão independente do PR A (1.1 a 1.5): em "Pendências soltas" do README; nenhum bloqueava.
+- Opcionais da revisão independente do PR A: 1.1 e 1.2 entram no PR B (D7, D8); 1.3 a 1.5 ficam em "Pendências soltas" do README.
