@@ -1,6 +1,6 @@
 # Visual da reunião de 30/10: cor por tipo de série, dieta, histórico e receitas (prévia primeiro)
 
-Situação: Prévia aprovada (03/11); tokens prontos (passo 3); falta a execução, a dieta, o histórico e as receitas · Onde: prévia HTML em `docs/prototipos/cores-por-tipo-de-serie.html`; código no app · Atualizado: 03/11/2026 · Registro: reunião de 30/10, C35, C50, C74, C45, C16 · Frente G da leva 2
+Situação: Concluída em 03/11/2026 (PR #49, `3aed50c`, em produção às 08h22) · Onde: `main` · Atualizado: 03/11/2026 · Registro: reunião de 30/10, C35, C50, C74, C45, C16 · Frente G da leva 2
 
 ## Objetivo
 O treinador pediu cor em vários momentos (tipo de série na execução do aluno, "uma bagunça", 58:00; Cluster como bloco
