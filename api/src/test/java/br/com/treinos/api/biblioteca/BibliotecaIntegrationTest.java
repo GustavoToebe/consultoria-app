@@ -169,6 +169,48 @@ class BibliotecaIntegrationTest extends AbstractIntegrationTest {
                 "conteudo", Map.of("sessoes", "isto não é lista")), 400);
     }
 
+    @Test
+    void paginaDeExerciciosIgnoraAcentoEOutraConsultoria() throws Exception {
+        for (int i = 1; i <= 5; i++) {
+            api.post("/exercicios", treinador, comGrupo("Remada " + i, i <= 3 ? "Costas" : "Ombro"), 200);
+        }
+        api.post("/exercicios", treinador, comGrupo("Elevação lateral", "Ombro"), 200);
+        api.post("/exercicios", treinador, exercicio("Sem grupo", null), 200);
+        JsonNode outra = api.novoTreinador();
+        api.post("/exercicios", outra, comGrupo("Remada da outra consultoria", "Costas"), 200);
+        api.post("/exercicios", outra, comGrupo("Grupo alheio", "Lombar"), 200);
+
+        JsonNode primeira = api.get("/exercicios/pagina?tamanho=3", treinador, 200);
+        assertThat(primeira.get("total").asInt()).isEqualTo(7);
+        assertThat(primeira.get("itens")).hasSize(3);
+        // Os grupos são os da própria consultoria, sem o grupo da outra nem o filtro de grupo.
+        assertThat(primeira.get("grupos").valueStream().map(JsonNode::asString)).containsExactly("Costas", "Ombro");
+        JsonNode ultima = api.get("/exercicios/pagina?tamanho=3&pagina=2", treinador, 200);
+        assertThat(ultima.get("itens")).hasSize(1);
+        assertThat(api.get("/exercicios/pagina?tamanho=3&pagina=9", treinador, 200).get("itens")).isEmpty();
+
+        // Sem acento, em nome e grupo, e só da consultoria (a "Remada da outra consultoria" não entra no total).
+        assertThat(api.get("/exercicios/pagina?busca=ELEVACAO", treinador, 200).get("total").asInt()).isEqualTo(1);
+        assertThat(api.get("/exercicios/pagina?busca=remada", treinador, 200).get("total").asInt()).isEqualTo(5);
+        assertThat(api.get("/exercicios/pagina?busca=costas", treinador, 200).get("total").asInt()).isEqualTo(3);
+        assertThat(api.get("/exercicios/pagina?busca=%25", treinador, 200).get("total").asInt()).isZero();
+
+        JsonNode ombro = api.get("/exercicios/pagina?grupo=Ombro", treinador, 200);
+        assertThat(ombro.get("total").asInt()).isEqualTo(3);
+        assertThat(ombro.get("grupos")).hasSize(2);
+        assertThat(api.get("/exercicios/pagina?grupo=Ombro&grupo=Costas&busca=remada", treinador, 200).get("total").asInt())
+                .isEqualTo(5);
+        assertThat(api.get("/exercicios/pagina?grupo=Lombar", treinador, 200).get("total").asInt()).isZero();
+
+        mvc.perform(get("/exercicios/pagina")).andExpect(status().isUnauthorized());
+    }
+
+    private static Map<String, Object> comGrupo(String nome, String grupo) {
+        Map<String, Object> m = exercicio(nome, null);
+        m.put("grupoMuscular", grupo);
+        return m;
+    }
+
     private static Map<String, Object> exercicio(String nome, String video) {
         Map<String, Object> m = new java.util.LinkedHashMap<>();
         m.put("nome", nome);

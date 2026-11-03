@@ -7,6 +7,7 @@ import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.CatalogoExercicioRespons
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.CatalogoPagina;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ExercicioRequest;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ExercicioResponse;
+import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ExerciciosPagina;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.FatoresDoAlimento;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ImportacaoResultado;
 import br.com.treinos.api.web.Buscas;
@@ -23,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.text.Collator;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -42,6 +44,7 @@ public class BibliotecaService {
 
     private static final UUID NENHUM = new UUID(0L, 0L);
     private static final int LIMITE_PADRAO = 50;
+    private static final int TAMANHO_DA_PAGINA = 30;
     private static final int LIMITE_MAXIMO = 200;
     /** Quantos grupos o filtro do catálogo aceita de uma vez (o catálogo tem bem menos). */
     private static final int LIMITE_GRUPOS = 50;
@@ -76,6 +79,35 @@ public class BibliotecaService {
     @Transactional(readOnly = true)
     public List<ExercicioResponse> listarExercicios(String busca) {
         return responder(exercicios.buscarAtivos(Buscas.padrao(busca)));
+    }
+
+    /**
+     * Uma página de exercícios ativos da consultoria. A busca ignora acento e olha nome e grupo muscular, como o
+     * filtro de antes; o filtro de grupo é por igualdade (OU entre os escolhidos); {@code grupos} traz todos os da
+     * consultoria, sem aplicar o próprio filtro, para o seletor não encolher.
+     * shortcut: filtra em memória sobre os ativos da consultoria (centenas), sem coluna de busca; indexar se passar de milhares.
+     */
+    @Transactional(readOnly = true)
+    public ExerciciosPagina paginaDeExercicios(String busca, List<String> grupos, Integer pagina, Integer tamanho) {
+        Set<String> filtro = new HashSet<>(gruposDoFiltro(grupos));
+        String termo = Buscas.semAcento(busca);
+        if (termo.length() > 100) {
+            termo = termo.substring(0, 100);
+        }
+        List<Exercicio> ativos = exercicios.todosAtivos();
+        Collator ordem = Collator.getInstance(Locale.forLanguageTag("pt-BR"));
+        List<String> todosOsGrupos = ativos.stream().map(e -> Buscas.opcional(e.getGrupoMuscular()))
+                .filter(Objects::nonNull).distinct().sorted(ordem).toList();
+        String procurado = termo;
+        List<Exercicio> casaram = ativos.stream()
+                .filter(e -> filtro.isEmpty() || filtro.contains(Objects.toString(Buscas.opcional(e.getGrupoMuscular()), "")))
+                .filter(e -> procurado.isEmpty()
+                        || Buscas.semAcento(e.getNome() + " " + Objects.toString(e.getGrupoMuscular(), "")).contains(procurado))
+                .toList();
+        int tam = tamanho == null ? TAMANHO_DA_PAGINA : Math.max(1, Math.min(tamanho, LIMITE_MAXIMO));
+        long de = Math.min((long) Math.max(0, pagina == null ? 0 : pagina) * tam, casaram.size());
+        List<Exercicio> da = casaram.subList((int) de, (int) Math.min(de + tam, casaram.size()));
+        return new ExerciciosPagina(responder(da), casaram.size(), todosOsGrupos);
     }
 
     /**
