@@ -1,6 +1,6 @@
 # Cor na variação do peso, com a direção decidida pelo treinador
 
-Situação: Em andamento · Onde: branch `cor-da-variacao-do-peso` · Atualizado: 03/11/2026 · Registro: reunião de 30/10, C47 · Frente F, leva 2
+Situação: Concluída em 02/11/2026 (PR #43, `9a7db51`, em produção às 23h52) · Onde: `main` · Atualizado: 03/11/2026 · Registro: reunião de 30/10, C47 · Frente F, leva 2
 
 ## Objetivo
 A variação do peso aparece em verde quando vai na direção da meta do aluno e em vermelho quando vai contra, e a direção
