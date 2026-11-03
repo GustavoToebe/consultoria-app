@@ -186,7 +186,7 @@ plataforma:
       habilitado: ${TREINOS_EMAIL_HABILITADO:false}
       provedor: ${TREINOS_EMAIL_PROVEDOR:log}
       remetente: ${TREINOS_EMAIL_REMETENTE:}
-      nome-app: ${TREINOS_EMAIL_NOME_APP:Consultoria}
+      nome-app: ${TREINOS_EMAIL_NOME_APP:Overtraining}
       resend:
         api-key: ${TREINOS_EMAIL_RESEND_API_KEY:}
     # "Esqueci a senha": o link leva o token no fragmento (#token=...) para a tela /redefinir-senha do app.

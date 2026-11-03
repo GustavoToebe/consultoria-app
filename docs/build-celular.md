@@ -145,9 +145,8 @@ Qualquer erro: `npx eas-cli build:list` e o log da build no site da Expo; erro d
 1. **Contas**: Google Play Console (Android) e Apple Developer Program (iOS). As duas são pagas e a Apple leva alguns dias
    para aprovar a conta.
 2. **Identificador e nome: decidir antes da primeira build de loja.** Hoje o app usa `br.com.treinos.app` (Android e iOS).
-   Depois de publicado, o identificador **não muda mais**. Proposta (a decisão é do Gustavo): nome na loja
-   **"Treinos Servirea"** (sob o ícone, `expo.name`, pode ficar só "Treinos") e identificador **`br.com.servirea.treinos`**
-   nas duas lojas, sob o domínio dele. Para trocar, edite `expo.ios.bundleIdentifier` e `expo.android.package` no
+   Depois de publicado, o identificador **não muda mais**. O nome do produto é **Overtraining** (decisão do Gustavo
+   de 03/11; `expo.name`, sob o ícone). O identificador ainda está em aberto (a decisão é do Gustavo). Para trocar, edite `expo.ios.bundleIdentifier` e `expo.android.package` no
    `app/app.json` **antes** da primeira build de loja (o `preview` pode seguir com o atual). O esquema `treinos` não precisa mudar.
 3. **Perfil `production`**:
    ```bash
@@ -209,8 +208,8 @@ senha, código de dois fatores, decisões); nada disso vai para o repositório n
 2. **Decidir o identificador** (item 2 de "O que muda para a loja"). No iPhone a decisão vem **antes do primeiro build
    para o TestFlight**: o app criado no App Store Connect fica preso ao identificador para sempre. Trocou, troque em
    `expo.ios.bundleIdentifier` (e `expo.android.package`, para ficarem iguais) e só então faça a build.
-3. **Nome na loja**: precisa ser único na App Store inteira ("Treinos" sozinho dificilmente está livre). O nome sob o
-   ícone (`expo.name`) pode continuar "Treinos".
+3. **Nome na loja**: precisa ser único na App Store inteira. Se "Overtraining" sozinho estiver ocupado, use um nome mais
+   longo na loja (por exemplo "Overtraining: treino e dieta"); o nome sob o ícone (`expo.name`) continua "Overtraining".
 
 ### Primeira build e envio para o TestFlight
 
@@ -244,7 +243,7 @@ npx eas-cli submit --platform ios --latest
 | O que a revisão beta pede | — | descrição do que testar, e-mail de contato e uma **conta de demonstração** (e-mail e senha de um aluno e de um treinador fictícios) |
 | Para quê | Gustavo, Saraiva e quem mais estiver na equipe | alunos do piloto |
 
-- O testador instala o app **TestFlight** da App Store, abre o convite (e-mail ou link) e instala o Treinos por ele.
+- O testador instala o app **TestFlight** da App Store, abre o convite (e-mail ou link) e instala o Overtraining por ele.
   Atualização nova chega pelo próprio TestFlight.
 - Cada build do TestFlight vale **90 dias**; depois disso o app para de abrir até chegar uma build nova.
 - Erro no app: o testador tira um print e usa "Enviar feedback" no TestFlight; as falhas (crashes) aparecem em App Store

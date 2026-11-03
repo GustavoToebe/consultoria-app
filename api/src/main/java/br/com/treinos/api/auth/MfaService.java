@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicReference;
 @Service
 public class MfaService {
 
-    private static final String EMISSOR = "Treinos";
+    private static final String EMISSOR = "Overtraining";
 
     private final UsuarioRepository usuarios;
     private final PasswordEncoder senhas;

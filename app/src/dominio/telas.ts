@@ -1,6 +1,7 @@
 import { temFuncionalidade } from './funcionalidadesDoPlano';
 import { GRUPOS_DO_MENU, posicaoNoMenu, type GrupoDoMenu } from './gruposDoMenu';
 import { podeAcessarTela } from './permissoes';
+import { NOME_DO_PRODUTO } from './produto';
 
 /**
  * Seção de uma tela em "Todas as telas" e na busca: o grupo do menu lateral (D24 de `docs/planos/auditoria-ficha.md`,
@@ -300,11 +301,11 @@ const TITULOS_FORA_DO_CATALOGO: readonly [string, string][] = [
 ];
 
 /**
- * Título da aba do navegador: "Tela · Consultoria" (ou "· Treinos" sem consultoria conhecida). Sem nome de tela, só a
+ * Título da aba do navegador: "Tela · Consultoria" (ou "· Overtraining" sem consultoria conhecida). Sem nome de tela, só a
  * consultoria. Nunca leva nome de aluno nem dado da tela.
  */
 export function tituloDaPagina(caminho: string, nomeDaConsultoria: string | null | undefined): string {
-  const sufixo = nomeDaConsultoria?.trim() || 'Treinos';
+  const sufixo = nomeDaConsultoria?.trim() || NOME_DO_PRODUTO;
   const fora = caminho === '/aluno' ? 'Início' : TITULOS_FORA_DO_CATALOGO.find(([p]) => caminho === p || caminho.startsWith(`${p}/`))?.[1];
   const tela = fora ?? (caminho.startsWith('/treinador') ? nomeDaTela(caminho) : null);
   return tela ? `${tela} · ${sufixo}` : sufixo;
