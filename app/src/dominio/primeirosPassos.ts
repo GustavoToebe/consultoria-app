@@ -141,8 +141,7 @@ const DEFINICOES: readonly Definicao[] = [
   },
   {
     id: 'metodologia', titulo: 'Conferir a metodologia', opcional: false, conferivel: true, rotuloAbrir: 'Abrir Metodologias',
-    // O chip "Metodologias" é estado local da tela do Planejamento; o endereço só chega à tela de treinos.
-    destino: '/treinador/planejamento?aba=treino',
+    destino: '/treinador/planejamento?aba=treino&tipo=metodologia',
     texto: 'A consultoria já vem com uma metodologia padrão (tipos de série, técnicas e combinações). Confira se ela é a sua.',
     visivel: (p) => p.pode('MODELO_ALTERAR'),
   },

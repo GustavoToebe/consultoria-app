@@ -55,6 +55,16 @@ for (const [nome, largura, altura] of [['PC 1280', 1280, 900], ['celular 390', 3
   test.describe(nome, () => {
     test.use({ viewport: { width: largura, height: altura } });
 
+    test('?tipo=metodologia abre o Planejamento já no chip Metodologias (Primeiros passos › Abrir Metodologias)', async ({ page }) => {
+      const { naoTratadas, errosDaPagina } = await abrir(page, 'treino&tipo=metodologia', {
+        'GET /receitas': { corpo: [...MODELOS, modelo(8, 'METODOLOGIA', 'Metodologia fictícia', null)] },
+      });
+      await expect(modeloNaTela(page, 'Metodologia fictícia')).toBeVisible();
+      await expect(modeloNaTela(page, 'Semana solta')).toHaveCount(0);
+      expect(naoTratadas).toEqual([]);
+      expect(errosDaPagina).toEqual([]);
+    });
+
     test('aba Treino: um cartão por coleção em ordem alfabética, "Sem coleção" por último, cada modelo no seu', async ({ page }) => {
       const { naoTratadas, errosDaPagina } = await abrir(page);
       await expect(faixa(page, 'Avançados')).toBeVisible();

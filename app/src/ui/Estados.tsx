@@ -27,7 +27,7 @@ export function Vazio({ titulo, texto, Icone = Inbox, acao }: {
   const { cores } = useTema();
   return (
     <View style={estilos.centro}>
-      <Icone size={32} color={cores.textoSuave} accessible={false} />
+      <Icone size={32} color={cores.textoSuave} aria-hidden />
       {titulo ? <Texto variante="subtitulo" style={estilos.textoCentro}>{titulo}</Texto> : null}
       <Texto variante="suave" style={estilos.textoCentro}>{texto}</Texto>
       {acao ? <Botao rotulo={acao.rotulo} tipo="secundario" aoTocar={acao.aoTocar} /> : null}
@@ -61,7 +61,7 @@ export function Bloqueado({ titulo, texto, Icone = Lock, acao, children }: {
   const { cores } = useTema();
   return (
     <View accessibilityRole="summary" style={[estilos.faixa, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
-      <Icone size={20} color={cores.textoSuave} accessible={false} />
+      <Icone size={20} color={cores.textoSuave} aria-hidden />
       <View style={estilos.faixaTextos}>
         <Texto variante="subtitulo">{titulo}</Texto>
         {texto ? <Texto variante="suave">{texto}</Texto> : null}
@@ -77,7 +77,7 @@ export function Incompleto({ texto = 'Há itens sem valor informado.' }: { texto
   const { cores } = useTema();
   return (
     <View style={estilos.incompleto}>
-      <Info size={14} color={cores.textoSuave} accessible={false} />
+      <Info size={14} color={cores.textoSuave} aria-hidden />
       <Texto variante="pequeno" style={estilos.textoIncompleto}>{texto}</Texto>
     </View>
   );
@@ -121,7 +121,7 @@ export function Alerta({ tom, titulo, texto, children }: { tom: TomDoAlerta; tit
     <View
       accessibilityRole={tom === 'perigo' ? 'alert' : 'summary'}
       style={[estilos.erro, { borderColor: cor, backgroundColor: tingido(cor, cores.superficie) }]}>
-      <View style={estilos.iconeDoAlerta}><Icone size={18} color={cor} strokeWidth={2.25} accessible={false} /></View>
+      <View style={estilos.iconeDoAlerta}><Icone size={18} color={cor} strokeWidth={2.25} aria-hidden /></View>
       <View style={estilos.textosDoAlerta}>
         {titulo ? <Texto variante="subtitulo" cor={cor}>{titulo}</Texto> : null}
         {texto ? <Texto cor={cor}>{texto}</Texto> : null}

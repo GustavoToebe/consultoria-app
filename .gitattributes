@@ -1,2 +1,3 @@
 *.sql text eol=lf
 scripts/importacao/dados/instrucoes-plano16.txt text eol=lf
+*.csv text eol=lf

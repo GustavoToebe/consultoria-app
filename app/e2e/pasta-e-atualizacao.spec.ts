@@ -87,10 +87,13 @@ const SUBSTITUI = 'Vai substituir o peso da atualização';
 const AVISO_DA_COPIA =
   'Copia a versão publicada de cada plano (o rascunho, se ainda não foi publicado). Os planos chegam como rascunho, sem os ergogênicos da dieta e sem o questionário escolhido; nada é publicado para o aluno.';
 
-/** Hoje como o campo de data mostra (dd/mm/aaaa, fuso local). */
+/**
+ * Hoje como o campo de data mostra (dd/mm/aaaa). O app conta o dia em Brasília (e o navegador do teste roda em
+ * `America/Sao_Paulo`); o relógio da máquina que roda o teste pode estar em outro fuso (UTC na nuvem e na CI), e das 21h
+ * à meia-noite de Brasília o "hoje" local já seria amanhã.
+ */
 function hojeNaTela(): string {
-  const d = new Date();
-  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+  return new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date());
 }
 
 for (const largura of [390, 1280]) {
@@ -605,11 +608,10 @@ test('web: a atualização ao lado do editor é <a href> que abre em outra aba',
 
   // O clique simples também abre outra aba: o editor fica onde está, com o rascunho.
   await page.getByLabel('Água por dia (opcional)').fill('2,5');
-  const nova = context.waitForEvent('page');
+  // A aba nova não tem a API simulada (o app dela volta ao Entrar ao carregar): a prova é a requisição de navegação.
+  const pedido = context.waitForEvent('request', (r) => r.isNavigationRequest() && new URL(r.url()).pathname === `/treinador/atualizacoes/${ATUALIZACAO_ID}`);
   await link.click();
-  const aba = await nova;
-  await aba.waitForURL(/\/treinador\/atualizacoes\//);
-  expect(new URL(aba.url()).pathname).toBe(`/treinador/atualizacoes/${ATUALIZACAO_ID}`);
+  await pedido;
   expect(new URL(page.url()).pathname).toBe(`/treinador/dietas/${PLANO_ID}`);
   await expect(page.getByText('Sair sem salvar?')).toHaveCount(0);
   expect(errosDaPagina).toEqual([]);

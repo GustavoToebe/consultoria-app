@@ -219,6 +219,12 @@ export function alternarCampoOculto(ocultos: readonly CampoDaInscricao[], campo:
   return TODOS_OS_CAMPOS.filter((c) => conjunto.has(c));
 }
 
+/**
+ * 429 do envio pelo link: o texto do login ("tentativas de acesso") não serve aqui. Neutro de propósito: o 429 vem do limite
+ * por IP, da verificação humana ou do teto diário da consultoria, e a API responde igual nos três.
+ */
+export const TEXTO_LIMITE_DA_INSCRICAO = 'Recebemos muitos envios agora. Tente de novo mais tarde.';
+
 /** Aviso fixo do editor das perguntas da inscrição (D7): não dá para impedir por regra, porque o texto é livre. */
 export const AVISO_SAUDE_NA_INSCRICAO = 'Não peça informação de saúde aqui; ela fica para a anamnese, depois do aceite.';
 

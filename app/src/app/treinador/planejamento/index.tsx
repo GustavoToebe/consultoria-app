@@ -11,7 +11,7 @@ import { agruparPorColecao, filtrarModelos, resumoDeModelos } from '../../../dom
 import { mensagemCopiaCriada } from '../../../dominio/planoDoAluno';
 import { AplicarAoAluno } from '../../../treinador/planejamento/AplicarAoAluno';
 import { ListaDeQuestionarios } from '../../../treinador/questionarios/ListaDeQuestionarios';
-import { ABA_ANAMNESE, ABA_ATUALIZACAO, ABA_INSCRICAO, ABAS_DE_QUESTIONARIO, abaDoPlanejamento, CATEGORIAS, conteudoInicial, gruposLiberados, metadadosDoModelo, rotuloNovoModelo, slugDaAba, usoDoModelo } from '../../../treinador/planejamento/modelos';
+import { ABA_ANAMNESE, ABA_ATUALIZACAO, ABA_INSCRICAO, ABAS_DE_QUESTIONARIO, abaDoPlanejamento, CATEGORIAS, conteudoInicial, gruposLiberados, metadadosDoModelo, rotuloNovoModelo, slugDaAba, tipoDoPlanejamento, usoDoModelo } from '../../../treinador/planejamento/modelos';
 import { Abas } from '../../../ui/Abas';
 import { useAviso } from '../../../ui/Aviso';
 import { Botao } from '../../../ui/Botao';
@@ -48,7 +48,7 @@ export default function Planejamento() {
   // passo do histórico e o voltar a desfaz. `?novo=1` (atalho da busca do topo) abre o formulário de novo modelo ou, na
   // aba Atualização, de novo questionário e sai do endereço na hora (consumido ao abrir, não ao fechar: fechar o
   // formulário não reescreve a URL e o voltar do navegador não tem passo sobrando).
-  const { novo: pedirNovo, aba: abaPedida } = useLocalSearchParams<{ novo?: string; aba?: string }>();
+  const { novo: pedirNovo, aba: abaPedida, tipo: tipoPedido } = useLocalSearchParams<{ novo?: string; aba?: string; tipo?: string }>();
   const aba = abaDoPlanejamento(abaPedida, veModelos, veAtualizacao, funcionalidadesDoPlano);
   const grupos = gruposLiberados(funcionalidadesDoPlano);
   const emAnamnese = aba === ABA_ANAMNESE;
@@ -84,7 +84,9 @@ export default function Planejamento() {
   // Grupo (Treino, Dieta, Pacotes, Mobilidade) são abas; os tipos do grupo, chips numa faixa que rola.
   const grupo = grupos.find((g) => g.rotulo === aba) ?? grupos[0];
   // O chip escolhido só vale dentro do grupo da aba (o menu pode trocar a aba sem remontar a tela).
-  const tipo: TipoReceita = tipoEscolhido && grupo.tipos.includes(tipoEscolhido) ? tipoEscolhido : grupo.tipos[0];
+  // Sem toque num chip, vale o `?tipo=` do endereço (os Primeiros passos abrem direto em Metodologias).
+  const tipoDesejado = tipoEscolhido ?? tipoDoPlanejamento(tipoPedido);
+  const tipo: TipoReceita = tipoDesejado && grupo.tipos.includes(tipoDesejado) ? tipoDesejado : grupo.tipos[0];
   const categoria = CATEGORIAS.find((c) => c.valor === tipo) ?? CATEGORIAS[0];
   const uso = usoDoModelo(tipo);
   const filtrados = modelos.dados ? filtrarModelos(modelos.dados, tipo, busca) : undefined;

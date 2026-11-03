@@ -506,6 +506,8 @@ for (const largura of [390, 1280]) {
     await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();
     await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(1);
     expect((api.salvo().conteudo as { series: Serie[] }).series[0].esforco).toEqual({ rir: 10, rpe: null });
+    // O PUT chegar não basta: enquanto a resposta não volta o editor segue "pendente" e o `beforeunload` cancela o reload.
+    await expect(page.getByText('Modelo salvo.')).toBeVisible();
     await page.reload();
     await page.getByRole('button', { name: 'Trabalho · WS, recolhido', exact: true }).click();
     await expect(page.getByRole('radiogroup', { name: 'RIR (repetições na reserva)' }).getByRole('button', { name: '10', exact: true })).toHaveAttribute('aria-checked', 'true');

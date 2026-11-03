@@ -64,7 +64,7 @@ function LinhaDaFolha({ item, aoAbrir }: { item: ItemDaFolha; aoAbrir: () => voi
         {item.detalhes.map((d) => <Texto key={d} variante="pequeno">{d}</Texto>)}
       </View>
       {item.direita ? <Texto variante="suave" numerico style={estilos.direita}>{item.direita}</Texto> : null}
-      <ChevronRight size={18} color={cores.textoSuave} accessible={false} />
+      <ChevronRight size={18} color={cores.textoSuave} aria-hidden />
     </Pressable>
   );
 }
