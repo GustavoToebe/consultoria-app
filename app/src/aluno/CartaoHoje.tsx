@@ -51,7 +51,7 @@ export function CartaoHoje({ estado, aoVerTreino, aoEscolher, erro }: Props) {
     return (
       <View style={[estilos.cartao, neutro]}>
         <View style={estilos.linhaDescanso}>
-          <Moon size={20} color={cores.textoSuave} accessible={false} />
+          <Moon size={20} color={cores.textoSuave} aria-hidden />
           <Texto variante="bloco" nivel={3}>Hoje é dia de descanso.</Texto>
         </View>
         {cardio ? <Texto variante="suave">{estado.sessao ? `${rotuloDoTipo(estado.sessao)} · ${cardio}` : cardio}</Texto> : null}

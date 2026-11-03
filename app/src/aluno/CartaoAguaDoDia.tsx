@@ -69,7 +69,7 @@ export function CartaoAguaDoDia({ metaLitros, compacto = false }: { metaLitros: 
       descricao={compacto ? undefined : 'Toque em + a cada copo de 250 ml que tomar.'}>
       {/* Compacto, os botões ficam na linha dos números (quebram para baixo se não couberem). */}
       <View style={estilos.topo}>
-        <Droplet size={22} color={cores.texto} accessible={false} />
+        <Droplet size={22} color={cores.texto} aria-hidden />
         <View style={estilos.numeros} accessibilityLiveRegion="polite">
           <Texto numerico style={estilos.litros}>{textoDaAguaDoDia(ml, metaLitros)}</Texto>
           <Texto variante="suave" numerico>{registrado === undefined ? 'Nada marcado neste dia' : textoDosCopos(ml)}</Texto>
