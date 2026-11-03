@@ -935,6 +935,35 @@ export function formularioNovo(responsavelId: string, data: string): FormularioD
   };
 }
 
+const diasIguais = (a: readonly DiaDaSemana[], b: readonly DiaDaSemana[]) => {
+  const na = DIAS_DA_SEMANA.filter((d) => a.includes(d));
+  const nb = DIAS_DA_SEMANA.filter((d) => b.includes(d));
+  return na.length === nb.length && na.every((d, i) => d === nb[i]);
+};
+
+/**
+ * A repetição que a lista do painel rápido grava sozinha (o tipo, com o dia da data no semanal e o fim padrão).
+ * Dias a mais ou um fim diferente disso só se ajustam no formulário completo.
+ */
+function repeticaoPersonalizada(r: FormularioDaRepeticao, data: string): boolean {
+  const preset = trocarTipoDaRepeticao({ ...SEM_REPETICAO, dias: [] }, r.tipo, data);
+  return r.fim !== preset.fim || r.ate.trim() !== preset.ate.trim() || r.vezes.trim() !== preset.vezes.trim() || !diasIguais(r.dias, preset.dias);
+}
+
+/**
+ * Campos do formulário completo que fogem do padrão de um compromisso novo, na ordem do formulário (Quando, depois
+ * Alunos e detalhes). Vazio = sem a linha. A repetição entra quando não é a da lista do painel rápido. Mais de um
+ * aluno entra como "alunos". A observação entra quando tem texto. Responsável e local ficam de fora: são o padrão
+ * ou a linha que o painel rápido já mostra vazia.
+ */
+export function linhaDoCompletoDoCompromisso(form: FormularioDoCompromisso): string | null {
+  const nomes: string[] = [];
+  if (repeticaoPersonalizada(form.repeticao, form.data)) nomes.push('repetição');
+  if (form.alunoIds.length > 1) nomes.push('alunos');
+  if (form.observacao.trim()) nomes.push('observação');
+  return nomes.length ? `Também preenchido em Mais opções: ${nomes.join(', ')}.` : null;
+}
+
 export function formularioDoCompromisso(c: Compromisso): FormularioDoCompromisso {
   return {
     alunoIds: c.participantes.map((p) => p.id), responsavelId: c.responsavelId ?? '', data: dataParaTela(c.data), hora: c.hora,
