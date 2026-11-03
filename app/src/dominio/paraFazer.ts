@@ -17,7 +17,7 @@ export interface ItemParaFazer {
   responder: boolean;
 }
 
-/** Anamnese pendente em "Suas pendências": o selo "Pendente" é neutro (vermelho é só para atrasada). */
+/** Anamnese pendente em "Suas pendências": o selo "Pendente" é neutro (conferir com o Gustavo: quem age é o aluno, D2 pediria âmbar). */
 export const ITEM_ANAMNESE: ItemParaFazer = {
   titulo: 'Anamnese inicial',
   detalhe: 'Seu treinador pediu algumas informações.',
@@ -27,8 +27,9 @@ export const ITEM_ANAMNESE: ItemParaFazer = {
 
 /**
  * Atualização em "Suas pendências" do início do aluno. O título é sempre o mesmo ("Atualização do período"); o selo é
- * curto e diz de quê ("Até 20/10", "Atrasada 2 dias") e a frase vai no detalhe. Vermelho só para atrasada, verde para
- * enviada/resposta nova e neutro para o resto (âmbar e vermelho juntos na mesma lista faziam tudo parecer urgente).
+ * curto e diz de quê ("Até 20/10", "Atrasada 2 dias") e a frase vai no detalhe. Cor pela regra da seção 4.5 (D2): âmbar só
+ * para quem precisa agir (responder até a data, nova data avisada), vermelho para atrasada, verde para resposta nova e
+ * neutro para quem espera ("Enviada · aguardando revisão"). O detalhe diz quem age.
  */
 export function itemDaAtualizacao(a: Atualizacao, hoje: string = hojeIso()): ItemParaFazer {
   const titulo = 'Atualização do período';
@@ -38,7 +39,7 @@ export function itemDaAtualizacao(a: Atualizacao, hoje: string = hojeIso()): Ite
     return { titulo, detalhe: 'Seu treinador respondeu. Toque para ler.', selo: { texto: 'Resposta nova', tipo: 'sucesso' }, responder: false };
   }
   if (a.fase === 'ENVIADA') {
-    return { titulo, detalhe: 'Enviada. Aguardando o treinador.', selo: { texto: 'Enviada', tipo: 'sucesso' }, responder: false };
+    return { titulo, detalhe: 'Enviada. Aguardando o treinador.', selo: { texto: 'Enviada', tipo: 'neutro' }, responder: false };
   }
   if (a.fase === 'ATRASADA') {
     const dias = a.diasDeAtraso > DIAS_MAXIMOS_PARA_CONTAR_ATRASO ? `desde ${desdeQuandoAtrasou(a.diasDeAtraso, hoje)}` : `${a.diasDeAtraso} ${a.diasDeAtraso === 1 ? 'dia' : 'dias'}`;
@@ -46,19 +47,26 @@ export function itemDaAtualizacao(a: Atualizacao, hoje: string = hojeIso()): Ite
   }
   if (a.fase === 'ABERTA') {
     const detalhe = a.atrasoAte ? `Você avisou que vai responder até ${dia}.` : 'Questionário disponível. O rascunho fica salvo neste aparelho.';
-    return { titulo, detalhe, selo: { texto: `Até ${dia}`, tipo: 'neutro' }, responder: true };
+    return { titulo, detalhe, selo: { texto: `Até ${dia}`, tipo: 'atencao' }, responder: true };
   }
   if (a.atrasoAte) {
-    return { titulo, detalhe: `Você avisou: nova data ${dia}.`, selo: { texto: `Até ${dia}`, tipo: 'neutro' }, responder: false };
+    return { titulo, detalhe: `Você avisou: nova data ${dia}.`, selo: { texto: `Até ${dia}`, tipo: 'atencao' }, responder: false };
   }
   const quando = a.diasParaData === 1 ? 'amanhã' : `em ${a.diasParaData} dias`;
   return { titulo, detalhe: `Abre ${quando} (${dia}). Toque para ver as perguntas.`, selo: null, responder: false };
 }
 
+/** "Vencida há 3 dias" (a API decide que venceu; os dias contam de `vencimento` até `hoje`, no mínimo 1). */
+function seloDeVencida(vencimento: string, hoje: string): { texto: string; tipo: TipoSelo } {
+  const dias = Math.max(1, Math.round((Date.parse(hoje) - Date.parse(vencimento)) / 86_400_000));
+  return { texto: `Vencida há ${dias} ${dias === 1 ? 'dia' : 'dias'}`, tipo: 'perigo' };
+}
+
 /**
  * "Pagamento em aberto" em "Suas pendências": cobrança vencida (a API decide) ou que vence em até 3 dias. É um aviso, não
- * uma cobrança: não há botão de pagar aqui (o item leva à Conta, onde fica o "Pagar", se a plataforma o tem). Vencida em
- * âmbar, a vencer em neutro; vermelho continua só da atualização atrasada. No celular sem o "Pagar" (`modo` `informar`) o
+ * uma cobrança: não há botão de pagar aqui (o item leva à Conta, onde fica o "Pagar", se a plataforma o tem). Exceção da
+ * cobrança (D11), os mesmos três tons do "Meu plano" e do treinador: vencida em vermelho ("Vencida há N dias", sem
+ * bloquear nada), a vencer em âmbar ("Vence dd/mm"). No celular sem o "Pagar" (`modo` `informar`) o
  * detalhe só informa, no formato de `informacaoDaCobranca`, sem frase de chamada. Sem pendência, `null`.
  */
 export function itemDoPagamento(
@@ -78,13 +86,13 @@ export function itemDoPagamento(
   if (informacao) {
     return {
       titulo, detalhe: `${informacao}${mais}`,
-      selo: primeira.vencida ? { texto: 'Vencida', tipo: 'atencao' } : { texto: `Vence ${quando}`, tipo: 'neutro' }, responder: false,
+      selo: primeira.vencida ? seloDeVencida(primeira.vencimento, hoje) : { texto: `Vence ${quando}`, tipo: 'atencao' }, responder: false,
     };
   }
   if (vencidas > 0) {
-    return { titulo, detalhe: `${valor}${mais}, venceu em ${quando}. Fale com o seu treinador.`, selo: { texto: 'Vencida', tipo: 'atencao' }, responder: false };
+    return { titulo, detalhe: `${valor}${mais}, venceu em ${quando}. Fale com o seu treinador.`, selo: seloDeVencida(primeira.vencimento, hoje), responder: false };
   }
-  return { titulo, detalhe: `${valor}${mais}, vence em ${quando}.`, selo: { texto: `Vence ${quando}`, tipo: 'neutro' }, responder: false };
+  return { titulo, detalhe: `${valor}${mais}, vence em ${quando}.`, selo: { texto: `Vence ${quando}`, tipo: 'atencao' }, responder: false };
 }
 
 // ---- Avisos de compromisso (D12) ----
@@ -114,8 +122,8 @@ export function textoDoAviso(a: Pick<AvisoDeCompromisso, 'tipo' | 'inicio' | 're
 }
 
 /**
- * Aviso de compromisso em "Suas pendências": a frase da D12 no título, selo neutro com o tipo (vermelho continua só da
- * atualização atrasada). Só avisa: sem botão de confirmar presença; tocar marca como visto e leva ao cartão "Seus
+ * Aviso de compromisso em "Suas pendências": a frase da D12 no título, selo neutro com o tipo (coisa que já aconteceu ou vai
+ * acontecer, sem ação do aluno: D7). Só avisa: sem botão de confirmar presença; tocar marca como visto e leva ao cartão "Seus
  * compromissos" do mesmo Início.
  */
 export function itemDoAviso(a: AvisoDeCompromisso, hoje: string): ItemDoAviso {

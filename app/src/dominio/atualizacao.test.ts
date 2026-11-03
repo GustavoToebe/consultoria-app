@@ -150,7 +150,7 @@ describe('selo da atualização para o treinador', () => {
   });
   it('adiada: hoje e amanhã por extenso, o resto pela data (nunca "para em 5 dias")', () => {
     const adiada = (atrasoAte: string) => statusAtualizacaoTreinador({ ...base, fase: 'ABERTA', atrasoAte }, '2026-10-19');
-    expect(adiada('2026-10-19')).toMatchObject({ texto: 'Atualização adiada para hoje', curto: 'Adiada para hoje', tipo: 'atencao' });
+    expect(adiada('2026-10-19')).toMatchObject({ texto: 'Atualização adiada para hoje', curto: 'Adiada para hoje', tipo: 'neutro' });
     expect(adiada('2026-10-24')).toMatchObject({ texto: 'Atualização adiada para 24/10', curto: 'Adiada para 24/10' });
     expect(adiada('2026-11-01')).toMatchObject({ texto: 'Atualização adiada para 01/11', curto: 'Adiada para 01/11' });
     expect(adiada('2027-01-02')).toMatchObject({ texto: 'Atualização adiada para 02/01/2027', curto: 'Adiada para 02/01/2027' });

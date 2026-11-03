@@ -9,6 +9,7 @@ import { Campo } from './Campo';
 import { Esqueleto } from './Esqueleto';
 import { Folha } from './Folha';
 import { sobre } from './sobre';
+import { coresDoDesabilitado } from './desabilitado';
 import { Texto } from './Texto';
 
 export interface OpcaoDaFolha<T> {
@@ -89,8 +90,8 @@ export function EscolhaEmFolha<T extends string | number | null>({
         accessibilityState={{ disabled: !!desabilitado, expanded: aberta }}
         disabled={desabilitado}
         onPress={() => setAberta(true)}
-        style={(estado) => [estilos.botao, { borderColor: cores.bordaCampo, backgroundColor: sobre(estado) && !desabilitado ? cores.superficie3 : cores.campo, opacity: desabilitado ? 0.5 : 1 }, style]}>
-        <Texto style={estilos.textoBotao} numberOfLines={1}>
+        style={(estado) => [estilos.botao, { borderColor: desabilitado ? coresDoDesabilitado(cores).borda : cores.bordaCampo, backgroundColor: desabilitado ? coresDoDesabilitado(cores).fundo : sobre(estado) ? cores.superficie3 : cores.campo }, style]}>
+        <Texto style={estilos.textoBotao} numberOfLines={1} cor={desabilitado ? cores.textoSuave : undefined}>
           <Texto variante="suave" style={estilos.textoBotao}>{rotulo}: </Texto>
           {textoDoValor}
         </Texto>

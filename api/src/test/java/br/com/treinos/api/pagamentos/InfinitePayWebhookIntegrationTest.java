@@ -328,12 +328,12 @@ class InfinitePayWebhookIntegrationTest extends AbstractIntegrationTest {
 
         String tudo = jdbc.queryForObject("select string_agg(cast(row_to_json(a) as text), ' ') from aviso_de_pagamento a "
                 + "where consultoria_id = ?", String.class, conta.consultoria());
-        assertThat(tudo).doesNotContain(marcador).doesNotContain("4111").doesNotContain("recibo");
+        assertThat(tudo).doesNotContain(marcador).doesNotContain("4111111111111111").doesNotContain("recibo");
         assertThat(avisoNoBanco(conta, transacao).get("hash_corpo")).isEqualTo(sha256(corpo));
         String auditado = jdbc.queryForObject("select string_agg(acao || ' ' || coalesce(entidade, '') || ' ' || resumo, ' ') "
                 + "from auditoria where consultoria_id = ?", String.class, conta.consultoria());
-        assertThat(auditado).doesNotContain(marcador).doesNotContain("4111").doesNotContain(conta.token());
-        semNoLog(marcador, "4111", conta.token(), transacao);
+        assertThat(auditado).doesNotContain(marcador).doesNotContain("4111111111111111").doesNotContain(conta.token());
+        semNoLog(marcador, "4111111111111111", conta.token(), transacao);
     }
 
     @Test

@@ -43,6 +43,7 @@ import { Incompleto, MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { Tela } from '../../ui/Tela';
+import { coresDoDesabilitado } from '../../ui/desabilitado';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 import { tituloDoModelo, tituloDoPlanoDoAluno } from '../../dominio/planoDoAluno';
@@ -493,9 +494,9 @@ function OpcaoDeModelo({ titulo, descricao, desabilitado, aoEscolher }: { titulo
       onPress={aoEscolher}
       style={({ pressed }) => [
         estilos.opcaoModelo,
-        { backgroundColor: pressed ? cores.superficie3 : cores.superficie2, borderColor: cores.borda, opacity: desabilitado ? 0.45 : 1 },
+        { backgroundColor: desabilitado ? coresDoDesabilitado(cores).fundo : pressed ? cores.superficie3 : cores.superficie2, borderColor: cores.borda },
       ]}>
-      <Texto variante="bloco">{titulo}</Texto>
+      <Texto variante="bloco" cor={desabilitado ? cores.textoSuave : undefined}>{titulo}</Texto>
       <Texto variante="suave">{descricao}</Texto>
     </Pressable>
   );

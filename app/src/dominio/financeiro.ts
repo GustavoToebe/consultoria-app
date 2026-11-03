@@ -542,7 +542,10 @@ export function cartoesDoPainel(c: CartoesDoPainel): CartaoDoPainel[] {
   ];
 }
 
-/** Linha de inadimplência: `12,5%` e `R$ 300,00 em aberto de R$ 2.400,00 que já venceram · considera...`. */
+/**
+ * Linha de inadimplência: `12,5% · R$ 300,00 de R$ 2.400,00` ao lado do título e, na descrição, só o que a base quer
+ * dizer (`Em aberto do total que já venceu · considera...`): a base aparece uma vez só (Gustavo, 03/11).
+ */
 export function inadimplenciaParaTela(i: Painel['inadimplencia'] | null | undefined): {
   percentual: string;
   /** N26: o percentual nunca sozinho; a base (o vencido de quanto foi cobrado) vai ao lado. Sem dado, "—". */
@@ -557,7 +560,7 @@ export function inadimplenciaParaTela(i: Painel['inadimplencia'] | null | undefi
   return {
     percentual,
     comBase: `${percentual} · ${centavosParaTela(i.vencidoCentavos)} de ${centavosParaTela(i.cobradoCentavos)}`,
-    detalhe: `${centavosParaTela(i.vencidoCentavos)} em aberto de ${centavosParaTela(i.cobradoCentavos)} que já venceram · ${NOTA_CONSIDERA_GERADAS}`,
+    detalhe: `Em aberto do total que já venceu · ${NOTA_CONSIDERA_GERADAS}`,
   };
 }
 

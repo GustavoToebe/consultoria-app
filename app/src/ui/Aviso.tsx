@@ -1,4 +1,4 @@
-import { X } from 'lucide-react-native';
+import { CircleAlert, TriangleAlert, X } from 'lucide-react-native';
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,7 +7,7 @@ import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
 import { Texto } from './Texto';
 
-type TipoAviso = 'sucesso' | 'perigo' | 'neutro';
+type TipoAviso = 'sucesso' | 'atencao' | 'perigo' | 'neutro';
 
 /** Ação opcional do aviso (ex.: "Abrir ficha"): fecha o aviso e executa. */
 interface AcaoDoAviso {
@@ -21,14 +21,15 @@ interface ValorAviso {
 
 const Contexto = createContext<ValorAviso | null>(null);
 
-/** Quanto tempo o aviso de sucesso ou neutro fica na tela. O de erro fica até a pessoa fechar. */
+/** Quanto tempo o aviso de sucesso ou neutro fica na tela. O de erro e o de atenção ficam até a pessoa fechar. */
 const DURACAO_MS = 4000;
 /** Com uma ação para tocar, o aviso fica mais tempo. */
 const DURACAO_COM_ACAO_MS = 10000;
 
 /**
  * Mensagem curta no rodapé (substitui o `alert`, que não existe na web). Sucesso e neutro somem sozinhos; erro
- * (`perigo`) fica até ser fechado, porque quatro segundos não bastam para ler o que deu errado.
+ * (`perigo`, vermelho) e atenção (`atencao`, âmbar: o alerta que não é erro, D5 de `docs/planos/auditoria-cores.md`) ficam
+ * até ser fechados, porque quatro segundos não bastam para ler o que deu errado ou o que fazer. Os dois levam ícone.
  */
 export function AvisoProvider({ children }: { children: ReactNode }) {
   const { cores } = useTema();
@@ -39,11 +40,12 @@ export function AvisoProvider({ children }: { children: ReactNode }) {
   const avisar = useCallback((mensagem: string, tipo: TipoAviso = 'neutro', acao?: AcaoDoAviso) => {
     if (relogio.current) clearTimeout(relogio.current);
     setAviso({ mensagem, tipo, acao });
-    relogio.current = tipo === 'perigo' ? null : setTimeout(() => setAviso(null), acao ? DURACAO_COM_ACAO_MS : DURACAO_MS);
+    relogio.current = tipo === 'perigo' || tipo === 'atencao' ? null : setTimeout(() => setAviso(null), acao ? DURACAO_COM_ACAO_MS : DURACAO_MS);
   }, []);
 
   const valor = useMemo(() => ({ avisar }), [avisar]);
-  const corBorda = aviso?.tipo === 'sucesso' ? cores.sucesso : aviso?.tipo === 'perigo' ? cores.perigo : cores.borda;
+  const corBorda = aviso?.tipo === 'sucesso' ? cores.sucesso : aviso?.tipo === 'perigo' ? cores.perigo : aviso?.tipo === 'atencao' ? cores.atencao : cores.borda;
+  const Icone = aviso?.tipo === 'perigo' ? CircleAlert : aviso?.tipo === 'atencao' ? TriangleAlert : null;
 
   return (
     <Contexto.Provider value={valor}>
@@ -54,6 +56,7 @@ export function AvisoProvider({ children }: { children: ReactNode }) {
             role="alert"
             accessibilityLiveRegion={aviso.tipo === 'perigo' ? 'assertive' : 'polite'}
             style={[estilos.aviso, { backgroundColor: cores.superficie2, borderColor: corBorda }]}>
+            {Icone ? <Icone size={18} color={corBorda} strokeWidth={2.5} aria-hidden /> : null}
             <Texto style={estilos.texto}>{aviso.mensagem}</Texto>
             {aviso.acao ? (
               <Pressable

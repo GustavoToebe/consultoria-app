@@ -4,7 +4,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { ErroApi } from '../../api/cliente';
 import { avisarAtrasoAtualizacao, enviarAtualizacao, marcarFeedbackVisto } from '../../api/rotas';
 import type { Atualizacao, RespostaAtualizacao, RespostasAtualizacao } from '../../api/tipos';
-import { limitesNovaDataAtraso, novaDataAtrasoValida, podeResponderAtualizacao, statusAtualizacao } from '../../dominio/atualizacao';
+import { limitesNovaDataAtraso, novaDataAtrasoValida, podeResponderAtualizacao, SELO_ENVIADA_DO_ALUNO, statusAtualizacao } from '../../dominio/atualizacao';
 import { rascunhoVigente } from '../../dominio/atualizacaoQuestionario';
 import { hojeDoCiclo, temInicioRecente } from '../../dominio/cicloMenstrual';
 import { dataDaTelaNaFaixa, erroDaData } from '../../dominio/datasValidas';
@@ -170,7 +170,7 @@ export function FormularioAtualizacao({atualizacao,somenteLeitura=false,rascunho
     }finally{setOcupado(false);}
   };
   if(enviada)return <Cartao titulo="Atualização enviada">
-    <Selo texto="Enviada" tipo="sucesso" /><Texto>Aguardando o treinador.</Texto>
+    <Selo {...SELO_ENVIADA_DO_ALUNO} /><Texto>Aguardando o treinador.</Texto>
     <Botao rotulo="Voltar ao início" aoTocar={()=>router.replace('/aluno')} />
   </Cartao>;
   return <>

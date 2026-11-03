@@ -38,6 +38,35 @@ export interface AvaliacaoDaMarca {
   aviso: string | null;
 }
 
+/** CIELAB (D65) de uma cor #RRGGBB, só para medir "parecida com" (a mesma conta do `tokens.test.ts`). */
+function lab(hex: string): [number, number, number] {
+  const n = parseInt(hex.slice(1), 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => {
+    const s = c / 255;
+    return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  });
+  const x = (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047;
+  const y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  const z = (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883;
+  const f = (t: number) => (t > 216 / 24389 ? Math.cbrt(t) : ((24389 / 27) * t + 16) / 116);
+  return [116 * f(y) - 16, 500 * (f(x) - f(y)), 200 * (f(y) - f(z))];
+}
+
+/** Distância mínima (ΔE CIE76) da marca ao vermelho de erro; a mesma que o `tokens.test.ts` exige das agendas. */
+export const DISTANCIA_DO_STATUS = 25;
+
+/**
+ * D10 do `docs/planos/auditoria-cores.md`: marca parecida com o vermelho de erro (`perigo`) em um dos dois temas. Só avisa,
+ * nunca bloqueia o Salvar; a tela distingue pela forma (ícone e texto) e não pela cor. Verde e âmbar não avisam (decisão
+ * de 03/11: avisar nas seis cores prontas viraria ruído). Cor inválida ou longe do vermelho: `null`.
+ */
+export function avisoDeMarcaPertoDeStatus(hex: string): string | null {
+  if (!/^#[0-9A-Fa-f]{6}$/.test(hex)) return null;
+  const alvo = lab(hex);
+  const perto = [CLARO, ESCURO].some((t) => Math.hypot(...lab(t.perigo).map((v, i) => v - alvo[i])) < DISTANCIA_DO_STATUS);
+  return perto ? 'Esta cor lembra a de erro (vermelho). Avisos e botões de confirmação continuam distintos pelo ícone e pelo texto.' : null;
+}
+
 /**
  * Confere a cor da marca contra o texto branco que vai por cima (≥ 4,5, a mesma régua das paletas) e contra o fundo dos
  * dois temas (≥ 3). Não usa `textoSobre` aqui: ele escolhe branco ou preto e o melhor dos dois nunca fica abaixo de
