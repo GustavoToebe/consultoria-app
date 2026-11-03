@@ -67,6 +67,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Auditoria de UI/UX, peças compartilhadas (Folha com um diálogo e retorno do foco, cores da Folha e do Botão pelo tema, Kanban com movimento reduzido) | [auditoria-pecas.md](auditoria-pecas.md) | branch `auditoria-pecas` | Código feito, aguardando PR | 03/11/2026 |
 | Paletas da marca (a consultoria escolhe a cor de fundo do app dos alunos numa lista fechada e testada) | [paletas-da-marca.md](paletas-da-marca.md) | — | Planejando: lista cortada em 03/11 (11 paletas, prévia em `docs/prototipos/`); espera a frente de cores da auditoria | 03/11/2026 |
 | Libras na carga, fase 1: regra pura e lado do aluno (N04; chave `TREINOS_UNIDADE_CARGA_HABILITADA`, desligada) | [libras.md](libras.md) | branch `libras-fase-1` | Fase 1 pronta para revisão | 03/11/2026 |
+| Documentação de 03/11 (roteiro do aluno fictício em [engajamento.md](engajamento.md), conferência das três liberações da Cloudflare) | [docs-pendencias-03-11.md](docs-pendencias-03-11.md) | `main` (PR #72) | Concluída em 03/11/2026 (roteiro espera o Gustavo em produção) | 03/11/2026 |
 
 ## Pendências soltas
 
@@ -175,6 +176,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Menu do tablet e grupos do N29 num tablet de verdade (Android, 768 a 1023 px): rótulo embaixo do ícone, rolagem do menu e toque | Gustavo, no aparelho | auditoria-ficha (passos 6 e 13) |
 | Verificações que o Playwright não cobre: anamnese num celular de verdade, leitor de tela (TalkBack/VoiceOver) e contraste medido com ferramenta | Gustavo, com o APK | auditoria-ui-ux 2ª passada (Gustavo, 03/11) |
 | Inscrição pública: foco no primeiro erro e erro nos campos de escolha. `Escolha` não tem `erro` e as outras telas públicas só mostram erro no `Campo`; sem componente novo | Claude, quando o Gustavo pedir | auditoria-ui-ux-lote-1 (PR B) |
+| Conferir em produção o retorno com um aluno fictício: concluir treino, "Bom trabalho!", recordes, "Visto" do treinador e, no fim, inativar e anonimizar (roteiro no fim de [engajamento.md](engajamento.md)). Quem faz = Gustavo; o Claude não acessa produção | Gustavo | engajamento |
 | Regerar `app/public/guias/guia-treinador.pdf` no PC (`node scripts/guias/gerar.mjs`): a Ajuda passou a dizer "Financeiro, em Negócio" (grupos do menu, D24) e o PDF ficou com o texto anterior, porque gerado no Linux da nuvem sai com outras fontes | Claude local, no próximo commit do app | auditoria-ficha (D24) |
 
 ## Limitações aceitas (não são pendência)
