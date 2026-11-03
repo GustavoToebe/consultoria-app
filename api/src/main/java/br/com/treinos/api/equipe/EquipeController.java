@@ -8,6 +8,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import tools.jackson.databind.JsonNode;
+
 import java.util.List;
 import java.util.UUID;
 @RestController
@@ -44,5 +46,5 @@ public class EquipeController {
     public UsuarioResponse usuario(@PathVariable UUID id,@RequestBody @Valid UsuarioRequest r) { return equipe.alterarUsuario(id,r); }
     // Só o Administrador (o service confere o perfil de acesso total); o PreAuthorize é a porta de entrada da equipe.
     @PreAuthorize("hasAuthority('PERM_USUARIO_ALTERAR')") @PutMapping("/usuarios/{id}/limite-de-alunos")
-    public ResponseEntity<Void> limiteDeAlunos(@PathVariable UUID id,@RequestBody LimiteDeAlunosRequest r) { equipe.definirLimiteDeAlunos(id,r.limite());return ResponseEntity.noContent().build(); }
+    public ResponseEntity<Void> limiteDeAlunos(@PathVariable UUID id,@RequestBody JsonNode corpo) { equipe.definirLimiteDeAlunos(id,corpo);return ResponseEntity.noContent().build(); }
 }

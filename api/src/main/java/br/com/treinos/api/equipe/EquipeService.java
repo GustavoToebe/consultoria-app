@@ -220,11 +220,14 @@ public class EquipeService {
     public void definirLimiteDeAlunos(UUID id,JsonNode corpo) {
         if(!ator().administrador()) throw negada("Somente administradores definem o limite de alunos.");
         travar();var u=usuario(id);
+        // O campo é obrigatório: {} ou {"limites":5} não apagam o limite (só {"limite":null} apaga, D13).
+        if(corpo==null || !corpo.isObject() || !corpo.has("limite")) throw limiteInvalido();
+        JsonNode valor=corpo.get("limite");
         Integer limite=null;
-        if(corpo!=null && !corpo.isNull()) {
+        if(!valor.isNull()) {
             // Só número inteiro de verdade: 1.5, 7.0, "7" e true não são arredondados nem convertidos (D14).
-            if(!corpo.isIntegralNumber() || !corpo.canConvertToInt()) throw limiteInvalido();
-            limite=corpo.intValue();
+            if(!valor.isIntegralNumber() || !valor.canConvertToInt()) throw limiteInvalido();
+            limite=valor.intValue();
         }
         if(limite!=null && (limite<0 || limite>LIMITE_MAXIMO_DE_ALUNOS)) throw limiteInvalido();
         u.alterarLimiteDeAlunos(limite);usuarios.saveAndFlush(u);

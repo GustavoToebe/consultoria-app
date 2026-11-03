@@ -8,6 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.DynamicUpdate;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -18,8 +19,12 @@ import java.util.UUID;
  *
  * <p>{@code credenciaisVersao} vai no JWT (claim {@code cv}). Trocar senha ou desativar incrementa a versão: o Bearer
  * antigo é recusado na hora, sem esperar os 15 minutos.</p>
+ *
+ * <p>{@code @DynamicUpdate}: o UPDATE leva só as colunas que mudaram. O login carrega o usuário sem trava e sem versão; com o
+ * UPDATE de todas as colunas ele regravaria o {@code limite_de_alunos} (ou o {@code ativo}) lido antes de outra transação mudá-lo.</p>
  */
 @Entity
+@DynamicUpdate
 @Table(name = "usuario")
 public class Usuario {
 

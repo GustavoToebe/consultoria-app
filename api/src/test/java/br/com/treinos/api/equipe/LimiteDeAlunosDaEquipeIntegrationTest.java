@@ -99,6 +99,21 @@ class LimiteDeAlunosDaEquipeIntegrationTest extends AbstractIntegrationTest {
         assertThat(limiteNosNumeros(admin, membro).asInt()).as("o valor anterior fica").isEqualTo(7);
     }
 
+    /** D13: a rota existe para nada apagar o limite sem querer; só o `null` explícito apaga, campo ausente ou com outro nome é 422. */
+    @Test
+    void semOCampoLimiteE422EOLimiteFica() throws Exception {
+        api.put(rota(membro), admin, corpo(7), 204);
+        for (Map<String, Object> ausente : List.<Map<String, Object>>of(Map.of(), Map.of("limites", 5), Map.of("outro", 1))) {
+            JsonNode erro = api.put(rota(membro), admin, ausente, 422);
+            assertThat(erro.path("fieldErrors").get(0).path("field").asString()).as("campo de %s", ausente).isEqualTo("limite");
+        }
+        assertThat(limiteNosNumeros(admin, membro).asInt()).as("o valor anterior fica").isEqualTo(7);
+        assertThat(auditoriasDoLimite(membro)).as("só a gravação do 7 foi auditada").hasSize(1);
+
+        api.put(rota(membro), admin, corpo(null), 204); // {"limite":null} continua apagando
+        assertThat(limiteNosNumeros(admin, membro).isNull()).isTrue();
+    }
+
     /** D14 pede um inteiro: decimal, texto, booleano e número fora do int não são arredondados nem convertidos, e o valor anterior fica. */
     @Test
     void decimalTextoOuOutroTipoNaoSaoConvertidosE422NoCampo() throws Exception {
