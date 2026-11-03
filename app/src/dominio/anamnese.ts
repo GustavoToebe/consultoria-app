@@ -7,13 +7,14 @@ import { dataParaTela, numeroParaTela, SEM_DADO } from './formatos';
 import { ROTULO_DO_SEXO, sexoDoCampo } from './sexo';
 
 /**
- * Regras de apresentação da anamnese (a decisão é sempre da API). Cor com significado: âmbar = falta alguém agir
- * (aluno responder, treinador revisar), verde = revisada, cinza = dispensada.
+ * Regras de apresentação da anamnese (a decisão é sempre da API). Cor pela seção 4.5 (D2): âmbar só para quem precisa
+ * agir (o aluno responder, o treinador revisar), cinza para quem espera ("Enviada · aguardando revisão" no aluno,
+ * "Aguardando o aluno" no treinador) e para a dispensada, verde = revisada.
  */
 export function seloDaAnamnese(situacao: SituacaoAnamnese, paraAluno = false): { texto: string; tipo: 'sucesso' | 'atencao' | 'neutro' } {
   switch (situacao) {
-    case 'PENDENTE': return { texto: paraAluno ? 'Para responder' : 'Aguardando o aluno', tipo: 'atencao' };
-    case 'ENVIADA': return paraAluno ? { texto: 'Enviada', tipo: 'sucesso' } : { texto: 'Para revisar', tipo: 'atencao' };
+    case 'PENDENTE': return paraAluno ? { texto: 'Para responder', tipo: 'atencao' } : { texto: 'Aguardando o aluno', tipo: 'neutro' };
+    case 'ENVIADA': return paraAluno ? { texto: 'Enviada · aguardando revisão', tipo: 'neutro' } : { texto: 'Para revisar', tipo: 'atencao' };
     case 'REVISADA': return { texto: 'Revisada', tipo: 'sucesso' };
     case 'DISPENSADA': return { texto: 'Dispensada', tipo: 'neutro' };
   }

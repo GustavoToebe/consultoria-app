@@ -7,7 +7,7 @@ import { ErroApi } from '../../api/cliente';
 import { alterarMarca, consultoria as buscarConsultoria, enviarLogo, removerLogo } from '../../api/rotas';
 import type { ConsultoriaResponse, Fonte, Marca, MetaDoPeso, Tema } from '../../api/tipos';
 import { OPCOES_DA_META } from '../../dominio/metaDoPesoNaFicha';
-import { avaliarMarca, paletaDaCor, PALETAS } from '../../dominio/paletas';
+import { avaliarMarca, avisoDeMarcaPertoDeStatus, paletaDaCor, PALETAS } from '../../dominio/paletas';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
 import { CLARO, ESCURO, espaco, fontes, RAIO, textoSobre, type Cores } from '../../tema/tokens';
@@ -74,6 +74,7 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
   const campos = errosPorCampo(erro);
   const corValida = HEX.test(cor);
   const avaliacao = avaliarMarca(cor);
+  const pertoDeStatus = avisoDeMarcaPertoDeStatus(cor);
   // O botão de salvar só aparece quando algo mudou (logo salva na hora, à parte).
   const alterado =
     nome.trim() !== inicial.nome ||
@@ -98,7 +99,7 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
       (e: unknown) => {
         setSalvando(false);
         if (e instanceof ErroApi && e.codigo === 'CONFLITO_EDICAO') {
-          avisar('A marca foi alterada em outra aba. Recarregamos a versão atual.', 'perigo');
+          avisar('A marca foi alterada em outra aba. Recarregamos a versão atual.', 'atencao');
           aoConflito();
           return;
         }
@@ -221,6 +222,7 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
         ) : null}
         {avaliacao.bloqueia ? <MensagemErro texto={avaliacao.bloqueia} /> : null}
         {!avaliacao.bloqueia && avaliacao.aviso ? <Texto variante="suave">{avaliacao.aviso}</Texto> : null}
+        {pertoDeStatus ? <Texto variante="suave" testID="aviso-marca-perto-de-status">{pertoDeStatus}</Texto> : null}
       </Cartao>
       <Cartao titulo="Fonte do nome" descricao="Vale para quem não usa logo. O nome aparece em cada fonte.">
         <GradeDeOpcoes rotulo="Fonte do nome">

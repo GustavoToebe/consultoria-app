@@ -19,6 +19,7 @@ import { Folha } from '../../ui/Folha';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
+import { coresDoDesabilitado } from '../../ui/desabilitado';
 import { Texto } from '../../ui/Texto';
 import { CabecalhoDoItem } from '../plano/CabecalhoDoItem';
 import { EditorDeCondicao, PropriedadesDaPergunta } from './PropriedadesDaPergunta';
@@ -170,8 +171,8 @@ function resumoDoTipo(p: PerguntaAtualizacao): string {
 function OpcaoDeTipo({ titulo, descricao, desabilitado, aoEscolher }: { titulo: string; descricao: string; desabilitado: boolean; aoEscolher: () => void }) {
   const { cores } = useTema();
   return <Pressable accessibilityRole="button" accessibilityLabel={titulo} accessibilityHint={descricao} accessibilityState={{ disabled: desabilitado }} disabled={desabilitado} onPress={aoEscolher}
-    style={({ pressed }) => [estilos.opcao, { backgroundColor: pressed ? cores.superficie3 : cores.superficie2, borderColor: cores.borda, opacity: desabilitado ? 0.55 : 1 }]}>
-    <Texto style={estilos.tituloOpcao}>{titulo}</Texto>
+    style={({ pressed }) => [estilos.opcao, { backgroundColor: desabilitado ? coresDoDesabilitado(cores).fundo : pressed ? cores.superficie3 : cores.superficie2, borderColor: cores.borda }]}>
+    <Texto style={estilos.tituloOpcao} cor={desabilitado ? cores.textoSuave : undefined}>{titulo}</Texto>
     <Texto variante="pequeno">{descricao}</Texto>
   </Pressable>;
 }

@@ -64,7 +64,7 @@ export function RespostaComModelo({ visivel, dados, consultoria, aoFechar, aoReg
       aoRegistrar();
     }, () => {
       setRegistrando(null);
-      avisar('A mensagem foi preparada, mas não deu para registrar no histórico. Anote numa nota.', 'perigo');
+      avisar('A mensagem foi preparada, mas não deu para registrar no histórico. Anote numa nota.', 'atencao');
     });
   };
 
