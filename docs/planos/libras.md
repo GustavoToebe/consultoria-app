@@ -32,7 +32,7 @@ nada do que está guardado mude: a carga continua em **kg** no aparelho, na fila
 - [x] 4. (8554281b) Aluno: escolha em Preferências (só com a chave ligada) e carga na execução, dica, Anterior, recordes, histórico, relatório e PDF de cargas do aluno
 - [x] 5. (8554281b) e2e `unidade-de-carga.spec.ts` (390 e 1280 px): digitar em lb, ver, recarregar, o corpo enviado à API está em kg; chave desligada = sem a escolha
 - [x] 6. (este commit) Lista final dos lugares de "kg" tratados e dos que ficam para a fase 2 (abaixo) e `AGENTS.md`
-- [x] 7. Correções da revisão independente: ida e volta kg → lb → kg sem deriva (grade de 0,05 kg, decisão 9), teste do `CampoDeCarga`, rótulo "em libras" também na carga de trabalho do dia, PDF do treino do aluno na unidade dele, e2e com contagem de envios e controle da chave
+- [x] 7. (b033687b) Correções da revisão independente: ida e volta kg → lb → kg sem deriva (grade de 0,05 kg, decisão 9), teste do `CampoDeCarga`, rótulo "em libras" também na carga de trabalho do dia, PDF do treino do aluno na unidade dele, e2e com contagem de envios e controle da chave
 
 ## Lugares de "kg" de carga
 Como funciona: o contexto `ContextoDaUnidadeDeCarga` (`ui/unidadeDeCargaEmUso`, padrão kg) só é provido no layout do aluno
