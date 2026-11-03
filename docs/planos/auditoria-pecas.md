@@ -45,12 +45,12 @@ a usar o tema; o Kanban dos Interessados respeita o movimento reduzido. Fontes: 
 - Cores fixas fora de `ui/Folha.tsx` e `ui/Botao.tsx`: `components/ui/switch.tsx` (`#FFFFFF` do polegar),
   `components/ui/alert-dialog.tsx` (`bg-black/50`), sombras `rgba` de `EscolhaSuspensa`, `SelecaoMultiplaSuspensa`,
   `Calendario`, `BuscaGlobal` e `CartaoDoUsuario` (este no PR B). Ficam para "Pendências soltas" se não entrarem.
-- Devolver o foco do leitor de tela no celular (D4).
+- ~~Devolver o foco do leitor de tela no celular (D4)~~: feito na frente [foco-da-folha-nativo.md](foco-da-folha-nativo.md); falta conferir no aparelho (Gustavo).
 - Texto da Ajuda e linha do `AGENTS.md` sobre o foco da Folha: depois do merge do PR B (os dois arquivos estão nele).
 
 ## O que ficou para trás
 - `VEU` no `ui/Passeio.tsx` (frente Aluno), depois do merge das duas.
 - Cores fixas fora da Folha e do Botão (lista em "Fora do escopo").
-- Foco do leitor de tela no celular ao fechar a folha (D4).
+- ~~Foco do leitor de tela no celular ao fechar a folha (D4)~~: feito em [foco-da-folha-nativo.md](foco-da-folha-nativo.md); conferir no aparelho é do Gustavo.
 - ~~Frase do `AGENTS.md` sobre o foco da Folha~~: feita (o PR B já está na branch).
 - Véu do `Passeio` pelo token `VEU`: o arquivo ficou com a frente Aluno (03/11); fazer depois do merge das duas.

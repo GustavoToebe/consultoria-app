@@ -20,6 +20,7 @@ import { tituloDaPagina } from '../dominio/telas';
 import { SessaoProvider, useSessao } from '../sessao/SessaoProvider';
 import { TemaProvider, useTema } from '../tema/TemaProvider';
 import { AvisoProvider } from '../ui/Aviso';
+import { lembrarGatilho } from '../ui/focoDaFolha';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
@@ -77,7 +78,7 @@ function Conteudo() {
     document.title = tituloDaPagina(caminho, marca?.nome);
   }, [caminho, marca?.nome]);
   return (
-    <View style={{ flex: 1, backgroundColor: cores.fundo }}>
+    <View style={{ flex: 1, backgroundColor: cores.fundo }} onClickCapture={lembrarGatilho}>
       <StatusBar style={modo === 'ESCURO' ? 'light' : 'dark'} />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: cores.fundo } }} />
     </View>

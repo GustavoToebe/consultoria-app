@@ -1,6 +1,6 @@
 # Foco do leitor de tela ao fechar a Folha no celular
 
-Situação: Em andamento · Onde: branch `foco-da-folha-nativo` (saída da `main` `56fa9f15`) · Atualizado: 03/11/2026
+Situação: Código e testes prontos; falta conferir no aparelho (Gustavo) · Onde: branch `foco-da-folha-nativo` (saída da `main` `56fa9f15`) · Atualizado: 03/11/2026
 
 ## Objetivo
 Ao fechar a `Folha` no Android e no iOS com o leitor de tela ligado (TalkBack/VoiceOver), o foco volta ao controle que a
