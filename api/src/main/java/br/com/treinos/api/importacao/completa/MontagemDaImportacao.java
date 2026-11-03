@@ -1351,7 +1351,7 @@ public final class MontagemDaImportacao {
                         problema(aba, l.numero(), Campo.SUPLEMENTO, "SUPLEMENTOS_DEMAIS");
                         continue;
                     }
-                    suplementacao.add(new ConteudoDieta.Suplemento(UUID.randomUUID(), cortado, dose, horario, obs, null));
+                    suplementacao.add(new ConteudoDieta.Suplemento(UUID.randomUUID(), cortado, dose, horario, obs, null, null));
                 } else if (!ctx.permissoes().ergogenicos()) {
                     sensiveisPulados++;
                 } else if (ergogenicos.size() == SUPLEMENTOS) {

@@ -3,6 +3,7 @@ package br.com.treinos.api.biblioteca;
 import br.com.treinos.api.biblioteca.dto.SuplementoDtos.SuplementoRequest;
 import br.com.treinos.api.biblioteca.dto.SuplementoDtos.SuplementoResponse;
 import br.com.treinos.api.web.Buscas;
+import br.com.treinos.api.web.CupomDeSuplemento;
 import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.web.LinksExternos;
 import br.com.treinos.api.web.NaoEncontradoException;
@@ -65,7 +66,7 @@ public class SuplementoService {
             if (!nomes.add(busca)) continue;
             suplementos.save(new Suplemento(new Suplemento.Valores(item.nome(), busca, item.marca(), item.categoria(),
                     item.porcao(), item.porcoesPorEmbalagem(), json.writeValueAsString(item.sabores()),
-                    item.link())));
+                    item.link(), null)));
         }
     }
 
@@ -80,12 +81,13 @@ public class SuplementoService {
                 .map(Buscas::opcional).filter(s -> s != null).toList()));
         return new Suplemento.Valores(nome, Buscas.semAcento(nome), Buscas.opcional(r.marca()),
                 Buscas.opcional(r.categoria()), Buscas.opcional(r.porcao()), Buscas.opcional(r.porcoesPorEmbalagem()),
-                json.writeValueAsString(sabores), LinksExternos.normalizar(r.link()));
+                json.writeValueAsString(sabores), LinksExternos.normalizar(r.link()),
+                CupomDeSuplemento.normalizar(r.cupom(), "SUPLEMENTO_INVALIDO"));
     }
 
     private SuplementoResponse resposta(Suplemento s) {
         return new SuplementoResponse(s.getId(), s.getNome(), s.getMarca(), s.getCategoria(), s.getPorcao(),
-                s.getPorcoesPorEmbalagem(), json.readValue(s.getSabores(), TEXTOS), s.getLink());
+                s.getPorcoesPorEmbalagem(), json.readValue(s.getSabores(), TEXTOS), s.getLink(), s.getCupom());
     }
 
     private Suplemento ativo(UUID id) {

@@ -4,6 +4,7 @@ import br.com.treinos.api.dieta.ConteudoDieta.Item;
 import br.com.treinos.api.dieta.ConteudoDieta.Opcao;
 import br.com.treinos.api.dieta.ConteudoDieta.Refeicao;
 import br.com.treinos.api.planos.ResultadoValidacao;
+import br.com.treinos.api.web.CupomDeSuplemento;
 import br.com.treinos.api.web.FaixaDeData;
 import br.com.treinos.api.web.LinksExternos;
 import org.springframework.stereotype.Component;
@@ -84,6 +85,9 @@ public class ValidadorDieta {
             uid(c, uids, sup.uid(), "suplementacao[" + s + "]");
             if (sup.link() != null && !sup.link().isBlank() && !LinksExternos.valido(sup.link())) {
                 c.erro("suplementacao[" + s + "].link", LinksExternos.MENSAGEM);
+            }
+            if (!CupomDeSuplemento.valido(sup.cupom())) {
+                c.erro("suplementacao[" + s + "].cupom", CupomDeSuplemento.MENSAGEM);
             }
         }
         List<ConteudoDieta.Ergogenico> ergogenicos = conteudo.ergogenicos() == null ? List.of() : conteudo.ergogenicos();

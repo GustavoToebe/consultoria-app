@@ -130,10 +130,10 @@ describe('dietaDaPrevia', () => {
     const conteudo = dietaBase({
       aguaLitros: 3,
       orientacoes: [{ titulo: 'Sono', texto: 'Dormir cedo' }],
-      suplementacao: [{ uid: 'sup', nome: 'Creatina', dose: '5 g', horario: 'manhã', observacao: '', link: null }],
+      suplementacao: [{ uid: 'sup', nome: 'Creatina', dose: '5 g', horario: 'manhã', observacao: '', link: null, cupom: 'TREINO10' }],
     });
     const d = dietaDaPrevia(editor(conteudo), [], AGORA).conteudo;
-    expect(d.suplementacao).toEqual([{ uid: 'sup', nome: 'Creatina', dose: '5 g', horario: 'manhã', observacao: '', link: null }]);
+    expect(d.suplementacao).toEqual([{ uid: 'sup', nome: 'Creatina', dose: '5 g', horario: 'manhã', observacao: '', link: null, cupom: 'TREINO10' }]);
     expect(d.aguaLitros).toBe(3);
     expect(d.orientacoes).toEqual([{ titulo: 'Sono', texto: 'Dormir cedo' }]);
     expect(d.ergogenicos).toBeNull();

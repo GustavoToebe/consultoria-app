@@ -9,6 +9,7 @@ import {
   descricaoDaPorcao,
   filtrarSuplementos,
   marcaECategoria,
+  MAX_CUPOM,
   saboresDoTexto,
   saboresParaCampo,
   saboresParaTela,
@@ -104,7 +105,7 @@ export function AbaSuplementos() {
       <PainelConfirmacao
         visivel={inativar !== null}
         titulo={`Tirar “${inativar?.nome ?? ''}” da biblioteca?`}
-        mensagem="As dietas que já usam este suplemento continuam com o nome e o link gravados."
+        mensagem="As dietas que já usam este suplemento continuam com o nome, o link e o cupom gravados."
         rotuloConfirmar="Tirar da biblioteca"
         perigo
         aoConfirmar={confirmarInativar}
@@ -122,6 +123,7 @@ function FolhaSuplemento({ inicial, aoFechar, aoSalvar, aoTirar }: { aoTirar?: (
   const [porcoes, setPorcoes] = useState(inicial?.porcoesPorEmbalagem ?? '');
   const [sabores, setSabores] = useState(saboresParaCampo(inicial?.sabores ?? []));
   const [link, setLink] = useState(inicial?.link ?? '');
+  const [cupom, setCupom] = useState(inicial?.cupom ?? '');
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
   const campos = errosPorCampo(erro);
@@ -138,6 +140,7 @@ function FolhaSuplemento({ inicial, aoFechar, aoSalvar, aoTirar }: { aoTirar?: (
       porcoesPorEmbalagem: porcoes.trim() || null,
       sabores: saboresDoTexto(sabores),
       link: link.trim() || null,
+      cupom: cupom.trim() || null,
     };
     setSalvando(true);
     setErro(null);
@@ -169,6 +172,8 @@ function FolhaSuplemento({ inicial, aoFechar, aoSalvar, aoTirar }: { aoTirar?: (
       <Campo rotulo="Link do produto (opcional)" valor={link} aoMudar={setLink} erro={erroLink ?? campos.link}
         maxLength={TAMANHO_MAXIMO_LINK} autoCapitalize="none" autoCorrect={false} keyboardType="url"
         ajuda="Link https. Abre fora do app, sem login." />
+      <Campo rotulo="Cupom (opcional)" valor={cupom} aoMudar={setCupom} erro={campos.cupom} maxLength={MAX_CUPOM}
+        autoCapitalize="none" autoCorrect={false} ajuda="O aluno vê junto do link, com um botão para copiar." />
       {erro && Object.keys(campos).length === 0 ? <MensagemErro texto={textoDoErro(erro)} /> : null}
       {inicial && aoTirar ? <Botao rotulo="Tirar da biblioteca" tipo="perigoTexto" Icone={Trash2} aoTocar={aoTirar} /> : null}
     </Folha>

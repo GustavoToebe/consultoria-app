@@ -95,11 +95,11 @@ const PLANILHAS = [
     titulo: 'Suplementos',
     chave: 'nome e marca',
     existentes: 'Ignorar, Completar ou Atualizar. O mesmo nome com outra marca é erro.',
-    cabecalho: ['Nome', 'Marca', 'Categoria', 'Porção', 'Porções', 'Sabores', 'Link'],
+    cabecalho: ['Nome', 'Marca', 'Categoria', 'Porção', 'Porções', 'Sabores', 'Link', 'Cupom'],
     linhas: [
-      ['Whey fictício', 'Marca Fictícia', 'Proteína', '30 g', '20', 'Baunilha', ''],
-      ['Creatina fictícia', 'Marca Fictícia', 'Aminoácido', '3 g', '100', '', ''],
-      ['Cafeína em cápsula fictícia', 'Outra Marca Fictícia', 'Estimulante', '200 mg', '60', '', ''],
+      ['Whey fictício', 'Marca Fictícia', 'Proteína', '30 g', '20', 'Baunilha', '', 'TESTE10'],
+      ['Creatina fictícia', 'Marca Fictícia', 'Aminoácido', '3 g', '100', '', '', ''],
+      ['Cafeína em cápsula fictícia', 'Outra Marca Fictícia', 'Estimulante', '200 mg', '60', '', '', ''],
     ],
     instrucoes: [
       ['Nome', 'Sim', 'Até 120 letras. No cadastro o suplemento é único pelo nome.', 'Whey fictício'],
@@ -109,6 +109,7 @@ const PLANILHAS = [
       ['Porções', 'Não', 'Porções por embalagem, até 40 letras', '20'],
       ['Sabores', 'Não', 'Separados por ponto e vírgula, até 20', 'Baunilha'],
       ['Link', 'Não', 'https', ''],
+      ['Cupom', 'Não', 'Até 40 letras, sem espaços nas pontas. Vazio fica sem cupom.', 'TESTE10'],
     ],
   },
   {

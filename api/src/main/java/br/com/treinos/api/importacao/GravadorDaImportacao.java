@@ -27,6 +27,7 @@ import br.com.treinos.api.importacao.LeitorDePlanilha.Celula;
 import br.com.treinos.api.importacao.LeitorDePlanilha.Linha;
 import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.web.Buscas;
+import br.com.treinos.api.web.CupomDeSuplemento;
 import br.com.treinos.api.web.Emails;
 import br.com.treinos.api.web.Formatos;
 import br.com.treinos.api.web.Fuso;
@@ -431,7 +432,7 @@ class GravadorDaImportacao {
             }
         }
         for (Linha linha : dados) {
-            conta.amostra(linha, config, List.of("nome", "marca", "categoria", "porcao", "porcoes", "sabores", "link"));
+            conta.amostra(linha, config, List.of("nome", "marca", "categoria", "porcao", "porcoes", "sabores", "link", "cupom"));
             try {
                 marcar(linha);
                 String nome = textoFinal(true, null, obrigatoria(linha, config, "nome"), "nome", 120, true);
@@ -455,7 +456,8 @@ class GravadorDaImportacao {
                 String porcoes = textoFinal(novo, atual == null ? null : atual.getPorcoesPorEmbalagem(), leitura(linha, config, "porcoes"), "porcoes", 40, false);
                 String sabores = sabores(novo, atual == null ? "[]" : atual.getSabores(), leitura(linha, config, "sabores"), config.existentes(), linha.numero());
                 String link = link(novo, atual == null ? null : atual.getLink(), leitura(linha, config, "link"), linha.numero());
-                var valores = new Suplemento.Valores(nome, Buscas.semAcento(nome), marca, categoria, porcao, porcoes, sabores, link);
+                String cupom = cupom(novo, atual == null ? null : atual.getCupom(), leitura(linha, config, "cupom"), linha.numero());
+                var valores = new Suplemento.Valores(nome, Buscas.semAcento(nome), marca, categoria, porcao, porcoes, sabores, link, cupom);
                 if (novo) {
                     Suplemento criado = new Suplemento(valores);
                     if (gravar) {
@@ -854,6 +856,24 @@ class GravadorDaImportacao {
         } catch (BadRequestException e) {
             throw new FalhaDaLinha(numero, "link", e.getMessage());
         }
+    }
+
+    /** Cupom do suplemento: mesmas regras do cadastro (strip, até 40, a mensagem não repete o valor) e do {@link #link}. */
+    private String cupom(boolean novo, String atual, Leitura lida, int numero) {
+        if (lida.erro()) {
+            throw new FalhaDaLinha(numero, "cupom", CELULA_COM_ERRO);
+        }
+        if (!lida.mapeado() || lida.vazio()) {
+            return atual;
+        }
+        String limpo = CupomDeSuplemento.limpar(lida.texto());
+        if (limpo != null && !CupomDeSuplemento.valido(limpo)) {
+            throw new FalhaDaLinha(numero, "cupom", CupomDeSuplemento.MENSAGEM);
+        }
+        if (!novo && "COMPLETAR".equals(regra()) && atual != null && !atual.isBlank()) {
+            return atual;
+        }
+        return limpo;
     }
 
     private static final ThreadLocal<Ctx> CTX = new ThreadLocal<>();
