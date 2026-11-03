@@ -1,6 +1,6 @@
 # Documentação de 03/11: pendências e roteiro
 
-Situação: Em andamento (commit local, sem push) · Onde: branch `docs-pendencias-03-11` (de `origin/main`) · Atualizado: 03/11/2026
+Situação: Concluída (o roteiro em produção é do Gustavo) · Onde: `main` (PR #72) · Atualizado: 03/11/2026
 
 ## Objetivo
 Registrar o que falta conferir em produção (roteiro do aluno fictício do Engajamento) e confirmar que as três liberações obrigatórias da Cloudflare seguem listadas com o momento certo. Só documentação.
@@ -16,10 +16,10 @@ Registrar o que falta conferir em produção (roteiro do aluno fictício do Enga
 - [x] 1. Roteiro do aluno fictício no fim de `engajamento.md` — commit: —
 - [x] 2. Linha em "Pendências soltas" do README para o roteiro (quem faz = Gustavo) — commit: —
 - [x] 3. Conferência das liberações da Cloudflare (a: revisão das lojas; b: webhook da InfinitePay; c: `/.well-known/`) — sem mudança, já listadas — commit: —
-- [ ] 4. Commit local em português, `git merge origin/main`; sem push e sem PR — commit: —
+- [x] 4. Commit em português e PR #72 — commit: 3c999670
 
 ## Fora do escopo
-- Push e PR: o Gustavo decide.
+- Nada: o PR foi revisado e mesclado pelo Claude da nuvem (autorização permanente do Gustavo).
 - Execução do roteiro em produção: o Gustavo faz.
 
 ## O que ficou para trás
