@@ -169,11 +169,16 @@ export interface Configuracao {
   rodapePdf: string | null;
 }
 
+/** Direção do peso que o treinador quer; o app só pinta a variação (`dominio/corDaVariacaoDoPeso`). */
+export type MetaDoPeso = 'REDUZIR' | 'AUMENTAR' | 'SEM_META';
+
 export interface ConsultoriaResponse {
   marca: Marca;
   versao: number;
   /** Ciclo de atualização padrão (1 a 365 dias): aluno sem valor próprio usa este; nulo = sem padrão. */
   diasAtualizacaoPadrao: number | null;
+  /** Meta do peso padrão dos alunos (nasce `REDUZIR`). */
+  metaDoPeso: MetaDoPeso;
   /** Textos opcionais das fases do ciclo. Ausente ou campo vazio = a fase aparece só com o nome. */
   textosFasesCiclo?: TextosDasFases | null;
 }
@@ -295,6 +300,8 @@ export interface AlunoDetalhe {
   /** Dados sensíveis (`ALUNO_SENSIVEL_LER`): a API omite sem a permissão. */
   cpf?: string | null;
   endereco?: EnderecoDoAluno | null;
+  /** Meta própria do aluno (`ALUNO_SENSIVEL_LER`): a API omite sem a permissão e quando vale a da consultoria. */
+  metaDoPeso?: MetaDoPeso | null;
   ativo: boolean;
   temAcesso: boolean;
   conviteExpiraEm: string | null;
@@ -338,6 +345,11 @@ export interface AlunoRequest {
   /** CPF e endereço só seguem com `ALUNO_SENSIVEL_ALTERAR`; sem a permissão a API ignora e preserva o que está salvo. */
   cpf?: string | null;
   endereco?: EnderecoDoAluno | null;
+  /**
+   * Meta do peso do aluno. Ausente ou `null` = não mexe; `PADRAO_DA_CONSULTORIA` volta ao padrão (a API grava nulo). Como
+   * CPF e endereço, só vale com `ALUNO_SENSIVEL_ALTERAR`. Conversão do campo em `dominio/metaDoPesoNaFicha`.
+   */
+  metaDoPeso?: MetaDoPeso | 'PADRAO_DA_CONSULTORIA' | null;
   versao?: number | null;
   /** Dias do ciclo do aluno (1 a 365): sugere o fim do período ao criar uma pasta. */
   diasAtualizacao?: number | null;
@@ -1089,6 +1101,8 @@ export interface RegistroPeso {
   pesoKg: number;
   variacao: number | null;
   observacao: string | null;
+  /** Meta efetiva do aluno (a dele ou a da consultoria), igual em todos os itens; ausente = sem cor. */
+  metaDoPeso?: MetaDoPeso;
 }
 
 // ---- Aluno ----

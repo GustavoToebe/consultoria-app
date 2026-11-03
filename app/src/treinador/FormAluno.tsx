@@ -13,6 +13,7 @@ import { CamposDeEndereco } from '../ui/CamposDeEndereco';
 import { Escolha } from '../ui/Escolha';
 import { useCarregar } from '../ui/useCarregar';
 import { OPCOES_DE_SEXO, sexoDoCampo } from '../dominio/sexo';
+import { metaParaEnvio, OPCOES_DA_META_DO_ALUNO, opcaoDaMeta, type OpcaoDaMeta } from '../dominio/metaDoPesoNaFicha';
 import { espaco } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
@@ -59,6 +60,7 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
   const [cpf, setCpf] = useState(inicial?.cpf ?? '');
   const [endereco, setEndereco] = useState(() => (inicial ? enderecoParaForm(inicial.endereco) : ENDERECO_VAZIO));
   const [observacoes, setObservacoes] = useState(inicial?.observacoes ?? '');
+  const [meta, setMeta] = useState<OpcaoDaMeta>(opcaoDaMeta(inicial?.metaDoPeso));
   const [dias, setDias] = useState(inicial?.diasAtualizacao ? String(inicial.diasAtualizacao) : '');
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
@@ -68,6 +70,8 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
   // Sem acesso, o telefone fica no cadastro e passa ao usuário quando o aluno entrar; CPF e endereço seguem a permissão de dados sensíveis.
   const comTelefone = !inicial?.anonimizado;
   const comSensivel = pode('ALUNO_SENSIVEL_ALTERAR');
+  // Só com a leitura também: sem ela a meta lida não vem e o campo abriria em "Padrão" por engano.
+  const comMeta = comSensivel && pode('ALUNO_SENSIVEL_LER');
   const erroTelefone = comTelefone ? erroDoTelefone(telefone) : undefined;
   const erroCpf = comSensivel ? erroDoCpf(cpf) : undefined;
   const errosEndereco = comSensivel ? errosDoEndereco(endereco) : {};
@@ -89,6 +93,8 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
         objetivo: objetivo.trim() || null, observacoes: observacoes.trim() || null,
         cpf: cpf.trim() ? mascaraCpf(cpf) : null, endereco: enderecoParaEnvio(endereco),
       } : {}),
+      // Na edição vai sempre o escolhido ("Padrão" = PADRAO_DA_CONSULTORIA); no cadastro novo, "Padrão" não vai (nasce nulo).
+      ...(comMeta && (inicial || meta !== 'PADRAO') ? { metaDoPeso: metaParaEnvio(meta) } : {}),
       versao: inicial?.versao ?? null,
       sexo: sexoDoCampo(sexo),
       diasAtualizacao: diasDoCampo(dias),
@@ -147,6 +153,12 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
         inputMode="numeric"
         maxLength={3}
       />
+      {comMeta ? (
+        <View style={estilos.meta}>
+          <Escolha rotulo="Meta do peso" valor={meta} aoMudar={setMeta} opcoes={OPCOES_DA_META_DO_ALUNO} />
+          <Texto variante="pequeno">Pinta a variação do peso: verde na direção da meta, vermelho contra. O padrão é o de Marca › Acompanhamento.</Texto>
+        </View>
+      ) : null}
       <Permitido codigo="ALUNO_SENSIVEL_ALTERAR"><Campo
         rotulo="Observações (opcional)"
         valor={observacoes}
@@ -169,5 +181,6 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
 const estilos = StyleSheet.create({
   form: { gap: espaco(1.5) },
   secao: { marginTop: espaco(1) },
+  meta: { gap: espaco(0.5) },
   botoes: { flexDirection: 'row', justifyContent: 'flex-end', gap: espaco(1), flexWrap: 'wrap' },
 });

@@ -248,6 +248,7 @@ public class AlunoService {
             exigirCpfLivre(dados.cpf(), null);
             aluno.alterarCpf(dados.cpf());
             aluno.alterarEndereco(dados.endereco());
+            if (r.metaDoPeso() != null) aluno.alterarMetaDoPeso(r.metaDoPeso().paraMeta());
         }
         var auth=org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
         if(auth!=null && auth.getPrincipal() instanceof br.com.treinos.api.security.UsuarioAutenticado eu) aluno.alterarResponsavel(eu.usuarioId());
@@ -284,10 +285,15 @@ public class AlunoService {
         Dados dados = Dados.de(r, sensivel);
         aluno.alterarDados(r.nome().trim(), email(r.email()), sensivel ? Buscas.opcional(r.objetivo()) : aluno.getObjetivo(),
                 sensivel ? Buscas.opcional(r.observacoes()) : aluno.getObservacoes(), r.diasAtualizacao());
-        if (sensivel) { // sem a permissão, CPF e endereço do corpo são ignorados e o que está gravado fica
+        if (sensivel) { // sem a permissão, CPF, endereço e meta do peso do corpo são ignorados e o que está gravado fica
             if (dados.cpf() != null && !dados.cpf().equals(aluno.getCpf())) exigirCpfLivre(dados.cpf(), aluno.getId());
             aluno.alterarCpf(dados.cpf());
             aluno.alterarEndereco(dados.endereco());
+            // Como o sexo: ausente/nulo não mexe; PADRAO_DA_CONSULTORIA grava nulo. Auditoria sem o valor (sensível).
+            if (r.metaDoPeso() != null && r.metaDoPeso().paraMeta() != aluno.getMetaDoPeso()) {
+                aluno.alterarMetaDoPeso(r.metaDoPeso().paraMeta());
+                auditoria.registrarEvento("ALUNO_META_DO_PESO_ALTERADA", "ALUNO", aluno.getId(), "Alterou a meta do peso do aluno.");
+            }
         }
         // O JSON sem "sexo" chega aqui como nulo (o DTO não distingue ausente de nulo): nulo não altera o sexo nem desliga o ciclo.
         // Quem apaga o sexo é a própria aluna (PUT /aluno/meus-dados); texto em branco ainda limpa, como em aplicarSexo.

@@ -6,6 +6,7 @@ import { StyleSheet, View } from 'react-native';
 import { ErroApi } from '../api/cliente';
 import { excluirPeso, pesosAluno, pesosDoAluno, registrarPeso } from '../api/rotas';
 import type { RegistroPeso } from '../api/tipos';
+import { tomDaVariacaoDoPeso } from '../dominio/corDaVariacaoDoPeso';
 import { dataDaTelaNaFaixa } from '../dominio/datasValidas';
 import { dataCurta, dataParaTela, hojeIso, numeroParaTela } from '../dominio/formatos';
 import { avisoDoGrafico } from '../dominio/progresso';
@@ -37,8 +38,8 @@ const LINHAS_INICIAIS = 12;
 /**
  * Registros de peso do aluno (dado sensível: só na tela, nunca em log nem no aparelho). Com `alunoId` é a ficha da
  * equipe (registrar e excluir com `ALUNO_SENSIVEL_ALTERAR`, fases do ciclo); sem ele, o Histórico do próprio aluno:
- * só leitura pela rota do aluno, sem observação e sem ciclo. Nos dois, a variação é só seta e número, sem cor de
- * "bom ou ruim".
+ * só leitura pela rota do aluno, sem observação e sem ciclo. Nos dois, a variação tem seta e sinal e a cor da meta
+ * efetiva que vem em cada item da lista (o app não calcula a meta; sem meta ou `SEM_META`, sem cor). O gráfico é neutro.
  */
 export function CartaoPeso({ alunoId }: { alunoId?: string }) {
   const { cores, preferencias, escolherPreferencia } = useTema();
@@ -100,6 +101,8 @@ export function CartaoPeso({ alunoId }: { alunoId?: string }) {
   // A11: a variação diz contra quando ("desde 12/10"), a partir da lista inteira recebida, não só das linhas visíveis.
   const variacoes = variacoesDoPeso(dados ?? []);
   const algumaVariacao = visiveis.some((p) => variacoes[p.id]);
+  // A meta efetiva é a mesma em todos os itens; serve só para a linha que explica as cores.
+  const meta = dados?.find((p) => p.metaDoPeso)?.metaDoPeso;
   const aviso = dados ? avisoDoGrafico(dados.length, preferencias.graficos) : null;
   const colunas: ColunaDaTabela<RegistroPeso>[] = [
     { chave: 'data', titulo: 'Data', flex: 1.2, principal: true, render: (p) => {
@@ -109,7 +112,7 @@ export function CartaoPeso({ alunoId }: { alunoId?: string }) {
     { chave: 'peso', titulo: 'Peso', render: (p) => <Texto numerico style={estilos.negrito}>{numeroParaTela(p.pesoKg)} kg</Texto> },
     {
       chave: 'variacao', titulo: 'Variação',
-      render: (p) => <VariacaoDoPeso variacao={variacoes[p.id] ?? null} />,
+      render: (p) => <VariacaoDoPeso variacao={variacoes[p.id] ?? null} tom={tomDaVariacaoDoPeso(p.variacao, p.metaDoPeso)} />,
     },
   ];
   if (daEquipe) {
@@ -153,7 +156,7 @@ export function CartaoPeso({ alunoId }: { alunoId?: string }) {
           colunas={colunas}
         />
       ) : null}
-      {comTabela && algumaVariacao ? <LegendaDaVariacao /> : null}
+      {comTabela && algumaVariacao ? <LegendaDaVariacao meta={meta} quem={daEquipe ? 'equipe' : 'aluno'} /> : null}
       {comTabela && lista.length > LINHAS_INICIAIS ? (
         <Botao rotulo={todos ? 'Mostrar só os últimos' : `Mostrar todos (${lista.length})`} tipo="fantasma" aoTocar={() => setTodos((v) => !v)} />
       ) : null}

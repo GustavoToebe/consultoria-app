@@ -53,6 +53,11 @@ public class Consultoria {
     @Column(name = "dias_atualizacao_padrao")
     private Integer diasAtualizacaoPadrao;
 
+    /** Meta do peso padrão dos alunos (V052); o aluno pode ter a sua. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "meta_do_peso", nullable = false)
+    private MetaDoPeso metaDoPeso = MetaDoPeso.REDUZIR;
+
     /** Textos das fases do ciclo, escritos pelo treinador. Nulo = nenhum. Nunca vai a log. */
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "textos_fases_ciclo", columnDefinition = "jsonb")
@@ -104,6 +109,14 @@ public class Consultoria {
 
     public Integer getDiasAtualizacaoPadrao() {
         return diasAtualizacaoPadrao;
+    }
+
+    public MetaDoPeso getMetaDoPeso() {
+        return metaDoPeso;
+    }
+
+    public void definirMetaDoPeso(MetaDoPeso metaDoPeso) {
+        this.metaDoPeso = metaDoPeso;
     }
 
     public String getTextosFasesCiclo() {
