@@ -59,6 +59,16 @@ describe('busca das receitas de séries', () => {
   });
 });
 
+describe('busca pela técnica da receita', () => {
+  it('acha pelo nome da técnica, inclusive o da metodologia', () => {
+    const comRestPause: Receita = { ...receita('r', 'WS pesada', []), conteudo: { series: [{ tipo: 'WORKING', tecnica: { tipo: 'REST_PAUSE', pausas: 1, pausaSegundos: 20 } }] } };
+    const outras = [receita('a', 'Força básica', ['FEEDER', 'WORKING']), comRestPause];
+    expect(filtrarReceitasDeSeries(outras, 'rest pause', config).map((r) => r.id)).toEqual(['r']);
+    const renomeada = { ...config, tecnicas: config.tecnicas.map((t) => (t.tipo === 'REST_PAUSE' ? { ...t, nome: 'Pausa curta' } : t)) };
+    expect(filtrarReceitasDeSeries(outras, 'pausa curta', renomeada).map((r) => r.id)).toEqual(['r']);
+  });
+});
+
 describe('"Usar receita" em blocos e técnicas (D16)', () => {
   const comTecnica = (tipo: 'CLUSTER' | 'REST_PAUSE' | 'DROP_SET', codigos: string[]) => ({
     series: codigos.map((c, i) => ({ tipo: c, ...(i === codigos.length - 1 ? { tecnica: { tipo, pausaSegundos: 15, blocos: tipo === 'CLUSTER' ? [4, 4] : null } } : {}) })),

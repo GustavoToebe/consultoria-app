@@ -37,7 +37,7 @@ export function pastaAnterior<P extends PastaComPeriodo>(pastas: readonly P[], a
 /** As escolhas de período que existem para este aluno: pasta atual e anterior só quando têm período; 30 dias sempre. */
 export function opcoesDePeriodo(atual: PastaComPeriodo | null | undefined, anterior: PastaComPeriodo | null | undefined): { valor: PeriodoDoHistorico; rotulo: string }[] {
   return [
-    ...(temPeriodo(atual) ? [{ valor: 'PASTA_ATUAL' as const, rotulo: 'Pasta atual' }] : []),
+    ...(temPeriodo(atual) ? [{ valor: 'PASTA_ATUAL' as const, rotulo: 'Pasta em uso' }] : []),
     ...(temPeriodo(anterior) ? [{ valor: 'PASTA_ANTERIOR' as const, rotulo: 'Pasta anterior' }] : []),
     { valor: 'ULTIMOS_30' as const, rotulo: `Últimos ${DIAS_DO_HISTORICO} dias` },
   ];
@@ -64,9 +64,9 @@ export function intervaloDoPeriodo(
 
 const ddmm = (iso: string) => dataParaTela(iso).slice(0, 5);
 
-/** O período na faixa do cartão: "Pasta atual: 01/10 a 31/10", "Últimos 30 dias: 04/10 a 02/11". */
+/** O período na faixa do cartão: "Pasta em uso: 01/10 a 31/10", "Últimos 30 dias: 04/10 a 02/11". */
 export function rotuloDoPeriodo(periodo: PeriodoDoHistorico, de: string, ate: string): string {
-  const nome = periodo === 'PASTA_ATUAL' ? 'Pasta atual' : periodo === 'PASTA_ANTERIOR' ? 'Pasta anterior' : `Últimos ${DIAS_DO_HISTORICO} dias`;
+  const nome = periodo === 'PASTA_ATUAL' ? 'Pasta em uso' : periodo === 'PASTA_ANTERIOR' ? 'Pasta anterior' : `Últimos ${DIAS_DO_HISTORICO} dias`;
   return `${nome}: ${ddmm(de)} a ${ddmm(ate)}`;
 }
 

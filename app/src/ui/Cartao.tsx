@@ -31,7 +31,7 @@ interface Props {
    */
   faixa?: boolean;
   /**
-   * O período que o cartão mostra, numa pílula embaixo do título ("Pasta atual: 01/10 a 31/10", "Desde o primeiro
+   * O período que o cartão mostra, numa pílula embaixo do título ("Pasta em uso: 01/10 a 31/10", "Desde o primeiro
    * registro"): cada visão do Histórico diz o que está mostrando (Frente G, D15).
    */
   periodo?: string;

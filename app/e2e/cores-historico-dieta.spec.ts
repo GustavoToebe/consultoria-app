@@ -120,7 +120,7 @@ for (const nomeDoTema of ['claro', 'escuro'] as const) {
       const { pedidos, errosDaPagina } = await historico(page);
 
       // Período na faixa e a frase do que está mostrando.
-      await expect(page.getByLabel('Período: Pasta atual: 01/10 a 31/10', { exact: true })).toBeVisible();
+      await expect(page.getByLabel('Período: Pasta em uso: 01/10 a 31/10', { exact: true })).toBeVisible();
       await expect(page.getByText('Mostrando a carga de trabalho de cada exercício por divisão, de 01/10 a 31/10. Carga e reps contam só as séries de trabalho.', { exact: true })).toBeVisible();
       await expect(page.getByLabel(/^Período: Todas as pastas · exercícios dos últimos 12 meses$/)).toBeVisible();
       await expect(page.getByLabel(/^Período: Desde o primeiro registro/).first()).toBeVisible();

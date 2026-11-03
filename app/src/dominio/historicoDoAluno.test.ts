@@ -34,7 +34,7 @@ describe('período do histórico', () => {
   });
 
   test('as opções só trazem a pasta que tem período; 30 dias sempre', () => {
-    expect(opcoesDePeriodo(atual, pastas[1]).map((o) => o.rotulo)).toEqual(['Pasta atual', 'Pasta anterior', 'Últimos 30 dias']);
+    expect(opcoesDePeriodo(atual, pastas[1]).map((o) => o.rotulo)).toEqual(['Pasta em uso', 'Pasta anterior', 'Últimos 30 dias']);
     expect(opcoesDePeriodo(atual, null).map((o) => o.valor)).toEqual(['PASTA_ATUAL', 'ULTIMOS_30']);
     expect(opcoesDePeriodo(null, null).map((o) => o.valor)).toEqual(['ULTIMOS_30']);
   });
@@ -50,7 +50,7 @@ describe('período do histórico', () => {
     expect(intervaloDoPeriodo('PASTA_ATUAL', '2026-11-03', atual, pastas[1])).toEqual({ de: '2026-10-01', ate: '2026-10-31' });
     expect(intervaloDoPeriodo('PASTA_ANTERIOR', '2026-11-03', atual, pastas[1])).toEqual({ de: '2026-09-01', ate: '2026-09-30' });
     expect(intervaloDoPeriodo('ULTIMOS_30', '2026-11-03', atual, null)).toEqual({ de: '2026-10-05', ate: '2026-11-03' });
-    expect(rotuloDoPeriodo('PASTA_ATUAL', '2026-10-01', '2026-10-31')).toBe('Pasta atual: 01/10 a 31/10');
+    expect(rotuloDoPeriodo('PASTA_ATUAL', '2026-10-01', '2026-10-31')).toBe('Pasta em uso: 01/10 a 31/10');
     expect(rotuloDoPeriodo('ULTIMOS_30', '2026-10-05', '2026-11-03')).toBe('Últimos 30 dias: 05/10 a 03/11');
   });
 

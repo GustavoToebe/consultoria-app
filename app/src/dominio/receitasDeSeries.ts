@@ -42,7 +42,9 @@ export function composicaoDaReceita(conteudo: unknown, config?: Configuracao | n
 function textoDaComposicao(conteudo: unknown, config: Configuracao | null | undefined): string {
   const series = seriesDaReceita(conteudo);
   const rotulos = new Set(series.map((s) => (s.cardio ? 'Cardio' : rotuloDoTipoDaSerie(config, s.tipo))).filter(Boolean));
-  return [composicaoDasSeries(series, config), ...rotulos].join(' ');
+  // A busca promete achar pela técnica ("rest pause", "cluster"), também pelo nome que a metodologia dá a ela.
+  const tecnicas = new Set(series.flatMap((s) => (s.tecnica?.tipo ? [nomeDaTecnica(config ?? CONFIGURACAO_PADRAO, s.tecnica.tipo)] : [])));
+  return [composicaoDasSeries(series, config), ...rotulos, ...tecnicas].join(' ');
 }
 
 function semAcento(texto: string): string {

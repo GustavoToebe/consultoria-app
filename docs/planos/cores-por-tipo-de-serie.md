@@ -57,4 +57,9 @@ Magenta `#A3237F`/`#F07AC8` (Back off). Mínimos: texto 5,02 (claro), 4,84 (arei
 4,65; ΔE do status ≥ 45; ΔE do cinza ≥ 26. Ardósia, terra e oliva ficaram de fora (cinza, âmbar, verde).
 
 ## O que ficou para trás
-- —
+- Revisão independente (03/11), opcionais aplicados: o painel "Fez com X kg?" fecha quando a etapa ganha peso por outro caminho; a busca do "Usar receita" acha pela técnica (também pelo nome da metodologia); "Pasta atual" virou "Pasta em uso" (a escolhida pode ser uma pasta antiga); o AGENTS diz que os cinco tipos padrão têm sempre a cor deles.
+- Opcionais que ficaram (não bloqueiam):
+  - "Por dia": a semana não é cortada no período buscado (pasta de 01/10 a 31/10 mostra 29/09 e 30/09 como "sem treino", e o título da semana passa da pílula). Sugestão: dias fora do período neutros, "fora do período".
+  - Duas divisões que dizem a mesma letra no nome ("Treino A - Peito" da pasta anterior e "Treino A - Costas" da atual, nos últimos 30 dias): a segunda ganha outra letra, e o leitor de tela lê "Treino C, Treino A - Costas".
+  - Dia com duas sessões: a grade da semana mostra só a letra da primeira.
+  - O "hoje" do Histórico é o do aparelho, não o de Brasília (já era assim antes da Frente G).

@@ -228,6 +228,9 @@ function LinhaDaEtapa({ prevista, numeroDaSerie, registrada, atual, comDivisao, 
   if (cargaAcompanhada !== pendenteDaCarga) setPendenteDaCarga(cargaAcompanhada);
   const reps = feita ? (valorExibido(repsAcompanhadas, repsGravadas) ?? null) : repsDigitadas;
   const carga = semCarga ? null : feita ? (valorExibido(cargaAcompanhada, cargaGravada) ?? null) : pesoDoCampo(cargaDigitada, pesoDaSerie);
+  // O painel pergunta pelo peso vazio: se o campo ganhou um peso por outro caminho (outra etapa marcada preencheu as
+  // vazias), a pergunta já não vale.
+  if (painel !== null && carga !== null) setPainel(null);
   const editar = (parcial: { repeticoes?: number | null; carga?: number | null }) => {
     if ('repeticoes' in parcial) setPendenteDasReps(digitarPendente(repsAcompanhadas, parcial.repeticoes ?? null, repsGravadas));
     if ('carga' in parcial) setPendenteDaCarga(digitarPendente(cargaAcompanhada, parcial.carga ?? null, cargaGravada));
