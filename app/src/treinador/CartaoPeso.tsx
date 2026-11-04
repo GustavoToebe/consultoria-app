@@ -11,7 +11,6 @@ import { dataDaTelaNaFaixa } from '../dominio/datasValidas';
 import { dataCurta, dataParaTela, hojeIso, numeroParaTela } from '../dominio/formatos';
 import { periodoDesdeOPrimeiro } from '../dominio/historicoDoAluno';
 import { avisoDoGrafico } from '../dominio/progresso';
-import { TEXTO_GRAFICOS_DESLIGADOS_ALUNO } from '../dominio/relatorio';
 import { variacoesDoPeso } from '../dominio/variacaoDoPeso';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
@@ -104,7 +103,7 @@ export function CartaoPeso({ alunoId }: { alunoId?: string }) {
   const algumaVariacao = visiveis.some((p) => variacoes[p.id]);
   // A meta efetiva é a mesma em todos os itens; serve só para a linha que explica as cores.
   const meta = dados?.find((p) => p.metaDoPeso)?.metaDoPeso;
-  const aviso = dados ? avisoDoGrafico(dados.length, preferencias.graficos) : null;
+  const aviso = dados ? avisoDoGrafico(dados.length, preferencias.graficos, daEquipe ? 'TREINADOR' : 'ALUNO') : null;
   const colunas: ColunaDaTabela<RegistroPeso>[] = [
     { chave: 'data', titulo: 'Data', flex: 1.2, principal: true, render: (p) => {
       const fase = ciclo.ativo && preferencias.mostrarFasesDoCiclo ? ciclo.selo(p.data) : null;
@@ -133,7 +132,7 @@ export function CartaoPeso({ alunoId }: { alunoId?: string }) {
       {semConexao ? <Texto variante="suave">Sem conexão.</Texto> : null}
       {!dados && carregando ? <Esqueleto texto="Carregando pesos" cartoes={1} /> : null}
       {dados && dados.length === 0 ? <Texto variante="suave">Nenhum registro de peso.</Texto> : null}
-      {aviso ? <Texto variante="suave">{!daEquipe && !preferencias.graficos ? TEXTO_GRAFICOS_DESLIGADOS_ALUNO : aviso}</Texto> : null}
+      {aviso ? <Texto variante="suave">{aviso}</Texto> : null}
       {preferencias.graficos && dados && dados.length > 1 ? (
         <Abas abas={[{ valor: 'lista', rotulo: 'Lista' }, { valor: 'grafico', rotulo: 'Gráfico' }]} ativa={visao} aoMudar={setVisao} />
       ) : null}
