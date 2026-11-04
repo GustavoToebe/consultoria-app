@@ -128,6 +128,7 @@ import type {
   PlanoResumo,
   AnaliseDaPlanilha,
   ColunasDaImportacao,
+  DiagnosticoDoArquivo,
   ConfirmacaoDaPlanilha,
   ImportacaoDesfeita,
   PreviaDaPlanilha,
@@ -865,6 +866,9 @@ export const previaDaPlanilhaCompleta = (arquivo: FormData) =>
   requisicao<PreviaDaPlanilha>('/importacoes/planilha-completa/previa', { metodo: 'POST', corpoBruto: arquivo });
 export const confirmarPlanilhaCompleta = (arquivo: FormData, hash: string) =>
   requisicao<ConfirmacaoDaPlanilha>(`/importacoes/planilha-completa/confirmar?hash=${encodeURIComponent(hash)}`, { metodo: 'POST', corpoBruto: arquivo });
+/** Migração assistida, fase 1: diz o que dá para importar do arquivo. Não grava nada (503 `MIGRACAO_INDISPONIVEL` com a chave desligada). */
+export const diagnosticarArquivo = (arquivo: FormData) =>
+  requisicao<DiagnosticoDoArquivo>('/importacoes/diagnostico', { metodo: 'POST', corpoBruto: arquivo });
 export const desfazerImportacao = (id: string) =>
   requisicao<ImportacaoDesfeita>(`/importacoes/${seg(id)}/desfazer`, { metodo: 'POST' });
 /** Esquece as respostas guardadas das importações anteriores da planilha completa (a próxima análise vem sem marcas). */

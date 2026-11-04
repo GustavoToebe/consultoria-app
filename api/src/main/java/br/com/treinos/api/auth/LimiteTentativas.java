@@ -96,6 +96,11 @@ public class LimiteTentativas {
         porUsuario("importacao-previa", usuarioId, 30);
     }
 
+    /** Diagnóstico do arquivo (migração assistida): balde próprio, para não gastar a prévia de quem só quer conferir. */
+    public void diagnosticoDeImportacao(java.util.UUID usuarioId) {
+        porUsuario("importacao-diagnostico", usuarioId, 30);
+    }
+
     public void confirmacaoDeImportacao(java.util.UUID usuarioId) {
         porUsuario("importacao-confirmacao", usuarioId, 10);
     }

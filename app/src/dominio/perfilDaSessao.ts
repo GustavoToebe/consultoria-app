@@ -16,6 +16,7 @@ export interface PerfilDaSessao {
   cicloHabilitado?: boolean;
   retornoHabilitado?: boolean;
   unidadeDeCargaHabilitada?: boolean;
+  migracaoAssistidaHabilitada?: boolean;
   usuario: UsuarioResumo;
   marca: Marca;
   termosPendentes?: boolean;
@@ -35,6 +36,7 @@ export function perfilDoEu(eu: EuResponse): PerfilDaSessao {
     cicloHabilitado: eu.cicloHabilitado,
     retornoHabilitado: eu.retornoHabilitado,
     unidadeDeCargaHabilitada: eu.unidadeDeCargaHabilitada,
+    migracaoAssistidaHabilitada: eu.migracaoAssistidaHabilitada,
     termosPendentes: eu.termosPendentes,
   };
 }
