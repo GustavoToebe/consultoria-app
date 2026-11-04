@@ -1,4 +1,5 @@
 import * as Clipboard from 'expo-clipboard';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,7 +20,9 @@ import {
   type TemaDoMontador,
   type TipoDeBloco,
 } from '../../dominio/montador';
+import { abaDoMontador, type AbaDoMontador } from '../../dominio/catalogoDeComponentes';
 import type { Preferencias } from '../../dominio/preferencias';
+import { AbaCatalogo } from '../../montador/AbaCatalogo';
 import { criarRascunhoDeModelo, MODELOS_INICIAIS, type ChaveModeloInicial } from '../../montador/modelosIniciais';
 import { Paleta } from '../../montador/Paleta';
 import { Prancheta } from '../../montador/Prancheta';
@@ -76,6 +79,10 @@ function MontadorConteudo() {
   const { avisar } = useAviso();
   const { width } = useWindowDimensions();
   const largo = width >= LARGURA_MENU_EXPANDIDO;
+  const abaDoEndereco = abaDoMontador(useLocalSearchParams<{ aba?: string }>().aba);
+  const mudarAbaDoMontador = (valor: AbaDoMontador) => {
+    if (valor !== abaDoEndereco) router.push({ pathname: '/montador', params: valor === 'catalogo' ? { aba: 'catalogo' } : {} });
+  };
 
   const [rascunho, setRascunho] = useState<Rascunho>(lerRascunhoSalvo);
   const [selecionadoId, setSelecionadoId] = useState<string | null>(null);
@@ -231,48 +238,65 @@ function MontadorConteudo() {
     avisar('Arquivo JSON baixado.', 'sucesso');
   };
 
-  const barraSuperior = (
-    <View style={[estilos.barra, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
-      <View style={estilos.tituloBarra}>
-        <Texto variante="titulo" nivel={1}>
-          Montador de telas
-        </Texto>
-        <Texto variante="pequeno">{rascunho.nome}</Texto>
-      </View>
+  const noCatalogo = abaDoEndereco === 'catalogo';
 
-      <View style={estilos.controlesBarra}>
-        <Escolha<Largura>
-          compacta
-          descricao="Largura da prancheta"
-          valor={rascunho.largura}
-          aoMudar={mudarLargura}
-          opcoes={[
-            { valor: 390, rotulo: 'Celular 390' },
-            { valor: 1280, rotulo: 'PC 1280' },
+  const barraSuperior = (
+    <View style={[estilos.topo, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
+      <View style={estilos.barra}>
+        <View style={estilos.tituloBarra}>
+          <Texto variante="titulo" nivel={1}>
+            Montador de telas
+          </Texto>
+          <Texto variante="pequeno">{noCatalogo ? 'Catálogo de componentes de ui/' : rascunho.nome}</Texto>
+        </View>
+
+        {noCatalogo ? null : (
+          <View style={estilos.controlesBarra}>
+            <Escolha<Largura>
+              compacta
+              descricao="Largura da prancheta"
+              valor={rascunho.largura}
+              aoMudar={mudarLargura}
+              opcoes={[
+                { valor: 390, rotulo: 'Celular 390' },
+                { valor: 1280, rotulo: 'PC 1280' },
+              ]}
+            />
+            <Escolha<TemaDoMontador>
+              compacta
+              descricao="Tema do montador"
+              valor={rascunho.tema}
+              aoMudar={mudarTema}
+              opcoes={[
+                { valor: 'claro', rotulo: 'Claro' },
+                { valor: 'areia', rotulo: 'Areia' },
+                { valor: 'escuro', rotulo: 'Escuro' },
+              ]}
+            />
+            <LinhaDeAcoes>
+              <Botao rotulo="Modelos ▾" tipo="secundario" aoTocar={() => setFolhaModelos(true)} />
+              <Botao
+                rotulo="Limpar tudo"
+                tipo="perigoTexto"
+                desabilitado={rascunho.blocos.length === 0}
+                motivo="A prancheta já está vazia"
+                aoTocar={() => setConfirmarLimpar(true)}
+              />
+              <Botao rotulo="Exportar ▾" tipo="primario" aoTocar={() => setFolhaExportar(true)} />
+            </LinhaDeAcoes>
+          </View>
+        )}
+      </View>
+      <View style={estilos.abasDoMontador}>
+        <Abas<AbaDoMontador>
+          ativa={abaDoEndereco}
+          aoMudar={mudarAbaDoMontador}
+          fundo={cores.superficie}
+          abas={[
+            { valor: 'montar', rotulo: 'Montar' },
+            { valor: 'catalogo', rotulo: 'Catálogo' },
           ]}
         />
-        <Escolha<TemaDoMontador>
-          compacta
-          descricao="Tema do montador"
-          valor={rascunho.tema}
-          aoMudar={mudarTema}
-          opcoes={[
-            { valor: 'claro', rotulo: 'Claro' },
-            { valor: 'areia', rotulo: 'Areia' },
-            { valor: 'escuro', rotulo: 'Escuro' },
-          ]}
-        />
-        <LinhaDeAcoes>
-          <Botao rotulo="Modelos ▾" tipo="secundario" aoTocar={() => setFolhaModelos(true)} />
-          <Botao
-            rotulo="Limpar tudo"
-            tipo="perigoTexto"
-            desabilitado={rascunho.blocos.length === 0}
-            motivo="A prancheta já está vazia"
-            aoTocar={() => setConfirmarLimpar(true)}
-          />
-          <Botao rotulo="Exportar ▾" tipo="primario" aoTocar={() => setFolhaExportar(true)} />
-        </LinhaDeAcoes>
       </View>
     </View>
   );
@@ -281,7 +305,9 @@ function MontadorConteudo() {
     <SafeAreaView edges={['top', 'bottom']} style={[estilos.raiz, { backgroundColor: cores.fundo }]}>
       {barraSuperior}
 
-      {largo ? (
+      {noCatalogo ? (
+        <AbaCatalogo tema={rascunho.tema} aoMudarTema={mudarTema} />
+      ) : largo ? (
         <View style={estilos.colunas}>
           <View style={[estilos.colunaEsquerda, { borderColor: cores.borda, backgroundColor: cores.superficie }]}>
             <Paleta
@@ -457,6 +483,7 @@ function MontadorConteudo() {
 
 const estilos = StyleSheet.create({
   raiz: { flex: 1 },
+  topo: { borderBottomWidth: 1 },
   barra: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -464,9 +491,10 @@ const estilos = StyleSheet.create({
     flexWrap: 'wrap',
     gap: espaco(1.5),
     paddingHorizontal: espaco(2),
-    paddingVertical: espaco(1.5),
-    borderBottomWidth: 1,
+    paddingTop: espaco(1.5),
+    paddingBottom: espaco(0.5),
   },
+  abasDoMontador: { paddingHorizontal: espaco(2) },
   tituloBarra: {
     gap: 2,
     flexShrink: 1,

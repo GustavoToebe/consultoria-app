@@ -188,3 +188,65 @@ test('montador: monta tela com cabeçalho, cartão com 3 linhas e botão primár
 
   expect(errosDaPagina).toEqual([]);
 });
+
+test('montador: aba Catálogo mostra os componentes de ui/ em 1280 e 390 px, com busca sem acento, folha e aviso de verdade', async ({ page }) => {
+  const errosDaPagina: string[] = [];
+  page.on('pageerror', (e) => errosDaPagina.push(e.stack ?? e.message));
+  await page.route('**/api/**', (route) => route.abort());
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/montador?aba=catalogo');
+
+  const naoEncontrada = page.getByText('Página não encontrada');
+  const tituloMontador = page.getByRole('heading', { name: 'Montador de telas' });
+  await expect(naoEncontrada.or(tituloMontador)).toBeVisible();
+  test.skip(await naoEncontrada.isVisible(), 'Requer export com EXPO_PUBLIC_MONTADOR=1');
+
+  await expect(page.getByRole('tab', { name: 'Catálogo' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('heading', { name: 'Campos de texto' })).toBeVisible();
+  await expect(page.getByText('Campo — vazio', { exact: true })).toBeVisible();
+
+  const pastaPrints = process.env.MONTADOR_PRINTS_DIR;
+  if (pastaPrints) await page.screenshot({ path: join(pastaPrints, 'catalogo-1280-claro.png') });
+
+  // Busca sem acento e sem maiúsculas: "Campo" acha os campos e esconde o resto.
+  const busca = page.getByLabel('Pesquisar componente');
+  await busca.fill('Campo');
+  await expect(page.getByText('Campo — com erro', { exact: true })).toBeVisible();
+  await expect(page.getByText('CampoSenha — com o olho', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('exemplo-campo-erro').getByText('Informe um e-mail válido.')).toBeVisible();
+  await expect(page.getByText('Botao — primário', { exact: true })).toHaveCount(0);
+  await busca.fill('grafico');
+  await expect(page.getByText('GraficoLinha — peso em kg', { exact: true })).toBeVisible();
+  await busca.fill('nada parecido');
+  await expect(page.getByText('Nenhum componente encontrado').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Limpar busca' }).click();
+  await expect(busca).toHaveValue('');
+
+  // Folha e aviso funcionam de verdade.
+  await busca.fill('folha');
+  await page.getByRole('button', { name: 'Abrir folha' }).click();
+  await expect(page.getByRole('dialog', { name: 'Editar aluno' })).toBeVisible();
+  await page.getByRole('button', { name: 'Cancelar' }).click();
+  await expect(page.getByRole('dialog', { name: 'Editar aluno' })).toHaveCount(0);
+  await busca.fill('aviso');
+  await page.getByRole('button', { name: 'Mostrar aviso de sucesso' }).click();
+  await expect(page.getByText('Aluno salvo.')).toBeVisible();
+
+  // Celular, tema escuro: uma coluna e os mesmos exemplos.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByLabel('Tema', { exact: true }).getByText('Escuro', { exact: true }).click();
+  await busca.fill('Campo');
+  await expect(page.getByText('Campo — preenchido', { exact: true })).toBeVisible();
+  await expect(page.getByText('CamposDeEndereco — preenchido, sem buscar CEP', { exact: true })).toBeVisible();
+  await busca.fill('');
+  if (pastaPrints) await page.screenshot({ path: join(pastaPrints, 'catalogo-390-escuro.png') });
+
+  // A aba mora no endereço e volta para "Montar".
+  await page.getByRole('tab', { name: 'Montar' }).click();
+  await expect(page).not.toHaveURL(/aba=catalogo/);
+  await expect(page.getByRole('tab', { name: 'Montar' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('heading', { name: 'Montador de telas' })).toHaveCount(1);
+
+  expect(errosDaPagina).toEqual([]);
+});
