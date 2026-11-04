@@ -240,4 +240,57 @@ class DiagnosticoDoArquivoTest {
         assertThat(quantidade(d.problemas(), "ARQUIVO_SEM_DADOS")).isEqualTo(1);
         assertThat(quantidade(d.problemas(), "ABA_SEM_DADOS")).isEqualTo(1);
     }
+
+    @Test
+    void valorDeCelulaIgualAUmSinonimoNaoSaiComoNomeDeColuna() {
+        // Sem cabeçalho: a primeira linha de dados é tomada por cabeçalho e tem células iguais a sinônimos ("Ativo",
+        // "Medicamento", "Cliente") que são valores de dado, não nomes de coluna.
+        Leitura soTexto = LeituraDasAbas.ler("sem-cabecalho.csv", ("Maria Teste Zq1;Ativo;Medicamento;Cliente\n"
+                + "Outra Pessoa Zq2;Inativo;Manipulado;Paciente\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        assertThat(DiagnosticoDoArquivo.diagnosticar(soTexto, SEM_LIMITE).abas().getFirst().colunas())
+                .isNotEmpty().allSatisfy(c -> assertThat(c.nome()).isNull());
+
+        // A linha tem uma célula com cara de dado (e-mail): nenhum texto dela sai, nem o que é igual a um nome conhecido.
+        Leitura comEmail = LeituraDasAbas.ler("sem-cabecalho.csv", ("Nome;Telefone;maria.zq3@example.com\n"
+                + "Outra Pessoa Zq4;Objetivo;x@example.com\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        Diagnostico d = DiagnosticoDoArquivo.diagnosticar(comEmail, SEM_LIMITE);
+        assertThat(d.abas().getFirst().colunas()).allSatisfy(c -> assertThat(c.nome()).isNull());
+        assertThat(d.toString()).doesNotContain("Zq").doesNotContain("example.com");
+
+        // Cabeçalho de verdade continua com os nomes; "Ativo" é reconhecido como campo, mas o texto não sai.
+        Diagnostico real = DiagnosticoDoArquivo.diagnosticar(umaAba("Alunos", List.of(
+                linha("Nome", "Email", "Ativo"), linha("Aluno Teste 1", "um@example.com", "Sim"))), SEM_LIMITE);
+        assertThat(real.abas().getFirst().colunas()).extracting(Coluna::nome).containsExactly("Nome", "Email", null);
+        assertThat(real.abas().getFirst().colunas()).extracting(Coluna::campo).contains("ATIVO");
+    }
+
+    @Test
+    void linhasEmBrancoSoContamDentroDeCadaBloco() {
+        // Duas linhas em branco separam os blocos e uma fica no meio do primeiro: só essa conta.
+        Diagnostico d = DiagnosticoDoArquivo.diagnosticar(umaAba("Treinos", List.of(
+                linha("Aluno: Aluno Teste 1"), linha("Exercício", "Prescrição"), linha("Agachamento fictício", "4x10"),
+                linha(null, null), linha("Leg press fictício", "3x12"), linha(null, null), linha(null, null),
+                linha("Aluno: Aluno Teste 2"), linha("Exercício", "Prescrição"), linha("Supino fictício", "3x10"),
+                linha(null, null))), SEM_LIMITE);
+
+        DaAba treino = d.abas().getFirst();
+        assertThat(treino.tipo()).isEqualTo(TipoDeAba.TREINO);
+        assertThat(treino.linhas()).isEqualTo(3);
+        assertThat(treino.linhasVazias()).isEqualTo(1);
+    }
+
+    @Test
+    void emailRepetidoContaPelaAbaInteira() {
+        // O mesmo e-mail três vezes, longe um do outro e com caixa diferente: duas repetições na aba.
+        Diagnostico d = DiagnosticoDoArquivo.diagnosticar(umaAba("Alunos", List.of(CAB,
+                linha("Aluno Teste 1", "um@example.com", null, null, null),
+                linha("Aluno Teste 2", "dois@example.com", null, null, null),
+                linha(null, null, null, null, null),
+                linha("Aluno Teste 3", "Um@Example.com", null, null, null),
+                linha("Aluno Teste 4", "dois@example.org", null, null, null),
+                linha("Aluno Teste 5", "UM@EXAMPLE.COM", null, null, null))), SEM_LIMITE);
+
+        assertThat(d.abas().getFirst().emailsDuplicados()).isEqualTo(2);
+        assertThat(quantidade(d.problemas(), "EMAIL_DUPLICADO")).isEqualTo(2);
+    }
 }

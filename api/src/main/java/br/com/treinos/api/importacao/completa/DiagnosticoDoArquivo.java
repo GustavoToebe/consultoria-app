@@ -49,8 +49,6 @@ public final class DiagnosticoDoArquivo {
     public record Diagnostico(TipoDoArquivo tipo, int linhas, List<DaAba> abas, List<Problema> problemas) {
     }
 
-    static final int NOME_DE_COLUNA_MAXIMO = 60;
-
     private DiagnosticoDoArquivo() {
     }
 
@@ -180,7 +178,10 @@ public final class DiagnosticoDoArquivo {
         int dadoAcima = 0;
         boolean semCabecalho = false;
         List<Coluna> colunas = null;
+        int vazias = 0;
+        Set<String> emails = new HashSet<>(); // a aba inteira: o mesmo e-mail em duas partes também é repetido
         for (AbaReconhecida parte : aba.partes()) {
+            vazias += vaziasDentro(parte, lida.linhas());
             Reconhecimento r = parte.reconhecimento();
             if (colunas == null) {
                 colunas = colunas(r, lida.linhas());
@@ -197,7 +198,6 @@ public final class DiagnosticoDoArquivo {
             int cNome = r.coluna(Campo.ALUNO);
             int cEmail = r.coluna(Campo.EMAIL);
             int[] cDatas = {r.coluna(Campo.DATA), r.coluna(Campo.DATA_INICIO)};
-            Set<String> emails = new HashSet<>();
             for (Linha l : parte.dados()) {
                 linhas++;
                 for (Celula c : l.celulas()) {
@@ -226,12 +226,6 @@ public final class DiagnosticoDoArquivo {
             }
         }
         Reconhecimento primeiro = aba.reconhecimento();
-        int vazias = 0;
-        for (Linha l : lida.linhas().subList(Math.max(0, primeiro.posicaoDoCabecalho() + 1), lida.linhas().size())) {
-            if (AnaliseDaPlanilha.emBranco(l)) {
-                vazias++;
-            }
-        }
         List<Coluna> lista = colunas == null ? List.of() : colunas;
         int naoReconhecidas = (int) lista.stream().filter(c -> c.campo() == null).count();
         TipoDeAba tipo = primeiro.tipo();
@@ -260,12 +254,43 @@ public final class DiagnosticoDoArquivo {
     }
 
     /**
+     * Linhas em branco entre o cabeçalho da parte e a última linha de dados dela. As linhas que separam um bloco do
+     * seguinte (e as do fim da aba) não contam: não são linhas que faltam no meio dos dados.
+     */
+    private static int vaziasDentro(AbaReconhecida parte, List<Linha> linhasDaAba) {
+        if (parte.dados().isEmpty()) {
+            return 0;
+        }
+        int depoisDe = parte.reconhecimento().linhaDoCabecalho(); // número no arquivo; 0 = sem cabeçalho
+        int antesDe = parte.dados().getLast().numero();
+        int vazias = 0;
+        for (Linha l : linhasDaAba) {
+            if (l.numero() > depoisDe && l.numero() < antesDe && AnaliseDaPlanilha.emBranco(l)) {
+                vazias++;
+            }
+        }
+        return vazias;
+    }
+
+    /**
+     * Sinônimos que também são valores típicos de célula ("Ativo" na coluna de situação, "Medicamento" na de suplemento,
+     * "Cliente" na de tipo): o campo continua reconhecido, mas o texto nunca sai como nome de coluna, porque num arquivo sem
+     * cabeçalho a linha tomada por cabeçalho pode ser uma linha de dados.
+     */
+    private static final Set<List<String>> SINONIMOS_QUE_SAO_VALOR = Set.of(List.of("ativo"), List.of("ativa"),
+            List.of("vigente"), List.of("remedio"), List.of("medicamento"), List.of("manipulado"), List.of("ergogenico"),
+            List.of("cliente"), List.of("paciente"), List.of("atleta"));
+
+    /**
      * O texto, sem acento nem caixa, é exatamente um dos nomes que a importação conhece ("Nome", "E-mail", "Objetivo"…). Só
      * assim o texto da célula pode sair: um texto que apenas <i>contém</i> uma palavra conhecida ("Perder peso", "Maria Ativa")
      * pode ser dado de pessoa numa linha de dados tomada por cabeçalho.
      */
     private static boolean igualAUmSinonimo(String texto) {
         List<String> palavras = Normalizacao.palavras(texto);
+        if (SINONIMOS_QUE_SAO_VALOR.contains(palavras)) {
+            return false;
+        }
         for (Campo campo : Campo.values()) {
             if (campo.sinonimos().contains(palavras)) {
                 return true;
@@ -279,6 +304,10 @@ public final class DiagnosticoDoArquivo {
         Linha cabecalho = linhasDaAba.stream().filter(l -> r.linhaDoCabecalho() > 0 && l.numero() == r.linhaDoCabecalho())
                 .findFirst().orElse(null);
         List<Celula> celulas = cabecalho == null ? List.of() : cabecalho.celulas();
+        // Nome só sai se a linha inteira parece cabeçalho: uma célula com cara de dado (e-mail, data, número…) diz que é
+        // uma linha de dados tomada por cabeçalho, e então nenhum texto dela sai.
+        boolean linhaDeCabecalho = celulas.stream()
+                .allMatch(c -> ReconhecimentoDeAbas.vazia(c) || ReconhecimentoDeAbas.pareceNomeDeColuna(c));
         Map<Integer, Campo> campos = new LinkedHashMap<>();
         r.campos().forEach((campo, coluna) -> campos.put(coluna, campo));
         Set<Integer> posicoes = new TreeSet<>(campos.keySet());
@@ -290,7 +319,8 @@ public final class DiagnosticoDoArquivo {
         List<Coluna> colunas = new ArrayList<>();
         for (int i : posicoes) {
             Celula c = i < celulas.size() ? celulas.get(i) : null;
-            String nome = ReconhecimentoDeAbas.pareceNomeDeColuna(c) && igualAUmSinonimo(c.texto()) ? c.texto().strip() : null;
+            String nome = linhaDeCabecalho && ReconhecimentoDeAbas.pareceNomeDeColuna(c) && igualAUmSinonimo(c.texto())
+                    ? c.texto().strip() : null;
             Campo campo = campos.get(i);
             colunas.add(new Coluna(LeitorDePlanilha.letra(i), nome, campo == null ? null : campo.name()));
         }
