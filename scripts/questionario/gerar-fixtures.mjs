@@ -266,7 +266,13 @@ ci('inscricao_padrao_da_v050', JSON.parse(readFileSync(`${RAIZ}/api/src/main/res
 {
   const sql = readFileSync(`${RAIZ}/api/src/main/resources/db/migration/V001__inicial.sql`, 'utf8');
   const m = sql.match(/INSERT INTO public\.atualizacao_modelo VALUES \('[0-9a-f-]+', \d+, '(.*?)', '[^']*'\);/);
-  c('fabrica_v2', JSON.parse(m[1].replace(/''/g, "'")));
+  const v2 = JSON.parse(m[1].replace(/''/g, "'"));
+  c('fabrica_v2', v2);
+  // V058: só o texto do cartão e da data da primeira seção mudou (ids, tipos e regras são os mesmos).
+  const v3 = structuredClone(v2);
+  v3.secoes[0].titulo = 'Seu envio';
+  v3.secoes[0].perguntas[0].rotulo = 'Data marcada';
+  c('fabrica_v3', v3);
 }
 
 writeFileSync(`${SAIDA}/questionarios.json`, JSON.stringify(casos, null, 1) + '\n');
