@@ -38,8 +38,17 @@ export function rotuloDoItem(item: ItemDoCalendario, hoje: string): string {
     return `Abrir compromisso de ${nomesPorExtenso(c)}, ${horarioNoRotuloDoCompromisso(c.hora, c.horaFim)}${statusNoRotuloDoCompromisso(c)}`;
   }
   if (f.origem === 'EVENTO') return `Abrir evento ${item.titulo}, ${item.diaInteiro ? 'dia inteiro' : f.ocorrencia.hora ?? ''}${item.cancelado ? ', cancelado' : ''}`;
-  const selo = statusAtualizacaoTreinador(f.atualizacao, hoje);
-  return `Abrir atualização de ${item.titulo}, ${dataSemAnoCorrente(item.data, hoje)}${selo.tipo === 'neutro' ? '' : `, ${selo.curto}`}`;
+  const selo = seloDaAtualizacaoNaAgenda(f.atualizacao, hoje);
+  return `Abrir atualização de ${item.titulo}, ${dataSemAnoCorrente(item.data, hoje)}${selo ? `, ${selo.curto}` : ''}`;
+}
+
+/**
+ * Selo da atualização na agenda, ou `null` quando não diz nada além do dia ("Hoje", "Em 3 dias": o dia já está no item).
+ * "Adiada para 21/10" é neutro desde a auditoria das cores (#70), mas diz algo a mais e continua aparecendo.
+ */
+export function seloDaAtualizacaoNaAgenda(a: Parameters<typeof statusAtualizacaoTreinador>[0], hoje: string) {
+  const s = statusAtualizacaoTreinador(a, hoje);
+  return s.tipo === 'neutro' && !a.atrasoAte ? null : s;
 }
 
 /** Selo da agenda: o texto e o tom de sempre, com o ícone (status sempre com texto e ícone; a cor nunca fala sozinha). */
@@ -65,13 +74,13 @@ export function seloDoCompromissoComIcone(c: Parameters<typeof seloDoCompromisso
   return { ...seloDoCompromisso(c), Icone: ICONE_DA_SITUACAO[situacaoDoCompromisso(c)] ?? CalendarClock };
 }
 
-/** O selo de status do item: a situação do compromisso, ou o da atualização quando não é neutro. Evento não tem. */
+/** O selo de status do item: a situação do compromisso, ou o da atualização quando diz algo além do dia. Evento não tem. */
 export function seloDoItem(item: ItemDoCalendario, hoje: string): SeloDaAgenda | null {
   const f = item.fonte;
   if (f.origem === 'COMPROMISSO') return seloDoCompromissoComIcone(f.compromisso);
   if (f.origem === 'ATUALIZACAO') {
-    const s = statusAtualizacaoTreinador(f.atualizacao, hoje);
-    return s.tipo === 'neutro' ? null : { texto: s.curto, tipo: s.tipo, Icone: ICONE_DO_TOM[s.tipo] };
+    const s = seloDaAtualizacaoNaAgenda(f.atualizacao, hoje);
+    return s ? { texto: s.curto, tipo: s.tipo, Icone: ICONE_DO_TOM[s.tipo] } : null;
   }
   return null;
 }
