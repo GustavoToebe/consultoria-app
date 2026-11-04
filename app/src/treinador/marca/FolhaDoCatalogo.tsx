@@ -11,6 +11,7 @@ import { Campo } from '../../ui/Campo';
 import { Folha } from '../../ui/Folha';
 import { OPCOES_PARA_BUSCAR } from '../../ui/EscolhaEmFolha';
 import { sobre } from '../../ui/sobre';
+import { coresDoDesabilitado } from '../../ui/desabilitado';
 import { Texto } from '../../ui/Texto';
 
 export interface ItemDoCatalogo {
@@ -86,11 +87,10 @@ export function FolhaDoCatalogo({
                 onPress={() => alternar(item.id)}
                 style={(estado) => [estilos.opcao, {
                   borderColor: marcado ? cores.texto : cores.borda,
-                  backgroundColor: marcado ? cores.texto : sobre(estado) ? cores.superficie3 : cores.superficie2,
-                  opacity: item.presente ? 0.5 : 1,
+                  backgroundColor: item.presente ? coresDoDesabilitado(cores).fundo : marcado ? cores.texto : sobre(estado) ? cores.superficie3 : cores.superficie2,
                 }]}>
                 <View style={estilos.textos}>
-                  <Texto style={[estilos.nome, { color: marcado ? cores.fundo : cores.texto }]}>{item.nome}</Texto>
+                  <Texto style={[estilos.nome, { color: item.presente ? cores.textoSuave : marcado ? cores.fundo : cores.texto }]}>{item.nome}</Texto>
                   {detalhe ? <Texto variante="pequeno" cor={marcado ? cores.fundo : undefined}>{detalhe}</Texto> : null}
                 </View>
                 {marcado ? <Check size={18} color={cores.fundo} strokeWidth={2.5} /> : null}

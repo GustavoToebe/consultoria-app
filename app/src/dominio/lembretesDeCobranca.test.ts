@@ -38,7 +38,7 @@ describe('situacaoDoLembrete', () => {
   });
 
   it('agendado, falhou e cancelado com o motivo em palavras', () => {
-    expect(situacaoDoLembrete(lembrete({})).selo).toBe('Agendado');
+    expect(situacaoDoLembrete(lembrete({}))).toMatchObject({ selo: 'Agendado', tom: 'neutro' });
     expect(situacaoDoLembrete(lembrete({ situacao: 'FALHOU' })).tom).toBe('perigo');
     expect(situacaoDoLembrete(lembrete({ situacao: 'CANCELADO', motivo: 'SEM_EMAIL' })).texto).toBe('Não enviado: o aluno não tem e-mail');
     expect(situacaoDoLembrete(lembrete({ situacao: 'CANCELADO', motivo: 'OUTRO' })).texto).toBe('Não enviado');

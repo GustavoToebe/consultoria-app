@@ -4,7 +4,7 @@ import { useId, useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, View, type PressableProps, type Role, type TextInput } from 'react-native';
 
 import { Input } from '../components/ui/input';
-import { atalhosPadrao, buscarTelas, favoritosVisiveis, type TelaDoCatalogo } from '../dominio/telas';
+import { atalhosPadrao, buscarTelas, favoritosVisiveis, legendaDaTela, type TelaDoCatalogo } from '../dominio/telas';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
 import { useSaidaGuardada } from './GuardaDeSaida';
@@ -137,7 +137,7 @@ export function BuscaGlobal({ permitidas, favoritos = [], largura = 440 }: Props
                   navegar={() => abrir(tela)}
                   nativeID={idDaOpcao(i)}
                   role="option"
-                  accessibilityLabel={`${tela.rotulo}, ${tela.secao}`}
+                  accessibilityLabel={`${tela.rotulo}, ${legendaDaTela(tela)}`}
                   accessibilityState={{ selected: i === indice }}
                   aria-selected={i === indice}
                   onHoverIn={() => setAtivo(i)}
@@ -146,7 +146,7 @@ export function BuscaGlobal({ permitidas, favoritos = [], largura = 440 }: Props
                     (i === indice || sobre(estado)) && { backgroundColor: cores.superficie3 },
                   ]}>
                   <Texto style={estilos.nome} numberOfLines={1}>{tela.rotulo}</Texto>
-                  <Texto variante="pequeno" numberOfLines={1}>{tela.acao ? `Ação · ${tela.secao}` : tela.secao}</Texto>
+                  <Texto variante="pequeno" numberOfLines={1}>{legendaDaTela(tela)}</Texto>
                 </LinkDeTela>
               ))}
             </ScrollView>

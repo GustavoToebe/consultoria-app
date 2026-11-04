@@ -1,4 +1,4 @@
-import { avaliarMarca, paletaDaCor, PALETAS } from './paletas';
+import { avaliarMarca, avisoDeMarcaPertoDeStatus, paletaDaCor, PALETAS } from './paletas';
 
 describe('paletas da marca', () => {
   it.each(PALETAS)('$nome passa sem bloqueio nem aviso', (p) => {
@@ -30,5 +30,29 @@ describe('paletas da marca', () => {
 
   it('cor inválida ou incompleta não avalia nada', () => {
     expect(avaliarMarca('#12')).toEqual({ bloqueia: null, aviso: null });
+    expect(avisoDeMarcaPertoDeStatus('#12')).toBeNull();
+  });
+
+  describe('marca parecida com uma cor de status (D10)', () => {
+    it('o vermelho intenso lembra o erro; verde e âmbar não avisam', () => {
+      expect(avisoDeMarcaPertoDeStatus('#C62828')).toMatch(/erro \(vermelho\)/);
+      expect(avisoDeMarcaPertoDeStatus('#15803D')).toBeNull();
+      expect(avisoDeMarcaPertoDeStatus('#A16207')).toBeNull();
+      expect(avisoDeMarcaPertoDeStatus('#c62828')).not.toBeNull();
+    });
+
+    it('azul e roxo ficam longe de todas: sem aviso', () => {
+      expect(avisoDeMarcaPertoDeStatus('#2563EB')).toBeNull();
+      expect(avisoDeMarcaPertoDeStatus('#7C3AED')).toBeNull();
+    });
+
+    it('das doze Cores prontas só o Vermelho intenso e o Laranja avisam', () => {
+      const avisam = PALETAS.filter((p) => avisoDeMarcaPertoDeStatus(p.cor)).map((p) => p.id);
+      expect(avisam).toEqual(['vermelho', 'laranja']);
+    });
+
+    it('só avisa: a avaliação que bloqueia o Salvar não muda', () => {
+      expect(avaliarMarca('#C62828')).toEqual({ bloqueia: null, aviso: null });
+    });
   });
 });

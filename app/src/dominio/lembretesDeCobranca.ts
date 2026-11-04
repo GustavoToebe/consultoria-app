@@ -73,7 +73,7 @@ export function situacaoDoLembrete(l: LembreteDaCobranca): { selo: string; tom: 
     case 'ENVIADO':
       return { selo: 'Enviado', tom: 'sucesso', texto: `Enviado em ${dataParaTela(diaDeBrasilia(l.enviadoEm ?? l.atualizadoEm))}` };
     case 'PENDENTE':
-      return { selo: 'Agendado', tom: 'atencao', texto: `Previsto para ${dataParaTela(l.dataPrevista)}` };
+      return { selo: 'Agendado', tom: 'neutro', texto: `Previsto para ${dataParaTela(l.dataPrevista)}` };
     case 'FALHOU':
       return { selo: 'Falhou', tom: 'perigo', texto: `Não foi enviado (${dataParaTela(diaDeBrasilia(l.atualizadoEm))})` };
     default: {

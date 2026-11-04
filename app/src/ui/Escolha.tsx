@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
+import { coresDoDesabilitado } from './desabilitado';
 import { Texto } from './Texto';
 
 export interface OpcaoEscolha<T> {
@@ -50,13 +51,12 @@ export function Escolha<T extends string | number | null>({ opcoes, valor, aoMud
                 estilos.opcao,
                 compacta && estilos.opcaoCompacta,
                 distribuida && estilos.opcaoDistribuida,
-                {
-                  backgroundColor: ativo ? cores.texto : cores.superficie2,
-                  borderColor: ativo ? cores.texto : cores.borda,
-                  opacity: o.desabilitada ? 0.5 : 1,
+                { // Desabilitada e selecionada ao mesmo tempo fica igual à desabilitada não selecionada (hoje nenhuma tela faz isso).
+                  backgroundColor: o.desabilitada ? coresDoDesabilitado(cores).fundo : ativo ? cores.texto : cores.superficie2,
+                  borderColor: o.desabilitada ? coresDoDesabilitado(cores).borda : ativo ? cores.texto : cores.borda,
                 },
               ]}>
-              <Texto style={[estilos.texto, compacta && estilos.textoCompacto, { color: ativo ? cores.fundo : cores.texto }]}>{o.rotulo}</Texto>
+              <Texto style={[estilos.texto, compacta && estilos.textoCompacto, { color: o.desabilitada ? coresDoDesabilitado(cores).texto : ativo ? cores.fundo : cores.texto }]}>{o.rotulo}</Texto>
             </ToggleGroupItem>
           );
         })}

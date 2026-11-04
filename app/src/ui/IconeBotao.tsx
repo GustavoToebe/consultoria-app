@@ -34,12 +34,12 @@ export function IconeBotao({ Icone, rotulo, aoTocar, cor, desabilitado, compacto
       accessibilityState={{ disabled: !!desabilitado }}
       disabled={desabilitado}
       onPress={aoTocar}
-      style={[estilos.alvo, { opacity: desabilitado ? 0.4 : 1 }]}>
+      style={estilos.alvo}>
       {(estado) => (
         <View
           style={[estilos.desenho, compacto && estilos.compacto, moldura && [estilos.moldura, { borderColor: cores.bordaCampo }],
             { backgroundColor: sobre(estado) && !desabilitado ? cores.superficie3 : moldura ? cores.superficie : 'transparent' }]}>
-          <Icone size={compacto ? 16 : 20} color={cor ?? cores.texto} strokeWidth={2} />
+          <Icone size={compacto ? 16 : 20} color={desabilitado ? cores.textoSuave : cor ?? cores.texto} strokeWidth={2} />
         </View>
       )}
     </Pressable>
