@@ -1,4 +1,4 @@
-import type { MesDeNumeros } from '../api/tipos';
+import type { MesDeNumeros, NumerosDaConsultoria } from '../api/tipos';
 import { SEM_DADO } from './formatos';
 
 /**
@@ -74,6 +74,54 @@ export function resumoDasAtualizacoes(meses: readonly MesDeNumeros[]): ResumoDas
 }
 
 const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
+
+/* ---------- Tabela da equipe (supervisão, D1, D16 e D17) ---------- */
+
+/** Explicações da tabela da equipe: é a situação de hoje, não a dos 6 meses. */
+export const REGRA_DA_EQUIPE = 'Equipe: situação de hoje. Alunos ativos de cada membro como responsável, com o limite ao lado; '
+  + '"Sem responsável" junta quem não tem responsável ou tem um que não é mais membro ativo.';
+export const REGRA_DA_EQUIPE_ATUALIZACOES = 'Na equipe, atrasadas: ainda não enviadas, com a data limite vencida, nos últimos 6 meses. '
+  + 'Para revisar: enviadas e ainda não revisadas, de qualquer data.';
+
+/** Rótulo da linha que junta os alunos sem responsável. */
+export const SEM_RESPONSAVEL = 'Sem responsável';
+
+export interface LinhaDaTabelaDaEquipe {
+  chave: string;
+  nome: string;
+  alunosAtivos: number;
+  /** `undefined` na linha "Sem responsável" (ela não tem limite); `null` = sem limite. */
+  limite: number | null | undefined;
+  atrasadas: number | null;
+  paraRevisar: number | null;
+}
+
+/**
+ * Linhas da tabela da equipe: os membros como vieram e "Sem responsável" por último. `null` quando a API não mandou a
+ * equipe (sem `EQUIPE_LER`, D17): a seção inteira some. Nunca nome nem id de aluno, só contagens.
+ */
+export function linhasDaEquipe(n: Pick<NumerosDaConsultoria, 'equipe' | 'semResponsavel'> | null | undefined): LinhaDaTabelaDaEquipe[] | null {
+  if (!n || !Array.isArray(n.equipe)) return null;
+  const linhas: LinhaDaTabelaDaEquipe[] = n.equipe.map((m) => ({
+    chave: m.usuarioId, nome: m.nome, alunosAtivos: m.alunosAtivos, limite: m.limiteDeAlunos ?? null,
+    atrasadas: m.atualizacoesAtrasadas, paraRevisar: m.atualizacoesParaRevisar,
+  }));
+  const s = n.semResponsavel;
+  if (s) linhas.push({ chave: 'sem-responsavel', nome: SEM_RESPONSAVEL, alunosAtivos: s.alunosAtivos, limite: undefined,
+    atrasadas: s.atualizacoesAtrasadas, paraRevisar: s.atualizacoesParaRevisar });
+  return linhas;
+}
+
+/**
+ * Coluna "Alunos ativos / limite": `12 / 30`; sem limite, `12 / sem limite` (limite nulo é "sem limite", D2, não falta de
+ * dado, então não vira "—"); na linha "Sem responsável", só o número.
+ */
+export function alunosELimite(l: Pick<LinhaDaTabelaDaEquipe, 'alunosAtivos' | 'limite'>): string {
+  const alunos = contagemParaTela(l.alunosAtivos);
+  if (l.limite === undefined) return alunos;
+  return `${alunos} / ${l.limite === null ? 'sem limite' : contagemParaTela(l.limite)}`;
+}
+
 
 /** "Nos 5 meses fechados: 20 atualizações (17 no prazo, 3 atrasadas)." */
 export function textoDoResumo(r: ResumoDasAtualizacoes): string {

@@ -1,4 +1,5 @@
 import * as Clipboard from 'expo-clipboard';
+import { CircleSlash } from 'lucide-react-native';
 import { useState } from 'react';
 import { Platform, Share, View } from 'react-native';
 import * as api from '../../api/rotas';
@@ -7,6 +8,7 @@ import { naOrdem } from '../../dominio/filtrosComuns';
 import { chipsDosFiltros, filtrarMembros, SEM_FILTROS, semOFiltro, SITUACOES_DO_MEMBRO, type ChaveDoFiltro, type FiltrosDeMembros } from '../../dominio/filtrosDeMembros';
 import { dataHoraParaTela } from '../../dominio/formatos';
 import { MOTIVO_FORA_DO_PLANO } from '../../dominio/funcionalidadesDoPlano';
+import { AJUDA_DO_LIMITE, lerLimiteDeAlunos, limiteParaCampo, textoDoLimite } from '../../dominio/limiteDeAlunos';
 import { perfisAtribuiveis, podeCancelarConvite, podeEditarMembro } from '../../dominio/perfilEquipe';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
@@ -20,7 +22,7 @@ import { CampoLeitura } from '../../ui/CampoLeitura';
 import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
 import { MensagemErro, Vazio } from '../../ui/Estados';
-import { textoDoErro } from '../../ui/erros';
+import { errosPorCampo, textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { NoPlano } from '../../ui/NoPlano';
@@ -30,6 +32,7 @@ import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useAvisoDoPlano } from '../../ui/useAvisoDoPlano';
 import { CelulaDoFiltro } from '../SeletoresDeFiltro';
+import { ICONE_DO_SELO } from '../iconesDosSelos';
 import { useAtorEquipe } from './useAtorEquipe';
 
 export function UsuariosEquipe({membros,perfis,recarregar}:{membros:MembroEquipe[];perfis:PerfilEquipe[];recarregar:()=>void}) {
@@ -54,9 +57,9 @@ export function UsuariosEquipe({membros,perfis,recarregar}:{membros:MembroEquipe
         <CelulaDoFiltro><SelecaoMultiplaSuspensa rotulo="Perfil" opcoes={opcoesDePerfil} marcados={new Set(atuais.perfis)} aoMudar={(m)=>mudar({...atuais,perfis:naOrdem(m,opcoesDePerfil)})} rotuloDeTodos="Todos"/></CelulaDoFiltro>
       </>}/>
     {membros.length&&!visiveis.length?<Vazio titulo="Nenhum membro encontrado" texto="Tente outro nome ou tire algum filtro." acao={chips.length?{rotulo:'Limpar filtros',aoTocar:()=>setFiltros(SEM_FILTROS)}:undefined}/>:null}
-    {visiveis.map(m=><Cartao key={m.id} titulo={m.nome} style={{backgroundColor:cores.superficie2}} acoes={<Selo texto={m.convitePendente?'Convite pendente':m.ativo?'Ativo':'Inativo'} tipo={m.convitePendente?'atencao':m.ativo?'sucesso':'neutro'}/>}>
+    {visiveis.map(m=><Cartao key={m.id} titulo={m.nome} style={{backgroundColor:cores.superficie2}} acoes={<SeloDoMembro membro={m}/>}>
       <Texto variante="suave">{m.email} · {m.perfilNome}</Texto>
-      <Texto variante="suave">{m.convitePendente?`Convite até ${dataHoraParaTela(m.conviteExpiraEm)}`:`Último acesso: ${dataHoraParaTela(m.ultimoAcesso)||'—'}`}</Texto>
+      <Texto variante="suave">{m.convitePendente?`Convite até ${dataHoraParaTela(m.conviteExpiraEm)}`:`Último acesso: ${dataHoraParaTela(m.ultimoAcesso)||'—'} · ${textoDoLimite(m.limiteDeAlunos)}`}</Texto>
       {podeEditarMembro(ator,m,perfis)&&(convidaLiberado||!m.convitePendente)?<Permitido codigo="USUARIO_ALTERAR"><Botao rotulo={m.convitePendente?'Renovar convite':'Editar'} rotuloAcessivel={m.convitePendente?`Renovar convite de ${m.nome}`:`Editar ${m.nome}`} tipo="secundario" aoTocar={()=>setEditar(m)}/></Permitido>:null}
       {podeCancelarConvite(ator,m,perfis)?<Permitido codigo="USUARIO_ALTERAR"><Botao rotulo="Cancelar convite" rotuloAcessivel={`Cancelar convite de ${m.nome}`} tipo="perigoTexto" aoTocar={()=>setCancelar(m)}/></Permitido>:null}
     </Cartao>)}
@@ -65,9 +68,22 @@ export function UsuariosEquipe({membros,perfis,recarregar}:{membros:MembroEquipe
     {editar?<EditorUsuario membro={editar==='novo'?null:editar} perfis={perfis} aoFechar={()=>setEditar(null)} recarregar={recarregar}/>:null}
   </>;
 }
+/** Situação do membro no selo do estilo novo (pílula com ícone e texto; status nunca na cor da marca). */
+function SeloDoMembro({membro:m}:{membro:MembroEquipe}) {
+  const tipo=m.convitePendente?'atencao':m.ativo?'sucesso':'neutro';
+  return <Selo texto={m.convitePendente?'Convite pendente':m.ativo?'Ativo':'Inativo'} tipo={tipo} Icone={tipo==='neutro'?CircleSlash:ICONE_DO_SELO[tipo]}/>;
+}
 function EditorUsuario({membro,perfis,aoFechar,recarregar}:{membro:MembroEquipe|null;perfis:PerfilEquipe[];aoFechar:()=>void;recarregar:()=>void}) {
   const novo=!membro||membro.convitePendente;
-  const opcoes=perfisAtribuiveis(useAtorEquipe(),perfis,membro&&!membro.convitePendente?membro:undefined);
+  const ator=useAtorEquipe();
+  const opcoes=perfisAtribuiveis(ator,perfis,membro&&!membro.convitePendente?membro:undefined);
+  // Limite de alunos (supervisão da equipe, D2): só o Administrador grava (a API confere o perfil de acesso total) e só
+  // membro que já é usuário (convite pendente não tem). O administrador também pode ter limite (D18).
+  const mostraLimite=!novo&&ator.administrador;
+  const limiteGravado=membro?.limiteDeAlunos??null;
+  const [limiteTexto,setLimiteTexto]=useState(limiteParaCampo(limiteGravado));const [erroDoLimite,setErroDoLimite]=useState<string|null>(null);
+  const leituraDoLimite=lerLimiteDeAlunos(limiteTexto);
+  const limiteInvalido=mostraLimite&&!leituraDoLimite.ok;
   const [nome,setNome]=useState(membro?.nome??'');const [email,setEmail]=useState(membro?.email??'');
   const [perfilId,setPerfilId]=useState(membro&&opcoes.some(p=>p.id===membro.perfilId)?membro.perfilId:opcoes.find(p=>p.nome==='Assistente')?.id??opcoes[0]?.id??'');
   const [ativo,setAtivo]=useState(membro?.ativo??true);const [confirmar,setConfirmar]=useState(false);
@@ -77,11 +93,23 @@ function EditorUsuario({membro,perfis,aoFechar,recarregar}:{membro:MembroEquipe|
   const euMesmo=!!membro&&!membro.convitePendente&&membro.id===usuario?.id;
   // Reativar membro inativo conta no limite do plano: fora do plano de equipe fica desabilitado.
   const reativacaoBloqueada=!!membro&&!membro.convitePendente&&!membro.ativo&&!temFuncionalidade('EQUIPE');
-  const salvar=async()=>{setConfirmar(false);setOcupado(true);setErro(null);try{if(novo)setConvite(await api.convidarMembro({nome:nome.trim(),email:email.trim(),perfilId}));else{await api.alterarMembro(membro.id,{nome:nome.trim(),perfilId:euMesmo?membro.perfilId:perfilId,ativo:euMesmo?membro.ativo:ativo});avisar('Membro atualizado.','sucesso');aoFechar();}recarregar();}catch(e){if(avisarDoPlano(e))aoFechar();else setErro(e);}finally{setOcupado(false);}};
+  // Depois de uma falha parcial (membro salvo, limite não), a nova tentativa parte do que a API devolveu: não repete o
+  // PUT do membro se nada dele mudou desde então, nem pede de novo "Desativar membro?" (D25).
+  const [salvo,setSalvo]=useState<MembroEquipe|null>(null);
+  const atual=salvo??membro;
+  const corpoDoMembro=atual&&!novo?{nome:nome.trim(),perfilId:euMesmo?atual.perfilId:perfilId,ativo:euMesmo?atual.ativo:ativo}:null;
+  const membroMudou=!salvo||!corpoDoMembro||corpoDoMembro.nome!==salvo.nome||corpoDoMembro.perfilId!==salvo.perfilId||corpoDoMembro.ativo!==salvo.ativo;
+  const salvar=async()=>{setConfirmar(false);setOcupado(true);setErro(null);setErroDoLimite(null);let membroSalvo=!membroMudou;try{if(novo||!membro||!corpoDoMembro)setConvite(await api.convidarMembro({nome:nome.trim(),email:email.trim(),perfilId}));else{
+    if(membroMudou){setSalvo(await api.alterarMembro(membro.id,corpoDoMembro));membroSalvo=true;}
+    // Rota própria do limite, só quando mudou (cada gravação é auditada). Vai depois: o 422 dela não desfaz o resto.
+    if(mostraLimite&&leituraDoLimite.ok&&leituraDoLimite.limite!==limiteGravado)await api.definirLimiteDeAlunos(membro.id,leituraDoLimite.limite);
+    avisar('Membro atualizado.','sucesso');aoFechar();}recarregar();}
+    catch(e){if(membroSalvo){recarregar();const campo=errosPorCampo(e).limite;if(campo)setErroDoLimite(campo);else setErro(e);avisar('Nome, perfil e situação foram salvos; o limite de alunos não.','perigo');}
+    else if(avisarDoPlano(e))aoFechar();else setErro(e);}finally{setOcupado(false);}};
   const copiar=async(texto:string)=>{try{await Clipboard.setStringAsync(texto);avisar('Copiado.','sucesso');}catch{avisar('Selecione o texto e copie à mão.','neutro');}};
   const compartilhar=async()=>{if(!convite)return;try{if(Platform.OS==='web'){if(typeof navigator.share==='function')await navigator.share({title:'Convite para a equipe',url:convite.link});else await copiar(convite.link);}else await Share.share({message:convite.link});}catch{avisar('Não foi possível compartilhar. Use Copiar link do convite.','neutro');}};
   return <>
-    <Folha visivel titulo={convite?'Convite criado':novo?'Convidar membro':'Editar membro'} aoFechar={aoFechar} rodape={convite?<Botao rotulo="Concluir" aoTocar={aoFechar}/>:<><Botao rotulo="Cancelar" tipo="secundario" aoTocar={aoFechar}/><Botao rotulo={novo?'Enviar convite':'Salvar membro'} carregando={ocupado} desabilitado={!nome.trim()||(!perfilId&&!euMesmo)||(novo&&!email.trim())} aoTocar={()=>{if(!novo&&membro?.ativo&&!ativo)setConfirmar(true);else void salvar();}}/></>}>
+    <Folha visivel titulo={convite?'Convite criado':novo?'Convidar membro':'Editar membro'} aoFechar={aoFechar} rodape={convite?<Botao rotulo="Concluir" aoTocar={aoFechar}/>:<><Botao rotulo="Cancelar" tipo="secundario" aoTocar={aoFechar}/><Botao rotulo={novo?'Enviar convite':'Salvar membro'} carregando={ocupado} desabilitado={!nome.trim()||(!perfilId&&!euMesmo)||(novo&&!email.trim())||limiteInvalido} motivo={limiteInvalido?'Corrija o limite de alunos.':undefined} aoTocar={()=>{if(!novo&&atual?.ativo&&!ativo)setConfirmar(true);else void salvar();}}/></>}>
       {convite?<>
         {convite.emailEnviado?<Texto>O e-mail do convite já foi enviado para {email.trim()}. Use o link só se precisar mandar por outro meio.</Texto>:<Texto>O e-mail do convite não foi enviado agora. Copie o link e mande ao membro.</Texto>}
         <Texto>Válido até {dataHoraParaTela(convite.expiraEm)}. O link só pode ser usado uma vez.</Texto>
@@ -92,10 +120,13 @@ function EditorUsuario({membro,perfis,aoFechar,recarregar}:{membro:MembroEquipe|
         {novo?<Texto variante="suave">O convite vai por e-mail na hora, se o envio de e-mails estiver ligado. O link fica disponível depois, para copiar se precisar.</Texto>:null}
         {membro?.convitePendente?<Texto variante="suave">Gerar outro convite invalida o anterior.</Texto>:null}
         <Campo rotulo="Nome do membro" valor={nome} aoMudar={setNome} maxLength={120}/>
-        {novo?<Campo rotulo="E-mail do membro" valor={email} aoMudar={setEmail} keyboardType="email-address" autoCapitalize="none" maxLength={254}/>:<Texto>{email}</Texto>}
+        {novo?<Campo rotulo="E-mail do membro" valor={email} aoMudar={setEmail} keyboardType="email-address" autoCapitalize="none" maxLength={254}/>:<CampoLeitura rotulo="E-mail do membro" valor={email}/>}
         {euMesmo?<><CampoLeitura rotulo="Perfil do membro" valor={membro.perfilNome}/><Texto variante="pequeno">Você não pode trocar o próprio perfil nem se desativar. Peça a outro administrador.</Texto></>
           :<Escolha rotulo="Perfil do membro" opcoes={opcoes.map(p=>({valor:p.id,rotulo:p.nome}))} valor={perfilId} aoMudar={setPerfilId}/>}
         {!novo&&!euMesmo?<CaixaSelecao rotulo="Membro ativo" marcado={ativo} aoMudar={setAtivo} desabilitado={reativacaoBloqueada} ajuda={reativacaoBloqueada?`${MOTIVO_FORA_DO_PLANO}.`:undefined}/>:null}
+        {mostraLimite?<Campo rotulo="Limite de alunos (opcional)" valor={limiteTexto} aoMudar={(t)=>{setLimiteTexto(t);setErroDoLimite(null);}} numerico keyboardType="number-pad" inputMode="numeric" maxLength={4} placeholder="Sem limite"
+          erro={erroDoLimite??(leituraDoLimite.ok?null:leituraDoLimite.erro)} ajuda={AJUDA_DO_LIMITE}/>
+          :!novo?<><CampoLeitura rotulo="Limite de alunos" valor={textoDoLimite(limiteGravado)}/><Texto variante="pequeno">Só um administrador altera o limite de alunos.</Texto></>:null}
       </>}
       {erro?<MensagemErro texto={textoDoErro(erro)}/>:null}
     </Folha>
