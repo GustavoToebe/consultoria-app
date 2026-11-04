@@ -330,8 +330,8 @@ class PushDoExpoIntegrationTest extends AbstractIntegrationTest {
         }
         assertThat(m).as("a mensagem deste teste").isNotNull();
         String corpo = m.toString();
-        assertThat(m.get("title").asString()).isEqualTo("Seu compromisso mudou. Abra o app para ver.");
-        assertThat(m.get("body").asString()).isEqualTo("Seu compromisso mudou. Abra o app para ver.");
+        assertThat(m.get("title").asString()).isEqualTo("Compromisso atualizado");
+        assertThat(m.get("body").asString()).isEqualTo("Abra o app para ver o que mudou.");
         assertThat(m.get("data").toString()).isEqualTo("{\"tipo\":\"compromisso\"}");
         assertThat(m.propertyNames()).containsExactlyInAnyOrder("to", "title", "body", "sound", "priority", "data");
         assertThat(corpo).doesNotContain(SENTINELA_NOME, "Sentinela", HORA, SENTINELA_LOCAL, SENTINELA_OBS, usuarioId,

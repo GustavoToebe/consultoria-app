@@ -127,7 +127,7 @@ class PushRepositorio {
     }
 
     /**
-     * Limpeza global: pendente velho demais não faz mais sentido ("seu compromisso mudou" horas depois), o concluído some em 7
+     * Limpeza global: pendente velho demais não faz mais sentido ("Compromisso atualizado" horas depois), o concluído some em 7
      * dias e o token que o app não renova há {@value #DIAS_DE_VALIDADE_DO_TOKEN} dias some também (o app registra de novo a
      * cada abertura da área do aluno; sem abrir o app por um mês, o aparelho foi trocado, apagado ou esquecido).
      */

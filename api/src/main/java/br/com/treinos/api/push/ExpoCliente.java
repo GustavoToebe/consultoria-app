@@ -25,8 +25,8 @@ import java.util.List;
 class ExpoCliente {
 
     static final int MAXIMO_POR_CHAMADA = 100;
-    static final String TITULO = "Seu compromisso mudou. Abra o app para ver.";
-    static final String CORPO = "Seu compromisso mudou. Abra o app para ver.";
+    static final String TITULO = "Compromisso atualizado";
+    static final String CORPO = "Abra o app para ver o que mudou.";
 
     /** Falha da chamada inteira (rede, tempo, status que não é 2xx ou resposta que não é JSON). {@code motivo} é curto e sem dado. */
     static class FalhaNoEnvio extends RuntimeException {
