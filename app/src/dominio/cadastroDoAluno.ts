@@ -1,6 +1,6 @@
 import { cepValido, cpfValido, formatarCep, formatarCpf, formatarTelefone, somenteDigitos, telefoneValido, ufValida } from '@plataforma/web';
 
-import type { EnderecoDoAluno } from '../api/tipos';
+import type { AlunoDetalhe, EnderecoDoAluno } from '../api/tipos';
 import { enderecoParaTela } from './minhaConta';
 
 /**
@@ -134,3 +134,13 @@ export const NOTA_TELEFONE_SEM_ACESSO = 'O aluno ainda não tem acesso: o telefo
 /** Código do 409 de CPF que já está no cadastro de outro aluno (a API não repete o valor). */
 export const CPF_EM_USO = 'ALUNO_CPF_EM_USO';
 export const MENSAGEM_CPF_EM_USO = 'Este CPF já está no cadastro de outro aluno.';
+
+/**
+ * Selo do acesso ao app, visto só pela equipe. Quem age no "Aguardando primeiro acesso" é o aluno (entrar pela primeira
+ * vez); o treinador espera, então é neutro (seção 4.5 do `docs/design-e-front.md`).
+ */
+export function seloDoAcesso(aluno: Pick<AlunoDetalhe, 'temAcesso' | 'aguardandoPrimeiroAcesso'>): { texto: string; tipo: 'sucesso' | 'neutro' } {
+  if (!aluno.temAcesso) return { texto: 'Sem acesso', tipo: 'neutro' };
+  if (aluno.aguardandoPrimeiroAcesso) return { texto: 'Aguardando primeiro acesso', tipo: 'neutro' };
+  return { texto: 'Com acesso', tipo: 'sucesso' };
+}

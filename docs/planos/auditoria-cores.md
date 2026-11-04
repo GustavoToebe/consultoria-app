@@ -180,8 +180,10 @@ Não há conflito de texto. `lembretesDeCobranca.ts`, `paraFazer.ts` e `anamnese
 depois roda `agendaPresencial.test.ts` e `atualizacao.test.ts`.
 
 ## O que ficou para trás
-- Casos fora da tabela, que mantêm o tom de antes (ver também as Pendências soltas do README): `ITEM_ANAMNESE` (D12),
-  `CartaoAcesso`, inscrições `AGUARDANDO`, cobrança `CONTESTADA` e as cores do consumo da conta.
+- Casos fora da tabela, que mantêm o tom de antes: `ITEM_ANAMNESE` (D12). Os outros quatro (`CartaoAcesso`, pagamento
+  da inscrição `AGUARDANDO`, cobrança `CONTESTADA` e consumo da conta) ganharam uma linha cada na seção 4.5 em 04/11
+  (frente `miudos-sem-api-04-11.md`); só o "Aguardando primeiro acesso" mudou, de `atencao` para `neutro`.
+- Ícone no selo de cobrança: fechado em 04/11, fica só o texto (Gustavo; `miudos-sem-api-04-11.md`, D1).
 - `ui/BotaoMarcar.tsx`: o ✓ desabilitado da prévia já era cinza (`coresDoMarcar`, `textoSuave` sobre `superficie3`,
   conferido em `contrasteDasPecas.test.ts`); não mudou.
 - O e2e do aviso de erro (vermelho, fica até fechar) não ganhou caso novo: o de atenção cobre o caminho do `useAviso`.
