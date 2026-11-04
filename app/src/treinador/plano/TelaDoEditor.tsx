@@ -27,7 +27,7 @@ interface Props {
   colunas?: boolean;
 }
 
-// shortcut: larguras do menu repetidas de `ui/Navegacao` (aberto e trilho; o minimizado não entra); se mudarem lá, só o 1º quadro erra.
+// Atalho consciente: larguras do menu repetidas de `ui/Navegacao` (aberto e trilho; o minimizado não entra); se mudarem lá, só o 1º quadro erra.
 const MENU_ABERTO = 240;
 const MENU_TRILHO = 88;
 

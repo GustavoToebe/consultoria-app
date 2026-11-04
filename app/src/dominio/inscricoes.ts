@@ -135,9 +135,31 @@ export const OPCOES_PERIODICIDADE = (Object.keys(PERIODICIDADES) as Periodicidad
 const NAO_SEI = 'Ainda não sei';
 export const INTERESSES: Record<Interesse, string> = { TREINO: 'Treino', DIETA: 'Dieta', TREINO_E_DIETA: 'Treino e dieta', NAO_SEI };
 export const MODALIDADES_DESEJADAS: Record<ModalidadeDesejada, string> = { ...MODALIDADES, NAO_SEI };
-export const PREVISOES: Record<PrevisaoInicio, string> = { AGORA: 'Agora', ESTE_MES: 'Este mês', PROXIMO_MES: 'Próximo mês', NAO_SEI };
-export const ORIGENS_INFORMADAS: Record<OrigemInformada, string> = { INDICACAO: 'Indicação', INSTAGRAM: 'Instagram', GOOGLE: 'Google', OUTRA: 'Outra' };
-export const ORIGENS: Record<Origem, string> = { INDICACAO: 'Indicação', INSTAGRAM: 'Instagram', GOOGLE: 'Google', CAMPANHA: 'Campanha', OUTRA: 'Outra' };
+export const PREVISOES: Record<PrevisaoInicio, string> = {
+  AGORA: 'Agora', ESTE_MES: 'Este mês', PROXIMO_MES: 'Próximo mês', SO_DE_PASSAGEM: 'Tô só de passagem', NAO_SEI,
+};
+export const ORIGENS_INFORMADAS: Record<OrigemInformada, string> = {
+  INDICACAO: 'Indicação',
+  INSTAGRAM: 'Instagram',
+  GOOGLE: 'Google',
+  YOUTUBE: 'YouTube',
+  TIKTOK: 'TikTok',
+  INFLUENCIADOR: 'Influenciador(a) ou atleta do time',
+  ALUNO_DO_TIME: 'Aluno do time',
+  OUTRA: 'Outra',
+};
+/** Origem da equipe: as respondidas e, antes de "Outra", a campanha do link (a ordem do mapa é a das opções). */
+export const ORIGENS: Record<Origem, string> = {
+  INDICACAO: ORIGENS_INFORMADAS.INDICACAO,
+  INSTAGRAM: ORIGENS_INFORMADAS.INSTAGRAM,
+  GOOGLE: ORIGENS_INFORMADAS.GOOGLE,
+  YOUTUBE: ORIGENS_INFORMADAS.YOUTUBE,
+  TIKTOK: ORIGENS_INFORMADAS.TIKTOK,
+  INFLUENCIADOR: ORIGENS_INFORMADAS.INFLUENCIADOR,
+  ALUNO_DO_TIME: ORIGENS_INFORMADAS.ALUNO_DO_TIME,
+  CAMPANHA: 'Campanha',
+  OUTRA: ORIGENS_INFORMADAS.OUTRA,
+};
 export const OPCOES_ORIGEM = (Object.keys(ORIGENS) as Origem[]).map((valor) => ({ valor, rotulo: ORIGENS[valor] }));
 export const rotuloDaOrigem = (o: Origem | null | undefined) => (o ? ORIGENS[o] : 'Não informada');
 

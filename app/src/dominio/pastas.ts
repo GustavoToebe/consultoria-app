@@ -11,3 +11,12 @@ export function filtrarPastas<T extends { concluidaEm: string | null }>(pastas: 
   if (filtro === 'todas') return pastas;
   return pastas.filter((p) => (filtro === 'concluidas') === !!p.concluidaEm);
 }
+
+/**
+ * De onde a "Nova pasta" pode copiar o período. Só entra com mais de uma pasta e apenas as finalizadas
+ * (`concluidaEm`). Uma pasta só, ou várias ainda abertas, devolve vazio: o campo não aparece.
+ */
+export function pastasParaCopiarNaNova<T extends { concluidaEm: string | null }>(pastas: readonly T[]): T[] {
+  if (pastas.length <= 1) return [];
+  return pastas.filter((p) => p.concluidaEm != null);
+}

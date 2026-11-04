@@ -29,14 +29,15 @@ function rotuloDoLink(link: Locator) {
   });
 }
 
-test('PC (1280): três grupos com título, na ordem do D6, e o fim do menu alcançável', async ({ page }) => {
+test('PC (1280): quatro grupos com título, na ordem do D6, e o fim do menu alcançável', async ({ page }) => {
   const { errosDaPagina } = await abrir(page, 1280, 720);
   const nomes = async (grupo: string) => menu(page).getByRole('group', { name: grupo }).getByRole('link').evaluateAll((ls) => ls.map((l) => l.getAttribute('aria-label')));
-  expect(await nomes('Alunos e acompanhamento')).toEqual(['Alunos', 'Atualizações', 'Agenda', 'Biblioteca', 'Planejamento']);
+  expect(await nomes('Acompanhamento')).toEqual(['Alunos', 'Atualizações', 'Agenda']);
+  expect(await nomes('Conteúdo')).toEqual(['Biblioteca', 'Planejamento']);
   expect(await nomes('Negócio')).toEqual(['Interessados', 'Financeiro', 'Números']);
   // Na web o Perfil fica na barra de topo, não no menu lateral.
   expect(await nomes('Configurações')).toEqual(['Equipe', 'Importação', 'Ajuda', 'Auditoria']);
-  for (const titulo of ['Alunos e acompanhamento', 'Negócio', 'Configurações']) await expect(menu(page).getByText(titulo, { exact: true })).toBeVisible();
+  for (const titulo of ['Acompanhamento', 'Conteúdo', 'Negócio', 'Configurações']) await expect(menu(page).getByText(titulo, { exact: true })).toBeVisible();
   // O Início fica no topo, fora de grupo.
   await expect(menu(page).getByRole('link').first()).toHaveAttribute('aria-label', 'Início');
 

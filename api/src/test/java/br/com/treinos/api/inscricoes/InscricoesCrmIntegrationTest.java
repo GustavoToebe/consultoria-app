@@ -150,6 +150,71 @@ class InscricoesCrmIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.get("/inscricoes?situacao=TODAS", admin, 200).path("total").asLong()).isEqualTo(3);
     }
 
+    /** Inscrição do Saraiva (V057): origens novas, "Tô só de passagem" e o link do YouTube e do TikTok. */
+    @Test
+    void origensNovasEPrevisaoSoDePassagemFicamGuardadasELinkDeYoutubeETiktokViramOrigem() throws Exception {
+        // Envio público com a origem e a previsão novas: a origem da equipe herda a respondida.
+        Map<String, Object> tiktok = corpo("Pessoa Fictícia TikTok", "11987650001", null);
+        tiktok.put("previsaoInicio", "SO_DE_PASSAGEM");
+        tiktok.put("origem", "TIKTOK");
+        JsonNode d = detalhe(inscrever(tiktok));
+        assertThat(d.path("origemInformada").asString()).isEqualTo("TIKTOK");
+        assertThat(d.path("origem").asString()).isEqualTo("TIKTOK");
+        assertThat(d.path("previsaoInicio").asString()).isEqualTo("SO_DE_PASSAGEM");
+
+        // Todas as novas valem como resposta e viram a origem da equipe sem conversão.
+        for (String nova : List.of("YOUTUBE", "INFLUENCIADOR", "ALUNO_DO_TIME")) {
+            Map<String, Object> c = corpo("Pessoa Fictícia " + nova, "11987650002", null);
+            c.put("origem", nova);
+            JsonNode detalhe = detalhe(inscrever(c));
+            assertThat(detalhe.path("origemInformada").asString()).isEqualTo(nova);
+            assertThat(detalhe.path("origem").asString()).isEqualTo(nova);
+        }
+
+        // Só o link: youtube/yt e tiktok/tt; um nome qualquer continua sendo campanha.
+        for (String[] par : new String[][] {
+                {"youtube", "YOUTUBE"}, {"yt", "YOUTUBE"}, {"tiktok", "TIKTOK"}, {"tt", "TIKTOK"}, {"canal-x", "CAMPANHA"}}) {
+            Map<String, Object> c = corpo("Pessoa Fictícia Link " + par[0], "11987650003", null);
+            c.put("origemLink", par[0]);
+            JsonNode detalhe = detalhe(inscrever(c));
+            assertThat(detalhe.path("origemInformada").isNull()).isTrue();
+            assertThat(detalhe.path("origem").asString()).as(par[0]).isEqualTo(par[1]);
+        }
+
+        // A equipe corrige para uma das novas (as duas listas têm os mesmos valores) e o filtro acha.
+        String id = inscrever(corpo("Pessoa Fictícia Corrigida", "11987650004", null));
+        JsonNode corrigida = api.put("/inscricoes/" + id + "/origem", admin,
+                mapa("origem", "ALUNO_DO_TIME", "versao", versao(id)), 200);
+        assertThat(corrigida.path("origem").asString()).isEqualTo("ALUNO_DO_TIME");
+        assertThat(api.get("/inscricoes?origem=ALUNO_DO_TIME", admin, 200).path("total").asLong()).isEqualTo(2);
+        assertThat(api.get("/inscricoes?origem=TIKTOK", admin, 200).path("total").asLong()).isEqualTo(3);
+
+        // Indicadores por origem contam a origem nova.
+        String de = LocalDate.now(Fuso.BRASILIA).minusDays(1).toString();
+        JsonNode ind = api.get("/inscricoes/indicadores?de=" + de + "&ate=" + hoje(), admin, 200);
+        JsonNode linhaTiktok = null;
+        for (JsonNode o : ind.path("porOrigem")) if ("TIKTOK".equals(o.path("origem").asString())) linhaTiktok = o;
+        assertThat(linhaTiktok).isNotNull();
+        assertThat(linhaTiktok.path("entradas").asLong()).isEqualTo(3);
+        assertThat(linhaTiktok.path("aceites").asLong()).isZero();
+
+        // Fora da lista continua 400 (resposta e previsão), sem gravar.
+        Map<String, Object> ruim = corpo("Pessoa Fictícia Ruim Nova", "11987650005", null);
+        ruim.put("origem", "KWAI");
+        api.post("/publico/inscricoes/" + codigo, null, ruim, 400);
+        Map<String, Object> ruim2 = corpo("Pessoa Fictícia Ruim Previsao", "11987650006", null);
+        ruim2.put("previsaoInicio", "SO_PASSANDO");
+        api.post("/publico/inscricoes/" + codigo, null, ruim2, 400);
+    }
+
+    /** A origem da equipe começa pela respondida por nome: toda resposta tem de existir também na lista da equipe. */
+    @Test
+    void todaOrigemRespondidaExisteNaListaDaEquipe() {
+        for (Crm.OrigemInformada informada : Crm.OrigemInformada.values()) {
+            assertThat(Crm.Origem.valueOf(informada.name()).name()).isEqualTo(informada.name());
+        }
+    }
+
     // ---- etapas, encerrar e reabrir ----
 
     @Test

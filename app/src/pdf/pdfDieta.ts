@@ -146,7 +146,7 @@ ${r.observacao ? `<div class="suave">${escLinhas(r.observacao)}</div>` : ''}${es
       }</div>`;
     })
     .join('');
-  const suplementos = c.suplementacao.filter((s) => s.nome || s.dose || s.horario || s.observacao);
+  const suplementos = c.suplementacao.filter((s) => s.nome || s.dose || s.horario || s.observacao || s.cupom?.trim());
   const ergogenicos = ergogenicosPreenchidos(c.ergogenicos);
   const comPrescricao = ergogenicos.some((e) => e.prescricao.trim() !== '');
   const partes = [
@@ -180,7 +180,7 @@ ${r.observacao ? `<div class="suave">${escLinhas(r.observacao)}</div>` : ''}${es
     c.observacoes ? `<div class="bloco"><strong>Observações e Diretrizes do Protocolo:</strong><div class="suave">${escLinhas(c.observacoes)}</div></div>` : '',
     suplementos.length
       ? `${barra}<div class="bloco">${sec('Sugestão de suplementação')}<table class="dark"><thead><tr><th>Suplemento</th><th>Dose</th><th>Horário</th><th>Obs</th></tr></thead><tbody>${suplementos
-          .map((s) => `<tr><td>${nomeDoSuplemento(s)}</td><td>${esc(s.dose) || '—'}</td><td>${esc(s.horario) || '—'}</td><td>${esc(s.observacao) || '—'}</td></tr>`)
+          .map((s) => `<tr><td>${nomeDoSuplemento(s)}${s.cupom?.trim() ? ` · Cupom: ${esc(s.cupom.trim())}` : ''}</td><td>${esc(s.dose) || '—'}</td><td>${esc(s.horario) || '—'}</td><td>${esc(s.observacao) || '—'}</td></tr>`)
           .join('')}</tbody></table></div>`
       : '',
     ergogenicos.length

@@ -47,5 +47,6 @@ dist-android/
 
 # testes de tela (npm run e2e)
 dist-e2e/
+dist-e2e-montador/
 test-results-e2e/
 playwright-report/

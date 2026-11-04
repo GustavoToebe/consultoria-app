@@ -1,7 +1,7 @@
 import { listarPlanos } from '../api/rotas';
 import type { PlanoResumo, TipoPlano } from '../api/tipos';
 import { PERMISSOES_DO_PLANO } from '../dominio/permissoes';
-import { planosDaPasta, type PlanosDaPasta } from '../dominio/publicarPasta';
+import { planosDaPasta, versoesDasListas, type PlanosDaPasta } from '../dominio/publicarPasta';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useCarregar } from '../ui/useCarregar';
 
@@ -23,9 +23,12 @@ export function usePlanosDaPasta(alunoId: string, pastaId: string | null, geraca
   const cargas: Record<TipoPlano, CargaDosPlanos> = { treino, dieta, mobilidade };
   // Lista que falhou ou ainda não chegou conta como desconhecida (nunca como "sem planos"); ao recarregar, vale a anterior.
   const conhecida = (c: CargaDosPlanos) => (c.erro ? null : c.dados ?? null);
+  const listas = { treino: conhecida(treino), dieta: conhecida(dieta), mobilidade: conhecida(mobilidade) };
   const planos: PlanosDaPasta | null = pastaId
-    ? planosDaPasta(pastaId, { treino: conhecida(treino), dieta: conhecida(dieta), mobilidade: conhecida(mobilidade) }, temFuncionalidade('MOBILIDADE'))
+    ? planosDaPasta(pastaId, listas, temFuncionalidade('MOBILIDADE'))
     : null;
+  // As versões saem das listas carregadas, não da flag do /eu: ela pode estar velha e esconder a mobilidade.
+  const versoes = pastaId ? versoesDasListas(pastaId, listas) : {};
   /** Primeira carga de algum tipo ainda a caminho: a tela espera antes de liberar o que depende dela. */
   const carregando = Object.values(cargas).some((c) => c.carregando && !c.dados);
   /** Alguma lista sendo buscada (de novo ou pela primeira vez): o "Publicar tudo" espera, ou mandaria versões velhas. */
@@ -36,5 +39,5 @@ export function usePlanosDaPasta(alunoId: string, pastaId: string | null, geraca
   const recarregarFalhas = (tipos: TipoPlano[]) => {
     for (const tipo of tipos) if (cargas[tipo].erro) cargas[tipo].recarregar();
   };
-  return { cargas, planos, carregando, atualizando, falhou, recarregarFalhas };
+  return { cargas, planos, versoes, carregando, atualizando, falhou, recarregarFalhas };
 }
