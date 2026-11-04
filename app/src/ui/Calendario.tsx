@@ -5,7 +5,7 @@ import { Modal, Platform, Pressable, StyleSheet, useWindowDimensions, View } fro
 import { mesDeIso, mudarMes, NOMES_DOS_DIAS, semanasDoMes } from '../dominio/calendario';
 import { hojeIso } from '../dominio/formatos';
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, RAIO, SOMBRA_FLUTUANTE } from '../tema/tokens';
 import { IconeBotao } from './IconeBotao';
 import { Texto } from './Texto';
 
@@ -113,7 +113,7 @@ const estilos = StyleSheet.create({
     borderRadius: RAIO,
     paddingHorizontal: espaco(1),
     paddingTop: espaco(0.5),
-    ...Platform.select({ web: { boxShadow: '0 8px 24px rgba(0,0,0,0.45)' }, default: { elevation: 8 } }),
+    ...Platform.select({ web: { boxShadow: SOMBRA_FLUTUANTE }, default: { elevation: 8 } }),
   },
   cabecalho: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   titulo: { fontFamily: fontes.semi, fontSize: 15 },

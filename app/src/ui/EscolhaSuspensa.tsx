@@ -4,7 +4,7 @@ import { Modal, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions
 
 import { destaqueInicial, filtrarOpcoesSuspensas, moverDestaque, type OpcaoSuspensa } from '../dominio/escolhaSuspensa';
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, LARGURA_MENU_LATERAL, RAIO } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, LARGURA_MENU_LATERAL, RAIO, SOMBRA_FLUTUANTE } from '../tema/tokens';
 import type { Ancora } from './Calendario';
 import { Campo } from './Campo';
 import { Folha } from './Folha';
@@ -176,7 +176,7 @@ const estilos = StyleSheet.create({
     borderWidth: 1,
     borderRadius: RAIO,
     overflow: 'hidden',
-    ...Platform.select({ web: { boxShadow: '0 8px 24px rgba(0,0,0,0.35)' }, default: { elevation: 8 } }),
+    ...Platform.select({ web: { boxShadow: SOMBRA_FLUTUANTE }, default: { elevation: 8 } }),
   },
   busca: { padding: espaco(1) },
   opcao: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), minHeight: ALVO_TOQUE, paddingHorizontal: espaco(1.5), paddingVertical: espaco(0.5) },
