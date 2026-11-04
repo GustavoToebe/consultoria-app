@@ -1,11 +1,12 @@
-# Migração assistida (C69), fase 1: diagnóstico do arquivo
+# Migração assistida (C69): diagnóstico do arquivo (fase 1) e amostra revisável (fase 2)
 
-Situação: Fase 1 em produção, chave ligada em produção em 04/11 · Onde: `main` (PR #79) · Atualizado: 04/11/2026
+Situação: Fase 1 em produção, chave ligada em 04/11; fase 2 (API, contrato e tela da amostra) pronta no worktree, falta a decisão F6 · Onde: `main` (fase 1, PR #79); fase 2 na branch `migracao-assistida-fase-2` · Atualizado: 04/11/2026
 
 ## Objetivo
 O treinador manda a planilha ou o CSV de outro sistema e o app diz, **antes de qualquer importação**, o que dá para importar e
 o que não dá: tipo do arquivo, colunas reconhecidas e não reconhecidas, contagens de problemas e se cabe no limite de
-alunos. Nada é gravado. A amostra revisável e a gravação em rascunho com "Desfazer importação" são a fase 2 (outro PR).
+alunos. Nada é gravado. A fase 2 (abaixo) acrescenta a amostra revisável: antes de confirmar, o treinador vê o que seria gravado
+para alguns alunos. A gravação em rascunho e o "Desfazer importação" são os da planilha completa, que já existem.
 
 ## Decisões
 | # | Decisão | Valor | Quem decidiu |
@@ -25,6 +26,16 @@ alunos. Nada é gravado. A amostra revisável e a gravação em rascunho com "De
 | D13 | Veredito | Sucesso só quando algo é importável; arquivo "outro" (tabela de alimentos) ou só com aba sem uso = "nada para importar" (`NADA_PARA_IMPORTAR`); mais de uma aba de alunos avisa que só a primeira é lida (`VARIAS_ABAS_DE_ALUNOS`); e-mail inválido ou repetido só conta em aba de alunos | confirmado pelo Gustavo em 04/11 |
 | D14 | Limite de tentativas | O diagnóstico tem balde próprio (`LimiteTentativas.diagnosticoDeImportacao`, `importacao-diagnostico`, 30 por usuário por hora): repetir a conferência não gasta a prévia nem a confirmação | confirmado pelo Gustavo em 04/11 |
 
+### Decisões da fase 2 (Claude, 04/11, para o Gustavo conferir)
+| # | Decisão | Valor |
+| --- | --- | --- |
+| F1 | O que é a fase 2 | Só a **amostra revisável**, de leitura. A gravação em rascunho (`.../confirmar`) e o "Desfazer importação" (`POST /importacoes/{id}/desfazer`, botão no histórico) já são da planilha completa e continuam como estão, sem a chave; nada novo grava. Nada é publicado: tudo é rascunho na pasta "Importada da planilha (rascunho)" |
+| F2 | Rota | `POST /importacoes/planilha-completa/amostra` (multipart `arquivo` + `respostas` opcional + `?inicio=`, 0 por padrão), `AmostraDaPlanilhaController` com `@ExigeMigracaoAssistida` (chave desligada = 503 `MIGRACAO_INDISPONIVEL`), `ALUNO_ALTERAR`, balde de tentativas da prévia (`importacao-previa`, 30 por hora; a amostra é uma montagem inteira, igual à prévia). Sem migration, sem estado novo, sem registro de importação, sem auditoria |
+| F3 | Conteúdo | Reaproveita a `MontagemDaImportacao` da prévia e da confirmação, então mostra **exatamente o que a confirmação gravaria**, e o que o perfil não pode gravar (pesos e objetivo sem dado sensível, treino, dieta, ergogênicos) já vem de fora. Por aluno: posição no arquivo, `NOVO`/`EXISTENTE`, cadastro (nome, ativo, e-mail, telefone, objetivo, observações; nulos no existente), total de pesos e os 10 últimos (data e kg, sem observação), e os `ConteudoTreino`/`ConteudoDieta` do resto da API (a tela pode usar os componentes de leitura que já existem). Até 5 alunos por chamada, na ordem do arquivo (cadastros novos, depois quem só tem plano); `total` e `inicio` deixam paginar |
+| F4 | LGPD | Esta fase devolve conteúdo do arquivo ao próprio treinador que o enviou, como a amostra do assistente de uma aba (`/colunas`) e o nome do aluno na análise; a regra D2/D12 da fase 1 vale só para o diagnóstico. Só na resposta: não guarda o arquivo, não grava, não audita, não loga; os records escondem o conteúdo no `toString`. A regra de quem pode ver o quê é a de gravar (cada permissão de alterar já depende da de ler) |
+| F5 | Ligação com a confirmação | A amostra devolve o mesmo `hash` da prévia (arquivo + respostas): a confirmação que já existe o aceita, então o que foi revisado é o que será gravado |
+| F6 | Fora desta fase | Tirar um aluno ou uma aba da gravação depois de ver a amostra (é regra de negócio nova: precisaria de filtro na confirmação, no hash e no desfazer; **pergunta ao Gustavo**) |
+
 ## Passos
 - [x] 1. Plano e índice — commit: neste arquivo
 - [x] 2. API: chave, regra pura `DiagnosticoDoArquivo`, rota, `GET /eu`, testes (unidade, integração, sentinela) — commit: `00f3f8ec`
@@ -32,11 +43,17 @@ alunos. Nada é gravado. A amostra revisável e a gravação em rascunho com "De
 - [x] 4. Documentação (`AGENTS.md`, `docs/importacao-alunos.md`) — commit: `96a07298`
 - [x] 5. Correções da revisão independente (vazamento por nome de coluna e de aba, limite com blocos, e-mail só em alunos, veredito, limite de tentativas próprio, botão só na planilha completa, acessibilidade) — commit: `08187482`; docs: o seguinte
 
+- [x] 6. Fase 2, API: amostra revisável (`AmostraDaPlanilha`, `AmostraDaPlanilhaController`, `GravacaoDaPlanilha.amostra`), testes (unidade, integração, chave desligada) — commit: ver relatório da frente E
+- [x] 7. Fase 2, app: tipo e chamada (`AmostraDaPlanilha`, `amostraDaPlanilhaCompleta`) — mesmo commit do app
+- [x] 8. Fase 2, tela da amostra: etapa "Amostra" entre a prévia e a confirmação do `AssistenteDaPlanilha` (só com `migracaoAssistidaHabilitada`; 6 etapas com ela, as 5 de antes sem), `EtapaDaAmostra.tsx` (hook `useAmostraDaPlanilha`, páginas só na memória, "Ver os próximos N" por `inicio`, "Ver os anteriores" sem pedir de novo, foco na faixa "Alunos N a M de T"), textos em `dominio/amostraDaPlanilha.ts`; cadastro, pesos, treino e dieta por aluno, ausente "—", parte pulada pelo perfil "Fica de fora pelo seu perfil.", exercício sem `exercicioId` com o selo "Novo na biblioteca", "Ver o treino/a dieta como o aluno" pela `FolhaVerComoAluno`; a confirmação leva o hash da amostra (o da prévia se ela falhou); 503 `MIGRACAO_INDISPONIVEL` volta à prévia com aviso e some a etapa; arquivo, respostas ou prévia novos limpam a amostra; e2e `e2e/migracao-assistida-amostra.spec.ts` (390 e 1440, claro, escuro, areia e contraste alto) — commit: ver relatório da frente E
+
 ## Fora do escopo
-- Fase 2: amostra revisável, gravação em rascunho e "Desfazer importação" (outro PR).
+- Tirar aluno ou aba da gravação depois de ver a amostra (F6).
 - Comparar com os alunos que já existem (nome ou e-mail repetido contra o banco) e nomes de aluno repetidos dentro do arquivo.
 - Botão na importação de uma aba (precisaria usar as colunas e o responsável mapeados naquela tela).
 - Qualquer IA, serviço externo ou leitura de .xls (continua pedindo .xlsx ou .csv).
 
 ## O que ficou para trás
-- Fase 2 da migração assistida (README, pendências soltas).
+- "Novo na biblioteca" na amostra é aproximado: a API manda `exercicioId` nulo também para o nome mantido como na planilha (MANTER) e para o provável sem resposta, não só para o que vai ser criado (CRIAR). Para ser exato, a amostra precisaria dizer a origem do exercício (ou a tela trocar o texto por "Fora da biblioteca").
+- A amostra gasta o balde de tentativas da prévia (30 por hora): cada página é uma montagem inteira. Uma planilha de muitos alunos folheada até o fim pode esbarrar no limite.
+- Decisão F6 (revisão que tira aluno ou aba da gravação).
