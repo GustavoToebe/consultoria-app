@@ -31,7 +31,7 @@ mesmo `ItemDaListaDoEditor`. Nenhuma regra de negócio, rota ou contrato da API 
 
 ## Passos
 - [ ] 0. Preparação: worktree, este arquivo e a linha no README — commit/run: —
-- [x] 1. Editor de treino (`executor-front`): topo do inspetor, séries, molduras achatadas, 2+2, "uma vez só", parte de cima, peças em `ui/`, divisão dos três arquivos grandes, e2e atualizados — commit/run: — (feito no worktree em 04/11, sem commit; o Sonnet commita)
+- [x] 1. Editor de treino (`executor-front`): topo do inspetor, séries, molduras achatadas, 2+2, "uma vez só", parte de cima, peças em `ui/`, divisão dos três arquivos grandes, e2e atualizados — commit/run: fb930116 (04/11)
   - Feito: `ui/NumeroInvertido` e `ui/Divisor` (únicos); "Sessões (N)" como cabeçalho dos chips com as contagens e o estado da publicação; "Modelos prontos" só no bloco Adicionar e no vazio; metodologia num lugar por layout (`ConfiguracaoDoTreino`); sessão sem caixa (molduras: exercício › série aberta); "Editando: Série N · tipo" com o resumo e um selo; seções planas com divisor; "Para o aluno" sem selo; Subir/Descer <nome> e Subir/Descer/Remover série N; prescrição em grade 2+2 (`basesDasColunas`); "+ Nova série" fora da rolagem; divisão em `FolhasDoTreino`, `ConfiguracaoDoTreino`, `EditorDoGrupoDeSeries`, `CamposComuns`, `CamposDaTecnica` (todos abaixo de 500 linhas); e2e novo `prescricao-lado-a-lado.spec.ts`.
   - Topo do inspetor: "Exercício N de M" pequeno + nome como título; ↑↓ como `IconeBotao` com rótulo "Subir/Descer <nome>"; um selo de situação só.
   - Séries: tirar a faixa "Exercício N · nome" de dentro do grupo; um sinal de situação só (selo no cabeçalho; "Para o aluno" sem segundo selo, tingido só com problema); mover série com nome "série", não "grupo".
