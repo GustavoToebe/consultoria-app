@@ -868,9 +868,12 @@ test.describe('filtros em Folha e preferências (1280 px)', () => {
     const folha = page.getByRole('dialog', { name: 'Mostrar a agenda de', exact: true });
     await folha.getByRole('radio', { name: 'Só os meus', exact: true }).click();
     await expect(folha).toBeHidden();
-    await expect(page.getByRole('button', { name: 'Responsável: Só os meus. Escolher.', exact: true })).toBeVisible({ timeout: 3000 });
-    await expect.poll(() => endereco(page), { timeout: 3000 }).toBe('/treinador/agenda?meus=true');
-    expect(ultimo(pedidos, '/atualizacoes')?.busca.get('meus')).toBe('true');
+    // O rótulo muda na hora (o ajuste local). A URL só entra em `depoisDeFecharAsFolhas`, que espera o
+    // popstate da Folha e, com o navegador ocupado, só solta na espera máxima de 5 s (`ESPERA_MAXIMA_DA_VOLTA`).
+    // O poll de 3 s vencia essa espera: a tela já dizia "Só os meus" e o teste falhava como se nada tivesse gravado.
+    await expect(page.getByRole('button', { name: 'Responsável: Só os meus. Escolher.', exact: true })).toBeVisible();
+    await expect.poll(() => endereco(page)).toBe('/treinador/agenda?meus=true');
+    await expect.poll(() => ultimo(pedidos, '/atualizacoes')?.busca.get('meus')).toBe('true');
   });
 
   // TemaProvider.tsx:69-73 entrega PREFERENCIAS_PADRAO até a leitura do AsyncStorage terminar (não há marca de "lidas"), e
@@ -955,8 +958,9 @@ test.describe('filtros em Folha (390 px)', () => {
     await expect(folha).toBeVisible({ timeout: 3000 });
     await expect(folha.getByRole('button', { name: 'Compromissos: Agendados. Escolher.', exact: true })).toBeVisible();
     await folha.getByRole('button', { name: 'Fechar', exact: true }).click();
-    await expect.poll(() => endereco(page), { timeout: 3000 }).toBe('/treinador/agenda?situacao=AGENDADO');
-    expect(ultimo(pedidos, '/agenda/compromissos')?.busca.get('situacao')).toBe('AGENDADO');
+    // Mesma espera do "Só os meus": a URL sai depois do popstate da Folha, até 5 s com o navegador ocupado.
+    await expect.poll(() => endereco(page)).toBe('/treinador/agenda?situacao=AGENDADO');
+    await expect.poll(() => ultimo(pedidos, '/agenda/compromissos')?.busca.get('situacao')).toBe('AGENDADO');
   });
 });
 

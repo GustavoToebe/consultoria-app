@@ -23,17 +23,19 @@ test('menu lateral: cada item é um link com href e o Ctrl+clique abre em outra 
   await expect(biblioteca).toHaveAttribute('href', '/treinador/biblioteca');
   await expect(page.getByRole('link', { name: 'Alunos', exact: true })).toHaveAttribute('href', '/treinador/alunos');
 
-  // A guia nasce em branco, não tem a API simulada (o app dela volta ao Entrar assim que carrega) e só depois carrega o href:
-  // guarda todo endereço por onde ela passa desde que nasce, para a volta ao Entrar não esconder a ida à Biblioteca.
-  const enderecos: string[] = [];
-  context.on('page', (guia) => {
-    enderecos.push(guia.url());
-    guia.on('framenavigated', (quadro) => {
-      if (quadro === guia.mainFrame()) enderecos.push(quadro.url());
-    });
+  // A guia nova não tem a API simulada: abre no href e, assim que o app carrega, volta ao Entrar.
+  // Com a máquina carregada o evento `page` chega depois dessa volta. `guia.url()` já é o Entrar, e o
+  // `framenavigated` da Biblioteca não é repetido — o poll de 10 s não vê o caminho e falha. O pedido de
+  // documento sai no Ctrl+clique; ouvir o contexto antes do clique guarda a ida, mesmo que o evento atrase.
+  const documentos: string[] = [];
+  context.on('request', (pedido) => {
+    if (pedido.resourceType() !== 'document') return;
+    documentos.push(new URL(pedido.url()).pathname);
   });
+  const guiaNova = context.waitForEvent('page');
   await biblioteca.click({ modifiers: ['Control'] });
-  await expect.poll(() => enderecos.some((e) => e.startsWith('http') && new URL(e).pathname === '/treinador/biblioteca')).toBe(true);
+  await guiaNova;
+  await expect.poll(() => documentos.includes('/treinador/biblioteca')).toBe(true);
   // A guia de origem não saiu do lugar.
   expect(new URL(page.url()).pathname).toBe(`/treinador/planejamento/modelo/${ID}`);
   expect(errosDaPagina).toEqual([]);
