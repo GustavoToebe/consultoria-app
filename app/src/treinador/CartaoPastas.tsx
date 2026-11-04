@@ -21,7 +21,7 @@ import { dataParaTela, hojeIso, numeroParaTela } from '../dominio/formatos';
 import { dataSemAnoCorrente, periodoCurto } from '../dominio/datasRelativas';
 import { precisaRenovar } from '../dominio/resumoDoAluno';
 import { dadosDaRenovacao, diasDoPeriodo, fimQueAcompanha, periodoInicial, proximoPeriodo } from '../dominio/periodo';
-import { FILTROS_PASTAS, filtrarPastas, type FiltroPastas } from '../dominio/pastas';
+import { FILTROS_PASTAS, filtrarPastas, pastasParaCopiarNaNova, type FiltroPastas } from '../dominio/pastas';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, LARGURA_EDITOR, RAIO } from '../tema/tokens';
 import { useAviso } from '../ui/Aviso';
@@ -244,7 +244,7 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
         if (!excluir) return; const id = excluir.id; setExcluir(null);
         excluirPasta(id).then(aoSalvar, (e: unknown) => avisar(textoDoErro(e), 'perigo'));
       }} />
-      {modo ? <FolhaPasta alunoId={alunoId} modo={modo} diasAtualizacao={diasAtualizacao} aoFechar={() => setModo(null)} aoSalvar={aoSalvar} /> : null}
+      {modo ? <FolhaPasta alunoId={alunoId} modo={modo} diasAtualizacao={diasAtualizacao} pastas={dados ?? []} aoFechar={() => setModo(null)} aoSalvar={aoSalvar} /> : null}
       {finalizar ? <FolhaFinalizar pasta={finalizar} alunoId={alunoId} atualizacao={daPasta(finalizar.id)} aoFechar={() => setFinalizar(null)} aoFinalizar={(comPeso) => { setFinalizar(null); aoSalvar(); if (comPeso) aoGravarPeso?.(); }} /> : null}
     </>
   );
@@ -299,16 +299,20 @@ function LinhaPasta({ pasta, atualizacao, hoje, aoAbrir, aoRevisar, aoRenovar }:
   );
 }
 
-function FolhaPasta({ alunoId, modo, diasAtualizacao, aoFechar, aoSalvar }: { alunoId: string; modo: Modo; diasAtualizacao: number | null; aoFechar: () => void; aoSalvar: () => void }) {
+function FolhaPasta({ alunoId, modo, diasAtualizacao, pastas, aoFechar, aoSalvar }: {
+  alunoId: string; modo: Modo; diasAtualizacao: number | null; pastas: readonly PastaResumo[]; aoFechar: () => void; aoSalvar: () => void;
+}) {
   const { avisar } = useAviso();
   const origem = modo.tipo === 'nova' ? null : modo.pasta;
+  const origens = modo.tipo === 'nova' ? pastasParaCopiarNaNova(pastas) : [];
   const sugestao = modo.tipo === 'replicar' && origem ? proximoPeriodo(origem) : modo.tipo === 'nova' ? periodoInicial(hojeIso(), diasAtualizacao) : null;
   const [titulo, setTitulo] = useState(modo.tipo === 'editar' && origem ? origem.titulo : '');
   const [inicio, setInicio] = useState(sugestao ? sugestao.inicio : origem && modo.tipo === 'editar' ? dataParaTela(origem.inicio) : '');
   const [fim, setFim] = useState(sugestao ? sugestao.fim : origem && modo.tipo === 'editar' ? dataParaTela(origem.fim) : '');
+  const [copiarDe, setCopiarDe] = useState<string | null>(null);
   // Pasta nova ou réplica: o fim acompanha o início pela duração sugerida até o treinador mexer no fim (reunião de 29/10).
   // Pasta salva abre com as datas gravadas e nada é recalculado.
-  const duracao = sugestao ? diasDoPeriodo(sugestao.inicio, sugestao.fim) : null;
+  const [duracao, setDuracao] = useState<number | null>(sugestao ? diasDoPeriodo(sugestao.inicio, sugestao.fim) : null);
   const [fimManual, setFimManual] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
@@ -333,17 +337,36 @@ function FolhaPasta({ alunoId, modo, diasAtualizacao, aoFechar, aoSalvar }: { al
     if (novoFim) setFim(novoFim);
     setFimManual(false);
   };
+  const escolherOrigem = (id: string | null) => {
+    setCopiarDe(id);
+    if (fimManual) return;
+    if (!id) {
+      const volta = periodoInicial(hojeIso(), diasAtualizacao);
+      setInicio(volta.inicio);
+      setFim(volta.fim);
+      setDuracao(diasDoPeriodo(volta.inicio, volta.fim));
+      return;
+    }
+    const pasta = origens.find((p) => p.id === id);
+    if (!pasta?.fim) return;
+    const proximo = proximoPeriodo(pasta);
+    setInicio(proximo.inicio);
+    setFim(proximo.fim);
+    setDuracao(diasDoPeriodo(proximo.inicio, proximo.fim));
+  };
 
   const salvar = () => {
     if (!valido) return;
     const dados = { titulo: titulo.trim(), inicio: ini ?? null, fim: fi ?? null };
     setSalvando(true);
     setErro(null);
-    const chamada =
-      modo.tipo === 'nova' ? criarPasta(alunoId, dados) : modo.tipo === 'editar' ? atualizarPasta(modo.pasta.id, dados) : replicarPasta(modo.pasta.id, dados);
+    const copiando = modo.tipo === 'nova' ? copiarDe : null;
+    const chamada = copiando
+      ? replicarPasta(copiando, dados)
+      : modo.tipo === 'nova' ? criarPasta(alunoId, dados) : modo.tipo === 'editar' ? atualizarPasta(modo.pasta.id, dados) : replicarPasta(modo.pasta.id, dados);
     chamada.then(
       () => {
-        avisar(modo.tipo === 'replicar' ? 'Pasta replicada com os treinos e dietas.' : 'Pasta salva.', 'sucesso');
+        avisar(copiando || modo.tipo === 'replicar' ? 'Pasta replicada com os treinos e dietas.' : 'Pasta salva.', 'sucesso');
         aoSalvar();
       },
       (e: unknown) => {
@@ -380,6 +403,23 @@ function FolhaPasta({ alunoId, modo, diasAtualizacao, aoFechar, aoSalvar }: { al
           O novo período vale para o treino e a dieta da pasta. Planos já publicados só mudam ao publicar de novo.
         </Texto>
       ) : null}
+      {origens.length > 0 ? (
+        <>
+          <Escolha
+            rotulo="Copiar de"
+            descricao="Copiar de outro período"
+            valor={copiarDe}
+            aoMudar={escolherOrigem}
+            opcoes={[
+              { valor: null, rotulo: 'Não copiar' },
+              ...origens.map((p) => ({ valor: p.id, rotulo: `${p.titulo} · ${periodoCurto(p.inicio, p.fim)}` })),
+            ]}
+          />
+          {copiarDe ? (
+            <Texto variante="suave">Copia os treinos e as dietas publicados dessa pasta, como rascunhos.</Texto>
+          ) : null}
+        </>
+      ) : null}
       <Campo rotulo="Título" valor={titulo} aoMudar={setTitulo} maxLength={120} placeholder="Ex.: Plano 17" />
       <View style={estilos.datas}>
         <View style={estilos.data}>
@@ -393,7 +433,7 @@ function FolhaPasta({ alunoId, modo, diasAtualizacao, aoFechar, aoSalvar }: { al
       {fimManual && duracao ? (
         <View style={estilos.fimManual}>
           <Texto variante="suave">Fim ajustado à mão.</Texto>
-          <Botao rotulo={`Usar a duração do ciclo (${duracao} ${duracao === 1 ? 'dia' : 'dias'})`} tipo="fantasma" aoTocar={usarDuracao} />
+          <Botao rotulo={`${copiarDe ? 'Usar a duração do período' : 'Usar a duração do ciclo'} (${duracao} ${duracao === 1 ? 'dia' : 'dias'})`} tipo="fantasma" aoTocar={usarDuracao} />
         </View>
       ) : null}
       {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}

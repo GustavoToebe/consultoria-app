@@ -110,4 +110,45 @@ for (const largura of [390, 1280]) {
     expect(pedidos.filter((p) => p.metodo === 'POST' && p.caminho.endsWith('/pastas'))).toHaveLength(0);
     expect(errosDaPagina).toEqual([]);
   });
+
+  test(`pasta nova: copiar de um período finalizado (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { pedidos, errosDaPagina } = await simularApi(page, {
+      ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'PASTA_ALTERAR'] })),
+      'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
+      'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+      [`GET /alunos/${ALUNO_ID}`]: { corpo: FICHA },
+      [`GET /alunos/${ALUNO_ID}/pastas`]: { corpo: PASTAS },
+      'POST /pastas/p1/replicar': { corpo: { ...PASTAS[0], id: 'p3', titulo: 'Plano 18', concluidaEm: null } },
+    });
+
+    await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+    await page.getByRole('button', { name: 'Nova pasta' }).click();
+    const folha = page.getByRole('dialog');
+    await expect(folha.getByRole('button', { name: 'Não copiar' })).toBeVisible();
+    await expect(folha.getByRole('button', { name: /Plano 17/ })).toHaveCount(0);
+    await folha.getByRole('button', { name: /Plano 16/ }).click();
+    await expect(folha.getByText('Copia os treinos e as dietas publicados dessa pasta, como rascunhos.')).toBeVisible();
+    await folha.getByLabel('Título').fill('Plano 18');
+    await folha.getByRole('button', { name: 'Salvar' }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    const post = pedidos.find((p) => p.metodo === 'POST' && p.caminho === '/pastas/p1/replicar');
+    expect(post?.corpo).toMatchObject({ titulo: 'Plano 18', inicio: '2026-10-16', fim: '2026-10-30' });
+    expect(errosDaPagina).toEqual([]);
+  });
 }
+
+test('pasta nova: uma pasta só não oferece copiar', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const { errosDaPagina } = await simularApi(page, {
+    ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'PASTA_ALTERAR'] })),
+    'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
+    'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+    [`GET /alunos/${ALUNO_ID}`]: { corpo: FICHA },
+    [`GET /alunos/${ALUNO_ID}/pastas`]: { corpo: [PASTAS[0]] },
+  });
+  await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+  await page.getByRole('button', { name: 'Nova pasta' }).click();
+  await expect(page.getByRole('dialog').getByText('Copiar de')).toHaveCount(0);
+  expect(errosDaPagina).toEqual([]);
+});

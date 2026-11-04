@@ -74,6 +74,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Libras na carga, fase 1: regra pura e lado do aluno (N04; chave `TREINOS_UNIDADE_CARGA_HABILITADA`) | [libras.md](libras.md) | `main` (PR #77) | Fase 1 concluída em 04/11/2026; chave ligada em produção em 04/11 | 03/11/2026 |
 | Paletas da marca (a consultoria escolhe a cor de fundo do app dos alunos numa lista fechada e testada) | [paletas-da-marca.md](paletas-da-marca.md) | `main` (PR #78) | Concluída em 04/11/2026 (10 paletas: a Brisa saiu no teste de contraste); revisão final feita na nuvem | 03/11/2026 |
 | Documentação de 03/11 (roteiro do aluno fictício em [engajamento.md](engajamento.md), conferência das três liberações da Cloudflare) | [docs-pendencias-03-11.md](docs-pendencias-03-11.md) | `main` (PR #72) | Concluída em 03/11/2026 (roteiro espera o Gustavo em produção) | 03/11/2026 |
+| Nova pasta: copiar de um período concluído | [copiar-periodo-na-pasta.md](copiar-periodo-na-pasta.md) | branch `copiar-periodo-na-pasta` | Em andamento | 04/11/2026 |
 
 ## Pendências soltas
 
