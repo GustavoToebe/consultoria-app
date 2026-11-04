@@ -65,6 +65,14 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
 subir (`npm run typecheck && npm run lint && npm test`; `mvn verify` quando mexer na API), junte os commits e faça **um push por
 lote**, não um por commit; não dispare workflow à mão nem reexecute job que falhou sem antes corrigir a causa. Push só de
 documentação (`*.md`, `docs/`) não roda a CI. A tag `demo-parte-a` é o plano B da demonstração.
+**Lote de integração (Gustavo, 04/11):** o merge na `main` refaz teste, imagem, Trivy e deploy sempre que a árvore difere da
+testada no PR, então vários PRs mesclados em sequência pagam um deploy completo cada. Com **3 ou mais PRs prontos** ao mesmo
+tempo (revisados, CI verde), da **mesma parte** (só `app/` ou só `api/`), sem migration e sem mexer em auth, pagamentos,
+integração com a Central, LGPD, `.github/` ou `deploy/`, junte-os numa branch `lote-DD-MM` saída da `main` (merge das branches,
+nunca rebase), gere os guias em PDF uma vez no fim, rode os testes locais (e os e2e das telas mexidas), abra **um** PR que lista
+os PRs de origem e feche cada um com o link do lote. Fica separado: PR com migration ou mudança sensível da API (para acompanhar
+e desfazer sozinho), correção urgente de produção e PR com CI vermelha ou revisão aberta. Quem entrega várias pendências do mesmo
+dia (Grok, Claude local) entrega numa branch só, para o lote já nascer junto.
 
 ## Regras que não podem ser quebradas
 - Um treinador **nunca** vê nem altera dado de outra consultoria; um aluno só vê os **próprios** dados. Toda leitura e
