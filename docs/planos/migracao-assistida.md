@@ -1,6 +1,6 @@
 # Migração assistida (C69), fase 1: diagnóstico do arquivo
 
-Situação: Em andamento (fase 1) · Onde: branch `migracao-assistida-fase-1` (um PR) · Atualizado: 03/11/2026
+Situação: Fase 1 em produção, chave ligada em produção em 04/11 · Onde: `main` (PR #79) · Atualizado: 04/11/2026
 
 ## Objetivo
 O treinador manda a planilha ou o CSV de outro sistema e o app diz, **antes de qualquer importação**, o que dá para importar e
