@@ -134,11 +134,13 @@ for (const largura of [390, 1280]) {
     await page.goto(`/treinador/planejamento/modelo/${ID_SERIES}`);
     await expect(page.getByRole('button', { name: 'Salvar modelo', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Nova série', exact: true }).click();
-    // O painel "Nova série" vem antes do grupo aberto, que tem outro grupo de técnicas ("Técnica da série").
-    const tecnicasDoPainel = page.getByRole('radiogroup', { name: 'Técnica', exact: true });
-    await expect(tecnicasDoPainel.getByRole('button', { name: '21s', exact: true })).toBeVisible();
-    await expect(tecnicasDoPainel.getByRole('button', { name: 'GVT (10×10)', exact: true })).toBeVisible();
-    await expect(tecnicasDoPainel.getByRole('button', { name: 'Forced reps', exact: true })).toHaveCount(0);
+    // A técnica do painel "Nova série" é uma lista suspensa: com ela aberta, só as técnicas da metodologia aparecem.
+    await page.getByRole('button', { name: /^Técnica: / }).click();
+    const tecnicasDoPainel = page.getByRole('listbox', { name: 'Técnica', exact: true });
+    await expect(tecnicasDoPainel.getByRole('option', { name: '21s', exact: true })).toBeVisible();
+    await expect(tecnicasDoPainel.getByRole('option', { name: 'GVT (10×10)', exact: true })).toBeVisible();
+    await expect(tecnicasDoPainel.getByRole('option', { name: 'Forced reps', exact: true })).toHaveCount(0);
+    await page.keyboard.press('Escape');
     expect(api.errosDaPagina).toEqual([]);
     expect(api.naoTratadas).toEqual([]);
   });

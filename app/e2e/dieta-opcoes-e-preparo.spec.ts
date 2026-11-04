@@ -85,7 +85,8 @@ for (const [largura, ladoALado] of [[390, false], [1280, true]] as const) {
       [`GET /planos-dieta/${PLANO_ID}`]: { corpo: DETALHE },
     });
     await page.goto(`/treinador/dietas/${PLANO_ID}`);
-    await page.getByRole('button', { name: /12:00 · Almoço, fechado/ }).click();
+    // PC: a refeição da lista abre no inspetor; celular: o cartão abre ali mesmo.
+    await page.getByRole('button', { name: ladoALado ? /^Refeição 1 de 1: 12:00 · Almoço/ : /12:00 · Almoço, fechado/ }).click();
 
     const a = page.getByRole('heading', { name: 'Opção A' });
     const b = page.getByRole('heading', { name: 'Opção B' });

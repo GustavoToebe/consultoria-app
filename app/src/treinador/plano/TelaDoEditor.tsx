@@ -21,7 +21,7 @@ interface Props {
    */
   rodape?: ReactNode;
   /**
-   * Só o editor de treino: mede a largura da tela e, a partir de `LARGURA_DUAS_COLUNAS` de conteúdo, avisa os filhos
+   * Editores com lista + inspetor (treino, dieta, mobilidade): mede a largura da tela e, a partir de `LARGURA_DUAS_COLUNAS` de conteúdo, avisa os filhos
    * (`useDuasColunas`) e alarga o conteúdo para `LARGURA_EDITOR_DUAS_COLUNAS`. O 1º quadro sai em uma coluna.
    */
   colunas?: boolean;

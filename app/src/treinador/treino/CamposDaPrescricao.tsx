@@ -177,9 +177,11 @@ export function ReferenciaDaCarga({ opcoes, valor, aoMudar, erro }: {
  * Quantidade exata, faixa ou AMRAP. A escolha fica com a tela enquanto o valor não a distingue (faixa 8 a 8, ou vazio).
  * `semRepeticoes` explica o vazio quando ele vale (série por tempo); sem ele, o vazio é só incompleto.
  */
-export function CamposDasRepeticoes({ valor, aoMudar, erros, rotulo = 'Repetições', semRepeticoes }: {
+export function CamposDasRepeticoes({ valor, aoMudar, erros, rotulo = 'Repetições', rotuloVisivel = true, semRepeticoes }: {
   valor: { repsMin?: number | null; repsMax?: number | null; amrap?: boolean | null }; aoMudar: (r: Repeticoes) => void;
   erros: Problemas; rotulo?: string; semRepeticoes?: string;
+  /** Falso quando o título da seção já diz o mesmo: o rótulo fica só para o leitor de tela. */
+  rotuloVisivel?: boolean;
 }) {
   const [escolhida, setEscolhida] = useState<FormaDasRepeticoes>(formaVisivel('EXATA', valor));
   const forma = formaVisivel(escolhida, valor);
@@ -191,7 +193,7 @@ export function CamposDasRepeticoes({ valor, aoMudar, erros, rotulo = 'Repetiç�
   // Com rótulo próprio (uma retomada), os campos ganham o nome dela no leitor de tela: "Retomada 1: reps mín.".
   const proprio = rotulo !== 'Repetições';
   return <View style={estilos.bloco}>
-    <Escolha rotulo={rotulo} opcoes={FORMAS_DAS_REPETICOES} valor={forma} aoMudar={mudarForma} />
+    <Escolha rotulo={rotuloVisivel ? rotulo : undefined} descricao={rotulo} opcoes={FORMAS_DAS_REPETICOES} valor={forma} aoMudar={mudarForma} />
     {forma === 'EXATA' ? <CampoSozinho>
       <CampoNumerico rotulo="Repetições" rotuloAcessivel={proprio ? `${rotulo}: repetições` : undefined} inteiro valor={valor.repsMin ?? valor.repsMax ?? null}
         aoMudar={(n) => aoMudar({ repsMin: n, repsMax: n, amrap: false })} erro={erros.repsMin ?? erros.repsMax} />
