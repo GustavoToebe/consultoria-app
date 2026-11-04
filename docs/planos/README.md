@@ -207,6 +207,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | "Quero ser aluno" em duas partes: o botão voltar do navegador perde o digitado; Ajuda e guias não falam das duas partes; Turnstile ligado e celular nativo não testados | Claude / Gustavo (aparelho) | auditoria-ui-ux-lote-1 (D6) |
 | Atualizações: a paginação é em memória (a lista inteira ainda vem do banco); passar para SQL se uma consultoria chegar a milhares de alunos ativos. Evolução: escala por ponto, se o treinador mudar a escala de uma pergunta já respondida | Claude, quando houver necessidade | miudos-com-api-04-11 |
 | Antes de mesclar os PRs do `lock_timeout` (Servirea e Central): na VPS, contar os `?` nas linhas `DB_URL` e `MIGRATION_DB_URL` de `/opt/ecossistema/servirea.env` e `central.env`; precisa dar 0 (a URL nova já leva um `?`) | Gustavo | infra-04-11 |
+| e2e que falham na `main` (conferido em 04/11 na ponta f4f824ee, fixas, não intermitentes): `cadastro-aluno.spec.ts:296` (strict mode: `getByText('Acompanhamento')` acha o título do grupo do menu e um cartão da ficha) e `links-do-menu.spec.ts:20` (o Ctrl+clique não registra o pedido do documento `/treinador/biblioteca`). Vieram depois dos grupos do menu (#71, #87, #93) | Claude, quando o Gustavo pedir | miudos-sem-api / lote 04/11 |
 
 ## Limitações aceitas (não são pendência)
 
