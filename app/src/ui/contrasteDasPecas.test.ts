@@ -1,7 +1,7 @@
 import { coresComBordasReforcadas, coresComContraste } from '../dominio/preferencias';
 import { coresDoDesabilitado } from './desabilitado';
 import { coresDoMarcar } from './marcar';
-import { PALETAS, contraste, textoSobre, tingido, type Cores } from '../tema/tokens';
+import { MARCA_NEUTRA, PALETAS, contraste, marcaParaTexto, textoSobre, tingido, type Cores } from '../tema/tokens';
 
 /**
  * Pares de cor que as peças comuns de `ui/` usam depois do passo 1 da atualização visual (30/10), conferidos em todos os
@@ -87,6 +87,19 @@ describe.each(VARIANTES)('peças comuns no tema %s', (_nome, cores) => {
   it('Cabecalho: selo "Sem conexão" com ícone (neutro sobre `tingido`)', () => {
     expect(contraste(cores.neutro, tingido(cores.neutro, cores.superficie))).toBeGreaterThanOrEqual(4.5);
   });
+
+  // Marcas de exemplo: a neutra e tons claros, escuros e saturados que um treinador pode escolher.
+  it.each([MARCA_NEUTRA, '#E11D48', '#2563EB', '#FACC15', '#16A34A', '#F5F5F5', '#111111'])(
+    'ListaDeExercicios: item escolhido com borda, número e chevron em `marcaTexto` (marca %s)',
+    (marca) => {
+      const m = marcaParaTexto(marca, cores.superficie3);
+      // Fundo do item escolhido (`superficie`), dos outros itens (`superficie2`/`superficie3`) e da coluna em volta.
+      expect(contraste(m, cores.superficie)).toBeGreaterThanOrEqual(4.5);
+      for (const s of [cores.superficie2, cores.superficie3]) expect(contraste(m, s)).toBeGreaterThanOrEqual(3);
+      // Item com erro: borda `perigo` sobre o item e a coluna.
+      for (const s of [cores.superficie2, cores.superficie3]) expect(contraste(cores.perigo, s)).toBeGreaterThanOrEqual(3);
+    },
+  );
 });
 
 /** Cor com alfa sobre um fundo opaco (o que o aparelho pinta), para conferir o contraste de um fundo translúcido. */

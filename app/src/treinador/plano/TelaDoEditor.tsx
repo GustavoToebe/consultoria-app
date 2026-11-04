@@ -1,10 +1,12 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, View, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, LARGURA_EDITOR, LARGURA_MAXIMA } from '../../tema/tokens';
+import { duasColunas, larguraDoEditor } from '../../dominio/colunasDoEditor';
 import { RolagemComTopo } from '../../ui/RolagemComTopo';
+import { ProvedorDeColunas } from './ColunasDoEditor';
 
 interface Props {
   /** O `Cabecalho` da tela (trilha, título, subtítulo): rola junto com o conteúdo. */
@@ -18,6 +20,11 @@ interface Props {
    * da rolagem (`sticky`); no celular nativo fica fora da rolagem, abaixo do conteúdo.
    */
   rodape?: ReactNode;
+  /**
+   * Só o editor de treino: mede a largura da tela e, a partir de `LARGURA_DUAS_COLUNAS` de conteúdo, avisa os filhos
+   * (`useDuasColunas`) e alarga o conteúdo para `LARGURA_EDITOR_DUAS_COLUNAS`. O 1º quadro sai em uma coluna.
+   */
+  colunas?: boolean;
 }
 
 /** `position: sticky` existe no react-native-web (CSS), mas não no tipo do React Native. */
@@ -30,13 +37,18 @@ const GRUDADA_EMBAIXO = { position: 'sticky', bottom: 0, zIndex: 10 } as unknown
  * sessões. Na web a barra vem logo depois do cabeçalho e gruda no topo da rolagem (`sticky`); no celular nativo, sem
  * `sticky`, ela fica fora da rolagem, acima do conteúdo.
  */
-export function TelaDoEditor({ cabecalho, barra, children, largura = LARGURA_EDITOR, rodape }: Props) {
+export function TelaDoEditor({ cabecalho, barra, children, largura = LARGURA_EDITOR, rodape, colunas }: Props) {
   const { cores } = useTema();
-  const larguraUtil = Math.min(largura, LARGURA_MAXIMA);
+  // Medida na raiz, que acompanha a janela: o `View` do conteúdo tem `maxWidth` e mediria a si mesmo (a tela oscilaria).
+  const [medida, setMedida] = useState<number | null>(null);
+  const duas = !!colunas && duasColunas(medida === null ? null : medida - 2 * espaco(2));
+  const larguraUtil = duas ? larguraDoEditor(true) : Math.min(largura, LARGURA_MAXIMA);
   const web = Platform.OS === 'web';
   const fundoDaBarra = { backgroundColor: cores.fundo, borderColor: cores.borda };
   return (
-    <SafeAreaView edges={['top']} style={[estilos.raiz, { backgroundColor: cores.fundo }]}>
+    <ProvedorDeColunas value={duas}>
+    <SafeAreaView edges={['top']} style={[estilos.raiz, { backgroundColor: cores.fundo }]}
+      onLayout={colunas ? (e) => setMedida(e.nativeEvent.layout.width) : undefined}>
       <KeyboardAvoidingView style={estilos.raiz} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {!web ? <View style={[estilos.barraFora, fundoDaBarra]}><View style={[estilos.largura, { maxWidth: larguraUtil }]}>{barra}</View></View> : null}
         <RolagemComTopo preencher contentContainerStyle={estilos.rolagem}>
@@ -50,6 +62,7 @@ export function TelaDoEditor({ cabecalho, barra, children, largura = LARGURA_EDI
         {!web && rodape ? <View style={[estilos.rodapeFora, fundoDaBarra]}><View style={[estilos.largura, estilos.linhaDoRodape, { maxWidth: larguraUtil }]}>{rodape}</View></View> : null}
       </KeyboardAvoidingView>
     </SafeAreaView>
+    </ProvedorDeColunas>
   );
 }
 

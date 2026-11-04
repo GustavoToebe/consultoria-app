@@ -1,4 +1,4 @@
-import { ArrowLeftRight, ChevronDown, ChevronUp, CircleAlert, CircleCheck, Save, Trash2, TriangleAlert, Unlink } from 'lucide-react-native';
+import { ArrowLeftRight, ChevronDown, ChevronUp, Save, Trash2, Unlink } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
@@ -8,7 +8,6 @@ import { comModalidade, trocaApagaSeries } from '../../dominio/editorTreino';
 import { erroDaCadencia, erroDaIsometria, normalizarCadencia, textoExecucao } from '../../dominio/execucaoDoExercicio';
 import { MODALIDADES } from '../../dominio/modalidades';
 import type { Problemas } from '../../dominio/validacaoDeSerie';
-import { validarExercicio } from '../../dominio/validacaoDoTreino';
 import { erroDoVideo } from '../../dominio/video';
 import { useTema } from '../../tema/TemaProvider';
 import { BORDA_BLOCO, espaco, fontes, LARGURA_MENU_LATERAL, LINHA_DA_FAIXA, RAIO } from '../../tema/tokens';
@@ -26,8 +25,9 @@ import { Texto } from '../../ui/Texto';
 import { rotuloSalvarComo } from '../planejamento/modelos';
 import { AvisoDoCampo } from './CamposDaPrescricao';
 import { BotaoDeMover, EditorSeries } from './EditorSeries';
+import { estadoDoExercicio } from './estadoDoExercicio';
 
-interface Props {
+export interface PropsDoCartaoExercicio {
   exercicio: ExercicioPlano;
   posicao: number;
   total: number;
@@ -42,7 +42,8 @@ interface Props {
   noGrupo?: boolean;
   /** `false` quando o descanso do grupo substitui o descanso de cada série. */
   descansoPorSerie?: boolean;
-  aoAbrir: () => void;
+  /** Abre e fecha o corpo; sem ele (o inspetor do PC, sempre aberto) o título não é botão e não há seta. */
+  aoAbrir?: () => void;
   aoMudar: (e: ExercicioPlano) => void;
   /** Troca de modalidade que apaga as séries (de ou para cardio), já confirmada: a tela guarda o conteúdo anterior para o "Desfazer". */
   aoMudarApagandoSeries?: (e: ExercicioPlano) => void;
@@ -64,7 +65,7 @@ const OPCOES_DE_MODALIDADE: { valor: string | null; rotulo: string }[] = [
 ];
 
 /** Exercício da sessão: fechado mostra o resumo das séries; aberto edita tudo. Cardio tem a prescrição própria. */
-export function CartaoExercicio(p: Props) {
+export function CartaoExercicio(p: PropsDoCartaoExercicio) {
   const { cores, bordas } = useTema();
   const largo = useWindowDimensions().width >= LARGURA_MENU_LATERAL;
   const e = p.exercicio;
@@ -117,9 +118,10 @@ export function CartaoExercicio(p: Props) {
             imagemPropriaEm={p.demonstracao.imagemPropriaEm} papel="EQUIPE" largura={56} altura={56} preencher ampliavel />
         ) : null}
         <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`${p.aberto ? 'Fechar' : 'Editar'} ${e.nome || 'exercício sem nome'}`}
-          accessibilityState={{ expanded: p.aberto }}
+          accessibilityRole={p.aoAbrir ? 'button' : undefined}
+          accessibilityLabel={p.aoAbrir ? `${p.aberto ? 'Fechar' : 'Editar'} ${e.nome || 'exercício sem nome'}` : undefined}
+          accessibilityState={p.aoAbrir ? { expanded: p.aberto } : undefined}
+          disabled={!p.aoAbrir}
           onPress={p.aoAbrir}
           style={estilos.titulo}>
           <View style={estilos.linhaDoNome}>
@@ -154,7 +156,7 @@ export function CartaoExercicio(p: Props) {
           <BotaoDeMover alvo="exercicio" direcao={-1} comTexto={largo} desabilitado={p.posicao === 0} aoTocar={() => p.aoMover(-1)} />
           <BotaoDeMover alvo="exercicio" direcao={1} comTexto={largo} desabilitado={p.posicao === p.total - 1} aoTocar={() => p.aoMover(1)} />
           <IconeBotao moldura Icone={Trash2} rotulo={`Remover ${e.nome || 'o exercício'}`} cor={cores.perigo} aoTocar={p.aoRemover} />
-          <IconeBotao moldura Icone={p.aberto ? ChevronUp : ChevronDown} rotulo={p.aberto ? 'Fechar exercício' : 'Editar exercício'} aoTocar={p.aoAbrir} />
+          {p.aoAbrir ? <IconeBotao moldura Icone={p.aberto ? ChevronUp : ChevronDown} rotulo={p.aberto ? 'Fechar exercício' : 'Editar exercício'} aoTocar={p.aoAbrir} /> : null}
         </View>
       </View>
       {p.aberto ? (
@@ -271,18 +273,6 @@ export function CartaoExercicio(p: Props) {
       />
     </AlvoDeRolagem>
   );
-}
-
-/**
- * Selo da faixa: "Pronto" (verde), avisos (âmbar) ou problemas (vermelho), pela validação da publicação. Exercício sem
- * série diz isso em vez de contar o problema.
- */
-function estadoDoExercicio(e: ExercicioPlano, config: Configuracao | null) {
-  const r = validarExercicio(e, config);
-  if (e.series.length === 0) return { tipo: 'perigo' as const, texto: e.modalidade === 'CARDIO' ? 'Sem prescrição' : 'Sem séries', Icone: CircleAlert };
-  if (r.erros.length) return { tipo: 'perigo' as const, texto: r.erros.length === 1 ? '1 problema a corrigir' : `${r.erros.length} problemas a corrigir`, Icone: CircleAlert };
-  if (r.avisos.length) return { tipo: 'atencao' as const, texto: r.avisos.length === 1 ? '1 aviso' : `${r.avisos.length} avisos`, Icone: TriangleAlert };
-  return { tipo: 'sucesso' as const, texto: 'Pronto', Icone: CircleCheck };
 }
 
 /** O que está preenchido na "Execução", para a faixa fechada não esconder: "Cadência 3-1-1-0 · isometria 2 s". */

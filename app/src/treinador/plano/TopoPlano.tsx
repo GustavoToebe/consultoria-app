@@ -1,7 +1,7 @@
 import { NoPlano } from '../../ui/NoPlano';
 import { Permitido } from '../../ui/Permitido';
 import { CheckCircle2, Eye, FileDown, Loader, Save, Send } from 'lucide-react-native';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { versaoPlano } from '../../api/rotas';
@@ -37,6 +37,8 @@ interface Props<C> {
   editor: Editor<C>;
   /** Resultado da última validação/publicação (o editor destaca os cartões e mostra o `ProblemasDoPlano`). */
   aoProblemas: (r: ResultadoValidacao | null) => void;
+  /** Antes do selo da barra (a foto do aluno no editor de treino); a dieta e a mobilidade não passam. */
+  inicio?: ReactNode;
 }
 
 /**
@@ -47,7 +49,7 @@ interface Props<C> {
  * "Ver como o aluno" (C34, D1 e D6): só no treino e na dieta, fora do `escritaLiberada` (quem só lê o plano também vê). Abre
  * a `FolhaVerComoAluno` com uma cópia do que está na tela ao tocar, salvo ou não.
  */
-export function BarraDoPlano<C>({ tipo, editor, aoProblemas }: Props<C>) {
+export function BarraDoPlano<C>({ tipo, editor, aoProblemas, inicio }: Props<C>) {
   const { avisar } = useAviso();
   const { width } = useWindowDimensions();
   const estreito = width < LARGURA_MENU_LATERAL;
@@ -143,7 +145,7 @@ export function BarraDoPlano<C>({ tipo, editor, aoProblemas }: Props<C>) {
 
   return (
     <>
-      <BarraDoEditor selo={selo} info={info} erro={editor.situacao === 'erro' ? editor.mensagemDeErro : null}>
+      <BarraDoEditor selo={selo} info={info} erro={editor.situacao === 'erro' ? editor.mensagemDeErro : null} inicio={inicio}>
         {comPrevia
           ? estreito
             ? <IconeBotao Icone={Eye} rotulo="Ver como o aluno" aoTocar={verComoAluno} />
@@ -170,7 +172,8 @@ export function BarraDoPlano<C>({ tipo, editor, aoProblemas }: Props<C>) {
               aoTocar={salvar}
             />
             <Permitido codigo={PERMISSOES_DO_PLANO[tipo].publicar}>
-              <Botao rotulo="Publicar" Icone={Send} carregando={publicando} desabilitado={!!semPublicar} motivo={semPublicar} aoTocar={() => publicar(false)} />
+              {/* Só o treino, e fora do celular, diz para quem vai: dieta e mobilidade ficam com o rótulo de antes. */}
+              <Botao rotulo={tipo === 'treino' && !estreito ? 'Publicar para o aluno' : 'Publicar'} Icone={Send} carregando={publicando} desabilitado={!!semPublicar} motivo={semPublicar} aoTocar={() => publicar(false)} />
             </Permitido>
           </>
         ) : null}
