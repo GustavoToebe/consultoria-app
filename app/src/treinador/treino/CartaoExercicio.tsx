@@ -22,6 +22,7 @@ import { IconeBotao } from '../../ui/IconeBotao';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
+import { useUnidadeDeCarga } from '../../ui/unidadeDeCargaEmUso';
 import { rotuloSalvarComo } from '../planejamento/modelos';
 import { AvisoDoCampo } from './CamposDaPrescricao';
 import { BotaoDeMover, EditorSeries } from './EditorSeries';
@@ -75,7 +76,8 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
   const erros = p.erros ?? {};
   const avisos = p.avisos ?? {};
   const cardio = e.modalidade === 'CARDIO';
-  const resumo = descreverSeries(e.series, p.config);
+  const unidade = useUnidadeDeCarga();
+  const resumo = descreverSeries(e.series, p.config, unidade);
   const execucao = textoExecucao(e);
   const mudar = (parcial: Partial<ExercicioPlano>) => p.aoMudar({ ...e, ...parcial });
   // Estado do exercício na faixa, pela mesma validação da publicação, ao vivo (protótipo de 30/10).
@@ -189,7 +191,7 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
             <Escolha
               rotulo="Carga do exercício"
               opcoes={[
-                { valor: 'kg', rotulo: 'Em kg' },
+                { valor: 'kg', rotulo: `Em ${unidade}` },
                 { valor: 'nenhuma', rotulo: 'Sem carga (elástico, peso corporal)' },
               ]}
               valor={e.unidade}

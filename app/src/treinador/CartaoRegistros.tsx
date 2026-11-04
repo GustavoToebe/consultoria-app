@@ -23,6 +23,7 @@ import { CargasPorDivisao } from './CargasPorDivisao';
 import { HistoricoPorSemana } from './HistoricoPorSemana';
 import { NoPlano } from '../ui/NoPlano';
 import { gerarPdfDeCargas, sessoesPorUid, treinosDoAluno } from './gerarPdf';
+import { useUnidadeDeCarga } from '../ui/unidadeDeCargaEmUso';
 
 
 export const PERIODOS = [
@@ -43,6 +44,7 @@ export const VISOES: { valor: VisaoRegistros; rotulo: string }[] = [
  */
 export function CartaoRegistros({ aluno, pasta }: { aluno: { id: string; nome: string }; pasta?: PastaResumo }) {
   const { avisar } = useAviso();
+  const unidade = useUnidadeDeCarga();
   const [dias, setDias] = useState('14');
   const [visao, setVisao] = useState<VisaoRegistros>('divisao');
   const [gerando, setGerando] = useState(false);
@@ -67,7 +69,7 @@ export function CartaoRegistros({ aluno, pasta }: { aluno: { id: string; nome: s
 
   const pdf = () => {
     setGerando(true);
-    gerarPdfDeCargas(aluno, de, ate, divisoes)
+    gerarPdfDeCargas(aluno, de, ate, divisoes, unidade)
       .catch((e: unknown) => avisar(textoDoErro(e), 'perigo'))
       .finally(() => setGerando(false));
   };

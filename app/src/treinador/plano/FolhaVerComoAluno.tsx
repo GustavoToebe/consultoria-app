@@ -30,6 +30,7 @@ import { Alerta, MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
 import { useRolagem } from '../../ui/RolagemComTopo';
+import { ContextoDaUnidadeDeCarga } from '../../ui/unidadeDeCargaEmUso';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 import { useMovimentoReduzido } from '../../ui/useMovimentoReduzido';
@@ -59,9 +60,12 @@ export function FolhaVerComoAluno({ previa, aoFechar }: { previa: PreviaDoPlano;
   const [agora] = useState(() => new Date());
   return (
     <Folha visivel titulo="Ver como o aluno" largura={LARGURA_EDITOR} aoFechar={aoFechar} faixa={<Alerta tom="atencao" texto={TEXTO_DA_PREVIA} />}>
-      <TelaDoCelular>
-        {previa.tipo === 'treino' ? <PreviaDoTreino estado={previa.estado} agora={agora} /> : <PreviaDaDieta estado={previa.estado} agora={agora} />}
-      </TelaDoCelular>
+      {/* Decisão 17 (Gustavo, 04/11): a unidade do aluno fica no aparelho dele, então a prévia mostra em kg, que é como o plano é guardado. */}
+      <ContextoDaUnidadeDeCarga.Provider value="kg">
+        <TelaDoCelular>
+          {previa.tipo === 'treino' ? <PreviaDoTreino estado={previa.estado} agora={agora} /> : <PreviaDaDieta estado={previa.estado} agora={agora} />}
+        </TelaDoCelular>
+      </ContextoDaUnidadeDeCarga.Provider>
     </Folha>
   );
 }

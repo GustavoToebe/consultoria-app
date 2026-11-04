@@ -27,6 +27,7 @@ import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Selo, type TipoSelo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
+import { useUnidadeDeCarga } from '../../ui/unidadeDeCargaEmUso';
 import { BotaoDeAbrir } from './BotaoDeAbrir';
 import { AvisoDoCampo, CampoDaCargaFixa, CampoSozinho, CamposDaTecnica, CamposDasRepeticoes, CamposDoCardio, CamposDoEsforco, ErroDoCampo, EscolhaDeCarga, FaixaDeCarga, ReferenciaDaCarga, RirDaSerie, useCamposLadoALado } from './CamposDaPrescricao';
 import { colunasDaPrescricao, linhasDaPrescricao, MINIMO_DA_CAIXA, type CaixaDaPrescricao } from './colunasDaPrescricao';
@@ -335,6 +336,7 @@ interface PropsDoGrupo {
 
 function EditorGrupo({ largo, largura, grupo: g, series, config, cardio, semCarga, exercicioComCarga, descansoPorSerie, tipos, podeMais, primeiro, ultimo, numero, exercicio, porSerie, esforcoVeioDoPadrao, aoMover, aoAlterar, aoQuantidade, aoRestPauseNaUltima, aoPercentuais, aoRir, aoRemover }: PropsDoGrupo) {
   const { cores, bordas, fatorTexto } = useTema();
+  const unidade = useUnidadeDeCarga();
   // Explicações do tipo e da técnica começam recolhidas; o "O que é?" abre.
   const [explicarTipo, setExplicarTipo] = useState(false);
   const [explicarTecnica, setExplicarTecnica] = useState(false);
@@ -416,7 +418,7 @@ function EditorGrupo({ largo, largura, grupo: g, series, config, cardio, semCarg
   };
   return <View style={[estilos.grupo, { borderWidth: bordas.item, borderColor: borda, backgroundColor: cores.superficie }]}>
     {/* "Editando: Série 2" com o tipo como o treinador lê ("Trabalho · WS") e os números ("3x3 - FS 50% · 70% · 85% da WS"). */}
-    <CabecalhoDeGrupo titulo={`Editando: Série ${numero}`} resumo={`${tituloDoGrupoDeSeries(g, config)} · ${descreverGrupo(g, config, series)}`} selo={SELO_DO_NIVEL[nivel]} linha="fina"
+    <CabecalhoDeGrupo titulo={`Editando: Série ${numero}`} resumo={`${tituloDoGrupoDeSeries(g, config)} · ${descreverGrupo(g, config, series, { unidade })}`} selo={SELO_DO_NIVEL[nivel]} linha="fina"
       inicio={<NumeroDaSerie numero={numero} aberto />} acoes={<>
       <BotaoDeMover alvo="grupo" direcao={-1} comTexto={largo} desabilitado={primeiro} aoTocar={() => aoMover(-1)} />
       <BotaoDeMover alvo="grupo" direcao={1} comTexto={largo} desabilitado={ultimo} aoTocar={() => aoMover(1)} />
@@ -487,7 +489,8 @@ function EditorGrupo({ largo, largura, grupo: g, series, config, cardio, semCarg
  */
 function PreviaDoAluno({ grupo: g, series, config, semCarga, descansoPorSerie, nivel }: { grupo: GrupoDeSeries; series: Serie[]; config: Configuracao; semCarga: boolean; descansoPorSerie: boolean; nivel: Nivel }) {
   const { cores } = useTema();
-  const previa = previaDoGrupo(g, series, config, { semCarga, descansoPorSerie, referencia: semCarga ? null : referenciaDaCarga(series, g.inicio, config) });
+  const unidade = useUnidadeDeCarga();
+  const previa = previaDoGrupo(g, series, config, { semCarga, descansoPorSerie, unidade, referencia: semCarga ? null : referenciaDaCarga(series, g.inicio, config) });
   const tecnica = g.series[0].tecnica;
   // Cluster sem blocos válidos: o resumo diria só "complete os blocos"; a frase inteira fica no lugar dele.
   const incompleto = tecnica?.tipo === 'CLUSTER' && !blocosValidos(tecnica.blocos);

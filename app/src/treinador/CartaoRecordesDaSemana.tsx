@@ -13,6 +13,7 @@ import { MensagemErro } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
 import { LinhaDaLista, ListaDeLinhas } from '../ui/LinhaDaLista';
 import { Texto } from '../ui/Texto';
+import { useUnidadeDeCarga } from '../ui/unidadeDeCargaEmUso';
 import { useCarregar } from '../ui/useCarregar';
 
 /** Linhas no Início (o resto fica no total). */
@@ -26,6 +27,7 @@ const NO_INICIO = 5;
  */
 export function CartaoRecordesDaSemana(p: { alunoId: string; meus?: never; style?: object } | { alunoId?: never; meus: boolean; style?: object }) {
   const { cores } = useTema();
+  const unidade = useUnidadeDeCarga();
   const doAluno = !!p.alunoId;
   const { dados, erro, recarregar } = useCarregar(doAluno ? `recordes-semana:${p.alunoId}` : `recordes-semana:${p.meus ? 'meus' : 'todos'}`,
     () => (doAluno ? recordesDaSemanaDoAluno(p.alunoId!) : recordesDaSemana(!!p.meus)));
@@ -41,12 +43,12 @@ export function CartaoRecordesDaSemana(p: { alunoId: string; meus?: never; style
         <ListaDeLinhas>
           {series.map((s, i) =>
             doAluno ? (
-              <LinhaDaLista key={`${s.data}:${s.exercicioId}:${i}`} titulo={textoDaSerieComRecorde(s)} metadados={dataRelativa(s.data)} inicio={medalha} />
+              <LinhaDaLista key={`${s.data}:${s.exercicioId}:${i}`} titulo={textoDaSerieComRecorde(s, unidade)} metadados={dataRelativa(s.data)} inicio={medalha} />
             ) : (
-              <LinhaDaLista key={`${s.alunoId}:${s.data}:${s.exercicioId}:${i}`} titulo={s.alunoNome} descricao={textoDaSerieComRecorde(s)}
+              <LinhaDaLista key={`${s.alunoId}:${s.data}:${s.exercicioId}:${i}`} titulo={s.alunoNome} descricao={textoDaSerieComRecorde(s, unidade)}
                 metadados={dataRelativa(s.data)} inicio={medalha} href={`/treinador/alunos/${s.alunoId}`}
                 aoAbrir={() => router.push(`/treinador/alunos/${s.alunoId}`)}
-                rotulo={`Abrir ${s.alunoNome}: ${textoDaSerieComRecorde(s)}, ${dataRelativa(s.data)}`} />
+                rotulo={`Abrir ${s.alunoNome}: ${textoDaSerieComRecorde(s, unidade)}, ${dataRelativa(s.data)}`} />
             ),
           )}
         </ListaDeLinhas>

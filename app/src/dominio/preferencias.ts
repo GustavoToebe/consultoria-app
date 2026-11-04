@@ -59,7 +59,7 @@ export interface Preferencias {
    */
   painelDoInicio: PainelDoInicioPreferido;
   /**
-   * Só aluno, e só com `unidadeDeCargaHabilitada` na plataforma: em que unidade ele vê e digita a carga. A carga é guardada
+   * Aluno e treinador (cada um a sua, neste aparelho), só com `unidadeDeCargaHabilitada` na plataforma: em que unidade vê e digita a carga. A carga é guardada
    * sempre em kg; isto só muda a tela (`dominio/unidadeDeCarga`). Padrão kg; "Restaurar o padrão" também volta a kg.
    */
   unidadeDeCarga: UnidadeDeCarga;

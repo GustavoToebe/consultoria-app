@@ -201,3 +201,25 @@ test('dieta: fatores que não carregam mostram o erro e "Tentar de novo" busca o
   expect(escritas).toEqual([]);
   expect(errosDaPagina).toEqual([]);
 });
+
+// Decisão 17 (Gustavo, 04/11): mesmo com o treinador em libras, a prévia mostra kg (a unidade do aluno fica no aparelho dele).
+test('treino: prévia em kg mesmo com o treinador em libras', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.addInitScript((id) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ unidadeDeCarga: 'lb' })), TREINADOR.id);
+  const { errosDaPagina } = await simularApi(page, {
+    ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'TREINO_LER', 'TREINO_ALTERAR'], unidadeDeCargaHabilitada: true })),
+    [`GET /alunos/${ALUNO_ID}`]: { corpo: { id: ALUNO_ID, nome: 'Aluno Teste' } },
+    [`GET /alunos/${ALUNO_ID}/foto-perfil`]: erroApi(404, 'Sem foto.', 'NAO_ENCONTRADO'),
+    'GET /exercicios': { corpo: [] },
+    'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+    [`GET /planos-treino/${TREINO_ID}`]: { corpo: TREINO },
+  });
+  await page.goto(`/treinador/treinos/${TREINO_ID}`);
+  await page.getByRole('button', { name: 'Ver como o aluno' }).click();
+  const folha = page.getByRole('dialog', { name: 'Ver como o aluno' });
+  await folha.getByRole('button', { name: /Costas/ }).click();
+  await folha.getByRole('link', { name: /Remada fictícia/ }).click();
+  await expect(folha.getByRole('button', { name: /^Aumentar .* kg em / }).first()).toBeVisible();
+  await expect(folha.getByRole('button', { name: /^Aumentar .* lb em / })).toHaveCount(0);
+  expect(errosDaPagina).toEqual([]);
+});

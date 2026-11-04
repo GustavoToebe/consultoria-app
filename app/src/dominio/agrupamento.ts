@@ -407,8 +407,8 @@ export function descreverGrupo(grupo: GrupoDeSeries, config?: Configuracao | nul
 }
 
 /** Resumo de todas as séries do exercício, um grupo por linha. */
-export function descreverSeries(series: Serie[], config?: Configuracao | null): string[] {
-  return agrupar(series).map((g) => descreverGrupo(g, config, series));
+export function descreverSeries(series: Serie[], config?: Configuracao | null, unidade: UnidadeDeCarga = 'kg'): string[] {
+  return agrupar(series).map((g) => descreverGrupo(g, config, series, { unidade }));
 }
 
 /** Técnicas do exercício por extenso, sem repetir (o aluno lê uma vez, antes das séries). */

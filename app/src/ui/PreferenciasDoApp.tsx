@@ -36,8 +36,8 @@ export function PreferenciasDoApp({ comTitulo = true, extras }: { comTitulo?: bo
   const temaDaConsultoria = paletaDe(sessao.marca?.temaPadrao).cores;
   // O texto fala com quem lê: o aluno recebe o tema do treinador; o treinador é quem o escolhe, em Marca.
   const aluno = sessao.usuario?.papel === 'ALUNO';
-  // Só o aluno escolhe, e só com a chave da plataforma ligada; desligada, o app segue em kg e a escolha nem aparece.
-  const escolheUnidade = aluno && sessao.unidadeDeCargaHabilitada;
+  // Aluno e treinador escolhem, cada um a sua, só com a chave da plataforma ligada; desligada, o app segue em kg e a escolha nem aparece.
+  const escolheUnidade = sessao.unidadeDeCargaHabilitada;
 
   return (
     <View style={estilos.coluna}>
@@ -158,7 +158,9 @@ export function PreferenciasDoApp({ comTitulo = true, extras }: { comTitulo?: bo
       ) : null}
 
       {escolheUnidade ? (
-        <Cartao titulo="Unidade da carga" descricao="Como você vê e digita o peso. O que você registra é guardado em kg; trocar não muda nada do que já foi registrado.">
+        <Cartao titulo="Unidade da carga" descricao={aluno
+          ? 'Como você vê e digita o peso. O que você registra é guardado em kg; trocar não muda nada do que já foi registrado.'
+          : 'Como você vê e digita a carga fixa do treino e como lê cargas, recordes, relatórios e PDFs. O que fica guardado é sempre em kg; trocar não muda nenhum plano nem registro.'}>
           <Escolha
             descricao="Unidade da carga"
             opcoes={[
