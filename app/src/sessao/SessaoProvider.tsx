@@ -22,6 +22,7 @@ import { criarRecargaDoPerfil, perfilAtualizado, perfilDoEu, type PerfilDaSessao
 import { temFuncionalidade as conferirFuncionalidade } from '../dominio/funcionalidadesDoPlano';
 import { pode as conferirPermissao } from '../dominio/permissoes';
 import { varrerFilasRetidas } from '../offline/filasRetidas';
+import { removerPushDoAparelho } from '../aluno/push/pushNativo';
 import { limparDadosDoAluno } from '../offline/limparDadosDoAluno';
 import { apagarArquivosTemporarios } from '../offline/arquivosTemporarios';
 import { limparLogosEmMemoria } from '../pdf/logoEmMemoria';
@@ -65,6 +66,8 @@ interface ValorSessao {
   cicloHabilitado: boolean;
   /** "Concluir treino" ligado? Desligado ou desconhecido, o app esconde tudo e nunca consulta nem enfileira conclusões. */
   retornoHabilitado: boolean;
+  /** Aviso de compromisso por push ligado? Desligado ou desconhecido, o app não oferece o interruptor. */
+  pushHabilitado: boolean;
   recarregarPerfil: () => Promise<void>;
   situacao: Situacao;
   usuario: UsuarioResumo | null;
@@ -360,6 +363,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       pagarNoAndroid:perfil?.pagarNoAndroid===true,
       cicloHabilitado:perfil?.cicloHabilitado===true,
       retornoHabilitado:perfil?.retornoHabilitado===true,
+      pushHabilitado:perfil?.pushHabilitado===true,
       recarregarPerfil,
       situacao,
       usuario: perfil?.usuario ?? null,
@@ -382,6 +386,10 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       },
       atualizarMarca,
       sair: async () => {
+        // Aluno com o push ligado na plataforma: apaga o token deste aparelho na API enquanto a sessão ainda vale.
+        // Falha ou demora não bloqueiam a saída (o servidor também limpa o token órfão no envio).
+        const atual = perfilAtual.current;
+        if (atual?.usuario.papel === 'ALUNO' && atual.pushHabilitado === true) await removerPushDoAparelho().catch(() => undefined);
         try {
           await rotas.sairDaApi(await lerRefresh());
         } catch {

@@ -15,6 +15,7 @@ export interface PerfilDaSessao {
   pagarNoAndroid?: boolean;
   cicloHabilitado?: boolean;
   retornoHabilitado?: boolean;
+  pushHabilitado?: boolean;
   usuario: UsuarioResumo;
   marca: Marca;
   termosPendentes?: boolean;
@@ -33,6 +34,7 @@ export function perfilDoEu(eu: EuResponse): PerfilDaSessao {
     pagarNoAndroid: eu.pagarNoAndroid,
     cicloHabilitado: eu.cicloHabilitado,
     retornoHabilitado: eu.retornoHabilitado,
+    pushHabilitado: eu.pushHabilitado,
     termosPendentes: eu.termosPendentes,
   };
 }

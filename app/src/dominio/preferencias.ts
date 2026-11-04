@@ -43,6 +43,8 @@ export interface Preferencias {
   mostrarFasesDoCiclo: boolean;
   /** Só aluno, só no celular: notificações locais 1 dia e 2 horas antes de cada compromisso. Desligado por padrão. */
   lembretesCompromisso: boolean;
+  /** Só aluno, só no celular: push do Expo quando um compromisso é marcado, remarcado ou cancelado. Desligado por padrão. */
+  avisoNoCelular: boolean;
   /**
    * Só treinador: agendas da Agenda escondidas neste aparelho (D2). Cada item é a chave de uma agenda fixa
    * (`compromissos`, `atualizacoes`) ou o id de uma agenda pessoal; nenhuma oculta é o padrão. O id de uma agenda que não
@@ -81,6 +83,7 @@ export const PREFERENCIAS_PADRAO: Preferencias = {
   logoNaComparacao: true,
   mostrarFasesDoCiclo: true,
   lembretesCompromisso: false,
+  avisoNoCelular: false,
   agendasOcultas: [],
   painelDoInicio: PAINEL_DO_INICIO_PADRAO,
 };
@@ -119,6 +122,7 @@ export function normalizarPreferencias(qualquer: unknown): Preferencias {
     logoNaComparacao: typeof o.logoNaComparacao === 'boolean' ? o.logoNaComparacao : PREFERENCIAS_PADRAO.logoNaComparacao,
     mostrarFasesDoCiclo: typeof o.mostrarFasesDoCiclo === 'boolean' ? o.mostrarFasesDoCiclo : PREFERENCIAS_PADRAO.mostrarFasesDoCiclo,
     lembretesCompromisso: typeof o.lembretesCompromisso === 'boolean' ? o.lembretesCompromisso : PREFERENCIAS_PADRAO.lembretesCompromisso,
+    avisoNoCelular: typeof o.avisoNoCelular === 'boolean' ? o.avisoNoCelular : PREFERENCIAS_PADRAO.avisoNoCelular,
     agendasOcultas: agendasOcultasDe(o.agendasOcultas),
     painelDoInicio: painelDoInicioDe(o.painelDoInicio),
   };

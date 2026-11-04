@@ -19,7 +19,7 @@ describe('preferências pessoais', () => {
   });
 
   it('aceita o objeto e o texto salvo, valor por valor', () => {
-    const salvo = { tema: 'SISTEMA', contraste: 'ALTO', tamanhoTexto: 'EXTRA', movimento: 'REDUZIDO', vibracao: false, graficos: false, bordasReforcadas: true, barrasEscuras: false, diasSemRegistro: 14, mostrarFasesDoCiclo: true, pdfDieta: { modo: 'detalhado', periodo: 'mes', fatores: false }, logoNaComparacao: false, lembretesCompromisso: true, agendasOcultas: ['compromissos', 'a1'], painelDoInicio: { ordem: ['financeiro', 'alunos', 'atualizacoes', 'interessados', 'treinos', 'pastas', 'agenda', 'recebido'], escondidos: ['agenda', 'recebido'], meus: { agenda: true, interessados: false } } };
+    const salvo = { tema: 'SISTEMA', contraste: 'ALTO', tamanhoTexto: 'EXTRA', movimento: 'REDUZIDO', vibracao: false, graficos: false, bordasReforcadas: true, barrasEscuras: false, diasSemRegistro: 14, mostrarFasesDoCiclo: true, pdfDieta: { modo: 'detalhado', periodo: 'mes', fatores: false }, logoNaComparacao: false, lembretesCompromisso: true, avisoNoCelular: true, agendasOcultas: ['compromissos', 'a1'], painelDoInicio: { ordem: ['financeiro', 'alunos', 'atualizacoes', 'interessados', 'treinos', 'pastas', 'agenda', 'recebido'], escondidos: ['agenda', 'recebido'], meus: { agenda: true, interessados: false } } };
     expect(normalizarPreferencias(salvo)).toEqual(salvo);
     expect(normalizarPreferencias(JSON.stringify(salvo))).toEqual(salvo);
     expect(normalizarPreferencias({ tema: 'CLARO' })).toEqual({ ...PREFERENCIAS_PADRAO, tema: 'CLARO' });
@@ -52,6 +52,9 @@ describe('preferências pessoais', () => {
     expect(PREFERENCIAS_PADRAO.lembretesCompromisso).toBe(false);
     expect(normalizarPreferencias({ lembretesCompromisso: true }).lembretesCompromisso).toBe(true);
     for (const v of ['sim', 1, null]) expect(normalizarPreferencias({ lembretesCompromisso: v }).lembretesCompromisso).toBe(false);
+    expect(PREFERENCIAS_PADRAO.avisoNoCelular).toBe(false);
+    expect(normalizarPreferencias({ avisoNoCelular: true }).avisoNoCelular).toBe(true);
+    for (const v of ['sim', 1, null]) expect(normalizarPreferencias({ avisoNoCelular: v }).avisoNoCelular).toBe(false);
   });
 
   it('painel do Início: padrão com todos os blocos na ordem do protótipo e nenhum escondido', () => {
