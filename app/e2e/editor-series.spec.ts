@@ -5,7 +5,12 @@ import { json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api
 
 // O painel "Nova série" vem antes do grupo aberto, que tem os mesmos grupos de escolha ("Tipo da série" e "Técnica da série").
 const tipoDoPainel = (page: Page, nome: string) => page.getByRole('radiogroup', { name: 'Tipo da série', exact: true }).first().getByRole('button', { name: nome, exact: true });
-const tecnicaDoPainel = (page: Page, nome: string) => page.getByRole('radiogroup', { name: 'Técnica', exact: true }).getByRole('button', { name: nome, exact: true });
+// A técnica é uma lista suspensa (`EscolhaSuspensa`): abre o botão ("Técnica: Nenhuma. Escolher.") e escolhe a opção.
+// O painel "Nova série" tem a "Técnica"; o grupo aberto, a "Técnica da série".
+async function escolherTecnica(page: Page, campo: 'Técnica' | 'Técnica da série', nome: string) {
+  await page.getByRole('button', { name: new RegExp(`^${campo}: `) }).click();
+  await page.getByRole('option', { name: nome, exact: true }).click();
+}
 
 for (const largura of [390, 1280]) {
   test(`FS por quantidade e técnica dentro da série WS persistidas (${largura}px)`, async ({ page }, testInfo) => {
@@ -43,7 +48,7 @@ for (const largura of [390, 1280]) {
     await page.getByRole('button', { name: 'Nova série', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Só técnica', exact: true })).toHaveCount(0);
     await tipoDoPainel(page, 'WS').click();
-    await tecnicaDoPainel(page, 'Rest pause').click();
+    await escolherTecnica(page, 'Técnica', 'Rest pause');
     await page.getByRole('button', { name: 'Adicionar série', exact: true }).click();
     // Três grupos, três abas; a nova (a 3ª, WS com Rest pause) é a aberta.
     await expect(page.getByRole('tab', { name: /^Série \d/ })).toHaveCount(3);
@@ -81,7 +86,7 @@ for (const largura of [390, 1280]) {
     // WS com Cluster 4 blocos de 4: bloco 1 com a carga da série e os outros a 90% da WS.
     await page.getByRole('button', { name: 'Nova série', exact: true }).click();
     await tipoDoPainel(page, 'WS').click();
-    await tecnicaDoPainel(page, 'Cluster').click();
+    await escolherTecnica(page, 'Técnica', 'Cluster');
     await page.getByRole('button', { name: 'Adicionar série', exact: true }).click();
     await campo('Quantos blocos').fill('4');
     await campo('Repetições em cada bloco').fill('4');
@@ -97,7 +102,7 @@ for (const largura of [390, 1280]) {
     // WS com Rest-pause de 2 pausas: retomada 1 com 2 a 3 reps; retomada 2 AMRAP a 85% da WS.
     await page.getByRole('button', { name: 'Nova série', exact: true }).click();
     await tipoDoPainel(page, 'WS').click();
-    await tecnicaDoPainel(page, 'Rest pause').click();
+    await escolherTecnica(page, 'Técnica', 'Rest pause');
     await page.getByRole('button', { name: 'Adicionar série', exact: true }).click();
     await campo('Quantas pausas').fill('2');
     await page.getByRole('switch', { name: 'Definir a meta das retomadas' }).click();

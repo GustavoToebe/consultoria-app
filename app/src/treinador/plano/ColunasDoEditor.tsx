@@ -2,7 +2,7 @@ import { createContext, useContext, type ReactNode } from 'react';
 
 /**
  * Se o editor está em duas colunas (lista + inspetor): a `TelaDoEditor` com `colunas` mede a própria largura e põe o
- * resultado aqui. Fora dela, ou sem `colunas` (dieta, mobilidade, questionário), é sempre `false`.
+ * resultado aqui. Fora dela, ou sem `colunas` (questionário, modelo de uma refeição, os outros modelos), é sempre `false`.
  */
 const Contexto = createContext(false);
 

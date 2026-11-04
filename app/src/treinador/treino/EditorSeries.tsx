@@ -21,6 +21,8 @@ import { Campo } from '../../ui/Campo';
 import { CampoNumerico } from '../../ui/Campos';
 import { Escolha } from '../../ui/Escolha';
 import { EscolhaEmFolha, OPCOES_PARA_BUSCAR } from '../../ui/EscolhaEmFolha';
+import { EscolhaSuspensa } from '../../ui/EscolhaSuspensa';
+import { escalar } from '../../dominio/preferencias';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Selo, type TipoSelo } from '../../ui/Selo';
@@ -28,6 +30,7 @@ import { Texto } from '../../ui/Texto';
 import { useUnidadeDeCarga } from '../../ui/unidadeDeCargaEmUso';
 import { BotaoDeAbrir } from './BotaoDeAbrir';
 import { AvisoDoCampo, CampoDaCargaFixa, CampoSozinho, CamposDaTecnica, CamposDasRepeticoes, CamposDoCardio, CamposDoEsforco, ErroDoCampo, EscolhaDeCarga, FaixaDeCarga, ReferenciaDaCarga, RirDaSerie, useCamposLadoALado } from './CamposDaPrescricao';
+import { colunasDaPrescricao, linhasDaPrescricao, MINIMO_DA_CAIXA, type CaixaDaPrescricao } from './colunasDaPrescricao';
 import {
   type EscolhaDeTecnica,
   opcoesDeReferencia,
@@ -223,7 +226,7 @@ export function EditorSeries({ series, config, modalidade, aoMudar: aoMudarFora,
         <Botao rotulo="Cancelar" tipo="fantasma" aoTocar={() => setPainel(false)} />
       </LinhaDeAcoes>
     </View> : null}
-    {g ? <EditorGrupo key={g.series[0].uid} largo={largo} grupo={g} series={series} config={cfg} cardio={cardio} semCarga={semCarga} exercicioComCarga={exercicioComCarga} descansoPorSerie={descansoPorSerie}
+    {g ? <EditorGrupo key={g.series[0].uid} largo={largo} largura={largura} grupo={g} series={series} config={cfg} cardio={cardio} semCarga={semCarga} exercicioComCarga={exercicioComCarga} descansoPorSerie={descansoPorSerie}
       tipos={tipos} podeMais={!cheio} primeiro={iAberto === 0} ultimo={iAberto === grupos.length - 1} numero={iAberto + 1}
       exercicio={numeroDoExercicio != null ? `Exercício ${numeroDoExercicio} · ${nomeDoExercicio?.trim() || 'sem nome'}` : null}
       porSerie={validacao.porSerieErros}
@@ -270,20 +273,17 @@ function Tipos({ rotulo, opcoes, valor, aoMudar }: {
 function Tecnicas({ rotulo, opcoes, valor, aoMudar }: {
   rotulo: string; opcoes: ReturnType<typeof opcoesDeTecnica>; valor: EscolhaDeTecnica; aoMudar: (v: EscolhaDeTecnica) => void;
 }) {
-  const aoEscolher = (v: EscolhaDeTecnica | null) => { if (v) aoMudar(v); };
   const fora = opcoes.find((o) => o.valor === valor)?.detalhe;
-  const escolha = opcoes.length > OPCOES_PARA_BUSCAR
-    ? <EscolhaEmFolha rotulo={rotulo} opcoes={opcoes.map((o) => ({ valor: o.valor, rotulo: o.rotulo, detalhe: o.detalhe }))} valor={valor} aoMudar={aoEscolher} rotuloDoValor="Escolha a técnica" />
-    : <Escolha rotulo={rotulo} opcoes={opcoes.map((o) => ({ valor: o.valor, rotulo: o.rotulo }))} valor={valor} aoMudar={aoEscolher} />;
+  // Lista suspensa com busca (como o RIR): os chips das técnicas viravam duas ou três linhas no inspetor.
   return <>
-    {escolha}
+    <EscolhaSuspensa<EscolhaDeTecnica> rotulo={rotulo} opcoes={opcoes} valor={valor} aoMudar={aoMudar} style={estilos.suspensa} />
     {fora ? <Texto variante="pequeno">{fora}</Texto> : null}
   </>;
 }
 
 /**
- * A partir desta largura da coluna das séries, Tipo e Técnica (e Esforço e Descanso) ficam lado a lado e o "Mover grupo"
- * tem texto: 1440 e 1024 cabem; o inspetor de 1280 (uns 560 px) empilha, senão a técnica virava uma coluna de chips.
+ * A partir desta largura da coluna das séries, Tipo e Técnica ficam lado a lado e o "Mover grupo" tem texto: 1440 e 1024
+ * cabem; o inspetor de 1280 (uns 560 px) empilha. Repetições, Carga, Esforço e Descanso seguem `colunasDaPrescricao`.
  */
 const LARGURA_LADO_A_LADO = 640;
 /**
@@ -301,8 +301,10 @@ const AJUDA_DA_CARGA_DO_CLUSTER = 'A sugestão e os percentuais saem da carga qu
  */
 function Secao({ titulo, children, style }: { titulo: string; children: ReactNode; style?: StyleProp<ViewStyle> }) {
   const { cores } = useTema();
-  // Cada seção é uma caixinha (`superficie2` com borda fina) dentro da série aberta (protótipo de 30/10).
-  return <View style={[estilos.secao, estilos.poco, { backgroundColor: cores.superficie2, borderColor: cores.divisor }, style]}>
+  // PC: cada seção é uma caixinha (`superficie2` com borda fina) dentro da série aberta (protótipo de 30/10). Celular: só
+  // o título com um fio em cima, para não virar o 3º nível de moldura (exercício > grupo de séries > seção) em 390 px.
+  const caixa = useCamposLadoALado();
+  return <View style={[estilos.secao, caixa ? [estilos.poco, { backgroundColor: cores.superficie2, borderColor: cores.divisor }] : [estilos.plana, { borderTopColor: cores.divisor }], style]}>
     <Texto variante="secao" nivel={3} cor={cores.texto}>{titulo}</Texto>
     {children}
   </View>;
@@ -319,6 +321,8 @@ function Explicacao({ texto }: { texto: string }) {
 interface PropsDoGrupo {
   /** Campos curtos lado a lado e "Mover grupo" com texto: a coluna das séries é larga (`LARGURA_LADO_A_LADO`). */
   largo: boolean;
+  /** Largura medida da coluna das séries (nula antes da 1ª medida): decide quantas caixas da prescrição vão por linha. */
+  largura: number | null;
   grupo: GrupoDeSeries; series: Serie[]; config: Configuracao; cardio: boolean; semCarga: boolean; exercicioComCarga: boolean; descansoPorSerie: boolean;
   tipos: { valor: string; rotulo: string; foraDaMetodologia: boolean }[]; podeMais: boolean; primeiro: boolean; ultimo: boolean; numero: number;
   /** "Exercício 2 · Supino reto", na faixa curta do topo do grupo aberto; nulo sem ela. */
@@ -330,8 +334,8 @@ interface PropsDoGrupo {
   aoRir: (i: number, valor: number) => void; aoRemover: () => void;
 }
 
-function EditorGrupo({ largo, grupo: g, series, config, cardio, semCarga, exercicioComCarga, descansoPorSerie, tipos, podeMais, primeiro, ultimo, numero, exercicio, porSerie, esforcoVeioDoPadrao, aoMover, aoAlterar, aoQuantidade, aoRestPauseNaUltima, aoPercentuais, aoRir, aoRemover }: PropsDoGrupo) {
-  const { cores, bordas } = useTema();
+function EditorGrupo({ largo, largura, grupo: g, series, config, cardio, semCarga, exercicioComCarga, descansoPorSerie, tipos, podeMais, primeiro, ultimo, numero, exercicio, porSerie, esforcoVeioDoPadrao, aoMover, aoAlterar, aoQuantidade, aoRestPauseNaUltima, aoPercentuais, aoRir, aoRemover }: PropsDoGrupo) {
+  const { cores, bordas, fatorTexto } = useTema();
   const unidade = useUnidadeDeCarga();
   // Explicações do tipo e da técnica começam recolhidas; o "O que é?" abre.
   const [explicarTipo, setExplicarTipo] = useState(false);
@@ -363,6 +367,55 @@ function EditorGrupo({ largo, grupo: g, series, config, cardio, semCarga, exerci
       erro={porSerie[g.inicio + j]?.erros['esforco.rir']} />;
   };
   const borda = nivel === 'perigo' ? cores.perigo : cores.bordaCampo;
+  // Repetições, Carga, Esforço e Descanso: numa linha só, de duas em duas ou uma por linha, pela largura do corpo do grupo
+  // (`colunasDaPrescricao`). Com mais de uma por linha, o percentual de cada série desce para uma linha inteira embaixo.
+  const caixas: CaixaDaPrescricao[] = [
+    ...(secoes.prescricao && !cluster ? ['repeticoes' as const] : []),
+    ...(secoes.carga ? ['carga' as const] : []),
+    ...(secoes.esforco ? ['esforco' as const] : []),
+    ...(secoes.prescricao ? ['descanso' as const] : []),
+  ];
+  const colunas = colunasDaPrescricao(largura === null ? null : largura - 2 * bordas.item - 2 * recuo, caixas, fatorTexto);
+  const cargaPorSerieEmbaixo = colunas > 1 && comPercentual;
+  const naLinha = (c: CaixaDaPrescricao): StyleProp<ViewStyle> => colunas > 1 ? { flexGrow: 1, flexShrink: 1, flexBasis: escalar(MINIMO_DA_CAIXA[c], fatorTexto), minWidth: 0 } : null;
+  const cargaPorSerie = <>
+    {comPercentual ? <View style={estilos.bloco}>
+      {/* Uma linha por série: o percentual dela e, com RIR, o RIR dela, lado a lado (reunião de 30/10, D2). */}
+      {g.series.map((x, j) => <FaixaDeCarga key={x.uid} carga={x.carga} config={config} prefixo={g.series.length > 1 ? `Série ${j + 1} · ` : ''}
+        aoMudar={(min, max) => aoPercentuais(j, min, max)} erros={subProblemas(porSerie[g.inicio + j]?.erros, 'carga')} semAjuda={g.series.length > 1}
+        aoLado={rirPorSerie ? rirDa(j) : undefined} />)}
+      {g.series.length > 1 && rotulosDaFaixa(modo, config)?.ajuda ? <Texto variante="pequeno">{rotulosDaFaixa(modo, config)?.ajuda}</Texto> : null}
+    </View> : null}
+    {modo === 'ABAIXO_DA_REFERENCIA' ? <ReferenciaDaCarga opcoes={referencias} valor={s.carga?.referenciaUid} aoMudar={(referenciaUid) => aoAlterar({ carga: { referenciaUid } })} erro={erros['carga.referenciaUid']} /> : null}
+  </>;
+  const caixa: Record<CaixaDaPrescricao, ReactNode> = {
+    repeticoes: <Secao key="repeticoes" titulo="Repetições" style={naLinha('repeticoes')}>
+      <CamposDasRepeticoes valor={s} erros={erros} rotuloVisivel={false} semRepeticoes="Sem repetições: o aluno lê a série por tempo."
+        aoMudar={(r) => aoAlterar({ repsMin: r.repsMin, repsMax: r.repsMax, amrap: r.amrap })} />
+    </Secao>,
+    carga: <Secao key="carga" titulo="Carga" style={naLinha('carga')}>
+      <EscolhaDeCarga carga={s.carga} config={config} papel={papelDe(config, s.tipo)} aoMudarModo={(m) => aoAlterar({ modo: m })} erro={erros['carga.modo'] ?? erros.carga} rotuloVisivel={false}
+        ajuda={cluster && modo === 'CARGA_TRABALHO' && !semCarga ? AJUDA_DA_CARGA_DO_CLUSTER : undefined} exercicioComCarga={exercicioComCarga} />
+      {/* Os kg são do grupo: kg diferentes já separam as séries em grupos (`agrupamento`). */}
+      {modo === 'CARGA_FIXA' ? <CampoDaCargaFixa valor={s.carga?.valorKg} aoMudar={(valorKg) => aoAlterar({ carga: { modo: 'CARGA_FIXA', valorKg } })} erro={erros['carga.valorKg']} /> : null}
+      {cargaPorSerieEmbaixo ? null : cargaPorSerie}
+      <AvisoDoCampo mensagem={avisos['carga.modo']} />
+    </Secao>,
+    esforco: <Secao key="esforco" titulo="Esforço" style={naLinha('esforco')}>
+      <CamposDoEsforco esforco={s.esforco} aoMudar={(esforco) => aoAlterar({ esforco })} erros={subProblemas(erros, 'esforco')} rotulo="Esforço percebido" rotuloVisivel={false}
+        semRpe={!mostraRpe(config, s.tipo, s.esforco)} variasSeries={g.series.length > 1} rirDeCadaSerie={rirDeCadaSerie} />
+      {/* Sem percentual não há linha por série na carga: o RIR de cada série fica aqui, lado a lado no PC. */}
+      {rirPorSerie && !comPercentual ? <View style={estilos.rires}>{g.series.map((_, j) => rirDa(j))}</View> : null}
+      {cluster ? <Texto variante="pequeno">{textoDaRevisaoDoEsforco(esforcoVeioDoPadrao, nomeDoTipo(config, s.tipo))}</Texto> : null}
+      <AvisoDoCampo mensagem={avisos['esforco.rir']} />
+    </Secao>,
+    descanso: <Secao key="descanso" titulo="Descanso" style={naLinha('descanso')}>
+      <CampoSozinho>
+        <CampoNumerico rotulo="Descanso depois da série" inteiro sufixo="s" valor={s.descansoSegundos} aoMudar={(descansoSegundos) => aoAlterar({ descansoSegundos })}
+          erro={erros.descansoSegundos ?? (s.descansoSegundos != null && s.descansoSegundos > DESCANSO_MAXIMO_SEGUNDOS ? `De 0 a ${DESCANSO_MAXIMO_SEGUNDOS} s.` : null)} />
+      </CampoSozinho>
+    </Secao>,
+  };
   return <View style={[estilos.grupo, { borderWidth: bordas.item, borderColor: borda, backgroundColor: cores.superficie }]}>
     {/* "Editando: Série 2" com o tipo como o treinador lê ("Trabalho · WS") e os números ("3x3 - FS 50% · 70% · 85% da WS"). */}
     <CabecalhoDeGrupo titulo={`Editando: Série ${numero}`} resumo={`${tituloDoGrupoDeSeries(g, config)} · ${descreverGrupo(g, config, series, { unidade })}`} selo={SELO_DO_NIVEL[nivel]} linha="fina"
@@ -405,47 +458,16 @@ function EditorGrupo({ largo, grupo: g, series, config, cardio, semCarga, exerci
             <IconeBotao Icone={Plus} rotulo="Uma série completa a mais" desabilitado={!podeMais} aoTocar={() => aoQuantidade(g.series.length + 1)} />
           </View>
         </View>
-        {secoes.prescricao && !cluster ? <CamposDasRepeticoes valor={s} erros={erros} semRepeticoes="Sem repetições: o aluno lê a série por tempo."
-          aoMudar={(r) => aoAlterar({ repsMin: r.repsMin, repsMax: r.repsMax, amrap: r.amrap })} /> : null}
         {secoes.tecnica && s.tecnica && !descritiva
           ? <CamposDaTecnica tecnica={s.tecnica} erros={errosDaTecnica} semCarga={semCarga} ws={nomeDaSerieDeTrabalho(config)} aoMudar={(tecnica) => aoAlterar({ tecnica })} />
           : null}
         {secoes.prescricao && cluster ? <ErroDoCampo mensagem={erros.repsMin} /> : null}
       </Secao>
 
-      {secoes.carga ? <Secao titulo="Carga">
-        <EscolhaDeCarga carga={s.carga} config={config} papel={papelDe(config, s.tipo)} aoMudarModo={(m) => aoAlterar({ modo: m })} erro={erros['carga.modo'] ?? erros.carga} rotuloVisivel={false}
-          ajuda={cluster && modo === 'CARGA_TRABALHO' && !semCarga ? AJUDA_DA_CARGA_DO_CLUSTER : undefined} exercicioComCarga={exercicioComCarga} />
-        {/* Os kg são do grupo: kg diferentes já separam as séries em grupos (`agrupamento`). */}
-        {modo === 'CARGA_FIXA' ? <CampoDaCargaFixa valor={s.carga?.valorKg} aoMudar={(valorKg) => aoAlterar({ carga: { modo: 'CARGA_FIXA', valorKg } })} erro={erros['carga.valorKg']} /> : null}
-        {comPercentual ? <View style={estilos.bloco}>
-          {/* Uma linha por série: o percentual dela e, com RIR, o RIR dela, lado a lado (reunião de 30/10, D2). */}
-          {g.series.map((x, j) => <FaixaDeCarga key={x.uid} carga={x.carga} config={config} prefixo={g.series.length > 1 ? `Série ${j + 1} · ` : ''}
-            aoMudar={(min, max) => aoPercentuais(j, min, max)} erros={subProblemas(porSerie[g.inicio + j]?.erros, 'carga')} semAjuda={g.series.length > 1}
-            aoLado={rirPorSerie ? rirDa(j) : undefined} />)}
-          {g.series.length > 1 && rotulosDaFaixa(modo, config)?.ajuda ? <Texto variante="pequeno">{rotulosDaFaixa(modo, config)?.ajuda}</Texto> : null}
-        </View> : null}
-        {modo === 'ABAIXO_DA_REFERENCIA' ? <ReferenciaDaCarga opcoes={referencias} valor={s.carga?.referenciaUid} aoMudar={(referenciaUid) => aoAlterar({ carga: { referenciaUid } })} erro={erros['carga.referenciaUid']} /> : null}
-        <AvisoDoCampo mensagem={avisos['carga.modo']} />
-      </Secao> : null}
-
-      <View style={largo ? estilos.lado : estilos.empilhado}>
-      {secoes.esforco ? <Secao titulo="Esforço" style={largo ? estilos.ladoMaior : null}>
-        <CamposDoEsforco esforco={s.esforco} aoMudar={(esforco) => aoAlterar({ esforco })} erros={subProblemas(erros, 'esforco')} rotulo="Esforço percebido" rotuloVisivel={false}
-          semRpe={!mostraRpe(config, s.tipo, s.esforco)} variasSeries={g.series.length > 1} rirDeCadaSerie={rirDeCadaSerie} />
-        {/* Sem percentual não há linha por série na carga: o RIR de cada série fica aqui, lado a lado no PC. */}
-        {rirPorSerie && !comPercentual ? <View style={estilos.rires}>{g.series.map((_, j) => rirDa(j))}</View> : null}
-        {cluster ? <Texto variante="pequeno">{textoDaRevisaoDoEsforco(esforcoVeioDoPadrao, nomeDoTipo(config, s.tipo))}</Texto> : null}
-        <AvisoDoCampo mensagem={avisos['esforco.rir']} />
-      </Secao> : null}
-
-      {secoes.prescricao ? <Secao titulo="Descanso" style={largo ? estilos.ladoMenor : null}>
-        <CampoSozinho>
-          <CampoNumerico rotulo="Descanso depois da série" inteiro sufixo="s" valor={s.descansoSegundos} aoMudar={(descansoSegundos) => aoAlterar({ descansoSegundos })}
-            erro={erros.descansoSegundos ?? (s.descansoSegundos != null && s.descansoSegundos > DESCANSO_MAXIMO_SEGUNDOS ? `De 0 a ${DESCANSO_MAXIMO_SEGUNDOS} s.` : null)} />
-        </CampoSozinho>
-      </Secao> : null}
-      </View>
+      {linhasDaPrescricao(caixas, colunas).map((linha) => linha.length > 1
+        ? <View key={linha.join('-')} style={estilos.lado}>{linha.map((c) => caixa[c])}</View>
+        : caixa[linha[0]])}
+      {cargaPorSerieEmbaixo ? <Secao titulo="Carga de cada série">{cargaPorSerie}</Secao> : null}
 
       {secoes.alvoExtra ? <Secao titulo={ROTULO_DA_OBSERVACAO_DA_SERIE}>
         <Campo rotulo="Texto curto para o aluno (opcional)" rotuloAcessivel={`${ROTULO_DA_OBSERVACAO_DA_SERIE} (opcional)`} valor={s.alvoExtra ?? ''} maxLength={120} aoMudar={(alvoExtra) => aoAlterar({ alvoExtra })}
@@ -532,6 +554,7 @@ const estilos = StyleSheet.create({
   corpo: { gap: espaco(1.5) },
   secao: { gap: espaco(1.5) },
   poco: { borderWidth: 1, borderRadius: RAIO, paddingHorizontal: espaco(1.75), paddingVertical: espaco(1.5) },
+  plana: { borderTopWidth: 1, paddingTop: espaco(1.5) },
   // Esforço e Descanso lado a lado no PC; empilhados no celular.
   lado: { flexDirection: 'row', gap: espaco(1.5), alignItems: 'stretch' },
   empilhado: { gap: espaco(1.5) },
@@ -552,4 +575,5 @@ const estilos = StyleSheet.create({
   contador: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
   numero: { fontFamily: fontes.negrito, fontSize: 18, lineHeight: 24, minWidth: 24, textAlign: 'center' },
   doExercicio: { borderLeftWidth: 3, paddingLeft: espaco(1), paddingVertical: 2 },
+  suspensa: { maxWidth: 320 },
 });

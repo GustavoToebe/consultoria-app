@@ -51,7 +51,12 @@ export function mobilidadeParaApi(c: ConteudoMobilidade) {
 
 /** Pode salvar: toda seção tem item, todo item tem nome e o link (se houver) é do YouTube. */
 export function mobilidadeValida(c: ConteudoMobilidade): boolean {
-  return c.secoes.length > 0 && c.secoes.every((s) => s.itens.every((i) => i.nome.trim() && (!i.videoUrl.trim() || videoValido(i.videoUrl))));
+  return c.secoes.length > 0 && c.secoes.every(secaoValida);
+}
+
+/** A parte de `mobilidadeValida` de uma seção (o selo "Corrigir" da lista de seções em duas colunas). */
+export function secaoValida(s: SecaoMobilidade): boolean {
+  return s.itens.every((i) => !!i.nome.trim() && (!i.videoUrl.trim() || videoValido(i.videoUrl)));
 }
 
 type VersaoMobilidade = VersaoDetalhe<ConteudoMobilidadeApi>;
