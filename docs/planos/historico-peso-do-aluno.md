@@ -66,6 +66,7 @@ totais de `FlywayMigrationIntegrationTest` e `PapeisBancoIntegrationTest` não m
 O eixo do `GraficoLinha` passou a acompanhar a data (`fracaoNoEixo` em `dominio/grafico.ts`): datas próximas ficam próximas. Rótulos e o mínimo de 2 pontos não mudaram. Peso e medidas já mandavam a data; progresso e evolução das respostas passaram a mandar. Lote pendencias-app-03-11-b, commit `58a315c0`.
 
 ## O que ficou para trás
+- Conferido em 04/11/2026 (provas em [conferencia-pendencias-04-11.md](conferencia-pendencias-04-11.md)): o gráfico por medida (`dominio/avaliacaoFisica.ts`, `CartaoAvaliacaoFisica`, e2e `avaliacao-fisica.spec.ts`) e a foto de perfil pela equipe (`FotoPerfilController`, `FotoPerfilPelaEquipeIntegrationTest`) estão na `main` pelo squash `2320c1e8` (#41); os hashes dos passos acima são da branch. A troca passou a ser no próprio círculo do topo da ficha (`FotoDePerfilEditavel`, e2e `foto-perfil-equipe.spec.ts`) no lote #93, `78e07269`.
 - O botão "Registrar peso" (`CartaoPeso`) aparece para aluno anonimizado e a API responde 409; esconder como a avaliação
   física faz (já era assim antes da frente). Sem código agora (Gustavo, 02/11).
 - Com uma data só, o Peso mostra o texto "O gráfico aparece com pelo menos duas datas" e a Evolução por medida mostra o
