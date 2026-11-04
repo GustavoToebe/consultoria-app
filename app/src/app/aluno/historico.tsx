@@ -48,6 +48,7 @@ import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
+import { useUnidadeDeCarga } from '../../ui/unidadeDeCargaEmUso';
 import { useCarregar } from '../../ui/useCarregar';
 
 /**
@@ -58,6 +59,7 @@ import { useCarregar } from '../../ui/useCarregar';
 export default function HistoricoAluno() {
   const { registros, pacote, escolhida, falhas, tentarDeNovo, online } = useAluno();
   const { avisar } = useAviso();
+  const unidadeDeCarga = useUnidadeDeCarga();
   const [visao, setVisao] = useState<VisaoRegistros>('divisao');
   const [gerando, setGerando] = useState(false);
   // `null` = o padrão: a pasta em uso, se tem período; senão os últimos 30 dias.
@@ -110,6 +112,7 @@ export default function HistoricoAluno() {
             divisoes,
             rodapePdf: null,
             emitidoEm: new Date(),
+            unidade: unidadeDeCarga,
           }),
         ),
       )
@@ -137,7 +140,7 @@ export default function HistoricoAluno() {
                     .map((r) => {
                       const serie = info?.exercicio.series.find((s) => s.uid === r.serieUid);
                       if (serie?.cardio) return 'Cardio feito';
-                      return textoSerie({ ...r, tipo: nomeDaSerieNoHistorico(serie, metodologia), unidade: info?.exercicio.unidade ?? 'kg' });
+                      return textoSerie({ ...r, tipo: nomeDaSerieNoHistorico(serie, metodologia), unidade: info?.exercicio.unidade ?? 'kg' }, unidadeDeCarga);
                     })
                     .join(' · ')}
                 </Texto>

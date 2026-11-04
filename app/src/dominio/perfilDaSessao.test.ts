@@ -12,6 +12,13 @@ const EU: EuResponse = {
   termosVersao: '1',
 };
 
+describe('perfilDoEu', () => {
+  it('guarda a chave da unidade da carga (sem ela o valor salvo no aparelho chegaria vazio)', () => {
+    expect(perfilDoEu({ ...EU, unidadeDeCargaHabilitada: true }).unidadeDeCargaHabilitada).toBe(true);
+    expect(perfilDoEu(EU).unidadeDeCargaHabilitada).toBeUndefined();
+  });
+});
+
 describe('perfilAtualizado', () => {
   it('nada mudou: nulo (a sessão não troca o estado)', () => {
     const atual = perfilDoEu(EU);

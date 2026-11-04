@@ -1,5 +1,5 @@
 import type { CargaDaEtapa, EtapaRegistrada } from '../api/tipos';
-import { numeroParaTela } from './formatos';
+import { textoDaCarga, type UnidadeDeCarga } from './unidadeDeCarga';
 
 /**
  * Peso das séries com etapas (Cluster, Rest-pause; Frente G, D17, 03/11): a mesma regra da série simples (D1 e D2 da
@@ -89,8 +89,8 @@ export function decidirCheckDaEtapa(e: EntradaDoCheckDaEtapa): DecisaoDoCheckDaE
  * Dica ao lado do campo da etapa (mesmo visual da dica da série simples, `partesDaDica`): "Sugestão: 60 kg" só enquanto o
  * campo está vazio; sem sugestão numa etapa de carga própria, o que falta para haver uma. `null` = nada a dizer.
  */
-export function dicaDaEtapa(e: { campoVazio: boolean; sugestaoKg: number | null; cargaPropria: boolean; semCampoDePeso: boolean }): string | null {
+export function dicaDaEtapa(e: { campoVazio: boolean; sugestaoKg: number | null; cargaPropria: boolean; semCampoDePeso: boolean; unidade?: UnidadeDeCarga }): string | null {
   if (e.semCampoDePeso || !e.campoVazio) return null;
-  if (e.sugestaoKg != null) return `Sugestão: ${numeroParaTela(e.sugestaoKg)} kg`;
+  if (e.sugestaoKg != null) return `Sugestão: ${textoDaCarga(e.sugestaoKg, e.unidade ?? 'kg')}`;
   return e.cargaPropria ? 'Sem sugestão: informe a carga de trabalho' : null;
 }

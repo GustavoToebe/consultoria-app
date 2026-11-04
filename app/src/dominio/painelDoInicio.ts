@@ -863,7 +863,7 @@ export function folhaPastasARenovar(p: Pick<PainelTreinador, 'pastasParaRenovar'
 /** Folha "Recordes dos últimos 7 dias": `GET /recordes/semana` (até 50 séries; `total` conta séries). */
 export function folhaRecordes(r: Pick<RecordesDaSemana, 'total' | 'series'>, o: { meus: boolean; hoje: string }): FolhaDoPainel {
   const itens = r.series.map<ItemDaFolha>((s, i) => {
-    const detalhes = s.recordes.map(textoDoRecorde);
+    const detalhes = s.recordes.map((r) => textoDoRecorde(r));
     const quando = dataRelativa(s.data, o.hoje);
     return {
       chave: `${s.alunoId}:${s.data}:${s.exercicioId}:${i}`, alunoId: s.alunoId, nome: s.alunoNome, descricao: s.exercicioNome, detalhes, direita: quando,

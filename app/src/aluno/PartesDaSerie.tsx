@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { partesDaDica } from '../dominio/dicaDeCarga';
 import { textoDoRecorde, type Recorde } from '../dominio/recordesPessoais';
+import { useUnidadeDeCarga } from '../ui/unidadeDeCargaEmUso';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../tema/tokens';
 import { Selo } from '../ui/Selo';
@@ -30,12 +31,13 @@ export function CabecalhoDaSerie({ numero, tipo, tecnica, recordes, registro }: 
   registro: 'FEITA' | 'NAO_FEITA' | null;
 }) {
   const { cores } = useTema();
+  const unidade = useUnidadeDeCarga();
   const comRecorde = !!recordes?.length;
   return (
     <View style={estilos.cabeca}>
       <View style={estilos.titulo}>
         {comRecorde ? (
-          <View accessible accessibilityRole="text" accessibilityLabel={`Série ${numero}, recorde pessoal: ${recordes!.map(textoDoRecorde).join('; ')}`}>
+          <View accessible accessibilityRole="text" accessibilityLabel={`Série ${numero}, recorde pessoal: ${recordes!.map((r) => textoDoRecorde(r, unidade)).join('; ')}`}>
             <Medal size={20} color={cores.sucesso} />
           </View>
         ) : null}

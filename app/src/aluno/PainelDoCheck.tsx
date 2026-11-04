@@ -8,6 +8,7 @@ import { espaco, fontes, RAIO } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
 import { LinhaDeAcoes } from '../ui/LinhaDeAcoes';
 import { Texto } from '../ui/Texto';
+import { useUnidadeDeCarga } from '../ui/unidadeDeCargaEmUso';
 import { useMovimentoReduzido } from '../ui/useMovimentoReduzido';
 
 const ICONES: Record<EscolhaDoPainel, typeof Check> = { SIM: Check, OUTRA_CARGA: Pencil, SEM_CARGA: X };
@@ -20,7 +21,7 @@ const ICONES: Record<EscolhaDoPainel, typeof Check> = { SIM: Check, OUTRA_CARGA:
 export function PainelDoCheck({ sugestaoKg, numero, aoEscolher }: { sugestaoKg: number; numero: number; aoEscolher: (escolha: EscolhaDoPainel) => void }) {
   const { cores } = useTema();
   const reduzido = useMovimentoReduzido();
-  const { pergunta, opcoes } = painelDoCheck(sugestaoKg);
+  const { pergunta, opcoes } = painelDoCheck(sugestaoKg, useUnidadeDeCarga());
   return (
     <Animated.View
       entering={reduzido ? undefined : FadeIn.duration(150).reduceMotion(ReduceMotion.System)}

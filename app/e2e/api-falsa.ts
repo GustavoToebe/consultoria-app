@@ -154,6 +154,8 @@ export async function sessao(page: Page, usuario: UsuarioResumo, extra: Partial<
     pagarNoAndroid: false,
     // "Concluir treino" vem desligado; o teste que o usa liga por `extra`.
     retornoHabilitado: false,
+    // A escolha de kg/lb vem desligada; o teste que a usa liga por `extra`.
+    unidadeDeCargaHabilitada: false,
     ...(usuario.papel === 'TREINADOR'
       ? { perfil: { id: 'p1', nome: 'Treinador', acessoTotal: false }, permissoes: PERMISSOES_TREINADOR }
       : { aluno: { id: 'a0000000-0000-4000-8000-000000000002', nome: usuario.nome } }),

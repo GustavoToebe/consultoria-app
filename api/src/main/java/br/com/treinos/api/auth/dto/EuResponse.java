@@ -13,7 +13,9 @@ public record EuResponse(UsuarioResumo usuario, MarcaPublica marca, AlunoResumo 
                          /* Módulo do ciclo menstrual ligado ({@code TREINOS_CICLO_HABILITADO}); desligado, o app esconde tudo dele. */
                          boolean cicloHabilitado,
                          /* Concluir treino ligado ({@code TREINOS_RETORNO_HABILITADO}); desligado, o app esconde tudo dele. */
-                         boolean retornoHabilitado) {
+                         boolean retornoHabilitado,
+                         /* Escolha de kg ou lb ({@code TREINOS_UNIDADE_CARGA_HABILITADA}); desligado, o app esconde a escolha e usa kg. */
+                         boolean unidadeDeCargaHabilitada) {
 
     public record PerfilResumo(UUID id,String nome,boolean acessoTotal) { }
 

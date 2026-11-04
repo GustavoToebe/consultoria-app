@@ -1,6 +1,6 @@
 import type { EtapaRegistrada } from '../api/tipos';
-import { numeroParaTela } from './formatos';
 import { textoDoAnterior } from './seriesAnteriores';
+import { textoDaCarga, type UnidadeDeCarga } from './unidadeDeCarga';
 
 /**
  * Dica de carga da série (D1, 02/11): a carga sugerida (mesma carga, percentual, base do dia ou carga fixa) é só uma
@@ -25,17 +25,19 @@ export interface EntradaDaDica {
   ultima: UltimaVezDaSerie | null;
   /** Exercício sem carga (`unidade === 'nenhuma'`) ou série de cardio: não há dica de carga. */
   semCampoDePeso: boolean;
+  /** Unidade em que o aluno vê a carga (padrão kg); a sugestão e a última vez continuam kg por dentro. */
+  unidade?: UnidadeDeCarga;
 }
 
 /** "60 kg × 7", "60 kg", "7 reps"; `null` quando a última vez não tem carga nem repetições. */
-export function textoDaUltimaCarga(ultima: UltimaVezDaSerie | null): string | null {
+export function textoDaUltimaCarga(ultima: UltimaVezDaSerie | null, unidade: UnidadeDeCarga = 'kg'): string | null {
   if (!ultima) return null;
   if (ultima.etapas) {
-    const t = textoDoAnterior({ tipo: '', ordem: 0, carga: ultima.carga, repeticoes: ultima.repeticoes, etapas: ultima.etapas }, false);
+    const t = textoDoAnterior({ tipo: '', ordem: 0, carga: ultima.carga, repeticoes: ultima.repeticoes, etapas: ultima.etapas }, false, unidade);
     return t === '—' ? null : t;
   }
   const partes: string[] = [];
-  if (ultima.carga != null) partes.push(`${numeroParaTela(ultima.carga)} kg`);
+  if (ultima.carga != null) partes.push(textoDaCarga(ultima.carga, unidade));
   if (ultima.repeticoes != null) partes.push(ultima.carga != null ? `× ${ultima.repeticoes}` : `${ultima.repeticoes} ${ultima.repeticoes === 1 ? 'rep' : 'reps'}`);
   return partes.length ? partes.join(' ') : null;
 }
@@ -47,8 +49,8 @@ export function textoDaUltimaCarga(ultima: UltimaVezDaSerie | null): string | nu
 export function dicaDeCarga(e: EntradaDaDica): string | null {
   if (e.semCampoDePeso) return null;
   const partes: string[] = [];
-  if (e.sugestaoKg != null) partes.push(`Sugestão: ${numeroParaTela(e.sugestaoKg)} kg`);
-  const ultima = textoDaUltimaCarga(e.ultima);
+  if (e.sugestaoKg != null) partes.push(`Sugestão: ${textoDaCarga(e.sugestaoKg, e.unidade ?? 'kg')}`);
+  const ultima = textoDaUltimaCarga(e.ultima, e.unidade);
   if (ultima) partes.push(`Última vez: ${ultima}`);
   return partes.length ? partes.join(' · ') : TEXTO_PRIMEIRA_VEZ;
 }

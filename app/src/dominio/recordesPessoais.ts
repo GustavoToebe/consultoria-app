@@ -1,5 +1,5 @@
 import type { ExercicioPlano, MelhoresDoExercicio, RecordesDoPacote, Serie } from '../api/tipos';
-import { numeroParaTela } from './formatos';
+import { textoDaCarga, type UnidadeDeCarga } from './unidadeDeCarga';
 
 /**
  * Recordes pessoais (frente Engajamento, passo 0.2, decisões P3 e P10). A regra é o espelho de
@@ -169,10 +169,10 @@ export function recordesDoExercicio(entrada: EntradaDoExercicio): Record<string,
 }
 
 /** "Maior carga · 70 kg", "Mais repetições · 12 com 60 kg", "Maior volume · 700 kg". */
-export function textoDoRecorde(r: Recorde): string {
-  if (r.tipo === 'MAIOR_CARGA') return `Maior carga · ${numeroParaTela(r.carga)} kg`;
-  if (r.tipo === 'MAIS_REPETICOES') return `Mais repetições · ${r.repeticoes} com ${numeroParaTela(r.carga)} kg`;
-  return `Maior volume · ${numeroParaTela(r.valor)} kg`;
+export function textoDoRecorde(r: Recorde, unidade: UnidadeDeCarga = 'kg'): string {
+  if (r.tipo === 'MAIOR_CARGA') return `Maior carga · ${textoDaCarga(r.carga, unidade)}`;
+  if (r.tipo === 'MAIS_REPETICOES') return `Mais repetições · ${r.repeticoes} com ${textoDaCarga(r.carga, unidade)}`;
+  return `Maior volume · ${textoDaCarga(r.valor, unidade)}`;
 }
 
 /** Quantas séries do dia têm recorde (a medalha). */
