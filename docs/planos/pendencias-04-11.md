@@ -13,7 +13,7 @@ Fechar a limpeza e os prazos de 14/11, os defeitos pequenos do app e os dois e2e
 | 3 | Branches | Apagar a remota cuja ponta é o commit de um PR já mesclado, mais `frente-g-exec` e `frente-g-hist` (estavam dentro da `frente-g` mesclada). Não apagar `main`, `montador-de-telas` (PR #37) nem ponta que não é a do PR | pedido de 04/11 |
 
 ## Passos
-- [ ] A. Guia do treinador, Trivy/Dependabot, `AGENTS.md`, decisões confirmadas e branches mescladas — commit: —
+- [x] A. Guia do treinador, Trivy/Dependabot, `AGENTS.md`, decisões confirmadas e branches mescladas — commit: 42a9f92e
 - [ ] B. Publicar tudo, `BotaoMarcar`, etapas, inscrição, agenda e cupom no PDF — commit: —
 - [ ] C. e2e intermitentes (`links-do-menu` e `agenda-calendario`) — commit: —
 - [ ] Conferência local (importação da planilha completa e Cluster/Rest-pause). Sem PR. Se houver defeito, lote D — commit: —
