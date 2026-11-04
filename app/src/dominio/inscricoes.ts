@@ -269,6 +269,33 @@ export const INSCRICAO_VAZIA: DadosDaInscricao = {
   nome: '', whatsapp: '', email: '', objetivo: '', sexo: '', interesse: '', modalidade: '', previsaoInicio: '', origem: '',
 };
 
+/**
+ * A página pública em duas partes (D6 de `docs/planos/auditoria-ui-ux-lote-1.md`), antes de um envio só: a 1 é o
+ * contato (nome, WhatsApp e e-mail), a 2 é todo o resto (sexo, objetivo, perguntas rápidas, perguntas do treinador,
+ * ciência e envio). As chaves são as dos erros, iguais às da API; o que não é do contato (pergunta do treinador,
+ * ciência, verificação, campo desconhecido) cai na parte 2, a do botão de enviar.
+ */
+export type ParteDaInscricao = 1 | 2;
+const CHAVES_DO_CONTATO: ReadonlySet<string> = new Set(['nome', 'whatsapp', 'email']);
+export const parteDoCampoDaInscricao = (chave: string): ParteDaInscricao => (CHAVES_DO_CONTATO.has(chave) ? 1 : 2);
+
+/** Só há parte 2 se sobra algo além do contato: algum fixo visível que não é o e-mail ou uma pergunta do treinador. */
+export function temSegundaParte(campos: readonly CampoDaInscricao[], perguntas: ConteudoQuestionario | null): boolean {
+  return campos.some((c) => c !== 'EMAIL') || !!perguntas?.secoes.some((s) => s.perguntas.length > 0);
+}
+
+/** Parte a mostrar para corrigir os erros: a 1 se algum é do contato, senão a 2; `null` sem erro. */
+export function parteComErro(erros: Record<string, string>): ParteDaInscricao | null {
+  const chaves = Object.keys(erros);
+  if (!chaves.length) return null;
+  return chaves.some((c) => parteDoCampoDaInscricao(c) === 1) ? 1 : 2;
+}
+
+/** Erros que o "Continuar" da parte 1 confere: só os do contato (a ciência e as perguntas ficam para o envio). */
+export function errosDoContato(d: DadosDaInscricao, campos: readonly CampoDaInscricao[] = TODOS_OS_CAMPOS): Record<string, string> {
+  return Object.fromEntries(Object.entries(errosDaInscricao(d, false, false, campos)).filter(([c]) => parteDoCampoDaInscricao(c) === 1));
+}
+
 /** Máscara do WhatsApp enquanto digita: `(11) 98765-4321`. */
 export const mascaraWhatsapp = (texto: string) => formatarTelefone(texto);
 

@@ -4,52 +4,206 @@ import type { AceiteInscricao, InscricaoDetalhe, InscricaoResumo, PaginaInscrico
 import { erroApi, json, type RespostasApi, sessao, simularApi, TREINADOR } from './api-falsa';
 import { CODIGO, contagensFalsas, detalheFalso, paginaPublica, resumoFalso, rotasDaTela } from './inscricoes-falsas';
 
-test('inscrição pública: confere os campos, exige a ciência do texto e mostra a mensagem neutra depois do envio', async ({ page }) => {
-  const { pedidos, naoTratadas, errosDaPagina } = await simularApi(page, {
-    [`GET /publico/inscricoes/${CODIGO}`]: { corpo: paginaPublica({ texto: 'Usamos seus dados só para falar com você.', textoVersao: 'versao-1' }) },
-    [`POST /publico/inscricoes/${CODIGO}`]: { status: 202, corpo: { mensagem: 'Recebemos sua inscrição. A equipe vai falar com você.' } },
-  });
-  await page.goto(`/inscricao/${CODIGO}`);
-  await expect(page.getByRole('heading', { name: 'Quero ser aluno' })).toBeVisible();
-  await expect(page.getByText('Usamos seus dados só para falar com você.')).toBeVisible();
+const envios = (pedidos: { metodo: string; caminho: string; corpo?: unknown }[]) =>
+  pedidos.filter((p) => p.metodo === 'POST' && p.caminho.startsWith('/publico/inscricoes/'));
 
-  // Sem nome, WhatsApp nem ciência: nada vai para a API.
-  await page.getByRole('button', { name: 'Enviar inscrição' }).click();
-  await expect(page.getByText('Confira os campos destacados.')).toBeVisible();
-  await expect(page.getByText('Informe seu nome.')).toBeVisible();
-  await expect(page.getByLabel('Nome')).toBeFocused();
-  await expect(page.getByText('Marque que você leu o texto acima.')).toBeVisible();
-  const envios = () => pedidos.filter((p) => p.metodo === 'POST' && p.caminho.startsWith('/publico/inscricoes/'));
-  expect(envios()).toHaveLength(0);
-
+/** Parte 1 preenchida (nome e WhatsApp) e "Continuar": a página mostra a parte 2. */
+async function irParaASegundaParte(page: Page) {
   await page.getByLabel('Nome').fill('Pessoa Fictícia');
-  // A máscara formata o número enquanto digita.
   await page.getByLabel('WhatsApp com DDD').pressSequentially('11987654321');
-  await expect(page.getByLabel('WhatsApp com DDD')).toHaveValue('(11) 98765-4321');
-  await page.getByLabel('Objetivo (opcional)').fill('Ganhar condicionamento.');
-  await page.getByRole('checkbox', { name: 'Li e estou ciente' }).click();
-  await page.getByRole('button', { name: 'Enviar inscrição' }).click();
+  await page.getByRole('button', { name: 'Continuar' }).click();
+  await expect(page.getByRole('heading', { name: 'Sobre você', level: 2 })).toBeVisible();
+}
 
-  await expect(page.getByRole('heading', { name: 'Inscrição enviada' })).toBeVisible();
-  await expect(page.getByText('Recebemos sua inscrição. A equipe vai falar com você.')).toBeVisible();
-  expect(envios()).toHaveLength(1);
-  expect(envios()[0].corpo).toEqual({
-    nome: 'Pessoa Fictícia',
-    whatsapp: '(11) 98765-4321',
-    email: null,
-    objetivo: 'Ganhar condicionamento.',
-    interesse: null,
-    modalidade: null,
-    previsaoInicio: null,
-    origem: null,
-    origemLink: null,
-    cienciaPrivacidade: true,
-    textoVersao: 'versao-1',
-    questionarioVersaoId: null,
-    respostas: null,
+/** Captura para conferir à mão (390 e 1440, claro e escuro), só com `E2E_CAPTURAS` (uma pasta fora do repositório). */
+async function capturar(page: Page, nome: string) {
+  if (process.env.E2E_CAPTURAS) await page.screenshot({ path: `${process.env.E2E_CAPTURAS}/inscricao-${nome}.png`, fullPage: true });
+}
+
+// "Quero ser aluno" em duas partes antes de um envio só (D6 de docs/planos/auditoria-ui-ux-lote-1.md).
+for (const largura of [390, 1440]) {
+  test(`inscrição pública: a parte 1 confere só o contato, a 2 exige a ciência e o envio leva tudo (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { pedidos, naoTratadas, errosDaPagina } = await simularApi(page, {
+      [`GET /publico/inscricoes/${CODIGO}`]: { corpo: paginaPublica({ texto: 'Usamos seus dados só para falar com você.', textoVersao: 'versao-1' }) },
+      [`POST /publico/inscricoes/${CODIGO}`]: { status: 202, corpo: { mensagem: 'Recebemos sua inscrição. A equipe vai falar com você.' } },
+    });
+    await page.goto(`/inscricao/${CODIGO}`);
+    await expect(page.getByRole('heading', { name: 'Quero ser aluno', level: 1 })).toBeVisible();
+    await expect(page.getByText('Parte 1 de 2')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Seu contato', level: 2 })).toBeVisible();
+    // A parte 1 é só o contato: o resto e o envio ficam para a parte 2.
+    await expect(page.getByLabel('Objetivo (opcional)')).toHaveCount(0);
+    await expect(page.getByText('Perguntas rápidas')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Enviar inscrição' })).toHaveCount(0);
+    await capturar(page, `parte1-${largura}`);
+
+    // Sem nome nem WhatsApp: fica na parte 1, com o erro em cada campo e o foco no primeiro. A ciência não é cobrada aqui.
+    await page.getByRole('button', { name: 'Continuar' }).click();
+    await expect(page.getByText('Confira os campos destacados.')).toBeVisible();
+    await expect(page.getByText('Informe seu nome.')).toBeVisible();
+    await expect(page.getByText('Informe o WhatsApp com DDD.')).toBeVisible();
+    await expect(page.getByLabel('Nome')).toBeFocused();
+    await expect(page.getByLabel('Nome')).toHaveAttribute('aria-invalid', 'true');
+    await expect(page.getByText('Marque que você leu o texto acima.')).toHaveCount(0);
+    await capturar(page, `parte1-erros-${largura}`);
+
+    await page.getByLabel('Nome').fill('Pessoa Fictícia');
+    // A máscara formata o número enquanto digita.
+    await page.getByLabel('WhatsApp com DDD').pressSequentially('11987654321');
+    await expect(page.getByLabel('WhatsApp com DDD')).toHaveValue('(11) 98765-4321');
+    await page.getByRole('button', { name: 'Continuar' }).click();
+
+    // Parte 2: o topo recebe o foco, o contato aparece resumido e o texto da consultoria está antes do envio.
+    await expect(page.getByText('Parte 2 de 2')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Sobre você', level: 2 })).toBeVisible();
+    // O foco vai para o bloco do topo da parte (o texto é filho dele).
+    await expect(page.locator(':focus')).toContainText('Parte 2 de 2');
+    await expect(page.getByText('Pessoa Fictícia · (11) 98765-4321')).toBeVisible();
+    await expect(page.getByText('Usamos seus dados só para falar com você.')).toBeVisible();
+    await expect(page.getByLabel('Nome')).toHaveCount(0);
+    await capturar(page, `parte2-${largura}`);
+
+    await page.getByRole('button', { name: 'Enviar inscrição' }).click();
+    await expect(page.getByText('Marque que você leu o texto acima.')).toBeVisible();
+    expect(envios(pedidos)).toHaveLength(0);
+
+    await page.getByLabel('Objetivo (opcional)').fill('Ganhar condicionamento.');
+    await page.getByRole('checkbox', { name: 'Li e estou ciente' }).click();
+    await page.getByRole('button', { name: 'Enviar inscrição' }).click();
+
+    await expect(page.getByRole('heading', { name: 'Inscrição enviada' })).toBeVisible();
+    await expect(page.getByText('Recebemos sua inscrição. A equipe vai falar com você.')).toBeVisible();
+    expect(envios(pedidos)).toHaveLength(1);
+    expect(envios(pedidos)[0].corpo).toEqual({
+      nome: 'Pessoa Fictícia',
+      whatsapp: '(11) 98765-4321',
+      email: null,
+      objetivo: 'Ganhar condicionamento.',
+      interesse: null,
+      modalidade: null,
+      previsaoInicio: null,
+      origem: null,
+      origemLink: null,
+      cienciaPrivacidade: true,
+      textoVersao: 'versao-1',
+      questionarioVersaoId: null,
+      respostas: null,
+    });
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
   });
-  expect(naoTratadas).toEqual([]);
-  expect(errosDaPagina).toEqual([]);
+
+  test(`inscrição pública: voltar e continuar não perdem nada do que foi digitado ou escolhido (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { pedidos, naoTratadas, errosDaPagina } = await simularApi(page, {
+      [`GET /publico/inscricoes/${CODIGO}`]: { corpo: paginaPublica() },
+      [`POST /publico/inscricoes/${CODIGO}`]: { status: 202, corpo: { mensagem: 'Recebemos sua inscrição.' } },
+    });
+    await page.goto(`/inscricao/${CODIGO}`);
+    await page.getByLabel('E-mail (opcional)').fill('pessoa@exemplo.test');
+    await irParaASegundaParte(page);
+    await expect(page.getByText('Pessoa Fictícia · (11) 98765-4321 · pessoa@exemplo.test')).toBeVisible();
+    await page.getByLabel('Objetivo (opcional)').fill('Voltar a treinar.');
+    await page.getByLabel('Tô só de passagem', { exact: true }).click();
+
+    await page.getByRole('button', { name: 'Voltar ao contato' }).click();
+    await expect(page.getByRole('heading', { name: 'Seu contato', level: 2 })).toBeVisible();
+    await expect(page.locator(':focus')).toContainText('Parte 1 de 2');
+    await expect(page.getByLabel('Nome')).toHaveValue('Pessoa Fictícia');
+    await expect(page.getByLabel('WhatsApp com DDD')).toHaveValue('(11) 98765-4321');
+    await expect(page.getByLabel('E-mail (opcional)')).toHaveValue('pessoa@exemplo.test');
+    await page.getByLabel('Nome').fill('Pessoa Fictícia Corrigida');
+
+    await page.getByRole('button', { name: 'Continuar' }).click();
+    await expect(page.getByLabel('Objetivo (opcional)')).toHaveValue('Voltar a treinar.');
+    await expect(page.getByRole('radiogroup', { name: 'Quando quer começar?' }).getByRole('button', { name: 'Tô só de passagem' }))
+      .toHaveAttribute('aria-checked', 'true');
+    await page.getByRole('button', { name: 'Enviar inscrição' }).click();
+
+    await expect(page.getByRole('heading', { name: 'Inscrição enviada' })).toBeVisible();
+    expect(envios(pedidos)[0].corpo).toMatchObject({
+      nome: 'Pessoa Fictícia Corrigida', email: 'pessoa@exemplo.test', objetivo: 'Voltar a treinar.', previsaoInicio: 'SO_DE_PASSAGEM',
+    });
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`inscrição pública: erro da API num campo do contato volta à parte 1 e foca o campo (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    let tentativas = 0;
+    const { pedidos, naoTratadas, errosDaPagina } = await simularApi(page, {
+      [`GET /publico/inscricoes/${CODIGO}`]: { corpo: paginaPublica() },
+      [`POST /publico/inscricoes/${CODIGO}`]: (_p, route) => {
+        tentativas += 1;
+        if (tentativas === 1) {
+          const { status, corpo } = erroApi(422, 'Confira os campos.', 'INSCRICAO_INVALIDA', [
+            { field: 'whatsapp', message: 'Este WhatsApp não parece válido.' },
+          ]);
+          return json(route, corpo, status);
+        }
+        return json(route, { mensagem: 'Recebemos sua inscrição.' }, 202);
+      },
+    });
+    await page.goto(`/inscricao/${CODIGO}`);
+    await irParaASegundaParte(page);
+    await page.getByLabel('Objetivo (opcional)').fill('Força.');
+    await page.getByRole('button', { name: 'Enviar inscrição' }).click();
+
+    await expect(page.getByRole('heading', { name: 'Seu contato', level: 2 })).toBeVisible();
+    await expect(page.getByText('Este WhatsApp não parece válido.')).toBeVisible();
+    await expect(page.getByText('Confira os campos.')).toBeVisible();
+    await expect(page.getByLabel('WhatsApp com DDD')).toBeFocused();
+    await expect(page.getByLabel('WhatsApp com DDD')).toHaveAttribute('aria-invalid', 'true');
+    await capturar(page, `erro-da-api-${largura}`);
+
+    await page.getByLabel('WhatsApp com DDD').fill('');
+    await page.getByLabel('WhatsApp com DDD').pressSequentially('11912345678');
+    await page.getByRole('button', { name: 'Continuar' }).click();
+    // O que estava na parte 2 continua lá.
+    await expect(page.getByLabel('Objetivo (opcional)')).toHaveValue('Força.');
+    await page.getByRole('button', { name: 'Enviar inscrição' }).click();
+    await expect(page.getByRole('heading', { name: 'Inscrição enviada' })).toBeVisible();
+    expect(envios(pedidos).map((p) => (p.corpo as { whatsapp: string }).whatsapp)).toEqual(['(11) 98765-4321', '(11) 91234-5678']);
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`inscrição pública: sem nada além do contato a página fica numa parte só (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { pedidos, naoTratadas, errosDaPagina } = await simularApi(page, {
+      [`GET /publico/inscricoes/${CODIGO}`]: { corpo: paginaPublica({ campos: ['EMAIL'], texto: 'Texto fictício.', textoVersao: 'versao-1' }) },
+      [`POST /publico/inscricoes/${CODIGO}`]: { status: 202, corpo: { mensagem: 'Recebemos sua inscrição.' } },
+    });
+    await page.goto(`/inscricao/${CODIGO}`);
+    await expect(page.getByText('Parte 1 de 2')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Continuar' })).toHaveCount(0);
+    await expect(page.getByText('Texto fictício.')).toBeVisible();
+    await page.getByLabel('Nome').fill('Pessoa Fictícia');
+    await page.getByLabel('WhatsApp com DDD').pressSequentially('11987654321');
+    await page.getByRole('checkbox', { name: 'Li e estou ciente' }).click();
+    await page.getByRole('button', { name: 'Enviar inscrição' }).click();
+    await expect(page.getByRole('heading', { name: 'Inscrição enviada' })).toBeVisible();
+    expect(envios(pedidos)).toHaveLength(1);
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+test('inscrição pública: tema escuro nas duas partes (390 e 1440 px)', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await simularApi(page, {
+    [`GET /publico/inscricoes/${CODIGO}`]: { corpo: paginaPublica({ texto: 'Usamos seus dados só para falar com você.', textoVersao: 'versao-1' }) },
+  });
+  for (const largura of [390, 1440]) {
+    await page.setViewportSize({ width: largura, height: 900 });
+    await page.goto(`/inscricao/${CODIGO}`);
+    await page.getByRole('button', { name: 'Continuar' }).click();
+    await expect(page.getByText('Informe seu nome.')).toBeVisible();
+    await capturar(page, `escuro-parte1-erros-${largura}`);
+    await irParaASegundaParte(page);
+    await capturar(page, `escuro-parte2-${largura}`);
+  }
 });
 
 test('inscrição pública: origens do time, "Tô só de passagem" e o texto do link com negrito', async ({ page }) => {
@@ -60,6 +214,7 @@ test('inscrição pública: origens do time, "Tô só de passagem" e o texto do 
     [`POST /publico/inscricoes/${CODIGO}`]: { status: 202, corpo: { mensagem: 'Recebemos sua inscrição. A equipe vai falar com você.' } },
   });
   await page.goto(`/inscricao/${CODIGO}`);
+  await irParaASegundaParte(page);
   // Os asteriscos somem e o trecho fica em negrito.
   await expect(page.getByText('**', { exact: false })).toHaveCount(0);
   await expect(page.getByText('Obs: não preencha se não for entrar agora.', { exact: true })).toHaveCSS('font-family', /Inter_700Bold/);
@@ -72,8 +227,6 @@ test('inscrição pública: origens do time, "Tô só de passagem" e o texto do 
     await expect(page.getByLabel(rotulo, { exact: true }).first()).toBeVisible();
   }
 
-  await page.getByLabel('Nome').fill('Pessoa Fictícia');
-  await page.getByLabel('WhatsApp com DDD').pressSequentially('11987654321');
   await page.getByLabel('Tô só de passagem', { exact: true }).click();
   await page.getByLabel('TikTok', { exact: true }).click();
   await page.getByRole('checkbox', { name: 'Li e estou ciente' }).click();
@@ -94,9 +247,9 @@ test('inscrição pública: a escolha mostra o erro que a API apontou', async ({
     ]),
   });
   await page.goto(`/inscricao/${CODIGO}`);
-  await page.getByLabel('Nome').fill('Pessoa Fictícia');
-  await page.getByLabel('WhatsApp com DDD').pressSequentially('11987654321');
+  await irParaASegundaParte(page);
   await page.getByRole('button', { name: 'Enviar inscrição' }).click();
+  // O campo é da parte 2: a página fica nela.
   await expect(page.getByText('Escolha o que você procura.')).toBeVisible();
   await expect(page.getByRole('radiogroup', { name: 'O que você procura?' }).getByRole('button', { name: 'Não informar' })).toBeFocused();
 });
@@ -107,8 +260,7 @@ test('inscrição pública: limite de envios (429) mostra o texto do formulário
     [`POST /publico/inscricoes/${CODIGO}`]: erroApi(429, 'Muitas tentativas de acesso. Aguarde e tente novamente.', 'LOGIN_LIMITADO'),
   });
   await page.goto(`/inscricao/${CODIGO}`);
-  await page.getByLabel('Nome').fill('Pessoa Fictícia');
-  await page.getByLabel('WhatsApp com DDD').pressSequentially('11987654321');
+  await irParaASegundaParte(page);
   await page.getByRole('button', { name: 'Enviar inscrição' }).click();
   await expect(page.getByText('Recebemos muitos envios agora. Tente de novo mais tarde.')).toBeVisible();
   await expect(page.getByText(/tentativas de acesso/)).toHaveCount(0);
@@ -121,6 +273,7 @@ test('inscrição pública: link desligado ou inexistente mostra o erro, sem for
   await page.goto(`/inscricao/${CODIGO}`);
   await expect(page.getByText('Link de inscrição não encontrado.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Enviar inscrição' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Continuar' })).toHaveCount(0);
 });
 
 const INSCRICAO_ID = 'i0000000-0000-4000-8000-000000000001';
