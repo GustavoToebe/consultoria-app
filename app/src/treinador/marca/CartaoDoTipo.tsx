@@ -161,5 +161,6 @@ const estilos = StyleSheet.create({
   linha: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5), alignItems: 'flex-start' },
   campo: { minWidth: 130, flexGrow: 1, flexBasis: 130, maxWidth: 220 },
   faixa: { width: 130, gap: espaco(1) },
-  variacao: { gap: espaco(1), paddingLeft: espaco(1.5) },
+  // Na mesma coluna do "Usar o padrão | Personalizar" (sem recuo): a carga e o esforço da variação não flutuam à direita.
+  variacao: { gap: espaco(1) },
 });
