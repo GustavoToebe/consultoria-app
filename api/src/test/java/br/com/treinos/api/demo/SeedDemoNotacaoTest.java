@@ -28,12 +28,11 @@ class SeedDemoNotacaoTest {
     }
 
     @Test
-    void topSetEAcimaDaAnteriorSemRepeticoes() {
+    void topSetEASerieDeTrabalhoSemRepeticoes() {
         Serie top = SeedDemo.serie("T@1-5");
-        assertThat(top.tipo()).isEqualTo("TOP_SET");
-        assertThat(top.carga().modo()).isEqualTo("ACIMA_DA_ANTERIOR");
-        assertThat(top.carga().percentualMin()).isEqualByComparingTo("1");
-        assertThat(top.carga().percentualMax()).isEqualByComparingTo("5");
+        assertThat(top.tipo()).isEqualTo("WORKING");
+        assertThat(top.carga().modo()).isEqualTo("CARGA_TRABALHO");
+        assertThat(top.carga().percentualMin()).isNull();
         assertThat(top.repsMin()).isNull();
     }
 

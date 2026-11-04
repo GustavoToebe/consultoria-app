@@ -249,7 +249,7 @@ public class SeedDemo {
     }
 
     /**
-     * Notação do Plano 16 e dos exemplos: A aquecimento, F feeder, W working, B back off, T top set (acima da anterior),
+     * Notação do Plano 16 e dos exemplos: A aquecimento, F feeder, W working, B back off, T série de trabalho sem repetições (carga de trabalho),
      * R pausas, C blocos desiguais, M blocos iguais. R, C e M são a própria série de trabalho com a técnica; {@code +R}
      * acrescenta o rest pause à série anterior da notação.
      */
@@ -290,8 +290,7 @@ public class SeedDemo {
         int percentualMin = parametro.isEmpty() ? 0 : Integer.parseInt(percentuais[0]);
         Integer percentualMax = percentuais.length > 1 ? Integer.valueOf(percentuais[1]) : null;
         if (tipo == 'T') {
-            return Serie.de(UUID.randomUUID(), "TOP_SET", null, null,
-                    Carga.percentual("ACIMA_DA_ANTERIOR", percentualMin, percentualMax));
+            return trabalho(null, null);
         }
         String[] reps = valor.split("-", 2);
         int min = Integer.parseInt(reps[0]);

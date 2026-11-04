@@ -3,7 +3,6 @@ package br.com.treinos.api.consultoria;
 import br.com.plataforma.comum.web.BadRequestException;
 import br.com.treinos.api.consultoria.ConfiguracaoConsultoria.Combinacao;
 import br.com.treinos.api.consultoria.ConfiguracaoConsultoria.Faixa;
-import br.com.treinos.api.consultoria.ConfiguracaoConsultoria.PadraoPorModalidade;
 import br.com.treinos.api.consultoria.ConfiguracaoConsultoria.Papel;
 import br.com.treinos.api.consultoria.ConfiguracaoConsultoria.Repeticoes;
 import br.com.treinos.api.consultoria.ConfiguracaoConsultoria.TecnicaDaMetodologia;
@@ -55,16 +54,15 @@ class MetodologiaTest {
     }
 
     private static TipoDeSerie tipo(String nome, Papel papel) {
-        return new TipoDeSerie(codigoDe(nome), nome, papel, null, null, null, null, null, null);
+        return new TipoDeSerie(codigoDe(nome), nome, papel, null, null, null, null, null);
     }
 
-    private static TipoDeSerie tipo(String nome, Papel papel, Carga carga, Esforco esforco,
-                                    Map<String, PadraoPorModalidade> porModalidade, Map<String, List<Faixa>> regra) {
-        return new TipoDeSerie(codigoDe(nome), nome, papel, null, carga, esforco, porModalidade, regra, null);
+    private static TipoDeSerie tipo(String nome, Papel papel, Carga carga, Esforco esforco, Map<String, List<Faixa>> regra) {
+        return new TipoDeSerie(codigoDe(nome), nome, papel, null, carga, esforco, regra, null);
     }
 
     private static TipoDeSerie comCodigo(String codigo) {
-        return new TipoDeSerie(codigo, "Outro", Papel.TRABALHO, null, null, null, null, null, null);
+        return new TipoDeSerie(codigo, "Outro", Papel.TRABALHO, null, null, null, null, null);
     }
 
     private static void recusa(ConfiguracaoConsultoria c, String trecho) {
@@ -73,17 +71,17 @@ class MetodologiaTest {
     }
 
     @Test
-    void padraoTemCincoTiposComCodigoPapelERegraDoSaraiva() {
+    void padraoTemQuatroTiposComCodigoPapelERegraDoSaraiva() {
         assertThat(PADRAO.tipos()).extracting(TipoDeSerie::codigo)
-                .containsExactly("WARM_UP", "FEEDER", "WORKING", "TOP_SET", "BACK_OFF");
+                .containsExactly("WARM_UP", "FEEDER", "WORKING", "BACK_OFF");
         assertThat(PADRAO.tipos()).extracting(TipoDeSerie::nome)
-                .containsExactly("Aquecimento", "FS", "WS", "Top set", "Back off");
+                .containsExactly("Aquecimento", "FS", "WS", "Back off");
         assertThat(PADRAO.tipoTrabalho()).isEqualTo("WS");
         assertThat(PADRAO.codigoTrabalho()).isEqualTo("WORKING");
         assertThat(PADRAO.tipoPorCodigo("FEEDER").papel()).isEqualTo(Papel.PREPARACAO);
         assertThat(PADRAO.tipoPorCodigo("FEEDER").regraPercentuais().get("3"))
                 .containsExactly(new Faixa(50, null), new Faixa(70, null), new Faixa(85, 90));
-        assertThat(PADRAO.tipoPorCodigo("FEEDER").repeticoes()).isEqualTo(new Repeticoes(3, 3));
+        assertThat(PADRAO.tipoPorCodigo("FEEDER").repeticoes()).isEqualTo(new Repeticoes(3, 5));
         assertThat(PADRAO.tipoPorCodigo("BACK_OFF").papel()).isEqualTo(Papel.POS_TRABALHO);
         assertThat(PADRAO.tipoPorCodigo("BACK_OFF").repeticoes()).isEqualTo(new Repeticoes(6, 8));
         assertThat(PADRAO.tipoPorCodigo("BACK_OFF").cargaPadrao().percentualMin()).isEqualByComparingTo("85");
@@ -98,14 +96,13 @@ class MetodologiaTest {
     void padraoTemCargaEEsforcoPadraoPorTipo() {
         TipoDeSerie ws = PADRAO.tipoPorCodigo("WORKING");
         assertThat(ws.cargaPadrao().modo()).isEqualTo("CARGA_TRABALHO");
-        assertThat(ws.esforcoPadrao()).isEqualTo(Esforco.deRir(1));
-        assertThat(ws.porModalidade().get("LIVRE").esforco().rir()).isEqualTo(1);
-        assertThat(ws.porModalidade().get("MAQUINA").esforco().rir()).isZero();
-        TipoDeSerie top = PADRAO.tipoPorCodigo("TOP_SET");
-        assertThat(top.cargaPadrao().modo()).isEqualTo("ACIMA_DA_ANTERIOR");
-        assertThat(top.porModalidade().get("LIVRE").carga().percentualMax()).isEqualByComparingTo("5");
-        assertThat(top.porModalidade().get("MAQUINA").carga().percentualMin()).isEqualByComparingTo("5");
-        assertThat(top.porModalidade().get("MAQUINA").carga().percentualMax()).isEqualByComparingTo("10");
+        assertThat(ws.esforcoPadrao()).isEqualTo(Esforco.deRir(0));
+        TipoDeSerie backOff = PADRAO.tipoPorCodigo("BACK_OFF");
+        assertThat(backOff.cargaPadrao().modo()).isEqualTo("PERCENTUAL_WS");
+        assertThat(backOff.cargaPadrao().percentualMin()).isEqualByComparingTo("85");
+        assertThat(backOff.esforcoPadrao()).isEqualTo(Esforco.deRir(0));
+        assertThat(PADRAO.tipoPorCodigo("FEEDER").cargaPadrao().percentualMin()).isEqualByComparingTo("85");
+        assertThat(PADRAO.tipoPorCodigo("TOP_SET")).isNull();
         // Aquecimento e FS não levam esforço de falha por padrão.
         assertThat(PADRAO.tipoPorCodigo("WARM_UP").esforcoPadrao()).isNull();
         assertThat(PADRAO.tipoPorCodigo("FEEDER").esforcoPadrao()).isNull();
@@ -140,10 +137,10 @@ class MetodologiaTest {
     void precisaDeUmTipoDeTrabalhoEOPrimeiroDaONome() {
         recusa(comTipos(List.of(tipo("Aquecimento", Papel.AQUECIMENTO), tipo("FS", Papel.PREPARACAO))),
                 "pelo menos um tipo de série de trabalho");
-        ConfiguracaoConsultoria doisDeTrabalho = comTipos(List.of(tipo("Top set", Papel.TRABALHO), tipo("WS", Papel.TRABALHO)));
+        ConfiguracaoConsultoria doisDeTrabalho = comTipos(List.of(tipo("Forte", Papel.TRABALHO), tipo("WS", Papel.TRABALHO)));
         assertThatNoException().isThrownBy(() -> ConfiguracaoConsultoria.validar(doisDeTrabalho));
-        assertThat(doisDeTrabalho.tipoTrabalho()).isEqualTo("Top set");
-        assertThat(doisDeTrabalho.codigoTrabalho()).isEqualTo("TOP_SET");
+        assertThat(doisDeTrabalho.tipoTrabalho()).isEqualTo("Forte");
+        assertThat(doisDeTrabalho.codigoTrabalho()).isEqualTo("FORTE");
         assertThat(comTipos(List.of()).tipoTrabalho()).isNull();
         assertThat(comTipos(List.of()).codigoTrabalho()).isNull();
     }
@@ -156,7 +153,7 @@ class MetodologiaTest {
         recusa(comTipos(List.of(tipo("WS", Papel.TRABALHO), tipo("ws", Papel.TRABALHO))), "repetidos");
         recusa(comTipos(List.of(tipo("Back off", Papel.TRABALHO), tipo("Back-off", Papel.POS_TRABALHO))), "repetidos");
         recusa(comTipos(List.of(tipo("x".repeat(31), Papel.TRABALHO))), "30 letras");
-        recusa(comTipos(List.of(new TipoDeSerie("WS", "WS", Papel.TRABALHO, null, null, null, null, null,
+        recusa(comTipos(List.of(new TipoDeSerie("WS", "WS", Papel.TRABALHO, null, null, null, null,
                 "x".repeat(501)))), "500 caracteres");
         recusa(comTipos(List.of()), "1 a 20 tipos");
     }
@@ -169,8 +166,8 @@ class MetodologiaTest {
         recusa(comTipos(List.of(comCodigo("WORK ING"))), "código único");
         recusa(comTipos(List.of(comCodigo("WS-1"))), "código único");
         recusa(comTipos(List.of(comCodigo("A".repeat(31)))), "código único");
-        recusa(comTipos(List.of(new TipoDeSerie("WORKING", "WS", Papel.TRABALHO, null, null, null, null, null, null),
-                new TipoDeSerie("WORKING", "Outro", Papel.TRABALHO, null, null, null, null, null, null))), "código único");
+        recusa(comTipos(List.of(new TipoDeSerie("WORKING", "WS", Papel.TRABALHO, null, null, null, null, null),
+                new TipoDeSerie("WORKING", "Outro", Papel.TRABALHO, null, null, null, null, null))), "código único");
         assertThatNoException().isThrownBy(() -> ConfiguracaoConsultoria.validar(
                 comTipos(List.of(comCodigo("A".repeat(30))))));
         assertThatNoException().isThrownBy(() -> ConfiguracaoConsultoria.validar(comTipos(List.of(comCodigo("TOP_2")))));
@@ -179,7 +176,7 @@ class MetodologiaTest {
     @Test
     void repeticoesInvalidasSaoRecusadas() {
         for (Repeticoes ruim : List.of(new Repeticoes(6, 3), new Repeticoes(3, null), new Repeticoes(1, 501))) {
-            recusa(comTipos(List.of(new TipoDeSerie("WORKING", "WS", Papel.TRABALHO, ruim, null, null, null, null, null))),
+            recusa(comTipos(List.of(new TipoDeSerie("WORKING", "WS", Papel.TRABALHO, ruim, null, null, null, null))),
                     "Repetições de WS");
         }
     }
@@ -187,73 +184,61 @@ class MetodologiaTest {
     @Test
     void regraDePercentuaisSoEmPreparacaoComFaixasValidas() {
         Map<String, List<Faixa>> regra = Map.of("1", List.of(new Faixa(85, 90)));
-        recusa(comTipos(List.of(tipo("WS", Papel.TRABALHO, null, null, null, regra))), "só em tipo de preparação");
-        recusa(comTipos(padraoMais(tipo("FS2", Papel.PREPARACAO, null, null, null, Map.of("2", List.of(new Faixa(85, null)))))),
+        recusa(comTipos(List.of(tipo("WS", Papel.TRABALHO, null, null, regra))), "só em tipo de preparação");
+        recusa(comTipos(padraoMais(tipo("FS2", Papel.PREPARACAO, null, null, Map.of("2", List.of(new Faixa(85, null)))))),
                 "2 série(s) precisam de 2 percentual(is)");
-        recusa(comTipos(padraoMais(tipo("FS2", Papel.PREPARACAO, null, null, null, Map.of("1", List.of(new Faixa(90, 85)))))),
+        recusa(comTipos(padraoMais(tipo("FS2", Papel.PREPARACAO, null, null, Map.of("1", List.of(new Faixa(90, 85)))))),
                 "máximo maior ou igual ao mínimo");
-        recusa(comTipos(padraoMais(tipo("FS2", Papel.PREPARACAO, null, null, null, Map.of("1", List.of(new Faixa(0, null)))))),
+        recusa(comTipos(padraoMais(tipo("FS2", Papel.PREPARACAO, null, null, Map.of("1", List.of(new Faixa(0, null)))))),
                 "1 a 200");
-        recusa(comTipos(padraoMais(tipo("FS2", Papel.PREPARACAO, null, null, null, Map.of("x", List.of(new Faixa(85, null)))))),
+        recusa(comTipos(padraoMais(tipo("FS2", Papel.PREPARACAO, null, null, Map.of("x", List.of(new Faixa(85, null)))))),
                 "quantidade de séries");
         // "01" e "+1" seriam a mesma quantidade que "1", e o editor só procura por "1".
-        recusa(comTipos(padraoMais(tipo("FS2", Papel.PREPARACAO, null, null, null, Map.of("01", List.of(new Faixa(85, null)))))),
+        recusa(comTipos(padraoMais(tipo("FS2", Papel.PREPARACAO, null, null, Map.of("01", List.of(new Faixa(85, null)))))),
                 "quantidade de séries");
-        recusa(comTipos(padraoMais(tipo("FS2", Papel.PREPARACAO, null, null, null, Map.of("+1", List.of(new Faixa(85, null)))))),
+        recusa(comTipos(padraoMais(tipo("FS2", Papel.PREPARACAO, null, null, Map.of("+1", List.of(new Faixa(85, null)))))),
                 "quantidade de séries");
-        recusa(comTipos(padraoMais(tipo("FS2", Papel.PREPARACAO, null, null, null, Map.of("11", List.of(new Faixa(85, null)))))),
+        recusa(comTipos(padraoMais(tipo("FS2", Papel.PREPARACAO, null, null, Map.of("11", List.of(new Faixa(85, null)))))),
                 "quantidade de séries");
         assertThatNoException().isThrownBy(() -> ConfiguracaoConsultoria.validar(
-                comTipos(padraoMais(tipo("FS2", Papel.PREPARACAO, null, null, null, regra)))));
+                comTipos(padraoMais(tipo("FS2", Papel.PREPARACAO, null, null, regra)))));
         // Regra vazia em tipo que não é de preparação é o mesmo que nenhuma.
         assertThatNoException().isThrownBy(() -> ConfiguracaoConsultoria.validar(
-                comTipos(List.of(tipo("WS", Papel.TRABALHO, null, null, null, Map.of())))));
+                comTipos(List.of(tipo("WS", Papel.TRABALHO, null, null, Map.of())))));
     }
 
     @Test
-    void cargaPadraoEPorModalidadeSaoConferidas() {
-        recusa(comTipos(List.of(tipo("WS", Papel.TRABALHO, Carga.percentual("PERCENTUAL_WS", 250, null), null, null, null))),
+    void cargaPadraoEEsforcoPadraoSaoConferidos() {
+        recusa(comTipos(List.of(tipo("WS", Papel.TRABALHO, Carga.percentual("PERCENTUAL_WS", 250, null), null, null))),
                 "Carga padrão de WS");
-        recusa(comTipos(List.of(tipo("WS", Papel.TRABALHO, Carga.percentual("PERCENTUAL_WS", 85, 80), null, null, null))),
+        recusa(comTipos(List.of(tipo("WS", Papel.TRABALHO, Carga.percentual("PERCENTUAL_WS", 85, 80), null, null))),
                 "Percentual máximo");
-        recusa(comTipos(List.of(tipo("WS", Papel.TRABALHO, Carga.de("LIVRE"), null, null, null))),
+        recusa(comTipos(List.of(tipo("WS", Papel.TRABALHO, Carga.de("LIVRE"), null, null))),
                 "Forma de carga inválida");
-        recusa(comTipos(List.of(tipo("WS", Papel.TRABALHO, Carga.percentual("ACIMA_DA_ANTERIOR", 101, null), null, null,
-                null))), "Carga padrão de WS");
-        recusa(comTipos(List.of(tipo("WS", Papel.TRABALHO, Carga.percentual("ABAIXO_DA_REFERENCIA", 51, null), null, null,
-                null))), "Carga padrão de WS");
-        recusa(comTipos(List.of(tipo("WS", Papel.TRABALHO, null, null,
-                Map.of("ELASTICO", new PadraoPorModalidade(null, Esforco.deRir(1))), null))), "só LIVRE e MAQUINA");
-        recusa(comTipos(List.of(tipo("WS", Papel.TRABALHO, null, null,
-                Map.of("LIVRE", new PadraoPorModalidade(Carga.percentual("PERCENTUAL_WS", 0, null), null)), null))),
-                "Carga padrão de WS");
-        // Os kg da carga fixa são da série de um exercício: o padrão de um tipo (nem o da modalidade) não os leva.
-        recusa(comTipos(List.of(tipo("FS", Papel.PREPARACAO, Carga.fixa(new java.math.BigDecimal("12")), null, null, null))),
-                "carga fixa só vale na série de um exercício");
-        recusa(comTipos(List.of(tipo("FS", Papel.PREPARACAO, null, null,
-                Map.of("LIVRE", new PadraoPorModalidade(Carga.fixa(new java.math.BigDecimal("12")), null)), null))),
-                "carga fixa só vale na série de um exercício");
-        // A referência do back off só existe na série: o padrão da metodologia não a exige.
-        assertThatNoException().isThrownBy(() -> ConfiguracaoConsultoria.validar(comTipos(List.of(tipo("WS",
-                Papel.TRABALHO, Carga.percentual("ABAIXO_DA_REFERENCIA", 10, 15), null, null, null)))));
-        assertThatNoException().isThrownBy(() -> ConfiguracaoConsultoria.validar(comTipos(List.of(tipo("WS", Papel.TRABALHO,
-                Carga.percentual("ACIMA_DA_ANTERIOR", 1, 10), Esforco.deRir(0),
-                Map.of("MAQUINA", new PadraoPorModalidade(Carga.de("CARGA_TRABALHO"), Esforco.deRpe("8.5"))), null)))));
+    }
+
+    @Test
+    void cargaFixaComoPadraoDoTipoPedeKgValidos() {
+        assertThatNoException().isThrownBy(() -> ConfiguracaoConsultoria.validar(comTipos(List.of(
+                tipo("FS", Papel.PREPARACAO, Carga.fixa(new BigDecimal("12.5")), null, null),
+                tipo("WS", Papel.TRABALHO, Carga.fixa(new BigDecimal("1000")), null, null)))));
+        recusa(comTipos(List.of(tipo("FS", Papel.PREPARACAO, Carga.de("CARGA_FIXA"), null, null))), "Carga padrão de FS");
+        recusa(comTipos(List.of(tipo("FS", Papel.PREPARACAO, Carga.fixa(BigDecimal.ZERO), null, null))), "Carga fixa");
+        recusa(comTipos(List.of(tipo("FS", Papel.PREPARACAO, Carga.fixa(new BigDecimal("1000.5")), null, null))), "Carga fixa");
+        recusa(comTipos(List.of(tipo("FS", Papel.PREPARACAO, Carga.fixa(new BigDecimal("12.345")), null, null))), "Carga fixa");
     }
 
     @Test
     void esforcoPadraoInformadoPrecisaDeValorValido() {
-        recusa(comTipos(List.of(tipo("WS", Papel.TRABALHO, null, new Esforco(null, null), null, null))), "informe o RIR ou o RPE");
-        recusa(comTipos(List.of(tipo("WS", Papel.TRABALHO, null, Esforco.deRir(11), null, null))), "RIR");
+        recusa(comTipos(List.of(tipo("WS", Papel.TRABALHO, null, new Esforco(null, null), null))), "informe o RIR ou o RPE");
+        recusa(comTipos(List.of(tipo("WS", Papel.TRABALHO, null, Esforco.deRir(11), null))), "RIR");
         assertThatNoException().isThrownBy(() -> ConfiguracaoConsultoria.validar(comTipos(List.of(tipo("WS",
-                Papel.TRABALHO, null, Esforco.deRir(10), null, null)))));
-        recusa(comTipos(List.of(tipo("WS", Papel.TRABALHO, null, new Esforco(1, new BigDecimal("8")), null, null))),
+                Papel.TRABALHO, null, Esforco.deRir(10), null)))));
+        recusa(comTipos(List.of(tipo("WS", Papel.TRABALHO, null, new Esforco(1, new BigDecimal("8")), null))),
                 "RIR ou RPE");
-        recusa(comTipos(List.of(tipo("WS", Papel.TRABALHO, null, Esforco.deRpe("8.3"), null, null))), "meio em meio");
-        recusa(comTipos(List.of(tipo("WS", Papel.TRABALHO, null, null,
-                Map.of("MAQUINA", new PadraoPorModalidade(null, new Esforco(null, null))), null))), "informe o RIR ou o RPE");
+        recusa(comTipos(List.of(tipo("WS", Papel.TRABALHO, null, Esforco.deRpe("8.3"), null))), "meio em meio");
         assertThatNoException().isThrownBy(() -> ConfiguracaoConsultoria.validar(comTipos(List.of(tipo("WS",
-                Papel.TRABALHO, null, Esforco.deRpe("10"), null, null)))));
+                Papel.TRABALHO, null, Esforco.deRpe("10"), null)))));
     }
 
     @Test

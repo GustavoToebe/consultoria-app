@@ -130,11 +130,8 @@ public class ValidadorTreino {
         boolean cardio = e.deCardio();
         boolean temTrabalho = series.stream().anyMatch(Serie::deTrabalho);
         boolean temPercentual = false;
-        boolean trabalhoAntes = false;
         Set<String> tiposAvisados = new HashSet<>();
         Set<String> tecnicasAvisadas = new HashSet<>();
-        Set<UUID> anteriores = new HashSet<>();
-        Set<UUID> fixas = new HashSet<>();
         for (int k = 0; k < series.size(); k++) {
             Serie x = series.get(k);
             String cx = ce + ".series[" + k + "]";
@@ -144,23 +141,6 @@ public class ValidadorTreino {
                 tipoDaSerie(c, x, cx, metodologia, tiposAvisados);
                 String modo = x.modo();
                 temPercentual |= ConteudoTreino.PERCENTUAL_WS.equals(modo);
-                if (ConteudoTreino.MESMA_CARGA.equals(modo) && !trabalhoAntes) {
-                    c.erro(cx + ".carga.modo",
-                            "Mesma carga da WS: precisa de uma série de trabalho antes, no mesmo exercício.");
-                }
-                if (ConteudoTreino.ACIMA_DA_ANTERIOR.equals(modo) && k == 0) {
-                    c.aviso(cx + ".carga.modo",
-                            "Acima da anterior na primeira série do exercício: o aluno não terá carga anterior de referência.");
-                }
-                if (ConteudoTreino.ABAIXO_DA_REFERENCIA.equals(modo) && x.carga().referenciaUid() != null) {
-                    if (!anteriores.contains(x.carga().referenciaUid())) {
-                        c.erro(cx + ".carga.referenciaUid",
-                                "A referência precisa ser uma série anterior, no mesmo exercício.");
-                    } else if (fixas.contains(x.carga().referenciaUid())) {
-                        c.erro(cx + ".carga.referenciaUid",
-                                "Carga fixa não serve de referência: escolha uma série com a carga do aluno.");
-                    }
-                }
                 if (ConteudoTreino.CARGA_FIXA.equals(modo) && "nenhuma".equals(e.unidade())) {
                     c.erro(cx + ".carga.modo", "Carga fixa só em exercício com carga.");
                 }
@@ -171,13 +151,6 @@ public class ValidadorTreino {
                     c.aviso(cx + ".tecnica", "Forced reps precisa de um parceiro para ajudar nas repetições.");
                 }
                 tecnicaDaSerie(c, x, cx, metodologia, tecnicasAvisadas);
-            }
-            trabalhoAntes |= x.deTrabalho();
-            if (x.uid() != null) {
-                anteriores.add(x.uid());
-                if (ConteudoTreino.CARGA_FIXA.equals(x.modo())) {
-                    fixas.add(x.uid());
-                }
             }
         }
         if (temPercentual && !temTrabalho) {

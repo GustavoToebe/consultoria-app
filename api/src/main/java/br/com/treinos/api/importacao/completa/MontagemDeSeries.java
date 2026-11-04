@@ -27,7 +27,7 @@ import java.util.UUID;
  * "Rep Range"), porte exato do {@code montarSeries} do {@code planos-lib.mjs}. Ordem FS, WS, Top set, Back off. A faixa
  * de repetições vale só para a WS; FS e Back off levam as repetições do tipo na metodologia. FS tem a carga
  * {@code PERCENTUAL_WS} pela regra de preparação da metodologia para o total de FS; WS = {@code CARGA_TRABALHO}; Top set
- * sem número = {@code ACIMA_DA_ANTERIOR} sem percentual (nunca inventado); Back off = {@code PERCENTUAL_WS} com o % da
+ * = {@code CARGA_TRABALHO}, sem repetições nem percentual (nunca inventado); Back off = {@code PERCENTUAL_WS} com o % da
  * coluna (fração 0,85 = 85) ou sem carga. Esforço, descanso e técnica ficam nulos: a planilha não os traz.
  *
  * <p>O tipo vem da metodologia da consultoria pelo código ({@code FEEDER}, {@code WORKING}, {@code TOP_SET},
@@ -113,7 +113,7 @@ public final class MontagemDeSeries {
         List<Serie> series = new ArrayList<>();
         TipoDeSerie tipoFs = tipo(metodologia, "FEEDER", Papel.PREPARACAO, null);
         TipoDeSerie tipoWs = tipo(metodologia, "WORKING", Papel.TRABALHO, ConteudoTreino.CARGA_TRABALHO);
-        TipoDeSerie tipoTs = tipo(metodologia, "TOP_SET", Papel.TRABALHO, ConteudoTreino.ACIMA_DA_ANTERIOR);
+        TipoDeSerie tipoTs = tipo(metodologia, "TOP_SET", Papel.TRABALHO, ConteudoTreino.CARGA_TRABALHO);
         TipoDeSerie tipoBo = tipo(metodologia, "BACK_OFF", Papel.POS_TRABALHO, null);
 
         int nFs = quantidade(e.fs(), "FS", avisos);
@@ -161,7 +161,7 @@ public final class MontagemDeSeries {
             if (tipoTs == null) {
                 avisos.add("TIPO_FORA_DA_METODOLOGIA");
             } else {
-                series.add(serie(tipoTs, null, null, Carga.de(ConteudoTreino.ACIMA_DA_ANTERIOR)));
+                series.add(serie(tipoTs, null, null, Carga.de(ConteudoTreino.CARGA_TRABALHO)));
                 avisos.add("TOP_SET_SEM_PERCENTUAL");
             }
         }

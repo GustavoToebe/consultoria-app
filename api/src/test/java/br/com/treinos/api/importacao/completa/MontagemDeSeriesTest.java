@@ -44,13 +44,12 @@ class MontagemDeSeriesTest {
     }
 
     @Test
-    void ordemFsWsTopSetBackOffSemReferencia() {
+    void ordemFsWsTsBackOff() {
         Resultado r = MontagemDeSeries.montar(entrada(1, 1, Logico.SIM, Logico.SIM, 0.9, TRES_A_SEIS), PADRAO);
-        assertThat(r.series()).extracting(Serie::tipo).containsExactly("FEEDER", "WORKING", "TOP_SET", "BACK_OFF");
+        assertThat(r.series()).extracting(Serie::tipo).containsExactly("FEEDER", "WORKING", "WORKING", "BACK_OFF");
         assertThat(r.series()).extracting(s -> s.carga().modo())
-                .containsExactly("PERCENTUAL_WS", "CARGA_TRABALHO", "ACIMA_DA_ANTERIOR", "PERCENTUAL_WS");
-        assertThat(r.series()).extracting(s -> s.carga().referenciaUid()).containsOnlyNulls();
-        // Top set sem número: nunca inventado, a série fica sem percentual e o aviso conta.
+                .containsExactly("PERCENTUAL_WS", "CARGA_TRABALHO", "CARGA_TRABALHO", "PERCENTUAL_WS");
+        // TS: a metodologia padrão não tem Top set, então vira série de trabalho; número nunca inventado e o aviso conta.
         assertThat(r.series().get(2).carga().percentualMin()).isNull();
         assertThat(r.avisos()).containsExactly("TOP_SET_SEM_PERCENTUAL");
     }
@@ -123,7 +122,7 @@ class MontagemDeSeriesTest {
         // e5: Rep Range "qualquer coisa": a WS nasce, as repetições ficam vazias e o aviso conta.
         Resultado r = MontagemDeSeries.montar(entrada(2, 1, Logico.SIM, Logico.NAO, 0,
                 LeitorDePrescricao.faixaDeRepeticoes(celula("qualquer coisa"), false)), PADRAO);
-        assertThat(r.series()).extracting(Serie::tipo).containsExactly("FEEDER", "WORKING", "WORKING", "TOP_SET");
+        assertThat(r.series()).extracting(Serie::tipo).containsExactly("FEEDER", "WORKING", "WORKING", "WORKING");
         assertThat(r.series().get(1).repsMin()).isNull();
         assertThat(r.avisos()).containsExactly("FAIXA_INVALIDA", "TOP_SET_SEM_PERCENTUAL");
     }

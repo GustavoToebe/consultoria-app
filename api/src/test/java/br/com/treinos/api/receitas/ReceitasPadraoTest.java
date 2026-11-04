@@ -4,7 +4,6 @@ import br.com.treinos.api.consultoria.ConfiguracaoConsultoria;
 import br.com.treinos.api.treino.ConteudoTreino.Serie;
 import br.com.treinos.api.treino.ValidadorTreino;
 import org.junit.jupiter.api.Test;
-import tools.jackson.databind.json.JsonMapper;
 
 import java.util.List;
 import java.util.Set;
@@ -14,8 +13,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** As receitas padrão nascem no contrato novo: códigos de tipo da metodologia padrão, séries válidas, sem Cardio. */
 class ReceitasPadraoTest {
-
-    private final JsonMapper json = JsonMapper.builder().build();
 
     private static List<ReceitasPadrao.Padrao> series() {
         return ReceitasPadrao.todas().stream().filter(p -> p.tipo() == Receita.Tipo.SERIES).toList();
@@ -54,19 +51,63 @@ class ReceitasPadraoTest {
     }
 
     @Test
-    void receitaDoTopSetTemBackOffApontandoOTopSetEUidsFixos() {
-        ReceitasPadrao.Padrao topSet = series().stream().filter(p -> p.nome().equals("WS + Top set + 2 Back off"))
-                .findFirst().orElseThrow();
-        List<Serie> lista = ((ReceitaSeries) topSet.conteudo()).series();
-        assertThat(lista).extracting(Serie::tipo).containsExactly("WORKING", "TOP_SET", "BACK_OFF", "BACK_OFF");
-        assertThat(lista.get(1).carga().modo()).isEqualTo("ACIMA_DA_ANTERIOR");
-        assertThat(lista.get(2).carga().modo()).isEqualTo("ABAIXO_DA_REFERENCIA");
-        assertThat(lista.get(2).carga().referenciaUid()).isEqualTo(lista.get(1).uid());
-        assertThat(lista.get(3).carga().referenciaUid()).isEqualTo(lista.get(1).uid());
-        // Uids fixos: o JSON da receita (e da migration) é sempre o mesmo.
-        ReceitasPadrao.Padrao outra = ReceitasPadrao.todas().stream().filter(p -> p.nome().equals(topSet.nome()))
-                .findFirst().orElseThrow();
-        assertThat(json.writeValueAsString(outra.conteudo())).isEqualTo(json.writeValueAsString(topSet.conteudo()));
+    void asCincoReceitasCompletasVemNoTopoDasReceitasDeSerie() {
+        List<String> nomes = List.of("3 FS + WS + Rest pause", "3 FS + WS + 2 Back off", "3 FS + WS + Cluster",
+                "3 FS + Cluster", "2 FS + WS + Back off");
+        assertThat(series().subList(0, 5)).extracting(ReceitasPadrao.Padrao::nome).containsExactlyElementsOf(nomes);
+        assertThat(ReceitasPadrao.todas().get(0).tipo()).isEqualTo(Receita.Tipo.METODOLOGIA);
+        assertThat(ReceitasPadrao.todas().subList(1, 6)).extracting(ReceitasPadrao.Padrao::nome)
+                .containsExactlyElementsOf(nomes);
+        assertThat(ReceitasPadrao.todas()).extracting(ReceitasPadrao.Padrao::tipo).doesNotContain(Receita.Tipo.PLANO_TREINO);
+
+        List<Serie> restPause = serieDe("3 FS + WS + Rest pause");
+        assertThat(restPause).extracting(Serie::tipo).containsExactly("FEEDER", "FEEDER", "FEEDER", "WORKING", "WORKING");
+        assertThat(restPause).extracting(Serie::repsMin).containsExactly(3, 3, 3, 3, 6);
+        assertThat(restPause).extracting(Serie::repsMax).containsExactly(5, 5, 5, 6, 8);
+        assertThat(restPause.get(2).carga().percentualMin()).isEqualByComparingTo("85");
+        assertThat(restPause.get(2).carga().percentualMax()).isEqualByComparingTo("90");
+        assertThat(restPause.get(4).tecnica().tipo()).isEqualTo("REST_PAUSE");
+        assertThat(restPause.get(4).tecnica().pausaSegundos()).isEqualTo(20);
+        assertThat(restPause.get(4).tecnica().pausas()).isEqualTo(1);
+
+        List<Serie> backOff = serieDe("3 FS + WS + 2 Back off");
+        assertThat(backOff).extracting(Serie::tipo)
+                .containsExactly("FEEDER", "FEEDER", "FEEDER", "WORKING", "BACK_OFF", "BACK_OFF");
+        assertThat(backOff.get(4).carga().modo()).isEqualTo("PERCENTUAL_WS");
+        assertThat(backOff.get(4).carga().percentualMin()).isEqualByComparingTo("85");
+        assertThat(backOff.get(4).repsMin()).isEqualTo(6);
+        assertThat(backOff.get(4).repsMax()).isEqualTo(8);
+
+        assertThat(serieDe("3 FS + WS + Cluster")).extracting(Serie::tipo)
+                .containsExactly("FEEDER", "FEEDER", "FEEDER", "WORKING", "WORKING");
+        assertThat(serieDe("3 FS + Cluster")).extracting(Serie::tipo)
+                .containsExactly("FEEDER", "FEEDER", "FEEDER", "WORKING");
+        assertThat(serieDe("2 FS + WS + Back off")).extracting(Serie::tipo)
+                .containsExactly("FEEDER", "FEEDER", "WORKING", "BACK_OFF");
+        for (String nome : List.of("3 FS + WS + Cluster", "3 FS + Cluster")) {
+            Serie cluster = serieDe(nome).getLast();
+            assertThat(cluster.repsMin()).isEqualTo(12);
+            assertThat(cluster.repsMax()).isEqualTo(12);
+            assertThat(cluster.tecnica().tipo()).isEqualTo("CLUSTER");
+            assertThat(cluster.tecnica().blocos()).containsExactly(3, 3, 3, 3);
+            assertThat(cluster.tecnica().pausaSegundos()).isEqualTo(15);
+        }
+
+        // RIR 0 na série de trabalho e no back off; a preparação não leva esforço.
+        for (String nome : nomes) {
+            for (Serie x : serieDe(nome)) {
+                if (x.tipo().equals("FEEDER")) {
+                    assertThat(x.esforco()).as(nome).isNull();
+                } else {
+                    assertThat(x.esforco().rir()).as(nome).isZero();
+                }
+            }
+        }
+    }
+
+    private static List<Serie> serieDe(String nome) {
+        return ((ReceitaSeries) series().stream().filter(p -> p.nome().equals(nome)).findFirst().orElseThrow()
+                .conteudo()).series();
     }
 
     @Test

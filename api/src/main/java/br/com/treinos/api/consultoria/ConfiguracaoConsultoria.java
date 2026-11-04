@@ -19,7 +19,7 @@ import java.util.regex.Pattern;
  * Metodologia: as regras de série de um plano de treino (modelo {@code METODOLOGIA}, copiada em
  * {@code ConteudoTreino.metodologia}). Cada tipo de série tem um código estável (o que a série grava), um nome exibido e
  * um papel fixo (aquecimento, preparação, trabalho, pós-trabalho ou outro), e carrega as próprias regras: faixa de
- * repetições, carga e esforço padrão (com variação para exercício livre ou de máquina), a regra de percentuais por
+ * repetições, carga e esforço padrão, a regra de percentuais por
  * quantidade (só preparação: 3 FS = 50/70/85–90) e a explicação que o aluno lê. As técnicas (rest pause, cluster,
  * drop-set, myo-reps, partial reps e forced reps) e as combinações de exercícios (superset, circuito...) são fixas; a
  * metodologia dá a cada uma o nome exibido, a explicação e, nas técnicas, os valores padrão. A metodologia só preenche
@@ -44,29 +44,21 @@ public record ConfiguracaoConsultoria(
     /** Faixa de percentual da WS; máximo nulo = valor único ("85%"), senão "85 a 90%". */
     public record Faixa(Integer min, Integer max) { }
 
-    /** Carga e esforço sugeridos para exercício {@code LIVRE} ou {@code MAQUINA} (cada um opcional). */
-    public record PadraoPorModalidade(Carga carga, Esforco esforco) { }
-
     /**
      * Um tipo de série. {@code codigo} (até 30, {@code [A-Z0-9_]}, único na metodologia) é o que a série grava; {@code nome} é
      * o exibido. {@code cargaPadrao} e {@code esforcoPadrao} são o que o editor sugere ao criar a série;
-     * {@code porModalidade} troca a sugestão para exercício {@code LIVRE} ou {@code MAQUINA} (as outras modalidades caem
-     * no padrão). {@code regraPercentuais} (só {@code PREPARACAO}): chave = quantas séries de preparação há no exercício
+     * {@code regraPercentuais} (só {@code PREPARACAO}): chave = quantas séries de preparação há no exercício
      * ("1" a "10"), valor = o percentual de cada uma, em ordem. {@code explicacao} é o que o aluno lê ao tocar no tipo.
      */
     public record TipoDeSerie(String codigo, String nome, Papel papel, Repeticoes repeticoes, Carga cargaPadrao,
-                              Esforco esforcoPadrao, Map<String, PadraoPorModalidade> porModalidade,
-                              Map<String, List<Faixa>> regraPercentuais, String explicacao) { }
+                              Esforco esforcoPadrao, Map<String, List<Faixa>> regraPercentuais,
+                              String explicacao) { }
 
     /** O que a metodologia diz de uma técnica fixa: nome exibido ("Muscle Round"), explicação e padrão parcial. */
     public record TecnicaDaMetodologia(String tipo, String nome, String explicacao, Tecnica padrao) { }
 
     /** O que a metodologia diz de uma combinação de exercícios fixa: nome exibido e explicação. */
     public record Combinacao(String tipo, String nome, String explicacao) { }
-
-    public static final String LIVRE = "LIVRE";
-    public static final String MAQUINA = "MAQUINA";
-    private static final Set<String> MODALIDADES_COM_PADRAO = Set.of(LIVRE, MAQUINA);
 
     public ConfiguracaoConsultoria {
         tipos = tipos == null ? List.of() : tipos;
@@ -186,35 +178,25 @@ public record ConfiguracaoConsultoria(
 
     /**
      * Valores de um plano sem metodologia vinculada e da metodologia criada com a consultoria (as regras do Saraiva, nos
-     * cinco tipos da especificação). Espelho em {@code dominio/metodologiaPadrao.ts}: mudou um, mude o outro.
+     * quatro tipos). Espelho em {@code dominio/metodologiaPadrao.ts}: mudou um, mude o outro.
      */
     public static ConfiguracaoConsultoria padrao() {
         Map<String, List<Faixa>> regra = new LinkedHashMap<>();
         regra.put("1", List.of(new Faixa(85, null)));
         regra.put("2", List.of(new Faixa(70, null), new Faixa(85, 90)));
         regra.put("3", List.of(new Faixa(50, null), new Faixa(70, null), new Faixa(85, 90)));
-        Map<String, PadraoPorModalidade> trabalho = new LinkedHashMap<>();
-        trabalho.put(LIVRE, new PadraoPorModalidade(Carga.de(ConteudoTreino.CARGA_TRABALHO), Esforco.deRir(1)));
-        trabalho.put(MAQUINA, new PadraoPorModalidade(Carga.de(ConteudoTreino.CARGA_TRABALHO), Esforco.deRir(0)));
-        Map<String, PadraoPorModalidade> topSet = new LinkedHashMap<>();
-        topSet.put(LIVRE, new PadraoPorModalidade(acimaDaAnterior(1, 5), null));
-        topSet.put(MAQUINA, new PadraoPorModalidade(acimaDaAnterior(5, 10), null));
         List<TipoDeSerie> tipos = List.of(
                 new TipoDeSerie("WARM_UP", "Aquecimento", Papel.AQUECIMENTO, new Repeticoes(10, 15), null, null, null,
-                        null, "Série leve, só para preparar o movimento. Fica longe da falha."),
-                new TipoDeSerie("FEEDER", "FS", Papel.PREPARACAO, new Repeticoes(3, 3), percentual(85, null), null, null,
+                        "Série leve, só para preparar o movimento. Fica longe da falha."),
+                new TipoDeSerie("FEEDER", "FS", Papel.PREPARACAO, new Repeticoes(3, 5), percentual(85, null), null,
                         regra, "Feeder set: série de reconhecimento. Aumente a carga a cada série, dentro das "
                         + "repetições, para chegar à carga da série de trabalho. Não chega na falha."),
                 new TipoDeSerie("WORKING", "WS", Papel.TRABALHO, new Repeticoes(3, 6),
-                        Carga.de(ConteudoTreino.CARGA_TRABALHO), Esforco.deRir(1), trabalho, null,
-                        "Working set: a série de trabalho, com a carga máxima do dia nas repetições propostas. Peso "
-                                + "livre: 1 repetição na reserva. Máquina: até a falha. Se passar das repetições, "
-                                + "aumente a carga na semana seguinte."),
-                new TipoDeSerie("TOP_SET", "Top set", Papel.TRABALHO, null, acimaDaAnterior(1, 5), null, topSet, null,
-                        "Uma série mais pesada que a anterior: suba a carga de 1 a 5% no peso livre ou de 5 a 10% na "
-                                + "máquina."),
+                        Carga.de(ConteudoTreino.CARGA_TRABALHO), Esforco.deRir(0), null,
+                        "Working set: a série de trabalho, com a carga máxima do dia nas repetições propostas. "
+                                + "Vá até a falha. Se passar das repetições, aumente a carga na semana seguinte."),
                 new TipoDeSerie("BACK_OFF", "Back off", Papel.POS_TRABALHO, new Repeticoes(6, 8), percentual(85, null),
-                        null, null, null, "Depois da série de trabalho, com 85% da carga dela."));
+                        Esforco.deRir(0), null, "Depois da série de trabalho, com 85% da carga dela."));
         List<TecnicaDaMetodologia> tecnicas = List.of(
                 new TecnicaDaMetodologia(ConteudoTreino.REST_PAUSE, "Rest pause",
                         "Faça a série, pause 20 segundos e continue com a mesma carga até a falha.",
@@ -262,10 +244,6 @@ public record ConfiguracaoConsultoria(
         return Carga.percentual(ConteudoTreino.PERCENTUAL_WS, min, max);
     }
 
-    private static Carga acimaDaAnterior(int min, int max) {
-        return Carga.percentual(ConteudoTreino.ACIMA_DA_ANTERIOR, min, max);
-    }
-
     /** Chave da regra de percentuais: a quantidade de séries, "1" a "10", sem zero à esquerda nem sinal. */
     private static final Pattern CHAVE_DA_REGRA = Pattern.compile("10|[1-9]");
 
@@ -298,16 +276,6 @@ public record ConfiguracaoConsultoria(
             }
             carga(nome, t.cargaPadrao());
             esforco(nome, t.esforcoPadrao());
-            if (t.porModalidade() != null) {
-                for (Map.Entry<String, PadraoPorModalidade> e : t.porModalidade().entrySet()) {
-                    if (!MODALIDADES_COM_PADRAO.contains(e.getKey()) || e.getValue() == null) {
-                        throw new BadRequestException("Padrão por modalidade de " + nome
-                                + ": só LIVRE e MAQUINA, cada uma com carga e/ou esforço.");
-                    }
-                    carga(nome, e.getValue().carga());
-                    esforco(nome, e.getValue().esforco());
-                }
-            }
             regra(t, nome);
             if (t.explicacao() != null && t.explicacao().length() > 500) {
                 throw new BadRequestException("Explicação de " + nome + " com no máximo 500 caracteres.");
@@ -329,16 +297,12 @@ public record ConfiguracaoConsultoria(
         }
     }
 
-    /** Carga padrão: a referência do back off só nasce na série, então não é exigida aqui. */
+    /** Carga padrão de um tipo de série. */
     private static void carga(String nome, Carga carga) {
         if (carga == null) {
             return;
         }
-        if (ConteudoTreino.CARGA_FIXA.equals(carga.modo())) {
-            // Os kg são do exercício, não de um tipo de série: o padrão copiaria o mesmo peso para qualquer exercício.
-            throw new BadRequestException("Carga padrão de " + nome + ": a carga fixa só vale na série de um exercício.");
-        }
-        Map<String, String> problemas = carga.problemas(false);
+        Map<String, String> problemas = carga.problemas();
         if (!problemas.isEmpty()) {
             throw new BadRequestException("Carga padrão de " + nome + ": " + problemas.values().iterator().next());
         }
