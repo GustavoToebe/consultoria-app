@@ -15,6 +15,7 @@ import tools.jackson.databind.json.JsonMapper;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -294,6 +295,24 @@ class InscricoesCrmIntegrationTest extends AbstractIntegrationTest {
     }
 
     // ---- proposta ----
+
+    @Test
+    void reabertaSobeNaListaMasMantemADataDeEntrada() throws Exception {
+        String antiga = inscrever("Pessoa Fictícia Antiga");
+        String nova = inscrever("Pessoa Fictícia Nova");
+        assertThat(api.get("/inscricoes?situacao=TODAS", admin, 200).path("itens").valueStream()
+                .map(i -> i.path("id").asString()).toList()).containsExactly(nova, antiga);
+        Instant entrada = Instant.parse(detalhe(antiga).path("criadaEm").asString());
+
+        JsonNode encerrada = api.post("/inscricoes/" + antiga + "/encerrar", admin,
+                mapa("situacao", "DESISTIU", "motivo", "MOMENTO", "versao", versao(antiga)), 200);
+        api.post("/inscricoes/" + antiga + "/reabrir", admin, mapa("motivo", "Voltou.", "versao", encerrada.path("versao").asLong()), 200);
+
+        // A reaberta passa a frente da que chegou depois; a entrada original não muda (filtros, indicadores e a ficha).
+        assertThat(api.get("/inscricoes?situacao=TODAS", admin, 200).path("itens").valueStream()
+                .map(i -> i.path("id").asString()).toList()).containsExactly(antiga, nova);
+        assertThat(Instant.parse(detalhe(antiga).path("criadaEm").asString())).isEqualTo(entrada);
+    }
 
     @Test
     void propostaManualEDoFinanceiroViramCopiaENaoMudamComOPlano() throws Exception {

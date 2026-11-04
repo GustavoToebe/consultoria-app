@@ -301,10 +301,16 @@ public class ValidadorAtualizacao {
 
     /** Inteiro dentro da escala da pergunta: de {@code min} (0 ou 1) a {@code max} (2 a 10); sem elas, de 0 a 10. */
     private static boolean nota(JsonNode v, JsonNode p) {
-        int min = inteiroOu(p.path("min"), 0, LimitesQuestionario.NOTA_MIN_MAXIMO, LimitesQuestionario.NOTA_MIN_PADRAO);
-        int max = inteiroOu(p.path("max"), LimitesQuestionario.NOTA_MAX_MINIMO, LimitesQuestionario.NOTA_MAX_PADRAO,
-                LimitesQuestionario.NOTA_MAX_PADRAO);
-        return nota(v, min, max);
+        int[] escala = escalaDaNota(p);
+        return nota(v, escala[0], escala[1]);
+    }
+
+    /** {@code {min, max}} da NOTA: o que a pergunta traz dentro da regra ou 0 a 10. Igual a {@code escalaDaNota} do app. */
+    static int[] escalaDaNota(JsonNode p) {
+        return new int[] {
+                inteiroOu(p.path("min"), 0, LimitesQuestionario.NOTA_MIN_MAXIMO, LimitesQuestionario.NOTA_MIN_PADRAO),
+                inteiroOu(p.path("max"), LimitesQuestionario.NOTA_MAX_MINIMO, LimitesQuestionario.NOTA_MAX_PADRAO,
+                        LimitesQuestionario.NOTA_MAX_PADRAO)};
     }
 
     /**
