@@ -8,9 +8,9 @@ Situação: Concluída em 03/11/2026 (falta merge na `main`) · Onde: branch `im
 ## Decisões
 | # | Decisão | Valor | Quem decidiu |
 | --- | --- | --- | --- |
-| 1 | Forma de montar | `DOMParser.parseFromString` + higienização no documento inerte + `document.importNode` dos filhos do `body` para um `DocumentFragment` | decidido pelo Claude em 03/11, conferir com o Gustavo |
+| 1 | Forma de montar | `DOMParser.parseFromString` + higienização no documento inerte + `document.importNode` dos filhos do `body` para um `DocumentFragment` | confirmado pelo Gustavo em 04/11 |
 | 2 | Higienização (defesa em profundidade, o `esc()` continua sendo a regra) | remove `script`, `style` (o atributo `style` fica: a faixa da marca usa), `iframe`, `object`, `embed`, `base`, `link`, `meta`, `form`, `svg`, `math` (com `animate`/`set`) e todo atributo `on*`; nos atributos de endereço (`href`, `src`, `xlink:href`, `action`, `formaction`, `data`, `poster`, `background`, `srcset`, `ping`) só passa **lista permitida**: relativo, âncora, `http:`, `https:`, `mailto:`, `blob:` e `data:image/` raster (png, jpeg, gif, webp; a logo), testado sem tab, quebra de linha, espaço nem controle (`java&#9;script:` não passa). Motivo: `script` vindo do `DOMParser` e importado para a página **pode executar** (diferente do `innerHTML`), então não basta trocar a API | confirmado pelo Gustavo em 04/11 |
-| 3 | Escopo | só a web (`imprimir.web.ts`); os geradores de string (`pdf/*.ts`) e o celular não mudam; os cinco geradores seguem com `esc()` | decidido pelo Claude em 03/11, conferir com o Gustavo |
+| 3 | Escopo | só a web (`imprimir.web.ts`); os geradores de string (`pdf/*.ts`) e o celular não mudam; os cinco geradores seguem com `esc()` | confirmado pelo Gustavo em 04/11 |
 
 ## Passos
 - [x] 1. Plano e índice — commit: neste
