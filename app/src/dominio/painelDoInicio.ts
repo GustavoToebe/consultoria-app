@@ -10,6 +10,7 @@ import { hojeEmBrasilia, periodoDoPainel } from './financeiro';
 import { contadorDeRetornos } from './inicioTreinador';
 import { rotuloDoMes } from './numeros';
 import { textoDoRecorde } from './recordesPessoais';
+import type { UnidadeDeCarga } from './unidadeDeCarga';
 import { ehRetornoDesligado } from './retornoDesligado';
 import { BLOCOS_DO_PAINEL, type BlocoDoPainelId, ehBlocoDoPainel, PAINEL_DO_INICIO_PADRAO, type PainelDoInicioPreferido } from './painelBlocos';
 
@@ -861,9 +862,9 @@ export function folhaPastasARenovar(p: Pick<PainelTreinador, 'pastasParaRenovar'
 }
 
 /** Folha "Recordes dos últimos 7 dias": `GET /recordes/semana` (até 50 séries; `total` conta séries). */
-export function folhaRecordes(r: Pick<RecordesDaSemana, 'total' | 'series'>, o: { meus: boolean; hoje: string }): FolhaDoPainel {
+export function folhaRecordes(r: Pick<RecordesDaSemana, 'total' | 'series'>, o: { meus: boolean; hoje: string; unidade?: UnidadeDeCarga }): FolhaDoPainel {
   const itens = r.series.map<ItemDaFolha>((s, i) => {
-    const detalhes = s.recordes.map((r) => textoDoRecorde(r));
+    const detalhes = s.recordes.map((r) => textoDoRecorde(r, o.unidade));
     const quando = dataRelativa(s.data, o.hoje);
     return {
       chave: `${s.alunoId}:${s.data}:${s.exercicioId}:${i}`, alunoId: s.alunoId, nome: s.alunoNome, descricao: s.exercicioNome, detalhes, direita: quando,

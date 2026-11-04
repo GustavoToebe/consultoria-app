@@ -6,7 +6,8 @@ import { blocosIguais, blocosSeValidos, blocosValidos, lerBlocos, listaDeBlocosI
 import { modosDeCarga } from '../../dominio/editorTreino';
 import { REGIOES_DAS_PARCIAIS } from '../../dominio/metodologia';
 import { aoTrocarUnidade, outraUnidade, pausaEmDuasUnidades, unidadeVisivel, type UnidadeDaPausa } from '../../dominio/pausaDaTecnica';
-import { problemasDaTecnica, RIR_MAXIMO, type Problemas } from '../../dominio/validacaoDeSerie';
+import { CASAS_EM_LIBRA, kgParaTela, nomeDaUnidade, telaParaKg } from '../../dominio/unidadeDeCarga';
+import { mensagemDaCargaFixa, problemasDaTecnica, RIR_MAXIMO, type Problemas } from '../../dominio/validacaoDeSerie';
 import { mascaraDeNumero } from '../../dominio/formatos';
 import { escalar } from '../../dominio/preferencias';
 import { useTema } from '../../tema/TemaProvider';
@@ -18,6 +19,7 @@ import { Escolha } from '../../ui/Escolha';
 import { EscolhaSuspensa } from '../../ui/EscolhaSuspensa';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { Texto } from '../../ui/Texto';
+import { useUnidadeDeCarga } from '../../ui/unidadeDeCargaEmUso';
 import { BotaoDeAbrir, BotaoDeTexto } from './BotaoDeAbrir';
 import {
   ajudaDaCarga, ajustarCargasDosBlocos, ajustarRetomadas, CARGA_DA_SERIE, cargaDaEtapaNoModo, formaDoEsforco, FORMAS_DAS_REPETICOES, opcoesDaCargaDaEtapa, FORMAS_DE_ESFORCO, formaVisivel, OPCOES_DE_RIR, repeticoesNaForma, rotulosDaFaixa,
@@ -75,12 +77,13 @@ export function EscolhaDeCarga({ carga, config, papel, aoMudarModo, erro, rotulo
   exercicioComCarga?: boolean;
 }) {
   const modo = carga?.modo ?? 'NENHUMA';
-  const ajuda = ajudaPropria ?? ajudaDaCarga(modo, config);
+  const unidade = useUnidadeDeCarga();
+  const ajuda = ajudaPropria ?? ajudaDaCarga(modo, config, unidade);
   // As duas formas mais usadas para o papel (e a gravada) ficam à vista; as outras, atrás de "Outras formas de carga",
   // recolhidas (reunião de 30/10). A divisão usa a forma gravada quando o campo abriu: escolher uma das "outras" não a
   // faz pular para a linha de cima enquanto a pessoa ainda está olhando. Nenhuma forma válida some.
   const [modoAoAbrir] = useState(modo);
-  const { principais, outras } = modosDeCarga(config, papel, modoAoAbrir, exercicioComCarga);
+  const { principais, outras } = modosDeCarga(config, papel, modoAoAbrir, exercicioComCarga, unidade);
   const [verOutras, setVerOutras] = useState(false);
   const daOutras = outras.some((o) => o.valor === modo);
   const abertas = verOutras || daOutras;
@@ -125,12 +128,20 @@ export function FaixaDeCarga({ carga, config, prefixo = '', aoMudar, erros, semA
 }
 
 /**
- * Os kg da carga fixa: decimal com vírgula, até 2 casas (a máscara não deixa passar a terceira). O rótulo não repete o
- * nome da opção ("Carga fixa (kg)"), para o leitor de tela não ouvir dois controles com o mesmo nome. Libras não existem.
+ * A carga fixa na unidade de quem edita (kg ou lb, `useUnidadeDeCarga`): decimal com vírgula, até 2 casas em kg e 1 em libra
+ * (a máscara não deixa passar a seguinte). `valor` e `aoMudar` falam sempre kg: a conversão é só da borda
+ * (`kgParaTela`/`telaParaKg`), então o plano continua guardando kg. O rótulo não repete o nome da opção ("Carga fixa (kg)"),
+ * para o leitor de tela não ouvir dois controles com o mesmo nome.
  */
 export function CampoDaCargaFixa({ valor, aoMudar, erro }: { valor: number | null | undefined; aoMudar: (kg: number | null) => void; erro?: string | null }) {
+  const unidade = useUnidadeDeCarga();
+  const emLibra = unidade === 'lb';
+  // A mensagem da regra (compartilhada com a API) fala do teto em kg; aqui ela sai no número que a pessoa lê.
+  const mensagem = emLibra && erro === mensagemDaCargaFixa() ? mensagemDaCargaFixa(unidade) : erro;
   return <CampoSozinho>
-    <CampoNumerico rotulo="Peso da carga fixa" sufixo="kg" valor={valor ?? null} mascara={(t) => mascaraDeNumero(t, 2)} aoMudar={aoMudar} erro={erro} />
+    <CampoNumerico rotulo="Peso da carga fixa" rotuloAcessivel={emLibra ? `Peso da carga fixa, em ${nomeDaUnidade(unidade)}` : undefined} sufixo={unidade}
+      valor={kgParaTela(valor, unidade)} mascara={(t) => mascaraDeNumero(t, emLibra ? CASAS_EM_LIBRA : 2)}
+      aoMudar={(v) => aoMudar(telaParaKg(v, unidade))} erro={mensagem} />
   </CampoSozinho>;
 }
 

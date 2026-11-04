@@ -13,7 +13,7 @@ export interface DadosPdfCargas {
   divisoes: DivisaoRelatorio[];
   rodapePdf: string | null;
   emitidoEm: Date;
-  /** Unidade de quem vê o PDF (padrão kg): o aluno na dele; o do treinador segue em kg até a fase 2. */
+  /** Unidade de quem vê o PDF (padrão kg): cada um na dele, o aluno ou o treinador. */
   unidade?: UnidadeDeCarga;
 }
 

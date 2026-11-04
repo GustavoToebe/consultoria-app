@@ -9,6 +9,7 @@ import {
   TIPOS_DE_GRUPO,
   tipoPorCodigo,
 } from '../../dominio/metodologia';
+import type { UnidadeDeCarga } from '../../dominio/unidadeDeCarga';
 import { serieDeTrabalho } from '../../dominio/validacaoDoTreino';
 import { esforcoVazio, type Problemas } from '../../dominio/validacaoDeSerie';
 
@@ -181,7 +182,7 @@ export function rotulosDaFaixa(modo: ModoDeCarga | null | undefined, config: Con
 }
 
 /** Ajuda curta de cada forma de carga, dita com o nome da série de trabalho da metodologia. */
-export function ajudaDaCarga(modo: ModoDeCarga | null | undefined, config: Configuracao | null | undefined): string | null {
+export function ajudaDaCarga(modo: ModoDeCarga | null | undefined, config: Configuracao | null | undefined, unidade: UnidadeDeCarga = 'kg'): string | null {
   const ws = nomeDaSerieDeTrabalho(config);
   switch (modo) {
     case 'CARGA_TRABALHO':
@@ -189,7 +190,7 @@ export function ajudaDaCarga(modo: ModoDeCarga | null | undefined, config: Confi
     case 'MESMA_CARGA':
       return `A carga da última série de trabalho feita antes, no mesmo exercício.`;
     case 'CARGA_FIXA':
-      return 'Os kg que você escreve: o aluno vê o peso pronto. Não conta como série de trabalho nem serve de base para percentuais.';
+      return `Os ${unidade} que você escreve: o aluno vê o peso pronto. Não conta como série de trabalho nem serve de base para percentuais.`;
     case 'NENHUMA':
       return 'O aluno não recebe sugestão de carga.';
     default:

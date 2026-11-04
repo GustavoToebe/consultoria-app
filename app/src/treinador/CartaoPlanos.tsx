@@ -41,6 +41,7 @@ import { useCarregar } from '../ui/useCarregar';
 import { CopiarParaAluno } from './CopiarParaAluno';
 import { FolhaDeAcoes, type AcaoDoMenu } from './FolhaDeAcoes';
 import type { CargaDosPlanos } from './usePlanosDaPasta';
+import { useUnidadeDeCarga } from '../ui/unidadeDeCargaEmUso';
 
 const NOMES: Record<TipoPlano, { titulo: string; plural: string; novo: string; receita: 'PLANO_TREINO' | 'PLANO_DIETA' | 'MOBILIDADE'; rota: string }> = {
   treino: { titulo: 'Treino', plural: 'Treinos', novo: 'Novo treino', receita: 'PLANO_TREINO', rota: '/treinador/treinos' },
@@ -89,6 +90,7 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar, car
   const { width } = useWindowDimensions();
   const rotuloCurto = width < LARGURA_ROTULO_CURTO;
   const { cores } = useTema();
+  const unidade = useUnidadeDeCarga();
   const propria = useCarregar(carga ? null : `${tipo}:${alunoId}:${geracao}`, () => listarPlanos(tipo, alunoId));
   const todos = carga ?? propria;
   const { erro, carregando, recarregar } = todos;
@@ -118,7 +120,7 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar, car
         .catch((e: unknown) => avisar(textoDoErro(e), 'perigo'));
       return;
     }
-    gerarPdfDoPlano(tipo, p).catch((e: unknown) => avisar(textoDoErro(e), 'perigo'));
+    gerarPdfDoPlano(tipo, p, undefined, undefined, unidade).catch((e: unknown) => avisar(textoDoErro(e), 'perigo'));
   };
   // Ações do ⋯ (a ordem é a da folha); nenhuma liberada = sem ⋯.
   const acoesDoMenu = (p: PlanoResumo): (AcaoDoMenu | null)[] => [

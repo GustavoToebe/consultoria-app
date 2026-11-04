@@ -47,6 +47,7 @@ import {
 } from '../../dominio/primeirosPassos';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
+import { useUnidadeDeCarga } from '../../ui/unidadeDeCargaEmUso';
 import { espaco, LARGURA_LISTA } from '../../tema/tokens';
 import { BlocoDoPainel } from '../../treinador/painel/BlocoDoPainel';
 import { LinhaDeBlocos } from '../../treinador/painel/FaixaDoPainel';
@@ -85,6 +86,7 @@ const dadosDe = <T,>(f: Fonte<T>): T | null => (f.situacao === 'pronta' ? f.dado
 export default function InicioTreinador() {
   const { usuario, perfilEquipe, pode, pagamentosHabilitados, retornoHabilitado, marca, offline } = useSessao();
   const { preferencias, escolherPreferencia } = useTema();
+  const unidade = useUnidadeDeCarga();
   const ctx: ContextoDoPainel = useMemo(() => ({ pode, pagamentosHabilitados, retornoHabilitado }), [pode, pagamentosHabilitados, retornoHabilitado]);
   const administrador = !!perfilEquipe?.acessoTotal;
   // Padrão do Todos/Meus, como no Início antigo: quem tem acesso total vê todos; o membro, os seus. A escolha de cada
@@ -224,7 +226,7 @@ export default function InicioTreinador() {
       return {
         titulo: 'Recordes dos últimos 7 dias',
         ...listaDaFolha(paraAFolha<RecordesDaSemana>(consulta), (r) =>
-          Array.isArray(r.series) ? folhaRecordes(r, { meus, hoje }) : null),
+          Array.isArray(r.series) ? folhaRecordes(r, { meus, hoje, unidade }) : null),
       };
     }
     const consultaPainel = { fonte: 'painel', meus, dias } as const;

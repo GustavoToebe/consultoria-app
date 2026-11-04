@@ -5,6 +5,7 @@ import { normalizarTreino } from '../dominio/editorTreino';
 import { CONFIGURACAO_PADRAO } from '../dominio/metodologiaPadrao';
 import { normalizarMobilidade } from '../dominio/mobilidade';
 import type { DivisaoRelatorio } from '../dominio/relatorio';
+import type { UnidadeDeCarga } from '../dominio/unidadeDeCarga';
 import { imprimir } from '../pdf/imprimir';
 import { logoComoDataUri } from '../pdf/logo';
 import { documentoCargas } from '../pdf/pdfCargas';
@@ -14,9 +15,9 @@ import { documentoTreino } from '../pdf/pdfTreino';
 
 /**
  * PDF de um plano para o treinador: a versão publicada mais recente (o que o aluno vê). Plano nunca publicado sai
- * do rascunho, marcado como RASCUNHO.
+ * do rascunho, marcado como RASCUNHO. `unidade` é a de quem baixa (a carga fixa do treino sai nela; o plano continua em kg).
  */
-export async function gerarPdfDoPlano(tipo: TipoPlano, plano: PlanoResumo, rascunho?: unknown, lista?: DadosPdfDieta['lista']): Promise<void> {
+export async function gerarPdfDoPlano(tipo: TipoPlano, plano: PlanoResumo, rascunho?: unknown, lista?: DadosPdfDieta['lista'], unidade: UnidadeDeCarga = 'kg'): Promise<void> {
   const publicado = plano.versaoPublicada > 0;
   // Tudo sai junto; a logo só espera a consultoria (de onde vem o `logoUrl`).
   const [{ c, logoDataUri }, a, versao, pesos] = await Promise.all([
@@ -43,6 +44,7 @@ export async function gerarPdfDoPlano(tipo: TipoPlano, plano: PlanoResumo, rascu
         fim: versao?.fim ?? plano.fim,
         conteudo: normalizarTreino(conteudo) as ConteudoTreino,
         instrucoesTreino: CONFIGURACAO_PADRAO.instrucoesTreino,
+        unidade,
       }),
     );
   } else if (tipo === 'mobilidade') {
@@ -66,8 +68,8 @@ export function sessoesPorUid(treinos: { sessoes: Sessao[] }[]): Map<string, Ses
   return mapa;
 }
 
-/** PDF das cargas do aluno no período (treinador), agrupadas por divisão. */
-export async function gerarPdfDeCargas(aluno: { id: string; nome: string }, de: string, ate: string, divisoes: DivisaoRelatorio[]) {
+/** PDF das cargas do aluno no período (treinador), agrupadas por divisão, na unidade de quem baixa. */
+export async function gerarPdfDeCargas(aluno: { id: string; nome: string }, de: string, ate: string, divisoes: DivisaoRelatorio[], unidade: UnidadeDeCarga = 'kg') {
   const c = await consultoria();
   await imprimir(
     documentoCargas({
@@ -77,6 +79,7 @@ export async function gerarPdfDeCargas(aluno: { id: string; nome: string }, de: 
       de,
       ate,
       divisoes,
+      unidade,
       rodapePdf: null,
       emitidoEm: new Date(),
     }),

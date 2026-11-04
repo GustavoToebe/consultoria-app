@@ -33,7 +33,7 @@ export function ProgressoDoExercicio({ alunoId, exercicioId, nome, grupo, aoTira
   alunoId?: string; exercicioId: string; nome: string; grupo: string; aoTirar: () => void;
 }) {
   const { cores, preferencias, fatorTexto } = useTema();
-  // Aluno na unidade dele; o treinador (sem provedor) segue em kg.
+  // Cada um na unidade dele: o aluno na do aluno, o treinador na do treinador.
   const unidade = useUnidadeDeCarga();
   const colData = { width: larguraDaData(fatorTexto), flexShrink: 0 } as const;
   const { dados, erro, carregando, recarregar } = useCarregar(`prog:${alunoId ?? 'eu'}:${exercicioId}`, () =>

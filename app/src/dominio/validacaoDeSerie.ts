@@ -1,6 +1,7 @@
 import type { Cardio, Carga, CargaDaEtapa, Esforco, ModoDeCarga, Retomada, Serie, Tecnica } from '../api/tipos';
 import { somaDosBlocos } from './blocos';
 import { tecnicaDescritiva, TIPOS_DE_TECNICA } from './metodologia';
+import { textoDaCarga, type UnidadeDeCarga } from './unidadeDeCarga';
 
 /**
  * Regras de uma série SOZINHA, as mesmas do servidor (`Carga.problemas`, `Esforco.problemas`, `Tecnica.problemas`,
@@ -15,6 +16,10 @@ export const MODOS_DE_CARGA: readonly ModoDeCarga[] = ['CARGA_TRABALHO', 'PERCEN
 
 /** Teto da carga fixa em kg (`Carga.VALOR_KG_MAXIMO` da API, o mesmo da leitura da planilha). */
 export const VALOR_KG_MAXIMO = 1000;
+
+/** Mensagem da carga fixa fora da faixa, no número que quem vê lê (o teto é guardado em kg; a regra é a mesma). */
+export const mensagemDaCargaFixa = (unidade: UnidadeDeCarga = 'kg') =>
+  `Carga fixa: maior que zero e até ${unidade === 'kg' ? `${VALOR_KG_MAXIMO} kg` : textoDaCarga(VALOR_KG_MAXIMO, unidade)}.`;
 
 /** Maior RIR (`Esforco.RIR_MAXIMO` da API); 0 é "até a falha". */
 export const RIR_MAXIMO = 10;
@@ -56,7 +61,7 @@ export function problemasDaCarga(carga: Carga | null | undefined, exigeReferenci
   } else if (modo === 'CARGA_FIXA') {
     const kg = carga.valorKg;
     if (!numero(kg) || kg <= 0 || kg > VALOR_KG_MAXIMO || Math.abs(Math.round(kg * 100) - kg * 100) > 1e-6) {
-      p.valorKg = `Carga fixa: maior que zero e até ${VALOR_KG_MAXIMO} kg.`;
+      p.valorKg = mensagemDaCargaFixa();
     }
     if (carga.percentualMin != null || carga.percentualMax != null) p.percentualMin = 'Carga fixa não leva percentual.';
     if (carga.referenciaUid) p.referenciaUid = 'Carga fixa não leva série de referência.';

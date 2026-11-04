@@ -20,11 +20,11 @@ const arredondar = (n: number, casas: number) => Math.round(n * 10 ** casas) / 1
 const finito = (n: number | null | undefined): n is number => typeof n === 'number' && Number.isFinite(n);
 
 /**
- * Unidade em uso: só o aluno, só com a chave da plataforma ligada. Qualquer outra situação (chave desligada com `lb`
- * salvo de antes, treinador, "Ver como aluno") é kg.
+ * Unidade em uso: a de quem vê (aluno ou treinador, cada um a sua), só com a chave da plataforma ligada. Chave desligada
+ * com `lb` salvo de antes é kg.
  */
-export function unidadeEfetiva(e: { chaveLigada: boolean; ehAluno: boolean; preferida: UnidadeDeCarga }): UnidadeDeCarga {
-  return e.chaveLigada && e.ehAluno && e.preferida === 'lb' ? 'lb' : 'kg';
+export function unidadeEfetiva(e: { chaveLigada: boolean; preferida: UnidadeDeCarga }): UnidadeDeCarga {
+  return e.chaveLigada && e.preferida === 'lb' ? 'lb' : 'kg';
 }
 
 /** kg guardado → número para a tela. Em kg, o próprio valor; em lb, arredondado a 1 casa só para mostrar (o guardado não muda). */

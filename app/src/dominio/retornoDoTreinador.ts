@@ -1,15 +1,16 @@
 import type { SerieComRecorde, SessaoConcluidaDoServidor } from '../api/tipos';
 import { resumoDaConclusao } from './conclusaoNaTela';
 import { textoDoRecorde } from './recordesPessoais';
+import type { UnidadeDeCarga } from './unidadeDeCarga';
 
 /**
  * Textos do treinador para o retorno ao aluno (frente Engajamento, passo 0.5): "Recordes da semana" e a lista de treinos
  * concluídos com o "Visto". Regras puras; as telas são `treinador/CartaoRecordesDaSemana` e `CartaoTreinosConcluidos`.
  */
 
-/** "Supino: Maior carga · 70 kg · Maior volume · 700 kg". */
-export function textoDaSerieComRecorde(s: Pick<SerieComRecorde, 'exercicioNome' | 'recordes'>): string {
-  return `${s.exercicioNome}: ${s.recordes.map((r) => textoDoRecorde(r)).join(' · ')}`;
+/** "Supino: Maior carga · 70 kg · Maior volume · 700 kg" (ou em lb, na unidade de quem vê). */
+export function textoDaSerieComRecorde(s: Pick<SerieComRecorde, 'exercicioNome' | 'recordes'>, unidade: UnidadeDeCarga = 'kg'): string {
+  return `${s.exercicioNome}: ${s.recordes.map((r) => textoDoRecorde(r, unidade)).join(' · ')}`;
 }
 
 /** "1 série com recorde nos últimos 7 dias" / "3 séries...". */

@@ -17,6 +17,7 @@ import { useLimparFavoritosAoSair } from '../../ui/useFavoritos';
 import { GuardaDeSaida } from '../../ui/GuardaDeSaida';
 import { Navegacao, type ItemMenu } from '../../ui/Navegacao';
 import { ProvedorDoPasseio } from '../../ui/Passeio';
+import { ProvedorDaUnidadeDeCarga } from '../../ui/ProvedorDaUnidadeDeCarga';
 import { GUIAS } from '../../ajuda/conteudo';
 
 /**
@@ -80,7 +81,9 @@ export default function LayoutTreinador() {
       {/* Passeio pelo menu no primeiro acesso (depois dos termos, que a GuardaDePapel cobra); revisto pela Ajuda. */}
       <SemInicio />
       <ProvedorDoPasseio key={usuario?.id ?? ''} usuarioId={usuario?.id ?? ''} passos={usuario ? GUIAS.treinador.passeio : []}>
+        <ProvedorDaUnidadeDeCarga>
         <Navegacao topo={Platform.OS === 'web' ? <BarraTopo /> : undefined} itens={ITENS.filter(i=>podeAcessarTela(i.caminho,pode,pagamentosHabilitados)).map(comPontos)} conteudo={<GuardaDePermissao><Slot /></GuardaDePermissao>} />
+        </ProvedorDaUnidadeDeCarga>
       </ProvedorDoPasseio>
     </GuardaDeSaida></GuardaDePapel></Navigator>
   );
