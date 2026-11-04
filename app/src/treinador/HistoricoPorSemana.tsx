@@ -16,6 +16,7 @@ import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes, LINHA_DA_FAIXA, RAIO } from '../tema/tokens';
 import { EntradaEmCascata, usePrimeiraLista } from '../ui/EntradaEmCascata';
 import { Texto } from '../ui/Texto';
+import { useUnidadeDeCarga } from '../ui/unidadeDeCargaEmUso';
 import { BlocoDaDivisao } from './BlocoDaDivisao';
 
 type SessaoDoDia = DiaDeTreino['sessoes'][number];
@@ -124,16 +125,17 @@ function DataDoDia({ data }: { data: string }) {
 
 function SessaoNoDia({ sessao, nome, letra }: { sessao: SessaoDoDia; nome: string; letra: string | null }) {
   const { cores } = useTema();
+  const unidade = useUnidadeDeCarga();
   const { dia, titulo } = partesDaDivisao(nome);
   const n = sessao.exercicios.length;
   return (
     <BlocoDaDivisao letra={letra} titulo={titulo} dia={dia} resumo={`${n} ${n === 1 ? 'exercício' : 'exercícios'}`}>
       {sessao.exercicios.map((e, i) => {
-        const volume = textoDoVolume(volumeDoExercicio(e.series));
+        const volume = textoDoVolume(volumeDoExercicio(e.series), unidade);
         return (
           <View key={e.exercicioUid} style={[estilos.exercicio, i > 0 ? { borderTopWidth: 1, borderTopColor: cores.borda } : null]}>
             <Texto numerico style={estilos.nomeDoExercicio}>{e.nome}</Texto>
-            <Texto numerico variante="suave">{e.series.map(textoSerie).join(' · ')}</Texto>
+            <Texto numerico variante="suave">{e.series.map((s) => textoSerie(s, unidade)).join(' · ')}</Texto>
             {volume ? <Texto numerico variante="pequeno">{volume}</Texto> : null}
           </View>
         );

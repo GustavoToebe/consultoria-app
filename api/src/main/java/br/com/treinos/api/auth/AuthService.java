@@ -58,6 +58,7 @@ public class AuthService {
     private final br.com.treinos.api.pagamentos.InfinitePayProperties infinitePay;
     private final br.com.treinos.api.ciclo.CicloProperties ciclo;
     private final br.com.treinos.api.retorno.RetornoProperties retorno;
+    private final br.com.treinos.api.unidadecarga.UnidadeDeCargaProperties unidadeDeCarga;
     private final br.com.treinos.api.migracao.MigracaoAssistidaProperties migracao;
     private final TransactionTemplate transacao;
     private final TransactionTemplate leitura;
@@ -72,10 +73,12 @@ public class AuthService {
                        br.com.treinos.api.pagamentos.InfinitePayProperties infinitePay,
                        br.com.treinos.api.ciclo.CicloProperties ciclo,
                        br.com.treinos.api.retorno.RetornoProperties retorno,
+                       br.com.treinos.api.unidadecarga.UnidadeDeCargaProperties unidadeDeCarga,
                        br.com.treinos.api.migracao.MigracaoAssistidaProperties migracao) {
         this.pagamentos = pagamentos;
         this.ciclo = ciclo;
         this.retorno = retorno;
+        this.unidadeDeCarga = unidadeDeCarga;
         this.migracao = migracao;
         this.infinitePay = infinitePay;
         this.plano = plano;
@@ -184,7 +187,7 @@ public class AuthService {
                 termos.pendente(usuario.getId()), Termos.VERSAO,
                 plano.funcionalidadesLiberadas(usuario.getConsultoriaId()), pagamentos.habilitado(),
                 pagamentos.habilitado() && infinitePay.habilitado(), pagamentos.pagarNoIos(), pagamentos.pagarNoAndroid(),
-                ciclo.habilitado(), retorno.habilitado(), migracao.habilitado());
+                ciclo.habilitado(), retorno.habilitado(), unidadeDeCarga.habilitado(), migracao.habilitado());
     }
 
     /**

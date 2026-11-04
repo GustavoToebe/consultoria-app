@@ -4,7 +4,8 @@
 
 export type Papel = 'TREINADOR' | 'ALUNO';
 export type Fonte = 'PADRAO' | 'METAL' | 'ESPORTIVA' | 'CONDENSADA';
-export type Tema = 'ESCURO' | 'CLARO';
+/** Paletas da marca (`temaPadrao` da consultoria); cada uma tem modo fixo em `tema/tokens.PALETAS`. */
+export type Tema = 'ESCURO' | 'MEIA_NOITE' | 'AMEIXA' | 'OCEANO' | 'CAFE' | 'CLARO' | 'AREIA' | 'LAVANDA' | 'CEU' | 'ROSA';
 
 export interface Marca {
   id: string;
@@ -57,6 +58,8 @@ export interface EuResponse {
   cicloHabilitado?: boolean;
   /** "Concluir treino" (retorno ao aluno) ligado na plataforma; falso ou ausente = o app esconde tudo e não consulta nem envia. */
   retornoHabilitado?: boolean;
+  /** Escolha de kg ou lb para ver e digitar a carga ligada na plataforma; falso ou ausente = o app esconde a escolha e usa kg. */
+  unidadeDeCargaHabilitada?: boolean;
   /** Migração assistida (diagnóstico do arquivo antes de importar) ligada na plataforma; falso ou ausente = o app esconde tudo. */
   migracaoAssistidaHabilitada?: boolean;
   usuario: UsuarioResumo;

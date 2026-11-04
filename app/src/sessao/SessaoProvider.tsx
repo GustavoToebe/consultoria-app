@@ -65,6 +65,8 @@ interface ValorSessao {
   cicloHabilitado: boolean;
   /** "Concluir treino" ligado? Desligado ou desconhecido, o app esconde tudo e nunca consulta nem enfileira conclusões. */
   retornoHabilitado: boolean;
+  /** Escolha de kg/lb ligada? Desligado ou desconhecido, a carga é sempre kg e a escolha não aparece. */
+  unidadeDeCargaHabilitada: boolean;
   /** Diagnóstico do arquivo antes de importar ligado? Desligado ou desconhecido, a tela de importação não o mostra. */
   migracaoAssistidaHabilitada: boolean;
   recarregarPerfil: () => Promise<void>;
@@ -362,6 +364,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       pagarNoAndroid:perfil?.pagarNoAndroid===true,
       cicloHabilitado:perfil?.cicloHabilitado===true,
       retornoHabilitado:perfil?.retornoHabilitado===true,
+      unidadeDeCargaHabilitada:perfil?.unidadeDeCargaHabilitada===true,
       migracaoAssistidaHabilitada:perfil?.migracaoAssistidaHabilitada===true,
       recarregarPerfil,
       situacao,

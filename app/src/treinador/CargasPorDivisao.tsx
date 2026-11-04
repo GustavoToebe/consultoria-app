@@ -5,12 +5,14 @@ import { StyleSheet, View } from 'react-native';
 import { dataParaTela } from '../dominio/formatos';
 import { letraDaDivisaoNoHistorico, letrasDasDivisoes } from '../dominio/historicoDoAluno';
 import { partesDaDivisao, textoDoVolume, ultimoRegistroDaDivisao, type DivisaoRelatorio, type LinhaCarga } from '../dominio/relatorio';
+import type { UnidadeDeCarga } from '../dominio/unidadeDeCarga';
 import { textoCarga } from '../pdf/pdfCargas';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../tema/tokens';
 import { larguraDaData } from '../ui/larguraDaData';
 import { Tabela } from '../ui/Tabela';
 import { Texto } from '../ui/Texto';
+import { useUnidadeDeCarga } from '../ui/unidadeDeCargaEmUso';
 import { BlocoDaDivisao } from './BlocoDaDivisao';
 
 /** Quatro colunas curtas cabem no celular; só abaixo disso a tabela vira cartões. */
@@ -25,6 +27,7 @@ const LARGURA_MINIMA_TABELA = 280;
 export function CargasPorDivisao({ divisoes, letras: dadas }: { divisoes: DivisaoRelatorio[]; letras?: ReadonlyMap<string, string> }) {
   const letras = dadas ?? letrasDasDivisoes(divisoes.map((d) => d.nome));
   const { cores, fatorTexto } = useTema();
+  const unidade = useUnidadeDeCarga();
   // "—" na carga quer dizer que não houve série de trabalho com carga naquele dia (só aquecimento ou preparação):
   // sem explicar, parecia que o registro sumiu.
   // A série por etapa sem carga comum mostra os blocos ("carga variável" ou "—"): não é só preparação.
@@ -62,11 +65,11 @@ export function CargasPorDivisao({ divisoes, letras: dadas }: { divisoes: Divisa
                   larguraMinima={LARGURA_MINIMA_TABELA}
                   colunas={[
                     { chave: 'data', titulo: 'Data', largura: larguraData, principal: true, render: (l) => <Texto numerico style={estilos.forte}>{dataParaTela(l.data)}</Texto> },
-                    { chave: 'carga', titulo: 'Carga', flex: 1.8, alinhar: 'direita', render: (l) => <Texto numerico style={estilos.carga}>{textoCarga(l)}</Texto> },
+                    { chave: 'carga', titulo: 'Carga', flex: 1.8, alinhar: 'direita', render: (l) => <Texto numerico style={estilos.carga}>{textoCarga(l, unidade)}</Texto> },
                     { chave: 'reps', titulo: 'Reps', flex: 1.3, alinhar: 'direita', render: (l) => <Texto numerico>{l.etapas ?? l.repeticoes ?? '—'}</Texto> },
                     { chave: 'series', titulo: 'Séries', flex: 0.8, alinhar: 'direita', render: (l) => <Texto numerico variante="suave">{l.series}</Texto> },
                   ]}
-                  detalhe={(l) => detalheDaLinha(l, cores.atencao)}
+                  detalhe={(l) => detalheDaLinha(l, cores.atencao, unidade)}
                 />
               </View>
             </View>
@@ -79,8 +82,8 @@ export function CargasPorDivisao({ divisoes, letras: dadas }: { divisoes: Divisa
 }
 
 /** Embaixo da linha: o volume de carga do exercício no dia (o do histórico) e a observação do aluno; sem nenhum, nada. */
-function detalheDaLinha(l: LinhaCarga, corDaObservacao: string) {
-  const volume = textoDoVolume(l.volume);
+function detalheDaLinha(l: LinhaCarga, corDaObservacao: string, unidade: UnidadeDeCarga) {
+  const volume = textoDoVolume(l.volume, unidade);
   if (!volume && !l.observacoes.length) return null;
   return (
     <View style={estilos.detalhes}>

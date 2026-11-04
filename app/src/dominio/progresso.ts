@@ -1,6 +1,7 @@
 import type { ProgressoPonto } from '../api/tipos';
-import { dataCurta, numeroParaTela, SEM_DADO } from './formatos';
+import { dataCurta, SEM_DADO } from './formatos';
 import { SEM_GRUPO } from './relatorio';
+import { textoDaCarga, type UnidadeDeCarga } from './unidadeDeCarga';
 
 /**
  * Progresso por exercício: só reorganiza o que o aluno registrou. Sem porcentagem, recorde, tendência ou juízo de
@@ -40,11 +41,11 @@ export function resumoDoProgresso(pontos: ProgressoPonto[]): ResumoDoProgresso {
 }
 
 /** "Primeiro: 40 kg em 04/09 · Último: 42,5 kg × 12 em 02/10"; com um registro só, apenas o "Último". */
-export function textoDoResumo(r: ResumoDoProgresso): string | null {
+export function textoDoResumo(r: ResumoDoProgresso, unidade: UnidadeDeCarga = 'kg'): string | null {
   if (!r.ultimo) return null;
-  const ultimo = `Último: ${numeroParaTela(r.ultimo.carga)} kg × ${r.ultimo.repeticoes ?? SEM_DADO} em ${dataCurta(r.ultimo.data)}`;
+  const ultimo = `Último: ${textoDaCarga(r.ultimo.carga, unidade)} × ${r.ultimo.repeticoes ?? SEM_DADO} em ${dataCurta(r.ultimo.data)}`;
   if (!r.primeiro) return ultimo;
-  return `Primeiro: ${numeroParaTela(r.primeiro.carga)} kg em ${dataCurta(r.primeiro.data)} · ${ultimo}`;
+  return `Primeiro: ${textoDaCarga(r.primeiro.carga, unidade)} em ${dataCurta(r.primeiro.data)} · ${ultimo}`;
 }
 
 /** Linhas da tabela: da data mais recente para a mais antiga; `limite` corta no começo (as mais recentes). */

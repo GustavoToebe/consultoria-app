@@ -1,4 +1,5 @@
 import type { CorDaAgenda } from '../api/agendaTipos';
+import type { Tema } from '../api/tipos';
 
 /**
  * Design flat utilitário: cores sólidas, sem sombra nem gradiente, cantos de 12 px, bordas de
@@ -97,7 +98,7 @@ export const CLARO: Cores = {
 
 /**
  * "Claro areia" (D2 da frente "Clareza do treinador", 30/10): a mesma regra do claro, com fundo e faixas em tom areia,
- * a pedido do Gustavo na reunião de 29/10. É só uma opção nas Preferências; o padrão continua o claro neutro. Status,
+ * a pedido do Gustavo na reunião de 29/10. Vale como opção nas Preferências e como paleta da marca; o padrão continua o claro neutro. Status,
  * fases, foco e texto são os do claro (conferidos sobre estas superfícies em `tokens.test.ts`).
  */
 export const AREIA: Cores = {
@@ -112,6 +113,97 @@ export const AREIA: Cores = {
   campo: '#FFFFFF',
   bordaCampo: '#77736B',
 };
+
+/** Modo de uma paleta: decide a barra de status, as paletas das agendas e da identificação e o esquema do Uniwind. */
+export type ModoDoTema = 'ESCURO' | 'CLARO';
+
+/**
+ * Paletas da marca (`docs/planos/paletas-da-marca.md`, decisão 1 de 03/11): a consultoria escolhe uma da lista em Marca.
+ * A paleta muda só o "chão" (fundo, cartão, faixas, divisor, bordas e campo); texto, status, fases e foco são os do Escuro
+ * ou do Claro. Valores literais, calculados uma vez pela prévia `docs/prototipos/paletas-da-marca.html` (item = 40% do caminho do cartão ao fundo, mais escuro que o cartão: o trilho das barras de progresso aparece dentro dele, e um item mais claro faria a série feita (verde translúcido) cair abaixo de 4,5:1 no Oceano;
+ * faixa no tom mais claro em que texto e status passam 4,5:1; `faixaForte` = faixa + 0,03 de mistura com branco, escolha
+ * deste passo porque a prévia não calcula esse tom). Nas claras o cartão é branco e o segundo tom da paleta é a faixa.
+ */
+export const MEIA_NOITE: Cores = {
+  ...ESCURO,
+  fundo: '#06141B',
+  superficie: '#11212D',
+  superficie2: '#0D1C26',
+  superficie3: '#1F2E3A',
+  faixaForte: '#263540',
+  divisor: '#303E48',
+  borda: '#48545D',
+  campo: '#162531',
+  bordaCampo: '#737C83',
+};
+
+export const AMEIXA: Cores = {
+  ...ESCURO,
+  fundo: '#190019',
+  superficie: '#2B124C',
+  superficie2: '#240B38',
+  superficie3: '#382057',
+  faixaForte: '#3E275C',
+  divisor: '#473163',
+  borda: '#5C4975',
+  campo: '#2F1750',
+  bordaCampo: '#827395',
+};
+
+/** Cartão ajustado da prévia (o original era #1C2541): o mais claro em que série feita, tingido e neutro passam 4,5:1. */
+export const OCEANO: Cores = {
+  ...ESCURO,
+  fundo: '#0B132B',
+  superficie: '#1A223C',
+  superficie2: '#141C35',
+  superficie3: '#232B44',
+  faixaForte: '#2A314A',
+  divisor: '#383F55',
+  borda: '#4F5569',
+  campo: '#1F2640',
+  bordaCampo: '#787D8C',
+};
+
+/** Cartão ajustado da prévia (o original era #3A2418): o mais claro em que série feita, tingido e neutro passam 4,5:1. */
+export const CAFE: Cores = {
+  ...ESCURO,
+  fundo: '#1A120E',
+  superficie: '#301E14',
+  superficie2: '#271912',
+  superficie3: '#38271D',
+  faixaForte: '#3E2E24',
+  divisor: '#4B3B33',
+  borda: '#60524A',
+  campo: '#342319',
+  bordaCampo: '#857A74',
+};
+
+export const LAVANDA: Cores = { ...CLARO, fundo: '#F7F8FF', superficie3: '#E6E0FF' };
+export const CEU: Cores = { ...CLARO, fundo: '#F0F7FF', superficie3: '#DBEAFE' };
+export const ROSA: Cores = { ...CLARO, fundo: '#FFF9FB', superficie3: '#FCE7F3' };
+
+/** Código da paleta (= `Tema` da API, o `temaPadrao` da consultoria) → nome na tela, cores e modo. Fonte única do modo. */
+export const PALETAS: Record<Tema, { nome: string; cores: Cores; modo: ModoDoTema }> = {
+  ESCURO: { nome: 'Escuro', cores: ESCURO, modo: 'ESCURO' },
+  MEIA_NOITE: { nome: 'Meia-noite', cores: MEIA_NOITE, modo: 'ESCURO' },
+  AMEIXA: { nome: 'Ameixa', cores: AMEIXA, modo: 'ESCURO' },
+  OCEANO: { nome: 'Oceano', cores: OCEANO, modo: 'ESCURO' },
+  CAFE: { nome: 'Café', cores: CAFE, modo: 'ESCURO' },
+  CLARO: { nome: 'Claro', cores: CLARO, modo: 'CLARO' },
+  AREIA: { nome: 'Areia', cores: AREIA, modo: 'CLARO' },
+  LAVANDA: { nome: 'Lavanda', cores: LAVANDA, modo: 'CLARO' },
+  CEU: { nome: 'Céu', cores: CEU, modo: 'CLARO' },
+  ROSA: { nome: 'Rosa', cores: ROSA, modo: 'CLARO' },
+};
+
+/**
+ * A paleta de um código, com reserva no Escuro: um código que o app não conhece (app antigo com a API nova, ou o contrário)
+ * nunca derruba a tela. Todo código vindo de fora (marca da sessão, prévia) passa por aqui, não por `PALETAS[codigo]`.
+ */
+export const paletaDe = (codigo: string | null | undefined): (typeof PALETAS)[Tema] =>
+  (codigo && Object.hasOwn(PALETAS, codigo) ? PALETAS[codigo as Tema] : undefined) ?? PALETAS.ESCURO;
+
+export const modoDaPaleta = (codigo: string | null | undefined): ModoDoTema => paletaDe(codigo).modo;
 
 /**
  * Paleta fixa das agendas pessoais (D7): a cor IDENTIFICA a agenda (ponto ou barra lateral), nunca diz status. Cada chave

@@ -2,7 +2,7 @@ import type { CargaDaEtapa, EtapaRegistrada, OrigemDaReferencia, Retomada, Serie
 import { faixa } from './agrupamento';
 import { arredondar } from './cargas';
 import { blocosValidos } from './blocos';
-import { numeroParaTela } from './formatos';
+import { textoDaCarga, type UnidadeDeCarga } from './unidadeDeCarga';
 import { textoDasRepeticoesDaSerie } from './resumoDaSerie';
 
 /**
@@ -339,7 +339,7 @@ export function pausaDaAcao(atual: RegistroAtual | null | undefined, acao: AcaoN
 }
 
 /** "Referência: WS registrada antes, 42 kg" ou "Referência: base do dia, 40 kg"; `null` sem referência congelada. */
-export function textoDaReferenciaCongelada(valor: number | null | undefined, origem: OrigemDaReferencia | null | undefined): string | null {
+export function textoDaReferenciaCongelada(valor: number | null | undefined, origem: OrigemDaReferencia | null | undefined, unidade: UnidadeDeCarga = 'kg'): string | null {
   if (valor == null || !origem) return null;
-  return `Referência: ${origem === 'WS_ANTERIOR' ? 'WS registrada antes' : 'base do dia'}, ${numeroParaTela(valor)} kg`;
+  return `Referência: ${origem === 'WS_ANTERIOR' ? 'WS registrada antes' : 'base do dia'}, ${textoDaCarga(valor, unidade)}`;
 }

@@ -1,5 +1,6 @@
 import type { Configuracao, ConteudoTreino, ExercicioPlano, Marca, Serie, Sessao } from '../api/tipos';
 import { agrupar, descreverGrupo } from '../dominio/agrupamento';
+import type { UnidadeDeCarga } from '../dominio/unidadeDeCarga';
 import { estruturaDaSerie, linhasDasEtapas, ROTULO_DA_OBSERVACAO_DA_SERIE } from '../dominio/resumoDaSerie';
 import { explicacaoDoCatalogo } from '../dominio/catalogoMetodologia';
 import { gruposDaSessao } from '../dominio/combinacoes';
@@ -34,6 +35,8 @@ export interface DadosPdfTreino {
   instrucoesTreino: string | null;
   rodapePdf: string | null;
   emitidoEm: Date;
+  /** Unidade de quem baixa o PDF (padrão kg): o aluno na dele; o PDF do treinador segue em kg até a fase 2. */
+  unidade?: UnidadeDeCarga;
 }
 
 /** Descanso das séries do grupo: "1 min" ou "1 min a 1 min 30 s"; vazio quando nenhuma tem. */
@@ -60,7 +63,7 @@ export interface SerieDoPdf {
  * "Observação desta série: …", com o mesmo nome do editor e da prévia (reunião de 30/10). `comDescanso` falso nos membros de grupo cujo descanso é o do grupo
  * (a linha do grupo o diz).
  */
-export function seriesDoPdf(e: Pick<ExercicioPlano, 'series'>, config: Configuracao, comDescanso = true): SerieDoPdf[] {
+export function seriesDoPdf(e: Pick<ExercicioPlano, 'series'>, config: Configuracao, comDescanso = true, unidade: UnidadeDeCarga = 'kg'): SerieDoPdf[] {
   return agrupar(e.series).map((g) => {
     const primeira = g.series[0];
     const detalhes: string[] = [];
@@ -71,7 +74,7 @@ export function seriesDoPdf(e: Pick<ExercicioPlano, 'series'>, config: Configura
     if (descanso) detalhes.push(`Descanso depois da série: ${descanso}`);
     const observacao = primeira.alvoExtra?.trim();
     if (observacao) detalhes.push(`${ROTULO_DA_OBSERVACAO_DA_SERIE}: ${observacao}`);
-    return { linha: descreverGrupo(g, config, e.series, { etapasAParte: true, semObservacao: true }), detalhes };
+    return { linha: descreverGrupo(g, config, e.series, { etapasAParte: true, semObservacao: true, unidade }), detalhes };
   });
 }
 
@@ -119,18 +122,18 @@ export function blocoGlossario(conteudo: ConteudoTreino, config: Configuracao): 
   return `<section><h2>Como ler este treino</h2><table class="instrucoes"><tbody>${linhas}</tbody></table></section>`;
 }
 
-function celulaDeSeries(e: ExercicioPlano, config: Configuracao, comDescanso: boolean): string {
-  const grupos = seriesDoPdf(e, config, comDescanso);
+function celulaDeSeries(e: ExercicioPlano, config: Configuracao, comDescanso: boolean, unidade: UnidadeDeCarga): string {
+  const grupos = seriesDoPdf(e, config, comDescanso, unidade);
   if (!grupos.length) return '—';
   return grupos.map((g) => `<div class="serie">${esc(g.linha)}${g.detalhes.map((d) => `<div class="etapas">${esc(d)}</div>`).join('')}</div>`).join('');
 }
 
-function linhaExercicio(e: ExercicioPlano, config: Configuracao, comDescanso: boolean): string {
+function linhaExercicio(e: ExercicioPlano, config: Configuracao, comDescanso: boolean, unidade: UnidadeDeCarga): string {
   const obs = obsDoExercicio(e);
   const execucao = textoExecucao(e);
   return `<tr>
 <td><strong>${esc(e.nome)}</strong>${execucao ? `<div class="suave">${esc(execucao)}</div>` : ''}</td>
-<td>${celulaDeSeries(e, config, comDescanso)}</td>
+<td>${celulaDeSeries(e, config, comDescanso, unidade)}</td>
 <td>${obs.map(esc).join('<br>') || '—'}</td>
 <td>${link(e.videoUrl, 'Vídeo')}</td>
 </tr>`;
@@ -141,18 +144,18 @@ function linhaExercicio(e: ExercicioPlano, config: Configuracao, comDescanso: bo
  * combinação, a ordem, as voltas e o descanso depois do grupo; nos grupos com descanso depois da volta, a coluna das séries
  * não repete o descanso por série.
  */
-function linhasDosExercicios(s: Sessao, config: Configuracao): string {
+function linhasDosExercicios(s: Sessao, config: Configuracao, unidade: UnidadeDeCarga): string {
   return gruposDaSessao(s, config)
     .map((g) => {
       const comDescanso = !(g.nome && g.grupo && descansoSoDoGrupo(g.grupo));
-      const linhas = g.exercicios.map((e) => linhaExercicio(e, config, comDescanso)).join('');
+      const linhas = g.exercicios.map((e) => linhaExercicio(e, config, comDescanso, unidade)).join('');
       if (!g.nome) return linhas;
       return `<tr><td colspan="4"><strong>${esc(g.nome)}</strong> · ${esc(detalheDoBloco(g))}</td></tr>${linhas}`;
     })
     .join('');
 }
 
-function blocoSessao(s: Sessao, config: Configuracao): string {
+function blocoSessao(s: Sessao, config: Configuracao, unidade: UnidadeDeCarga): string {
   // Sem dia fixo: acrescenta "2x na semana" só se o nome ainda não diz.
   const dia = rotuloDoDia(s);
   const titulo = s.diaSemana || s.nome.toLowerCase().includes(dia.toLowerCase()) ? s.nome : `${s.nome} (${dia})`;
@@ -164,7 +167,7 @@ function blocoSessao(s: Sessao, config: Configuracao): string {
   return `<section class="${s.exercicios.length <= 8 ? 'bloco' : ''}">
 <h2>${esc(titulo)}</h2>${extras}
 <table><thead><tr><th style="width:34%">Exercício</th><th style="width:26%">Séries</th><th>Obs</th><th style="width:9%">Vídeo</th></tr></thead>
-<tbody>${linhasDosExercicios(s, config)}</tbody></table>
+<tbody>${linhasDosExercicios(s, config, unidade)}</tbody></table>
 </section>`;
 }
 
@@ -230,7 +233,7 @@ export function documentoTreino(d: DadosPdfTreino): Documento {
     `<div class="bloco"><h2>Semana</h2><table><thead><tr><th style="width:25%">Dia</th><th>Treino</th></tr></thead><tbody>${semana}${semDia
       .map((s) => `<tr><td><strong>${esc(rotuloDoDia(s))}</strong></td><td>${esc(s.nome)}</td></tr>`)
       .join('')}</tbody></table></div>`,
-    ...sessoesDaSemana(c).map((s) => blocoSessao(s, metodologia ?? CONFIGURACAO_PADRAO)),
+    ...sessoesDaSemana(c).map((s) => blocoSessao(s, metodologia ?? CONFIGURACAO_PADRAO, d.unidade ?? 'kg')),
     blocoGlossario(c, metodologia ?? CONFIGURACAO_PADRAO),
     d.instrucoesTreino?.trim() ? blocoInstrucoes(d.instrucoesTreino) : '',
     d.rodapePdf?.trim() ? `<div class="rodape">${esc(d.rodapePdf)}</div>` : '',
