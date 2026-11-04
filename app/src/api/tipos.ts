@@ -58,6 +58,8 @@ export interface EuResponse {
   cicloHabilitado?: boolean;
   /** "Concluir treino" (retorno ao aluno) ligado na plataforma; falso ou ausente = o app esconde tudo e não consulta nem envia. */
   retornoHabilitado?: boolean;
+  /** Aviso no celular por push do Expo ligado na plataforma; falso ou ausente = o app não oferece o interruptor. */
+  pushHabilitado?: boolean;
   /** Escolha de kg ou lb para ver e digitar a carga ligada na plataforma; falso ou ausente = o app esconde a escolha e usa kg. */
   unidadeDeCargaHabilitada?: boolean;
   /** Migração assistida (diagnóstico do arquivo antes de importar) ligada na plataforma; falso ou ausente = o app esconde tudo. */

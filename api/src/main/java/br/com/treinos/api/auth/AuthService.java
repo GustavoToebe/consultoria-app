@@ -58,6 +58,8 @@ public class AuthService {
     private final br.com.treinos.api.pagamentos.InfinitePayProperties infinitePay;
     private final br.com.treinos.api.ciclo.CicloProperties ciclo;
     private final br.com.treinos.api.retorno.RetornoProperties retorno;
+    private final br.com.treinos.api.push.PushProperties push;
+    private final br.com.treinos.api.push.PushService pushTokens;
     private final br.com.treinos.api.unidadecarga.UnidadeDeCargaProperties unidadeDeCarga;
     private final br.com.treinos.api.migracao.MigracaoAssistidaProperties migracao;
     private final TransactionTemplate transacao;
@@ -73,11 +75,14 @@ public class AuthService {
                        br.com.treinos.api.pagamentos.InfinitePayProperties infinitePay,
                        br.com.treinos.api.ciclo.CicloProperties ciclo,
                        br.com.treinos.api.retorno.RetornoProperties retorno,
+                       br.com.treinos.api.push.PushProperties push, br.com.treinos.api.push.PushService pushTokens,
                        br.com.treinos.api.unidadecarga.UnidadeDeCargaProperties unidadeDeCarga,
                        br.com.treinos.api.migracao.MigracaoAssistidaProperties migracao) {
         this.pagamentos = pagamentos;
         this.ciclo = ciclo;
         this.retorno = retorno;
+        this.push = push;
+        this.pushTokens = pushTokens;
         this.unidadeDeCarga = unidadeDeCarga;
         this.migracao = migracao;
         this.infinitePay = infinitePay;
@@ -187,7 +192,7 @@ public class AuthService {
                 termos.pendente(usuario.getId()), Termos.VERSAO,
                 plano.funcionalidadesLiberadas(usuario.getConsultoriaId()), pagamentos.habilitado(),
                 pagamentos.habilitado() && infinitePay.habilitado(), pagamentos.pagarNoIos(), pagamentos.pagarNoAndroid(),
-                ciclo.habilitado(), retorno.habilitado(), unidadeDeCarga.habilitado(), migracao.habilitado());
+                ciclo.habilitado(), retorno.habilitado(), push.habilitado(), unidadeDeCarga.habilitado(), migracao.habilitado());
     }
 
     /**
@@ -230,8 +235,11 @@ public class AuthService {
      */
     public Sessao reabrirSessao(UUID usuarioId, long versao, String ip) {
         String sujeito = usuarioId.toString();
+        Usuario usuario = carregar(sujeito);
         autenticador.encerrarSessoes(sujeito);
-        return montar(carregar(sujeito), autenticador.novaSessao(sujeito, versao, ip));
+        // Depois de encerrar: se apagar os tokens falhar, as sessões antigas já caíram junto com a senha nova.
+        pushTokens.apagarDoUsuario(usuario.getConsultoriaId(), usuarioId); // o aparelho precisa pedir o push de novo
+        return montar(usuario, autenticador.novaSessao(sujeito, versao, ip));
     }
 
     private Usuario carregar(String sujeito) {

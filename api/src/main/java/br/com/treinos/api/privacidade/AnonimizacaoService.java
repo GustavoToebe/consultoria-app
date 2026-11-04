@@ -48,6 +48,7 @@ public class AnonimizacaoService {
     private final ConsultoriaRepository consultorias;
     private final UsuarioRepository usuarios;
     private final Autenticador autenticador;
+    private final br.com.treinos.api.push.PushService push;
     private final PasswordEncoder senhas;
     private final RegistroPesoRepository pesos;
     private final LesaoRepository lesoes;
@@ -75,7 +76,8 @@ public class AnonimizacaoService {
                                br.com.treinos.api.ciclo.CicloMenstrualService ciclo,
                                br.com.treinos.api.agenda.AgendaService agenda,
                                br.com.treinos.api.avaliacoes.AvaliacaoFisicaService avaliacoesFisicas,
-                               br.com.treinos.api.agua.AguaDoDiaService agua) {
+                               br.com.treinos.api.agua.AguaDoDiaService agua, br.com.treinos.api.push.PushService push) {
+        this.push = push;
         this.agua = agua;
         this.agenda = agenda;
         this.avaliacoesFisicas = avaliacoesFisicas;
@@ -182,6 +184,7 @@ public class AnonimizacaoService {
                 u.anonimizar(Aluno.NOME_ANONIMIZADO, "anonimizado+" + u.getId() + "@anonimizado.invalid",
                         senhas.encode(segredoAleatorio()));
             });
+            push.apagarDoUsuario(consultoriaId, aluno.getUsuarioId());
             autenticador.encerrarSessoes(aluno.getUsuarioId().toString());
         }
         aluno.anonimizar(Instant.now());

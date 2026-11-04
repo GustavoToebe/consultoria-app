@@ -36,6 +36,8 @@ function notificacoes():Promise<Notificacoes|null> {
   });
   return carregado;
 }
+/** O push remoto (`aluno/push`) usa o mesmo módulo e a mesma guarda do Expo Go. */
+export const carregarNotificacoes=notificacoes;
 async function prepararCanal(Notifications:Notificacoes) {
   if(Platform.OS==='android')await Notifications.setNotificationChannelAsync(CANAL,{
     name:'Compromissos',importance:Notifications.AndroidImportance.DEFAULT,

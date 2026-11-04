@@ -19,6 +19,7 @@ import { useAnamnese } from '../../aluno/anamnese/useAnamnese';
 import { FinanceiroDoAlunoProvider, useFinanceiroDoAluno } from '../../aluno/financeiro/FinanceiroDoAlunoProvider';
 import { CompromissosDoAlunoProvider, useCompromissosDoAluno } from '../../aluno/compromissos/CompromissosDoAlunoProvider';
 import { temAvisoDeCompromisso } from '../../dominio/paraFazer';
+import { SincronizarPush } from '../../aluno/push/SincronizarPush';
 
 /** Aluno: barra inferior sempre (uso principal é no celular). */
 const ITENS: ItemMenu[] = [
@@ -46,6 +47,7 @@ export default function LayoutAluno() {
               <FinanceiroDoAlunoProvider>
                 {/* Compromissos e avisos também só em memória; alimentam o Início, o ponto e os lembretes locais. */}
                 <CompromissosDoAlunoProvider>
+                  <SincronizarPush usuarioId={usuario.id} />
                   {/* A carga é kg em todo lugar; só a tela do aluno a mostra e a recebe em lb, se ele escolheu (Preferências). */}
                   <ProvedorDaUnidadeDeCarga>
                     <MenuAluno />

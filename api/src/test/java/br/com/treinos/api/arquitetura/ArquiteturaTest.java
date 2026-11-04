@@ -73,7 +73,13 @@ class ArquiteturaTest {
      * leva {@code consultoria_id} explícito e nada guarda nem devolve o corpo do aviso, só ids, o hash e o andamento);
      * {@code LembretesRepositorio} (fila dos lembretes de cobrança por e-mail: o job planeja e reserva de todas as consultorias,
      * sem tenant; toda escrita depois da reserva leva {@code consultoria_id} explícito e confere a posse, e nada lê ou grava
-     * endereço, nome ou texto, só ids, datas, a configuração e o andamento).
+     * endereço, nome ou texto, só ids, datas, a configuração e o andamento);
+     * {@code PushRepositorio} (token de push do aparelho do aluno e fila dos envios do Expo: o job reserva e envia de todas as
+     * consultorias, sem tenant; toda escrita leva {@code consultoria_id} explícito e confere a posse da reserva, menos duas,
+     * globais de propósito: registrar apaga o MESMO token de qualquer outra conta ou consultoria (o token é único no banco: um
+     * aparelho que muda de conta ou de consultoria não pode avisar o dono antigo) e a limpeza apaga o token vencido (30 dias sem
+     * renovar) e a fila antiga; o valor do token só sai para o envio e a fila não guarda texto, nome nem compromisso, só o
+     * usuário e o andamento).
      */
     private static final Set<String> SQL_NATIVO_PERMITIDO = Set.of(
             "br.com.treinos.api.auth.ContadorBanco",
@@ -93,7 +99,8 @@ class ArquiteturaTest {
             "br.com.treinos.api.inscricoes.InscricaoBusca",
             "br.com.treinos.api.pagamentos.VerificacaoDasCredenciais",
             "br.com.treinos.api.pagamentos.AvisoDePagamentoRepositorio",
-            "br.com.treinos.api.pagamentos.LembretesRepositorio");
+            "br.com.treinos.api.pagamentos.LembretesRepositorio",
+            "br.com.treinos.api.push.PushRepositorio");
 
     /**
      * Entidades sem {@code @TenantId}: {@code Consultoria} é a raiz do isolamento; {@code Usuario}
@@ -188,6 +195,8 @@ class ArquiteturaTest {
                                 "AlunoCompromissosController",
                                 // Avisos de compromisso do próprio aluno (hasRole ALUNO, sempre o da sessão): os não vistos e marcar como visto.
                                 "AlunoAvisosDeCompromissoController",
+                                // Token de push do aparelho do próprio aluno (hasRole ALUNO, sempre o da sessão; registrar dá 503 com a chave desligada, apagar não).
+                                "AlunoPushTokenController",
                                 // Avaliações físicas do próprio aluno, só leitura (hasRole ALUNO, sempre o da sessão); a equipe declara PERM_ALUNO_SENSIVEL_LER.
                                 "AvaliacaoFisicaAlunoController").contains(c.getSimpleName())))
                 .should(new ArchCondition<>("usar hasAuthority(PERM_...) em toda rota") {
