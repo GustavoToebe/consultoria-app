@@ -43,3 +43,29 @@ export function oferecerAvisoNoCelular(os: string, pushHabilitado: boolean): boo
 export function deveRegistrarAoAbrir(p: { preferenciaLigada: boolean; pushHabilitado: boolean; os: string; permitido: boolean | null }): boolean {
   return p.preferenciaLigada && oferecerAvisoNoCelular(p.os, p.pushHabilitado) && p.permitido === true;
 }
+
+/** Ao voltar para a frente, o token é renovado no máximo uma vez a cada 24 h (o servidor apaga o que não renova em 30 dias). */
+export const INTERVALO_RENOVACAO_DO_PUSH_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Quando renovar o token: na abertura da área do aluno (`talvez` sempre roda na primeira vez) e, depois, ao app voltar
+ * para a frente, só se a última TENTATIVA tiver mais de `intervaloMs` (falha não repete a cada volta) e uma por vez.
+ */
+export function criarRenovacaoDoPush(renovar: () => Promise<void>, agora: () => number = Date.now,
+  intervaloMs = INTERVALO_RENOVACAO_DO_PUSH_MS) {
+  let ultima: number | null = null;
+  let emAndamento: Promise<void> | null = null;
+  return {
+    /** Renova se já passou o intervalo; devolve se tentou. */
+    talvez(): Promise<boolean> {
+      if (emAndamento) return emAndamento.then(() => false);
+      const t = agora();
+      if (ultima !== null && t - ultima < intervaloMs) return Promise.resolve(false);
+      ultima = t;
+      emAndamento = renovar().catch(() => undefined).finally(() => {
+        emAndamento = null;
+      });
+      return emAndamento.then(() => true);
+    },
+  };
+}
