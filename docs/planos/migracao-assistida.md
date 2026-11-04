@@ -24,9 +24,9 @@ alunos. Nada é gravado. A amostra revisável e a gravação em rascunho com "De
 
 ## Passos
 - [x] 1. Plano e índice — commit: neste arquivo
-- [ ] 2. API: chave, regra pura `DiagnosticoDoArquivo`, rota, `GET /eu`, testes (unidade, integração, sentinela) — commit: —
-- [ ] 3. App: regras de texto em `dominio/`, botão e resultado na tela de importação, jest e e2e — commit: —
-- [ ] 4. Documentação (`AGENTS.md`, `docs/importacao-alunos.md`) — commit: —
+- [x] 2. API: chave, regra pura `DiagnosticoDoArquivo`, rota, `GET /eu`, testes (unidade, integração, sentinela) — commit: `00f3f8ec`
+- [x] 3. App: regras de texto em `dominio/`, botão e resultado na tela de importação, jest e e2e — commit: `df592876`
+- [x] 4. Documentação (`AGENTS.md`, `docs/importacao-alunos.md`) — commit: o seguinte a `df592876` (docs)
 
 ## Fora do escopo
 - Fase 2: amostra revisável, gravação em rascunho e "Desfazer importação" (outro PR).
