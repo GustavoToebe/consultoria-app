@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import type { TipoDoSeloDoEditor } from '../../dominio/barraDoEditor';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco } from '../../tema/tokens';
+import { espaco, LARGURA_MENU_LATERAL } from '../../tema/tokens';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 
@@ -23,11 +23,14 @@ interface Props {
  */
 export function BarraDoEditor({ selo, info, erro, children }: Props) {
   const { cores } = useTema();
+  // No PC a linha de informação cabe inteira (é curta): fica numa linha só ao lado do selo, sem quebrar no meio. Quem
+  // desce quando falta largura são os botões, não este trecho. No celular ela pode quebrar, como qualquer texto.
+  const largo = useWindowDimensions().width >= LARGURA_MENU_LATERAL;
   return (
     <View style={estilos.barra} accessibilityRole="toolbar" accessibilityLabel="Ações do editor">
-      <View style={estilos.estado}>
+      <View style={[estilos.estado, largo && estilos.estadoLargo]}>
         <Selo texto={selo.texto} tipo={selo.tipo} />
-        {info ? <Texto variante="pequeno" numerico style={estilos.info}>{info}</Texto> : null}
+        {info ? <Texto variante="pequeno" numerico numberOfLines={largo ? 1 : undefined} style={largo ? estilos.infoLarga : estilos.info}>{info}</Texto> : null}
         {erro ? <Texto variante="pequeno" cor={cores.perigo} style={estilos.info}>{erro}</Texto> : null}
       </View>
       <View style={estilos.acoes}>{children}</View>
@@ -38,6 +41,9 @@ export function BarraDoEditor({ selo, info, erro, children }: Props) {
 const estilos = StyleSheet.create({
   barra: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
   estado: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1), flexShrink: 1, flexGrow: 1, flexBasis: 220 },
+  // PC: o bloco do estado tem a largura do próprio conteúdo (até a da barra); a barra quebra os botões, não o texto.
+  estadoLargo: { flexBasis: 'auto', flexShrink: 0, maxWidth: '100%' },
   info: { flexShrink: 1 },
+  infoLarga: { flexShrink: 0 },
   acoes: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1), marginLeft: 'auto' },
 });
