@@ -51,8 +51,8 @@ describe('ultimaEnviada', () => {
 
 describe('rotuloDaAtualizacaoAnterior', () => {
   it('diz a pasta e a data; sem título, "outra pasta"', () => {
-    expect(rotuloDaAtualizacaoAnterior('Plano 16', '20/10/2026')).toBe('Atualização de Plano 16 · 20/10/2026');
-    expect(rotuloDaAtualizacaoAnterior(null, '20/10/2026')).toBe('Atualização de outra pasta · 20/10/2026');
-    expect(rotuloDaAtualizacaoAnterior('  ', '20/10/2026')).toBe('Atualização de outra pasta · 20/10/2026');
+    expect(rotuloDaAtualizacaoAnterior('Plano 16', '20/10/2026')).toBe('Última atualização enviada: Plano 16 · 20/10/2026');
+    expect(rotuloDaAtualizacaoAnterior(null, '20/10/2026')).toBe('Última atualização enviada: outra pasta · 20/10/2026');
+    expect(rotuloDaAtualizacaoAnterior('  ', '20/10/2026')).toBe('Última atualização enviada: outra pasta · 20/10/2026');
   });
 });
