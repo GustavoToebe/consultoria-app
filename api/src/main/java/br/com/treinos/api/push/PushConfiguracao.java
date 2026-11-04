@@ -10,7 +10,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-/** Com {@link PushProperties#habilitado()} falso, toda rota marcada com {@link ExigePush} responde 503. */
+/** Com {@link PushProperties#habilitado()} falso, toda rota marcada com {@link ExigePush} (no método ou no controller) responde 503. */
 @Configuration
 @EnableConfigurationProperties(PushProperties.class)
 public class PushConfiguracao implements WebMvcConfigurer {
@@ -27,7 +27,8 @@ public class PushConfiguracao implements WebMvcConfigurer {
             @Override
             public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
                 if (!propriedades.habilitado() && handler instanceof HandlerMethod metodo
-                        && AnnotatedElementUtils.hasAnnotation(metodo.getBeanType(), ExigePush.class)) {
+                        && (metodo.hasMethodAnnotation(ExigePush.class)
+                        || AnnotatedElementUtils.hasAnnotation(metodo.getBeanType(), ExigePush.class))) {
                     throw new PushIndisponivelException();
                 }
                 return true;

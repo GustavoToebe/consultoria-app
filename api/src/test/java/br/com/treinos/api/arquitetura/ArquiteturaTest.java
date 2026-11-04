@@ -195,7 +195,7 @@ class ArquiteturaTest {
                                 "AlunoCompromissosController",
                                 // Avisos de compromisso do próprio aluno (hasRole ALUNO, sempre o da sessão): os não vistos e marcar como visto.
                                 "AlunoAvisosDeCompromissoController",
-                                // Token de push do aparelho do próprio aluno (hasRole ALUNO, sempre o da sessão; 503 com a chave desligada).
+                                // Token de push do aparelho do próprio aluno (hasRole ALUNO, sempre o da sessão; registrar dá 503 com a chave desligada, apagar não).
                                 "AlunoPushTokenController",
                                 // Avaliações físicas do próprio aluno, só leitura (hasRole ALUNO, sempre o da sessão); a equipe declara PERM_ALUNO_SENSIVEL_LER.
                                 "AvaliacaoFisicaAlunoController").contains(c.getSimpleName())))

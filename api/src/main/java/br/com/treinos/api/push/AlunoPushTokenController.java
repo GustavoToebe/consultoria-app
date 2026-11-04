@@ -15,13 +15,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Token de push do aparelho do aluno da sessão ({@code TREINOS_PUSH_HABILITADO}; desligado, 503 {@code PUSH_INDISPONIVEL}).
- * Sempre o aluno da sessão, nunca um id do cliente; o token vai no corpo (nunca no caminho, que cai em log de acesso) e não é
- * auditado. {@code DELETE} sem corpo apaga todos os tokens do próprio usuário (o aparelho que saiu sem conseguir ler o token).
- * Só alunos: o treinador não recebe push nesta fase.
+ * Token de push do aparelho do aluno da sessão. Registrar exige {@code TREINOS_PUSH_HABILITADO} (desligado, 503
+ * {@code PUSH_INDISPONIVEL}); apagar não: só tira os tokens do próprio usuário, sem efeito colateral nem variável, e o "Sair"
+ * precisa conseguir apagar mesmo depois de a chave ser desligada. Sempre o aluno da sessão, nunca um id do cliente; o token vai
+ * no corpo (nunca no caminho, que cai em log de acesso) e não é auditado. {@code DELETE} sem corpo apaga todos os tokens do
+ * próprio usuário (o aparelho que saiu sem conseguir ler o token). Só alunos: o treinador não recebe push nesta fase.
  */
 @RestController
-@ExigePush
 public class AlunoPushTokenController {
 
     private final PushService push;
@@ -30,6 +30,7 @@ public class AlunoPushTokenController {
         this.push = push;
     }
 
+    @ExigePush
     @PreAuthorize("hasRole('ALUNO')")
     @PutMapping("/aluno/push-token")
     public ResponseEntity<Void> registrar(@AuthenticationPrincipal UsuarioAutenticado eu, @RequestBody @Valid RegistrarRequest corpo) {

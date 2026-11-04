@@ -102,8 +102,16 @@ describe('Sair do aluno', () => {
     expect(removerPushDoAparelho).not.toHaveBeenCalled();
   });
 
-  it('com a chave da plataforma desligada não toca no Expo, mesmo com a preferência ligada', async () => {
+  it('com a chave da plataforma desligada depois de ligar o aviso, ainda apaga o token (o DELETE não depende da chave)', async () => {
     await ligarAviso(true);
+    const sessao = await montar({ pushHabilitado: false });
+    await Renderer.act(async () => sessao().sair());
+    expect(removerPushDoAparelho).toHaveBeenCalledTimes(1);
+    expect(sessao().situacao).toBe('anonimo');
+  });
+
+  it('com a chave desligada e sem o aviso ligado não toca no Expo', async () => {
+    await ligarAviso(false);
     const sessao = await montar({ pushHabilitado: false });
     await Renderer.act(async () => sessao().sair());
     expect(removerPushDoAparelho).not.toHaveBeenCalled();
@@ -124,6 +132,13 @@ describe('trocar a própria senha', () => {
     const sessao = await montar({ pushHabilitado: true });
     await Renderer.act(async () => sessao().trocarSenha('antiga-123', 'nova-12345'));
     expect(registrarPushDoAparelho).toHaveBeenCalledTimes(1);
+  });
+
+  it('com a chave desligada não registra (o PUT daria 503)', async () => {
+    await ligarAviso(true);
+    const sessao = await montar({ pushHabilitado: false });
+    await Renderer.act(async () => sessao().trocarSenha('antiga-123', 'nova-12345'));
+    expect(registrarPushDoAparelho).not.toHaveBeenCalled();
   });
 
   it('sem o aviso ligado não registra nada', async () => {

@@ -117,6 +117,14 @@ async function comAvisoNoCelular(perfil: Perfil | null): Promise<boolean> {
 }
 
 /**
+ * Para APAGAR o token ("Sair") basta o aluno ter ligado o aviso neste aparelho, com ou sem a chave da plataforma: se ela foi
+ * desligada depois, o token continua no servidor e o `DELETE /aluno/push-token` não depende dela.
+ */
+async function ligouOAvisoNesteAparelho(perfil: Perfil | null): Promise<boolean> {
+  return perfil?.usuario.papel === 'ALUNO' && (await avisoNoCelularLigado(perfil.usuario.id));
+}
+
+/**
  * Na web, outra conta entrou em outra aba do mesmo navegador (o cookie de renovação é um só): esta aba já limpou a
  * sessão antiga como recusada e recarrega para abrir com a conta que está no navegador, em vez de mostrar 403.
  */
@@ -396,9 +404,10 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       },
       atualizarMarca,
       sair: async () => {
-        // Aluno que ligou o aviso neste aparelho: apaga o token dele na API enquanto a sessão ainda vale. Quem não ligou nem
-        // toca no Expo. Falha ou demora não bloqueiam a saída (o token sem uso vence sozinho no servidor em 30 dias).
-        if (await comAvisoNoCelular(perfilAtual.current)) await removerPushDoAparelho().catch(() => undefined);
+        // Aluno que ligou o aviso neste aparelho: apaga o token dele na API enquanto a sessão ainda vale, mesmo com a chave
+        // da plataforma desligada depois. Quem não ligou nem toca no Expo. Falha ou demora não bloqueiam a saída (o token sem
+        // uso vence sozinho no servidor em 30 dias).
+        if (await ligouOAvisoNesteAparelho(perfilAtual.current)) await removerPushDoAparelho().catch(() => undefined);
         try {
           await rotas.sairDaApi(await lerRefresh());
         } catch {

@@ -21,8 +21,8 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Modo padrão de produção: o push fica no código, desligado ({@code TREINOS_PUSH_HABILITADO=false}). As rotas do token dão 503
- * {@code PUSH_INDISPONIVEL}, {@code GET /eu} diz ao app para não pedir permissão, mudar compromisso não enfileira nada (mesmo
+ * Modo padrão de produção: o push fica no código, desligado ({@code TREINOS_PUSH_HABILITADO=false}). Registrar o token dá 503
+ * {@code PUSH_INDISPONIVEL} (apagar continua valendo, para o "Sair"), {@code GET /eu} diz ao app para não pedir permissão, mudar compromisso não enfileira nada (mesmo
  * com um token já gravado) e o job não faz nada nem fala com o Expo. A suíte liga a chave; só esta classe a desliga.
  */
 @AutoConfigureMockMvc
@@ -39,7 +39,7 @@ class PushDesligadoIntegrationTest extends AbstractIntegrationTest {
     @Autowired private PushDoExpo job;
 
     @Test
-    void rotasDao503EuDizQueEstaDesligadoENadaEhEnfileirado() throws Exception {
+    void registrarDa503ApagarNaoEOJobNaoFazNada() throws Exception {
         ApiDeTeste api = new ApiDeTeste(mvc, json);
         JsonNode treinador = api.novoTreinador();
         UUID aluno = api.criarAluno(treinador, "Aluno Fictício Push Desligado");
@@ -48,8 +48,6 @@ class PushDesligadoIntegrationTest extends AbstractIntegrationTest {
         String token = "ExponentPushToken[" + UUID.randomUUID().toString().replace("-", "") + "]";
 
         assertThat(api.put("/aluno/push-token", login, Map.of("token", token, "plataforma", "ANDROID"), 503).path("codigo").asString())
-                .isEqualTo("PUSH_INDISPONIVEL");
-        assertThat(api.delete("/aluno/push-token", login, Map.of("token", token), 503).path("codigo").asString())
                 .isEqualTo("PUSH_INDISPONIVEL");
         assertThat(api.get("/eu", login, 200).get("pushHabilitado").asBoolean()).isFalse();
         assertThat(api.get("/eu", treinador, 200).get("pushHabilitado").asBoolean()).isFalse();
@@ -62,5 +60,19 @@ class PushDesligadoIntegrationTest extends AbstractIntegrationTest {
                 "data", LocalDate.now(Fuso.BRASILIA).plusDays(2).toString(), "hora", "10:00", "duracaoMinutos", 30), 200);
         assertThat(jdbc.queryForObject("select count(*) from push_envio where usuario_id = ?::uuid", Integer.class, usuarioId)).isZero();
         assertThat(job.rodar().executou()).isFalse();
+
+        // Apagar não depende da chave: o "Sair" tira o token que ficou de quando ela estava ligada (com e sem corpo), só do
+        // próprio usuário e só para aluno.
+        api.delete("/aluno/push-token", treinador, 403);
+        api.delete("/aluno/push-token", login, Map.of("token", token), 204);
+        assertThat(tokensDe(usuarioId)).isZero();
+        jdbc.update("insert into push_token (id, consultoria_id, usuario_id, token, plataforma) "
+                + "select ?, consultoria_id, id, ?, 'IOS' from usuario where id = ?::uuid", UUID.randomUUID(), token, usuarioId);
+        api.delete("/aluno/push-token", login, 204);
+        assertThat(tokensDe(usuarioId)).isZero();
+    }
+
+    private int tokensDe(String usuarioId) {
+        return jdbc.queryForObject("select count(*) from push_token where usuario_id = ?::uuid", Integer.class, usuarioId);
     }
 }
