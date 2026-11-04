@@ -41,7 +41,9 @@ public class AmostraDaPlanilhaController {
     public Amostra amostra(@AuthenticationPrincipal UsuarioAutenticado eu, @RequestPart("arquivo") MultipartFile arquivo,
                            @RequestPart(value = "respostas", required = false) String respostas,
                            @RequestParam(defaultValue = "0") int inicio) throws IOException {
-        limites.previaDeImportacao(eu.usuarioId());
+        // Só a primeira página conta no limite da prévia: folhear a amostra não pode esgotar a cota de 30 por hora,
+        // que também vale para analisar e para a prévia (e bloquearia a correção de uma resposta depois).
+        if (inicio <= 0) limites.previaDeImportacao(eu.usuarioId());
         return gravacao.amostra(eu.usuarioId(), arquivo.getOriginalFilename(), arquivo.getBytes(), respostas, inicio);
     }
 }
