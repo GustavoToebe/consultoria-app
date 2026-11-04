@@ -187,6 +187,14 @@ node scripts/importacao/importar-planos.mjs  --pasta <a mesma pasta> --gravar   
   medicação) e para no primeiro erro. Rodar de novo não duplica. Nunca chama `/publicar`.
 - Testes (planilha e servidor falsos montados no próprio teste): `node --test scripts/importacao/*.test.mjs`.
 
+## Conferir o arquivo antes de importar (no app)
+
+Com `TREINOS_MIGRACAO_ASSISTIDA_HABILITADA=true`, o passo do arquivo da importação **da planilha completa** (a de uma aba não tem) traz o
+botão **Conferir o arquivo antes de importar**: diz o tipo do arquivo, as abas e colunas reconhecidas e quantos e-mails, datas
+e linhas têm problema, sem gravar nada, e diz se há mesmo algo para importar. As abas aparecem como "Aba 1", "Aba 2" (nunca o nome, que pode ser o de um aluno) e o nome de coluna só sai quando é um
+cabeçalho conhecido. Só regras fixas; a resposta nunca repete o conteúdo das células. Ligado ou não, a
+importação que já existe continua igual. Detalhes: `AGENTS.md` (API e App) e `docs/planos/migracao-assistida.md`.
+
 ## Como rodar
 
 1. Gere os dois CSV numa pasta **fora do repositório** (o script recusa uma pasta de dentro): pelo conversor (seção

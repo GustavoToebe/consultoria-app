@@ -101,6 +101,10 @@ treinos:
   # unidadeDeCargaHabilitada). A carga é guardada sempre em kg; nenhuma rota depende desta chave.
   unidade-carga:
     habilitado: ${TREINOS_UNIDADE_CARGA_HABILITADA:false}
+  # Migração assistida, fase 1 (diagnóstico do arquivo antes de importar, sem gravar nada). Desligada por padrão: a rota responde
+  # 503 MIGRACAO_INDISPONIVEL e o app esconde tudo (GET /eu traz migracaoAssistidaHabilitada).
+  migracao-assistida:
+    habilitado: ${TREINOS_MIGRACAO_ASSISTIDA_HABILITADA:false}
   # Fotos da atualização do aluno (dado sensível, bucket privado S3/R2). Desligado por padrão: a pergunta FOTOS fica sem envio.
   # Ligado, a API só sobe com endpoint, bucket, chave e segredo; segredos só em variável de ambiente, sem valor padrão.
   fotos:

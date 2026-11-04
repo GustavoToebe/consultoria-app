@@ -37,6 +37,7 @@ import { codigoApi, textoDoErro } from '../../../ui/erros';
 import { useCarregar } from '../../../ui/useCarregar';
 import { TelaDoEditor } from '../../plano/TelaDoEditor';
 import { formulario, type ArquivoEscolhido } from '../formularioDaImportacao';
+import { ConferirOArquivo } from '../ConferirOArquivo';
 import { Numeros, ZonaDeArquivo } from '../TelaImportacao';
 import { ProblemasAgrupados } from './ProblemasAgrupados';
 
@@ -220,6 +221,7 @@ export function AssistenteDaPlanilha() {
             <Cartao titulo="Carregue a planilha (.xlsx ou .csv)" descricao="Uma planilha com várias abas: alunos, pesos, rotinas e exercícios dos treinos, planos de dieta, refeições, suplementos e a lista de exercícios. O arquivo não fica guardado.">
               <ZonaDeArquivo arquivo={arquivo} aoEscolher={escolherArquivo} />
             </Cartao>
+            <ConferirOArquivo arquivo={arquivo} />
             <Texto variante="suave">Ao continuar, a planilha é lida e as abas são reconhecidas pelos títulos das colunas, sem gravar nada. Sem inteligência artificial: só regras fixas, e o que não for entendido vira observação ou fica na lista de problemas.</Texto>
           </>
         ) : null}

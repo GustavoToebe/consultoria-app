@@ -71,6 +71,8 @@ interface ValorSessao {
   pushHabilitado: boolean;
   /** Escolha de kg/lb ligada? Desligado ou desconhecido, a carga é sempre kg e a escolha não aparece. */
   unidadeDeCargaHabilitada: boolean;
+  /** Diagnóstico do arquivo antes de importar ligado? Desligado ou desconhecido, a tela de importação não o mostra. */
+  migracaoAssistidaHabilitada: boolean;
   recarregarPerfil: () => Promise<void>;
   situacao: Situacao;
   usuario: UsuarioResumo | null;
@@ -381,6 +383,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       retornoHabilitado:perfil?.retornoHabilitado===true,
       pushHabilitado:perfil?.pushHabilitado===true,
       unidadeDeCargaHabilitada:perfil?.unidadeDeCargaHabilitada===true,
+      migracaoAssistidaHabilitada:perfil?.migracaoAssistidaHabilitada===true,
       recarregarPerfil,
       situacao,
       usuario: perfil?.usuario ?? null,

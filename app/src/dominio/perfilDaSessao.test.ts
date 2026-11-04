@@ -29,6 +29,7 @@ describe('perfilAtualizado', () => {
     const atual = perfilDoEu(EU);
     const novo = perfilAtualizado(atual, perfilDoEu({ ...EU, usuario: { ...EU.usuario }, marca: { ...EU.marca }, retornoHabilitado: true, pagamentosHabilitados: true }));
     expect(novo?.retornoHabilitado).toBe(true);
+    expect(novo?.migracaoAssistidaHabilitada).toBeUndefined();
     expect(novo?.pagamentosHabilitados).toBe(true);
     expect(novo?.usuario).toBe(atual.usuario);
     expect(novo?.marca).toBe(atual.marca);

@@ -17,7 +17,9 @@ public record EuResponse(UsuarioResumo usuario, MarcaPublica marca, AlunoResumo 
                          /* Push do Expo ligado ({@code TREINOS_PUSH_HABILITADO}); desligado, o app não pede permissão nem registra token. */
                          boolean pushHabilitado,
                          /* Escolha de kg ou lb ({@code TREINOS_UNIDADE_CARGA_HABILITADA}); desligado, o app esconde a escolha e usa kg. */
-                         boolean unidadeDeCargaHabilitada) {
+                         boolean unidadeDeCargaHabilitada,
+                         /* Migração assistida (diagnóstico do arquivo) ligada ({@code TREINOS_MIGRACAO_ASSISTIDA_HABILITADA}); desligada, o app esconde tudo dela. */
+                         boolean migracaoAssistidaHabilitada) {
 
     public record PerfilResumo(UUID id,String nome,boolean acessoTotal) { }
 

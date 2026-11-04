@@ -62,6 +62,8 @@ export interface EuResponse {
   pushHabilitado?: boolean;
   /** Escolha de kg ou lb para ver e digitar a carga ligada na plataforma; falso ou ausente = o app esconde a escolha e usa kg. */
   unidadeDeCargaHabilitada?: boolean;
+  /** Migração assistida (diagnóstico do arquivo antes de importar) ligada na plataforma; falso ou ausente = o app esconde tudo. */
+  migracaoAssistidaHabilitada?: boolean;
   usuario: UsuarioResumo;
   marca: Marca;
   aluno?: { id: string; nome: string; sexo?: string | null };
@@ -553,6 +555,20 @@ export interface AnaliseDaPlanilha {
   alimentos: PerguntaDaPlanilha[]; suplementos: PerguntaDeSuplementoDaPlanilha[];
   /** Quantas respostas de importações anteriores a consultoria tem guardadas. */
   respostasSalvas: number;
+}
+/** O que o arquivo parece ser, pelas abas reconhecidas (migração assistida, fase 1). */
+export type TipoDoArquivoDiagnosticado = 'CADASTRO_DE_ALUNOS' | 'PLANILHA_COMPLETA' | 'TREINO' | 'DIETA' | 'OUTRO' | 'DESCONHECIDO';
+/** `nome` nulo = o cabeçalho não foi reconhecido: a tela mostra "Coluna X". `campo` = campo reconhecido da planilha completa, ou nulo. */
+export interface ColunaDiagnosticada { letra: string; nome?: string | null; campo?: string | null }
+export interface ProblemaDiagnosticado { codigo: string; quantidade: number }
+export interface AbaDiagnosticada {
+  indice: number; tipo: TipoDeAbaDaPlanilha; linhas: number; linhasVazias: number; linhasSemNome: number;
+  emailsInvalidos: number; emailsDuplicados: number; datasInvalidas: number; celulasComErro: number;
+  colunas: ColunaDiagnosticada[]; problemas: ProblemaDiagnosticado[];
+}
+/** Resposta de `POST /importacoes/diagnostico`: só contagens, códigos de problema e nomes de coluna conhecidos; nunca valor de célula nem nome de aba. */
+export interface DiagnosticoDoArquivo {
+  tipo: TipoDoArquivoDiagnosticado; linhas: number; abas: AbaDiagnosticada[]; problemas: ProblemaDiagnosticado[];
 }
 export type AcaoDoNome = 'ACEITAR' | 'BIBLIOTECA' | 'CRIAR' | 'MANTER';
 export type DestinoDoSuplemento = 'SUPLEMENTO' | 'SENSIVEL';
