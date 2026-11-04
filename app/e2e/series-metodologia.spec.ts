@@ -502,7 +502,9 @@ for (const largura of [390, 1280]) {
     // A receita de séries não é de um exercício: não oferece a carga fixa, nem entre as outras formas.
     await page.getByRole('button', { name: 'Outras formas de carga', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Carga fixa (kg)', exact: true })).toHaveCount(0);
-    await page.getByRole('radiogroup', { name: 'RIR (repetições na reserva)' }).getByRole('button', { name: '10', exact: true }).click();
+    // Lista suspensa com o RIR da receita (1); no PC abre colada ao botão e no celular numa folha (as duas com `option`).
+    await page.getByRole('button', { name: 'RIR (repetições na reserva): 1. Escolher.', exact: true }).click();
+    await page.getByRole('option', { name: '10', exact: true }).click();
     await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();
     await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(1);
     expect((api.salvo().conteudo as { series: Serie[] }).series[0].esforco).toEqual({ rir: 10, rpe: null });
@@ -510,7 +512,7 @@ for (const largura of [390, 1280]) {
     await expect(page.getByText('Modelo salvo.')).toBeVisible();
     await page.reload();
     await page.getByRole('button', { name: 'Trabalho · WS, recolhido', exact: true }).click();
-    await expect(page.getByRole('radiogroup', { name: 'RIR (repetições na reserva)' }).getByRole('button', { name: '10', exact: true })).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByRole('button', { name: 'RIR (repetições na reserva): 10. Escolher.', exact: true })).toBeVisible();
     expect(api.errosDaPagina).toEqual([]);
     expect(api.naoTratadas).toEqual([]);
   });
@@ -549,6 +551,9 @@ for (const largura of [390, 1280]) {
     await expect(page.getByRole('textbox', { name: 'Série 3 · Mínimo (%)', exact: true })).toHaveValue('75');
     const min1 = await caixaDe(page, 'Série 1 · Mínimo (%)');
     const min2 = await caixaDe(page, 'Série 2 · Mínimo (%)');
+    const max1 = await caixaDe(page, 'Série 1 · Máximo (%)');
+    // Mínimo e máximo na mesma linha, caixas na mesma altura (a ajuda fica embaixo, não dentro de um dos campos).
+    if (largura >= 1024) { expect(Math.abs(max1.y - min1.y)).toBeLessThan(1); expect(Math.abs(max1.height - min1.height)).toBeLessThan(1); }
     const rir1 = await caixaDe(page, 'Série 1 · RIR: 2');
     // No PC na mesma linha; no celular logo abaixo do percentual dela, antes da série seguinte.
     if (largura >= 1024) expect(Math.abs(rir1.y + rir1.height / 2 - (min1.y + min1.height / 2))).toBeLessThan(40);
