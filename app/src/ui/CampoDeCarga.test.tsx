@@ -17,10 +17,16 @@ jest.mock('./Texto', () => ({
 const Renderer = require('react-test-renderer') as typeof import('react-test-renderer');
 const React = require('react') as typeof import('react');
 
-function montar(unidade: UnidadeDeCarga, valorKg: number | null, aoMudarKg: (kg: number | null) => void, rotulo = 'Peso da série 2') {
+function montar(
+  unidade: UnidadeDeCarga,
+  valorKg: number | null,
+  aoMudarKg: (kg: number | null) => void,
+  rotulo = 'Peso da série 2',
+  extra: { rotuloAcessivel?: string; aoValidade?: (ok: boolean) => void } = {},
+) {
   const elemento = (v: number | null) => (
     <ContextoDaUnidadeDeCarga.Provider value={unidade}>
-      <CampoDeCarga rotulo={rotulo} rotuloOculto valorKg={v} aoMudarKg={aoMudarKg} />
+      <CampoDeCarga rotulo={rotulo} rotuloOculto valorKg={v} aoMudarKg={aoMudarKg} {...extra} />
     </ContextoDaUnidadeDeCarga.Provider>
   );
   let raiz!: import('react-test-renderer').ReactTestRenderer;
@@ -33,6 +39,8 @@ function montar(unidade: UnidadeDeCarga, valorKg: number | null, aoMudarKg: (kg:
     texto: () => campo().props.value as string,
     rotulo: () => campo().props.accessibilityLabel as string,
     digitar: (texto: string) => Renderer.act(() => campo().props.onChangeText(texto)),
+    invalido: () => campo().props['aria-invalid'] as boolean,
+    aviso: () => raiz.root.findAll((x) => x.props.children === 'Número inválido.').length > 0,
     recebe: (v: number | null) => Renderer.act(() => raiz.update(elemento(v))),
   };
 }
@@ -71,8 +79,32 @@ describe('CampoDeCarga', () => {
     expect(aoMudarKg).toHaveBeenLastCalledWith(62.25);
   });
 
-  it('o rótulo acessível diz a unidade por extenso, também sem rotuloAcessivel próprio', () => {
+  it('o rótulo acessível diz a unidade por extenso em libra, também sem rotuloAcessivel próprio', () => {
     expect(montar('lb', null, jest.fn()).rotulo()).toBe('Peso da série 2, em libras');
-    expect(montar('kg', null, jest.fn(), 'Carga de trabalho do dia').rotulo()).toBe('Carga de trabalho do dia, em quilos');
+    expect(montar('lb', null, jest.fn(), 'Carga de trabalho do dia').rotulo()).toBe('Carga de trabalho do dia, em libras');
+    expect(montar('lb', null, jest.fn(), 'Peso', { rotuloAcessivel: 'Peso da série 2' }).rotulo()).toBe('Peso da série 2, em libras');
+  });
+
+  it('em kg (e com a chave desligada, que é sempre kg) o rótulo acessível é o de antes da libra', () => {
+    // Sem rótulo acessível próprio, o rótulo visível puro; com ele, ", em quilos" como os campos de série já diziam.
+    expect(montar('kg', null, jest.fn(), 'Carga de trabalho do dia').rotulo()).toBe('Carga de trabalho do dia');
+    expect(montar('kg', null, jest.fn(), 'Peso', { rotuloAcessivel: 'Peso da série 2' }).rotulo()).toBe('Peso da série 2, em quilos');
+  });
+
+  it.each<UnidadeDeCarga>(['kg', 'lb'])('em %s, texto que não é número fica no campo, avisa e trava o ✓', (unidade) => {
+    const aoMudarKg = jest.fn();
+    const aoValidade = jest.fn();
+    const c = montar(unidade, 60, aoMudarKg, 'Peso da série 2', { aoValidade });
+    c.digitar('abc');
+    expect(c.texto()).toBe('abc');
+    expect(aoValidade).toHaveBeenLastCalledWith(false);
+    expect(c.invalido()).toBe(true);
+    expect(c.aviso()).toBe(true);
+    expect(aoMudarKg).not.toHaveBeenCalled();
+    c.digitar('6x2');
+    expect(aoValidade).toHaveBeenLastCalledWith(false);
+    c.digitar('100');
+    expect(aoValidade).toHaveBeenLastCalledWith(true);
+    expect(aoMudarKg).toHaveBeenLastCalledWith(unidade === 'kg' ? 100 : 45.35);
   });
 });

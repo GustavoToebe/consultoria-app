@@ -43,7 +43,7 @@ for (const largura of [390, 1280]) {
 
     // Com a base, a WS mostra a sugestão como dica (o campo segue vazio, D1) e a origem; a próxima série parte desta,
     // então o aviso de marcar a série aparece.
-    await page.getByRole('textbox', { name: 'Carga de trabalho do dia, em quilos', exact: true }).fill('100');
+    await page.getByRole('textbox', { name: 'Carga de trabalho do dia', exact: true }).fill('100');
     await expect(page.getByRole('textbox', { name: 'Peso da série 1, em quilos', exact: true })).toHaveValue('');
     await expect(page.getByText('Sugestão: 100 kg', { exact: true })).toBeVisible();
     await expect(page.getByText('carga da base do dia', { exact: true })).toBeVisible();

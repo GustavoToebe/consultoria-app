@@ -1,6 +1,6 @@
 import type { ComponentProps } from 'react';
 
-import { kgParaTela, mascaraDaCarga, nomeDaUnidade, telaParaKg } from '../dominio/unidadeDeCarga';
+import { kgParaTela, mascaraDaCarga, nomeDaUnidade, telaParaKg, type UnidadeDeCarga } from '../dominio/unidadeDeCarga';
 import { CampoNumericoGrande } from './Campos';
 import { useUnidadeDeCarga } from './unidadeDeCargaEmUso';
 
@@ -10,6 +10,14 @@ type Props = Omit<ComponentProps<typeof CampoNumericoGrande>, 'valor' | 'aoMudar
   /** Recebe kg: o que a pessoa digitou na unidade dela já convertido (em kg, o mesmo número). */
   aoMudarKg: (kg: number | null) => void;
 };
+
+function rotuloDaCarga(rotulo: string, rotuloAcessivel: string | undefined, unidade: UnidadeDeCarga): string {
+  // Com rótulo acessível próprio a unidade sempre entrou ("Peso da série 2, em quilos", como antes da libra). Sem ele, o
+  // leitor lê o rótulo visível ("Carga de trabalho do dia"), que só ganha a unidade em libra: em kg, e com a chave
+  // desligada, fica igual ao de antes.
+  if (rotuloAcessivel !== undefined) return `${rotuloAcessivel}, em ${nomeDaUnidade(unidade)}`;
+  return unidade === 'lb' ? `${rotulo}, em ${nomeDaUnidade(unidade)}` : rotulo;
+}
 
 /**
  * Campo de carga do aluno: mostra e recebe na unidade dele (kg ou lb) e fala kg com o resto do app. O texto do campo é o
@@ -22,8 +30,7 @@ export function CampoDeCarga({ valorKg, aoMudarKg, rotuloAcessivel, rotulo, ...r
     <CampoNumericoGrande
       {...resto}
       rotulo={rotulo}
-      // Sem rótulo acessível próprio o leitor lê o rótulo visível ("Carga de trabalho do dia"): a unidade vale nos dois.
-      rotuloAcessivel={`${rotuloAcessivel ?? rotulo}, em ${nomeDaUnidade(unidade)}`}
+      rotuloAcessivel={rotuloDaCarga(rotulo, rotuloAcessivel, unidade)}
       sufixo={unidade}
       mascara={mascaraDaCarga(unidade)}
       valor={kgParaTela(valorKg, unidade)}

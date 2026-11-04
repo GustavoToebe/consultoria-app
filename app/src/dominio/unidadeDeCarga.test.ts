@@ -106,7 +106,12 @@ describe('conversão e arredondamento', () => {
     const mascara = mascaraDaCarga('lb')!;
     expect(mascara('62,55')).toBe('62,5');
     expect(mascara('100.77')).toBe('100,7');
-    expect(mascara('abc12')).toBe('12');
+    expect(mascara('100')).toBe('100');
+    // O que não é número fica como foi digitado: o campo marca "Número inválido." e trava o ✓, como em kg.
+    expect(mascara('abc12')).toBe('abc12');
+    expect(mascara('6x2')).toBe('6x2');
+    expect(numeroDaTela(mascara('abc12'))).toBeUndefined();
+    expect(numeroDaTela(mascara('6x2'))).toBeUndefined();
     expect(mascaraDaCarga('kg')).toBeUndefined();
   });
 });

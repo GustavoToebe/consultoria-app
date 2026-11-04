@@ -1,4 +1,4 @@
-import { mascaraDeNumero, numeroParaTela } from './formatos';
+import { numeroParaTela } from './formatos';
 
 /**
  * Unidade em que a pessoa vê e digita a carga. A carga é guardada SEMPRE em kg (aparelho, fila offline, API e banco):
@@ -76,7 +76,18 @@ export function nomeDaUnidade(unidade: UnidadeDeCarga): string {
   return unidade === 'kg' ? 'quilos' : 'libras';
 }
 
-/** Máscara do campo de carga: em libra, 1 casa (o que o ida e volta garante). Em kg, nenhuma (como sempre foi). */
+/** Número com separador decimal: o que a máscara em libra corta para 1 casa. */
+const NUMERO_COM_CASAS = /^\s*(-?\d+)[.,](\d*)\s*$/;
+
+/**
+ * Máscara do campo de carga: em libra, corta o número para 1 casa (o que o ida e volta garante). Só mexe num número
+ * bem formado: texto que não é número ("abc", "6x2") fica como foi digitado, para o campo marcar "Número inválido." e
+ * travar o ✓ como em kg (apagar o que não é número deixaria o campo vazio e o ✓ livre). Em kg, nenhuma (como sempre foi).
+ */
 export function mascaraDaCarga(unidade: UnidadeDeCarga): ((texto: string) => string) | undefined {
-  return unidade === 'lb' ? (texto) => mascaraDeNumero(texto, CASAS_EM_LIBRA) : undefined;
+  if (unidade !== 'lb') return undefined;
+  return (texto) => {
+    const m = NUMERO_COM_CASAS.exec(texto);
+    return m ? `${m[1]},${m[2].slice(0, CASAS_EM_LIBRA)}` : texto;
+  };
 }
