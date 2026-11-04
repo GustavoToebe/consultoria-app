@@ -12,29 +12,31 @@ describe('gruposDoMenu', () => {
   it('Início fora de grupo no topo e os grupos na ordem em que aparecem', () => {
     const blocos = gruposDoMenu([
       item('Início'),
-      item('Alunos', 'Alunos e acompanhamento'),
-      item('Agenda', 'Alunos e acompanhamento'),
+      item('Alunos', 'Acompanhamento'),
+      item('Agenda', 'Acompanhamento'),
+      item('Biblioteca', 'Conteúdo'),
       item('Interessados', 'Negócio'),
       item('Equipe', 'Configurações'),
       item('Ajuda', 'Configurações'),
     ]);
     expect(blocos.map((b) => [b.grupo, b.itens.map((i) => i.rotulo)])).toEqual([
       [undefined, ['Início']],
-      ['Alunos e acompanhamento', ['Alunos', 'Agenda']],
+      ['Acompanhamento', ['Alunos', 'Agenda']],
+      ['Conteúdo', ['Biblioteca']],
       ['Negócio', ['Interessados']],
       ['Configurações', ['Equipe', 'Ajuda']],
     ]);
   });
 
   it('item fora do lugar entra no grupo dele sem mudar a ordem dos outros', () => {
-    const blocos = gruposDoMenu([item('Alunos', 'Alunos e acompanhamento'), item('Números', 'Negócio'), item('Agenda', 'Alunos e acompanhamento')]);
+    const blocos = gruposDoMenu([item('Alunos', 'Acompanhamento'), item('Números', 'Negócio'), item('Agenda', 'Acompanhamento')]);
     expect(blocos.map((b) => b.itens.map((i) => i.rotulo))).toEqual([['Alunos', 'Agenda'], ['Números']]);
   });
 
   it('grupo sem item permitido não vira bloco', () => {
     // O perfil só vê Alunos e Ajuda: "Negócio" não tem nenhum item depois do filtro de permissão.
-    const blocos = gruposDoMenu([item('Alunos', 'Alunos e acompanhamento'), item('Ajuda', 'Configurações')]);
-    expect(blocos.map((b) => b.grupo)).toEqual(['Alunos e acompanhamento', 'Configurações']);
+    const blocos = gruposDoMenu([item('Alunos', 'Acompanhamento'), item('Ajuda', 'Configurações')]);
+    expect(blocos.map((b) => b.grupo)).toEqual(['Acompanhamento', 'Configurações']);
   });
 
   it('lista vazia, nenhum bloco', () => {
@@ -89,7 +91,7 @@ describe('posicaoNoMenu', () => {
     expect(posicaoNoMenu('/treinador/numeros')).toMatchObject({ grupo: 'Negócio', propria: true });
     expect(posicaoNoMenu('/treinador/marca')).toMatchObject({ grupo: 'Configurações', propria: false });
     expect(posicaoNoMenu('/treinador/termos')).toMatchObject({ grupo: 'Configurações', propria: false });
-    expect(posicaoNoMenu('/treinador/alunos/novo')).toMatchObject({ grupo: 'Alunos e acompanhamento', propria: false });
+    expect(posicaoNoMenu('/treinador/alunos/novo')).toMatchObject({ grupo: 'Acompanhamento', propria: false });
     expect(posicaoNoMenu('/treinador')).toEqual({ grupo: undefined, indice: 0, propria: true });
   });
 
