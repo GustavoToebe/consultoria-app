@@ -46,6 +46,7 @@ import { useCarregar } from '../../ui/useCarregar';
 import { baixarCsv } from '../financeiro/baixarCsv';
 import { TelaDoEditor } from '../plano/TelaDoEditor';
 import { formulario, type ArquivoEscolhido } from './formularioDaImportacao';
+import { ConferirOArquivo } from './ConferirOArquivo';
 import { CartaoDaPlanilhaCompleta, DetalheDaPlanilha } from './planilhaCompleta/NoHistorico';
 
 const SITUACAO: Record<string, { texto: string; tipo: TipoSelo }> = {
@@ -466,6 +467,7 @@ export function AssistenteDaImportacao() {
             <Cartao titulo="Carregue seu arquivo de dados (.xlsx, .csv)">
               <ZonaDeArquivo arquivo={arquivo} aoEscolher={escolherArquivo} />
             </Cartao>
+            <ConferirOArquivo arquivo={arquivo} />
             {destino ? (
               <View style={estilos.linha}>
                 <Texto variante="suave">Ainda não tem a planilha?</Texto>
