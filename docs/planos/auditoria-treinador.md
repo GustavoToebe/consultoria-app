@@ -59,15 +59,15 @@ Cada passo diz o aceite. Marcar com o commit quando entregar. "Espera" = depende
 - [x] 19. **N27, nota com escala** (Gustavo, 03/11): no `treinador/ResumoDaAtualizacao` e nas telas da área Atualizações a nota aparece com a escala ("7/10", ou "7 de 0 a 10" se a escala começar em 0), pelo `min` e `max` do questionário. Regra pura com teste. Aceite: nenhuma nota aparece sem a escala. Sem mexer em `ui/EscalaDeNota` nem `ui/SeletorDeNota` (frente 3); se precisar deles, "espera o merge de auditoria-aluno". **N27 e diasComTreino: a frente 3 (#63) já está na `main` e foi mesclada em 03/11; o typecheck do `ResumoDaAtualizacao` e o e2e do "7/10" passam.** — commit 647a7647
 
 ## Fora do escopo
-- Paginação de Atualizações (C8, segunda metade): a 2ª passada diz que não é urgente (3 atualizações em produção). Vai para Pendências soltas.
+- Paginação de Atualizações (C8, segunda metade): a 2ª passada diz que não é urgente (3 atualizações em produção). Feita depois, em 04/11: [miudos-com-api-04-11.md](miudos-com-api-04-11.md) (D3 a D5).
 - 409 no servidor ao publicar versão idêntica: o N18 é resolvido só na tela.
 - Texto de Ajuda e guias (PDF): estão no PR B.
 - Outros "Desligado, …" iguais ao do N13 (`AbaLembretes`, `CartaoLinkInscricao`, `CamposDaPrescricao`): só o Ajustes foi pedido.
 
 ## O que ficou para trás
 - Passo 16 (Montador espera o merge de `montador-de-telas`). O editor de questionário do passo 1 não foi tocado.
-- Paginação de Atualizações (C8, segunda metade): fica em Pendências soltas.
-- N27: a Evolução das respostas (`CartaoEvolucaoRespostas`) segue sem escala porque a API da evolução não devolve `min`/`max`; a escala está no Resumo e no detalhe da atualização. Para fechar, a API precisa mandar a escala na série (mudança de contrato, não feita aqui).
+- ~~Paginação de Atualizações (C8, segunda metade)~~: feita em 04/11 (`GET /atualizacoes/pagina`, [miudos-com-api-04-11.md](miudos-com-api-04-11.md)).
+- ~~N27: a Evolução das respostas segue sem escala~~: feita em 04/11, a série traz `min`/`max` e a tela os usa ([miudos-com-api-04-11.md](miudos-com-api-04-11.md), D6 e D7).
 - N26: o percentual da Inadimplência leva a base em valor ("R$ 300,00 de R$ 2.400,00"), não em contagem de cobranças, porque o contrato não traz a quantidade de cobranças cobradas.
 - Outros "Desligado, …" (`AbaLembretes`, `CartaoLinkInscricao`, `CamposDaPrescricao`): só o Ajustes foi pedido.
 - `reservarEspaco` continua na linha de Importar do catálogo (`AbaCatalogo`): ali a caixa mantém o título alinhado ao lado da caixa de seleção.

@@ -1,0 +1,33 @@
+# Miúdos com API (04/11)
+
+Situação: Em andamento: os quatro itens feitos e testados no worktree, sem commit · Onde: branch `miudos-com-api` (saída da `origin/main`; porta de e2e 8103) · Atualizado: 04/11/2026
+
+## Objetivo
+Fechar quatro pendências pequenas que dependem da API: o texto "Seu envio" do questionário padrão, a paginação da lista de Atualizações (C8, segunda metade), a escala da nota na Evolução das respostas (N27) e a posição da inscrição reaberta na lista do CRM. Uma migration (V058), sem tela nova.
+
+## Decisões
+| # | Decisão | Valor | Quem decidiu |
+| --- | --- | --- | --- |
+| D1 | "Seu envio": o que muda no texto | No questionário de fábrica, o título da primeira seção passa de "Atualização" a "Seu envio" e o rótulo do campo da data (`DATA_AUTOMATICA`), de "Atualização" a "Data marcada" (é o dia combinado da pasta, não o dia em que o aluno enviou; "Data do envio" seria falso para uma atualização ainda aberta). Só texto: ids, tipos e regras não mudam. Aceite da auditoria: a palavra "Atualização" fica só no título da tela, com uma exceção deixada de propósito: as duas instruções da fábrica ("O feedback deve ser enviado no dia da atualização…" e "Atualização de peso e fotos em jejum") são frases do conteúdo, não rótulo, e o aluno as vê em "Instruções"; trocá-las é decisão de texto do Gustavo. O título "Seu envio" também aparece para o treinador (detalhe da atualização e `AtualizacaoDoPlano`), que passa a ler o cartão com a voz do aluno. | Claude (a confirmar na revisão) |
+| D2 | "Seu envio": como chega às consultorias que já existem | A versão publicada é imutável (trigger). Na V058 (`V058__texto_do_questionario_e_fila_do_crm.sql`; a parte 2 é um comando só com CTE de escrita, sem tabela temporária, para o papel de migração da VPS não precisar do privilégio TEMP), a fábrica ganha a versão 3 (a 2 fica) e o Padrão que **ninguém editou** (versão 1 igual à fábrica antiga, rascunho igual a ela, nenhuma outra versão) ganha a versão 2 com o texto novo e `versao_publicada = 2`; o envio já feito segue apontando para a versão 1. Padrão que o treinador editou não é tocado (o texto é dele). Quem tem atualização aberta passa a ver a v2 (resolvida na hora) e o aviso "Seu treinador atualizou o questionário" já existente cuida do rascunho. | Claude (a confirmar na revisão) |
+| D3 | Paginação de Atualizações: forma | Rota nova `GET /atualizacoes/pagina` (mesmos filtros de `GET /atualizacoes`, mais `pagina` e `tamanho` = 30, até 100; resposta `{ itens, total }`), no padrão de `GET /exercicios/pagina` (D4 da auditoria do treinador). `GET /atualizacoes` (lista inteira) não muda: a Agenda e a revisão em fila precisam dela inteira. Só adiciona contrato. | Claude (a confirmar na revisão) |
+| D4 | Paginação: ordem e desempate | Mais antiga primeiro (como a tela já fazia no app), desempate pelo nome do aluno sem acento e pelo id, para a página nunca repetir nem pular linha. A ordenação passou do app para a API (a fase vem de `RegrasAtualizacao`, não de SQL, então classifica a lista toda em memória e recorta: comentário `shortcut:` no `AtualizacaoService.pagina`). `total` é o da situação da aba com os filtros; as abas continuam com `/contagens`. | Claude |
+| D5 | Paginação: no app | Mesmo controle de Alunos e da Biblioteca ("Anterior / Próxima / Página x de y · N atualizações", só acima de 30). A página vale só para a consulta (aba + filtros + busca) em que foi escolhida: mudar qualquer um volta à primeira. Se a última página esvazia (revisou a última), volta uma página. | Claude |
+| D6 | Evolução com escala: contrato | Cada série da evolução ganha `min` e `max`. Na `NOTA` são os da pergunta na versão mais recente (0 e 10 quando a pergunta não traz, a mesma regra do `ValidadorAtualizacao`, agora em `escalaDaNota`); no `NUMERO` ficam `null` (o mínimo e o máximo dele são limites de resposta, não escala). Só adiciona campos. | Claude (a confirmar na revisão) |
+| D7 | Evolução com escala: no app | A resposta da nota sai como "7/10" ou "7 de 0 a 10" (`textoDaNota`, o mesmo do Resumo, N27) e o gráfico da nota usa o eixo inteiro da escala, com as duas pontas marcadas (`GraficoLinha` ganhou a prop opcional `escala`; `NUMERO` e o Peso seguem ajustados aos pontos). Limite conhecido: o rótulo e a escala são os da versão mais recente da pergunta; se o treinador mudar a escala de uma pergunta de id igual (0 a 10 para 1 a 5), os pontos antigos são plotados na escala nova. Não há como distinguir sem guardar a escala por ponto; fica como pendência. | Claude |
+| D8 | CRM: reaberta volta ao topo? | Sim, uma vez, pela data da reabertura. Nova coluna `inscricao.na_fila_desde` (a criação ou a última reabertura); a lista ordena por ela, mais nova primeiro. Descartado ordenar por `ultima_atividade_em`: toda nota, retorno ou mensagem moveria o cartão para o topo enquanto a equipe trabalha, e as páginas e o Kanban trocariam de ordem sozinhos. A entrada original (`criada_em`) não muda, então os filtros de entrada, os indicadores ("entradas", "dias até o aceite") e o "Inscrição em ..." da ficha seguem contando a entrada real; as reaberturas já têm indicador próprio. Índices da fila e do responsável refeitos com a coluna nova; quem já foi reaberta ganha a data do último evento `REABERTA`. | Claude (a confirmar na revisão) |
+
+## Passos
+- [x] 1. **"Seu envio"** (V058, partes 1 e 2): fábrica versão 3 e versão 2 do Padrão intocado. Testes: `QuestionarioFabricaIntegrationTest` (fixture `fabrica_v3`, gerada por `scripts/questionario/gerar-fixtures.mjs`) e `PadraoDoQuestionarioV058IntegrationTest` (roda o trecho da migration contra um Padrão posto no texto antigo, intocado e editado). — commit: —
+- [x] 2. **Paginação das Atualizações**: `GET /atualizacoes/pagina` + teste de integração; `app/src/app/treinador/atualizacoes/index.tsx`; e2e em `filtros-nas-listas.spec.ts` (65 atualizações, três páginas, trocar de aba volta à primeira). — commit: —
+- [x] 3. **Evolução com escala**: `min`/`max` na série; texto e eixo no app. Testes: `EvolucaoRespostasIntegrationTest`, `evolucaoRespostas.test.ts`, `grafico.test.ts`. — commit: —
+- [x] 4. **CRM, reaberta sobe na lista** (V058, parte 3): `na_fila_desde`. Teste: `InscricoesCrmIntegrationTest.reabertaSobeNaListaMasMantemADataDeEntrada`. — commit: —
+
+## Fora do escopo
+- Paginação na API em SQL (hoje em memória, como a lista inteira já era).
+- Escala por ponto na Evolução das respostas (D7).
+- Tela nova: nada do que foi pedido pede.
+
+## O que ficou para trás
+- Escala por ponto na Evolução das respostas, se um treinador mudar a escala de uma pergunta já respondida (D7).
+- Passar a paginação de Atualizações para SQL se uma consultoria chegar a milhares de alunos ativos (D4).
