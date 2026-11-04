@@ -13,6 +13,7 @@ import { CampoSenha } from '../ui/CampoSenha';
 import { Cartao } from '../ui/Cartao';
 import { MensagemErro } from '../ui/Estados';
 import { errosPorCampo, focarPrimeiroComErro, separarErros, textoDoErro } from '../ui/erros';
+import { LinksDosTermos } from '../ui/LinksDosTermos';
 import { LinkTexto } from '../ui/LinkTexto';
 import { BotaoPublico, TelaPublica } from '../ui/TelaPublica';
 import { useVerificacaoHumana } from '../ui/useVerificacaoHumana';
@@ -160,6 +161,7 @@ export default function Entrar() {
           </>
         )}
       </View>
+      <LinksDosTermos />
     </TelaPublica>
   );
 }

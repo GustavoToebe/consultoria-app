@@ -35,6 +35,7 @@ import { Escolha } from '../../ui/Escolha';
 import { Cartao } from '../../ui/Cartao';
 import { Carregando, MensagemErro } from '../../ui/Estados';
 import { codigoApi, errosPorCampo, focarPrimeiroComErro, textoDoErro } from '../../ui/erros';
+import { LinksDosTermos } from '../../ui/LinksDosTermos';
 import { LinkTexto } from '../../ui/LinkTexto';
 import { Tela } from '../../ui/Tela';
 import { BotaoPublico, LARGURA_PUBLICA, TelaPublica } from '../../ui/TelaPublica';
@@ -163,6 +164,7 @@ export default function Inscricao() {
         <View style={estilos.links}>
           <LinkTexto href="/entrar" texto="Já sou aluno: entrar no app" />
         </View>
+        <LinksDosTermos />
       </TelaPublica>
     );
   }
@@ -175,6 +177,7 @@ export default function Inscricao() {
     return (
       <TelaPublica titulo="Inscrição enviada" marca={consultoria}>
         <Recebida mensagem={recebida} />
+        <LinksDosTermos />
       </TelaPublica>
     );
   }
@@ -232,6 +235,7 @@ export default function Inscricao() {
         <BotaoPublico rotulo={rotuloDoEnvio('Enviar inscrição', verificacao.aguardando, enviando)} aoTocar={enviar}
           carregando={enviando} desabilitado={verificacao.aguardando} motivo={MOTIVO_VERIFICANDO} cor={consultoria.corPrimaria} />
       </Cartao>
+      <LinksDosTermos />
     </TelaPublica>
   );
 }

@@ -110,10 +110,10 @@ class ArquiteturaTest {
     private static final Set<String> ENTIDADES_GLOBAIS = Set.of("Consultoria", "Usuario",
             "CatalogoExercicio", "CatalogoAlimento", "AtualizacaoModelo");
 
-    /** Controllers das rotas públicas (login, refresh, cadastro, convite, logo, inscrição pelo link, aviso da InfinitePay). */
+    /** Controllers das rotas públicas (login, refresh, cadastro, convite, logo, inscrição pelo link, aviso da InfinitePay, termos sem login). */
     private static final Set<String> CONTROLLERS_PUBLICOS = Set.of("AuthController", "ConvitePublicoController",
             "MarcaPublicaController", "ConviteEquipePublicoController", "ConfiguracaoPublicaController",
-            "InscricaoPublicaController", "AvisoInfinitePayController");
+            "InscricaoPublicaController", "AvisoInfinitePayController", "TermosPublicoController");
 
     @BeforeAll
     static void importar() {

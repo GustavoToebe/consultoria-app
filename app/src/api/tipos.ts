@@ -85,6 +85,9 @@ export interface TermosVigentes {
   documentos: DocumentoDeTermos[];
 }
 
+/** `GET /publico/termos` (sem login): os mesmos documentos do `GET /termos`, sem o `aceito`. */
+export type TermosPublicos = Omit<TermosVigentes, 'aceito'>;
+
 /** `POST /publico/convites-equipe/consultar`: só a marca da consultoria (nada de quem foi convidado). */
 export interface ConviteEquipePublico {
   consultoria: Marca;
