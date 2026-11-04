@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
 /**
  * API de push do Expo de mentira (servidor do JDK, sem rede). Guarda o corpo e o {@code Authorization} de cada chamada e
  * responde o que o teste mandar: tickets {@code ok} (padrão), {@code DeviceNotRegistered} (para todos ou só para os tokens
- * "mortos"), {@code InvalidCredentials}, status 500, resposta 200 sem {@code data} ou com a lista de outro tamanho, ou demora
+ * "mortos"), {@code MessageRateExceeded} uma vez só para os tokens "limitados", {@code InvalidCredentials}, status 500, resposta 200 sem {@code data} ou com a lista de outro tamanho, ou demora
  * (para estourar o tempo máximo). Os tickets saem na ordem dos tokens do corpo. Nunca fala com o Expo real.
  */
 final class ExpoFalso {
@@ -31,6 +31,7 @@ final class ExpoFalso {
     private final List<Chamada> chamadas = new CopyOnWriteArrayList<>();
     private volatile Modo modo = Modo.OK;
     private final Set<String> mortos = ConcurrentHashMap.newKeySet();
+    private final Set<String> limitados = ConcurrentHashMap.newKeySet();
 
     ExpoFalso() {
         try {
@@ -61,7 +62,8 @@ final class ExpoFalso {
                 case INVALID_CREDENTIALS -> resposta = tickets(tokens, t -> "InvalidCredentials");
                 case SEM_DATA -> resposta = "{\"errors\":[{\"message\":\"sem data\"}]}";
                 case LISTA_CURTA -> resposta = tickets(tokens.subList(0, tokens.size() - 1), null);
-                default -> resposta = tickets(tokens, t -> mortos.contains(t) ? "DeviceNotRegistered" : null);
+                default -> resposta = tickets(tokens, t -> mortos.contains(t) ? "DeviceNotRegistered"
+                        : limitados.remove(t) ? "MessageRateExceeded" : null);
             }
             byte[] bytes = resposta.getBytes(StandardCharsets.UTF_8);
             troca.getResponseHeaders().add("Content-Type", "application/json");
@@ -107,10 +109,16 @@ final class ExpoFalso {
         mortos.add(token);
     }
 
+    /** No modo normal, a PRÓXIMA mensagem para este token responde {@code MessageRateExceeded}; as seguintes, {@code ok}. */
+    void limitarUmaVez(String token) {
+        limitados.add(token);
+    }
+
     /** Limpa o que foi recebido e volta ao modo normal (entre um teste e outro). */
     void zerar() {
         chamadas.clear();
         mortos.clear();
+        limitados.clear();
         modo = Modo.OK;
     }
 

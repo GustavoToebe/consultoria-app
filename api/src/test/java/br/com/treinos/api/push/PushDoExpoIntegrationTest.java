@@ -39,7 +39,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * rotas do token (formato, limite de 5, idempotência, só aluno, apagar sem corpo), o token único no banco (o aparelho que muda
  * de consultoria deixa de avisar o dono antigo) e a validade de 30 dias, a fila (só com token, sem duplicar), o texto fixo sem
  * dado pessoal, a falha do Expo (500, tempo máximo, resposta inválida) que não desfaz o compromisso e conta tentativa, o erro
- * definitivo do ticket, o {@code DeviceNotRegistered} (inclusive o lote misto), o token órfão de usuário inativo, a exportação
+ * definitivo do ticket, a falha parcial que tenta de novo só com o aparelho que não recebeu, o {@code DeviceNotRegistered}
+ * (inclusive o lote misto), o token órfão de usuário inativo, a exportação
  * sem o valor do token, o token que não vai a log e o token apagado quando a sessão acaba (inativar, anonimizar, "Excluir minha
  * conta", troca de senha e senha provisória).
  * O job é chamado à mão ({@code envio-agendado: false}) e processa a fila inteira do banco compartilhado: cada teste só afirma
@@ -468,6 +469,59 @@ class PushDoExpoIntegrationTest extends AbstractIntegrationTest {
         assertThat(tokensComValor(vivo)).isEqualTo(1);
         assertThat(envios(usuarioId, "ENVIADO")).isEqualTo(1);
         assertThat(envios(usuarioId, "PENDENTE")).isZero();
+    }
+
+    @Test
+    void falhaParcialTentaDeNovoSoComOAparelhoQueNaoRecebeu() throws Exception {
+        String recebeu = tokenNovo();
+        String limitado = tokenNovo();
+        registrar(login, recebeu);
+        registrar(login, limitado);
+        EXPO.limitarUmaVez(limitado);
+        marcar(admin, alunoId);
+
+        job.rodar();
+        assertThat(meusDestinatarios()).as("os dois no mesmo envio").containsExactlyInAnyOrder(recebeu, limitado);
+        Map<String, Object> envio = envioDe(usuarioId);
+        assertThat(envio.get("situacao")).isEqualTo("PENDENTE");
+        assertThat(envio.get("tentativas")).isEqualTo(1);
+        assertThat(envio.get("erro")).isEqualTo("MessageRateExceeded");
+
+        tentarDeNovoJa(usuarioId);
+        EXPO.zerar();
+        job.rodar();
+        assertThat(meusDestinatarios()).as("a nova tentativa vai só ao aparelho que não recebeu").containsExactly(limitado);
+        assertThat(envioDe(usuarioId).get("situacao")).isEqualTo("ENVIADO");
+        assertThat(tokens(usuarioId)).isEqualTo(2);
+    }
+
+    @Test
+    void conclusaoQueNaoGravouNaoRepeteOAvisoNaNovaTentativa() throws Exception {
+        String token = tokenNovo();
+        registrar(login, token);
+        marcar(admin, alunoId);
+        // Simula o banco recusando a conclusão "enviado" só para este usuário (gatilho temporário, apagado no fim).
+        String funcao = "push_teste_recusa_" + usuarioId.replace("-", "");
+        jdbc.execute("create function " + funcao + "() returns trigger language plpgsql as $$ begin "
+                + "if new.situacao = 'ENVIADO' and new.usuario_id = '" + usuarioId + "'::uuid then "
+                + "raise exception 'recusado no teste'; end if; return new; end $$");
+        jdbc.execute("create trigger " + funcao + " before update on push_envio for each row execute function " + funcao + "()");
+        try {
+            job.rodar();
+        } finally {
+            jdbc.execute("drop trigger " + funcao + " on push_envio");
+            jdbc.execute("drop function " + funcao + "()");
+        }
+        assertThat(meusDestinatarios()).containsExactly(token);
+        assertThat(envioDe(usuarioId).get("situacao")).as("a reserva segura a linha até vencer").isEqualTo("PENDENTE");
+
+        // A reserva venceu: o envio volta à fila e é concluído sem chamar o Expo de novo para este aparelho.
+        jdbc.update("update push_envio set reserva_ate = now() - interval '1 second' where usuario_id = ?::uuid "
+                + "and situacao = 'PENDENTE'", usuarioId);
+        EXPO.zerar();
+        job.rodar();
+        assertThat(meusDestinatarios()).isEmpty();
+        assertThat(envioDe(usuarioId).get("situacao")).isEqualTo("ENVIADO");
     }
 
     @Test

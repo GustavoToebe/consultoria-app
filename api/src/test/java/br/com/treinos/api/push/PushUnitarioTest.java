@@ -78,4 +78,61 @@ class PushUnitarioTest {
         assertThat(new PushProperties(true, "https://exp.host/push", "segredo-de-teste-xyz", null, null).toString())
                 .doesNotContain("segredo-de-teste-xyz");
     }
+
+    /** Relógio que o teste avança. */
+    private static final class RelogioDeTeste extends java.time.Clock {
+        private java.time.Instant agora = java.time.Instant.parse("2026-11-04T12:00:00Z");
+
+        @Override
+        public java.time.ZoneId getZone() {
+            return java.time.ZoneOffset.UTC;
+        }
+
+        @Override
+        public java.time.Clock withZone(java.time.ZoneId zona) {
+            return this;
+        }
+
+        @Override
+        public java.time.Instant instant() {
+            return agora;
+        }
+    }
+
+    @Test
+    void aNovaTentativaVaiSoAosAparelhosQueAindaNaoReceberam() {
+        EntreguesNoEnvio entregues = new EntreguesNoEnvio(new RelogioDeTeste());
+        UUID envio = UUID.randomUUID();
+        UUID outroEnvio = UUID.randomUUID();
+        List<String> tokens = List.of("ExponentPushToken[aaaaaaaa]", "ExponentPushToken[bbbbbbbb]", "ExponentPushToken[cccccccc]");
+
+        assertThat(entregues.semReceber(envio, tokens)).as("sem entrega anterior, vai a todos").isEqualTo(tokens);
+        entregues.recebeu(envio, tokens.get(0));
+        entregues.recebeu(envio, tokens.get(2));
+        assertThat(entregues.semReceber(envio, tokens)).containsExactly(tokens.get(1));
+        assertThat(entregues.semReceber(outroEnvio, tokens)).as("cada envio tem a sua memória").isEqualTo(tokens);
+
+        entregues.recebeu(envio, tokens.get(1));
+        assertThat(entregues.semReceber(envio, tokens)).isEmpty();
+        entregues.esquecer(envio);
+        assertThat(entregues.semReceber(envio, tokens)).as("concluído: nada a filtrar").isEqualTo(tokens);
+        assertThat(entregues.emAndamento()).isZero();
+    }
+
+    @Test
+    void aMemoriaDoEnvioSaiDepoisDaValidadeDoPendente() {
+        RelogioDeTeste relogio = new RelogioDeTeste();
+        EntreguesNoEnvio entregues = new EntreguesNoEnvio(relogio);
+        UUID antigo = UUID.randomUUID();
+        UUID recente = UUID.randomUUID();
+        entregues.recebeu(antigo, "ExponentPushToken[aaaaaaaa]");
+        relogio.agora = relogio.agora.plus(java.time.Duration.ofHours(5));
+        entregues.recebeu(recente, "ExponentPushToken[bbbbbbbb]");
+        relogio.agora = relogio.agora.plus(java.time.Duration.ofHours(2));
+
+        entregues.esquecerAntigos(java.time.Duration.ofHours(PushDoExpo.HORAS_DE_VALIDADE));
+
+        assertThat(entregues.emAndamento()).isEqualTo(1);
+        assertThat(entregues.semReceber(recente, List.of("ExponentPushToken[bbbbbbbb]"))).isEmpty();
+    }
 }

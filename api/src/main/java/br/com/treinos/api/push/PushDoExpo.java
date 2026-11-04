@@ -9,6 +9,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.time.Clock;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -31,6 +33,8 @@ import java.util.UUID;
  * ({@code InvalidCredentials}, {@code MessageTooBig}, ...) é falha definitiva: FALHOU na hora, com o código do Expo (um enum,
  * não dado pessoal) em {@code erro}. Nunca desfaz nada: o compromisso já foi gravado quando a linha da fila nasceu.
  * {@code DeviceNotRegistered} apaga o token. Nada de token, usuário ou texto em log: só contagens e o código ou a classe do erro.
+ * Envio que falhou só em parte (um aparelho com {@code MessageRateExceeded}, ou a conclusão que não gravou depois de o Expo
+ * aceitar) tenta de novo só com os aparelhos que ainda não receberam ({@link EntreguesNoEnvio}, em memória).
  */
 @Component
 public class PushDoExpo {
@@ -64,6 +68,7 @@ public class PushDoExpo {
     private final ExpoCliente expo;
     private final PushProperties propriedades;
     private final TransactionTemplate transacao;
+    private final EntreguesNoEnvio entregues = new EntreguesNoEnvio(Clock.systemUTC());
 
     PushDoExpo(PushRepositorio fila, ExpoCliente expo, PushProperties propriedades, PlatformTransactionManager transacoes) {
         this.fila = fila;
@@ -94,6 +99,7 @@ public class PushDoExpo {
             return Resultado.NADA;
         }
         transacao.executeWithoutResult(s -> fila.limpar(HORAS_DE_VALIDADE));
+        entregues.esquecerAntigos(Duration.ofHours(HORAS_DE_VALIDADE));
         UUID dono = UUID.randomUUID();
         int enviados = 0;
         int cancelados = 0;
@@ -116,6 +122,7 @@ public class PushDoExpo {
     }
 
     private Resultado processar(List<Reservado> lote, UUID dono) {
+        int enviadosSemChamar = 0;
         int cancelados = 0;
         int apagados = 0;
         Map<String, Integer> porCodigo = new TreeMap<>();
@@ -127,17 +134,28 @@ public class PushDoExpo {
                         fila.apagarDoUsuario(envio.consultoriaId(), envio.usuarioId());
                         fila.cancelar(envio.consultoriaId(), envio.id(), dono, "USUARIO_INATIVO");
                     });
+                    entregues.esquecer(envio.id());
                     cancelados++;
                     continue;
                 }
                 List<String> tokens = fila.tokens(envio.consultoriaId(), envio.usuarioId());
                 if (tokens.isEmpty()) {
                     transacao.executeWithoutResult(s -> fila.cancelar(envio.consultoriaId(), envio.id(), dono, "SEM_TOKEN"));
+                    entregues.esquecer(envio.id());
                     cancelados++;
                     continue;
                 }
+                // Nova tentativa de um envio que já chegou a parte dos aparelhos: vai só aos que ainda não receberam.
+                List<String> faltam = entregues.semReceber(envio.id(), tokens);
+                if (faltam.isEmpty()) {
+                    // Todos já receberam (a conclusão da tentativa anterior não gravou): só conclui, sem avisar de novo.
+                    if (concluirEnviado(envio, dono)) {
+                        enviadosSemChamar++;
+                    }
+                    continue;
+                }
                 // Um usuário tem no máximo 5 aparelhos; o corte é só para um envio nunca estourar sozinho o limite do Expo.
-                grupos.add(new Grupo(envio, tokens.subList(0, Math.min(tokens.size(), ExpoCliente.MAXIMO_POR_CHAMADA))));
+                grupos.add(new Grupo(envio, faltam.subList(0, Math.min(faltam.size(), ExpoCliente.MAXIMO_POR_CHAMADA))));
             } catch (RuntimeException e) {
                 falhou(envio, dono, e.getClass().getSimpleName(), false, porCodigo);
             }
@@ -151,6 +169,7 @@ public class PushDoExpo {
                     String erro = erros.get(i);
                     Mensagem m = parte.get(i);
                     if (erro == null) {
+                        entregues.recebeu(m.envio().id(), m.token());
                         continue;
                     }
                     if (DEVICE_NOT_REGISTERED.equals(erro)) {
@@ -170,25 +189,39 @@ public class PushDoExpo {
                 parte.forEach(m -> falhados.put(m.envio().id(), e.getClass().getSimpleName()));
             }
         }
-        int enviados = 0;
+        int enviados = enviadosSemChamar;
         for (Grupo g : grupos) {
             Reservado envio = g.envio();
             if (falhados.containsKey(envio.id())) {
-                falhou(envio, dono, falhados.get(envio.id()), false, porCodigo);
-            } else if (definitivos.containsKey(envio.id())) {
-                falhou(envio, dono, definitivos.get(envio.id()), true, porCodigo);
-            } else {
-                try {
-                    transacao.executeWithoutResult(s -> fila.enviado(envio.consultoriaId(), envio.id(), dono));
-                    enviados++;
-                } catch (RuntimeException e) {
-                    // Se nem isso grava, a reserva vence sozinha e volta à fila (pode repetir o aviso; o texto é o mesmo).
-                    LOG.warn("Push segue reservado ({}).", e.getClass().getSimpleName());
+                boolean ultima = envio.tentativas() + 1 >= MAXIMO_DE_TENTATIVAS;
+                if (falhou(envio, dono, falhados.get(envio.id()), false, porCodigo) && ultima) {
+                    entregues.esquecer(envio.id());
                 }
+            } else if (definitivos.containsKey(envio.id())) {
+                if (falhou(envio, dono, definitivos.get(envio.id()), true, porCodigo)) {
+                    entregues.esquecer(envio.id());
+                }
+            } else if (concluirEnviado(envio, dono)) {
+                enviados++;
             }
         }
         int falhas = porCodigo.values().stream().mapToInt(Integer::intValue).sum();
         return new Resultado(true, enviados, cancelados, falhas, apagados, porCodigo);
+    }
+
+    /**
+     * Marca ENVIADO e esquece quem já recebeu. Se nem isso grava, a reserva vence sozinha e o envio volta à fila; quem já
+     * recebeu fica lembrado, e a nova tentativa só conclui, sem avisar os aparelhos de novo.
+     */
+    private boolean concluirEnviado(Reservado envio, UUID dono) {
+        try {
+            transacao.executeWithoutResult(s -> fila.enviado(envio.consultoriaId(), envio.id(), dono));
+            entregues.esquecer(envio.id());
+            return true;
+        } catch (RuntimeException e) {
+            LOG.warn("Push segue reservado ({}).", e.getClass().getSimpleName());
+            return false;
+        }
     }
 
     /** Junta as mensagens em chamadas de até 100 sem separar as de um mesmo envio: se não cabe inteiro, começa outra chamada. */
@@ -212,15 +245,17 @@ public class PushDoExpo {
 
     /**
      * Só o código ou a classe do erro vai ao banco e ao log. {@code definitiva}: não adianta tentar de novo, vira FALHOU na hora
-     * (máximo de uma tentativa). Soma a falha por código para o resumo da rodada.
+     * (máximo de uma tentativa). Soma a falha por código para o resumo da rodada. Devolve se a falha foi gravada.
      */
-    private void falhou(Reservado envio, UUID dono, String codigo, boolean definitiva, Map<String, Integer> porCodigo) {
+    private boolean falhou(Reservado envio, UUID dono, String codigo, boolean definitiva, Map<String, Integer> porCodigo) {
         porCodigo.merge(codigo, 1, Integer::sum);
         try {
             transacao.executeWithoutResult(s -> fila.falhou(envio.consultoriaId(), envio.id(), dono, codigo,
                     definitiva ? 1 : MAXIMO_DE_TENTATIVAS, ESPERA_ENTRE_TENTATIVAS_EM_SEGUNDOS));
+            return true;
         } catch (RuntimeException outra) {
             LOG.warn("Push segue reservado ({}).", outra.getClass().getSimpleName());
+            return false;
         }
     }
 }
