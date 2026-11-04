@@ -5,7 +5,7 @@ import { evolucaoRespostasDoAluno } from '../api/rotas';
 import type { PontoDeResposta } from '../api/tipos';
 import { dataParaTela } from '../dominio/formatos';
 import {
-  linhasDaLista, mostraGrafico, nomeDaSerie, opcoesDasSeries, pontosDoGrafico, serieEscolhida, textoDoAlcance, textoDoValor,
+  escalaDoGrafico, linhasDaLista, mostraGrafico, nomeDaSerie, opcoesDasSeries, pontosDoGrafico, serieEscolhida, textoDoAlcance, textoDoValor,
   unidadeDoGrafico,
 } from '../dominio/evolucaoRespostas';
 import { useTema } from '../tema/TemaProvider';
@@ -60,6 +60,8 @@ export function CartaoEvolucaoRespostas({ alunoId }: { alunoId: string }) {
             <GraficoLinha
               pontos={pontosDoGrafico(serie)}
               unidade={unidadeDoGrafico(serie)}
+              escala={escalaDoGrafico(serie)}
+              semUltimo={serie.tipo === 'NOTA'}
               descricao={`Gráfico de ${nomeDaSerie(serie)} com ${serie.pontos.length} respostas`}
             />
           ) : null}

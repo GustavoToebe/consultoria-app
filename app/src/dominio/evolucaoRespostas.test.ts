@@ -1,12 +1,12 @@
 import type { SerieDeResposta } from '../api/tipos';
 import {
-  linhasDaLista, mostraGrafico, nomeDaSerie, opcoesDasSeries, pontosDoGrafico, serieEscolhida, textoDoAlcance, textoDoValor,
+  escalaDoGrafico, linhasDaLista, mostraGrafico, nomeDaSerie, opcoesDasSeries, pontosDoGrafico, serieEscolhida, textoDoAlcance, textoDoValor,
   unidadeDoGrafico,
 } from './evolucaoRespostas';
 
 const ponto = (data: string, valor: number) => ({ atualizacaoId: `a-${data}`, data, valor });
 const serie = (dados: Partial<SerieDeResposta> = {}): SerieDeResposta => ({
-  perguntaId: 'sono', tipo: 'NOTA', rotulo: 'Qualidade do sono', rotuloCurto: null, unidade: null, casas: null, pontos: [], ...dados,
+  perguntaId: 'sono', tipo: 'NOTA', rotulo: 'Qualidade do sono', rotuloCurto: null, unidade: null, casas: null, min: 0, max: 10, pontos: [], ...dados,
 });
 
 describe('nomeDaSerie e opcoesDasSeries', () => {
@@ -39,13 +39,20 @@ describe('serieEscolhida', () => {
 });
 
 describe('textoDoValor e unidadeDoGrafico', () => {
-  it('nota é inteira e sem unidade; zero é resposta', () => {
-    expect(textoDoValor(serie(), 0)).toBe('0');
-    expect(textoDoValor(serie(), 8)).toBe('8');
+  it('nota vai sempre com a escala da série (N27); zero é resposta e não leva unidade', () => {
+    expect(textoDoValor(serie(), 0)).toBe('0 de 0 a 10');
+    expect(textoDoValor(serie(), 8)).toBe('8 de 0 a 10');
+    expect(textoDoValor(serie({ min: 1, max: 5 }), 4)).toBe('4/5');
+    expect(textoDoValor(serie({ min: null, max: null }), 7)).toBe('7 de 0 a 10');
     expect(unidadeDoGrafico(serie({ unidade: 'cm' }))).toBe('');
   });
+  it('o gráfico da nota usa a escala inteira; o do número se ajusta aos pontos', () => {
+    expect(escalaDoGrafico(serie({ min: 1, max: 5 }))).toEqual({ min: 1, max: 5 });
+    expect(escalaDoGrafico(serie({ min: null, max: null }))).toEqual({ min: 0, max: 10 });
+    expect(escalaDoGrafico(serie({ tipo: 'NUMERO', min: null, max: null }))).toBeUndefined();
+  });
   it('número usa as casas e a unidade da pergunta', () => {
-    const cintura = serie({ tipo: 'NUMERO', unidade: 'cm', casas: 1 });
+    const cintura = serie({ tipo: 'NUMERO', unidade: 'cm', casas: 1, min: null, max: null });
     expect(textoDoValor(cintura, 88.5)).toBe('88,5 cm');
     expect(textoDoValor(cintura, 90)).toBe('90 cm');
     expect(textoDoValor(serie({ tipo: 'NUMERO', unidade: '  ', casas: null }), 3)).toBe('3');

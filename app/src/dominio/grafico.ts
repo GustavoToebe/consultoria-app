@@ -26,6 +26,13 @@ export function marcasDoEixo(min: number, max: number): number[] {
   return marcas;
 }
 
+/** Marcas do eixo de uma escala fixa: as duas pontas e as marcas redondas que não ficam coladas nelas. */
+export function marcasDaEscala(min: number, max: number): number[] {
+  const folga = (max - min) * 0.2;
+  const meio = marcasDoEixo(min, max).filter((m) => m - min >= folga && max - m >= folga);
+  return [min, ...meio, max];
+}
+
 export interface PontoXY {
   x: number;
   y: number;
