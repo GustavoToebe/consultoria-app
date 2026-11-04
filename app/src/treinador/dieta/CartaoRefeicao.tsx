@@ -36,6 +36,18 @@ export function textoTotais(t: Totais): string {
   return `${t.kcal === null ? '—' : numeroParaTela(t.kcal, 0)} kcal · P ${g(t.proteina)} · C ${g(t.carboidrato)} · G ${g(t.gordura)}`;
 }
 
+/** "Almoço · 12:00" no título do cartão e do item da lista: "12:00 · Almoço" ("Refeição N" sem nome). */
+export function tituloDaRefeicao(r: Refeicao, posicao: number): string {
+  return `${r.horario ? `${r.horario} · ` : ''}${r.nome || `Refeição ${posicao + 1}`}`;
+}
+
+/** "540 kcal · 3 itens · 2 opções": o total e os itens são os da opção A ("—" sem valor). */
+export function resumoDaRefeicao(r: Refeicao): string {
+  const totalA = somar(r.opcoes[0]?.itens ?? []);
+  const nItens = r.opcoes[0]?.itens.length ?? 0;
+  return `${totalA.kcal === null ? '—' : numeroParaTela(totalA.kcal, 0)} kcal · ${nItens} ${nItens === 1 ? 'item' : 'itens'}${r.opcoes.length > 1 ? ` · ${r.opcoes.length} opções` : ''}`;
+}
+
 interface Props {
   refeicao: Refeicao;
   posicao: number;
@@ -43,7 +55,8 @@ interface Props {
   aberta: boolean;
   comProblema: Set<string>;
   alimentos: Map<string, Alimento>;
-  aoAbrir: () => void;
+  /** Sem ele, a refeição fica sempre aberta (inspetor do editor em duas colunas). */
+  aoAbrir?: () => void;
   aoMudar: (r: Refeicao) => void;
   aoMover: (delta: -1 | 1) => void;
   aoRemover: () => void;
@@ -64,8 +77,6 @@ export function CartaoRefeicao(p: Props) {
   const r = p.refeicao;
   const [largura, setLargura] = useState(0);
   const mudar = (parcial: Partial<Refeicao>) => p.aoMudar({ ...r, ...parcial });
-  const totalA = somar(r.opcoes[0]?.itens ?? []);
-  const nItens = r.opcoes[0]?.itens.length ?? 0;
   const colunas = colunasDasOpcoes(largura, r.opcoes.length);
   const larguraDaColuna = colunas > 1 ? (largura - ESPACO_ENTRE_OPCOES * (colunas - 1)) / colunas : undefined;
   const mudarItens = (indice: number, fn: (itens: ItemDieta[]) => ItemDieta[]) =>
@@ -78,8 +89,8 @@ export function CartaoRefeicao(p: Props) {
       cabecalho={
         <CabecalhoDoItem
           faixa
-          titulo={`${r.horario ? `${r.horario} · ` : ''}${r.nome || `Refeição ${p.posicao + 1}`}`}
-          resumo={`${totalA.kcal === null ? '—' : numeroParaTela(totalA.kcal, 0)} kcal · ${nItens} ${nItens === 1 ? 'item' : 'itens'}${r.opcoes.length > 1 ? ` · ${r.opcoes.length} opções` : ''}`}
+          titulo={tituloDaRefeicao(r, p.posicao)}
+          resumo={resumoDaRefeicao(r)}
           selo={p.comProblema.has(r.uid) ? { texto: 'Corrigir', tipo: 'perigo' } : undefined}
           aberto={p.aberta}
           aoAlternar={p.aoAbrir}

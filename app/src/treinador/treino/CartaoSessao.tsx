@@ -53,7 +53,7 @@ interface Props {
  * exercício (o primeiro controle), modelos e criar grupo; remover a sessão fica no ⋯ do cabeçalho. O cardio é um exercício de modalidade Cardio.
  */
 export function CartaoSessao(p: Props) {
-  const { cores, marca } = useTema();
+  const { cores, marca, bordas } = useTema();
   const { width } = useWindowDimensions();
   const largo = width >= LARGURA_MENU_LATERAL;
   const s = p.sessao;
@@ -65,11 +65,7 @@ export function CartaoSessao(p: Props) {
   const [menu, setMenu] = useState(false);
   const comMenu = p.removivel !== false;
 
-  return (
-    <AlvoDeRolagem chave={s.uid}><Cartao
-      // Barra de 4 px na cor da marca à esquerda: onde a sessão começa (protótipo de 30/10). É identidade, não status.
-      style={[{ borderLeftWidth: BARRA_DA_SESSAO, borderLeftColor: marca }, p.comProblema ? { borderColor: cores.perigo, borderLeftColor: marca } : null]}
-      cabecalho={
+  const cabecalho = (
         <CabecalhoDeGrupo
           titulo={s.nome || `Sessão ${p.posicao + 1}`}
           resumo={resumoDaSessao(s)}
@@ -87,7 +83,8 @@ export function CartaoSessao(p: Props) {
             </>
           ) : undefined}
         />
-      }>
+  );
+  const corpo = <>
       <View style={[estilos.linhaSessao, largo ? null : estilos.coluna]}>
         <View style={largo ? estilos.nome : null}>
           <Campo rotulo="Nome da sessão" valor={s.nome} aoMudar={(nome) => mudar({ nome })} maxLength={80} placeholder="Ex.: Segunda - Costas" />
@@ -138,7 +135,20 @@ export function CartaoSessao(p: Props) {
           { rotulo: 'Remover sessão', detalhe: 'Dá para desfazer logo depois.', Icone: Trash2, perigo: true, aoTocar: p.aoRemover },
         ]} />
       ) : null}
-    </Cartao></AlvoDeRolagem>
+  </>;
+  // Barra de 4 px na cor da marca à esquerda: onde a sessão começa (protótipo de 30/10). É identidade, não status.
+  const barra = [{ borderLeftWidth: BARRA_DA_SESSAO, borderLeftColor: marca }, p.comProblema ? { borderColor: cores.perigo, borderLeftColor: marca } : null];
+  return (
+    <AlvoDeRolagem chave={s.uid}>
+      {largo ? <Cartao style={barra} cabecalho={cabecalho}>{corpo}</Cartao> : (
+        // Celular: sem a moldura da sessão (só a faixa do título), para o cartão do exercício e o grupo de séries serem
+        // os dois únicos níveis com borda e os campos ganharem a largura toda.
+        <View style={estilos.semMoldura}>
+          <View style={[estilos.faixaSolta, { borderWidth: bordas.bloco, borderColor: cores.borda }, barra]}>{cabecalho}</View>
+          {corpo}
+        </View>
+      )}
+    </AlvoDeRolagem>
   );
 }
 
@@ -181,4 +191,6 @@ const estilos = StyleSheet.create({
   escolhas: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
   campoCurto: { width: 180 },
   exercicios: { gap: espaco(1) },
+  semMoldura: { gap: espaco(2) },
+  faixaSolta: { borderRadius: RAIO, overflow: 'hidden' },
 });

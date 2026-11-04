@@ -73,6 +73,7 @@ export function EditorModelo({ receita: r, aoRecarregar, salvoAs, aoSalvar }: { 
   };
   const situacao: SituacaoDoEditor = salvando ? 'salvando' : erro ? 'erro' : pendente ? 'pendente' : 'salvo';
   return <TelaDoEditor
+    colunas={r.tipo === 'MOBILIDADE'}
     cabecalho={<Cabecalho titulo={tituloDoModelo(r.tipo)} trilha={[{ rotulo: 'Planejamento', href: '/treinador/planejamento' }, { rotulo: tituloDoModelo(r.tipo) }]} voltar="/treinador/planejamento" />}
     barra={<BarraDoModelo situacao={situacao} salvoAs={salvoAs} mensagemDeErro={erro ? textoDoErro(erro) : null} salvando={salvando}
       desabilitado={motivo !== null} motivo={motivo ?? undefined} aoSalvar={() => void salvar()} aoRecarregar={aoRecarregar} receita={r} />}>
