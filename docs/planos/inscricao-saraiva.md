@@ -24,7 +24,7 @@ sem os campos fixos que ele não quer. O formulário entra na consultoria por um
 - [x] 1. Plano, índice e decisões no `AGENTS.md` (menores de idade) — commit/run: `598b601a`
 - [x] 2. API: origens e previsão novas, `origemDoLink`, migration V057, testes de integração — commit/run: `faabb8b8`
 - [x] 3. App: tipos, rótulos, filtro, indicadores, página pública e e2e — commit/run: `faabb8b8`
-- [x] 4. Script `inscricao-saraiva.mjs` com teste (API falsa em 127.0.0.1) — commit/run: este commit
+- [x] 4. Script `inscricao-saraiva.mjs` com teste (API falsa em 127.0.0.1) — commit/run: `b00968af`
 - [x] 5. Verificação local (`mvn verify`, typecheck, lint, jest, e2e, script contra a API local) e PR — commit/run: `mvn verify` 2112 testes, jest 5229, script contra a API local (simular, `--gravar`, de novo sem escrita) e a página `/inscricao/<codigo>` conferida
 
 ## Fora do escopo
