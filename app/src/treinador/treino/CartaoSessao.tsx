@@ -14,6 +14,7 @@ import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { FolhaDeAcoes } from '../FolhaDeAcoes';
+import { BlocoAdicionar } from '../plano/BlocoAdicionar';
 import { rotuloSalvarComo } from '../planejamento/modelos';
 import { AlvoDeRolagem } from '../../ui/AlvoDeRolagem';
 import { Texto } from '../../ui/Texto';
@@ -153,19 +154,12 @@ export function CartaoSessao(p: Props) {
  * No fim do cartão da sessão (coluna única) ou da lista da coluna da esquerda (duas colunas).
  */
 export function AdicionarProximoExercicio(p: Pick<Props, 'aoNovoExercicio' | 'aoAbrirModelos' | 'aoCriarGrupo' | 'motivoSemGrupo'>) {
-  const { cores } = useTema();
   return (
-    <View style={[estilos.proximo, { borderColor: cores.bordaCampo }]}>
-      <View style={estilos.textoDoProximo}>
-        <Texto variante="bloco" nivel={3}>Adicionar próximo exercício</Texto>
-        <Texto variante="suave">Escolha da biblioteca da consultoria ou use um modelo pronto.</Texto>
-      </View>
-      <LinhaDeAcoes>
-        <Botao rotulo="Adicionar exercício" tipo="secundario" Icone={Plus} aoTocar={p.aoNovoExercicio} />
-        {p.aoAbrirModelos ? <Botao rotulo="Modelos prontos" tipo="secundario" Icone={NotebookTabs} aoTocar={p.aoAbrirModelos} /> : null}
-        {p.aoCriarGrupo ? <Botao rotulo="Criar grupo" tipo="secundario" Icone={Link2} aoTocar={p.aoCriarGrupo} desabilitado={!!p.motivoSemGrupo} motivo={p.motivoSemGrupo ?? undefined} /> : null}
-      </LinhaDeAcoes>
-    </View>
+    <BlocoAdicionar titulo="Adicionar próximo exercício" descricao="Escolha da biblioteca da consultoria ou use um modelo pronto.">
+      <Botao rotulo="Adicionar exercício" tipo="secundario" Icone={Plus} aoTocar={p.aoNovoExercicio} />
+      {p.aoAbrirModelos ? <Botao rotulo="Modelos prontos" tipo="secundario" Icone={NotebookTabs} aoTocar={p.aoAbrirModelos} /> : null}
+      {p.aoCriarGrupo ? <Botao rotulo="Criar grupo" tipo="secundario" Icone={Link2} aoTocar={p.aoCriarGrupo} desabilitado={!!p.motivoSemGrupo} motivo={p.motivoSemGrupo ?? undefined} /> : null}
+    </BlocoAdicionar>
   );
 }
 
@@ -179,8 +173,6 @@ function resumoDoMais(s: Sessao): string {
 const BARRA_DA_SESSAO = 4;
 
 const estilos = StyleSheet.create({
-  proximo: { borderWidth: 1, borderStyle: 'dashed', borderRadius: RAIO, padding: espaco(2), gap: espaco(1.5), flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' },
-  textoDoProximo: { flexGrow: 1, flexShrink: 1, flexBasis: 240, gap: 2 },
   linhaSessao: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(1.5) },
   coluna: { flexDirection: 'column', alignItems: 'stretch' },
   nome: { flexGrow: 1, flexShrink: 1, flexBasis: 240 },

@@ -70,7 +70,7 @@ export function linhaDeErgogenico(e: Pick<ErgogenicoDaBiblioteca, 'nome' | 'prin
 }
 
 /**
- * Linhas da dieta que têm algo escrito: a linha criada por "Adicionar linha" e deixada em branco não aparece para o
+ * Linhas da dieta que têm algo escrito: a linha criada por "Ergogênico manual" e deixada em branco não aparece para o
  * aluno nem no PDF (a API também não a cobra na publicação).
  */
 export function ergogenicosPreenchidos(lista: readonly ItemErgogenico[] | null | undefined): ItemErgogenico[] {

@@ -70,10 +70,10 @@ const USO: Record<TipoReceita, { aplicavel: boolean; linha: string | null }> = {
   PLANO_TREINO: { aplicavel: true, linha: null },
   PLANO_DIETA: { aplicavel: true, linha: null },
   PASTA_PLANO: { aplicavel: true, linha: null },
-  SESSAO_TREINO: { aplicavel: false, linha: 'Entra numa semana pelo editor de treino: Modelos › "Adicionar dia de treino".' },
+  SESSAO_TREINO: { aplicavel: false, linha: 'Entra numa semana pelo editor de treino: Modelos prontos › "Adicionar dia de treino".' },
   SERIES: { aplicavel: false, linha: 'Entra num exercício pelo editor de treino: "Receita de séries".' },
   METODOLOGIA: { aplicavel: false, linha: 'É vinculada à semana em "Configuração do plano" do editor de treino.' },
-  REFEICAO: { aplicavel: false, linha: 'Entra numa dieta pelo editor de dieta: Modelos › "Adicionar refeição".' },
+  REFEICAO: { aplicavel: false, linha: 'Entra numa dieta pelo editor de dieta: Modelos prontos › "Adicionar refeição pronta".' },
   MOBILIDADE: { aplicavel: true, linha: null },
 };
 

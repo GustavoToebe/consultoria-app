@@ -107,6 +107,12 @@ for (const [largura, ladoALado] of [[390, false], [1280, true]] as const) {
     }
     await expect(page.getByLabel('Modo de preparo (opcional)')).toHaveValue(PREPARO);
     await expect(page.getByText(/equivalente/i)).toHaveCount(0);
+    // Remover uma opção leva os itens junto: dá para desfazer (04/11).
+    await page.getByRole('button', { name: 'Remover opção B' }).click();
+    await expect(b).toHaveCount(0);
+    await expect(page.getByText('Opção B removida.')).toBeVisible();
+    await page.getByRole('button', { name: 'Desfazer' }).click();
+    await expect(b).toBeVisible();
     expect(naoTratadas).toEqual([]);
     expect(errosDaPagina).toEqual([]);
   });

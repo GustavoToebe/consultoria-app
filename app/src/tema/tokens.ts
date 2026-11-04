@@ -314,8 +314,12 @@ export const LARGURA_MENU_EXPANDIDO = 1024;
 export const LARGURA_EDITOR = 1040;
 /** Largura de conteúdo medida a partir da qual o editor de treino usa duas colunas (lista e inspetor). */
 export const LARGURA_DUAS_COLUNAS = 960;
-/** Largura do editor de treino quando está em duas colunas. */
-export const LARGURA_EDITOR_DUAS_COLUNAS = 1440;
+/**
+ * Largura dos editores com lista + inspetor (treino, dieta, mobilidade) em duas colunas: todo o espaço útil, como as
+ * listas. Era 1440 e, em 1920 px, sobravam duas faixas vazias dos lados (Gustavo, 04/11). Os campos de texto não esticam
+ * junto: a "Configuração do plano" segura a medida em `LARGURA_EDITOR`.
+ */
+export const LARGURA_EDITOR_DUAS_COLUNAS = LARGURA_MAXIMA;
 /** Listas e painéis (ficha do aluno, início, alunos, biblioteca, planejamento): todo o espaço útil (= `LARGURA_MAXIMA`). */
 export const LARGURA_LISTA = 1800;
 

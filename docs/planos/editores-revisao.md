@@ -15,6 +15,7 @@ mesmo `ItemDaListaDoEditor`. Nenhuma regra de negócio, rota ou contrato da API 
 | 3 | Decisão A (do `editor-treino-inspetor.md`) | Prescrição em **2+2 caixas no PC** (no máximo 2 por linha; 1 no celular). Sai do PR `pos-lote-04-11` e entra aqui | Gustavo, 04/11 |
 | 4 | Abrangência | Os três editores que usam `ItemDaListaDoEditor`: treino, dieta, mobilidade (uma tela por chamada do `executor-front`) | Gustavo, 04/11 |
 | 5 | Tokens e peças de `ui/` | Podem ser mudados direto, sem "sugestão"; listar as telas afetadas e conferi-las | Gustavo, 04/11 |
+| 6 | Aproveitar a largura em janelas largas | Editor em duas colunas usa todo o espaço útil (`LARGURA_EDITOR_DUAS_COLUNAS = LARGURA_MAXIMA`, era 1440; tratado uma vez, na casca, para os três editores); a "Configuração do plano" segura os campos em `LARGURA_EDITOR` (1040), sem coluna com conteúdo novo; decisão A, D1–D12, S1–S5 e o corte de 960 continuam | Gustavo, 04/11 |
 
 ## Achados do mapeamento (estado do #97)
 - Nome/posição do exercício em até 4 lugares visíveis (item da lista, faixa do inspetor, "Nome de exibição", faixa
@@ -41,7 +42,9 @@ mesmo `ItemDaListaDoEditor`. Nenhuma regra de negócio, rota ou contrato da API 
   - Parte de cima: Voltar, atualização, faixa do plano, ciclo, contadores, problemas, desfazer, configuração.
   - Peças: número invertido e divisor únicos em `ui/`; `CartaoExercicio` sobre `ui/Cartao` se couber.
   - e2e a atualizar: `editor-inspetor`, `editor-inspetor-sobras`, `editor-clareza`, `series-metodologia`, `editor-series`, `metodologia`, `grupos-e-cardio-treino`, `unidade-de-carga-treinador`, `EditorSeries.abas.test.tsx`, `ajuda/conteudo.test.ts`.
-- [ ] 2. Editor de dieta (`executor-front`): padrões do passo 1; pendência S4 (3 molduras no celular) — commit/run: —
+- [x] 2. Editor de dieta (`executor-front`): padrões do passo 1; pendência S4 (3 molduras no celular) — commit/run: — (aguardando o commit do Sonnet)
+  - Feito: `CartaoRefeicao` reescrito (cabeçalho `CabecalhoDoItem` com um selo, Subir/Descer e lixeira com o nome; opções como seção com `ui/Divisor`, sem caixa: refeição › item, **S4 resolvida**); "Refeições (N)" como cabeçalho com "Lista de compras" e "Abrir/Fechar todas" (só empilhado); "Modelos prontos" só no bloco "Adicionar próxima refeição" (`plano/BlocoAdicionar`, agora também no treino) e numa folha (`FolhasDaDieta`, `plano/OpcaoDeModelo`, a mesma do treino); "Total do dia" à parte (`TotalDoDia`, água logo depois dos números); suplementação, ergogênicos e orientações em `ComplementosDaDieta`; rótulos únicos ("Adicionar refeição pronta", "Suplemento/Ergogênico da biblioteca", "… manual"); `EditorDeDieta` com cerca de 300 linhas.
+  - Largura (decisão 6): `LARGURA_EDITOR_DUAS_COLUNAS = LARGURA_MAXIMA`; `ConfiguracaoDoPlano` e os dados da refeição (nome, horário, observação, modo de preparo) com `maxWidth: LARGURA_EDITOR`; remover opção com "Desfazer"; complementos dois por linha em janela larga; `editor-inspetor-sobras.spec.ts` ganhou 1920 nos três editores.
 - [ ] 3. Editor de mobilidade (`executor-front`) — commit/run: —
 - [ ] 4. Verificação (typecheck, lint, jest, e2e dos três editores; capturas 390/1280/1440, treino também 1920, 4 temas), advisor, push da branch e PR sem mesclar — commit/run: —
 
@@ -54,3 +57,8 @@ mesmo `ItemDaListaDoEditor`. Nenhuma regra de negócio, rota ou contrato da API 
 - `CartaoExercicio` continua com moldura própria, sem `ui/Cartao`: o alvo de rolagem do "ir ao primeiro" fica por fora, o topo `faixaForte` leva a demonstração do exercício e a borda muda com o erro; trocar pediria uma prop nova no `ui/Cartao` (passo 1, 04/11).
 - Dois critérios de largura continuam: 960 medido (duas colunas) e 640 medido (campos lado a lado na coluna das séries); os 768 da janela (`useCamposLadoALado`) ficaram nos campos curtos (`LinhaDeCampos`, `CampoSozinho`), que a metodologia também usa e lá não há medida da coluna; trocar pede levar a medida por contexto (passo 1, 04/11).
 - Teste em aparelho nativo do editor de treino: não há como fazer aqui (passo 1, 04/11).
+- Largura no treino (decisão 6): acima de 1440 o inspetor fica largo e "Nome de exibição", "Nome da sessão" e "Texto curto para o aluno" chegam a ~1400 px; limitar esses campos (como a `ConfiguracaoDoPlano`) sem mexer na grade 2+2 (passo 2, 04/11).
+- Largura na mobilidade (decisão 6): "Orientações" e os campos da seção ocupam a largura toda acima de 1440; limitar no passo 3 (passo 2, 04/11).
+- Dieta e treino: "Publicar para o aluno" continua só no treino em duas colunas; a dieta segue com "Publicar" (decisão já existente, não mexida) (passo 2, 04/11).
+- Teste em aparelho nativo do editor de dieta: não há como fazer aqui (passo 2, 04/11).
+- Dieta: remover um alimento ainda é imediato, sem "Desfazer" (refeição e opção já têm; era assim antes) (passo 2, 04/11).

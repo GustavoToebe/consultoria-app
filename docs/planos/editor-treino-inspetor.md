@@ -13,7 +13,7 @@ cantos, selos, cores da marca e as regras do AGENTS.md são os do app.
 | # | Decisão | Valor | Quem decidiu |
 | --- | --- | --- | --- |
 | D1 | Ponto de troca para duas colunas | 960 px de conteúdo medido (`onLayout` da raiz da `TelaDoEditor`, não a janela): duas colunas em 1440 e 1280, lista empilhada em 1024 e no celular | Gustavo (04/11) |
-| D2 | Largura máxima do editor em duas colunas | 1440 px (`LARGURA_EDITOR_DUAS_COLUNAS`); em coluna única segue `LARGURA_EDITOR` (1040) | Claude |
+| D2 | Largura máxima do editor em duas colunas | ~~1440 px~~ substituída em 04/11 (decisão 6 de `editores-revisao.md`): `LARGURA_EDITOR_DUAS_COLUNAS = LARGURA_MAXIMA`, todo o espaço útil, e a "Configuração do plano" em `LARGURA_EDITOR`; em coluna única segue `LARGURA_EDITOR` (1040) | Claude; troca: Gustavo (04/11) |
 | D3 | Cores, cantos, fontes, ícones | Os do app (`tema/tokens.ts`, `RAIO` 12, lucide); nada do DESIGN.md. Cor de ação = marca da consultoria | Pedido do Gustavo |
 | D4 | Barra flutuante "Alterações salvas no cache local" | Não entra: nada salva sozinho e o rascunho não fica no aparelho. Vale o "Salvar rascunho" da barra do topo | Pedido do Gustavo |
 | D5 | Rótulo do primário no plano do aluno | "Publicar para o aluno" só no treino do aluno e só em duas colunas (na `BarraDoPlano`, que também serve dieta e mobilidade); "Publicar" em tela estreita, na dieta e na mobilidade. `BarraDoModelo` não muda (modelo não tem aluno) | Claude |
@@ -52,5 +52,5 @@ cantos, selos, cores da marca e as regras do AGENTS.md são os do app.
 - A estimativa da largura antes da primeira medida não considera o menu minimizado (72 px): nesse caso o primeiro quadro pode piscar uma vez.
 - "Mover exercício" repetido nos dois botões do topo do inspetor; chips de "Carga do exercício" empilhados em 1024.
 - O `webServer` do `npm run e2e` caiu uma vez com o código 3221225477 na máquina do Gustavo (contornado com `expo export` manual); se repetir na CI, investigar.
-- Dieta no celular ainda tem três molduras (refeição › opção › item); a S4 cuidou só do treino.
+- ~~Dieta no celular ainda tem três molduras (refeição › opção › item); a S4 cuidou só do treino.~~ Resolvido em 04/11 (`editores-revisao.md`, passo 2): a opção virou seção com fio, refeição › item.
 - Os guias em PDF precisam ser gerados de novo (a Ajuda mudou: lista e inspetor, séries, grupos, opções da dieta).

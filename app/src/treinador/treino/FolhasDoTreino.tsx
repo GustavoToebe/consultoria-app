@@ -1,18 +1,13 @@
-import { Pressable, StyleSheet } from 'react-native';
-
 import { criarReceita, salvarPlanoComoReceita } from '../../api/rotas';
 import type { Configuracao, ConteudoTreino } from '../../api/tipos';
 import { agrupar } from '../../dominio/agrupamento';
 import { aplicarReceitaDePlano, comUidsNovos, normalizarTreino, seriesDaReceita, seriesParaReceita, substituir } from '../../dominio/editorTreino';
-import { useTema } from '../../tema/TemaProvider';
-import { espaco, RAIO } from '../../tema/tokens';
 import { FolhaReceitas } from '../FolhaReceitas';
 import { FolhaSalvarReceita } from '../FolhaSalvarReceita';
 import { avisoModeloSalvo, rotuloSalvarComo } from '../planejamento/modelos';
+import { OpcaoDeModelo } from '../plano/OpcaoDeModelo';
 import { useAviso } from '../../ui/Aviso';
-import { coresDoDesabilitado } from '../../ui/desabilitado';
 import { Folha } from '../../ui/Folha';
-import { Texto } from '../../ui/Texto';
 
 type AlvoExistente = { sessao: number; exercicio: number };
 
@@ -157,26 +152,3 @@ export function FolhasDoTreino({ folha: aberta, abrir, fechar, conteudo: c, conf
       return null;
   }
 }
-
-/** Linha de ação da folha "Modelos prontos": título, o que faz e um toque para escolher. */
-function OpcaoDeModelo({ titulo, descricao, desabilitado, aoEscolher }: { titulo: string; descricao: string; desabilitado?: boolean; aoEscolher: () => void }) {
-  const { cores } = useTema();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={titulo}
-      disabled={desabilitado}
-      onPress={aoEscolher}
-      style={({ pressed }) => [
-        estilos.opcao,
-        { backgroundColor: desabilitado ? coresDoDesabilitado(cores).fundo : pressed ? cores.superficie3 : cores.superficie2, borderColor: cores.borda },
-      ]}>
-      <Texto variante="bloco" cor={desabilitado ? cores.textoSuave : undefined}>{titulo}</Texto>
-      <Texto variante="suave">{descricao}</Texto>
-    </Pressable>
-  );
-}
-
-const estilos = StyleSheet.create({
-  opcao: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: 4, minHeight: 56 },
-});

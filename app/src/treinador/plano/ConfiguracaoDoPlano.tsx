@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { espaco } from '../../tema/tokens';
+import { espaco, LARGURA_EDITOR } from '../../tema/tokens';
 import { Campo } from '../../ui/Campo';
 import { CampoData } from '../../ui/Campos';
 import { Cartao } from '../../ui/Cartao';
@@ -23,42 +23,46 @@ interface Props<C> {
 
 /**
  * "Configuração do plano": título, período (quando não vem da pasta) e os campos do tipo. Recolhível: o treinador mexe
- * pouco aqui depois de montado o plano.
+ * pouco aqui depois de montado o plano. Os campos ficam na medida de `LARGURA_EDITOR`: com o editor em todo o espaço útil
+ * (1920 px), um campo de título com 1600 px de largura ficava difícil de ler e de achar o fim (04/11).
  */
 export function ConfiguracaoDoPlano<C>({ editor, modelo, recolhido, descricao, children }: Props<C>) {
   const e = editor.estado;
   if (!e) return null;
   return (
     <Cartao faixa titulo="Configuração do plano" descricao={descricao} recolhivel recolhido={recolhido}>
-      {modelo ? null : (
-        <Campo
-          rotulo="Título"
-          valor={e.titulo}
-          aoMudar={(titulo) => editor.alterar(() => ({ titulo }))}
-          maxLength={120}
-          erro={e.titulo.trim() ? null : 'Informe o título.'}
-        />
-      )}
-      {modelo ? null : e.plano.pastaId ? (
-        <Texto variante="suave">
-          Período: {e.inicio || e.fim ? `${e.inicio || '—'} a ${e.fim || '—'}` : '—'}. Vem da pasta; para mudar, edite a pasta na ficha do aluno.
-        </Texto>
-      ) : (
-        <View style={estilos.datas}>
-          <View style={estilos.data}>
-            <CampoData rotulo="Início" nome="Início do plano" regra="PLANEJAMENTO" valor={e.inicio} aoMudar={(inicio) => editor.alterar(() => ({ inicio }))} />
+      <View style={estilos.medida}>
+        {modelo ? null : (
+          <Campo
+            rotulo="Título"
+            valor={e.titulo}
+            aoMudar={(titulo) => editor.alterar(() => ({ titulo }))}
+            maxLength={120}
+            erro={e.titulo.trim() ? null : 'Informe o título.'}
+          />
+        )}
+        {modelo ? null : e.plano.pastaId ? (
+          <Texto variante="suave">
+            Período: {e.inicio || e.fim ? `${e.inicio || '—'} a ${e.fim || '—'}` : '—'}. Vem da pasta; para mudar, edite a pasta na ficha do aluno.
+          </Texto>
+        ) : (
+          <View style={estilos.datas}>
+            <View style={estilos.data}>
+              <CampoData rotulo="Início" nome="Início do plano" regra="PLANEJAMENTO" valor={e.inicio} aoMudar={(inicio) => editor.alterar(() => ({ inicio }))} />
+            </View>
+            <View style={estilos.data}>
+              <CampoData rotulo="Fim" nome="Fim do plano" regra="PLANEJAMENTO" valor={e.fim} aoMudar={(fim) => editor.alterar(() => ({ fim }))} />
+            </View>
           </View>
-          <View style={estilos.data}>
-            <CampoData rotulo="Fim" nome="Fim do plano" regra="PLANEJAMENTO" valor={e.fim} aoMudar={(fim) => editor.alterar(() => ({ fim }))} />
-          </View>
-        </View>
-      )}
-      {children}
+        )}
+        {children}
+      </View>
     </Cartao>
   );
 }
 
 const estilos = StyleSheet.create({
+  medida: { width: '100%', maxWidth: LARGURA_EDITOR, gap: espaco(2) },
   datas: { flexDirection: 'row', gap: espaco(1.5), flexWrap: 'wrap' },
   data: { flex: 1, minWidth: 190 },
 });
