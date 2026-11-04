@@ -34,7 +34,7 @@ nada do que está guardado mude: a carga continua em **kg** no aparelho, na fila
 - [x] 6. (este commit) Lista final dos lugares de "kg" tratados e dos que ficam para a fase 2 (abaixo) e `AGENTS.md`
 - [x] 7. (b033687b) Correções da revisão independente: ida e volta kg → lb → kg sem deriva (grade de 0,05 kg, decisão 9), teste do `CampoDeCarga`, rótulo "em libras" também na carga de trabalho do dia, PDF do treino do aluno na unidade dele, e2e com contagem de envios e controle da chave
 
-- [x] 8. (commit: (a preencher)) Botões −/+ em libra pela decisão 11 nova (04/11): `passoNaTela` e `textoDoPasso` em `dominio/unidadeDeCarga.ts`, `ajustarCarga(..., unidade = 'kg')` em `dominio/cargas.ts`, `ExercicioAluno` passa a unidade do contexto; testes jest (regra, varredura de ida e volta, componente em kg e lb) e e2e `unidade-de-carga.spec.ts`; `AGENTS.md` ajustado
+- [x] 8. (commit: 1ac69c19) Botões −/+ em libra pela decisão 11 nova (04/11): `passoNaTela` e `textoDoPasso` em `dominio/unidadeDeCarga.ts`, `ajustarCarga(..., unidade = 'kg')` em `dominio/cargas.ts`, `ExercicioAluno` passa a unidade do contexto; testes jest (regra, varredura de ida e volta, componente em kg e lb) e e2e `unidade-de-carga.spec.ts`; `AGENTS.md` ajustado
 
 ## Lugares de "kg" de carga
 Como funciona: o contexto `ContextoDaUnidadeDeCarga` (`ui/unidadeDeCargaEmUso`, padrão kg) só é provido no layout do aluno
