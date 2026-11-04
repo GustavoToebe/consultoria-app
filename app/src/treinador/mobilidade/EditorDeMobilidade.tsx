@@ -30,6 +30,7 @@ export default function EditorDeMobilidade() {
   const editor = usePlanoEditor<ConteudoMobilidade>('mobilidade', id, normalizarMobilidade);
   const nomeDoAluno = useNomeDoAluno(editor.estado?.plano.alunoId);
   const [problemas, setProblemas] = useState<ResultadoValidacao | null>(null);
+  const [irPara, setIrPara] = useState<{ uids: string[]; vez: number } | null>(null);
 
   const estado = editor.estado;
   if (!estado) {
@@ -57,9 +58,10 @@ export default function EditorDeMobilidade() {
         </LinhaDeAcoes>
       ) : null}
       <FaixaDoPlanoDoAluno tipo="mobilidade" />
-      <ProblemasDoPlano editor={editor} problemas={problemas} aoProblemas={setProblemas} />
+      <ProblemasDoPlano editor={editor} problemas={problemas} aoProblemas={setProblemas}
+        aoIrAoPrimeiro={(uids) => setIrPara((p) => ({ uids, vez: (p?.vez ?? 0) + 1 }))} />
       <ConfiguracaoDoPlano editor={editor} recolhido={estado.titulo.trim() !== ''} descricao="Título e período da mobilidade." />
-      <SecoesDeMobilidade conteudo={estado.conteudo} aoMudar={(c) => editor.alterarConteudo(() => c)} />
+      <SecoesDeMobilidade conteudo={estado.conteudo} aoMudar={(c) => editor.alterarConteudo(() => c)} irPara={irPara} />
     </TelaDoEditor>
   );
 }

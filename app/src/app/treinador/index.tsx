@@ -156,6 +156,9 @@ export default function InicioTreinador() {
   const semAlunos = inicioSemAlunos(dadosTodos);
   // Ajuste durante o render (padrão do React para estado derivado de outro): só com dado, então a recarga não pisca.
   if (dadosTodos && semAlunos !== semAlunosSabido) setSemAlunosSabido(semAlunos);
+  // Painel de Todos falhou com a consultoria lembrada sem alunos: as consultas dos blocos voltam a sair, senão os blocos
+  // ficariam em "carregando" para sempre (a vaga deles nunca ligaria) e o Atualizar não buscaria nada.
+  if (!dadosTodos && fonteTodos.situacao === 'falhou' && semAlunosSabido) setSemAlunosSabido(false);
   useEffect(() => {
     if (!usuarioId || !dadosTodos) return;
     if (semAlunos) SEM_ALUNOS_DA_ULTIMA_VEZ.add(usuarioId);
