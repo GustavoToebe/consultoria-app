@@ -159,4 +159,24 @@ describe.each(VARIANTES)('telas do aluno (reunião de 30/10) no tema %s', (_nome
       expect(contraste(cores.textoSuave, fundo)).toBeGreaterThanOrEqual(4.5);
     }
   });
+
+  it('Abas invertidas (séries do exercício): a selecionada em `fundo` sobre `texto`, a outra em `texto` sobre `superficie2` com borda `bordaCampo`', () => {
+    expect(contraste(cores.fundo, cores.texto)).toBeGreaterThanOrEqual(4.5);
+    expect(contraste(cores.texto, cores.superficie2)).toBeGreaterThanOrEqual(4.5);
+    // A caixa da aba fica sobre o cartão do exercício (`superficie`): a borda dela separa uma aba da outra.
+    expect(contraste(cores.bordaCampo, cores.superficie)).toBeGreaterThanOrEqual(3);
+    // A selecionada se separa do cartão pelo próprio fundo invertido.
+    expect(contraste(cores.texto, cores.superficie)).toBeGreaterThanOrEqual(3);
+    // O selo neutro do código ("3× WS") vale sobre as duas, porque tem fundo opaco próprio.
+    expect(contraste(cores.neutro, tingido(cores.neutro, cores.superficie))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('Abas invertidas com problema: ícone e borda em `perigo`/`atencao` sobre a aba não selecionada (`superficie2`) e o cartão ≥ 3:1', () => {
+    for (const cor of [cores.perigo, cores.atencao]) {
+      expect(contraste(cor, cores.superficie2)).toBeGreaterThanOrEqual(3);
+      expect(contraste(cor, cores.superficie)).toBeGreaterThanOrEqual(3);
+    }
+    // Na selecionada o ícone vai em `fundo` (o mesmo par do texto invertido), não na cor do problema.
+    expect(contraste(cores.fundo, cores.texto)).toBeGreaterThanOrEqual(3);
+  });
 });

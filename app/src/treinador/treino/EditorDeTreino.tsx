@@ -32,7 +32,8 @@ import {
   substituir,
   trocaApagaSeries,
 } from '../../dominio/editorTreino';
-import { proximaSelecao, resumoDaSessaoPorContagem } from '../../dominio/inspetorDoTreino';
+import { agrupar } from '../../dominio/agrupamento';
+import { proximaSelecao, resumoDaSessaoPorContagem, serieDoProblema } from '../../dominio/inspetorDoTreino';
 import { validarTreino } from '../../dominio/validacaoDoTreino';
 import { BarraDesfazer, type Desfazer } from '../../treinador/plano/BarraDesfazer';
 import { BarraDoModeloDoEditor, NomeDoModelo } from '../../treinador/plano/TopoModelo';
@@ -111,6 +112,9 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
   // Exercício escolhido na sessão aberta (`selecionadaUid` é o da sessão). Duas colunas: o do inspetor, nunca vazio com
   // exercício na sessão. Uma coluna: o único aberto; nulo = todos fechados. Uid que saiu da sessão vale como o primeiro.
   const [exercicioSelecionadoUid, setExercicioSelecionadoUid] = useState<string | null>(null);
+  // Aba de séries aberta por exercício (D8): uid de uma série do grupo. Fica aqui para o "ir ao primeiro" e a receita abrirem a certa.
+  const [grupoAbertoPorExercicio, setGrupoAbertoPorExercicio] = useState<Record<string, string | null>>({});
+  const abrirGrupo = (exercicioUid: string, serieUid: string | null) => setGrupoAbertoPorExercicio((a) => ({ ...a, [exercicioUid]: serieUid }));
   // Resultado do servidor (Validar, Publicar) com o conteúdo a que se refere: ao editar, as marcas dele saem e ficam só as da validação local.
   const [servidor, setServidor] = useState<{ resultado: ResultadoValidacao; para: ConteudoTreino } | null>(null);
   const problemas = servidor?.resultado ?? null;
@@ -175,12 +179,18 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
     if (r === null) { setServidor(null); setVerificando(false); } else aoProblemas(r);
   };
 
-  /** "Ir ao primeiro" da lista de erros: seleciona a sessão dele e abre o exercício; a rolagem é do `TopoPlano`. */
-  const irAoPrimeiro = (uids: string[]) => {
+  /**
+   * "Ir ao primeiro" da lista de erros: seleciona a sessão dele, abre o exercício e, se o problema é de uma série, a aba
+   * do grupo dela (D9). A rolagem é do `TopoPlano`.
+   */
+  const irAoPrimeiro = (uids: string[], caminho?: string) => {
     const sessao = c.sessoes.find((x) => uids.includes(x.uid) || x.exercicios.some((e) => uids.includes(e.uid)) || (x.grupos ?? []).some((g) => uids.includes(g.uid)));
     if (sessao) setSelecionadaUid(sessao.uid);
-    const exercicio = uids.find((u) => sessao?.exercicios.some((e) => e.uid === u));
-    if (exercicio) setExercicioSelecionadoUid(exercicio);
+    const exercicio = sessao?.exercicios.find((e) => uids.includes(e.uid));
+    if (!exercicio) return;
+    setExercicioSelecionadoUid(exercicio.uid);
+    const serie = caminho ? serieDoProblema(exercicio, caminho) : null;
+    if (serie) abrirGrupo(exercicio.uid, serie);
   };
 
   /** Mudança grande (receita, remoção): guarda o conteúdo anterior para o "Desfazer". */
@@ -246,6 +256,8 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
     aoEscolherDaBiblioteca: () => setFolha({ tipo: 'biblioteca', alvo: { sessao: indiceSelecionado, exercicio: ei } }),
     aoUsarReceita: () => setFolha({ tipo: 'receitaSeries', alvo: { sessao: indiceSelecionado, exercicio: ei } }),
     aoSalvarReceita: () => setFolha({ tipo: 'salvarSeries', alvo: { sessao: indiceSelecionado, exercicio: ei } }),
+    grupoAbertoUid: grupoAbertoPorExercicio[e.uid] ?? null,
+    aoAbrirGrupo: (uid) => abrirGrupo(e.uid, uid),
   });
 
   const titulo = modelo ? tituloDoModelo(unica ? 'SESSAO_TREINO' : 'PLANO_TREINO') : tituloDoPlanoDoAluno('treino', nomeDoAluno);
@@ -265,7 +277,7 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
       {modelo ? <FaixaDoModelo /> : <FaixaDoPlanoDoAluno tipo="treino" />}
       {modelo ? null : <CartaoCicloNoPeriodo alunoId={estado.plano.alunoId} inicio={estado.plano.inicio} fim={estado.plano.fim} />}
       {modelo ? <NomeDoModelo editor={editor} /> : null}
-      {unica ? null : <ContadoresDoTreino conteudo={c} sessao={sessaoAtual} aoIrAoPrimeiro={(uids) => { setVerificando(true); irAoPrimeiro(uids); }} />}
+      {unica ? null : <ContadoresDoTreino conteudo={c} sessao={sessaoAtual} aoIrAoPrimeiro={(uids, caminho) => { setVerificando(true); irAoPrimeiro(uids, caminho); }} />}
       <ProblemasDoPlano editor={editor} problemas={problemas ?? validacaoLocal} aoProblemas={fecharVerificacao} aoIrAoPrimeiro={irAoPrimeiro} />
       {desfazer ? (
         <BarraDesfazer
@@ -507,11 +519,15 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
           aoUsar={(r) => {
             const { sessao: si, exercicio: ei } = folha.alvo;
             setFolha(null);
+            // Gerada uma vez, fora do `comDesfazer`, para a aba aberta (a do último grupo, D12) apontar para estas séries.
+            const series = seriesDaReceita(r.conteudo);
+            const alvo = c.sessoes[si]?.exercicios[ei];
+            if (alvo) abrirGrupo(alvo.uid, agrupar(series).at(-1)?.series[0].uid ?? null);
             comDesfazer(`Receita “${r.nome}” aplicada.`, (a) => {
               const sessao = a.sessoes[si];
               const exercicio = sessao?.exercicios[ei];
               if (!exercicio) return a;
-              const novo = { ...exercicio, series: seriesDaReceita(r.conteudo) };
+              const novo = { ...exercicio, series };
               return { ...a, sessoes: substituir(a.sessoes, si, { ...sessao, exercicios: substituir(sessao.exercicios, ei, novo) }) };
             });
           }}

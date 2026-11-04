@@ -1,4 +1,4 @@
-import { ArrowLeftRight, ChevronDown, ChevronUp, Save, Trash2, Unlink } from 'lucide-react-native';
+import { ArrowLeftRight, ChevronDown, ChevronUp, NotebookTabs, Save, Trash2, Unlink } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
@@ -53,6 +53,9 @@ export interface PropsDoCartaoExercicio {
   aoEscolherDaBiblioteca: () => void;
   aoUsarReceita: () => void;
   aoSalvarReceita: () => void;
+  /** Aba de séries aberta (uid de uma série do grupo) e a troca dela: o editor guarda uma por exercício (D8). */
+  grupoAbertoUid?: string | null;
+  aoAbrirGrupo?: (serieUid: string | null) => void;
   /** Imagem do exercício na biblioteca (nulo = fora dela ou sem imagem). */
   demonstracao?: { imagens: string[]; imagemPropriaEm: string | null } | null;
   /** Grupo muscular do exercício na biblioteca (etiqueta ao lado do nome); nulo fora dela. */
@@ -78,7 +81,7 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
   // Estado do exercício na faixa, pela mesma validação da publicação, ao vivo (protótipo de 30/10).
   const estado = useMemo(() => estadoDoExercicio(e, p.config), [e, p.config]);
   const comErro = p.comProblema || estado.tipo === 'perigo';
-  // "Execução" e "Observação e vídeo" começam fechados (pedido do Gustavo de 30/10); só abrem sozinhos com erro dentro.
+  // "Execução e cadência" e "Vídeo e instruções" começam fechados (pedido do Gustavo de 30/10); só abrem sozinhos com erro dentro.
   const [execucaoAberta, setExecucaoAberta] = useState(!!(erroDaCadencia(e.cadencia) ?? erros.cadencia ?? erroDaIsometria(e.isometriaSegundos) ?? erros.isometriaSegundos));
   const [extrasAbertos, setExtrasAbertos] = useState(!!(erroDoVideo(e.videoUrl) ?? erros.videoUrl));
   // Modalidade pedida que apagaria as séries: espera a confirmação.
@@ -163,6 +166,9 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
         <View style={estilos.corpo}>
           <Texto variante="secao" nivel={3}>Dados do exercício</Texto>
           <Campo rotulo="Nome de exibição" valor={e.nome} aoMudar={(nome) => mudar({ nome })} maxLength={120} erro={erros.nome} />
+          {/* Modalidade e carga lado a lado quando cabem (inspetor do PC); quebram para baixo no estreito. */}
+          <View style={estilos.ladoALado}>
+          <View style={estilos.metade}>
           {alterandoModalidade ? (
             <View style={estilos.modalidade}>
               <Escolha rotulo="Modalidade" compacta opcoes={OPCOES_DE_MODALIDADE} valor={e.modalidade} aoMudar={trocarModalidade} />
@@ -177,7 +183,9 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
               <Botao rotulo="Alterar" rotuloAcessivel="Alterar modalidade" tipo="secundario" aoTocar={() => setAlterandoModalidade(true)} />
             </View>
           )}
+          </View>
           {!cardio ? (
+            <View style={estilos.metade}>
             <Escolha
               rotulo="Carga do exercício"
               opcoes={[
@@ -187,7 +195,9 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
               valor={e.unidade}
               aoMudar={(unidade) => mudar({ unidade })}
             />
+            </View>
           ) : null}
+          </View>
           {/* Progressão perto da carga: as duas são decisões de carga do exercício inteiro (teste local de 30/10). */}
           {!cardio ? (
             <Interruptor
@@ -203,12 +213,16 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
             <Botao rotulo="Tirar do grupo" rotuloAcessivel={`Tirar ${e.nome || 'o exercício'} do grupo`} tipo="fantasma" Icone={Unlink} aoTocar={p.aoTirarDoGrupo} />
           ) : null}
           <View style={[estilos.divisor, { backgroundColor: cores.borda }]} />
-          <Texto variante="secao">{cardio ? 'Cardio' : 'Séries'}</Texto>
+          <View style={estilos.tituloDasSeries}>
+            <Texto variante="secao">{cardio ? 'Cardio' : 'Séries'}</Texto>
+            {cardio ? null : <Botao rotulo="Receita de séries" rotuloAcessivel="Usar uma receita de séries" tipo="secundario" Icone={NotebookTabs} aoTocar={p.aoUsarReceita} />}
+          </View>
           <EditorSeries modalidade={e.modalidade} series={e.series} config={p.config} semCarga={e.unidade === 'nenhuma'}
-            exercicioComCarga={e.unidade !== 'nenhuma' && e.modalidade !== 'CARDIO'} descansoPorSerie={p.descansoPorSerie !== false} aoMudar={(series) => mudar({ series })} aoUsarReceita={p.aoUsarReceita}
+            exercicioComCarga={e.unidade !== 'nenhuma' && e.modalidade !== 'CARDIO'} descansoPorSerie={p.descansoPorSerie !== false} aoMudar={(series) => mudar({ series })}
+            grupoAbertoUid={p.grupoAbertoUid} aoAbrirGrupo={p.aoAbrirGrupo}
             numeroDoExercicio={p.posicao + 1} nomeDoExercicio={e.nome} />
           <View style={[estilos.divisor, { backgroundColor: cores.borda }]} />
-          <CabecalhoDeGrupo titulo="Cadência e isometria (opcional)" resumo={execucaoAberta ? undefined : resumoDaExecucao(e)} aberto={execucaoAberta} aoAlternar={() => setExecucaoAberta((v) => !v)} />
+          <CabecalhoDeGrupo titulo="Execução e cadência" resumo={execucaoAberta ? undefined : resumoDaExecucao(e)} aberto={execucaoAberta} aoAlternar={() => setExecucaoAberta((v) => !v)} />
           {execucaoAberta ? <View style={estilos.linhaExecucao}>
             <View style={estilos.cadencia}>
               <Campo
@@ -234,7 +248,7 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
               />
             </View>
           </View> : null}
-          <CabecalhoDeGrupo titulo="Observação e vídeo" resumo={extrasAbertos ? undefined : resumoDosExtras(e)} aberto={extrasAbertos} aoAlternar={() => setExtrasAbertos((v) => !v)} />
+          <CabecalhoDeGrupo titulo="Vídeo e instruções" resumo={extrasAbertos ? undefined : resumoDosExtras(e)} aberto={extrasAbertos} aoAlternar={() => setExtrasAbertos((v) => !v)} />
           {extrasAbertos ? (
             <>
               <Campo
@@ -275,13 +289,13 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
   );
 }
 
-/** O que está preenchido na "Execução", para a faixa fechada não esconder: "Cadência 3-1-1-0 · isometria 2 s". */
+/** O que está preenchido em "Execução e cadência", para a faixa fechada não esconder: "Cadência 3-1-1-0 · isometria 2 s". */
 function resumoDaExecucao(e: ExercicioPlano): string {
   const partes = [e.cadencia ? `Cadência ${e.cadencia}` : null, e.isometriaSegundos != null ? `isometria ${e.isometriaSegundos} s` : null].filter(Boolean);
   return partes.length ? partes.join(' · ') : 'Nada preenchido';
 }
 
-/** O mesmo para "Observação e vídeo", no jeito do resumo da sessão. */
+/** O mesmo para "Vídeo e instruções", no jeito do resumo da sessão. */
 function resumoDosExtras(e: ExercicioPlano): string {
   const partes = [e.observacao ? 'com observação' : null, e.videoUrl ? 'com vídeo' : null].filter(Boolean);
   return partes.length ? partes.join(' · ') : 'Nada preenchido';
@@ -299,6 +313,9 @@ const estilos = StyleSheet.create({
   // No PC os botões de mover têm texto: a linha quebra em vez de apertar o nome do exercício.
   acoesLargas: { flexWrap: 'wrap', justifyContent: 'flex-end' },
   modalidade: { gap: espaco(1) },
+  ladoALado: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5), alignItems: 'flex-start' },
+  metade: { flexGrow: 1, flexShrink: 1, flexBasis: 300, minWidth: 0, gap: espaco(1) },
+  tituloDasSeries: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
   linhaDaModalidade: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1.5) },
   corpo: { gap: espaco(1.5), padding: espaco(1.5), paddingTop: espaco(2) },
   rodape: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: espaco(1) },

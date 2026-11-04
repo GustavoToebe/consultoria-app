@@ -23,14 +23,15 @@ export function ContadoresDoTreino({ conteudo, sessao, aoIrAoPrimeiro }: {
   conteudo: ConteudoTreino;
   /** A sessão aberta no editor; nula sem nenhuma (o contador dela some). */
   sessao?: Sessao | null;
-  aoIrAoPrimeiro: (uids: string[]) => void;
+  /** `caminho` do primeiro erro (o mesmo de onde saem os uids), para o editor abrir a aba da série dele. */
+  aoIrAoPrimeiro: (uids: string[], caminho?: string) => void;
 }) {
   const { cores } = useTema();
   const { rolarAte } = useRolagem();
   const erros = useMemo(() => validarTreino(conteudo).erros, [conteudo]);
   const irAoPrimeiro = () => {
     const uids = uidsDoPrimeiroProblema(conteudo, erros);
-    aoIrAoPrimeiro(uids);
+    aoIrAoPrimeiro(uids, erros[0]?.caminho);
     rolarAte(uids);
   };
   return (

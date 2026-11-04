@@ -27,11 +27,11 @@ cantos, selos, cores da marca e as regras do AGENTS.md são os do app.
 | D13 | Branch e worktree | `editor-treino-inspetor` a partir de `origin/main`, em worktree novo (`wt-editor-treino-inspetor`), porque o repositório principal tinha arquivos de outra conversa. PR sem mesclar | Pedido do Gustavo |
 
 ## Passos
-- [ ] 1. Plano e índice (este arquivo e a linha no README) — commit/run: —
-- [ ] 2. Regras puras em `dominio/` com teste (`colunasDoEditor`, `inspetorDoTreino`) — commit/run: —
-- [ ] 3. Casca: `TelaDoEditor` mede a largura, título e rótulo do primário — commit/run: —
+- [x] 1. Plano e índice (este arquivo e a linha no README) — commit/run: 21395e9e
+- [x] 2. Regras puras em `dominio/` com teste (`colunasDoEditor`, `inspetorDoTreino`) — commit/run: a9368ac7
+- [x] 3. Casca: `TelaDoEditor` mede a largura, título e rótulo do primário — commit/run: 8df60751
 - [ ] 4. Estado de seleção e aba aberta no `EditorDeTreino`; "ir ao primeiro" abre a aba — commit/run: —
-- [ ] 5. Lista (mestre), resumo da sessão e `SeletorDeSessoes` com contagens — commit/run: —
+- [x] 5. Lista (mestre), resumo da sessão e `SeletorDeSessoes` com contagens — commit/run: 8df60751
 - [ ] 6. Inspetor (detalhe) com abas de séries; `CartaoExercicio` dividido; celular com as mesmas abas — commit/run: —
 - [ ] 7. E2e novo `editor-inspetor` (1440 e 390) e seletores dos e2e existentes — commit/run: —
 - [ ] 8. Contraste das peças novas, Ajuda e PDFs, AGENTS.md — commit/run: —

@@ -1,29 +1,47 @@
 import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { useEffect, useRef } from 'react';
+import { CircleAlert, TriangleAlert } from 'lucide-react-native';
+import { type ReactNode, useEffect, useRef } from 'react';
 import { ScrollView, StyleSheet, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 
 import { deslocamentoParaVer, type Faixa } from '../dominio/rolagemHorizontal';
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, LINHA_DA_FAIXA } from '../tema/tokens';
+import { ALVO_TOQUE, BORDA_ITEM, espaco, fontes, LINHA_DA_FAIXA, RAIO } from '../tema/tokens';
 import { Esmaecido, LARGURA_ESMAECIDO, useEsmaecimento } from './FaixaDeChips';
+import { Selo } from './Selo';
 import { Texto } from './Texto';
 import { useMovimentoReduzido } from './useMovimentoReduzido';
 
 interface Props<T extends string> {
   /** `contagem` aparece num círculo ao lado do rótulo ("Para revisar 3"). */
-  abas: { valor: T; rotulo: string; contagem?: number }[];
+  abas: {
+    valor: T; rotulo: string; contagem?: number;
+    /** Código curto num selo neutro ao lado do rótulo ("3× WS"). */
+    detalhe?: string;
+    /** Aba com erro ou aviso da validação: ícone e borda na cor, e o nome acessível diz qual. */
+    problema?: 'perigo' | 'atencao';
+  }[];
   ativa: T;
   aoMudar: (valor: T) => void;
   /** Cor atrás das abas (fundo da tela ou superfície do cartão), para o esmaecido das bordas casar. */
   fundo?: string;
+  /**
+   * `sublinhado` (padrão): texto com o sublinhado na cor da marca. `invertida`: cada aba é uma caixa e a selecionada fica
+   * invertida (fundo `texto`, texto `fundo`), como a opção ativa da `Escolha`; é a das séries do exercício.
+   */
+  variante?: 'sublinhado' | 'invertida';
+  /** Fica no fim da faixa, dentro da rolagem e fora da lista de abas (o "+ Nova série"). */
+  depois?: ReactNode;
 }
+
+const TEXTO_DO_PROBLEMA = { perigo: 'com problema a corrigir', atencao: 'com aviso' } as const;
 
 /**
  * Abas de texto com sublinhado de 3 px na cor da marca (a mesma espessura da linha da faixa, `LINHA_DA_FAIXA`); rolam na horizontal se não couberem no celular, com a borda esmaecida
  * do lado em que há mais abas (sem isso "Atua…" parecia cortado). A aba ativa é rolada para a vista, inteira e fora do
  * esmaecido (C5): ao abrir por link uma aba do fim (`?aba=`), ao voltar, ou ao tocar numa aba meio escondida. Alvo de 44 px.
  */
-export function Abas<T extends string>({ abas, ativa, aoMudar, fundo }: Props<T>) {
+export function Abas<T extends string>({ abas, ativa, aoMudar, fundo, variante = 'sublinhado', depois }: Props<T>) {
+  const invertida = variante === 'invertida';
   const { cores, marca } = useTema();
   const { direita, esquerda, medidas } = useEsmaecimento();
   const cor = fundo ?? cores.fundo;
@@ -63,13 +81,15 @@ export function Abas<T extends string>({ abas, ativa, aoMudar, fundo }: Props<T>
     },
   };
   return (
-    <Tabs value={ativa} onValueChange={(v) => aoMudar(v as T)} style={[estilos.borda, { borderColor: cores.borda }]}>
+    <Tabs value={ativa} onValueChange={(v) => aoMudar(v as T)} style={invertida ? null : [estilos.borda, { borderColor: cores.borda }]}>
       <View style={estilos.area}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={estilos.rolagem} contentContainerStyle={estilos.conteudoRolagem} {...medidasDaRolagem}>
-        <TabsList style={estilos.linha}>
+        <TabsList style={[estilos.linha, invertida ? estilos.linhaInvertida : null]}>
           {abas.map((a) => {
             const sel = a.valor === ativa;
-            const rotulo = a.contagem === undefined ? a.rotulo : `${a.rotulo} (${a.contagem})`;
+            const rotulo = [a.contagem === undefined ? a.rotulo : `${a.rotulo} (${a.contagem})`, a.detalhe, a.problema ? TEXTO_DO_PROBLEMA[a.problema] : null].filter(Boolean).join(', ');
+            const corDoProblema = a.problema ? cores[a.problema] : null;
+            const IconeDoProblema = a.problema === 'perigo' ? CircleAlert : TriangleAlert;
             return (
               <TabsTrigger value={a.valor}
                 key={a.valor}
@@ -81,9 +101,14 @@ export function Abas<T extends string>({ abas, ativa, aoMudar, fundo }: Props<T>
                   caixas.current[a.valor] = { x: e.nativeEvent.layout.x + FOLGA_DO_ANEL, largura: e.nativeEvent.layout.width };
                   if (sel) mostrar(a.valor, false);
                 }}
-                style={[estilos.aba, { borderColor: sel ? marca : 'transparent' }]}>
+                style={invertida
+                  ? [estilos.caixa, sel ? { backgroundColor: cores.texto, borderColor: cores.texto } : { backgroundColor: cores.superficie2, borderColor: corDoProblema ?? cores.bordaCampo }]
+                  : [estilos.aba, { borderColor: sel ? marca : 'transparent' }]}>
                 <View style={estilos.conteudo}>
-                  <Texto style={[estilos.texto, { color: sel ? cores.texto : cores.textoSuave }]}>{a.rotulo}</Texto>
+                  {/* Na selecionada o ícone fica na cor do texto invertido: vermelho ou âmbar sobre o fundo escuro não passa 3:1 em todo tema. */}
+                  {invertida && corDoProblema ? <IconeDoProblema size={16} color={sel ? cores.fundo : corDoProblema} strokeWidth={2.5} /> : null}
+                  <Texto style={[estilos.texto, { color: invertida ? (sel ? cores.fundo : cores.texto) : sel ? cores.texto : cores.textoSuave }]}>{a.rotulo}</Texto>
+                  {a.detalhe ? <Selo texto={a.detalhe} tipo="neutro" /> : null}
                   {a.contagem === undefined ? null : (
                     <View style={[estilos.contagem, { backgroundColor: sel ? cores.texto : cores.superficie2, borderColor: sel ? cores.texto : cores.borda }]}>
                       <Texto numerico style={[estilos.textoContagem, { color: sel ? cores.fundo : cores.textoSuave }]}>{a.contagem}</Texto>
@@ -94,6 +119,7 @@ export function Abas<T extends string>({ abas, ativa, aoMudar, fundo }: Props<T>
             );
           })}
         </TabsList>
+        {depois}
       </ScrollView>
       {direita ? <Esmaecido cor={cor} lado="direita" /> : null}
       {esquerda ? <Esmaecido cor={cor} lado="esquerda" /> : null}
@@ -127,6 +153,9 @@ const estilos = StyleSheet.create({
     backgroundColor: 'transparent',
     marginBottom: -1,
   },
+  linhaInvertida: { gap: espaco(1) },
+  // Caixa de 44 px com borda de item; a selecionada é invertida (a cor vem do tema).
+  caixa: { minHeight: ALVO_TOQUE, paddingHorizontal: espaco(1.5), justifyContent: 'center', borderWidth: BORDA_ITEM, borderRadius: RAIO },
   conteudo: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75) },
   texto: { fontFamily: fontes.semi, fontSize: 15 },
   contagem: { minWidth: 22, height: 22, paddingHorizontal: 6, borderRadius: 11, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },

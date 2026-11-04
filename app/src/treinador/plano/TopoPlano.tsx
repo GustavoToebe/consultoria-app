@@ -220,12 +220,12 @@ export function BarraDoPlano<C>({ tipo, editor, aoProblemas, inicio }: Props<C>)
  * Resultado da validação, logo abaixo do cabeçalho (dentro da rolagem): "N problemas para publicar · ir ao primeiro"
  * seleciona a sessão/abre o cartão (`aoIrAoPrimeiro`) e rola até ele.
  */
-export function ProblemasDoPlano<C>({ editor, problemas, aoProblemas, aoIrAoPrimeiro }: { editor: Editor<C>; problemas: ResultadoValidacao | null; aoProblemas: (r: ResultadoValidacao | null) => void; aoIrAoPrimeiro?: (uids: string[]) => void }) {
+export function ProblemasDoPlano<C>({ editor, problemas, aoProblemas, aoIrAoPrimeiro }: { editor: Editor<C>; problemas: ResultadoValidacao | null; aoProblemas: (r: ResultadoValidacao | null) => void; aoIrAoPrimeiro?: (uids: string[], caminho?: string) => void }) {
   const { rolarAte } = useRolagem();
   const e = editor.estado;
   if (!e || !problemas) return null;
   // Cada erro e aviso leva ao lugar dele (sessão/exercício ou refeição), não só o primeiro.
-  const irPara = aoIrAoPrimeiro ? (lista: Problema[]) => { const uids = uidsDoPrimeiroProblema(e.conteudo, lista); aoIrAoPrimeiro(uids); rolarAte(uids); } : undefined;
+  const irPara = aoIrAoPrimeiro ? (lista: Problema[]) => { const uids = uidsDoPrimeiroProblema(e.conteudo, lista); aoIrAoPrimeiro(uids, lista[0]?.caminho); rolarAte(uids); } : undefined;
   return <ListaProblemas conteudo={e.conteudo} resultado={problemas} aoFechar={() => aoProblemas(null)} irPara={irPara} />;
 }
 
