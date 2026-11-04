@@ -19,8 +19,18 @@ export const DESTINO_PLANILHA_COMPLETA = 'planilha-completa';
 export const ROTULO_PLANILHA_COMPLETA = 'Planilha completa';
 export const CAMINHO_PLANILHA_COMPLETA = '/treinador/importacao/planilha-completa';
 
-export const ETAPAS_DA_PLANILHA = ['Arquivo', 'Abas', 'Nomes', 'Prévia', 'Resultado'] as const;
-export type EtapaDaPlanilha = 1 | 2 | 3 | 4 | 5;
+export const ETAPAS_DA_PLANILHA = ['Arquivo', 'Abas', 'Nomes', 'Prévia', 'Amostra', 'Resultado'] as const;
+export type EtapaDaPlanilha = 1 | 2 | 3 | 4 | 5 | 6;
+export const ETAPA_PREVIA: EtapaDaPlanilha = 4;
+/** Migração assistida, fase 2: só existe com a chave ligada (`migracaoAssistidaHabilitada`) e a API respondendo. */
+export const ETAPA_AMOSTRA: EtapaDaPlanilha = 5;
+export const ETAPA_RESULTADO: EtapaDaPlanilha = 6;
+
+/** As etapas que o indicador mostra: sem a amostra, as cinco de antes (e "Etapa N de 5"). */
+export function etapasDaPlanilha(comAmostra: boolean): { etapa: EtapaDaPlanilha; rotulo: string }[] {
+  return ETAPAS_DA_PLANILHA.map((rotulo, i) => ({ etapa: (i + 1) as EtapaDaPlanilha, rotulo }))
+    .filter((e) => comAmostra || e.etapa !== ETAPA_AMOSTRA);
+}
 
 /** Quantos nomes a lista de respostas mostra de uma vez (a busca acha os outros). */
 export const NOMES_POR_PAGINA = 50;

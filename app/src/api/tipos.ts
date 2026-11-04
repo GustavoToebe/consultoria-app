@@ -600,6 +600,16 @@ export interface ConfirmacaoDaPlanilha {
   importacaoId: string; situacao: string; criados: CriacaoDaPlanilha; partesPuladas: PartePuladaDaPlanilha[];
   validacaoDosTreinos: ValidacaoDosTreinos; problemas: number; problemasPorTipo: Record<string, number>;
 }
+/**
+ * Migração assistida, fase 2: o que a confirmação gravaria (em rascunho) para até 5 alunos. `treino`, `dieta`, `pesos` e o cadastro
+ * só vêm quando a confirmação vai gravá-los (nulo/0 sem a permissão). `ativo` e o cadastro são nulos no aluno `EXISTENTE`.
+ */
+export interface AlunoDaAmostra {
+  numero: number; situacao: 'NOVO' | 'EXISTENTE'; nome: string | null; ativo: boolean | null; email: string | null;
+  telefone: string | null; objetivo: string | null; observacoes: string | null; pesos: number;
+  ultimosPesos: { data: string; kg: number }[]; treino: ConteudoTreino | null; dieta: ConteudoDieta | null;
+}
+export interface AmostraDaPlanilha { hash: string; total: number; inicio: number; pasta: string; alunos: AlunoDaAmostra[] }
 export type TipoDesfeito = 'PLANO_TREINO' | 'PLANO_DIETA' | 'PASTA' | 'PESO' | 'EXERCICIO' | 'ALUNO';
 export interface ParteDesfeita { tipo: TipoDesfeito; apagados: number; ficaram: number; motivos: Record<string, number> }
 export interface ImportacaoDesfeita {

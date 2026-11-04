@@ -127,6 +127,7 @@ import type {
   PublicarPastaRequest,
   PublicarPastaResposta,
   PlanoResumo,
+  AmostraDaPlanilha,
   AnaliseDaPlanilha,
   ColunasDaImportacao,
   DiagnosticoDoArquivo,
@@ -888,6 +889,9 @@ export const confirmarPlanilhaCompleta = (arquivo: FormData, hash: string) =>
 /** Migração assistida, fase 1: diz o que dá para importar do arquivo. Não grava nada (503 `MIGRACAO_INDISPONIVEL` com a chave desligada). */
 export const diagnosticarArquivo = (arquivo: FormData) =>
   requisicao<DiagnosticoDoArquivo>('/importacoes/diagnostico', { metodo: 'POST', corpoBruto: arquivo });
+/** Migração assistida, fase 2: a amostra revisável (5 alunos a partir de `inicio`); só lê, e o `hash` serve à confirmação (503 `MIGRACAO_INDISPONIVEL` com a chave desligada). */
+export const amostraDaPlanilhaCompleta = (arquivo: FormData, inicio = 0) =>
+  requisicao<AmostraDaPlanilha>(`/importacoes/planilha-completa/amostra?inicio=${inicio}`, { metodo: 'POST', corpoBruto: arquivo });
 export const desfazerImportacao = (id: string) =>
   requisicao<ImportacaoDesfeita>(`/importacoes/${seg(id)}/desfazer`, { metodo: 'POST' });
 /** Esquece as respostas guardadas das importações anteriores da planilha completa (a próxima análise vem sem marcas). */
