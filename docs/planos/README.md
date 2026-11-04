@@ -75,6 +75,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Libras na carga, fase 1: regra pura e lado do aluno (N04; chave `TREINOS_UNIDADE_CARGA_HABILITADA`) | [libras.md](libras.md) | `main` (PR #77) | Fase 1 concluída em 04/11/2026; chave ligada em produção em 04/11 | 03/11/2026 |
 | Paletas da marca (a consultoria escolhe a cor de fundo do app dos alunos numa lista fechada e testada) | [paletas-da-marca.md](paletas-da-marca.md) | `main` (PR #78) | Concluída em 04/11/2026 (10 paletas: a Brisa saiu no teste de contraste); revisão final feita na nuvem | 03/11/2026 |
 | Documentação de 03/11 (roteiro do aluno fictício em [engajamento.md](engajamento.md), conferência das três liberações da Cloudflare) | [docs-pendencias-03-11.md](docs-pendencias-03-11.md) | `main` (PR #72) | Concluída em 03/11/2026 (roteiro espera o Gustavo em produção) | 03/11/2026 |
+| Inscrição do Saraiva (origens YouTube, TikTok, influenciador e aluno do time; "Tô só de passagem"; script que monta o formulário de 14 perguntas) | [inscricao-saraiva.md](inscricao-saraiva.md) | branch `inscricao-saraiva` | Em andamento | 04/11/2026 |
 | Pendências de 04/11 (guia, Trivy, decisões, defeitos pequenos e e2e intermitentes) | [pendencias-04-11.md](pendencias-04-11.md) | branches `pendencias-04-11-a/b/c` | Em andamento | 04/11/2026 |
 | Nova pasta: copiar de um período concluído | [copiar-periodo-na-pasta.md](copiar-periodo-na-pasta.md) | branch `copiar-periodo-na-pasta` | Pronta para revisão (5bfccd0c) | 04/11/2026 |
 
@@ -82,7 +83,10 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 
 | Pendência | Quem | Origem |
 | --- | --- | --- |
-| Foto de perfil na ficha: trocar e remover no próprio círculo do topo (camada no hover do PC, botão do canto e Folha no toque); sai o bloco "Foto de perfil" dos Dados do aluno | Claude (branch `foto-no-circulo`) | pedido do Gustavo de 04/11 |
+| Menores de idade (decisão de 04/11: o Saraiva atende): revisão jurídica do termo de uso e do aviso de privacidade (`resources/termos/*.md` não falam de idade nem de responsável legal; a revisão antes previa "maiores de 18 anos", que não vale mais; subir `Termos.VERSAO` ao mudar) e da anamnese, que não tem responsável legal | Gustavo, com revisão jurídica | inscricao-saraiva |
+| "Hormonizado ou natural" é dado de saúde perguntado na inscrição pública (sem login), a pedido do Saraiva: rever com a LGPD (base legal, aviso no texto do link, retenção de 180 dias) | Gustavo, com revisão jurídica | inscricao-saraiva |
+| Rodar `scripts/questionario/inscricao-saraiva.mjs --gravar` na consultoria real do Saraiva (simular antes; nunca foi rodado em produção) e conferir `/inscricao/<codigo>` no celular | Gustavo | inscricao-saraiva |
+| ~~Foto de perfil na ficha: trocar e remover no próprio círculo do topo~~ · feito no lote #93 | ~~Claude~~ | pedido do Gustavo de 04/11 |
 | Paletas da marca: a Brisa saiu da lista (a agenda OLIVA não tinge 6% sobre a faixa dela) e o `faixaForte` das escuras é escolha do passo 2 (faixa + 0,03) | Gustavo | paletas-da-marca |
 | Importar a planilha completa: conferência do Gustavo com uma planilha fictícia (fases 1 e 2), em produção ou no local | Gustavo | importacao-planilha-completa |
 | ~~"Publicar tudo" da pasta: com o `/eu` guardado desatualizado a mobilidade ficava fora de `versoes`~~ | ~~Claude~~ | ~~feito no lote pendencias-04-11-b: as versões saem das listas carregadas~~ |

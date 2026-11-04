@@ -39,6 +39,7 @@ import { LinkTexto } from '../../ui/LinkTexto';
 import { Tela } from '../../ui/Tela';
 import { BotaoPublico, LARGURA_PUBLICA, TelaPublica } from '../../ui/TelaPublica';
 import { Texto } from '../../ui/Texto';
+import { TextoFormatado } from '../../ui/TextoFormatado';
 import { useCarregar } from '../../ui/useCarregar';
 import { useVerificacaoHumana } from '../../ui/useVerificacaoHumana';
 import { VerificacaoHumana } from '../../ui/VerificacaoHumana';
@@ -215,7 +216,8 @@ export default function Inscricao() {
       ) : null}
       {texto ? (
         <Cartao titulo="Antes de enviar" descricao={`Texto de ${consultoria.nome}.`}>
-          <Texto selectable>{texto}</Texto>
+          {/* Mesmo formato do questionário (`**negrito**`, `__sublinhado__`, quebras): o texto do link é escrito pelo treinador. */}
+          <TextoFormatado texto={texto} selecionavel />
           <CaixaSelecao rotulo="Li e estou ciente" marcado={ciencia} aoMudar={setCiencia} />
           {campos.cienciaPrivacidade ? <MensagemErro texto={campos.cienciaPrivacidade} /> : null}
         </Cartao>

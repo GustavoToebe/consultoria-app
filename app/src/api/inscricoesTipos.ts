@@ -17,10 +17,10 @@ export type Periodicidade = 'MENSAL' | 'TRIMESTRAL' | 'SEMESTRAL' | 'ANUAL' | 'P
 /** Respostas da qualificação do formulário público (todas opcionais). */
 export type Interesse = 'TREINO' | 'DIETA' | 'TREINO_E_DIETA' | 'NAO_SEI';
 export type ModalidadeDesejada = Modalidade | 'NAO_SEI';
-export type PrevisaoInicio = 'AGORA' | 'ESTE_MES' | 'PROXIMO_MES' | 'NAO_SEI';
+export type PrevisaoInicio = 'AGORA' | 'ESTE_MES' | 'PROXIMO_MES' | 'SO_DE_PASSAGEM' | 'NAO_SEI';
 /** "Como conheceu" respondido no formulário. */
-export type OrigemInformada = 'INDICACAO' | 'INSTAGRAM' | 'GOOGLE' | 'OUTRA';
-/** Origem da equipe (pode corrigir a informada): as quatro e campanha. */
+export type OrigemInformada = 'INDICACAO' | 'INSTAGRAM' | 'GOOGLE' | 'YOUTUBE' | 'TIKTOK' | 'INFLUENCIADOR' | 'ALUNO_DO_TIME' | 'OUTRA';
+/** Origem da equipe (pode corrigir a informada): as mesmas da respondida e campanha (que só vem do link). */
 export type Origem = OrigemInformada | 'CAMPANHA';
 
 /**

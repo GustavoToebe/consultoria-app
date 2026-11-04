@@ -354,6 +354,50 @@ for (const largura of [390, 1280]) {
       expect(naoTratadas).toEqual([]);
       expect(errosDaPagina).toEqual([]);
     });
+
+    test('indicadores por origem mostram as origens do time pelo rótulo', async ({ page }) => {
+      const indicadores: IndicadoresInscricoes = {
+        de: '2026-09-30', ate: '2026-10-29', entradas: 5, pessoas: 5, aceites: 1, recusadas: 0, desistencias: 0, reaberturas: 0,
+        aceitesDasEntradas: 1, conversao: 0.2, diasAteAceite: { mediana: 2, media: 2 }, porMotivo: [],
+        porOrigem: [
+          { origem: 'TIKTOK', entradas: 3, aceites: 1 },
+          { origem: 'YOUTUBE', entradas: 1, aceites: 0 },
+          { origem: 'ALUNO_DO_TIME', entradas: 1, aceites: 0 },
+        ],
+      };
+      const { naoTratadas, errosDaPagina } = await abrir(page, {
+        'GET /inscricoes/indicadores': { corpo: indicadores },
+        'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+      }, '/treinador/interessados?visao=indicadores');
+      await expect(page.getByText('TikTok', { exact: true })).toBeVisible();
+      await expect(page.getByText('YouTube', { exact: true })).toBeVisible();
+      await expect(page.getByText('Aluno do time', { exact: true })).toBeVisible();
+      expect(naoTratadas).toEqual([]);
+      expect(errosDaPagina).toEqual([]);
+    });
+
+    test('folha: mostra a previsão "Tô só de passagem" e a origem do time, e a equipe corrige a origem para uma nova', async ({ page }) => {
+      const r = resumoFalso(1, { origem: 'TIKTOK' });
+      const { estado, rotas } = comUma(r, detalheFalso(r, {
+        previsaoInicio: 'SO_DE_PASSAGEM', origemInformada: 'TIKTOK', origemLink: 'tt', origem: 'TIKTOK',
+      }));
+      const { pedidos, naoTratadas, errosDaPagina } = await abrir(page, {
+        ...rotas,
+        [`PUT /inscricoes/${r.id}/origem`]: (_p, route) => {
+          estado.atual = detalheFalso(r, { previsaoInicio: 'SO_DE_PASSAGEM', origemInformada: 'TIKTOK', origem: 'ALUNO_DO_TIME', versao: 2 });
+          return json(route, estado.atual);
+        },
+      });
+      await page.getByRole('button', { name: 'Abrir inscrição de Pessoa Fictícia 1' }).click();
+      await expect(page.getByText('Tô só de passagem', { exact: true })).toBeVisible();
+      await expect(page.getByText('TikTok · Link: tt', { exact: true })).toBeVisible();
+      await page.getByLabel('Aluno do time', { exact: true }).click();
+      await page.getByRole('button', { name: 'Salvar andamento' }).click();
+      await expect.poll(() => pedidos.find((p) => p.metodo === 'PUT' && p.caminho.endsWith('/origem'))?.corpo)
+        .toEqual({ origem: 'ALUNO_DO_TIME', versao: 1 });
+      expect(naoTratadas).toEqual([]);
+      expect(errosDaPagina).toEqual([]);
+    });
   });
 }
 
