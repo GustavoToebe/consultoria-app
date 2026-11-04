@@ -79,6 +79,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 
 | Pendência | Quem | Origem |
 | --- | --- | --- |
+| Foto de perfil na ficha: trocar e remover no próprio círculo do topo (camada no hover do PC, botão do canto e Folha no toque); sai o bloco "Foto de perfil" dos Dados do aluno | Claude (branch `foto-no-circulo`) | pedido do Gustavo de 04/11 |
 | Paletas da marca: a Brisa saiu da lista (a agenda OLIVA não tinge 6% sobre a faixa dela) e o `faixaForte` das escuras é escolha do passo 2 (faixa + 0,03) | Gustavo | paletas-da-marca |
 | Importar a planilha completa: conferência do Gustavo com uma planilha fictícia (fases 1 e 2), em produção ou no local | Gustavo | importacao-planilha-completa |
 | "Publicar tudo" da pasta: com o `/eu` guardado desatualizado (até cerca de 5 min), a mobilidade fica fora de `versoes`; a API lê o plano do banco, responde 409 `CONFLITO_EDICAO` e a tela diz "Os planos mudaram" até o `/eu` ser buscado de novo. Nada é publicado indevidamente; só a mensagem engana | Claude, quando o Gustavo pedir | pasta-publicar-copiar-finalizar (revisão do Opus, 1.2) |
