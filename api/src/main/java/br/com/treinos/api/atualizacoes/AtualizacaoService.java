@@ -252,6 +252,26 @@ public class AtualizacaoService {
             c.linha().atualizacaoId(),c.linha().pastaId(),c.linha().alunoId(),c.linha().nomeAluno(),c.linha().data(),
             c.regras().fase(),c.regras().diasParaData(),c.regras().diasDeAtraso(),c.linha().atrasoAte())).toList();
     }
+    /** Uma página da lista (C8): {@code total} é o da situação com os mesmos filtros; os itens, na ordem que a tela mostra. */
+    public record PaginaDeAtualizacoes(List<ItemDaLista> itens, long total) { }
+    public static final int TAMANHO_DA_PAGINA = 30;
+    private static final int TAMANHO_MAXIMO = 100;
+
+    /**
+     * Mais antiga primeiro (a que espera há mais tempo), desempate pelo nome do aluno e pela pasta (o id da atualização é nulo em quem ainda não tem linha), para a página nunca repetir
+     * nem pular linha. shortcut: classifica a lista toda em memória e recorta (a fase vem de {@code RegrasAtualizacao}, não de
+     * SQL), como a lista inteira já fazia; passar para SQL se a consultoria chegar a milhares de alunos ativos.
+     */
+    @Transactional(readOnly = true)
+    public PaginaDeAtualizacoes pagina(String situacao, FiltroDaLista f, Integer pagina, Integer tamanho) {
+        List<ItemDaLista> todos = new java.util.ArrayList<>(listar(situacao, f));
+        todos.sort(java.util.Comparator.<ItemDaLista, LocalDate>comparing(ItemDaLista::dataAtualizacao, java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder()))
+            .thenComparing(i -> Buscas.semAcento(i.nomeAluno())).thenComparing(ItemDaLista::pastaId));
+        int tam = tamanho == null ? TAMANHO_DA_PAGINA : Math.max(1, Math.min(tamanho, TAMANHO_MAXIMO));
+        long de = Math.min((long) Math.max(0, pagina == null ? 0 : pagina) * tam, todos.size());
+        return new PaginaDeAtualizacoes(todos.subList((int) de, (int) Math.min(de + tam, todos.size())), todos.size());
+    }
+
     @Transactional(readOnly = true)
     public Map<String,Long> contar(UUID responsavelId) {
         return contar(FiltroDaLista.de(responsavelId, null, null));

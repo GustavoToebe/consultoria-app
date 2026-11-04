@@ -60,7 +60,7 @@ import type {
 } from './agendaTipos';
 import type {
   Atualizacao,
-  AtualizacaoDaLista,
+  AtualizacaoDaLista, PaginaDeAtualizacoes,
   EvolucaoRespostas,
   ConfiguracaoDeFotos,
   FotoDaLinha,
@@ -283,6 +283,12 @@ function filtroDeAtualizacoes(meus: boolean, filtro: FiltroAtualizacoes, inicio:
 export const listarAtualizacoes = (situacao: SituacaoAtualizacao, meus = false, filtro: FiltroAtualizacoes = {}) => {
   const q = filtroDeAtualizacoes(meus, filtro, { situacao });
   return requisicao<AtualizacaoDaLista[]>(`/atualizacoes?${q.toString()}`);
+};
+export const TAMANHO_DA_PAGINA_DE_ATUALIZACOES = 30;
+/** Uma página da lista (`GET /atualizacoes/pagina`): na ordem da tela (mais antiga primeiro), com o total da situação e dos filtros. */
+export const listarAtualizacoesPagina = (situacao: SituacaoAtualizacao, pagina: number, meus = false, filtro: FiltroAtualizacoes = {}) => {
+  const q = filtroDeAtualizacoes(meus, filtro, { situacao, pagina: String(pagina), tamanho: String(TAMANHO_DA_PAGINA_DE_ATUALIZACOES) });
+  return requisicao<PaginaDeAtualizacoes>(`/atualizacoes/pagina?${q.toString()}`);
 };
 /** Quantas há em cada situação (o número das abas) com os mesmos filtros da lista. */
 export const contagensAtualizacoes = (meus = false, filtro: FiltroAtualizacoes = {}) =>

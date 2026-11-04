@@ -35,6 +35,18 @@ public class AtualizacaoTreinadorController {
         return atualizacoes.listar(situacao, atualizacoes.lerFiltro(meus, eu.usuarioId(), responsavel, busca, de, ate));
     }
 
+    /** Uma página de {@code /atualizacoes} (30 por padrão, até 100): mesmos filtros, na ordem da tela, com o total da situação. */
+    @PreAuthorize("hasAuthority('PERM_ATUALIZACAO_LER') and hasAuthority('PERM_ALUNO_SENSIVEL_LER')") @GetMapping("/atualizacoes/pagina")
+    public AtualizacaoService.PaginaDeAtualizacoes pagina(@RequestParam(defaultValue = "PARA_REVISAR") String situacao,
+            @RequestParam(defaultValue = "false") boolean meus, @RequestParam(required = false) List<String> responsavel,
+            @RequestParam(required = false) String busca,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate de,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate ate,
+            @RequestParam(required = false) Integer pagina, @RequestParam(required = false) Integer tamanho,
+            @AuthenticationPrincipal UsuarioAutenticado eu) {
+        return atualizacoes.pagina(situacao, atualizacoes.lerFiltro(meus, eu.usuarioId(), responsavel, busca, de, ate), pagina, tamanho);
+    }
+
     /** Quantas há em cada situação (o número das abas) com os mesmos filtros da lista, sem a situação. */
     @PreAuthorize("hasAuthority('PERM_ATUALIZACAO_LER') and hasAuthority('PERM_ALUNO_SENSIVEL_LER')") @GetMapping("/atualizacoes/contagens")
     public Map<String, Long> contagens(@RequestParam(defaultValue = "false") boolean meus,

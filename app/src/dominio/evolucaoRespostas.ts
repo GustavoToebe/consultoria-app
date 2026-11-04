@@ -1,5 +1,7 @@
 import type { EvolucaoRespostas, PontoDeResposta, SerieDeResposta } from '../api/tipos';
+import { textoDaNota } from './atualizacaoQuestionario';
 import { dataCurta, numeroParaTela } from './formatos';
+import { escalaDaNota } from './questionario';
 
 /**
  * Evolução das respostas numéricas das atualizações (ficha do aluno). Só reorganiza o que o aluno respondeu: sem
@@ -32,15 +34,19 @@ export function opcoesDasSeries(series: readonly SerieDeResposta[]) {
 export const serieEscolhida = (series: readonly SerieDeResposta[], id: string | null) =>
   series.find((s) => s.perguntaId === id) ?? series[0] ?? null;
 
-/** "7" na NOTA; "88,5 cm" no NUMERO, com as casas e a unidade da pergunta. */
-export function textoDoValor(s: Pick<SerieDeResposta, 'tipo' | 'casas' | 'unidade'>, valor: number): string {
-  if (s.tipo === 'NOTA') return numeroParaTela(valor, 0);
+/** "7/10" (ou "7 de 0 a 10") na NOTA, pela escala da série (N27); "88,5 cm" no NUMERO, com as casas e a unidade da pergunta. */
+export function textoDoValor(s: Pick<SerieDeResposta, 'tipo' | 'casas' | 'unidade' | 'min' | 'max'>, valor: number): string {
+  if (s.tipo === 'NOTA') return textoDaNota({ min: s.min ?? undefined, max: s.max ?? undefined }, valor);
   const unidade = s.unidade?.trim();
   return `${numeroParaTela(valor, s.casas ?? 0)}${unidade ? ` ${unidade}` : ''}`;
 }
 
 /** Unidade no eixo do gráfico: a do NUMERO; a NOTA (escala da pergunta) não tem. */
 export const unidadeDoGrafico = (s: Pick<SerieDeResposta, 'tipo' | 'unidade'>) => (s.tipo === 'NUMERO' ? s.unidade?.trim() ?? '' : '');
+
+/** Eixo do gráfico: a NOTA ocupa a escala inteira da pergunta (não encolhe nos valores respondidos); o NUMERO se ajusta aos pontos. */
+export const escalaDoGrafico = (s: Pick<SerieDeResposta, 'tipo' | 'min' | 'max'>) =>
+  s.tipo === 'NOTA' ? escalaDaNota({ min: s.min ?? undefined, max: s.max ?? undefined }) : undefined;
 
 const porData = (a: PontoDeResposta, b: PontoDeResposta) => (a.data < b.data ? -1 : a.data > b.data ? 1 : 0);
 

@@ -110,6 +110,11 @@ class EvolucaoRespostasIntegrationTest extends AbstractIntegrationTest {
         assertThat(sono.path("rotulo").asString()).isEqualTo("Qualidade do sono");
         assertThat(sono.path("rotuloCurto").asString()).isEqualTo("Sono");
         assertThat(sono.path("unidade").isNull()).isTrue();
+        // Sem escala na pergunta, a NOTA vem de 0 a 10; o NUMERO não tem escala (o min/max dele é limite de resposta).
+        assertThat(sono.path("min").asInt()).isZero();
+        assertThat(sono.path("max").asInt()).isEqualTo(10);
+        assertThat(cintura.path("min").isNull()).isTrue();
+        assertThat(cintura.path("max").isNull()).isTrue();
         assertThat(sono.path("pontos").valueStream().map(p -> p.path("data").asString()).toList())
                 .containsExactly("2026-01-31", "2026-03-02", "2026-04-01");
         assertThat(sono.path("pontos").valueStream().map(p -> p.path("valor").asInt()).toList()).containsExactly(6, 0, 8);
@@ -123,6 +128,16 @@ class EvolucaoRespostasIntegrationTest extends AbstractIntegrationTest {
         assertThat(sonoDepois.path("pontos")).hasSize(4);
         // A versão mais recente agora é a V1 do outro questionário: o rótulo acompanha.
         assertThat(sonoDepois.path("rotulo").asString()).isEqualTo("Sono");
+    }
+
+    @Test void notaComEscalaPropriaMandaMinEMaxDaVersaoMaisRecente() throws Exception {
+        UUID q = questionario("Fictício com escala");
+        UUID v = versao(q, 1, V1.replace("\"id\":\"sono\",\"tipo\":\"NOTA\"", "\"id\":\"sono\",\"tipo\":\"NOTA\",\"min\":1,\"max\":5"));
+        atualizacao(LocalDate.of(2026, 4, 1), "ENVIADA", v, "{\"sono\":4}");
+        JsonNode sono = api.get(caminho(), treinador, 200).path("series").get(0);
+        assertThat(sono.path("perguntaId").asString()).isEqualTo("sono");
+        assertThat(sono.path("min").asInt()).isEqualTo(1);
+        assertThat(sono.path("max").asInt()).isEqualTo(5);
     }
 
     @Test void semAtualizacaoEnviadaNaoHaSerie() throws Exception {

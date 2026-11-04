@@ -1532,6 +1532,9 @@ export interface SerieDeResposta {
   rotuloCurto: string | null;
   unidade: string | null;
   casas: number | null;
+  /** Escala da NOTA na versão mais recente (0 a 10 quando a pergunta não traz); nulos no NUMERO. */
+  min: number | null;
+  max: number | null;
   /** Do mais antigo ao mais novo. */
   pontos: PontoDeResposta[];
 }
@@ -1540,6 +1543,8 @@ export interface EvolucaoRespostas { limite: number; atualizacoes: number; serie
 export interface ConfiguracaoDeFotos { habilitado: boolean; maximoPorPergunta: number; bytesMaximo: number; porDia: number }
 /** Item das listas do treinador (`GET /atualizacoes`): sem modelo, respostas nem resumo, que só vêm no detalhe. */
 export type AtualizacaoDaLista = Pick<Atualizacao, 'id' | 'pastaId' | 'alunoId' | 'nomeAluno' | 'dataAtualizacao' | 'fase' | 'diasParaData' | 'diasDeAtraso' | 'atrasoAte'>;
+/** Uma página de `GET /atualizacoes/pagina`; `total` é o da situação com os mesmos filtros. */
+export interface PaginaDeAtualizacoes { itens: AtualizacaoDaLista[]; total: number }
 
 /** Gestão dos questionários (`questionarios/dto/QuestionarioDtos`). */
 export type OrigemQuestionario = 'VAZIO' | 'FABRICA';
