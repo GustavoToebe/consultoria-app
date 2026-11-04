@@ -56,6 +56,8 @@ async function abrirApi(page: Page, tema: 'CLARO' | 'ESCURO', extra: RespostasAp
   return simularApi(page, {
     ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'TREINO_LER', 'TREINO_ALTERAR', 'DIETA_LER', 'DIETA_ALTERAR'] })),
     [`GET /alunos/${ALUNO_ID}`]: { corpo: { id: ALUNO_ID, nome: 'Aluno Teste' } },
+    // O editor em duas colunas (1280) mostra a foto do aluno; sem foto a API responde 404.
+    [`GET /alunos/${ALUNO_ID}/foto-perfil`]: erroApi(404, 'Sem foto.', 'NAO_ENCONTRADO'),
     'GET /exercicios': { corpo: [] },
     'GET /alimentos': { corpo: [] },
     // O ponto de Interessados no menu lateral.
