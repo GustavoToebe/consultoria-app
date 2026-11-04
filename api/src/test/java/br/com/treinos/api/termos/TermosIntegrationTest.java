@@ -88,6 +88,20 @@ class TermosIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void rotaPublicaDaOsMesmosTextosSemLoginESemNadaDoUsuario() throws Exception {
+        JsonNode logado = api.get("/termos", treinador, 200);
+        var resposta = mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/publico/termos"))
+                .andReturn().getResponse();
+        assertThat(resposta.getStatus()).isEqualTo(200);
+        assertThat(resposta.getHeader("Cache-Control")).isEqualTo("max-age=300, public");
+        JsonNode publico = json.readTree(resposta.getContentAsString());
+        assertThat(publico.get("versao").asString()).isEqualTo(Termos.VERSAO);
+        assertThat(publico.get("rascunho").asBoolean()).isEqualTo(logado.get("rascunho").asBoolean());
+        assertThat(publico.get("documentos")).isEqualTo(logado.get("documentos"));
+        assertThat(publico.has("aceito")).isFalse();
+    }
+
+    @Test
     void semLoginNaoLeNemAceita() throws Exception {
         api.get("/termos", null, 401);
         api.post("/termos/aceite", null, Map.of("versao", Termos.VERSAO), 401);

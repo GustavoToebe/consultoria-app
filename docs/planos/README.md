@@ -83,6 +83,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Miúdos com API (V058: "Seu envio", paginação das Atualizações, escala da Evolução, fila do CRM pela reabertura) | [miudos-com-api-04-11.md](miudos-com-api-04-11.md) | branch `miudos-com-api` | Pronto no PR | 04/11/2026 |
 | Conferência de pendências de 04/11 (RIR, carga fixa, Publicar tudo, C22, gráfico de medidas, foto pela equipe, "Menos opções") | [conferencia-pendencias-04-11.md](conferencia-pendencias-04-11.md) | branch `lote-04-11-b` | Concluída em 04/11/2026 | 04/11/2026 |
 | Infra de 04/11 (Caddy sem correção na imagem, dependabot do app, `lock_timeout` do módulo auth no Servirea e na Central, roteiro do Mercado Pago) | [infra-04-11.md](infra-04-11.md) | branch `lote-04-11-b` e `infra-04-11` na Central e no Servirea | Em andamento: PRs abertos; roteiro do Mercado Pago espera o Gustavo | 04/11/2026 |
+| Páginas públicas: privacidade, termo de uso e exclusão de conta (pedido das lojas) | [paginas-publicas.md](paginas-publicas.md) | `main` (PR #95) | Concluída em 04/11/2026 (termos ainda em rascunho) | 04/11/2026 |
 
 ## Pendências soltas
 
