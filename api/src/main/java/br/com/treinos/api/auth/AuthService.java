@@ -230,8 +230,9 @@ public class AuthService {
     public Sessao reabrirSessao(UUID usuarioId, long versao, String ip) {
         String sujeito = usuarioId.toString();
         Usuario usuario = carregar(sujeito);
-        pushTokens.apagarDoUsuario(usuario.getConsultoriaId(), usuarioId); // sessões antigas caem: o aparelho precisa pedir o push de novo
         autenticador.encerrarSessoes(sujeito);
+        // Depois de encerrar: se apagar os tokens falhar, as sessões antigas já caíram junto com a senha nova.
+        pushTokens.apagarDoUsuario(usuario.getConsultoriaId(), usuarioId); // o aparelho precisa pedir o push de novo
         return montar(usuario, autenticador.novaSessao(sujeito, versao, ip));
     }
 
