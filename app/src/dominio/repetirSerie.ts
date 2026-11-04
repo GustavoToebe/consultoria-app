@@ -1,5 +1,5 @@
 import type { Serie } from '../api/tipos';
-import { numeroParaTela } from './formatos';
+import { textoDaCarga, type UnidadeDeCarga } from './unidadeDeCarga';
 
 /** Mesma prescrição: tipo, repetições, AMRAP, carga, esforço, técnica, cardio e alvo extra iguais (o % de cada série de preparação muda). */
 export function mesmaPrescricao(a: Serie, b: Serie): boolean {
@@ -52,13 +52,14 @@ export function repeticaoDaAnterior(
   atual: Serie,
   registroAnterior: { carga: number | null; repeticoes: number | null } | undefined,
   semCarga: boolean,
+  unidade: UnidadeDeCarga = 'kg',
 ): Repeticao | null {
   if (!anterior || !registroAnterior || !mesmaPrescricao(anterior, atual)) return null;
   const carga = semCarga ? null : registroAnterior.carga;
   const repeticoes = registroAnterior.repeticoes;
   if (carga === null && repeticoes === null) return null;
   const partes: string[] = [];
-  if (carga !== null) partes.push(`${numeroParaTela(carga)} kg`);
+  if (carga !== null) partes.push(textoDaCarga(carga, unidade));
   if (repeticoes !== null) partes.push(carga !== null ? `× ${repeticoes}` : `${repeticoes} ${repeticoes === 1 ? 'rep' : 'reps'}`);
   return { carga, repeticoes, rotulo: `Repetir ${partes.join(' ')}` };
 }

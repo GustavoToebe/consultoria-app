@@ -3,7 +3,8 @@ import type { LucideIcon } from 'lucide-react-native';
 import { ActivityIndicator, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, RAIO, textoSobre } from '../tema/tokens';
+import { coresDoDesabilitado, visualDoInativo } from './desabilitado';
 import { Texto } from './Texto';
 
 type Tipo = 'primario' | 'secundario' | 'perigo' | 'fantasma' | 'perigoTexto';
@@ -26,6 +27,8 @@ interface Props {
   /** Ocupa a largura toda (entrar, ação única da tela no celular). Sem isto o botão tem o tamanho do texto. */
   cheio?: boolean;
   style?: StyleProp<ViewStyle>;
+  /** Identificador para os testes de tela. */
+  testID?: string;
 }
 
 /**
@@ -34,18 +37,21 @@ interface Props {
  * `perigo` (preenchido, `perigoFundo`) é só para o botão de confirmação do painel. O rótulo quebra em até duas
  * linhas e nunca estoura o cartão; vários botões lado a lado vão numa `LinhaDeAcoes`.
  */
-export function Botao({ rotulo, rotuloAcessivel, aoTocar, tipo = 'primario', Icone, desabilitado, motivo, carregando, cheio, style }: Props) {
+export function Botao({ rotulo, rotuloAcessivel, aoTocar, tipo = 'primario', Icone, desabilitado, motivo, carregando, cheio, style, testID }: Props) {
   const { cores, marca, sobreMarca } = useTema();
   const inativo = desabilitado || carregando;
   const semFundo = tipo === 'fantasma' || tipo === 'perigoTexto';
-  const fundo = tipo === 'primario' ? marca : tipo === 'perigo' ? cores.perigoFundo : 'transparent';
-  const texto = tipo === 'primario' ? sobreMarca : tipo === 'perigo' ? '#FFFFFF' : tipo === 'perigoTexto' ? cores.perigo : cores.texto;
-  const borda = tipo === 'secundario' ? cores.borda : fundo;
+  const cinza = coresDoDesabilitado(cores);
+  const visual = visualDoInativo(desabilitado, carregando);
+  const fundo = visual.cinza && !semFundo ? cinza.fundo : tipo === 'primario' ? marca : tipo === 'perigo' ? cores.perigoFundo : 'transparent';
+  const texto = visual.cinza ? cinza.texto : tipo === 'primario' ? sobreMarca : tipo === 'perigo' ? textoSobre(cores.perigoFundo) : tipo === 'perigoTexto' ? cores.perigo : cores.texto;
+  const borda = visual.cinza && !semFundo ? cinza.borda : tipo === 'secundario' ? cores.borda : fundo;
   const explicacao = desabilitado && !carregando && motivo ? motivo : undefined;
   const botao = (
     <Button
       variant={tipo === 'primario' ? 'default' : tipo === 'perigo' ? 'destructive' : tipo === 'secundario' ? 'outline' : 'ghost'}
       accessibilityRole="button"
+      testID={testID}
       accessibilityLabel={rotuloAcessivel ?? rotulo}
       accessibilityHint={explicacao}
       accessibilityState={{ disabled: !!inativo, busy: !!carregando }}
@@ -54,9 +60,9 @@ export function Botao({ rotulo, rotuloAcessivel, aoTocar, tipo = 'primario', Ico
       style={({ pressed }) => [
         estilos.botao,
         {
-          backgroundColor: semFundo && pressed ? cores.superficie3 : fundo,
-          borderColor: semFundo && pressed ? cores.superficie3 : borda,
-          opacity: inativo ? 0.5 : pressed && !semFundo ? 0.8 : 1,
+          backgroundColor: semFundo && pressed && !inativo ? cores.superficie3 : fundo,
+          borderColor: semFundo && pressed && !inativo ? cores.superficie3 : borda,
+          opacity: visual.apagado ? 0.5 : pressed && !semFundo && !inativo ? 0.8 : 1,
         },
         cheio && estilos.cheio,
         explicacao ? null : style,

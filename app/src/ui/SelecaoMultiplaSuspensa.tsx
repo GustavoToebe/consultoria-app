@@ -159,8 +159,8 @@ function ListaDeOpcoes({ rotulo, opcoes, marcados, aoMudar, comFoco, limiteDeAlt
           accessibilityLabel={`Limpar ${rotulo}`}
           disabled={marcados.size === 0}
           onPress={() => aoMudar(new Set())}
-          style={(e) => [estilos.limpar, { opacity: marcados.size === 0 ? 0.4 : 1, backgroundColor: sobre(e) && marcados.size > 0 ? cores.superficie3 : 'transparent' }]}>
-          <Texto variante="pequeno" cor={cores.texto} style={estilos.rotuloLimpar}>Limpar</Texto>
+          style={(e) => [estilos.limpar, { backgroundColor: sobre(e) && marcados.size > 0 ? cores.superficie3 : 'transparent' }]}>
+          <Texto variante="pequeno" cor={marcados.size === 0 ? cores.textoSuave : cores.texto} style={estilos.rotuloLimpar}>Limpar</Texto>
         </Pressable>
       </View>
       {limiteDeAltura ? <ScrollView style={{ maxHeight: limiteDeAltura }} keyboardShouldPersistTaps="handled">{linhas}</ScrollView> : linhas}

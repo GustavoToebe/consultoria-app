@@ -4,10 +4,11 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { ErroApi } from '../../api/cliente';
 import { avisarAtrasoAtualizacao, enviarAtualizacao, marcarFeedbackVisto } from '../../api/rotas';
 import type { Atualizacao, RespostaAtualizacao, RespostasAtualizacao } from '../../api/tipos';
-import { limitesNovaDataAtraso, novaDataAtrasoValida, podeResponderAtualizacao, statusAtualizacao } from '../../dominio/atualizacao';
+import { limitesNovaDataAtraso, novaDataAtrasoValida, podeResponderAtualizacao, SELO_ENVIADA_DO_ALUNO, statusAtualizacao } from '../../dominio/atualizacao';
 import { rascunhoVigente } from '../../dominio/atualizacaoQuestionario';
 import { hojeDoCiclo, temInicioRecente } from '../../dominio/cicloMenstrual';
-import { dataDaTela, dataParaTela, hojeIso, somarDias } from '../../dominio/formatos';
+import { dataDaTelaNaFaixa, erroDaData } from '../../dominio/datasValidas';
+import { dataParaTela, hojeIso, somarDias } from '../../dominio/formatos';
 import { errosRespostasAtualizacao, respostasParaEnviar } from '../../dominio/respostasAtualizacao';
 import { useAluno } from '../../offline/AlunoProvider';
 import type { RascunhoAtualizacao } from '../../offline/repositorioLocal';
@@ -150,8 +151,10 @@ export function FormularioAtualizacao({atualizacao,somenteLeitura=false,rascunho
   };
   const salvarAtraso=async()=>{
     if(!atual.pastaId)return;
-    const nova=dataDaTela(data);
+    const nova=dataDaTelaNaFaixa(data,'PLANEJAMENTO');
     if(!nova || !novaDataAtrasoValida(hojeIso(),dataOriginal,nova)){
+      const naFaixa=erroDaData(data,'Nova data','PLANEJAMENTO');
+      if(naFaixa){setErroData(naFaixa);return;}
       setErroData(`Escolha uma data de ${dataParaTela(limites.minimo)} até ${dataParaTela(limites.maximo)}.`);return;
     }
     if(!online){avisar('Conecte-se para avisar o atraso. Seu rascunho continua salvo.');return;}
@@ -167,7 +170,7 @@ export function FormularioAtualizacao({atualizacao,somenteLeitura=false,rascunho
     }finally{setOcupado(false);}
   };
   if(enviada)return <Cartao titulo="Atualização enviada">
-    <Selo texto="Enviada" tipo="sucesso" /><Texto>Aguardando o treinador.</Texto>
+    <Selo {...SELO_ENVIADA_DO_ALUNO} /><Texto>Aguardando o treinador.</Texto>
     <Botao rotulo="Voltar ao início" aoTocar={()=>router.replace('/aluno')} />
   </Cartao>;
   return <>
@@ -196,7 +199,7 @@ export function FormularioAtualizacao({atualizacao,somenteLeitura=false,rascunho
     <Folha titulo="Vou atrasar" visivel={atraso} aoFechar={()=>setAtraso(false)}
       rodape={<Botao rotulo="Avisar treinador" carregando={ocupado} aoTocar={()=>void salvarAtraso()} />}>
       <Texto>Seu treinador receberá o aviso. Escolha uma data de {dataParaTela(limites.minimo)} até {dataParaTela(limites.maximo)}.</Texto>
-      <CampoData rotulo="Nova data" valor={data} aoMudar={valor=>{setData(valor);setErroData(null);}} erro={erroData} />
+      <CampoData rotulo="Nova data" regra="PLANEJAMENTO" valor={data} aoMudar={valor=>{setData(valor);setErroData(null);}} erro={erroData} />
       <Campo rotulo="Motivo (opcional)" valor={motivo} aoMudar={setMotivo} maxLength={300} linhas={3} />
     </Folha>
   </>;

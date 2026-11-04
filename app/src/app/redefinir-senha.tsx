@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Platform, StyleSheet, View, type TextInput } from 'react-native';
 
 import { redefinirSenha } from '../api/rotas';
 import { normalizarCodigo, pedeCodigoMfa } from '../dominio/mfa';
@@ -10,7 +10,7 @@ import { Campo } from '../ui/Campo';
 import { CampoSenha } from '../ui/CampoSenha';
 import { Cartao } from '../ui/Cartao';
 import { MensagemErro } from '../ui/Estados';
-import { textoDoErro } from '../ui/erros';
+import { erroDeMfaNoCampo, erroDeSenhaNoCampo, focarPrimeiroComErro, separarErros } from '../ui/erros';
 import { LinkTexto } from '../ui/LinkTexto';
 import { BotaoPublico, TelaPublica } from '../ui/TelaPublica';
 import { Texto } from '../ui/Texto';
@@ -28,6 +28,11 @@ export default function RedefinirSenha() {
   const [pedirCodigo, setPedirCodigo] = useState(false);
   const [codigo, setCodigo] = useState('');
   const [erro, setErro] = useState<string | null>(null);
+  // Erro de cada campo (C6), pelos nomes da API (`novaSenha`, `codigoMfa`); o token do link não está na tela e vai ao alerta.
+  const [campos, setCampos] = useState<Record<string, string>>({});
+  const refSenha = useRef<TextInput>(null);
+  const refConfirmacao = useRef<TextInput>(null);
+  const refCodigo = useRef<TextInput>(null);
   const [linkPerdido, setLinkPerdido] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [concluido, setConcluido] = useState(false);
@@ -38,18 +43,33 @@ export default function RedefinirSenha() {
     }
   }, []);
 
+  // O campo do código só existe depois que a API pede: o foco vai para ele quando o passo aparece.
+  useEffect(() => {
+    if (pedirCodigo) refCodigo.current?.focus();
+  }, [pedirCodigo]);
+
+  const refs = [['novaSenha', refSenha], ['confirmacao', refConfirmacao], ...(pedirCodigo ? [['codigoMfa', refCodigo] as const] : [])] as const;
+  const mostrar = (locais: Record<string, string>, geral: string | null) => {
+    setCampos(locais);
+    setErro(geral);
+    focarPrimeiroComErro(locais, refs);
+  };
+
   const enviar = async () => {
-    const problema = problemaDaNovaSenha(senha, confirmacao);
-    if (problema) {
-      setErro(problema);
-      return;
-    }
-    if (pedirCodigo && !codigo.trim()) {
-      setErro('Informe o código de verificação.');
+    // A senha sozinha (tamanho, bytes) vai embaixo dela; só a diferença entre as duas vai embaixo da confirmação.
+    const daSenha = problemaDaNovaSenha(senha, senha);
+    const daConfirmacao = daSenha ? null : problemaDaNovaSenha(senha, confirmacao);
+    const locais: Record<string, string> = {};
+    if (daSenha) locais.novaSenha = daSenha;
+    if (daConfirmacao) locais.confirmacao = daConfirmacao;
+    if (pedirCodigo && !codigo.trim()) locais.codigoMfa = 'Informe o código de verificação.';
+    if (Object.keys(locais).length) {
+      mostrar(locais, null);
       return;
     }
     setEnviando(true);
     setErro(null);
+    setCampos({});
     try {
       await redefinirSenha(token ?? '', senha, pedirCodigo ? normalizarCodigo(codigo) : undefined);
       setConcluido(true);
@@ -57,8 +77,18 @@ export default function RedefinirSenha() {
       if (pedeCodigoMfa(e)) {
         setPedirCodigo(true);
       } else {
-        setErro(textoDoErro(e));
-        setLinkPerdido(typeof e === 'object' && e !== null && (e as { codigo?: unknown }).codigo === 'LINK_INVALIDO');
+        const mfa = erroDeMfaNoCampo(e);
+        const senhaRecusada = erroDeSenhaNoCampo(e);
+        if (mfa) {
+          setPedirCodigo(true);
+          mostrar({ codigoMfa: mfa }, null);
+        } else if (senhaRecusada) {
+          mostrar({ novaSenha: senhaRecusada }, null);
+        } else {
+          const separados = separarErros(e, refs.map(([c]) => c));
+          mostrar(separados.campos, separados.geral);
+          setLinkPerdido(typeof e === 'object' && e !== null && (e as { codigo?: unknown }).codigo === 'LINK_INVALIDO');
+        }
       }
     } finally {
       setEnviando(false);
@@ -70,7 +100,7 @@ export default function RedefinirSenha() {
       <TelaPublica titulo="Link inválido ou vencido">
         <Cartao>
           <Texto>{erro ?? 'Este link não funciona mais. Peça um novo para criar a senha.'}</Texto>
-          <BotaoPublico rotulo="Pedir um novo link" aoTocar={() => router.replace('/esqueci-senha')} />
+          <BotaoPublico rotulo="Pedir um link novo" aoTocar={() => router.replace('/esqueci-senha')} />
         </Cartao>
         <View style={estilos.links}>
           <LinkTexto href="/entrar" texto="Voltar para entrar" />
@@ -93,12 +123,12 @@ export default function RedefinirSenha() {
   return (
     <TelaPublica titulo="Criar senha nova" subtitulo="Escolha uma senha que você não use em outro lugar.">
       <Cartao>
-        <CampoSenha rotulo="Senha nova" valor={senha} aoMudar={setSenha} autoComplete="new-password" textContentType="newPassword"
+        <CampoSenha ref={refSenha} rotulo="Senha nova" valor={senha} aoMudar={setSenha} erro={campos.novaSenha} autoComplete="new-password" textContentType="newPassword"
           ajuda="Mínimo de 8 caracteres." />
-        <CampoSenha rotulo="Confirmar senha" valor={confirmacao} aoMudar={setConfirmacao} autoComplete="new-password"
+        <CampoSenha ref={refConfirmacao} rotulo="Confirmar senha" valor={confirmacao} aoMudar={setConfirmacao} erro={campos.confirmacao} autoComplete="new-password"
           textContentType="newPassword" onSubmitEditing={enviar} returnKeyType="go" />
         {pedirCodigo ? (
-          <Campo rotulo="Código de verificação" valor={codigo} aoMudar={setCodigo} autoCapitalize="none" autoComplete="one-time-code"
+          <Campo ref={refCodigo} rotulo="Código de verificação" valor={codigo} aoMudar={setCodigo} erro={campos.codigoMfa} autoCapitalize="none" autoComplete="one-time-code"
             ajuda="Do aplicativo autenticador. Sem o celular, use um código de recuperação."
             onSubmitEditing={enviar} returnKeyType="go" />
         ) : null}

@@ -30,7 +30,7 @@ export function CartaoDietaDoInicio({ estado, aoTentarDeNovo }: { estado: DietaN
   if (estado.tipo === 'erro') {
     return (
       <View style={[estilos.cartao, estilos.aviso, moldura]}>
-        <Utensils size={20} color={cores.textoSuave} accessible={false} />
+        <Utensils size={20} color={cores.textoSuave} aria-hidden />
         <Texto variante="suave" style={estilos.textos}>Não foi possível carregar a dieta.</Texto>
         <Botao rotulo="Tentar de novo" tipo="secundario" aoTocar={aoTentarDeNovo} />
       </View>
@@ -39,7 +39,7 @@ export function CartaoDietaDoInicio({ estado, aoTentarDeNovo }: { estado: DietaN
   if (estado.tipo === 'sem-dieta') {
     return (
       <View style={[estilos.cartao, estilos.aviso, moldura]}>
-        <Utensils size={20} color={cores.textoSuave} accessible={false} />
+        <Utensils size={20} color={cores.textoSuave} aria-hidden />
         <Texto variante="suave" style={estilos.textos}>Seu treinador ainda não publicou um plano alimentar.</Texto>
       </View>
     );
@@ -53,7 +53,7 @@ export function CartaoDietaDoInicio({ estado, aoTentarDeNovo }: { estado: DietaN
       style={(e) => [estilos.cartao, estilos.linha, { backgroundColor: sobre(e) ? cores.superficie3 : cores.superficie, borderColor: cores.borda }]}>
       {width >= LARGURA_COM_ICONE ? (
         <View style={[estilos.icone, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
-          <Utensils size={20} color={cores.texto} accessible={false} />
+          <Utensils size={20} color={cores.texto} aria-hidden />
         </View>
       ) : null}
       <View style={estilos.textos}>
@@ -68,7 +68,7 @@ export function CartaoDietaDoInicio({ estado, aoTentarDeNovo }: { estado: DietaN
           <View style={[estilos.traco, { backgroundColor: cores.borda }]} />
           <View style={estilos.agua}>
             <View style={estilos.rotuloAgua}>
-              <Droplet size={14} color={cores.texto} accessible={false} />
+              <Droplet size={14} color={cores.texto} aria-hidden />
               <Texto variante="pequeno">Água do dia</Texto>
             </View>
             <Texto numerico style={estilos.litros}>{agua}</Texto>

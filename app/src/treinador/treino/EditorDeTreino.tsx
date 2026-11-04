@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { NotebookTabs } from 'lucide-react-native';
 import { Fragment, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -69,6 +69,7 @@ import { Esqueleto } from '../../ui/Esqueleto';
 import { useCarregar } from '../../ui/useCarregar';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
+import { coresDoDesabilitado } from '../../ui/desabilitado';
 import { Texto } from '../../ui/Texto';
 import { Tela } from '../../ui/Tela';
 import { tituloDoModelo, tituloDoPlanoDoAluno } from '../../dominio/planoDoAluno';
@@ -125,7 +126,8 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
     return (
       <Tela bordas={['top']} largura={LARGURA_EDITOR}>
         <Cabecalho titulo="Plano de treino" voltar="/treinador/alunos" />
-        {editor.erroCarga ? <MensagemErro texto={textoDoErro(editor.erroCarga)} erro={editor.erroCarga} tentarDeNovo={editor.recarregar} /> : <Esqueleto />}
+        {editor.erroCarga ? <MensagemErro texto={textoDoErro(editor.erroCarga)} erro={editor.erroCarga} tentarDeNovo={editor.recarregar}
+          acao={{ rotulo: 'Voltar à lista', aoTocar: () => router.navigate('/treinador/alunos') }} /> : <Esqueleto />}
       </Tela>
     );
   }
@@ -540,9 +542,9 @@ function OpcaoDeModelo({ titulo, descricao, desabilitado, aoEscolher }: { titulo
       onPress={aoEscolher}
       style={({ pressed }) => [
         estilos.opcaoModelo,
-        { backgroundColor: pressed ? cores.superficie3 : cores.superficie2, borderColor: cores.borda, opacity: desabilitado ? 0.45 : 1 },
+        { backgroundColor: desabilitado ? coresDoDesabilitado(cores).fundo : pressed ? cores.superficie3 : cores.superficie2, borderColor: cores.borda },
       ]}>
-      <Texto variante="bloco">{titulo}</Texto>
+      <Texto variante="bloco" cor={desabilitado ? cores.textoSuave : undefined}>{titulo}</Texto>
       <Texto variante="suave">{descricao}</Texto>
     </Pressable>
   );

@@ -110,6 +110,11 @@ public final class LeitorDePlanilha {
     }
 
     public static Planilha ler(String nome, byte[] bytes, int aba) {
+        return ler(nome, bytes, aba, 1);
+    }
+
+    /** {@code linhaDoCabecalho}: no CSV, o separador (; ou ,) sai dessa linha, não da primeira do arquivo. */
+    public static Planilha ler(String nome, byte[] bytes, int aba, int linhaDoCabecalho) {
         if (bytes == null || bytes.length == 0) {
             throw arquivo("O arquivo está vazio.");
         }
@@ -125,7 +130,7 @@ public final class LeitorDePlanilha {
                 return lerXlsx(bytes, aba);
             }
             if ("csv".equals(ext) || "txt".equals(ext) || ext.isEmpty()) {
-                return lerCsv(bytes, aba);
+                return lerCsv(bytes, aba, linhaDoCabecalho);
             }
             throw arquivo("Envie um arquivo .xlsx ou .csv.");
         } catch (BadRequestException e) {
@@ -150,12 +155,12 @@ public final class LeitorDePlanilha {
         return EPOCA.plusDays(dias);
     }
 
-    private static Planilha lerCsv(byte[] bytes, int aba) {
+    private static Planilha lerCsv(byte[] bytes, int aba, int linhaDoCabecalho) {
         if (aba != 0) {
             throw arquivo("Escolha uma aba da planilha.");
         }
         String texto = decodificar(bytes);
-        List<LeitorCsv.Linha> lidas = LeitorCsv.lerLivre(texto, LINHAS_LIDAS);
+        List<LeitorCsv.Linha> lidas = LeitorCsv.lerLivre(texto, LINHAS_LIDAS, linhaDoCabecalho);
         List<Linha> linhas = new ArrayList<>();
         int total = 0;
         for (LeitorCsv.Linha l : lidas) {

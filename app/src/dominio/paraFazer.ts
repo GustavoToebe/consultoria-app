@@ -3,9 +3,10 @@ import type { CobrancaDoAluno } from '../api/financeiroTipos';
 import type { Atualizacao } from '../api/tipos';
 import type { TipoSelo } from '../ui/Selo';
 import { dataEmBrasilia, horaEmBrasilia } from './agendaPresencial';
+import { DIAS_MAXIMOS_PARA_CONTAR_ATRASO, desdeQuandoAtrasou } from './atualizacao';
 import { dataSemAnoCorrente } from './datasRelativas';
 import { informacaoDaCobranca, pagamentoPendente, type ComoPagar } from './financeiro';
-import { centavosParaTela, dataCurta } from './formatos';
+import { centavosParaTela, dataCurta, hojeIso } from './formatos';
 
 export interface ItemParaFazer {
   titulo: string;
@@ -16,7 +17,7 @@ export interface ItemParaFazer {
   responder: boolean;
 }
 
-/** Anamnese pendente em "Suas pendências": o selo "Pendente" é neutro (vermelho é só para atrasada). */
+/** Anamnese pendente em "Suas pendências": o selo "Pendente" é neutro (conferir com o Gustavo: quem age é o aluno, D2 pediria âmbar). */
 export const ITEM_ANAMNESE: ItemParaFazer = {
   titulo: 'Anamnese inicial',
   detalhe: 'Seu treinador pediu algumas informações.',
@@ -26,10 +27,11 @@ export const ITEM_ANAMNESE: ItemParaFazer = {
 
 /**
  * Atualização em "Suas pendências" do início do aluno. O título é sempre o mesmo ("Atualização do período"); o selo é
- * curto e diz de quê ("Até 20/10", "Atrasada 2 dias") e a frase vai no detalhe. Vermelho só para atrasada, verde para
- * enviada/resposta nova e neutro para o resto (âmbar e vermelho juntos na mesma lista faziam tudo parecer urgente).
+ * curto e diz de quê ("Até 20/10", "Atrasada 2 dias") e a frase vai no detalhe. Cor pela regra da seção 4.5 (D2): âmbar só
+ * para quem precisa agir (responder até a data, nova data avisada), vermelho para atrasada, verde para resposta nova e
+ * neutro para quem espera ("Enviada · aguardando revisão"). O detalhe diz quem age.
  */
-export function itemDaAtualizacao(a: Atualizacao): ItemParaFazer {
+export function itemDaAtualizacao(a: Atualizacao, hoje: string = hojeIso()): ItemParaFazer {
   const titulo = 'Atualização do período';
   const data = a.atrasoAte ?? a.dataAtualizacao;
   const dia = data ? dataCurta(data) : '—';
@@ -37,27 +39,34 @@ export function itemDaAtualizacao(a: Atualizacao): ItemParaFazer {
     return { titulo, detalhe: 'Seu treinador respondeu. Toque para ler.', selo: { texto: 'Resposta nova', tipo: 'sucesso' }, responder: false };
   }
   if (a.fase === 'ENVIADA') {
-    return { titulo, detalhe: 'Enviada. Aguardando o treinador.', selo: { texto: 'Enviada', tipo: 'sucesso' }, responder: false };
+    return { titulo, detalhe: 'Enviada. Aguardando o treinador.', selo: { texto: 'Enviada', tipo: 'neutro' }, responder: false };
   }
   if (a.fase === 'ATRASADA') {
-    const dias = `${a.diasDeAtraso} ${a.diasDeAtraso === 1 ? 'dia' : 'dias'}`;
+    const dias = a.diasDeAtraso > DIAS_MAXIMOS_PARA_CONTAR_ATRASO ? `desde ${desdeQuandoAtrasou(a.diasDeAtraso, hoje)}` : `${a.diasDeAtraso} ${a.diasDeAtraso === 1 ? 'dia' : 'dias'}`;
     return { titulo, detalhe: `Era para ${dia}. O rascunho fica salvo neste aparelho.`, selo: { texto: `Atrasada ${dias}`, tipo: 'perigo' }, responder: true };
   }
   if (a.fase === 'ABERTA') {
     const detalhe = a.atrasoAte ? `Você avisou que vai responder até ${dia}.` : 'Questionário disponível. O rascunho fica salvo neste aparelho.';
-    return { titulo, detalhe, selo: { texto: `Até ${dia}`, tipo: 'neutro' }, responder: true };
+    return { titulo, detalhe, selo: { texto: `Até ${dia}`, tipo: 'atencao' }, responder: true };
   }
   if (a.atrasoAte) {
-    return { titulo, detalhe: `Você avisou: nova data ${dia}.`, selo: { texto: `Até ${dia}`, tipo: 'neutro' }, responder: false };
+    return { titulo, detalhe: `Você avisou: nova data ${dia}.`, selo: { texto: `Até ${dia}`, tipo: 'atencao' }, responder: false };
   }
   const quando = a.diasParaData === 1 ? 'amanhã' : `em ${a.diasParaData} dias`;
   return { titulo, detalhe: `Abre ${quando} (${dia}). Toque para ver as perguntas.`, selo: null, responder: false };
 }
 
+/** "Vencida há 3 dias" (a API decide que venceu; os dias contam de `vencimento` até `hoje`, no mínimo 1). */
+function seloDeVencida(vencimento: string, hoje: string): { texto: string; tipo: TipoSelo } {
+  const dias = Math.max(1, Math.round((Date.parse(hoje) - Date.parse(vencimento)) / 86_400_000));
+  return { texto: `Vencida há ${dias} ${dias === 1 ? 'dia' : 'dias'}`, tipo: 'perigo' };
+}
+
 /**
  * "Pagamento em aberto" em "Suas pendências": cobrança vencida (a API decide) ou que vence em até 3 dias. É um aviso, não
- * uma cobrança: não há botão de pagar aqui (o item leva à Conta, onde fica o "Pagar", se a plataforma o tem). Vencida em
- * âmbar, a vencer em neutro; vermelho continua só da atualização atrasada. No celular sem o "Pagar" (`modo` `informar`) o
+ * uma cobrança: não há botão de pagar aqui (o item leva à Conta, onde fica o "Pagar", se a plataforma o tem). Exceção da
+ * cobrança (D11), os mesmos três tons do "Meu plano" e do treinador: vencida em vermelho ("Vencida há N dias", sem
+ * bloquear nada), a vencer em âmbar ("Vence dd/mm"). No celular sem o "Pagar" (`modo` `informar`) o
  * detalhe só informa, no formato de `informacaoDaCobranca`, sem frase de chamada. Sem pendência, `null`.
  */
 export function itemDoPagamento(
@@ -77,13 +86,13 @@ export function itemDoPagamento(
   if (informacao) {
     return {
       titulo, detalhe: `${informacao}${mais}`,
-      selo: primeira.vencida ? { texto: 'Vencida', tipo: 'atencao' } : { texto: `Vence ${quando}`, tipo: 'neutro' }, responder: false,
+      selo: primeira.vencida ? seloDeVencida(primeira.vencimento, hoje) : { texto: `Vence ${quando}`, tipo: 'atencao' }, responder: false,
     };
   }
   if (vencidas > 0) {
-    return { titulo, detalhe: `${valor}${mais}, venceu em ${quando}. Fale com o seu treinador.`, selo: { texto: 'Vencida', tipo: 'atencao' }, responder: false };
+    return { titulo, detalhe: `${valor}${mais}, venceu em ${quando}. Fale com o seu treinador.`, selo: seloDeVencida(primeira.vencimento, hoje), responder: false };
   }
-  return { titulo, detalhe: `${valor}${mais}, vence em ${quando}.`, selo: { texto: `Vence ${quando}`, tipo: 'neutro' }, responder: false };
+  return { titulo, detalhe: `${valor}${mais}, vence em ${quando}.`, selo: { texto: `Vence ${quando}`, tipo: 'atencao' }, responder: false };
 }
 
 // ---- Avisos de compromisso (D12) ----
@@ -91,9 +100,10 @@ export function itemDoPagamento(
 /** Quantos avisos aparecem de uma vez em "Suas pendências"; a API devolve até 20 (os mais novos primeiro). */
 export const AVISOS_VISIVEIS = 5;
 
-/** Item de aviso: `id` é o do aviso, para marcar como visto ao tocar. */
+/** Item de aviso: `ids` são os avisos que tocar marca como vistos (um, ou todos os "novos" do grupo); `id` é o primeiro. */
 export interface ItemDoAviso extends ItemParaFazer {
   id: string;
+  ids: string[];
   tipo: TipoAvisoCompromisso;
 }
 
@@ -112,22 +122,34 @@ export function textoDoAviso(a: Pick<AvisoDeCompromisso, 'tipo' | 'inicio' | 're
 }
 
 /**
- * Aviso de compromisso em "Suas pendências": a frase da D12 no título, selo neutro com o tipo (vermelho continua só da
- * atualização atrasada). Só avisa: sem botão de confirmar presença; tocar marca como visto e leva ao cartão "Seus
+ * Aviso de compromisso em "Suas pendências": a frase da D12 no título, selo neutro com o tipo (coisa que já aconteceu ou vai
+ * acontecer, sem ação do aluno: D7). Só avisa: sem botão de confirmar presença; tocar marca como visto e leva ao cartão "Seus
  * compromissos" do mesmo Início.
  */
 export function itemDoAviso(a: AvisoDeCompromisso, hoje: string): ItemDoAviso {
   return {
-    id: a.id, tipo: a.tipo, titulo: textoDoAviso(a, hoje), detalhe: 'Toque para ver seus compromissos.',
+    id: a.id, ids: [a.id], tipo: a.tipo, titulo: textoDoAviso(a, hoje), detalhe: 'Toque para ver seus compromissos.',
     selo: { texto: SELO_DO_AVISO[a.tipo] ?? 'Aviso', tipo: 'neutro' }, responder: false,
   };
 }
 
 /**
+ * Dois ou mais avisos "novo compromisso" viram um item só, "4 compromissos novos" (N8 da auditoria: 4 avisos separados
+ * inflavam o "Suas pendências: 7"). Tocar nele marca todos como vistos. Remarcado e cancelado seguem um por item, porque
+ * cada um diz um horário diferente. Um "novo" sozinho continua com a frase completa.
+ */
+export function itemDosNovos(novos: readonly AvisoDeCompromisso[]): ItemDoAviso {
+  return {
+    id: novos[0].id, ids: novos.map((n) => n.id), tipo: 'NOVO', titulo: `${novos.length} compromissos novos`,
+    detalhe: 'Toque para ver seus compromissos.', selo: { texto: SELO_DO_AVISO.NOVO, tipo: 'neutro' }, responder: false,
+  };
+}
+
+/**
  * Os avisos da lista da API (não vistos, mais novos primeiro: a ordem da API se mantém) como itens, sem repetir `id` e sem
- * aviso de data inválida; no máximo {@link AVISOS_VISIVEIS} aparecem e `ocultos` conta os que ficam para depois (cada um
- * some quando o aluno vê o anterior). `total` (com os ocultos) é o que o ponto da aba Início e a contagem das pendências
- * usam.
+ * aviso de data inválida, com os "novos" agrupados num item (no lugar do primeiro deles); no máximo {@link AVISOS_VISIVEIS}
+ * aparecem e `ocultos` conta os itens que ficam para depois (cada um some quando o aluno vê o anterior). `total` (com os
+ * ocultos) é o que o ponto da aba Início e a contagem das pendências usam.
  */
 export function avisosDoInicio(avisos: readonly AvisoDeCompromisso[] | null | undefined, hoje: string):
   { itens: ItemDoAviso[]; ocultos: number; total: number } {
@@ -138,8 +160,13 @@ export function avisosDoInicio(avisos: readonly AvisoDeCompromisso[] | null | un
     vistos.add(a.id);
     validos.push(a);
   }
-  const itens = validos.slice(0, AVISOS_VISIVEIS).map((a) => itemDoAviso(a, hoje));
-  return { itens, ocultos: validos.length - itens.length, total: validos.length };
+  const novos = validos.filter((a) => a.tipo === 'NOVO');
+  const todos = validos.flatMap((a) => {
+    if (novos.length < 2 || a.tipo !== 'NOVO') return [itemDoAviso(a, hoje)];
+    return a === novos[0] ? [itemDosNovos(novos)] : [];
+  });
+  const itens = todos.slice(0, AVISOS_VISIVEIS);
+  return { itens, ocultos: todos.length - itens.length, total: todos.length };
 }
 
 /** Há aviso de compromisso não visto (o ponto na aba Início). */

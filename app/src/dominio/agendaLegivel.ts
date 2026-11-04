@@ -57,9 +57,39 @@ export function fundoDoItemDaAgenda({ cor, base, textos, graficos = [], proporca
   return base;
 }
 
+/** "09:00" vira "9h"; "09:30", "9h30". Texto que não é hora fica como veio. */
+function horaPorExtenso(hhmm: string): string {
+  const m = /^(\d{1,2}):(\d{2})/.exec(hhmm);
+  if (!m) return hhmm;
+  return `${Number(m[1])}h${m[2] === '00' ? '' : m[2]}`;
+}
+
+/** "a" concorda com a hora: a 0h e a 1h são singular ("à 1h", "da 1h"), as outras plural ("às 9h", "das 9h"). */
+const singular = (hhmm: string) => /^0?[01]:/.test(hhmm);
+
+/** Minutos desde a meia-noite de "HH:MM"; `null` quando o texto não é hora. */
+function minutosDoDia(hhmm: string): number | null {
+  const m = /^(\d{1,2}):(\d{2})/.exec(hhmm);
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+}
+
+/**
+ * O horário no nome acessível do compromisso: "das 9h às 10h" quando há fim, e só o início ("09:00") quando não há,
+ * como era antes de existir o fim. Fim no dia seguinte ("das 23h à 0h do dia seguinte"): a duração vai de 5 a 480
+ * minutos, então fim igual ou antes do início (na hora de Brasília) só acontece quando o compromisso passa da
+ * meia-noite (decisão D18 do Gustavo, 03/11).
+ */
+export function horarioNoRotuloDoCompromisso(hora: string, horaFim?: string | null): string {
+  if (!horaFim) return hora;
+  const inicio = minutosDoDia(hora);
+  const fim = minutosDoDia(horaFim);
+  const diaSeguinte = inicio !== null && fim !== null && fim <= inicio ? ' do dia seguinte' : '';
+  return `${singular(hora) ? 'da' : 'das'} ${horaPorExtenso(hora)} ${singular(horaFim) ? 'à' : 'às'} ${horaPorExtenso(horaFim)}${diaSeguinte}`;
+}
+
 /**
  * O status do compromisso no fim do nome acessível (", cancelado", ", realizado", ", 2 de 3 realizados · 1 faltou"). Vazio
- * quando todos ainda estão agendados: o nome continua o de antes ("Abrir compromisso de Ana, 09:00").
+ * quando todos ainda estão agendados: o nome continua o de antes ("Abrir compromisso de Ana, das 9h às 10h").
  */
 export function statusNoRotuloDoCompromisso(c: Pick<Compromisso, 'cancelado' | 'participantes'>): string {
   if (!c.cancelado && c.participantes.every((p) => p.situacao === 'AGENDADO')) return '';
@@ -110,4 +140,15 @@ export function arranjoDoBloco(altura: number, largura: number, temStatus: boole
 export function statusNoDiaInteiro(largura: number, temStatus: boolean, linha = 16): 'selo' | 'icone' | null {
   if (!temStatus) return null;
   return largura >= (LARGURA_PARA_SELO_AO_LADO * linha) / 16 ? 'selo' : 'icone';
+}
+
+/**
+ * Texto do item na célula do mês: hora de início e título (ou só o título no dia inteiro e na atualização).
+ * Cancelado escreve a palavra; o riscado sozinho não diz o status.
+ */
+export function textoDoItemNoMes(item: {
+  titulo: string; diaInteiro: boolean; origem: string; cancelado: boolean; inicioCurto: string;
+}): string {
+  const base = item.diaInteiro || item.origem === 'ATUALIZACAO' ? item.titulo : `${item.inicioCurto} ${item.titulo}`;
+  return item.cancelado ? `${base} · Cancelado` : base;
 }

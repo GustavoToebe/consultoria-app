@@ -115,7 +115,7 @@ public class AtualizacaoService {
             if (!ids.isEmpty()) fotos.ligar(alunoId, pastaId, atualizacaoId, perguntaId, ids);
         }
     }
-    private static String idDaPergunta(JsonNode conteudo, String tipo) {
+    static String idDaPergunta(JsonNode conteudo, String tipo) {
         for (var secao : conteudo.path("secoes")) for (var p : secao.path("perguntas"))
             if (tipo.equals(p.path("tipo").asString())) return p.path("id").asString();
         return "";
@@ -143,6 +143,8 @@ public class AtualizacaoService {
         exigirNaoEnviada(atual);
         LocalDate data = atual == null ? pasta.getFim() : atual.getDataAtualizacao();
         LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
+        // Faixa de planejamento (C76) antes da regra data..data+15: com a data da pasta absurda, a janela também seria.
+        FaixaDeData.exigir(hoje, "ATUALIZACAO_INVALIDA", FaixaDeData.PLANEJAMENTO.campo("novaData", "Nova data", r.novaData()));
         if (!RegrasAtualizacao.novaDataValida(hoje, data, r.novaData())) {
             LocalDate minimo = hoje.isAfter(data) ? hoje : data;
             throw invalidos("novaData", "Escolha uma data de " + DATA_BR.format(minimo) + " até "
@@ -267,7 +269,7 @@ public class AtualizacaoService {
 
     private static void exigirPeriodo(LocalDate de, LocalDate ate) {
         if ((de == null) != (ate == null)) throw new BadRequestException("Informe o período inteiro (de e ate).", "PERIODO_INVALIDO");
-        FiltrosDeLista.exigirPeriodo(de, ate, JANELA_MAXIMA_DIAS, "PERIODO_INVALIDO");
+        FiltrosDeLista.exigirPeriodoNaFaixa(de, ate, JANELA_MAXIMA_DIAS, "PERIODO_INVALIDO");
     }
     /**
      * Alunos ativos do escopo que têm pasta vigente com período (mesma consulta da lista e dos contadores). Quem não está

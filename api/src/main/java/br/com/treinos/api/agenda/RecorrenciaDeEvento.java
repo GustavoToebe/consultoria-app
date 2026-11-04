@@ -1,6 +1,7 @@
 package br.com.treinos.api.agenda;
 
 import br.com.plataforma.comum.web.BadRequestException;
+import br.com.treinos.api.web.FaixaDeData;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -11,7 +12,7 @@ import java.util.Set;
 
 /**
  * A regra de repetição de um evento sem aluno (D4): dada a data do primeiro dia e a regra, quais dias caem numa janela.
- * Classe pura, sem banco, sem relógio e sem fuso (são datas de Brasília); a hora é aplicada por quem chama.
+ * Classe pura, sem banco e sem fuso (são datas de Brasília; só {@code validar} olha o dia de hoje, para a faixa de datas); a hora é aplicada por quem chama.
  *
  * <p>O fim é opcional: sem {@code ate} nem {@code vezes} a série "nunca termina" e só é expandida dentro da janela pedida.
  * {@code vezes} (de 2 a {@value #VEZES_MAXIMO}) conta as ocorrências da REGRA a partir da primeira, inclusive as que uma
@@ -27,7 +28,10 @@ final class RecorrenciaDeEvento {
 
     static final int VEZES_MINIMO = 2;
     static final int VEZES_MAXIMO = 999;
-    /** Datas aceitas em evento e regra: fora disso o laço de expansão poderia girar sem fim útil. */
+    /**
+     * Limites do laço de expansão: fora disso ele poderia girar sem fim útil. O que o evento aceita de verdade é a faixa
+     * de planejamento ({@link FaixaDeData#PLANEJAMENTO}, C76), mais estreita que esta.
+     */
     static final LocalDate PRIMEIRO_DIA = LocalDate.of(2000, 1, 1);
     static final LocalDate ULTIMO_DIA = LocalDate.of(2100, 12, 31);
 
@@ -51,12 +55,20 @@ final class RecorrenciaDeEvento {
         }
     }
 
-    /** Confere a regra de um evento que começa em {@code inicio} (400 {@code REPETICAO_INVALIDA}). */
+    /**
+     * Confere a regra de um evento que começa em {@code inicio}: 400 {@code REPETICAO_INVALIDA}; data do evento ou "até"
+     * fora da faixa de planejamento é 422 ({@code EVENTO_INVALIDO}, campo {@code data}; {@code REPETICAO_INVALIDA}, campo
+     * {@code repeticao.ate}).
+     */
     static void validar(LocalDate inicio, Regra r) {
+        validar(inicio, r, FaixaDeData.hoje());
+    }
+
+    static void validar(LocalDate inicio, Regra r, LocalDate hoje) {
         if (inicio == null || r == null || r.tipo() == null) {
             throw invalida("Escolha como o evento se repete.");
         }
-        foraDoIntervalo(inicio);
+        FaixaDeData.exigir(hoje, "EVENTO_INVALIDO", FaixaDeData.PLANEJAMENTO.campo("data", "Data do evento", inicio));
         if (r.tipo() == TipoDeRecorrencia.NENHUMA) {
             if (!r.dias().isEmpty() || r.ate() != null || r.vezes() != null) {
                 throw invalida("Um evento que não se repete não tem dias, data final nem número de vezes.");
@@ -69,9 +81,8 @@ final class RecorrenciaDeEvento {
         if (r.vezes() != null && (r.vezes() < VEZES_MINIMO || r.vezes() > VEZES_MAXIMO)) {
             throw invalida("O número de vezes precisa ser de " + VEZES_MINIMO + " a " + VEZES_MAXIMO + ".");
         }
-        if (r.ate() != null) {
-            foraDoIntervalo(r.ate());
-        }
+        FaixaDeData.exigir(hoje, "REPETICAO_INVALIDA",
+                FaixaDeData.PLANEJAMENTO.campo("repeticao.ate", "Última data da repetição", r.ate()));
         if (r.tipo() == TipoDeRecorrencia.SEMANAL) {
             if (r.dias().isEmpty()) {
                 throw invalida("Escolha os dias da semana.");
@@ -81,12 +92,6 @@ final class RecorrenciaDeEvento {
         }
         if (r.ate() != null && r.ate().isBefore(primeira(inicio, r))) {
             throw invalida("A data final não pode ser antes do primeiro dia do evento.");
-        }
-    }
-
-    private static void foraDoIntervalo(LocalDate data) {
-        if (data.isBefore(PRIMEIRO_DIA) || data.isAfter(ULTIMO_DIA)) {
-            throw invalida("Use datas entre " + PRIMEIRO_DIA.getYear() + " e " + ULTIMO_DIA.getYear() + ".");
         }
     }
 

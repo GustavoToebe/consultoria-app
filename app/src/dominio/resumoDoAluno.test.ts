@@ -32,6 +32,10 @@ describe('proximoPassoDoAluno', () => {
     expect(proximoPassoDoAluno({ aluno: ativo, atualizacao: { fase: 'ATRASADA', diasDeAtraso: 2 }, pasta: p, pastas: [p], hoje: HOJE }))
       .toMatchObject({ acao: null, tipo: 'perigo', texto: 'A atualização está atrasada há 2 dias. Vale falar com o aluno.' });
   });
+  it('atraso de mais de um ano diz desde quando (C76)', () => {
+    expect(proximoPassoDoAluno({ aluno: ativo, atualizacao: { fase: 'ATRASADA', diasDeAtraso: 644943 }, pasta: p, pastas: [p], hoje: HOJE }).texto)
+      .toMatch(/^A atualização está atrasada desde \d{2}\/\d{2}\/\d{4}\. Vale falar com o aluno\.$/);
+  });
   it('inativo e anonimizado não sugerem trabalho', () => {
     expect(proximoPassoDoAluno({ aluno: { ...ativo, ativo: false }, atualizacao: { fase: 'ENVIADA', diasDeAtraso: 0 }, pasta: p, pastas: [p], hoje: HOJE }).acao).toBeNull();
     expect(proximoPassoDoAluno({ aluno: { ...ativo, anonimizado: true, ativo: false }, atualizacao: null, pasta: null, pastas: [], hoje: HOJE }).tipo).toBe('neutro');

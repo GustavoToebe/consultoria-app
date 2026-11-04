@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 import type { Exercicio, Sessao } from '../src/api/tipos';
 import { fixarHoje, sessaoDeAlunoComTreino, sessaoFalsa } from './aluno';
-import { erroApi, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
+import { erroApi, json, paginaDeExerciciosFalsa, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
 import { GIF_FALSO, pngDeCor } from './imagens-falsas';
 
 /**
@@ -39,7 +39,7 @@ test('biblioteca: miniaturas, enviar GIF, trocar e remover a imagem própria', a
   const { naoTratadas, errosDaPagina } = await simularApi(page, {
     ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'BIBLIOTECA_LER', 'BIBLIOTECA_ALTERAR'] })),
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },
-    'GET /exercicios': { corpo: [COM_CATALOGO, COM_PROPRIA] },
+    'GET /exercicios/pagina': paginaDeExerciciosFalsa([COM_CATALOGO, COM_PROPRIA]),
     [`GET /exercicios/${COM_PROPRIA.id}/imagem`]: (_p, route) => route.fulfill({ status: 200, contentType: 'image/png', body: AZUL }),
     [`PUT /exercicios/${COM_PROPRIA.id}/imagem`]: (p, route) => {
       envios.push({ metodo: p.metodo, caminho: p.caminho, corpo: route.request().postDataBuffer()?.toString('latin1') ?? '' });
@@ -97,7 +97,7 @@ test('biblioteca: sem permissão de alterar a folha só mostra a imagem', async 
   const { naoTratadas, errosDaPagina } = await simularApi(page, {
     ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'BIBLIOTECA_LER'] })),
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },
-    'GET /exercicios': { corpo: [COM_CATALOGO] },
+    'GET /exercicios/pagina': paginaDeExerciciosFalsa([COM_CATALOGO]),
   });
   await page.goto('/treinador/biblioteca');
   await expect(page.getByText('Remada baixa', { exact: true })).toBeVisible();

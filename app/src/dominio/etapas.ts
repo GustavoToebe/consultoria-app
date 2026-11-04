@@ -2,7 +2,7 @@ import type { CargaDaEtapa, EtapaRegistrada, OrigemDaReferencia, Retomada, Serie
 import { faixa } from './agrupamento';
 import { arredondar } from './cargas';
 import { blocosValidos } from './blocos';
-import { numeroParaTela } from './formatos';
+import { textoDaCarga, type UnidadeDeCarga } from './unidadeDeCarga';
 import { textoDasRepeticoesDaSerie } from './resumoDaSerie';
 
 /**
@@ -117,6 +117,12 @@ export function proximaPendente(etapas: readonly EtapaRegistrada[] | null | unde
 /** Todas as etapas têm situação (feita ou não realizada): a série pode ser concluída. */
 export const todasComSituacao = (etapas: readonly EtapaRegistrada[] | null | undefined, quantas: number): boolean => proximaPendente(etapas, quantas) === null;
 
+/** O selo do cabeçalho da série com etapas: "Não feita" só quando TODAS as etapas previstas foram marcadas como não realizadas. */
+export function seloDaSerieComEtapas(feita: boolean, etapas: readonly EtapaRegistrada[], quantas: number): 'FEITA' | 'NAO_FEITA' | null {
+  if (feita) return 'FEITA';
+  return etapas.length > 0 && etapas.every((e) => e.situacao === 'NAO_REALIZADA') && todasComSituacao(etapas, quantas) ? 'NAO_FEITA' : null;
+}
+
 /**
  * Total da série: a soma das repetições das etapas feitas, só quando nenhuma está pendente e toda feita tem repetições;
  * senão `null` (parcial). Igual ao `SincronizacaoService.totalDasEtapas`.
@@ -143,18 +149,44 @@ export function cargaComum(etapas: readonly EtapaRegistrada[] | null | undefined
 }
 
 /**
- * Resumo do que foi feito, sem apresentar soma parcial como total: "Realizadas: 14 reps · 4 de 4 blocos",
- * "Execução parcial: 8 reps em 2 de 4 blocos", "Nenhum bloco registrado". `rotulo` = "blocos" ou "etapas".
+ * Rodapé do cartão único da série com etapas (Frente G, D12): "Feito até agora: 8 de 10 reps" (com o total previsto quando
+ * toda etapa pede um número exato, como os blocos do Cluster) ou "Feito até agora: 8 reps" (faixa, AMRAP, até a falha).
+ * Soma só as repetições informadas nas etapas feitas; nunca inventa o que falta. Concluída, "Feito: …". Etapa marcada como
+ * não feita e etapa feita sem repetições aparecem escritas, para a soma não parecer o total.
  */
-export function resumoDaExecucao(etapas: readonly EtapaRegistrada[] | null | undefined, quantas: number, rotulo: 'blocos' | 'etapas'): string {
+export function feitoAteAgora(
+  etapas: readonly EtapaRegistrada[] | null | undefined,
+  previstas: readonly Pick<EtapaPrevista, 'repsExatas'>[],
+  rotulo: 'blocos' | 'etapas',
+  concluida = false,
+): string {
   const lista = etapas ?? [];
-  if (!lista.length) return `Nenhum${rotulo === 'blocos' ? ' bloco registrado' : 'a etapa registrada'}`;
-  const total = totalDasEtapas(lista, quantas);
-  const naoRealizadas = lista.filter((e) => e.situacao === 'NAO_REALIZADA').length;
-  const extra = naoRealizadas ? ` · ${naoRealizadas} não ${naoRealizadas === 1 ? 'realizada' : 'realizadas'}` : '';
-  if (total != null) return `Realizadas: ${total} reps · ${lista.length - naoRealizadas} de ${quantas} ${rotulo}${extra}`;
-  const parcial = repeticoesInformadas(lista);
-  return `Execução parcial: ${parcial == null ? '—' : parcial} reps em ${lista.length} de ${quantas} ${rotulo}${extra}`;
+  const feitas = lista.filter((e) => e.situacao === 'FEITA');
+  const soma = feitas.reduce((total, e) => total + (e.repeticoes ?? 0), 0);
+  const previsto = previstas.length && previstas.every((p) => p.repsExatas != null) ? previstas.reduce((t, p) => t + (p.repsExatas ?? 0), 0) : null;
+  const bloco = rotulo === 'blocos';
+  const contar = (n: number, final: string) => `${n} ${bloco ? (n === 1 ? 'bloco' : 'blocos') : (n === 1 ? 'etapa' : 'etapas')} ${final}`;
+  const naoFeitas = lista.length - feitas.length;
+  const semReps = feitas.filter((e) => e.repeticoes == null).length;
+  const extras = [
+    ...(naoFeitas ? [contar(naoFeitas, bloco ? (naoFeitas === 1 ? 'não feito' : 'não feitos') : (naoFeitas === 1 ? 'não feita' : 'não feitas'))] : []),
+    ...(semReps ? [contar(semReps, 'sem repetições')] : []),
+  ];
+  const reps = previsto != null ? `${soma} de ${previsto} reps` : `${soma} ${soma === 1 ? 'rep' : 'reps'}`;
+  return [`${concluida ? 'Feito' : 'Feito até agora'}: ${reps}`, ...extras].join(' · ');
+}
+
+/**
+ * O que falta para concluir: "Falta o bloco 3 para concluir.", "Falta a retomada para concluir.", "Faltam 2 blocos para
+ * concluir."; `null` quando toda etapa já tem situação (feita ou não feita).
+ */
+export function faltaParaConcluir(etapas: readonly EtapaRegistrada[] | null | undefined, previstas: readonly Pick<EtapaPrevista, 'posicao' | 'rotulo'>[]): string | null {
+  const com = new Set((etapas ?? []).map((e) => e.posicao));
+  const pendentes = previstas.filter((p) => !com.has(p.posicao));
+  if (!pendentes.length) return null;
+  const bloco = pendentes[0].rotulo.startsWith('Bloco');
+  if (pendentes.length > 1) return `Faltam ${pendentes.length} ${bloco ? 'blocos' : 'etapas'} para concluir.`;
+  return `Falta ${bloco ? 'o' : 'a'} ${pendentes[0].rotulo.toLowerCase()} para concluir.`;
 }
 
 export interface Volume {
@@ -307,7 +339,7 @@ export function pausaDaAcao(atual: RegistroAtual | null | undefined, acao: AcaoN
 }
 
 /** "Referência: WS registrada antes, 42 kg" ou "Referência: base do dia, 40 kg"; `null` sem referência congelada. */
-export function textoDaReferenciaCongelada(valor: number | null | undefined, origem: OrigemDaReferencia | null | undefined): string | null {
+export function textoDaReferenciaCongelada(valor: number | null | undefined, origem: OrigemDaReferencia | null | undefined, unidade: UnidadeDeCarga = 'kg'): string | null {
   if (valor == null || !origem) return null;
-  return `Referência: ${origem === 'WS_ANTERIOR' ? 'WS registrada antes' : 'base do dia'}, ${numeroParaTela(valor)} kg`;
+  return `Referência: ${origem === 'WS_ANTERIOR' ? 'WS registrada antes' : 'base do dia'}, ${textoDaCarga(valor, unidade)}`;
 }

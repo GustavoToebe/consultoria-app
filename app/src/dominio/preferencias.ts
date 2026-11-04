@@ -1,6 +1,7 @@
 import { PERIODOS_DA_LISTA, type PeriodoDaLista } from './listaDeCompras';
 import { BLOCOS_DO_PAINEL, ehBlocoDoPainel, PAINEL_DO_INICIO_PADRAO, type PainelDoInicioPreferido } from './painelBlocos';
 import { BORDA_BLOCO, BORDA_ITEM, type Cores } from '../tema/tokens';
+import { UNIDADES_DE_CARGA, type UnidadeDeCarga } from './unidadeDeCarga';
 
 /**
  * Preferências visuais de cada pessoa, só neste aparelho e para a conta dela (não vão para a API nem para log). A
@@ -43,6 +44,8 @@ export interface Preferencias {
   mostrarFasesDoCiclo: boolean;
   /** Só aluno, só no celular: notificações locais 1 dia e 2 horas antes de cada compromisso. Desligado por padrão. */
   lembretesCompromisso: boolean;
+  /** Só aluno, só no celular: push do Expo quando um compromisso é marcado, remarcado ou cancelado. Desligado por padrão. */
+  avisoNoCelular: boolean;
   /**
    * Só treinador: agendas da Agenda escondidas neste aparelho (D2). Cada item é a chave de uma agenda fixa
    * (`compromissos`, `atualizacoes`) ou o id de uma agenda pessoal; nenhuma oculta é o padrão. O id de uma agenda que não
@@ -55,6 +58,11 @@ export interface Preferencias {
    * padrão" do Editar limpa os três). Os Primeiros passos não entram.
    */
   painelDoInicio: PainelDoInicioPreferido;
+  /**
+   * Só aluno, e só com `unidadeDeCargaHabilitada` na plataforma: em que unidade ele vê e digita a carga. A carga é guardada
+   * sempre em kg; isto só muda a tela (`dominio/unidadeDeCarga`). Padrão kg; "Restaurar o padrão" também volta a kg.
+   */
+  unidadeDeCarga: UnidadeDeCarga;
 }
 
 /** Teto de itens e de tamanho de cada um em `agendasOcultas` (20 agendas pessoais + 2 fixas cabem com folga). */
@@ -81,8 +89,10 @@ export const PREFERENCIAS_PADRAO: Preferencias = {
   logoNaComparacao: true,
   mostrarFasesDoCiclo: true,
   lembretesCompromisso: false,
+  avisoNoCelular: false,
   agendasOcultas: [],
   painelDoInicio: PAINEL_DO_INICIO_PADRAO,
+  unidadeDeCarga: 'kg',
 };
 
 const TEMAS: readonly TemaEscolhido[] = ['CONSULTORIA', 'ESCURO', 'CLARO', 'AREIA', 'SISTEMA'];
@@ -119,8 +129,10 @@ export function normalizarPreferencias(qualquer: unknown): Preferencias {
     logoNaComparacao: typeof o.logoNaComparacao === 'boolean' ? o.logoNaComparacao : PREFERENCIAS_PADRAO.logoNaComparacao,
     mostrarFasesDoCiclo: typeof o.mostrarFasesDoCiclo === 'boolean' ? o.mostrarFasesDoCiclo : PREFERENCIAS_PADRAO.mostrarFasesDoCiclo,
     lembretesCompromisso: typeof o.lembretesCompromisso === 'boolean' ? o.lembretesCompromisso : PREFERENCIAS_PADRAO.lembretesCompromisso,
+    avisoNoCelular: typeof o.avisoNoCelular === 'boolean' ? o.avisoNoCelular : PREFERENCIAS_PADRAO.avisoNoCelular,
     agendasOcultas: agendasOcultasDe(o.agendasOcultas),
     painelDoInicio: painelDoInicioDe(o.painelDoInicio),
+    unidadeDeCarga: entre(o.unidadeDeCarga, UNIDADES_DE_CARGA, PREFERENCIAS_PADRAO.unidadeDeCarga),
   };
 }
 

@@ -1,8 +1,9 @@
 import type { DiaDeTreino, EtapaRegistrada, SerieFeita, Sessao } from '../api/tipos';
 import { cargaComum, somarVolumes, volumeDaSerie, type Volume } from './etapas';
 import { DIAS_SEMANA } from './editorTreino';
-import { diaDaSemanaIso, numeroParaTela, somarDias } from './formatos';
+import { diaDaSemanaIso, somarDias } from './formatos';
 import { nomeComDia } from './semana';
+import { textoDaCarga, type UnidadeDeCarga } from './unidadeDeCarga';
 
 /**
  * Cargas por divisão (como o relatório do protótipo): divisão do plano → exercício → uma linha por dia com a carga
@@ -27,6 +28,11 @@ export interface LinhaCarga {
   /** Séries com algo registrado no dia. */
   series: number;
   semCarga: boolean;
+  /**
+   * Só havia série de trabalho feita sem carga (exercício com peso): a linha diz "Feito, sem carga" (D4). É a única exceção ao
+   * "—" na tabela; `repeticoes` leva as da série, se o aluno as informou.
+   */
+  feitoSemCarga: boolean;
   observacoes: string[];
 }
 
@@ -76,6 +82,15 @@ export function filtrarPorSessoes(dias: DiaDeTreino[], uids: Set<string> | null)
 const chaveDoNome = (nome: string) => nome.trim().toLowerCase();
 
 /**
+ * Nome da divisão de uma sessão registrada, o mesmo das "Cargas por divisão": com o plano, o dia e o nome ("Quarta -
+ * Pernas"); sem ele, o nome gravado no registro. A visão por semana usa este nome para dar a mesma letra e a mesma cor.
+ */
+export function nomeDaDivisao(s: { sessaoUid: string; sessao: string }, sessoesDoPlano?: Map<string, Sessao>): string {
+  const doPlano = sessoesDoPlano?.get(s.sessaoUid);
+  return doPlano ? nomeComDia(doPlano, ' - ') : s.sessao;
+}
+
+/**
  * @param sessoesDoPlano sessões do plano atual (por uid), para dar o dia ("Quarta - Pernas") e a ordem da semana.
  *   Sem elas, a divisão usa o nome gravado e a ordem do dia em que o aluno mais treinou.
  */
@@ -84,7 +99,7 @@ export function cargasPorDivisao(dias: DiaDeTreino[], sessoesDoPlano?: Map<strin
   for (const dia of [...dias].sort((a, b) => a.data.localeCompare(b.data))) {
     for (const s of dia.sessoes) {
       const doPlano = sessoesDoPlano?.get(s.sessaoUid);
-      const nome = doPlano ? nomeComDia(doPlano, ' - ') : s.sessao;
+      const nome = nomeDaDivisao(s, sessoesDoPlano);
       const chave = chaveDoNome(nome);
       const divisao = divisoes.get(chave) ?? { chave, nome, exercicios: [], ordem: [] };
       divisoes.set(chave, divisao);
@@ -102,10 +117,12 @@ export function cargasPorDivisao(dias: DiaDeTreino[], sessoesDoPlano?: Map<strin
         const comCarga = doTrabalho.filter((x) => x.carga !== null).sort((a, b) => (b.carga ?? 0) - (a.carga ?? 0))[0];
         // Sem série de trabalho de carga única, a por etapas sem carga comum ainda mostra os blocos; a carga fica de fora.
         const trabalho = comCarga ?? doTrabalho.find((x) => x.etapas);
+        const feitaSemCarga = trabalho ? undefined : doTrabalho.find((x) => x.unidade !== 'nenhuma' && x.carga === null);
         exercicio.linhas.push({
           data: dia.data,
           carga: trabalho?.carga ?? null,
-          repeticoes: trabalho ? trabalho.repeticoes : null,
+          repeticoes: trabalho ? trabalho.repeticoes : (feitaSemCarga?.repeticoes ?? null),
+          feitoSemCarga: !!feitaSemCarga,
           etapas: trabalho?.etapas ? repeticoesDasEtapas(trabalho) : null,
           cargaVariavel: !!trabalho && trabalho.carga === null && temCargasDiferentes(trabalho),
           volume: volumeDoExercicio(e.series),
@@ -155,18 +172,27 @@ export function ultimoRegistroDaDivisao(d: DivisaoRelatorio): string | null {
   return ultima;
 }
 
+/** Série feita sem carga e sem repetições no histórico (D4): no lugar do "—". */
+export const TEXTO_FEITO_SEM_CARGA = 'feito, sem carga';
+
 /**
- * "WS 32 kg × 5"; o que o aluno não informou aparece como "—" (nunca presumido). Série sem carga e sem repetições (cardio,
+ * "WS 32 kg × 5"; o que o aluno não informou numa série feita é dito por extenso (nunca presumido): "WS feito, sem carga",
+ * "WS sem carga × 7", "WS 60 kg × sem repetições" (só em série concluída); série não marcada, o que falta é "—". Série sem carga e sem repetições (cardio,
  * que o aluno só marca) sai "Cardio feito"; não marcada, "Cardio —". Série registrada por etapa (Cluster, Rest-pause) mostra
  * cada etapa feita: "WS 40 kg × 4+4+4+2 = 14", com carga variável "WS 40 kg × 4 + 42,5 kg × 4 = 8"; o total só aparece
  * quando o servidor o calculou (todas as etapas com situação), senão a linha diz "parcial".
  */
-export function textoSerie(s: SerieFeita): string {
+export function textoSerie(s: SerieFeita, unidade: UnidadeDeCarga = 'kg'): string {
   const tipo = s.tipo?.trim() || 'Série';
-  if (s.etapas) return `${tipo} ${textoDasEtapas(s, s.etapas)}`;
+  if (s.etapas) return `${tipo} ${textoDasEtapas(s, s.etapas, unidade)}`;
   if (s.unidade === 'nenhuma' && s.repeticoes == null && s.carga == null) return `${tipo} ${s.concluida ? 'feito' : '—'}`;
-  const carga = s.unidade === 'nenhuma' ? '' : `${numeroParaTela(s.carga)} kg × `;
-  return `${tipo} ${carga}${s.repeticoes ?? '—'}`;
+  if (s.unidade === 'nenhuma') return `${tipo} ${s.repeticoes ?? '—'}`;
+  // D4 (02/11): o que o aluno não informou numa série feita é dito por extenso, não "—".
+  if (s.carga == null && s.repeticoes == null) return `${tipo} ${s.concluida ? TEXTO_FEITO_SEM_CARGA : '—'}`;
+  // "Sem carga"/"sem repetições" só numa série concluída; na não marcada a ausência é "—".
+  const falta = (texto: string) => (s.concluida ? texto : '—');
+  const carga = s.carga == null ? falta('sem carga') : textoDaCarga(s.carga, unidade);
+  return `${tipo} ${carga} × ${s.repeticoes ?? falta('sem repetições')}`;
 }
 
 const repsDaEtapa = (e: EtapaRegistrada) => (e.repeticoes == null ? '—' : String(e.repeticoes));
@@ -185,7 +211,7 @@ function partesDasEtapas(s: SerieFeita, etapas: readonly EtapaRegistrada[]) {
   return { feitas, sufixo, total, semFeita };
 }
 
-function textoDasEtapas(s: SerieFeita, etapas: readonly EtapaRegistrada[]): string {
+function textoDasEtapas(s: SerieFeita, etapas: readonly EtapaRegistrada[], unidade: UnidadeDeCarga): string {
   const { feitas, sufixo, total, semFeita } = partesDasEtapas(s, etapas);
   if (!feitas.length) return semFeita;
   let corpo: string;
@@ -193,8 +219,8 @@ function textoDasEtapas(s: SerieFeita, etapas: readonly EtapaRegistrada[]): stri
   else {
     const comum = cargaComum(feitas);
     corpo = comum != null
-      ? `${numeroParaTela(comum)} kg × ${feitas.map(repsDaEtapa).join('+')}`
-      : feitas.map((e) => `${numeroParaTela(e.carga)} kg × ${repsDaEtapa(e)}`).join(' + ');
+      ? `${textoDaCarga(comum, unidade)} × ${feitas.map(repsDaEtapa).join('+')}`
+      : feitas.map((e) => `${textoDaCarga(e.carga, unidade)} × ${repsDaEtapa(e)}`).join(' + ');
   }
   return `${corpo}${total}${sufixo}`;
 }
@@ -234,9 +260,9 @@ export function volumeDoExercicio(series: readonly SerieFeita[]): Volume | null 
 }
 
 /** "Volume de carga: 1240 kg" ou "Volume de carga: subtotal de 800 kg (faltou carga ou repetição)". */
-export function textoDoVolume(v: Volume | null): string | null {
+export function textoDoVolume(v: Volume | null, unidade: UnidadeDeCarga = 'kg'): string | null {
   if (!v) return null;
-  const valor = `${numeroParaTela(v.valor)} kg`;
+  const valor = textoDaCarga(v.valor, unidade);
   return v.completo ? `Volume de carga: ${valor}` : `Volume de carga: subtotal de ${valor} (faltou carga ou repetição)`;
 }
 
@@ -259,6 +285,8 @@ export function versoesDoPlanoNoPeriodo(dias: readonly DiaDeTreino[]): number {
 export const periodoMisturaVersoes = (dias: readonly DiaDeTreino[]): boolean => versoesDoPlanoNoPeriodo(dias) > 1;
 
 export const TEXTO_SEM_REGISTROS_NO_PERIODO = 'Nenhum registro neste período.';
+/** Há registro, mas nenhuma série de trabalho completa (com carga e repetições): não há o que mostrar no progresso (N4). */
+export const TEXTO_SEM_PROGRESSO_NO_PERIODO = 'Nenhuma série completa, com carga e repetições, neste período.';
 /** Onde ligar os gráficos muda com o papel: o treinador tem Perfil › Preferências; o aluno, a Conta. */
 export const TEXTO_GRAFICOS_DESLIGADOS = 'Os gráficos estão desligados em Perfil › Preferências.';
 export const TEXTO_GRAFICOS_DESLIGADOS_ALUNO = 'Os gráficos estão desligados em Conta › Aparência e preferências.';
@@ -272,8 +300,9 @@ export type PapelDoHistorico = 'ALUNO' | 'TREINADOR';
  * está vazio; com registro e gráficos desligados (preferência `graficos`), a parte de gráfico some e a tela diz onde ligar
  * (o caminho depende do papel); com registro e gráficos ligados não há estado vazio (`null`).
  */
-export function textoDoHistoricoVazio({ temRegistros, graficosLigados, papel = 'TREINADOR' }: { temRegistros: boolean; graficosLigados: boolean; papel?: PapelDoHistorico }): string | null {
+export function textoDoHistoricoVazio({ temRegistros, graficosLigados, papel = 'TREINADOR', semProgresso = false }: { temRegistros: boolean; graficosLigados: boolean; papel?: PapelDoHistorico; semProgresso?: boolean }): string | null {
   if (!temRegistros) return TEXTO_SEM_REGISTROS_NO_PERIODO;
+  if (semProgresso) return TEXTO_SEM_PROGRESSO_NO_PERIODO;
   if (graficosLigados) return null;
   return papel === 'ALUNO' ? TEXTO_GRAFICOS_DESLIGADOS_ALUNO : TEXTO_GRAFICOS_DESLIGADOS;
 }

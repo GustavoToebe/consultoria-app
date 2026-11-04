@@ -542,19 +542,25 @@ export function cartoesDoPainel(c: CartoesDoPainel): CartaoDoPainel[] {
   ];
 }
 
-/** Linha de inadimplência: `12,5%` e `R$ 300,00 em aberto de R$ 2.400,00 que já venceram · considera...`. */
+/**
+ * Linha de inadimplência: `12,5% · R$ 300,00 de R$ 2.400,00` ao lado do título e, na descrição, só o que a base quer
+ * dizer (`Em aberto do total que já venceu · considera...`): a base aparece uma vez só (Gustavo, 03/11).
+ */
 export function inadimplenciaParaTela(i: Painel['inadimplencia'] | null | undefined): {
   percentual: string;
+  /** N26: o percentual nunca sozinho; a base (o vencido de quanto foi cobrado) vai ao lado. Sem dado, "—". */
+  comBase: string;
   detalhe: string;
 } {
-  if (!i) return { percentual: SEM_DADO, detalhe: NOTA_CONSIDERA_GERADAS };
+  if (!i) return { percentual: SEM_DADO, comBase: SEM_DADO, detalhe: NOTA_CONSIDERA_GERADAS };
   const percentual = percentualParaTela(i.percentual);
   if (i.percentual === null || i.vencidoCentavos === null || i.cobradoCentavos === null) {
-    return { percentual, detalhe: `Nada venceu no período · ${NOTA_CONSIDERA_GERADAS}` };
+    return { percentual, comBase: SEM_DADO, detalhe: `Nada venceu no período · ${NOTA_CONSIDERA_GERADAS}` };
   }
   return {
     percentual,
-    detalhe: `${centavosParaTela(i.vencidoCentavos)} em aberto de ${centavosParaTela(i.cobradoCentavos)} que já venceram · ${NOTA_CONSIDERA_GERADAS}`,
+    comBase: `${percentual} · ${centavosParaTela(i.vencidoCentavos)} de ${centavosParaTela(i.cobradoCentavos)}`,
+    detalhe: `Em aberto do total que já venceu · ${NOTA_CONSIDERA_GERADAS}`,
   };
 }
 
@@ -575,6 +581,8 @@ export interface ResultadoDoMesNaTela {
   rotulo: string;
   mes: string;
   recebido: string;
+  /** N5: diz que o cartão é sempre o mês de hoje e não acompanha o período escolhido na Visão geral. */
+  descricao: string;
   entradas: string;
   saidas: string;
   resultado: string;
@@ -584,6 +592,7 @@ export function resultadoDoMesParaTela(r: Painel['resultadoDoMes'] | null | unde
   return {
     rotulo: ROTULO_RESULTADO_DO_MES,
     mes: rotuloDoMes(r?.mes),
+    descricao: `Mês de ${rotuloDoMes(r?.mes)} · sempre o mês de hoje, não muda com o período acima`,
     recebido: centavosParaTela(r?.recebidoCentavos),
     entradas: centavosParaTela(r?.entradasAvulsasCentavos),
     saidas: centavosParaTela(r?.saidasAvulsasCentavos),

@@ -36,10 +36,10 @@ const FICHA: AlunoDetalhe = {
   emailDeAcesso: 'ana@exemplo.test', aguardandoPrimeiroAcesso: false,
 };
 
-async function abrir(page: Page, { veAtualizacao = true } = {}) {
-  const itens = veAtualizacao ? ALUNOS : ALUNOS.map((a) => ({ ...a, atualizacao: null }));
+async function abrir(page: Page, { veAtualizacao = true, veRegistro = true, alunos = ALUNOS } = {}) {
+  const itens = veAtualizacao ? alunos : alunos.map((a) => ({ ...a, atualizacao: null }));
   return simularApi(page, {
-    ...(await sessao(page, TREINADOR, { permissoes: veAtualizacao ? [...PERMISSOES_TREINADOR, 'ATUALIZACAO_LER'] : PERMISSOES_TREINADOR })),
+    ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, ...(veAtualizacao ? ['ATUALIZACAO_LER'] : []), ...(veRegistro ? ['REGISTRO_LER'] : [])] })),
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },
     'GET /painel': { corpo: { atualizacoesParaRevisar: 1, atualizacoesAtrasadas: 1, atualizacoesAvisaramAtraso: 0, atualizacoesProximas: 0, alunosAtivos: 5, alunosSemRegistro: [], ultimasExecucoes: [], planosTerminando: [] } },
     'GET /alunos': { corpo: { itens, total: itens.length } },
@@ -108,8 +108,11 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await expect(page.getByRole('checkbox')).toHaveCount(0);
 
       const lapis = page.getByRole('button', { name: 'Editar cadastro de Ana Fictícia', exact: true });
-      // 0,5 px de folga: o arredondamento de subpixel às vezes mede 39,99997.
-      expect((await lapis.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(39.5);
+      // C2: alvo de 44×44 (0,5 px de folga de subpixel), com a moldura de 40 centrada por dentro.
+      const alvo = (await lapis.boundingBox())!;
+      expect(Math.min(alvo.width, alvo.height)).toBeGreaterThanOrEqual(43.5);
+      const desenho = (await lapis.locator(':scope > div').first().boundingBox())!;
+      expect([Math.round(desenho.width), Math.round(desenho.height)]).toEqual([40, 40]);
       await lapis.click();
 
       await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${id(1)}$`));
@@ -148,6 +151,15 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       // Acima do lápis (fora do botão) ainda é o link: a faixa do botão não deixa ponto morto.
       await page.goBack();
       await expect(linkAna).toBeVisible();
+      await expect(lapis).toBeVisible();
+      // Voltar remonta a lista: com a máquina cheia as caixas ainda mexiam ao ser lidas e o clique caía no lápis.
+      let anterior = '';
+      await expect.poll(async () => {
+        const atual = JSON.stringify([await linkAna.boundingBox(), await lapis.boundingBox()]);
+        const parou = atual === anterior;
+        anterior = atual;
+        return parou;
+      }, { intervals: [100] }).toBe(true);
       const doLink = await linkAna.boundingBox();
       const lapisDeNovo = await lapis.boundingBox();
       await page.mouse.click(lapisDeNovo!.x + lapisDeNovo!.width / 2, doLink!.y + 3);
@@ -207,6 +219,28 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       if (largura >= 1024) await expect(page.getByText('Plano em uso', { exact: true })).toHaveCount(1);
 
       expect(naoTratadas).toEqual([]);
+      expect(errosDaPagina).toEqual([]);
+    });
+
+    test('N2: sem REGISTRO_LER some a coluna Último registro e a linha não diz "Nunca registrou"', async ({ page }) => {
+      const { errosDaPagina } = await abrir(page, { veRegistro: false });
+      await page.goto('/treinador/alunos');
+
+      await expect(linkDe(page, 'Eva Amostra')).toBeVisible();
+      await expect(page.getByText('Último registro', { exact: true })).toHaveCount(0);
+      await expect(page.getByText('Nunca registrou')).toHaveCount(0);
+      await expect(linkDe(page, 'Eva Amostra')).not.toHaveAttribute('aria-label', /Nunca registrou/);
+      expect(errosDaPagina).toEqual([]);
+    });
+
+    test('N2 e N23: quem não é responsável de ninguém lê isso no vazio, com um só "Limpar filtros"', async ({ page }) => {
+      const { errosDaPagina } = await abrir(page, { alunos: [] });
+      await page.goto('/treinador/alunos');
+
+      await expect(page.getByText('Você não é responsável por nenhum aluno.')).toBeVisible();
+      await expect(page.getByText('Nenhum aluno passa nesses filtros')).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Ver todos os alunos' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Limpar filtros', exact: true })).toHaveCount(1);
       expect(errosDaPagina).toEqual([]);
     });
   });

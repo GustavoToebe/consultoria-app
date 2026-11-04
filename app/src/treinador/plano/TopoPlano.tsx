@@ -1,15 +1,15 @@
 import { NoPlano } from '../../ui/NoPlano';
 import { Permitido } from '../../ui/Permitido';
-import { CheckCircle2, FileDown, Loader, Save, Send } from 'lucide-react-native';
+import { CheckCircle2, Eye, FileDown, Loader, Save, Send } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { versaoPlano } from '../../api/rotas';
-import type { ConteudoDieta, Problema, ResultadoValidacao, TipoPlano } from '../../api/tipos';
+import type { ConteudoDieta, ConteudoTreino, Problema, ResultadoValidacao, TipoPlano } from '../../api/tipos';
 import { normalizarDieta } from '../../dominio/dieta';
 import { localizar } from '../../dominio/caminhos';
 import { textoDosProblemas, uidsDoPrimeiroProblema } from '../../dominio/problemasDoPlano';
-import { infoDoPlano, seloDoEditor } from '../../dominio/barraDoEditor';
+import { infoDoPlano, motivoSemPublicar, seloDoEditor } from '../../dominio/barraDoEditor';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, fontes, LARGURA_MENU_LATERAL, RAIO } from '../../tema/tokens';
@@ -27,6 +27,7 @@ import { gerarPdfDoPlano } from '../gerarPdf';
 import { FolhaPdfDieta } from '../../ui/FolhaPdfDieta';
 import { PERMISSOES_DO_PLANO } from '../../dominio/permissoes';
 import { BarraDoEditor } from './BarraDoEditor';
+import { FolhaVerComoAluno, type PreviaDoPlano } from './FolhaVerComoAluno';
 import type { usePlanoEditor } from './usePlanoEditor';
 
 type Editor<C> = ReturnType<typeof usePlanoEditor<C>>;
@@ -42,6 +43,9 @@ interface Props<C> {
  * Barra fixa do editor do plano do aluno: um selo de estado (`seloDoEditor`), uma linha com período e publicação e as
  * ações PDF, Validar, Salvar rascunho e Publicar (o único primário). No celular PDF e Validar viram ícones. O
  * resultado da validação vai para o pai (`aoProblemas`) e aparece no `ProblemasDoPlano`. Nada é salvo sozinho.
+ *
+ * "Ver como o aluno" (C34, D1 e D6): só no treino e na dieta, fora do `escritaLiberada` (quem só lê o plano também vê). Abre
+ * a `FolhaVerComoAluno` com uma cópia do que está na tela ao tocar, salvo ou não.
  */
 export function BarraDoPlano<C>({ tipo, editor, aoProblemas }: Props<C>) {
   const { avisar } = useAviso();
@@ -56,6 +60,7 @@ export function BarraDoPlano<C>({ tipo, editor, aoProblemas }: Props<C>) {
   const [folhaDieta, setFolhaDieta] = useState(false);
   const [conteudoPdf, setConteudoPdf] = useState<ConteudoDieta | null>(null);
   const [avisos, setAvisos] = useState<Problema[] | null>(null);
+  const [previa, setPrevia] = useState<PreviaDoPlano | null>(null);
   const e = editor.estado;
   if (!e) return null;
   const ultima = e.versoes[e.versoes.length - 1];
@@ -124,14 +129,26 @@ export function BarraDoPlano<C>({ tipo, editor, aoProblemas }: Props<C>) {
   };
 
   const selo = seloDoEditor(editor.situacao, editor.salvoAs, { versao: e.plano.versaoPublicada, alterado: e.plano.rascunhoAlteradoDepoisDePublicar });
+  const semPublicar = motivoSemPublicar(editor.situacao, { versao: e.plano.versaoPublicada, alterado: e.plano.rascunhoAlteradoDepoisDePublicar, ativo: e.plano.ativo });
   const info = escritaLiberada
     ? infoDoPlano({ inicio: e.inicio, fim: e.fim, daPasta: !!e.plano.pastaId, publicadoEm: ultima?.publicadoEm ?? null })
     : 'Disponível em outro plano: dá para consultar, mas não salvar nem publicar.';
+  const verComoAluno = () => {
+    const copia = { plano: e.plano, titulo: e.titulo, inicio: e.inicio, fim: e.fim };
+    // O `tipo` diz o formato do conteúdo (o editor é genérico).
+    setPrevia(tipo === 'dieta' ? { tipo, estado: { ...copia, conteudo: e.conteudo as ConteudoDieta } } : { tipo: 'treino', estado: { ...copia, conteudo: e.conteudo as ConteudoTreino } });
+  };
+  const comPrevia = tipo === 'treino' || tipo === 'dieta';
   const salvar = () => void editor.salvar().then((ok) => avisar(ok ? 'Rascunho salvo.' : (editor.falhaAoSalvar() ?? 'Não foi possível salvar o rascunho. Confira o título e as datas.'), ok ? 'sucesso' : 'perigo'));
 
   return (
     <>
       <BarraDoEditor selo={selo} info={info} erro={editor.situacao === 'erro' ? editor.mensagemDeErro : null}>
+        {comPrevia
+          ? estreito
+            ? <IconeBotao Icone={Eye} rotulo="Ver como o aluno" aoTocar={verComoAluno} />
+            : <Botao rotulo="Ver como o aluno" tipo="fantasma" Icone={Eye} aoTocar={verComoAluno} />
+          : null}
         <NoPlano funcionalidade="PDF">
           {estreito
             ? <IconeBotao Icone={gerandoPdf ? Loader : FileDown} rotulo={e.plano.versaoPublicada ? `PDF da versão ${e.plano.versaoPublicada}` : 'PDF do rascunho'} desabilitado={gerandoPdf} aoTocar={() => void pdf()} />
@@ -152,7 +169,9 @@ export function BarraDoPlano<C>({ tipo, editor, aoProblemas }: Props<C>) {
               motivo={editor.situacao === 'dataInvalida' ? 'Confira o título e as datas.' : editor.situacao === 'conflito' ? 'Recarregue o plano antes.' : undefined}
               aoTocar={salvar}
             />
-            <Permitido codigo={PERMISSOES_DO_PLANO[tipo].publicar}><Botao rotulo="Publicar" Icone={Send} carregando={publicando} aoTocar={() => publicar(false)} /></Permitido>
+            <Permitido codigo={PERMISSOES_DO_PLANO[tipo].publicar}>
+              <Botao rotulo="Publicar" Icone={Send} carregando={publicando} desabilitado={!!semPublicar} motivo={semPublicar} aoTocar={() => publicar(false)} />
+            </Permitido>
           </>
         ) : null}
       </BarraDoEditor>
@@ -177,6 +196,7 @@ export function BarraDoPlano<C>({ tipo, editor, aoProblemas }: Props<C>) {
         aoConfirmar={editor.recarregar}
         aoCancelar={() => undefined}
       />
+      {previa ? <FolhaVerComoAluno previa={previa} aoFechar={() => setPrevia(null)} /> : null}
       {tipo === 'dieta' ? (
         <FolhaPdfDieta
           visivel={folhaDieta}

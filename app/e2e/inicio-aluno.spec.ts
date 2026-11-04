@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import type { AnamneseDetalhe, Atualizacao } from '../src/api/tipos';
-import { erroApi, simularApi, type RespostasApi } from './api-falsa';
+import type { AnamneseDetalhe, Atualizacao, SessoesConcluidasResponse } from '../src/api/tipos';
+import { ALUNO, erroApi, sessao, simularApi, type RespostasApi } from './api-falsa';
 import { dietaFalsa, fixarHoje, sessaoDeAlunoComTreino, sessaoFalsa, SESSOES_COM_DIAS } from './aluno';
 
 /**
@@ -140,6 +140,26 @@ test('"Ver meu treino" abre a lista do dia de hoje', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Segunda · Peito e tríceps');
 });
 
+test('N3: treino de hoje concluído: o cartão diz "Treino concluído · …" e "Ver resumo" abre o "Bom trabalho!"', async ({ page }) => {
+  const VERSAO = 't0000000-0000-4000-8000-000000000002';
+  await abrirInicio(page, {
+    extra: {
+      ...(await sessao(page, ALUNO, { retornoHabilitado: true })),
+      'GET /aluno/sessoes-concluidas': {
+        corpo: {
+          totalConcluidos: 3,
+          sessoes: [{ planoVersaoId: VERSAO, sessaoUid: 'sa', data: '2026-10-19', concluida: true, resultado: 'COMPLETA', duracaoSegundos: 3120, comentario: null }],
+        } satisfies SessoesConcluidasResponse,
+      },
+    },
+  });
+  await expect(page.getByText('Treino concluído · Fiz tudo · 52 min', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Ver meu treino/ })).toHaveCount(0);
+  await page.getByRole('button', { name: /^Ver resumo do treino/ }).click();
+  await expect(page).toHaveURL(/\/aluno\/sessao\/sa\/concluido\?data=2026-10-19$/);
+  await expect(page.getByRole('heading', { name: 'Bom trabalho!' })).toBeVisible();
+});
+
 test('a divisão de outro dia abre a próxima vez dela e a tela do dia deixa escolher outra data', async ({ page }) => {
   await abrirInicio(page);
   await page.getByRole('link', { name: 'Treino', exact: true }).click();
@@ -200,6 +220,55 @@ test('dia de descanso: "Hoje é dia de descanso." e nenhum botão de treino', as
   await page.getByRole('link', { name: 'Treino', exact: true }).click();
   await expect(page.getByRole('link', { name: /^Divisão A, Costas e bíceps, Quarta · 4 exercícios$/ })).toBeVisible();
 });
+
+for (const [largura, tema] of [[390, 'CLARO'], [1280, 'CLARO'], [390, 'ESCURO'], [1280, 'ESCURO']] as const) {
+  test(`dia de descanso: "Próximo treino" com o dia e a divisão, e "Treinar mesmo assim" abre a aba Treino (${largura}px, ${tema.toLowerCase()})`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 844 });
+    await page.addInitScript(([id, t]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: t })), [ALUNO.id, tema] as const);
+    // Segunda sem treino: o próximo é o de quarta (o de sexta vem depois).
+    await abrirInicio(page, { sessoes: [sessaoFalsa('sc', 'Pernas', 5, 6), sessaoFalsa('sb', 'Costas e bíceps', 3, 4)] });
+    await expect(page.getByText('Hoje é dia de descanso.')).toBeVisible();
+    await expect(page.getByText('Próximo treino: Quarta · Costas e bíceps', { exact: true })).toBeVisible();
+    const link = page.getByRole('link', { name: 'Treinar mesmo assim', exact: true });
+    await expect(link).toBeVisible();
+    const caixa = await link.boundingBox();
+    expect(caixa!.height).toBeGreaterThanOrEqual(44);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ path: test.info().outputPath(`descanso-${largura}-${tema.toLowerCase()}.png`) });
+    await link.click();
+    await expect(page).toHaveURL(/\/aluno\/treino$/);
+    await expect(page.getByRole('link', { name: /^Divisão A, Costas e bíceps, Quarta · 4 exercícios$/ })).toBeVisible();
+  });
+}
+
+test('dia de descanso com o próximo treino só na semana que vem: a linha vira a semana (sábado → segunda)', async ({ page }) => {
+  // Sábado, 24/10: depois dele só a segunda tem treino.
+  await page.clock.setFixedTime(new Date('2026-10-24T12:00:00-03:00'));
+  await simularApi(page, {
+    ...(await sessaoDeAlunoComTreino(page, [sessaoFalsa('sa', 'Peito e tríceps', 1, 5)])),
+    'GET /aluno/dieta': { corpo: dietaFalsa(6, 3) },
+    'GET /aluno/atualizacao': erroApi(404, 'Nenhuma atualização.', 'NAO_ENCONTRADO'),
+  });
+  await page.goto('/aluno');
+  await expect(page.getByText('Hoje é dia de descanso.')).toBeVisible();
+  await expect(page.getByText('Próximo treino: Segunda · Peito e tríceps', { exact: true })).toBeVisible();
+});
+
+for (const largura of [390, 1280]) {
+  test(`sessão do dia: "Começar treino" logo abaixo do cartão de hoje, antes de "Outras datas", sem rolar (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 844 });
+    await abrirInicio(page);
+    await page.goto('/aluno/sessao/sa?data=2026-10-19');
+    const comecar = page.getByRole('button', { name: 'Começar treino', exact: true });
+    await expect(comecar).toBeVisible();
+    const caixa = (await comecar.boundingBox())!;
+    // Sem rolar: o botão inteiro acima da barra inferior do aluno.
+    const barra = (await page.getByRole('link', { name: 'Início', exact: true }).boundingBox())!;
+    expect(caixa.y + caixa.height).toBeLessThanOrEqual(barra.y);
+    expect(caixa.y).toBeLessThan(await topo(page, 'Outras datas'));
+    await page.screenshot({ path: test.info().outputPath(`sessao-comecar-${largura}.png`) });
+  });
+}
 
 test('plano sem dia fixo: "Qual é o treino de hoje?" e "Escolher treino" abre a aba Treino', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 700 });

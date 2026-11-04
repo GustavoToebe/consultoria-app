@@ -16,9 +16,11 @@ import { Botao } from '../ui/Botao';
 import { Cartao } from '../ui/Cartao';
 import { CampoLeitura } from '../ui/CampoLeitura';
 import { FotoDePerfil } from '../ui/FotoDePerfil';
+import { useSaidaGuardada } from '../ui/GuardaDeSaida';
 import { Selo } from '../ui/Selo';
 import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
+import { useVersaoDaFotoDePerfil } from '../aluno/versaoDaFotoDePerfil';
 import type { useAcompanhamentoDoAluno } from './CartaoFrequencia';
 
 /**
@@ -26,14 +28,20 @@ import type { useAcompanhamentoDoAluno } from './CartaoFrequencia';
  * treinos da semana e o último registro) e, numa faixa, o próximo passo com a ação direta (revisar a atualização ou
  * renovar a pasta). `children` (os dados do aluno) vem depois de uma linha fina, no mesmo cartão.
  */
-export function ResumoDoAluno({ aluno, acompanhamento, aoRenovar, children }: {
+export function ResumoDoAluno({ aluno, acompanhamento, aoRenovar, aoSaberDaFoto, children }: {
   aluno: AlunoDetalhe;
   acompanhamento: ReturnType<typeof useAcompanhamentoDoAluno>;
   /** Abre a confirmação de "Renovar" (a mesma da lista de pastas). */
   aoRenovar: (pasta: PastaResumo) => void;
+  /** Avisa se o aluno tem foto de perfil (para "Remover foto" nos dados, sem baixar a foto duas vezes). */
+  aoSaberDaFoto?: (temFoto: boolean) => void;
   children?: ReactNode;
 }) {
   const { pode } = useSessao();
+  // Os dados do aluno se editam neste cartão: sair para a revisão com a edição aberta pergunta antes (D7).
+  const { confirmar } = useSaidaGuardada();
+  // Muda quando a equipe troca ou remove a foto: o círculo baixa de novo.
+  const versaoDaFoto = useVersaoDaFotoDePerfil();
   const { cores } = useTema();
   const hoje = hojeIso();
   const verAtualizacao = pode('ATUALIZACAO_LER') && pode('ALUNO_SENSIVEL_LER');
@@ -51,14 +59,15 @@ export function ResumoDoAluno({ aluno, acompanhamento, aoRenovar, children }: {
   const f = dados?.frequencia ?? null;
   const corFaixa = passo.tipo === 'perigo' ? cores.perigo : passo.tipo === 'atencao' ? cores.atencao : cores.borda;
   const acao = passo.acao === 'revisar' && a && pode('ATUALIZACAO_LER')
-    ? <Botao rotulo="Revisar atualização" aoTocar={() => router.push(caminhoAtualizacaoTreinador(a))} />
+    ? <Botao rotulo="Revisar atualização" aoTocar={() => confirmar(() => router.push(caminhoAtualizacaoTreinador(a)))} />
     : passo.acao === 'renovar' && pasta && pode('PASTA_ALTERAR')
       ? <Botao rotulo="Renovar pasta" aoTocar={() => aoRenovar(pasta)} />
       : null;
   return (
     <Cartao>
       <View style={estilos.topo}>
-        <FotoDePerfil chave={`perfil:${aluno.id}`} carregar={() => baixarFotoDePerfilDoAluno(aluno.id)} nome={aluno.nome} tamanho={56} />
+        <FotoDePerfil chave={`perfil:${aluno.id}:${versaoDaFoto}`} carregar={() => baixarFotoDePerfilDoAluno(aluno.id)} nome={aluno.nome} tamanho={56}
+          aoSaber={aoSaberDaFoto} />
         <View style={estilos.fatos}>
           {aluno.anonimizado || !aluno.ativo ? <Selo texto={aluno.anonimizado ? 'Anonimizado' : 'Inativo'} tipo="neutro" /> : null}
           <View style={estilos.linhaFatos}>

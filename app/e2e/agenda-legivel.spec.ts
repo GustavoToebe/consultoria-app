@@ -118,10 +118,10 @@ const opacidadeAcumulada = (alvo: Locator) => alvo.evaluate((e) => {
 });
 
 const NOMES = {
-  realizado: 'Abrir compromisso de Ana Fictícia, 07:00, realizado',
-  curto: 'Abrir compromisso de Davi Modelo, 09:00',
-  cancelado: 'Abrir compromisso de Bruno Exemplo, 10:00, cancelado',
-  sobreposto: 'Abrir compromisso de Carla Teste, 14:00',
+  realizado: 'Abrir compromisso de Ana Fictícia, das 7h às 8h, realizado',
+  curto: 'Abrir compromisso de Davi Modelo, das 9h às 9h15',
+  cancelado: 'Abrir compromisso de Bruno Exemplo, das 10h às 11h30, cancelado',
+  sobreposto: 'Abrir compromisso de Carla Teste, das 14h às 15h',
   reuniao: 'Abrir evento Reunião de teste, 14:00',
   feriado: 'Abrir evento Feriado fictício, dia inteiro',
 };

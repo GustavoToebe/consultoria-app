@@ -1,5 +1,5 @@
 import type { Atualizacao } from '../api/tipos';
-import { atualizacaoDaPasta, caminhoAtualizacaoTreinador, caminhoListaAtualizacoes, faseAtualizacao, filaDosParametros, filtroDaFila, formularioSomenteLeitura, limitesNovaDataAtraso, linkCartaoAtualizacao, mostrarCartaoAtualizacao, novaDataAtrasoValida, emDias, proximaDaFila, statusAtualizacaoTreinador } from './atualizacao';
+import { atrasoEmTexto, DIAS_MAXIMOS_PARA_CONTAR_ATRASO, desdeQuandoAtrasou, statusAtualizacao, atualizacaoDaPasta, caminhoAtualizacaoTreinador, caminhoListaAtualizacoes, faseAtualizacao, filaDosParametros, filtroDaFila, formularioSomenteLeitura, limitesNovaDataAtraso, linkCartaoAtualizacao, mostrarCartaoAtualizacao, novaDataAtrasoValida, emDias, fraseDeTreinosNoPeriodo, proximaDaFila, statusAtualizacaoTreinador } from './atualizacao';
 
 describe('datas da atualização iguais às do servidor', () => {
   it.each([['2026-10-05','NENHUMA',4,0],['2026-10-06','AVISO',3,0],['2026-10-07','AVISO',2,0],
@@ -116,6 +116,25 @@ describe('revisão em fila', () => {
   });
 });
 
+describe('atraso com teto (C76)', () => {
+  const HOJE = '2026-11-02';
+  it('até 365 dias conta os dias; acima disso diz desde quando, sem somar anos de dias', () => {
+    expect(DIAS_MAXIMOS_PARA_CONTAR_ATRASO).toBe(365);
+    expect(atrasoEmTexto(1, HOJE)).toBe('há 1 dia');
+    expect(atrasoEmTexto(365, HOJE)).toBe('há 365 dias');
+    expect(atrasoEmTexto(366, HOJE)).toBe('desde 01/11/2025');
+    expect(atrasoEmTexto(644943, HOJE)).toBe(`desde ${desdeQuandoAtrasou(644943, HOJE)}`);
+    expect(atrasoEmTexto(644943, HOJE)).not.toContain('644943');
+  });
+  it('o texto do aluno e do treinador seguem a mesma regra', () => {
+    const base = { fase: 'ATRASADA', diasDeAtraso: 400, diasParaData: -400, atrasoAte: null } as const;
+    expect(statusAtualizacaoTreinador(base, HOJE)).toEqual({ texto: 'Atualização atrasada desde 28/09/2025', curto: 'Atrasada desde 28/09/2025', tipo: 'perigo' });
+    expect(statusAtualizacao({ ...base, dataAtualizacao: '2025-09-28', feedback: null } as unknown as Atualizacao, HOJE))
+      .toEqual({ texto: 'Atualização atrasada desde 28/09/2025', tipo: 'perigo' });
+    expect(statusAtualizacao({ ...base, diasDeAtraso: 3, dataAtualizacao: '2026-10-30', feedback: null } as unknown as Atualizacao, HOJE).texto).toBe('Atualização atrasada há 3 dias');
+  });
+});
+
 describe('selo da atualização para o treinador', () => {
   const base = { fase: 'NENHUMA' as const, diasDeAtraso: 0, diasParaData: 15, atrasoAte: null };
   it('diz de quê no texto e fica curto onde o assunto já é a atualização', () => {
@@ -131,12 +150,27 @@ describe('selo da atualização para o treinador', () => {
   });
   it('adiada: hoje e amanhã por extenso, o resto pela data (nunca "para em 5 dias")', () => {
     const adiada = (atrasoAte: string) => statusAtualizacaoTreinador({ ...base, fase: 'ABERTA', atrasoAte }, '2026-10-19');
-    expect(adiada('2026-10-19')).toMatchObject({ texto: 'Atualização adiada para hoje', curto: 'Adiada para hoje', tipo: 'atencao' });
+    expect(adiada('2026-10-19')).toMatchObject({ texto: 'Atualização adiada para hoje', curto: 'Adiada para hoje', tipo: 'neutro' });
     expect(adiada('2026-10-24')).toMatchObject({ texto: 'Atualização adiada para 24/10', curto: 'Adiada para 24/10' });
     expect(adiada('2026-11-01')).toMatchObject({ texto: 'Atualização adiada para 01/11', curto: 'Adiada para 01/11' });
     expect(adiada('2027-01-02')).toMatchObject({ texto: 'Atualização adiada para 02/01/2027', curto: 'Adiada para 02/01/2027' });
   });
   it('emDias', () => {
     expect([emDias(0), emDias(1), emDias(-1), emDias(4), emDias(-3)]).toEqual(['hoje', 'amanhã', 'ontem', 'em 4 dias', 'há 3 dias']);
+  });
+});
+
+describe('fraseDeTreinosNoPeriodo (N17)', () => {
+  it('diz quantos treinos e a média por semana', () => {
+    expect(fraseDeTreinosNoPeriodo(1, 0.2)).toBe('1 treino registrado no período (≈0,2 por semana)');
+    expect(fraseDeTreinosNoPeriodo(8, 4)).toBe('8 treinos registrados no período (≈4 por semana)');
+    expect(fraseDeTreinosNoPeriodo(0, 0)).toBe('Nenhum treino registrado no período (≈0 por semana)');
+  });
+
+  it('sem média só os treinos; sem dado do período, "—"', () => {
+    expect(fraseDeTreinosNoPeriodo(3, null)).toBe('3 treinos registrados no período');
+    expect(fraseDeTreinosNoPeriodo(null, null)).toBe('Treinos registrados no período: —');
+    expect(fraseDeTreinosNoPeriodo(undefined, undefined)).toBe('Treinos registrados no período: —');
+    expect(fraseDeTreinosNoPeriodo(3, undefined)).toBe('3 treinos registrados no período');
   });
 });

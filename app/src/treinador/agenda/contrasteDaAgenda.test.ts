@@ -1,7 +1,7 @@
 import type { CorDaAgenda } from '../../api/agendaTipos';
 import { CONTRASTE_DO_GRAFICO, CONTRASTE_DO_TEXTO, fundoDoItemDaAgenda, misturarCores } from '../../dominio/agendaLegivel';
 import { coresComBordasReforcadas, coresComContraste } from '../../dominio/preferencias';
-import { AREIA, CHAVES_DA_AGENDA, CLARO, contraste, ESCURO, PALETA_DA_AGENDA, type Cores } from '../../tema/tokens';
+import { CHAVES_DA_AGENDA, contraste, PALETA_DA_AGENDA, PALETAS, type Cores } from '../../tema/tokens';
 
 /**
  * Contraste dos itens da agenda (grade do PC, faixa de dia inteiro) com o fundo tingido pela cor da agenda, em todos os
@@ -10,7 +10,7 @@ import { AREIA, CHAVES_DA_AGENDA, CLARO, contraste, ESCURO, PALETA_DA_AGENDA, ty
  * da paleta das agendas e para cores extremas (se um dia a cor vier de fora da paleta, o texto continua legível). As
  * telas montam o fundo com os mesmos argumentos de `useFundoDoItem` (em `itemDaAgenda.tsx`): quem mudar lá, muda aqui.
  */
-const BASES: [string, Cores, boolean][] = [['claro', CLARO, false], ['claro areia', AREIA, false], ['escuro', ESCURO, true]];
+const BASES: [string, Cores, boolean][] = Object.entries(PALETAS).map(([codigo, p]) => [codigo, p.cores, p.modo === 'ESCURO']);
 const VARIANTES: [string, Cores, boolean][] = BASES.flatMap(([nome, base, escuro]) => [false, true].flatMap((alto) => [false, true].map((reforcadas): [string, Cores, boolean] => [
   `${nome}${alto ? ', contraste alto' : ''}${reforcadas ? ', bordas reforçadas' : ''}`,
   coresComBordasReforcadas(coresComContraste(base, alto ? 'ALTO' : 'PADRAO', escuro), reforcadas),

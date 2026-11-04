@@ -3,9 +3,11 @@ import { type LayoutChangeEvent, StyleSheet, View } from 'react-native';
 
 import { ErroApi } from '../api/cliente';
 import { execucoesDoAluno, historicoAluno } from '../api/rotas';
-import { hojeIso, somarDias } from '../dominio/formatos';
+import { hojeEmBrasilia } from '../dominio/financeiro';
+import { somarDias } from '../dominio/formatos';
+import { PERIODO_DO_PROGRESSO } from '../dominio/historicoDoAluno';
 import { agruparPorGrupo } from '../dominio/progresso';
-import { opcoesDeProgresso, periodoMisturaVersoes, TEXTO_PERIODO_MISTURA_VERSOES, textoDoHistoricoVazio } from '../dominio/relatorio';
+import { cargasPorDivisao, opcoesDeProgresso, periodoMisturaVersoes, TEXTO_PERIODO_MISTURA_VERSOES, textoDoHistoricoVazio, totalDeRegistros } from '../dominio/relatorio';
 import { LIMITE_PROGRESSO } from '../dominio/selecaoMultipla';
 import { espaco } from '../tema/tokens';
 import { useAviso } from '../ui/Aviso';
@@ -42,7 +44,7 @@ export function CartaoProgresso({ alunoId }: { alunoId?: string }) {
   const [larguraDoCartao, setLarguraDoCartao] = useState(0);
   const duasColunas = larguraDoCartao >= LARGURA_DUAS_COLUNAS;
   const aoMedir = (e: LayoutChangeEvent) => setLarguraDoCartao(e.nativeEvent.layout.width);
-  const hoje = hojeIso();
+  const hoje = hojeEmBrasilia();
   const de = somarDias(hoje, -DIAS_DA_LISTA);
   const { dados: dias, erro, recarregar } = useCarregar(`exec-progresso:${alunoId ?? 'eu'}:${de}:${hoje}`, () =>
     alunoId ? execucoesDoAluno(alunoId, de, hoje) : historicoAluno(de, hoje));
@@ -67,7 +69,7 @@ export function CartaoProgresso({ alunoId }: { alunoId?: string }) {
   const titulo = 'Progresso por exercício';
   if (!dias) {
     return (
-      <Cartao titulo={titulo}>
+      <Cartao titulo={titulo} periodo={PERIODO_DO_PROGRESSO}>
         {erro ? (
           erro instanceof ErroApi && erro.semConexao
             ? <Texto numerico variante="suave">Sem conexão: o progresso aparece quando a internet voltar.</Texto>
@@ -78,8 +80,8 @@ export function CartaoProgresso({ alunoId }: { alunoId?: string }) {
   }
   if (grupos.length === 0) {
     return (
-      <Cartao titulo={titulo}>
-        <Texto numerico variante="suave">{textoDoHistoricoVazio({ temRegistros: false, graficosLigados: preferencias.graficos, papel })}</Texto>
+      <Cartao titulo={titulo} periodo={PERIODO_DO_PROGRESSO}>
+        <Texto numerico variante="suave">{textoDoHistoricoVazio({ temRegistros: totalDeRegistros(cargasPorDivisao(dias)) > 0, graficosLigados: preferencias.graficos, papel, semProgresso: true })}</Texto>
       </Cartao>
     );
   }
@@ -93,6 +95,7 @@ export function CartaoProgresso({ alunoId }: { alunoId?: string }) {
     <View onLayout={aoMedir}>
     <Cartao
       titulo="Progresso por exercício"
+      periodo={PERIODO_DO_PROGRESSO}
       descricao="Histórico completo de cada exercício, somando todas as pastas."
       recolhivel
       recolhido

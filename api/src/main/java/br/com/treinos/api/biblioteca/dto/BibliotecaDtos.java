@@ -115,6 +115,10 @@ public final class BibliotecaDtos {
     public record CatalogoPagina<T>(List<T> itens, long total) {
     }
 
+    /** Página da Biblioteca › Exercícios; {@code grupos} são todos os da consultoria, sem aplicar o filtro de grupo. */
+    public record ExerciciosPagina(List<ExercicioResponse> itens, long total, List<String> grupos) {
+    }
+
     public record ImportarCatalogoRequest(@NotNull @Size(min = 1, max = 200) List<@NotNull UUID> ids) {
     }
 

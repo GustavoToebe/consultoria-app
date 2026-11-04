@@ -2,7 +2,7 @@ import { AvisoDeRecorde, type RecordeParaAvisar } from '../../../../aluno/AvisoD
 import { CabecalhoDoGrupo } from '../../../../aluno/CabecalhoDoGrupo';
 import { DescansoManual } from '../../../../aluno/DescansoManual';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, ArrowRight, Check, List } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, List } from 'lucide-react-native';
 import { useCallback, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -14,12 +14,12 @@ import { useTelaAcesa } from '../../../../aluno/useTelaAcesa';
 import { useAluno } from '../../../../offline/AlunoProvider';
 import { caminhoDaSessao, useSessaoDoDia } from '../../../../aluno/useSessaoDoDia';
 import { posicaoNoGrupo } from '../../../../dominio/combinacoes';
-import { podeConcluirEm } from '../../../../dominio/conclusaoDoTreino';
+import { contagemDeSeries, podeConcluirEm } from '../../../../dominio/conclusaoDoTreino';
 import { concluirEmDestaque } from '../../../../dominio/destaqueDaConclusao';
 import { dataCurta } from '../../../../dominio/formatos';
 import { textoDaContagem } from '../../../../dominio/recordesPessoais';
 import { MODALIDADES } from '../../../../dominio/modalidades';
-import { nomeComDia, totalDeSeries } from '../../../../dominio/semana';
+import { nomeComDia } from '../../../../dominio/semana';
 import { vezNoGrupo } from '../../../../dominio/vezNoGrupo';
 import { espaco, fontes } from '../../../../tema/tokens';
 import { Botao } from '../../../../ui/Botao';
@@ -36,7 +36,7 @@ import { Texto } from '../../../../ui/Texto';
  * "Anterior" e "Lista do dia", para o aluno andar fora de ordem sem precisar subir até a seta do topo (pedido do
  * Saraiva na reunião de 17/10: o aluno pula exercício, troca a ordem e volta à lista quando quer). Num bi-set,
  * supersérie ou circuito o "Próximo" é a vez no grupo (`vezNoGrupo`) até o grupo acabar; no último exercício,
- * "Concluir treino" com o resumo do dia.
+ * "Concluir treino" com o resumo do dia (com a chave do retorno desligada, "Voltar à lista do dia", secundário).
  */
 export default function ExercicioDaSessao() {
   const { uid, exercicio: exercicioUid, data: dataDaRota } = useLocalSearchParams<{ uid: string; exercicio: string; data?: string }>();
@@ -65,7 +65,8 @@ export default function ExercicioDaSessao() {
     return (
       <Tela bordas={['top']} largura={720}>
         <Cabecalho titulo="Exercício" voltar="/aluno/treino" />
-        <Vazio texto="Este exercício não está mais no seu plano. Volte para ver o treino atual." />
+        <Vazio texto="Este exercício não está mais no seu plano. Volte para ver o treino atual."
+          acao={{ rotulo: 'Ver meu treino', aoTocar: () => router.replace('/aluno/treino') }} />
       </Tela>
     );
   }
@@ -77,9 +78,9 @@ export default function ExercicioDaSessao() {
   const depoisDoGrupo = sessao.exercicios[noGrupo ? noGrupo.grupo.inicio + noGrupo.tamanho : posicao + 1];
   const proximo = vez ?? depoisDoGrupo;
   const ir = (destino: string) => router.replace(caminhoDaSessao(sessao.uid, data, destino));
-  const feitasNoDia = sessao.exercicios.reduce((n, x) => n + dia.feitas(x), 0);
-  const totalNoDia = totalDeSeries(sessao);
-  const conclusao = { versaoId: dia.treino.versaoId, sessao, data, hoje: dia.hoje, feita: (serieUid: string) => !!dia.registroDe(serieUid)?.concluida };
+  // "x de y séries" do dia: só trabalho e pós-trabalho (D6); a vez no grupo segue olhando todas as séries.
+  const { total: totalNoDia, feitas: feitasNoDia } = contagemDeSeries(sessao, dia.estaFeita, dia.config.metodologia);
+  const conclusao = { versaoId: dia.treino.versaoId, sessao, data, hoje: dia.hoje, metodologia: dia.config.metodologia, feita: (serieUid: string) => !!dia.registroDe(serieUid)?.concluida };
   // Descanso do plano: o da próxima série a fazer (ou o da primeira que tiver), primeira opção da folha.
   const aFazer = e.series.find((s) => !dia.registroDe(s.uid)?.concluida);
   // Em superset, circuito etc. o descanso do plano é o do grupo (depois da volta); em pré e pós-exaustão, o de cada série.
@@ -177,10 +178,9 @@ export default function ExercicioDaSessao() {
           </>
         ) : (
           <>
-            <Texto numerico variante="suave">
-              {feitasNoDia} de {totalNoDia} {totalNoDia === 1 ? 'série feita' : 'séries feitas'} neste treino.
-            </Texto>
-            <Botao rotulo="Concluir treino" Icone={Check} cheio aoTocar={() => router.replace(voltar)} />
+            <Texto numerico variante="suave">{resumoDoDia}</Texto>
+            {/* Chave desligada: nada é concluído, então o botão não promete isso e não é primário (auditoria de 03/11). */}
+            <Botao rotulo="Voltar à lista do dia" Icone={List} tipo="secundario" cheio aoTocar={() => router.replace(voltar)} />
           </>
         )}
         <LinhaDeAcoes alinhar="entre">

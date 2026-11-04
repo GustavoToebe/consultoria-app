@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import type { CatalogoExercicio, Exercicio } from '../src/api/tipos';
-import { json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
+import { json, paginaDeExerciciosFalsa, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
 import { pngDeCor } from './imagens-falsas';
 
 /**
@@ -148,16 +148,17 @@ test('catálogo de alimentos mostra o fator, a importação copia e a biblioteca
   expect(errosDaPagina).toEqual([]);
 });
 
-test('exercícios da biblioteca: filtro de vários grupos no cliente', async ({ page }) => {
+test('exercícios da biblioteca: filtro de vários grupos no servidor', async ({ page }) => {
   await servirFotos(page);
   const doTreinador = (n: number, nome: string, grupo: string): Exercicio => ({
     id: `e000000${n}-0000-4000-8000-000000000000`, nome, grupoMuscular: grupo, equipamento: null, modalidade: 'LIVRE', videoUrl: null,
     observacoes: null, origem: 'MANUAL', imagens: [], imagemPropriaEm: null,
   });
+  const consultas: string[] = [];
   const { naoTratadas, errosDaPagina } = await simularApi(page, {
     ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'BIBLIOTECA_LER', 'BIBLIOTECA_ALTERAR'] })),
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },
-    'GET /exercicios': { corpo: [doTreinador(1, 'Supino', 'Peito'), doTreinador(2, 'Remada', 'Costas'), doTreinador(3, 'Agacho', 'Pernas')] },
+    'GET /exercicios/pagina': paginaDeExerciciosFalsa([doTreinador(1, 'Supino', 'Peito'), doTreinador(2, 'Remada', 'Costas'), doTreinador(3, 'Agacho', 'Pernas')], consultas),
   });
   await page.goto('/treinador/biblioteca');
   await expect(page.getByText('Agacho', { exact: true })).toBeVisible();
@@ -172,6 +173,8 @@ test('exercícios da biblioteca: filtro de vários grupos no cliente', async ({ 
   await expect(page.getByText('Agacho', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Filtros, 1 ligado' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Tirar filtro: Grupo muscular: Costas, Peito' })).toBeVisible();
+  // O filtro vai ao servidor, com o grupo repetido na consulta.
+  expect(consultas.at(-1)).toContain('grupo=Costas&grupo=Peito');
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);
 });

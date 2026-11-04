@@ -1,5 +1,5 @@
 import type { TipoReceita } from '../../api/tipos';
-import { ABA_ANAMNESE, ABA_ATUALIZACAO, ABA_INSCRICAO, abaDoPlanejamento, avisoModeloSalvo, CATEGORIAS, GRUPOS_DE_MODELOS, gruposLiberados, metadadosDoModelo, nomeDoModelo, rotuloNovoModelo, rotuloSalvarComo, slugDaAba, usoDoModelo } from './modelos';
+import { ABA_ANAMNESE, ABA_ATUALIZACAO, ABA_INSCRICAO, abaDoPlanejamento, avisoModeloSalvo, CATEGORIAS, GRUPOS_DE_MODELOS, gruposLiberados, metadadosDoModelo, nomeDoModelo, rotuloNovoModelo, rotuloSalvarComo, slugDaAba, tipoDoPlanejamento, usoDoModelo } from './modelos';
 
 describe('organização da tela Planejamento', () => {
   it('cada tipo aparece uma vez, no grupo certo e na ordem pedida', () => {
@@ -49,6 +49,15 @@ describe('aba do Planejamento pelo endereço', () => {
     expect(abaDoPlanejamento('dieta', false, true)).toBe(ABA_ATUALIZACAO);
     expect(abaDoPlanejamento(undefined, false, true)).toBe(ABA_ATUALIZACAO);
     expect(abaDoPlanejamento('atualizacao', true, false)).toBe('Treino');
+  });
+});
+
+describe('chip do Planejamento pelo endereço', () => {
+  it('?tipo= escolhe o chip (Primeiros passos abre em Metodologias); valor desconhecido vale como sem pedido', () => {
+    expect(tipoDoPlanejamento('metodologia')).toBe('METODOLOGIA');
+    expect(tipoDoPlanejamento(['series', 'metodologia'])).toBe('SERIES');
+    expect(tipoDoPlanejamento('qualquer')).toBeNull();
+    expect(tipoDoPlanejamento(undefined)).toBeNull();
   });
 });
 

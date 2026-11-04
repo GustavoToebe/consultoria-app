@@ -86,6 +86,7 @@ import type {
   CatalogoAlimento,
   CatalogoExercicio,
   PaginaCatalogo,
+  PaginaDeExercicios,
   ConsumoDoPlano,
   ConsultoriaResponse,
   ConteudoDieta,
@@ -119,9 +120,15 @@ import type {
   Lesao,
   PastaResumo,
   PastaVigenteResposta,
+  CopiarPastaRequest,
+  CopiarPastaResposta,
+  PesoSugeridoDaPasta,
+  PublicarPastaRequest,
+  PublicarPastaResposta,
   PlanoResumo,
   AnaliseDaPlanilha,
   ColunasDaImportacao,
+  DiagnosticoDoArquivo,
   ConfirmacaoDaPlanilha,
   ImportacaoDesfeita,
   PreviaDaPlanilha,
@@ -173,6 +180,8 @@ export const pessoasAuditoria = () => requisicao<ResponsavelEquipe[]>('/auditori
 export const convidarMembro = (corpo:{nome:string;email:string;perfilId:string}) => requisicao<ConviteEquipe>('/usuarios/convites',{metodo:'POST',corpo});
 export const cancelarConviteEquipe = (id:string) => requisicao<void>(`/usuarios/convites/${seg(id)}`,{metodo:'DELETE'});
 export const alterarMembro = (id:string,corpo:{nome:string;perfilId:string;ativo:boolean}) => requisicao<MembroEquipe>(`/usuarios/${seg(id)}`,{metodo:'PUT',corpo});
+/** Só o Administrador (204). `limite` vai sempre no corpo: `null` apaga, `{}` daria 422 (D22). */
+export const definirLimiteDeAlunos = (id:string,limite:number|null) => requisicao<void>(`/usuarios/${seg(id)}/limite-de-alunos`,{metodo:'PUT',corpo:{limite}});
 /** Marca da consultoria do convite de equipe; o código vai só no corpo. Código inválido, vencido ou aceito = 404 igual. */
 export const consultarConviteEquipe = (codigo:string) => requisicao<ConviteEquipePublico>('/publico/convites-equipe/consultar',{metodo:'POST',corpo:{codigo},semRenovar:true});
 export const aceitarConviteEquipe = (codigo:string,senha:string) => requisicao<LoginResponse>('/publico/convites-equipe/aceitar',{metodo:'POST',corpo:{codigo,senha},semRenovar:true});
@@ -333,6 +342,14 @@ export const baixarFotoDePerfil = () => requisicao<Blob>('/aluno/foto-perfil', {
 export const baixarFotoDePerfilDoAluno = (alunoId: string) =>
   requisicao<Blob>(`/alunos/${seg(alunoId)}/foto-perfil`, { binario: true, limiteMs: 30000 });
 
+/** Equipe (ALUNO_ALTERAR): troca a foto de perfil do aluno. `arquivo`: FormData com `arquivo` (JPEG já reduzido e sem EXIF). */
+export const trocarFotoDePerfilDoAluno = (alunoId: string, arquivo: FormData) =>
+  requisicao<{ atualizadaEm: string }>(`/alunos/${seg(alunoId)}/foto-perfil`, { metodo: 'PUT', corpoBruto: arquivo, limiteMs: 60000 });
+
+/** Equipe (ALUNO_ALTERAR): apaga a foto de perfil do aluno (204, mesmo sem foto). */
+export const removerFotoDePerfilDoAluno = (alunoId: string) =>
+  requisicao<void>(`/alunos/${seg(alunoId)}/foto-perfil`, { metodo: 'DELETE' });
+
 export const baixarFotoDoTreinador = (atualizacaoId: string, fotoId: string) =>
   requisicao<Blob>(`/atualizacoes/${seg(atualizacaoId)}/fotos/${seg(fotoId)}`, { binario: true, limiteMs: 60000 });
 
@@ -394,6 +411,15 @@ export const aceitarTermos = (versao: string) =>
 
 export const trocarSenha = (senhaAtual: string, senhaNova: string) =>
   requisicao<LoginResponse>('/eu/senha', { metodo: 'PUT', corpo: { senhaAtual, senhaNova } });
+
+// ---- Push do Expo (aviso de compromisso no celular) ----
+
+/** Registra o token deste aparelho (idempotente). O valor do token nunca vai a log. */
+export const registrarPushToken = (token: string, plataforma: 'ANDROID' | 'IOS') =>
+  requisicao<void>('/aluno/push-token', { metodo: 'PUT', corpo: { token, plataforma } });
+/** Apaga o token informado. Sem token (o aparelho não o devolveu), o servidor apaga todos os do próprio usuário da sessão. */
+export const removerPushToken = (token?: string) =>
+  requisicao<void>('/aluno/push-token', token ? { metodo: 'DELETE', corpo: { token } } : { metodo: 'DELETE' });
 
 /** "Excluir minha conta" do aluno: 204 e a sessão deixa de valer no servidor (a do aparelho sai pelo `encerrarLocal`). */
 export const excluirMinhaConta = (senha: string, confirmacao: string) =>
@@ -645,6 +671,8 @@ export const alterarMarca = (dados: {
   versao: number;
   diasAtualizacaoPadrao: number | null;
   textosFasesCiclo?: import('./tipos').TextosDasFases | null;
+  /** Ausente mantém a gravada. */
+  metaDoPeso?: import('./tipos').MetaDoPeso;
 }) => requisicao<ConsultoriaResponse>('/consultoria/marca', { metodo: 'PUT', corpo: dados });
 
 /** `arquivo`: FormData já montado (web: File; nativo: objeto com bytes(), `anexarArquivoDoAparelho`). */
@@ -763,6 +791,14 @@ export const excluirPeso = (id: string, pesoId: string) =>
 const busca = (texto?: string) => (texto ? `?busca=${encodeURIComponent(texto)}` : '');
 
 export const listarExercicios = (texto?: string) => requisicao<Exercicio[]>(`/exercicios${busca(texto)}`);
+export const TAMANHO_DA_PAGINA_DE_EXERCICIOS = 30;
+/** Uma página da aba Exercícios: busca sem acento e grupos (OU) no servidor; `grupos` do retorno não aplica o filtro de grupo. */
+export const listarExerciciosPagina = (filtro: { texto?: string; grupos?: readonly string[]; pagina: number }) => {
+  const q = new URLSearchParams({ pagina: String(filtro.pagina), tamanho: String(TAMANHO_DA_PAGINA_DE_EXERCICIOS) });
+  if (filtro.texto) q.append('busca', filtro.texto);
+  for (const g of filtro.grupos ?? []) q.append('grupo', g);
+  return requisicao<PaginaDeExercicios>(`/exercicios/pagina?${q.toString()}`);
+};
 export const criarExercicio = (dados: ExercicioRequest) =>
   requisicao<Exercicio>('/exercicios', { metodo: 'POST', corpo: dados });
 export const alterarExercicio = (id: string, dados: ExercicioRequest) =>
@@ -839,6 +875,9 @@ export const previaDaPlanilhaCompleta = (arquivo: FormData) =>
   requisicao<PreviaDaPlanilha>('/importacoes/planilha-completa/previa', { metodo: 'POST', corpoBruto: arquivo });
 export const confirmarPlanilhaCompleta = (arquivo: FormData, hash: string) =>
   requisicao<ConfirmacaoDaPlanilha>(`/importacoes/planilha-completa/confirmar?hash=${encodeURIComponent(hash)}`, { metodo: 'POST', corpoBruto: arquivo });
+/** Migração assistida, fase 1: diz o que dá para importar do arquivo. Não grava nada (503 `MIGRACAO_INDISPONIVEL` com a chave desligada). */
+export const diagnosticarArquivo = (arquivo: FormData) =>
+  requisicao<DiagnosticoDoArquivo>('/importacoes/diagnostico', { metodo: 'POST', corpoBruto: arquivo });
 export const desfazerImportacao = (id: string) =>
   requisicao<ImportacaoDesfeita>(`/importacoes/${seg(id)}/desfazer`, { metodo: 'POST' });
 /** Esquece as respostas guardadas das importações anteriores da planilha completa (a próxima análise vem sem marcas). */
@@ -893,6 +932,21 @@ export const replicarPasta = (id: string, dados: DadosPasta) =>
 
 export const finalizarPasta = (id: string, dados: import('./tipos').FinalizarPastaRequest) =>
   requisicao<PastaResumo>(`/pastas/${seg(id)}/finalizar`, { metodo: 'POST', corpo: dados });
+
+/**
+ * Publica o rascunho de treino, dieta e mobilidade da pasta de uma vez. 422 `PLANO_INVALIDO`/`CONFIRMAR_AVISOS` traz a lista
+ * por plano em `fieldErrors` (`treino.<caminho>`); 409 `CONFLITO_EDICAO` (versão que a tela leu não é mais a do plano, ou
+ * chamada simultânea perdida) e 409 `PLANOS_PENDENTES_DUPLICADOS` (dois pendentes do mesmo tipo). Em todos, nada é publicado.
+ */
+export const publicarPasta = (id: string, dados: PublicarPastaRequest) =>
+  requisicao<PublicarPastaResposta>(`/pastas/${seg(id)}/publicar`, { metodo: 'POST', corpo: dados });
+
+/** Copia a pasta para outro aluno: pasta nova no destino, tudo em rascunho, sem ergogênicos e sem o questionário escolhido. */
+export const copiarPastaParaAluno = (id: string, dados: CopiarPastaRequest) =>
+  requisicao<CopiarPastaResposta>(`/pastas/${seg(id)}/copiar-para-aluno`, { metodo: 'POST', corpo: dados });
+
+/** Peso da atualização enviada da pasta (`ALUNO_SENSIVEL_LER` + `ATUALIZACAO_LER`); sem peso, ambos `null`. */
+export const pesoSugeridoDaPasta = (id: string) => requisicao<PesoSugeridoDaPasta>(`/pastas/${seg(id)}/peso-sugerido`);
 
 export const reabrirPasta = (id: string) => requisicao<PastaResumo>(`/pastas/${seg(id)}/reabrir`, { metodo: 'POST' });
 

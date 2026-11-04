@@ -2,12 +2,13 @@ import { useSessao } from '../../../sessao/SessaoProvider';
 import { Permitido } from '../../../ui/Permitido';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ellipsis, Pencil, UserCheck, UserMinus } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { aluno as buscarAluno, alterarAluno, alterarSituacaoAluno, consultoria as buscarConsultoria, escolherQuestionarioDoAluno } from '../../../api/rotas';
 import { enderecoParaLeitura, NOTA_TELEFONE_SEM_ACESSO } from '../../../dominio/cadastroDoAluno';
 import { rotuloDoSexo } from '../../../dominio/sexo';
+import { textoDaMeta } from '../../../dominio/metaDoPesoNaFicha';
 import { cicloDoAluno, textoDoCiclo } from '../../../dominio/periodo';
 import type { AlunoDetalhe } from '../../../api/tipos';
 import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
@@ -30,10 +31,12 @@ import { CartaoAnamnese } from '../../../treinador/anamnese/CartaoAnamnese';
 import { LinhaDoCicloNaFicha } from '../../../treinador/ciclo/CicloNaFicha';
 import { CartaoPlanoContratado } from '../../../treinador/financeiro/CartaoPlanoContratado';
 import { FormAluno } from '../../../treinador/FormAluno';
+import { FotoDePerfilPelaEquipe } from '../../../treinador/FotoDePerfilPelaEquipe';
 import { AcoesDePrivacidade } from '../../../treinador/privacidade/AcoesDePrivacidade';
 import { ResponsavelAluno } from '../../../treinador/equipe/ResponsavelAluno';
 import { SeletorDeQuestionario } from '../../../treinador/questionarios/SeletorDeQuestionario';
 import { useAviso } from '../../../ui/Aviso';
+import { useSaidaGuardada } from '../../../ui/GuardaDeSaida';
 import { Botao } from '../../../ui/Botao';
 import { Cabecalho } from '../../../ui/Cabecalho';
 import { CampoLeitura } from '../../../ui/CampoLeitura';
@@ -68,20 +71,41 @@ export default function FichaAluno() {
   const renovacao = useRenovarPasta(aluno ? cicloDoAluno(aluno.diasAtualizacao, padrao) : null, mudouPastas);
   const [menu, setMenu] = useState(false);
   const [confirmarSituacao, setConfirmarSituacao] = useState(false);
+  // Sabido pela foto do topo (o Resumo a baixa); `null` até lá.
+  const [temFoto, setTemFoto] = useState<boolean | null>(null);
+  // `?pastaId=` ("Voltar à pasta", "Abrir pasta" da atualização) abre a Folha da pasta e sai do endereço na hora, como o
+  // `?editar=1`: recarregar a ficha não reabre a Folha e o voltar do navegador não tem passo sobrando (C22). O pedido
+  // guarda o id e uma contagem: a Folha abre de novo quando outro pedido chega com a ficha já na tela (o "Voltar à
+  // pasta" volta a esta ficha pela pilha em vez de empilhar outra).
+  const [pedidoDePasta, setPedidoDePasta] = useState<{ id?: string; vez: number }>({ id: pastaId, vez: 0 });
+  const pastaVista = useRef(pastaId);
+  useEffect(() => {
+    if (!pastaId) { pastaVista.current = undefined; return; }
+    const novo = pastaVista.current !== pastaId;
+    pastaVista.current = pastaId;
+    let vivo = true;
+    void Promise.resolve().then(() => {
+      if (!vivo) return;
+      if (novo) setPedidoDePasta((p) => ({ id: pastaId, vez: p.vez + 1 }));
+      router.setParams({ pastaId: undefined });
+    });
+    return () => { vivo = false; };
+  }, [pastaId]);
   const temMenu = !!aluno && ((pode('ALUNO_ALTERAR') && !aluno.anonimizado) || pode('ALUNO_EXPORTAR') || (pode('ALUNO_ANONIMIZAR') && !aluno.ativo && !aluno.anonimizado));
 
   return (
     <Tela bordas={['top']} largura={LARGURA_LISTA}>
       <Cabecalho titulo={aluno?.nome ?? 'Aluno'} trilha={[{ rotulo: 'Alunos', href: '/treinador/alunos' }, { rotulo: aluno?.nome ?? 'Aluno' }]} voltar="/treinador/alunos"
         acoes={temMenu ? <IconeBotao Icone={Ellipsis} moldura rotulo="Mais ações do aluno" aoTocar={() => setMenu(true)} /> : undefined} />
-      {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
+      {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar}
+        acao={{ rotulo: 'Voltar à lista', aoTocar: () => router.navigate('/treinador/alunos') }} /> : null}
       {!aluno && carregando ? <Esqueleto /> : null}
       {aluno ? (
         <>
-          <ResumoDoAluno aluno={aluno} acompanhamento={acompanhamento} aoRenovar={renovacao.pedir}>
-            <DadosDoAluno aluno={aluno} padrao={padrao} aoAlterar={definir} />
+          <ResumoDoAluno aluno={aluno} acompanhamento={acompanhamento} aoRenovar={renovacao.pedir} aoSaberDaFoto={setTemFoto}>
+            <DadosDoAluno aluno={aluno} padrao={padrao} aoAlterar={definir} temFoto={temFoto} aoRecarregar={recarregar} />
           </ResumoDoAluno>
-          <CartaoPastas key={`${aluno.id}:${pastaId??''}`} pastaInicialId={pastaId} alunoId={aluno.id} alunoNome={aluno.nome} diasAtualizacao={cicloDoAluno(aluno.diasAtualizacao, padrao)}
+          <CartaoPastas key={`${aluno.id}:${pedidoDePasta.vez}`} pastaInicialId={pedidoDePasta.id} alunoId={aluno.id} alunoNome={aluno.nome} diasAtualizacao={cicloDoAluno(aluno.diasAtualizacao, padrao)}
             geracao={geracaoPastas} aoMudar={mudouPastas} aoGravarPeso={() => setGeracaoPeso((g) => g + 1)} />
           {/* Frequência, Mobilidade e Água são o mesmo tipo de contagem: lado a lado no PC, uma embaixo da outra no celular. */}
           {pode('REGISTRO_LER') ? (
@@ -96,7 +120,8 @@ export default function FichaAluno() {
           {retornoHabilitado && pode('REGISTRO_LER') ? <CartaoTreinosConcluidos alunoId={aluno.id} /> : null}
           {retornoHabilitado && pode('REGISTRO_LER') ? <CartaoRecordesDaSemana alunoId={aluno.id} /> : null}
           <Permitido codigo="REGISTRO_LER"><CartaoProgresso alunoId={aluno.id} /></Permitido>
-          <Permitido codigo="ALUNO_SENSIVEL_LER"><CartaoPeso key={geracaoPeso} alunoId={aluno.id} /></Permitido>
+          {/* A meta na chave: salvar outra meta na ficha busca o peso de novo, e as cores vêm da meta de cada item. */}
+          <Permitido codigo="ALUNO_SENSIVEL_LER"><CartaoPeso key={`${geracaoPeso}:${aluno.metaDoPeso ?? ''}`} alunoId={aluno.id} /></Permitido>
           <Permitido codigo="ALUNO_SENSIVEL_LER"><CartaoAvaliacaoFisica alunoId={aluno.id} alunoNome={aluno.nome} anonimizado={aluno.anonimizado} /></Permitido>
           {pode('ATUALIZACAO_LER') && pode('ALUNO_SENSIVEL_LER') ? (
             <CartaoFotos alunoId={aluno.id} autorizadoEm={aluno.usoDeImagemAutorizadoEm} aoRecarregar={recarregar} />
@@ -167,16 +192,22 @@ function ConfirmarSituacao({ aluno, visivel, aoFechar, aoAlterar }: { aluno: Alu
 
 /**
  * Dados do aluno, dentro do cartão de cima da ficha: só leitura em grade (Cadastro, Dados pessoais e Acompanhamento,
- * as mesmas seções do formulário) até "Editar", que abre o formulário ali mesmo. O acesso ao app fica nessa mesma
+ * as mesmas seções do formulário) até "Editar", que abre o formulário ali mesmo. Em Cadastro, quem pode editar troca ou
+ * remove a foto de perfil (a foto em si está no topo do mesmo cartão). O acesso ao app fica nessa mesma
  * área, numa linha (situação, e-mail de acesso e senha). O questionário de atualização também se troca no modo de
  * edição (fora dele é um campo de leitura, como os outros).
  * `?editar=1` (o lápis da lista de alunos) abre já editando, para quem pode editar, e sai do endereço na hora, como o
  * `?novo=1` do Planejamento: o voltar do navegador não tem passo sobrando.
  */
-function DadosDoAluno({ aluno, padrao, aoAlterar }: { aluno: AlunoDetalhe; padrao: number | null; aoAlterar: (a: AlunoDetalhe) => void }) {
+function DadosDoAluno({ aluno, padrao, aoAlterar, temFoto, aoRecarregar }: {
+  aluno: AlunoDetalhe; padrao: number | null; aoAlterar: (a: AlunoDetalhe) => void; temFoto: boolean | null; aoRecarregar: () => void;
+}) {
   const { pode } = useSessao();
   const { avisar } = useAviso();
+  // "Cancelar" com algum campo mudado pergunta "Descartar alterações?" (não é sair da ficha). Sem alteração, fecha na hora.
+  const { pendente } = useSaidaGuardada();
   const [editando, setEditando] = useState(false);
+  const [descartar, setDescartar] = useState(false);
   const { editar } = useLocalSearchParams<{ editar?: string }>();
   const podeEditar = !aluno.anonimizado && pode('ALUNO_ALTERAR');
   useEffect(() => {
@@ -196,7 +227,7 @@ function DadosDoAluno({ aluno, padrao, aoAlterar }: { aluno: AlunoDetalhe; padra
           inicial={aluno}
           diasPadrao={padrao}
           rotuloSalvar="Salvar"
-          aoCancelar={() => setEditando(false)}
+          aoCancelar={() => { if (pendente()) setDescartar(true); else setEditando(false); }}
           // O questionário fica na seção Acompanhamento, mas grava na hora (não espera o Salvar), como antes.
           noAcompanhamento={<SeletorDeQuestionario rotulo="Questionário de atualização" valor={aluno.questionarioId} rotuloDoNulo="Padrão da consultoria" podeAlterar={pode('ALUNO_ALTERAR')}
             aoEscolher={async (questionarioId) => { aoAlterar(await escolherQuestionarioDoAluno(aluno.id, questionarioId)); avisar('Questionário trocado.', 'sucesso'); }} />}
@@ -217,6 +248,8 @@ function DadosDoAluno({ aluno, padrao, aoAlterar }: { aluno: AlunoDetalhe; padra
             <CampoLeitura rotulo="Telefone" valor={aluno.telefone} />
             {!aluno.temAcesso && !aluno.anonimizado ? <Texto variante="pequeno">{NOTA_TELEFONE_SEM_ACESSO}</Texto> : null}
             <Permitido codigo="ALUNO_SENSIVEL_LER"><CampoLeitura rotulo="Objetivo" valor={aluno.objetivo} /></Permitido>
+            {/* C44: a equipe troca ou remove a foto de perfil (só com ALUNO_ALTERAR e aluno não anonimizado). */}
+            {podeEditar ? <FotoDePerfilPelaEquipe alunoId={aluno.id} alunoNome={aluno.nome} temFoto={temFoto} aoAnonimizado={aoRecarregar} /> : null}
           </View>
           <Permitido codigo="ALUNO_SENSIVEL_LER">
             <View style={estilos.colunaDados}>
@@ -231,11 +264,22 @@ function DadosDoAluno({ aluno, padrao, aoAlterar }: { aluno: AlunoDetalhe; padra
             <CampoLeitura rotulo="Nova atualização a cada" valor={textoDoCiclo(aluno.diasAtualizacao, padrao)} numerico />
             <SeletorDeQuestionario rotulo="Questionário de atualização" valor={aluno.questionarioId} rotuloDoNulo="Padrão da consultoria" podeAlterar={false}
               aoEscolher={async () => {}} />
+            <Permitido codigo="ALUNO_SENSIVEL_LER"><CampoLeitura rotulo="Meta do peso" valor={textoDaMeta(aluno.metaDoPeso)} /></Permitido>
             <Permitido codigo="ALUNO_SENSIVEL_LER"><CampoLeitura rotulo="Observações" valor={aluno.observacoes} /></Permitido>
             <LinhaDoCicloNaFicha alunoId={aluno.id} />
           </View>
         </View>
       )}
+      <PainelConfirmacao
+        visivel={descartar}
+        titulo="Descartar alterações?"
+        mensagem="Há alterações que ainda não foram salvas. Se descartar agora, elas serão perdidas."
+        rotuloConfirmar="Descartar"
+        rotuloCancelar="Continuar editando"
+        perigo
+        aoConfirmar={() => { setDescartar(false); setEditando(false); }}
+        aoCancelar={() => setDescartar(false)}
+      />
       <CartaoAcesso aluno={aluno} aoAlterar={aoAlterar} />
     </View>
   );

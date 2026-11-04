@@ -20,6 +20,7 @@ import br.com.treinos.api.equipe.AcessoAtual;
 import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.web.Buscas;
 import br.com.treinos.api.web.ConflitoComRecursoException;
+import br.com.treinos.api.web.FaixaDeData;
 import br.com.treinos.api.web.Fuso;
 import br.com.treinos.api.web.NaoEncontradoException;
 import org.springframework.stereotype.Service;
@@ -87,10 +88,12 @@ public class AgendaService {
     private final UsuarioRepository usuarios;
     private final ConsultoriaRepository consultorias;
     private final Auditoria auditoria;
+    private final br.com.treinos.api.push.PushService push;
 
     public AgendaService(CompromissoRepository compromissos, CompromissoAlunoRepository participantes,
                          AvisoCompromissoRepository avisos, AlunoRepository alunos, UsuarioRepository usuarios,
-                         ConsultoriaRepository consultorias, Auditoria auditoria) {
+                         ConsultoriaRepository consultorias, Auditoria auditoria,
+                         br.com.treinos.api.push.PushService push) {
         this.compromissos = compromissos;
         this.participantes = participantes;
         this.avisos = avisos;
@@ -98,6 +101,7 @@ public class AgendaService {
         this.usuarios = usuarios;
         this.consultorias = consultorias;
         this.auditoria = auditoria;
+        this.push = push;
     }
 
     // ---- Equipe ----
@@ -127,6 +131,14 @@ public class AgendaService {
         return respostas(List.of(buscar(id))).getFirst();
     }
 
+    /** A data do compromisso e o "até" da repetição na faixa de planejamento (C76): 422 {@code COMPROMISSO_INVALIDO} com o campo. */
+    private static void exigirDatasNaFaixa(CompromissoRequest r) {
+        FaixaDeData.exigir("COMPROMISSO_INVALIDO",
+                FaixaDeData.PLANEJAMENTO.campo("data", "Data do compromisso", r.data()),
+                FaixaDeData.PLANEJAMENTO.campo("repeticao.ate", "Última data da repetição",
+                        r.repeticao() == null ? null : r.repeticao().ate()));
+    }
+
     /**
      * Marca um compromisso ou, com {@code repeticao}, uma série: cada ocorrência é um compromisso de verdade (mesmo
      * {@code serieId}, mesmos participantes e dados), até {@value AgendaDtos#OCORRENCIAS_MAXIMO}; a regra das datas está
@@ -138,6 +150,7 @@ public class AgendaService {
     @Auditar(acao = "COMPROMISSO_CRIADO", entidade = "COMPROMISSO", resumo = "Marcou um compromisso na agenda.")
     public CompromissoResponse criar(CompromissoRequest r, UUID quem) {
         travarConsultoria();
+        exigirDatasNaFaixa(r);
         List<UUID> alunoIds = exigirAlunoIds(r.alunoIds());
         alunoIds.forEach(this::exigirAlunoParaMarcar);
         UUID responsavel = exigirResponsavel(r.responsavelId());
@@ -192,6 +205,7 @@ public class AgendaService {
         if (r.repeticao() != null) {
             throw new BadRequestException("A repetição só vale ao marcar um compromisso novo.", "REPETICAO_SO_AO_CRIAR");
         }
+        exigirDatasNaFaixa(r);
         Compromisso escolhida = buscar(id);
         exigirVersao(escolhida, r.versao());
         List<Compromisso> alvo = ocorrenciasDoEscopo(escolhida, escopo);
@@ -713,6 +727,8 @@ public class AgendaService {
                     primeira.retrato().inicio(), nome == null || nome.isBlank() ? null : nome));
         });
         avisos.saveAll(novos);
+        // Push do celular (se ligado e se o aluno registrou token): a linha da fila nasce na mesma transação; o envio é fora dela.
+        push.enfileirarParaAlunos(TenantContext.get(), primeiras.keySet());
     }
 
     private static TipoAvisoCompromisso tipoDoAviso(Mudanca mudanca) {

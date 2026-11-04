@@ -45,7 +45,7 @@ test('visão geral com dados: cartões, líquido indisponível, resultado do mê
 
   // Previsto, atrasado e inadimplência dizem que só contam as cobranças já geradas.
   await expect(page.getByText('considera as cobranças já geradas').first()).toBeVisible();
-  await expect(page.getByText('12,5%', { exact: true })).toBeVisible();
+  await expect(page.getByText('12,5% · R$ 300,00 de R$ 2.400,00', { exact: true })).toBeVisible();
 
   // Líquido: indisponível, com o bruto; nada de desconto inventado.
   await expect(page.getByText('Líquido para você')).toBeVisible();
@@ -303,9 +303,56 @@ test('módulo desligado: o aluno não chama o financeiro nem vê "Meu plano"; o 
   await expect(treinador.getByRole('button', { name: 'Voltar ao início' })).toBeVisible();
   await expect(treinador.getByRole('link', { name: 'Alunos' }).first()).toBeVisible();
   await expect(treinador.getByRole('link', { name: 'Financeiro' })).toHaveCount(0);
-  await expect(treinador.getByRole('heading', { name: 'Financeiro', level: 1 })).toHaveCount(0);
+  await expect(treinador.getByRole('heading', { name: 'Financeiro', exact: true, level: 1 })).toHaveCount(0);
+  // C4: a tela diz que o módulo está desligado (com o seu h1), sem culpar a permissão nem mandar pedir a alguém.
+  await expect(treinador.getByRole('heading', { name: 'Financeiro indisponível', level: 1 })).toBeVisible();
+  await expect(treinador.getByText('Os pagamentos não estão ativos nesta instalação do app.')).toBeVisible();
+  await expect(treinador.getByText(/Peça a um administrador/)).toHaveCount(0);
   expect(doTreinador.pedidos.filter((p) => p.caminho.startsWith('/financeiro'))).toEqual([]);
 });
+
+for (const [largura, tema] of [[390, 'CLARO'], [1280, 'CLARO'], [390, 'ESCURO'], [1280, 'ESCURO']] as const) {
+  test(`C4: administrador com os pagamentos desligados vê "Financeiro indisponível", com um h1 e sem mandar pedir acesso (${largura}px, ${tema.toLowerCase()})`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: largura, height: 844 });
+    await page.addInitScript(([id, t]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: t })), [TREINADOR.id, tema] as const);
+    const titulosDeNivel1 = page.locator('h1, [role="heading"][aria-level="1"]');
+    const rotasDoInicio = { 'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } } };
+    const admin = await simularApi(page, {
+      ...(await sessao(page, TREINADOR, {
+        pagamentosHabilitados: false,
+        perfil: { id: 'p-admin', nome: 'Administrador', acessoTotal: true },
+        permissoes: ['PAINEL_VER', 'ALUNO_LER', 'FINANCEIRO_LER', 'FINANCEIRO_ALTERAR'],
+      })),
+      ...rotasDoInicio,
+    });
+    await page.goto('/treinador/financeiro');
+    await expect(page.getByRole('heading', { name: 'Financeiro indisponível', level: 1 })).toBeVisible();
+    await expect(titulosDeNivel1).toHaveCount(1);
+    await expect(page.getByText(/Peça a um administrador/)).toHaveCount(0);
+    await page.screenshot({ path: testInfo.outputPath(`modulo-desligado-${largura}-${tema.toLowerCase()}.png`) });
+    await page.getByRole('button', { name: 'Voltar ao início' }).click();
+    await expect(page).toHaveURL(/\/treinador$/);
+    expect(admin.errosDaPagina).toEqual([]);
+  });
+
+  test(`C4: membro sem a permissão do Financeiro, com os pagamentos ligados, vê "Sem acesso a esta tela" (${largura}px, ${tema.toLowerCase()})`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 844 });
+    await page.addInitScript(([id, t]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: t })), [TREINADOR.id, tema] as const);
+    const titulosDeNivel1 = page.locator('h1, [role="heading"][aria-level="1"]');
+    const membro = await simularApi(page, {
+      ...(await sessao(page, TREINADOR, { pagamentosHabilitados: true, permissoes: ['PAINEL_VER', 'ALUNO_LER'] })),
+      'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
+    });
+    await page.goto('/treinador/financeiro');
+    await expect(page.getByRole('heading', { name: 'Sem acesso a esta tela', level: 1 })).toBeVisible();
+    await expect(titulosDeNivel1).toHaveCount(1);
+    await expect(page.getByText('Seu perfil não tem permissão para abrir esta tela. Peça a um administrador da consultoria.')).toBeVisible();
+    await expect(page.getByText('Financeiro indisponível')).toHaveCount(0);
+    await page.screenshot({ path: test.info().outputPath(`sem-permissao-${largura}-${tema.toLowerCase()}.png`) });
+    expect(membro.pedidos.filter((p) => p.caminho.startsWith('/financeiro'))).toEqual([]);
+    expect(membro.errosDaPagina).toEqual([]);
+  });
+}
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Recebimento online (InfinitePay): "Pagar" do aluno na web, aba do treinador, link da cobrança e pagamentos para conferir.

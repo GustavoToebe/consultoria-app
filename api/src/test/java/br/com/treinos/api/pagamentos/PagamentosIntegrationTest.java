@@ -20,8 +20,10 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.nio.charset.StandardCharsets;
+import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -335,7 +337,7 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         assertThat(painelA.get("movimentoDeAlunos").get(5).get("contratacoesNovas").asLong()).isEqualTo(2);
         assertThat(painelA.get("resultadoDoMes").get("recebidoCentavos").asLong()).isEqualTo(11111);
         assertThat(painelA.get("resultadoDoMes").get("entradasAvulsasCentavos").asLong()).isEqualTo(4444);
-        assertThat(nulo(painelA.get("resultadoDoMes").get("saidasAvulsasCentavos"))).isTrue();
+        assertThat(painelA.get("resultadoDoMes").get("saidasAvulsasCentavos").asLong()).isZero();
         assertThat(painelA.get("resultadoDoMes").get("resultadoCentavos").asLong()).isEqualTo(11111 + 4444);
         assertThat(painelA.toString()).doesNotContain("Beta");
         JsonNode numerosA = api.get("/financeiro/numeros?meses=6", admin, 200);
@@ -1310,6 +1312,63 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         assertThat(painel.get("resultadoDoMes").get("rotulo").asString()).isEqualTo(FinanceiroService.ROTULO_RESULTADO);
         assertThat(painel.get("porForma")).isEmpty();
         assertThat(painel.get("somenteMeus").asBoolean()).isFalse();
+
+        // Mês sem lançamento: da criação da consultoria (hoje) até o corrente é R$ 0,00; os meses anteriores à criação e o
+        // "Meus", que não cobre lançamento, seguem nulos.
+        JsonNode semLancamento = painel.get("resultadoDoMes");
+        assertThat(semLancamento.get("entradasAvulsasCentavos").asLong()).isZero();
+        assertThat(semLancamento.get("saidasAvulsasCentavos").asLong()).isZero();
+        assertThat(nulo(semLancamento.get("recebidoCentavos"))).isTrue();
+        JsonNode serieVazia = painel.get("serie");
+        for (int i = 0; i < 5; i++) {
+            assertThat(nulo(serieVazia.get(i).get("entradasAvulsasCentavos"))).isTrue();
+            assertThat(nulo(serieVazia.get(i).get("saidasAvulsasCentavos"))).isTrue();
+            assertThat(nulo(serieVazia.get(i).get("resultadoCentavos"))).isTrue();
+        }
+        assertThat(serieVazia.get(5).get("entradasAvulsasCentavos").asLong()).isZero();
+        assertThat(serieVazia.get(5).get("saidasAvulsasCentavos").asLong()).isZero();
+        JsonNode meusVazio = api.get("/financeiro/painel?meus=true", admin, 200);
+        assertThat(nulo(meusVazio.get("resultadoDoMes").get("entradasAvulsasCentavos"))).isTrue();
+        assertThat(nulo(meusVazio.get("serie").get(5).get("entradasAvulsasCentavos"))).isTrue();
+        // Mês futuro segue sem dado (nulo), nunca zero.
+        JsonNode futuro = api.get("/financeiro/painel?de=" + hoje + "&ate=" + hoje.plusMonths(2), admin, 200).get("serie");
+        assertThat(nulo(futuro.get(futuro.size() - 1).get("entradasAvulsasCentavos"))).isTrue();
+        assertThat(futuro.get(0).get("entradasAvulsasCentavos").asLong()).isZero();
+    }
+
+    @Test
+    void mesesAntesDaCriacaoDaConsultoriaSaemNulosEDaCriacaoEmDianteZero() throws Exception {
+        UUID consultoria = jdbc.queryForObject("select consultoria_id from aluno where id = ?::uuid", UUID.class,
+                aluno().toString());
+        YearMonth atual = YearMonth.from(hoje);
+        YearMonth criacao = atual.minusMonths(3);
+        // Meio do mês, meio-dia de Brasília: o mês da criação não muda com o fuso.
+        Timestamp criadaEm = Timestamp.from(ZonedDateTime.of(criacao.getYear(), criacao.getMonthValue(), 15, 12, 0, 0, 0,
+                Fuso.BRASILIA).toInstant());
+        jdbc.update("update consultoria set criado_em = ? where id = ?", criadaEm, consultoria);
+
+        JsonNode serie = api.get("/financeiro/painel", admin, 200).get("serie");
+        assertThat(serie).hasSize(6);
+        // Cinco e quatro meses atrás a consultoria não existia: sem dado, nunca zero.
+        for (int i = 0; i < 2; i++) {
+            assertThat(serie.get(i).get("mes").asString()).isEqualTo(atual.minusMonths(5L - i).toString());
+            assertThat(nulo(serie.get(i).get("entradasAvulsasCentavos"))).isTrue();
+            assertThat(nulo(serie.get(i).get("saidasAvulsasCentavos"))).isTrue();
+            assertThat(nulo(serie.get(i).get("resultadoCentavos"))).isTrue();
+        }
+        // Do mês da criação até o corrente, sem lançamento, é R$ 0,00.
+        assertThat(serie.get(2).get("mes").asString()).isEqualTo(criacao.toString());
+        for (int i = 2; i < 6; i++) {
+            assertThat(serie.get(i).get("entradasAvulsasCentavos").asLong()).isZero();
+            assertThat(serie.get(i).get("saidasAvulsasCentavos").asLong()).isZero();
+        }
+        JsonNode resultado = api.get("/financeiro/painel", admin, 200).get("resultadoDoMes");
+        assertThat(resultado.get("entradasAvulsasCentavos").asLong()).isZero();
+        assertThat(resultado.get("saidasAvulsasCentavos").asLong()).isZero();
+        // O "Meus" não cobre lançamento: nulo em todos os meses, antes e depois da criação.
+        JsonNode meus = api.get("/financeiro/painel?meus=true", admin, 200).get("serie");
+        assertThat(nulo(meus.get(0).get("entradasAvulsasCentavos"))).isTrue();
+        assertThat(nulo(meus.get(5).get("entradasAvulsasCentavos"))).isTrue();
     }
 
     @Test
@@ -1503,7 +1562,7 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         assertThat(semBaixa.get("porForma")).isEmpty();
         assertThat(semBaixa.get("porPlano")).isEmpty();
         assertThat(nulo(semBaixa.get("resultadoDoMes").get("recebidoCentavos"))).isTrue();
-        assertThat(nulo(semBaixa.get("resultadoDoMes").get("resultadoCentavos"))).isTrue();
+        assertThat(semBaixa.get("resultadoDoMes").get("resultadoCentavos").asLong()).isZero();
     }
 
     @Test

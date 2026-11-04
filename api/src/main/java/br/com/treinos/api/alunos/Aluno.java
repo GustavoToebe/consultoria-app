@@ -92,6 +92,11 @@ public class Aluno {
     @Enumerated(EnumType.STRING)
     private Sexo sexo;
 
+    /** Meta do peso do aluno (V052); nulo = vale a da consultoria. Dado sensível: nunca em log nem em auditoria. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "meta_do_peso")
+    private br.com.treinos.api.consultoria.MetaDoPeso metaDoPeso;
+
     @Column(name = "ciclo_ativado_em")
     private Instant cicloAtivadoEm;
 
@@ -311,11 +316,21 @@ public class Aluno {
         this.usoDeImagemAutorizadoEm = null;
         this.lembretesCobrancaDesligadosEm = null;
         this.sexo = null;
+        this.metaDoPeso = null;
         this.cicloAtivadoEm = null;
         this.cicloConsentimentoVersao = null;
         this.cicloDuracaoHabitual = null;
         this.cicloMostrarFases = true;
         this.atualizadoEm = quando;
+    }
+
+    public br.com.treinos.api.consultoria.MetaDoPeso getMetaDoPeso() {
+        return metaDoPeso;
+    }
+
+    public void alterarMetaDoPeso(br.com.treinos.api.consultoria.MetaDoPeso meta) {
+        this.metaDoPeso = meta;
+        this.atualizadoEm = Instant.now();
     }
 
     public Sexo getSexo() {

@@ -1,12 +1,14 @@
 import { coresComBordasReforcadas, coresComContraste } from '../dominio/preferencias';
-import { AREIA, CLARO, ESCURO, contraste, tingido, type Cores } from '../tema/tokens';
+import { coresDoDesabilitado } from './desabilitado';
+import { coresDoMarcar } from './marcar';
+import { PALETAS, contraste, textoSobre, tingido, type Cores } from '../tema/tokens';
 
 /**
  * Pares de cor que as peças comuns de `ui/` usam depois do passo 1 da atualização visual (30/10), conferidos em todos os
  * temas, com contraste alto e com "Bordas reforçadas": texto ≥ 4,5:1 e borda de controle ≥ 3:1 (WCAG 1.4.3 e 1.4.11).
  * O Jest não monta as peças (o lucide é ESM); quem mudar uma cor nelas atualiza o par aqui.
  */
-const BASES: [string, Cores, boolean][] = [['claro', CLARO, false], ['claro areia', AREIA, false], ['escuro', ESCURO, true]];
+const BASES: [string, Cores, boolean][] = Object.entries(PALETAS).map(([codigo, p]) => [codigo, p.cores, p.modo === 'ESCURO']);
 const VARIANTES: [string, Cores][] = BASES.flatMap(([nome, base, escuro]) => [false, true].flatMap((alto) => [false, true].map((reforcadas): [string, Cores] => [
   `${nome}${alto ? ', contraste alto' : ''}${reforcadas ? ', bordas reforçadas' : ''}`,
   coresComBordasReforcadas(coresComContraste(base, alto ? 'ALTO' : 'PADRAO', escuro), reforcadas),
@@ -42,7 +44,7 @@ describe.each(VARIANTES)('peças comuns no tema %s', (_nome, cores) => {
     expect(contraste(cores.textoSuave, cores.superficie)).toBeGreaterThanOrEqual(4.5);
   });
 
-  it('Alerta: texto na cor do tom sobre o fundo opaco `tingido` (não depende de onde a caixa está)', () => {
+  it('Alerta e Selo: texto na cor do tom sobre o fundo opaco `tingido` (não depende de onde a caixa está)', () => {
     for (const tom of [cores.perigo, cores.atencao, cores.sucesso]) {
       expect(contraste(tom, tingido(tom, cores.superficie))).toBeGreaterThanOrEqual(4.5);
     }
@@ -50,6 +52,36 @@ describe.each(VARIANTES)('peças comuns no tema %s', (_nome, cores) => {
 
   it('IconeBotao moldura: borda `bordaCampo` ≥ 3:1 contra o cartão e contra a faixa onde fica (o ⋯ e o X da Folha)', () => {
     for (const s of [cores.fundo, cores.superficie, cores.superficie3]) expect(contraste(cores.bordaCampo, s)).toBeGreaterThanOrEqual(3);
+  });
+
+  it('Botao perigo: rótulo `textoSobre(perigoFundo)` sobre o `perigoFundo` (sem cor fixa no botão)', () => {
+    expect(contraste(textoSobre(cores.perigoFundo), cores.perigoFundo)).toBeGreaterThanOrEqual(4.5);
+    // Era o `#FFFFFF` fixo: o visual do botão não muda em nenhum tema.
+    expect(textoSobre(cores.perigoFundo)).toBe('#FFFFFF');
+  });
+
+  it('Botao perigoTexto e secundário: `perigo` e `texto` sobre o cartão, a faixa e o fundo', () => {
+    for (const s of [cores.fundo, cores.superficie, cores.superficie3]) {
+      expect(contraste(cores.perigo, s)).toBeGreaterThanOrEqual(4.5);
+      expect(contraste(cores.texto, s)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it('QuadroKanban com movimento reduzido: borda `anelFoco` do cartão arrastado ≥ 3:1 sobre o cartão e a coluna', () => {
+    for (const s of [cores.superficie, cores.superficie2]) expect(contraste(cores.anelFoco, s)).toBeGreaterThanOrEqual(3);
+  });
+
+  it('BotaoMarcar desabilitado (prévia): ícone `textoSuave` sobre a faixa `superficie3` ≥ 4,5:1 (sem opacidade)', () => {
+    const c = coresDoMarcar(cores, { feito: false, desabilitado: true, pressionado: false });
+    expect(contraste(c.icone, c.fundo)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('desabilitado (D3): fundo `superficie3`, texto e ícone `textoSuave` ≥ 4,5:1, sem a marca nem opacidade', () => {
+    const c = coresDoDesabilitado(cores);
+    expect(c).toEqual({ fundo: cores.superficie3, borda: cores.borda, texto: cores.textoSuave });
+    expect(contraste(c.texto, c.fundo)).toBeGreaterThanOrEqual(4.5);
+    // O botão fantasma desabilitado fica sem fundo: o texto cai direto no cartão e no fundo da tela.
+    for (const s of [cores.fundo, cores.superficie]) expect(contraste(c.texto, s)).toBeGreaterThanOrEqual(4.5);
   });
 
   it('Cabecalho: selo "Sem conexão" com ícone (neutro sobre `tingido`)', () => {

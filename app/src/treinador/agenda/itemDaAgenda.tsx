@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native';
 
 import type { CorDaAgenda, SituacaoCompromisso } from '../../api/agendaTipos';
 import type { ItemDoCalendario } from '../../dominio/agendaCalendario';
-import { fundoDoItemDaAgenda, LARGURA_DA_FAIXA, statusNoRotuloDoCompromisso } from '../../dominio/agendaLegivel';
+import { fundoDoItemDaAgenda, horarioNoRotuloDoCompromisso, LARGURA_DA_FAIXA, statusNoRotuloDoCompromisso } from '../../dominio/agendaLegivel';
 import { nomesPorExtenso, seloDaSituacao, seloDoCompromisso, situacaoDoCompromisso } from '../../dominio/agendaPresencial';
 import { caminhoAtualizacaoTreinador, statusAtualizacaoTreinador } from '../../dominio/atualizacao';
 import { dataSemAnoCorrente } from '../../dominio/datasRelativas';
@@ -26,7 +26,7 @@ export function horarioDoItem(item: ItemDoCalendario): string {
 }
 
 /**
- * Nome do item para o leitor de tela. O do compromisso é o mesmo da lista de antes ("Abrir compromisso de Ana, 15:00"), em
+ * Nome do item para o leitor de tela. O do compromisso diz o início e o fim ("Abrir compromisso de Ana, das 15h às 16h"), em
  * qualquer visão, com o status no fim quando não é "todos agendados" (", cancelado", ", realizado", ", 1 faltou"): no bloco
  * curto o status é só ícone e o nome é quem o diz. O evento diz o título e a hora; a atualização, o aluno, o dia e o selo
  * quando ele diz algo a mais.
@@ -35,11 +35,20 @@ export function rotuloDoItem(item: ItemDoCalendario, hoje: string): string {
   const f = item.fonte;
   if (f.origem === 'COMPROMISSO') {
     const c = f.compromisso;
-    return `Abrir compromisso de ${nomesPorExtenso(c)}, ${c.hora}${statusNoRotuloDoCompromisso(c)}`;
+    return `Abrir compromisso de ${nomesPorExtenso(c)}, ${horarioNoRotuloDoCompromisso(c.hora, c.horaFim)}${statusNoRotuloDoCompromisso(c)}`;
   }
   if (f.origem === 'EVENTO') return `Abrir evento ${item.titulo}, ${item.diaInteiro ? 'dia inteiro' : f.ocorrencia.hora ?? ''}${item.cancelado ? ', cancelado' : ''}`;
-  const selo = statusAtualizacaoTreinador(f.atualizacao, hoje);
-  return `Abrir atualização de ${item.titulo}, ${dataSemAnoCorrente(item.data, hoje)}${selo.tipo === 'neutro' ? '' : `, ${selo.curto}`}`;
+  const selo = seloDaAtualizacaoNaAgenda(f.atualizacao, hoje);
+  return `Abrir atualização de ${item.titulo}, ${dataSemAnoCorrente(item.data, hoje)}${selo ? `, ${selo.curto}` : ''}`;
+}
+
+/**
+ * Selo da atualização na agenda, ou `null` quando não diz nada além do dia ("Hoje", "Em 3 dias": o dia já está no item).
+ * "Adiada para 21/10" é neutro desde a auditoria das cores (#70), mas diz algo a mais e continua aparecendo.
+ */
+export function seloDaAtualizacaoNaAgenda(a: Parameters<typeof statusAtualizacaoTreinador>[0], hoje: string) {
+  const s = statusAtualizacaoTreinador(a, hoje);
+  return s.tipo === 'neutro' && !a.atrasoAte ? null : s;
 }
 
 /** Selo da agenda: o texto e o tom de sempre, com o ícone (status sempre com texto e ícone; a cor nunca fala sozinha). */
@@ -65,13 +74,13 @@ export function seloDoCompromissoComIcone(c: Parameters<typeof seloDoCompromisso
   return { ...seloDoCompromisso(c), Icone: ICONE_DA_SITUACAO[situacaoDoCompromisso(c)] ?? CalendarClock };
 }
 
-/** O selo de status do item: a situação do compromisso, ou o da atualização quando não é neutro. Evento não tem. */
+/** O selo de status do item: a situação do compromisso, ou o da atualização quando diz algo além do dia. Evento não tem. */
 export function seloDoItem(item: ItemDoCalendario, hoje: string): SeloDaAgenda | null {
   const f = item.fonte;
   if (f.origem === 'COMPROMISSO') return seloDoCompromissoComIcone(f.compromisso);
   if (f.origem === 'ATUALIZACAO') {
-    const s = statusAtualizacaoTreinador(f.atualizacao, hoje);
-    return s.tipo === 'neutro' ? null : { texto: s.curto, tipo: s.tipo, Icone: ICONE_DO_TOM[s.tipo] };
+    const s = seloDaAtualizacaoNaAgenda(f.atualizacao, hoje);
+    return s ? { texto: s.curto, tipo: s.tipo, Icone: ICONE_DO_TOM[s.tipo] } : null;
   }
   return null;
 }

@@ -4,13 +4,14 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { useMovimentoReduzido } from './useMovimentoReduzido';
 import { X } from 'lucide-react-native';
 import { PortalHost } from '@rn-primitives/portal';
-import { createContext, useContext, useEffect, useCallback, useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useCallback, useId, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, useWindowDimensions, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTema } from '../tema/TemaProvider';
-import { espaco, LARGURA_MENU_LATERAL, LINHA_DA_FAIXA, RAIO } from '../tema/tokens';
-import { useFolhaNoHistorico } from './historicoDasFolhas';
+import { espaco, LARGURA_MENU_LATERAL, LINHA_DA_FAIXA, RAIO, VEU } from '../tema/tokens';
+import { marcarFolhaDoTopoFechando, useFolhaNoHistorico } from './historicoDasFolhas';
+import { capturaDoGatilho, useDevolverFocoNoNativo } from './focoDaFolha';
 import { IconeBotao } from './IconeBotao';
 import { RolagemComTopo } from './RolagemComTopo';
 import { Texto } from './Texto';
@@ -36,6 +37,8 @@ interface Props {
   rodape?: ReactNode;
   /** Ação do cabeçalho, ao lado do X (ex.: menu ⋯); fica fixa enquanto o conteúdo rola. */
   acaoNoTopo?: ReactNode;
+  /** Faixa fixa logo abaixo do cabeçalho, fora da rolagem (ex.: o aviso da prévia "Ver como o aluno"). */
+  faixa?: ReactNode;
   /** Largura no PC (centralizada); padrão `LARGURA_FOLHA` (600). Conteúdo grande (pasta com planos e registros) usa `LARGURA_EDITOR`. */
   largura?: number;
 }
@@ -43,16 +46,54 @@ interface Props {
 /**
  * Painel por cima da tela: centralizado no PC, folha que sobe de baixo no celular. Usado para escolher da
  * biblioteca, aplicar receita e formulários curtos. Fecha no X, tocando fora ou no voltar do Android. Para o leitor
- * de tela é um diálogo modal com o nome do título; na web o foco entra no primeiro controle do conteúdo.
+ * de tela é um diálogo modal com o nome do título; na web o foco entra no primeiro controle do conteúdo e, ao fechar,
+ * volta a quem abriu a folha; no celular, com leitor de tela, também volta (`ui/focoDaFolha.ts`).
  */
-export function Folha({ visivel, titulo, aoFechar, children, rodape, largura, acaoNoTopo }: Props) {
-  return <Modal transparent visible={visivel} animationType="none" onRequestClose={aoFechar}>
-    {visivel ? <Painel titulo={titulo} aoFechar={aoFechar} rodape={rodape} largura={largura} acaoNoTopo={acaoNoTopo}>{children}</Painel> : null}
+export function Folha({ visivel, titulo, aoFechar, children, rodape, largura, acaoNoTopo, faixa }: Props) {
+  // Quem estava com o foco ao abrir (web). Ao fechar, o foco volta para ele (C3): na hora em que o painel sai (a folha
+  // inteira deixou a tela) e de novo no `onDismiss`, quando a camada do Modal some. Antes disso a trava de foco do Modal,
+  // que fica um render a mais depois do `visible={false}`, puxaria o foco de volta para dentro.
+  const quemAbriuRef = useRef<HTMLElement | null>(null);
+  // Marca antes do `aoFechar`: no celular o diálogo que nascer neste toque não pode ir para dentro desta Folha.
+  const fechar = useCallback(() => {
+    marcarFolhaDoTopoFechando();
+    aoFechar();
+  }, [aoFechar]);
+  return <Modal ref={semPapelNoModal} transparent visible={visivel} animationType="none" onRequestClose={fechar} onDismiss={() => devolverFoco(quemAbriuRef)}>
+    {visivel ? <Painel titulo={titulo} aoFechar={fechar} rodape={rodape} largura={largura} acaoNoTopo={acaoNoTopo} faixa={faixa} quemAbriuRef={quemAbriuRef}>{children}</Painel> : null}
   </Modal>;
 }
 
+/**
+ * O diálogo é o painel (C3). Na web o `Modal` do react-native-web também põe `role=dialog` e `aria-modal`, sem nome, na
+ * camada de tela cheia em volta: o leitor de tela anunciava dois diálogos. O `ref` do `Modal` é essa camada; o papel
+ * sai dela e volta a sair quando o react-native-web o repõe (ao empilhar outra folha por cima e tirá-la).
+ */
+function semPapelNoModal(modal: Modal | null) {
+  if (Platform.OS !== 'web' || typeof MutationObserver === 'undefined' || !modal) return;
+  const no = modal as unknown as HTMLElement;
+  const limpar = () => {
+    if (no.hasAttribute('role')) no.removeAttribute('role');
+    if (no.hasAttribute('aria-modal')) no.removeAttribute('aria-modal');
+  };
+  limpar();
+  const observador = new MutationObserver(limpar);
+  observador.observe(no, { attributes: true, attributeFilter: ['role', 'aria-modal'] });
+  return () => observador.disconnect();
+}
+
+function devolverFoco(quemAbriuRef: RefObject<HTMLElement | null>) {
+  const alvo = quemAbriuRef.current;
+  // Fechar esta folha abrindo outro diálogo ("Mover para" → Aceitar): o foco já está nele e fica lá. Já o diálogo que
+  // contém quem abriu (a Folha mãe, com esta por cima) não conta: o foco volta ao gatilho dentro dela.
+  const atual = typeof document === 'undefined' ? null : document.activeElement;
+  const dialogoDoFoco = atual?.closest?.('[role="dialog"], [role="alertdialog"]');
+  if (!alvo?.isConnected || (dialogoDoFoco && !dialogoDoFoco.contains(alvo))) return;
+  alvo.focus();
+}
+
 /** Arraste no cabeçalho para preservar a rolagem e os campos dentro do conteúdo: no PC move a folha, no celular fecha. */
-function Painel({titulo,aoFechar,children,rodape,largura,acaoNoTopo}:Omit<Props,'visivel'>) {
+function Painel({titulo,aoFechar,children,rodape,largura,acaoNoTopo,faixa,quemAbriuRef}:Omit<Props,'visivel'> & { quemAbriuRef: RefObject<HTMLElement | null> }) {
   const { cores, bordas } = useTema();
   const { width, height } = useWindowDimensions();
   // No Android o `Modal` já fica acima da barra do sistema; somar a margem de baixo do provider (que está fora dele)
@@ -65,6 +106,7 @@ function Painel({titulo,aoFechar,children,rodape,largura,acaoNoTopo}:Omit<Props,
   const guardarElementoPortal = useCallback((no: View | null) => setElementoPortal(Platform.OS === 'web' ? (no as unknown as HTMLElement | null) : null), []);
   const valorPortal = useMemo(() => ({ nome: portal, elemento: elementoPortal }), [portal, elementoPortal]);
   useFolhaNoHistorico(aoFechar, valorPortal);
+  useDevolverFocoNoNativo();
   const conteudo = useRef<View>(null);
   const fechar = useRef<View>(null);
   // Sem animação de entrada: o painel aparece pronto. O deslocamento só existe para o arrastar-para-fechar no celular.
@@ -103,6 +145,13 @@ function Painel({titulo,aoFechar,children,rodape,largura,acaoNoTopo}:Omit<Props,
     });
   // Decidido ao abrir: girar a tela depois não move o foco de novo.
   const [focarConteudo] = useState(centralizado);
+  // Lido no primeiro render, antes de o foco entrar aqui (um campo com `autoFocus` já o pega no commit). O `Modal` da
+  // web também guarda quem tinha o foco, mas só depois disso: ao fechar devolvia a um controle que saiu da tela (`body`).
+  const [quemAbriu] = useState(() => (web ? (document.activeElement as HTMLElement | null) : null));
+  useEffect(() => {
+    quemAbriuRef.current = quemAbriu;
+    return () => devolverFoco(quemAbriuRef);
+  }, [quemAbriu, quemAbriuRef]);
   useEffect(() => {
     if (Platform.OS !== 'web') return;
     // O foco entra no primeiro controle do conteúdo (campo ou botão); sem nenhum, no X de fechar. Nunca no fundo.
@@ -114,10 +163,14 @@ function Painel({titulo,aoFechar,children,rodape,largura,acaoNoTopo}:Omit<Props,
   }, [focarConteudo]);
   return (
     <PortalDaFolha.Provider value={valorPortal}>
-    <GestureHandlerRootView style={{flex:1}}>
+    <GestureHandlerRootView style={{flex:1}} {...capturaDoGatilho}>
       <KeyboardAvoidingView style={estilos.fundoArea} behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}>
       <View style={[estilos.fundo, centralizado ? estilos.fundoCentral : estilos.fundoInferior]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={aoFechar} accessibilityLabel="Fechar painel" importantForAccessibility="no-hide-descendants" />
+        {web
+          // Na web o fundo não entra no Tab nem na trava de foco do Modal, que o escolhia ao dar a volta (o X e o Esc
+          // fecham pelo teclado); clicar fora continua fechando.
+          ? <View style={StyleSheet.absoluteFill} aria-hidden {...({ onClick: aoFechar } as object)} />
+          : <Pressable style={StyleSheet.absoluteFill} onPress={aoFechar} accessibilityLabel="Fechar painel" importantForAccessibility="no-hide-descendants" />}
         <Animated.View
           onLayout={evento => { altura.set(evento.nativeEvent.layout.height); larguraDoPainel.set(evento.nativeEvent.layout.width); }}
           accessibilityViewIsModal
@@ -143,6 +196,7 @@ function Painel({titulo,aoFechar,children,rodape,largura,acaoNoTopo}:Omit<Props,
               <View ref={fechar} collapsable={false}><IconeBotao Icone={X} rotulo="Fechar" aoTocar={aoFechar} moldura /></View>
             </View>
           </View>
+          {faixa ? <View style={[estilos.faixa, { borderBottomColor: cores.borda }]}>{faixa}</View> : null}
           <View ref={conteudo} collapsable={false} style={estilos.area}>
             <RolagemComTopo contentContainerStyle={estilos.conteudo}>{children}</RolagemComTopo>
           </View>
@@ -158,7 +212,7 @@ function Painel({titulo,aoFechar,children,rodape,largura,acaoNoTopo}:Omit<Props,
 
 const estilos = StyleSheet.create({
   fundoArea: { flex: 1 },
-  fundo: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' },
+  fundo: { flex: 1, backgroundColor: VEU },
   fundoCentral: { alignItems: 'center', justifyContent: 'center', padding: espaco(2) },
   fundoInferior: { justifyContent: 'flex-end' },
   painel: { overflow: 'hidden' },
@@ -179,6 +233,7 @@ const estilos = StyleSheet.create({
   // Ocupa a altura toda do cabeçalho (as margens negativas anulam o respiro vertical do `topo`).
   alca: { flex: 1, alignSelf: 'stretch', justifyContent: 'center', marginVertical: -espaco(1), paddingVertical: espaco(1) },
   acoesTopo: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5) },
+  faixa: { paddingHorizontal: espaco(2), paddingVertical: espaco(1), borderBottomWidth: 1 },
   // O botão "voltar ao início" do `RolagemComTopo` é absoluto dentro desta área, logo nunca sai do painel.
   area: { flexShrink: 1, minHeight: 0 },
   // A folga do topo (16 px) também deixa o anel de foco (2 px + recuo de 2 px) do primeiro controle inteiro.

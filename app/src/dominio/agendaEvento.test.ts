@@ -14,6 +14,7 @@ import {
   escoposParaExcluirEvento,
   explicacaoDoEscopoDoEvento,
   formularioDeEventoNovo,
+  linhaDoCompletoDoEvento,
   formularioDoEvento,
   garantirAgendaPadrao,
   mudouAAgendaDoEvento,
@@ -152,7 +153,7 @@ describe('repetição do evento', () => {
     const r = (ate: string, tipo: 'DIARIA' | 'DIAS_UTEIS' = 'DIARIA', primeira = HOJE) => repeticaoDoEvento({ ...base, tipo, fim: 'DATA', ate }, primeira);
     expect(r('').erros.ate).toBe('Informe a data final.');
     expect(r('31/02/2027').erros.ate).toBe('Data final inválida.');
-    expect(r('01/01/2101').erros.ate).toMatch(/2000 e 2100/);
+    expect(r('01/01/2101').erros.ate).toMatch(/Última data da repetição: use uma data entre 01\/01\/2000 e 31\/12\/\d{4}$/);
     expect(r('28/10/2026').erros.ate).toMatch(/antes do primeiro dia/);
     expect(r('29/10/2026').repeticao).toEqual({ tipo: 'DIARIA', ate: '2026-10-29' });
     // Dias úteis a partir de sábado: o primeiro dia é a segunda, então 01/11 já é antes dele.
@@ -204,6 +205,32 @@ describe('escopos de série', () => {
     expect(textoDeExcluirEvento('ESTA', true)).toMatch(/Os outros da série continuam/);
     expect(textoDeExcluirEvento('SEGUINTES', true)).toMatch(/anteriores continuam/);
     expect(textoDeExcluirEvento('TODAS', true)).toMatch(/série inteira/);
+  });
+});
+
+describe('linha do completo no painel rápido', () => {
+  const novo = formularioDeEventoNovo('a1', HOJE);
+
+  it('nenhum campo do completo preenchido não tem linha, e o semanal da lista também não', () => {
+    expect(linhaDoCompletoDoEvento(novo)).toBeNull();
+    expect(linhaDoCompletoDoEvento({
+      ...novo, repeticao: trocarTipoDaRepeticaoDoEvento(novo.repeticao, 'SEMANAL', novo.data),
+    })).toBeNull();
+    expect(linhaDoCompletoDoEvento({ ...novo, descricao: '   ' })).toBeNull();
+  });
+
+  it('repetição personalizada cita só repetição', () => {
+    const semanal = trocarTipoDaRepeticaoDoEvento(novo.repeticao, 'SEMANAL', novo.data);
+    expect(linhaDoCompletoDoEvento({
+      ...novo, repeticao: { ...semanal, dias: ['THURSDAY', 'MONDAY'] },
+    })).toBe('Também preenchido em Mais opções: repetição.');
+  });
+
+  it('dois campos saem na ordem do formulário', () => {
+    const semanal = trocarTipoDaRepeticaoDoEvento(novo.repeticao, 'SEMANAL', novo.data);
+    expect(linhaDoCompletoDoEvento({
+      ...novo, descricao: 'Pauta fictícia', repeticao: { ...semanal, fim: 'VEZES', vezes: '4' },
+    })).toBe('Também preenchido em Mais opções: repetição, descrição.');
   });
 });
 
@@ -268,7 +295,7 @@ describe('pedido do evento', () => {
     expect(pedidoDoEvento(valido({ duracao: '5' })).erros).toEqual({});
     expect(pedidoDoEvento(valido({ duracao: '1440' })).erros).toEqual({});
     expect(pedidoDoEvento(valido({ data: '' })).erros.data).toBe('Informe a data.');
-    expect(pedidoDoEvento(valido({ data: '01/01/1999' })).erros.data).toMatch(/2000 e 2100/);
+    expect(pedidoDoEvento(valido({ data: '01/01/1999' })).erros.data).toMatch(/Data do evento: use uma data entre 01\/01\/2000 e 31\/12\/\d{4}$/);
   });
 
   it('a repetição inválida vira o erro "Confira a repetição" e o detalhe por campo', () => {

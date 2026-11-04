@@ -13,6 +13,7 @@ import { CamposDeEndereco } from '../ui/CamposDeEndereco';
 import { Escolha } from '../ui/Escolha';
 import { useCarregar } from '../ui/useCarregar';
 import { OPCOES_DE_SEXO, sexoDoCampo } from '../dominio/sexo';
+import { metaParaEnvio, OPCOES_DA_META_DO_ALUNO, opcaoDaMeta, type OpcaoDaMeta } from '../dominio/metaDoPesoNaFicha';
 import { espaco } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
@@ -20,6 +21,7 @@ import { MensagemErro } from '../ui/Estados';
 import { codigoApi, errosPorCampo, textoDoErro } from '../ui/erros';
 import { Texto } from '../ui/Texto';
 import { useAvisoDoPlano } from '../ui/useAvisoDoPlano';
+import { useGuardaDeSaida } from '../ui/GuardaDeSaida';
 
 interface Props {
   inicial?: AlunoDetalhe;
@@ -49,7 +51,8 @@ function diasDoCampo(texto: string): number | null {
  */
 export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPadrao = null, noAcompanhamento }: Props) {
   const {pode,usuario}=useSessao();
-  const [responsavelId,setResponsavelId]=useState(inicial?.responsavelId??usuario?.id??'');
+  // Na edição, vazio continua vazio: salvar sem mexer não grava quem está editando. No aluno novo, começa com quem cadastra.
+  const [responsavelId,setResponsavelId]=useState(inicial ? (inicial.responsavelId ?? '') : (usuario?.id ?? ''));
   const {dados:responsaveis,erro:erroResponsaveis,recarregar}=useCarregar('responsaveis-form',()=>responsaveisEquipe());
   const [nome, setNome] = useState(inicial?.nome ?? '');
   const [sexo, setSexo] = useState(inicial?.sexo ?? '');
@@ -59,6 +62,7 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
   const [cpf, setCpf] = useState(inicial?.cpf ?? '');
   const [endereco, setEndereco] = useState(() => (inicial ? enderecoParaForm(inicial.endereco) : ENDERECO_VAZIO));
   const [observacoes, setObservacoes] = useState(inicial?.observacoes ?? '');
+  const [meta, setMeta] = useState<OpcaoDaMeta>(opcaoDaMeta(inicial?.metaDoPeso));
   const [dias, setDias] = useState(inicial?.diasAtualizacao ? String(inicial.diasAtualizacao) : '');
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
@@ -68,11 +72,18 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
   // Sem acesso, o telefone fica no cadastro e passa ao usuário quando o aluno entrar; CPF e endereço seguem a permissão de dados sensíveis.
   const comTelefone = !inicial?.anonimizado;
   const comSensivel = pode('ALUNO_SENSIVEL_ALTERAR');
+  // Só com a leitura também: sem ela a meta lida não vem e o campo abriria em "Padrão" por engano.
+  const comMeta = comSensivel && pode('ALUNO_SENSIVEL_LER');
   const erroTelefone = comTelefone ? erroDoTelefone(telefone) : undefined;
   const erroCpf = comSensivel ? erroDoCpf(cpf) : undefined;
   const errosEndereco = comSensivel ? errosDoEndereco(endereco) : {};
   const dadosInvalidos = !!erroTelefone || !!erroCpf || Object.keys(errosEndereco).length > 0;
   const cpfEmUso = codigoApi(erro) === CPF_EM_USO ? MENSAGEM_CPF_EM_USO : undefined;
+  // C7: qualquer campo diferente do que abriu deixa a saída guardada ("Sair sem salvar?"). O retrato é o da primeira
+  // renderização; o questionário da ficha grava na hora e não entra. Quem salva e sai usa `useSairSemPerguntar`.
+  const retrato = JSON.stringify([nome, sexo, email, telefone, objetivo, cpf, endereco, observacoes, meta, dias, responsavelId]);
+  const [retratoInicial] = useState(retrato);
+  useGuardaDeSaida(retrato !== retratoInicial);
 
   const salvar = () => {
     if (!nome.trim() || diasInvalidos || dadosInvalidos) {
@@ -89,6 +100,8 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
         objetivo: objetivo.trim() || null, observacoes: observacoes.trim() || null,
         cpf: cpf.trim() ? mascaraCpf(cpf) : null, endereco: enderecoParaEnvio(endereco),
       } : {}),
+      // Na edição vai sempre o escolhido ("Padrão" = PADRAO_DA_CONSULTORIA); no cadastro novo, "Padrão" não vai (nasce nulo).
+      ...(comMeta && (inicial || meta !== 'PADRAO') ? { metaDoPeso: metaParaEnvio(meta) } : {}),
       versao: inicial?.versao ?? null,
       sexo: sexoDoCampo(sexo),
       diasAtualizacao: diasDoCampo(dias),
@@ -97,7 +110,7 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
       () => setSalvando(false),
       (e: unknown) => {
         setSalvando(false);
-        // Limite do plano: o aviso explica (com "Ver minha conta") e o formulário fica como está, sem erro de campo.
+        // Limite do plano: o aviso explica (com "Ver assinatura e faturas") e o formulário fica como está, sem erro de campo.
         if (!avisarDoPlano(e)) setErro(e);
       },
     );
@@ -133,7 +146,7 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
       </Permitido>
       <Texto variante="secao" style={estilos.secao}>Acompanhamento</Texto>
       {noAcompanhamento}
-      {responsaveis?<Escolha rotulo="Treinador responsável" opcoes={responsaveis.map(r=>({valor:r.id,rotulo:r.nome}))} valor={responsavelId} aoMudar={setResponsavelId}/>:null}
+      {responsaveis?<Escolha rotulo="Treinador responsável" opcoes={[{valor:'',rotulo:'Sem responsável'},...responsaveis.map(r=>({valor:r.id,rotulo:r.nome}))]} valor={responsavelId} aoMudar={setResponsavelId}/>:null}
       {erroResponsaveis?<MensagemErro texto={textoDoErro(erroResponsaveis)} tentarDeNovo={recarregar}/>:null}
       <Campo
         numerico
@@ -147,6 +160,12 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
         inputMode="numeric"
         maxLength={3}
       />
+      {comMeta ? (
+        <View style={estilos.meta}>
+          <Escolha rotulo="Meta do peso" valor={meta} aoMudar={setMeta} opcoes={OPCOES_DA_META_DO_ALUNO} />
+          <Texto variante="pequeno">Pinta a variação do peso: verde na direção da meta, vermelho contra. O padrão é o de Marca › Acompanhamento.</Texto>
+        </View>
+      ) : null}
       <Permitido codigo="ALUNO_SENSIVEL_ALTERAR"><Campo
         rotulo="Observações (opcional)"
         valor={observacoes}
@@ -169,5 +188,6 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
 const estilos = StyleSheet.create({
   form: { gap: espaco(1.5) },
   secao: { marginTop: espaco(1) },
+  meta: { gap: espaco(0.5) },
   botoes: { flexDirection: 'row', justifyContent: 'flex-end', gap: espaco(1), flexWrap: 'wrap' },
 });

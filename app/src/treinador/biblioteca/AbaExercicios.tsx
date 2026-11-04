@@ -1,8 +1,9 @@
 import { Permitido } from '../../ui/Permitido';
 import { Pencil, Plus, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 
-import { alterarExercicio, criarExercicio, inativarExercicio, listarExercicios } from '../../api/rotas';
+import { alterarExercicio, criarExercicio, inativarExercicio, listarExerciciosPagina, TAMANHO_DA_PAGINA_DE_EXERCICIOS } from '../../api/rotas';
 import type { Exercicio, ExercicioRequest, Modalidade } from '../../api/tipos';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useAviso } from '../../ui/Aviso';
@@ -17,36 +18,51 @@ import { Folha } from '../../ui/Folha';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Texto } from '../../ui/Texto';
-import { useCarregar } from '../../ui/useCarregar';
+import { useAtrasado, useCarregar } from '../../ui/useCarregar';
 import { LinhaDaLista, ListaDeLinhas } from '../../ui/LinhaDaLista';
-import { gruposDosExercicios } from '../../dominio/catalogo';
+import { espaco } from '../../tema/tokens';
 import { erroDoVideo } from '../../dominio/video';
 import { MODALIDADES } from '../../dominio/modalidades';
-import { normalizar } from '../treino/FolhaBiblioteca';
 import { DemonstracaoDoExercicio } from '../../ui/DemonstracaoDoExercicio';
-import { marcadosExistentes } from '../../dominio/selecaoMultiplaSuspensa';
+import { gruposDaConsulta, marcadosExistentes } from '../../dominio/selecaoMultiplaSuspensa';
 import { BarraDaBiblioteca } from './BarraDaBiblioteca';
 import { ImagemDoExercicioEditor } from './ImagemDoExercicioEditor';
 
 const OPCOES_MODALIDADE = Object.entries(MODALIDADES).map(([valor, rotulo]) => ({ valor: valor as Modalidade, rotulo }));
 
+const estilos = StyleSheet.create({
+  paginacao: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), flexWrap: 'wrap' },
+});
+
 /** Exercícios da consultoria: lista, novo/editar (com vídeo) e inativar (planos já montados guardam a cópia). */
 export function AbaExercicios() {
   const { avisar } = useAviso();
   const { pode } = useSessao();
-  const { dados, erro, carregando, recarregar } = useCarregar('biblioteca-exercicios', () => listarExercicios());
   const [busca, setBusca] = useState('');
+  const [pagina, setPagina] = useState(0);
+  const [gruposMarcados, setGruposMarcados] = useState<Set<string>>(new Set());
+  const buscaAtrasada = useAtrasado(busca.trim());
+  // Os grupos da última resposta: a consulta só leva os marcados que ainda existem (senão "Todos os grupos" na tela e 0 no servidor).
+  const [gruposConhecidos, setGruposConhecidos] = useState<string[]>([]);
+  const gruposEscolhidos = gruposDaConsulta(gruposMarcados, gruposConhecidos);
+  // Chave própria da página: a 'biblioteca-exercicios' é da lista inteira, usada em outras telas.
+  const chave = JSON.stringify(['biblioteca-exercicios-pagina', pagina, buscaAtrasada, gruposEscolhidos]);
+  const { dados, erro, carregando, recarregar } = useCarregar(chave, () =>
+    listarExerciciosPagina({ texto: buscaAtrasada, grupos: gruposEscolhidos, pagina }));
   const [editando, setEditando] = useState<Exercicio | 'novo' | null>(null);
   const [inativar, setInativar] = useState<Exercicio | null>(null);
-  const [gruposMarcados, setGruposMarcados] = useState<Set<string>>(new Set());
-  const termo = normalizar(busca.trim());
-  const grupos = gruposDosExercicios(dados ?? []);
+  // Guardar a lista de grupos da resposta durante o render (não em efeito): a próxima consulta já sai com os grupos certos.
+  if (dados && dados.grupos !== gruposConhecidos) setGruposConhecidos(dados.grupos);
+  const grupos = dados?.grupos ?? gruposConhecidos;
   const opcoesDeGrupo = grupos.map((g) => ({ valor: g, rotulo: g }));
-  // Grupo que já não existe na lista (o último exercício dele saiu) não filtra: sem isso a lista ficaria vazia sem explicação.
+  // Grupo que já não existe (o último exercício dele saiu) não filtra: sem isso a lista ficaria vazia sem explicação.
   const gruposAtivos = marcadosExistentes(opcoesDeGrupo, gruposMarcados);
-  const lista = (dados ?? []).filter(
-    (e) => (gruposAtivos.size === 0 || gruposAtivos.has(e.grupoMuscular?.trim() ?? '')) && (!termo || normalizar(`${e.nome} ${e.grupoMuscular ?? ''}`).includes(termo)),
-  );
+  const lista = dados?.itens ?? [];
+  const total = dados?.total ?? 0;
+  const paginas = Math.max(1, Math.ceil(total / TAMANHO_DA_PAGINA_DE_EXERCICIOS));
+  const semFiltro = !buscaAtrasada && gruposEscolhidos.length === 0;
+  const mudarBusca = (texto: string) => { setBusca(texto); setPagina(0); };
+  const mudarGrupos = (novos: Set<string>) => { setGruposMarcados(novos); setPagina(0); };
 
   const confirmarInativar = () => {
     const alvo = inativar;
@@ -55,7 +71,9 @@ export function AbaExercicios() {
     inativarExercicio(alvo.id).then(
       () => {
         avisar(`“${alvo.nome}” saiu da biblioteca.`, 'sucesso');
-        recarregar();
+        // Tirou o único da última página: volta uma página, em vez de abrir uma vazia.
+        if (pagina > 0 && lista.length === 1) setPagina(pagina - 1);
+        else recarregar();
       },
       (e: unknown) => avisar(textoDoErro(e), 'perigo'),
     );
@@ -66,20 +84,27 @@ export function AbaExercicios() {
       titulo="Exercícios da biblioteca"
       descricao="Os exercícios que você escolhe ao montar o treino, com vídeo quando houver."
       acoes={<Permitido codigo="BIBLIOTECA_ALTERAR"><Botao rotulo="Novo exercício" Icone={Plus} aoTocar={() => setEditando('novo')} /></Permitido>}>
-      <BarraDaBiblioteca rotulo="Buscar exercício" placeholder="Nome ou grupo" valor={busca} aoMudar={setBusca}
-        filtro={grupos.length > 0 ? { tipo: 'varias', rotulo: 'Grupo muscular', rotuloDeTodos: 'Todos os grupos', opcoes: opcoesDeGrupo, marcados: gruposAtivos, aoMudar: setGruposMarcados } : null} />
+      <BarraDaBiblioteca rotulo="Buscar exercício" placeholder="Nome ou grupo" valor={busca} aoMudar={mudarBusca}
+        filtro={grupos.length > 0 ? { tipo: 'varias', rotulo: 'Grupo muscular', rotuloDeTodos: 'Todos os grupos', opcoes: opcoesDeGrupo, marcados: gruposAtivos, aoMudar: mudarGrupos } : null} />
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
-      {dados && lista.length === 0 ? (
-        <Vazio titulo={dados.length ? 'Nenhum exercício encontrado' : 'Biblioteca de exercícios vazia'} texto={dados.length ? 'Tente outro termo de busca ou outro grupo muscular.' : pode('BIBLIOTECA_ALTERAR') ? 'Importe do catálogo ou cadastre um exercício.' : 'Ainda não há itens cadastrados.'} acao={dados.length ? { rotulo: 'Limpar filtros', aoTocar: () => { setBusca(''); setGruposMarcados(new Set()); } } : pode('BIBLIOTECA_ALTERAR') ? { rotulo: 'Cadastrar exercício', aoTocar: () => setEditando('novo') } : undefined} />
+      {dados && total === 0 ? (
+        <Vazio titulo={!semFiltro ? 'Nenhum exercício encontrado' : 'Biblioteca de exercícios vazia'} texto={!semFiltro ? 'Tente outro termo de busca ou outro grupo muscular.' : pode('BIBLIOTECA_ALTERAR') ? 'Importe do catálogo ou cadastre um exercício.' : 'Ainda não há itens cadastrados.'} acao={!semFiltro ? { rotulo: 'Limpar filtros', aoTocar: () => { mudarBusca(''); mudarGrupos(new Set()); } } : pode('BIBLIOTECA_ALTERAR') ? { rotulo: 'Cadastrar exercício', aoTocar: () => setEditando('novo') } : undefined} />
       ) : null}
       {lista.length ? <ListaDeLinhas>{lista.map((e) => (
         <LinhaDaLista key={e.id} titulo={e.nome}
           metadados={[MODALIDADES[e.modalidade], e.grupoMuscular, e.equipamento, e.videoUrl ? 'com vídeo' : null].filter(Boolean).join(' · ')}
-          inicio={<DemonstracaoDoExercicio exercicioId={e.id} nome={e.nome} imagens={e.imagens} imagemPropriaEm={e.imagemPropriaEm} papel="EQUIPE" largura={56} altura={56} preencher ampliavel reservarEspaco />}
+          inicio={<DemonstracaoDoExercicio exercicioId={e.id} nome={e.nome} imagens={e.imagens} imagemPropriaEm={e.imagemPropriaEm} papel="EQUIPE" largura={56} altura={56} preencher ampliavel />}
           acoesAoLado
           acoes={<Permitido codigo="BIBLIOTECA_ALTERAR"><IconeBotao Icone={Pencil} rotulo={`Editar ${e.nome}`} aoTocar={() => setEditando(e)} /></Permitido>} />
       ))}</ListaDeLinhas> : null}
+      {total > TAMANHO_DA_PAGINA_DE_EXERCICIOS ? (
+        <View style={estilos.paginacao}>
+          <Botao rotulo="Anterior" tipo="secundario" desabilitado={pagina === 0} aoTocar={() => setPagina(pagina - 1)} />
+          <Texto variante="suave">Página {pagina + 1} de {paginas} · {total} exercícios</Texto>
+          <Botao rotulo="Próxima" tipo="secundario" desabilitado={pagina + 1 >= paginas} aoTocar={() => setPagina(pagina + 1)} />
+        </View>
+      ) : null}
       {editando ? (
         <FolhaExercicio
           inicial={editando === 'novo' ? null : editando}

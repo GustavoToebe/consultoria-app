@@ -1,8 +1,8 @@
 import type { Participante } from '../api/agendaTipos';
 import { CLARO, contraste, ESCURO } from '../tema/tokens';
 import {
-  arranjoDoBloco, CONTRASTE_DO_GRAFICO, CONTRASTE_DO_TEXTO, fundoDoItemDaAgenda, LARGURA_PARA_SELO, LARGURA_PARA_SELO_AO_LADO, misturarCores,
-  PROPORCAO_DO_TINGIDO, statusNoDiaInteiro, statusNoRotuloDoCompromisso,
+  arranjoDoBloco, CONTRASTE_DO_GRAFICO, CONTRASTE_DO_TEXTO, fundoDoItemDaAgenda, horarioNoRotuloDoCompromisso, LARGURA_PARA_SELO, LARGURA_PARA_SELO_AO_LADO, misturarCores,
+  PROPORCAO_DO_TINGIDO, statusNoDiaInteiro, statusNoRotuloDoCompromisso, textoDoItemNoMes,
 } from './agendaLegivel';
 
 const p = (situacao: Participante['situacao'], n = 1): Participante => ({ id: `a${n}`, nome: `Aluno ${n}`, situacao });
@@ -55,6 +55,43 @@ describe('fundoDoItemDaAgenda', () => {
   it('cor inválida devolve a base', () => {
     expect(fundoDoItemDaAgenda({ cor: 'AZUL', base: CLARO.superficie2, textos: [CLARO.texto] })).toBe(CLARO.superficie2);
     expect(fundoDoItemDaAgenda({ cor: '#12', base: CLARO.superficie2, textos: [CLARO.texto] })).toBe(CLARO.superficie2);
+  });
+});
+
+describe('horarioNoRotuloDoCompromisso', () => {
+  it('com fim: das X às Y, sem zero à esquerda e sem minutos zerados', () => {
+    expect(horarioNoRotuloDoCompromisso('09:00', '10:00')).toBe('das 9h às 10h');
+    expect(horarioNoRotuloDoCompromisso('09:30', '10:45')).toBe('das 9h30 às 10h45');
+  });
+  it('fim no dia seguinte: diz "do dia seguinte"', () => {
+    expect(horarioNoRotuloDoCompromisso('15:00', '00:30')).toBe('das 15h à 0h30 do dia seguinte');
+    expect(horarioNoRotuloDoCompromisso('23:00', '00:00')).toBe('das 23h à 0h do dia seguinte');
+    expect(horarioNoRotuloDoCompromisso('22:00', '01:30')).toBe('das 22h à 1h30 do dia seguinte');
+    expect(horarioNoRotuloDoCompromisso('23:30', '02:00')).toBe('das 23h30 às 2h do dia seguinte');
+  });
+  it('fim no mesmo dia, mesmo perto da meia-noite, não diz "do dia seguinte"', () => {
+    expect(horarioNoRotuloDoCompromisso('23:00', '23:55')).toBe('das 23h às 23h55');
+    expect(horarioNoRotuloDoCompromisso('00:00', '00:30')).toBe('da 0h à 0h30');
+  });
+  it('concorda com a 0h e a 1h (singular)', () => {
+    expect(horarioNoRotuloDoCompromisso('01:00', '02:00')).toBe('da 1h às 2h');
+    expect(horarioNoRotuloDoCompromisso('00:30', '01:00')).toBe('da 0h30 à 1h');
+    expect(horarioNoRotuloDoCompromisso('11:00', '12:00')).toBe('das 11h às 12h');
+  });
+  it('sem fim: só o início, como veio', () => {
+    expect(horarioNoRotuloDoCompromisso('09:00')).toBe('09:00');
+    expect(horarioNoRotuloDoCompromisso('09:00', null)).toBe('09:00');
+    expect(horarioNoRotuloDoCompromisso('09:00', '')).toBe('09:00');
+  });
+});
+
+describe('textoDoItemNoMes', () => {
+  const item = { titulo: 'Ana Fictícia', diaInteiro: false, origem: 'COMPROMISSO', cancelado: false, inicioCurto: '09:00' };
+  it('escreve Cancelado no mês e deixa o item normal só com hora e título', () => {
+    expect(textoDoItemNoMes(item)).toBe('09:00 Ana Fictícia');
+    expect(textoDoItemNoMes({ ...item, cancelado: true })).toBe('09:00 Ana Fictícia · Cancelado');
+    expect(textoDoItemNoMes({ ...item, diaInteiro: true, cancelado: true })).toBe('Ana Fictícia · Cancelado');
+    expect(textoDoItemNoMes({ ...item, origem: 'ATUALIZACAO', titulo: 'Bruno', cancelado: true })).toBe('Bruno · Cancelado');
   });
 });
 

@@ -38,6 +38,16 @@ export function seloDoEditor(situacao: SituacaoDoEditor, salvoAs: Date | null, p
   return { texto: `Publicado v${publicacao.versao}`, tipo: 'sucesso' };
 }
 
+/**
+ * Motivo de "Publicar" estar desabilitado (N18), ou `undefined` quando dá para publicar. A API publica uma versão idêntica
+ * sem reclamar, então a tela segura: só quando há versão publicada, o plano é o ativo do aluno, nada mudou desde ela e
+ * nada está por salvar. Plano inativo continua publicável (republicar é o jeito de reativá-lo).
+ */
+export function motivoSemPublicar(situacao: SituacaoDoEditor, p: { versao: number; alterado: boolean; ativo: boolean }): string | undefined {
+  if (situacao !== 'salvo' || p.versao === 0 || p.alterado || !p.ativo) return undefined;
+  return `Nada mudou desde a v${p.versao} publicada.`;
+}
+
 /** `19/10/2026` → `19/10` quando o ano é o corrente (textos curtos omitem o ano de agora). */
 export function dataSemAnoCorrente(tela: string, agora: Date = new Date()): string {
   const ano = String(agora.getFullYear());

@@ -70,7 +70,7 @@ export function CamposDoEvento(p: Props) {
   const titulo = <Campo rotulo="Título" rotuloOculto grande valor={form.titulo} aoMudar={(t) => mudar('titulo', t)} erro={erros.titulo}
     maxLength={LIMITES_DO_EVENTO.titulo} placeholder="Adicionar título" />;
   const horario = <CamposDoHorario data={form.data} hora={form.hora} duracao={form.duracao} limites={LIMITES_DO_EVENTO} compacto={!completo}
-    semHoras={form.diaInteiro} erros={{ data: erros.data, hora: erros.hora, duracao: erros.duracao }} aoMudarData={(t) => mudar('data', t)}
+    semHoras={form.diaInteiro} erros={{ data: erros.data, hora: erros.hora, duracao: erros.duracao }} aoMudarData={(t) => mudar('data', t)} nomeDaData="Data do evento"
     aoMudarHora={(h) => mudar('hora', h)} aoMudarDuracao={(d) => mudar('duracao', d)} />;
   const diaInteiro = <Interruptor rotulo="Dia inteiro" valor={form.diaInteiro} aoMudar={(v) => mudar('diaInteiro', v)} />;
   const aviso = p.aviso ? <View accessibilityLiveRegion="polite" aria-live="polite"><Texto variante="suave">{p.aviso}</Texto></View> : null;
@@ -152,7 +152,7 @@ function DetalhesDaRepeticao({ repeticao: r, data, erros, hoje, comDias, aoMudar
         {r.tipo === 'SEMANAL' && comDias ? <DiasDaSemana dias={r.dias} aoMudar={(dias) => aoMudar({ ...r, dias })} /> : null}
         {erros.dias ? <ErroDoCampo texto={erros.dias} /> : null}
         <Escolha rotulo="Termina" valor={r.fim} opcoes={[...OPCOES_DE_FIM_DA_REPETICAO]} aoMudar={(fim) => aoMudar({ ...r, fim })} />
-        {r.fim === 'DATA' ? <CampoData rotulo="Última data" valor={r.ate} aoMudar={(ate) => aoMudar({ ...r, ate })} erro={erros.ate} /> : null}
+        {r.fim === 'DATA' ? <CampoData rotulo="Última data" nome="Última data da repetição" regra="PLANEJAMENTO" valor={r.ate} aoMudar={(ate) => aoMudar({ ...r, ate })} erro={erros.ate} /> : null}
         {r.fim === 'VEZES' ? <Campo rotulo="Quantas vezes" valor={r.vezes} aoMudar={(t) => aoMudar({ ...r, vezes: t.replace(/\D/g, '').slice(0, 3) })}
           erro={erros.vezes} ajuda={`De ${LIMITES_DO_EVENTO.vezesMinimo} a ${LIMITES_DO_EVENTO.vezesMaximo}, contando a primeira.`}
           keyboardType="number-pad" inputMode="numeric" maxLength={3} numerico /> : null}

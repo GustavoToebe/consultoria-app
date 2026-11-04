@@ -67,14 +67,13 @@ describe('formato do pacote salvo no aparelho', () => {
     expect(pacoteNoFormatoAtual(p)).toBe(false);
   });
 
-  it('recusa campo desconhecido na série, na carga, no esforço, na técnica e no cardio', () => {
+  it('recusa campo desconhecido na série, no esforço, na técnica e no cardio (a carga é a única parte tolerante)', () => {
     const alterar = (fn: (series: Record<string, any>[]) => void) => {
       const p = salvo();
       fn(p.pacote.treino.conteudo.sessoes[0].exercicios[0].series);
       return p;
     };
     expect(pacoteNoFormatoAtual(alterar((s) => (s[0].alvoTexto = 'x')))).toBe(false);
-    expect(pacoteNoFormatoAtual(alterar((s) => (s[0].carga.extra = 1)))).toBe(false);
     expect(pacoteNoFormatoAtual(alterar((s) => (s[0].esforco.extra = 1)))).toBe(false);
     expect(pacoteNoFormatoAtual(alterar((s) => (s[2].tecnica.extra = 1)))).toBe(false);
     const c = salvo();
@@ -82,10 +81,7 @@ describe('formato do pacote salvo no aparelho', () => {
     expect(pacoteNoFormatoAtual(c)).toBe(false);
   });
 
-  it('recusa modo de carga, técnica, papel e região fora da lista, e números que não são números', () => {
-    const p = salvo();
-    p.pacote.treino.conteudo.sessoes[0].exercicios[0].series[0].carga.modo = 'RPE';
-    expect(pacoteNoFormatoAtual(p)).toBe(false);
+  it('recusa técnica, papel e região fora da lista, e números que não são números', () => {
     const q = salvo();
     q.pacote.treino.conteudo.sessoes[0].exercicios[0].series[2].tecnica.tipo = 'OUTRA';
     expect(pacoteNoFormatoAtual(q)).toBe(false);
@@ -95,6 +91,53 @@ describe('formato do pacote salvo no aparelho', () => {
     const t = salvo();
     t.pacote.treino.conteudo.metodologia.configuracao.tipos[0].papel = 'QUALQUER';
     expect(pacoteNoFormatoAtual(t)).toBe(false);
+  });
+
+  describe('forma de carga que o app não conhece (pacote de um treinador mais novo que o app instalado)', () => {
+    const primeiraSerie = (p: Record<string, any>) => p.pacote.treino.conteudo.sessoes[0].exercicios[0].series[0];
+
+    it('modo desconhecido e chave nova dentro da carga NÃO invalidam o pacote', () => {
+      const p = salvo();
+      primeiraSerie(p).carga.modo = 'MODO_QUE_NAO_EXISTE';
+      primeiraSerie(p).carga.chaveNova = { qualquer: 'coisa' };
+      expect(pacoteNoFormatoAtual(p)).toBe(true);
+    });
+
+    it('vale também na carga padrão da metodologia', () => {
+      const p = salvo();
+      const tipo = p.pacote.treino.conteudo.metodologia.configuracao.tipos[0];
+      tipo.cargaPadrao = { modo: 'MODO_QUE_NAO_EXISTE', chaveNova: 1 };
+      expect(pacoteNoFormatoAtual(p)).toBe(true);
+    });
+
+    it('os números e a referência que o app conhece continuam conferidos', () => {
+      for (const ruim of [{ valorKg: '10' }, { percentualMin: '80' }, { percentualMax: NaN }, { referenciaUid: 7 }]) {
+        const p = salvo();
+        primeiraSerie(p).carga = { modo: 'MODO_QUE_NAO_EXISTE', ...ruim };
+        expect(pacoteNoFormatoAtual(p)).toBe(false);
+      }
+    });
+
+    it('o modo precisa existir e ser texto (carga sem modo ou com modo numérico não é uma forma nova, é formato errado)', () => {
+      for (const modo of [undefined, 3, '', null]) {
+        const p = salvo();
+        primeiraSerie(p).carga = { modo, percentualMin: null };
+        expect(pacoteNoFormatoAtual(p)).toBe(false);
+      }
+    });
+
+    it('erro de formato fora da carga continua recusando o pacote, mesmo com a carga nova', () => {
+      const p = salvo();
+      primeiraSerie(p).carga.modo = 'MODO_QUE_NAO_EXISTE';
+      primeiraSerie(p).campoQueNaoExiste = 'x';
+      expect(pacoteNoFormatoAtual(p)).toBe(false);
+    });
+
+    it('a carga da etapa (bloco do Cluster, retomada) segue estrita', () => {
+      const p = salvo();
+      p.pacote.treino.conteudo.sessoes[0].exercicios[0].series[2].tecnica.cargasDosBlocos = [{ modo: 'MODO_QUE_NAO_EXISTE', percentual: null }];
+      expect(pacoteNoFormatoAtual(p)).toBe(false);
+    });
   });
 
   it('grupo da sessão: exigido e conferido', () => {

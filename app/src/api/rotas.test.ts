@@ -4,6 +4,7 @@ import {
   retornoDoPagamento, definirLembretesDoAluno, lembretesDaCobranca, lembretesDoAluno,
   alterarAgendaPessoal, alterarEvento, apagarAgendaPessoal, contarEventosDaAgenda, criarAgendaPessoal, criarEvento, cruzamentosDoEvento,
   detalheDoEvento, excluirEvento, listarAgendasPessoais, listarAlunos, listarAtualizacoes, contagensAtualizacoes, listarEventos, resumoDaAgenda,
+  registrarPushToken, removerPushToken,
 } from './rotas';
 
 jest.mock('./cliente', () => ({ requisicao: jest.fn((caminho: string) => Promise.resolve(caminho)) }));
@@ -35,6 +36,19 @@ describe('caminhos da API', () => {
     expect(requisicao).toHaveBeenLastCalledWith('/aluno/lembretes-de-cobranca', { metodo: 'PUT', corpo: { receber: false } });
     await definirLembretesDoAluno(true);
     expect(requisicao).toHaveBeenLastCalledWith('/aluno/lembretes-de-cobranca', { metodo: 'PUT', corpo: { receber: true } });
+  });
+
+  it('push do aparelho: o token vai no corpo, nunca no caminho; apagar sem token não leva corpo (apaga os do usuário)', async () => {
+    await registrarPushToken('ExponentPushToken[abcdefgh12345678]', 'IOS');
+    expect(requisicao).toHaveBeenLastCalledWith('/aluno/push-token', {
+      metodo: 'PUT', corpo: { token: 'ExponentPushToken[abcdefgh12345678]', plataforma: 'IOS' },
+    });
+    await removerPushToken('ExponentPushToken[abcdefgh12345678]');
+    expect(requisicao).toHaveBeenLastCalledWith('/aluno/push-token', {
+      metodo: 'DELETE', corpo: { token: 'ExponentPushToken[abcdefgh12345678]' },
+    });
+    await removerPushToken();
+    expect(requisicao).toHaveBeenLastCalledWith('/aluno/push-token', { metodo: 'DELETE' });
   });
 
   it('lembretes de uma cobrança: o id vindo da tela é codificado', async () => {

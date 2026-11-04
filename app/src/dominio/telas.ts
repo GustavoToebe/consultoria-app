@@ -1,16 +1,17 @@
 import { temFuncionalidade } from './funcionalidadesDoPlano';
+import { GRUPOS_DO_MENU, posicaoNoMenu, type GrupoDoMenu } from './gruposDoMenu';
 import { podeAcessarTela } from './permissoes';
 
 /**
- * Seções da lista "Todas as telas", na ordem do menu lateral (Início, Alunos, Atualizações, Agenda, Interessados, Números; Biblioteca,
- * Planejamento; Marca, Equipe, Auditoria; Ajuda) e, por último, a conta da pessoa (o cartão do usuário).
+ * Seção de uma tela em "Todas as telas" e na busca: o grupo do menu lateral (D24 de `docs/planos/auditoria-ficha.md`,
+ * os mesmos do D6), tirado de `MENU_DO_TREINADOR`. `null` = o Início, no topo e sem título, como no menu.
  */
-export const SECOES_DE_TELAS = ['Dia a dia', 'Planos', 'Consultoria', 'Ajuda', 'Sua conta'] as const;
-export type SecaoDeTela = (typeof SECOES_DE_TELAS)[number];
+export type SecaoDeTela = GrupoDoMenu | null;
 
 export interface TelaDoCatalogo {
   id: string;
   rotulo: string;
+  /** Calculada do caminho (`secaoDaTela`), nunca escrita no catálogo: o menu é a fonte. */
   secao: SecaoDeTela;
   /** Caminho do app, com query quando a ação abre a tela já filtrada ou com o formulário aberto. */
   href: string;
@@ -28,44 +29,56 @@ export interface TelaDoCatalogo {
  * Catálogo das telas e ações do treinador. Só entra o que existe no app. Quem pode ver cada item segue
  * `podeAcessarTela` (a mesma regra do menu e da guarda) mais a `permissao` do item; a API autoriza de novo.
  */
-export const TELAS: readonly TelaDoCatalogo[] = [
-  // Telas na ordem do menu: "Todas as telas" lista assim, sem reordenar.
-  { id: 'inicio', rotulo: 'Início', secao: 'Dia a dia', href: '/treinador', palavras: ['painel', 'resumo', 'home'], permissao: null },
-  { id: 'alunos', rotulo: 'Alunos', secao: 'Dia a dia', href: '/treinador/alunos', palavras: ['clientes', 'lista', 'ficha', 'cadastro'], permissao: null },
-  { id: 'atualizacoes', rotulo: 'Atualizações', secao: 'Dia a dia', href: '/treinador/atualizacoes', palavras: ['check-in', 'checkin', 'revisar', 'feedback', 'atraso'], permissao: null },
-  { id: 'agenda', rotulo: 'Agenda', secao: 'Dia a dia', href: '/treinador/agenda', palavras: ['semana', 'calendario', 'proximas', 'vencem', 'dias', 'prazos', 'compromissos', 'consultas', 'retornos', 'horarios', 'presencial', 'mes', 'ano', 'eventos', 'agendas'], permissao: null },
-  { id: 'interessados', rotulo: 'Interessados', secao: 'Dia a dia', href: '/treinador/interessados', palavras: ['inscricoes', 'inscricao', 'link de inscricao', 'fila', 'candidatos', 'novos alunos', 'whatsapp', 'captacao'], permissao: null },
-  { id: 'numeros', rotulo: 'Números', secao: 'Dia a dia', href: '/treinador/numeros', palavras: ['relatorio', 'contagem', 'alunos ativos', 'meses', 'no prazo', 'atrasadas'], permissao: null },
-  { id: 'biblioteca', rotulo: 'Biblioteca', secao: 'Planos', href: '/treinador/biblioteca', palavras: ['exercicios', 'alimentos', 'suplementos', 'videos', 'catalogo', 'conteudo'], permissao: null },
-  { id: 'planejamento', rotulo: 'Planejamento', secao: 'Planos', href: '/treinador/planejamento', palavras: ['modelos', 'treinos', 'dietas', 'mobilidade', 'pacotes', 'receitas'], permissao: null },
-  { id: 'financeiro', rotulo: 'Financeiro', secao: 'Consultoria', href: '/treinador/financeiro', palavras: ['pagamentos', 'cobrancas', 'recebimentos', 'planos comerciais', 'mensalidade', 'inadimplencia', 'inadimplentes', 'lancamentos', 'lembretes', 'lembrete de cobranca', 'receita', 'caixa', 'baixa', 'pix'], permissao: null },
-  { id: 'equipe', rotulo: 'Equipe', secao: 'Consultoria', href: '/treinador/equipe', palavras: ['membros', 'usuarios', 'perfis', 'permissoes', 'convites'], permissao: null },
-  { id: 'auditoria', rotulo: 'Auditoria', secao: 'Consultoria', href: '/treinador/auditoria', palavras: ['historico', 'registro de acoes', 'log', 'eventos'], permissao: null },
-  { id: 'importacao', rotulo: 'Importação', secao: 'Consultoria', href: '/treinador/importacao', palavras: ['planilha', 'xlsx', 'csv', 'importar alunos', 'importar pesos', 'importar alimentos', 'importar exercicios'], permissao: null },
-  { id: 'ajuda', rotulo: 'Ajuda', secao: 'Ajuda', href: '/treinador/ajuda', palavras: ['guia', 'tutorial', 'suporte', 'duvidas', 'perguntas', 'conhecer o menu'], permissao: null },
-  { id: 'termos', rotulo: 'Termos e privacidade', secao: 'Ajuda', href: '/treinador/termos', palavras: ['termo de uso', 'aviso de privacidade', 'lgpd', 'dados pessoais', 'politica'], permissao: null },
+const CATALOGO: readonly Omit<TelaDoCatalogo, 'secao'>[] = [
+  // Telas na ordem de "Todas as telas" (a do menu); quem ordena de verdade é `agruparPorSecao`.
+  { id: 'inicio', rotulo: 'Início', href: '/treinador', palavras: ['painel', 'resumo', 'home'], permissao: null },
+  { id: 'alunos', rotulo: 'Alunos', href: '/treinador/alunos', palavras: ['clientes', 'lista', 'ficha', 'cadastro'], permissao: null },
+  { id: 'atualizacoes', rotulo: 'Atualizações', href: '/treinador/atualizacoes', palavras: ['check-in', 'checkin', 'revisar', 'feedback', 'atraso'], permissao: null },
+  { id: 'agenda', rotulo: 'Agenda', href: '/treinador/agenda', palavras: ['semana', 'calendario', 'proximas', 'vencem', 'dias', 'prazos', 'compromissos', 'consultas', 'retornos', 'horarios', 'presencial', 'mes', 'ano', 'eventos', 'agendas'], permissao: null },
+  { id: 'biblioteca', rotulo: 'Biblioteca', href: '/treinador/biblioteca', palavras: ['exercicios', 'alimentos', 'suplementos', 'videos', 'catalogo', 'conteudo'], permissao: null },
+  { id: 'planejamento', rotulo: 'Planejamento', href: '/treinador/planejamento', palavras: ['modelos', 'treinos', 'dietas', 'mobilidade', 'pacotes', 'receitas'], permissao: null },
+  { id: 'interessados', rotulo: 'Interessados', href: '/treinador/interessados', palavras: ['inscricoes', 'inscricao', 'link de inscricao', 'fila', 'candidatos', 'novos alunos', 'whatsapp', 'captacao'], permissao: null },
+  { id: 'financeiro', rotulo: 'Financeiro', href: '/treinador/financeiro', palavras: ['pagamentos', 'cobrancas', 'recebimentos', 'planos comerciais', 'mensalidade', 'inadimplencia', 'inadimplentes', 'lancamentos', 'lembretes', 'lembrete de cobranca', 'receita', 'caixa', 'baixa', 'pix'], permissao: null },
+  { id: 'numeros', rotulo: 'Números', href: '/treinador/numeros', palavras: ['relatorio', 'contagem', 'alunos ativos', 'meses', 'no prazo', 'atrasadas'], permissao: null },
+  { id: 'equipe', rotulo: 'Equipe', href: '/treinador/equipe', palavras: ['membros', 'usuarios', 'perfis', 'permissoes', 'convites'], permissao: null },
+  { id: 'importacao', rotulo: 'Importação', href: '/treinador/importacao', palavras: ['planilha', 'xlsx', 'csv', 'importar alunos', 'importar pesos', 'importar alimentos', 'importar exercicios'], permissao: null },
+  { id: 'ajuda', rotulo: 'Ajuda', href: '/treinador/ajuda', palavras: ['guia', 'tutorial', 'suporte', 'duvidas', 'perguntas', 'conhecer o menu'], permissao: null },
+  { id: 'auditoria', rotulo: 'Auditoria', href: '/treinador/auditoria', palavras: ['historico', 'registro de acoes', 'log', 'eventos'], permissao: null },
   // "sair" não abre tela (é o último item do cartão do usuário); "senha" acha as duas telas que tratam dela.
-  { id: 'meus-dados', rotulo: 'Meus dados', secao: 'Sua conta', href: '/treinador/meus-dados', palavras: ['nome', 'email', 'telefone', 'senha', 'trocar senha', 'perfil', 'acesso'], permissao: null },
-  { id: 'seguranca', rotulo: 'Segurança', secao: 'Sua conta', href: '/treinador/seguranca', palavras: ['senha', 'verificacao em duas etapas', 'duas etapas', '2fa', 'mfa', 'autenticador', 'codigo', 'codigos de recuperacao', 'qr'], permissao: null },
-  { id: 'minha-conta', rotulo: 'Minha conta', secao: 'Sua conta', href: '/treinador/minha-conta', palavras: ['plano', 'assinatura', 'faturas', 'boleto', 'contrato', 'cadastro da consultoria', 'consumo', 'limites'], permissao: null },
-  { id: 'marca', rotulo: 'Marca', secao: 'Sua conta', href: '/treinador/marca', palavras: ['logo', 'cores', 'tema', 'identidade', 'visual', 'nome'], permissao: null },
-  { id: 'ajustes', rotulo: 'Ajustes', secao: 'Sua conta', href: '/treinador/ajustes', palavras: ['preferencias', 'tema', 'escuro', 'claro', 'contraste', 'tamanho do texto', 'fonte', 'animacoes', 'vibracao'], permissao: null },
+  { id: 'meus-dados', rotulo: 'Meus dados', href: '/treinador/meus-dados', palavras: ['nome', 'email', 'telefone', 'senha', 'trocar senha', 'perfil', 'acesso'], permissao: null },
+  { id: 'seguranca', rotulo: 'Segurança', href: '/treinador/seguranca', palavras: ['senha', 'verificacao em duas etapas', 'duas etapas', '2fa', 'mfa', 'autenticador', 'codigo', 'codigos de recuperacao', 'qr'], permissao: null },
+  { id: 'minha-conta', rotulo: 'Assinatura e faturas', href: '/treinador/minha-conta', palavras: ['minha conta', 'plano', 'assinatura', 'faturas', 'boleto', 'contrato', 'cadastro da consultoria', 'consumo', 'limites'], permissao: null },
+  { id: 'marca', rotulo: 'Marca', href: '/treinador/marca', palavras: ['logo', 'cores', 'tema', 'identidade', 'visual', 'nome'], permissao: null },
+  { id: 'ajustes', rotulo: 'Ajustes', href: '/treinador/ajustes', palavras: ['preferencias', 'tema', 'escuro', 'claro', 'contraste', 'tamanho do texto', 'fonte', 'animacoes', 'vibracao'], permissao: null },
+  { id: 'termos', rotulo: 'Termos e privacidade', href: '/treinador/termos', palavras: ['termo de uso', 'aviso de privacidade', 'lgpd', 'dados pessoais', 'politica'], permissao: null },
 
-  { id: 'ergogenicos', rotulo: 'Outros (medicação e ergogênicos)', secao: 'Planos', href: '/treinador/biblioteca?aba=ergogenicos', palavras: ['biblioteca', 'outros', 'ergogenicos', 'medicacao', 'categorias'], permissao: 'ERGOGENICO_LER', acao: true },
-  { id: 'novo-compromisso', rotulo: 'Novo compromisso', secao: 'Dia a dia', href: '/treinador/agenda?novo=1', palavras: ['marcar consulta', 'marcar retorno', 'agendar', 'horario', 'compromisso', 'agenda presencial'], permissao: 'AGENDA_ALTERAR', acao: true },
-  { id: 'novo-evento', rotulo: 'Novo evento', secao: 'Dia a dia', href: '/treinador/agenda?novo=evento', palavras: ['evento', 'criar evento', 'reuniao', 'lembrete pessoal', 'compromisso pessoal', 'agenda pessoal'], permissao: 'AGENDA_ALTERAR', acao: true },
-  { id: 'planilha-completa', rotulo: 'Importar planilha completa', secao: 'Consultoria', href: '/treinador/importacao/planilha-completa', palavras: ['planilha completa', 'migrar', 'migracao', 'trazer alunos', 'importar treinos', 'importar dietas', 'outra plataforma'], permissao: 'ALUNO_ALTERAR', acao: true },
-  { id: 'novo-aluno', rotulo: 'Novo aluno', secao: 'Dia a dia', href: '/treinador/alunos/novo', palavras: ['cadastrar aluno', 'adicionar aluno', 'criar aluno'], permissao: 'ALUNO_ALTERAR', acao: true },
-  { id: 'atualizacoes-revisar', rotulo: 'Atualizações para revisar', secao: 'Dia a dia', href: '/treinador/atualizacoes?situacao=PARA_REVISAR', palavras: ['check-in', 'checkin', 'feedback', 'pendentes'], permissao: null, acao: true },
-  { id: 'atualizacoes-atrasadas', rotulo: 'Atualizações atrasadas', secao: 'Dia a dia', href: '/treinador/atualizacoes?situacao=ATRASADAS', palavras: ['check-in', 'checkin', 'atraso', 'vencidas'], permissao: null, acao: true },
-  { id: 'novo-modelo', rotulo: 'Novo modelo', secao: 'Planos', href: '/treinador/planejamento?novo=1', palavras: ['criar modelo', 'novo treino', 'nova dieta', 'novo pacote', 'adicionar modelo'], permissao: 'MODELO_ALTERAR', acao: true },
-  { id: 'questionarios', rotulo: 'Questionários de atualização', secao: 'Planos', href: '/treinador/planejamento?aba=atualizacao', palavras: ['check-in', 'checkin', 'atualizacao', 'perguntas', 'formulario', 'questionario'], permissao: 'QUESTIONARIO_LER', acao: true },
-  { id: 'novo-questionario', rotulo: 'Novo questionário', secao: 'Planos', href: '/treinador/planejamento?aba=atualizacao&novo=1', palavras: ['criar questionario', 'novo check-in', 'nova atualizacao', 'adicionar questionario'], permissao: 'QUESTIONARIO_ALTERAR', acao: true },
-  { id: 'anamneses', rotulo: 'Anamneses', secao: 'Planos', href: '/treinador/planejamento?aba=anamnese', palavras: ['anamnese', 'questionario inicial', 'formulario inicial', 'avaliacao inicial', 'perguntas'], permissao: 'QUESTIONARIO_LER', acao: true },
-  { id: 'perguntas-inscricao', rotulo: 'Perguntas da inscrição', secao: 'Planos', href: '/treinador/planejamento?aba=inscricao', palavras: ['quero ser aluno', 'inscricao', 'formulario de inscricao', 'perguntas da inscricao', 'interessados'], permissao: 'QUESTIONARIO_LER', acao: true },
-  { id: 'nova-anamnese', rotulo: 'Nova anamnese', secao: 'Planos', href: '/treinador/planejamento?aba=anamnese&novo=1', palavras: ['criar anamnese', 'nova anamnese', 'adicionar anamnese'], permissao: 'QUESTIONARIO_ALTERAR', acao: true },
-  { id: 'convidar-membro', rotulo: 'Convidar membro', secao: 'Consultoria', href: '/treinador/equipe', palavras: ['convidar', 'novo usuario', 'adicionar membro', 'novo membro', 'convite da equipe'], permissao: 'USUARIO_ALTERAR', acao: true, funcionalidade: 'EQUIPE' },
+  { id: 'ergogenicos', rotulo: 'Outros (medicação e ergogênicos)', href: '/treinador/biblioteca?aba=ergogenicos', palavras: ['biblioteca', 'outros', 'ergogenicos', 'medicacao', 'categorias'], permissao: 'ERGOGENICO_LER', acao: true },
+  { id: 'novo-compromisso', rotulo: 'Novo compromisso', href: '/treinador/agenda?novo=1', palavras: ['marcar consulta', 'marcar retorno', 'agendar', 'horario', 'compromisso', 'agenda presencial'], permissao: 'AGENDA_ALTERAR', acao: true },
+  { id: 'novo-evento', rotulo: 'Novo evento', href: '/treinador/agenda?novo=evento', palavras: ['evento', 'criar evento', 'reuniao', 'lembrete pessoal', 'compromisso pessoal', 'agenda pessoal'], permissao: 'AGENDA_ALTERAR', acao: true },
+  { id: 'planilha-completa', rotulo: 'Importar planilha completa', href: '/treinador/importacao/planilha-completa', palavras: ['planilha completa', 'migrar', 'migracao', 'trazer alunos', 'importar treinos', 'importar dietas', 'outra plataforma'], permissao: 'ALUNO_ALTERAR', acao: true },
+  { id: 'novo-aluno', rotulo: 'Novo aluno', href: '/treinador/alunos/novo', palavras: ['cadastrar aluno', 'adicionar aluno', 'criar aluno'], permissao: 'ALUNO_ALTERAR', acao: true },
+  { id: 'atualizacoes-revisar', rotulo: 'Atualizações para revisar', href: '/treinador/atualizacoes?situacao=PARA_REVISAR', palavras: ['check-in', 'checkin', 'feedback', 'pendentes'], permissao: null, acao: true },
+  { id: 'atualizacoes-atrasadas', rotulo: 'Atualizações atrasadas', href: '/treinador/atualizacoes?situacao=ATRASADAS', palavras: ['check-in', 'checkin', 'atraso', 'vencidas'], permissao: null, acao: true },
+  { id: 'novo-modelo', rotulo: 'Novo modelo', href: '/treinador/planejamento?novo=1', palavras: ['criar modelo', 'novo treino', 'nova dieta', 'novo pacote', 'adicionar modelo'], permissao: 'MODELO_ALTERAR', acao: true },
+  { id: 'questionarios', rotulo: 'Questionários de atualização', href: '/treinador/planejamento?aba=atualizacao', palavras: ['check-in', 'checkin', 'atualizacao', 'perguntas', 'formulario', 'questionario'], permissao: 'QUESTIONARIO_LER', acao: true },
+  { id: 'novo-questionario', rotulo: 'Novo questionário', href: '/treinador/planejamento?aba=atualizacao&novo=1', palavras: ['criar questionario', 'novo check-in', 'nova atualizacao', 'adicionar questionario'], permissao: 'QUESTIONARIO_ALTERAR', acao: true },
+  { id: 'anamneses', rotulo: 'Anamneses', href: '/treinador/planejamento?aba=anamnese', palavras: ['anamnese', 'questionario inicial', 'formulario inicial', 'avaliacao inicial', 'perguntas'], permissao: 'QUESTIONARIO_LER', acao: true },
+  { id: 'perguntas-inscricao', rotulo: 'Perguntas da inscrição', href: '/treinador/planejamento?aba=inscricao', palavras: ['quero ser aluno', 'inscricao', 'formulario de inscricao', 'perguntas da inscricao', 'interessados'], permissao: 'QUESTIONARIO_LER', acao: true },
+  { id: 'nova-anamnese', rotulo: 'Nova anamnese', href: '/treinador/planejamento?aba=anamnese&novo=1', palavras: ['criar anamnese', 'nova anamnese', 'adicionar anamnese'], permissao: 'QUESTIONARIO_ALTERAR', acao: true },
+  { id: 'convidar-membro', rotulo: 'Convidar membro', href: '/treinador/equipe', palavras: ['convidar', 'novo usuario', 'adicionar membro', 'novo membro', 'convite da equipe'], permissao: 'USUARIO_ALTERAR', acao: true, funcionalidade: 'EQUIPE' },
 ];
+
+/**
+ * Grupo do menu de um caminho do catálogo: o do item do menu, o do item que abre a tela (Meus dados e as outras do cartão
+ * do usuário ficam com o Perfil, em Configurações; Termos com a Ajuda) ou o da tela de que ela é subpágina. Caminho fora
+ * do menu cai em Configurações (D24).
+ */
+export function secaoDaTela(href: string): SecaoDeTela {
+  const lugar = posicaoNoMenu(caminhoDoHref(href));
+  return lugar ? (lugar.grupo ?? null) : 'Configurações';
+}
+
+export const TELAS: readonly TelaDoCatalogo[] = CATALOGO.map((t) => ({ ...t, secao: secaoDaTela(t.href) }));
 
 /** Minúsculas e sem acento: a busca ignora as duas diferenças. */
 export function semAcento(texto: string): string {
@@ -109,7 +122,7 @@ export function buscarTelas(texto: string, permitidas: readonly TelaDoCatalogo[]
   const pontuados: { tela: TelaDoCatalogo; ordem: number; peso: number }[] = [];
   permitidas.forEach((tela, ordem) => {
     const nome = semAcento(tela.rotulo);
-    const todo = [nome, semAcento(tela.secao), ...tela.palavras.map(semAcento)].join(' ');
+    const todo = [nome, semAcento(tela.secao ?? ''), ...tela.palavras.map(semAcento)].join(' ');
     if (!palavras.every((p) => todo.includes(p))) return;
     const peso = nome.startsWith(consulta) ? 0 : nome.includes(consulta) ? 1 : palavras.every((p) => nome.includes(p)) ? 2 : 3;
     pontuados.push({ tela, ordem, peso });
@@ -117,10 +130,33 @@ export function buscarTelas(texto: string, permitidas: readonly TelaDoCatalogo[]
   return pontuados.sort((a, b) => a.peso - b.peso || a.ordem - b.ordem).map((p) => p.tela);
 }
 
-/** Telas (sem as ações) agrupadas por seção, na ordem de `SECOES_DE_TELAS`; seção sem item não aparece. */
+/** Legenda da tela na busca: o grupo do menu ("Ação · <grupo>" nas ações); o Início, sem grupo, é a "Tela inicial". */
+export function legendaDaTela(tela: Pick<TelaDoCatalogo, 'secao' | 'acao'>): string {
+  const lugar = tela.secao ?? 'Tela inicial';
+  return tela.acao ? `Ação · ${lugar}` : lugar;
+}
+
+const ORDEM_DAS_SECOES: readonly SecaoDeTela[] = [null, ...GRUPOS_DO_MENU];
+
+/**
+ * Telas (sem as ações) de "Todas as telas", nos grupos e na ordem do menu lateral: o Início sem título no topo, depois
+ * "Alunos e acompanhamento", "Negócio" e "Configurações". Dentro do grupo, os itens do menu na ordem dele e, depois, as
+ * telas abertas a partir de um item (as do cartão do usuário, Termos), na ordem do catálogo. Seção sem item não aparece.
+ */
 export function agruparPorSecao(telas: readonly TelaDoCatalogo[]): { secao: SecaoDeTela; telas: TelaDoCatalogo[] }[] {
-  return SECOES_DE_TELAS
-    .map((secao) => ({ secao, telas: telas.filter((t) => t.secao === secao && !t.acao) }))
+  const chave = (t: TelaDoCatalogo, i: number) => {
+    const lugar = posicaoNoMenu(caminhoDoHref(t.href));
+    const noCatalogo = TELAS.findIndex((c) => c.id === t.id);
+    // Tela que não é item do menu: no fim do grupo, depois dos itens, na ordem do catálogo.
+    return [lugar?.propria ? 0 : 1, lugar?.indice ?? Number.MAX_SAFE_INTEGER, noCatalogo < 0 ? TELAS.length + i : noCatalogo];
+  };
+  const ordenadas = telas
+    .map((t, i) => ({ t, k: chave(t, i) }))
+    .filter(({ t }) => !t.acao)
+    .sort((a, b) => a.k[0] - b.k[0] || a.k[1] - b.k[1] || a.k[2] - b.k[2])
+    .map(({ t }) => t);
+  return ORDEM_DAS_SECOES
+    .map((secao) => ({ secao, telas: ordenadas.filter((t) => t.secao === secao) }))
     .filter((g) => g.telas.length > 0);
 }
 
@@ -170,7 +206,7 @@ const TITULOS_DE_SUBTELAS: readonly [string, string][] = [
   ['/treinador/meus-dados', 'Meus dados'],
   ['/treinador/seguranca', 'Segurança'],
   ['/treinador/ajustes', 'Ajustes'],
-  ['/treinador/minha-conta', 'Minha conta'],
+  ['/treinador/minha-conta', 'Assinatura e faturas'],
   ['/treinador/termos', 'Termos e privacidade'],
 ];
 

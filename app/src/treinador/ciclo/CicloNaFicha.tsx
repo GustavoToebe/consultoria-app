@@ -111,7 +111,8 @@ export function CartaoCicloNoPeriodo({ alunoId, inicio, fim }: { alunoId: string
 }
 
 /** Faixas do gráfico de peso e o selo de cada data. Só com o acompanhamento ligado. */
-export function useCicloNoPeso(alunoId: string) {
+/** Sem `alunoId` (o Histórico do próprio aluno) nada é consultado e não há fases. */
+export function useCicloNoPeso(alunoId: string | undefined) {
   const { cores } = useTema();
   const ciclo = useCicloDoTreinador(alunoId);
   const dados = ciclo.ativo ? ciclo.dados : null;

@@ -1,4 +1,5 @@
 import type { AvaliacaoFisica, CampoDaMedida, DadosAvaliacaoFisica, MedidasCorporais } from '../api/avaliacaoFisicaTipos';
+import { dataNaFaixa, mensagemDaFaixa } from './datasValidas';
 import { SEM_DADO } from './formatos';
 
 /**
@@ -12,7 +13,6 @@ export const MEDIDA_MAXIMA_CM = 300;
 export const OBSERVACAO_MAXIMA = 1000;
 export const COMPARAR_MINIMO = 2;
 export const COMPARAR_MAXIMO = 4;
-const PRIMEIRA_DATA = '1900-01-01';
 
 /** Na ordem da tela, do PDF e da API (`Medidas.porCampo`). */
 export const MEDIDAS: readonly { campo: CampoDaMedida; rotulo: string }[] = [
@@ -52,8 +52,7 @@ function casasDecimais(v: number): number {
 export function problemasDaAvaliacao(d: DadosAvaliacaoFisica, hoje: string): Record<string, string> {
   const erros: Record<string, string> = {};
   if (!d.data) erros.data = 'Informe a data da avaliação.';
-  else if (d.data > hoje) erros.data = 'A data não pode ser no futuro.';
-  else if (d.data < PRIMEIRA_DATA) erros.data = 'Confira a data.';
+  else if (!dataNaFaixa(d.data, 'REGISTRO', hoje)) erros.data = mensagemDaFaixa('Data da avaliação', 'REGISTRO', hoje);
   let alguma = false;
   for (const { campo } of MEDIDAS) {
     const v = d.medidas[campo];
@@ -119,6 +118,63 @@ export function podeComparar(escolhidas: readonly string[]): boolean {
  */
 export function podeBaixarComparativo(o: { daEquipe: boolean; online: boolean; temMarca: boolean }): boolean {
   return o.daEquipe || (o.online && o.temMarca);
+}
+
+/** Uma medida para escolher no gráfico (só as que têm algum valor). `detalhe` = "3 datas". */
+export interface OpcaoDeMedida {
+  valor: CampoDaMedida;
+  rotulo: string;
+  detalhe: string;
+}
+
+function valorDaMedida(a: AvaliacaoFisica, campo: CampoDaMedida): number | null {
+  const v = a.medidas[campo];
+  return v === null || v === undefined || Number.isNaN(v) ? null : v;
+}
+
+/** Medidas com pelo menos uma data medida, na ordem de `MEDIDAS`. Medida nunca medida não vira opção (nada a mostrar). */
+export function opcoesDeMedida(avaliacoes: readonly AvaliacaoFisica[]): OpcaoDeMedida[] {
+  return MEDIDAS.flatMap(({ campo, rotulo }) => {
+    const n = avaliacoes.filter((a) => valorDaMedida(a, campo) !== null).length;
+    return n ? [{ valor: campo, rotulo, detalhe: `${n} ${n === 1 ? 'data' : 'datas'}` }] : [];
+  });
+}
+
+/** A escolhida, se ainda é opção (pode ter sido apagada); senão a primeira. Nula sem nenhuma medida. */
+export function medidaEscolhida(opcoes: readonly OpcaoDeMedida[], escolhida: CampoDaMedida | null): CampoDaMedida | null {
+  if (escolhida && opcoes.some((o) => o.valor === escolhida)) return escolhida;
+  return opcoes[0]?.valor ?? null;
+}
+
+export interface SerieDaMedida {
+  /** Só as datas que têm a medida, da mais antiga à mais nova (o eixo do gráfico). Ausente não vira ponto. */
+  pontos: { data: string; valor: number }[];
+  /** Todas as datas, da mais nova à mais antiga, com a medida ou nula ("—" na tela). */
+  linhas: { id: string; data: string; valor: number | null }[];
+}
+
+/**
+ * Série de uma medida ao longo das avaliações, pela data (não pela ordem da API). A data em que a medida não foi tomada
+ * fica fora do gráfico: nada de zero, de repetir o valor anterior ou de interpolar; na lista ela aparece com "—".
+ */
+export function serieDaMedida(avaliacoes: readonly AvaliacaoFisica[], campo: CampoDaMedida): SerieDaMedida {
+  const cronologicas = [...avaliacoes].sort((a, b) => a.data.localeCompare(b.data));
+  const pontos = cronologicas.flatMap((a) => {
+    const valor = valorDaMedida(a, campo);
+    return valor === null ? [] : [{ data: a.data, valor }];
+  });
+  const linhas = [...cronologicas].reverse().map((a) => ({ id: a.id, data: a.data, valor: valorDaMedida(a, campo) }));
+  return { pontos, linhas };
+}
+
+/**
+ * O que o gráfico da medida mostra: `linha` com 2 pontos ou mais, `ponto` com 1 (o ponto, sem linha), `nada` sem ponto e
+ * `desligado` quando a pessoa desligou os gráficos (fica só a lista).
+ */
+export function graficoDaMedida(pontos: number, graficosLigados: boolean): 'linha' | 'ponto' | 'nada' | 'desligado' {
+  if (pontos === 0) return 'nada';
+  if (!graficosLigados) return 'desligado';
+  return pontos === 1 ? 'ponto' : 'linha';
 }
 
 export interface LinhaDaComparacao {

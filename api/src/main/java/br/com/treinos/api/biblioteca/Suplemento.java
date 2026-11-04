@@ -16,8 +16,8 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Suplemento da biblioteca: nome, marca, categoria, porção, sabores e link do produto. Não tem valor nutricional nem
- * dose. Excluir = inativar: dietas já publicadas guardam a cópia do nome e do link.
+ * Suplemento da biblioteca: nome, marca, categoria, porção, sabores, link do produto e cupom de desconto (texto, até 40). Não tem valor nutricional nem
+ * dose. Excluir = inativar: dietas já publicadas guardam a cópia do nome, do link e do cupom.
  */
 @Entity
 @Table(name = "suplemento")
@@ -53,6 +53,8 @@ public class Suplemento {
 
     private String link;
 
+    private String cupom;
+
     @Column(nullable = false)
     private boolean ativo = true;
 
@@ -86,6 +88,7 @@ public class Suplemento {
         this.porcoesPorEmbalagem = v.porcoesPorEmbalagem();
         this.sabores = v.saboresJson();
         this.link = v.link();
+        this.cupom = v.cupom();
     }
 
     public void inativar() {
@@ -124,12 +127,16 @@ public class Suplemento {
         return link;
     }
 
+    public String getCupom() {
+        return cupom;
+    }
+
     public boolean isAtivo() {
         return ativo;
     }
 
     /** Valores editáveis, já validados e normalizados pelo service. */
     public record Valores(String nome, String nomeBusca, String marca, String categoria, String porcao,
-                          String porcoesPorEmbalagem, String saboresJson, String link) {
+                          String porcoesPorEmbalagem, String saboresJson, String link, String cupom) {
     }
 }

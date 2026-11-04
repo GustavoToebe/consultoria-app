@@ -3,7 +3,7 @@ import { contagem } from './contagens';
 import { normalizarDieta } from './dieta';
 import { DIAS_SEMANA } from './editorTreino';
 import { diaDaSemanaIso, somarDias } from './formatos';
-import { rotuloDoTipo, sessoesDaSemana } from './semana';
+import { nomeComDia, rotuloDoTipo, sessoesDaSemana } from './semana';
 
 /**
  * Regras do Início do aluno (a tela só desenha). Nada aqui inventa dado: dia, água e contagens vêm do plano publicado
@@ -57,9 +57,16 @@ export function dietaNoInicio(entrada: { conteudo: ConteudoDieta | null | undefi
 
 // ---- Hoje ----
 
+/**
+ * O pacote do plano chegou num formato que este app não lê e foi descartado (`offline/formatoDoPacote`): o aluno vê esta
+ * frase no Início e no Treino, em vez de uma tela vazia ou "treino sendo preparado".
+ */
+export const TEXTO_PACOTE_RECUSADO = 'Seu treinador usou algo novo. Atualize o app para ver o plano.';
+
 export type EstadoDoHoje =
   | { tipo: 'carregando' }
   | { tipo: 'erro' }
+  | { tipo: 'recusado' }
   | { tipo: 'preparando' }
   | { tipo: 'sem-dia-fixo' }
   /** `sessao` é a de hoje quando é descanso programado (pode trazer o cardio); nula = nenhuma sessão marcada hoje. */
@@ -79,13 +86,15 @@ export function rotuloDaDivisao(conteudo: ConteudoTreino, sessao: Sessao): strin
 }
 
 /**
- * O que o cartão "Hoje" mostra. `conteudo` nulo: falha (`erro`) ganha de tudo e nunca vira "não publicado"; ainda
+ * O que o cartão "Hoje" mostra. `conteudo` nulo: pacote recusado por formato (`recusado`) ganha de tudo; falha (`erro`) nunca vira "não publicado"; ainda
  * lendo é `carregando`; senão o treinador não publicou o treino. Com plano: sem nenhum dia fixo = escolher a divisão; dia
  * sem sessão, ou sessão de descanso sem exercício, = descanso programado.
  */
-export function estadoDoHoje(entrada: { conteudo: ConteudoTreino | null; dia: number; carregando: boolean; erro: boolean }): EstadoDoHoje {
-  const { conteudo, dia, carregando, erro } = entrada;
+export function estadoDoHoje(entrada: { conteudo: ConteudoTreino | null; dia: number; carregando: boolean; erro: boolean; recusado?: boolean }): EstadoDoHoje {
+  const { conteudo, dia, carregando, erro, recusado } = entrada;
   if (!conteudo) {
+    // Pacote recusado por formato: dizer isso ganha de erro de rede, de "carregando" e de "ainda não publicado".
+    if (recusado) return { tipo: 'recusado' };
     if (erro) return { tipo: 'erro' };
     return carregando ? { tipo: 'carregando' } : { tipo: 'preparando' };
   }
@@ -98,6 +107,24 @@ export function estadoDoHoje(entrada: { conteudo: ConteudoTreino | null; dia: nu
   }
   if (sessao.exercicios.length === 0) return { tipo: 'sem-exercicios', sessao };
   return { tipo: 'treino', sessao, rotulo: rotuloDaDivisao(conteudo, sessao) };
+}
+
+/**
+ * Dia de descanso: "Quarta · Treino B", a próxima sessão com treino (com exercício e que não é descanso) a partir de
+ * amanhã, pela mesma semana do cartão (`diaSemana` 1 = segunda … 7 = domingo; depois do domingo vem a segunda).
+ * Só vale dentro do período do plano: se a data dessa sessão passa de `fim` (inclusive), ou se `hoje` já passou do
+ * fim, não há próximo treino. Sessão sem dia fixo não entra; sem nenhuma, `null` e a linha some.
+ */
+export function proximoTreino(conteudo: ConteudoTreino | null, hoje: string, fim: string | null): string | null {
+  if (!conteudo || (fim && hoje > fim)) return null;
+  const dia = diaDaSemanaIso(hoje);
+  for (let passo = 1; passo < 7; passo++) {
+    if (fim && somarDias(hoje, passo) > fim) return null;
+    const d = ((dia - 1 + passo) % 7) + 1;
+    const s = conteudo.sessoes.find((x) => x.diaSemana === d);
+    if (s && s.tipo !== 'DESCANSO' && s.exercicios.length > 0) return nomeComDia(s);
+  }
+  return null;
 }
 
 // ---- Divisões ----

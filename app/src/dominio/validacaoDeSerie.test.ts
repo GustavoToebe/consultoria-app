@@ -36,12 +36,13 @@ describe('carga', () => {
 });
 
 describe('esforço', () => {
-  it('RIR de 0 a 5, RPE de 1 a 10 de meio em meio, nunca os dois', () => {
+  it('RIR de 0 a 10, RPE de 1 a 10 de meio em meio, nunca os dois', () => {
     expect(problemasDoEsforco(null)).toEqual({});
     expect(problemasDoEsforco(rir(0))).toEqual({});
     expect(problemasDoEsforco(rpe(8.5))).toEqual({});
-    expect(problemasDoEsforco(rir(6))).toEqual({ rir: 'RIR entre 0 (até a falha) e 5.' });
-    expect(problemasDoEsforco(rir(1.5))).toEqual({ rir: 'RIR entre 0 (até a falha) e 5.' });
+    expect(problemasDoEsforco(rir(10))).toEqual({});
+    expect(problemasDoEsforco(rir(11))).toEqual({ rir: 'RIR entre 0 (até a falha) e 10.' });
+    expect(problemasDoEsforco(rir(1.5))).toEqual({ rir: 'RIR entre 0 (até a falha) e 10.' });
     expect(problemasDoEsforco(rpe(0.5))).toEqual({ rpe: 'RPE precisa ficar entre 1 e 10, de meio em meio.' });
     expect(problemasDoEsforco(rpe(8.3))).toEqual({ rpe: 'RPE precisa ficar entre 1 e 10, de meio em meio.' });
     expect(problemasDoEsforco({ rir: 1, rpe: 8 })).toEqual({ rpe: 'Use RIR ou RPE, não os dois.' });

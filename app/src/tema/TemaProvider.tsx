@@ -18,7 +18,17 @@ import {
 import { useSessao } from '../sessao/SessaoProvider';
 import { definirVibracaoLigada } from '../ui/vibrar';
 import { criarArmazemDePreferencias } from './armazemDePreferencias';
-import { AREIA, CLARO, ESCURO, MARCA_NEUTRA, marcaParaTexto, textoSobre, type Cores } from './tokens';
+import {
+  coresDeIdentificacao,
+  MARCA_NEUTRA,
+  marcaParaTexto,
+  paletaDe,
+  textoSobre,
+  type ChaveDeIdentificacao,
+  type CorDeIdentificacao,
+  type Cores,
+  type ModoDoTema,
+} from './tokens';
 
 /**
  * Tema e preferências visuais de cada pessoa (tema, contraste, tamanho do texto, animações, vibração). Ficam no
@@ -28,7 +38,7 @@ import { AREIA, CLARO, ESCURO, MARCA_NEUTRA, marcaParaTexto, textoSobre, type Co
  */
 interface ValorTema {
   /** Tema em uso agora (escuro ou claro), já resolvido: consultoria, escolha da pessoa ou aparelho. */
-  modo: Tema;
+  modo: ModoDoTema;
   cores: Cores;
   /** Espessura da borda do bloco e do item (2 px; 3 px no bloco com "Bordas reforçadas"). */
   bordas: { bloco: number; item: number };
@@ -40,6 +50,12 @@ interface ValorTema {
    * continuam com `marca`.
    */
   marcaTexto: string;
+  /**
+   * Cores de identificação (tipo de série, divisão, refeição) no tema em uso: a chave vem de `dominio/corDaSerie`
+   * (`corDoTipoDeSerie`, `corDaDivisao`, `corDaRefeicao`); `cor` para texto, ícone e barra, `fundo` para o selo.
+   * Nunca dizem status e nunca vêm sem o texto do selo.
+   */
+  identificacao: Record<ChaveDeIdentificacao, CorDeIdentificacao>;
   preferencias: Preferencias;
   /** A leitura das preferências gravadas terminou; antes disso `preferencias` é o padrão. */
   preferenciasLidas: boolean;
@@ -91,17 +107,15 @@ export function TemaProvider({ children }: { children: ReactNode }) {
     const doAparelho: Tema = esquemaDoAparelho === 'light' ? 'CLARO' : 'ESCURO';
     // Tela pública (sem consultoria conhecida) segue o aparelho; logado, o padrão é o da marca do treinador.
     const doTreinador: Tema = sessao.marca?.temaPadrao ?? doAparelho;
-    // "Claro areia" é o modo claro com outra paleta (fundo e faixas em tom areia).
-    const modo: Tema =
-      preferencias.tema === 'ESCURO' || preferencias.tema === 'CLARO'
+    // A preferência da pessoa (Escuro, Claro, Areia, Sistema) vence a paleta da consultoria; o modo sai da paleta.
+    const codigo: Tema =
+      preferencias.tema === 'ESCURO' || preferencias.tema === 'CLARO' || preferencias.tema === 'AREIA'
         ? preferencias.tema
-        : preferencias.tema === 'AREIA'
-          ? 'CLARO'
-          : preferencias.tema === 'SISTEMA'
-            ? doAparelho
-            : doTreinador;
+        : preferencias.tema === 'SISTEMA'
+          ? doAparelho
+          : doTreinador;
+    const { cores: base, modo } = paletaDe(codigo);
     const marca = sessao.marca?.corPrimaria ?? MARCA_NEUTRA;
-    const base = modo === 'CLARO' ? (preferencias.tema === 'AREIA' ? AREIA : CLARO) : ESCURO;
     const cores = coresComBordasReforcadas(coresComContraste(base, preferencias.contraste, modo !== 'CLARO'), preferencias.bordasReforcadas);
     return {
       modo,
@@ -111,6 +125,7 @@ export function TemaProvider({ children }: { children: ReactNode }) {
       sobreMarca: textoSobre(marca),
       // Contra a superfície de pior contraste: `superficie3` é a mais clara no escuro e a mais escura no claro.
       marcaTexto: marcaParaTexto(marca, cores.superficie3),
+      identificacao: coresDeIdentificacao(cores, modo !== 'CLARO'),
       preferencias,
       preferenciasLidas,
       fatorTexto: fatorDoTexto(preferencias.tamanhoTexto),

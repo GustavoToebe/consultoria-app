@@ -2,19 +2,22 @@ import { PERMISSOES_DO_PLANO } from '../dominio/permissoes';
 import { podeAplicarModelo, podeSalvarPastaComoModelo, temAcaoNoMenuDaPasta } from '../dominio/modelos';
 import { Permitido } from '../ui/Permitido';
 import { useSessao } from '../sessao/SessaoProvider';
-import { BookmarkPlus, CheckCircle2, ChevronRight, Copy, Ellipsis, Folder, FolderCheck, FolderPlus, Package, Pencil, RotateCcw, Trash2 } from 'lucide-react-native';
+import { BookmarkPlus, CheckCircle2, ChevronRight, Copy, Ellipsis, Folder, FolderCheck, FolderPlus, Package, Pencil, RotateCcw, Trash2, Users } from 'lucide-react-native';
 import { sobre } from '../ui/sobre';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { atualizacaoDoAluno, atualizacoesDoAluno, excluirPasta, finalizarPasta, reabrirPasta, salvarPastaComoModelo, atualizarPasta, criarPasta, escolherQuestionarioDaPasta, listarPastas, pesosDoAluno, replicarPasta } from '../api/rotas';
+import { atualizacaoDoAluno, atualizacoesDoAluno, excluirPasta, finalizarPasta, reabrirPasta, salvarPastaComoModelo, atualizarPasta, criarPasta, escolherQuestionarioDaPasta, listarPastas, pesosDoAluno, pesoSugeridoDaPasta, replicarPasta } from '../api/rotas';
 import { SeletorDeQuestionario } from './questionarios/SeletorDeQuestionario';
 import type { Atualizacao, PastaResumo, Receita } from '../api/tipos';
 import { atualizacaoDaPasta, caminhoAtualizacaoTreinador, statusAtualizacaoTreinador } from '../dominio/atualizacao';
 import { NOTAS_DA_RENOVACAO, PASSOS_DA_RENOVACAO, TITULO_ORDEM_DA_RENOVACAO } from '../dominio/ordemDaRenovacao';
-import { dataDoPesoDaAtualizacao, pesoDaAtualizacao, substituiPesoDaAtualizacao, textoDoPesoDaAtualizacao } from '../dominio/pesoNaFinalizacao';
-import { dataDaTela, dataParaTela, hojeIso, numeroParaTela } from '../dominio/formatos';
+import { corpoDaFinalizacao, dataDoPesoDaAtualizacao, dataInicialDoPeso, notaDoPesoJaRegistrado, pesoDaAtualizacao, pesoSugeridoSemEdicao, substituiPesoDaAtualizacao, sugestaoParaPreencher, textoDoPesoDaAtualizacao } from '../dominio/pesoNaFinalizacao';
+import { mensagemPastaCopiada, motivoParaNaoCopiar, notaDoPesoSugerido, podeSugerirPeso } from '../dominio/publicarPasta';
+import { rotuloAbrirFicha } from '../dominio/planoDoAluno';
+import { dataDaTelaNaFaixa } from '../dominio/datasValidas';
+import { dataParaTela, hojeIso, numeroParaTela } from '../dominio/formatos';
 import { dataSemAnoCorrente, periodoCurto } from '../dominio/datasRelativas';
 import { precisaRenovar } from '../dominio/resumoDoAluno';
 import { dadosDaRenovacao, diasDoPeriodo, fimQueAcompanha, periodoInicial, proximoPeriodo } from '../dominio/periodo';
@@ -22,6 +25,7 @@ import { FILTROS_PASTAS, filtrarPastas, type FiltroPastas } from '../dominio/pas
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, LARGURA_EDITOR, RAIO } from '../tema/tokens';
 import { useAviso } from '../ui/Aviso';
+import { useSaidaGuardada } from '../ui/GuardaDeSaida';
 import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
 import { CampoData, CampoNumerico } from '../ui/Campos';
@@ -45,6 +49,9 @@ import { AtualizacaoDaPasta } from './AtualizacaoDaPasta';
 import { CartaoRegistros } from './CartaoRegistros';
 import { CartaoPlanos } from './CartaoPlanos';
 import { FolhaDeAcoes } from './FolhaDeAcoes';
+import { CopiarPastaParaAluno } from './CopiarPastaParaAluno';
+import { PublicarTudoDaPasta } from './PublicarTudoDaPasta';
+import { usePlanosDaPasta } from './usePlanosDaPasta';
 
 type Modo = { tipo: 'nova' } | { tipo: 'editar'; pasta: PastaResumo } | { tipo: 'replicar'; pasta: PastaResumo };
 
@@ -74,8 +81,8 @@ export function useRenovarPasta(diasAtualizacao: number | null, aoRenovar: () =>
   const dados = renovar ? dadosDaRenovacao(renovar, hojeIso(), diasAtualizacao) : null;
   const painel = (
     <PainelConfirmacao visivel={!!renovar} titulo={`Renovar a pasta “${renovar?.titulo ?? ''}”?`}
-      mensagem={dados ? `Cria a pasta “${dados.titulo}” para ${dados.texto}, com cópia em rascunho dos treinos, dietas e mobilidades. A pasta atual continua como está; para escolher o título ou as datas, use “Copiar para outro período” na pasta.` : ''}
-      rotuloConfirmar="Renovar pasta" carregando={renovando} aoCancelar={() => setRenovar(null)} aoConfirmar={() => {
+      mensagem={dados?.erro ? `${dados.erro}. Para escolher as datas, use “Copiar para outro período” na pasta.` : dados ? `Cria a pasta “${dados.titulo}” para ${dados.texto}, com cópia em rascunho dos treinos, dietas e mobilidades. A pasta atual continua como está; para escolher o título ou as datas, use “Copiar para outro período” na pasta.` : ''}
+      rotuloConfirmar="Renovar pasta" carregando={renovando} desabilitado={!!dados?.erro} motivo={dados?.erro ?? undefined} aoCancelar={() => setRenovar(null)} aoConfirmar={() => {
         if (!renovar || !dados) return;
         setRenovando(true);
         replicarPasta(renovar.id, { titulo: dados.titulo, inicio: dados.inicio, fim: dados.fim }).then(
@@ -97,6 +104,9 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
   const [modo, setModo] = useState<Modo | null>(null);
   const [filtro, setFiltro] = useState<FiltroPastas>('todas');
   const { avisar } = useAviso();
+  // Saídas para outra tela passam pela guarda (os dados do aluno podem estar em edição na ficha, D7); fechar a Folha da
+  // pasta vai junto, para o "Continuar editando" deixar a Folha aberta como estava.
+  const { confirmar } = useSaidaGuardada();
   const [excluir, setExcluir] = useState<PastaResumo | null>(null);
   const [salvarModelo, setSalvarModelo] = useState<PastaResumo | null>(null);
   const [finalizar, setFinalizar] = useState<PastaResumo | null>(null);
@@ -109,6 +119,12 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
   const [escolher, setEscolher] = useState(false);
   const [modelo, setModelo] = useState<Receita | null>(null);
   const [geracao, setGeracao] = useState(0);
+  // "Copiar pasta para outro aluno" (D7), aberto pelo ⋯ da pasta.
+  const [copiar, setCopiar] = useState<PastaResumo | null>(null);
+  // Planos da pasta em foco (Folha, ⋯ ou cópia), carregados uma vez: os cartões de plano, o "Publicar tudo" e a cópia
+  // usam a mesma lista.
+  const emFoco = aberta ?? menuPasta ?? copiar;
+  const planosEmFoco = usePlanosDaPasta(alunoId, emFoco?.id ?? null, geracao);
   // A atualização fecha o período da pasta: vem junto na lista e na folha (dado sensível, só com ATUALIZACAO_LER).
   const verAtualizacoes = pode('ATUALIZACAO_LER');
   const { dados: atualizacoes, recarregar: recarregarAtualizacoes } = useCarregar(verAtualizacoes ? `atualizacoes-pastas:${alunoId}` : null, async () => {
@@ -128,6 +144,13 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
     aoMudar?.();
   };
   const renovacao = useRenovarPasta(diasAtualizacao, aoSalvar);
+  // Publicar muda o plano em uso: os selos, a lista e o resumo da ficha buscam de novo (a Folha continua aberta).
+  const aoPublicar = () => {
+    setGeracao((g) => g + 1);
+    recarregar();
+    aoMudar?.();
+  };
+  const podePublicarAlgo = pode(PERMISSOES_DO_PLANO.treino.publicar) || pode(PERMISSOES_DO_PLANO.dieta.publicar);
   const hoje = hojeIso();
 
   return (
@@ -151,7 +174,7 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
         ) : null}
         {visiveis.map((p) => (
           <LinhaPasta key={p.id} pasta={p} atualizacao={daPasta(p.id)} aoAbrir={() => setAbertaId(p.id)} hoje={hoje}
-            aoRevisar={(a) => router.push(caminhoAtualizacaoTreinador(a))}
+            aoRevisar={(a) => confirmar(() => router.push(caminhoAtualizacaoTreinador(a)))}
             aoRenovar={pode('PASTA_ALTERAR') && precisaRenovar(p, dados ?? [], hoje) ? () => renovacao.pedir(p) : undefined} />
         ))}
       </Cartao>
@@ -181,18 +204,29 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
             aoEscolher={async (questionarioId) => { await escolherQuestionarioDaPasta(aberta.id, questionarioId); recarregar(); recarregarAtualizacoes(); }} />
           {/* A atualização fecha o período e é o ponto central do acompanhamento: fica logo abaixo das ações. */}
           {verAtualizacoes ? <AtualizacaoDaPasta atualizacao={daPasta(aberta.id)} carregando={!atualizacoes} destaque={revisarNaFolha}
-            aoAbrir={(a) => { setAbertaId(null); router.push(caminhoAtualizacaoTreinador(a)); }} /> : null}
+            aoAbrir={(a) => confirmar(() => { setAbertaId(null); router.push(caminhoAtualizacaoTreinador(a)); })} /> : null}
           <OrdemDaRenovacao />
           <Texto variante="secao">Planos desta pasta</Texto>
-          <Permitido codigo={PERMISSOES_DO_PLANO.treino.ler}><CartaoPlanos tipo="treino" alunoId={alunoId} pasta={aberta} geracao={geracao} aoNavegar={() => setAbertaId(null)} /></Permitido>
-          <Permitido codigo={PERMISSOES_DO_PLANO.dieta.ler}><CartaoPlanos tipo="dieta" alunoId={alunoId} pasta={aberta} geracao={geracao} aoNavegar={() => setAbertaId(null)} /></Permitido>
-          <Permitido codigo={PERMISSOES_DO_PLANO.mobilidade.ler}><CartaoPlanos tipo="mobilidade" alunoId={alunoId} pasta={aberta} geracao={geracao} aoNavegar={() => setAbertaId(null)} /></Permitido>
+          {/* Sem permissão de publicar nenhum tipo, o botão não existe para a pessoa; com a de um tipo só, ele aparece e
+              fica desabilitado com o motivo quando o outro tipo tem alteração. */}
+          {podePublicarAlgo ? <PublicarTudoDaPasta key={aberta.id} pasta={aberta} planos={planosEmFoco.planos} carregando={planosEmFoco.carregando}
+            atualizando={planosEmFoco.atualizando} falhou={planosEmFoco.falhou} aoTentarDeNovo={planosEmFoco.recarregarFalhas} aoPublicar={aoPublicar} aoRecarregar={aoPublicar} aoNavegar={() => setAbertaId(null)} /> : null}
+          <Permitido codigo={PERMISSOES_DO_PLANO.treino.ler}><CartaoPlanos tipo="treino" alunoId={alunoId} pasta={aberta} geracao={geracao} carga={planosEmFoco.cargas.treino} aoNavegar={() => setAbertaId(null)} /></Permitido>
+          <Permitido codigo={PERMISSOES_DO_PLANO.dieta.ler}><CartaoPlanos tipo="dieta" alunoId={alunoId} pasta={aberta} geracao={geracao} carga={planosEmFoco.cargas.dieta} aoNavegar={() => setAbertaId(null)} /></Permitido>
+          <Permitido codigo={PERMISSOES_DO_PLANO.mobilidade.ler}><CartaoPlanos tipo="mobilidade" alunoId={alunoId} pasta={aberta} geracao={geracao} carga={planosEmFoco.cargas.mobilidade} aoNavegar={() => setAbertaId(null)} /></Permitido>
           <Permitido codigo="REGISTRO_LER"><CartaoRegistros aluno={{ id: alunoId, nome: alunoNome }} pasta={aberta} /></Permitido>
         </Folha>
       ) : null}
       {menuPasta ? <FolhaDeAcoes titulo={menuPasta.titulo} aoFechar={() => setMenuPasta(null)} acoes={[
         pode('PASTA_ALTERAR') ? { rotulo: 'Renovar para o próximo ciclo', detalhe: 'Pasta nova com os planos em rascunho.', Icone: Copy, aoTocar: () => renovacao.pedir(menuPasta) } : null,
         podeSalvarPastaComoModelo(pode) ? { rotulo: 'Salvar como pacote', detalhe: 'Para usar com outros alunos.', Icone: BookmarkPlus, aoTocar: () => setSalvarModelo(menuPasta) } : null,
+        pode('PASTA_ALTERAR') && pode('ALUNO_LER') ? {
+          rotulo: 'Copiar pasta para outro aluno',
+          // Sem o *_ALTERAR de um tipo presente, a folha abre com o motivo e o "Copiar pasta" desabilitado.
+          detalhe: (planosEmFoco.planos ? motivoParaNaoCopiar(planosEmFoco.planos, pode) : null) ?? 'Pasta nova no outro aluno, com os planos em rascunho.',
+          Icone: Users,
+          aoTocar: () => setCopiar(menuPasta),
+        } : null,
         pode('PASTA_ALTERAR') ? { rotulo: 'Excluir pasta', Icone: Trash2, perigo: true, aoTocar: () => setExcluir(menuPasta) } : null,
       ]} /> : null}
       {escolher ? <FolhaReceitas tipo="PASTA_PLANO" titulo="Pacote (treino, dieta e mobilidade)" aoFechar={() => setEscolher(false)} aoUsar={(r) => { setEscolher(false); setModelo(r); }} /> : null}
@@ -200,6 +234,11 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
       {salvarModelo ? <FolhaSalvarReceita titulo="Salvar pasta como pacote" explicacao="Copia os rascunhos de treino e dieta desta pasta para reutilizar em outros alunos." aoFechar={() => setSalvarModelo(null)} aoSalvar={async (nome, descricao) => {
         await salvarPastaComoModelo(salvarModelo.id, nome, descricao); setSalvarModelo(null); avisar('Pacote salvo.', 'sucesso');
       }} /> : null}
+      {copiar ? <CopiarPastaParaAluno pasta={copiar} planos={planosEmFoco.planos} carregandoPlanos={planosEmFoco.carregando} aoFechar={() => setCopiar(null)}
+        aoCopiar={(destinoId, nome, pulados) => {
+          setCopiar(null);
+          avisar(mensagemPastaCopiada(nome, pulados), 'sucesso', { rotulo: rotuloAbrirFicha(nome), aoTocar: () => confirmar(() => router.push(`/treinador/alunos/${encodeURIComponent(destinoId)}`)) });
+        }} /> : null}
       {renovacao.painel}
       <PainelConfirmacao visivel={!!excluir} titulo={`Excluir pasta “${excluir?.titulo ?? ''}”?`} mensagem="A pasta e seus planos saem da lista. Os planos deixam de estar ativos; versões publicadas e registros dos alunos são preservados." rotuloConfirmar="Excluir pasta e planos" perigo aoCancelar={() => setExcluir(null)} aoConfirmar={() => {
         if (!excluir) return; const id = excluir.id; setExcluir(null);
@@ -273,8 +312,8 @@ function FolhaPasta({ alunoId, modo, diasAtualizacao, aoFechar, aoSalvar }: { al
   const [fimManual, setFimManual] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
-  const ini = dataDaTela(inicio);
-  const fi = dataDaTela(fim);
+  const ini = dataDaTelaNaFaixa(inicio, 'PLANEJAMENTO');
+  const fi = dataDaTelaNaFaixa(fim, 'PLANEJAMENTO');
   const fimAntes = !!ini && !!fi && fi < ini;
   const valido = titulo.trim() !== '' && ini !== undefined && fi !== undefined && !fimAntes;
   const dias = diasDoPeriodo(inicio, fim);
@@ -344,10 +383,10 @@ function FolhaPasta({ alunoId, modo, diasAtualizacao, aoFechar, aoSalvar }: { al
       <Campo rotulo="Título" valor={titulo} aoMudar={setTitulo} maxLength={120} placeholder="Ex.: Plano 17" />
       <View style={estilos.datas}>
         <View style={estilos.data}>
-          <CampoData rotulo="Início" valor={inicio} aoMudar={mudarInicio} />
+          <CampoData rotulo="Início" nome="Início da pasta" regra="PLANEJAMENTO" valor={inicio} aoMudar={mudarInicio} />
         </View>
         <View style={estilos.data}>
-          <CampoData rotulo="Fim" valor={fim} aoMudar={mudarFim} erro={fimAntes ? 'O fim vem antes do início.' : null} />
+          <CampoData rotulo="Fim" nome="Fim da pasta" regra="PLANEJAMENTO" valor={fim} aoMudar={mudarFim} erro={fimAntes ? 'O fim vem antes do início.' : null} />
         </View>
       </View>
       {dias ? <Texto variante="suave" numerico>Período: {inicio} a {fim} · {dias === 1 ? '1 dia' : `${dias} dias`}</Texto> : null}
@@ -387,26 +426,50 @@ function FolhaFinalizar({ pasta, alunoId, atualizacao, aoFechar, aoFinalizar }: 
 }) {
   const { pode } = useSessao();
   const { avisar } = useAviso();
-  // Começa vazia: o peso da atualização nunca é copiado para o campo (gravaria de novo um peso antigo).
-  const [data, setData] = useState(dataParaTela(hojeIso()));
-  const [peso, setPeso] = useState<number | null>(null);
-  const [observacao, setObservacao] = useState('');
+  const [hoje] = useState(hojeIso);
+  // D8 (02/11): o peso e a data nascem com os da atualização desta pasta (`GET /pastas/{id}/peso-sugerido`), editáveis.
+  // Só com as permissões do dado sensível, da atualização e de gravar o peso. A resposta chega depois de a folha abrir:
+  // ela só PREENCHE se a pessoa ainda não mexeu em peso, data ou observação antes de ela chegar (`sugestaoParaPreencher`);
+  // se mexeu, nenhum campo recebe a sugestão (a data não pula para a da atualização). A decisão vale na chegada e não
+  // muda depois: mexer depois de preenchido é edição normal. Falha ou sem peso = peso vazio e data de hoje, sem erro na
+  // tela. Sem edição (valor, data e observação como vieram) finalizar não grava o peso de novo: `corpoDaFinalizacao`. O
+  // peso nunca vai a log.
+  const sugestao = useCarregar(podeSugerirPeso(pode) ? `peso-sugerido:${pasta.id}` : null, () => pesoSugeridoDaPasta(pasta.id));
+  const sugestaoChegou = !!sugestao.dados || !!sugestao.erro;
+  const [mexeuAntesDaSugestao, setMexeuAntesDaSugestao] = useState(false);
+  const marcarMexida = () => { if (!sugestaoChegou) setMexeuAntesDaSugestao(true); };
+  const sugestaoDaPasta = sugestaoParaPreencher(sugestao.erro ? null : sugestao.dados, mexeuAntesDaSugestao);
+  const sugerido = sugestaoDaPasta?.pesoKg ?? null;
+  const dataInicial = dataInicialDoPeso(sugestaoDaPasta, hoje);
+  const [dataDigitada, setDataDigitada] = useState<string | null>(null);
+  const setData = (texto: string) => { marcarMexida(); setDataDigitada(texto); };
+  const data = dataDigitada ?? dataParaTela(dataInicial);
+  const [digitado, setDigitado] = useState<{ valor: number | null } | null>(null);
+  const peso = digitado ? digitado.valor : sugerido;
+  const setPeso = (valor: number | null) => { marcarMexida(); setDigitado({ valor }); };
+  const comSugestao = sugerido !== null && peso === sugerido;
+  const [observacao, setObservacaoDigitada] = useState('');
+  const setObservacao = (texto: string) => { marcarMexida(); setObservacaoDigitada(texto); };
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
-  const dataIso = dataDaTela(data);
+  const dataIso = dataDaTelaNaFaixa(data, 'REGISTRO');
   const valido = dataIso !== undefined && (peso !== null || observacao.trim() === '');
   // Peso que a atualização enviada já gravou na data dela: só com as duas permissões (peso e atualização são sensíveis).
   const dataDoPeso = pode('ALUNO_SENSIVEL_LER') && pode('ATUALIZACAO_LER') ? dataDoPesoDaAtualizacao(atualizacao) : null;
   const pesos = useCarregar(dataDoPeso ? `pesos-finalizar:${alunoId}:${dataDoPeso}` : null, () => pesosDoAluno(alunoId));
   const registrado = pesoDaAtualizacao(pesos.dados, dataDoPeso);
-  const substitui = substituiPesoDaAtualizacao(dataIso, registrado, peso);
+  const formulario = { podeGravarPeso: pode('ALUNO_SENSIVEL_ALTERAR'), sugerido, peso, dataIso, dataInicial, observacao };
+  // Sugerido e intacto: já está no registro, nada a substituir nem a conferir.
+  const jaRegistrado = pesoSugeridoSemEdicao(formulario);
+  const substitui = !jaRegistrado && substituiPesoDaAtualizacao(dataIso, registrado, peso);
 
   const salvar = () => {
     if (!valido) return;
     setSalvando(true);
     setErro(null);
-    const comPeso = pode('ALUNO_SENSIVEL_ALTERAR') && peso !== null;
-    finalizarPasta(pasta.id, { data: comPeso ? dataIso ?? null : null, pesoKg: comPeso ? peso : null, observacao: comPeso ? observacao.trim() || null : null }).then(
+    const corpo = corpoDaFinalizacao(formulario);
+    const comPeso = corpo.pesoKg !== null;
+    finalizarPasta(pasta.id, corpo).then(
       () => {
         avisar(comPeso ? 'Pasta finalizada e peso registrado.' : 'Pasta finalizada.', 'sucesso');
         aoFinalizar(comPeso);
@@ -436,21 +499,29 @@ function FolhaFinalizar({ pasta, alunoId, atualizacao, aoFechar, aoFinalizar }: 
         Finalizar não troca o que o aluno vê: ele passa a usar a pasta nova quando você publica o treino, a dieta ou a
         mobilidade dela.
       </Texto>
-      {registrado ? <Texto numerico>{textoDoPesoDaAtualizacao(registrado)}</Texto> : null}
+      {/* Intacto, a nota junto do campo já diz o mesmo: a linha sairia repetida. */}
+      {registrado && !jaRegistrado ? <Texto numerico>{textoDoPesoDaAtualizacao(registrado)}</Texto> : null}
       {dataDoPeso && pesos.erro ? <Texto variante="suave">Não foi possível conferir o peso da atualização.</Texto> : null}
       <Permitido codigo="ALUNO_SENSIVEL_ALTERAR">
       <Texto variante="suave">
-        {registrado
-          ? 'Só preencha o peso se houver uma pesagem nova. Ele entra no registro do aluno com a data e a observação abaixo.'
-          : 'O peso opcional entra no registro do aluno com a data e a observação abaixo.'}
+        {jaRegistrado
+          ? 'Este peso já está no registro do aluno: finalizar assim não grava de novo. Mude o valor ou a data só se houver uma pesagem nova.'
+          : comSugestao
+            ? 'O peso entra no registro do aluno com a data e a observação abaixo. Para finalizar sem registrar peso, apague o campo.'
+            : registrado
+              ? 'Só preencha o peso se houver uma pesagem nova. Ele entra no registro do aluno com a data e a observação abaixo.'
+              : 'O peso opcional entra no registro do aluno com a data e a observação abaixo.'}
       </Texto>
-      <CampoData rotulo="Data do peso" valor={data} aoMudar={setData} />
-      <CampoNumerico rotulo="Peso (opcional)" sufixo="kg" valor={peso} aoMudar={setPeso} />
+      <CampoData rotulo="Data do peso" regra="REGISTRO" valor={data} aoMudar={setData} />
+      <CampoNumerico rotulo="Peso (opcional)" sufixo="kg" valor={peso} aoMudar={setPeso} aoDigitar={marcarMexida} />
+      {jaRegistrado && sugerido !== null ? (
+        <Texto variante="suave" numerico>{notaDoPesoJaRegistrado(sugerido, sugestaoDaPasta?.data ?? null, hoje)}</Texto>
+      ) : comSugestao ? <Alerta tom="atencao" texto={notaDoPesoSugerido(sugestaoDaPasta?.data ?? null)} /> : null}
       {substitui && registrado ? (
         <Alerta tom="atencao" titulo="Vai substituir o peso da atualização"
           texto={`Já há ${numeroParaTela(registrado.pesoKg, 1)} kg registrado em ${dataParaTela(registrado.data)}. Um peso por dia: finalizar com esta data troca esse peso pelo novo. Para manter os dois, use outra data.`} />
       ) : null}
-      <Campo rotulo="Observação (opcional)" valor={observacao} aoMudar={setObservacao} maxLength={300} ajuda="Só é gravada junto com o peso." />
+      <Campo rotulo="Observação (opcional)" valor={observacao} aoMudar={setObservacao} maxLength={300} ajuda="Só é gravada junto com o peso. Só a equipe vê esta observação." />
       </Permitido>
       {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
     </Folha>

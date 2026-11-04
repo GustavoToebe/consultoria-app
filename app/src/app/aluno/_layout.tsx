@@ -1,7 +1,5 @@
 import { BarraDescanso } from '../../aluno/BarraDescanso';
 import { SeloSincronizacao } from '../../aluno/SeloSincronizacao';
-import { StyleSheet, View } from 'react-native';
-import { espaco } from '../../tema/tokens';
 import { CalendarDays, Dumbbell, House, Salad, UserRound } from 'lucide-react-native';
 
 import { AlunoProvider, useAluno } from '../../offline/AlunoProvider';
@@ -13,6 +11,7 @@ import { useSessao } from '../../sessao/SessaoProvider';
 import { GuardaDePapel } from '../../ui/GuardaDePapel';
 import { Navegacao, type ItemMenu } from '../../ui/Navegacao';
 import { ProvedorDoPasseio } from '../../ui/Passeio';
+import { ProvedorDaUnidadeDeCarga } from '../../ui/ProvedorDaUnidadeDeCarga';
 import { GUIAS } from '../../ajuda/conteudo';
 import { ContextoDeImagens } from '../../aluno/atualizacao/ImagemDaPergunta';
 import { baixarImagemDoAluno } from '../../api/rotas';
@@ -20,6 +19,7 @@ import { useAnamnese } from '../../aluno/anamnese/useAnamnese';
 import { FinanceiroDoAlunoProvider, useFinanceiroDoAluno } from '../../aluno/financeiro/FinanceiroDoAlunoProvider';
 import { CompromissosDoAlunoProvider, useCompromissosDoAluno } from '../../aluno/compromissos/CompromissosDoAlunoProvider';
 import { temAvisoDeCompromisso } from '../../dominio/paraFazer';
+import { SincronizarPush } from '../../aluno/push/SincronizarPush';
 
 /** Aluno: barra inferior sempre (uso principal é no celular). */
 const ITENS: ItemMenu[] = [
@@ -47,7 +47,11 @@ export default function LayoutAluno() {
               <FinanceiroDoAlunoProvider>
                 {/* Compromissos e avisos também só em memória; alimentam o Início, o ponto e os lembretes locais. */}
                 <CompromissosDoAlunoProvider>
-                  <MenuAluno />
+                  <SincronizarPush usuarioId={usuario.id} />
+                  {/* A carga é kg em todo lugar; só a tela do aluno a mostra e a recebe em lb, se ele escolheu (Preferências). */}
+                  <ProvedorDaUnidadeDeCarga>
+                    <MenuAluno />
+                  </ProvedorDaUnidadeDeCarga>
                 </CompromissosDoAlunoProvider>
               </FinanceiroDoAlunoProvider>
             </ContextoDeImagens.Provider>
@@ -75,12 +79,9 @@ function MenuAluno() {
 function RodapeAluno() {
   return (
     <>
-      <View style={estilos.sincronizacao}><SeloSincronizacao /></View>
+      <SeloSincronizacao noRodape />
       <BarraDescanso />
     </>
   );
 }
 
-const estilos = StyleSheet.create({
-  sincronizacao: { alignItems: 'center', paddingVertical: espaco(0.5) },
-});

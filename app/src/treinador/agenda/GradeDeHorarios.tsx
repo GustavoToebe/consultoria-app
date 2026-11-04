@@ -3,7 +3,7 @@ import { type GestureResponderEvent, Platform, Pressable, ScrollView, StyleSheet
 
 import {
   alturaDaGrade, colunasDaGrade, DIAS_DA_SEMANA_CURTOS, dataComDiaDaSemana, horaDoPontoDaGrade, type ItemDoCalendario, minutoDoDiaEmBrasilia,
-  minutoInicialDaGrade, posicaoDoMinuto, ROTULOS_DAS_HORAS, type SegmentoNaGrade,
+  minutoInicialDaGrade, posicaoDoMinuto, ROTULOS_DAS_HORAS, type SegmentoNaGrade, tituloCompleto,
 } from '../../dominio/agendaCalendario';
 import { arranjoDoBloco, LARGURA_DA_FAIXA, statusNoDiaInteiro } from '../../dominio/agendaLegivel';
 import { diaDaSemanaIso } from '../../dominio/formatos';
@@ -54,6 +54,8 @@ export function GradeDeHorarios({ dias, itens, hoje, meus, chaveDoPeriodo, aoAbr
   const agora = useAgora();
   const minutoDeAgora = minutoDoDiaEmBrasilia(agora);
   const umDia = dias.length === 1;
+  // O item de dia inteiro aberto (nome inteiro ao passar o mouse ou focar) cai por cima da grade: a linha dele sobe.
+  const [diaInteiroAberto, setDiaInteiroAberto] = useState(false);
 
   // Rolagem inicial: uma vez por período (voltar à tela recarrega os itens e não deve puxar a grade de volta).
   useEffect(() => {
@@ -89,7 +91,7 @@ export function GradeDeHorarios({ dias, itens, hoje, meus, chaveDoPeriodo, aoAbr
         })}
       </View>
       {colunas.some((c) => c.diaInteiro.length) ? (
-        <View style={[estilos.linha, { borderBottomColor: cores.divisor }]}>
+        <View style={[estilos.linha, { borderBottomColor: cores.divisor }, diaInteiroAberto && estilos.porCima]}>
           <View style={[estilos.calha, estilos.rotuloDiaInteiro]}><Texto variante="pequeno" cor={cores.textoSuave}>Dia inteiro</Texto></View>
           {colunas.map((c) => {
             const limite = umDia ? c.diaInteiro.length : DIA_INTEIRO_NA_SEMANA;
@@ -97,7 +99,7 @@ export function GradeDeHorarios({ dias, itens, hoje, meus, chaveDoPeriodo, aoAbr
             const mais = c.diaInteiro.length - visiveis.length;
             return (
               <View key={c.data} style={[estilos.faixaDoDia, { borderLeftColor: cores.divisor }]}>
-                {visiveis.map((item) => <ItemDeDiaInteiro key={item.chave} item={item} hoje={hoje} meus={meus} aoAbrir={aoAbrir} />)}
+                {visiveis.map((item) => <ItemDeDiaInteiro key={item.chave} item={item} hoje={hoje} meus={meus} aoAbrir={aoAbrir} aoRotulo={setDiaInteiroAberto} />)}
                 {mais > 0 ? (
                   <Pressable accessibilityRole="button" accessibilityLabel={`Mais ${mais} de dia inteiro em ${dataComDiaDaSemana(c.data)}. Abrir o dia`}
                     onPress={() => aoAbrirDia?.(c.data)} style={(e) => [estilos.mais, sobre(e) && { backgroundColor: cores.superficie3 }]}>
@@ -146,6 +148,16 @@ function pontoY(e: GestureResponderEvent): number {
   return n.offsetY ?? n.locationY ?? 0;
 }
 
+/**
+ * Passar o mouse ou focar abre o nome inteiro do item (o bloco corta o título em uma ou duas linhas). `aoMudar` avisa quem
+ * precisa subir a camada (a linha de dia inteiro).
+ */
+function useRotulo(aoMudar?: (aberto: boolean) => void) {
+  const [aberto, setAberto] = useState(false);
+  const mudar = (v: boolean) => { setAberto(v); aoMudar?.(v); };
+  return { aberto, eventos: { onHoverIn: () => mudar(true), onHoverOut: () => mudar(false), onFocus: () => mudar(true), onBlur: () => mudar(false) } };
+}
+
 /** O instante de agora, atualizado a cada minuto (a linha do "agora" anda sozinha). */
 function useAgora(): Date {
   const [agora, setAgora] = useState(() => new Date());
@@ -163,6 +175,7 @@ function useAgora(): Date {
  */
 function Bloco({ segmento: s, hoje, meus, aoAbrir }: { segmento: SegmentoNaGrade; hoje: string; meus: boolean; aoAbrir: AoAbrirItem }) {
   const { cores, fatorTexto } = useTema();
+  const { aberto, eventos } = useRotulo();
   const corDe = useCorDaAgenda();
   const fundoDe = useFundoDoItem();
   const [largura, setLargura] = useState(0);
@@ -171,17 +184,18 @@ function Bloco({ segmento: s, hoje, meus, aoAbrir }: { segmento: SegmentoNaGrade
   const arranjo = arranjoDoBloco(s.altura, largura, !!status, escalar(16, fatorTexto));
   const faixa = corDe(item.cor);
   const horario = horarioDoItem(item);
+  const titulo = aberto ? tituloCompleto(item) : item.titulo;
   const icone = arranjo.status === 'icone' && status ? <IconeDoStatus selo={status} /> : null;
   return (
-    <View pointerEvents="box-none" style={[estilos.lugar, { top: s.topo, height: s.altura, left: `${s.esquerda * 100}%`, width: `${s.largura * 100}%` }]}>
+    <View pointerEvents="box-none" style={[estilos.lugar, { top: s.topo, height: s.altura, left: `${s.esquerda * 100}%`, width: `${s.largura * 100}%` }, aberto && { height: undefined, minHeight: s.altura, zIndex: 10 }]}>
       <Pressable {...toqueDoItem(item, meus, aoAbrir)} accessibilityLabel={rotuloDoItem(item, hoje)}
-        onLayout={(e) => setLargura(Math.round(e.nativeEvent.layout.width))}
+        onLayout={(e) => setLargura(Math.round(e.nativeEvent.layout.width))} {...eventos}
         style={(e) => [estilos.bloco, { backgroundColor: fundoDe(faixa, sobre(e), item.cancelado), borderColor: cores.borda, borderLeftColor: faixa }]}>
         <View style={estilos.linhaDoBloco}>
           {arranjo.horarioSeparado ? null : icone}
-          <Texto variante="pequeno" cor={cores.texto} numberOfLines={arranjo.linhasDoTitulo}
+          <Texto variante="pequeno" cor={cores.texto} numberOfLines={aberto ? undefined : arranjo.linhasDoTitulo}
             style={[estilos.tituloDoBloco, item.cancelado && estilos.riscado]}>
-            {arranjo.horarioSeparado ? item.titulo : `${horario.split('–')[0]} ${item.titulo}`}
+            {arranjo.horarioSeparado ? titulo : `${horario.split('–')[0]} ${titulo}`}
           </Texto>
         </View>
         {arranjo.horarioSeparado ? (
@@ -201,24 +215,28 @@ function Bloco({ segmento: s, hoje, meus, aoAbrir }: { segmento: SegmentoNaGrade
  * Item de dia inteiro (evento ou atualização) na faixa do topo: a mesma faixa de 8 px e o mesmo fundo tingido do bloco, e
  * o status (atualização atrasada ou adiada, item cancelado) escrito no selo ao lado do título quando cabe, ou em ícone.
  */
-function ItemDeDiaInteiro({ item, hoje, meus, aoAbrir }: { item: ItemDoCalendario; hoje: string; meus: boolean; aoAbrir: AoAbrirItem }) {
+function ItemDeDiaInteiro({ item, hoje, meus, aoAbrir, aoRotulo }: { item: ItemDoCalendario; hoje: string; meus: boolean; aoAbrir: AoAbrirItem; aoRotulo: (aberto: boolean) => void }) {
   const { cores, fatorTexto } = useTema();
+  const { aberto, eventos } = useRotulo(aoRotulo);
   const corDe = useCorDaAgenda();
   const fundoDe = useFundoDoItem();
   const [largura, setLargura] = useState(0);
   const status = seloCurtoDoItem(item, hoje);
   const forma = statusNoDiaInteiro(largura, !!status, escalar(16, fatorTexto));
   const faixa = corDe(item.cor);
+  // Aberto, o item deixa o fluxo (a linha não muda de altura) e cresce por cima da grade com o nome inteiro.
   return (
-    <Pressable {...toqueDoItem(item, meus, aoAbrir)} accessibilityLabel={rotuloDoItem(item, hoje)}
+    <View style={[estilos.reserva, aberto && estilos.porCima]}>
+    <Pressable {...toqueDoItem(item, meus, aoAbrir)} accessibilityLabel={rotuloDoItem(item, hoje)} {...eventos}
       onLayout={(e) => setLargura(Math.round(e.nativeEvent.layout.width))}
-      style={(e) => [estilos.diaInteiro, {
+      style={(e) => [estilos.diaInteiro, aberto && estilos.soltoDoFluxo, {
         backgroundColor: fundoDe(faixa, sobre(e), item.cancelado), borderColor: cores.borda, borderLeftColor: faixa,
       }]}>
       {forma === 'icone' && status ? <IconeDoStatus selo={status} /> : null}
-      <Texto variante="pequeno" cor={cores.texto} numberOfLines={1} style={[estilos.tituloDoBloco, item.cancelado && estilos.riscado]}>{item.titulo}</Texto>
+      <Texto variante="pequeno" cor={cores.texto} numberOfLines={aberto ? undefined : 1} style={[estilos.tituloDoBloco, item.cancelado && estilos.riscado]}>{aberto ? tituloCompleto(item) : item.titulo}</Texto>
       {forma === 'selo' && status ? <View style={estilos.seloAoLado}><Selo texto={status.texto} tipo={status.tipo} Icone={status.Icone} /></View> : null}
     </Pressable>
+    </View>
   );
 }
 
@@ -236,6 +254,9 @@ const estilos = StyleSheet.create({
     minHeight: ALVO_TOQUE, flexDirection: 'row', alignItems: 'center', gap: espaco(0.5), paddingHorizontal: espaco(0.75), borderWidth: 1,
     borderLeftWidth: LARGURA_DA_FAIXA, borderRadius: 4,
   },
+  reserva: { minHeight: ALVO_TOQUE },
+  porCima: { zIndex: 30 },
+  soltoDoFluxo: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 30 },
   seloAoLado: { flexShrink: 0, marginLeft: 'auto' },
   mais: { minHeight: ALVO_TOQUE, justifyContent: 'center', paddingHorizontal: espaco(0.75), borderRadius: 4 },
   corpo: { flexDirection: 'row' },

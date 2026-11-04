@@ -8,7 +8,6 @@ const campos = (v: Objeto, permitidos: readonly string[]) => Object.keys(v).ever
 const lista = (v: unknown, conferir: (x: unknown) => boolean) => Array.isArray(v) && v.every(conferir);
 const todos = (v: Objeto, chaves: readonly string[], conferir: (x: unknown) => boolean) => chaves.every((k) => conferir(v[k]));
 
-const MODOS_DE_CARGA = ['CARGA_TRABALHO', 'PERCENTUAL_WS', 'MESMA_CARGA', 'ACIMA_DA_ANTERIOR', 'ABAIXO_DA_REFERENCIA', 'NENHUMA'];
 const TIPOS_DE_TECNICA = [
   'REST_PAUSE', 'CLUSTER', 'DROP_SET', 'MYO_REPS', 'PARTIAL_REPS', 'FORCED_REPS',
   'NEGATIVA', 'SUPER_SLOW', 'VINTE_E_UM', 'EMOM', 'PIRAMIDE_CRESCENTE', 'PIRAMIDE_DECRESCENTE',
@@ -30,10 +29,14 @@ const CAMPOS_NUMERICOS_DA_TECNICA = [
   'repsAssistidas',
 ] as const;
 
-/** Carga nula é "sem carga"; o `modo` é um dos seis e os números e a referência têm o tipo certo. */
+/**
+ * Carga nula é "sem carga". Única parte tolerante do formato: o `modo` pode ser de uma forma que este app não conhece e a
+ * carga pode trazer chaves novas, sem recusar o pacote (a série mostra "Carga: atualize o app para ver", `dominio/modoDeCarga`);
+ * o `modo` precisa ser um texto e os números e a referência que o app conhece continuam conferidos pelo tipo.
+ */
 function carga(v: unknown): boolean {
   if (v == null) return true;
-  return objeto(v) && campos(v, ['modo', 'percentualMin', 'percentualMax', 'referenciaUid']) && MODOS_DE_CARGA.includes(String(v.modo)) && numero(v.percentualMin) && numero(v.percentualMax) && texto(v.referenciaUid);
+  return objeto(v) && typeof v.modo === 'string' && v.modo !== '' && numero(v.percentualMin) && numero(v.percentualMax) && texto(v.referenciaUid) && numero(v.valorKg);
 }
 
 function esforco(v: unknown): boolean {
@@ -191,7 +194,8 @@ function anterioresDoPacote(v: unknown): boolean {
 
 /**
  * Aceita somente a estrutura atual (série com `carga`/`esforco`, `tipo` em código, grupos na sessão, combinações na
- * metodologia). Pacote ilegível é descartado e baixado de novo, sem conversão e sem apagar a fila.
+ * metodologia), tolerando só a forma da `carga` (ver `carga`). Pacote ilegível é descartado e baixado de novo, sem conversão
+ * e sem apagar a fila; o repositório marca a recusa para a tela avisar o aluno.
  */
 export function pacoteNoFormatoAtual(v: unknown): v is PacoteSalvo {
   if (!objeto(v) || typeof v.salvoEm !== 'string' || !objeto(v.pacote)) return false;

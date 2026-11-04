@@ -11,7 +11,7 @@ const serieInicial: Serie = {
 
 async function modelo(page: Page, tipo: Receita['tipo'], metodologia: Configuracao = CONFIGURACAO_PADRAO) {
   let atual: Receita = { id: 'm0000000-0000-4000-8000-000000000001', tipo, nome: 'Modelo de teste', descricao: null, pastaId: null, ordem: 1, versao: 1,
-    conteudo: tipo === 'METODOLOGIA' ? structuredClone(CONFIGURACAO_PADRAO) : { series: [serieInicial] } };
+    conteudo: tipo === 'METODOLOGIA' ? structuredClone(metodologia) : { series: [serieInicial] } };
   const { pedidos, errosDaPagina, naoTratadas } = await simularApi(page, {
     ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'MODELO_LER', 'MODELO_ALTERAR'] })),
     'GET /inscricoes': { corpo: { itens: [], total: 0 } },
@@ -67,7 +67,7 @@ const receitaFsECluster: Receita = {
   },
 };
 
-async function planoComUmExercicio(page: Page) {
+async function planoComUmExercicio(page: Page, series: Serie[] = [serieInicial]) {
   const plano: Receita = {
     id: ID_PLANO, tipo: 'PLANO_TREINO', nome: 'Semana fictícia', descricao: null, pastaId: null, ordem: 1, versao: 1,
     conteudo: {
@@ -75,7 +75,7 @@ async function planoComUmExercicio(page: Page) {
       metodologia: { id: null, nome: 'Metodologia fictícia', configuracao: structuredClone(CONFIGURACAO_PADRAO) },
       sessoes: [{
         uid: 'sessao-1', nome: 'Treino A', diaSemana: 1, tipo: 'TREINO', frequenciaSemanal: null, observacao: null, cardio: null, grupos: [],
-        exercicios: [{ uid: 'ex-1', exercicioId: null, nome: 'Supino fictício', modalidade: 'LIVRE', videoUrl: null, observacao: null, progressao: true, unidade: 'kg', grupoUid: null, series: [serieInicial] }],
+        exercicios: [{ uid: 'ex-1', exercicioId: null, nome: 'Supino fictício', modalidade: 'LIVRE', videoUrl: null, observacao: null, progressao: true, unidade: 'kg', grupoUid: null, series }],
       }],
     },
   };
@@ -257,7 +257,12 @@ for (const largura of [390, 1280]) {
     const rpe = page.getByRole('textbox', { name: 'RPE (1 a 10, de meio em meio)', exact: true });
     const mensagem = 'RPE precisa ficar entre 1 e 10, de meio em meio.';
     const salvar = page.getByRole('button', { name: 'Salvar modelo', exact: true });
+    // O aquecimento não oferece RPE no esforço padrão (o mesmo das séries); o Back off oferece.
     await page.getByRole('button', { name: 'Aquecimento, recolhido', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'RIR', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'RPE', exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Aquecimento, aberto', exact: true }).click();
+    await page.getByRole('button', { name: 'Back off, recolhido', exact: true }).click();
     await page.getByRole('button', { name: 'RPE', exact: true }).click();
     // RPE escolhido e ainda sem valor equivale a "sem esforço": nenhum erro, nenhuma lista de problemas.
     await expect(rpe).toHaveValue('');
@@ -267,7 +272,7 @@ for (const largura of [390, 1280]) {
     await rpe.fill('11');
     await expect(page.getByText(mensagem).first()).toBeVisible();
     await expect(page.getByText('1 problema para salvar')).toBeVisible();
-    await expect(page.getByRole('button', { name: /Ir para Tipo “Aquecimento” · Esforço padrão: RPE precisa ficar entre 1 e 10/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Ir para Tipo “Back off” · Esforço padrão: RPE precisa ficar entre 1 e 10/ })).toBeVisible();
     await expect(salvar).toBeDisabled();
     // Apagar o valor volta a "sem esforço" e destrava; o corpo salvo leva esforço nulo, não um objeto vazio.
     await rpe.fill('');
@@ -275,14 +280,31 @@ for (const largura of [390, 1280]) {
     await expect(salvar).toBeEnabled();
     await salvar.click();
     await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(1);
-    expect((api.salvo().conteudo as Configuracao).tipos[0]).toMatchObject({ codigo: 'WARM_UP', esforcoPadrao: null });
+    expect((api.salvo().conteudo as Configuracao).tipos[4]).toMatchObject({ codigo: 'BACK_OFF', esforcoPadrao: null });
     // Valor válido, de meio em meio, é gravado como digitado. Salvar recarrega o editor: o cartão volta recolhido e sem esforço.
-    await page.getByRole('button', { name: 'Aquecimento, recolhido', exact: true }).click();
+    await page.getByRole('button', { name: 'Back off, recolhido', exact: true }).click();
     await page.getByRole('button', { name: 'RPE', exact: true }).click();
     await rpe.fill('8,5');
     await salvar.click();
     await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(2);
-    expect((api.salvo().conteudo as Configuracao).tipos[0].esforcoPadrao).toMatchObject({ rpe: 8.5, rir: null });
+    expect((api.salvo().conteudo as Configuracao).tipos[4].esforcoPadrao).toMatchObject({ rpe: 8.5, rir: null });
+    expect(api.errosDaPagina).toEqual([]);
+    expect(api.naoTratadas).toEqual([]);
+  });
+
+  test(`metodologia: aquecimento com RPE já gravado no padrão continua mostrando e editando o RPE (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const metodologia = structuredClone(CONFIGURACAO_PADRAO);
+    metodologia.tipos[0].esforcoPadrao = { rir: null, rpe: 6 };
+    const api = await modelo(page, 'METODOLOGIA', metodologia);
+    await page.getByRole('button', { name: 'Aquecimento, recolhido', exact: true }).click();
+    const rpe = page.getByRole('textbox', { name: 'RPE (1 a 10, de meio em meio)', exact: true });
+    await expect(page.getByRole('button', { name: 'RPE', exact: true })).toHaveAttribute('aria-checked', 'true');
+    await expect(rpe).toHaveValue('6');
+    await rpe.fill('7');
+    await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();
+    await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(1);
+    expect((api.salvo().conteudo as Configuracao).tipos[0].esforcoPadrao).toMatchObject({ rpe: 7, rir: null });
     expect(api.errosDaPagina).toEqual([]);
     expect(api.naoTratadas).toEqual([]);
   });
@@ -460,6 +482,138 @@ for (const largura of [390, 1280]) {
     await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();
     await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(1);
     expect((api.salvo().conteudo as { series: Serie[] }).series[0].tecnica).toMatchObject({ pausaSegundos: 15, pausaRespiracoes: 5 });
+    expect(api.errosDaPagina).toEqual([]);
+    expect(api.naoTratadas).toEqual([]);
+  });
+}
+
+/** Série fictícia do grupo: o mesmo tipo e a mesma carga, só o esforço muda. */
+const serieCom = (uid: string, tipo: string, carga: Serie['carga'], esforco: Serie['esforco'], reps: [number, number] = [6, 8]): Serie => ({
+  uid, tipo, repsMin: reps[0], repsMax: reps[1], carga, esforco, descansoSegundos: null, tecnica: null,
+});
+const percentualDaWs = (min: number) => ({ modo: 'PERCENTUAL_WS' as const, percentualMin: min, percentualMax: null, referenciaUid: null });
+const caixaDe = async (page: Page, rotulo: string) => (await page.getByLabel(rotulo, { exact: true }).boundingBox())!;
+
+for (const largura of [390, 1280]) {
+  test(`esforço: RIR 10 grava e volta igual (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const api = await modelo(page, 'SERIES');
+    await page.getByRole('button', { name: 'Trabalho · WS, recolhido', exact: true }).click();
+    // A receita de séries não é de um exercício: não oferece a carga fixa, nem entre as outras formas.
+    await page.getByRole('button', { name: 'Outras formas de carga', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Carga fixa (kg)', exact: true })).toHaveCount(0);
+    await page.getByRole('radiogroup', { name: 'RIR (repetições na reserva)' }).getByRole('button', { name: '10', exact: true }).click();
+    await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();
+    await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(1);
+    expect((api.salvo().conteudo as { series: Serie[] }).series[0].esforco).toEqual({ rir: 10, rpe: null });
+    // O PUT chegar não basta: enquanto a resposta não volta o editor segue "pendente" e o `beforeunload` cancela o reload.
+    await expect(page.getByText('Modelo salvo.')).toBeVisible();
+    await page.reload();
+    await page.getByRole('button', { name: 'Trabalho · WS, recolhido', exact: true }).click();
+    await expect(page.getByRole('radiogroup', { name: 'RIR (repetições na reserva)' }).getByRole('button', { name: '10', exact: true })).toHaveAttribute('aria-checked', 'true');
+    expect(api.errosDaPagina).toEqual([]);
+    expect(api.naoTratadas).toEqual([]);
+  });
+
+  test(`esforço: 4 séries iguais com RIR 3, 2, 2, 1 são um grupo, com o RIR de cada série (${largura}px)`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const api = await modeloDeSeries(page, [3, 2, 2, 1].map((rir, i) => serieCom(`ws-${i}`, 'WORKING', cargaDeTrabalho, { rir, rpe: null })));
+    await expect(page.getByRole('button', { name: /^Trabalho · WS/ })).toHaveCount(1);
+    await expect(page.getByText(/RIR 3, 2, 2, 1/).first()).toBeVisible();
+    await page.getByRole('button', { name: /^Trabalho · WS.*recolhido$/ }).click();
+    // O RIR do grupo não marca número nenhum e diz que troca todas; cada série tem o seu passo de − e +.
+    await expect(page.getByText('Cada série tem o seu RIR (3, 2, 2, 1). Escolher um número aqui troca o de todas.', { exact: true })).toBeVisible();
+    for (const [i, rir] of [3, 2, 2, 1].entries()) await expect(page.getByLabel(`Série ${i + 1} · RIR: ${rir}`, { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Aumentar o RIR da série 2', exact: true }).click();
+    await expect(page.getByLabel('Série 2 · RIR: 3', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Diminuir o RIR da série 4', exact: true }).click();
+    await expect(page.getByLabel('Série 4 · RIR: 0, até a falha', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Diminuir o RIR da série 4', exact: true })).toBeDisabled();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.getByLabel('Série 1 · RIR: 3', { exact: true }).scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath('rir-por-serie.png') });
+    await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();
+    await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(1);
+    expect((api.salvo().conteudo as { series: Serie[] }).series.map((s) => s.esforco?.rir)).toEqual([3, 3, 2, 0]);
+    expect(api.errosDaPagina).toEqual([]);
+    expect(api.naoTratadas).toEqual([]);
+  });
+
+  test(`esforço: com percentual, o RIR de cada série fica na linha do percentual dela (${largura}px)`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const api = await modeloDeSeries(page, [
+      serieCom('ws', 'WORKING', cargaDeTrabalho, { rir: 1, rpe: null }),
+      ...[2, 1, 1].map((rir, i) => serieCom(`bo-${i}`, 'BACK_OFF', percentualDaWs(85 - i * 5), { rir, rpe: null })),
+    ]);
+    await page.getByRole('button', { name: /Back off.*recolhido$/ }).click();
+    await expect(page.getByRole('textbox', { name: 'Série 3 · Mínimo (%)', exact: true })).toHaveValue('75');
+    const min1 = await caixaDe(page, 'Série 1 · Mínimo (%)');
+    const min2 = await caixaDe(page, 'Série 2 · Mínimo (%)');
+    const rir1 = await caixaDe(page, 'Série 1 · RIR: 2');
+    // No PC na mesma linha; no celular logo abaixo do percentual dela, antes da série seguinte.
+    if (largura >= 1024) expect(Math.abs(rir1.y + rir1.height / 2 - (min1.y + min1.height / 2))).toBeLessThan(40);
+    else { expect(rir1.y).toBeGreaterThan(min1.y); expect(rir1.y).toBeLessThan(min2.y); }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.getByLabel('Série 2 · RIR: 1', { exact: true }).scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath('rir-na-linha-do-percentual.png') });
+    // O mesmo trecho no tema escuro: o passo usa só tokens (campo, bordaCampo, texto).
+    await page.evaluate((id) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: 'ESCURO' })), TREINADOR.id);
+    await page.reload();
+    await page.getByRole('button', { name: /Back off.*recolhido$/ }).click();
+    await page.getByLabel('Série 2 · RIR: 1', { exact: true }).scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath('rir-na-linha-do-percentual-escuro.png') });
+    expect(api.errosDaPagina).toEqual([]);
+    expect(api.naoTratadas).toEqual([]);
+  });
+
+  test(`esforço: aquecimento novo não oferece RPE; com RPE gravado, mostra (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const api = await modeloDeSeries(page, [serieCom('aq', 'WARM_UP', null, { rir: null, rpe: 6 }, [10, 15]), serieInicial]);
+    await page.getByRole('button', { name: /^Aquecimento.*recolhido$/ }).click();
+    await expect(page.getByRole('radiogroup', { name: 'Esforço percebido' }).getByRole('button', { name: 'RPE', exact: true })).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByRole('textbox', { name: 'RPE (1 a 10, de meio em meio)', exact: true })).toHaveValue('6');
+    await page.getByRole('button', { name: /^Aquecimento.*aberto$/ }).click();
+    await page.getByRole('button', { name: 'Adicionar série', exact: true }).click();
+    await page.getByRole('button', { name: 'Aquecimento', exact: true }).click();
+    await page.getByRole('button', { name: 'Adicionar série', exact: true }).click();
+    const esforco = page.getByRole('radiogroup', { name: 'Esforço percebido' });
+    await expect(esforco).toHaveCount(1);
+    await expect(esforco.getByRole('button', { name: 'RIR', exact: true })).toBeVisible();
+    await expect(esforco.getByRole('button', { name: 'RPE', exact: true })).toHaveCount(0);
+    expect(api.errosDaPagina).toEqual([]);
+    expect(api.naoTratadas).toEqual([]);
+  });
+
+  test(`carga fixa: WS 3x12 com 12 kg no resumo, o campo de kg valida e o Back off em % avisa (${largura}px)`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const api = await planoComUmExercicio(page, [0, 1, 2].map((i) => serieCom(`ws-${i}`, 'WORKING', cargaDeTrabalho, { rir: 1, rpe: null }, [12, 12])));
+    await page.getByRole('button', { name: 'Editar Supino fictício', exact: true }).click();
+    await page.getByRole('button', { name: /^Trabalho · WS.*recolhido$/ }).click();
+    // Na WS a fixa não está à vista: o padrão continua a carga de trabalho.
+    await expect(page.getByRole('button', { name: 'Carga fixa (kg)', exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Outras formas de carga', exact: true }).click();
+    await page.getByRole('button', { name: 'Carga fixa (kg)', exact: true }).click();
+    const kg = page.getByRole('textbox', { name: 'Peso da carga fixa (kg)', exact: true });
+    await kg.fill('0');
+    await expect(page.getByText('Carga fixa: maior que zero e até 1000 kg.', { exact: true }).first()).toBeVisible();
+    await kg.fill('12,555');
+    await expect(kg).toHaveValue('12,55');
+    await kg.fill('12');
+    await expect(page.getByText('Carga fixa: maior que zero e até 1000 kg.', { exact: true })).toHaveCount(0);
+    await expect(page.getByText(/12 kg/).first()).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await kg.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath('carga-fixa.png') });
+    await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();
+    await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(1);
+    const salvas = (api.salvo().conteudo as unknown as { sessoes: { exercicios: { series: Serie[] }[] }[] }).sessoes[0].exercicios[0].series;
+    expect(salvas.map((s) => s.carga)).toEqual([0, 1, 2].map(() => expect.objectContaining({ modo: 'CARGA_FIXA', valorKg: 12 })));
+    // A fixa não é série de trabalho: o Back off em % da WS fica sem referência e a tela avisa.
+    await page.getByRole('button', { name: /^Trabalho · WS.*aberto$/ }).click();
+    await page.getByRole('button', { name: 'Adicionar série', exact: true }).click();
+    await page.getByRole('button', { name: 'Back off', exact: true }).click();
+    await page.getByRole('button', { name: 'Adicionar série', exact: true }).click();
+    await expect(page.getByText(/Há série em % da WS sem série de trabalho/).first()).toBeVisible();
     expect(api.errosDaPagina).toEqual([]);
     expect(api.naoTratadas).toEqual([]);
   });

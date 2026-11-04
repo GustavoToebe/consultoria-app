@@ -1596,7 +1596,8 @@
   "respostas": {
    "d": "1990-05-10"
   },
-  "camposComErro": []
+  "camposComErro": [],
+  "hoje": "2026-10-19"
  },
  {
   "nome": "data_inexistente",
@@ -1619,7 +1620,8 @@
   },
   "camposComErro": [
    "d"
-  ]
+  ],
+  "hoje": "2026-10-19"
  },
  {
   "nome": "data_formato_br",
@@ -1642,7 +1644,8 @@
   },
   "camposComErro": [
    "d"
-  ]
+  ],
+  "hoje": "2026-10-19"
  },
  {
   "nome": "data_ano_1899",
@@ -1665,7 +1668,100 @@
   },
   "camposComErro": [
    "d"
-  ]
+  ],
+  "hoje": "2026-10-19"
+ },
+ {
+  "nome": "data_ano_1900_primeiro_dia_ok",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "d",
+       "tipo": "DATA",
+       "rotulo": "d",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "d": "1900-01-01"
+  },
+  "camposComErro": [],
+  "hoje": "2026-10-19"
+ },
+ {
+  "nome": "data_ano_0260",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "d",
+       "tipo": "DATA",
+       "rotulo": "d",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "d": "0260-11-01"
+  },
+  "camposComErro": [
+   "d"
+  ],
+  "hoje": "2026-10-19"
+ },
+ {
+  "nome": "data_ultimo_dia_do_ano_mais_5_ok",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "d",
+       "tipo": "DATA",
+       "rotulo": "d",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "d": "2031-12-31"
+  },
+  "camposComErro": [],
+  "hoje": "2026-10-19"
+ },
+ {
+  "nome": "data_primeiro_dia_do_ano_mais_6",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "d",
+       "tipo": "DATA",
+       "rotulo": "d",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "d": "2032-01-01"
+  },
+  "camposComErro": [
+   "d"
+  ],
+  "hoje": "2026-10-19"
  },
  {
   "nome": "data_ano_2101",
@@ -1688,7 +1784,8 @@
   },
   "camposComErro": [
    "d"
-  ]
+  ],
+  "hoje": "2026-10-19"
  },
  {
   "nome": "data_hoje_somente_passado_ok",
@@ -1739,6 +1836,54 @@
   "hoje": "2026-10-19"
  },
  {
+  "nome": "data_1900_somente_passado_ok",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "d",
+       "tipo": "DATA",
+       "rotulo": "d",
+       "obrigatoria": false,
+       "somentePassado": true
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "d": "1900-01-01"
+  },
+  "camposComErro": [],
+  "hoje": "2026-10-19"
+ },
+ {
+  "nome": "data_1899_somente_passado",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "d",
+       "tipo": "DATA",
+       "rotulo": "d",
+       "obrigatoria": false,
+       "somentePassado": true
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "d": "1899-12-31"
+  },
+  "camposComErro": [
+   "d"
+  ],
+  "hoje": "2026-10-19"
+ },
+ {
   "nome": "data_futura_sem_restricao_ok",
   "modelo": {
    "secoes": [
@@ -1781,7 +1926,8 @@
   },
   "camposComErro": [
    "d"
-  ]
+  ],
+  "hoje": "2026-10-19"
  },
  {
   "nome": "telefone_valido",

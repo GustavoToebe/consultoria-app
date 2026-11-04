@@ -1,10 +1,13 @@
 import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { ScrollView, StyleSheet, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 
+import { deslocamentoParaVer, type Faixa } from '../dominio/rolagemHorizontal';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, LINHA_DA_FAIXA } from '../tema/tokens';
-import { Esmaecido, useEsmaecimento } from './FaixaDeChips';
+import { Esmaecido, LARGURA_ESMAECIDO, useEsmaecimento } from './FaixaDeChips';
 import { Texto } from './Texto';
+import { useMovimentoReduzido } from './useMovimentoReduzido';
 
 interface Props<T extends string> {
   /** `contagem` aparece num círculo ao lado do rótulo ("Para revisar 3"). */
@@ -17,16 +20,52 @@ interface Props<T extends string> {
 
 /**
  * Abas de texto com sublinhado de 3 px na cor da marca (a mesma espessura da linha da faixa, `LINHA_DA_FAIXA`); rolam na horizontal se não couberem no celular, com a borda esmaecida
- * do lado em que há mais abas (sem isso "Atua…" parecia cortado). Alvo de 44 px.
+ * do lado em que há mais abas (sem isso "Atua…" parecia cortado). A aba ativa é rolada para a vista, inteira e fora do
+ * esmaecido (C5): ao abrir por link uma aba do fim (`?aba=`), ao voltar, ou ao tocar numa aba meio escondida. Alvo de 44 px.
  */
 export function Abas<T extends string>({ abas, ativa, aoMudar, fundo }: Props<T>) {
   const { cores, marca } = useTema();
   const { direita, esquerda, medidas } = useEsmaecimento();
   const cor = fundo ?? cores.fundo;
+  const reduzido = useMovimentoReduzido();
+  const rolagem = useRef<ScrollView>(null);
+  // Medidas lidas na rolagem e no layout, sem estado: rolar não redesenha as abas.
+  const caixas = useRef<Partial<Record<string, Faixa>>>({});
+  const vista = useRef({ x: 0, largura: 0, total: 0 });
+  const mostrar = (valor: string, animado: boolean) => {
+    const caixa = caixas.current[valor];
+    const { x, largura, total } = vista.current;
+    if (!caixa || !largura) return;
+    const destino = deslocamentoParaVer(caixa, { x, largura }, LARGURA_ESMAECIDO, total);
+    if (destino !== null) rolagem.current?.scrollTo({ x: destino, animated: animado && !reduzido });
+  };
+  const mostrarAtual = useRef(mostrar);
+  useEffect(() => { mostrarAtual.current = mostrar; });
+  // Trocou a aba (toque, voltar do navegador, link): a nova vem para a vista. Na montagem as medidas ainda não chegaram.
+  useEffect(() => { mostrarAtual.current(ativa, true); }, [ativa]);
+  const medidasDaRolagem = {
+    ...medidas,
+    ref: rolagem,
+    onLayout: (e: LayoutChangeEvent) => {
+      medidas.onLayout(e);
+      vista.current.largura = e.nativeEvent.layout.width;
+      mostrar(ativa, false);
+    },
+    onContentSizeChange: (w: number) => {
+      medidas.onContentSizeChange(w);
+      vista.current.total = w;
+      // Os rótulos medem depois da rolagem: sem isto, a aba ativa no fim da faixa não entra na vista na abertura.
+      mostrar(ativa, false);
+    },
+    onScroll: (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      medidas.onScroll(e);
+      vista.current.x = e.nativeEvent.contentOffset.x;
+    },
+  };
   return (
     <Tabs value={ativa} onValueChange={(v) => aoMudar(v as T)} style={[estilos.borda, { borderColor: cores.borda }]}>
       <View style={estilos.area}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={estilos.linha} {...medidas}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={estilos.rolagem} contentContainerStyle={estilos.conteudoRolagem} {...medidasDaRolagem}>
         <TabsList style={estilos.linha}>
           {abas.map((a) => {
             const sel = a.valor === ativa;
@@ -37,6 +76,11 @@ export function Abas<T extends string>({ abas, ativa, aoMudar, fundo }: Props<T>
                 accessibilityRole="tab"
                 accessibilityLabel={rotulo}
                 accessibilityState={{ selected: sel }}
+                onLayout={(e: LayoutChangeEvent) => {
+                  // `x` vem da lista das abas, que fica depois da folga do anel no conteúdo da rolagem.
+                  caixas.current[a.valor] = { x: e.nativeEvent.layout.x + FOLGA_DO_ANEL, largura: e.nativeEvent.layout.width };
+                  if (sel) mostrar(a.valor, false);
+                }}
                 style={[estilos.aba, { borderColor: sel ? marca : 'transparent' }]}>
                 <View style={estilos.conteudo}>
                   <Texto style={[estilos.texto, { color: sel ? cores.texto : cores.textoSuave }]}>{a.rotulo}</Texto>
@@ -58,10 +102,19 @@ export function Abas<T extends string>({ abas, ativa, aoMudar, fundo }: Props<T>
   );
 }
 
+/** Largura do anel (2 px) mais o afastamento (2 px) do `:focus-visible` do `global.css`. */
+const FOLGA_DO_ANEL = 4;
+/** O gatilho (web) fica 1 px mais alto que a lista (`h-[calc(100%-1px)]` contra o `minHeight` da aba): sem este pixel a borda de baixo do anel perde 1 px. */
+const PIXEL_DO_GATILHO = 1;
+
 const estilos = StyleSheet.create({
   borda: { borderBottomWidth: 1 },
   area: { position: 'relative' },
   linha: { flexDirection: 'row' },
+  // A rolagem corta tudo que passa da sua caixa, e o anel de foco (2 px + 2 px de folga, global.css) passa da aba:
+  // a folga dentro do conteúdo é devolvida com margem negativa, então o layout não muda.
+  rolagem: { marginHorizontal: -FOLGA_DO_ANEL, marginTop: -FOLGA_DO_ANEL, marginBottom: -(FOLGA_DO_ANEL + PIXEL_DO_GATILHO) },
+  conteudoRolagem: { flexDirection: 'row', paddingHorizontal: FOLGA_DO_ANEL, paddingTop: FOLGA_DO_ANEL, paddingBottom: FOLGA_DO_ANEL + PIXEL_DO_GATILHO },
   aba: {
     // 44 px de alvo mais o sublinhado, que entra na própria altura.
     minHeight: ALVO_TOQUE + LINHA_DA_FAIXA,

@@ -1,18 +1,17 @@
-import { EntradaEmCascata, usePrimeiraLista } from '../ui/EntradaEmCascata';
 import { FileDown } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { execucoesDoAluno } from '../api/rotas';
-import type { DiaDeTreino, PastaResumo } from '../api/tipos';
-import { dataParaTela, hojeIso } from '../dominio/formatos';
-import { cargasPorDivisao, filtrarPorSessoes, intervaloDeRegistros, periodoMisturaVersoes, TEXTO_PERIODO_MISTURA_VERSOES, textoDoHistoricoVazio, textoDoVolume, textoSerie, volumeDoExercicio } from '../dominio/relatorio';
-import { useTema } from '../tema/TemaProvider';
-import { espaco, fontes } from '../tema/tokens';
+import type { PastaResumo } from '../api/tipos';
+import { hojeEmBrasilia } from '../dominio/financeiro';
+import { dataParaTela } from '../dominio/formatos';
+import { letrasDasDivisoes } from '../dominio/historicoDoAluno';
+import { cargasPorDivisao, filtrarPorSessoes, intervaloDeRegistros, nomeDaDivisao, periodoMisturaVersoes, TEXTO_PERIODO_MISTURA_VERSOES, textoDoHistoricoVazio } from '../dominio/relatorio';
+import { espaco } from '../tema/tokens';
 import { Abas } from '../ui/Abas';
 import { useAviso } from '../ui/Aviso';
 import { Botao } from '../ui/Botao';
-import { CabecalhoDeGrupo } from '../ui/CabecalhoDeGrupo';
 import { Cartao } from '../ui/Cartao';
 import { Escolha } from '../ui/Escolha';
 import { Esqueleto } from '../ui/Esqueleto';
@@ -21,6 +20,7 @@ import { textoDoErro } from '../ui/erros';
 import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
 import { CargasPorDivisao } from './CargasPorDivisao';
+import { HistoricoPorSemana } from './HistoricoPorSemana';
 import { NoPlano } from '../ui/NoPlano';
 import { gerarPdfDeCargas, sessoesPorUid, treinosDoAluno } from './gerarPdf';
 
@@ -48,17 +48,21 @@ export function CartaoRegistros({ aluno, pasta }: { aluno: { id: string; nome: s
   const [gerando, setGerando] = useState(false);
   // Dentro da pasta, o período é o dela (sem os filtros de 14/30/60 dias) e só entram os treinos dela.
   const daPasta = !!pasta?.inicio && !!pasta.fim;
-  const { de, ate } = intervaloDeRegistros(hojeIso(), Number(dias), pasta);
+  const hoje = hojeEmBrasilia();
+  const { de, ate } = intervaloDeRegistros(hoje, Number(dias), pasta);
   const { dados, erro, carregando, recarregar } = useCarregar(`exec:${aluno.id}:${de}:${ate}`, () =>
     execucoesDoAluno(aluno.id, de, ate),
   );
-  const animar = usePrimeiraLista(!!dados, de);
   const treinos = useCarregar(`treinos:${aluno.id}`, () => treinosDoAluno(aluno.id));
   const [planoId, setPlanoId] = useState('todos');
   const planos = (treinos.dados ?? []).filter((t) => !daPasta || t.plano.pastaId === pasta?.id);
   const planoEscolhido = planos.find((t) => t.plano.id === planoId);
   const filtrados = dados ? filtrarPorSessoes(dados, planoEscolhido ? new Set(planoEscolhido.sessoes.map((s) => s.uid)) : null) : null;
-  const divisoes = filtrados ? cargasPorDivisao(filtrados, sessoesPorUid(planos)) : [];
+  const sessoes = sessoesPorUid(planos);
+  const divisoes = filtrados ? cargasPorDivisao(filtrados, sessoes) : [];
+  const nomeDaSessao = (s: { sessaoUid: string; sessao: string }) => nomeDaDivisao(s, sessoes);
+  // A mesma letra e a mesma cor da divisão nas duas visões (Frente G, D13).
+  const letras = letrasDasDivisoes([...divisoes.map((d) => d.nome), ...(filtrados ?? []).flatMap((d) => d.sessoes.map(nomeDaSessao))]);
   const opcoesPlano = [{ valor: 'todos', rotulo: 'Todos os planos' }, ...planos.map((t) => ({ valor: t.plano.id, rotulo: t.plano.titulo }))];
 
   const pdf = () => {
@@ -71,13 +75,13 @@ export function CartaoRegistros({ aluno, pasta }: { aluno: { id: string; nome: s
   return (
       <Cartao
         titulo="Registros e cargas"
+        periodo={`${daPasta ? 'Pasta' : `Últimos ${dias} dias`}: ${dataParaTela(de).slice(0, 5)} a ${dataParaTela(ate).slice(0, 5)}`}
         recolhivel
         acoes={
           divisoes.length ? <NoPlano funcionalidade="PDF"><Botao rotulo="PDF das cargas" tipo="secundario" Icone={FileDown} carregando={gerando} aoTocar={pdf} /></NoPlano> : null
         }>
         <View style={estilos.filtros}>
-          {daPasta ? <Texto numerico variante="suave">Período da pasta: {dataParaTela(de)} a {dataParaTela(ate)}</Texto>
-            : <Escolha descricao="Período" opcoes={PERIODOS} valor={dias} aoMudar={setDias} />}
+          {daPasta ? null : <Escolha descricao="Período" opcoes={PERIODOS} valor={dias} aoMudar={setDias} />}
           {planos.length > 1 ? <Escolha descricao="Plano" opcoes={opcoesPlano} valor={planoId} aoMudar={setPlanoId} /> : null}
         </View>
         <Abas abas={VISOES} ativa={visao} aoMudar={setVisao} />
@@ -88,46 +92,14 @@ export function CartaoRegistros({ aluno, pasta }: { aluno: { id: string; nome: s
           <Vazio titulo={textoDoHistoricoVazio({ temRegistros: false, graficosLigados: true, papel: 'TREINADOR' }) ?? 'Sem registros'} texto="Os treinos registrados aparecem aqui. O aluno pode ter treinado sem registrar." />
         ) : null}
         {filtrados && periodoMisturaVersoes(filtrados) ? <Texto numerico variante="pequeno">{TEXTO_PERIODO_MISTURA_VERSOES}</Texto> : null}
-        {dados && visao === 'divisao' ? <CargasPorDivisao divisoes={divisoes} /> : null}
-        {filtrados && visao === 'dia'
-          ? [...filtrados].sort((a, b) => b.data.localeCompare(a.data)).map((d, i) => <EntradaEmCascata key={d.data} indice={i} animar={animar}><DiaRegistros dia={d} /></EntradaEmCascata>)
-          : null}
+        {dados && visao === 'divisao' ? <CargasPorDivisao divisoes={divisoes} letras={letras} /> : null}
+        {filtrados && visao === 'dia' ? <HistoricoPorSemana dias={filtrados} nomeDaSessao={nomeDaSessao} letras={letras} periodo={{ de, ate }} hoje={hoje} /> : null}
       </Cartao>
-  );
-}
-
-export function DiaRegistros({ dia }: { dia: DiaDeTreino }) {
-  const { cores } = useTema();
-  const [aberto, setAberto] = useState(true);
-  return (
-    <Cartao cabecalho={<CabecalhoDeGrupo titulo={dataParaTela(dia.data)} resumo={`${dia.sessoes.length} ${dia.sessoes.length === 1 ? 'sessão' : 'sessões'}`} aberto={aberto} aoAlternar={() => setAberto((a) => !a)} />}>
-      {!aberto ? null : dia.sessoes.map((s) => (
-        <View key={`${s.planoVersaoId}:${s.sessaoUid}`} style={[estilos.sessao, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
-          <Texto numerico variante="secao">{s.sessao}</Texto>
-          {s.exercicios.map((e) => {
-            const volume = textoDoVolume(volumeDoExercicio(e.series));
-            return (
-              <View key={e.exercicioUid} style={estilos.exercicio}>
-                <Texto numerico style={estilos.nomeExercicio}>{e.nome}</Texto>
-                <Texto numerico variante="suave">{e.series.map(textoSerie).join(' · ')}</Texto>
-                {volume ? <Texto numerico variante="suave" style={estilos.volume}>{volume}</Texto> : null}
-              </View>
-            );
-          })}
-        </View>
-      ))}
-    </Cartao>
   );
 }
 
 const estilos = StyleSheet.create({
   filtros: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
-  dia: { borderTopWidth: 1, paddingTop: espaco(1), gap: espaco(1) },
-  dataDia: { fontFamily: fontes.semi },
-  sessao: { gap: espaco(0.75), borderWidth: 1, borderRadius: 8, padding: espaco(1.5) },
-  exercicio: { gap: 2 },
-  nomeExercicio: { fontFamily: fontes.semi, fontSize: 14 },
-  volume: { fontSize: 13 },
   col: { flex: 1 },
   progresso: { gap: espaco(0.75) },
 });

@@ -1,7 +1,7 @@
 import { calcularCargasDoExercicio } from '../dominio/cargas';
 import { CONFIGURACAO_PADRAO } from '../dominio/metodologiaPadrao';
 import { carga, exercicio, rir, rpe, serie, tecnica } from '../dominio/exemplosDeTreino.apoioTeste';
-import { dicaDaCarga, ehExercicioDeCardio, linhasDoCardio, nomeDaSerieNoHistorico, selosDaSerie, textosDaSerie } from './serieDoAluno';
+import { dicaDaCarga, ehExercicioDeCardio, linhasDoCardio, nomeDaSerieNoHistorico, partesDaMeta, selosDaSerie, textosDaSerie } from './serieDoAluno';
 
 const metodologia = {
   ...CONFIGURACAO_PADRAO,
@@ -13,8 +13,8 @@ describe('selos da série', () => {
   it('tipo e técnica são selos separados, pelo nome da metodologia e nunca pelo código', () => {
     const s = serie('a', { tipo: 'WORKING', tecnica: tecnica('REST_PAUSE', { pausas: 1, pausaSegundos: 20 }) });
     const selos = selosDaSerie(s, metodologia);
-    expect(selos.tipo).toEqual({ nome: 'Trabalho', explicacao: 'Série principal.' });
-    expect(selos.tecnica).toEqual({ nome: 'Muscle Round', explicacao: 'Pausa curta e continue.' });
+    expect(selos.tipo).toEqual({ nome: 'Trabalho', explicacao: 'Série principal.', cor: 'INDIGO' });
+    expect(selos.tecnica).toEqual({ nome: 'Muscle Round', explicacao: 'Pausa curta e continue.', cor: null });
     expect(JSON.stringify(selos)).not.toMatch(/WORKING|REST_PAUSE/);
   });
 
@@ -23,6 +23,18 @@ describe('selos da série', () => {
     const soTecnica = selosDaSerie(serie('b', { tipo: null, tecnica: tecnica('DROP_SET', { quedas: 1 }) }), metodologia);
     expect(soTecnica.tipo).toBeNull();
     expect(soTecnica.tecnica).not.toBeNull();
+  });
+
+  it('cor do tipo (Frente G, D9): pelo código padrão; tipo do treinador pela cor do papel; "Outro" e fora da metodologia sem cor', () => {
+    const comTipos = {
+      ...metodologia,
+      tipos: [...metodologia.tipos, { ...metodologia.tipos[2], codigo: 'PESADA', nome: 'Pesada', papel: 'TRABALHO' as const }, { ...metodologia.tipos[2], codigo: 'TECNICA', nome: 'Técnica', papel: 'OUTRO' as const }],
+    };
+    expect(selosDaSerie(serie('a', { tipo: 'WARM_UP' }), comTipos).tipo?.cor).toBe('CIANO');
+    expect(selosDaSerie(serie('a', { tipo: 'BACK_OFF' }), comTipos).tipo?.cor).toBe('MAGENTA');
+    expect(selosDaSerie(serie('a', { tipo: 'PESADA' }), comTipos).tipo?.cor).toBe('INDIGO');
+    expect(selosDaSerie(serie('a', { tipo: 'TECNICA' }), comTipos).tipo?.cor).toBeNull();
+    expect(selosDaSerie(serie('a', { tipo: 'DESCONHECIDO' }), comTipos).tipo?.cor).toBeNull();
   });
 
   it('explicação ausente fica nula (a tela diz que o treinador não escreveu)', () => {
@@ -83,10 +95,17 @@ describe('textos da série', () => {
   });
 });
 
+describe('partes da meta (D5)', () => {
+  it('as repetições vão grandes ao lado do campo; o resto fica abaixo delas', () => {
+    expect(partesDaMeta('3 a 6 reps · 50% da WS · 1 RIR')).toEqual({ repeticoes: '3 a 6 reps', resto: '50% da WS · 1 RIR' });
+    expect(partesDaMeta('AMRAP')).toEqual({ repeticoes: 'AMRAP', resto: null });
+  });
+});
+
 describe('dica da carga', () => {
   const top = serie('top', { tipo: 'TOP_SET', repsMin: 3, repsMax: 5, carga: carga('ACIMA_DA_ANTERIOR', 1, 5) });
   const back = serie('back', { tipo: 'BACK_OFF', carga: carga('ABAIXO_DA_REFERENCIA', 15, null, 'top') });
-  const base = { digitou: false, tipoTrabalho: 'Trabalho', metodologia: CONFIGURACAO_PADRAO, seriesDoExercicio: [top, back] };
+  const base = { metodologia: CONFIGURACAO_PADRAO, seriesDoExercicio: [top, back] };
 
   it('back off abaixo da referência sem a referência registrada: não há sugestão e a dica diz o que falta', () => {
     const dica = dicaDaCarga(back, { ...base, sugestao: null });
@@ -94,24 +113,10 @@ describe('dica da carga', () => {
     expect(dica).toContain('Top set');
   });
 
-  it('back off com referência registrada: a dica explica de onde vem o peso', () => {
-    const dica = dicaDaCarga(back, { ...base, sugestao: 85 });
-    expect(dica).toContain('registrou hoje na série de referência');
-    expect(dica).toContain('Top set');
-  });
-
-  it('a dica some quando o aluno digita o próprio peso', () => {
-    expect(dicaDaCarga(back, { ...base, sugestao: 85, digitou: true })).toBeNull();
-  });
-
-  it('mesma carga da WS usa o nome do tipo de trabalho da metodologia', () => {
-    const mesma = serie('m', { carga: carga('MESMA_CARGA') });
-    expect(dicaDaCarga(mesma, { ...base, sugestao: 100 })).toBe('Mesma carga da Trabalho; mude se usar outra.');
-  });
-
-  it('série em percentual com sugestão: peso sugerido pelo plano', () => {
-    const fs = serie('f', { tipo: 'FEEDER', carga: carga('PERCENTUAL_WS', 50) });
-    expect(dicaDaCarga(fs, { ...base, sugestao: 50 })).toBe('Peso sugerido pelo plano; mude se usar outro.');
+  it('com sugestão não há dica de "mude se usar outra": o campo nunca vem preenchido (D1)', () => {
+    expect(dicaDaCarga(back, { ...base, sugestao: 85 })).toBeNull();
+    expect(dicaDaCarga(serie('m', { carga: carga('MESMA_CARGA') }), { ...base, sugestao: 100 })).toBeNull();
+    expect(dicaDaCarga(serie('f', { tipo: 'FEEDER', carga: carga('PERCENTUAL_WS', 50) }), { ...base, sugestao: 50 })).toBeNull();
   });
 
   it('sem sugestão e sem ser abaixo da referência: nenhuma dica', () => {

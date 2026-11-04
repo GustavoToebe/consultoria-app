@@ -62,7 +62,7 @@ Para onde abrem os cartões: ver a D9. Não existem `/treinador/recordes` nem `/
 - A04 (falha da planilha na reunião): espera os nomes das colunas e abas.
 
 ## O que ficou para trás
-- (nada ainda)
+- Revisão do painel-novo, itens b, c e g, no lote pendencias-app-03-11-b, commit `035f74a7`: trocar o N da Folha "Sem registro" mostra carregando até a resposta nova; abrir a Folha antes do `/painel` responder mostra carregando, não o alerta; o X de "Concluídos" ganhou moldura. O texto "3 semanas de treino e 2 dietas" já batia com o seed (`ReceitasPadrao`: 3 semanas e 2 dietas). Ficam os itens a, d, e e f nas Pendências soltas.
 
 ## Passagem para a nuvem (30/10)
 

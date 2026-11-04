@@ -159,6 +159,12 @@ export interface RepositorioLocal {
   readonly usuarioId: string;
   lerPacote(): Promise<PacoteSalvo | null>;
   salvarPacote(pacote: PainelAluno): Promise<void>;
+  /**
+   * O último `lerPacote` recusou e apagou um pacote salvo cujo formato este app não lê (o treinador usou algo mais novo que
+   * o app instalado). Fica gravado para a tela explicar mesmo depois de reabrir sem internet; `salvarPacote` limpa a marca
+   * (o `lerPacote` seguinte a põe de novo se o novo também for recusado). Não toca na fila de envio nem nos registros.
+   */
+  lerPacoteRecusado(): Promise<boolean>;
   lerDieta(): Promise<VersaoDetalhe<ConteudoDieta> | null>;
   salvarDieta(dieta: VersaoDetalhe<ConteudoDieta> | null): Promise<void>;
   /**
@@ -366,12 +372,22 @@ export class RepositorioChaveValor implements RepositorioLocal {
       const salvo = await this.lerJson<unknown>('pacote', null);
       if (pacoteNoFormatoAtual(salvo)) return salvo;
       await this.kv.apagar([this.chave('pacote')]);
+      // Só havendo algo recusado (nada salvo não é recusa) e o repositório ainda aberto (depois do "Sair" não grava).
+      if (salvo !== null && !this.encerrado) await this.gravarJson('pacoteRecusado', true);
       return null;
     });
   }
 
   salvarPacote(pacote: PainelAluno): Promise<void> {
-    return this.emFila(() => this.gravarJson('pacote', { pacote, salvoEm: this.agora().toISOString() }));
+    return this.emFila(async () => {
+      if (this.encerrado) return;
+      await this.kv.apagar([this.chave('pacoteRecusado')]);
+      await this.gravarJson('pacote', { pacote, salvoEm: this.agora().toISOString() });
+    });
+  }
+
+  lerPacoteRecusado(): Promise<boolean> {
+    return this.emFila(async () => (await this.lerJson<boolean>('pacoteRecusado', false)) === true);
   }
 
   // ---- Dieta (só leitura, cache da última vista online) ----

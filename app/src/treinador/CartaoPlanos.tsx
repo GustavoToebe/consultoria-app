@@ -8,12 +8,14 @@ import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { excluirPlano, criarPlano, listarPlanos, listarReceitas, replicarPlano, versaoPlano } from '../api/rotas';
 import type { ConteudoDieta, PastaResumo, PlanoResumo, TipoPlano } from '../api/tipos';
 import { normalizarDieta } from '../dominio/dieta';
-import { dataDaTela, dataParaTela } from '../dominio/formatos';
+import { dataDaTelaNaFaixa } from '../dominio/datasValidas';
+import { dataParaTela } from '../dominio/formatos';
 import { proximoPeriodo } from '../dominio/periodo';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, RAIO } from '../tema/tokens';
 import { useAviso } from '../ui/Aviso';
+import { useSaidaGuardada } from '../ui/GuardaDeSaida';
 import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
 import { CampoData } from '../ui/Campos';
@@ -23,6 +25,7 @@ import { Esqueleto } from '../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
 import { Folha } from '../ui/Folha';
+import { depoisDeFecharAsFolhas, marcarFolhaDoTopoFechando } from '../ui/historicoDasFolhas';
 import { FolhaPdfDieta } from '../ui/FolhaPdfDieta';
 import { IconeBotao } from '../ui/IconeBotao';
 import { LinhaDeAcoes } from '../ui/LinhaDeAcoes';
@@ -36,6 +39,7 @@ import { useAvisoDoPlano } from '../ui/useAvisoDoPlano';
 import { useCarregar } from '../ui/useCarregar';
 import { CopiarParaAluno } from './CopiarParaAluno';
 import { FolhaDeAcoes, type AcaoDoMenu } from './FolhaDeAcoes';
+import type { CargaDosPlanos } from './usePlanosDaPasta';
 
 const NOMES: Record<TipoPlano, { titulo: string; plural: string; novo: string; receita: 'PLANO_TREINO' | 'PLANO_DIETA' | 'MOBILIDADE'; rota: string }> = {
   treino: { titulo: 'Treino', plural: 'Treinos', novo: 'Novo treino', receita: 'PLANO_TREINO', rota: '/treinador/treinos' },
@@ -76,15 +80,23 @@ export function SelosDoPlano({ plano }: { plano: PlanoResumo }) {
  * Treinos ou dietas do aluno dentro de uma pasta (o período é o da pasta). Criar (em branco, receita ou cópia),
  * abrir, PDF e replicar. `geracao` muda quando a pasta muda o período.
  */
-export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar }: { tipo: TipoPlano; alunoId: string; pasta: PastaResumo; geracao?: number; aoNavegar?: () => void }) {
+export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar, carga }: {
+  tipo: TipoPlano; alunoId: string; pasta: PastaResumo; geracao?: number; aoNavegar?: () => void;
+  /** Lista já carregada por quem chama (a Folha da pasta divide a mesma com o "Publicar tudo"); sem ela, o cartão busca. */
+  carga?: CargaDosPlanos;
+}) {
   const { width } = useWindowDimensions();
   const rotuloCurto = width < LARGURA_ROTULO_CURTO;
   const { cores } = useTema();
-  const todos = useCarregar(`${tipo}:${alunoId}:${geracao}`, () => listarPlanos(tipo, alunoId));
+  const propria = useCarregar(carga ? null : `${tipo}:${alunoId}:${geracao}`, () => listarPlanos(tipo, alunoId));
+  const todos = carga ?? propria;
   const { erro, carregando, recarregar } = todos;
   const dados = todos.dados ? todos.dados.filter((p) => p.pastaId === pasta.id) : null;
   const animar = usePrimeiraLista(!!dados);
   const { avisar } = useAviso();
+  // Saídas para outra tela passam pela guarda (a ficha pode estar com os dados do aluno em edição, D7); fechar a Folha
+  // (`aoNavegar`) vai junto, para o "Continuar editando" deixar tudo como estava.
+  const { confirmar } = useSaidaGuardada();
   const { temFuncionalidade, pode } = useSessao();
   // Mobilidade fora do plano: a API só bloqueia escrita; o que já existe continua em leitura e pode ser excluído.
   const escritaLiberada = tipo !== 'mobilidade' || temFuncionalidade('MOBILIDADE');
@@ -136,7 +148,7 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar }: {
           {/* "Editar" é o que se faz todo dia e vem primeiro; o resto (PDF, duplicar, copiar, excluir) fica no ⋯.
               `LinhaDeAcoes` nunca passa da largura do cartão (em 390 px os cinco botões estouravam a folha). */}
           <LinhaDeAcoes>
-            {podeAlterar ? <Botao rotulo={rotuloCurto ? 'Editar' : rotuloEditarPlano(tipo)} rotuloAcessivel={rotuloEditarPlano(tipo)} tipo="secundario" Icone={Pencil} aoTocar={() => { aoNavegar?.(); router.push(rotaDoEditor(tipo, p.id)); }} /> : null}
+            {podeAlterar ? <Botao rotulo={rotuloCurto ? 'Editar' : rotuloEditarPlano(tipo)} rotuloAcessivel={rotuloEditarPlano(tipo)} tipo="secundario" Icone={Pencil} aoTocar={() => confirmar(() => { aoNavegar?.(); router.push(rotaDoEditor(tipo, p.id)); })} /> : null}
             {acoesDoMenu(p).some(Boolean) ? <IconeBotao Icone={Ellipsis} moldura rotulo={`Mais ações de ${p.titulo}`} aoTocar={() => setMenu(p)} /> : null}
           </LinhaDeAcoes>
         </EntradaEmCascata>
@@ -155,17 +167,29 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar }: {
         if (!excluir) return; const id = excluir.id; setExcluir(null);
         excluirPlano(tipo, id).then(recarregar, (e: unknown) => avisar(textoDoErro(e), 'perigo'));
       }} />
-      {novo ? <FolhaNovoPlano tipo={tipo} alunoId={alunoId} pasta={pasta} planos={todos.dados ?? []} aoFechar={() => setNovo(false)} aoNavegar={aoNavegar} /> : null}
-      {replicando ? <FolhaReplicar tipo={tipo} plano={replicando} aoFechar={() => setReplicando(null)} aoNavegar={aoNavegar} /> : null}
+      {novo ? <FolhaNovoPlano tipo={tipo} alunoId={alunoId} pasta={pasta} planos={todos.dados ?? []} aoFechar={() => setNovo(false)} aoNavegar={aoNavegar} aoCriar={recarregar} /> : null}
+      {replicando ? <FolhaReplicar tipo={tipo} plano={replicando} aoFechar={() => setReplicando(null)} aoNavegar={aoNavegar} aoCriar={recarregar} /> : null}
       {copiando ? <CopiarParaAluno tipo={tipo} plano={copiando} aoNavegar={aoNavegar} aoFechar={() => setCopiando(null)} aoCopiar={(destinoId, nome) => {
         setCopiando(null);
-        avisar(mensagemPlanoCopiado(tipo, nome), 'sucesso', { rotulo: rotuloAbrirFicha(nome), aoTocar: () => { aoNavegar?.(); router.push(`/treinador/alunos/${destinoId}`); } });
+        avisar(mensagemPlanoCopiado(tipo, nome), 'sucesso', { rotulo: rotuloAbrirFicha(nome), aoTocar: () => confirmar(() => { aoNavegar?.(); router.push(`/treinador/alunos/${destinoId}`); }) });
       }} /> : null}
     </Cartao>
   );
 }
 
 type Origem = 'branco' | 'receita' | 'copia';
+
+/**
+ * Plano novo (criado ou replicado) abre no editor pela guarda de saída. Com algo pendente na ficha a lista já busca de
+ * novo, antes da pergunta: quem escolhe "Continuar editando" vê o plano que acabou de criar. Na web a pergunta espera
+ * a Folha fechar. No celular o fecho é na hora e a Folha ainda está na lista quando o diálogo nasce: marcar agora
+ * manda a pergunta para a Folha de baixo (a pasta), ou para a raiz se não houver outra.
+ */
+function abrirOCriado(saida: ReturnType<typeof useSaidaGuardada>, aoCriar: (() => void) | undefined, abrir: () => void) {
+  if (saida.pendente()) aoCriar?.();
+  marcarFolhaDoTopoFechando();
+  depoisDeFecharAsFolhas(() => saida.confirmar(abrir));
+}
 
 function FolhaNovoPlano({
   tipo,
@@ -174,6 +198,7 @@ function FolhaNovoPlano({
   planos,
   aoFechar,
   aoNavegar,
+  aoCriar,
 }: {
   tipo: TipoPlano;
   alunoId: string;
@@ -181,7 +206,10 @@ function FolhaNovoPlano({
   planos: PlanoResumo[];
   aoFechar: () => void;
   aoNavegar?: () => void;
+  /** O plano foi criado mas a pessoa ficou na ficha ("Continuar editando"): a lista busca de novo para mostrá-lo. */
+  aoCriar?: () => void;
 }) {
+  const saida = useSaidaGuardada();
   const receitas = useCarregar(NOMES[tipo].receita, () => listarReceitas(NOMES[tipo].receita));
   const [titulo, setTitulo] = useState(pasta.titulo);
   const [origem, setOrigem] = useState<Origem>('branco');
@@ -210,8 +238,7 @@ function FolhaNovoPlano({
     }).then(
       (d) => {
         aoFechar();
-        aoNavegar?.();
-        router.push(rotaDoEditor(tipo, d.plano.id));
+        abrirOCriado(saida, aoCriar, () => { aoNavegar?.(); router.push(rotaDoEditor(tipo, d.plano.id)); });
       },
       (e: unknown) => {
         setSalvando(false);
@@ -267,8 +294,11 @@ function FolhaNovoPlano({
   );
 }
 
-function FolhaReplicar({ tipo, plano, aoFechar, aoNavegar }: { tipo: TipoPlano; plano: PlanoResumo; aoFechar: () => void; aoNavegar?: () => void }) {
+function FolhaReplicar({ tipo, plano, aoFechar, aoNavegar, aoCriar }: {
+  tipo: TipoPlano; plano: PlanoResumo; aoFechar: () => void; aoNavegar?: () => void; aoCriar?: () => void;
+}) {
   const { avisar } = useAviso();
+  const saida = useSaidaGuardada();
   const avisarDoPlano = useAvisoDoPlano(aoNavegar);
   const naPasta = plano.pastaId !== null;
   const sugestao = proximoPeriodo(plano);
@@ -277,8 +307,8 @@ function FolhaReplicar({ tipo, plano, aoFechar, aoNavegar }: { tipo: TipoPlano; 
   const [fim, setFim] = useState(sugestao.fim);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
-  const ini = dataDaTela(inicio);
-  const fi = dataDaTela(fim);
+  const ini = dataDaTelaNaFaixa(inicio, 'PLANEJAMENTO');
+  const fi = dataDaTelaNaFaixa(fim, 'PLANEJAMENTO');
   const valido = titulo.trim() !== '' && (naPasta || (ini !== undefined && fi !== undefined));
 
   const replicar = () => {
@@ -294,8 +324,7 @@ function FolhaReplicar({ tipo, plano, aoFechar, aoNavegar }: { tipo: TipoPlano; 
       (d) => {
         aoFechar();
         avisar('Plano replicado. Edite só o que mudar e publique.', 'sucesso');
-        aoNavegar?.();
-        router.push(rotaDoEditor(tipo, d.plano.id));
+        abrirOCriado(saida, aoCriar, () => { aoNavegar?.(); router.push(rotaDoEditor(tipo, d.plano.id)); });
       },
       (e: unknown) => {
         setSalvando(false);
@@ -326,10 +355,10 @@ function FolhaReplicar({ tipo, plano, aoFechar, aoNavegar }: { tipo: TipoPlano; 
       {naPasta ? null : (
         <View style={estilos.datas}>
           <View style={estilos.data}>
-            <CampoData rotulo="Início" valor={inicio} aoMudar={setInicio} />
+            <CampoData rotulo="Início" nome="Início do plano" regra="PLANEJAMENTO" valor={inicio} aoMudar={setInicio} />
           </View>
           <View style={estilos.data}>
-            <CampoData rotulo="Fim" valor={fim} aoMudar={setFim} />
+            <CampoData rotulo="Fim" nome="Fim do plano" regra="PLANEJAMENTO" valor={fim} aoMudar={setFim} />
           </View>
         </View>
       )}

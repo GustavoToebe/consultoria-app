@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { aplicarModelo } from '../../api/rotas';
 import type { Receita } from '../../api/tipos';
-import { dataDaTela } from '../../dominio/formatos';
+import { dataDaTelaNaFaixa } from '../../dominio/datasValidas';
 import { descricaoDoModelo, resumoDoDestino } from '../../dominio/modelos';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
@@ -24,7 +24,7 @@ export function AplicarAoAluno({ modelo, alunoInicial, aoFechar, aoAplicar }: {
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
   const avisarDoPlano = useAvisoDoPlano();
-  const ini = dataDaTela(inicio); const fi = dataDaTela(fim);
+  const ini = dataDaTelaNaFaixa(inicio, 'PLANEJAMENTO'); const fi = dataDaTelaNaFaixa(fim, 'PLANEJAMENTO');
   const salvar = async () => {
     setErro(null); setSalvando(true);
     try {
@@ -43,7 +43,7 @@ export function AplicarAoAluno({ modelo, alunoInicial, aoFechar, aoAplicar }: {
     <EscolhaDeAlunoEPasta escolha={escolha} />
     {escolha.destinoEscolhido ? <>
       <Campo rotulo={destino ? 'Título do plano' : 'Título da pasta nova (o plano usa o mesmo)'} valor={titulo} aoMudar={setTitulo} maxLength={120} />
-      {!destino ? <><CampoData rotulo="Início (opcional)" valor={inicio} aoMudar={setInicio} /><CampoData rotulo="Fim (opcional)" valor={fim} aoMudar={setFim} /></> : <Texto variante="pequeno">O período será o da pasta selecionada.</Texto>}
+      {!destino ? <><CampoData rotulo="Início (opcional)" nome="Início do período" regra="PLANEJAMENTO" valor={inicio} aoMudar={setInicio} /><CampoData rotulo="Fim (opcional)" nome="Fim do período" regra="PLANEJAMENTO" valor={fim} aoMudar={setFim} /></> : <Texto variante="pequeno">O período será o da pasta selecionada.</Texto>}
       <Texto>{resumoDoDestino(true, destino, escolha.destinos.opcoes, titulo)}</Texto>
     </> : null}
     {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}

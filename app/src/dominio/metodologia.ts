@@ -14,6 +14,7 @@ import type {
   TipoDeTecnica,
 } from '../api/tipos';
 import { numeroParaTela } from './formatos';
+import { CONFIGURACAO_PADRAO } from './metodologiaPadrao';
 import { textoDaFaixa } from './percentuais';
 
 /**
@@ -171,6 +172,15 @@ export function tipoTrabalho(config: Configuracao | null | undefined): string | 
   return t?.nome.trim() || null;
 }
 
+/**
+ * O que a execução do aluno lê da configuração do treino: a metodologia copiada na versão (senão a padrão) e o nome da série
+ * de trabalho dela; `base` (o `configuracao` do pacote) é só a reserva do arredondamento e do nome.
+ */
+export function configDoTreino(conteudo: Pick<ConteudoTreino, 'metodologia'>, base: { arredondamentoKg: number; tipoTrabalho: string }) {
+  const metodologia = conteudo.metodologia?.configuracao ?? CONFIGURACAO_PADRAO;
+  return { ...base, tipoTrabalho: tipoTrabalho(metodologia) ?? base.tipoTrabalho, metodologia };
+}
+
 /** Código do primeiro tipo de trabalho (o que a série de trabalho grava em `tipo`), como `codigoTrabalho()` da API. */
 export function codigoTrabalho(config: Configuracao | null | undefined): string | null {
   const t = config?.tipos?.find((x) => x.papel === 'TRABALHO' && x.codigo);
@@ -200,6 +210,24 @@ export function nomeDoTipo(config: Configuracao | null | undefined, codigo: stri
 
 export function papelDe(config: Configuracao | null | undefined, codigo: string | null | undefined): PapelDaSerie | null {
   return tipoPorCodigo(config, codigo)?.papel ?? null;
+}
+
+/**
+ * O campo de RPE aparece na série? Não nas de papel AQUECIMENTO e PREPARACAO (o esforço dessas séries é RIR ou nada), a
+ * menos que o RPE já esteja gravado nela: então continua visível e editável. Só de apresentação: a API aceita RPE em
+ * qualquer série. Tipo fora da metodologia (sem papel) mostra, como antes.
+ */
+export function mostraRpe(config: Configuracao | null | undefined, codigo: string | null | undefined, esforco?: Esforco | null): boolean {
+  return mostraRpeNoPapel(papelDe(config, codigo), esforco);
+}
+
+/**
+ * A mesma regra pelo papel, para o esforço padrão do tipo na metodologia (o tipo em edição ainda não está na `config`):
+ * sem ela, o padrão faria a série nova de aquecimento nascer com RPE e o editor de séries passaria a mostrá-lo.
+ */
+export function mostraRpeNoPapel(papel: PapelDaSerie | null | undefined, esforco?: Esforco | null): boolean {
+  if (esforco?.rpe != null) return true;
+  return papel !== 'AQUECIMENTO' && papel !== 'PREPARACAO';
 }
 
 /** A técnica está na metodologia desta consultoria (pelo tipo, mesmo que o nome tenha sido trocado). */

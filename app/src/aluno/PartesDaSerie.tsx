@@ -1,8 +1,9 @@
 import { Medal } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 
-import { numeroParaTela } from '../dominio/formatos';
+import { partesDaDica } from '../dominio/dicaDeCarga';
 import { textoDoRecorde, type Recorde } from '../dominio/recordesPessoais';
+import { useUnidadeDeCarga } from '../ui/unidadeDeCargaEmUso';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../tema/tokens';
 import { Selo } from '../ui/Selo';
@@ -18,23 +19,25 @@ import { TipoDaSerieComExplicacao } from './TipoDaSerieComExplicacao';
  */
 
 /**
- * "Série 3 · Back off" (o tipo é o toque da explicação), o selo da técnica e, enquanto a série não foi marcada, o selo
- * neutro "Ainda não registrado". Com recorde, a medalha e o selo "Recorde" (verde: é um fato concluído).
+ * "Série 3 · Back off" (o tipo é o toque da explicação), o selo da técnica e, só na série já registrada, o selo "Feita" ou
+ * "Não feita" (série sem registro não tem selo). Com recorde, a medalha e o selo "Recorde" (verde: é um fato concluído).
  */
-export function CabecalhoDaSerie({ numero, tipo, tecnica, recordes, naoRegistrada }: {
+export function CabecalhoDaSerie({ numero, tipo, tecnica, recordes, registro }: {
   numero: number;
   tipo: SeloDaSerie | null;
   tecnica: SeloDaSerie | null;
   recordes?: Recorde[] | null;
-  naoRegistrada: boolean;
+  /** Só a série registrada tem selo (auditoria 03/11): sem registro, os campos já dizem que está vazia. */
+  registro: 'FEITA' | 'NAO_FEITA' | null;
 }) {
   const { cores } = useTema();
+  const unidade = useUnidadeDeCarga();
   const comRecorde = !!recordes?.length;
   return (
     <View style={estilos.cabeca}>
       <View style={estilos.titulo}>
         {comRecorde ? (
-          <View accessible accessibilityRole="text" accessibilityLabel={`Série ${numero}, recorde pessoal: ${recordes!.map(textoDoRecorde).join('; ')}`}>
+          <View accessible accessibilityRole="text" accessibilityLabel={`Série ${numero}, recorde pessoal: ${recordes!.map((r) => textoDoRecorde(r, unidade)).join('; ')}`}>
             <Medal size={20} color={cores.sucesso} />
           </View>
         ) : null}
@@ -42,15 +45,27 @@ export function CabecalhoDaSerie({ numero, tipo, tecnica, recordes, naoRegistrad
         {tipo ? (
           <>
             <Texto style={estilos.nome} accessibilityElementsHidden importantForAccessibility="no">·</Texto>
-            <TipoDaSerieComExplicacao nome={tipo.nome} explicacao={tipo.explicacao} numero={numero} />
+            <TipoDaSerieComExplicacao nome={tipo.nome} explicacao={tipo.explicacao} numero={numero} cor={tipo.cor} />
           </>
         ) : null}
       </View>
       {tecnica ? <SeloComExplicacao nome={tecnica.nome} explicacao={tecnica.explicacao} rotuloAcessivel={`Explicação de ${tecnica.nome}, série ${numero}`} /> : null}
       {comRecorde ? <Selo texto="Recorde" tipo="sucesso" /> : null}
-      {naoRegistrada ? <Selo texto="Ainda não registrado" tipo="neutro" /> : null}
+      {registro === 'FEITA' ? <Selo texto="Feita" tipo="sucesso" /> : null}
+      {registro === 'NAO_FEITA' ? <Selo texto="Não feita" tipo="neutro" /> : null}
     </View>
   );
+}
+
+/** Largura da barra lateral do cartão da série com a cor do tipo (Frente G, D10: barra de 6 px + selo colorido). */
+export const LARGURA_DA_BARRA_DO_TIPO = 6;
+
+/**
+ * A barra lateral do cartão da série na cor de identificação do tipo (`useTema().identificacao[chave].cor`); sem cor, nada
+ * (a borda de sempre). A cor nunca é a única informação: o selo com o nome do tipo continua (D7).
+ */
+export function barraDoTipo(cor: string | null): { borderLeftWidth: number; borderLeftColor: string } | null {
+  return cor ? { borderLeftWidth: LARGURA_DA_BARRA_DO_TIPO, borderLeftColor: cor } : null;
 }
 
 /** A meta do treinador em destaque: rótulo "Meta" e o texto maior, na cor do texto, numa faixa própria. */
@@ -61,6 +76,46 @@ export function MetaDaSerie({ texto, complemento }: { texto: string; complemento
       <Texto variante="secao">Meta</Texto>
       <Texto numerico style={estilos.valorDaMeta} cor={cores.texto}>{texto}</Texto>
       {complemento ? <Texto numerico variante="pequeno">{complemento}</Texto> : null}
+    </View>
+  );
+}
+
+/**
+ * A meta ao lado do campo de carga (D5, 02/11): rótulo "Meta", as repetições grandes ("3 a 6 reps") e, menores, o resto
+ * da prescrição e o descanso. Mesmo visual da `MetaDaSerie` (faixa `superficie3` com borda à esquerda), mas compacta, para
+ * caber na linha do peso e das repetições.
+ */
+export function MetaAoLado({ repeticoes, resto, descanso, numero }: { repeticoes: string; resto: string | null; descanso: string | null; numero: number }) {
+  const { cores } = useTema();
+  const complemento = [resto, descanso].filter(Boolean).join(' · ');
+  return (
+    <View
+      style={[estilos.metaAoLado, { backgroundColor: cores.superficie3, borderLeftColor: cores.bordaCampo }]}
+      accessible
+      accessibilityLabel={`Meta da série ${numero}: ${repeticoes}${complemento ? `. ${complemento}` : ''}`}>
+      <Texto variante="secao">Meta</Texto>
+      <Texto numerico style={estilos.repsDaMeta} cor={cores.texto}>{repeticoes}</Texto>
+      {complemento ? <Texto numerico variante="pequeno">{complemento}</Texto> : null}
+    </View>
+  );
+}
+
+/**
+ * A dica ao lado do campo (D1, 02/11): "Sugestão: 60 kg · Última vez: 60 kg × 7" (ou "Primeira vez: escolha a carga") e,
+ * menor, de onde saiu a sugestão. Só texto: a carga nunca vai para o campo sem o aluno escolher. `de` = "o bloco 2 da
+ * série 3" na etapa (Frente G, D17: mesma dica, ao lado do campo de peso da etapa).
+ */
+export function DicaDoCampo({ dica, origem, numero, de }: { dica: string; origem: string | null; numero: number; de?: string }) {
+  const { cores } = useTema();
+  const { destaque, resto } = partesDaDica(dica);
+  return (
+    <View style={estilos.dica} accessible accessibilityLabel={`Dica ${de ? `d${de}` : `da série ${numero}`}: ${dica}${origem ? `. ${origem}` : ''}`}>
+      <Texto numerico style={estilos.restoDaDica} cor={cores.textoSuave}>
+        {destaque ? <Texto numerico style={estilos.textoDaDica} cor={cores.texto}>{destaque}</Texto> : null}
+        {destaque && resto ? ' · ' : null}
+        {resto}
+      </Texto>
+      {origem ? <Texto numerico variante="pequeno">{origem}</Texto> : null}
     </View>
   );
 }
@@ -80,17 +135,6 @@ export function RotuloDeHoje() {
   return <Texto variante="secao" nivel={3} style={estilos.hoje}>Hoje</Texto>;
 }
 
-/** "Sugerido: 33,5 kg · 80% da WS registrada nesta sessão": o peso sugerido e de onde ele saiu (só a frase; a conta é do domínio). */
-export function LinhaDaSugestao({ sugestao, origem }: { sugestao: number; origem: string | null }) {
-  return (
-    <Texto numerico variante="pequeno">
-      <Texto numerico variante="pequeno" style={estilos.rotuloDaLinha}>Sugerido: </Texto>
-      {`${numeroParaTela(sugestao)} kg`}
-      {origem ? ` · ${origem}` : ''}
-    </Texto>
-  );
-}
-
 const estilos = StyleSheet.create({
   cabeca: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: espaco(1), rowGap: espaco(0.5) },
   titulo: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5), flexShrink: 1 },
@@ -100,4 +144,9 @@ const estilos = StyleSheet.create({
   linha: { flexDirection: 'row', alignItems: 'baseline', gap: espaco(0.75), flexWrap: 'wrap' },
   rotuloDaLinha: { fontFamily: fontes.semi },
   hoje: { marginTop: espaco(0.5) },
+  metaAoLado: { borderRadius: RAIO, borderLeftWidth: 3, paddingVertical: espaco(0.75), paddingHorizontal: espaco(1), gap: 2, justifyContent: 'center', minHeight: 52 },
+  repsDaMeta: { fontFamily: fontes.semi, fontSize: 20, lineHeight: 26 },
+  dica: { gap: 2 },
+  textoDaDica: { fontFamily: fontes.semi, fontSize: 14, lineHeight: 20 },
+  restoDaDica: { fontFamily: fontes.normal, fontSize: 14, lineHeight: 20 },
 });

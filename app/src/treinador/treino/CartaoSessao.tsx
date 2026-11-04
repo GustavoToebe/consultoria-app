@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, ChevronsDownUp, ChevronsUpDown, Link2, NotebookTabs, Plus, Trash2 } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, ChevronsDownUp, ChevronsUpDown, Ellipsis, Link2, NotebookTabs, Plus, Trash2 } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
@@ -14,6 +14,7 @@ import { Cartao } from '../../ui/Cartao';
 import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
+import { FolhaDeAcoes } from '../FolhaDeAcoes';
 import { rotuloSalvarComo } from '../planejamento/modelos';
 import { AlvoDeRolagem } from '../../ui/AlvoDeRolagem';
 import { Texto } from '../../ui/Texto';
@@ -50,7 +51,7 @@ interface Props {
 /**
  * A sessão selecionada do plano (um dia): faixa de grupo com nome, resumo e ordem (← →, só com mais de uma sessão);
  * uma linha Nome · Dia · Tipo, "Observação" recolhível, os exercícios e os grupos (nível 3) e, no rodapé, adicionar
- * exercício e criar grupo à esquerda e as ações da sessão à direita. O cardio é um exercício de modalidade Cardio.
+ * exercício (o primeiro controle), modelos e criar grupo; remover a sessão fica no ⋯ do cabeçalho. O cardio é um exercício de modalidade Cardio.
  */
 export function CartaoSessao(p: Props) {
   const { cores, marca } = useTema();
@@ -62,6 +63,8 @@ export function CartaoSessao(p: Props) {
   const [maisAberto, setMaisAberto] = useState(!!(s.cardio || s.observacao));
   // O texto livre de cardio da sessão só aparece enquanto existir; cardio novo é um exercício de modalidade Cardio.
   const [comTextoDeCardio] = useState(!!s.cardio);
+  const [menu, setMenu] = useState(false);
+  const comMenu = p.removivel !== false;
 
   return (
     <AlvoDeRolagem chave={s.uid}><Cartao
@@ -73,10 +76,15 @@ export function CartaoSessao(p: Props) {
           resumo={resumoDaSessao(s)}
           selo={p.comProblema ? { texto: 'Corrigir', tipo: 'perigo' } : undefined}
           acoesJuntas
-          acoes={p.total > 1 ? (
+          acoes={p.total > 1 || comMenu ? (
             <>
-              <IconeBotao moldura Icone={ArrowLeft} rotulo="Mover sessão para antes" desabilitado={p.posicao === 0} aoTocar={() => p.aoMover(-1)} />
-              <IconeBotao moldura Icone={ArrowRight} rotulo="Mover sessão para depois" desabilitado={p.posicao === p.total - 1} aoTocar={() => p.aoMover(1)} />
+              {p.total > 1 ? (
+                <>
+                  <IconeBotao moldura Icone={ArrowLeft} rotulo="Mover sessão para antes" desabilitado={p.posicao === 0} aoTocar={() => p.aoMover(-1)} />
+                  <IconeBotao moldura Icone={ArrowRight} rotulo="Mover sessão para depois" desabilitado={p.posicao === p.total - 1} aoTocar={() => p.aoMover(1)} />
+                </>
+              ) : null}
+              {comMenu ? <IconeBotao moldura Icone={Ellipsis} rotulo={`Mais ações da sessão ${s.nome || p.posicao + 1}`} aoTocar={() => setMenu(true)} /> : null}
             </>
           ) : undefined}
         />
@@ -130,15 +138,21 @@ export function CartaoSessao(p: Props) {
           <Texto variante="suave">Escolha da biblioteca da consultoria ou use um modelo pronto.</Texto>
         </View>
         <LinhaDeAcoes>
+          <Botao rotulo="Adicionar exercício" tipo="secundario" Icone={Plus} aoTocar={p.aoNovoExercicio} />
           {p.aoAbrirModelos ? <Botao rotulo="Modelos prontos" tipo="secundario" Icone={NotebookTabs} aoTocar={p.aoAbrirModelos} /> : null}
           {p.aoCriarGrupo ? <Botao rotulo="Criar grupo" tipo="secundario" Icone={Link2} aoTocar={p.aoCriarGrupo} desabilitado={!!p.motivoSemGrupo} motivo={p.motivoSemGrupo ?? undefined} /> : null}
-          <Botao rotulo="Adicionar exercício" tipo="secundario" Icone={Plus} aoTocar={p.aoNovoExercicio} />
         </LinhaDeAcoes>
       </View>
-      <LinhaDeAcoes alinhar="entre">
-        {p.aoSalvarModelo ? <Botao rotulo={rotuloSalvarComo('SESSAO_TREINO')} rotuloAcessivel={`${rotuloSalvarComo('SESSAO_TREINO')} no Planejamento`} tipo="fantasma" aoTocar={p.aoSalvarModelo} /> : <View />}
-        {p.removivel !== false ? <Botao rotulo="Remover sessão" tipo="perigoTexto" Icone={Trash2} aoTocar={p.aoRemover} /> : null}
-      </LinhaDeAcoes>
+      {p.aoSalvarModelo ? (
+        <LinhaDeAcoes>
+          <Botao rotulo={rotuloSalvarComo('SESSAO_TREINO')} rotuloAcessivel={`${rotuloSalvarComo('SESSAO_TREINO')} no Planejamento`} tipo="secundario" aoTocar={p.aoSalvarModelo} />
+        </LinhaDeAcoes>
+      ) : null}
+      {menu ? (
+        <FolhaDeAcoes titulo={s.nome || `Sessão ${p.posicao + 1}`} aoFechar={() => setMenu(false)} acoes={[
+          { rotulo: 'Remover sessão', detalhe: 'Dá para desfazer logo depois.', Icone: Trash2, perigo: true, aoTocar: p.aoRemover },
+        ]} />
+      ) : null}
     </Cartao></AlvoDeRolagem>
   );
 }

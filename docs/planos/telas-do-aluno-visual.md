@@ -24,7 +24,7 @@ ou regra da API.
 ## Passos
 - [x] 1. Lista em grupos e colunas (D1 a D3), com e2e em 390 e 1280 (`lista-alunos-grupos.spec.ts`) — commit/run: `beba49a3`
 - [ ] 2. Ficha (D4 a D6), com e2e — commit/run: —
-- [ ] 3. Novo aluno e edição (D7), com e2e de `cadastro-aluno.spec.ts` — commit/run: —
+- [ ] 3. Novo aluno e edição (D7), com e2e de `cadastro-aluno.spec.ts` — commit/run: — · guarda de saída (C7) do `FormAluno` feita em `ebd3ac9d` (auditoria-ui-ux-lote-1, item b)
 - [ ] 4. AGENTS.md, Ajuda (se o caminho mudar) e capturas para o Gustavo — commit/run: —
 
 ## Fora do escopo

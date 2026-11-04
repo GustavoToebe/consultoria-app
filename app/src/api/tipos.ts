@@ -4,7 +4,8 @@
 
 export type Papel = 'TREINADOR' | 'ALUNO';
 export type Fonte = 'PADRAO' | 'METAL' | 'ESPORTIVA' | 'CONDENSADA';
-export type Tema = 'ESCURO' | 'CLARO';
+/** Paletas da marca (`temaPadrao` da consultoria); cada uma tem modo fixo em `tema/tokens.PALETAS`. */
+export type Tema = 'ESCURO' | 'MEIA_NOITE' | 'AMEIXA' | 'OCEANO' | 'CAFE' | 'CLARO' | 'AREIA' | 'LAVANDA' | 'CEU' | 'ROSA';
 
 export interface Marca {
   id: string;
@@ -57,6 +58,12 @@ export interface EuResponse {
   cicloHabilitado?: boolean;
   /** "Concluir treino" (retorno ao aluno) ligado na plataforma; falso ou ausente = o app esconde tudo e não consulta nem envia. */
   retornoHabilitado?: boolean;
+  /** Aviso no celular por push do Expo ligado na plataforma; falso ou ausente = o app não oferece o interruptor. */
+  pushHabilitado?: boolean;
+  /** Escolha de kg ou lb para ver e digitar a carga ligada na plataforma; falso ou ausente = o app esconde a escolha e usa kg. */
+  unidadeDeCargaHabilitada?: boolean;
+  /** Migração assistida (diagnóstico do arquivo antes de importar) ligada na plataforma; falso ou ausente = o app esconde tudo. */
+  migracaoAssistidaHabilitada?: boolean;
   usuario: UsuarioResumo;
   marca: Marca;
   aluno?: { id: string; nome: string; sexo?: string | null };
@@ -169,11 +176,16 @@ export interface Configuracao {
   rodapePdf: string | null;
 }
 
+/** Direção do peso que o treinador quer; o app só pinta a variação (`dominio/corDaVariacaoDoPeso`). */
+export type MetaDoPeso = 'REDUZIR' | 'AUMENTAR' | 'SEM_META';
+
 export interface ConsultoriaResponse {
   marca: Marca;
   versao: number;
   /** Ciclo de atualização padrão (1 a 365 dias): aluno sem valor próprio usa este; nulo = sem padrão. */
   diasAtualizacaoPadrao: number | null;
+  /** Meta do peso padrão dos alunos (nasce `REDUZIR`). */
+  metaDoPeso: MetaDoPeso;
   /** Textos opcionais das fases do ciclo. Ausente ou campo vazio = a fase aparece só com o nome. */
   textosFasesCiclo?: TextosDasFases | null;
 }
@@ -295,6 +307,8 @@ export interface AlunoDetalhe {
   /** Dados sensíveis (`ALUNO_SENSIVEL_LER`): a API omite sem a permissão. */
   cpf?: string | null;
   endereco?: EnderecoDoAluno | null;
+  /** Meta própria do aluno (`ALUNO_SENSIVEL_LER`): a API omite sem a permissão e quando vale a da consultoria. */
+  metaDoPeso?: MetaDoPeso | null;
   ativo: boolean;
   temAcesso: boolean;
   conviteExpiraEm: string | null;
@@ -338,6 +352,11 @@ export interface AlunoRequest {
   /** CPF e endereço só seguem com `ALUNO_SENSIVEL_ALTERAR`; sem a permissão a API ignora e preserva o que está salvo. */
   cpf?: string | null;
   endereco?: EnderecoDoAluno | null;
+  /**
+   * Meta do peso do aluno. Ausente ou `null` = não mexe; `PADRAO_DA_CONSULTORIA` volta ao padrão (a API grava nulo). Como
+   * CPF e endereço, só vale com `ALUNO_SENSIVEL_ALTERAR`. Conversão do campo em `dominio/metaDoPesoNaFicha`.
+   */
+  metaDoPeso?: MetaDoPeso | 'PADRAO_DA_CONSULTORIA' | null;
   versao?: number | null;
   /** Dias do ciclo do aluno (1 a 365): sugere o fim do período ao criar uma pasta. */
   diasAtualizacao?: number | null;
@@ -446,6 +465,13 @@ export interface CatalogoAlimento {
   fonteFatores: string | null;
 }
 
+/** Página de exercícios da consultoria; `grupos` são todos os grupos dela, sem o filtro de grupo. */
+export interface PaginaDeExercicios {
+  itens: Exercicio[];
+  total: number;
+  grupos: string[];
+}
+
 /** `total` é quantos itens casaram com a busca; `itens` vem limitado. */
 export interface PaginaCatalogo<T> {
   itens: T[];
@@ -530,6 +556,20 @@ export interface AnaliseDaPlanilha {
   /** Quantas respostas de importações anteriores a consultoria tem guardadas. */
   respostasSalvas: number;
 }
+/** O que o arquivo parece ser, pelas abas reconhecidas (migração assistida, fase 1). */
+export type TipoDoArquivoDiagnosticado = 'CADASTRO_DE_ALUNOS' | 'PLANILHA_COMPLETA' | 'TREINO' | 'DIETA' | 'OUTRO' | 'DESCONHECIDO';
+/** `nome` nulo = o cabeçalho não foi reconhecido: a tela mostra "Coluna X". `campo` = campo reconhecido da planilha completa, ou nulo. */
+export interface ColunaDiagnosticada { letra: string; nome?: string | null; campo?: string | null }
+export interface ProblemaDiagnosticado { codigo: string; quantidade: number }
+export interface AbaDiagnosticada {
+  indice: number; tipo: TipoDeAbaDaPlanilha; linhas: number; linhasVazias: number; linhasSemNome: number;
+  emailsInvalidos: number; emailsDuplicados: number; datasInvalidas: number; celulasComErro: number;
+  colunas: ColunaDiagnosticada[]; problemas: ProblemaDiagnosticado[];
+}
+/** Resposta de `POST /importacoes/diagnostico`: só contagens, códigos de problema e nomes de coluna conhecidos; nunca valor de célula nem nome de aba. */
+export interface DiagnosticoDoArquivo {
+  tipo: TipoDoArquivoDiagnosticado; linhas: number; abas: AbaDiagnosticada[]; problemas: ProblemaDiagnosticado[];
+}
 export type AcaoDoNome = 'ACEITAR' | 'BIBLIOTECA' | 'CRIAR' | 'MANTER';
 export type DestinoDoSuplemento = 'SUPLEMENTO' | 'SENSIVEL';
 /** O que o treinador respondeu (parte `respostas` da prévia e da confirmação). */
@@ -586,23 +626,27 @@ export type TipoSessao = 'TREINO' | 'DESCANSO_ATIVO' | 'DESCANSO' | 'ACESSORIOS'
  * Formas de carga. Percentual é sempre da série de trabalho (WS); 1RM não existe. `CARGA_TRABALHO` é a série de trabalho
  * (a referência do dia). `MESMA_CARGA` = a da última série de trabalho feita antes no exercício. `ACIMA_DA_ANTERIOR` =
  * a série imediatamente anterior mais um percentual (top set). `ABAIXO_DA_REFERENCIA` = a carga registrada hoje na
- * série `referenciaUid`, menos um percentual (back off).
+ * série `referenciaUid`, menos um percentual (back off). `CARGA_FIXA` = o peso em kg que o treinador escreveu (`valorKg`):
+ * não é série de trabalho e não serve de referência para percentual, mesma carga nem back off; só em exercício com carga.
  */
-export type ModoDeCarga = 'CARGA_TRABALHO' | 'PERCENTUAL_WS' | 'MESMA_CARGA' | 'ACIMA_DA_ANTERIOR' | 'ABAIXO_DA_REFERENCIA' | 'NENHUMA';
+export type ModoDeCarga = 'CARGA_TRABALHO' | 'PERCENTUAL_WS' | 'MESMA_CARGA' | 'ACIMA_DA_ANTERIOR' | 'ABAIXO_DA_REFERENCIA' | 'CARGA_FIXA' | 'NENHUMA';
 
 /**
  * Carga da série. `percentualMin`/`percentualMax` formam a faixa de `PERCENTUAL_WS` (1 a 200), `ACIMA_DA_ANTERIOR` (1 a
  * 100) e `ABAIXO_DA_REFERENCIA` (redução de 1 a 50); máximo nulo = valor único. `referenciaUid` só vale em
- * `ABAIXO_DA_REFERENCIA`: uma série anterior do mesmo exercício. Nula (a série inteira) = `NENHUMA`.
+ * `ABAIXO_DA_REFERENCIA`: uma série anterior do mesmo exercício. `valorKg` só vale em `CARGA_FIXA` (maior que zero, até
+ * 1000, no máximo 2 casas; sem percentual nem referência); o servidor só o manda quando existe. Nula (a série inteira) =
+ * `NENHUMA`.
  */
 export interface Carga {
   modo: ModoDeCarga;
   percentualMin?: number | null;
   percentualMax?: number | null;
   referenciaUid?: string | null;
+  valorKg?: number | null;
 }
 
-/** Esforço da série: `rir` (0 a 5; 0 = até a falha) ou `rpe` (1 a 10, de meio em meio), nunca os dois. */
+/** Esforço da série: `rir` (0 a 10; 0 = até a falha) ou `rpe` (1 a 10, de meio em meio), nunca os dois. */
 export interface Esforco {
   rir?: number | null;
   rpe?: number | null;
@@ -827,6 +871,8 @@ export interface Suplemento {
   observacao: string;
   /** Link https do produto (copiado da biblioteca); nulo quando não há. */
   link: string | null;
+  /** Cupom de desconto do produto (copiado da biblioteca, até 40); nulo ou ausente quando não há. */
+  cupom?: string | null;
 }
 
 /** Medicação ou ergogênico da dieta do aluno (dado sensível). Dose, horário e prescrição são texto do treinador. */
@@ -885,6 +931,62 @@ export interface FinalizarPastaRequest {
   data: string | null;
   pesoKg: number | null;
   observacao: string | null;
+}
+
+/**
+ * Publicar tudo: `confirmarAvisos` tem o sentido da publicação de um plano só. `versoes` é obrigatório: `{planoId:
+ * versao}` (a `versao` do `PlanoResumo`, o lock do rascunho) de cada plano pendente que a tela leu. Pendente com versão
+ * diferente ou ausente = 409 `CONFLITO_EDICAO` e nada é publicado; pode ser `{}` só em pasta sem pendentes.
+ */
+export interface PublicarPastaRequest {
+  confirmarAvisos: boolean;
+  versoes: Record<string, number>;
+}
+
+/** Versão que a pasta publicou de cada plano; `tipo` em minúsculas, como o prefixo dos erros (`treino.<caminho>`). */
+export interface PlanoPublicadoNaPasta {
+  tipo: TipoPlano;
+  planoId: string;
+  versao: number;
+}
+
+/** Plano que ficou como estava: já publicado e sem alteração no rascunho depois disso. */
+export interface PlanoPuladoNaPasta {
+  tipo: TipoPlano;
+  planoId: string;
+}
+
+/** Listas vazias nas duas = nada a publicar. `pulados` traz só os tipos que a pessoa pode ler. */
+export interface PublicarPastaResposta {
+  publicados: PlanoPublicadoNaPasta[];
+  pulados: PlanoPuladoNaPasta[];
+}
+
+/** O destino recebe uma pasta nova com este título e período (opcionais, como em `DadosPasta`). */
+export interface CopiarPastaRequest {
+  alunoId: string;
+  titulo: string;
+  inicio: string | null;
+  fim: string | null;
+}
+
+/** Tipo que a cópia deixou de fora: hoje só a mobilidade, quando a funcionalidade não está no plano da consultoria. */
+export interface PlanoPuladoNaCopia {
+  tipo: TipoPlano;
+  motivo: 'FUNCIONALIDADE_FORA_DO_PLANO';
+}
+
+/** A cópia leva a versão publicada de cada plano (o rascunho, se nunca foi publicado), sempre como rascunho no destino. */
+export interface CopiarPastaResposta {
+  pastaId: string;
+  planos: { tipo: TipoPlano; planoId: string }[];
+  pulados: PlanoPuladoNaCopia[];
+}
+
+/** Peso e data gravados pela atualização enviada da pasta; ambos `null` quando não há (nunca zero). */
+export interface PesoSugeridoDaPasta {
+  pesoKg: number | null;
+  data: string | null;
 }
 
 export interface PlanoResumo {
@@ -972,8 +1074,32 @@ export interface MesDeNumeros {
   atualizacoesAtrasadas: number | null;
 }
 
+/**
+ * Uma linha da tabela da equipe em Números (supervisão, D1 e D16): um membro ativo, os alunos ativos dele **hoje** e o
+ * limite ao lado (nulo = sem limite). As duas contagens de atualização ficam `null` sem `ATUALIZACAO_LER` +
+ * `ALUNO_SENSIVEL_LER`. Nunca nome nem id de aluno.
+ */
+export interface LinhaDaEquipeNosNumeros {
+  usuarioId: string;
+  nome: string;
+  alunosAtivos: number;
+  limiteDeAlunos: number | null;
+  atualizacoesAtrasadas: number | null;
+  atualizacoesParaRevisar: number | null;
+}
+
+/** A linha "Sem responsável": alunos sem responsável ou com responsável que não é mais membro ativo. */
+export interface SemResponsavelNosNumeros {
+  alunosAtivos: number;
+  atualizacoesAtrasadas: number | null;
+  atualizacoesParaRevisar: number | null;
+}
+
 export interface NumerosDaConsultoria {
   meses: MesDeNumeros[];
+  /** Só com `EQUIPE_LER` (D17); sem ela `null` (não lista vazia) e a seção some. */
+  equipe: LinhaDaEquipeNosNumeros[] | null;
+  semResponsavel: SemResponsavelNosNumeros | null;
 }
 
 export interface SerieFeita {
@@ -1029,6 +1155,8 @@ export interface RegistroPeso {
   pesoKg: number;
   variacao: number | null;
   observacao: string | null;
+  /** Meta efetiva do aluno (a dele ou a da consultoria), igual em todos os itens; ausente = sem cor. */
+  metaDoPeso?: MetaDoPeso;
 }
 
 // ---- Aluno ----
@@ -1495,7 +1623,7 @@ export interface ConsumoDoPlano {
   itens: ItemDoConsumo[];
 }
 
-/** Suplemento da biblioteca: só nome, marca, categoria, porção, sabores e link. Sem valor nutricional nem dose. */
+/** Suplemento da biblioteca: só nome, marca, categoria, porção, sabores, link e cupom. Sem valor nutricional nem dose. */
 export interface SuplementoDaBiblioteca {
   id: string;
   nome: string;
@@ -1505,6 +1633,8 @@ export interface SuplementoDaBiblioteca {
   porcoesPorEmbalagem: string | null;
   sabores: string[];
   link: string | null;
+  /** Texto livre até 40 caracteres, opcional; mais que isso a API responde 422 no campo `cupom`. */
+  cupom: string | null;
 }
 export type SuplementoDaBibliotecaRequest = Omit<SuplementoDaBiblioteca, 'id'>;
 

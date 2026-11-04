@@ -26,7 +26,8 @@ public class Consultoria {
 
     public enum Fonte { PADRAO, METAL, ESPORTIVA, CONDENSADA }
 
-    public enum Tema { ESCURO, CLARO }
+    /** Paletas da marca (V055); o modo escuro ou claro de cada uma é decidido no app (`tema/tokens.PALETAS`). */
+    public enum Tema { ESCURO, MEIA_NOITE, AMEIXA, OCEANO, CAFE, CLARO, AREIA, LAVANDA, CEU, ROSA }
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -52,6 +53,11 @@ public class Consultoria {
     /** Ciclo de atualização padrão (V009): aluno sem valor próprio usa este; nulo = sem padrão. */
     @Column(name = "dias_atualizacao_padrao")
     private Integer diasAtualizacaoPadrao;
+
+    /** Meta do peso padrão dos alunos (V052); o aluno pode ter a sua. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "meta_do_peso", nullable = false)
+    private MetaDoPeso metaDoPeso = MetaDoPeso.REDUZIR;
 
     /** Textos das fases do ciclo, escritos pelo treinador. Nulo = nenhum. Nunca vai a log. */
     @JdbcTypeCode(SqlTypes.JSON)
@@ -104,6 +110,14 @@ public class Consultoria {
 
     public Integer getDiasAtualizacaoPadrao() {
         return diasAtualizacaoPadrao;
+    }
+
+    public MetaDoPeso getMetaDoPeso() {
+        return metaDoPeso;
+    }
+
+    public void definirMetaDoPeso(MetaDoPeso metaDoPeso) {
+        this.metaDoPeso = metaDoPeso;
     }
 
     public String getTextosFasesCiclo() {

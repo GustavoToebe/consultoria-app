@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react-native';
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, RAIO } from '../tema/tokens';
@@ -12,16 +12,19 @@ interface Props {
   aoTocar: () => void;
   cor?: string;
   desabilitado?: boolean;
-  /** Ícone menor (16 px) em linhas apertadas; o alvo continua com 44 px (o `hitSlop` completa o que falta). */
+  /** Ícone menor (16 px, desenho de 32 px) em linhas apertadas; o alvo continua com 44 px. */
   compacto?: boolean;
   /**
    * Com moldura (borda fina e fundo da superfície), como os botões da faixa do exercício e da série no editor de
-   * treino (protótipo de 30/10): mostra que é botão mesmo sobre a faixa cinza. 40 px, e o `hitSlop` completa os 44.
+   * treino (protótipo de 30/10): mostra que é botão mesmo sobre a faixa cinza. Desenho de 40 px dentro do alvo de 44.
    */
   moldura?: boolean;
 }
 
-/** Ícone linear (lucide, 20 px) com alvo de toque de 44 px. */
+/**
+ * Ícone linear (lucide, 20 px) com alvo de toque de 44 px. O alvo é a caixa de fora, sempre 44×44 (C2 da auditoria de
+ * 03/11: o `hitSlop` não vale no react-native-web); o desenho (moldura de 40 ou compacto de 32) fica centrado dentro dela.
+ */
 export function IconeBotao({ Icone, rotulo, aoTocar, cor, desabilitado, compacto, moldura }: Props) {
   const { cores } = useTema();
   return (
@@ -31,16 +34,21 @@ export function IconeBotao({ Icone, rotulo, aoTocar, cor, desabilitado, compacto
       accessibilityState={{ disabled: !!desabilitado }}
       disabled={desabilitado}
       onPress={aoTocar}
-      hitSlop={compacto ? 6 : moldura ? 2 : 0}
-      style={(estado) => [estilos.botao, compacto && estilos.compacto, moldura && [estilos.moldura, { borderColor: cores.bordaCampo }],
-        { opacity: desabilitado ? 0.4 : 1, backgroundColor: sobre(estado) && !desabilitado ? cores.superficie3 : moldura ? cores.superficie : 'transparent' }]}>
-      <Icone size={compacto ? 16 : 20} color={cor ?? cores.texto} strokeWidth={2} />
+      style={estilos.alvo}>
+      {(estado) => (
+        <View
+          style={[estilos.desenho, compacto && estilos.compacto, moldura && [estilos.moldura, { borderColor: cores.bordaCampo }],
+            { backgroundColor: sobre(estado) && !desabilitado ? cores.superficie3 : moldura ? cores.superficie : 'transparent' }]}>
+          <Icone size={compacto ? 16 : 20} color={desabilitado ? cores.textoSuave : cor ?? cores.texto} strokeWidth={2} />
+        </View>
+      )}
     </Pressable>
   );
 }
 
 const estilos = StyleSheet.create({
-  botao: { width: ALVO_TOQUE, height: ALVO_TOQUE, alignItems: 'center', justifyContent: 'center', borderRadius: RAIO },
+  alvo: { width: ALVO_TOQUE, height: ALVO_TOQUE, alignItems: 'center', justifyContent: 'center', borderRadius: RAIO },
+  desenho: { width: ALVO_TOQUE, height: ALVO_TOQUE, alignItems: 'center', justifyContent: 'center', borderRadius: RAIO },
   compacto: { width: 32, height: 32 },
   moldura: { width: 40, height: 40, borderWidth: 1 },
 });

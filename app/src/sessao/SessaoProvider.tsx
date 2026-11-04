@@ -22,6 +22,8 @@ import { criarRecargaDoPerfil, perfilAtualizado, perfilDoEu, type PerfilDaSessao
 import { temFuncionalidade as conferirFuncionalidade } from '../dominio/funcionalidadesDoPlano';
 import { pode as conferirPermissao } from '../dominio/permissoes';
 import { varrerFilasRetidas } from '../offline/filasRetidas';
+import { avisoNoCelularLigado } from '../aluno/push/avisoLigado';
+import { registrarPushDoAparelho, removerPushDoAparelho } from '../aluno/push/pushNativo';
 import { limparDadosDoAluno } from '../offline/limparDadosDoAluno';
 import { apagarArquivosTemporarios } from '../offline/arquivosTemporarios';
 import { limparLogosEmMemoria } from '../pdf/logoEmMemoria';
@@ -65,6 +67,12 @@ interface ValorSessao {
   cicloHabilitado: boolean;
   /** "Concluir treino" ligado? Desligado ou desconhecido, o app esconde tudo e nunca consulta nem enfileira conclusões. */
   retornoHabilitado: boolean;
+  /** Aviso de compromisso por push ligado? Desligado ou desconhecido, o app não oferece o interruptor. */
+  pushHabilitado: boolean;
+  /** Escolha de kg/lb ligada? Desligado ou desconhecido, a carga é sempre kg e a escolha não aparece. */
+  unidadeDeCargaHabilitada: boolean;
+  /** Diagnóstico do arquivo antes de importar ligado? Desligado ou desconhecido, a tela de importação não o mostra. */
+  migracaoAssistidaHabilitada: boolean;
   recarregarPerfil: () => Promise<void>;
   situacao: Situacao;
   usuario: UsuarioResumo | null;
@@ -106,6 +114,19 @@ function alunoDoPerfilSalvo(salvo: string | null): string | null {
   }
 }
 const Contexto = createContext<ValorSessao | null>(null);
+
+/** Aluno com o push ligado na plataforma e o aviso ligado neste aparelho: só ele fala com o Expo (registrar, apagar). */
+async function comAvisoNoCelular(perfil: Perfil | null): Promise<boolean> {
+  return perfil?.usuario.papel === 'ALUNO' && perfil.pushHabilitado === true && (await avisoNoCelularLigado(perfil.usuario.id));
+}
+
+/**
+ * Para APAGAR o token ("Sair") basta o aluno ter ligado o aviso neste aparelho, com ou sem a chave da plataforma: se ela foi
+ * desligada depois, o token continua no servidor e o `DELETE /aluno/push-token` não depende dela.
+ */
+async function ligouOAvisoNesteAparelho(perfil: Perfil | null): Promise<boolean> {
+  return perfil?.usuario.papel === 'ALUNO' && (await avisoNoCelularLigado(perfil.usuario.id));
+}
 
 /**
  * Na web, outra conta entrou em outra aba do mesmo navegador (o cookie de renovação é um só): esta aba já limpou a
@@ -360,6 +381,9 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       pagarNoAndroid:perfil?.pagarNoAndroid===true,
       cicloHabilitado:perfil?.cicloHabilitado===true,
       retornoHabilitado:perfil?.retornoHabilitado===true,
+      pushHabilitado:perfil?.pushHabilitado===true,
+      unidadeDeCargaHabilitada:perfil?.unidadeDeCargaHabilitada===true,
+      migracaoAssistidaHabilitada:perfil?.migracaoAssistidaHabilitada===true,
       recarregarPerfil,
       situacao,
       usuario: perfil?.usuario ?? null,
@@ -369,7 +393,11 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
         abrir(await rotas.entrar(email.trim(), senha, codigoMfa, turnstileToken, novaSenha)),
       cadastrarTreinador: async (dados) => abrir(await rotas.cadastrarTreinador(dados)),
       aceitarConvite: async (codigo, email, senha) => abrir(await rotas.aceitarConvite(codigo, email.trim(), senha)),
-      trocarSenha: async (atual, nova) => abrir(await rotas.trocarSenha(atual, nova)),
+      trocarSenha: async (atual, nova) => {
+        await abrir(await rotas.trocarSenha(atual, nova));
+        // A API apaga os tokens de push do usuário ao trocar a senha: quem tem o aviso ligado registra o deste aparelho de novo.
+        if (await comAvisoNoCelular(perfilAtual.current)) await registrarPushDoAparelho().catch(() => undefined);
+      },
       ativarMfa: async (senha, codigo) => {
         const ativacao = await rotas.mfaAtivar(senha, codigo);
         await abrir(ativacao.sessao);
@@ -382,6 +410,10 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       },
       atualizarMarca,
       sair: async () => {
+        // Aluno que ligou o aviso neste aparelho: apaga o token dele na API enquanto a sessão ainda vale, mesmo com a chave
+        // da plataforma desligada depois. Quem não ligou nem toca no Expo. Falha ou demora não bloqueiam a saída (o token sem
+        // uso vence sozinho no servidor em 30 dias).
+        if (await ligouOAvisoNesteAparelho(perfilAtual.current)) await removerPushDoAparelho().catch(() => undefined);
         try {
           await rotas.sairDaApi(await lerRefresh());
         } catch {

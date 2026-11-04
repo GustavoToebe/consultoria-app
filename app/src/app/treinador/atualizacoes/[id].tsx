@@ -96,7 +96,8 @@ function EditorFeedback({atualizacao:a,aoSalvar,recarregar}: {
   const [conflito,setConflito]=useState(false);
   const {avisar}=useAviso();
   const salvar=async()=>{
-    if(!a.id || a.versao==null || !texto.trim())return;
+    if(!texto.trim()){avisar('Escreva o feedback antes de enviar.','perigo');return;}
+    if(!a.id||a.versao==null){avisar('Não foi possível enviar: a atualização não veio completa. Recarregue a tela e tente de novo.','perigo');return;}
     setOcupado(true);
     try {
       const resultado=await responderAtualizacao(a.id,texto,a.versao);

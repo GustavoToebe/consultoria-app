@@ -2,8 +2,8 @@ import type { EtapaRegistrada } from '../api/tipos';
 import { serie, tecnica } from './exemplosDeTreino.apoioTeste';
 import { descansoAoIniciar, iniciarDescanso, semDescansoDe, type Descanso } from './descanso';
 import {
-  aplicarAcao, cargaComum, comEtapa, etapasDaSerie, ligaPausaInterna, origemDaPausa, pausaDaAcao, proximaPendente, quantidadeDeEtapas, resumoDaExecucao,
-  semEtapa, somarVolumes, todasComSituacao, totalDasEtapas, volumeDaSerie,
+  aplicarAcao, cargaComum, comEtapa, etapasDaSerie, ligaPausaInterna, origemDaPausa, pausaDaAcao, proximaPendente, quantidadeDeEtapas, feitoAteAgora, faltaParaConcluir,
+  semEtapa, seloDaSerieComEtapas, somarVolumes, todasComSituacao, totalDasEtapas, volumeDaSerie,
 } from './etapas';
 
 const feita = (posicao: number, repeticoes: number | null, carga: number | null = 40): EtapaRegistrada => ({ posicao, repeticoes, carga, situacao: 'FEITA' });
@@ -38,15 +38,18 @@ describe('total e carga como o servidor (T03, T04, T25)', () => {
     const todas = [feita(1, 4), feita(2, 4), feita(3, 4), feita(4, 2)];
     expect(totalDasEtapas(todas, 4)).toBe(14);
     expect(totalDasEtapas(todas.slice(0, 2), 4)).toBeNull();
-    expect(resumoDaExecucao(todas, 4, 'blocos')).toBe('Realizadas: 14 reps · 4 de 4 blocos');
-    expect(resumoDaExecucao(todas.slice(0, 2), 4, 'blocos')).toBe('Execução parcial: 8 reps em 2 de 4 blocos');
-    expect(resumoDaExecucao([], 4, 'blocos')).toBe('Nenhum bloco registrado');
+    const previstas = etapasDaSerie(cluster4x4)!;
+    expect(feitoAteAgora(todas, previstas, 'blocos', true)).toBe('Feito: 14 de 16 reps');
+    expect(feitoAteAgora(todas.slice(0, 2), previstas, 'blocos')).toBe('Feito até agora: 8 de 16 reps');
+    expect(feitoAteAgora([], previstas, 'blocos')).toBe('Feito até agora: 0 de 16 reps');
   });
 
   it('zero informado é número; vazio é não informado; não realizado é explícito', () => {
     expect(totalDasEtapas([feita(1, 4), feita(2, 0), naoFeita(3), naoFeita(4)], 4)).toBe(4);
     expect(totalDasEtapas([feita(1, 4), feita(2, null)], 2)).toBeNull();
-    expect(resumoDaExecucao([feita(1, 4), naoFeita(2)], 2, 'blocos')).toBe('Realizadas: 4 reps · 1 de 2 blocos · 1 não realizada');
+    const dois = [{ repsExatas: 4 }, { repsExatas: 2 }];
+    expect(feitoAteAgora([feita(1, 4), naoFeita(2)], dois, 'blocos')).toBe('Feito até agora: 4 de 6 reps · 1 bloco não feito');
+    expect(feitoAteAgora([feita(1, null), naoFeita(2)], dois, 'etapas')).toBe('Feito até agora: 0 de 6 reps · 1 etapa não feita · 1 etapa sem repetições');
   });
 
   it('cargas diferentes: sem carga comum (nunca a maior nem a última)', () => {
@@ -171,5 +174,34 @@ describe('ações do aluno (T10, T14, T18)', () => {
     expect(semEtapa([feita(1, 4), feita(2, 4)], 1).map((e) => e.posicao)).toEqual([2]);
     expect(proximaPendente([feita(1, 4), naoFeita(3)], 4)).toBe(2);
     expect(todasComSituacao([feita(1, 4), naoFeita(2)], 2)).toBe(true);
+  });
+});
+
+describe('rodapé do cartão único (Frente G, D12)', () => {
+  it('Rest-pause em faixa ou até a falha: sem total previsto, só as repetições feitas', () => {
+    const rp = serie('r', { repsMin: 6, repsMax: 8, tecnica: tecnica('REST_PAUSE', { pausaSegundos: 20 }) });
+    const previstas = etapasDaSerie(rp)!;
+    expect(feitoAteAgora([feita(1, 7)], previstas, 'etapas')).toBe('Feito até agora: 7 reps');
+    expect(feitoAteAgora([feita(1, 1)], previstas, 'etapas')).toBe('Feito até agora: 1 rep');
+  });
+
+  it('o que falta para concluir, no singular e no plural', () => {
+    const previstas = etapasDaSerie(cluster4x4)!;
+    expect(faltaParaConcluir([feita(1, 4), feita(2, 4), naoFeita(4)], previstas)).toBe('Falta o bloco 3 para concluir.');
+    expect(faltaParaConcluir([feita(1, 4)], previstas)).toBe('Faltam 3 blocos para concluir.');
+    expect(faltaParaConcluir([feita(1, 4), feita(2, 4), feita(3, 4), naoFeita(4)], previstas)).toBeNull();
+    const rp = etapasDaSerie(serie('r', { repsMin: 6, repsMax: 8, tecnica: tecnica('REST_PAUSE', { pausaSegundos: 20 }) }))!;
+    expect(faltaParaConcluir([feita(1, 7)], rp)).toBe('Falta a retomada para concluir.');
+    expect(faltaParaConcluir([], rp)).toBe('Faltam 2 etapas para concluir.');
+  });
+});
+
+describe('selo "Não feita" da série com etapas', () => {
+  it('só com todas as etapas previstas marcadas como não realizadas', () => {
+    expect(seloDaSerieComEtapas(false, [naoFeita(1), naoFeita(2)], 2)).toBe('NAO_FEITA');
+    expect(seloDaSerieComEtapas(false, [naoFeita(1)], 2)).toBeNull(); // falta marcar a etapa 2
+    expect(seloDaSerieComEtapas(false, [], 2)).toBeNull();
+    expect(seloDaSerieComEtapas(false, [naoFeita(1), feita(2, 4)], 2)).toBeNull();
+    expect(seloDaSerieComEtapas(true, [naoFeita(1), naoFeita(2)], 2)).toBe('FEITA');
   });
 });

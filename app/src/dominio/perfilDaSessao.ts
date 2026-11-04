@@ -15,6 +15,9 @@ export interface PerfilDaSessao {
   pagarNoAndroid?: boolean;
   cicloHabilitado?: boolean;
   retornoHabilitado?: boolean;
+  pushHabilitado?: boolean;
+  unidadeDeCargaHabilitada?: boolean;
+  migracaoAssistidaHabilitada?: boolean;
   usuario: UsuarioResumo;
   marca: Marca;
   termosPendentes?: boolean;
@@ -33,6 +36,9 @@ export function perfilDoEu(eu: EuResponse): PerfilDaSessao {
     pagarNoAndroid: eu.pagarNoAndroid,
     cicloHabilitado: eu.cicloHabilitado,
     retornoHabilitado: eu.retornoHabilitado,
+    pushHabilitado: eu.pushHabilitado,
+    unidadeDeCargaHabilitada: eu.unidadeDeCargaHabilitada,
+    migracaoAssistidaHabilitada: eu.migracaoAssistidaHabilitada,
     termosPendentes: eu.termosPendentes,
   };
 }

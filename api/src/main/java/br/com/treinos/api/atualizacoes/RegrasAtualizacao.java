@@ -8,6 +8,12 @@ public final class RegrasAtualizacao {
     private RegrasAtualizacao() { }
     public record Situacao(String fase, long diasParaData, long diasDeAtraso) { }
     public static final int DIAS_MAXIMOS_DE_ATRASO = 15;
+    /**
+     * Acima disso o app não conta os dias de atraso e diz "Atrasada desde dd/mm/aaaa" (C76). O texto é do app
+     * ({@code dominio/atualizacao.ts}, mesma constante): a API só guarda o número, e o {@code diasDeAtraso} da resposta
+     * continua inteiro, porque painel e contagens dependem dele.
+     */
+    public static final int DIAS_MAXIMOS_PARA_CONTAR_ATRASO = 365;
 
     /** O formulário abre pela data original; o aviso de atraso só adia o "atrasada" até max(data, atrasoAte). */
     public static Situacao calcular(LocalDate hoje, LocalDate data, LocalDate atrasoAte, String estado) {

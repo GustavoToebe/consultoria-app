@@ -1,0 +1,628 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Protótipo · Cores por tipo de série</title>
+<style>
+/* Protótipo da Frente G (reunião de 30/10: C35, C50/C74, C45, C16), 03/11/2026. Dados fictícios (D8). Nada aqui fala com a
+   API. Autocontido: sem fonte nem script de fora. As cores dos temas são as de app/src/tema/tokens.ts. */
+:root { --fonte: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; --raio: 12px; }
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { font-family: var(--fonte); background: #E9E9EC; color: #111114; font-size: 14px; line-height: 1.4; -webkit-font-smoothing: antialiased; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+.num { font-variant-numeric: tabular-nums; }
+:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+
+/* ====== moldura do protótipo (fora do app; cores fixas) ====== */
+.barra-prot { position: sticky; top: 0; z-index: 50; background: #111114; color: #fff; padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+.barra-prot b.tit { font-size: 14px; margin-right: 8px; }
+.grupo-prot { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.grupo-prot > span { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #A1A1AA; }
+.grupo-prot button { border: 1px solid #52525B; background: #18181B; color: #F4F4F5; border-radius: 8px; padding: 5px 10px; font-size: 12px; font-weight: 600; }
+.grupo-prot button.sel { background: #F4F4F5; color: #111114; border-color: #F4F4F5; }
+.doc { max-width: 1340px; margin: 0 auto; padding: 20px 16px 48px; display: flex; flex-direction: column; gap: 20px; }
+.caixa-doc { background: #fff; border: 1px solid #C9C9CF; border-radius: 12px; padding: 18px 20px; }
+.caixa-doc h2 { margin: 0 0 10px; font-size: 18px; }
+.caixa-doc h3 { margin: 16px 0 6px; font-size: 14px; }
+.caixa-doc p { margin: 6px 0; }
+.caixa-doc ol { margin: 6px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
+.caixa-doc small { color: #52525B; }
+.decisao b { display: block; }
+.decisao .op { color: #3F3F46; }
+.rec { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 4px; background: #111114; color: #fff; margin-left: 4px; vertical-align: 1px; }
+.palco { overflow-x: auto; padding: 4px 0 8px; }
+.rotulo-palco { font-size: 12px; color: #52525B; margin-bottom: 6px; }
+table.cont { border-collapse: collapse; width: 100%; font-size: 13px; }
+table.cont th, table.cont td { border-bottom: 1px solid #E4E4E7; padding: 6px 8px; text-align: left; white-space: nowrap; }
+table.cont th { font-size: 12px; color: #52525B; }
+table.cont td.ok { color: #176E3C; font-weight: 700; }
+table.cont td.falha { color: #B71C1C; font-weight: 700; }
+.amostra { display: inline-block; width: 14px; height: 14px; border-radius: 4px; vertical-align: -2px; margin-right: 6px; border: 1px solid rgba(0,0,0,.2); }
+.tabelas-cont { display: grid; grid-template-columns: 1fr; gap: 16px; }
+.tabelas-cont .t { border: 1px solid #E4E4E7; border-radius: 10px; padding: 10px; overflow-x: auto; }
+.tabelas-cont .t.atual { border: 2px solid #111114; }
+.tabelas-cont h4 { margin: 0 0 6px; font-size: 13px; }
+.resumo-cont { margin-top: 10px; font-weight: 600; }
+
+/* ====== o aparelho (tema do app) ====== */
+.disp { background: var(--fundo); color: var(--texto); border: 1px solid #A1A1AA; border-radius: 14px; overflow: hidden; margin: 0 auto; position: relative; display: flex; flex-direction: column; min-height: 760px; }
+.disp.l390 { width: 390px; border-radius: 28px; }
+.disp.l1280 { width: 1280px; }
+.disp .barra-sis { height: 26px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; font-size: 11px; color: var(--suave); background: var(--sup); }
+.disp.l1280 .barra-sis { display: none; }
+.app { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.conteudo { width: 100%; max-width: 720px; margin: 0 auto; padding: 20px 16px 24px; display: flex; flex-direction: column; gap: 16px; flex: 1; }
+.disp.l1280 .conteudo { padding: 28px 24px; gap: 24px; }
+h1 { font-size: 24px; line-height: 30px; margin: 0; letter-spacing: -.01em; }
+.suave { color: var(--suave); }
+.pequeno { font-size: 12px; color: var(--suave); }
+.forte { font-weight: 600; }
+.cab { display: flex; align-items: center; gap: 10px; }
+.cab .tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ib { width: 44px; height: 44px; display: inline-grid; place-items: center; border-radius: var(--raio); border: 1px solid var(--bordaCampo); background: var(--sup); color: var(--texto); flex-shrink: 0; }
+.ib.p { width: 36px; height: 36px; border-color: var(--borda); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: var(--raio); border: 1px solid var(--borda); background: var(--sup); font-weight: 600; white-space: nowrap; color: var(--texto); }
+.btn.primario { background: var(--marca); border-color: var(--marca); color: #fff; }
+.btn.cheio { width: 100%; }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn.fantasma { background: transparent; border-color: transparent; text-decoration: underline; }
+.bloco { background: var(--sup); border: 2px solid var(--borda); border-radius: var(--raio); overflow: hidden; }
+.faixa { background: var(--sup3); border-bottom: 3px solid var(--bordaCampo); padding: 12px 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.faixa .tit { flex: 1; min-width: 160px; display: flex; flex-direction: column; gap: 2px; }
+.faixa .tit b { font-size: 16px; }
+.corpo { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.selo { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid var(--c); color: var(--c); background: var(--ct); }
+.selo.neutro { --c: var(--texto); --ct: var(--sup); border-color: var(--bordaCampo); font-weight: 600; }
+.periodo { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--texto); border: 1px solid var(--bordaCampo); border-radius: 999px; padding: 3px 10px; background: var(--sup); }
+.abas { display: flex; gap: 4px; border-bottom: 1px solid var(--divisor); }
+.abas button { border: 0; background: none; padding: 10px 12px; min-height: 44px; font-weight: 600; color: var(--suave); border-bottom: 3px solid transparent; margin-bottom: -1px; }
+.abas button.sel { color: var(--texto); border-bottom-color: var(--bordaCampo); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { min-height: 40px; padding: 0 14px; border-radius: var(--raio); border: 1px solid var(--borda); background: var(--sup); font-weight: 600; font-size: 13px; color: var(--texto); }
+.chip.sel { background: var(--texto); color: var(--fundo); border-color: var(--texto); }
+.campo { height: 48px; width: 96px; border: 1px solid var(--bordaCampo); background: var(--campo); border-radius: var(--raio); padding: 0 10px; color: var(--texto); font-size: 18px; font-weight: 600; text-align: right; }
+.campo.busca { width: 100%; font-size: 14px; font-weight: 400; text-align: left; height: 44px; }
+.rot-campo { font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px; }
+.inferior { display: flex; background: var(--sup); border-top: 1px solid var(--borda); max-width: 720px; width: 100%; margin: 0 auto; }
+.inferior button { flex: 1; border: 0; background: none; min-height: 58px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 11px; color: var(--suave); }
+.inferior button.ativo { color: var(--marcaTexto); font-weight: 700; }
+
+/* ====== execução: cartão da série com a cor do tipo ====== */
+.faixa-treino { display: flex; gap: 8px; flex-wrap: wrap; }
+.faixa-treino div { flex: 1; min-width: 96px; border: 1px solid var(--borda); background: var(--sup); border-radius: var(--raio); padding: 8px 12px; }
+.faixa-treino small { display: block; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--suave); }
+.faixa-treino b { font-size: 16px; }
+.serie { background: var(--sup); border: 2px solid var(--borda); border-radius: var(--raio); overflow: hidden; position: relative; }
+.serie.m-barra { border-left: 6px solid var(--c); }
+.serie.m-tingido { background: var(--ct); border-color: var(--c); }
+.serie.m-faixa .topo-serie { background: var(--ct); border-bottom: 3px solid var(--c); }
+.serie.sem-cor.m-barra { border-left-color: var(--borda); }
+.topo-serie { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 14px 0; }
+.serie.m-faixa .topo-serie { padding: 10px 14px; }
+.topo-serie .n { margin-left: auto; font-size: 12px; color: var(--suave); }
+.corpo-serie { padding: 10px 14px 14px; display: flex; flex-direction: column; gap: 10px; }
+.meta { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.meta .reps { font-size: 20px; font-weight: 700; }
+.meta .resto { color: var(--suave); }
+.registro { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
+.registro .sug, .etapa .sug { font-size: 12px; color: var(--suave); align-self: center; max-width: 220px; }
+.check { width: 48px; height: 48px; border-radius: var(--raio); border: 2px solid var(--bordaCampo); background: var(--campo); display: grid; place-items: center; color: var(--texto); }
+.check.on { background: var(--texto); border-color: var(--texto); color: var(--fundo); }
+.feita { display: flex; align-items: center; gap: 10px; }
+.feita .valor { font-size: 18px; font-weight: 700; }
+.linha-suave { font-size: 13px; color: var(--suave); }
+.etapas { display: flex; flex-direction: column; border: 1px solid var(--borda); border-radius: var(--raio); background: var(--sup2); overflow: hidden; }
+.serie.m-tingido .etapas { background: var(--sup); }
+.etapa { display: flex; align-items: center; gap: 10px; padding: 10px 12px; flex-wrap: wrap; }
+.etapa + .etapa, .pausa + .etapa { border-top: 1px solid var(--divisor); }
+.etapa .nome-etapa { min-width: 92px; display: flex; flex-direction: column; }
+.etapa .nome-etapa b { font-size: 14px; }
+.etapa .acao-etapa { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.etapa.atual { background: var(--sup); box-shadow: inset 3px 0 0 var(--texto); }
+.pausa { display: flex; align-items: center; gap: 8px; padding: 4px 12px; font-size: 12px; color: var(--suave); border-top: 1px dashed var(--bordaCampo); }
+.rodape-serie { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: space-between; }
+.lista-series { display: flex; flex-direction: column; gap: 12px; }
+.navega { display: flex; flex-direction: column; gap: 8px; }
+.navega .dois { display: flex; gap: 8px; } .navega .dois .btn { flex: 1; }
+
+/* ====== dieta ====== */
+.item-dieta { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--divisor); }
+.item-dieta:first-child { border-top: 0; }
+.item-dieta .nome { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.item-dieta .nome b { font-size: 15px; }
+.qtd { display: inline-flex; align-items: baseline; gap: 4px; padding: 6px 12px; border-radius: 10px; border: 1px solid var(--c); background: var(--ct); color: var(--c); font-weight: 700; white-space: nowrap; flex-shrink: 0; }
+.qtd .v { font-size: 18px; } .qtd .u { font-size: 14px; }
+.qtd.neutra { --c: var(--texto); --ct: var(--sup3); border-color: var(--bordaCampo); }
+.refeicao.m-barra { border-left: 6px solid var(--c); }
+.total-dia { display: flex; gap: 8px; flex-wrap: wrap; }
+.total-dia div { flex: 1; min-width: 80px; border: 1px solid var(--borda); border-radius: var(--raio); padding: 8px 12px; background: var(--sup); }
+.total-dia small { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--suave); }
+.total-dia b { font-size: 17px; }
+.disp.l390 .total-dia div { flex-basis: 40%; }
+.disp.receita { min-height: 980px; }
+.escolha { border-left: 3px solid var(--bordaCampo); background: var(--sup3); border-radius: var(--raio); padding: 8px 12px; }
+
+/* ====== histórico ====== */
+.letra { width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; font-weight: 800; font-size: 15px; border: 2px solid var(--c); color: var(--c); background: var(--ct); flex-shrink: 0; }
+.letra.neutra { --c: var(--texto); --ct: var(--sup); border-color: var(--bordaCampo); }
+.divisao { border: 2px solid var(--borda); border-radius: var(--raio); overflow: hidden; background: var(--sup); }
+.divisao.com-cor { border-left: 6px solid var(--c); }
+.cab-divisao { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--sup3); border-bottom: 3px solid var(--bordaCampo); }
+.divisao.com-cor .cab-divisao { background: var(--ct); border-bottom-color: var(--c); }
+.cab-divisao .tx { flex: 1; display: flex; flex-direction: column; gap: 1px; }
+.cab-divisao .tx b { font-size: 16px; }
+.exercicio-hist { padding: 10px 14px 12px; display: flex; flex-direction: column; gap: 6px; }
+.exercicio-hist + .exercicio-hist { border-top: 1px solid var(--divisor); }
+table.cargas { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.cargas th { text-align: left; font-size: 12px; color: var(--suave); font-weight: 600; padding: 4px 6px; border-bottom: 1px solid var(--bordaCampo); }
+table.cargas td { padding: 6px; border-bottom: 1px solid var(--divisor); }
+table.cargas .d { text-align: right; }
+.semana { display: flex; flex-direction: column; gap: 10px; }
+.cab-semana { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 0 2px; border-bottom: 2px solid var(--bordaCampo); }
+.cab-semana b { font-size: 15px; flex: 1; min-width: 160px; }
+.pontos { display: flex; gap: 4px; }
+.pontos span { width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center; font-size: 11px; font-weight: 700; border: 1px solid var(--borda); color: var(--suave); background: var(--sup); }
+.pontos span.t { border: 2px solid var(--c); color: var(--c); background: var(--ct); }
+.pontos span.t.neutra { --c: var(--texto); --ct: var(--sup3); }
+.dia { display: flex; gap: 12px; align-items: stretch; }
+.data-dia { width: 56px; flex-shrink: 0; border: 1px solid var(--borda); border-radius: var(--raio); background: var(--sup); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 6px 0; }
+.data-dia small { font-size: 11px; font-weight: 700; letter-spacing: .06em; color: var(--suave); }
+.data-dia b { font-size: 20px; }
+.data-dia span { font-size: 11px; color: var(--suave); }
+.dia .divisao { flex: 1; min-width: 0; }
+.ex-dia { padding: 8px 14px; display: flex; flex-direction: column; gap: 2px; }
+.ex-dia + .ex-dia { border-top: 1px solid var(--divisor); }
+.ex-dia b { font-size: 14px; }
+.periodo-topo { display: flex; flex-direction: column; gap: 8px; }
+
+/* ====== usar receita ====== */
+.fundo-editor { flex: 1; display: flex; min-height: 0; position: relative; }
+.menu-lat { width: 232px; background: var(--sup); border-right: 1px solid var(--borda); padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+.menu-lat .falso { height: 34px; border-radius: 10px; background: var(--sup3); }
+.menu-lat .falso.ativo { background: var(--marca); }
+.area-editor { flex: 1; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+.falso-bloco { border: 2px solid var(--borda); border-radius: var(--raio); background: var(--sup); height: 110px; }
+.veu { position: absolute; inset: 0; background: rgba(0,0,0,.45); }
+.folha { position: absolute; top: 0; right: 0; bottom: 0; width: 600px; background: var(--sup); border-left: 2px solid var(--borda); display: flex; flex-direction: column; }
+.disp.l390 .folha { left: 0; width: auto; top: 60px; border-left: 0; border-top: 2px solid var(--borda); border-radius: 18px 18px 0 0; }
+.cab-folha { background: var(--sup3); border-bottom: 3px solid var(--bordaCampo); padding: 12px 16px; display: flex; align-items: center; gap: 10px; }
+.cab-folha b { flex: 1; font-size: 17px; }
+.corpo-folha { overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; flex: 1; min-height: 0; }
+.corpo-folha > * { flex-shrink: 0; }
+.secao-rec { border: 2px solid var(--borda); border-radius: var(--raio); overflow: hidden; background: var(--sup); }
+.cab-secao { width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--sup3); border: 0; border-bottom: 3px solid var(--bordaCampo); text-align: left; min-height: 48px; }
+.cab-secao b { flex: 1; font-size: 15px; }
+.secao-rec.fechada .cab-secao { border-bottom: 0; }
+.receita { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.receita + .receita { border-top: 1px solid var(--divisor); }
+.receita .linha1 { display: flex; align-items: center; gap: 10px; }
+.receita .linha1 b { flex: 1; font-size: 15px; }
+.seq { display: flex; flex-wrap: wrap; gap: 6px; }
+.peca { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; border: 1px solid var(--borda); border-left: 4px solid var(--c); border-radius: 6px; padding: 3px 8px; background: var(--sup); color: var(--texto); }
+.peca .t { color: var(--c); font-weight: 700; }
+.peca.sem-cor { border-left-color: var(--bordaCampo); } .peca.sem-cor .t { color: var(--texto); }
+.aviso-folha { font-size: 13px; color: var(--suave); border: 1px solid var(--borda); border-radius: var(--raio); padding: 8px 12px; background: var(--sup2); }
+</style>
+</head>
+<body>
+<div class="barra-prot" id="barra"></div>
+<div class="doc">
+  <section class="caixa-doc" id="decidir"></section>
+  <section class="caixa-doc">
+    <div class="rotulo-palco" id="rotulo-palco"></div>
+    <div class="palco"><div id="disp"></div></div>
+  </section>
+  <section class="caixa-doc" id="contraste"></section>
+</div>
+<script>
+'use strict';
+/* ====================== temas (os de app/src/tema/tokens.ts) ====================== */
+const TEMAS = {
+  claro:  { fundo:'#F7F7F8', sup:'#FFFFFF', sup2:'#F4F4F5', sup3:'#E7E7EA', ff:'#DCDCE1', divisor:'#D4D4D8', borda:'#B9B9C0', campo:'#FFFFFF', bordaCampo:'#80808A', texto:'#111114', suave:'#52525B', sucesso:'#176E3C', atencao:'#875710', perigo:'#B71C1C', neutro:'#616169' },
+  areia:  { fundo:'#FAF9F6', sup:'#FFFFFF', sup2:'#F7F5F0', sup3:'#E7E3DB', ff:'#DDD6CA', divisor:'#DDD8CF', borda:'#B9B3A9', campo:'#FFFFFF', bordaCampo:'#77736B', texto:'#111114', suave:'#52525B', sucesso:'#176E3C', atencao:'#875710', perigo:'#B71C1C', neutro:'#616169' },
+  escuro: { fundo:'#0A0A0C', sup:'#18181B', sup2:'#222226', sup3:'#2C2C31', ff:'#34343B', divisor:'#36363C', borda:'#4C4C55', campo:'#0F0F12', bordaCampo:'#76767E', texto:'#F4F4F5', suave:'#A1A1AA', sucesso:'#2BB36A', atencao:'#D9962C', perigo:'#F0666B', neutro:'#9A9AA3' },
+};
+const NOMES_TEMA = { claro: 'Claro', areia: 'Claro areia', escuro: 'Escuro' };
+/** Marca fictícia (a mesma dos outros protótipos). */
+const MARCA = '#B71C1C';
+
+/*
+ * Paleta de IDENTIFICAÇÃO proposta (cor de tipo de série, de divisão e de refeição). Parte da paleta das agendas
+ * (PALETA_DA_AGENDA), ajustada até passar 4,5:1 como texto nos três temas, inclusive sobre superficie3 da areia e sobre o
+ * fundo tingido do selo. Fora: ARDOSIA (ΔE ~10 do cinza "encerrado"), TERRA e OLIVA (lembram âmbar e verde).
+ * O claro e o areia usam a mesma cor; o escuro, a variante clara.
+ */
+const PALETA = {
+  CIANO:   { nome: 'Ciano',   claro: '#00698A', escuro: '#3CC3D6' },
+  AZUL:    { nome: 'Azul',    claro: '#1A5CBA', escuro: '#62A0F8' },
+  INDIGO:  { nome: 'Índigo',  claro: '#4B3FBF', escuro: '#A196F5' },
+  VIOLETA: { nome: 'Violeta', claro: '#8A2DB0', escuro: '#CF8DEE' },
+  MAGENTA: { nome: 'Magenta', claro: '#A3237F', escuro: '#F07AC8' },
+};
+const COR_DO_PAPEL = { AQUECIMENTO: 'CIANO', PREPARACAO: 'AZUL', TRABALHO: 'INDIGO', POS_TRABALHO: 'MAGENTA', OUTRO: null };
+const COR_DO_TIPO = { WARM_UP: 'CIANO', FEEDER: 'AZUL', WORKING: 'INDIGO', TOP_SET: 'VIOLETA', BACK_OFF: 'MAGENTA' };
+/** Divisões A, B, C...: a ordem espalha as cores para as três primeiras ficarem bem diferentes. */
+const COR_DA_DIVISAO = ['AZUL', 'MAGENTA', 'CIANO', 'VIOLETA', 'INDIGO'];
+const COR_DA_REFEICAO = ['CIANO', 'AZUL', 'VIOLETA', 'MAGENTA', 'INDIGO'];
+
+/* ====================== contas de cor (as mesmas de tokens.ts e tokens.test.ts) ====================== */
+function luminancia(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => { const s = v / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; });
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+}
+function contraste(a, b) { const [x, y] = [luminancia(a), luminancia(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); }
+function misturar(cor, alvo, t) {
+  const a = parseInt(cor.slice(1), 16), b = parseInt(alvo.slice(1), 16);
+  const canal = (d) => Math.round(((a >> d) & 255) * (1 - t) + ((b >> d) & 255) * t);
+  return '#' + [16, 8, 0].map((d) => canal(d).toString(16).padStart(2, '0').toUpperCase()).join('');
+}
+/** O `tingido` do app: a cor com alfa 0x18 sobre a superfície, opaco. */
+const tingido = (cor, base) => misturar(base, cor, 0x18 / 255);
+function lab(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => { const s = c / 255; return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; });
+  const x = (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047, y = 0.2126 * r + 0.7152 * g + 0.0722 * b, z = (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883;
+  const f = (t) => (t > 216 / 24389 ? Math.cbrt(t) : ((24389 / 27) * t + 16) / 116);
+  return [116 * f(y) - 16, 500 * (f(x) - f(y)), 200 * (f(y) - f(z))];
+}
+const distancia = (a, b) => Math.hypot(...lab(a).map((v, i) => v - lab(b)[i]));
+function marcaParaTexto(marca, fundo) {
+  const alvo = luminancia(fundo) < 0.18 ? '#FFFFFF' : '#000000';
+  for (let t = 0; t <= 1.0001; t += 0.04) { const c = misturar(marca, alvo, Math.min(t, 1)); if (contraste(c, fundo) >= 4.5) return c; }
+  return alvo;
+}
+
+/* ====================== estado do protótipo ====================== */
+const PADRAO = { tela: 'execucao', largura: '390', tema: 'claro', corPor: 'tipo', marcacao: 'barra', divisoes: 'cor', dieta: 'refeicao', aba: 'dia', agruparRec: 'bloco' };
+let aj = { ...PADRAO };
+try { const s = JSON.parse(localStorage.getItem('prototipo-cores-serie') || 'null'); if (s) aj = { ...PADRAO, ...s }; } catch (e) { /* sem armazenamento: segue o padrão */ }
+const guardar = () => { try { localStorage.setItem('prototipo-cores-serie', JSON.stringify(aj)); } catch (e) { /* ignora */ } };
+const estado = { feitas: new Set(['s1', 's2', 's3']), etapas: { 1: true, 2: true, 3: false }, busca: '', fechadas: new Set(), opcao: {} };
+
+/* ====================== ícones (desenho do lucide, o mesmo do app) ====================== */
+const P = {
+  voltar: '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>', check: '<path d="M20 6 9 17l-5-5"/>', info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  casa: '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .71-1.53l7-6a2 2 0 0 1 2.58 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  haltere: '<path d="M14.4 14.4 9.6 9.6"/><path d="M18.66 21.51a2 2 0 1 1-2.83-2.83l-1.77 1.77a2 2 0 1 1-2.83-2.83l6.37-6.36a2 2 0 1 1 2.83 2.82l-1.77 1.77a2 2 0 1 1 2.83 2.83z"/><path d="m21.5 21.5-1.4-1.4"/><path d="M3.9 3.9 2.5 2.5"/><path d="M6.4 12.77a2 2 0 1 1-2.83-2.83l1.77-1.77a2 2 0 1 1-2.83-2.83l2.83-2.83a2 2 0 1 1 2.83 2.83l1.77-1.77a2 2 0 1 1 2.83 2.83z"/>',
+  maca: '<path d="M12 20.94c1.5 0 2.75 1.06 4 1.06 3 0 6-8 6-12.22A4.91 4.91 0 0 0 17 5c-2.22 0-4 1.44-5 2-1-.56-2.78-2-5-2a4.9 4.9 0 0 0-5 4.78C2 14 5 22 8 22c1.25 0 2.5-1.06 4-1.06Z"/><path d="M10 2c1 .5 2 2 2 5"/>',
+  relogio: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>', perfil: '<circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/>',
+  seta: '<path d="m9 18 6-6-6-6"/>', baixo: '<path d="m6 9 6 6 6-6"/>', cima: '<path d="m18 15-6-6-6 6"/>', fechar: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  pausa: '<rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/>', calendario: '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',
+  gota: '<path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/>', busca: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+};
+const ic = (n, t = 18) => `<svg width="${t}" height="${t}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n] || ''}</svg>`;
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/* ====================== cor em uso ====================== */
+const escuro = () => aj.tema === 'escuro';
+const tema = () => TEMAS[aj.tema];
+const hex = (chave) => (chave ? PALETA[chave][escuro() ? 'escuro' : 'claro'] : null);
+/** `--c` (cor) e `--ct` (fundo tingido) de uma chave da paleta; sem chave, sem cor (o texto do selo carrega o tipo). */
+function vars(chave) {
+  const c = hex(chave); if (!c) return '';
+  return `--c:${c};--ct:${tingido(c, tema().sup)};`;
+}
+/** Tipo → cor: por tipo (os cinco códigos do padrão; tipo criado pelo treinador cai na cor do papel) ou só por papel. */
+const corDaSerie = (s) => (aj.corPor === 'tipo' && COR_DO_TIPO[s.tipo]) || COR_DO_PAPEL[s.papel];
+const seloTipo = (s) => { const k = corDaSerie(s); return k ? `<span class="selo" style="${vars(k)}">${esc(s.nome)}</span>` : `<span class="selo neutro">${esc(s.nome)}</span>`; };
+const seloTecnica = (t) => `<span class="selo neutro">${esc(t)}</span>`;
+
+/* ====================== dados fictícios (D8) ====================== */
+const SERIES = [
+  { id: 's1', tipo: 'WARM_UP', nome: 'Aquecimento', papel: 'AQUECIMENTO', reps: '10 a 15 reps', resto: 'carga leve', ultimo: '20 kg × 12 (23/10)', feito: '20 kg × 12' },
+  { id: 's2', tipo: 'FEEDER', nome: 'FS', papel: 'PREPARACAO', reps: '3 reps', resto: '50% da WS', ultimo: '30 kg × 3 (23/10)', feito: '30 kg × 3' },
+  { id: 's3', tipo: 'FEEDER', nome: 'FS', papel: 'PREPARACAO', reps: '3 reps', resto: '70% da WS', ultimo: '42 kg × 3 (23/10)', feito: '42 kg × 3' },
+  { id: 's4', tipo: 'WORKING', nome: 'WS', papel: 'TRABALHO', tecnica: 'Cluster', blocos: [4, 4, 2], pausa: 15, resto: 'carga de trabalho · 1 RIR', ultimo: '60 kg × 4+4+2 = 10 (23/10)' },
+  { id: 's5', tipo: 'TOP_SET', nome: 'Top set', papel: 'TRABALHO', reps: '1 a 3 reps', resto: '+1% a 5% sobre a anterior · 0 RIR (até a falha)', ultimo: '62 kg × 2 (23/10)', sugestao: 'Sugestão: 61 kg (+1% da WS de hoje) · Última vez: 62 kg × 2' },
+  { id: 's6', tipo: 'BACK_OFF', nome: 'Back off', papel: 'POS_TRABALHO', reps: '6 a 8 reps', resto: '85% da WS', ultimo: '51 kg × 8 (23/10)', sugestao: 'Sugestão: 51 kg (85% da WS de hoje) · Última vez: 51 kg × 8' },
+  { id: 's7', tipo: 'BACK_OFF', nome: 'Back off', papel: 'POS_TRABALHO', reps: '6 a 8 reps', resto: '85% da WS', ultimo: '51 kg × 7 (23/10)', sugestao: 'Sugestão: 51 kg (85% da WS de hoje) · Última vez: 51 kg × 7' },
+];
+const REFEICOES = [
+  { nome: 'Café da manhã', horario: '07:30', opcoes: [
+    { rotulo: 'A', total: '400 kcal · P 25 g · C 38 g · G 17 g', itens: [['Ovo inteiro', '3', 'unid', '210 kcal · P 18 g · C 1 g · G 15 g'], ['Pão integral', '50', 'g', '125 kcal · P 6 g · C 22 g · G 2 g'], ['Mamão', '150', 'g', '60 kcal · P 1 g · C 15 g · G 0 g'], ['Café sem açúcar', '200', 'ml', '5 kcal']] },
+    { rotulo: 'B', total: '345 kcal · P 13 g · C 57 g · G 8 g', itens: [['Iogurte natural', '170', 'g', '105 kcal · P 7 g · C 8 g · G 5 g'], ['Aveia em flocos', '40', 'g', '150 kcal · P 5 g · C 26 g · G 3 g'], ['Banana', '1', 'unid', '90 kcal · P 1 g · C 23 g · G 0 g']] }] },
+  { nome: 'Almoço', horario: '12:30', opcoes: [{ rotulo: 'A', total: '620 kcal · P 59 g · C 59 g · G 15 g', itens: [['Arroz branco cozido', '150', 'g', '190 kcal · P 4 g · C 42 g · G 0 g'], ['Feijão carioca cozido', '100', 'g', '75 kcal · P 5 g · C 13 g · G 1 g'], ['Peito de frango grelhado', '150', 'g', '240 kcal · P 48 g · C 0 g · G 4 g'], ['Brócolis cozido', '80', 'g', '25 kcal · P 2 g · C 4 g · G 0 g'], ['Azeite de oliva', '10', 'ml', '90 kcal · G 10 g']] }] },
+  { nome: 'Lanche da tarde', horario: '16:00', opcoes: [{ rotulo: 'A', total: '210 kcal · P 25 g · C 26 g · G 2 g', itens: [['Whey protein', '30', 'g', '120 kcal · P 24 g · C 3 g · G 2 g'], ['Banana', '1', 'unid', '90 kcal · P 1 g · C 23 g · G 0 g']] }] },
+  { nome: 'Jantar', horario: '20:00', opcoes: [{ rotulo: 'A', total: '440 kcal · P 43 g · C 44 g · G 9 g', itens: [['Batata-doce cozida', '200', 'g', '170 kcal · P 2 g · C 40 g · G 0 g'], ['Patinho moído', '150', 'g', '240 kcal · P 40 g · C 0 g · G 8 g'], ['Abobrinha refogada', '100', 'g', '30 kcal · P 1 g · C 4 g · G 1 g']] }] },
+];
+const DIVISOES = [
+  { letra: 'A', nome: 'Peito e tríceps', exercicios: [
+    { nome: 'Supino reto com barra', linhas: [['30/10', '60 kg', '4+4+2 = 10', '7'], ['23/10', '60 kg', '4+4+2 = 10', '7'], ['16/10', '57,5 kg', '4+4+2 = 10', '7'], ['09/10', '55 kg', '6', '6']] },
+    { nome: 'Tríceps na polia', linhas: [['30/10', '25 kg', '10', '3'], ['23/10', '25 kg', '9', '3'], ['16/10', '22,5 kg', '10', '3']] }] },
+  { letra: 'B', nome: 'Costas e bíceps', exercicios: [
+    { nome: 'Remada curvada', linhas: [['28/10', '50 kg', '8', '5'], ['21/10', '50 kg', '7', '5'], ['14/10', '47,5 kg', '8', '5']] },
+    { nome: 'Rosca direta', linhas: [['28/10', '14 kg', '10', '3'], ['21/10', '14 kg', '9', '3']] }] },
+  { letra: 'C', nome: 'Pernas', exercicios: [
+    { nome: 'Agachamento livre', linhas: [['24/10', '80 kg', '6', '6'], ['17/10', '77,5 kg', '6', '6'], ['10/10', '75 kg', '5', '6']] },
+    { nome: 'Cadeira extensora', linhas: [['24/10', '45 kg', '12', '3'], ['17/10', '45 kg', '11', '3']] }] },
+];
+/** Treinos por dia (data ISO, divisão, exercícios com as séries em texto, como `textoSerie`). */
+const DIAS = [
+  ['2026-10-30', 'A', [['Supino reto com barra', 'Aquecimento 20 kg × 12 · FS 30 kg × 3 · FS 42 kg × 3 · WS 60 kg × 4+4+2 = 10 · Top set 62 kg × 2 · Back off 51 kg × 8 · Back off 51 kg × 7', 'Volume de carga: 1.712 kg'], ['Tríceps na polia', 'WS 25 kg × 10 · WS 25 kg × 9 · WS 25 kg × 8', 'Volume de carga: 675 kg']]],
+  ['2026-10-28', 'B', [['Remada curvada', 'FS 30 kg × 3 · WS 50 kg × 8 · Back off 42 kg × 8', 'Volume de carga: 826 kg'], ['Rosca direta', 'WS 14 kg × 10 · WS 14 kg × 9 · WS 14 kg × 8', 'Volume de carga: 378 kg']]],
+  ['2026-10-27', 'C', [['Agachamento livre', 'Aquecimento 40 kg × 10 · FS 56 kg × 3 · WS 80 kg × 6 · Back off 68 kg × 8', 'Volume de carga: 1.712 kg']]],
+  ['2026-10-24', 'C', [['Agachamento livre', 'FS 54 kg × 3 · WS 80 kg × 6 · Back off 68 kg × 7', 'Volume de carga: 1.118 kg'], ['Cadeira extensora', 'WS 45 kg × 12 · WS 45 kg × 10', 'Volume de carga: 990 kg']]],
+  ['2026-10-23', 'A', [['Supino reto com barra', 'FS 30 kg × 3 · FS 42 kg × 3 · WS 60 kg × 4+4+2 = 10 · Back off 51 kg × 8', 'Volume de carga: 1.224 kg']]],
+  ['2026-10-21', 'B', [['Remada curvada', 'WS 50 kg × 7 · Back off 42 kg × 8', 'Volume de carga: 686 kg']]],
+];
+/* Receitas de séries: `seq` = [código do tipo, papel, nome, texto]; `tec` = técnica; `colecao` = coleção do treinador. */
+const R = (codigo, papel, nome, texto) => ({ codigo, papel, nome, texto });
+const AQ = (t) => R('WARM_UP', 'AQUECIMENTO', 'Aquecimento', t), FS = (t) => R('FEEDER', 'PREPARACAO', 'FS', t), WS = (t) => R('WORKING', 'TRABALHO', 'WS', t), TS = (t) => R('TOP_SET', 'TRABALHO', 'Top set', t), BO = (t) => R('BACK_OFF', 'POS_TRABALHO', 'Back off', t);
+const RECEITAS = [
+  { nome: 'Pirâmide completa (FS, WS e Back off)', colecao: 'Hipertrofia', seq: [AQ('1 × 10 a 15'), FS('3 × 3 · 50% · 70% · 85% a 90%'), WS('1 × 3 a 6'), BO('2 × 6 a 8 · 85%')] },
+  { nome: 'Força com Top set', colecao: 'Força', seq: [AQ('1 × 10 a 15'), FS('2 × 3 · 70% · 85%'), TS('1 × 1 a 3 · +1% a 5%'), BO('2 × 6 a 8 · 85%')] },
+  { nome: 'Exemplo: FS, WS e Cluster', colecao: 'Exemplos', tec: 'Cluster', seq: [FS('2 × 3 · 50% · 70%'), WS('1 × Cluster 4+4+2 · pausa 15 s')] },
+  { nome: 'Exemplo: FS e Cluster', colecao: 'Exemplos', tec: 'Cluster', seq: [FS('3 × 3 · 50% · 70% · 85%'), WS('1 × Cluster 4×4 · pausa 15 s')] },
+  { nome: 'WS com Rest pause na última', colecao: 'Hipertrofia', tec: 'Rest pause', seq: [WS('2 × 6 a 8'), WS('1 × Rest pause · 1 pausa de 20 s')] },
+  { nome: 'WS com Drop-set', colecao: 'Hipertrofia', tec: 'Drop-set', seq: [WS('1 × 8 a 10 · Drop-set 2 quedas de 20%')] },
+  { nome: 'Aquecimento em 2 séries', colecao: 'Sem coleção', seq: [AQ('2 × 10 a 15')] },
+  { nome: '3 FS (50 · 70 · 85%)', colecao: 'Sem coleção', seq: [FS('3 × 3 · 50% · 70% · 85% a 90%')] },
+  { nome: '2 FS (70 · 85%)', colecao: 'Força', seq: [FS('2 × 3 · 70% · 85%')] },
+  { nome: 'WS de 3 a 6', colecao: 'Sem coleção', seq: [WS('1 × 3 a 6 · 1 RIR')] },
+  { nome: '2 WS iguais', colecao: 'Hipertrofia', seq: [WS('2 × 6 a 8 · 1 RIR')] },
+  { nome: '2 Back off a 85%', colecao: 'Sem coleção', seq: [BO('2 × 6 a 8 · 85%')] },
+  { nome: 'Back off 10% abaixo da Top set', colecao: 'Força', seq: [BO('1 × 6 a 8 · 10% abaixo da Top set')] },
+];
+const PAPEIS = [['AQUECIMENTO', 'Aquecimento'], ['PREPARACAO', 'Preparação (FS)'], ['TRABALHO', 'Trabalho (WS e Top set)'], ['POS_TRABALHO', 'Pós-trabalho (Back off)']];
+
+/* ====================== telas ====================== */
+function barraSistema() { return `<div class="barra-sis num"><span>9:41</span><span>dados fictícios</span></div>`; }
+function inferior(ativa) {
+  const it = [['casa', 'Início'], ['haltere', 'Treino'], ['maca', 'Dieta'], ['relogio', 'Histórico'], ['perfil', 'Conta']];
+  return `<nav class="inferior" aria-label="Menu do aluno">${it.map(([i, n]) => `<button class="${n === ativa ? 'ativo' : ''}" ${n === ativa ? 'aria-current="page"' : ''}>${ic(i, 20)}${n}</button>`).join('')}</nav>`;
+}
+
+/* ---- C35: execução do aluno ---- */
+function cartaoSerie(s, i) {
+  const k = corDaSerie(s);
+  const cls = `serie m-${aj.marcacao}${k ? '' : ' sem-cor'}`;
+  const topo = `<div class="topo-serie">${seloTipo(s)}${s.tecnica ? seloTecnica(s.tecnica) : ''}<button class="ib p" aria-label="O que é ${esc(s.nome)}?">${ic('info', 16)}</button><span class="n num">Série ${i + 1} de ${SERIES.length}</span></div>`;
+  if (s.blocos) return `<article class="${cls}" style="${vars(k)}" aria-label="Série ${i + 1}, ${esc(s.nome)} com ${esc(s.tecnica)}">${topo}${corpoCluster(s)}</article>`;
+  const feita = estado.feitas.has(s.id);
+  const corpo = feita
+    ? `<div class="feita"><button class="check on" data-acao="serie" data-id="${s.id}" aria-label="Desmarcar série">${ic('check', 22)}</button><div><div class="pequeno">Hoje</div><div class="valor num">${esc(s.feito)}</div></div></div>`
+    : `<div class="registro"><label><span class="rot-campo">Carga (kg)</span><input class="campo num" inputmode="decimal" aria-label="Carga em kg"></label><label><span class="rot-campo">Reps</span><input class="campo num" style="width:72px" inputmode="numeric" aria-label="Repetições"></label><span class="sug">${esc(s.sugestao || '')}</span><button class="check" data-acao="serie" data-id="${s.id}" aria-label="Marcar série como feita">${ic('check', 22)}</button></div>`;
+  return `<article class="${cls}" style="${vars(k)}" aria-label="Série ${i + 1}, ${esc(s.nome)}">${topo}<div class="corpo-serie">
+    <div class="meta"><span class="reps num">${esc(s.reps)}</span><span class="resto">${esc(s.resto)}</span></div>
+    <div class="linha-suave num">Último registro: ${esc(s.ultimo)}</div>${corpo}</div></article>`;
+}
+/** Cluster como UM bloco: a série tem as etapas dentro, com a pausa entre elas, e o "Concluir série" no rodapé. */
+function corpoCluster(s) {
+  const total = s.blocos.reduce((a, b) => a + b, 0);
+  const feitas = s.blocos.reduce((a, b, i) => a + (estado.etapas[i + 1] ? b : 0), 0);
+  const atual = s.blocos.findIndex((_, i) => !estado.etapas[i + 1]) + 1;
+  const linhas = s.blocos.map((b, i) => {
+    const n = i + 1, ok = !!estado.etapas[n];
+    const pausa = i > 0 ? `<div class="pausa">${ic('pausa', 14)} Pausa de ${s.pausa} s entre os blocos</div>` : '';
+    const acao = ok
+      ? `<span class="forte num">60 kg × ${b}</span><button class="check on" data-acao="etapa" data-n="${n}" aria-label="Desfazer bloco ${n}">${ic('check', 20)}</button>`
+      : `<input class="campo num" style="width:80px;height:44px" placeholder="kg" aria-label="Carga do bloco ${n}"><input class="campo num" style="width:60px;height:44px" aria-label="Reps do bloco ${n}"><button class="check" data-acao="etapa" data-n="${n}" aria-label="Marcar bloco ${n}">${ic('check', 20)}</button>${n === atual ? '<span class="sug" style="flex-basis:100%;text-align:right">Sugestão: 60 kg (a carga dos blocos anteriores)</span>' : ''}`;
+    return `${pausa}<div class="etapa${n === atual ? ' atual' : ''}"><div class="nome-etapa"><b>Bloco ${n}</b><span class="pequeno num">${b} reps${ok ? ' · feito' : n === atual ? ' · agora' : ''}</span></div><div class="acao-etapa">${acao}</div></div>`;
+  }).join('');
+  const falta = s.blocos.length - Object.values(estado.etapas).filter(Boolean).length;
+  return `<div class="corpo-serie">
+    <div class="meta"><span class="reps num">${total} reps em ${s.blocos.length} blocos</span><span class="resto num">${s.blocos.join(' + ')} · ${esc(s.resto)}</span></div>
+    <div class="linha-suave num">Último registro: ${esc(s.ultimo)}</div>
+    <div class="etapas" role="group" aria-label="Blocos do Cluster">${linhas}</div>
+    <div class="rodape-serie"><span class="forte num">Feito até agora: ${feitas} de ${total} reps</span><button class="btn" ${falta ? `disabled title="Falta ${falta === 1 ? 'o bloco ' + atual : falta + ' blocos'}"` : ''} data-acao="nada">Concluir série</button></div>
+    ${falta ? `<span class="pequeno">Falta ${falta === 1 ? `o bloco ${atual}` : `${falta} blocos`} para concluir.</span>` : ''}</div>`;
+}
+function telaExecucao() {
+  const feitas = SERIES.filter((s) => estado.feitas.has(s.id)).length + (Object.values(estado.etapas).every(Boolean) ? 1 : 0);
+  return `<div class="app"><main class="conteudo">
+    <div class="cab"><button class="ib" aria-label="Voltar">${ic('voltar')}</button><div class="tx"><span class="pequeno">Treino A · Peito e tríceps · Exercício 2 de 6</span><h1>Supino reto com barra</h1></div></div>
+    <div class="faixa-treino num"><div><small>Duração</small><b>32 min</b></div><div><small>Volume</small><b>1.240 kg</b></div><div><small>Séries</small><b>${feitas + 6}/24</b></div></div>
+    <div class="lista-series">${SERIES.map(cartaoSerie).join('')}</div>
+    <div class="navega"><button class="btn primario cheio">Próximo: Supino inclinado ${ic('seta')}</button><div class="dois"><button class="btn">Anterior</button><button class="btn">Lista do dia</button></div></div>
+  </main>${inferior('Treino')}</div>`;
+}
+
+/* ---- C50: dieta do aluno ---- */
+function telaDieta() {
+  const refeicoes = REFEICOES.map((r, i) => {
+    const k = aj.dieta === 'refeicao' ? COR_DA_REFEICAO[i % COR_DA_REFEICAO.length] : null;
+    const op = r.opcoes[Math.min(estado.opcao[i] || 0, r.opcoes.length - 1)];
+    const abas = r.opcoes.length > 1 ? `<div class="escolha"><b>Escolha uma das opções: ${r.opcoes.map((o) => o.rotulo).join(' ou ')}.</b><div class="pequeno">As opções não se somam: o total do dia conta só a opção A.</div></div>
+      <div class="abas" role="tablist">${r.opcoes.map((o, j) => `<button role="tab" aria-selected="${o === op}" class="${o === op ? 'sel' : ''}" data-acao="opcao" data-r="${i}" data-o="${j}">Opção ${o.rotulo}</button>`).join('')}</div>` : '';
+    const itens = op.itens.map(([nome, q, u, macros]) => `<div class="item-dieta"><div class="nome"><b>${esc(nome)}</b><span class="pequeno num">${esc(macros)}</span></div>
+      <span class="qtd num${k ? '' : ' neutra'}" ${k ? `style="${vars(k)}"` : ''}><span class="v">${esc(q)}</span><span class="u">${esc(u)}</span></span></div>`).join('');
+    return `<section class="bloco refeicao${k ? ' m-barra' : ''}" style="${vars(k)}"><div class="faixa"><div class="tit"><b>${esc(r.nome)}</b><small class="suave">Horário: ${esc(r.horario)}</small></div></div>
+      <div class="corpo">${abas}<div>${itens}</div><div class="forte num" style="border-top:2px solid var(--bordaCampo);padding-top:8px">${r.opcoes.length > 1 ? `Total da opção ${op.rotulo}` : 'Total'}: ${esc(op.total)}</div></div></section>`;
+  }).join('');
+  return `<div class="app"><main class="conteudo">
+    <div class="cab"><div class="tx"><h1>Dieta</h1><span class="pequeno">Plano de outubro · 01/10 a 31/10</span></div></div>
+    <div class="total-dia num"><div><small>Total do dia</small><b>1.670 kcal</b></div><div><small>Proteína</small><b>152 g</b></div><div><small>Carboidrato</small><b>167 g</b></div><div><small>Gordura</small><b>43 g</b></div><div><small>${ic('gota', 12)} Água</small><b>3,0 L</b></div></div>
+    ${refeicoes}
+  </main>${inferior('Dieta')}</div>`;
+}
+
+/* ---- C45 + C74: histórico do aluno ---- */
+const SEMANA = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
+const dataDe = (iso) => new Date(iso + 'T12:00:00Z');
+const ddmm = (d) => `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+function letra(l) {
+  const k = aj.divisoes === 'cor' ? COR_DA_DIVISAO[l.charCodeAt(0) - 65] : null;
+  return { k, html: `<span class="letra${k ? '' : ' neutra'}" ${k ? `style="${vars(k)}"` : ''} aria-hidden="true">${l}</span>` };
+}
+function porDivisao() {
+  return DIVISOES.map((d) => {
+    const { k, html } = letra(d.letra);
+    const ex = d.exercicios.map((e) => `<div class="exercicio-hist"><b>${esc(e.nome)}</b><table class="cargas num"><thead><tr><th>Data</th><th class="d">Carga</th><th class="d">Reps</th><th class="d">Séries</th></tr></thead><tbody>${e.linhas.map((l) => `<tr><td class="forte">${l[0]}</td><td class="d forte">${l[1]}</td><td class="d">${l[2]}</td><td class="d suave">${l[3]}</td></tr>`).join('')}</tbody></table></div>`).join('');
+    return `<section class="divisao${k ? ' com-cor' : ''}" style="${vars(k)}"><div class="cab-divisao">${html}<div class="tx"><b>Treino ${d.letra} · ${esc(d.nome)}</b><span class="pequeno num">${d.exercicios.length} exercícios · último em ${d.exercicios[0].linhas[0][0]}</span></div>${ic('cima', 20)}</div>${ex}</section>`;
+  }).join('');
+}
+function porDia() {
+  // Agrupa por semana (segunda a domingo); dentro, um cartão por dia treinado, a divisão no cabeçalho.
+  const semanas = new Map();
+  for (const dia of DIAS) {
+    const d = dataDe(dia[0]); const seg = new Date(d); seg.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+    const chave = seg.toISOString().slice(0, 10);
+    if (!semanas.has(chave)) semanas.set(chave, []);
+    semanas.get(chave).push(dia);
+  }
+  return [...semanas].map(([ini, dias]) => {
+    const seg = dataDe(ini), dom = new Date(seg); dom.setUTCDate(seg.getUTCDate() + 6);
+    const treinados = new Map(dias.map((x) => [(dataDe(x[0]).getUTCDay() + 6) % 7, x[1]]));
+    const pontos = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'].map((l, i) => {
+      if (!treinados.has(i)) return `<span title="Sem treino">${l}</span>`;
+      const { k } = letra(treinados.get(i));
+      return `<span class="t${k ? '' : ' neutra'}" ${k ? `style="${vars(k)}"` : ''} title="Treino ${treinados.get(i)}">${treinados.get(i)}</span>`;
+    }).join('');
+    const cartoes = dias.map(([iso, l, exs]) => {
+      const d = dataDe(iso), div = DIVISOES.find((x) => x.letra === l), { k, html } = letra(l);
+      return `<div class="dia"><div class="data-dia num"><small>${SEMANA[d.getUTCDay()]}</small><b>${String(d.getUTCDate()).padStart(2, '0')}</b><span>${['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'][d.getUTCMonth()]}</span></div>
+        <section class="divisao${k ? ' com-cor' : ''}" style="${vars(k)}"><div class="cab-divisao">${html}<div class="tx"><b>Treino ${l} · ${esc(div.nome)}</b><span class="pequeno">${exs.length} ${exs.length === 1 ? 'exercício' : 'exercícios'}</span></div></div>
+        ${exs.map(([n, series, vol]) => `<div class="ex-dia"><b>${esc(n)}</b><span class="suave num">${esc(series)}</span><span class="pequeno num">${esc(vol)}</span></div>`).join('')}</section></div>`;
+    }).join('');
+    return `<div class="semana"><div class="cab-semana num"><b>Semana de ${ddmm(seg)} a ${ddmm(dom)}</b><span class="pequeno">${dias.length} ${dias.length === 1 ? 'treino' : 'treinos'}</span><div class="pontos" aria-label="Dias da semana com treino">${pontos}</div></div>${cartoes}</div>`;
+  }).join('');
+}
+function telaHistorico() {
+  const periodo = 'Pasta atual: 01/10 a 31/10';
+  return `<div class="app"><main class="conteudo">
+    <div class="cab"><div class="tx"><h1>Histórico</h1></div></div>
+    <section class="bloco"><div class="faixa"><div class="tit"><b>Registros e cargas</b><span class="periodo num">${ic('calendario', 14)} ${periodo}</span></div><button class="btn">PDF</button></div>
+      <div class="corpo"><div class="periodo-topo"><span class="rot-campo">Período</span><div class="chips"><button class="chip sel">Pasta atual</button><button class="chip">Pasta anterior</button><button class="chip">Últimos 30 dias</button></div></div>
+      <div class="abas" role="tablist">${[['divisao', 'Por divisão'], ['dia', 'Por dia']].map(([v, n]) => `<button role="tab" aria-selected="${aj.aba === v}" class="${aj.aba === v ? 'sel' : ''}" data-aj="aba" data-v="${v}">${n}</button>`).join('')}</div>
+      <p class="pequeno num" style="margin:0">${aj.aba === 'dia' ? 'Mostrando os dias com treino de 01/10 a 31/10, do mais recente ao mais antigo, agrupados por semana.' : 'Mostrando a carga de trabalho de cada exercício por divisão, de 01/10 a 31/10. Carga e reps contam só as séries de trabalho.'}</p>
+      ${aj.aba === 'dia' ? porDia() : porDivisao()}</div></section>
+    <section class="bloco"><div class="faixa"><div class="tit"><b>Progresso por exercício</b><span class="periodo num">${ic('calendario', 14)} Últimos 12 meses · todas as pastas</span></div></div>
+      <div class="corpo"><div class="num"><b>Supino reto com barra</b><div class="suave">Primeiro registro: 50 kg × 6 (12/03) · Último: 60 kg × 4+4+2 = 10 (30/10)</div></div></div></section>
+    <section class="bloco"><div class="faixa"><div class="tit"><b>Peso</b><span class="periodo num">${ic('calendario', 14)} Desde o primeiro registro (12/03)</span></div></div>
+      <div class="corpo"><div class="num"><b>8 registros</b><div class="suave">Último em 30/10</div></div></div></section>
+  </main>${inferior('Histórico')}</div>`;
+}
+
+/* ---- C16: janela "Usar receita" ---- */
+function pecas(seq) {
+  return `<div class="seq">${seq.map((p) => { const k = (aj.corPor === 'tipo' && COR_DO_TIPO[p.codigo]) || COR_DO_PAPEL[p.papel]; return `<span class="peca${k ? '' : ' sem-cor'}" style="${vars(k)}"><span class="t">${esc(p.nome)}</span><span class="num">${esc(p.texto)}</span></span>`; }).join('')}</div>`;
+}
+function grupoDaReceita(r) {
+  if (aj.agruparRec === 'colecao') return r.colecao;
+  if (new Set(r.seq.map((p) => p.papel)).size > 1 && !r.tec) return 'Receitas completas';
+  if (r.tec) return `Técnica: ${r.tec}`;
+  return PAPEIS.find(([p]) => p === r.seq[0].papel)[1];
+}
+function telaReceita() {
+  const termo = estado.busca.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const casa = (r) => !termo || [r.nome, r.colecao, r.tec || '', ...r.seq.map((p) => p.nome + ' ' + p.texto)].join(' ').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').includes(termo);
+  const ordem = aj.agruparRec === 'colecao'
+    ? [...new Set(RECEITAS.map((r) => r.colecao))].sort((a, b) => (a === 'Sem coleção') - (b === 'Sem coleção') || a.localeCompare(b, 'pt-BR'))
+    : ['Receitas completas', ...PAPEIS.map(([, n]) => n), 'Técnica: Cluster', 'Técnica: Rest pause', 'Técnica: Drop-set'];
+  const secoes = ordem.map((g) => {
+    const itens = RECEITAS.filter((r) => grupoDaReceita(r) === g && casa(r));
+    if (!itens.length) return '';
+    const fechada = estado.fechadas.has(g) && !termo;
+    return `<section class="secao-rec${fechada ? ' fechada' : ''}"><button class="cab-secao" data-acao="secao" data-g="${esc(g)}" aria-expanded="${!fechada}"><b>${esc(g)}</b><span class="pequeno num">${itens.length} ${itens.length === 1 ? 'receita' : 'receitas'}</span>${ic(fechada ? 'baixo' : 'cima', 20)}</button>
+      ${fechada ? '' : itens.map((r) => `<div class="receita"><div class="linha1"><b>${esc(r.nome)}</b><button class="btn" data-acao="nada">Usar</button></div>${pecas(r.seq)}${aj.agruparRec === 'bloco' ? `<span class="pequeno">Coleção: ${esc(r.colecao)}</span>` : r.tec ? `<span class="pequeno">Técnica: ${esc(r.tec)}</span>` : ''}</div>`).join('')}</section>`;
+  }).join('') || `<p class="suave">Nenhuma receita com “${esc(estado.busca)}”.</p>`;
+  const fundo = aj.largura === '1280'
+    ? `<div class="menu-lat" aria-hidden="true"><div class="falso"></div><div class="falso"></div><div class="falso ativo"></div><div class="falso"></div><div class="falso"></div></div><div class="area-editor" aria-hidden="true"><h1>Treino de Aluno Exemplo</h1><div class="falso-bloco"></div><div class="falso-bloco" style="height:260px"></div></div>`
+    : `<div class="area-editor" aria-hidden="true" style="padding:16px"><div class="falso-bloco"></div><div class="falso-bloco"></div></div>`;
+  return `<div class="app"><div class="fundo-editor">${fundo}<div class="veu"></div>
+    <div class="folha" role="dialog" aria-label="Usar receita de séries"><div class="cab-folha"><b>Usar receita de séries</b><button class="ib" aria-label="Fechar">${ic('fechar')}</button></div>
+    <div class="corpo-folha"><input class="campo busca" id="busca-rec" placeholder="Buscar por nome, tipo ou técnica (ex.: back off, cluster)" value="${esc(estado.busca)}" aria-label="Buscar receita">
+      <div><span class="rot-campo">Agrupar por</span><div class="chips">${[['bloco', 'Bloco e técnica'], ['colecao', 'Coleção']].map(([v, n]) => `<button class="chip${aj.agruparRec === v ? ' sel' : ''}" data-aj="agruparRec" data-v="${v}">${n}</button>`).join('')}</div></div>
+      <div class="aviso-folha">A receita substitui as séries do exercício. Dá para desfazer logo depois.</div>
+      ${secoes}</div></div></div></div>`;
+}
+
+/* ====================== contraste ao vivo ====================== */
+function verificar(nomeTema) {
+  const t = TEMAS[nomeTema], var_ = nomeTema === 'escuro' ? 'escuro' : 'claro';
+  return Object.entries(PALETA).map(([chave, p]) => {
+    const c = p[var_], tint = tingido(c, t.sup);
+    const texto = Math.min(...[t.sup, t.sup2, t.sup3, tint].map((s) => contraste(c, s)));
+    const barra = Math.min(...[t.fundo, t.sup, t.sup2, t.sup3, t.ff].map((s) => contraste(c, s)));
+    const suaveNoTingido = contraste(t.suave, tint);
+    const dStatus = Math.min(...[t.sucesso, t.atencao, t.perigo].map((s) => distancia(c, s)));
+    const dCinza = distancia(c, t.neutro);
+    const dOutras = Math.min(...Object.entries(PALETA).filter(([k]) => k !== chave).map(([, q]) => distancia(c, q[var_])));
+    const ok = texto >= 4.5 && barra >= 3 && suaveNoTingido >= 4.5 && dStatus >= 25 && dCinza >= 20 && dOutras >= 15;
+    return { chave, nome: p.nome, c, texto, barra, suaveNoTingido, dStatus, dCinza, dOutras, ok };
+  });
+}
+function tabelaContraste() {
+  const usos = { CIANO: 'Aquecimento · divisão C', AZUL: 'FS · divisão A', INDIGO: 'WS (e Top set "por papel") · divisão E', VIOLETA: 'Top set ("por tipo") · divisão D', MAGENTA: 'Back off · divisão B' };
+  const f = (v) => v.toFixed(2).replace('.', ','), cl = (ok) => (ok ? 'ok' : 'falha');
+  const tabs = ['claro', 'areia', 'escuro'].map((nt) => {
+    const linhas = verificar(nt);
+    const min = (k) => Math.min(...linhas.map((l) => l[k]));
+    return `<div class="t${nt === aj.tema ? ' atual' : ''}"><h4>${NOMES_TEMA[nt]}${nt === aj.tema ? ' (em uso na prévia)' : ''}</h4><table class="cont num"><thead><tr><th>Cor</th><th>Texto/ícone<br>≥ 4,5</th><th>Barra/borda<br>≥ 3</th><th>Texto suave<br>no tingido ≥ 4,5</th><th>ΔE status<br>≥ 25</th><th>ΔE cinza<br>≥ 20</th><th>ΔE outra<br>≥ 15</th><th></th></tr></thead><tbody>
+      ${linhas.map((l) => `<tr><td title="${esc(usos[l.chave])}"><span class="amostra" style="background:${l.c}"></span>${l.nome} <small>${l.c}</small></td><td class="${cl(l.texto >= 4.5)}">${f(l.texto)}</td><td class="${cl(l.barra >= 3)}">${f(l.barra)}</td><td class="${cl(l.suaveNoTingido >= 4.5)}">${f(l.suaveNoTingido)}</td><td class="${cl(l.dStatus >= 25)}">${l.dStatus.toFixed(0)}</td><td class="${cl(l.dCinza >= 20)}">${l.dCinza.toFixed(0)}</td><td class="${cl(l.dOutras >= 15)}">${l.dOutras.toFixed(0)}</td><td class="${cl(l.ok)}">${l.ok ? 'passa' : 'NÃO passa'}</td></tr>`).join('')}
+      <tr><td><b>Mínimo</b></td><td class="${cl(min('texto') >= 4.5)}">${f(min('texto'))}</td><td class="${cl(min('barra') >= 3)}">${f(min('barra'))}</td><td class="${cl(min('suaveNoTingido') >= 4.5)}">${f(min('suaveNoTingido'))}</td><td class="${cl(min('dStatus') >= 25)}">${min('dStatus').toFixed(0)}</td><td class="${cl(min('dCinza') >= 20)}">${min('dCinza').toFixed(0)}</td><td class="${cl(min('dOutras') >= 15)}">${min('dOutras').toFixed(0)}</td><td></td></tr></tbody></table></div>`;
+  }).join('');
+  const todas = ['claro', 'areia', 'escuro'].every((nt) => verificar(nt).every((l) => l.ok));
+  const fora = ['ARDOSIA', 'TERRA', 'OLIVA'].map((k) => { const c = { ARDOSIA: '#51677E', TERRA: '#A64F43', OLIVA: '#758418' }[k]; return `${k}: ΔE ${distancia(c, TEMAS.claro.neutro).toFixed(0)} do cinza, ${Math.min(...['sucesso', 'atencao', 'perigo'].map((s) => distancia(c, TEMAS.claro[s]))).toFixed(0)} do status mais perto`; }).join(' · ');
+  return `<h2>Contraste (calculado ao vivo nesta página)</h2>
+    <p>Fórmulas iguais às de <code>app/src/tema/tokens.ts</code> (<code>contraste</code>, <code>tingido</code>) e de <code>tokens.test.ts</code> (ΔE CIE76 da paleta das agendas). <b>Texto/ícone</b> = a cor sobre <code>superficie</code>, <code>superficie2</code>, <code>superficie3</code> e sobre o próprio fundo tingido do selo (o pior dos quatro). <b>Barra/borda</b> = sobre <code>fundo</code>, as três superfícies e <code>faixaForte</code>. <b>Texto suave no tingido</b> = <code>textoSuave</code> sobre o fundo tingido (vale para a opção "Fundo tingido"). <b>ΔE status</b> = distância do verde, âmbar e vermelho do tema (D6); <b>ΔE cinza</b> = do cinza "encerrado" (<code>neutro</code>).</p>
+    <div class="tabelas-cont">${tabs}</div>
+    <p class="resumo-cont">${todas ? 'As cinco cores passam em todas as regras nos três temas.' : 'Alguma cor não passa: ver as células em vermelho.'}</p>
+    <p><small>Ficaram de fora da paleta das agendas (claro): ${fora}. A ardósia se confunde com o cinza de "encerrado/inativo"; terra e oliva lembram o âmbar e o verde de status.</small></p>`;
+}
+
+/* ====================== "O que decidir" ====================== */
+function decidir() {
+  return `<h2>Cores por tipo de série, dieta, histórico e receitas · prévia para decidir</h2>
+  <p><small>Frente G (reunião de 30/10: C35, C50/C74, C45, C16). Dados fictícios. Use a barra preta para trocar a tela, a largura (390/1280), o tema e cada opção abaixo. Nada aqui é código do app.</small></p>
+  <h3>O que decidir</h3><ol>
+  <li class="decisao"><b>1. Cor por tipo ou por papel?</b><span class="op">Por tipo<span class="rec">proposta</span>: os cinco tipos do padrão têm cor própria (Aquecimento ciano, FS azul, WS índigo, Top set violeta, Back off magenta); tipo criado pelo treinador usa a cor do papel dele. Por papel: só 4 cores, Top set e WS ficam iguais (o selo de texto diferencia). Papel "Outro" fica sem cor nos dois casos.</span></li>
+  <li class="decisao"><b>2. Como a cor aparece na série?</b><span class="op">Barra lateral de 6 px + selo colorido<span class="rec">proposta</span> (o cartão continua branco, a cor só identifica) × fundo tingido (mais cor, mas o cartão inteiro fica colorido e a série "feita" perde destaque) × faixa no topo do cartão.</span></li>
+  <li class="decisao"><b>3. A paleta.</b><span class="op">Ciano, azul, índigo, violeta e magenta, ajustados a partir da paleta das agendas até passar 4,5:1 nos três temas (tabela abaixo). Sem verde, âmbar, vermelho nem cinza, para nunca parecer status (D6). O selo de texto continua (D7).</span></li>
+  <li class="decisao"><b>4. Cluster e Rest-pause como um bloco só.</b><span class="op">Um cartão por série, com os blocos (ou retomadas) dentro, a pausa entre eles, "Feito até agora: 8 de 10 reps" e "Concluir série" no rodapé<span class="rec">proposta</span>. O bloco da vez fica marcado com "agora".</span></li>
+  <li class="decisao"><b>5. Cor nas divisões (Treino A, B, C).</b><span class="op">Mesma paleta, em outra ordem (A azul, B magenta, C ciano), na letra, na barra e no cabeçalho<span class="rec">proposta</span> × só a letra, sem cor. As cores de divisão só aparecem no Histórico; lá as séries ficam em texto, para as duas cores não se misturarem na mesma tela.</span></li>
+  <li class="decisao"><b>6. Dieta.</b><span class="op">Quantidade e unidade numa etiqueta grande à direita, com a cor da refeição e uma barra na refeição<span class="rec">proposta</span> × etiqueta em negrito sem cor.</span></li>
+  <li class="decisao"><b>7. Histórico (C45).</b><span class="op">Cada cartão diz o período na faixa ("Pasta atual: 01/10 a 31/10", "Últimos 12 meses · todas as pastas", "Desde o primeiro registro"); "Registros e cargas" ganha a escolha de período (pasta atual, anterior, últimos 30 dias) e uma frase do que está mostrando. "Por dia" passa a ser semana → dia: cabeçalho da semana com os 7 dias marcados, um cartão por dia treinado com a data à esquerda e a divisão no cabeçalho<span class="rec">proposta</span>.</span></li>
+  <li class="decisao"><b>8. "Usar receita" (C16).</b><span class="op">Busca no topo; seções recolhíveis: receitas completas primeiro, depois Aquecimento, Preparação, Trabalho, Pós-trabalho e uma seção por técnica (Cluster, Rest pause, Drop-set); cada receita aparece uma vez e mostra a sequência com a cor de cada tipo<span class="rec">proposta</span> × agrupar por coleção (como hoje), com a mesma sequência colorida.</span></li>
+  </ol>`;
+}
+
+/* ====================== render ====================== */
+function barra() {
+  const g = (k, t, ops) => `<div class="grupo-prot"><span>${t}</span>${ops.map(([v, n]) => `<button class="${aj[k] === v ? 'sel' : ''}" data-aj="${k}" data-v="${v}">${n}</button>`).join('')}</div>`;
+  return `<b class="tit">Protótipo · Frente G</b>
+    ${g('tela', 'Tela', [['execucao', 'Execução (C35)'], ['dieta', 'Dieta (C50)'], ['historico', 'Histórico (C45/C74)'], ['receita', 'Usar receita (C16)']])}
+    ${g('largura', 'Largura', [['390', '390'], ['1280', '1280']])}
+    ${g('tema', 'Tema', [['claro', 'Claro'], ['areia', 'Claro areia'], ['escuro', 'Escuro']])}
+    ${g('corPor', 'Cor', [['tipo', 'Por tipo'], ['papel', 'Por papel']])}
+    ${g('marcacao', 'Na série', [['barra', 'Barra lateral'], ['tingido', 'Fundo tingido'], ['faixa', 'Faixa no topo']])}
+    ${g('divisoes', 'Divisões', [['cor', 'Com cor'], ['letra', 'Só a letra']])}
+    ${g('dieta', 'Dieta', [['refeicao', 'Cor da refeição'], ['neutro', 'Sem cor']])}`;
+}
+function render() {
+  const foco = document.activeElement && document.activeElement.id, pos = foco ? document.activeElement.selectionStart : null;
+  document.getElementById('barra').innerHTML = barra();
+  document.getElementById('decidir').innerHTML = decidir();
+  const t = tema(), d = document.getElementById('disp');
+  d.className = `disp l${aj.largura}${aj.tela === 'receita' ? ' receita' : ''}`;
+  for (const [k, v] of Object.entries(t)) d.style.setProperty('--' + k, v);
+  d.style.setProperty('--marca', MARCA);
+  d.style.setProperty('--marcaTexto', marcaParaTexto(MARCA, t.sup));
+  d.style.colorScheme = escuro() ? 'dark' : 'light';
+  const telas = { execucao: telaExecucao, dieta: telaDieta, historico: telaHistorico, receita: telaReceita };
+  d.innerHTML = (aj.largura === '390' ? barraSistema() : '') + telas[aj.tela]();
+  document.getElementById('rotulo-palco').textContent = `Prévia: ${{ execucao: 'execução do aluno', dieta: 'dieta do aluno', historico: 'histórico do aluno', receita: 'janela "Usar receita" no editor de treino' }[aj.tela]} · ${aj.largura} px · tema ${NOMES_TEMA[aj.tema].toLowerCase()}`;
+  document.getElementById('contraste').innerHTML = tabelaContraste();
+  if (foco) { const el = document.getElementById(foco); if (el) { el.focus(); try { el.setSelectionRange(pos, pos); } catch (e) { /* ignora */ } } }
+}
+document.addEventListener('click', (ev) => {
+  const a = ev.target.closest('[data-aj]');
+  if (a) { aj[a.dataset.aj] = a.dataset.v; guardar(); render(); return; }
+  const el = ev.target.closest('[data-acao]'); if (!el) return;
+  const d = el.dataset;
+  if (d.acao === 'serie') { estado.feitas.has(d.id) ? estado.feitas.delete(d.id) : estado.feitas.add(d.id); }
+  else if (d.acao === 'etapa') { estado.etapas[d.n] = !estado.etapas[d.n]; }
+  else if (d.acao === 'opcao') { estado.opcao[d.r] = Number(d.o); }
+  else if (d.acao === 'secao') { estado.fechadas.has(d.g) ? estado.fechadas.delete(d.g) : estado.fechadas.add(d.g); }
+  else return;
+  render();
+});
+document.addEventListener('input', (ev) => { if (ev.target.id === 'busca-rec') { estado.busca = ev.target.value; render(); } });
+render();
+</script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { FileDown } from 'lucide-react-native';
 import { useState } from 'react';
+import { View } from 'react-native';
 
 import { CartaoDivisaoLeitura, LinhaDaDivisao } from '../../aluno/LinhaDaDivisao';
 import { SecaoDoInicio } from '../../aluno/SecaoDoInicio';
@@ -8,7 +9,7 @@ import { SeletorPlano } from '../../aluno/SeletorPlano';
 import { caminhoDaSessao } from '../../aluno/useSessaoDoDia';
 import { normalizarTreino } from '../../dominio/editorTreino';
 import { diaDaSemana, hojeIso } from '../../dominio/formatos';
-import { dataParaAbrir, ehDeHoje, letraDaDivisao } from '../../dominio/inicioDoAluno';
+import { dataParaAbrir, ehDeHoje, letraDaDivisao, TEXTO_PACOTE_RECUSADO } from '../../dominio/inicioDoAluno';
 import { mobilidadeParaExibir, temAbaMobilidade } from '../../dominio/mobilidade';
 import { periodoCurto } from '../../dominio/periodoCurto';
 import { sessoesDaSemana } from '../../dominio/semana';
@@ -18,11 +19,13 @@ import { logoComoDataUri } from '../../pdf/logo';
 import { documentoTreino } from '../../pdf/pdfTreino';
 import { EntradaEmCascata, usePrimeiraLista } from '../../ui/EntradaEmCascata';
 import { useAviso } from '../../ui/Aviso';
+import { useUnidadeDeCarga } from '../../ui/unidadeDeCargaEmUso';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
 import { textoDoErro } from '../../ui/erros';
-import { Vazio } from '../../ui/Estados';
+import { Alerta, MensagemErro, Vazio } from '../../ui/Estados';
+import { Esqueleto } from '../../ui/Esqueleto';
 import { Grade } from '../../ui/Grade';
 import { NoPlano } from '../../ui/NoPlano';
 import { Tela } from '../../ui/Tela';
@@ -35,9 +38,10 @@ import { ConteudoDaMobilidade } from './mobilidade';
  * plano publicado.
  */
 export default function TreinoAluno() {
-  const { pacote, escolhida, mobilidade } = useAluno();
+  const { pacote, escolhida, mobilidade, pacoteRecusado, carregando, erroPacote, tentarDeNovo } = useAluno();
   const animar = usePrimeiraLista(!!pacote);
   const { avisar } = useAviso();
+  const unidade = useUnidadeDeCarga();
   const [gerandoPdf, setGerandoPdf] = useState(false);
   const hoje = hojeIso();
   const somenteLeitura = !!escolhida;
@@ -65,6 +69,7 @@ export default function TreinoAluno() {
           instrucoesTreino: pacote.pacote.configuracao.instrucoesTreino ?? null,
           rodapePdf: null,
           emitidoEm: new Date(),
+          unidade,
         }),
       );
     } catch (e) {
@@ -77,6 +82,11 @@ export default function TreinoAluno() {
   return (
     <Tela bordas={['top']} largura={720}>
       <Cabecalho titulo="Treino" subtitulo="As divisões da semana, do jeito que o treinador montou." />
+      {!pacote && pacoteRecusado ? <View testID="pacote-recusado"><Alerta tom="atencao" texto={TEXTO_PACOTE_RECUSADO} /></View> : null}
+      {!pacote && !pacoteRecusado && carregando ? <Esqueleto texto="Carregando seu treino" cartoes={2} /> : null}
+      {!pacote && !pacoteRecusado && !carregando && erroPacote ? (
+        <MensagemErro texto={`${textoDoErro(erroPacote)} Conecte-se uma vez para baixar o treino; depois ele funciona sem internet.`} erro={erroPacote} tentarDeNovo={() => void tentarDeNovo()} />
+      ) : null}
       {pacote ? <SeletorPlano soComVarios rotulo={treino ? `${treino.titulo}${periodo ? ` · ${periodo}` : ''}` : null} /> : null}
       {somenteLeitura ? <Texto variante="suave">Você está vendo outro plano. Para registrar uma série, volte ao plano em uso.</Texto> : null}
       {pacote && !treino ? <Vazio titulo="Sem treino" texto={somenteLeitura ? 'Este plano só tem dieta publicada.' : 'Seu treinador ainda não publicou um treino.'} /> : null}

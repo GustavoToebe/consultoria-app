@@ -71,4 +71,16 @@ public interface NumerosRepository extends Repository<Aluno, UUID> {
             + "or exists (select d.id from PlanoDieta d where d.pastaId = p.id and d.arquivado = false "
             + "and d.publicadoEm is not null))")
     List<PastaCandidata> pastasCandidatasAVigente(LocalDate fimJanela);
+
+    /**
+     * Os alunos ativos e não anonimizados de hoje com o responsável de cada um (nulo = sem responsável): a base da tabela da
+     * equipe (D6, D16). Os ids servem só ao cálculo interno; nunca chegam à resposta.
+     */
+    @Query("select new br.com.treinos.api.numeros.ResponsavelDoAluno(a.id, a.responsavelId) from Aluno a "
+            + "where a.ativo = true and a.anonimizadoEm is null")
+    List<ResponsavelDoAluno> responsaveisDosAlunosAtivos();
+
+    /** Os alunos com atualização enviada e ainda não revisada (o que o treinador tem para revisar); um id por atualização. */
+    @Query("select u.alunoId from Atualizacao u where u.estado = 'ENVIADA'")
+    List<UUID> alunosComAtualizacaoParaRevisar();
 }

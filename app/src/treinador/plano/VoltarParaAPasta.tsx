@@ -21,8 +21,10 @@ interface Props {
  * (`?pastaId=`), para o treinador seguir a ordem da renovação (revisar, publicar, dar o retorno, finalizar).
  *
  * - Passa pela guarda de saída: com alteração pendente pergunta "Sair sem salvar?" antes.
- * - Vai sempre para o caminho completo com `router.replace`, nunca `router.back()`: funciona com o editor aberto direto
- *   pela URL (sem histórico) e tira o editor da pilha, para a guarda dele não perguntar de novo na ficha.
+ * - Vai sempre para o caminho completo com `router.dismissTo`, nunca `router.back()`: se a ficha já está na pilha (o
+ *   editor foi aberto a partir dela), volta a ela, que abre a Folha pelo `?pastaId=`, em vez de empilhar uma segunda
+ *   ficha (C22); senão (editor aberto direto pela URL, sem histórico) troca o editor pela ficha, como o `replace`. Nos
+ *   dois casos o editor sai da pilha, para a guarda dele não perguntar de novo na ficha.
  * - Na web é `<a href>` (Ctrl/Cmd+clique abre a ficha em outra aba e esta fica como está); o clique simples navega
  *   dentro do app. Nunca é chamado sozinho depois de publicar.
  */
@@ -32,7 +34,7 @@ export function VoltarParaAPasta({ alunoId, pastaId }: Props) {
   const caminho = caminhoDaPasta(alunoId, pastaId);
   if (!caminho) return null;
   const href = caminho as Href;
-  const voltar = () => confirmar(() => router.replace(href));
+  const voltar = () => confirmar(() => router.dismissTo(href));
   return (
     <Pressable
       accessibilityRole="link"

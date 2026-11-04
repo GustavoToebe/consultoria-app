@@ -81,6 +81,11 @@ public final class ApiDeTeste {
         return executar(MockMvcRequestBuilders.delete(caminho), login, null, esperado);
     }
 
+    /** DELETE com corpo (o token de push vai no corpo, nunca no caminho). */
+    public JsonNode delete(String caminho, JsonNode login, Object corpo, int esperado) throws Exception {
+        return executar(MockMvcRequestBuilders.delete(caminho), login, corpo, esperado);
+    }
+
     private JsonNode executar(MockHttpServletRequestBuilder req, JsonNode login, Object corpo, int esperado)
             throws Exception {
         req.header("X-Treinos-Cliente", "nativo");

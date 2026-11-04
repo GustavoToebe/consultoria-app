@@ -66,7 +66,7 @@ public class ImportacaoService {
             "exercicios", List.of("nome", "grupo", "equipamento", "modalidade", "video", "observacoes"),
             "alimentos", List.of("nome", "quantidade", "unidade", "kcal", "proteina", "carboidrato", "gordura",
                     "gramas", "fonte", "fc", "fcc", "grupo"),
-            "suplementos", List.of("nome", "marca", "categoria", "porcao", "porcoes", "sabores", "link"),
+            "suplementos", List.of("nome", "marca", "categoria", "porcao", "porcoes", "sabores", "link", "cupom"),
             "outros", List.of("nome", "categoria", "principio", "concentracao", "apresentacao", "observacao"));
     private static final Map<String, List<String>> OBRIGATORIOS = Map.of(
             "alunos", List.of("nome"),
@@ -107,7 +107,7 @@ public class ImportacaoService {
     public Colunas colunas(String destino, String nome, byte[] bytes, int aba, int linhaDoCabecalho) {
         exigir(destino);
         conferirLinhaDoCabecalho(linhaDoCabecalho);
-        var planilha = LeitorDePlanilha.ler(nome, bytes, aba);
+        var planilha = LeitorDePlanilha.ler(nome, bytes, aba, linhaDoCabecalho);
         List<String> colunas = new ArrayList<>();
         int posicaoDoCabecalho = ConfiguracaoDaImportacao.posicaoDoCabecalho(planilha, linhaDoCabecalho);
         if (posicaoDoCabecalho >= 0) {
@@ -146,13 +146,13 @@ public class ImportacaoService {
         return new Colunas(planilha.abas(), planilha.aba(), colunas, linhas, amostra, numeros, amostra.size() < linhas, cortadas);
     }
 
-    public Previa previa(String destino, String nome, byte[] bytes, String configuracao) {
+    public Previa previa(UUID importador, String destino, String nome, byte[] bytes, String configuracao) {
         exigir(destino);
         ConfiguracaoDaImportacao config = configuracao(destino, configuracao);
         AjustesDaImportacao ajustes = ajustes(configuracao);
-        var planilha = ajustes.aplicar(LeitorDePlanilha.ler(nome, bytes, config.aba()), config.linhaDoCabecalho());
+        var planilha = ajustes.aplicar(LeitorDePlanilha.ler(nome, bytes, config.aba(), config.linhaDoCabecalho()), config.linhaDoCabecalho());
         conferirTamanho(planilha, config);
-        var resultado = gravador.processar(destino, planilha, config, null, false);
+        var resultado = gravador.processar(destino, planilha, config, importador, false); // o importador é o responsável do aluno novo: a prévia confere o limite dele
         int mostrados = Math.min(ERROS_NA_PREVIA, resultado.erros().size());
         return new Previa(hash(bytes, destino, config, ajustes), resultado.linhas(), resultado.novos(), resultado.atualizados(),
                 resultado.ignorados(), resultado.comErro(), resultado.erros().subList(0, mostrados),
@@ -165,7 +165,7 @@ public class ImportacaoService {
         exigir(destino);
         ConfiguracaoDaImportacao config = configuracao(destino, configuracao);
         AjustesDaImportacao ajustes = ajustes(configuracao);
-        var planilha = ajustes.aplicar(LeitorDePlanilha.ler(nome, bytes, config.aba()), config.linhaDoCabecalho());
+        var planilha = ajustes.aplicar(LeitorDePlanilha.ler(nome, bytes, config.aba(), config.linhaDoCabecalho()), config.linhaDoCabecalho());
         conferirTamanho(planilha, config);
         String calculado = hash(bytes, destino, config, ajustes);
         if (hash == null || !MessageDigest.isEqual(calculado.getBytes(StandardCharsets.UTF_8),
@@ -201,7 +201,7 @@ public class ImportacaoService {
     public Pagina listar(String destino, String situacao, String arquivo, java.time.LocalDate de, java.time.LocalDate ate,
                          int pagina) {
         TipoDeArquivo tipo = br.com.treinos.api.web.FiltrosDeLista.umEnum(TipoDeArquivo.class, arquivo, "arquivo");
-        br.com.treinos.api.web.FiltrosDeLista.exigirPeriodo(de, ate, 0, "PERIODO_INVALIDO");
+        br.com.treinos.api.web.FiltrosDeLista.exigirPeriodoNaFaixa(de, ate, 0, "PERIODO_INVALIDO");
         List<String> visiveis = visiveis();
         if (destino != null && !destino.isBlank()) {
             if (!PERMISSAO.containsKey(destino) && !SO_NO_HISTORICO.containsKey(destino)) {

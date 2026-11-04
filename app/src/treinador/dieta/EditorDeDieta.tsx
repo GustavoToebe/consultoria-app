@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { ChevronsDownUp, ChevronsUpDown, ExternalLink, Link2Off, Library, NotebookTabs, Plus, ShoppingCart, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -9,7 +9,8 @@ import { uidsComProblema } from '../../dominio/caminhos';
 import { AGUA_MAXIMA, AGUA_MINIMA, aguaValida, aplicarReceitaDeDieta, itensSemValorNoTotal, type ItemSemValor, novaRefeicao, novoItem, normalizarDieta, textoDoMacro, textoItensSemValor, totalDoDia } from '../../dominio/dieta';
 import { mover, remover, substituir } from '../../dominio/editorTreino';
 import { linhaDeErgogenico } from '../../dominio/ergogenicos';
-import { dataDaTela, dataParaTela, numeroParaTela, SEM_DADO } from '../../dominio/formatos';
+import { dataDaTelaNaFaixa } from '../../dominio/datasValidas';
+import { dataParaTela, numeroParaTela, SEM_DADO } from '../../dominio/formatos';
 import { descricaoDaPorcao, linhaDeSuplementacao } from '../../dominio/suplementos';
 import { novoUid } from '../../dominio/uid';
 import { useSessao } from '../../sessao/SessaoProvider';
@@ -42,6 +43,7 @@ import { Incompleto, MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { Tela } from '../../ui/Tela';
+import { coresDoDesabilitado } from '../../ui/desabilitado';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 import { tituloDoModelo, tituloDoPlanoDoAluno } from '../../dominio/planoDoAluno';
@@ -89,7 +91,8 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
     return (
       <Tela bordas={['top']} largura={LARGURA_EDITOR}>
         <Cabecalho titulo="Plano de dieta" voltar="/treinador/alunos" />
-        {editor.erroCarga ? <MensagemErro texto={textoDoErro(editor.erroCarga)} erro={editor.erroCarga} tentarDeNovo={editor.recarregar} /> : <Esqueleto />}
+        {editor.erroCarga ? <MensagemErro texto={textoDoErro(editor.erroCarga)} erro={editor.erroCarga} tentarDeNovo={editor.recarregar}
+          acao={{ rotulo: 'Voltar à lista', aoTocar: () => router.navigate('/treinador/alunos') }} /> : <Esqueleto />}
       </Tela>
     );
   }
@@ -225,7 +228,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
       </Cartao>
 
       <Cartao faixa titulo="Suplementação" nivel={3} recolhivel recolhido={c.suplementacao.length === 0}>
-        <Texto variante="suave">Campo livre do treinador. O sistema só guarda e mostra o que for escrito aqui; da biblioteca vêm só o nome e o link do produto. A dose é a que você prescreve, não a porção da embalagem.</Texto>
+        <Texto variante="suave">Campo livre do treinador. O sistema só guarda e mostra o que for escrito aqui; da biblioteca vêm só o nome, o link e o cupom do produto. A dose é a que você prescreve, não a porção da embalagem.</Texto>
         {c.suplementacao.map((s, si) => {
           const mudarS = (parcial: Partial<typeof s>) => mudar({ suplementacao: substituir(c.suplementacao, si, { ...s, ...parcial }) });
           return (
@@ -249,6 +252,12 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
                     <Botao rotulo="Tirar link" tipo="perigoTexto" Icone={Link2Off} aoTocar={() => mudarS({ link: null })} />
                   </View>
                 ) : null}
+                {s.cupom ? (
+                  <View style={estilos.acoes}>
+                    <Texto numerico variante="suave">Cupom: {s.cupom}</Texto>
+                    <Botao rotulo="Tirar cupom" tipo="perigoTexto" aoTocar={() => mudarS({ cupom: null })} />
+                  </View>
+                ) : null}
               </View>
               <IconeBotao Icone={Trash2} rotulo={`Remover ${s.nome || 'linha'}`} cor={cores.perigo} aoTocar={() => comDesfazer(`Suplementação “${s.nome || si + 1}” removida.`, (a) => ({ ...a, suplementacao: remover(a.suplementacao, si) }))} />
             </View>
@@ -260,7 +269,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
             rotulo="Adicionar linha"
             tipo="secundario"
             Icone={Plus}
-            aoTocar={() => mudar({ suplementacao: [...c.suplementacao, { uid: novoUid(), nome: '', dose: '', horario: '', observacao: '', link: null }] })}
+            aoTocar={() => mudar({ suplementacao: [...c.suplementacao, { uid: novoUid(), nome: '', dose: '', horario: '', observacao: '', link: null, cupom: null }] })}
           />
         </View>
       </Cartao>
@@ -456,10 +465,12 @@ function CamposDaDieta({ conteudo, aoMudar }: { conteudo: ConteudoDieta; aoMudar
         <View style={estilos.campoSup}>
           <CampoData
             rotulo="Data de início (opcional)"
+            nome="Data de início da dieta"
+            regra="PLANEJAMENTO"
             valor={inicio}
             aoMudar={(t) => {
               setInicio(t);
-              const iso = dataDaTela(t);
+              const iso = dataDaTelaNaFaixa(t, 'PLANEJAMENTO');
               if (iso !== undefined) aoMudar({ dataInicio: iso });
             }}
           />
@@ -483,9 +494,9 @@ function OpcaoDeModelo({ titulo, descricao, desabilitado, aoEscolher }: { titulo
       onPress={aoEscolher}
       style={({ pressed }) => [
         estilos.opcaoModelo,
-        { backgroundColor: pressed ? cores.superficie3 : cores.superficie2, borderColor: cores.borda, opacity: desabilitado ? 0.45 : 1 },
+        { backgroundColor: desabilitado ? coresDoDesabilitado(cores).fundo : pressed ? cores.superficie3 : cores.superficie2, borderColor: cores.borda },
       ]}>
-      <Texto variante="bloco">{titulo}</Texto>
+      <Texto variante="bloco" cor={desabilitado ? cores.textoSuave : undefined}>{titulo}</Texto>
       <Texto variante="suave">{descricao}</Texto>
     </Pressable>
   );

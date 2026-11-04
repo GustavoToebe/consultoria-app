@@ -6,10 +6,18 @@ const feita = (extra: Partial<SerieFeita>): SerieFeita => ({
 });
 
 describe('texto da série no histórico', () => {
-  it('carga e repetições; o que falta é "—"', () => {
+  it('carga e repetições; o que falta numa série feita é dito por extenso, não "—" (D4)', () => {
     expect(textoSerie(feita({}))).toBe('WS 32 kg × 5');
-    expect(textoSerie(feita({ carga: null, repeticoes: null }))).toBe('WS — kg × —');
+    expect(textoSerie(feita({ carga: null, repeticoes: null }))).toBe('WS feito, sem carga');
+    expect(textoSerie(feita({ carga: null, repeticoes: 7 }))).toBe('WS sem carga × 7');
+    expect(textoSerie(feita({ carga: 60, repeticoes: null }))).toBe('WS 60 kg × sem repetições');
+    expect(textoSerie(feita({ carga: null, repeticoes: null, concluida: false }))).toBe('WS —');
     expect(textoSerie(feita({ unidade: 'nenhuma', repeticoes: 12, carga: null }))).toBe('WS 12');
+  });
+
+  it('série não marcada: o que falta é "—", nunca "sem carga" nem "sem repetições"', () => {
+    expect(textoSerie(feita({ carga: null, repeticoes: 7, concluida: false }))).toBe('WS — × 7');
+    expect(textoSerie(feita({ carga: 60, repeticoes: null, concluida: false }))).toBe('WS 60 kg × —');
   });
 
   it('cardio (sem carga nem repetições) sai "feito" ou "—", nunca "null"', () => {

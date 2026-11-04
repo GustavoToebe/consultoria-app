@@ -1,43 +1,50 @@
 import type { Atualizacao } from '../api/tipos';
 import type { CobrancaDoAluno } from '../api/financeiroTipos';
 import type { AvisoDeCompromisso } from '../api/agendaTipos';
-import { AVISOS_VISIVEIS, avisosDoInicio, ITEM_ANAMNESE, itemDaAtualizacao, itemDoAviso, itemDoPagamento, temAvisoDeCompromisso, textoDoAviso } from './paraFazer';
+import { AVISOS_VISIVEIS, avisosDoInicio, ITEM_ANAMNESE, itemDaAtualizacao, itemDoAviso, itemDoPagamento, itemDosNovos, temAvisoDeCompromisso, textoDoAviso } from './paraFazer';
 
 const base = { id: 'a', pastaId: 'p', alunoId: 'x', nomeAluno: null, dataAtualizacao: '2026-10-20', fase: 'AVISO', diasParaData: 3, diasDeAtraso: 0,
   atrasoAte: null, atrasoMotivo: null, questionarioVersaoNumero: 1, questionarioVersaoId: 'v', questionarioNome: null, modelo: null, respostas: null,
   enviadaEm: null, feedback: null, versao: 1, resumo: null } as Atualizacao;
 
 describe('anamnese nas pendências', () => {
-  it('"Anamnese inicial" com selo neutro (vermelho é só de atrasada)', () => {
+  it('"Anamnese inicial" com selo neutro', () => {
     expect(ITEM_ANAMNESE).toMatchObject({ titulo: 'Anamnese inicial', selo: { texto: 'Pendente', tipo: 'neutro' }, responder: true });
   });
 });
 
 describe('atualização nas pendências', () => {
-  it('aberta: selo neutro curto com a data, sem ano, e o item é a resposta', () => {
+  it('aberta: selo âmbar curto com a data (quem age é o aluno), sem ano, e o item é a resposta', () => {
     expect(itemDaAtualizacao({ ...base, fase: 'ABERTA' })).toEqual({
-      titulo: 'Atualização do período', detalhe: 'Questionário disponível. O rascunho fica salvo neste aparelho.', selo: { texto: 'Até 20/10', tipo: 'neutro' }, responder: true,
+      titulo: 'Atualização do período', detalhe: 'Questionário disponível. O rascunho fica salvo neste aparelho.', selo: { texto: 'Até 20/10', tipo: 'atencao' }, responder: true,
     });
     const avisou = itemDaAtualizacao({ ...base, fase: 'ABERTA', atrasoAte: '2026-10-25' });
     expect(avisou.selo?.texto).toBe('Até 25/10');
     expect(avisou.detalhe).toBe('Você avisou que vai responder até 25/10.');
   });
 
-  it('atrasada é a única em vermelho', () => {
+  it('atrasada há mais de um ano mostra desde quando, não os dias (C76)', () => {
+    const selo = itemDaAtualizacao({ ...base, fase: 'ATRASADA', diasDeAtraso: 644943 }, '2026-11-02').selo;
+    expect(selo?.tipo).toBe('perigo');
+    expect(selo?.texto).toMatch(/^Atrasada desde \d{2}\/\d{2}\/\d{4}$/);
+    expect(itemDaAtualizacao({ ...base, fase: 'ATRASADA', diasDeAtraso: 400 }, '2026-11-02').selo?.texto).toBe('Atrasada desde 28/09/2025');
+  });
+
+  it('atrasada em vermelho', () => {
     expect(itemDaAtualizacao({ ...base, fase: 'ATRASADA', diasDeAtraso: 1 }).selo).toEqual({ texto: 'Atrasada 1 dia', tipo: 'perigo' });
     expect(itemDaAtualizacao({ ...base, fase: 'ATRASADA', diasDeAtraso: 4 }).selo?.texto).toBe('Atrasada 4 dias');
     expect(itemDaAtualizacao({ ...base, fase: 'ATRASADA', diasDeAtraso: 4 }).detalhe).toBe('Era para 20/10. O rascunho fica salvo neste aparelho.');
   });
 
-  it('enviada e respondida em verde, com o mesmo título', () => {
-    expect(itemDaAtualizacao({ ...base, fase: 'ENVIADA' })).toMatchObject({ titulo: 'Atualização do período', selo: { texto: 'Enviada', tipo: 'sucesso' }, responder: false });
+  it('enviada (quem espera: neutro) e respondida (verde), com o mesmo título', () => {
+    expect(itemDaAtualizacao({ ...base, fase: 'ENVIADA' })).toMatchObject({ titulo: 'Atualização do período', selo: { texto: 'Enviada', tipo: 'neutro' }, responder: false });
     expect(itemDaAtualizacao({ ...base, fase: 'REVISADA' })).toMatchObject({ detalhe: 'Seu treinador respondeu. Toque para ler.', selo: { texto: 'Resposta nova', tipo: 'sucesso' } });
   });
 
-  it('antes da data: sem selo; com nova data avisada, selo neutro', () => {
+  it('antes da data: sem selo; com nova data avisada, selo âmbar (quem age é o aluno)', () => {
     expect(itemDaAtualizacao(base)).toMatchObject({ detalhe: 'Abre em 3 dias (20/10). Toque para ver as perguntas.', selo: null, responder: false });
     expect(itemDaAtualizacao({ ...base, diasParaData: 1 }).detalhe).toContain('amanhã');
-    expect(itemDaAtualizacao({ ...base, atrasoAte: '2026-10-25' }).selo).toEqual({ texto: 'Até 25/10', tipo: 'neutro' });
+    expect(itemDaAtualizacao({ ...base, atrasoAte: '2026-10-25' }).selo).toEqual({ texto: 'Até 25/10', tipo: 'atencao' });
   });
 });
 
@@ -53,14 +60,15 @@ describe('pagamento nas pendências', () => {
     expect(itemDoPagamento(null, hoje)).toBeNull();
     expect(itemDoPagamento([cobranca({ vencimento: '2026-11-10' })], hoje)).toBeNull();
   });
-  it('vence em até 3 dias: selo neutro com a data', () => {
+  it('vence em até 3 dias: selo âmbar com a data (D11)', () => {
     const item = itemDoPagamento([cobranca({ vencimento: '2026-10-23' })], hoje);
-    expect(item).toMatchObject({ titulo: 'Pagamento em aberto', selo: { texto: 'Vence 23/10', tipo: 'neutro' }, responder: false });
+    expect(item).toMatchObject({ titulo: 'Pagamento em aberto', selo: { texto: 'Vence 23/10', tipo: 'atencao' }, responder: false });
     expect(semEspaco(item?.detalhe ?? '')).toBe('R$ 150,00, vence em 23/10.');
   });
-  it('vencida (a API decide): selo âmbar, nunca vermelho, e manda falar com o treinador', () => {
+  it('vencida (a API decide): selo vermelho com os dias, calmo no texto, e manda falar com o treinador (D6)', () => {
     const item = itemDoPagamento([cobranca({ vencida: true, vencimento: '2026-10-05' })], hoje);
-    expect(item?.selo).toEqual({ texto: 'Vencida', tipo: 'atencao' });
+    expect(item?.selo).toEqual({ texto: 'Vencida há 15 dias', tipo: 'perigo' });
+    expect(itemDoPagamento([cobranca({ vencida: true, vencimento: '2026-10-19' })], hoje)?.selo?.texto).toBe('Vencida há 1 dia');
     expect(item?.detalhe).toContain('Fale com o seu treinador');
   });
   it('várias: a mais antiga primeiro, com a contagem das outras', () => {
@@ -71,10 +79,10 @@ describe('pagamento nas pendências', () => {
   it('celular sem o "Pagar" (informar): só informa, no formato exato, sem frase de chamada', () => {
     const noPrazo = itemDoPagamento([cobranca({ vencimento: '2026-10-23' })], hoje, 'informar');
     expect(semEspaco(noPrazo?.detalhe ?? '')).toBe('Mensalidade de R$ 150,00, vence em 23/10');
-    expect(noPrazo?.selo).toEqual({ texto: 'Vence 23/10', tipo: 'neutro' });
+    expect(noPrazo?.selo).toEqual({ texto: 'Vence 23/10', tipo: 'atencao' });
     const vencida = itemDoPagamento([cobranca({ vencida: true, vencimento: '2026-10-05' })], hoje, 'informar');
     expect(vencida?.detalhe).toBe('Em aberto desde 05/10');
-    expect(vencida?.selo).toEqual({ texto: 'Vencida', tipo: 'atencao' });
+    expect(vencida?.selo).toEqual({ texto: 'Vencida há 15 dias', tipo: 'perigo' });
     expect(JSON.stringify([noPrazo, vencida])).not.toMatch(/treinador|pagar|pague|link|site/i);
   });
   it('informar com várias: a mais antiga primeiro, com a contagem das outras', () => {
@@ -119,7 +127,7 @@ describe('aviso de compromisso nas pendências (D12)', () => {
 
   it('o item: frase no título, selo neutro com o tipo, sem botão de responder e com o id para marcar visto', () => {
     expect(itemDoAviso(aviso({ tipo: 'CANCELADO' }), hoje)).toEqual({
-      id: 'v1', tipo: 'CANCELADO', titulo: 'Compromisso cancelado: 05/11 às 09:00 com Ana', detalhe: 'Toque para ver seus compromissos.',
+      id: 'v1', ids: ['v1'], tipo: 'CANCELADO', titulo: 'Compromisso cancelado: 05/11 às 09:00 com Ana', detalhe: 'Toque para ver seus compromissos.',
       selo: { texto: 'Cancelado', tipo: 'neutro' }, responder: false,
     });
     expect(itemDoAviso(aviso({ tipo: 'REMARCADO' }), hoje).selo).toEqual({ texto: 'Remarcado', tipo: 'neutro' });
@@ -127,12 +135,37 @@ describe('aviso de compromisso nas pendências (D12)', () => {
   });
 
   it('mantém a ordem da API (mais novos primeiro) e limita o que aparece', () => {
-    const lista = Array.from({ length: 8 }, (_, i) => aviso({ id: `v${i}`, inicio: `2026-11-0${i + 1}T12:00:00Z` }));
+    const lista = Array.from({ length: 8 }, (_, i) => aviso({ id: `v${i}`, tipo: 'REMARCADO', inicio: `2026-11-0${i + 1}T12:00:00Z` }));
     const { itens, ocultos, total } = avisosDoInicio(lista, hoje);
     expect(itens.map((i) => i.id)).toEqual(['v0', 'v1', 'v2', 'v3', 'v4']);
     expect(itens).toHaveLength(AVISOS_VISIVEIS);
     expect(ocultos).toBe(3);
     expect(total).toBe(8);
+  });
+
+  it('N8: vários "novo compromisso" viram um item só, no lugar do primeiro, e contam como uma pendência', () => {
+    const lista = [
+      aviso({ id: 'n1' }), aviso({ id: 'r1', tipo: 'REMARCADO' }), aviso({ id: 'n2' }), aviso({ id: 'n3' }), aviso({ id: 'n4' }),
+      aviso({ id: 'c1', tipo: 'CANCELADO' }),
+    ];
+    const { itens, ocultos, total } = avisosDoInicio(lista, hoje);
+    expect(itens.map((i) => i.titulo)).toEqual([
+      '4 compromissos novos',
+      'Compromisso remarcado: agora 05/11 às 09:00 com Ana',
+      'Compromisso cancelado: 05/11 às 09:00 com Ana',
+    ]);
+    expect(itens[0].ids).toEqual(['n1', 'n2', 'n3', 'n4']);
+    expect(itens[0].selo).toEqual({ texto: 'Novo', tipo: 'neutro' });
+    expect(total).toBe(3);
+    expect(ocultos).toBe(0);
+    expect(itemDosNovos([aviso({ id: 'a' }), aviso({ id: 'b' })]).titulo).toBe('2 compromissos novos');
+  });
+
+  it('N8: um "novo" sozinho mantém a frase completa', () => {
+    const { itens, total } = avisosDoInicio([aviso({ id: 'n1' }), aviso({ id: 'r1', tipo: 'REMARCADO' })], hoje);
+    expect(itens[0].titulo).toBe('Novo compromisso: 05/11 às 09:00 com Ana');
+    expect(itens[0].ids).toEqual(['n1']);
+    expect(total).toBe(2);
   });
 
   it('sem aviso, nulo ou lista vazia: nada e sem ponto; id repetido e data inválida não entram', () => {

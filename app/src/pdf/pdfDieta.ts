@@ -5,6 +5,9 @@ import { cabecalhoDaTabela, corpoDaTabela } from './pdfListaDeCompras';
 import { ergogenicosPreenchidos } from '../dominio/ergogenicos';
 import { dataParaTela, numeroParaTela } from '../dominio/formatos';
 import { linkParaAbrir } from '../dominio/links';
+import { tomDaVariacaoDoPeso } from '../dominio/corDaVariacaoDoPeso';
+import { variacaoDoPeso } from '../dominio/variacaoDoPeso';
+import { CLARO } from '../tema/tokens';
 import { cabecalhoDoPdf, corDaMarca, cssBase, esc, escLinhas, type Documento } from './html';
 
 export interface DadosPdfDieta {
@@ -64,10 +67,17 @@ ${tabela}
 <div class="rodape">${esc(NOTA_DA_LISTA)}</div>${previa}</div>`;
 }
 
-function variacao(v: number | null): string {
-  if (v === null) return '—';
-  if (v === 0) return '0';
-  return `${v > 0 ? '+' : '−'}${numeroParaTela(Math.abs(v))}`;
+/**
+ * Variação no PDF como na tela: seta e sinal sempre, e a cor da meta efetiva do item (verde no caminho da meta, vermelho
+ * contra; sem meta, sem cor). Nunca a cor da marca. O PDF é fundo branco: os tons de status do tema claro.
+ */
+function celulaDaVariacao(p: RegistroPeso): string {
+  const v = variacaoDoPeso(p);
+  if (!v) return '<td>—</td>';
+  const tom = tomDaVariacaoDoPeso(p.variacao, p.metaDoPeso);
+  const cor = tom === 'positivo' ? CLARO.sucesso : tom === 'problema' ? CLARO.perigo : null;
+  const seta = v.seta === 'sobe' ? '▲ ' : v.seta === 'desce' ? '▼ ' : '';
+  return `<td${cor ? ` style="color:${cor}"` : ''}>${esc(`${seta}${v.texto}`)}</td>`;
 }
 
 const CSS_DIETA = `
@@ -174,18 +184,18 @@ ${r.observacao ? `<div class="suave">${escLinhas(r.observacao)}</div>` : ''}${es
           .join('')}</tbody></table></div>`
       : '',
     ergogenicos.length
-      ? `${barra}<div class="bloco">${sec('Medicação e ergogênicos')}<table class="dark"><thead><tr><th>Item</th><th>Concentração</th><th>Dose</th><th>Horário</th><th>Obs</th>${comPrescricao ? '<th>Prescrição</th>' : ''}</tr></thead><tbody>${ergogenicos
+      ? `${barra}<div class="bloco">${sec('Medicação e ergogênicos')}<table class="dark"><thead><tr><th>Item</th><th>Dose</th><th>Horário</th><th>Obs</th>${comPrescricao ? '<th>Prescrição</th>' : ''}</tr></thead><tbody>${ergogenicos
           .map(
             (e) =>
-              `<tr><td>${esc(e.nome) || '—'}${e.principioAtivo ? `<br><span class="suave">${esc(e.principioAtivo)}</span>` : ''}</td><td>${esc(e.concentracao) || '—'}</td><td>${esc(e.dose) || '—'}</td><td>${esc(e.horario) || '—'}</td><td>${esc(e.observacao) || '—'}</td>${comPrescricao ? `<td>${esc(e.prescricao) || '—'}</td>` : ''}</tr>`,
+              `<tr><td>${esc(e.nome) || '—'}${e.principioAtivo ? `<br><span class="suave">${esc(e.principioAtivo)}</span>` : ''}</td><td>${esc(e.dose) || '—'}</td><td>${esc(e.horario) || '—'}</td><td>${esc(e.observacao) || '—'}</td>${comPrescricao ? `<td>${esc(e.prescricao) || '—'}</td>` : ''}</tr>`,
           )
           .join('')}</tbody></table></div>`
       : '',
     d.pesos.length
-      ? `${barra}<div class="bloco">${sec('Acompanhamento de peso')}<table class="dark"><thead><tr><th>Atualização</th><th>Data</th><th>Peso</th><th>Variação</th><th>Obs</th></tr></thead><tbody>${d.pesos
+      ? `${barra}<div class="bloco">${sec('Acompanhamento de peso')}<table class="dark"><thead><tr><th>Atualização</th><th>Data</th><th>Peso</th><th>Variação</th></tr></thead><tbody>${d.pesos
           .map(
             (p, n) =>
-              `<tr><td>Atualização ${n + 1}</td><td>${esc(dataParaTela(p.data))}</td><td>${esc(numeroParaTela(p.pesoKg))} kg</td><td${p.variacao !== null && p.variacao > 0 ? ` style="color:${cor}"` : ''}>${esc(variacao(p.variacao))}</td><td>${esc(p.observacao) || '—'}</td></tr>`,
+              `<tr><td>Atualização ${n + 1}</td><td>${esc(dataParaTela(p.data))}</td><td>${esc(numeroParaTela(p.pesoKg))} kg</td>${celulaDaVariacao(p)}</tr>`,
           )
           .join('')}</tbody></table></div>`
       : '',

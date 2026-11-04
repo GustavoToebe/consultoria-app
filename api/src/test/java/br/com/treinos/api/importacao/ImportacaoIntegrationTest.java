@@ -474,6 +474,29 @@ class ImportacaoIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void cupomDoSuplementoNaPlanilhaTemAsMesmasRegrasDoCadastro() throws Exception {
+        String longo = "C".repeat(41);
+        String csv = "nome;marca;cupom\nWhey com cupom fictício;Marca Fictícia;  TESTE10  \n"
+                + "Creatina com cupom longo fictícia;Marca Fictícia;" + longo + "\n"
+                + "Cafeína sem cupom fictícia;Marca Fictícia;\n";
+        String config = config("nome_marca", "IGNORAR", Map.of("nome", 0, "marca", 1, "cupom", 2));
+        JsonNode feito = confirmar("suplementos", "cupom.csv", csv.getBytes(StandardCharsets.UTF_8), config,
+                hash("suplementos", "cupom.csv", csv, config));
+        assertThat(feito.path("novos").asInt()).isEqualTo(2);
+        assertThat(feito.path("comErro").asInt()).isEqualTo(1);
+        assertThat(feito.path("erros").get(0).path("campo").asString()).isEqualTo("cupom");
+        // A amostra é a própria planilha devolvida a quem a enviou; a regra vale para a mensagem do erro.
+        assertThat(feito.path("erros").toString()).doesNotContain(longo);
+        JsonNode lista = api.get("/suplementos", treinador, 200);
+        assertThat(lista.valueStream().filter(x -> x.path("nome").asString().equals("Whey com cupom fictício"))
+                .findFirst().orElseThrow().path("cupom").asString()).isEqualTo("TESTE10");
+        assertThat(lista.valueStream().filter(x -> x.path("nome").asString().equals("Cafeína sem cupom fictícia"))
+                .findFirst().orElseThrow().path("cupom").isNull()).isTrue();
+        assertThat(lista.valueStream().anyMatch(x -> x.path("nome").asString().startsWith("Creatina com cupom longo")))
+                .isFalse();
+    }
+
+    @Test
     void modelosVersionadosPassamNaPrevia() throws Exception {
         Path pasta = Path.of("..", "app", "public", "modelos", "importacao");
         String alunos = config("email", "IGNORAR", colunas("nome", "email", "telefone", "cpf", "objetivo", "observacoes",

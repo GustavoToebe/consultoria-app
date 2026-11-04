@@ -21,6 +21,7 @@ import { rotuloDoMes } from '../../dominio/numeros';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
+import { useSaidaGuardada } from '../../ui/GuardaDeSaida';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { CampoLeitura } from '../../ui/CampoLeitura';
@@ -213,10 +214,12 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
     );
   };
 
-  const irParaORecebimento = () => {
+  // Saídas para outra tela passam pela guarda (a ficha pode estar em edição, D7); a Folha só fecha se a pessoa sair.
+  const { confirmar } = useSaidaGuardada();
+  const irParaORecebimento = () => confirmar(() => {
     aoFechar();
     router.push({ pathname: '/treinador/financeiro', params: { aba: 'recebimento' } });
-  };
+  });
 
   const whatsapp = botaoDoWhatsApp(lembretes);
   // Abre fora do app, sem token; nada é registrado como enviado (é o treinador quem manda a mensagem).
@@ -227,10 +230,10 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
 
   const perguntar = (p: Exclude<Pergunta, null>) => { setMotivo(''); setErro(null); setUltimaPergunta(p); setPergunta(p); };
 
-  const abrirFicha = () => {
+  const abrirFicha = () => confirmar(() => {
     aoFechar();
     router.push(`/treinador/alunos/${cobranca.alunoId}`);
-  };
+  });
 
   const titulo = modo === 'baixa' ? 'Registrar pagamento' : `Cobrança de ${rotuloDoMes(cobranca.competencia)}`;
   const rodape = modo === 'baixa' ? (

@@ -1,127 +1,86 @@
-import { useEffect } from 'react';
+/* eslint-disable @typescript-eslint/no-require-imports */
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { Tema } from '../api/tipos';
+import { chaveDasPreferencias } from '../dominio/preferencias';
+import { modoDaPaleta, PALETAS } from './tokens';
 
-import { chaveDasPreferencias, PREFERENCIAS_PADRAO } from '../dominio/preferencias';
-import { AREIA, CLARO, ESCURO } from './tokens';
-import { TemaProvider, useTema } from './TemaProvider';
-
-const mockGetItem = jest.fn<Promise<string | null>, [string]>();
-const mockSetItem = jest.fn<Promise<void>, [string, string]>();
-
-jest.mock('@react-native-async-storage/async-storage', () => ({
-  __esModule: true,
-  default: {
-    getItem: (chave: string) => mockGetItem(chave),
-    setItem: (chave: string, valor: string) => mockSetItem(chave, valor),
-  },
-}));
-
-jest.mock('uniwind', () => ({
-  Uniwind: {
-    setTheme: jest.fn(),
-    updateCSSVariables: jest.fn(),
-  },
-}));
-
-jest.mock('../ui/vibrar', () => ({
-  definirVibracaoLigada: jest.fn(),
-}));
-
+let mockMarca: { temaPadrao: Tema; corPrimaria: string } | null = null;
 let mockUsuario: { id: string } | null = null;
-jest.mock('../sessao/SessaoProvider', () => ({
-  useSessao: () => ({
-    usuario: mockUsuario,
-    marca: null,
-  }),
-}));
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+jest.mock('@react-native-async-storage/async-storage', () => require('@react-native-async-storage/async-storage/jest/async-storage-mock'));
+jest.mock('uniwind', () => ({ Uniwind: { setTheme: jest.fn(), updateCSSVariables: jest.fn() } }));
+jest.mock('../ui/vibrar', () => ({ definirVibracaoLigada: () => undefined }));
+jest.mock('../sessao/SessaoProvider', () => ({ useSessao: () => ({ usuario: mockUsuario, marca: mockMarca }) }));
+
 const Renderer = require('react-test-renderer') as typeof import('react-test-renderer');
+const React = require('react') as typeof import('react');
+const { Uniwind } = require('uniwind') as { Uniwind: { setTheme: jest.Mock } };
+const { TemaProvider, useTema } = require('./TemaProvider') as typeof import('./TemaProvider');
 
-type Retorno = ReturnType<typeof useTema>;
-const montados: import('react-test-renderer').ReactTestRenderer[] = [];
-
-afterEach(async () => {
-  await Renderer.act(async () => {
-    montados.splice(0).forEach((m) => m.unmount());
-  });
-});
-
-async function montar(): Promise<{ atual: () => Retorno }> {
-  const guardado: { valor?: Retorno } = {};
-  function Sonda() {
-    const valor = useTema();
-    useEffect(() => {
-      guardado.valor = valor;
-    });
-    return null;
-  }
-  await Renderer.act(async () => {
-    const r = Renderer.create(
-      <TemaProvider>
-        <Sonda />
-      </TemaProvider>,
-    );
-    montados.push(r);
-  });
-  return { atual: () => guardado.valor as Retorno };
+const lido: { tema?: ReturnType<typeof useTema> } = {};
+function Espiao() {
+  const tema = useTema();
+  React.useEffect(() => {
+    lido.tema = tema;
+  }, [tema]);
+  return null;
 }
 
-beforeEach(() => {
-  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-  jest.clearAllMocks();
+async function montar() {
+  await Renderer.act(async () => {
+    Renderer.create(
+      <TemaProvider>
+        <Espiao />
+      </TemaProvider>,
+    );
+  });
+}
+
+beforeEach(async () => {
+  mockMarca = null;
   mockUsuario = null;
-  mockGetItem.mockResolvedValue(null);
-  mockSetItem.mockResolvedValue(undefined);
+  Uniwind.setTheme.mockClear();
+  await AsyncStorage.clear();
 });
 
-describe('TemaProvider', () => {
-  it('sem usuário: escolher um tema muda o tema na tela em memória e não grava no AsyncStorage nem no localStorage', async () => {
-    const { atual } = await montar();
-    expect(atual().preferenciasLidas).toBe(true);
-
-    await Renderer.act(async () => {
-      atual().escolherPreferencia({ tema: 'ESCURO' });
-    });
-    expect(atual().preferencias.tema).toBe('ESCURO');
-    expect(atual().modo).toBe('ESCURO');
-    expect(atual().cores.fundo).toBe(ESCURO.fundo);
-
-    await Renderer.act(async () => {
-      atual().escolherPreferencia({ tema: 'AREIA' });
-    });
-    expect(atual().preferencias.tema).toBe('AREIA');
-    expect(atual().modo).toBe('CLARO');
-    expect(atual().cores.fundo).toBe(AREIA.fundo);
-
-    await Renderer.act(async () => {
-      atual().escolherPreferencia({ tema: 'CLARO' });
-    });
-    expect(atual().preferencias.tema).toBe('CLARO');
-    expect(atual().modo).toBe('CLARO');
-    expect(atual().cores.fundo).toBe(CLARO.fundo);
-
-    expect(mockGetItem).not.toHaveBeenCalled();
-    expect(mockSetItem).not.toHaveBeenCalled();
+describe('TemaProvider com a paleta da consultoria', () => {
+  it('paleta escura (Ameixa): modo escuro, cores da paleta e esquema escuro do Uniwind', async () => {
+    mockMarca = { temaPadrao: 'AMEIXA', corPrimaria: '#C62828' };
+    await montar();
+    expect(lido.tema!.modo).toBe('ESCURO');
+    expect(lido.tema!.cores.fundo).toBe(PALETAS.AMEIXA.cores.fundo);
+    expect(Uniwind.setTheme).toHaveBeenLastCalledWith('dark');
   });
 
-  it('com usuário: lê as preferências salvas e grava no AsyncStorage ao escolher um tema', async () => {
-    mockUsuario = { id: 'u-42' };
-    mockGetItem.mockResolvedValue(JSON.stringify({ ...PREFERENCIAS_PADRAO, tema: 'CLARO' }));
+  it('paleta clara (Lavanda): modo claro, cores da paleta e esquema claro do Uniwind', async () => {
+    mockMarca = { temaPadrao: 'LAVANDA', corPrimaria: '#C62828' };
+    await montar();
+    expect(lido.tema!.modo).toBe('CLARO');
+    expect(lido.tema!.cores.fundo).toBe(PALETAS.LAVANDA.cores.fundo);
+    expect(lido.tema!.cores.superficie3).toBe(PALETAS.LAVANDA.cores.superficie3);
+    expect(Uniwind.setTheme).toHaveBeenLastCalledWith('light');
+  });
 
-    const { atual } = await montar();
-    expect(mockGetItem).toHaveBeenCalledWith(chaveDasPreferencias('u-42'));
-    expect(atual().preferenciasLidas).toBe(true);
-    expect(atual().preferencias.tema).toBe('CLARO');
-    expect(atual().modo).toBe('CLARO');
+  it('a escolha da pessoa (Escuro) vence a paleta clara da consultoria', async () => {
+    mockMarca = { temaPadrao: 'LAVANDA', corPrimaria: '#C62828' };
+    mockUsuario = { id: 'u1' };
+    await AsyncStorage.setItem(chaveDasPreferencias('u1'), JSON.stringify({ tema: 'ESCURO' }));
+    await montar();
+    await Renderer.act(async () => undefined);
+    expect(lido.tema!.modo).toBe('ESCURO');
+    expect(lido.tema!.cores.fundo).toBe(PALETAS.ESCURO.cores.fundo);
+  });
 
-    await Renderer.act(async () => {
-      atual().escolherPreferencia({ tema: 'ESCURO' });
-    });
-    expect(atual().preferencias.tema).toBe('ESCURO');
-    expect(atual().modo).toBe('ESCURO');
-    expect(mockSetItem).toHaveBeenCalledWith(
-      chaveDasPreferencias('u-42'),
-      JSON.stringify({ ...PREFERENCIAS_PADRAO, tema: 'ESCURO' }),
-    );
+  it('código fora da lista (marca de uma API mais nova) não derruba o app: cai no Escuro', async () => {
+    mockMarca = { temaPadrao: 'FUTURA' as Tema, corPrimaria: '#C62828' };
+    await montar();
+    expect(lido.tema!.modo).toBe('ESCURO');
+    expect(lido.tema!.cores.fundo).toBe(PALETAS.ESCURO.cores.fundo);
+    expect(Uniwind.setTheme).toHaveBeenLastCalledWith('dark');
+  });
+
+  it('modoDaPaleta com código desconhecido, vazio ou herdado do Object cai no modo do Escuro', () => {
+    for (const codigo of ['FUTURA', '', null, undefined, 'toString', '__proto__']) expect(modoDaPaleta(codigo)).toBe('ESCURO');
+    expect(modoDaPaleta('LAVANDA')).toBe('CLARO');
   });
 });

@@ -10,6 +10,7 @@ import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes } from '../tema/tokens';
 import { Texto } from '../ui/Texto';
+import { useUnidadeDeCarga } from '../ui/unidadeDeCargaEmUso';
 
 interface Props {
   versaoId: string;
@@ -29,6 +30,7 @@ interface Props {
  */
 export function FaixaDoTreino({ versaoId, sessao, data, hoje, feitas, total, registroDe }: Props) {
   const { retornoHabilitado } = useSessao();
+  const unidade = useUnidadeDeCarga();
   const { inicioDoTreino, sessaoConcluidaDe } = useAluno();
   const { cores } = useTema();
   const inicio = inicioDoTreino(versaoId, sessao.uid, data);
@@ -48,7 +50,7 @@ export function FaixaDoTreino({ versaoId, sessao, data, hoje, feitas, total, reg
     hoje,
     contada: duracaoDoTreino(inicio, new Date(agora)),
   });
-  const volume = textoDoVolumeAoVivo(volumeDaSessao(sessao, registroDe));
+  const volume = textoDoVolumeAoVivo(volumeDaSessao(sessao, registroDe), unidade);
   const itens = [
     { rotulo: 'Duração', valor: textoDaDuracaoAoVivo(duracao.segundos), falado: `Duração do treino: ${duracaoFalada(duracao.segundos)}` },
     { rotulo: 'Volume', valor: volume, falado: `Volume: ${volume === '—' ? 'sem carga registrada' : volume}` },

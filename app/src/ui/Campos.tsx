@@ -1,7 +1,8 @@
 import { Switch } from '../components/ui/switch';
-import { useRef, useState } from 'react';
+import { useRef, useState, type Ref } from 'react';
 import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
+import { type RegraDeData, erroDaData } from '../dominio/datasValidas';
 import { dataDaTela, dataParaTela, mascaraData, numeroDaTela, numeroParaTela } from '../dominio/formatos';
 import { escalar } from '../dominio/preferencias';
 import { useTema } from '../tema/TemaProvider';
@@ -20,11 +21,20 @@ export function CampoData({
   aoMudar,
   erro,
   rotuloOculto,
+  regra,
+  nome,
 }: {
   rotulo: string;
   valor: string;
   aoMudar: (texto: string) => void;
   erro?: string | null;
+  /**
+   * Faixa de datas do campo (`dominio/datasValidas`): fora dela o campo mostra a mensagem junto ao valor. Sem `regra` o
+   * campo não confere a faixa (financeiro e ciclo ficam como estão). Quem salva trava com `dataDaTelaNaFaixa`.
+   */
+  regra?: RegraDeData;
+  /** O nome do campo na mensagem da faixa ("Início da pasta"); sem ele, o `rotulo`. */
+  nome?: string;
   /** Sem o rótulo em cima (o ícone ao lado já diz o que é); o leitor de tela continua lendo o `rotulo`. */
   rotuloOculto?: boolean;
 }) {
@@ -44,7 +54,7 @@ export function CampoData({
       keyboardType="number-pad"
       inputMode="numeric"
       maxLength={10}
-      erro={erro ?? (invalida ? 'Data inválida.' : null)}
+      erro={erro ?? (regra ? erroDaData(valor, nome ?? rotulo, regra) : null) ?? (invalida ? 'Data inválida.' : null)}
       acao={
         <View ref={botao} collapsable={false}>
           <BotaoCalendario aoTocar={() => botao.current?.measureInWindow((x, y, w, h) => setAncora({ x, y, w, h }))} />
@@ -89,10 +99,13 @@ export function CampoNumerico({
   rotuloOculto,
   sufixoNaCaixa,
   erroSemTexto,
+  aoDigitar,
 }: {
   rotulo: string;
   valor: number | null;
   aoMudar: (valor: number | null) => void;
+  /** Avisa a cada digitação, mesmo que o texto ainda não seja número (",", "-"): `aoMudar` só vem com número válido. */
+  aoDigitar?: () => void;
   /** Nome para o leitor de tela quando o rótulo visível se repete na tela. */
   rotuloAcessivel?: string;
   inteiro?: boolean;
@@ -112,7 +125,7 @@ export function CampoNumerico({
   /** O erro marca a caixa e vai ao leitor de tela; o texto fica com quem usa (campo estreito numa linha). */
   erroSemTexto?: boolean;
 }) {
-  const { texto, lido, mudar } = useNumeroDigitado(valor, aoMudar, inteiro, aoValidade, mascara);
+  const { texto, lido, mudar } = useNumeroDigitado(valor, aoMudar, inteiro, aoValidade, mascara, aoDigitar);
   return (
     <Campo
       numerico
@@ -133,7 +146,7 @@ export function CampoNumerico({
 }
 
 /** Texto do campo numérico: guarda o que foi digitado e só repassa quando é número (ou vazio = `null`). */
-function useNumeroDigitado(valor: number | null, aoMudar: (valor: number | null) => void, inteiro?: boolean, aoValidade?: (valido: boolean) => void, mascara?: (texto: string) => string) {
+function useNumeroDigitado(valor: number | null, aoMudar: (valor: number | null) => void, inteiro?: boolean, aoValidade?: (valido: boolean) => void, mascara?: (texto: string) => string, aoDigitar?: () => void) {
   const [texto, setTexto] = useState(valor === null ? '' : numeroParaTela(valor, 3));
   const [anterior, setAnterior] = useState(valor);
   if (valor !== anterior) {
@@ -142,6 +155,7 @@ function useNumeroDigitado(valor: number | null, aoMudar: (valor: number | null)
     if (numeroDaTela(texto, inteiro) !== valor) setTexto(valor === null ? '' : numeroParaTela(valor, 3));
   }
   const mudar = (digitado: string) => {
+    aoDigitar?.();
     const t = mascara ? mascara(digitado) : digitado;
     setTexto(t);
     const n = numeroDaTela(t, inteiro);
@@ -169,16 +183,22 @@ export function CampoNumericoGrande({
   ajuda,
   rotuloOculto,
   aoValidade,
+  mascara,
+  ref,
 }: {
   rotulo: string;
   valor: number | null;
   aoMudar: (valor: number | null) => void;
+  /** A caixa de texto, para quem precisa levar o foco a ela (o "Outra carga" do painel do ✓). */
+  ref?: Ref<TextInput>;
   inteiro?: boolean;
   sufixo?: string;
   /** Sem o rótulo em cima (a unidade dentro da caixa já diz o que é; o leitor de tela lê `rotuloAcessivel`). */
   rotuloOculto?: boolean;
   /** Avisa a cada digitação se o texto é número (ou vazio): quem grava trava o ✓ enquanto não for. */
   aoValidade?: (valido: boolean) => void;
+  /** Ajusta o texto a cada digitação (a carga em libra, com 1 casa); sem ela, vale o que foi digitado. */
+  mascara?: (texto: string) => string;
   /** Rótulo completo para o leitor de tela ("Peso da série 2"). */
   rotuloAcessivel?: string;
   /** Caixa maior (carga de trabalho do dia). */
@@ -188,7 +208,7 @@ export function CampoNumericoGrande({
 }) {
   const { cores, fatorTexto } = useTema();
   const [foco, setFoco] = useState(false);
-  const { texto, lido, mudar } = useNumeroDigitado(valor, aoMudar, inteiro, aoValidade);
+  const { texto, lido, mudar } = useNumeroDigitado(valor, aoMudar, inteiro, aoValidade, mascara);
   const corBorda = lido === undefined ? cores.perigo : foco ? cores.anelFoco : cores.bordaCampo;
   const destaqueBorda = foco || lido === undefined ? 1 : 0;
   return (
@@ -196,6 +216,7 @@ export function CampoNumericoGrande({
       {rotuloOculto ? null : <Texto variante="rotulo" cor={cores.texto}>{rotulo}</Texto>}
       <View style={[estilos.caixa, destaque && estilos.caixaDestaque, { backgroundColor: cores.campo, borderColor: corBorda, borderWidth: 1 + destaqueBorda, paddingHorizontal: espaco(1.5) - destaqueBorda }]}>
         <TextInput
+          ref={ref}
           accessibilityLabel={rotuloAcessivel ?? rotulo}
           aria-invalid={lido === undefined}
           value={texto}

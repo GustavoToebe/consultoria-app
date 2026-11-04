@@ -110,7 +110,7 @@ editor de treino de 30/10; decisões em `docs/planos/editor-de-treino-visual.md`
 - **Hierarquia por contenção:** página → bloco → faixa do título → item → campo, cada nível com um tom ou uma borda
   diferente. Não se usa cor aleatória para separar.
 - **Cor com significado (cor semântica):** verde é "pronto", âmbar é atenção, vermelho é problema e cinza é encerrado;
-  a cor da marca aparece só na ação principal, no menu ativo e na barra da sessão.
+  onde a cor da marca pode aparecer está na lista fechada da seção 4.5.
 - **Seleção invertida (monocromática):** a opção escolhida fica com fundo escuro e letra clara, nunca na cor da marca.
 - **Mostrar aos poucos (progressive disclosure, padrão "acordeão"):** uma série aberta por vez e as outras resumidas
   numa linha.
@@ -135,8 +135,8 @@ neo-brutalism UI* (este último mostra o lado "borda forte").
    - vermelho = problema ou ação destrutiva;
    - cinza = encerrado.
 
-   A cor da marca **nunca** diz status e só aparece em ação principal, item de menu ativo, cartão "Hoje" do aluno e
-   título. Status sempre vem num selo **com texto**.
+   A cor da marca **nunca** diz status e só aparece nos lugares da lista fechada da seção 4.5. Status sempre vem num
+   selo **com texto**.
 2. **Blocos:** tudo em cartão (cantos de 12 px, borda de 2 px, sem sombra; ajuste de 30/10). A ficha é feita de blocos pequenos, cada um
    com seus botões.
 3. **SaaS limpo:** visual *flat*, grade de 8 px, tipografia contida, nada decorativo.
@@ -162,8 +162,8 @@ fundo da página (quase branco: #F7F7F8)
   - editor: 1040;
   - lista e painel: até 1800;
   - aluno: 720.
-- Pontos de quebra: abaixo de 768 px é celular (barra inferior); de 768 a 1023, menu lateral só com ícones; a
-  partir de 1024, menu lateral completo.
+- Pontos de quebra: abaixo de 768 px é celular (barra inferior); de 768 a 1023, menu lateral em trilho, com o
+  rótulo curto embaixo de cada ícone; a partir de 1024, menu lateral completo, em grupos com título.
 
 ### 4.4 Peças principais
 
@@ -178,6 +178,62 @@ fundo da página (quase branco: #F7F7F8)
 | `Selo` | Status curto com texto e cor de significado. |
 | `Botao` | Um `primario` por área; o resto é secundário. Desabilitado sempre diz o porquê (`motivo`). |
 | `EscolhaSuspensa` / `EscolhaEmFolha` | Escolha com busca: lista suspensa no PC, folha no celular. |
+
+### 4.5 Cor por situação (Gustavo, 03/11)
+
+Duas regras. Plano e passos em `docs/planos/auditoria-cores.md`.
+
+1. **A cor da marca serve só para destaque e ação.** Erro e alerta têm tom próprio, e desabilitado é cinza.
+2. **Uma cor por situação, e âmbar só para quem precisa agir.** Quem espera vê neutro, e o texto diz quem age. Por
+   exemplo, a atualização enviada diz "Enviada · aguardando revisão" ao aluno, em neutro, e "Para revisar" ao
+   treinador, em âmbar.
+
+   **Exceção: status de cobrança** (Gustavo, 03/11). Segue os três tons que aluno e treinador já conhecem de outros
+   apps, mesmo para quem só espera: Em aberto `atencao`, Vencida `perigo`, Paga `sucesso`, Cancelada e Isenta `neutro`
+   (`dominio/minhaConta.situacaoDaCobrancaParaTela`; o mesmo vale para as cobranças do Financeiro).
+
+A cor nunca fala sozinha: todo status leva texto, e todo erro ou alerta leva ícone. A regra vale para qualquer marca:
+a cor da marca muda por consultoria, mas `sucesso`, `atencao` e `perigo` são fixos no tema (`tema/tokens.ts`) e nunca
+vêm da marca; por isso o status de cobrança também leva sempre o texto ("Em aberto", "Vencida", "Paga"). O ícone no selo de cobrança ficou como pendência: o `Selo` com `Icone` vira pílula, e isso mudaria o desenho dele.
+
+**Onde a marca pode aparecer (lista fechada):**
+- ação principal: `Botao primario` e, nas telas públicas da consultoria, `BotaoPublico`;
+- item de menu ativo e aba ativa;
+- cartão "Hoje" do aluno;
+- nome da marca (`MarcaTitulo`) e a inicial no trilho do menu (`MarcaDoTrilho`);
+- dia de hoje e ações do `Calendario`;
+- PDFs: faixa, título das seções, cabeçalho das tabelas e valores em destaque (carga e quantidade);
+- prévias da Marca e das Preferências;
+- barra da sessão no editor de treino (`CartaoSessao`);
+- dia treinado no cartão para compartilhar (`cartaoDoTreino`).
+
+Qualquer outro lugar precisa de decisão nova.
+
+| Situação | Tom (token) | Quando usar | Exemplos | Aluno e treinador | Mínimo WCAG AA | Pior valor medido (claro · areia · escuro) |
+| --- | --- | --- | --- | --- | --- | --- |
+| Ação e destaque | fundo `marca` com texto `sobreMarca`; em texto ou ícone, `marcaTexto` | Só nos lugares da lista acima | "Salvar", menu ativo, cartão Hoje | Sim | 4,5:1 (texto) | `sobreMarca` sobre `marca` ≥ 4,5 (`avaliarMarca` recusa menos); `marcaTexto` ≥ 4,5 por construção (`marcaParaTexto`) |
+| Positivo, concluído | `sucesso` | Terminou bem e não falta nada | Paga, Ativa, Revisada, Sincronizado, Treino concluído, Realizado, Com acesso, Publicado | Sim | 4,5:1 | 5,11 · 4,92 · 5,13 (sobre `superficie3`) |
+| Pendente, alguém precisa agir | `atencao` | Falta uma ação de alguém, mas nada impede de seguir | Em aberto, Rascunho, Para revisar, Responder até, Adiada, Pausada, Contestada, Alterações não salvas | Só quem age (a cobrança Em aberto, para os dois: exceção acima) | 4,5:1 | 5,00 · 4,82 · 5,52 (sobre `superficie3`) |
+| Problema, erro ou atraso | `perigo` em texto e borda; `perigoFundo` em botão preenchido com texto branco | Algo deu errado, impede de seguir ou passou do prazo; ação destrutiva | Atrasada, "Vencida há N dias", Falhou, Faltou, Corrigir, Falha ao salvar, erro de campo | Sim | 4,5:1 | 5,32 · 5,13 · 4,51 (sobre `superficie3`); branco sobre `perigoFundo`: 6,57 · 6,57 · 5,62 |
+| Encerrado, inativo ou informativo | `neutro` | Acabou, foi desligado, ou é só informação, inclusive o que ainda vai acontecer, sempre com a data; também quem espera a ação de outro | Cancelada, Estornada, Encerrada, Arquivado, Inativo, Pasta concluída, Dispensada, Sem conexão, "Em 15 dias", "Enviada · aguardando revisão" (quem espera) | Sim | 4,5:1 | 4,97 · 4,79 · 4,98 (sobre `superficie3`) |
+| Desabilitado | fundo `superficie3`, borda `borda`, texto e ícone `textoSuave`, sem opacidade e sem a marca | Controle que não pode ser usado agora | Botão com `motivo` ("Preencha o nome"), opção indisponível, ✓ na prévia | Sim | Isento pela WCAG 1.4.3; o `motivo` abaixo é texto comum (4,5:1) | `textoSuave` sobre `superficie3`: 6,26 · 6,04 · 5,42 |
+| Seleção | invertida: fundo `texto`, letra `fundo` | Opção escolhida (chips, `Escolha`, calendário, `Interruptor`) | Chip marcado | Sim | 4,5:1 | igual a texto sobre fundo |
+| Identificação | paletas próprias (`PALETA_DE_IDENTIFICACAO`, agendas, fases) | Diz *qual* coisa é, nunca status | Tipo de série, refeição, agenda, fase do ciclo | Sim | 4,5:1 (texto); 3:1 (marcador) | conferido em `tokens.test.ts` |
+
+- **Selo sobre a `faixaForte`:** o selo sem ícone tem fundo transparente e, sobre essa faixa, fica abaixo de 4,5:1.
+  É o caso do selo do grupo muscular, de "Cardio", de "Sem progressão" e de "Fora da biblioteca", na faixa do
+  exercício do editor de treino. Medido:
+  - `neutro`: 4,49 · 4,25 · 4,43;
+  - `sucesso` no areia: 4,37;
+  - `atencao` no areia: 4,28;
+  - `perigo` no escuro: 4,01.
+
+  Regra: o selo tem sempre fundo opaco. Com o fundo `tingido` da própria cor, o pior caso é 5,14 (escuro, `perigo`).
+- **Aviso de rodapé (`useAviso`):** o tom de atenção é para o aviso que não é erro, como "o navegador bloqueou a nova
+  aba" ou "a mensagem foi preparada, mas não foi registrada". O vermelho fica para o que falhou.
+- **Marca parecida com um status:** a marca padrão `#C62828` é o mesmo vermelho do `perigoFundo` do escuro. Por isso
+  o erro e o botão destrutivo se distinguem pela forma, com ícone, texto e fundo `tingido` do `Alerta`, e nunca só
+  pelo tom.
 
 ---
 

@@ -259,9 +259,13 @@ describe('contas do painel', () => {
   it('inadimplência traz a nota; sem vencidas no período fica "—"', () => {
     const com = inadimplenciaParaTela({ percentual: 12.5, vencidoCentavos: 30000, cobradoCentavos: 240000 });
     expect(com.percentual).toBe('12,5%');
-    expect(com.detalhe).toContain(NOTA_CONSIDERA_GERADAS);
+    expect(com.comBase).toBe('12,5% · R$ 300,00 de R$ 2.400,00');
+    // A base aparece uma vez só, ao lado do percentual; a descrição não repete os valores.
+    expect(com.detalhe).toBe(`Em aberto do total que já venceu · ${NOTA_CONSIDERA_GERADAS}`);
+    expect(com.detalhe).not.toContain('R$');
     const sem = inadimplenciaParaTela({ percentual: null, vencidoCentavos: null, cobradoCentavos: null });
     expect(sem.percentual).toBe('—');
+    expect(sem.comBase).toBe('—');
     expect(sem.detalhe).toContain(NOTA_CONSIDERA_GERADAS);
   });
   it('líquido é "indisponível", sem desconto inventado', () => {
@@ -281,9 +285,17 @@ describe('contas do painel', () => {
     });
     expect(r.rotulo).toBe('Resultado do mês (entradas − saídas registradas)');
     expect(r.mes).toBe('jun/2026');
+    expect(r.descricao).toBe('Mês de jun/2026 · sempre o mês de hoje, não muda com o período acima');
     expect(r.entradas).toBe('—');
     expect(r.resultado).toBe('—');
     expect(r.rotulo.toLowerCase()).not.toContain('lucro');
+  });
+  it('N14: mês sem lançamento (zero vindo da API) é "R$ 0,00"; sem dado segue "—"', () => {
+    const r = resultadoDoMesParaTela({ rotulo: 'x', mes: '2026-11', recebidoCentavos: null, entradasAvulsasCentavos: 0, saidasAvulsasCentavos: 0, resultadoCentavos: 0 });
+    expect(r.entradas).toBe('R$ 0,00');
+    expect(r.saidas).toBe('R$ 0,00');
+    expect(r.resultado).toBe('R$ 0,00');
+    expect(r.recebido).toBe('—');
   });
 });
 

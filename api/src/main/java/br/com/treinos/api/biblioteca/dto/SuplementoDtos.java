@@ -12,7 +12,8 @@ public final class SuplementoDtos {
 
     private SuplementoDtos() { }
 
-    /** O {@code link} vazio vale (sem link); preenchido só {@code https} (ver {@link LinksExternos}). */
+    /** O {@code link} vazio vale (sem link); preenchido só {@code https} (ver {@link LinksExternos}).
+     * O {@code cupom} não usa Bean Validation (daria 400): o service recusa mais de 40 caracteres com 422 no campo. */
     public record SuplementoRequest(
             @NotBlank @Size(max = 120) String nome,
             @Size(max = 80) String marca,
@@ -20,10 +21,11 @@ public final class SuplementoDtos {
             @Size(max = 80) String porcao,
             @Size(max = 40) String porcoesPorEmbalagem,
             @Size(max = 20) List<@Size(max = 60) String> sabores,
-            @LinkExterno @Size(max = LinksExternos.TAMANHO_MAXIMO) String link) {
+            @LinkExterno @Size(max = LinksExternos.TAMANHO_MAXIMO) String link,
+            String cupom) {
     }
 
     public record SuplementoResponse(UUID id, String nome, String marca, String categoria, String porcao,
-                                     String porcoesPorEmbalagem, List<String> sabores, String link) {
+                                     String porcoesPorEmbalagem, List<String> sabores, String link, String cupom) {
     }
 }

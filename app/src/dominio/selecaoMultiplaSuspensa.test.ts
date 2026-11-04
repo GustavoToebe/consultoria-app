@@ -1,4 +1,4 @@
-import { alternarVisiveis, estadoDosVisiveis, filtrarOpcoes, marcadosExistentes, resumoDosMarcados, textoDosMarcados } from './selecaoMultiplaSuspensa';
+import { alternarVisiveis, estadoDosVisiveis, filtrarOpcoes, gruposDaConsulta, marcadosExistentes, resumoDosMarcados, textoDosMarcados } from './selecaoMultiplaSuspensa';
 
 const opcoes = [
   { valor: 'peito', rotulo: 'Peito' },
@@ -55,5 +55,17 @@ describe('resumoDosMarcados e textoDosMarcados', () => {
     expect(textoDosMarcados(opcoes, new Set(['peito']))).toBe('Peito');
     expect(textoDosMarcados(opcoes, new Set(['peito', 'costas']))).toBe('Peito, Costas');
     expect(textoDosMarcados(opcoes, new Set(['peito', 'costas', 'triceps', 'quadriceps']))).toBe('Peito, Costas e mais 2');
+  });
+});
+
+describe('gruposDaConsulta', () => {
+  it('leva só os marcados que ainda existem, em ordem', () => {
+    expect(gruposDaConsulta(new Set(['Peito', 'Costas']), ['Costas', 'Peito', 'Pernas'])).toEqual(['Costas', 'Peito']);
+  });
+  it('grupo que sumiu (último exercício inativado) não filtra: a consulta volta a ser sem grupo', () => {
+    expect(gruposDaConsulta(new Set(['Lombar']), ['Costas', 'Peito'])).toEqual([]);
+  });
+  it('sem grupos conhecidos ainda, nada vai na consulta', () => {
+    expect(gruposDaConsulta(new Set(), [])).toEqual([]);
   });
 });

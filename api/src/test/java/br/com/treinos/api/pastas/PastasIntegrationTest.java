@@ -47,7 +47,7 @@ class PastasIntegrationTest extends AbstractIntegrationTest {
 
         // Observação sem peso e peso no futuro são recusados e a pasta continua aberta.
         api.post("/pastas/" + pasta + "/finalizar", treinador, Map.of("observacao", "sem peso"), 400);
-        api.post("/pastas/" + pasta + "/finalizar", treinador, Map.of("pesoKg", 80.5, "data", "2999-01-01"), 400);
+        api.post("/pastas/" + pasta + "/finalizar", treinador, Map.of("pesoKg", 80.5, "data", "2999-01-01"), 422);
         assertThat(api.get("/alunos/" + aluno + "/pastas", treinador, 200).get(0).get("concluidaEm").isNull()).isTrue();
 
         JsonNode finalizada = api.post("/pastas/" + pasta + "/finalizar", treinador,
@@ -66,6 +66,20 @@ class PastasIntegrationTest extends AbstractIntegrationTest {
         // Sem peso, finaliza só a pasta e não mexe no registro de peso.
         api.post("/pastas/" + pasta + "/finalizar", treinador, Map.of(), 200);
         assertThat(api.get("/alunos/" + aluno + "/pesos", treinador, 200)).hasSize(1);
+    }
+
+    @Test
+    void finalizarSemPesoNaoCriaRegistroNemAuditoriaDePesoEComPesoCria() throws Exception {
+        String semPeso = novaPasta("Plano 20", "2026-09-01", "2026-09-30").get("id").asString();
+        api.post("/pastas/" + semPeso + "/finalizar", treinador, Map.of(), 200);
+        assertThat(api.get("/alunos/" + aluno + "/pesos", treinador, 200)).isEmpty();
+        assertThat(api.get("/auditoria?acao=PESO_REGISTRADO", treinador, 200).path("total").asInt()).isZero();
+        assertThat(api.get("/auditoria?acao=PASTA_FINALIZADA", treinador, 200).path("total").asInt()).isEqualTo(1);
+
+        String comPeso = novaPasta("Plano 21", "2026-10-01", "2026-10-30").get("id").asString();
+        api.post("/pastas/" + comPeso + "/finalizar", treinador, Map.of("pesoKg", 90, "data", "2026-10-20"), 200);
+        assertThat(api.get("/alunos/" + aluno + "/pesos", treinador, 200)).hasSize(1);
+        assertThat(api.get("/auditoria?acao=PESO_REGISTRADO", treinador, 200).path("total").asInt()).isEqualTo(1);
     }
 
     @Test

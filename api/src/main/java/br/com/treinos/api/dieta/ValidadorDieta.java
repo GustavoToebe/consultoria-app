@@ -4,11 +4,14 @@ import br.com.treinos.api.dieta.ConteudoDieta.Item;
 import br.com.treinos.api.dieta.ConteudoDieta.Opcao;
 import br.com.treinos.api.dieta.ConteudoDieta.Refeicao;
 import br.com.treinos.api.planos.ResultadoValidacao;
+import br.com.treinos.api.web.CupomDeSuplemento;
+import br.com.treinos.api.web.FaixaDeData;
 import br.com.treinos.api.web.LinksExternos;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -28,6 +31,10 @@ public class ValidadorDieta {
     private static final BigDecimal AGUA_MAXIMA = new BigDecimal("20");
 
     public ResultadoValidacao validar(ConteudoDieta conteudo, LocalDate inicio, LocalDate fim) {
+        return validar(conteudo, inicio, fim, FaixaDeData.hoje());
+    }
+
+    public ResultadoValidacao validar(ConteudoDieta conteudo, LocalDate inicio, LocalDate fim, LocalDate hoje) {
         ResultadoValidacao.Coletor c = new ResultadoValidacao.Coletor();
         Set<UUID> uids = new HashSet<>();
         Set<String> nomes = new HashSet<>();
@@ -79,6 +86,9 @@ public class ValidadorDieta {
             if (sup.link() != null && !sup.link().isBlank() && !LinksExternos.valido(sup.link())) {
                 c.erro("suplementacao[" + s + "].link", LinksExternos.MENSAGEM);
             }
+            if (!CupomDeSuplemento.valido(sup.cupom())) {
+                c.erro("suplementacao[" + s + "].cupom", CupomDeSuplemento.MENSAGEM);
+            }
         }
         List<ConteudoDieta.Ergogenico> ergogenicos = conteudo.ergogenicos() == null ? List.of() : conteudo.ergogenicos();
         for (int e = 0; e < ergogenicos.size(); e++) {
@@ -101,10 +111,25 @@ public class ValidadorDieta {
         if (!refeicoes.isEmpty() && kcalDoDia.signum() == 0) {
             c.aviso("refeicoes", "O total do dia (opção A de cada refeição) está com 0 kcal.");
         }
+        dataDeInicio(c, conteudo.dataInicio(), hoje);
         if (inicio != null && fim != null && fim.isBefore(inicio)) {
             c.aviso("fim", "O fim do período é antes do início.");
         }
         return c.resultado();
+    }
+
+    /** Data de início da dieta (texto AAAA-MM-DD, opcional): faixa de planejamento, sem repetir o valor na mensagem. */
+    private static void dataDeInicio(ResultadoValidacao.Coletor c, String texto, LocalDate hoje) {
+        if (texto == null || texto.isBlank()) {
+            return;
+        }
+        try {
+            if (!FaixaDeData.PLANEJAMENTO.aceita(LocalDate.parse(texto.strip()), hoje)) {
+                c.erro("dataInicio", FaixaDeData.PLANEJAMENTO.mensagem("Data de início da dieta", hoje));
+            }
+        } catch (DateTimeParseException invalida) {
+            c.erro("dataInicio", "Data de início da dieta: use uma data válida (AAAA-MM-DD).");
+        }
     }
 
     private static boolean emBranco(ConteudoDieta.Ergogenico e) {

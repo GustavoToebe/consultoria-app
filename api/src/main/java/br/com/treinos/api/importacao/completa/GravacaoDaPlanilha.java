@@ -3,6 +3,7 @@ package br.com.treinos.api.importacao.completa;
 import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.alunos.Aluno;
 import br.com.treinos.api.alunos.AlunoRepository;
+import br.com.treinos.api.alunos.LimiteDoTreinador;
 import br.com.treinos.api.auditoria.Auditoria;
 import br.com.treinos.api.biblioteca.Alimento;
 import br.com.treinos.api.biblioteca.AlimentoRepository;
@@ -102,6 +103,7 @@ public class GravacaoDaPlanilha {
     private final ImportacaoRepository importacoes;
     private final ReceitaService receitas;
     private final PlanoDaConsultoria plano;
+    private final LimiteDoTreinador limiteDoTreinador;
     private final ConsultoriaRepository consultorias;
     private final Auditoria auditoria;
     private final VideoUrls videos;
@@ -114,7 +116,9 @@ public class GravacaoDaPlanilha {
                               RegistroPesoRepository pesos, PastaRepository pastas, PlanoTreinoRepository treinos,
                               PlanoDietaRepository dietas, ImportacaoRepository importacoes, ReceitaService receitas,
                               PlanoDaConsultoria plano, ConsultoriaRepository consultorias, Auditoria auditoria,
-                              VideoUrls videos, ValidadorTreino validador, JsonMapper json, GuardaDasRespostas guarda) {
+                              VideoUrls videos, ValidadorTreino validador, JsonMapper json, GuardaDasRespostas guarda,
+                              LimiteDoTreinador limiteDoTreinador) {
+        this.limiteDoTreinador = limiteDoTreinador;
         this.exercicios = exercicios;
         this.alimentos = alimentos;
         this.suplementos = suplementos;
@@ -136,10 +140,10 @@ public class GravacaoDaPlanilha {
     }
 
     @Transactional(readOnly = true)
-    public Previa previa(String nomeDoArquivo, byte[] bytes, String respostasJson) {
+    public Previa previa(UUID importador, String nomeDoArquivo, byte[] bytes, String respostasJson) {
         RespostasDaPlanilha respostas = RespostasDaPlanilha.ler(respostasJson, json);
         LeituraDasAbas.Leitura leitura = LeituraDasAbas.ler(nomeDoArquivo, bytes);
-        Montagem m = MontagemDaImportacao.montar(leitura, respostas, contexto());
+        Montagem m = MontagemDaImportacao.montar(leitura, respostas, contexto(importador));
         List<Problema> problemas = m.problemas();
         int mostrados = Math.min(AnaliseDaPlanilha.PROBLEMAS_NA_RESPOSTA, problemas.size());
         return new Previa(RespostasDaPlanilha.hash(bytes, respostas, json), criacao(m), m.partesPuladas(), m.pendencias(),
@@ -160,7 +164,7 @@ public class GravacaoDaPlanilha {
         // Antes de ler alunos e contar vagas: duas confirmações na mesma consultoria não correm por e-mail ou vaga.
         Exigir.existe(consultorias.travar(TenantContext.get()), () -> new NaoEncontradoException("Importação não encontrada."));
 
-        Montagem antes = MontagemDaImportacao.montar(leitura, respostas, contexto());
+        Montagem antes = MontagemDaImportacao.montar(leitura, respostas, contexto(eu.usuarioId()));
         Criacao criacao = criacao(antes);
         int total = criacao.alunosNovos() + criacao.pesos() + criacao.exercicios() + criacao.pastas();
         String situacao = total == 0 ? "FALHOU" : antes.problemas().isEmpty() ? "CONCLUIDA" : "CONCLUIDA_COM_ERROS";
@@ -176,7 +180,7 @@ public class GravacaoDaPlanilha {
             criado.marcarImportacao(id);
             exercicios.saveAndFlush(criado);
         }
-        Montagem m = antes.exerciciosNovos().isEmpty() ? antes : MontagemDaImportacao.montar(leitura, respostas, contexto());
+        Montagem m = antes.exerciciosNovos().isEmpty() ? antes : MontagemDaImportacao.montar(leitura, respostas, contexto(eu.usuarioId()));
 
         Map<Dono, UUID> novos = new HashMap<>();
         for (AlunoNovo a : m.alunosNovos()) {
@@ -188,6 +192,8 @@ public class GravacaoDaPlanilha {
             if (a.ativo()) {
                 // Não captura: a 409 LIMITE_DO_PLANO desfaz a confirmação inteira (a prévia já conta as vagas).
                 plano.exigirVagaDeAluno();
+                // Rede de segurança como a do plano (a montagem já contou): o importador é o responsável de todo aluno novo.
+                limiteDoTreinador.exigirVaga(eu.usuarioId(), 1, null);
             }
             alunos.saveAndFlush(aluno);
             novos.put(a.dono(), aluno.getId());
@@ -226,7 +232,7 @@ public class GravacaoDaPlanilha {
     }
 
     /** O que a montagem precisa da consultoria, lido pelos repositórios (já filtrados pelo {@code @TenantId}). */
-    private Contexto contexto() {
+    private Contexto contexto(UUID importador) {
         List<ExercicioDaBiblioteca> daBiblioteca = exercicios.buscarAtivos("%").stream()
                 .map(e -> new ExercicioDaBiblioteca(e.getId(), e.getNome(),
                         e.getModalidade() == null ? null : e.getModalidade().name(), e.getVideoUrl()))
@@ -248,7 +254,7 @@ public class GravacaoDaPlanilha {
                 AcessoAtual.pode("BIBLIOTECA_ALTERAR"), pasta && AcessoAtual.pode("TREINO_ALTERAR"),
                 pasta && AcessoAtual.pode("DIETA_ALTERAR"), AcessoAtual.pode("ERGOGENICO_ALTERAR"));
         return new Contexto(daBiblioteca, alimentosDaBiblioteca, nomesDeSuplementos, nomesDeErgogenicos, existentes,
-                receitas.metodologiaPadrao().orElse(null), plano.vagasDeAluno(), permissoes, LocalDate.now(Fuso.BRASILIA),
+                receitas.metodologiaPadrao().orElse(null), plano.vagasDeAluno(), limiteDoTreinador.vagas(importador, null), permissoes, LocalDate.now(Fuso.BRASILIA),
                 videos::valida);
     }
 

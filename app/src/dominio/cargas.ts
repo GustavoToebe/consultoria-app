@@ -1,7 +1,9 @@
 import type { Configuracao, ExercicioPlano, OrigemDaReferencia, Serie } from '../api/tipos';
 import { nomeDaReferencia, textoCardio, textoCarga, textoDasRepeticoes, textoEsforco, textoTecnica } from './agrupamento';
 import { numeroParaTela } from './formatos';
+import { kgParaTela, passoNaTela, telaParaKg, type UnidadeDeCarga } from './unidadeDeCarga';
 import { tipoPorCodigo, tipoTrabalho as tipoTrabalhoDaMetodologia } from './metodologia';
+import { cargaIlegivel } from './modoDeCarga';
 import { temEtapaEmPercentual } from './validacaoDeSerie';
 
 /**
@@ -9,7 +11,8 @@ import { temEtapaEmPercentual } from './validacaoDeSerie';
  * trabalho que o próprio aluno informa e sobre o que ele já registrou hoje: nunca inventa carga nem repetição.
  * Sugestão é só sugestão; o que o aluno digita é gravado exatamente como digitou.
  *
- * Série de trabalho = `carga.modo === 'CARGA_TRABALHO'` (espelho de `Serie.deTrabalho()` da API). O rótulo
+ * Série de trabalho = `carga.modo === 'CARGA_TRABALHO'` (espelho de `Serie.deTrabalho()` da API). `CARGA_FIXA` (kg escritos
+ * pelo treinador) não é de trabalho e não serve de base para "% da WS", "mesma carga" nem "abaixo da referência". O rótulo
  * `tipoTrabalho` ("WS") só aparece nos textos; nunca se compara com `Serie.tipo`, que é código.
  */
 
@@ -43,7 +46,7 @@ export const ehSerieDeTrabalho = (s: Serie): boolean => modo(s) === 'CARGA_TRABA
  * Texto da meta da série, como o aluno vê na tela. `series` (as do exercício) dá o nome da série de referência do back off;
  * série de cardio mostra a prescrição de cardio.
  */
-export function metaDaSerie(s: Serie, tipoTrabalho: string, semCarga = false, metodologia?: Configuracao, series: readonly Serie[] = []): string {
+export function metaDaSerie(s: Serie, tipoTrabalho: string, semCarga = false, metodologia?: Configuracao, series: readonly Serie[] = [], unidade: UnidadeDeCarga = 'kg'): string {
   if (s.cardio) return `Meta: ${textoCardio(s.cardio)}`;
   const partes: string[] = [];
   partes.push(s.amrap ? 'AMRAP' : `${textoDasRepeticoes(s)} reps`);
@@ -51,7 +54,7 @@ export function metaDaSerie(s: Serie, tipoTrabalho: string, semCarga = false, me
   if (!semCarga && modo(s) === 'CARGA_TRABALHO') {
     partes.push('carga de trabalho');
   } else if (!semCarga) {
-    const carga = textoCarga(s.carga, tipoTrabalho, nomeDaReferencia(s, series, metodologia));
+    const carga = textoCarga(s.carga, tipoTrabalho, nomeDaReferencia(s, series, metodologia), unidade);
     if (carga) partes.push(carga);
   }
   if (esforco) partes.push(esforco);
@@ -124,7 +127,7 @@ export function sugestaoSobreReferencia(s: Serie, referencia: number | null, pas
  * @param cargasDoDia cargas já registradas hoje, por `serieUid` (para a referência das séries em %).
  *
  * Por forma de carga: `CARGA_TRABALHO` = a carga de trabalho do dia; `PERCENTUAL_WS` = % da referência da WS (acima);
- * `MESMA_CARGA` = a própria referência da WS; `ACIMA_DA_ANTERIOR` = a série imediatamente anterior mais o percentual;
+ * `MESMA_CARGA` = a própria referência da WS; `CARGA_FIXA` = os kg do treinador, sem arredondar; `ACIMA_DA_ANTERIOR` = a série imediatamente anterior mais o percentual;
  * `ABAIXO_DA_REFERENCIA` = a carga registrada hoje na série `referenciaUid` (anterior no exercício) menos o percentual,
  * e sem registro dela não há sugestão; `NENHUMA` = nada. Em faixa ("85 a 90%", "1 a 5%") vale o percentual MÍNIMO.
  * Resultado arredondado pelo passo da metodologia (exceto carga de trabalho e mesma carga, que repetem o número).
@@ -142,13 +145,19 @@ export function calcularCargasDoExercicio(
     let sugestao: number | null = null;
     const carga = serie.carga;
     const percentual = carga?.percentualMin ?? null;
-    const referencia = semCarga ? null : referenciaDaSerie(series, indice, cargaTrabalho, cargasDoDia);
-    if (!semCarga && !serie.cardio) {
+    // Forma de carga que o app não conhece: sem sugestão e sem referência (a etapa em % congelaria uma base para uma carga
+    // que o app não lê). O texto "atualize o app" vem do `metaDaSerie`.
+    const ilegivel = cargaIlegivel(carga);
+    const referencia = semCarga || ilegivel ? null : referenciaDaSerie(series, indice, cargaTrabalho, cargasDoDia);
+    if (!semCarga && !ilegivel && !serie.cardio) {
       switch (modo(serie)) {
         case 'CARGA_TRABALHO':
         case 'MESMA_CARGA':
         case 'PERCENTUAL_WS':
           sugestao = sugestaoSobreReferencia(serie, referencia?.valor ?? null, config.arredondamentoKg);
+          break;
+        case 'CARGA_FIXA':
+          sugestao = carga?.valorKg ?? null;
           break;
         case 'ACIMA_DA_ANTERIOR': {
           const anterior = indice > 0 ? cargasDoDia[series[indice - 1].uid] : null;
@@ -165,6 +174,7 @@ export function calcularCargasDoExercicio(
           break;
       }
     }
+    // `meta` fica em kg: a tela do aluno monta o texto da meta em `aluno/serieDoAluno` (com a unidade dele) e não lê este campo.
     return { serie, sugestao, referencia, meta: metaDaSerie(serie, config.tipoTrabalho, semCarga, config.metodologia, series) };
   });
 }
@@ -176,6 +186,8 @@ export interface NomesDaOrigem {
   metodologia?: Configuracao | null;
   /** As séries do exercício: dão o tipo da série anterior e da série de referência. */
   series?: readonly Serie[];
+  /** Sem base do dia gravada a conta parte da última carga (D1): o texto diz "da última vez", não "da base do dia". */
+  baseDaUltimaVez?: boolean;
 }
 
 const SEM_NOME_DA_WS = 'carga de trabalho';
@@ -199,11 +211,14 @@ export function textoDaOrigem(calculada: SerieCalculada, nomes: NomesDaOrigem = 
   const percentual = min == null ? null : `${numeroParaTela(min)}%`;
   // Em faixa ("85% a 90%") a conta usa só o mínimo: o texto diz isso para o número não parecer errado ao lado da meta.
   const daFaixa = min != null && max != null && max > min ? ', mínimo da faixa' : '';
-  const daReferencia = referencia?.origem === 'WS_ANTERIOR' ? `da ${nomeDaWs} registrada nesta sessão` : 'da base do dia';
+  const base = nomes.baseDaUltimaVez ? 'última vez' : 'base do dia';
+  const daReferencia = referencia?.origem === 'WS_ANTERIOR' ? `da ${nomeDaWs} registrada nesta sessão` : `da ${base}`;
 
   switch (modo(serie)) {
     case 'CARGA_TRABALHO':
-      return referencia ? 'carga da base do dia' : null;
+      return referencia ? `carga da ${base}` : null;
+    case 'CARGA_FIXA':
+      return 'carga definida pelo treinador';
     case 'MESMA_CARGA':
       return referencia ? `mesma carga ${daReferencia}` : null;
     case 'PERCENTUAL_WS':
@@ -283,7 +298,13 @@ export function passoDaCarga(exercicio: Pick<ExercicioPlano, 'unidade'>, arredon
   return Number.isFinite(arredondamentoKg) && arredondamentoKg > 0 ? arredondamentoKg : null;
 }
 
-export function ajustarCarga(atual: number | null, sugestao: number | null, passo: number, sentido: 1 | -1): number {
+/**
+ * `passo` é o `arredondamentoKg` (kg). Em kg soma em kg. Em libra soma `passoNaTela` ao número que a pessoa VÊ
+ * (`kgParaTela`) e grava o equivalente em kg (`telaParaKg`): 100 lb + passo de 5 lb = 105 lb na tela, sem 105,5. Devolve sempre kg.
+ */
+export function ajustarCarga(atual: number | null, sugestao: number | null, passo: number, sentido: 1 | -1, unidade: UnidadeDeCarga = 'kg'): number {
   const base = atual ?? sugestao ?? 0;
-  return Math.max(0, Math.round((base + sentido * passo) * 1000) / 1000);
+  if (unidade === 'kg') return Math.max(0, Math.round((base + sentido * passo) * 1000) / 1000);
+  const naTela = kgParaTela(base, unidade) as number;
+  return telaParaKg(Math.max(0, Math.round((naTela + sentido * passoNaTela(passo, unidade)) * 10) / 10), unidade) as number;
 }

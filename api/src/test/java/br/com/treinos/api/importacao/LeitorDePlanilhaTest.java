@@ -145,6 +145,18 @@ class LeitorDePlanilhaTest {
     }
 
     @Test
+    void csvDecideOSeparadorPelaLinhaDoCabecalhoEscolhida() {
+        // Título com vírgulas na linha 1; o cabeçalho (ponto e vírgula) está na linha 2.
+        byte[] csv = "Lista, de hoje, versão 2\nnome;email\nAna;ana@exemplo.com\n".getBytes(StandardCharsets.UTF_8);
+
+        var escolhida = LeitorDePlanilha.ler("alunos.csv", csv, 0, 2).linhas();
+        assertThat(escolhida.get(1).celulas()).hasSize(2);
+        assertThat(escolhida.get(2).celulas().get(1).texto()).isEqualTo("ana@exemplo.com");
+        // Sem escolher a linha, vale a primeira, como sempre.
+        assertThat(LeitorDePlanilha.ler("alunos.csv", csv, 0).linhas().get(1).celulas()).hasSize(1);
+    }
+
+    @Test
     void recusaColunaAcimaDe256SemCriarCelulasVazias() {
         // IV = coluna 256 (limite); IW = 257. ZZZZZZ e acima estouravam a memória (e o int) ao preencher vazias.
         assertThat(LeitorDePlanilha.ler("ok.xlsx", folha("<row r=\"1\"><c r=\"IV1\"><v>1</v></c></row>"), 0)

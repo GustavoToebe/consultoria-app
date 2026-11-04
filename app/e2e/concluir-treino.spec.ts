@@ -75,29 +75,36 @@ const comentario = (page: Page) => folha(page).getByRole('textbox', { name: 'Com
 const confirmar = (page: Page) => folha(page).getByRole('button', { name: 'Concluir treino', exact: true });
 const opcao = (page: Page, rotulo: string) => folha(page).getByLabel(rotulo, { exact: true });
 
-test('chave desligada: nada novo aparece e o "Concluir treino" de sempre só volta à lista', async ({ page }) => {
-  const api = await abrir(page, { ligada: false });
-  await page.goto(LISTA);
-  await expect(page.getByRole('button', { name: 'Começar treino' })).toBeVisible();
-  await expect(botoesConcluir(page)).toHaveCount(0);
+for (const largura of [390, 1280]) {
+  test(`chave desligada: nada novo aparece e o fim do exercício é "Voltar à lista do dia", secundário (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const api = await abrir(page, { ligada: false });
+    await page.goto(LISTA);
+    await expect(page.getByRole('button', { name: 'Começar treino' })).toBeVisible();
+    await expect(botoesConcluir(page)).toHaveCount(0);
 
-  await page.goto(EXERCICIO);
-  await expect(botoesConcluir(page)).toHaveCount(1);
-  await expect(page.getByRole('button', { name: 'Lista do dia' })).toHaveCount(0);
-  // B5 com a chave desligada: marcar tudo não muda o botão de sempre.
-  for (const n of [1, 2, 3]) await serie(page, n).click();
-  await expect(serie(page, 3)).toBeChecked();
-  await expect(botoesConcluir(page)).toHaveCount(1);
-  await expect(botoesRevisar(page)).toHaveCount(0);
-  await botoesConcluir(page).click();
-  await expect(page).toHaveURL(/\/aluno\/sessao\/sx\?data=2026-10-19$/);
-  await expect(folha(page)).toHaveCount(0);
-  await expect(page.getByText('Treino concluído')).toHaveCount(0);
+    await page.goto(EXERCICIO);
+    // Nada é concluído com a chave desligada: o botão não diz "Concluir treino" nem tem o fundo do primário.
+    const voltarALista = page.getByRole('button', { name: 'Voltar à lista do dia', exact: true });
+    await expect(voltarALista).toHaveCount(1);
+    await expect(botoesConcluir(page)).toHaveCount(0);
+    expect(await voltarALista.evaluate((e) => getComputedStyle(e).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
+    await expect(page.getByRole('button', { name: 'Lista do dia', exact: true })).toHaveCount(0);
+    // B5 com a chave desligada: marcar tudo não muda o botão.
+    for (const n of [1, 2, 3]) await serie(page, n).click();
+    await expect(serie(page, 3)).toBeChecked();
+    await expect(voltarALista).toHaveCount(1);
+    await expect(botoesRevisar(page)).toHaveCount(0);
+    await voltarALista.click();
+    await expect(page).toHaveURL(/\/aluno\/sessao\/sx\?data=2026-10-19$/);
+    await expect(folha(page)).toHaveCount(0);
+    await expect(page.getByText('Treino concluído')).toHaveCount(0);
 
-  expect(api.pedidos.filter((p) => p.caminho === ROTA)).toEqual([]);
-  expect(api.naoTratadas).toEqual([]);
-  expect(api.errosDaPagina).toEqual([]);
-});
+    expect(api.pedidos.filter((p) => p.caminho === ROTA)).toEqual([]);
+    expect(api.naoTratadas).toEqual([]);
+    expect(api.errosDaPagina).toEqual([]);
+  });
+}
 
 for (const largura of [390, 1280]) {
   test(`concluir e reabrir pela lista do dia, com a sugestão e a duração desde a primeira série (${largura}px)`, async ({ page }) => {
@@ -139,7 +146,8 @@ for (const largura of [390, 1280]) {
     await confirmar(page).click();
 
     await expect(folha(page)).toHaveCount(0);
-    await expect(page.getByText('Treino concluído.')).toBeVisible();
+    // N9: nenhum aviso "Treino concluído." sobre a tela nova.
+    await expect(page.getByText('Treino concluído.', { exact: true })).toHaveCount(0);
     // Abre o "Bom trabalho!" (0.4): 4 no servidor + este = o 5º. A lista do dia volta pelo botão.
     await expect(page).toHaveURL(/\/aluno\/sessao\/sx\/concluido\?data=2026-10-19$/);
     await expect(page.getByText('Este é o seu 5º treino.', { exact: true })).toBeVisible();

@@ -2,6 +2,7 @@ import { codigoApi, emailValido, errosPorCampo, formatarTelefone, somenteDigitos
 
 import type {
   CampoDaInscricao,
+  ContagensInscricoes,
   DuplicidadeInscricao,
   Encerramento,
   EtapaAberta,
@@ -218,6 +219,12 @@ export function alternarCampoOculto(ocultos: readonly CampoDaInscricao[], campo:
   else conjunto.delete(campo);
   return TODOS_OS_CAMPOS.filter((c) => conjunto.has(c));
 }
+
+/**
+ * 429 do envio pelo link: o texto do login ("tentativas de acesso") não serve aqui. Neutro de propósito: o 429 vem do limite
+ * por IP, da verificação humana ou do teto diário da consultoria, e a API responde igual nos três.
+ */
+export const TEXTO_LIMITE_DA_INSCRICAO = 'Recebemos muitos envios agora. Tente de novo mais tarde.';
 
 /** Aviso fixo do editor das perguntas da inscrição (D7): não dá para impedir por regra, porque o texto é livre. */
 export const AVISO_SAUDE_NA_INSCRICAO = 'Não peça informação de saúde aqui; ela fica para a anamnese, depois do aceite.';
@@ -495,7 +502,20 @@ export function textoDaColuna(carregados: number, total: number | null | undefin
 
 // ---- Estados vazios ----
 
-export function estadoVazio(p: { filtro: FiltroInscricoes; meus: boolean; busca: string; temFiltros: boolean }): { titulo: string; texto: string } {
+export function estadoVazio(p: {
+  filtro: FiltroInscricoes; meus: boolean; busca: string; temFiltros: boolean; contagens?: ContagensInscricoes | null;
+}): { titulo: string; texto: string; verTodas: boolean } {
+  const base = estadoVazioBase(p);
+  // As contagens seguem os mesmos filtros (busca, responsável...) menos a situação: se a lista está vazia mas outra
+  // situação tem resultado, diz onde. "Em atendimento" não entra: as abertas já são as três etapas abertas.
+  const onde = p.contagens
+    ? FILTROS_INSCRICOES.filter((f) => f.valor !== p.filtro && f.valor !== 'ABERTAS' && f.valor !== 'TODAS' && p.contagens!.porSituacao[f.valor] > 0)
+      .map((f) => `${f.rotulo} (${p.contagens!.porSituacao[f.valor as SituacaoInscricao]})`)
+    : [];
+  return onde.length ? { titulo: base.titulo, texto: `Também há inscrições em: ${onde.join(', ')}.`, verTodas: true } : { ...base, verTodas: false };
+}
+
+function estadoVazioBase(p: { filtro: FiltroInscricoes; meus: boolean; busca: string; temFiltros: boolean }): { titulo: string; texto: string } {
   if (p.busca.trim()) return { titulo: 'Nada encontrado para esta busca.', texto: 'Confira o nome, o e-mail ou os dígitos do WhatsApp.' };
   if (p.meus) return { titulo: 'Nenhuma inscrição atribuída a você nesta lista.', texto: 'Escolha "Toda a equipe" no filtro de responsável para ver as inscrições de todos.' };
   if (p.temFiltros) return { titulo: 'Nenhuma inscrição com estes filtros.', texto: 'Tire um filtro para ver mais.' };

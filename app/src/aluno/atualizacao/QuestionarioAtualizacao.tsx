@@ -9,6 +9,7 @@ import {
   ajudaDoNumero, alternarMarcado, colunasDasOpcoes, escolhaParaSimNao, NAO_SE_APLICA, progressoDasSecoes,
   respostasDaGrade, simNaoParaEscolha, textoDaNota, textoDaResposta, textoDoProgresso, type SimNao,
 } from '../../dominio/atualizacaoQuestionario';
+import { erroDaData, regraDaPerguntaData } from '../../dominio/datasValidas';
 import { dataDaTela, dataParaTela, mascaraDeNumero, numeroParaTela } from '../../dominio/formatos';
 import { textoDaParte } from '../../dominio/paginasDoQuestionario';
 import { escalaDaNota, LIMITES_QUESTIONARIO as L, TIPOS_DE_PERGUNTA } from '../../dominio/questionario';
@@ -30,6 +31,7 @@ import { EscolhaEmFolha, OPCOES_PARA_BUSCAR } from '../../ui/EscolhaEmFolha';
 import { EscalaDeNota } from '../../ui/EscalaDeNota';
 import { useRolagem } from '../../ui/RolagemComTopo';
 import { SeletorDeNota } from '../../ui/SeletorDeNota';
+import { coresDoDesabilitado } from '../../ui/desabilitado';
 import { Texto } from '../../ui/Texto';
 import { TextoFormatado } from '../../ui/TextoFormatado';
 import { useControleDeFotos } from './fotos/ControleDeFotos';
@@ -77,7 +79,7 @@ export function QuestionarioAtualizacao({ modelo, respostas, aoMudar, erros = {}
   const perguntas = (secao: SecaoAtualizacao) => <View style={estilos.perguntas}>
     {secao.perguntas.map((p) => {
       if (escondidas.has(p.id)) {
-        return leitura ? <View key={p.id} style={estilos.pergunta}><Texto variante="rotulo">{p.rotulo}</Texto><Texto variante="suave">{NAO_SE_APLICA}</Texto></View> : null;
+        return leitura ? <View key={p.id} style={estilos.pergunta}><Texto variante="rotulo" cor={cores.texto}>{p.rotulo}</Texto><Texto variante="suave">{NAO_SE_APLICA}</Texto></View> : null;
       }
       return <View key={p.id} collapsable={false}
         ref={(view) => {
@@ -161,12 +163,12 @@ function Controle({ p, valor, dataAtualizacao, resumo, erro, nota, carregarFotoD
   const ajudaTexto = ajuda ? <Texto variante="pequeno">{ajuda}</Texto> : null;
   // Mesmo tom e região viva do erro do `Campo`, para todos os controles avisarem igual.
   const mensagemErro = erro ? <Texto variante="pequeno" cor={cores.perigo} accessibilityLiveRegion="polite">{erro}</Texto> : null;
-  if (p.tipo === 'DATA_AUTOMATICA') return <View style={estilos.pergunta}><Texto variante="rotulo">{p.rotulo}</Texto><Texto numerico>{dataParaTela(dataAtualizacao ?? null) || '—'}</Texto></View>;
+  if (p.tipo === 'DATA_AUTOMATICA') return <View style={estilos.pergunta}><Texto variante="rotulo" cor={cores.texto}>{p.rotulo}</Texto><Texto numerico>{dataParaTela(dataAtualizacao ?? null) || '—'}</Texto></View>;
   if (p.tipo === 'FOTOS') return <View style={estilos.pergunta}>
     <CampoFotos pergunta={p} valor={valor} carregarDaEquipe={carregarFotoDaEquipe} rotulo={aoMudar ? rotulo : p.rotulo} />{mensagemErro}
   </View>;
   if (!TIPOS_DE_PERGUNTA.includes(p.tipo)) return <View style={estilos.pergunta}>
-    <Texto variante="rotulo">{p.rotulo}</Texto><Texto variante="pequeno">{aoMudar ? 'Atualize o app para responder esta pergunta.' : 'Atualize o app para ver esta resposta.'}</Texto>
+    <Texto variante="rotulo" cor={cores.texto}>{p.rotulo}</Texto><Texto variante="pequeno">{aoMudar ? 'Atualize o app para responder esta pergunta.' : 'Atualize o app para ver esta resposta.'}</Texto>
   </View>;
   if (!aoMudar) return <Leitura p={p} valor={valor} ajuda={ajudaTexto} />;
   if (p.tipo === 'PESO') return <CampoNumerico rotulo={rotulo} valor={typeof valor === 'number' ? valor : null}
@@ -190,7 +192,7 @@ function Controle({ p, valor, dataAtualizacao, resumo, erro, nota, carregarFotoD
     {ajudaTexto}{mensagemErro}
   </View>;
   if (temImagemNasOpcoes(p)) return <View style={estilos.pergunta}>
-    <Texto variante="rotulo">{rotulo}</Texto>
+    <Texto variante="rotulo" cor={cores.texto}>{rotulo}</Texto>
     {ajudaTexto}
     <OpcoesComImagem p={p} valor={valor} aoMudar={aoMudar} />
     {mensagemErro}
@@ -210,7 +212,7 @@ function Controle({ p, valor, dataAtualizacao, resumo, erro, nota, carregarFotoD
     const opcoes = p.opcoes ?? [];
     const marcadas = Array.isArray(valor) ? valor : [];
     return <View style={estilos.pergunta}>
-      <Texto variante="rotulo">{rotulo}</Texto>
+      <Texto variante="rotulo" cor={cores.texto}>{rotulo}</Texto>
       {ajudaTexto}
       {opcoes.map((o) => <CaixaSelecao key={o.id} rotulo={o.rotulo} marcado={marcadas.includes(o.id)}
         aoMudar={() => aoMudar(alternarMarcado(marcadas, opcoes, o.id))} />)}
@@ -220,7 +222,7 @@ function Controle({ p, valor, dataAtualizacao, resumo, erro, nota, carregarFotoD
   if (p.tipo === 'NOTAS_POR_DIA') {
     // Vários dias numa pergunta: o deslizante cabe numa linha por dia (os números tocáveis da NOTA ocupariam duas).
     const dias = typeof valor === 'object' && valor !== null && !Array.isArray(valor) ? valor as Record<string, number | null> : {};
-    return <View style={estilos.pergunta}><Texto variante="rotulo">{rotulo}</Texto>
+    return <View style={estilos.pergunta}><Texto variante="rotulo" cor={cores.texto}>{rotulo}</Texto>
       {ajudaTexto}
       {(p.dias ?? []).map((d) => <EscalaDeNota key={d} rotulo={`Dia ${d}`} valor={dias[String(d)] ?? null}
         aoMudar={(n) => aoMudar({ ...dias, [String(d)]: n })} />)}
@@ -228,7 +230,7 @@ function Controle({ p, valor, dataAtualizacao, resumo, erro, nota, carregarFotoD
     </View>;
   }
   if (p.tipo === 'GRADE') return <View style={estilos.pergunta}>
-    <Texto variante="rotulo">{rotulo}</Texto>
+    <Texto variante="rotulo" cor={cores.texto}>{rotulo}</Texto>
     {ajudaTexto}
     <GradeParaResponder p={p} valor={valor} aoMudar={aoMudar} faltando={!!erro} />
     {mensagemErro}
@@ -236,7 +238,7 @@ function Controle({ p, valor, dataAtualizacao, resumo, erro, nota, carregarFotoD
   if (p.tipo === 'ENDERECO') {
     const atual = enderecoParaForm(typeof valor === 'object' && valor !== null && !Array.isArray(valor) ? valor as Record<string, string> : null);
     return <View style={estilos.pergunta}>
-      <Texto variante="rotulo">{rotulo}</Texto>
+      <Texto variante="rotulo" cor={cores.texto}>{rotulo}</Texto>
       {ajudaTexto}
       {nota ? <Texto variante="pequeno">{nota}</Texto> : null}
       <CamposDeEndereco valor={atual} aoMudar={(e) => aoMudar(respostaDeEndereco(e))} erros={erro ? errosDoEndereco(atual) : undefined}
@@ -245,7 +247,7 @@ function Controle({ p, valor, dataAtualizacao, resumo, erro, nota, carregarFotoD
     </View>;
   }
   if (p.tipo === 'ACEITE') return <View style={estilos.pergunta}>
-    <Texto variante="rotulo">{rotulo}</Texto>
+    <Texto variante="rotulo" cor={cores.texto}>{rotulo}</Texto>
     {/* O texto (regras, termo) num quadro próprio: lê-se como um documento, separado da caixa de aceitar. */}
     {p.texto?.trim() ? <View style={[estilos.documento, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
       <TextoFormatado texto={p.texto} />
@@ -253,7 +255,7 @@ function Controle({ p, valor, dataAtualizacao, resumo, erro, nota, carregarFotoD
     <CaixaSelecao rotulo={p.declaracao ?? 'Li e concordo.'} marcado={valor === true} aoMudar={(marcado) => aoMudar(marcado ? true : null)} />
     {ajudaTexto}{mensagemErro}
   </View>;
-  if (p.tipo === 'DATA') return <CampoDeData rotulo={rotulo} valor={valor} ajuda={ajuda ?? (p.somentePassado ? 'Hoje ou antes.' : undefined)} erro={erro} aoMudar={aoMudar} />;
+  if (p.tipo === 'DATA') return <CampoDeData rotulo={rotulo} valor={valor} ajuda={ajuda ?? (p.somentePassado ? 'Hoje ou antes.' : undefined)} erro={erro} somentePassado={p.somentePassado === true} aoMudar={aoMudar} />;
   // Telefone e CPF só aceitam números e se formatam enquanto se digita ("(45) 99999-8888", "123.456.789-09"): o servidor aceita
   // exatamente essas formas.
   if (p.tipo === 'TELEFONE') return <Campo rotulo={rotulo} valor={typeof valor === 'string' ? mascaraTelefone(valor) : ''} aoMudar={(t) => aoMudar(mascaraTelefone(t))}
@@ -281,7 +283,7 @@ function Leitura({ p, valor, ajuda }: { p: PerguntaAtualizacao; valor: RespostaA
   else if (p.tipo === 'NOTA') resposta = <Texto numerico>{textoDaNota(p, valor)}</Texto>;
   else resposta = <Texto>{textoDaResposta(p, valor)}</Texto>;
   return <View style={estilos.pergunta}>
-    <Texto variante="rotulo">{p.rotulo}</Texto>
+    <Texto variante="rotulo" cor={cores.texto}>{p.rotulo}</Texto>
     {p.tipo === 'ACEITE' ? <TextoFormatado texto={p.texto} variante="suave" /> : null}
     {resposta}
     {ajuda}
@@ -351,8 +353,7 @@ function OpcoesComImagem({ p, valor, aoMudar }: { p: PerguntaAtualizacao; valor:
           borderWidth: marcado ? 2 : 1,
           padding: marcado ? espaco(1) - 1 : espaco(1),
           borderColor: marcado ? cores.texto : cores.borda,
-          backgroundColor: marcado || pressed ? cores.superficie3 : cores.superficie2,
-          opacity: !aoMudar && !marcado ? 0.55 : 1,
+          backgroundColor: !aoMudar && !marcado ? coresDoDesabilitado(cores).fundo : marcado || pressed ? cores.superficie3 : cores.superficie2,
         }]}>
         {o.imagemId ? <ImagemDaOpcao id={o.imagemId} descricao={`Imagem da opção ${o.rotulo}`} largura={imagem} />
           : <View style={[estilos.semImagem, { height: Math.round(imagem * 0.75), borderColor: cores.borda }]} />}
@@ -360,7 +361,7 @@ function OpcoesComImagem({ p, valor, aoMudar }: { p: PerguntaAtualizacao; valor:
           <View style={[unica ? estilos.bolinha : estilos.caixinha, { borderColor: marcado ? cores.texto : cores.bordaCampo, backgroundColor: marcado ? cores.texto : cores.campo }]}>
             {marcado ? <Check size={14} color={cores.fundo} /> : null}
           </View>
-          <Texto style={estilos.rotuloDaOpcao}>{o.rotulo}</Texto>
+          <Texto style={estilos.rotuloDaOpcao} cor={!aoMudar && !marcado ? cores.textoSuave : undefined}>{o.rotulo}</Texto>
         </View>
       </Pressable>;
     }) : null}
@@ -371,12 +372,13 @@ function OpcoesComImagem({ p, valor, aoMudar }: { p: PerguntaAtualizacao; valor:
  * Data digitada DD/MM/AAAA (com o calendário do campo). A resposta é AAAA-MM-DD; enquanto o texto não é uma data inteira
  * ele vai como está, e a conferência do envio aponta o campo (o rascunho não perde o que foi digitado).
  */
-function CampoDeData({ rotulo, valor, ajuda, erro, aoMudar }: {
-  rotulo: string; valor: RespostaAtualizacao; ajuda?: string; erro?: string; aoMudar: (valor: RespostaAtualizacao) => void;
+function CampoDeData({ rotulo, valor, ajuda, erro, somentePassado, aoMudar }: {
+  rotulo: string; valor: RespostaAtualizacao; ajuda?: string; erro?: string; somentePassado: boolean; aoMudar: (valor: RespostaAtualizacao) => void;
 }) {
   const [texto, setTexto] = useState(() => (typeof valor === 'string' ? dataParaTela(valor) || valor : ''));
   return <View style={estilos.pergunta}>
-    <CampoData rotulo={rotulo} valor={texto} erro={erro} aoMudar={(t) => {
+    {/* Data fora da faixa (nascimento antes de 1900, ano 0260): a mensagem do campo, no lugar do aviso genérico do envio. */}
+    <CampoData rotulo={rotulo} valor={texto} erro={erroDaData(texto, rotulo.replace(/\s*\*$/, ''), regraDaPerguntaData(somentePassado)) ?? erro} aoMudar={(t) => {
       setTexto(t);
       const iso = dataDaTela(t);
       aoMudar(t.trim() === '' ? null : typeof iso === 'string' ? iso : t);

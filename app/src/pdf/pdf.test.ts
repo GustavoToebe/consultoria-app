@@ -6,7 +6,7 @@ import { normalizarTreino } from '../dominio/editorTreino';
 import { carga, exercicio, grupo, rir, rpe, serie, sessao, tecnica } from '../dominio/exemplosDeTreino.apoioTeste';
 import { normalizarMobilidade } from '../dominio/mobilidade';
 import { cabecalhoDoPdf, cssBase, esc, link, type Documento } from './html';
-import { contraste, marcaParaTexto } from '../tema/tokens';
+import { CLARO, contraste, marcaParaTexto } from '../tema/tokens';
 import type { LinhaCarga } from '../dominio/relatorio';
 import { documentoCargas } from './pdfCargas';
 import { documentoDieta } from './pdfDieta';
@@ -184,6 +184,32 @@ describe('PDF do treino: esforço (RIR e RPE)', () => {
   });
 });
 
+describe('PDF do treino: RIR até 10, RIR por série e carga fixa', () => {
+  it('RIR 10 sai como 10 RIR', () => {
+    const html = documentoTreino(dadosDoTreino(treinoCom(exercicio('e', { series: [s('x', 'WORKING', 3, 6, carga('CARGA_TRABALHO'), rir(10))] })))).corpo;
+    expect(html).toContain('1x3 a 6 - WS · 10 RIR');
+  });
+
+  it('séries iguais com RIR diferentes saem numa linha só, com o RIR de cada uma', () => {
+    const series = [3, 2, 2, 1].map((v, i) => s(`w${i}`, 'WORKING', 6, 8, carga('CARGA_TRABALHO'), rir(v)));
+    const html = documentoTreino(dadosDoTreino(treinoCom(exercicio('e', { series })))).corpo;
+    expect(html).toContain('4x6 a 8 - WS · RIR 3, 2, 2, 1');
+  });
+
+  it('a carga fixa sai em kg', () => {
+    const fixa = { ...carga('CARGA_FIXA'), valorKg: 12 };
+    const html = documentoTreino(dadosDoTreino(treinoCom(exercicio('e', { series: [s('x', 'WARM_UP', 10, 10, fixa)] })))).corpo;
+    expect(html).toContain('1x10 - Aquecimento · 12 kg');
+  });
+
+  it('a carga fixa sai na unidade de quem baixa (o aluno em libras); sem unidade, em kg', () => {
+    const fixa = { ...carga('CARGA_FIXA'), valorKg: 12 };
+    const dados = dadosDoTreino(treinoCom(exercicio('e', { series: [s('x', 'WARM_UP', 10, 10, fixa)] })));
+    expect(documentoTreino({ ...dados, unidade: 'lb' }).corpo).toContain('1x10 - Aquecimento · 26,5 lb');
+    expect(documentoTreino({ ...dados, unidade: 'kg' }).corpo).toContain('· 12 kg');
+  });
+});
+
 describe('PDF do treino: top set e back off pela referência', () => {
   const top = s('top', 'TOP_SET', null, null, carga('ACIMA_DA_ANTERIOR', 1, 5));
   const back = [s('b1', 'BACK_OFF', 6, 8, carga('ABAIXO_DA_REFERENCIA', 15, null, 'top')), s('b2', 'BACK_OFF', 6, 8, carga('ABAIXO_DA_REFERENCIA', 15, null, 'top'))];
@@ -318,6 +344,37 @@ describe('PDF da dieta', () => {
     expect(html).not.toContain('<td>Nome</td>');
   });
 
+  describe('acompanhamento de peso: cor pela meta, seta e sinal sempre', () => {
+    const pesos = (meta?: 'REDUZIR' | 'AUMENTAR' | 'SEM_META') => [
+      { id: 'p1', data: '2026-10-01', pesoKg: 80, variacao: null, observacao: null, metaDoPeso: meta },
+      { id: 'p2', data: '2026-10-08', pesoKg: 79.3, variacao: -0.7, observacao: null, metaDoPeso: meta },
+      { id: 'p3', data: '2026-10-15', pesoKg: 80.5, variacao: 1.2, observacao: null, metaDoPeso: meta },
+    ];
+    const corpo = (meta?: 'REDUZIR' | 'AUMENTAR' | 'SEM_META') => documentoDieta({ ...base, versao: 1, conteudo: dieta, pesos: pesos(meta) }).corpo;
+    const celula = (html: string, texto: string) => html.match(new RegExp(`<td[^>]*>${texto.replace('+', '\\+')}</td>`))?.[0];
+
+    it('REDUZIR: queda verde e aumento vermelho', () => {
+      const html = corpo('REDUZIR');
+      expect(celula(html, '▼ −0,7 kg')).toBe(`<td style="color:${CLARO.sucesso}">▼ −0,7 kg</td>`);
+      expect(celula(html, '▲ +1,2 kg')).toBe(`<td style="color:${CLARO.perigo}">▲ +1,2 kg</td>`);
+      expect(html).toContain('<td>—</td>');
+    });
+
+    it('AUMENTAR: o contrário', () => {
+      const html = corpo('AUMENTAR');
+      expect(celula(html, '▼ −0,7 kg')).toBe(`<td style="color:${CLARO.perigo}">▼ −0,7 kg</td>`);
+      expect(celula(html, '▲ +1,2 kg')).toBe(`<td style="color:${CLARO.sucesso}">▲ +1,2 kg</td>`);
+    });
+
+    it('SEM_META ou sem meta: seta e sinal, sem cor; nunca a cor da marca', () => {
+      for (const html of [corpo('SEM_META'), corpo()]) {
+        expect(celula(html, '▼ −0,7 kg')).toBe('<td>▼ −0,7 kg</td>');
+        expect(celula(html, '▲ +1,2 kg')).toBe('<td>▲ +1,2 kg</td>');
+      }
+      expect(corpo('REDUZIR')).not.toMatch(new RegExp(`<td style="color:${marca.corPrimaria}">[▲▼]`, 'i'));
+    });
+  });
+
   it('suplementação vazia e peso sem registro não aparecem', () => {
     expect(html).not.toContain('Suplementação');
     expect(html).not.toContain('Acompanhamento de peso');
@@ -429,7 +486,9 @@ describe('PDF da dieta: medicação e ergogênicos', () => {
     expect(h).toContain('Medicação e ergogênicos');
     expect(h).toContain('Item de teste A');
     expect(h).toContain('Princípio de Teste');
-    expect(h).toContain('<td>200 mg/ml</td>');
+    // C54: concentração fica na biblioteca e no editor; o PDF mostra só a dose prescrita.
+    expect(h).not.toContain('200 mg/ml');
+    expect(h).not.toContain('<th>Concentração</th>');
     expect(h).toContain('<td>Dose de teste</td>');
     expect(h).toContain('<td>—</td>');
     expect(h).not.toContain('<th>Prescrição</th>');
@@ -507,7 +566,7 @@ describe('html', () => {
 });
 
 describe('PDF de cargas', () => {
-  const LINHA: LinhaCarga = { data: '2026-10-07', carga: null, repeticoes: null, etapas: null, cargaVariavel: false, volume: null, series: 1, semCarga: false, observacoes: [] };
+  const LINHA: LinhaCarga = { data: '2026-10-07', carga: null, repeticoes: null, etapas: null, cargaVariavel: false, volume: null, series: 1, semCarga: false, feitoSemCarga: false, observacoes: [] };
   const pdfDe = (...linhas: LinhaCarga[]) => documentoCargas({
     marca,
     logoDataUri: null,
@@ -518,6 +577,12 @@ describe('PDF de cargas', () => {
     rodapePdf: null,
     emitidoEm: new Date('2026-10-14T12:00:00Z'),
   }).corpo;
+
+  it('série de trabalho feita sem carga: "Feito, sem carga" é a única exceção ao "—" (D4)', () => {
+    const corpo = pdfDe({ ...LINHA, feitoSemCarga: true });
+    expect(corpo).toContain('<td class="carga">Feito, sem carga</td>');
+    expect(corpo).not.toContain('sem repetições');
+  });
 
   it('série por etapa: os blocos com o total do servidor, a carga comum e o volume', () => {
     const corpo = pdfDe({ ...LINHA, carga: 40, repeticoes: 14, etapas: '4+4+4+2 = 14', volume: { valor: 560, completo: true } });

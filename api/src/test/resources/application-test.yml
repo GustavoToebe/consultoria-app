@@ -51,11 +51,22 @@ treinos:
   # Concluir treino ligado na suíte; o modo desligado tem a sua classe (RetornoDesligadoIntegrationTest).
   retorno:
     habilitado: true
+  # Escolha de kg/lb ligada na suíte; o modo desligado tem a sua classe (UnidadeDeCargaDesligadaIntegrationTest).
+  unidade-carga:
+    habilitado: true
+  # Migração assistida ligada na suíte; o modo desligado tem a sua classe (MigracaoAssistidaDesligadaIntegrationTest).
+  migracao-assistida:
+    habilitado: true
   # Pagamentos ligados em toda a suíte; o modo desligado tem a sua classe (PagamentosDesligadosIntegrationTest).
   # A limpeza diária dos avisos de compromisso fica desligada: o teste chama AvisosDeCompromissoRetencao.limpar à mão.
   agenda:
     avisos:
       limpeza-agendada: false
+  # Push ligado na suíte; o envio agendado fica desligado (o teste chama PushDoExpo.rodar à mão) e a URL do Expo é a do servidor
+  # de mentira de cada teste. O modo desligado tem a sua classe (PushDesligadoIntegrationTest).
+  push:
+    habilitado: true
+    envio-agendado: false
   pagamentos:
     habilitado: true
     # Chaves só desta suíte (32 bytes cada; a segunda é a "antiga" que ainda decifra); não servem fora do teste.

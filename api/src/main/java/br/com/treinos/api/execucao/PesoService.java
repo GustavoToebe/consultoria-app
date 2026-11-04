@@ -1,18 +1,20 @@
 package br.com.treinos.api.execucao;
 
+import br.com.treinos.api.alunos.Aluno;
 import br.com.treinos.api.alunos.AlunoRepository;
+import br.com.treinos.api.consultoria.Consultoria;
+import br.com.treinos.api.consultoria.ConsultoriaRepository;
+import br.com.treinos.api.consultoria.MetaDoPeso;
+import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.PesoRequest;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.PesoResponse;
-import br.com.plataforma.comum.web.BadRequestException;
 import br.com.treinos.api.web.Buscas;
-import br.com.treinos.api.web.Exigir;
-import br.com.treinos.api.web.Fuso;
+import br.com.treinos.api.web.FaixaDeData;
 import br.com.treinos.api.web.NaoEncontradoException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -27,25 +29,38 @@ public class PesoService {
 
     private final RegistroPesoRepository pesos;
     private final AlunoRepository alunos;
+    private final ConsultoriaRepository consultorias;
 
-    public PesoService(RegistroPesoRepository pesos, AlunoRepository alunos) {
+    public PesoService(RegistroPesoRepository pesos, AlunoRepository alunos, ConsultoriaRepository consultorias) {
         this.pesos = pesos;
         this.alunos = alunos;
+        this.consultorias = consultorias;
     }
 
     /** Mais recente primeiro. */
     @Transactional(readOnly = true)
     public List<PesoResponse> listar(UUID alunoId) {
-        exigirAluno(alunoId);
+        MetaDoPeso meta = metaEfetiva(exigirAluno(alunoId));
         List<PesoResponse> lista = new ArrayList<>();
         BigDecimal anterior = null;
         for (RegistroPeso p : pesos.findByAlunoIdOrderByDataAsc(alunoId)) {
             lista.add(new PesoResponse(p.getId(), p.getData(), p.getPesoKg(),
-                    anterior == null ? null : p.getPesoKg().subtract(anterior), p.getObservacao()));
+                    anterior == null ? null : p.getPesoKg().subtract(anterior), p.getObservacao(), meta));
             anterior = p.getPesoKg();
         }
         Collections.reverse(lista);
         return lista;
+    }
+
+    /**
+     * Rota do próprio aluno: a observação é anotação da equipe e nunca chega a ele, então sai nula aqui no servidor
+     * (o app não é a barreira).
+     */
+    @Transactional(readOnly = true)
+    public List<PesoResponse> listarParaAluno(UUID alunoId) {
+        return listar(alunoId).stream()
+                .map(p -> new PesoResponse(p.id(), p.data(), p.pesoKg(), p.variacao(), null, p.metaDoPeso()))
+                .toList();
     }
 
     /** Uma medida por dia: registrar de novo na mesma data substitui. */
@@ -53,9 +68,7 @@ public class PesoService {
     @br.com.treinos.api.auditoria.Auditar(acao="PESO_REGISTRADO",entidade="PESO",resumo="Registrou ou alterou um peso.")
     public List<PesoResponse> registrar(UUID alunoId, PesoRequest r, UUID usuarioId) {
         exigirAlunoParaGravar(alunoId);
-        if (r.data().isAfter(LocalDate.now(Fuso.BRASILIA))) {
-            throw new BadRequestException("A data do peso não pode ser no futuro.");
-        }
+        FaixaDeData.exigir("PESO_INVALIDO", FaixaDeData.REGISTRO.campo("data", "Data do peso", r.data()));
         String observacao = Buscas.opcional(r.observacao());
         pesos.findByAlunoIdAndData(alunoId, r.data()).ifPresentOrElse(
                 p -> p.alterar(r.pesoKg(), observacao, usuarioId),
@@ -71,8 +84,15 @@ public class PesoService {
         pesos.delete(p);
     }
 
-    private void exigirAluno(UUID alunoId) {
-        Exigir.existe(alunos.findById(alunoId), () -> new NaoEncontradoException("Aluno não encontrado."));
+    private Aluno exigirAluno(UUID alunoId) {
+        return alunos.findById(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
+    }
+
+    /** A do aluno, senão a da consultoria (D6: o app não calcula). */
+    private MetaDoPeso metaEfetiva(Aluno aluno) {
+        MetaDoPeso daConsultoria = consultorias.findById(TenantContext.get()).map(Consultoria::getMetaDoPeso)
+                .orElseThrow(() -> new NaoEncontradoException("Consultoria não encontrada."));
+        return MetaDoPeso.efetiva(aluno.getMetaDoPeso(), daConsultoria);
     }
 
     /** Gravar dado novo: o aluno existe e não foi anonimizado (dado de saúde num cadastro anonimizado contraria a LGPD). */

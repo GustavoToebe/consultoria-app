@@ -6,7 +6,7 @@ import { periodoDoCalendario } from './agendaCalendario';
 import {
   alternarBloco, barrasDoRecebido, blocoDisponivel, BLOCOS_DO_PAINEL, blocosParaEditar, blocosPermitidos, blocosVisiveis,
   chaveDaConsulta, compromissosDaSemana, consultaDaAgenda, consultasDoBloco, enderecoDoBloco, FONTE_CARREGANDO, FONTE_DESLIGADA,
-  FONTE_FALHOU, fontePronta, folhaPastasARenovar, folhaRecordes, folhaSemRegistro, fonteDaConsulta, inicioSemAlunos, moverBloco,
+  FONTE_FALHOU, fontePronta, folhaPastasARenovar, folhaRecordes, folhaSemRegistro, fonteDaConsulta, inicioSemAlunos, listaDaFolha, moverBloco,
   montarBloco, PAINEL_DO_INICIO_PADRAO, periodoDoFinanceiroNoPainel, reaisSemCentavos, resumoDaFolha, roscaDosAlunos,
   type BlocoDoPainel, type BlocoDoPainelId, type ContextoDoPainel, type FontesDoPainel, type OpcoesDoBloco, type PainelDoInicioPreferido,
 } from './painelDoInicio';
@@ -39,7 +39,7 @@ const contagens = (extra: Partial<ContagensInscricoes> = {}): ContagensInscricoe
 const financeiro = (extra: Record<string, unknown> = {}): PainelFinanceiro => ({
   serie: [
     { mes: '2026-09', parcial: false, recebidoCentavos: 500000, previstoCentavos: null, entradasAvulsasCentavos: 20000, saidasAvulsasCentavos: 10000, resultadoCentavos: null },
-    { mes: '2026-10', parcial: true, recebidoCentavos: null, previstoCentavos: null, entradasAvulsasCentavos: null, saidasAvulsasCentavos: null, resultadoCentavos: null },
+    { mes: '2026-10', parcial: true, recebidoCentavos: null, previstoCentavos: null, entradasAvulsasCentavos: 0, saidasAvulsasCentavos: 0, resultadoCentavos: null },
   ],
   // O cartão do período soma 6 meses: não pode ser lido como "recebido no mês".
   cartoes: { recebidoCentavos: 9_999_900 },
@@ -163,6 +163,23 @@ describe('fonteDaConsulta', () => {
     expect(fonteDaConsulta({ dados: undefined, carregando: true })).toEqual(FONTE_CARREGANDO);
     expect(fonteDaConsulta({ dados: null, carregando: false })).toEqual(FONTE_FALHOU);
     expect(fonteDaConsulta({ dados: undefined, carregando: false })).toEqual(FONTE_FALHOU);
+  });
+
+  it('recarregar a mesma consulta mantém os dados como prontos', () => {
+    expect(fonteDaConsulta({ dados: { a: 1 }, carregando: true })).toEqual(fontePronta({ a: 1 }));
+  });
+});
+
+describe('listaDaFolha', () => {
+  const lista = { id: 'semRegistro' as const, titulo: 't', escopo: null, total: 1, resumo: '1 aluno.', vazio: null, itens: [] };
+  const montar = (n: number) => (n > 0 ? lista : null);
+
+  it('carregando não é falha; falha e dado que não monta a lista são falha', () => {
+    expect(listaDaFolha(FONTE_CARREGANDO, montar)).toEqual({ situacao: 'carregando', dados: null });
+    expect(listaDaFolha(FONTE_FALHOU, montar)).toEqual({ situacao: 'falhou', dados: null });
+    expect(listaDaFolha(FONTE_DESLIGADA, montar)).toEqual({ situacao: 'falhou', dados: null });
+    expect(listaDaFolha(fontePronta(0), montar)).toEqual({ situacao: 'falhou', dados: null });
+    expect(listaDaFolha(fontePronta(3), montar)).toEqual({ situacao: 'pronta', dados: lista });
   });
 });
 
@@ -440,14 +457,14 @@ describe('reaisSemCentavos', () => {
 });
 
 describe('Recebido e lançamentos (barras)', () => {
-  it('uma barra por mês, rótulos de mês, parcial marcado e mês sem dado como "—"', () => {
+  it('uma barra por mês, rótulos de mês, parcial marcado, recebido sem dado como "—" e lançamento sem lançamento como 0', () => {
     const b = bloco('recebido');
     const g = b.grafico;
     if (!g || g.tipo !== 'barras') throw new Error('esperava barras');
     expect(g.desenhar).toBe(true);
     expect(g.meses.map((m) => m.rotulo)).toEqual(['set/2026', 'out/2026']);
     expect(g.meses[0]).toMatchObject({ recebido: 500000, lancamentos: 20000, recebidoTexto: 'R$ 5.000', parcial: false });
-    expect(g.meses[1]).toMatchObject({ recebido: null, lancamentos: null, recebidoTexto: '—', parcial: true });
+    expect(g.meses[1]).toMatchObject({ recebido: null, lancamentos: 0, recebidoTexto: '—', parcial: true });
     expect(g.maximo).toBe(500000);
     expect(g.semDados).toBe(false);
     expect(g.notas.join(' ')).toContain('em andamento');
@@ -470,6 +487,19 @@ describe('Recebido e lançamentos (barras)', () => {
   it('todos os meses sem valor: semDados; /financeiro/painel falhou: bloco falhou, carregando: carregando', () => {
     const vazio = barrasDoRecebido([{ mes: '2026-10', parcial: true, recebidoCentavos: null, entradasAvulsasCentavos: null, saidasAvulsasCentavos: null }] as never, false, true);
     expect(vazio).toMatchObject({ semDados: true, maximo: 0 });
+    // Como a API manda desde o N14 (D9): mês sem lançamento é 0, não nulo; o Início passa a mostrar as barras zeradas em vez da tabela "—".
+    const zerado = barrasDoRecebido([{ mes: '2026-10', parcial: true, recebidoCentavos: null, entradasAvulsasCentavos: 0, saidasAvulsasCentavos: 0 }] as never, false, true);
+    expect(zerado).toMatchObject({ semDados: false, maximo: 0 });
+    // Meses antes da criação da consultoria (D19, Gustavo 03/11): a API manda nulo, e o Início mostra "—" sem barra,
+    // nunca um zero de mentira; da criação em diante, 0.
+    const comCriacao = barrasDoRecebido([
+      { mes: '2026-08', parcial: false, recebidoCentavos: null, entradasAvulsasCentavos: null, saidasAvulsasCentavos: null },
+      { mes: '2026-09', parcial: false, recebidoCentavos: null, entradasAvulsasCentavos: 0, saidasAvulsasCentavos: 0 },
+    ] as never, false, true);
+    expect(comCriacao.semDados).toBe(false);
+    expect(comCriacao.meses[0]).toMatchObject({ lancamentos: null, lancamentosTexto: '—', recebidoTexto: '—' });
+    expect(comCriacao.meses[1]).toMatchObject({ lancamentos: 0, lancamentosTexto: reaisSemCentavos(0), recebidoTexto: '—' });
+    expect(comCriacao.descricao).toContain('sem dado');
     expect(bloco('recebido', fontes({ financeiro: FONTE_FALHOU })).falhou).toBe(true);
     expect(bloco('recebido', fontes({ financeiro: FONTE_FALHOU })).grafico).toBeNull();
     expect(bloco('recebido', fontes({ financeiro: FONTE_CARREGANDO })).carregando).toBe(true);
@@ -528,6 +558,7 @@ describe('faixa de cada bloco (Todos/Meus e abrir)', () => {
       const t = bloco(id);
       const m = bloco(id, fontes(), ctxCom(), { meus: true });
       expect(t.temFiltro && m.temFiltro).toBe(true);
+      expect(t.rotuloDoFiltro.startsWith(`Filtro de ${t.titulo}: `)).toBe(true);
       expect(t.rotuloDoFiltro).toContain('Mostrar só os meus');
       expect(m.rotuloDoFiltro).toContain('Mostrar todos');
       expect(m.escopo).toBe('Só os meus alunos');

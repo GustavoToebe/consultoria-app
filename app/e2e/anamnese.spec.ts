@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 import type { AnamneseDetalhe, AnamneseResumo, ConteudoQuestionario } from '../src/api/tipos';
 import { ALUNO, json, sessao, simularApi, TREINADOR } from './api-falsa';
-import { sessaoDeAluno } from './aluno';
+import { fixarHoje, sessaoDeAluno } from './aluno';
 
 const ANAMNESE_ID = 'n0000000-0000-4000-8000-000000000001';
 const ALUNO_ID = 'a0000000-0000-4000-8000-000000000002';
@@ -269,9 +269,52 @@ test('anamnese em páginas: avançar confere a página, voltar mantém as respos
   // Enviada: tudo numa rolagem, só leitura, a grade como lista.
   await expect(page.getByText('Parte 1 de 3')).toHaveCount(0);
   await expect(page.getByText('Sintomas e regras')).toBeVisible();
-  await expect(page.getByText('7 de 10')).toBeVisible();
+  await expect(page.getByText('7/10')).toBeVisible();
   await expect(page.getByText('Ocasionalmente')).toBeVisible();
   expect(naoTratadas).toEqual([]);
+  expect(errosDaPagina).toEqual([]);
+});
+
+/**
+ * C76 (reunião de 30/10): pergunta DATA com `somentePassado` (o nascimento, D4) vai de 1900 até hoje. 1960 passa; ano 0261,
+ * antes de 1900 e data futura mostram a mensagem no campo e o envio não sai. O relógio fica em 19/10/2026.
+ */
+test('pergunta de nascimento: 1960 é aceito; 0261, antes de 1900 e data futura são recusados no campo', async ({ page }) => {
+  const modelo: ConteudoQuestionario = {
+    formato: 2,
+    instrucoes: [],
+    secoes: [{ uid: 's1', titulo: 'Dados', perguntas: [{ id: 'nascimento', tipo: 'DATA', rotulo: 'Data de nascimento', obrigatoria: true, somentePassado: true }] }],
+  };
+  await fixarHoje(page);
+  const { pedidos, errosDaPagina } = await simularApi(page, {
+    ...(await sessaoDeAluno(page)),
+    'GET /aluno/anamnese': { corpo: { ...PENDENTE, modelo } },
+    [`POST /aluno/anamnese/${ANAMNESE_ID}/enviar`]: (p, route) => {
+      const corpo = p.corpo as { respostas: AnamneseDetalhe['respostas'] };
+      return json(route, { ...PENDENTE, modelo, situacao: 'ENVIADA', respostas: corpo.respostas, enviadaEm: '2026-10-19T12:00:00Z', versao: 2 });
+    },
+  });
+  const envios = () => pedidos.filter((p) => p.metodo === 'POST' && p.caminho.endsWith('/enviar'));
+  await page.goto('/aluno/anamnese');
+  const campo = page.getByLabel('Data de nascimento *');
+  // O rótulo da pergunta obrigatória leva o " *" e ele entra na mensagem do campo; o que importa é o campo e a faixa.
+  const mensagem = page.getByText(/^Data de nascimento.*: use uma data entre 01\/01\/1900 e hoje$/);
+
+  for (const invalida of ['05/05/0261', '31/12/1899', '20/10/2026']) {
+    await campo.fill(invalida);
+    await expect(campo).toHaveValue(invalida);
+    await expect(mensagem).toBeVisible();
+    await page.getByRole('button', { name: 'Enviar anamnese' }).click();
+    await expect(mensagem).toBeVisible();
+    expect(envios()).toHaveLength(0);
+  }
+
+  await campo.fill('10/03/1960');
+  await expect(mensagem).toHaveCount(0);
+  await page.getByRole('button', { name: 'Enviar anamnese' }).click();
+  await expect(page.getByText('Anamnese enviada. Seu treinador vai ver as respostas.')).toBeVisible();
+  expect(envios()).toHaveLength(1);
+  expect(envios()[0].corpo).toEqual({ questionarioVersaoId: PENDENTE.questionarioVersaoId, respostas: { nascimento: '1960-03-10' } });
   expect(errosDaPagina).toEqual([]);
 });
 

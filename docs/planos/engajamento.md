@@ -11,6 +11,7 @@ constância e esforço feito; nunca corpo, dieta restritiva ou tempo de uso.
 
 ## Regras da frente
 - Tudo atrás de `TREINOS_RETORNO_HABILITADO` (padrão false). Nada vai para a `main` sem aprovação do Gustavo.
+- Chave ligada em produção em 03/11/2026, às 12:39, autorizada pelo Gustavo (antes: ausente no `consultoria.env`, valendo o padrão false; depois: `true` no contêiner, health UP). Para desligar: a linha com `false` e `recriar.sh consultoria api`; as conclusões do aparelho ficam `LOCAL` e voltam a ser enviadas quando a chave voltar.
 - Branch com merge da `main` antes de cada passo (nunca rebase). Migration da branch é renumerada se a `main` ganhar outra.
 - Passa-se de etapa só pelo portão.
 
@@ -88,7 +89,7 @@ confiáveis e números comparados · 2→3 moderação, push e adicional decidid
 - `2cd5e48` treino ao vivo (0.3).
 
 ## Passo 0.4: como ficou (28/10)
-- **Quando abre:** logo depois de "Concluir treino" (a Folha fecha, o aviso "Treino concluído." aparece e o app vai para `/aluno/sessao/<sessão>/concluido?data=`; o voltar retorna à tela de onde veio) e pelo botão "Ver resumo" ao lado de "Reabrir" no treino concluído. Treino não concluído (reaberto, recusado pelo servidor) ou chave desligada: "Este treino não está concluído." e "Voltar à lista do dia".
+- **Quando abre:** logo depois de "Concluir treino" (a Folha fecha e o app vai para `/aluno/sessao/<sessão>/concluido?data=`, sem aviso por cima: a tela já diz que concluiu, N9 de 03/11; o voltar retorna à tela de onde veio) e pelo botão "Ver resumo" ao lado de "Reabrir" no treino concluído. Treino não concluído (reaberto, recusado pelo servidor) ou chave desligada: "Este treino não está concluído." e "Voltar à lista do dia".
 - **Tela:** "Bom trabalho!" (h1) com o treino e a data; frase do número; selo "Treino concluído" com resultado e duração; a mesma faixa do 0.3 (duração declarada, volume, séries); "Recordes pessoais" do dia (do 0.2); cartão "Compartilhar" com a prévia, "Mostrar o volume no cartão" (desligado) e os botões; "Voltar à lista do dia".
 - **Número do treino (decisão):** é o `totalConcluidos` (todo o histórico do servidor + o que o aparelho ainda não confirmou). Hoje: "Este é o seu 12º treino."; outra data: "Você já concluiu 12 treinos." (o total não diz a posição de um treino antigo); sem total (nunca baixou): nenhuma frase, e o cartão diz "Treino concluído".
 - **Cartão (P8):** SVG 1080 × 1920 (Stories) em `aluno/CartaoDoTreino`: faixa com a cor da marca, logo (se já em memória ou com internet, a mesma do PDF) e nome da consultoria; "12º treino"; o treino e a data; calendário do mês com os dias treinados marcados (dia com treino concluído ou com série feita que o app conhece; a cor da marca, ou branco se ela some no fundo) e o dia do treino com anel; "2 dias treinados em outubro"; volume só ligado. Sem nome do aluno, peso, foto, medidas ou dieta. Cores e fonte fixas (é uma imagem; não segue o tema). Regras puras em `dominio/cartaoDoTreino.ts`.
@@ -189,3 +190,25 @@ Do 0.2 (28/10/2026):
 - Texto da Ajuda (`ajuda/conteudo.ts`) sobre recordes: fica para o último passo, com o do 0.1.
 - `AnonimizacaoService`/`receber` não conferem `aluno.anonimizado` (igual a execuções e mobilidade); só uma requisição que já passou do filtro poderia regravar um comentário depois da anonimização.
 - Ambiente: `app/node_modules` do worktree é uma junction para o checkout principal. O `npm run e2e` puro pode abrir em branco por causa do cache do Metro; usar `expo export --clear` antes. Nunca `rm -rf` na junction (usar `cmd /c rmdir`).
+
+## Roteiro: conferir o retorno em produção com um aluno fictício (quem faz: Gustavo)
+
+O Claude não acessa produção; quem executa é o Gustavo. Use só dados fictícios: nome "Teste Engajamento (fictício)" e um e-mail de teste que você controla. Nada de aluno real, CPF, telefone, peso ou dieta de pessoa.
+
+Criar o aluno:
+1. Cadastre o aluno fictício pelo treinador e defina o acesso dele pela ficha (e-mail de teste e senha provisória; o rótulo exato você confere na tela). Entre no app com ele; o primeiro acesso pede a troca da senha.
+2. Monte uma pasta com treino publicado que tenha séries simples (sem cluster, rest-pause nem etapas: o recorde só conta nelas).
+
+Conferir (com `TREINOS_RETORNO_HABILITADO` ligada):
+3. Como aluno, marque uma série com carga maior que a anterior do mesmo exercício. Esperado: aviso "Recorde pessoal · <exercício>" no topo da tela do exercício e medalha no lugar do número da série.
+4. Toque em "Concluir treino" (topo ou rodapé da tela do dia). Esperado: abre "Bom trabalho!" com "Este é o seu Nº treino", resumo e "Recordes pessoais" do dia. Se abrir a tela antiga, a chave não está valendo: pare e avise.
+5. Na mesma tela, conferir o selo "Treino concluído" com duração e volume.
+6. Como treinador (outra conta da consultoria), abra a ficha do aluno fictício, cartão de treinos concluídos (últimos 14 dias): toque em "Marcar como visto". Esperado: aparece "Visto". Conferir também "Recordes da semana" no Início e na ficha.
+7. Como aluno, atualize a lista do dia (o "Visto" chega quando o app baixa as conclusões de novo). Esperado: selo "Visto pelo treinador" no treino concluído e no "Bom trabalho!".
+
+Apagar ao fim:
+8. Como treinador com permissão de Administrador, na ficha do aluno fictício: inative o aluno e depois anonimize. A anonimização pede o nome do aluno para conferir; digite o nome fictício exato. Esperado: nome, e-mail, senha, telefone, CPF e endereço apagados; pastas, treinos e execuções (carga e repetições) ficam sem nome.
+9. Alternativa, feita pelo próprio aluno: em Conta, último cartão "Excluir minha conta", com a senha e a palavra EXCLUIR. Ele fica inativo e anonimizado, e o login deixa de entrar.
+10. Conferir que o nome fictício não aparece mais na lista de alunos.
+
+Se algum passo falhar, anote o número do passo e a mensagem da tela (sem print com dado real) e avise o Claude.

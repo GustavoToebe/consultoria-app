@@ -36,6 +36,8 @@ public final class LeitorDePrescricao {
     /** Teto de séries de um exercício na API ({@code LIMITE_SERIES} do editor). */
     static final int SERIES_MAXIMAS = 30;
     private static final BigDecimal CARGA_MAXIMA = new BigDecimal("1000");
+    /** Maior RIR lido (o da API: 0 a 10, 0 é "até a falha"); acima disso o trecho fica na sobra. */
+    private static final int RIR_MAXIMO = 10;
     private static final LocalDate BASE_1900 = LocalDate.of(1899, 12, 30);
     private static final LocalDate BASE_1904 = LocalDate.of(1904, 1, 1);
 
@@ -433,7 +435,7 @@ public final class LeitorDePrescricao {
                         continue;
                     }
                     int v = Integer.parseInt(m.group(1));
-                    if (faixaDepois(m.end()) || v > 5 || achadoRir != null) {
+                    if (faixaDepois(m.end()) || v > RIR_MAXIMO || achadoRir != null) {
                         rirRuim = true;
                         reservar(m.start(), m.end());
                     } else {

@@ -10,10 +10,7 @@ function Input({
       className={cn(
         'border-input bg-background text-foreground flex min-h-11 w-full min-w-0 flex-row items-center rounded-md border px-3 py-1 text-base leading-5',
         props.editable === false &&
-          cn(
-            'opacity-50',
-            Platform.select({ web: 'disabled:pointer-events-none disabled:cursor-not-allowed' })
-          ),
+          Platform.select({ web: 'disabled:pointer-events-none disabled:cursor-not-allowed' }),
         Platform.select({
           web: cn(
             'placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground outline-none transition-colors md:text-sm',

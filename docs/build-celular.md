@@ -16,6 +16,7 @@ O que já está pronto no repositório:
 
 - `app/app.json` com os textos de câmera e fotos, `privacyManifests` do iOS e só as permissões que o app usa no Android.
   O iPhone tem a seção própria: [5. iPhone](#5-iphone).
+- Push do aviso de compromisso: código pronto e desligado; as credenciais que faltam estão em [6. Push do Expo](#6-push-do-expo-aviso-de-compromisso).
 - Ícone e abertura **provisórios** (letra T no fundo escuro do app). Ver "Antes da loja".
 
 ## 1. Primeira vez
@@ -308,6 +309,60 @@ Use o mesmo roteiro, com estas diferenças. Anote o modelo do iPhone e a versão
   (`https://consultoria.servirea.com.br`, entrar como aluno › Conta) faz o mesmo. A conta do **treinador** é da
   consultoria contratada pela Central e não se exclui pelo app (ele não cria conta pelo app: o cadastro público está fechado).
 - Sem login social (Google etc.), então "Entrar com a Apple" não é exigido.
+
+## 6. Push do Expo (aviso de compromisso)
+
+O código do push está pronto e **desligado** (`TREINOS_PUSH_HABILITADO=false` na API; plano em `docs/planos/push-do-expo.md`).
+Com a chave desligada o app nem mostra o interruptor "Avisar no celular quando um compromisso mudar". Para o push chegar a
+um **build próprio** (APK, AAB ou TestFlight) faltam credenciais que só o Gustavo tem; nada disso está no repositório e o
+`app.json` **não** aponta para arquivo nenhum de push ainda (não adianta pôr `googleServicesFile` antes de o arquivo existir:
+a build falha). O Expo Go não serve para testar: no Android ele não recebe push e o app já desliga as notificações lá.
+Confira cada passo na documentação de push do Expo da versão instalada (SDK 57) antes de fazer.
+
+### 🛑 Android (Firebase / FCM), antes do teste no APK
+
+O push do Expo no Android passa pelo Firebase Cloud Messaging. Decida o identificador antes (item 2 da seção 4): o
+arquivo do Firebase fica preso ao `android.package`.
+
+1. No console do Firebase (<https://console.firebase.google.com>), criar um projeto e, nele, um app **Android** com o
+   mesmo `android.package` do `app.json` (hoje `br.com.treinos.app`). Baixar o `google-services.json`.
+2. Ligar o arquivo à build pelo `expo.android.googleServicesFile` (ex.: `"./google-services.json"`, ao lado do
+   `app.json`). O `google-services.json` não é um segredo forte (vai dentro do APK; a chave dele é a do cliente
+   Firebase), mas o repositório hoje não guarda nenhum arquivo de credencial. Duas saídas, a decisão é do Gustavo:
+   - commitar o arquivo em `app/` (é o caminho mais simples da documentação do Expo); ou
+   - deixá-lo fora do git e subi-lo como variável de arquivo do EAS (`npx eas-cli env:create`, tipo arquivo), o que pede
+     trocar o `app.json` por um `app.config` que leia o caminho da variável.
+3. **Credencial FCM V1 no EAS** (esta, sim, é segredo: nunca no git nem no chat): no Firebase, Configurações do projeto ›
+   Contas de serviço › gerar nova chave privada (um JSON da conta de serviço). Subir em `npx eas-cli credentials` ›
+   Android › o perfil › Google Service Account › chave para Push Notifications (FCM V1), ou no site da Expo, em
+   Credentials do projeto. Apagar a cópia local depois.
+4. Gerar o APK de novo (`npx eas-cli build --profile preview --platform android`): o `google-services.json` só entra
+   numa build nova.
+
+### 🛑 iPhone (APNs)
+
+1. Precisa da conta Apple Developer (seção 5). A capacidade de push (`aps-environment`) o plugin do `expo-notifications`
+   já liga.
+2. **Chave APNs no EAS**: na primeira build de iOS, ou em `npx eas-cli credentials` › iOS › Push Notifications, deixar o
+   EAS gerar a chave (`.p8`) na conta da Apple ou subir uma existente (a Apple permite poucas chaves por conta; uma serve
+   para todos os apps). A chave fica no EAS; nunca no git (o `app/.gitignore` já ignora `*.p8`).
+3. Testar no TestFlight ou ad hoc; o simulador do iPhone não recebe push remoto.
+
+### 🛑 Servidor (só depois do APK testado)
+
+- `TREINOS_PUSH_HABILITADO=true` no `consultoria.env` da VPS e recriar a API (`deploy/recriar.sh`, no `central-api-back`).
+- `TREINOS_PUSH_EXPO_TOKEN` é opcional: só se o Gustavo ligar a "segurança reforçada" do push no projeto da Expo. É um
+  token de acesso da conta Expo (segredo): entra pelo `deploy/gravar-segredo.sh` (também no `central-api-back`), nunca pelo chat.
+
+### O que testar
+
+- [ ] Aluno no celular: Conta › Aparência e preferências › ligar "Avisar no celular quando um compromisso mudar" e
+  aceitar a permissão.
+- [ ] Treinador (web) marca, remarca e cancela um compromisso do aluno: em até um minuto chega a notificação
+  **"Compromisso atualizado"** / "Abra o app para ver o que mudou." (sem horário, local nem nome); tocar abre o app.
+- [ ] Desligar o interruptor: a próxima mudança não chega. Ligar de novo: volta a chegar.
+- [ ] "Sair" da conta: a próxima mudança não chega a este aparelho.
+- [ ] Negar a permissão ao ligar: o interruptor volta a desligado e nada chega.
 
 ## Antes da loja: ícones
 

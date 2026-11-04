@@ -45,6 +45,9 @@ const Contexto = createContext<Valor>({ situacao: 'encerrada', dispensar: () => 
 
 export const usePasseio = (): Pick<Valor, 'situacao' | 'dispensar' | 'rever'> => useContext(Contexto);
 
+/** `nativeID` da lista do menu que rola (`ui/Navegacao`): o passeio só rola o alvo para a tela quando ele está nela. */
+export const ROLAGEM_DO_MENU = 'rolagem-do-menu';
+
 /** `ref` para o item que o passeio destaca (`menu:<caminho>`). Item fora da tela sai do registro sozinho. */
 export function useAlvoDoPasseio(id: string): (no: View | null) => void {
   const { registrar } = useContext(Contexto);
@@ -115,6 +118,9 @@ export function ProvedorDoPasseio({ usuarioId, passos, children }: { usuarioId: 
   );
 }
 
+/** Altura do selo de sincronização do aluno (e a folga dele) que o balão do passeio não pode cobrir. */
+const RESERVA_DO_SELO = 40;
+
 interface Medida { area: Tamanho; alvo: Retangulo | null }
 
 function Sobreposicao({ passos, indice, mudar, dispensar, origem, nos }: {
@@ -139,6 +145,10 @@ function Sobreposicao({ passos, indice, mudar, dispensar, origem, nos }: {
     let vivo = true;
     const raiz = origem.current;
     const no = passo.alvo ? nos.current.get(passo.alvo) : undefined;
+    // Web: a lista do menu rola quando não cabe na altura (em todos os modos do menu lateral, D20); o item vem para a área
+    // visível antes de ser medido. Só dentro dessa rolagem: fora dela (a barra do celular) o `scrollIntoView` rolaria a página.
+    const el = Platform.OS === 'web' ? (no as unknown as HTMLElement | undefined) : undefined;
+    if (el?.closest?.(`#${ROLAGEM_DO_MENU}`)) el.scrollIntoView({ block: 'nearest' });
     raiz?.measureInWindow((ox, oy, largura, altura) => {
       if (!no) {
         if (vivo) setMedida({ area: { largura, altura }, alvo: null });
@@ -168,7 +178,10 @@ function Sobreposicao({ passos, indice, mudar, dispensar, origem, nos }: {
   const area = medida?.area ?? { largura: janela.width, altura: janela.height };
   const largura = larguraDoBalao(area);
   const pronto = !!medida && alturaBalao !== null;
-  const posicao = posicaoDoBalao(medida?.alvo ?? null, area, { largura, altura: alturaBalao ?? 0 });
+  // Item da barra de baixo: o selo de sincronização fica logo acima dela, então o balão sobe além dele e não o esconde.
+  const alvo = medida?.alvo ?? null;
+  const alvoDoBalao = alvo && alvo.y > area.altura / 2 ? { ...alvo, y: alvo.y - RESERVA_DO_SELO, altura: alvo.altura + RESERVA_DO_SELO } : alvo;
+  const posicao = posicaoDoBalao(alvoDoBalao, area, { largura, altura: alturaBalao ?? 0 });
   const recorte = medida?.alvo ? recorteDoDestaque(medida.alvo, area) : null;
   const vela = 'rgba(0, 0, 0, 0.6)';
 

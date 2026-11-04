@@ -126,7 +126,7 @@ public class Auditoria {
      */
     @Transactional(readOnly=true)
     public Pagina listar(LocalDate de,LocalDate ate,List<String> usuarioId,List<String> acao,int pagina) {
-        if(de!=null && ate!=null && ate.isBefore(de)) throw new BadRequestException("Período inválido.");
+        FiltrosDeLista.exigirPeriodoNaFaixa(de,ate,0,"PERIODO_INVALIDO");
         java.util.Set<UUID> ids=new java.util.LinkedHashSet<>();
         boolean sistema=false;
         for(String v:FiltrosDeLista.valores(usuarioId,"usuarioId")) {

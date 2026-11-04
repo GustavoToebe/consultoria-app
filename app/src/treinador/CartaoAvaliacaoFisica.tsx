@@ -3,18 +3,20 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ErroApi } from '../api/cliente';
-import type { AvaliacaoFisica, MedidasCorporais } from '../api/avaliacaoFisicaTipos';
+import type { AvaliacaoFisica, CampoDaMedida, MedidasCorporais } from '../api/avaliacaoFisicaTipos';
 import type { Marca } from '../api/tipos';
 import {
   alterarAvaliacaoFisica, avaliacoesFisicasDoAluno, consultoria, excluirAvaliacaoFisica, minhasAvaliacoesFisicas,
   registrarAvaliacaoFisica,
 } from '../api/rotas';
 import {
-  alternarEscolha, cmParaTela, COMPARAR_MAXIMO, comparar, corpoDaAvaliacao, diferencaParaTela, MEDIDAS,
-  medidasPreenchidas, medidasVazias, OBSERVACAO_MAXIMA, pesoParaTela, podeBaixarComparativo, podeComparar, problemasDaAvaliacao,
-  type LinhaDaComparacao,
+  alternarEscolha, cmParaTela, COMPARAR_MAXIMO, comparar, corpoDaAvaliacao, diferencaParaTela, graficoDaMedida, MEDIDAS,
+  medidaEscolhida, medidasPreenchidas, medidasVazias, OBSERVACAO_MAXIMA, opcoesDeMedida, pesoParaTela, podeBaixarComparativo,
+  podeComparar, problemasDaAvaliacao, serieDaMedida, type LinhaDaComparacao,
 } from '../dominio/avaliacaoFisica';
-import { dataDaTela, dataParaTela, hojeIso, mascaraDeNumero } from '../dominio/formatos';
+import { dataCurta, dataDaTela, dataParaTela, hojeIso, mascaraDeNumero } from '../dominio/formatos';
+import { periodoDesdeOPrimeiro } from '../dominio/historicoDoAluno';
+import { TEXTO_GRAFICOS_DESLIGADOS, TEXTO_GRAFICOS_DESLIGADOS_ALUNO } from '../dominio/relatorio';
 import { imprimir } from '../pdf/imprimir';
 import { logoComoDataUri } from '../pdf/logo';
 import { documentoAvaliacaoFisica } from '../pdf/pdfAvaliacaoFisica';
@@ -26,10 +28,13 @@ import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
 import { CampoData, CampoNumerico } from '../ui/Campos';
 import { Cartao } from '../ui/Cartao';
+import { Escolha } from '../ui/Escolha';
+import { EscolhaEmFolha, OPCOES_PARA_BUSCAR } from '../ui/EscolhaEmFolha';
 import { Esqueleto } from '../ui/Esqueleto';
 import { MensagemErro } from '../ui/Estados';
 import { errosPorCampo, textoDoErro } from '../ui/erros';
 import { Folha } from '../ui/Folha';
+import { GraficoLinha } from '../ui/GraficoLinha';
 import { IconeBotao } from '../ui/IconeBotao';
 import { CaixaDaLinha, LinhaDaLista, ListaDeLinhas } from '../ui/LinhaDaLista';
 import { NoPlano } from '../ui/NoPlano';
@@ -39,6 +44,8 @@ import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
 
 const LINHAS_INICIAIS = 6;
+/** Datas da lista de uma medida antes de "Mostrar todas". */
+const DATAS_DA_MEDIDA = 6;
 
 type Props =
   /** Ficha do aluno (equipe): lista, nova, editar, excluir, comparar e baixar o comparativo. */
@@ -57,7 +64,8 @@ function metadados(a: AvaliacaoFisica): string {
 /**
  * Avaliação física (circunferências em cm por data; dado sensível, só na tela). A equipe registra; o aluno só lê. Marcar
  * de 2 a 4 datas mostra a tabela medida × data com a diferença entre a primeira e a última: só números, sem cor de
- * "bom/ruim" nem texto que interprete. Regras em `dominio/avaliacaoFisica`.
+ * "bom/ruim" nem texto que interprete. Embaixo, a evolução de uma medida por vez (gráfico e lista das datas). Regras em
+ * `dominio/avaliacaoFisica`.
  */
 export function CartaoAvaliacaoFisica(p: Props) {
   const { cores } = useTema();
@@ -122,6 +130,7 @@ export function CartaoAvaliacaoFisica(p: Props) {
   return (
     <Cartao
       titulo="Avaliação física"
+      periodo={dados ? periodoDesdeOPrimeiro(dados.map((a) => a.data)) : undefined}
       descricao={daEquipe ? 'Circunferências em centímetros, por data.' : 'Suas medidas registradas pelo seu treinador, em centímetros.'}
       acoes={podeGravar ? <Botao rotulo="Nova avaliação" tipo="secundario" Icone={Plus} aoTocar={() => setEditando('nova')} /> : null}>
       {erro && !semConexao ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
@@ -183,6 +192,7 @@ export function CartaoAvaliacaoFisica(p: Props) {
           ) : null}
         </View>
       ) : null}
+      {lista.length ? <EvolucaoPorMedida avaliacoes={lista} daEquipe={daEquipe} /> : null}
       {editando && daEquipe ? (
         <FolhaAvaliacao
           alunoId={p.alunoId}
@@ -219,6 +229,59 @@ function TabelaComparativa({ linhas, datas }: { linhas: LinhaDaComparacao[]; dat
   ];
   if (!linhas.length) return <Texto variante="suave">Nenhuma medida nas datas escolhidas.</Texto>;
   return <Tabela rotulo="Comparativo da avaliação física" linhas={linhas} chave={(l) => l.chave} colunas={colunas} larguraMinima={420 + datas.length * 60} />;
+}
+
+/**
+ * Uma medida por vez ao longo das datas: gráfico de linha (com a preferência `graficos`; 1 data = só o ponto) e a lista
+ * de todas as datas, onde a que não teve a medida aparece com "—". Um eixo só, em cm: o peso tem o próprio cartão.
+ */
+function EvolucaoPorMedida({ avaliacoes, daEquipe }: { avaliacoes: AvaliacaoFisica[]; daEquipe: boolean }) {
+  const { preferencias } = useTema();
+  const [escolhida, setEscolhida] = useState<CampoDaMedida | null>(null);
+  const [todas, setTodas] = useState(false);
+  const opcoes = opcoesDeMedida(avaliacoes);
+  const campo = medidaEscolhida(opcoes, escolhida);
+  if (!campo) return null;
+  const nome = opcoes.find((o) => o.valor === campo)?.rotulo ?? '';
+  const serie = serieDaMedida(avaliacoes, campo);
+  const grafico = graficoDaMedida(serie.pontos.length, preferencias.graficos);
+  const linhas = todas ? serie.linhas : serie.linhas.slice(0, DATAS_DA_MEDIDA);
+  const escolher = (c: CampoDaMedida) => { setEscolhida(c); setTodas(false); };
+  const datas = serie.pontos.length === 1 ? '1 data' : `${serie.pontos.length} datas`;
+
+  return (
+    <View style={estilos.comparacao}>
+      <Texto variante="secao" nivel={3}>Evolução por medida</Texto>
+      {opcoes.length > OPCOES_PARA_BUSCAR ? (
+        <EscolhaEmFolha rotulo="Medida" valor={campo} opcoes={opcoes} aoMudar={escolher} titulo="Escolher a medida" />
+      ) : opcoes.length > 1 ? (
+        <Escolha rotulo="Medida" opcoes={opcoes} valor={campo} aoMudar={escolher} />
+      ) : (
+        <Texto variante="bloco">{nome}</Texto>
+      )}
+      {grafico === 'linha' || grafico === 'ponto' ? (
+        <GraficoLinha
+          pontos={serie.pontos.map((p) => ({ rotulo: dataCurta(p.data), valor: p.valor, data: p.data }))}
+          unidade="cm"
+          descricao={`Gráfico de ${nome} com ${datas}`}
+        />
+      ) : null}
+      {grafico === 'ponto' ? <Texto variante="pequeno">Com uma data só, o gráfico mostra o ponto; a linha aparece a partir de duas datas.</Texto> : null}
+      {grafico === 'desligado' ? <Texto variante="pequeno">{daEquipe ? TEXTO_GRAFICOS_DESLIGADOS : TEXTO_GRAFICOS_DESLIGADOS_ALUNO}</Texto> : null}
+      <Tabela
+        rotulo={`${nome} por data`}
+        linhas={linhas}
+        chave={(l) => l.id}
+        colunas={[
+          { chave: 'data', titulo: 'Data', principal: true, render: (l) => <Texto numerico style={estilos.forte}>{dataParaTela(l.data)}</Texto> },
+          { chave: 'valor', titulo: nome, alinhar: 'direita', render: (l) => <Texto numerico style={estilos.forte}>{l.valor === null ? '—' : `${cmParaTela(l.valor)} cm`}</Texto> },
+        ]}
+      />
+      {serie.linhas.length > DATAS_DA_MEDIDA ? (
+        <Botao rotulo={todas ? 'Mostrar só as últimas' : `Mostrar todas as datas (${serie.linhas.length})`} tipo="fantasma" aoTocar={() => setTodas((v) => !v)} />
+      ) : null}
+    </View>
+  );
 }
 
 function FolhaAvaliacao({ alunoId, avaliacao, aoFechar, aoSalvar }: { alunoId: string; avaliacao: AvaliacaoFisica | null; aoFechar: () => void; aoSalvar: () => void }) {
@@ -258,7 +321,7 @@ function FolhaAvaliacao({ alunoId, avaliacao, aoFechar, aoSalvar }: { alunoId: s
         </>
       }>
       <View style={estilos.campoData}>
-        <CampoData rotulo="Data" valor={data} aoMudar={setData} erro={campos.data} />
+        <CampoData rotulo="Data" nome="Data da avaliação" regra="REGISTRO" valor={data} aoMudar={setData} erro={campos.data} />
       </View>
       <Texto variante="secao" nivel={3}>Circunferências (cm)</Texto>
       <Texto variante="pequeno">Preencha só o que foi medido; ao menos uma medida. O peso vem do registro de peso da mesma data.</Texto>
@@ -277,7 +340,8 @@ function FolhaAvaliacao({ alunoId, avaliacao, aoFechar, aoSalvar }: { alunoId: s
           </View>
         ))}
       </View>
-      <Campo rotulo="Observação (opcional)" valor={observacao} aoMudar={setObservacao} maxLength={OBSERVACAO_MAXIMA} multiline erro={campos.observacao} />
+      <Campo rotulo="Observação (opcional)" valor={observacao} aoMudar={setObservacao} maxLength={OBSERVACAO_MAXIMA} multiline erro={campos.observacao}
+        ajuda="O aluno vê esta observação." />
       {erro && Object.keys(daApi).length === 0 ? <MensagemErro texto={textoDoErro(erro)} /> : null}
     </Folha>
   );

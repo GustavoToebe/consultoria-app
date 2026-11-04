@@ -1,5 +1,5 @@
 import { useNavigation } from 'expo-router';
-import { createContext, useContext, useEffect, useId, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useId, useMemo, useState, type ReactNode } from 'react';
 import { Platform } from 'react-native';
 
 import { criarGuarda, SEM_GUARDA, type Guarda } from './guarda';
@@ -30,17 +30,7 @@ export function GuardaDeSaida({ children }: { children: ReactNode }) {
   const sair = () => {
     const a = acao;
     setAcao(null);
-    if (!a) return;
-    // A ação navega e o navegador da pilha dispara `beforeRemove` na hora: com a saída liberada ele não pergunta de novo.
-    // Na web, a entrada da guarda do editor sai do histórico antes (a ação corre depois do `popstate`).
-    const soltar = guarda.liberar();
-    devolverGuardaDoHistorico(() => {
-      try {
-        a();
-      } finally {
-        setTimeout(soltar, 0);
-      }
-    });
+    if (a) sairLiberado(guarda, a);
   };
 
   return (
@@ -53,13 +43,29 @@ export function GuardaDeSaida({ children }: { children: ReactNode }) {
         rotuloConfirmar="Sair sem salvar"
         rotuloCancelar="Continuar editando"
         perigo
-        // Com uma Folha aberta (web) a pergunta iria para trás do Modal dela: vai para dentro da Folha do topo.
+        // Com uma Folha aberta a pergunta iria para trás do Modal dela. No celular, a que está fechando fica de fora
+        // (a de baixo, ou a raiz). Na web, vai para dentro da Folha do topo.
         portal={acao !== null ? portalDaFolhaDoTopo() : undefined}
         aoConfirmar={sair}
         aoCancelar={() => setAcao(null)}
       />
     </Contexto.Provider>
   );
+}
+
+/**
+ * Navega sem perguntar: a ação navega e o navegador da pilha dispara `beforeRemove` na hora, e com a saída liberada ele
+ * não pergunta de novo. Na web, a entrada da guarda sai do histórico antes (a ação corre depois do `popstate`).
+ */
+function sairLiberado(guarda: Guarda, acao: () => void) {
+  const soltar = guarda.liberar();
+  devolverGuardaDoHistorico(() => {
+    try {
+      acao();
+    } finally {
+      setTimeout(soltar, 0);
+    }
+  });
 }
 
 /** Tela com alteração não salva: registra na guarda e segura o "voltar" (seta, botão físico, navegador) para perguntar. */
@@ -98,4 +104,13 @@ export function useGuardaDeSaida(pendente: boolean) {
 export function useSaidaGuardada() {
   const { confirmar, pendente, liberar } = useContext(Contexto);
   return { confirmar, pendente, liberar };
+}
+
+/**
+ * Formulário que acabou de salvar e sai da tela (o "Cadastrar" do novo aluno): a alteração já não está pendente, mas a
+ * guarda ainda está montada. Sai como a saída confirmada, sem perguntar e sem deixar a entrada da guarda no histórico.
+ */
+export function useSairSemPerguntar() {
+  const guarda = useContext(Contexto);
+  return useCallback((acao: () => void) => sairLiberado(guarda, acao), [guarda]);
 }

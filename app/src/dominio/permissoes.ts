@@ -12,6 +12,16 @@ export function pode(permissoes:readonly string[]|undefined,codigo:string):boole
   return permissoes?.includes(codigo)??false;
 }
 /**
+ * Tela de um módulo desligado nesta instalação (hoje só o Financeiro, pela chave `TREINOS_PAGAMENTOS_HABILITADO` do
+ * servidor): o aviso diz isso em vez de culpar a permissão, e não manda ninguém pedir, porque o administrador da
+ * consultoria também não liga o módulo (C4 da auditoria de 03/11). `null` = a tela não depende de módulo desligado.
+ */
+export function moduloDesligadoDaTela(caminho:string,pagamentosHabilitados:boolean=false):{titulo:string;texto:string}|null {
+  if(caminho==='/treinador/financeiro'&&!pagamentosHabilitados) return {titulo:'Financeiro indisponível',texto:'Os pagamentos não estão ativos nesta instalação do app.'};
+  return null;
+}
+
+/**
  * `pagamentosHabilitados`: módulo de pagamentos ligado para a consultoria (vem de `GET /eu`). Ausente = desligado: o
  * Financeiro some do menu mesmo para quem tem a permissão.
  */
