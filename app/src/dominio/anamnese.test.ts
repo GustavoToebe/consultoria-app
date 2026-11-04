@@ -4,10 +4,10 @@ import {
 
 describe('anamnese', () => {
   it('selo com cor de significado, diferente para o aluno e para a equipe', () => {
-    expect(seloDaAnamnese('PENDENTE')).toEqual({ texto: 'Aguardando o aluno', tipo: 'atencao' });
+    expect(seloDaAnamnese('PENDENTE')).toEqual({ texto: 'Aguardando o aluno', tipo: 'neutro' });
     expect(seloDaAnamnese('PENDENTE', true)).toEqual({ texto: 'Para responder', tipo: 'atencao' });
     expect(seloDaAnamnese('ENVIADA')).toEqual({ texto: 'Para revisar', tipo: 'atencao' });
-    expect(seloDaAnamnese('ENVIADA', true).tipo).toBe('sucesso');
+    expect(seloDaAnamnese('ENVIADA', true)).toEqual({ texto: 'Enviada · aguardando revisão', tipo: 'neutro' });
     expect(seloDaAnamnese('REVISADA').tipo).toBe('sucesso');
     expect(seloDaAnamnese('DISPENSADA').tipo).toBe('neutro');
   });

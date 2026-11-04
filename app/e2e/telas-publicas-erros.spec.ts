@@ -181,6 +181,38 @@ for (const largura of [390, 1280]) {
       expect(errosDaPagina).toEqual([]);
     });
 
+    test('convite de equipe: consulta da marca com 500 avisa, "Tentar de novo" refaz e aceitar segue liberado', async ({ page }) => {
+      const consulta = rotaTrocavel(erroApi(500, 'Erro interno.'));
+      const { errosDaPagina } = await simularApi(page, { 'POST /publico/convites-equipe/consultar': consulta.rota });
+      const aviso = page.getByText('Não deu para carregar os dados da consultoria agora. Você ainda pode aceitar o convite.', { exact: true });
+      const criar = page.getByRole('button', { name: 'Criar meu acesso à equipe', exact: true });
+      await page.goto('/convite-equipe');
+      await page.getByLabel('Código do convite de equipe', { exact: true }).fill('c'.repeat(43));
+
+      await expect(aviso).toBeVisible();
+      await expect(alerta(page)).toHaveCount(0);
+      await expect(criar).toBeEnabled();
+      expect(consulta.estado.chamadas).toBe(1);
+
+      consulta.estado.valor = { status: 200, corpo: { consultoria: MARCA } };
+      await page.getByRole('button', { name: 'Tentar de novo', exact: true }).click();
+      await expect(aviso).toHaveCount(0);
+      await expect(page.getByText(`Crie sua senha para entrar na equipe de ${MARCA.nome}.`)).toBeVisible();
+      expect(consulta.estado.chamadas).toBe(2);
+      expect(errosDaPagina).toEqual([]);
+    });
+
+    test('convite de equipe: consulta com 404 (convite inválido) segue sem aviso', async ({ page }) => {
+      const consulta = rotaTrocavel(erroApi(404, 'Convite não encontrado.'));
+      const { errosDaPagina } = await simularApi(page, { 'POST /publico/convites-equipe/consultar': consulta.rota });
+      await page.goto('/convite-equipe');
+      await page.getByLabel('Código do convite de equipe', { exact: true }).fill('d'.repeat(43));
+      await expect.poll(() => consulta.estado.chamadas).toBe(1);
+      await expect(page.getByText('Não deu para carregar os dados da consultoria agora. Você ainda pode aceitar o convite.')).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Tentar de novo' })).toHaveCount(0);
+      expect(errosDaPagina).toEqual([]);
+    });
+
     test('esqueci a senha: vazio no campo; 503 no topo; 422 do e-mail no campo', async ({ page }) => {
       const pedido = rotaTrocavel(erroApi(503, 'O envio de e-mail está fora do ar. Tente mais tarde.', 'REDEFINICAO_INDISPONIVEL'));
       const { errosDaPagina } = await simularApi(page, { 'POST /auth/esqueci-senha': pedido.rota });

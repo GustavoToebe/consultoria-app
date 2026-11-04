@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import type { Receita, Serie } from '../src/api/tipos';
 import { CONFIGURACAO_PADRAO } from '../src/dominio/metodologiaPadrao';
-import { PALETA_DE_IDENTIFICACAO } from '../src/tema/tokens';
+import { CLARO, ESCURO, PALETA_DE_IDENTIFICACAO, tingido } from '../src/tema/tokens';
 import { json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
 
 // Clareza do editor de treino (reunião de 30/10): posição do exercício por extenso, mover exercício × mover grupo,
@@ -215,6 +215,20 @@ for (const nomeDoTema of ['claro', 'escuro'] as const) {
       expect(api.naoTratadas).toEqual([]);
     });
   }
+}
+
+// D4 de `docs/planos/auditoria-cores.md`: o selo tem fundo opaco (`tingido` da própria cor), não transparente, para o
+// contraste não depender da faixa onde ele está. O "Fora da biblioteca" é um selo neutro na faixa do exercício.
+for (const [tema, cores] of [['CLARO', CLARO], ['ESCURO', ESCURO]] as const) {
+  test(`editor: selo na faixa do exercício com fundo opaco (${tema.toLowerCase()})`, async ({ page }) => {
+    await page.addInitScript(([id, t]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: t })), [TREINADOR.id, tema]);
+    await planoComDoisExercicios(page);
+    const fundo = tingido(cores.neutro, cores.superficie);
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(fundo.slice(i, i + 2), 16));
+    const selo = page.getByText('Fora da biblioteca', { exact: true }).first();
+    await expect(selo).toBeVisible();
+    await expect(selo.locator('..')).toHaveCSS('background-color', `rgb(${r}, ${g}, ${b})`);
+  });
 }
 
 for (const largura of [390, 1280]) {

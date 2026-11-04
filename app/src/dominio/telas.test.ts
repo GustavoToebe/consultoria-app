@@ -1,6 +1,7 @@
 import { FUNCIONALIDADES } from './funcionalidadesDoPlano';
 import { pode } from './permissoes';
-import { agruparPorSecao, alternarFavorito, atalhosPadrao, buscarTelas, chaveDosFavoritos, favoritosVisiveis, lerFavoritos, nomeDaTela, semAcento, TELAS, telasDaOrigem, telasPermitidas, tituloDaPagina, voltarAutomatico } from './telas';
+import { MENU_DO_TREINADOR, posicaoNoMenu } from './gruposDoMenu';
+import { agruparPorSecao, alternarFavorito, atalhosPadrao, buscarTelas, chaveDosFavoritos, favoritosVisiveis, legendaDaTela, lerFavoritos, nomeDaTela, semAcento, TELAS, telasDaOrigem, telasPermitidas, tituloDaPagina, voltarAutomatico } from './telas';
 
 const com = (codigos: string[]) => (codigo: string) => pode(codigos, codigo);
 const ADMIN = ['PAINEL_VER', 'ALUNO_LER', 'ALUNO_ALTERAR', 'ALUNO_SENSIVEL_LER', 'ATUALIZACAO_LER', 'BIBLIOTECA_LER', 'MODELO_LER', 'MODELO_ALTERAR', 'MARCA_ALTERAR', 'EQUIPE_LER', 'USUARIO_ALTERAR', 'AUDITORIA_LER'];
@@ -16,8 +17,8 @@ describe('catálogo de telas', () => {
     const tudo = telasPermitidas(com(ADMIN));
     expect(ids(tudo)).toEqual(expect.arrayContaining(['inicio', 'novo-aluno', 'novo-modelo', 'convidar-membro', 'atualizacoes-revisar', 'auditoria']));
     const assistente = telasPermitidas(com(['PAINEL_VER', 'ALUNO_LER', 'BIBLIOTECA_LER', 'MODELO_LER']));
-    expect(ids(assistente)).toEqual(['inicio', 'alunos', 'numeros', 'biblioteca', 'planejamento', 'ajuda', 'termos', 'meus-dados', 'seguranca', 'ajustes']);
-    expect(ids(telasPermitidas(com([])))).toEqual(['ajuda', 'termos', 'meus-dados', 'seguranca', 'ajustes']);
+    expect(ids(assistente)).toEqual(['inicio', 'alunos', 'biblioteca', 'planejamento', 'numeros', 'ajuda', 'meus-dados', 'seguranca', 'ajustes', 'termos']);
+    expect(ids(telasPermitidas(com([])))).toEqual(['ajuda', 'meus-dados', 'seguranca', 'ajustes', 'termos']);
   });
 
   it('Medicação e ergogênicos só aparece e só é achado com ERGOGENICO_LER', () => {
@@ -97,7 +98,7 @@ describe('catálogo de telas', () => {
     expect(ids(buscarTelas('mensalidade', tudo))).toEqual(['financeiro']);
     expect(ids(buscarTelas('inadimplência', tudo))).toEqual(['financeiro']);
     expect(ids(buscarTelas('faturas', tudo))).toEqual([]);
-    expect(TELAS.find((t) => t.id === 'financeiro')?.secao).toBe('Consultoria');
+    expect(TELAS.find((t) => t.id === 'financeiro')?.secao).toBe('Negócio');
     expect(nomeDaTela('/treinador/financeiro')).toBe('Financeiro');
     expect(tituloDaPagina('/treinador/financeiro', 'Saraiva Team')).toBe('Financeiro · Saraiva Team');
   });
@@ -176,11 +177,47 @@ describe('busca de telas', () => {
 
 describe('Todas as telas e favoritos', () => {
   const permitidas = telasPermitidas(com(ADMIN), TELAS, undefined, false, true);
-  it('agrupa na ordem do menu e deixa as ações de fora', () => {
+  it('agrupa nos grupos do menu lateral, na ordem dele, e deixa as ações de fora (D24)', () => {
     const grupos = agruparPorSecao(permitidas);
-    expect(grupos.map((g) => g.secao)).toEqual(['Dia a dia', 'Planos', 'Consultoria', 'Ajuda', 'Sua conta']);
-    expect(grupos.flatMap((g) => ids(g.telas))).toEqual(['inicio', 'alunos', 'atualizacoes', 'agenda', 'numeros', 'biblioteca', 'planejamento', 'equipe', 'auditoria', 'importacao', 'ajuda', 'termos', 'meus-dados', 'seguranca', 'marca', 'ajustes']);
-    expect(agruparPorSecao(telasPermitidas(com([]))).map((g) => g.secao)).toEqual(['Ajuda', 'Sua conta']);
+    expect(grupos.map((g) => g.secao)).toEqual([null, 'Alunos e acompanhamento', 'Negócio', 'Configurações']);
+    expect(grupos.map((g) => ids(g.telas))).toEqual([
+      ['inicio'],
+      ['alunos', 'atualizacoes', 'agenda', 'biblioteca', 'planejamento'],
+      ['numeros'],
+      // Os itens do menu primeiro; depois as telas do cartão do usuário (com o Perfil) e Termos (com a Ajuda).
+      ['equipe', 'importacao', 'ajuda', 'auditoria', 'meus-dados', 'seguranca', 'marca', 'ajustes', 'termos'],
+    ]);
+    expect(agruparPorSecao(telasPermitidas(com([]))).map((g) => g.secao)).toEqual(['Configurações']);
+  });
+  it('Negócio aparece com Interessados, Financeiro e Números, na ordem do menu', () => {
+    const negocio = telasPermitidas(com(['PAINEL_VER', 'INSCRICAO_LER', 'FINANCEIRO_LER', 'ALUNO_LER', 'CONTA_LER']), TELAS, undefined, true, true);
+    const grupos = agruparPorSecao(negocio);
+    expect(grupos.find((g) => g.secao === 'Negócio')?.telas.map((t) => t.id)).toEqual(['interessados', 'financeiro', 'numeros']);
+    expect(grupos.find((g) => g.secao === 'Configurações')?.telas.map((t) => t.id)).toContain('minha-conta');
+  });
+  it('a ordem não depende da ordem em que as telas chegam', () => {
+    const grupos = agruparPorSecao([...permitidas].reverse());
+    expect(grupos.flatMap((g) => ids(g.telas))).toEqual(agruparPorSecao(permitidas).flatMap((g) => ids(g.telas)));
+  });
+  it('todo item do menu lateral tem a tela no catálogo, no mesmo grupo, e toda tela do catálogo cai num lugar do menu', () => {
+    for (const lugar of MENU_DO_TREINADOR) {
+      if (lugar.caminho === '/treinador/perfil') continue; // só no celular e no tablet nativo; as telas dele estão no catálogo
+      const tela = TELAS.find((t) => !t.acao && t.href === lugar.caminho);
+      expect(tela).toBeDefined();
+      expect(tela?.secao).toBe(lugar.grupo ?? null);
+    }
+    for (const t of TELAS) expect(posicaoNoMenu(t.href.split('?')[0])).not.toBeNull();
+  });
+  it('legenda da busca: o grupo, "Ação · grupo" e "Tela inicial" no Início', () => {
+    const porId = (id: string) => TELAS.find((t) => t.id === id)!;
+    expect(legendaDaTela(porId('inicio'))).toBe('Tela inicial');
+    expect(legendaDaTela(porId('alunos'))).toBe('Alunos e acompanhamento');
+    expect(legendaDaTela(porId('novo-aluno'))).toBe('Ação · Alunos e acompanhamento');
+    expect(legendaDaTela(porId('planilha-completa'))).toBe('Ação · Configurações');
+    expect(legendaDaTela(porId('marca'))).toBe('Configurações');
+  });
+  it('a busca acha pelo nome do grupo', () => {
+    expect(ids(buscarTelas('negocio', telasPermitidas(com(['PAINEL_VER']))))).toEqual(['numeros']);
   });
   it('busca vazia sem favoritos sugere atalhos que o perfil pode abrir', () => {
     expect(ids(atalhosPadrao(permitidas))).toEqual(['atualizacoes-revisar', 'alunos', 'novo-aluno', 'planejamento', 'ajuda']);
@@ -196,6 +233,10 @@ describe('Todas as telas e favoritos', () => {
     expect(lista).toEqual(['equipe', 'biblioteca']);
     lista = alternarFavorito(lista, 'alunos');
     expect(lista).toEqual(['equipe', 'biblioteca', 'alunos']);
+  });
+  it('os favoritos são guardados pelo id: os já marcados continuam valendo com os grupos novos (D24)', () => {
+    const antigos = ['inicio', 'alunos', 'atualizacoes', 'agenda', 'numeros', 'biblioteca', 'planejamento', 'equipe', 'auditoria', 'importacao', 'ajuda', 'termos', 'meus-dados', 'seguranca', 'marca', 'ajustes'];
+    expect(ids(favoritosVisiveis(antigos, permitidas))).toEqual(antigos);
   });
   it('favorito sem permissão, repetido, de ação ou desconhecido não aparece', () => {
     const poucas = telasPermitidas(com(['PAINEL_VER', 'ALUNO_LER']));

@@ -122,7 +122,7 @@ function BotaoPagar({ cobranca, aoMudar }: { cobranca: CobrancaDoAluno; aoMudar:
       .then((resultado) => {
         if (resultado === 'aberta') {
           avisar(Platform.OS === 'web' ? 'Abrimos o pagamento em outra aba. Quando terminar, volte para esta.' : 'Abrimos o pagamento no navegador. Quando terminar, volte para o app.', 'neutro');
-        } else if (resultado === 'bloqueada') avisar('O navegador bloqueou a nova aba. Libere os pop-ups deste site e toque em Pagar de novo.', 'perigo');
+        } else if (resultado === 'bloqueada') avisar('O navegador bloqueou a nova aba. Libere os pop-ups deste site e toque em Pagar de novo.', 'atencao');
         else avisar('Não foi possível abrir o pagamento. Tente de novo ou fale com o seu treinador.', 'perigo');
       })
       .catch((erro: unknown) => {

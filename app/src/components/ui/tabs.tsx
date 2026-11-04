@@ -60,7 +60,6 @@ function TabsTrigger({
           Platform.select({
             web: 'web:h-[calc(100%-1px)] inline-flex cursor-default whitespace-nowrap transition-colors disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0',
           }),
-          props.disabled && 'opacity-50',
           props.value === value && 'bg-background dark:border-foreground/10 dark:bg-input/30',
           className
         )}

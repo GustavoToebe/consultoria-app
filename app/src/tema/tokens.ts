@@ -4,7 +4,8 @@ import type { CorDaAgenda } from '../api/agendaTipos';
  * Design flat utilitário: cores sólidas, sem sombra nem gradiente, cantos de 12 px, bordas de
  * 1 px nos campos e 2 px nos blocos, grade de 8 px. A cor da marca só aparece em ação principal, menu e aba ativos, cartão "Hoje" e título da
  * marca; seleção (chips, escolhas) é invertida (fundo `texto`, letra `fundo`); status nunca usa a cor da marca (verde
- * ok, âmbar pendente, vermelho erro, cinza inativo) e sempre vem com texto.
+ * ok, âmbar pendente, vermelho erro, cinza inativo) e sempre vem com texto. A tabela situação → cor (quem age, quem espera,
+ * vencida, desabilitado) está em `docs/design-e-front.md`, seção 4.5.
  *
  * Níveis: fundo quase branco → cartão (`superficie` + `borda` de 2 px) → faixa do título (`superficie3`, ou `faixaForte` no
  * exercício, com linha de 3 px embaixo) → item (`superficie2` + `borda`).
