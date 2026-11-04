@@ -8,6 +8,8 @@ interface Props {
   texto: string | null | undefined;
   /** Tamanho e cor do texto: `corpo` (padrão) para conteúdo que a pessoa precisa ler; `suave` para leitura secundária. */
   variante?: Variante;
+  /** Deixa copiar o texto (o texto de privacidade da inscrição pública, por exemplo). */
+  selecionavel?: boolean;
 }
 
 /**
@@ -15,13 +17,13 @@ interface Props {
  * linha): um `Texto` por parágrafo, com os trechos aninhados (o leitor de tela lê o parágrafo inteiro de uma vez).
  * Vazio não desenha nada.
  */
-export function TextoFormatado({ texto, variante = 'corpo' }: Props) {
+export function TextoFormatado({ texto, variante = 'corpo', selecionavel }: Props) {
   const paragrafos = textoFormatado(texto);
   if (!paragrafos.length) return null;
   return (
     <View style={estilos.bloco}>
       {paragrafos.map((linhas, i) => (
-        <Texto key={i} variante={variante}>
+        <Texto key={i} variante={variante} selectable={selecionavel}>
           {linhas.map((linha, l) => <Linha key={l} linha={linha} quebra={l > 0} />)}
         </Texto>
       ))}

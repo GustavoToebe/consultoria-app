@@ -33,6 +33,10 @@ import {
   linhasPorMotivo,
   linkDoWhatsAppComTexto,
   mensagemComVariaveis,
+  opcoesOpcionais,
+  OPCOES_ORIGEM,
+  ORIGENS,
+  ORIGENS_INFORMADAS,
   origemDoLink,
   porcentagem,
   PREVISOES,
@@ -253,6 +257,35 @@ describe('CRM: rótulos e duplicidade', () => {
     expect(rotuloDaOrigem('CAMPANHA')).toBe('Campanha');
     expect(rotuloOpcional(PREVISOES, null)).toBe('—');
     expect(rotuloOpcional(INTERESSES, 'NAO_SEI')).toBe('Ainda não sei');
+  });
+
+  it('origens do Saraiva (YouTube, TikTok, influenciador, aluno do time) e "Tô só de passagem" têm rótulo', () => {
+    expect(ORIGENS_INFORMADAS.YOUTUBE).toBe('YouTube');
+    expect(ORIGENS_INFORMADAS.TIKTOK).toBe('TikTok');
+    expect(ORIGENS_INFORMADAS.INFLUENCIADOR).toBe('Influenciador(a) ou atleta do time');
+    expect(ORIGENS_INFORMADAS.ALUNO_DO_TIME).toBe('Aluno do time');
+    expect(PREVISOES.SO_DE_PASSAGEM).toBe('Tô só de passagem');
+    expect(rotuloOpcional(PREVISOES, 'SO_DE_PASSAGEM')).toBe('Tô só de passagem');
+    expect(rotuloOpcional(ORIGENS_INFORMADAS, 'TIKTOK')).toBe('TikTok');
+    expect(rotuloDaOrigem('YOUTUBE')).toBe('YouTube');
+    expect(rotuloDaOrigem('ALUNO_DO_TIME')).toBe('Aluno do time');
+    // A origem da equipe começa pela respondida: tem de existir a mesma chave nas duas listas (mais a campanha do link).
+    expect(Object.keys(ORIGENS_INFORMADAS).every((k) => k in ORIGENS)).toBe(true);
+    expect(Object.keys(ORIGENS).filter((k) => !(k in ORIGENS_INFORMADAS))).toEqual(['CAMPANHA']);
+    // Filtro e edição da origem oferecem as novas; "Outra" continua por último.
+    expect(OPCOES_ORIGEM.map((o) => o.valor)).toEqual([
+      'INDICACAO', 'INSTAGRAM', 'GOOGLE', 'YOUTUBE', 'TIKTOK', 'INFLUENCIADOR', 'ALUNO_DO_TIME', 'CAMPANHA', 'OUTRA',
+    ]);
+    // O formulário público oferece as opções do mapa (mais "Não informar") e leva o código ao enviar.
+    expect(opcoesOpcionais(ORIGENS_INFORMADAS).map((o) => o.valor)).toEqual([
+      '', 'INDICACAO', 'INSTAGRAM', 'GOOGLE', 'YOUTUBE', 'TIKTOK', 'INFLUENCIADOR', 'ALUNO_DO_TIME', 'OUTRA',
+    ]);
+    expect(opcoesOpcionais(PREVISOES).map((o) => o.valor)).toEqual(['', 'AGORA', 'ESTE_MES', 'PROXIMO_MES', 'SO_DE_PASSAGEM', 'NAO_SEI']);
+    const corpo = corpoDaInscricao({ ...INSCRICAO_VAZIA, nome: 'Pessoa Fictícia', whatsapp: '(11) 98765-4321', previsaoInicio: 'SO_DE_PASSAGEM', origem: 'TIKTOK' },
+      false, 'token');
+    expect(corpo).toMatchObject({ previsaoInicio: 'SO_DE_PASSAGEM', origem: 'TIKTOK' });
+    // O histórico mostra a origem nova pelo rótulo.
+    expect(textoDoEvento({ tipo: 'ORIGEM', de: null, para: 'TIKTOK', motivo: null, detalhe: null })).toBe('Origem: Não informada → TikTok');
   });
 
   it('duplicidade cita as inscrições anteriores', () => {

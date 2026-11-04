@@ -24,13 +24,16 @@ public final class Crm {
     public enum ModalidadeDesejada { ONLINE, PRESENCIAL, HIBRIDO, NAO_SEI }
 
     /** Quando a pessoa quer começar (formulário público). */
-    public enum PrevisaoInicio { AGORA, ESTE_MES, PROXIMO_MES, NAO_SEI }
+    public enum PrevisaoInicio { AGORA, ESTE_MES, PROXIMO_MES, SO_DE_PASSAGEM, NAO_SEI }
 
-    /** "Como conheceu a consultoria", respondido no formulário. */
-    public enum OrigemInformada { INDICACAO, INSTAGRAM, GOOGLE, OUTRA }
+    /** "Como conheceu a consultoria", respondido no formulário (V057 trouxe YOUTUBE, TIKTOK, INFLUENCIADOR e ALUNO_DO_TIME). */
+    public enum OrigemInformada { INDICACAO, INSTAGRAM, GOOGLE, YOUTUBE, TIKTOK, INFLUENCIADOR, ALUNO_DO_TIME, OUTRA }
 
-    /** Origem da equipe: começa pela respondida (ou pelo link) e pode ser corrigida. */
-    public enum Origem { INDICACAO, INSTAGRAM, GOOGLE, CAMPANHA, OUTRA }
+    /**
+     * Origem da equipe: começa pela respondida (ou pelo link) e pode ser corrigida. Tem todos os valores de
+     * {@link OrigemInformada} (a inscrição copia pelo nome) e mais CAMPANHA, que só vem do link.
+     */
+    public enum Origem { INDICACAO, INSTAGRAM, GOOGLE, YOUTUBE, TIKTOK, INFLUENCIADOR, ALUNO_DO_TIME, CAMPANHA, OUTRA }
 
     /** Tipos de evento do histórico. */
     public enum TipoEvento {
@@ -46,6 +49,8 @@ public final class Crm {
         if (link == null) return null;
         return switch (link) {
             case "instagram", "ig" -> Origem.INSTAGRAM;
+            case "youtube", "yt" -> Origem.YOUTUBE;
+            case "tiktok", "tt" -> Origem.TIKTOK;
             case "google" -> Origem.GOOGLE;
             case "indicacao" -> Origem.INDICACAO;
             default -> Origem.CAMPANHA;
