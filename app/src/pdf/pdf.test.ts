@@ -435,7 +435,7 @@ describe('PDF da dieta', () => {
   });
 
   describe('link da suplementação', () => {
-    const comSuplementos = (itens: { nome: string; link: string | null }[]) =>
+    const comSuplementos = (itens: { nome: string; link: string | null; cupom?: string | null }[]) =>
       documentoDieta({
         ...base,
         versao: 1,
@@ -453,6 +453,13 @@ describe('PDF da dieta', () => {
       expect(h).not.toContain('<script>');
       expect(h).not.toContain('com/"><');
       expect(h).toContain('<a href="https://exemplo.com/&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;">Item de teste B</a>');
+    });
+
+    it('cupom sai na linha do suplemento, escapado, sem link e sem conta', () => {
+      const h = comSuplementos([{ nome: 'Item de teste E', link: null, cupom: 'PROMO <script>' }]);
+      expect(h).toContain('Item de teste E · Cupom: PROMO &lt;script&gt;');
+      expect(h).not.toContain('<script>');
+      expect(h).not.toContain('href=');
     });
 
     it('nome com HTML sai escapado e link inseguro não vira link', () => {

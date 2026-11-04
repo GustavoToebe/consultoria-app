@@ -11,7 +11,7 @@ import { Botao } from '../../ui/Botao';
 import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
 import { Cartao } from '../../ui/Cartao';
 import { LinhaDaLista, ListaDeLinhas } from '../../ui/LinhaDaLista';
-import { type AoAbrirItem, iconeDoTom, MarcadorDaAgenda, rotuloDoItem, seloDaAtualizacaoNaAgenda, seloDoCompromissoComIcone } from './itemDaAgenda';
+import { type AoAbrirItem, iconeDoTom, MarcadorDaAgenda, rotuloDoItem, seloDaAtualizacaoNaAgenda, seloDoCompromissoComIcone, useCorDaAgenda, useFundoDoItem } from './itemDaAgenda';
 
 interface Props {
   itens: readonly ItemDoCalendario[];
@@ -33,7 +33,7 @@ export const tituloDoDia = (data: string, hoje: string) => `${rotuloDoDia(data, 
  * Dia e Semana no celular (e o dia escolhido no Mês compacto): um cartão por dia com a faixa do dia e o resumo; o dia vazio
  * fica só na faixa, para a semana caber na tela. Cada linha tem a faixa da cor da agenda (8 px, como na grade); o status
  * do compromisso vai num selo escrito (o cancelado não é mais esmaecido: a opacidade apagava o selo junto); a atualização
- * é link para a ficha. O fundo da linha é o da `LinhaDaLista` (sem tinta: ela não recebe fundo de fora).
+ * é link para a ficha. O fundo da linha é a mesma tinta da grade (`useFundoDoItem`), passada em `fundo`.
  */
 export function ListaDoCalendario({ itens, de, ate, hoje, meus, nomesDasAgendas, semData = [], aoAbrir }: Props) {
   const dias = agruparPorDia(itens, de, ate);
@@ -77,26 +77,29 @@ function Linha({ item, dia, hoje, meus, nomesDasAgendas, aoAbrir }: {
   item: ItemDoCalendario; dia: string; hoje: string; meus: boolean; nomesDasAgendas: ReadonlyMap<string, string>; aoAbrir: AoAbrirItem;
 }) {
   const f = item.fonte;
+  const corDaFaixa = useCorDaAgenda();
+  const fundoDe = useFundoDoItem();
+  const tinta = fundoDe(corDaFaixa(item.cor), false, item.cancelado);
   // A faixa de 8 px da cor da agenda, como na grade; o status vai no selo (nunca só na cor ou na opacidade).
   const marcador = <MarcadorDaAgenda cor={item.cor} forma="faixa" />;
   if (f.origem === 'ATUALIZACAO') {
     const selo = seloDaAtualizacaoNaAgenda(f.atualizacao, hoje);
     // O dia já está no título do cartão: o selo só entra quando diz algo a mais (adiada, atrasada).
-    return <LinhaDaLista titulo={item.titulo} metadados="Atualização" inicio={marcador}
+    return <LinhaDaLista titulo={item.titulo} metadados="Atualização" inicio={marcador} fundo={tinta}
       selos={selo ? [{ texto: selo.curto, tipo: selo.tipo, Icone: iconeDoTom(selo.tipo) }] : undefined}
       href={caminhoAtualizacaoTreinador(f.atualizacao, { situacao: 'PROXIMAS', meus })}
       rotulo={`Abrir atualização de ${item.titulo}, ${tituloDoDia(dia, hoje)}${selo ? `, ${selo.curto}` : ''}`} />;
   }
   if (f.origem === 'COMPROMISSO') {
     const c = f.compromisso;
-    return <LinhaDaLista titulo={item.titulo} metadados={metadadosDoCompromisso(c)} selos={[seloDoCompromissoComIcone(c)]} inicio={marcador}
+    return <LinhaDaLista titulo={item.titulo} metadados={metadadosDoCompromisso(c)} selos={[seloDoCompromissoComIcone(c)]} inicio={marcador} fundo={tinta}
       aoTocarTextos={() => aoAbrir(item)}
       acoes={<Botao rotulo="Abrir" tipo="secundario" rotuloAcessivel={rotuloDoItem(item, hoje)} aoTocar={() => aoAbrir(item)} />} />;
   }
   const o = f.ocorrencia;
   const partes = ['Evento', o.diaInteiro ? 'Dia inteiro' : `${o.hora ?? ''}–${o.horaFim ?? ''}`, o.local, nomesDasAgendas.get(o.agendaId)]
     .filter((p): p is string => !!p);
-  return <LinhaDaLista titulo={item.titulo} metadados={partes.join(' · ')} inicio={marcador}
+  return <LinhaDaLista titulo={item.titulo} metadados={partes.join(' · ')} inicio={marcador} fundo={tinta}
     aoTocarTextos={() => aoAbrir(item)}
     acoes={<Botao rotulo="Abrir" tipo="secundario" rotuloAcessivel={rotuloDoItem(item, hoje)} aoTocar={() => aoAbrir(item)} />} />;
 }

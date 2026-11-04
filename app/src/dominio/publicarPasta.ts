@@ -109,6 +109,8 @@ export function motivoParaNaoCopiar(planos: PlanosDaPasta, pode: (codigo: string
  * cobre o que a pessoa viu. Tipo desconhecido (`null`: não lido ou lista que não chegou) não entra, e `planos` `null` dá
  * `{}`. Montar na hora do clique, com a lista do momento (também no "Publicar mesmo assim"). O botão fica travado
  * enquanto uma lista falha ou é buscada de novo ({@link situacaoDoPublicar}), então a lista do clique é sempre a que a tela terminou de ler.
+ * Quem publica usa {@link versoesDasListas}: `planosDaPasta` zera a mobilidade quando o `/eu` guardado diz que ela está
+ * fora do plano, e um `/eu` velho (até cerca de 5 min) tiraria a versão do pedido e a API responderia 409 sem nada ter mudado.
  */
 export function versoesDosPendentes(planos: PlanosDaPasta | null): Record<string, number> {
   const versoes: Record<string, number> = {};
@@ -117,6 +119,18 @@ export function versoesDosPendentes(planos: PlanosDaPasta | null): Record<string
     for (const p of planos[tipo] ?? []) if (planoPendente(p)) versoes[p.id] = p.versao;
   }
   return versoes;
+}
+
+/**
+ * Versões dos pendentes a partir das listas que a tela já carregou, sem olhar a funcionalidade guardada no `/eu`.
+ * A mobilidade entra quando a lista chegou, mesmo com a flag desatualizada. Lista ausente (`null`) continua de fora.
+ * A API ignora versão de plano que ela mesma pula (funcionalidade realmente desligada) e recusa o pendente ausente.
+ */
+export function versoesDasListas(
+  pastaId: string,
+  porTipo: Partial<Record<TipoPlano, readonly PlanoResumo[] | null | undefined>>,
+): Record<string, number> {
+  return versoesDosPendentes(planosDaPasta(pastaId, porTipo, true));
 }
 
 /** 409 `CONFLITO_EDICAO` do "Publicar tudo": os planos mudaram desde que a tela os leu. A tela recarrega e avisa. */
