@@ -23,14 +23,15 @@ export function ContadoresDoTreino({ conteudo, sessao, aoIrAoPrimeiro }: {
   conteudo: ConteudoTreino;
   /** A sessão aberta no editor; nula sem nenhuma (o contador dela some). */
   sessao?: Sessao | null;
-  aoIrAoPrimeiro: (uids: string[]) => void;
+  /** `caminho` do primeiro erro (o mesmo de onde saem os uids), para o editor abrir a aba da série dele. */
+  aoIrAoPrimeiro: (uids: string[], caminho?: string) => void;
 }) {
   const { cores } = useTema();
   const { rolarAte } = useRolagem();
   const erros = useMemo(() => validarTreino(conteudo).erros, [conteudo]);
   const irAoPrimeiro = () => {
     const uids = uidsDoPrimeiroProblema(conteudo, erros);
-    aoIrAoPrimeiro(uids);
+    aoIrAoPrimeiro(uids, erros[0]?.caminho);
     rolarAte(uids);
   };
   return (
@@ -69,7 +70,7 @@ function Contador({ Icone, texto }: { Icone: LucideIcon; texto: string }) {
 
 const estilos = StyleSheet.create({
   linha: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
-  contador: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), minHeight: ALVO_TOQUE - 4, paddingHorizontal: espaco(1.5), paddingVertical: espaco(0.5), borderWidth: 1, borderRadius: RAIO, maxWidth: '100%' },
+  contador: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), minHeight: ALVO_TOQUE, paddingHorizontal: espaco(1.5), paddingVertical: espaco(0.5), borderWidth: 1, borderRadius: RAIO, maxWidth: '100%' },
   // Em 390 px ou com texto grande o contador quebra linha dentro da caixa em vez de sair dela.
   texto: { flexShrink: 1 },
   forte: { fontFamily: fontes.semi },

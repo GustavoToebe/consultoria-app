@@ -3,7 +3,7 @@ import { NotebookTabs } from 'lucide-react-native';
 import { Fragment, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { criarReceita, listarExercicios, salvarPlanoComoReceita } from '../../api/rotas';
+import { baixarFotoDePerfilDoAluno, criarReceita, listarExercicios, salvarPlanoComoReceita } from '../../api/rotas';
 import type { Configuracao, ConteudoTreino, ExercicioPlano, Receita, ResultadoValidacao, Sessao } from '../../api/tipos';
 import { uidsComProblema } from '../../dominio/caminhos';
 import {
@@ -32,11 +32,14 @@ import {
   substituir,
   trocaApagaSeries,
 } from '../../dominio/editorTreino';
+import { agrupar } from '../../dominio/agrupamento';
+import { proximaSelecao, resumoDaSessaoPorContagem, serieDoProblema } from '../../dominio/inspetorDoTreino';
 import { validarTreino } from '../../dominio/validacaoDoTreino';
 import { BarraDesfazer, type Desfazer } from '../../treinador/plano/BarraDesfazer';
 import { BarraDoModeloDoEditor, NomeDoModelo } from '../../treinador/plano/TopoModelo';
 import { BarraDoPlano, ProblemasDoPlano } from '../../treinador/plano/TopoPlano';
 import { TelaDoEditor } from '../plano/TelaDoEditor';
+import { ComColunas, useDuasColunas } from '../plano/ColunasDoEditor';
 import { avisoModeloSalvo, rotuloSalvarComo } from '../planejamento/modelos';
 import { usePlanoEditor } from '../../treinador/plano/usePlanoEditor';
 import { FolhaReceitas } from '../../treinador/FolhaReceitas';
@@ -59,6 +62,10 @@ import { AtualizacaoDoPlano } from '../plano/AtualizacaoDoPlano';
 import { VoltarParaAPasta } from '../plano/VoltarParaAPasta';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { ContadoresDoTreino } from './ContadoresDoTreino';
+import { InspetorDoExercicio, type PropsDoInspetor } from './InspetorDoExercicio';
+import { ItemDaListaDeExercicios, ListaDeExercicios } from './ListaDeExercicios';
+import { MetodologiaDoPlano } from './MetodologiaDoPlano';
+import { FotoDePerfil } from '../../ui/FotoDePerfil';
 import { SeletorDeSessoes } from './SeletorDeSessoes';
 import { Folha } from '../../ui/Folha';
 import { Botao } from '../../ui/Botao';
@@ -102,7 +109,12 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
   const editor = usePlanoEditor<ConteudoTreino>('treino', id, normalizarTreino, modelo);
   const nomeDoAluno = useNomeDoAluno(modelo ? null : editor.estado?.plano.alunoId);
   const config = editor.estado?.conteudo.metodologia?.configuracao ?? CONFIGURACAO_PADRAO;
-  const [abertos, setAbertos] = useState<Set<string>>(new Set());
+  // Exercício escolhido na sessão aberta (`selecionadaUid` é o da sessão). Duas colunas: o do inspetor, nunca vazio com
+  // exercício na sessão. Uma coluna: o único aberto; nulo = todos fechados. Uid que saiu da sessão vale como o primeiro.
+  const [exercicioSelecionadoUid, setExercicioSelecionadoUid] = useState<string | null>(null);
+  // Aba de séries aberta por exercício (D8): uid de uma série do grupo. Fica aqui para o "ir ao primeiro" e a receita abrirem a certa.
+  const [grupoAbertoPorExercicio, setGrupoAbertoPorExercicio] = useState<Record<string, string | null>>({});
+  const abrirGrupo = (exercicioUid: string, serieUid: string | null) => setGrupoAbertoPorExercicio((a) => ({ ...a, [exercicioUid]: serieUid }));
   // Resultado do servidor (Validar, Publicar) com o conteúdo a que se refere: ao editar, as marcas dele saem e ficam só as da validação local.
   const [servidor, setServidor] = useState<{ resultado: ResultadoValidacao; para: ConteudoTreino } | null>(null);
   const problemas = servidor?.resultado ?? null;
@@ -144,16 +156,14 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
     validar: () => { setVerificando(true); return editor.validar(); },
     publicar: (...args: Parameters<typeof editor.publicar>) => { setVerificando(true); return editor.publicar(...args); },
   };
-  const alternar = (uid: string) =>
-    setAbertos((a) => {
-      const novo = new Set(a);
-      if (novo.has(uid)) novo.delete(uid);
-      else novo.add(uid);
-      return novo;
-    });
-  const abrir = (uid: string) => setAbertos((a) => new Set(a).add(uid));
   const indiceSelecionado = Math.max(0, c.sessoes.findIndex((x) => x.uid === selecionadaUid));
   const sessaoAtual = c.sessoes[indiceSelecionado] ?? null;
+  const uidsDaSessao = sessaoAtual?.exercicios.map((e) => e.uid) ?? [];
+  /** O escolhido de verdade: em uma coluna, nulo continua nulo (tudo fechado); uid que saiu da sessão vira o primeiro. */
+  const escolhidoEm = (duas: boolean) =>
+    duas || exercicioSelecionadoUid !== null ? proximaSelecao(uidsDaSessao, uidsDaSessao, exercicioSelecionadoUid) : null;
+  /** Uma coluna: tocar no aberto fecha; tocar em outro abre só ele. */
+  const alternar = (uid: string) => setExercicioSelecionadoUid(escolhidoEm(false) === uid ? null : uid);
   const sessoesComProblema = new Set(c.sessoes.filter((x) => comErro.has(x.uid) || x.exercicios.some((e) => comErro.has(e.uid))).map((x) => x.uid));
   /** Resultado da validação: com erro, abre a primeira sessão que precisa de correção. */
   const aoProblemas = (r: ResultadoValidacao | null) => {
@@ -169,11 +179,18 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
     if (r === null) { setServidor(null); setVerificando(false); } else aoProblemas(r);
   };
 
-  /** "Ir ao primeiro" da lista de erros: seleciona a sessão dele e abre o exercício; a rolagem é do `TopoPlano`. */
-  const irAoPrimeiro = (uids: string[]) => {
+  /**
+   * "Ir ao primeiro" da lista de erros: seleciona a sessão dele, abre o exercício e, se o problema é de uma série, a aba
+   * do grupo dela (D9). A rolagem é do `TopoPlano`.
+   */
+  const irAoPrimeiro = (uids: string[], caminho?: string) => {
     const sessao = c.sessoes.find((x) => uids.includes(x.uid) || x.exercicios.some((e) => uids.includes(e.uid)) || (x.grupos ?? []).some((g) => uids.includes(g.uid)));
     if (sessao) setSelecionadaUid(sessao.uid);
-    for (const u of uids) if (c.sessoes.some((x) => x.exercicios.some((e) => e.uid === u))) abrir(u);
+    const exercicio = sessao?.exercicios.find((e) => uids.includes(e.uid));
+    if (!exercicio) return;
+    setExercicioSelecionadoUid(exercicio.uid);
+    const serie = caminho ? serieDoProblema(exercicio, caminho) : null;
+    if (serie) abrirGrupo(exercicio.uid, serie);
   };
 
   /** Mudança grande (receita, remoção): guarda o conteúdo anterior para o "Desfazer". */
@@ -211,44 +228,45 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
 
   const blocos = sessaoAtual ? gruposDaSessao(sessaoAtual, config) : [];
 
-  const cartaoDoExercicio = (sessao: Sessao, e: ExercicioPlano, ei: number, noGrupo: boolean, descansoPorSerie = true) => (
-    <CartaoExercicio
-      key={e.uid}
-      exercicio={e}
-      posicao={ei}
-      total={sessao.exercicios.length}
-      aberto={abertos.has(e.uid)}
-      comProblema={comErro.has(e.uid)}
-      config={config}
-      erros={problemasDoExercicio(errosVivos, indiceSelecionado, ei)}
-      avisos={problemasDoExercicio(avisosVivos, indiceSelecionado, ei)}
-      noGrupo={noGrupo}
-      descansoPorSerie={descansoPorSerie}
-      demonstracao={e.exercicioId ? demonstracoes.get(e.exercicioId) ?? null : null}
-      grupoMuscular={e.exercicioId ? demonstracoes.get(e.exercicioId)?.grupoMuscular ?? null : null}
-      aoAbrir={() => alternar(e.uid)}
-      aoMudar={(novo) => mudarExercicios(indiceSelecionado, (lista) => substituir(lista, ei, novo))}
-      aoMudarApagandoSeries={(novo) => comDesfazer(`Modalidade de “${e.nome || ei + 1}” trocada; séries apagadas.`, (a) => trocarExercicioPorUid(a, sessao.uid, e.uid, novo))}
-      aoMover={(d) => mudarGrupos((s) => moverExercicio(s, ei, d))}
-      aoRemover={() =>
-        comDesfazer(`Exercício “${e.nome || ei + 1}” removido.`, (a) => ({
-          ...a,
-          sessoes: substituir(a.sessoes, indiceSelecionado, { ...a.sessoes[indiceSelecionado], ...removerExercicio(a.sessoes[indiceSelecionado], ei) }),
-        }))
-      }
-      aoTirarDoGrupo={() => mudarGrupos((s) => tirarDoGrupo(s, ei))}
-      aoEscolherDaBiblioteca={() => setFolha({ tipo: 'biblioteca', alvo: { sessao: indiceSelecionado, exercicio: ei } })}
-      aoUsarReceita={() => setFolha({ tipo: 'receitaSeries', alvo: { sessao: indiceSelecionado, exercicio: ei } })}
-      aoSalvarReceita={() => setFolha({ tipo: 'salvarSeries', alvo: { sessao: indiceSelecionado, exercicio: ei } })}
-    />
-  );
+  /** Props do exercício, as mesmas no cartão empilhado (uma coluna) e no inspetor (duas colunas). */
+  const propsDoExercicio = (sessao: Sessao, e: ExercicioPlano, ei: number, noGrupo: boolean, descansoPorSerie: boolean): PropsDoInspetor => ({
+    exercicio: e,
+    posicao: ei,
+    total: sessao.exercicios.length,
+    comProblema: comErro.has(e.uid),
+    config,
+    erros: problemasDoExercicio(errosVivos, indiceSelecionado, ei),
+    avisos: problemasDoExercicio(avisosVivos, indiceSelecionado, ei),
+    noGrupo,
+    descansoPorSerie,
+    demonstracao: e.exercicioId ? demonstracoes.get(e.exercicioId) ?? null : null,
+    grupoMuscular: e.exercicioId ? demonstracoes.get(e.exercicioId)?.grupoMuscular ?? null : null,
+    aoMudar: (novo) => mudarExercicios(indiceSelecionado, (lista) => substituir(lista, ei, novo)),
+    aoMudarApagandoSeries: (novo) => comDesfazer(`Modalidade de “${e.nome || ei + 1}” trocada; séries apagadas.`, (a) => trocarExercicioPorUid(a, sessao.uid, e.uid, novo)),
+    aoMover: (d) => mudarGrupos((s) => moverExercicio(s, ei, d)),
+    aoRemover: () => {
+      // Apagar o escolhido passa ao vizinho (o que fica no mesmo lugar, ou o novo último).
+      setExercicioSelecionadoUid((atual) => (atual === e.uid ? proximaSelecao(uidsDaSessao, uidsDaSessao.filter((u) => u !== e.uid), atual) : atual));
+      comDesfazer(`Exercício “${e.nome || ei + 1}” removido.`, (a) => ({
+        ...a,
+        sessoes: substituir(a.sessoes, indiceSelecionado, { ...a.sessoes[indiceSelecionado], ...removerExercicio(a.sessoes[indiceSelecionado], ei) }),
+      }));
+    },
+    aoTirarDoGrupo: () => mudarGrupos((s) => tirarDoGrupo(s, ei)),
+    aoEscolherDaBiblioteca: () => setFolha({ tipo: 'biblioteca', alvo: { sessao: indiceSelecionado, exercicio: ei } }),
+    aoUsarReceita: () => setFolha({ tipo: 'receitaSeries', alvo: { sessao: indiceSelecionado, exercicio: ei } }),
+    aoSalvarReceita: () => setFolha({ tipo: 'salvarSeries', alvo: { sessao: indiceSelecionado, exercicio: ei } }),
+    grupoAbertoUid: grupoAbertoPorExercicio[e.uid] ?? null,
+    aoAbrirGrupo: (uid) => abrirGrupo(e.uid, uid),
+  });
 
   const titulo = modelo ? tituloDoModelo(unica ? 'SESSAO_TREINO' : 'PLANO_TREINO') : tituloDoPlanoDoAluno('treino', nomeDoAluno);
 
   return (
     <TelaDoEditor
+      colunas
       cabecalho={<Cabecalho titulo={titulo} trilha={trilhaDoPlano(modelo, estado.plano.alunoId, titulo)} subtitulo={modelo ? undefined : estado.plano.titulo} voltar={modelo ? '/treinador/planejamento' : `/treinador/alunos/${estado.plano.alunoId}`} />}
-      barra={modelo ? <BarraDoModeloDoEditor editor={comVerificacao} receita={receita} /> : <BarraDoPlano tipo="treino" editor={comVerificacao} aoProblemas={aoProblemas} />}>
+      barra={modelo ? <BarraDoModeloDoEditor editor={comVerificacao} receita={receita} /> : <BarraDoPlano tipo="treino" editor={comVerificacao} aoProblemas={aoProblemas} inicio={<FotoNaBarra alunoId={estado.plano.alunoId} nome={nomeDoAluno} />} />}>
       {/* Plano de uma pasta: volta à Folha dela e lê a atualização sem perder o rascunho (reunião de 30/10). */}
       {!modelo && estado.plano.pastaId ? (
         <LinhaDeAcoes>
@@ -259,7 +277,7 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
       {modelo ? <FaixaDoModelo /> : <FaixaDoPlanoDoAluno tipo="treino" />}
       {modelo ? null : <CartaoCicloNoPeriodo alunoId={estado.plano.alunoId} inicio={estado.plano.inicio} fim={estado.plano.fim} />}
       {modelo ? <NomeDoModelo editor={editor} /> : null}
-      {unica ? null : <ContadoresDoTreino conteudo={c} sessao={sessaoAtual} aoIrAoPrimeiro={(uids) => { setVerificando(true); irAoPrimeiro(uids); }} />}
+      {unica ? null : <ContadoresDoTreino conteudo={c} sessao={sessaoAtual} aoIrAoPrimeiro={(uids, caminho) => { setVerificando(true); irAoPrimeiro(uids, caminho); }} />}
       <ProblemasDoPlano editor={editor} problemas={problemas ?? validacaoLocal} aoProblemas={fecharVerificacao} aoIrAoPrimeiro={irAoPrimeiro} />
       {desfazer ? (
         <BarraDesfazer
@@ -306,6 +324,7 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
         <SeletorDeSessoes
           sessoes={c.sessoes}
           selecionada={sessaoAtual?.uid ?? null}
+          config={config}
           comProblema={sessoesComProblema}
           aoSelecionar={setSelecionadaUid}
           aoAdicionar={adicionarSessao}
@@ -314,38 +333,22 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
       {c.sessoes.length === 0 ? (
         <Vazio texto="O plano ainda não tem sessões. Adicione uma ou comece de uma semana de treino pronta (botão Modelos)." />
       ) : null}
-      {sessaoAtual ? (
-        <CartaoSessao
-          key={sessaoAtual.uid}
-          sessao={sessaoAtual}
-          posicao={indiceSelecionado}
-          total={c.sessoes.length}
-          comProblema={sessoesComProblema.has(sessaoAtual.uid)}
-          aoMudar={(nova) => mudarSessoes((lista) => substituir(lista, indiceSelecionado, nova))}
-          aoMover={(d) => mudarSessoes((lista) => mover(lista, indiceSelecionado, d))}
-          removivel={!unica}
-          aoRemover={() => {
-            const removida = sessaoAtual;
-            setSelecionadaUid(sessaoSelecionadaDepois(c.sessoes, removida.uid, { tipo: 'remover', uid: removida.uid }));
-            comDesfazer(`Sessão “${removida.nome || indiceSelecionado + 1}” removida.`, (a) => ({ ...a, sessoes: a.sessoes.filter((x) => x.uid !== removida.uid) }));
-          }}
-          aoSalvarModelo={() => setFolha({ tipo: 'salvarSessao', indice: indiceSelecionado })}
-          aoNovoExercicio={() => adicionarExercicio(indiceSelecionado)}
-          aoAbrirModelos={unica ? undefined : () => setModelos(true)}
-          aoCriarGrupo={() => setFolha({ tipo: 'grupo' })}
-          motivoSemGrupo={motivoSemGrupo(sessaoAtual, config)}
-          todosAbertos={sessaoAtual.exercicios.length > 0 && sessaoAtual.exercicios.every((e) => abertos.has(e.uid))}
-          aoAlternarTodos={() => {
-            const uids = sessaoAtual.exercicios.map((e) => e.uid);
-            const todos = uids.every((u) => abertos.has(u));
-            setAbertos((a) => { const novo = new Set(a); uids.forEach((u) => (todos ? novo.delete(u) : novo.add(u))); return novo; });
-          }}>
-          {blocos.map((g, bi) => {
-            const descansoPorSerie = !(g.grupo && descansoSoDoGrupo(g.grupo));
-            const cartoes = g.exercicios.map((e, i) => cartaoDoExercicio(sessaoAtual, e, g.inicio + i, g.grupo !== null, descansoPorSerie));
-            const grupo = g.grupo;
-            if (!grupo) return <Fragment key={g.exercicios[0].uid}>{cartoes}</Fragment>;
-            return (
+      {sessaoAtual ? <ComColunas>{(duas) => {
+        const escolhido = escolhidoEm(duas);
+        let noInspetor: PropsDoInspetor | null = null;
+        const itens = blocos.map((g, bi) => {
+          const descansoPorSerie = !(g.grupo && descansoSoDoGrupo(g.grupo));
+          // Uma coluna: o cartão de hoje, com o corpo aberto só no escolhido. Duas: o item da lista, e o escolhido vai ao inspetor.
+          const cartoes = g.exercicios.map((e, i) => {
+            const ei = g.inicio + i;
+            if (!duas) return <CartaoExercicio key={e.uid} {...propsDoExercicio(sessaoAtual, e, ei, g.grupo !== null, descansoPorSerie)} aberto={e.uid === escolhido} aoAbrir={() => alternar(e.uid)} />;
+            if (e.uid === escolhido) noInspetor = propsDoExercicio(sessaoAtual, e, ei, g.grupo !== null, descansoPorSerie);
+            return <ItemDaListaDeExercicios key={e.uid} exercicio={e} posicao={ei} total={sessaoAtual.exercicios.length} config={config}
+              escolhido={e.uid === escolhido} comProblema={comErro.has(e.uid)} aoEscolher={() => setExercicioSelecionadoUid(e.uid)} />;
+          });
+          const grupo = g.grupo;
+          if (!grupo) return <Fragment key={g.exercicios[0].uid}>{cartoes}</Fragment>;
+          return (
               <CartaoGrupo
                 key={`grupo-${g.exercicios[0].uid}`}
                 grupo={grupo}
@@ -368,9 +371,47 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
                 {cartoes}
               </CartaoGrupo>
             );
-          })}
-        </CartaoSessao>
-      ) : null}
+        });
+        const adicionar = {
+          aoNovoExercicio: () => adicionarExercicio(indiceSelecionado),
+          aoAbrirModelos: unica ? undefined : () => setModelos(true),
+          aoCriarGrupo: () => setFolha({ tipo: 'grupo' }),
+          motivoSemGrupo: motivoSemGrupo(sessaoAtual, config),
+        };
+        return (
+          <CartaoSessao
+            key={sessaoAtual.uid}
+            sessao={sessaoAtual}
+            posicao={indiceSelecionado}
+            total={c.sessoes.length}
+            comProblema={sessoesComProblema.has(sessaoAtual.uid)}
+            aoMudar={(nova) => mudarSessoes((lista) => substituir(lista, indiceSelecionado, nova))}
+            aoMover={(d) => mudarSessoes((lista) => mover(lista, indiceSelecionado, d))}
+            removivel={!unica}
+            aoRemover={() => {
+              const removida = sessaoAtual;
+              setSelecionadaUid(sessaoSelecionadaDepois(c.sessoes, removida.uid, { tipo: 'remover', uid: removida.uid }));
+              comDesfazer(`Sessão “${removida.nome || indiceSelecionado + 1}” removida.`, (a) => ({ ...a, sessoes: a.sessoes.filter((x) => x.uid !== removida.uid) }));
+            }}
+            aoSalvarModelo={() => setFolha({ tipo: 'salvarSessao', indice: indiceSelecionado })}
+            {...adicionar}
+            adicionarNoFim={!duas}>
+            {duas ? (
+              // Lista (mestre) com largura fixa à esquerda; o inspetor (detalhe) do escolhido no resto.
+              <View style={estilos.colunas}>
+                <ListaDeExercicios
+                  metodologia={<MetodologiaDoPlano nome={c.metodologia?.nome ?? null} config={config} aoTrocar={unica ? undefined : () => setFolha({ tipo: 'metodologia' })} />}
+                  vazia={sessaoAtual.exercicios.length === 0}
+                  resumo={resumoDaSessaoPorContagem(sessaoAtual, config, (e) => (e.exercicioId ? demonstracoes.get(e.exercicioId)?.grupoMuscular ?? null : null))}
+                  adicionar={adicionar}>
+                  {itens}
+                </ListaDeExercicios>
+                <InspetorDoExercicio props={noInspetor} />
+              </View>
+            ) : itens}
+          </CartaoSessao>
+        );
+      }}</ComColunas> : null}
 
       {modelos ? (
         <Folha visivel titulo="Modelos" aoFechar={() => setModelos(false)}>
@@ -419,12 +460,12 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
               ? { campos: { exercicioId: escolhido.id, nome: escolhido.nome, videoUrl: escolhido.videoUrl }, modalidade: escolhido.modalidade as string | null }
               : { campos: { exercicioId: null, nome: escolhido.nome }, modalidade: null as string | null };
           if (ei === null) {
-            // Exercícios novos no fim da sessão, na ordem marcada; abre o primeiro para continuar de onde a lista começa.
+            // Exercícios novos no fim da sessão, na ordem marcada; o primeiro fica escolhido (aberto) para continuar dali.
             const novos = escolhidos.map((e) => {
               const d = daBiblioteca(e);
               return comModalidade({ ...novoExercicio(), ...d.campos }, d.modalidade);
             });
-            abrir(novos[0].uid);
+            setExercicioSelecionadoUid(novos[0].uid);
             mudarExercicios(si, (lista) => [...lista, ...novos]);
             return;
           }
@@ -478,11 +519,15 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
           aoUsar={(r) => {
             const { sessao: si, exercicio: ei } = folha.alvo;
             setFolha(null);
+            // Gerada uma vez, fora do `comDesfazer`, para a aba aberta (a do último grupo, D12) apontar para estas séries.
+            const series = seriesDaReceita(r.conteudo);
+            const alvo = c.sessoes[si]?.exercicios[ei];
+            if (alvo) abrirGrupo(alvo.uid, agrupar(series).at(-1)?.series[0].uid ?? null);
             comDesfazer(`Receita “${r.nome}” aplicada.`, (a) => {
               const sessao = a.sessoes[si];
               const exercicio = sessao?.exercicios[ei];
               if (!exercicio) return a;
-              const novo = { ...exercicio, series: seriesDaReceita(r.conteudo) };
+              const novo = { ...exercicio, series };
               return { ...a, sessoes: substituir(a.sessoes, si, { ...sessao, exercicios: substituir(sessao.exercicios, ei, novo) }) };
             });
           }}
@@ -531,6 +576,16 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
   );
 }
 
+/**
+ * Foto pequena do aluno no início da barra do editor, só em duas colunas (no celular a barra já é apertada). Sem foto,
+ * sem internet ou sem permissão, as iniciais. Modelo não tem aluno: o editor não a passa.
+ */
+function FotoNaBarra({ alunoId, nome }: { alunoId: string; nome: string | null }) {
+  const duas = useDuasColunas();
+  if (!duas) return null;
+  return <FotoDePerfil chave={`perfil:${alunoId}`} carregar={() => baixarFotoDePerfilDoAluno(alunoId)} nome={nome} tamanho={32} />;
+}
+
 /** Linha de ação da folha "Modelos": título, o que faz e um toque para escolher. */
 function OpcaoDeModelo({ titulo, descricao, desabilitado, aoEscolher }: { titulo: string; descricao: string; desabilitado?: boolean; aoEscolher: () => void }) {
   const { cores } = useTema();
@@ -551,6 +606,7 @@ function OpcaoDeModelo({ titulo, descricao, desabilitado, aoEscolher }: { titulo
 }
 
 const estilos = StyleSheet.create({
+  colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(2) },
   cabecalhoSessoes: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
   metodologia: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
   metodologiaTexto: { flexShrink: 1 },

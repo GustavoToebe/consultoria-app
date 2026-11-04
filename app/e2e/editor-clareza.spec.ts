@@ -68,6 +68,15 @@ async function planoComDoisExercicios(page: Page, listaDeReceitas: Receita[] = r
   return api;
 }
 
+/**
+ * Em duas colunas (1280) o exercício se escolhe tocando no item da lista; no estreito (390) o título do cartão abre e fecha
+ * (um por vez). O item da lista tem a posição e o total no nome acessível.
+ */
+async function escolherExercicio(page: Page, largura: number, posicao: number, total: number, nome: string) {
+  if (largura >= 960) await page.getByRole('button', { name: new RegExp(`^Exercício ${posicao} de ${total}: ${nome}`) }).click();
+  else await page.getByRole('button', { name: `Editar ${nome}`, exact: true }).click();
+}
+
 const semRolagemDeLado = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
 
 for (const largura of [390, 1280]) {
@@ -77,10 +86,16 @@ for (const largura of [390, 1280]) {
     // Contadores: o plano inteiro e a sessão aberta, separados.
     await expect(page.getByText('Plano inteiro: 1 sessão · 2 exercícios · 5 séries cadastradas', { exact: true })).toBeVisible();
     await expect(page.getByText('Sessão aberta: 2 exercícios · 5 séries', { exact: true })).toBeVisible();
-    // A posição por extenso, sem confundir com o número da série.
+    // A posição por extenso, sem confundir com o número da série: no estreito está no título de cada cartão; em duas
+    // colunas, no nome acessível de cada item da lista (e no título do exercício escolhido, no inspetor).
     await expect(page.getByText('Exercício 1 de 2 · Agachamento fictício', { exact: true })).toBeVisible();
-    await expect(page.getByText('Exercício 2 de 2 · Remada fictícia', { exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Editar Agachamento fictício', exact: true }).click();
+    if (largura >= 960) {
+      await expect(page.getByRole('button', { name: /^Exercício 1 de 2: Agachamento fictício/ })).toHaveAttribute('aria-current', 'true');
+      await expect(page.getByRole('button', { name: /^Exercício 2 de 2: Remada fictícia/ })).toBeVisible();
+    } else {
+      await expect(page.getByText('Exercício 2 de 2 · Remada fictícia', { exact: true })).toBeVisible();
+    }
+    await escolherExercicio(page, largura, 1, 2, 'Agachamento fictício');
     // Mover o exercício e mover o grupo de séries têm nomes diferentes; o primeiro não sobe.
     await expect(page.getByRole('button', { name: 'Mover exercício para cima', exact: true }).first()).toBeDisabled();
     await expect(page.getByRole('button', { name: 'Mover exercício para baixo', exact: true }).first()).toBeEnabled();
@@ -89,10 +104,9 @@ for (const largura of [390, 1280]) {
     // A partir de 768 px os botões de mover dizem o quê; no celular ficam só com a seta (nome acessível igual).
     const comTexto = page.getByRole('button', { name: 'Mover exercício para baixo', exact: true }).first().getByText('Mover exercício', { exact: true });
     await expect(comTexto).toHaveCount(largura >= 768 ? 1 : 0);
-    // O grupo: o tipo na 1ª linha e os percentuais de cada série na 2ª.
-    await expect(page.getByRole('button', { name: 'Preparação · FS, recolhido', exact: true })).toBeVisible();
-    await expect(page.getByText(/^3x3 - FS 50% · 70% · 85% a 90% da WS/).first()).toBeVisible();
-    await page.getByRole('button', { name: 'Preparação · FS, recolhido', exact: true }).click();
+    // O grupo: uma aba por grupo ("Série 1 · FS"), já aberta no 1º; o título dele diz o tipo e os percentuais de cada série.
+    await expect(page.getByRole('tab', { name: /^Série 1 · FS/ })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByText(/3x3 - FS 50% · 70% · 85% a 90% da WS/).first()).toBeVisible();
     // Faixa curta com o exercício no topo do grupo aberto.
     await expect(page.getByText('Exercício 1 · Agachamento fictício', { exact: true })).toBeVisible();
     await expect(page.getByRole('textbox', { name: 'Série 3 · Mínimo (%)', exact: true })).toHaveValue('85');
@@ -121,8 +135,8 @@ for (const largura of [390, 1280]) {
   test(`editor: receita de séries com busca, sequência, aviso, aplicar e desfazer (${largura}px)`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const api = await planoComDoisExercicios(page);
-    await page.getByRole('button', { name: 'Editar Remada fictícia', exact: true }).click();
-    await page.getByRole('button', { name: 'Usar receita', exact: true }).click();
+    await escolherExercicio(page, largura, 2, 2, 'Remada fictícia');
+    await page.getByRole('button', { name: 'Usar uma receita de séries', exact: true }).click();
     // Agrupadas por bloco e técnica (Frente G, D16): as duas têm mais de um papel e nenhuma técnica, então são
     // "Receitas completas"; cada uma com a composição, a sequência, a coleção e o aviso de que substitui as séries.
     await expect(page.getByRole('button', { name: 'Receitas completas, aberto', exact: true })).toBeVisible();
@@ -148,12 +162,16 @@ for (const largura of [390, 1280]) {
     await page.getByRole('button', { name: 'Aplicar receita Volume fictício', exact: true }).click();
     await expect(page.getByText('Substitui as séries deste exercício', { exact: true })).toHaveCount(0);
     await expect(page.getByText('Receita “Volume fictício” aplicada.', { exact: true })).toBeVisible();
-    await expect(page.getByText(/^1x8 a 10 - WS/).first()).toBeVisible();
-    await expect(page.getByText(/^2x10 a 12 - Back off/).first()).toBeVisible();
+    // A receita vira duas abas (uma por grupo); a aberta é a última, o título dela traz a faixa dos números.
+    await expect(page.getByRole('tab', { name: /^Série \d/ })).toHaveCount(2);
+    await expect(page.getByText(/2x10 a 12 - Back off/).first()).toBeVisible();
+    await page.getByRole('tab', { name: /^Série 1 · WS/ }).click();
+    await expect(page.getByText(/1x8 a 10 - WS/).first()).toBeVisible();
     // Desfazer volta as séries de antes.
     await page.getByRole('button', { name: 'Desfazer', exact: true }).click();
-    await expect(page.getByText(/^2x10 a 12 - Back off/)).toHaveCount(0);
-    await expect(page.getByText(/^1x8 a 12 - WS/).first()).toBeVisible();
+    await expect(page.getByRole('tab', { name: /^Série \d/ })).toHaveCount(1);
+    await expect(page.getByText(/2x10 a 12 - Back off/)).toHaveCount(0);
+    await expect(page.getByText(/1x8 a 12 - WS/).first()).toBeVisible();
     // Nada foi gravado: aplicar e desfazer só mexem no rascunho da tela.
     expect(api.pedidos.filter((p) => p.metodo === 'PUT')).toHaveLength(0);
     expect(api.errosDaPagina).toEqual([]);
@@ -183,8 +201,8 @@ for (const nomeDoTema of ['claro', 'escuro'] as const) {
       await page.setViewportSize({ width: largura, height: 900 });
       await page.addInitScript(([id, t]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: t })), [TREINADOR.id, nomeDoTema === 'escuro' ? 'ESCURO' : 'CLARO']);
       const api = await planoComDoisExercicios(page, RECEITAS_EM_BLOCOS);
-      await page.getByRole('button', { name: 'Editar Remada fictícia', exact: true }).click();
-      await page.getByRole('button', { name: 'Usar receita', exact: true }).click();
+      await escolherExercicio(page, largura, 2, 2, 'Remada fictícia');
+      await page.getByRole('button', { name: 'Usar uma receita de séries', exact: true }).click();
       // Completas primeiro, depois os papéis e as técnicas; cada receita uma vez.
       const secoes = page.getByRole('button', { name: /, (aberto|recolhido)$/ }).filter({ hasText: /^(Receitas completas|Aquecimento|Pós-trabalho|Técnica: .*)/ });
       await expect(secoes).toHaveText([/^Receitas completas/, /^Aquecimento/, /^Pós-trabalho/, /^Técnica: Rest pause/, /^Técnica: Cluster/]);

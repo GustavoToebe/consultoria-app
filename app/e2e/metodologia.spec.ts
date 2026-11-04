@@ -133,10 +133,12 @@ for (const largura of [390, 1280]) {
 
     await page.goto(`/treinador/planejamento/modelo/${ID_SERIES}`);
     await expect(page.getByRole('button', { name: 'Salvar modelo', exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Adicionar série', exact: true }).click();
-    await expect(page.getByRole('button', { name: '21s', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'GVT (10×10)', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Forced reps', exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Nova série', exact: true }).click();
+    // O painel "Nova série" vem antes do grupo aberto, que tem outro grupo de técnicas ("Técnica da série").
+    const tecnicasDoPainel = page.getByRole('radiogroup', { name: 'Técnica', exact: true });
+    await expect(tecnicasDoPainel.getByRole('button', { name: '21s', exact: true })).toBeVisible();
+    await expect(tecnicasDoPainel.getByRole('button', { name: 'GVT (10×10)', exact: true })).toBeVisible();
+    await expect(tecnicasDoPainel.getByRole('button', { name: 'Forced reps', exact: true })).toHaveCount(0);
     expect(api.errosDaPagina).toEqual([]);
     expect(api.naoTratadas).toEqual([]);
   });
@@ -168,14 +170,18 @@ for (const largura of [390, 1280]) {
     await expect(page.getByText('A metodologia não tem combinações.', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Criar grupo', exact: true })).toBeDisabled();
 
-    await page.getByRole('button', { name: 'Editar Supino fictício', exact: true }).click();
-    await page.getByRole('button', { name: 'Usar receita', exact: true }).click();
+    // Em duas colunas o exercício se escolhe na lista; no estreito o título do cartão abre.
+    if (largura >= 960) await page.getByRole('button', { name: /^Exercício 1 de 2: Supino fictício/ }).click();
+    else await page.getByRole('button', { name: 'Editar Supino fictício', exact: true }).click();
+    await page.getByRole('button', { name: 'Usar uma receita de séries', exact: true }).click();
     await page.getByRole('button', { name: 'Aplicar receita Pirâmide decrescente', exact: true }).click();
     await expect(page.getByText('Substitui as séries deste exercício', { exact: true })).toHaveCount(0);
-    await expect(page.getByText(/^1x10 - WS \+ Pirâmide decrescente 10% a 15% abaixo da referência/)).toBeVisible();
-    // As três séries têm o mesmo título ("Trabalho · WS + Pirâmide decrescente"); a de 10 reps é a segunda faixa.
-    await page.getByRole('button', { name: 'Trabalho · WS + Pirâmide decrescente, recolhido', exact: true }).nth(1).click();
-    await expect(page.getByRole('button', { name: 'Série 1 · WS', exact: true })).toBeVisible();
+    // A receita vira três abas, uma por faixa de repetições, todas "WS + Pirâmide decrescente"; a de 10 reps é a segunda.
+    await expect(page.getByRole('tab', { name: /^Série \d · WS/ })).toHaveCount(3);
+    await page.getByRole('tab', { name: /^Série 2 · WS/ }).click();
+    await expect(page.getByRole('tab', { name: /^Série 2 · WS/ })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByText(/1x10 - WS \+ Pirâmide decrescente 10% a 15% abaixo da referência/)).toBeVisible();
+    await expect(page.getByText('Editando: Série 2', { exact: true })).toBeVisible();
     expect(api.errosDaPagina).toEqual([]);
     expect(api.naoTratadas).toEqual([]);
   });

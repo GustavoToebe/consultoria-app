@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, ChevronsDownUp, ChevronsUpDown, Ellipsis, Link2, NotebookTabs, Plus, Trash2 } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Ellipsis, Link2, NotebookTabs, Plus, Trash2 } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
@@ -41,9 +41,8 @@ interface Props {
   aoCriarGrupo?: () => void;
   /** Por que não dá para criar grupo agora (poucos exercícios soltos); vazio = pode. */
   motivoSemGrupo?: string | null;
-  /** Todos os exercícios da sessão estão abertos; com `aoAlternarTodos`, o botão "Fechar todos"/"Abrir todos". */
-  todosAbertos?: boolean;
-  aoAlternarTodos?: () => void;
+  /** `false` quando o bloco "Adicionar próximo exercício" vai no fim da lista da coluna da esquerda (duas colunas). */
+  adicionarNoFim?: boolean;
   /** Os exercícios (cartões) já montados pela tela do editor. */
   children: ReactNode;
 }
@@ -124,25 +123,11 @@ export function CartaoSessao(p: Props) {
           />
         </>
       ) : null}
-      <View style={estilos.tituloExercicios}>
-        <Texto variante="secao">Exercícios ({s.exercicios.length})</Texto>
-        {p.aoAlternarTodos && s.exercicios.length > 1 ? (
-          <Botao rotulo={p.todosAbertos ? 'Fechar todos' : 'Abrir todos'} tipo="fantasma" Icone={p.todosAbertos ? ChevronsDownUp : ChevronsUpDown} aoTocar={p.aoAlternarTodos} />
-        ) : null}
-      </View>
+      <Texto variante="secao">Exercícios ({s.exercicios.length})</Texto>
       <View style={estilos.exercicios}>{p.children}</View>
-      {/* "Adicionar próximo exercício" (protótipo de 30/10): o fim da lista é um bloco tracejado com as ações de acrescentar. */}
-      <View style={[estilos.proximo, { borderColor: cores.bordaCampo }]}>
-        <View style={estilos.textoDoProximo}>
-          <Texto variante="bloco" nivel={3}>Adicionar próximo exercício</Texto>
-          <Texto variante="suave">Escolha da biblioteca da consultoria ou use um modelo pronto.</Texto>
-        </View>
-        <LinhaDeAcoes>
-          <Botao rotulo="Adicionar exercício" tipo="secundario" Icone={Plus} aoTocar={p.aoNovoExercicio} />
-          {p.aoAbrirModelos ? <Botao rotulo="Modelos prontos" tipo="secundario" Icone={NotebookTabs} aoTocar={p.aoAbrirModelos} /> : null}
-          {p.aoCriarGrupo ? <Botao rotulo="Criar grupo" tipo="secundario" Icone={Link2} aoTocar={p.aoCriarGrupo} desabilitado={!!p.motivoSemGrupo} motivo={p.motivoSemGrupo ?? undefined} /> : null}
-        </LinhaDeAcoes>
-      </View>
+      {p.adicionarNoFim !== false ? (
+        <AdicionarProximoExercicio aoNovoExercicio={p.aoNovoExercicio} aoAbrirModelos={p.aoAbrirModelos} aoCriarGrupo={p.aoCriarGrupo} motivoSemGrupo={p.motivoSemGrupo} />
+      ) : null}
       {p.aoSalvarModelo ? (
         <LinhaDeAcoes>
           <Botao rotulo={rotuloSalvarComo('SESSAO_TREINO')} rotuloAcessivel={`${rotuloSalvarComo('SESSAO_TREINO')} no Planejamento`} tipo="secundario" aoTocar={p.aoSalvarModelo} />
@@ -154,6 +139,27 @@ export function CartaoSessao(p: Props) {
         ]} />
       ) : null}
     </Cartao></AlvoDeRolagem>
+  );
+}
+
+/**
+ * "Adicionar próximo exercício" (protótipo de 30/10): o fim da lista é um bloco tracejado com as ações de acrescentar.
+ * No fim do cartão da sessão (coluna única) ou da lista da coluna da esquerda (duas colunas).
+ */
+export function AdicionarProximoExercicio(p: Pick<Props, 'aoNovoExercicio' | 'aoAbrirModelos' | 'aoCriarGrupo' | 'motivoSemGrupo'>) {
+  const { cores } = useTema();
+  return (
+    <View style={[estilos.proximo, { borderColor: cores.bordaCampo }]}>
+      <View style={estilos.textoDoProximo}>
+        <Texto variante="bloco" nivel={3}>Adicionar próximo exercício</Texto>
+        <Texto variante="suave">Escolha da biblioteca da consultoria ou use um modelo pronto.</Texto>
+      </View>
+      <LinhaDeAcoes>
+        <Botao rotulo="Adicionar exercício" tipo="secundario" Icone={Plus} aoTocar={p.aoNovoExercicio} />
+        {p.aoAbrirModelos ? <Botao rotulo="Modelos prontos" tipo="secundario" Icone={NotebookTabs} aoTocar={p.aoAbrirModelos} /> : null}
+        {p.aoCriarGrupo ? <Botao rotulo="Criar grupo" tipo="secundario" Icone={Link2} aoTocar={p.aoCriarGrupo} desabilitado={!!p.motivoSemGrupo} motivo={p.motivoSemGrupo ?? undefined} /> : null}
+      </LinhaDeAcoes>
+    </View>
   );
 }
 
@@ -169,7 +175,6 @@ const BARRA_DA_SESSAO = 4;
 const estilos = StyleSheet.create({
   proximo: { borderWidth: 1, borderStyle: 'dashed', borderRadius: RAIO, padding: espaco(2), gap: espaco(1.5), flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' },
   textoDoProximo: { flexGrow: 1, flexShrink: 1, flexBasis: 240, gap: 2 },
-  tituloExercicios: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), flexWrap: 'wrap' },
   linhaSessao: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(1.5) },
   coluna: { flexDirection: 'column', alignItems: 'stretch' },
   nome: { flexGrow: 1, flexShrink: 1, flexBasis: 240 },

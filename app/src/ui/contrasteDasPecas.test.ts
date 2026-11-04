@@ -1,7 +1,7 @@
 import { coresComBordasReforcadas, coresComContraste } from '../dominio/preferencias';
 import { coresDoDesabilitado } from './desabilitado';
 import { coresDoMarcar } from './marcar';
-import { CAMADA_DA_FOTO, PALETAS, contraste, textoSobre, tingido, type Cores } from '../tema/tokens';
+import { CAMADA_DA_FOTO, MARCA_NEUTRA, PALETAS, contraste, marcaParaTexto, textoSobre, tingido, type Cores } from '../tema/tokens';
 
 /**
  * Pares de cor que as peças comuns de `ui/` usam depois do passo 1 da atualização visual (30/10), conferidos em todos os
@@ -92,6 +92,19 @@ describe.each(VARIANTES)('peças comuns no tema %s', (_nome, cores) => {
     expect(contraste(cores.neutro, tingido(cores.neutro, cores.superficie))).toBeGreaterThanOrEqual(4.5);
   });
 
+  // Marcas de exemplo: a neutra e tons claros, escuros e saturados que um treinador pode escolher.
+  it.each([MARCA_NEUTRA, '#E11D48', '#2563EB', '#FACC15', '#16A34A', '#F5F5F5', '#111111'])(
+    'ListaDeExercicios: item escolhido com borda, número e chevron em `marcaTexto` (marca %s)',
+    (marca) => {
+      const m = marcaParaTexto(marca, cores.superficie3);
+      // Fundo do item escolhido (`superficie`), dos outros itens (`superficie2`/`superficie3`) e da coluna em volta.
+      expect(contraste(m, cores.superficie)).toBeGreaterThanOrEqual(4.5);
+      for (const s of [cores.superficie2, cores.superficie3]) expect(contraste(m, s)).toBeGreaterThanOrEqual(3);
+      // Item com erro: borda `perigo` sobre o item e a coluna.
+      for (const s of [cores.superficie2, cores.superficie3]) expect(contraste(cores.perigo, s)).toBeGreaterThanOrEqual(3);
+    },
+  );
+
   it('botão do canto da foto na ficha: câmera em `texto` sobre `superficie`, borda `bordaCampo` ≥ 3:1 contra o cartão', () => {
     expect(contraste(cores.texto, cores.superficie)).toBeGreaterThanOrEqual(4.5);
     expect(contraste(cores.texto, cores.superficie3)).toBeGreaterThanOrEqual(4.5);
@@ -175,5 +188,25 @@ describe.each(VARIANTES)('telas do aluno (reunião de 30/10) no tema %s', (_nome
       expect(contraste(cores.texto, fundo)).toBeGreaterThanOrEqual(4.5);
       expect(contraste(cores.textoSuave, fundo)).toBeGreaterThanOrEqual(4.5);
     }
+  });
+
+  it('Abas invertidas (séries do exercício): a selecionada em `fundo` sobre `texto`, a outra em `texto` sobre `superficie2` com borda `bordaCampo`', () => {
+    expect(contraste(cores.fundo, cores.texto)).toBeGreaterThanOrEqual(4.5);
+    expect(contraste(cores.texto, cores.superficie2)).toBeGreaterThanOrEqual(4.5);
+    // A caixa da aba fica sobre o cartão do exercício (`superficie`): a borda dela separa uma aba da outra.
+    expect(contraste(cores.bordaCampo, cores.superficie)).toBeGreaterThanOrEqual(3);
+    // A selecionada se separa do cartão pelo próprio fundo invertido.
+    expect(contraste(cores.texto, cores.superficie)).toBeGreaterThanOrEqual(3);
+    // O selo neutro do código ("3× WS") vale sobre as duas, porque tem fundo opaco próprio.
+    expect(contraste(cores.neutro, tingido(cores.neutro, cores.superficie))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('Abas invertidas com problema: ícone e borda em `perigo`/`atencao` sobre a aba não selecionada (`superficie2`) e o cartão ≥ 3:1', () => {
+    for (const cor of [cores.perigo, cores.atencao]) {
+      expect(contraste(cor, cores.superficie2)).toBeGreaterThanOrEqual(3);
+      expect(contraste(cor, cores.superficie)).toBeGreaterThanOrEqual(3);
+    }
+    // Na selecionada o ícone vai em `fundo` (o mesmo par do texto invertido), não na cor do problema.
+    expect(contraste(cores.fundo, cores.texto)).toBeGreaterThanOrEqual(3);
   });
 });

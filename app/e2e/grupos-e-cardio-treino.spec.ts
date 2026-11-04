@@ -54,7 +54,9 @@ for (const largura of [390, 1280]) {
   test(`treino: trocar o exercício para Cardio pede confirmação e abre a prescrição de cardio (${largura}px)`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const api = await abrirDiaDeTreino(page);
-    await page.getByRole('button', { name: 'Editar Supino de teste', exact: true }).click();
+    // Em duas colunas o exercício se escolhe na lista; no estreito o título do cartão abre.
+    if (largura >= 960) await page.getByRole('button', { name: /^Exercício 1 de 2: Supino de teste/ }).click();
+    else await page.getByRole('button', { name: 'Editar Supino de teste', exact: true }).click();
     // A modalidade aparece como resumo; a escolha só abre pelo "Alterar" (reunião de 30/10).
     await expect(page.getByText('Modalidade:', { exact: false }).first()).toBeVisible();
     await page.getByRole('button', { name: 'Alterar modalidade', exact: true }).click();
@@ -67,7 +69,8 @@ for (const largura of [390, 1280]) {
     await expect(page.getByText(/Cardio tem prescrição própria/)).toBeVisible();
     // Sem séries de força: só a prescrição de cardio.
     await expect(page.getByRole('button', { name: 'Adicionar série', exact: true })).toHaveCount(0);
-    await page.getByRole('button', { name: 'Adicionar cardio', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Nova série', exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Novo cardio', exact: true }).click();
     await page.getByRole('textbox', { name: 'Duração (min)', exact: true }).fill('40');
     await page.getByRole('button', { name: 'Zona 2', exact: true }).click();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

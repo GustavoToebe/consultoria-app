@@ -1,7 +1,11 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import type { Receita, Serie } from '../src/api/tipos';
 import { CONFIGURACAO_PADRAO } from '../src/dominio/metodologiaPadrao';
 import { json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
+
+// O painel "Nova série" vem antes do grupo aberto, que tem os mesmos grupos de escolha ("Tipo da série" e "Técnica da série").
+const tipoDoPainel = (page: Page, nome: string) => page.getByRole('radiogroup', { name: 'Tipo da série', exact: true }).first().getByRole('button', { name: nome, exact: true });
+const tecnicaDoPainel = (page: Page, nome: string) => page.getByRole('radiogroup', { name: 'Técnica', exact: true }).getByRole('button', { name: nome, exact: true });
 
 for (const largura of [390, 1280]) {
   test(`FS por quantidade e técnica dentro da série WS persistidas (${largura}px)`, async ({ page }, testInfo) => {
@@ -16,11 +20,12 @@ for (const largura of [390, 1280]) {
     });
     await page.goto(`/treinador/planejamento/modelo/${modelo.id}`);
     await expect(page.getByText('Nenhuma série ainda.', { exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Adicionar série', exact: true }).click();
-    // O bloco "Nova série" toma o lugar dos botões de baixo: só um "Adicionar série" na tela.
-    await expect(page.getByText('Nova série', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Nova série', exact: true }).click();
+    // O painel "Nova série" abre com o botão que confirma: só um "Adicionar série" na tela. "Nova série" casa o botão da
+    // faixa e o título do painel.
+    await expect(page.getByText('Nova série', { exact: true })).toHaveCount(2);
     await expect(page.getByRole('button', { name: 'Adicionar série', exact: true })).toHaveCount(1);
-    await page.getByRole('button', { name: 'FS', exact: true }).click();
+    await tipoDoPainel(page, 'FS').click();
     await page.getByRole('button', { name: 'Adicionar série', exact: true }).click();
     await page.getByRole('button', { name: 'Uma série completa a mais', exact: true }).click();
     await page.getByRole('button', { name: 'Uma série completa a mais', exact: true }).click();
@@ -29,21 +34,21 @@ for (const largura of [390, 1280]) {
     await expect(campo('Série 2 · Mínimo (%)')).toHaveValue('70');
     await expect(campo('Série 3 · Mínimo (%)')).toHaveValue('85');
     await expect(campo('Série 3 · Máximo (%)')).toHaveValue('90');
-    // A faixa do grupo: o tipo como o treinador lê na 1ª linha e os números na 2ª (reunião de 30/10).
-    await expect(page.getByText('3x3 - FS 50% · 70% · 85% a 90% da WS', { exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Preparação · FS, aberto', exact: true }).click();
+    // O título do grupo aberto: o tipo como o treinador lê e os números (reunião de 30/10).
+    await expect(page.getByText('Preparação · FS · 3x3 - FS 50% · 70% · 85% a 90% da WS', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Nova série', exact: true }).click();
+    await tipoDoPainel(page, 'WS').click();
     await page.getByRole('button', { name: 'Adicionar série', exact: true }).click();
-    await page.getByRole('button', { name: 'WS', exact: true }).click();
-    await page.getByRole('button', { name: 'Adicionar série', exact: true }).click();
-    await page.getByRole('button', { name: 'Trabalho · WS, aberto', exact: true }).click();
     // A técnica não é um tipo: a série é WS e o rest pause vai dentro dela.
-    await page.getByRole('button', { name: 'Adicionar série', exact: true }).click();
+    await page.getByRole('button', { name: 'Nova série', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Só técnica', exact: true })).toHaveCount(0);
-    await page.getByRole('button', { name: 'WS', exact: true }).click();
-    await page.getByRole('button', { name: 'Rest pause', exact: true }).click();
+    await tipoDoPainel(page, 'WS').click();
+    await tecnicaDoPainel(page, 'Rest pause').click();
     await page.getByRole('button', { name: 'Adicionar série', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Trabalho · WS + Rest pause, aberto', exact: true })).toBeVisible();
-    await expect(page.getByText(/^1x3 a 6 - WS \+ Rest pause/)).toBeVisible();
+    // Três grupos, três abas; a nova (a 3ª, WS com Rest pause) é a aberta.
+    await expect(page.getByRole('tab', { name: /^Série \d/ })).toHaveCount(3);
+    await expect(page.getByRole('tab', { name: /^Série 3 · WS/, selected: true })).toBeVisible();
+    await expect(page.getByText(/Trabalho · WS \+ Rest pause · 1x3 a 6 - WS \+ Rest pause/)).toBeVisible();
     await expect(page.getByText('1 série completa · 3 a 6 reps + 1 retomada · pausa de 20 s', { exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath('series-prescritas.png'), fullPage: true });
@@ -74,9 +79,9 @@ for (const largura of [390, 1280]) {
     const campo = (nome: string) => page.getByRole('textbox', { name: nome, exact: true });
 
     // WS com Cluster 4 blocos de 4: bloco 1 com a carga da série e os outros a 90% da WS.
-    await page.getByRole('button', { name: 'Adicionar série', exact: true }).click();
-    await page.getByRole('button', { name: 'WS', exact: true }).click();
-    await page.getByRole('button', { name: 'Cluster', exact: true }).click();
+    await page.getByRole('button', { name: 'Nova série', exact: true }).click();
+    await tipoDoPainel(page, 'WS').click();
+    await tecnicaDoPainel(page, 'Cluster').click();
     await page.getByRole('button', { name: 'Adicionar série', exact: true }).click();
     await campo('Quantos blocos').fill('4');
     await campo('Repetições em cada bloco').fill('4');
@@ -88,12 +93,11 @@ for (const largura of [390, 1280]) {
     await expect(page.getByText('Bloco 2: 90% da WS', { exact: true })).toBeVisible();
     await expect(page.getByText('Percentuais da carga de trabalho do dia, fixada ao registrar a primeira etapa.', { exact: true })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath('cluster-carga-por-bloco.png'), fullPage: true });
-    await page.getByRole('button', { name: 'Trabalho · WS com Cluster, aberto', exact: true }).click();
 
     // WS com Rest-pause de 2 pausas: retomada 1 com 2 a 3 reps; retomada 2 AMRAP a 85% da WS.
-    await page.getByRole('button', { name: 'Adicionar série', exact: true }).click();
-    await page.getByRole('button', { name: 'WS', exact: true }).click();
-    await page.getByRole('button', { name: 'Rest pause', exact: true }).click();
+    await page.getByRole('button', { name: 'Nova série', exact: true }).click();
+    await tipoDoPainel(page, 'WS').click();
+    await tecnicaDoPainel(page, 'Rest pause').click();
     await page.getByRole('button', { name: 'Adicionar série', exact: true }).click();
     await campo('Quantas pausas').fill('2');
     await page.getByRole('switch', { name: 'Definir a meta das retomadas' }).click();

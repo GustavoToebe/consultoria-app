@@ -1,7 +1,7 @@
 import { NoPlano } from '../../ui/NoPlano';
 import { Permitido } from '../../ui/Permitido';
 import { CheckCircle2, Eye, FileDown, Loader, Save, Send } from 'lucide-react-native';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { versaoPlano } from '../../api/rotas';
@@ -27,6 +27,7 @@ import { gerarPdfDoPlano } from '../gerarPdf';
 import { FolhaPdfDieta } from '../../ui/FolhaPdfDieta';
 import { PERMISSOES_DO_PLANO } from '../../dominio/permissoes';
 import { BarraDoEditor } from './BarraDoEditor';
+import { useDuasColunas } from './ColunasDoEditor';
 import { FolhaVerComoAluno, type PreviaDoPlano } from './FolhaVerComoAluno';
 import type { usePlanoEditor } from './usePlanoEditor';
 
@@ -37,6 +38,8 @@ interface Props<C> {
   editor: Editor<C>;
   /** Resultado da última validação/publicação (o editor destaca os cartões e mostra o `ProblemasDoPlano`). */
   aoProblemas: (r: ResultadoValidacao | null) => void;
+  /** Antes do selo da barra (a foto do aluno no editor de treino); a dieta e a mobilidade não passam. */
+  inicio?: ReactNode;
 }
 
 /**
@@ -47,10 +50,12 @@ interface Props<C> {
  * "Ver como o aluno" (C34, D1 e D6): só no treino e na dieta, fora do `escritaLiberada` (quem só lê o plano também vê). Abre
  * a `FolhaVerComoAluno` com uma cópia do que está na tela ao tocar, salvo ou não.
  */
-export function BarraDoPlano<C>({ tipo, editor, aoProblemas }: Props<C>) {
+export function BarraDoPlano<C>({ tipo, editor, aoProblemas, inicio }: Props<C>) {
   const { avisar } = useAviso();
   const { width } = useWindowDimensions();
   const estreito = width < LARGURA_MENU_LATERAL;
+  // O rótulo longo só cabe na barra do editor de treino em duas colunas (em 1024 cortava o botão).
+  const duas = useDuasColunas();
   const { temFuncionalidade } = useSessao();
   // Mobilidade fora do plano: a API só bloqueia escrita, então o editor abre para consulta, sem salvar nem publicar.
   const escritaLiberada = tipo !== 'mobilidade' || temFuncionalidade('MOBILIDADE');
@@ -143,7 +148,7 @@ export function BarraDoPlano<C>({ tipo, editor, aoProblemas }: Props<C>) {
 
   return (
     <>
-      <BarraDoEditor selo={selo} info={info} erro={editor.situacao === 'erro' ? editor.mensagemDeErro : null}>
+      <BarraDoEditor selo={selo} info={info} erro={editor.situacao === 'erro' ? editor.mensagemDeErro : null} inicio={inicio}>
         {comPrevia
           ? estreito
             ? <IconeBotao Icone={Eye} rotulo="Ver como o aluno" aoTocar={verComoAluno} />
@@ -170,7 +175,8 @@ export function BarraDoPlano<C>({ tipo, editor, aoProblemas }: Props<C>) {
               aoTocar={salvar}
             />
             <Permitido codigo={PERMISSOES_DO_PLANO[tipo].publicar}>
-              <Botao rotulo="Publicar" Icone={Send} carregando={publicando} desabilitado={!!semPublicar} motivo={semPublicar} aoTocar={() => publicar(false)} />
+              {/* Só o treino em duas colunas diz para quem vai: no celular, em 1024 e na dieta e mobilidade, "Publicar". */}
+              <Botao rotulo={tipo === 'treino' && duas ? 'Publicar para o aluno' : 'Publicar'} Icone={Send} carregando={publicando} desabilitado={!!semPublicar} motivo={semPublicar} aoTocar={() => publicar(false)} />
             </Permitido>
           </>
         ) : null}
@@ -217,12 +223,12 @@ export function BarraDoPlano<C>({ tipo, editor, aoProblemas }: Props<C>) {
  * Resultado da validação, logo abaixo do cabeçalho (dentro da rolagem): "N problemas para publicar · ir ao primeiro"
  * seleciona a sessão/abre o cartão (`aoIrAoPrimeiro`) e rola até ele.
  */
-export function ProblemasDoPlano<C>({ editor, problemas, aoProblemas, aoIrAoPrimeiro }: { editor: Editor<C>; problemas: ResultadoValidacao | null; aoProblemas: (r: ResultadoValidacao | null) => void; aoIrAoPrimeiro?: (uids: string[]) => void }) {
+export function ProblemasDoPlano<C>({ editor, problemas, aoProblemas, aoIrAoPrimeiro }: { editor: Editor<C>; problemas: ResultadoValidacao | null; aoProblemas: (r: ResultadoValidacao | null) => void; aoIrAoPrimeiro?: (uids: string[], caminho?: string) => void }) {
   const { rolarAte } = useRolagem();
   const e = editor.estado;
   if (!e || !problemas) return null;
   // Cada erro e aviso leva ao lugar dele (sessão/exercício ou refeição), não só o primeiro.
-  const irPara = aoIrAoPrimeiro ? (lista: Problema[]) => { const uids = uidsDoPrimeiroProblema(e.conteudo, lista); aoIrAoPrimeiro(uids); rolarAte(uids); } : undefined;
+  const irPara = aoIrAoPrimeiro ? (lista: Problema[]) => { const uids = uidsDoPrimeiroProblema(e.conteudo, lista); aoIrAoPrimeiro(uids, lista[0]?.caminho); rolarAte(uids); } : undefined;
   return <ListaProblemas conteudo={e.conteudo} resultado={problemas} aoFechar={() => aoProblemas(null)} irPara={irPara} />;
 }
 

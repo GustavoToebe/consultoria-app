@@ -37,6 +37,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Interessados: correções e CRM | [interessados-crm.md](interessados-crm.md) | `main` (f95aacf, PR 16) | Concluída em 29/10/2026; falta a conferência do Gustavo | 29/10/2026 |
 | Clareza do treinador (reunião de 29/10: pasta, aplicar modelo, hierarquia visual, importação em etapas) | [clareza-do-treinador.md](clareza-do-treinador.md) | PR para a `main` (30/10) | Pronta: lotes A, B e C, importação com correção na tabela, avisos de atenção | 30/10/2026 |
 | Editor de treino: visual do protótipo de 30/10 (fundo quase branco, bordas, cantos, selos, numeração, uma série aberta) | [editor-de-treino-visual.md](editor-de-treino-visual.md) | branch (30/10) | Em andamento | 30/10/2026 |
+| Editor de treino em lista + inspetor (design do Stitch; duas colunas no PC, abas de séries) | [editor-treino-inspetor.md](editor-treino-inspetor.md) | branch `editor-treino-inspetor` (04/11) | PR aberto, aguardando revisão do Gustavo | 04/11/2026 |
 | Telas do aluno no estilo novo (lista em grupos, ficha, novo aluno) | [telas-do-aluno-visual.md](telas-do-aluno-visual.md) | branch (30/10), Claude local | Planejando: protótipo aprovado em `docs/prototipos/alunos.html` | 30/10/2026 |
 | Atualização visual do app inteiro e pendências da análise de 29/10 (painel novo, A01, A02, A06, A12, cabeçalho da importação, rótulos da lista de compras) | [atualizacao-visual-app-full.md](atualizacao-visual-app-full.md) | branch `atualizacao-visual-app-full`, Claude local | Planejando | 30/10/2026 |
 | Importar plano de treino (e dieta) de PDF ou Google Docs (A02) | [importar-plano-de-documento.md](importar-plano-de-documento.md) | branch `atualizacao-visual-app-full` | Planejando: só o plano escrito, sem código; perguntas para o Gustavo | 30/10/2026 |
@@ -83,6 +84,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 
 | Pendência | Quem | Origem |
 | --- | --- | --- |
+| Editor de lista + inspetor: superset (`CartaoGrupo`) pesado na coluna da lista; Técnica ainda em chips e campos da série em linhas separadas; aninhamento de cartões no celular; dieta e mobilidade no mesmo layout (detalhe em `editor-treino-inspetor.md`, "O que ficou para trás") | Claude | editor-treino-inspetor |
 | Menores de idade (decisão de 04/11: o Saraiva atende): revisão jurídica do termo de uso e do aviso de privacidade (`resources/termos/*.md` não falam de idade nem de responsável legal; a revisão antes previa "maiores de 18 anos", que não vale mais; subir `Termos.VERSAO` ao mudar) e da anamnese, que não tem responsável legal | Gustavo, com revisão jurídica | inscricao-saraiva |
 | "Hormonizado ou natural" é dado de saúde perguntado na inscrição pública (sem login), a pedido do Saraiva: rever com a LGPD (base legal, aviso no texto do link, retenção de 180 dias) | Gustavo, com revisão jurídica | inscricao-saraiva |
 | Rodar `scripts/questionario/inscricao-saraiva.mjs --gravar` na consultoria real do Saraiva (simular antes; nunca foi rodado em produção) e conferir `/inscricao/<codigo>` no celular | Gustavo | inscricao-saraiva |
