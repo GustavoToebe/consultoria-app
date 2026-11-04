@@ -41,6 +41,12 @@ public class PushService {
         repositorio.removerToken(TenantContext.get(), usuarioId, token);
     }
 
+    /** Sem informar o token (o aparelho não o devolveu): apaga todos os do próprio usuário da sessão. */
+    @Transactional
+    public void removerTodos(UUID usuarioId) {
+        repositorio.apagarDoUsuario(TenantContext.get(), usuarioId);
+    }
+
     /**
      * Apaga todos os tokens do usuário. Chamado onde as sessões dele são encerradas (inativar, senha provisória, troca de
      * senha, anonimização e "Excluir minha conta"), com a consultoria dada, sem depender do {@code TenantContext}.

@@ -10,7 +10,9 @@ import java.util.UUID;
 /**
  * SQL nativo do push ({@code push_token} e {@code push_envio}), permitido no {@code ArquiteturaTest}: o job reserva e envia de
  * todas as consultorias de uma vez, sem {@code TenantContext}. Toda escrita leva {@code consultoria_id} explícito e, depois da
- * reserva, confere a posse ({@code reservado_por}). O valor do token só sai daqui para o envio ({@link #tokens}); nada daqui
+ * reserva, confere a posse ({@code reservado_por}). Duas são globais de propósito: {@link #registrar} apaga o mesmo token de
+ * qualquer outra conta ou consultoria (o token é único no banco) e {@link #limpar} apaga o token vencido e a fila antiga de
+ * todas. O valor do token só sai daqui para o envio ({@link #tokens}); nada daqui
  * lê nome, texto ou compromisso.
  */
 @Component
@@ -20,6 +22,8 @@ class PushRepositorio {
     record Reservado(UUID id, UUID consultoriaId, UUID usuarioId, int tentativas) {
     }
 
+    static final int DIAS_DE_VALIDADE_DO_TOKEN = 30;
+
     private final JdbcTemplate jdbc;
 
     PushRepositorio(JdbcTemplate jdbc) {
@@ -28,11 +32,18 @@ class PushRepositorio {
 
     // ---- token ----
 
-    /** Registra (ou renova) o token do usuário, tira o mesmo token de outro usuário da consultoria e guarda só os {@code maximo} mais novos. */
+    /**
+     * Registra (ou renova) o token do usuário e guarda só os {@code maximo} mais novos. O aparelho é de quem entrou por último:
+     * o mesmo token em QUALQUER outra conta ou consultoria é apagado (a única consulta global daqui, de propósito: o token é
+     * único no banco e o dono antigo nunca pode avisar um aparelho que já não é dele). O {@code on conflict (token)} só cobre
+     * a corrida entre dois registros do mesmo aparelho.
+     */
     void registrar(UUID consultoriaId, UUID usuarioId, String token, String plataforma, int maximo) {
-        jdbc.update("delete from push_token where consultoria_id = ? and token = ? and usuario_id <> ?", consultoriaId, token, usuarioId);
+        jdbc.update("delete from push_token where token = ? and not (consultoria_id = ? and usuario_id = ?)",
+                token, consultoriaId, usuarioId);
         jdbc.update("insert into push_token (id, consultoria_id, usuario_id, token, plataforma) values (?, ?, ?, ?, ?) "
-                + "on conflict (consultoria_id, usuario_id, token) do update set plataforma = excluded.plataforma, atualizado_em = now()",
+                + "on conflict (token) do update set consultoria_id = excluded.consultoria_id, usuario_id = excluded.usuario_id, "
+                + "plataforma = excluded.plataforma, atualizado_em = now()",
                 UUID.randomUUID(), consultoriaId, usuarioId, token, plataforma);
         jdbc.update("delete from push_token where id in (select id from push_token where consultoria_id = ? and usuario_id = ? "
                 + "order by atualizado_em desc, id offset ?)", consultoriaId, usuarioId, maximo);
@@ -115,8 +126,13 @@ class PushRepositorio {
                 classeDoErro, maximo, (double) segundos, id, consultoriaId, dono);
     }
 
-    /** Limpeza global: pendente velho demais não faz mais sentido ("seu compromisso mudou" horas depois) e o concluído some em 7 dias. */
+    /**
+     * Limpeza global: pendente velho demais não faz mais sentido ("seu compromisso mudou" horas depois), o concluído some em 7
+     * dias e o token que o app não renova há {@value #DIAS_DE_VALIDADE_DO_TOKEN} dias some também (o app registra de novo a
+     * cada abertura da área do aluno; sem abrir o app por um mês, o aparelho foi trocado, apagado ou esquecido).
+     */
     void limpar(int horasDePendente) {
+        jdbc.update("delete from push_token where atualizado_em < now() - make_interval(days => ?)", DIAS_DE_VALIDADE_DO_TOKEN);
         jdbc.update("update push_envio set situacao = 'CANCELADO', motivo = 'EXPIRADO', atualizado_em = now(), "
                 + "reservado_por = null, reserva_ate = null where situacao = 'PENDENTE' "
                 + "and criado_em < now() - make_interval(hours => ?) and (reservado_por is null or reserva_ate < now())", horasDePendente);

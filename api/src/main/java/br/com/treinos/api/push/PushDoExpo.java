@@ -11,10 +11,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.TreeMap;
 import java.util.UUID;
 
 /**
@@ -27,9 +26,11 @@ import java.util.UUID;
  * <li><b>envia fora de qualquer transação</b>, em chamadas de até 100 mensagens, e conclui numa transação curta conferindo a
  * posse da reserva.</li>
  * </ol>
- * Falha do Expo (rede, tempo, status) só conta uma tentativa e guarda a classe do erro; na {@value #MAXIMO_DE_TENTATIVAS}ª vira
- * FALHOU. Nunca desfaz nada: o compromisso já foi gravado quando a linha da fila nasceu. {@code DeviceNotRegistered} apaga o
- * token. Nada de token, usuário ou texto em log: só contagens e a classe do erro.
+ * Falha do Expo que pode passar (rede, tempo, status, resposta inválida, {@code MessageRateExceeded}) só conta uma tentativa e
+ * guarda a classe ou o código do erro; na {@value #MAXIMO_DE_TENTATIVAS}ª vira FALHOU. Qualquer outro código do ticket
+ * ({@code InvalidCredentials}, {@code MessageTooBig}, ...) é falha definitiva: FALHOU na hora, com o código do Expo (um enum,
+ * não dado pessoal) em {@code erro}. Nunca desfaz nada: o compromisso já foi gravado quando a linha da fila nasceu.
+ * {@code DeviceNotRegistered} apaga o token. Nada de token, usuário ou texto em log: só contagens e o código ou a classe do erro.
  */
 @Component
 public class PushDoExpo {
@@ -45,13 +46,19 @@ public class PushDoExpo {
     static final String DEVICE_NOT_REGISTERED = "DeviceNotRegistered";
     private static final String LIMITE_DO_EXPO = "MessageRateExceeded";
 
-    /** O que uma rodada fez (só contagens). {@code executou} falso = chave desligada, nada foi feito. */
-    public record Resultado(boolean executou, int enviados, int cancelados, int falhas, int tokensApagados) {
+    /**
+     * O que uma rodada fez (só contagens). {@code executou} falso = chave desligada, nada foi feito. {@code falhasPorCodigo} soma
+     * as falhas pelo código do Expo ou pela classe do erro (nunca token nem usuário).
+     */
+    public record Resultado(boolean executou, int enviados, int cancelados, int falhas, int tokensApagados,
+                            Map<String, Integer> falhasPorCodigo) {
 
-        static final Resultado NADA = new Resultado(false, 0, 0, 0, 0);
+        static final Resultado NADA = new Resultado(false, 0, 0, 0, 0, Map.of());
     }
 
-    private record Mensagem(Reservado envio, String token) { }
+    record Mensagem(Reservado envio, String token) { }
+
+    record Grupo(Reservado envio, List<String> tokens) { }
 
     private final PushRepositorio fila;
     private final ExpoCliente expo;
@@ -73,8 +80,8 @@ public class PushDoExpo {
         try {
             Resultado r = rodar();
             if (r.enviados() + r.cancelados() + r.falhas() + r.tokensApagados() > 0) {
-                LOG.info("Push: {} enviados, {} cancelados, {} falhas, {} tokens apagados.", r.enviados(), r.cancelados(),
-                        r.falhas(), r.tokensApagados());
+                LOG.info("Push: {} enviados, {} cancelados, {} falhas {}, {} tokens apagados.", r.enviados(), r.cancelados(),
+                        r.falhas(), r.falhasPorCodigo(), r.tokensApagados());
             }
         } catch (RuntimeException e) {
             LOG.warn("Push falhou ({}).", e.getClass().getSimpleName());
@@ -92,6 +99,7 @@ public class PushDoExpo {
         int cancelados = 0;
         int falhas = 0;
         int apagados = 0;
+        Map<String, Integer> porCodigo = new TreeMap<>();
         for (int volta = 0; volta < LOTES_POR_RODADA; volta++) {
             List<Reservado> lote = transacao.execute(s -> fila.reservar(dono, TAMANHO_DO_LOTE, RESERVA_EM_SEGUNDOS));
             if (lote == null || lote.isEmpty()) {
@@ -102,16 +110,16 @@ public class PushDoExpo {
             cancelados += parcial.cancelados();
             falhas += parcial.falhas();
             apagados += parcial.tokensApagados();
+            parcial.falhasPorCodigo().forEach((codigo, n) -> porCodigo.merge(codigo, n, Integer::sum));
         }
-        return new Resultado(true, enviados, cancelados, falhas, apagados);
+        return new Resultado(true, enviados, cancelados, falhas, apagados, porCodigo);
     }
 
     private Resultado processar(List<Reservado> lote, UUID dono) {
         int cancelados = 0;
-        int falhas = 0;
         int apagados = 0;
-        List<Mensagem> mensagens = new ArrayList<>();
-        Set<UUID> comMensagem = new HashSet<>();
+        Map<String, Integer> porCodigo = new TreeMap<>();
+        List<Grupo> grupos = new ArrayList<>();
         for (Reservado envio : lote) {
             try {
                 if (!fila.elegivel(envio.consultoriaId(), envio.usuarioId())) {
@@ -128,25 +136,30 @@ public class PushDoExpo {
                     cancelados++;
                     continue;
                 }
-                tokens.forEach(t -> mensagens.add(new Mensagem(envio, t)));
-                comMensagem.add(envio.id());
+                // Um usuário tem no máximo 5 aparelhos; o corte é só para um envio nunca estourar sozinho o limite do Expo.
+                grupos.add(new Grupo(envio, tokens.subList(0, Math.min(tokens.size(), ExpoCliente.MAXIMO_POR_CHAMADA))));
             } catch (RuntimeException e) {
-                falhas += falhou(envio, dono, e.getClass().getSimpleName());
+                falhou(envio, dono, e.getClass().getSimpleName(), false, porCodigo);
             }
         }
         Map<UUID, String> falhados = new HashMap<>();
-        for (int de = 0; de < mensagens.size(); de += ExpoCliente.MAXIMO_POR_CHAMADA) {
-            List<Mensagem> parte = mensagens.subList(de, Math.min(de + ExpoCliente.MAXIMO_POR_CHAMADA, mensagens.size()));
+        Map<UUID, String> definitivos = new HashMap<>();
+        for (List<Mensagem> parte : emChamadas(grupos)) {
             try {
                 List<String> erros = expo.enviar(parte.stream().map(Mensagem::token).toList());
                 for (int i = 0; i < parte.size(); i++) {
                     String erro = erros.get(i);
+                    Mensagem m = parte.get(i);
+                    if (erro == null) {
+                        continue;
+                    }
                     if (DEVICE_NOT_REGISTERED.equals(erro)) {
-                        Mensagem m = parte.get(i);
                         transacao.executeWithoutResult(s -> fila.apagarTokenInvalido(m.envio().consultoriaId(), m.token()));
                         apagados++;
                     } else if (LIMITE_DO_EXPO.equals(erro)) {
-                        falhados.put(parte.get(i).envio().id(), LIMITE_DO_EXPO);
+                        falhados.put(m.envio().id(), LIMITE_DO_EXPO);
+                    } else {
+                        definitivos.put(m.envio().id(), erro);
                     }
                 }
             } catch (FalhaNoEnvio e) {
@@ -158,12 +171,12 @@ public class PushDoExpo {
             }
         }
         int enviados = 0;
-        for (Reservado envio : lote) {
-            if (!comMensagem.contains(envio.id())) {
-                continue;
-            }
+        for (Grupo g : grupos) {
+            Reservado envio = g.envio();
             if (falhados.containsKey(envio.id())) {
-                falhas += falhou(envio, dono, falhados.get(envio.id()));
+                falhou(envio, dono, falhados.get(envio.id()), false, porCodigo);
+            } else if (definitivos.containsKey(envio.id())) {
+                falhou(envio, dono, definitivos.get(envio.id()), true, porCodigo);
             } else {
                 try {
                     transacao.executeWithoutResult(s -> fila.enviado(envio.consultoriaId(), envio.id(), dono));
@@ -174,17 +187,40 @@ public class PushDoExpo {
                 }
             }
         }
-        return new Resultado(true, enviados, cancelados, falhas, apagados);
+        int falhas = porCodigo.values().stream().mapToInt(Integer::intValue).sum();
+        return new Resultado(true, enviados, cancelados, falhas, apagados, porCodigo);
     }
 
-    /** Só a classe do erro vai ao banco e ao log. Devolve 1 (para somar nas falhas). */
-    private int falhou(Reservado envio, UUID dono, String classe) {
+    /** Junta as mensagens em chamadas de até 100 sem separar as de um mesmo envio: se não cabe inteiro, começa outra chamada. */
+    static List<List<Mensagem>> emChamadas(List<Grupo> grupos) {
+        List<List<Mensagem>> chamadas = new ArrayList<>();
+        List<Mensagem> atual = new ArrayList<>();
+        for (Grupo g : grupos) {
+            if (!atual.isEmpty() && atual.size() + g.tokens().size() > ExpoCliente.MAXIMO_POR_CHAMADA) {
+                chamadas.add(atual);
+                atual = new ArrayList<>();
+            }
+            for (String token : g.tokens()) {
+                atual.add(new Mensagem(g.envio(), token));
+            }
+        }
+        if (!atual.isEmpty()) {
+            chamadas.add(atual);
+        }
+        return chamadas;
+    }
+
+    /**
+     * Só o código ou a classe do erro vai ao banco e ao log. {@code definitiva}: não adianta tentar de novo, vira FALHOU na hora
+     * (máximo de uma tentativa). Soma a falha por código para o resumo da rodada.
+     */
+    private void falhou(Reservado envio, UUID dono, String codigo, boolean definitiva, Map<String, Integer> porCodigo) {
+        porCodigo.merge(codigo, 1, Integer::sum);
         try {
-            transacao.executeWithoutResult(s -> fila.falhou(envio.consultoriaId(), envio.id(), dono, classe,
-                    MAXIMO_DE_TENTATIVAS, ESPERA_ENTRE_TENTATIVAS_EM_SEGUNDOS));
+            transacao.executeWithoutResult(s -> fila.falhou(envio.consultoriaId(), envio.id(), dono, codigo,
+                    definitiva ? 1 : MAXIMO_DE_TENTATIVAS, ESPERA_ENTRE_TENTATIVAS_EM_SEGUNDOS));
         } catch (RuntimeException outra) {
             LOG.warn("Push segue reservado ({}).", outra.getClass().getSimpleName());
         }
-        return 1;
     }
 }

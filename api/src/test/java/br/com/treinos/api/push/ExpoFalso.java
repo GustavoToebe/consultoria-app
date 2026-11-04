@@ -7,23 +7,30 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Function;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * API de push do Expo de mentira (servidor do JDK, sem rede). Guarda o corpo e o {@code Authorization} de cada chamada e
- * responde o que o teste mandar: tickets {@code ok} (padrão), {@code DeviceNotRegistered}, status 500 ou demora (para estourar o
- * tempo máximo). Nunca fala com o Expo real.
+ * responde o que o teste mandar: tickets {@code ok} (padrão), {@code DeviceNotRegistered} (para todos ou só para os tokens
+ * "mortos"), {@code InvalidCredentials}, status 500, resposta 200 sem {@code data} ou com a lista de outro tamanho, ou demora
+ * (para estourar o tempo máximo). Os tickets saem na ordem dos tokens do corpo. Nunca fala com o Expo real.
  */
 final class ExpoFalso {
 
     record Chamada(String corpo, String autorizacao) { }
 
     /** Como responder à próxima chamada. */
-    enum Modo { OK, DEVICE_NOT_REGISTERED, ERRO_500, LENTO }
+    enum Modo { OK, DEVICE_NOT_REGISTERED, INVALID_CREDENTIALS, ERRO_500, LENTO, SEM_DATA, LISTA_CURTA }
 
     private final HttpServer servidor;
     private final List<Chamada> chamadas = new CopyOnWriteArrayList<>();
     private volatile Modo modo = Modo.OK;
+    private final Set<String> mortos = ConcurrentHashMap.newKeySet();
 
     ExpoFalso() {
         try {
@@ -34,7 +41,7 @@ final class ExpoFalso {
         servidor.createContext("/push/send", troca -> {
             String corpo = new String(troca.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
             chamadas.add(new Chamada(corpo, troca.getRequestHeaders().getFirst("Authorization")));
-            int quantas = corpo.split("\"to\"", -1).length - 1;
+            List<String> tokens = destinatariosDe(corpo);
             int status = 200;
             String resposta;
             switch (modo) {
@@ -48,11 +55,13 @@ final class ExpoFalso {
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                     }
-                    resposta = tickets(quantas, "{\"status\":\"ok\",\"id\":\"ticket\"}");
+                    resposta = tickets(tokens, null);
                 }
-                case DEVICE_NOT_REGISTERED -> resposta = tickets(quantas,
-                        "{\"status\":\"error\",\"message\":\"x\",\"details\":{\"error\":\"DeviceNotRegistered\"}}");
-                default -> resposta = tickets(quantas, "{\"status\":\"ok\",\"id\":\"ticket\"}");
+                case DEVICE_NOT_REGISTERED -> resposta = tickets(tokens, t -> "DeviceNotRegistered");
+                case INVALID_CREDENTIALS -> resposta = tickets(tokens, t -> "InvalidCredentials");
+                case SEM_DATA -> resposta = "{\"errors\":[{\"message\":\"sem data\"}]}";
+                case LISTA_CURTA -> resposta = tickets(tokens.subList(0, tokens.size() - 1), null);
+                default -> resposta = tickets(tokens, t -> mortos.contains(t) ? "DeviceNotRegistered" : null);
             }
             byte[] bytes = resposta.getBytes(StandardCharsets.UTF_8);
             troca.getResponseHeaders().add("Content-Type", "application/json");
@@ -68,8 +77,17 @@ final class ExpoFalso {
         servidor.start();
     }
 
-    private static String tickets(int quantas, String ticket) {
-        return "{\"data\":[" + String.join(",", java.util.Collections.nCopies(quantas, ticket)) + "]}";
+    /** Um ticket por token: {@code ok}, ou {@code error} com o código que a função devolver (nulo = ok). */
+    private static String tickets(List<String> tokens, Function<String, String> erroDoToken) {
+        return "{\"data\":[" + tokens.stream().map(t -> {
+            String erro = erroDoToken == null ? null : erroDoToken.apply(t);
+            return erro == null ? "{\"status\":\"ok\",\"id\":\"ticket\"}"
+                    : "{\"status\":\"error\",\"message\":\"x\",\"details\":{\"error\":\"" + erro + "\"}}";
+        }).collect(Collectors.joining(",")) + "]}";
+    }
+
+    private static List<String> destinatariosDe(String corpo) {
+        return Pattern.compile("\"to\":\"([^\"]+)\"").matcher(corpo).results().map(m -> m.group(1)).toList();
     }
 
     String url() {
@@ -84,15 +102,20 @@ final class ExpoFalso {
         modo = novo;
     }
 
+    /** No modo normal, este token responde {@code DeviceNotRegistered} e os outros do mesmo corpo, {@code ok}. */
+    void matar(String token) {
+        mortos.add(token);
+    }
+
     /** Limpa o que foi recebido e volta ao modo normal (entre um teste e outro). */
     void zerar() {
         chamadas.clear();
+        mortos.clear();
         modo = Modo.OK;
     }
 
     /** Todos os tokens que chegaram, na ordem. */
     List<String> destinatarios() {
-        return chamadas.stream().flatMap(c -> java.util.regex.Pattern.compile("\"to\":\"([^\"]+)\"").matcher(c.corpo()).results()
-                .map(m -> m.group(1))).toList();
+        return chamadas.stream().flatMap(c -> destinatariosDe(c.corpo()).stream()).toList();
     }
 }

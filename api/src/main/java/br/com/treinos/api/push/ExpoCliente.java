@@ -90,15 +90,20 @@ class ExpoCliente {
         } catch (RuntimeException e) {
             throw new FalhaNoEnvio("RESPOSTA_INVALIDA");
         }
+        // Um 200 sem a lista de tickets, ou com outro tamanho, não diz o que aconteceu com cada mensagem: tenta de novo.
+        if (!dados.isArray() || dados.size() != tokens.size()) {
+            throw new FalhaNoEnvio("RESPOSTA_INVALIDA");
+        }
         List<String> erros = new ArrayList<>();
-        for (int i = 0; i < tokens.size(); i++) {
-            JsonNode ticket = dados.path(i);
-            String erro = null;
-            if ("error".equals(ticket.path("status").asString(""))) {
-                erro = ticket.path("details").path("error").asString("ERRO");
-            }
-            erros.add(erro);
+        for (JsonNode ticket : dados) {
+            erros.add("ok".equals(ticket.path("status").asString("")) ? null : codigoDoErro(ticket));
         }
         return erros;
+    }
+
+    /** O código do Expo ({@code details.error}, um enum como {@code DeviceNotRegistered}); qualquer outra coisa vira {@code ERRO}. */
+    private static String codigoDoErro(JsonNode ticket) {
+        String codigo = ticket.path("details").path("error").asString("");
+        return codigo.matches("[A-Za-z]{1,40}") ? codigo : "ERRO";
     }
 }

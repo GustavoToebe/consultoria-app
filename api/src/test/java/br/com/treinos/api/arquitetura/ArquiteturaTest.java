@@ -75,8 +75,11 @@ class ArquiteturaTest {
      * sem tenant; toda escrita depois da reserva leva {@code consultoria_id} explícito e confere a posse, e nada lê ou grava
      * endereço, nome ou texto, só ids, datas, a configuração e o andamento);
      * {@code PushRepositorio} (token de push do aparelho do aluno e fila dos envios do Expo: o job reserva e envia de todas as
-     * consultorias, sem tenant; toda escrita leva {@code consultoria_id} explícito e confere a posse da reserva; o valor do
-     * token só sai para o envio e a fila não guarda texto, nome nem compromisso, só o usuário e o andamento).
+     * consultorias, sem tenant; toda escrita leva {@code consultoria_id} explícito e confere a posse da reserva, menos duas,
+     * globais de propósito: registrar apaga o MESMO token de qualquer outra conta ou consultoria (o token é único no banco: um
+     * aparelho que muda de conta ou de consultoria não pode avisar o dono antigo) e a limpeza apaga o token vencido (30 dias sem
+     * renovar) e a fila antiga; o valor do token só sai para o envio e a fila não guarda texto, nome nem compromisso, só o
+     * usuário e o andamento).
      */
     private static final Set<String> SQL_NATIVO_PERMITIDO = Set.of(
             "br.com.treinos.api.auth.ContadorBanco",
