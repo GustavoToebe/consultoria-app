@@ -258,6 +258,31 @@ export interface GravacaoDeEtapas extends RegistroDeEtapas {
  * depois. Concluir exige todas as etapas com situação; desfazer uma etapa reabre a série; editar números não muda a
  * situação. Nada é inventado: repetição vazia continua vazia, a meta não é copiada para o realizado.
  */
+/**
+ * De qual registro sai a próxima ação. O salvamento é assíncrono: a prop pode ainda ser a anterior enquanto a pessoa
+ * edita outra etapa. O último resultado local vale até a prop alcançá-lo; senão a ação nova nasceria do dado velho e
+ * apagaria o que acabou de ser digitado.
+ */
+export function baseDaProximaAcao(
+  registro: RegistroAtual | null | undefined,
+  ultimoLocal: GravacaoDeEtapas | null,
+): RegistroAtual | null | undefined {
+  if (!ultimoLocal) return registro;
+  if (propEstaAtras(registro, ultimoLocal)) return ultimoLocal;
+  return registro;
+}
+
+/**
+ * A prop ainda não alcançou o que o aparelho montou: não tem etapa que o local não tenha. Número diferente na mesma
+ * etapa também conta (a edição ainda não voltou). Etapa que só a prop tem é dado mais novo: aí a prop vale.
+ */
+function propEstaAtras(registro: RegistroAtual | null | undefined, local: GravacaoDeEtapas): boolean {
+  const etapas = registro?.etapas;
+  if (!etapas) return true;
+  const locais = new Set(local.etapas.map((e) => e.posicao));
+  return !etapas.some((e) => !locais.has(e.posicao));
+}
+
 export function aplicarAcao(
   atual: RegistroAtual | null | undefined,
   acao: AcaoNaEtapa,

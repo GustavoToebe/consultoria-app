@@ -71,9 +71,13 @@ describe.each(VARIANTES)('peças comuns no tema %s', (_nome, cores) => {
     for (const s of [cores.superficie, cores.superficie2]) expect(contraste(cores.anelFoco, s)).toBeGreaterThanOrEqual(3);
   });
 
-  it('BotaoMarcar desabilitado (prévia): ícone `textoSuave` sobre a faixa `superficie3` ≥ 4,5:1 (sem opacidade)', () => {
-    const c = coresDoMarcar(cores, { feito: false, desabilitado: true, pressionado: false });
-    expect(contraste(c.icone, c.fundo)).toBeGreaterThanOrEqual(4.5);
+  it('BotaoMarcar desabilitado (prévia e número inválido num já feito): ícone `textoSuave` sobre a faixa `superficie3` ≥ 4,5:1 (sem opacidade)', () => {
+    for (const feito of [false, true]) {
+      const c = coresDoMarcar(cores, { feito, desabilitado: true, pressionado: false });
+      expect(c.fundo).toBe(cores.superficie3);
+      expect(c.icone).toBe(cores.textoSuave);
+      expect(contraste(c.icone, c.fundo)).toBeGreaterThanOrEqual(4.5);
+    }
   });
 
   it('desabilitado (D3): fundo `superficie3`, texto e ícone `textoSuave` ≥ 4,5:1, sem a marca nem opacidade', () => {

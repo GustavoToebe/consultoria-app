@@ -2,7 +2,7 @@ import type { EtapaRegistrada } from '../api/tipos';
 import { serie, tecnica } from './exemplosDeTreino.apoioTeste';
 import { descansoAoIniciar, iniciarDescanso, semDescansoDe, type Descanso } from './descanso';
 import {
-  aplicarAcao, cargaComum, comEtapa, etapasDaSerie, ligaPausaInterna, origemDaPausa, pausaDaAcao, proximaPendente, quantidadeDeEtapas, feitoAteAgora, faltaParaConcluir,
+  aplicarAcao, baseDaProximaAcao, cargaComum, comEtapa, etapasDaSerie, ligaPausaInterna, origemDaPausa, pausaDaAcao, proximaPendente, quantidadeDeEtapas, feitoAteAgora, faltaParaConcluir,
   semEtapa, seloDaSerieComEtapas, somarVolumes, todasComSituacao, totalDasEtapas, volumeDaSerie,
 } from './etapas';
 
@@ -77,6 +77,18 @@ describe('total e carga como o servidor (T03, T04, T25)', () => {
 
 describe('ações do aluno (T10, T14, T18)', () => {
   const ref = { valor: 40, origem: 'BASE_DO_DIA' as const };
+
+  it('a etapa seguinte parte do registro local quando a prop ainda é a anterior', () => {
+    const primeira = aplicarAcao(null, { tipo: 'FEITA', posicao: 1, repeticoes: 4, carga: 40 }, 4, ref)!;
+    const pelaPropVelha = aplicarAcao(null, { tipo: 'FEITA', posicao: 2, repeticoes: 4, carga: 40 }, 4, ref)!;
+    expect(pelaPropVelha.etapas.map((e) => e.posicao)).toEqual([2]);
+    const base = baseDaProximaAcao(null, primeira);
+    const segunda = aplicarAcao(base, { tipo: 'FEITA', posicao: 2, repeticoes: 4, carga: 40 }, 4, ref)!;
+    expect(segunda.etapas.map((e) => e.posicao)).toEqual([1, 2]);
+    const atrasada = baseDaProximaAcao(primeira, segunda);
+    expect(atrasada?.etapas?.map((e) => e.posicao)).toEqual([1, 2]);
+    expect(baseDaProximaAcao(segunda, segunda)).toBe(segunda);
+  });
 
   it('a primeira etapa congela a referência; mudar a base depois não muda o que já foi registrado', () => {
     const r1 = aplicarAcao(null, { tipo: 'FEITA', posicao: 1, repeticoes: 4, carga: 40 }, 4, ref)!;
