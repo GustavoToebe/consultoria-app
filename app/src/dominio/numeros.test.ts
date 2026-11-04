@@ -1,5 +1,5 @@
 import type { MesDeNumeros } from '../api/tipos';
-import { contagemParaTela, MARCA_PARCIAL, resumoDasAtualizacoes, rotuloDoMes, rotuloDoMesCompleto, textoDoResumo, totalDoMes } from './numeros';
+import { alunosELimite, contagemParaTela, linhasDaEquipe, MARCA_PARCIAL, resumoDasAtualizacoes, rotuloDoMes, rotuloDoMesCompleto, SEM_RESPONSAVEL, textoDoResumo, totalDoMes } from './numeros';
 
 const mes = (m: string, extra: Partial<MesDeNumeros> = {}): MesDeNumeros => ({
   mes: m, parcial: false, alunosAtivos: 10, atualizacoesNoPrazo: 4, atualizacoesAtrasadas: 1, ...extra,
@@ -72,5 +72,30 @@ describe('textoDoResumo', () => {
   it('plural e singular', () => {
     expect(textoDoResumo({ meses: 5, noPrazo: 17, atrasadas: 3, total: 20 })).toBe('Nos 5 meses fechados: 20 atualizações (17 no prazo, 3 atrasadas).');
     expect(textoDoResumo({ meses: 1, noPrazo: 0, atrasadas: 1, total: 1 })).toBe('No mês fechado: 1 atualização (0 no prazo, 1 atrasada).');
+  });
+});
+
+describe('tabela da equipe', () => {
+  const equipe = [
+    { usuarioId: 'u1', nome: 'Ana Fictícia', alunosAtivos: 12, limiteDeAlunos: 30, atualizacoesAtrasadas: 2, atualizacoesParaRevisar: 0 },
+    { usuarioId: 'u2', nome: 'Bia Exemplo', alunosAtivos: 5, limiteDeAlunos: null, atualizacoesAtrasadas: null, atualizacoesParaRevisar: null },
+  ];
+  it('sem a equipe (sem EQUIPE_LER) não há tabela: nulo, não lista vazia', () => {
+    expect(linhasDaEquipe({ equipe: null, semResponsavel: null })).toBeNull();
+    expect(linhasDaEquipe({ equipe: undefined as unknown as null, semResponsavel: null })).toBeNull();
+    expect(linhasDaEquipe(null)).toBeNull();
+  });
+  it('membros na ordem da API e "Sem responsável" por último, sem limite', () => {
+    const linhas = linhasDaEquipe({ equipe, semResponsavel: { alunosAtivos: 3, atualizacoesAtrasadas: 1, atualizacoesParaRevisar: 4 } });
+    expect(linhas?.map((l) => l.nome)).toEqual(['Ana Fictícia', 'Bia Exemplo', SEM_RESPONSAVEL]);
+    expect(linhas?.[2]).toEqual({ chave: 'sem-responsavel', nome: SEM_RESPONSAVEL, alunosAtivos: 3, limite: undefined, atrasadas: 1, paraRevisar: 4 });
+    expect(linhas?.[1].limite).toBeNull();
+  });
+  it('alunos / limite: sem limite é "sem limite", nunca "—"; "Sem responsável" só o número', () => {
+    expect(alunosELimite({ alunosAtivos: 12, limite: 30 })).toBe('12 / 30');
+    expect(alunosELimite({ alunosAtivos: 31, limite: 30 })).toBe('31 / 30');
+    expect(alunosELimite({ alunosAtivos: 0, limite: 0 })).toBe('0 / 0');
+    expect(alunosELimite({ alunosAtivos: 5, limite: null })).toBe('5 / sem limite');
+    expect(alunosELimite({ alunosAtivos: 3, limite: undefined })).toBe('3');
   });
 });
