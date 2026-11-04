@@ -1,6 +1,6 @@
 import type { EtapaRegistrada, Sessao } from '../api/tipos';
 import { somarVolumes, volumeDaSerie, type Volume } from './etapas';
-import { numeroParaTela } from './formatos';
+import { numeroDaCarga, type UnidadeDeCarga } from './unidadeDeCarga';
 
 /**
  * Faixa do treino ao vivo (frente Engajamento, passo 0.3): duração, volume e séries feitas da sessão no dia, contadas
@@ -32,10 +32,10 @@ export function volumeDaSessao(sessao: Pick<Sessao, 'exercicios'>, registroDe: (
 }
 
 /** "3.450 kg" (milhar com ponto, até duas casas); `null` = "—". */
-export function textoDoVolumeAoVivo(v: Volume | null): string {
+export function textoDoVolumeAoVivo(v: Volume | null, unidade: UnidadeDeCarga = 'kg'): string {
   if (!v) return '—';
-  const [inteiro, decimais] = numeroParaTela(v.valor).split(',');
-  return `${inteiro!.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}${decimais ? `,${decimais}` : ''} kg`;
+  const [inteiro, decimais] = numeroDaCarga(v.valor, unidade).split(',');
+  return `${inteiro!.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}${decimais ? `,${decimais}` : ''} ${unidade}`;
 }
 
 /** "0:45", "12:05", "1:02:10"; `null` = "—". */

@@ -1,8 +1,9 @@
 import type { DiaDeTreino, EtapaRegistrada, SerieFeita, Sessao } from '../api/tipos';
 import { cargaComum, somarVolumes, volumeDaSerie, type Volume } from './etapas';
 import { DIAS_SEMANA } from './editorTreino';
-import { diaDaSemanaIso, numeroParaTela, somarDias } from './formatos';
+import { diaDaSemanaIso, somarDias } from './formatos';
 import { nomeComDia } from './semana';
+import { textoDaCarga, type UnidadeDeCarga } from './unidadeDeCarga';
 
 /**
  * Cargas por divisão (como o relatório do protótipo): divisão do plano → exercício → uma linha por dia com a carga
@@ -181,16 +182,16 @@ export const TEXTO_FEITO_SEM_CARGA = 'feito, sem carga';
  * cada etapa feita: "WS 40 kg × 4+4+4+2 = 14", com carga variável "WS 40 kg × 4 + 42,5 kg × 4 = 8"; o total só aparece
  * quando o servidor o calculou (todas as etapas com situação), senão a linha diz "parcial".
  */
-export function textoSerie(s: SerieFeita): string {
+export function textoSerie(s: SerieFeita, unidade: UnidadeDeCarga = 'kg'): string {
   const tipo = s.tipo?.trim() || 'Série';
-  if (s.etapas) return `${tipo} ${textoDasEtapas(s, s.etapas)}`;
+  if (s.etapas) return `${tipo} ${textoDasEtapas(s, s.etapas, unidade)}`;
   if (s.unidade === 'nenhuma' && s.repeticoes == null && s.carga == null) return `${tipo} ${s.concluida ? 'feito' : '—'}`;
   if (s.unidade === 'nenhuma') return `${tipo} ${s.repeticoes ?? '—'}`;
   // D4 (02/11): o que o aluno não informou numa série feita é dito por extenso, não "—".
   if (s.carga == null && s.repeticoes == null) return `${tipo} ${s.concluida ? TEXTO_FEITO_SEM_CARGA : '—'}`;
   // "Sem carga"/"sem repetições" só numa série concluída; na não marcada a ausência é "—".
   const falta = (texto: string) => (s.concluida ? texto : '—');
-  const carga = s.carga == null ? falta('sem carga') : `${numeroParaTela(s.carga)} kg`;
+  const carga = s.carga == null ? falta('sem carga') : textoDaCarga(s.carga, unidade);
   return `${tipo} ${carga} × ${s.repeticoes ?? falta('sem repetições')}`;
 }
 
@@ -210,7 +211,7 @@ function partesDasEtapas(s: SerieFeita, etapas: readonly EtapaRegistrada[]) {
   return { feitas, sufixo, total, semFeita };
 }
 
-function textoDasEtapas(s: SerieFeita, etapas: readonly EtapaRegistrada[]): string {
+function textoDasEtapas(s: SerieFeita, etapas: readonly EtapaRegistrada[], unidade: UnidadeDeCarga): string {
   const { feitas, sufixo, total, semFeita } = partesDasEtapas(s, etapas);
   if (!feitas.length) return semFeita;
   let corpo: string;
@@ -218,8 +219,8 @@ function textoDasEtapas(s: SerieFeita, etapas: readonly EtapaRegistrada[]): stri
   else {
     const comum = cargaComum(feitas);
     corpo = comum != null
-      ? `${numeroParaTela(comum)} kg × ${feitas.map(repsDaEtapa).join('+')}`
-      : feitas.map((e) => `${numeroParaTela(e.carga)} kg × ${repsDaEtapa(e)}`).join(' + ');
+      ? `${textoDaCarga(comum, unidade)} × ${feitas.map(repsDaEtapa).join('+')}`
+      : feitas.map((e) => `${textoDaCarga(e.carga, unidade)} × ${repsDaEtapa(e)}`).join(' + ');
   }
   return `${corpo}${total}${sufixo}`;
 }
@@ -259,9 +260,9 @@ export function volumeDoExercicio(series: readonly SerieFeita[]): Volume | null 
 }
 
 /** "Volume de carga: 1240 kg" ou "Volume de carga: subtotal de 800 kg (faltou carga ou repetição)". */
-export function textoDoVolume(v: Volume | null): string | null {
+export function textoDoVolume(v: Volume | null, unidade: UnidadeDeCarga = 'kg'): string | null {
   if (!v) return null;
-  const valor = `${numeroParaTela(v.valor)} kg`;
+  const valor = textoDaCarga(v.valor, unidade);
   return v.completo ? `Volume de carga: ${valor}` : `Volume de carga: subtotal de ${valor} (faltou carga ou repetição)`;
 }
 

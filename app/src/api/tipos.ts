@@ -4,7 +4,8 @@
 
 export type Papel = 'TREINADOR' | 'ALUNO';
 export type Fonte = 'PADRAO' | 'METAL' | 'ESPORTIVA' | 'CONDENSADA';
-export type Tema = 'ESCURO' | 'CLARO';
+/** Paletas da marca (`temaPadrao` da consultoria); cada uma tem modo fixo em `tema/tokens.PALETAS`. */
+export type Tema = 'ESCURO' | 'MEIA_NOITE' | 'AMEIXA' | 'OCEANO' | 'CAFE' | 'CLARO' | 'AREIA' | 'LAVANDA' | 'CEU' | 'ROSA';
 
 export interface Marca {
   id: string;
@@ -59,6 +60,8 @@ export interface EuResponse {
   retornoHabilitado?: boolean;
   /** Aviso no celular por push do Expo ligado na plataforma; falso ou ausente = o app não oferece o interruptor. */
   pushHabilitado?: boolean;
+  /** Escolha de kg ou lb para ver e digitar a carga ligada na plataforma; falso ou ausente = o app esconde a escolha e usa kg. */
+  unidadeDeCargaHabilitada?: boolean;
   usuario: UsuarioResumo;
   marca: Marca;
   aluno?: { id: string; nome: string; sexo?: string | null };

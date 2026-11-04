@@ -11,6 +11,7 @@ import { useSessao } from '../../sessao/SessaoProvider';
 import { GuardaDePapel } from '../../ui/GuardaDePapel';
 import { Navegacao, type ItemMenu } from '../../ui/Navegacao';
 import { ProvedorDoPasseio } from '../../ui/Passeio';
+import { ProvedorDaUnidadeDeCarga } from '../../ui/ProvedorDaUnidadeDeCarga';
 import { GUIAS } from '../../ajuda/conteudo';
 import { ContextoDeImagens } from '../../aluno/atualizacao/ImagemDaPergunta';
 import { baixarImagemDoAluno } from '../../api/rotas';
@@ -47,7 +48,10 @@ export default function LayoutAluno() {
                 {/* Compromissos e avisos também só em memória; alimentam o Início, o ponto e os lembretes locais. */}
                 <CompromissosDoAlunoProvider>
                   <SincronizarPush usuarioId={usuario.id} />
-                  <MenuAluno />
+                  {/* A carga é kg em todo lugar; só a tela do aluno a mostra e a recebe em lb, se ele escolheu (Preferências). */}
+                  <ProvedorDaUnidadeDeCarga>
+                    <MenuAluno />
+                  </ProvedorDaUnidadeDeCarga>
                 </CompromissosDoAlunoProvider>
               </FinanceiroDoAlunoProvider>
             </ContextoDeImagens.Provider>

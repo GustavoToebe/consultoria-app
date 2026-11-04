@@ -69,6 +69,8 @@ interface ValorSessao {
   retornoHabilitado: boolean;
   /** Aviso de compromisso por push ligado? Desligado ou desconhecido, o app não oferece o interruptor. */
   pushHabilitado: boolean;
+  /** Escolha de kg/lb ligada? Desligado ou desconhecido, a carga é sempre kg e a escolha não aparece. */
+  unidadeDeCargaHabilitada: boolean;
   recarregarPerfil: () => Promise<void>;
   situacao: Situacao;
   usuario: UsuarioResumo | null;
@@ -378,6 +380,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       cicloHabilitado:perfil?.cicloHabilitado===true,
       retornoHabilitado:perfil?.retornoHabilitado===true,
       pushHabilitado:perfil?.pushHabilitado===true,
+      unidadeDeCargaHabilitada:perfil?.unidadeDeCargaHabilitada===true,
       recarregarPerfil,
       situacao,
       usuario: perfil?.usuario ?? null,

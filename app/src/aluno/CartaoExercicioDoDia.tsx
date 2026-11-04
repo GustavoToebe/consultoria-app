@@ -5,13 +5,14 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import type { Configuracao, ExercicioPlano, UltimaCarga } from '../api/tipos';
 import { resumoTecnicasEDescanso, textoCardio } from '../dominio/agrupamento';
 import { usaCargaDeTrabalho } from '../dominio/cargas';
-import { numeroParaTela } from '../dominio/formatos';
 import { MODALIDADES } from '../dominio/modalidades';
+import { textoDaCarga } from '../dominio/unidadeDeCarga';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../tema/tokens';
 import { propsDeLink } from '../ui/propsDeLink';
 import { Selo } from '../ui/Selo';
 import { Texto } from '../ui/Texto';
+import { useUnidadeDeCarga } from '../ui/unidadeDeCargaEmUso';
 import { ehExercicioDeCardio } from './serieDoAluno';
 
 /**
@@ -46,6 +47,7 @@ export function CartaoExercicioDoDia({
   aoAbrir: () => void;
 }) {
   const { cores } = useTema();
+  const unidade = useUnidadeDeCarga();
   const completo = total > 0 && feitas >= total;
   // Só aquecimento: nada entra na contagem, mas as séries continuam planejadas.
   const planejadas = total || e.series.length;
@@ -57,8 +59,8 @@ export function CartaoExercicioDoDia({
   const prescricaoDeCardio = cardio && e.series[0]?.cardio ? textoCardio(e.series[0].cardio) : null;
   const carga = usaCargaDeTrabalho(e)
     ? cargaDoDia !== null
-      ? { rotulo: `Carga de trabalho (${tipoTrabalho}) hoje`, valor: `${numeroParaTela(cargaDoDia)} kg` }
-      : { rotulo: 'Última carga', valor: ultima?.carga != null ? `${numeroParaTela(ultima.carga)} kg` : '—' }
+      ? { rotulo: `Carga de trabalho (${tipoTrabalho}) hoje`, valor: textoDaCarga(cargaDoDia, unidade) }
+      : { rotulo: 'Última carga', valor: ultima?.carga != null ? textoDaCarga(ultima.carga, unidade) : '—' }
     : null;
 
   return (

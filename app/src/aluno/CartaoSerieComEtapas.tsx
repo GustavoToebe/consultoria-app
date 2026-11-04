@@ -11,7 +11,7 @@ import {
   seloDaSerieComEtapas, textoDaReferenciaCongelada, todasComSituacao, type AcaoNaEtapa, type EtapaPrevista,
 } from '../dominio/etapas';
 import { textoDoNumeroInvalido } from '../dominio/avisoDaSerie';
-import { numeroParaTela } from '../dominio/formatos';
+import { textoDaCarga } from '../dominio/unidadeDeCarga';
 import { TEXTO_CARGA_ILEGIVEL } from '../dominio/modoDeCarga';
 import { nomeDaSerieDeTrabalho } from '../dominio/metodologia';
 import { aplicarEscolhaDoPainel, type EscolhaDoPainel } from '../dominio/painelDoCheck';
@@ -26,6 +26,8 @@ import { Botao } from '../ui/Botao';
 import { BotaoMarcar } from '../ui/BotaoMarcar';
 import { useEmPrevia } from '../ui/emPrevia';
 import { CampoNumericoGrande } from '../ui/Campos';
+import { CampoDeCarga } from '../ui/CampoDeCarga';
+import { useUnidadeDeCarga } from '../ui/unidadeDeCargaEmUso';
 import { Texto } from '../ui/Texto';
 import type { DadosSerie } from './ExercicioAluno';
 import { PainelDoCheck } from './PainelDoCheck';
@@ -72,6 +74,7 @@ interface Props {
  */
 export function CartaoSerieComEtapas(p: Props) {
   const { cores, identificacao } = useTema();
+  const unidade = useUnidadeDeCarga();
   const emPrevia = useEmPrevia();
   const s = p.calculada.serie;
   const previstas = etapasDaSerie(s) ?? [];
@@ -96,8 +99,8 @@ export function CartaoSerieComEtapas(p: Props) {
   const barra = barraDoTipo(selos.tipo?.cor ? identificacao[selos.tipo.cor].cor : null);
   // Com etapa em %, a referência aparece antes da primeira etapa também (a de agora), para o aluno saber a base da conta.
   const referenciaCongelada = registro?.referenciaCarga != null
-    ? textoDaReferenciaCongelada(registro.referenciaCarga, registro.referenciaOrigem)
-    : comPercentual ? textoDaReferenciaCongelada(p.calculada.referencia?.valor, p.calculada.referencia?.origem) : null;
+    ? textoDaReferenciaCongelada(registro.referenciaCarga, registro.referenciaOrigem, unidade)
+    : comPercentual ? textoDaReferenciaCongelada(p.calculada.referencia?.valor, p.calculada.referencia?.origem, unidade) : null;
   const semDetalhe = !!registro && !registro.etapas && (registro.repeticoes != null || registro.carga != null || registro.concluida);
   // De onde saiu a carga sugerida (A9), ao lado da sugestão da etapa da vez. Com a referência já congelada na primeira
   // etapa, a linha dela já diz a origem.
@@ -133,7 +136,7 @@ export function CartaoSerieComEtapas(p: Props) {
       {p.cargaIlegivel ? <Texto numerico variante="pequeno">{TEXTO_CARGA_ILEGIVEL}</Texto> : null}
       {p.anterior != null ? <LinhaDoUltimoRegistro texto={p.anterior} numero={p.numero} /> : null}
       {!p.semCarga && referenciaCongelada ? <Texto numerico variante="pequeno">{referenciaCongelada}</Texto> : null}
-      {semDetalhe ? <Texto numerico variante="pequeno">Registro sem detalhe por {cluster ? 'bloco' : 'etapa'}: {registro!.repeticoes ?? '—'} reps{registro!.carga != null ? ` · ${numeroParaTela(registro!.carga)} kg` : ''}.</Texto> : null}
+      {semDetalhe ? <Texto numerico variante="pequeno">Registro sem detalhe por {cluster ? 'bloco' : 'etapa'}: {registro!.repeticoes ?? '—'} reps{registro!.carga != null ? ` · ${textoDaCarga(registro!.carga, unidade)}` : ''}.</Texto> : null}
       <RotuloDeHoje />
 
       <View role="group" aria-label={nomeDoGrupo} style={[estilos.etapas, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
@@ -207,6 +210,7 @@ function LinhaDaEtapa({ prevista, numeroDaSerie, registrada, atual, comDivisao, 
   painelJaUsado: boolean;
 }) {
   const { cores } = useTema();
+  const unidade = useUnidadeDeCarga();
   const emPrevia = useEmPrevia();
   // Antes de marcar: as repetições começam vazias (a meta não vira realizado) e o peso também (D17): a sugestão é só dica.
   // `undefined` = o aluno ainda não mexeu no campo de peso (vale o peso já dado na série); `null` = apagou de propósito.
@@ -246,7 +250,7 @@ function LinhaDaEtapa({ prevista, numeroDaSerie, registrada, atual, comDivisao, 
   const feito = prevista.rotulo.startsWith('Bloco') ? 'feito' : 'feita';
   const posicao = prevista.posicao;
   const situacao = feita ? ` · ${feito}` : naoRealizada ? ` · não ${feito}` : atual ? ' · agora' : '';
-  const dica = !feita && !naoRealizada && mostrarDica ? dicaDaEtapa({ campoVazio: carga === null, sugestaoKg: sugestao, cargaPropria: cargaPrevista !== null, semCampoDePeso: semCarga }) : null;
+  const dica = !feita && !naoRealizada && mostrarDica ? dicaDaEtapa({ campoVazio: carga === null, sugestaoKg: sugestao, cargaPropria: cargaPrevista !== null, semCampoDePeso: semCarga, unidade }) : null;
 
   // ✓: no primeiro da série com o peso vazio e com sugestão, abre o painel na tela; senão marca com o que está nos campos.
   const marcar = () => {
@@ -287,8 +291,8 @@ function LinhaDaEtapa({ prevista, numeroDaSerie, registrada, atual, comDivisao, 
         ) : (
           <View style={estilos.campos}>
             {semCarga ? null : (
-              <CampoNumericoGrande ref={campoDoPeso} rotulo="Peso" rotuloOculto rotuloAcessivel={`Peso, ${nome}, em quilos`} sufixo="kg" valor={carga}
-                aoMudar={(v) => { setPainel(null); if (feita) editar({ carga: v }); else setCargaDigitada(v); }}
+              <CampoDeCarga ref={campoDoPeso} rotulo="Peso" rotuloOculto rotuloAcessivel={`Peso, ${nome}`} valorKg={carga}
+                aoMudarKg={(v) => { setPainel(null); if (feita) editar({ carga: v }); else setCargaDigitada(v); }}
                 aoValidade={(ok) => setCargaInvalida(!ok)} />
             )}
             <CampoNumericoGrande rotulo="Reps" rotuloOculto rotuloAcessivel={`Repetições feitas, ${nome}`} sufixo="reps" inteiro valor={reps}

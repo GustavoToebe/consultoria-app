@@ -97,6 +97,10 @@ treinos:
     expo-url: ${TREINOS_PUSH_EXPO_URL:https://exp.host/--/api/v2/push/send}
     expo-token: ${TREINOS_PUSH_EXPO_TOKEN:}
     envio-agendado: ${TREINOS_PUSH_ENVIO_AGENDADO:true}
+  # Escolha de kg ou lb para o aluno ver e digitar a carga. Desligado por padrão: o app esconde a escolha e usa kg (GET /eu traz
+  # unidadeDeCargaHabilitada). A carga é guardada sempre em kg; nenhuma rota depende desta chave.
+  unidade-carga:
+    habilitado: ${TREINOS_UNIDADE_CARGA_HABILITADA:false}
   # Fotos da atualização do aluno (dado sensível, bucket privado S3/R2). Desligado por padrão: a pergunta FOTOS fica sem envio.
   # Ligado, a API só sobe com endpoint, bucket, chave e segredo; segredos só em variável de ambiente, sem valor padrão.
   fotos:
