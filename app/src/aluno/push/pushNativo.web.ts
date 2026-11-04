@@ -15,3 +15,9 @@ export async function obterPushDoAparelho(_pedirPermissao: boolean): Promise<Pus
 export async function removerPushDoAparelho(): Promise<void> {
   // Nada a apagar.
 }
+export async function registrarPushDoAparelho(): Promise<void> {
+  // Nada a registrar.
+}
+export async function desligarPushDoAparelho(): Promise<void> {
+  // Nada a apagar.
+}

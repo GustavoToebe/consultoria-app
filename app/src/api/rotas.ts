@@ -409,15 +409,16 @@ export const aceitarTermos = (versao: string) =>
 export const trocarSenha = (senhaAtual: string, senhaNova: string) =>
   requisicao<LoginResponse>('/eu/senha', { metodo: 'PUT', corpo: { senhaAtual, senhaNova } });
 
-/** "Excluir minha conta" do aluno: 204 e a sessão deixa de valer no servidor (a do aparelho sai pelo `encerrarLocal`). */
 // ---- Push do Expo (aviso de compromisso no celular) ----
 
 /** Registra o token deste aparelho (idempotente). O valor do token nunca vai a log. */
 export const registrarPushToken = (token: string, plataforma: 'ANDROID' | 'IOS') =>
   requisicao<void>('/aluno/push-token', { metodo: 'PUT', corpo: { token, plataforma } });
-export const removerPushToken = (token: string) =>
-  requisicao<void>('/aluno/push-token', { metodo: 'DELETE', corpo: { token } });
+/** Apaga o token informado. Sem token (o aparelho não o devolveu), o servidor apaga todos os do próprio usuário da sessão. */
+export const removerPushToken = (token?: string) =>
+  requisicao<void>('/aluno/push-token', token ? { metodo: 'DELETE', corpo: { token } } : { metodo: 'DELETE' });
 
+/** "Excluir minha conta" do aluno: 204 e a sessão deixa de valer no servidor (a do aparelho sai pelo `encerrarLocal`). */
 export const excluirMinhaConta = (senha: string, confirmacao: string) =>
   requisicao<void>('/aluno/conta/excluir', { metodo: 'POST', corpo: { senha, confirmacao } });
 

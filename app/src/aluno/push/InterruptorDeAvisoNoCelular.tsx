@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 
-import { registrarPushToken, removerPushToken } from '../../api/rotas';
+import { registrarPushToken } from '../../api/rotas';
 import {
   AJUDA_DO_AVISO_NO_CELULAR, AJUDA_SEM_PERMISSAO_DO_PUSH, AVISO_PUSH_FALHOU, AVISO_PUSH_NAO_DESLIGOU, AVISO_PUSH_NEGADO,
   oferecerAvisoNoCelular, ROTULO_DO_AVISO_NO_CELULAR,
@@ -11,13 +11,13 @@ import { useTema } from '../../tema/TemaProvider';
 import { useAviso } from '../../ui/Aviso';
 import { Interruptor } from '../../ui/Campos';
 import { Cartao } from '../../ui/Cartao';
-import { obterPushDoAparelho, pushPermitido } from './pushNativo';
+import { desligarPushDoAparelho, obterPushDoAparelho, pushPermitido } from './pushNativo';
 
 /**
  * "Avisar no celular quando um compromisso mudar" em Aparência e preferências: push do Expo, desligado por padrão. Só no
  * celular e só com a chave da plataforma ligada (`pushHabilitado` do `/eu`). A permissão do aparelho é pedida aqui, no
- * momento em que a pessoa liga (nunca ao abrir o app). Ligar registra o token deste aparelho na API; desligar o apaga.
- * Falha da API deixa o interruptor como estava e avisa.
+ * momento em que a pessoa liga (nunca ao abrir o app). Ligar registra o token deste aparelho na API; desligar o apaga, mesmo
+ * sem a permissão do aparelho (e, sem token, apaga todos os do usuário). Falha da API deixa o interruptor como estava e avisa.
  */
 export function InterruptorDeAvisoNoCelular() {
   const { pushHabilitado } = useSessao();
@@ -39,25 +39,26 @@ export function InterruptorDeAvisoNoCelular() {
     if (ocupado.current) return;
     ocupado.current = true;
     try {
-      const aparelho = await obterPushDoAparelho(ligar);
-      if (ligar) {
-        if (aparelho.estado === 'negada') {
-          setPermitido(false);
-          avisar(AVISO_PUSH_NEGADO);
-          return;
-        }
-        if (aparelho.estado !== 'ok') {
-          avisar(AVISO_PUSH_FALHOU, 'perigo');
-          return;
-        }
-        setPermitido(true);
-        await registrarPushToken(aparelho.token, aparelho.plataforma);
-        escolherPreferencia({ avisoNoCelular: true });
+      if (!ligar) {
+        // Desligar não depende da permissão do aparelho (ela pode ter sido tirada depois): apaga este token ou, sem token, os do
+        // próprio usuário. Falha da API cai no catch e deixa o interruptor ligado.
+        await desligarPushDoAparelho();
+        escolherPreferencia({ avisoNoCelular: false });
         return;
       }
-      // Desligar: sem token (permissão tirada, por exemplo) não há o que apagar aqui; o servidor limpa o órfão no envio.
-      if (aparelho.estado === 'ok') await removerPushToken(aparelho.token);
-      escolherPreferencia({ avisoNoCelular: false });
+      const aparelho = await obterPushDoAparelho(true);
+      if (aparelho.estado === 'negada') {
+        setPermitido(false);
+        avisar(AVISO_PUSH_NEGADO);
+        return;
+      }
+      if (aparelho.estado !== 'ok') {
+        avisar(AVISO_PUSH_FALHOU, 'perigo');
+        return;
+      }
+      setPermitido(true);
+      await registrarPushToken(aparelho.token, aparelho.plataforma);
+      escolherPreferencia({ avisoNoCelular: true });
     } catch {
       avisar(ligar ? AVISO_PUSH_FALHOU : AVISO_PUSH_NAO_DESLIGOU, 'perigo');
     } finally {

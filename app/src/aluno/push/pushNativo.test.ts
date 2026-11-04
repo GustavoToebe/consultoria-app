@@ -1,7 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
-import { removerPushToken } from '../../api/rotas';
-import { obterPushDoAparelho, pushPermitido, removerPushDoAparelho } from './pushNativo';
+import { registrarPushToken, removerPushToken } from '../../api/rotas';
+import { desligarPushDoAparelho, obterPushDoAparelho, pushPermitido, registrarPushDoAparelho, removerPushDoAparelho } from './pushNativo';
 
 const TOKEN = 'ExponentPushToken[abcdefgh12345678]';
 
@@ -18,7 +18,7 @@ jest.mock('expo-constants', () => ({
   default: { expoConfig: { extra: { eas: { projectId: 'projeto-fictício' } } }, executionEnvironment: 'standalone' },
   ExecutionEnvironment: { StoreClient: 'storeClient' },
 }));
-jest.mock('../../api/rotas', () => ({ removerPushToken: jest.fn(async () => undefined) }));
+jest.mock('../../api/rotas', () => ({ registrarPushToken: jest.fn(async () => undefined), removerPushToken: jest.fn(async () => undefined) }));
 
 const permissao = (granted: boolean) => ({ granted, canAskAgain: true }) as never;
 
@@ -56,6 +56,12 @@ describe('obterPushDoAparelho', () => {
     expect(await obterPushDoAparelho(false)).toEqual({ estado: 'indisponivel' });
   });
 
+  it('sem exigir a permissão (para apagar o token) busca o token mesmo com a permissão tirada, sem pedir nada', async () => {
+    jest.mocked(Notifications.getPermissionsAsync).mockResolvedValueOnce(permissao(false));
+    expect(await obterPushDoAparelho(false, false)).toEqual({ estado: 'ok', token: TOKEN, plataforma: 'ANDROID' });
+    expect(Notifications.requestPermissionsAsync).not.toHaveBeenCalled();
+  });
+
   it('web não tem push', async () => {
     Platform.OS = 'web';
     expect(await obterPushDoAparelho(true)).toEqual({ estado: 'indisponivel' });
@@ -78,8 +84,14 @@ describe('removerPushDoAparelho (o "Sair")', () => {
     expect(removerPushToken).toHaveBeenCalledWith(TOKEN);
   });
 
-  it('sem permissão não chama a API', async () => {
+  it('com a permissão tirada depois de ligar, ainda apaga o token', async () => {
     jest.mocked(Notifications.getPermissionsAsync).mockResolvedValueOnce(permissao(false));
+    await removerPushDoAparelho();
+    expect(removerPushToken).toHaveBeenCalledWith(TOKEN);
+  });
+
+  it('sem token nenhum não chama a API (o "Sair" nunca apaga os dos outros aparelhos)', async () => {
+    jest.mocked(Notifications.getExpoPushTokenAsync).mockRejectedValueOnce(new Error('sem token'));
     await removerPushDoAparelho();
     expect(removerPushToken).not.toHaveBeenCalled();
   });
@@ -87,5 +99,45 @@ describe('removerPushDoAparelho (o "Sair")', () => {
   it('falha da API não bloqueia a saída', async () => {
     jest.mocked(removerPushToken).mockRejectedValueOnce(new Error('sem internet'));
     await expect(removerPushDoAparelho()).resolves.toBeUndefined();
+  });
+});
+
+describe('desligarPushDoAparelho (o interruptor desligado)', () => {
+  it('apaga o token deste aparelho', async () => {
+    await desligarPushDoAparelho();
+    expect(removerPushToken).toHaveBeenCalledWith(TOKEN);
+  });
+
+  it('sem a permissão do aparelho ainda busca o token e o apaga', async () => {
+    jest.mocked(Notifications.getPermissionsAsync).mockResolvedValueOnce(permissao(false));
+    await desligarPushDoAparelho();
+    expect(removerPushToken).toHaveBeenCalledWith(TOKEN);
+    expect(Notifications.requestPermissionsAsync).not.toHaveBeenCalled();
+  });
+
+  it('se mesmo assim não há token, pede ao servidor que apague os do próprio usuário (sem informar token)', async () => {
+    jest.mocked(Notifications.getExpoPushTokenAsync).mockRejectedValueOnce(new Error('sem token'));
+    await desligarPushDoAparelho();
+    expect(removerPushToken).toHaveBeenCalledTimes(1);
+    expect(removerPushToken).toHaveBeenCalledWith(undefined);
+  });
+
+  it('falha da API sobe, para o interruptor avisar e continuar ligado', async () => {
+    jest.mocked(removerPushToken).mockRejectedValueOnce(new Error('sem internet'));
+    await expect(desligarPushDoAparelho()).rejects.toThrow('sem internet');
+  });
+});
+
+describe('registrarPushDoAparelho (depois de trocar a senha)', () => {
+  it('registra o token deste aparelho de novo', async () => {
+    await registrarPushDoAparelho();
+    expect(registrarPushToken).toHaveBeenCalledWith(TOKEN, 'ANDROID');
+  });
+
+  it('sem permissão nunca pede e nada registra', async () => {
+    jest.mocked(Notifications.getPermissionsAsync).mockResolvedValueOnce(permissao(false));
+    await registrarPushDoAparelho();
+    expect(Notifications.requestPermissionsAsync).not.toHaveBeenCalled();
+    expect(registrarPushToken).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,6 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
-import { removerPushToken } from '../../api/rotas';
+import { registrarPushToken, removerPushToken } from '../../api/rotas';
 import { plataformaDoPush, tokenDePushValido, type PlataformaDoPush } from '../../dominio/pushDoAluno';
 import { carregarNotificacoes } from '../compromissos/lembretes';
 
@@ -26,9 +26,10 @@ export async function pushPermitido(): Promise<boolean | null> {
 
 /**
  * Token deste aparelho. `pedirPermissao` só vale quando a pessoa acabou de ligar o interruptor; sem ele, aparelho sem
- * permissão dá `negada`. Erro de rede ou do Expo vira `indisponivel`.
+ * permissão dá `negada`. `exigirPermissao: false` (para APAGAR o token: desligar o aviso e sair) tenta buscar o token mesmo
+ * sem permissão, que pode ter sido tirada depois de ligar. Erro de rede ou do Expo vira `indisponivel`.
  */
-export async function obterPushDoAparelho(pedirPermissao: boolean): Promise<PushDoAparelho> {
+export async function obterPushDoAparelho(pedirPermissao: boolean, exigirPermissao = true): Promise<PushDoAparelho> {
   const plataforma = plataformaDoPush(Platform.OS);
   const Notifications = await carregarNotificacoes();
   if (!plataforma || !Notifications) return { estado: 'indisponivel' };
@@ -39,7 +40,7 @@ export async function obterPushDoAparelho(pedirPermissao: boolean): Promise<Push
     }
     let permissao = await Notifications.getPermissionsAsync();
     if (!permissao.granted && pedirPermissao) permissao = await Notifications.requestPermissionsAsync();
-    if (!permissao.granted) return { estado: 'negada' };
+    if (!permissao.granted && exigirPermissao) return { estado: 'negada' };
     const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
     if (typeof projectId !== 'string') return { estado: 'indisponivel' };
     const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
@@ -49,13 +50,29 @@ export async function obterPushDoAparelho(pedirPermissao: boolean): Promise<Push
   }
 }
 
+/** Registra de novo o token deste aparelho na API (idempotente). Nunca pede permissão; sem token, não faz nada. */
+export async function registrarPushDoAparelho(): Promise<void> {
+  const aparelho = await obterPushDoAparelho(false);
+  if (aparelho.estado === 'ok') await registrarPushToken(aparelho.token, aparelho.plataforma);
+}
+
 /**
- * "Sair": apaga o token deste aparelho na API enquanto a sessão ainda vale. Falha ou demora não bloqueiam a saída (o
- * servidor também limpa token órfão no envio).
+ * Desligar o aviso: apaga o token deste aparelho na API, mesmo sem a permissão do aparelho. Se nem assim há token para
+ * informar, pede ao servidor que apague todos os do próprio usuário (o app registra de novo ao ligar ou ao abrir com o aviso
+ * ligado). Falha da API sobe: quem chama avisa e deixa o interruptor como estava.
+ */
+export async function desligarPushDoAparelho(): Promise<void> {
+  const aparelho = await obterPushDoAparelho(false, false);
+  await removerPushToken(aparelho.estado === 'ok' ? aparelho.token : undefined);
+}
+
+/**
+ * "Sair": apaga o token deste aparelho na API enquanto a sessão ainda vale. Falha ou demora não bloqueiam a saída (o token
+ * sem uso vence sozinho no servidor em 30 dias).
  */
 export async function removerPushDoAparelho(): Promise<void> {
   const apagar = (async () => {
-    const aparelho = await obterPushDoAparelho(false);
+    const aparelho = await obterPushDoAparelho(false, false);
     if (aparelho.estado === 'ok') await removerPushToken(aparelho.token);
   })();
   await Promise.race([apagar, new Promise<void>((resolver) => setTimeout(resolver, ESPERA_DO_SAIR_MS))]).catch(() => undefined);
