@@ -1,6 +1,6 @@
 # Páginas públicas: privacidade, termo de uso e exclusão de conta
 
-Situação: Em andamento · Onde: branch `paginas-publicas` (um PR, API + app, sem migration) · Atualizado: 04/11/2026
+Situação: PR aberto, aguardando revisão do Gustavo · Onde: branch `paginas-publicas` (um PR, API + app, sem migration) · Atualizado: 04/11/2026
 
 ## Objetivo
 As lojas da Apple e do Google pedem uma URL pública para o aviso de privacidade e, na Play, para o pedido de exclusão
@@ -23,10 +23,10 @@ explica como excluir a conta.
 - Exclusão de conta (Play, "Excluir conta" no Data safety): https://consultoria.servirea.com.br/excluir-conta
 
 ## Passos
-- [ ] 1. API: `GET /publico/termos`, teste sem login em `TermosIntegrationTest` e entrada no `ArquiteturaTest`. Commit: —
-- [ ] 2. App: as três páginas, os links "Privacidade" e "Termos de uso" no rodapé do Entrar e da inscrição, e o título da aba em `dominio/telas.ts`. Commit: —
-- [ ] 3. e2e em 390 e 1280 px (`e2e/paginas-publicas.spec.ts`). Commit: —
-- [ ] 4. Verificação: `npm run typecheck && npm run lint && npm test`, e2e e `mvn verify`. PR: —
+- [x] 1. API: `GET /publico/termos`, teste sem login em `TermosIntegrationTest` e entrada no `ArquiteturaTest`. Commit: 1c62685
+- [x] 2. App: as três páginas, os links "Privacidade" e "Termos de uso" no rodapé do Entrar e da inscrição, e o título da aba em `dominio/telas.ts`. Commit: 1c62685
+- [x] 3. e2e em 390 e 1280 px (`e2e/paginas-publicas.spec.ts`, 12 de 12; `inscricao`, `inscricao-perguntas`, `telas-publicas-erros` e `senha-provisoria` verdes). Commit: 1c62685
+- [x] 4. Verificação em 04/11: typecheck e lint limpos, `npm test` 5769 de 5769, `mvn verify` 2113 testes sem falha (JaCoCo incluído). PR: (este)
 
 ## Fora do escopo
 - Mudar o texto dos termos: depende da revisão jurídica.
@@ -38,5 +38,6 @@ explica como excluir a conta.
   `/api/publico/termos`; faltam as três páginas (`/privacidade`, `/termos-de-uso`, `/excluir-conta`). Sem elas, o
   revisor fora do Brasil recebe o 403 da Cloudflare nessas URLs. A página é o SPA: o `index.html` também carrega
   `/_expo/` (JS e CSS), `/assets/` (fontes e imagens) e `/favicon.ico`, que precisam entrar na mesma exceção, senão
-  a página abre em branco fora do Brasil.
+  a página abre em branco fora do Brasil. Em produção o `web.Caddyfile` da Central já devolve o `index.html`
+  para essas rotas (`try_files {path} /index.html`, conferido em 04/11): fora a Cloudflare, nada a mudar lá.
 - Revisão jurídica dos termos, que continuam RASCUNHO.

@@ -79,7 +79,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Inscrição do Saraiva (origens YouTube, TikTok, influenciador e aluno do time; "Tô só de passagem"; script que monta o formulário de 14 perguntas) | [inscricao-saraiva.md](inscricao-saraiva.md) | branch `inscricao-saraiva` | Em andamento | 04/11/2026 |
 | Pendências de 04/11 (guia, Trivy, decisões, defeitos pequenos e e2e intermitentes) | [pendencias-04-11.md](pendencias-04-11.md) | branches `pendencias-04-11-a/b/c` | Em andamento | 04/11/2026 |
 | Nova pasta: copiar de um período concluído | [copiar-periodo-na-pasta.md](copiar-periodo-na-pasta.md) | branch `copiar-periodo-na-pasta` | Pronta para revisão (5bfccd0c) | 04/11/2026 |
-| Páginas públicas: privacidade, termo de uso e exclusão de conta (pedido das lojas) | [paginas-publicas.md](paginas-publicas.md) | branch `paginas-publicas` (um PR) | Em andamento | 04/11/2026 |
+| Páginas públicas: privacidade, termo de uso e exclusão de conta (pedido das lojas) | [paginas-publicas.md](paginas-publicas.md) | branch `paginas-publicas` (um PR) | PR aberto, aguardando revisão | 04/11/2026 |
 
 ## Pendências soltas
 
