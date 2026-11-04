@@ -1,7 +1,7 @@
 import { coresComBordasReforcadas, coresComContraste } from '../dominio/preferencias';
 import { coresDoDesabilitado } from './desabilitado';
 import { coresDoMarcar } from './marcar';
-import { PALETAS, contraste, textoSobre, tingido, type Cores } from '../tema/tokens';
+import { CAMADA_DA_FOTO, PALETAS, contraste, textoSobre, tingido, type Cores } from '../tema/tokens';
 
 /**
  * Pares de cor que as peças comuns de `ui/` usam depois do passo 1 da atualização visual (30/10), conferidos em todos os
@@ -90,6 +90,32 @@ describe.each(VARIANTES)('peças comuns no tema %s', (_nome, cores) => {
 
   it('Cabecalho: selo "Sem conexão" com ícone (neutro sobre `tingido`)', () => {
     expect(contraste(cores.neutro, tingido(cores.neutro, cores.superficie))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('botão do canto da foto na ficha: câmera em `texto` sobre `superficie`, borda `bordaCampo` ≥ 3:1 contra o cartão', () => {
+    expect(contraste(cores.texto, cores.superficie)).toBeGreaterThanOrEqual(4.5);
+    expect(contraste(cores.texto, cores.superficie3)).toBeGreaterThanOrEqual(4.5);
+    expect(contraste(cores.bordaCampo, cores.superficie)).toBeGreaterThanOrEqual(3);
+  });
+
+  it('camada da foto na ficha sobre as iniciais (`superficie2`): ícone branco ≥ 4,5:1 e hover ≥ 3:1', () => {
+    const composta = sobreposta(...corDe(CAMADA_DA_FOTO.fundo), cores.superficie2);
+    expect(contraste(CAMADA_DA_FOTO.icone, composta)).toBeGreaterThanOrEqual(4.5);
+    expect(contraste(CAMADA_DA_FOTO.icone, sobreposta(...corDe(CAMADA_DA_FOTO.sobre), composta))).toBeGreaterThanOrEqual(3);
+  });
+});
+
+/** `rgba(r,g,b,a)` → [`#rrggbb`, a], para compor com `sobreposta`. */
+function corDe(rgba: string): [string, number] {
+  const [r, g, b, a] = (rgba.match(/[\d.]+/g) ?? []).map(Number);
+  return [`#${[r, g, b].map((c) => c.toString(16).padStart(2, '0')).join('')}`, a];
+}
+
+describe('camada da foto de perfil na ficha: a mesma nos temas, por cima de qualquer foto', () => {
+  it.each(['#FFFFFF', '#F4D9C6', '#808080', '#000000'])('foto %s: ícone e anel de foco brancos ≥ 4,5:1, hover do botão ≥ 3:1', (foto) => {
+    const composta = sobreposta(...corDe(CAMADA_DA_FOTO.fundo), foto);
+    expect(contraste(CAMADA_DA_FOTO.icone, composta)).toBeGreaterThanOrEqual(4.5);
+    expect(contraste(CAMADA_DA_FOTO.icone, sobreposta(...corDe(CAMADA_DA_FOTO.sobre), composta))).toBeGreaterThanOrEqual(3);
   });
 });
 

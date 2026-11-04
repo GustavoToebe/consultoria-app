@@ -273,6 +273,17 @@ export const MARCA_NEUTRA = '#52525B';
  * É decorativo: quem separa o painel do fundo é a borda do bloco, não o véu.
  */
 export const VEU = 'rgba(0,0,0,0.55)';
+/**
+ * Camada sobre a foto de perfil no topo da ficha (troca e remoção no próprio círculo): a foto pode ter qualquer cor,
+ * então a camada é a mesma nos três temas, como o véu. Ícone e anel de foco brancos passam 4,5:1 no pior caso (foto
+ * branca coberta pela camada) e o hover do botão não cai de 3:1 (`ui/contrasteDasPecas.test.ts`).
+ */
+export const CAMADA_DA_FOTO = {
+  fundo: 'rgba(0,0,0,0.62)',
+  /** Fundo do botão em hover ou pressionado, por cima da camada. */
+  sobre: 'rgba(255,255,255,0.18)',
+  icone: '#FFFFFF',
+} as const;
 
 export const espaco = (n: number) => n * 8;
 /** Cantos de 12 px (protótipo do editor, 30/10: o Gustavo escolheu 12 em vez de 8). */

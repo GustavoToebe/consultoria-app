@@ -2,7 +2,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { atualizacaoDoAluno, baixarFotoDePerfilDoAluno } from '../api/rotas';
+import { atualizacaoDoAluno } from '../api/rotas';
 import type { AlunoDetalhe, PastaResumo } from '../api/tipos';
 import { caminhoAtualizacaoTreinador, statusAtualizacaoTreinador } from '../dominio/atualizacao';
 import { dataRelativa, periodoCurto } from '../dominio/datasRelativas';
@@ -15,33 +15,30 @@ import { espaco, RAIO } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
 import { Cartao } from '../ui/Cartao';
 import { CampoLeitura } from '../ui/CampoLeitura';
-import { FotoDePerfil } from '../ui/FotoDePerfil';
 import { useSaidaGuardada } from '../ui/GuardaDeSaida';
 import { Selo } from '../ui/Selo';
 import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
-import { useVersaoDaFotoDePerfil } from '../aluno/versaoDaFotoDePerfil';
 import type { useAcompanhamentoDoAluno } from './CartaoFrequencia';
+import { FotoDePerfilEditavel } from './FotoDePerfilEditavel';
 
 /**
  * Topo da ficha: o que o treinador precisa ver primeiro (situação só se for exceção, pasta vigente, atualização,
  * treinos da semana e o último registro) e, numa faixa, o próximo passo com a ação direta (revisar a atualização ou
  * renovar a pasta). `children` (os dados do aluno) vem depois de uma linha fina, no mesmo cartão.
  */
-export function ResumoDoAluno({ aluno, acompanhamento, aoRenovar, aoSaberDaFoto, children }: {
+export function ResumoDoAluno({ aluno, acompanhamento, aoRenovar, aoAnonimizado, children }: {
   aluno: AlunoDetalhe;
   acompanhamento: ReturnType<typeof useAcompanhamentoDoAluno>;
   /** Abre a confirmação de "Renovar" (a mesma da lista de pastas). */
   aoRenovar: (pasta: PastaResumo) => void;
-  /** Avisa se o aluno tem foto de perfil (para "Remover foto" nos dados, sem baixar a foto duas vezes). */
-  aoSaberDaFoto?: (temFoto: boolean) => void;
+  /** A troca da foto recebeu 409 `ALUNO_ANONIMIZADO`: a ficha busca de novo. */
+  aoAnonimizado: () => void;
   children?: ReactNode;
 }) {
   const { pode } = useSessao();
   // Os dados do aluno se editam neste cartão: sair para a revisão com a edição aberta pergunta antes (D7).
   const { confirmar } = useSaidaGuardada();
-  // Muda quando a equipe troca ou remove a foto: o círculo baixa de novo.
-  const versaoDaFoto = useVersaoDaFotoDePerfil();
   const { cores } = useTema();
   const hoje = hojeIso();
   const verAtualizacao = pode('ATUALIZACAO_LER') && pode('ALUNO_SENSIVEL_LER');
@@ -66,8 +63,7 @@ export function ResumoDoAluno({ aluno, acompanhamento, aoRenovar, aoSaberDaFoto,
   return (
     <Cartao>
       <View style={estilos.topo}>
-        <FotoDePerfil chave={`perfil:${aluno.id}:${versaoDaFoto}`} carregar={() => baixarFotoDePerfilDoAluno(aluno.id)} nome={aluno.nome} tamanho={56}
-          aoSaber={aoSaberDaFoto} />
+        <FotoDePerfilEditavel alunoId={aluno.id} alunoNome={aluno.nome} anonimizado={aluno.anonimizado} aoAnonimizado={aoAnonimizado} />
         <View style={estilos.fatos}>
           {aluno.anonimizado || !aluno.ativo ? <Selo texto={aluno.anonimizado ? 'Anonimizado' : 'Inativo'} tipo="neutro" /> : null}
           <View style={estilos.linhaFatos}>
