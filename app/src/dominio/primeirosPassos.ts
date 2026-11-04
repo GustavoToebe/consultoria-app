@@ -167,6 +167,9 @@ const DEFINICOES: readonly Definicao[] = [
   },
 ];
 
+/** O perfil tem algum item dos Primeiros passos? Sem nenhum, o bloco nunca aparece e a Ajuda não oferece trazê-lo de volta. */
+export const temPrimeirosPassos = (p: Permissoes): boolean => DEFINICOES.some((d) => d.visivel(p));
+
 /* ============================== entrada e resultado ============================== */
 
 /**

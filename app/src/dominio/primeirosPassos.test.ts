@@ -13,6 +13,7 @@ import {
   mostrarDeNovo,
   oQueMostrarNoInicio,
   serializarEstado,
+  temPrimeirosPassos,
   type EntradaDosPrimeirosPassos,
   type EstadoGuardado,
   type IdDoItem,
@@ -451,4 +452,12 @@ describe('lugar do Próximo passo no Início', () => {
     const outro = { qualquer: 1 };
     expect(oQueMostrarNoInicio(montar({ estado: dispensar(ESTADO_INICIAL) }), outro).proximoPasso).toBe(outro);
   });
+});
+
+test('perfil sem nenhum item dos Primeiros passos: a Ajuda não oferece trazê-los de volta, e o bloco fica fechado', () => {
+  const soLeitura = { pode: (c: string) => ['PAINEL_VER', 'ALUNO_LER'].includes(c), administrador: false };
+  expect(temPrimeirosPassos(soLeitura)).toBe(false);
+  expect(montar(soLeitura).situacao).toBe('fechado');
+  expect(temPrimeirosPassos({ ...soLeitura, administrador: true })).toBe(true);
+  expect(temPrimeirosPassos({ pode: (c) => c === 'INSCRICAO_ALTERAR', administrador: false })).toBe(true);
 });

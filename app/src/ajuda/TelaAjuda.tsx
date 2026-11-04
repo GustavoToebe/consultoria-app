@@ -3,7 +3,7 @@ import { ChevronDown, ChevronUp, FileDown, MousePointerClick, PlayCircle, Rotate
 import { useState, type ReactNode } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 
-import { AVISO_DE_VOLTA, mostrarDeNovo } from '../dominio/primeirosPassos';
+import { AVISO_DE_VOLTA, mostrarDeNovo, temPrimeirosPassos } from '../dominio/primeirosPassos';
 import { useSessao } from '../sessao/SessaoProvider';
 import { usePrimeirosPassosGuardados } from '../treinador/painel/usePrimeirosPassosGuardados';
 import { useTema } from '../tema/TemaProvider';
@@ -30,7 +30,7 @@ export function TelaAjuda({ publico }: { publico: Publico }) {
   const guia = GUIAS[publico];
   const [tutorial, setTutorial] = useState(false);
   const { rever } = usePasseio();
-  const { cicloHabilitado, retornoHabilitado } = useSessao();
+  const { cicloHabilitado, retornoHabilitado, pode, perfilEquipe } = useSessao();
   const passos = guia.primeirosPassos.filter((p) => !p.soNoPdf);
   return (
     <Tela bordas={['top']} largura={publico === 'aluno' ? 720 : LARGURA_EDITOR}>
@@ -44,7 +44,10 @@ export function TelaAjuda({ publico }: { publico: Publico }) {
           <Botao rotulo="Conhecer o menu" tipo="secundario" Icone={MousePointerClick} aoTocar={rever} />
         </LinhaDeAcoes>
       </Cartao>
-      {publico === 'treinador' ? <CartaoPrimeirosPassosDoTreinador /> : (
+      {publico === 'treinador' ? (
+        // Perfil sem nenhum item (ex.: só leitura): o bloco nunca aparece no Início, então não há o que trazer de volta.
+        temPrimeirosPassos({ pode, administrador: !!perfilEquipe?.acessoTotal }) ? <CartaoPrimeirosPassosDoTreinador /> : null
+      ) : (
         <Cartao titulo="Primeiros passos">
           {passos.map((p, i) => (
             <View key={p.titulo} style={estilos.passo}>

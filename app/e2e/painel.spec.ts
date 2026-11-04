@@ -284,6 +284,10 @@ test('primeiros passos: "Abrir Metodologias" abre o Planejamento já no chip Met
   await page.getByRole('button', { name: /^Abrir Metodologias/ }).click();
   await expect(page).toHaveURL(/\/treinador\/planejamento\?aba=treino&tipo=metodologia$/);
   await expect(page.getByRole('heading', { name: 'Metodologias', exact: true })).toBeVisible();
+  // O chip do tipo também fica marcado (não só o título do cartão). A `Escolha` sai como botão com `aria-checked` na web.
+  const chips = page.getByLabel('Modelos de treino', { exact: true });
+  await expect(chips.getByRole('button', { name: 'Metodologias', exact: true })).toHaveAttribute('aria-checked', 'true');
+  await expect(chips.getByRole('button', { name: 'Semanas de treino', exact: true })).toHaveAttribute('aria-checked', 'false');
   expect(errosDaPagina).toEqual([]);
 });
 
@@ -326,10 +330,34 @@ test('Início sem alunos: só a frase, sem contadores, com os Primeiros passos e
 test('Início sem alunos e sem os Primeiros passos: o Próximo passo pede o primeiro aluno', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   const vazio: PainelTreinador = { ...PAINEL, alunosAtivos: 0, alunosInativos: 0, alunosSemAcesso: 0 };
-  await abrir(page, { painel: vazio });
+  const { pedidos } = await abrir(page, { painel: vazio });
   await expect(page.getByText('Nenhum aluno ainda. Cadastre o primeiro para começar.')).toBeVisible();
   await page.getByRole('button', { name: 'Cadastrar aluno' }).click();
   await expect(page).toHaveURL(/\/treinador\/alunos\/novo$/);
+
+  // Volta ao Início: o painel recarrega, mas os blocos (que não aparecem sem alunos) não buscam nada.
+  const dosBlocos = () => pedidos.filter((p) => /^\/(agenda|recordes|financeiro|cobrancas)/.test(p.caminho)).length;
+  const blocosAntes = dosBlocos();
+  const painelAntes = pedidos.filter((p) => p.caminho === '/painel').length;
+  await page.goBack();
+  await expect(page.getByText('Nenhum aluno ainda. Cadastre o primeiro para começar.')).toBeVisible();
+  await expect.poll(() => pedidos.filter((p) => p.caminho === '/painel').length).toBeGreaterThan(painelAntes);
+  expect(dosBlocos()).toBe(blocosAntes);
+});
+
+test('Início sem alunos: cadastrou o primeiro e voltou, os blocos voltam depois da resposta do painel', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const vazio: PainelTreinador = { ...PAINEL, alunosAtivos: 0, alunosInativos: 0, alunosSemAcesso: 0 };
+  let comAlunos = false;
+  const { pedidos } = await abrir(page, { painel: () => (comAlunos ? PAINEL : vazio) });
+  await expect(page.getByText('Nenhum aluno ainda. Cadastre o primeiro para começar.')).toBeVisible();
+  await page.getByRole('button', { name: 'Cadastrar aluno' }).click();
+  await expect(page).toHaveURL(/\/treinador\/alunos\/novo$/);
+  comAlunos = true;
+  const agendaAntes = pedidos.filter((p) => p.caminho === '/agenda/resumo').length;
+  await page.goBack();
+  await expect(page.getByRole('heading', { name: 'Agenda', level: 2 })).toBeVisible();
+  await expect.poll(() => pedidos.filter((p) => p.caminho === '/agenda/resumo').length).toBeGreaterThan(agendaAntes);
 });
 
 test('o passeio termina apontando os Primeiros passos do Início', async ({ page }) => {
