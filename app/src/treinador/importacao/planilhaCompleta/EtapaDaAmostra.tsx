@@ -5,9 +5,9 @@ import { AccessibilityInfo, findNodeHandle, Platform, StyleSheet, View } from 'r
 import { amostraDaPlanilhaCompleta } from '../../../api/rotas';
 import type { AlunoDaAmostra, AmostraDaPlanilha, ConteudoDieta, ConteudoTreino, PartePuladaDaPlanilha } from '../../../api/tipos';
 import {
-  NOVO_NA_BIBLIOTECA, PASTA_DA_IMPORTACAO, contarDieta, faixaDaAmostra, ficaDeFora, foraDaBiblioteca, pesosDoMaisRecente,
+  PASTA_DA_IMPORTACAO, SEM_PAR_NA_BIBLIOTECA, contarDieta, faixaDaAmostra, ficaDeFora, foraDaBiblioteca, pesosDoMaisRecente,
   restantesDaAmostra, resumoDoAluno, rotuloDosProximos, situacaoDoAluno, textoDaDieta, textoDaPasta, textoDaRefeicao, textoDaSessao,
-  textoDoAtivo, textoDoExercicio, textoDoItem, textoDoPeso, textoDosPesos, textoDoSuplemento, textoDoTreino, valorDoCampo,
+  textoDoAtivo, textoDoCadastroExistente, textoDoExercicio, textoDoItem, textoDoPeso, textoDosPesos, textoDoSuplemento, textoDoTreino, valorDoCampo,
 } from '../../../dominio/amostraDaPlanilha';
 import { normalizarDieta } from '../../../dominio/dieta';
 import { normalizarTreino } from '../../../dominio/editorTreino';
@@ -182,7 +182,7 @@ function CartaoDoAluno({ aluno, puladas, abertoAoMontar, aoVerComoAluno }: {
         <View style={estilos.coluna} testID={`aluno-da-amostra-${aluno.numero}`}>
           <Bloco titulo="Cadastro">
             {aluno.situacao === 'EXISTENTE' ? (
-              <Texto>Já é seu aluno: o cadastro não muda. Só ganha mais uma pasta, em rascunho.</Texto>
+              <Texto>{textoDoCadastroExistente(aluno)}</Texto>
             ) : <Cadastro aluno={aluno} puladas={puladas} />}
           </Bloco>
           <Bloco titulo="Pesos">
@@ -252,7 +252,7 @@ function Treino({ treino, nome, numero, aoVer }: { treino: ConteudoTreino; nome:
             {s.exercicios.map((e) => (
               <View key={e.uid} role="listitem" style={estilos.linha}>
                 <Texto numerico style={estilos.textoDaLinha}>{textoDoExercicio(e)}</Texto>
-                {foraDaBiblioteca(e) ? <Selo texto={NOVO_NA_BIBLIOTECA} tipo="neutro" /> : null}
+                {foraDaBiblioteca(e) ? <Selo texto={SEM_PAR_NA_BIBLIOTECA} tipo="neutro" /> : null}
               </View>
             ))}
           </View>

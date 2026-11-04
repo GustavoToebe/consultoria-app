@@ -15,6 +15,8 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -49,8 +51,13 @@ class AmostraDaPlanilhaIntegrationTest extends AbstractIntegrationTest {
     }
 
     private JsonNode enviar(JsonNode login, String acao, String inicio, String hash, int esperado) throws Exception {
+        return enviar(login, acao, inicio, hash, esperado, PLANILHA);
+    }
+
+    private JsonNode enviar(JsonNode login, String acao, String inicio, String hash, int esperado, byte[] planilha)
+            throws Exception {
         MockMultipartHttpServletRequestBuilder pedido = multipart(BASE + acao)
-                .file(new MockMultipartFile("arquivo", "planilha.xlsx", "application/octet-stream", PLANILHA))
+                .file(new MockMultipartFile("arquivo", "planilha.xlsx", "application/octet-stream", planilha))
                 .header("X-Treinos-Cliente", "nativo")
                 .header(HttpHeaders.AUTHORIZATION, ApiDeTeste.bearer(login));
         if (inicio != null) {
@@ -122,6 +129,43 @@ class AmostraDaPlanilhaIntegrationTest extends AbstractIntegrationTest {
         assertThat(resto.path("alunos")).hasSize(2);
         assertThat(resto.path("alunos").get(0).path("numero").asInt()).isEqualTo(4);
         assertThat(enviar(treinador, "amostra", "50", null, 200).path("alunos")).isEmpty();
+    }
+
+    @Test
+    void alunoExistenteQueSoRecebePesosApareceSemPlanoComONomeDoCadastro() throws Exception {
+        String email = ApiDeTeste.emailUnico("so-pesos");
+        String id = api.post("/alunos", treinador, Map.of("nome", "Cadastro Só Pesos Fictício", "email", email), 200)
+                .path("id").asString();
+        // Casa pelo e-mail; o nome escrito na planilha é outro, e o da amostra tem de ser o do cadastro.
+        Map<String, List<List<Object>>> abas = new LinkedHashMap<>();
+        abas.put("Alunos", List.of(PlanilhaDeTeste.CAB_ALUNOS,
+                PlanilhaDeTeste.linha("AL1", "Nome Da Planilha Fictício", email, null, null, null, null, "Ativo", null)));
+        abas.put("Histórico Pesos", List.of(PlanilhaDeTeste.CAB_PESOS,
+                PlanilhaDeTeste.linha("P1", "AL1", "x", PlanilhaDeTeste.data("2026-01-05"), 1, 80.5, null, null),
+                PlanilhaDeTeste.linha("P2", "AL1", "x", PlanilhaDeTeste.data("2026-01-12"), 2, 79.5, null, null)));
+        byte[] planilha = PlanilhaDeTeste.xlsx(abas);
+
+        JsonNode previa = enviar(treinador, "previa", null, null, 200, planilha);
+        JsonNode amostra = enviar(treinador, "amostra", null, null, 200, planilha);
+
+        assertThat(amostra.path("hash").asString()).isEqualTo(previa.path("hash").asString());
+        assertThat(amostra.path("total").asInt()).isEqualTo(1);
+        assertThat(amostra.path("alunos")).hasSize(1);
+        JsonNode aluno = amostra.path("alunos").get(0);
+        assertThat(aluno.path("numero").asInt()).isEqualTo(1);
+        assertThat(aluno.path("situacao").asString()).isEqualTo("EXISTENTE");
+        assertThat(aluno.path("nome").asString()).isEqualTo("Cadastro Só Pesos Fictício");
+        assertThat(aluno.path("pesos").asInt()).isEqualTo(2);
+        assertThat(aluno.path("ultimosPesos")).hasSize(2);
+        assertThat(aluno.path("treino").isNull()).isTrue();
+        assertThat(aluno.path("dieta").isNull()).isTrue();
+        assertThat(aluno.path("ativo").isNull()).isTrue();
+        assertThat(amostra.toString()).doesNotContain("Nome Da Planilha Fictício");
+        // A confirmação grava os mesmos pesos no aluno que já existia (e nenhum aluno novo).
+        assertThat(aluno.path("pesos").asInt()).isEqualTo(previa.path("criacao").path("pesos").asInt());
+        enviar(treinador, "confirmar", null, amostra.path("hash").asString(), 200, planilha);
+        assertThat(api.get("/alunos", treinador, 200).path("total").asInt()).isEqualTo(1);
+        assertThat(api.get("/alunos/" + id + "/pesos", treinador, 200)).hasSize(2);
     }
 
     @Test

@@ -155,6 +155,28 @@ class MontagemDaImportacaoTest {
     }
 
     @Test
+    void doisAlunosQueJaExistemComPesoNoMesmoDiaGravamOsDois() {
+        // O Dono de quem já existe não tem linha: a conferência de "peso repetido" não pode juntar dois alunos diferentes.
+        UUID um = UUID.randomUUID();
+        UUID quatro = UUID.randomUUID();
+        List<AlunoExistente> existentes = List.of(
+                new AlunoExistente(um, "Outro nome fictício", "UM@example.com", false, Set.of()),
+                new AlunoExistente(quatro, "Aluno Quatro", null, false, Set.of()));
+        Map<String, List<List<Object>>> abas = new java.util.LinkedHashMap<>(PlanilhaDeTeste.abasDoTreinador());
+        abas.put("Histórico Pesos", List.of(PlanilhaDeTeste.CAB_PESOS,
+                PlanilhaDeTeste.linha("P1", "AL1", "Aluno Um", PlanilhaDeTeste.data("2026-01-05"), 1, 80.5, null, null),
+                PlanilhaDeTeste.linha("P2", "AL4", "Aluno Quatro", PlanilhaDeTeste.data("2026-01-05"), 1, 70, null, null),
+                PlanilhaDeTeste.linha("P3", "AL4", "Aluno Quatro", PlanilhaDeTeste.data("2026-01-05"), 1, 71, null, null)));
+        LeituraDasAbas.Leitura leitura = LeituraDasAbas.ler("planilha.xlsx", PlanilhaDeTeste.xlsx(abas));
+        Montagem m = MontagemDaImportacao.montar(leitura, RespostasDaPlanilha.VAZIAS,
+                contexto(TODAS, null, List.of(), existentes, List.of()));
+
+        assertThat(m.pesos()).extracting(p -> p.dono().existente()).containsExactlyInAnyOrder(um, quatro);
+        // O repetido de verdade (o mesmo aluno, o mesmo dia) continua recusado.
+        assertThat(m.problemas()).filteredOn(p -> "PESO_REPETIDO".equals(p.tipo())).hasSize(1);
+    }
+
+    @Test
     void exercicioDaBibliotecaLigaEOCriarEntraNaLista() {
         UUID supino = UUID.randomUUID();
         List<ExercicioDaBiblioteca> biblioteca = List.of(new ExercicioDaBiblioteca(supino, "Supino reto c/ hal.", "LIVRE",

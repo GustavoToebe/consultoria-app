@@ -1,6 +1,7 @@
 package br.com.treinos.api.importacao.completa;
 
 import br.com.treinos.api.dieta.ConteudoDieta;
+import br.com.treinos.api.importacao.completa.MontagemDaImportacao.AlunoExistente;
 import br.com.treinos.api.importacao.completa.MontagemDaImportacao.AlunoNovo;
 import br.com.treinos.api.importacao.completa.MontagemDaImportacao.Dono;
 import br.com.treinos.api.importacao.completa.MontagemDaImportacao.Montagem;
@@ -16,6 +17,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * Migração assistida, fase 2: a amostra revisável. Regra pura sobre a {@link Montagem} (a mesma da prévia e da confirmação):
@@ -38,7 +40,7 @@ public final class AmostraDaPlanilha {
 
     /**
      * {@code hash} = o da prévia (arquivo + respostas): a confirmação o aceita, então o revisado é o que será gravado.
-     * {@code total} = alunos da planilha com cadastro novo ou plano; {@code inicio} = posição (de 0) do primeiro da amostra.
+     * {@code total} = alunos da planilha com cadastro novo, plano ou só pesos; {@code inicio} = posição (de 0) do primeiro da amostra.
      * {@code pasta} = o título da pasta de rascunho que cada aluno recebe, também o que já existe na consultoria.
      */
     public record Amostra(String hash, int total, int inicio, String pasta, List<AlunoDaAmostra> alunos) {
@@ -70,11 +72,18 @@ public final class AmostraDaPlanilha {
         }
     }
 
-    public static Amostra de(Montagem m, String hash, int inicio) {
+    /**
+     * {@code existentes} = os alunos que a consultoria já tem (o mesmo contexto da montagem): o nome do aluno que só recebe
+     * pesos vem do cadastro dele, não do texto da planilha.
+     */
+    public static Amostra de(Montagem m, String hash, int inicio, List<AlunoExistente> existentes) {
         Map<Dono, AlunoNovo> novos = new HashMap<>();
         Map<Dono, PlanosDoAluno> planos = new HashMap<>();
         Map<Dono, List<PesoNovo>> pesos = new HashMap<>();
-        Set<Dono> donos = new LinkedHashSet<>(); // a ordem do arquivo: cadastros novos, depois quem só tem plano
+        Map<UUID, String> nomesDoCadastro = new HashMap<>();
+        existentes.forEach(e -> nomesDoCadastro.put(e.id(), e.nome()));
+        // A ordem do arquivo: cadastros novos, depois quem tem plano, depois o aluno que já existe e só recebe pesos.
+        Set<Dono> donos = new LinkedHashSet<>();
         for (AlunoNovo a : m.alunosNovos()) {
             novos.put(a.dono(), a);
             donos.add(a.dono());
@@ -85,6 +94,7 @@ public final class AmostraDaPlanilha {
         }
         for (PesoNovo p : m.pesos()) {
             pesos.computeIfAbsent(p.dono(), k -> new ArrayList<>()).add(p);
+            donos.add(p.dono()); // já está na lista se tem cadastro novo ou plano
         }
 
         List<Dono> ordem = List.copyOf(donos);
@@ -103,8 +113,11 @@ public final class AmostraDaPlanilha {
                     ? new AlunoDaAmostra(i + 1, "NOVO", novo.nome(), novo.ativo(), novo.email(), novo.telefone(),
                             novo.objetivo(), novo.observacoes(), dele.size(), ultimos, plano == null ? null : plano.treino(),
                             plano == null ? null : plano.dieta())
-                    : new AlunoDaAmostra(i + 1, "EXISTENTE", plano.nome(), null, null, null, null, null, dele.size(),
-                            ultimos, plano.treino(), plano.dieta()));
+                    : plano != null
+                    ? new AlunoDaAmostra(i + 1, "EXISTENTE", plano.nome(), null, null, null, null, null, dele.size(),
+                            ultimos, plano.treino(), plano.dieta())
+                    : new AlunoDaAmostra(i + 1, "EXISTENTE", nomesDoCadastro.get(dono.existente()), null, null, null, null,
+                            null, dele.size(), ultimos, null, null));
         }
         return new Amostra(hash, ordem.size(), de, MontagemDaImportacao.TITULO_PASTA, List.copyOf(alunos));
     }

@@ -72,7 +72,8 @@ const PRIMEIRA = {
       observacoes: null, pesos: 3, ultimosPesos: [{ data: '2026-09-01', kg: 70 }, { data: '2026-10-01', kg: 71.5 }],
       treino: TREINO, dieta: DIETA,
     },
-    { ...vazio(2, 'Aluno Fictício Dois'), situacao: 'EXISTENTE', ativo: null },
+    // Já é aluno e só recebe pesos: sem treino nem dieta, sem pasta.
+    { ...vazio(2, 'Aluno Fictício Dois'), situacao: 'EXISTENTE', ativo: null, pesos: 1, ultimosPesos: [{ data: '2026-10-02', kg: 80 }] },
     vazio(3, 'Aluno Fictício Três'), vazio(4, 'Aluno Fictício Quatro'), vazio(5, 'Aluno Fictício Cinco'),
   ],
 };
@@ -166,7 +167,7 @@ for (const largura of [390, 1440]) {
       await expect(primeiro.getByText('01/10/2026 · 71,5 kg')).toBeVisible();
       await expect(primeiro.getByText('1 sessão · 2 exercícios · 3 séries')).toBeVisible();
       await expect(primeiro.getByText('Remada inventada · 1 série')).toBeVisible();
-      await expect(primeiro.getByText('Novo na biblioteca')).toHaveCount(1);
+      await expect(primeiro.getByText('Sem par na biblioteca')).toHaveCount(1);
       await expect(primeiro.getByText('Feijão de exemplo · —')).toBeVisible();
       await expect(primeiro.getByText('Creatina de exemplo · 5 g')).toBeVisible();
       await page.screenshot({ path: testInfo.outputPath(`amostra-${largura}-${tema.toLowerCase()}.png`) });
@@ -181,9 +182,10 @@ for (const largura of [390, 1440]) {
       await folha.getByRole('button', { name: 'Fechar', exact: true }).click();
       await expect(folha).toHaveCount(0);
 
-      // O que já é aluno abre recolhido e diz que o cadastro não muda.
+      // O que já é aluno abre recolhido e diz que o cadastro não muda; sem plano na planilha, só ganha os pesos.
       await page.getByRole('button', { name: /Aluno Fictício Dois/ }).click();
-      await expect(page.getByText('Já é seu aluno: o cadastro não muda. Só ganha mais uma pasta, em rascunho.')).toBeVisible();
+      await expect(page.getByText('Já é seu aluno: o cadastro não muda. Só ganha os pesos abaixo, sem pasta nem plano.')).toBeVisible();
+      await expect(page.getByText('02/10/2026 · 80 kg')).toBeVisible();
 
       await page.getByRole('button', { name: 'Ver os próximos 2' }).click();
       await expect(page.getByText('Alunos 6 a 7 de 7')).toBeVisible();

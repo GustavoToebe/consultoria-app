@@ -156,8 +156,9 @@ public class GravacaoDaPlanilha {
     public AmostraDaPlanilha.Amostra amostra(UUID importador, String nomeDoArquivo, byte[] bytes, String respostasJson,
                                              int inicio) {
         RespostasDaPlanilha respostas = RespostasDaPlanilha.ler(respostasJson, json);
-        Montagem m = MontagemDaImportacao.montar(LeituraDasAbas.ler(nomeDoArquivo, bytes), respostas, contexto(importador));
-        return AmostraDaPlanilha.de(m, RespostasDaPlanilha.hash(bytes, respostas, json), inicio);
+        Contexto contexto = contexto(importador);
+        Montagem m = MontagemDaImportacao.montar(LeituraDasAbas.ler(nomeDoArquivo, bytes), respostas, contexto);
+        return AmostraDaPlanilha.de(m, RespostasDaPlanilha.hash(bytes, respostas, json), inicio, contexto.alunos());
     }
 
     @Transactional

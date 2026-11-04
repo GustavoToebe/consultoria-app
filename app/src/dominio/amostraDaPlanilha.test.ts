@@ -1,7 +1,7 @@
 import type { AlunoDaAmostra } from '../api/tipos';
 import {
   FICA_DE_FORA, contarDieta, faixaDaAmostra, foraDaBiblioteca, pesosDoMaisRecente, restantesDaAmostra, resumoDoAluno, rotuloDosProximos,
-  situacaoDoAluno, textoDaDieta, textoDaPasta, textoDaRefeicao, textoDoAtivo, textoDoExercicio, textoDoItem, textoDoPeso, textoDosPesos,
+  situacaoDoAluno, textoDaDieta, textoDaPasta, textoDaRefeicao, textoDoAtivo, textoDoCadastroExistente, textoDoExercicio, textoDoItem, textoDoPeso, textoDosPesos,
   textoDoSuplemento, textoDoTreino, valorDoCampo,
 } from './amostraDaPlanilha';
 import { etapasDaPlanilha } from './planilhaCompleta';
@@ -77,6 +77,19 @@ describe('amostra da planilha', () => {
   it('o resumo do cabeçalho do aluno', () => {
     expect(resumoDoAluno(ALUNO)).toBe('Nº 3 no arquivo · 12 pesos · treino com 1 sessão');
     expect(resumoDoAluno({ ...ALUNO, pesos: 0, treino: null })).toBe('Nº 3 no arquivo');
+  });
+
+  it('aluno que já existe e só recebe pesos: sem treino nem dieta, sem pasta', () => {
+    const soPesos: AlunoDaAmostra = {
+      ...ALUNO, situacao: 'EXISTENTE', ativo: null, treino: null, dieta: null, pesos: 2,
+      ultimosPesos: [{ data: '2026-09-01', kg: 70 }, { data: '2026-10-01', kg: 71.25 }],
+    };
+    expect(situacaoDoAluno(soPesos)).toBe('Já é seu aluno');
+    expect(resumoDoAluno(soPesos)).toBe('Nº 3 no arquivo · 2 pesos');
+    expect(textoDosPesos(soPesos)).toBe('2 pesos para gravar:');
+    expect(textoDoAtivo(soPesos.ativo)).toBe('—');
+    expect(textoDoCadastroExistente(soPesos)).toBe('Já é seu aluno: o cadastro não muda. Só ganha os pesos abaixo, sem pasta nem plano.');
+    expect(textoDoCadastroExistente({ treino: ALUNO.treino, dieta: null })).toContain('mais uma pasta');
   });
 
   it('as etapas: sem a amostra ficam as cinco de antes', () => {

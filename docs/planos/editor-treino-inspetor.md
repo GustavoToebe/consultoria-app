@@ -48,7 +48,7 @@ cantos, selos, cores da marca e as regras do AGENTS.md são os do app.
 - Barra flutuante de cache local do design (D4).
 
 ## O que ficou para trás
-- As quatro caixas da prescrição numa linha só aparecem a partir de uns 1700 px de janela (926 px de corpo); em todas as larguras de PC testadas ficam de duas em duas. Para caber em 1440 seria preciso estreitar a lista ou a caixa de Carga (310 px mínimos).
+- As quatro caixas da prescrição numa linha só aparecem a partir de uns 1700 px de janela (926 px de corpo); em todas as larguras de PC testadas ficam de duas em duas. Para caber em 1440 seria preciso estreitar a lista ou a caixa de Carga (310 px mínimos). **Decisão (Gustavo, 04/11):** no PC a prescrição fica em 2+2 caixas, sem estreitar a lista; vai junto da revisão geral dos editores (frente `editores-revisao`, que espera o #97), não no `pos-lote-04-11`.
 - A estimativa da largura antes da primeira medida não considera o menu minimizado (72 px): nesse caso o primeiro quadro pode piscar uma vez.
 - "Mover exercício" repetido nos dois botões do topo do inspetor; chips de "Carga do exercício" empilhados em 1024.
 - O `webServer` do `npm run e2e` caiu uma vez com o código 3221225477 na máquina do Gustavo (contornado com `expo export` manual); se repetir na CI, investigar.

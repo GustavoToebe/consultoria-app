@@ -226,7 +226,7 @@ public final class MontagemDaImportacao {
         private final Map<Integer, Map<Integer, Linha>> linhasPorNumero = new HashMap<>();
         private final Map<Integer, Dono> alunosPorLinha = new HashMap<>();
         private final Map<Dono, String> nomes = new HashMap<>();
-        private final Map<Dono, Object[]> pesoInicial = new HashMap<>();
+        private final Map<Dono, Object[]> pesoInicial = new LinkedHashMap<>(); // a ordem da planilha (a amostra a usa)
         private final Map<Integer, Set<Integer>> cabecalhosEscolhidos = new HashMap<>();
         private final Map<String, Integer> respostasDeLigacao;
         private final Map<String, NomeResolvido> respostasDeExercicio;
@@ -683,7 +683,9 @@ public final class MontagemDaImportacao {
         private int[] pesos(List<PesoNovo> pesos) {
             Map<UUID, AlunoExistente> existentes = new HashMap<>();
             ctx.alunos().forEach(e -> existentes.put(e.id(), e));
-            Set<String> vistos = new HashSet<>();
+            // Pelo Dono inteiro: o toString dele só mostra a linha, e todo aluno sem linha na aba de alunos (o que já existe
+            // e o novo que veio só do nome) sairia igual, juntando os pesos de alunos diferentes no mesmo dia.
+            Set<Map.Entry<Dono, LocalDate>> vistos = new HashSet<>();
             int ja = 0;
             for (Map.Entry<Dono, List<Object[]>> e : linhasPorDono(TipoDeAba.PESOS).entrySet()) {
                 Dono dono = e.getKey();
@@ -705,7 +707,7 @@ public final class MontagemDaImportacao {
                         problema(aba, l.numero(), Campo.PESO, "SEM_PESO");
                     } else if (kg == null) {
                         problema(aba, l.numero(), Campo.PESO, "PESO_INVALIDO");
-                    } else if (!vistos.add(dono + "|" + dia)) {
+                    } else if (!vistos.add(Map.entry(dono, dia))) {
                         problema(aba, l.numero(), Campo.DATA, "PESO_REPETIDO");
                     } else if (dono.existente() != null && existentes.get(dono.existente()).datasDePeso().contains(dia)) {
                         ja++;
@@ -724,7 +726,7 @@ public final class MontagemDaImportacao {
                 LocalDate dia = (LocalDate) e.getValue()[0];
                 Dono dono = e.getKey();
                 boolean jaTem = dono.existente() != null && existentes.get(dono.existente()).datasDePeso().contains(dia);
-                if (vistos.add(dono + "|" + dia) && !jaTem) {
+                if (vistos.add(Map.entry(dono, dia)) && !jaTem) {
                     pesos.add(new PesoNovo(dono, dia, (BigDecimal) e.getValue()[1], null));
                     iniciais++;
                 }

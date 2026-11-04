@@ -12,7 +12,8 @@ export const ALUNOS_POR_AMOSTRA = 5;
 /** O título da pasta de rascunho, enquanto a amostra não chegou (a API manda o mesmo em `pasta`). */
 export const PASTA_DA_IMPORTACAO = 'Importada da planilha (rascunho)';
 export const FICA_DE_FORA = 'Fica de fora pelo seu perfil.';
-export const NOVO_NA_BIBLIOTECA = 'Novo na biblioteca';
+// A API manda `exercicioId` nulo para o que será criado e também para o nome mantido; "sem par" é só o que isso sustenta.
+export const SEM_PAR_NA_BIBLIOTECA = 'Sem par na biblioteca';
 
 const n = (q: number, um: string, varios: string) => `${q} ${q === 1 ? um : varios}`;
 
@@ -40,6 +41,13 @@ export function rotuloDosProximos(quantos: number): string {
 
 export function situacaoDoAluno(a: Pick<AlunoDaAmostra, 'situacao'>): string {
   return a.situacao === 'NOVO' ? 'Novo' : 'Já é seu aluno';
+}
+
+/** O bloco Cadastro de quem já é aluno: só ganha pasta quando a planilha traz treino ou dieta dele (senão são só os pesos). */
+export function textoDoCadastroExistente(a: Pick<AlunoDaAmostra, 'treino' | 'dieta'>): string {
+  return a.treino || a.dieta
+    ? 'Já é seu aluno: o cadastro não muda. Só ganha mais uma pasta, em rascunho.'
+    : 'Já é seu aluno: o cadastro não muda. Só ganha os pesos abaixo, sem pasta nem plano.';
 }
 
 export function textoDoAtivo(ativo: boolean | null): string {
