@@ -46,14 +46,17 @@ test('inscrição pública: texto trocado enquanto a pessoa preenchia pede a ci�
   await page.goto(`/inscricao/${CODIGO}`);
   await page.getByLabel('Nome').fill('Pessoa Fictícia');
   await page.getByLabel('WhatsApp com DDD').pressSequentially('11987654321');
+  await page.getByRole('button', { name: 'Continuar' }).click();
   await page.getByRole('checkbox', { name: 'Li e estou ciente' }).click();
   await page.getByRole('button', { name: 'Enviar inscrição' }).click();
 
   await expect(page.getByText('O texto da consultoria mudou. Leia o texto novo, marque a ciência e envie de novo.')).toBeVisible();
   await expect(page.getByText('Texto fictício novo.')).toBeVisible();
   await expect(page.getByRole('checkbox', { name: 'Li e estou ciente' })).not.toBeChecked();
-  // O que a pessoa digitou fica.
+  // O que a pessoa digitou fica (o nome está na parte 1).
+  await page.getByRole('button', { name: 'Voltar ao contato' }).click();
   await expect(page.getByLabel('Nome')).toHaveValue('Pessoa Fictícia');
+  await page.getByRole('button', { name: 'Continuar' }).click();
   await page.getByRole('checkbox', { name: 'Li e estou ciente' }).click();
   await page.getByRole('button', { name: 'Enviar inscrição' }).click();
   await expect(page.getByRole('heading', { name: 'Inscrição enviada' })).toBeVisible();

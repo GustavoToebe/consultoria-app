@@ -26,7 +26,7 @@ import {
   type Tamanho,
 } from '../dominio/passeio';
 import { useTema } from '../tema/TemaProvider';
-import { espaco, RAIO } from '../tema/tokens';
+import { espaco, RAIO, VEU } from '../tema/tokens';
 import { Botao } from './Botao';
 import { Texto } from './Texto';
 import { useTeclado } from './usoWeb';
@@ -183,7 +183,7 @@ function Sobreposicao({ passos, indice, mudar, dispensar, origem, nos }: {
   const alvoDoBalao = alvo && alvo.y > area.altura / 2 ? { ...alvo, y: alvo.y - RESERVA_DO_SELO, altura: alvo.altura + RESERVA_DO_SELO } : alvo;
   const posicao = posicaoDoBalao(alvoDoBalao, area, { largura, altura: alturaBalao ?? 0 });
   const recorte = medida?.alvo ? recorteDoDestaque(medida.alvo, area) : null;
-  const vela = 'rgba(0, 0, 0, 0.6)';
+  const vela = VEU;
 
   return (
     <View style={StyleSheet.absoluteFill} accessibilityViewIsModal>

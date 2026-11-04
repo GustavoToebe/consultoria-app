@@ -25,7 +25,20 @@ class QuestionarioFabricaIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void fabricaV2EPublicavelEIgualAFixtureDeParidade() throws IOException {
-        String texto = banco.queryForObject("select conteudo::text from atualizacao_modelo where versao = 2", String.class);
+        conferir(2, "fabrica_v2");
+    }
+
+    /** V058: a fábrica de onde nascem as consultorias novas, com o cartão "Seu envio". */
+    @Test
+    void fabricaV3EPublicavelEIgualAFixtureDeParidadeEEAMaisRecente() throws IOException {
+        conferir(3, "fabrica_v3");
+        assertThat(banco.queryForObject("select max(versao) from atualizacao_modelo", Integer.class)).isEqualTo(3);
+        assertThat(banco.queryForObject("select conteudo->'secoes'->0->>'titulo' from atualizacao_modelo where versao = 3", String.class))
+                .isEqualTo("Seu envio");
+    }
+
+    private void conferir(int versao, String nomeDaFixture) throws IOException {
+        String texto = banco.queryForObject("select conteudo::text from atualizacao_modelo where versao = ?", String.class, versao);
         JsonNode doBanco = json.readTree(texto);
 
         ResultadoValidacao r = validador.validar(json.treeToValue(doBanco, ConteudoQuestionario.class));
@@ -37,7 +50,7 @@ class QuestionarioFabricaIntegrationTest extends AbstractIntegrationTest {
             assertThat(in).isNotNull();
             fixture = json.readTree(in);
         }
-        JsonNode esperado = fixture.valueStream().filter(c -> "fabrica_v2".equals(c.path("nome").asString()))
+        JsonNode esperado = fixture.valueStream().filter(c -> nomeDaFixture.equals(c.path("nome").asString()))
                 .findFirst().orElseThrow().path("conteudo");
         assertThat(doBanco).isEqualTo(esperado);
     }

@@ -1,6 +1,7 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { contagensAtualizacoes, listarAtualizacoes, responsaveisEquipe } from '../../../api/rotas';
+import { View } from 'react-native';
+import { contagensAtualizacoes, listarAtualizacoesPagina, responsaveisEquipe, TAMANHO_DA_PAGINA_DE_ATUALIZACOES } from '../../../api/rotas';
 import { ErroApi } from '../../../api/cliente';
 import type { SituacaoAtualizacao } from '../../../api/tipos';
 import { caminhoAtualizacaoTreinador, statusAtualizacaoTreinador } from '../../../dominio/atualizacao';
@@ -14,7 +15,8 @@ import { CamposDePeriodo, CelulaDoFiltro } from '../../../treinador/SeletoresDeF
 import { SelecaoMultiplaSuspensa } from '../../../ui/SelecaoMultiplaSuspensa';
 import { BarraDeFiltros } from '../../../ui/BarraDeFiltros';
 import { ICONE_DO_SELO } from '../../../treinador/iconesDosSelos';
-import { LARGURA_LISTA } from '../../../tema/tokens';
+import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
+import { Botao } from '../../../ui/Botao';
 import { Abas } from '../../../ui/Abas';
 import { Cabecalho } from '../../../ui/Cabecalho';
 import { Cartao } from '../../../ui/Cartao';
@@ -48,7 +50,12 @@ export default function ListaAtualizacoes() {
   const buscaAtrasada=useAtrasado(busca.trim(),300);
   const pedido=pedidoDaApi(filtros,buscaAtrasada,usuario?.id);
   const chave=chaveDosFiltros(filtros,buscaAtrasada);
-  const lista=useCarregar(`${filtro}:${chave}`,()=>listarAtualizacoes(filtro,pedido.meus,pedido.filtro));
+  // A página volta à primeira quando muda a aba, a busca ou um filtro: ela só vale para a consulta em que foi escolhida.
+  const consulta=`${filtro}:${chave}`;
+  const [escolhida,setEscolhida]=useState({consulta:'',pagina:0});
+  const pagina=escolhida.consulta===consulta?escolhida.pagina:0;
+  const irParaPagina=(n:number)=>setEscolhida({consulta,pagina:n});
+  const lista=useCarregar(`${consulta}:${pagina}`,()=>listarAtualizacoesPagina(filtro,pagina,pedido.meus,pedido.filtro));
   const {recarregar}=lista;
   // Contagem de cada aba com os mesmos filtros da lista; se falhar, as abas ficam sem número (nunca um número errado).
   const contagem=useCarregar(`contagens-atualizacoes:${chave}`,()=>contagensAtualizacoes(pedido.meus,pedido.filtro));
@@ -59,7 +66,11 @@ export default function ListaAtualizacoes() {
   // Sem permissão para ver a equipe (403) o filtro fica só com "Todos" e "Meus", sem aviso; qualquer outra falha avisa.
   const erroDosResponsaveis=listaDeResponsaveis.erro instanceof ErroApi&&listaDeResponsaveis.erro.status===403?null:listaDeResponsaveis.erro;
   const nomeDe=(id:string)=>responsaveis.find(r=>r.id===id)?.nome??null;
-  const itens=[...(lista.dados??[])].sort((x,y)=>(x.dataAtualizacao??'').localeCompare(y.dataAtualizacao??''));
+  const itens=lista.dados?.itens??[];
+  const total=lista.dados?.total??0;
+  const paginas=Math.max(1,Math.ceil(total/TAMANHO_DA_PAGINA_DE_ATUALIZACOES));
+  // Revisou a última da última página: volta uma página em vez de mostrar uma página vazia.
+  if(!lista.carregando&&lista.dados&&pagina>0&&pagina!==paginas-1&&itens.length===0&&total>0) irParaPagina(paginas-1);
   useFocusEffect(useCallback(()=>{recarregar();recarregarContagens();},[recarregar,recarregarContagens]));
   // Trocar um filtro troca o endereço sem empilhar histórico (o voltar sai da tela); a aba fica.
   const aplicar=(novos:FiltrosDeAtualizacoes)=>router.setParams(paraSetParams(CHAVES_DO_ENDERECO,paraEndereco(novos)));
@@ -81,12 +92,17 @@ export default function ListaAtualizacoes() {
     {erroDosResponsaveis?<MensagemErro texto={`Não foi possível carregar a lista de responsáveis do filtro. ${textoDoErro(erroDosResponsaveis)}`} erro={erroDosResponsaveis} tentarDeNovo={listaDeResponsaveis.recarregar} />:null}
     {lista.erro?<MensagemErro texto={textoDoErro(lista.erro)} tentarDeNovo={recarregar} />:null}
     {lista.carregando?<Esqueleto />:null}
-    {!lista.carregando && lista.dados && itens.length===0?<Vazio titulo={filtrado?'Nenhuma atualização com esses filtros':'Nenhuma atualização nesta lista'} texto={filtrado?'Tire algum filtro ou limpe a busca.':'As atualizações aparecem conforme o período da pasta e o envio do aluno.'}
+    {!lista.carregando && lista.dados && total===0?<Vazio titulo={filtrado?'Nenhuma atualização com esses filtros':'Nenhuma atualização nesta lista'} texto={filtrado?'Tire algum filtro ou limpe a busca.':'As atualizações aparecem conforme o período da pasta e o envio do aluno.'}
       acao={chips.length?{rotulo:'Limpar filtros',aoTocar:()=>aplicar(SEM_FILTROS)}:undefined} />:null}
     {/* A aba já diz a lista: a faixa do cartão leva a contagem, não repete o nome da aba. Mais antiga primeiro (é a
         que espera há mais tempo). Sem título o cartão não tinha faixa e a descrição nem aparecia. */}
-    {itens.length?<Cartao titulo={`${itens.length} ${itens.length===1?'atualização':'atualizações'}`} descricao="Da mais antiga para a mais nova.">
+    {itens.length?<Cartao titulo={`${total} ${total===1?'atualização':'atualizações'}`} descricao="Da mais antiga para a mais nova.">
       <ListaDeLinhas>{itens.map(a=>{const selo=statusAtualizacaoTreinador(a);const data=dataSemAnoCorrente(a.dataAtualizacao);return <LinhaDaLista key={a.pastaId} titulo={a.nomeAluno??'Aluno'} metadados={`Data: ${data}`} selos={[{texto:selo.curto,tipo:selo.tipo,Icone:ICONE_DO_SELO[selo.tipo]}]} href={caminhoAtualizacaoTreinador(a,fila)} rotulo={`Abrir atualização de ${a.nomeAluno??'aluno'}, ${data}, ${selo.curto}`} />;})}</ListaDeLinhas>
+      {total>TAMANHO_DA_PAGINA_DE_ATUALIZACOES?<View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:espaco(1),flexWrap:'wrap'}}>
+        <Botao rotulo="Anterior" tipo="secundario" desabilitado={pagina===0} aoTocar={()=>irParaPagina(pagina-1)} />
+        <Texto variante="suave">Página {pagina+1} de {paginas} · {total} atualizações</Texto>
+        <Botao rotulo="Próxima" tipo="secundario" desabilitado={pagina+1>=paginas} aoTocar={()=>irParaPagina(pagina+1)} />
+      </View>:null}
     </Cartao>:null}
   </Tela>;
 }

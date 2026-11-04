@@ -60,7 +60,7 @@ import type {
 } from './agendaTipos';
 import type {
   Atualizacao,
-  AtualizacaoDaLista,
+  AtualizacaoDaLista, PaginaDeAtualizacoes,
   EvolucaoRespostas,
   ConfiguracaoDeFotos,
   FotoDaLinha,
@@ -96,6 +96,7 @@ import type {
   ConviteEquipePublico,
   DiaDeTreino,
   EuResponse,
+  TermosPublicos,
   TermosVigentes,
   Exercicio,
   ExercicioRequest,
@@ -126,6 +127,7 @@ import type {
   PublicarPastaRequest,
   PublicarPastaResposta,
   PlanoResumo,
+  AmostraDaPlanilha,
   AnaliseDaPlanilha,
   ColunasDaImportacao,
   DiagnosticoDoArquivo,
@@ -283,6 +285,12 @@ export const listarAtualizacoes = (situacao: SituacaoAtualizacao, meus = false, 
   const q = filtroDeAtualizacoes(meus, filtro, { situacao });
   return requisicao<AtualizacaoDaLista[]>(`/atualizacoes?${q.toString()}`);
 };
+export const TAMANHO_DA_PAGINA_DE_ATUALIZACOES = 30;
+/** Uma página da lista (`GET /atualizacoes/pagina`): na ordem da tela (mais antiga primeiro), com o total da situação e dos filtros. */
+export const listarAtualizacoesPagina = (situacao: SituacaoAtualizacao, pagina: number, meus = false, filtro: FiltroAtualizacoes = {}) => {
+  const q = filtroDeAtualizacoes(meus, filtro, { situacao, pagina: String(pagina), tamanho: String(TAMANHO_DA_PAGINA_DE_ATUALIZACOES) });
+  return requisicao<PaginaDeAtualizacoes>(`/atualizacoes/pagina?${q.toString()}`);
+};
 /** Quantas há em cada situação (o número das abas) com os mesmos filtros da lista. */
 export const contagensAtualizacoes = (meus = false, filtro: FiltroAtualizacoes = {}) =>
   requisicao<Record<SituacaoAtualizacao, number>>(`/atualizacoes/contagens?${filtroDeAtualizacoes(meus, filtro).toString()}`);
@@ -405,6 +413,9 @@ export const cadastrarTreinador = (dados: { nomeConsultoria: string; nome: strin
 export const eu = () => requisicao<EuResponse>('/eu');
 
 export const termos = () => requisicao<TermosVigentes>('/termos');
+
+/** Página pública de Privacidade e de Termos de uso (sem login); o texto é sempre o da API. */
+export const termosPublicos = () => requisicao<TermosPublicos>('/publico/termos', { semRenovar: true });
 
 export const aceitarTermos = (versao: string) =>
   requisicao<TermosVigentes>('/termos/aceite', { metodo: 'POST', corpo: { versao } });
@@ -878,6 +889,9 @@ export const confirmarPlanilhaCompleta = (arquivo: FormData, hash: string) =>
 /** Migração assistida, fase 1: diz o que dá para importar do arquivo. Não grava nada (503 `MIGRACAO_INDISPONIVEL` com a chave desligada). */
 export const diagnosticarArquivo = (arquivo: FormData) =>
   requisicao<DiagnosticoDoArquivo>('/importacoes/diagnostico', { metodo: 'POST', corpoBruto: arquivo });
+/** Migração assistida, fase 2: a amostra revisável (5 alunos a partir de `inicio`); só lê, e o `hash` serve à confirmação (503 `MIGRACAO_INDISPONIVEL` com a chave desligada). */
+export const amostraDaPlanilhaCompleta = (arquivo: FormData, inicio = 0) =>
+  requisicao<AmostraDaPlanilha>(`/importacoes/planilha-completa/amostra?inicio=${inicio}`, { metodo: 'POST', corpoBruto: arquivo });
 export const desfazerImportacao = (id: string) =>
   requisicao<ImportacaoDesfeita>(`/importacoes/${seg(id)}/desfazer`, { metodo: 'POST' });
 /** Esquece as respostas guardadas das importações anteriores da planilha completa (a próxima análise vem sem marcas). */

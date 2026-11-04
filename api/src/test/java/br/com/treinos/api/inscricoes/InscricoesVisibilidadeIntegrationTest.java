@@ -297,10 +297,10 @@ class InscricoesVisibilidadeIntegrationTest extends AbstractIntegrationTest {
                 .isEqualTo(alunosAntes + 1);
     }
 
-    // ---- casos 6 e 9: reabrir mantém a data original; a lista pagina, mais nova primeiro ----
+    // ---- casos 6 e 9: reabrir mantém a data de entrada mas sobe na lista; a lista pagina, mais nova primeiro ----
 
     @Test
-    void reabrirVoltaParaAListaAbertaNaPosicaoDaDataOriginal() throws Exception {
+    void reabrirVoltaParaAListaAbertaNoTopoMantendoADataDeEntrada() throws Exception {
         String antiga = inscrever("Pessoa Teste Antiga", "11987650061");
         envelhecer(antiga, Duration.ofHours(2));
         String nova = inscrever("Pessoa Teste Nova", "11987650062");
@@ -315,8 +315,8 @@ class InscricoesVisibilidadeIntegrationTest extends AbstractIntegrationTest {
         assertThat(reaberta.path("ciclo").asInt()).isEqualTo(2);
         assertThat(reaberta.path("situacao").asString()).isEqualTo("EM_CONTATO");
         assertThat(reaberta.path("criadaEm").asString()).isEqualTo(criadaEm);
-        // Volta para a lista aberta, mas ordenada pela data de entrada: fica abaixo da mais nova, não no topo.
-        assertThat(ids("")).containsExactly(nova, antiga);
+        // Volta para a lista aberta pela data da reabertura (na_fila_desde): sobe acima da mais nova; a entrada original não muda.
+        assertThat(ids("")).containsExactly(antiga, nova);
         assertThat(ids("?situacao=DESISTIU")).isEmpty();
 
         // Aceita não reabre.

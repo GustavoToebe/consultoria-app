@@ -43,9 +43,11 @@ public class EvolucaoRespostasService {
     private static final Set<String> TIPOS = Set.of("NOTA", "NUMERO");
 
     public record Ponto(UUID atualizacaoId, LocalDate data, BigDecimal valor) { }
-    /** {@code pontos} do mais antigo ao mais novo (ordem do eixo do gráfico). */
+    /**
+     * {@code min}/{@code max}: a escala da NOTA na versão mais recente (0 a 10 quando a pergunta não traz); nulos no NUMERO,
+     * cujo mínimo e máximo são limites de resposta, não escala. {@code pontos} do mais antigo ao mais novo (ordem do eixo do gráfico). */
     public record Serie(String perguntaId, String tipo, String rotulo, String rotuloCurto, String unidade, Integer casas,
-            List<Ponto> pontos) { }
+            Integer min, Integer max, List<Ponto> pontos) { }
     /** {@code atualizacoes}: quantas foram lidas (no máximo {@code limite}). */
     public record Evolucao(int limite, int atualizacoes, List<Serie> series) { }
 
@@ -89,6 +91,8 @@ public class EvolucaoRespostasService {
         private final String rotuloCurto;
         private final String unidade;
         private final Integer casas;
+        private final Integer min;
+        private final Integer max;
         private final List<Ponto> pontos = new ArrayList<>();
 
         Montagem(JsonNode pergunta) {
@@ -97,10 +101,14 @@ public class EvolucaoRespostasService {
             rotuloCurto = textoOuNulo(pergunta.path("rotuloCurto"));
             unidade = textoOuNulo(pergunta.path("unidade"));
             casas = pergunta.path("casas").isNumber() ? pergunta.path("casas").asInt() : null;
+            boolean nota = "NOTA".equals(tipo);
+            int[] escala = nota ? ValidadorAtualizacao.escalaDaNota(pergunta) : null;
+            min = nota ? escala[0] : null;
+            max = nota ? escala[1] : null;
         }
 
         Serie serie(String perguntaId) {
-            return new Serie(perguntaId, tipo, rotulo, rotuloCurto, unidade, casas, pontos.reversed());
+            return new Serie(perguntaId, tipo, rotulo, rotuloCurto, unidade, casas, min, max, pontos.reversed());
         }
 
         private static String textoOuNulo(JsonNode no) {

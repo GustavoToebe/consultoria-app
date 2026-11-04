@@ -6,7 +6,7 @@ import { escalar } from '../dominio/preferencias';
 import { useTema } from '../tema/TemaProvider';
 import { espaco } from '../tema/tokens';
 import { faixasSobrePontos, type FaixaDoGrafico } from '../dominio/cicloMenstrual';
-import { caminhoSuave, fracaoNoEixo, marcasDoEixo } from '../dominio/grafico';
+import { caminhoSuave, fracaoNoEixo, marcasDoEixo, marcasDaEscala } from '../dominio/grafico';
 import { Texto } from './Texto';
 
 export interface PontoGrafico {
@@ -25,8 +25,10 @@ const MARGEM_BASE = { topo: 14, base: 24, esq: 58, dir: 18 };
  * Pontos já na ordem do eixo; só desenha o que foi registrado. A linha é da cor do texto,
  * nunca da marca (a marca não é dado). `semUltimo`: quem já mostra o resumo "Último…" acima não repete a linha de baixo.
  */
-export function GraficoLinha({ pontos, unidade, descricao, semUltimo, faixas }: {
+export function GraficoLinha({ pontos, unidade, descricao, semUltimo, faixas, escala }: {
   pontos: PontoGrafico[]; unidade: string; descricao: string; semUltimo?: boolean; faixas?: FaixaDoGrafico[];
+  /** Escala fixa (a NOTA de 1 a 5, por exemplo): o eixo vai do mínimo ao máximo dela, com as duas pontas marcadas. Sem ela, o eixo se ajusta aos pontos. */
+  escala?: { min: number; max: number };
 }) {
   const { cores, fatorTexto } = useTema();
   const linha = cores.texto;
@@ -40,14 +42,15 @@ export function GraficoLinha({ pontos, unidade, descricao, semUltimo, faixas }: 
 
   const valores = pontos.map((p) => p.valor);
   const folga = Math.max((Math.max(...valores) - Math.min(...valores)) * 0.15, 0.5);
-  const min = Math.min(...valores) - folga;
-  const max = Math.max(...valores) + folga;
+  // Com escala, o eixo é o dela; um ponto fora (escala trocada pelo treinador) alarga o eixo em vez de sumir do desenho.
+  const min = escala ? Math.min(escala.min, ...valores) : Math.min(...valores) - folga;
+  const max = escala ? Math.max(escala.max, ...valores) : Math.max(...valores) + folga;
   const w = Math.max(largura, 1);
   const areaW = w - MARGEM.esq - MARGEM.dir;
   const areaH = ALTURA - MARGEM.topo - MARGEM.base;
   const x = (i: number) => MARGEM.esq + fracaoNoEixo(pontos, i) * areaW;
   const y = (v: number) => MARGEM.topo + (1 - (v - min) / (max - min)) * areaH;
-  const marcas = marcasDoEixo(min, max);
+  const marcas = escala ? marcasDaEscala(min, max) : marcasDoEixo(min, max);
   const passoRotulo = Math.max(1, Math.ceil(pontos.length / Math.max(Math.floor(areaW / 72), 1)));
   const curva = caminhoSuave(pontos.map((p, i) => ({ x: x(i), y: y(p.valor) })));
   const bandas = faixasSobrePontos(pontos, faixas ?? []);

@@ -6,6 +6,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { definirAcessoDoAluno, gerarConvite } from '../api/rotas';
 import type { AlunoDetalhe, ConviteGerado } from '../api/tipos';
+import { seloDoAcesso } from '../dominio/cadastroDoAluno';
 import { dataHoraParaTela } from '../dominio/formatos';
 import { gerarSenhaProvisoria } from '../dominio/senhaProvisoria';
 import { useTema } from '../tema/TemaProvider';
@@ -22,13 +23,6 @@ import { LinhaDeAcoes } from '../ui/LinhaDeAcoes';
 import { PainelConfirmacao } from '../ui/PainelConfirmacao';
 import { Selo } from '../ui/Selo';
 import { Texto } from '../ui/Texto';
-
-/** Selo do acesso ao app (também no "Cadastro" dos dados do aluno). */
-export function seloDoAcesso(aluno: AlunoDetalhe): { texto: string; tipo: 'sucesso' | 'atencao' | 'neutro' } {
-  if (!aluno.temAcesso) return { texto: 'Sem acesso', tipo: 'neutro' };
-  if (aluno.aguardandoPrimeiroAcesso) return { texto: 'Aguardando primeiro acesso', tipo: 'atencao' };
-  return { texto: 'Com acesso', tipo: 'sucesso' };
-}
 
 /**
  * Acesso do aluno ao app. Sem conta: gera o convite (código de 10 letras e link, válidos por 7 dias; gerar outro

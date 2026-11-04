@@ -1,6 +1,6 @@
 # Push do Expo para compromisso marcado, remarcado ou cancelado
 
-Situação: Em andamento · Onde: branch `push-do-expo` (frente 6) · Atualizado: 03/11/2026 (revisão independente aplicada)
+Situação: Código concluído na `main` (PR #80), chave desligada em todos os ambientes; falta só o teste real num APK (roteiro abaixo) · Onde: `main` · Atualizado: 04/11/2026 (conferência da frente I)
 
 ## Objetivo
 O aluno que ligar "Avisar no celular quando um compromisso mudar" recebe uma notificação do celular quando um compromisso dele é marcado, remarcado ou cancelado, além do aviso que já existe dentro do app. A notificação nunca leva dado pessoal: só diz que algo mudou e pede para abrir o app. Tudo nasce DESLIGADO (`TREINOS_PUSH_HABILITADO=false`).
@@ -31,6 +31,16 @@ Tudo marcado "Claude" foi confirmado pelo Gustavo em 04/11.
 - [x] 3. App: `dominio/pushDoAluno.ts` com teste, interruptor na Conta, "Sair" remove o token, jest — commit do app desta branch
 - [x] 4. AGENTS.md (API e app) e verificação (typecheck, lint, jest, `mvn verify`)
 - [x] 5. Revisão independente (5 médios e 8 pequenos): token único global e validade de 30 dias, erro definitivo do ticket, resposta 200 inválida, FK composta, re-registro após trocar a senha, desligar sem permissão, "Sair" só com o aviso ligado, lote sem separar envio, testes do lote misto, do log e do https — commits e52ec9e6, 9b2690f8, d8ad665a e 5b951dc3
+- [x] 6. Conferência de 04/11 (frente I, branch `push-de-compromissos`): o pedido "servidor dispara push ao marcar, remarcar ou cancelar, com a chave desligada" já estava inteiro neste plano; nenhum código novo. Conferido: o gancho `AgendaService.registrarAvisos` é chamado por `criar`, `alterar` (remarcar, incluir e tirar aluno), `alterarCancelamento` (cancelar e reabrir) e `alterarSituacaoDoAluno` (que só avisa quando o aluno sai ou volta; realizado e falta nunca chegam lá); tenant explícito no SQL da fila; texto fixo; um PENDENTE por usuário (idempotência); `application.yml` com `habilitado: false` por padrão e `deploy.yml`/`.env.example` sem ligar a chave. As chamadas do app (`getExpoPushTokenAsync({projectId})`, `requestPermissionsAsync`, `setNotificationChannelAsync`) batem com a doc do SDK 57 em `docs.expo.dev/versions/v57.0.0/sdk/notifications`.
+
+## Roteiro para o Gustavo: ligar a chave e testar num APK
+Nada disso foi feito; é a ordem para quando você quiser testar (detalhes e credenciais em `docs/build-celular.md`, seção 6).
+1. Android: criar o projeto no Firebase com o mesmo `android.package` do `app.json`, baixar o `google-services.json`, apontar `expo.android.googleServicesFile` (decidir: commitar em `app/` ou variável de arquivo do EAS) e subir a credencial FCM V1 no EAS (`npx eas-cli credentials`). Gerar o APK de novo (`npx eas-cli build --profile preview --platform android`). iPhone: chave APNs no EAS e TestFlight.
+2. Servidor de teste (nunca começar em produção): subir a API local ou de homologação com `TREINOS_PUSH_HABILITADO=true` (e `TREINOS_PUSH_ENVIO_AGENDADO=true`, o padrão). `TREINOS_PUSH_EXPO_TOKEN` é opcional (enhanced security do Expo; segredo, só por `gravar-segredo.sh`). O celular precisa alcançar essa API.
+3. No APK: entrar como aluno, Conta › Aparência e preferências › ligar "Avisar no celular quando um compromisso mudar" e aceitar a permissão. O `GET /eu` precisa trazer `pushHabilitado=true`, senão o interruptor nem aparece.
+4. Como treinador (web), marcar, remarcar e cancelar um compromisso desse aluno. Em até cerca de 1 minuto (job de 30 s) chega "Compromisso atualizado" / "Abra o app para ver o que mudou.", sem nome, horário ou local; tocar só abre o app. Várias mudanças seguidas viram uma notificação só.
+5. Desligar o interruptor, ou "Sair": a mudança seguinte não chega. Negar a permissão: o interruptor volta desligado.
+6. Só com tudo certo, ligar `TREINOS_PUSH_HABILITADO=true` em produção (`consultoria.env` da VPS + `deploy/recriar.sh`).
 
 ## Fora do escopo
 - Push para o treinador (a equipe não recebe nesta fase).
@@ -48,7 +58,7 @@ Tudo marcado "Claude" foi confirmado pelo Gustavo em 04/11.
 - O aviso interno do aluno não tem "desligar"; o push é opt-in por aparelho.
 
 ## O que ficou para trás
-- Não foi possível consultar a documentação do `expo-notifications` (SDK 57) pelo Context7 nem pelo site: os nomes da API (`getExpoPushTokenAsync({projectId})`, `requestPermissionsAsync`, canal `default`) foram conferidos só pelo typecheck e pelos testes com módulo falso. Confirmar no APK.
+- Os nomes da API do `expo-notifications` (`getExpoPushTokenAsync({projectId})`, `requestPermissionsAsync`, `setNotificationChannelAsync`) foram conferidos em 04/11 contra a doc do SDK 57 (`docs.expo.dev/versions/v57.0.0/sdk/notifications`); o comportamento no aparelho continua sem teste (jest com módulo falso). Confirmar no APK.
 - Sem e2e web (o interruptor não existe na web) e sem teste de tela do interruptor: a regra está em `dominio/pushDoAluno`, a camada nativa em `aluno/push/pushNativo.test.ts` e o "Sair" e a troca de senha em `sessao/SessaoProvider.push.test.tsx`.
 - A mudança que chega durante o envio em curso não gera segunda notificação (decisão 6, limite conhecido; sem correção nesta rodada).
 - Receipts do Expo não são lidos: um token que o Expo só recusa depois (`DeviceNotRegistered` no recibo) só some pela validade de 30 dias.

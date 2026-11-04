@@ -173,6 +173,32 @@ class PainelEListaDeAtualizacoesIntegrationTest extends AbstractIntegrationTest 
     }
 
     @Test
+    void paginaDaListaSegueAOrdemDaTelaEOTotalDaSituacao() throws Exception {
+        // Três atrasadas, em datas e nomes fora de ordem; a página começa pela mais antiga (a que espera há mais tempo).
+        alunoDe(admin, "Carla fictícia", hoje.minusDays(2));
+        alunoDe(admin, "Bruno fictício", hoje.minusDays(5));
+        alunoDe(admin, "Ana fictícia", hoje.minusDays(2));
+        alunoDe(membro, "Dora fictícia", hoje.plusDays(2));
+
+        JsonNode p0 = api.get("/atualizacoes/pagina?situacao=ATRASADAS&tamanho=2&pagina=0", admin, 200);
+        JsonNode p1 = api.get("/atualizacoes/pagina?situacao=ATRASADAS&tamanho=2&pagina=1", admin, 200);
+        JsonNode alem = api.get("/atualizacoes/pagina?situacao=ATRASADAS&tamanho=2&pagina=5", admin, 200);
+        assertThat(p0.path("total").asLong()).isEqualTo(3);
+        assertThat(p0.path("itens")).extracting(i -> i.path("nomeAluno").asString()).containsExactly("Bruno fictício", "Ana fictícia");
+        assertThat(p1.path("itens")).extracting(i -> i.path("nomeAluno").asString()).containsExactly("Carla fictícia");
+        assertThat(p1.path("total").asLong()).isEqualTo(3);
+        assertThat(alem.path("itens")).isEmpty();
+        assertThat(alem.path("total").asLong()).isEqualTo(3);
+        // Mesmos filtros da lista: busca sem acento e "Meus" (aqui o admin é responsável das três; o membro, de uma próxima).
+        assertThat(api.get("/atualizacoes/pagina?situacao=ATRASADAS&busca=carla", admin, 200).path("total").asLong()).isEqualTo(1);
+        assertThat(api.get("/atualizacoes/pagina?situacao=PROXIMAS&meus=true", membro, 200).path("total").asLong()).isEqualTo(1);
+        assertThat(api.get("/atualizacoes/pagina?situacao=PROXIMAS&meus=true", admin, 200).path("total").asLong()).isZero();
+        // Outra consultoria não vê nada; situação inválida é 400.
+        assertThat(api.get("/atualizacoes/pagina?situacao=ATRASADAS", api.novoTreinador(), 200).path("total").asLong()).isZero();
+        api.get("/atualizacoes/pagina?situacao=QUALQUER", admin, 400);
+    }
+
+    @Test
     void outraConsultoriaNaoVeNemContaNada() throws Exception {
         alunoDe(admin, "Aluno atrasado", hoje.minusDays(2));
         alunoDe(membro, "Aluno próximo", hoje.plusDays(1));

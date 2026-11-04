@@ -317,7 +317,8 @@ for (const { largura, altura } of [{ largura: 1280, altura: 900 }, { largura: 39
     // Grade: no PC as três seções lado a lado; no celular uma embaixo da outra.
     const cadastro = await topo(page.getByText('Cadastro', { exact: true }));
     const pessoais = await topo(page.getByText('Dados pessoais', { exact: true }));
-    const acompanhamento = await topo(page.getByText('Acompanhamento', { exact: true }));
+    // "Acompanhamento" também é o título de um grupo do menu lateral (aria-hidden): vale só o da ficha.
+    const acompanhamento = await topo(page.getByText('Acompanhamento', { exact: true }).and(page.locator(':not([aria-hidden="true"])')));
     if (largura >= 1100) {
       expect(Math.abs(pessoais - cadastro)).toBeLessThan(2);
       expect(Math.abs(acompanhamento - cadastro)).toBeLessThan(2);

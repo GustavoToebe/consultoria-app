@@ -182,6 +182,10 @@ public class Inscricao {
     @Column(name = "atualizada_em", nullable = false)
     private Instant atualizadaEm = criadaEm;
 
+    /** Posição na lista (mais novas primeiro): a criação ou a última reabertura. A entrada original continua em {@link #criadaEm}. */
+    @Column(name = "na_fila_desde", nullable = false)
+    private Instant naFilaDesde = criadaEm;
+
     /**
      * Última atividade da equipe ou da pessoa (andamento, nota, retorno...): é dela que contam os 180 dias da retenção.
      * Atividade que não muda a inscrição (nota) grava só esta coluna, por UPDATE, sem subir a versão.
@@ -289,6 +293,7 @@ public class Inscricao {
         this.encerradaPor = null;
         this.encerradaEm = null;
         if (this.responsavelId == null) this.responsavelId = responsavel;
+        this.naFilaDesde = Instant.now();
         alterarSituacao(SituacaoInscricao.EM_CONTATO);
     }
 

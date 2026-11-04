@@ -277,6 +277,8 @@ test('inscrição envia o sexo quando a pessoa escolhe', async ({ page }) => {
   await page.goto(`/inscricao/${codigo}`);
   await page.getByLabel('Nome').fill('Pessoa Fictícia');
   await page.getByLabel('WhatsApp com DDD').pressSequentially('11987654321');
+  // O sexo fica na parte 2 da página (D6 do lote 1 da auditoria de UI/UX).
+  await page.getByRole('button', { name: 'Continuar' }).click();
   await page.getByRole('radiogroup', { name: 'Sexo (opcional)' }).getByRole('button', { name: 'Feminino', exact: true }).click();
   await page.getByRole('button', { name: 'Enviar inscrição' }).click();
   await expect(page.getByRole('heading', { name: 'Inscrição enviada' })).toBeVisible();

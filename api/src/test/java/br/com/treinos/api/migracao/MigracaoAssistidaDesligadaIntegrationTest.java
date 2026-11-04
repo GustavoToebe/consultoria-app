@@ -47,6 +47,14 @@ class MigracaoAssistidaDesligadaIntegrationTest extends AbstractIntegrationTest 
                 .andExpect(status().isServiceUnavailable()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
         assertThat(json.readTree(texto).path("codigo").asString()).isEqualTo("MIGRACAO_INDISPONIVEL");
 
+        // A amostra revisável (fase 2) segue a mesma chave; a prévia, a confirmação e o desfazer da planilha completa não.
+        String amostra = mvc.perform(multipart("/importacoes/planilha-completa/amostra")
+                        .file(new MockMultipartFile("arquivo", "a.csv", "text/csv", "Nome;Email\nAluno Teste 1;a@example.com\n".getBytes(StandardCharsets.UTF_8)))
+                        .header("X-Treinos-Cliente", "nativo")
+                        .header(HttpHeaders.AUTHORIZATION, ApiDeTeste.bearer(treinador)))
+                .andExpect(status().isServiceUnavailable()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        assertThat(json.readTree(amostra).path("codigo").asString()).isEqualTo("MIGRACAO_INDISPONIVEL");
+
         assertThat(api.get("/eu", treinador, 200).path("migracaoAssistidaHabilitada").asBoolean()).isFalse();
         // A importação que já existia segue respondendo.
         assertThat(api.get("/importacoes", treinador, 200).path("total").asInt()).isZero();

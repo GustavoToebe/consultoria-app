@@ -3,7 +3,7 @@ import {
   aceitarInscricao, alterarCancelamentoCompromisso, alterarCompromisso, alterarSituacaoDoAluno, aplicarAlteracaoDaAnamnese, avisosDeCompromisso, listarAlunosOcupados, marcarAvisoDeCompromissoVisto, compromissosDoAluno, criarCompromisso, listarCompromissos, buscarQuestionario, descartarAlteracaoDaAnamnese, fatoresDosAlimentos, inscricao, inscricaoPublica, listarPlanos,
   retornoDoPagamento, definirLembretesDoAluno, lembretesDaCobranca, lembretesDoAluno,
   alterarAgendaPessoal, alterarEvento, apagarAgendaPessoal, contarEventosDaAgenda, criarAgendaPessoal, criarEvento, cruzamentosDoEvento,
-  detalheDoEvento, excluirEvento, listarAgendasPessoais, listarAlunos, listarAtualizacoes, contagensAtualizacoes, listarEventos, resumoDaAgenda,
+  detalheDoEvento, excluirEvento, listarAgendasPessoais, listarAlunos, listarAtualizacoes, listarAtualizacoesPagina, contagensAtualizacoes, listarEventos, resumoDaAgenda,
   registrarPushToken, removerPushToken,
 } from './rotas';
 
@@ -169,6 +169,8 @@ describe('caminhos da API', () => {
     // Lote 2: vários responsáveis (repetidos) e a busca pelo nome.
     await expect(listarAtualizacoes('ATRASADAS', false, { responsavel: ['u1', 'nenhum'], busca: ' joão ' }))
       .resolves.toBe('/atualizacoes?situacao=ATRASADAS&responsavel=u1&responsavel=nenhum&busca=jo%C3%A3o');
+    await expect(listarAtualizacoesPagina('ATRASADAS', 2, true, { busca: 'ana' }))
+      .resolves.toBe('/atualizacoes/pagina?situacao=ATRASADAS&pagina=2&tamanho=30&meus=true&busca=ana');
     await expect(contagensAtualizacoes(true)).resolves.toBe('/atualizacoes/contagens?meus=true');
     await expect(contagensAtualizacoes(false, { responsavel: ['u1'], de: '2026-11-01', ate: '2026-11-30' }))
       .resolves.toBe('/atualizacoes/contagens?responsavel=u1&de=2026-11-01&ate=2026-11-30');

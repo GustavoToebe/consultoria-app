@@ -85,6 +85,9 @@ export interface TermosVigentes {
   documentos: DocumentoDeTermos[];
 }
 
+/** `GET /publico/termos` (sem login): os mesmos documentos do `GET /termos`, sem o `aceito`. */
+export type TermosPublicos = Omit<TermosVigentes, 'aceito'>;
+
 /** `POST /publico/convites-equipe/consultar`: só a marca da consultoria (nada de quem foi convidado). */
 export interface ConviteEquipePublico {
   consultoria: Marca;
@@ -597,6 +600,16 @@ export interface ConfirmacaoDaPlanilha {
   importacaoId: string; situacao: string; criados: CriacaoDaPlanilha; partesPuladas: PartePuladaDaPlanilha[];
   validacaoDosTreinos: ValidacaoDosTreinos; problemas: number; problemasPorTipo: Record<string, number>;
 }
+/**
+ * Migração assistida, fase 2: o que a confirmação gravaria (em rascunho) para até 5 alunos. `treino`, `dieta`, `pesos` e o cadastro
+ * só vêm quando a confirmação vai gravá-los (nulo/0 sem a permissão). `ativo` e o cadastro são nulos no aluno `EXISTENTE`.
+ */
+export interface AlunoDaAmostra {
+  numero: number; situacao: 'NOVO' | 'EXISTENTE'; nome: string | null; ativo: boolean | null; email: string | null;
+  telefone: string | null; objetivo: string | null; observacoes: string | null; pesos: number;
+  ultimosPesos: { data: string; kg: number }[]; treino: ConteudoTreino | null; dieta: ConteudoDieta | null;
+}
+export interface AmostraDaPlanilha { hash: string; total: number; inicio: number; pasta: string; alunos: AlunoDaAmostra[] }
 export type TipoDesfeito = 'PLANO_TREINO' | 'PLANO_DIETA' | 'PASTA' | 'PESO' | 'EXERCICIO' | 'ALUNO';
 export interface ParteDesfeita { tipo: TipoDesfeito; apagados: number; ficaram: number; motivos: Record<string, number> }
 export interface ImportacaoDesfeita {
@@ -1529,6 +1542,9 @@ export interface SerieDeResposta {
   rotuloCurto: string | null;
   unidade: string | null;
   casas: number | null;
+  /** Escala da NOTA na versão mais recente (0 a 10 quando a pergunta não traz); nulos no NUMERO. */
+  min: number | null;
+  max: number | null;
   /** Do mais antigo ao mais novo. */
   pontos: PontoDeResposta[];
 }
@@ -1537,6 +1553,8 @@ export interface EvolucaoRespostas { limite: number; atualizacoes: number; serie
 export interface ConfiguracaoDeFotos { habilitado: boolean; maximoPorPergunta: number; bytesMaximo: number; porDia: number }
 /** Item das listas do treinador (`GET /atualizacoes`): sem modelo, respostas nem resumo, que só vêm no detalhe. */
 export type AtualizacaoDaLista = Pick<Atualizacao, 'id' | 'pastaId' | 'alunoId' | 'nomeAluno' | 'dataAtualizacao' | 'fase' | 'diasParaData' | 'diasDeAtraso' | 'atrasoAte'>;
+/** Uma página de `GET /atualizacoes/pagina`; `total` é o da situação com os mesmos filtros. */
+export interface PaginaDeAtualizacoes { itens: AtualizacaoDaLista[]; total: number }
 
 /** Gestão dos questionários (`questionarios/dto/QuestionarioDtos`). */
 export type OrigemQuestionario = 'VAZIO' | 'FABRICA';

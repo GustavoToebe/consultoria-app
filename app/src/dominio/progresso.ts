@@ -1,6 +1,6 @@
 import type { ProgressoPonto } from '../api/tipos';
 import { dataCurta, SEM_DADO } from './formatos';
-import { SEM_GRUPO } from './relatorio';
+import { SEM_GRUPO, TEXTO_GRAFICOS_DESLIGADOS, TEXTO_GRAFICOS_DESLIGADOS_ALUNO, type PapelDoHistorico } from './relatorio';
 import { textoDaCarga, type UnidadeDeCarga } from './unidadeDeCarga';
 
 /**
@@ -65,11 +65,12 @@ export function agruparPorGrupo<T extends { grupo: string }>(opcoes: T[]): { gru
 
 /**
  * Por que o gráfico não aparece (reunião de 29/10: com um registro só, o treinador achou que o gráfico tinha sumido).
- * Nulo quando o gráfico aparece ou não há registro nenhum.
+ * Nulo quando o gráfico aparece ou não há registro nenhum. O texto dos gráficos desligados é o do histórico vazio
+ * (`textoDoHistoricoVazio`), com o caminho das preferências de cada papel.
  */
-export function avisoDoGrafico(registros: number, graficosLigados: boolean): string | null {
+export function avisoDoGrafico(registros: number, graficosLigados: boolean, papel: PapelDoHistorico = 'TREINADOR'): string | null {
   if (registros === 0) return null;
-  if (!graficosLigados) return 'Os gráficos estão desligados nas suas preferências (Perfil › Preferências).';
+  if (!graficosLigados) return papel === 'ALUNO' ? TEXTO_GRAFICOS_DESLIGADOS_ALUNO : TEXTO_GRAFICOS_DESLIGADOS;
   if (registros < 2) return 'O gráfico aparece quando houver registros em pelo menos duas datas.';
   return null;
 }

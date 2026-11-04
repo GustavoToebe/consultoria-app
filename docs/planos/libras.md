@@ -25,8 +25,8 @@ nada do que está guardado mude: a carga continua em **kg** no aparelho, na fila
 | 13 | Quem escolhe | Fase 1: só o aluno vê a escolha e o treinador fica em kg em todas as telas. **Fase 2 (decisão 15) troca isto: o treinador também escolhe** | confirmado pelo Gustavo em 04/11 |
 | 14 | Peso corporal | Fora: peso do aluno (atualização, avaliação, fotos, dieta) segue em kg. "Libras" aqui é só carga de exercício | confirmado pelo Gustavo em 04/11 |
 | 15 | Treinador escolhe a própria unidade (fase 2) | A preferência `unidadeDeCarga` é a mesma, no aparelho e por usuário (`treinos:<usuarioId>:preferencias`), e agora aparece em Ajustes também para o treinador, com a mesma chave da plataforma (`GET /eu` traz `unidadeDeCargaHabilitada` para todos os papéis). Sem servidor, sem migration, sem rota nova. A regra é uma só: `unidadeEfetiva({ chaveLigada, preferida })` (chave ligada e `lb` escolhido = libra; qualquer outro caso = kg). O contexto `ProvedorDaUnidadeDeCarga` passa a estar também no layout do treinador | decisão 6 (cada um na sua unidade), aplicada em 04/11 |
-| 16 | Metodologia e receitas ficam em kg | O arredondamento da metodologia ("arredondar a sugestão ... para N kg"), o `CartaoMetodologia` e as receitas de séries não mudam de unidade nesta fase: são configuração da consultoria, lida por todos, e o valor guardado é o `arredondamentoKg` | proposta de 04/11, a confirmar |
-| 17 | "Ver como aluno" | A prévia reusa os componentes do aluno e, como o layout do treinador provê a unidade dele, mostra a carga na unidade do treinador, não na do aluno (a do aluno vive no aparelho dele e a prévia nunca a conhece) | proposta de 04/11, a confirmar |
+| 16 | Metodologia e receitas ficam em kg | O arredondamento da metodologia ("arredondar a sugestão ... para N kg"), o `CartaoMetodologia` e as receitas de séries não mudam de unidade nesta fase: são configuração da consultoria, lida por todos, e o valor guardado é o `arredondamentoKg` | Gustavo, 04/11 |
+| 17 | "Ver como aluno" | A prévia mostra a carga em kg (`FolhaVerComoAluno` provê `kg`): a unidade do aluno vive no aparelho dele e a prévia nunca a conhece | Gustavo, 04/11 |
 
 ## Passos
 - [x] 1. Plano e índice (este arquivo) — commit a652f128
@@ -64,7 +64,7 @@ sem mudar nada. As funções de texto da carga ganharam `unidade` como último p
 **Tratados na fase 2 (treinador, na unidade dele):**
 - Editor do plano: "Carga fixa (lb|kg)", campo e máscara, `validacaoDeSerie.mensagemDaCargaFixa`, resumo da série e do grupo (`dominio/agrupamento`, `resumoDaSerie`), `ajudaDaCarga`, `CartaoExercicio` ("Em lb").
 - PDF do treino e PDF de cargas (`treinador/gerarPdf`), relatório e progresso do exercício, recordes da semana (`dominio/retornoDoTreinador`, `dominio/painelDoInicio`, `CartaoRecordesDaSemana`) e o Início do treinador.
-- A prévia "Ver como aluno" (os componentes do aluno) segue a unidade do treinador (decisão 17).
+- A prévia "Ver como aluno" (os componentes do aluno) mostra em kg (decisão 17).
 
 **Ficam para depois ou fora, de propósito:**
 - Metodologia e receitas: `edicaoMetodologia` ("arredondamento ... kg"), `CartaoMetodologia`, `receitasDeSeries` (decisão 16).
@@ -95,4 +95,3 @@ sem mudar nada. As funções de texto da carga ganharam `unidade` como último p
 ## O que ficou para trás
 - Metodologia e receitas em lb (decisão 16), se o Gustavo quiser.
 - Textos de ajuda (`ajuda/conteudo.ts`) citam "kg" como exemplo.
-- Prévia "Ver como aluno" na unidade do treinador (decisão 17): confirmar ou forçar kg.

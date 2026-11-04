@@ -26,7 +26,7 @@ async function abrir(page: Page) {
     'GET /painel': { corpo: { atualizacoesParaRevisar: 1, atualizacoesAtrasadas: 0, atualizacoesAvisaramAtraso: 0, atualizacoesProximas: 0, alunosAtivos: 2, alunosSemRegistro: [], ultimasExecucoes: [], planosTerminando: [] } },
     'GET /alunos': { corpo: { itens: ALUNOS, total: ALUNOS.length } },
     'GET /responsaveis': { corpo: [] },
-    'GET /atualizacoes': { corpo: [ATUALIZACAO] },
+    'GET /atualizacoes/pagina': { corpo: { itens: [ATUALIZACAO], total: 1 } },
   });
 }
 

@@ -151,6 +151,15 @@ public class GravacaoDaPlanilha {
                 porTipo(problemas));
     }
 
+    /** Migração assistida, fase 2: o que a confirmação gravaria para alguns alunos. Só lê, como a prévia; devolve o mesmo {@code hash}. */
+    @Transactional(readOnly = true)
+    public AmostraDaPlanilha.Amostra amostra(UUID importador, String nomeDoArquivo, byte[] bytes, String respostasJson,
+                                             int inicio) {
+        RespostasDaPlanilha respostas = RespostasDaPlanilha.ler(respostasJson, json);
+        Montagem m = MontagemDaImportacao.montar(LeituraDasAbas.ler(nomeDoArquivo, bytes), respostas, contexto(importador));
+        return AmostraDaPlanilha.de(m, RespostasDaPlanilha.hash(bytes, respostas, json), inicio);
+    }
+
     @Transactional
     public Confirmacao confirmar(UsuarioAutenticado eu, String nomeDoArquivo, byte[] bytes, String respostasJson,
                                  String hash) {

@@ -194,7 +194,8 @@ Duas regras. Plano e passos em `docs/planos/auditoria-cores.md`.
 
 A cor nunca fala sozinha: todo status leva texto, e todo erro ou alerta leva ícone. A regra vale para qualquer marca:
 a cor da marca muda por consultoria, mas `sucesso`, `atencao` e `perigo` são fixos no tema (`tema/tokens.ts`) e nunca
-vêm da marca; por isso o status de cobrança também leva sempre o texto ("Em aberto", "Vencida", "Paga"). O ícone no selo de cobrança ficou como pendência: o `Selo` com `Icone` vira pílula, e isso mudaria o desenho dele.
+vêm da marca; por isso o status de cobrança também leva sempre o texto ("Em aberto", "Vencida", "Paga"). O selo de cobrança fica só
+com o texto, sem ícone e sem mudar o desenho do `Selo` (Gustavo, 04/11).
 
 **Onde a marca pode aparecer (lista fechada):**
 - ação principal: `Botao primario` e, nas telas públicas da consultoria, `BotaoPublico`;
@@ -220,6 +221,16 @@ Qualquer outro lugar precisa de decisão nova.
 | Seleção | invertida: fundo `texto`, letra `fundo` | Opção escolhida (chips, `Escolha`, calendário, `Interruptor`) | Chip marcado | Sim | 4,5:1 | igual a texto sobre fundo |
 | Identificação | paletas próprias (`PALETA_DE_IDENTIFICACAO`, agendas, fases) | Diz *qual* coisa é, nunca status | Tipo de série, refeição, agenda, fase do ciclo | Sim | 4,5:1 (texto); 3:1 (marcador) | conferido em `tokens.test.ts` |
 
+- **Casos que não estão na tabela** (04/11; teste `dominio/corPorSituacao.test.ts`):
+  - **Acesso do aluno** (`CartaoAcesso`, só a equipe vê; `dominio/cadastroDoAluno.seloDoAcesso`): Sem acesso `neutro`,
+    Aguardando primeiro acesso `neutro` (quem age é o aluno; o treinador espera), Com acesso `sucesso`.
+  - **Pagamento da inscrição** (`dominio/inscricoes.seloDoPagamento`): Aguardando `atencao` (exceção da cobrança; o
+    treinador confirma à mão), Não controlado `neutro`, Confirmado (manual) `sucesso`.
+  - **Cobrança contestada** (`dominio/financeiro.seloDaCobranca`): Contestada `atencao` para o aluno e para o treinador
+    (exceção da cobrança; o treinador decide entre manter paga e estornar); Estornada `neutro`.
+  - **Consumo da conta** (`dominio/minhaConta.estadoDoConsumoParaTela`, só quem tem `CONTA_LER`): Dentro do limite
+    `sucesso`, Perto do limite e Limite atingido `atencao` (o administrador decide se amplia), Acima do limite
+    `perigo`, Sem limite configurado `neutro`.
 - **Selo sobre a `faixaForte`:** o selo sem ícone tem fundo transparente e, sobre essa faixa, fica abaixo de 4,5:1.
   É o caso do selo do grupo muscular, de "Cardio", de "Sem progressão" e de "Fora da biblioteca", na faixa do
   exercício do editor de treino. Medido:

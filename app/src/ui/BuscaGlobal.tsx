@@ -6,7 +6,7 @@ import { Platform, Pressable, ScrollView, StyleSheet, View, type PressableProps,
 import { Input } from '../components/ui/input';
 import { atalhosPadrao, buscarTelas, favoritosVisiveis, legendaDaTela, type TelaDoCatalogo } from '../dominio/telas';
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, RAIO, SOMBRA_FLUTUANTE } from '../tema/tokens';
 import { useSaidaGuardada } from './GuardaDeSaida';
 import { propsDeLink } from './propsDeLink';
 import { sobre } from './sobre';
@@ -199,7 +199,7 @@ const estilos = StyleSheet.create({
     paddingVertical: espaco(0.5),
     overflow: 'hidden',
     zIndex: 40,
-    boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+    boxShadow: SOMBRA_FLUTUANTE,
   },
   // Muitas telas casam com uma letra só: a lista rola dentro do quadro em vez de vazar por cima da página.
   rolagem: { maxHeight: 400 },

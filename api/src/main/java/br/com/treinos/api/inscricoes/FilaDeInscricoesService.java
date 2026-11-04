@@ -50,13 +50,13 @@ public class FilaDeInscricoesService {
                          LocalDate de, LocalDate ate, LocalDate atividadeDe, LocalDate atividadeAte) {
     }
 
-    /** Mais novas primeiro (ordem fixa), em páginas de até 100. */
+    /** Mais novas primeiro (ordem fixa; a reaberta conta como nova, pela data da reabertura), em páginas de até 100. */
     @Transactional(readOnly = true)
     public PaginaInscricoes listar(Filtro f, int pagina, int tamanho) {
         FiltrosDaFila filtros = ler(f);
         Page<Inscricao> page = inscricoes.findAll(filtros.especificacao(FiltrosDaFila.situacoes(f.situacao())),
                 PageRequest.of(Math.max(0, pagina), Math.clamp(tamanho, 1, 100),
-                        Sort.by(Sort.Order.desc("criadaEm"), Sort.Order.asc("id"))));
+                        Sort.by(Sort.Order.desc("naFilaDesde"), Sort.Order.asc("id"))));
         return new PaginaInscricoes(detalhes.resumos(page.getContent()), page.getTotalElements());
     }
 

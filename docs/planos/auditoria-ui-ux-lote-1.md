@@ -14,7 +14,7 @@ O escopo foi definido pelo Gustavo em 03/11 e só mexe no app; nada muda na API.
 | D3 | Divisão em dois PRs | PR A = a a e, mais j a l. PR B = f, g, h e i, numa branch própria saída da `main`, depois do PR A, porque os textos do i e o C4 do e mexem nas mesmas telas de estado. | Claude, pela regra do Gustavo para lote grande |
 | D4 | Arquivos compartilhados com o item 3 (`supervisao-da-equipe`) | Este lote é dono do `FormAluno` e do `AcoesEmLote`. O item 3 trata o 409 novo por `dominio/erroDoPlano.ts`/`ui/useAvisoDoPlano` e não mexe nesses dois. | Claude |
 | D5 | Metodologias | Continuam dentro da aba Treino do Planejamento, sem aba própria. | Gustavo, 03/11 |
-| D6 | "Quero ser aluno" | Continua numa página só. Reavaliar depois do teste com 5 alunos, olhando os Indicadores de Interessados. | Gustavo, 03/11 |
+| D6 | "Quero ser aluno" | Revista em 04/11: fazer agora, sem esperar o teste com 5 alunos. Duas partes **antes de um envio só** (a API e o contrato não mudam): parte 1 "Seu contato" (nome, WhatsApp e, se visível, e-mail) com "Continuar"; parte 2 "Sobre você" (sexo, objetivo, perguntas rápidas, o questionário do treinador inteiro, a ciência do texto, a verificação humana e "Enviar inscrição", com "Voltar"). O questionário não se divide (pode ter obrigatória e a condição aponta para perguntas anteriores). Sem nada para a parte 2, a página fica numa parte só, como antes. O que foi digitado fica na memória da tela ao ir e voltar; nada é guardado no aparelho (dado de quem não tem login). Erro do envio (local ou da API) em campo da parte 1 volta à parte 1 e foca o campo. Regra em `dominio/inscricoes.ts` (`parteDoCampoDaInscricao`, `temSegundaParte`). O "Quer contar mais?" **depois** do envio (sugestão da auditoria) pediria uma rota pública para completar a inscrição já criada: fica descrito, não feito. Antes (03/11): continuava numa página só. | Gustavo, 03/11; revisto pelo Gustavo em 04/11 |
 | D7 | Saídas de dentro da ficha em edição (revisão do PR A, 1.1) | Entram no item b (C7), no PR B: todo botão que navega de dentro da ficha com o formulário aberto passa pela guarda (`useSaidaGuardada().confirmar`): Revisar atualização (resumo e pastas), editar plano, Publicar tudo, recordes e qualquer outro achado. e2e: editar o nome na ficha, tocar em "Revisar" e ver o "Sair sem salvar?". | Gustavo, 03/11 |
 | D8 | "Cancelar" da edição na ficha (revisão do PR A, 1.2) | Pergunta só se algum campo mudou, igual ao aluno novo; sem alteração, cancela direto. No PR B. | Gustavo, 03/11 |
 | D9 | C10 (passeio guardado no servidor) | Não agora. Sem código. | Gustavo, 03/11 |
@@ -67,7 +67,7 @@ O escopo foi definido pelo Gustavo em 03/11 e só mexe no app; nada muda na API.
 - **Lápis da linha de alunos**: fica. Só ganha os 44 px do d.
 - Decididas em 03/11 (antes estavam aqui como "para o Gustavo decidir depois"):
   - menu do tablet com rótulos: D11, na frente 6;
-  - inscrição em duas partes: não agora (D6), reavaliar depois do teste com 5 alunos pelos Indicadores de Interessados;
+  - inscrição em duas partes: não agora (D6), reavaliar depois do teste com 5 alunos pelos Indicadores de Interessados; revisto em 04/11: feito agora (passo 6);
   - C10 (passeio guardado no servidor): não agora (D9).
 
 ## Passos
@@ -77,6 +77,7 @@ O escopo foi definido pelo Gustavo em 03/11 e só mexe no app; nada muda na API.
 - [x] 3. PR B: f, g, h e i, mais D7 e D8, na branch `auditoria-ui-ux-lote-1-b` saída da `main` em `3d65e04b` — commit: `60074116`
 - [x] 4. Responsável no `FormAluno`: na edição, sem responsável o campo abre vazio; a opção "Sem responsável" deixa tirar de propósito. Salvar sem mexer não grava quem está editando — commit: `fd6c4b6d` (#59)
 - [x] 5. Novo aluno aberto direto pelo link: "Cancelar" usa o mesmo caminho da seta (`canGoBack ? back : replace` para a lista). Os outros "Cancelar" de cadastro fecham painel ou a edição na própria ficha; nenhum outro navegava com `router.back()` — lote pendencias-app-03-11-b, commit `a905d9fe`
+- [ ] 6. "Quero ser aluno" em duas partes (D6, revista em 04/11), branch `quero-ser-aluno`, e2e da página pública em 390 e 1440 px — commit: (do coordenador)
 
 ## Fora do escopo
 - O lote 2 virou as frentes paralelas de 03/11 (aluno, peças, treinador e, depois do merge do PR B, `auditoria-ficha`), cada uma com plano próprio em `docs/planos/`. C3 ficou com a frente 4 (`auditoria-pecas`); C8 (paginação da Biblioteca) e os cinco erros engolidos, com a frente 5 (treinador).

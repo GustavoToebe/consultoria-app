@@ -10,8 +10,8 @@ import {
 import type { AnaliseDaPlanilha, ConfirmacaoDaPlanilha, PerguntaDaPlanilha, PreviaDaPlanilha, RespostasDaPlanilha } from '../../../api/tipos';
 import { tipoDoArquivo } from '../../../dominio/assistenteDaImportacao';
 import {
-  AVISO_RESPONDIDO_ANTES, ETAPAS_DA_PLANILHA, NOMES_POR_PAGINA, ROTULOS_DO_DESTINO, SEM_RESPOSTAS, abaRespondidaAntes,
-  aceitarSugestoesDeSuplemento, aceitarTodosOsProvaveis, blocoFicaDeFora, chaveDaLigacao, errosDosProblemas, escolherLigacao,
+  AVISO_RESPONDIDO_ANTES, ETAPA_AMOSTRA, ETAPA_PREVIA, ETAPA_RESULTADO, NOMES_POR_PAGINA, ROTULOS_DO_DESTINO, SEM_RESPOSTAS, abaRespondidaAntes,
+  aceitarSugestoesDeSuplemento, aceitarTodosOsProvaveis, blocoFicaDeFora, chaveDaLigacao, errosDosProblemas, escolherLigacao, etapasDaPlanilha,
   escolherTipo, filtrarPorNome, frasesDaCriacao, linhasAmbiguas, motivoParaNaoAvancar, nomeRespondidoAntes, opcoesDaPergunta,
   opcoesDoSuplemento, opcoesDoTipoDaAba, pendencias, respostaDoValor, respostasParaApi, respostasSalvasMarcadas, responderNome,
   responderSuplemento, rotuloDoTipoDeAba, semRespostasSalvas, suplementoRespondidoAntes, textoDaLeitura, textoDaLigacao,
@@ -39,9 +39,10 @@ import { TelaDoEditor } from '../../plano/TelaDoEditor';
 import { formulario, type ArquivoEscolhido } from '../formularioDaImportacao';
 import { ConferirOArquivo } from '../ConferirOArquivo';
 import { Numeros, ZonaDeArquivo } from '../TelaImportacao';
+import { EtapaDaAmostra, useAmostraDaPlanilha } from './EtapaDaAmostra';
 import { ProblemasAgrupados } from './ProblemasAgrupados';
 
-/** Abaixo desta largura o indicador de etapas vira "Etapa N de 5". */
+/** Abaixo desta largura o indicador de etapas vira "Etapa N de 5" (6 com a amostra). */
 const LARGURA_ESTREITA = 600;
 /** Quantas tabelas de uma aba em blocos a lista mostra (o resto só conta). */
 const BLOCOS_MOSTRADOS = 30;
@@ -64,10 +65,11 @@ async function formularioDaPlanilha(arquivo: ArquivoEscolhido, respostas?: Respo
  * rascunho. A tela não mostra dado de aluno: a API só manda contagens, nomes de aba e nomes de exercício, alimento e
  * suplemento (na aba de um aluno ou em blocos, o nome do aluno como está na própria planilha, para conferir de quem é).
  * As respostas guardadas de importações anteriores já vêm marcadas, com o aviso "Respondido na importação anterior", e
- * podem ser esquecidas aqui mesmo.
+ * podem ser esquecidas aqui mesmo. Com a migração assistida ligada, a etapa "Amostra" (entre a prévia e a confirmação) mostra,
+ * 5 alunos por vez, o que a confirmação gravaria; a resposta também fica só na memória e some ao mudar o arquivo ou as respostas.
  */
 export function AssistenteDaPlanilha() {
-  const { pode } = useSessao();
+  const { pode, migracaoAssistidaHabilitada } = useSessao();
   const { cores } = useTema();
   const router = useRouter();
   const { avisar } = useAviso();
@@ -85,12 +87,19 @@ export function AssistenteDaPlanilha() {
   /** Só a resposta do último pedido vale. */
   const pedido = useRef(0);
   const estreita = largura < LARGURA_ESTREITA;
+  // A amostra lê o arquivo com as mesmas respostas da prévia: o hash dela é o que a confirmação confere.
+  const amostra = useAmostraDaPlanilha(arquivo && analise ? () => formularioDaPlanilha(arquivo, respostasParaApi(analise, respostas)) : null, () => {
+    setEtapa((e) => (e === ETAPA_AMOSTRA ? ETAPA_PREVIA : e));
+    avisar('A amostra não está disponível agora. Confira a prévia e confirme.', 'atencao');
+  });
+  const comAmostra = migracaoAssistidaHabilitada && !amostra.indisponivel;
 
   const escolherArquivo = (a: ArquivoEscolhido) => {
     setArquivo(a);
     setAnalise(null);
     setRespostas(SEM_RESPOSTAS);
     setPrevia(null);
+    amostra.limpar();
     setErro(null);
   };
 
@@ -98,6 +107,7 @@ export function AssistenteDaPlanilha() {
   const mudarRespostas = (novas: EstadoDasRespostas) => {
     setRespostas(novas);
     setPrevia(null);
+    amostra.limpar();
     setDesatualizada(false);
   };
 
@@ -126,6 +136,7 @@ export function AssistenteDaPlanilha() {
     setOcupado(true);
     setErro(null);
     setDesatualizada(false);
+    amostra.limpar();
     formularioDaPlanilha(arquivo, respostasParaApi(analise, respostas)).then(previaDaPlanilhaCompleta).then((p) => {
       if (meu !== pedido.current) return;
       setPrevia(p);
@@ -142,16 +153,18 @@ export function AssistenteDaPlanilha() {
     setOcupado(true);
     setErro(null);
     formularioDaPlanilha(arquivo, respostasParaApi(analise, respostas))
-      .then((dados) => confirmarPlanilhaCompleta(dados, previa.hash)).then((r) => {
+      .then((dados) => confirmarPlanilhaCompleta(dados, amostra.hash ?? previa.hash)).then((r) => {
         setResultado(r);
         setOcupado(false);
-        setEtapa(5);
+        setEtapa(ETAPA_RESULTADO);
       }, (e: unknown) => {
         setOcupado(false);
         if (codigoApi(e) === 'PREVIA_DESATUALIZADA') {
           // O arquivo ou as respostas mudaram: a prévia antiga não vale e precisa ser gerada de novo.
           setPrevia(null);
+          amostra.limpar();
           setDesatualizada(true);
+          setEtapa(ETAPA_PREVIA);
           return;
         }
         setErro(e);
@@ -166,8 +179,11 @@ export function AssistenteDaPlanilha() {
     } else if (etapa === 2) {
       setEtapa(3);
     } else if (etapa === 3) {
-      setEtapa(4);
+      setEtapa(ETAPA_PREVIA);
       if (!previa) gerarPrevia();
+    } else if (etapa === ETAPA_PREVIA && comAmostra) {
+      setEtapa(ETAPA_AMOSTRA);
+      amostra.abrir();
     }
   };
 
@@ -181,10 +197,10 @@ export function AssistenteDaPlanilha() {
 
   const voltar = () => {
     setErro(null);
-    if (etapa > 1 && etapa < 5) setEtapa((etapa - 1) as EtapaDaPlanilha);
+    if (etapa > 1 && etapa < ETAPA_RESULTADO) setEtapa((etapa - 1) as EtapaDaPlanilha);
   };
 
-  useGuardaDeSaida(etapa < 5 && !!arquivo);
+  useGuardaDeSaida(etapa < ETAPA_RESULTADO && !!arquivo);
   const aoCancelar = () => confirmarSaida(() => router.replace('/treinador/importacao'));
   const aoConcluir = () => {
     avisar('Importação registrada.');
@@ -194,16 +210,22 @@ export function AssistenteDaPlanilha() {
   const aceito = arquivo ? tipoDoArquivo(arquivo.nome) !== null : null;
   const motivo = motivoParaNaoAvancar(etapa, { arquivoAceito: aceito, ocupado, temAnalise: !!analise });
 
-  const rodape = etapa === 5 ? (
+  // Na amostra, a confirmação espera só a primeira página (o hash); se ela falhou, vale o hash da prévia.
+  const esperandoAmostra = etapa === ETAPA_AMOSTRA && !amostra.hash && amostra.carregando;
+  const rodape = etapa === ETAPA_RESULTADO ? (
     <Botao rotulo="Concluir" aoTocar={aoConcluir} />
   ) : (
     <>
-      <Botao rotulo={etapa === 1 ? 'Cancelar' : 'Voltar'} tipo="secundario" aoTocar={etapa === 1 ? aoCancelar : voltar} desabilitado={ocupado && etapa === 4} />
-      {etapa < 4 ? (
+      <Botao rotulo={etapa === 1 ? 'Cancelar' : 'Voltar'} tipo="secundario" aoTocar={etapa === 1 ? aoCancelar : voltar}
+        desabilitado={ocupado && etapa >= ETAPA_PREVIA} motivo="Aguarde." />
+      {etapa < ETAPA_PREVIA ? (
         <Botao rotulo={etapa === 3 ? 'Gerar prévia' : 'Continuar'} carregando={ocupado && etapa === 1} desabilitado={motivo !== null}
           motivo={motivo ?? undefined} aoTocar={avancar} />
+      ) : etapa === ETAPA_PREVIA && comAmostra ? (
+        <Botao rotulo="Ver a amostra" desabilitado={!previa || ocupado} motivo="Gere a prévia antes de ver a amostra." aoTocar={avancar} />
       ) : (
-        <Botao rotulo="Confirmar importação" carregando={ocupado} desabilitado={!previa} motivo="Gere a prévia antes de confirmar." aoTocar={confirmar} />
+        <Botao rotulo="Confirmar importação" carregando={ocupado} desabilitado={!previa || esperandoAmostra}
+          motivo={previa ? 'Aguarde a amostra.' : 'Gere a prévia antes de confirmar.'} aoTocar={confirmar} />
       )}
     </>
   );
@@ -212,7 +234,7 @@ export function AssistenteDaPlanilha() {
     <TelaDoEditor largura={LARGURA_MAXIMA} rodape={rodape}
       cabecalho={<Cabecalho titulo="Planilha completa" subtitulo="Alunos, pesos, treinos e dietas de uma vez. Nada é gravado antes de Confirmar importação; treinos e dietas entram em rascunho."
         trilha={[{ rotulo: 'Importação', href: '/treinador/importacao' }]} />}
-      barra={<Etapas etapa={etapa} estreita={estreita} />}>
+      barra={<Etapas etapa={etapa} estreita={estreita} comAmostra={comAmostra} />}>
       <View onLayout={(e) => setLargura(e.nativeEvent.layout.width)} style={estilos.coluna}>
         {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
 
@@ -231,7 +253,7 @@ export function AssistenteDaPlanilha() {
         {etapa === 3 && analise ? <EtapaDosNomes analise={analise} respostas={respostas} aoMudar={mudarRespostas}
           podeBiblioteca={pode('BIBLIOTECA_LER')} /> : null}
 
-        {etapa === 4 && analise ? (
+        {etapa === ETAPA_PREVIA && analise ? (
           <>
             {desatualizada ? (
               <Cartao titulo="A prévia ficou desatualizada">
@@ -244,25 +266,30 @@ export function AssistenteDaPlanilha() {
           </>
         ) : null}
 
-        {etapa === 5 && resultado ? <Resultado resultado={resultado} /> : null}
-        {etapa < 5 ? <Texto variante="pequeno" cor={cores.textoSuave}>Nada foi gravado ainda. O arquivo, a leitura e as suas respostas ficam só nesta tela.</Texto> : null}
+        {etapa === ETAPA_AMOSTRA && previa ? <EtapaDaAmostra amostra={amostra} partesPuladas={previa.partesPuladas} /> : null}
+
+        {etapa === ETAPA_RESULTADO && resultado ? <Resultado resultado={resultado} /> : null}
+        {etapa < ETAPA_RESULTADO ? <Texto variante="pequeno" cor={cores.textoSuave}>Nada foi gravado ainda. O arquivo, a leitura e as suas respostas ficam só nesta tela.</Texto> : null}
       </View>
     </TelaDoEditor>
   );
 }
 
 /** Indicador das etapas, como o do assistente de uma aba. */
-function Etapas({ etapa, estreita }: { etapa: EtapaDaPlanilha; estreita: boolean }) {
+function Etapas({ etapa, estreita, comAmostra }: { etapa: EtapaDaPlanilha; estreita: boolean; comAmostra: boolean }) {
   const { cores } = useTema();
-  const nome = ETAPAS_DA_PLANILHA[etapa - 1];
-  const total = ETAPAS_DA_PLANILHA.length;
-  if (estreita) return <Texto variante="secao" accessibilityLabel={`Etapa ${etapa} de ${total}: ${nome}`}>{`Etapa ${etapa} de ${total} · ${nome}`}</Texto>;
+  const etapas = etapasDaPlanilha(comAmostra);
+  // Sem a amostra a numeração continua 1 a 5: a posição na lista, não o número interno da etapa.
+  const posicao = Math.max(1, etapas.findIndex((e) => e.etapa === etapa) + 1);
+  const nome = etapas[posicao - 1].rotulo;
+  const total = etapas.length;
+  if (estreita) return <Texto variante="secao" accessibilityLabel={`Etapa ${posicao} de ${total}: ${nome}`}>{`Etapa ${posicao} de ${total} · ${nome}`}</Texto>;
   return (
-    <View style={estilos.etapas} accessible accessibilityLabel={`Etapa ${etapa} de ${total}: ${nome}`}>
-      {ETAPAS_DA_PLANILHA.map((rotulo, i) => {
+    <View style={estilos.etapas} accessible accessibilityLabel={`Etapa ${posicao} de ${total}: ${nome}`}>
+      {etapas.map(({ rotulo }, i) => {
         const n = i + 1;
-        const atual = n === etapa;
-        const feita = n < etapa;
+        const atual = n === posicao;
+        const feita = n < posicao;
         return (
           <View key={rotulo} style={[estilos.etapa, { borderBottomColor: atual ? cores.texto : cores.borda }]}>
             <View style={[estilos.bolinha, { borderColor: atual || feita ? cores.texto : cores.bordaCampo, backgroundColor: atual ? cores.texto : 'transparent' }]}>

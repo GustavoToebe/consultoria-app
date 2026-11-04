@@ -11,6 +11,10 @@ import {
   respostasDaPagina,
   TODOS_OS_CAMPOS,
   errosDaInscricao,
+  errosDoContato,
+  parteComErro,
+  parteDoCampoDaInscricao,
+  temSegundaParte,
   INSCRICAO_VAZIA,
   linkDoWhatsApp,
   mascaraWhatsapp,
@@ -200,6 +204,41 @@ describe('formulário público', () => {
     expect(alternarCampoOculto(['EMAIL', 'ORIGEM'], 'EMAIL', false)).toEqual(['ORIGEM']);
     expect(alternarCampoOculto(['EMAIL'], 'EMAIL', true)).toEqual(['EMAIL']);
     expect(CAMPOS_DA_INSCRICAO.map((c) => c.valor)).toEqual(TODOS_OS_CAMPOS);
+  });
+});
+
+describe('formulário público em duas partes', () => {
+  const ok = { ...INSCRICAO_VAZIA, nome: 'Pessoa Fictícia', whatsapp: '(11) 98765-4321' };
+  const perguntas = { instrucoes: [], secoes: [{ uid: 's', titulo: 'S', perguntas: [
+    { id: 'treina', tipo: 'SIM_NAO' as const, rotulo: 'Treina?', obrigatoria: true },
+  ] }] };
+
+  it('o contato é a parte 1; todo o resto, inclusive o que não se conhece, é a parte 2', () => {
+    expect(['nome', 'whatsapp', 'email'].map(parteDoCampoDaInscricao)).toEqual([1, 1, 1]);
+    expect(['sexo', 'objetivo', 'interesse', 'origem', 'cienciaPrivacidade', 'treina', 'turnstileToken'].map(parteDoCampoDaInscricao))
+      .toEqual([2, 2, 2, 2, 2, 2, 2]);
+  });
+
+  it('sem nada além do contato a página fica numa parte só', () => {
+    expect(temSegundaParte(TODOS_OS_CAMPOS, null)).toBe(true);
+    expect(temSegundaParte(['EMAIL'], null)).toBe(false);
+    expect(temSegundaParte([], null)).toBe(false);
+    expect(temSegundaParte(['EMAIL'], { instrucoes: [], secoes: [{ uid: 's', titulo: 'Vazia', perguntas: [] }] })).toBe(false);
+    expect(temSegundaParte([], perguntas)).toBe(true);
+    expect(temSegundaParte(['ORIGEM'], null)).toBe(true);
+  });
+
+  it('erro em campo do contato leva à parte 1, mesmo junto de erros da parte 2', () => {
+    expect(parteComErro({})).toBeNull();
+    expect(parteComErro({ treina: 'Preencha este campo.', cienciaPrivacidade: 'Marque.' })).toBe(2);
+    expect(parteComErro({ cienciaPrivacidade: 'Marque.', whatsapp: 'WhatsApp inválido.' })).toBe(1);
+  });
+
+  it('"Continuar" confere só o contato: nem a ciência nem o objetivo longo seguram a parte 1', () => {
+    expect(errosDoContato(INSCRICAO_VAZIA)).toEqual({ nome: 'Informe seu nome.', whatsapp: 'Informe o WhatsApp com DDD.' });
+    expect(errosDoContato({ ...ok, objetivo: 'a'.repeat(501) })).toEqual({});
+    expect(errosDoContato({ ...ok, email: 'sem-arroba' })).toEqual({ email: 'E-mail inválido.' });
+    expect(errosDoContato({ ...ok, email: 'sem-arroba' }, ['SEXO'])).toEqual({});
   });
 });
 

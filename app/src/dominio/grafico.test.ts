@@ -1,4 +1,4 @@
-import { caminhoSuave, fracaoNoEixo, marcasDoEixo } from './grafico';
+import { caminhoSuave, fracaoNoEixo, marcasDaEscala, marcasDoEixo } from './grafico';
 
 describe('gráfico', () => {
   it('caminhoSuave liga todos os pontos com uma curva por trecho', () => {
@@ -40,6 +40,12 @@ describe('gráfico', () => {
     // Sem data, a posição continua sendo a da lista (0, 0,5 e 1).
     expect(fracaoNoEixo([{ data: '2026-01-01' }, {}, { data: '2026-01-31' }], 1)).toBe(0.5);
     expect(fracaoNoEixo([{ data: '2026-01-01' }], 0)).toBe(0.5);
+  });
+
+  it('escala fixa: as duas pontas sempre marcadas e nenhuma marca colada nelas', () => {
+    expect(marcasDaEscala(0, 10)).toEqual([0, 5, 10]);
+    expect(marcasDaEscala(1, 5)).toEqual([1, 2, 4, 5]);
+    expect(marcasDaEscala(0, 2)).toEqual([0, 1, 2]);
   });
 
   it('marcas do eixo ficam dentro da faixa', () => {

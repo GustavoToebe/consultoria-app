@@ -84,19 +84,19 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
         // O ponto de Atualizações no menu ainda vem do /painel; o número das abas, não.
         'GET /painel': { corpo: { atualizacoesParaRevisar: 9, atualizacoesAtrasadas: 0, atualizacoesAvisaramAtraso: 0, atualizacoesProximas: 0 } },
         'GET /responsaveis': { corpo: [{ id: TREINADOR.id, nome: TREINADOR.nome }, OUTRA] },
-        'GET /atualizacoes': (p, route) => json(route, p.busca.get('busca') === 'bruno'
-          ? [atualizacao(2, 'Bruno Exemplo')] : [atualizacao(1, 'Ana Fictícia'), atualizacao(2, 'Bruno Exemplo')]),
+        'GET /atualizacoes/pagina': (p, route) => json(route, p.busca.get('busca') === 'bruno'
+          ? { itens: [atualizacao(2, 'Bruno Exemplo')], total: 1 } : { itens: [atualizacao(1, 'Ana Fictícia'), atualizacao(2, 'Bruno Exemplo')], total: 2 }),
         'GET /atualizacoes/contagens': (p, route) => json(route, p.busca.has('responsavel')
           ? { PARA_REVISAR: 1, ATRASADAS: 0, AVISARAM_ATRASO: 0, PROXIMAS: 0 } : { PARA_REVISAR: 2, ATRASADAS: 0, AVISARAM_ATRASO: 0, PROXIMAS: 0 }),
       });
       await page.goto('/treinador/atualizacoes?situacao=PARA_REVISAR');
       await expect(page.getByRole('link', { name: /Ana Fictícia/ })).toBeVisible();
-      expect(ultimo(pedidos, '/atualizacoes')?.toString()).toBe('situacao=PARA_REVISAR&meus=false');
+      expect(ultimo(pedidos, '/atualizacoes/pagina')?.toString()).toBe('situacao=PARA_REVISAR&pagina=0&tamanho=30&meus=false');
       await expect(page.getByRole('tab', { name: /Para revisar/ })).toContainText('2');
 
       // A busca vai à API (300 ms depois de digitar) e segue para a fila.
       await page.getByRole('textbox', { name: 'Buscar' }).fill('bruno');
-      await expect.poll(() => ultimo(pedidos, '/atualizacoes')?.get('busca')).toBe('bruno');
+      await expect.poll(() => ultimo(pedidos, '/atualizacoes/pagina')?.get('busca')).toBe('bruno');
       await expect(page.getByRole('link', { name: /Ana Fictícia/ })).toHaveCount(0);
       await expect(page.getByRole('link', { name: /Bruno Exemplo/ })).toHaveAttribute('href', /busca=bruno/);
       expect(ultimo(pedidos, '/atualizacoes/contagens')?.get('busca')).toBe('bruno');
@@ -107,8 +107,8 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       const painel = await abrirFiltros(page, celular);
       await marcar(page, painel, 'Responsável', 'Todos', ['Bia Fictícia', 'Sem responsável'], celular);
       await verResultado(page, celular, 'Ver atualizações');
-      await expect.poll(() => ultimo(pedidos, '/atualizacoes')?.getAll('responsavel')).toEqual([OUTRA.id, 'nenhum']);
-      expect(ultimo(pedidos, '/atualizacoes')?.has('meus')).toBe(false);
+      await expect.poll(() => ultimo(pedidos, '/atualizacoes/pagina')?.getAll('responsavel')).toEqual([OUTRA.id, 'nenhum']);
+      expect(ultimo(pedidos, '/atualizacoes/pagina')?.has('meus')).toBe(false);
       await expect(page).toHaveURL(new RegExp(`responsavel=${OUTRA.id}(%2C|,)nenhum`));
       await expect(page.getByRole('button', { name: 'Tirar filtro: Responsável: Bia Fictícia, Sem responsável' })).toBeVisible();
       // As abas contam com os mesmos filtros (GET /atualizacoes/contagens).
@@ -123,16 +123,74 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await expect(painel2.getByText('Preencha as duas datas.')).toBeVisible();
       await painel2.getByRole('textbox', { name: 'Até', exact: true }).fill('31/10/2026');
       await verResultado(page, celular, 'Ver atualizações');
-      await expect.poll(() => ultimo(pedidos, '/atualizacoes')?.get('ate')).toBe('2026-10-31');
-      expect(ultimo(pedidos, '/atualizacoes')?.get('de')).toBe('2026-10-01');
+      await expect.poll(() => ultimo(pedidos, '/atualizacoes/pagina')?.get('ate')).toBe('2026-10-31');
+      expect(ultimo(pedidos, '/atualizacoes/pagina')?.get('de')).toBe('2026-10-01');
       await expect(page.getByRole('button', { name: 'Tirar filtro: Data: 01/10/2026 a 31/10/2026' })).toBeVisible();
       await expect(page.getByRole('link', { name: /Ana Fictícia/ })).toHaveAttribute('href', /de=2026-10-01&ate=2026-10-31/);
 
       // O ✕ tira só aquele filtro.
       await page.getByRole('button', { name: 'Tirar filtro: Responsável: Bia Fictícia, Sem responsável' }).click();
-      await expect.poll(() => ultimo(pedidos, '/atualizacoes')?.get('meus')).toBe('false');
-      expect(ultimo(pedidos, '/atualizacoes')?.get('de')).toBe('2026-10-01');
+      await expect.poll(() => ultimo(pedidos, '/atualizacoes/pagina')?.get('meus')).toBe('false');
+      expect(ultimo(pedidos, '/atualizacoes/pagina')?.get('de')).toBe('2026-10-01');
       await expect(page).not.toHaveURL(/responsavel=/);
+      expect(naoTratadas).toEqual([]);
+      expect(errosDaPagina).toEqual([]);
+    });
+
+    test('Atualizações: 65 atualizações abrem 30 por vez; Próxima pede a página 1 e trocar de aba volta à primeira', async ({ page }) => {
+      const todas = Array.from({ length: 65 }, (_, i) => ({ ...atualizacao(1, `Aluno ${String(i + 1).padStart(2, '0')}`), pastaId: `c0000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}` }));
+      const { pedidos, naoTratadas, errosDaPagina } = await simularApi(page, {
+        ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'ATUALIZACAO_LER'] })),
+        'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+        'GET /painel': { corpo: { atualizacoesParaRevisar: 65, atualizacoesAtrasadas: 0, atualizacoesAvisaramAtraso: 0, atualizacoesProximas: 0 } },
+        'GET /responsaveis': { corpo: [{ id: TREINADOR.id, nome: TREINADOR.nome }] },
+        'GET /atualizacoes/pagina': (p, route) => {
+          const n = Number(p.busca.get('pagina'));
+          json(route, { itens: todas.slice(n * 30, n * 30 + 30), total: 65 });
+        },
+        'GET /atualizacoes/contagens': { corpo: { PARA_REVISAR: 65, ATRASADAS: 0, AVISARAM_ATRASO: 0, PROXIMAS: 0 } },
+      });
+      await page.goto('/treinador/atualizacoes?situacao=PARA_REVISAR');
+      await expect(page.getByRole('link', { name: /Aluno 01/ })).toBeVisible();
+      await expect(page.getByRole('link', { name: /Aluno 31/ })).toHaveCount(0);
+      await expect(page.getByText('Página 1 de 3 · 65 atualizações')).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Anterior' })).toBeDisabled();
+      await page.getByRole('button', { name: 'Próxima' }).click();
+      await expect.poll(() => ultimo(pedidos, '/atualizacoes/pagina')?.get('pagina')).toBe('1');
+      await expect(page.getByRole('link', { name: /Aluno 31/ })).toBeVisible();
+      await expect(page.getByRole('link', { name: /Aluno 01/ })).toHaveCount(0);
+      await expect(page.getByText('Página 2 de 3 · 65 atualizações')).toBeVisible();
+      // Outra aba é outra consulta: volta à primeira página.
+      await page.getByRole('tab', { name: /Atrasadas/ }).click();
+      await expect.poll(() => ultimo(pedidos, '/atualizacoes/pagina')?.get('situacao')).toBe('ATRASADAS');
+      expect(ultimo(pedidos, '/atualizacoes/pagina')?.get('pagina')).toBe('0');
+      expect(naoTratadas).toEqual([]);
+      expect(errosDaPagina).toEqual([]);
+    });
+
+    test('Atualizações: página que volta vazia porque a lista encolheu cai na última página, sem laço', async ({ page }) => {
+      const todas = Array.from({ length: 60 }, (_, i) => ({ ...atualizacao(1, `Aluno ${String(i + 1).padStart(2, '0')}`), pastaId: `c0000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}` }));
+      let encolheu = false;
+      const { naoTratadas, errosDaPagina } = await simularApi(page, {
+        ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'ATUALIZACAO_LER'] })),
+        'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+        'GET /painel': { corpo: { atualizacoesParaRevisar: 65, atualizacoesAtrasadas: 0, atualizacoesAvisaramAtraso: 0, atualizacoesProximas: 0 } },
+        'GET /responsaveis': { corpo: [{ id: TREINADOR.id, nome: TREINADOR.nome }] },
+        // A primeira resposta diz 65 (três páginas); quando a terceira é pedida, a lista já encolheu para 60 e vem vazia.
+        'GET /atualizacoes/pagina': (p, route) => {
+          const n = Number(p.busca.get('pagina'));
+          if (n >= 2) encolheu = true;
+          json(route, { itens: n >= 2 ? [] : todas.slice(n * 30, n * 30 + 30), total: encolheu ? 60 : 65 });
+        },
+        'GET /atualizacoes/contagens': { corpo: { PARA_REVISAR: 60, ATRASADAS: 0, AVISARAM_ATRASO: 0, PROXIMAS: 0 } },
+      });
+      await page.goto('/treinador/atualizacoes?situacao=PARA_REVISAR');
+      await expect(page.getByText('Página 1 de 3 · 65 atualizações')).toBeVisible();
+      await page.getByRole('button', { name: 'Próxima' }).click();
+      await expect(page.getByText('Página 2 de 3 · 65 atualizações')).toBeVisible();
+      await page.getByRole('button', { name: 'Próxima' }).click();
+      await expect(page.getByText('Página 2 de 2 · 60 atualizações')).toBeVisible();
+      await expect(page.getByRole('link', { name: /Aluno 31/ })).toBeVisible();
       expect(naoTratadas).toEqual([]);
       expect(errosDaPagina).toEqual([]);
     });
