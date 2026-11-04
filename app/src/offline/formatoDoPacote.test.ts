@@ -4,10 +4,10 @@ import { pacoteNoFormatoAtual } from './formatoDoPacote';
 
 const copia = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
 
-/** Pacote salvo no formato atual: treino com grupo, série com técnica, cardio, back off com referência e metodologia. */
+/** Pacote salvo no formato atual: treino com grupo, série com técnica, cardio, back off e metodologia. */
 function salvo(): Record<string, any> {
   const trabalho = serie('a', { repsMin: 3, repsMax: 6, esforco: rir(1) });
-  const backOff = serie('b', { tipo: 'BACK_OFF', carga: carga('ABAIXO_DA_REFERENCIA', 15, null, 'a') });
+  const backOff = serie('b', { tipo: 'BACK_OFF', carga: carga('PERCENTUAL_WS', 85, null) });
   const cluster = serie('c', { tecnica: { tipo: 'CLUSTER', blocos: [4, 2], pausaSegundos: 15 }, repsMin: 6, repsMax: 6 });
   const cardio = serie('d', { tipo: null, repsMin: null, repsMax: null, carga: null, cardio: { duracaoMin: 20, intervalos: { trabalhoSeg: 30, descansoSeg: 60, voltas: 8 } } });
   return {
@@ -110,8 +110,8 @@ describe('formato do pacote salvo no aparelho', () => {
       expect(pacoteNoFormatoAtual(p)).toBe(true);
     });
 
-    it('os números e a referência que o app conhece continuam conferidos', () => {
-      for (const ruim of [{ valorKg: '10' }, { percentualMin: '80' }, { percentualMax: NaN }, { referenciaUid: 7 }]) {
+    it('os números que o app conhece continuam conferidos', () => {
+      for (const ruim of [{ valorKg: '10' }, { percentualMin: '80' }, { percentualMax: NaN }]) {
         const p = salvo();
         primeiraSerie(p).carga = { modo: 'MODO_QUE_NAO_EXISTE', ...ruim };
         expect(pacoteNoFormatoAtual(p)).toBe(false);

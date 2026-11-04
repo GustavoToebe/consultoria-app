@@ -11,10 +11,10 @@ import { CONFIGURACAO_PADRAO } from './metodologiaPadrao';
 const copia = <T>(valor: T): T => structuredClone(valor);
 
 function tipoNovo(codigo: string, nome: string, papel: TipoDeSerie['papel'], explicacao: string): TipoDeSerie {
-  return { codigo, nome, papel, repeticoes: null, cargaPadrao: null, esforcoPadrao: null, porModalidade: null, regraPercentuais: null, explicacao };
+  return { codigo, nome, papel, repeticoes: null, cargaPadrao: null, esforcoPadrao: null, regraPercentuais: null, explicacao };
 }
 
-/** Os onze tipos: os cinco da padrão e os seis novos, sem faixa, sem carga, sem esforço e sem variação por modalidade. */
+/** Os dez tipos: os quatro da padrão e os seis novos, sem faixa, sem carga e sem esforço. */
 export const CATALOGO_DE_TIPOS: readonly TipoDeSerie[] = [
   ...CONFIGURACAO_PADRAO.tipos.map(copia),
   tipoNovo('ATIVACAO', 'Ativação', 'AQUECIMENTO', 'Série bem leve para ativar o músculo antes do exercício. Não é para cansar.'),

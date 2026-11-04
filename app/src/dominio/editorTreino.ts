@@ -53,11 +53,7 @@ export const TIPOS_SESSAO: { valor: TipoSessao; rotulo: string }[] = [
 
 export const MODOS: { valor: ModoDeCarga; rotulo: string }[] = [
   { valor: 'CARGA_TRABALHO', rotulo: 'Carga de trabalho' },
-  { valor: 'PERCENTUAL_WS', rotulo: 'Percentual da carga de trabalho' },
-  { valor: 'ACIMA_DA_ANTERIOR', rotulo: 'Acima da anterior' },
-  { valor: 'ABAIXO_DA_REFERENCIA', rotulo: 'Abaixo da referência' },
-  { valor: 'MESMA_CARGA', rotulo: 'Mesma carga da série de trabalho' },
-  // Peso em kg escolhido pelo treinador (`valorKg`). Só em exercício com carga, em qualquer papel (ver `modosDeCarga`).
+  { valor: 'PERCENTUAL_WS', rotulo: '% da série de trabalho' },
   { valor: 'CARGA_FIXA', rotulo: 'Carga fixa (kg)' },
   // `NENHUMA` é a série sem sugestão de carga; o exercício "sem carga" (elástico, peso corporal) é a `unidade`, outra decisão.
   { valor: 'NENHUMA', rotulo: 'Sem sugestão de carga' },
@@ -68,58 +64,36 @@ export interface OpcaoDeModo {
   rotulo: string;
 }
 
-/** Opções de carga em duas partes: as que aparecem sempre e as que ficam em "Outras formas de carga" (recolhidas). */
-export interface ModosDeCarga {
-  principais: OpcaoDeModo[];
-  outras: OpcaoDeModo[];
-}
-
-/** Ordem das formas de carga por papel do tipo: as mais usadas primeiro. Papel sem ordem (ou "Outro") usa a de `MODOS`. */
-const ORDEM_POR_PAPEL: Partial<Record<PapelDaSerie, ModoDeCarga[]>> = {
-  AQUECIMENTO: ['NENHUMA', 'PERCENTUAL_WS', 'CARGA_FIXA', 'CARGA_TRABALHO'],
-  PREPARACAO: ['PERCENTUAL_WS', 'NENHUMA', 'CARGA_FIXA', 'CARGA_TRABALHO'],
-  // A fixa entra na WS ("3x12 com 12 kg"), mas atrás de "Outras formas de carga": o padrão continua a carga de trabalho.
-  TRABALHO: ['CARGA_TRABALHO', 'ACIMA_DA_ANTERIOR', 'MESMA_CARGA', 'CARGA_FIXA', 'NENHUMA'],
-  POS_TRABALHO: ['PERCENTUAL_WS', 'ABAIXO_DA_REFERENCIA', 'MESMA_CARGA', 'ACIMA_DA_ANTERIOR', 'CARGA_FIXA', 'CARGA_TRABALHO', 'NENHUMA'],
+/**
+ * Formas de carga que cada papel do tipo oferece, na ordem em que aparecem: aquecimento em "% da WS", carga fixa ou sem
+ * sugestão; preparação e pós-trabalho em "% da WS" ou carga fixa; trabalho na carga de trabalho ou carga fixa. Papel
+ * "Outro" (ou sem tipo na metodologia) oferece as quatro formas.
+ */
+const MODOS_POR_PAPEL: Partial<Record<PapelDaSerie, ModoDeCarga[]>> = {
+  AQUECIMENTO: ['PERCENTUAL_WS', 'CARGA_FIXA', 'NENHUMA'],
+  PREPARACAO: ['PERCENTUAL_WS', 'CARGA_FIXA'],
+  TRABALHO: ['CARGA_TRABALHO', 'CARGA_FIXA'],
+  POS_TRABALHO: ['PERCENTUAL_WS', 'CARGA_FIXA'],
 };
 
-/** Quantas opções do papel ficam sempre à vista; as demais vão para "Outras formas de carga". */
-const PRINCIPAIS_POR_PAPEL = 2;
+/** Percentual com que um pós-trabalho (back off) passa para "% da WS" quando o tipo não traz esse padrão. */
+const PERCENTUAL_PADRAO_DO_POS_TRABALHO = 85;
 
 /**
- * As formas de carga do editor, com a base escrita pelo nome da série de trabalho da metodologia ("Percentual da carga de
- * trabalho (WS)", "Mesma carga da WS"): o percentual sempre diz de onde sai, nunca do 1RM. O papel do tipo ordena; as duas
- * primeiras ficam em `principais` e, se a série já grava outra forma (`atual`; nula = `NENHUMA`), ela também, para nunca
- * sumir atrás de "Outras formas de carga". As formas aparecem todas, menos a `CARGA_FIXA`, que só entra com
- * `exercicioComCarga` (exercício com unidade, fora do cardio), em qualquer papel; no TRABALHO ela fica em "outras" (o
- * padrão da WS é a carga de trabalho) e, mesmo numa WS, não é série de trabalho nem base de percentual. A série que já é
- * fixa a mantém na lista (entre as principais, como toda forma gravada). Sem `exercicioComCarga` (a prescrição padrão de
- * um tipo da metodologia, ou uma receita de séries, não é de um exercício), ela não é oferecida.
+ * As formas de carga que o papel oferece, com a base escrita pelo nome da série de trabalho da metodologia ("% da WS",
+ * "Carga de trabalho (WS)"): o percentual sempre diz de onde sai, nunca do 1RM. A carga fixa é em kg ou na unidade do
+ * treinador (`unidade`) e não é série de trabalho nem base de percentual.
  */
-export function modosDeCarga(
-  config: Configuracao | null | undefined,
-  papel?: PapelDaSerie | null,
-  atual?: ModoDeCarga | null,
-  exercicioComCarga = false,
-  unidade: UnidadeDeCarga = 'kg',
-): ModosDeCarga {
-  const base = tipoTrabalho(config);
-  const fixaOferecida = atual === 'CARGA_FIXA' || exercicioComCarga;
-  const todos = fixaOferecida ? MODOS : MODOS.filter((m) => m.valor !== 'CARGA_FIXA');
-  const ordem = papel ? ORDEM_POR_PAPEL[papel] : undefined;
-  const ordenadas = ordem
-    ? [...ordem.flatMap((valor) => todos.filter((m) => m.valor === valor)), ...todos.filter((m) => !ordem.includes(m.valor))]
-    : todos;
-  const opcoes = ordenadas.map((m): OpcaoDeModo => {
-    if (m.valor === 'CARGA_FIXA') return { ...m, rotulo: `Carga fixa (${unidade})` };
-    if (!base) return { ...m };
-    if (m.valor === 'PERCENTUAL_WS') return { ...m, rotulo: `Percentual da carga de trabalho (${base})` };
-    if (m.valor === 'MESMA_CARGA') return { ...m, rotulo: `Mesma carga da ${base}` };
-    return { ...m };
-  });
-  const gravada = atual ?? 'NENHUMA';
-  const principais = opcoes.filter((m, i) => i < PRINCIPAIS_POR_PAPEL || m.valor === gravada);
-  return { principais, outras: opcoes.filter((m) => !principais.includes(m)) };
+export function modosDeCarga(config: Configuracao | null | undefined, papel?: PapelDaSerie | null, unidade: UnidadeDeCarga = 'kg'): OpcaoDeModo[] {
+  const base = tipoTrabalho(config) ?? 'WS';
+  const rotulos: Record<ModoDeCarga, string> = {
+    CARGA_TRABALHO: `Carga de trabalho (${base})`,
+    PERCENTUAL_WS: `% da ${base}`,
+    CARGA_FIXA: `Carga fixa (${unidade})`,
+    NENHUMA: 'Sem sugestão de carga',
+  };
+  const valores = (papel && MODOS_POR_PAPEL[papel]) || MODOS.map((m) => m.valor);
+  return valores.map((valor) => ({ valor, rotulo: rotulos[valor] }));
 }
 
 export function novaSessao(diaSemana: number | null): Sessao {
@@ -160,8 +134,8 @@ export const DESCANSO_MAXIMO_SEGUNDOS = 3600;
 /** Carga só com a forma (os números o treinador preenche); `NENHUMA` é `null`, como o servidor aceita. A fixa leva `valorKg` vazio. */
 export function cargaDoModo(modo: ModoDeCarga): Carga | null {
   if (modo === 'NENHUMA') return null;
-  if (modo === 'CARGA_FIXA') return { modo, percentualMin: null, percentualMax: null, referenciaUid: null, valorKg: null };
-  return { modo, percentualMin: null, percentualMax: null, referenciaUid: null };
+  if (modo === 'CARGA_FIXA') return { modo, percentualMin: null, percentualMax: null, valorKg: null };
+  return { modo, percentualMin: null, percentualMax: null };
 }
 
 /** Técnica nova com o padrão da metodologia (pausa, pausas, quedas...); o resto o treinador preenche e a publicação cobra o que faltar. */
@@ -193,43 +167,6 @@ function comRepsDoCluster(s: Serie): Serie {
   return { ...s, repsMin: soma, repsMax: soma, amrap: null };
 }
 
-const ehTrabalho = (s: Serie) => s.carga?.modo === 'CARGA_TRABALHO';
-
-/**
- * Uid da última série de trabalho ANTES da posição `ate` (exclusive), a referência com que um back off nasce; `null` se
- * não houver.
- */
-export function ultimaSerieDeTrabalhoAntes(series: readonly Serie[], ate: number): string | null {
-  for (let i = Math.min(ate, series.length) - 1; i >= 0; i--) if (ehTrabalho(series[i])) return series[i].uid;
-  return null;
-}
-
-/**
- * Garante que todo "abaixo da referência" aponte uma série ANTERIOR do exercício: referência ausente, que sumiu (série
- * removida) ou que ficou depois (série movida) passa a ser a última série de trabalho antes dela (sem ela, vazia, e a
- * publicação cobra a escolha). Referência válida não é tocada. Devolve a mesma lista quando nada muda.
- */
-export function corrigirReferencias(series: Serie[]): Serie[] {
-  let mudou = false;
-  const anteriores = new Set<string>();
-  const resultado = series.map((s, i) => {
-    let nova = s;
-    if (s.carga?.modo === 'ABAIXO_DA_REFERENCIA') {
-      const ref = s.carga.referenciaUid;
-      if (!ref || !anteriores.has(ref)) {
-        const padrao = ultimaSerieDeTrabalhoAntes(series, i);
-        if ((ref ?? null) !== padrao) {
-          nova = { ...s, carga: { ...s.carga, referenciaUid: padrao } };
-          mudou = true;
-        }
-      }
-    }
-    anteriores.add(s.uid);
-    return nova;
-  });
-  return mudou ? resultado : series;
-}
-
 /** Série de cardio (exercício `CARDIO`): só a prescrição de cardio, sem tipo, repetições, carga, esforço nem técnica. */
 export function novaSerieDeCardio(cardio: Cardio | null = null): Serie {
   return {
@@ -249,17 +186,15 @@ export function novaSerieDeCardio(cardio: Cardio | null = null): Serie {
 
 /**
  * Série nova. `tipo` (CÓDIGO) ausente = o tipo de trabalho da metodologia (sem ela, a padrão). Tipo da metodologia traz as
- * repetições, a carga e o esforço com que ele nasce (os da modalidade do exercício, se houver variação); o de preparação,
- * a regra de 1 série; tipo fora da metodologia nasce em carga de trabalho. A técnica vem com o padrão da metodologia
- * (cluster com blocos no padrão já tem as repetições somadas). `anteriores` são as séries que já estão antes dela no
- * exercício: o back off nasce apontando a última série de trabalho. Exercício `CARDIO` dá série de cardio.
+ * repetições, a carga e o esforço com que ele nasce; o de preparação, a regra de 1 série; tipo fora da metodologia
+ * nasce em carga de trabalho. A técnica vem com o padrão da metodologia (cluster com blocos no padrão já tem as repetições
+ * somadas). Exercício `CARDIO` dá série de cardio.
  */
 export function novaSerie(
   config: Configuracao | null | undefined,
   tipo?: string,
   modalidade: string | null = null,
   tecnica: TipoDeTecnica | null = null,
-  anteriores: readonly Serie[] = [],
 ): Serie {
   if (modalidade === 'CARDIO') return novaSerieDeCardio();
   const metodologia = config ?? CONFIGURACAO_PADRAO;
@@ -269,8 +204,8 @@ export function novaSerie(
   let carga: Carga | null;
   let esforco: Esforco | null = null;
   if (daMetodologia) {
-    carga = cargaInicial(daMetodologia, modalidade);
-    esforco = esforcoInicial(daMetodologia, modalidade);
+    carga = cargaInicial(daMetodologia);
+    esforco = esforcoInicial(daMetodologia);
     const regra = daMetodologia.papel === 'PREPARACAO' ? percentuaisDaRegra(daMetodologia, 1) : null;
     if (regra && (carga == null || carga.modo === 'PERCENTUAL_WS')) {
       carga = { ...(carga ?? cargaDoModo('PERCENTUAL_WS')!), percentualMin: regra[0].min, percentualMax: regra[0].max };
@@ -291,7 +226,7 @@ export function novaSerie(
     cardio: null,
     alvoExtra: null,
   };
-  return corrigirReferencias([...anteriores, comRepsDoCluster(serie)]).at(-1)!;
+  return comRepsDoCluster(serie);
 }
 
 /**
@@ -309,7 +244,7 @@ export function adicionarSerie(
   modalidade: string | null = null,
 ): Serie[] {
   if (series.length >= LIMITE_SERIES) return series;
-  const nova = novaSerie(config, tipo, modalidade, tecnica, series);
+  const nova = novaSerie(config, tipo, modalidade, tecnica);
   const grupos = agrupar(series);
   const ultimo = grupos[grupos.length - 1];
   // Soma ao último grupo só se for o mesmo tipo com a mesma técnica: "1 WS + 1 WS em rest pause" precisa de dois
@@ -322,14 +257,13 @@ export function adicionarSerie(
 
 /**
  * Troca um grupo de séries de lugar com o vizinho (↑↓ no editor): o FS criado depois da WS sobe para antes dela. Os
- * uids e o conteúdo de cada série ficam iguais; só a ordem muda (e o back off que ficaria antes da referência passa a
- * apontar a última série de trabalho antes dele).
+ * uids e o conteúdo de cada série ficam iguais; só a ordem muda.
  */
 export function moverGrupo(series: Serie[], indiceDoGrupo: number, delta: -1 | 1): Serie[] {
   const grupos = agrupar(series);
   const reordenados = mover(grupos, indiceDoGrupo, delta);
   if (reordenados === grupos) return series;
-  return corrigirReferencias(reordenados.flatMap((g) => g.series));
+  return reordenados.flatMap((g) => g.series);
 }
 
 /** Troca um item de lugar com o vizinho (setas ↑↓). Fora dos limites devolve a mesma lista. */
@@ -352,12 +286,12 @@ export function remover<T>(lista: T[], indice: number): T[] {
 function comPercentuais(series: Serie[], faixas: FaixaPercentual[]): Serie[] {
   return series.map((s, i) => ({
     ...s,
-    carga: { modo: 'PERCENTUAL_WS', percentualMin: faixas[i].min, percentualMax: faixas[i].max, referenciaUid: null },
+    carga: { modo: 'PERCENTUAL_WS', percentualMin: faixas[i].min, percentualMax: faixas[i].max },
   }));
 }
 
 function trocarGrupo(series: Serie[], grupo: GrupoDeSeries, novas: Serie[]): Serie[] {
-  return corrigirReferencias([...series.slice(0, grupo.inicio), ...novas, ...series.slice(grupo.inicio + grupo.series.length)]);
+  return [...series.slice(0, grupo.inicio), ...novas, ...series.slice(grupo.inicio + grupo.series.length)];
 }
 
 /** A regra de percentuais do tipo (só preparação) para `n` séries, se a série está em "% da série de trabalho". */
@@ -370,8 +304,7 @@ function regraDoGrupo(config: Configuracao | null | undefined, primeira: Serie, 
 /**
  * Muda a quantidade de séries de um grupo: acrescenta cópias da última (uids novos) ou tira do fim. Se o grupo é de
  * preparação em % (FS) e a metodologia tem regra para a nova quantidade, os percentuais são preenchidos por ela
- * (3 FS = 50/70/85–90; 2 FS = 70/85–90). Depois cada série pode ser editada. Série removida que era referência de um back
- * off faz o back off apontar a última série de trabalho que restou antes dele.
+ * (3 FS = 50/70/85–90; 2 FS = 70/85–90). Depois cada série pode ser editada.
  */
 export function mudarQuantidade(series: Serie[], grupo: GrupoDeSeries, n: number, config: Configuracao | null | undefined): Serie[] {
   if (n < 1 || series.length - grupo.series.length + n > LIMITE_SERIES) return series;
@@ -394,7 +327,7 @@ export interface AlteracaoDeGrupo {
   amrap?: boolean;
   /** Troca a forma de carga de todas as séries do grupo (parte do padrão do tipo quando ele é dessa forma). */
   modo?: ModoDeCarga;
-  /** Valores da carga para todas as séries do grupo (uma faixa de % única, a referência do back off). */
+  /** Valores da carga para todas as séries do grupo (uma faixa de % única). */
   carga?: Partial<Carga>;
   /** Esforço de todas as séries do grupo (RIR ou RPE, nunca os dois); nulo tira. */
   esforco?: Esforco | null;
@@ -411,22 +344,20 @@ export interface AlteracaoDeGrupo {
  * Aplica a mudança a todas as séries do grupo. Trocar o tipo põe a carga, o esforço e as repetições com que esse tipo
  * nasce na metodologia (preparação com a regra para a quantidade do grupo; tipo fora dela mantém o que estava). Trocar a
  * forma de carga parte do padrão do tipo quando ele é dessa forma (Back off de volta a "% da WS" volta aos 85%). Cluster
- * mantém as repetições iguais à soma dos blocos. "Abaixo da referência" sem referência passa a apontar a última série de
- * trabalho anterior. Tudo continua editável.
+ * mantém as repetições iguais à soma dos blocos. Tudo continua editável.
  */
 export function alterarGrupo(
   series: Serie[],
   grupo: GrupoDeSeries,
   mudanca: AlteracaoDeGrupo,
   config: Configuracao | null | undefined,
-  modalidade: string | null = null,
 ): Serie[] {
   const primeira = grupo.series[0];
   const trocouTipo = mudanca.tipo !== undefined && mudanca.tipo !== (primeira.tipo ?? null);
   const tipoFinal = tipoPorCodigo(config, trocouTipo ? mudanca.tipo : primeira.tipo);
   // Trocar o tipo preenche carga e esforço do tipo (se a mudança não trouxer os seus) e a faixa de repetições dele.
-  const cargaDoTipo = trocouTipo && tipoFinal && mudanca.modo === undefined && mudanca.carga === undefined ? cargaInicial(tipoFinal, modalidade) : undefined;
-  const esforcoDoTipo = trocouTipo && tipoFinal && mudanca.esforco === undefined ? esforcoInicial(tipoFinal, modalidade) : undefined;
+  const cargaDoTipo = trocouTipo && tipoFinal && mudanca.modo === undefined && mudanca.carga === undefined ? cargaInicial(tipoFinal) : undefined;
+  const esforcoDoTipo = trocouTipo && tipoFinal && mudanca.esforco === undefined ? esforcoInicial(tipoFinal) : undefined;
   const repsDoNovoTipo = trocouTipo && mudanca.repsMin === undefined && mudanca.repsMax === undefined && mudanca.amrap === undefined ? repeticoesDoTipo(tipoFinal) : null;
   let novas = grupo.series.map((s) => {
     const nova: Serie = { ...s };
@@ -454,8 +385,12 @@ export function alterarGrupo(
     if (esforcoDoTipo !== undefined) nova.esforco = copiarEsforco(esforcoDoTipo);
     if (mudanca.esforco !== undefined) nova.esforco = copiarEsforco(mudanca.esforco);
     if (mudanca.modo !== undefined && mudanca.modo !== (s.carga?.modo ?? 'NENHUMA')) {
-      const padrao = cargaInicial(tipoFinal, modalidade);
+      const padrao = cargaInicial(tipoFinal);
       nova.carga = padrao?.modo === mudanca.modo ? { ...padrao } : cargaDoModo(mudanca.modo);
+      // Pós-trabalho (back off) em "% da WS" parte dos 85%, mesmo que o tipo não traga esse padrão.
+      if (mudanca.modo === 'PERCENTUAL_WS' && padrao?.modo !== 'PERCENTUAL_WS' && tipoFinal?.papel === 'POS_TRABALHO') {
+        nova.carga = { ...nova.carga!, percentualMin: PERCENTUAL_PADRAO_DO_POS_TRABALHO };
+      }
     }
     if (mudanca.carga) nova.carga = { ...(nova.carga ?? { modo: 'NENHUMA' }), ...mudanca.carga };
     return comRepsDoCluster(nova);
@@ -468,27 +403,19 @@ export function alterarGrupo(
 }
 
 /**
- * Esforço de UMA série do grupo expandido (RIR por série, na mesma linha do %): troca só o número dentro da forma que a
- * série já tem (RIR ou RPE), sem mexer nas outras. O valor de RIR/RPE não separa grupos (`agrupamento.chave`), então as
- * séries seguem juntas. Série sem esforço, valor nulo, índice fora da lista ou série de cardio não mudam: tirar o esforço
- * ou trocar RIR por RPE só numa série quebraria a forma do grupo e é decisão do grupo todo (`alterarGrupo`). O número
- * não é validado aqui (a validação mostra o erro no campo).
+ * RIR de UMA série (a coluna RIR ao lado do % ou do kg): de 0 (até a falha) a 10, ou `null` para "não prescrito". Vale para
+ * qualquer série, tenha ou não esforço antes; troca o RPE que houvesse (RIR e RPE nunca juntos). Índice fora da lista ou
+ * série de cardio não mudam. O número não é validado aqui (a validação mostra o erro no campo).
  */
-export function alterarEsforcoDaSerie(series: Serie[], indice: number, valor: number | null): Serie[] {
-  return series.map((s, i) => {
-    if (i !== indice || valor == null || !s.esforco) return s;
-    if (s.esforco.rir != null) return { ...s, esforco: { rir: valor, rpe: null } };
-    if (s.esforco.rpe != null) return { ...s, esforco: { rir: null, rpe: valor } };
-    return s;
-  });
+export function alterarRirDaSerie(series: Serie[], indice: number, rir: number | null): Serie[] {
+  return series.map((s, i) => (i !== indice || s.cardio ? s : { ...s, esforco: rir == null ? null : { rir, rpe: null } }));
 }
 
 /** Faixa de % de uma série só (o grupo expandido): mantém a forma se já é por %, senão vira "% da série de trabalho". */
 export function alterarPercentuais(series: Serie[], indice: number, min: number | null, max: number | null): Serie[] {
   return series.map((s, i) => {
     if (i !== indice) return s;
-    const porPercentual = s.carga && ['PERCENTUAL_WS', 'ACIMA_DA_ANTERIOR', 'ABAIXO_DA_REFERENCIA'].includes(s.carga.modo);
-    const base = porPercentual ? s.carga! : cargaDoModo('PERCENTUAL_WS')!;
+    const base = s.carga?.modo === 'PERCENTUAL_WS' ? s.carga : cargaDoModo('PERCENTUAL_WS')!;
     return { ...s, carga: { ...base, percentualMin: min, percentualMax: max } };
   });
 }
@@ -535,7 +462,6 @@ function serieNormalizada(s: Partial<Serie>, uid: string): Serie {
           modo: s.carga.modo,
           percentualMin: s.carga.percentualMin ?? null,
           percentualMax: s.carga.percentualMax ?? null,
-          referenciaUid: s.carga.referenciaUid ?? null,
           ...(s.carga.valorKg != null ? { valorKg: s.carga.valorKg } : {}),
         }
       : null,
@@ -547,44 +473,28 @@ function serieNormalizada(s: Partial<Serie>, uid: string): Serie {
   };
 }
 
-/**
- * Séries com uid novo; o `referenciaUid` de cada back off passa a apontar o uid novo da série que ele referenciava. Referência
- * que não aponta para nenhuma série da lista fica como está (o validador a aponta), como na API (`ConteudoTreino.comUidsNovos`).
- */
+/** Séries com uid novo (cópia profunda). */
 function seriesComUidsNovos(series: readonly Partial<Serie>[]): Serie[] {
-  const novos = new Map<string, string>();
-  const copias = series.map((x) => {
-    const uid = novoUid();
-    if (x.uid && !novos.has(x.uid)) novos.set(x.uid, uid);
-    return serieNormalizada(x, uid);
-  });
-  return copias.map((x) => {
-    const ref = x.carga?.referenciaUid;
-    return ref && x.carga ? { ...x, carga: { ...x.carga, referenciaUid: novos.get(ref) ?? ref } } : x;
-  });
+  return series.map((x) => serieNormalizada(x, novoUid()));
 }
 
-/** Séries de uma receita aplicadas no exercício: substituem as atuais, cada uma com uid novo e a referência do back off remapeada. */
+/** Séries de uma receita aplicadas no exercício: substituem as atuais, cada uma com uid novo. */
 export function seriesDaReceita(conteudo: unknown): Serie[] {
   const lista = (conteudo as { series?: Partial<Serie>[] } | null)?.series ?? [];
   return seriesComUidsNovos(lista);
 }
 
-/**
- * Séries prontas para virar receita. Os uids nascem ao aplicar, então saem; ficam só os das séries que alguma outra
- * referencia (`carga.referenciaUid`), porque a referência precisa apontar uma série da própria receita.
- */
-export function seriesParaReceita(series: Serie[]): { series: (Omit<Serie, 'uid'> & { uid?: string })[] } {
-  const referenciadas = new Set(series.map((s) => s.carga?.referenciaUid).filter((u): u is string => !!u));
-  return { series: series.map(({ uid, ...resto }) => (referenciadas.has(uid) ? { uid, ...resto } : resto)) };
+/** Séries prontas para virar receita: os uids nascem ao aplicar, então saem. */
+export function seriesParaReceita(series: Serie[]): { series: Omit<Serie, 'uid'>[] } {
+  return { series: series.map(({ uid: _uid, ...resto }) => resto) };
 }
 
-/** Exercício copiado com uids novos (dele e das séries, com a referência remapeada); copiado sozinho, sai de qualquer grupo. */
+/** Exercício copiado com uids novos (dele e das séries); copiado sozinho, sai de qualquer grupo. */
 export function exercicioComUidsNovos(e: ExercicioPlano): ExercicioPlano {
   return { ...e, uid: novoUid(), grupoUid: null, series: seriesComUidsNovos(e.series ?? []) };
 }
 
-/** Sessão copiada com uids novos (dela, dos grupos, dos exercícios e das séries); `grupoUid` e `referenciaUid` acompanham os novos. */
+/** Sessão copiada com uids novos (dela, dos grupos, dos exercícios e das séries); `grupoUid` acompanha os novos. */
 export function sessaoComUidsNovos(s: Sessao): Sessao {
   const novosGrupos = new Map<string, string>();
   const grupos = (s.grupos ?? []).map((g) => {

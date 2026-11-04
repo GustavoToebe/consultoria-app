@@ -1,7 +1,7 @@
 import { calcularCargasDoExercicio } from '../dominio/cargas';
 import { CONFIGURACAO_PADRAO } from '../dominio/metodologiaPadrao';
 import { carga, exercicio, rir, rpe, serie, tecnica } from '../dominio/exemplosDeTreino.apoioTeste';
-import { dicaDaCarga, ehExercicioDeCardio, linhasDoCardio, nomeDaSerieNoHistorico, partesDaMeta, selosDaSerie, textosDaSerie } from './serieDoAluno';
+import { ehExercicioDeCardio, linhasDoCardio, nomeDaSerieNoHistorico, partesDaMeta, selosDaSerie, textosDaSerie } from './serieDoAluno';
 
 const metodologia = {
   ...CONFIGURACAO_PADRAO,
@@ -55,7 +55,7 @@ describe('textos da série', () => {
       alvoExtra: 'Parar se perder a postura',
       tecnica: tecnica('REST_PAUSE', { pausas: 1, pausaSegundos: 20 }),
     });
-    const t = textosDaSerie(s, { ...contexto, seriesDoExercicio: [s] });
+    const t = textosDaSerie(s, contexto);
     expect(t.meta).toBe('Meta: 3 a 6 reps · carga de trabalho · 1 RIR');
     expect(t.descanso).toBe('Descanso 1 min 30 s');
     expect(t.alvoExtra).toBe('Parar se perder a postura');
@@ -65,33 +65,33 @@ describe('textos da série', () => {
 
   it('descanso vale para o grupo: a série não repete o descanso', () => {
     const s = serie('a', { descansoSegundos: 90 });
-    expect(textosDaSerie(s, { ...contexto, descansoPorSerie: false, seriesDoExercicio: [s] }).descanso).toBeNull();
+    expect(textosDaSerie(s, { ...contexto, descansoPorSerie: false }).descanso).toBeNull();
   });
 
   it('Cluster no grupo não repete o descanso da série e, sem carga, não pede ajuste', () => {
     const s = serie('a', { tecnica: tecnica('CLUSTER', { blocos: [4, 4], pausaSegundos: 15 }), descansoSegundos: 90, repsMin: 8, repsMax: 8 });
-    const noGrupo = textosDaSerie(s, { ...contexto, descansoPorSerie: false, seriesDoExercicio: [s] }).tecnica;
+    const noGrupo = textosDaSerie(s, { ...contexto, descansoPorSerie: false }).tecnica;
     expect(noGrupo).toContain('Pausa entre os blocos: 15 s.');
     expect(noGrupo).not.toContain('Descanso depois da série');
     expect(noGrupo).toContain('Ajuste a carga desta série.');
-    const semCarga = textosDaSerie(s, { ...contexto, semCarga: true, seriesDoExercicio: [s] }).tecnica;
+    const semCarga = textosDaSerie(s, { ...contexto, semCarga: true }).tecnica;
     expect(semCarga).toContain('Descanso depois da série: 90 s.');
     expect(semCarga).not.toContain('Ajuste a carga');
   });
 
   it('AMRAP é explícito e RIR 0 é "até a falha"; RPE aparece como RPE', () => {
     const amrap = serie('a', { repsMin: null, repsMax: null, amrap: true, esforco: rir(0) });
-    const t = textosDaSerie(amrap, { ...contexto, seriesDoExercicio: [amrap] });
+    const t = textosDaSerie(amrap, { ...contexto });
     expect(t.amrap).toBe(true);
     expect(t.meta).toContain('AMRAP');
     expect(t.meta).toContain('até a falha');
     const comRpe = serie('b', { esforco: rpe(8.5) });
-    expect(textosDaSerie(comRpe, { ...contexto, seriesDoExercicio: [comRpe] }).meta).toContain('RPE 8,5');
+    expect(textosDaSerie(comRpe, { ...contexto }).meta).toContain('RPE 8,5');
   });
 
   it('alvo extra em branco não aparece', () => {
     const s = serie('a', { alvoExtra: '   ' });
-    expect(textosDaSerie(s, { ...contexto, seriesDoExercicio: [s] }).alvoExtra).toBeNull();
+    expect(textosDaSerie(s, { ...contexto }).alvoExtra).toBeNull();
   });
 });
 
@@ -102,45 +102,22 @@ describe('partes da meta (D5)', () => {
   });
 });
 
-describe('dica da carga', () => {
-  const top = serie('top', { tipo: 'TOP_SET', repsMin: 3, repsMax: 5, carga: carga('ACIMA_DA_ANTERIOR', 1, 5) });
-  const back = serie('back', { tipo: 'BACK_OFF', carga: carga('ABAIXO_DA_REFERENCIA', 15, null, 'top') });
-  const base = { metodologia: CONFIGURACAO_PADRAO, seriesDoExercicio: [top, back] };
-
-  it('back off abaixo da referência sem a referência registrada: não há sugestão e a dica diz o que falta', () => {
-    const dica = dicaDaCarga(back, { ...base, sugestao: null });
-    expect(dica).toContain('Registre a carga da série de referência');
-    expect(dica).toContain('Top set');
-  });
-
-  it('com sugestão não há dica de "mude se usar outra": o campo nunca vem preenchido (D1)', () => {
-    expect(dicaDaCarga(back, { ...base, sugestao: 85 })).toBeNull();
-    expect(dicaDaCarga(serie('m', { carga: carga('MESMA_CARGA') }), { ...base, sugestao: 100 })).toBeNull();
-    expect(dicaDaCarga(serie('f', { tipo: 'FEEDER', carga: carga('PERCENTUAL_WS', 50) }), { ...base, sugestao: 50 })).toBeNull();
-  });
-
-  it('sem sugestão e sem ser abaixo da referência: nenhuma dica', () => {
-    expect(dicaDaCarga(serie('w'), { ...base, sugestao: null })).toBeNull();
-  });
-});
-
-describe('top set e back off sobre a carga registrada hoje', () => {
-  const top = serie('top', { tipo: 'TOP_SET', repsMin: 3, repsMax: 5, carga: carga('ACIMA_DA_ANTERIOR', 5, 10) });
-  const back1 = serie('b1', { tipo: 'BACK_OFF', carga: carga('ABAIXO_DA_REFERENCIA', 15, null, 'top') });
-  const back2 = serie('b2', { tipo: 'BACK_OFF', carga: carga('ABAIXO_DA_REFERENCIA', 15, null, 'top') });
-  const ex = exercicio('e', { series: [serie('w'), top, back1, back2] });
+describe('back off sobre a carga registrada hoje', () => {
+  const back1 = serie('b1', { tipo: 'BACK_OFF', carga: carga('PERCENTUAL_WS', 85) });
+  const back2 = serie('b2', { tipo: 'BACK_OFF', carga: carga('PERCENTUAL_WS', 85) });
+  const ex = exercicio('e', { series: [serie('w'), back1, back2] });
   const config = { arredondamentoKg: 2.5, tipoTrabalho: 'WS', metodologia: CONFIGURACAO_PADRAO };
 
-  it('sem registro da referência, o back off não tem sugestão', () => {
-    const calculadas = calcularCargasDoExercicio(ex, 80, { w: 80 }, config);
-    expect(calculadas[2].sugestao).toBeNull();
-    expect(calculadas[3].sugestao).toBeNull();
+  it('sem a WS registrada, os back offs saem da base do dia', () => {
+    const calculadas = calcularCargasDoExercicio(ex, 80, {}, config);
+    expect(calculadas[1].sugestao).toBe(67.5);
+    expect(calculadas[2].sugestao).toBe(67.5);
   });
 
-  it('com a Top registrada, as duas séries de back off saem dela menos 15%, arredondado', () => {
-    const calculadas = calcularCargasDoExercicio(ex, 80, { w: 80, top: 100 }, config);
+  it('com a WS registrada, as duas séries de back off saem dela a 85%, arredondado', () => {
+    const calculadas = calcularCargasDoExercicio(ex, 80, { w: 100 }, config);
+    expect(calculadas[1].sugestao).toBe(85);
     expect(calculadas[2].sugestao).toBe(85);
-    expect(calculadas[3].sugestao).toBe(85);
   });
 });
 

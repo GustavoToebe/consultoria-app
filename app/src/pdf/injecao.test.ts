@@ -30,7 +30,7 @@ jest.mock('../dominio/uid', () => ({ novoUid: () => 'uid' }));
  */
 
 /** Chaves que só ligam um objeto a outro (uid, referência). Nunca são texto do usuário nem aparecem no PDF. */
-const LIGACAO = ['uid', 'id', 'exercicioId', 'alimentoId', 'grupoUid', 'referenciaUid'];
+const LIGACAO = ['uid', 'id', 'exercicioId', 'alimentoId', 'grupoUid'];
 /** Códigos, enums e datas que escolhem uma entrada da metodologia ou um formato; o servidor os valida. */
 const CODIGOS = [
   'chave', 'codigo', 'tipo', 'modo', 'papel', 'tecnica', 'modalidade', 'regiao', 'unidade', 'periodo',
@@ -180,7 +180,6 @@ const treino = normalizarTreino({
             // Um de cada tipo e técnica da metodologia, para o glossário (nomes e explicações) também ser atacado.
             serie('bo', { tipo: 'BACK_OFF', repsMin: 6, repsMax: 8, carga: carga('PERCENTUAL_WS', 85) }),
             serie('wu', { tipo: 'WARM_UP', repsMin: 10, repsMax: 15, carga: carga('NENHUMA') }),
-            serie('top', { tipo: 'TOP_SET', carga: carga('ACIMA_DA_ANTERIOR', 1, 5) }),
             serie('rp', { tecnica: tecnica('REST_PAUSE', { pausas: 1, pausaSegundos: 20 }) }),
             serie('cl', { repsMin: 6, repsMax: 6, tecnica: tecnica('CLUSTER', { blocos: [4, 2], pausaSegundos: 15 }) }),
             serie('my', { tecnica: tecnica('MYO_REPS', { miniSeries: 3, repsPorMiniSerie: 3, pausaSegundos: 10 }) }),

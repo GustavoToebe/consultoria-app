@@ -16,8 +16,8 @@ describe('carga fixa na unidade do treinador', () => {
   it('o resumo do grupo e do exercício saem em libra só quando pedido; o padrão é kg', () => {
     const series = [fixa(12)];
     const grupo = agrupar(series)[0];
-    expect(descreverGrupo(grupo, CONFIGURACAO_PADRAO, series)).toContain('12 kg');
-    expect(descreverGrupo(grupo, CONFIGURACAO_PADRAO, series, { unidade: 'lb' })).toContain('26,5 lb');
+    expect(descreverGrupo(grupo, CONFIGURACAO_PADRAO)).toContain('12 kg');
+    expect(descreverGrupo(grupo, CONFIGURACAO_PADRAO, { unidade: 'lb' })).toContain('26,5 lb');
     expect(descreverSeries(series, CONFIGURACAO_PADRAO)[0]).toContain('12 kg');
     expect(descreverSeries(series, CONFIGURACAO_PADRAO, 'lb')[0]).toContain('26,5 lb');
   });
@@ -25,14 +25,13 @@ describe('carga fixa na unidade do treinador', () => {
   it('a prévia "Para o aluno" do editor usa a mesma unidade', () => {
     const series = [fixa(12)];
     const grupo = agrupar(series)[0];
-    expect(previaDoGrupo(grupo, series, CONFIGURACAO_PADRAO, {}).linhas).toContain('Carga: 12 kg');
-    expect(previaDoGrupo(grupo, series, CONFIGURACAO_PADRAO, { unidade: 'lb' }).linhas).toContain('Carga: 26,5 lb');
+    expect(previaDoGrupo(grupo, CONFIGURACAO_PADRAO, {}).linhas).toContain('Carga: 12 kg');
+    expect(previaDoGrupo(grupo, CONFIGURACAO_PADRAO, { unidade: 'lb' }).linhas).toContain('Carga: 26,5 lb');
   });
 
   it('o rótulo e a ajuda da forma "Carga fixa" falam a unidade; o valor da opção não muda', () => {
     const rotulos = (u?: 'kg' | 'lb') => {
-      const m = modosDeCarga(CONFIGURACAO_PADRAO, 'TRABALHO', 'CARGA_FIXA', true, u);
-      return [...m.principais, ...m.outras].filter((o) => o.valor === 'CARGA_FIXA').map((o) => o.rotulo);
+      return modosDeCarga(CONFIGURACAO_PADRAO, 'TRABALHO', u).filter((o) => o.valor === 'CARGA_FIXA').map((o) => o.rotulo);
     };
     expect(rotulos()).toEqual(['Carga fixa (kg)']);
     expect(rotulos('lb')).toEqual(['Carga fixa (lb)']);

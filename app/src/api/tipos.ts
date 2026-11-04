@@ -112,9 +112,6 @@ export interface ConfiguracaoPublica {
 /** Papel fixo de um tipo de série: decide a carga e o esforço padrão no editor e quem dá nome ao "% da WS". */
 export type PapelDaSerie = 'AQUECIMENTO' | 'PREPARACAO' | 'TRABALHO' | 'POS_TRABALHO' | 'OUTRO';
 
-/** Modalidades com carga e esforço padrão próprios na metodologia; as outras (e sem modalidade) caem no padrão do tipo. */
-export type ModalidadeComPadrao = 'LIVRE' | 'MAQUINA';
-
 export interface FaixaRepeticoes {
   min: number;
   max: number;
@@ -126,16 +123,10 @@ export interface FaixaPercentual {
   max: number | null;
 }
 
-/** Carga e esforço sugeridos para exercício `LIVRE` ou `MAQUINA` (cada um pode faltar). Espelho de `PadraoPorModalidade`. */
-export interface PadraoPorModalidade {
-  carga: Carga | null;
-  esforco: Esforco | null;
-}
-
 /**
  * Tipo de série da metodologia: `codigo` estável (o que `Serie.tipo` grava; `[A-Z0-9_]`, até 30, único; gerado do nome
  * na criação e imutável), nome livre exibido, papel fixo e os padrões que o editor preenche ao criar a série ou trocar
- * o tipo (repetições, carga, esforço, variação por modalidade e, só em preparação, a regra de % por quantidade de
+ * o tipo (repetições, carga, esforço e, só em preparação, a regra de % por quantidade de
  * séries). A explicação é o que o aluno lê ao tocar no tipo. Espelho de `ConfiguracaoConsultoria.TipoDeSerie`.
  */
 export interface TipoDeSerie {
@@ -145,7 +136,6 @@ export interface TipoDeSerie {
   repeticoes: FaixaRepeticoes | null;
   cargaPadrao: Carga | null;
   esforcoPadrao: Esforco | null;
-  porModalidade: Partial<Record<ModalidadeComPadrao, PadraoPorModalidade>> | null;
   /** Só `PREPARACAO`: chave = quantas séries ("1" a "10"); valor = a faixa de cada uma. */
   regraPercentuais: Record<string, FaixaPercentual[]> | null;
   explicacao: string | null;
@@ -637,25 +627,20 @@ export type TipoSessao = 'TREINO' | 'DESCANSO_ATIVO' | 'DESCANSO' | 'ACESSORIOS'
 
 /**
  * Formas de carga. Percentual é sempre da série de trabalho (WS); 1RM não existe. `CARGA_TRABALHO` é a série de trabalho
- * (a referência do dia). `MESMA_CARGA` = a da última série de trabalho feita antes no exercício. `ACIMA_DA_ANTERIOR` =
- * a série imediatamente anterior mais um percentual (top set). `ABAIXO_DA_REFERENCIA` = a carga registrada hoje na
- * série `referenciaUid`, menos um percentual (back off). `CARGA_FIXA` = o peso em kg que o treinador escreveu (`valorKg`):
- * não é série de trabalho e não serve de referência para percentual, mesma carga nem back off; só em exercício com carga.
+ * (a referência do dia). `CARGA_FIXA` = o peso em kg que o treinador escreveu (`valorKg`): não é série de trabalho e não
+ * serve de referência para percentual.
  */
-export type ModoDeCarga = 'CARGA_TRABALHO' | 'PERCENTUAL_WS' | 'MESMA_CARGA' | 'ACIMA_DA_ANTERIOR' | 'ABAIXO_DA_REFERENCIA' | 'CARGA_FIXA' | 'NENHUMA';
+export type ModoDeCarga = 'CARGA_TRABALHO' | 'PERCENTUAL_WS' | 'CARGA_FIXA' | 'NENHUMA';
 
 /**
- * Carga da série. `percentualMin`/`percentualMax` formam a faixa de `PERCENTUAL_WS` (1 a 200), `ACIMA_DA_ANTERIOR` (1 a
- * 100) e `ABAIXO_DA_REFERENCIA` (redução de 1 a 50); máximo nulo = valor único. `referenciaUid` só vale em
- * `ABAIXO_DA_REFERENCIA`: uma série anterior do mesmo exercício. `valorKg` só vale em `CARGA_FIXA` (maior que zero, até
- * 1000, no máximo 2 casas; sem percentual nem referência); o servidor só o manda quando existe. Nula (a série inteira) =
- * `NENHUMA`.
+ * Carga da série. `percentualMin`/`percentualMax` formam a faixa de `PERCENTUAL_WS` (1 a 200); máximo nulo = valor
+ * único. `valorKg` só vale em `CARGA_FIXA` (maior que zero, até 1000, no máximo 2 casas; sem percentual); o servidor só
+ * o manda quando existe. Nula (a série inteira) = `NENHUMA`.
  */
 export interface Carga {
   modo: ModoDeCarga;
   percentualMin?: number | null;
   percentualMax?: number | null;
-  referenciaUid?: string | null;
   valorKg?: number | null;
 }
 

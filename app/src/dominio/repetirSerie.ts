@@ -65,4 +65,4 @@ export function repeticaoDaAnterior(
 }
 
 /** Carga `NENHUMA` sem parâmetros é o mesmo que não ter carga. */
-const semModoNenhum = (s: Serie) => (s.carga?.modo === 'NENHUMA' && s.carga.percentualMin == null && s.carga.percentualMax == null && !s.carga.referenciaUid ? null : s.carga);
+const semModoNenhum = (s: Serie) => (s.carga?.modo === 'NENHUMA' && s.carga.percentualMin == null && s.carga.percentualMax == null ? null : s.carga);

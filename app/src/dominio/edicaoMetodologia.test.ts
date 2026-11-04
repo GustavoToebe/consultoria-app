@@ -14,29 +14,29 @@ test('obrigatório um trabalho, nomes únicos mesmo com caixa/acento/hífen e se
   expect(problemasDaMetodologia(config).tipos).toContain('trabalho');
 
   const nomes = copia();
-  nomes.tipos[4].nome = 'Báck-off'; // o tipo 3 já se chama Back off
-  nomes.tipos[3].nome = 'Back off';
-  expect(problemasDaMetodologia(nomes)['tipos[4].nome']).toContain('Já existe');
+  nomes.tipos[3].nome = 'Báck-off'; // o tipo 2 já se chama Back off
+  nomes.tipos[2].nome = 'Back off';
+  expect(problemasDaMetodologia(nomes)['tipos[3].nome']).toContain('Já existe');
 
-  nomes.tipos[4].nome = 'REST-PAUSE';
-  expect(problemasDaMetodologia(nomes)['tipos[4].nome']).toContain('técnica');
-  nomes.tipos[4].nome = 'Muscle Round';
+  nomes.tipos[3].nome = 'REST-PAUSE';
+  expect(problemasDaMetodologia(nomes)['tipos[3].nome']).toContain('técnica');
+  nomes.tipos[3].nome = 'Muscle Round';
   nomes.tecnicas[1].nome = 'Muscle Round';
-  expect(problemasDaMetodologia(nomes)['tipos[4].nome']).toContain('técnica');
-  nomes.tipos[4].nome = 'Pré-exaustão';
-  expect(problemasDaMetodologia(nomes)['tipos[4].nome']).toContain('combinação');
-  nomes.tipos[4].nome = '';
-  expect(problemasDaMetodologia(nomes)['tipos[4].nome']).toContain('nome');
-  nomes.tipos[4].nome = 'x'.repeat(31);
-  expect(problemasDaMetodologia(nomes)['tipos[4].nome']).toContain('30');
+  expect(problemasDaMetodologia(nomes)['tipos[3].nome']).toContain('técnica');
+  nomes.tipos[3].nome = 'Pré-exaustão';
+  expect(problemasDaMetodologia(nomes)['tipos[3].nome']).toContain('combinação');
+  nomes.tipos[3].nome = '';
+  expect(problemasDaMetodologia(nomes)['tipos[3].nome']).toContain('nome');
+  nomes.tipos[3].nome = 'x'.repeat(31);
+  expect(problemasDaMetodologia(nomes)['tipos[3].nome']).toContain('30');
 });
 
 test('devolve vários problemas de uma vez, cada um no seu campo', () => {
   const config = copia();
   config.tipos[0].repeticoes = { min: 20, max: 10 };
-  config.tipos[1].cargaPadrao = { modo: 'PERCENTUAL_WS', percentualMin: 0, percentualMax: null, referenciaUid: null };
+  config.tipos[1].cargaPadrao = { modo: 'PERCENTUAL_WS', percentualMin: 0, percentualMax: null };
   config.tipos[2].esforcoPadrao = { rir: 1, rpe: 8 };
-  config.tipos[4].codigo = 'back off';
+  config.tipos[3].codigo = 'back off';
   config.tecnicas[0].nome = '';
   config.combinacoes[0].explicacao = 'a'.repeat(501);
   config.arredondamentoKg = 3;
@@ -47,7 +47,7 @@ test('devolve vários problemas de uma vez, cada um no seu campo', () => {
       'tipos[0].repeticoes',
       'tipos[1].cargaPadrao.percentualMin',
       'tipos[2].esforcoPadrao.rpe',
-      'tipos[4].codigo',
+      'tipos[3].codigo',
       'tecnicas[0].nome',
       'combinacoes[0].explicacao',
       'arredondamentoKg',
@@ -128,21 +128,17 @@ test('padrão de técnica pode ser parcial mas respeita os valores e a técnica 
   expect(problemasDaMetodologia(config)['tecnicas[1].padrao']).toContain('própria técnica');
 });
 
-test('carga e esforço padrão do tipo e da modalidade', () => {
+test('carga e esforço padrão do tipo', () => {
   const config = copia();
-  config.tipos[2].porModalidade = {
-    LIVRE: { carga: { modo: 'ACIMA_DA_ANTERIOR', percentualMin: 120, percentualMax: null, referenciaUid: null }, esforco: { rir: 11, rpe: null } },
-  };
-  const p = problemasDaMetodologia(config);
-  expect(p['tipos[2].porModalidade.LIVRE.carga.percentualMin']).toBeDefined();
-  expect(p['tipos[2].porModalidade.LIVRE.esforco.rir']).toBeDefined();
-  // A carga fixa é da série de um exercício: não vale como padrão do tipo nem da modalidade.
+  config.tipos[2].esforcoPadrao = { rir: 11, rpe: null };
+  expect(problemasDaMetodologia(config)['tipos[2].esforcoPadrao.rir']).toBeDefined();
+  // A carga fixa é da série de um exercício: não vale como padrão do tipo.
   const fixa = copia();
-  fixa.tipos[0].cargaPadrao = { modo: 'CARGA_FIXA', percentualMin: null, percentualMax: null, referenciaUid: null, valorKg: 12 };
+  fixa.tipos[0].cargaPadrao = { modo: 'CARGA_FIXA', percentualMin: null, percentualMax: null, valorKg: 12 };
   expect(problemasDaMetodologia(fixa)['tipos[0].cargaPadrao.modo']).toContain('carga fixa');
-  // Back off sem referência é válido num padrão: a referência só nasce na série.
+  // Back off a 85% da WS é o padrão e é válido.
   const back = copia();
-  back.tipos[4].cargaPadrao = { modo: 'ABAIXO_DA_REFERENCIA', percentualMin: 15, percentualMax: null, referenciaUid: null };
+  back.tipos[3].cargaPadrao = { modo: 'PERCENTUAL_WS', percentualMin: 85, percentualMax: null };
   expect(problemasDaMetodologia(back)).toEqual({});
   // Esforço padrão sem RIR nem RPE não trava o salvar: vira nenhum.
   const vazio = copia();
@@ -151,17 +147,15 @@ test('carga e esforço padrão do tipo e da modalidade', () => {
   expect(metodologiaParaSalvar(vazio).tipos[2].esforcoPadrao).toBeNull();
 });
 
-test('salvar tira espaços, variação por modalidade vazia e a referência do back off', () => {
+test('salvar tira espaços e esforço sem RIR nem RPE', () => {
   const config = copia();
   config.tipos[0].nome = '  Aquecimento ';
   config.tipos[0].explicacao = '   ';
-  config.tipos[4].cargaPadrao = { modo: 'ABAIXO_DA_REFERENCIA', percentualMin: 15, percentualMax: null, referenciaUid: 'qualquer' };
-  config.tipos[3].porModalidade = { LIVRE: { carga: null, esforco: { rir: null, rpe: null } } };
+  config.tipos[3].esforcoPadrao = { rir: null, rpe: null };
   const salva = metodologiaParaSalvar(config);
   expect(salva.tipos[0].nome).toBe('Aquecimento');
   expect(salva.tipos[0].explicacao).toBeNull();
-  expect(salva.tipos[4].cargaPadrao?.referenciaUid).toBeNull();
-  expect(salva.tipos[3].porModalidade).toBeNull();
+  expect(salva.tipos[3].esforcoPadrao).toBeNull();
 });
 
 test('tipo novo: código gerado do nome, único e sem padrões', () => {

@@ -55,9 +55,8 @@ const DATA = '2026-10-30';
 
 const ws = (uid: string): Serie => serieDeTeste(uid, { tipo: 'WORKING', repsMin: 3, repsMax: 6, carga: carga('CARGA_TRABALHO') });
 const backOff = (uid: string, p = 80): Serie => serieDeTeste(uid, { tipo: 'BACK_OFF', repsMin: 6, repsMax: 8, carga: carga('PERCENTUAL_WS', p) });
-const mesma = (uid: string): Serie => serieDeTeste(uid, { tipo: 'FEEDER', repsMin: 3, repsMax: 3, carga: carga('MESMA_CARGA') });
-const acima = (uid: string): Serie => serieDeTeste(uid, { tipo: 'TOP_SET', repsMin: null, repsMax: null, carga: carga('ACIMA_DA_ANTERIOR', 5, 10) });
-const abaixo = (uid: string, referencia: string): Serie => serieDeTeste(uid, { tipo: 'BACK_OFF', carga: carga('ABAIXO_DA_REFERENCIA', 15, null, referencia) });
+const emPercentual = (uid: string, p = 100): Serie => serieDeTeste(uid, { tipo: 'FEEDER', repsMin: 3, repsMax: 3, carga: carga('PERCENTUAL_WS', p) });
+const topSet = (uid: string): Serie => serieDeTeste(uid, { tipo: 'TOP_SET', repsMin: null, repsMax: null, carga: carga('PERCENTUAL_WS', 105) });
 const nenhuma = (uid: string): Serie => serieDeTeste(uid, { tipo: 'WARM_UP', carga: carga('NENHUMA') });
 
 const treino = (...series: Serie[]): ExercicioPlano => exercicioDeTeste('ex', { exercicioId: 'x', nome: 'Remada', modalidade: 'MAQUINA', series });
@@ -369,40 +368,14 @@ describe('B1 · o Back off acompanha a WS? (cartão real, estado por estado)', (
     expect(t.dica(2)).toContain('80% da base do dia');
   });
 
-  it('(8c) com a última vez e sem sugestão (ACIMA_DA_ANTERIOR antes da anterior), a dica não diz "Primeira vez"', async () => {
-    const t = await montar(treino(ws('w'), acima('t')), null, { carga: 36, repeticoes: 6, data: '2026-10-23' });
-    expect(t.sugestao(2)).toBeNull();
-    expect(t.dica(2)).toBeNull();
-  });
-
-  it('(9) MESMA_CARGA: a WS digitada sem ✓ não vale; registrada, vale como está (e o campo continua editável)', async () => {
-    const t = await montar(treino(ws('w'), mesma('m')));
+  it('(9) % da WS: a WS digitada sem ✓ não vale; registrada, vale como está (e o campo continua editável)', async () => {
+    const t = await montar(treino(ws('w'), emPercentual('m')));
     await t.digitarPeso(1, '42');
     expect(t.sugestao(2)).toBe('40');
     await t.marcar(1);
     expect(t.sugestao(2)).toBe('42');
     await t.digitarPeso(2, '41');
     expect(t.peso(2)).toBe('41');
-  });
-
-  it('(9b) ACIMA_DA_ANTERIOR só sugere depois que a série imediatamente anterior é registrada (e arredonda para cima)', async () => {
-    const t = await montar(treino(ws('w'), acima('t')));
-    await t.digitarPeso(1, '42');
-    expect(t.sugestao(2)).toBeNull(); // sem registro da anterior: sem sugestão
-    await t.marcar(1);
-    expect(t.sugestao(2)).toBe('44,5'); // 42 + 5% = 44,1 → próximo múltiplo de 0,5 para cima
-  });
-
-  it('(9c) ABAIXO_DA_REFERENCIA só sugere depois que a série de referência é registrada (e arredonda para baixo)', async () => {
-    const t = await montar(treino(ws('w'), acima('t'), abaixo('b', 't')));
-    await t.marcar(1);
-    await t.escolher(1, 'Sim, 40 kg');
-    expect(t.sugestao(3)).toBeNull(); // a referência (top set) ainda não foi registrada
-    expect(t.dica(3)).toContain('Registre a carga da série de referência');
-    await t.marcar(2);
-    await t.escolher(2, 'Sim, 42 kg'); // 40 + 5%
-    expect(t.controle.registros.get('t')?.carga).toBe(42);
-    expect(t.sugestao(3)).toBe('35,5'); // 42 − 15% = 35,7 → para baixo
   });
 
   it('(9d) NENHUMA: a caixa começa vazia e não segue nada', async () => {
@@ -658,10 +631,10 @@ describe('N6 · série marcada sem kg avisa que não entra no progresso (D3 e D6
   });
 
   it('Top set que a metodologia marca como TRABALHO também avisa; sem essa marca da metodologia, não', async () => {
-    const a = await montar(treino(acima('t')), null, null, comTopSetDeTrabalho);
+    const a = await montar(treino(topSet('t')), null, null, comTopSetDeTrabalho);
     await marcarSemKg(a);
     expect(a.avisoSemCarga()).toBe(true);
-    const b = await montar(treino(acima('t')), null);
+    const b = await montar(treino(topSet('t')), null);
     await marcarSemKg(b);
     expect(b.avisoSemCarga()).toBe(false);
   });

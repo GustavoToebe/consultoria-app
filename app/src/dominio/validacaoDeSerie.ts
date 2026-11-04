@@ -12,7 +12,7 @@ import { textoDaCarga, type UnidadeDeCarga } from './unidadeDeCarga';
  */
 export type Problemas = Record<string, string>;
 
-export const MODOS_DE_CARGA: readonly ModoDeCarga[] = ['CARGA_TRABALHO', 'PERCENTUAL_WS', 'MESMA_CARGA', 'ACIMA_DA_ANTERIOR', 'ABAIXO_DA_REFERENCIA', 'CARGA_FIXA', 'NENHUMA'];
+export const MODOS_DE_CARGA: readonly ModoDeCarga[] = ['CARGA_TRABALHO', 'PERCENTUAL_WS', 'CARGA_FIXA', 'NENHUMA'];
 
 /** Teto da carga fixa em kg (`Carga.VALOR_KG_MAXIMO` da API, o mesmo da leitura da planilha). */
 export const VALOR_KG_MAXIMO = 1000;
@@ -41,11 +41,8 @@ function faixaDePercentual(p: Problemas, carga: Carga, maximo: number, mensagem:
   }
 }
 
-/**
- * Problemas de uma carga. `exigeReferencia` falso é o padrão de um tipo na metodologia, que não conhece as séries do
- * exercício: a referência do back off só nasce na série.
- */
-export function problemasDaCarga(carga: Carga | null | undefined, exigeReferencia = true): Problemas {
+/** Problemas de uma carga. */
+export function problemasDaCarga(carga: Carga | null | undefined): Problemas {
   const p: Problemas = {};
   if (!carga) return p;
   const modo = carga.modo ?? 'NENHUMA';
@@ -54,17 +51,12 @@ export function problemasDaCarga(carga: Carga | null | undefined, exigeReferenci
     return p;
   }
   if (modo === 'PERCENTUAL_WS') faixaDePercentual(p, carga, 200, 'Percentual da WS entre 1 e 200.');
-  else if (modo === 'ACIMA_DA_ANTERIOR') faixaDePercentual(p, carga, 100, 'Acima da anterior: percentual entre 1 e 100.');
-  else if (modo === 'ABAIXO_DA_REFERENCIA') {
-    faixaDePercentual(p, carga, 50, 'Abaixo da referência: redução entre 1 e 50.');
-    if (exigeReferencia && !carga.referenciaUid) p.referenciaUid = 'Escolha a série de referência.';
-  } else if (modo === 'CARGA_FIXA') {
+  else if (modo === 'CARGA_FIXA') {
     const kg = carga.valorKg;
     if (!numero(kg) || kg <= 0 || kg > VALOR_KG_MAXIMO || Math.abs(Math.round(kg * 100) - kg * 100) > 1e-6) {
       p.valorKg = mensagemDaCargaFixa();
     }
     if (carga.percentualMin != null || carga.percentualMax != null) p.percentualMin = 'Carga fixa não leva percentual.';
-    if (carga.referenciaUid) p.referenciaUid = 'Carga fixa não leva série de referência.';
   }
   if (modo !== 'CARGA_FIXA' && carga.valorKg != null) p.valorKg = 'Só a carga fixa leva valor em kg.';
   return p;

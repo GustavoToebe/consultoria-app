@@ -1,5 +1,5 @@
 import type { Cardio, Configuracao, Serie } from '../api/tipos';
-import { leituraDaTecnica, nomeDaReferencia } from '../dominio/agrupamento';
+import { leituraDaTecnica } from '../dominio/agrupamento';
 import { metaDaSerie } from '../dominio/cargas';
 import { rotuloDescanso } from '../dominio/descanso';
 import { numeroParaTela } from '../dominio/formatos';
@@ -52,10 +52,10 @@ export interface TextosDaSerie {
 
 export function textosDaSerie(
   serie: Serie,
-  contexto: { tipoTrabalho: string; semCarga: boolean; metodologia?: Configuracao; seriesDoExercicio: readonly Serie[]; descansoPorSerie: boolean; unidade?: UnidadeDeCarga },
+  contexto: { tipoTrabalho: string; semCarga: boolean; metodologia?: Configuracao; descansoPorSerie: boolean; unidade?: UnidadeDeCarga },
 ): TextosDaSerie {
   const descanso = contexto.descansoPorSerie && serie.descansoSegundos && serie.descansoSegundos > 0 ? `Descanso ${rotuloDescanso(serie.descansoSegundos)}` : null;
-  const meta = metaDaSerie({ ...serie, tecnica: null, alvoExtra: null }, contexto.tipoTrabalho, contexto.semCarga, contexto.metodologia, contexto.seriesDoExercicio, contexto.unidade);
+  const meta = metaDaSerie({ ...serie, tecnica: null, alvoExtra: null }, contexto.tipoTrabalho, contexto.semCarga, contexto.metodologia, contexto.unidade);
   return {
     meta,
     valorDaMeta: meta.replace(/^Meta: /, ''),
@@ -64,20 +64,6 @@ export function textosDaSerie(
     alvoExtra: serie.alvoExtra?.trim() || null,
     amrap: !!serie.amrap,
   };
-}
-
-/**
- * O que falta para haver sugestão de peso: Back off "abaixo da referência" sem a série de referência registrada hoje
- * ("Registre a carga da série de referência (Top set)..."). Com sugestão não há dica aqui: a sugestão é só texto ao lado
- * do campo (D1, 02/11, `dominio/dicaDeCarga`), e o campo nunca vem preenchido, então não há "mude se usar outra".
- */
-export function dicaDaCarga(
-  serie: Serie,
-  situacao: { sugestao: number | null; metodologia?: Configuracao; seriesDoExercicio: readonly Serie[] },
-): string | null {
-  if (serie.carga?.modo !== 'ABAIXO_DA_REFERENCIA' || situacao.sugestao !== null) return null;
-  const referencia = nomeDaReferencia(serie, situacao.seriesDoExercicio, situacao.metodologia);
-  return `Registre a carga da série de referência${referencia ? ` (${referencia})` : ''} para ver o peso sugerido.`;
 }
 
 /**

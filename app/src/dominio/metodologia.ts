@@ -47,13 +47,10 @@ function textoDaCargaPadrao(c: Carga | null | undefined, nomeDaWs?: string | nul
   if (!c || c.modo === 'NENHUMA') return '';
   if (c.modo === 'CARGA_TRABALHO') return 'carga de trabalho';
   const daWs = nomeDaWs ? ` da ${nomeDaWs}` : '';
-  if (c.modo === 'MESMA_CARGA') return `mesma carga${daWs}`;
   const max = c.percentualMax ?? c.percentualMin;
   if (c.percentualMin == null || max == null || !Number.isFinite(c.percentualMin) || !Number.isFinite(max)) return '';
   const faixa = textoDaFaixa(c.percentualMin, max);
   if (c.modo === 'PERCENTUAL_WS') return `${faixa}${daWs}`;
-  if (c.modo === 'ACIMA_DA_ANTERIOR') return `+${faixa} sobre a anterior`;
-  if (c.modo === 'ABAIXO_DA_REFERENCIA') return `${faixa} abaixo da referência`;
   return '';
 }
 
@@ -235,19 +232,14 @@ export function tecnicaNaMetodologia(config: Configuracao | null | undefined, ti
   return (config?.tecnicas ?? []).some((t) => t.tipo === tipo);
 }
 
-/**
- * Carga com que uma série desse tipo nasce: a da modalidade do exercício (só peso livre e máquina têm variação) ou a
- * padrão do tipo. A variação por modalidade troca carga e esforço juntos (como a API: "troca a sugestão"). Cópia.
- */
-export function cargaInicial(tipo: TipoDeSerie | null | undefined, modalidade: string | null | undefined): Carga | null {
-  const porModalidade = modalidade === 'LIVRE' || modalidade === 'MAQUINA' ? tipo?.porModalidade?.[modalidade] : undefined;
-  return copiarCarga(porModalidade ? porModalidade.carga : tipo?.cargaPadrao);
+/** Carga com que uma série desse tipo nasce: a padrão do tipo. Cópia. */
+export function cargaInicial(tipo: TipoDeSerie | null | undefined): Carga | null {
+  return copiarCarga(tipo?.cargaPadrao);
 }
 
-/** Esforço com que uma série desse tipo nasce (a variação por modalidade vale, inclusive quando não traz esforço). Cópia. */
-export function esforcoInicial(tipo: TipoDeSerie | null | undefined, modalidade: string | null | undefined): Esforco | null {
-  const porModalidade = modalidade === 'LIVRE' || modalidade === 'MAQUINA' ? tipo?.porModalidade?.[modalidade] : undefined;
-  return copiarEsforco(porModalidade ? porModalidade.esforco : tipo?.esforcoPadrao);
+/** Esforço com que uma série desse tipo nasce: o padrão do tipo. Cópia. */
+export function esforcoInicial(tipo: TipoDeSerie | null | undefined): Esforco | null {
+  return copiarEsforco(tipo?.esforcoPadrao);
 }
 
 /** Faixas da regra de percentuais para `n` séries, se o tipo (de preparação) tiver regra para esse número. */

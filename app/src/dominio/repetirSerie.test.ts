@@ -27,10 +27,10 @@ describe('repetir a série anterior', () => {
     expect(mesmaPrescricao(semCarga, { ...semCarga, uid: 'z', esforco: null, tecnica: null })).toBe(true);
   });
 
-  it('back off apontando para a mesma referência é a mesma prescrição; para outra, não', () => {
-    const b = (uid: string, ref: string): Serie => ({ ...ws, uid, tipo: 'BACK_OFF', carga: carga('ABAIXO_DA_REFERENCIA', 15, null, ref) });
-    expect(mesmaPrescricao(b('x', 't'), b('y', 't'))).toBe(true);
-    expect(mesmaPrescricao(b('x', 't'), b('y', 'u'))).toBe(false);
+  it('back off com o mesmo percentual é a mesma prescrição; com outro, não', () => {
+    const b = (uid: string, pct: number): Serie => ({ ...ws, uid, tipo: 'BACK_OFF', carga: carga('PERCENTUAL_WS', pct, null) });
+    expect(mesmaPrescricao(b('x', 85), b('y', 85))).toBe(true);
+    expect(mesmaPrescricao(b('x', 85), b('y', 80))).toBe(false);
   });
 
   it('mostra os valores no rótulo e some sem nada registrado', () => {

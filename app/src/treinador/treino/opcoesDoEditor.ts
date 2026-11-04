@@ -142,18 +142,6 @@ export function opcoesDeCombinacao(config: Configuracao | null | undefined): { v
   return tipos.map((t) => ({ valor: t, rotulo: nomeDaCombinacao(config, t) }));
 }
 
-/**
- * Séries ANTES da posição `ate`, para a série de referência do "abaixo da referência": "Série 2 · Top set". A série de
- * carga fixa não entra (os kg são do treinador, não uma carga que o aluno registrou); a numeração é a da lista inteira.
- */
-export function opcoesDeReferencia(series: readonly Serie[], ate: number, config: Configuracao | null | undefined): { valor: string; rotulo: string }[] {
-  return series
-    .slice(0, Math.max(0, ate))
-    .map((s, i) => ({ s, i }))
-    .filter(({ s }) => s.carga?.modo !== 'CARGA_FIXA')
-    .map(({ s, i }) => ({ valor: s.uid, rotulo: `Série ${i + 1} · ${nomeDoTipo(config, s.tipo) || 'sem tipo'}` }));
-}
-
 // ---- Carga ----
 
 export interface RotulosDaFaixa {
@@ -172,10 +160,6 @@ export function rotulosDaFaixa(modo: ModoDeCarga | null | undefined, config: Con
   switch (modo) {
     case 'PERCENTUAL_WS':
       return { minimo: 'Mínimo', maximo: 'Máximo', ajuda: `Percentual da carga da ${ws} (o tipo de trabalho), nunca do 1RM. Sem máximo, o percentual é único.` };
-    case 'ACIMA_DA_ANTERIOR':
-      return { minimo: 'Mínimo', maximo: 'Máximo', ajuda: 'Quanto sobe sobre a carga da série anterior, nunca do 1RM (1% a 100%). Sem máximo, o percentual é único.' };
-    case 'ABAIXO_DA_REFERENCIA':
-      return { minimo: 'Mínimo', maximo: 'Máximo', ajuda: 'Quanto cai da carga da série de referência, nunca do 1RM (1% a 50%). Sem máximo, o percentual é único.' };
     default:
       return null;
   }
@@ -187,8 +171,6 @@ export function ajudaDaCarga(modo: ModoDeCarga | null | undefined, config: Confi
   switch (modo) {
     case 'CARGA_TRABALHO':
       return `A carga que o aluno informa para o dia: é a referência da ${ws} e dos percentuais.`;
-    case 'MESMA_CARGA':
-      return `A carga da última série de trabalho feita antes, no mesmo exercício.`;
     case 'CARGA_FIXA':
       return `Os ${unidade} que você escreve: o aluno vê o peso pronto. Não conta como série de trabalho nem serve de base para percentuais.`;
     case 'NENHUMA':
@@ -230,22 +212,15 @@ function rotuloDaSerie(series: readonly Serie[], indice: number, config: Configu
   return `série ${indice + 1}${nome ? ` (${nome})` : ''}`;
 }
 
-/** De onde sai a carga de uma série que depende de outra; `null` quando não depende ou não há de onde sair. */
+/** De onde sai a carga de uma série em "% da WS"; `null` quando não depende da WS. */
 export function referenciaDaCarga(series: readonly Serie[], indice: number, config: Configuracao | null | undefined): string | null {
   const s = series[indice];
   const modo = s?.carga?.modo;
-  if (modo === 'PERCENTUAL_WS' || modo === 'MESMA_CARGA') {
+  if (modo === 'PERCENTUAL_WS') {
     for (let i = indice - 1; i >= 0; i--) {
       if (serieDeTrabalho(series[i])) return `Referência: a carga registrada na ${rotuloDaSerie(series, i, config)}.`;
     }
     return `Referência: a carga de trabalho do dia, que o aluno informa.`;
-  }
-  if (modo === 'ACIMA_DA_ANTERIOR') {
-    return indice > 0 ? `Referência: a carga registrada na ${rotuloDaSerie(series, indice - 1, config)}.` : 'Sem série anterior: o aluno não terá carga de referência.';
-  }
-  if (modo === 'ABAIXO_DA_REFERENCIA') {
-    const posicao = s.carga?.referenciaUid ? series.findIndex((x) => x.uid === s.carga?.referenciaUid) : -1;
-    return posicao >= 0 && posicao < indice ? `Referência: a carga registrada na ${rotuloDaSerie(series, posicao, config)}.` : 'Escolha a série de referência.';
   }
   return null;
 }
@@ -253,7 +228,7 @@ export function referenciaDaCarga(series: readonly Serie[], indice: number, conf
 /** Como a série chega ao aluno, com o nome do tipo da metodologia (nunca o código). */
 export function previaDaSerie(series: readonly Serie[], indice: number, config: Configuracao | null | undefined, semCarga = false): PreviaDaSerie {
   const s = series[indice];
-  const meta = metaDaSerie(s, nomeDaSerieDeTrabalho(config), semCarga, config ?? undefined, series).replace(/^Meta: /, '');
+  const meta = metaDaSerie(s, nomeDaSerieDeTrabalho(config), semCarga, config ?? undefined).replace(/^Meta: /, '');
   const nome = nomeDoTipo(config, s.tipo);
   return { meta: nome ? `${nome} · ${meta}` : meta, referencia: s.cardio || semCarga ? null : referenciaDaCarga(series, indice, config) };
 }

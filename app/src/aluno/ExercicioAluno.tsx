@@ -43,7 +43,7 @@ import { CartaoSerieDeCardio } from './CartaoSerieDeCardio';
 import { PainelDoCheck } from './PainelDoCheck';
 import { RotuloDoIcone } from './RotuloDoIcone';
 import { barraDoTipo, CabecalhoDaSerie, DicaDoCampo, LinhaDoUltimoRegistro, MetaAoLado, RotuloDeHoje } from './PartesDaSerie';
-import { dicaDaCarga, ehExercicioDeCardio, partesDaMeta, selosDaSerie, textosDaSerie } from './serieDoAluno';
+import { ehExercicioDeCardio, partesDaMeta, selosDaSerie, textosDaSerie } from './serieDoAluno';
 
 export interface DadosSerie {
   carga: number | null;
@@ -259,7 +259,6 @@ function CorpoDoExercicio(p: Props) {
             cargaIlegivel={cargaIlegivel(c.serie)}
             metodologia={p.config.metodologia}
             tipoTrabalho={p.config.tipoTrabalho}
-            seriesDoExercicio={e.series}
             arredondamentoKg={p.config.arredondamentoKg}
             descansoNaSerie={p.descansoNaSerie ?? true}
             baseDaUltimaVez={p.cargaDoDia == null && p.ultima?.carga != null}
@@ -390,7 +389,7 @@ function CartaoSerie({
   const fundo = useAnimatedStyle(() => ({ backgroundColor: interpolateColor(progresso.get(), [0, 1], [cores.superficie, `${cores.sucesso}29`]) }));
   const s = calculada.serie;
   const numero = indice + 1;
-  const textos = textosDaSerie(s, { tipoTrabalho, semCarga, metodologia, seriesDoExercicio, descansoPorSerie: descansoNaSerie, unidade });
+  const textos = textosDaSerie(s, { tipoTrabalho, semCarga, metodologia, descansoPorSerie: descansoNaSerie, unidade });
   const meta = partesDaMeta(textos.valorDaMeta);
   const selos = selosDaSerie(s, metodologia);
   const barra = barraDoTipo(selos.tipo?.cor ? identificacao[selos.tipo.cor].cor : null);
@@ -398,12 +397,11 @@ function CartaoSerie({
 
   // Dica ao lado do campo (D1): "Sugestão: 60 kg · Última vez: 60 kg × 7". A "Última vez" é a da carga de trabalho do
   // exercício (D7), então só entra nas séries de trabalho; nas outras a dica fica com a sugestão. "Primeira vez" só quando o
-  // exercício nunca teve carga registrada; o Back off sem a referência registrada diz o que falta.
+  // exercício nunca teve carga registrada.
   // Com a caixa da base vazia (D1), "da base do dia" não diria a verdade: a conta partiu da última carga.
-  const origem = semCampoDePeso || calculada.sugestao == null ? null : textoDaOrigem(calculada, { tipoTrabalho, metodologia, series: seriesDoExercicio, baseDaUltimaVez });
-  const faltaReferencia = semCampoDePeso ? null : dicaDaCarga(s, { sugestao: calculada.sugestao, metodologia, seriesDoExercicio });
+  const origem = semCampoDePeso || calculada.sugestao == null ? null : textoDaOrigem(calculada, { tipoTrabalho, metodologia, baseDaUltimaVez });
   const dicaDoDominio = dicaDeCarga({ sugestaoKg: calculada.sugestao, ultima: ehSerieDeTrabalho(s) ? ultimaCarga : null, semCampoDePeso, unidade });
-  const dica = feita ? null : (faltaReferencia ?? (dicaDoDominio === TEXTO_PRIMEIRA_VEZ && ultimaCarga ? null : dicaDoDominio));
+  const dica = feita ? null : (dicaDoDominio === TEXTO_PRIMEIRA_VEZ && ultimaCarga ? null : dicaDoDominio);
   // A carga só entra na conta das séries seguintes com o ✓ (regra de sempre, N15): a dica diz isso enquanto não foi marcada.
   const avisoDoMarcar = !semCampoDePeso && !registro && (ativa || cargaDigitada !== null) && seriesSeguintesDependemDesta(seriesDoExercicio, indice);
 

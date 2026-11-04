@@ -11,10 +11,9 @@ import { textoDaCarga, type UnidadeDeCarga } from './unidadeDeCarga';
  * Séries consecutivas iguais (tipo, faixa de repetições, forma de carga, esforço, técnica, observação da série) aparecem
  * juntas como na planilha do Saraiva: "3x3 - FS 50% · 70% · 85% a 90% da WS", "1x3 a 6 - WS · 1 RIR", "1x8 - WS + Rest
  * pause 20 s".
- * Os percentuais e o valor do RIR ou do RPE ficam fora da chave: cada série do grupo tem os seus (a referência do back
- * off entra: duas séries que apontam séries diferentes não se juntam; da carga fixa entra o `valorKg`; do esforço entra só
- * a forma, RIR ou RPE ou nenhum, porque misturar as formas no grupo não tem texto possível). No plano elas continuam
- * individuais, cada uma com seu uid.
+ * Os percentuais e o esforço (RIR ou RPE, com ou sem valor) ficam fora da chave: cada série do grupo tem os seus, então
+ * pôr ou tirar o RIR de uma série não parte o grupo (da carga fixa entra o `valorKg`). No plano elas continuam individuais,
+ * cada uma com seu uid.
  */
 export interface GrupoDeSeries {
   /** Posição da primeira série do grupo na lista do exercício. */
@@ -50,9 +49,6 @@ const chaveTecnica = (t: Tecnica | null | undefined) =>
 
 const chaveCargaDaEtapa = (c: CargaDaEtapa | null | undefined) => (c ? `${c.modo}:${c.percentual ?? ''}` : '');
 
-/** Forma do esforço da série, sem o valor: `rir`, `rpe` ou vazio. O valor é de cada série e não separa o grupo. */
-const formaDoEsforco = (e: Esforco | null | undefined) => (e?.rir != null ? 'rir' : e?.rpe != null ? 'rpe' : '');
-
 const chave = (s: Serie) =>
   [
     s.tipo ?? '',
@@ -60,9 +56,7 @@ const chave = (s: Serie) =>
     s.repsMax ?? '',
     s.amrap ? 'amrap' : '',
     modo(s),
-    modo(s) === 'ABAIXO_DA_REFERENCIA' ? (s.carga?.referenciaUid ?? '') : '',
     modo(s) === 'CARGA_FIXA' ? (s.carga?.valorKg ?? '') : '',
-    formaDoEsforco(s.esforco),
     chaveTecnica(s.tecnica),
     s.alvoExtra ?? '',
     s.cardio ? JSON.stringify(s.cardio) : '',
@@ -124,57 +118,33 @@ export function textoEsforcoDoGrupo(grupo: { series: readonly Pick<Serie, 'esfor
 }
 
 /**
- * Carga em texto curto: "85% da WS", "85% a 90%", "+1% a 5% sobre a anterior", "mesma carga da WS", "15% abaixo da
- * referência (Top set)". Vazio para carga de trabalho e para "sem carga". `nomeDaWs` é o tipo de trabalho da metodologia
- * ("WS"); sem ele, só "85%" e "mesma carga". `nomeDaReferencia` é o nome do tipo da série de referência do back off.
- * Toda faixa sai de `percentuais.textoDaFaixa`: o mesmo texto no editor, no PDF e na meta do aluno.
+ * Carga em texto curto: "85% da WS", "85% a 90%", "12 kg". Vazio para carga de trabalho e para "sem carga". `nomeDaWs` é o
+ * tipo de trabalho da metodologia ("WS"); sem ele, só "85%". Toda faixa sai de `percentuais.textoDaFaixa`: o mesmo
+ * texto no editor, no PDF e na meta do aluno.
  */
-export function textoCarga(c: Carga | null | undefined, nomeDaWs?: string | null, nomeDaReferencia?: string | null, unidade: UnidadeDeCarga = 'kg'): string {
+export function textoCarga(c: Carga | null | undefined, nomeDaWs?: string | null, unidade: UnidadeDeCarga = 'kg'): string {
   // Forma de carga mais nova que o app: o texto fixo no lugar da carga (nunca um valor inventado).
   if (cargaIlegivel(c)) return TEXTO_CARGA_ILEGIVEL;
   const daWs = nomeDaWs ? ` da ${nomeDaWs}` : '';
   switch (c?.modo) {
     case 'PERCENTUAL_WS':
       return `${textoDaFaixa(c.percentualMin, c.percentualMax)}${daWs}`;
-    case 'ACIMA_DA_ANTERIOR':
-      return `${comMais(textoDaFaixa(c.percentualMin, c.percentualMax))} sobre a anterior`;
-    case 'MESMA_CARGA':
-      return `mesma carga${daWs}`;
     case 'CARGA_FIXA':
       return c.valorKg != null ? textoDaCarga(c.valorKg, unidade) : '';
-    case 'ABAIXO_DA_REFERENCIA':
-      return `${textoDaFaixa(c.percentualMin, c.percentualMax)} abaixo da referência${nomeDaReferencia ? ` (${nomeDaReferencia})` : ''}`;
     default:
       return '';
   }
-}
-
-/** "+" antes de cada faixa da lista ("+1% · +3% a 5%"); "—" (sem valor) fica como está. */
-function comMais(lista: string): string {
-  return lista.split(' · ').map((t) => (t === '—' ? t : `+${t}`)).join(' · ');
 }
 
 /**
- * Percentuais das séries de um grupo, pela forma de carga da primeira: "50% · 70% · 85% a 90% da WS", "+1% a 5% sobre a
- * anterior", "15% abaixo da referência (Top set)". Faixas iguais saem uma vez só (`textoDosPercentuais`). Vazio nas
- * formas sem percentual. `series` (as do exercício) dá o nome da série de referência; `nomeDaWs` é o "da WS" (padrão: o
- * tipo de trabalho da metodologia; sem ele, sem o "da").
+ * Percentuais das séries de um grupo, pela forma de carga da primeira: "50% · 70% · 85% a 90% da WS". Faixas iguais
+ * saem uma vez só (`textoDosPercentuais`). Vazio nas formas sem percentual. `nomeDaWs` é o "da WS" (padrão: o tipo de
+ * trabalho da metodologia; sem ele, sem o "da").
  */
-export function textoDosPercentuaisDoGrupo(grupo: { series: readonly Serie[] }, series: readonly Serie[], config?: Configuracao | null, nomeDaWs: string | null = tipoTrabalho(config)): string {
+export function textoDosPercentuaisDoGrupo(grupo: { series: readonly Serie[] }, config?: Configuracao | null, nomeDaWs: string | null = tipoTrabalho(config)): string {
   const primeira = grupo.series[0];
   const lista = textoDosPercentuais(grupo.series.map((s) => ({ min: s.carga?.percentualMin, max: s.carga?.percentualMax })));
-  switch (primeira?.carga?.modo) {
-    case 'PERCENTUAL_WS':
-      return `${lista}${nomeDaWs ? ` da ${nomeDaWs}` : ''}`;
-    case 'ACIMA_DA_ANTERIOR':
-      return `${comMais(lista)} sobre a anterior`;
-    case 'ABAIXO_DA_REFERENCIA': {
-      const referencia = nomeDaReferencia(primeira, series, config);
-      return `${lista} abaixo da referência${referencia ? ` (${referencia})` : ''}`;
-    }
-    default:
-      return '';
-  }
+  return primeira?.carga?.modo === 'PERCENTUAL_WS' ? `${lista}${nomeDaWs ? ` da ${nomeDaWs}` : ''}` : '';
 }
 
 /**
@@ -210,15 +180,8 @@ function chaveDeTexto(texto: string): string {
 }
 
 /** Carga e esforço juntos ("85% da WS · 1 RIR"); vazio para carga de trabalho sem esforço. */
-export function textoCargaEEsforco(s: Pick<Serie, 'carga' | 'esforco'>, nomeDaWs?: string | null, nomeDaReferencia?: string | null): string {
-  return [textoCarga(s.carga, nomeDaWs, nomeDaReferencia), textoEsforco(s.esforco)].filter(Boolean).join(' · ');
-}
-
-/** Nome (da metodologia) do tipo da série de referência do back off, entre as séries do exercício; vazio se não achar. */
-export function nomeDaReferencia(serie: Pick<Serie, 'carga'>, series: readonly Serie[], config?: Configuracao | null): string {
-  const uid = serie.carga?.referenciaUid;
-  const referencia = uid ? series.find((x) => x.uid === uid) : undefined;
-  return referencia ? nomeDoTipo(config, referencia.tipo) : '';
+export function textoCargaEEsforco(s: Pick<Serie, 'carga' | 'esforco'>, nomeDaWs?: string | null): string {
+  return [textoCarga(s.carga, nomeDaWs), textoEsforco(s.esforco)].filter(Boolean).join(' · ');
 }
 
 /** Cardio em texto curto: "30 min · 5 km · ritmo 6:00 · zona 2 · 8× 30 s / 60 s de descanso"; "—" sem nada. */
@@ -373,14 +336,13 @@ export function leituraDaTecnica(serie: Serie, config?: Configuracao | null, con
 }
 
 /**
- * Resumo do grupo, na língua da planilha: "3x3 - FS 50% · 70% · 85% a 90% da WS", "1x3 a 6 - WS · 1 RIR", "1x - Top set
- * +1% a 5% sobre a anterior", "2x6 a 8 - Back off 15% abaixo da referência (Top set)", "1x6 (4+2) - WS com Cluster 15 s".
- * O tipo sai pelo nome da metodologia (a série grava o código). `series` (as do exercício) dá o nome da série de
- * referência. Sem metodologia, o % sai sem "da WS" e a técnica com o nome fixo. `etapasAParte` (PDF): Cluster e Rest-pause
+ * Resumo do grupo, na língua da planilha: "3x3 - FS 50% · 70% · 85% a 90% da WS", "1x3 a 6 - WS · 1 RIR", "2x6 a 8 - Back
+ * off 85% da WS", "1x6 (4+2) - WS com Cluster 15 s". O tipo sai pelo nome da metodologia (a série grava o código).
+ * Sem metodologia, o % sai sem "da WS" e a técnica com o nome fixo. `etapasAParte` (PDF): Cluster e Rest-pause
  * ficam só com o nome da técnica, porque os blocos e a pausa vão numa linha própria logo abaixo. `semObservacao` (PDF): a
  * observação da série (`alvoExtra`) sai da linha, porque ganha a dela ("Observação desta série: …").
  */
-export function descreverGrupo(grupo: GrupoDeSeries, config?: Configuracao | null, series: readonly Serie[] = [], opcoes: { etapasAParte?: boolean; semObservacao?: boolean; unidade?: UnidadeDeCarga } = {}): string {
+export function descreverGrupo(grupo: GrupoDeSeries, config?: Configuracao | null, opcoes: { etapasAParte?: boolean; semObservacao?: boolean; unidade?: UnidadeDeCarga } = {}): string {
   const primeira = grupo.series[0];
   if (primeira.cardio) return `${grupo.series.length}x ${textoCardio(primeira.cardio)}`;
   const ws = tipoTrabalho(config);
@@ -394,12 +356,13 @@ export function descreverGrupo(grupo: GrupoDeSeries, config?: Configuracao | nul
   const reps = primeira.amrap ? 'AMRAP' : faixa(primeira);
   const partes = [`${grupo.series.length}x${reps}${blocos} - ${quem}`];
   const m = modo(primeira);
-  if (m === 'PERCENTUAL_WS' || m === 'ACIMA_DA_ANTERIOR' || m === 'ABAIXO_DA_REFERENCIA') {
-    partes.push(textoDosPercentuaisDoGrupo(grupo, series, config));
+  if (m === 'PERCENTUAL_WS') {
+    const percentuais = textoDosPercentuaisDoGrupo(grupo, config);
+    partes.push(primeira.tecnica ? `· ${percentuais}` : percentuais);
     const esforco = textoEsforcoDoGrupo(grupo);
     if (esforco) partes.push(`· ${esforco}`);
   } else {
-    const texto = [textoCarga(primeira.carga, ws, null, opcoes.unidade), textoEsforcoDoGrupo(grupo)].filter(Boolean).join(' · ');
+    const texto = [textoCarga(primeira.carga, ws, opcoes.unidade), textoEsforcoDoGrupo(grupo)].filter(Boolean).join(' · ');
     if (texto) partes.push(`· ${texto}`);
   }
   if (!opcoes.semObservacao && primeira.alvoExtra?.trim()) partes.push(`· ${primeira.alvoExtra.trim()}`);
@@ -408,7 +371,7 @@ export function descreverGrupo(grupo: GrupoDeSeries, config?: Configuracao | nul
 
 /** Resumo de todas as séries do exercício, um grupo por linha. */
 export function descreverSeries(series: Serie[], config?: Configuracao | null, unidade: UnidadeDeCarga = 'kg'): string[] {
-  return agrupar(series).map((g) => descreverGrupo(g, config, series, { unidade }));
+  return agrupar(series).map((g) => descreverGrupo(g, config, { unidade }));
 }
 
 /** Técnicas do exercício por extenso, sem repetir (o aluno lê uma vez, antes das séries). */

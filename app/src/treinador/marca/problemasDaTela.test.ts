@@ -51,7 +51,7 @@ describe('problemas da metodologia na tela', () => {
   it('os problemas de um item chegam com a chave relativa a ele', () => {
     const c = copia();
     c.tipos[1].nome = '';
-    c.tipos[1].cargaPadrao = { modo: 'PERCENTUAL_WS', percentualMin: 0, percentualMax: null, referenciaUid: null };
+    c.tipos[1].cargaPadrao = { modo: 'PERCENTUAL_WS', percentualMin: 0, percentualMax: null };
     const problemas = problemasDaMetodologia(c);
     const doTipo = problemasDoItem(problemas, 'tipos', 1);
     expect(Object.keys(doTipo)).toEqual(expect.arrayContaining(['nome']));

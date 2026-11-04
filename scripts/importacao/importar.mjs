@@ -148,16 +148,15 @@ const tecnicaVazia = (tipo) => ({
 });
 
 const tipoPadrao = (nome) => METODOLOGIA_PADRAO.tipos.find((t) => t.nome === nome);
-/** Código que a série grava (`WARM_UP`, `FEEDER`, `WORKING`, `TOP_SET`, `BACK_OFF`), pelo nome do tipo na metodologia padrão. */
+/** Código que a série grava (`WARM_UP`, `FEEDER`, `WORKING`, `BACK_OFF`), pelo nome do tipo na metodologia padrão. */
 export function codigoDoTipo(nome) {
   const t = tipoPadrao(nome);
   if (!t) throw new Error(`Tipo de série fora da metodologia padrão: ${nome}.`);
   return t.codigo;
 }
 /** Carga da série, com todos os campos do record (nenhum a mais, nenhum a menos). */
-export const cargaDe = (modo, extra = {}) => ({ modo, percentualMin: null, percentualMax: null, referenciaUid: null, ...extra });
+export const cargaDe = (modo, extra = {}) => ({ modo, percentualMin: null, percentualMax: null, ...extra });
 const TECNICAS_DE_GRUPO = new Set(METODOLOGIA_PADRAO.combinacoes.map((c) => c.tipo));
-const CODIGO_TOP_SET = codigoDoTipo('Top set');
 
 /** Série de cardio (exercício `CARDIO`): só `cardio` vale; tipo, repetições, carga, esforço e técnica ficam nulos. */
 export function serieDeCardio(cardio) {
@@ -250,20 +249,19 @@ export function lerSeries(linhas) {
 }
 
 /**
- * "Back off: reduzir 10% da Top set" / "da série anterior" / "10% a menos que a anterior": a redução e de onde ela parte
- * (`TOP`, `ANTERIOR` ou `null` quando o texto não aponta). "Back off com 85% da carga da WS" não é isto: é `PERCENTUAL_WS`.
+ * "Back off: reduzir 10% da Top set" / "da série anterior" / "10% a menos que a anterior": a redução escrita na planilha, que a
+ * metodologia nova não representa (o back off é sempre % da WS). Devolve o percentual ou `null` quando o texto não traz redução.
+ * "Back off com 85% da carga da WS" não é isto: é `PERCENTUAL_WS`.
  */
 export function reducaoDoBackOff(texto) {
-  const m = /back off[^%\d]*?(?:reduz\w*|redu[cç][aã]o|diminu\w*|menos|abaixo)[^%\d]*?(\d+)\s*%([^.;\n]*)/i.exec(texto)
-    ?? /back off[^%\d]*?(\d+)\s*%\s*(?:a\s+)?(?:menos|abaixo)([^.;\n]*)/i.exec(texto);
-  if (!m) return null;
-  const resto = m[2].toLowerCase();
-  return { percentual: Number(m[1]), referencia: /top set/.test(resto) ? 'TOP' : /anterior/.test(resto) ? 'ANTERIOR' : null };
+  const m = /back off[^%\d]*?(?:reduz\w*|redu[cç][aã]o|diminu\w*|menos|abaixo)[^%\d]*?(\d+)\s*%/i.exec(texto)
+    ?? /back off[^%\d]*?(\d+)\s*%\s*(?:a\s+)?(?:menos|abaixo)/i.exec(texto);
+  return m ? { percentual: Number(m[1]) } : null;
 }
 
 const percentual = (obs, re) => { const m = re.exec(obs ?? ''); return m ? Number(m[1]) : null; };
 
-export function montarSeries(linhas, obs, regra = REGRA_PADRAO, modalidade = null) {
+export function montarSeries(linhas, obs, regra = REGRA_PADRAO) {
   const itens = lerSeries(linhas);
   const deCardio = itens.filter((i) => i.cardio).length;
   if (deCardio > 0 && deCardio !== itens.length) throw new Error('Exercício de cardio só leva séries de cardio.');
@@ -272,33 +270,27 @@ export function montarSeries(linhas, obs, regra = REGRA_PADRAO, modalidade = nul
   const reducao = reducaoDoBackOff(texto);
   // "Back off, reduzir 10%" não é "10% da WS": com redução escrita, o percentual da WS não vale.
   const pBack = reducao ? null : percentual(obs, /back off[^%\d]*?(\d+)\s*%/i) ?? percentual(linhas.filter((x) => typeof x === 'string').join(' '), /back off[^%\d]*?(\d+)\s*%/i);
-  const pTop = percentual(obs, /(?:top set[^%\d+]*)?\+\s*(\d+)\s*%/i);
-  const porModalidade = (nome) => structuredClone(tipoPadrao(nome).porModalidade?.[modalidade] ?? null);
   let fs = 0;
   const series = [];
   for (const i of itens) for (let k = 0; k < i.n; k++) {
     if (i.cardio) { series.push(serieDeCardio(i.cardio)); continue; }
     // Rest pause, cluster e drop-set são técnicas da série de trabalho: sem tipo escrito, é uma WS com a técnica.
-    const tipo = i.tipo ?? 'WS';
+    // O Top set da planilha não existe na metodologia: vira WS (a carga de trabalho do dia), e o "+N%" escrito continua na observação (`obsLimpa` não o tira).
+    if (i.tipo === 'Top set') rel.topComoWs++;
+    const tipo = !i.tipo || i.tipo === 'Top set' ? 'WS' : i.tipo;
     let carga = cargaDe('NENHUMA');
-    let esforco = null;
+    const esforco = null;
     if (tipo === 'FS') {
       const faixa = regra[totalFs]?.[fs++];
       if (faixa != null) carga = cargaDe('PERCENTUAL_WS', { percentualMin: faixa.min, percentualMax: faixa.max ?? null });
     } else if (tipo === 'WS') {
       carga = cargaDe('CARGA_TRABALHO');
-      esforco = porModalidade('WS')?.esforco ?? null;
     } else if (tipo === 'Back off') {
       if (reducao) {
-        // O número é a redução (1 a 50), não o que sobra; a referência é a série que o texto aponta, nunca uma suposta.
-        const referencia = reducao.referencia === 'TOP' ? series.findLast((s) => s.tipo === CODIGO_TOP_SET) : reducao.referencia === 'ANTERIOR' ? series.at(-1) : undefined;
-        if (referencia && reducao.percentual >= 1 && reducao.percentual <= 50) carga = cargaDe('ABAIXO_DA_REFERENCIA', { percentualMin: reducao.percentual, referenciaUid: referencia.uid });
-        else rel.backOffSemReferencia++;
+        // "Reduzir N%" não é "N% da WS": a série fica com o padrão do back off (% da WS) e o treinador confere no editor.
+        carga = structuredClone(tipoPadrao('Back off').cargaPadrao);
+        rel.backOffReduzido++;
       } else if (pBack) carga = cargaDe('PERCENTUAL_WS', { percentualMin: pBack });
-    } else if (tipo === 'Top set') {
-      const padrao = porModalidade('Top set');
-      carga = pTop != null ? cargaDe('ACIMA_DA_ANTERIOR', { percentualMin: pTop }) : padrao?.carga ?? cargaDe('ACIMA_DA_ANTERIOR');
-      if (carga.percentualMin == null) rel.topSemPercentual++;
     }
     if (i.tecnica) rel.tecnicas++;
     series.push({
@@ -312,7 +304,6 @@ export function montarSeries(linhas, obs, regra = REGRA_PADRAO, modalidade = nul
 /** Tira da observação o que já virou % nas séries (e deixa o resto, como dicas e alternativas). */
 export function obsLimpa(obs) {
   const t = (obs ?? '')
-    .replace(/Top set\s*-\s*Faça com \+\d+%\s*da carga usada na WS\.?/gi, '')
     .replace(/Back off\s*-\s*Faça com \d+%\s*da carga realizada na WS\.?/gi, '')
     .replace(/Back off com \d+%\s*da carga da WS\.?/gi, '')
     .replace(/(?:WS\s*\+\s*)?Rest[ -]?pause\s*(?:\(\d+\s*micro[ -]?s[eé]ries\))?\s*,?\s*\d+\s*s\b/gi, '')
@@ -323,7 +314,7 @@ export function obsLimpa(obs) {
 }
 
 // ---------------------------------------------------------------- relatório
-const rel = { suplementos: [], ergogenicos: [], criados: new Set(), ligados: new Set(), grupos: 0, obsDicas: 0, conflitos: new Set(), linksIgnorados: new Set(), semLink: [], quase: [], modelos: [], mobilidade: [], trocados: new Set(), instrucoes: '', tecnicas: 0, topSemPercentual: 0, backOffSemReferencia: 0 };
+const rel = { suplementos: [], ergogenicos: [], criados: new Set(), ligados: new Set(), grupos: 0, obsDicas: 0, conflitos: new Set(), linksIgnorados: new Set(), semLink: [], quase: [], modelos: [], mobilidade: [], trocados: new Set(), instrucoes: '', tecnicas: 0, topComoWs: 0, backOffReduzido: 0 };
 const falar = (...a) => console.log(...a);
 
 // ---------------------------------------------------------------- biblioteca
@@ -442,7 +433,7 @@ async function conteudoTreino(m, regra) {
       const cardio = x.series.length > 0 && x.series.every((i) => typeof i !== 'string' && i.cardio);
       const e = cardio ? null : await exercicioDoPlano(x.nome, x.url, m.nome.replace(/ - .*/, ''));
       const timed = x.series.some((i) => typeof i !== 'string');
-      const series = montarSeries(x.series.map((i) => (typeof i === 'string' ? i : { n: i.count ?? 1, min: null, max: null, tipo: i.tipo ?? null, cardio: i.cardio })), x.obs ?? '', regra, e?.modalidade ?? null);
+      const series = montarSeries(x.series.map((i) => (typeof i === 'string' ? i : { n: i.count ?? 1, min: null, max: null, tipo: i.tipo ?? null, cardio: i.cardio })), x.obs ?? '', regra);
       if (x.grupo && !uidDe.has(x.grupo)) throw new Error(`Exercício num grupo que a sessão não tem: ${x.grupo}.`);
       exercicios.push({
         uid: randomUUID(), exercicioId: !e || (SIMULAR && String(e.id).startsWith('sim-')) ? null : e.id, nome: x.nome.replace(/\*/g, '').trim(),
@@ -471,7 +462,7 @@ function mostrar(nome, c) {
     falar(`\n[${s.diaSemana}] ${s.nome} (${s.tipo}) cardio: ${s.cardio ?? '-'}`);
     for (const e of s.exercicios) {
       falar(`  * ${e.nome} {${e.modalidade}} vídeo:${e.videoUrl ? 'sim' : '-'} obs: ${e.observacao ?? '-'}`);
-      falar('     ' + e.series.map((x) => `${x.tipo ?? 'cardio'} ${x.repsMin ?? ''}${x.repsMax && x.repsMax !== x.repsMin ? '-' + x.repsMax : ''}${x.tecnica ? ' ' + x.tecnica.tipo : ''}${x.carga?.percentualMin ? ' @' + x.carga.percentualMin : x.carga?.modo === 'ACIMA_DA_ANTERIOR' ? ' (acima da anterior)' : ''}${x.carga?.modo === 'ABAIXO_DA_REFERENCIA' ? ' (abaixo da referência)' : ''}`).join(' | '));
+      falar('     ' + e.series.map((x) => `${x.tipo ?? 'cardio'} ${x.repsMin ?? ''}${x.repsMax && x.repsMax !== x.repsMin ? '-' + x.repsMax : ''}${x.tecnica ? ' ' + x.tecnica.tipo : ''}${x.carga?.percentualMin ? ' @' + x.carga.percentualMin : ''}`).join(' | '));
     }
   }
 }
@@ -619,8 +610,8 @@ async function principal() {
   falar(`\nInstruções do Plano 16: ${rel.instrucoes}.`);
   lista('Modelos de treino', rel.modelos);
   if (rel.tecnicas) falar(`Séries com técnicas: ${rel.tecnicas}.`);
-  if (rel.topSemPercentual) falar(`Top set sem percentual prescrito: ${rel.topSemPercentual}; complete no editor.`);
-  if (rel.backOffSemReferencia) falar(`Back off com redução sem referência clara: ${rel.backOffSemReferencia}; escolha a série de referência no editor.`);
+  if (rel.topComoWs) falar(`Top set importado como WS: ${rel.topComoWs}; a metodologia não tem Top set, confira a carga no editor.`);
+  if (rel.backOffReduzido) falar(`Back off com redução escrita: ${rel.backOffReduzido}; ficou com o padrão (% da WS), confira no editor.`);
   lista('Modelos de mobilidade', rel.mobilidade);
   lista('Suplementos', rel.suplementos);
   lista('Medicação e ergogênicos', rel.ergogenicos);

@@ -45,7 +45,6 @@ interface Props {
   metodologia?: Configuracao;
   /** Nome da série de trabalho da configuração ("WS") e as séries do exercício: só para a frase de onde saiu a carga. */
   tipoTrabalho?: string;
-  seriesDoExercicio?: readonly Serie[];
   /** Sem base do dia gravada a conta parte da última carga: a origem diz "da última vez", não "da base do dia". */
   baseDaUltimaVez?: boolean;
   /** Passo do arredondamento (sugestão sobre a referência congelada). */
@@ -89,7 +88,7 @@ export function CartaoSerieComEtapas(p: Props) {
   const temPausa = !!s.tecnica && (s.tecnica.pausaSegundos != null || s.tecnica.pausaRespiracoes != null);
   const rotuloDaPausa = cluster ? 'Pausa entre blocos' : 'Pausa antes da retomada';
   // Sugestão de cada etapa sobre a referência congelada na primeira etapa (ou a de agora, antes dela). A da série segue a
-  // congelada só nos modos que partem dela; "acima da anterior" e "abaixo da referência" continuam com a conta do dia.
+  // congelada só nos modos que partem dela.
   const referencia = registro?.referenciaCarga ?? p.calculada.referencia?.valor ?? null;
   const sugestaoDaSerie = p.semCarga ? null
     : registro?.referenciaCarga != null && modoComReferenciaExterna(s) ? sugestaoSobreReferencia(s, referencia, p.arredondamentoKg) : p.calculada.sugestao;
@@ -106,7 +105,7 @@ export function CartaoSerieComEtapas(p: Props) {
   const semDetalhe = !!registro && !registro.etapas && (registro.repeticoes != null || registro.carga != null || registro.concluida);
   // De onde saiu a carga sugerida (A9), ao lado da sugestão da etapa da vez. Com a referência já congelada na primeira
   // etapa, a linha dela já diz a origem.
-  const origem = p.semCarga || registro?.referenciaCarga != null ? null : textoDaOrigem(p.calculada, { tipoTrabalho: p.tipoTrabalho, metodologia: p.metodologia, series: p.seriesDoExercicio, baseDaUltimaVez: p.baseDaUltimaVez });
+  const origem = p.semCarga || registro?.referenciaCarga != null ? null : textoDaOrigem(p.calculada, { tipoTrabalho: p.tipoTrabalho, metodologia: p.metodologia, baseDaUltimaVez: p.baseDaUltimaVez });
   const falta = feita ? null : faltaParaConcluir(etapas, previstas);
   const nomeDoGrupo = cluster ? `Blocos do Cluster, série ${p.numero}` : `Etapas do Rest-pause, série ${p.numero}`;
 

@@ -24,13 +24,13 @@ describe('textos da ajuda', () => {
 
   it('o guia do treinador cobre o contrato novo: tipo, técnica na série, carga e esforço, grupos e cardio', () => {
     const itens = GUIAS.treinador.secoes.flatMap((s) => s.itens.map((i) => i.titulo));
-    for (const titulo of ['Metodologia e tipos de série', 'Séries', 'Carga e esforço', 'Top set e Back off', 'Técnicas dentro da série', 'Grupos de exercícios', 'Cardio']) {
+    for (const titulo of ['Metodologia e tipos de série', 'Séries', 'Carga e esforço', 'Back off', 'Técnicas dentro da série', 'Grupos de exercícios', 'Cardio']) {
       expect(itens).toContain(titulo);
     }
     const texto = textoDoGuia('treinador');
     expect(texto).toContain('RIR 0 significa até a falha');
     expect(texto).toContain('nunca os dois');
-    expect(texto).toContain('abaixo da referência');
+    expect(texto).not.toMatch(/abaixo da referência|acima da anterior|mesma carga da/i);
   });
 
   it('os guias usam os rótulos novos e explicam a ordem de renovar a pasta', () => {

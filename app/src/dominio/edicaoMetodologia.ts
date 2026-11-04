@@ -1,11 +1,11 @@
-import type { Carga, Configuracao, Esforco, PapelDaSerie, PadraoPorModalidade, TipoDeSerie } from '../api/tipos';
+import type { Carga, Configuracao, Esforco, PapelDaSerie, TipoDeSerie } from '../api/tipos';
 import { PAPEIS, tecnicaDescritiva, TIPOS_DE_GRUPO, TIPOS_DE_TECNICA } from './metodologia';
 import { chaveDeTipo, codigoDoNovoTipo, codigoValido, MAXIMO_DO_NOME, mensagemTipoECombinacao, mensagemTipoETecnica, nomeDeCombinacao, nomeDeTecnica, NOMES_DE_COMBINACAO, NOMES_DE_TECNICA } from './tiposDeSerie';
 import { esforcoVazio, problemasDaCarga, problemasDaTecnica, problemasDoEsforco, type Problemas } from './validacaoDeSerie';
 
 /** Carga padrão do tipo: as regras da carga, e sem carga fixa (os kg são da série de um exercício; a API recusa também). */
 function problemasDaCargaPadrao(carga: Carga | null | undefined) {
-  const p = problemasDaCarga(carga, false);
+  const p = problemasDaCarga(carga);
   if (carga?.modo === 'CARGA_FIXA') p.modo = 'A carga fixa só vale na série de um exercício.';
   return p;
 }
@@ -21,7 +21,6 @@ const dentro = (v: number | null | undefined, min: number, max: number, inteiro 
   v != null && Number.isFinite(v) && v >= min && v <= max && (!inteiro || Number.isInteger(v));
 
 const ARREDONDAMENTOS = [0.25, 0.5, 1, 2.5];
-const MODALIDADES_COM_PADRAO = ['LIVRE', 'MAQUINA'];
 const PAPEIS_VALIDOS: readonly string[] = PAPEIS.map((p) => p.valor);
 
 /**
@@ -36,7 +35,6 @@ export function novoTipoDeSerie(nome: string, existentes: readonly Pick<TipoDeSe
     repeticoes: null,
     cargaPadrao: null,
     esforcoPadrao: null,
-    porModalidade: null,
     regraPercentuais: null,
     explicacao: null,
   };
@@ -46,17 +44,10 @@ function comPrefixo(destino: Problemas, prefixo: string, problemas: Problemas) {
   for (const [campo, mensagem] of Object.entries(problemas)) destino[`${prefixo}.${campo}`] = mensagem;
 }
 
-/** Carga e esforço padrão de um tipo (ou da variação por modalidade): faixas da API; a referência do back off não é exigida. */
-function problemasDoPadrao(destino: Problemas, prefixo: string, carga: Carga | null | undefined, esforco: Esforco | null | undefined) {
-  comPrefixo(destino, `${prefixo}.carga`, problemasDaCargaPadrao(carga));
-  // Esforço sem RIR nem RPE equivale a "sem esforço": `metodologiaParaSalvar` o tira, então não trava o salvar.
-  if (!esforcoVazio(esforco)) comPrefixo(destino, `${prefixo}.esforco`, problemasDoEsforco(esforco));
-}
-
 /**
  * TODOS os problemas da metodologia em edição, por campo (vazio = pode salvar). Chaves: `tipos`, `tipos[i].nome`,
  * `tipos[i].codigo`, `tipos[i].papel`, `tipos[i].repeticoes`, `tipos[i].cargaPadrao.percentualMin`,
- * `tipos[i].esforcoPadrao.rpe`, `tipos[i].porModalidade.LIVRE.carga.modo`, `tipos[i].regraPercentuais[.n]`,
+ * `tipos[i].esforcoPadrao.rpe`, `tipos[i].regraPercentuais[.n]`,
  * `tipos[i].explicacao`, `tecnicas`, `tecnicas[i].nome|explicacao|padrao[.campo]`, `combinacoes`,
  * `combinacoes[i].nome|explicacao`, `arredondamentoKg`, `instrucoesTreino`, `rodapePdf`. As mesmas regras da API
  * (`ConfiguracaoConsultoria.validarComoMetodologia`), com a mensagem do campo em vez de só a primeira falha.
@@ -88,13 +79,6 @@ export function problemasDaMetodologia(c: MetodologiaEmEdicao): Problemas {
     }
     comPrefixo(p, `${em}.cargaPadrao`, problemasDaCargaPadrao(t.cargaPadrao));
     if (!esforcoVazio(t.esforcoPadrao)) comPrefixo(p, `${em}.esforcoPadrao`, problemasDoEsforco(t.esforcoPadrao));
-    for (const [modalidade, padrao] of Object.entries(t.porModalidade ?? {}) as [string, PadraoPorModalidade | null][]) {
-      if (!MODALIDADES_COM_PADRAO.includes(modalidade) || padrao == null) {
-        p[`${em}.porModalidade`] = 'Padrão por modalidade: só peso livre e máquina, cada um com carga e/ou esforço.';
-        continue;
-      }
-      problemasDoPadrao(p, `${em}.porModalidade.${modalidade}`, padrao.carga, padrao.esforco);
-    }
     const regras = Object.entries(t.regraPercentuais ?? {});
     if (regras.length && t.papel !== 'PREPARACAO') p[`${em}.regraPercentuais`] = 'Regra de percentuais só em tipo de preparação.';
     for (const [n, faixas] of regras) {
@@ -159,31 +143,23 @@ export function problemasDaMetodologia(c: MetodologiaEmEdicao): Problemas {
   return p;
 }
 
-const semReferencia = (c: Carga | null | undefined): Carga | null => (c ? { ...c, referenciaUid: null } : null);
+const copiaDaCarga = (c: Carga | null | undefined): Carga | null => (c ? { ...c } : null);
 const esforcoOuNulo = (e: Esforco | null | undefined): Esforco | null => (esforcoVazio(e) ? null : { ...e });
 
 /**
  * A metodologia no formato que a API recebe: tira faixas vazias e espaços nas pontas; esforço sem RIR nem RPE vira nenhum
- * (a API recusaria um esforço padrão vazio, e é isso que impedia salvar quando se escolhia RPE e não se digitava o valor);
- * variação por modalidade sem carga nem esforço sai; a referência do back off não existe em padrão (nasce na série).
+ * (a API recusaria um esforço padrão vazio, e é isso que impedia salvar quando se escolhia RPE e não se digitava o valor).
  */
 export function metodologiaParaSalvar(c: MetodologiaEmEdicao): Configuracao {
   return {
     ...c,
     tipos: c.tipos.map((t) => {
-      const porModalidade = Object.fromEntries(
-        (Object.entries(t.porModalidade ?? {}) as [string, PadraoPorModalidade | null][])
-          .filter((e): e is [string, PadraoPorModalidade] => e[1] != null)
-          .map(([m, v]) => [m, { carga: semReferencia(v.carga), esforco: esforcoOuNulo(v.esforco) }] as const)
-          .filter(([, v]) => v.carga != null || v.esforco != null),
-      );
       return {
         ...t,
         nome: t.nome.trim(),
         repeticoes: t.repeticoes?.min != null && t.repeticoes.max != null ? { min: t.repeticoes.min, max: t.repeticoes.max } : null,
-        cargaPadrao: semReferencia(t.cargaPadrao),
+        cargaPadrao: copiaDaCarga(t.cargaPadrao),
         esforcoPadrao: esforcoOuNulo(t.esforcoPadrao),
-        porModalidade: Object.keys(porModalidade).length ? porModalidade : null,
         regraPercentuais: t.regraPercentuais as TipoDeSerie['regraPercentuais'],
         explicacao: t.explicacao?.trim() || null,
       };
