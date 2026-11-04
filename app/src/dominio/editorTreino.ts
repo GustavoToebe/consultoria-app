@@ -29,6 +29,7 @@ import {
   tipoPorCodigo,
   tipoTrabalho,
 } from './metodologia';
+import type { UnidadeDeCarga } from './unidadeDeCarga';
 import { novoUid } from './uid';
 
 /**
@@ -100,6 +101,7 @@ export function modosDeCarga(
   papel?: PapelDaSerie | null,
   atual?: ModoDeCarga | null,
   exercicioComCarga = false,
+  unidade: UnidadeDeCarga = 'kg',
 ): ModosDeCarga {
   const base = tipoTrabalho(config);
   const fixaOferecida = atual === 'CARGA_FIXA' || exercicioComCarga;
@@ -109,6 +111,7 @@ export function modosDeCarga(
     ? [...ordem.flatMap((valor) => todos.filter((m) => m.valor === valor)), ...todos.filter((m) => !ordem.includes(m.valor))]
     : todos;
   const opcoes = ordenadas.map((m): OpcaoDeModo => {
+    if (m.valor === 'CARGA_FIXA') return { ...m, rotulo: `Carga fixa (${unidade})` };
     if (!base) return { ...m };
     if (m.valor === 'PERCENTUAL_WS') return { ...m, rotulo: `Percentual da carga de trabalho (${base})` };
     if (m.valor === 'MESMA_CARGA') return { ...m, rotulo: `Mesma carga da ${base}` };

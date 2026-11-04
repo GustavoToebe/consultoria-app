@@ -118,13 +118,12 @@ describe('conversão e arredondamento', () => {
 });
 
 describe('unidade em uso', () => {
-  it('só o aluno com a chave ligada e lb escolhido vê libra', () => {
-    expect(unidadeEfetiva({ chaveLigada: true, ehAluno: true, preferida: 'lb' })).toBe('lb');
-    expect(unidadeEfetiva({ chaveLigada: true, ehAluno: true, preferida: 'kg' })).toBe('kg');
+  it('com a chave ligada vale a escolha de quem vê, aluno ou treinador', () => {
+    expect(unidadeEfetiva({ chaveLigada: true, preferida: 'lb' })).toBe('lb');
+    expect(unidadeEfetiva({ chaveLigada: true, preferida: 'kg' })).toBe('kg');
   });
-  it('chave desligada com lb salvo de antes, treinador e "Ver como aluno" ficam em kg', () => {
-    expect(unidadeEfetiva({ chaveLigada: false, ehAluno: true, preferida: 'lb' })).toBe('kg');
-    expect(unidadeEfetiva({ chaveLigada: true, ehAluno: false, preferida: 'lb' })).toBe('kg');
+  it('chave desligada com lb salvo de antes fica em kg', () => {
+    expect(unidadeEfetiva({ chaveLigada: false, preferida: 'lb' })).toBe('kg');
   });
 });
 

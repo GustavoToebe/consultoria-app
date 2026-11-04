@@ -5,6 +5,7 @@ import { rotuloDescanso } from './descanso';
 import { metaDaRetomada, textoDaCargaDaEtapa } from './etapas';
 import { nomeDaSerieDeTrabalho } from './metodologia';
 import { cargaIlegivel, TEXTO_CARGA_ILEGIVEL } from './modoDeCarga';
+import type { UnidadeDeCarga } from './unidadeDeCarga';
 import { temEtapaEmPercentual } from './validacaoDeSerie';
 
 /**
@@ -93,7 +94,7 @@ export function previaDoGrupo(
   grupo: { series: readonly Serie[] },
   series: readonly Serie[],
   config: Configuracao | null | undefined,
-  contexto: { semCarga?: boolean; descansoPorSerie?: boolean; referencia?: string | null },
+  contexto: { semCarga?: boolean; descansoPorSerie?: boolean; referencia?: string | null; unidade?: UnidadeDeCarga },
 ): PreviaDoGrupo {
   const primeira = grupo.series[0];
   const n = grupo.series.length;
@@ -109,7 +110,7 @@ export function previaDoGrupo(
     let carga: string;
     if (modo === 'CARGA_TRABALHO') carga = 'carga de trabalho (a base do dia, que o aluno informa)';
     else if (modo === 'MESMA_CARGA') carga = textoCarga(primeira.carga, ws);
-    else if (modo === 'CARGA_FIXA') carga = textoCarga(primeira.carga, ws);
+    else if (modo === 'CARGA_FIXA') carga = textoCarga(primeira.carga, ws, null, contexto.unidade);
     else carga = textoDosPercentuaisDoGrupo(grupo, series, config, ws);
     // Carga fixa sem os kg ainda (o treinador não preencheu): sem linha, nunca um valor inventado.
     if (carga || modo !== 'CARGA_FIXA') linhas.push(`Carga: ${carga}`);

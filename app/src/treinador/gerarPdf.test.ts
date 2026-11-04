@@ -1,4 +1,5 @@
 import type { PlanoResumo } from '../api/tipos';
+import { carga, exercicio, serie, sessao } from '../dominio/exemplosDeTreino.apoioTeste';
 import { gerarPdfDoPlano } from './gerarPdf';
 
 const mockConsultoria = jest.fn();
@@ -87,5 +88,21 @@ describe('gerarPdfDoPlano: rascunho × publicado (regra intacta)', () => {
     const doc = mockImprimir.mock.calls[0][0] as { corpo: string };
     expect(doc.corpo).toContain('Da versão publicada');
     expect(doc.corpo).not.toContain('Do rascunho');
+  });
+});
+
+describe('gerarPdfDoPlano: unidade de quem baixa', () => {
+  const comCargaFixa = () => {
+    mockConsultoria.mockResolvedValue({ marca });
+    const fixa = { ...carga('CARGA_FIXA'), valorKg: 12 };
+    const e = exercicio('e', { series: [serie('x', { tipo: 'WARM_UP', repsMin: 10, repsMax: 10, carga: fixa })] });
+    mockVersaoPlano.mockResolvedValue({ numero: 3, titulo: 'Plano v3', inicio: null, fim: null, conteudo: { sessoes: [sessao('s', [e], [], { nome: 'Terça - Peito', diaSemana: 2 })] } });
+  };
+  it('a carga fixa do treino sai em libra para o treinador que escolheu lb; sem unidade, em kg', async () => {
+    comCargaFixa();
+    await gerarPdfDoPlano('treino', plano(3), undefined, undefined, 'lb');
+    await gerarPdfDoPlano('treino', plano(3));
+    expect((mockImprimir.mock.calls[0][0] as { corpo: string }).corpo).toContain('26,5 lb');
+    expect((mockImprimir.mock.calls[1][0] as { corpo: string }).corpo).toContain('12 kg');
   });
 });

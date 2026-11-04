@@ -30,6 +30,7 @@ import { BarraDoEditor } from './BarraDoEditor';
 import { useDuasColunas } from './ColunasDoEditor';
 import { FolhaVerComoAluno, type PreviaDoPlano } from './FolhaVerComoAluno';
 import type { usePlanoEditor } from './usePlanoEditor';
+import { useUnidadeDeCarga } from '../../ui/unidadeDeCargaEmUso';
 
 type Editor<C> = ReturnType<typeof usePlanoEditor<C>>;
 
@@ -52,6 +53,7 @@ interface Props<C> {
  */
 export function BarraDoPlano<C>({ tipo, editor, aoProblemas, inicio }: Props<C>) {
   const { avisar } = useAviso();
+  const unidade = useUnidadeDeCarga();
   const { width } = useWindowDimensions();
   const estreito = width < LARGURA_MENU_LATERAL;
   // O rótulo longo só cabe na barra do editor de treino em duas colunas (em 1024 cortava o botão).
@@ -106,7 +108,7 @@ export function BarraDoPlano<C>({ tipo, editor, aoProblemas, inicio }: Props<C>)
     setGerandoPdf(true);
     try {
       if (e.plano.versaoPublicada === 0 && escritaLiberada) await editor.salvar();
-      await gerarPdfDoPlano(tipo, e.plano, e.conteudo);
+      await gerarPdfDoPlano(tipo, e.plano, e.conteudo, undefined, unidade);
     } catch (erro) {
       avisar(textoDoErro(erro), 'perigo');
     } finally {
