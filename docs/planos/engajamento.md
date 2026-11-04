@@ -36,7 +36,8 @@ constância e esforço feito; nunca corpo, dieta restritiva ou tempo de uso.
 - [ ] O Saraiva modera um mural? (Etapa 3)
 - [ ] Comunidade como adicional pago na Central? (Etapa 3)
 - [ ] Temporada e empate dos desafios (Etapa 4)
-- [ ] Push do servidor: serviço e avisos (antes da Etapa 3)
+- [x] Push do servidor, o serviço: feito em [push-do-expo.md](push-do-expo.md) (tokens, fila, job, texto fixo sem dado pessoal, chave `TREINOS_PUSH_HABILITADO` desligada), hoje só para compromisso marcado, remarcado ou cancelado
+- [ ] Push do servidor, os avisos do engajamento (reação "Visto", mural, desafio): decidir quais eventos avisam, o texto (fixo, sem dado pessoal, como o do compromisso) e se o aluno pode desligar por tipo (antes da Etapa 3)
 
 ## Etapas e passos
 Portões: 0→1 linha de base dos 5 alunos com a chave desligada e 2 semanas com a Etapa 0 ligada · 1→2 registros
@@ -54,7 +55,7 @@ confiáveis e números comparados · 2→3 moderação, push e adicional decidid
 - [ ] 1.3 Aba Progresso: Meu progresso, 28 dias contra os 28 anteriores
 - [ ] 1.4 Ficha: cartão "Acompanhamento" com abas
 - [ ] 2.1 Medalhas de constância e retomada
-- [ ] 3.1 Push do servidor
+- [ ] 3.1 Push do servidor: o serviço já existe (push-do-expo, 04/11, desligado e sem teste em APK); falta só dar a ele os avisos do engajamento, depois da decisão acima
 - [ ] 3.2 Mural: publicar, reagir, comentar, denunciar, ocultar, bloquear
 - [ ] 3.3 Compartilhar conquista com prévia
 - [ ] 3.4 Funcionalidade `COMUNIDADE` na Central
