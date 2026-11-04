@@ -1,6 +1,6 @@
 # Editor de treino em lista + inspetor (design do Stitch)
 
-Situação: PR aberto, aguardando revisão do Gustavo · Onde: branch `editor-treino-inspetor` · Atualizado: 04/11/2026
+Situação: primeira parte publicada (PR #94); sobras feitas, sem commit (S3 parcial) · Onde: branch `editor-inspetor-sobras` (worktree `wt-04-11-A`) · Atualizado: 04/11/2026
 
 ## Objetivo
 No PC largo, o editor de treino passa a ter duas colunas: a lista dos exercícios da sessão à esquerda e o inspetor do exercício
@@ -37,14 +37,20 @@ cantos, selos, cores da marca e as regras do AGENTS.md são os do app.
 - [x] 8. Contraste das peças novas, Ajuda e PDFs, AGENTS.md — commit/run: 7a96f360 e o anterior (contraste em 3569ca4a e 8df60751)
 - [x] 9. Prints (1440 claro e escuro, 1280, 1024, 390), revisão final, push e PR — commit/run: push da branch `editor-treino-inspetor` e PR (link no relatório); prints fora do git
 
+## Sobras (04/11, branch `editor-inspetor-sobras`)
+- [x] S1. Grupo de exercícios (superset e os outros): na lista vira uma linha compacta (`GrupoNaLista`: tipo, voltas, quantos exercícios, descanso) com os membros embaixo; escolher a linha abre a edição (tipo, descanso, incluir, setas, desfazer) no inspetor (`EditorDoGrupo`). Empilhado, tocar na linha abre a edição ali mesmo. Criar um grupo já o escolhe — commit sugerido: "Editor de treino: grupo de exercícios compacto na lista e edição no inspetor"
+- [x] S2. Técnica da série em `EscolhaSuspensa` (era chips); os e2e passaram a abrir a lista (`escolherTecnica`) sem perder asserção — commit sugerido: "Editor de treino: técnica da série em lista suspensa"
+- [~] S3. Repetições, Carga, Esforço e Descanso lado a lado conforme a largura do corpo do grupo de séries (regra pura `colunasDaPrescricao`, com teste, em `treinador/treino/colunasDaPrescricao.ts` ao lado do `CamposDaPrescricao`: os testes do `EditorSeries` trocam o `CamposDaPrescricao` inteiro por um mock): as quatro numa linha a partir de 926 px de corpo, de duas em duas a partir de 512, uma por linha abaixo disso; com mais de uma por linha, "Carga de cada série" desce para uma linha inteira. Medido: 674 px (1440), 522 (1280), 634 (1024), 294 (390), então 2 + 2 no PC e 1 no celular. Uma linha só pede uns 1700 px de janela — commit sugerido: "Editor de treino: prescrição da série lado a lado"
+- [x] S4. Celular com no máximo dois níveis de moldura: sessão sem cartão (só a faixa do cabeçalho) abaixo de 768 px e as seções do grupo de séries planas (divisor em vez de caixa) — commit sugerido: "Editor de treino: menos cartões aninhados no celular"
+- [x] S5. Dieta e mobilidade em lista + inspetor com 960 px de conteúdo (`TelaDoEditor colunas`): refeições (ou seções) numa lista de 280 px à esquerda (`plano/ItemDaListaDoEditor`, a mesma peça do item de exercício, com "Corrigir" na que tem problema) e a escolhida inteira à direita, sempre aberta (`CabecalhoDoItem` sem `aoAlternar`); adicionar escolhe a nova, remover passa à vizinha (`proximaSelecao`); "Abrir todas" some na dieta e vale só para os itens da seção escolhida na mobilidade; o modelo de uma refeição só fica empilhado. Abaixo de 960 px, os cartões empilhados de antes. `secaoValida` em `dominio/mobilidade` (o selo da seção), com teste. E2e `editor-inspetor-sobras` (1440, 1280, 1024, 390; claro e escuro) — commit sugerido: "Dieta e mobilidade em lista + inspetor no PC"
+
 ## Fora do escopo
-- O mesmo tratamento em dieta e mobilidade (ideia anotada: lista + inspetor nelas depois que o do treino for validado com o Saraiva).
 - Barra flutuante de cache local do design (D4).
 
 ## O que ficou para trás
-- Técnica ainda em chips (não `EscolhaSuspensa`) e Repetições/Carga/Esforço/Descanso em linhas separadas: `CamposDaPrescricao` guarda regra de campo e os e2e dependem dos chips; juntar numa linha só fica para depois.
-- O `CartaoGrupo` (superset) traz todos os controles dentro da coluna de ~360 px da lista e fica pesado; o certo seria levar a edição do grupo para o inspetor.
+- As quatro caixas da prescrição numa linha só aparecem a partir de uns 1700 px de janela (926 px de corpo); em todas as larguras de PC testadas ficam de duas em duas. Para caber em 1440 seria preciso estreitar a lista ou a caixa de Carga (310 px mínimos).
 - A estimativa da largura antes da primeira medida não considera o menu minimizado (72 px): nesse caso o primeiro quadro pode piscar uma vez.
-- Aninhamento de cartões (sessão, exercício, grupo, seções) deixa os campos estreitos no celular; "Mover exercício" repetido nos dois botões do topo do inspetor; chips de "Carga do exercício" empilhados em 1024.
+- "Mover exercício" repetido nos dois botões do topo do inspetor; chips de "Carga do exercício" empilhados em 1024.
 - O `webServer` do `npm run e2e` caiu uma vez com o código 3221225477 na máquina do Gustavo (contornado com `expo export` manual); se repetir na CI, investigar.
-- Dieta e mobilidade no mesmo layout de lista + inspetor.
+- Dieta no celular ainda tem três molduras (refeição › opção › item); a S4 cuidou só do treino.
+- Os guias em PDF precisam ser gerados de novo (a Ajuda mudou: lista e inspetor, séries, grupos, opções da dieta).
