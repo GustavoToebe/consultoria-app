@@ -54,3 +54,4 @@ Tudo marcado "Claude" foi decidido pelo Claude em 03/11 e precisa ser conferido 
 - Receipts do Expo não são lidos: um token que o Expo só recusa depois (`DeviceNotRegistered` no recibo) só some pela validade de 30 dias.
 - Conferir no aparelho (APK) e com o Expo real; esta frente só testa com servidor de mentira.
 - Ligar `TREINOS_PUSH_HABILITADO` em produção só depois de um APK com `expo-notifications` e do `TREINOS_PUSH_EXPO_TOKEN`, se o Gustavo quiser enhanced security.
+- O que falta para o push chegar a um build próprio (Firebase/`google-services.json` e credencial FCM V1 no EAS no Android, chave APNs no EAS no iPhone) está em `docs/build-celular.md`, seção 6: passo do Gustavo antes do teste no APK.

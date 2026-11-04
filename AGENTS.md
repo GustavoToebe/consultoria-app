@@ -361,7 +361,7 @@ documentação (`*.md`, `docs/`) não roda a CI. A tag `demo-parte-a` é o plano
 
 ## Onde está cada coisa
 - `api/` — backend novo. `app/` — app Expo novo.
-- `docs/` — `integracao-central.md` (integração com a Central), `catalogo.md` (catálogo público) e `fotos.md` (fotos da atualização: nome do objeto e saída de uma consultoria) e `build-celular.md` (EAS: perfis, APK de teste, o que testar no celular, o que muda para a loja, iPhone e TestFlight; ícones provisórios). Planilhas e CSVs
+- `docs/` — `integracao-central.md` (integração com a Central), `catalogo.md` (catálogo público) e `fotos.md` (fotos da atualização: nome do objeto e saída de uma consultoria) e `build-celular.md` (EAS: perfis, APK de teste, o que testar no celular, o que muda para a loja, iPhone e TestFlight; credenciais que faltam para o push (Firebase e APNs); ícones provisórios). Planilhas e CSVs
   de treino não ficam no git.
 
 ## Comandos
