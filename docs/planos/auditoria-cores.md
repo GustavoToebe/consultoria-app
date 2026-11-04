@@ -1,0 +1,187 @@
+# Auditoria de UI/UX: cores por situação
+
+Situação: Código pronto para revisão (passos 2 a 7 e 9; falta só o revisor) · Onde: branch `auditoria-cores` (worktree `wt-auditoria-cores`, saída da `main` em `3d65e04b`, com a `main` mesclada até o PR #64) · Atualizado: 03/11/2026
+
+## Objetivo
+Cada cor passa a dizer uma coisa só:
+- a cor da marca serve só para destaque e ação;
+- erro e alerta têm tom próprio;
+- desabilitado é cinza;
+- cada situação tem uma cor só, a mesma no aluno e no treinador.
+
+A regra escrita e a tabela "situação → cor", com o contraste medido, estão em `docs/design-e-front.md`, seção 4.5.
+
+## Decisões
+| # | Decisão | Valor | Quem decidiu |
+| --- | --- | --- | --- |
+| D1 | Uso da cor da marca | Só em destaque e ação, pela lista fechada da seção 4.5. Erro e alerta têm tom próprio (`perigo`, `atencao`) e desabilitado é cinza. | Gustavo, 03/11 (N24 da 2ª passada) |
+| D2 | Cor de status | Uma cor por situação. Âmbar (`atencao`) só para quem precisa agir; quem espera vê neutro. O texto diz quem age: o aluno que enviou vê "Enviada · aguardando revisão" em neutro e o treinador vê "Para revisar" em âmbar. | Gustavo, 03/11 (N25; resposta 2) |
+| D3 | Visual do desabilitado | Fundo `superficie3`, borda `borda`, texto e ícone `textoSuave`. Sem opacidade, sem a marca e sem token novo. O pior contraste do texto é 5,42 (escuro). | Gustavo, 03/11 (resposta 6: o botão desabilitado é cinza) |
+| D4 | Fundo do selo | Sempre opaco, com o `tingido` da própria cor, porque o selo transparente sobre a `faixaForte` fica abaixo de 4,5:1. O pior caso fica em 5,14. | Proposta (Claude, 03/11) |
+| D5 | Tom do aviso de rodapé | O `useAviso` ganha o tom `atencao`, para o alerta que não é erro. | Proposta (Claude, 03/11) |
+| D6 | Cobrança vencida | `perigo` nos dois lados. Para o aluno, o texto é "Vencida há N dias" e continua calmo; nada é bloqueado. | Gustavo, 03/11 (resposta 1) |
+| D7 | Coisa futura marcada | `neutro`, sempre com a data (compromisso, lembrete agendado, atualização daqui a N dias). | Gustavo, 03/11 (resposta 3) |
+| D8 | Barra da marca na sessão do editor de treino (`CartaoSessao`) | Fica e entra na lista fechada da seção 4.5. | Gustavo, 03/11 (resposta 4) |
+| D9 | Dia treinado no cartão para compartilhar (`cartaoDoTreino`) | Fica na cor da marca, como exceção escrita. | Gustavo, 03/11 (resposta 5) |
+| D11 | Status de cobrança | Exceção ao D2: segue os três tons comuns aos apps, para quem paga e para quem espera. Em aberto `atencao`, Vencida `perigo`, Paga `sucesso`, Cancelada e Isenta `neutro` (`dominio/minhaConta.situacaoDaCobrancaParaTela` já faz assim; o Financeiro segue igual). Vale para qualquer marca: `sucesso`, `atencao` e `perigo` são fixos no tema e nunca vêm da cor da consultoria, e o status sempre leva o texto (o ícone no selo de cobrança ficou como pendência solta: o `Selo` com `Icone` vira pílula, uma mudança de desenho). | Gustavo, 03/11 |
+| D10 | Marca parecida com erro | Distinguir pela forma: o confirmar destrutivo ganha ícone e o rótulo do resultado; o erro continua com ícone e fundo `tingido`; a Marca ganha um aviso que não bloqueia o Salvar. | Gustavo, 03/11 (resposta 6) |
+| D12 | Anamnese pendente no Início do aluno (`ITEM_ANAMNESE`, "Pendente") | Fica `neutro`, como estava. A tabela só decidiu o "Para responder" (`atencao`, `seloDaAnamnese`); o D2 pediria âmbar aqui também, porque quem age é o aluno. Opção mais conservadora: não mexer no que a tabela não cobre. | Decidido pelo Claude em 03/11, conferir com o Gustavo |
+| D13 | "Vencida há N dias" | Só na pendência "Pagamento em aberto" do Início do aluno (`seloDeVencida`): dias de `vencimento` até hoje, mínimo 1, "1 dia" no singular. O selo do "Meu plano" e o do treinador continuam "Vencida" (o cartão já mostra a data). | Decidido pelo Claude em 03/11, conferir com o Gustavo |
+| D14 | Cobrança que vence em até 3 dias (pendência do Início) | `atencao` "Vence dd/mm", como a "Em aberto" do D11, nos dois ramos (com e sem o "Pagar" no celular). | Decidido pelo Claude em 03/11, conferir com o Gustavo |
+| D15 | Aviso de atenção (`useAviso`, D5) | Borda `atencao`, ícone de triângulo (erro usa círculo) e fica até ser fechado, como o de erro; só o de sucesso some sozinho. | Decidido pelo Claude em 03/11, conferir com o Gustavo |
+| D16 | Aviso de marca perto de status (D10) | `avisoDeMarcaPertoDeStatus` usa o mesmo ΔE CIE76 de 25 que o `tokens.test.ts` exige das agendas, **só contra o `perigo`** do claro e do escuro (revisto depois do revisor: contra os três status avisavam seis das doze Cores prontas e a marca padrão, ruído demais; contra o `perigo` avisam só Vermelho intenso e Laranja, e a marca padrão `#C62828`). Texto neutro abaixo da cor, sem bloquear o Salvar. O botão destrutivo do `PainelConfirmacao` ganha o ícone `TriangleAlert`; o "rótulo do resultado" já vem do chamador ("Inativar", "Remover"). | Decidido pelo Claude em 03/11, conferir com o Gustavo |
+| D17 | Ícone no selo de cobrança (D11 dizia "texto e ícone") | Fica só o texto. O `Selo` aceita `Icone`, mas com ele vira pílula (borda redonda, sem caixa alta), uma mudança de desenho; a doc (4.5 e D11) foi corrigida para "texto" e o ícone virou pendência solta no README. | Decidido pelo Claude em 03/11, conferir com o Gustavo |
+| D18 | Botão carregando | Não vira cinza: o cinza do D3 vale só para `desabilitado`. `carregando` mantém o visual de antes (cor cheia a 50% com o spinner); `visualDoInativo` decide e `desabilitado.test.ts` cobre. Vale para `Botao` e `BotaoPublico`. | Decidido pelo Claude em 03/11, conferir com o Gustavo |
+| D19 | `Escolha` com opção desabilitada e selecionada | Fica igual à desabilitada não selecionada (hoje nenhuma tela faz isso); comentário no código, sem teste, porque o jest não monta a peça. | Decidido pelo Claude em 03/11, conferir com o Gustavo |
+
+## Inventário (03/11, sobre `3d65e04b`)
+
+**A marca fora da lista fechada:**
+- `treinador/treino/CartaoSessao.tsx`: barra lateral de 4 px na cor da marca. O comentário diz "identidade, não
+  status" (protótipo de 30/10). Fica (D8).
+- `dominio/cartaoDoTreino.ts` e `aluno/CartaoDoTreino.tsx`: o dia treinado aparece na cor da marca no cartão para
+  compartilhar, e "dia treinado" é status. Fica (D9).
+
+Os demais usos estão na lista fechada: `Botao`, `Abas`, `Navegacao`, `CartaoHoje`, `MarcaTitulo`, `Calendario`
+(hoje, "Hoje" e "Limpar"), as prévias de `FormMarca` e `PreferenciasDoApp`, e os PDFs.
+
+**A marca encosta no erro:** `Consultoria.java` nasce com a marca `#C62828`, que é exatamente o `perigoFundo` do
+tema escuro, e o `e2e/api-falsa.ts` usa `#B91C1C`, que é quase o `perigo` do claro. Com essa marca:
+- o botão primário e o botão de confirmar destrutivo do `PainelConfirmacao` ficam com o mesmo vermelho;
+- no `CartaoSessao`, a barra da marca encosta na borda vermelha do "Corrigir".
+
+**Desabilitado por opacidade (0,4 a 0,55) em vez de cinza:**
+- base do RNR, por `className`: `components/ui/button.tsx` (`props.disabled && 'opacity-50'`, que se soma à
+  opacidade do `Botao`), `input.tsx` (`editable === false`, usado pelo `Campo` e pela `BuscaGlobal`),
+  `toggle-group.tsx` e `toggle.tsx` (usados pela `Escolha`), `label.tsx` (`peer-disabled`) e `tabs.tsx` (usado
+  pelas `Abas`);
+- peças: `ui/Botao.tsx` (a marca a 50%), `ui/TelaPublica.tsx` (`BotaoPublico`, com a cor da consultoria),
+  `ui/IconeBotao.tsx`, `ui/Escolha.tsx`, `ui/EscolhaEmFolha.tsx`, `ui/CaixaSelecao.tsx` e
+  `ui/SelecaoMultiplaSuspensa.tsx` ("Limpar");
+- telas: `treinador/treino/EditorDeTreino.tsx`, `treinador/dieta/EditorDeDieta.tsx`,
+  `treinador/questionarios/SecoesDoQuestionario.tsx`, `treinador/marca/FolhaDoCatalogo.tsx` e
+  `aluno/atualizacao/QuestionarioAtualizacao.tsx`;
+- `ui/BotaoMarcar.tsx`: na prévia, o ✓ desabilitado não muda de visual.
+
+**Alerta pintado como erro:** o `ui/Aviso.tsx` só tem `sucesso`, `perigo` e `neutro`. Por isso estes alertas saem em
+vermelho:
+- `FormMarca`: "A marca foi alterada em outra aba";
+- `VerificacaoEmDuasEtapas`: "Nenhum aplicativo autenticador abriu o link";
+- `CartaoMeuPlano`: "O navegador bloqueou a nova aba";
+- `RespostaComModelo`: "A mensagem foi preparada, mas não deu para registrar".
+
+**A mesma situação com cores diferentes:**
+
+| Situação | Aluno (antes) | Treinador (antes) | Decidido |
+| --- | --- | --- | --- |
+| Atualização enviada | `sucesso` "Enviada" (`atualizacao.ts`, `paraFazer.ts`) | `atencao` "Para revisar" | aluno `neutro` "Enviada · aguardando revisão", treinador `atencao` (D2) |
+| Anamnese enviada | `sucesso` "Enviada" (`anamnese.ts`) | `atencao` "Para revisar" | aluno `neutro`, treinador `atencao` (D2) |
+| Atualização aberta | `atencao` "Responda até" (`statusAtualizacao`) e `neutro` "Até dd/mm" (`paraFazer`) | `neutro` "Hoje" ou "Em N dias" | aluno `atencao` nos dois pontos, treinador `neutro` (D2) |
+| Atualização adiada | `atencao` (`statusAtualizacao`) e `neutro` (`paraFazer`) | `atencao` "Adiada para" | aluno `atencao`, treinador `neutro` (D2: quem age é o aluno) |
+| Cobrança em aberto | `atencao` no "Meu plano" e `neutro` "Vence dd/mm" na pendência do Início (`paraFazer`) | `atencao` "Em aberto" | `atencao` "Em aberto" nos dois lados e nos dois pontos do aluno (D11: exceção dos três tons da cobrança) |
+| Cobrança vencida | `perigo` no "Meu plano" e `atencao` na pendência do Início (`paraFazer`) | `perigo` "Vencida" | `perigo` nos dois, "Vencida há N dias" no aluno (D6) |
+| Coisa futura marcada | `neutro` nos avisos de compromisso (`paraFazer`, "Novo", "Remarcado") | `atencao` "Agendado" (`agendaPresencial`, `lembretesDeCobranca`) e `neutro` na atualização futura | `neutro` nos dois, sempre com a data (D7) |
+
+## Dúvidas respondidas (Gustavo, 03/11)
+1. Cobrança vencida para o aluno: vermelho, como para o treinador, com "Vencida há N dias" (D6).
+2. Quem age e quem espera: âmbar só para quem precisa agir; quem espera vê neutro (D2, que mudou). A atualização aberta
+   fica neutra para o treinador, então o grupo "Em dia" da lista de alunos não ganha selo âmbar. Exceção: o status de
+   cobrança segue os três tons (D11), então a cobrança em aberto é âmbar também para o treinador.
+3. Coisa futura: cinza (neutro), sempre com a data (D7).
+4. Barra da marca no `CartaoSessao`: fica (D8).
+5. Dia treinado no cartão para compartilhar: fica na marca (D9).
+6. Marca parecida com o erro: distinguir pela forma, e o botão desabilitado vira cinza (D10 e D3).
+
+## Passos
+Executor de cada passo:
+- `executor-front` (Opus): o que é visual;
+- `executor` (Sonnet): o que tem regra nova em `dominio/`, que vem antes da tela.
+
+Todo passo de tela fecha com typecheck, lint, jest e o e2e da tela em 390 e 1280 px, claro e escuro, pela trava na
+porta 8106.
+
+- [x] 1. Regra e tabela em `docs/design-e-front.md` (4.1 e 4.2 apontam para a 4.5), este plano e a linha no índice.
+  Sem espera. Commit: 5be35f16
+  - Arquivos: `docs/design-e-front.md`, `docs/planos/auditoria-cores.md` e `docs/planos/README.md` (só a linha
+    desta frente).
+- [x] 2. **Tom igual nos dois lados: domínio** (`executor`). A frente 3 (#63) já estava na `main`; a frente 5 não, e a
+  sobreposição é só de arquivo (ver "Sobreposição com a frente 5"). Commit: a8164a2a
+  - Arquivos:
+    - `app/src/dominio/paraFazer.ts` e `paraFazer.test.ts`;
+    - `app/src/dominio/anamnese.ts` e `anamnese.test.ts`;
+    - `app/src/dominio/atualizacao.ts` e `atualizacao.test.ts` (frente 5);
+    - `app/src/dominio/agendaPresencial.ts` e `agendaPresencial.test.ts` (Agenda: conferir com a sessão principal se
+      é da frente 5);
+    - `app/src/dominio/lembretesDeCobranca.ts` e `lembretesDeCobranca.test.ts` (Financeiro: conferir se é da frente 5);
+    - novo `app/src/dominio/corPorSituacao.test.ts`.
+  - Aceite: o `corPorSituacao.test.ts` chama as funções do aluno e as do treinador para cada linha da tabela de
+    divergências e confere o tom da coluna "Decidido" (quem age, `atencao`; quem espera, `neutro`; vencida, `perigo`;
+    cobrança em aberto `atencao`, D11).
+    Textos novos: "Vencida há N dias" (aluno) e "Enviada · aguardando revisão" (aluno). O `gruposDeAlunos.ts` não muda.
+- [x] 3. **Desabilitado cinza nas peças** (`executor-front`; feito pela sessão principal). A frente 4 (#64) já estava na
+  `main`. Commit: dbaa03f7
+  - Arquivos: `app/src/ui/Botao.tsx`, `TelaPublica.tsx`, `IconeBotao.tsx`, `Escolha.tsx`, `EscolhaEmFolha.tsx`,
+    `CaixaSelecao.tsx`, `SelecaoMultiplaSuspensa.tsx` e `BotaoMarcar.tsx`; `app/src/components/ui/button.tsx`,
+    `input.tsx`, `toggle-group.tsx`, `toggle.tsx`, `label.tsx` e `tabs.tsx`; `app/src/ui/contrasteDasPecas.test.ts`;
+    novo `app/e2e/cores-por-situacao.spec.ts`, que simula a API no próprio spec (`page.route`) e não mexe no
+    `e2e/api-falsa.ts`, que é da frente 5.
+  - Aceite:
+    - nenhuma peça usa opacidade para desabilitar;
+    - o jest confere `textoSuave` sobre `superficie3` ≥ 4,5 nos três temas e no contraste alto;
+    - o e2e confere com `toHaveCSS` que um `Botao` primário desabilitado tem fundo `superficie3` e texto
+      `textoSuave`, e não a marca.
+- [x] 4. **Desabilitado cinza nas telas que pintam à mão** (`executor-front`; feito pela sessão principal). Commit: dbaa03f7
+  - Arquivos: `app/src/treinador/treino/EditorDeTreino.tsx` (PR B), `app/src/treinador/dieta/EditorDeDieta.tsx`
+    (PR B), `app/src/treinador/questionarios/SecoesDoQuestionario.tsx`,
+    `app/src/treinador/marca/FolhaDoCatalogo.tsx` e `app/src/aluno/atualizacao/QuestionarioAtualizacao.tsx`
+    (frente 3).
+  - Aceite: os mesmos tokens do passo 3; os e2e dos editores e da atualização continuam verdes.
+- [x] 5. **Selo opaco** (`executor-front`; feito pela sessão principal). Commit: 350c89e5
+  - Arquivos: `app/src/ui/Selo.tsx`, `app/src/ui/contrasteDasPecas.test.ts` e `app/e2e/editor-clareza.spec.ts`.
+  - Aceite:
+    - o jest confere cada tom sobre o próprio `tingido` ≥ 4,5 nos três temas;
+    - o e2e confere com `toHaveCSS('background-color')` o selo "Fora da biblioteca" (neutro) na faixa do exercício, no
+      claro e no escuro (o "Cardio" não ganhou caso próprio).
+- [x] 6. **Aviso de rodapé com tom de atenção** (`executor-front`; feito pela sessão principal). Commit: 350c89e5 e, no `FormMarca`, 2818fdd5
+  - Arquivos: `app/src/ui/Aviso.tsx`, `app/src/treinador/marca/FormMarca.tsx`,
+    `app/src/treinador/seguranca/VerificacaoEmDuasEtapas.tsx`,
+    `app/src/treinador/interessados/RespostaComModelo.tsx` (frente 4) e
+    `app/src/aluno/financeiro/CartaoMeuPlano.tsx` (frente 3).
+  - Aceite: os quatro alertas do inventário saem em âmbar, com ícone. O de erro continua vermelho e fica até ser
+    fechado.
+- [x] 7. **Marca parecida com erro** (D10). Commit: 2818fdd5
+  - 7a (`executor`): `app/src/dominio/paletas.ts` e `paletas.test.ts`, com o aviso de cor perto de um status, pela
+    distância já usada em `tokens.test.ts`.
+  - 7b (`executor-front`): `app/src/treinador/marca/FormMarca.tsx` (o aviso) e `app/src/ui/PainelConfirmacao.tsx`
+    (ícone no botão destrutivo).
+  - Aceite: com a marca `#C62828`, o painel destrutivo e o primário se distinguem sem depender da cor; o aviso
+    aparece na Marca e não bloqueia o Salvar.
+- [x] 8. **Exceções da marca** (D8 e D9: "manter"). Sem código: a lista fechada da seção 4.5 ganhou as duas linhas,
+  no mesmo commit destas respostas. Commit: 5be35f16
+- [x] 9. **Ponteiros** (`executor-rapido`; feito pela sessão principal). Commit: 29278146
+  - Arquivos: `AGENTS.md` (linha "Design": "tabela situação → cor em `docs/design-e-front.md` 4.5") e
+    `app/src/tema/tokens.ts` (o comentário do topo aponta para a mesma tabela).
+
+## Fora do escopo
+- Os valores dos tokens de status: a medição passou em todas as superfícies, menos sobre a `faixaForte`, que o
+  passo 5 resolve.
+- As paletas de identificação (tipo de série, refeição, agenda e fases do ciclo) e a cor da variação do peso: já
+  têm regra própria.
+- Trocar a cor padrão da marca de consultoria nova (`Consultoria.java`): é decisão de produto e não foi pedida.
+- Os PDFs: a marca aparece no título, na faixa e em valores em destaque, e o contraste sobre branco já é garantido
+  pelo `avaliarMarca`.
+- Central e Servirea (Angular).
+
+## Sobreposição com a frente 5 (`auditoria-treinador`, ainda não mesclada)
+Conferida em 03/11 com `git diff origin/main...auditoria-treinador`: a frente 5 mexe em `atualizacao.ts` (a frase
+`fraseDeTreinosNoPeriodo` e um import) e em `agendaPresencial.ts` (a `nomesCompletos`); este plano mexe em outras linhas
+dos mesmos arquivos (`SELO_ENVIADA_DO_ALUNO` e o "Adiada para" em `atualizacao.ts`; o `AGENDADO` em `agendaPresencial.ts`).
+Não há conflito de texto. `lembretesDeCobranca.ts`, `paraFazer.ts` e `anamnese.ts` a frente 5 não toca. Quem mesclar
+depois roda `agendaPresencial.test.ts` e `atualizacao.test.ts`.
+
+## O que ficou para trás
+- Casos fora da tabela, que mantêm o tom de antes (ver também as Pendências soltas do README): `ITEM_ANAMNESE` (D12),
+  `CartaoAcesso`, inscrições `AGUARDANDO`, cobrança `CONTESTADA` e as cores do consumo da conta.
+- `ui/BotaoMarcar.tsx`: o ✓ desabilitado da prévia já era cinza (`coresDoMarcar`, `textoSuave` sobre `superficie3`,
+  conferido em `contrasteDasPecas.test.ts`); não mudou.
+- O e2e do aviso de erro (vermelho, fica até fechar) não ganhou caso novo: o de atenção cobre o caminho do `useAviso`.

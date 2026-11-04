@@ -7,6 +7,7 @@ import { AccessibilityInfo, Platform, StyleSheet, View, type TextInput, type Tex
 import { escalar } from '../dominio/preferencias';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
+import { coresDoDesabilitado } from './desabilitado';
 import { Texto } from './Texto';
 
 interface Props extends Omit<TextInputProps, 'style' | 'onChangeText' | 'value'> {
@@ -44,6 +45,7 @@ interface Props extends Omit<TextInputProps, 'style' | 'onChangeText' | 'value'>
 export function Campo({ rotulo, valor, aoMudar, erro, ajuda, linhas, numerico, acao, rotuloAcessivel, rotuloOculto, sufixo, erroSemTexto, grande, ...resto }: Props) {
   const { cores, fatorTexto } = useTema();
   const [foco, setFoco] = useState(false);
+  const cinza = coresDoDesabilitado(cores);
   const corBorda = erro ? cores.perigo : foco ? cores.anelFoco : cores.bordaCampo;
   // Foco e erro têm borda de 2 px; o padding cede 1 px para a altura e o texto não mexerem.
   const destaque = foco || !!erro ? 1 : 0;
@@ -78,6 +80,7 @@ export function Campo({ rotulo, valor, aoMudar, erro, ajuda, linhas, numerico, a
           acao ? { paddingRight: ALVO_TOQUE } : sufixo ? { paddingRight: espaco(1.5) + escalar(16, fatorTexto) * sufixo.length } : null,
           { color: cores.texto, backgroundColor: cores.campo, borderColor: corBorda, fontSize: escalar(16, fatorTexto) },
           grande ? { fontSize: escalar(22, fatorTexto), fontFamily: fontes.semi, minHeight: ALVO_TOQUE + 8 } : null,
+          resto.editable === false ? { color: cinza.texto, backgroundColor: cinza.fundo, borderColor: cinza.borda } : null,
         ]}
       />
       {acao ? <View style={estilos.acao}>{acao}</View> : null}
