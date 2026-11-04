@@ -1,9 +1,9 @@
 import { useState, type ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, View, type ViewStyle } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, useWindowDimensions, View, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, LARGURA_EDITOR, LARGURA_MAXIMA } from '../../tema/tokens';
+import { espaco, LARGURA_EDITOR, LARGURA_MAXIMA, LARGURA_MENU_EXPANDIDO, LARGURA_MENU_LATERAL } from '../../tema/tokens';
 import { duasColunas, larguraDoEditor } from '../../dominio/colunasDoEditor';
 import { RolagemComTopo } from '../../ui/RolagemComTopo';
 import { ProvedorDeColunas } from './ColunasDoEditor';
@@ -27,6 +27,10 @@ interface Props {
   colunas?: boolean;
 }
 
+// shortcut: larguras do menu repetidas de `ui/Navegacao` (aberto e trilho; o minimizado não entra); se mudarem lá, só o 1º quadro erra.
+const MENU_ABERTO = 240;
+const MENU_TRILHO = 88;
+
 /** `position: sticky` existe no react-native-web (CSS), mas não no tipo do React Native. */
 const GRUDADA = { position: 'sticky', top: 0, zIndex: 10 } as unknown as ViewStyle;
 const GRUDADA_EMBAIXO = { position: 'sticky', bottom: 0, zIndex: 10 } as unknown as ViewStyle;
@@ -41,7 +45,10 @@ export function TelaDoEditor({ cabecalho, barra, children, largura = LARGURA_EDI
   const { cores } = useTema();
   // Medida na raiz, que acompanha a janela: o `View` do conteúdo tem `maxWidth` e mediria a si mesmo (a tela oscilaria).
   const [medida, setMedida] = useState<number | null>(null);
-  const duas = !!colunas && duasColunas(medida === null ? null : medida - 2 * espaco(2));
+  // Até a medida chegar, a janela menos o menu lateral: sem isto o 1º quadro saía em uma coluna e piscava (~90 ms) em 1280 e 1440.
+  const janela = useWindowDimensions().width;
+  const estimada = janela - (janela >= LARGURA_MENU_EXPANDIDO ? MENU_ABERTO : janela >= LARGURA_MENU_LATERAL ? MENU_TRILHO : 0);
+  const duas = !!colunas && duasColunas((medida ?? estimada) - 2 * espaco(2));
   const larguraUtil = duas ? larguraDoEditor(true) : Math.min(largura, LARGURA_MAXIMA);
   const web = Platform.OS === 'web';
   const fundoDaBarra = { backgroundColor: cores.fundo, borderColor: cores.borda };

@@ -1,6 +1,6 @@
 import { ArrowDown, ArrowUp, CircleAlert, CircleCheck, Minus, Plus, Smartphone, Trash2, TriangleAlert, type LucideIcon } from 'lucide-react-native';
 import { type ReactNode, useMemo, useState } from 'react';
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
 import type { Configuracao, Serie } from '../../api/tipos';
 import { agrupar, descreverGrupo, tituloDoGrupoDeSeries, type GrupoDeSeries } from '../../dominio/agrupamento';
 import { blocosValidos } from '../../dominio/blocos';
@@ -80,6 +80,11 @@ export function EditorSeries({ series, config, modalidade, aoMudar: aoMudarFora,
   const cfg = config ?? CONFIGURACAO_PADRAO;
   const cardio = modalidade === 'CARDIO';
   const grupos = agrupar(series);
+  // Lado a lado pela largura desta coluna, não da janela: no inspetor de 1280 a janela é larga e a coluna não.
+  const janelaLarga = useCamposLadoALado();
+  const [largura, setLargura] = useState<number | null>(ultimaLargura);
+  const largo = janelaLarga && (largura === null || largura >= LARGURA_LADO_A_LADO);
+  const medir = (e: LayoutChangeEvent) => { ultimaLargura = e.nativeEvent.layout.width; setLargura(ultimaLargura); };
   const [painel, setPainel] = useState(false);
   const [tipoNovo, setTipoNovo] = useState<string | null>(null);
   const [tecnicaNova, setTecnicaNova] = useState<EscolhaDeTecnica>('NENHUMA');
@@ -188,7 +193,8 @@ export function EditorSeries({ series, config, modalidade, aoMudar: aoMudarFora,
   const g = iAberto >= 0 ? grupos[iAberto] : null;
   const rotuloDaNova = cardio ? 'Novo cardio' : 'Nova série';
   const aoNova = cardio ? adicionarCardio : abrirPainel;
-  return <View style={estilos.lista}>
+  const nova = <Botao rotulo={rotuloDaNova} tipo="secundario" Icone={Plus} desabilitado={cheio} motivo={motivoCheio} aoTocar={aoNova} />;
+  return <View style={estilos.lista} onLayout={medir}>
     {grupos.length > 0 ? <Abas variante="invertida" fundo={cores.superficie} ativa={uidAberto ?? grupos[0].series[0].uid} aoMudar={definirAberto}
       abas={grupos.map((x, i) => ({
         valor: x.series[0].uid,
@@ -196,11 +202,13 @@ export function EditorSeries({ series, config, modalidade, aoMudar: aoMudarFora,
         detalhe: detalheDaAba(x),
         problema: problemaDaAba(nivelDoGrupo(validacao.porSerieErros, x)),
       }))}
-      depois={<Botao rotulo={rotuloDaNova} tipo="secundario" Icone={Plus} style={estilos.tracejado} desabilitado={cheio} motivo={motivoCheio} aoTocar={aoNova} />} />
+      // Cheio, o botão sai da faixa: desabilitado ele perdia o tracejado e o motivo ficava escondido dentro da rolagem.
+      depois={cheio ? undefined : <Botao rotulo={rotuloDaNova} tipo="secundario" Icone={Plus} style={estilos.tracejado} aoTocar={aoNova} />} />
       : <View style={estilos.vazio}>
         <Texto variante="suave">Nenhuma série ainda.</Texto>
-        <LinhaDeAcoes><Botao rotulo={rotuloDaNova} tipo="secundario" Icone={Plus} desabilitado={cheio} motivo={motivoCheio} aoTocar={aoNova} /></LinhaDeAcoes>
+        <LinhaDeAcoes>{nova}</LinhaDeAcoes>
       </View>}
+    {grupos.length > 0 && cheio ? <LinhaDeAcoes>{nova}</LinhaDeAcoes> : null}
     <ErroDoCampo mensagem={validacao.daLista.series} />
     <AvisoDoCampo mensagem={validacao.avisosDaLista.series} />
     {/* Bloco próprio, para não se confundir com os campos do grupo aberto; o "Nova série" da faixa abre e fecha. */}
@@ -214,7 +222,7 @@ export function EditorSeries({ series, config, modalidade, aoMudar: aoMudarFora,
         <Botao rotulo="Cancelar" tipo="fantasma" aoTocar={() => setPainel(false)} />
       </LinhaDeAcoes>
     </View> : null}
-    {g ? <EditorGrupo key={g.series[0].uid} grupo={g} series={series} config={cfg} cardio={cardio} semCarga={semCarga} exercicioComCarga={exercicioComCarga} descansoPorSerie={descansoPorSerie}
+    {g ? <EditorGrupo key={g.series[0].uid} largo={largo} grupo={g} series={series} config={cfg} cardio={cardio} semCarga={semCarga} exercicioComCarga={exercicioComCarga} descansoPorSerie={descansoPorSerie}
       tipos={tipos} podeMais={!cheio} primeiro={iAberto === 0} ultimo={iAberto === grupos.length - 1} numero={iAberto + 1}
       exercicio={numeroDoExercicio != null ? `Exercício ${numeroDoExercicio} · ${nomeDoExercicio?.trim() || 'sem nome'}` : null}
       porSerie={validacao.porSerieErros}
@@ -272,6 +280,17 @@ function Tecnicas({ rotulo, opcoes, valor, aoMudar }: {
   </>;
 }
 
+/**
+ * A partir desta largura da coluna das séries, Tipo e Técnica (e Esforço e Descanso) ficam lado a lado e o "Mover grupo"
+ * tem texto: 1440 e 1024 cabem; o inspetor de 1280 (uns 560 px) empilha, senão a técnica virava uma coluna de chips.
+ */
+const LARGURA_LADO_A_LADO = 640;
+/**
+ * Última largura medida: o cartão do exercício remonta ao trocar de exercício, e todos têm a mesma largura (sem piscar).
+ * shortcut: na 1ª montagem ainda não há medida e vale a janela (`useCamposLadoALado`), um quadro só; se piscar, medir mais acima.
+ */
+let ultimaLargura: number | null = null;
+
 /** Cluster em carga de trabalho: a ajuda da carga numa linha só (no lugar da padrão e da frase sobre a série anterior). */
 const AJUDA_DA_CARGA_DO_CLUSTER = 'A sugestão e os percentuais saem da carga que o aluno informa para o dia, não da série anterior.';
 
@@ -297,6 +316,8 @@ function Explicacao({ texto }: { texto: string }) {
 }
 
 interface PropsDoGrupo {
+  /** Campos curtos lado a lado e "Mover grupo" com texto: a coluna das séries é larga (`LARGURA_LADO_A_LADO`). */
+  largo: boolean;
   grupo: GrupoDeSeries; series: Serie[]; config: Configuracao; cardio: boolean; semCarga: boolean; exercicioComCarga: boolean; descansoPorSerie: boolean;
   tipos: { valor: string; rotulo: string; foraDaMetodologia: boolean }[]; podeMais: boolean; primeiro: boolean; ultimo: boolean; numero: number;
   /** "Exercício 2 · Supino reto", na faixa curta do topo do grupo aberto; nulo sem ela. */
@@ -308,9 +329,8 @@ interface PropsDoGrupo {
   aoRir: (i: number, valor: number) => void; aoRemover: () => void;
 }
 
-function EditorGrupo({ grupo: g, series, config, cardio, semCarga, exercicioComCarga, descansoPorSerie, tipos, podeMais, primeiro, ultimo, numero, exercicio, porSerie, esforcoVeioDoPadrao, aoMover, aoAlterar, aoQuantidade, aoRestPauseNaUltima, aoPercentuais, aoRir, aoRemover }: PropsDoGrupo) {
+function EditorGrupo({ largo, grupo: g, series, config, cardio, semCarga, exercicioComCarga, descansoPorSerie, tipos, podeMais, primeiro, ultimo, numero, exercicio, porSerie, esforcoVeioDoPadrao, aoMover, aoAlterar, aoQuantidade, aoRestPauseNaUltima, aoPercentuais, aoRir, aoRemover }: PropsDoGrupo) {
   const { cores, bordas } = useTema();
-  const largo = useCamposLadoALado();
   // Explicações do tipo e da técnica começam recolhidas; o "O que é?" abre.
   const [explicarTipo, setExplicarTipo] = useState(false);
   const [explicarTecnica, setExplicarTecnica] = useState(false);
@@ -478,7 +498,8 @@ const TEXTO_DA_PREVIA: Record<Nivel, string> = { sucesso: 'Série pronta', atenc
 
 /**
  * Mover o exercício ou o grupo de séries. Os dois ficam um dentro do outro e tinham o mesmo ícone: o nome acessível diz
- * qual ("Mover grupo de séries para cima") e, a partir de 768 px, o botão também diz na tela ("↑ Mover grupo", "↑ Mover
+ * qual ("Mover grupo de séries para cima") e, com espaço (no exercício a partir de 768 px de janela; no grupo de séries pela
+ * largura da coluna, `LARGURA_LADO_A_LADO`), o botão também diz na tela ("↑ Mover grupo", "↑ Mover
  * exercício"; reunião de 30/10, com o "Mover" desde 31/10 para quem não percebe a seta). No celular, só o ícone com moldura, para a linha de ações caber em 390 px.
  */
 export function BotaoDeMover({ alvo, direcao, comTexto, desabilitado, aoTocar }: {

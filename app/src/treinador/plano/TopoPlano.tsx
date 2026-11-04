@@ -27,6 +27,7 @@ import { gerarPdfDoPlano } from '../gerarPdf';
 import { FolhaPdfDieta } from '../../ui/FolhaPdfDieta';
 import { PERMISSOES_DO_PLANO } from '../../dominio/permissoes';
 import { BarraDoEditor } from './BarraDoEditor';
+import { useDuasColunas } from './ColunasDoEditor';
 import { FolhaVerComoAluno, type PreviaDoPlano } from './FolhaVerComoAluno';
 import type { usePlanoEditor } from './usePlanoEditor';
 
@@ -53,6 +54,8 @@ export function BarraDoPlano<C>({ tipo, editor, aoProblemas, inicio }: Props<C>)
   const { avisar } = useAviso();
   const { width } = useWindowDimensions();
   const estreito = width < LARGURA_MENU_LATERAL;
+  // O rótulo longo só cabe na barra do editor de treino em duas colunas (em 1024 cortava o botão).
+  const duas = useDuasColunas();
   const { temFuncionalidade } = useSessao();
   // Mobilidade fora do plano: a API só bloqueia escrita, então o editor abre para consulta, sem salvar nem publicar.
   const escritaLiberada = tipo !== 'mobilidade' || temFuncionalidade('MOBILIDADE');
@@ -172,8 +175,8 @@ export function BarraDoPlano<C>({ tipo, editor, aoProblemas, inicio }: Props<C>)
               aoTocar={salvar}
             />
             <Permitido codigo={PERMISSOES_DO_PLANO[tipo].publicar}>
-              {/* Só o treino, e fora do celular, diz para quem vai: dieta e mobilidade ficam com o rótulo de antes. */}
-              <Botao rotulo={tipo === 'treino' && !estreito ? 'Publicar para o aluno' : 'Publicar'} Icone={Send} carregando={publicando} desabilitado={!!semPublicar} motivo={semPublicar} aoTocar={() => publicar(false)} />
+              {/* Só o treino em duas colunas diz para quem vai: no celular, em 1024 e na dieta e mobilidade, "Publicar". */}
+              <Botao rotulo={tipo === 'treino' && duas ? 'Publicar para o aluno' : 'Publicar'} Icone={Send} carregando={publicando} desabilitado={!!semPublicar} motivo={semPublicar} aoTocar={() => publicar(false)} />
             </Permitido>
           </>
         ) : null}

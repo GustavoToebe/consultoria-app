@@ -48,5 +48,6 @@ const estilos = StyleSheet.create({
   estadoLargo: { flexBasis: 'auto', flexShrink: 0, maxWidth: '100%' },
   info: { flexShrink: 1 },
   infoLarga: { flexShrink: 0 },
-  acoes: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1), marginLeft: 'auto' },
+  // Encolhe até a largura da barra para os botões quebrarem linha (sem isto o último saía cortado em 390 e 1024).
+  acoes: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: espaco(1), marginLeft: 'auto', flexShrink: 1, maxWidth: '100%' },
 });

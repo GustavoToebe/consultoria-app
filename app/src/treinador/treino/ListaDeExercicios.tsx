@@ -57,16 +57,16 @@ interface PropsDoItem {
 
 /**
  * Item da lista: número, nome, selo de situação (`estadoDoExercicio`) e a linha das séries (`linhaDoExercicio`). O
- * escolhido tem a borda grossa e a barra à esquerda na cor da marca (como a aba ativa), `aria-current` e `selected`;
- * Tab e Enter escolhem pelo teclado.
+ * escolhido segue a seleção invertida do app (borda e barra na cor do texto, número invertido, como a aba de série
+ * aberta), com `aria-current` e `selected`; a cor da marca ficava igual à do erro em marca vermelha. Tab e Enter escolhem.
  */
 export function ItemDaListaDeExercicios({ exercicio: e, posicao, total, config, escolhido, comProblema, aoEscolher }: PropsDoItem) {
-  const { cores, bordas, marcaTexto } = useTema();
+  const { cores, bordas } = useTema();
   const estado = useMemo(() => estadoDoExercicio(e, config), [e, config]);
   const linha = useMemo(() => linhaDoExercicio(e, config), [e, config]);
   const nome = e.nome || 'sem nome';
   const erro = comProblema || estado.tipo === 'perigo';
-  const borda = escolhido ? marcaTexto : erro ? cores.perigo : cores.borda;
+  const borda = escolhido ? cores.texto : erro ? cores.perigo : cores.borda;
   return (
     <Pressable
       accessibilityRole="button"
@@ -80,19 +80,19 @@ export function ItemDaListaDeExercicios({ exercicio: e, posicao, total, config, 
           borderWidth: bordas.bloco,
           borderLeftWidth: BARRA,
           borderColor: borda,
-          borderLeftColor: escolhido ? marcaTexto : borda,
+          borderLeftColor: borda,
           backgroundColor: escolhido ? cores.superficie : sobre(s) ? cores.superficie3 : cores.superficie2,
         },
       ]}>
-      <View style={[estilos.numero, { borderColor: escolhido ? marcaTexto : cores.bordaCampo }]}>
-        <Texto numerico style={[estilos.textoDoNumero, { color: escolhido ? marcaTexto : cores.texto }]}>{posicao + 1}</Texto>
+      <View style={[estilos.numero, escolhido ? { backgroundColor: cores.texto, borderColor: cores.texto } : { borderColor: cores.bordaCampo }]}>
+        <Texto numerico style={[estilos.textoDoNumero, { color: escolhido ? cores.fundo : cores.texto }]}>{posicao + 1}</Texto>
       </View>
       <View style={estilos.meio}>
         <Texto style={estilos.nome} numberOfLines={2}>{nome}</Texto>
         <View style={estilos.selo}><Selo texto={estado.texto} tipo={estado.tipo} Icone={estado.Icone} /></View>
         <Texto variante="pequeno" numerico numberOfLines={2}>{linha}</Texto>
       </View>
-      <ChevronRight size={18} color={escolhido ? marcaTexto : cores.textoSuave} strokeWidth={2} />
+      <ChevronRight size={18} color={escolhido ? cores.texto : cores.textoSuave} strokeWidth={2} />
     </Pressable>
   );
 }

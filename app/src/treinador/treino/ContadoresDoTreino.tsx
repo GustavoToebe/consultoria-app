@@ -70,7 +70,7 @@ function Contador({ Icone, texto }: { Icone: LucideIcon; texto: string }) {
 
 const estilos = StyleSheet.create({
   linha: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
-  contador: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), minHeight: ALVO_TOQUE - 4, paddingHorizontal: espaco(1.5), paddingVertical: espaco(0.5), borderWidth: 1, borderRadius: RAIO, maxWidth: '100%' },
+  contador: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), minHeight: ALVO_TOQUE, paddingHorizontal: espaco(1.5), paddingVertical: espaco(0.5), borderWidth: 1, borderRadius: RAIO, maxWidth: '100%' },
   // Em 390 px ou com texto grande o contador quebra linha dentro da caixa em vez de sair dela.
   texto: { flexShrink: 1 },
   forte: { fontFamily: fontes.semi },
