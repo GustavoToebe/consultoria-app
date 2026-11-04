@@ -30,7 +30,7 @@ Tudo marcado "Claude" foi decidido pelo Claude em 03/11 e precisa ser conferido 
 - [x] 2. API: chave, migration, token (rotas, exportação, apagar), fila e job, gancho no `AgendaService`, testes — commit 52ab819b
 - [x] 3. App: `dominio/pushDoAluno.ts` com teste, interruptor na Conta, "Sair" remove o token, jest — commit do app desta branch
 - [x] 4. AGENTS.md (API e app) e verificação (typecheck, lint, jest, `mvn verify`)
-- [x] 5. Revisão independente (5 médios e 8 pequenos): token único global e validade de 30 dias, erro definitivo do ticket, resposta 200 inválida, FK composta, re-registro após trocar a senha, desligar sem permissão, "Sair" só com o aviso ligado, lote sem separar envio, testes do lote misto, do log e do https — commits desta rodada
+- [x] 5. Revisão independente (5 médios e 8 pequenos): token único global e validade de 30 dias, erro definitivo do ticket, resposta 200 inválida, FK composta, re-registro após trocar a senha, desligar sem permissão, "Sair" só com o aviso ligado, lote sem separar envio, testes do lote misto, do log e do https — commits e52ec9e6, 9b2690f8, d8ad665a e 5b951dc3
 
 ## Fora do escopo
 - Push para o treinador (a equipe não recebe nesta fase).
