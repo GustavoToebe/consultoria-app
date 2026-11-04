@@ -129,6 +129,14 @@ export default function Inscricao() {
     });
     return () => assinatura.remove();
   }, [duasPartes, parte]);
+  // Na web o voltar do navegador na parte 2 sairia da página e perderia o digitado: o navegador pergunta antes
+  // (`beforeunload`), como na guarda de saída dos editores. Depois do envio não pergunta mais.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !duasPartes || parte !== 2 || recebida) return;
+    const perguntar = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', perguntar);
+    return () => window.removeEventListener('beforeunload', perguntar);
+  }, [duasPartes, parte, recebida]);
   const responder = (id: string, valor: RespostaAtualizacao) => {
     setRespostas((r) => ({ ...r, [id]: valor }));
     setCampos((c) => {

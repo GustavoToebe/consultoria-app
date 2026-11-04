@@ -26,7 +26,12 @@ import { ItemDaListaDoEditor } from '../plano/ItemDaListaDoEditor';
  * 960 px de conteúdo, como o treino e a dieta) as seções viram uma lista à esquerda e a escolhida abre à direita, com os
  * itens; "Abrir todos" vale para os itens dela.
  */
-export function SecoesDeMobilidade({ conteudo: mob, aoMudar }: { conteudo: ConteudoMobilidade; aoMudar: (c: ConteudoMobilidade) => void }) {
+export function SecoesDeMobilidade({ conteudo: mob, aoMudar, irPara }: {
+  conteudo: ConteudoMobilidade;
+  aoMudar: (c: ConteudoMobilidade) => void;
+  /** "Ir ao primeiro" da lista de problemas: os uids do primeiro problema; `vez` muda a cada pedido. */
+  irPara?: { uids: string[]; vez: number } | null;
+}) {
   const { cores } = useTema();
   const [removerSecao, setRemoverSecao] = useState<number | null>(null);
   const [removerItem, setRemoverItem] = useState<{ secao: number; item: number } | null>(null);
@@ -34,6 +39,16 @@ export function SecoesDeMobilidade({ conteudo: mob, aoMudar }: { conteudo: Conte
   const duas = useDuasColunas();
   // Seção do inspetor; a que sumiu (removida, modelo recarregado) cai na primeira.
   const [escolhidaUid, setEscolhidaUid] = useState<string | null>(null);
+  // Ajuste durante o render (estado derivado): um pedido novo de "ir ao primeiro" escolhe a seção do problema.
+  const [vezVista, setVezVista] = useState(irPara?.vez);
+  if (irPara && irPara.vez !== vezVista) {
+    setVezVista(irPara.vez);
+    const alvo = mob.secoes.find((x) => irPara.uids.includes(x.uid) || x.itens.some((i) => irPara.uids.includes(i.uid)));
+    if (alvo) {
+      setEscolhidaUid(alvo.uid);
+      setAbertos((a) => new Set([...a, ...alvo.itens.filter((i) => irPara.uids.includes(i.uid)).map((i) => i.uid)]));
+    }
+  }
   const escolhida = mob.secoes.find((x) => x.uid === escolhidaUid) ?? mob.secoes[0];
   const alternar = (uid: string) => setAbertos((a) => { const novo = new Set(a); if (novo.has(uid)) novo.delete(uid); else novo.add(uid); return novo; });
   const todos = (duas ? (escolhida ? [escolhida] : []) : mob.secoes).flatMap((x) => x.itens.map((i) => i.uid));

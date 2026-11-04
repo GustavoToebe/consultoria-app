@@ -495,7 +495,8 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
               const d = daBiblioteca(e);
               return comModalidade({ ...novoExercicio(), ...d.campos }, d.modalidade);
             });
-            setExercicioSelecionadoUid(novos[0].uid);
+            // Com um grupo escolhido, o inspetor ficaria no grupo: escolher o exercício tira o grupo da seleção.
+            escolherExercicio(novos[0].uid);
             mudarExercicios(si, (lista) => [...lista, ...novos]);
             return;
           }
