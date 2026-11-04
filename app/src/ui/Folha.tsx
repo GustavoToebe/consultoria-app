@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, LARGURA_MENU_LATERAL, LINHA_DA_FAIXA, RAIO, VEU } from '../tema/tokens';
 import { marcarFolhaDoTopoFechando, useFolhaNoHistorico } from './historicoDasFolhas';
+import { capturaDoGatilho, useDevolverFocoNoNativo } from './focoDaFolha';
 import { IconeBotao } from './IconeBotao';
 import { RolagemComTopo } from './RolagemComTopo';
 import { Texto } from './Texto';
@@ -46,7 +47,7 @@ interface Props {
  * Painel por cima da tela: centralizado no PC, folha que sobe de baixo no celular. Usado para escolher da
  * biblioteca, aplicar receita e formulários curtos. Fecha no X, tocando fora ou no voltar do Android. Para o leitor
  * de tela é um diálogo modal com o nome do título; na web o foco entra no primeiro controle do conteúdo e, ao fechar,
- * volta a quem abriu a folha.
+ * volta a quem abriu a folha; no celular, com leitor de tela, também volta (`ui/focoDaFolha.ts`).
  */
 export function Folha({ visivel, titulo, aoFechar, children, rodape, largura, acaoNoTopo, faixa }: Props) {
   // Quem estava com o foco ao abrir (web). Ao fechar, o foco volta para ele (C3): na hora em que o painel sai (a folha
@@ -105,6 +106,7 @@ function Painel({titulo,aoFechar,children,rodape,largura,acaoNoTopo,faixa,quemAb
   const guardarElementoPortal = useCallback((no: View | null) => setElementoPortal(Platform.OS === 'web' ? (no as unknown as HTMLElement | null) : null), []);
   const valorPortal = useMemo(() => ({ nome: portal, elemento: elementoPortal }), [portal, elementoPortal]);
   useFolhaNoHistorico(aoFechar, valorPortal);
+  useDevolverFocoNoNativo();
   const conteudo = useRef<View>(null);
   const fechar = useRef<View>(null);
   // Sem animação de entrada: o painel aparece pronto. O deslocamento só existe para o arrastar-para-fechar no celular.
@@ -161,7 +163,7 @@ function Painel({titulo,aoFechar,children,rodape,largura,acaoNoTopo,faixa,quemAb
   }, [focarConteudo]);
   return (
     <PortalDaFolha.Provider value={valorPortal}>
-    <GestureHandlerRootView style={{flex:1}}>
+    <GestureHandlerRootView style={{flex:1}} {...capturaDoGatilho}>
       <KeyboardAvoidingView style={estilos.fundoArea} behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}>
       <View style={[estilos.fundo, centralizado ? estilos.fundoCentral : estilos.fundoInferior]}>
         {web
