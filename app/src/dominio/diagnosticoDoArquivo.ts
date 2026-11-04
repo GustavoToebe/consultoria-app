@@ -11,11 +11,11 @@ import { rotuloDoTipoDeAba } from './planilhaCompleta';
 export type Gravidade = 'impede' | 'atencao' | 'informa';
 
 const RESUMO_DO_TIPO: Record<TipoDoArquivoDiagnosticado, { titulo: string; detalhe: string }> = {
-  CADASTRO_DE_ALUNOS: { titulo: 'Cadastro de alunos', detalhe: 'Dá para importar em Alunos, ou pela Planilha completa.' },
+  CADASTRO_DE_ALUNOS: { titulo: 'Cadastro de alunos', detalhe: 'Dá para importar pela Planilha completa.' },
   PLANILHA_COMPLETA: { titulo: 'Planilha completa', detalhe: 'Várias abas ligadas. Dá para importar pela Planilha completa.' },
   TREINO: { titulo: 'Treinos', detalhe: 'Dá para importar pela Planilha completa, que liga cada treino ao aluno.' },
   DIETA: { titulo: 'Dietas', detalhe: 'Dá para importar pela Planilha completa, que liga cada dieta ao aluno.' },
-  OUTRO: { titulo: 'Conteúdo reconhecido, mas não é cadastro de alunos nem planilha completa', detalhe: 'Confira as abas abaixo e escolha o destino que combina com cada uma.' },
+  OUTRO: { titulo: 'Conteúdo reconhecido, mas não é cadastro de alunos nem planilha completa', detalhe: 'Não há alunos, treinos nem dietas. Confira as abas abaixo.' },
   DESCONHECIDO: { titulo: 'Arquivo não reconhecido', detalhe: 'Nenhuma coluna conhecida. Confira se a primeira linha traz os nomes das colunas.' },
 };
 
@@ -26,6 +26,8 @@ const UM = (n: number, singular: string, plural: string) => (n === 1 ? `1 ${sing
 
 const PROBLEMAS: Record<string, { gravidade: Gravidade; texto: (n: number) => string }> = {
   ARQUIVO_SEM_DADOS: { gravidade: 'impede', texto: () => 'O arquivo não tem nenhuma linha de dados.' },
+  NADA_PARA_IMPORTAR: { gravidade: 'impede', texto: () => 'Nenhuma aba tem algo que a importação grave (alunos, pesos, treinos, dietas, suplementos ou exercícios).' },
+  VARIAS_ABAS_DE_ALUNOS: { gravidade: 'atencao', texto: (n) => `${UM(n, 'aba de alunos além da primeira', 'abas de alunos além da primeira')}: só a primeira é lida.` },
   ABA_SEM_DADOS: { gravidade: 'atencao', texto: (n) => `${UM(n, 'aba sem nenhuma linha de dados', 'abas sem nenhuma linha de dados')}.` },
   ABA_NAO_RECONHECIDA: { gravidade: 'atencao', texto: (n) => `${UM(n, 'aba não reconhecida', 'abas não reconhecidas')} (não entra${n === 1 ? '' : 'm'} na importação).` },
   ABA_SEM_USO: { gravidade: 'informa', texto: (n) => `${UM(n, 'aba é uma tabela de alimentos de terceiros', 'abas são tabelas de alimentos de terceiros')}: reconhecida, mas nunca importada.` },
@@ -68,6 +70,10 @@ export function veredito(d: Pick<DiagnosticoDoArquivo, 'tipo' | 'problemas'>): V
   const impede = d.tipo === 'DESCONHECIDO' || d.problemas.some((p) => gravidadeDoProblema(p.codigo) === 'impede');
   if (impede) {
     return { tom: 'perigo', titulo: 'Este arquivo não dá para importar como está', texto: 'Veja o que falta abaixo, corrija na planilha e confira de novo.' };
+  }
+  // Só conteúdo que a importação não grava (tabela de alimentos, lista de exercícios): nunca "nenhum problema".
+  if (d.tipo === 'OUTRO') {
+    return { tom: 'atencao', titulo: 'Não há alunos, treinos nem dietas neste arquivo', texto: 'Só a lista de exercícios (para a biblioteca) seria importada. Confira as abas abaixo.' };
   }
   if (d.problemas.some((p) => gravidadeDoProblema(p.codigo) === 'atencao')) {
     return { tom: 'atencao', titulo: 'Dá para importar, mas há pontos para corrigir', texto: 'As linhas com problema podem ficar de fora. Corrigir na planilha antes evita isso.' };
@@ -115,5 +121,5 @@ export function contagensDaAba(aba: AbaDiagnosticada): string[] {
   return itens;
 }
 
-export const tituloDaAba = (aba: Pick<AbaDiagnosticada, 'nome' | 'tipo'>) =>
-  `${aba.nome.trim() || 'Planilha'} · ${rotuloDoTipoDeAba(aba.tipo)}`;
+/** O nome da aba é texto livre do arquivo (às vezes o nome de uma pessoa) e a API não o devolve: a aba é "Aba N", pela posição. */
+export const tituloDaAba = (aba: Pick<AbaDiagnosticada, 'indice' | 'tipo'>) => `Aba ${aba.indice + 1} · ${rotuloDoTipoDeAba(aba.tipo)}`;

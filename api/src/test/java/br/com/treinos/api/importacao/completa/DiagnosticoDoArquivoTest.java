@@ -78,7 +78,10 @@ class DiagnosticoDoArquivoTest {
         assertThat(a.emailsDuplicados()).isEqualTo(1);
         assertThat(a.datasInvalidas()).isEqualTo(2);
         assertThat(quantidade(a.problemas(), "COLUNA_NAO_RECONHECIDA")).isEqualTo(1);
-        assertThat(a.colunas()).filteredOn(c -> c.campo() == null).extracting(Coluna::nome).containsExactly("Plano Antigo");
+        // Coluna sem campo conhecido: o nome da planilha não sai, só a letra.
+        assertThat(a.colunas()).filteredOn(c -> c.campo() == null).extracting(Coluna::letra).containsExactly("E");
+        assertThat(a.colunas()).filteredOn(c -> c.campo() == null).extracting(Coluna::nome).containsOnlyNulls();
+        assertThat(d.toString()).doesNotContain("Plano Antigo");
         assertThat(d.problemas()).extracting(Problema::codigo).contains("LINHA_SEM_NOME", "EMAIL_INVALIDO",
                 "EMAIL_DUPLICADO", "DATA_INVALIDA", "COLUNA_NAO_RECONHECIDA");
         assertThat(d.toString()).doesNotContain("Aluno Teste").doesNotContain("example.com").doesNotContain("sem-arroba");
@@ -131,12 +134,103 @@ class DiagnosticoDoArquivoTest {
                 SEM_LIMITE).tipo()).isEqualTo(TipoDoArquivo.TREINO);
         assertThat(DiagnosticoDoArquivo.diagnosticar(leitura(Map.of("Refeições", todas.get("Refeições"))), SEM_LIMITE).tipo())
                 .isEqualTo(TipoDoArquivo.DIETA);
-        assertThat(DiagnosticoDoArquivo.diagnosticar(leitura(Map.of("Lista_Exercicios", todas.get("Lista_Exercicios"))),
-                SEM_LIMITE).tipo()).isEqualTo(TipoDoArquivo.OUTRO);
+        Diagnostico lista = DiagnosticoDoArquivo.diagnosticar(leitura(Map.of("Lista_Exercicios", todas.get("Lista_Exercicios"))),
+                SEM_LIMITE);
+        assertThat(lista.tipo()).isEqualTo(TipoDoArquivo.OUTRO);
+        assertThat(quantidade(lista.problemas(), "NADA_PARA_IMPORTAR")).isZero(); // a lista de exercícios vai para a biblioteca
         Diagnostico estranho = DiagnosticoDoArquivo.diagnosticar(umaAba("Qualquer", List.of(
                 linha("Alfa", "Beta"), linha("a", "b"), linha("c", "d"))), SEM_LIMITE);
         assertThat(estranho.tipo()).isEqualTo(TipoDoArquivo.DESCONHECIDO);
         assertThat(quantidade(estranho.problemas(), "ABA_NAO_RECONHECIDA")).isEqualTo(1);
+        assertThat(quantidade(estranho.problemas(), "NADA_PARA_IMPORTAR")).isEqualTo(1);
+    }
+
+    @Test
+    void soTabelaDeAlimentosDeTerceirosNaoTemNadaParaImportar() {
+        Diagnostico d = DiagnosticoDoArquivo.diagnosticar(leitura(Map.of("TACO",
+                PlanilhaDeTeste.abasDoTreinador().get("TACO"))), SEM_LIMITE);
+
+        assertThat(d.abas().getFirst().tipo()).isEqualTo(TipoDeAba.TABELA_DE_ALIMENTOS);
+        assertThat(quantidade(d.problemas(), "ABA_SEM_USO")).isEqualTo(1);
+        assertThat(quantidade(d.problemas(), "NADA_PARA_IMPORTAR")).isEqualTo(1);
+    }
+
+    @Test
+    void variasAbasDeAlunosAvisamQueSoAPrimeiraEELida() {
+        Map<String, List<List<Object>>> abas = new LinkedHashMap<>();
+        abas.put("Alunos", List.of(CAB, linha("Aluno Teste 1", null, null, null, null)));
+        abas.put("Alunos 2025", List.of(CAB, linha("Aluno Teste 2", null, null, null, null)));
+
+        Diagnostico d = DiagnosticoDoArquivo.diagnosticar(leitura(abas), new Vagas(1L, null));
+
+        assertThat(quantidade(d.problemas(), "VARIAS_ABAS_DE_ALUNOS")).isEqualTo(1);
+        assertThat(quantidade(d.problemas(), "ACIMA_DO_LIMITE_DO_PLANO")).isZero(); // só a primeira conta
+    }
+
+    @Test
+    void linhaDeDadosTomadaPorCabecalhoNaoDevolveTextoNenhum() {
+        // A primeira linha cita duas palavras conhecidas ("peso", "meta"): o leitor a toma por cabeçalho, mas nenhuma célula
+        // é igual a um nome conhecido, então o texto não sai.
+        Leitura csv = LeituraDasAbas.ler("sem-cabecalho.csv", ("Maria Teste Zq1;Ativa Zq2;Perder peso Zq3;Meta Zq4\n"
+                + "Outra Pessoa Zq5;Inativa;Ganhar massa;x\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+        Diagnostico d = DiagnosticoDoArquivo.diagnosticar(csv, SEM_LIMITE);
+
+        assertThat(d.abas().getFirst().colunas()).isNotEmpty().allSatisfy(c -> assertThat(c.nome()).isNull());
+        assertThat(d.toString()).doesNotContain("Zq").doesNotContain("Maria").doesNotContain("Pessoa");
+    }
+
+    @Test
+    void nomeDeAbaNuncaSaiEOLimiteContaOsAlunosDosBlocos() {
+        Map<String, List<List<Object>>> abas = new LinkedHashMap<>();
+        List<List<Object>> blocos = new ArrayList<>();
+        for (int i = 1; i <= 10; i++) {
+            blocos.add(linha("Aluno: Aluno Teste " + i));
+            blocos.add(linha("Exercício", "Prescrição"));
+            blocos.add(linha("Agachamento fictício", "4x10"));
+        }
+        abas.put("Treinos", blocos);
+        // Uma aba por aluno: o nome da aba é o nome do aluno (letras só, para ser reconhecido como nome).
+        abas.put("Treino - Sentinela Qxzvk", List.of(linha("Exercício", "Prescrição"), linha("Leg press fictício", "3x12")));
+
+        Diagnostico d = DiagnosticoDoArquivo.diagnosticar(leitura(abas), new Vagas(0L, null));
+
+        assertThat(d.tipo()).isEqualTo(TipoDoArquivo.TREINO);
+        assertThat(quantidade(d.problemas(), "ACIMA_DO_LIMITE_DO_PLANO")).isEqualTo(11);
+        assertThat(quantidade(d.problemas(), "NADA_PARA_IMPORTAR")).isZero();
+        assertThat(d.toString()).doesNotContain("Sentinela").doesNotContain("Qxzvk").doesNotContain("Treinos")
+                .doesNotContain("Aluno Teste");
+        assertThat(DiagnosticoDoArquivo.diagnosticar(leitura(abas), new Vagas(11L, null)).problemas())
+                .extracting(Problema::codigo).doesNotContain("ACIMA_DO_LIMITE_DO_PLANO");
+    }
+
+    @Test
+    void blocoDoAlunoQueJaEstaNaAbaDeAlunosNaoGastaOutraVaga() {
+        Map<String, List<List<Object>>> abas = new LinkedHashMap<>();
+        abas.put("Alunos", List.of(CAB, linha("Aluno Teste 1", null, null, null, null), linha("Aluno Teste 2", null, null, null, null)));
+        abas.put("Treinos", List.of(linha("Aluno: aluno teste 1"), linha("Exercício", "Prescrição"),
+                linha("Agachamento fictício", "4x10"), linha("Aluno: Aluno Teste 3"), linha("Exercício", "Prescrição"),
+                linha("Leg press fictício", "3x12")));
+
+        Diagnostico d = DiagnosticoDoArquivo.diagnosticar(leitura(abas), new Vagas(2L, null));
+
+        assertThat(quantidade(d.problemas(), "ACIMA_DO_LIMITE_DO_PLANO")).isEqualTo(1); // 2 da aba + 1 só do bloco = 3 para 2 vagas
+    }
+
+    @Test
+    void emailSoContaNaAbaDeAlunos() {
+        Map<String, List<List<Object>>> abas = new LinkedHashMap<>();
+        abas.put("Alunos", List.of(CAB, linha("Aluno Teste 1", "um@example.com", null, null, null)));
+        abas.put("Histórico Pesos", List.of(linha("ID Aluno", "Nome Aluno", "Email", "Data", "Peso (kg)"),
+                linha("AL1", "Aluno Teste 1", "um@example.com", "05/01/2026", 80.5),
+                linha("AL1", "Aluno Teste 1", "um@example.com", "12/01/2026", 80),
+                linha("AL1", "Aluno Teste 1", "sem-arroba", "19/01/2026", 79.5)));
+
+        Diagnostico d = DiagnosticoDoArquivo.diagnosticar(leitura(abas), SEM_LIMITE);
+
+        assertThat(d.abas().get(1).tipo()).isEqualTo(TipoDeAba.PESOS);
+        assertThat(quantidade(d.problemas(), "EMAIL_DUPLICADO")).isZero();
+        assertThat(quantidade(d.problemas(), "EMAIL_INVALIDO")).isZero();
     }
 
     @Test

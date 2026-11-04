@@ -20,9 +20,10 @@ import java.util.TreeSet;
 /**
  * Diagnóstico do arquivo antes de importar (migração assistida, fase 1): regra pura sobre as abas já lidas, sem banco, sem
  * relógio e sem gravar nada. Só regras fixas: o tipo de cada aba vem do {@link ReconhecimentoDeAbas} que a planilha completa
- * já usa. <b>A resposta nunca leva valor de célula</b>: só contagens, códigos de problema e nomes de aba e de coluna, e o nome
- * de coluna só sai quando o cabeçalho foi achado por duas ou mais colunas conhecidas e a célula parece nome de coluna (senão é
- * "Coluna X", para não devolver como "coluna" a primeira linha de dados de um arquivo sem cabeçalho).
+ * já usa. <b>A resposta nunca leva valor de célula</b>: só contagens, códigos de problema e o nome de coluna que é <i>igual</i>
+ * a um sinônimo conhecido (qualquer outro texto vira "Coluna X", para não devolver como "coluna" a linha de dados de um
+ * arquivo sem cabeçalho que por acaso cita uma palavra conhecida). <b>O nome da aba nunca sai</b>: o app mostra "Aba N" (pela
+ * posição) e o tipo reconhecido, porque o nome da aba é texto livre do arquivo e às vezes é o nome de uma pessoa.
  */
 public final class DiagnosticoDoArquivo {
 
@@ -40,7 +41,7 @@ public final class DiagnosticoDoArquivo {
     public record Problema(String codigo, int quantidade) {
     }
 
-    public record DaAba(int indice, String nome, TipoDeAba tipo, int linhas, int linhasVazias, int linhasSemNome,
+    public record DaAba(int indice, TipoDeAba tipo, int linhas, int linhasVazias, int linhasSemNome,
                         int emailsInvalidos, int emailsDuplicados, int datasInvalidas, int celulasComErro,
                         List<Coluna> colunas, List<Problema> problemas) {
     }
@@ -58,23 +59,80 @@ public final class DiagnosticoDoArquivo {
         List<DaAba> abas = new ArrayList<>();
         Map<String, Integer> geral = new LinkedHashMap<>();
         int total = 0;
-        int candidatos = 0;
+        boolean algoImportavel = false;
         for (AbaReconhecida aba : reconhecidas) {
             DaAba da = daAba(aba, leitura.abas().get(aba.indice()), leitura.data1904());
             abas.add(da);
             total += da.linhas();
-            if (da.tipo() == TipoDeAba.ALUNOS) {
-                candidatos = Math.max(candidatos, da.linhas() - da.linhasSemNome());
-            }
+            algoImportavel |= aba.partes().stream().anyMatch(p -> IMPORTAVEIS.contains(p.tipo()) && !p.dados().isEmpty());
             da.problemas().forEach(p -> geral.merge(p.codigo(), p.quantidade(), Integer::sum));
         }
         if (total == 0) {
             geral.put("ARQUIVO_SEM_DADOS", 1);
+        } else if (!algoImportavel) {
+            geral.put("NADA_PARA_IMPORTAR", 1);
         }
+        long abasDeAlunos = reconhecidas.stream().filter(a -> a.tipo() == TipoDeAba.ALUNOS).count();
+        if (abasDeAlunos > 1) {
+            geral.put("VARIAS_ABAS_DE_ALUNOS", (int) abasDeAlunos - 1); // só a primeira é lida
+        }
+        int candidatos = candidatosANovos(reconhecidas);
         excesso(geral, "ACIMA_DO_LIMITE_DO_PLANO", candidatos, vagas.plano());
         excesso(geral, "ACIMA_DO_LIMITE_DO_TREINADOR", candidatos, vagas.importador());
         List<Problema> problemas = geral.entrySet().stream().map(e -> new Problema(e.getKey(), e.getValue())).toList();
         return new Diagnostico(tipoDoArquivo(abas), total, List.copyOf(abas), problemas);
+    }
+
+    /** Tipos de aba que a planilha completa grava (a lista de exercícios vai para a biblioteca). */
+    private static final Set<TipoDeAba> IMPORTAVEIS = Set.of(TipoDeAba.ALUNOS, TipoDeAba.PESOS, TipoDeAba.TREINO, TipoDeAba.ROTINAS,
+            TipoDeAba.DIETA, TipoDeAba.PLANOS_DE_DIETA, TipoDeAba.SUPLEMENTOS, TipoDeAba.LISTA_DE_EXERCICIOS);
+    /** Abas em blocos "um aluno por bloco" que a montagem lê (ver {@code linhasPorDono}). */
+    private static final Set<TipoDeAba> COM_BLOCO = Set.of(TipoDeAba.PESOS, TipoDeAba.TREINO, TipoDeAba.DIETA, TipoDeAba.SUPLEMENTOS);
+    private static final int NOME_DE_ALUNO_MAXIMO = 120;
+
+    /**
+     * Teto de alunos novos ativos, como a montagem os reserva: as linhas com nome (e situação ativa) da <b>primeira</b> aba de
+     * alunos, mais um por nome de aluno de bloco (treino, dieta, suplemento, peso) que não está nessa aba. Sem comparar com quem
+     * já existe na consultoria: quem já existe não gasta vaga, então o número real pode ser menor, nunca maior.
+     */
+    private static int candidatosANovos(List<AbaReconhecida> reconhecidas) {
+        Set<String> daAba = new HashSet<>();
+        int candidatos = 0;
+        AbaReconhecida alunos = reconhecidas.stream().filter(a -> a.tipo() == TipoDeAba.ALUNOS).findFirst().orElse(null);
+        if (alunos != null) {
+            Reconhecimento r = alunos.reconhecimento();
+            for (Linha l : alunos.dados()) {
+                String chave = Normalizacao.chaveDoNome(AnaliseDaPlanilha.texto(l, r.coluna(Campo.ALUNO)));
+                if (chave.isEmpty()) {
+                    continue;
+                }
+                daAba.add(chave);
+                String situacao = Normalizacao.chaveDoNome(AnaliseDaPlanilha.texto(l, r.coluna(Campo.STATUS)));
+                if (situacao.isEmpty() || AnaliseDaPlanilha.ATIVO.matcher(situacao).matches()) {
+                    candidatos++;
+                }
+            }
+        }
+        Set<String> dosBlocos = new HashSet<>();
+        for (AbaReconhecida aba : reconhecidas) {
+            if (aba.emTabela()) {
+                continue;
+            }
+            for (AbaReconhecida parte : aba.partes()) {
+                FormatoDasAbas.Bloco b = parte.bloco();
+                if (b == null || b.aluno() == null || parte.dados().isEmpty() || !COM_BLOCO.contains(parte.tipo())) {
+                    continue;
+                }
+                String nome = b.aluno().replaceAll("\\s+", " ").strip();
+                if (!nome.isEmpty() && nome.length() <= NOME_DE_ALUNO_MAXIMO) {
+                    String chave = Normalizacao.chaveDoNome(nome);
+                    if (!daAba.contains(chave) && dosBlocos.add(chave)) {
+                        candidatos++;
+                    }
+                }
+            }
+        }
+        return candidatos;
     }
 
     private static void excesso(Map<String, Integer> problemas, String codigo, int candidatos, Long vagas) {
@@ -150,8 +208,9 @@ public final class DiagnosticoDoArquivo {
                 if (deAlunos && cNome >= 0 && AnaliseDaPlanilha.texto(l, cNome).isEmpty()) {
                     semNome++;
                 }
+                // E-mail só conta na aba de alunos: a aba de peso, por exemplo, só o usa para achar o aluno.
                 String email = AnaliseDaPlanilha.texto(l, cEmail).toLowerCase(Locale.ROOT);
-                if (cEmail >= 0 && !email.isEmpty() && !AnaliseDaPlanilha.SEM_EMAIL.contains(email)) {
+                if (deAlunos && cEmail >= 0 && !email.isEmpty() && !AnaliseDaPlanilha.SEM_EMAIL.contains(email)) {
                     if (!AnaliseDaPlanilha.EMAIL.matcher(email).matches() || email.length() > 254) {
                         emailsInvalidos++;
                     } else if (!emails.add(email)) {
@@ -196,8 +255,23 @@ public final class DiagnosticoDoArquivo {
         p.put("CELULA_COM_ERRO_DE_FORMULA", comErro);
         List<Problema> problemas = p.entrySet().stream().filter(e -> e.getValue() > 0)
                 .map(e -> new Problema(e.getKey(), e.getValue())).toList();
-        return new DaAba(aba.indice(), aba.nome(), tipo, linhas, vazias, semNome, emailsInvalidos, emailsDuplicados,
+        return new DaAba(aba.indice(), tipo, linhas, vazias, semNome, emailsInvalidos, emailsDuplicados,
                 datasInvalidas, comErro, lista, problemas);
+    }
+
+    /**
+     * O texto, sem acento nem caixa, é exatamente um dos nomes que a importação conhece ("Nome", "E-mail", "Objetivo"…). Só
+     * assim o texto da célula pode sair: um texto que apenas <i>contém</i> uma palavra conhecida ("Perder peso", "Maria Ativa")
+     * pode ser dado de pessoa numa linha de dados tomada por cabeçalho.
+     */
+    private static boolean igualAUmSinonimo(String texto) {
+        List<String> palavras = Normalizacao.palavras(texto);
+        for (Campo campo : Campo.values()) {
+            if (campo.sinonimos().contains(palavras)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Colunas com cabeçalho preenchido ou campo reconhecido pelo conteúdo, na ordem da planilha. */
@@ -205,9 +279,6 @@ public final class DiagnosticoDoArquivo {
         Linha cabecalho = linhasDaAba.stream().filter(l -> r.linhaDoCabecalho() > 0 && l.numero() == r.linhaDoCabecalho())
                 .findFirst().orElse(null);
         List<Celula> celulas = cabecalho == null ? List.of() : cabecalho.celulas();
-        long conhecidas = celulas.stream().filter(c -> ReconhecimentoDeAbas.pareceNomeDeColuna(c)
-                && ReconhecimentoDeAbas.campoDoNome(c.texto()).isPresent()).count();
-        boolean nomesVisiveis = conhecidas >= 2;
         Map<Integer, Campo> campos = new LinkedHashMap<>();
         r.campos().forEach((campo, coluna) -> campos.put(coluna, campo));
         Set<Integer> posicoes = new TreeSet<>(campos.keySet());
@@ -219,7 +290,7 @@ public final class DiagnosticoDoArquivo {
         List<Coluna> colunas = new ArrayList<>();
         for (int i : posicoes) {
             Celula c = i < celulas.size() ? celulas.get(i) : null;
-            String nome = nomesVisiveis && ReconhecimentoDeAbas.pareceNomeDeColuna(c) ? c.texto().strip() : null;
+            String nome = ReconhecimentoDeAbas.pareceNomeDeColuna(c) && igualAUmSinonimo(c.texto()) ? c.texto().strip() : null;
             Campo campo = campos.get(i);
             colunas.add(new Coluna(LeitorDePlanilha.letra(i), nome, campo == null ? null : campo.name()));
         }

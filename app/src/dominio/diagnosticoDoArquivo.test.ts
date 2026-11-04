@@ -5,12 +5,12 @@ import {
 } from './diagnosticoDoArquivo';
 
 const ABA: AbaDiagnosticada = {
-  indice: 0, nome: 'Alunos', tipo: 'ALUNOS', linhas: 3, linhasVazias: 1, linhasSemNome: 0, emailsInvalidos: 0, emailsDuplicados: 0,
+  indice: 0, tipo: 'ALUNOS', linhas: 3, linhasVazias: 1, linhasSemNome: 0, emailsInvalidos: 0, emailsDuplicados: 0,
   datasInvalidas: 0, celulasComErro: 0, problemas: [],
   colunas: [
     { letra: 'A', nome: 'Nome', campo: 'ALUNO' },
     { letra: 'B', nome: 'Email', campo: 'EMAIL' },
-    { letra: 'C', nome: 'Plano Antigo', campo: null },
+    { letra: 'C', nome: null, campo: null },
     { letra: 'D', nome: null, campo: null },
   ],
 };
@@ -45,6 +45,19 @@ describe('veredito', () => {
     expect(veredito(DIAG({ problemas: [{ codigo: 'ARQUIVO_SEM_DADOS', quantidade: 1 }] })).tom).toBe('perigo');
   });
 
+  it('arquivo sem nada que se grave nunca diz que não há problema', () => {
+    expect(veredito(DIAG({ problemas: [{ codigo: 'NADA_PARA_IMPORTAR', quantidade: 1 }] })).tom).toBe('perigo');
+    const outro = veredito(DIAG({ tipo: 'OUTRO' }));
+    expect(outro.tom).toBe('atencao');
+    expect(outro.titulo).not.toContain('Nenhum problema');
+  });
+
+  it('mais de uma aba de alunos avisa que só a primeira é lida', () => {
+    const p = { codigo: 'VARIAS_ABAS_DE_ALUNOS', quantidade: 2 };
+    expect(textoDoProblema(p)).toBe('2 abas de alunos além da primeira: só a primeira é lida.');
+    expect(veredito(DIAG({ problemas: [p] })).tom).toBe('atencao');
+  });
+
   it('ponto de atenção avisa; coluna não reconhecida sozinha só informa', () => {
     expect(veredito(DIAG({ problemas: [{ codigo: 'EMAIL_INVALIDO', quantidade: 2 }] })).tom).toBe('atencao');
     expect(veredito(DIAG({ problemas: [{ codigo: 'COLUNA_NAO_RECONHECIDA', quantidade: 2 }] })).tom).toBe('sucesso');
@@ -67,7 +80,7 @@ describe('tipo do arquivo, colunas e contagens', () => {
   });
 
   it('separa as colunas reconhecidas das que ficam de fora e nomeia as sem cabeçalho pela letra', () => {
-    expect(colunasDaAba(ABA)).toEqual({ reconhecidas: ['Nome: Nome do aluno', 'Email: E-mail'], naoReconhecidas: ['Plano Antigo', 'Coluna D'] });
+    expect(colunasDaAba(ABA)).toEqual({ reconhecidas: ['Nome: Nome do aluno', 'Email: E-mail'], naoReconhecidas: ['Coluna C', 'Coluna D'] });
     expect(nomeDaColuna({ letra: 'E', nome: '  ', campo: null })).toBe('Coluna E');
   });
 
@@ -81,8 +94,8 @@ describe('tipo do arquivo, colunas e contagens', () => {
     expect(contagensDaAba({ ...ABA, linhas: 1, linhasVazias: 0 })).toEqual(['1 linha de dados']);
   });
 
-  it('título da aba com o tipo; aba sem nome (CSV) vira Planilha', () => {
-    expect(tituloDaAba(ABA)).toBe('Alunos · Alunos');
-    expect(tituloDaAba({ nome: ' ', tipo: 'DESCONHECIDA' })).toBe('Planilha · Não reconhecida (não entra)');
+  it('título da aba é a posição e o tipo, nunca o nome do arquivo', () => {
+    expect(tituloDaAba(ABA)).toBe('Aba 1 · Alunos');
+    expect(tituloDaAba({ indice: 2, tipo: 'DESCONHECIDA' })).toBe('Aba 3 · Não reconhecida (não entra)');
   });
 });

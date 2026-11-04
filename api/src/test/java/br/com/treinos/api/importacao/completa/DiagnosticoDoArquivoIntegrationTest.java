@@ -90,7 +90,7 @@ class DiagnosticoDoArquivoIntegrationTest extends AbstractIntegrationTest {
     @Test
     void diagnosticaSemGravarNadaENuncaDevolveValorDeCelula() throws Exception {
         Map<String, List<List<Object>>> abas = new LinkedHashMap<>();
-        abas.put("Alunos", List.of(
+        abas.put("Alunos " + SENTINELA, List.of(
                 linha("Nome", "Email", "Telefone", "Observação Interna " + "Extra"),
                 linha("Aluno Teste 1 " + SENTINELA, "um@example.com", null, "Nota " + SENTINELA),
                 linha("Aluno Teste 2", "invalido-" + SENTINELA, null, null),
@@ -105,7 +105,11 @@ class DiagnosticoDoArquivoIntegrationTest extends AbstractIntegrationTest {
         assertThat(problema(d, "EMAIL_INVALIDO")).isEqualTo(1);
         assertThat(problema(d, "EMAIL_DUPLICADO")).isEqualTo(1);
         assertThat(problema(d, "LINHA_SEM_NOME")).isEqualTo(1);
-        assertThat(d.path("abas").get(0).path("nome").asString()).isEqualTo("Alunos");
+        // O nome da aba é texto livre do arquivo: a resposta traz só a posição e o tipo reconhecido.
+        assertThat(d.path("abas").get(0).has("nome")).isFalse();
+        assertThat(d.path("abas").get(0).path("indice").asInt()).isZero();
+        assertThat(d.path("abas").get(0).path("tipo").asString()).isEqualTo("ALUNOS");
+        assertThat(d.path("abas").get(0).path("colunas").get(3).path("nome").isString()).isFalse(); // coluna sem nome conhecido
         // Nenhum valor de célula, nem o nome do aluno, nem o e-mail, nem o texto livre.
         assertThat(texto).doesNotContain(SENTINELA).doesNotContain("Aluno Teste").doesNotContain("example.com")
                 .doesNotContain("invalido-");
@@ -143,6 +147,42 @@ class DiagnosticoDoArquivoIntegrationTest extends AbstractIntegrationTest {
         assertThat(problema(daOutra, "ACIMA_DO_LIMITE_DO_TREINADOR")).isZero();
         assertThat(api.get("/importacoes", outra, 200).path("total").asInt()).isZero();
         assertThat(api.get("/importacoes", treinador, 200).path("total").asInt()).isZero();
+    }
+
+    @Test
+    void soBlocosDeAlunosNovosGastamVagaDoPlanoEDoTreinador() throws Exception {
+        LimiteDoTreinadorDeTeste lim = new LimiteDoTreinadorDeTeste(api, treinador, banco);
+        Membro membro = lim.membro();
+        lim.limite(membro, 0); // não recebe aluno novo
+        List<List<Object>> blocos = new java.util.ArrayList<>();
+        for (int i = 1; i <= 10; i++) {
+            blocos.add(linha("Aluno: Aluno Teste " + i));
+            blocos.add(linha("Exercício", "Prescrição"));
+            blocos.add(linha("Agachamento fictício", "4x10"));
+        }
+        Map<String, List<List<Object>>> abas = new LinkedHashMap<>();
+        abas.put("Treinos", blocos);
+
+        JsonNode d = diagnosticar(membro.login(), "blocos.xlsx", PlanilhaDeTeste.xlsx(abas));
+
+        assertThat(d.path("tipo").asString()).isEqualTo("TREINO");
+        assertThat(problema(d, "ACIMA_DO_LIMITE_DO_TREINADOR")).isEqualTo(10);
+    }
+
+    @Test
+    void diagnosticoTemOSeuProprioLimiteDeTentativas() throws Exception {
+        JsonNode outro = api.novoTreinador();
+        byte[] arquivo = cadastro(1);
+        for (int i = 0; i < 30; i++) {
+            diagnosticar(outro, "a.xlsx", arquivo);
+        }
+        corpo(outro, "a.xlsx", arquivo, 429);
+        // O balde é só dele: a prévia da importação do mesmo usuário continua livre.
+        mvc.perform(multipart("/importacoes/alunos/colunas")
+                        .file(new MockMultipartFile("arquivo", "a.xlsx", "application/octet-stream", arquivo))
+                        .header("X-Treinos-Cliente", "nativo")
+                        .header(HttpHeaders.AUTHORIZATION, ApiDeTeste.bearer(outro)))
+                .andExpect(status().isOk());
     }
 
     @Test

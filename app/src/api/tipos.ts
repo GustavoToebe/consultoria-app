@@ -557,11 +557,11 @@ export type TipoDoArquivoDiagnosticado = 'CADASTRO_DE_ALUNOS' | 'PLANILHA_COMPLE
 export interface ColunaDiagnosticada { letra: string; nome?: string | null; campo?: string | null }
 export interface ProblemaDiagnosticado { codigo: string; quantidade: number }
 export interface AbaDiagnosticada {
-  indice: number; nome: string; tipo: TipoDeAbaDaPlanilha; linhas: number; linhasVazias: number; linhasSemNome: number;
+  indice: number; tipo: TipoDeAbaDaPlanilha; linhas: number; linhasVazias: number; linhasSemNome: number;
   emailsInvalidos: number; emailsDuplicados: number; datasInvalidas: number; celulasComErro: number;
   colunas: ColunaDiagnosticada[]; problemas: ProblemaDiagnosticado[];
 }
-/** Resposta de `POST /importacoes/diagnostico`: só contagens, códigos de problema e nomes de aba e coluna; nunca valor de célula. */
+/** Resposta de `POST /importacoes/diagnostico`: só contagens, códigos de problema e nomes de coluna conhecidos; nunca valor de célula nem nome de aba. */
 export interface DiagnosticoDoArquivo {
   tipo: TipoDoArquivoDiagnosticado; linhas: number; abas: AbaDiagnosticada[]; problemas: ProblemaDiagnosticado[];
 }

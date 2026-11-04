@@ -18,8 +18,8 @@ import java.io.IOException;
 /**
  * Migração assistida, fase 1: {@code POST /importacoes/diagnostico} diz o que dá para importar do arquivo antes de importar.
  * Não grava nada (nem registro de importação) e não audita, como a prévia; a resposta leva só contagens, códigos de problema e
- * nomes de aba e coluna, nunca valor de célula. Mesmo leitor e mesmo limite por usuário da prévia; mesma permissão da planilha
- * completa. Controller próprio porque {@link ExigeMigracaoAssistida} vale para a classe inteira.
+ * nome de coluna conhecido, nunca valor de célula nem nome de aba. Mesmo leitor da prévia, limite por usuário próprio (30 por hora,
+ * {@code importacao-diagnostico}) e a mesma permissão da planilha completa. Controller próprio porque {@link ExigeMigracaoAssistida} vale para a classe inteira.
  */
 @RestController
 @RequestMapping("/importacoes")
@@ -38,7 +38,7 @@ public class DiagnosticoDoArquivoController {
     @PreAuthorize("hasAuthority('PERM_ALUNO_ALTERAR')")
     public Diagnostico diagnosticar(@AuthenticationPrincipal UsuarioAutenticado eu, @RequestPart("arquivo") MultipartFile arquivo)
             throws IOException {
-        limites.previaDeImportacao(eu.usuarioId());
+        limites.diagnosticoDeImportacao(eu.usuarioId());
         return service.diagnosticar(eu.usuarioId(), arquivo.getOriginalFilename(), arquivo.getBytes());
     }
 }
