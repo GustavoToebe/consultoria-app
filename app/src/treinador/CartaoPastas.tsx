@@ -32,6 +32,7 @@ import { CampoData, CampoNumerico } from '../ui/Campos';
 import { CartaoCicloNoPeriodo } from './ciclo/CicloNaFicha';
 import { Cartao } from '../ui/Cartao';
 import { Escolha } from '../ui/Escolha';
+import { EscolhaEmFolha } from '../ui/EscolhaEmFolha';
 import { Esqueleto } from '../ui/Esqueleto';
 import { Alerta, MensagemErro, Vazio } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
@@ -405,9 +406,9 @@ function FolhaPasta({ alunoId, modo, diasAtualizacao, pastas, aoFechar, aoSalvar
       ) : null}
       {origens.length > 0 ? (
         <>
-          <Escolha
+          {/* Em lista (folha com busca acima de 8): um aluno antigo tem muitas pastas concluídas, e em chips elas viravam várias linhas. */}
+          <EscolhaEmFolha
             rotulo="Copiar de"
-            descricao="Copiar de outro período"
             valor={copiarDe}
             aoMudar={escolherOrigem}
             opcoes={[

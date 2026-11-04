@@ -124,10 +124,13 @@ for (const largura of [390, 1280]) {
 
     await page.goto(`/treinador/alunos/${ALUNO_ID}`);
     await page.getByRole('button', { name: 'Nova pasta' }).click();
-    const folha = page.getByRole('dialog');
-    await expect(folha.getByRole('button', { name: 'Não copiar' })).toBeVisible();
-    await expect(folha.getByRole('button', { name: /Plano 17/ })).toHaveCount(0);
-    await folha.getByRole('button', { name: /Plano 16/ }).click();
+    const folha = page.getByRole('dialog', { name: 'Nova pasta' });
+    await folha.getByRole('button', { name: 'Copiar de: Não copiar. Escolher.' }).click();
+    const lista = page.getByRole('dialog', { name: 'Copiar de' });
+    await expect(lista.getByRole('radio', { name: 'Não copiar' })).toBeVisible();
+    await expect(lista.getByRole('radio', { name: /Plano 17/ })).toHaveCount(0);
+    await lista.getByRole('radio', { name: /Plano 16/ }).click();
+    await expect(page.getByRole('dialog', { name: 'Copiar de' })).toHaveCount(0);
     await expect(folha.getByText('Copia os treinos e as dietas publicados dessa pasta, como rascunhos.')).toBeVisible();
     await folha.getByLabel('Título').fill('Plano 18');
     await folha.getByRole('button', { name: 'Salvar' }).click();
