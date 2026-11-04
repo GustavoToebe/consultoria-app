@@ -54,6 +54,11 @@ describe('marcaParaTexto', () => {
   });
 });
 
+it.each(TODAS.filter(([, , escuro]) => escuro))('%s: o item (superficie2) se distingue do cartão, para o trilho das barras de progresso aparecer dentro dele', (_codigo, cores) => {
+  expect(cores.superficie2).not.toBe(cores.superficie);
+  expect(contraste(cores.superficie2, cores.superficie)).toBeGreaterThanOrEqual(1.05);
+});
+
 it.each(TODAS)('%s: campo, borda e cartão se distinguem do fundo e entre si', (_codigo, cores) => {
   expect(contraste(cores.bordaCampo, cores.campo)).toBeGreaterThanOrEqual(3);
   // Reunião de 29/10: a borda do cartão tem de aparecer (1,9:1 ou mais), também sobre a faixa do cabeçalho.

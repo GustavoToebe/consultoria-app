@@ -7,7 +7,7 @@ import { json, MARCA, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from
 /**
  * Tela Marca, paletas (plano paletas-da-marca, passo 5): as 10 paletas em dois grupos (Escuras e Claras), a prévia na
  * paleta escolhida, o `temaPadrao` no PUT e a checagem da cor personalizada medida contra a paleta (decisão 4).
- * Dados fictícios. A cor `#386CB8` passa no Escuro e no Claro e some no cartão do Oceano (`dominio/paletas.test.ts`).
+ * Os dois grupos são subgrupos (`group`) de um único `radiogroup` "Paleta padrão dos alunos". Dados fictícios. A cor `#386CB8` passa no Escuro e no Claro e some no cartão do Oceano (`dominio/paletas.test.ts`).
  */
 const rgb = (hex: string) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`;
 const ADMIN = { permissoes: [...PERMISSOES_TREINADOR, 'MARCA_ALTERAR'], perfil: { id: 'p1', nome: 'Administrador', acessoTotal: true } };
@@ -26,12 +26,12 @@ async function abrirMarca(page: Page, largura: number, opcoes: { temaDoEditor?: 
     'PUT /consultoria/marca': (p, route) => json(route, { ...consultoria, marca: { ...MARCA, temaPadrao: (p.corpo as { temaPadrao: string }).temaPadrao }, versao: 4 }),
   });
   await page.goto('/treinador/marca');
-  await expect(page.getByRole('radiogroup', { name: 'Escuras' })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Escuras' })).toBeVisible();
   return api;
 }
 
 const paleta = (page: Page, grupo: 'Escuras' | 'Claras', nome: string) =>
-  page.getByRole('radiogroup', { name: grupo }).getByRole('radio', { name: nome, exact: true });
+  page.getByRole('group', { name: grupo }).getByRole('radio', { name: nome, exact: true });
 
 for (const temaDoEditor of ['CLARO', 'ESCURO'] as const) {
   for (const largura of [390, 1280]) {
@@ -53,8 +53,13 @@ for (const temaDoEditor of ['CLARO', 'ESCURO'] as const) {
       await expect(previa).toHaveCSS('background-color', rgb(PALETAS.OCEANO.cores.fundo));
       await expect(page.getByText('Paleta Oceano', { exact: true })).toBeVisible();
 
-      // Nenhuma opção passa da largura da janela (sem rolagem horizontal) e todas têm alvo de 44 px.
-      for (const radio of await page.getByRole('radiogroup', { name: /^(Escuras|Claras)$/ }).getByRole('radio').all()) {
+      // Um radiogroup só, com os dois subgrupos dentro dele.
+      const todas = page.getByRole('radiogroup', { name: 'Paleta padrão dos alunos' });
+      await expect(todas.getByRole('group')).toHaveCount(2);
+      await expect(todas.getByRole('radio')).toHaveCount(Object.keys(PALETAS).length);
+      // Sem rolagem horizontal na página e nenhuma opção passa da largura da janela; todas têm alvo de 44 px.
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      for (const radio of await page.getByRole('group', { name: /^(Escuras|Claras)$/ }).getByRole('radio').all()) {
         const caixa = await radio.boundingBox();
         expect(caixa).not.toBeNull();
         expect(caixa!.x + caixa!.width).toBeLessThanOrEqual(largura);
@@ -81,6 +86,10 @@ for (const largura of [390, 1280]) {
     await paleta(page, 'Escuras', 'Oceano').click();
     await expect(aviso).toHaveText('Na paleta Oceano, ícones e o menu ativo ficam apagados.');
     await expect(page.getByTestId('aviso-marca-apagada')).toHaveText('Na paleta Oceano, ícones e o menu ativo ficam apagados.');
+    // O aviso do cartão Cor fica fora da leitura (aria-hidden) e o da paleta é uma região viva: lido uma vez só.
+    await expect(page.locator('[aria-hidden="true"]').getByTestId('aviso-marca-apagada')).toHaveCount(1);
+    await expect(page.locator('[aria-live="polite"]').getByTestId('aviso-marca-apagada-na-paleta')).toHaveCount(1);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     // Só avisa: o Salvar continua liberado.
     await expect(page.getByRole('button', { name: 'Salvar marca', exact: true })).toBeEnabled();
 
@@ -95,7 +104,7 @@ test('sem o perfil Administrador a Marca não abre: só o aviso de sem acesso, s
   const { pedidos, errosDaPagina } = await simularApi(page, { ...(await sessao(page, TREINADOR)), 'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } } });
   await page.goto('/treinador/marca');
   await expect(page.getByRole('heading', { name: 'Sem acesso a esta tela', level: 1 })).toBeVisible();
-  await expect(page.getByRole('radiogroup', { name: 'Escuras' })).toHaveCount(0);
+  await expect(page.getByRole('group', { name: 'Escuras' })).toHaveCount(0);
   expect(pedidos.some((p) => p.caminho === '/consultoria')).toBe(false);
   expect(errosDaPagina).toEqual([]);
 });

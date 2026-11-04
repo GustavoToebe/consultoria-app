@@ -120,7 +120,7 @@ export type ModoDoTema = 'ESCURO' | 'CLARO';
 /**
  * Paletas da marca (`docs/planos/paletas-da-marca.md`, decisão 1 de 03/11): a consultoria escolhe uma da lista em Marca.
  * A paleta muda só o "chão" (fundo, cartão, faixas, divisor, bordas e campo); texto, status, fases e foco são os do Escuro
- * ou do Claro. Valores literais, calculados uma vez pela prévia `docs/prototipos/paletas-da-marca.html` (item = cartão;
+ * ou do Claro. Valores literais, calculados uma vez pela prévia `docs/prototipos/paletas-da-marca.html` (item = 40% do caminho do cartão ao fundo, mais escuro que o cartão: o trilho das barras de progresso aparece dentro dele, e um item mais claro faria a série feita (verde translúcido) cair abaixo de 4,5:1 no Oceano;
  * faixa no tom mais claro em que texto e status passam 4,5:1; `faixaForte` = faixa + 0,03 de mistura com branco, escolha
  * deste passo porque a prévia não calcula esse tom). Nas claras o cartão é branco e o segundo tom da paleta é a faixa.
  */
@@ -128,7 +128,7 @@ export const MEIA_NOITE: Cores = {
   ...ESCURO,
   fundo: '#06141B',
   superficie: '#11212D',
-  superficie2: '#11212D',
+  superficie2: '#0D1C26',
   superficie3: '#1F2E3A',
   faixaForte: '#263540',
   divisor: '#303E48',
@@ -141,7 +141,7 @@ export const AMEIXA: Cores = {
   ...ESCURO,
   fundo: '#190019',
   superficie: '#2B124C',
-  superficie2: '#2B124C',
+  superficie2: '#240B38',
   superficie3: '#382057',
   faixaForte: '#3E275C',
   divisor: '#473163',
@@ -155,7 +155,7 @@ export const OCEANO: Cores = {
   ...ESCURO,
   fundo: '#0B132B',
   superficie: '#1A223C',
-  superficie2: '#1A223C',
+  superficie2: '#141C35',
   superficie3: '#232B44',
   faixaForte: '#2A314A',
   divisor: '#383F55',
@@ -169,7 +169,7 @@ export const CAFE: Cores = {
   ...ESCURO,
   fundo: '#1A120E',
   superficie: '#301E14',
-  superficie2: '#301E14',
+  superficie2: '#271912',
   superficie3: '#38271D',
   faixaForte: '#3E2E24',
   divisor: '#4B3B33',
@@ -196,7 +196,14 @@ export const PALETAS: Record<Tema, { nome: string; cores: Cores; modo: ModoDoTem
   ROSA: { nome: 'Rosa', cores: ROSA, modo: 'CLARO' },
 };
 
-export const modoDaPaleta = (codigo: Tema): ModoDoTema => PALETAS[codigo].modo;
+/**
+ * A paleta de um código, com reserva no Escuro: um código que o app não conhece (app antigo com a API nova, ou o contrário)
+ * nunca derruba a tela. Todo código vindo de fora (marca da sessão, prévia) passa por aqui, não por `PALETAS[codigo]`.
+ */
+export const paletaDe = (codigo: string | null | undefined): (typeof PALETAS)[Tema] =>
+  (codigo && Object.hasOwn(PALETAS, codigo) ? PALETAS[codigo as Tema] : undefined) ?? PALETAS.ESCURO;
+
+export const modoDaPaleta = (codigo: string | null | undefined): ModoDoTema => paletaDe(codigo).modo;
 
 /**
  * Paleta fixa das agendas pessoais (D7): a cor IDENTIFICA a agenda (ponto ou barra lateral), nunca diz status. Cada chave

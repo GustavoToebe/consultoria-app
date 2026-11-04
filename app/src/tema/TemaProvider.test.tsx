@@ -2,7 +2,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Tema } from '../api/tipos';
 import { chaveDasPreferencias } from '../dominio/preferencias';
-import { PALETAS, modoDaPaleta } from './tokens';
+import { modoDaPaleta, PALETAS } from './tokens';
 
 let mockMarca: { temaPadrao: Tema; corPrimaria: string } | null = null;
 let mockUsuario: { id: string } | null = null;
@@ -71,10 +71,16 @@ describe('TemaProvider com a paleta da consultoria', () => {
     expect(lido.tema!.cores.fundo).toBe(PALETAS.ESCURO.cores.fundo);
   });
 
-  it('todo código de paleta tem modo e cores no mapa único', () => {
-    for (const codigo of Object.keys(PALETAS) as Tema[]) {
-      expect(['ESCURO', 'CLARO']).toContain(modoDaPaleta(codigo));
-      expect(PALETAS[codigo].cores.fundo).toMatch(/^#[0-9A-F]{6}$/);
-    }
+  it('código fora da lista (marca de uma API mais nova) não derruba o app: cai no Escuro', async () => {
+    mockMarca = { temaPadrao: 'FUTURA' as Tema, corPrimaria: '#C62828' };
+    await montar();
+    expect(lido.tema!.modo).toBe('ESCURO');
+    expect(lido.tema!.cores.fundo).toBe(PALETAS.ESCURO.cores.fundo);
+    expect(Uniwind.setTheme).toHaveBeenLastCalledWith('dark');
+  });
+
+  it('modoDaPaleta com código desconhecido, vazio ou herdado do Object cai no modo do Escuro', () => {
+    for (const codigo of ['FUTURA', '', null, undefined, 'toString', '__proto__']) expect(modoDaPaleta(codigo)).toBe('ESCURO');
+    expect(modoDaPaleta('LAVANDA')).toBe('CLARO');
   });
 });

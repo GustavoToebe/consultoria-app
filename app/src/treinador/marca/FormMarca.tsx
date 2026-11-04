@@ -10,7 +10,7 @@ import { OPCOES_DA_META } from '../../dominio/metaDoPesoNaFicha';
 import { avaliarMarca, avisoDeMarcaPertoDeStatus, paletaDaCor, PALETAS } from '../../dominio/paletas';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, fontes, MARCA_NEUTRA, PALETAS as PALETAS_DO_TEMA, RAIO, textoSobre, type Cores } from '../../tema/tokens';
+import { espaco, fontes, MARCA_NEUTRA, PALETAS as PALETAS_DO_TEMA, paletaDe, RAIO, textoSobre, type Cores } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
@@ -220,7 +220,7 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
           </View>
         ) : null}
         {avaliacao.bloqueia ? <MensagemErro texto={avaliacao.bloqueia} /> : null}
-        {!avaliacao.bloqueia && avaliacao.aviso ? <Texto variante="suave" testID="aviso-marca-apagada">{avaliacao.aviso}</Texto> : null}
+        {!avaliacao.bloqueia && avaliacao.aviso ? <View aria-hidden><Texto variante="suave" testID="aviso-marca-apagada">{avaliacao.aviso}</Texto></View> : null}
         {pertoDeStatus ? <Texto variante="suave" testID="aviso-marca-perto-de-status">{pertoDeStatus}</Texto> : null}
       </Cartao>
       <Cartao titulo="Fonte do nome" descricao="Vale para quem não usa logo. O nome aparece em cada fonte.">
@@ -238,8 +238,10 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
         </GradeDeOpcoes>
       </Cartao>
       <Cartao titulo="Paleta padrão dos alunos" descricao="Fundo e cartões do app. Cada pessoa ainda pode trocar para o Escuro, o Claro ou a Areia na própria conta.">
+        {/* Uma escolha só: um radiogroup com dois subgrupos rotulados (leitor de tela: "Escuras, grupo", "Oceano, selecionado"). */}
+        <View role="radiogroup" aria-label="Paleta padrão dos alunos" style={estilos.paletas}>
         {(['ESCURO', 'CLARO'] as const).map((modo) => (
-          <GradeDeOpcoes key={modo} rotulo={modo === 'ESCURO' ? 'Escuras' : 'Claras'}>
+          <GradeDeOpcoes key={modo} papel="group" rotulo={modo === 'ESCURO' ? 'Escuras' : 'Claras'}>
             {CODIGOS_DAS_PALETAS.filter((c) => PALETAS_DO_TEMA[c].modo === modo).map((c) => (
               <OpcaoCartao
                 key={c}
@@ -251,8 +253,12 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
             ))}
           </GradeDeOpcoes>
         ))}
-        {/* A mesma checagem do cartão Cor, repetida aqui: em 390 px quem troca a paleta não vê o cartão de cima. */}
-        {!avaliacao.bloqueia && avaliacao.aviso ? <Texto variante="suave" testID="aviso-marca-apagada-na-paleta">{avaliacao.aviso}</Texto> : null}
+        </View>
+        {/* A mesma checagem do cartão Cor, repetida aqui: em 390 px quem troca a paleta não vê o cartão de cima. Este é o texto
+            lido (região viva, anuncia ao trocar de paleta); o do cartão Cor fica aria-hidden para não ser lido duas vezes. */}
+        <View accessibilityLiveRegion="polite">
+          {!avaliacao.bloqueia && avaliacao.aviso ? <Texto variante="suave" testID="aviso-marca-apagada-na-paleta">{avaliacao.aviso}</Texto> : null}
+        </View>
       </Cartao>
       <Cartao titulo="Acompanhamento" descricao="Vale para os alunos sem ciclo ou meta própria no cadastro.">
         <View style={estilos.campoDias}>
@@ -319,7 +325,7 @@ function MiniaturaDoTema({ cores, marca }: { cores: Cores; marca: string }) {
 /** Topo do app do aluno com as cores fixas da paleta escolhida (independe do tema de quem está editando). */
 function Previa({ marca, tema }: { marca: Marca; tema: Tema }) {
   const { cores: atuais } = useTema();
-  const { nome, cores } = PALETAS_DO_TEMA[tema];
+  const { nome, cores } = paletaDe(tema);
   return (
     <View style={estilos.previa}>
       <Texto variante="suave">{`Paleta ${nome}`}</Texto>
@@ -341,6 +347,7 @@ function Previa({ marca, tema }: { marca: Marca; tema: Tema }) {
 
 const estilos = StyleSheet.create({
   campoDias: { maxWidth: 280 },
+  paletas: { gap: espaco(1.5) },
   meta: { gap: espaco(0.5) },
   previas: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(2) },
   previa: { flex: 1, minWidth: 240, maxWidth: 480, gap: espaco(0.5) },

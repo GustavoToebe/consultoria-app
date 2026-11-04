@@ -1,5 +1,5 @@
 import type { Tema } from '../api/tipos';
-import { CLARO, contraste, ESCURO, PALETAS as PALETAS_DO_TEMA } from '../tema/tokens';
+import { CLARO, contraste, ESCURO, paletaDe } from '../tema/tokens';
 
 export interface Paleta {
   id: string;
@@ -78,7 +78,7 @@ export function avaliarMarca(hex: string, tema: Tema): AvaliacaoDaMarca {
   if (!/^#[0-9A-Fa-f]{6}$/.test(hex)) return { bloqueia: null, aviso: null };
   const bloqueia = contraste(hex, '#FFFFFF') < 4.5 ? 'Esta cor deixa o texto dos botões difícil de ler.' : null;
   const apagada = (...fundos: string[]) => fundos.some((f) => contraste(hex, f) < 3);
-  const { nome, cores } = PALETAS_DO_TEMA[tema];
+  const { nome, cores } = paletaDe(tema);
   const onde = [
     apagada(cores.fundo, cores.superficie) ? `na paleta ${nome}` : null,
     tema !== 'ESCURO' && apagada(ESCURO.fundo) ? 'no tema escuro' : null,

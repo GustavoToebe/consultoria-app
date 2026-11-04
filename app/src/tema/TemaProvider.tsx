@@ -22,7 +22,7 @@ import {
   coresDeIdentificacao,
   MARCA_NEUTRA,
   marcaParaTexto,
-  PALETAS,
+  paletaDe,
   textoSobre,
   type ChaveDeIdentificacao,
   type CorDeIdentificacao,
@@ -111,7 +111,7 @@ export function TemaProvider({ children }: { children: ReactNode }) {
         : preferencias.tema === 'SISTEMA'
           ? doAparelho
           : doTreinador;
-    const { cores: base, modo } = PALETAS[codigo];
+    const { cores: base, modo } = paletaDe(codigo);
     const marca = sessao.marca?.corPrimaria ?? MARCA_NEUTRA;
     const cores = coresComBordasReforcadas(coresComContraste(base, preferencias.contraste, modo !== 'CLARO'), preferencias.bordasReforcadas);
     return {

@@ -66,7 +66,7 @@ test.describe('treinador salva a paleta e a API a devolve ao recarregar', () => 
       const erros = errosDoConsole(page);
 
       await page.goto('/treinador/marca');
-      const oceano = page.getByRole('radiogroup', { name: 'Escuras' }).getByRole('radio', { name: 'Oceano', exact: true });
+      const oceano = page.getByRole('group', { name: 'Escuras' }).getByRole('radio', { name: 'Oceano', exact: true });
       await expect(oceano).toHaveAttribute('aria-checked', 'false');
       await oceano.click();
       await page.getByRole('button', { name: 'Salvar marca', exact: true }).click();
@@ -74,8 +74,8 @@ test.describe('treinador salva a paleta e a API a devolve ao recarregar', () => 
       expect(pedidos.find((p) => p.metodo === 'PUT' && p.caminho === '/consultoria/marca')?.corpo).toMatchObject({ temaPadrao: 'OCEANO', versao: 3 });
 
       await page.reload();
-      await expect(page.getByRole('radiogroup', { name: 'Escuras' }).getByRole('radio', { name: 'Oceano', exact: true })).toHaveAttribute('aria-checked', 'true');
-      await expect(page.getByRole('radiogroup', { name: 'Claras' }).getByRole('radio', { name: 'Claro', exact: true })).toHaveAttribute('aria-checked', 'false');
+      await expect(page.getByRole('group', { name: 'Escuras' }).getByRole('radio', { name: 'Oceano', exact: true })).toHaveAttribute('aria-checked', 'true');
+      await expect(page.getByRole('group', { name: 'Claras' }).getByRole('radio', { name: 'Claro', exact: true })).toHaveAttribute('aria-checked', 'false');
       expect(errosDaPagina).toEqual([]);
       expect(erros).toEqual([]);
       expect(naoTratadas).toEqual([]);
@@ -150,9 +150,6 @@ for (const largura of LARGURAS) {
     });
 
     test('código de tema desconhecido vindo da API não quebra o Início: cai no Escuro', async ({ page }) => {
-      // BUG conhecido (03/11): `PALETAS[codigo]` em `TemaProvider.tsx:114` (e em `PreferenciasDoApp.tsx:36`) estoura com
-      // código fora da lista e a tela fica branca. Quando o app cair no Escuro, tire esta linha.
-      test.fail(true, 'TemaProvider não tem fallback para código de tema desconhecido');
       const { errosDaPagina, erros } = await abrirComoAluno(page, largura, { temaPadrao: 'FUTURA' });
       await expect(page.getByRole('heading', { level: 1 })).toHaveText('Olá, Aluno.');
       await expect.poll(() => fundoDaRaiz(page)).toBe(rgb(PALETAS.ESCURO.cores.fundo));

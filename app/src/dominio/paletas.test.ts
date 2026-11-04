@@ -34,6 +34,12 @@ describe('paletas da marca', () => {
     expect(r.aviso).toBe('No tema escuro, ícones e o menu ativo ficam apagados.');
   });
 
+  it('tema desconhecido (marca de uma API mais nova) mede contra o Escuro, sem estourar', () => {
+    expect(() => avaliarMarca('#386CB8', 'FUTURA' as Tema)).not.toThrow();
+    expect(avaliarMarca('#386CB8', 'FUTURA' as Tema).bloqueia).toBeNull();
+    expect(avaliarMarca('#FFFF00', 'FUTURA' as Tema).bloqueia).not.toBeNull();
+  });
+
   describe('mede contra a paleta escolhida (decisão 4)', () => {
     it('a mesma cor passa no Escuro e some no cartão do Oceano; trocar de paleta reavalia', () => {
       expect(avaliarMarca('#386CB8', 'ESCURO').aviso).toBeNull();

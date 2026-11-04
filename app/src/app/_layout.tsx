@@ -77,7 +77,7 @@ function Conteudo() {
     document.title = tituloDaPagina(caminho, marca?.nome);
   }, [caminho, marca?.nome]);
   return (
-    <View style={{ flex: 1, backgroundColor: cores.fundo }}>
+    <View testID="raiz-do-tema" style={{ flex: 1, backgroundColor: cores.fundo }}>
       <StatusBar style={modo === 'ESCURO' ? 'light' : 'dark'} />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: cores.fundo } }} />
     </View>

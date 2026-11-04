@@ -5,7 +5,7 @@ import type { Preferencias, TamanhoTexto } from '../dominio/preferencias';
 import { fatorDoTexto } from '../dominio/preferencias';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
-import { AREIA, CLARO, ESCURO, espaco, fontes, PALETAS, RAIO, type Cores } from '../tema/tokens';
+import { AREIA, CLARO, ESCURO, espaco, fontes, paletaDe, RAIO, type Cores } from '../tema/tokens';
 import { useAviso } from './Aviso';
 import { Botao } from './Botao';
 import { Interruptor } from './Campos';
@@ -33,7 +33,7 @@ export function PreferenciasDoApp({ comTitulo = true, extras }: { comTitulo?: bo
   const { avisar } = useAviso();
   const [confirmandoRestaurar, setConfirmandoRestaurar] = useState(false);
   const mudar = (parcial: Partial<Preferencias>) => escolherPreferencia(parcial);
-  const temaDaConsultoria = PALETAS[sessao.marca?.temaPadrao ?? 'ESCURO'].cores;
+  const temaDaConsultoria = paletaDe(sessao.marca?.temaPadrao).cores;
   // O texto fala com quem lê: o aluno recebe o tema do treinador; o treinador é quem o escolhe, em Marca.
   const aluno = sessao.usuario?.papel === 'ALUNO';
 
