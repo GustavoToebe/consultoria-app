@@ -1,6 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
-import type { TermosVigentes } from '../api/tipos';
+import type { DocumentoDeTermos, TermosVigentes } from '../api/tipos';
 import { blocosDoTexto, type Trecho } from '../dominio/termos';
 import { espaco, fontes } from '../tema/tokens';
 import { Cartao } from './Cartao';
@@ -22,24 +22,29 @@ export function TextosDosTermos({ termos }: { termos: TermosVigentes }) {
   return (
     <>
       {termos.rascunho ? <Selo texto="Rascunho em revisão" tipo="atencao" /> : null}
-      {termos.documentos.map((d) => (
-        <Cartao key={d.id} titulo={d.titulo}>
-          {/* O texto começa repetindo o título do documento (já no cartão): essa primeira linha sai. */}
-          {blocosDoTexto(d.texto).filter((b, i) => !(i === 0 && b.tipo === 'secao' && b.trechos.map((t) => t.texto).join('') === d.titulo)).map((b, i) =>
-            b.tipo === 'secao' ? (
-              <Texto key={i} variante="bloco" nivel={3} style={estilos.secao}>{b.trechos.map((t) => t.texto).join('')}</Texto>
-            ) : b.tipo === 'item' ? (
-              <View key={i} style={estilos.item}>
-                <Texto>•</Texto>
-                <Linha trechos={b.trechos} estilo={estilos.textoDoItem} />
-              </View>
-            ) : (
-              <Linha key={i} trechos={b.trechos} />
-            ),
-          )}
-        </Cartao>
-      ))}
+      {termos.documentos.map((d) => <DocumentoDosTermos key={d.id} documento={d} />)}
     </>
+  );
+}
+
+/** Um documento (termo de uso ou aviso de privacidade) num cartão; também nas páginas públicas. */
+export function DocumentoDosTermos({ documento: d }: { documento: DocumentoDeTermos }) {
+  return (
+    <Cartao titulo={d.titulo}>
+      {/* O texto começa repetindo o título do documento (já no cartão): essa primeira linha sai. */}
+      {blocosDoTexto(d.texto).filter((b, i) => !(i === 0 && b.tipo === 'secao' && b.trechos.map((t) => t.texto).join('') === d.titulo)).map((b, i) =>
+        b.tipo === 'secao' ? (
+          <Texto key={i} variante="bloco" nivel={3} style={estilos.secao}>{b.trechos.map((t) => t.texto).join('')}</Texto>
+        ) : b.tipo === 'item' ? (
+          <View key={i} style={estilos.item}>
+            <Texto>•</Texto>
+            <Linha trechos={b.trechos} estilo={estilos.textoDoItem} />
+          </View>
+        ) : (
+          <Linha key={i} trechos={b.trechos} />
+        ),
+      )}
+    </Cartao>
   );
 }
 

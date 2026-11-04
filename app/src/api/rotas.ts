@@ -96,6 +96,7 @@ import type {
   ConviteEquipePublico,
   DiaDeTreino,
   EuResponse,
+  TermosPublicos,
   TermosVigentes,
   Exercicio,
   ExercicioRequest,
@@ -405,6 +406,9 @@ export const cadastrarTreinador = (dados: { nomeConsultoria: string; nome: strin
 export const eu = () => requisicao<EuResponse>('/eu');
 
 export const termos = () => requisicao<TermosVigentes>('/termos');
+
+/** Página pública de Privacidade e de Termos de uso (sem login); o texto é sempre o da API. */
+export const termosPublicos = () => requisicao<TermosPublicos>('/publico/termos', { semRenovar: true });
 
 export const aceitarTermos = (versao: string) =>
   requisicao<TermosVigentes>('/termos/aceite', { metodo: 'POST', corpo: { versao } });
