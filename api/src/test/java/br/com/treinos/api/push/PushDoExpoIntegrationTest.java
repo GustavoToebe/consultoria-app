@@ -524,6 +524,18 @@ class PushDoExpoIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void usuarioQueFicouSemTokenDepoisDeEnfileirarEhCanceladoSemChamarOExpo() throws Exception {
+        registrar(login, tokenNovo());
+        marcar(admin, alunoId);
+        // O token some entre o enfileirar e o enviar (foi para outra conta ou expirou): nada de chamada vazia nem de tentativas.
+        jdbc.update("delete from push_token where usuario_id = ?::uuid", usuarioId);
+        job.rodar();
+        assertThat(minhasChamadas()).isEmpty();
+        assertThat(envioDe(usuarioId)).containsEntry("situacao", "CANCELADO").containsEntry("motivo", "SEM_TOKEN")
+                .containsEntry("tentativas", 0);
+    }
+
+    @Test
     void pendenteVelhoDemaisExpiraSemEnviar() throws Exception {
         registrar(login, tokenNovo());
         marcar(admin, alunoId);
