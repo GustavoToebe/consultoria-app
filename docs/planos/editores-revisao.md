@@ -31,7 +31,8 @@ mesmo `ItemDaListaDoEditor`. Nenhuma regra de negócio, rota ou contrato da API 
 
 ## Passos
 - [ ] 0. Preparação: worktree, este arquivo e a linha no README — commit/run: —
-- [ ] 1. Editor de treino (`executor-front`): topo do inspetor, séries, molduras achatadas, 2+2, "uma vez só", parte de cima, peças em `ui/`, divisão dos três arquivos grandes, e2e atualizados — commit/run: —
+- [x] 1. Editor de treino (`executor-front`): topo do inspetor, séries, molduras achatadas, 2+2, "uma vez só", parte de cima, peças em `ui/`, divisão dos três arquivos grandes, e2e atualizados — commit/run: — (feito no worktree em 04/11, sem commit; o Sonnet commita)
+  - Feito: `ui/NumeroInvertido` e `ui/Divisor` (únicos); "Sessões (N)" como cabeçalho dos chips com as contagens e o estado da publicação; "Modelos prontos" só no bloco Adicionar e no vazio; metodologia num lugar por layout (`ConfiguracaoDoTreino`); sessão sem caixa (molduras: exercício › série aberta); "Editando: Série N · tipo" com o resumo e um selo; seções planas com divisor; "Para o aluno" sem selo; Subir/Descer <nome> e Subir/Descer/Remover série N; prescrição em grade 2+2 (`basesDasColunas`); "+ Nova série" fora da rolagem; divisão em `FolhasDoTreino`, `ConfiguracaoDoTreino`, `EditorDoGrupoDeSeries`, `CamposComuns`, `CamposDaTecnica` (todos abaixo de 500 linhas); e2e novo `prescricao-lado-a-lado.spec.ts`.
   - Topo do inspetor: "Exercício N de M" pequeno + nome como título; ↑↓ como `IconeBotao` com rótulo "Subir/Descer <nome>"; um selo de situação só.
   - Séries: tirar a faixa "Exercício N · nome" de dentro do grupo; um sinal de situação só (selo no cabeçalho; "Para o aluno" sem segundo selo, tingido só com problema); mover série com nome "série", não "grupo".
   - Molduras: dentro do "Editando", seções com rótulo e divisor, no máximo 2 molduras.
@@ -50,4 +51,6 @@ mesmo `ItemDaListaDoEditor`. Nenhuma regra de negócio, rota ou contrato da API 
 - Os 2 e2e que já falham na `main` (`cadastro-aluno.spec.ts:296`, `links-do-menu.spec.ts:20`) ficam anotados à parte.
 
 ## O que ficou para trás
-- (preencher a cada entrega; cada sobra também vai para "Pendências soltas" no README)
+- `CartaoExercicio` continua com moldura própria, sem `ui/Cartao`: o alvo de rolagem do "ir ao primeiro" fica por fora, o topo `faixaForte` leva a demonstração do exercício e a borda muda com o erro; trocar pediria uma prop nova no `ui/Cartao` (passo 1, 04/11).
+- Dois critérios de largura continuam: 960 medido (duas colunas) e 640 medido (campos lado a lado na coluna das séries); os 768 da janela (`useCamposLadoALado`) ficaram nos campos curtos (`LinhaDeCampos`, `CampoSozinho`), que a metodologia também usa e lá não há medida da coluna; trocar pede levar a medida por contexto (passo 1, 04/11).
+- Teste em aparelho nativo do editor de treino: não há como fazer aqui (passo 1, 04/11).

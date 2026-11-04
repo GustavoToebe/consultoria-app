@@ -151,7 +151,8 @@ for (const largura of [390, 1280]) {
     await page.getByRole('textbox', { name: 'Blocos de repetições', exact: true }).fill('4+2');
     await expect(page.getByRole('textbox', { name: 'Reps mín.', exact: true })).toHaveCount(0);
     await expect(page.getByRole('tab', { name: /^Série 2 · WS/, selected: true })).toBeVisible();
-    await expect(page.getByText(/Trabalho · WS com Cluster · 1x6 \(4\+2\) - WS com Cluster 15 s/)).toBeVisible();
+    await expect(page.getByText(/^Editando: Série \d · Trabalho · WS com Cluster$/)).toBeVisible();
+    await expect(page.getByText(/^1x6 \(4\+2\) - WS com Cluster 15 s/).first()).toBeVisible();
     await expect(page.getByText('1 série completa · blocos de 4 e 2 reps (6 no total) · pausa de 15 s', { exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath('tela-editada.png'), fullPage: true });
@@ -377,7 +378,8 @@ for (const largura of [390, 1280]) {
     await expect(page.getByText('Substitui as séries deste exercício', { exact: true })).toHaveCount(0);
     // Dois grupos, duas abas; a aberta é a última (WS com Cluster) e o título dela traz a faixa dos números.
     await expect(page.getByRole('tab', { name: /^Série \d/ })).toHaveCount(2);
-    await expect(page.getByText(/Trabalho · WS com Cluster · 1x16 \(4×4\) - WS com Cluster/)).toBeVisible();
+    await expect(page.getByText(/^Editando: Série \d · Trabalho · WS com Cluster$/)).toBeVisible();
+    await expect(page.getByText(/^1x16 \(4×4\) - WS com Cluster/).first()).toBeVisible();
     await expect(page.getByText(/1x3 a 6 - WS/)).toHaveCount(0);
     await page.getByRole('tab', { name: /^Série 1 · FS/ }).click();
     await expect(page.getByText(/1x10 a 15 - FS/)).toBeVisible();

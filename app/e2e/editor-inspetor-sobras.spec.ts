@@ -56,9 +56,9 @@ for (const largura of LARGURAS) {
     await expect(page.getByLabel(/Descanso depois do grupo/).first()).toHaveValue('90');
     if (duasColunas(largura)) {
       // O grupo toma o lugar do exercício no inspetor; escolher um exercício volta a ele.
-      await expect(page.getByText('Editando: Série 1', { exact: true })).toHaveCount(0);
+      await expect(page.getByText(/^Editando: Série 1( ·|$)/)).toHaveCount(0);
       await page.getByRole('button', { name: /^Exercício 1 de 7: Supino reto com barra/ }).click();
-      await expect(page.getByText('Editando: Série 1', { exact: true })).toBeVisible();
+      await expect(page.getByText(/^Editando: Série 1( ·|$)/)).toBeVisible();
       await expect(page.getByRole('button', { name: /^Desfazer o grupo Superset/ })).toHaveCount(0);
     }
     expect(naoTratadas).toEqual([]);
@@ -72,7 +72,7 @@ for (const [largura, escuro] of [[1440, false], [1280, false], [1280, true], [10
     await tema(page, escuro);
     const { naoTratadas, errosDaPagina } = await abrirTreino(page);
     if (!duasColunas(largura)) await page.getByRole('button', { name: 'Editar Supino reto com barra', exact: true }).click();
-    await expect(page.getByText('Editando: Série 1', { exact: true })).toBeVisible();
+    await expect(page.getByText(/^Editando: Série 1( ·|$)/)).toBeVisible();
     const caixa = async (nome: string) => {
       const b = await page.getByRole('heading', { name: nome, exact: true }).first().boundingBox();
       if (!b) throw new Error(`sem ${nome}`);

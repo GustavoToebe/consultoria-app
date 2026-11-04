@@ -1,4 +1,4 @@
-import { ArrowLeftRight, ChevronDown, ChevronUp, NotebookTabs, Save, Trash2, Unlink } from 'lucide-react-native';
+import { ArrowDown, ArrowLeftRight, ArrowUp, ChevronDown, ChevronUp, NotebookTabs, Save, Trash2, Unlink } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
@@ -17,6 +17,7 @@ import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
 import { Campo } from '../../ui/Campo';
 import { CampoNumerico, Interruptor } from '../../ui/Campos';
 import { DemonstracaoDoExercicio } from '../../ui/DemonstracaoDoExercicio';
+import { Divisor } from '../../ui/Divisor';
 import { Escolha } from '../../ui/Escolha';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
@@ -25,7 +26,7 @@ import { Texto } from '../../ui/Texto';
 import { useUnidadeDeCarga } from '../../ui/unidadeDeCargaEmUso';
 import { rotuloSalvarComo } from '../planejamento/modelos';
 import { AvisoDoCampo } from './CamposDaPrescricao';
-import { BotaoDeMover, EditorSeries } from './EditorSeries';
+import { EditorSeries } from './EditorSeries';
 import { estadoDoExercicio } from './estadoDoExercicio';
 
 export interface PropsDoCartaoExercicio {
@@ -108,6 +109,7 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
   };
   const nomeDaModalidade = OPCOES_DE_MODALIDADE.find((o) => o.valor === (e.modalidade ?? null))?.rotulo ?? e.modalidade ?? 'Não informada';
 
+  const foraDaBiblioteca = e.exercicioId === null && !!e.nome;
   return (
     <AlvoDeRolagem chave={e.uid}
       style={[
@@ -129,37 +131,31 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
           disabled={!p.aoAbrir}
           onPress={p.aoAbrir}
           style={estilos.titulo}>
+          {/* A posição por extenso, pequena, em cima ("Exercício 2 de 5 · Peito"): não se confunde com o número da série
+              (reunião de 30/10). O nome é o título; ao lado, um selo só, o da situação. */}
+          <Texto variante="pequeno" numerico>{[`Exercício ${p.posicao + 1} de ${p.total}`, p.grupoMuscular].filter(Boolean).join(' · ')}</Texto>
           <View style={estilos.linhaDoNome}>
-            {/* "Exercício 2 de 5 · Supino reto": a posição por extenso não se confunde com o número da série (reunião de 30/10). */}
-            <Texto style={estilos.nome}>
-              <Texto style={[estilos.nome, { color: cores.textoSuave }]}>Exercício {p.posicao + 1} de {p.total} · </Texto>
-              {e.nome || 'sem nome'}
-            </Texto>
-            {p.grupoMuscular ? <Selo texto={p.grupoMuscular} tipo="neutro" /> : null}
+            <Texto style={estilos.nome}>{e.nome || 'sem nome'}</Texto>
             <Selo texto={estado.texto} tipo={estado.tipo} Icone={estado.Icone} />
           </View>
-          {!p.aberto ? (
-            resumo.length ? (
-              resumo.map((r, i) => (
-                <Texto key={i} variante="suave">
-                  {r}
-                </Texto>
-              ))
-            ) : null
-          ) : null}
+          {/* Fechado, o resumo e os atributos; aberto, eles estão nos próprios campos logo abaixo. "Fora da biblioteca" não
+              tem campo: fica também aberto. */}
+          {!p.aberto ? resumo.map((r, i) => <Texto key={i} variante="suave">{r}</Texto>) : null}
           {!p.aberto && execucao ? <Texto variante="suave">{execucao}</Texto> : null}
-          <View style={estilos.selos}>
-            {cardio ? <Selo texto="Cardio" tipo="neutro" /> : null}
-            {!e.progressao && !cardio ? <Selo texto="Sem progressão" tipo="neutro" /> : null}
-            {e.exercicioId === null && e.nome ? <Selo texto="Fora da biblioteca" tipo="neutro" /> : null}
-          </View>
+          {(!p.aberto && (cardio || !e.progressao)) || foraDaBiblioteca ? (
+            <View style={estilos.selos}>
+              {!p.aberto && cardio ? <Selo texto="Cardio" tipo="neutro" /> : null}
+              {!p.aberto && !e.progressao && !cardio ? <Selo texto="Sem progressão" tipo="neutro" /> : null}
+              {foraDaBiblioteca ? <Selo texto="Fora da biblioteca" tipo="neutro" /> : null}
+            </View>
+          ) : null}
         </Pressable>
         <View style={[estilos.acoes, largo ? estilos.acoesLargas : estilos.acoesEstreitas]}>
           {largo
             ? <Botao rotulo="Trocar" rotuloAcessivel={`Trocar ${e.nome || 'o exercício'}`} tipo="secundario" Icone={ArrowLeftRight} aoTocar={p.aoEscolherDaBiblioteca} />
             : <IconeBotao moldura Icone={ArrowLeftRight} rotulo={`Trocar ${e.nome || 'o exercício'}`} aoTocar={p.aoEscolherDaBiblioteca} />}
-          <BotaoDeMover alvo="exercicio" direcao={-1} comTexto={largo} desabilitado={p.posicao === 0} aoTocar={() => p.aoMover(-1)} />
-          <BotaoDeMover alvo="exercicio" direcao={1} comTexto={largo} desabilitado={p.posicao === p.total - 1} aoTocar={() => p.aoMover(1)} />
+          <IconeBotao moldura Icone={ArrowUp} rotulo={`Subir ${e.nome || 'o exercício'}`} desabilitado={p.posicao === 0} aoTocar={() => p.aoMover(-1)} />
+          <IconeBotao moldura Icone={ArrowDown} rotulo={`Descer ${e.nome || 'o exercício'}`} desabilitado={p.posicao === p.total - 1} aoTocar={() => p.aoMover(1)} />
           <IconeBotao moldura Icone={Trash2} rotulo={`Remover ${e.nome || 'o exercício'}`} cor={cores.perigo} aoTocar={p.aoRemover} />
           {p.aoAbrir ? <IconeBotao moldura Icone={p.aberto ? ChevronUp : ChevronDown} rotulo={p.aberto ? 'Fechar exercício' : 'Editar exercício'} aoTocar={p.aoAbrir} /> : null}
         </View>
@@ -214,16 +210,15 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
           {p.noGrupo && p.aoTirarDoGrupo ? (
             <Botao rotulo="Tirar do grupo" rotuloAcessivel={`Tirar ${e.nome || 'o exercício'} do grupo`} tipo="fantasma" Icone={Unlink} aoTocar={p.aoTirarDoGrupo} />
           ) : null}
-          <View style={[estilos.divisor, { backgroundColor: cores.borda }]} />
+          <Divisor style={estilos.divisor} />
           <View style={estilos.tituloDasSeries}>
             <Texto variante="secao">{cardio ? 'Cardio' : 'Séries'}</Texto>
             {cardio ? null : <Botao rotulo="Receita de séries" rotuloAcessivel="Usar uma receita de séries" tipo="secundario" Icone={NotebookTabs} aoTocar={p.aoUsarReceita} />}
           </View>
           <EditorSeries modalidade={e.modalidade} series={e.series} config={p.config} semCarga={e.unidade === 'nenhuma'}
             exercicioComCarga={e.unidade !== 'nenhuma' && e.modalidade !== 'CARDIO'} descansoPorSerie={p.descansoPorSerie !== false} aoMudar={(series) => mudar({ series })}
-            grupoAbertoUid={p.grupoAbertoUid} aoAbrirGrupo={p.aoAbrirGrupo}
-            numeroDoExercicio={p.posicao + 1} nomeDoExercicio={e.nome} />
-          <View style={[estilos.divisor, { backgroundColor: cores.borda }]} />
+            grupoAbertoUid={p.grupoAbertoUid} aoAbrirGrupo={p.aoAbrirGrupo} />
+          <Divisor style={estilos.divisor} />
           <CabecalhoDeGrupo titulo="Execução e cadência" resumo={execucaoAberta ? undefined : resumoDaExecucao(e)} aberto={execucaoAberta} aoAlternar={() => setExecucaoAberta((v) => !v)} />
           {execucaoAberta ? <View style={estilos.linhaExecucao}>
             <View style={estilos.cadencia}>
@@ -309,10 +304,9 @@ const estilos = StyleSheet.create({
   linhaDoNome: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1) },
   acoesEstreitas: { marginLeft: 'auto' },
   titulo: { flexGrow: 1, flexShrink: 1, flexBasis: 220, gap: 2, minHeight: 44, justifyContent: 'center' },
-  nome: { fontFamily: fontes.semi, fontSize: 16, lineHeight: 22 },
-  selos: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(0.5), marginTop: 2 },
+  nome: { fontFamily: fontes.semi, fontSize: 17, lineHeight: 24, flexShrink: 1 },
+  selos: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(0.5), marginTop: espaco(0.25) },
   acoes: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75) },
-  // No PC os botões de mover têm texto: a linha quebra em vez de apertar o nome do exercício.
   acoesLargas: { flexWrap: 'wrap', justifyContent: 'flex-end' },
   modalidade: { gap: espaco(1) },
   ladoALado: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5), alignItems: 'flex-start' },
@@ -325,5 +319,5 @@ const estilos = StyleSheet.create({
   cadencia: { flexGrow: 1, flexBasis: 220 },
   isometria: { width: 180 },
   // Separa as partes do exercício (dados, séries, execução).
-  divisor: { height: StyleSheet.hairlineWidth, marginVertical: espaco(0.5) },
+  divisor: { marginVertical: espaco(0.5) },
 });

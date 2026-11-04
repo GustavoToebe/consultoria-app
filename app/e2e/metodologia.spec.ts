@@ -183,7 +183,7 @@ for (const largura of [390, 1280]) {
     await page.getByRole('tab', { name: /^Série 2 · WS/ }).click();
     await expect(page.getByRole('tab', { name: /^Série 2 · WS/ })).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByText(/1x10 - WS \+ Pirâmide decrescente 10% a 15% abaixo da referência/)).toBeVisible();
-    await expect(page.getByText('Editando: Série 2', { exact: true })).toBeVisible();
+    await expect(page.getByText(/^Editando: Série 2( ·|$)/)).toBeVisible();
     expect(api.errosDaPagina).toEqual([]);
     expect(api.naoTratadas).toEqual([]);
   });

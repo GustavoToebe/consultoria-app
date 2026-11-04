@@ -10,7 +10,6 @@ import { Botao } from '../../ui/Botao';
 import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
 import { Campo } from '../../ui/Campo';
 import { CampoNumerico } from '../../ui/Campos';
-import { Cartao } from '../../ui/Cartao';
 import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
@@ -51,6 +50,8 @@ interface Props {
  * A sessão selecionada do plano (um dia): faixa de grupo com nome, resumo e ordem (← →, só com mais de uma sessão);
  * uma linha Nome · Dia · Tipo, "Observação" recolhível, os exercícios e os grupos (nível 3) e, no rodapé, adicionar
  * exercício (o primeiro controle), modelos e criar grupo; remover a sessão fica no ⋯ do cabeçalho. O cardio é um exercício de modalidade Cardio.
+ * A sessão não tem moldura em largura nenhuma, só a faixa do título: as duas molduras do editor são o exercício e a
+ * série aberta (§5.1 e S4), e os campos ganham a largura toda.
  */
 export function CartaoSessao(p: Props) {
   const { cores, marca, bordas } = useTema();
@@ -136,18 +137,13 @@ export function CartaoSessao(p: Props) {
         ]} />
       ) : null}
   </>;
-  // Barra de 4 px na cor da marca à esquerda: onde a sessão começa (protótipo de 30/10). É identidade, não status.
-  const barra = [{ borderLeftWidth: BARRA_DA_SESSAO, borderLeftColor: marca }, p.comProblema ? { borderColor: cores.perigo, borderLeftColor: marca } : null];
+  // Barra de 4 px na cor da marca à esquerda da faixa: onde a sessão começa (protótipo de 30/10). É identidade, não status.
   return (
     <AlvoDeRolagem chave={s.uid}>
-      {largo ? <Cartao style={barra} cabecalho={cabecalho}>{corpo}</Cartao> : (
-        // Celular: sem a moldura da sessão (só a faixa do título), para o cartão do exercício e o grupo de séries serem
-        // os dois únicos níveis com borda e os campos ganharem a largura toda.
-        <View style={estilos.semMoldura}>
-          <View style={[estilos.faixaSolta, { borderWidth: bordas.bloco, borderColor: cores.borda }, barra]}>{cabecalho}</View>
-          {corpo}
-        </View>
-      )}
+      <View style={estilos.semMoldura}>
+        <View style={[estilos.faixaSolta, { borderWidth: bordas.bloco, borderColor: p.comProblema ? cores.perigo : cores.borda, borderLeftWidth: BARRA_DA_SESSAO, borderLeftColor: marca }]}>{cabecalho}</View>
+        {corpo}
+      </View>
     </AlvoDeRolagem>
   );
 }

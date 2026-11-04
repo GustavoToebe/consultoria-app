@@ -130,7 +130,7 @@ describe('EditorSeries com a aba controlada', () => {
   it('sem nada guardado, mover o 1º grupo para baixo leva a aba junto', () => {
     const aoAbrir = jest.fn();
     const arvore = montar(<Controlado inicial={null} aoAbrir={aoAbrir} />);
-    tocar(arvore, 'Mover grupo de séries para baixo');
+    tocar(arvore, 'Descer série 1');
     expect(aoAbrir).toHaveBeenLastCalledWith('a1');
     expect(abaSelecionada(arvore)).toMatch(/^Série 2/);
   });

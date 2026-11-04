@@ -1,4 +1,4 @@
-import { CircleAlert, CircleCheck, Dumbbell, Layers, type LucideIcon } from 'lucide-react-native';
+import { CircleAlert, CircleCheck } from 'lucide-react-native';
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -13,11 +13,11 @@ import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
 
 /**
- * Contadores do plano no topo do editor: o plano inteiro ("Plano inteiro: 6 sessões · 32 exercícios · 120 séries
- * cadastradas") e, separado, a sessão aberta ("Sessão aberta: 5 exercícios · 18 séries"); antes os números do plano
- * pareciam ser da sessão na tela (reunião de 30/10). Pela mesma validação da publicação, ao vivo, "N problemas para
- * publicar · ir ao primeiro" (abre a sessão e o exercício e rola até ele) ou "Pronto para publicar". Só informa: nada
- * aqui trava salvar ou publicar.
+ * Cabeçalho "Sessões (N)" do editor: embaixo do título, em texto, o plano inteiro ("Plano inteiro: 6 sessões · 32
+ * exercícios · 120 séries cadastradas") e a sessão aberta ("Sessão aberta: 5 exercícios · 18 séries"), separados porque
+ * os números do plano pareciam ser da sessão (reunião de 30/10). À direita, o estado da publicação pela mesma validação
+ * dela, ao vivo: "N problemas para publicar · ir ao primeiro" (abre a sessão e o exercício e rola até ele) ou "Pronto
+ * para publicar". Só informa: nada aqui trava salvar ou publicar.
  */
 export function ContadoresDoTreino({ conteudo, sessao, aoIrAoPrimeiro }: {
   conteudo: ConteudoTreino;
@@ -35,17 +35,22 @@ export function ContadoresDoTreino({ conteudo, sessao, aoIrAoPrimeiro }: {
     rolarAte(uids);
   };
   return (
-    <View style={estilos.linha}>
-      <Contador Icone={Layers} texto={textoDoPlanoInteiro(contarPlano(conteudo))} />
-      {sessao ? <Contador Icone={Dumbbell} texto={textoDaSessaoAberta(contarSessao(sessao))} /> : null}
+    <View style={estilos.cabecalho}>
+      <View style={estilos.titulo}>
+        <Texto variante="bloco" nivel={2}>{`Sessões (${conteudo.sessoes.length})`}</Texto>
+        <View style={estilos.numeros}>
+          <Contagem texto={textoDoPlanoInteiro(contarPlano(conteudo))} />
+          {sessao ? <Contagem texto={textoDaSessaoAberta(contarSessao(sessao))} /> : null}
+        </View>
+      </View>
       {erros.length ? (
         <Pressable accessibilityRole="button" onPress={irAoPrimeiro}
-          style={(estado) => [estilos.contador, { borderColor: cores.perigo, backgroundColor: sobre(estado) ? cores.superficie3 : cores.superficie }]}>
+          style={(estado) => [estilos.estado, { borderColor: cores.perigo, backgroundColor: sobre(estado) ? cores.superficie3 : cores.superficie }]}>
           <CircleAlert size={16} color={cores.perigo} />
           <Texto cor={cores.perigo} style={estilos.forte}>{`${textoDosProblemas(erros.length)} · ir ao primeiro`}</Texto>
         </Pressable>
       ) : (
-        <View style={[estilos.contador, { borderColor: cores.sucesso, backgroundColor: cores.superficie }]}>
+        <View style={[estilos.estado, { borderColor: cores.sucesso, backgroundColor: cores.superficie }]}>
           <CircleCheck size={16} color={cores.sucesso} />
           <Texto cor={cores.sucesso} style={estilos.forte}>Pronto para publicar</Texto>
         </View>
@@ -54,24 +59,24 @@ export function ContadoresDoTreino({ conteudo, sessao, aoIrAoPrimeiro }: {
   );
 }
 
-/** Um contador: o "de quê" em destaque ("Plano inteiro:") e os números depois. */
-function Contador({ Icone, texto }: { Icone: LucideIcon; texto: string }) {
-  const { cores } = useTema();
+/** Uma contagem em texto suave: o "de quê" ("Plano inteiro:") em semi e os números depois. */
+function Contagem({ texto }: { texto: string }) {
   const corte = texto.indexOf(': ');
   const titulo = corte >= 0 ? texto.slice(0, corte + 1) : '';
   const numeros = corte >= 0 ? texto.slice(corte + 2) : texto;
   return (
-    <View style={[estilos.contador, { borderColor: cores.borda, backgroundColor: cores.superficie }]} accessibilityLabel={texto}>
-      <Icone size={16} color={cores.textoSuave} />
-      <Texto numerico style={estilos.texto}>{titulo ? <Texto numerico style={estilos.forte}>{titulo} </Texto> : null}{numeros}</Texto>
-    </View>
+    <Texto variante="suave" numerico style={estilos.contagem}>
+      {titulo ? <Texto variante="suave" numerico style={estilos.forte}>{titulo} </Texto> : null}{numeros}
+    </Texto>
   );
 }
 
 const estilos = StyleSheet.create({
-  linha: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
-  contador: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), minHeight: ALVO_TOQUE, paddingHorizontal: espaco(1.5), paddingVertical: espaco(0.5), borderWidth: 1, borderRadius: RAIO, maxWidth: '100%' },
-  // Em 390 px ou com texto grande o contador quebra linha dentro da caixa em vez de sair dela.
-  texto: { flexShrink: 1 },
+  cabecalho: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5) },
+  titulo: { flexGrow: 1, flexShrink: 1, flexBasis: 280, gap: espaco(0.5) },
+  numeros: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(2), rowGap: 2 },
+  // Em 390 px ou com texto grande a contagem quebra linha em vez de sair da tela.
+  contagem: { flexShrink: 1 },
+  estado: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), minHeight: ALVO_TOQUE, paddingHorizontal: espaco(1.5), paddingVertical: espaco(0.5), borderWidth: 1, borderRadius: RAIO, maxWidth: '100%' },
   forte: { fontFamily: fontes.semi },
 });

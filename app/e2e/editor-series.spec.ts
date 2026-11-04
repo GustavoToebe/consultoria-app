@@ -39,8 +39,9 @@ for (const largura of [390, 1280]) {
     await expect(campo('Série 2 · Mínimo (%)')).toHaveValue('70');
     await expect(campo('Série 3 · Mínimo (%)')).toHaveValue('85');
     await expect(campo('Série 3 · Máximo (%)')).toHaveValue('90');
-    // O título do grupo aberto: o tipo como o treinador lê e os números (reunião de 30/10).
-    await expect(page.getByText('Preparação · FS · 3x3 - FS 50% · 70% · 85% a 90% da WS', { exact: true })).toBeVisible();
+    // O título do grupo aberto diz o que se edita (o tipo como o treinador lê) e, embaixo, os números (reunião de 30/10).
+    await expect(page.getByText('Editando: Série 1 · Preparação · FS', { exact: true })).toBeVisible();
+    await expect(page.getByText('3x3 - FS 50% · 70% · 85% a 90% da WS', { exact: true }).first()).toBeVisible();
     await page.getByRole('button', { name: 'Nova série', exact: true }).click();
     await tipoDoPainel(page, 'WS').click();
     await page.getByRole('button', { name: 'Adicionar série', exact: true }).click();
@@ -53,7 +54,8 @@ for (const largura of [390, 1280]) {
     // Três grupos, três abas; a nova (a 3ª, WS com Rest pause) é a aberta.
     await expect(page.getByRole('tab', { name: /^Série \d/ })).toHaveCount(3);
     await expect(page.getByRole('tab', { name: /^Série 3 · WS/, selected: true })).toBeVisible();
-    await expect(page.getByText(/Trabalho · WS \+ Rest pause · 1x3 a 6 - WS \+ Rest pause/)).toBeVisible();
+    await expect(page.getByText(/^Editando: Série \d · Trabalho · WS \+ Rest pause$/)).toBeVisible();
+    await expect(page.getByText(/^1x3 a 6 - WS \+ Rest pause/).first()).toBeVisible();
     await expect(page.getByText('1 série completa · 3 a 6 reps + 1 retomada · pausa de 20 s', { exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath('series-prescritas.png'), fullPage: true });
