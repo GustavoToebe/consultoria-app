@@ -6,6 +6,7 @@ import {
   kgParaTela,
   mascaraDaCarga,
   nomeDaUnidade,
+  passoNaTela,
   telaParaKg,
   textoDaCarga,
   textoDoPasso,
@@ -128,32 +129,64 @@ describe('unidade em uso', () => {
 });
 
 describe('passo dos botões − e + na unidade do aluno', () => {
-  it('o rótulo converte o arredondamento da metodologia, com 2 casas', () => {
-    expect(textoDoPasso(0.5, 'kg')).toBe('0,5 kg');
-    expect(textoDoPasso(0.5, 'lb')).toBe('1,1 lb');
-    expect(textoDoPasso(0.25, 'lb')).toBe('0,55 lb');
-    expect(textoDoPasso(1, 'lb')).toBe('2,2 lb');
-    expect(textoDoPasso(2.5, 'lb')).toBe('5,51 lb');
+  it('em kg o passo é o arredondamentoKg como é; em libra, o convertido no múltiplo de 2,5 lb mais próximo (mínimo 2,5 lb)', () => {
+    expect(passoNaTela(0.5, 'kg')).toBe(0.5);
+    expect(passoNaTela(2.5, 'kg')).toBe(2.5);
+    expect(passoNaTela(2.5, 'lb')).toBe(5);
+    expect(passoNaTela(1, 'lb')).toBe(2.5);
+    expect(passoNaTela(1.25, 'lb')).toBe(2.5);
+    expect(passoNaTela(5, 'lb')).toBe(10);
+    expect(passoNaTela(0.25, 'lb')).toBe(2.5); // nunca abaixo de 2,5 lb
+    expect(passoNaTela(0.5, 'lb')).toBe(2.5);
   });
 
-  it('o passo continua o arredondamentoKg: o valor novo é kg + passo, sem passo novo em libra', () => {
-    const passo = passoDaCarga({ unidade: 'kg' }, 0.5) as number;
-    expect(passo).toBe(0.5);
-    // Aluno em lb digitou 100 lb = 45,35 kg; "+" soma 0,5 kg e o campo passa a mostrar 101,1 lb.
-    const depois = ajustarCarga(45.35, null, passo, 1);
-    expect(depois).toBe(45.85);
-    expect(kgParaTela(depois, 'lb')).toBe(101.1);
-    // "−" volta ao kg exato: os botões não derivam.
-    expect(ajustarCarga(depois, null, passo, -1)).toBe(45.35);
-    expect(kgParaTela(ajustarCarga(depois, null, passo, -1), 'lb')).toBe(100);
+  it('o rótulo mostra o passo da tela: kg como é, libra em múltiplo de 2,5', () => {
+    expect(textoDoPasso(0.5, 'kg')).toBe('0,5 kg');
+    expect(textoDoPasso(2.5, 'kg')).toBe('2,5 kg');
+    expect(textoDoPasso(2.5, 'lb')).toBe('5 lb');
+    expect(textoDoPasso(1, 'lb')).toBe('2,5 lb');
+    expect(textoDoPasso(5, 'lb')).toBe('10 lb');
+  });
+
+  it('em libra o −/+ anda sobre o número da tela: 100 lb + 5 lb = 105 lb, nunca 105,5', () => {
+    const cem = telaParaKg(100, 'lb') as number; // 45,35 kg
+    expect(kgParaTela(ajustarCarga(cem, null, 2.5, 1, 'lb'), 'lb')).toBe(105);
+    expect(kgParaTela(ajustarCarga(cem, null, 2.5, -1, 'lb'), 'lb')).toBe(95);
+    expect(kgParaTela(ajustarCarga(cem, null, 1, 1, 'lb'), 'lb')).toBe(102.5);
+    expect(kgParaTela(ajustarCarga(cem, null, 1.25, 1, 'lb'), 'lb')).toBe(102.5);
+    expect(kgParaTela(ajustarCarga(cem, null, 5, 1, 'lb'), 'lb')).toBe(110);
+    // Sempre devolve kg guardável (2 casas).
+    expect(ajustarCarga(cem, null, 2.5, 1, 'lb')).toBe(telaParaKg(105, 'lb'));
+  });
+
+  it('em kg nada mudou, mesmo passando a unidade', () => {
+    expect(ajustarCarga(45.35, null, 0.5, 1, 'kg')).toBe(45.85);
+    expect(ajustarCarga(45.85, null, 0.5, -1)).toBe(45.35);
+  });
+
+  it('a ida e volta lb → kg → lb não altera o número da tela: de 0,1 em 0,1 lb, +passo e −passo', () => {
+    for (const passoKg of [1, 1.25, 2.5, 5]) {
+      const passoLb = passoNaTela(passoKg, 'lb');
+      for (let decimos = 0; decimos <= 20000; decimos++) {
+        const lb = decimos / 10;
+        const kg = telaParaKg(lb, 'lb') as number;
+        const mais = ajustarCarga(kg, null, passoKg, 1, 'lb');
+        expect(Math.abs(Math.round(mais * 100) - mais * 100)).toBeLessThan(1e-6); // guardável em 2 casas
+        expect(kgParaTela(mais, 'lb')).toBe(Math.round((lb + passoLb) * 10) / 10);
+        expect(kgParaTela(ajustarCarga(kg, null, passoKg, -1, 'lb'), 'lb')).toBe(Math.max(0, Math.round((lb - passoLb) * 10) / 10));
+      }
+    }
   });
 
   it('nunca abaixo de zero e, sem número digitado, parte da sugestão e depois do zero', () => {
     expect(ajustarCarga(0.2, null, 0.5, -1)).toBe(0);
-    expect(kgParaTela(ajustarCarga(0, null, 0.5, -1), 'lb')).toBe(0);
     expect(ajustarCarga(null, 62.5, 0.5, 1)).toBe(63);
-    expect(kgParaTela(ajustarCarga(null, 62.5, 0.5, 1), 'lb')).toBe(138.9);
     expect(ajustarCarga(null, null, 0.5, 1)).toBe(0.5);
+    // Em libra: 2 lb − 5 lb = 0; do zero, o passo; sem número parte da sugestão (62,5 kg = 137,8 lb + 5 lb = 142,8 lb).
+    expect(ajustarCarga(telaParaKg(2, 'lb'), null, 2.5, -1, 'lb')).toBe(0);
+    expect(ajustarCarga(0, null, 2.5, -1, 'lb')).toBe(0);
+    expect(kgParaTela(ajustarCarga(null, null, 2.5, 1, 'lb'), 'lb')).toBe(5);
+    expect(kgParaTela(ajustarCarga(null, 62.5, 2.5, 1, 'lb'), 'lb')).toBe(142.8);
   });
 
   it('exercício sem carga ou passo inválido não tem botões, em qualquer unidade', () => {

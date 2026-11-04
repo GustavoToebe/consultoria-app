@@ -43,7 +43,8 @@ function historicoDe(enviados: RegistroEnvio[]): DiaDeTreino[] {
   }];
 }
 
-async function abrir(page: Page, { chave, preferida }: { chave: boolean; preferida?: 'kg' | 'lb' }) {
+/** `arredondamentoKg` é o passo da metodologia (o do −/+); o padrão do `sessaoDeAlunoComTreino` é 1 kg. */
+async function abrir(page: Page, { chave, preferida, arredondamentoKg }: { chave: boolean; preferida?: 'kg' | 'lb'; arredondamentoKg?: number }) {
   await fixarHoje(page);
   if (preferida) await page.addInitScript(({ id, un }) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ unidadeDeCarga: un })), { id: ALUNO.id, un: preferida });
   const sessoes = [sessaoFalsa('sx', 'Treino curto', 1, 1)];
@@ -54,7 +55,7 @@ async function abrir(page: Page, { chave, preferida }: { chave: boolean; preferi
   const api = await simularApi(page, {
     ...base,
     ...(chave ? await sessao(page, ALUNO, { unidadeDeCargaHabilitada: true }) : {}),
-    'GET /aluno/painel': { corpo: { ...painel, ultimasCargas: { x1: { carga: 60, repeticoes: 7, data: '2026-10-16' } }, anteriores: ANTERIORES } },
+    'GET /aluno/painel': { corpo: { ...painel, configuracao: { ...painel.configuracao, arredondamentoKg: arredondamentoKg ?? painel.configuracao.arredondamentoKg }, ultimasCargas: { x1: { carga: 60, repeticoes: 7, data: '2026-10-16' } }, anteriores: ANTERIORES } },
     'POST /aluno/execucoes/lote': (p, route) => {
       const lote = (p.corpo as { registros: RegistroEnvio[] }).registros;
       enviados.push(...lote);
@@ -141,6 +142,46 @@ for (const largura of [390, 1280]) {
     expect(api.errosDaPagina).toEqual([]);
   });
 }
+
+// Em kg o rótulo é o de antes, sem a unidade por extenso (`CampoDeCarga.rotuloDaCarga`).
+const baseDoDia = (page: Page, unidade: 'libras' | 'quilos') =>
+  page.getByRole('textbox', { name: unidade === 'libras' ? 'Carga de trabalho do dia, em libras' : 'Carga de trabalho do dia', exact: true });
+
+test('aluno em libras: o passo de 1 kg do painel de teste vira 2,5 lb (o mínimo), sem 102,2', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  const api = await abrir(page, { chave: true, preferida: 'lb' });
+  await page.goto(EXERCICIO);
+  await baseDoDia(page, 'libras').fill('100');
+  await page.getByRole('button', { name: 'Aumentar 2,5 lb em carga de trabalho', exact: true }).click();
+  await expect(baseDoDia(page, 'libras')).toHaveValue('102,5');
+  await page.getByRole('button', { name: 'Diminuir 2,5 lb em carga de trabalho', exact: true }).click();
+  await expect(baseDoDia(page, 'libras')).toHaveValue('100');
+  await expect(page.getByText(/ kg/)).toHaveCount(0);
+  expect(api.errosDaPagina).toEqual([]);
+});
+
+test('aluno em libras com arredondamento de 2,5 kg: o rótulo diz 5 lb e 100 lb + 5 lb = 105 lb', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  const api = await abrir(page, { chave: true, preferida: 'lb', arredondamentoKg: 2.5 });
+  await page.goto(EXERCICIO);
+  await baseDoDia(page, 'libras').fill('100');
+  await page.getByRole('button', { name: 'Aumentar 5 lb em carga de trabalho', exact: true }).click();
+  await expect(baseDoDia(page, 'libras')).toHaveValue('105');
+  await page.getByRole('button', { name: 'Diminuir 5 lb em carga de trabalho', exact: true }).click();
+  await page.getByRole('button', { name: 'Diminuir 5 lb em carga de trabalho', exact: true }).click();
+  await expect(baseDoDia(page, 'libras')).toHaveValue('95');
+  expect(api.errosDaPagina).toEqual([]);
+});
+
+test('em kg o passo continua o arredondamento da metodologia (sem mudança)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  const api = await abrir(page, { chave: true, preferida: 'kg' });
+  await page.goto(EXERCICIO);
+  await baseDoDia(page, 'quilos').fill('100');
+  await page.getByRole('button', { name: 'Aumentar 1 kg em carga de trabalho', exact: true }).click();
+  await expect(baseDoDia(page, 'quilos')).toHaveValue('101');
+  expect(api.errosDaPagina).toEqual([]);
+});
 
 test('chave desligada: sem a escolha e tudo em kg, mesmo com lb salvo de antes', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 900 });

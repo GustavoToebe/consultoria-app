@@ -9,8 +9,8 @@ Quando a busca ou o filtro deixa a lista de Interessados vazia mas há inscriç�
 | # | Decisão | Valor | Quem decidiu |
 | --- | --- | --- | --- |
 | 1 | Sem chamada nova | Usa as contagens já carregadas (`GET /inscricoes/contagens`), que seguem os mesmos filtros (busca, responsável, origem, datas) menos a situação | Pedido |
-| 2 | Texto | "Também há inscrições em: Aceitas (1), Desistiram (2)." (serve no singular, no plural e sem busca; antes era "Encontrada em") no lugar da dica genérica; o título do vazio fica | Decidido pelo Claude em 03/11, conferir com o Gustavo |
-| 3 | Onde aparece | Em qualquer lista vazia (busca, Meus, filtros, fila), só com situação individual diferente da atual e contagem maior que zero; "Em atendimento" e "Todas" não entram na lista | Decidido pelo Claude em 03/11, conferir com o Gustavo |
+| 2 | Texto | "Também há inscrições em: Aceitas (1), Desistiram (2)." (serve no singular, no plural e sem busca; antes era "Encontrada em") no lugar da dica genérica; o título do vazio fica | Confirmado pelo Gustavo em 04/11 |
+| 3 | Onde aparece | Em qualquer lista vazia (busca, Meus, filtros, fila), só com situação individual diferente da atual e contagem maior que zero; "Em atendimento" e "Todas" não entram na lista | Confirmado pelo Gustavo em 04/11 |
 | 4 | Botão | "Ver todas" troca a situação para Todas e mantém os demais filtros | Decidido pelo Claude em 03/11, conferir com o Gustavo |
 | 5 | Contagem de outra busca | Enquanto as contagens da busca nova carregam, o aviso e o "Ver todas" somem (nada de dica com número de outra busca) | Revisão independente |
 

@@ -63,12 +63,22 @@ export function textoDaCarga(kg: number | null | undefined, unidade: UnidadeDeCa
   return `${numeroDaCarga(kg, unidade)} ${unidade}`;
 }
 
+/** Menor passo dos botões −/+ em libra, e o múltiplo a que o passo se arredonda (anilhas de 2,5 lb). */
+const PASSO_MINIMO_EM_LIBRA = 2.5;
+
 /**
- * Passo dos botões −/+ no rótulo. O passo continua o `arredondamentoKg` da metodologia e é somado ao valor em kg
- * (`ajustarCarga`); só o texto é convertido, com 2 casas para não mentir (0,25 kg = "0,55 lb", não "0,6 lb").
+ * Passo dos botões −/+ no que a pessoa vê (decisão do Gustavo, 04/11). Em kg, o `arredondamentoKg` da metodologia como é.
+ * Em libra, ele convertido e arredondado ao múltiplo de 2,5 lb mais próximo, no mínimo 2,5 lb (2,5 kg = 5 lb; 1 kg = 2,5 lb;
+ * 5 kg = 10 lb): o aluno em libra anda de anilha em anilha, e não por 105,5 lb.
  */
+export function passoNaTela(passoKg: number, unidade: UnidadeDeCarga): number {
+  if (unidade === 'kg') return passoKg;
+  return Math.max(PASSO_MINIMO_EM_LIBRA, Math.round(passoKg / KG_POR_LIBRA / PASSO_MINIMO_EM_LIBRA) * PASSO_MINIMO_EM_LIBRA);
+}
+
+/** Passo dos botões −/+ no rótulo: "0,5 kg" ou "5 lb" (`passoNaTela`). */
 export function textoDoPasso(passoKg: number, unidade: UnidadeDeCarga): string {
-  return unidade === 'kg' ? `${numeroParaTela(passoKg)} kg` : `${numeroParaTela(passoKg / KG_POR_LIBRA, 2)} lb`;
+  return `${numeroParaTela(passoNaTela(passoKg, unidade))} ${unidade}`;
 }
 
 /** Nome por extenso, para o leitor de tela ("Peso da série 2, em libras"). */

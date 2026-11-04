@@ -1,7 +1,7 @@
 import type { Configuracao, ExercicioPlano, OrigemDaReferencia, Serie } from '../api/tipos';
 import { nomeDaReferencia, textoCardio, textoCarga, textoDasRepeticoes, textoEsforco, textoTecnica } from './agrupamento';
 import { numeroParaTela } from './formatos';
-import type { UnidadeDeCarga } from './unidadeDeCarga';
+import { kgParaTela, passoNaTela, telaParaKg, type UnidadeDeCarga } from './unidadeDeCarga';
 import { tipoPorCodigo, tipoTrabalho as tipoTrabalhoDaMetodologia } from './metodologia';
 import { cargaIlegivel } from './modoDeCarga';
 import { temEtapaEmPercentual } from './validacaoDeSerie';
@@ -298,7 +298,13 @@ export function passoDaCarga(exercicio: Pick<ExercicioPlano, 'unidade'>, arredon
   return Number.isFinite(arredondamentoKg) && arredondamentoKg > 0 ? arredondamentoKg : null;
 }
 
-export function ajustarCarga(atual: number | null, sugestao: number | null, passo: number, sentido: 1 | -1): number {
+/**
+ * `passo` é o `arredondamentoKg` (kg). Em kg soma em kg. Em libra soma `passoNaTela` ao número que a pessoa VÊ
+ * (`kgParaTela`) e grava o equivalente em kg (`telaParaKg`): 100 lb + passo de 5 lb = 105 lb na tela, sem 105,5. Devolve sempre kg.
+ */
+export function ajustarCarga(atual: number | null, sugestao: number | null, passo: number, sentido: 1 | -1, unidade: UnidadeDeCarga = 'kg'): number {
   const base = atual ?? sugestao ?? 0;
-  return Math.max(0, Math.round((base + sentido * passo) * 1000) / 1000);
+  if (unidade === 'kg') return Math.max(0, Math.round((base + sentido * passo) * 1000) / 1000);
+  const naTela = kgParaTela(base, unidade) as number;
+  return telaParaKg(Math.max(0, Math.round((naTela + sentido * passoNaTela(passo, unidade)) * 10) / 10), unidade) as number;
 }

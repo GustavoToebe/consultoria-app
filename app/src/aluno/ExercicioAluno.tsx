@@ -208,7 +208,7 @@ function CorpoDoExercicio(p: Props) {
           <Texto variante="rotulo">Carga de trabalho ({p.config.tipoTrabalho}) · {dataCurta(p.data)}</Texto>
           <View style={estilos.linhaPasso}>
             {passo !== null ? (
-              <BotaoDePasso sentido={-1} passo={passo} rotulo="carga de trabalho" aoAjustar={(s) => mudarBase(ajustarCarga(baseNaCaixa, base, passo, s))} />
+              <BotaoDePasso sentido={-1} passo={passo} rotulo="carga de trabalho" aoAjustar={(s) => mudarBase(ajustarCarga(baseNaCaixa, base, passo, s, unidade))} />
             ) : null}
             <CampoDeCarga
               rotulo="Carga de trabalho do dia"
@@ -217,7 +217,7 @@ function CorpoDoExercicio(p: Props) {
               aoMudarKg={mudarBase}
             />
             {passo !== null ? (
-              <BotaoDePasso sentido={1} passo={passo} rotulo="carga de trabalho" aoAjustar={(s) => mudarBase(ajustarCarga(baseNaCaixa, base, passo, s))} />
+              <BotaoDePasso sentido={1} passo={passo} rotulo="carga de trabalho" aoAjustar={(s) => mudarBase(ajustarCarga(baseNaCaixa, base, passo, s, unidade))} />
             ) : null}
           </View>
           <Texto numerico variante="pequeno">
@@ -535,7 +535,7 @@ function CartaoSerie({
       {avisoDoMarcar ? <Texto numerico variante="pequeno">As séries seguintes só usam este peso depois que você marcar a série como feita.</Texto> : null}
       {!semCampoDePeso && passo !== null ? (
         <AjusteDeCarga passo={passo} rotulo={`peso da série ${numero}`}
-          aoAjustar={(sentido) => mudar({ carga: ajustarCarga(carga, calculada.sugestao, passo, sentido) })} />
+          aoAjustar={(sentido) => mudar({ carga: ajustarCarga(carga, calculada.sugestao, passo, sentido, unidade) })} />
       ) : null}
       {repetir && !feita ? (
         <Botao rotulo={repetir.rotulo} rotuloAcessivel={`${repetir.rotulo} da série ${indice} e marcar a série ${numero} como feita`} tipo="fantasma" Icone={Repeat}

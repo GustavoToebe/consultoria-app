@@ -3,7 +3,9 @@ import { useEffect, useState } from 'react';
 import type { Configuracao, ExercicioPlano, Serie, UltimaCarga } from '../api/tipos';
 import { AVISO_SEM_CARGA } from '../dominio/avisoDaSerie';
 import { carga, exercicio as exercicioDeTeste, serie as serieDeTeste } from '../dominio/exemplosDeTreino.apoioTeste';
+import { telaParaKg, type UnidadeDeCarga } from '../dominio/unidadeDeCarga';
 import type { RegistroLocal } from '../offline/repositorioLocal';
+import { ContextoDaUnidadeDeCarga } from '../ui/unidadeDeCargaEmUso';
 import { ExercicioAluno, type DadosSerie } from './ExercicioAluno';
 
 /**
@@ -75,7 +77,7 @@ interface Controle {
   fila: (() => void)[];
 }
 
-function Harness({ exercicio, baseInicial, ultima, controle, ponte, metodologia }: { metodologia?: Configuracao; exercicio: ExercicioPlano; baseInicial: number | null; ultima: UltimaCarga | null; controle: Controle; ponte: (p: { base: number | null; mudarVisivel: (visivel: boolean) => void }) => void }) {
+function Harness({ exercicio, baseInicial, ultima, controle, ponte, metodologia, unidade = 'kg', arredondamentoKg = CONFIG.arredondamentoKg }: { metodologia?: Configuracao; unidade?: UnidadeDeCarga; arredondamentoKg?: number; exercicio: ExercicioPlano; baseInicial: number | null; ultima: UltimaCarga | null; controle: Controle; ponte: (p: { base: number | null; mudarVisivel: (visivel: boolean) => void }) => void }) {
   const [base, setBase] = useState<number | null>(baseInicial);
   const [, forcar] = useState(0);
   const [visivel, setVisivel] = useState(true);
@@ -84,14 +86,16 @@ function Harness({ exercicio, baseInicial, ultima, controle, ponte, metodologia 
     ponte({ base, mudarVisivel: setVisivel });
   }, [ponte, base]);
   if (!visivel) return null;
+  const config = { ...CONFIG, arredondamentoKg };
   return (
+    <ContextoDaUnidadeDeCarga.Provider value={unidade}>
     <ExercicioAluno
       exercicio={exercicio}
       data={DATA}
       cargaDoDia={base}
       ultima={ultima}
       registroDe={(uid) => controle.registros.get(uid)}
-      config={metodologia ? { ...CONFIG, metodologia } : CONFIG}
+      config={metodologia ? { ...config, metodologia } : config}
       aoMudarCargaDoDia={(carga) => (controle.adiar ? controle.fila.push(() => setBase(carga)) : setBase(carga))}
       aoRegistrar={(serieUid, dados) => {
         controle.gravacoes.push({ serieUid, dados });
@@ -127,6 +131,7 @@ function Harness({ exercicio, baseInicial, ultima, controle, ponte, metodologia 
       }}
       chaveDaExecucao={(uid) => `v1|${uid}|${DATA}`}
     />
+    </ContextoDaUnidadeDeCarga.Provider>
   );
 }
 
@@ -138,11 +143,11 @@ afterEach(async () => {
   });
 });
 
-async function montar(exercicio: ExercicioPlano, baseInicial: number | null = 40, ultima: UltimaCarga | null = null, metodologia?: Configuracao) {
+async function montar(exercicio: ExercicioPlano, baseInicial: number | null = 40, ultima: UltimaCarga | null = null, metodologia?: Configuracao, opcoes: { unidade?: UnidadeDeCarga; arredondamentoKg?: number } = {}) {
   const controle: Controle = { registros: new Map(), gravacoes: [], base: () => null, mudarVisivel: () => undefined, adiar: false, fila: [] };
   let arvore!: Arvore;
   await Renderer.act(async () => {
-    arvore = Renderer.create(<Harness metodologia={metodologia} exercicio={exercicio} baseInicial={baseInicial} ultima={ultima} controle={controle} ponte={(p) => { controle.base = () => p.base; controle.mudarVisivel = p.mudarVisivel; }} />);
+    arvore = Renderer.create(<Harness {...opcoes} metodologia={metodologia} exercicio={exercicio} baseInicial={baseInicial} ultima={ultima} controle={controle} ponte={(p) => { controle.base = () => p.base; controle.mudarVisivel = p.mudarVisivel; }} />);
     montados.push(arvore);
   });
   const achar = (rotulo: string, prop: 'onChangeText' | 'onPress') => {
@@ -160,7 +165,7 @@ async function montar(exercicio: ExercicioPlano, baseInicial: number | null = 40
   return {
     controle,
     /** Texto que está na caixa do peso da série `n` (1, 2, ...). */
-    peso: (n: number) => (achar(`Peso da série ${n}, em quilos`, 'onChangeText').props.value as string),
+    peso: (n: number, em: 'quilos' | 'libras' = 'quilos') => (achar(`Peso da série ${n}, em ${em}`, 'onChangeText').props.value as string),
     digitarPeso: (n: number, texto: string) => Renderer.act(async () => achar(`Peso da série ${n}, em quilos`, 'onChangeText').props.onChangeText(texto)),
     digitarBase: (texto: string) => Renderer.act(async () => achar('Carga de trabalho do dia', 'onChangeText').props.onChangeText(texto)),
     digitarReps: (n: number, texto: string) => Renderer.act(async () => achar(`Repetições da série ${n}`, 'onChangeText').props.onChangeText(texto)),
@@ -175,7 +180,9 @@ async function montar(exercicio: ExercicioPlano, baseInicial: number | null = 40
     painel: (n: number) => arvore.root.findAll((x) => x.props.accessibilityLabel === `Sem carga, série ${n}`).length > 0,
     /** Toca uma opção do painel do ✓ da série `n` ("Sim, 40 kg", "Outra carga", "Sem carga"). */
     escolher: (n: number, rotulo: string) => Renderer.act(async () => achar(`${rotulo}, série ${n}`, 'onPress').props.onPress()),
-    caixaDaBase: () => achar('Carga de trabalho do dia', 'onChangeText').props.value as string,
+    caixaDaBase: () => arvore.root.findAll((x) => typeof x.props.accessibilityLabel === 'string' && x.props.accessibilityLabel.startsWith('Carga de trabalho do dia') && typeof x.props.onChangeText === 'function')[0]!.props.value as string,
+    /** Toca um botão −/+ pelo rótulo acessível ("Aumentar 5 lb em carga de trabalho", "Diminuir 5 lb em peso da série 1"). */
+    tocarPasso: (rotulo: string) => Renderer.act(async () => achar(rotulo, 'onPress').props.onPress()),
     temBase: () => arvore.root.findAll((x) => x.props.accessibilityLabel === 'Carga de trabalho do dia').length > 0,
     remontar: async () => {
       await Renderer.act(async () => controle.mudarVisivel(false));
@@ -540,6 +547,48 @@ describe('B1 · gravação ASSÍNCRONA (como no app): o que a caixa mostra entre
     await t.liberarUm();
     expect(t.controle.base()).toBe(45);
     expect([t.sugestao(1), t.sugestao(2)]).toEqual(['45', '36']);
+  });
+});
+
+describe('libras · os botões −/+ andam em libras sobre o número da tela (decisão do Gustavo, 04/11)', () => {
+  it('em kg: o passo é o arredondamentoKg, no rótulo e na conta (nada mudou)', async () => {
+    const t = await montar(treino(ws('w'), backOff('b1')), 100, null, undefined, { arredondamentoKg: 2.5 });
+    await t.tocarPasso('Aumentar 2,5 kg em carga de trabalho');
+    expect(t.caixaDaBase()).toBe('102,5');
+    await t.tocarPasso('Diminuir 2,5 kg em carga de trabalho');
+    await t.tocarPasso('Diminuir 2,5 kg em carga de trabalho');
+    expect(t.caixaDaBase()).toBe('97,5');
+    await t.tocarPasso('Aumentar 2,5 kg em peso da série 1');
+    expect(t.peso(1)).toBe('100'); // sem digitar, parte da sugestão da WS (a base, 97,5) + 2,5
+  });
+
+  it('em lb com passo de 2,5 kg: o rótulo diz 5 lb e 100 lb + 5 lb = 105 lb na tela, sem 105,5', async () => {
+    const t = await montar(treino(ws('w'), backOff('b1')), telaParaKg(100, 'lb'), null, undefined, { unidade: 'lb', arredondamentoKg: 2.5 });
+    expect(t.caixaDaBase()).toBe('100');
+    await t.tocarPasso('Aumentar 5 lb em carga de trabalho');
+    expect(t.caixaDaBase()).toBe('105');
+    expect(t.controle.base()).toBe(telaParaKg(105, 'lb')); // o guardado continua em kg
+    await t.tocarPasso('Diminuir 5 lb em carga de trabalho');
+    await t.tocarPasso('Diminuir 5 lb em carga de trabalho');
+    expect(t.caixaDaBase()).toBe('95');
+  });
+
+  it('em lb, o −/+ da série parte do número da tela (a sugestão, se o campo está vazio) e grava kg só ao marcar', async () => {
+    const t = await montar(treino(ws('w'), backOff('b1')), telaParaKg(100, 'lb'), null, undefined, { unidade: 'lb', arredondamentoKg: 2.5 });
+    expect(t.peso(1, 'libras')).toBe('');
+    await t.tocarPasso('Aumentar 5 lb em peso da série 1');
+    expect(t.peso(1, 'libras')).toBe('105');
+    await t.tocarPasso('Aumentar 5 lb em peso da série 1');
+    expect(t.peso(1, 'libras')).toBe('110');
+    expect(t.controle.gravacoes).toEqual([]);
+    await t.marcar(1);
+    expect(t.controle.gravacoes.at(-1)).toMatchObject({ serieUid: 'w', dados: { carga: telaParaKg(110, 'lb'), concluida: true } });
+  });
+
+  it('em lb, passo de 0,5 kg vira 2,5 lb (o mínimo)', async () => {
+    const t = await montar(treino(ws('w')), telaParaKg(100, 'lb'), null, undefined, { unidade: 'lb', arredondamentoKg: 0.5 });
+    await t.tocarPasso('Aumentar 2,5 lb em carga de trabalho');
+    expect(t.caixaDaBase()).toBe('102,5');
   });
 });
 
