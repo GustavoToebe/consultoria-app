@@ -17,6 +17,7 @@ test('inscrição pública: confere os campos, exige a ciência do texto e mostr
   await page.getByRole('button', { name: 'Enviar inscrição' }).click();
   await expect(page.getByText('Confira os campos destacados.')).toBeVisible();
   await expect(page.getByText('Informe seu nome.')).toBeVisible();
+  await expect(page.getByLabel('Nome')).toBeFocused();
   await expect(page.getByText('Marque que você leu o texto acima.')).toBeVisible();
   const envios = () => pedidos.filter((p) => p.metodo === 'POST' && p.caminho.startsWith('/publico/inscricoes/'));
   expect(envios()).toHaveLength(0);
@@ -49,6 +50,21 @@ test('inscrição pública: confere os campos, exige a ciência do texto e mostr
   });
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);
+});
+
+test('inscrição pública: a escolha mostra o erro que a API apontou', async ({ page }) => {
+  await simularApi(page, {
+    [`GET /publico/inscricoes/${CODIGO}`]: { corpo: paginaPublica() },
+    [`POST /publico/inscricoes/${CODIGO}`]: erroApi(422, 'Confira os campos.', 'INSCRICAO_INVALIDA', [
+      { field: 'interesse', message: 'Escolha o que você procura.' },
+    ]),
+  });
+  await page.goto(`/inscricao/${CODIGO}`);
+  await page.getByLabel('Nome').fill('Pessoa Fictícia');
+  await page.getByLabel('WhatsApp com DDD').pressSequentially('11987654321');
+  await page.getByRole('button', { name: 'Enviar inscrição' }).click();
+  await expect(page.getByText('Escolha o que você procura.')).toBeVisible();
+  await expect(page.getByRole('radiogroup', { name: 'O que você procura?' }).getByRole('button', { name: 'Não informar' })).toBeFocused();
 });
 
 test('inscrição pública: limite de envios (429) mostra o texto do formulário, não o do login', async ({ page }) => {

@@ -228,8 +228,8 @@ for (const largura of [390, 1280]) {
     });
     await page.goto(`/treinador/dietas/${PLANO_ID}`);
 
-    await expect(page.getByText('Atualização de Plano 17 · 20/10/2026')).toBeVisible();
-    await expect(page.getByText('A pasta deste plano ainda não tem atualização.')).toBeVisible();
+    await expect(page.getByText('Última atualização enviada: Plano 17 · 20/10/2026')).toBeVisible();
+    await expect(page.getByText('A pasta deste plano ainda não tem atualização; esta é a anterior, de outra pasta.')).toBeVisible();
     await expect(page.getByText('Sem atualização nesta pasta.')).toHaveCount(0);
     const link = page.getByRole('link', { name: /Abrir atualização de Plano 17 de 20\/10\/2026 em outra aba/ });
     await expect(link).toHaveAttribute('href', `/treinador/atualizacoes/${ATUALIZACAO_ID}`);

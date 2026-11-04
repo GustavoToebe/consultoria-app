@@ -209,7 +209,7 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
           <Texto variante="secao">Planos desta pasta</Texto>
           {/* Sem permissão de publicar nenhum tipo, o botão não existe para a pessoa; com a de um tipo só, ele aparece e
               fica desabilitado com o motivo quando o outro tipo tem alteração. */}
-          {podePublicarAlgo ? <PublicarTudoDaPasta key={aberta.id} pasta={aberta} planos={planosEmFoco.planos} carregando={planosEmFoco.carregando}
+          {podePublicarAlgo ? <PublicarTudoDaPasta key={aberta.id} pasta={aberta} planos={planosEmFoco.planos} versoes={planosEmFoco.versoes} carregando={planosEmFoco.carregando}
             atualizando={planosEmFoco.atualizando} falhou={planosEmFoco.falhou} aoTentarDeNovo={planosEmFoco.recarregarFalhas} aoPublicar={aoPublicar} aoRecarregar={aoPublicar} aoNavegar={() => setAbertaId(null)} /> : null}
           <Permitido codigo={PERMISSOES_DO_PLANO.treino.ler}><CartaoPlanos tipo="treino" alunoId={alunoId} pasta={aberta} geracao={geracao} carga={planosEmFoco.cargas.treino} aoNavegar={() => setAbertaId(null)} /></Permitido>
           <Permitido codigo={PERMISSOES_DO_PLANO.dieta.ler}><CartaoPlanos tipo="dieta" alunoId={alunoId} pasta={aberta} geracao={geracao} carga={planosEmFoco.cargas.dieta} aoNavegar={() => setAbertaId(null)} /></Permitido>
