@@ -48,7 +48,7 @@ interface Base {
    * metadados e selos embaixo dela.
    */
   colunas?: { definicao: readonly ColunaDaLista[]; celulas: CelulasDaLinha };
-  /** Fundo em repouso (a lista da agenda no celular usa a tinta da cor da agenda). Sem isto, `superficie2`. */
+  /** Fundo em repouso (a lista da agenda no celular usa a tinta da cor da agenda); hover e toque seguem `superficie3`. Sem isto, `superficie2`. */
   fundo?: string;
 }
 
@@ -107,7 +107,7 @@ export function LinhaDaLista(p: PropsDaLinha) {
       ? { borderColor: cores.texto }
       : { borderTopColor: 'transparent', borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: cores.divisor }]
     : { borderColor: escolhida ? cores.texto : cores.borda };
-  const fundo = (aceso: boolean) => ({ backgroundColor: p.fundo ?? (aceso ? cores.superficie3 : tabela ? 'transparent' : cores.superficie2) });
+  const fundo = (aceso: boolean) => ({ backgroundColor: aceso ? cores.superficie3 : p.fundo ?? (tabela ? 'transparent' : cores.superficie2) });
   const apagado = p.esmaecido ? estilos.esmaecido : null;
 
   const colunas = p.colunas;

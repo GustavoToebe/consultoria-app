@@ -79,15 +79,39 @@ describe('ações do aluno (T10, T14, T18)', () => {
   const ref = { valor: 40, origem: 'BASE_DO_DIA' as const };
 
   it('a etapa seguinte parte do registro local quando a prop ainda é a anterior', () => {
+    const ex = 'v1|s1|2026-11-04';
     const primeira = aplicarAcao(null, { tipo: 'FEITA', posicao: 1, repeticoes: 4, carga: 40 }, 4, ref)!;
     const pelaPropVelha = aplicarAcao(null, { tipo: 'FEITA', posicao: 2, repeticoes: 4, carga: 40 }, 4, ref)!;
     expect(pelaPropVelha.etapas.map((e) => e.posicao)).toEqual([2]);
-    const base = baseDaProximaAcao(null, primeira);
+    const { base, alcancou } = baseDaProximaAcao(null, { execucao: ex, gravacao: primeira }, ex);
+    expect(alcancou).toBe(false);
     const segunda = aplicarAcao(base, { tipo: 'FEITA', posicao: 2, repeticoes: 4, carga: 40 }, 4, ref)!;
     expect(segunda.etapas.map((e) => e.posicao)).toEqual([1, 2]);
-    const atrasada = baseDaProximaAcao(primeira, segunda);
-    expect(atrasada?.etapas?.map((e) => e.posicao)).toEqual([1, 2]);
-    expect(baseDaProximaAcao(segunda, segunda)).toBe(segunda);
+    expect(baseDaProximaAcao(primeira, { execucao: ex, gravacao: segunda }, ex).base?.etapas?.map((e) => e.posicao)).toEqual([1, 2]);
+    expect(baseDaProximaAcao(segunda, { execucao: ex, gravacao: segunda }, ex)).toEqual({ base: segunda, alcancou: true });
+  });
+
+  it('desfazer com a prop atrasada não ressuscita a etapa desfeita', () => {
+    const ex = 'v1|s1|2026-11-04';
+    const duas = aplicarAcao(aplicarAcao(null, { tipo: 'FEITA', posicao: 1, repeticoes: 4, carga: 40 }, 4, ref), { tipo: 'FEITA', posicao: 2, repeticoes: 4, carga: 40 }, 4, ref)!;
+    const desfeita = aplicarAcao(duas, { tipo: 'DESFAZER', posicao: 2 }, 4, ref)!;
+    const { base } = baseDaProximaAcao(duas, { execucao: ex, gravacao: desfeita }, ex);
+    const depois = aplicarAcao(base, { tipo: 'NAO_REALIZADA', posicao: 3 }, 4, ref)!;
+    expect(depois.etapas.map((e) => e.posicao)).toEqual([1, 3]);
+  });
+
+  it('o registro local de outra execução (outra data) nunca é a base', () => {
+    const local = aplicarAcao(null, { tipo: 'FEITA', posicao: 1, repeticoes: 4, carga: 40 }, 4, ref)!;
+    expect(baseDaProximaAcao(null, { execucao: 'v1|s1|2026-11-03', gravacao: local }, 'v1|s1|2026-11-04')).toEqual({ base: null, alcancou: true });
+  });
+
+  it('número editado que ainda não voltou na prop continua valendo', () => {
+    const ex = 'v1|s1|2026-11-04';
+    const feita = aplicarAcao(null, { tipo: 'FEITA', posicao: 1, repeticoes: 4, carga: 40 }, 4, ref)!;
+    const editada = aplicarAcao(feita, { tipo: 'EDITAR', posicao: 1, repeticoes: 6 }, 4, ref)!;
+    const { base, alcancou } = baseDaProximaAcao(feita, { execucao: ex, gravacao: editada }, ex);
+    expect(alcancou).toBe(false);
+    expect(base?.etapas?.[0].repeticoes).toBe(6);
   });
 
   it('a primeira etapa congela a referência; mudar a base depois não muda o que já foi registrado', () => {

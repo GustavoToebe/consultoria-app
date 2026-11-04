@@ -254,35 +254,49 @@ export interface GravacaoDeEtapas extends RegistroDeEtapas {
 }
 
 /**
+ * O último registro que este cartão montou, com a execução (`versaoId|serieUid|data`) a que pertence: o salvamento é
+ * assíncrono e a prop pode chegar atrasada.
+ */
+export interface UltimoLocalDeEtapas {
+  execucao: string;
+  gravacao: GravacaoDeEtapas;
+}
+
+/**
+ * De qual registro sai a próxima ação. Enquanto a prop ainda não é igual ao último que o cartão montou para a mesma
+ * execução, vale o local (no aparelho o registro local sempre ganha na mesma série e dia): a ação nova não nasce do dado
+ * velho e não apaga o que acabou de ser marcado, desfeito ou digitado. Prop igual ao local, outra execução (outra data,
+ * série ou versão) ou nada montado ainda: vale a prop. `alcancou` diz se o local pode ser esquecido.
+ */
+export function baseDaProximaAcao(
+  registro: RegistroAtual | null | undefined,
+  ultimo: UltimoLocalDeEtapas | null,
+  execucao: string,
+): { base: RegistroAtual | null | undefined; alcancou: boolean } {
+  if (!ultimo || ultimo.execucao !== execucao) return { base: registro, alcancou: true };
+  if (mesmoRegistro(registro, ultimo.gravacao)) return { base: registro, alcancou: true };
+  return { base: ultimo.gravacao, alcancou: false };
+}
+
+/** Mesmas etapas (posição, situação, repetições e carga), mesma conclusão e mesma referência congelada. */
+function mesmoRegistro(registro: RegistroAtual | null | undefined, local: GravacaoDeEtapas): boolean {
+  if (!registro) return false;
+  if (!!registro.concluida !== local.concluida) return false;
+  if ((registro.referenciaCarga ?? null) !== local.referenciaCarga || (registro.referenciaOrigem ?? null) !== local.referenciaOrigem) return false;
+  const deles = [...(registro.etapas ?? [])].sort((a, b) => a.posicao - b.posicao);
+  const nossas = [...local.etapas].sort((a, b) => a.posicao - b.posicao);
+  if (deles.length !== nossas.length) return false;
+  return deles.every((e, i) => {
+    const n = nossas[i];
+    return e.posicao === n.posicao && e.situacao === n.situacao && (e.repeticoes ?? null) === (n.repeticoes ?? null) && (e.carga ?? null) === (n.carga ?? null);
+  });
+}
+
+/**
  * Aplica uma ação do aluno. A referência da carga é congelada na primeira etapa feita (a que vale na hora) e não muda
  * depois. Concluir exige todas as etapas com situação; desfazer uma etapa reabre a série; editar números não muda a
  * situação. Nada é inventado: repetição vazia continua vazia, a meta não é copiada para o realizado.
  */
-/**
- * De qual registro sai a próxima ação. O salvamento é assíncrono: a prop pode ainda ser a anterior enquanto a pessoa
- * edita outra etapa. O último resultado local vale até a prop alcançá-lo; senão a ação nova nasceria do dado velho e
- * apagaria o que acabou de ser digitado.
- */
-export function baseDaProximaAcao(
-  registro: RegistroAtual | null | undefined,
-  ultimoLocal: GravacaoDeEtapas | null,
-): RegistroAtual | null | undefined {
-  if (!ultimoLocal) return registro;
-  if (propEstaAtras(registro, ultimoLocal)) return ultimoLocal;
-  return registro;
-}
-
-/**
- * A prop ainda não alcançou o que o aparelho montou: não tem etapa que o local não tenha. Número diferente na mesma
- * etapa também conta (a edição ainda não voltou). Etapa que só a prop tem é dado mais novo: aí a prop vale.
- */
-function propEstaAtras(registro: RegistroAtual | null | undefined, local: GravacaoDeEtapas): boolean {
-  const etapas = registro?.etapas;
-  if (!etapas) return true;
-  const locais = new Set(local.etapas.map((e) => e.posicao));
-  return !etapas.some((e) => !locais.has(e.posicao));
-}
-
 export function aplicarAcao(
   atual: RegistroAtual | null | undefined,
   acao: AcaoNaEtapa,
