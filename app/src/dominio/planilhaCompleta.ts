@@ -474,6 +474,7 @@ const PROBLEMAS: Record<string, string> = {
   ITENS_DEMAIS_NA_OPCAO: 'Mais de 40 itens na opção: os demais ficaram de fora.',
   LIGACAO_AMBIGUA: 'Ligação ambígua sem resposta: a linha não entra.',
   LIMITE_DO_PLANO: 'O plano não tem mais vagas de aluno ativo.',
+  LIMITE_DO_TREINADOR: 'Você já atingiu o limite de alunos: o aluno novo não entra.',
   LINHA_SEM_LIGACAO: 'A linha não liga a nenhuma linha da aba de cima.',
   MAIS_DE_UM_ATIVO_PARA_O_ALUNO: 'Mais de uma linha ativa para o mesmo aluno: nenhuma foi escolhida.',
   MEDICACAO_DEMAIS: 'Mais de 40 itens de medicação: os demais ficaram de fora.',

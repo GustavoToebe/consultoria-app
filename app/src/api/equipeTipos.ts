@@ -7,6 +7,8 @@ export interface PermissaoEquipe { codigo:string; secao:string; modulo:string; d
 export interface MembroEquipe {
   id:string; nome:string; email:string; perfilId:string; perfilNome:string; ativo:boolean;
   convitePendente:boolean; conviteExpiraEm:string|null; ultimoAcesso:string|null;
+  /** Nulo = sem limite (supervisão da equipe, D2); grava só o Administrador, na rota própria. */
+  limiteDeAlunos:number|null;
 }
 export interface ConviteEquipe { codigo:string; link:string; expiraEm:string; emailEnviado:boolean }
 export interface ResponsavelEquipe { id:string; nome:string }

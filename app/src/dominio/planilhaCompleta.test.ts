@@ -213,7 +213,7 @@ describe('formatos: uma aba por aluno e blocos', () => {
 
   test('os problemas novos têm texto', () => {
     for (const codigo of ['BLOCO_SEM_ALUNO', 'ALUNO_DO_BLOCO_AMBIGUO', 'PIRAMIDE_DIFERENTE_DAS_SERIES', 'ESFORCO_CONFLITANTE',
-      'TECNICA_FORA_DA_METODOLOGIA', 'TECNICA_INCOMPLETA', 'CLUSTER_DIFERENTE_DAS_REPETICOES']) {
+      'TECNICA_FORA_DA_METODOLOGIA', 'TECNICA_INCOMPLETA', 'CLUSTER_DIFERENTE_DAS_REPETICOES', 'LIMITE_DO_TREINADOR']) {
       expect(textoDoProblema(codigo)).not.toContain('Outro problema');
     }
   });
