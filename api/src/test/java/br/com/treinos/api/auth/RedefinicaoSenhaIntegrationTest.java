@@ -21,6 +21,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -92,6 +93,29 @@ class RedefinicaoSenhaIntegrationTest extends AbstractIntegrationTest {
         login(emailAluno, ApiDeTeste.SENHA, 401);
         assertThat(login(emailAluno, SENHA_NOVA, 200).path("usuario").path("papel").asString()).isEqualTo("ALUNO");
         api.get("/eu", aluno, 401);
+    }
+
+    @Test
+    void redefinirApagaOsTokensDePushSoDaPropriaConta() throws Exception {
+        JsonNode aluno = api.convidarEEntrar(treinador, api.criarAluno(treinador, "Aluno Push Redefine"));
+        JsonNode outro = api.convidarEEntrar(treinador, api.criarAluno(treinador, "Outro Aluno Push Redefine"));
+        String emailAluno = aluno.path("usuario").path("email").asString();
+        String token = tokenDePush();
+        String tokenDoOutro = tokenDePush();
+        api.put("/aluno/push-token", aluno, Map.of("token", token, "plataforma", "ANDROID"), 204);
+        api.put("/aluno/push-token", outro, Map.of("token", tokenDoOutro, "plataforma", "IOS"), 204);
+
+        esqueci(emailAluno, 202);
+        redefinir(aguardarToken(emailAluno), SENHA_NOVA, null, 204);
+
+        // Como na troca de senha: o aparelho precisa ligar o aviso de novo. O outro aluno não perde nada.
+        assertThat(banco.queryForObject("select count(*) from push_token where token = ?", Integer.class, token)).isZero();
+        assertThat(banco.queryForObject("select count(*) from push_token where token = ?", Integer.class, tokenDoOutro)).isEqualTo(1);
+        api.get("/eu", aluno, 401);
+    }
+
+    private static String tokenDePush() {
+        return "ExponentPushToken[" + UUID.randomUUID().toString().replace("-", "") + "]";
     }
 
     @Test

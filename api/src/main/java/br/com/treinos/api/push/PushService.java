@@ -49,7 +49,7 @@ public class PushService {
 
     /**
      * Apaga todos os tokens do usuário. Chamado onde as sessões dele são encerradas (inativar, senha provisória, troca de
-     * senha, anonimização e "Excluir minha conta"), com a consultoria dada, sem depender do {@code TenantContext}.
+     * senha, "esqueci a senha", anonimização e "Excluir minha conta"), com a consultoria dada, sem depender do {@code TenantContext}.
      */
     @Transactional
     public void apagarDoUsuario(UUID consultoriaId, UUID usuarioId) {
