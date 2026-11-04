@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import {
   contagensInscricoes,
@@ -13,13 +13,6 @@ import { useCarregar } from '../../ui/useCarregar';
 
 type Escopo = 'todos' | 'meus';
 type Vaga = `${ConsultaDoPainel['fonte']}:${Escopo}`;
-
-/** A ordem das vagas (a mesma dos hooks abaixo). */
-const VAGAS_VAZIAS: Record<Vaga, true> = {
-  'painel:todos': true, 'painel:meus': true, 'interessados:todos': true, 'interessados:meus': true, 'recordes:todos': true,
-  'recordes:meus': true, 'agenda:todos': true, 'agenda:meus': true, 'inadimplentes:todos': true, 'inadimplentes:meus': true,
-  'financeiro:todos': true, 'financeiro:meus': true,
-};
 
 /**
  * Cada consulta mora numa vaga fixa (fonte + Todos/Meus): os hooks não podem ficar num laço, e duas consultas com a mesma
@@ -90,14 +83,15 @@ export function useFontesDoPainel(consultas: readonly ConsultaDoPainel[]) {
     return f as FontesDoPainel;
   };
 
-  // As funções `recarregar` do `useCarregar` são estáveis; o objeto `vagas` muda a cada render, elas não.
-  const r = Object.values(vagas).map((v) => v.recarregar);
-  const [r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11] = r;
+  // Cada vaga pelo nome, nunca pela posição numa lista. O ref acompanha o render (as funções `recarregar` do
+  // `useCarregar` são estáveis) e deixa o `recarregar` daqui estável também.
+  const vagasAtuais = useRef(vagas);
+  useEffect(() => {
+    vagasAtuais.current = vagas;
+  });
   const recarregar = useCallback((cs: readonly ConsultaDoPainel[]) => {
-    const todas = [r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11];
-    const nomes = Object.keys(VAGAS_VAZIAS) as Vaga[];
-    for (const vaga of new Set(cs.map(vagaDe))) todas[nomes.indexOf(vaga)]?.();
-  }, [r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11]);
+    for (const vaga of new Set(cs.map(vagaDe))) vagasAtuais.current[vaga].recarregar();
+  }, []);
 
   return { fonte, dadosDeOutraChave, fontesDe, recarregar };
 }

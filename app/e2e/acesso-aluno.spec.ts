@@ -84,6 +84,8 @@ test('aluno com conta: "Definir nova senha" confirma que as sessões serão ence
 
   const dialogo = page.getByRole('alertdialog', { name: 'Definir nova senha?' });
   await expect(dialogo.getByText('As sessões abertas do aluno serão encerradas e ele vai precisar da senha nova.')).toBeVisible();
+  // O véu atrás do painel é o `VEU` dos tokens (o mesmo da Folha), não uma cor fixa.
+  await expect(dialogo.locator('xpath=..')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0.55)');
   expect(pedidos.filter((p) => p.metodo === 'PUT')).toHaveLength(0);
   await dialogo.getByRole('button', { name: 'Definir senha' }).click();
   await expect(acesso.getByText('provisoria-123', { exact: true })).toBeVisible();
