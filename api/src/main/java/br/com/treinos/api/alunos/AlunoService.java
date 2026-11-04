@@ -54,6 +54,7 @@ public class AlunoService {
     private final AlunoRepository alunos;
     private final UsuarioRepository usuarios;
     private final Autenticador autenticador;
+    private final br.com.treinos.api.push.PushService push;
     private final PlanoTreinoRepository planos;
     private final ExecucaoSerieRepository execucoes;
     private final br.com.treinos.api.auditoria.Auditoria auditoria;
@@ -72,7 +73,9 @@ public class AlunoService {
                         br.com.treinos.api.pagamentos.PagamentosDoAluno pagamentos,
                         br.com.treinos.api.ciclo.CicloMenstrualService ciclo,
                         br.com.treinos.api.agenda.AgendaService agenda, ConsultoriaRepository consultorias,
-                        br.com.treinos.api.pastas.PastaRepository pastas, LimiteDoTreinador limiteDoTreinador) {
+                        br.com.treinos.api.pastas.PastaRepository pastas, LimiteDoTreinador limiteDoTreinador,
+                        br.com.treinos.api.push.PushService push) {
+        this.push = push;
         this.limiteDoTreinador = limiteDoTreinador;
         this.pastas = pastas;
         this.agenda = agenda;
@@ -362,6 +365,7 @@ public class AlunoService {
         if (aluno.getUsuarioId() != null) {
             usuarios.buscarParaAlterar(aluno.getUsuarioId()).ifPresent(u -> u.alterarAtivo(ativo));
             if (!ativo) {
+                push.apagarDoUsuario(aluno.getConsultoriaId(), aluno.getUsuarioId());
                 autenticador.encerrarSessoes(aluno.getUsuarioId().toString());
             }
         }

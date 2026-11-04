@@ -58,6 +58,8 @@ public class AuthService {
     private final br.com.treinos.api.pagamentos.InfinitePayProperties infinitePay;
     private final br.com.treinos.api.ciclo.CicloProperties ciclo;
     private final br.com.treinos.api.retorno.RetornoProperties retorno;
+    private final br.com.treinos.api.push.PushProperties push;
+    private final br.com.treinos.api.push.PushService pushTokens;
     private final TransactionTemplate transacao;
     private final TransactionTemplate leitura;
 
@@ -70,10 +72,13 @@ public class AuthService {
                        br.com.treinos.api.pagamentos.PagamentosProperties pagamentos,
                        br.com.treinos.api.pagamentos.InfinitePayProperties infinitePay,
                        br.com.treinos.api.ciclo.CicloProperties ciclo,
-                       br.com.treinos.api.retorno.RetornoProperties retorno) {
+                       br.com.treinos.api.retorno.RetornoProperties retorno,
+                       br.com.treinos.api.push.PushProperties push, br.com.treinos.api.push.PushService pushTokens) {
         this.pagamentos = pagamentos;
         this.ciclo = ciclo;
         this.retorno = retorno;
+        this.push = push;
+        this.pushTokens = pushTokens;
         this.infinitePay = infinitePay;
         this.plano = plano;
         this.limite = limite;
@@ -181,7 +186,7 @@ public class AuthService {
                 termos.pendente(usuario.getId()), Termos.VERSAO,
                 plano.funcionalidadesLiberadas(usuario.getConsultoriaId()), pagamentos.habilitado(),
                 pagamentos.habilitado() && infinitePay.habilitado(), pagamentos.pagarNoIos(), pagamentos.pagarNoAndroid(),
-                ciclo.habilitado(), retorno.habilitado());
+                ciclo.habilitado(), retorno.habilitado(), push.habilitado());
     }
 
     /**
@@ -224,8 +229,10 @@ public class AuthService {
      */
     public Sessao reabrirSessao(UUID usuarioId, long versao, String ip) {
         String sujeito = usuarioId.toString();
+        Usuario usuario = carregar(sujeito);
+        pushTokens.apagarDoUsuario(usuario.getConsultoriaId(), usuarioId); // sessões antigas caem: o aparelho precisa pedir o push de novo
         autenticador.encerrarSessoes(sujeito);
-        return montar(carregar(sujeito), autenticador.novaSessao(sujeito, versao, ip));
+        return montar(usuario, autenticador.novaSessao(sujeito, versao, ip));
     }
 
     private Usuario carregar(String sujeito) {

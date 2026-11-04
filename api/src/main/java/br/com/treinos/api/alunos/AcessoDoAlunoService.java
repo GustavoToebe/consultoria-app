@@ -29,14 +29,16 @@ public class AcessoDoAlunoService {
     private final AlunoService alunoService;
     private final PasswordEncoder passwordEncoder;
     private final Autenticador autenticador;
+    private final br.com.treinos.api.push.PushService push;
 
     public AcessoDoAlunoService(AlunoRepository alunos, UsuarioRepository usuarios, AlunoService alunoService,
-                                PasswordEncoder passwordEncoder, Autenticador autenticador) {
+                                PasswordEncoder passwordEncoder, Autenticador autenticador, br.com.treinos.api.push.PushService push) {
         this.alunos = alunos;
         this.usuarios = usuarios;
         this.alunoService = alunoService;
         this.passwordEncoder = passwordEncoder;
         this.autenticador = autenticador;
+        this.push = push;
     }
 
     @Transactional
@@ -91,7 +93,8 @@ public class AcessoDoAlunoService {
         } catch (DataIntegrityViolationException corrida) {
             throw emailEmUso();
         }
-        // Por último: a revogação das sessões não volta atrás se algo depois falhar.
+        // Por último: a revogação das sessões não volta atrás se algo depois falhar. O push do aparelho antigo cai junto.
+        push.apagarDoUsuario(usuario.getConsultoriaId(), usuarioId);
         autenticador.encerrarSessoes(usuarioId.toString());
     }
 

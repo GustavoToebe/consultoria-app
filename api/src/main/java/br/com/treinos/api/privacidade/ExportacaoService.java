@@ -62,6 +62,7 @@ public class ExportacaoService {
     private final br.com.treinos.api.agenda.AvisosDeCompromissoService avisosDeCompromisso;
     private final br.com.treinos.api.avaliacoes.AvaliacaoFisicaService avaliacoesFisicas;
     private final br.com.treinos.api.agua.AguaDoDiaService agua;
+    private final br.com.treinos.api.push.PushService push;
 
     public ExportacaoService(AlunoService alunos, PastaRepository pastas, PlanoTreinoService treinos,
                              PlanoDietaService dietas, PlanoMobilidadeService mobilidades, HistoricoService historico,
@@ -75,7 +76,9 @@ public class ExportacaoService {
                              br.com.treinos.api.agenda.AgendaService agenda,
                              br.com.treinos.api.agenda.AvisosDeCompromissoService avisosDeCompromisso,
                              br.com.treinos.api.avaliacoes.AvaliacaoFisicaService avaliacoesFisicas,
-                             br.com.treinos.api.agua.AguaDoDiaService agua) {
+                             br.com.treinos.api.agua.AguaDoDiaService agua,
+                             br.com.treinos.api.push.PushService push) {
+        this.push = push;
         this.agua = agua;
         this.agenda = agenda;
         this.avisosDeCompromisso = avisosDeCompromisso;
@@ -152,9 +155,11 @@ public class ExportacaoService {
         // Os avisos de compromisso dele (só tipo, data do compromisso e datas de criação e de visto), com a mesma permissão.
         var avisos = secao(AcessoAtual.pode("AGENDA_LER"), "avisosDeCompromisso", omitidas,
                 () -> avisosDeCompromisso.exportar(alunoId));
+        // Aparelhos com push do aluno: só plataforma e data de registro, nunca o valor do token (ALUNO_LER, a da ficha).
+        var pushDoCelular = secao(AcessoAtual.pode("ALUNO_LER"), "pushDoCelular", omitidas, () -> push.exportarDoAluno(alunoId));
         return new Exportacao(Instant.now(), List.copyOf(omitidas), cadastro, pastasDoAluno, treino, dieta, mobilidade,
                 registros, mobilidadeFeita, sessaoConcluida, peso, lesao, atualizacao, anamnese, inscricaoDoAluno, financeiro, fotoDePerfil,
-                cicloMenstrual, compromissos, avisos, avaliacaoFisica, aguaDoDia);
+                cicloMenstrual, compromissos, avisos, avaliacaoFisica, aguaDoDia, pushDoCelular);
     }
 
     private static <T> Secao<T> secao(boolean pode, String nome, List<String> omitidas, Supplier<List<T>> busca) {

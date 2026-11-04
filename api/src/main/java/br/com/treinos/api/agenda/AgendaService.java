@@ -88,10 +88,12 @@ public class AgendaService {
     private final UsuarioRepository usuarios;
     private final ConsultoriaRepository consultorias;
     private final Auditoria auditoria;
+    private final br.com.treinos.api.push.PushService push;
 
     public AgendaService(CompromissoRepository compromissos, CompromissoAlunoRepository participantes,
                          AvisoCompromissoRepository avisos, AlunoRepository alunos, UsuarioRepository usuarios,
-                         ConsultoriaRepository consultorias, Auditoria auditoria) {
+                         ConsultoriaRepository consultorias, Auditoria auditoria,
+                         br.com.treinos.api.push.PushService push) {
         this.compromissos = compromissos;
         this.participantes = participantes;
         this.avisos = avisos;
@@ -99,6 +101,7 @@ public class AgendaService {
         this.usuarios = usuarios;
         this.consultorias = consultorias;
         this.auditoria = auditoria;
+        this.push = push;
     }
 
     // ---- Equipe ----
@@ -724,6 +727,8 @@ public class AgendaService {
                     primeira.retrato().inicio(), nome == null || nome.isBlank() ? null : nome));
         });
         avisos.saveAll(novos);
+        // Push do celular (se ligado e se o aluno registrou token): a linha da fila nasce na mesma transação; o envio é fora dela.
+        push.enfileirarParaAlunos(TenantContext.get(), primeiras.keySet());
     }
 
     private static TipoAvisoCompromisso tipoDoAviso(Mudanca mudanca) {

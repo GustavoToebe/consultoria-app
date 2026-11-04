@@ -13,7 +13,9 @@ public record EuResponse(UsuarioResumo usuario, MarcaPublica marca, AlunoResumo 
                          /* Módulo do ciclo menstrual ligado ({@code TREINOS_CICLO_HABILITADO}); desligado, o app esconde tudo dele. */
                          boolean cicloHabilitado,
                          /* Concluir treino ligado ({@code TREINOS_RETORNO_HABILITADO}); desligado, o app esconde tudo dele. */
-                         boolean retornoHabilitado) {
+                         boolean retornoHabilitado,
+                         /* Push do Expo ligado ({@code TREINOS_PUSH_HABILITADO}); desligado, o app não pede permissão nem registra token. */
+                         boolean pushHabilitado) {
 
     public record PerfilResumo(UUID id,String nome,boolean acessoTotal) { }
 

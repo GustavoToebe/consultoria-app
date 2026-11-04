@@ -89,6 +89,14 @@ treinos:
   # respondem 503 RETORNO_INDISPONIVEL e o app esconde tudo (GET /eu traz retornoHabilitado).
   retorno:
     habilitado: ${TREINOS_RETORNO_HABILITADO:false}
+  # Push do Expo para compromisso marcado, remarcado ou cancelado. Desligado por padrão: as rotas do token respondem 503
+  # PUSH_INDISPONIVEL, nada é enfileirado ou enviado e o app não pede permissão (GET /eu traz pushHabilitado). O token de acesso do
+  # Expo (enhanced security) só vem do ambiente, sem valor padrão; vazio = envio sem Authorization.
+  push:
+    habilitado: ${TREINOS_PUSH_HABILITADO:false}
+    expo-url: ${TREINOS_PUSH_EXPO_URL:https://exp.host/--/api/v2/push/send}
+    expo-token: ${TREINOS_PUSH_EXPO_TOKEN:}
+    envio-agendado: ${TREINOS_PUSH_ENVIO_AGENDADO:true}
   # Fotos da atualização do aluno (dado sensível, bucket privado S3/R2). Desligado por padrão: a pergunta FOTOS fica sem envio.
   # Ligado, a API só sobe com endpoint, bucket, chave e segredo; segredos só em variável de ambiente, sem valor padrão.
   fotos:
