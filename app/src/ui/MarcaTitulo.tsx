@@ -12,7 +12,13 @@ import { Texto } from './Texto';
  * (o Saraiva gosta de logo estilo death/black metal). O nome usa a cor da marca em variante legível sobre o fundo
  * (`marcaParaTexto`). `nivel` faz dele o título da tela para o leitor de tela (h1 nas telas públicas e do aluno).
  */
-export function MarcaTitulo({ marca, tamanho = 'medio', nivel }: { marca: Marca | null; tamanho?: 'pequeno' | 'medio' | 'grande'; nivel?: 1 | 2 | 3 }) {
+export function MarcaTitulo({ marca, tamanho = 'medio', nivel, fundo }: {
+  marca: Marca | null;
+  tamanho?: 'pequeno' | 'medio' | 'grande';
+  nivel?: 1 | 2 | 3;
+  /** Fundo onde o nome fica, quando não é o do tema de quem vê (a prévia da Marca desenha a paleta escolhida). */
+  fundo?: string;
+}) {
   const { cores, marcaTexto } = useTema();
   const grande = tamanho === 'grande';
   const pequeno = tamanho === 'pequeno';
@@ -20,7 +26,7 @@ export function MarcaTitulo({ marca, tamanho = 'medio', nivel }: { marca: Marca 
     return <Texto variante="titulo" nivel={nivel}>Treinos</Texto>;
   }
   // A cor da própria marca: na tela de convite (antes do login) o tema ainda é neutro.
-  const cor = marca.corPrimaria ? marcaParaTexto(marca.corPrimaria, cores.superficie3) : marcaTexto;
+  const cor = marca.corPrimaria ? marcaParaTexto(marca.corPrimaria, fundo ?? cores.superficie3) : marcaTexto;
   if (marca.logoUrl) {
     return (
       <View accessibilityRole="image" accessibilityLabel={marca.nome}>

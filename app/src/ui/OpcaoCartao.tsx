@@ -36,6 +36,8 @@ export function OpcaoCartao({ titulo, descricao, selecionada, aoEscolher, amostr
     <Pressable
       accessibilityRole="radio"
       accessibilityState={{ checked: selecionada }}
+      // Na web o `accessibilityState` não vira `aria-checked`: sem isto o leitor de tela não sabe qual está escolhida.
+      aria-checked={selecionada}
       accessibilityLabel={descricao ? `${titulo}. ${descricao}` : titulo}
       onPress={aoEscolher}
       style={(estado) => [

@@ -10,10 +10,12 @@ interface Props {
   /** Um `OpcaoCartao` por filho. */
   children: ReactNode;
   descricao?: string;
+  /** `group` quando a grade é um subgrupo de um `radiogroup` maior (uma escolha só, em dois blocos rotulados). */
+  papel?: 'radiogroup' | 'group';
 }
 
 /** Grupo de opções (`radiogroup`): 1 coluna abaixo de 700 px e 2 colunas acima. */
-export function GradeDeOpcoes({ rotulo, descricao, children }: Props) {
+export function GradeDeOpcoes({ rotulo, descricao, children, papel = 'radiogroup' }: Props) {
   const { cores } = useTema();
   const { width } = useWindowDimensions();
   const colunas = width >= 700 ? 2 : 1;
@@ -21,7 +23,7 @@ export function GradeDeOpcoes({ rotulo, descricao, children }: Props) {
     <View style={estilos.grupo}>
       <Texto variante="rotulo" cor={cores.texto}>{rotulo}</Texto>
       {descricao ? <Texto variante="pequeno">{descricao}</Texto> : null}
-      <View accessibilityRole="radiogroup" accessibilityLabel={rotulo} style={estilos.grade}>
+      <View role={papel} aria-label={rotulo} style={estilos.grade}>
         {Children.toArray(children).map((filho, i) => (
           <View key={i} style={colunas === 2 ? estilos.metade : estilos.inteira}>
             {filho}
