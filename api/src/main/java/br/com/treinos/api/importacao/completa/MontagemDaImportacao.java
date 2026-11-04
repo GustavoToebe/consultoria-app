@@ -226,7 +226,7 @@ public final class MontagemDaImportacao {
         private final Map<Integer, Map<Integer, Linha>> linhasPorNumero = new HashMap<>();
         private final Map<Integer, Dono> alunosPorLinha = new HashMap<>();
         private final Map<Dono, String> nomes = new HashMap<>();
-        private final Map<Dono, Object[]> pesoInicial = new HashMap<>();
+        private final Map<Dono, Object[]> pesoInicial = new LinkedHashMap<>(); // a ordem da planilha (a amostra a usa)
         private final Map<Integer, Set<Integer>> cabecalhosEscolhidos = new HashMap<>();
         private final Map<String, Integer> respostasDeLigacao;
         private final Map<String, NomeResolvido> respostasDeExercicio;

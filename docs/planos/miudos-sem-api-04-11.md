@@ -17,6 +17,8 @@ da seção 4.5, as cores fixas que viram tokens, o e2e do chip de Metodologias, 
 | D5 | `Switch` desligado | Trilho `bordaCampo` e botão `superficie` (antes `borda` e branco fixo, 1,95:1 no claro); ligado segue a seleção invertida | Claude, 04/11 |
 | D6 | Sombra dos painéis flutuantes | Um token só, `SOMBRA_FLUTUANTE` (`0 8px 24px` a 35%); o `Calendario` estava em 45% e passou a 35% | Claude, 04/11 |
 
+**Aceite (Gustavo, 04/11):** D3 a D6 aceitas como foram feitas (D3 o carregamento do Início, D4 o "Aguardando primeiro acesso" neutro, D5 as cores do `Switch`, D6 a sombra de 0,35 do `Calendario`).
+
 ## Passos
 - [x] 1. Início, revisão do painel-novo: (a) leitura do aparelho que responde depois de um toque não desfaz o toque (contador de geração por usuário em `usePrimeirosPassosGuardados`, teste `usePrimeirosPassosGuardados.test.tsx`); (d) a Ajuda não mostra o cartão dos Primeiros passos a quem não tem item nenhum (`dominio/primeirosPassos.temPrimeirosPassos`); (e) Início sem alunos não busca os blocos de novo (D3; e2e dos dois caminhos: continua sem alunos, e cadastrou o primeiro e os blocos voltam); (f) `recarregar` usa as vagas atuais por ref, sem casar listas pela ordem — commit/run: —
 - [x] 2. Casos de cor fora da tabela (`CartaoAcesso`, pagamento da inscrição `AGUARDANDO`, cobrança `CONTESTADA`, consumo da conta): uma linha cada na seção 4.5 e o código igual (D4); `seloDoAcesso` foi para `dominio/cadastroDoAluno`; teste em `corPorSituacao.test.ts` — commit/run: —
