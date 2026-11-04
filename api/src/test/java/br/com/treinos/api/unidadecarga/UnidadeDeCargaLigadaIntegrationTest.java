@@ -29,4 +29,13 @@ class UnidadeDeCargaLigadaIntegrationTest extends AbstractIntegrationTest {
 
         assertThat(api.get("/eu", login, 200).get("unidadeDeCargaHabilitada").asBoolean()).isTrue();
     }
+
+    /** Fase 2: a chave vale para o treinador também (ele escolhe a unidade no aparelho; nada vai ao servidor). */
+    @Test
+    void euDoTreinadorTambemDizQueAEscolhaDeUnidadeEstaLigada() throws Exception {
+        ApiDeTeste api = new ApiDeTeste(mvc, json);
+        JsonNode treinador = api.novoTreinador();
+
+        assertThat(api.get("/eu", treinador, 200).get("unidadeDeCargaHabilitada").asBoolean()).isTrue();
+    }
 }
