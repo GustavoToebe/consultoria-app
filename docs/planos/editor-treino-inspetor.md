@@ -30,11 +30,11 @@ cantos, selos, cores da marca e as regras do AGENTS.md são os do app.
 - [x] 1. Plano e índice (este arquivo e a linha no README) — commit/run: 21395e9e
 - [x] 2. Regras puras em `dominio/` com teste (`colunasDoEditor`, `inspetorDoTreino`) — commit/run: a9368ac7
 - [x] 3. Casca: `TelaDoEditor` mede a largura, título e rótulo do primário — commit/run: 8df60751
-- [ ] 4. Estado de seleção e aba aberta no `EditorDeTreino`; "ir ao primeiro" abre a aba — commit/run: —
+- [x] 4. Estado de seleção e aba aberta no `EditorDeTreino`; "ir ao primeiro" abre a aba — commit/run: 8df60751 (seleção), 3569ca4a (aba)
 - [x] 5. Lista (mestre), resumo da sessão e `SeletorDeSessoes` com contagens — commit/run: 8df60751
-- [ ] 6. Inspetor (detalhe) com abas de séries; `CartaoExercicio` dividido; celular com as mesmas abas — commit/run: —
-- [ ] 7. E2e novo `editor-inspetor` (1440 e 390) e seletores dos e2e existentes — commit/run: —
-- [ ] 8. Contraste das peças novas, Ajuda e PDFs, AGENTS.md — commit/run: —
+- [x] 6. Inspetor (detalhe) com abas de séries; celular com as mesmas abas — commit/run: 3569ca4a, 2ea7c34a (o `CartaoExercicio` não foi dividido: o inspetor é o próprio cartão aberto)
+- [x] 7. E2e novo `editor-inspetor` (1440 e 390) e seletores dos e2e existentes — commit/run: 2ea7c34a, e607a94f
+- [x] 8. Contraste das peças novas, Ajuda e PDFs, AGENTS.md — commit/run: este lote (contraste em 3569ca4a e 8df60751)
 - [ ] 9. Prints (1440 claro e escuro, 1280, 1024, 390), revisão final, push e PR — commit/run: —
 
 ## Fora do escopo
@@ -42,4 +42,9 @@ cantos, selos, cores da marca e as regras do AGENTS.md são os do app.
 - Barra flutuante de cache local do design (D4).
 
 ## O que ficou para trás
-- (cada sobra também vai para "Pendências soltas" no README)
+- Técnica ainda em chips (não `EscolhaSuspensa`) e Repetições/Carga/Esforço/Descanso em linhas separadas: `CamposDaPrescricao` guarda regra de campo e os e2e dependem dos chips; juntar numa linha só fica para depois.
+- O `CartaoGrupo` (superset) traz todos os controles dentro da coluna de ~360 px da lista e fica pesado; o certo seria levar a edição do grupo para o inspetor.
+- A estimativa da largura antes da primeira medida não considera o menu minimizado (72 px): nesse caso o primeiro quadro pode piscar uma vez.
+- Aninhamento de cartões (sessão, exercício, grupo, seções) deixa os campos estreitos no celular; "Mover exercício" repetido nos dois botões do topo do inspetor; chips de "Carga do exercício" empilhados em 1024.
+- O `webServer` do `npm run e2e` caiu uma vez com o código 3221225477 na máquina do Gustavo (contornado com `expo export` manual); se repetir na CI, investigar.
+- Dieta e mobilidade no mesmo layout de lista + inspetor.
