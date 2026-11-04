@@ -179,10 +179,11 @@ describe('Todas as telas e favoritos', () => {
   const permitidas = telasPermitidas(com(ADMIN), TELAS, undefined, false, true);
   it('agrupa nos grupos do menu lateral, na ordem dele, e deixa as ações de fora (D24)', () => {
     const grupos = agruparPorSecao(permitidas);
-    expect(grupos.map((g) => g.secao)).toEqual([null, 'Alunos e acompanhamento', 'Negócio', 'Configurações']);
+    expect(grupos.map((g) => g.secao)).toEqual([null, 'Acompanhamento', 'Conteúdo', 'Negócio', 'Configurações']);
     expect(grupos.map((g) => ids(g.telas))).toEqual([
       ['inicio'],
-      ['alunos', 'atualizacoes', 'agenda', 'biblioteca', 'planejamento'],
+      ['alunos', 'atualizacoes', 'agenda'],
+      ['biblioteca', 'planejamento'],
       ['numeros'],
       // Os itens do menu primeiro; depois as telas do cartão do usuário (com o Perfil) e Termos (com a Ajuda).
       ['equipe', 'importacao', 'ajuda', 'auditoria', 'meus-dados', 'seguranca', 'marca', 'ajustes', 'termos'],
@@ -211,8 +212,8 @@ describe('Todas as telas e favoritos', () => {
   it('legenda da busca: o grupo, "Ação · grupo" e "Tela inicial" no Início', () => {
     const porId = (id: string) => TELAS.find((t) => t.id === id)!;
     expect(legendaDaTela(porId('inicio'))).toBe('Tela inicial');
-    expect(legendaDaTela(porId('alunos'))).toBe('Alunos e acompanhamento');
-    expect(legendaDaTela(porId('novo-aluno'))).toBe('Ação · Alunos e acompanhamento');
+    expect(legendaDaTela(porId('alunos'))).toBe('Acompanhamento');
+    expect(legendaDaTela(porId('novo-aluno'))).toBe('Ação · Acompanhamento');
     expect(legendaDaTela(porId('planilha-completa'))).toBe('Ação · Configurações');
     expect(legendaDaTela(porId('marca'))).toBe('Configurações');
   });

@@ -140,7 +140,7 @@ const ORDEM_DAS_SECOES: readonly SecaoDeTela[] = [null, ...GRUPOS_DO_MENU];
 
 /**
  * Telas (sem as ações) de "Todas as telas", nos grupos e na ordem do menu lateral: o Início sem título no topo, depois
- * "Alunos e acompanhamento", "Negócio" e "Configurações". Dentro do grupo, os itens do menu na ordem dele e, depois, as
+ * "Acompanhamento", "Conteúdo", "Negócio" e "Configurações". Dentro do grupo, os itens do menu na ordem dele e, depois, as
  * telas abertas a partir de um item (as do cartão do usuário, Termos), na ordem do catálogo. Seção sem item não aparece.
  */
 export function agruparPorSecao(telas: readonly TelaDoCatalogo[]): { secao: SecaoDeTela; telas: TelaDoCatalogo[] }[] {

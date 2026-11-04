@@ -1,5 +1,5 @@
 /** Nomes dos grupos do menu lateral do treinador (N29), na ordem em que aparecem. */
-export const GRUPOS_DO_MENU = ['Alunos e acompanhamento', 'Negócio', 'Configurações'] as const;
+export const GRUPOS_DO_MENU = ['Acompanhamento', 'Conteúdo', 'Negócio', 'Configurações'] as const;
 export type GrupoDoMenu = (typeof GRUPOS_DO_MENU)[number];
 
 export interface BlocoDoMenu<T> {
@@ -46,11 +46,11 @@ export interface LugarNoMenu {
  */
 export const MENU_DO_TREINADOR: readonly LugarNoMenu[] = [
   { caminho: '/treinador' },
-  { caminho: '/treinador/alunos', grupo: 'Alunos e acompanhamento' },
-  { caminho: '/treinador/atualizacoes', grupo: 'Alunos e acompanhamento' },
-  { caminho: '/treinador/agenda', grupo: 'Alunos e acompanhamento' },
-  { caminho: '/treinador/biblioteca', grupo: 'Alunos e acompanhamento' },
-  { caminho: '/treinador/planejamento', grupo: 'Alunos e acompanhamento' },
+  { caminho: '/treinador/alunos', grupo: 'Acompanhamento' },
+  { caminho: '/treinador/atualizacoes', grupo: 'Acompanhamento' },
+  { caminho: '/treinador/agenda', grupo: 'Acompanhamento' },
+  { caminho: '/treinador/biblioteca', grupo: 'Conteúdo' },
+  { caminho: '/treinador/planejamento', grupo: 'Conteúdo' },
   { caminho: '/treinador/interessados', grupo: 'Negócio' },
   { caminho: '/treinador/financeiro', grupo: 'Negócio' },
   { caminho: '/treinador/numeros', grupo: 'Negócio' },
