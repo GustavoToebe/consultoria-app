@@ -1069,8 +1069,32 @@ export interface MesDeNumeros {
   atualizacoesAtrasadas: number | null;
 }
 
+/**
+ * Uma linha da tabela da equipe em Números (supervisão, D1 e D16): um membro ativo, os alunos ativos dele **hoje** e o
+ * limite ao lado (nulo = sem limite). As duas contagens de atualização ficam `null` sem `ATUALIZACAO_LER` +
+ * `ALUNO_SENSIVEL_LER`. Nunca nome nem id de aluno.
+ */
+export interface LinhaDaEquipeNosNumeros {
+  usuarioId: string;
+  nome: string;
+  alunosAtivos: number;
+  limiteDeAlunos: number | null;
+  atualizacoesAtrasadas: number | null;
+  atualizacoesParaRevisar: number | null;
+}
+
+/** A linha "Sem responsável": alunos sem responsável ou com responsável que não é mais membro ativo. */
+export interface SemResponsavelNosNumeros {
+  alunosAtivos: number;
+  atualizacoesAtrasadas: number | null;
+  atualizacoesParaRevisar: number | null;
+}
+
 export interface NumerosDaConsultoria {
   meses: MesDeNumeros[];
+  /** Só com `EQUIPE_LER` (D17); sem ela `null` (não lista vazia) e a seção some. */
+  equipe: LinhaDaEquipeNosNumeros[] | null;
+  semResponsavel: SemResponsavelNosNumeros | null;
 }
 
 export interface SerieFeita {

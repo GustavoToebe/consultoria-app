@@ -139,7 +139,8 @@ export default function Interessados() {
     const n = !c ? undefined : f.valor === 'ABERTAS' ? c.abertas : f.valor === 'TODAS' ? c.todas : c.porSituacao[f.valor];
     return { valor: f.valor, rotulo: n === undefined ? f.rotulo : `${f.rotulo} · ${n}` };
   });
-  const vazio = estadoVazio({ filtro, meus, busca, temFiltros: temOutrosFiltros(filtrosDaTela) });
+  const vazio = estadoVazio({ filtro, meus, busca, temFiltros: temOutrosFiltros(filtrosDaTela), // Contagem de outra busca (a troca ainda carrega) não vale: melhor sem a dica do que com ela errada.
+    contagens: contagens.dadosDeOutraChave ? null : c });
   const visaoDosFiltros = visao === 'kanban' ? 'kanban' : 'lista';
   const nomeDe = (id: string) => (responsaveis.dados ?? []).find((r) => r.id === id)?.nome ?? null;
   const chips = chipsDosFiltros(filtrosDaTela, visaoDosFiltros, nomeDe);
@@ -196,7 +197,8 @@ export default function Interessados() {
             <>
               {lista.erro ? <MensagemErro texto={textoDoErro(lista.erro)} erro={lista.erro} tentarDeNovo={lista.recarregar} /> : null}
               {!dados && lista.carregando ? <Esqueleto /> : null}
-              {dados && dados.itens.length === 0 ? <Vazio titulo={vazio.titulo} texto={vazio.texto} /> : null}
+              {dados && dados.itens.length === 0 ? <Vazio titulo={vazio.titulo} texto={vazio.texto}
+                acao={vazio.verTodas ? { rotulo: 'Ver todas', aoTocar: () => aplicar({ ...filtrosDaTela, situacao: 'TODAS' }) } : undefined} /> : null}
               {dados && dados.itens.length > 0 ? (
                 <Cartao descricao={`${rotuloDoFiltro}: ${dados.total} ${dados.total === 1 ? 'inscrição' : 'inscrições'}. Toque na linha para abrir.`}>
                   <View style={lista.carregando ? estilos.esmaecido : null}>

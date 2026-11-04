@@ -180,6 +180,8 @@ export const pessoasAuditoria = () => requisicao<ResponsavelEquipe[]>('/auditori
 export const convidarMembro = (corpo:{nome:string;email:string;perfilId:string}) => requisicao<ConviteEquipe>('/usuarios/convites',{metodo:'POST',corpo});
 export const cancelarConviteEquipe = (id:string) => requisicao<void>(`/usuarios/convites/${seg(id)}`,{metodo:'DELETE'});
 export const alterarMembro = (id:string,corpo:{nome:string;perfilId:string;ativo:boolean}) => requisicao<MembroEquipe>(`/usuarios/${seg(id)}`,{metodo:'PUT',corpo});
+/** Só o Administrador (204). `limite` vai sempre no corpo: `null` apaga, `{}` daria 422 (D22). */
+export const definirLimiteDeAlunos = (id:string,limite:number|null) => requisicao<void>(`/usuarios/${seg(id)}/limite-de-alunos`,{metodo:'PUT',corpo:{limite}});
 /** Marca da consultoria do convite de equipe; o código vai só no corpo. Código inválido, vencido ou aceito = 404 igual. */
 export const consultarConviteEquipe = (codigo:string) => requisicao<ConviteEquipePublico>('/publico/convites-equipe/consultar',{metodo:'POST',corpo:{codigo},semRenovar:true});
 export const aceitarConviteEquipe = (codigo:string,senha:string) => requisicao<LoginResponse>('/publico/convites-equipe/aceitar',{metodo:'POST',corpo:{codigo,senha},semRenovar:true});

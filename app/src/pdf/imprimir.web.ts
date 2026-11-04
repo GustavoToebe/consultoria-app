@@ -25,8 +25,7 @@ export async function imprimir(d: Documento): Promise<void> {
 }`;
   const conteudo = document.createElement('div');
   conteudo.className = 'doc';
-  // O HTML foi montado com esc() em todo texto do usuário (pdf/html.ts).
-  conteudo.innerHTML = d.corpo;
+  conteudo.append(montarCorpo(d.corpo));
   bloco.append(estilo, conteudo);
   document.body.append(bloco);
 
@@ -45,6 +44,49 @@ export async function imprimir(d: Documento): Promise<void> {
   // Se outra impressão começou durante a espera, esta já foi desfeita: não imprime um bloco que não existe mais.
   if (limparAnterior !== limpar) return;
   window.print();
+}
+
+/**
+ * O que um documento de impressão nunca precisa ter: o gerador não escreve nenhum destes. `svg` e `math` levam junto
+ * `animate`/`set` (que trocam `href` por animação); `style` fora porque o atributo `style` basta (a faixa da marca usa).
+ */
+const ELEMENTOS_PROIBIDOS = 'script, style, iframe, object, embed, base, link, meta, form, svg, math, animate, set';
+/** Atributos que carregam endereço. */
+const ATRIBUTOS_DE_URL = new Set(['href', 'src', 'xlink:href', 'action', 'formaction', 'data', 'poster', 'background', 'srcset', 'ping']);
+const ESQUEMAS_PERMITIDOS = new Set(['http', 'https', 'mailto', 'blob']);
+
+/**
+ * Endereço permitido: relativo, âncora, http(s), mailto, blob ou `data:image/` raster (a logo). O navegador ignora tab e
+ * quebra de linha dentro do esquema (`java&#9;script:`), então o teste olha o valor sem nenhum caractere de controle ou espaço.
+ */
+function urlPermitida(valor: string): boolean {
+  const limpo = valor.replace(/[\x00-\x20]/g, '');
+  const esquema = /^([a-z][a-z0-9+.-]*):/i.exec(limpo)?.[1].toLowerCase();
+  if (!esquema) return true;
+  if (esquema === 'data') return /^data:image\/(png|jpe?g|gif|webp)[;,]/i.test(limpo);
+  return ESQUEMAS_PERMITIDOS.has(esquema);
+}
+
+/**
+ * Lê o HTML do gerador num documento inerte (`DOMParser`: nada executa nem carrega) e devolve os nós já importados, sem
+ * `innerHTML`. O texto do usuário já passa por `esc()` (pdf/html.ts); aqui fica a segunda barreira. Higieniza ANTES de
+ * importar porque um `<script>` vindo do `DOMParser` e posto na página pode executar (o do `innerHTML` não): tira
+ * elementos ativos, atributos `on*` e endereços fora da lista permitida.
+ */
+export function montarCorpo(html: string): DocumentFragment {
+  const lido = new DOMParser().parseFromString(html, 'text/html');
+  lido.querySelectorAll(ELEMENTOS_PROIBIDOS).forEach((e) => e.remove());
+  for (const e of lido.body.querySelectorAll('*')) {
+    for (const nome of e.getAttributeNames()) {
+      const minusculo = nome.toLowerCase();
+      if (minusculo.startsWith('on') || (ATRIBUTOS_DE_URL.has(minusculo) && !urlPermitida(e.getAttribute(nome) ?? ''))) {
+        e.removeAttribute(nome);
+      }
+    }
+  }
+  const fragmento = document.createDocumentFragment();
+  for (const no of Array.from(lido.body.childNodes)) fragmento.append(document.importNode(no, true));
+  return fragmento;
 }
 
 /** Prazo total para as imagens do documento; passado dele, imprime com o que carregou. */
