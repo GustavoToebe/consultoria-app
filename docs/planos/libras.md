@@ -1,6 +1,6 @@
 # Libras (lb) na carga: fase 1, regra pura e lado do aluno (N04)
 
-Situação: Fase 1 pronta para revisão · Onde: branch `libras-fase-1` · Atualizado: 03/11/2026
+Situação: Fase 1 pronta para revisão · Onde: branch `libras-fase-1` · Atualizado: 04/11/2026
 
 ## Objetivo
 O aluno que pensa em libras escolhe `lb` em Perfil › Preferências e passa a digitar e ler as cargas em libras, sem que
@@ -18,12 +18,12 @@ nada do que está guardado mude: a carga continua em **kg** no aparelho, na fila
 | 6 | Quem vê | Histórico, PDF, exportação, sincronização offline e relatório leem kg e mostram na unidade de QUEM VÊ: o aluno na dele; o PDF e o relatório do treinador na do treinador | Gustavo, 03/11 |
 | 7 | Fases | Fase 1 = plano, regra pura e lado do aluno. Fase 2 (treinador) fica para depois | Gustavo, 03/11 |
 | 8 | Chave | `TREINOS_UNIDADE_CARGA_HABILITADA` (padrão `false`), no padrão de `TREINOS_RETORNO_HABILITADO`: propriedade, `GET /eu` traz `unidadeDeCargaHabilitada`, `application-test.yml` liga, teste do desligado. Desligada, a escolha some e toda carga fica em kg | Gustavo, 03/11 |
-| 9 | Precisão | A gravação mantém 2 casas em kg (`numeric(7,2)` no banco). Em libra, mostra e digita **1 casa** (máscara do campo). `lb → kg`: entre os kg que exibem o mesmo número em lb (janela de 0,1 lb, cerca de 0,045 kg) grava o **múltiplo de 0,05 kg**, que é o que a metodologia produz (`arredondamentoKg`); sem múltiplo na janela, arredonda a 2 casas. Assim lb → kg → lb devolve o mesmo número e kg → lb → kg não deriva (60 kg mostra 132,3 lb e grava 60, nunca 60,01, que criaria recorde falso). Efeito: 100 lb grava 45,35 kg (não 45,36) | decidido pelo Claude em 03/11, conferir com o Gustavo |
-| 10 | Fator | 1 lb = 0,45359237 kg (definição legal), sem aproximar para 0,4536 | decidido pelo Claude em 03/11, conferir com o Gustavo |
-| 11 | Botões −/+ | O passo continua o `arredondamentoKg` da metodologia, aplicado ao valor em kg; só o rótulo é convertido (ex.: 0,5 kg aparece "1,1 lb", com 2 casas, para não mentir em 0,25 kg = "0,55 lb"). Nada de passo novo em libras inteiras: isso criaria valor novo | decidido pelo Claude em 03/11, conferir com o Gustavo |
-| 12 | "Sim, X?" do painel do ✓ | Mostra a sugestão em libras e grava a sugestão **em kg, sem passar por libra** (o valor do plano não muda) | decidido pelo Claude em 03/11, conferir com o Gustavo |
-| 13 | Quem escolhe | Só o aluno vê a escolha nesta fase; a do treinador entra na fase 2. Treinador continua em kg em todas as telas | decidido pelo Claude em 03/11, conferir com o Gustavo |
-| 14 | Peso corporal | Fora: peso do aluno (atualização, avaliação, fotos, dieta) segue em kg. "Libras" aqui é só carga de exercício | decidido pelo Claude em 03/11, conferir com o Gustavo |
+| 9 | Precisão | A gravação mantém 2 casas em kg (`numeric(7,2)` no banco). Em libra, mostra e digita **1 casa** (máscara do campo). `lb → kg`: entre os kg que exibem o mesmo número em lb (janela de 0,1 lb, cerca de 0,045 kg) grava o **múltiplo de 0,05 kg**, que é o que a metodologia produz (`arredondamentoKg`); sem múltiplo na janela, arredonda a 2 casas. Assim lb → kg → lb devolve o mesmo número e kg → lb → kg não deriva (60 kg mostra 132,3 lb e grava 60, nunca 60,01, que criaria recorde falso). Efeito: 100 lb grava 45,35 kg (não 45,36) | confirmado pelo Gustavo em 04/11 |
+| 10 | Fator | 1 lb = 0,45359237 kg (definição legal), sem aproximar para 0,4536 | confirmado pelo Gustavo em 04/11 |
+| 11 | Botões −/+ | Em kg nada muda (o passo é o `arredondamentoKg` da metodologia). Em libra, o passo é o `arredondamentoKg` convertido e arredondado ao múltiplo de 2,5 lb mais próximo, no mínimo 2,5 lb (2,5 kg = 5 lb; 1 kg = 2,5 lb; 1,25 kg = 2,5 lb; 5 kg = 10 lb). O −/+ soma ou subtrai esse passo sobre o número em lb que está NA TELA (`kgParaTela(base, 'lb')`, base = atual ?? sugestão ?? 0), nunca abaixo de 0, e grava o equivalente em kg com `telaParaKg(..., 'lb')`: 100 lb + 5 lb = 105 lb na tela, exato, e o guardado continua em kg. Substitui a regra de 03/11 (passo em kg, só o rótulo convertido: 100 → 105,5 → 111 lb) | decisão do Gustavo em 04/11 |
+| 12 | "Sim, X?" do painel do ✓ | Mostra a sugestão em libras e grava a sugestão **em kg, sem passar por libra** (o valor do plano não muda) | confirmado pelo Gustavo em 04/11 |
+| 13 | Quem escolhe | Só o aluno vê a escolha nesta fase; a do treinador entra na fase 2. Treinador continua em kg em todas as telas | confirmado pelo Gustavo em 04/11 |
+| 14 | Peso corporal | Fora: peso do aluno (atualização, avaliação, fotos, dieta) segue em kg. "Libras" aqui é só carga de exercício | confirmado pelo Gustavo em 04/11 |
 
 ## Passos
 - [x] 1. Plano e índice (este arquivo) — commit a652f128
@@ -33,6 +33,8 @@ nada do que está guardado mude: a carga continua em **kg** no aparelho, na fila
 - [x] 5. (8554281b) e2e `unidade-de-carga.spec.ts` (390 e 1280 px): digitar em lb, ver, recarregar, o corpo enviado à API está em kg; chave desligada = sem a escolha
 - [x] 6. (este commit) Lista final dos lugares de "kg" tratados e dos que ficam para a fase 2 (abaixo) e `AGENTS.md`
 - [x] 7. (b033687b) Correções da revisão independente: ida e volta kg → lb → kg sem deriva (grade de 0,05 kg, decisão 9), teste do `CampoDeCarga`, rótulo "em libras" também na carga de trabalho do dia, PDF do treino do aluno na unidade dele, e2e com contagem de envios e controle da chave
+
+- [x] 8. (commit: (a preencher)) Botões −/+ em libra pela decisão 11 nova (04/11): `passoNaTela` e `textoDoPasso` em `dominio/unidadeDeCarga.ts`, `ajustarCarga(..., unidade = 'kg')` em `dominio/cargas.ts`, `ExercicioAluno` passa a unidade do contexto; testes jest (regra, varredura de ida e volta, componente em kg e lb) e e2e `unidade-de-carga.spec.ts`; `AGENTS.md` ajustado
 
 ## Lugares de "kg" de carga
 Como funciona: o contexto `ContextoDaUnidadeDeCarga` (`ui/unidadeDeCargaEmUso`, padrão kg) só é provido no layout do aluno
@@ -62,7 +64,7 @@ provêm ficam em kg sem mudar nada. As funções de texto da carga ganharam `uni
 
 ## Roteiro de conferência para o Gustavo
 1. Com a chave ligada no local, entrar como aluno fictício e abrir Perfil › Preferências: aparece "Unidade da carga" (kg / lb). Desligada, não aparece.
-2. Escolher lb, abrir um exercício: o campo de peso diz "lb", os botões −/+ dizem "1,1 lb" (para 0,5 kg), "Sugestão" e "Última vez" saem em lb.
+2. Escolher lb, abrir um exercício: o campo de peso diz "lb", os botões −/+ dizem "5 lb" (para 2,5 kg; "2,5 lb" para 0,5 kg ou 1 kg) e 100 lb + 5 lb dá 105 lb, "Sugestão" e "Última vez" saem em lb.
 3. Digitar 100 lb, marcar a série, recarregar: continua 100 lb; no histórico também. Voltar para kg: a mesma série mostra 45,35 kg.
 4. Conferir que o plano (visto pelo treinador) não mudou.
 5. "Restaurar padrão" em Preferências volta a carga para kg.
