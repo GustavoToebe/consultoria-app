@@ -1,6 +1,6 @@
 # Libras (lb) na carga: fase 1, regra pura e lado do aluno (N04)
 
-Situação: Fase 1 pronta para revisão · Onde: branch `libras-fase-1` · Atualizado: 04/11/2026
+Situação: Fase 1 em produção, chave ligada em produção em 04/11 · Onde: `main` (PRs #77 e #82) · Atualizado: 04/11/2026
 
 ## Objetivo
 O aluno que pensa em libras escolhe `lb` em Perfil › Preferências e passa a digitar e ler as cargas em libras, sem que

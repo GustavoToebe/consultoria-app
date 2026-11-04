@@ -25,7 +25,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | PDFs menores e mais rápidos | [pdfs-otimizacao.md](pdfs-otimizacao.md) | `main` | Publicada em 28/10/2026 (run 40719287212); item 4 e conferência no APK pendentes | 28/10/2026 |
 | Proteção contra robôs (Cloudflare + Turnstile) | [cloudflare-turnstile.md](cloudflare-turnstile.md) | Cloudflare e VPS | Concluída em 28/10/2026 (Turnstile ligado em produção; falta só o teste no iPhone nativo) | 28/10/2026 |
 | Central: lote de segurança de 28/10 | [central-seguranca-28-10.md](central-seguranca-28-10.md) | Central, branch `seguranca-lote-28-10` (um PR) | Concluída | 28/10/2026 |
-| Migração assistida (C69), fase 1: diagnóstico do arquivo | [migracao-assistida.md](migracao-assistida.md) | `main` (PR #79) | Fase 1 concluída em 04/11/2026 (chave desligada) | 03/11/2026 |
+| Migração assistida (C69), fase 1: diagnóstico do arquivo | [migracao-assistida.md](migracao-assistida.md) | `main` (PR #79) | Fase 1 concluída em 04/11/2026; chave ligada em produção em 04/11 | 03/11/2026 |
 | Dependabot de 28/10 (Central, Servirea e consultoria) | [dependabot-28-10.md](dependabot-28-10.md) | Central (#27) e Servirea (#16) mesclados, publicar verde; lote do consultoria publicado (aa81c38, run 40753524829); revisão de 02/11 feita no consultoria; falta a de 14/11 | Em andamento | 02/11/2026 |
 | Expo SDK 57 → 58 (correção de fundo dos avisos de dependência do app) | [expo-sdk-58.md](expo-sdk-58.md) | — | Planejando: depois do teste com os 5 alunos | 02/11/2026 |
 | Push do Expo (compromisso marcado, remarcado ou cancelado) | [push-do-expo.md](push-do-expo.md) | `main` (PR #80) | Concluída em 04/11/2026; chave `TREINOS_PUSH_HABILITADO` desligada | 03/11/2026 |
@@ -71,7 +71,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Paletas da marca (a consultoria escolhe a cor de fundo do app dos alunos numa lista fechada e testada) | [paletas-da-marca.md](paletas-da-marca.md) | — | Planejando: lista cortada em 03/11 (11 paletas, prévia em `docs/prototipos/`); espera a frente de cores da auditoria | 03/11/2026 |
 | Interessados: busca vazia diz onde há resultado ("Também há inscrições em: Aceitas (1)" e "Ver todas") | [interessados-busca-vazia.md](interessados-busca-vazia.md) | branch `interessados-busca-vazia` | Em andamento | 03/11/2026 |
 | Impressão na web sem `innerHTML` (`imprimir.web.ts` monta o documento por `DOMParser`, higienizado) | [impressao-sem-innerhtml.md](impressao-sem-innerhtml.md) | branch `impressao-sem-innerhtml` | Concluída em 03/11/2026 (falta merge na `main`) | 03/11/2026 |
-| Libras na carga, fase 1: regra pura e lado do aluno (N04; chave `TREINOS_UNIDADE_CARGA_HABILITADA`, desligada) | [libras.md](libras.md) | `main` (PR #77) | Fase 1 concluída em 04/11/2026 (chave desligada) | 03/11/2026 |
+| Libras na carga, fase 1: regra pura e lado do aluno (N04; chave `TREINOS_UNIDADE_CARGA_HABILITADA`) | [libras.md](libras.md) | `main` (PR #77) | Fase 1 concluída em 04/11/2026; chave ligada em produção em 04/11 | 03/11/2026 |
 | Paletas da marca (a consultoria escolhe a cor de fundo do app dos alunos numa lista fechada e testada) | [paletas-da-marca.md](paletas-da-marca.md) | `main` (PR #78) | Concluída em 04/11/2026 (10 paletas: a Brisa saiu no teste de contraste); revisão final feita na nuvem | 03/11/2026 |
 | Documentação de 03/11 (roteiro do aluno fictício em [engajamento.md](engajamento.md), conferência das três liberações da Cloudflare) | [docs-pendencias-03-11.md](docs-pendencias-03-11.md) | `main` (PR #72) | Concluída em 03/11/2026 (roteiro espera o Gustavo em produção) | 03/11/2026 |
 
@@ -185,6 +185,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Regerar `app/public/guias/guia-treinador.pdf` no PC (`node scripts/guias/gerar.mjs`): a Ajuda passou a dizer "Financeiro, em Negócio" (grupos do menu, D24) e o PDF ficou com o texto anterior, porque gerado no Linux da nuvem sai com outras fontes | Claude local, no próximo commit do app | auditoria-ficha (D24) |
 | Push do Expo: ao ligar, ativar o enhanced security no Expo e gravar `TREINOS_PUSH_EXPO_TOKEN` pelo `gravar-segredo.sh` (sem ele, quem tiver o token do aparelho pode mandar notificação) | Gustavo | push-do-expo |
 | Paletas: conferir no celular as 4 escuras novas (item dentro do cartão mais escuro que o cartão) | Gustavo | paletas-da-marca |
+| Libras e migração assistida ligadas em produção em 04/11: conferir logado (o Claude não tem conta fictícia em produção) que o `GET /eu` traz `unidadeDeCargaHabilitada` e `migracaoAssistidaHabilitada` verdadeiros, que a Importação mostra o diagnóstico do arquivo (só com planilha fictícia) e que Conta › Preferências do aluno tem kg/lb; APK gerado antes do #82 mostra o −/+ antigo em libra (o app não tem `expo-updates`): gerar APK novo antes de alunos de celular usarem libra | Gustavo | libras, migracao-assistida |
 
 ## Limitações aceitas (não são pendência)
 
