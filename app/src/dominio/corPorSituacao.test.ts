@@ -3,10 +3,12 @@ import type { CobrancaDoAluno } from '../api/financeiroTipos';
 import type { Atualizacao } from '../api/tipos';
 import { seloDaSituacao } from './agendaPresencial';
 import { seloDaAnamnese } from './anamnese';
+import { seloDoAcesso } from './cadastroDoAluno';
 import { statusAtualizacao, statusAtualizacaoTreinador } from './atualizacao';
 import { seloDaCobranca } from './financeiro';
 import { situacaoDoLembrete } from './lembretesDeCobranca';
-import { situacaoDaCobrancaParaTela } from './minhaConta';
+import { seloDoPagamento } from './inscricoes';
+import { estadoDoConsumoParaTela, situacaoDaCobrancaParaTela } from './minhaConta';
 import { itemDaAtualizacao, itemDoAviso, itemDoPagamento } from './paraFazer';
 
 /**
@@ -96,5 +98,31 @@ describe('uma cor por situação, no aluno e no treinador', () => {
     const futura = atualizacao({ fase: 'NENHUMA', diasParaData: 15 });
     expect(statusAtualizacao(futura, hoje).tipo).toBe('neutro');
     expect(statusAtualizacaoTreinador(futura, hoje).tipo).toBe('neutro');
+  });
+
+  // Casos fora da tabela, cada um com a sua linha na seção 4.5.
+  it('acesso do aluno: "Aguardando primeiro acesso" é neutro (o aluno age, o treinador espera)', () => {
+    expect(seloDoAcesso({ temAcesso: false, aguardandoPrimeiroAcesso: false })).toEqual({ texto: 'Sem acesso', tipo: 'neutro' });
+    expect(seloDoAcesso({ temAcesso: true, aguardandoPrimeiroAcesso: true })).toEqual({ texto: 'Aguardando primeiro acesso', tipo: 'neutro' });
+    expect(seloDoAcesso({ temAcesso: true, aguardandoPrimeiroAcesso: false })).toEqual({ texto: 'Com acesso', tipo: 'sucesso' });
+  });
+
+  it('pagamento da inscrição: Aguardando é âmbar (exceção da cobrança; o treinador confirma à mão)', () => {
+    expect(seloDoPagamento('AGUARDANDO').tipo).toBe('atencao');
+    expect(seloDoPagamento('NAO_CONTROLADO').tipo).toBe('neutro');
+    expect(seloDoPagamento('CONFIRMADO_MANUAL').tipo).toBe('sucesso');
+  });
+
+  it('cobrança contestada: âmbar nos dois lados; estornada, cinza', () => {
+    expect(seloDaCobranca({ situacao: 'CONTESTADA' })).toEqual({ tom: 'atencao', rotulo: 'Contestada' });
+    expect(seloDaCobranca({ situacao: 'ESTORNADA' }).tom).toBe('neutro');
+  });
+
+  it('consumo da conta: dentro verde, perto e atingido âmbar, acima vermelho, sem limite neutro', () => {
+    expect(estadoDoConsumoParaTela('DISPONIVEL').tipo).toBe('sucesso');
+    expect(estadoDoConsumoParaTela('ATENCAO').tipo).toBe('atencao');
+    expect(estadoDoConsumoParaTela('ATINGIDO').tipo).toBe('atencao');
+    expect(estadoDoConsumoParaTela('EXCEDIDO').tipo).toBe('perigo');
+    expect(estadoDoConsumoParaTela('SEM_LIMITE_CONFIGURADO').tipo).toBe('neutro');
   });
 });

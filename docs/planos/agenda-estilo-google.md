@@ -30,7 +30,7 @@ compromisso" (e o "Novo evento") como painel rápido com "Mais opções".
 - Visões "Programação" e "4 dias" e as opções "Mostrar fins de semana" etc. do menu do Google.
 
 ## O que ficou para trás
-- ~~Voltar do "Mais opções" para o painel rápido.~~ No compromisso e no evento novos, "Menos opções" volta ao painel rápido sem apagar o que foi digitado. O painel rápido avisa, acima de "Mais opções", o que ficou preenchido só no completo. A edição continua abrindo no completo, sem esse botão. Lote pendencias-app-03-11, commit `ef7cf80e`. O e2e `agenda-calendario.spec.ts` não foi alterado: o `wt-auditoria-treinador` tem mudança sem commit nesse arquivo.
+- ~~Voltar do "Mais opções" para o painel rápido.~~ No compromisso e no evento novos, "Menos opções" volta ao painel rápido sem apagar o que foi digitado. O painel rápido avisa, acima de "Mais opções", o que ficou preenchido só no completo. A edição continua abrindo no completo, sem esse botão. Lote pendencias-app-03-11, commit `ef7cf80e` da branch; na `main` pelo squash `396881d5` (#62). O e2e `agenda-calendario.spec.ts` não foi alterado: o `wt-auditoria-treinador` tinha mudança sem commit nesse arquivo. Conferido em 04/11/2026: o texto "Também preenchido em Mais opções" tem jest (`linhaDoCompletoDoEvento` em `agendaEvento.test.ts`, `agendaPresencial.test.ts`), mas nenhum teste de tela clica em "Menos opções" (lacuna; ver [conferencia-pendencias-04-11.md](conferencia-pendencias-04-11.md)).
 - e2e do ciclo menstrual dependente da data (achado aqui, não é desta frente): corrigido no PR de documentação e testes de 02/11.
 - Evento de 24 h (fim igual ao início): corrigido no mesmo PR.
 - (cada sobra também vai para "Pendências soltas" no README)

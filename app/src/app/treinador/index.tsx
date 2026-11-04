@@ -77,6 +77,13 @@ const numero = (v: unknown): number | null => (typeof v === 'number' && Number.i
 const dadosDe = <T,>(f: Fonte<T>): T | null => (f.situacao === 'pronta' ? f.dados : null);
 
 /**
+ * Usuários cuja consultoria estava sem alunos na última resposta do painel. Na web o Início é desmontado ao abrir outra
+ * tela, e a volta (do "Cadastrar aluno", por exemplo) não deve buscar de novo os blocos que não aparecem. Se a consultoria
+ * ganhou alunos nesse meio-tempo, os blocos saem logo depois da resposta do painel.
+ */
+const SEM_ALUNOS_DA_ULTIMA_VEZ = new Set<string>();
+
+/**
  * Início do treinador (passos 8 e 9 de `docs/planos/atualizacao-visual-app-full.md`, D7 a D9): os Primeiros passos no
  * topo enquanto abertos (fora do "Editar"), ou o Próximo passo; embaixo o painel em blocos, em grade de até 4 colunas
  * (1 no celular), cada bloco com o próprio Todos/Meus, atualizar e abrir. Só contagens nos blocos; as listas com nomes
@@ -113,11 +120,14 @@ export default function InicioTreinador() {
   const interessadosPadrao: ConsultaDoPainel = useMemo(() => ({ fonte: 'interessados', meus: padraoMeus }), [padraoMeus]);
   const verInteressados = pode('INSCRICAO_LER');
   const porBloco = useMemo(() => new Map(visiveis.map((id) => [id, consultasDoBloco(id, ctx, opcoes(id))])), [visiveis, ctx, opcoes]);
+  // Consultoria que já se sabe sem alunos (última resposta do painel de Todos): os blocos não aparecem, então as consultas
+  // deles não saem. Sem essa resposta saem junto com o painel, para o Início comum não esperar uma volta a mais.
+  const [semAlunosSabido, setSemAlunosSabido] = useState(() => !!usuarioId && SEM_ALUNOS_DA_ULTIMA_VEZ.has(usuarioId));
   const consultas = useMemo(() => [
     ...(verPainel ? [painelTodos, painelPadrao] : []),
     ...(verInteressados ? [interessadosPadrao] : []),
-    ...[...porBloco.values()].flat(),
-  ], [verPainel, painelTodos, painelPadrao, verInteressados, interessadosPadrao, porBloco]);
+    ...(semAlunosSabido ? [] : [...porBloco.values()].flat()),
+  ], [verPainel, painelTodos, painelPadrao, verInteressados, interessadosPadrao, porBloco, semAlunosSabido]);
   const { fonte, dadosDeOutraChave, fontesDe, recarregar } = useFontesDoPainel(consultas);
 
   // Ao voltar para a tela (não na primeira vez), recarrega tudo e relê o aparelho: cadastrou o aluno ou ligou o link e voltou.
@@ -144,6 +154,13 @@ export default function InicioTreinador() {
   const fonteTodos = fonte<PainelTreinador>(painelTodos);
   const dadosTodos = dadosDe(fonteTodos);
   const semAlunos = inicioSemAlunos(dadosTodos);
+  // Ajuste durante o render (padrão do React para estado derivado de outro): só com dado, então a recarga não pisca.
+  if (dadosTodos && semAlunos !== semAlunosSabido) setSemAlunosSabido(semAlunos);
+  useEffect(() => {
+    if (!usuarioId || !dadosTodos) return;
+    if (semAlunos) SEM_ALUNOS_DA_ULTIMA_VEZ.add(usuarioId);
+    else SEM_ALUNOS_DA_ULTIMA_VEZ.delete(usuarioId);
+  }, [usuarioId, dadosTodos, semAlunos]);
   const fontePadrao = fonte<PainelTreinador>(painelPadrao);
   const padrao = dadosDe(fontePadrao);
   const interessados = verInteressados ? dadosDe(fonte<ContagensInscricoes>(interessadosPadrao)) : null;

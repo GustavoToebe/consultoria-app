@@ -1,6 +1,6 @@
 # Supervisão da equipe pelo dono da consultoria
 
-Situação: Em andamento · Onde: branch `supervisao-da-equipe` (PR próprio) · Atualizado: 03/11/2026 · Registro: reunião de 30/10, C65, C79
+Situação: Entregue na `main` (API #65, telas #76); falta só a revisão do Opus da API · Onde: `main` · Atualizado: 04/11/2026 · Registro: reunião de 30/10, C65, C79
 
 ## Objetivo
 O treinador do piloto revisa tudo o que a equipe faz (atualizações, dieta, uso de substâncias): "eu tenho que
@@ -75,6 +75,8 @@ treinador da equipe (1:56 a 1:58).
 - [x] 2. Tabela da supervisão em Números (D1), parte da API: `equipe[]` e `semResponsavel` em `GET /numeros`, só contagens, com teste de que nenhum nome nem id de aluno sai — executor — commit: fase 2 da branch `supervisao-da-equipe` (ver `git log`). Falta a tela em `treinador/numeros.tsx` (executor-front).
 - [x] 3. Correções da revisão independente (D17, D19 a D22): tabela só com `EQUIPE_LER`; prévia da importação de uma aba sem cortar as vagas em zero; trava da consultoria antes da leitura do limite (consulta escalar com tenant); Administrador conferido antes da trava na rota do limite; limite só inteiro (422); rótulo `USUARIO_LIMITE_DE_ALUNOS_ALTERADO` em `acoesAuditoria.ts`; texto da recusa na importação — executor — commit: fase 2 da branch `supervisao-da-equipe` (ver `git log`).
 - [x] 4. Telas (D23 a D26): campo "Limite de alunos" na folha "Editar membro" (só o Administrador), tabela da equipe em `treinador/numeros.tsx` (só quando a API manda `equipe`), regras puras em `dominio/limiteDeAlunos.ts` e `dominio/numeros.ts` com teste, texto do problema `LIMITE_DO_TREINADOR` em `dominio/planilhaCompleta.ts`, e2e `e2e/supervisao-da-equipe.spec.ts` (390 e 1280 px, claro e escuro). O merge da frente Treinador (#67) já tinha entrado na `main` — executor-front — commits: branch `limite-de-alunos-telas` (ver `git log`).
+
+- [x] 5. Conferência de 04/11 (frente F do lote): as branches `supervisao-da-equipe` e `limite-de-alunos-telas` já estão na `main` por squash (#65 e #76); `git diff origin/main...<branch>` só mostra o histórico, sem diferença de código além do que a `main` mudou depois. Nada a reaproveitar, nenhuma migration nova (a V054 basta; a V059 reservada não foi usada). Testes por caminho conferidos: criar, editar, lote, reativar e duas threads em `LimiteDoTreinador(Concorrencia)IntegrationTest`; aceite em `InscricaoLimiteDoTreinadorIntegrationTest`; importação de uma aba em `ImportacaoLimiteDoTreinadorIntegrationTest`; planilha completa em `PlanilhaCompletaLimiteDoTreinadorIntegrationTest`; rota do limite em `LimiteDeAlunosDaEquipeIntegrationTest`.
 
 ## Fora do escopo
 - Fila "para revisar" do dono e aprovação antes de publicar (D1).

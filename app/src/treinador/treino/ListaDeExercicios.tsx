@@ -1,14 +1,11 @@
-import { ChevronRight } from 'lucide-react-native';
 import { useMemo, type ReactNode } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import type { Configuracao, ExercicioPlano } from '../../api/tipos';
 import { linhaDoExercicio, type ResumoDaSessaoPorContagem } from '../../dominio/inspetorDoTreino';
-import { useTema } from '../../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, RAIO } from '../../tema/tokens';
-import { Selo } from '../../ui/Selo';
-import { sobre } from '../../ui/sobre';
+import { espaco } from '../../tema/tokens';
 import { Texto } from '../../ui/Texto';
+import { ItemDaListaDoEditor } from '../plano/ItemDaListaDoEditor';
 import { AdicionarProximoExercicio } from './CartaoSessao';
 import { estadoDoExercicio } from './estadoDoExercicio';
 import { ResumoDaSessao } from './ResumoDaSessao';
@@ -19,7 +16,7 @@ export const LARGURA_DA_LISTA = 360;
 interface Props {
   /** O cartão da metodologia (`MetodologiaDoPlano`), acima da lista. */
   metodologia: ReactNode;
-  /** Os itens (`ItemDaListaDeExercicios`), com os grupos de exercícios (`CartaoGrupo`) em volta dos membros. */
+  /** Os itens (`ItemDaListaDeExercicios`), com os grupos de exercícios (`GrupoNaLista`: linha do grupo e os membros embaixo). */
   children: ReactNode;
   vazia: boolean;
   resumo: ResumoDaSessaoPorContagem;
@@ -34,7 +31,7 @@ export function ListaDeExercicios({ metodologia, children, vazia, resumo, adicio
   return (
     <View style={estilos.coluna}>
       {metodologia}
-      <View style={estilos.itens} accessibilityLabel="Exercícios da sessão">
+      <View style={estilos.itens} role="group" accessibilityLabel="Exercícios da sessão">
         {vazia ? <Texto variante="suave">Nenhum exercício nesta sessão ainda.</Texto> : children}
       </View>
       <AdicionarProximoExercicio {...adicionar} />
@@ -55,58 +52,19 @@ interface PropsDoItem {
   aoEscolher: () => void;
 }
 
-/**
- * Item da lista: número, nome, selo de situação (`estadoDoExercicio`) e a linha das séries (`linhaDoExercicio`). O
- * escolhido segue a seleção invertida do app (borda e barra na cor do texto, número invertido, como a aba de série
- * aberta), com `aria-current` e `selected`; a cor da marca ficava igual à do erro em marca vermelha. Tab e Enter escolhem.
- */
+/** Item da lista: o `ItemDaListaDoEditor` com o selo de situação (`estadoDoExercicio`) e a linha das séries (`linhaDoExercicio`). */
 export function ItemDaListaDeExercicios({ exercicio: e, posicao, total, config, escolhido, comProblema, aoEscolher }: PropsDoItem) {
-  const { cores, bordas } = useTema();
   const estado = useMemo(() => estadoDoExercicio(e, config), [e, config]);
   const linha = useMemo(() => linhaDoExercicio(e, config), [e, config]);
   const nome = e.nome || 'sem nome';
-  const erro = comProblema || estado.tipo === 'perigo';
-  const borda = escolhido ? cores.texto : erro ? cores.perigo : cores.borda;
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ selected: escolhido }}
-      aria-current={escolhido ? 'true' : undefined}
-      accessibilityLabel={`Exercício ${posicao + 1} de ${total}: ${nome}, ${estado.texto}. ${linha}`}
-      onPress={aoEscolher}
-      style={(s) => [
-        estilos.item,
-        {
-          borderWidth: bordas.bloco,
-          borderLeftWidth: BARRA,
-          borderColor: borda,
-          borderLeftColor: borda,
-          backgroundColor: escolhido ? cores.superficie : sobre(s) ? cores.superficie3 : cores.superficie2,
-        },
-      ]}>
-      <View style={[estilos.numero, escolhido ? { backgroundColor: cores.texto, borderColor: cores.texto } : { borderColor: cores.bordaCampo }]}>
-        <Texto numerico style={[estilos.textoDoNumero, { color: escolhido ? cores.fundo : cores.texto }]}>{posicao + 1}</Texto>
-      </View>
-      <View style={estilos.meio}>
-        <Texto style={estilos.nome} numberOfLines={2}>{nome}</Texto>
-        <View style={estilos.selo}><Selo texto={estado.texto} tipo={estado.tipo} Icone={estado.Icone} /></View>
-        <Texto variante="pequeno" numerico numberOfLines={2}>{linha}</Texto>
-      </View>
-      <ChevronRight size={18} color={escolhido ? cores.texto : cores.textoSuave} strokeWidth={2} />
-    </Pressable>
+    <ItemDaListaDoEditor numero={posicao + 1} titulo={nome} selo={estado} linha={linha} escolhido={escolhido}
+      comProblema={comProblema || estado.tipo === 'perigo'} aoEscolher={aoEscolher}
+      rotulo={`Exercício ${posicao + 1} de ${total}: ${nome}, ${estado.texto}. ${linha}`} />
   );
 }
-
-/** Barra da esquerda do item, sempre com a mesma largura (só a cor muda): escolher outro item não empurra o texto. */
-const BARRA = 4;
 
 const estilos = StyleSheet.create({
   coluna: { width: LARGURA_DA_LISTA, flexShrink: 0, gap: espaco(1.5) },
   itens: { gap: espaco(1) },
-  item: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.25), minHeight: ALVO_TOQUE, borderRadius: RAIO, paddingVertical: espaco(1), paddingHorizontal: espaco(1.25) },
-  numero: { width: 28, height: 28, borderRadius: 8, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  textoDoNumero: { fontFamily: fontes.semi, fontSize: 13 },
-  meio: { flex: 1, gap: 4 },
-  nome: { fontFamily: fontes.semi, fontSize: 15, lineHeight: 20 },
-  selo: { flexDirection: 'row' },
 });

@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { NotebookTabs } from 'lucide-react-native';
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useMemo, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { baixarFotoDePerfilDoAluno, criarReceita, listarExercicios, salvarPlanoComoReceita } from '../../api/rotas';
@@ -46,7 +46,8 @@ import { FolhaReceitas } from '../../treinador/FolhaReceitas';
 import { FolhaSalvarReceita } from '../../treinador/FolhaSalvarReceita';
 import { useAviso } from '../../ui/Aviso';
 import { CartaoExercicio } from '../../treinador/treino/CartaoExercicio';
-import { CartaoGrupo } from '../../treinador/treino/CartaoGrupo';
+import { EditorDoGrupo, GrupoNaLista } from '../../treinador/treino/CartaoGrupo';
+import { novoUid } from '../../dominio/uid';
 import { CartaoSessao } from '../../treinador/treino/CartaoSessao';
 import { FolhaBiblioteca } from '../../treinador/treino/FolhaBiblioteca';
 import { FolhaCriarGrupo } from '../../treinador/treino/FolhaCriarGrupo';
@@ -115,6 +116,9 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
   // Aba de séries aberta por exercício (D8): uid de uma série do grupo. Fica aqui para o "ir ao primeiro" e a receita abrirem a certa.
   const [grupoAbertoPorExercicio, setGrupoAbertoPorExercicio] = useState<Record<string, string | null>>({});
   const abrirGrupo = (exercicioUid: string, serieUid: string | null) => setGrupoAbertoPorExercicio((a) => ({ ...a, [exercicioUid]: serieUid }));
+  // Grupo de exercícios escolhido (superset, circuito...): a edição dele vai ao inspetor (duas colunas) ou abre embaixo da
+  // linha do grupo (empilhado). Escolher um exercício limpa; uid que saiu da sessão vale como nenhum.
+  const [grupoEscolhidoUid, setGrupoEscolhidoUid] = useState<string | null>(null);
   // Resultado do servidor (Validar, Publicar) com o conteúdo a que se refere: ao editar, as marcas dele saem e ficam só as da validação local.
   const [servidor, setServidor] = useState<{ resultado: ResultadoValidacao; para: ConteudoTreino } | null>(null);
   const problemas = servidor?.resultado ?? null;
@@ -162,8 +166,16 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
   /** O escolhido de verdade: em uma coluna, nulo continua nulo (tudo fechado); uid que saiu da sessão vira o primeiro. */
   const escolhidoEm = (duas: boolean) =>
     duas || exercicioSelecionadoUid !== null ? proximaSelecao(uidsDaSessao, uidsDaSessao, exercicioSelecionadoUid) : null;
-  /** Uma coluna: tocar no aberto fecha; tocar em outro abre só ele. */
-  const alternar = (uid: string) => setExercicioSelecionadoUid(escolhidoEm(false) === uid ? null : uid);
+  /** Uma coluna: tocar no aberto fecha; tocar em outro abre só ele (e fecha o grupo aberto). */
+  const alternar = (uid: string) => { setGrupoEscolhidoUid(null); setExercicioSelecionadoUid(escolhidoEm(false) === uid ? null : uid); };
+  const escolherExercicio = (uid: string) => { setGrupoEscolhidoUid(null); setExercicioSelecionadoUid(uid); };
+  const grupoEscolhido = sessaoAtual?.grupos.find((g) => g.uid === grupoEscolhidoUid && sessaoAtual.exercicios.some((e) => e.grupoUid === g.uid)) ?? null;
+  /** Duas colunas: o grupo vai ao inspetor. Empilhado: tocar no aberto fecha; abrir o grupo fecha o exercício aberto. */
+  const escolherGrupo = (uid: string, duas: boolean) => {
+    if (duas) { setGrupoEscolhidoUid(uid); return; }
+    setExercicioSelecionadoUid(null);
+    setGrupoEscolhidoUid(grupoEscolhido?.uid === uid ? null : uid);
+  };
   const sessoesComProblema = new Set(c.sessoes.filter((x) => comErro.has(x.uid) || x.exercicios.some((e) => comErro.has(e.uid))).map((x) => x.uid));
   /** Resultado da validação: com erro, abre a primeira sessão que precisa de correção. */
   const aoProblemas = (r: ResultadoValidacao | null) => {
@@ -187,8 +199,13 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
     const sessao = c.sessoes.find((x) => uids.includes(x.uid) || x.exercicios.some((e) => uids.includes(e.uid)) || (x.grupos ?? []).some((g) => uids.includes(g.uid)));
     if (sessao) setSelecionadaUid(sessao.uid);
     const exercicio = sessao?.exercicios.find((e) => uids.includes(e.uid));
-    if (!exercicio) return;
-    setExercicioSelecionadoUid(exercicio.uid);
+    if (!exercicio) {
+      // Problema só do grupo de exercícios (tipo, voltas, descanso do grupo): abre a edição dele.
+      const grupo = sessao?.grupos.find((g) => uids.includes(g.uid));
+      if (grupo) { setExercicioSelecionadoUid(null); setGrupoEscolhidoUid(grupo.uid); }
+      return;
+    }
+    escolherExercicio(exercicio.uid);
     const serie = caminho ? serieDoProblema(exercicio, caminho) : null;
     if (serie) abrirGrupo(exercicio.uid, serie);
   };
@@ -334,8 +351,10 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
         <Vazio texto="O plano ainda não tem sessões. Adicione uma ou comece de uma semana de treino pronta (botão Modelos)." />
       ) : null}
       {sessaoAtual ? <ComColunas>{(duas) => {
-        const escolhido = escolhidoEm(duas);
+        // Com um grupo de exercícios escolhido, nenhum exercício fica realçado e o inspetor mostra o grupo.
+        const escolhido = grupoEscolhido ? null : escolhidoEm(duas);
         let noInspetor: PropsDoInspetor | null = null;
+        let grupoNoInspetor: ReactNode = null;
         const itens = blocos.map((g, bi) => {
           const descansoPorSerie = !(g.grupo && descansoSoDoGrupo(g.grupo));
           // Uma coluna: o cartão de hoje, com o corpo aberto só no escolhido. Duas: o item da lista, e o escolhido vai ao inspetor.
@@ -344,33 +363,44 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
             if (!duas) return <CartaoExercicio key={e.uid} {...propsDoExercicio(sessaoAtual, e, ei, g.grupo !== null, descansoPorSerie)} aberto={e.uid === escolhido} aoAbrir={() => alternar(e.uid)} />;
             if (e.uid === escolhido) noInspetor = propsDoExercicio(sessaoAtual, e, ei, g.grupo !== null, descansoPorSerie);
             return <ItemDaListaDeExercicios key={e.uid} exercicio={e} posicao={ei} total={sessaoAtual.exercicios.length} config={config}
-              escolhido={e.uid === escolhido} comProblema={comErro.has(e.uid)} aoEscolher={() => setExercicioSelecionadoUid(e.uid)} />;
+              escolhido={e.uid === escolhido} comProblema={comErro.has(e.uid)} aoEscolher={() => escolherExercicio(e.uid)} />;
           });
           const grupo = g.grupo;
           if (!grupo) return <Fragment key={g.exercicios[0].uid}>{cartoes}</Fragment>;
+          const indiceDoGrupo = sessaoAtual.grupos.findIndex((x) => x.uid === grupo.uid);
+          const erros = problemasDoGrupo(errosVivos, indiceSelecionado, indiceDoGrupo);
+          const aberto = grupoEscolhido?.uid === grupo.uid;
+          const edicao = aberto ? (
+            <EditorDoGrupo
+              grupo={grupo}
+              config={config}
+              tamanho={g.exercicios.length}
+              primeiro={bi === 0}
+              ultimo={bi === blocos.length - 1}
+              erros={erros}
+              vizinhos={vizinhosQuePodemEntrar(sessaoAtual, grupo.uid)}
+              dica={dicaDoGrupo(sessaoAtual, grupo.uid, grupo.tecnica)}
+              aoMudar={(m: MudancaDoGrupo) => mudarGrupos((s) => alterarGrupoDaSessao(s, grupo.uid, m))}
+              aoMover={(d) => mudarGrupos((s) => moverGrupoDeExercicios(s, grupo.uid, d))}
+              aoIncluir={(indice) => mudarGrupos((s) => juntarAoGrupo(s, indice, grupo.uid))}
+              aoDesfazer={() => {
+                // Os exercícios ficam soltos: a escolha passa ao primeiro deles.
+                escolherExercicio(g.exercicios[0].uid);
+                comDesfazer(`${nomeDaCombinacao(config, grupo.tecnica)} desfeito.`, (a) => ({
+                  ...a,
+                  sessoes: substituir(a.sessoes, indiceSelecionado, { ...a.sessoes[indiceSelecionado], ...desfazerGrupo(a.sessoes[indiceSelecionado], grupo.uid) }),
+                }));
+              }}
+            />
+          ) : null;
+          if (duas && aberto) grupoNoInspetor = edicao;
           return (
-              <CartaoGrupo
-                key={`grupo-${g.exercicios[0].uid}`}
-                grupo={grupo}
-                config={config}
-                tamanho={g.exercicios.length}
-                primeiro={bi === 0}
-                ultimo={bi === blocos.length - 1}
-                erros={problemasDoGrupo(errosVivos, indiceSelecionado, sessaoAtual.grupos.findIndex((x) => x.uid === grupo.uid))}
-                vizinhos={vizinhosQuePodemEntrar(sessaoAtual, grupo.uid)}
-                dica={dicaDoGrupo(sessaoAtual, grupo.uid, grupo.tecnica)}
-                aoMudar={(m: MudancaDoGrupo) => mudarGrupos((s) => alterarGrupoDaSessao(s, grupo.uid, m))}
-                aoMover={(d) => mudarGrupos((s) => moverGrupoDeExercicios(s, grupo.uid, d))}
-                aoIncluir={(indice) => mudarGrupos((s) => juntarAoGrupo(s, indice, grupo.uid))}
-                aoDesfazer={() =>
-                  comDesfazer(`${nomeDaCombinacao(config, grupo.tecnica)} desfeito.`, (a) => ({
-                    ...a,
-                    sessoes: substituir(a.sessoes, indiceSelecionado, { ...a.sessoes[indiceSelecionado], ...desfazerGrupo(a.sessoes[indiceSelecionado], grupo.uid) }),
-                  }))
-                }>
-                {cartoes}
-              </CartaoGrupo>
-            );
+            <GrupoNaLista key={`grupo-${g.exercicios[0].uid}`} grupo={grupo} config={config} tamanho={g.exercicios.length}
+              comErro={Object.keys(erros).length > 0} escolhido={aberto} duas={duas} aoEscolher={() => escolherGrupo(grupo.uid, duas)}
+              edicao={duas ? null : edicao}>
+              {cartoes}
+            </GrupoNaLista>
+          );
         });
         const adicionar = {
           aoNovoExercicio: () => adicionarExercicio(indiceSelecionado),
@@ -406,7 +436,7 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
                   adicionar={adicionar}>
                   {itens}
                 </ListaDeExercicios>
-                <InspetorDoExercicio props={noInspetor} />
+                <InspetorDoExercicio props={noInspetor} grupo={grupoNoInspetor} />
               </View>
             ) : itens}
           </CartaoSessao>
@@ -505,7 +535,11 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
           aoFechar={() => setFolha(null)}
           aoCriar={(indices, tecnica, voltas) => {
             setFolha(null);
-            mudarGrupos((s) => criarGrupoPronto(s, indices, tecnica, voltas));
+            // O grupo novo fica escolhido (como o exercício novo): a edição dele abre na hora.
+            const uid = novoUid();
+            mudarGrupos((s) => criarGrupoPronto(s, indices, tecnica, voltas, uid));
+            setExercicioSelecionadoUid(null);
+            setGrupoEscolhidoUid(uid);
           }}
         />
       ) : null}

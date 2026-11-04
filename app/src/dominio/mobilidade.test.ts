@@ -1,4 +1,4 @@
-import { itemParaTela, mobilidadeParaApi, mobilidadeParaExibir, mobilidadeValida, normalizarMobilidade, novaSecaoMobilidade, temAbaMobilidade } from './mobilidade';
+import { itemParaTela, mobilidadeParaApi, mobilidadeParaExibir, mobilidadeValida, normalizarMobilidade, novaSecaoMobilidade, secaoValida, temAbaMobilidade } from './mobilidade';
 
 it('normaliza o conteúdo da API com campos nulos e cria uma seção quando vem vazio', () => {
   expect(normalizarMobilidade(null).secoes).toHaveLength(1);
@@ -22,6 +22,8 @@ it('só valida com nome em todo item e link do YouTube quando informado', () => 
   base.itens[0].videoUrl = 'https://youtu.be/abc';
   expect(mobilidadeValida({ orientacoes: '', secoes: [base] })).toBe(true);
   expect(mobilidadeValida({ orientacoes: '', secoes: [] })).toBe(false);
+  expect(secaoValida(base)).toBe(true);
+  expect(secaoValida({ ...base, itens: [...base.itens, { ...base.itens[0], uid: 'c', nome: ' ' }] })).toBe(false);
 });
 
 describe('mobilidade do aluno', () => {

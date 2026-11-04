@@ -14,7 +14,8 @@ interface Props {
   resumo?: string;
   selo?: { texto: string; tipo: TipoSelo };
   aberto: boolean;
-  aoAlternar: () => void;
+  /** Sem ele, o item fica sempre aberto (o inspetor dos editores em duas colunas): título fixo, sem chevron. */
+  aoAlternar?: () => void;
   /** Com `aoMover`, as setas ↑↓ (desabilitadas na ponta da lista). */
   posicao?: number;
   total?: number;
@@ -30,23 +31,28 @@ interface Props {
 /**
  * Cabeçalho de item editável em lista (refeição, item de mobilidade, pergunta, seção, plano do pacote), com a mesma
  * gramática em todos os editores (padrão das telas de 19/10): título e resumo (tocar abre/fecha) · setas ↑↓ = mover ·
- * chevron = abrir/fechar · remover. O chevron nunca move e a seta nunca abre.
+ * chevron = abrir/fechar · remover. O chevron nunca move e a seta nunca abre. Sem `aoAlternar`, o título é só texto.
  */
 export function CabecalhoDoItem({ titulo, resumo, selo, aberto, aoAlternar, posicao = 0, total = 1, aoMover, nomeDoItem, remover, faixa }: Props) {
   const { cores } = useTema();
   const Seta = aberto ? ChevronUp : ChevronDown;
+  const textos = <>
+    <Texto variante="bloco" nivel={aoAlternar ? undefined : 3} style={estilos.titulo}>{titulo}</Texto>
+    {resumo ? <Texto variante="suave" numerico>{resumo}</Texto> : null}
+    {selo ? <View style={estilos.selo}><Selo texto={selo.texto} tipo={selo.tipo} /></View> : null}
+  </>;
   return (
     <View style={[estilos.linha, faixa && [estilos.faixa, { backgroundColor: cores.superficie3, borderColor: cores.borda }]]}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`${titulo}, ${aberto ? 'aberto' : 'fechado'}`}
-        accessibilityState={{ expanded: aberto }}
-        onPress={aoAlternar}
-        style={({ pressed }) => [estilos.textos, { opacity: pressed ? 0.7 : 1 }]}>
-        <Texto variante="bloco" style={estilos.titulo}>{titulo}</Texto>
-        {resumo ? <Texto variante="suave" numerico>{resumo}</Texto> : null}
-        {selo ? <View style={estilos.selo}><Selo texto={selo.texto} tipo={selo.tipo} /></View> : null}
-      </Pressable>
+      {aoAlternar ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${titulo}, ${aberto ? 'aberto' : 'fechado'}`}
+          accessibilityState={{ expanded: aberto }}
+          onPress={aoAlternar}
+          style={({ pressed }) => [estilos.textos, { opacity: pressed ? 0.7 : 1 }]}>
+          {textos}
+        </Pressable>
+      ) : <View style={estilos.textos}>{textos}</View>}
       <View style={estilos.acoes}>
         {aoMover && total > 1 ? (
           <>
@@ -54,7 +60,7 @@ export function CabecalhoDoItem({ titulo, resumo, selo, aberto, aoAlternar, posi
             <IconeBotao Icone={ArrowDown} rotulo={`Descer ${nomeDoItem}`} desabilitado={posicao === total - 1} aoTocar={() => aoMover(1)} />
           </>
         ) : null}
-        <IconeBotao Icone={Seta} rotulo={`${aberto ? 'Fechar' : 'Abrir'} ${nomeDoItem}`} aoTocar={aoAlternar} />
+        {aoAlternar ? <IconeBotao Icone={Seta} rotulo={`${aberto ? 'Fechar' : 'Abrir'} ${nomeDoItem}`} aoTocar={aoAlternar} /> : null}
         {remover}
       </View>
     </View>

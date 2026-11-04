@@ -85,5 +85,6 @@ test('aviso do gráfico explica por que ele não aparece', () => {
   expect(avisoDoGrafico(0, true)).toBeNull();
   expect(avisoDoGrafico(1, true)).toBe('O gráfico aparece quando houver registros em pelo menos duas datas.');
   expect(avisoDoGrafico(2, true)).toBeNull();
-  expect(avisoDoGrafico(5, false)).toBe('Os gráficos estão desligados nas suas preferências (Perfil › Preferências).');
+  expect(avisoDoGrafico(5, false)).toBe('Os gráficos estão desligados em Perfil › Preferências.');
+  expect(avisoDoGrafico(5, false, 'ALUNO')).toBe('Os gráficos estão desligados em Conta › Aparência e preferências.');
 });

@@ -1,6 +1,6 @@
 # Pasta: publicar tudo, copiar a pasta para outro aluno, peso ao finalizar
 
-Situação: Em revisão (PR #40) · Onde: branch `pasta-publicar-copiar` (worktree `wt-pasta`) · Atualizado: 02/11/2026 · Registro: reunião de 30/10, C21, C25, C22 (mais a cópia da pasta inteira) · Frente D da leva 1
+Situação: Concluída em 02/11/2026 (PR #40, `c7a2f673` na `main`) · Onde: `main` (veio da branch `pasta-publicar-copiar`) · Atualizado: 04/11/2026 · Registro: reunião de 30/10, C21, C25, C22 (mais a cópia da pasta inteira) · Frente D da leva 1
 
 ## Objetivo
 A cada renovação, o treinador entra em cada plano só para publicar ("editar, não tem nada, só publico"). Passa a haver
@@ -54,6 +54,7 @@ Andamento em 02/11/2026 (tudo na worktree `wt-pasta`, branch `pasta-publicar-cop
 - Mudar o modelo de uma pasta por ciclo; contrato de ciclos.
 
 ## O que ficou para trás
+- Conferido em 04/11/2026 (provas em [conferencia-pendencias-04-11.md](conferencia-pendencias-04-11.md)): "Publicar tudo" e a sobra do `?pastaId` (C22, D9) estão na `main` pelo squash `c7a2f673` (#40); os hashes dos passos acima são da branch e não existem na história da `main`. C22 está coberto por `VoltarParaAPasta` (`router.dismissTo`), pelo `router.setParams({ pastaId: undefined })` da ficha e pelo e2e `C22` de `pasta-e-atualizacao.spec.ts`; o `dismissTo` no celular segue sem prova (item d). O "Publicar tudo" com o `/eu` guardado desatualizado (mobilidade fora de `versoes`) foi corrigido no lote #93 (`78e07269`, teste `versoesDasListas` em `publicarPasta.test.ts`).
 - (b) O botão "Publicar tudo" fica oculto sem `TREINO_PUBLICAR` nem `DIETA_PUBLICAR` (a rota exige uma das duas).
 - (c) O item "Copiar pasta para outro aluno" no ⋯ não tem estado desabilitado: sem o `*_ALTERAR` de um tipo presente, mostra o motivo e a Folha avisa.
 - (d) `router.dismissTo` (VoltarParaAPasta) testado só na web, não no celular.

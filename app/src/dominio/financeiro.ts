@@ -115,7 +115,10 @@ export interface SeloFinanceiro {
   rotulo: string;
 }
 
-/** Verde paga; âmbar em aberto; vermelho vencida (vem da API); cinza cancelada, estornada e contestada. */
+/**
+ * Verde paga; âmbar em aberto e contestada; vermelho vencida (vem da API); cinza cancelada e estornada. Os tons são os da
+ * exceção da cobrança (seção 4.5 do `docs/design-e-front.md`), iguais para o aluno e para o treinador.
+ */
 export function seloDaCobranca(c: { situacao: SituacaoDaCobranca; vencida?: boolean }): SeloFinanceiro {
   switch (c.situacao) {
     case 'PAGA':

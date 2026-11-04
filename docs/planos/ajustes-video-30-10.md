@@ -26,19 +26,19 @@ referência foi conferida no código atual. A análise em si fica fora do git.
 ## Itens da análise (N01 a N25)
 | Item | Assunto | Decisão |
 | --- | --- | --- |
-| N01 | Cores de variação de peso e gráfico de medidas | Variação de peso: Lote A 11. Gráfico de medidas: pendência (Lote C) |
+| N01 | Cores de variação de peso e gráfico de medidas | Variação de peso: Lote A 11. Gráfico de medidas: pendência (Lote C), feito em 02/11 (`2320c1e8`, #41) |
 | N02 | Modelo de semana confundido com treino completo | Lote A 6 ("Estrutura de semana · sem exercícios") |
 | N03 | "% da WS" e muitas opções de carga | Lote A 3 e 2 (rótulo, principais e "Outras formas de carga", percentuais legíveis) |
 | N04 | Retirar modalidade; acrescentar libras | Modalidade: Lote A 4 (resumo com edição explícita). Libras: pendência (Lote C) |
-| N05 | Reduzir opções por tipo e permitir carga definida | Opções: Lote A 3. Carga fixa: pendência (Lote C) |
-| N06 | RIR individual, limite maior, RPE e 1RM | RPE/1RM: sem mudança (pendência escrita). RIR maior que 5 e esforço por série: pendência (Lote C) |
+| N05 | Reduzir opções por tipo e permitir carga definida | Opções: Lote A 3. Carga fixa: pendência (Lote C), feita em 02/11 (`4cc855e6`, #39) |
+| N06 | RIR individual, limite maior, RPE e 1RM | RPE/1RM: sem mudança (pendência escrita). RIR maior que 5 e esforço por série: pendência (Lote C), feitos em 02/11 (`4cc855e6`, #39) |
 | N07 | "Alvo extra", observações e percentuais | Lote A 3 e 2 ("Observação desta série"; campo e limite de 120 ficam) |
 | N08 | Exercício e série, setas e títulos numéricos | Lote A 1 (cabeçalho, mover exercício e mover grupo) |
 | N09 | Receitas aceleram; agrupamento e busca | Fora (evolução do fluxo). A busca nas receitas de séries entra por A 7 |
 | N10 | Total de séries lido como dia ou período | Lote A 5 (contadores com escopo) |
-| N11 | Finalizar, copiar, publicar e atualizar se misturam | Lote A 13 (texto da ordem sugerida). "Publicar os três" e ciclo novo na mesma pasta: pendências (Lote C) |
+| N11 | Finalizar, copiar, publicar e atualizar se misturam | Lote A 13 (texto da ordem sugerida). "Publicar os três" (feito em 02/11, `c7a2f673`, #40) e ciclo novo na mesma pasta: pendências (Lote C) |
 | N12 | Ler a atualização enquanto edita | Lote B 2 |
-| N13 | Voltar não leva ao contexto; publicar um a um | Lote B 3 (voltar à pasta). Publicar junto: pendência (Lote C) |
+| N13 | Voltar não leva ao contexto; publicar um a um | Lote B 3 (voltar à pasta). Publicar junto: pendência (Lote C), feito em 02/11 (`c7a2f673`, #40) |
 | N14 | Tipo e meta da série pouco visíveis no aluno | Lote A 8 |
 | N15 | Alterar a WS não parece atualizar o Back off | Lote B 1 (reproduzir primeiro) e Lote A 9 (texto da origem) |
 | N16 | Carga e repetições anteriores; sugestão de progressão | Pendência (as definições em aberto) |

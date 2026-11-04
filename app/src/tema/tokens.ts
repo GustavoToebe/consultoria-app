@@ -274,6 +274,12 @@ export const MARCA_NEUTRA = '#52525B';
  */
 export const VEU = 'rgba(0,0,0,0.55)';
 /**
+ * Sombra dos painéis que flutuam por cima da tela (listas suspensas, calendário, busca e cartão do usuário), a mesma nos
+ * temas, como o véu. Só na web (`boxShadow`); no celular essas peças usam `elevation: 8`. É decorativa: quem separa o
+ * painel do fundo é a borda dele.
+ */
+export const SOMBRA_FLUTUANTE = '0 8px 24px rgba(0,0,0,0.35)';
+/**
  * Camada sobre a foto de perfil no topo da ficha (troca e remoção no próprio círculo): a foto pode ter qualquer cor,
  * então a camada é a mesma nos três temas, como o véu. Ícone e anel de foco brancos passam 4,5:1 no pior caso (foto
  * branca coberta pela camada) e o hover do botão não cai de 3:1 (`ui/contrasteDasPecas.test.ts`).

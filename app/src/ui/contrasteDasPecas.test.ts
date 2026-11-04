@@ -1,5 +1,6 @@
 import { coresComBordasReforcadas, coresComContraste } from '../dominio/preferencias';
 import { coresDoDesabilitado } from './desabilitado';
+import { coresDoInterruptor } from './interruptor';
 import { coresDoMarcar } from './marcar';
 import { CAMADA_DA_FOTO, MARCA_NEUTRA, PALETAS, contraste, marcaParaTexto, textoSobre, tingido, type Cores } from '../tema/tokens';
 
@@ -109,6 +110,12 @@ describe.each(VARIANTES)('peças comuns no tema %s', (_nome, cores) => {
     expect(contraste(cores.texto, cores.superficie)).toBeGreaterThanOrEqual(4.5);
     expect(contraste(cores.texto, cores.superficie3)).toBeGreaterThanOrEqual(4.5);
     expect(contraste(cores.bordaCampo, cores.superficie)).toBeGreaterThanOrEqual(3);
+  });
+
+  it.each([false, true])('Switch (ligado = %s): botão contra o trilho e trilho contra qualquer superfície ≥ 3:1', (ligado) => {
+    const { trilho, botao } = coresDoInterruptor(cores, ligado);
+    expect(contraste(botao, trilho)).toBeGreaterThanOrEqual(3);
+    for (const s of superficies) expect(contraste(trilho, s)).toBeGreaterThanOrEqual(3);
   });
 
   it('camada da foto na ficha sobre as iniciais (`superficie2`): ícone branco ≥ 4,5:1 e hover ≥ 3:1', () => {

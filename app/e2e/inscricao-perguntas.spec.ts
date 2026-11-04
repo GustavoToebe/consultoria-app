@@ -34,7 +34,7 @@ const PAGINA: InscricaoPublica = paginaPublica({
 const envios = (pedidos: { metodo: string; caminho: string; corpo?: unknown }[]) =>
   pedidos.filter((p) => p.metodo === 'POST' && p.caminho.startsWith('/publico/inscricoes/'));
 
-for (const largura of [390, 1280]) {
+for (const largura of [390, 1440]) {
   test(`inscrição pública: campos escondidos somem, as perguntas conferem a obrigatória e a condição, e o envio leva a versão (${largura}px)`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const { pedidos, naoTratadas, errosDaPagina } = await simularApi(page, {
@@ -45,14 +45,17 @@ for (const largura of [390, 1280]) {
     await expect(page.getByRole('heading', { name: 'Quero ser aluno' })).toBeVisible();
     // E-mail e "Como conheceu" escondidos pelo treinador; os outros fixos e as perguntas dele aparecem.
     await expect(page.getByLabel('E-mail (opcional)')).toHaveCount(0);
+    // As perguntas do treinador ficam inteiras na parte 2, depois do contato.
+    await expect(page.getByText('Sua rotina')).toHaveCount(0);
+    await page.getByLabel('Nome').fill('Pessoa Fictícia');
+    await page.getByLabel('WhatsApp com DDD').pressSequentially('11987654321');
+    await page.getByRole('button', { name: 'Continuar' }).click();
+
     await expect(page.getByText('Como conheceu a consultoria?')).toHaveCount(0);
     await expect(page.getByLabel('Objetivo (opcional)')).toBeVisible();
     await expect(page.getByText('Sua rotina')).toBeVisible();
     // A pergunta com condição só aparece com "Sim".
     await expect(page.getByLabel('Onde treina? *')).toHaveCount(0);
-
-    await page.getByLabel('Nome').fill('Pessoa Fictícia');
-    await page.getByLabel('WhatsApp com DDD').pressSequentially('11987654321');
     await page.getByRole('button', { name: 'Enviar inscrição' }).click();
     await expect(page.getByText('Confira os campos destacados.')).toBeVisible();
     await expect(page.getByText('Preencha este campo.')).toBeVisible();
@@ -103,13 +106,17 @@ test('inscrição pública: perguntas trocadas no meio do preenchimento recarreg
   await page.goto(`/inscricao/${CODIGO}`);
   await page.getByLabel('Nome').fill('Pessoa Fictícia');
   await page.getByLabel('WhatsApp com DDD').pressSequentially('11987654321');
+  await page.getByRole('button', { name: 'Continuar' }).click();
   await page.getByRole('radiogroup', { name: 'Já treina? *' }).getByRole('button', { name: 'Não', exact: true }).click();
   await page.getByRole('radiogroup', { name: 'Melhor horário' }).getByRole('button', { name: 'Manhã', exact: true }).click();
   await page.getByRole('button', { name: 'Enviar inscrição' }).click();
 
   await expect(page.getByText('As perguntas da consultoria mudaram. Confira as perguntas e envie de novo.')).toBeVisible();
   await expect(page.getByText('Perguntas novas')).toBeVisible();
+  // O contato digitado continua na parte 1.
+  await page.getByRole('button', { name: 'Voltar ao contato' }).click();
   await expect(page.getByLabel('Nome')).toHaveValue('Pessoa Fictícia');
+  await page.getByRole('button', { name: 'Continuar' }).click();
   await page.getByRole('button', { name: 'Enviar inscrição' }).click();
   await expect(page.getByRole('heading', { name: 'Inscrição enviada' })).toBeVisible();
   const corpos = envios(pedidos).map((p) => p.corpo as { questionarioVersaoId: string; respostas: Record<string, unknown> });

@@ -7,7 +7,7 @@ import { deixarParaONavegador, type CliqueDoNavegador } from '../dominio/cliqueD
 import { itensDoMenuDoUsuario, type IdDoItemDoMenu } from '../dominio/menuDoUsuario';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, RAIO, SOMBRA_FLUTUANTE } from '../tema/tokens';
 import { ConfirmarSaida } from './ConfirmarSaida';
 import { useSaidaGuardada } from './GuardaDeSaida';
 import { sobre } from './sobre';
@@ -149,7 +149,7 @@ const estilos = StyleSheet.create({
     borderWidth: 1,
     borderRadius: RAIO,
     paddingVertical: espaco(0.5),
-    boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+    boxShadow: SOMBRA_FLUTUANTE,
   },
   item: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.5), minHeight: ALVO_TOQUE, paddingHorizontal: espaco(1.5) },
   rotulo: { fontFamily: fontes.semi, fontSize: 14 },
