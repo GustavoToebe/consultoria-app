@@ -1,6 +1,6 @@
 # Libras (lb) na carga: fase 1 (aluno) e fase 2 (treinador) (N04)
 
-Situação: Fase 1 em produção, chave ligada em produção em 04/11; fase 2 pronta na branch `libras-fase-2`, sem commit (aguarda o coordenador) · Onde: `main` (PRs #77 e #82) e `libras-fase-2` · Atualizado: 04/11/2026
+Situação: Fase 1 em produção, chave ligada em produção em 04/11; fase 2 no PR #97 (branch `libras-fase-2`) · Onde: `main` (PRs #77 e #82) e `libras-fase-2` · Atualizado: 04/11/2026
 
 ## Objetivo
 O aluno que pensa em libras escolhe `lb` em Perfil › Preferências e passa a digitar e ler as cargas em libras, sem que
@@ -39,7 +39,7 @@ nada do que está guardado mude: a carga continua em **kg** no aparelho, na fila
 
 - [x] 8. (commit: 1ac69c19) Botões −/+ em libra pela decisão 11 nova (04/11): `passoNaTela` e `textoDoPasso` em `dominio/unidadeDeCarga.ts`, `ajustarCarga(..., unidade = 'kg')` em `dominio/cargas.ts`, `ExercicioAluno` passa a unidade do contexto; testes jest (regra, varredura de ida e volta, componente em kg e lb) e e2e `unidade-de-carga.spec.ts`; `AGENTS.md` ajustado
 
-### Fase 2: treinador (04/11, branch `libras-fase-2`; commits: a preencher pelo coordenador)
+### Fase 2: treinador (04/11, PR #97, branch `libras-fase-2`)
 - [x] 9. Regra: `unidadeEfetiva` sem `ehAluno` (decisão 15) e teste; `ProvedorDaUnidadeDeCarga` vale para quem vê, e entra também no layout do treinador (`app/treinador/_layout.tsx`)
 - [x] 10. Ajustes: o cartão "Unidade da carga" aparece também para o treinador (só com a chave ligada), com o texto de quem vê e digita a carga fixa, lê recordes, relatórios e PDFs
 - [x] 11. Editor de carga fixa: `CampoDaCargaFixa` em lb (máscara de 1 casa, `kgParaTela`/`telaParaKg`, rótulo acessível "em libras", erro "até 2204,6 lb"), opção "Carga fixa (lb)", ajuda e resumo da série ("3x12 com 100 lb") na unidade do treinador (`dominio/agrupamento`, `resumoDaSerie`, `validacaoDeSerie.mensagemDaCargaFixa`, `editorTreino.modosDeCarga`, `treinador/treino/*`); o plano grava kg

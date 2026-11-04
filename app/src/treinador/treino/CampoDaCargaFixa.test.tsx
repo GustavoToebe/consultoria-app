@@ -55,7 +55,8 @@ describe('CampoDaCargaFixa', () => {
   it('em libra a máscara corta na primeira casa; em kg continuam duas e o valor é o mesmo', () => {
     const emLibra = jest.fn();
     montar('lb', null, emLibra).digitar('100,57');
-    expect(emLibra).toHaveBeenLastCalledWith(telaEsperada(100.5));
+    // 100,5 lb = 45,586 kg, que a grade de 0,05 kg leva a 45,6 (e 45,6 kg volta a 100,5 lb).
+    expect(emLibra).toHaveBeenLastCalledWith(45.6);
     const emKg = jest.fn();
     const c = montar('kg', 62.5, emKg);
     expect(c.texto()).toBe('62,5');
@@ -71,7 +72,3 @@ describe('CampoDaCargaFixa', () => {
   });
 });
 
-/** kg que a regra pura grava para um número em libra (a mesma conta da tela). */
-function telaEsperada(lb: number): number {
-  return (require('../../dominio/unidadeDeCarga') as typeof import('../../dominio/unidadeDeCarga')).telaParaKg(lb, 'lb')!;
-}
