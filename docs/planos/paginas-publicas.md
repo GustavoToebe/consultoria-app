@@ -14,7 +14,7 @@ explica como excluir a conta.
 | D2 | Rota | `GET /publico/termos` (`TermosPublicoController`, `permitAll()`, em `CONTROLLERS_PUBLICOS`): `{versao, rascunho, documentos}`, sem nada do usuário, `Cache-Control: max-age=300, public`. `GET /termos` e o aceite não mudam. | Gustavo, 04/11 |
 | D3 | Páginas | `/privacidade`, `/termos-de-uso` e `/excluir-conta`, com `ui/TelaPublica` e a marca do produto, fora das guardas de login. | Gustavo, 04/11 |
 | D4 | Exclusão sem login | Não existe. A página só explica: o aluno entra e vai em Conta › "Excluir minha conta" (texto de `dominio/excluirConta.ts`); quem não consegue entrar fala com o treinador ou com o e-mail de contato; o treinador cancela pela Central. | Gustavo, 04/11 |
-| D5 | E-mail de contato | Não há nenhum no repositório. Fica o marcador `<e-mail de contato>`, numa constante só, até o Gustavo definir. | Gustavo, 04/11 |
+| D5 | E-mail de contato | `contato@servirea.com.br` (o mesmo que recebe os alertas da Cloudflare), numa constante só (`dominio/contato.ts`). | Gustavo, 04/11 |
 | D6 | Texto jurídico | Nada novo e nenhum prazo prometido. Os termos continuam **RASCUNHO** para a revisão jurídica. | Gustavo, 04/11 |
 
 ## URLs para as lojas
@@ -33,7 +33,7 @@ explica como excluir a conta.
 - Formulário público de pedido de exclusão.
 
 ## O que ficou para trás
-- E-mail de contato real no lugar do marcador `<e-mail de contato>`.
+- ~~E-mail de contato real no lugar do marcador~~ · `contato@servirea.com.br`, definido em 04/11.
 - Central, no próximo PR de documentação: a exceção (a) do `cloudflare-regras.md` já libera `/api/`, e com isso o
   `/api/publico/termos`; faltam as três páginas (`/privacidade`, `/termos-de-uso`, `/excluir-conta`). Sem elas, o
   revisor fora do Brasil recebe o 403 da Cloudflare nessas URLs. A página é o SPA: o `index.html` também carrega
