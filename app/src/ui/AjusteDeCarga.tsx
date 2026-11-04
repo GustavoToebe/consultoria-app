@@ -1,18 +1,19 @@
 import { Minus, Plus } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { numeroParaTela } from '../dominio/formatos';
+import { textoDoPasso } from '../dominio/unidadeDeCarga';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, RAIO } from '../tema/tokens';
 import { Botao } from './Botao';
 import { sobre } from './sobre';
+import { useUnidadeDeCarga } from './unidadeDeCargaEmUso';
 
 /**
- * "−" e "+" da carga, de passo em passo do arredondamento da metodologia. O que vale é a conta de `ajustarCarga`. O
+ * "−" e "+" da carga, de passo em passo do arredondamento da metodologia. O que vale é a conta de `ajustarCarga`, em kg; em libra só o rótulo muda. O
  * sinal fica só no ícone (o rótulo "− 0,5 kg" com o ícone de menos mostrava o sinal duas vezes).
  */
 export function AjusteDeCarga({ passo, rotulo, aoAjustar }: { passo: number; rotulo: string; aoAjustar: (sentido: 1 | -1) => void }) {
-  const texto = `${numeroParaTela(passo)} kg`;
+  const texto = textoDoPasso(passo, useUnidadeDeCarga());
   return (
     <View style={estilos.linha}>
       <Botao rotulo={texto} rotuloAcessivel={`Diminuir ${texto} em ${rotulo}`} tipo="secundario" Icone={Minus} aoTocar={() => aoAjustar(-1)} />
@@ -32,7 +33,7 @@ const estilos = StyleSheet.create({
  */
 export function BotaoDePasso({ sentido, passo, rotulo, aoAjustar }: { sentido: 1 | -1; passo: number; rotulo: string; aoAjustar: (sentido: 1 | -1) => void }) {
   const { cores } = useTema();
-  const texto = `${numeroParaTela(passo)} kg`;
+  const texto = textoDoPasso(passo, useUnidadeDeCarga());
   const Icone = sentido === 1 ? Plus : Minus;
   return (
     <Pressable

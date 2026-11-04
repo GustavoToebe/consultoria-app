@@ -22,6 +22,7 @@ import {
 import { resumoDaConclusao } from '../../../../dominio/conclusaoNaTela';
 import { dataParaTela } from '../../../../dominio/formatos';
 import { textoDoRecorde } from '../../../../dominio/recordesPessoais';
+import { useUnidadeDeCarga } from '../../../../ui/unidadeDeCargaEmUso';
 import { contagemDeSeries } from '../../../../dominio/conclusaoDoTreino';
 import { nomeComDia } from '../../../../dominio/semana';
 import { textoDoVolumeAoVivo, volumeDaSessao } from '../../../../dominio/treinoAoVivo';
@@ -59,6 +60,7 @@ export default function TreinoConcluido() {
   const { retornoHabilitado } = useSessao();
   const { avisar } = useAviso();
   const { cores } = useTema();
+  const unidade = useUnidadeDeCarga();
   const svg = useRef<Svg>(null);
   const [comVolume, setComVolume] = useState(false);
   const [largura, setLargura] = useState(PREVIA_MAXIMA);
@@ -91,10 +93,10 @@ export default function TreinoConcluido() {
   const { total, feitas } = contagemDeSeries(sessao, dia.estaFeita, dia.config.metodologia);
   const frase = fraseDoNumero(aluno.totalConcluidos, data, hoje);
   const recordes = sessao.exercicios.flatMap((e) =>
-    Object.values(dia.recordesDe(e)).flatMap((lista) => lista.map((r) => `${e.nome}: ${textoDoRecorde(r)}`)),
+    Object.values(dia.recordesDe(e)).flatMap((lista) => lista.map((r) => `${e.nome}: ${textoDoRecorde(r, unidade)}`)),
   );
   const treinados = diasTreinadosNoMes(data, aluno.conclusoes, aluno.registros);
-  const volume = textoDoVolumeAoVivo(volumeDaSessao(sessao, dia.registroDe));
+  const volume = textoDoVolumeAoVivo(volumeDaSessao(sessao, dia.registroDe), unidade);
   const dados: DadosDoCartao = {
     nomeDaConsultoria: marca?.nome ?? '',
     corPrimaria: marca?.corPrimaria ?? null,

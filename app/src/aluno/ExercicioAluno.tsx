@@ -14,7 +14,8 @@ import { contagemDoExercicio } from '../dominio/semana';
 import { aplicarEscolhaDoPainel, decidirCheck, type EscolhaDoPainel } from '../dominio/painelDoCheck';
 import { etapasDaSerie } from '../dominio/etapas';
 import { textosDeExecucao } from '../dominio/execucaoDoExercicio';
-import { dataCurta, dataParaTela, numeroParaTela } from '../dominio/formatos';
+import { dataCurta, dataParaTela } from '../dominio/formatos';
+import { textoDaCarga } from '../dominio/unidadeDeCarga';
 import { textoDoRecorde, type Recorde } from '../dominio/recordesPessoais';
 import { acompanharPendente, digitarPendente, valorExibido, type ValorPendente } from '../dominio/valorPendente';
 import { repeticaoDaAnterior } from '../dominio/repetirSerie';
@@ -24,6 +25,8 @@ import type { RegistroLocal } from '../offline/repositorioLocal';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
 import { AjusteDeCarga, BotaoDePasso } from '../ui/AjusteDeCarga';
+import { CampoDeCarga } from '../ui/CampoDeCarga';
+import { useUnidadeDeCarga } from '../ui/unidadeDeCargaEmUso';
 import { useAviso } from '../ui/Aviso';
 import { Botao } from '../ui/Botao';
 import { BotaoMarcar } from '../ui/BotaoMarcar';
@@ -115,6 +118,7 @@ export function ExercicioAluno(props: Props) {
  */
 function CorpoDoExercicio(p: Props) {
   const { cores } = useTema();
+  const unidade = useUnidadeDeCarga();
   const { avisar } = useAviso();
   const e = p.exercicio;
   const [comoFazerAberto, abrirComoFazer] = useState(false);
@@ -153,7 +157,7 @@ function CorpoDoExercicio(p: Props) {
   const temComoFazer = !!e.observacao || comoFazer.length > 0;
   const ultima = cardio ? null : (p.ultimaVez ?? null);
   /** "60 kg × 8" da mesma série da última vez; `null` = sem a linha (nunca feito). */
-  const anterior = (i: number) => (ultima ? textoDoAnterior(anteriorDaSerie(ultima, e, i), semCarga || cargaIlegivel(e.series[i])) : null);
+  const anterior = (i: number) => (ultima ? textoDoAnterior(anteriorDaSerie(ultima, e, i), semCarga || cargaIlegivel(e.series[i]), unidade) : null);
 
   const abrirVideo = () => {
     if (!e.videoUrl || !videoValido(e.videoUrl)) return;
@@ -206,12 +210,11 @@ function CorpoDoExercicio(p: Props) {
             {passo !== null ? (
               <BotaoDePasso sentido={-1} passo={passo} rotulo="carga de trabalho" aoAjustar={(s) => mudarBase(ajustarCarga(baseNaCaixa, base, passo, s))} />
             ) : null}
-            <CampoNumericoGrande
+            <CampoDeCarga
               rotulo="Carga de trabalho do dia"
               rotuloOculto
-              sufixo="kg"
-              valor={baseNaCaixa}
-              aoMudar={mudarBase}
+              valorKg={baseNaCaixa}
+              aoMudarKg={mudarBase}
             />
             {passo !== null ? (
               <BotaoDePasso sentido={1} passo={passo} rotulo="carga de trabalho" aoAjustar={(s) => mudarBase(ajustarCarga(baseNaCaixa, base, passo, s))} />
@@ -219,7 +222,7 @@ function CorpoDoExercicio(p: Props) {
           </View>
           <Texto numerico variante="pequeno">
             {p.ultima?.carga != null
-              ? `Última vez: ${numeroParaTela(p.ultima.carga)} kg × ${p.ultima.repeticoes ?? '—'} em ${dataParaTela(p.ultima.data)}.`
+              ? `Última vez: ${textoDaCarga(p.ultima.carga, unidade)} × ${p.ultima.repeticoes ?? '—'} em ${dataParaTela(p.ultima.data)}.`
               : 'Sem registro anterior.'}
           </Texto>
           <Texto numerico variante="pequeno">
@@ -281,7 +284,7 @@ function CorpoDoExercicio(p: Props) {
             passo={i === proximaAFazer ? passo : null}
             ativa={i === proximaAFazer}
             registro={p.registroDe(c.serie.uid)}
-            repetir={i > 0 ? repeticaoDaAnterior(e.series[i - 1], c.serie, p.registroDe(e.series[i - 1]!.uid), semCarga || cargaIlegivel(c.serie)) : null}
+            repetir={i > 0 ? repeticaoDaAnterior(e.series[i - 1], c.serie, p.registroDe(e.series[i - 1]!.uid), semCarga || cargaIlegivel(c.serie), unidade) : null}
             ultimaDoExercicio={feitas === e.series.length - 1}
             recordes={p.recordes?.[c.serie.uid] ?? null}
             anterior={anterior(i)}
@@ -351,6 +354,7 @@ function CartaoSerie({
   baseDaUltimaVez: boolean;
 }) {
   const { cores, identificacao } = useTema();
+  const unidade = useUnidadeDeCarga();
   // Antes de gravar, os dois campos começam vazios (D1 e D3, 02/11): a sugestão é só dica ao lado, nunca valor no campo.
   const [cargaDigitada, setCargaDigitada] = useState<number | null>(null);
   const [repsDigitadas, setRepsDigitadas] = useState<number | null>(null);
@@ -386,7 +390,7 @@ function CartaoSerie({
   const fundo = useAnimatedStyle(() => ({ backgroundColor: interpolateColor(progresso.get(), [0, 1], [cores.superficie, `${cores.sucesso}29`]) }));
   const s = calculada.serie;
   const numero = indice + 1;
-  const textos = textosDaSerie(s, { tipoTrabalho, semCarga, metodologia, seriesDoExercicio, descansoPorSerie: descansoNaSerie });
+  const textos = textosDaSerie(s, { tipoTrabalho, semCarga, metodologia, seriesDoExercicio, descansoPorSerie: descansoNaSerie, unidade });
   const meta = partesDaMeta(textos.valorDaMeta);
   const selos = selosDaSerie(s, metodologia);
   const barra = barraDoTipo(selos.tipo?.cor ? identificacao[selos.tipo.cor].cor : null);
@@ -398,7 +402,7 @@ function CartaoSerie({
   // Com a caixa da base vazia (D1), "da base do dia" não diria a verdade: a conta partiu da última carga.
   const origem = semCampoDePeso || calculada.sugestao == null ? null : textoDaOrigem(calculada, { tipoTrabalho, metodologia, series: seriesDoExercicio, baseDaUltimaVez });
   const faltaReferencia = semCampoDePeso ? null : dicaDaCarga(s, { sugestao: calculada.sugestao, metodologia, seriesDoExercicio });
-  const dicaDoDominio = dicaDeCarga({ sugestaoKg: calculada.sugestao, ultima: ehSerieDeTrabalho(s) ? ultimaCarga : null, semCampoDePeso });
+  const dicaDoDominio = dicaDeCarga({ sugestaoKg: calculada.sugestao, ultima: ehSerieDeTrabalho(s) ? ultimaCarga : null, semCampoDePeso, unidade });
   const dica = feita ? null : (faltaReferencia ?? (dicaDoDominio === TEXTO_PRIMEIRA_VEZ && ultimaCarga ? null : dicaDoDominio));
   // A carga só entra na conta das séries seguintes com o ✓ (regra de sempre, N15): a dica diz isso enquanto não foi marcada.
   const avisoDoMarcar = !semCampoDePeso && !registro && (ativa || cargaDigitada !== null) && seriesSeguintesDependemDesta(seriesDoExercicio, indice);
@@ -451,14 +455,13 @@ function CartaoSerie({
     </View>
   );
   const campoDoPeso = semCampoDePeso ? null : (
-    <CampoNumericoGrande
+    <CampoDeCarga
       ref={campoDaCarga}
       rotulo="Peso"
       rotuloOculto
-      rotuloAcessivel={`Peso da série ${numero}, em quilos`}
-      sufixo="kg"
-      valor={carga}
-      aoMudar={(v) => mudar({ carga: v })}
+      rotuloAcessivel={`Peso da série ${numero}`}
+      valorKg={carga}
+      aoMudarKg={(v) => mudar({ carga: v })}
       aoValidade={(v) => setCargaInvalida(!v)}
     />
   );
@@ -501,7 +504,7 @@ function CartaoSerie({
       {anterior != null ? <LinhaDoUltimoRegistro texto={anterior} numero={numero} /> : null}
       {recordes?.length ? (
         <Texto numerico variante="pequeno" cor={cores.sucesso} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          {recordes.map(textoDoRecorde).join(' · ')}
+          {recordes.map((r) => textoDoRecorde(r, unidade)).join(' · ')}
         </Texto>
       ) : null}
       <RotuloDeHoje />

@@ -5,6 +5,7 @@ import { explicacaoDoCatalogo } from './catalogoMetodologia';
 import { cargaIlegivel, TEXTO_CARGA_ILEGIVEL } from './modoDeCarga';
 import { explicacaoDaTecnica, nomeDaTecnica, nomeDoTipo, rotuloDoPapel, tecnicaDescritiva, tipoPorCodigo, tipoTrabalho } from './metodologia';
 import { textoDaFaixa, textoDosPercentuais } from './percentuais';
+import { textoDaCarga, type UnidadeDeCarga } from './unidadeDeCarga';
 
 /**
  * Séries consecutivas iguais (tipo, faixa de repetições, forma de carga, esforço, técnica, observação da série) aparecem
@@ -128,7 +129,7 @@ export function textoEsforcoDoGrupo(grupo: { series: readonly Pick<Serie, 'esfor
  * ("WS"); sem ele, só "85%" e "mesma carga". `nomeDaReferencia` é o nome do tipo da série de referência do back off.
  * Toda faixa sai de `percentuais.textoDaFaixa`: o mesmo texto no editor, no PDF e na meta do aluno.
  */
-export function textoCarga(c: Carga | null | undefined, nomeDaWs?: string | null, nomeDaReferencia?: string | null): string {
+export function textoCarga(c: Carga | null | undefined, nomeDaWs?: string | null, nomeDaReferencia?: string | null, unidade: UnidadeDeCarga = 'kg'): string {
   // Forma de carga mais nova que o app: o texto fixo no lugar da carga (nunca um valor inventado).
   if (cargaIlegivel(c)) return TEXTO_CARGA_ILEGIVEL;
   const daWs = nomeDaWs ? ` da ${nomeDaWs}` : '';
@@ -140,7 +141,7 @@ export function textoCarga(c: Carga | null | undefined, nomeDaWs?: string | null
     case 'MESMA_CARGA':
       return `mesma carga${daWs}`;
     case 'CARGA_FIXA':
-      return c.valorKg != null ? `${numeroParaTela(c.valorKg)} kg` : '';
+      return c.valorKg != null ? textoDaCarga(c.valorKg, unidade) : '';
     case 'ABAIXO_DA_REFERENCIA':
       return `${textoDaFaixa(c.percentualMin, c.percentualMax)} abaixo da referência${nomeDaReferencia ? ` (${nomeDaReferencia})` : ''}`;
     default:
@@ -379,7 +380,7 @@ export function leituraDaTecnica(serie: Serie, config?: Configuracao | null, con
  * ficam só com o nome da técnica, porque os blocos e a pausa vão numa linha própria logo abaixo. `semObservacao` (PDF): a
  * observação da série (`alvoExtra`) sai da linha, porque ganha a dela ("Observação desta série: …").
  */
-export function descreverGrupo(grupo: GrupoDeSeries, config?: Configuracao | null, series: readonly Serie[] = [], opcoes: { etapasAParte?: boolean; semObservacao?: boolean } = {}): string {
+export function descreverGrupo(grupo: GrupoDeSeries, config?: Configuracao | null, series: readonly Serie[] = [], opcoes: { etapasAParte?: boolean; semObservacao?: boolean; unidade?: UnidadeDeCarga } = {}): string {
   const primeira = grupo.series[0];
   if (primeira.cardio) return `${grupo.series.length}x ${textoCardio(primeira.cardio)}`;
   const ws = tipoTrabalho(config);
@@ -398,7 +399,7 @@ export function descreverGrupo(grupo: GrupoDeSeries, config?: Configuracao | nul
     const esforco = textoEsforcoDoGrupo(grupo);
     if (esforco) partes.push(`· ${esforco}`);
   } else {
-    const texto = [textoCarga(primeira.carga, ws), textoEsforcoDoGrupo(grupo)].filter(Boolean).join(' · ');
+    const texto = [textoCarga(primeira.carga, ws, null, opcoes.unidade), textoEsforcoDoGrupo(grupo)].filter(Boolean).join(' · ');
     if (texto) partes.push(`· ${texto}`);
   }
   if (!opcoes.semObservacao && primeira.alvoExtra?.trim()) partes.push(`· ${primeira.alvoExtra.trim()}`);

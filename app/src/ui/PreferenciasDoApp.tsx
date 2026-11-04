@@ -36,6 +36,8 @@ export function PreferenciasDoApp({ comTitulo = true, extras }: { comTitulo?: bo
   const temaDaConsultoria = paletaDe(sessao.marca?.temaPadrao).cores;
   // O texto fala com quem lê: o aluno recebe o tema do treinador; o treinador é quem o escolhe, em Marca.
   const aluno = sessao.usuario?.papel === 'ALUNO';
+  // Só o aluno escolhe, e só com a chave da plataforma ligada; desligada, o app segue em kg e a escolha nem aparece.
+  const escolheUnidade = aluno && sessao.unidadeDeCargaHabilitada;
 
   return (
     <View style={estilos.coluna}>
@@ -155,6 +157,20 @@ export function PreferenciasDoApp({ comTitulo = true, extras }: { comTitulo?: bo
         </Cartao>
       ) : null}
 
+      {escolheUnidade ? (
+        <Cartao titulo="Unidade da carga" descricao="Como você vê e digita o peso. O que você registra é guardado em kg; trocar não muda nada do que já foi registrado.">
+          <Escolha
+            descricao="Unidade da carga"
+            opcoes={[
+              { valor: 'kg', rotulo: 'Quilos (kg)' },
+              { valor: 'lb', rotulo: 'Libras (lb)' },
+            ]}
+            valor={preferencias.unidadeDeCarga}
+            aoMudar={(unidadeDeCarga) => mudar({ unidadeDeCarga })}
+          />
+        </Cartao>
+      ) : null}
+
       {/* A vibração só acontece no treino do aluno (marcar série e fim do descanso): o treinador não a vê. */}
       {Platform.OS !== 'web' && aluno ? (
         <Cartao titulo="Vibração">
@@ -173,7 +189,7 @@ export function PreferenciasDoApp({ comTitulo = true, extras }: { comTitulo?: bo
       <PainelConfirmacao
         visivel={confirmandoRestaurar}
         titulo="Restaurar as preferências?"
-        mensagem={`Tema, contraste, bordas, tamanho do texto, animações, gráficos, barras de rolagem e vibração voltam ao padrão${aluno ? '; os lembretes de compromisso ficam desligados' : ''}.`}
+        mensagem={`Tema, contraste, bordas, tamanho do texto, animações, gráficos, barras de rolagem e vibração voltam ao padrão${escolheUnidade ? '; a carga volta a kg' : ''}${aluno ? '; os lembretes de compromisso ficam desligados' : ''}.`}
         rotuloConfirmar="Restaurar"
         aoConfirmar={() => {
           restaurarPadrao();

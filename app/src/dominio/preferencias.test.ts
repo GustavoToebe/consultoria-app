@@ -19,11 +19,17 @@ describe('preferências pessoais', () => {
   });
 
   it('aceita o objeto e o texto salvo, valor por valor', () => {
-    const salvo = { tema: 'SISTEMA', contraste: 'ALTO', tamanhoTexto: 'EXTRA', movimento: 'REDUZIDO', vibracao: false, graficos: false, bordasReforcadas: true, barrasEscuras: false, diasSemRegistro: 14, mostrarFasesDoCiclo: true, pdfDieta: { modo: 'detalhado', periodo: 'mes', fatores: false }, logoNaComparacao: false, lembretesCompromisso: true, agendasOcultas: ['compromissos', 'a1'], painelDoInicio: { ordem: ['financeiro', 'alunos', 'atualizacoes', 'interessados', 'treinos', 'pastas', 'agenda', 'recebido'], escondidos: ['agenda', 'recebido'], meus: { agenda: true, interessados: false } } };
+    const salvo = { tema: 'SISTEMA', contraste: 'ALTO', tamanhoTexto: 'EXTRA', movimento: 'REDUZIDO', vibracao: false, graficos: false, bordasReforcadas: true, barrasEscuras: false, diasSemRegistro: 14, mostrarFasesDoCiclo: true, pdfDieta: { modo: 'detalhado', periodo: 'mes', fatores: false }, logoNaComparacao: false, lembretesCompromisso: true, agendasOcultas: ['compromissos', 'a1'], unidadeDeCarga: 'lb', painelDoInicio: { ordem: ['financeiro', 'alunos', 'atualizacoes', 'interessados', 'treinos', 'pastas', 'agenda', 'recebido'], escondidos: ['agenda', 'recebido'], meus: { agenda: true, interessados: false } } };
     expect(normalizarPreferencias(salvo)).toEqual(salvo);
     expect(normalizarPreferencias(JSON.stringify(salvo))).toEqual(salvo);
     expect(normalizarPreferencias({ tema: 'CLARO' })).toEqual({ ...PREFERENCIAS_PADRAO, tema: 'CLARO' });
     expect(normalizarPreferencias({ tema: 'AREIA' })).toEqual({ ...PREFERENCIAS_PADRAO, tema: 'AREIA' });
+  });
+
+  it('unidade da carga: kg por padrão; só kg ou lb valem e o resto volta a kg', () => {
+    expect(PREFERENCIAS_PADRAO.unidadeDeCarga).toBe('kg');
+    expect(normalizarPreferencias({ unidadeDeCarga: 'lb' }).unidadeDeCarga).toBe('lb');
+    for (const v of ['LB', 'libra', 1, null, true, undefined]) expect(normalizarPreferencias({ unidadeDeCarga: v }).unidadeDeCarga).toBe('kg');
   });
 
   it('logo na comparação: valor inválido volta ligada', () => {

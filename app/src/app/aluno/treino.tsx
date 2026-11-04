@@ -19,6 +19,7 @@ import { logoComoDataUri } from '../../pdf/logo';
 import { documentoTreino } from '../../pdf/pdfTreino';
 import { EntradaEmCascata, usePrimeiraLista } from '../../ui/EntradaEmCascata';
 import { useAviso } from '../../ui/Aviso';
+import { useUnidadeDeCarga } from '../../ui/unidadeDeCargaEmUso';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
@@ -40,6 +41,7 @@ export default function TreinoAluno() {
   const { pacote, escolhida, mobilidade, pacoteRecusado, carregando, erroPacote, tentarDeNovo } = useAluno();
   const animar = usePrimeiraLista(!!pacote);
   const { avisar } = useAviso();
+  const unidade = useUnidadeDeCarga();
   const [gerandoPdf, setGerandoPdf] = useState(false);
   const hoje = hojeIso();
   const somenteLeitura = !!escolhida;
@@ -67,6 +69,7 @@ export default function TreinoAluno() {
           instrucoesTreino: pacote.pacote.configuracao.instrucoesTreino ?? null,
           rodapePdf: null,
           emitidoEm: new Date(),
+          unidade,
         }),
       );
     } catch (e) {

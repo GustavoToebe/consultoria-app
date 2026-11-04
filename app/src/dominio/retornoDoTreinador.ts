@@ -9,7 +9,7 @@ import { textoDoRecorde } from './recordesPessoais';
 
 /** "Supino: Maior carga · 70 kg · Maior volume · 700 kg". */
 export function textoDaSerieComRecorde(s: Pick<SerieComRecorde, 'exercicioNome' | 'recordes'>): string {
-  return `${s.exercicioNome}: ${s.recordes.map(textoDoRecorde).join(' · ')}`;
+  return `${s.exercicioNome}: ${s.recordes.map((r) => textoDoRecorde(r)).join(' · ')}`;
 }
 
 /** "1 série com recorde nos últimos 7 dias" / "3 séries...". */

@@ -1,6 +1,7 @@
 import type { AnteriorDoExercicio, AnterioresDoPacote, EtapaRegistrada, ExercicioPlano, SerieAnterior } from '../api/tipos';
-import { dataCurta, numeroParaTela } from './formatos';
+import { dataCurta } from './formatos';
 import { TEXTO_FEITO_SEM_CARGA } from './relatorio';
+import { textoDaCarga, type UnidadeDeCarga } from './unidadeDeCarga';
 
 /**
  * Coluna "Anterior" do treino ao vivo (frente Engajamento, passo 0.3): o que o aluno fez na mesma série da última vez
@@ -94,7 +95,7 @@ const repsDaEtapa = (e: EtapaRegistrada) => (e.repeticoes == null ? '—' : Stri
  * "60 kg × sem repetições" e "feito" no exercício sem carga. "—" fica para a série que não casou com nenhuma e para a
  * série por etapas sem etapa feita.
  */
-export function textoDoAnterior(s: SerieAnterior | null, semCarga: boolean): string {
+export function textoDoAnterior(s: SerieAnterior | null, semCarga: boolean, unidade: UnidadeDeCarga = 'kg'): string {
   if (!s) return '—';
   if (s.etapas) {
     const feitas = [...s.etapas].sort((a, b) => a.posicao - b.posicao).filter((e) => e.situacao === 'FEITA');
@@ -103,14 +104,14 @@ export function textoDoAnterior(s: SerieAnterior | null, semCarga: boolean): str
     if (semCarga) return reps;
     const cargas = feitas.map((e) => e.carga);
     const comum = cargas.every((c) => c != null && c === cargas[0]) ? cargas[0] : null;
-    if (comum != null) return `${numeroParaTela(comum)} kg × ${reps}`;
+    if (comum != null) return `${textoDaCarga(comum, unidade)} × ${reps}`;
     return cargas.some((c) => c != null) ? `${reps} (carga variável)` : reps;
   }
   if (s.carga == null || semCarga) {
     if (s.repeticoes != null) return `${s.repeticoes} reps`;
     return semCarga ? 'feito' : TEXTO_FEITO_SEM_CARGA;
   }
-  return `${numeroParaTela(s.carga)} kg × ${s.repeticoes ?? 'sem repetições'}`;
+  return `${textoDaCarga(s.carga, unidade)} × ${s.repeticoes ?? 'sem repetições'}`;
 }
 
 /** Linha de cima das séries: "Último registro: o que você fez em 23/10." */

@@ -3,6 +3,7 @@ import { leituraDaTecnica, nomeDaReferencia } from '../dominio/agrupamento';
 import { metaDaSerie } from '../dominio/cargas';
 import { rotuloDescanso } from '../dominio/descanso';
 import { numeroParaTela } from '../dominio/formatos';
+import type { UnidadeDeCarga } from '../dominio/unidadeDeCarga';
 import { corDoTipoDeSerie } from '../dominio/corDaSerie';
 import { explicacaoDaTecnica, explicacaoDoTipo, nomeDaTecnica, nomeDoTipo, papelDe } from '../dominio/metodologia';
 import type { ChaveDeIdentificacao } from '../tema/tokens';
@@ -51,10 +52,10 @@ export interface TextosDaSerie {
 
 export function textosDaSerie(
   serie: Serie,
-  contexto: { tipoTrabalho: string; semCarga: boolean; metodologia?: Configuracao; seriesDoExercicio: readonly Serie[]; descansoPorSerie: boolean },
+  contexto: { tipoTrabalho: string; semCarga: boolean; metodologia?: Configuracao; seriesDoExercicio: readonly Serie[]; descansoPorSerie: boolean; unidade?: UnidadeDeCarga },
 ): TextosDaSerie {
   const descanso = contexto.descansoPorSerie && serie.descansoSegundos && serie.descansoSegundos > 0 ? `Descanso ${rotuloDescanso(serie.descansoSegundos)}` : null;
-  const meta = metaDaSerie({ ...serie, tecnica: null, alvoExtra: null }, contexto.tipoTrabalho, contexto.semCarga, contexto.metodologia, contexto.seriesDoExercicio);
+  const meta = metaDaSerie({ ...serie, tecnica: null, alvoExtra: null }, contexto.tipoTrabalho, contexto.semCarga, contexto.metodologia, contexto.seriesDoExercicio, contexto.unidade);
   return {
     meta,
     valorDaMeta: meta.replace(/^Meta: /, ''),

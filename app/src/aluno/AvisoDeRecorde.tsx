@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { DemonstracaoDoAluno } from '../api/tipos';
 import { textoDoRecorde, type Recorde } from '../dominio/recordesPessoais';
+import { useUnidadeDeCarga } from '../ui/unidadeDeCargaEmUso';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
 import { DemonstracaoDoExercicio } from '../ui/DemonstracaoDoExercicio';
@@ -32,6 +33,7 @@ export interface RecordeParaAvisar {
  */
 export function AvisoDeRecorde({ aviso, aoFechar }: { aviso: RecordeParaAvisar | null; aoFechar: () => void }) {
   const { cores } = useTema();
+  const unidade = useUnidadeDeCarga();
   const margem = useSafeAreaInsets();
   const reduzido = useMovimentoReduzido();
   const chave = aviso?.chave;
@@ -41,7 +43,7 @@ export function AvisoDeRecorde({ aviso, aoFechar }: { aviso: RecordeParaAvisar |
     return () => clearTimeout(relogio);
   }, [chave, aoFechar]);
   if (!aviso) return null;
-  const linhas = aviso.recordes.map(textoDoRecorde);
+  const linhas = aviso.recordes.map((r) => textoDoRecorde(r, unidade));
   return (
     <View pointerEvents="box-none" style={[estilos.camada, { top: margem.top + espaco(1) }]}>
       <Animated.View
