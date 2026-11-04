@@ -1,6 +1,6 @@
 # Editor de séries: RIR de 0 a 10, RIR por série, RPE nos aquecimentos, carga fixa
 
-Situação: Em andamento · Onde: branch `editor-de-series-reuniao` (worktree `wt-editor-series`) · Atualizado: 02/11/2026 · Registro: reunião de 30/10, C05, C11, C10, C03, C14 · Frente B da leva 1
+Situação: Concluída em 02/11/2026 (PR #39, `4cc855e6` na `main`); resta o passo 5b, do Gustavo · Onde: `main` (veio da branch `editor-de-series-reuniao`) · Atualizado: 04/11/2026 · Registro: reunião de 30/10, C05, C11, C10, C03, C14 · Frente B da leva 1
 
 ## Objetivo
 O treinador do piloto precisa prescrever RIR até 10 (0 = até a falha), RIR diferente em cada série na mesma linha do %,
@@ -58,6 +58,7 @@ Andamento em 02/11/2026 (tudo na worktree `wt-editor-series`, branch `editor-de-
 - Libras, conversão de unidade, progressão automática, calculadora RPE/RIR.
 
 ## O que ficou para trás
+- Conferido em 04/11/2026 (provas em [conferencia-pendencias-04-11.md](conferencia-pendencias-04-11.md)): RIR de 0 a 10 (`RIR_MAXIMO = 10` em `ConteudoTreino.Esforco`, `validacaoDeSerie.ts`, `LeitorDePrescricao`), RIR por série e carga fixa estão na `main` pelo squash `4cc855e6` (#39); os hashes dos passos acima são da branch e não existem na história da `main`. Falta só o passo 5b.
 - D6 (leitor da planilha reconhecer "12 kg") fica fora por decisão do Gustavo: o kg segue na observação.
 - Trocar o tipo do grupo reaplica o esforço do tipo e perde os RIR por série (comportamento de antes).
 - O botão "Diminuir" do RIR no 0 fica desabilitado sem motivo escrito (`IconeBotao` não aceita `motivo`).
