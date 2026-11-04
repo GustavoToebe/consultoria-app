@@ -7,8 +7,8 @@ import { textoPausa } from '../dominio/agrupamento';
 import { modoComReferenciaExterna, sugestaoSobreReferencia, textoDaOrigem, type SerieCalculada } from '../dominio/cargas';
 import { rotuloDescanso } from '../dominio/descanso';
 import {
-  aplicarAcao, etapasDaSerie, faltaParaConcluir, feitoAteAgora, origemDaPausa, pausaDaAcao, proximaPendente, sugestaoDaEtapa, textoDaCargaDaEtapa,
-  seloDaSerieComEtapas, textoDaReferenciaCongelada, todasComSituacao, type AcaoNaEtapa, type EtapaPrevista,
+  aplicarAcao, baseDaProximaAcao, etapasDaSerie, faltaParaConcluir, feitoAteAgora, origemDaPausa, pausaDaAcao, proximaPendente, sugestaoDaEtapa, textoDaCargaDaEtapa,
+  seloDaSerieComEtapas, textoDaReferenciaCongelada, todasComSituacao, type AcaoNaEtapa, type EtapaPrevista, type UltimoLocalDeEtapas,
 } from '../dominio/etapas';
 import { textoDoNumeroInvalido } from '../dominio/avisoDaSerie';
 import { textoDaCarga } from '../dominio/unidadeDeCarga';
@@ -76,6 +76,8 @@ export function CartaoSerieComEtapas(p: Props) {
   const { cores, identificacao } = useTema();
   const unidade = useUnidadeDeCarga();
   const emPrevia = useEmPrevia();
+  // O último registro montado aqui (com a execução dele): a prop pode atrasar o salvamento e a próxima etapa nasceria do dado velho.
+  const ultimoLocal = useRef<UltimoLocalDeEtapas | null>(null);
   const s = p.calculada.serie;
   const previstas = etapasDaSerie(s) ?? [];
   const quantas = previstas.length;
@@ -109,9 +111,12 @@ export function CartaoSerieComEtapas(p: Props) {
   const nomeDoGrupo = cluster ? `Blocos do Cluster, série ${p.numero}` : `Etapas do Rest-pause, série ${p.numero}`;
 
   const agir = (acao: AcaoNaEtapa) => {
-    const gravacao = aplicarAcao(registro, acao, quantas, p.calculada.referencia);
+    const { base, alcancou } = baseDaProximaAcao(registro, ultimoLocal.current, p.execucao);
+    if (alcancou) ultimoLocal.current = null;
+    const gravacao = aplicarAcao(base, acao, quantas, p.calculada.referencia);
     if (!gravacao) return;
-    const pausaDeAgora = pausaDaAcao(registro, acao, quantas);
+    ultimoLocal.current = { execucao: p.execucao, gravacao };
+    const pausaDeAgora = pausaDaAcao(base, acao, quantas);
     p.aoRegistrar({
       carga: gravacao.carga,
       repeticoes: gravacao.repeticoes,

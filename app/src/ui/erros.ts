@@ -1,6 +1,5 @@
 import { codigoApi, erroDeConexao, errosPorCampo, mensagemApi } from '@plataforma/web';
 import type { RefObject } from 'react';
-import type { TextInput } from 'react-native';
 
 /** Texto para mostrar na tela a partir de qualquer erro (a API já manda mensagens em português). */
 export function textoDoErro(erro: unknown): string {
@@ -57,7 +56,12 @@ export function erroDeMfaNoCampo(erro: unknown): string | null {
   return textoDoErro(erro);
 }
 
-/** Leva o foco ao primeiro campo com erro, na ordem da tela (`refs`: nome do campo e o ref do `Campo`). */
-export function focarPrimeiroComErro(campos: Record<string, string>, refs: readonly (readonly [string, RefObject<TextInput | null>])[]): void {
-  refs.find(([campo]) => campos[campo])?.[1].current?.focus();
+/**
+ * Leva o foco ao primeiro campo com erro, na ordem da tela (`refs`: nome do campo e o ref do `Campo` ou da `Escolha`).
+ * O foco espera o clique terminar: no mesmo instante o navegador devolve o foco ao botão que enviou.
+ */
+export function focarPrimeiroComErro(campos: Record<string, string>, refs: readonly (readonly [string, RefObject<{ focus: () => void } | null>])[]): void {
+  const alvo = refs.find(([campo]) => campos[campo])?.[1];
+  if (!alvo) return;
+  setTimeout(() => alvo.current?.focus(), 0);
 }

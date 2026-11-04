@@ -15,6 +15,7 @@ import {
   textoDoErroDaCopia,
   textoDoErroDaPublicacao,
   textoDosPendentesDuplicados,
+  versoesDasListas,
   versoesDosPendentes,
   type PlanosDaPasta,
 } from './publicarPasta';
@@ -150,6 +151,18 @@ describe('publicarPasta: versões que a tela leu', () => {
     expect(versoesDosPendentes({ treino: null, dieta: [plano('d1', 'D', { versao: 2 })], mobilidade: null })).toEqual({ d1: 2 });
     expect(versoesDosPendentes({ treino: [publicadoSemAlteracao('t', 'T')], dieta: [], mobilidade: [] })).toEqual({});
     expect(versoesDosPendentes(null)).toEqual({});
+  });
+
+  it('a mobilidade pendente entra nas versões mesmo com a funcionalidade do /eu desligada', () => {
+    const listas = {
+      treino: [plano('t1', 'T', { versao: 3 })],
+      dieta: [] as ReturnType<typeof plano>[],
+      mobilidade: [plano('m', 'M', { versao: 9 })],
+    };
+    const planos = planosDaPasta(PASTA, listas, false);
+    expect(planos.mobilidade).toEqual([]);
+    expect(versoesDosPendentes(planos)).toEqual({ t1: 3 });
+    expect(versoesDasListas(PASTA, listas)).toEqual({ t1: 3, m: 9 });
   });
 
   it('a lista do momento: lista recarregada com versão nova muda o que vai no pedido', () => {

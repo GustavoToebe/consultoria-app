@@ -44,11 +44,15 @@ describe('erro no campo das telas públicas', () => {
 });
 
 describe('focarPrimeiroComErro', () => {
-  it('foca o primeiro campo com erro na ordem da tela', () => {
+  it('foca o primeiro campo com erro na ordem da tela, depois do clique', () => {
+    jest.useFakeTimers();
     const email = { current: { focus: jest.fn() } };
     const senha = { current: { focus: jest.fn() } };
     focarPrimeiroComErro({ senha: 'Informe a senha.' }, [['email', email], ['senha', senha]] as never);
+    expect(senha.current.focus).not.toHaveBeenCalled();
+    jest.runOnlyPendingTimers();
     expect(email.current.focus).not.toHaveBeenCalled();
     expect(senha.current.focus).toHaveBeenCalledTimes(1);
+    jest.useRealTimers();
   });
 });

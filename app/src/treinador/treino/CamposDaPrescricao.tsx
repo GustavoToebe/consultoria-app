@@ -15,6 +15,7 @@ import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { CampoNumerico, Interruptor } from '../../ui/Campos';
 import { Escolha } from '../../ui/Escolha';
+import { EscolhaSuspensa } from '../../ui/EscolhaSuspensa';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { Texto } from '../../ui/Texto';
 import { BotaoDeAbrir, BotaoDeTexto } from './BotaoDeAbrir';
@@ -109,13 +110,17 @@ export function FaixaDeCarga({ carga, config, prefixo = '', aoMudar, erros, semA
 }) {
   const rotulos = rotulosDaFaixa(carga?.modo, config);
   if (!rotulos) return null;
-  // Alinhados pela base: o rótulo do máximo quebra em duas linhas e os campos ficavam desencontrados.
-  return <View style={[estilos.linha, estilos.linhaPelaBase]}>
-    <View style={estilos.campo}><CampoNumerico rotulo={`${prefixo}${rotulos.minimo}`} sufixo="%" valor={carga?.percentualMin ?? null}
-      aoMudar={(v) => aoMudar(v, carga?.percentualMax ?? null)} erro={erros.percentualMin} ajuda={semAjuda ? undefined : rotulos.ajuda} /></View>
-    <View style={estilos.campo}><CampoNumerico rotulo={`${prefixo}${rotulos.maximo}`} sufixo="%" valor={carga?.percentualMax ?? null}
-      aoMudar={(v) => aoMudar(carga?.percentualMin ?? null, v)} erro={erros.percentualMax} /></View>
-    {aoLado}
+  // Os dois campos começam no mesmo nível (rótulos e caixas alinhados); a ajuda vai embaixo da linha, não dentro de um
+  // dos campos (ela deixava o mínimo mais alto que o máximo).
+  return <View style={estilos.bloco}>
+    <View style={estilos.linha}>
+      <View style={estilos.campoDaFaixa}><CampoNumerico rotulo={`${prefixo}${rotulos.minimo}`} sufixo="%" valor={carga?.percentualMin ?? null}
+        aoMudar={(v) => aoMudar(v, carga?.percentualMax ?? null)} erro={erros.percentualMin} /></View>
+      <View style={estilos.campoDaFaixa}><CampoNumerico rotulo={`${prefixo}${rotulos.maximo}`} sufixo="%" valor={carga?.percentualMax ?? null}
+        aoMudar={(v) => aoMudar(carga?.percentualMin ?? null, v)} erro={erros.percentualMax} /></View>
+      {aoLado}
+    </View>
+    {semAjuda ? null : <Texto variante="pequeno">{rotulos.ajuda}</Texto>}
   </View>;
 }
 
@@ -235,8 +240,9 @@ export function CamposDoEsforco({ esforco, aoMudar, erros, rotulo = 'Esforço', 
   return <View style={estilos.bloco}>
     <Escolha rotulo={rotuloVisivel ? rotulo : undefined} descricao={rotulo} opcoes={formas} valor={forma} aoMudar={mudarForma} />
     {forma === 'RIR' ? <>
-      <Escolha rotulo={variasSeries ? 'RIR de todas as séries' : 'RIR (repetições na reserva)'} opcoes={OPCOES_DE_RIR} valor={misto ? null : esforco?.rir ?? null}
-        aoMudar={(rir) => aoMudar({ rir, rpe: null })} />
+      {/* Lista suspensa (11 chips em duas linhas pesavam na tela); sem número gravado, ou com RIR diferente em cada série, mostra "—". */}
+      <EscolhaSuspensa<number | null> rotulo={variasSeries ? 'RIR de todas as séries' : 'RIR (repetições na reserva)'} opcoes={OPCOES_DE_RIR} valor={misto ? null : esforco?.rir ?? null}
+        aoMudar={(rir) => { if (rir != null) aoMudar({ rir, rpe: null }); }} style={estilos.rirSuspenso} />
       {misto ? <Texto variante="pequeno">Cada série tem o seu RIR ({rirDeCadaSerie}). Escolher um número aqui troca o de todas.</Texto>
         : variasSeries ? <Texto variante="pequeno">Vale para todas as séries. Para mudar só uma, use o RIR da própria série.</Texto> : null}
       {!misto && esforco?.rir === 0 ? <Texto variante="pequeno">RIR 0: o aluno vai até a falha.</Texto> : null}
@@ -640,8 +646,11 @@ export function CamposDoCardio({ cardio, aoMudar, erros }: { cardio: Cardio | nu
 const estilos = StyleSheet.create({
   bloco: { gap: espaco(1) },
   linha: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5), alignItems: 'flex-start' },
-  linhaPelaBase: { alignItems: 'flex-end' },
   campo: { minWidth: 130, flexGrow: 1, flexBasis: 130, maxWidth: 220 },
+  // Mesmo tamanho nos dois campos do percentual; largos o bastante para o rótulo "Série 3 · Máximo (%)" não quebrar.
+  campoDaFaixa: { minWidth: 160, flexGrow: 1, flexBasis: 160, maxWidth: 220 },
+  // A lista suspensa do RIR: não estica além de uma célula no PC (como os campos numéricos).
+  rirSuspenso: { maxWidth: 260 },
   sozinho: { width: '100%', maxWidth: 220 },
   // Altura do rótulo do campo (13/18) mais o vão até a caixa: a escolha da unidade fica na linha da caixa.
   unidadeAoLado: { paddingTop: 18 + espaco(0.5) },

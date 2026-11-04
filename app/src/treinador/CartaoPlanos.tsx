@@ -21,6 +21,7 @@ import { Campo } from '../ui/Campo';
 import { CampoData } from '../ui/Campos';
 import { Cartao } from '../ui/Cartao';
 import { Escolha } from '../ui/Escolha';
+import { EscolhaEmFolha } from '../ui/EscolhaEmFolha';
 import { Esqueleto } from '../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
@@ -271,11 +272,13 @@ function FolhaNovoPlano({
       <Escolha rotulo="Começar" opcoes={origens} valor={origem} aoMudar={setOrigem} />
       {origem === 'receita' ? (
         receitas.dados ? (
-          <Escolha
+          <EscolhaEmFolha
             rotulo="Receita"
             opcoes={receitas.dados.map((r) => ({ valor: r.id, rotulo: r.nome }))}
             valor={receitaId}
             aoMudar={setReceitaId}
+            rotuloDoValor="Escolher"
+            textoVazio="Nenhum modelo cadastrado."
           />
         ) : (
           <Esqueleto />

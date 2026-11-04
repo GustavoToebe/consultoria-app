@@ -46,7 +46,7 @@ function maisRecente(a: Atualizacao, b: Atualizacao) {
 /** "Atualização de Plano 16 · 20/10/2026": diz de onde vem a atualização que não é da pasta do plano. */
 export function rotuloDaAtualizacaoAnterior(tituloDaPasta: string | null | undefined, data: string) {
   const pasta = tituloDaPasta?.trim() ? tituloDaPasta.trim() : 'outra pasta';
-  return `Atualização de ${pasta} · ${data}`;
+  return `Última atualização enviada: ${pasta} · ${data}`;
 }
 
-export const AVISO_SEM_ATUALIZACAO_NA_PASTA = 'A pasta deste plano ainda não tem atualização.';
+export const AVISO_SEM_ATUALIZACAO_NA_PASTA = 'A pasta deste plano ainda não tem atualização; esta é a anterior, de outra pasta.';

@@ -1,7 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import { CircleCheck } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Platform, StyleSheet, View, type TextInput } from 'react-native';
 
 import { ErroApi } from '../../api/cliente';
 import { enviarInscricao, inscricaoPublica } from '../../api/rotas';
@@ -34,7 +34,7 @@ import { Campo } from '../../ui/Campo';
 import { Escolha } from '../../ui/Escolha';
 import { Cartao } from '../../ui/Cartao';
 import { Carregando, MensagemErro } from '../../ui/Estados';
-import { codigoApi, errosPorCampo, textoDoErro } from '../../ui/erros';
+import { codigoApi, errosPorCampo, focarPrimeiroComErro, textoDoErro } from '../../ui/erros';
 import { LinkTexto } from '../../ui/LinkTexto';
 import { Tela } from '../../ui/Tela';
 import { BotaoPublico, LARGURA_PUBLICA, TelaPublica } from '../../ui/TelaPublica';
@@ -66,6 +66,19 @@ export default function Inscricao() {
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [recebida, setRecebida] = useState<string | null>(null);
+  const refNome = useRef<TextInput>(null);
+  const refWhatsapp = useRef<TextInput>(null);
+  const refEmail = useRef<TextInput>(null);
+  const refSexo = useRef<{ focus: () => void } | null>(null);
+  const refObjetivo = useRef<TextInput>(null);
+  const refInteresse = useRef<{ focus: () => void } | null>(null);
+  const refModalidade = useRef<{ focus: () => void } | null>(null);
+  const refPrevisao = useRef<{ focus: () => void } | null>(null);
+  const refOrigem = useRef<{ focus: () => void } | null>(null);
+  const focarErros = (locais: Record<string, string>) => focarPrimeiroComErro(locais, [
+    ['nome', refNome], ['whatsapp', refWhatsapp], ['email', refEmail], ['sexo', refSexo], ['objetivo', refObjetivo],
+    ['interesse', refInteresse], ['modalidade', refModalidade], ['previsaoInicio', refPrevisao], ['origem', refOrigem],
+  ]);
 
   const mudar = (campo: keyof DadosDaInscricao) => (valor: string) =>
     setDados((d) => ({ ...d, [campo]: campo === 'whatsapp' ? mascaraWhatsapp(valor) : valor }));
@@ -99,6 +112,7 @@ export default function Inscricao() {
     setCampos(locais);
     if (Object.keys(locais).length) {
       setErro('Confira os campos destacados.');
+      focarErros(locais);
       return;
     }
     // O Enter nos campos chama `enviar` sem passar pelo botão desabilitado.
@@ -130,7 +144,9 @@ export default function Inscricao() {
         return;
       }
       setErro(e instanceof ErroApi && e.status === 429 ? TEXTO_LIMITE_DA_INSCRICAO : mensagemDaVerificacao(e) ?? textoDoErro(e));
-      setCampos(errosPorCampo(e));
+      const daApi = errosPorCampo(e);
+      setCampos(daApi);
+      focarErros(daApi);
     } finally {
       setEnviando(false);
       // Token de uso único: gasto com a tentativa (sucesso ou erro).
@@ -167,30 +183,30 @@ export default function Inscricao() {
     <TelaPublica titulo="Quero ser aluno" marca={consultoria}
       subtitulo={`Deixe seus dados para a equipe de ${consultoria.nome} conversar com você pelo WhatsApp. Não precisa criar conta.`}>
       <Cartao>
-        <Campo rotulo="Nome" valor={dados.nome} aoMudar={mudar('nome')} erro={campos.nome} maxLength={LIMITES_INSCRICAO.nome}
+        <Campo ref={refNome} rotulo="Nome" valor={dados.nome} aoMudar={mudar('nome')} erro={campos.nome} maxLength={LIMITES_INSCRICAO.nome}
           autoComplete="name" textContentType="name" />
-        <Campo rotulo="WhatsApp com DDD" valor={dados.whatsapp} aoMudar={mudar('whatsapp')} erro={campos.whatsapp}
+        <Campo ref={refWhatsapp} rotulo="WhatsApp com DDD" valor={dados.whatsapp} aoMudar={mudar('whatsapp')} erro={campos.whatsapp}
           keyboardType="phone-pad" inputMode="tel" autoComplete="tel" textContentType="telephoneNumber" maxLength={20}
           placeholder="DDD + número" />
-        {mostra('EMAIL') ? <Campo rotulo="E-mail (opcional)" valor={dados.email} aoMudar={mudar('email')} erro={campos.email}
+        {mostra('EMAIL') ? <Campo ref={refEmail} rotulo="E-mail (opcional)" valor={dados.email} aoMudar={mudar('email')} erro={campos.email}
           autoCapitalize="none" keyboardType="email-address" inputMode="email" autoComplete="email"
           maxLength={LIMITES_INSCRICAO.email} ajuda="Usado só para o convite de acesso ao app, se você virar aluno." /> : null}
-        {mostra('SEXO') ? <Escolha rotulo="Sexo (opcional)" valor={dados.sexo} aoMudar={mudar('sexo')} distribuida
+        {mostra('SEXO') ? <Escolha ref={refSexo} rotulo="Sexo (opcional)" valor={dados.sexo} aoMudar={mudar('sexo')} erro={campos.sexo} distribuida
           opcoes={[{ valor: '', rotulo: 'Não informar' }, ...OPCOES_DE_SEXO]} /> : null}
-        {mostra('OBJETIVO') ? <Campo rotulo="Objetivo (opcional)" valor={dados.objetivo} aoMudar={mudar('objetivo')} erro={campos.objetivo}
+        {mostra('OBJETIVO') ? <Campo ref={refObjetivo} rotulo="Objetivo (opcional)" valor={dados.objetivo} aoMudar={mudar('objetivo')} erro={campos.objetivo}
           linhas={3} maxLength={LIMITES_INSCRICAO.objetivo}
           ajuda="Em poucas palavras. Informações de saúde ficam para depois, se a inscrição for aceita." /> : null}
       </Cartao>
       {/* Perguntas rápidas, todas opcionais: ajudam a equipe a direcionar o primeiro contato. Some se o treinador esconder as quatro. */}
       {mostra('INTERESSE') || mostra('MODALIDADE') || mostra('PREVISAO_INICIO') || mostra('ORIGEM') ? (
         <Cartao titulo="Perguntas rápidas" descricao="Opcionais. Ajudam a equipe a falar com você sobre o que importa.">
-          {mostra('INTERESSE') ? <Escolha rotulo="O que você procura?" valor={dados.interesse} aoMudar={escolher('interesse')} distribuida
+          {mostra('INTERESSE') ? <Escolha ref={refInteresse} rotulo="O que você procura?" valor={dados.interesse} aoMudar={escolher('interesse')} erro={campos.interesse} distribuida
             opcoes={opcoesOpcionais(INTERESSES)} /> : null}
-          {mostra('MODALIDADE') ? <Escolha rotulo="Como prefere o acompanhamento?" valor={dados.modalidade} aoMudar={escolher('modalidade')} distribuida
+          {mostra('MODALIDADE') ? <Escolha ref={refModalidade} rotulo="Como prefere o acompanhamento?" valor={dados.modalidade} aoMudar={escolher('modalidade')} erro={campos.modalidade} distribuida
             opcoes={opcoesOpcionais(MODALIDADES_DESEJADAS)} /> : null}
-          {mostra('PREVISAO_INICIO') ? <Escolha rotulo="Quando quer começar?" valor={dados.previsaoInicio} aoMudar={escolher('previsaoInicio')} distribuida
+          {mostra('PREVISAO_INICIO') ? <Escolha ref={refPrevisao} rotulo="Quando quer começar?" valor={dados.previsaoInicio} aoMudar={escolher('previsaoInicio')} erro={campos.previsaoInicio} distribuida
             opcoes={opcoesOpcionais(PREVISOES)} /> : null}
-          {mostra('ORIGEM') ? <Escolha rotulo="Como conheceu a consultoria?" valor={dados.origem} aoMudar={escolher('origem')} distribuida
+          {mostra('ORIGEM') ? <Escolha ref={refOrigem} rotulo="Como conheceu a consultoria?" valor={dados.origem} aoMudar={escolher('origem')} erro={campos.origem} distribuida
             opcoes={opcoesOpcionais(ORIGENS_INFORMADAS)} /> : null}
         </Cartao>
       ) : null}

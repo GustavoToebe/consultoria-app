@@ -44,6 +44,8 @@ interface Props {
   pasta: PastaResumo;
   /** Planos da pasta por tipo (`null` = desconhecido); `null` inteiro enquanto nada chegou. */
   planos: PlanosDaPasta | null;
+  /** Versões dos pendentes das listas carregadas, sem depender da funcionalidade guardada no `/eu`. */
+  versoes: Record<string, number>;
   /** Primeira carga dos planos ainda a caminho. */
   carregando: boolean;
   /** Alguma lista de planos está sendo buscada de novo: o botão espera, para não mandar versões velhas. */
@@ -69,7 +71,7 @@ interface Props {
  * para nunca mandar `versoes` incompletas ou velhas. Botão secundário (o primário da Folha é Finalizar/Reabrir). O resultado fica aqui mesmo, dentro
  * da Folha: o aviso do rodapé ficaria atrás dela, e um painel de confirmação seria um modal sobre outro.
  */
-export function PublicarTudoDaPasta({ pasta, planos, carregando, atualizando, falhou, aoTentarDeNovo, aoPublicar, aoRecarregar, aoNavegar }: Props) {
+export function PublicarTudoDaPasta({ pasta, planos, versoes: versoesDaTela, carregando, atualizando, falhou, aoTentarDeNovo, aoPublicar, aoRecarregar, aoNavegar }: Props) {
   const { pode, temFuncionalidade } = useSessao();
   const { confirmar } = useSaidaGuardada();
   const [publicando, setPublicando] = useState(false);
@@ -83,7 +85,7 @@ export function PublicarTudoDaPasta({ pasta, planos, carregando, atualizando, fa
   const publicar = async (confirmarAvisos: boolean, versoesDosAvisos?: ReturnType<typeof versoesDosPendentes>) => {
     if (!situacao.podePublicar) return;
     setPublicando(true);
-    const versoes = versoesDosAvisos ?? versoesDosPendentes(planos);
+    const versoes = versoesDosAvisos ?? versoesDaTela;
     try {
       const r = await publicarPasta(pasta.id, { confirmarAvisos, versoes });
       setResultado({ tipo: 'publicado', texto: resumoDaPublicacao(r) });
