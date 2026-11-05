@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import type { ConteudoDieta } from '../api/tipos';
 import {
   listaDeCompras,
+  detalheDaConversao,
   NOTA_DA_LISTA_ALUNO,
   textosDasOpcoes,
   tituloDaLista,
@@ -224,7 +225,7 @@ function LinhaDoItem({ item, ajustando, aoMarcar, aoAjustar, aoRemover }: {
     <LinhaDaLista
       titulo={item.nome}
       metadados={item.quantidade}
-      descricao={item.calculado ? `Calculado: ${item.calculado}` : undefined}
+      descricao={item.calculado ? `Calculado: ${item.calculado}` : item.linha ? detalheDaConversao(item.linha) ?? undefined : undefined}
       // A12 (contraste): a linha comprada não fica mais esmaecida (opacidade 0,6 deixava o texto suave abaixo de 4,5:1 nos
       // temas claros); o estado vai no ✓ preenchido e no selo "Comprado" (verde: é um estado concluído).
       selos={[...(item.comprado && !ajustando ? [{ texto: 'Comprado', tipo: 'sucesso' as const }] : []), ...(origem ? [{ texto: origem, tipo: 'neutro' as const }] : [])]}

@@ -4,8 +4,8 @@ import { StyleSheet, View } from 'react-native';
 
 import type { ConteudoDieta } from '../api/tipos';
 import {
+  detalheDaConversao,
   listaDeCompras,
-  marcaSemFator,
   NOTA_DA_LISTA_ALUNO,
   NOTA_DA_LISTA_TREINADOR,
   PERIODOS_DA_LISTA,
@@ -28,7 +28,6 @@ import { Escolha } from './Escolha';
 import { Vazio } from './Estados';
 import { textoDoErro } from './erros';
 import { NoPlano } from './NoPlano';
-import { Selo } from './Selo';
 import { Tabela, type ColunaDaTabela } from './Tabela';
 import { Texto } from './Texto';
 
@@ -74,17 +73,19 @@ export function EscolhasDaLista({
 
 /**
  * Alimento e quantidade. A quantidade é coluna de "ação" da `Tabela`: no celular fica no canto do cartão, sem o rótulo
- * "Quantidade" repetido em cada item. Item sem fator diz isso (aluno: "(como na dieta)"; treinador: selo "Sem fator"),
- * para não parecer peso cru.
+ * "Quantidade" repetido em cada item. Quando houve limpeza ou cocção, a linha diz de onde veio o número.
  */
-function colunas(papel: 'aluno' | 'treinador'): ColunaDaTabela<LinhaDaLista>[] {
+function colunas(): ColunaDaTabela<LinhaDaLista>[] {
   return [
-    { chave: 'nome', titulo: 'Alimento', principal: true, flex: 2, render: (l) => (
+    { chave: 'nome', titulo: 'Alimento', principal: true, flex: 2, render: (l) => {
+      const detalhe = detalheDaConversao(l);
+      return (
       <View style={estilos.nome}>
         <Texto numerico>{l.nome}</Texto>
-        {papel === 'treinador' && l.semFator ? <Selo texto={marcaSemFator('treinador')} tipo="neutro" /> : null}
+        {detalhe ? <Texto variante="suave">{detalhe}</Texto> : null}
       </View>
-    ) },
+      );
+    } },
     {
       chave: 'quantidade',
       titulo: 'Quantidade',
@@ -95,7 +96,6 @@ function colunas(papel: 'aluno' | 'treinador'): ColunaDaTabela<LinhaDaLista>[] {
         <Texto numerico style={estilos.forte}>
           {quantidadeParaTela(l.quantidade, l.unidade)}
           {l.cru ? <Texto variante="suave"> cru</Texto> : null}
-          {papel === 'aluno' && l.semFator ? <Texto variante="suave"> ({marcaSemFator('aluno')})</Texto> : null}
         </Texto>
       ),
     },
@@ -147,7 +147,7 @@ export function ListaDeCompras({ conteudo, aoGerarPdf, papel = 'aluno' }: { cont
       </Cartao>
       {grupos.map((g) => (
         <Cartao key={g.chave} cabecalho={<CabecalhoDeGrupo titulo={g.titulo} resumo={contagemDoGrupo(g.itens.length)} />}>
-          <Tabela rotulo={`Lista de compras: ${g.titulo}`} colunas={colunas(papel)} linhas={g.itens} chave={(l) => l.chave} />
+          <Tabela rotulo={`Lista de compras: ${g.titulo}`} colunas={colunas()} linhas={g.itens} chave={(l) => l.chave} />
         </Cartao>
       ))}
       {aoGerarPdf ? (

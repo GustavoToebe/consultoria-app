@@ -418,7 +418,7 @@ describe('PDF da dieta', () => {
     expect(com).toContain('Na dieta');
     expect(com).toContain('Arroz &lt;script&gt;');
     expect(com).not.toContain('<script>');
-    expect(com).toContain('(como na dieta)');
+    expect(com).toContain('cálculo estimado');
     expect(com).toContain('—');
     expect(com.indexOf('Lista de compras')).toBeGreaterThan(com.indexOf('Sugestão de plano alimentar'));
     expect(com.indexOf('class="fim"')).toBeGreaterThan(com.indexOf('Lista de compras'));
@@ -700,7 +700,7 @@ describe('PDF da lista de compras', () => {
     expect(d.corpo).toContain('Café &lt;da&gt; manhã: opção B');
     expect(d.corpo).toContain('Aluno: Aluno &lt;Fictício&gt;');
     expect(d.corpo).not.toContain('<b>cozido</b>');
-    expect(d.corpo).toContain('sem fator, vale a quantidade da dieta');
+    expect(d.corpo).toContain('cálculo estimado');
   });
 
   it('prévia do editor (sem versão) avisa que não é a publicada; modelo sai sem aluno', () => {
@@ -722,7 +722,7 @@ describe('PDF da lista de compras', () => {
     m = alternarComprado(m, 'a');
     const d = documentoListaDeCompras({ ...base, periodo: 'duasSemanas', opcoes: [], linhas, itensDoAluno: itensDoAluno(linhas, m) });
     expect(d.corpo).toContain('Lista de compras — 2 semanas (14 dias)');
-    expect(d.corpo).toContain('Arroz <span class="suave">(cru)</span></td><td class="qtd">840 g</td>');
+    expect(d.corpo).toContain('Arroz <span class="suave">(cru)</span><div class="suave">Na dieta: 2,10 kg cozido</div></td><td class="qtd">840 g</td>');
     expect(d.corpo).toContain('Ovo <span class="suave origem">(ajustado por você)</span></td><td class="qtd">2 cartelas <span class="suave">(calculado: 28 un)</span></td>');
     expect(d.corpo).toContain('Café &lt;moído&gt; <span class="suave origem">(adicionado por você)</span></td><td class="qtd">—</td>');
     expect(d.corpo.match(/<span class="caixa"><\/span>/g)).toHaveLength(3);

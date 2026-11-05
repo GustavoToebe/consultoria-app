@@ -47,9 +47,9 @@ public final class BibliotecaDtos {
     }
 
     /**
-     * {@code fatorCorrecao} e {@code fatorCoccao} são opcionais (nulo = não informado); faixa e casas decimais são
-     * conferidas no {@code BibliotecaService}, que responde 422 {@code ALIMENTO_INVALIDO} com o campo. {@code grupo} é
-     * texto livre opcional (até 60 depois de tirar os espaços sobrando; em branco = sem grupo), conferido lá também.
+     * {@code fatorCorrecao} e {@code fatorCoccao} podem vir nulos: o serviço preenche com
+     * {@code FatoresDeRendimento.estimar}. Número fora da faixa ou com mais de duas casas dá 422 {@code ALIMENTO_INVALIDO}
+     * no campo. {@code grupo} é texto livre opcional (até 60 depois de tirar os espaços sobrando; em branco = sem grupo).
      */
     public record AlimentoRequest(
             @NotBlank @Size(max = 160) String nome,
@@ -100,14 +100,13 @@ public final class BibliotecaDtos {
     public record CatalogoAlimentoResponse(UUID id, String nome, BigDecimal baseQuantidade, String baseUnidade,
                                            BigDecimal kcal, BigDecimal proteina, BigDecimal carboidrato,
                                            BigDecimal gordura, String fonte, String grupo, String codigoFonte,
-                                           List<String> tracos, BigDecimal fatorCorrecao, BigDecimal fatorCoccao,
-                                           String fonteFatores) {
+                                           List<String> tracos, BigDecimal fatorCorrecao, BigDecimal fatorCoccao) {
         public static CatalogoAlimentoResponse de(CatalogoAlimento c) {
             List<String> tracos = c.getTracos() == null || c.getTracos().isBlank()
                     ? List.of() : List.of(c.getTracos().split(","));
             return new CatalogoAlimentoResponse(c.getId(), c.getNome(), c.getBaseQuantidade(), c.getBaseUnidade(),
                     c.getKcal(), c.getProteina(), c.getCarboidrato(), c.getGordura(), c.getFonte(), c.getGrupo(),
-                    c.getCodigoFonte(), tracos, c.getFatorCorrecao(), c.getFatorCoccao(), c.getFonteFatores());
+                    c.getCodigoFonte(), tracos, c.getFatorCorrecao(), c.getFatorCoccao());
         }
     }
 

@@ -170,9 +170,9 @@ export function textoDaQuantidadeLivre(q: QuantidadeLivre): string {
   return [textoLimpo(q.quantidade), textoLimpo(q.unidade)].filter(Boolean).join(' ') || '—';
 }
 
-/** Quantidade calculada como a tela mostra: "420 g cru", "700 g (como na dieta)". */
+/** Quantidade calculada como a tela mostra: "420 g cru", "700 g", "14 un". */
 export function textoDoCalculado(l: LinhaDaLista): string {
-  return `${quantidadeParaTela(l.quantidade, l.unidade)}${l.cru ? ' cru' : ''}${l.semFator ? ' (como na dieta)' : ''}`;
+  return `${quantidadeParaTela(l.quantidade, l.unidade)}${l.cru ? ' cru' : ''}`;
 }
 
 /**

@@ -72,8 +72,8 @@ describe('itens do aluno', () => {
     const itens = itensDoAluno([ARROZ, FRANGO, OVO], m);
     expect(itens.map((i) => [i.nome, i.origem, i.quantidade, i.calculado, i.comprado])).toEqual([
       ['Arroz branco cozido', 'ajustado', '1 pacote de 1 kg', '420 g cru', false],
-      ['Frango grelhado', 'calculado', '700 g (como na dieta)', null, true],
-      ['Ovo', 'calculado', '14 un (como na dieta)', null, false],
+      ['Frango grelhado', 'calculado', '700 g', null, true],
+      ['Ovo', 'calculado', '14 un', null, false],
     ]);
     const volta = itensDoAluno([ARROZ], voltarAoCalculado(m, ARROZ.chave));
     expect(volta[0]).toMatchObject({ origem: 'calculado', quantidade: '420 g cru', calculado: null });
@@ -84,7 +84,7 @@ describe('itens do aluno', () => {
     m = gravarAvulso(m, { id: 'x2', nome: 'Sabão', quantidade: null, unidade: null });
     m = alternarComprado(m, 'avulso:x1');
     expect(itensDoAluno([OVO], m).map((i) => [i.nome, i.origem, i.quantidade, i.comprado])).toEqual([
-      ['Ovo', 'calculado', '14 un (como na dieta)', false],
+      ['Ovo', 'calculado', '14 un', false],
       ['Café', 'avulso', '2 pacotes', true],
       ['Sabão', 'avulso', '—', false],
     ]);

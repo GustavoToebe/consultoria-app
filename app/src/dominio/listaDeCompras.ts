@@ -1,4 +1,5 @@
 import type { ConteudoDieta, FatoresDoAlimento, ItemDieta, UnidadeAlimento } from '../api/tipos';
+import { completarFatores, NOTA_DA_ESTIMATIVA } from './fatoresDoAlimento';
 
 /**
  * Lista de compras da dieta publicada (pedido do Saraiva em 17/10, R13/R14/R32), calculada no aparelho do aluno, também
@@ -7,9 +8,8 @@ import type { ConteudoDieta, FatoresDoAlimento, ItemDieta, UnidadeAlimento } fro
  * busca os atuais da biblioteca e os põe nos itens com `comFatoresDaBiblioteca`, a mesma regra da publicação.
  *
  * As quantidades da dieta são do alimento **como é comido** (ex.: "Arroz branco cozido" 150 g). Por item, em gramas:
- * cru = quantidade ÷ FCc (se o treinador informou o fator de cocção); a comprar = cru × FC (se informou o fator de
- * correção). Sem fator, vale a quantidade da dieta: nenhum fator é inventado nem vira 1. Os fatores só valem para `g`
- * (cozinhar ou limpar líquido em ml não tem sentido aqui) e `un` é contado como está.
+ * cru limpo = quantidade ÷ FCc e a comprar = cru limpo × FC. Fator ausente é estimado pelo nome (`estimarFatoresDoAlimento`).
+ * FC e FCc iguais a 1 são peso direto, sem aviso de fator faltando. Os fatores só valem para `g`; `ml` e `un` ficam como estão.
  *
  * Nada aqui opina sobre a dieta: só multiplica o que o treinador escreveu pelo número de dias.
  */
@@ -49,8 +49,10 @@ export interface LinhaDaLista {
   cru: boolean;
   /** Alguma parte foi aumentada pelo fator de correção (peso bruto, com casca, osso...). */
   bruto: boolean;
-  /** Nenhum fator foi aplicado: a quantidade é a da dieta, como está. */
+  /** Nenhum fator foi aplicado: a quantidade é a da dieta, como está. Em gramas a estimativa sempre preenche, então fica falso. */
   semFator: boolean;
+  /** Gramas com FC e FCc iguais a 1: o peso da dieta já é o peso de compra. */
+  semConversao?: boolean;
   /** Quantidade da dieta no período, antes dos fatores. Some das partes do mesmo alimento. */
   naDieta: number;
   /** Peso cru no período quando todas as partes têm o mesmo FCc; senão `null` (a coluna mostra "—"). */
@@ -76,13 +78,22 @@ const semAcento = (t: string) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').repl
 
 const positivo = (n: number | null | undefined): n is number => typeof n === 'number' && Number.isFinite(n) && n > 0;
 
-/** Quantidade de um item por dia, já com os fatores que existirem (só em gramas). */
-function porDia(item: ItemDieta & { quantidade: number }): { quantidade: number; cru: boolean; bruto: boolean } {
-  if (item.unidade !== 'g') return { quantidade: item.quantidade, cru: false, bruto: false };
-  const cru = positivo(item.fatorCoccao);
-  const bruto = positivo(item.fatorCorrecao);
-  const semCoccao = cru ? item.quantidade / (item.fatorCoccao as number) : item.quantidade;
-  return { quantidade: bruto ? semCoccao * (item.fatorCorrecao as number) : semCoccao, cru, bruto };
+const diferenteDeUm = (n: number) => Math.abs(n - 1) > 1e-9;
+
+/** FC e FCc do item em gramas: o que veio preenchido fica; o nulo é estimado pelo nome. */
+function fatoresEmGramas(item: ItemDieta): { fc: number; fcc: number } | null {
+  if (item.unidade !== 'g') return null;
+  const fatores = completarFatores(item.fatorCorrecao ?? null, item.fatorCoccao ?? null, item.nome, item.grupo, item.kcal, item.quantidade, item.unidade);
+  return { fc: fatores.fatorCorrecao, fcc: fatores.fatorCoccao };
+}
+
+/** Quantidade de um item por dia, já com os fatores (só em gramas). */
+function porDia(item: ItemDieta & { quantidade: number }): { quantidade: number; cru: boolean; bruto: boolean; fc: number | null; fcc: number | null } {
+  const fatores = fatoresEmGramas(item);
+  if (!fatores) return { quantidade: item.quantidade, cru: false, bruto: false, fc: null, fcc: null };
+  const cru = diferenteDeUm(fatores.fcc);
+  const bruto = diferenteDeUm(fatores.fc);
+  return { quantidade: (item.quantidade / fatores.fcc) * fatores.fc, cru, bruto, fc: fatores.fc, fcc: fatores.fcc };
 }
 
 /**
@@ -100,9 +111,9 @@ export function listaDeCompras(conteudo: ConteudoDieta, escolhas: EscolhasDeOpca
       if (!nome || !positivo(item.quantidade)) continue;
       const chave = `${item.alimentoId ? `a:${item.alimentoId}` : `n:${semAcento(nome)}`}:${item.unidade}`;
       const dia = porDia({ ...item, quantidade: item.quantidade });
-      const fc = item.unidade === 'g' && positivo(item.fatorCorrecao) ? item.fatorCorrecao : null;
-      const fcc = item.unidade === 'g' && positivo(item.fatorCoccao) ? item.fatorCoccao : null;
-      const cruQ = fcc ? (item.quantidade / fcc) * dias : null;
+      const fc = dia.fc;
+      const fcc = dia.fcc;
+      const cruQ = fcc !== null && diferenteDeUm(fcc) ? (item.quantidade / fcc) * dias : null;
       const naDieta = item.quantidade * dias;
       const grupo = item.grupo?.trim() || null;
       const atual = linhas.get(chave);
@@ -112,14 +123,17 @@ export function listaDeCompras(conteudo: ConteudoDieta, escolhas: EscolhasDeOpca
         atual.naDieta += naDieta;
         atual.cru ||= dia.cru;
         atual.bruto ||= dia.bruto;
-        atual.semFator = !atual.cru && !atual.bruto;
+        atual.semFator = atual.unidade === 'g' ? false : !atual.cru && !atual.bruto;
+        atual.semConversao = atual.unidade === 'g' && !atual.cru && !atual.bruto;
         atual.fatorCorrecao = mesmoFator(atual.fatorCorrecao, fc);
         atual.fatorCoccao = mesmoFator(atual.fatorCoccao, fcc);
         atual.quantidadeCru = atual.quantidadeCru !== null && cruQ !== null ? atual.quantidadeCru + cruQ : null;
       } else {
         linhas.set(chave, {
           chave, nome, unidade: item.unidade, quantidade: dia.quantidade * dias, cru: dia.cru, bruto: dia.bruto,
-          semFator: !dia.cru && !dia.bruto, naDieta, quantidadeCru: cruQ, fatorCorrecao: fc, fatorCoccao: fcc, grupo,
+          semFator: item.unidade === 'g' ? false : !dia.cru && !dia.bruto,
+          semConversao: item.unidade === 'g' && !dia.cru && !dia.bruto,
+          naDieta, quantidadeCru: cruQ, fatorCorrecao: fc, fatorCoccao: fcc, grupo,
         });
       }
     }
@@ -192,16 +206,27 @@ export function quantidadeParaTela(quantidade: number, unidade: UnidadeAlimento)
   return `${arredondada} ${unidade}`;
 }
 
-/** Nota do rodapé da tela e do PDF. */
-export const NOTA_DA_LISTA = 'Quantidades calculadas com os fatores que o treinador cadastrou; sem fator, vale a quantidade da dieta.';
+/** Nota do rodapé da tela e do PDF. A mesma frase para o aluno, o treinador e os PDFs. */
+export const NOTA_DA_LISTA = NOTA_DA_ESTIMATIVA;
 
-/** Rodapé da lista na tela, pelo papel de quem vê (o do aluno falava "o treinador" também para o treinador). */
-export const NOTA_DA_LISTA_ALUNO = 'Quantidades calculadas com os fatores que seu treinador cadastrou. "Como na dieta" = sem fator: vale a quantidade da dieta.';
-export const NOTA_DA_LISTA_TREINADOR = 'Quantidades calculadas com os fatores da biblioteca. "Sem fator" = o alimento não tem FC nem FCc: cadastre em Biblioteca › Alimentos.';
+/** Rodapé da lista na tela, pelo papel de quem vê. */
+export const NOTA_DA_LISTA_ALUNO = NOTA_DA_ESTIMATIVA;
+export const NOTA_DA_LISTA_TREINADOR = NOTA_DA_ESTIMATIVA;
 
-/** Marca da linha sem fator: o aluno lê "(como na dieta)" ao lado da quantidade; o treinador vê o selo "Sem fator". */
-export function marcaSemFator(papel: 'aluno' | 'treinador'): string {
-  return papel === 'aluno' ? 'como na dieta' : 'Sem fator';
+/**
+ * De onde veio o número a comprar, quando houve limpeza ou cocção.
+ * Cocção e limpeza: "Na dieta: 1,05 kg pronto → ~840 g cru limpo".
+ * Só cocção: "Na dieta: 1,05 kg cozido". Só limpeza: "Na dieta: 700 g limpo/descascado".
+ */
+export function detalheDaConversao(l: Pick<LinhaDaLista, 'unidade' | 'cru' | 'bruto' | 'naDieta' | 'quantidadeCru'>): string | null {
+  if (l.unidade !== 'g' || (!l.cru && !l.bruto)) return null;
+  const naDieta = quantidadeParaTela(l.naDieta, 'g');
+  if (l.cru && l.bruto && l.quantidadeCru != null) {
+    return `Na dieta: ${naDieta} pronto → ~${quantidadeParaTela(l.quantidadeCru, 'g')} cru limpo`;
+  }
+  if (l.cru) return `Na dieta: ${naDieta} cozido`;
+  if (l.bruto) return `Na dieta: ${naDieta} limpo/descascado`;
+  return null;
 }
 
 /** Aviso da prévia no editor do treinador (a lista do aluno sai dos fatores copiados na publicação). */

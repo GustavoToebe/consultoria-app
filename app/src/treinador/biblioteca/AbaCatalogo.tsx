@@ -34,8 +34,6 @@ interface ItemCatalogo {
   imagens: string[];
   /** "FC 1,75" quando o catálogo de alimentos traz fator; vazio nos exercícios. */
   fatores: string | null;
-  /** Citação curta dos fatores do alimento. */
-  fonteFatores: string | null;
 }
 
 interface ListaCatalogo {
@@ -73,7 +71,6 @@ export function AbaCatalogo() {
             passos: passosDasInstrucoes(e.instrucoes),
             imagens: e.imagens,
             fatores: null,
-            fonteFatores: null,
           })),
         };
       }
@@ -87,7 +84,6 @@ export function AbaCatalogo() {
           passos: [],
           imagens: [],
           fatores: textoDosFatores(a),
-          fonteFatores: a.fonteFatores,
         })),
       };
     },
@@ -154,7 +150,7 @@ export function AbaCatalogo() {
         const sel = marcados.has(item.id);
         const expandido = aberto === item.id;
         const jaTem = nomesNaBiblioteca.has(normalizar(item.nome.trim()));
-        const fatores = [item.fatores, item.fonteFatores].filter(Boolean).join(' · ');
+        const fatores = item.fatores ?? '';
         return (
           <LinhaDaLista key={item.id} titulo={item.nome} metadados={item.detalhe} descricao={fatores || undefined}
             selos={jaTem ? [{ texto: 'Já na biblioteca', tipo: 'neutro' }] : undefined}

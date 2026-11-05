@@ -45,8 +45,8 @@ class FatoresDosAlimentosIntegrationTest extends AbstractIntegrationTest {
         JsonNode treinador = api.novoTreinador();
 
         JsonNode sem = api.post("/alimentos", treinador, alimento("Alimento sem fator", null, null), 200);
-        assertThat(sem.get("fatorCorrecao").isNull()).isTrue();
-        assertThat(sem.get("fatorCoccao").isNull()).isTrue();
+        assertThat(sem.get("fatorCorrecao").decimalValue()).isEqualByComparingTo("1.00");
+        assertThat(sem.get("fatorCoccao").decimalValue()).isEqualByComparingTo("1.00");
 
         JsonNode com = api.post("/alimentos", treinador, alimento("Alimento com fator", "1.75", "2.5"), 200);
         assertThat(com.get("fatorCorrecao").decimalValue()).isEqualByComparingTo("1.75");
@@ -61,10 +61,10 @@ class FatoresDosAlimentosIntegrationTest extends AbstractIntegrationTest {
             assertThat(erro.get("fieldErrors").get(0).get("field").asString()).isEqualTo(ruim[2]);
         }
 
-        // Alterar pode tirar o fator (nulo = não informado, nunca 1).
+        // Nulo no corpo volta a ser a estimativa do nome; o número informado fica.
         JsonNode alterado = api.put("/alimentos/" + com.get("id").asString(), treinador,
                 alimento("Alimento com fator", null, "0.7"), 200);
-        assertThat(alterado.get("fatorCorrecao").isNull()).isTrue();
+        assertThat(alterado.get("fatorCorrecao").decimalValue()).isEqualByComparingTo("1.00");
         assertThat(alterado.get("fatorCoccao").decimalValue()).isEqualByComparingTo("0.7");
     }
 
@@ -104,7 +104,10 @@ class FatoresDosAlimentosIntegrationTest extends AbstractIntegrationTest {
                 .get("opcoes").get(0).get("itens");
         assertThat(itens.get(0).get("fatorCorrecao").decimalValue()).isEqualByComparingTo("1.10");
         assertThat(itens.get(0).get("fatorCoccao").decimalValue()).isEqualByComparingTo("2.50");
-        for (int i = 1; i < 4; i++) {
+        // "Fruta fictícia" cai no perfil de fruta (limpeza leve) e cocção 1, copiados na publicação.
+        assertThat(itens.get(1).get("fatorCorrecao").decimalValue()).isEqualByComparingTo("1.12");
+        assertThat(itens.get(1).get("fatorCoccao").decimalValue()).isEqualByComparingTo("1.00");
+        for (int i = 2; i < 4; i++) {
             assertThat(itens.get(i).get("fatorCorrecao").isNull()).as("item %d", i).isTrue();
             assertThat(itens.get(i).get("fatorCoccao").isNull()).as("item %d", i).isTrue();
         }
@@ -148,15 +151,16 @@ class FatoresDosAlimentosIntegrationTest extends AbstractIntegrationTest {
         assertThat(fatores).hasSize(3);
         assertThat(porId.get(comFatores).get("fatorCorrecao").decimalValue()).isEqualByComparingTo("1.10");
         assertThat(porId.get(comFatores).get("fatorCoccao").decimalValue()).isEqualByComparingTo("2.50");
-        assertThat(porId.get(semFatores).get("fatorCorrecao").isNull()).isTrue();
-        assertThat(porId.get(semFatores).get("fatorCoccao").isNull()).isTrue();
+        assertThat(porId.get(semFatores).get("fatorCorrecao").decimalValue()).isEqualByComparingTo("1.00");
+        assertThat(porId.get(semFatores).get("fatorCoccao").decimalValue()).isEqualByComparingTo("1.00");
         assertThat(porId.get(inativo).get("fatorCorrecao").decimalValue()).isEqualByComparingTo("1.30");
 
         // É sempre o valor atual da biblioteca.
         api.put("/alimentos/" + comFatores, treinador, alimento("Grão fictício cozido", "1.20", null), 200);
         JsonNode atual = api.get("/alimentos/fatores?ids=" + comFatores, treinador, 200).get(0);
         assertThat(atual.get("fatorCorrecao").decimalValue()).isEqualByComparingTo("1.20");
-        assertThat(atual.get("fatorCoccao").isNull()).isTrue();
+        // FCc nulo no corpo é estimado de novo. "Grão fictício" não é arroz, massa nem leguminosa: fica 1.
+        assertThat(atual.get("fatorCoccao").decimalValue()).isEqualByComparingTo("1.00");
 
         // Sem ids, lista vazia; acima de 200 ids distintos, 400.
         assertThat(api.get("/alimentos/fatores", treinador, 200)).isEmpty();
@@ -180,57 +184,36 @@ class FatoresDosAlimentosIntegrationTest extends AbstractIntegrationTest {
     void catalogoMostraFatorImportacaoCopiaEMigrationNaoApagaOQueOTreinadorDigitou() throws Exception {
         ApiDeTeste api = new ApiDeTeste(mvc, json);
         JsonNode treinador = api.novoTreinador();
-        String email = treinador.get("usuario").get("email").asString();
-        UUID consultoria = jdbc.queryForObject("select consultoria_id from usuario where email = ?", UUID.class, email);
 
         JsonNode abobrinha = api.get("/catalogo/alimentos?busca=Abobrinha&limite=50", treinador, 200);
         JsonNode item = abobrinha.get("itens").valueStream()
                 .filter(a -> a.get("nome").asString().equals("Abobrinha, italiana, crua"))
                 .findFirst().orElseThrow();
-        assertThat(item.get("fatorCorrecao").decimalValue()).isEqualByComparingTo("1.27");
-        assertThat(item.get("fatorCoccao").isNull()).isTrue();
-        assertThat(item.get("fonteFatores").asString()).contains("Oliveira");
+        assertThat(item.get("fatorCorrecao").decimalValue()).isEqualByComparingTo("1.25");
+        assertThat(item.get("fatorCoccao").decimalValue()).isEqualByComparingTo("1.00");
+        assertThat(item.has("fonteFatores")).isFalse();
 
         JsonNode abacaxi = api.get("/catalogo/alimentos?busca=Abacaxi&limite=50", treinador, 200);
         JsonNode cru = abacaxi.get("itens").valueStream()
                 .filter(a -> a.get("nome").asString().equals("Abacaxi, cru"))
                 .findFirst().orElseThrow();
-        assertThat(cru.get("fatorCorrecao").isNull()).isTrue();
+        assertThat(cru.get("fatorCorrecao").decimalValue()).isEqualByComparingTo("1.45");
+        assertThat(cru.get("fatorCoccao").decimalValue()).isEqualByComparingTo("1.00");
 
         api.post("/alimentos/importar-catalogo", treinador, Map.of("ids", List.of(item.get("id").asString())), 200);
         JsonNode copiado = api.get("/alimentos", treinador, 200).get(0);
-        assertThat(copiado.get("fatorCorrecao").decimalValue()).isEqualByComparingTo("1.27");
-        assertThat(jdbc.queryForObject("select fatores_do_catalogo from alimento where id = ?::uuid", Boolean.class,
-                copiado.get("id").asString())).isNull();
+        assertThat(copiado.get("fatorCorrecao").decimalValue()).isEqualByComparingTo("1.25");
+        assertThat(copiado.get("fatorCoccao").decimalValue()).isEqualByComparingTo("1.00");
+        assertThat(jdbc.queryForObject(
+                "select count(*) from information_schema.columns where table_name = 'alimento' and column_name = 'fatores_do_catalogo'",
+                Integer.class)).isZero();
 
-        UUID digitado = UUID.randomUUID();
-        jdbc.update("insert into alimento (id, consultoria_id, nome, kcal, proteina, carboidrato, gordura, origem, fator_correcao)"
-                + " values (?::uuid, ?::uuid, 'Arroz, tipo 1, cozido', 128, 2.5, 28.1, 0.2, 'CATALOGO', 3.00)",
-                digitado, consultoria);
-        UUID manual = UUID.randomUUID();
-        jdbc.update("insert into alimento (id, consultoria_id, nome, kcal, proteina, carboidrato, gordura, origem)"
-                + " values (?::uuid, ?::uuid, 'Morango, cru', 30, 0.9, 6.8, 0.3, 'MANUAL')", manual, consultoria);
-        jdbc.update("""
-                update alimento as a
-                set fator_correcao = case when a.fator_correcao is null then c.fator_correcao else a.fator_correcao end,
-                    fator_coccao = case when a.fator_coccao is null then c.fator_coccao else a.fator_coccao end,
-                    fatores_do_catalogo = true
-                from catalogo_alimento as c
-                where a.consultoria_id is not null
-                  and a.origem = 'CATALOGO'
-                  and lower(a.nome) = lower(c.nome)
-                  and ((a.fator_correcao is null and c.fator_correcao is not null)
-                    or (a.fator_coccao is null and c.fator_coccao is not null))
-                  and a.id = ?::uuid
-                """, digitado);
-        assertThat(jdbc.queryForObject("select fator_correcao from alimento where id = ?::uuid", BigDecimal.class, digitado))
-                .isEqualByComparingTo("3.00");
-        assertThat(jdbc.queryForObject("select fator_coccao from alimento where id = ?::uuid", BigDecimal.class, digitado))
-                .isEqualByComparingTo("2.86");
-        assertThat(jdbc.queryForObject("select fatores_do_catalogo from alimento where id = ?::uuid", Boolean.class, digitado))
-                .isTrue();
-        assertThat(jdbc.queryForObject("select fator_correcao from alimento where id = ?::uuid", BigDecimal.class, manual)).isNull();
-        assertThat(jdbc.queryForObject("select fatores_do_catalogo from alimento where id = ?::uuid", Boolean.class, manual)).isNull();
+        JsonNode arroz = api.get("/catalogo/alimentos?busca=Arroz&limite=20", treinador, 200);
+        JsonNode cozido = arroz.get("itens").valueStream()
+                .filter(a -> a.get("nome").asString().equals("Arroz, tipo 1, cozido"))
+                .findFirst().orElseThrow();
+        assertThat(cozido.get("fatorCoccao").decimalValue()).isEqualByComparingTo("2.60");
+        assertThat(cozido.get("fatorCorrecao").decimalValue()).isEqualByComparingTo("1.00");
     }
 
     private static AlimentoRequest alimento(String nome, String fatorCorrecao, String fatorCoccao) {

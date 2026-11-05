@@ -111,7 +111,7 @@ test('catálogo de alimentos mostra o fator, a importação copia e a biblioteca
   const abacaxi = {
     id: 'a0000001-0000-4000-8000-000000000000', nome: 'Abacaxi com casca', baseQuantidade: 100, baseUnidade: 'g',
     kcal: 48, proteina: 0.9, carboidrato: 12.3, gordura: 0.1, fonte: 'TACO (nutrientes de Abacaxi, cru)', grupo: 'Frutas',
-    codigoFonte: null, tracos: [], fatorCorrecao: 1.75, fatorCoccao: null, fonteFatores: 'Cumbaru. Tabela FC do modelo de ficha técnica.',
+    codigoFonte: null, tracos: [], fatorCorrecao: 1.75, fatorCoccao: null,
   };
   let naBiblioteca: object[] = [];
   const { naoTratadas, errosDaPagina } = await simularApi(page, {
@@ -136,7 +136,6 @@ test('catálogo de alimentos mostra o fator, a importação copia e a biblioteca
   await page.getByRole('radiogroup', { name: 'Catálogo' }).getByRole('button', { name: 'Alimentos' }).click();
   await expect(page.getByText('Abacaxi com casca', { exact: true })).toBeVisible();
   await expect(page.getByText('FC 1,75')).toBeVisible();
-  await expect(page.getByText('Cumbaru. Tabela FC do modelo de ficha técnica.')).toBeVisible();
   await page.getByText('Abacaxi com casca', { exact: true }).click();
   await page.getByRole('button', { name: 'Importar selecionados (1)' }).click();
   await expect(page.getByText('1 importado(s).')).toBeVisible();
