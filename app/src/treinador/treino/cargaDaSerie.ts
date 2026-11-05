@@ -1,6 +1,6 @@
 import type { Configuracao, ModoDeCarga, PapelDaSerie, Serie } from '../../api/tipos';
 import { descreverGrupo, type GrupoDeSeries } from '../../dominio/agrupamento';
-import { alterarGrupo, alterarPercentuais, modosDeCarga } from '../../dominio/editorTreino';
+import { alterarPercentuais, cargaDoModo, modosDeCarga } from '../../dominio/editorTreino';
 import { nomeDoTipo, papelDe } from '../../dominio/metodologia';
 import { linhasDasEtapas } from '../../dominio/resumoDaSerie';
 import type { UnidadeDeCarga } from '../../dominio/unidadeDeCarga';
@@ -45,20 +45,18 @@ export function modoAoEscolher(papel: PapelDaSerie | null | undefined, escolhido
 }
 
 /**
- * Percentual de uma série do grupo (`j` = posição no grupo). O Aquecimento em "sem sugestão" vira "% da WS" no grupo
- * todo antes (trocar só a série partiria o grupo), e volta a "sem sugestão" quando todas as séries ficam em branco.
+ * Percentual de uma série do grupo (`j` = posição no grupo). No Aquecimento a série com Mín e Máx em branco é "sem sugestão"
+ * (`NENHUMA`) e a que tem % é `PERCENTUAL_WS`, cada uma por si: nada de erro nas vazias nem de mexer nas outras (o grupo
+ * continua um só, `agrupamento`). Nos outros papéis o % em branco continua em % e a validação cobra.
  */
 export function percentuaisNoGrupo(
   series: Serie[], grupo: GrupoDeSeries, j: number, min: number | null, max: number | null, config: Configuracao | null | undefined,
 ): Serie[] {
-  const aquecimento = papelDe(config, grupo.series[0].tipo) === 'AQUECIMENTO';
-  const base = aquecimento && (grupo.series[0].carga?.modo ?? 'NENHUMA') === 'NENHUMA' ? alterarGrupo(series, grupo, { modo: 'PERCENTUAL_WS' }, config) : series;
-  const novas = alterarPercentuais(base, grupo.inicio + j, min, max);
-  const doGrupo = novas.slice(grupo.inicio, grupo.inicio + grupo.series.length);
-  if (aquecimento && doGrupo.every((s) => s.carga?.percentualMin == null && s.carga?.percentualMax == null)) {
-    return alterarGrupo(novas, { inicio: grupo.inicio, series: doGrupo }, { modo: 'NENHUMA' }, config);
+  const i = grupo.inicio + j;
+  if (papelDe(config, grupo.series[0].tipo) === 'AQUECIMENTO' && min == null && max == null) {
+    return series.map((s, k) => (k === i ? { ...s, carga: cargaDoModo('NENHUMA') } : s));
   }
-  return novas;
+  return alterarPercentuais(series, i, min, max);
 }
 
 /**

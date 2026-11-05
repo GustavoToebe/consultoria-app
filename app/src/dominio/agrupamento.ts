@@ -1,4 +1,4 @@
-import type { Cardio, Carga, CargaDaEtapa, Configuracao, Esforco, Serie, Tecnica } from '../api/tipos';
+import type { Cardio, Carga, CargaDaEtapa, Configuracao, Esforco, ModoDeCarga, Serie, Tecnica } from '../api/tipos';
 import { blocosValidos, somaDosBlocos, textoDeBlocos } from './blocos';
 import { numeroParaTela } from './formatos';
 import { explicacaoDoCatalogo } from './catalogoMetodologia';
@@ -11,8 +11,9 @@ import { textoDaCarga, type UnidadeDeCarga } from './unidadeDeCarga';
  * Séries consecutivas iguais (tipo, faixa de repetições, forma de carga, esforço, técnica, observação da série) aparecem
  * juntas como na planilha do Saraiva: "3x3 - FS 50% · 70% · 85% a 90% da WS", "1x3 a 6 - WS · 1 RIR", "1x8 - WS + Rest
  * pause 20 s".
- * Os percentuais e o esforço (RIR ou RPE, com ou sem valor) ficam fora da chave: cada série do grupo tem os seus, então
- * pôr ou tirar o RIR de uma série não parte o grupo (da carga fixa entra o `valorKg`). No plano elas continuam individuais,
+ * Os percentuais e o valor do esforço ficam fora da chave: cada série do grupo tem os seus, então pôr ou tirar o RIR de
+ * uma série não parte o grupo (da carga fixa entra o `valorKg`). Só a forma RPE entra (série com RPE não se junta a RIR). Sem sugestão e % da WS também não
+ * separam (`modoNaChave`): o Aquecimento com % só em parte das séries é um grupo só. No plano elas continuam individuais,
  * cada uma com seu uid.
  */
 export interface GrupoDeSeries {
@@ -22,6 +23,17 @@ export interface GrupoDeSeries {
 }
 
 const modo = (s: Serie) => s.carga?.modo ?? 'NENHUMA';
+
+/**
+ * Forma de carga do grupo. Sem sugestão (`NENHUMA`) e `PERCENTUAL_WS` convivem no mesmo grupo (o Aquecimento decide o % série
+ * a série): basta uma série em % para o grupo ser em %; as sem % saem como "—". Os outros modos são iguais em todo o grupo.
+ */
+export function modoDoGrupo(grupo: { series: readonly Serie[] }): ModoDeCarga {
+  return grupo.series.some((s) => modo(s) === 'PERCENTUAL_WS') ? 'PERCENTUAL_WS' : modo(grupo.series[0]);
+}
+
+/** Na chave, `NENHUMA` e `PERCENTUAL_WS` valem o mesmo: preencher ou limpar o % de uma série não parte o grupo. */
+const modoNaChave = (s: Serie) => (modo(s) === 'NENHUMA' ? 'PERCENTUAL_WS' : modo(s));
 
 /** Técnica na chave do grupo, campo a campo: ausente e nulo contam igual (o servidor devolve todos os campos). */
 const chaveTecnica = (t: Tecnica | null | undefined) =>
@@ -55,9 +67,11 @@ const chave = (s: Serie) =>
     s.repsMin ?? '',
     s.repsMax ?? '',
     s.amrap ? 'amrap' : '',
-    modo(s),
+    modoNaChave(s),
     modo(s) === 'CARGA_FIXA' ? (s.carga?.valorKg ?? '') : '',
     chaveTecnica(s.tecnica),
+    // Só o RPE separa: o resumo do grupo mostra RIR ou RPE, nunca os dois, e perderia o RPE de quem o tem.
+    s.esforco?.rpe != null ? 'rpe' : '',
     s.alvoExtra ?? '',
     s.cardio ? JSON.stringify(s.cardio) : '',
   ].join('|');
@@ -142,9 +156,8 @@ export function textoCarga(c: Carga | null | undefined, nomeDaWs?: string | null
  * trabalho da metodologia; sem ele, sem o "da").
  */
 export function textoDosPercentuaisDoGrupo(grupo: { series: readonly Serie[] }, config?: Configuracao | null, nomeDaWs: string | null = tipoTrabalho(config)): string {
-  const primeira = grupo.series[0];
   const lista = textoDosPercentuais(grupo.series.map((s) => ({ min: s.carga?.percentualMin, max: s.carga?.percentualMax })));
-  return primeira?.carga?.modo === 'PERCENTUAL_WS' ? `${lista}${nomeDaWs ? ` da ${nomeDaWs}` : ''}` : '';
+  return grupo.series.length > 0 && modoDoGrupo(grupo) === 'PERCENTUAL_WS' ? `${lista}${nomeDaWs ? ` da ${nomeDaWs}` : ''}` : '';
 }
 
 /**
@@ -355,8 +368,7 @@ export function descreverGrupo(grupo: GrupoDeSeries, config?: Configuracao | nul
   const quem = nome ? `${nome}${tecnica ? `${ligacao}${tecnica}` : ''}` : tecnica || 'Série';
   const reps = primeira.amrap ? 'AMRAP' : faixa(primeira);
   const partes = [`${grupo.series.length}x${reps}${blocos} - ${quem}`];
-  const m = modo(primeira);
-  if (m === 'PERCENTUAL_WS') {
+  if (modoDoGrupo(grupo) === 'PERCENTUAL_WS') {
     const percentuais = textoDosPercentuaisDoGrupo(grupo, config);
     partes.push(primeira.tecnica ? `· ${percentuais}` : percentuais);
     const esforco = textoEsforcoDoGrupo(grupo);

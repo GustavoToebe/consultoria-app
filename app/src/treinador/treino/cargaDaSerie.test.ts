@@ -1,5 +1,6 @@
 import { agrupar } from '../../dominio/agrupamento';
 import { adicionarSerie, alterarGrupo, mudarQuantidade, novoExercicio, tecnicaVazia } from '../../dominio/editorTreino';
+import { previaDoGrupo } from '../../dominio/resumoDaSerie';
 import { validarExercicio } from '../../dominio/validacaoDoTreino';
 import { CONFIGURACAO_PADRAO } from '../../dominio/metodologiaPadrao';
 import { escolhaDeCargaDoPapel, modoAoEscolher, OPCOES_DO_RIR, percentuaisNoGrupo, textoParaOAluno } from './cargaDaSerie';
@@ -42,12 +43,51 @@ describe('seletor binário da carga', () => {
 
 describe('percentual do aquecimento', () => {
   const tres = () => { const s = adicionarSerie([], cfg, codigo('AQUECIMENTO')); return mudarQuantidade(s, agrupar(s)[0], 3, cfg); };
-  test('o primeiro % passa o grupo todo para % da WS, sem partir o grupo', () => {
+  test('o % de uma série só muda o modo dela, as vazias ficam sem sugestão (sem erro) e o grupo continua um só', () => {
     const s = tres();
-    const novas = percentuaisNoGrupo(s, agrupar(s)[0], 1, 40, null, cfg);
-    expect(novas.map((x) => x.carga?.modo)).toEqual(['PERCENTUAL_WS', 'PERCENTUAL_WS', 'PERCENTUAL_WS']);
-    expect(novas.map((x) => x.carga?.percentualMin)).toEqual([null, 40, null]);
+    const novas = percentuaisNoGrupo(s, agrupar(s)[0], 0, 40, null, cfg);
+    expect(novas.map((x) => x.carga?.modo ?? 'NENHUMA')).toEqual(['PERCENTUAL_WS', 'NENHUMA', 'NENHUMA']);
+    expect(novas.map((x) => x.carga?.percentualMin ?? null)).toEqual([40, null, null]);
     expect(agrupar(novas)).toHaveLength(1);
+    const r = validarExercicio({ ...novoExercicio(), nome: 'Exercício', series: adicionarSerie(novas, cfg) }, cfg);
+    expect(r.erros).toEqual([]);
+    expect(r.avisos).toEqual([]);
+    // Preencher outra série em seguida também não parte o grupo.
+    const duas = percentuaisNoGrupo(novas, agrupar(novas)[0], 2, 60, 70, cfg);
+    expect(duas.map((x) => x.carga?.modo ?? 'NENHUMA')).toEqual(['PERCENTUAL_WS', 'NENHUMA', 'PERCENTUAL_WS']);
+    expect(agrupar(duas)).toHaveLength(1);
+  });
+  test('limpar o % de uma série troca só o modo dela de volta para sem sugestão', () => {
+    const s = tres();
+    const duas = percentuaisNoGrupo(percentuaisNoGrupo(s, agrupar(s)[0], 0, 40, null, cfg), agrupar(s)[0], 1, 50, 60, cfg);
+    const limpa = percentuaisNoGrupo(duas, agrupar(duas)[0], 0, null, null, cfg);
+    expect(limpa.map((x) => x.carga?.modo ?? 'NENHUMA')).toEqual(['NENHUMA', 'PERCENTUAL_WS', 'NENHUMA']);
+    expect(limpa[1].carga).toMatchObject({ percentualMin: 50, percentualMax: 60 });
+    expect(agrupar(limpa)).toHaveLength(1);
+    expect(validarExercicio({ ...novoExercicio(), nome: 'Exercício', series: limpa }, cfg).erros).toEqual([]);
+  });
+  test('só o Máx preenchido sem o Mín continua erro (a série é % e falta o mínimo)', () => {
+    const s = tres();
+    const novas = percentuaisNoGrupo(s, agrupar(s)[0], 1, null, 50, cfg);
+    expect(novas[1].carga?.modo).toBe('PERCENTUAL_WS');
+    const erros = validarExercicio({ ...novoExercicio(), nome: 'Exercício', series: novas }, cfg).erros.map((e) => e.caminho);
+    expect(erros).toEqual(['series[1].carga.percentualMin']);
+  });
+  test('apagar só o Máx com o Mín preenchido segue em % com máximo vazio (a API e a validação aceitam), sem erro', () => {
+    const s = tres();
+    const faixa = percentuaisNoGrupo(s, agrupar(s)[0], 0, 50, 60, cfg);
+    const semMax = percentuaisNoGrupo(faixa, agrupar(faixa)[0], 0, 50, null, cfg);
+    expect(semMax[0].carga).toMatchObject({ modo: 'PERCENTUAL_WS', percentualMin: 50, percentualMax: null });
+    expect(agrupar(semMax)).toHaveLength(1);
+    expect(validarExercicio({ ...novoExercicio(), nome: 'Exercício', series: adicionarSerie(semMax, cfg) }, cfg).erros).toEqual([]);
+  });
+  test('apagar só o Mín com o Máx preenchido dá o erro normal no Mín, sem virar sem sugestão', () => {
+    const s = tres();
+    const faixa = percentuaisNoGrupo(s, agrupar(s)[0], 0, 50, 60, cfg);
+    const semMin = percentuaisNoGrupo(faixa, agrupar(faixa)[0], 0, null, 60, cfg);
+    expect(semMin[0].carga?.modo).toBe('PERCENTUAL_WS');
+    const erros = validarExercicio({ ...novoExercicio(), nome: 'Exercício', series: semMin }, cfg).erros.map((e) => e.caminho);
+    expect(erros).toEqual(['series[0].carga.percentualMin']);
   });
   test('todas em branco voltam a sem sugestão', () => {
     const s = tres();
@@ -87,6 +127,15 @@ describe('percentual do aquecimento', () => {
 });
 
 describe('Para o aluno numa linha', () => {
+  test('Aquecimento com % só na Série 1: um grupo, com o % dela e "—" nas outras', () => {
+    const s = adicionarSerie([], cfg, codigo('AQUECIMENTO'));
+    const tres = mudarQuantidade(s, agrupar(s)[0], 3, cfg);
+    const novas = percentuaisNoGrupo(tres, agrupar(tres)[0], 0, 40, null, cfg);
+    const grupos = agrupar(novas);
+    expect(grupos).toHaveLength(1);
+    expect(textoParaOAluno(grupos[0], cfg, 'kg')).toBe('3×10 a 15 · Aquecimento · 40% · — · — da WS');
+    expect(previaDoGrupo(grupos[0], cfg, {}).linhas).toContain('Carga: 40% · — · — da WS');
+  });
   test('3 FS e a WS', () => {
     let s = adicionarSerie([], cfg, codigo('PREPARACAO'));
     s = mudarQuantidade(s, agrupar(s)[0], 3, cfg);

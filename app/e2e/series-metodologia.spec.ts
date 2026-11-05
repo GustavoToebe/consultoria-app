@@ -591,6 +591,28 @@ for (const largura of [390, 1280]) {
     expect(api.naoTratadas).toEqual([]);
   });
 
+  test(`aquecimento: 3 séries com % só na Série 1 não dão erro, ficam numa aba só e as outras gravam sem sugestão (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const aq = (n: number) => serieCom(`aq${n}`, 'WARM_UP', null, null, [10, 15]);
+    const api = await modeloDeSeries(page, [aq(1), aq(2), aq(3), serieInicial]);
+    const abas = page.getByRole('tab', { name: /^Série \d/ });
+    await expect(abas).toHaveCount(2);
+    await page.getByRole('tab', { name: /^Série 1 · Aquecimento/ }).click();
+    await page.getByRole('textbox', { name: 'Série 1 · Mínimo (%)', exact: true }).fill('40');
+    // Continua uma aba só (as séries 2 e 3 seguem em branco no mesmo grupo) e nenhuma ficou com erro.
+    await expect(abas).toHaveCount(2);
+    await expect(page.getByRole('textbox', { name: 'Série 1 · Mínimo (%)', exact: true })).toHaveValue('40');
+    await expect(page.getByRole('textbox', { name: 'Série 3 · Mínimo (%)', exact: true })).toHaveValue('');
+    await expect(page.getByText('Percentual da WS entre 1 e 200.', { exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();
+    await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(1);
+    const salvas = (api.salvo().conteudo as { series: Serie[] }).series;
+    expect(salvas.map((s) => s.carga?.modo ?? 'NENHUMA')).toEqual(['PERCENTUAL_WS', 'NENHUMA', 'NENHUMA', 'CARGA_TRABALHO']);
+    expect(salvas[0].carga?.percentualMin).toBe(40);
+    expect(api.errosDaPagina).toEqual([]);
+    expect(api.naoTratadas).toEqual([]);
+  });
+
   test(`carga fixa: WS 3x12 com 12 kg no resumo, o campo de kg valida e o Back off em % avisa (${largura}px)`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const api = await planoComUmExercicio(page, [0, 1, 2].map((i) => serieCom(`ws-${i}`, 'WORKING', cargaDeTrabalho, { rir: 1, rpe: null }, [12, 12])));

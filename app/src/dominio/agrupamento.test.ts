@@ -158,11 +158,49 @@ test.each([
 });
 
 describe('RIR por série', () => {
-  it('pôr ou tirar o RIR de uma série não parte o grupo', () => {
-    const a = serieDeTeste('a', { tipo: 'WORKING', esforco: rir(1) });
+  it('pôr ou tirar o RIR de uma série não parte o grupo', () => {    const a = serieDeTeste('a', { tipo: 'WORKING', esforco: rir(1) });
     const b = serieDeTeste('b', { tipo: 'WORKING', esforco: null });
-    const c = serieDeTeste('c', { tipo: 'WORKING', esforco: rpe(8) });
+    const c = serieDeTeste('c', { tipo: 'WORKING', esforco: rir(3) });
     expect(agrupar([a, b, c]).map((g) => g.series.length)).toEqual([3]);
+  });
+
+  it('a forma RPE separa de RIR (o resumo do grupo perderia o RPE), mas RPE com RPE é um grupo só', () => {
+    const com = (uid: string, esforco: Serie['esforco']) => serieDeTeste(uid, { tipo: 'WORKING', esforco });
+    expect(agrupar([com('a', rir(2)), com('b', rpe(8))]).map((g) => g.series.length)).toEqual([1, 1]);
+    expect(agrupar([com('a', rpe(8)), com('b', null)]).map((g) => g.series.length)).toEqual([1, 1]);
+    expect(agrupar([com('a', rpe(8)), com('b', rpe(9))]).map((g) => g.series.length)).toEqual([2]);
+    expect(descreverSeries([com('a', rpe(8)), com('b', rpe(9))], config)).toEqual(['2x6 - WS · RPE 8, 9']);
+  });
+});
+
+describe('sem sugestão e % da WS no mesmo grupo (Aquecimento série a série)', () => {
+  const aq = (uid: string, c: Serie['carga']): Serie => serieDeTeste(uid, { tipo: 'WARM_UP', repsMin: 10, repsMax: 15, carga: c });
+  const sem = (uid: string) => aq(uid, null);
+  const comPercentual = (uid: string, min: number, max: number | null = null) => aq(uid, carga('PERCENTUAL_WS', min, max));
+
+  it('NENHUMA (nulo ou explícito) e PERCENTUAL_WS ficam num grupo só, em qualquer ordem', () => {
+    expect(agrupar([comPercentual('a', 40), sem('b'), aq('c', carga('NENHUMA'))]).map((g) => g.series.length)).toEqual([3]);
+    expect(agrupar([sem('a'), sem('b'), comPercentual('c', 50)]).map((g) => g.series.length)).toEqual([3]);
+  });
+
+  it('o resumo do grupo mistura mostra o % de quem tem e "—" nas outras, mesmo com a primeira sem %', () => {
+    expect(descreverSeries([comPercentual('a', 40), sem('b'), sem('c')], config)).toEqual(['3x10 a 15 - Aquecimento 40% · — · — da WS']);
+    expect(descreverSeries([sem('a'), comPercentual('b', 40, 50)], config)).toEqual(['2x10 a 15 - Aquecimento — · 40% a 50% da WS']);
+    expect(descreverSeries([sem('a'), sem('b')], config)).toEqual(['2x10 a 15 - Aquecimento']);
+  });
+
+  it('carga fixa não entra no grupo com eles, nem carga de trabalho', () => {
+    const fixa = (uid: string, kg: number) => aq(uid, { ...carga('CARGA_FIXA'), valorKg: kg });
+    expect(agrupar([fixa('a', 10), sem('b')]).map((g) => g.series.length)).toEqual([1, 1]);
+    expect(agrupar([comPercentual('a', 40), fixa('b', 10)]).map((g) => g.series.length)).toEqual([1, 1]);
+    expect(agrupar([aq('a', carga('CARGA_TRABALHO')), sem('b')]).map((g) => g.series.length)).toEqual([1, 1]);
+  });
+
+  it('o que já separava continua separando: tipo, repetições e técnica', () => {
+    const outroTipo = serieDeTeste('d', { tipo: 'FEEDER', repsMin: 10, repsMax: 15, carga: null });
+    const outraFaixa = serieDeTeste('e', { tipo: 'WARM_UP', repsMin: 8, repsMax: 8, carga: comPercentual('x', 40).carga });
+    expect(agrupar([sem('a'), outroTipo, sem('b')]).map((g) => g.series.length)).toEqual([1, 1, 1]);
+    expect(agrupar([comPercentual('a', 40), outraFaixa]).map((g) => g.series.length)).toEqual([1, 1]);
   });
 });
 

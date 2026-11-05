@@ -2,7 +2,7 @@ import { Repeat } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
 import type { Carga, Configuracao, ModoDeCarga, Serie } from '../../api/tipos';
-import type { GrupoDeSeries } from '../../dominio/agrupamento';
+import { modoDoGrupo, type GrupoDeSeries } from '../../dominio/agrupamento';
 import { alterarGrupo, alterarRirDaSerie } from '../../dominio/editorTreino';
 import { mascaraDeNumero } from '../../dominio/formatos';
 import { papelDe } from '../../dominio/metodologia';
@@ -92,7 +92,7 @@ export function CargaERirDaSerie({ grupo: g, series, config, porSerie, semCarga,
   const emLinha = largura === null ? janelaLarga : largura >= escalar(LARGURA_EM_LINHA, fatorTexto);
   const s = g.series[0];
   const papel = papelDe(config, s.tipo);
-  const modo = s.carga?.modo ?? 'NENHUMA';
+  const modo = modoDoGrupo(g);
   const escolha = escolhaDeCargaDoPapel(config, papel, modo, unidade, 'serie');
   const percentual = !semCarga && escolha.marcado === 'PERCENTUAL_WS';
   const { erros, avisos } = problemasDoGrupoDeSeries(porSerie, g.inicio, g.series.length);
@@ -121,7 +121,7 @@ export function CargaERirDaSerie({ grupo: g, series, config, porSerie, semCarga,
   const medir = (e: LayoutChangeEvent) => setLargura(e.nativeEvent.layout.width);
   return <View style={estilos.bloco} onLayout={medir}>
     {semCarga ? null : <Escolha<ModoDeCarga> descricao="Forma de carga" opcoes={escolha.opcoes} valor={escolha.marcado}
-      aoMudar={(m) => aoMudar(alterarGrupo(series, g, { modo: modoAoEscolher(papel, m) }, config))} />}
+      aoMudar={(m) => { if (m !== escolha.marcado) aoMudar(alterarGrupo(series, g, { modo: modoAoEscolher(papel, m) }, config)); }} />}
     <ErroDoCampo mensagem={erros['carga.modo'] ?? erros.carga} />
     {/* Os kg são do grupo: kg diferentes já separam as séries em grupos (`agrupamento`). */}
     {!semCarga && modo === 'CARGA_FIXA' ? <CampoDaCargaFixa rotulo="Carga" valor={s.carga?.valorKg} erro={erros['carga.valorKg']}

@@ -154,8 +154,8 @@ describe('RIR de 0 a 10, por série, dentro do mesmo grupo', () => {
     expect(agrupar(quatro())).toHaveLength(1);
   });
 
-  it('RIR, RPE e esforço ausente na mesma série igual ainda são um grupo; o texto mostra cada um', () => {
-    expect(agrupar([serie('a', { esforco: rir(2) }), serie('b', { esforco: rpe(8) })])).toHaveLength(1);
+  it('RIR e esforço ausente são um grupo; RPE não se junta a RIR (o texto do grupo perderia o RPE)', () => {
+    expect(agrupar([serie('a', { esforco: rir(2) }), serie('b', { esforco: rpe(8) })])).toHaveLength(2);
     expect(agrupar([serie('a', { esforco: rir(2) }), serie('b')])).toHaveLength(1);
     expect(textoEsforcoDoGrupo({ series: [serie('a', { esforco: rir(2) }), serie('b')] })).toBe('RIR 2, —');
   });

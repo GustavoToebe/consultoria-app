@@ -1,5 +1,5 @@
 import type { CargaDaEtapa, Configuracao, Serie } from '../api/tipos';
-import { faixa, textoCardio, textoCarga, textoDosPercentuaisDoGrupo, textoEsforcoDoGrupo, textoPausa, textoTecnica } from './agrupamento';
+import { faixa, modoDoGrupo, textoCardio, textoCarga, textoDosPercentuaisDoGrupo, textoEsforcoDoGrupo, textoPausa, textoTecnica } from './agrupamento';
 import { blocosIguais, blocosValidos, somaDosBlocos } from './blocos';
 import { rotuloDescanso } from './descanso';
 import { metaDaRetomada, textoDaCargaDaEtapa } from './etapas';
@@ -99,7 +99,7 @@ export function previaDoGrupo(
   const resumo = `${plural(n, 'série completa', 'séries completas')} · ${estruturaDaSerie(primeira, config)}`;
   if (primeira.cardio) return { resumo, linhas: [] };
   const linhas: string[] = [];
-  const modo = primeira.carga?.modo ?? 'NENHUMA';
+  const modo = modoDoGrupo(grupo);
   const ws = nomeDaSerieDeTrabalho(config);
   if (!contexto.semCarga && cargaIlegivel(primeira.carga)) {
     // Forma de carga mais nova que o app: o texto fixo, uma vez (já traz o "Carga:").
