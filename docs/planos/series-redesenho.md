@@ -25,6 +25,8 @@ O treinador prescreve cada exercício como uma lista enxuta de blocos `Séries �
 - [x] 3. Telas do treinador: `CartaoDoTipo`, `EditorModelo`, `EditorDeTreino`, `CartaoExercicio`, `EditorSeries`, `CamposDaPrescricao` — commit: `aa85f865`
 - [x] 4. Testes: typecheck, lint, Jest, mvn (sem `*IntegrationTest`), scripts e a suíte Playwright inteira (869 passaram, 10 pulados, 1 falha anterior à mudança: `links-do-menu.spec.ts:20`); ajustes finais (Aquecimento binário, seed com `kg`, guias, `AGENTS.md`) — commit: o último desta branch
 
+- [x] 5. Limpeza de `TOP_SET` — commit: `8d4abeb5`. Ajustes de usabilidade de Dieta (observação/preparo recolhidos, unidade compacta, "Adicionar refeição" no pé, sub-cartões em Suplementação e Outros, modelo de refeição avulsa enxuto) e Mobilidade (botão "Modelos", PDF, Orientações recolhidas, Nome e Prescrição lado a lado) — commit: o seguinte a `8d4abeb5`
+
 ## Fora do escopo
 - Migration de conversão de JSON antigo (o banco é recriado).
 - Os trabalhos da branch `editores-revisao` (revisão visual dos três editores), que partiu de outro ponto da main.
@@ -36,6 +38,7 @@ O treinador prescreve cada exercício como uma lista enxuta de blocos `Séries �
 - Dia de treino (`unica`) sem metodologia visível (consequência literal do texto 3.1).
 - `*IntegrationTest` e o banco recriado (`docker compose down -v`) não foram verificados: Docker desligado.
 - `EscolhaSuspensa` (peça compartilhada) mudou o lado de abertura; montador não conferido.
-- Branch `editores-revisao` conflita com esta nas mesmas telas; decisão do Gustavo.
+- Branch `editores-revisao`: o Gustavo decidiu descartá-la (04/11) e seguir daqui; a remoção do worktree e da branch fica com ele.
+- Dieta e Mobilidade (04/11, passo 5): o `UNIDADES` desta branch tem 3 unidades (g, ml, un), não as 7 do texto; a escolha compacta serve às 3. Dieta e mobilidade só conferidas por e2e com API simulada, não na web local nem no nativo; o claro areia e o contraste alto ficaram sem conferir. `OpcaoDeModelo` existe em 3 cópias (treino, dieta, mobilidade): levar para `plano/` num passo à parte. As Orientações da mobilidade só leem `recolhido` ao montar (não reabrem ao aplicar um modelo).
 - Nativo, leitor de tela real e temas areia e contraste alto do campo de carga fixa e do Aquecimento não conferidos.
 - Todas as sobras também estão em "Pendências soltas" no README.

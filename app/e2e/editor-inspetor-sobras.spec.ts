@@ -157,8 +157,8 @@ for (const [largura, escuro] of [[1440, false], [1280, false], [1280, true], [10
       const [a, b] = [await page.getByRole('heading', { name: 'Opção A' }).boundingBox(), await page.getByRole('heading', { name: 'Opção B' }).boundingBox()];
       if (!a || !b) throw new Error('sem opção');
       expect(Math.abs(a.y - b.y)).toBeLessThan(2);
-      // Adicionar escolhe a refeição nova.
-      await page.getByRole('button', { name: 'Adicionar refeição' }).click();
+      // Adicionar escolhe a refeição nova (o botão do pé da lista; o outro fica na linha de ações de cima).
+      await page.getByRole('button', { name: 'Adicionar refeição' }).last().click();
       await expect(page.getByRole('button', { name: /^Refeição 3 de 3: Refeição 3/ })).toHaveAttribute('aria-current', 'true');
     } else {
       await expect(page.getByRole('button', { name: /^Refeição \d de/ })).toHaveCount(0);
