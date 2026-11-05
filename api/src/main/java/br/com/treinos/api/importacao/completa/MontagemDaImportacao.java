@@ -189,6 +189,26 @@ public final class MontagemDaImportacao {
         public String toString() {
             return "Montagem"; // só contagens saem daqui por texto
         }
+
+        /**
+         * A montagem sem os alunos ignorados pelo treinador na amostra: cadastros novos, planos (com a dieta e os
+         * suplementos deles) e pesos desses donos saem. Os exercícios novos são da biblioteca (da aba de lista ou
+         * respondidos com "criar"), não de um aluno, e ficam. Os problemas da leitura continuam todos (são do arquivo).
+         * {@code pesosIniciais} nunca passa do que sobrou de pesos; {@code alunosReaproveitados} desconta os já
+         * existentes ignorados.
+         */
+        public Montagem semDonos(Set<Dono> ignorados) {
+            if (ignorados.isEmpty()) {
+                return this;
+            }
+            List<PesoNovo> pesosRestantes = pesos.stream().filter(p -> !ignorados.contains(p.dono())).toList();
+            long existentesIgnorados = ignorados.stream().filter(d -> d.existente() != null).count();
+            return new Montagem(alunosNovos.stream().filter(a -> !ignorados.contains(a.dono())).toList(),
+                    (int) Math.max(0, alunosReaproveitados - existentesIgnorados), pesosRestantes,
+                    Math.min(pesosIniciais, pesosRestantes.size()), pesosJaRegistrados, exerciciosNovos,
+                    planos.stream().filter(p -> !ignorados.contains(p.dono())).toList(), suplementosSensiveisPulados,
+                    faixasRecuperadasDeData, problemas, linhas, partesPuladas, pendencias, abasComNomeDeAluno);
+        }
     }
 
     private MontagemDaImportacao() {

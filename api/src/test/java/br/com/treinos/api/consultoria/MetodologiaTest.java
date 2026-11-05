@@ -71,11 +71,11 @@ class MetodologiaTest {
     }
 
     @Test
-    void padraoTemQuatroTiposComCodigoPapelERegraDoSaraiva() {
+    void padraoTemCincoTiposComCodigoPapelERegraDoSaraiva() {
         assertThat(PADRAO.tipos()).extracting(TipoDeSerie::codigo)
-                .containsExactly("WARM_UP", "FEEDER", "WORKING", "BACK_OFF");
+                .containsExactly("WARM_UP", "FEEDER", "WORKING", "BACK_OFF", "TOP_SET");
         assertThat(PADRAO.tipos()).extracting(TipoDeSerie::nome)
-                .containsExactly("Aquecimento", "FS", "WS", "Back off");
+                .containsExactly("Aquecimento", "FS", "WS", "Back off", "Top set");
         assertThat(PADRAO.tipoTrabalho()).isEqualTo("WS");
         assertThat(PADRAO.codigoTrabalho()).isEqualTo("WORKING");
         assertThat(PADRAO.tipoPorCodigo("FEEDER").papel()).isEqualTo(Papel.PREPARACAO);
@@ -102,7 +102,19 @@ class MetodologiaTest {
         assertThat(backOff.cargaPadrao().percentualMin()).isEqualByComparingTo("85");
         assertThat(backOff.esforcoPadrao()).isEqualTo(Esforco.deRir(0));
         assertThat(PADRAO.tipoPorCodigo("FEEDER").cargaPadrao().percentualMin()).isEqualByComparingTo("85");
-        assertThat(PADRAO.tipoPorCodigo("TOP_SET")).isNull();
+        // Top set: sem sugestão de carga (com CARGA_TRABALHO contaria como série de trabalho) e a regra mora na explicação do tipo.
+        TipoDeSerie topSet = PADRAO.tipoPorCodigo("TOP_SET");
+        assertThat(topSet.nome()).isEqualTo("Top set");
+        assertThat(topSet.papel()).isEqualTo(Papel.TRABALHO);
+        assertThat(topSet.repeticoes()).isEqualTo(new Repeticoes(6, 8));
+        assertThat(topSet.cargaPadrao().modo()).isEqualTo("NENHUMA");
+        assertThat(topSet.esforcoPadrao()).isEqualTo(Esforco.deRir(0));
+        assertThat(topSet.explicacao()).contains("maior que a da série anterior").contains("5% a 10%").contains("1% a 5%");
+        // A WS continua sendo o primeiro tipo de trabalho: dá nome ao "% da WS" e é o que a série de trabalho grava.
+        assertThat(PADRAO.codigoTrabalho()).isEqualTo("WORKING");
+        assertThat(PADRAO.tipoTrabalho()).isEqualTo("WS");
+        assertThat(PADRAO.tipos()).extracting(TipoDeSerie::codigo)
+                .containsExactly("WARM_UP", "FEEDER", "WORKING", "BACK_OFF", "TOP_SET");
         // Aquecimento e FS não levam esforço de falha por padrão.
         assertThat(PADRAO.tipoPorCodigo("WARM_UP").esforcoPadrao()).isNull();
         assertThat(PADRAO.tipoPorCodigo("FEEDER").esforcoPadrao()).isNull();

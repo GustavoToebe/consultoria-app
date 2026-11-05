@@ -15,9 +15,8 @@ function conferir(series, deCardio = false) {
 }
 
 test('os tipos da série são os códigos da metodologia', () => {
-  assert.deepEqual(['Aquecimento', 'FS', 'WS', 'Back off'].map(codigoDoTipo), ['WARM_UP', 'FEEDER', 'WORKING', 'BACK_OFF']);
-  assert.deepEqual(CODIGOS, ['WARM_UP', 'FEEDER', 'WORKING', 'BACK_OFF']);
-  assert.throws(() => codigoDoTipo('Top set'), /fora da metodologia padrão/);
+  assert.deepEqual(['Aquecimento', 'FS', 'WS', 'Back off', 'Top set'].map(codigoDoTipo), ['WARM_UP', 'FEEDER', 'WORKING', 'BACK_OFF', 'TOP_SET']);
+  assert.deepEqual(CODIGOS, ['WARM_UP', 'FEEDER', 'WORKING', 'BACK_OFF', 'TOP_SET']);
   assert.throws(() => codigoDoTipo('Inventado'), /fora da metodologia padrão/);
 });
 test('aquecimento mantém a faixa e não prescreve carga nem esforço', () => {
@@ -118,12 +117,14 @@ test('drop-set fica na série de trabalho, com a queda do padrão ou a escrita',
   assert.equal(b.tecnica.quedas, 2);
   conferir([a, b]);
 });
-test('top set da planilha não existe na metodologia: vira uma WS com carga de trabalho', () => {
+test('top set da planilha é o tipo TOP_SET (nunca WS), sem sugestão de carga (não é série de trabalho)', () => {
   const [s] = montarSeries(['1x6 - Top set'], 'Top set - Faça com +5% da carga usada na WS', REGRA);
-  assert.deepEqual([s.tipo, s.repsMin, s.repsMax], ['WORKING', 6, 6]);
-  assert.deepEqual(s.carga, cargaDe('CARGA_TRABALHO'));
+  assert.deepEqual([s.tipo, s.repsMin, s.repsMax], ['TOP_SET', 6, 6]);
+  assert.deepEqual(s.carga, cargaDe('NENHUMA'));
   assert.equal(s.esforco, null);
-  assert.equal(montarSeries(['Top set'], '', REGRA)[0].tipo, 'WORKING');
+  assert.equal(montarSeries(['Top set'], '', REGRA)[0].tipo, 'TOP_SET');
+  const [ws, ts] = montarSeries(['1x8 - WS', '1x6 a 8 - Top set'], '', REGRA);
+  assert.deepEqual([ws.tipo, ts.tipo, ts.repsMin, ts.repsMax], ['WORKING', 'TOP_SET', 6, 8]);
   assert.match(obsLimpa('Top set - Faça com +5% da carga usada na WS'), /Top set/, 'a observação mantém o que a série não representa');
 });
 test('o JSON do padrão não é alterado ao montar as séries', () => {

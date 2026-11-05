@@ -173,6 +173,28 @@ export function respostasSalvasMarcadas(analise: AnaliseDaPlanilha): EstadoDasRe
   return { tipos, ligacoes: {}, exercicios: nomes(analise.exercicios), alimentos: nomes(analise.alimentos), suplementos };
 }
 
+/** O aviso do topo da etapa Nomes quando as sugestões vieram marcadas sozinhas. */
+export const AVISO_PREENCHIDO_AUTOMATICAMENTE = 'Preenchemos automaticamente as correspondências mais prováveis. Você pode revisar abaixo ou avançar direto para a prévia.';
+
+/**
+ * Pré-preenchimento da etapa Nomes: exercício e alimento "provável" (com sugestão da biblioteca) e suplemento com sugestão
+ * já vêm marcados com ela, para o treinador poder seguir direto para a prévia. Só preenche o que ainda não tem resposta
+ * (a salva da importação anterior e a que ele deu valem mais). Quem não tem par (nem sugestão) fica sem resposta de
+ * propósito: sem resposta o nome já fica como na planilha e o suplemento vai para Medicação e ergogênicos (o padrão
+ * seguro), e gravar "manter" por padrão seguraria o nome mesmo se a biblioteca ganhar o item depois. `preenchidas` conta
+ * quantos nomes foram marcados aqui.
+ */
+export function preencherSugestoes(analise: AnaliseDaPlanilha, estado: EstadoDasRespostas): { estado: EstadoDasRespostas; preenchidas: number } {
+  const exercicios = { ...estado.exercicios };
+  const alimentos = { ...estado.alimentos };
+  const suplementos = { ...estado.suplementos };
+  let preenchidas = 0;
+  for (const p of analise.exercicios) if (p.nivel === 'PROVAVEL' && p.sugestao && !exercicios[p.nome]) { exercicios[p.nome] = { acao: 'ACEITAR' }; preenchidas++; }
+  for (const p of analise.alimentos) if (p.nivel === 'PROVAVEL' && p.sugestao && !alimentos[p.nome]) { alimentos[p.nome] = { acao: 'ACEITAR' }; preenchidas++; }
+  for (const p of analise.suplementos) if (p.sugestao && !suplementos[p.nome]) { suplementos[p.nome] = p.sugestao; preenchidas++; }
+  return { estado: { ...estado, exercicios, alimentos, suplementos }, preenchidas };
+}
+
 /** O tipo da aba é o que foi dado na importação anterior (e é diferente do reconhecido). */
 export function abaRespondidaAntes(analise: AnaliseDaPlanilha, estado: EstadoDasRespostas, aba: AbaDaPlanilha): boolean {
   return !!aba.tipoSalvo && aba.tipoSalvo !== aba.tipo && tipoDaAba(analise, estado, aba.indice) === aba.tipoSalvo;
@@ -459,7 +481,7 @@ const PROBLEMAS: Record<string, string> = {
   ALUNO_FORA: 'A linha é de um aluno que ficou de fora.',
   ALUNO_SEM_CODIGO: 'Aluno sem código.',
   ALUNO_SEM_NOME: 'Aluno sem nome.',
-  BACK_OFF_SEM_PERCENTUAL: 'Back off sem percentual: a série entra sem carga.',
+  BACK_OFF_SEM_PERCENTUAL: 'Back off sem percentual: a série entra com o padrão da metodologia (% da WS); confira no editor.',
   BO_INVALIDO: 'A coluna de back off não é sim nem não.',
   CABECALHO_NAO_USADO: 'A linha não foi usada.',
   CODIGO_REPETIDO: 'Código repetido: só a primeira linha vale.',
@@ -521,7 +543,6 @@ const PROBLEMAS: Record<string, string> = {
   TIPO_FORA_DA_METODOLOGIA: 'A metodologia não tem o tipo de série: a série não entra.',
   TREINOS_DEMAIS: 'Mais de 20 divisões: as demais ficaram de fora.',
   TREINO_SEM_NOME: 'Treino sem nome: entra como "Treino" e a letra.',
-  TS_COMO_WS: 'Top set virou uma série WS (confira a carga no editor).',
   TS_INVALIDO:'A coluna de top set não é sim nem não.',
   UNIDADE_DESCONHECIDA: 'Unidade desconhecida: o item entra em gramas.',
   VALOR_NUTRICIONAL_INVALIDO: 'Valor nutricional inválido: fica "—".',

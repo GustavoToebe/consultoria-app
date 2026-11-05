@@ -185,7 +185,9 @@ test('treino: sessões por letra, exercícios pela Ordem, séries FS/WS/Back off
   assert.equal(remada.unidade, 'kg');
   assert.equal(remada.progressao, true);
   assert.equal(remada.exercicioId, null);
-  assert.ok(remada.series.every((s) => s.descansoSegundos === null && s.tecnica === null && s.esforco === null && s.cardio === null));
+  assert.ok(remada.series.every((s) => s.descansoSegundos === null && s.tecnica === null && s.cardio === null));
+  // Esforço padrão do tipo na metodologia: FS sem, WS e Back off com RIR 0.
+  assert.deepEqual(remada.series.map((s) => s.esforco), [null, null, null, { rir: 0, rpe: null }, { rir: 0, rpe: null }]);
   verificarContratoDoTreino(doAluno(r, 'AL1').treino.conteudo);
 });
 
@@ -202,17 +204,16 @@ test('treino: Rep Range que virou data (recuperada, só contada), WS absurdo, FS
   assert.deepEqual(ws23.series.map((s) => [s.tipo, s.carga.modo]), Array(4).fill(['FEEDER', 'NENHUMA']));
   assert.equal(problemasDe(r, 'Treinos_Exercicios', 'quantidade de WS acima de 10').length, 1);
   assert.equal(problemasDe(r, 'Treinos_Exercicios', 'FS sem regra').length, 1);
-  // nome > 120: cortado, inteiro na observação; link http recusado; TS verdadeiro vira mais uma WS (a metodologia não tem Top set); BO com % 0 não é problema se BO falso
+  // nome > 120: cortado, inteiro na observação; link http recusado; TS verdadeiro vira a série TOP_SET (nunca WS); BO com % 0 não é problema se BO falso
   assert.equal(gigante.nome.length <= 120, true);
   assert.ok(gigante.observacao.startsWith(`Nome completo: ${NOME_GIGANTE}`));
   assert.equal(gigante.videoUrl, null);
   assert.equal(problemasDe(r, 'Treinos_Exercicios', 'link de vídeo não aceito').length, 1);
   assert.equal(problemasDe(r, 'Treinos_Exercicios', 'nome do exercício com mais de 120').length, 1);
-  assert.deepEqual(gigante.series.map((s) => [s.tipo, s.carga.modo]), [['FEEDER', 'PERCENTUAL_WS'], ['WORKING', 'CARGA_TRABALHO'], ['WORKING', 'CARGA_TRABALHO'], ['WORKING', 'CARGA_TRABALHO']]);
-  // o Top set da planilha não traz repetições: a série extra fica sem faixa, com a carga de trabalho
-  assert.equal(gigante.series.at(-1).repsMin, null);
-  assert.deepEqual(gigante.series.at(-1).carga, { modo: 'CARGA_TRABALHO', percentualMin: null, percentualMax: null });
-  assert.equal(problemasDe(r, 'Treinos_Exercicios', 'top set virou uma série WS').length, 1, 'o treinador é avisado para conferir a carga');
+  assert.deepEqual(gigante.series.map((s) => [s.tipo, s.carga.modo]), [['FEEDER', 'PERCENTUAL_WS'], ['WORKING', 'CARGA_TRABALHO'], ['WORKING', 'CARGA_TRABALHO'], ['TOP_SET', 'NENHUMA']]);
+  // o Top set da planilha não traz repetições: a série leva as do tipo (6 a 8), sem sugestão de carga
+  assert.deepEqual([gigante.series.at(-1).repsMin, gigante.series.at(-1).repsMax], [6, 8]);
+  assert.deepEqual(gigante.series.at(-1).carga, { modo: 'NENHUMA', percentualMin: null, percentualMax: null });
   assert.equal(gigante.series.find((s) => s.tipo === 'FEEDER').carga.percentualMin, 85);
   // sem série (aluno AL6): o exercício fica no plano, sem séries, para o treinador preencher à mão
   const semSerie = doAluno(r, 'AL6').treino.conteudo.sessoes[0].exercicios;
@@ -299,7 +300,8 @@ test('o JSON respeita os limites da API, tem uids únicos e não tem zero no lug
     assert.ok(a.treino.conteudo.sessoes.every((s) => Array.isArray(s.grupos) && s.grupos.length === 0));
   }
   const item = doAluno(r, 'AL2').dieta.conteudo.refeicoes[0].opcoes[0].itens[0];
-  assert.deepEqual([item.fatorCorrecao, item.fatorCoccao, item.alimentoId], [null, null, null]);
+  assert.equal(item.alimentoId, null);
+  assert.deepEqual([item.fatorCorrecao, item.fatorCoccao], [1, 1]);
 });
 
 test('problemas só têm aba, linha e motivo, sem nome, alimento, observação nem peso; o resumo só traz contagens', () => {
@@ -328,10 +330,12 @@ test('regras pequenas: faixa de repetições, dia da semana, vídeo, séries e n
   const base = { ws: undefined, fs: undefined, ts: undefined, bo: undefined, backoff: undefined, faixa: { min: 3, max: 6 } };
   assert.deepEqual(montarSeries({ ...base, fs: 1, ws: 1, bo: true, backoff: 0.9 }, (a) => avisos.push(a)).map((s) => s.carga.percentualMin), [85, null, 90]);
   assert.deepEqual(montarSeries({ ...base, fs: 1, ws: 1, ts: true, bo: true, backoff: 0.9 }, () => {}).map((s) => [s.tipo, s.carga.modo]),
-    [['FEEDER', 'PERCENTUAL_WS'], ['WORKING', 'CARGA_TRABALHO'], ['WORKING', 'CARGA_TRABALHO'], ['BACK_OFF', 'PERCENTUAL_WS']]);
+    [['FEEDER', 'PERCENTUAL_WS'], ['WORKING', 'CARGA_TRABALHO'], ['TOP_SET', 'NENHUMA'], ['BACK_OFF', 'PERCENTUAL_WS']]);
   const semPercentual = montarSeries({ ...base, ws: 1, bo: true, backoff: 0 }, (a) => avisos.push(a));
-  assert.equal(semPercentual[1].carga.modo, 'NENHUMA');
-  assert.deepEqual(avisos, ['back off sem percentual válido (série sem carga)']);
+  // Sem % na planilha: o padrão do tipo na metodologia (% da WS), com RIR 0, para a série já nascer válida.
+  assert.deepEqual([semPercentual[1].carga.modo, semPercentual[1].carga.percentualMin, semPercentual[1].esforco], ['PERCENTUAL_WS', 85, { rir: 0, rpe: null }]);
+  assert.deepEqual(semPercentual[0].esforco, { rir: 0, rpe: null });
+  assert.deepEqual(avisos, ['back off sem percentual válido (usei o padrão da metodologia)']);
   assert.deepEqual(montarSeries({ ...base, ws: -1, fs: 1.5 }, () => {}), []);
   const usados = new Set();
   assert.deepEqual(['ALU/1', 'ALU_1', '../x'].map((c) => nomeDoArquivo(c, usados)), ['ALU_1.json', 'ALU_1_2.json', '___x.json']);
@@ -1422,7 +1426,7 @@ test('converter-planos --pacote: grava a pasta para-o-saraiva com os 4 arquivos;
 
   const simulado = rodar('--simular', '--pacote');
   assert.equal(simulado.status, 0, simulado.stderr);
-  assert.match(simulado.stdout, /Pacote do Saraiva: \d+ suplementos, 6 exercícios \(\d+ sem sugestão\) e 16 linhas a corrigir \(nada gravado\)\./);
+  assert.match(simulado.stdout, /Pacote do Saraiva: \d+ suplementos, 6 exercícios \(\d+ sem sugestão\) e 15 linhas a corrigir \(nada gravado\)\./);
   assert.throws(() => readdirSync(saida));
 
   const sem = rodar();
@@ -1439,11 +1443,11 @@ test('converter-planos --pacote: grava a pasta para-o-saraiva com os 4 arquivos;
   for (const nome of ARQUIVOS_DO_PACOTE.filter((n) => n.endsWith('.csv'))) assert.ok(readFileSync(join(dentro, nome), 'utf8').startsWith('﻿'), nome);
   if (process.platform !== 'win32') for (const nome of ARQUIVOS_DO_PACOTE) assert.equal(statSync(join(dentro, nome)).mode & 0o077, 0, nome);
   const corrigir = readFileSync(join(dentro, '3-o-que-corrigir.csv'), 'utf8');
-  assert.equal(corrigir.trimEnd().split('\n').length, 1 + 16);
+  assert.equal(corrigir.trimEnd().split('\n').length, 1 + 15);
   assert.ok(corrigir.includes('Aluno Um;Treinos_Exercicios;5;'));
   const exercicios = readFileSync(join(dentro, '2-exercicios.csv'), 'utf8');
   assert.equal(exercicios.trimEnd().split('\n').length, 1 + 6);
-  assert.match(readFileSync(join(dentro, 'mensagem.txt'), 'utf8'), /\*O que corrigir\* \(16 linhas\)/);
+  assert.match(readFileSync(join(dentro, 'mensagem.txt'), 'utf8'), /\*O que corrigir\* \(15 linhas\)/);
 
   // o destino que a pessoa escreveu e ninguém entende entra no "o que corrigir" desta rodada
   const a = abas();

@@ -41,7 +41,7 @@ const CONTEUDO: ConteudoDieta = {
       uid: 'almoco', nome: 'Almoço', horario: '12:00', observacao: null,
       opcoes: [
         { uid: 'almoco-a', rotulo: 'A', itens: [item('arroz', 'Arroz branco cozido', 150, 'g', { fatorCoccao: 2.5, grupo: 'Cereais e derivados' }), item('frango', 'Frango grelhado', 100, 'g', { grupo: 'Carnes e derivados' })] },
-        { uid: 'almoco-b', rotulo: 'B', itens: [item('batata', 'Batata cozida', 200, 'g', { fatorCorrecao: 1.25 })] },
+        { uid: 'almoco-b', rotulo: 'B', itens: [item('batata', 'Batata cozida', 200, 'g', { fatorCorrecao: 1.25, fatorCoccao: 1 })] },
       ],
     },
   ],
@@ -72,10 +72,10 @@ test('lista de compras: semana e mês, quantidade crua pelo fator de cocção e 
   await expect(page.getByRole('heading', { name: 'Lista de compras', level: 1 })).toBeVisible();
   await expect(page.getByText('Dieta de teste', { exact: true })).toBeVisible();
 
-  // Semana (padrão): arroz cozido 150 g ÷ 2,5 = 60 g cru por dia, 420 g na semana; frango sem fator, como na dieta.
+  // Semana: arroz 150 g ÷ 2,5 = 60 g cru por dia (420 g). Frango grelhado sem fator gravado: FCc 0,78 e FC 1,12.
   await expect(page.getByText('Lista da semana')).toBeVisible();
   await expect(page.getByText('420 g cru')).toBeVisible();
-  await expect(page.getByText('700 g (como na dieta)', { exact: true })).toBeVisible();
+  await expect(page.getByText('1,01 kg cru')).toBeVisible();
   await expect(page.getByText('14 un')).toBeVisible();
 
   // Agrupada pelo grupo do alimento, na ordem do mercado (carnes antes de cereais), "Outros itens" (sem grupo) por último, com a contagem.
@@ -86,7 +86,7 @@ test('lista de compras: semana e mês, quantidade crua pelo fator de cocção e 
   await page.getByRole('radiogroup', { name: 'Período da lista' }).getByRole('button', { name: 'Mês' }).click();
   await expect(page.getByText('Lista do mês')).toBeVisible();
   await expect(page.getByText('1,80 kg cru')).toBeVisible();
-  await expect(page.getByText('3,00 kg (como na dieta)', { exact: true })).toBeVisible();
+  await expect(page.getByText('4,31 kg cru')).toBeVisible();
   await expect(page.getByText('60 un')).toBeVisible();
 
   // Opção B do almoço: sai o arroz e o frango, entra a batata com o fator de correção (200 × 1,25 × 30 = 7,5 kg).
@@ -158,8 +158,8 @@ test(`lista de compras do aluno: 2 semanas, comprado, limpar, ajustar, voltar ao
   await page.getByRole('radiogroup', { name: 'Período da lista' }).getByRole('button', { name: '2 semanas' }).click();
   await expect(page.getByText('Lista de 2 semanas')).toBeVisible();
   await expect(page.getByText('840 g cru', { exact: true })).toBeVisible();
-  await expect(page.getByText('1,40 kg (como na dieta)', { exact: true })).toBeVisible();
-  await expect(page.getByText('28 un (como na dieta)', { exact: true })).toBeVisible();
+  await expect(page.getByText('2,02 kg cru', { exact: true })).toBeVisible();
+  await expect(page.getByText('28 un', { exact: true })).toBeVisible();
   await expect(page.getByText('0 de 3 comprados')).toBeVisible();
 
   // Comprado: o ✓ marca e a contagem sobe; fica no aparelho (recarregar mantém) e vale só para este período.

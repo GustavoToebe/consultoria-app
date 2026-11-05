@@ -1,6 +1,6 @@
 import type { ConteudoDieta, ItemDieta, OpcaoRefeicao, Refeicao } from '../api/tipos';
 import { normalizarDieta } from './dieta';
-import { alimentosDaDieta, comFatoresDaBiblioteca, DIAS_DO_PERIODO, listaDeCompras, marcaSemFator, NOTA_DA_LISTA_ALUNO, NOTA_DA_LISTA_TREINADOR, quantidadeParaTela, refeicoesComEscolha, PERIODOS_DA_LISTA, textoDoPeriodo, tituloDaLista } from './listaDeCompras';
+import { alimentosDaDieta, comFatoresDaBiblioteca, detalheDaConversao, DIAS_DO_PERIODO, listaDeCompras, NOTA_DA_LISTA, NOTA_DA_LISTA_ALUNO, NOTA_DA_LISTA_TREINADOR, quantidadeParaTela, refeicoesComEscolha, PERIODOS_DA_LISTA, textoDoPeriodo, tituloDaLista } from './listaDeCompras';
 
 jest.mock('./uid', () => ({ novoUid: () => 'uid' }));
 
@@ -41,9 +41,9 @@ describe('listaDeCompras', () => {
     expect(DIAS_DO_PERIODO).toEqual({ semana: 7, duasSemanas: 14, mes: 30 });
   });
 
-  it('sem fator, vale a quantidade da dieta (nada vira 1 nem é inventado)', () => {
+  it('item em gramas sem fator é estimado pelo nome (banana: casca grossa, peso pronto)', () => {
     const [linha] = listaDeCompras(dieta([refeicao('r', [opcao('a', [item('Banana', 120)])])]), {}, 'semana');
-    expect(linha).toMatchObject({ quantidade: 840, cru: false, bruto: false, semFator: true });
+    expect(linha).toMatchObject({ quantidade: 120 * 1.45 * 7, cru: false, bruto: true, semFator: false });
   });
 
   it('fatores só valem em gramas; ml e unidade ficam como estão', () => {
@@ -133,8 +133,8 @@ describe('prévia do editor com os fatores da biblioteca', () => {
     expect(c.refeicoes[0].opcoes[0].itens[1].fatorCoccao).toBe(9);
     expect(listaDeCompras(comFatores, {}, 'semana').map((l) => [l.nome, l.quantidade, l.semFator])).toEqual([
       ['Arroz cozido', (150 / 2.5) * 7, false],
-      ['Feijão', expect.closeTo(100 * 1.1 * 7, 6), false],
-      ['Sumido', 560, true],
+      ['Feijão', expect.closeTo((100 / 1.85) * 1.1 * 7, 6), false],
+      ['Sumido', 560, false],
     ]);
   });
 });
@@ -143,10 +143,10 @@ describe('grupo do alimento na linha', () => {
   it('a linha leva o grupo do item (sem espaços sobrando), sem mudar a conta; sem grupo = null', () => {
     const c = dieta([
       refeicao('almoco', [opcao('a', [
-        item('Arroz cozido', 150, { alimentoId: 'arroz', manual: false, grupo: ' Cereais e derivados ' }),
-        item('Sal', 5, { grupo: '   ' }),
+        item('Arroz cozido', 150, { alimentoId: 'arroz', manual: false, fatorCorrecao: 1, fatorCoccao: 1, grupo: ' Cereais e derivados ' }),
+        item('Sal', 5, { fatorCorrecao: 1, fatorCoccao: 1, grupo: '   ' }),
       ])]),
-      refeicao('jantar', [opcao('a', [item('Arroz cozido', 100, { alimentoId: 'arroz', manual: false, grupo: null })])]),
+      refeicao('jantar', [opcao('a', [item('Arroz cozido', 100, { alimentoId: 'arroz', manual: false, fatorCorrecao: 1, fatorCoccao: 1, grupo: null })])]),
     ]);
     expect(listaDeCompras(c, {}, 'semana').map((l) => [l.nome, l.quantidade, l.grupo])).toEqual([
       ['Arroz cozido', 250 * 7, 'Cereais e derivados'],
@@ -181,11 +181,19 @@ describe('quantidadeParaTela', () => {
   });
 });
 
-describe('textos da lista pelo papel', () => {
-  it('aluno lê "como na dieta"; treinador, "Sem fator" e onde cadastrar', () => {
-    expect(marcaSemFator('aluno')).toBe('como na dieta');
-    expect(marcaSemFator('treinador')).toBe('Sem fator');
-    expect(NOTA_DA_LISTA_ALUNO).toMatch(/seu treinador/);
-    expect(NOTA_DA_LISTA_TREINADOR).toMatch(/Biblioteca › Alimentos/);
+describe('textos da lista', () => {
+  it('aluno, treinador e PDF usam a mesma nota de cálculo estimado', () => {
+    expect(NOTA_DA_LISTA_ALUNO).toBe(NOTA_DA_LISTA);
+    expect(NOTA_DA_LISTA_TREINADOR).toBe(NOTA_DA_LISTA);
+    expect(NOTA_DA_LISTA).toMatch(/cálculo estimado/);
+  });
+
+  it('detalhe diz de onde veio o peso a comprar', () => {
+    const base = { unidade: 'g' as const, naDieta: 1000, quantidadeCru: 1282, cru: true, bruto: true };
+    expect(detalheDaConversao(base)).toMatch(/pronto/);
+    expect(detalheDaConversao(base)).toMatch(/cru limpo/);
+    expect(detalheDaConversao({ ...base, bruto: false, quantidadeCru: 400 })).toMatch(/cozido/);
+    expect(detalheDaConversao({ ...base, cru: false, bruto: true, quantidadeCru: null })).toMatch(/limpo\/descascado/);
+    expect(detalheDaConversao({ ...base, cru: false, bruto: false })).toBeNull();
   });
 });

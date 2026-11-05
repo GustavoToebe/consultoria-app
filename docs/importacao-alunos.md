@@ -94,7 +94,7 @@ node scripts/importacao/importar-planos.mjs  --pasta <a mesma pasta> --gravar   
   YouTube).
 - **Séries (padrão do Saraiva, igual à metodologia padrão):** FS segue a regra de preparação (1 FS = 85%; 2 = 70 e 85;
   3 = 50, 70 e 85; outra quantidade fica sem intensidade e vai para os problemas), 3 repetições; WS usa a faixa da coluna
-  "Rep Range" (`3a6`); TS vira um "Top set" livre; BO vira "Back off" com o percentual da coluna "Back Off %" e 6 a 8
+  "Rep Range" (`3a6`); TS vira uma série "Top set" (tipo `TOP_SET`, 6 a 8 repetições, sem sugestão de carga (`NENHUMA`: não é série de trabalho), sem percentual); BO vira "Back off" com o percentual da coluna "Back Off %" e 6 a 8
   repetições. Exercício sem nenhuma série entra vazio, para o treinador preencher.
 - **Faixa de repetições que o Excel virou data:** "6-8" digitado numa célula vira a data 06/08 (ou 8 de junho, conforme a
   configuração do Excel) e chega como número de série. O conversor pega o dia e o mês da data (converte o serial em UTC, sem

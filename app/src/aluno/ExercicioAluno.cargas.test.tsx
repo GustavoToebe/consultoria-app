@@ -358,11 +358,11 @@ describe('B1 · o Back off acompanha a WS? (cartão real, estado por estado)', (
     const t = await montar(treino(ws('w'), backOff('b1')), null, { carga: 36, repeticoes: 6, data: '2026-10-23' });
     expect(t.caixaDaBase()).toBe(''); // D1: a última vez é dica, nunca valor numa caixa
     expect([t.peso(1), t.peso(2)]).toEqual(['', '']);
-    expect([t.sugestao(1), t.sugestao(2)]).toEqual(['36', '29']); // 80% de 36 = 28,8 → 29
-    expect(t.dica(1)).toContain('Sugestão: 36 kg · Última vez: 36 kg × 6');
+    expect([t.sugestao(1), t.sugestao(2)]).toEqual(['36,5', '29']); // meta 3 a 6 batida em 6: +0,5 kg; 80% de 36 = 28,8 → 29
+    expect(t.dica(1)).toContain('Sugestão: 36,5 kg × 3 reps (+0,5 kg) · Última vez: 36 kg × 6');
     expect(t.dica(2)).not.toContain('Última vez'); // a última vez é a da WS: só na série de trabalho
     // A origem diz de onde a conta partiu: a caixa da base está vazia, então não é "da base do dia".
-    expect(t.dica(1)).toContain('carga da última vez');
+    expect(t.dica(1)).toContain('meta batida na última vez (+0,5 kg pelo arredondamento da metodologia)');
     expect(t.dica(2)).toContain('80% da última vez');
     await t.digitarBase('40');
     expect(t.dica(2)).toContain('80% da base do dia');

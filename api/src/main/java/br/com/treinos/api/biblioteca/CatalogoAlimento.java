@@ -55,17 +55,13 @@ public class CatalogoAlimento {
     @Column(name = "nome_busca", nullable = false)
     private String nomeBusca;
 
-    /** Fator de correção do catálogo público; nulo = a fonte não informou (nunca 1). */
+    /** Fator de correção estimado (V060). */
     @Column(name = "fator_correcao")
     private BigDecimal fatorCorrecao;
 
-    /** Fator de cocção do catálogo público; nulo = a fonte não informou. */
+    /** Fator de cocção estimado (V060). Junto com {@code fatorCorrecao}, vem do perfil nativo, não de planilha externa. */
     @Column(name = "fator_coccao")
     private BigDecimal fatorCoccao;
-
-    /** Citação curta de onde vieram os fatores; nula quando o item não tem fator. */
-    @Column(name = "fonte_fatores", length = 300)
-    private String fonteFatores;
 
     protected CatalogoAlimento() {
     }
@@ -132,9 +128,5 @@ public class CatalogoAlimento {
 
     public BigDecimal getFatorCoccao() {
         return fatorCoccao;
-    }
-
-    public String getFonteFatores() {
-        return fonteFatores;
     }
 }

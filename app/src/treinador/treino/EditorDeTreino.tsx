@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { NotebookTabs } from 'lucide-react-native';
-import { Fragment, useMemo, useState, type ReactNode } from 'react';
+import { FileText, NotebookTabs } from 'lucide-react-native';
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { baixarFotoDePerfilDoAluno, criarReceita, listarExercicios, salvarPlanoComoReceita } from '../../api/rotas';
@@ -33,6 +33,7 @@ import {
   trocaApagaSeries,
 } from '../../dominio/editorTreino';
 import { agrupar } from '../../dominio/agrupamento';
+import { textoDoResumo, trazerParaOEditor } from '../../dominio/importarTreinoDeTexto';
 import { proximaSelecao, resumoDaSessaoPorContagem, serieDoProblema } from '../../dominio/inspetorDoTreino';
 import { validarTreino } from '../../dominio/validacaoDoTreino';
 import { BarraDesfazer, type Desfazer } from '../../treinador/plano/BarraDesfazer';
@@ -51,6 +52,7 @@ import { novoUid } from '../../dominio/uid';
 import { CartaoSessao } from '../../treinador/treino/CartaoSessao';
 import { FolhaBiblioteca } from '../../treinador/treino/FolhaBiblioteca';
 import { FolhaCriarGrupo } from '../../treinador/treino/FolhaCriarGrupo';
+import { FolhaImportarDeTexto } from '../../treinador/treino/FolhaImportarDeTexto';
 import { criarGrupoPronto, dicaDoGrupo, motivoSemGrupo, vizinhosQuePodemEntrar } from '../../treinador/treino/acoesDeGrupo';
 import { juntarProblemas, problemasDoExercicio, problemasDoGrupo } from '../../treinador/treino/problemasDaSessao';
 import { useTema } from '../../tema/TemaProvider';
@@ -104,8 +106,17 @@ interface TrocaPendente {
 
 /** Editor do plano de treino: a tela mais importante do treinador. */
 export default function EditorDeTreino({ modelo = false, unica = false, receita }: { modelo?: boolean; unica?: boolean; receita?: Receita }) {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, colar } = useLocalSearchParams<{ id: string; colar?: string }>();
   const { avisar } = useAviso();
+  // "Colar treino (Docs / PDF)": a Folha abre pelo botão ou, vinda do atalho da Importação, já na chegada (`?colar=1`,
+  // consumido ao abrir para o voltar não ter passo sobrando).
+  const [colando, setColando] = useState(false);
+  useEffect(() => {
+    if (colar !== '1') return;
+    let vivo = true;
+    void Promise.resolve().then(() => { if (!vivo) return; setColando(true); router.setParams({ colar: undefined }); });
+    return () => { vivo = false; };
+  }, [colar]);
   const editor = usePlanoEditor<ConteudoTreino>('treino', id, normalizarTreino, modelo);
   const nomeDoAluno = useNomeDoAluno(modelo ? null : editor.estado?.plano.alunoId);
   const config = editor.estado?.conteudo.metodologia?.configuracao ?? CONFIGURACAO_PADRAO;
@@ -328,12 +339,13 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
           maxLength={8000}
         />
       </ConfiguracaoDoPlano>}
-      {unica ? null : (
-        <View style={estilos.cabecalhoSessoes}>
-          <Texto variante="bloco" nivel={2}>Sessões ({c.sessoes.length})</Texto>
-          <Botao rotulo="Modelos" tipo="secundario" Icone={NotebookTabs} aoTocar={() => setModelos(true)} />
+      <View style={estilos.cabecalhoSessoes}>
+        {unica ? <View /> : <Texto variante="bloco" nivel={2}>Sessões ({c.sessoes.length})</Texto>}
+        <View style={estilos.botoesDasSessoes}>
+          {unica ? null : <Botao rotulo="Modelos" tipo="secundario" Icone={NotebookTabs} aoTocar={() => setModelos(true)} />}
+          <Botao rotulo="Colar treino (Docs / PDF)" tipo="secundario" Icone={FileText} aoTocar={() => setColando(true)} />
         </View>
-      )}
+      </View>
       {unica ? null : (
         <SeletorDeSessoes
           sessoes={c.sessoes}
@@ -464,6 +476,28 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
         </Folha>
       ) : null}
 
+      {colando ? (
+        <FolhaImportarDeTexto
+          conteudo={c}
+          config={config}
+          biblioteca={biblioteca.dados ?? []}
+          bibliotecaCarregando={biblioteca.carregando && !biblioteca.dados}
+          bibliotecaIndisponivel={!!biblioteca.erro && !biblioteca.dados}
+          unica={unica}
+          aoFechar={() => setColando(false)}
+          aoTrazer={(lidas) => {
+            if (lidas.length === 0) return;
+            setColando(false);
+            // Dia de treino tem uma sessão só: a lida troca a do plano. No resto, substitui o plano vazio ou acrescenta ao fim.
+            const total = { divisoes: lidas.length, exercicios: lidas.reduce((s, x) => s + x.exercicios.length, 0), series: lidas.reduce((s, x) => s + x.exercicios.reduce((n, e) => n + e.series.length, 0), 0) };
+            comDesfazer('Treino colado trazido para o editor.', (a) => (unica ? { ...a, sessoes: lidas.slice(0, 1) } : trazerParaOEditor(a, lidas)));
+            setGrupoEscolhidoUid(null);
+            setExercicioSelecionadoUid(null);
+            setSelecionadaUid(lidas[0].uid);
+            avisar(`Treino trazido: ${textoDoResumo({ ...total, semBiblioteca: 0, semSeries: 0 })}. Confira e salve o rascunho.`, 'sucesso');
+          }}
+        />
+      ) : null}
       {folha?.tipo === 'metodologia' ? <FolhaReceitas tipo="METODOLOGIA" titulo="Vincular metodologia" aoFechar={() => setFolha(null)} aoUsar={(r) => {
         setFolha(null); comDesfazer('Metodologia vinculada.', (a) => ({ ...a, metodologia: { id: r.id, nome: r.nome, configuracao: JSON.parse(JSON.stringify(r.conteudo)) as Configuracao } }));
       }} /> : null}
@@ -642,6 +676,7 @@ function OpcaoDeModelo({ titulo, descricao, desabilitado, aoEscolher }: { titulo
 const estilos = StyleSheet.create({
   colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(2) },
   cabecalhoSessoes: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
+  botoesDasSessoes: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1) },
   metodologia: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
   metodologiaTexto: { flexShrink: 1 },
   opcaoModelo: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: 4, minHeight: 56 },

@@ -30,6 +30,32 @@ export function faixaDaAmostra(a: Pick<AmostraDaPlanilha, 'total' | 'inicio' | '
   return de === ate ? `Aluno ${de} de ${a.total}` : `Alunos ${de} a ${ate} de ${a.total}`;
 }
 
+/**
+ * Marca ou desmarca um aluno da importação (`numero` = a posição de 1 na amostra, a mesma que a API usa em
+ * `alunosIgnorados`). Devolve a lista nova, sempre em ordem e sem repetição.
+ */
+export function alternarIgnorado(ignorados: readonly number[], numero: number): number[] {
+  return ignorados.includes(numero)
+    ? ignorados.filter((i) => i !== numero)
+    : [...ignorados, numero].sort((a, b) => a - b);
+}
+
+/** O que a faixa do topo diz de quem entra e de quem fica de fora; "" quando ninguém foi ignorado. */
+export function resumoDosIgnorados(total: number, ignorados: readonly number[]): string {
+  if (ignorados.length === 0) return '';
+  const entram = Math.max(0, total - ignorados.length);
+  return `${n(entram, 'aluno será importado', 'alunos serão importados')} · ${n(ignorados.length, 'ignorado', 'ignorados')}`;
+}
+
+/** Ignorar todos não deixa nada a gravar: a API recusaria (422), então o botão de confirmar espera. */
+export function todosIgnorados(total: number, ignorados: readonly number[]): boolean {
+  return total > 0 && ignorados.length >= total;
+}
+
+export const TODOS_IGNORADOS = 'Marque pelo menos um aluno para importar.';
+export const SELO_INCLUIDO = 'Incluído';
+export const SELO_IGNORADO = 'Ignorado nesta importação';
+
 /** Quantos vêm no próximo pedido (até 5); 0 = já é o fim. */
 export function restantesDaAmostra(a: Pick<AmostraDaPlanilha, 'total' | 'inicio' | 'alunos'>): number {
   return Math.max(0, Math.min(ALUNOS_POR_AMOSTRA, a.total - (a.inicio + a.alunos.length)));

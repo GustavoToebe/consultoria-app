@@ -282,9 +282,11 @@ public class BibliotecaService {
             if (!existentes.add(c.getNome().toLowerCase(Locale.ROOT))) {
                 continue;
             }
+            var fatores = FatoresDeRendimento.completar(c.getFatorCorrecao(), c.getFatorCoccao(), c.getNome(),
+                    c.getGrupo(), c.getKcal(), c.getBaseQuantidade(), c.getBaseUnidade());
             alimentos.save(new Alimento(new Alimento.Valores(c.getNome(), c.getBaseQuantidade(), c.getBaseUnidade(),
                     c.getKcal(), c.getProteina(), c.getCarboidrato(), c.getGordura(), c.getGramasPorUnidade(),
-                    c.getFonte(), c.getFatorCorrecao(), c.getFatorCoccao(), GrupoDoAlimento.doCatalogo(c.getGrupo())),
+                    c.getFonte(), fatores.fatorCorrecao(), fatores.fatorCoccao(), GrupoDoAlimento.doCatalogo(c.getGrupo())),
                     Exercicio.Origem.CATALOGO));
             importados++;
         }
@@ -293,24 +295,26 @@ public class BibliotecaService {
 
     private static Alimento.Valores valores(AlimentoRequest r) {
         String grupo = GrupoDoAlimento.normalizar(r.grupo());
-        exigirFatoresEGrupo(r, grupo);
+        var fatores = FatoresDeRendimento.completar(r.fatorCorrecao(), r.fatorCoccao(), r.nome(), grupo,
+                r.kcal(), r.baseQuantidade(), r.baseUnidade());
+        exigirFatoresEGrupo(fatores.fatorCorrecao(), fatores.fatorCoccao(), grupo);
         return new Alimento.Valores(r.nome().trim(), r.baseQuantidade(), r.baseUnidade(), r.kcal(), r.proteina(),
-                r.carboidrato(), r.gordura(), r.gramasPorUnidade(), Buscas.opcional(r.fonte()), r.fatorCorrecao(),
-                r.fatorCoccao(), grupo);
+                r.carboidrato(), r.gordura(), r.gramasPorUnidade(), Buscas.opcional(r.fonte()),
+                fatores.fatorCorrecao(), fatores.fatorCoccao(), grupo);
     }
 
     /**
      * Faixas iguais às do CHECK da V011 e às do formulário do app ({@code dominio/fatoresDoAlimento.ts}). Conferidas
      * aqui, e não por anotação no DTO, para responder 422 com o campo e a mensagem em português, como as outras
-     * validações de conteúdo; mais de duas casas seriam arredondadas em silêncio pelo {@code numeric(5,2)}. O grupo
-     * (já normalizado) passa pelo mesmo 422, com o campo {@code grupo}, acima de {@value GrupoDoAlimento#MAXIMO}
-     * caracteres.
+     * validações de conteúdo; mais de duas casas seriam arredondadas em silêncio pelo {@code numeric(5,2)}. Fator nulo
+     * já foi trocado pela estimativa ({@link FatoresDeRendimento}). O grupo (já normalizado) passa pelo mesmo 422,
+     * com o campo {@code grupo}, acima de {@value GrupoDoAlimento#MAXIMO} caracteres.
      */
-    private static void exigirFatoresEGrupo(AlimentoRequest r, String grupo) {
+    private static void exigirFatoresEGrupo(BigDecimal fatorCorrecao, BigDecimal fatorCoccao, String grupo) {
         List<ApiError.FieldError> erros = new ArrayList<>();
-        fatorForaDaFaixa(r.fatorCorrecao(), FC_MINIMO, FC_MAXIMO).ifPresent(m -> erros.add(
+        fatorForaDaFaixa(fatorCorrecao, FC_MINIMO, FC_MAXIMO).ifPresent(m -> erros.add(
                 new ApiError.FieldError("fatorCorrecao", "O fator de correção " + m)));
-        fatorForaDaFaixa(r.fatorCoccao(), FCC_MINIMO, FCC_MAXIMO).ifPresent(m -> erros.add(
+        fatorForaDaFaixa(fatorCoccao, FCC_MINIMO, FCC_MAXIMO).ifPresent(m -> erros.add(
                 new ApiError.FieldError("fatorCoccao", "O fator de cocção " + m)));
         if (GrupoDoAlimento.longoDemais(grupo)) {
             erros.add(new ApiError.FieldError("grupo", "O grupo aceita no máximo " + GrupoDoAlimento.MAXIMO

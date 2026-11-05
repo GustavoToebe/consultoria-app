@@ -8,12 +8,13 @@ import {
   previaDaPlanilhaCompleta,
 } from '../../../api/rotas';
 import type { AnaliseDaPlanilha, ConfirmacaoDaPlanilha, PerguntaDaPlanilha, PreviaDaPlanilha, RespostasDaPlanilha } from '../../../api/tipos';
+import { TODOS_IGNORADOS, alternarIgnorado, todosIgnorados } from '../../../dominio/amostraDaPlanilha';
 import { tipoDoArquivo } from '../../../dominio/assistenteDaImportacao';
 import {
-  AVISO_RESPONDIDO_ANTES, ETAPA_AMOSTRA, ETAPA_PREVIA, ETAPA_RESULTADO, NOMES_POR_PAGINA, ROTULOS_DO_DESTINO, SEM_RESPOSTAS, abaRespondidaAntes,
+  AVISO_PREENCHIDO_AUTOMATICAMENTE, AVISO_RESPONDIDO_ANTES, ETAPA_AMOSTRA, ETAPA_PREVIA, ETAPA_RESULTADO, NOMES_POR_PAGINA, ROTULOS_DO_DESTINO, SEM_RESPOSTAS, abaRespondidaAntes,
   aceitarSugestoesDeSuplemento, aceitarTodosOsProvaveis, blocoFicaDeFora, chaveDaLigacao, errosDosProblemas, escolherLigacao, etapasDaPlanilha,
   escolherTipo, filtrarPorNome, frasesDaCriacao, linhasAmbiguas, motivoParaNaoAvancar, nomeRespondidoAntes, opcoesDaPergunta,
-  opcoesDoSuplemento, opcoesDoTipoDaAba, pendencias, respostaDoValor, respostasParaApi, respostasSalvasMarcadas, responderNome,
+  opcoesDoSuplemento, opcoesDoTipoDaAba, pendencias, preencherSugestoes, respostaDoValor, respostasParaApi, respostasSalvasMarcadas, responderNome,
   responderSuplemento, rotuloDoTipoDeAba, semRespostasSalvas, suplementoRespondidoAntes, textoDaLeitura, textoDaLigacao,
   textoDaPartePulada, textoDasRespostasSalvas, textoDoBloco, textoDoFormato, textoDosAlunosDaAba, tipoDaAba, valorDaResposta,
   type EstadoDasRespostas, type EtapaDaPlanilha, type TipoEscolhido,
@@ -84,6 +85,8 @@ export function AssistenteDaPlanilha() {
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
   const [desatualizada, setDesatualizada] = useState(false);
+  /** Quantos nomes vieram marcados sozinhos com a sugestão da biblioteca (para o aviso da etapa Nomes). */
+  const [preenchidas, setPreenchidas] = useState(0);
   /** Só a resposta do último pedido vale. */
   const pedido = useRef(0);
   const estreita = largura < LARGURA_ESTREITA;
@@ -93,13 +96,19 @@ export function AssistenteDaPlanilha() {
     avisar('A amostra não está disponível agora. Confira a prévia e confirme.', 'atencao');
   });
   const comAmostra = migracaoAssistidaHabilitada && !amostra.indisponivel;
+  /** Alunos desmarcados na amostra (`numero` de 1). Valem só para a amostra atual: a posição muda com o arquivo e as respostas. */
+  const [ignorados, setIgnorados] = useState<number[]>([]);
+  const limparAmostra = () => {
+    amostra.limpar();
+    setIgnorados([]);
+  };
 
   const escolherArquivo = (a: ArquivoEscolhido) => {
     setArquivo(a);
     setAnalise(null);
     setRespostas(SEM_RESPOSTAS);
     setPrevia(null);
-    amostra.limpar();
+    limparAmostra();
     setErro(null);
   };
 
@@ -107,7 +116,7 @@ export function AssistenteDaPlanilha() {
   const mudarRespostas = (novas: EstadoDasRespostas) => {
     setRespostas(novas);
     setPrevia(null);
-    amostra.limpar();
+    limparAmostra();
     setDesatualizada(false);
   };
 
@@ -119,8 +128,11 @@ export function AssistenteDaPlanilha() {
     formularioDaPlanilha(arquivo).then(analisarPlanilhaCompleta).then((a) => {
       if (meu !== pedido.current) return;
       setAnalise(a);
-      // As respostas das importações anteriores já vêm marcadas (o treinador confere e troca o que quiser).
-      setRespostas(respostasSalvasMarcadas(a));
+      // As respostas das importações anteriores já vêm marcadas e, no que sobrou, as sugestões mais prováveis da biblioteca:
+      // nenhuma pergunta trava o Continuar, e o treinador confere e troca o que quiser.
+      const marcadas = preencherSugestoes(a, respostasSalvasMarcadas(a));
+      setRespostas(marcadas.estado);
+      setPreenchidas(marcadas.preenchidas);
       setOcupado(false);
       setEtapa(2);
     }, (e: unknown) => {
@@ -136,7 +148,7 @@ export function AssistenteDaPlanilha() {
     setOcupado(true);
     setErro(null);
     setDesatualizada(false);
-    amostra.limpar();
+    limparAmostra();
     formularioDaPlanilha(arquivo, respostasParaApi(analise, respostas)).then(previaDaPlanilhaCompleta).then((p) => {
       if (meu !== pedido.current) return;
       setPrevia(p);
@@ -153,7 +165,7 @@ export function AssistenteDaPlanilha() {
     setOcupado(true);
     setErro(null);
     formularioDaPlanilha(arquivo, respostasParaApi(analise, respostas))
-      .then((dados) => confirmarPlanilhaCompleta(dados, amostra.hash ?? previa.hash)).then((r) => {
+      .then((dados) => confirmarPlanilhaCompleta(dados, amostra.hash ?? previa.hash, etapa === ETAPA_AMOSTRA ? ignorados : [])).then((r) => {
         setResultado(r);
         setOcupado(false);
         setEtapa(ETAPA_RESULTADO);
@@ -162,7 +174,7 @@ export function AssistenteDaPlanilha() {
         if (codigoApi(e) === 'PREVIA_DESATUALIZADA') {
           // O arquivo ou as respostas mudaram: a prévia antiga não vale e precisa ser gerada de novo.
           setPrevia(null);
-          amostra.limpar();
+          limparAmostra();
           setDesatualizada(true);
           setEtapa(ETAPA_PREVIA);
           return;
@@ -212,6 +224,7 @@ export function AssistenteDaPlanilha() {
 
   // Na amostra, a confirmação espera só a primeira página (o hash); se ela falhou, vale o hash da prévia.
   const esperandoAmostra = etapa === ETAPA_AMOSTRA && !amostra.hash && amostra.carregando;
+  const semAlunoMarcado = etapa === ETAPA_AMOSTRA && !!amostra.pagina && todosIgnorados(amostra.pagina.total, ignorados);
   const rodape = etapa === ETAPA_RESULTADO ? (
     <Botao rotulo="Concluir" aoTocar={aoConcluir} />
   ) : (
@@ -224,8 +237,8 @@ export function AssistenteDaPlanilha() {
       ) : etapa === ETAPA_PREVIA && comAmostra ? (
         <Botao rotulo="Ver a amostra" desabilitado={!previa || ocupado} motivo="Gere a prévia antes de ver a amostra." aoTocar={avancar} />
       ) : (
-        <Botao rotulo="Confirmar importação" carregando={ocupado} desabilitado={!previa || esperandoAmostra}
-          motivo={previa ? 'Aguarde a amostra.' : 'Gere a prévia antes de confirmar.'} aoTocar={confirmar} />
+        <Botao rotulo="Confirmar importação" carregando={ocupado} desabilitado={!previa || esperandoAmostra || semAlunoMarcado}
+          motivo={!previa ? 'Gere a prévia antes de confirmar.' : semAlunoMarcado ? TODOS_IGNORADOS : 'Aguarde a amostra.'} aoTocar={confirmar} />
       )}
     </>
   );
@@ -251,7 +264,7 @@ export function AssistenteDaPlanilha() {
         {etapa === 2 && analise ? <EtapaDasAbas analise={analise} respostas={respostas} aoMudar={mudarRespostas} aoEsquecer={aoEsquecer} /> : null}
 
         {etapa === 3 && analise ? <EtapaDosNomes analise={analise} respostas={respostas} aoMudar={mudarRespostas}
-          podeBiblioteca={pode('BIBLIOTECA_LER')} /> : null}
+          podeBiblioteca={pode('BIBLIOTECA_LER')} preenchidas={preenchidas} /> : null}
 
         {etapa === ETAPA_PREVIA && analise ? (
           <>
@@ -266,7 +279,8 @@ export function AssistenteDaPlanilha() {
           </>
         ) : null}
 
-        {etapa === ETAPA_AMOSTRA && previa ? <EtapaDaAmostra amostra={amostra} partesPuladas={previa.partesPuladas} /> : null}
+        {etapa === ETAPA_AMOSTRA && previa ? <EtapaDaAmostra amostra={amostra} partesPuladas={previa.partesPuladas} ignorados={ignorados}
+          aoAlternarIgnorado={(n) => setIgnorados((atuais) => alternarIgnorado(atuais, n))} /> : null}
 
         {etapa === ETAPA_RESULTADO && resultado ? <Resultado resultado={resultado} /> : null}
         {etapa < ETAPA_RESULTADO ? <Texto variante="pequeno" cor={cores.textoSuave}>Nada foi gravado ainda. O arquivo, a leitura e as suas respostas ficam só nesta tela.</Texto> : null}
@@ -412,8 +426,8 @@ function EtapaDasAbas({ analise, respostas, aoMudar, aoEsquecer }: {
 }
 
 /** Etapa 3: os nomes que pedem resposta (exercícios, alimentos e suplementos), com busca e "aceitar todos". */
-function EtapaDosNomes({ analise, respostas, aoMudar, podeBiblioteca }: {
-  analise: AnaliseDaPlanilha; respostas: EstadoDasRespostas; aoMudar: (r: EstadoDasRespostas) => void; podeBiblioteca: boolean;
+function EtapaDosNomes({ analise, respostas, aoMudar, podeBiblioteca, preenchidas }: {
+  analise: AnaliseDaPlanilha; respostas: EstadoDasRespostas; aoMudar: (r: EstadoDasRespostas) => void; podeBiblioteca: boolean; preenchidas: number;
 }) {
   const p = pendencias(analise, respostas);
   const exercicios = useCarregar(podeBiblioteca && analise.exercicios.length > 0 ? 'planilha:exercicios' : null, () => listarExercicios());
@@ -421,6 +435,7 @@ function EtapaDosNomes({ analise, respostas, aoMudar, podeBiblioteca }: {
   const nada = analise.exercicios.length === 0 && analise.alimentos.length === 0 && analise.suplementos.length === 0;
   return (
     <>
+      {preenchidas > 0 ? <Alerta tom="sucesso" texto={AVISO_PREENCHIDO_AUTOMATICAMENTE} /> : null}
       {nada ? <Texto>Nenhum nome pede resposta: todos os exercícios e alimentos casaram com a biblioteca ou com a lista da planilha.</Texto> : (
         <Texto variante="suave">{`Sem resposta vale a regra fixa: o nome fica como na planilha e o suplemento sem par vai para Medicação e ergogênicos. Ainda sem resposta: ${p.exercicios} exercícios prováveis, ${p.alimentos} alimentos prováveis e ${p.suplementos} suplementos sem sugestão.`}</Texto>
       )}

@@ -56,6 +56,11 @@ class AmostraDaPlanilhaIntegrationTest extends AbstractIntegrationTest {
 
     private JsonNode enviar(JsonNode login, String acao, String inicio, String hash, int esperado, byte[] planilha)
             throws Exception {
+        return enviar(login, acao, inicio, hash, esperado, planilha, null);
+    }
+
+    private JsonNode enviar(JsonNode login, String acao, String inicio, String hash, int esperado, byte[] planilha,
+                            String ignorados) throws Exception {
         MockMultipartHttpServletRequestBuilder pedido = multipart(BASE + acao)
                 .file(new MockMultipartFile("arquivo", "planilha.xlsx", "application/octet-stream", planilha))
                 .header("X-Treinos-Cliente", "nativo")
@@ -65,6 +70,9 @@ class AmostraDaPlanilhaIntegrationTest extends AbstractIntegrationTest {
         }
         if (hash != null) {
             pedido.param("hash", hash);
+        }
+        if (ignorados != null) {
+            pedido.param("alunosIgnorados", ignorados);
         }
         String texto = mvc.perform(pedido).andExpect(status().is(esperado)).andReturn().getResponse()
                 .getContentAsString(StandardCharsets.UTF_8);
@@ -166,6 +174,36 @@ class AmostraDaPlanilhaIntegrationTest extends AbstractIntegrationTest {
         enviar(treinador, "confirmar", null, amostra.path("hash").asString(), 200, planilha);
         assertThat(api.get("/alunos", treinador, 200).path("total").asInt()).isEqualTo(1);
         assertThat(api.get("/alunos/" + id + "/pesos", treinador, 200)).hasSize(2);
+    }
+
+    @Test
+    void alunoIgnoradoNaAmostraFicaForaDaConfirmacaoSemMudarOHash() throws Exception {
+        JsonNode amostra = enviar(treinador, "amostra", null, null, 200);
+        String hash = amostra.path("hash").asString();
+        String nomeIgnorado = amostra.path("alunos").get(1).path("nome").asString();
+        String nomeIgnorado2 = amostra.path("alunos").get(3).path("nome").asString();
+
+        // Marcar ou desmarcar um aluno não muda o hash: a mesma prévia vale com e sem a lista.
+        assertThat(enviar(treinador, "previa", null, null, 200).path("hash").asString()).isEqualTo(hash);
+        JsonNode feito = enviar(treinador, "confirmar", null, hash, 200, PLANILHA, "2,4");
+
+        assertThat(api.get("/alunos", treinador, 200).path("total").asInt()).isEqualTo(3);
+        assertThat(feito.path("criados").path("alunosNovos").asInt()).isEqualTo(3);
+        String alunos = api.get("/alunos", treinador, 200).toString();
+        assertThat(alunos).doesNotContain(nomeIgnorado).doesNotContain(nomeIgnorado2);
+    }
+
+    @Test
+    void ignorarTodosOsAlunosOuUmNumeroQueNaoExisteERecusado() throws Exception {
+        String hash = enviar(treinador, "amostra", null, null, 200).path("hash").asString();
+
+        JsonNode todos = enviar(treinador, "confirmar", null, hash, 422, PLANILHA, "1,2,3,4,5");
+        assertThat(todos.path("codigo").asString()).isEqualTo("NENHUM_ALUNO_MARCADO");
+        assertThat(enviar(treinador, "confirmar", null, hash, 422, PLANILHA, "9").path("codigo").asString())
+                .isEqualTo("ALUNO_IGNORADO_INVALIDO");
+        enviar(treinador, "confirmar", null, hash, 422, PLANILHA, "0");
+        // Nada foi gravado.
+        assertThat(api.get("/alunos", treinador, 200).path("total").asInt()).isZero();
     }
 
     @Test

@@ -127,14 +127,14 @@ const serie = (uid: string, resto: Partial<Serie>): Serie => ({
 });
 
 /**
- * Exercício com WS, Top set e Back off: o Top set também é na carga de trabalho e o Back off fica a 90% da WS (sem carga
- * "acima da anterior" nem "abaixo da referência", que saíram). A carga do Back off sai da carga do dia.
+ * Exercício com WS, Top set e Back off: o Top set não tem sugestão de carga (não é série de trabalho) e o Back off fica a
+ * 90% da WS (sem carga "acima da anterior" nem "abaixo da referência", que saíram). A carga do Back off sai da WS, nunca do Top set.
  */
 export function sessaoComTopSetEBackOff(): Sessao[] {
   const sessao = sessaoFalsa('topo', 'Treino de top set', 1, 1);
   sessao.exercicios[0] = { ...sessao.exercicios[0], uid: 'agacho', nome: 'Agachamento de teste', series: [
     serie('ws', { repsMin: 5, repsMax: 5, esforco: { rir: 1 } }),
-    serie('top', { tipo: 'TOP_SET', repsMin: 3, repsMax: 3 }),
+    serie('top', { tipo: 'TOP_SET', repsMin: 3, repsMax: 3, carga: { modo: 'NENHUMA', percentualMin: null, percentualMax: null } }),
     serie('back', { tipo: 'BACK_OFF', repsMin: 6, repsMax: 8, carga: { modo: 'PERCENTUAL_WS', percentualMin: 90, percentualMax: null } }),
   ] };
   return [sessao];

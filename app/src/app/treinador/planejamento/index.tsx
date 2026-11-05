@@ -48,7 +48,10 @@ export default function Planejamento() {
   // passo do histórico e o voltar a desfaz. `?novo=1` (atalho da busca do topo) abre o formulário de novo modelo ou, na
   // aba Atualização, de novo questionário e sai do endereço na hora (consumido ao abrir, não ao fechar: fechar o
   // formulário não reescreve a URL e o voltar do navegador não tem passo sobrando).
-  const { novo: pedirNovo, aba: abaPedida, tipo: tipoPedido } = useLocalSearchParams<{ novo?: string; aba?: string; tipo?: string }>();
+  // `?colar=1` junto com `?novo=1` (atalho "Colar treino de PDF / Docs" da Importação): o modelo novo abre o editor já com a
+  // Folha de colar o texto aberta. Vale só para esse "novo" (guardado em `colarAoCriar`, nunca fica no endereço).
+  const { novo: pedirNovo, aba: abaPedida, tipo: tipoPedido, colar: pedirColar } = useLocalSearchParams<{ novo?: string; aba?: string; tipo?: string; colar?: string }>();
+  const [colarAoCriar, setColarAoCriar] = useState(false);
   const aba = abaDoPlanejamento(abaPedida, veModelos, veAtualizacao, funcionalidadesDoPlano);
   const grupos = gruposLiberados(funcionalidadesDoPlano);
   const emAnamnese = aba === ABA_ANAMNESE;
@@ -57,13 +60,18 @@ export default function Planejamento() {
   const emAtualizacao = aba === ABA_ATUALIZACAO || emAnamnese || emInscricao;
   const [formularioAberto, setFormulario] = useState<Receita | 'novo' | null>(null);
   const formulario = formularioAberto;
-  const fecharFormulario = () => setFormulario(null);
+  const fecharFormulario = () => { setFormulario(null); setColarAoCriar(false); };
   useEffect(() => {
     if (pedirNovo !== '1' || emAtualizacao) return;
     let vivo = true;
-    void Promise.resolve().then(() => { if (!vivo) return; setFormulario('novo'); router.setParams({ novo: undefined }); });
+    void Promise.resolve().then(() => {
+      if (!vivo) return;
+      setFormulario('novo');
+      setColarAoCriar(pedirColar === '1');
+      router.setParams({ novo: undefined, colar: undefined });
+    });
     return () => { vivo = false; };
-  }, [pedirNovo, emAtualizacao]);
+  }, [pedirNovo, pedirColar, emAtualizacao]);
   // "Organizar coleções" abre a folha; o lápis de um grupo abre a mesma folha já renomeando aquela coleção.
   const [organizar, setOrganizar] = useState<{ editar: PastaModelo | null } | null>(null);
   // Coleções recolhidas, por chave `tipo:pastaId` (pastaId vazio = "Sem coleção"): recolher numa lista não recolhe nas
@@ -144,7 +152,9 @@ export default function Planejamento() {
     {formulario ? <Formulario key={typeof formulario === 'string' ? 'novo' : formulario.id} receita={formulario === 'novo' ? null : formulario} tipo={tipo} colecoes={colecoes.dados ?? []} aoFechar={fecharFormulario} aoSalvar={async (nome, descricao, pastaId) => {
       if (formulario === 'novo') {
         const novo = await criarReceita({ tipo, nome, descricao, pastaId, conteudo: conteudoInicial(tipo, CONFIGURACAO_PADRAO) });
-        fecharFormulario(); modelos.recarregar(); router.push(`/treinador/planejamento/modelo/${novo.id}`);
+        const colar = colarAoCriar && (tipo === 'PLANO_TREINO' || tipo === 'SESSAO_TREINO');
+        fecharFormulario(); modelos.recarregar();
+        router.push(colar ? { pathname: '/treinador/planejamento/modelo/[id]', params: { id: novo.id, colar: '1' } } : `/treinador/planejamento/modelo/${novo.id}`);
       } else { await alterarReceita(formulario.id, { ...formulario, nome, descricao, pastaId }); fecharFormulario(); modelos.recarregar(); }
     }} /> : null}
     {organizar ? <OrganizarColecoes colecoes={colecoes.dados ?? []} inicial={organizar.editar} aoFechar={() => setOrganizar(null)} atualizar={atualizar} /> : null}

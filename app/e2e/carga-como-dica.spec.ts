@@ -6,15 +6,15 @@ import { ALUNO, json, sessao, simularApi } from './api-falsa';
 
 /**
  * Carga como dica (passo 3 de `docs/planos/execucao-referencia-e-progressao.md`, D1, D2, D4, D5, D6 e D7, 02/11): o campo de
- * carga começa vazio e a sugestão fica ao lado ("Sugestão: 60 kg · Última vez: 60 kg × 7"), com a meta de repetições; o ✓
- * com o peso vazio pergunta "Fez com 60 kg?" na própria tela; "Sem carga" grava a série feita sem carga, que o histórico
+ * carga começa vazio e a sugestão fica ao lado ("Sugestão: 60 kg × 8 reps · Última vez: 60 kg × 7"), com a meta de repetições; o ✓
+ * com o peso vazio pergunta "Fez 60 kg × 8 reps?" na própria tela; "Sem carga" grava a série feita sem carga, que o histórico
  * mostra como "feito, sem carga"; a contagem "x de y" só conta trabalho e pós-trabalho (2 aquecimentos + 4 WS = "x de 4").
  * A "Última vez" da dica vem de `ultimasCargas` (independe da chave do retorno, D7): com a chave ligada e "anteriores"
  * diferentes no pacote, a dica não muda. Exercício e números fictícios; relógio em segunda, 19/10/2026, 12:00.
  */
 const LISTA = '/aluno/sessao/sx?data=2026-10-19';
 const EXERCICIO = '/aluno/sessao/sx/sxe1?data=2026-10-19';
-const DICA = 'Sugestão: 60 kg · Última vez: 60 kg × 7';
+const DICA = 'Sugestão: 60 kg × 8 reps · Última vez: 60 kg × 7';
 
 const NENHUMA: Carga = { modo: 'NENHUMA', percentualMin: null, percentualMax: null };
 const DE_TRABALHO: Carga = { modo: 'CARGA_TRABALHO', percentualMin: null, percentualMax: null };
@@ -88,7 +88,7 @@ for (const largura of [390, 1280]) {
     for (const n of [1, 2, 3, 4, 5, 6]) await expect(peso(page, n)).toHaveValue('');
     await expect(page.getByText(DICA, { exact: true })).toHaveCount(4);
     // Sem base do dia digitada, a origem diz que a conta partiu da última vez.
-    await expect(page.getByText('carga da última vez', { exact: true })).toHaveCount(4);
+    await expect(page.getByText('mesma carga da última vez · busque atingir a meta de repetições', { exact: true })).toHaveCount(4);
     // D5: a meta de repetições ao lado do campo, em cada série.
     await expect(page.getByLabel('Meta da série 3: 6 a 8 reps', { exact: false })).toBeVisible();
     // D6: a contagem do treino não conta os aquecimentos.
@@ -103,16 +103,16 @@ for (const largura of [390, 1280]) {
 
     // D2: WS com o peso vazio e sugestão: o ✓ não grava no escuro, pergunta na tela.
     await marcar(page, 3).click();
-    await expect(page.getByText('Fez com 60 kg?', { exact: true })).toBeVisible();
+    await expect(page.getByText('Fez 60 kg × 8 reps?', { exact: true })).toBeVisible();
     await expect(marcar(page, 3)).not.toBeChecked();
-    await expect(page.getByRole('button', { name: 'Sim, 60 kg, série 3', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Sim, 60 kg × 8, série 3', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Outra carga, série 3', exact: true })).toBeVisible();
     await semEstourar(page);
     await page.screenshot({ path: testInfo.outputPath(`painel-${largura}.png`), fullPage: true });
 
     // "Outra carga" fecha o painel e leva ao campo de peso, sem gravar.
     await page.getByRole('button', { name: 'Outra carga, série 3', exact: true }).click();
-    await expect(page.getByText('Fez com 60 kg?', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('Fez 60 kg × 8 reps?', { exact: true })).toHaveCount(0);
     await expect(peso(page, 3)).toBeFocused();
     await expect(marcar(page, 3)).not.toBeChecked();
 
@@ -127,10 +127,10 @@ for (const largura of [390, 1280]) {
 
     // "Sim, 60 kg" grava a sugestão.
     await marcar(page, 4).click();
-    await page.getByRole('button', { name: 'Sim, 60 kg, série 4', exact: true }).click();
+    await page.getByRole('button', { name: 'Sim, 60 kg × 8, série 4', exact: true }).click();
     await expect(marcar(page, 4)).toBeChecked();
     await expect(peso(page, 4)).toHaveValue('60');
-    await expect.poll(() => api.enviados.filter((r) => r.serieUid === 'ws2').at(-1)).toMatchObject({ carga: 60, concluida: true });
+    await expect.poll(() => api.enviados.filter((r) => r.serieUid === 'ws2').at(-1)).toMatchObject({ carga: 60, repeticoes: 8, concluida: true });
 
     // Lista do dia: a mesma contagem, 2 de 4 (o aquecimento marcado não conta).
     await page.goto(LISTA);
@@ -144,7 +144,7 @@ for (const largura of [390, 1280]) {
     await expect(tabela.getByText('sem repetições', { exact: true })).toHaveCount(0);
     await page.getByText('Por dia', { exact: true }).click();
     await expect(page.getByText(/WS feito, sem carga/)).toBeVisible();
-    await expect(page.getByText(/WS 60 kg × sem repetições/)).toBeVisible();
+    await expect(page.getByText(/WS 60 kg × 8/)).toBeVisible();
     await semEstourar(page);
     expect(api.naoTratadas).toEqual([]);
     expect(api.errosDaPagina).toEqual([]);
@@ -164,10 +164,10 @@ test('chave do retorno ligada: a dica continua a mesma (última carga), e o "Ant
   // A faixa do treino ao vivo conta só as quatro WS.
   await expect(page.getByLabel('0 de 4 séries feitas', { exact: true })).toBeVisible();
   await marcar(page, 3).click();
-  await expect(page.getByText('Fez com 60 kg?', { exact: true })).toBeVisible();
-  await page.getByText('Fez com 60 kg?', { exact: true }).scrollIntoViewIfNeeded();
+  await expect(page.getByText('Fez 60 kg × 8 reps?', { exact: true })).toBeVisible();
+  await page.getByText('Fez 60 kg × 8 reps?', { exact: true }).scrollIntoViewIfNeeded();
   await page.screenshot({ path: testInfo.outputPath('painel-390-escuro.png') });
-  await page.getByRole('button', { name: 'Sim, 60 kg, série 3', exact: true }).click();
+  await page.getByRole('button', { name: 'Sim, 60 kg × 8, série 3', exact: true }).click();
   for (const n of [4, 5, 6]) {
     await peso(page, n).fill('60');
     await marcar(page, n).click();
@@ -187,7 +187,7 @@ test('sem internet: o painel do ✓ funciona e a série fica salva no aparelho',
   await expect(page.getByText(DICA, { exact: true })).toHaveCount(4);
   await page.context().setOffline(true);
   await marcar(page, 3).click();
-  await page.getByRole('button', { name: 'Sim, 60 kg, série 3', exact: true }).click();
+  await page.getByRole('button', { name: 'Sim, 60 kg × 8, série 3', exact: true }).click();
   await expect(marcar(page, 3)).toBeChecked();
   await expect(peso(page, 3)).toHaveValue('60');
   await page.context().setOffline(false);
@@ -200,25 +200,26 @@ test('sem internet: o painel do ✓ funciona e a série fica salva no aparelho',
   expect(api.errosDaPagina).toEqual([]);
 });
 
-test('passou do máximo da meta: aviso só em texto (D11), nunca um valor em kg nem carga escrita no campo', async ({ page }) => {
+test('atingiu a meta da série de trabalho: o aviso fala do passo do próximo treino e o campo de peso continua vazio', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 900 });
   const api = await abrir(page, false);
   await page.goto(EXERCICIO);
   const reps = (n: number) => page.getByRole('textbox', { name: `Repetições da série ${n}`, exact: true });
-  const AVISO = 'Passou de 8 repetições, o máximo da meta.';
+  const NO_TOPO = 'Meta de 8 repetições atingida! No próximo treino a sugestão sobe +1 kg.';
+  const PASSOU = 'Passou de 8 repetições (meta atingida)! No próximo treino a sugestão sobe +1 kg.';
 
   await reps(3).fill('8');
-  await expect(page.getByText(AVISO, { exact: true })).toHaveCount(0);
+  await expect(page.getByText(NO_TOPO, { exact: true })).toHaveCount(1);
   await reps(3).fill('9');
-  await expect(page.getByText(AVISO, { exact: true })).toHaveCount(1);
-  // Só texto: o peso continua vazio e o aviso não cita kg.
+  await expect(page.getByText(PASSOU, { exact: true })).toHaveCount(1);
+  // O aviso não escreve a carga no campo.
   await expect(peso(page, 3)).toHaveValue('');
-  expect(AVISO).not.toMatch(/kg/);
   // Aquecimento (meta 12 a 15) não avisa, mesmo passando do máximo.
   await reps(1).fill('20');
   await expect(page.getByText(/^Passou de 15/)).toHaveCount(0);
   await reps(3).fill('7');
-  await expect(page.getByText(AVISO, { exact: true })).toHaveCount(0);
+  await expect(page.getByText(NO_TOPO, { exact: true })).toHaveCount(0);
+  await expect(page.getByText(PASSOU, { exact: true })).toHaveCount(0);
   await semEstourar(page);
   expect(api.errosDaPagina).toEqual([]);
 });

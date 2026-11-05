@@ -23,7 +23,7 @@ for (const largura of [390, 1280]) {
     await fixarHoje(page);
     const sessoes = sessaoComTopSetEBackOff();
     const [ws0, top0, back0] = sessoes[0]!.exercicios[0]!.series;
-    // O Back off logo depois da WS: o Top set (também na carga de trabalho) no meio passaria a ser a referência dele.
+    // O Back off logo depois da WS, com o Top set (sem sugestão de carga) por último.
     sessoes[0]!.exercicios[0]!.series = [{ ...ws0!, alvoExtra: 'Segure 2 s embaixo' }, back0!, top0!];
     const enviados: RegistroEnvio[] = [];
     const { errosDaPagina, naoTratadas } = await simularApi(page, {

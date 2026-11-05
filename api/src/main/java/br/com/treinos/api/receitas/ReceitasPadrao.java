@@ -16,7 +16,7 @@ import java.util.List;
  * partida genérico, com nomes neutros (nada que identifique outra consultoria). São só estrutura (séries, dias, refeições); nenhuma carga nem alimento é sugerido.
  * As séries seguem a metodologia padrão, pelo código do tipo: FEEDER em % da WS pela regra 50/70/85–90, WORKING na carga
  * de trabalho, BACK_OFF a 85% da WS. Rest pause é
- * técnica da própria série de trabalho, não um tipo. As cinco primeiras receitas de série são as combinações reais dos
+ * técnica da própria série de trabalho, não um tipo. As seis primeiras receitas de série são as combinações reais dos
  * planos do Saraiva (esforço RIR 0 nas séries de trabalho e de back off); as séries não levam uid: nascem no app ao aplicar.
  */
 public final class ReceitasPadrao {
@@ -59,7 +59,7 @@ public final class ReceitasPadrao {
         return lista;
     }
 
-    /** As cinco receitas completas dos planos reais (preparação, trabalho e, depois, back off ou técnica). */
+    /** As seis receitas completas dos planos reais (preparação, trabalho e, depois, top set, back off ou técnica). */
     private static List<Padrao> completas() {
         return List.of(
                 series("3 FS + WS + Rest pause",
@@ -74,7 +74,13 @@ public final class ReceitasPadrao {
                         "FS 3x3-5 (50/70/85 a 90%) e WS 1x12 com Cluster (4 blocos de 3, pausa de 15 s), RIR 0.",
                         junta(fs3a5(), List.of(wsClusterAteFalha()))),
                 series("2 FS + WS + Back off", "FS 2x3-5 (70/85 a 90%), WS 1x3-6 e Back off 1x6-8 (85% da WS), RIR 0.",
-                        junta(fs2a5(), List.of(wsAteFalha(3, 6)), backOffAteFalha(1))));
+                        junta(fs2a5(), List.of(wsAteFalha(3, 6)), backOffAteFalha(1))),
+                series("2 FS + WS + Top set + Back off",
+                        "2 FS em rampa (50% e 75% da WS) + 1 WS pesada + 1 Top set (6 a 8, carga acima da WS) + 1 Back off a 80% da WS.",
+                        List.of(serie("FEEDER", 3, 5, percentual(50, null)), serie("FEEDER", 3, 5, percentual(75, null)),
+                                wsAteFalha(8, 8),
+                                serie("TOP_SET", 6, 8, Carga.de(ConteudoTreino.NENHUMA)).comEsforco(Esforco.deRir(0)),
+                                serie("BACK_OFF", 8, 12, percentual(80, null)).comEsforco(Esforco.deRir(0)))));
     }
 
     private static List<Serie> fs3a5() {

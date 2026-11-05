@@ -512,7 +512,7 @@ class ImportacaoIntegrationTest extends AbstractIntegrationTest {
         confirmar("alunos", "alunos.csv", alunosCsv, alunos, hashArquivo("alunos", pasta.resolve("alunos.csv"), alunos));
 
         String pesos = config("email", "IGNORAR", colunas("aluno", "data", "peso", "observacao"));
-        String exercicios = config("nome", "IGNORAR", colunas("nome", "grupo", "equipamento", "modalidade", "video", "observacoes"));
+        String exercicios = config("nome", "IGNORAR", colunas("nome", "grupo", "equipamento", "video", "observacoes"));
         String alimentos = config("nome", "IGNORAR", colunas("nome", "quantidade", "unidade", "kcal", "proteina",
                 "carboidrato", "gordura", "gramas", "fonte", "fc", "fcc"));
         String suplementos = config("nome_marca", "IGNORAR", colunas("nome", "marca", "categoria", "porcao", "porcoes", "sabores", "link"));

@@ -15,7 +15,7 @@ import { aplicarEscolhaDoPainel, decidirCheck, type EscolhaDoPainel } from '../d
 import { etapasDaSerie } from '../dominio/etapas';
 import { textosDeExecucao } from '../dominio/execucaoDoExercicio';
 import { dataCurta, dataParaTela } from '../dominio/formatos';
-import { textoDaCarga } from '../dominio/unidadeDeCarga';
+import { textoDaCarga, textoDoPasso } from '../dominio/unidadeDeCarga';
 import { textoDoRecorde, type Recorde } from '../dominio/recordesPessoais';
 import { acompanharPendente, digitarPendente, valorExibido, type ValorPendente } from '../dominio/valorPendente';
 import { repeticaoDaAnterior } from '../dominio/repetirSerie';
@@ -137,7 +137,10 @@ function CorpoDoExercicio(p: Props) {
   const cargasDoDia: Record<string, number | null> = {};
   // Só a carga de série feita (ou com etapa feita) serve de referência: desmarcar tira da conta (31/10).
   for (const s of e.series) cargasDoDia[s.uid] = cargaQueContaComoReferencia(p.registroDe(s.uid));
-  const calculadas = calcularCargasDoExercicio(e, base, cargasDoDia, p.config);
+  const calculadas = calcularCargasDoExercicio(e, base, cargasDoDia, {
+    ...p.config, ultima: p.ultima, cargaManual: p.cargaDoDia != null, unidade,
+  });
+  const progressaoDeHoje = p.cargaDoDia == null ? calculadas.find((c) => c.progressao === 'SUBIR_CARGA') : undefined;
   // `feitas` (todas as séries) só decide a vibração do último ✓ (`ultimaDoExercicio`); o contador na tela é `contagem`.
   const feitas = e.series.filter((s) => p.registroDe(s.uid)?.concluida).length;
   // "x de y feitas": a mesma conta da faixa e do "Bom trabalho" (D6, `contagemDoExercicio`); sem série contada, não aparece.
@@ -226,8 +229,13 @@ function CorpoDoExercicio(p: Props) {
               : 'Sem registro anterior.'}
           </Texto>
           <Texto numerico variante="pequeno">
-            {`É o ponto de partida do dia${p.cargaDoDia == null && p.ultima?.carga != null ? '; sem nada aqui, as sugestões saem da última vez' : ''}. Depois que você registrar a ${p.config.tipoTrabalho} nesta sessão (marcando a série como feita), as séries em "% da ${p.config.tipoTrabalho}" passam a sair dela.`}
+            {`É o ponto de partida do dia${p.cargaDoDia == null && p.ultima?.carga != null ? '; sem nada aqui, as séries em % saem da última vez e a série de trabalho sugere a progressão' : ''}. Depois que você registrar a ${p.config.tipoTrabalho} nesta sessão (marcando a série como feita), as séries em "% da ${p.config.tipoTrabalho}" passam a sair dela.`}
           </Texto>
+          {progressaoDeHoje ? (
+            <Texto numerico variante="pequeno">
+              {`As sugestões de hoje já incluem a progressão da metodologia (+${textoDoPasso(p.config.arredondamentoKg, unidade)}). Use − e + ou digite outra carga se quiser fixar a base do dia.`}
+            </Texto>
+          ) : null}
         </Cartao>
       ) : null}
       <View style={estilos.tituloSeries}>
@@ -289,6 +297,7 @@ function CorpoDoExercicio(p: Props) {
             anterior={anterior(i)}
             ultimaCarga={p.ultima}
             baseDaUltimaVez={p.cargaDoDia == null && p.ultima?.carga != null}
+            arredondamentoKg={p.config.arredondamentoKg}
             aoRegistrar={(d) => p.aoRegistrar(c.serie.uid, d)}
             aoIniciarPausa={p.aoIniciarPausa}
           />
@@ -318,6 +327,7 @@ function CartaoSerie({
   anterior,
   ultimaCarga,
   baseDaUltimaVez,
+  arredondamentoKg,
 }: {
   calculada: SerieCalculada;
   indice: number;
@@ -351,6 +361,8 @@ function CartaoSerie({
   ultimaCarga: UltimaCarga | null;
   /** Sem base do dia gravada, a conta parte da última carga: a origem da dica diz "da última vez", não "da base do dia". */
   baseDaUltimaVez: boolean;
+  /** Passo da metodologia, para o aviso de meta batida. */
+  arredondamentoKg: number;
 }) {
   const { cores, identificacao } = useTema();
   const unidade = useUnidadeDeCarga();
@@ -399,14 +411,22 @@ function CartaoSerie({
   // exercício (D7), então só entra nas séries de trabalho; nas outras a dica fica com a sugestão. "Primeira vez" só quando o
   // exercício nunca teve carga registrada.
   // Com a caixa da base vazia (D1), "da base do dia" não diria a verdade: a conta partiu da última carga.
-  const origem = semCampoDePeso || calculada.sugestao == null ? null : textoDaOrigem(calculada, { tipoTrabalho, metodologia, baseDaUltimaVez });
-  const dicaDoDominio = dicaDeCarga({ sugestaoKg: calculada.sugestao, ultima: ehSerieDeTrabalho(s) ? ultimaCarga : null, semCampoDePeso, unidade });
+  const origem = semCampoDePeso || calculada.sugestao == null ? null : textoDaOrigem(calculada, { tipoTrabalho, metodologia, baseDaUltimaVez, unidade, arredondamentoKg });
+  const dicaDoDominio = dicaDeCarga({
+    sugestaoKg: calculada.sugestao,
+    sugestaoReps: calculada.sugestaoReps,
+    incrementoKg: calculada.incrementoKg,
+    passoKg: arredondamentoKg,
+    ultima: ehSerieDeTrabalho(s) ? ultimaCarga : null,
+    semCampoDePeso,
+    unidade,
+  });
   const dica = feita ? null : (dicaDoDominio === TEXTO_PRIMEIRA_VEZ && ultimaCarga ? null : dicaDoDominio);
   // A carga só entra na conta das séries seguintes com o ✓ (regra de sempre, N15): a dica diz isso enquanto não foi marcada.
   const avisoDoMarcar = !semCampoDePeso && !registro && (ativa || cargaDigitada !== null) && seriesSeguintesDependemDesta(seriesDoExercicio, indice);
 
   // D11: só texto, nunca um valor em kg.
-  const avisoDasReps = avisoDeRepeticoes(s, reps, metodologia);
+  const avisoDasReps = avisoDeRepeticoes(s, reps, metodologia, arredondamentoKg, unidade);
 
   const decisao = decidirCheck({ feita, carga: semCampoDePeso ? null : carga, repeticoes: reps, sugestaoKg: calculada.sugestao, semCampoDePeso });
   // N6: série marcada sem kg num exercício com carga não entra no progresso; o aviso fica junto da série.
@@ -440,7 +460,7 @@ function CartaoSerie({
 
   const escolher = (escolha: EscolhaDoPainel) => {
     if (painel === null) return;
-    const r = aplicarEscolhaDoPainel(escolha, painel, reps);
+    const r = aplicarEscolhaDoPainel(escolha, painel, reps, { sugestaoReps: calculada.sugestaoReps, ultimaCargaKg: ultimaCarga?.carga ?? null });
     setPainel(null);
     if (r.gravar) aoRegistrar(r.gravar);
     else campoDaCarga.current?.focus();
@@ -529,7 +549,10 @@ function CartaoSerie({
       {semCargaNaSerie ? <Texto variante="pequeno" cor={cores.texto} accessibilityLiveRegion="polite">{semCargaNaSerie}</Texto> : null}
       {dica ? <DicaDoCampo dica={dica} origem={origem} numero={numero} /> : null}
       {avisoDasReps ? <Texto numerico variante="pequeno" cor={cores.texto} accessibilityLiveRegion="polite">{avisoDasReps}</Texto> : null}
-      {painelAberto ? <PainelDoCheck sugestaoKg={painel} numero={numero} aoEscolher={escolher} /> : null}
+      {painelAberto ? (
+        <PainelDoCheck sugestaoKg={painel} numero={numero} aoEscolher={escolher}
+          sugestaoReps={calculada.sugestaoReps} repeticoesDigitadas={reps} ultimaCargaKg={ultimaCarga?.carga ?? null} />
+      ) : null}
       {avisoDoMarcar ? <Texto numerico variante="pequeno">As séries seguintes só usam este peso depois que você marcar a série como feita.</Texto> : null}
       {!semCampoDePeso && passo !== null ? (
         <AjusteDeCarga passo={passo} rotulo={`peso da série ${numero}`}

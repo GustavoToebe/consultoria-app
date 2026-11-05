@@ -1,6 +1,6 @@
 import type { Marca } from '../api/tipos';
 import { numeroParaTela } from '../dominio/formatos';
-import { NOTA_DA_LISTA, NOTA_DA_PREVIA, quantidadeParaTela, textoDoPeriodo, type LinhaDaLista, type PeriodoDaLista } from '../dominio/listaDeCompras';
+import { detalheDaConversao, NOTA_DA_LISTA, NOTA_DA_PREVIA, quantidadeParaTela, textoDoPeriodo, type LinhaDaLista, type PeriodoDaLista } from '../dominio/listaDeCompras';
 import { agruparLista, tituloDoGrupoNoPdf, type GrupoDaLista } from '../dominio/gruposDaLista';
 import { gruposDoAluno, textoDaOrigem, type ItemDaListaDoAluno } from '../dominio/listaDeComprasDoAluno';
 import { cabecalhoDoPdf, cssBase, esc, type Documento } from './html';
@@ -38,6 +38,11 @@ const celula = (texto: string) => esc(texto);
 
 const fatorNaTabela = (n: number | null | undefined) => (n == null ? '—' : numeroParaTela(n, 2));
 
+function nomeComDetalhe(l: LinhaDaLista): string {
+  const detalhe = detalheDaConversao(l);
+  return `${esc(l.nome)}${l.cru ? ' <span class="suave">(cru)</span>' : ''}${detalhe ? `<div class="suave">${esc(detalhe)}</div>` : ''}`;
+}
+
 /**
  * Linhas da tabela com uma faixa por grupo do alimento ("Carnes e derivados (3)"), na ordem de `agruparLista` (grupos do catálogo na ordem do mercado, depois os do treinador,
  * em ordem alfabética, "Outros itens" e "Adicionados por você" no fim). Estilo em linha para valer também no PDF da
@@ -58,14 +63,14 @@ export function corpoDaTabela(linhas: LinhaDaLista[], mostrarFatores: boolean): 
   const grupos = agruparLista(linhas, (l) => l.grupo);
   if (!mostrarFatores) {
     return emGrupos(grupos, 3,
-      (l) => `<tr><td class="marca"><span class="caixa"></span></td><td>${esc(l.nome)}${l.cru ? ' <span class="suave">(cru)</span>' : ''}</td><td class="qtd">${esc(quantidadeParaTela(l.quantidade, l.unidade))}</td></tr>`,
+      (l) => `<tr><td class="marca"><span class="caixa"></span></td><td>${nomeComDetalhe(l)}</td><td class="qtd">${esc(quantidadeParaTela(l.quantidade, l.unidade))}</td></tr>`,
     );
   }
   return emGrupos(grupos, 7, (l) => {
-    const comprar = `${quantidadeParaTela(l.quantidade, l.unidade)}${l.semFator ? ' (como na dieta)' : ''}`;
+    const comprar = quantidadeParaTela(l.quantidade, l.unidade);
     const cru = l.quantidadeCru == null ? '—' : quantidadeParaTela(l.quantidadeCru, l.unidade);
     const naDieta = l.naDieta == null ? '—' : quantidadeParaTela(l.naDieta, l.unidade);
-    return `<tr><td>${esc(l.nome)}</td><td class="qtd">${celula(naDieta)}</td><td>${celula(fatorNaTabela(l.fatorCoccao))}</td><td class="qtd">${celula(cru)}</td><td>${celula(fatorNaTabela(l.fatorCorrecao))}</td><td class="qtd">${celula(comprar)}</td><td class="marca"><span class="caixa"></span></td></tr>`;
+    return `<tr><td>${nomeComDetalhe(l)}</td><td class="qtd">${celula(naDieta)}</td><td>${celula(fatorNaTabela(l.fatorCoccao))}</td><td class="qtd">${celula(cru)}</td><td>${celula(fatorNaTabela(l.fatorCorrecao))}</td><td class="qtd">${celula(comprar)}</td><td class="marca"><span class="caixa"></span></td></tr>`;
   });
 }
 
@@ -82,7 +87,9 @@ export function corpoDoAluno(itens: readonly ItemDaListaDoAluno[]): string {
     const cru = i.cru ? ' <span class="suave">(cru)</span>' : '';
     const quantidade = i.origem === 'calculado' && i.linha ? quantidadeParaTela(i.linha.quantidade, i.linha.unidade) : i.quantidade;
     const calculado = i.origem === 'ajustado' && i.linha ? ` <span class="suave">(calculado: ${esc(quantidadeParaTela(i.linha.quantidade, i.linha.unidade))})</span>` : '';
-    return `<tr><td class="marca"><span class="caixa"></span></td><td>${esc(i.nome)}${cru}${marca}</td><td class="qtd">${esc(quantidade)}${calculado}</td></tr>`;
+    const detalhe = i.linha ? detalheDaConversao(i.linha) : null;
+    const explicacao = detalhe ? `<div class="suave">${esc(detalhe)}</div>` : '';
+    return `<tr><td class="marca"><span class="caixa"></span></td><td>${esc(i.nome)}${cru}${marca}${explicacao}</td><td class="qtd">${esc(quantidade)}${calculado}</td></tr>`;
   });
 }
 

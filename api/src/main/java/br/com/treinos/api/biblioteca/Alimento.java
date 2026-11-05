@@ -19,10 +19,10 @@ import java.util.UUID;
  * Alimento da biblioteca: valores por {@code baseQuantidade} {@code baseUnidade} (ex.: por 100 g). O app calcula o item
  * da dieta ao editar e grava o resultado; a versão publicada guarda os números e não recalcula depois.
  *
- * <p>{@code fatorCorrecao} (peso bruto ÷ líquido) e {@code fatorCoccao} (peso pronto ÷ cru) servem só à lista de compras
- * do aluno (reunião de 17/10, R13/R14/R32). São opcionais. O catálogo público traz fator em parte dos alimentos
- * (V027); a importação copia e o treinador pode mudar. Nulo quer dizer "não informado", nunca 1. A publicação da dieta copia os valores do
- * momento para os itens (ver {@code PlanoDietaService.paraPublicar}).
+ * <p>{@code fatorCorrecao} (peso bruto ÷ líquido) e {@code fatorCoccao} (peso pronto ÷ cru) servem à lista de compras
+ * do aluno (reunião de 17/10, R13/R14/R32). O cadastro, a importação e a V060 preenchem os dois com
+ * {@link FatoresDeRendimento} quando vêm nulos. A publicação da dieta copia os valores do momento para os itens
+ * (ver {@code PlanoDietaService.paraPublicar}).
  *
  * <p>{@code grupo} ("Carnes e derivados"...) é texto livre opcional que agrupa a lista de compras do aluno; também é
  * copiado na publicação. Ver {@link GrupoDoAlimento}.

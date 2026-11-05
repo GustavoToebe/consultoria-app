@@ -138,7 +138,7 @@ for (const m of metodologias) {
   });
 
   test(`${m.nome}: formato novo, sem campo do contrato antigo nem tipo Cardio`, () => {
-    assert.doesNotMatch(JSON.stringify(m.configuracao), /intensidade|porModalidade|referenciaUid|TOP_SET/);
+    assert.doesNotMatch(JSON.stringify(m.configuracao), /intensidade|porModalidade|referenciaUid|ACIMA_DA_ANTERIOR/);
     for (const t of m.configuracao.tipos) {
       assert.deepEqual(Object.keys(t), ['codigo', 'nome', 'papel', 'repeticoes', 'cargaPadrao', 'esforcoPadrao', 'regraPercentuais', 'explicacao']);
       assert.notEqual(chaveDeTipo(t.nome), 'cardio');

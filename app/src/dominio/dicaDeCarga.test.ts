@@ -34,6 +34,13 @@ describe('dica de carga (D1)', () => {
     expect(textoDaUltimaCarga({ carga: 40, repeticoes: 8, etapas })).toBe('40 kg × 4+4');
   });
 
+  it('série de trabalho: sugere carga e repetições, com o passo quando a carga sobe', () => {
+    expect(dicaDeCarga({ sugestaoKg: 77.5, sugestaoReps: 5, incrementoKg: 2.5, passoKg: 2.5, ultima: { carga: 75, repeticoes: 5 }, semCampoDePeso: false }))
+      .toBe('Sugestão: 77,5 kg × 5 reps (+2,5 kg) · Última vez: 75 kg × 5');
+    expect(dicaDeCarga({ sugestaoKg: 75, sugestaoReps: 6, incrementoKg: 0, ultima: { carga: 75, repeticoes: 5 }, semCampoDePeso: false }))
+      .toBe('Sugestão: 75 kg × 6 reps · Última vez: 75 kg × 5');
+  });
+
   it('partes da dica: sugestão e "Primeira vez" em destaque; o resto em peso normal', () => {
     expect(partesDaDica('Sugestão: 60 kg · Última vez: 60 kg × 7')).toEqual({ destaque: 'Sugestão: 60 kg', resto: 'Última vez: 60 kg × 7' });
     expect(partesDaDica('Sugestão: 60 kg')).toEqual({ destaque: 'Sugestão: 60 kg', resto: null });

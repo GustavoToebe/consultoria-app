@@ -24,9 +24,9 @@ const tecnica = (tipo: TipoDeTecnica, valores: Partial<Tecnica> = {}): Tecnica =
 });
 
 /**
- * Metodologia padrão (regras do Saraiva, nos quatro tipos), usada quando o plano ou a consultoria não
+ * Metodologia padrão (regras do Saraiva, nos cinco tipos), usada quando o plano ou a consultoria não
  * tem nenhuma. ESPELHO EXATO de `ConfiguracaoConsultoria.padrao()` na API: mudou um, mude o outro. Todo percentual é da
- * série de trabalho (WS). Os códigos (`WARM_UP`, `FEEDER`, `WORKING`, `BACK_OFF`) são o que a série grava.
+ * série de trabalho (WS). Os códigos (`WARM_UP`, `FEEDER`, `WORKING`, `BACK_OFF`, `TOP_SET`) são o que a série grava.
  */
 export const CONFIGURACAO_PADRAO: Configuracao = {
   tipos: [
@@ -74,20 +74,33 @@ export const CONFIGURACAO_PADRAO: Configuracao = {
       cargaPadrao: percentual(85),
       esforcoPadrao: rir(0),
       regraPercentuais: null,
-      explicacao: 'Depois da série de trabalho, com 85% da carga dela.',
+      explicacao: 'Depois da série de trabalho, com menos carga. No padrão, 85% da carga da série de trabalho.',
+    },
+    {
+      // Depois da WS: o primeiro tipo de trabalho (o que dá nome ao "% da WS") continua sendo a WS.
+      // Sem sugestão de carga: com CARGA_TRABALHO contaria como série de trabalho (referência do "% da WS" e da última carga).
+      codigo: 'TOP_SET',
+      nome: 'Top set',
+      papel: 'TRABALHO',
+      repeticoes: { min: 6, max: 8 },
+      cargaPadrao: carga('NENHUMA'),
+      esforcoPadrao: rir(0),
+      regraPercentuais: null,
+      explicacao:
+        'Quando estiver escrito Top set na série do seu treino, significa que a carga dessa série deve ser maior que a da série anterior. Máquinas: 5% a 10% acima da série anterior. Livres: 1% a 5% acima da série anterior.',
     },
   ],
   tecnicas: [
     {
       tipo: 'REST_PAUSE',
       nome: 'Rest pause',
-      explicacao: 'Faça a série, pause 20 segundos e continue com a mesma carga até a falha.',
+      explicacao: 'Faça a série, pause de 15 a 20 segundos e continue com a mesma carga até a falha. O padrão usa 20 segundos.',
       padrao: tecnica('REST_PAUSE', { pausaSegundos: 20, pausas: 1 }),
     },
     {
       tipo: 'CLUSTER',
       nome: 'Cluster',
-      explicacao: 'Muscle Round: a série é dividida em blocos de repetições com uma pausa curta entre eles, com a mesma carga.',
+      explicacao: 'Muscle Round: a série é dividida em blocos de repetições com a mesma carga e uma pausa de 10 a 15 segundos entre os blocos. O padrão usa 15 segundos.',
       padrao: tecnica('CLUSTER', { pausaSegundos: 15 }),
     },
     {

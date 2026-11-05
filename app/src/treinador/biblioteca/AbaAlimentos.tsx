@@ -5,7 +5,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { alterarAlimento, criarAlimento, gruposDoCatalogo, inativarAlimento, listarAlimentos } from '../../api/rotas';
 import type { Alimento, AlimentoRequest, UnidadeAlimento } from '../../api/tipos';
-import { AJUDA_FC, AJUDA_FCC, erroDoFatorCoccao, erroDoFatorCorrecao, textoDosFatores } from '../../dominio/fatoresDoAlimento';
+import { AJUDA_FC, AJUDA_FCC, descricaoDosFatores, erroDoFatorCoccao, erroDoFatorCorrecao, estimarFatoresDoAlimento, PERFIS_FC, PERFIS_FCC, perfilFcDoValor, perfilFccDoValor, previaDeConversao } from '../../dominio/fatoresDoAlimento';
 import { numeroParaTela } from '../../dominio/formatos';
 import { sugerirGrupos } from '../../dominio/gruposDaLista';
 import { espaco } from '../../tema/tokens';
@@ -19,6 +19,7 @@ import { Escolha } from '../../ui/Escolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { errosPorCampo, textoDoErro } from '../../ui/erros';
+import { FaixaDeChips } from '../../ui/FaixaDeChips';
 import { Folha } from '../../ui/Folha';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
@@ -45,9 +46,9 @@ export const LIMITE_GRUPO_DO_ALIMENTO = 60;
 /** Quantas sugestões de grupo aparecem de uma vez embaixo do campo. */
 const SUGESTOES_DE_GRUPO = 8;
 
-/** "Cereais e derivados · FC 1,75 · FCc 2,5" na linha da biblioteca; sem grupo nem fator, nada. */
+/** Grupo e a conversão de 100 g, ou "Peso direto" quando FC e FCc são 1. */
 export function descricaoDoAlimento(a: Pick<Alimento, 'grupo' | 'fatorCorrecao' | 'fatorCoccao'>): string | null {
-  return [a.grupo?.trim() || null, textoDosFatores(a)].filter(Boolean).join(' · ') || null;
+  return descricaoDosFatores(a);
 }
 
 /** Alimentos da consultoria com os valores por quantidade-base (digitados pelo treinador ou importados). */
@@ -56,14 +57,10 @@ export function AbaAlimentos() {
   const { pode } = useSessao();
   const { dados, erro, carregando, recarregar } = useCarregar('biblioteca-alimentos', () => listarAlimentos());
   const [busca, setBusca] = useState('');
-  // Filtro da lista de compras: quem ainda não tem FC/FCc aparece com o selo "Sem fatores" e dá para listar só eles.
-  const [fatores, setFatores] = useState<'todos' | 'com' | 'sem'>('todos');
   const [editando, setEditando] = useState<Alimento | 'novo' | null>(null);
   const [inativar, setInativar] = useState<Alimento | null>(null);
   const termo = normalizar(busca.trim());
-  const semFatores = (a: Alimento) => a.fatorCorrecao === null && a.fatorCoccao === null;
-  const lista = (dados ?? []).filter((a) => (!termo || normalizar(a.nome).includes(termo))
-    && (fatores === 'todos' || (fatores === 'sem') === semFatores(a)));
+  const lista = (dados ?? []).filter((a) => !termo || normalizar(a.nome).includes(termo));
 
   const confirmarInativar = () => {
     const alvo = inativar;
@@ -83,18 +80,14 @@ export function AbaAlimentos() {
       titulo="Alimentos da biblioteca"
       descricao="Os alimentos que você escolhe ao montar a dieta, com os valores por quantidade-base."
       acoes={<Permitido codigo="BIBLIOTECA_ALTERAR"><Botao rotulo="Novo alimento" Icone={Plus} aoTocar={() => setEditando('novo')} /></Permitido>}>
-      <BarraDaBiblioteca rotulo="Buscar alimento" placeholder="Nome do alimento" valor={busca} aoMudar={setBusca}
-        filtro={{ tipo: 'uma', rotulo: 'Fatores da lista de compras', valor: fatores, todos: 'todos', aoMudar: setFatores,
-          opcoes: [{ valor: 'todos', rotulo: 'Todos' }, { valor: 'com', rotulo: 'Com fatores' }, { valor: 'sem', rotulo: 'Sem fatores' }] }} />
+      <BarraDaBiblioteca rotulo="Buscar alimento" placeholder="Nome do alimento" valor={busca} aoMudar={setBusca} />
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && lista.length === 0 ? (
-        <Vazio titulo={dados.length ? 'Nenhum alimento encontrado' : 'Biblioteca de alimentos vazia'} texto={dados.length ? 'Tente outro termo de busca ou filtro.' : pode('BIBLIOTECA_ALTERAR') ? 'Importe do catálogo ou cadastre um alimento.' : 'Ainda não há itens cadastrados.'} acao={dados.length ? { rotulo: 'Limpar busca', aoTocar: () => { setBusca(''); setFatores('todos'); } } : pode('BIBLIOTECA_ALTERAR') ? { rotulo: 'Cadastrar alimento', aoTocar: () => setEditando('novo') } : undefined} />
+        <Vazio titulo={dados.length ? 'Nenhum alimento encontrado' : 'Biblioteca de alimentos vazia'} texto={dados.length ? 'Tente outro termo de busca.' : pode('BIBLIOTECA_ALTERAR') ? 'Importe do catálogo ou cadastre um alimento.' : 'Ainda não há itens cadastrados.'} acao={dados.length ? { rotulo: 'Limpar busca', aoTocar: () => setBusca('') } : pode('BIBLIOTECA_ALTERAR') ? { rotulo: 'Cadastrar alimento', aoTocar: () => setEditando('novo') } : undefined} />
       ) : null}
       {lista.length ? <ListaDeLinhas>{lista.map((a) => {
-        const fatoresDoAlimento = textoDosFatores(a);
         return <LinhaDaLista key={a.id} titulo={a.nome} metadados={resumoAlimento(a)} descricao={descricaoDoAlimento(a) ?? undefined}
-          selos={fatoresDoAlimento ? undefined : [{ texto: 'Sem fatores', tipo: 'neutro' }]}
           acoesAoLado
           acoes={<Permitido codigo="BIBLIOTECA_ALTERAR"><IconeBotao Icone={Pencil} rotulo={`Editar ${a.nome}`} aoTocar={() => setEditando(a)} /></Permitido>} />;
       })}</ListaDeLinhas> : null}
@@ -144,15 +137,25 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
   const [fc, setFc] = useState<number | null>(inicial?.fatorCorrecao ?? null);
   const [fcc, setFcc] = useState<number | null>(inicial?.fatorCoccao ?? null);
   const [grupo, setGrupo] = useState(inicial?.grupo ?? '');
+  // No alimento novo a sugestão acompanha o nome. Na edição, só depois de "Sugerir pelo nome", até a pessoa tocar num chip ou no número.
+  const [tocouFatores, setTocouFatores] = useState(inicial !== null);
   // Grupos do catálogo público como sugestão; sem eles (erro ou sem rede), sugere só os da consultoria.
   const doCatalogo = useCarregar('grupos-catalogo-alimentos', () => gruposDoCatalogo('alimentos'));
   const sugestoes = sugerirGrupos(gruposDaConsultoria, doCatalogo.dados ?? [], grupo).slice(0, SUGESTOES_DE_GRUPO);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
   const campos = errosPorCampo(erro);
-  const erroFc = erroDoFatorCorrecao(fc);
-  const erroFcc = erroDoFatorCoccao(fcc);
+  const sugerido = estimarFatoresDoAlimento(nome, grupo, kcal, base, unidade);
+  const fcMostrado = tocouFatores ? fc : sugerido.fatorCorrecao;
+  const fccMostrado = tocouFatores ? fcc : sugerido.fatorCoccao;
+  const erroFc = erroDoFatorCorrecao(fcMostrado);
+  const erroFcc = erroDoFatorCoccao(fccMostrado);
   const completo = nome.trim() && base && kcal !== null && proteina !== null && carboidrato !== null && gordura !== null && !erroFc && !erroFcc;
+
+  const sugerirPeloNome = () => setTocouFatores(false);
+  const travarFatores = () => { setFc(fcMostrado); setFcc(fccMostrado); setTocouFatores(true); };
+  const escolherFc = (valor: number) => { setFc(valor); setFcc(fccMostrado); setTocouFatores(true); };
+  const escolherFcc = (valor: number) => { setFc(fcMostrado); setFcc(valor); setTocouFatores(true); };
 
   const salvar = () => {
     if (!completo) return;
@@ -166,8 +169,8 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
       gordura,
       gramasPorUnidade: gramas,
       fonte: fonte.trim() || null,
-      fatorCorrecao: fc,
-      fatorCoccao: fcc,
+      fatorCorrecao: fcMostrado,
+      fatorCoccao: fccMostrado,
       grupo: grupo.replace(/\s+/g, ' ').trim() || null,
     };
     setSalvando(true);
@@ -236,16 +239,32 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
         />
       </View>
       <Campo rotulo="Fonte dos valores (opcional)" valor={fonte} aoMudar={setFonte} maxLength={200} />
-      <Texto variante="secao">Lista de compras (opcional)</Texto>
-      <Texto variante="suave">Use os fatores que você adota. Vazio = a lista do aluno usa a quantidade da dieta, como está.</Texto>
+      <Texto variante="secao">Lista de compras (estimativa automática)</Texto>
+      <Texto variante="suave">O nome sugere o descarte e a cocção. Escolha um perfil ou digite o número que você usa.</Texto>
+      {inicial ? <Botao rotulo="Sugerir pelo nome" tipo="secundario" aoTocar={sugerirPeloNome} /> : null}
+      <Texto variante="rotulo">Descarte / limpeza antes do preparo (FC)</Texto>
+      <FaixaDeChips quebrar accessibilityLabel="Descarte e limpeza">
+        {PERFIS_FC.map((p) => (
+          <Botao key={p.codigo} rotulo={p.rotulo} tipo={perfilFcDoValor(fcMostrado) === p.codigo ? 'primario' : 'secundario'} aoTocar={() => escolherFc(p.valor)} />
+        ))}
+        <Botao rotulo="Personalizado" tipo={perfilFcDoValor(fcMostrado) === 'PERSONALIZADO' ? 'primario' : 'secundario'} aoTocar={travarFatores} />
+      </FaixaDeChips>
+      <Texto variante="rotulo">Estado do alimento na dieta / cocção (FCc)</Texto>
+      <FaixaDeChips quebrar accessibilityLabel="Cocção">
+        {PERFIS_FCC.map((p) => (
+          <Botao key={p.codigo} rotulo={p.rotulo} tipo={perfilFccDoValor(fccMostrado) === p.codigo ? 'primario' : 'secundario'} aoTocar={() => escolherFcc(p.valor)} />
+        ))}
+        <Botao rotulo="Personalizado" tipo={perfilFccDoValor(fccMostrado) === 'PERSONALIZADO' ? 'primario' : 'secundario'} aoTocar={travarFatores} />
+      </FaixaDeChips>
       <View style={estilos.grade}>
         <View style={estilos.campo}>
-          <CampoNumerico rotulo="Fator de correção (FC)" valor={fc} aoMudar={setFc} ajuda={AJUDA_FC} erro={campos.fatorCorrecao ?? erroFc} />
+          <CampoNumerico rotulo="Fator de correção (FC)" valor={fcMostrado} aoMudar={(v) => { setFc(v); setFcc(fccMostrado); setTocouFatores(true); }} ajuda={AJUDA_FC} erro={campos.fatorCorrecao ?? erroFc} />
         </View>
         <View style={estilos.campo}>
-          <CampoNumerico rotulo="Fator de cocção (FCc)" valor={fcc} aoMudar={setFcc} ajuda={AJUDA_FCC} erro={campos.fatorCoccao ?? erroFcc} />
+          <CampoNumerico rotulo="Fator de cocção (FCc)" valor={fccMostrado} aoMudar={(v) => { setFc(fcMostrado); setFcc(v); setTocouFatores(true); }} ajuda={AJUDA_FCC} erro={campos.fatorCoccao ?? erroFcc} />
         </View>
       </View>
+      {fcMostrado !== null && fccMostrado !== null && fccMostrado !== 0 ? <Texto variante="suave">{previaDeConversao(fcMostrado, fccMostrado)}</Texto> : null}
       {erro && Object.keys(campos).length === 0 ? <MensagemErro texto={textoDoErro(erro)} /> : null}
       {inicial && aoTirar ? <Botao rotulo="Tirar da biblioteca" tipo="perigoTexto" Icone={Trash2} aoTocar={aoTirar} /> : null}
     </Folha>

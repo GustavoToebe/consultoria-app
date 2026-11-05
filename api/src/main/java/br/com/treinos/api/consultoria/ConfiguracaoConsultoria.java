@@ -178,7 +178,7 @@ public record ConfiguracaoConsultoria(
 
     /**
      * Valores de um plano sem metodologia vinculada e da metodologia criada com a consultoria (as regras do Saraiva, nos
-     * quatro tipos). Espelho em {@code dominio/metodologiaPadrao.ts}: mudou um, mude o outro.
+     * cinco tipos). Espelho em {@code dominio/metodologiaPadrao.ts}: mudou um, mude o outro.
      */
     public static ConfiguracaoConsultoria padrao() {
         Map<String, List<Faixa>> regra = new LinkedHashMap<>();
@@ -196,14 +196,24 @@ public record ConfiguracaoConsultoria(
                         "Working set: a série de trabalho, com a carga máxima do dia nas repetições propostas. "
                                 + "Vá até a falha. Se passar das repetições, aumente a carga na semana seguinte."),
                 new TipoDeSerie("BACK_OFF", "Back off", Papel.POS_TRABALHO, new Repeticoes(6, 8), percentual(85, null),
-                        Esforco.deRir(0), null, "Depois da série de trabalho, com 85% da carga dela."));
+                        Esforco.deRir(0), null,
+                        "Depois da série de trabalho, com menos carga. No padrão, 85% da carga da série de trabalho."),
+                // Depois da WS na lista: tipoTrabalho()/codigoTrabalho() pegam o primeiro tipo de trabalho (a WS).
+                // Sem sugestão de carga (NENHUMA): com CARGA_TRABALHO ele contaria como série de trabalho e viraria a
+                // referência do "% da WS" e da "última carga"; a explicação do tipo diz quanto subir.
+                new TipoDeSerie("TOP_SET", "Top set", Papel.TRABALHO, new Repeticoes(6, 8),
+                        Carga.de(ConteudoTreino.NENHUMA), Esforco.deRir(0), null,
+                        "Quando estiver escrito Top set na série do seu treino, significa que a carga dessa série deve "
+                                + "ser maior que a da série anterior. Máquinas: 5% a 10% acima da série anterior. "
+                                + "Livres: 1% a 5% acima da série anterior."));
         List<TecnicaDaMetodologia> tecnicas = List.of(
                 new TecnicaDaMetodologia(ConteudoTreino.REST_PAUSE, "Rest pause",
-                        "Faça a série, pause 20 segundos e continue com a mesma carga até a falha.",
+                        "Faça a série, pause de 15 a 20 segundos e continue com a mesma carga até a falha. "
+                                + "O padrão usa 20 segundos.",
                         Tecnica.restPause(20, null, 1)),
                 new TecnicaDaMetodologia(ConteudoTreino.CLUSTER, "Cluster",
-                        "Muscle Round: a série é dividida em blocos de repetições com uma pausa curta entre eles, com a "
-                                + "mesma carga.",
+                        "Muscle Round: a série é dividida em blocos de repetições com a mesma carga e uma pausa de "
+                                + "10 a 15 segundos entre os blocos. O padrão usa 15 segundos.",
                         Tecnica.cluster(null, 15, null)),
                 new TecnicaDaMetodologia(ConteudoTreino.DROP_SET, "Drop-set",
                         "Ao terminar a série, reduza a carga e continue sem descanso.",
