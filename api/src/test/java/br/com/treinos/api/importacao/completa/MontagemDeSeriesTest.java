@@ -46,12 +46,14 @@ class MontagemDeSeriesTest {
     @Test
     void ordemFsWsTsBackOff() {
         Resultado r = MontagemDeSeries.montar(entrada(1, 1, Logico.SIM, Logico.SIM, 0.9, TRES_A_SEIS), PADRAO);
-        assertThat(r.series()).extracting(Serie::tipo).containsExactly("FEEDER", "WORKING", "WORKING", "BACK_OFF");
+        assertThat(r.series()).extracting(Serie::tipo).containsExactly("FEEDER", "WORKING", "TOP_SET", "BACK_OFF");
         assertThat(r.series()).extracting(s -> s.carga().modo())
                 .containsExactly("PERCENTUAL_WS", "CARGA_TRABALHO", "CARGA_TRABALHO", "PERCENTUAL_WS");
-        // TS: a metodologia padrão não tem Top set, então vira mais uma WS, sem repetições; número nunca inventado.
+        // TS: o tipo Top set da metodologia, com as repetições dele (6 a 8); percentual nunca inventado.
         assertThat(r.series().get(2).carga().percentualMin()).isNull();
-        assertThat(r.avisos()).containsExactly("TS_COMO_WS");
+        assertThat(r.series().get(2).repsMin()).isEqualTo(6);
+        assertThat(r.series().get(2).repsMax()).isEqualTo(8);
+        assertThat(r.avisos()).isEmpty();
     }
 
     @Test
@@ -122,17 +124,17 @@ class MontagemDeSeriesTest {
         // e5: Rep Range "qualquer coisa": a WS nasce, as repetições ficam vazias e o aviso conta.
         Resultado r = MontagemDeSeries.montar(entrada(2, 1, Logico.SIM, Logico.NAO, 0,
                 LeitorDePrescricao.faixaDeRepeticoes(celula("qualquer coisa"), false)), PADRAO);
-        assertThat(r.series()).extracting(Serie::tipo).containsExactly("FEEDER", "WORKING", "WORKING", "WORKING");
+        assertThat(r.series()).extracting(Serie::tipo).containsExactly("FEEDER", "WORKING", "WORKING", "TOP_SET");
         assertThat(r.series().get(1).repsMin()).isNull();
-        assertThat(r.avisos()).containsExactlyInAnyOrder("FAIXA_INVALIDA", "TS_COMO_WS");
+        assertThat(r.avisos()).containsExactly("FAIXA_INVALIDA");
     }
 
     @Test
-    void tsComMetodologiaSemWsNaoViraSerieEAvisaOTipoFora() {
-        // Sem a WS na metodologia o TS não entra; o aviso é o do tipo, não o TS_COMO_WS.
-        ConfiguracaoConsultoria semWs = new ConfiguracaoConsultoria(
-                PADRAO.tipos().stream().filter(t -> !"WORKING".equals(t.codigo())).toList(), null, null, null, null, null);
-        Resultado r = MontagemDeSeries.montar(entrada(0, 0, Logico.SIM, Logico.NAO, 0, TRES_A_SEIS), semWs);
+    void tsSemOTipoTopSetNaMetodologiaNaoViraWsEAvisaOTipoFora() {
+        // Nunca vira WS: sem o tipo TOP_SET o TS não entra e o aviso é o do tipo.
+        ConfiguracaoConsultoria semTs = new ConfiguracaoConsultoria(
+                PADRAO.tipos().stream().filter(t -> !"TOP_SET".equals(t.codigo())).toList(), null, null, null, null, null);
+        Resultado r = MontagemDeSeries.montar(entrada(0, 0, Logico.SIM, Logico.NAO, 0, TRES_A_SEIS), semTs);
         assertThat(r.series()).isEmpty();
         assertThat(r.avisos()).containsExactly("TIPO_FORA_DA_METODOLOGIA");
     }

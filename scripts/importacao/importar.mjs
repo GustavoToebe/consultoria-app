@@ -275,15 +275,14 @@ export function montarSeries(linhas, obs, regra = REGRA_PADRAO) {
   for (const i of itens) for (let k = 0; k < i.n; k++) {
     if (i.cardio) { series.push(serieDeCardio(i.cardio)); continue; }
     // Rest pause, cluster e drop-set são técnicas da série de trabalho: sem tipo escrito, é uma WS com a técnica.
-    // O Top set da planilha não existe na metodologia: vira WS (a carga de trabalho do dia), e o "+N%" escrito continua na observação (`obsLimpa` não o tira).
-    if (i.tipo === 'Top set') rel.topComoWs++;
-    const tipo = !i.tipo || i.tipo === 'Top set' ? 'WS' : i.tipo;
+    // Top set é um tipo da metodologia (TOP_SET, carga de trabalho): nunca vira WS. O "+N%" escrito continua na observação (`obsLimpa` não o tira).
+    const tipo = i.tipo || 'WS';
     let carga = cargaDe('NENHUMA');
     const esforco = null;
     if (tipo === 'FS') {
       const faixa = regra[totalFs]?.[fs++];
       if (faixa != null) carga = cargaDe('PERCENTUAL_WS', { percentualMin: faixa.min, percentualMax: faixa.max ?? null });
-    } else if (tipo === 'WS') {
+    } else if (tipo === 'WS' || tipo === 'Top set') {
       carga = cargaDe('CARGA_TRABALHO');
     } else if (tipo === 'Back off') {
       if (reducao) {
@@ -314,7 +313,7 @@ export function obsLimpa(obs) {
 }
 
 // ---------------------------------------------------------------- relatório
-const rel = { suplementos: [], ergogenicos: [], criados: new Set(), ligados: new Set(), grupos: 0, obsDicas: 0, conflitos: new Set(), linksIgnorados: new Set(), semLink: [], quase: [], modelos: [], mobilidade: [], trocados: new Set(), instrucoes: '', tecnicas: 0, topComoWs: 0, backOffReduzido: 0 };
+const rel = { suplementos: [], ergogenicos: [], criados: new Set(), ligados: new Set(), grupos: 0, obsDicas: 0, conflitos: new Set(), linksIgnorados: new Set(), semLink: [], quase: [], modelos: [], mobilidade: [], trocados: new Set(), instrucoes: '', tecnicas: 0, backOffReduzido: 0 };
 const falar = (...a) => console.log(...a);
 
 // ---------------------------------------------------------------- biblioteca
@@ -609,7 +608,6 @@ async function principal() {
   falar(`\nInstruções do Plano 16: ${rel.instrucoes}.`);
   lista('Modelos de treino', rel.modelos);
   if (rel.tecnicas) falar(`Séries com técnicas: ${rel.tecnicas}.`);
-  if (rel.topComoWs) falar(`Top set importado como WS: ${rel.topComoWs}; a metodologia não tem Top set, confira a carga no editor.`);
   if (rel.backOffReduzido) falar(`Back off com redução escrita: ${rel.backOffReduzido}; ficou com o padrão (% da WS), confira no editor.`);
   lista('Modelos de mobilidade', rel.mobilidade);
   lista('Suplementos', rel.suplementos);

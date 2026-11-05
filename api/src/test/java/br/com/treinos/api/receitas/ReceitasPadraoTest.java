@@ -51,12 +51,12 @@ class ReceitasPadraoTest {
     }
 
     @Test
-    void asCincoReceitasCompletasVemNoTopoDasReceitasDeSerie() {
+    void asSeisReceitasCompletasVemNoTopoDasReceitasDeSerie() {
         List<String> nomes = List.of("3 FS + WS + Rest pause", "3 FS + WS + 2 Back off", "3 FS + WS + Cluster",
-                "3 FS + Cluster", "2 FS + WS + Back off");
-        assertThat(series().subList(0, 5)).extracting(ReceitasPadrao.Padrao::nome).containsExactlyElementsOf(nomes);
+                "3 FS + Cluster", "2 FS + WS + Back off", "2 FS + WS + Top set + Back off");
+        assertThat(series().subList(0, 6)).extracting(ReceitasPadrao.Padrao::nome).containsExactlyElementsOf(nomes);
         assertThat(ReceitasPadrao.todas().get(0).tipo()).isEqualTo(Receita.Tipo.METODOLOGIA);
-        assertThat(ReceitasPadrao.todas().subList(1, 6)).extracting(ReceitasPadrao.Padrao::nome)
+        assertThat(ReceitasPadrao.todas().subList(1, 7)).extracting(ReceitasPadrao.Padrao::nome)
                 .containsExactlyElementsOf(nomes);
         assertThat(ReceitasPadrao.todas()).extracting(ReceitasPadrao.Padrao::tipo).doesNotContain(Receita.Tipo.PLANO_TREINO);
 
@@ -84,6 +84,17 @@ class ReceitasPadraoTest {
                 .containsExactly("FEEDER", "FEEDER", "FEEDER", "WORKING");
         assertThat(serieDe("2 FS + WS + Back off")).extracting(Serie::tipo)
                 .containsExactly("FEEDER", "FEEDER", "WORKING", "BACK_OFF");
+        List<Serie> comTopSet = serieDe("2 FS + WS + Top set + Back off");
+        assertThat(comTopSet).extracting(Serie::tipo).containsExactly("FEEDER", "FEEDER", "WORKING", "TOP_SET", "BACK_OFF");
+        assertThat(comTopSet).extracting(Serie::repsMin).containsExactly(3, 3, 8, 6, 8);
+        assertThat(comTopSet).extracting(Serie::repsMax).containsExactly(5, 5, 8, 8, 12);
+        assertThat(comTopSet.get(0).carga().percentualMin()).isEqualByComparingTo("50");
+        assertThat(comTopSet.get(1).carga().percentualMin()).isEqualByComparingTo("75");
+        assertThat(comTopSet.get(2).carga().modo()).isEqualTo("CARGA_TRABALHO");
+        assertThat(comTopSet.get(3).carga().modo()).isEqualTo("CARGA_TRABALHO");
+        assertThat(comTopSet.get(4).carga().modo()).isEqualTo("PERCENTUAL_WS");
+        assertThat(comTopSet.get(4).carga().percentualMin()).isEqualByComparingTo("80");
+
         for (String nome : List.of("3 FS + WS + Cluster", "3 FS + Cluster")) {
             Serie cluster = serieDe(nome).getLast();
             assertThat(cluster.repsMin()).isEqualTo(12);

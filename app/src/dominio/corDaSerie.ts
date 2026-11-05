@@ -7,11 +7,12 @@ import type { ChaveDeIdentificacao } from '../tema/tokens';
  * barra, `fundo` para o selo). A cor nunca é a única informação: o selo de texto continua (D7).
  */
 
-/** Os quatro tipos padrão da metodologia, pelo código (D9: por tipo, não só por papel). */
+/** Os cinco tipos padrão da metodologia, pelo código (D9: por tipo, não só por papel). */
 const COR_DO_TIPO: Readonly<Record<string, ChaveDeIdentificacao>> = {
   WARM_UP: 'CIANO',
   FEEDER: 'AZUL',
   WORKING: 'INDIGO',
+  TOP_SET: 'VIOLETA',
   BACK_OFF: 'MAGENTA',
 };
 
@@ -31,7 +32,7 @@ const CORES_DAS_DIVISOES: readonly ChaveDeIdentificacao[] = ['AZUL', 'MAGENTA', 
 const CORES_DAS_REFEICOES: readonly ChaveDeIdentificacao[] = ['CIANO', 'AZUL', 'VIOLETA', 'MAGENTA', 'INDIGO'];
 
 /**
- * Cor de um tipo de série: os quatro códigos padrão têm cor própria; qualquer outro código (tipo criado pelo treinador)
+ * Cor de um tipo de série: os cinco códigos padrão têm cor própria; qualquer outro código (tipo criado pelo treinador)
  * cai na cor do papel. Sem código conhecido e sem papel (ou papel "Outro"), `null` = sem cor.
  */
 export function corDoTipoDeSerie(

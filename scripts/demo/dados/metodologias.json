@@ -31,6 +31,26 @@
             "esforcoPadrao": null,
             "regraPercentuais": null,
             "explicacao": "Série de trabalho conforme a prescrição do treinador."
+          },
+          {
+            "codigo": "TOP_SET",
+            "nome": "Top set",
+            "papel": "TRABALHO",
+            "repeticoes": {
+              "min": 6,
+              "max": 8
+            },
+            "cargaPadrao": {
+              "modo": "CARGA_TRABALHO",
+              "percentualMin": null,
+              "percentualMax": null
+            },
+            "esforcoPadrao": {
+              "rir": 0,
+              "rpe": null
+            },
+            "regraPercentuais": null,
+            "explicacao": "Quando estiver escrito Top set na série do seu treino, significa que a carga dessa série deve ser maior que a da série anterior. Máquinas: 5% a 10% acima da série anterior. Livres: 1% a 5% acima da série anterior."
           }
         ],
         "tecnicas": [
@@ -282,6 +302,26 @@
             },
             "regraPercentuais": null,
             "explicacao": "Working set: a série de trabalho, com a carga máxima do dia nas repetições propostas. Peso livre: 1 repetição na reserva. Máquina: até a falha. Se passar das repetições, aumente a carga na semana seguinte."
+          },
+          {
+            "codigo": "TOP_SET",
+            "nome": "Top set",
+            "papel": "TRABALHO",
+            "repeticoes": {
+              "min": 6,
+              "max": 8
+            },
+            "cargaPadrao": {
+              "modo": "CARGA_TRABALHO",
+              "percentualMin": null,
+              "percentualMax": null
+            },
+            "esforcoPadrao": {
+              "rir": 0,
+              "rpe": null
+            },
+            "regraPercentuais": null,
+            "explicacao": "Quando estiver escrito Top set na série do seu treino, significa que a carga dessa série deve ser maior que a da série anterior. Máquinas: 5% a 10% acima da série anterior. Livres: 1% a 5% acima da série anterior."
           }
         ],
         "tecnicas": [
@@ -533,6 +573,26 @@
             },
             "regraPercentuais": null,
             "explicacao": "Working set: a série de trabalho, com a carga máxima do dia nas repetições propostas. Peso livre: 1 repetição na reserva. Máquina: até a falha. Se passar das repetições, aumente a carga na semana seguinte."
+          },
+          {
+            "codigo": "TOP_SET",
+            "nome": "Top set",
+            "papel": "TRABALHO",
+            "repeticoes": {
+              "min": 6,
+              "max": 8
+            },
+            "cargaPadrao": {
+              "modo": "CARGA_TRABALHO",
+              "percentualMin": null,
+              "percentualMax": null
+            },
+            "esforcoPadrao": {
+              "rir": 0,
+              "rpe": null
+            },
+            "regraPercentuais": null,
+            "explicacao": "Quando estiver escrito Top set na série do seu treino, significa que a carga dessa série deve ser maior que a da série anterior. Máquinas: 5% a 10% acima da série anterior. Livres: 1% a 5% acima da série anterior."
           }
         ],
         "tecnicas": [
@@ -801,6 +861,26 @@
             "esforcoPadrao": null,
             "regraPercentuais": null,
             "explicacao": "Depois da série de trabalho, com 85% da carga dela."
+          },
+          {
+            "codigo": "TOP_SET",
+            "nome": "Top set",
+            "papel": "TRABALHO",
+            "repeticoes": {
+              "min": 6,
+              "max": 8
+            },
+            "cargaPadrao": {
+              "modo": "CARGA_TRABALHO",
+              "percentualMin": null,
+              "percentualMax": null
+            },
+            "esforcoPadrao": {
+              "rir": 0,
+              "rpe": null
+            },
+            "regraPercentuais": null,
+            "explicacao": "Quando estiver escrito Top set na série do seu treino, significa que a carga dessa série deve ser maior que a da série anterior. Máquinas: 5% a 10% acima da série anterior. Livres: 1% a 5% acima da série anterior."
           }
         ],
         "tecnicas": [
@@ -1052,6 +1132,26 @@
             },
             "regraPercentuais": null,
             "explicacao": "Working set: a série de trabalho, com a carga máxima do dia nas repetições propostas. Peso livre: 1 repetição na reserva. Máquina: até a falha. Se passar das repetições, aumente a carga na semana seguinte."
+          },
+          {
+            "codigo": "TOP_SET",
+            "nome": "Top set",
+            "papel": "TRABALHO",
+            "repeticoes": {
+              "min": 6,
+              "max": 8
+            },
+            "cargaPadrao": {
+              "modo": "CARGA_TRABALHO",
+              "percentualMin": null,
+              "percentualMax": null
+            },
+            "esforcoPadrao": {
+              "rir": 0,
+              "rpe": null
+            },
+            "regraPercentuais": null,
+            "explicacao": "Quando estiver escrito Top set na série do seu treino, significa que a carga dessa série deve ser maior que a da série anterior. Máquinas: 5% a 10% acima da série anterior. Livres: 1% a 5% acima da série anterior."
           }
         ],
         "tecnicas": [

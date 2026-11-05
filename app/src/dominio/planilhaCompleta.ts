@@ -521,7 +521,6 @@ const PROBLEMAS: Record<string, string> = {
   TIPO_FORA_DA_METODOLOGIA: 'A metodologia não tem o tipo de série: a série não entra.',
   TREINOS_DEMAIS: 'Mais de 20 divisões: as demais ficaram de fora.',
   TREINO_SEM_NOME: 'Treino sem nome: entra como "Treino" e a letra.',
-  TS_COMO_WS: 'Top set virou uma série WS (confira a carga no editor).',
   TS_INVALIDO:'A coluna de top set não é sim nem não.',
   UNIDADE_DESCONHECIDA: 'Unidade desconhecida: o item entra em gramas.',
   VALOR_NUTRICIONAL_INVALIDO: 'Valor nutricional inválido: fica "—".',

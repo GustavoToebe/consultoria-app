@@ -24,9 +24,9 @@ const tecnica = (tipo: TipoDeTecnica, valores: Partial<Tecnica> = {}): Tecnica =
 });
 
 /**
- * Metodologia padrão (regras do Saraiva, nos quatro tipos), usada quando o plano ou a consultoria não
+ * Metodologia padrão (regras do Saraiva, nos cinco tipos), usada quando o plano ou a consultoria não
  * tem nenhuma. ESPELHO EXATO de `ConfiguracaoConsultoria.padrao()` na API: mudou um, mude o outro. Todo percentual é da
- * série de trabalho (WS). Os códigos (`WARM_UP`, `FEEDER`, `WORKING`, `BACK_OFF`) são o que a série grava.
+ * série de trabalho (WS). Os códigos (`WARM_UP`, `FEEDER`, `WORKING`, `BACK_OFF`, `TOP_SET`) são o que a série grava.
  */
 export const CONFIGURACAO_PADRAO: Configuracao = {
   tipos: [
@@ -75,6 +75,18 @@ export const CONFIGURACAO_PADRAO: Configuracao = {
       esforcoPadrao: rir(0),
       regraPercentuais: null,
       explicacao: 'Depois da série de trabalho, com 85% da carga dela.',
+    },
+    {
+      // Depois da WS: o primeiro tipo de trabalho (o que dá nome ao "% da WS") continua sendo a WS.
+      codigo: 'TOP_SET',
+      nome: 'Top set',
+      papel: 'TRABALHO',
+      repeticoes: { min: 6, max: 8 },
+      cargaPadrao: cargaDeTrabalho(),
+      esforcoPadrao: rir(0),
+      regraPercentuais: null,
+      explicacao:
+        'Quando estiver escrito Top set na série do seu treino, significa que a carga dessa série deve ser maior que a da série anterior. Máquinas: 5% a 10% acima da série anterior. Livres: 1% a 5% acima da série anterior.',
     },
   ],
   tecnicas: [

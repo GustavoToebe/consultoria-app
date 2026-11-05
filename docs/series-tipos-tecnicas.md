@@ -38,7 +38,7 @@ A metodologia padrão continua com 5 tipos, 6 técnicas e 7 combinações. O cat
 - Tipo é sempre obrigatório (a técnica nunca o substitui). Rest pause, cluster e as demais entram na própria série WS, como nos exemplos do guia de métodos; some o "Só técnica" e a série `MESMA_CARGA` sem tipo.
 - RIR 0 significa até a falha. RIR e RPE não aparecem juntos (erro na publicação). RIR 0 em aquecimento ou preparação só avisa.
 - AMRAP é um marcador explícito da série. Cadência e isometria continuam por exercício; "alongada" é a região do Partial reps, não uma técnica à parte.
-- Top set usa carga "acima da anterior"; Back off vem no padrão com 85% da WS e aceita "abaixo da referência". A série de referência nasce apontando a última série de trabalho; sem registro dela, o aluno fica sem sugestão de carga.
+- Top set usa `CARGA_TRABALHO` (a regra "maior que a série anterior" está só na explicação do tipo); Back off vem no padrão com 85% da WS (`PERCENTUAL_WS`). Desde 04/11 não há "acima da anterior", "abaixo da referência" nem `referenciaUid`.
 - Percentuais de preparação e de back off continuam sendo da WS. A referência da WS é a última série de trabalho registrada hoje; sem registro, a carga de trabalho informada para o dia. Faixa sugere pelo mínimo, com o arredondamento da metodologia.
 - Grupos: mínimos de 2 (superset, agonista-antagonista, pré e pós-exaustão, estes exatamente 2), 3 (tri-set e circuito) e 4 (giant set), até 6 exercícios. Com descanso depois do grupo, o descanso por série dos membros não vale e o contador do aluno começa ao fechar a volta. Em pré e pós-exaustão cada série mantém o seu descanso e `descansoAposSegundos` não se aplica. Mover ou remover um exercício mantém o grupo contíguo e desfaz o que cair abaixo do mínimo.
 - Cardio sai dos tipos da metodologia padrão (cinco tipos). O cardio é decidido pelo exercício (modalidade Cardio), não pelo tipo; trocar de e para cardio apaga as séries, com opção de desfazer.
@@ -53,7 +53,7 @@ A metodologia padrão continua com 5 tipos, 6 técnicas e 7 combinações. O cat
 2. Confira os cartões de técnica (seis) e de combinação (sete): nome exibido, explicação e padrões. Salve pela barra do modelo e reabra.
 3. Em um modelo de séries, adicione WS com rest pause: tipo WS, carga de trabalho e a técnica na mesma série. Troque para cluster 4+2 e confira que as repetições são a soma. Repita com myo-reps, partial reps (região alongada) e forced reps (aviso de parceiro).
 4. Confira carga e esforço separados: tente RIR e RPE juntos (o editor troca de forma e a API recusa os dois) e RIR 0 (aparece "até a falha"). Marque AMRAP e confira que as repetições somem. Escreva um alvo extra e veja a prévia "Para o aluno".
-5. Monte Top set (acima da anterior) e Back off "abaixo da referência" apontando o Top set. No aluno demo, registre o Top set e confira a carga sugerida do Back off; sem registro, a sugestão fica vazia.
+5. Monte Top set (carga de trabalho) e Back off a 85% da WS. No aluno demo, registre a WS e confira a carga sugerida do Back off; sem registro, a sugestão fica vazia.
 6. Na sessão, crie um superset com dois exercícios e um circuito com 3 e voltas. Confira o descanso depois do grupo e que o descanso por série dos membros não aparece. Crie uma pré-exaustão: sem campo de descanso do grupo, cada série mantém o seu.
 7. Adicione um exercício de modalidade Cardio: só a prescrição de cardio. No aluno, a série mostra a prescrição e um único botão "feito".
 8. Publique, depois altere a metodologia (renomeie um tipo): o plano publicado e o PDF dele não mudam.
