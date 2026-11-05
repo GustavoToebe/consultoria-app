@@ -42,6 +42,19 @@ const item = (page: Page, n: number, nome: string) => page.getByRole('button', {
 const abasDasSeries = (page: Page) => page.getByRole('tab', { name: /^Série \d/ });
 const abaSelecionada = (page: Page) => page.getByRole('tab', { name: /^Série \d/, selected: true });
 
+test.describe('editor de treino em janela larga (1920)', () => {
+  test.use({ viewport: { width: 1920, height: 1000 } });
+
+  test('o conteúdo usa o espaço todo ao lado do menu, sem faixas vazias nem rolagem na horizontal', async ({ page }) => {
+    await abrir(page, false);
+    await expect(page.getByText('Editando: Série 1', { exact: true })).toBeVisible();
+    // Menu lateral de 240 px; com o limite antigo (1440) o título começava em ~412 px. Agora logo depois do menu e do padding (~308).
+    const titulo = await page.getByRole('heading', { level: 1 }).boundingBox();
+    expect(titulo!.x).toBeLessThan(340);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+});
+
 test.describe('editor de treino no PC (1440)', () => {
   test.use({ viewport: PC });
 
@@ -65,11 +78,9 @@ test.describe('editor de treino no PC (1440)', () => {
     await expect(page.getByRole('tab', { name: /^Série 2 · WS/ })).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByText('Editando: Série 2', { exact: true })).toBeVisible();
 
-    // "+ Nova série" abre o painel; a série de outro tipo vira um grupo próprio e a aba dela fica escolhida.
+    // "+ Nova série" mostra um botão por tipo; um toque cria o grupo próprio e a aba dele fica escolhida.
     await page.getByRole('button', { name: 'Nova série', exact: true }).click();
-    // O painel vem antes do grupo aberto, que tem o mesmo grupo de tipos.
-    await page.getByRole('radiogroup', { name: 'Tipo da série' }).first().getByRole('button', { name: 'Aquecimento', exact: true }).click();
-    await page.getByRole('button', { name: 'Adicionar série', exact: true }).click();
+    await page.getByRole('button', { name: 'Adicionar Aquecimento', exact: true }).click();
     await expect(abasDasSeries(page)).toHaveCount(4);
     await expect(abaSelecionada(page)).toHaveAccessibleName(/Aquecimento/);
     const numero = (await abaSelecionada(page).getAttribute('aria-label'))?.match(/^Série (\d+)/)?.[1];

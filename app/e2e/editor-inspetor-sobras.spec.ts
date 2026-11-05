@@ -67,30 +67,30 @@ for (const largura of LARGURAS) {
 }
 
 for (const [largura, escuro] of [[1440, false], [1280, false], [1280, true], [1024, false], [390, false], [390, true]] as const) {
-  test(`treino: Repetições, Carga, Esforço e Descanso ${largura >= 1024 ? 'de duas em duas' : 'uma por linha'} (${largura}px${escuro ? ', escuro' : ''})`, async ({ page }) => {
+  test(`treino: as três faixas da série (Tipo e técnica, Estrutura, Carga e RIR) cabem em ${largura}px${escuro ? ', escuro' : ''}`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 1000 });
     await tema(page, escuro);
     const { naoTratadas, errosDaPagina } = await abrirTreino(page);
     if (!duasColunas(largura)) await page.getByRole('button', { name: 'Editar Supino reto com barra', exact: true }).click();
     await expect(page.getByText('Editando: Série 1', { exact: true })).toBeVisible();
-    const caixa = async (nome: string) => {
-      const b = await page.getByRole('heading', { name: nome, exact: true }).first().boundingBox();
-      if (!b) throw new Error(`sem ${nome}`);
-      return b;
+    const caixa = async (b: ReturnType<Page['getByRole']>, nome: string) => {
+      const r = await b.first().boundingBox();
+      if (!r) throw new Error(`sem ${nome}`);
+      return r;
     };
-    const [rep, carga, esforco, descanso] = [await caixa('Repetições'), await caixa('Carga'), await caixa('Esforço'), await caixa('Descanso')];
-    if (largura >= 1024) {
-      // 2 + 2: Repetições ao lado da Carga, Esforço ao lado do Descanso, e a carga de cada série numa linha embaixo.
-      expect(Math.abs(rep.y - carga.y)).toBeLessThan(2);
-      expect(carga.x).toBeGreaterThan(rep.x + 100);
-      expect(Math.abs(esforco.y - descanso.y)).toBeLessThan(2);
-      expect(esforco.y).toBeGreaterThan(rep.y + 40);
-      await expect(page.getByRole('heading', { name: 'Carga de cada série', exact: true })).toBeVisible();
-    } else {
-      expect(carga.y).toBeGreaterThan(rep.y + 40);
-      expect(Math.abs(rep.x - carga.x)).toBeLessThan(2);
-      expect(descanso.y).toBeGreaterThan(esforco.y + 40);
-    }
+    const faixa = (nome: string) => caixa(page.getByRole('heading', { name: nome, exact: true }), nome);
+    const [tipo, estrutura, carga] = [await faixa('Tipo e técnica'), await faixa('Estrutura'), await faixa('Carga e RIR')];
+    // Uma faixa embaixo da outra, alinhadas à esquerda; nada das sete caixas de antes.
+    expect(estrutura.y).toBeGreaterThan(tipo.y + 40);
+    expect(carga.y).toBeGreaterThan(estrutura.y + 40);
+    expect(Math.abs(tipo.x - carga.x)).toBeLessThan(2);
+    for (const antiga of ['Esforço', 'Carga de cada série']) await expect(page.getByRole('heading', { name: antiga, exact: true })).toHaveCount(0);
+    // Séries, repetições e descanso: na mesma linha com espaço; no celular a linha quebra, sem nada passar da borda.
+    const maximo = await caixa(page.getByRole('textbox', { name: 'Reps máx.', exact: true }), 'Reps máx.');
+    const descanso = await caixa(page.getByRole('textbox', { name: 'Descanso depois da série, em segundos', exact: true }), 'Descanso');
+    if (largura >= 1280) expect(Math.abs(descanso.y - maximo.y)).toBeLessThan(2);
+    expect(maximo.x + maximo.width).toBeLessThanOrEqual(largura);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await capturar(page, `treino-${largura}${escuro ? '-escuro' : ''}`);
     expect(naoTratadas).toEqual([]);
     expect(errosDaPagina).toEqual([]);
@@ -157,8 +157,8 @@ for (const [largura, escuro] of [[1440, false], [1280, false], [1280, true], [10
       const [a, b] = [await page.getByRole('heading', { name: 'Opção A' }).boundingBox(), await page.getByRole('heading', { name: 'Opção B' }).boundingBox()];
       if (!a || !b) throw new Error('sem opção');
       expect(Math.abs(a.y - b.y)).toBeLessThan(2);
-      // Adicionar escolhe a refeição nova.
-      await page.getByRole('button', { name: 'Adicionar refeição' }).click();
+      // Adicionar escolhe a refeição nova (o botão do pé da lista; o outro fica na linha de ações de cima).
+      await page.getByRole('button', { name: 'Adicionar refeição' }).last().click();
       await expect(page.getByRole('button', { name: /^Refeição 3 de 3: Refeição 3/ })).toHaveAttribute('aria-current', 'true');
     } else {
       await expect(page.getByRole('button', { name: /^Refeição \d de/ })).toHaveCount(0);

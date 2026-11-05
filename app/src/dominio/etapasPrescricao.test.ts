@@ -102,14 +102,14 @@ describe('sugestão por etapa: mesma referência para todas, nunca % sobre %', (
     expect(etapasDaSerie(cluster)!.map((b) => sugestaoDaEtapa(b, 50, 50, 0.5))).toEqual([50, 40, 40]);
   });
 
-  it('série sem referência externa própria (acima da anterior) usa a referência da WS quando há etapa em %', () => {
+  it('série sem carga usa a referência da WS nas etapas em %, mas não ganha sugestão própria', () => {
     const ws = serie('ws', { carga: carga('CARGA_TRABALHO') });
-    const top = serie('top', { repsMin: 2, repsMax: 2, carga: carga('ACIMA_DA_ANTERIOR', 5), tecnica: tecnica('REST_PAUSE', { pausaSegundos: 20, retomadas: [retomada({ amrap: true, carga: pct(90) })] }) });
+    const top = serie('top', { repsMin: 2, repsMax: 2, carga: carga('NENHUMA'), tecnica: tecnica('REST_PAUSE', { pausaSegundos: 20, retomadas: [retomada({ amrap: true, carga: pct(90) })] }) });
     expect(temEtapaEmPercentual(top.tecnica)).toBe(true);
     expect(referenciaDaSerie([ws, top], 1, 40, { ws: 42 })).toEqual({ valor: 42, origem: 'WS_ANTERIOR' });
     expect(referenciaDaSerie([ws, { ...top, tecnica: tecnica('REST_PAUSE', { pausaSegundos: 20 }) }], 1, 40, { ws: 42 })).toBeNull();
     const calc = calcularCargasDoExercicio(exercicio('e', { series: [ws, top] }), 40, { ws: 42 }, { arredondamentoKg: 2.5, tipoTrabalho: 'WS' });
-    expect(calc[1].sugestao).toBe(45);
+    expect(calc[1].sugestao).toBeNull();
     expect(calc[1].referencia).toEqual({ valor: 42, origem: 'WS_ANTERIOR' });
   });
 });
@@ -124,15 +124,15 @@ describe('texto para o treinador, o PDF e o aluno', () => {
       'Retomada 1: 2 a 3 reps, carga da série', 'Retomada 2: AMRAP, 90% da WS',
       'Percentuais da carga de trabalho do dia, fixada ao registrar a primeira etapa.',
     ]);
-    const mesma = { ...clusterPct, carga: carga('MESMA_CARGA') };
-    expect(linhasDasEtapas(mesma, config).at(-1)).toBe('Percentuais da última WS registrada antes no exercício (sem ela, da carga de trabalho do dia), fixada ao registrar a primeira etapa.');
+    const emPercentual = { ...clusterPct, carga: carga('PERCENTUAL_WS', 70) };
+    expect(linhasDasEtapas(emPercentual, config).at(-1)).toBe('Percentuais da última WS registrada antes no exercício (sem ela, da carga de trabalho do dia), fixada ao registrar a primeira etapa.');
     expect(linhasDasEtapas(serie('x', { tecnica: tecnica('CLUSTER', { blocos: [4, 4], pausaSegundos: 15 }) }), config)).toEqual([]);
   });
 
   it('a prévia do editor e o PDF trazem as linhas; exercício sem carga, não', () => {
     const [g] = agrupar([clusterPct]);
-    expect(previaDoGrupo(g, [clusterPct], config, {}).linhas).toContain('Bloco 2: 90% da WS');
-    expect(previaDoGrupo(g, [clusterPct], config, { semCarga: true }).linhas).not.toContain('Bloco 2: 90% da WS');
+    expect(previaDoGrupo(g, config, {}).linhas).toContain('Bloco 2: 90% da WS');
+    expect(previaDoGrupo(g, config, { semCarga: true }).linhas).not.toContain('Bloco 2: 90% da WS');
     expect(seriesDoPdf({ series: [restPauseMetas] }, config)[0].detalhes).toContain('Retomada 2: AMRAP, 90% da WS');
   });
 

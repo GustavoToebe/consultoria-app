@@ -9,11 +9,11 @@ import {
   adicionarSerie,
   alterarGrupo,
   alterarPercentuais,
+  alterarRirDaSerie,
   aplicarReceitaDePlano,
   cargaDoModo,
   comModalidade,
   comUidsNovos,
-  corrigirReferencias,
   exercicioComUidsNovos,
   LIMITE_SERIES,
   modosDeCarga,
@@ -38,7 +38,6 @@ import {
   substituir,
   tecnicaVazia,
   trocaApagaSeries,
-  ultimaSerieDeTrabalhoAntes,
   unidadeDaModalidade,
 } from './editorTreino';
 
@@ -48,20 +47,13 @@ jest.mock('./uid', () => ({ novoUid: () => `uid-${++mockContador}` }));
 /** Metodologia padrão, sem o esforço da série de trabalho (os textos dos testes ficam sem " · 1 RIR"). */
 const CONFIG: Configuracao = {
   ...CONFIGURACAO_PADRAO,
-  tipos: CONFIGURACAO_PADRAO.tipos.map((t) => (t.codigo === 'WORKING' ? { ...t, esforcoPadrao: null, porModalidade: null } : t)),
+  tipos: CONFIGURACAO_PADRAO.tipos.map((t) => (t.codigo === 'WORKING' ? { ...t, esforcoPadrao: null } : t)),
 };
 const semFaixas: Configuracao = { ...CONFIG, tipos: CONFIG.tipos.map((t) => ({ ...t, repeticoes: null })) };
-/** Back off que nasce "abaixo da referência" (15%), para testar a referência automática. */
-const comBackOffDeReferencia: Configuracao = {
-  ...CONFIG,
-  tipos: CONFIG.tipos.map((t) => (t.codigo === 'BACK_OFF' ? { ...t, cargaPadrao: carga('ABAIXO_DA_REFERENCIA', 15) } : t)),
-};
-
 const serie = (uid: string, tipo: string | null, min: number | null, max: number | null, extra: Partial<Serie> = {}): Serie => serieDeTeste(uid, { tipo, repsMin: min, repsMax: max, carga: null, ...extra });
 const fs = (uid: string, p: number, pMax: number | null = null) => serie(uid, 'FEEDER', 3, 3, { carga: carga('PERCENTUAL_WS', p, pMax) });
 const ws = (uid: string) => serie(uid, 'WORKING', 3, 6, { carga: carga('CARGA_TRABALHO') });
 const backOff = (uid: string) => serie(uid, 'BACK_OFF', 6, 8, { carga: carga('PERCENTUAL_WS', 85) });
-const backOffDe = (uid: string, referencia: string | null) => serie(uid, 'BACK_OFF', 6, 8, { carga: carga('ABAIXO_DA_REFERENCIA', 15, null, referencia) });
 
 const percentuais = (series: Serie[]) => series.map((s) => [s.carga?.percentualMin ?? null, s.carga?.percentualMax ?? null]);
 
@@ -70,40 +62,58 @@ beforeEach(() => {
 });
 
 describe('forma de carga no editor', () => {
-  const todos = (m: ReturnType<typeof modosDeCarga>) => [...m.principais, ...m.outras].map((o) => o.valor);
+  const valores = (papel?: Parameters<typeof modosDeCarga>[1]) => modosDeCarga(CONFIG, papel).map((o) => o.valor);
 
-  it('o percentual e a mesma carga dizem a base pelo nome da série de trabalho', () => {
-    const rotulo = (m: ReturnType<typeof modosDeCarga>, valor: string) => [...m.principais, ...m.outras].find((o) => o.valor === valor)?.rotulo;
-    expect(rotulo(modosDeCarga(CONFIG), 'PERCENTUAL_WS')).toBe('Percentual da carga de trabalho (WS)');
-    expect(rotulo(modosDeCarga(CONFIG), 'MESMA_CARGA')).toBe('Mesma carga da WS');
+  it('o rótulo diz a base pelo nome da série de trabalho e a unidade da carga fixa', () => {
+    const rotulo = (m: ReturnType<typeof modosDeCarga>, valor: string) => m.find((o) => o.valor === valor)?.rotulo;
+    expect(rotulo(modosDeCarga(CONFIG), 'PERCENTUAL_WS')).toBe('% da WS');
+    expect(rotulo(modosDeCarga(CONFIG), 'CARGA_TRABALHO')).toBe('Carga de trabalho (WS)');
+    expect(rotulo(modosDeCarga(CONFIG), 'CARGA_FIXA')).toBe('Carga fixa (kg)');
+    expect(rotulo(modosDeCarga(CONFIG, null, 'lb'), 'CARGA_FIXA')).toBe('Carga fixa (lb)');
     expect(rotulo(modosDeCarga(CONFIG), 'NENHUMA')).toBe('Sem sugestão de carga');
-    expect(rotulo(modosDeCarga(null), 'PERCENTUAL_WS')).toBe('Percentual da carga de trabalho');
+    expect(rotulo(modosDeCarga(null), 'PERCENTUAL_WS')).toBe('% da WS');
   });
 
-  it('o papel escolhe as duas principais; as outras ficam em "Outras formas de carga"', () => {
-    expect(modosDeCarga(CONFIG, 'TRABALHO', 'CARGA_TRABALHO').principais.map((o) => o.valor)).toEqual(['CARGA_TRABALHO', 'ACIMA_DA_ANTERIOR']);
-    expect(modosDeCarga(CONFIG, 'POS_TRABALHO', 'PERCENTUAL_WS').principais.map((o) => o.valor)).toEqual(['PERCENTUAL_WS', 'ABAIXO_DA_REFERENCIA']);
-    expect(modosDeCarga(CONFIG, 'AQUECIMENTO').principais.map((o) => o.valor)).toEqual(['NENHUMA', 'PERCENTUAL_WS']);
-    expect(modosDeCarga(CONFIG, 'PREPARACAO').principais.map((o) => o.valor)).toEqual(['PERCENTUAL_WS', 'NENHUMA']);
+  it('cada papel oferece só as formas dele, na ordem', () => {
+    expect(valores('AQUECIMENTO')).toEqual(['PERCENTUAL_WS', 'CARGA_FIXA']);
+    expect(valores('PREPARACAO')).toEqual(['PERCENTUAL_WS', 'CARGA_FIXA']);
+    expect(valores('TRABALHO')).toEqual(['CARGA_TRABALHO', 'CARGA_FIXA']);
+    expect(valores('POS_TRABALHO')).toEqual(['PERCENTUAL_WS', 'CARGA_FIXA']);
   });
 
-  it('nenhuma forma some nem repete, e a gravada fica sempre entre as principais', () => {
-    const papeis = [null, 'AQUECIMENTO', 'PREPARACAO', 'TRABALHO', 'POS_TRABALHO', 'OUTRO'] as const;
-    const modos = ['CARGA_TRABALHO', 'PERCENTUAL_WS', 'ACIMA_DA_ANTERIOR', 'ABAIXO_DA_REFERENCIA', 'MESMA_CARGA', 'NENHUMA'] as const;
-    for (const papel of papeis) {
-      for (const atual of [...modos, null]) {
-        const m = modosDeCarga(CONFIG, papel, atual);
-        expect(todos(m)).toHaveLength(6);
-        expect(new Set(todos(m))).toEqual(new Set(modos));
-        expect(m.principais.map((o) => o.valor)).toContain(atual ?? 'NENHUMA');
-        expect(m.principais.length).toBeLessThanOrEqual(3);
-      }
+  it('papel "Outro" ou sem papel oferece as quatro formas, sem repetir', () => {
+    for (const papel of [undefined, null, 'OUTRO'] as const) {
+      expect(new Set(valores(papel))).toEqual(new Set(['CARGA_TRABALHO', 'PERCENTUAL_WS', 'CARGA_FIXA', 'NENHUMA']));
+      expect(valores(papel)).toHaveLength(4);
     }
   });
 
   it('cargaDoModo: sem carga é nulo; as outras formas nascem sem número', () => {
     expect(cargaDoModo('NENHUMA')).toBeNull();
-    expect(cargaDoModo('PERCENTUAL_WS')).toEqual({ modo: 'PERCENTUAL_WS', percentualMin: null, percentualMax: null, referenciaUid: null });
+    expect(cargaDoModo('PERCENTUAL_WS')).toEqual({ modo: 'PERCENTUAL_WS', percentualMin: null, percentualMax: null });
+    expect(cargaDoModo('CARGA_FIXA')).toEqual({ modo: 'CARGA_FIXA', percentualMin: null, percentualMax: null, valorKg: null });
+  });
+});
+
+describe('RIR de uma série (alterarRirDaSerie)', () => {
+  const lista = () => [{ ...ws('a'), esforco: rir(2) }, { ...ws('b'), esforco: null }, novaSerieDeCardio()];
+
+  it('põe o RIR na série escolhida, mesmo sem esforço antes, e não mexe nas outras', () => {
+    const novas = alterarRirDaSerie(lista(), 1, 0);
+    expect(novas[1].esforco).toEqual({ rir: 0, rpe: null });
+    expect(novas[0].esforco).toEqual(rir(2));
+  });
+
+  it('troca o RPE que houvesse (RIR e RPE nunca juntos) e null tira o esforço', () => {
+    const comRpe = [{ ...ws('a'), esforco: { rir: null, rpe: 8 } }];
+    expect(alterarRirDaSerie(comRpe, 0, 1)[0].esforco).toEqual({ rir: 1, rpe: null });
+    expect(alterarRirDaSerie(lista(), 0, null)[0].esforco).toBeNull();
+  });
+
+  it('índice fora da lista e série de cardio não mudam', () => {
+    const l = lista();
+    expect(alterarRirDaSerie(l, 9, 1)).toEqual(l);
+    expect(alterarRirDaSerie(l, 2, 1)[2]).toEqual(l[2]);
   });
 });
 
@@ -123,16 +133,8 @@ describe('agrupamento', () => {
 describe('série nova', () => {
   it('sem tipo, é a de trabalho da metodologia, com repetições, carga e esforço do tipo', () => {
     const s = novaSerie(CONFIGURACAO_PADRAO);
-    expect(s).toMatchObject({ tipo: 'WORKING', repsMin: 3, repsMax: 6, carga: { modo: 'CARGA_TRABALHO' }, esforco: { rir: 1 }, tecnica: null, cardio: null });
+    expect(s).toMatchObject({ tipo: 'WORKING', repsMin: 3, repsMax: 6, carga: { modo: 'CARGA_TRABALHO' }, esforco: { rir: 0 }, tecnica: null, cardio: null });
     expect(s.uid).toBe('uid-1');
-  });
-
-  it('peso livre e máquina usam a variação da metodologia; outras modalidades, o padrão do tipo', () => {
-    expect(novaSerie(CONFIGURACAO_PADRAO, 'WORKING', 'MAQUINA').esforco).toMatchObject({ rir: 0 });
-    expect(novaSerie(CONFIGURACAO_PADRAO, 'WORKING', 'LIVRE').esforco).toMatchObject({ rir: 1 });
-    expect(novaSerie(CONFIGURACAO_PADRAO, 'WORKING', 'CABO').esforco).toMatchObject({ rir: 1 });
-    expect(novaSerie(CONFIGURACAO_PADRAO, 'TOP_SET', 'MAQUINA').carga).toMatchObject({ modo: 'ACIMA_DA_ANTERIOR', percentualMin: 5, percentualMax: 10 });
-    expect(novaSerie(CONFIGURACAO_PADRAO, 'TOP_SET', 'LIVRE').carga).toMatchObject({ percentualMin: 1, percentualMax: 5 });
   });
 
   it('sem metodologia usa a padrão; faixa só se o tipo tiver', () => {
@@ -142,18 +144,12 @@ describe('série nova', () => {
 
   it('preparação nasce com a regra de 1 série; aquecimento nasce sem carga', () => {
     expect(novaSerie(CONFIG, 'FEEDER').carga).toMatchObject({ modo: 'PERCENTUAL_WS', percentualMin: 85, percentualMax: null });
-    expect(novaSerie(CONFIG, 'WARM_UP')).toMatchObject({ carga: null, repsMin: 10, repsMax: 15 });
+    expect(novaSerie(CONFIG, 'WARM_UP')).toMatchObject({ carga: null, esforco: null, repsMin: 10, repsMax: 15 });
+    expect(novaSerie(CONFIGURACAO_PADRAO, 'BACK_OFF')).toMatchObject({ repsMin: 6, repsMax: 8, carga: { modo: 'PERCENTUAL_WS', percentualMin: 85 }, esforco: { rir: 0 } });
   });
 
   it('tipo fora da metodologia nasce em carga de trabalho, sem inventar repetição', () => {
     expect(novaSerie(CONFIG, 'PIRAMIDE')).toMatchObject({ tipo: 'PIRAMIDE', repsMin: null, repsMax: null, carga: { modo: 'CARGA_TRABALHO' }, esforco: null });
-  });
-
-  it('o back off nasce apontando a última série de trabalho anterior', () => {
-    const s = novaSerie(comBackOffDeReferencia, 'BACK_OFF', null, null, [ws('a'), ws('b'), fs('c', 85)]);
-    expect(s.carga).toMatchObject({ modo: 'ABAIXO_DA_REFERENCIA', percentualMin: 15, referenciaUid: 'b' });
-    // Sem série de trabalho antes, fica sem referência (a publicação cobra).
-    expect(novaSerie(comBackOffDeReferencia, 'BACK_OFF', null, null, [fs('c', 85)]).carga?.referenciaUid).toBeNull();
   });
 
   it('a técnica nasce com o padrão da metodologia', () => {
@@ -187,7 +183,6 @@ describe('editor de treino', () => {
     const novas = mudarQuantidade(series, agrupar(series)[0], 3, CONFIG);
     expect(percentuais(novas)).toEqual([[50, null], [70, null], [85, 90], [null, null]]);
     expect(novas[2].uid).toBe('uid-1');
-    expect(novas[2].carga?.referenciaUid).toBeNull();
   });
 
   it('aumentar um grupo que não é de preparação só copia a última série', () => {
@@ -219,35 +214,35 @@ describe('editor de treino', () => {
     expect(novas.map((s) => s.tipo)).toEqual(['FEEDER', 'FEEDER']);
     expect(novas.map((s) => s.carga?.modo)).toEqual(['PERCENTUAL_WS', 'PERCENTUAL_WS']);
     expect(percentuais(novas)).toEqual([[70, null], [85, 90]]);
-    expect(novas.map((s) => [s.repsMin, s.repsMax])).toEqual([[3, 3], [3, 3]]);
+    expect(novas.map((s) => [s.repsMin, s.repsMax])).toEqual([[3, 5], [3, 5]]);
   });
 
   it('trocar o tipo preenche as repetições, a carga e o esforço do tipo novo; tipo sem faixa mantém as repetições', () => {
     const series = [{ ...ws('a'), esforco: rir(1) }];
     const grupoUnico = agrupar(series)[0];
     const backOffNovo = alterarGrupo(series, grupoUnico, { tipo: 'BACK_OFF' }, CONFIGURACAO_PADRAO)[0];
-    expect(backOffNovo).toMatchObject({ tipo: 'BACK_OFF', repsMin: 6, repsMax: 8, esforco: null });
+    expect(backOffNovo).toMatchObject({ tipo: 'BACK_OFF', repsMin: 6, repsMax: 8, esforco: { rir: 0 } });
     expect(backOffNovo.carga).toMatchObject({ modo: 'PERCENTUAL_WS', percentualMin: 85 });
-    const topo = alterarGrupo(series, grupoUnico, { tipo: 'TOP_SET' }, CONFIGURACAO_PADRAO)[0];
-    expect(topo).toMatchObject({ tipo: 'TOP_SET', repsMin: 3, repsMax: 6 });
-    expect(topo.carga).toMatchObject({ modo: 'ACIMA_DA_ANTERIOR', percentualMin: 1, percentualMax: 5 });
     // Tipo fora da metodologia: só muda o código.
     expect(alterarGrupo(series, grupoUnico, { tipo: 'PIRAMIDE' }, CONFIG)[0]).toMatchObject({ tipo: 'PIRAMIDE', repsMin: 3, repsMax: 6, carga: { modo: 'CARGA_TRABALHO' } });
-  });
-
-  it('a modalidade escolhe a variação do tipo ao trocar de tipo', () => {
-    const series = [serie('a', 'WARM_UP', 10, 15)];
-    expect(alterarGrupo(series, agrupar(series)[0], { tipo: 'WORKING' }, CONFIGURACAO_PADRAO, 'MAQUINA')[0].esforco).toMatchObject({ rir: 0 });
   });
 
   it('trocar a forma de carga parte do padrão do tipo quando ele é dessa forma', () => {
     const series = [backOff('a')];
     const trabalho = alterarGrupo(series, agrupar(series)[0], { modo: 'CARGA_TRABALHO' }, CONFIG);
-    expect(trabalho[0].carga).toEqual({ modo: 'CARGA_TRABALHO', percentualMin: null, percentualMax: null, referenciaUid: null });
+    expect(trabalho[0].carga).toEqual({ modo: 'CARGA_TRABALHO', percentualMin: null, percentualMax: null });
     const devolta = alterarGrupo(trabalho, agrupar(trabalho)[0], { modo: 'PERCENTUAL_WS' }, CONFIG);
     expect(devolta[0].carga).toMatchObject({ modo: 'PERCENTUAL_WS', percentualMin: 85 });
     const sem = alterarGrupo(series, agrupar(series)[0], { modo: 'NENHUMA' }, CONFIG);
     expect(sem[0].carga).toBeNull();
+  });
+
+  it('pós-trabalho que vira % da WS sem padrão no tipo parte dos 85%', () => {
+    const semPadrao: Configuracao = { ...CONFIG, tipos: CONFIG.tipos.map((t) => (t.codigo === 'BACK_OFF' ? { ...t, cargaPadrao: cargaDoModo('CARGA_TRABALHO')! } : t)) };
+    const series = [backOff('a')];
+    const fixa = alterarGrupo(series, agrupar(series)[0], { modo: 'CARGA_FIXA' }, semPadrao);
+    const volta = alterarGrupo(fixa, agrupar(fixa)[0], { modo: 'PERCENTUAL_WS' }, semPadrao);
+    expect(volta[0].carga).toMatchObject({ modo: 'PERCENTUAL_WS', percentualMin: 85 });
   });
 
   it('valores da carga do grupo e esforço (RIR ou RPE, nunca os dois)', () => {
@@ -258,12 +253,6 @@ describe('editor de treino', () => {
     const e = alterarGrupo(series, g, { esforco: { rir: null, rpe: 8.5 } }, CONFIG);
     expect(e.map((s) => s.esforco)).toEqual([{ rir: null, rpe: 8.5 }, { rir: null, rpe: 8.5 }]);
     expect(alterarGrupo(e, agrupar(e)[0], { esforco: null }, CONFIG).map((s) => s.esforco)).toEqual([null, null]);
-  });
-
-  it('"abaixo da referência" sem referência passa a apontar a última série de trabalho anterior', () => {
-    const series = [ws('a'), backOff('b'), backOff('c')];
-    const novas = alterarGrupo(series, agrupar(series)[1], { modo: 'ABAIXO_DA_REFERENCIA' }, CONFIG);
-    expect(novas.slice(1).map((s) => s.carga?.referenciaUid)).toEqual(['a', 'a']);
   });
 
   it('cluster mantém as repetições iguais à soma dos blocos', () => {
@@ -280,15 +269,15 @@ describe('editor de treino', () => {
 
   it('prescrição de cardio e alvo extra', () => {
     const series = [novaSerieDeCardio()];
-    const c = alterarGrupo(series, agrupar(series)[0], { cardio: { duracaoMin: 30, zona: 2 }, alvoExtra: 'Leve' }, CONFIG, 'CARDIO');
+    const c = alterarGrupo(series, agrupar(series)[0], { cardio: { duracaoMin: 30, zona: 2 }, alvoExtra: 'Leve' }, CONFIG);
     expect(c[0]).toMatchObject({ cardio: { duracaoMin: 30, zona: 2, intervalos: null }, alvoExtra: 'Leve' });
-    expect(alterarGrupo(c, agrupar(c)[0], { alvoExtra: '   ' }, CONFIG, 'CARDIO')[0].alvoExtra).toBeNull();
+    expect(alterarGrupo(c, agrupar(c)[0], { alvoExtra: '   ' }, CONFIG)[0].alvoExtra).toBeNull();
   });
 
-  it('faixa de % de uma série só mantém a forma por % ou vira % da série de trabalho', () => {
-    const series = [backOffDe('x', 'r'), ws('w')];
+  it('faixa de % de uma série só mantém o % ou vira % da série de trabalho', () => {
+    const series = [backOff('x'), ws('w')];
     const a = alterarPercentuais(series, 0, 10, 20);
-    expect(a[0].carga).toMatchObject({ modo: 'ABAIXO_DA_REFERENCIA', percentualMin: 10, percentualMax: 20, referenciaUid: 'r' });
+    expect(a[0].carga).toMatchObject({ modo: 'PERCENTUAL_WS', percentualMin: 10, percentualMax: 20 });
     const b = alterarPercentuais(series, 1, 70, null);
     expect(b[1].carga).toMatchObject({ modo: 'PERCENTUAL_WS', percentualMin: 70, percentualMax: null });
   });
@@ -301,49 +290,12 @@ describe('editor de treino', () => {
   });
 });
 
-describe('referência do back off', () => {
-  it('a última série de trabalho antes da posição', () => {
-    const series = [ws('a'), fs('b', 85), ws('c'), backOff('d')];
-    expect(ultimaSerieDeTrabalhoAntes(series, 4)).toBe('c');
-    expect(ultimaSerieDeTrabalhoAntes(series, 2)).toBe('a');
-    expect(ultimaSerieDeTrabalhoAntes(series, 0)).toBeNull();
-  });
-
-  it('referência válida não é tocada; ausente, perdida ou posterior é corrigida; a mesma lista quando nada muda', () => {
-    const certa = [ws('a'), backOffDe('b', 'a')];
-    expect(corrigirReferencias(certa)).toBe(certa);
-    const perdida = corrigirReferencias([ws('a'), backOffDe('b', 'sumiu')]);
-    expect(perdida[1].carga?.referenciaUid).toBe('a');
-    const ausente = corrigirReferencias([ws('a'), backOffDe('b', null)]);
-    expect(ausente[1].carga?.referenciaUid).toBe('a');
-    const posterior = corrigirReferencias([backOffDe('b', 'c'), ws('c')]);
-    expect(posterior[0].carga?.referenciaUid).toBeNull();
-  });
-
-  it('remover a série referenciada passa o back off para a série de trabalho que restou', () => {
-    const series = [ws('a'), ws('b'), backOffDe('c', 'b')];
-    const sem = removerGrupo(series, agrupar(series)[0]);
-    expect(sem.map((s) => s.uid)).toEqual(['c']);
-    expect(sem[0].carga?.referenciaUid).toBeNull();
-    const umaSo = mudarQuantidade(series, agrupar(series)[0], 1, CONFIG);
-    expect(umaSo.map((s) => s.uid)).toEqual(['a', 'c']);
-    expect(umaSo[1].carga?.referenciaUid).toBe('a');
-  });
-
-  it('subir o back off para antes da série de trabalho tira a referência que ficou para trás', () => {
-    const series = [ws('a'), backOffDe('b', 'a')];
-    const subiu = moverGrupo(series, 1, -1);
-    expect(subiu.map((s) => s.uid)).toEqual(['b', 'a']);
-    expect(subiu[0].carga?.referenciaUid).toBeNull();
-  });
-});
-
 describe('adicionar e reordenar séries (reunião de 17/10)', () => {
   it('FS adicionado depois da WS fica num grupo próprio, com a regra de 1 série, e sobe para antes dela', () => {
     const comFs = adicionarSerie([ws('a')], CONFIG, 'FEEDER');
-    expect(descreverSeries(comFs, CONFIG)).toEqual(['1x3 a 6 - WS', '1x3 - FS 85% da WS']);
+    expect(descreverSeries(comFs, CONFIG)).toEqual(['1x3 a 6 - WS', '1x3 a 5 - FS 85% da WS']);
     const reordenado = moverGrupo(comFs, 1, -1);
-    expect(descreverSeries(reordenado, CONFIG)).toEqual(['1x3 - FS 85% da WS', '1x3 a 6 - WS']);
+    expect(descreverSeries(reordenado, CONFIG)).toEqual(['1x3 a 5 - FS 85% da WS', '1x3 a 6 - WS']);
     expect(reordenado.map((s) => s.uid)).toEqual([comFs[1].uid, 'a']);
   });
 
@@ -388,51 +340,37 @@ describe('adicionar e reordenar séries (reunião de 17/10)', () => {
 });
 
 describe('receitas de séries e uids', () => {
-  /** "WS + Top set + 2 Back off": a receita guarda o uid do Top set, porque os back off o referenciam. */
+  /** "WS + 2 Back off". */
   const receita = () => ({
     series: [
-      { tipo: 'WORKING', repsMin: 3, repsMax: 6, carga: { modo: 'CARGA_TRABALHO' }, esforco: { rir: 1 } },
-      { uid: 'top', tipo: 'TOP_SET', carga: { modo: 'ACIMA_DA_ANTERIOR', percentualMin: 1, percentualMax: 5 } },
-      { tipo: 'BACK_OFF', repsMin: 6, repsMax: 8, carga: { modo: 'ABAIXO_DA_REFERENCIA', percentualMin: 15, referenciaUid: 'top' } },
-      { tipo: 'BACK_OFF', repsMin: 6, repsMax: 8, carga: { modo: 'ABAIXO_DA_REFERENCIA', percentualMin: 15, referenciaUid: 'top' } },
+      { tipo: 'WORKING', repsMin: 3, repsMax: 6, carga: { modo: 'CARGA_TRABALHO' }, esforco: { rir: 0 } },
+      { tipo: 'BACK_OFF', repsMin: 6, repsMax: 8, carga: { modo: 'PERCENTUAL_WS', percentualMin: 85 }, esforco: { rir: 0 } },
+      { tipo: 'BACK_OFF', repsMin: 6, repsMax: 8, carga: { modo: 'PERCENTUAL_WS', percentualMin: 85 }, esforco: { rir: 0 } },
     ],
   });
 
-  it('ganha uids novos e a referência acompanha o uid novo da série referenciada', () => {
-    const series = seriesDaReceita(receita());
-    expect(series.map((s) => s.uid)).toEqual(['uid-1', 'uid-2', 'uid-3', 'uid-4']);
-    expect(series[2].carga?.referenciaUid).toBe('uid-2');
-    expect(series[3].carga?.referenciaUid).toBe('uid-2');
-    expect(series[0]).toMatchObject({ tipo: 'WORKING', amrap: null, tecnica: null, cardio: null, alvoExtra: null });
-  });
-
-  it('aplicar a mesma receita duas vezes não duplica uid nem mistura as referências', () => {
+  it('ganha uids novos e não altera a receita original', () => {
     const r = receita();
-    const primeira = seriesDaReceita(r);
-    const segunda = seriesDaReceita(r);
-    const todos = [...primeira, ...segunda].map((s) => s.uid);
-    expect(new Set(todos).size).toBe(8);
-    expect(primeira[2].carga?.referenciaUid).toBe(primeira[1].uid);
-    expect(segunda[2].carga?.referenciaUid).toBe(segunda[1].uid);
-    // A receita original não foi alterada.
-    expect(r.series[2].carga?.referenciaUid).toBe('top');
+    const series = seriesDaReceita(r);
+    expect(series.map((s) => s.uid)).toEqual(['uid-1', 'uid-2', 'uid-3']);
+    expect(series[0]).toMatchObject({ tipo: 'WORKING', amrap: null, tecnica: null, cardio: null, alvoExtra: null });
+    expect(series[1].carga).toEqual({ modo: 'PERCENTUAL_WS', percentualMin: 85, percentualMax: null });
+    expect(Object.keys(r.series[0])).not.toContain('uid');
   });
 
-  it('referência que não está na receita fica como está (o validador a aponta)', () => {
-    const series = seriesDaReceita({ series: [{ tipo: 'BACK_OFF', carga: { modo: 'ABAIXO_DA_REFERENCIA', percentualMin: 15, referenciaUid: 'fora' } }] });
-    expect(series[0].carga?.referenciaUid).toBe('fora');
+  it('aplicar a mesma receita duas vezes não duplica uid', () => {
+    const r = receita();
+    const todos = [...seriesDaReceita(r), ...seriesDaReceita(r)].map((s) => s.uid);
+    expect(new Set(todos).size).toBe(6);
   });
 
-  it('volta sem uids ao salvar, menos os das séries que alguma outra referencia', () => {
+  it('volta sem uids ao salvar e pode ser aplicada de novo', () => {
     const series = seriesDaReceita(receita());
     const salva = seriesParaReceita(series).series;
-    expect(salva.map((s) => 'uid' in s)).toEqual([false, true, false, false]);
-    expect(salva[1].uid).toBe('uid-2');
-    expect(salva[2].carga?.referenciaUid).toBe('uid-2');
-    // Ciclo completo: salvar e aplicar de novo reaponta as referências.
+    expect(salva.map((s) => 'uid' in s)).toEqual([false, false, false]);
     const reaplicada = seriesDaReceita(JSON.parse(JSON.stringify({ series: salva })));
-    expect(reaplicada[2].carga?.referenciaUid).toBe(reaplicada[1].uid);
-    expect(reaplicada[1].uid).not.toBe('uid-2');
+    expect(reaplicada.map((s) => s.tipo)).toEqual(['WORKING', 'BACK_OFF', 'BACK_OFF']);
+    expect(reaplicada[0].uid).not.toBe(series[0].uid);
   });
 
   it('receita antiga sem os campos novos vira série completa', () => {
@@ -467,7 +405,7 @@ describe('receita de semana e cópia com uids novos', () => {
       sessaoDeTeste(
         's1',
         [
-          exercicio('e1', { grupoUid: 'g1', series: [ws('a'), backOffDe('b', 'a')] }),
+          exercicio('e1', { grupoUid: 'g1', series: [ws('a'), backOff('b')] }),
           exercicio('e2', { grupoUid: 'g1', series: [ws('c')] }),
           exercicio('e3', { series: [ws('d')] }),
         ],
@@ -486,7 +424,7 @@ describe('receita de semana e cópia com uids novos', () => {
     expect(novo.sessoes[0].grupos).toEqual([]);
   });
 
-  it('os grupos, o grupoUid dos exercícios e a referência das séries acompanham os uids novos', () => {
+  it('os grupos e o grupoUid dos exercícios acompanham os uids novos', () => {
     const copia = comUidsNovos(conteudoComGrupos());
     const [s] = copia.sessoes;
     expect(s.uid).not.toBe('s1');
@@ -496,7 +434,7 @@ describe('receita de semana e cópia com uids novos', () => {
     expect(s.exercicios.map((e) => e.grupoUid)).toEqual([novoGrupo.uid, novoGrupo.uid, null]);
     const [a, b] = s.exercicios[0].series;
     expect(a.uid).not.toBe('a');
-    expect(b.carga?.referenciaUid).toBe(a.uid);
+    expect(b.uid).not.toBe('b');
     // O original não muda.
     expect(conteudoComGrupos().sessoes[0].grupos[0].uid).toBe('g1');
   });
@@ -512,11 +450,11 @@ describe('receita de semana e cópia com uids novos', () => {
   });
 
   it('exercício copiado sozinho sai do grupo e ganha uids novos nas séries', () => {
-    const original = exercicio('e1', { grupoUid: 'g1', series: [ws('a'), backOffDe('b', 'a')] });
+    const original = exercicio('e1', { grupoUid: 'g1', series: [ws('a'), backOff('b')] });
     const copia = exercicioComUidsNovos(original);
     expect(copia.grupoUid).toBeNull();
     expect(copia.uid).not.toBe('e1');
-    expect(copia.series[1].carga?.referenciaUid).toBe(copia.series[0].uid);
+    expect(copia.series.map((x) => x.uid)).not.toContain('a');
   });
 
   it('sessão copiada mantém os vínculos entre os novos uids', () => {
@@ -727,10 +665,10 @@ describe('exercícios feitos juntos ao mover e remover', () => {
 });
 
 describe('modalidade do exercício', () => {
-  it('cardio, elástico e peso corporal não têm campo de carga', () => {
+  it('só o cardio fica sem carga; elástico e peso corporal aceitam carga como toda musculação', () => {
     expect(unidadeDaModalidade('CARDIO')).toBe('nenhuma');
-    expect(unidadeDaModalidade('ELASTICO')).toBe('nenhuma');
-    expect(unidadeDaModalidade('PESO_CORPORAL')).toBe('nenhuma');
+    expect(unidadeDaModalidade('ELASTICO')).toBe('kg');
+    expect(unidadeDaModalidade('PESO_CORPORAL')).toBe('kg');
     expect(unidadeDaModalidade('LIVRE')).toBe('kg');
     expect(unidadeDaModalidade(null)).toBe('kg');
   });
@@ -783,9 +721,9 @@ describe('o corpo salvo não muda com os textos novos do editor (reunião de 30/
     const cluster = { ...tecnicaVazia('CLUSTER'), blocos: [4, 2], pausaSegundos: 15 };
     const series = [
       fs('a', 50), fs('b', 70), fs('c', 85, 90),
-      serie('d', 'TOP_SET', 3, 5, { carga: carga('ACIMA_DA_ANTERIOR', 1, 5), esforco: rir(1), alvoExtra: 'Controle na descida' }),
+      serie('d', 'WORKING', 3, 5, { carga: carga('CARGA_TRABALHO'), esforco: rir(1), alvoExtra: 'Controle na descida' }),
       serie('e', 'WORKING', 6, 8, { carga: carga('CARGA_TRABALHO'), tecnica: cluster }),
-      backOffDe('f', 'd'), backOffDe('g', 'd'),
+      backOff('f'), backOff('g'),
       novaSerieDeCardio(),
     ];
     const antes = JSON.stringify(series);
@@ -795,10 +733,10 @@ describe('o corpo salvo não muda com os textos novos do editor (reunião de 30/
 
     for (const g of agrupar(series)) {
       tituloDoGrupoDeSeries(g, CONFIG);
-      descreverGrupo(g, CONFIG, series);
-      descreverGrupo(g, CONFIG, series, { etapasAParte: true, semObservacao: true });
-      previaDoGrupo(g, series, CONFIG, {});
-      for (const s of g.series) modosDeCarga(CONFIG, null, s.carga?.modo ?? null);
+      descreverGrupo(g, CONFIG);
+      descreverGrupo(g, CONFIG, { etapasAParte: true, semObservacao: true });
+      previaDoGrupo(g, CONFIG, {});
+      for (const s of g.series) modosDeCarga(CONFIG, null);
     }
     descreverSeries(series, CONFIG);
     composicaoDasSeries(series, CONFIG);

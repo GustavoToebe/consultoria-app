@@ -317,6 +317,24 @@ class QuestionariosIntegrationTest extends AbstractIntegrationTest {
                 .isEqualTo("QUESTIONARIO_PADRAO");
     }
 
+    /** Consultoria zerada (nenhum questionário): o primeiro publicado vira o padrão, sem padrão anterior para desmarcar. */
+    @Test
+    void semNenhumPadraoOPrimeiroPublicadoPodeSerDefinidoPadrao() throws Exception {
+        banco.update("delete from questionario where consultoria_id=?", consultoria());
+        assertThat(api.get("/questionarios", treinador, 200)).isEmpty();
+        assertThat(api.get("/questionarios/opcoes", treinador, 200)).isEmpty();
+
+        JsonNode novo = publicado("Primeiro padrão fictício");
+        assertThat(novo.path("padrao").asBoolean()).isFalse();
+        assertThat(api.post("/questionarios/" + novo.path("id").asString() + "/padrao", treinador, null, 200)
+                .path("padrao").asBoolean()).isTrue();
+        assertThat(banco.queryForObject("select count(*) from questionario where consultoria_id=? and padrao and finalidade='ATUALIZACAO'",
+                Integer.class, consultoria())).isEqualTo(1);
+        assertThat(auditorias("QUESTIONARIO_PADRAO_ALTERADO")).isEqualTo(1);
+        // Entra nas opções dos seletores do aluno e da pasta.
+        assertThat(api.get("/questionarios/opcoes", treinador, 200)).hasSize(1);
+    }
+
     @Test
     void duplicaComNomeNovoNaoPublicadoENaoPadrao() throws Exception {
         JsonNode origem = publicado("Origem fictícia");

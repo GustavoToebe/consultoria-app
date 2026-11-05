@@ -27,10 +27,10 @@ import java.util.UUID;
  * "Rep Range"), porte exato do {@code montarSeries} do {@code planos-lib.mjs}. Ordem FS, WS, Top set, Back off. A faixa
  * de repetições vale só para a WS; FS e Back off levam as repetições do tipo na metodologia. FS tem a carga
  * {@code PERCENTUAL_WS} pela regra de preparação da metodologia para o total de FS; WS = {@code CARGA_TRABALHO}; Top set
- * sem número = {@code ACIMA_DA_ANTERIOR} sem percentual (nunca inventado); Back off = {@code PERCENTUAL_WS} com o % da
+ * = mais uma WS, sem repetições nem percentual (nunca inventado) e com o aviso {@code TS_COMO_WS}; Back off = {@code PERCENTUAL_WS} com o % da
  * coluna (fração 0,85 = 85) ou sem carga. Esforço, descanso e técnica ficam nulos: a planilha não os traz.
  *
- * <p>O tipo vem da metodologia da consultoria pelo código ({@code FEEDER}, {@code WORKING}, {@code TOP_SET},
+ * <p>O tipo vem da metodologia da consultoria pelo código ({@code FEEDER}, {@code WORKING},
  * {@code BACK_OFF}) e, sem ele, pelo papel. Tipo que a metodologia não tem não vira série (aviso
  * {@code TIPO_FORA_DA_METODOLOGIA}). Os avisos são códigos fixos, sem valor da planilha.
  *
@@ -113,7 +113,6 @@ public final class MontagemDeSeries {
         List<Serie> series = new ArrayList<>();
         TipoDeSerie tipoFs = tipo(metodologia, "FEEDER", Papel.PREPARACAO, null);
         TipoDeSerie tipoWs = tipo(metodologia, "WORKING", Papel.TRABALHO, ConteudoTreino.CARGA_TRABALHO);
-        TipoDeSerie tipoTs = tipo(metodologia, "TOP_SET", Papel.TRABALHO, ConteudoTreino.ACIMA_DA_ANTERIOR);
         TipoDeSerie tipoBo = tipo(metodologia, "BACK_OFF", Papel.POS_TRABALHO, null);
 
         int nFs = quantidade(e.fs(), "FS", avisos);
@@ -158,11 +157,13 @@ public final class MontagemDeSeries {
             avisos.add("TS_INVALIDO");
         }
         if (e.ts() == Logico.SIM) {
-            if (tipoTs == null) {
+            // O Top set da planilha não existe na metodologia: entra como mais uma WS, sem repetições e sem percentual,
+            // e o treinador é avisado para conferir a carga (como o aviso do script).
+            if (tipoWs == null) {
                 avisos.add("TIPO_FORA_DA_METODOLOGIA");
             } else {
-                series.add(serie(tipoTs, null, null, Carga.de(ConteudoTreino.ACIMA_DA_ANTERIOR)));
-                avisos.add("TOP_SET_SEM_PERCENTUAL");
+                series.add(serie(tipoWs, null, null, Carga.de(ConteudoTreino.CARGA_TRABALHO)));
+                avisos.add("TS_COMO_WS");
             }
         }
 

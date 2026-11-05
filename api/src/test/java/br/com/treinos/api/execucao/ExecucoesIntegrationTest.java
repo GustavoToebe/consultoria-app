@@ -215,7 +215,7 @@ class ExecucoesIntegrationTest extends AbstractIntegrationTest {
         List<ConfiguracaoConsultoria.TipoDeSerie> renomeados = padrao.tipos().stream()
                 .map(t -> t.codigo().equals("WORKING")
                         ? new ConfiguracaoConsultoria.TipoDeSerie(t.codigo(), "Série de trabalho", t.papel(), t.repeticoes(),
-                        t.cargaPadrao(), t.esforcoPadrao(), t.porModalidade(), t.regraPercentuais(), t.explicacao())
+                        t.cargaPadrao(), t.esforcoPadrao(), t.regraPercentuais(), t.explicacao())
                         : t).toList();
         ConfiguracaoConsultoria nova = new ConfiguracaoConsultoria(renomeados, padrao.tecnicas(), padrao.combinacoes(),
                 padrao.arredondamentoKg(), padrao.instrucoesTreino(), padrao.rodapePdf());

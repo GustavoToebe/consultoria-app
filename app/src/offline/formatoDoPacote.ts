@@ -32,11 +32,11 @@ const CAMPOS_NUMERICOS_DA_TECNICA = [
 /**
  * Carga nula é "sem carga". Única parte tolerante do formato: o `modo` pode ser de uma forma que este app não conhece e a
  * carga pode trazer chaves novas, sem recusar o pacote (a série mostra "Carga: atualize o app para ver", `dominio/modoDeCarga`);
- * o `modo` precisa ser um texto e os números e a referência que o app conhece continuam conferidos pelo tipo.
+ * o `modo` precisa ser um texto e os números que o app conhece continuam conferidos pelo tipo.
  */
 function carga(v: unknown): boolean {
   if (v == null) return true;
-  return objeto(v) && typeof v.modo === 'string' && v.modo !== '' && numero(v.percentualMin) && numero(v.percentualMax) && texto(v.referenciaUid) && numero(v.valorKg);
+  return objeto(v) && typeof v.modo === 'string' && v.modo !== '' && numero(v.percentualMin) && numero(v.percentualMax) && numero(v.valorKg);
 }
 
 function esforco(v: unknown): boolean {
@@ -81,22 +81,16 @@ function faixaPercentual(v: unknown): boolean {
   return objeto(v) && campos(v, ['min', 'max']) && typeof v.min === 'number' && numero(v.max);
 }
 
-function padraoPorModalidade(v: unknown): boolean {
-  return objeto(v) && campos(v, ['carga', 'esforco']) && carga(v.carga) && esforco(v.esforco);
-}
-
 function tipoDeSerie(v: unknown): boolean {
   return (
     objeto(v) &&
-    campos(v, ['codigo', 'nome', 'papel', 'repeticoes', 'cargaPadrao', 'esforcoPadrao', 'porModalidade', 'regraPercentuais', 'explicacao']) &&
+    campos(v, ['codigo', 'nome', 'papel', 'repeticoes', 'cargaPadrao', 'esforcoPadrao', 'regraPercentuais', 'explicacao']) &&
     typeof v.codigo === 'string' &&
     typeof v.nome === 'string' &&
     PAPEIS.includes(String(v.papel)) &&
     faixaDeRepeticoes(v.repeticoes) &&
     carga(v.cargaPadrao) &&
     esforco(v.esforcoPadrao) &&
-    (v.porModalidade == null ||
-      (objeto(v.porModalidade) && campos(v.porModalidade, ['LIVRE', 'MAQUINA']) && Object.values(v.porModalidade).every(padraoPorModalidade))) &&
     (v.regraPercentuais == null || (objeto(v.regraPercentuais) && Object.values(v.regraPercentuais).every((f) => lista(f, faixaPercentual)))) &&
     texto(v.explicacao)
   );

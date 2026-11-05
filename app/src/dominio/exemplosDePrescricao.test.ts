@@ -3,15 +3,9 @@ import { CONFIGURACAO_PADRAO } from './metodologiaPadrao';
 import { agrupar } from './agrupamento';
 import { novaSerie, tecnicaVazia } from './editorTreino';
 import {
-  assinaturaDoEsforco,
-  esforcoAindaEhODoTipo,
-  marcaConfere,
-  origemAposConteudo,
-  origemAoTrocarTipo,
   podeRestPauseNaUltima,
   restPauseNestaSerie,
   textoDaContagemDeSeries,
-  textoDaRevisaoDoEsforco,
 } from './exemplosDePrescricao';
 
 const trabalho = () => novaSerie(CONFIGURACAO_PADRAO, 'WORKING');
@@ -56,33 +50,6 @@ describe('contagem', () => {
     expect(textoDaContagemDeSeries(1)).toBe('Este exercício fica com 1 série.');
     expect(textoDaContagemDeSeries(3)).toBe('Este exercício fica com 3 séries.');
   });
-});
-
-test('o aviso de esforço do Cluster usa o nome do tipo e não afirma origem sem ela', () => {
-  expect(textoDaRevisaoDoEsforco(true, 'WS')).toBe('Este esforço veio do padrão da WS. Revise a prescrição ao usar Cluster.');
-  expect(textoDaRevisaoDoEsforco(true, 'Trabalho pesado')).toBe('Este esforço veio do padrão da Trabalho pesado. Revise a prescrição ao usar Cluster.');
-  expect(textoDaRevisaoDoEsforco(true, '  ')).toBe('Este esforço veio do padrão deste tipo. Revise a prescrição ao usar Cluster.');
-  expect(textoDaRevisaoDoEsforco(false, 'WS')).toBe('Revise o esforço desta série ao usar Cluster.');
-});
-
-test('a marca do esforço cai quando o valor muda, mesmo no mesmo uid', () => {
-  const marca = assinaturaDoEsforco({ rir: 1, rpe: null });
-  expect(esforcoAindaEhODoTipo(marca, { rir: 1, rpe: null })).toBe(true);
-  expect(esforcoAindaEhODoTipo(marca, { rir: 2, rpe: null })).toBe(false);
-  expect(esforcoAindaEhODoTipo(undefined, { rir: 1, rpe: null })).toBe(false);
-});
-
-test('recarga A → B → A e troca externa de tipo não recriam a origem', () => {
-  const preenchida = new Map([['s', { assinatura: assinaturaDoEsforco({ rir: 1, rpe: null }), tipo: 'WORKING' }]]);
-  const comRir2 = origemAposConteudo(preenchida, [{ uid: 's', tipo: 'WORKING', esforco: { rir: 2, rpe: null } }]);
-  expect(comRir2.size).toBe(0);
-  const deVolta = origemAposConteudo(comRir2, [{ uid: 's', tipo: 'WORKING', esforco: { rir: 1, rpe: null } }]);
-  expect(marcaConfere(deVolta.get('s'), { tipo: 'WORKING', esforco: { rir: 1, rpe: null } })).toBe(false);
-  const tipoTrocado = origemAposConteudo(preenchida, [{ uid: 's', tipo: 'LEGADO', esforco: { rir: 1, rpe: null } }]);
-  expect(tipoTrocado.size).toBe(0);
-  expect(origemAoTrocarTipo([{ uid: 's', tipo: 'LEGADO', esforco: { rir: 2, rpe: null } }], null)).toBeNull();
-  const doPadrao = origemAoTrocarTipo([{ uid: 's', tipo: 'WORKING', esforco: { rir: 1, rpe: null } }], { rir: 1, rpe: null });
-  expect(marcaConfere(doPadrao?.get('s'), { tipo: 'WORKING', esforco: { rir: 1, rpe: null } })).toBe(true);
 });
 
 describe('podeRestPauseNaUltima', () => {

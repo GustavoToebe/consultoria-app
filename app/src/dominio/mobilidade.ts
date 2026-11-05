@@ -36,6 +36,15 @@ export function normalizarMobilidade(conteudo: unknown): ConteudoMobilidade {
   };
 }
 
+/**
+ * "Usar modelo de mobilidade" no plano do aluno: troca as seções pelas do modelo, com uids novos (como a semana de treino e o
+ * modelo de dieta); as orientações do plano ficam.
+ */
+export function aplicarModeloDeMobilidade(atual: ConteudoMobilidade, modelo: unknown): ConteudoMobilidade {
+  const secoes = normalizarMobilidade(modelo).secoes.map((s) => ({ ...s, uid: novoUid(), itens: s.itens.map((i) => ({ ...i, uid: novoUid() })) }));
+  return { ...atual, secoes };
+}
+
 /** Pronto para a API: texto aparado e vazio vira nulo. */
 export function mobilidadeParaApi(c: ConteudoMobilidade) {
   const ou = (v: string) => v.trim() || null;

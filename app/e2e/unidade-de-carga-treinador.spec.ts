@@ -6,7 +6,7 @@ import { json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api
 // Libras, fase 2: a escolha de unidade é do treinador (neste aparelho) e vale para o que ele digita e lê. Dados fictícios.
 const ID_PLANO = 'm0000000-0000-4000-8000-000000000030';
 const ws = (uid: string): Serie => ({
-  uid, tipo: 'WORKING', repsMin: 12, repsMax: 12, carga: { modo: 'CARGA_TRABALHO', percentualMin: null, percentualMax: null, referenciaUid: null },
+  uid, tipo: 'WORKING', repsMin: 12, repsMax: 12, carga: { modo: 'CARGA_TRABALHO', percentualMin: null, percentualMax: null },
   esforco: { rir: 1, rpe: null }, descansoSegundos: null, tecnica: null,
 });
 
@@ -51,10 +51,9 @@ for (const largura of [390, 1280]) {
     await page.setViewportSize({ width: largura, height: 900 });
     const api = await planoEmLibra(page, 'lb');
     await abrirExercicio(page, largura);
-    await page.getByRole('button', { name: 'Outras formas de carga', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Carga fixa (kg)', exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: 'Carga fixa (lb)', exact: true }).click();
-    const campo = page.getByRole('textbox', { name: 'Peso da carga fixa, em libras', exact: true });
+    const campo = page.getByRole('textbox', { name: 'Carga, em libras', exact: true });
     await campo.fill('0');
     await expect(page.getByText('Carga fixa: maior que zero e até 2204,6 lb.', { exact: true }).first()).toBeVisible();
     await campo.fill('100,57');
@@ -78,7 +77,6 @@ for (const largura of [390, 1280]) {
     await page.setViewportSize({ width: largura, height: 900 });
     const api = await planoEmLibra(page, 'kg');
     await abrirExercicio(page, largura);
-    await page.getByRole('button', { name: 'Outras formas de carga', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Carga fixa (lb)', exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Carga fixa (kg)', exact: true })).toBeVisible();
     expect(api.errosDaPagina).toEqual([]);
@@ -95,7 +93,6 @@ test('treinador escolhe lb em Ajustes e o editor passa a falar libras', async ({
   await opcao('Libras (lb)').click();
   await irAoModelo(page);
   await abrirExercicio(page, 1280);
-  await page.getByRole('button', { name: 'Outras formas de carga', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Carga fixa (lb)', exact: true })).toBeVisible();
 });
 
@@ -107,7 +104,6 @@ test('chave desligada: o treinador nem vê a escolha e segue em kg, mesmo com lb
   await expect(page.getByText('Unidade da carga', { exact: true })).toHaveCount(0);
   await irAoModelo(page);
   await abrirExercicio(page, 1280);
-  await page.getByRole('button', { name: 'Outras formas de carga', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Carga fixa (kg)', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Carga fixa (lb)', exact: true })).toHaveCount(0);
 });

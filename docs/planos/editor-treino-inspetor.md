@@ -13,7 +13,7 @@ cantos, selos, cores da marca e as regras do AGENTS.md são os do app.
 | # | Decisão | Valor | Quem decidiu |
 | --- | --- | --- | --- |
 | D1 | Ponto de troca para duas colunas | 960 px de conteúdo medido (`onLayout` da raiz da `TelaDoEditor`, não a janela): duas colunas em 1440 e 1280, lista empilhada em 1024 e no celular | Gustavo (04/11) |
-| D2 | Largura máxima do editor em duas colunas | 1440 px (`LARGURA_EDITOR_DUAS_COLUNAS`); em coluna única segue `LARGURA_EDITOR` (1040) | Claude |
+| D2 | Largura máxima do editor em duas colunas | ~~1440 px~~ `LARGURA_MAXIMA` (1800 px, como as listas), desde 05/11, a pedido do Gustavo (sobravam faixas vazias em janela larga; vale para treino, dieta e mobilidade); em coluna única segue `LARGURA_EDITOR` (1040) | Claude; Gustavo (05/11) |
 | D3 | Cores, cantos, fontes, ícones | Os do app (`tema/tokens.ts`, `RAIO` 12, lucide); nada do DESIGN.md. Cor de ação = marca da consultoria | Pedido do Gustavo |
 | D4 | Barra flutuante "Alterações salvas no cache local" | Não entra: nada salva sozinho e o rascunho não fica no aparelho. Vale o "Salvar rascunho" da barra do topo | Pedido do Gustavo |
 | D5 | Rótulo do primário no plano do aluno | "Publicar para o aluno" só no treino do aluno e só em duas colunas (na `BarraDoPlano`, que também serve dieta e mobilidade); "Publicar" em tela estreita, na dieta e na mobilidade. `BarraDoModelo` não muda (modelo não tem aluno) | Claude |

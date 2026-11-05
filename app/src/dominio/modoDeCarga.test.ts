@@ -7,7 +7,7 @@ import { previaDoGrupo } from './resumoDaSerie';
 import { CONFIGURACAO_PADRAO } from './metodologiaPadrao';
 
 /** Uma forma de carga que não existe neste app (o treinador usou algo mais novo que o app instalado). */
-const desconhecida = { modo: 'MODO_QUE_NAO_EXISTE', percentualMin: 80, percentualMax: null, referenciaUid: null } as unknown as Carga;
+const desconhecida = { modo: 'MODO_QUE_NAO_EXISTE', percentualMin: 80, percentualMax: null } as unknown as Carga;
 const CONFIG = { arredondamentoKg: 0.5, tipoTrabalho: 'WS' };
 
 describe('forma de carga que o app não conhece', () => {
@@ -15,9 +15,9 @@ describe('forma de carga que o app não conhece', () => {
     expect(TEXTO_CARGA_ILEGIVEL).toBe('Carga: atualize o app para ver');
   });
 
-  it('modoConhecido: os sete de hoje; o resto, não', () => {
-    for (const m of ['CARGA_TRABALHO', 'PERCENTUAL_WS', 'MESMA_CARGA', 'ACIMA_DA_ANTERIOR', 'ABAIXO_DA_REFERENCIA', 'CARGA_FIXA', 'NENHUMA']) expect(modoConhecido(m)).toBe(true);
-    for (const m of ['MODO_QUE_NAO_EXISTE', '', 'carga_fixa', null, undefined]) expect(modoConhecido(m)).toBe(false);
+  it('modoConhecido: os quatro de hoje; o resto, não', () => {
+    for (const m of ['CARGA_TRABALHO', 'PERCENTUAL_WS', 'CARGA_FIXA', 'NENHUMA']) expect(modoConhecido(m)).toBe(true);
+    for (const m of ['MODO_QUE_NAO_EXISTE', 'MESMA_CARGA', 'ACIMA_DA_ANTERIOR', 'ABAIXO_DA_REFERENCIA', '', 'carga_fixa', null, undefined]) expect(modoConhecido(m)).toBe(false);
   });
 
   it('cargaIlegivel: só a carga com modo de fora; série sem carga é legível', () => {
@@ -32,8 +32,8 @@ describe('forma de carga que o app não conhece', () => {
     const s = serie('a', { carga: desconhecida });
     expect(textoCarga(desconhecida)).toBe(TEXTO_CARGA_ILEGIVEL);
     expect(metaDaSerie(s, 'WS')).toBe(`Meta: 6 reps · ${TEXTO_CARGA_ILEGIVEL}`);
-    expect(descreverGrupo({ inicio: 0, series: [s] }, CONFIGURACAO_PADRAO, [s])).toContain(TEXTO_CARGA_ILEGIVEL);
-    const previa = previaDoGrupo({ series: [s] }, [s], CONFIGURACAO_PADRAO, {});
+    expect(descreverGrupo({ inicio: 0, series: [s] }, CONFIGURACAO_PADRAO)).toContain(TEXTO_CARGA_ILEGIVEL);
+    const previa = previaDoGrupo({ series: [s] }, CONFIGURACAO_PADRAO, {});
     expect(previa.linhas.filter((l) => l.includes('atualize o app'))).toEqual([TEXTO_CARGA_ILEGIVEL]);
   });
 
@@ -53,12 +53,6 @@ describe('forma de carga que o app não conhece', () => {
     expect(calculada.sugestao).toBeNull();
     expect(calculada.referencia).toBeNull();
     expect(calculada.meta).toContain(TEXTO_CARGA_ILEGIVEL);
-  });
-
-  it('a série seguinte "acima da anterior" não parte da carga de uma série ilegível', () => {
-    const e = exercicio('e', { series: [serie('a', { carga: desconhecida }), serie('b', { carga: carga('ACIMA_DA_ANTERIOR', 5, null) })] });
-    const [, seguinte] = calcularCargasDoExercicio(e, 40, { a: null }, CONFIG);
-    expect(seguinte.sugestao).toBeNull();
   });
 
   describe('semCargaNaSerieIlegivel: o ✓ vale, a carga fica em branco ("—")', () => {

@@ -9,8 +9,8 @@ import { json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api
 const ID_PLANO = 'm0000000-0000-4000-8000-000000000030';
 const PASTA_FORCA = 'p0000000-0000-4000-8000-000000000031';
 
-const semCarga = { modo: 'CARGA_TRABALHO' as const, percentualMin: null, percentualMax: null, referenciaUid: null };
-const daWs = (percentualMin: number, percentualMax: number | null) => ({ modo: 'PERCENTUAL_WS' as const, percentualMin, percentualMax, referenciaUid: null });
+const semCarga = { modo: 'CARGA_TRABALHO' as const, percentualMin: null, percentualMax: null };
+const daWs = (percentualMin: number, percentualMax: number | null) => ({ modo: 'PERCENTUAL_WS' as const, percentualMin, percentualMax });
 const serie = (uid: string, tipo: string, extra: Partial<Serie> = {}): Serie => ({
   uid, tipo, repsMin: 3, repsMax: 3, carga: semCarga, esforco: null, descansoSegundos: null, tecnica: null, ...extra,
 });
@@ -34,8 +34,8 @@ const receitas: Receita[] = [
   ], { pastaId: PASTA_FORCA, descricao: 'Uma de preparação e uma de trabalho.' }),
   receita('m0000000-0000-4000-8000-000000000033', 'Volume fictício', [
     serie('r2-ws', 'WORKING', { repsMin: 8, repsMax: 10 }),
-    serie('r2-bo1', 'BACK_OFF', { repsMin: 10, repsMax: 12, carga: { modo: 'ABAIXO_DA_REFERENCIA', percentualMin: 10, percentualMax: null, referenciaUid: 'r2-ws' } }),
-    serie('r2-bo2', 'BACK_OFF', { repsMin: 10, repsMax: 12, carga: { modo: 'ABAIXO_DA_REFERENCIA', percentualMin: 10, percentualMax: null, referenciaUid: 'r2-ws' } }),
+    serie('r2-bo1', 'BACK_OFF', { repsMin: 10, repsMax: 12, carga: daWs(85, null) }),
+    serie('r2-bo2', 'BACK_OFF', { repsMin: 10, repsMax: 12, carga: daWs(85, null) }),
   ]),
 ];
 
@@ -104,9 +104,9 @@ for (const largura of [390, 1280]) {
     // A partir de 768 px os botões de mover dizem o quê; no celular ficam só com a seta (nome acessível igual).
     const comTexto = page.getByRole('button', { name: 'Mover exercício para baixo', exact: true }).first().getByText('Mover exercício', { exact: true });
     await expect(comTexto).toHaveCount(largura >= 768 ? 1 : 0);
-    // O grupo: uma aba por grupo ("Série 1 · FS"), já aberta no 1º; o título dele diz o tipo e os percentuais de cada série.
+    // O grupo: uma aba por grupo ("Série 1 · FS"), já aberta no 1º; o "Para o aluno" diz o tipo e os percentuais de cada série.
     await expect(page.getByRole('tab', { name: /^Série 1 · FS/ })).toHaveAttribute('aria-selected', 'true');
-    await expect(page.getByText(/3x3 - FS 50% · 70% · 85% a 90% da WS/).first()).toBeVisible();
+    await expect(page.getByText(/3×3 · FS · 50% · 70% · 85% a 90% da WS/).first()).toBeVisible();
     // Faixa curta com o exercício no topo do grupo aberto.
     await expect(page.getByText('Exercício 1 · Agachamento fictício', { exact: true })).toBeVisible();
     await expect(page.getByRole('textbox', { name: 'Série 3 · Mínimo (%)', exact: true })).toHaveValue('85');
@@ -162,16 +162,16 @@ for (const largura of [390, 1280]) {
     await page.getByRole('button', { name: 'Aplicar receita Volume fictício', exact: true }).click();
     await expect(page.getByText('Substitui as séries deste exercício', { exact: true })).toHaveCount(0);
     await expect(page.getByText('Receita “Volume fictício” aplicada.', { exact: true })).toBeVisible();
-    // A receita vira duas abas (uma por grupo); a aberta é a última, o título dela traz a faixa dos números.
+    // A receita vira duas abas (uma por grupo); a aberta é a última, e o "Para o aluno" dela traz a faixa dos números.
     await expect(page.getByRole('tab', { name: /^Série \d/ })).toHaveCount(2);
-    await expect(page.getByText(/2x10 a 12 - Back off/).first()).toBeVisible();
+    await expect(page.getByText(/2×10 a 12 · Back off/).first()).toBeVisible();
     await page.getByRole('tab', { name: /^Série 1 · WS/ }).click();
-    await expect(page.getByText(/1x8 a 10 - WS/).first()).toBeVisible();
+    await expect(page.getByText(/1×8 a 10 · WS/).first()).toBeVisible();
     // Desfazer volta as séries de antes.
     await page.getByRole('button', { name: 'Desfazer', exact: true }).click();
     await expect(page.getByRole('tab', { name: /^Série \d/ })).toHaveCount(1);
-    await expect(page.getByText(/2x10 a 12 - Back off/)).toHaveCount(0);
-    await expect(page.getByText(/1x8 a 12 - WS/).first()).toBeVisible();
+    await expect(page.getByText(/2×10 a 12 · Back off/)).toHaveCount(0);
+    await expect(page.getByText(/1×8 a 12 · WS/).first()).toBeVisible();
     // Nada foi gravado: aplicar e desfazer só mexem no rascunho da tela.
     expect(api.pedidos.filter((p) => p.metodo === 'PUT')).toHaveLength(0);
     expect(api.errosDaPagina).toEqual([]);
@@ -250,7 +250,7 @@ for (const [tema, cores] of [['CLARO', CLARO], ['ESCURO', ESCURO]] as const) {
 }
 
 for (const largura of [390, 1280]) {
-  test(`editor: remover a sessão fica no ⋯, com "Desfazer", e "Adicionar exercício" vem primeiro (${largura}px)`, async ({ page }) => {
+  test(`editor: remover a sessão fica no ⋯, com "Desfazer", e "Adicionar exercício" vem primeiro, com "Adicionar cardio" ao lado (${largura}px)`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const api = await planoComDoisExercicios(page);
     // Remover a sessão não é mais um botão solto no rodapé: fica só no ⋯ do cabeçalho.
@@ -258,15 +258,33 @@ for (const largura of [390, 1280]) {
     await expect(page.getByRole('button', { name: /^Mais ações da sessão/ })).toHaveCount(1);
     await page.getByRole('button', { name: 'Adicionar sessão', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Remover sessão', exact: true })).toHaveCount(0);
-    // O primeiro controle da linha de adição é "Adicionar exercício".
+    // O primeiro controle da linha de adição é "Adicionar exercício"; "Adicionar cardio" vem logo depois (04/11).
+    const antes = (a: { x: number; y: number }, b: { x: number; y: number }) => a.y < b.y || (a.y === b.y && a.x < b.x);
     const adicionar = (await page.getByRole('button', { name: 'Adicionar exercício', exact: true }).boundingBox())!;
+    const cardio = (await page.getByRole('button', { name: 'Adicionar cardio', exact: true }).boundingBox())!;
     const modelos = (await page.getByRole('button', { name: 'Modelos prontos', exact: true }).boundingBox())!;
-    expect(adicionar.y < modelos.y || (adicionar.y === modelos.y && adicionar.x < modelos.x)).toBe(true);
+    expect(antes(adicionar, cardio)).toBe(true);
+    expect(antes(cardio, modelos)).toBe(true);
     await page.getByRole('button', { name: /^Mais ações da sessão/ }).first().click();
     await page.getByText('Remover sessão', { exact: true }).click();
     await expect(page.getByText(/Sessão “.*” removida\./)).toBeVisible();
     await page.getByRole('button', { name: 'Desfazer', exact: true }).click();
     await expect(page.getByRole('button', { name: /^Mais ações da sessão/ }).first()).toBeVisible();
+    expect(api.errosDaPagina).toEqual([]);
+    expect(api.naoTratadas).toEqual([]);
+  });
+}
+
+for (const largura of [390, 1280]) {
+  test(`editor: a metodologia aparece uma vez só, dentro de "Configuração do plano" (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const api = await planoComDoisExercicios(page);
+    // A coluna dos exercícios não repete a metodologia (04/11); ela mora só na configuração, recolhida aqui.
+    await expect(page.getByText(/Metodologia fictícia/)).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Trocar a metodologia', exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Configuração do plano, recolhido', exact: true }).click();
+    await expect(page.getByText(/Metodologia fictícia/)).toHaveCount(1);
+    await expect(page.getByText('Metodologia: Metodologia fictícia', { exact: true })).toBeVisible();
     expect(api.errosDaPagina).toEqual([]);
     expect(api.naoTratadas).toEqual([]);
   });

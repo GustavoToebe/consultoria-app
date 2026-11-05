@@ -42,7 +42,7 @@ class ValidadorTreinoTest {
                 .contains(SERIE0 + ".tipo");
         assertThat(caminhosDeErro(conteudo(List.of(exercicio(serie("  ", 6, 8, CARGA, null)))))).contains(SERIE0 + ".tipo");
         // Rest pause sem tipo: a técnica entra na série de trabalho, não a substitui.
-        assertThat(caminhosDeErro(conteudo(List.of(exercicio(ws(), serie(null, 6, 8, MESMA, restPause(20, null, 1)))))))
+        assertThat(caminhosDeErro(conteudo(List.of(exercicio(ws(), serie(null, 6, 8, CARGA, restPause(20, null, 1)))))))
                 .containsExactly(BASE + "0].series[1].tipo");
         assertThat(mensagemDeErro(conteudo(List.of(exercicio(serie(null, 6, 8, CARGA, null)))), SERIE0 + ".tipo"))
                 .isEqualTo("Série sem tipo.");
@@ -88,35 +88,13 @@ class ValidadorTreinoTest {
     // ---- Carga ----
 
     @Test
-    void mesmaCargaExigeSerieDeTrabalhoAntesNoExercicio() {
-        assertThat(caminhosDeErro(conteudo(List.of(exercicio(mesma(), ws()))))).contains(SERIE0 + ".carga.modo");
-        // Série de trabalho em outro exercício não conta.
-        assertThat(caminhosDeErro(conteudo(List.of(exercicio(ws()), exercicio(mesma())))))
-                .contains(BASE + "1].series[0].carga.modo");
-        assertThat(caminhosDeErro(conteudo(List.of(exercicio(ws(), mesma()))))).isEmpty();
-    }
-
-    @Test
-    void acimaDaAnteriorNaPrimeiraSerieEAviso() {
-        Carga acima = Carga.percentual("ACIMA_DA_ANTERIOR", 1, 5);
-        ResultadoValidacao r = validador.validar(conteudo(List.of(exercicio(serie("TOP_SET", 3, 5, acima, null)))), null, null);
-        assertThat(r.erros()).isEmpty();
-        assertThat(r.avisos()).anyMatch(a -> a.caminho().equals(SERIE0 + ".carga.modo"));
-        r = validador.validar(conteudo(List.of(exercicio(ws(), serie("TOP_SET", 3, 5, acima, null)))), null, null);
-        assertThat(r.avisos()).noneMatch(a -> a.caminho().endsWith("carga.modo"));
-        assertThat(caminhosDeErro(conteudo(List.of(exercicio(ws(), serie("TOP_SET", 3, 5,
-                Carga.percentual("ACIMA_DA_ANTERIOR", 101, null), null))))))
-                .contains(BASE + "0].series[1].carga.percentualMin");
-    }
-
-    @Test
     void percentualDaWsEmFaixaEFormaDeCargaInvalida() {
         assertThat(caminhosDeErro(conteudo(List.of(exercicio(serie("FEEDER", 3, 3, Carga.percentual("PERCENTUAL_WS", 85, 90), null),
                 ws()))))).isEmpty();
         assertThat(caminhosDeErro(conteudo(List.of(exercicio(serie("FEEDER", 3, 3, Carga.percentual("PERCENTUAL_WS", 90, 85), null),
                 ws()))))).contains(SERIE0 + ".carga.percentualMax");
         assertThat(caminhosDeErro(conteudo(List.of(exercicio(serie("FEEDER", 3, 3,
-                new Carga("PERCENTUAL_WS", null, BigDecimal.valueOf(85), null, null), null), ws()))))).contains(SERIE0 + ".carga.percentualMin");
+                new Carga("PERCENTUAL_WS", null, BigDecimal.valueOf(85), null), null), ws()))))).contains(SERIE0 + ".carga.percentualMin");
         assertThat(caminhosDeErro(conteudo(List.of(exercicio(serie("FEEDER", 3, 3, Carga.percentual("PERCENTUAL_WS", 201, null), null),
                 ws()))))).contains(SERIE0 + ".carga.percentualMin");
         for (String antigo : List.of("RIR", "RPE", "LIVRE")) {
@@ -133,31 +111,6 @@ class ValidadorTreinoTest {
         assertThat(r.avisos()).anyMatch(a -> a.caminho().equals(BASE + "0].series") && a.mensagem().contains("% da WS"));
         r = validador.validar(conteudo(List.of(exercicio(fs, ws()))), null, null);
         assertThat(r.avisos()).noneMatch(a -> a.mensagem().contains("% da WS"));
-    }
-
-    @Test
-    void abaixoDaReferenciaPrecisaDeSerieAnteriorDoMesmoExercicio() {
-        Serie topSet = serie("TOP_SET", 1, 3, Carga.percentual("ACIMA_DA_ANTERIOR", 1, 5), null);
-        Serie backOff = serie("BACK_OFF", 6, 8, Carga.abaixoDa(topSet.uid(), 15, null), null);
-        assertThat(caminhosDeErro(conteudo(List.of(exercicio(ws(), topSet, backOff))))).isEmpty();
-        // Série de referência depois do back off, ou em outro exercício, ou que não existe: erro.
-        assertThat(caminhosDeErro(conteudo(List.of(exercicio(ws(), backOff, topSet)))))
-                .contains(BASE + "0].series[1].carga.referenciaUid");
-        assertThat(caminhosDeErro(conteudo(List.of(exercicio(ws(), topSet), exercicio(ws(), backOff)))))
-                .contains(BASE + "1].series[1].carga.referenciaUid");
-        Serie solta = serie("BACK_OFF", 6, 8, Carga.abaixoDa(UUID.randomUUID(), 15, null), null);
-        assertThat(caminhosDeErro(conteudo(List.of(exercicio(ws(), solta))))).contains(BASE + "0].series[1].carga.referenciaUid");
-        // Sem referência, ou com redução fora de 1 a 50.
-        assertThat(caminhosDeErro(conteudo(List.of(exercicio(ws(), serie("BACK_OFF", 6, 8,
-                Carga.percentual("ABAIXO_DA_REFERENCIA", 15, null), null))))))
-                .contains(BASE + "0].series[1].carga.referenciaUid");
-        Serie exagero = serie("BACK_OFF", 6, 8, Carga.abaixoDa(topSet.uid(), 51, null), null);
-        assertThat(caminhosDeErro(conteudo(List.of(exercicio(ws(), topSet, exagero)))))
-                .contains(BASE + "0].series[2].carga.percentualMin");
-        // A referência é qualquer série anterior, não só a de trabalho.
-        Serie aWs = ws();
-        Serie sobreWs = serie("BACK_OFF", 6, 8, Carga.abaixoDa(aWs.uid(), 10, 15), null);
-        assertThat(caminhosDeErro(conteudo(List.of(exercicio(aWs, sobreWs))))).isEmpty();
     }
 
     // ---- Esforço ----
@@ -620,7 +573,7 @@ class ValidadorTreinoTest {
     }
 
     @Test
-    void cargaFixaExigeValorEmKgAteOTetoSemPercentualNemReferencia() {
+    void cargaFixaExigeValorEmKgAteOTetoSemPercentual() {
         assertThat(caminhosDeErro(conteudo(List.of(exercicio(fixa("WARM_UP", "12"), ws()))))).isEmpty();
         assertThat(caminhosDeErro(conteudo(List.of(exercicio(fixa("WARM_UP", "12.5"), ws()))))).isEmpty();
         assertThat(caminhosDeErro(conteudo(List.of(exercicio(fixa("WARM_UP", "1000"), ws()))))).isEmpty();
@@ -631,39 +584,28 @@ class ValidadorTreinoTest {
         assertThat(caminhosDeErro(conteudo(List.of(exercicio(
                 serie("WARM_UP", 10, 12, Carga.de("CARGA_FIXA"), null), ws()))))).contains(SERIE0 + ".carga.valorKg");
         assertThat(caminhosDeErro(conteudo(List.of(exercicio(serie("WARM_UP", 10, 12,
-                new Carga("CARGA_FIXA", new BigDecimal("50"), null, null, new BigDecimal("12")), null), ws())))))
+                new Carga("CARGA_FIXA", new BigDecimal("50"), null, new BigDecimal("12")), null), ws())))))
                 .contains(SERIE0 + ".carga.percentualMin");
-        assertThat(caminhosDeErro(conteudo(List.of(exercicio(serie("WARM_UP", 10, 12,
-                new Carga("CARGA_FIXA", null, null, UUID.randomUUID(), new BigDecimal("12")), null), ws())))))
-                .contains(SERIE0 + ".carga.referenciaUid");
     }
 
     @Test
     void outrasFormasDeCargaRecusamValorKg() {
-        for (String modo : List.of("CARGA_TRABALHO", "MESMA_CARGA", "NENHUMA")) {
-            assertThat(new Carga(modo, null, null, null, new BigDecimal("12")).problemas())
+        for (String modo : List.of("CARGA_TRABALHO", "NENHUMA")) {
+            assertThat(new Carga(modo, null, null, new BigDecimal("12")).problemas())
                     .as(modo).containsOnlyKeys("valorKg");
         }
-        assertThat(new Carga("PERCENTUAL_WS", new BigDecimal("50"), null, null, new BigDecimal("12")).problemas())
+        assertThat(new Carga("PERCENTUAL_WS", new BigDecimal("50"), null, new BigDecimal("12")).problemas())
                 .containsOnlyKeys("valorKg");
     }
 
     @Test
-    void cargaFixaNaoESerieDeTrabalhoNemServeDeReferencia() {
+    void cargaFixaNaoESerieDeTrabalho() {
         Serie fixa = fixa("WARM_UP", "12");
         assertThat(fixa.deTrabalho()).isFalse();
-        // Não é a série de trabalho que a mesma carga e o aviso do % exigem.
-        assertThat(caminhosDeErro(conteudo(List.of(exercicio(fixa, mesma()))))).contains(BASE + "0].series[1].carga.modo");
+        // Não é a série de trabalho que o aviso do % exige.
         ResultadoValidacao r = validador.validar(conteudo(List.of(exercicio(fixa,
                 serie("FEEDER", 3, 3, Carga.percentual("PERCENTUAL_WS", 85, null), null)))), null, null);
         assertThat(r.avisos()).anyMatch(a -> a.mensagem().contains("% da WS"));
-        // Back off não aponta a carga fixa; apontando uma série com a carga do aluno, segue valendo.
-        Serie backOff = serie("BACK_OFF", 6, 8, Carga.abaixoDa(fixa.uid(), 15, null), null);
-        assertThat(caminhosDeErro(conteudo(List.of(exercicio(fixa, ws(), backOff)))))
-                .contains(BASE + "0].series[2].carga.referenciaUid");
-        Serie aWs = ws();
-        Serie backOffDaWs = serie("BACK_OFF", 6, 8, Carga.abaixoDa(aWs.uid(), 15, null), null);
-        assertThat(caminhosDeErro(conteudo(List.of(exercicio(fixa, aWs, backOffDaWs))))).isEmpty();
     }
 
     @Test
@@ -676,7 +618,7 @@ class ValidadorTreinoTest {
         // Kg solto na carga NENHUMA de uma série de cardio também é recusado (o app antigo apagaria o pacote).
         assertThat(caminhosDeErro(conteudo(List.of(exercicioDeCardio(
                 cardio(new Cardio(20, null, null, null, null)).comCarga(
-                        new Carga("NENHUMA", null, null, null, new BigDecimal("12")))))))).contains(SERIE0 + ".carga.valorKg");
+                        new Carga("NENHUMA", null, null, new BigDecimal("12")))))))).contains(SERIE0 + ".carga.valorKg");
     }
 
     // ---- Carga por bloco e retomadas (docs/series-etapas.md, lote C) ----
@@ -707,7 +649,7 @@ class ValidadorTreinoTest {
                 SERIE0 + ".tecnica.cargasDosBlocos[0].percentual", SERIE0 + ".tecnica.cargasDosBlocos[1].percentual");
 
         Serie modoErrado = serie("WORKING", 8, 8, CARGA, cluster(List.of(4, 4), 15)
-                .comCargasDosBlocos(List.of(new CargaDaEtapa("ACIMA_DA_ANTERIOR", 5), new CargaDaEtapa("DA_SERIE", 90))));
+                .comCargasDosBlocos(List.of(new CargaDaEtapa("OUTRO", 5), new CargaDaEtapa("DA_SERIE", 90))));
         assertThat(caminhosDeErro(conteudo(List.of(exercicio(modoErrado))))).containsExactly(
                 SERIE0 + ".tecnica.cargasDosBlocos[0].modo", SERIE0 + ".tecnica.cargasDosBlocos[1].percentual");
     }
@@ -772,7 +714,6 @@ class ValidadorTreinoTest {
     }
 
     private static final Carga CARGA = Carga.de("CARGA_TRABALHO");
-    private static final Carga MESMA = Carga.de("MESMA_CARGA");
 
     private static Serie serie(String tipo, Integer repsMin, Integer repsMax, Carga carga, Tecnica tecnica) {
         return Serie.de(UUID.randomUUID(), tipo, repsMin, repsMax, carga).comTecnica(tecnica);
@@ -788,10 +729,6 @@ class ValidadorTreinoTest {
 
     private static Serie ws() {
         return serie("WORKING", 3, 6, CARGA, null);
-    }
-
-    private static Serie mesma() {
-        return serie("WORKING", 6, 8, MESMA, null);
     }
 
     private static Serie cardio(Cardio cardio) {

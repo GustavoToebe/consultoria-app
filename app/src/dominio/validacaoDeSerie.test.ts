@@ -9,7 +9,6 @@ describe('carga', () => {
   it('sem carga ou carga de trabalho não tem problema; forma desconhecida é recusada', () => {
     expect(problemasDaCarga(null)).toEqual({});
     expect(problemasDaCarga(carga('CARGA_TRABALHO'))).toEqual({});
-    expect(problemasDaCarga(carga('MESMA_CARGA'))).toEqual({});
     expect(problemasDaCarga({ ...carga('NENHUMA'), modo: 'OUTRA' as never })).toEqual({ modo: 'Forma de carga inválida.' });
   });
 
@@ -24,14 +23,10 @@ describe('carga', () => {
     expect(problemasDaCarga(carga('PERCENTUAL_WS', 0, 250))).toEqual({ percentualMin: 'Percentual da WS entre 1 e 200.' });
   });
 
-  it('acima da anterior vai até 100; abaixo da referência até 50 e exige a referência', () => {
-    expect(problemasDaCarga(carga('ACIMA_DA_ANTERIOR', 1, 5))).toEqual({});
-    expect(problemasDaCarga(carga('ACIMA_DA_ANTERIOR', 101))).toEqual({ percentualMin: 'Acima da anterior: percentual entre 1 e 100.' });
-    expect(problemasDaCarga(carga('ABAIXO_DA_REFERENCIA', 15, null, 't'))).toEqual({});
-    expect(problemasDaCarga(carga('ABAIXO_DA_REFERENCIA', 51, null, 't'))).toEqual({ percentualMin: 'Abaixo da referência: redução entre 1 e 50.' });
-    expect(problemasDaCarga(carga('ABAIXO_DA_REFERENCIA', 15))).toEqual({ referenciaUid: 'Escolha a série de referência.' });
-    // Padrão do tipo na metodologia: a referência só nasce na série.
-    expect(problemasDaCarga(carga('ABAIXO_DA_REFERENCIA', 15), false)).toEqual({});
+  it('os modos que saíram (acima da anterior, abaixo da referência, mesma carga) são formas inválidas', () => {
+    for (const modo of ['ACIMA_DA_ANTERIOR', 'ABAIXO_DA_REFERENCIA', 'MESMA_CARGA']) {
+      expect(problemasDaCarga({ ...carga('NENHUMA'), modo: modo as never })).toEqual({ modo: 'Forma de carga inválida.' });
+    }
   });
 });
 

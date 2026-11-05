@@ -44,7 +44,7 @@ const CONFIG = { arredondamentoKg: 0.5, tipoTrabalho: 'WS' };
 const DATA = '2026-11-02';
 
 /** Forma de carga que só existe em tempo de execução: o tipo `Carga['modo']` não a conhece. */
-const desconhecida = { modo: 'MODO_QUE_NAO_EXISTE', percentualMin: 80, percentualMax: null, referenciaUid: null, chaveNova: 1 } as unknown as Carga;
+const desconhecida = { modo: 'MODO_QUE_NAO_EXISTE', percentualMin: 80, percentualMax: null, chaveNova: 1 } as unknown as Carga;
 const ws = (uid: string): Serie => serieDeTeste(uid, { tipo: 'WORKING', repsMin: 3, repsMax: 6, carga: carga('CARGA_TRABALHO') });
 const nova = (uid: string, extra: Partial<Serie> = {}): Serie => serieDeTeste(uid, { tipo: 'BACK_OFF', repsMin: 6, repsMax: 8, carga: desconhecida, ...extra });
 const treino = (...series: Serie[]): ExercicioPlano => exercicioDeTeste('ex', { exercicioId: 'x', nome: 'Remada', modalidade: 'MAQUINA', series });

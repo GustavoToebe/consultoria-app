@@ -78,11 +78,18 @@ describe('"Usar receita" em blocos e técnicas (D16)', () => {
     expect(secaoDaReceita({ series: [{ tipo: 'FEEDER' }, { tipo: 'WORKING' }] }, config)).toEqual({ chave: 'COMPLETAS', titulo: 'Receitas completas' });
     expect(secaoDaReceita({ series: [{ tipo: 'WARM_UP' }, { tipo: 'WARM_UP' }] }, config).titulo).toBe('Aquecimento');
     expect(secaoDaReceita({ series: [{ tipo: 'FEEDER' }] }, config).titulo).toBe('Preparação');
-    expect(secaoDaReceita({ series: [{ tipo: 'WORKING' }, { tipo: 'TOP_SET' }] }, config).titulo).toBe('Trabalho');
+    expect(secaoDaReceita({ series: [{ tipo: 'WORKING' }, { tipo: 'WORKING' }] }, config).titulo).toBe('Trabalho');
     expect(secaoDaReceita({ series: [{ tipo: 'BACK_OFF' }] }, config).titulo).toBe('Pós-trabalho');
-    expect(secaoDaReceita(comTecnica('CLUSTER', ['FEEDER', 'WORKING']), config)).toEqual({ chave: 'TECNICA:CLUSTER', titulo: 'Técnica: Cluster' });
+    expect(secaoDaReceita(comTecnica('CLUSTER', ['WORKING']), config)).toEqual({ chave: 'TECNICA:CLUSTER', titulo: 'Técnica: Cluster' });
     expect(secaoDaReceita({ series: [{ tipo: 'NAO_EXISTE' }] }, config).titulo).toBe('Outras receitas');
     expect(secaoDaReceita({ series: [] }, config).titulo).toBe('Outras receitas');
+  });
+
+  it('receita com mais de um papel fica em "Receitas completas" mesmo com técnica (C16)', () => {
+    const completas = { chave: 'COMPLETAS', titulo: 'Receitas completas' };
+    expect(secaoDaReceita(comTecnica('REST_PAUSE', ['FEEDER', 'FEEDER', 'FEEDER', 'WORKING', 'WORKING']), config)).toEqual(completas);
+    expect(secaoDaReceita(comTecnica('CLUSTER', ['FEEDER', 'WORKING']), config)).toEqual(completas);
+    expect(secaoDaReceita(comTecnica('CLUSTER', ['WORKING', 'WORKING']), config).chave).toBe('TECNICA:CLUSTER');
   });
 
   it('o nome da técnica é o da metodologia', () => {

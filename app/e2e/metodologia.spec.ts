@@ -61,15 +61,13 @@ function receita(id: string, tipo: Receita['tipo'], nome: string, conteudo: unkn
   return { id, tipo, nome, descricao: null, pastaId: null, ordem: 1, versao: 1, conteudo };
 }
 
-function serieDaPiramide(uid: string, reps: number, referencia: string | null): Serie {
+function serieDaPiramide(uid: string, reps: number): Serie {
   return {
     uid,
     tipo: 'WORKING',
     repsMin: reps,
     repsMax: reps,
-    carga: referencia
-      ? { modo: 'ABAIXO_DA_REFERENCIA', percentualMin: 10, percentualMax: 15, referenciaUid: referencia }
-      : { modo: 'CARGA_TRABALHO', percentualMin: null, percentualMax: null, referenciaUid: null },
+    carga: { modo: 'CARGA_TRABALHO', percentualMin: null, percentualMax: null },
     esforco: null,
     descansoSegundos: null,
     tecnica: { tipo: 'PIRAMIDE_DECRESCENTE' },
@@ -103,7 +101,7 @@ for (const largura of [390, 1280]) {
   test(`catálogo: tipos da lista, desfazer e técnicas que permanecem (${largura}px)`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const metodologia = receita(ID_METODOLOGIA, 'METODOLOGIA', 'Metodologia fictícia', structuredClone(CONFIGURACAO_PADRAO));
-    const series = receita(ID_SERIES, 'SERIES', 'Séries fictícias', { series: [serieDaPiramide('serie-inicial', 8, null)] });
+    const series = receita(ID_SERIES, 'SERIES', 'Séries fictícias', { series: [serieDaPiramide('serie-inicial', 8)] });
     const api = await abrirModelo(page, metodologia, (tipo) => (tipo === 'METODOLOGIA' ? [metodologia] : tipo === 'SERIES' ? [series] : []), [series]);
 
     await page.getByRole('button', { name: 'Adicionar da lista', exact: true }).first().click();
@@ -133,10 +131,9 @@ for (const largura of [390, 1280]) {
 
     await page.goto(`/treinador/planejamento/modelo/${ID_SERIES}`);
     await expect(page.getByRole('button', { name: 'Salvar modelo', exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Nova série', exact: true }).click();
-    // A técnica do painel "Nova série" é uma lista suspensa: com ela aberta, só as técnicas da metodologia aparecem.
-    await page.getByRole('button', { name: /^Técnica: / }).click();
-    const tecnicasDoPainel = page.getByRole('listbox', { name: 'Técnica', exact: true });
+    // A técnica da série é uma lista suspensa: com ela aberta, só as técnicas da metodologia aparecem.
+    await page.getByRole('button', { name: /^Técnica da série: / }).click();
+    const tecnicasDoPainel = page.getByRole('listbox', { name: 'Técnica da série', exact: true });
     await expect(tecnicasDoPainel.getByRole('option', { name: '21s', exact: true })).toBeVisible();
     await expect(tecnicasDoPainel.getByRole('option', { name: 'GVT (10×10)', exact: true })).toBeVisible();
     await expect(tecnicasDoPainel.getByRole('option', { name: 'Forced reps', exact: true })).toHaveCount(0);
@@ -150,7 +147,7 @@ for (const largura of [390, 1280]) {
     const semCombinacao: Configuracao = { ...structuredClone(CONFIGURACAO_PADRAO), combinacoes: [] };
     const exercicio = (uid: string, nome: string) => ({
       uid, exercicioId: null, nome, modalidade: 'LIVRE', videoUrl: null, observacao: null, progressao: true, unidade: 'kg', grupoUid: null,
-      series: [serieDaPiramide(`${uid}-s`, 8, null)],
+      series: [serieDaPiramide(`${uid}-s`, 8)],
     });
     const plano = receita(ID_PLANO, 'PLANO_TREINO', 'Semana fictícia', {
       objetivo: null,
@@ -163,9 +160,9 @@ for (const largura of [390, 1280]) {
     });
     const piramide = receita('m0000000-0000-4000-8000-000000000013', 'SERIES', 'Pirâmide decrescente', {
       series: [
-        serieDaPiramide('11111111-1111-4111-8111-111111111111', 8, null),
-        serieDaPiramide('22222222-2222-4222-8222-222222222222', 10, '11111111-1111-4111-8111-111111111111'),
-        serieDaPiramide('33333333-3333-4333-8333-333333333333', 12, '22222222-2222-4222-8222-222222222222'),
+        serieDaPiramide('11111111-1111-4111-8111-111111111111', 8),
+        serieDaPiramide('22222222-2222-4222-8222-222222222222', 10),
+        serieDaPiramide('33333333-3333-4333-8333-333333333333', 12),
       ],
     });
     const api = await abrirModelo(page, plano, (tipo) => (tipo === 'SERIES' ? [piramide] : []));
@@ -182,8 +179,33 @@ for (const largura of [390, 1280]) {
     await expect(page.getByRole('tab', { name: /^Série \d · WS/ })).toHaveCount(3);
     await page.getByRole('tab', { name: /^Série 2 · WS/ }).click();
     await expect(page.getByRole('tab', { name: /^Série 2 · WS/ })).toHaveAttribute('aria-selected', 'true');
-    await expect(page.getByText(/1x10 - WS \+ Pirâmide decrescente 10% a 15% abaixo da referência/)).toBeVisible();
+    await expect(page.getByText(/1×10 · WS \+ Pirâmide decrescente/)).toBeVisible();
     await expect(page.getByText('Editando: Série 2', { exact: true })).toBeVisible();
+    expect(api.errosDaPagina).toEqual([]);
+    expect(api.naoTratadas).toEqual([]);
+  });
+}
+
+for (const largura of [390, 1280]) {
+  test(`carga fixa como padrão do tipo: oferece, valida os kg e grava (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const metodologia = receita(ID_METODOLOGIA, 'METODOLOGIA', 'Metodologia fictícia', structuredClone(CONFIGURACAO_PADRAO));
+    const api = await abrirModelo(page, metodologia, (tipo) => (tipo === 'METODOLOGIA' ? [metodologia] : []));
+    await page.getByRole('button', { name: 'Back off, recolhido', exact: true }).click();
+    const carga = page.getByRole('radiogroup', { name: 'Carga padrão', exact: true });
+    // Back off: % da WS | Carga fixa | Sem sugestão.
+    await expect(carga.getByRole('button')).toHaveText([/% da WS/, /Carga fixa/, /Sem sugestão/]);
+    await carga.getByRole('button', { name: 'Carga fixa (kg)', exact: true }).click();
+    const kg = page.getByRole('textbox', { name: 'Peso da carga fixa padrão (kg)', exact: true });
+    await kg.fill('0');
+    await expect(page.getByText('Carga fixa: maior que zero e até 1000 kg.', { exact: true }).first()).toBeVisible();
+    await kg.fill('22,5');
+    await expect(page.getByText('Carga fixa: maior que zero e até 1000 kg.', { exact: true })).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();
+    await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(1);
+    const backOff = (metodologia.conteudo as Configuracao).tipos.find((t) => t.codigo === 'BACK_OFF')!;
+    expect(backOff.cargaPadrao).toEqual({ modo: 'CARGA_FIXA', percentualMin: null, percentualMax: null, valorKg: 22.5 });
     expect(api.errosDaPagina).toEqual([]);
     expect(api.naoTratadas).toEqual([]);
   });

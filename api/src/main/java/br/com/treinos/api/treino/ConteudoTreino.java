@@ -48,20 +48,13 @@ public record ConteudoTreino(
     /** Formas de carga. Percentual é sempre da carga da série de trabalho (WS); 1RM não existe em lugar nenhum. */
     public static final String CARGA_TRABALHO = "CARGA_TRABALHO";
     public static final String PERCENTUAL_WS = "PERCENTUAL_WS";
-    /** A mesma carga da última série de trabalho do exercício. */
-    public static final String MESMA_CARGA = "MESMA_CARGA";
-    /** Carga acima da série imediatamente anterior do exercício, em % (top set). */
-    public static final String ACIMA_DA_ANTERIOR = "ACIMA_DA_ANTERIOR";
-    /** Carga abaixo da carga registrada hoje numa série anterior do exercício ({@code referenciaUid}), em % (back off). */
-    public static final String ABAIXO_DA_REFERENCIA = "ABAIXO_DA_REFERENCIA";
     /**
      * Carga fixa em kg ({@code valorKg}): o treinador escreve o peso. Não é série de trabalho (não dá a carga do dia) e não
-     * serve de referência para percentual, mesma carga nem abaixo da referência. Só em exercício com carga.
+     * serve de referência para percentual. Só em exercício com carga.
      */
     public static final String CARGA_FIXA = "CARGA_FIXA";
     public static final String NENHUMA = "NENHUMA";
-    public static final List<String> MODOS = List.of(CARGA_TRABALHO, PERCENTUAL_WS, MESMA_CARGA, ACIMA_DA_ANTERIOR,
-            ABAIXO_DA_REFERENCIA, CARGA_FIXA, NENHUMA);
+    public static final List<String> MODOS = List.of(CARGA_TRABALHO, PERCENTUAL_WS, CARGA_FIXA, NENHUMA);
 
     /**
      * Técnicas da série. As seis estruturadas têm campos próprios. As onze descritivas só levam o tipo: o aluno lê a
@@ -230,7 +223,7 @@ public record ConteudoTreino(
             return carga == null || carga.modo() == null ? NENHUMA : carga.modo();
         }
 
-        /** Série de trabalho: a referência da carga do dia (histórico, % da WS e mesma carga). */
+        /** Série de trabalho: a referência da carga do dia (histórico e % da WS). */
         public boolean deTrabalho() {
             return CARGA_TRABALHO.equals(modo());
         }
@@ -308,21 +301,12 @@ public record ConteudoTreino(
         public Serie comAlvoExtra(String novo) {
             return new Serie(uid, tipo, repsMin, repsMax, amrap, carga, esforco, descansoSegundos, tecnica, cardio, novo);
         }
-
-        /** Mesma série apontando a referência da carga para outro uid (cópia com uids novos). */
-        Serie comReferencia(UUID novaReferencia) {
-            return comCarga(new Carga(carga.modo(), carga.percentualMin(), carga.percentualMax(), novaReferencia,
-                    carga.valorKg()));
-        }
     }
 
     /**
      * Carga da série. {@code percentualMin}/{@code percentualMax} formam a faixa de {@code PERCENTUAL_WS} ("85 a 90% da
-     * WS"), de {@code ACIMA_DA_ANTERIOR} ("+1 a 5% sobre a anterior") e de {@code ABAIXO_DA_REFERENCIA} ("reduzir 10 a
-     * 15% da série de referência"); máximo nulo = valor único. {@code referenciaUid} só vale em
-     * {@code ABAIXO_DA_REFERENCIA}: uma série anterior do mesmo exercício. {@code valorKg} só vale em
-     * {@code CARGA_FIXA}: o peso em kg (maior que zero, até {@link #VALOR_KG_MAXIMO}, no máximo 2 casas) e, nessa forma,
-     * não há percentual nem referência. Nula = {@code NENHUMA}.
+     * WS"); máximo nulo = valor único. {@code valorKg} só vale em {@code CARGA_FIXA}: o peso em kg (maior que zero, até
+     * {@link #VALOR_KG_MAXIMO}, no máximo 2 casas) e, nessa forma, não há percentual. Nula = {@code NENHUMA}.
      *
      * <p>{@code valorKg} sai do JSON só quando existe: o app já instalado confere as chaves da carga do pacote offline e
      * recusaria o plano salvo se toda carga trouxesse o campo novo (mesmo caminho de {@code Tecnica.cargasDosBlocos}).</p>
@@ -331,40 +315,26 @@ public record ConteudoTreino(
             @Size(max = 30) String modo,
             BigDecimal percentualMin,
             BigDecimal percentualMax,
-            UUID referenciaUid,
             @JsonInclude(JsonInclude.Include.NON_NULL) BigDecimal valorKg) {
 
         /** Teto da carga fixa, o mesmo da leitura da planilha completa. */
         public static final BigDecimal VALOR_KG_MAXIMO = new BigDecimal("1000");
 
         public static Carga de(String modo) {
-            return new Carga(modo, null, null, null, null);
+            return new Carga(modo, null, null, null);
         }
 
         public static Carga percentual(String modo, int min, Integer max) {
-            return new Carga(modo, BigDecimal.valueOf(min), max == null ? null : BigDecimal.valueOf(max), null, null);
-        }
-
-        public static Carga abaixoDa(UUID referencia, int min, Integer max) {
-            return new Carga(ABAIXO_DA_REFERENCIA, BigDecimal.valueOf(min), max == null ? null : BigDecimal.valueOf(max),
-                    referencia, null);
+            return new Carga(modo, BigDecimal.valueOf(min), max == null ? null : BigDecimal.valueOf(max), null);
         }
 
         /** Carga fixa em kg. */
         public static Carga fixa(BigDecimal kg) {
-            return new Carga(CARGA_FIXA, null, null, null, kg);
+            return new Carga(CARGA_FIXA, null, null, kg);
         }
 
-        /** Problemas por campo de uma carga de série, com a referência obrigatória no back off (vazio = válida). */
+        /** Problemas por campo de uma carga de série (vazio = válida). */
         public Map<String, String> problemas() {
-            return problemas(true);
-        }
-
-        /**
-         * Problemas por campo. {@code exigeReferencia} falso é o padrão de um tipo na metodologia, que não conhece as
-         * séries do exercício: a referência só nasce na série.
-         */
-        public Map<String, String> problemas(boolean exigeReferencia) {
             Map<String, String> p = new LinkedHashMap<>();
             String m = modo == null ? NENHUMA : modo;
             if (!MODOS.contains(m)) {
@@ -373,13 +343,6 @@ public record ConteudoTreino(
             }
             switch (m) {
                 case PERCENTUAL_WS -> faixa(p, 200, "Percentual da WS entre 1 e 200.");
-                case ACIMA_DA_ANTERIOR -> faixa(p, 100, "Acima da anterior: percentual entre 1 e 100.");
-                case ABAIXO_DA_REFERENCIA -> {
-                    faixa(p, 50, "Abaixo da referência: redução entre 1 e 50.");
-                    if (exigeReferencia && referenciaUid == null) {
-                        p.put("referenciaUid", "Escolha a série de referência.");
-                    }
-                }
                 case CARGA_FIXA -> {
                     if (valorKg == null || valorKg.signum() <= 0 || valorKg.compareTo(VALOR_KG_MAXIMO) > 0
                             || valorKg.stripTrailingZeros().scale() > 2) {
@@ -388,12 +351,9 @@ public record ConteudoTreino(
                     if (percentualMin != null || percentualMax != null) {
                         p.put("percentualMin", "Carga fixa não leva percentual.");
                     }
-                    if (referenciaUid != null) {
-                        p.put("referenciaUid", "Carga fixa não leva série de referência.");
-                    }
                 }
                 default -> {
-                    // CARGA_TRABALHO, MESMA_CARGA e NENHUMA não têm parâmetro.
+                    // CARGA_TRABALHO e NENHUMA não têm parâmetro.
                 }
             }
             if (!CARGA_FIXA.equals(m) && valorKg != null) {
@@ -803,8 +763,8 @@ public record ConteudoTreino(
 
     /**
      * Cópia com todos os uids novos: receita aplicada, plano copiado ou replicado. As referências entre uids
-     * ({@code referenciaUid} da carga, {@code grupos[].uid} e {@code grupoUid} dos exercícios) são remapeadas para os uids
-     * novos; uma referência que não aponta para nada do conteúdo fica como está, para o validador apontá-la.
+     * ({@code grupos[].uid} e {@code grupoUid} dos exercícios) são remapeadas para os uids novos; uma referência que não
+     * aponta para nada do conteúdo fica como está, para o validador apontá-la.
      */
     public ConteudoTreino comUidsNovos() {
         return comUids(UUID::randomUUID);
@@ -835,17 +795,8 @@ public record ConteudoTreino(
         return new ConteudoTreino(objetivo, orientacoes, novas, metodologia);
     }
 
-    /** Séries com uid novo; a referência de cada back off passa a apontar o uid novo da série que ela referenciava. */
+    /** Séries com uid novo. */
     private static List<Serie> seriesComUidsNovos(List<Serie> series, Supplier<UUID> novo) {
-        Map<UUID, UUID> novos = new HashMap<>();
-        List<Serie> copias = series.stream().map(x -> {
-            UUID uid = novo.get();
-            if (x.uid() != null) {
-                novos.putIfAbsent(x.uid(), uid);
-            }
-            return x.comUid(uid);
-        }).toList();
-        return copias.stream().map(x -> x.carga() != null && x.carga().referenciaUid() != null
-                ? x.comReferencia(novos.getOrDefault(x.carga().referenciaUid(), x.carga().referenciaUid())) : x).toList();
+        return series.stream().map(x -> x.comUid(novo.get())).toList();
     }
 }

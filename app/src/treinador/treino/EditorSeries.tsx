@@ -1,16 +1,17 @@
 import { ArrowDown, ArrowUp, CircleAlert, CircleCheck, Minus, Plus, Smartphone, Trash2, TriangleAlert, type LucideIcon } from 'lucide-react-native';
 import { type ReactNode, useMemo, useState } from 'react';
-import { StyleSheet, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
-import type { Configuracao, Serie } from '../../api/tipos';
-import { agrupar, descreverGrupo, tituloDoGrupoDeSeries, type GrupoDeSeries } from '../../dominio/agrupamento';
-import { blocosValidos } from '../../dominio/blocos';
-import { adicionarSerie, alterarEsforcoDaSerie, alterarGrupo, alterarPercentuais, DESCANSO_MAXIMO_SEGUNDOS, LIMITE_SERIES, moverGrupo, mudarQuantidade, novoExercicio, removerGrupo, tecnicaVazia, type AlteracaoDeGrupo } from '../../dominio/editorTreino';
+import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import type { Configuracao, PapelDaSerie, Serie, TipoDeTecnica } from '../../api/tipos';
+import { agrupar, tituloDoGrupoDeSeries, type GrupoDeSeries } from '../../dominio/agrupamento';
+import { blocosIguais, blocosValidos, resumoDosBlocos, textoDeBlocos } from '../../dominio/blocos';
+import { adicionarSerie, alterarGrupo, DESCANSO_MAXIMO_SEGUNDOS, LIMITE_SERIES, moverGrupo, mudarQuantidade, novoExercicio, removerGrupo, tecnicaVazia, type AlteracaoDeGrupo } from '../../dominio/editorTreino';
 import { explicacaoDoCatalogo } from '../../dominio/catalogoMetodologia';
 import { grupoComSerie, uidDaAbaAposMudar } from '../../dominio/inspetorDoTreino';
-import { assinaturaDoEsforco, marcaConfere, origemAposConteudo, origemAoTrocarTipo, podeRestPauseNaUltima, restPauseNestaSerie, textoDaContagemDeSeries, textoDaRevisaoDoEsforco, type MarcaDeOrigem } from '../../dominio/exemplosDePrescricao';
-import { codigoTrabalho, esforcoInicial, explicacaoDaTecnica, explicacaoDoTipo, mostraRpe, nomeDaSerieDeTrabalho, nomeDoTipo, papelDe, padraoDaTecnica, tecnicaDescritiva, tipoPorCodigo } from '../../dominio/metodologia';
+import { podeRestPauseNaUltima, restPauseNestaSerie, textoDaContagemDeSeries } from '../../dominio/exemplosDePrescricao';
+import { codigoTrabalho, explicacaoDaTecnica, explicacaoDoTipo, nomeDaSerieDeTrabalho, nomeDoTipo, padraoDaTecnica, tecnicaDescritiva, tecnicaNaMetodologia } from '../../dominio/metodologia';
 import { CONFIGURACAO_PADRAO } from '../../dominio/metodologiaPadrao';
-import { previaDoGrupo, ROTULO_DA_OBSERVACAO_DA_SERIE } from '../../dominio/resumoDaSerie';
+import { escalar } from '../../dominio/preferencias';
+import { ROTULO_DA_OBSERVACAO_DA_SERIE } from '../../dominio/resumoDaSerie';
 import { validarExercicio } from '../../dominio/validacaoDoTreino';
 import { useTema } from '../../tema/TemaProvider';
 import { BORDA_ITEM, espaco, fontes, RAIO, tingido } from '../../tema/tokens';
@@ -22,33 +23,21 @@ import { CampoNumerico } from '../../ui/Campos';
 import { Escolha } from '../../ui/Escolha';
 import { EscolhaEmFolha, OPCOES_PARA_BUSCAR } from '../../ui/EscolhaEmFolha';
 import { EscolhaSuspensa } from '../../ui/EscolhaSuspensa';
-import { escalar } from '../../dominio/preferencias';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Selo, type TipoSelo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useUnidadeDeCarga } from '../../ui/unidadeDeCargaEmUso';
 import { BotaoDeAbrir } from './BotaoDeAbrir';
-import { AvisoDoCampo, CampoDaCargaFixa, CampoSozinho, CamposDaTecnica, CamposDasRepeticoes, CamposDoCardio, CamposDoEsforco, ErroDoCampo, EscolhaDeCarga, FaixaDeCarga, ReferenciaDaCarga, RirDaSerie, useCamposLadoALado } from './CamposDaPrescricao';
-import { colunasDaPrescricao, linhasDaPrescricao, MINIMO_DA_CAIXA, type CaixaDaPrescricao } from './colunasDaPrescricao';
-import {
-  type EscolhaDeTecnica,
-  opcoesDeReferencia,
-  opcoesDeTecnica,
-  opcoesDeTipo,
-  referenciaDaCarga,
-  problemasDoExercicioSemSeries,
-  problemasDoGrupoDeSeries,
-  problemasPorSerie,
-  rotulosDaFaixa,
-  secoesDaSerie,
-  subProblemas,
-} from './opcoesDoEditor';
+import { AvisoDoCampo, CamposDaTecnica, CamposDasRepeticoes, CamposDoCardio, CargaERirDaSerie, ErroDoCampo, useCamposLadoALado } from './CamposDaPrescricao';
+import { textoParaOAluno } from './cargaDaSerie';
+import { type EscolhaDeTecnica, opcoesDeTecnica, opcoesDeTipo, problemasDoExercicioSemSeries, problemasDoGrupoDeSeries, problemasPorSerie, secoesDaSerie, subProblemas } from './opcoesDoEditor';
 
 interface Props {
   series: Serie[];
   config: Configuracao | null;
-  modalidade: string | null;
+  /** Exercício de cardio: só a prescrição de cardio, sem tipo, técnica, carga nem RIR. */
+  cardio: boolean;
   aoMudar: (series: Serie[]) => void;
   /**
    * Aba aberta controlada por quem usa (o editor de treino guarda uma por exercício, para o "ir ao primeiro" abrir a série
@@ -57,41 +46,38 @@ interface Props {
    */
   grupoAbertoUid?: string | null;
   aoAbrirGrupo?: (serieUid: string | null) => void;
-  /** Exercício sem carga (elástico, peso corporal): a prévia não fala de carga. */
+  /** Exercício sem carga (elástico, peso corporal): a faixa da carga fica só com o RIR. */
   semCarga?: boolean;
-  /**
-   * Séries de um exercício com carga, fora do cardio: só aí a carga fixa em kg é oferecida. Falso na receita de séries,
-   * que não é de um exercício (a mesma regra da metodologia).
-   */
-  exercicioComCarga?: boolean;
-  /** `false` no grupo cujo descanso é depois da volta: a leitura não repete o descanso da série. */
+  /** `false` no grupo cujo descanso é depois da volta. Hoje só repassado: a leitura "Para o aluno" não fala de descanso. */
   descansoPorSerie?: boolean;
   /** Número e nome do exercício: a faixa curta no topo do grupo aberto diz de qual exercício são as séries. */
   numeroDoExercicio?: number;
   nomeDoExercicio?: string;
 }
 
+/** A ordem dos botões de 1 clique do "+ Nova série" (FS, WS, Back off, Aquecimento), pelo papel do tipo. */
+const ORDEM_DOS_PAPEIS: PapelDaSerie[] = ['PREPARACAO', 'TRABALHO', 'POS_TRABALHO', 'AQUECIMENTO', 'OUTRO'];
+/** As técnicas que ganham botão próprio: criam uma série de trabalho já com a técnica. */
+const TECNICAS_DE_1_CLIQUE: TipoDeTecnica[] = ['REST_PAUSE', 'CLUSTER', 'DROP_SET'];
+
 /**
- * Séries do exercício: uma aba por grupo ("Série 2 · Trabalho"), o "+ Nova série" tracejado no fim da faixa e, embaixo, o
- * cartão do grupo da aba aberta. O cartão do grupo tem seções nesta ordem: tipo e técnica, estrutura (séries completas,
- * repetições e os campos da técnica), carga, esforço, descanso, observação desta série e "Para o aluno" no fim. Séries
- * iguais e seguidas formam um grupo e se editam juntas; o percentual de cada série é próprio. Cada campo mostra o erro e o
- * aviso da validação (a mesma da publicação) e a prévia diz como o aluno vai ler. Exercício de cardio só tem a prescrição de
- * cardio.
+ * Séries do exercício: uma aba por grupo ("Série 2 · WS"), o "+ Nova série" tracejado no fim da faixa (que mostra os botões
+ * de 1 clique, "+ FS", "+ WS", "+ Rest pause"...) e, embaixo, o grupo da aba aberta em três faixas: tipo e técnica;
+ * estrutura (séries, repetições e descanso numa linha que quebra); carga e RIR, uma linha por série. No rodapé, a observação
+ * desta série e "Para o aluno". Séries iguais e seguidas formam um grupo e se editam juntas; o % e o RIR de cada série são
+ * próprios. Cada campo mostra o erro e o aviso da validação (a mesma da publicação).
  */
-export function EditorSeries({ series, config, modalidade, aoMudar: aoMudarFora, grupoAbertoUid, aoAbrirGrupo, semCarga = false, exercicioComCarga = false, descansoPorSerie = true, numeroDoExercicio, nomeDoExercicio }: Props) {
+export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, grupoAbertoUid, aoAbrirGrupo, semCarga = false, numeroDoExercicio, nomeDoExercicio }: Props) {
   const { cores } = useTema();
   const cfg = config ?? CONFIGURACAO_PADRAO;
-  const cardio = modalidade === 'CARDIO';
+  const modalidade = cardio ? 'CARDIO' : null;
   const grupos = agrupar(series);
   // Lado a lado pela largura desta coluna, não da janela: no inspetor de 1280 a janela é larga e a coluna não.
   const janelaLarga = useCamposLadoALado();
   const [largura, setLargura] = useState<number | null>(ultimaLargura);
   const largo = janelaLarga && (largura === null || largura >= LARGURA_LADO_A_LADO);
   const medir = (e: LayoutChangeEvent) => { ultimaLargura = e.nativeEvent.layout.width; setLargura(ultimaLargura); };
-  const [painel, setPainel] = useState(false);
-  const [tipoNovo, setTipoNovo] = useState<string | null>(null);
-  const [tecnicaNova, setTecnicaNova] = useState<EscolhaDeTecnica>('NENHUMA');
+  const [novaAberta, setNovaAberta] = useState(false);
   // Uma aba por grupo; quem controla é o editor de treino (D8) quando passa `aoAbrirGrupo`, mesmo antes do primeiro toque.
   const [abertoInterno, setAbertoInterno] = useState<string | null>(null);
   const controlado = aoAbrirGrupo !== undefined;
@@ -110,13 +96,6 @@ export function EditorSeries({ series, config, modalidade, aoMudar: aoMudarFora,
     aoMudarFora(novas);
     definirAberto(abrir !== undefined ? abrir : uidDaAbaAposMudar(series, novas, uidAberto));
   };
-  /**
-   * Esforço e tipo que a metodologia preencheu nesta abertura, por uid. Não vai para o JSON. Substituição externa
-   * apaga a marca; voltar ao mesmo número não a recria.
-   */
-  const [origemDoEsforco, setOrigemDoEsforco] = useState<ReadonlyMap<string, MarcaDeOrigem>>(() => new Map());
-  const origemVigente = origemAposConteudo(origemDoEsforco, series);
-  if (origemVigente !== origemDoEsforco) setOrigemDoEsforco(origemVigente);
   const cheio = series.length >= LIMITE_SERIES;
   const tipos = opcoesDeTipo(cfg, series);
   const validacao = useMemo(() => {
@@ -129,75 +108,20 @@ export function EditorSeries({ series, config, modalidade, aoMudar: aoMudarFora,
   }, [series, cfg, modalidade]);
   /** Série nova (e receita) abre a aba nova, a do último grupo (D12). */
   const doUltimo = (novas: Serie[]) => agrupar(novas).at(-1)?.series[0].uid ?? null;
-  const aindaDoTipo = (s: Serie) => marcaConfere(origemVigente.get(s.uid), s);
-  const gravarOrigem = (itens: readonly Serie[], ligar: boolean) => setOrigemDoEsforco((atual) => {
-    const n = new Map(origemAposConteudo(atual, series));
-    for (const s of itens) {
-      if (ligar && (s.esforco?.rir != null || s.esforco?.rpe != null)) n.set(s.uid, { assinatura: assinaturaDoEsforco(s.esforco), tipo: s.tipo ?? null });
-      else n.delete(s.uid);
-    }
-    return n;
-  });
-  const marcarNovasDoTipo = (antes: readonly Serie[], depois: readonly Serie[]) => {
-    const conhecidas = new Set(antes.map((s) => s.uid));
-    gravarOrigem(depois.filter((s) => !conhecidas.has(s.uid) && tipoPorCodigo(cfg, s.tipo)), true);
-  };
-  const adicionar = () => {
-    const novas = adicionarSerie(series, cfg, tipoNovo ?? undefined, tecnicaNova === 'NENHUMA' ? null : tecnicaNova, modalidade);
-    const conhecidas = new Set(series.map((s) => s.uid));
-    const criadas = novas.filter((s) => !conhecidas.has(s.uid));
-    const ultimo = grupos.at(-1);
-    const mesmoGrupo = !!ultimo && criadas.length > 0
-      && (ultimo.series[0].tipo ?? null) === (criadas[0].tipo ?? null)
-      && (ultimo.series[0].tecnica?.tipo ?? null) === (criadas[0].tecnica?.tipo ?? null);
-    if (mesmoGrupo) gravarOrigem(criadas, ultimo.series.every(aindaDoTipo));
-    else marcarNovasDoTipo(series, novas);
+  const adicionar = (tipo: string | undefined, tecnica: TipoDeTecnica | null) => {
+    const novas = adicionarSerie(series, cfg, tipo, tecnica, modalidade);
     aoMudar(novas, doUltimo(novas));
-    setPainel(false);
-  };
-  const adicionarCardio = () => {
-    const novas = adicionarSerie(series, cfg, undefined, null, modalidade);
-    aoMudar(novas, doUltimo(novas));
-  };
-  const abrirPainel = () => {
-    if (!painel) { setTipoNovo(codigoTrabalho(cfg) ?? tipos[0]?.valor ?? null); setTecnicaNova('NENHUMA'); }
-    setPainel(!painel);
+    setNovaAberta(false);
   };
   const motivoCheio = cheio ? `O exercício já tem ${LIMITE_SERIES} séries, o máximo.` : undefined;
-  const alterar = (g: GrupoDeSeries, m: AlteracaoDeGrupo) => {
-    const novas = alterarGrupo(series, g, m, cfg, modalidade);
-    const uids = new Set(g.series.map((s) => s.uid));
-    const tocadas = novas.filter((s) => uids.has(s.uid));
-    if (m.esforco !== undefined) gravarOrigem(tocadas, false);
-    else if (m.tipo !== undefined && m.tipo !== (g.series[0].tipo ?? null)) {
-      const tipo = tipoPorCodigo(cfg, m.tipo);
-      const marcas = origemAoTrocarTipo(tocadas, tipo ? esforcoInicial(tipo, modalidade) : null);
-      setOrigemDoEsforco((atual) => {
-        const n = new Map(origemAposConteudo(atual, novas));
-        for (const s of tocadas) n.delete(s.uid);
-        if (marcas) for (const [uid, marca] of marcas) n.set(uid, marca);
-        return n;
-      });
-    }
-    aoMudar(novas);
-  };
-  /** RIR de uma série só (índice na lista do exercício): o grupo continua um só, e a marca de "veio do padrão" sai dela. */
-  const rirDaSerie = (indice: number, valor: number) => {
-    const alvo = series[indice];
-    if (alvo) gravarOrigem([alvo], false);
-    aoMudar(alterarEsforcoDaSerie(series, indice, valor));
-  };
-  const quantidade = (g: GrupoDeSeries, n: number) => {
-    const novas = mudarQuantidade(series, g, n, cfg);
-    const conhecidas = new Set(series.map((s) => s.uid));
-    gravarOrigem(novas.filter((s) => !conhecidas.has(s.uid)), g.series.every(aindaDoTipo));
-    aoMudar(novas);
-  };
+  const alterar = (g: GrupoDeSeries, m: AlteracaoDeGrupo) => aoMudar(alterarGrupo(series, g, m, cfg));
   const iAberto = grupoAberto ? grupos.findIndex((g) => g.series[0].uid === uidAberto) : -1;
   const g = iAberto >= 0 ? grupos[iAberto] : null;
   const rotuloDaNova = cardio ? 'Novo cardio' : 'Nova série';
-  const aoNova = cardio ? adicionarCardio : abrirPainel;
+  // Cardio não tem tipo: "Novo cardio" já adiciona. Na musculação, "Nova série" mostra os botões de 1 clique.
+  const aoNova = cardio ? () => adicionar(undefined, null) : () => setNovaAberta(!novaAberta);
   const nova = <Botao rotulo={rotuloDaNova} tipo="secundario" Icone={Plus} desabilitado={cheio} motivo={motivoCheio} aoTocar={aoNova} />;
+  const botoesDaNova = cardio || cheio ? null : <BotoesDeNovaSerie config={cfg} aoAdicionar={adicionar} />;
   return <View style={estilos.lista} onLayout={medir}>
     {grupos.length > 0 ? <Abas variante="invertida" fundo={cores.superficie} ativa={uidAberto ?? grupos[0].series[0].uid} aoMudar={definirAberto}
       abas={grupos.map((x, i) => ({
@@ -210,35 +134,43 @@ export function EditorSeries({ series, config, modalidade, aoMudar: aoMudarFora,
       depois={cheio ? undefined : <Botao rotulo={rotuloDaNova} tipo="secundario" Icone={Plus} style={estilos.tracejado} aoTocar={aoNova} />} />
       : <View style={estilos.vazio}>
         <Texto variante="suave">Nenhuma série ainda.</Texto>
-        <LinhaDeAcoes>{nova}</LinhaDeAcoes>
+        {botoesDaNova ?? <LinhaDeAcoes>{nova}</LinhaDeAcoes>}
       </View>}
     {grupos.length > 0 && cheio ? <LinhaDeAcoes>{nova}</LinhaDeAcoes> : null}
+    {grupos.length > 0 && novaAberta ? botoesDaNova : null}
     <ErroDoCampo mensagem={validacao.daLista.series} />
     <AvisoDoCampo mensagem={validacao.avisosDaLista.series} />
-    {/* Bloco próprio, para não se confundir com os campos do grupo aberto; o "Nova série" da faixa abre e fecha. */}
-    {painel && !cardio ? <View style={[estilos.painel, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
-      <Texto variante="bloco">Nova série</Texto>
-      <Tipos rotulo="Tipo da série" opcoes={tipos} valor={tipoNovo} aoMudar={setTipoNovo} />
-      <Texto variante="pequeno">O tipo diz para que a série serve. A técnica diz como executar.</Texto>
-      <Tecnicas rotulo="Técnica" opcoes={opcoesDeTecnica(cfg)} valor={tecnicaNova} aoMudar={setTecnicaNova} />
-      <LinhaDeAcoes>
-        <Botao rotulo="Adicionar série" tipo="secundario" Icone={Plus} aoTocar={adicionar} desabilitado={cheio || !tipoNovo} motivo={motivoCheio ?? (!tipoNovo ? 'Escolha o tipo da série.' : undefined)} />
-        <Botao rotulo="Cancelar" tipo="fantasma" aoTocar={() => setPainel(false)} />
-      </LinhaDeAcoes>
-    </View> : null}
-    {g ? <EditorGrupo key={g.series[0].uid} largo={largo} largura={largura} grupo={g} series={series} config={cfg} cardio={cardio} semCarga={semCarga} exercicioComCarga={exercicioComCarga} descansoPorSerie={descansoPorSerie}
+    {g ? <EditorGrupo key={g.series[0].uid} largo={largo} grupo={g} series={series} config={cfg} cardio={cardio} semCarga={semCarga}
       tipos={tipos} podeMais={!cheio} primeiro={iAberto === 0} ultimo={iAberto === grupos.length - 1} numero={iAberto + 1}
       exercicio={numeroDoExercicio != null ? `Exercício ${numeroDoExercicio} · ${nomeDoExercicio?.trim() || 'sem nome'}` : null}
       porSerie={validacao.porSerieErros}
-      esforcoVeioDoPadrao={g.series.length > 0 && g.series.every(aindaDoTipo)}
       aoMover={(d) => aoMudar(moverGrupo(series, iAberto, d))}
       aoAlterar={(m) => alterar(g, m)}
-      aoQuantidade={(n) => quantidade(g, n)}
+      aoMudarSeries={(novas) => aoMudar(novas)}
+      aoQuantidade={(n) => aoMudar(mudarQuantidade(series, g, n, cfg))}
       aoRestPauseNaUltima={() => aoMudar(restPauseNestaSerie(series, g, cfg))}
-      aoPercentuais={(j, min, max) => aoMudar(alterarPercentuais(series, g.inicio + j, min, max))}
-      aoRir={(j, valor) => rirDaSerie(g.inicio + j, valor)}
       aoRemover={() => aoMudar(removerGrupo(series, g))} /> : null}
     <Texto variante="pequeno">{textoDaContagemDeSeries(series.length)}</Texto>
+  </View>;
+}
+
+/**
+ * Os botões de 1 clique: um por tipo da metodologia (na ordem FS, WS, Back off, Aquecimento) e, se a metodologia tem a
+ * técnica e há tipo de trabalho, "Rest pause", "Cluster" e "Drop-set", que já criam a série de trabalho com ela.
+ */
+function BotoesDeNovaSerie({ config, aoAdicionar }: { config: Configuracao; aoAdicionar: (tipo: string | undefined, tecnica: TipoDeTecnica | null) => void }) {
+  const ws = codigoTrabalho(config);
+  const porTipo = ORDEM_DOS_PAPEIS.flatMap((papel) => config.tipos.filter((t) => t.papel === papel && t.codigo.trim()));
+  const tecnicas = ws ? opcoesDeTecnica(config).filter((o): o is { valor: TipoDeTecnica; rotulo: string } =>
+    o.valor !== 'NENHUMA' && TECNICAS_DE_1_CLIQUE.includes(o.valor) && tecnicaNaMetodologia(config, o.valor)) : [];
+  return <View style={estilos.juntos} role="group" aria-label="Adicionar série">
+    <Texto variante="rotulo">Adicionar</Texto>
+    <LinhaDeAcoes>
+      {porTipo.map((t) => <Botao key={t.codigo} rotulo={nomeDoTipo(config, t.codigo)} rotuloAcessivel={`Adicionar ${nomeDoTipo(config, t.codigo)}`} tipo="secundario" Icone={Plus}
+        aoTocar={() => aoAdicionar(t.codigo, null)} />)}
+      {tecnicas.map((o) => <Botao key={o.valor} rotulo={o.rotulo} rotuloAcessivel={`Adicionar ${nomeDoTipo(config, ws)} com ${o.rotulo}`} tipo="secundario" Icone={Plus}
+        aoTocar={() => aoAdicionar(ws ?? undefined, o.valor)} />)}
+    </LinhaDeAcoes>
   </View>;
 }
 
@@ -283,7 +215,7 @@ function Tecnicas({ rotulo, opcoes, valor, aoMudar }: {
 
 /**
  * A partir desta largura da coluna das séries, Tipo e Técnica ficam lado a lado e o "Mover grupo" tem texto: 1440 e 1024
- * cabem; o inspetor de 1280 (uns 560 px) empilha. Repetições, Carga, Esforço e Descanso seguem `colunasDaPrescricao`.
+ * cabem; o inspetor de 1280 (uns 560 px) empilha.
  */
 const LARGURA_LADO_A_LADO = 640;
 /**
@@ -292,20 +224,21 @@ const LARGURA_LADO_A_LADO = 640;
  */
 let ultimaLargura: number | null = null;
 
-/** Cluster em carga de trabalho: a ajuda da carga numa linha só (no lugar da padrão e da frase sobre a série anterior). */
-const AJUDA_DA_CARGA_DO_CLUSTER = 'A sugestão e os percentuais saem da carga que o aluno informa para o dia, não da série anterior.';
+/**
+ * Largura da caixa do descanso: cabe "3600" e o "s" no tamanho de texto padrão; cresce com o texto da pessoa. Em 90 (não 112)
+ * para a linha Séries × Repetições × Descanso seguir numa linha só em 1280 e 1440 com as caixas mín/máx proporcionais ao sufixo
+ * (84 cortava o "3600"). shortcut: folga de ~2 px em 1280/1440; se faltar, a linha quebra e o descanso desce, sem cortar nada.
+ */
+const LARGURA_DO_DESCANSO = 90;
 
 /**
- * Uma seção do cartão do grupo: título de seção (h3, 12 px em caixa alta, abaixo do título do grupo, que é `bloco`)
- * numa caixinha própria. O espaço entre as caixinhas é o do corpo do cartão.
+ * Uma faixa do grupo aberto: título de seção (h3) e, da segunda em diante, um fio em cima. Sem caixa: três faixas planas no
+ * lugar das sete caixinhas de antes (o grupo de séries já é a moldura).
  */
-function Secao({ titulo, children, style }: { titulo: string; children: ReactNode; style?: StyleProp<ViewStyle> }) {
+function Faixa({ titulo, primeira = false, children }: { titulo?: string; primeira?: boolean; children: ReactNode }) {
   const { cores } = useTema();
-  // PC: cada seção é uma caixinha (`superficie2` com borda fina) dentro da série aberta (protótipo de 30/10). Celular: só
-  // o título com um fio em cima, para não virar o 3º nível de moldura (exercício > grupo de séries > seção) em 390 px.
-  const caixa = useCamposLadoALado();
-  return <View style={[estilos.secao, caixa ? [estilos.poco, { backgroundColor: cores.superficie2, borderColor: cores.divisor }] : [estilos.plana, { borderTopColor: cores.divisor }], style]}>
-    <Texto variante="secao" nivel={3} cor={cores.texto}>{titulo}</Texto>
+  return <View style={[estilos.faixa, primeira ? null : [estilos.comFio, { borderTopColor: cores.divisor }]]}>
+    {titulo ? <Texto variante="secao" nivel={3} cor={cores.texto}>{titulo}</Texto> : null}
     {children}
   </View>;
 }
@@ -319,22 +252,18 @@ function Explicacao({ texto }: { texto: string }) {
 }
 
 interface PropsDoGrupo {
-  /** Campos curtos lado a lado e "Mover grupo" com texto: a coluna das séries é larga (`LARGURA_LADO_A_LADO`). */
+  /** Tipo e Técnica lado a lado e "Mover grupo" com texto: a coluna das séries é larga (`LARGURA_LADO_A_LADO`). */
   largo: boolean;
-  /** Largura medida da coluna das séries (nula antes da 1ª medida): decide quantas caixas da prescrição vão por linha. */
-  largura: number | null;
-  grupo: GrupoDeSeries; series: Serie[]; config: Configuracao; cardio: boolean; semCarga: boolean; exercicioComCarga: boolean; descansoPorSerie: boolean;
+  grupo: GrupoDeSeries; series: Serie[]; config: Configuracao; cardio: boolean; semCarga: boolean;
   tipos: { valor: string; rotulo: string; foraDaMetodologia: boolean }[]; podeMais: boolean; primeiro: boolean; ultimo: boolean; numero: number;
   /** "Exercício 2 · Supino reto", na faixa curta do topo do grupo aberto; nulo sem ela. */
   exercicio: string | null;
   porSerie: ReturnType<typeof problemasPorSerie>;
-  esforcoVeioDoPadrao: boolean; aoMover: (d: -1 | 1) => void; aoAlterar: (m: AlteracaoDeGrupo) => void;
-  aoQuantidade: (n: number) => void; aoRestPauseNaUltima: () => void; aoPercentuais: (i: number, min: number | null, max: number | null) => void;
-  /** RIR de uma série do grupo (`i` = posição dentro do grupo). */
-  aoRir: (i: number, valor: number) => void; aoRemover: () => void;
+  aoMover: (d: -1 | 1) => void; aoAlterar: (m: AlteracaoDeGrupo) => void; aoMudarSeries: (novas: Serie[]) => void;
+  aoQuantidade: (n: number) => void; aoRestPauseNaUltima: () => void; aoRemover: () => void;
 }
 
-function EditorGrupo({ largo, largura, grupo: g, series, config, cardio, semCarga, exercicioComCarga, descansoPorSerie, tipos, podeMais, primeiro, ultimo, numero, exercicio, porSerie, esforcoVeioDoPadrao, aoMover, aoAlterar, aoQuantidade, aoRestPauseNaUltima, aoPercentuais, aoRir, aoRemover }: PropsDoGrupo) {
+function EditorGrupo({ largo, grupo: g, series, config, cardio, semCarga, tipos, podeMais, primeiro, ultimo, numero, exercicio, porSerie, aoMover, aoAlterar, aoMudarSeries, aoQuantidade, aoRestPauseNaUltima, aoRemover }: PropsDoGrupo) {
   const { cores, bordas, fatorTexto } = useTema();
   const unidade = useUnidadeDeCarga();
   // Explicações do tipo e da técnica começam recolhidas; o "O que é?" abre.
@@ -343,82 +272,26 @@ function EditorGrupo({ largo, largura, grupo: g, series, config, cardio, semCarg
   const s = g.series[0];
   const secoes = secoesDaSerie(cardio ? 'CARDIO' : null);
   const cluster = s.tecnica?.tipo === 'CLUSTER';
-  const modo = s.carga?.modo ?? 'NENHUMA';
   const { erros, avisos } = problemasDoGrupoDeSeries(porSerie, g.inicio, g.series.length);
   const nivel = nivelDoGrupo(porSerie, g);
   const explicacao = explicacaoDoTipo(config, s.tipo);
   const tecnicaTexto = s.tecnica ? (explicacaoDaTecnica(config, s.tecnica.tipo) || (tecnicaDescritiva(s.tecnica.tipo) ? explicacaoDoCatalogo(s.tecnica.tipo) : null)) : null;
   const descritiva = tecnicaDescritiva(s.tecnica?.tipo);
-  const errosDaTecnica = subProblemas(erros, 'tecnica');
   const aoTecnica = (v: EscolhaDeTecnica) => aoAlterar({ tecnica: v === 'NENHUMA' ? null : tecnicaVazia(v, padraoDaTecnica(config, v)) });
-  const referencias = opcoesDeReferencia(series, g.inicio, config);
   const nomeTipo = tipos.find((t) => t.valor === s.tipo)?.rotulo ?? nomeDoTipo(config, s.tipo);
   const opcoesTecnica = opcoesDeTecnica(config, s.tecnica?.tipo);
   const nomeTecnica = s.tecnica ? opcoesTecnica.find((o) => o.valor === s.tecnica?.tipo)?.rotulo ?? null : null;
   const recuo = espaco(largo ? 2.5 : 2);
-  const comPercentual = modo === 'PERCENTUAL_WS' || modo === 'ACIMA_DA_ANTERIOR' || modo === 'ABAIXO_DA_REFERENCIA';
-  // RIR por série (D2): só em grupo de mais de uma série com RIR (a forma é a mesma no grupo inteiro, `agrupamento`).
-  const rirPorSerie = !cardio && g.series.length > 1 && s.esforco?.rir != null;
-  const rires = g.series.map((x) => x.esforco?.rir ?? null);
-  const rirDeCadaSerie = rirPorSerie && rires.some((v) => v !== rires[0]) ? rires.map((v) => (v === 0 ? 'falha' : v ?? '—')).join(', ') : null;
-  const rirDa = (j: number) => {
-    const valor = g.series[j].esforco?.rir;
-    return valor == null ? null : <RirDaSerie key={`rir-${g.series[j].uid}`} numero={j + 1} valor={valor} aoMudar={(v) => aoRir(j, v)}
-      erro={porSerie[g.inicio + j]?.erros['esforco.rir']} />;
-  };
   const borda = nivel === 'perigo' ? cores.perigo : cores.bordaCampo;
-  // Repetições, Carga, Esforço e Descanso: numa linha só, de duas em duas ou uma por linha, pela largura do corpo do grupo
-  // (`colunasDaPrescricao`). Com mais de uma por linha, o percentual de cada série desce para uma linha inteira embaixo.
-  const caixas: CaixaDaPrescricao[] = [
-    ...(secoes.prescricao && !cluster ? ['repeticoes' as const] : []),
-    ...(secoes.carga ? ['carga' as const] : []),
-    ...(secoes.esforco ? ['esforco' as const] : []),
-    ...(secoes.prescricao ? ['descanso' as const] : []),
-  ];
-  const colunas = colunasDaPrescricao(largura === null ? null : largura - 2 * bordas.item - 2 * recuo, caixas, fatorTexto);
-  const cargaPorSerieEmbaixo = colunas > 1 && comPercentual;
-  const naLinha = (c: CaixaDaPrescricao): StyleProp<ViewStyle> => colunas > 1 ? { flexGrow: 1, flexShrink: 1, flexBasis: escalar(MINIMO_DA_CAIXA[c], fatorTexto), minWidth: 0 } : null;
-  const cargaPorSerie = <>
-    {comPercentual ? <View style={estilos.bloco}>
-      {/* Uma linha por série: o percentual dela e, com RIR, o RIR dela, lado a lado (reunião de 30/10, D2). */}
-      {g.series.map((x, j) => <FaixaDeCarga key={x.uid} carga={x.carga} config={config} prefixo={g.series.length > 1 ? `Série ${j + 1} · ` : ''}
-        aoMudar={(min, max) => aoPercentuais(j, min, max)} erros={subProblemas(porSerie[g.inicio + j]?.erros, 'carga')} semAjuda={g.series.length > 1}
-        aoLado={rirPorSerie ? rirDa(j) : undefined} />)}
-      {g.series.length > 1 && rotulosDaFaixa(modo, config)?.ajuda ? <Texto variante="pequeno">{rotulosDaFaixa(modo, config)?.ajuda}</Texto> : null}
-    </View> : null}
-    {modo === 'ABAIXO_DA_REFERENCIA' ? <ReferenciaDaCarga opcoes={referencias} valor={s.carga?.referenciaUid} aoMudar={(referenciaUid) => aoAlterar({ carga: { referenciaUid } })} erro={erros['carga.referenciaUid']} /> : null}
-  </>;
-  const caixa: Record<CaixaDaPrescricao, ReactNode> = {
-    repeticoes: <Secao key="repeticoes" titulo="Repetições" style={naLinha('repeticoes')}>
-      <CamposDasRepeticoes valor={s} erros={erros} rotuloVisivel={false} semRepeticoes="Sem repetições: o aluno lê a série por tempo."
-        aoMudar={(r) => aoAlterar({ repsMin: r.repsMin, repsMax: r.repsMax, amrap: r.amrap })} />
-    </Secao>,
-    carga: <Secao key="carga" titulo="Carga" style={naLinha('carga')}>
-      <EscolhaDeCarga carga={s.carga} config={config} papel={papelDe(config, s.tipo)} aoMudarModo={(m) => aoAlterar({ modo: m })} erro={erros['carga.modo'] ?? erros.carga} rotuloVisivel={false}
-        ajuda={cluster && modo === 'CARGA_TRABALHO' && !semCarga ? AJUDA_DA_CARGA_DO_CLUSTER : undefined} exercicioComCarga={exercicioComCarga} />
-      {/* Os kg são do grupo: kg diferentes já separam as séries em grupos (`agrupamento`). */}
-      {modo === 'CARGA_FIXA' ? <CampoDaCargaFixa valor={s.carga?.valorKg} aoMudar={(valorKg) => aoAlterar({ carga: { modo: 'CARGA_FIXA', valorKg } })} erro={erros['carga.valorKg']} /> : null}
-      {cargaPorSerieEmbaixo ? null : cargaPorSerie}
-      <AvisoDoCampo mensagem={avisos['carga.modo']} />
-    </Secao>,
-    esforco: <Secao key="esforco" titulo="Esforço" style={naLinha('esforco')}>
-      <CamposDoEsforco esforco={s.esforco} aoMudar={(esforco) => aoAlterar({ esforco })} erros={subProblemas(erros, 'esforco')} rotulo="Esforço percebido" rotuloVisivel={false}
-        semRpe={!mostraRpe(config, s.tipo, s.esforco)} variasSeries={g.series.length > 1} rirDeCadaSerie={rirDeCadaSerie} />
-      {/* Sem percentual não há linha por série na carga: o RIR de cada série fica aqui, lado a lado no PC. */}
-      {rirPorSerie && !comPercentual ? <View style={estilos.rires}>{g.series.map((_, j) => rirDa(j))}</View> : null}
-      {cluster ? <Texto variante="pequeno">{textoDaRevisaoDoEsforco(esforcoVeioDoPadrao, nomeDoTipo(config, s.tipo))}</Texto> : null}
-      <AvisoDoCampo mensagem={avisos['esforco.rir']} />
-    </Secao>,
-    descanso: <Secao key="descanso" titulo="Descanso" style={naLinha('descanso')}>
-      <CampoSozinho>
-        <CampoNumerico rotulo="Descanso depois da série" inteiro sufixo="s" valor={s.descansoSegundos} aoMudar={(descansoSegundos) => aoAlterar({ descansoSegundos })}
-          erro={erros.descansoSegundos ?? (s.descansoSegundos != null && s.descansoSegundos > DESCANSO_MAXIMO_SEGUNDOS ? `De 0 a ${DESCANSO_MAXIMO_SEGUNDOS} s.` : null)} />
-      </CampoSozinho>
-    </Secao>,
-  };
+  const erroDoDescanso = erros.descansoSegundos ?? (s.descansoSegundos != null && s.descansoSegundos > DESCANSO_MAXIMO_SEGUNDOS ? `Descanso: de 0 a ${DESCANSO_MAXIMO_SEGUNDOS} s.` : null);
+  const resumoDoCluster = cluster ? resumoDosBlocos(s.tecnica?.blocos) : null;
+  const blocos = s.tecnica?.blocos ?? null;
+  const textoDoCluster = resumoDoCluster
+    ? `${blocosIguais(blocos) ? `${resumoDoCluster.blocos} blocos × ${blocos![0]} reps` : `Blocos ${textoDeBlocos(blocos)}`} = ${resumoDoCluster.repeticoes} reps`
+    : 'Complete os blocos';
   return <View style={[estilos.grupo, { borderWidth: bordas.item, borderColor: borda, backgroundColor: cores.superficie }]}>
-    {/* "Editando: Série 2" com o tipo como o treinador lê ("Trabalho · WS") e os números ("3x3 - FS 50% · 70% · 85% da WS"). */}
-    <CabecalhoDeGrupo titulo={`Editando: Série ${numero}`} resumo={`${tituloDoGrupoDeSeries(g, config)} · ${descreverGrupo(g, config, series, { unidade })}`} selo={SELO_DO_NIVEL[nivel]} linha="fina"
+    {/* "Editando: Série 2" com o tipo como o treinador lê ("Trabalho · WS"). */}
+    <CabecalhoDeGrupo titulo={`Editando: Série ${numero}`} resumo={tituloDoGrupoDeSeries(g, config)} selo={SELO_DO_NIVEL[nivel]} linha="fina"
       inicio={<NumeroDaSerie numero={numero} aberto />} acoes={<>
       <BotaoDeMover alvo="grupo" direcao={-1} comTexto={largo} desabilitado={primeiro} aoTocar={() => aoMover(-1)} />
       <BotaoDeMover alvo="grupo" direcao={1} comTexto={largo} desabilitado={ultimo} aoTocar={() => aoMover(1)} />
@@ -429,85 +302,91 @@ function EditorGrupo({ largo, largura, grupo: g, series, config, cardio, semCarg
       {exercicio ? <View style={[estilos.doExercicio, { borderLeftColor: cores.bordaCampo }]}>
         <Texto variante="pequeno" cor={cores.texto}>{exercicio}</Texto>
       </View> : null}
-      {secoes.tipo ? <Secao titulo="Tipo e técnica">
+
+      {/* Faixa 1: para que a série serve (tipo) e como executar (técnica). */}
+      {secoes.tipo ? <Faixa titulo="Tipo e técnica" primeira>
         <View style={largo ? estilos.lado : estilos.empilhado}>
-        <View style={[estilos.juntos, largo ? estilos.ladoMaior : null]}>
-          <Tipos rotulo="Tipo da série" opcoes={tipos} valor={s.tipo} aoMudar={(tipo) => aoAlterar({ tipo })} />
-          {explicacao ? <BotaoDeAbrir texto={`O que é o tipo ${nomeTipo}?`} aberto={explicarTipo} aoAlternar={() => setExplicarTipo(!explicarTipo)} /> : null}
-          {explicacao && explicarTipo ? <Explicacao texto={explicacao} /> : null}
-          <ErroDoCampo mensagem={erros.tipo} />
-          <AvisoDoCampo mensagem={avisos.tipo} />
-        </View>
-        {secoes.tecnica ? <View style={[estilos.juntos, largo ? estilos.ladoMenor : null]}>
-          <Tecnicas rotulo="Técnica da série" opcoes={opcoesTecnica} valor={s.tecnica?.tipo ?? 'NENHUMA'} aoMudar={aoTecnica} />
-          {tecnicaTexto && nomeTecnica ? <BotaoDeAbrir texto={`O que é ${nomeTecnica}?`} aberto={explicarTecnica} aoAlternar={() => setExplicarTecnica(!explicarTecnica)} /> : null}
-          {tecnicaTexto && nomeTecnica && explicarTecnica ? <Explicacao texto={tecnicaTexto} /> : null}
-        </View> : null}
+          <View style={[estilos.juntos, largo ? estilos.ladoMaior : null]}>
+            <Tipos rotulo="Tipo da série" opcoes={tipos} valor={s.tipo} aoMudar={(tipo) => aoAlterar({ tipo })} />
+            {explicacao ? <BotaoDeAbrir texto={`O que é o tipo ${nomeTipo}?`} aberto={explicarTipo} aoAlternar={() => setExplicarTipo(!explicarTipo)} /> : null}
+            {explicacao && explicarTipo ? <Explicacao texto={explicacao} /> : null}
+            <ErroDoCampo mensagem={erros.tipo} />
+            <AvisoDoCampo mensagem={avisos.tipo} />
+          </View>
+          {secoes.tecnica ? <View style={[estilos.juntos, largo ? estilos.ladoMenor : null]}>
+            <Tecnicas rotulo="Técnica da série" opcoes={opcoesTecnica} valor={s.tecnica?.tipo ?? 'NENHUMA'} aoMudar={aoTecnica} />
+            {tecnicaTexto && nomeTecnica ? <BotaoDeAbrir texto={`O que é ${nomeTecnica}?`} aberto={explicarTecnica} aoAlternar={() => setExplicarTecnica(!explicarTecnica)} /> : null}
+            {tecnicaTexto && nomeTecnica && explicarTecnica ? <Explicacao texto={tecnicaTexto} /> : null}
+          </View> : null}
         </View>
         {secoes.tecnica && podeRestPauseNaUltima(g, config) ? <LinhaDeAcoes>
           <Botao rotulo="Aplicar Rest-pause só na última série" tipo="secundario" aoTocar={aoRestPauseNaUltima} />
         </LinhaDeAcoes> : null}
-      </Secao> : null}
+      </Faixa> : null}
 
-      <Secao titulo={cardio ? 'Quantidade' : 'Estrutura'}>
-        <View>
-          <Texto variante="rotulo">Número de séries completas</Texto>
-          <View style={estilos.contador}>
-            <IconeBotao Icone={Minus} rotulo="Uma série completa a menos" desabilitado={g.series.length <= 1} aoTocar={() => aoQuantidade(g.series.length - 1)} />
-            <Texto style={estilos.numero} accessibilityLabel={`${g.series.length} séries completas`}>{g.series.length}</Texto>
-            <IconeBotao Icone={Plus} rotulo="Uma série completa a mais" desabilitado={!podeMais} aoTocar={() => aoQuantidade(g.series.length + 1)} />
+      {/* Faixa 2: séries × repetições × descanso numa linha que quebra; os campos da técnica embaixo, na largura toda. */}
+      <Faixa titulo={cardio ? 'Quantidade' : 'Estrutura'} primeira={!secoes.tipo}>
+        <View style={estilos.estrutura}>
+          <View style={estilos.juntos}>
+            <Texto variante="rotulo">Séries</Texto>
+            <View style={estilos.contador}>
+              <IconeBotao moldura Icone={Minus} rotulo="Uma série completa a menos" desabilitado={g.series.length <= 1} aoTocar={() => aoQuantidade(g.series.length - 1)} />
+              <Texto numerico style={estilos.numero} accessibilityLabel={`${g.series.length} séries completas`}>{g.series.length}</Texto>
+              <IconeBotao moldura Icone={Plus} rotulo="Uma série completa a mais" desabilitado={!podeMais} aoTocar={() => aoQuantidade(g.series.length + 1)} />
+            </View>
           </View>
+          {secoes.prescricao && !cluster ? <CamposDasRepeticoes compacta valor={s} erros={erros} semRepeticoes="Sem repetições: o aluno lê a série por tempo."
+            aoMudar={(r) => aoAlterar({ repsMin: r.repsMin, repsMax: r.repsMax, amrap: r.amrap })} /> : null}
+          {secoes.prescricao && cluster ? <View style={estilos.juntos}>
+            <Texto variante="rotulo">Repetições</Texto>
+            <Texto numerico cor={cores.texto} style={estilos.resumoDoCluster}>{textoDoCluster}</Texto>
+          </View> : null}
+          {secoes.prescricao ? <View style={{ width: escalar(LARGURA_DO_DESCANSO, fatorTexto) }}>
+            <CampoNumerico rotulo="Descanso" rotuloAcessivel="Descanso depois da série, em segundos" inteiro sufixo="s" sufixoNaCaixa valor={s.descansoSegundos}
+              aoMudar={(descansoSegundos) => aoAlterar({ descansoSegundos })} erroSemTexto
+              erro={erroDoDescanso} />
+          </View> : null}
         </View>
+        <ErroDoCampo mensagem={erroDoDescanso} />
         {secoes.tecnica && s.tecnica && !descritiva
-          ? <CamposDaTecnica tecnica={s.tecnica} erros={errosDaTecnica} semCarga={semCarga} ws={nomeDaSerieDeTrabalho(config)} aoMudar={(tecnica) => aoAlterar({ tecnica })} />
+          ? <CamposDaTecnica tecnica={s.tecnica} erros={subProblemas(erros, 'tecnica')} semCarga={semCarga} ws={nomeDaSerieDeTrabalho(config)} aoMudar={(tecnica) => aoAlterar({ tecnica })} />
           : null}
         {secoes.prescricao && cluster ? <ErroDoCampo mensagem={erros.repsMin} /> : null}
-      </Secao>
+        {secoes.cardio ? <CamposDoCardio cardio={s.cardio} aoMudar={(c) => aoAlterar({ cardio: c })} erros={{ ...subProblemas(erros, 'cardio'), ...(erros.cardio ? { cardio: erros.cardio } : {}) }} /> : null}
+      </Faixa>
 
-      {linhasDaPrescricao(caixas, colunas).map((linha) => linha.length > 1
-        ? <View key={linha.join('-')} style={estilos.lado}>{linha.map((c) => caixa[c])}</View>
-        : caixa[linha[0]])}
-      {cargaPorSerieEmbaixo ? <Secao titulo="Carga de cada série">{cargaPorSerie}</Secao> : null}
+      {/* Faixa 3: a carga pelo papel e, sempre visível, uma linha por série com o % (ou kg) e o RIR dela. */}
+      {secoes.carga ? <Faixa titulo={semCarga ? 'RIR' : 'Carga e RIR'}>
+        <CargaERirDaSerie grupo={g} series={series} config={config} porSerie={porSerie} semCarga={semCarga} aoMudar={aoMudarSeries} />
+      </Faixa> : null}
 
-      {secoes.alvoExtra ? <Secao titulo={ROTULO_DA_OBSERVACAO_DA_SERIE}>
-        <Campo rotulo="Texto curto para o aluno (opcional)" rotuloAcessivel={`${ROTULO_DA_OBSERVACAO_DA_SERIE} (opcional)`} valor={s.alvoExtra ?? ''} maxLength={120} aoMudar={(alvoExtra) => aoAlterar({ alvoExtra })}
-          erro={erros.alvoExtra} />
-      </Secao> : null}
-
-      {secoes.cardio ? <Secao titulo="Cardio">
-        <CamposDoCardio cardio={s.cardio} aoMudar={(c) => aoAlterar({ cardio: c })} erros={{ ...subProblemas(erros, 'cardio'), ...(erros.cardio ? { cardio: erros.cardio } : {}) }} />
-      </Secao> : null}
-
-      <PreviaDoAluno grupo={g} series={series} config={config} semCarga={semCarga} descansoPorSerie={descansoPorSerie} nivel={nivel} />
+      {/* Rodapé: a observação desta série (uma linha) e como o aluno vai ler. */}
+      <Faixa>
+        {secoes.alvoExtra ? <Campo rotulo={`${ROTULO_DA_OBSERVACAO_DA_SERIE} (opcional)`} valor={s.alvoExtra ?? ''} maxLength={120} aoMudar={(alvoExtra) => aoAlterar({ alvoExtra })}
+          erro={erros.alvoExtra} /> : null}
+        <ParaOAluno grupo={g} config={config} cardio={cardio} nivel={nivel} texto={cardio ? null : cluster && !blocosValidos(blocos) ? null : textoParaOAluno(g, config, unidade)} />
+      </Faixa>
     </View>
   </View>;
 }
 
 /**
- * "Para o aluno": o resultado final em uma linha (quantas séries completas e a estrutura), e embaixo só o que está
- * informado: carga e de onde ela sai, esforço, descanso e a observação desta série. A leitura longa da técnica fica com o aluno.
+ * "Para o aluno: 3×3 a 5 · FS · 50% · 70% · 85% a 90% da WS", numa faixa compacta com o selo da série (pronta, com aviso,
+ * com erro). Cluster sem blocos válidos pede para completar; o cardio usa o resumo do grupo.
  */
-function PreviaDoAluno({ grupo: g, series, config, semCarga, descansoPorSerie, nivel }: { grupo: GrupoDeSeries; series: Serie[]; config: Configuracao; semCarga: boolean; descansoPorSerie: boolean; nivel: Nivel }) {
+function ParaOAluno({ grupo: g, config, cardio, nivel, texto }: { grupo: GrupoDeSeries; config: Configuracao; cardio: boolean; nivel: Nivel; texto: string | null }) {
   const { cores } = useTema();
   const unidade = useUnidadeDeCarga();
-  const previa = previaDoGrupo(g, series, config, { semCarga, descansoPorSerie, unidade, referencia: semCarga ? null : referenciaDaCarga(series, g.inicio, config) });
-  const tecnica = g.series[0].tecnica;
-  // Cluster sem blocos válidos: o resumo diria só "complete os blocos"; a frase inteira fica no lugar dele.
-  const incompleto = tecnica?.tipo === 'CLUSTER' && !blocosValidos(tecnica.blocos);
-  // Fundo leve na cor do estado (verde pronta, âmbar com aviso, vermelho com erro), opaco como o do selo.
+  const leitura = texto ?? (cardio ? textoParaOAluno(g, config, unidade) : 'Complete os blocos para visualizar a prescrição.');
   const cor = cores[nivel];
-  return <View style={[estilos.previa, { borderColor: cor, backgroundColor: tingido(cor, cores.superficie) }]} accessibilityLabel="Para o aluno">
-    <View style={estilos.tituloDaPrevia}>
-      <View style={estilos.comIcone}>
-        <Smartphone size={18} color={cores.texto} />
-        <Texto variante="secao" nivel={3} cor={cores.texto}>Para o aluno</Texto>
-      </View>
-      <Selo texto={TEXTO_DA_PREVIA[nivel]} tipo={nivel} Icone={SELO_DO_NIVEL[nivel].Icone} />
+  return <View style={[estilos.previa, { borderColor: cor, backgroundColor: tingido(cor, cores.superficie) }]}>
+    <View style={estilos.textoDaPrevia}>
+      <Smartphone size={16} color={cores.texto} />
+      <Texto numerico cor={cores.texto} style={estilos.flexivel}>
+        <Texto variante="rotulo" cor={cores.texto}>Para o aluno: </Texto>{leitura}
+      </Texto>
     </View>
-    {incompleto
-      ? <Texto>Complete os blocos para visualizar a prescrição.</Texto>
-      : <Texto numerico cor={cores.texto}>{previa.resumo}</Texto>}
-    {previa.linhas.map((linha) => <Texto key={linha} numerico variante="suave">{linha}</Texto>)}
+    <Selo texto={TEXTO_DA_PREVIA[nivel]} tipo={nivel} Icone={SELO_DO_NIVEL[nivel].Icone} />
   </View>;
 }
 
@@ -548,32 +427,30 @@ function NumeroDaSerie({ numero, aberto }: { numero: number; aberto: boolean }) 
 
 const estilos = StyleSheet.create({
   lista: { gap: espaco(1.5) },
-  painel: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(1.5) },
   // A faixa do cabeçalho fica rente às bordas; o corpo tem o próprio recuo.
   grupo: { borderWidth: BORDA_ITEM, borderRadius: RAIO, overflow: 'hidden' },
-  corpo: { gap: espaco(1.5) },
-  secao: { gap: espaco(1.5) },
-  poco: { borderWidth: 1, borderRadius: RAIO, paddingHorizontal: espaco(1.75), paddingVertical: espaco(1.5) },
-  plana: { borderTopWidth: 1, paddingTop: espaco(1.5) },
-  // Esforço e Descanso lado a lado no PC; empilhados no celular.
-  lado: { flexDirection: 'row', gap: espaco(1.5), alignItems: 'stretch' },
+  corpo: { gap: espaco(2.5) },
+  faixa: { gap: espaco(1.5) },
+  comFio: { borderTopWidth: 1, paddingTop: espaco(2.5) },
+  lado: { flexDirection: 'row', gap: espaco(1.5), alignItems: 'flex-start' },
   empilhado: { gap: espaco(1.5) },
   ladoMaior: { flex: 3, minWidth: 0 },
   ladoMenor: { flex: 2, minWidth: 0 },
+  // Séries, repetições e descanso: lado a lado enquanto couberem; no celular a linha quebra.
+  estrutura: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', columnGap: espaco(3), rowGap: espaco(1.5) },
   caixaDoNumero: { width: 28, height: 28, borderRadius: 6, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   textoDoNumero: { fontFamily: fontes.negrito, fontSize: 13, lineHeight: 16 },
-  tituloDaPrevia: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), flexWrap: 'wrap' },
   juntos: { gap: espaco(0.5) },
-  bloco: { gap: espaco(1) },
-  rires: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5), alignItems: 'flex-start' },
   explicacao: { borderLeftWidth: 2, paddingLeft: espaco(1.5), paddingVertical: espaco(0.5) },
-  comIcone: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75) },
   vazio: { gap: espaco(1) },
   // "+ Nova série" no fim da faixa das abas: tracejado, para ler como "lugar de mais uma" e não como outra aba.
   tracejado: { borderStyle: 'dashed', marginLeft: espaco(1), alignSelf: 'center' },
-  previa: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(0.75) },
+  previa: { borderWidth: 1, borderRadius: RAIO, paddingHorizontal: espaco(1.5), paddingVertical: espaco(1), gap: espaco(1), flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' },
+  textoDaPrevia: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75), flexGrow: 1, flexShrink: 1, flexBasis: 240 },
+  flexivel: { flex: 1, minWidth: 0 },
   contador: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
   numero: { fontFamily: fontes.negrito, fontSize: 18, lineHeight: 24, minWidth: 24, textAlign: 'center' },
+  resumoDoCluster: { minHeight: 44, textAlignVertical: 'center', paddingTop: espaco(1.25) },
   doExercicio: { borderLeftWidth: 3, paddingLeft: espaco(1), paddingVertical: 2 },
   suspensa: { maxWidth: 320 },
 });

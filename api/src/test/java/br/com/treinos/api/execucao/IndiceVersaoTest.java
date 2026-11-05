@@ -30,7 +30,7 @@ class IndiceVersaoTest {
         List<TipoDeSerie> tipos = padrao.tipos().stream()
                 .map(x -> x.codigo().equals("BACK_OFF")
                         ? new TipoDeSerie(x.codigo(), "  Recuo ", x.papel(), x.repeticoes(), x.cargaPadrao(), x.esforcoPadrao(),
-                        x.porModalidade(), x.regraPercentuais(), x.explicacao())
+                        x.regraPercentuais(), x.explicacao())
                         : x).toList();
         ConfiguracaoConsultoria propria = new ConfiguracaoConsultoria(tipos, padrao.tecnicas(), padrao.combinacoes(),
                 padrao.arredondamentoKg(), "", "");

@@ -75,6 +75,23 @@ class AtualizacoesIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.get("/aluno/atualizacao",loginAluno,200).path("fase").asString()).isEqualTo("NENHUMA");
         enviar(respostas(),404);
     }
+    /** Consultoria zerada (sem nenhum questionário de atualização): o pacote do aluno e a ficha abrem, sem formulário. */
+    @Test void semQuestionarioDeAtualizacaoOPacoteDoAlunoEAFichaAbremSemFormulario() throws Exception {
+        String pasta = publicarPasta(hoje);
+        UUID consultoria = banco.queryForObject("select consultoria_id from aluno where id=?",UUID.class,aluno);
+        assertThat(banco.update("delete from questionario where consultoria_id=? and finalidade='ATUALIZACAO'",consultoria)).isEqualTo(1);
+        assertThat(api.get("/aluno/painel",loginAluno,200).path("atualizacao").path("fase").asString()).isEqualTo("NENHUMA");
+        assertThat(api.get("/aluno/atualizacao",loginAluno,200).path("modelo").isNull()).isTrue();
+        assertThat(api.get("/alunos/"+aluno+"/atualizacao",treinador,200).path("fase").asString()).isEqualTo("NENHUMA");
+        // Sem formulário não há envio (o app nem oferece): 404 do questionário, nunca 500.
+        enviarNa(pasta,respostas(),404);
+        // O treinador recria o padrão (publicado e definido) e a atualização volta ao normal.
+        JsonNode novo = api.post("/questionarios",treinador,Map.of("nome","Atualização fictícia nova","origem","FABRICA","finalidade","ATUALIZACAO"),200);
+        JsonNode publicado = api.post("/questionarios/"+novo.path("id").asString()+"/publicar",treinador,
+                Map.of("versao",novo.path("versao").asLong(),"confirmarAvisos",true),200);
+        api.post("/questionarios/"+publicado.path("id").asString()+"/padrao",treinador,null,200);
+        assertThat(api.get("/aluno/atualizacao",loginAluno,200).path("fase").asString()).isEqualTo("ABERTA");
+    }
     @Test void envioNaVesperaGravaPesoNaDataDaAtualizacaoSemDuplicar() throws Exception {
         publicarPasta(hoje.plusDays(1));
         assertThat(api.get("/aluno/atualizacao",loginAluno,200).path("fase").asString()).isEqualTo("ABERTA");

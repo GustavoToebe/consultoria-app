@@ -52,9 +52,9 @@ const Renderer = require('react-test-renderer') as typeof import('react-test-ren
 type Arvore = import('react-test-renderer').ReactTestRenderer;
 type No = import('react-test-renderer').ReactTestInstance;
 
-function montar(series: Serie[]): Arvore {
+function montar(series: Serie[], cardio = false, aoMudar: (s: Serie[]) => void = () => undefined): Arvore {
   let arvore: Arvore | undefined;
-  Renderer.act(() => { arvore = Renderer.create(<EditorSeries series={series} config={null} modalidade={null} aoMudar={() => undefined} />); });
+  Renderer.act(() => { arvore = Renderer.create(<EditorSeries series={series} config={null} cardio={cardio} aoMudar={aoMudar} />); });
   return arvore as Arvore;
 }
 /** Os "Nova série" de verdade (o `Pressable` falso aparece mais de uma vez na árvore: fica o de mais fora). */
@@ -76,5 +76,25 @@ describe('"Nova série" com o exercício cheio', () => {
     expect(resto).toHaveLength(0);
     expect(botao.props.accessibilityState).toEqual({ disabled: true });
     expect(botao.props.accessibilityHint).toBe(`O exercício já tem ${LIMITE_SERIES} séries, o máximo.`);
+  });
+});
+
+describe('cardio ou musculação vem da prop `cardio`, nunca das séries', () => {
+  const botao = (raiz: No, rotulo: string) => raiz.findAll((n) => n.props.accessibilityLabel === rotulo && typeof n.props.onPress === 'function' && typeof n.type !== 'string');
+  it('cardio sem nenhuma série continua cardio: "Novo cardio" cria uma série de cardio', () => {
+    const aoMudar = jest.fn();
+    const arvore = montar([], true, aoMudar);
+    expect(botao(arvore.root, 'Nova série')).toHaveLength(0);
+    const [novo] = botao(arvore.root, 'Novo cardio');
+    Renderer.act(() => novo.props.onPress());
+    const [novas] = aoMudar.mock.calls[0] as [Serie[]];
+    expect(novas).toHaveLength(1);
+    expect(novas[0].cardio).not.toBeNull();
+    expect(novas[0].tecnica).toBeNull();
+  });
+  it('musculação sem nenhuma série continua musculação: os botões de 1 clique por tipo', () => {
+    const arvore = montar([], false);
+    expect(botao(arvore.root, 'Novo cardio')).toHaveLength(0);
+    expect(botao(arvore.root, 'Adicionar WS').length).toBeGreaterThan(0);
   });
 });

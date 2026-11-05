@@ -13,7 +13,7 @@ export const CHAVES = {
   grupo: ['descansoAposSegundos', 'tecnica', 'uid', 'voltas'],
   exercicio: ['cadencia', 'exercicioId', 'grupoUid', 'isometriaSegundos', 'modalidade', 'nome', 'observacao', 'progressao', 'series', 'unidade', 'uid', 'videoUrl'],
   serie: ['alvoExtra', 'amrap', 'cardio', 'carga', 'descansoSegundos', 'esforco', 'repsMax', 'repsMin', 'tecnica', 'tipo', 'uid'],
-  carga: ['modo', 'percentualMax', 'percentualMin', 'referenciaUid'],
+  carga: ['modo', 'percentualMax', 'percentualMin'],
   esforco: ['rir', 'rpe'],
   tecnica: [
     'blocos', 'miniSeries', 'pausaRespiracoes', 'pausaSegundos', 'pausas', 'quedas', 'reducaoPercentual', 'regiao', 'repsAssistidas', 'repsParciais',
@@ -21,13 +21,13 @@ export const CHAVES = {
   ],
 };
 for (const k of Object.keys(CHAVES)) CHAVES[k].sort();
-export const MODOS =['CARGA_TRABALHO', 'PERCENTUAL_WS', 'MESMA_CARGA', 'ACIMA_DA_ANTERIOR', 'ABAIXO_DA_REFERENCIA', 'NENHUMA'];
+export const MODOS = ['CARGA_TRABALHO', 'PERCENTUAL_WS', 'CARGA_FIXA', 'NENHUMA'];
 export const CODIGOS = METODOLOGIA.tipos.map((t) => t.codigo);
 export const TECNICAS = METODOLOGIA.tecnicas.map((t) => t.tipo);
 export const TECNICAS_DE_GRUPO = METODOLOGIA.combinacoes.map((c) => c.tipo);
 
-/** Confere a série (de um exercício que já se sabe de cardio ou não) e devolve o uid, para quem a referenciar. */
-export function verificarSerie(s, deCardio, anteriores, rotulo) {
+/** Confere a série (de um exercício que já se sabe de cardio ou não) e devolve o uid. */
+export function verificarSerie(s, deCardio, rotulo) {
   assert.deepEqual(ordenadas(s), CHAVES.serie, `${rotulo}: chaves da série`);
   assert.equal(typeof s.uid, 'string', rotulo);
   if (deCardio) {
@@ -42,12 +42,6 @@ export function verificarSerie(s, deCardio, anteriores, rotulo) {
   if (s.amrap) assert.equal(s.repsMin, null, `${rotulo}: AMRAP exclui as repetições`);
   assert.ok(s.carga && MODOS.includes(s.carga.modo), `${rotulo}: carga.modo`);
   assert.deepEqual(ordenadas(s.carga), CHAVES.carga, `${rotulo}: chaves da carga`);
-  if (s.carga.modo === 'ABAIXO_DA_REFERENCIA') {
-    assert.ok(anteriores.has(s.carga.referenciaUid), `${rotulo}: a referência precisa ser uma série anterior do mesmo exercício`);
-    assert.ok(s.carga.percentualMin >= 1 && s.carga.percentualMin <= 50, `${rotulo}: redução de 1 a 50`);
-  } else {
-    assert.equal(s.carga.referenciaUid, null, `${rotulo}: referenciaUid só no ABAIXO_DA_REFERENCIA`);
-  }
   if (s.esforco !== null) {
     assert.deepEqual(ordenadas(s.esforco), CHAVES.esforco, `${rotulo}: chaves do esforço`);
     assert.ok(s.esforco.rir == null || s.esforco.rpe == null, `${rotulo}: RIR ou RPE, nunca os dois`);
@@ -83,10 +77,8 @@ export function verificarContratoDoTreino(conteudo) {
       assert.deepEqual(ordenadas(e), CHAVES.exercicio, `${ce}: chaves do exercício`);
       uids.push(e.uid);
       assert.ok(e.grupoUid === null || grupos.has(e.grupoUid), `${ce}: grupoUid precisa ser de um grupo da sessão`);
-      const anteriores = new Set();
       e.series.forEach((s, k) => {
-        anteriores.add(verificarSerie(s, e.modalidade === 'CARDIO', anteriores, `${ce} série ${k}`));
-        uids.push(s.uid);
+        uids.push(verificarSerie(s, e.modalidade === 'CARDIO', `${ce} série ${k}`));
       });
     });
   });

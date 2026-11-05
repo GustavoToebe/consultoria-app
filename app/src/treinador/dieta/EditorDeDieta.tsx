@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ChevronsDownUp, ChevronsUpDown, ExternalLink, Link2Off, Library, NotebookTabs, Plus, ShoppingCart, Trash2 } from 'lucide-react-native';
+import { ChevronsDownUp, ChevronsUpDown, NotebookTabs, Plus, ShoppingCart } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -18,6 +18,7 @@ import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, RAIO, LARGURA_EDITOR } from '../../tema/tokens';
 import { CartaoRefeicao, resumoDaRefeicao, tituloDaRefeicao } from '../../treinador/dieta/CartaoRefeicao';
+import { ComplementosDaDieta } from '../../treinador/dieta/ComplementosDaDieta';
 import { FolhaAlimentos } from '../../treinador/dieta/FolhaAlimentos';
 import { FolhaErgogenicos } from '../../treinador/dieta/FolhaErgogenicos';
 import { FolhaListaDeCompras } from '../../treinador/dieta/FolhaListaDeCompras';
@@ -34,7 +35,6 @@ import { avisoModeloSalvo, rotuloSalvarComo } from '../planejamento/modelos';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { useRolagem } from '../../ui/RolagemComTopo';
 import { usePlanoEditor } from '../../treinador/plano/usePlanoEditor';
-import { abrirLinkExterno } from '../../ui/abrirLinkExterno';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
@@ -44,7 +44,6 @@ import { Cartao } from '../../ui/Cartao';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { Incompleto, MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
-import { IconeBotao } from '../../ui/IconeBotao';
 import { Tela } from '../../ui/Tela';
 import { coresDoDesabilitado } from '../../ui/desabilitado';
 import { Texto } from '../../ui/Texto';
@@ -70,7 +69,6 @@ type FolhaAberta = { tipo: 'alimento'; refeicao: number; opcao: number } | { tip
  */
 export default function EditorDeDieta({ modelo = false, unica = false, receita }: { modelo?: boolean; unica?: boolean; receita?: Receita }) {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { cores } = useTema();
   const { avisar } = useAviso();
   const editor = usePlanoEditor<ConteudoDieta>('dieta', id, normalizarDieta, modelo);
   const nomeDoAluno = useNomeDoAluno(modelo ? null : editor.estado?.plano.alunoId);
@@ -188,10 +186,16 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
               setEscolhidaUid(proximaSelecao(c.refeicoes.map((x) => x.uid), depois.map((x) => x.uid), escolhida?.uid ?? null));
               comDesfazer(`Refeição “${r.nome || ri + 1}” removida.`, (a) => ({ ...a, refeicoes: remover(a.refeicoes, ri) }));
             }}
-            aoSalvarModelo={() => setFolha({ tipo: 'salvarRefeicao', indice: ri })}
+            aoSalvarModelo={unica ? undefined : () => setFolha({ tipo: 'salvarRefeicao', indice: ri })}
             aoEscolherAlimento={(opcao) => setFolha({ tipo: 'alimento', refeicao: ri, opcao })}
           />
         );
+        const adicionarRefeicao = <Botao rotulo="Adicionar refeição" tipo="secundario" Icone={Plus} aoTocar={() => {
+          const nova = novaRefeicao();
+          mudarRefeicoes((r) => [...r, nova]);
+          setAbertas((a) => new Set(a).add(nova.uid));
+          setEscolhidaUid(nova.uid);
+        }} />;
         return <>
           <View style={estilos.cabecalhoRefeicoes}>
             <Texto variante="bloco" nivel={2}>Refeições ({c.refeicoes.length})</Texto>
@@ -207,17 +211,8 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
           </View>
           {/* Em 390 px os quatro botões não cabiam numa linha e "Lista de compras" e "Abrir todas" saíam cortados. */}
           <LinhaDeAcoes>
-            {unica ? null : <Botao
-              rotulo="Adicionar refeição"
-              tipo="secundario"
-              Icone={Plus}
-              aoTocar={() => {
-                const nova = novaRefeicao();
-                mudarRefeicoes((r) => [...r, nova]);
-                setAbertas((a) => new Set(a).add(nova.uid));
-                setEscolhidaUid(nova.uid);
-              }}
-            />}
+            {/* Em duas colunas o botão fica só no pé da lista; em uma coluna, ou sem refeição escolhida, fica aqui. */}
+            {unica || (duas && escolhida) ? null : adicionarRefeicao}
             {unica ? null : <Botao rotulo="Modelos" tipo="secundario" Icone={NotebookTabs} aoTocar={() => setModelos(true)} />}
             <Botao
               rotulo="Lista de compras"
@@ -229,145 +224,37 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
             />
           </LinhaDeAcoes>
           {c.refeicoes.length === 0 ? <Vazio texto="Nenhuma refeição ainda. Adicione uma ou comece de um modelo." /> : null}
-          {duas && escolhida ? (
+          {/* Modelo de uma refeição só: nunca em duas colunas (a lista teria um item), a refeição abre em largura total. */}
+          {!unica && duas && escolhida ? (
             <View style={estilos.colunas}>
-              <View style={estilos.lista} role="group" accessibilityLabel="Refeições do plano">
-                {c.refeicoes.map((r, ri) => {
-                  const titulo = tituloDaRefeicao(r, ri);
-                  const resumo = resumoDaRefeicao(r);
-                  const problema = comErro.has(r.uid);
-                  return (
-                    <ItemDaListaDoEditor key={r.uid} numero={ri + 1} titulo={titulo} linha={resumo} escolhido={r.uid === escolhida.uid}
-                      comProblema={problema} selo={problema ? { texto: 'Corrigir', tipo: 'perigo' } : undefined}
-                      rotulo={`Refeição ${ri + 1} de ${c.refeicoes.length}: ${titulo}${problema ? ', corrigir' : ''}. ${resumo}`}
-                      aoEscolher={() => setEscolhidaUid(r.uid)} />
-                  );
-                })}
+              <View style={estilos.lista}>
+                <View style={estilos.itensDaLista} role="group" accessibilityLabel="Refeições do plano">
+                  {c.refeicoes.map((r, ri) => {
+                    const titulo = tituloDaRefeicao(r, ri);
+                    const resumo = resumoDaRefeicao(r);
+                    const problema = comErro.has(r.uid);
+                    return (
+                      <ItemDaListaDoEditor key={r.uid} numero={ri + 1} titulo={titulo} linha={resumo} escolhido={r.uid === escolhida.uid}
+                        comProblema={problema} selo={problema ? { texto: 'Corrigir', tipo: 'perigo' } : undefined}
+                        rotulo={`Refeição ${ri + 1} de ${c.refeicoes.length}: ${titulo}${problema ? ', corrigir' : ''}. ${resumo}`}
+                        aoEscolher={() => setEscolhidaUid(r.uid)} />
+                    );
+                  })}
+                </View>
+                {/* No pé da lista, como "Adicionar seção" na mobilidade e "Adicionar próximo exercício" no treino. */}
+                <View style={estilos.acoes}>{adicionarRefeicao}</View>
               </View>
               <View style={estilos.inspetor}>{cartao(escolhida, c.refeicoes.indexOf(escolhida), true)}</View>
             </View>
-          ) : c.refeicoes.map((r, ri) => cartao(r, ri, false))}
+          ) : c.refeicoes.map((r, ri) => cartao(r, ri, unica))}
         </>;
       }}</ComColunas>
-      <Texto variante="bloco" nivel={2}>Complementos</Texto>
-      <Cartao faixa titulo="Orientações" descricao="Títulos e textos que o aluno lê junto com a dieta." nivel={3} recolhivel recolhido={c.orientacoes.length === 0}>
-        {c.orientacoes.map((o, oi) => (
-          <View key={oi} style={[estilos.orientacao, { borderColor: cores.borda }]}>
-            <View style={estilos.cresce}>
-              <Campo rotulo="Título" valor={o.titulo} aoMudar={(titulo) => mudar({ orientacoes: substituir(c.orientacoes, oi, { ...o, titulo }) })} maxLength={80} />
-              <Campo rotulo="Texto" valor={o.texto} aoMudar={(texto) => mudar({ orientacoes: substituir(c.orientacoes, oi, { ...o, texto }) })} linhas={2} maxLength={2000} />
-            </View>
-            <IconeBotao Icone={Trash2} rotulo={`Remover orientação ${o.titulo || oi + 1}`} cor={cores.perigo} aoTocar={() => comDesfazer(`Orientação “${o.titulo || oi + 1}” removida.`, (a) => ({ ...a, orientacoes: remover(a.orientacoes, oi) }))} />
-          </View>
-        ))}
-        <View style={estilos.acoes}>
-          <Botao rotulo="Adicionar orientação" tipo="secundario" Icone={Plus} aoTocar={() => mudar({ orientacoes: [...c.orientacoes, { titulo: '', texto: '' }] })} />
-        </View>
-      </Cartao>
-
-      <Cartao faixa titulo="Observações" nivel={3} recolhivel recolhido={!c.observacoes}>
-        <Campo rotulo="Observações (opcional)" valor={c.observacoes ?? ''} aoMudar={(t) => mudar({ observacoes: t || null })} linhas={4} maxLength={8000} />
-      </Cartao>
-
-      <Cartao faixa titulo="Suplementação" nivel={3} recolhivel recolhido={c.suplementacao.length === 0}>
-        <Texto variante="suave">Campo livre do treinador. O sistema só guarda e mostra o que for escrito aqui; da biblioteca vêm só o nome, o link e o cupom do produto. A dose é a que você prescreve, não a porção da embalagem.</Texto>
-        {c.suplementacao.map((s, si) => {
-          const mudarS = (parcial: Partial<typeof s>) => mudar({ suplementacao: substituir(c.suplementacao, si, { ...s, ...parcial }) });
-          return (
-            <View key={s.uid} style={[estilos.orientacao, { borderColor: cores.borda }]}>
-              <View style={[estilos.cresce, estilos.grade]}>
-                <View style={estilos.campoSup}>
-                  <Campo rotulo="Nome" valor={s.nome} aoMudar={(nome) => mudarS({ nome })} maxLength={120} />
-                </View>
-                <View style={estilos.campoSup}>
-                  <Campo rotulo="Dose prescrita" valor={s.dose} aoMudar={(dose) => mudarS({ dose })} maxLength={120} ajuda={porcoes[s.uid] ? `Embalagem: ${porcoes[s.uid]} (só referência)` : undefined} />
-                </View>
-                <View style={estilos.campoSup}>
-                  <Campo rotulo="Horário" valor={s.horario} aoMudar={(horario) => mudarS({ horario })} maxLength={120} />
-                </View>
-                <View style={estilos.campoSup}>
-                  <Campo rotulo="Observação" valor={s.observacao} aoMudar={(observacao) => mudarS({ observacao })} maxLength={500} />
-                </View>
-                {s.link ? (
-                  <View style={estilos.acoes}>
-                    <Botao rotulo="Ver produto" tipo="secundario" Icone={ExternalLink} aoTocar={() => { void abrirLinkExterno(s.link).then((ok) => { if (!ok) avisar('Não foi possível abrir o link.', 'perigo'); }); }} />
-                    <Botao rotulo="Tirar link" tipo="perigoTexto" Icone={Link2Off} aoTocar={() => mudarS({ link: null })} />
-                  </View>
-                ) : null}
-                {s.cupom ? (
-                  <View style={estilos.acoes}>
-                    <Texto numerico variante="suave">Cupom: {s.cupom}</Texto>
-                    <Botao rotulo="Tirar cupom" tipo="perigoTexto" aoTocar={() => mudarS({ cupom: null })} />
-                  </View>
-                ) : null}
-              </View>
-              <IconeBotao Icone={Trash2} rotulo={`Remover ${s.nome || 'linha'}`} cor={cores.perigo} aoTocar={() => comDesfazer(`Suplementação “${s.nome || si + 1}” removida.`, (a) => ({ ...a, suplementacao: remover(a.suplementacao, si) }))} />
-            </View>
-          );
-        })}
-        <View style={estilos.acoes}>
-          {veBiblioteca ? <Botao rotulo="Escolher da biblioteca" tipo="secundario" Icone={Library} aoTocar={() => setFolha({ tipo: 'suplemento' })} /> : null}
-          <Botao
-            rotulo="Adicionar linha"
-            tipo="secundario"
-            Icone={Plus}
-            aoTocar={() => mudar({ suplementacao: [...c.suplementacao, { uid: novoUid(), nome: '', dose: '', horario: '', observacao: '', link: null, cupom: null }] })}
-          />
-        </View>
-      </Cartao>
-      {veErgogenicos ? (
-        <Cartao faixa titulo="Outros (medicação e ergogênicos)" nivel={3} recolhivel recolhido={(c.ergogenicos ?? []).length === 0}>
-          <Texto variante="suave">
-            Campo livre do treinador. O sistema só guarda e mostra o que for escrito aqui; da biblioteca vêm só nome, princípio ativo e concentração.
-            {editaErgogenicos ? '' : ' Seu perfil só pode ler esta lista.'}
-          </Texto>
-          {(c.ergogenicos ?? []).map((e, ei) => {
-            const lista = c.ergogenicos ?? [];
-            const mudarE = (parcial: Partial<typeof e>) => mudar({ ergogenicos: substituir(lista, ei, { ...e, ...parcial }) });
-            return (
-              <View key={e.uid} style={[estilos.orientacao, { borderColor: cores.borda }]}>
-                <View style={[estilos.cresce, estilos.grade]}>
-                  <View style={estilos.campoSup}>
-                    <Campo rotulo="Nome" valor={e.nome} aoMudar={(nome) => mudarE({ nome })} maxLength={120} editable={editaErgogenicos} />
-                  </View>
-                  <View style={estilos.campoSup}>
-                    <Campo rotulo="Princípio ativo" valor={e.principioAtivo} aoMudar={(principioAtivo) => mudarE({ principioAtivo })} maxLength={160} editable={editaErgogenicos} />
-                  </View>
-                  <View style={estilos.campoSup}>
-                    <Campo rotulo="Concentração" valor={e.concentracao} aoMudar={(concentracao) => mudarE({ concentracao })} maxLength={40} editable={editaErgogenicos} />
-                  </View>
-                  <View style={estilos.campoSup}>
-                    <Campo rotulo="Dose prescrita" valor={e.dose} aoMudar={(dose) => mudarE({ dose })} maxLength={120} editable={editaErgogenicos} />
-                  </View>
-                  <View style={estilos.campoSup}>
-                    <Campo rotulo="Horário" valor={e.horario} aoMudar={(horario) => mudarE({ horario })} maxLength={120} editable={editaErgogenicos} />
-                  </View>
-                  <View style={estilos.campoSup}>
-                    <Campo rotulo="Prescrição (opcional)" valor={e.prescricao} aoMudar={(prescricao) => mudarE({ prescricao })} maxLength={200} editable={editaErgogenicos} />
-                  </View>
-                  <View style={estilos.campoLargo}>
-                    <Campo rotulo="Observação" valor={e.observacao} aoMudar={(observacao) => mudarE({ observacao })} maxLength={500} editable={editaErgogenicos} />
-                  </View>
-                </View>
-                {editaErgogenicos ? (
-                  <IconeBotao Icone={Trash2} rotulo={`Remover ${e.nome || 'item'}`} cor={cores.perigo} aoTocar={() => comDesfazer(`Item “${e.nome || ei + 1}” removido.`, (a) => ({ ...a, ergogenicos: remover(a.ergogenicos ?? [], ei) }))} />
-                ) : null}
-              </View>
-            );
-          })}
-          {editaErgogenicos ? (
-            <View style={estilos.acoes}>
-              <Botao rotulo="Escolher da biblioteca" tipo="secundario" Icone={Library} aoTocar={() => setFolha({ tipo: 'ergogenico' })} />
-              <Botao
-                rotulo="Adicionar linha"
-                tipo="secundario"
-                Icone={Plus}
-                aoTocar={() => mudar({ ergogenicos: [...(c.ergogenicos ?? []), linhaDeErgogenico({ nome: '', principioAtivo: null, concentracao: null }, novoUid())] })}
-              />
-            </View>
-          ) : null}
-        </Cartao>
-      ) : null}
+      {/* Modelo de uma refeição só: os complementos seriam descartados ao aplicar o modelo numa dieta. */}
+      {unica ? null : (
+        <ComplementosDaDieta conteudo={c} aoMudar={mudar} comDesfazer={comDesfazer} porcoes={porcoes} veBiblioteca={veBiblioteca}
+          veErgogenicos={veErgogenicos} editaErgogenicos={editaErgogenicos}
+          aoEscolherSuplemento={() => setFolha({ tipo: 'suplemento' })} aoEscolherErgogenico={() => setFolha({ tipo: 'ergogenico' })} />
+      )}
 
       {modelos ? (
         <Folha visivel titulo="Modelos" aoFechar={() => setModelos(false)}>
@@ -548,15 +435,14 @@ const estilos = StyleSheet.create({
   acoes: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
   // Lista (mestre) estreita: em 1280 o inspetor fica com uns 700 px e duas opções da refeição cabem lado a lado.
   colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(2) },
-  lista: { width: 280, flexShrink: 0, gap: espaco(1) },
+  lista: { width: 280, flexShrink: 0, gap: espaco(1.5) },
+  itensDaLista: { gap: espaco(1) },
   inspetor: { flex: 1, minWidth: 0 },
   cabecalhoRefeicoes: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), marginBottom: -espaco(1.5) },
   // Coluna: o aviso de item sem valor ocupa a linha toda (em 390 px cortava ao lado do botão).
   semValor: { gap: espaco(0.5), alignItems: 'flex-start' },
   opcaoModelo: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: 4, minHeight: 56 },
-  orientacao: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(1), borderTopWidth: 1, paddingTop: espaco(1) },
   cresce: { flex: 1, gap: espaco(1) },
   grade: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
   campoSup: { minWidth: 190, flex: 1 },
-  campoLargo: { minWidth: 190, flexBasis: '100%' },
 });

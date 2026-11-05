@@ -15,7 +15,7 @@ const { metodologias } = lerJson('metodologias.json');
 const padrao = JSON.parse(readFileSync(join(AQUI, '..', 'importacao', 'metodologia-padrao.json'), 'utf8'));
 
 const PAPEIS = ['AQUECIMENTO', 'PREPARACAO', 'TRABALHO', 'POS_TRABALHO', 'OUTRO'];
-const MODOS = ['CARGA_TRABALHO', 'PERCENTUAL_WS', 'MESMA_CARGA', 'ACIMA_DA_ANTERIOR', 'ABAIXO_DA_REFERENCIA', 'NENHUMA'];
+const MODOS = ['CARGA_TRABALHO', 'PERCENTUAL_WS', 'CARGA_FIXA', 'NENHUMA'];
 const ESTRUTURADAS = ['REST_PAUSE', 'CLUSTER', 'DROP_SET', 'MYO_REPS', 'PARTIAL_REPS', 'FORCED_REPS'];
 const DESCRITIVAS = ['NEGATIVA', 'SUPER_SLOW', 'VINTE_E_UM', 'EMOM', 'PIRAMIDE_CRESCENTE', 'PIRAMIDE_DECRESCENTE', 'PIRAMIDE_TRUNCADA', 'DUPLA_PROGRESSAO', 'GVT', 'FST7', 'ESPECIALIZACAO'];
 const TECNICAS = [...ESTRUTURADAS, ...DESCRITIVAS];
@@ -31,7 +31,7 @@ const dentro = (v, min, max) => Number.isInteger(v) && v >= min && v <= max;
 function problemasDaCarga(c) {
   const modo = c?.modo ?? 'NENHUMA';
   if (!MODOS.includes(modo)) return ['modo'];
-  const limite = { PERCENTUAL_WS: 200, ACIMA_DA_ANTERIOR: 100, ABAIXO_DA_REFERENCIA: 50 }[modo];
+  const limite = { PERCENTUAL_WS: 200 }[modo];
   const p = [];
   if (limite) {
     if (c.percentualMin == null || c.percentualMin < 1 || c.percentualMin > limite) p.push('percentualMin');
@@ -86,11 +86,6 @@ function problemasDaMetodologia(c) {
     if (r && (r.min == null || r.max == null || r.min < 0 || r.max > 500 || r.max < r.min)) e.push(`repetições: ${nome}`);
     if (t.cargaPadrao && problemasDaCarga(t.cargaPadrao).length) e.push(`cargaPadrao: ${nome}`);
     if (t.esforcoPadrao && problemasDoEsforco(t.esforcoPadrao).length) e.push(`esforcoPadrao: ${nome}`);
-    for (const [modalidade, v] of Object.entries(t.porModalidade ?? {})) {
-      if (!['LIVRE', 'MAQUINA'].includes(modalidade) || !v) { e.push(`porModalidade ${modalidade}: ${nome}`); continue; }
-      if (v.carga && problemasDaCarga(v.carga).length) e.push(`porModalidade.carga: ${nome}`);
-      if (v.esforco && problemasDoEsforco(v.esforco).length) e.push(`porModalidade.esforco: ${nome}`);
-    }
     const regra = t.regraPercentuais;
     if (regra && Object.keys(regra).length) {
       if (t.papel !== 'PREPARACAO') e.push(`regra só em preparação: ${nome}`);
@@ -101,7 +96,7 @@ function problemasDaMetodologia(c) {
       }
     }
     if (t.explicacao && t.explicacao.length > 500) e.push(`explicação: ${nome}`);
-    if ('intensidadePadrao' in t || 'intensidadePorModalidade' in t) e.push(`campo antigo: ${nome}`);
+    if ('intensidadePadrao' in t || 'intensidadePorModalidade' in t || 'porModalidade' in t) e.push(`campo antigo: ${nome}`);
   }
   if (!trabalho) e.push('sem tipo de trabalho');
   const vistasT = new Set();
@@ -143,9 +138,9 @@ for (const m of metodologias) {
   });
 
   test(`${m.nome}: formato novo, sem campo do contrato antigo nem tipo Cardio`, () => {
-    assert.doesNotMatch(JSON.stringify(m.configuracao), /intensidade/);
+    assert.doesNotMatch(JSON.stringify(m.configuracao), /intensidade|porModalidade|referenciaUid|TOP_SET/);
     for (const t of m.configuracao.tipos) {
-      assert.deepEqual(Object.keys(t), ['codigo', 'nome', 'papel', 'repeticoes', 'cargaPadrao', 'esforcoPadrao', 'porModalidade', 'regraPercentuais', 'explicacao']);
+      assert.deepEqual(Object.keys(t), ['codigo', 'nome', 'papel', 'repeticoes', 'cargaPadrao', 'esforcoPadrao', 'regraPercentuais', 'explicacao']);
       assert.notEqual(chaveDeTipo(t.nome), 'cardio');
     }
     assert.ok(m.configuracao.tipos.some((t) => t.codigo === TIPO_DE_TRABALHO), 'o tipo de trabalho das séries demo existe');
@@ -164,6 +159,8 @@ test('o validador espelhado recusa o que a API recusa', () => {
   assert.equal(com((c) => { c.tecnicas = []; }).length, 0);
   assert.ok(com((c) => { c.tecnicas.push(c.tecnicas[0]); }).length);
   assert.ok(com((c) => { c.combinacoes[0].nome = 'x'.repeat(31); }).length);
+  assert.ok(com((c) => { c.tipos[0].porModalidade = {}; }).length);
+  assert.ok(com((c) => { c.tipos[0].cargaPadrao = { modo: 'ACIMA_DA_ANTERIOR', percentualMin: 5, percentualMax: null }; }).length);
   assert.deepEqual(com(() => {}), []);
 });
 
@@ -173,7 +170,7 @@ test('as séries do popular-modelos seguem o contrato novo', () => {
     assert.ok(lista.length >= 3);
     for (const s of lista) {
       assert.equal(s.tipo, 'WORKING');
-      assert.deepEqual(s.carga, { modo: 'CARGA_TRABALHO', percentualMin: null, percentualMax: null, referenciaUid: null });
+      assert.deepEqual(s.carga, { modo: 'CARGA_TRABALHO', percentualMin: null, percentualMax: null });
       assert.equal(s.esforco, null);
       assert.equal(s.amrap, null);
       assert.equal(s.cardio, null);

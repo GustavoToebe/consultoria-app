@@ -1,5 +1,5 @@
 import { ArrowDown, ArrowUp, ChevronsDownUp, ChevronsUpDown, Plus, Trash2 } from 'lucide-react-native';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { mover } from '../../dominio/editorTreino';
@@ -26,11 +26,13 @@ import { ItemDaListaDoEditor } from '../plano/ItemDaListaDoEditor';
  * 960 px de conteúdo, como o treino e a dieta) as seções viram uma lista à esquerda e a escolhida abre à direita, com os
  * itens; "Abrir todos" vale para os itens dela.
  */
-export function SecoesDeMobilidade({ conteudo: mob, aoMudar, irPara }: {
+export function SecoesDeMobilidade({ conteudo: mob, aoMudar, irPara, acoes }: {
   conteudo: ConteudoMobilidade;
   aoMudar: (c: ConteudoMobilidade) => void;
   /** "Ir ao primeiro" da lista de problemas: os uids do primeiro problema; `vez` muda a cada pedido. */
   irPara?: { uids: string[]; vez: number } | null;
+  /** Botões ao lado de "Seções (N)": o "Modelos" do plano do aluno (o modelo do Planejamento não passa). */
+  acoes?: ReactNode;
 }) {
   const { cores } = useTema();
   const [removerSecao, setRemoverSecao] = useState<number | null>(null);
@@ -78,8 +80,15 @@ export function SecoesDeMobilidade({ conteudo: mob, aoMudar, irPara }: {
         aoMover={(d) => alterarSecao(si, (x) => ({ ...x, itens: mover(x.itens, ii, d) }))}
         remover={<IconeBotao Icone={Trash2} rotulo={`Remover ${it.nome || 'item'}`} aoTocar={() => setRemoverItem({ secao: si, item: ii })} />} />
       {abertos.has(it.uid) ? <View style={estilos.corpoItem}>
-        <Campo rotulo="Nome do exercício" valor={it.nome} maxLength={120} aoMudar={(nome) => alterarItem(si, ii, { nome })} />
-        <Campo rotulo="Prescrição (ex.: 2 x 20s cada lado)" valor={it.prescricao} maxLength={120} aoMudar={(prescricao) => alterarItem(si, ii, { prescricao })} />
+        {/* Nome e prescrição na mesma linha onde cabem; no celular a prescrição desce. */}
+        <View style={estilos.nomeEPrescricao}>
+          <View style={estilos.nome}>
+            <Campo rotulo="Nome do exercício" valor={it.nome} maxLength={120} aoMudar={(nome) => alterarItem(si, ii, { nome })} />
+          </View>
+          <View style={estilos.prescricao}>
+            <Campo rotulo="Prescrição (ex.: 2 x 20s cada lado)" valor={it.prescricao} maxLength={120} aoMudar={(prescricao) => alterarItem(si, ii, { prescricao })} />
+          </View>
+        </View>
         <Campo rotulo="Vídeo (link do YouTube, opcional)" valor={it.videoUrl} maxLength={500} autoCapitalize="none" erro={erroDoVideo(it.videoUrl)} aoMudar={(videoUrl) => alterarItem(si, ii, { videoUrl })} />
       </View> : null}
     </View>)}
@@ -94,13 +103,17 @@ export function SecoesDeMobilidade({ conteudo: mob, aoMudar, irPara }: {
       aoTocar={() => { const nova = novaSecaoMobilidade(); aoMudar({ ...mob, secoes: [...mob.secoes, nova] }); setEscolhidaUid(nova.uid); }} />
   </View>;
   return <>
-    <Cartao titulo="Orientações" descricao="Texto geral que o aluno lê antes das seções (opcional).">
+    {/* Opcional: vazio, nasce recolhido para as seções subirem (o título continua dizendo que existe). */}
+    <Cartao titulo="Orientações" descricao="Texto geral que o aluno lê antes das seções (opcional)." faixa recolhivel recolhido={!mob.orientacoes.trim()}>
       <Campo rotulo="Orientações (opcional)" valor={mob.orientacoes} aoMudar={(orientacoes) => aoMudar({ ...mob, orientacoes })} linhas={3} maxLength={2000} />
     </Cartao>
     <View style={estilos.cabecalhoSecoes}>
       <Texto variante="bloco" nivel={2}>Seções ({mob.secoes.length})</Texto>
-      {todos.length > 1 ? <Botao rotulo={todosAbertos ? 'Fechar todos' : 'Abrir todos'} tipo="fantasma" Icone={todosAbertos ? ChevronsDownUp : ChevronsUpDown}
-        aoTocar={() => setAbertos(todosAbertos ? new Set() : new Set(todos))} /> : null}
+      <View style={estilos.linha}>
+        {todos.length > 1 ? <Botao rotulo={todosAbertos ? 'Fechar todos' : 'Abrir todos'} tipo="fantasma" Icone={todosAbertos ? ChevronsDownUp : ChevronsUpDown}
+          aoTocar={() => setAbertos(todosAbertos ? new Set() : new Set(todos))} /> : null}
+        {acoes}
+      </View>
     </View>
     {duas && escolhida ? <View style={estilos.colunas}>
       <View style={estilos.lista}>
@@ -161,4 +174,8 @@ const estilos = StyleSheet.create({
   acoesSecao: { flexDirection: 'row' },
   item: { borderWidth: 1, borderRadius: RAIO, paddingHorizontal: espaco(1.5), paddingVertical: espaco(0.5), gap: espaco(1) },
   corpoItem: { gap: espaco(1.5), paddingBottom: espaco(1) },
+  // Embaixo: o rótulo da prescrição quebra em duas linhas na coluna estreita, e os campos continuam alinhados.
+  nomeEPrescricao: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: espaco(1.5) },
+  nome: { flex: 2, minWidth: 220 },
+  prescricao: { flex: 1, minWidth: 180 },
 });

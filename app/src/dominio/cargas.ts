@@ -1,8 +1,8 @@
 import type { Configuracao, ExercicioPlano, OrigemDaReferencia, Serie } from '../api/tipos';
-import { nomeDaReferencia, textoCardio, textoCarga, textoDasRepeticoes, textoEsforco, textoTecnica } from './agrupamento';
+import { textoCardio, textoCarga, textoDasRepeticoes, textoEsforco, textoTecnica } from './agrupamento';
 import { numeroParaTela } from './formatos';
 import { kgParaTela, passoNaTela, telaParaKg, type UnidadeDeCarga } from './unidadeDeCarga';
-import { tipoPorCodigo, tipoTrabalho as tipoTrabalhoDaMetodologia } from './metodologia';
+import { tipoTrabalho as tipoTrabalhoDaMetodologia } from './metodologia';
 import { cargaIlegivel } from './modoDeCarga';
 import { temEtapaEmPercentual } from './validacaoDeSerie';
 
@@ -12,7 +12,7 @@ import { temEtapaEmPercentual } from './validacaoDeSerie';
  * Sugestão é só sugestão; o que o aluno digita é gravado exatamente como digitou.
  *
  * Série de trabalho = `carga.modo === 'CARGA_TRABALHO'` (espelho de `Serie.deTrabalho()` da API). `CARGA_FIXA` (kg escritos
- * pelo treinador) não é de trabalho e não serve de base para "% da WS", "mesma carga" nem "abaixo da referência". O rótulo
+ * pelo treinador) não é de trabalho e não serve de base para "% da WS". O rótulo
  * `tipoTrabalho` ("WS") só aparece nos textos; nunca se compara com `Serie.tipo`, que é código.
  */
 
@@ -26,10 +26,7 @@ export interface SerieCalculada {
   meta: string;
 }
 
-/**
- * Arredonda ao múltiplo do passo (0,25 / 0,5 / 1 / 2,5 kg), sem erro de ponto flutuante: ao mais próximo, ou para cima
- * ou para baixo quando a sugestão precisa ficar de um lado da carga de origem ("acima da anterior" nunca sugere a mesma).
- */
+/** Arredonda ao múltiplo do passo (0,25 / 0,5 / 1 / 2,5 kg), sem erro de ponto flutuante: ao mais próximo, ou para cima ou para baixo. */
 export function arredondar(valor: number, passo: number, sentido: 'proximo' | 'cima' | 'baixo' = 'proximo'): number {
   if (!passo || passo <= 0) return valor;
   const q = Math.round((valor / passo) * 1e6) / 1e6;
@@ -42,11 +39,8 @@ const modo = (s: Serie) => s.carga?.modo ?? 'NENHUMA';
 /** Série de trabalho: a referência da carga do dia. */
 export const ehSerieDeTrabalho = (s: Serie): boolean => modo(s) === 'CARGA_TRABALHO';
 
-/**
- * Texto da meta da série, como o aluno vê na tela. `series` (as do exercício) dá o nome da série de referência do back off;
- * série de cardio mostra a prescrição de cardio.
- */
-export function metaDaSerie(s: Serie, tipoTrabalho: string, semCarga = false, metodologia?: Configuracao, series: readonly Serie[] = [], unidade: UnidadeDeCarga = 'kg'): string {
+/** Texto da meta da série, como o aluno vê na tela; série de cardio mostra a prescrição de cardio. */
+export function metaDaSerie(s: Serie, tipoTrabalho: string, semCarga = false, metodologia?: Configuracao, unidade: UnidadeDeCarga = 'kg'): string {
   if (s.cardio) return `Meta: ${textoCardio(s.cardio)}`;
   const partes: string[] = [];
   partes.push(s.amrap ? 'AMRAP' : `${textoDasRepeticoes(s)} reps`);
@@ -54,7 +48,7 @@ export function metaDaSerie(s: Serie, tipoTrabalho: string, semCarga = false, me
   if (!semCarga && modo(s) === 'CARGA_TRABALHO') {
     partes.push('carga de trabalho');
   } else if (!semCarga) {
-    const carga = textoCarga(s.carga, tipoTrabalho, nomeDaReferencia(s, series, metodologia), unidade);
+    const carga = textoCarga(s.carga, tipoTrabalho, unidade);
     if (carga) partes.push(carga);
   }
   if (esforco) partes.push(esforco);
@@ -71,7 +65,7 @@ export interface ReferenciaDaCarga {
 }
 
 /**
- * Referência do "% da WS" e da "mesma carga" da série `indice`: a carga registrada hoje na última série de trabalho
+ * Referência do "% da WS" da série `indice`: a carga registrada hoje na última série de trabalho
  * ANTERIOR a ela no exercício; sem ela (a FS vem antes da WS, ou a WS ainda não foi feita), a carga de trabalho do dia.
  */
 function referenciaDaWs(series: readonly Serie[], indice: number, cargaTrabalho: number | null, cargasDoDia: Record<string, number | null | undefined>): ReferenciaDaCarga | null {
@@ -85,8 +79,7 @@ function referenciaDaWs(series: readonly Serie[], indice: number, cargaTrabalho:
 
 /**
  * A referência externa da série, a que as etapas congelam ao registrar a primeira (docs/series-etapas.md): carga de
- * trabalho = a base do dia; "% da WS" e "mesma carga" = a referência da WS. Os modos que dependem de outra série do dia
- * ("acima da anterior", "abaixo da referência") e "sem carga" não têm referência externa.
+ * trabalho = a base do dia; "% da WS" = a referência da WS. Carga fixa e "sem carga" não têm referência externa.
  */
 export function referenciaDaSerie(series: readonly Serie[], indice: number, cargaTrabalho: number | null, cargasDoDia: Record<string, number | null | undefined>): ReferenciaDaCarga | null {
   const s = series[indice];
@@ -95,7 +88,6 @@ export function referenciaDaSerie(series: readonly Serie[], indice: number, carg
     case 'CARGA_TRABALHO':
       return cargaTrabalho == null ? null : { valor: cargaTrabalho, origem: 'BASE_DO_DIA' };
     case 'PERCENTUAL_WS':
-    case 'MESMA_CARGA':
       return referenciaDaWs(series, indice, cargaTrabalho, cargasDoDia);
     default:
       // Sem referência externa própria, mas com etapa em % da WS (bloco ou retomada): a referência da WS.
@@ -104,14 +96,13 @@ export function referenciaDaSerie(series: readonly Serie[], indice: number, carg
 }
 
 /** O modo de carga da série parte da referência externa (e então segue a referência congelada nas etapas)? */
-export const modoComReferenciaExterna = (s: Serie): boolean => ['CARGA_TRABALHO', 'MESMA_CARGA', 'PERCENTUAL_WS'].includes(modo(s));
+export const modoComReferenciaExterna = (s: Serie): boolean => ['CARGA_TRABALHO', 'PERCENTUAL_WS'].includes(modo(s));
 
 /** Sugestão da série sobre uma referência externa (a calculada agora ou a congelada nas etapas). */
 export function sugestaoSobreReferencia(s: Serie, referencia: number | null, passo: number): number | null {
   if (referencia == null) return null;
   switch (modo(s)) {
     case 'CARGA_TRABALHO':
-    case 'MESMA_CARGA':
       return referencia;
     case 'PERCENTUAL_WS': {
       const percentual = s.carga?.percentualMin ?? null;
@@ -127,10 +118,8 @@ export function sugestaoSobreReferencia(s: Serie, referencia: number | null, pas
  * @param cargasDoDia cargas já registradas hoje, por `serieUid` (para a referência das séries em %).
  *
  * Por forma de carga: `CARGA_TRABALHO` = a carga de trabalho do dia; `PERCENTUAL_WS` = % da referência da WS (acima);
- * `MESMA_CARGA` = a própria referência da WS; `CARGA_FIXA` = os kg do treinador, sem arredondar; `ACIMA_DA_ANTERIOR` = a série imediatamente anterior mais o percentual;
- * `ABAIXO_DA_REFERENCIA` = a carga registrada hoje na série `referenciaUid` (anterior no exercício) menos o percentual,
- * e sem registro dela não há sugestão; `NENHUMA` = nada. Em faixa ("85 a 90%", "1 a 5%") vale o percentual MÍNIMO.
- * Resultado arredondado pelo passo da metodologia (exceto carga de trabalho e mesma carga, que repetem o número).
+ * `CARGA_FIXA` = os kg do treinador, sem arredondar; `NENHUMA` = nada. Em faixa ("85 a 90%") vale o percentual MÍNIMO.
+ * Resultado arredondado pelo passo da metodologia (exceto carga de trabalho, que repete o número).
  */
 export function calcularCargasDoExercicio(
   exercicio: ExercicioPlano,
@@ -144,7 +133,6 @@ export function calcularCargasDoExercicio(
   return series.map((serie, indice) => {
     let sugestao: number | null = null;
     const carga = serie.carga;
-    const percentual = carga?.percentualMin ?? null;
     // Forma de carga que o app não conhece: sem sugestão e sem referência (a etapa em % congelaria uma base para uma carga
     // que o app não lê). O texto "atualize o app" vem do `metaDaSerie`.
     const ilegivel = cargaIlegivel(carga);
@@ -152,54 +140,37 @@ export function calcularCargasDoExercicio(
     if (!semCarga && !ilegivel && !serie.cardio) {
       switch (modo(serie)) {
         case 'CARGA_TRABALHO':
-        case 'MESMA_CARGA':
         case 'PERCENTUAL_WS':
           sugestao = sugestaoSobreReferencia(serie, referencia?.valor ?? null, config.arredondamentoKg);
           break;
         case 'CARGA_FIXA':
           sugestao = carga?.valorKg ?? null;
           break;
-        case 'ACIMA_DA_ANTERIOR': {
-          const anterior = indice > 0 ? cargasDoDia[series[indice - 1].uid] : null;
-          if (percentual != null && typeof anterior === 'number') sugestao = arredondar(anterior * (1 + percentual / 100), config.arredondamentoKg, 'cima');
-          break;
-        }
-        case 'ABAIXO_DA_REFERENCIA': {
-          const posicao = carga?.referenciaUid ? series.findIndex((x) => x.uid === carga.referenciaUid) : -1;
-          const registrada = posicao >= 0 && posicao < indice ? cargasDoDia[series[posicao].uid] : null;
-          if (percentual != null && typeof registrada === 'number') sugestao = Math.max(0, arredondar(registrada * (1 - percentual / 100), config.arredondamentoKg, 'baixo'));
-          break;
-        }
         default:
           break;
       }
     }
     // `meta` fica em kg: a tela do aluno monta o texto da meta em `aluno/serieDoAluno` (com a unidade dele) e não lê este campo.
-    return { serie, sugestao, referencia, meta: metaDaSerie(serie, config.tipoTrabalho, semCarga, config.metodologia, series) };
+    return { serie, sugestao, referencia, meta: metaDaSerie(serie, config.tipoTrabalho, semCarga, config.metodologia) };
   });
 }
 
-/** Nomes que o texto da origem da carga usa: o da série de trabalho ("WS") e, para anterior e referência, as séries do exercício. */
+/** Nomes que o texto da origem da carga usa: o da série de trabalho ("WS"). */
 export interface NomesDaOrigem {
   /** Nome da série de trabalho quando a metodologia não o dá (o `tipoTrabalho` da configuração da tela). */
   tipoTrabalho?: string | null;
   metodologia?: Configuracao | null;
-  /** As séries do exercício: dão o tipo da série anterior e da série de referência. */
-  series?: readonly Serie[];
   /** Sem base do dia gravada a conta parte da última carga (D1): o texto diz "da última vez", não "da base do dia". */
   baseDaUltimaVez?: boolean;
 }
 
 const SEM_NOME_DA_WS = 'carga de trabalho';
 
-/** Nome do tipo na metodologia; sem ela (ou sem o tipo) fica vazio, porque o código nunca aparece para o aluno. */
-const nomeDoTipoNaMetodologia = (metodologia: Configuracao | null | undefined, codigo: string | null | undefined): string => tipoPorCodigo(metodologia, codigo)?.nome.trim() ?? '';
-
 /**
  * De onde saiu a carga sugerida, em uma frase curta para o aluno ("80% da WS registrada nesta sessão", "80% da base do
  * dia"). Só descreve o que `calcularCargasDoExercicio` já fez (a origem de `referencia`, o modo e o percentual mínimo,
  * o mesmo número da conta): não calcula nada nem muda a sugestão. `null` quando não há sugestão ou a série não parte de
- * uma referência (cardio, sem carga, sem base, "acima da anterior" sem a anterior registrada...).
+ * uma referência (cardio, sem carga, sem base...).
  * O nome da WS vem do tipo de trabalho da metodologia; sem ele, o `tipoTrabalho` informado; sem nenhum, "carga de trabalho".
  */
 export function textoDaOrigem(calculada: SerieCalculada, nomes: NomesDaOrigem = {}): string | null {
@@ -219,31 +190,16 @@ export function textoDaOrigem(calculada: SerieCalculada, nomes: NomesDaOrigem = 
       return referencia ? `carga da ${base}` : null;
     case 'CARGA_FIXA':
       return 'carga definida pelo treinador';
-    case 'MESMA_CARGA':
-      return referencia ? `mesma carga ${daReferencia}` : null;
     case 'PERCENTUAL_WS':
       return referencia && percentual ? `${percentual} ${daReferencia}${daFaixa}` : null;
-    case 'ACIMA_DA_ANTERIOR': {
-      if (!percentual) return null;
-      const posicao = nomes.series?.findIndex((x) => x.uid === serie.uid) ?? -1;
-      const nome = posicao > 0 ? nomeDoTipoNaMetodologia(nomes.metodologia, nomes.series?.[posicao - 1]?.tipo) : '';
-      return `${percentual} acima da série anterior${nome ? ` (${nome})` : ''}${daFaixa}`;
-    }
-    case 'ABAIXO_DA_REFERENCIA': {
-      if (!percentual) return null;
-      const uid = serie.carga?.referenciaUid;
-      const nome = nomeDoTipoNaMetodologia(nomes.metodologia, uid ? nomes.series?.find((x) => x.uid === uid)?.tipo : null);
-      return `${percentual} abaixo da série de referência${nome ? ` (${nome})` : ''}${daFaixa}`;
-    }
     default:
       return null;
   }
 }
 
 /**
- * Alguma série seguinte parte da carga registrada nesta (A9, reunião de 30/10)? É o caso da WS para as séries em % dela,
- * na mesma carga ou com etapa em % (enquanto nenhuma outra WS ficar entre elas), da série imediatamente anterior a um
- * "acima da anterior" e da série de referência de um "abaixo da referência". Só descreve a regra de
+ * Alguma série seguinte parte da carga registrada nesta (A9, reunião de 30/10)? É o caso da WS para as séries em % dela
+ * ou com etapa em % (enquanto nenhuma outra WS ficar entre elas). Só descreve a regra de
  * `calcularCargasDoExercicio` (a carga entra na conta das outras quando é registrada, com o ✓): não muda nada nela.
  */
 export function seriesSeguintesDependemDesta(series: readonly Serie[], indice: number): boolean {
@@ -252,10 +208,7 @@ export function seriesSeguintesDependemDesta(series: readonly Serie[], indice: n
   for (let j = indice + 1; j < series.length; j++) {
     const x = series[j];
     if (x.cardio) continue;
-    const m = modo(x);
-    if (j === indice + 1 && m === 'ACIMA_DA_ANTERIOR') return true;
-    if (m === 'ABAIXO_DA_REFERENCIA' && x.carga?.referenciaUid === s.uid) return true;
-    if (ehSerieDeTrabalho(s) && (m === 'PERCENTUAL_WS' || m === 'MESMA_CARGA' || temEtapaEmPercentual(x.tecnica))) {
+    if (ehSerieDeTrabalho(s) && (modo(x) === 'PERCENTUAL_WS' || temEtapaEmPercentual(x.tecnica))) {
       // A referência dela é a WS mais próxima antes dela: outra WS no meio passa a ser a dela.
       const outraWsNoMeio = series.slice(indice + 1, j).some(ehSerieDeTrabalho);
       if (!outraWsNoMeio) return true;
@@ -265,8 +218,7 @@ export function seriesSeguintesDependemDesta(series: readonly Serie[], indice: n
 }
 
 /**
- * A carga que um registro do dia empresta às séries seguintes (referência da WS, "acima da anterior", "abaixo da
- * referência"): só a de série marcada como feita (o ✓) ou, na série com etapas (Cluster, Rest pause), com alguma etapa
+ * A carga que um registro do dia empresta às séries seguintes (referência da WS): só a de série marcada como feita (o ✓) ou, na série com etapas (Cluster, Rest pause), com alguma etapa
  * feita. Desmarcar a série tira a carga dela da conta: o aluno disse que não fez, e a sugestão das seguintes não parte de
  * uma carga desfeita (decisão do Gustavo, 31/10). Carga digitada e ainda não marcada também não conta, como o texto da
  * tela já diz ("depois que você registrar a WS, com o ✓").
@@ -284,7 +236,7 @@ export function usaCargaDeTrabalho(exercicio: ExercicioPlano): boolean {
   return (
     exercicio.unidade !== 'nenhuma' &&
     !exercicio.series.some((s) => s.cardio) &&
-    exercicio.series.some((s) => ['CARGA_TRABALHO', 'PERCENTUAL_WS', 'MESMA_CARGA'].includes(modo(s)))
+    exercicio.series.some((s) => ['CARGA_TRABALHO', 'PERCENTUAL_WS'].includes(modo(s)))
   );
 }
 

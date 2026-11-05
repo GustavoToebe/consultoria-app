@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Ellipsis, Link2, NotebookTabs, Plus, Trash2 } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Ellipsis, HeartPulse, Link2, NotebookTabs, Plus, Trash2 } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
@@ -35,6 +35,8 @@ interface Props {
   removivel?: boolean;
   aoSalvarModelo?: () => void;
   aoNovoExercicio: () => void;
+  /** "+ Adicionar cardio": a mesma folha da biblioteca, e o item nasce de cardio (`modalidade: 'CARDIO'`). */
+  aoNovoCardio: () => void;
   /** Abre a folha "Modelos" do editor (sessões e exercícios prontos). */
   aoAbrirModelos?: () => void;
   /** "Criar grupo" (superset, circuito...): abre a escolha do tipo e dos exercícios. */
@@ -50,7 +52,8 @@ interface Props {
 /**
  * A sessão selecionada do plano (um dia): faixa de grupo com nome, resumo e ordem (← →, só com mais de uma sessão);
  * uma linha Nome · Dia · Tipo, "Observação" recolhível, os exercícios e os grupos (nível 3) e, no rodapé, adicionar
- * exercício (o primeiro controle), modelos e criar grupo; remover a sessão fica no ⋯ do cabeçalho. O cardio é um exercício de modalidade Cardio.
+ * exercício e adicionar cardio (os primeiros controles), modelos e criar grupo; remover a sessão fica no ⋯ do cabeçalho. O cardio é
+ * um exercício de cardio, que nasce do "+ Adicionar cardio".
  */
 export function CartaoSessao(p: Props) {
   const { cores, marca, bordas } = useTema();
@@ -60,7 +63,7 @@ export function CartaoSessao(p: Props) {
   const mudar = (parcial: Partial<Sessao>) => p.aoMudar({ ...s, ...parcial });
   // A observação fica recolhida, aberta quando já tem texto: os exercícios sobem.
   const [maisAberto, setMaisAberto] = useState(!!(s.cardio || s.observacao));
-  // O texto livre de cardio da sessão só aparece enquanto existir; cardio novo é um exercício de modalidade Cardio.
+  // O texto livre de cardio da sessão só aparece enquanto existir; cardio novo é um exercício de cardio ("+ Adicionar cardio").
   const [comTextoDeCardio] = useState(!!s.cardio);
   const [menu, setMenu] = useState(false);
   const comMenu = p.removivel !== false;
@@ -107,7 +110,7 @@ export function CartaoSessao(p: Props) {
               rotulo="Cardio da sessão (texto)"
               valor={s.cardio ?? ''}
               aoMudar={(t) => mudar({ cardio: t || null })}
-              ajuda="Texto livre. Para prescrever duração, ritmo e zona, adicione um exercício com modalidade Cardio."
+              ajuda="Texto livre. Para prescrever duração, ritmo e zona, use “Adicionar cardio”."
               maxLength={500}
             />
           ) : null}
@@ -123,7 +126,7 @@ export function CartaoSessao(p: Props) {
       <Texto variante="secao">Exercícios ({s.exercicios.length})</Texto>
       <View style={estilos.exercicios}>{p.children}</View>
       {p.adicionarNoFim !== false ? (
-        <AdicionarProximoExercicio aoNovoExercicio={p.aoNovoExercicio} aoAbrirModelos={p.aoAbrirModelos} aoCriarGrupo={p.aoCriarGrupo} motivoSemGrupo={p.motivoSemGrupo} />
+        <AdicionarProximoExercicio aoNovoExercicio={p.aoNovoExercicio} aoNovoCardio={p.aoNovoCardio} aoAbrirModelos={p.aoAbrirModelos} aoCriarGrupo={p.aoCriarGrupo} motivoSemGrupo={p.motivoSemGrupo} />
       ) : null}
       {p.aoSalvarModelo ? (
         <LinhaDeAcoes>
@@ -156,7 +159,7 @@ export function CartaoSessao(p: Props) {
  * "Adicionar próximo exercício" (protótipo de 30/10): o fim da lista é um bloco tracejado com as ações de acrescentar.
  * No fim do cartão da sessão (coluna única) ou da lista da coluna da esquerda (duas colunas).
  */
-export function AdicionarProximoExercicio(p: Pick<Props, 'aoNovoExercicio' | 'aoAbrirModelos' | 'aoCriarGrupo' | 'motivoSemGrupo'>) {
+export function AdicionarProximoExercicio(p: Pick<Props, 'aoNovoExercicio' | 'aoNovoCardio' | 'aoAbrirModelos' | 'aoCriarGrupo' | 'motivoSemGrupo'>) {
   const { cores } = useTema();
   return (
     <View style={[estilos.proximo, { borderColor: cores.bordaCampo }]}>
@@ -166,6 +169,7 @@ export function AdicionarProximoExercicio(p: Pick<Props, 'aoNovoExercicio' | 'ao
       </View>
       <LinhaDeAcoes>
         <Botao rotulo="Adicionar exercício" tipo="secundario" Icone={Plus} aoTocar={p.aoNovoExercicio} />
+        <Botao rotulo="Adicionar cardio" tipo="secundario" Icone={HeartPulse} aoTocar={p.aoNovoCardio} />
         {p.aoAbrirModelos ? <Botao rotulo="Modelos prontos" tipo="secundario" Icone={NotebookTabs} aoTocar={p.aoAbrirModelos} /> : null}
         {p.aoCriarGrupo ? <Botao rotulo="Criar grupo" tipo="secundario" Icone={Link2} aoTocar={p.aoCriarGrupo} desabilitado={!!p.motivoSemGrupo} motivo={p.motivoSemGrupo ?? undefined} /> : null}
       </LinhaDeAcoes>

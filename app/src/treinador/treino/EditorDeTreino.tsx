@@ -65,7 +65,6 @@ import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { ContadoresDoTreino } from './ContadoresDoTreino';
 import { InspetorDoExercicio, type PropsDoInspetor } from './InspetorDoExercicio';
 import { ItemDaListaDeExercicios, ListaDeExercicios } from './ListaDeExercicios';
-import { MetodologiaDoPlano } from './MetodologiaDoPlano';
 import { FotoDePerfil } from '../../ui/FotoDePerfil';
 import { SeletorDeSessoes } from './SeletorDeSessoes';
 import { Folha } from '../../ui/Folha';
@@ -85,8 +84,8 @@ import { CartaoCicloNoPeriodo } from '../ciclo/CicloNaFicha';
 import { FaixaDoModelo, FaixaDoPlanoDoAluno, useNomeDoAluno } from '../plano/FaixaDoPlano';
 import { trilhaDoPlano } from '../plano/trilha';
 
-/** Exercício alvo da folha; `exercicio` nulo = um novo no fim da sessão, criado só quando se escolhe algo. */
-type Alvo = { sessao: number; exercicio: number | null };
+/** Exercício alvo da folha; `exercicio` nulo = um novo no fim da sessão, criado só quando se escolhe algo. `cardio` = o item é de cardio. */
+type Alvo = { sessao: number; exercicio: number | null; cardio?: boolean };
 type AlvoExistente = { sessao: number; exercicio: number };
 type FolhaAberta =
   | { tipo: 'biblioteca'; alvo: Alvo }
@@ -151,7 +150,6 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
   const c = estado.conteudo;
   const errosDoServidor = servidor && servidor.para === c ? servidor.resultado.erros : [];
   const errosVivos = juntarProblemas(validacaoLocal?.erros ?? [], errosDoServidor);
-  const avisosVivos = validacaoLocal?.avisos ?? [];
   const comErro = uidsComProblema(c, errosVivos.map((p) => p.caminho));
   // O "Validar", o "Salvar rascunho", o "Publicar" e o "Salvar modelo" ligam a validação local antes de agir; nenhum é travado por ela.
   const comVerificacao = {
@@ -241,7 +239,8 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
   };
 
   // O exercício novo só nasce quando se escolhe algo na folha: fechar a folha não deixa um "5." vazio nem rascunho pendente.
-  const adicionarExercicio = (si: number) => setFolha({ tipo: 'biblioteca', alvo: { sessao: si, exercicio: null } });
+  // O cardio entra pela mesma folha, com os cardios da biblioteca, e nasce `CARDIO` (04/11: não há seletor de modalidade).
+  const adicionarExercicio = (si: number, cardio = false) => setFolha({ tipo: 'biblioteca', alvo: { sessao: si, exercicio: null, cardio } });
 
   const blocos = sessaoAtual ? gruposDaSessao(sessaoAtual, config) : [];
 
@@ -253,13 +252,11 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
     comProblema: comErro.has(e.uid),
     config,
     erros: problemasDoExercicio(errosVivos, indiceSelecionado, ei),
-    avisos: problemasDoExercicio(avisosVivos, indiceSelecionado, ei),
     noGrupo,
     descansoPorSerie,
     demonstracao: e.exercicioId ? demonstracoes.get(e.exercicioId) ?? null : null,
     grupoMuscular: e.exercicioId ? demonstracoes.get(e.exercicioId)?.grupoMuscular ?? null : null,
     aoMudar: (novo) => mudarExercicios(indiceSelecionado, (lista) => substituir(lista, ei, novo)),
-    aoMudarApagandoSeries: (novo) => comDesfazer(`Modalidade de “${e.nome || ei + 1}” trocada; séries apagadas.`, (a) => trocarExercicioPorUid(a, sessao.uid, e.uid, novo)),
     aoMover: (d) => mudarGrupos((s) => moverExercicio(s, ei, d)),
     aoRemover: () => {
       // Apagar o escolhido passa ao vizinho (o que fica no mesmo lugar, ou o novo último).
@@ -270,7 +267,7 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
       }));
     },
     aoTirarDoGrupo: () => mudarGrupos((s) => tirarDoGrupo(s, ei)),
-    aoEscolherDaBiblioteca: () => setFolha({ tipo: 'biblioteca', alvo: { sessao: indiceSelecionado, exercicio: ei } }),
+    aoEscolherDaBiblioteca: () => setFolha({ tipo: 'biblioteca', alvo: { sessao: indiceSelecionado, exercicio: ei, cardio: e.modalidade === 'CARDIO' } }),
     aoUsarReceita: () => setFolha({ tipo: 'receitaSeries', alvo: { sessao: indiceSelecionado, exercicio: ei } }),
     aoSalvarReceita: () => setFolha({ tipo: 'salvarSeries', alvo: { sessao: indiceSelecionado, exercicio: ei } }),
     grupoAbertoUid: grupoAbertoPorExercicio[e.uid] ?? null,
@@ -404,6 +401,7 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
         });
         const adicionar = {
           aoNovoExercicio: () => adicionarExercicio(indiceSelecionado),
+          aoNovoCardio: () => adicionarExercicio(indiceSelecionado, true),
           aoAbrirModelos: unica ? undefined : () => setModelos(true),
           aoCriarGrupo: () => setFolha({ tipo: 'grupo' }),
           motivoSemGrupo: motivoSemGrupo(sessaoAtual, config),
@@ -430,7 +428,6 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
               // Lista (mestre) com largura fixa à esquerda; o inspetor (detalhe) do escolhido no resto.
               <View style={estilos.colunas}>
                 <ListaDeExercicios
-                  metodologia={<MetodologiaDoPlano nome={c.metodologia?.nome ?? null} config={config} aoTrocar={unica ? undefined : () => setFolha({ tipo: 'metodologia' })} />}
                   vazia={sessaoAtual.exercicios.length === 0}
                   resumo={resumoDaSessaoPorContagem(sessaoAtual, config, (e) => (e.exercicioId ? demonstracoes.get(e.exercicioId)?.grupoMuscular ?? null : null))}
                   adicionar={adicionar}>
@@ -480,15 +477,17 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
       <FolhaBiblioteca
         visivel={folha?.tipo === 'biblioteca'}
         multiplo={folha?.tipo === 'biblioteca' && folha.alvo.exercicio === null}
+        cardio={folha?.tipo === 'biblioteca' && !!folha.alvo.cardio}
         aoFechar={() => setFolha(null)}
         aoEscolher={(escolhidos) => {
           if (folha?.tipo !== 'biblioteca' || escolhidos.length === 0) return;
-          const { sessao: si, exercicio: ei } = folha.alvo;
+          const { sessao: si, exercicio: ei, cardio } = folha.alvo;
           setFolha(null);
+          // Na folha do cardio tudo vira `CARDIO`, também o nome digitado; na outra vale a modalidade da biblioteca.
           const daBiblioteca = (escolhido: (typeof escolhidos)[number]) =>
             'id' in escolhido
-              ? { campos: { exercicioId: escolhido.id, nome: escolhido.nome, videoUrl: escolhido.videoUrl }, modalidade: escolhido.modalidade as string | null }
-              : { campos: { exercicioId: null, nome: escolhido.nome }, modalidade: null as string | null };
+              ? { campos: { exercicioId: escolhido.id, nome: escolhido.nome, videoUrl: escolhido.videoUrl }, modalidade: cardio ? 'CARDIO' : escolhido.modalidade as string | null }
+              : { campos: { exercicioId: null, nome: escolhido.nome }, modalidade: cardio ? 'CARDIO' : null };
           if (ei === null) {
             // Exercícios novos no fim da sessão, na ordem marcada; o primeiro fica escolhido (aberto) para continuar dali.
             const novos = escolhidos.map((e) => {

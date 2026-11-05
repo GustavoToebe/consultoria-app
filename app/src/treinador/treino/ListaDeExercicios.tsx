@@ -14,8 +14,6 @@ import { ResumoDaSessao } from './ResumoDaSessao';
 export const LARGURA_DA_LISTA = 360;
 
 interface Props {
-  /** O cartão da metodologia (`MetodologiaDoPlano`), acima da lista. */
-  metodologia: ReactNode;
   /** Os itens (`ItemDaListaDeExercicios`), com os grupos de exercícios (`GrupoNaLista`: linha do grupo e os membros embaixo). */
   children: ReactNode;
   vazia: boolean;
@@ -24,13 +22,13 @@ interface Props {
 }
 
 /**
- * Coluna da esquerda do editor de treino em duas colunas (mestre): metodologia, um item por exercício da sessão, o bloco
- * tracejado "Adicionar próximo exercício" e o "Resumo da sessão". O exercício escolhido abre no inspetor, à direita.
+ * Coluna da esquerda do editor de treino em duas colunas (mestre): um item por exercício da sessão, o bloco tracejado
+ * "Adicionar próximo exercício" e o "Resumo da sessão". O exercício escolhido abre no inspetor, à direita. A metodologia
+ * fica só em "Configuração do plano" (04/11).
  */
-export function ListaDeExercicios({ metodologia, children, vazia, resumo, adicionar }: Props) {
+export function ListaDeExercicios({ children, vazia, resumo, adicionar }: Props) {
   return (
     <View style={estilos.coluna}>
-      {metodologia}
       <View style={estilos.itens} role="group" accessibilityLabel="Exercícios da sessão">
         {vazia ? <Texto variante="suave">Nenhum exercício nesta sessão ainda.</Texto> : children}
       </View>

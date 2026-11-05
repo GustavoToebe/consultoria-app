@@ -1,10 +1,21 @@
-import { itemParaTela, mobilidadeParaApi, mobilidadeParaExibir, mobilidadeValida, normalizarMobilidade, novaSecaoMobilidade, secaoValida, temAbaMobilidade } from './mobilidade';
+import { aplicarModeloDeMobilidade, itemParaTela, mobilidadeParaApi, mobilidadeParaExibir, mobilidadeValida, normalizarMobilidade, novaSecaoMobilidade, secaoValida, temAbaMobilidade } from './mobilidade';
 
 it('normaliza o conteúdo da API com campos nulos e cria uma seção quando vem vazio', () => {
   expect(normalizarMobilidade(null).secoes).toHaveLength(1);
   const c = normalizarMobilidade({ orientacoes: null, secoes: [{ uid: 'a', titulo: null, itens: [{ uid: 'b', nome: 'Lunge', prescricao: null, videoUrl: null }] }] });
   expect(c.orientacoes).toBe('');
   expect(c.secoes[0]).toEqual({ uid: 'a', titulo: '', itens: [{ uid: 'b', nome: 'Lunge', prescricao: '', videoUrl: '' }] });
+});
+
+it('usar modelo troca as seções por uma cópia com uids novos e mantém as orientações do plano', () => {
+  const atual = { orientacoes: 'Do plano', secoes: [novaSecaoMobilidade('Antiga')] };
+  const modelo = { orientacoes: 'Do modelo', secoes: [{ uid: 'a', titulo: 'Quadril', itens: [{ uid: 'b', nome: 'Lunge', prescricao: '2 x 20s', videoUrl: null }] }] };
+  const c = aplicarModeloDeMobilidade(atual, modelo);
+  expect(c.orientacoes).toBe('Do plano');
+  expect(c.secoes).toHaveLength(1);
+  expect(c.secoes[0]).toMatchObject({ titulo: 'Quadril', itens: [{ nome: 'Lunge', prescricao: '2 x 20s', videoUrl: '' }] });
+  expect(c.secoes[0].uid).not.toBe('a');
+  expect(c.secoes[0].itens[0].uid).not.toBe('b');
 });
 
 it('envia texto aparado e vazio como nulo', () => {

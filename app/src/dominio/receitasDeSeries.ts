@@ -82,7 +82,7 @@ export function pecasDaReceita(conteudo: unknown, config?: Configuracao | null):
   return agrupar(series).map((g) => {
     const s = g.series[0];
     return {
-      texto: descreverGrupo(g, config, series),
+      texto: descreverGrupo(g, config),
       nomeDoTipo: nomeNaComposicao(s, config),
       cor: s.cardio ? null : corDoTipoDeSerie(s.tipo, papelDe(paraOPapel, s.tipo)),
     };
@@ -98,18 +98,18 @@ export interface SecaoDeReceitas {
 const ORDEM_DOS_PAPEIS: PapelDaSerie[] = ['AQUECIMENTO', 'PREPARACAO', 'TRABALHO', 'POS_TRABALHO'];
 
 /**
- * Em que seção a receita entra (uma só): com técnica (Cluster, Rest pause, Drop-set…), na seção da técnica (a primeira
- * que aparece); sem técnica e com séries de mais de um papel, "Receitas completas"; de um papel só, no bloco do papel
- * (Aquecimento, Preparação, Trabalho, Pós-trabalho); o resto (papel "Outro", tipo fora da metodologia, só cardio,
- * sem séries) em "Outras receitas".
+ * Em que seção a receita entra (uma só): com séries de mais de um papel (3 FS + WS + Rest pause, por exemplo), "Receitas
+ * completas", mesmo com técnica; com técnica (Cluster, Rest pause, Drop-set…) e um papel só, na seção da técnica (a
+ * primeira que aparece); de um papel só e sem técnica, no bloco do papel (Aquecimento, Preparação, Trabalho,
+ * Pós-trabalho); o resto (papel "Outro", tipo fora da metodologia, só cardio, sem séries) em "Outras receitas".
  */
 export function secaoDaReceita(conteudo: unknown, config?: Configuracao | null): { chave: string; titulo: string } {
   const series = seriesDaReceita(conteudo);
   const cfg = config ?? CONFIGURACAO_PADRAO;
-  const tecnica = series.find((s) => s.tecnica?.tipo)?.tecnica?.tipo;
-  if (tecnica) return { chave: `TECNICA:${tecnica}`, titulo: `Técnica: ${nomeDaTecnica(cfg, tecnica)}` };
   const papeis = new Set(series.filter((s) => !s.cardio).map((s) => papelDe(cfg, s.tipo)).filter((p): p is PapelDaSerie => !!p));
   if (papeis.size > 1) return { chave: 'COMPLETAS', titulo: 'Receitas completas' };
+  const tecnica = series.find((s) => s.tecnica?.tipo)?.tecnica?.tipo;
+  if (tecnica) return { chave: `TECNICA:${tecnica}`, titulo: `Técnica: ${nomeDaTecnica(cfg, tecnica)}` };
   const [papel] = [...papeis];
   if (papel && papel !== 'OUTRO') return { chave: `PAPEL:${papel}`, titulo: rotuloDoPapel(papel) };
   return { chave: 'OUTRAS', titulo: 'Outras receitas' };

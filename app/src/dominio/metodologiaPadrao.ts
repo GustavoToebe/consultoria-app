@@ -1,9 +1,8 @@
 import type { Carga, Configuracao, Esforco, Tecnica, TipoDeTecnica } from '../api/tipos';
 
-const carga = (modo: Carga['modo'], percentualMin: number | null = null, percentualMax: number | null = null): Carga => ({ modo, percentualMin, percentualMax, referenciaUid: null });
+const carga = (modo: Carga['modo'], percentualMin: number | null = null, percentualMax: number | null = null): Carga => ({ modo, percentualMin, percentualMax });
 const cargaDeTrabalho = (): Carga => carga('CARGA_TRABALHO');
 const percentual = (min: number, max: number | null = null): Carga => carga('PERCENTUAL_WS', min, max);
-const acimaDaAnterior = (min: number, max: number): Carga => carga('ACIMA_DA_ANTERIOR', min, max);
 const rir = (valor: number): Esforco => ({ rir: valor, rpe: null });
 
 /** Técnica só com os campos do padrão (o resto nulo), como a API devolve. */
@@ -25,9 +24,9 @@ const tecnica = (tipo: TipoDeTecnica, valores: Partial<Tecnica> = {}): Tecnica =
 });
 
 /**
- * Metodologia padrão (regras do Saraiva, nos cinco tipos da especificação), usada quando o plano ou a consultoria não
+ * Metodologia padrão (regras do Saraiva, nos quatro tipos), usada quando o plano ou a consultoria não
  * tem nenhuma. ESPELHO EXATO de `ConfiguracaoConsultoria.padrao()` na API: mudou um, mude o outro. Todo percentual é da
- * série de trabalho (WS). Os códigos (`WARM_UP`, `FEEDER`, `WORKING`, `TOP_SET`, `BACK_OFF`) são o que a série grava.
+ * série de trabalho (WS). Os códigos (`WARM_UP`, `FEEDER`, `WORKING`, `BACK_OFF`) são o que a série grava.
  */
 export const CONFIGURACAO_PADRAO: Configuracao = {
   tipos: [
@@ -38,7 +37,6 @@ export const CONFIGURACAO_PADRAO: Configuracao = {
       repeticoes: { min: 10, max: 15 },
       cargaPadrao: null,
       esforcoPadrao: null,
-      porModalidade: null,
       regraPercentuais: null,
       explicacao: 'Série leve, só para preparar o movimento. Fica longe da falha.',
     },
@@ -46,10 +44,9 @@ export const CONFIGURACAO_PADRAO: Configuracao = {
       codigo: 'FEEDER',
       nome: 'FS',
       papel: 'PREPARACAO',
-      repeticoes: { min: 3, max: 3 },
+      repeticoes: { min: 3, max: 5 },
       cargaPadrao: percentual(85),
       esforcoPadrao: null,
-      porModalidade: null,
       regraPercentuais: {
         '1': [{ min: 85, max: null }],
         '2': [{ min: 70, max: null }, { min: 85, max: 90 }],
@@ -64,28 +61,10 @@ export const CONFIGURACAO_PADRAO: Configuracao = {
       papel: 'TRABALHO',
       repeticoes: { min: 3, max: 6 },
       cargaPadrao: cargaDeTrabalho(),
-      esforcoPadrao: rir(1),
-      porModalidade: {
-        LIVRE: { carga: cargaDeTrabalho(), esforco: rir(1) },
-        MAQUINA: { carga: cargaDeTrabalho(), esforco: rir(0) },
-      },
+      esforcoPadrao: rir(0),
       regraPercentuais: null,
       explicacao:
-        'Working set: a série de trabalho, com a carga máxima do dia nas repetições propostas. Peso livre: 1 repetição na reserva. Máquina: até a falha. Se passar das repetições, aumente a carga na semana seguinte.',
-    },
-    {
-      codigo: 'TOP_SET',
-      nome: 'Top set',
-      papel: 'TRABALHO',
-      repeticoes: null,
-      cargaPadrao: acimaDaAnterior(1, 5),
-      esforcoPadrao: null,
-      porModalidade: {
-        LIVRE: { carga: acimaDaAnterior(1, 5), esforco: null },
-        MAQUINA: { carga: acimaDaAnterior(5, 10), esforco: null },
-      },
-      regraPercentuais: null,
-      explicacao: 'Uma série mais pesada que a anterior: suba a carga de 1 a 5% no peso livre ou de 5 a 10% na máquina.',
+        'Working set: a série de trabalho, com a carga máxima do dia nas repetições propostas. Se passar das repetições, aumente a carga na semana seguinte.',
     },
     {
       codigo: 'BACK_OFF',
@@ -93,8 +72,7 @@ export const CONFIGURACAO_PADRAO: Configuracao = {
       papel: 'POS_TRABALHO',
       repeticoes: { min: 6, max: 8 },
       cargaPadrao: percentual(85),
-      esforcoPadrao: null,
-      porModalidade: null,
+      esforcoPadrao: rir(0),
       regraPercentuais: null,
       explicacao: 'Depois da série de trabalho, com 85% da carga dela.',
     },

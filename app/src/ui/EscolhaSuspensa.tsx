@@ -2,7 +2,7 @@ import { Check, ChevronDown } from 'lucide-react-native';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View, type NativeSyntheticEvent, type StyleProp, type TextInput, type TextInputKeyPressEventData, type ViewStyle } from 'react-native';
 
-import { destaqueInicial, filtrarOpcoesSuspensas, moverDestaque, type OpcaoSuspensa } from '../dominio/escolhaSuspensa';
+import { destaqueInicial, filtrarOpcoesSuspensas, moverDestaque, posicaoDaLista, VAO_DO_PAINEL, type OpcaoSuspensa } from '../dominio/escolhaSuspensa';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, LARGURA_MENU_LATERAL, RAIO, SOMBRA_FLUTUANTE } from '../tema/tokens';
 import type { Ancora } from './Calendario';
@@ -24,11 +24,13 @@ interface Props<T> {
 const LARGURA_MINIMA = 300;
 const ALTURA_DA_LISTA = 320;
 const FOLGA = 16;
+/** Altura da busca antes da primeira medida (rótulo + campo + respiro). */
+const ALTURA_DA_BUSCA = 92;
 
 /**
  * Escolha única com busca (o campo de cada coluna na importação, referência de 30/10). O botão mostra o rótulo em cima
  * e o valor embaixo. No PC (janela ≥ 768 px) a lista abre colada ao botão, por cima da tela (embaixo, ou em cima se
- * faltar espaço), com a busca já focada: setas andam, Enter escolhe, Esc fecha e o foco volta ao botão. No celular a
+ * faltar espaço; a lista encolhe para nunca sair da janela), com a busca já focada: setas andam, Enter escolhe, Esc fecha e o foco volta ao botão. No celular a
  * mesma lista abre numa `Folha`. Regras puras em `dominio/escolhaSuspensa`.
  */
 export function EscolhaSuspensa<T extends string | number | null>({ rotulo, valor, opcoes, aoMudar, titulo, style }: Props<T>) {
@@ -79,6 +81,7 @@ function Lista<T extends string | number | null>({ ancora, rotulo, valor, opcoes
   const { cores } = useTema();
   const { width, height } = useWindowDimensions();
   const [filtro, setFiltro] = useState('');
+  const [alturaDaBusca, setAlturaDaBusca] = useState(ALTURA_DA_BUSCA);
   const visiveis = filtrarOpcoesSuspensas(opcoes, filtro);
   const [destaque, setDestaque] = useState(() => destaqueInicial(visiveis, valor));
   const atual = Math.min(destaque, visiveis.length - 1);
@@ -110,7 +113,7 @@ function Lista<T extends string | number | null>({ ancora, rotulo, valor, opcoes
   };
 
   const campoDeBusca = (
-    <View style={estilos.busca}>
+    <View style={estilos.busca} onLayout={(e) => setAlturaDaBusca(e.nativeEvent.layout.height)}>
       <Campo ref={busca} rotulo="Buscar campo" valor={filtro} autoCorrect={false} onKeyPress={tecla} onSubmitEditing={escolherDestacada} submitBehavior="submit"
         aoMudar={(t) => { setFiltro(t); setDestaque(destaqueInicial(filtrarOpcoesSuspensas(opcoes, t), valor)); }} />
     </View>
@@ -143,15 +146,15 @@ function Lista<T extends string | number | null>({ ancora, rotulo, valor, opcoes
   const esquerda = Math.max(FOLGA, Math.min(ancora.x, width - largura - FOLGA));
   const embaixo = height - (ancora.y + ancora.h) - FOLGA;
   const emCima = ancora.y - FOLGA;
-  const abreEmbaixo = embaixo >= 260 || embaixo >= emCima;
-  const posicao = abreEmbaixo ? { top: ancora.y + ancora.h + 4 } : { bottom: height - ancora.y + 4 };
+  const { abreEmbaixo, alturaMaxima } = posicaoDaLista(embaixo, emCima, alturaDaBusca, ALTURA_DA_LISTA, 2 * ALVO_TOQUE);
+  const posicao = abreEmbaixo ? { top: ancora.y + ancora.h + VAO_DO_PAINEL } : { bottom: height - ancora.y + VAO_DO_PAINEL };
   return (
     <Modal transparent visible animationType="none" statusBarTranslucent onRequestClose={aoFechar}>
       <Pressable style={StyleSheet.absoluteFill} onPress={aoFechar} accessibilityLabel={`Fechar ${rotulo}`} />
       <View accessibilityViewIsModal role="dialog" aria-label={rotulo}
         style={[estilos.painel, posicao, { left: esquerda, width: largura, backgroundColor: cores.superficie, borderColor: cores.borda }]}>
         {campoDeBusca}
-        <ScrollView style={{ maxHeight: ALTURA_DA_LISTA }} keyboardShouldPersistTaps="handled">{lista}</ScrollView>
+        <ScrollView style={{ maxHeight: alturaMaxima }} keyboardShouldPersistTaps="handled">{lista}</ScrollView>
       </View>
     </Modal>
   );

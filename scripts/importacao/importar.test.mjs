@@ -7,18 +7,17 @@ import { cargaDe, codigoDoTipo, lerSeries, montarGrupos, montarSeries, problemas
 import { CODIGOS, TECNICAS_DE_GRUPO, verificarContratoDoTreino, verificarSerie } from './contrato-apoio-teste.mjs';
 import METODOLOGIA from './metodologia-padrao.json' with { type: 'json' };
 const REGRA = METODOLOGIA.tipos.find((t) => t.papel === 'PREPARACAO').regraPercentuais;
-const tipoPadrao = (nome) => METODOLOGIA.tipos.find((t) => t.nome === nome);
 const cargas = (series) => series.map((s) => [s.carga.modo, s.carga.percentualMin, s.carga.percentualMax]);
 
-/** Confere as séries como a API confere: tipo por código, carga completa, referência de série anterior do mesmo exercício. */
+/** Confere as séries como a API confere: tipo por código e carga completa. */
 function conferir(series, deCardio = false) {
-  const anteriores = new Set();
-  series.forEach((s, k) => anteriores.add(verificarSerie(s, deCardio, anteriores, `série ${k}`)));
+  series.forEach((s, k) => verificarSerie(s, deCardio, `série ${k}`));
 }
 
 test('os tipos da série são os códigos da metodologia', () => {
-  assert.deepEqual(['Aquecimento', 'FS', 'WS', 'Top set', 'Back off'].map(codigoDoTipo), ['WARM_UP', 'FEEDER', 'WORKING', 'TOP_SET', 'BACK_OFF']);
-  assert.deepEqual(CODIGOS, ['WARM_UP', 'FEEDER', 'WORKING', 'TOP_SET', 'BACK_OFF']);
+  assert.deepEqual(['Aquecimento', 'FS', 'WS', 'Back off'].map(codigoDoTipo), ['WARM_UP', 'FEEDER', 'WORKING', 'BACK_OFF']);
+  assert.deepEqual(CODIGOS, ['WARM_UP', 'FEEDER', 'WORKING', 'BACK_OFF']);
+  assert.throws(() => codigoDoTipo('Top set'), /fora da metodologia padrão/);
   assert.throws(() => codigoDoTipo('Inventado'), /fora da metodologia padrão/);
 });
 test('aquecimento mantém a faixa e não prescreve carga nem esforço', () => {
@@ -40,52 +39,35 @@ test('FS sem regra para a quantidade fica sem carga, sem inventar percentual', (
   const series = montarSeries(['4x3 - FS'], '', REGRA);
   assert.deepEqual(cargas(series), Array(4).fill(['NENHUMA', null, null]));
 });
-for (const [modalidade, rir] of [['LIVRE', 1], ['MAQUINA', 0]]) test(`WS por modalidade: ${modalidade}`, () => {
-  const [s] = montarSeries(['1x3 a 6 - WS'], '', REGRA, modalidade);
+test('WS é a carga de trabalho e a planilha não traz esforço: fica nulo', () => {
+  const [s] = montarSeries(['1x3 a 6 - WS'], '', REGRA);
   assert.equal(s.tipo, 'WORKING');
   assert.equal(s.carga.modo, 'CARGA_TRABALHO');
-  assert.deepEqual(s.esforco, { rir, rpe: null });
-});
-test('WS sem modalidade não inventa esforço', () => {
-  assert.equal(montarSeries(['1x3 a 6 - WS'], '', REGRA)[0].esforco, null);
+  assert.equal(s.esforco, null);
 });
 test('back off lê o percentual explícito da WS como PERCENTUAL_WS', () => {
   const series = montarSeries(['1x6 - WS', '2x6 a 8 - Back off (85% da WS)'], '', REGRA);
   assert.deepEqual(cargas(series.slice(1)), [['PERCENTUAL_WS', 85, null], ['PERCENTUAL_WS', 85, null]]);
-  assert.ok(series.slice(1).every((s) => s.tipo === 'BACK_OFF' && s.carga.referenciaUid === null));
+  assert.ok(series.slice(1).every((s) => s.tipo === 'BACK_OFF'));
   conferir(series);
 });
 test('back off sem número não inventa percentual', () => {
   assert.deepEqual(montarSeries(['1x6 - Back off'], '', REGRA)[0].carga, cargaDe('NENHUMA'));
 });
-test('reducaoDoBackOff separa redução de percentual da WS e acha de onde ela parte', () => {
-  assert.deepEqual(reducaoDoBackOff('Back off: reduzir 10% da Top set'), { percentual: 10, referencia: 'TOP' });
-  assert.deepEqual(reducaoDoBackOff('Back off reduzindo 15% da série anterior.'), { percentual: 15, referencia: 'ANTERIOR' });
-  assert.deepEqual(reducaoDoBackOff('Back off com 10% a menos'), { percentual: 10, referencia: null });
+test('reducaoDoBackOff separa redução escrita de percentual da WS', () => {
+  assert.deepEqual(reducaoDoBackOff('Back off: reduzir 10% da Top set'), { percentual: 10 });
+  assert.deepEqual(reducaoDoBackOff('Back off reduzindo 15% da série anterior.'), { percentual: 15 });
+  assert.deepEqual(reducaoDoBackOff('Back off com 10% a menos'), { percentual: 10 });
   assert.equal(reducaoDoBackOff('Back off com 85% da carga da WS'), null);
 });
-test('back off com redução da Top set aponta para a Top set do mesmo exercício', () => {
-  const series = montarSeries(['1x6 - WS', '1x4 - Top set', '1x8 - Back off'], 'Back off: reduzir 10% da Top set', REGRA, 'LIVRE');
-  const [ws, top, bo] = series;
-  assert.deepEqual(bo.carga, { modo: 'ABAIXO_DA_REFERENCIA', percentualMin: 10, percentualMax: null, referenciaUid: top.uid });
-  assert.notEqual(bo.carga.referenciaUid, ws.uid);
-  conferir(series);
-});
-test('back off com redução da série anterior aponta para a série imediatamente anterior', () => {
-  const series = montarSeries(['2x6 - WS', '1x8 - Back off'], 'Back off: reduzir 20% da série anterior', REGRA);
-  assert.equal(series[2].carga.modo, 'ABAIXO_DA_REFERENCIA');
-  assert.equal(series[2].carga.referenciaUid, series[1].uid);
-  conferir(series);
-});
-test('back off com redução sem referência clara fica sem carga, em vez de supor uma série', () => {
-  const [, bo] = montarSeries(['1x6 - WS', '1x8 - Back off'], 'Back off com 10% a menos', REGRA);
-  assert.deepEqual(bo.carga, cargaDe('NENHUMA'));
-  const [, sem] = montarSeries(['1x6 - WS', '1x8 - Back off'], 'Back off: reduzir 10% da Top set', REGRA);
-  assert.deepEqual(sem.carga, cargaDe('NENHUMA'), 'não há Top set no exercício para ser a referência');
-});
-test('redução fora de 1 a 50 não vira ABAIXO_DA_REFERENCIA', () => {
-  const [, bo] = montarSeries(['1x6 - WS', '1x8 - Back off'], 'Back off: reduzir 60% da série anterior', REGRA);
-  assert.equal(bo.carga.modo, 'NENHUMA');
+test('back off com redução escrita fica com o padrão do back off (% da WS), sem referência a outra série', () => {
+  const padrao = METODOLOGIA.tipos.find((t) => t.nome === 'Back off').cargaPadrao;
+  for (const obs of ['Back off: reduzir 10% da Top set', 'Back off: reduzir 20% da série anterior', 'Back off com 10% a menos', 'Back off: reduzir 60% da série anterior']) {
+    const series = montarSeries(['1x6 - WS', '1x8 - Back off'], obs, REGRA);
+    assert.deepEqual(series[1].carga, padrao, obs);
+    assert.equal(series[1].carga.modo, 'PERCENTUAL_WS');
+    conferir(series);
+  }
 });
 test('rest pause depois de WS é só técnica dentro da WS: mesmo tipo, mesma carga de trabalho, 1 pausa de 20 s', () => {
   const series = montarSeries(['2x8 - WS / 1x8 - Rest Pause'], '', REGRA);
@@ -136,28 +118,23 @@ test('drop-set fica na série de trabalho, com a queda do padrão ou a escrita',
   assert.equal(b.tecnica.quedas, 2);
   conferir([a, b]);
 });
-test('top set é ACIMA_DA_ANTERIOR; percentual explícito vence o padrão e ausência fica em branco', () => {
-  const [explicito] = montarSeries(['1x6 - Top set'], 'Top set +5%', REGRA);
-  assert.deepEqual(explicito.carga, cargaDe('ACIMA_DA_ANTERIOR', { percentualMin: 5 }));
-  assert.equal(montarSeries(['Top set'], '', REGRA)[0].carga.percentualMin, null);
-  assert.equal(montarSeries(['Top set'], '', REGRA)[0].carga.modo, 'ACIMA_DA_ANTERIOR');
-  assert.equal(montarSeries(['Top set'], '', REGRA)[0].tipo, 'TOP_SET');
-});
-for (const modalidade of ['LIVRE', 'MAQUINA']) test(`top set usa a carga do padrão da modalidade: ${modalidade}`, () => {
-  const [s] = montarSeries(['Top set'], '', REGRA, modalidade);
-  assert.deepEqual(s.carga, tipoPadrao('Top set').porModalidade[modalidade].carga);
+test('top set da planilha não existe na metodologia: vira uma WS com carga de trabalho', () => {
+  const [s] = montarSeries(['1x6 - Top set'], 'Top set - Faça com +5% da carga usada na WS', REGRA);
+  assert.deepEqual([s.tipo, s.repsMin, s.repsMax], ['WORKING', 6, 6]);
+  assert.deepEqual(s.carga, cargaDe('CARGA_TRABALHO'));
   assert.equal(s.esforco, null);
+  assert.equal(montarSeries(['Top set'], '', REGRA)[0].tipo, 'WORKING');
+  assert.match(obsLimpa('Top set - Faça com +5% da carga usada na WS'), /Top set/, 'a observação mantém o que a série não representa');
 });
 test('o JSON do padrão não é alterado ao montar as séries', () => {
   const antes = structuredClone(METODOLOGIA);
-  const [s] = montarSeries(['Top set'], '', REGRA, 'MAQUINA');
-  s.carga.percentualMin = 99;
-  montarSeries(['1x6 - WS'], '', REGRA, 'LIVRE')[0].esforco.rir = 4;
+  const series = montarSeries(['1x6 - WS', '1x8 - Back off'], 'Back off: reduzir 10% da Top set', REGRA);
+  series[1].carga.percentualMin = 99;
   assert.deepEqual(METODOLOGIA, antes);
 });
 test('RIR e RPE nunca saem juntos e o tipo nunca é nulo fora do cardio', () => {
   const linhas = ['1x10 - Aquecimento', '3x3 - FS', '2x4 a 6 - WS', '1x4 - Top set', '1x8 - Back off (85% da WS)', '1x8 - WS / 1x8 - Rest Pause'];
-  for (const modalidade of [null, 'LIVRE', 'MAQUINA']) for (const s of montarSeries(linhas, '', REGRA, modalidade)) {
+  for (const s of montarSeries(linhas, '', REGRA)) {
     assert.ok(CODIGOS.includes(s.tipo));
     assert.ok(s.esforco === null || s.esforco.rir == null || s.esforco.rpe == null);
   }
@@ -217,10 +194,10 @@ const exercicio = (series, extra = {}) => ({
 const sessao = (exercicios, grupos = []) => ({
   uid: randomUUID(), nome: 'Treino A', diaSemana: null, tipo: 'TREINO', frequenciaSemanal: null, observacao: null, cardio: null, exercicios, grupos,
 });
-test('exercícios, grupos, cardio e todas as séries montadas cabem no contrato (chaves exatas, uids únicos, referências coerentes)', () => {
+test('exercícios, grupos, cardio e todas as séries montadas cabem no contrato (chaves exatas, uids únicos)', () => {
   const { grupos, uidDe } = montarGrupos([{ id: 'g', tecnica: 'SUPERSET', descansoAposSegundos: 90 }]);
-  const completo = montarSeries(['1x10 - Aquecimento', '3x3 - FS', '2x4 a 6 - WS', '1x4 - Top set', '1x8 - Back off'], 'Back off: reduzir 10% da Top set', REGRA, 'LIVRE');
-  const comTecnica = montarSeries(['2x8 - WS / 1x8 - Rest Pause', '1x6 (4+2) - Cluster Set, 15 s', '1x8 - WS - Drop-set'], '', REGRA, 'MAQUINA');
+  const completo = montarSeries(['1x10 - Aquecimento', '3x3 - FS', '2x4 a 6 - WS', '1x4 - Top set', '1x8 - Back off'], 'Back off: reduzir 10% da Top set', REGRA);
+  const comTecnica = montarSeries(['2x8 - WS / 1x8 - Rest Pause', '1x6 (4+2) - Cluster Set, 15 s', '1x8 - WS - Drop-set'], '', REGRA);
   const cardio = montarSeries([{ n: 1, tipo: null, cardio: { duracaoMin: 30, zona: 2 } }], '', REGRA);
   verificarContratoDoTreino({
     sessoes: [sessao([
@@ -248,7 +225,7 @@ test('todos os modelos estáticos geram séries somente com o contrato atual', (
       return sessao(sd.exercicios.map((e) => {
         const itens = e.series.map((s) => (typeof s === 'string' ? s : { n: s.count ?? 1, tipo: s.tipo ?? null, min: null, max: null, cardio: s.cardio }));
         const deCardio = itens.length > 0 && itens.every((i) => typeof i !== 'string' && i.cardio);
-        const series = montarSeries(itens, e.obs, REGRA, deCardio ? null : 'LIVRE');
+        const series = montarSeries(itens, e.obs, REGRA);
         assert.ok(series.every((s) => !Object.hasOwn(s, 'alvoTexto') && !Object.hasOwn(s, 'intensidade') && s.carga?.modo !== 'LIVRE'));
         return exercicio(series, { modalidade: deCardio ? 'CARDIO' : 'LIVRE', grupoUid: e.grupo ? uidDe.get(e.grupo) : null });
       }), grupos);

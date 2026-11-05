@@ -162,7 +162,7 @@ test('a aba TACO nunca é aberta: com a lista de abas, um membro corrompido da T
   assert.equal(converterPlanos(lido, HOJE, REFS).arquivos.length, 3);
 });
 
-test('treino: sessões por letra, exercícios pela Ordem, séries FS/WS/Top set/Back off pela metodologia', () => {
+test('treino: sessões por letra, exercícios pela Ordem, séries FS/WS/Back off pela metodologia', () => {
   const r = converter();
   const aluno = doAluno(r, 'AL1');
   const sessoes = aluno.treino.conteudo.sessoes;
@@ -178,14 +178,14 @@ test('treino: sessões por letra, exercícios pela Ordem, séries FS/WS/Top set/
   assert.ok(!puxada.series.some((s) => s.tipo === 'BACK_OFF'));
   assert.deepEqual(
     remada.series.map((s) => [s.tipo, s.repsMin, s.repsMax, s.carga.modo, s.carga.percentualMin]),
-    [['FEEDER', 3, 3, 'PERCENTUAL_WS', 50], ['FEEDER', 3, 3, 'PERCENTUAL_WS', 70], ['FEEDER', 3, 3, 'PERCENTUAL_WS', 85], ['WORKING', 3, 6, 'CARGA_TRABALHO', null], ['BACK_OFF', 6, 8, 'PERCENTUAL_WS', 85]],
+    [['FEEDER', 3, 5, 'PERCENTUAL_WS', 50], ['FEEDER', 3, 5, 'PERCENTUAL_WS', 70], ['FEEDER', 3, 5, 'PERCENTUAL_WS', 85], ['WORKING', 3, 6, 'CARGA_TRABALHO', null], ['BACK_OFF', 6, 8, 'PERCENTUAL_WS', 85]],
   );
   assert.equal(remada.videoUrl, 'https://youtu.be/abc123');
   assert.equal(remada.observacao, 'Obs fictícia');
   assert.equal(remada.unidade, 'kg');
   assert.equal(remada.progressao, true);
   assert.equal(remada.exercicioId, null);
-  assert.ok(remada.series.every((s) => s.descansoSegundos === null && s.tecnica === null && s.esforco === null && s.cardio === null && s.carga.referenciaUid === null));
+  assert.ok(remada.series.every((s) => s.descansoSegundos === null && s.tecnica === null && s.esforco === null && s.cardio === null));
   verificarContratoDoTreino(doAluno(r, 'AL1').treino.conteudo);
 });
 
@@ -193,7 +193,7 @@ test('treino: Rep Range que virou data (recuperada, só contada), WS absurdo, FS
   const r = converter();
   const [data, ws23, gigante] = doAluno(r, 'AL1').treino.conteudo.sessoes[1].exercicios;
   // data do Excel (08/12/2026): faixa 8 a 12 na WS, só contada (não vai para os problemas); FS e Back off seguem a metodologia
-  assert.deepEqual(data.series.map((s) => [s.tipo, s.repsMin, s.repsMax, s.carga.percentualMin]), [['FEEDER', 3, 3, 70], ['FEEDER', 3, 3, 85], ['WORKING', 8, 12, null], ['BACK_OFF', 6, 8, 90]]);
+  assert.deepEqual(data.series.map((s) => [s.tipo, s.repsMin, s.repsMax, s.carga.percentualMin]), [['FEEDER', 3, 5, 70], ['FEEDER', 3, 5, 85], ['WORKING', 8, 12, null], ['BACK_OFF', 6, 8, 90]]);
   assert.equal(r.problemas.filter((p) => /recuperada/i.test(p.motivo)).length, 0);
   assert.equal(problemasDe(r, 'Treinos_Exercicios', 'virou data no Excel').length, 0);
   assert.equal(r.contagens.faixasRecuperadas, 1);
@@ -202,16 +202,17 @@ test('treino: Rep Range que virou data (recuperada, só contada), WS absurdo, FS
   assert.deepEqual(ws23.series.map((s) => [s.tipo, s.carga.modo]), Array(4).fill(['FEEDER', 'NENHUMA']));
   assert.equal(problemasDe(r, 'Treinos_Exercicios', 'quantidade de WS acima de 10').length, 1);
   assert.equal(problemasDe(r, 'Treinos_Exercicios', 'FS sem regra').length, 1);
-  // nome > 120: cortado, inteiro na observação; link http recusado; TS verdadeiro vira Top set livre; BO com % 0 não é problema se BO falso
+  // nome > 120: cortado, inteiro na observação; link http recusado; TS verdadeiro vira mais uma WS (a metodologia não tem Top set); BO com % 0 não é problema se BO falso
   assert.equal(gigante.nome.length <= 120, true);
   assert.ok(gigante.observacao.startsWith(`Nome completo: ${NOME_GIGANTE}`));
   assert.equal(gigante.videoUrl, null);
   assert.equal(problemasDe(r, 'Treinos_Exercicios', 'link de vídeo não aceito').length, 1);
   assert.equal(problemasDe(r, 'Treinos_Exercicios', 'nome do exercício com mais de 120').length, 1);
-  assert.deepEqual(gigante.series.map((s) => [s.tipo, s.carga.modo]), [['FEEDER', 'PERCENTUAL_WS'], ['WORKING', 'CARGA_TRABALHO'], ['WORKING', 'CARGA_TRABALHO'], ['TOP_SET', 'ACIMA_DA_ANTERIOR']]);
-  assert.equal(gigante.series.find((s) => s.tipo === 'TOP_SET').repsMin, null);
-  // Top set sem número: sobe sobre a anterior, sem inventar percentual
-  assert.deepEqual(gigante.series.find((s) => s.tipo === 'TOP_SET').carga, { modo: 'ACIMA_DA_ANTERIOR', percentualMin: null, percentualMax: null, referenciaUid: null });
+  assert.deepEqual(gigante.series.map((s) => [s.tipo, s.carga.modo]), [['FEEDER', 'PERCENTUAL_WS'], ['WORKING', 'CARGA_TRABALHO'], ['WORKING', 'CARGA_TRABALHO'], ['WORKING', 'CARGA_TRABALHO']]);
+  // o Top set da planilha não traz repetições: a série extra fica sem faixa, com a carga de trabalho
+  assert.equal(gigante.series.at(-1).repsMin, null);
+  assert.deepEqual(gigante.series.at(-1).carga, { modo: 'CARGA_TRABALHO', percentualMin: null, percentualMax: null });
+  assert.equal(problemasDe(r, 'Treinos_Exercicios', 'top set virou uma série WS').length, 1, 'o treinador é avisado para conferir a carga');
   assert.equal(gigante.series.find((s) => s.tipo === 'FEEDER').carga.percentualMin, 85);
   // sem série (aluno AL6): o exercício fica no plano, sem séries, para o treinador preencher à mão
   const semSerie = doAluno(r, 'AL6').treino.conteudo.sessoes[0].exercicios;
@@ -326,8 +327,8 @@ test('regras pequenas: faixa de repetições, dia da semana, vídeo, séries e n
   const avisos = [];
   const base = { ws: undefined, fs: undefined, ts: undefined, bo: undefined, backoff: undefined, faixa: { min: 3, max: 6 } };
   assert.deepEqual(montarSeries({ ...base, fs: 1, ws: 1, bo: true, backoff: 0.9 }, (a) => avisos.push(a)).map((s) => s.carga.percentualMin), [85, null, 90]);
-  assert.deepEqual(montarSeries({ ...base, fs: 1, ws: 1, ts: true, bo: true, backoff: 0.9 }, () => {}).map((s) => [s.tipo, s.carga.modo, s.carga.referenciaUid]),
-    [['FEEDER', 'PERCENTUAL_WS', null], ['WORKING', 'CARGA_TRABALHO', null], ['TOP_SET', 'ACIMA_DA_ANTERIOR', null], ['BACK_OFF', 'PERCENTUAL_WS', null]]);
+  assert.deepEqual(montarSeries({ ...base, fs: 1, ws: 1, ts: true, bo: true, backoff: 0.9 }, () => {}).map((s) => [s.tipo, s.carga.modo]),
+    [['FEEDER', 'PERCENTUAL_WS'], ['WORKING', 'CARGA_TRABALHO'], ['WORKING', 'CARGA_TRABALHO'], ['BACK_OFF', 'PERCENTUAL_WS']]);
   const semPercentual = montarSeries({ ...base, ws: 1, bo: true, backoff: 0 }, (a) => avisos.push(a));
   assert.equal(semPercentual[1].carga.modo, 'NENHUMA');
   assert.deepEqual(avisos, ['back off sem percentual válido (série sem carga)']);

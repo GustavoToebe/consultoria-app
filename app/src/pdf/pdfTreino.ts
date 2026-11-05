@@ -74,7 +74,7 @@ export function seriesDoPdf(e: Pick<ExercicioPlano, 'series'>, config: Configura
     if (descanso) detalhes.push(`Descanso depois da série: ${descanso}`);
     const observacao = primeira.alvoExtra?.trim();
     if (observacao) detalhes.push(`${ROTULO_DA_OBSERVACAO_DA_SERIE}: ${observacao}`);
-    return { linha: descreverGrupo(g, config, e.series, { etapasAParte: true, semObservacao: true, unidade }), detalhes };
+    return { linha: descreverGrupo(g, config, { etapasAParte: true, semObservacao: true, unidade }), detalhes };
   });
 }
 

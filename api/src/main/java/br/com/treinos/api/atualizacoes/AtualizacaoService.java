@@ -72,8 +72,19 @@ public class AtualizacaoService {
     public Detalhe atualDoAluno(UUID alunoId) {
         exigirAluno(alunoId);
         PastaPlano pasta = pastaAtiva(alunoId);
-        if (pasta == null) return new Detalhe(null,null,alunoId,null,null,"NENHUMA",0,0,null,null,0,null,null,null,null,null,null,null,null);
-        return detalhe(pasta, atualizacoes.findByPastaId(pasta.getId()).orElse(null));
+        Atualizacao atual = pasta == null ? null : atualizacoes.findByPastaId(pasta.getId()).orElse(null);
+        // Sem pasta, ou consultoria sem nenhum questionário de atualização (zerada, ou ainda sem criar): não há o que
+        // responder. Sem isto o pacote do aluno (GET /aluno/painel) inteiro dava 404 por causa do questionário.
+        if (pasta == null || !temModelo(pasta, atual)) return new Detalhe(null,null,alunoId,null,null,"NENHUMA",0,0,null,null,0,null,null,null,null,null,null,null,null);
+        return detalhe(pasta, atual);
+    }
+    private boolean temModelo(PastaPlano pasta, Atualizacao a) {
+        try {
+            modelo(pasta, a);
+            return true;
+        } catch (NaoEncontradoException semQuestionario) {
+            return false;
+        }
     }
     @Transactional
     public Detalhe enviar(UsuarioAutenticado eu, EnviarRequest r) {

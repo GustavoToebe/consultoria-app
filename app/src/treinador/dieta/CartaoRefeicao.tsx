@@ -22,12 +22,13 @@ import { Botao } from '../../ui/Botao';
 import { Cartao } from '../../ui/Cartao';
 import { Campo } from '../../ui/Campo';
 import { CampoNumerico } from '../../ui/Campos';
-import { Escolha } from '../../ui/Escolha';
+import { EscolhaSuspensa } from '../../ui/EscolhaSuspensa';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { AlvoDeRolagem } from '../../ui/AlvoDeRolagem';
 import { Texto } from '../../ui/Texto';
 import { UNIDADES } from '../biblioteca/AbaAlimentos';
 import { CabecalhoDoItem } from '../plano/CabecalhoDoItem';
+import { BotaoDeTexto } from '../treino/BotaoDeAbrir';
 import { rotuloSalvarComo } from '../planejamento/modelos';
 
 /** "2.236 kcal · P 180,2 g · C 250 g · G 60,1 g"; valor que falta aparece como "—" (nunca inventado). */
@@ -82,6 +83,10 @@ export function CartaoRefeicao(p: Props) {
   const mudarItens = (indice: number, fn: (itens: ItemDieta[]) => ItemDieta[]) =>
     mudar({ opcoes: substituir(r.opcoes, indice, { ...r.opcoes[indice], itens: fn(r.opcoes[indice].itens) }) });
   const modoDePreparo = r.modoDePreparo ?? '';
+  // Observação e modo de preparo vazios ficam recolhidos num link (04/11); com texto gravado já abrem. A escolha nasce do
+  // conteúdo e não volta a fechar ao apagar o texto, para os campos não sumirem enquanto a pessoa digita.
+  const [extrasAbertos, setExtrasAbertos] = useState(() => !!r.observacao || !!r.modoDePreparo);
+  const mostrarExtras = extrasAbertos || !!r.observacao || !!r.modoDePreparo;
 
   return (
     <AlvoDeRolagem chave={r.uid}><Cartao
@@ -110,16 +115,22 @@ export function CartaoRefeicao(p: Props) {
               <Campo rotulo="Horário" valor={r.horario ?? ''} aoMudar={(t) => mudar({ horario: t || null })} maxLength={5} placeholder="07:00" />
             </View>
           </View>
-          <Campo rotulo="Observação (opcional)" valor={r.observacao ?? ''} aoMudar={(t) => mudar({ observacao: t || null })} linhas={2} maxLength={1000} />
-          <Campo
-            rotulo="Modo de preparo (opcional)"
-            valor={modoDePreparo}
-            aoMudar={(t) => mudar({ modoDePreparo: t || null })}
-            linhas={4}
-            maxLength={MODO_DE_PREPARO_MAXIMO}
-            ajuda={`O aluno vê como você escrever, com as quebras de linha. Até ${numeroParaTela(MODO_DE_PREPARO_MAXIMO)} caracteres.`}
-            erro={modoDePreparoValido(modoDePreparo) ? null : `Até ${numeroParaTela(MODO_DE_PREPARO_MAXIMO)} caracteres.`}
-          />
+          {mostrarExtras ? (
+            <>
+              <Campo rotulo="Observação (opcional)" valor={r.observacao ?? ''} aoMudar={(t) => mudar({ observacao: t || null })} linhas={2} maxLength={1000} />
+              <Campo
+                rotulo="Modo de preparo (opcional)"
+                valor={modoDePreparo}
+                aoMudar={(t) => mudar({ modoDePreparo: t || null })}
+                linhas={4}
+                maxLength={MODO_DE_PREPARO_MAXIMO}
+                ajuda={`O aluno vê como você escrever, com as quebras de linha. Até ${numeroParaTela(MODO_DE_PREPARO_MAXIMO)} caracteres.`}
+                erro={modoDePreparoValido(modoDePreparo) ? null : `Até ${numeroParaTela(MODO_DE_PREPARO_MAXIMO)} caracteres.`}
+              />
+            </>
+          ) : (
+            <BotaoDeTexto texto="Observação ou modo de preparo (opcional)" Icone={Plus} aoTocar={() => setExtrasAbertos(true)} />
+          )}
           {r.opcoes.length > 1 ? (
             <Texto variante="suave">O aluno escolhe uma das opções. O total do dia usa só a opção {r.opcoes[0].rotulo}.</Texto>
           ) : null}
@@ -238,7 +249,10 @@ function LinhaItem({
         <View style={estilos.quantidade}>
           <CampoNumerico rotulo="Quantidade" valor={item.quantidade} aoMudar={(quantidade) => mudar({ quantidade })} />
         </View>
-        <Escolha descricao="Unidade" opcoes={UNIDADES} valor={item.unidade} aoMudar={(unidade: UnidadeAlimento) => mudar({ unidade })} />
+        {/* Unidade numa lista suspensa ao lado da quantidade (04/11): os chips abertos repetiam em cada alimento e quebravam
+            a linha com as opções lado a lado. */}
+        <EscolhaSuspensa<UnidadeAlimento> rotulo="Unidade" titulo={`Unidade de ${item.nome || 'item'}`} opcoes={UNIDADES} valor={item.unidade}
+          aoMudar={(unidade) => mudar({ unidade })} style={estilos.unidade} />
         {/* Item da biblioteca: os valores ficam na mesma linha da quantidade; só o manual abre os campos de valor. */}
         {item.manual ? null : <Texto variante="suave" numerico style={estilos.valoresDoItem}>{textoTotais(somar([item]))}</Texto>}
       </View>
@@ -278,8 +292,11 @@ const estilos = StyleSheet.create({
   item: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.25), gap: espaco(1) },
   nomeItem: { fontFamily: fontes.semi },
   quantidade: { width: 120 },
+  // Mesma altura do campo da quantidade ao lado (a lista suspensa tem 52 de mínimo), como o RIR na série.
+  unidade: { width: 112, minHeight: 44, alignSelf: 'flex-end' },
   valor: { width: 92 },
   total: { fontFamily: fontes.semi },
-  valoresDoItem: { alignSelf: 'center', flexShrink: 1 },
+  // Sem espaço ao lado da quantidade e da unidade (opções lado a lado), os valores descem para a linha de baixo inteiros.
+  valoresDoItem: { alignSelf: 'center', flexGrow: 1, flexShrink: 1, flexBasis: 180 },
   botoes: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
 });

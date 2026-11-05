@@ -1,9 +1,9 @@
 import type { Serie } from '../api/tipos';
-import { opcoesDaCargaDaEtapa, opcoesDeReferencia, OPCOES_DE_RIR } from '../treinador/treino/opcoesDoEditor';
+import { opcoesDaCargaDaEtapa, OPCOES_DE_RIR } from '../treinador/treino/opcoesDoEditor';
 import { pacoteNoFormatoAtual } from '../offline/formatoDoPacote';
 import { agrupar, descreverGrupo, textoCarga, textoEsforcoDoGrupo } from './agrupamento';
 import { calcularCargasDoExercicio, metaDaSerie, textoDaOrigem } from './cargas';
-import { alterarEsforcoDaSerie, alterarGrupo, alterarPercentuais, cargaDoModo, modosDeCarga, seriesDaReceita } from './editorTreino';
+import { alterarGrupo, alterarPercentuais, alterarRirDaSerie, cargaDoModo, modosDeCarga, seriesDaReceita } from './editorTreino';
 import { carga, exercicio, rir, rpe, serie, sessao } from './exemplosDeTreino.apoioTeste';
 import { mostraRpe, mostraRpeNoPapel } from './metodologia';
 import { CONFIGURACAO_PADRAO } from './metodologiaPadrao';
@@ -14,14 +14,11 @@ import { validarExercicio } from './validacaoDoTreino';
 /** Carga fixa: kg escritos pelo treinador. */
 const fixa = (kg: number | null) => ({ ...carga('CARGA_FIXA'), valorKg: kg });
 const aquecimento = (uid: string, extra: Partial<Serie> = {}) => serie(uid, { tipo: 'WARM_UP', carga: fixa(12), ...extra });
-const modos = (papel?: Parameters<typeof modosDeCarga>[1], atual?: Parameters<typeof modosDeCarga>[2], comCarga?: boolean) => {
-  const { principais, outras } = modosDeCarga(CONFIGURACAO_PADRAO, papel, atual, comCarga);
-  return [...principais, ...outras].map((m) => m.valor);
-};
+const modos = (papel?: Parameters<typeof modosDeCarga>[1]) => modosDeCarga(CONFIGURACAO_PADRAO, papel).map((m) => m.valor);
 const mensagens = (e: ReturnType<typeof validarExercicio>['erros']) => e.map((x) => x.mensagem);
 
 describe('carga fixa: validação', () => {
-  it('exige kg maiores que zero, até 1000 e com no máximo 2 casas; sem percentual nem referência', () => {
+  it('exige kg maiores que zero, até 1000 e com no máximo 2 casas; sem percentual', () => {
     expect(problemasDaCarga(fixa(12))).toEqual({});
     expect(problemasDaCarga(fixa(12.25))).toEqual({});
     expect(problemasDaCarga(fixa(1000))).toEqual({});
@@ -29,7 +26,6 @@ describe('carga fixa: validação', () => {
       expect(problemasDaCarga(fixa(kg))).toEqual({ valorKg: 'Carga fixa: maior que zero e até 1000 kg.' });
     }
     expect(problemasDaCarga({ ...fixa(12), percentualMin: 10 })).toEqual({ percentualMin: 'Carga fixa não leva percentual.' });
-    expect(problemasDaCarga({ ...fixa(12), referenciaUid: 'x' })).toEqual({ referenciaUid: 'Carga fixa não leva série de referência.' });
   });
 
   it('as outras formas recusam valorKg', () => {
@@ -42,13 +38,11 @@ describe('carga fixa: validação', () => {
     expect(problemasDaSerie(aquecimento('a', { carga: fixa(null) }), false)).toHaveProperty(['carga.valorKg']);
   });
 
-  it('só em exercício com carga e nunca como referência de back off', () => {
+  it('só em exercício com carga', () => {
     const semCarga = exercicio('e', { unidade: 'nenhuma', series: [aquecimento('a')] });
     expect(mensagens(validarExercicio(semCarga, null).erros)).toContain('Carga fixa só em exercício com carga.');
     const comCarga = exercicio('e', { unidade: 'kg', series: [aquecimento('a'), serie('ws')] });
     expect(validarExercicio(comCarga, null).erros).toEqual([]);
-    const refFixa = exercicio('e', { series: [aquecimento('a'), serie('b', { tipo: 'BACK_OFF', carga: carga('ABAIXO_DA_REFERENCIA', 15, null, 'a') })] });
-    expect(mensagens(validarExercicio(refFixa, null).erros)).toContain('Carga fixa não serve de referência: escolha uma série com a carga do aluno.');
   });
 
   it('WS de 12 kg seguida de Back off em %: avisa que não há série de trabalho (a fixa não é a base do %)', () => {
@@ -61,11 +55,6 @@ describe('carga fixa: validação', () => {
     const comTrabalho = validarExercicio(exercicio('e', { unidade: 'kg', series: [serie('ws', { repsMin: 12, repsMax: 12 }), backOff] }), CONFIGURACAO_PADRAO);
     expect(mensagens(comTrabalho.avisos)).not.toContain(aviso);
   });
-
-  it('não é série de trabalho: não vira base da mesma carga', () => {
-    const e = exercicio('e', { series: [aquecimento('a'), serie('b', { tipo: 'FEEDER', carga: carga('MESMA_CARGA') })] });
-    expect(mensagens(validarExercicio(e, null).erros)).toContain('Mesma carga da WS: precisa de uma série de trabalho antes, no mesmo exercício.');
-  });
 });
 
 describe('carga fixa: texto, meta e sugestão', () => {
@@ -74,7 +63,7 @@ describe('carga fixa: texto, meta e sugestão', () => {
     expect(textoCarga(fixa(12.5))).toBe('12,5 kg');
     expect(textoCarga(fixa(null))).toBe('');
     const s = aquecimento('a', { repsMin: 10, repsMax: 10 });
-    expect(metaDaSerie(s, 'WS')).toBe('Meta: 10 reps · 12 kg');
+    expect(metaDaSerie(s, 'WS', false, CONFIGURACAO_PADRAO)).toBe('Meta: 10 reps · 12 kg');
     const [calculada] = calcularCargasDoExercicio(exercicio('e', { series: [s] }), 80, {}, { arredondamentoKg: 2.5, tipoTrabalho: 'WS' });
     expect(calculada.sugestao).toBe(12);
     expect(calculada.referencia).toBeNull();
@@ -83,16 +72,16 @@ describe('carga fixa: texto, meta e sugestão', () => {
 
   it('em exercício sem carga não mostra kg nem sugestão', () => {
     const s = aquecimento('a');
-    expect(metaDaSerie(s, 'WS', true)).not.toContain('kg');
+    expect(metaDaSerie(s, 'WS', true, CONFIGURACAO_PADRAO)).not.toContain('kg');
     const [calculada] = calcularCargasDoExercicio(exercicio('e', { unidade: 'nenhuma', series: [s] }), 80, {}, { arredondamentoKg: 2.5, tipoTrabalho: 'WS' });
     expect(calculada.sugestao).toBeNull();
   });
 
   it('a prévia do grupo (Para o aluno) traz a carga; sem kg ainda, sem linha de carga', () => {
     const [grupo] = agrupar([aquecimento('a')]);
-    expect(previaDoGrupo(grupo, grupo.series, CONFIGURACAO_PADRAO, {}).linhas).toContain('Carga: 12 kg');
+    expect(previaDoGrupo(grupo, CONFIGURACAO_PADRAO, {}).linhas).toContain('Carga: 12 kg');
     const [vazio] = agrupar([aquecimento('a', { carga: fixa(null) })]);
-    expect(previaDoGrupo(vazio, vazio.series, CONFIGURACAO_PADRAO, {}).linhas.some((l) => l.startsWith('Carga'))).toBe(false);
+    expect(previaDoGrupo(vazio, CONFIGURACAO_PADRAO, {}).linhas.some((l) => l.startsWith('Carga'))).toBe(false);
   });
 
   it('o resumo do grupo leva os kg; kg diferentes não se juntam', () => {
@@ -104,26 +93,19 @@ describe('carga fixa: texto, meta e sugestão', () => {
 });
 
 describe('carga fixa: editor', () => {
-  it('só é oferecida em exercício com carga, em todos os papéis; a série que já é fixa a mantém', () => {
-    expect(modos()).not.toContain('CARGA_FIXA');
-    expect(modos('TRABALHO')).not.toContain('CARGA_FIXA');
+  it('é oferecida em todos os papéis que aceitam carga, e só neles', () => {
     for (const papel of ['AQUECIMENTO', 'PREPARACAO', 'TRABALHO', 'POS_TRABALHO', 'OUTRO', null] as const) {
-      expect(modos(papel, null, true)).toContain('CARGA_FIXA');
+      expect(modos(papel)).toContain('CARGA_FIXA');
     }
-    expect(modos('TRABALHO', 'CARGA_FIXA', true)).toContain('CARGA_FIXA');
-    expect(modos('AQUECIMENTO', 'CARGA_FIXA')).toContain('CARGA_FIXA');
+    expect(modos()).toContain('CARGA_FIXA');
   });
 
-  it('na série de trabalho fica em "Outras formas de carga": o padrão continua a carga de trabalho', () => {
-    const ws = modosDeCarga(CONFIGURACAO_PADRAO, 'TRABALHO', 'CARGA_TRABALHO', true);
-    expect(ws.principais.map((m) => m.valor)).toEqual(['CARGA_TRABALHO', 'ACIMA_DA_ANTERIOR']);
-    expect(ws.outras.map((m) => m.valor)).toContain('CARGA_FIXA');
-    // Já gravada, sobe para as principais (a forma escolhida nunca fica escondida).
-    expect(modosDeCarga(CONFIGURACAO_PADRAO, 'TRABALHO', 'CARGA_FIXA', true).principais.map((m) => m.valor)).toContain('CARGA_FIXA');
+  it('a série de trabalho oferece a carga de trabalho e a fixa', () => {
+    expect(modos('TRABALHO')).toEqual(['CARGA_TRABALHO', 'CARGA_FIXA']);
   });
 
   it('nasce vazia (kg nulos) e some ao trocar de forma; as outras formas não ganham valorKg', () => {
-    expect(cargaDoModo('CARGA_FIXA')).toEqual({ modo: 'CARGA_FIXA', percentualMin: null, percentualMax: null, referenciaUid: null, valorKg: null });
+    expect(cargaDoModo('CARGA_FIXA')).toEqual({ modo: 'CARGA_FIXA', percentualMin: null, percentualMax: null, valorKg: null });
     expect(cargaDoModo('PERCENTUAL_WS')).not.toHaveProperty('valorKg');
     const series = [aquecimento('a'), aquecimento('b')];
     const [grupo] = agrupar(series);
@@ -131,16 +113,11 @@ describe('carga fixa: editor', () => {
     expect(trocado.every((s) => s.carga?.modo === 'PERCENTUAL_WS' && s.carga.valorKg == null)).toBe(true);
     const fixado = alterarGrupo(series, grupo, { carga: { valorKg: 20 } }, CONFIGURACAO_PADRAO);
     expect(fixado.map((s) => s.carga?.valorKg)).toEqual([20, 20]);
-    expect(alterarPercentuais(series, 0, 50, 60)[0].carga).toEqual({ modo: 'PERCENTUAL_WS', percentualMin: 50, percentualMax: 60, referenciaUid: null });
+    expect(alterarPercentuais(series, 0, 50, 60)[0].carga).toEqual({ modo: 'PERCENTUAL_WS', percentualMin: 50, percentualMax: 60 });
   });
 
   it('a cópia de séries (receita) preserva os kg', () => {
     expect(seriesDaReceita({ series: [aquecimento('a')] })[0].carga?.valorKg).toBe(12);
-  });
-
-  it('a série de carga fixa não aparece como referência do back off e a numeração se mantém', () => {
-    const series = [aquecimento('a'), serie('b'), serie('c')];
-    expect(opcoesDeReferencia(series, 3, CONFIGURACAO_PADRAO).map((o) => o.rotulo.slice(0, 7))).toEqual(['Série 2', 'Série 3']);
   });
 
   it('a carga das etapas usa o mesmo texto da carga da série (C03)', () => {
@@ -177,9 +154,10 @@ describe('RIR de 0 a 10, por série, dentro do mesmo grupo', () => {
     expect(agrupar(quatro())).toHaveLength(1);
   });
 
-  it('RIR e RPE continuam separando (a forma é da chave), e esforço ausente também', () => {
+  it('RIR e esforço ausente são um grupo; RPE não se junta a RIR (o texto do grupo perderia o RPE)', () => {
     expect(agrupar([serie('a', { esforco: rir(2) }), serie('b', { esforco: rpe(8) })])).toHaveLength(2);
-    expect(agrupar([serie('a', { esforco: rir(2) }), serie('b')])).toHaveLength(2);
+    expect(agrupar([serie('a', { esforco: rir(2) }), serie('b')])).toHaveLength(1);
+    expect(textoEsforcoDoGrupo({ series: [serie('a', { esforco: rir(2) }), serie('b')] })).toBe('RIR 2, —');
   });
 
   it('o texto do grupo lista o RIR de cada série; igual vira um só', () => {
@@ -190,22 +168,22 @@ describe('RIR de 0 a 10, por série, dentro do mesmo grupo', () => {
     expect(textoEsforcoDoGrupo({ series: [serie('a', { esforco: rir(1) }), serie('b', { esforco: rir(0) })] })).toBe('RIR 1, falha');
     expect(textoEsforcoDoGrupo({ series: [serie('a', { esforco: rpe(7) }), serie('b', { esforco: rpe(8.5) })] })).toBe('RPE 7, 8,5');
     expect(textoEsforcoDoGrupo({ series: [serie('a'), serie('b')] })).toBe('');
-    expect(previaDoGrupo(g, quatro(), CONFIGURACAO_PADRAO, {}).linhas).toContain('Esforço: RIR 3, 2, 2, 1');
+    expect(previaDoGrupo(g, CONFIGURACAO_PADRAO, {}).linhas).toContain('Esforço: RIR 3, 2, 2, 1');
   });
 
-  it('alterarEsforcoDaSerie muda só o número daquela série, na forma que ela já tem', () => {
-    const depois = alterarEsforcoDaSerie(quatro(), 1, 5);
+  it('alterarRirDaSerie muda só o RIR daquela série, sem tirar a série do grupo', () => {
+    const depois = alterarRirDaSerie(quatro(), 1, 5);
     expect(depois.map((s) => s.esforco?.rir)).toEqual([3, 5, 2, 1]);
     expect(agrupar(depois)).toHaveLength(1);
-    expect(alterarEsforcoDaSerie(quatro(), 0, 0)[0].esforco).toEqual({ rir: 0, rpe: null });
-    expect(alterarEsforcoDaSerie([serie('a', { esforco: rpe(7) })], 0, 9)[0].esforco).toEqual({ rir: null, rpe: 9 });
+    expect(alterarRirDaSerie(quatro(), 0, 0)[0].esforco).toEqual({ rir: 0, rpe: null });
+    expect(alterarRirDaSerie([serie('a', { esforco: rpe(7) })], 0, 9)[0].esforco).toEqual({ rir: 9, rpe: null });
   });
 
-  it('não muda sem esforço na série, com valor nulo ou com índice fora da lista', () => {
+  it('põe o RIR em série sem esforço, tira com nulo e ignora índice fora da lista', () => {
     const series = [serie('a'), serie('b', { esforco: rir(2) })];
-    expect(alterarEsforcoDaSerie(series, 0, 3)[0].esforco).toBeNull();
-    expect(alterarEsforcoDaSerie(series, 1, null)[1].esforco).toEqual({ rir: 2, rpe: null });
-    expect(alterarEsforcoDaSerie(series, 7, 3)).toEqual(series);
+    expect(alterarRirDaSerie(series, 0, 3)[0].esforco).toEqual({ rir: 3, rpe: null });
+    expect(alterarRirDaSerie(series, 1, null)[1].esforco).toBeNull();
+    expect(alterarRirDaSerie(series, 7, 3)).toEqual(series);
   });
 
   it('alterarGrupo segue copiando o esforço para todas as séries do grupo', () => {
@@ -218,7 +196,7 @@ describe('RIR de 0 a 10, por série, dentro do mesmo grupo', () => {
     const series = quatro();
     const [g] = agrupar(series);
     const mudancas = [
-      { repsMin: 10, repsMax: 12 }, { descansoSegundos: 90 }, { modo: 'ACIMA_DA_ANTERIOR' as const },
+      { repsMin: 10, repsMax: 12 }, { descansoSegundos: 90 }, { modo: 'CARGA_TRABALHO' as const },
       { carga: { modo: 'CARGA_FIXA' as const, valorKg: 12 } }, { tecnica: null }, { amrap: true },
     ];
     for (const mudanca of mudancas) {

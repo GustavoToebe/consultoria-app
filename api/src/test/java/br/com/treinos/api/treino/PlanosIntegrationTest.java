@@ -128,24 +128,21 @@ class PlanosIntegrationTest extends AbstractIntegrationTest {
         JsonNode plano = api.post("/alunos/" + aluno + "/planos-treino", treinador, Map.of("titulo", "Plano"), 200);
         String id = plano.get("plano").get("id").asString();
         Carga carga = Carga.de("CARGA_TRABALHO");
-        // Cluster com um bloco de 0 e pausa de 2 s; rest pause com 700 s e 9 pausas; técnica desconhecida; série em
-        // "mesma carga da WS" sem série de trabalho antes.
+        // Cluster com um bloco de 0 e pausa de 2 s; rest pause com 700 s e 9 pausas; técnica desconhecida.
         Serie clusterRuim = Serie.de(UUID.randomUUID(), "WORKING", 6, 6, carga)
                 .comTecnica(Tecnica.cluster(List.of(0), 2, null));
         Serie restPauseRuim = Serie.de(UUID.randomUUID(), "WORKING", 6, 8, carga)
                 .comTecnica(Tecnica.restPause(700, null, 9));
         Serie desconhecida = Serie.de(UUID.randomUUID(), "WORKING", 3, 6, carga).comTecnica(Tecnica.vazia("PIRAMIDE"));
-        Serie semTrabalhoAntes = Serie.de(UUID.randomUUID(), "WORKING", 6, 8, Carga.de("MESMA_CARGA"));
         JsonNode salvo = api.put("/planos-treino/" + id + "/rascunho", treinador, ApiDeTeste.rascunho("Plano",
-                comSeries(List.of(semTrabalhoAntes, clusterRuim, restPauseRuim, desconhecida)),
+                comSeries(List.of(clusterRuim, restPauseRuim, desconhecida)),
                 plano.get("plano").get("versao").asLong()), 200);
         String base = "sessoes[0].exercicios[0].series[";
         assertThat(api.post("/planos-treino/" + id + "/validar", treinador, null, 200).get("erros").valueStream()
                 .map(e -> e.get("caminho").asString())).contains(
-                base + "0].carga.modo",
-                base + "1].tecnica.blocos", base + "1].tecnica.pausaSegundos",
-                base + "2].tecnica.pausaSegundos", base + "2].tecnica.pausas",
-                base + "3].tecnica.tipo");
+                base + "0].tecnica.blocos", base + "0].tecnica.pausaSegundos",
+                base + "1].tecnica.pausaSegundos", base + "1].tecnica.pausas",
+                base + "2].tecnica.tipo");
 
         // Corretas: WS em cluster 2+2+2 com 20 s (6 repetições = soma dos blocos) e, em outra WS, rest pause de 20 s com
         // 2 pausas, as duas na própria série de trabalho. Chegam iguais na leitura.
@@ -222,17 +219,16 @@ class PlanosIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void planoDaReceitaPadraoNasceComSessoesEUidsNovos() throws Exception {
-        JsonNode receitas = api.get("/receitas?tipo=PLANO_TREINO", treinador, 200);
-        String semana = receitas.valueStream()
-                .filter(r -> r.get("nome").asString().equals("Semana 5 treinos + 2 off ativos"))
-                .findFirst().orElseThrow().get("id").asString();
+    void planoDeUmModeloNasceComSessoesEUidsNovos() throws Exception {
+        ConteudoTreino molde = ApiDeTeste.treino().conteudo();
+        String modelo = api.post("/receitas", treinador, Map.of("tipo", "PLANO_TREINO", "nome", "Semana " + UUID.randomUUID(),
+                "conteudo", molde), 200).get("id").asString();
         JsonNode plano = api.post("/alunos/" + aluno + "/planos-treino", treinador,
-                Map.of("titulo", "Da receita", "receitaId", semana), 200);
+                Map.of("titulo", "Do modelo", "receitaId", modelo), 200);
         JsonNode sessoes = plano.get("rascunho").get("sessoes");
-        assertThat(sessoes).hasSize(7);
-        assertThat(sessoes.get(3).get("tipo").asString()).isEqualTo("DESCANSO_ATIVO");
+        assertThat(sessoes).hasSameSizeAs(molde.sessoes());
         assertThat(sessoes.get(0).get("uid").isNull()).isFalse();
+        assertThat(sessoes.get(0).get("uid").asString()).isNotEqualTo(molde.sessoes().get(0).uid().toString());
     }
 
     private static ConteudoTreino comSeries(List<Serie> series) {

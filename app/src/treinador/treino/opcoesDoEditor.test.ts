@@ -6,7 +6,6 @@ import {
   formaDoEsforco,
   OPCOES_DE_RIR,
   opcoesDeCombinacao,
-  opcoesDeReferencia,
   opcoesDeTecnica,
   opcoesDeTipo,
   formaDasRepeticoes,
@@ -73,33 +72,20 @@ describe('tipos, técnicas e combinações pelo nome', () => {
   it('sete combinações', () => {
     expect(opcoesDeCombinacao(cfg)).toHaveLength(7);
   });
-  it('a série de referência é uma das anteriores', () => {
-    const series = [serie('FEEDER'), serie('WORKING'), serie('BACK_OFF')];
-    const opcoes = opcoesDeReferencia(series, 2, cfg);
-    expect(opcoes).toEqual([
-      { valor: series[0].uid, rotulo: 'Série 1 · FS' },
-      { valor: series[1].uid, rotulo: 'Série 2 · WS' },
-    ]);
-    expect(opcoesDeReferencia(series, 0, cfg)).toEqual([]);
-    expect(opcoesDeReferencia(series, -3, cfg)).toEqual([]);
-  });
 });
 
 describe('carga', () => {
-  it('só as formas com percentual têm rótulos de faixa, e o % é sempre da série de trabalho', () => {
+  it('só o % da WS tem rótulos de faixa, e o % é sempre da série de trabalho', () => {
     expect(rotulosDaFaixa('PERCENTUAL_WS', cfg)).toMatchObject({ minimo: 'Mínimo', maximo: 'Máximo' });
     expect(rotulosDaFaixa('PERCENTUAL_WS', cfg)?.ajuda).toMatch(/carga da WS \(o tipo de trabalho\), nunca do 1RM/);
-    expect(rotulosDaFaixa('ACIMA_DA_ANTERIOR', cfg)?.ajuda).toMatch(/nunca do 1RM/);
-    expect(rotulosDaFaixa('ABAIXO_DA_REFERENCIA', cfg)?.ajuda).toMatch(/nunca do 1RM/);
-    expect(rotulosDaFaixa('ACIMA_DA_ANTERIOR', cfg)).not.toBeNull();
-    expect(rotulosDaFaixa('ABAIXO_DA_REFERENCIA', cfg)).not.toBeNull();
     expect(rotulosDaFaixa('CARGA_TRABALHO', cfg)).toBeNull();
-    expect(rotulosDaFaixa('MESMA_CARGA', cfg)).toBeNull();
+    expect(rotulosDaFaixa('CARGA_FIXA', cfg)).toBeNull();
+    expect(rotulosDaFaixa('NENHUMA', cfg)).toBeNull();
     expect(rotulosDaFaixa(null, cfg)).toBeNull();
   });
   it('ajuda curta das formas sem faixa', () => {
     expect(ajudaDaCarga('CARGA_TRABALHO', cfg)).toMatch(/WS/);
-    expect(ajudaDaCarga('MESMA_CARGA', cfg)).toMatch(/última série de trabalho/);
+    expect(ajudaDaCarga('CARGA_FIXA', cfg, 'lb')).toMatch(/lb/);
     expect(ajudaDaCarga('NENHUMA', cfg)).toMatch(/não recebe sugestão/);
     expect(ajudaDaCarga('PERCENTUAL_WS', cfg)).toBeNull();
   });
@@ -118,30 +104,22 @@ describe('seções do editor', () => {
 
 describe('prévia "Para o aluno"', () => {
   it('abre com o nome do tipo, nunca o código', () => {
-    const series = [serie('WORKING', { repsMin: 3, repsMax: 6, carga: { modo: 'CARGA_TRABALHO', percentualMin: null, percentualMax: null, referenciaUid: null } })];
+    const series = [serie('WORKING', { repsMin: 3, repsMax: 6, carga: { modo: 'CARGA_TRABALHO', percentualMin: null, percentualMax: null } })];
     const previa = previaDaSerie(series, 0, cfg);
     expect(previa.meta.startsWith('WS · ')).toBe(true);
     expect(previa.meta).not.toContain('WORKING');
     expect(previa.meta).toContain('3 a 6');
   });
   it('percentual diz de onde sai a carga', () => {
-    const trabalho = serie('WORKING', { carga: { modo: 'CARGA_TRABALHO', percentualMin: null, percentualMax: null, referenciaUid: null } });
-    const pct = serie('BACK_OFF', { carga: { modo: 'PERCENTUAL_WS', percentualMin: 85, percentualMax: null, referenciaUid: null } });
+    const trabalho = serie('WORKING', { carga: { modo: 'CARGA_TRABALHO', percentualMin: null, percentualMax: null } });
+    const pct = serie('BACK_OFF', { carga: { modo: 'PERCENTUAL_WS', percentualMin: 85, percentualMax: null } });
     expect(referenciaDaCarga([trabalho, pct], 1, cfg)).toBe('Referência: a carga registrada na série 1 (WS).');
     expect(referenciaDaCarga([pct], 0, cfg)).toBe('Referência: a carga de trabalho do dia, que o aluno informa.');
     expect(referenciaDaCarga([trabalho], 0, cfg)).toBeNull();
   });
-  it('acima da anterior sem série anterior avisa; abaixo da referência pede a escolha', () => {
-    const acima = serie('TOP_SET', { carga: { modo: 'ACIMA_DA_ANTERIOR', percentualMin: 5, percentualMax: null, referenciaUid: null } });
-    expect(referenciaDaCarga([acima], 0, cfg)).toMatch(/Sem série anterior/);
-    const abaixo = serie('BACK_OFF', { carga: { modo: 'ABAIXO_DA_REFERENCIA', percentualMin: 10, percentualMax: null, referenciaUid: null } });
-    expect(referenciaDaCarga([acima, abaixo], 1, cfg)).toBe('Escolha a série de referência.');
-    const apontada = { ...abaixo, carga: { ...abaixo.carga!, referenciaUid: acima.uid } };
-    expect(referenciaDaCarga([acima, apontada], 1, cfg)).toBe('Referência: a carga registrada na série 1 (Top set).');
-  });
   it('cardio e exercício sem carga não falam de referência', () => {
     expect(previaDaSerie([{ ...novaSerieDeCardio(), uid: 'cardio-1' }], 0, cfg).referencia).toBeNull();
-    const pct = serie('BACK_OFF', { carga: { modo: 'PERCENTUAL_WS', percentualMin: 85, percentualMax: null, referenciaUid: null } });
+    const pct = serie('BACK_OFF', { carga: { modo: 'PERCENTUAL_WS', percentualMin: 85, percentualMax: null } });
     expect(previaDaSerie([pct], 0, cfg, true).referencia).toBeNull();
   });
 });

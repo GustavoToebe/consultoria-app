@@ -163,7 +163,7 @@ class BibliotecaIntegrationTest extends AbstractIntegrationTest {
         assertThat(receitas).hasSize(ReceitasPadrao.todas().size());
         assertThat(api.get("/receitas?tipo=METODOLOGIA", treinador, 200)).hasSize(1);
         assertThat(api.get("/receitas?tipo=SERIES", treinador, 200).valueStream().map(r -> r.get("nome").asString()))
-                .contains("Aquecimento + 3 FS + WS + 2 Back off 85%", "Séries simples 3x8-12", "WS + Rest pause", "WS + Top set + 2 Back off")
+                .contains("Aquecimento + 3 FS + WS + 2 Back off 85%", "Séries simples 3x8-12", "WS + Rest pause", "3 FS + WS + Rest pause", "3 FS + Cluster")
                 .doesNotContain("Cardio");
         api.post("/receitas", treinador, Map.of("tipo", "PLANO_TREINO", "nome", "Inválida",
                 "conteudo", Map.of("sessoes", "isto não é lista")), 400);

@@ -2,11 +2,10 @@ import type { Carga, Esforco, ExercicioPlano, Grupo, Serie, Sessao, Tecnica } fr
 
 /** Fábricas de teste (nunca importadas pelo app): dados fictícios no formato novo de séries, grupos e cargas. */
 
-export const carga = (modo: Carga['modo'], percentualMin: number | null = null, percentualMax: number | null = null, referenciaUid: string | null = null): Carga => ({
+export const carga = (modo: Carga['modo'], percentualMin: number | null = null, percentualMax: number | null = null): Carga => ({
   modo,
   percentualMin,
   percentualMax,
-  referenciaUid,
 });
 
 export const rir = (valor: number): Esforco => ({ rir: valor, rpe: null });

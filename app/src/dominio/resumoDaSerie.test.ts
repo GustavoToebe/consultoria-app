@@ -34,7 +34,7 @@ describe('leitura curta da série (análise 2, A6)', () => {
   });
 
   it('prévia do grupo: resumo e só o que está informado', () => {
-    const p = previaDoGrupo({ series: [cluster4x4] }, [cluster4x4], config, { descansoPorSerie: true });
+    const p = previaDoGrupo({ series: [cluster4x4] }, config, { descansoPorSerie: true });
     expect(p.resumo).toBe('1 série completa · 4 blocos de 4 reps · pausa de 15 s');
     expect(p.linhas).toEqual(['Carga: carga de trabalho (a base do dia, que o aluno informa)', 'Descanso depois da série: não informado']);
   });
@@ -42,7 +42,7 @@ describe('leitura curta da série (análise 2, A6)', () => {
   it('percentuais por série juntos, referência, esforço, descanso e alvo extra', () => {
     const a = serie('a', { tipo: 'FEEDER', repsMin: 3, repsMax: 3, carga: carga('PERCENTUAL_WS', 50), esforco: rir(2), descansoSegundos: 90, alvoExtra: 'Controle' });
     const b = { ...a, uid: 'b', carga: carga('PERCENTUAL_WS', 70) };
-    const p = previaDoGrupo({ series: [a, b] }, [a, b], config, { referencia: 'Referência: a carga de trabalho do dia, que o aluno informa.' });
+    const p = previaDoGrupo({ series: [a, b] }, config, { referencia: 'Referência: a carga de trabalho do dia, que o aluno informa.' });
     expect(p.resumo).toBe('2 séries completas · 3 reps');
     expect(p.linhas).toEqual([
       'Carga: 50% · 70% da WS',
@@ -54,12 +54,12 @@ describe('leitura curta da série (análise 2, A6)', () => {
   });
 
   it('sem carga no exercício e descanso do grupo: nada de carga nem descanso', () => {
-    const p = previaDoGrupo({ series: [cluster4x4] }, [cluster4x4], config, { semCarga: true, descansoPorSerie: false });
+    const p = previaDoGrupo({ series: [cluster4x4] }, config, { semCarga: true, descansoPorSerie: false });
     expect(p.linhas).toEqual([]);
   });
 
   it('RIR 0 diz "até a falha"', () => {
     const s = serie('x', { esforco: rir(0) });
-    expect(previaDoGrupo({ series: [s] }, [s], config, {}).linhas).toContain('Esforço: até a falha');
+    expect(previaDoGrupo({ series: [s] }, config, {}).linhas).toContain('Esforço: até a falha');
   });
 });

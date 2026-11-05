@@ -296,6 +296,44 @@ class InscricaoComPerguntasIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.get("/inscricoes?situacao=TODAS", admin, 200).path("total").asLong()).isZero();
     }
 
+    /**
+     * Consultoria sem nenhum questionário de inscrição (zerada): a página pública abre (200) só com os campos fixos e
+     * {@code perguntas} nulo; o envio sem versão e sem respostas segue (202); com versão ou com respostas é 409
+     * {@code PERGUNTAS_ALTERADAS} (a página recarrega). Criar e definir um padrão novo, sem padrão anterior, devolve as perguntas.
+     */
+    @Test
+    void semPadraoDeInscricaoAPaginaAbreSoComOsCamposFixosEOEnvioSegue() throws Exception {
+        UUID consultoria = consultoriaDe(admin);
+        String codigo = abrirLink(admin);
+        assertThat(banco.update("delete from questionario where consultoria_id = ? and finalidade = 'INSCRICAO'", consultoria))
+                .isEqualTo(1);
+        assertThat(api.get("/questionarios?finalidade=INSCRICAO", admin, 200)).isEmpty();
+
+        JsonNode pagina = pagina(codigo);
+        assertThat(semValor(pagina.path("perguntas"))).isTrue();
+        assertThat(pagina.path("campos")).hasSize(7);
+
+        // Com versão ou com respostas, sem padrão: 409 e nada gravado.
+        Map<String, Object> comVersao = inscricao("Pessoa Fictícia Com Versão");
+        comVersao.put("questionarioVersaoId", UUID.randomUUID().toString());
+        comVersao.put("respostas", Map.of("observacao", "x"));
+        assertThat(api.post("/publico/inscricoes/" + codigo, null, comVersao, 409).path("codigo").asString())
+                .isEqualTo("PERGUNTAS_ALTERADAS");
+        Map<String, Object> soRespostas = inscricao("Pessoa Fictícia Só Respostas");
+        soRespostas.put("respostas", Map.of("observacao", "x"));
+        api.post("/publico/inscricoes/" + codigo, null, soRespostas, 409);
+        assertThat(api.get("/inscricoes?situacao=TODAS", admin, 200).path("total").asLong()).isZero();
+
+        // Sem nenhuma das duas, a inscrição entra só com os campos fixos.
+        api.post("/publico/inscricoes/" + codigo, null, inscricao("Pessoa Fictícia Sem Perguntas"), 202);
+        JsonNode detalhe = api.get("/inscricoes/" + unica(admin).path("id").asString(), admin, 200);
+        assertThat(semValor(detalhe.path("respostas"))).isTrue();
+
+        // O treinador cria e define um padrão novo (nenhum padrão anterior para desmarcar): as perguntas voltam.
+        novoPadrao(admin, "Inscrição recriada fictícia", List.of(pergunta("t", "TEXTO")));
+        assertThat(pagina(codigo).path("perguntas").path("versaoId").asString()).isNotEmpty();
+    }
+
     // ---- uso, privacidade e auditoria ----
 
     @Test

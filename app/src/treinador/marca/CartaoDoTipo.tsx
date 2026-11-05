@@ -1,9 +1,9 @@
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
-import type { Configuracao, ModalidadeComPadrao, PadraoPorModalidade } from '../../api/tipos';
+import type { Configuracao } from '../../api/tipos';
 import type { TipoEmEdicao } from '../../dominio/edicaoMetodologia';
 import { cargaDoModo } from '../../dominio/editorTreino';
-import { copiarCarga, copiarEsforco, mostraRpeNoPapel, PAPEIS, resumoDoTipo, tipoTrabalho } from '../../dominio/metodologia';
+import { PAPEIS, resumoDoTipo, tipoTrabalho } from '../../dominio/metodologia';
 import type { Problemas } from '../../dominio/validacaoDeSerie';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
@@ -16,14 +16,10 @@ import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { Texto } from '../../ui/Texto';
-import { CamposDoEsforco, EscolhaDeCarga, ErroDoCampo, FaixaDeCarga } from '../treino/CamposDaPrescricao';
+import { CampoDaCargaFixa, ErroDoCampo, EscolhaDoRir, FaixaDeCarga } from '../treino/CamposDaPrescricao';
+import { escolhaDeCargaDoPapel } from '../treino/cargaDaSerie';
 import { subProblemas } from '../treino/opcoesDoEditor';
 
-const MODALIDADES: { valor: ModalidadeComPadrao; rotulo: string }[] = [
-  { valor: 'LIVRE', rotulo: 'Peso livre' },
-  { valor: 'MAQUINA', rotulo: 'Máquina' },
-];
-const USO = [{ valor: 'PADRAO', rotulo: 'Usar o padrão' }, { valor: 'PROPRIA', rotulo: 'Personalizar' }];
 const LIMITE_EXPLICACAO = 500;
 
 interface Props {
@@ -40,24 +36,11 @@ interface Props {
   aoMudar: (parte: Partial<TipoEmEdicao>) => void;
 }
 
-/** Um tipo de série: identificação, prescrição padrão (repetições, carga, esforço, variação por modalidade, regra) e explicação. */
+/** Um tipo de série: identificação, prescrição padrão (repetições, carga, RIR, regra de percentuais) e explicação. */
 export function CartaoDoTipo({ tipo: t, config, problemas: p, posicao, total, aberto, aoAlternar, aoMover, aoRemover, aoMudar }: Props) {
   const { cores } = useTema();
   const nome = t.nome.trim() || 'Novo tipo';
   const quantos = Object.keys(p).length;
-  const mudarPadraoDaModalidade = (m: ModalidadeComPadrao, parte: Partial<PadraoPorModalidade>) => {
-    const atual = t.porModalidade?.[m] ?? { carga: null, esforco: null };
-    aoMudar({ porModalidade: { ...t.porModalidade, [m]: { ...atual, ...parte } } });
-  };
-  const aoUsoDaModalidade = (m: ModalidadeComPadrao, uso: string) => {
-    if (uso === 'PROPRIA') {
-      aoMudar({ porModalidade: { ...t.porModalidade, [m]: { carga: copiarCarga(t.cargaPadrao), esforco: copiarEsforco(t.esforcoPadrao) } } });
-    } else {
-      const variacoes = { ...t.porModalidade };
-      delete variacoes[m];
-      aoMudar({ porModalidade: Object.keys(variacoes).length ? variacoes : null });
-    }
-  };
   return <Cartao cabecalho={<CabecalhoDeGrupo titulo={nome} resumo={resumoDoTipo(t, tipoTrabalho(config))} selo={quantos > 0 ? { texto: `${quantos} ${quantos === 1 ? 'problema' : 'problemas'}`, tipo: 'perigo' } : undefined}
     aberto={aberto} aoAlternar={aoAlternar} acoes={<>
       <IconeBotao Icone={ArrowUp} rotulo={`Subir o tipo ${nome}`} desabilitado={posicao === 0} aoTocar={() => aoMover(-1)} />
@@ -91,31 +74,14 @@ export function CartaoDoTipo({ tipo: t, config, problemas: p, posicao, total, ab
         </View>
         <ErroDoCampo mensagem={p.repeticoes} />
 
-        <Texto variante="rotulo">Carga padrão</Texto>
         <PadraoDeCarga carga={t.cargaPadrao} config={config} papel={t.papel} aoMudar={(cargaPadrao) => aoMudar({ cargaPadrao })} erros={subProblemas(p, 'cargaPadrao')} />
 
-        {/* Aquecimento e preparação não oferecem RPE (como na série); um RPE já gravado continua visível e editável. */}
-        <Texto variante="rotulo">Esforço padrão</Texto>
-        <CamposDoEsforco esforco={t.esforcoPadrao} aoMudar={(esforcoPadrao) => aoMudar({ esforcoPadrao })} erros={subProblemas(p, 'esforcoPadrao')} rotulo="Esforço"
-          semRpe={!mostraRpeNoPapel(t.papel, t.esforcoPadrao)} />
-      </View>
-
-      <View style={estilos.secao}>
-        <Texto variante="secao">Variação por modalidade</Texto>
-        <Texto variante="pequeno">Só peso livre e máquina têm variação; as outras modalidades usam o padrão. A variação troca carga e esforço juntos.</Texto>
-        {MODALIDADES.map((m) => {
-          const propria = t.porModalidade?.[m.valor];
-          const erros = subProblemas(p, `porModalidade.${m.valor}`);
-          return <View key={m.valor} style={estilos.secao}>
-            <Escolha rotulo={m.rotulo} valor={propria ? 'PROPRIA' : 'PADRAO'} opcoes={USO} aoMudar={(uso) => aoUsoDaModalidade(m.valor, uso)} />
-            {propria ? <View style={estilos.variacao}>
-              <PadraoDeCarga carga={propria.carga} config={config} papel={t.papel} aoMudar={(carga) => mudarPadraoDaModalidade(m.valor, { carga })} erros={subProblemas(erros, 'carga')} rotulo={`Carga em ${m.rotulo.toLowerCase()}`} />
-              <CamposDoEsforco esforco={propria.esforco} aoMudar={(esforco) => mudarPadraoDaModalidade(m.valor, { esforco })} erros={subProblemas(erros, 'esforco')} rotulo={`Esforço em ${m.rotulo.toLowerCase()}`}
-                semRpe={!mostraRpeNoPapel(t.papel, propria.esforco)} />
-            </View> : null}
-          </View>;
-        })}
-        <ErroDoCampo mensagem={p.porModalidade} />
+        {/* O mesmo RIR da série: "Não prescrito", 0 (falha) a 10. Escolher troca um RPE antigo que houvesse. */}
+        <View style={estilos.rir}>
+          <EscolhaDoRir rotulo="RIR padrão" valor={t.esforcoPadrao?.rir ?? null} aoMudar={(rir) => aoMudar({ esforcoPadrao: rir == null ? null : { rir, rpe: null } })} />
+        </View>
+        {t.esforcoPadrao?.rpe != null ? <Texto variante="pequeno">Este tipo tem RPE {t.esforcoPadrao.rpe.toLocaleString('pt-BR')} como padrão. Escolher um RIR troca o RPE.</Texto> : null}
+        <ErroDoCampo mensagem={p['esforcoPadrao.rir'] ?? p['esforcoPadrao.rpe'] ?? p.esforcoPadrao} />
       </View>
 
       {t.papel === 'PREPARACAO' ? <RegraDePercentuais tipo={t} erros={p} aoMudar={(regraPercentuais) => aoMudar({ regraPercentuais })} /> : null}
@@ -123,14 +89,20 @@ export function CartaoDoTipo({ tipo: t, config, problemas: p, posicao, total, ab
   </Cartao>;
 }
 
-/** Carga padrão: a forma e, nas formas com percentual, a faixa. A série de referência do "abaixo da referência" nasce na série. */
-function PadraoDeCarga({ carga, config, papel, aoMudar, erros, rotulo = 'Forma de carga' }: {
-  carga: TipoEmEdicao['cargaPadrao']; config: Configuracao; papel: TipoEmEdicao['papel']; aoMudar: (c: TipoEmEdicao['cargaPadrao']) => void; erros: Problemas; rotulo?: string;
+/**
+ * Carga padrão pelo papel, como o seletor da série: "% da WS" ou "Sem sugestão" fora do trabalho, "Carga de trabalho" no
+ * trabalho. Sem carga fixa: os kg são da série de um exercício. No "% da WS", a faixa.
+ */
+function PadraoDeCarga({ carga, config, papel, aoMudar, erros }: {
+  carga: TipoEmEdicao['cargaPadrao']; config: Configuracao; papel: TipoEmEdicao['papel']; aoMudar: (c: TipoEmEdicao['cargaPadrao']) => void; erros: Problemas;
 }) {
+  const { opcoes, marcado } = escolhaDeCargaDoPapel(config, papel, carga?.modo ?? 'NENHUMA', 'kg', 'padrao');
   return <View style={estilos.secao}>
-    <EscolhaDeCarga carga={carga} config={config} papel={papel} rotulo={rotulo} erro={erros.modo} aoMudarModo={(modo) => aoMudar(cargaDoModo(modo))} />
+    <Escolha rotulo="Carga padrão" opcoes={opcoes} valor={marcado} aoMudar={(modo) => aoMudar(cargaDoModo(modo))} />
+    <ErroDoCampo mensagem={erros.modo} />
+    {carga?.modo === 'CARGA_FIXA' ? <CampoDaCargaFixa emKg rotulo="Peso da carga fixa padrão" valor={carga.valorKg} erro={erros.valorKg}
+      aoMudar={(valorKg) => aoMudar({ ...carga, valorKg })} /> : null}
     <FaixaDeCarga carga={carga} config={config} erros={erros} aoMudar={(percentualMin, percentualMax) => aoMudar({ ...(carga ?? { modo: 'NENHUMA' }), percentualMin, percentualMax })} />
-    {carga?.modo === 'ABAIXO_DA_REFERENCIA' ? <Texto variante="pequeno">A série de referência é escolhida em cada série; ela nasce apontando a última série de trabalho antes.</Texto> : null}
   </View>;
 }
 
@@ -161,6 +133,5 @@ const estilos = StyleSheet.create({
   linha: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5), alignItems: 'flex-start' },
   campo: { minWidth: 130, flexGrow: 1, flexBasis: 130, maxWidth: 220 },
   faixa: { width: 130, gap: espaco(1) },
-  // Na mesma coluna do "Usar o padrão | Personalizar" (sem recuo): a carga e o esforço da variação não flutuam à direita.
-  variacao: { gap: espaco(1) },
+  rir: { maxWidth: 260 },
 });

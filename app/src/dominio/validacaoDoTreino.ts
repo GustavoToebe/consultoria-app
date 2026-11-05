@@ -67,7 +67,7 @@ function avisosDoTipo(c: Coletor, s: Serie, caminho: string, metodologia: Config
   }
 }
 
-/** Um exercício: as regras dele e de cada série, com a posição da série (mesma carga, acima da anterior, referência). */
+/** Um exercício: as regras dele e de cada série, com as regras que dependem do exercício todo. */
 function validarExercicioNoColetor(c: Coletor, e: ExercicioPlano, caminho: string, metodologia: Configuracao | null) {
   c.uid(e.uid, caminho);
   if (vazio(e.nome)) c.erro(junta(caminho, 'nome'), 'Exercício sem nome.');
@@ -82,11 +82,8 @@ function validarExercicioNoColetor(c: Coletor, e: ExercicioPlano, caminho: strin
   const cardio = e.modalidade === 'CARDIO';
   const temTrabalho = series.some(serieDeTrabalho);
   let temPercentual = false;
-  let trabalhoAntes = false;
   const tiposAvisados = new Set<string>();
   const tecnicasAvisadas = new Set<string>();
-  const anteriores = new Set<string>();
-  const fixas = new Set<string>();
   series.forEach((s, k) => {
     const cs = junta(caminho, `series[${k}]`);
     c.uid(s.uid, cs);
@@ -95,17 +92,7 @@ function validarExercicioNoColetor(c: Coletor, e: ExercicioPlano, caminho: strin
       if (metodologia) avisosDoTipo(c, s, cs, metodologia, tiposAvisados);
       const modo = modoDe(s);
       if (modo === 'PERCENTUAL_WS') temPercentual = true;
-      if (modo === 'MESMA_CARGA' && !trabalhoAntes) c.erro(junta(cs, 'carga.modo'), 'Mesma carga da WS: precisa de uma série de trabalho antes, no mesmo exercício.');
-      if (modo === 'ACIMA_DA_ANTERIOR' && k === 0) c.aviso(junta(cs, 'carga.modo'), 'Acima da anterior na primeira série do exercício: o aluno não terá carga anterior de referência.');
-      const referencia = s.carga?.referenciaUid;
-      if (modo === 'ABAIXO_DA_REFERENCIA' && referencia && !anteriores.has(referencia)) {
-        c.erro(junta(cs, 'carga.referenciaUid'), 'A referência precisa ser uma série anterior, no mesmo exercício.');
-      }
-      if (modo === 'ABAIXO_DA_REFERENCIA' && referencia && fixas.has(referencia)) {
-        c.erro(junta(cs, 'carga.referenciaUid'), 'Carga fixa não serve de referência: escolha uma série com a carga do aluno.');
-      }
       if (modo === 'CARGA_FIXA' && e.unidade === 'nenhuma') c.erro(junta(cs, 'carga.modo'), 'Carga fixa só em exercício com carga.');
-      if (modo === 'CARGA_FIXA' && s.uid) fixas.add(s.uid);
       if (e.unidade === 'nenhuma' && s.tecnica?.tipo === 'CLUSTER' && s.tecnica.cargasDosBlocos != null) {
         c.erro(junta(cs, 'tecnica.cargasDosBlocos'), 'Exercício sem carga não tem carga por bloco.');
       }
@@ -115,8 +102,6 @@ function validarExercicioNoColetor(c: Coletor, e: ExercicioPlano, caminho: strin
       if (s.tecnica?.tipo === 'FORCED_REPS') c.aviso(junta(cs, 'tecnica'), 'Forced reps precisa de um parceiro para ajudar nas repetições.');
       avisoDaTecnica(c, s, cs, metodologia, tecnicasAvisadas);
     }
-    if (serieDeTrabalho(s)) trabalhoAntes = true;
-    if (s.uid) anteriores.add(s.uid);
   });
   if (temPercentual && !temTrabalho) {
     c.aviso(junta(caminho, 'series'), 'Há série em % da WS sem série de trabalho: a referência será a carga de trabalho que o aluno digitar.');

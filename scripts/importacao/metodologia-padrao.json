@@ -10,7 +10,6 @@
       },
       "cargaPadrao": null,
       "esforcoPadrao": null,
-      "porModalidade": null,
       "regraPercentuais": null,
       "explicacao": "Série leve, só para preparar o movimento. Fica longe da falha."
     },
@@ -20,16 +19,14 @@
       "papel": "PREPARACAO",
       "repeticoes": {
         "min": 3,
-        "max": 3
+        "max": 5
       },
       "cargaPadrao": {
         "modo": "PERCENTUAL_WS",
         "percentualMin": 85,
-        "percentualMax": null,
-        "referenciaUid": null
+        "percentualMax": null
       },
       "esforcoPadrao": null,
-      "porModalidade": null,
       "regraPercentuais": {
         "1": [
           {
@@ -75,76 +72,14 @@
       "cargaPadrao": {
         "modo": "CARGA_TRABALHO",
         "percentualMin": null,
-        "percentualMax": null,
-        "referenciaUid": null
+        "percentualMax": null
       },
       "esforcoPadrao": {
-        "rir": 1,
+        "rir": 0,
         "rpe": null
       },
-      "porModalidade": {
-        "LIVRE": {
-          "carga": {
-            "modo": "CARGA_TRABALHO",
-            "percentualMin": null,
-            "percentualMax": null,
-            "referenciaUid": null
-          },
-          "esforco": {
-            "rir": 1,
-            "rpe": null
-          }
-        },
-        "MAQUINA": {
-          "carga": {
-            "modo": "CARGA_TRABALHO",
-            "percentualMin": null,
-            "percentualMax": null,
-            "referenciaUid": null
-          },
-          "esforco": {
-            "rir": 0,
-            "rpe": null
-          }
-        }
-      },
       "regraPercentuais": null,
-      "explicacao": "Working set: a série de trabalho, com a carga máxima do dia nas repetições propostas. Peso livre: 1 repetição na reserva. Máquina: até a falha. Se passar das repetições, aumente a carga na semana seguinte."
-    },
-    {
-      "codigo": "TOP_SET",
-      "nome": "Top set",
-      "papel": "TRABALHO",
-      "repeticoes": null,
-      "cargaPadrao": {
-        "modo": "ACIMA_DA_ANTERIOR",
-        "percentualMin": 1,
-        "percentualMax": 5,
-        "referenciaUid": null
-      },
-      "esforcoPadrao": null,
-      "porModalidade": {
-        "LIVRE": {
-          "carga": {
-            "modo": "ACIMA_DA_ANTERIOR",
-            "percentualMin": 1,
-            "percentualMax": 5,
-            "referenciaUid": null
-          },
-          "esforco": null
-        },
-        "MAQUINA": {
-          "carga": {
-            "modo": "ACIMA_DA_ANTERIOR",
-            "percentualMin": 5,
-            "percentualMax": 10,
-            "referenciaUid": null
-          },
-          "esforco": null
-        }
-      },
-      "regraPercentuais": null,
-      "explicacao": "Uma série mais pesada que a anterior: suba a carga de 1 a 5% no peso livre ou de 5 a 10% na máquina."
+      "explicacao": "Working set: a série de trabalho, com a carga máxima do dia nas repetições propostas. Se passar das repetições, aumente a carga na semana seguinte."
     },
     {
       "codigo": "BACK_OFF",
@@ -157,11 +92,12 @@
       "cargaPadrao": {
         "modo": "PERCENTUAL_WS",
         "percentualMin": 85,
-        "percentualMax": null,
-        "referenciaUid": null
+        "percentualMax": null
       },
-      "esforcoPadrao": null,
-      "porModalidade": null,
+      "esforcoPadrao": {
+        "rir": 0,
+        "rpe": null
+      },
       "regraPercentuais": null,
       "explicacao": "Depois da série de trabalho, com 85% da carga dela."
     }

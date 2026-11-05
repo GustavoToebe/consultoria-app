@@ -9,7 +9,7 @@ const caminhos = (lista: { caminho: string }[]) => lista.map((p) => p.caminho);
 
 describe('exercício', () => {
   it('exercício completo e correto não tem erro nem aviso', () => {
-    expect(validarExercicio(comSeries([ws('a'), serie('b', { tipo: 'BACK_OFF', carga: carga('ABAIXO_DA_REFERENCIA', 15, null, 'a') })]), CONFIGURACAO_PADRAO)).toEqual({ erros: [], avisos: [] });
+    expect(validarExercicio(comSeries([ws('a'), serie('b', { tipo: 'BACK_OFF', carga: carga('PERCENTUAL_WS', 85, null) })]), CONFIGURACAO_PADRAO)).toEqual({ erros: [], avisos: [] });
   });
 
   it('nome, séries, cadência e isometria', () => {
@@ -27,32 +27,6 @@ describe('exercício', () => {
     const e = comSeries([ws('a'), ws('b', { carga: carga('PERCENTUAL_WS', 0) })]);
     expect(caminhos(validarExercicio(e, null).erros)).toEqual(['series[1].carga.percentualMin']);
     expect(caminhos(validarExercicio(e, null, 'sessoes[0].exercicios[2]').erros)).toEqual(['sessoes[0].exercicios[2].series[1].carga.percentualMin']);
-  });
-
-  it('mesma carga precisa de uma série de trabalho antes', () => {
-    const r = validarExercicio(comSeries([serie('a', { carga: carga('MESMA_CARGA') }), ws('b')]), null);
-    expect(r.erros).toEqual([{ caminho: 'series[0].carga.modo', mensagem: 'Mesma carga da WS: precisa de uma série de trabalho antes, no mesmo exercício.' }]);
-    expect(validarExercicio(comSeries([ws('b'), serie('a', { carga: carga('MESMA_CARGA') })]), null).erros).toEqual([]);
-  });
-
-  it('acima da anterior na primeira série é aviso, não erro', () => {
-    const r = validarExercicio(comSeries([serie('a', { tipo: 'TOP_SET', carga: carga('ACIMA_DA_ANTERIOR', 1, 5) })]), null);
-    expect(r.erros).toEqual([]);
-    expect(caminhos(r.avisos)).toEqual(['series[0].carga.modo']);
-    expect(validarExercicio(comSeries([ws('a'), serie('b', { tipo: 'TOP_SET', carga: carga('ACIMA_DA_ANTERIOR', 1, 5) })]), null).avisos).toEqual([]);
-  });
-
-  it('a referência do back off precisa ser uma série anterior do mesmo exercício', () => {
-    const back = (ref: string) => serie('b', { tipo: 'BACK_OFF', carga: carga('ABAIXO_DA_REFERENCIA', 15, null, ref) });
-    expect(validarExercicio(comSeries([ws('a'), back('a')]), null).erros).toEqual([]);
-    for (const ref of ['sumiu', 'b']) {
-      expect(validarExercicio(comSeries([ws('a'), back(ref)]), null).erros).toEqual([
-        { caminho: 'series[1].carga.referenciaUid', mensagem: 'A referência precisa ser uma série anterior, no mesmo exercício.' },
-      ]);
-    }
-    const depois = comSeries([serie('b', { tipo: 'BACK_OFF', carga: carga('ABAIXO_DA_REFERENCIA', 15, null, 'a') }), ws('a')]);
-    expect(caminhos(validarExercicio(depois, null).erros)).toEqual(['series[0].carga.referenciaUid']);
-    expect(caminhos(validarExercicio(comSeries([ws('a'), serie('b', { tipo: 'BACK_OFF', carga: carga('ABAIXO_DA_REFERENCIA', 15) })]), null).erros)).toEqual(['series[1].carga.referenciaUid']);
   });
 
   it('avisos: tipo fora da metodologia (uma vez por tipo), RIR 0 em preparação, % sem trabalho, sem progressão, forced reps', () => {
@@ -100,7 +74,7 @@ describe('exercício', () => {
 
   it('série de trabalho é a de carga de trabalho, nunca pelo nome do tipo', () => {
     expect(serieDeTrabalho(ws('a'))).toBe(true);
-    expect(serieDeTrabalho(serie('b', { tipo: 'WS', carga: carga('MESMA_CARGA') }))).toBe(false);
+    expect(serieDeTrabalho(serie('b', { tipo: 'WS', carga: carga('PERCENTUAL_WS', 85) }))).toBe(false);
     expect(serieDeTrabalho(serie('c', { carga: null }))).toBe(false);
   });
 

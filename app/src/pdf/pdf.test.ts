@@ -75,6 +75,13 @@ test('PDF usa a metodologia copiada para o treino, mesmo quando a configuração
   expect(doc.corpo).not.toContain('Global alterada');
 });
 
+test('PDF de treino sem metodologia copiada (consultoria sem receita de metodologia) usa os nomes da configuração padrão', () => {
+  expect(treino.metodologia).toBeUndefined();
+  const corpo = documentoTreino(dadosDoTreino(treino)).corpo;
+  expect(corpo).toContain('3x3 - FS 50% · 70% · 85% da WS');
+  expect(corpo).toContain('1x3 a 6 - WS · 1 RIR');
+});
+
 describe('PDF do treino', () => {
   const html = documentoTreino({
     ...base,
@@ -210,13 +217,13 @@ describe('PDF do treino: RIR até 10, RIR por série e carga fixa', () => {
   });
 });
 
-describe('PDF do treino: top set e back off pela referência', () => {
-  const top = s('top', 'TOP_SET', null, null, carga('ACIMA_DA_ANTERIOR', 1, 5));
-  const back = [s('b1', 'BACK_OFF', 6, 8, carga('ABAIXO_DA_REFERENCIA', 15, null, 'top')), s('b2', 'BACK_OFF', 6, 8, carga('ABAIXO_DA_REFERENCIA', 15, null, 'top'))];
+describe('PDF do treino: WS e back off', () => {
+  const ws = s('ws', 'WORKING', 3, 6, carga('CARGA_TRABALHO'));
+  const back = [s('b1', 'BACK_OFF', 6, 8, carga('PERCENTUAL_WS', 85)), s('b2', 'BACK_OFF', 6, 8, carga('PERCENTUAL_WS', 85))];
 
-  it('escreve "abaixo da referência" com o nome do tipo da série de referência', () => {
-    const linhas = linhasDeSeries({ series: [top, ...back] }, CONFIGURACAO_PADRAO);
-    expect(linhas).toEqual(['1x - Top set +1% a 5% sobre a anterior', '2x6 a 8 - Back off 15% abaixo da referência (Top set)']);
+  it('escreve o back off em "% da WS", com o nome do tipo de trabalho', () => {
+    const linhas = linhasDeSeries({ series: [ws, ...back] }, CONFIGURACAO_PADRAO);
+    expect(linhas).toEqual(['1x3 a 6 - WS', '2x6 a 8 - Back off 85% da WS']);
   });
 });
 
@@ -892,10 +899,10 @@ describe('cabeçalho uniforme dos PDFs', () => {
 
 
 
-test('PDF: série sem repetições mostra "—" no lugar delas ("1x - Top set") e com repetições mostra a faixa', () => {
-  const topSet = s('t', 'TOP_SET', null, null, carga('ACIMA_DA_ANTERIOR', 1, 5));
-  expect(linhasDeSeries({ series: [topSet] }, CONFIGURACAO_PADRAO)).toEqual(['1x - Top set +1% a 5% sobre a anterior']);
-  expect(linhasDeSeries({ series: [{ ...topSet, repsMin: 3, repsMax: 6 }] }, CONFIGURACAO_PADRAO)).toEqual(['1x3 a 6 - Top set +1% a 5% sobre a anterior']);
+test('PDF: série sem repetições mostra "—" no lugar delas ("1x - Back off") e com repetições mostra a faixa', () => {
+  const backOff = s('t', 'BACK_OFF', null, null, carga('PERCENTUAL_WS', 85));
+  expect(linhasDeSeries({ series: [backOff] }, CONFIGURACAO_PADRAO)).toEqual(['1x - Back off 85% da WS']);
+  expect(linhasDeSeries({ series: [{ ...backOff, repsMin: 3, repsMax: 6 }] }, CONFIGURACAO_PADRAO)).toEqual(['1x3 a 6 - Back off 85% da WS']);
 });
 
 test('PDF: glossário só com o que o treino usa, com o nome da metodologia e todo texto escapado', () => {
@@ -903,7 +910,7 @@ test('PDF: glossário só com o que o treino usa, com o nome da metodologia e to
     ...CONFIGURACAO_PADRAO,
     tecnicas: CONFIGURACAO_PADRAO.tecnicas.map((t) => (t.tipo === 'CLUSTER' ? { ...t, nome: 'Muscle <Round>', explicacao: 'Blocos <b>curtos</b>' } : t)),
   };
-  const comCluster = serie('c', { tipo: 'FEEDER', carga: carga('MESMA_CARGA'), esforco: rir(0), tecnica: tecnica('CLUSTER', { blocos: [4, 2], pausaSegundos: 15 }), repsMin: 6, repsMax: 6 });
+  const comCluster = serie('c', { tipo: 'FEEDER', carga: carga('PERCENTUAL_WS', 70), esforco: rir(0), tecnica: tecnica('CLUSTER', { blocos: [4, 2], pausaSegundos: 15 }), repsMin: 6, repsMax: 6 });
   const conteudo = { ...treinoCom(exercicio('e', { series: [comCluster] })), metodologia: { id: 'm', nome: 'M', configuracao: config } };
   const glossario = blocoGlossario(conteudo, config);
   expect(glossario).toContain('Como ler este treino');
@@ -916,7 +923,7 @@ test('PDF: glossário só com o que o treino usa, com o nome da metodologia e to
   expect(glossario).not.toContain('Top set');
   expect(glossario).not.toContain('FEEDER');
   const e = conteudo.sessoes[0].exercicios[0];
-  expect(seriesDoPdf(e, config)).toEqual([{ linha: '1x6 - FS com Muscle <Round> · mesma carga da WS · até a falha', detalhes: ['blocos de 4 e 2 reps (6 no total) · pausa de 15 s'] }]);
+  expect(seriesDoPdf(e, config)).toEqual([{ linha: '1x6 - FS com Muscle <Round> · 70% da WS · até a falha', detalhes: ['blocos de 4 e 2 reps (6 no total) · pausa de 15 s'] }]);
   // A explicação da técnica fica só no glossário: a coluna Obs não a repete.
   expect(obsDoExercicio(e)).toEqual([]);
 });

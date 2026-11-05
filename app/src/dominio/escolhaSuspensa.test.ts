@@ -1,4 +1,4 @@
-import { destaqueInicial, filtrarOpcoesSuspensas, moverDestaque } from './escolhaSuspensa';
+import { destaqueInicial, filtrarOpcoesSuspensas, moverDestaque, posicaoDaLista, VAO_DO_PAINEL } from './escolhaSuspensa';
 
 const OPCOES = [
   { valor: null, rotulo: 'Não importar' },
@@ -42,5 +42,26 @@ describe('moverDestaque', () => {
   });
   it('destaque fora da lista (o filtro encolheu) volta para dentro', () => {
     expect(moverDestaque(5, 2, 'ArrowDown')).toBe(1);
+  });
+});
+
+describe('posicaoDaLista', () => {
+  const BUSCA = 80;
+  test('cabe embaixo: abre embaixo com a altura inteira', () => {
+    expect(posicaoDaLista(600, 100, BUSCA, 320, 88)).toEqual({ abreEmbaixo: true, alturaMaxima: 320 });
+  });
+  test('não cabe embaixo e em cima há mais espaço: abre em cima', () => {
+    expect(posicaoDaLista(300, 500, BUSCA, 320, 88)).toEqual({ abreEmbaixo: false, alturaMaxima: 320 });
+  });
+  test('a lista nunca passa do espaço do lado escolhido (o painel inteiro fica na janela)', () => {
+    const { abreEmbaixo, alturaMaxima } = posicaoDaLista(300, 200, BUSCA, 320, 88);
+    expect(abreEmbaixo).toBe(true);
+    expect(VAO_DO_PAINEL + BUSCA + alturaMaxima).toBeLessThanOrEqual(300);
+    const emCima = posicaoDaLista(150, 380, BUSCA, 320, 88);
+    expect(emCima.abreEmbaixo).toBe(false);
+    expect(VAO_DO_PAINEL + BUSCA + emCima.alturaMaxima).toBeLessThanOrEqual(380);
+  });
+  test('janela muito baixa: ao menos a altura mínima (a lista rola)', () => {
+    expect(posicaoDaLista(60, 40, BUSCA, 320, 88).alturaMaxima).toBe(88);
   });
 });
