@@ -51,7 +51,7 @@ class MontagemDeSeriesTest {
                 .containsExactly("PERCENTUAL_WS", "CARGA_TRABALHO", "CARGA_TRABALHO", "PERCENTUAL_WS");
         // TS: a metodologia padrão não tem Top set, então vira mais uma WS, sem repetições; número nunca inventado.
         assertThat(r.series().get(2).carga().percentualMin()).isNull();
-        assertThat(r.avisos()).isEmpty();
+        assertThat(r.avisos()).containsExactly("TS_COMO_WS");
     }
 
     @Test
@@ -124,7 +124,17 @@ class MontagemDeSeriesTest {
                 LeitorDePrescricao.faixaDeRepeticoes(celula("qualquer coisa"), false)), PADRAO);
         assertThat(r.series()).extracting(Serie::tipo).containsExactly("FEEDER", "WORKING", "WORKING", "WORKING");
         assertThat(r.series().get(1).repsMin()).isNull();
-        assertThat(r.avisos()).containsExactly("FAIXA_INVALIDA");
+        assertThat(r.avisos()).containsExactlyInAnyOrder("FAIXA_INVALIDA", "TS_COMO_WS");
+    }
+
+    @Test
+    void tsComMetodologiaSemWsNaoViraSerieEAvisaOTipoFora() {
+        // Sem a WS na metodologia o TS não entra; o aviso é o do tipo, não o TS_COMO_WS.
+        ConfiguracaoConsultoria semWs = new ConfiguracaoConsultoria(
+                PADRAO.tipos().stream().filter(t -> !"WORKING".equals(t.codigo())).toList(), null, null, null, null, null);
+        Resultado r = MontagemDeSeries.montar(entrada(0, 0, Logico.SIM, Logico.NAO, 0, TRES_A_SEIS), semWs);
+        assertThat(r.series()).isEmpty();
+        assertThat(r.avisos()).containsExactly("TIPO_FORA_DA_METODOLOGIA");
     }
 
     @Test
