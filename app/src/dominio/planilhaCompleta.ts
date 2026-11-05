@@ -519,7 +519,6 @@ const PROBLEMAS: Record<string, string> = {
   TEXTO_CORTADO: 'Texto longo: foi cortado.',
   TEXTO_LONGO_DEMAIS: 'Texto longo demais: ficou de fora.',
   TIPO_FORA_DA_METODOLOGIA: 'A metodologia não tem o tipo de série: a série não entra.',
-  TOP_SET_SEM_PERCENTUAL: 'Top set sem percentual: entra sem número (nada é inventado).',
   TREINOS_DEMAIS: 'Mais de 20 divisões: as demais ficaram de fora.',
   TREINO_SEM_NOME: 'Treino sem nome: entra como "Treino" e a letra.',
   TS_INVALIDO: 'A coluna de top set não é sim nem não.',

@@ -31,7 +31,7 @@ O treinador prescreve cada exercício como uma lista enxuta de blocos `Séries �
 
 ## O que ficou para trás
 - Aquecimento com % preenchido só em parte das séries: as vazias continuam erro (a API recusa `PERCENTUAL_WS` sem mínimo).
-- Aviso `TOP_SET_SEM_PERCENTUAL` e `TOP_SET` em `corDaSerie`/`diagnosticoDoArquivo`: sobram sem sentido.
+- Removidos o aviso `TOP_SET_SEM_PERCENTUAL` (`MontagemDeSeries`, `planilhaCompleta`) e `TOP_SET` de `corDaSerie`; o TS da planilha vira mais uma WS sem aviso. Sobra `TOP_SET` só como código de exemplo em fixtures de teste e o rótulo da coluna em `diagnosticoDoArquivo`.
 - `referenciaCarga`/`referenciaOrigem` do registro de execução: conferir uso.
 - Dia de treino (`unica`) sem metodologia visível (consequência literal do texto 3.1).
 - `*IntegrationTest` e o banco recriado (`docker compose down -v`) não foram verificados: Docker desligado.

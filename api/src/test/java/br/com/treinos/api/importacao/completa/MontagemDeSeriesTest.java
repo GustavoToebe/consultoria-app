@@ -49,9 +49,9 @@ class MontagemDeSeriesTest {
         assertThat(r.series()).extracting(Serie::tipo).containsExactly("FEEDER", "WORKING", "WORKING", "BACK_OFF");
         assertThat(r.series()).extracting(s -> s.carga().modo())
                 .containsExactly("PERCENTUAL_WS", "CARGA_TRABALHO", "CARGA_TRABALHO", "PERCENTUAL_WS");
-        // TS: a metodologia padrão não tem Top set, então vira série de trabalho; número nunca inventado e o aviso conta.
+        // TS: a metodologia padrão não tem Top set, então vira mais uma WS, sem repetições; número nunca inventado.
         assertThat(r.series().get(2).carga().percentualMin()).isNull();
-        assertThat(r.avisos()).containsExactly("TOP_SET_SEM_PERCENTUAL");
+        assertThat(r.avisos()).isEmpty();
     }
 
     @Test
@@ -124,7 +124,7 @@ class MontagemDeSeriesTest {
                 LeitorDePrescricao.faixaDeRepeticoes(celula("qualquer coisa"), false)), PADRAO);
         assertThat(r.series()).extracting(Serie::tipo).containsExactly("FEEDER", "WORKING", "WORKING", "WORKING");
         assertThat(r.series().get(1).repsMin()).isNull();
-        assertThat(r.avisos()).containsExactly("FAIXA_INVALIDA", "TOP_SET_SEM_PERCENTUAL");
+        assertThat(r.avisos()).containsExactly("FAIXA_INVALIDA");
     }
 
     @Test

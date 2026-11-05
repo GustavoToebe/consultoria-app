@@ -2,13 +2,11 @@ import { CHAVES_DE_IDENTIFICACAO } from '../tema/tokens';
 import { corDaDivisao, corDaRefeicao, corDoTipoDeSerie } from './corDaSerie';
 
 describe('corDoTipoDeSerie', () => {
-  it('dá a cor própria dos cinco tipos padrão, mesmo com outro papel', () => {
+  it('dá a cor própria dos quatro tipos padrão, mesmo com outro papel', () => {
     expect(corDoTipoDeSerie('WARM_UP', 'AQUECIMENTO')).toBe('CIANO');
     expect(corDoTipoDeSerie('FEEDER', 'PREPARACAO')).toBe('AZUL');
     expect(corDoTipoDeSerie('WORKING', 'TRABALHO')).toBe('INDIGO');
-    expect(corDoTipoDeSerie('TOP_SET', 'TRABALHO')).toBe('VIOLETA');
     expect(corDoTipoDeSerie('BACK_OFF', 'POS_TRABALHO')).toBe('MAGENTA');
-    expect(corDoTipoDeSerie('TOP_SET', 'OUTRO')).toBe('VIOLETA');
     expect(corDoTipoDeSerie('WORKING', null)).toBe('INDIGO');
   });
 
