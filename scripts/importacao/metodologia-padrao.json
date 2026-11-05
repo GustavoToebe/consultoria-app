@@ -99,7 +99,7 @@
         "rpe": null
       },
       "regraPercentuais": null,
-      "explicacao": "Depois da série de trabalho, com 85% da carga dela."
+      "explicacao": "Depois da série de trabalho, com menos carga. No padrão, 85% da carga da série de trabalho."
     },
     {
       "codigo": "TOP_SET",
@@ -126,7 +126,7 @@
     {
       "tipo": "REST_PAUSE",
       "nome": "Rest pause",
-      "explicacao": "Faça a série, pause 20 segundos e continue com a mesma carga até a falha.",
+      "explicacao": "Faça a série, pause de 15 a 20 segundos e continue com a mesma carga até a falha. O padrão usa 20 segundos.",
       "padrao": {
         "tipo": "REST_PAUSE",
         "pausaSegundos": 20,
@@ -146,7 +146,7 @@
     {
       "tipo": "CLUSTER",
       "nome": "Cluster",
-      "explicacao": "Muscle Round: a série é dividida em blocos de repetições com uma pausa curta entre eles, com a mesma carga.",
+      "explicacao": "Muscle Round: a série é dividida em blocos de repetições com a mesma carga e uma pausa de 10 a 15 segundos entre os blocos. O padrão usa 15 segundos.",
       "padrao": {
         "tipo": "CLUSTER",
         "pausaSegundos": 15,

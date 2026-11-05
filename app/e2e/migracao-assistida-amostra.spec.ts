@@ -87,7 +87,7 @@ async function preparar(page: Page, largura: number, opcoes: { habilitada?: bool
   if (opcoes.preferencias) {
     await page.addInitScript(([id, p]) => localStorage.setItem(`treinos:${id}:preferencias`, p), [TREINADOR.id, JSON.stringify(opcoes.preferencias)] as const);
   }
-  const pedidos = { previa: 0, amostra: [] as string[], confirmar: [] as string[] };
+  const pedidos = { previa: 0, amostra: [] as string[], confirmar: [] as string[], ignorados: [] as string[] };
   let falhar = opcoes.amostra === 'falhaUmaVez';
   const api = await simularApi(page, {
     ...(await sessao(page, TREINADOR, { permissoes: PERMISSOES_TREINADOR, migracaoAssistidaHabilitada: opcoes.habilitada ?? true })),
@@ -118,6 +118,7 @@ async function preparar(page: Page, largura: number, opcoes: { habilitada?: bool
     },
     'POST /importacoes/planilha-completa/confirmar': (p, route) => {
       pedidos.confirmar.push(p.busca.get('hash') ?? '');
+      pedidos.ignorados.push(p.busca.get('alunosIgnorados') ?? '');
       return json(route, CONFIRMACAO);
     },
   });
@@ -183,7 +184,7 @@ for (const largura of [390, 1440]) {
       await expect(folha).toHaveCount(0);
 
       // O que já é aluno abre recolhido e diz que o cadastro não muda; sem plano na planilha, só ganha os pesos.
-      await page.getByRole('button', { name: /Aluno Fictício Dois/ }).click();
+      await page.getByRole('button', { name: 'Aluno Fictício Dois, recolhido' }).click();
       await expect(page.getByText('Já é seu aluno: o cadastro não muda. Só ganha os pesos abaixo, sem pasta nem plano.')).toBeVisible();
       await expect(page.getByText('02/10/2026 · 80 kg')).toBeVisible();
 
@@ -249,6 +250,66 @@ for (const largura of [390, 1440]) {
     expect(errosDaPagina).toEqual([]);
   });
 }
+
+test('amostra: ignorar e incluir aluno, a faixa conta, nem todos podem sair e a confirmação leva só os ignorados (390px)', async ({ page }) => {
+  const { naoTratadas, errosDaPagina, pedidos } = await preparar(page, 390);
+  await ateAPrevia(page);
+  await page.getByRole('button', { name: 'Ver a amostra' }).click();
+  await expect(page.getByText('Alunos 1 a 5 de 7')).toBeVisible();
+  // Todos entram por padrão: selo verde e botão "Ignorar aluno"; a faixa não diz nada de ignorados.
+  await expect(page.getByText('Incluído', { exact: true })).toHaveCount(5);
+  await expect(page.getByTestId('resumo-dos-ignorados')).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Ignorar Aluno Fictício Três na importação' }).click();
+  await page.getByRole('button', { name: 'Ignorar Aluno Fictício Quatro na importação' }).click();
+  await expect(page.getByText('Ignorado nesta importação', { exact: true })).toHaveCount(2);
+  await expect(page.getByTestId('resumo-dos-ignorados')).toHaveText('5 alunos serão importados · 2 ignorados');
+  await expect(page.getByRole('button', { name: 'Incluir Aluno Fictício Três na importação' })).toBeVisible();
+
+  // Incluir de volta desfaz só aquele aluno.
+  await page.getByRole('button', { name: 'Incluir Aluno Fictício Quatro na importação' }).click();
+  await expect(page.getByTestId('resumo-dos-ignorados')).toHaveText('6 alunos serão importados · 1 ignorado');
+
+  // A marca vale entre as páginas.
+  await page.getByRole('button', { name: 'Ver os próximos 2' }).click();
+  await page.getByRole('button', { name: 'Ignorar Aluno Fictício Seis na importação' }).click();
+  await page.getByRole('button', { name: 'Ignorar Aluno Fictício Sete na importação' }).click();
+  await expect(page.getByTestId('resumo-dos-ignorados')).toHaveText('4 alunos serão importados · 3 ignorados');
+  await page.getByRole('button', { name: 'Incluir Aluno Fictício Seis na importação' }).click();
+  await page.getByRole('button', { name: 'Incluir Aluno Fictício Sete na importação' }).click();
+  await expect(page.getByTestId('resumo-dos-ignorados')).toHaveText('6 alunos serão importados · 1 ignorado');
+
+  await page.getByRole('button', { name: 'Confirmar importação' }).click();
+  await expect(page.getByText(/^Importação confirmada\./)).toBeVisible();
+  expect(pedidos.confirmar).toEqual(['hash-da-amostra']);
+  expect(pedidos.ignorados).toEqual(['3']);
+  expect(naoTratadas).toEqual([]);
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('amostra: ignorar todos os alunos trava a confirmação com o motivo e incluir um destrava (390px)', async ({ page }) => {
+  const { naoTratadas, errosDaPagina, pedidos } = await preparar(page, 390);
+  await ateAPrevia(page);
+  await page.getByRole('button', { name: 'Ver a amostra' }).click();
+  await expect(page.getByText('Alunos 1 a 5 de 7')).toBeVisible();
+  for (const nome of ['Aluna Fictícia Um', 'Aluno Fictício Dois', 'Aluno Fictício Três', 'Aluno Fictício Quatro', 'Aluno Fictício Cinco']) {
+    await page.getByRole('button', { name: `Ignorar ${nome} na importação` }).click();
+  }
+  await page.getByRole('button', { name: 'Ver os próximos 2' }).click();
+  await page.getByRole('button', { name: 'Ignorar Aluno Fictício Seis na importação' }).click();
+  await page.getByRole('button', { name: 'Ignorar Aluno Fictício Sete na importação' }).click();
+  await expect(page.getByTestId('resumo-dos-ignorados')).toHaveText('0 alunos serão importados · 7 ignorados');
+  await expect(page.getByRole('button', { name: /^Confirmar importação/ })).toBeDisabled();
+  await expect(page.getByText('Marque pelo menos um aluno para importar.').first()).toBeVisible();
+
+  await page.getByRole('button', { name: 'Incluir Aluno Fictício Sete na importação' }).click();
+  await expect(page.getByRole('button', { name: /^Confirmar importação/ })).toBeEnabled();
+  await page.getByRole('button', { name: /^Confirmar importação/ }).click();
+  await expect(page.getByText(/^Importação confirmada\./)).toBeVisible();
+  expect(pedidos.ignorados).toEqual(['1,2,3,4,5,6']);
+  expect(naoTratadas).toEqual([]);
+  expect(errosDaPagina).toEqual([]);
+});
 
 for (const [nome, preferencias] of [['areia', { tema: 'AREIA' }], ['contraste-alto', { tema: 'CLARO', contraste: 'ALTO' }]] as const) {
   test(`amostra: aberta no tema ${nome} (1440px)`, async ({ page }, testInfo) => {

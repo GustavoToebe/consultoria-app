@@ -5,7 +5,7 @@ import { AccessibilityInfo, findNodeHandle, Platform, StyleSheet, View } from 'r
 import { amostraDaPlanilhaCompleta } from '../../../api/rotas';
 import type { AlunoDaAmostra, AmostraDaPlanilha, ConteudoDieta, ConteudoTreino, PartePuladaDaPlanilha } from '../../../api/tipos';
 import {
-  PASTA_DA_IMPORTACAO, SEM_PAR_NA_BIBLIOTECA, contarDieta, faixaDaAmostra, ficaDeFora, foraDaBiblioteca, pesosDoMaisRecente,
+  PASTA_DA_IMPORTACAO, SELO_IGNORADO, SELO_INCLUIDO, SEM_PAR_NA_BIBLIOTECA, TODOS_IGNORADOS, contarDieta, resumoDosIgnorados, todosIgnorados, faixaDaAmostra, ficaDeFora, foraDaBiblioteca, pesosDoMaisRecente,
   restantesDaAmostra, resumoDoAluno, rotuloDosProximos, situacaoDoAluno, textoDaDieta, textoDaPasta, textoDaRefeicao, textoDaSessao,
   textoDoAtivo, textoDoCadastroExistente, textoDoExercicio, textoDoItem, textoDoPeso, textoDosPesos, textoDoSuplemento, textoDoTreino, valorDoCampo,
 } from '../../../dominio/amostraDaPlanilha';
@@ -125,7 +125,11 @@ function useFocarAoMudar(chave: unknown) {
  * A etapa "Amostra": por aluno, o que a confirmação gravaria (cadastro, pesos, treino e dieta, em rascunho), 5 por vez. Só
  * leitura; o primeiro aluno da página vem aberto e o foco vai para a faixa "Alunos N a M de T" a cada página.
  */
-export function EtapaDaAmostra({ amostra, partesPuladas }: { amostra: AmostraNaTela; partesPuladas: readonly PartePuladaDaPlanilha[] }) {
+export function EtapaDaAmostra({ amostra, partesPuladas, ignorados, aoAlternarIgnorado }: {
+  amostra: AmostraNaTela; partesPuladas: readonly PartePuladaDaPlanilha[];
+  /** O `numero` (de 1) dos alunos que o treinador desmarcou: ficam fora da confirmação. */
+  ignorados: readonly number[]; aoAlternarIgnorado: (numero: number) => void;
+}) {
   const { pagina, carregando, erro } = amostra;
   const faixa = useFocarAoMudar(pagina);
   const [previa, setPrevia] = useState<PreviaDoPlano | null>(null);
@@ -143,14 +147,17 @@ export function EtapaDaAmostra({ amostra, partesPuladas }: { amostra: AmostraNaT
       {pagina ? (
         <View ref={faixa} accessible tabIndex={-1} style={estilos.coluna} testID="faixa-da-amostra">
           <Texto variante="subtitulo" nivel={2} numerico>{faixaDaAmostra(pagina)}</Texto>
-          <Texto variante="suave">Confira um aluno de cada vez. O que aparece aqui é o que a confirmação grava.</Texto>
+          <Texto variante="suave">Confira um aluno de cada vez. O que aparece aqui é o que a confirmação grava. Com algum aluno com dado ruim, use “Ignorar aluno” e importe os outros.</Texto>
+          {ignorados.length > 0 ? <Texto variante="rotulo" numerico testID="resumo-dos-ignorados">{resumoDosIgnorados(pagina.total, ignorados)}</Texto> : null}
         </View>
       ) : null}
+      {pagina && todosIgnorados(pagina.total, ignorados) ? <Alerta tom="atencao" texto={TODOS_IGNORADOS} /> : null}
       {pagina && pagina.alunos.length === 0 ? (
         <Vazio titulo="Nenhum aluno para mostrar" texto="A planilha não traz cadastro novo nem plano de aluno. A prévia mostra o resto do que vai ser gravado." />
       ) : null}
       {pagina?.alunos.map((a, i) => (
-        <CartaoDoAluno key={`${pagina.inicio}-${a.numero}`} aluno={a} puladas={partesPuladas} abertoAoMontar={i === 0} aoVerComoAluno={setPrevia} />
+        <CartaoDoAluno key={`${pagina.inicio}-${a.numero}`} aluno={a} puladas={partesPuladas} abertoAoMontar={i === 0} aoVerComoAluno={setPrevia}
+          ignorado={ignorados.includes(a.numero)} aoAlternarIgnorado={() => aoAlternarIgnorado(a.numero)} />
       ))}
       {pagina && (amostra.temAnterior || restantes > 0) ? (
         <LinhaDeAcoes alinhar="entre">
@@ -168,18 +175,24 @@ export function EtapaDaAmostra({ amostra, partesPuladas }: { amostra: AmostraNaT
   );
 }
 
-function CartaoDoAluno({ aluno, puladas, abertoAoMontar, aoVerComoAluno }: {
+function CartaoDoAluno({ aluno, puladas, abertoAoMontar, aoVerComoAluno, ignorado, aoAlternarIgnorado }: {
   aluno: AlunoDaAmostra; puladas: readonly PartePuladaDaPlanilha[]; abertoAoMontar: boolean; aoVerComoAluno: (p: PreviaDoPlano) => void;
+  ignorado: boolean; aoAlternarIgnorado: () => void;
 }) {
   const [aberto, setAberto] = useState(abertoAoMontar);
   const nome = aluno.nome?.trim() || SEM_DADO;
   return (
     <Cartao cabecalho={
-      <CabecalhoDeGrupo titulo={nome} resumo={resumoDoAluno(aluno)} selo={{ texto: situacaoDoAluno(aluno), tipo: 'neutro' }}
-        aoAlternar={() => setAberto(!aberto)} aberto={aberto} />
+      <CabecalhoDeGrupo titulo={nome} resumo={`${situacaoDoAluno(aluno)} · ${resumoDoAluno(aluno)}`}
+        selo={ignorado ? { texto: SELO_IGNORADO, tipo: 'atencao' } : { texto: SELO_INCLUIDO, tipo: 'sucesso' }}
+        aoAlternar={() => setAberto(!aberto)} aberto={aberto}
+        acoes={ignorado
+          ? <Botao rotulo="Incluir aluno" rotuloAcessivel={`Incluir ${nome} na importação`} tipo="secundario" aoTocar={aoAlternarIgnorado} testID={`incluir-aluno-${aluno.numero}`} />
+          : <Botao rotulo="Ignorar aluno" rotuloAcessivel={`Ignorar ${nome} na importação`} tipo="secundario" aoTocar={aoAlternarIgnorado} testID={`ignorar-aluno-${aluno.numero}`} />} />
     }>
       {aberto ? (
         <View style={estilos.coluna} testID={`aluno-da-amostra-${aluno.numero}`}>
+          {ignorado ? <Alerta tom="atencao" texto="Este aluno não entra na importação: nada dele será gravado. Toque em Incluir aluno para trazê-lo de volta." /> : null}
           <Bloco titulo="Cadastro">
             {aluno.situacao === 'EXISTENTE' ? (
               <Texto>{textoDoCadastroExistente(aluno)}</Texto>

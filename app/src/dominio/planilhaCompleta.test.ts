@@ -8,7 +8,7 @@ import {
   textoDaPartePulada, textoDoProblema, tipoDaAba, valorDaResposta,
   AVISO_RESPONDIDO_ANTES, abaRespondidaAntes, alunosDaAba, blocoFicaDeFora, nomeRespondidoAntes, quantasRespostasSalvasMarcadas,
   respostasSalvasMarcadas, semRespostasSalvas, suplementoRespondidoAntes, textoDaSituacaoDoAluno, textoDasRespostasSalvas,
-  textoDoBloco, textoDoFormato, textoDosAlunosDaAba,
+  textoDoBloco, textoDoFormato, textoDosAlunosDaAba, preencherSugestoes,
 } from './planilhaCompleta';
 
 const ANALISE: AnaliseDaPlanilha = {
@@ -271,5 +271,31 @@ describe('respostas salvas por consultoria', () => {
     expect(depois.estado.alimentos).toEqual({});
     expect(depois.estado.suplementos).toEqual({});
     expect(AVISO_RESPONDIDO_ANTES).toBe('Respondido na importação anterior');
+  });
+});
+
+describe('pré-preenchimento da etapa Nomes', () => {
+  test('o provável e o suplemento com sugestão vêm marcados; sem par fica sem resposta (o padrão já mantém o nome)', () => {
+    const { estado, preenchidas } = preencherSugestoes(ANALISE, SEM_RESPOSTAS);
+    expect(estado.exercicios).toEqual({ 'Supino reto c/ hal.': { acao: 'ACEITAR' } });
+    expect(estado.alimentos).toEqual({ 'Arroz fictício': { acao: 'ACEITAR' } });
+    expect(estado.suplementos).toEqual({ Creatina: 'SUPLEMENTO' });
+    expect(preenchidas).toBe(3);
+    // Nenhuma pergunta provável sobra, e a regra fixa vale para o que não tem par.
+    expect(pendencias(ANALISE, estado)).toMatchObject({ exercicios: 0, alimentos: 0, suplementos: 1 });
+    expect(respostasParaApi(ANALISE, estado).exercicios).toEqual([{ nome: 'Supino reto c/ hal.', acao: 'ACEITAR' }]);
+  });
+
+  test('a resposta salva e a do treinador valem mais que a sugestão', () => {
+    const antes = { ...SEM_RESPOSTAS, exercicios: { 'Supino reto c/ hal.': { acao: 'MANTER' as const } }, suplementos: { Creatina: 'SENSIVEL' as const } };
+    const { estado, preenchidas } = preencherSugestoes(ANALISE, antes);
+    expect(estado.exercicios['Supino reto c/ hal.']).toEqual({ acao: 'MANTER' });
+    expect(estado.suplementos.Creatina).toBe('SENSIVEL');
+    expect(preenchidas).toBe(1); // só o alimento
+    expect(preencherSugestoes(ANALISE, estado).preenchidas).toBe(0); // repetir não marca de novo o que já tem resposta
+  });
+
+  test('sem nada a sugerir não conta nada', () => {
+    expect(preencherSugestoes({ ...ANALISE, exercicios: [], alimentos: [], suplementos: [] }, SEM_RESPOSTAS)).toEqual({ estado: SEM_RESPOSTAS, preenchidas: 0 });
   });
 });

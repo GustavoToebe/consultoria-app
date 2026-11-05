@@ -884,8 +884,12 @@ export const analisarPlanilhaCompleta = (arquivo: FormData) =>
   requisicao<AnaliseDaPlanilha>('/importacoes/planilha-completa/analisar', { metodo: 'POST', corpoBruto: arquivo });
 export const previaDaPlanilhaCompleta = (arquivo: FormData) =>
   requisicao<PreviaDaPlanilha>('/importacoes/planilha-completa/previa', { metodo: 'POST', corpoBruto: arquivo });
-export const confirmarPlanilhaCompleta = (arquivo: FormData, hash: string) =>
-  requisicao<ConfirmacaoDaPlanilha>(`/importacoes/planilha-completa/confirmar?hash=${encodeURIComponent(hash)}`, { metodo: 'POST', corpoBruto: arquivo });
+/** `ignorados` = o `numero` (de 1) dos alunos desmarcados na amostra: vão em parâmetro próprio, fora do `hash` (marcar não invalida a prévia). */
+export const confirmarPlanilhaCompleta = (arquivo: FormData, hash: string, ignorados: readonly number[] = []) =>
+  requisicao<ConfirmacaoDaPlanilha>(
+    `/importacoes/planilha-completa/confirmar?hash=${encodeURIComponent(hash)}${ignorados.length > 0 ? `&alunosIgnorados=${ignorados.join(',')}` : ''}`,
+    { metodo: 'POST', corpoBruto: arquivo },
+  );
 /** Migração assistida, fase 1: diz o que dá para importar do arquivo. Não grava nada (503 `MIGRACAO_INDISPONIVEL` com a chave desligada). */
 export const diagnosticarArquivo = (arquivo: FormData) =>
   requisicao<DiagnosticoDoArquivo>('/importacoes/diagnostico', { metodo: 'POST', corpoBruto: arquivo });

@@ -1,5 +1,5 @@
 import * as DocumentPicker from 'expo-document-picker';
-import { Apple, Check, Download, Dumbbell, FileSpreadsheet, FileUp, FlaskConical, Pill, Scale, Trash2, Undo2, Users, type LucideIcon } from 'lucide-react-native';
+import { Apple, Check, Download, Dumbbell, FileSpreadsheet, FileText, FileUp, FlaskConical, Pill, Scale, Trash2, Undo2, Users, type LucideIcon } from 'lucide-react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { createElement, useId, useRef, useState } from 'react';
 import { Linking, Platform, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
@@ -103,6 +103,11 @@ export function TelaImportacao() {
       <LinhaDeAcoes>
         <Botao rotulo="Nova importação" Icone={FileUp} aoTocar={() => router.push('/treinador/importacao/nova')} />
         <Botao rotulo="Modelos de planilha" tipo="secundario" aoTocar={() => setModelos(true)} />
+        {/* Treino que está num PDF ou Google Docs: vira um modelo de semana de treino já com a Folha de colar aberta. */}
+        {pode('MODELO_LER') && pode('MODELO_ALTERAR') ? (
+          <Botao rotulo="Colar treino de PDF / Docs" tipo="secundario" Icone={FileText}
+            aoTocar={() => router.push({ pathname: '/treinador/planejamento', params: { aba: 'treino', tipo: 'plano_treino', novo: '1', colar: '1' } })} />
+        ) : null}
       </LinhaDeAcoes>
       <BarraDeFiltros valor={filtros} aoAplicar={aplicar} limpo={SEM_FILTROS} chips={chips}
         aoTirar={(chave) => aplicar(semOFiltro(filtros, chave as ChaveDoFiltro))} rotuloDoResultado="Ver importações"

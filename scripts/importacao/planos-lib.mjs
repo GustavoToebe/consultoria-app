@@ -15,7 +15,8 @@
  * `app/src/dominio/metodologiaPadrao.ts` e usada por `importar.mjs`): o `tipo` da série é o **código** do tipo (`FEEDER`,
  * `WORKING`, `BACK_OFF`, `TOP_SET`). "FS" tem `carga` `PERCENTUAL_WS` pela regra de preparação do total de FS (1 FS = 85; 2 =
  * 70/85; 3 = 50/70/85); "WS" = `CARGA_TRABALHO`; "Top set" = o tipo `TOP_SET`, sem sugestão de carga (`NENHUMA`: não é série de trabalho; nunca vira WS); "Back off" =
- * `PERCENTUAL_WS` com o % da coluna "Back Off %". Esforço (RIR/RPE) é separado da carga e a planilha não o traz: `esforco` fica nulo.
+ * `PERCENTUAL_WS` com o % da coluna "Back Off %" (vazio: o padrão do tipo na metodologia). Esforço (RIR/RPE) é separado da carga e a planilha não o traz:
+ * a série leva o `esforcoPadrao` do tipo (RIR 0 em WS, Top set e Back off; nulo em FS).
  *
  * O **tipo** da série (Aquecimento, FS, WS, Back off) diz para que ela serve; a **técnica** (cluster, rest pause,
  * drop-set) diz como executar e fica em `serie.tecnica`, dentro da série de trabalho (`importar.mjs`). A planilha não tem
@@ -25,6 +26,7 @@ import METODOLOGIA_PADRAO from './metodologia-padrao.json' with { type: 'json' }
 import { randomUUID } from 'node:crypto';
 
 import { chaveDoNome } from './alunos-lib.mjs';
+import { estimarFatoresDoAlimento } from './fatores-do-alimento.mjs';
 import { ALIAS, cargaDe, chave, codigoDoTipo } from './importar.mjs';
 import { aba, cabecalho, converter, dataDoExcel, texto, vazia } from './planilha-lib.mjs';
 
@@ -40,6 +42,10 @@ export const METODOLOGIA = METODOLOGIA_PADRAO;
 const MAX_SERIES_POR_TIPO = 10;
 const tipoDaMetodologia = (nome) => METODOLOGIA.tipos.find((t) => t.nome === nome);
 const repsDoTipo = (nome) => { const r = tipoDaMetodologia(nome).repeticoes; return r ? [r.min, r.max] : null; };
+const esforcoDoTipo = (nome) => {
+  const e = tipoDaMetodologia(nome).esforcoPadrao;
+  return e && (e.rir != null || e.rpe != null) ? { rir: e.rir ?? null, rpe: e.rpe ?? null } : null;
+};
 
 /** Limites do `@Size` dos records Java: passou, o `PUT` do rascunho do aluno inteiro seria recusado. */
 const L = {
@@ -410,9 +416,10 @@ function exercicioDaLinha(linha, e, problema, cortar, abaNome, data1904, aoRecup
  * `aoRecuperarFaixa` é chamado quando a faixa da WS foi recuperada de uma data do Excel: só conta, não vira problema.
  */
 export function montarSeries({ ws, fs, ts, bo, backoff, faixa }, avisar, aoRecuperarFaixa = () => {}) {
+  // A série nasce com o esforço padrão do tipo na metodologia (RIR 0 na WS, Top set e Back off; nulo na FS).
   const serie = (nomeDoTipo, reps, carga) => ({
-    uid: randomUUID(), tipo: codigoDoTipo(nomeDoTipo), repsMin: reps?.[0] ?? null, repsMax: reps?.[1] ?? null, amrap: null, carga, esforco: null,
-    descansoSegundos: null, tecnica: null, cardio: null, alvoExtra: null,
+    uid: randomUUID(), tipo: codigoDoTipo(nomeDoTipo), repsMin: reps?.[0] ?? null, repsMax: reps?.[1] ?? null, amrap: null, carga,
+    esforco: esforcoDoTipo(nomeDoTipo), descansoSegundos: null, tecnica: null, cardio: null, alvoExtra: null,
   });
   const quantidade = (v, rotulo) => {
     if (v === undefined) return 0;
@@ -445,8 +452,9 @@ export function montarSeries({ ws, fs, ts, bo, backoff, faixa }, avisar, aoRecup
   if (bo === true) {
     // A planilha diz só se há back off, não quantas séries: uma. Percentual da WS: fração da planilha (0,85) vira 85.
     const p = Number.isFinite(backoff) && backoff > 0 && backoff <= 2 ? Math.round(backoff * 100) : null;
-    if (p === null) avisar('back off sem percentual válido (série sem carga)');
-    series.push(serie('Back off', repsDoTipo('Back off'), p === null ? cargaDe('NENHUMA') : cargaDe('PERCENTUAL_WS', { percentualMin: p })));
+    if (p === null) avisar('back off sem percentual válido (usei o padrão da metodologia)');
+    // Sem % na planilha vale o padrão do tipo na metodologia: a série nasce válida (% da WS) e o aviso fica.
+    series.push(serie('Back off', repsDoTipo('Back off'), p === null ? structuredClone(tipoDaMetodologia('Back off').cargaPadrao) : cargaDe('PERCENTUAL_WS', { percentualMin: p })));
   }
   return series;
 }
@@ -612,10 +620,12 @@ function itemDaLinha(linha, r, alimento, problema, cortar, abaNome) {
   if (modo && !['g', 'ml', 'un'].includes(modo)) problema(abaNome, linha.n, 'unidade desconhecida (usei g)');
   const kcal = valor(r.kcal, 'kcal');
   if (kcal === null) problema(abaNome, linha.n, 'item sem kcal (a publicação vai exigir)');
+  const nome = cortar(abaNome, linha.n, 'nome do alimento', alimento, L.itemNome);
+  const fatores = estimarFatoresDoAlimento(nome, null, kcal, quantidade, unidade);
   return {
-    uid: randomUUID(), alimentoId: null, nome: cortar(abaNome, linha.n, 'nome do alimento', alimento, L.itemNome), quantidade, unidade, kcal,
+    uid: randomUUID(), alimentoId: null, nome, quantidade, unidade, kcal,
     proteina: valor(r.proteina, 'proteína'), carboidrato: valor(r.carbo, 'carboidrato'), gordura: valor(r.gordura, 'gordura'),
-    manual: true, fatorCorrecao: null, fatorCoccao: null,
+    manual: true, fatorCorrecao: fatores.fatorCorrecao, fatorCoccao: fatores.fatorCoccao,
   };
 }
 

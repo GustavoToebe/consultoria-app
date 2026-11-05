@@ -185,7 +185,9 @@ test('treino: sessões por letra, exercícios pela Ordem, séries FS/WS/Back off
   assert.equal(remada.unidade, 'kg');
   assert.equal(remada.progressao, true);
   assert.equal(remada.exercicioId, null);
-  assert.ok(remada.series.every((s) => s.descansoSegundos === null && s.tecnica === null && s.esforco === null && s.cardio === null));
+  assert.ok(remada.series.every((s) => s.descansoSegundos === null && s.tecnica === null && s.cardio === null));
+  // Esforço padrão do tipo na metodologia: FS sem, WS e Back off com RIR 0.
+  assert.deepEqual(remada.series.map((s) => s.esforco), [null, null, null, { rir: 0, rpe: null }, { rir: 0, rpe: null }]);
   verificarContratoDoTreino(doAluno(r, 'AL1').treino.conteudo);
 });
 
@@ -298,7 +300,8 @@ test('o JSON respeita os limites da API, tem uids únicos e não tem zero no lug
     assert.ok(a.treino.conteudo.sessoes.every((s) => Array.isArray(s.grupos) && s.grupos.length === 0));
   }
   const item = doAluno(r, 'AL2').dieta.conteudo.refeicoes[0].opcoes[0].itens[0];
-  assert.deepEqual([item.fatorCorrecao, item.fatorCoccao, item.alimentoId], [null, null, null]);
+  assert.equal(item.alimentoId, null);
+  assert.deepEqual([item.fatorCorrecao, item.fatorCoccao], [1, 1]);
 });
 
 test('problemas só têm aba, linha e motivo, sem nome, alimento, observação nem peso; o resumo só traz contagens', () => {
@@ -329,8 +332,10 @@ test('regras pequenas: faixa de repetições, dia da semana, vídeo, séries e n
   assert.deepEqual(montarSeries({ ...base, fs: 1, ws: 1, ts: true, bo: true, backoff: 0.9 }, () => {}).map((s) => [s.tipo, s.carga.modo]),
     [['FEEDER', 'PERCENTUAL_WS'], ['WORKING', 'CARGA_TRABALHO'], ['TOP_SET', 'NENHUMA'], ['BACK_OFF', 'PERCENTUAL_WS']]);
   const semPercentual = montarSeries({ ...base, ws: 1, bo: true, backoff: 0 }, (a) => avisos.push(a));
-  assert.equal(semPercentual[1].carga.modo, 'NENHUMA');
-  assert.deepEqual(avisos, ['back off sem percentual válido (série sem carga)']);
+  // Sem % na planilha: o padrão do tipo na metodologia (% da WS), com RIR 0, para a série já nascer válida.
+  assert.deepEqual([semPercentual[1].carga.modo, semPercentual[1].carga.percentualMin, semPercentual[1].esforco], ['PERCENTUAL_WS', 85, { rir: 0, rpe: null }]);
+  assert.deepEqual(semPercentual[0].esforco, { rir: 0, rpe: null });
+  assert.deepEqual(avisos, ['back off sem percentual válido (usei o padrão da metodologia)']);
   assert.deepEqual(montarSeries({ ...base, ws: -1, fs: 1.5 }, () => {}), []);
   const usados = new Set();
   assert.deepEqual(['ALU/1', 'ALU_1', '../x'].map((c) => nomeDoArquivo(c, usados)), ['ALU_1.json', 'ALU_1_2.json', '___x.json']);

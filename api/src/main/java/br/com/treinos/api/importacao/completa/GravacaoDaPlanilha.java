@@ -53,6 +53,7 @@ import br.com.treinos.api.treino.ValidadorTreino;
 import br.com.treinos.api.web.Exigir;
 import br.com.treinos.api.web.Fuso;
 import br.com.treinos.api.web.NaoEncontradoException;
+import br.com.treinos.api.web.ValidacaoException;
 import br.com.treinos.api.web.VideoUrls;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -161,9 +162,19 @@ public class GravacaoDaPlanilha {
         return AmostraDaPlanilha.de(m, RespostasDaPlanilha.hash(bytes, respostas, json), inicio, contexto.alunos());
     }
 
-    @Transactional
     public Confirmacao confirmar(UsuarioAutenticado eu, String nomeDoArquivo, byte[] bytes, String respostasJson,
                                  String hash) {
+        return confirmar(eu, nomeDoArquivo, bytes, respostasJson, hash, List.of());
+    }
+
+    /**
+     * {@code alunosIgnorados} = as posições (de 1, na ordem da amostra) dos alunos que o treinador desmarcou: ficam fora de
+     * tudo o que é gravado. Vêm separadas do {@code hash} de propósito: marcar ou desmarcar um aluno na amostra não
+     * invalida a prévia.
+     */
+    @Transactional
+    public Confirmacao confirmar(UsuarioAutenticado eu, String nomeDoArquivo, byte[] bytes, String respostasJson,
+                                 String hash, List<Integer> alunosIgnorados) {
         RespostasDaPlanilha respostas = RespostasDaPlanilha.ler(respostasJson, json);
         LeituraDasAbas.Leitura leitura = LeituraDasAbas.ler(nomeDoArquivo, bytes);
         String calculado = RespostasDaPlanilha.hash(bytes, respostas, json);
@@ -174,7 +185,9 @@ public class GravacaoDaPlanilha {
         // Antes de ler alunos e contar vagas: duas confirmações na mesma consultoria não correm por e-mail ou vaga.
         Exigir.existe(consultorias.travar(TenantContext.get()), () -> new NaoEncontradoException("Importação não encontrada."));
 
-        Montagem antes = MontagemDaImportacao.montar(leitura, respostas, contexto(eu.usuarioId()));
+        Montagem completa = MontagemDaImportacao.montar(leitura, respostas, contexto(eu.usuarioId()));
+        Set<Dono> ignorados = donosIgnorados(completa, alunosIgnorados);
+        Montagem antes = completa.semDonos(ignorados);
         Criacao criacao = criacao(antes);
         int total = criacao.alunosNovos() + criacao.pesos() + criacao.exercicios() + criacao.pastas();
         String situacao = total == 0 ? "FALHOU" : antes.problemas().isEmpty() ? "CONCLUIDA" : "CONCLUIDA_COM_ERROS";
@@ -190,7 +203,8 @@ public class GravacaoDaPlanilha {
             criado.marcarImportacao(id);
             exercicios.saveAndFlush(criado);
         }
-        Montagem m = antes.exerciciosNovos().isEmpty() ? antes : MontagemDaImportacao.montar(leitura, respostas, contexto(eu.usuarioId()));
+        Montagem m = antes.exerciciosNovos().isEmpty() ? antes
+                : MontagemDaImportacao.montar(leitura, respostas, contexto(eu.usuarioId())).semDonos(ignorados);
 
         Map<Dono, UUID> novos = new HashMap<>();
         for (AlunoNovo a : m.alunosNovos()) {
@@ -239,6 +253,29 @@ public class GravacaoDaPlanilha {
         auditoria.registrarEvento("IMPORTACAO_CONCLUIDA", "IMPORTACAO", id, "Importou dados de planilha completa.");
         return new Confirmacao(id, situacao, criacao(m, criacao.exercicios()), m.partesPuladas(), validacao(m),
                 m.problemas().size(), porTipo(m.problemas()));
+    }
+
+    /**
+     * Os donos das posições ignoradas (de 1, na ordem da amostra). Posição fora da lista da planilha é 422; ignorar todos
+     * (nada sobra para gravar) também. Repetida conta uma vez.
+     */
+    static Set<Dono> donosIgnorados(Montagem m, List<Integer> posicoes) {
+        if (posicoes == null || posicoes.isEmpty()) {
+            return Set.of();
+        }
+        List<Dono> ordem = AmostraDaPlanilha.ordemDosDonos(m);
+        Set<Dono> ignorados = new HashSet<>();
+        for (Integer n : posicoes) {
+            if (n == null || n < 1 || n > ordem.size()) {
+                throw new ValidacaoException("Um aluno marcado para ignorar não está na planilha. Gere a prévia de novo.",
+                        "ALUNO_IGNORADO_INVALIDO", List.of());
+            }
+            ignorados.add(ordem.get(n - 1));
+        }
+        if (ignorados.size() == ordem.size()) {
+            throw new ValidacaoException("Marque pelo menos um aluno para importar.", "NENHUM_ALUNO_MARCADO", List.of());
+        }
+        return ignorados;
     }
 
     /** O que a montagem precisa da consultoria, lido pelos repositórios (já filtrados pelo {@code @TenantId}). */

@@ -210,7 +210,8 @@ for (const largura of [390, 1280]) {
       ligacoes: [{ aba: 2, linha: 6, linhaDaMae: 3 }],
       exercicios: [{ nome: 'Supino reto c/ hal.', acao: 'ACEITAR' }, { nome: 'Xyzzy fictício', acao: 'BIBLIOTECA', id: 'e2' }],
       alimentos: [],
-      suplementos: [{ nome: 'Remédio Fictício', destino: 'SENSIVEL' }],
+      // "Creatina" já tinha sugestão e chegou preenchida (N20); o treinador só escolheu o "Remédio Fictício".
+      suplementos: [{ nome: 'Creatina', destino: 'SUPLEMENTO' }, { nome: 'Remédio Fictício', destino: 'SENSIVEL' }],
     });
 
     await page.getByRole('button', { name: 'Confirmar importação' }).click();
@@ -310,7 +311,7 @@ for (const largura of [390, 1280]) {
       ligacoes: [],
       exercicios: [{ nome: 'Supino reto c/ hal.', acao: 'BIBLIOTECA', id: 'e1' }],
       alimentos: [],
-      suplementos: [{ nome: 'Remédio Fictício', destino: 'SENSIVEL' }],
+      suplementos: [{ nome: 'Creatina', destino: 'SUPLEMENTO' }, { nome: 'Remédio Fictício', destino: 'SENSIVEL' }],
     });
 
     // Esquecer: pede confirmação; Cancelar não apaga; Esquecer tira as marcas que vieram delas.
@@ -330,7 +331,8 @@ for (const largura of [390, 1280]) {
     await page.getByRole('button', { name: 'Continuar' }).click();
     await page.getByRole('button', { name: 'Gerar prévia' }).click();
     await expect(page.getByText('Vai criar 3 alunos, sem convite.')).toBeVisible();
-    expect(pedidos.respostas).toEqual({ abas: [], ligacoes: [], exercicios: [], alimentos: [], suplementos: [] });
+    // Esquecidas as respostas salvas, só sobra o que o app preenche sozinho (N20): a "Creatina" já tinha sugestão.
+    expect(pedidos.respostas).toEqual({ abas: [], ligacoes: [], exercicios: [], alimentos: [], suplementos: [{ nome: 'Creatina', destino: 'SUPLEMENTO' }] });
     expect(naoTratadas).toEqual([]);
     expect(errosDaPagina).toEqual([]);
   });

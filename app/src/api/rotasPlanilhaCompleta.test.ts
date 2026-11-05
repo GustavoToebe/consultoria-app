@@ -1,5 +1,5 @@
 import { requisicao } from './cliente';
-import { amostraDaPlanilhaCompleta, desfazerImportacao, esquecerRespostasDaPlanilha } from './rotas';
+import { amostraDaPlanilhaCompleta, confirmarPlanilhaCompleta, desfazerImportacao, esquecerRespostasDaPlanilha } from './rotas';
 
 jest.mock('./cliente', () => ({ requisicao: jest.fn((caminho: string) => Promise.resolve(caminho)) }));
 
@@ -13,6 +13,14 @@ describe('planilha completa', () => {
     const arquivo = new FormData();
     await amostraDaPlanilhaCompleta(arquivo, 5);
     expect(requisicao).toHaveBeenLastCalledWith('/importacoes/planilha-completa/amostra?inicio=5', { metodo: 'POST', corpoBruto: arquivo });
+  });
+
+  it('a confirmação leva os alunos ignorados num parâmetro à parte do hash, e sem eles não leva nada', async () => {
+    const arquivo = new FormData();
+    await confirmarPlanilhaCompleta(arquivo, 'a/b');
+    expect(requisicao).toHaveBeenLastCalledWith('/importacoes/planilha-completa/confirmar?hash=a%2Fb', { metodo: 'POST', corpoBruto: arquivo });
+    await confirmarPlanilhaCompleta(arquivo, 'h', [2, 4]);
+    expect(requisicao).toHaveBeenLastCalledWith('/importacoes/planilha-completa/confirmar?hash=h&alunosIgnorados=2,4', { metodo: 'POST', corpoBruto: arquivo });
   });
 
   it('o id do desfazer é codificado', async () => {

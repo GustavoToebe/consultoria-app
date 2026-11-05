@@ -59,11 +59,24 @@ class MontagemDeSeriesTest {
     }
 
     @Test
-    void backOffSemPercentualFicaSemCarga() {
+    void backOffSemPercentualUsaOPadraoDaMetodologia() {
+        // Sem "Back Off %" a série não fica sem carga (erro no editor): vale o padrão do tipo, % da WS, e o aviso fica.
         Resultado r = MontagemDeSeries.montar(entrada(1, null, Logico.AUSENTE, Logico.SIM, 0, TRES_A_SEIS), PADRAO);
         assertThat(r.series()).hasSize(2);
-        assertThat(r.series().get(1).carga().modo()).isEqualTo("NENHUMA");
+        assertThat(r.series().get(1).carga().modo()).isEqualTo("PERCENTUAL_WS");
+        assertThat(r.series().get(1).carga().percentualMin()).isEqualByComparingTo("85");
         assertThat(r.avisos()).containsExactly("BACK_OFF_SEM_PERCENTUAL");
+        // Célula vazia (ausente) também.
+        Resultado vazia = MontagemDeSeries.montar(entrada(1, null, Logico.AUSENTE, Logico.SIM, null, TRES_A_SEIS), PADRAO);
+        assertThat(vazia.series().get(1).carga().modo()).isEqualTo("PERCENTUAL_WS");
+    }
+
+    @Test
+    void asSeriesNascemComOEsforcoPadraoDoTipo() {
+        Resultado r = MontagemDeSeries.montar(entrada(1, 1, Logico.SIM, Logico.SIM, 0.9, TRES_A_SEIS), PADRAO);
+        // FS sem esforço; WS, Top set e Back off com RIR 0 (como no editor).
+        assertThat(r.series()).extracting(s -> s.esforco() == null ? null : s.esforco().rir())
+                .containsExactly(null, 0, 0, 0);
     }
 
     @Test
@@ -172,7 +185,8 @@ class MontagemDeSeriesTest {
         MontagemDeSeries.PorPrescricao r = livre("3x10");
         assertThat(r.series()).hasSize(3);
         assertThat(r.series()).allMatch(s -> "WORKING".equals(s.tipo()) && s.repsMin() == 10 && s.repsMax() == 10
-                && "CARGA_TRABALHO".equals(s.carga().modo()) && s.esforco() == null && s.descansoSegundos() == null);
+                && "CARGA_TRABALHO".equals(s.carga().modo()) && s.esforco().rir() == 0 && s.esforco().rpe() == null
+                && s.descansoSegundos() == null);
         assertThat(r.manterTexto()).isFalse();
         assertThat(r.avisos()).isEmpty();
         assertThat(livre("4x8-12").series()).allMatch(s -> s.repsMin() == 8 && s.repsMax() == 12).hasSize(4);
@@ -210,12 +224,12 @@ class MontagemDeSeriesTest {
         assertThat(livre("4x8 90\"").series()).allMatch(s -> s.descansoSegundos() == 90);
         assertThat(livre("3x10 RIR 2").series()).allMatch(s -> s.esforco().rir() == 2 && s.esforco().rpe() == null);
         assertThat(livre("3x10 RIR 10").series()).allMatch(s -> s.esforco().rir() == 10 && s.esforco().rpe() == null);
-        // RIR 11 passa do limite: o esforço não é lido e o texto fica para conferir.
-        assertThat(livre("3x10 RIR 11").series()).allMatch(s -> s.esforco() == null);
+        // RIR 11 passa do limite: o esforço escrito não é lido (vale o padrão do tipo, RIR 0) e o texto fica para conferir.
+        assertThat(livre("3x10 RIR 11").series()).allMatch(s -> s.esforco().rir() == 0);
         assertThat(livre("3x10 RPE 8,5").series()).allMatch(s -> s.esforco().rpe().compareTo(new BigDecimal("8.5")) == 0);
-        // "Até a falha" com RIR 2 não combina: sem esforço e o texto fica.
+        // "Até a falha" com RIR 2 não combina: vale o esforço padrão do tipo (RIR 0) e o texto fica.
         MontagemDeSeries.PorPrescricao conflito = livre("3x10 falha RIR 2");
-        assertThat(conflito.series()).allMatch(s -> s.esforco() == null);
+        assertThat(conflito.series()).allMatch(s -> s.esforco().rir() == 0);
         assertThat(conflito.avisos()).containsExactly("ESFORCO_CONFLITANTE");
         assertThat(conflito.manterTexto()).isTrue();
     }

@@ -452,10 +452,8 @@ export interface CatalogoAlimento {
   tracos: string[];
   /** Fator de correção que a fonte do catálogo publicou; nulo = não informado (nunca 1). */
   fatorCorrecao: number | null;
-  /** Fator de cocção que a fonte do catálogo publicou; nulo = não informado. */
+  /** Fator de cocção estimado; junto com o de correção, vem do perfil nativo. */
   fatorCoccao: number | null;
-  /** Citação curta dos fatores; nula quando o item não tem fator. */
-  fonteFatores: string | null;
 }
 
 /** Página de exercícios da consultoria; `grupos` são todos os grupos dela, sem o filtro de grupo. */

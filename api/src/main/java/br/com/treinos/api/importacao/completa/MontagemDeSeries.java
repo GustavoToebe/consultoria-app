@@ -29,7 +29,8 @@ import java.util.UUID;
  * {@code PERCENTUAL_WS} pela regra de preparação da metodologia para o total de FS; WS = {@code CARGA_TRABALHO}; Top set
  * = o tipo {@code TOP_SET} da metodologia, com {@code CARGA_TRABALHO} e as repetições do tipo (sem percentual: o "acima da
  * anterior" é a explicação do tipo); Back off = {@code PERCENTUAL_WS} com o % da
- * coluna (fração 0,85 = 85) ou sem carga. Esforço, descanso e técnica ficam nulos: a planilha não os traz.
+ * coluna (fração 0,85 = 85) ou, sem ela, o padrão do tipo na metodologia. O esforço é o padrão do tipo (RIR 0 na WS, Top
+ * set e Back off); descanso e técnica ficam nulos: a planilha não os traz.
  *
  * <p>O tipo vem da metodologia da consultoria pelo código ({@code FEEDER}, {@code WORKING},
  * {@code BACK_OFF}) e, sem ele, pelo papel (o {@code TOP_SET} só pelo código). Tipo que a metodologia não tem não vira série (aviso
@@ -182,8 +183,10 @@ public final class MontagemDeSeries {
             if (tipoBo == null) {
                 avisos.add("TIPO_FORA_DA_METODOLOGIA");
             } else {
+                // Sem % na planilha vale o padrão do tipo na metodologia (a série nasce válida, "% da WS"); o aviso fica.
+                Carga padrao = tipoBo.cargaPadrao() == null ? Carga.de(ConteudoTreino.NENHUMA) : tipoBo.cargaPadrao();
                 series.add(serie(tipoBo, repsMin(tipoBo), repsMax(tipoBo),
-                        p == null ? Carga.de(ConteudoTreino.NENHUMA) : Carga.percentual(ConteudoTreino.PERCENTUAL_WS, p, null)));
+                        p == null ? padrao : Carga.percentual(ConteudoTreino.PERCENTUAL_WS, p, null)));
             }
         }
         return new Resultado(List.copyOf(series), List.copyOf(avisos), recuperada && nWs > 0);
@@ -247,6 +250,9 @@ public final class MontagemDeSeries {
             esforco = Esforco.deRir(rir);
         } else if (p.rpe() != null) {
             esforco = new Esforco(null, p.rpe());
+        }
+        if (esforco == null) {
+            esforco = esforcoDoTipo(trabalho); // nada escrito: o esforço padrão do tipo (RIR 0)
         }
 
         Integer min = p.amrap() ? null : p.repsMin();
@@ -376,7 +382,13 @@ public final class MontagemDeSeries {
         return t.repeticoes() == null ? null : t.repeticoes().max();
     }
 
+    /** A série nasce com o esforço padrão do tipo na metodologia (RIR 0 na WS, Top set e Back off; nulo na FS). */
     private static Serie serie(TipoDeSerie tipo, Integer min, Integer max, Carga carga) {
-        return Serie.de(UUID.randomUUID(), tipo.codigo().trim(), min, max, carga);
+        return new Serie(UUID.randomUUID(), tipo.codigo().trim(), min, max, null, carga, esforcoDoTipo(tipo), null, null,
+                null, null);
+    }
+
+    private static Esforco esforcoDoTipo(TipoDeSerie tipo) {
+        return tipo.esforcoPadrao() == null || tipo.esforcoPadrao().vazio() ? null : tipo.esforcoPadrao();
     }
 }

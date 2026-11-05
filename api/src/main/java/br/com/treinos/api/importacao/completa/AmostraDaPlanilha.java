@@ -82,22 +82,11 @@ public final class AmostraDaPlanilha {
         Map<Dono, List<PesoNovo>> pesos = new HashMap<>();
         Map<UUID, String> nomesDoCadastro = new HashMap<>();
         existentes.forEach(e -> nomesDoCadastro.put(e.id(), e.nome()));
-        // A ordem do arquivo: cadastros novos, depois quem tem plano, depois o aluno que já existe e só recebe pesos.
-        Set<Dono> donos = new LinkedHashSet<>();
-        for (AlunoNovo a : m.alunosNovos()) {
-            novos.put(a.dono(), a);
-            donos.add(a.dono());
-        }
-        for (PlanosDoAluno p : m.planos()) {
-            planos.put(p.dono(), p);
-            donos.add(p.dono());
-        }
-        for (PesoNovo p : m.pesos()) {
-            pesos.computeIfAbsent(p.dono(), k -> new ArrayList<>()).add(p);
-            donos.add(p.dono()); // já está na lista se tem cadastro novo ou plano
-        }
+        m.alunosNovos().forEach(a -> novos.put(a.dono(), a));
+        m.planos().forEach(p -> planos.put(p.dono(), p));
+        m.pesos().forEach(p -> pesos.computeIfAbsent(p.dono(), k -> new ArrayList<>()).add(p));
 
-        List<Dono> ordem = List.copyOf(donos);
+        List<Dono> ordem = ordemDosDonos(m);
         int de = Math.min(Math.max(0, inicio), ordem.size());
         int ate = Math.min(ordem.size(), de + ALUNOS_POR_AMOSTRA);
         List<AlunoDaAmostra> alunos = new ArrayList<>();
@@ -113,12 +102,25 @@ public final class AmostraDaPlanilha {
                     ? new AlunoDaAmostra(i + 1, "NOVO", novo.nome(), novo.ativo(), novo.email(), novo.telefone(),
                             novo.objetivo(), novo.observacoes(), dele.size(), ultimos, plano == null ? null : plano.treino(),
                             plano == null ? null : plano.dieta())
-                    : plano != null
-                    ? new AlunoDaAmostra(i + 1, "EXISTENTE", plano.nome(), null, null, null, null, null, dele.size(),
-                            ultimos, plano.treino(), plano.dieta())
-                    : new AlunoDaAmostra(i + 1, "EXISTENTE", nomesDoCadastro.get(dono.existente()), null, null, null, null,
-                            null, dele.size(), ultimos, null, null));
+                    // Aluno que já existe: sempre o nome oficial do cadastro (com plano ou só com pesos); o texto da
+                    // planilha só entra se, por algum motivo, o cadastro não estiver na lista.
+                    : new AlunoDaAmostra(i + 1, "EXISTENTE",
+                            nomesDoCadastro.getOrDefault(dono.existente(), plano != null ? plano.nome() : null), null, null,
+                            null, null, null, dele.size(), ultimos, plano == null ? null : plano.treino(),
+                            plano == null ? null : plano.dieta()));
         }
         return new Amostra(hash, ordem.size(), de, MontagemDaImportacao.TITULO_PASTA, List.copyOf(alunos));
+    }
+
+    /**
+     * A ordem dos alunos da planilha, a mesma da amostra (o {@code numero} de cada um é a posição + 1) e da lista de
+     * ignorados da confirmação: cadastros novos, depois quem tem plano, depois o aluno que já existe e só recebe pesos.
+     */
+    static List<Dono> ordemDosDonos(Montagem m) {
+        Set<Dono> donos = new LinkedHashSet<>();
+        m.alunosNovos().forEach(a -> donos.add(a.dono()));
+        m.planos().forEach(p -> donos.add(p.dono()));
+        m.pesos().forEach(p -> donos.add(p.dono())); // já está na lista se tem cadastro novo ou plano
+        return List.copyOf(donos);
     }
 }

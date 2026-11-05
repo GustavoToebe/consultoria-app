@@ -1,6 +1,6 @@
 import type { AlunoDaAmostra } from '../api/tipos';
 import {
-  FICA_DE_FORA, contarDieta, faixaDaAmostra, foraDaBiblioteca, pesosDoMaisRecente, restantesDaAmostra, resumoDoAluno, rotuloDosProximos,
+  FICA_DE_FORA, SELO_IGNORADO, SELO_INCLUIDO, TODOS_IGNORADOS, alternarIgnorado, resumoDosIgnorados, todosIgnorados, contarDieta, faixaDaAmostra, foraDaBiblioteca, pesosDoMaisRecente, restantesDaAmostra, resumoDoAluno, rotuloDosProximos,
   situacaoDoAluno, textoDaDieta, textoDaPasta, textoDaRefeicao, textoDoAtivo, textoDoCadastroExistente, textoDoExercicio, textoDoItem, textoDoPeso, textoDosPesos,
   textoDoSuplemento, textoDoTreino, valorDoCampo,
 } from './amostraDaPlanilha';
@@ -96,5 +96,31 @@ describe('amostra da planilha', () => {
     expect(etapasDaPlanilha(false).map((e) => e.rotulo)).toEqual(['Arquivo', 'Abas', 'Nomes', 'Prévia', 'Resultado']);
     expect(etapasDaPlanilha(true).map((e) => e.etapa)).toEqual([1, 2, 3, 4, 5, 6]);
     expect(etapasDaPlanilha(false).at(-1)?.etapa).toBe(6);
+  });
+});
+
+describe('alunos ignorados na amostra', () => {
+  it('alterna o aluno na lista, em ordem e sem repetir', () => {
+    expect(alternarIgnorado([], 3)).toEqual([3]);
+    expect(alternarIgnorado([3], 1)).toEqual([1, 3]);
+    expect(alternarIgnorado([1, 3], 3)).toEqual([1]);
+    const original = [2];
+    alternarIgnorado(original, 5);
+    expect(original).toEqual([2]); // não muda a lista que recebeu
+  });
+
+  it('a faixa diz quantos entram e quantos ficam de fora; sem ignorados não diz nada', () => {
+    expect(resumoDosIgnorados(7, [])).toBe('');
+    expect(resumoDosIgnorados(7, [2])).toBe('6 alunos serão importados · 1 ignorado');
+    expect(resumoDosIgnorados(2, [1])).toBe('1 aluno será importado · 1 ignorado');
+    expect(resumoDosIgnorados(3, [1, 2, 3])).toBe('0 alunos serão importados · 3 ignorados');
+  });
+
+  it('ignorar todos trava a confirmação (a API responderia 422)', () => {
+    expect(todosIgnorados(3, [1, 2])).toBe(false);
+    expect(todosIgnorados(3, [1, 2, 3])).toBe(true);
+    expect(todosIgnorados(0, [])).toBe(false);
+    expect(TODOS_IGNORADOS).toBe('Marque pelo menos um aluno para importar.');
+    expect([SELO_INCLUIDO, SELO_IGNORADO]).toEqual(['Incluído', 'Ignorado nesta importação']);
   });
 });

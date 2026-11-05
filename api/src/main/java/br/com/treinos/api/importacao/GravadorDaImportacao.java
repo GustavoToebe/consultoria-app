@@ -15,6 +15,7 @@ import br.com.treinos.api.biblioteca.AlimentoRepository;
 import br.com.treinos.api.biblioteca.Ergogenico;
 import br.com.treinos.api.biblioteca.ErgogenicoRepository;
 import br.com.treinos.api.biblioteca.Exercicio;
+import br.com.treinos.api.biblioteca.FatoresDeRendimento;
 import br.com.treinos.api.biblioteca.ExercicioRepository;
 import br.com.treinos.api.biblioteca.GrupoDoAlimento;
 import br.com.treinos.api.biblioteca.Suplemento;
@@ -423,6 +424,11 @@ class GravadorDaImportacao {
                 BigDecimal fc = fator(novo, atual == null ? null : atual.getFatorCorrecao(), leitura(linha, config, "fc"), linha.numero(), "fc", FC_MIN(), FC_MAX());
                 BigDecimal fcc = fator(novo, atual == null ? null : atual.getFatorCoccao(), leitura(linha, config, "fcc"), linha.numero(), "fcc", FCC_MIN(), FCC_MAX());
                 String grupo = grupoDoAlimento(novo, atual == null ? null : atual.getGrupo(), leitura(linha, config, "grupo"));
+                if (fc == null || fcc == null) {
+                    var estimado = FatoresDeRendimento.completar(fc, fcc, nome, grupo, kcal, quantidade, unidade);
+                    fc = estimado.fatorCorrecao();
+                    fcc = estimado.fatorCoccao();
+                }
                 var valores = new Alimento.Valores(nome, quantidade, unidade, kcal, proteina, carboidrato, gordura, gramas, fonte, fc, fcc, grupo);
                 if (novo) {
                     Alimento criado = new Alimento(valores, Exercicio.Origem.IMPORTACAO);

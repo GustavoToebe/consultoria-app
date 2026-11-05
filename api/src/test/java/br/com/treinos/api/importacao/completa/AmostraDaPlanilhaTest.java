@@ -86,7 +86,26 @@ class AmostraDaPlanilhaTest {
         assertThat(ultimo.dieta()).isNull();
         assertThat(ultimo.ativo()).isNull();
         assertThat(ultimo.email()).isNull();
-        assertThat(amostra.alunos().get(1).nome()).isEqualTo("Com Plano Fictício"); // quem tem plano não muda
+        // Também com plano: o nome é o do cadastro, não o do texto da planilha.
+        assertThat(amostra.alunos().get(1).nome()).isEqualTo("Outro Fictício");
+    }
+
+    @Test
+    void ordemDosDonosEAMesmaDaAmostraEAMontagemSemOsIgnorados() {
+        AlunoNovo a = novo(2);
+        AlunoNovo b = novo(3);
+        Dono existente = new Dono(null, UUID.randomUUID());
+        PlanosDoAluno plano = new PlanosDoAluno(existente, "Existente Fictício", null, null);
+        List<PesoNovo> pesos = List.of(new PesoNovo(a.dono(), LocalDate.of(2026, 1, 5), new BigDecimal("80"), null),
+                new PesoNovo(existente, LocalDate.of(2026, 1, 6), new BigDecimal("60"), null));
+        Montagem m = montagem(List.of(a, b), pesos, List.of(plano));
+
+        assertThat(AmostraDaPlanilha.ordemDosDonos(m)).containsExactly(a.dono(), b.dono(), existente);
+        Montagem semOSegundo = m.semDonos(Set.of(b.dono(), existente));
+        assertThat(semOSegundo.alunosNovos()).containsExactly(a);
+        assertThat(semOSegundo.planos()).isEmpty();
+        assertThat(semOSegundo.pesos()).hasSize(1);
+        assertThat(m.semDonos(Set.of())).isSameAs(m);
     }
 
     @Test
