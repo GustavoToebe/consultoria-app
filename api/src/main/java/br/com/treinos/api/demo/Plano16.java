@@ -18,8 +18,8 @@ final class Plano16 {
     /** Limite prescrito no PDF, gravado como RIR na série de trabalho. */
     enum Limite { FALHA, UM_RIR, NENHUM }
 
-    record Ex(String nome, Exercicio.Modalidade modalidade, String observacao, Limite limite, boolean progressao,
-              String unidade, List<String> series) {
+    /** Todo exercício de musculação nasce com carga em kg e progressão ligada; o cardio não passa por aqui. */
+    record Ex(String nome, Exercicio.Modalidade modalidade, String observacao, Limite limite, List<String> series) {
     }
 
     record Dia(String nome, int diaSemana, String tipo, String cardio, List<Ex> exercicios) {
@@ -56,8 +56,8 @@ final class Plano16 {
                         ex("Tríceps cruzado na polia (unilateral)", MAQ, null, Limite.NENHUM,
                                 "F3@85", "W6-8", "W6-8"))),
                 new Dia("Quarta - Pernas", 3, "TREINO", null, List.of(
-                        new Ex("Clamshell (com band)", Exercicio.Modalidade.ELASTICO, null, Limite.NENHUM, true,
-                                "nenhuma", List.of("W8-10", "W8-10", "W8-10")),
+                        new Ex("Clamshell (com band)", Exercicio.Modalidade.ELASTICO, null, Limite.NENHUM,
+                                List.of("W8-10", "W8-10", "W8-10")),
                         ex("Mesa flexora", MAQ, null, Limite.NENHUM,
                                 "F3-5@50", "F3-5@70", "F3-5@85", "W3-6", "B6-8@90", "B6-8@90"),
                         ex("Cadeira flexora", MAQ, null, Limite.NENHUM,
@@ -66,7 +66,7 @@ final class Plano16 {
                                 "F3@50", "F3@70", "F3@85", "W3-6", "B6-8@85", "B6-8@85"),
                         new Ex("Elevação pélvica na máquina ou com barra", MAQ,
                                 "Carga baixa, controle extremo. O objetivo não é progressão de carga.", Limite.NENHUM,
-                                false, "kg", List.of("F3-5@70", "F3-5@85", "W6-8", "W6-8")))),
+                                List.of("F3-5@70", "F3-5@85", "W6-8", "W6-8")))),
                 new Dia("Quinta - Off ativo", 4, "DESCANSO_ATIVO", CARDIO, List.of()),
                 new Dia("Sexta - Upper", 5, "TREINO", null, List.of(
                         ex("Remada na máquina articulada (pegada pronada simultâneo)", MAQ, null, Limite.NENHUM,
@@ -85,7 +85,7 @@ final class Plano16 {
                         ex("Stiff com barra livre", LIVRE, "Controle durante flexão e extensão do quadril.", Limite.UM_RIR,
                                 "F3-5@50", "F3-5@70", "F3-5@85", "W6-8", "W6-8"),
                         new Ex("Leg press 45º", MAQ, "Extremamente controlado. O objetivo não é progressão de carga.",
-                                Limite.NENHUM, false, "kg", List.of("F3-5@70", "F3-5@85", "W6-8", "W6-8")),
+                                Limite.NENHUM, List.of("F3-5@70", "F3-5@85", "W6-8", "W6-8")),
                         ex("Abdução de quadril na polia", MAQ, "Movimento bem curto.", Limite.NENHUM,
                                 "F3-5@85", "W6-8", "W6-8"))),
                 new Dia("Domingo - Off ativo", 7, "DESCANSO_ATIVO", CARDIO, List.of()));
@@ -95,7 +95,7 @@ final class Plano16 {
     static Ex abdominal() {
         return new Ex("Abdominal supra", MAQ,
                 "Máquina de preferência ou polia alta com corda. Comece com carga alta desde a primeira série.",
-                Limite.NENHUM, true, "kg", List.of("W6-8", "W6-8"));
+                Limite.NENHUM, List.of("W6-8", "W6-8"));
     }
 
     /** Todos os casos da tabela aprovada; WS por modalidade conta como dois exemplos (onze no total). */
@@ -119,6 +119,6 @@ final class Plano16 {
 
     private static Ex ex(String nome, Exercicio.Modalidade modalidade, String observacao, Limite limite,
                          String... series) {
-        return new Ex(nome, modalidade, observacao, limite, true, "kg", List.of(series));
+        return new Ex(nome, modalidade, observacao, limite, List.of(series));
     }
 }

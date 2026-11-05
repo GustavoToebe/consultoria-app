@@ -575,6 +575,22 @@ for (const largura of [390, 1280]) {
     expect(api.naoTratadas).toEqual([]);
   });
 
+  test(`aquecimento: seletor binário e o % em branco grava sem carga, sem erro (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const api = await modeloDeSeries(page, [serieCom('aq', 'WARM_UP', percentualDaWs(40), null, [10, 15]), serieInicial]);
+    const forma = page.getByRole('radiogroup', { name: 'Forma de carga', exact: true });
+    // Só "% da WS | Carga fixa": "Sem sugestão" é o % em branco.
+    await expect(forma.getByRole('button')).toHaveText([/% da WS/, /Carga fixa/]);
+    await page.getByRole('textbox', { name: 'Série 1 · Mínimo (%)', exact: true }).fill('');
+    await expect(forma.getByRole('button', { name: '% da WS', exact: true })).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByText('Percentual da WS entre 1 e 200.', { exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();
+    await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(1);
+    expect((api.salvo().conteudo as { series: Serie[] }).series[0].carga ?? null).toBeNull();
+    expect(api.errosDaPagina).toEqual([]);
+    expect(api.naoTratadas).toEqual([]);
+  });
+
   test(`carga fixa: WS 3x12 com 12 kg no resumo, o campo de kg valida e o Back off em % avisa (${largura}px)`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const api = await planoComUmExercicio(page, [0, 1, 2].map((i) => serieCom(`ws-${i}`, 'WORKING', cargaDeTrabalho, { rir: 1, rpe: null }, [12, 12])));

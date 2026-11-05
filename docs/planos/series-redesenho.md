@@ -1,6 +1,6 @@
 # Redesenho de série, carga, esforço (RIR), cartão de exercício e metodologia
 
-Situação: Em andamento · Onde: branch `series-redesenho` (a partir da `origin/main`) · Atualizado: 04/11/2026
+Situação: Pronta, sem push nem PR · Onde: branch `series-redesenho` (a partir da `origin/main`) · Atualizado: 04/11/2026
 
 ## Objetivo
 O treinador prescreve cada exercício como uma lista enxuta de blocos `Séries × Repetições - Tipo/Técnica`, com % da WS e RIR lado a lado em cada série, sem submenus de modalidade, de outras formas de carga nem de esforço não prescrito. Sem compatibilidade com o formato anterior (AGENTS.md, "Sem compatibilidade com o que é antigo"): o banco é recriado do zero.
@@ -19,15 +19,23 @@ O treinador prescreve cada exercício como uma lista enxuta de blocos `Séries �
 | 9 | Mantido intacto: 2 colunas, lista de exercícios, grupos e `CartaoGrupo`, `ResumoDaSessao`, abas por grupo de séries, cabeçalho do plano e chips de sessões | Sim | Gustavo (04/11) |
 
 ## Passos
-- [ ] 0. Documentação: `AGENTS.md` (linhas 292–298 e 407) e este plano — commit: —
-- [ ] 1. API: `ConfiguracaoConsultoria`, `ConteudoTreino`, `ValidadorTreino`, `SeedDemo`, `ReceitasPadrao`, `MontagemDeSeries` e testes — commit: —
-- [ ] 2. Domínio, receitas, offline e aluno do app; scripts `demo/` e `importacao/` — commit: —
-- [ ] 3. Telas do treinador: `CartaoDoTipo`, `EditorModelo`, `EditorDeTreino`, `CartaoExercicio`, `EditorSeries`, `CamposDaPrescricao` — commit: —
-- [ ] 4. Testes: typecheck, lint, Jest, mvn e as specs Playwright afetadas — commit: —
+- [x] 0. Documentação: `AGENTS.md` (linhas 292–298 e 407) e este plano — commit: `a5493fad` (o `AGENTS.md` foi completado com o que as telas construíram, no commit final)
+- [x] 1. API: `ConfiguracaoConsultoria`, `ConteudoTreino`, `ValidadorTreino`, `SeedDemo`, `ReceitasPadrao`, `MontagemDeSeries` e testes — commit: `1b7d63db`
+- [x] 2. Domínio, receitas, offline e aluno do app; scripts `demo/` e `importacao/` — commit: `6b7dcad9`
+- [x] 3. Telas do treinador: `CartaoDoTipo`, `EditorModelo`, `EditorDeTreino`, `CartaoExercicio`, `EditorSeries`, `CamposDaPrescricao` — commit: `aa85f865`
+- [x] 4. Testes: typecheck, lint, Jest, mvn (sem `*IntegrationTest`), scripts e a suíte Playwright inteira (869 passaram, 10 pulados, 1 falha anterior à mudança: `links-do-menu.spec.ts:20`); ajustes finais (Aquecimento binário, seed com `kg`, guias, `AGENTS.md`) — commit: o último desta branch
 
 ## Fora do escopo
 - Migration de conversão de JSON antigo (o banco é recriado).
 - Os trabalhos da branch `editores-revisao` (revisão visual dos três editores), que partiu de outro ponto da main.
 
 ## O que ficou para trás
-- (preencher ao final; cada sobra também vai para "Pendências soltas" no README)
+- Aquecimento com % preenchido só em parte das séries: as vazias continuam erro (a API recusa `PERCENTUAL_WS` sem mínimo).
+- Aviso `TOP_SET_SEM_PERCENTUAL` e `TOP_SET` em `corDaSerie`/`diagnosticoDoArquivo`: sobram sem sentido.
+- `referenciaCarga`/`referenciaOrigem` do registro de execução: conferir uso.
+- Dia de treino (`unica`) sem metodologia visível (consequência literal do texto 3.1).
+- `*IntegrationTest` e o banco recriado (`docker compose down -v`) não foram verificados: Docker desligado.
+- `EscolhaSuspensa` (peça compartilhada) mudou o lado de abertura; montador não conferido.
+- Branch `editores-revisao` conflita com esta nas mesmas telas; decisão do Gustavo.
+- Nativo, leitor de tela real e temas areia e contraste alto do campo de carga fixa e do Aquecimento não conferidos.
+- Todas as sobras também estão em "Pendências soltas" no README.

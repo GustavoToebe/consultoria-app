@@ -24,17 +24,15 @@ export interface EscolhaDeCargaDoPapel {
 }
 
 /**
- * As formas de carga do seletor, pelo papel (`modosDeCarga`). Na série (`onde = 'serie'`) o Aquecimento não mostra "Sem
- * sugestão": ela é o "% da WS" com os percentuais em branco. No padrão do tipo (`'padrao'`) todo papel menos o de trabalho
- * oferece também "Sem sugestão". Uma
- * forma gravada fora da lista do papel continua marcada (nada some da tela).
+ * As formas de carga do seletor, pelo papel (`modosDeCarga`, binário na série). No Aquecimento da série, "Sem sugestão"
+ * é o "% da WS" com os percentuais em branco (fica marcado o "% da WS"). No padrão do tipo (`'padrao'`) todo papel menos
+ * o de trabalho oferece também "Sem sugestão". Uma forma gravada fora da lista do papel continua marcada (nada some da tela).
  */
 export function escolhaDeCargaDoPapel(
   config: Configuracao | null | undefined, papel: PapelDaSerie | null | undefined, modo: ModoDeCarga, unidade: UnidadeDeCarga, onde: 'serie' | 'padrao',
 ): EscolhaDeCargaDoPapel {
   const todas = modosDeCarga(config, null, unidade);
   let opcoes = modosDeCarga(config, papel, unidade);
-  if (onde === 'serie' && papel === 'AQUECIMENTO') opcoes = opcoes.filter((o) => o.valor !== 'NENHUMA');
   if (onde === 'padrao' && papel !== 'TRABALHO' && !opcoes.some((o) => o.valor === 'NENHUMA')) opcoes = [...opcoes, todas.find((o) => o.valor === 'NENHUMA')!];
   const marcado: ModoDeCarga = onde === 'serie' && papel === 'AQUECIMENTO' && modo === 'NENHUMA' ? 'PERCENTUAL_WS' : modo;
   if (!opcoes.some((o) => o.valor === marcado)) opcoes = [...opcoes, todas.find((o) => o.valor === marcado)!];

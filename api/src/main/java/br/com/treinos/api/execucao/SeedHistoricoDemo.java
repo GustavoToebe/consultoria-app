@@ -429,7 +429,7 @@ public class SeedHistoricoDemo {
                 int reps = Math.max(min, max - rnd.nextInt(3));
                 boolean concluida = rnd.nextInt(50) != 0;
                 if (execucoes.gravar(new ExecucaoUpsert.Linha(UUID.randomUUID(), consultoria, aluno, versaoId, s.uid(),
-                        e.uid(), x.uid(), e.exercicioId(), x.deTrabalho(), d, carga, carga == null ? "nenhuma" : "kg",
+                        e.uid(), x.uid(), e.exercicioId(), x.deTrabalho(), d, carga, "kg",
                         reps, concluida, null, quando, x.deTrabalho(), null, null, null))) {
                     gravadas++;
                 }

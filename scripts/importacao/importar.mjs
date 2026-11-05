@@ -432,13 +432,12 @@ async function conteudoTreino(m, regra) {
       // Exercício de cardio (todas as séries com `cardio`) não passa pela biblioteca: não há o que criar nela.
       const cardio = x.series.length > 0 && x.series.every((i) => typeof i !== 'string' && i.cardio);
       const e = cardio ? null : await exercicioDoPlano(x.nome, x.url, m.nome.replace(/ - .*/, ''));
-      const timed = x.series.some((i) => typeof i !== 'string');
       const series = montarSeries(x.series.map((i) => (typeof i === 'string' ? i : { n: i.count ?? 1, min: null, max: null, tipo: i.tipo ?? null, cardio: i.cardio })), x.obs ?? '', regra);
       if (x.grupo && !uidDe.has(x.grupo)) throw new Error(`Exercício num grupo que a sessão não tem: ${x.grupo}.`);
       exercicios.push({
         uid: randomUUID(), exercicioId: !e || (SIMULAR && String(e.id).startsWith('sim-')) ? null : e.id, nome: x.nome.replace(/\*/g, '').trim(),
-        modalidade: cardio ? 'CARDIO' : e.modalidade, videoUrl: e?.videoUrl ?? null, observacao: obsLimpa(x.obs), progressao: x.progressao ?? !timed,
-        unidade: x.unidade ?? 'kg', series, cadencia: null, isometriaSegundos: null, grupoUid: x.grupo ? uidDe.get(x.grupo) : null,
+        modalidade: cardio ? 'CARDIO' : e.modalidade, videoUrl: e?.videoUrl ?? null, observacao: obsLimpa(x.obs), progressao: x.progressao ?? !cardio,
+        unidade: x.unidade ?? (cardio ? 'nenhuma' : 'kg'), series, cadencia: null, isometriaSegundos: null, grupoUid: x.grupo ? uidDe.get(x.grupo) : null,
       });
     }
     const problemas = problemasDosGrupos(grupos, exercicios);

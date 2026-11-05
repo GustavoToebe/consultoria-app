@@ -230,7 +230,7 @@ public final class ReceitasPadrao {
     private static List<Serie> gvt() {
         List<Serie> series = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
-            Carga carga = i == 0 ? Carga.de(ConteudoTreino.CARGA_TRABALHO) : Carga.de(ConteudoTreino.CARGA_TRABALHO);
+            Carga carga = Carga.de(ConteudoTreino.CARGA_TRABALHO);
             series.add(comCatalogo("WORKING", 10, 10, carga, ConteudoTreino.GVT).comDescanso(90));
         }
         return series;
@@ -239,7 +239,7 @@ public final class ReceitasPadrao {
     private static List<Serie> fst7() {
         List<Serie> series = new ArrayList<>();
         for (int i = 0; i < 7; i++) {
-            Carga carga = i == 0 ? Carga.de(ConteudoTreino.CARGA_TRABALHO) : Carga.de(ConteudoTreino.CARGA_TRABALHO);
+            Carga carga = Carga.de(ConteudoTreino.CARGA_TRABALHO);
             series.add(comCatalogo("WORKING", 10, 12, carga, ConteudoTreino.FST7).comDescanso(30));
         }
         return series;

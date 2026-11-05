@@ -70,7 +70,8 @@ export interface OpcaoDeModo {
  * "Outro" (ou sem tipo na metodologia) oferece as quatro formas.
  */
 const MODOS_POR_PAPEL: Partial<Record<PapelDaSerie, ModoDeCarga[]>> = {
-  AQUECIMENTO: ['PERCENTUAL_WS', 'CARGA_FIXA', 'NENHUMA'],
+  // No Aquecimento, "% da WS" com os campos em branco já é "sem sugestão" (`NENHUMA`): seletor binário como os outros.
+  AQUECIMENTO: ['PERCENTUAL_WS', 'CARGA_FIXA'],
   PREPARACAO: ['PERCENTUAL_WS', 'CARGA_FIXA'],
   TRABALHO: ['CARGA_TRABALHO', 'CARGA_FIXA'],
   POS_TRABALHO: ['PERCENTUAL_WS', 'CARGA_FIXA'],

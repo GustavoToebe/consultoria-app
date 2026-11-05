@@ -242,7 +242,7 @@ public class SeedDemo {
         }
         Integer rir = e.limite() == Plano16.Limite.FALHA ? Integer.valueOf(0) : e.limite() == Plano16.Limite.UM_RIR ? Integer.valueOf(1) : null;
         return new ExercicioPlano(UUID.randomUUID(), ids.get(e.nome()), e.nome(), e.modalidade().name(),
-                VIDEOS.get(e.nome()), obs.isEmpty() ? null : String.join(" ", obs), e.progressao(), e.unidade(),
+                VIDEOS.get(e.nome()), obs.isEmpty() ? null : String.join(" ", obs), true, "kg",
                 e.series().stream().map(SeedDemo::serie)
                         .map(serie -> rir != null && serie.deTrabalho() ? serie.comEsforco(Esforco.deRir(rir)) : serie)
                         .toList());

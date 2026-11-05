@@ -1,5 +1,6 @@
 import { agrupar } from '../../dominio/agrupamento';
-import { adicionarSerie, mudarQuantidade, tecnicaVazia } from '../../dominio/editorTreino';
+import { adicionarSerie, alterarGrupo, mudarQuantidade, novoExercicio, tecnicaVazia } from '../../dominio/editorTreino';
+import { validarExercicio } from '../../dominio/validacaoDoTreino';
 import { CONFIGURACAO_PADRAO } from '../../dominio/metodologiaPadrao';
 import { escolhaDeCargaDoPapel, modoAoEscolher, OPCOES_DO_RIR, percentuaisNoGrupo, textoParaOAluno } from './cargaDaSerie';
 
@@ -53,6 +54,30 @@ describe('percentual do aquecimento', () => {
     const com = percentuaisNoGrupo(s, agrupar(s)[0], 0, 40, null, cfg);
     const sem = percentuaisNoGrupo(com, agrupar(com)[0], 0, null, null, cfg);
     expect(sem.map((x) => x.carga)).toEqual([null, null, null]);
+  });
+  test('Aquecimento com "% da WS" e os campos em branco: grava sem carga, sem erro nem aviso, e o "% da WS" segue marcado', () => {
+    const s = tres();
+    const com = percentuaisNoGrupo(s, agrupar(s)[0], 0, 40, 50, cfg);
+    const sem = percentuaisNoGrupo(com, agrupar(com)[0], 0, null, null, cfg);
+    const r = validarExercicio({ ...novoExercicio(), nome: 'Exercício', series: sem }, cfg);
+    expect(r.erros).toEqual([]);
+    expect(r.avisos).toEqual([]);
+    expect(escolhaDeCargaDoPapel(cfg, 'AQUECIMENTO', sem[0].carga?.modo ?? 'NENHUMA', 'kg', 'serie')).toMatchObject({ marcado: 'PERCENTUAL_WS' });
+    // Escolher "% da WS" no Aquecimento grava "sem sugestão" até vir um número.
+    const escolhido = alterarGrupo(s, agrupar(s)[0], { modo: modoAoEscolher('AQUECIMENTO', 'PERCENTUAL_WS') }, cfg);
+    expect(escolhido.map((x) => x.carga)).toEqual([null, null, null]);
+  });
+  test('trocar Aquecimento e FS não deixa erro escondido: a carga é a do tipo novo, e o % vazio da FS continua erro', () => {
+    const [aq] = agrupar(adicionarSerie([], cfg, codigo('AQUECIMENTO')));
+    const fs = alterarGrupo(aq.series, aq, { tipo: codigo('PREPARACAO') }, cfg);
+    expect(fs[0].carga?.modo).toBe('PERCENTUAL_WS');
+    expect(validarExercicio({ ...novoExercicio(), nome: 'Exercício', series: fs }, cfg).erros).toEqual([]);
+    const fsVazia = percentuaisNoGrupo(fs, agrupar(fs)[0], 0, null, null, cfg);
+    const erros = validarExercicio({ ...novoExercicio(), nome: 'Exercício', series: fsVazia }, cfg).erros.map((e) => e.caminho);
+    expect(erros).toContain('series[0].carga.percentualMin');
+    const deVolta = alterarGrupo(fsVazia, agrupar(fsVazia)[0], { tipo: codigo('AQUECIMENTO') }, cfg);
+    expect(deVolta[0].carga).toBeNull();
+    expect(validarExercicio({ ...novoExercicio(), nome: 'Exercício', series: deVolta }, cfg).erros).toEqual([]);
   });
   test('FS em branco continua em % (a validação cobra)', () => {
     const s = adicionarSerie([], cfg, codigo('PREPARACAO'));

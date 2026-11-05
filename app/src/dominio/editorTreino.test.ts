@@ -75,7 +75,7 @@ describe('forma de carga no editor', () => {
   });
 
   it('cada papel oferece só as formas dele, na ordem', () => {
-    expect(valores('AQUECIMENTO')).toEqual(['PERCENTUAL_WS', 'CARGA_FIXA', 'NENHUMA']);
+    expect(valores('AQUECIMENTO')).toEqual(['PERCENTUAL_WS', 'CARGA_FIXA']);
     expect(valores('PREPARACAO')).toEqual(['PERCENTUAL_WS', 'CARGA_FIXA']);
     expect(valores('TRABALHO')).toEqual(['CARGA_TRABALHO', 'CARGA_FIXA']);
     expect(valores('POS_TRABALHO')).toEqual(['PERCENTUAL_WS', 'CARGA_FIXA']);
