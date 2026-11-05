@@ -1,6 +1,6 @@
 # Redesenho de série, carga, esforço (RIR), cartão de exercício e metodologia
 
-Situação: Pronta, sem push nem PR · Onde: branch `series-redesenho` (a partir da `origin/main`) · Atualizado: 05/11/2026
+Situação: Pronta, PR aberto sem mesclar (deploy e dados da PRD dependem do Gustavo, ver "Dados da PRD no formato antigo") · Onde: branch `series-redesenho` (a partir da `origin/main`) · Atualizado: 05/11/2026
 
 ## Objetivo
 O treinador prescreve cada exercício como uma lista enxuta de blocos `Séries × Repetições - Tipo/Técnica`, com % da WS e RIR lado a lado em cada série, sem submenus de modalidade, de outras formas de carga nem de esforço não prescrito. Sem compatibilidade com o formato anterior (AGENTS.md, "Sem compatibilidade com o que é antigo"): o banco é recriado do zero.
@@ -26,6 +26,12 @@ O treinador prescreve cada exercício como uma lista enxuta de blocos `Séries �
 - [x] 4. Testes: typecheck, lint, Jest, mvn (sem `*IntegrationTest`), scripts e a suíte Playwright inteira (869 passaram, 10 pulados, 1 falha anterior à mudança: `links-do-menu.spec.ts:20`); ajustes finais (Aquecimento binário, seed com `kg`, guias, `AGENTS.md`) — commit: o último desta branch
 
 - [x] 5. Limpeza de `TOP_SET` — commit: `8d4abeb5`. Ajustes de usabilidade de Dieta (observação/preparo recolhidos, unidade compacta, "Adicionar refeição" no pé, sub-cartões em Suplementação e Outros, modelo de refeição avulsa enxuto) e Mobilidade (botão "Modelos", PDF, Orientações recolhidas, Nome e Prescrição lado a lado) — commit: `e3ab6443`
+- [x] 6. Ajustes pedidos pelo Gustavo em 05/11: caixas "mín"/"máx"/"reps" proporcionais ao sufixo (o número saía cortado) — commit: `55550f65`; editor de treino, dieta e mobilidade em duas colunas usam `LARGURA_MAXIMA` (1800, como as listas) e o descanso passa de 112 para 90 px para a linha Séries × Repetições × Descanso seguir numa linha só em 1280 e 1440 — commit: `ca79df6a`. Verificado: typecheck, lint, Jest e e2e dos editores (101 sem falha).
+- [x] 7. Produção (SARAIVA TEAM, 05/11, pelo banco, sem deploy): apagadas as receitas de treino, de séries e de metodologia (29), a anamnese antiga, as 2 inscrições e o questionário de Inscrição antigo; gravados "Inscrição Saraiva Team" (padrão, 15 perguntas, texto do link e campos Sexo/Objetivo/Interesse/Modalidade escondidos) e "Anamnese Saraiva Team" (57 perguntas, 22 imagens reaproveitadas). Conteúdo dos scripts `scripts/questionario/*-saraiva.mjs` validado pela API local e copiado por SQL.
+- [ ] 8. Depois do merge e do deploy: carregar as Receitas de séries na PRD (JSON das 16 receitas, no formato novo) e repor metodologias, semanas e dias de treino do SARAIVA TEAM (apagados em 05/11, sem script que os reponha).
+
+## Dados da PRD no formato antigo de carga (contagem de 05/11, só leitura)
+Os textos `MESMA_CARGA`, `ACIMA_DA_ANTERIOR` e `ABAIXO_DA_REFERENCIA` (e `referenciaUid`) saíram do contrato e **não há migration**. No banco de produção, antes do merge, aparecem em: SARAIVA TEAM, 15 rascunhos e 3 versões publicadas de planos de treino (0 receitas); Toebe, 3 rascunhos de plano e 6 de 22 receitas (2 com `referenciaUid` preenchido). Nos planos o texto vem do snapshot da metodologia que cada plano carrega. Efeito esperado: o plano segue legível, mas a validação do código novo recusa o modo removido ao salvar/publicar de novo. Decisão do Gustavo antes do merge: resetar o banco da produção (o Saraiva ainda não usa; 27 execuções de série existem) ou converter à mão os planos que ele quiser manter.
 
 ## Fora do escopo
 - Migration de conversão de JSON antigo (o banco é recriado).
