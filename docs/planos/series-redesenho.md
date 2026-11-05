@@ -36,7 +36,7 @@ O treinador prescreve cada exercício como uma lista enxuta de blocos `Séries �
 - Removidos o aviso `TOP_SET_SEM_PERCENTUAL` (`MontagemDeSeries`, `planilhaCompleta`) e `TOP_SET` de `corDaSerie`; o TS da planilha vira mais uma WS sem aviso. Sobra `TOP_SET` só como código de exemplo em fixtures de teste e o rótulo da coluna em `diagnosticoDoArquivo`.
 - `referenciaCarga`/`referenciaOrigem` do registro de execução: conferir uso.
 - Dia de treino (`unica`) sem metodologia visível (consequência literal do texto 3.1).
-- `*IntegrationTest` e o banco recriado (`docker compose down -v`) não foram verificados: Docker desligado.
+- `*IntegrationTest`: `mvn -o verify` completo passou em 04/11 (2128 testes, 0 falhas, Testcontainers); o banco recriado (`docker compose down -v`) foi conferido no stack local da 8089 (seed sem erro, planos validam).
 - `EscolhaSuspensa` (peça compartilhada) mudou o lado de abertura; montador não conferido.
 - Branch `editores-revisao`: o Gustavo decidiu descartá-la (04/11) e seguir daqui; a remoção do worktree e da branch fica com ele.
 - Dieta e Mobilidade (04/11, passo 5): o `UNIDADES` desta branch tem 3 unidades (g, ml, un), não as 7 do texto; a escolha compacta serve às 3. Dieta e mobilidade só conferidas por e2e com API simulada, não na web local nem no nativo; o claro areia e o contraste alto ficaram sem conferir. `OpcaoDeModelo` existe em 3 cópias (treino, dieta, mobilidade): levar para `plano/` num passo à parte. As Orientações da mobilidade só leem `recolhido` ao montar (não reabrem ao aplicar um modelo).
