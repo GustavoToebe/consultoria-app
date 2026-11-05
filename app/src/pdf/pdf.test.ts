@@ -75,6 +75,13 @@ test('PDF usa a metodologia copiada para o treino, mesmo quando a configuração
   expect(doc.corpo).not.toContain('Global alterada');
 });
 
+test('PDF de treino sem metodologia copiada (consultoria sem receita de metodologia) usa os nomes da configuração padrão', () => {
+  expect(treino.metodologia).toBeUndefined();
+  const corpo = documentoTreino(dadosDoTreino(treino)).corpo;
+  expect(corpo).toContain('3x3 - FS 50% · 70% · 85% da WS');
+  expect(corpo).toContain('1x3 a 6 - WS · 1 RIR');
+});
+
 describe('PDF do treino', () => {
   const html = documentoTreino({
     ...base,
