@@ -39,4 +39,20 @@ describe('✓ com carga vazia e sugestão abre o painel (D2)', () => {
   it('as repetições nunca são preenchidas pela regra: saem como o aluno deixou', () => {
     expect(aplicarEscolhaDoPainel('SIM', 60, null)).toEqual({ gravar: { carga: 60, repeticoes: null, concluida: true } });
   });
+
+  it('com a progressão e o campo de reps vazio, a pergunta leva carga e repetições', () => {
+    expect(painelDoCheck(77.5, 'kg', { sugestaoReps: 5, ultimaCargaKg: 75 })).toEqual({
+      pergunta: 'Fez 77,5 kg × 5 reps?',
+      opcoes: [
+        { escolha: 'SIM', rotulo: 'Sim, 77,5 kg × 5' },
+        { escolha: 'MANTER_ANTERIOR', rotulo: 'Manter 75 kg' },
+        { escolha: 'OUTRA_CARGA', rotulo: 'Outra carga' },
+        { escolha: 'SEM_CARGA', rotulo: 'Sem carga' },
+      ],
+    });
+    expect(painelDoCheck(75, 'kg', { sugestaoReps: 6, repeticoesDigitadas: 5 }).pergunta).toBe('Fez com 75 kg?');
+    expect(aplicarEscolhaDoPainel('SIM', 77.5, null, { sugestaoReps: 5 })).toEqual({ gravar: { carga: 77.5, repeticoes: 5, concluida: true } });
+    expect(aplicarEscolhaDoPainel('SIM', 77.5, 4, { sugestaoReps: 5 })).toEqual({ gravar: { carga: 77.5, repeticoes: 4, concluida: true } });
+    expect(aplicarEscolhaDoPainel('MANTER_ANTERIOR', 77.5, null, { sugestaoReps: 5, ultimaCargaKg: 75 })).toEqual({ gravar: { carga: 75, repeticoes: 5, concluida: true } });
+  });
 });

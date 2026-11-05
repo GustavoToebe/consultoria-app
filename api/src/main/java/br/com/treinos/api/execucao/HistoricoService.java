@@ -112,7 +112,20 @@ public class HistoricoService {
         return new ArrayList<>(porDia.values());
     }
 
-    /** Última carga de trabalho de cada exercício (maior carga do dia mais recente). Sem histórico, o exercício fica de fora. */
+    /** No mesmo dia: a maior carga prevalece; no empate, a que teve mais repetições. */
+    private static boolean prevaleceNoMesmoDia(ExecucaoSerie e, UltimaCarga atual) {
+        int cmp = e.getCarga().compareTo(atual.carga());
+        if (cmp > 0) {
+            return true;
+        }
+        if (cmp < 0) {
+            return false;
+        }
+        Integer reps = e.getRepeticoes();
+        return reps != null && (atual.repeticoes() == null || reps > atual.repeticoes());
+    }
+
+    /** Última carga de trabalho de cada exercício: maior carga do dia mais recente; no empate, mais repetições. Sem histórico, o exercício fica de fora. */
     @Transactional(readOnly = true)
     public Map<UUID, UltimaCarga> ultimasCargas(UUID alunoId, Collection<UUID> exercicioIds) {
         Map<UUID, UltimaCarga> mapa = new HashMap<>();
@@ -124,7 +137,7 @@ public class HistoricoService {
             UltimaCarga atual = mapa.get(e.getExercicioId());
             if (atual == null) {
                 mapa.put(e.getExercicioId(), new UltimaCarga(e.getCarga(), e.getRepeticoes(), e.getData()));
-            } else if (atual.data().equals(e.getData()) && e.getCarga().compareTo(atual.carga()) > 0) {
+            } else if (atual.data().equals(e.getData()) && prevaleceNoMesmoDia(e, atual)) {
                 mapa.put(e.getExercicioId(), new UltimaCarga(e.getCarga(), e.getRepeticoes(), e.getData()));
             }
         }

@@ -1,6 +1,6 @@
 import type { EtapaRegistrada } from '../api/tipos';
 import { textoDoAnterior } from './seriesAnteriores';
-import { textoDaCarga, type UnidadeDeCarga } from './unidadeDeCarga';
+import { textoDaCarga, textoDoPasso, type UnidadeDeCarga } from './unidadeDeCarga';
 
 /**
  * Dica de carga da série (D1, 02/11): a carga sugerida (mesma carga, percentual, base do dia ou carga fixa) é só uma
@@ -27,6 +27,12 @@ export interface EntradaDaDica {
   semCampoDePeso: boolean;
   /** Unidade em que o aluno vê a carga (padrão kg); a sugestão e a última vez continuam kg por dentro. */
   unidade?: UnidadeDeCarga;
+  /** Repetições sugeridas na série de trabalho (N16). Sem elas, a dica fica só com a carga. */
+  sugestaoReps?: number | null;
+  /** Kg a mais que a última carga. Acima de zero, a dica mostra o aumento. */
+  incrementoKg?: number | null;
+  /** Passo da metodologia. O "(+2,5 kg)" usa o passo da tela, não a diferença em kg convertida. */
+  passoKg?: number | null;
 }
 
 /** "60 kg × 7", "60 kg", "7 reps"; `null` quando a última vez não tem carga nem repetições. */
@@ -48,8 +54,17 @@ export function textoDaUltimaCarga(ultima: UltimaVezDaSerie | null, unidade: Uni
  */
 export function dicaDeCarga(e: EntradaDaDica): string | null {
   if (e.semCampoDePeso) return null;
+  const unidade = e.unidade ?? 'kg';
   const partes: string[] = [];
-  if (e.sugestaoKg != null) partes.push(`Sugestão: ${textoDaCarga(e.sugestaoKg, e.unidade ?? 'kg')}`);
+  if (e.sugestaoKg != null && e.sugestaoReps != null) {
+    const palavra = e.sugestaoReps === 1 ? 'rep' : 'reps';
+    const aumento = e.incrementoKg != null && e.incrementoKg > 0
+      ? ` (+${e.passoKg != null ? textoDoPasso(e.passoKg, unidade) : textoDaCarga(e.incrementoKg, unidade)})`
+      : '';
+    partes.push(`Sugestão: ${textoDaCarga(e.sugestaoKg, unidade)} × ${e.sugestaoReps} ${palavra}${aumento}`);
+  } else if (e.sugestaoKg != null) {
+    partes.push(`Sugestão: ${textoDaCarga(e.sugestaoKg, unidade)}`);
+  }
   const ultima = textoDaUltimaCarga(e.ultima, e.unidade);
   if (ultima) partes.push(`Última vez: ${ultima}`);
   return partes.length ? partes.join(' · ') : TEXTO_PRIMEIRA_VEZ;

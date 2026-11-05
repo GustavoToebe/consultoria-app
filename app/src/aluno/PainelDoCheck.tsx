@@ -1,4 +1,4 @@
-import { Check, Pencil, X } from 'lucide-react-native';
+import { Check, Minus, Pencil, X } from 'lucide-react-native';
 import { StyleSheet } from 'react-native';
 import Animated, { FadeIn, ReduceMotion } from 'react-native-reanimated';
 
@@ -11,17 +11,24 @@ import { Texto } from '../ui/Texto';
 import { useUnidadeDeCarga } from '../ui/unidadeDeCargaEmUso';
 import { useMovimentoReduzido } from '../ui/useMovimentoReduzido';
 
-const ICONES: Record<EscolhaDoPainel, typeof Check> = { SIM: Check, OUTRA_CARGA: Pencil, SEM_CARGA: X };
+const ICONES: Record<EscolhaDoPainel, typeof Check> = { SIM: Check, MANTER_ANTERIOR: Minus, OUTRA_CARGA: Pencil, SEM_CARGA: X };
 
 /**
  * Painel do ✓ (D2, 02/11): marcar a série com a carga vazia e com sugestão pergunta, dentro do próprio cartão da série,
  * "Fez com 60 kg?" com [Sim, 60 kg] [Outra carga] [Sem carga]. Fica na tela (nunca `alert`), sem rede: a escolha grava
  * no aparelho como qualquer ✓. Textos e efeito de cada escolha são do domínio (`dominio/painelDoCheck`).
  */
-export function PainelDoCheck({ sugestaoKg, numero, aoEscolher }: { sugestaoKg: number; numero: number; aoEscolher: (escolha: EscolhaDoPainel) => void }) {
+export function PainelDoCheck({ sugestaoKg, numero, aoEscolher, sugestaoReps = null, repeticoesDigitadas = null, ultimaCargaKg = null }: {
+  sugestaoKg: number;
+  numero: number;
+  aoEscolher: (escolha: EscolhaDoPainel) => void;
+  sugestaoReps?: number | null;
+  repeticoesDigitadas?: number | null;
+  ultimaCargaKg?: number | null;
+}) {
   const { cores } = useTema();
   const reduzido = useMovimentoReduzido();
-  const { pergunta, opcoes } = painelDoCheck(sugestaoKg, useUnidadeDeCarga());
+  const { pergunta, opcoes } = painelDoCheck(sugestaoKg, useUnidadeDeCarga(), { sugestaoReps, repeticoesDigitadas, ultimaCargaKg });
   return (
     <Animated.View
       entering={reduzido ? undefined : FadeIn.duration(150).reduceMotion(ReduceMotion.System)}

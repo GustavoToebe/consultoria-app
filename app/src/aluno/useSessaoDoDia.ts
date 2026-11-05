@@ -4,7 +4,7 @@ import type { Href } from 'expo-router';
 import { useEffect } from 'react';
 
 import type { ExercicioPlano, Serie, UltimaCarga } from '../api/tipos';
-import { ehSerieDeTrabalho } from '../dominio/cargas';
+import { ehSerieDeTrabalho, melhorUltimaCarga } from '../dominio/cargas';
 import { configDoTreino } from '../dominio/metodologia';
 import { semCargaNaSerieIlegivel } from '../dominio/modoDeCarga';
 import { normalizarTreino } from '../dominio/editorTreino';
@@ -55,8 +55,8 @@ export function useSessaoDoDia(uid: string | undefined, dataDaRota: string | und
     const doServidor = aluno.pacote?.pacote.ultimasCargas[exercicioId] ?? null;
     let ultima: UltimaCarga | null = doServidor && doServidor.data < data ? doServidor : null;
     for (const r of aluno.registros) {
-      if (r.exercicioId === exercicioId && r.trabalho && r.carga != null && r.data < data && (!ultima || r.data > ultima.data)) {
-        ultima = { carga: r.carga, repeticoes: r.repeticoes, data: r.data };
+      if (r.exercicioId === exercicioId && r.trabalho && r.carga != null && r.data < data) {
+        ultima = melhorUltimaCarga(ultima, { carga: r.carga, repeticoes: r.repeticoes, data: r.data });
       }
     }
     return ultima;

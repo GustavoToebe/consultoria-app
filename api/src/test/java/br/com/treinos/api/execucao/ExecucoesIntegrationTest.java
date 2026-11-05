@@ -160,6 +160,59 @@ class ExecucoesIntegrationTest extends AbstractIntegrationTest {
         assertThat(ultima.get("carga").decimalValue()).isEqualByComparingTo("100");
     }
 
+    /** No mesmo dia, a última carga é a maior; no empate de carga, a de mais repetições (N16). */
+    @Test
+    void ultimaCargaNoMesmoDiaDesempataPelaCargaEDepoisPelasRepeticoes() throws Exception {
+        UUID outroId = api.criarAluno(treinador, "Aluno da Progressão Fictício");
+        UUID sessaoUid = UUID.randomUUID();
+        UUID exercicioUid = UUID.randomUUID();
+        UUID exercicioId = UUID.randomUUID();
+        UUID outraUid = UUID.randomUUID();
+        UUID outroExercicioId = UUID.randomUUID();
+        UUID poucas = UUID.randomUUID();
+        UUID muitas = UUID.randomUUID();
+        UUID leve = UUID.randomUUID();
+        UUID pesada = UUID.randomUUID();
+        ConteudoTreino.ExercicioPlano empate = new ConteudoTreino.ExercicioPlano(exercicioUid, exercicioId, "Supino fictício",
+                "MAQUINA", null, null, true, "kg", List.of(
+                ConteudoTreino.Serie.de(poucas, "WORKING", 6, 8, ConteudoTreino.Carga.de(ConteudoTreino.CARGA_TRABALHO)),
+                ConteudoTreino.Serie.de(muitas, "WORKING", 6, 8, ConteudoTreino.Carga.de(ConteudoTreino.CARGA_TRABALHO))));
+        ConteudoTreino.ExercicioPlano maior = new ConteudoTreino.ExercicioPlano(outraUid, outroExercicioId, "Agachamento fictício",
+                "MAQUINA", null, null, true, "kg", List.of(
+                ConteudoTreino.Serie.de(leve, "WORKING", 6, 8, ConteudoTreino.Carga.de(ConteudoTreino.CARGA_TRABALHO)),
+                ConteudoTreino.Serie.de(pesada, "WORKING", 6, 8, ConteudoTreino.Carga.de(ConteudoTreino.CARGA_TRABALHO))));
+        ConteudoTreino conteudo = new ConteudoTreino("Objetivo fictício", null, List.of(
+                new ConteudoTreino.Sessao(sessaoUid, "Segunda - Peito", 1, "TREINO", null, null, null, List.of(empate, maior)),
+                new ConteudoTreino.Sessao(UUID.randomUUID(), "Domingo - Off", 7, "DESCANSO", null, null, null, List.of())));
+        api.publicarTreino(treinador, outroId, conteudo);
+        JsonNode outro = api.convidarEEntrar(treinador, outroId);
+        String versao = api.get("/aluno/painel", outro, 200).get("treino").get("versaoId").asString();
+
+        Instant quando = Instant.now();
+        List<Map<String, Object>> registros = new java.util.ArrayList<>();
+        for (Object[] x : new Object[][] {
+                {muitas, exercicioUid, "75", 6, quando},
+                {poucas, exercicioUid, "75", 4, quando.plusSeconds(30)},
+                {leve, outraUid, "70", 12, quando},
+                {pesada, outraUid, "80", 3, quando.plusSeconds(30)}}) {
+            Map<String, Object> r = new LinkedHashMap<>(registro(UUID.randomUUID(), (UUID) x[0], (String) x[2], (Integer) x[3], (Instant) x[4]));
+            r.put("planoVersaoId", versao);
+            r.put("sessaoUid", sessaoUid.toString());
+            r.put("exercicioUid", ((UUID) x[1]).toString());
+            registros.add(r);
+        }
+        assertThat(situacoes(api.post("/aluno/execucoes/lote", outro, Map.of("registros", registros), 200)))
+                .containsExactly("ACEITO", "ACEITO", "ACEITO", "ACEITO");
+
+        JsonNode cargas = api.get("/aluno/painel", outro, 200).get("ultimasCargas");
+        JsonNode doEmpate = cargas.get(exercicioId.toString());
+        assertThat(doEmpate.get("carga").decimalValue()).isEqualByComparingTo("75");
+        assertThat(doEmpate.get("repeticoes").asInt()).isEqualTo(6);
+        JsonNode daMaior = cargas.get(outroExercicioId.toString());
+        assertThat(daMaior.get("carga").decimalValue()).isEqualByComparingTo("80");
+        assertThat(daMaior.get("repeticoes").asInt()).isEqualTo(3);
+    }
+
     @Test
     void serieInexistenteVersaoDeOutroAlunoEDataForaDoPeriodoSaoRecusados() throws Exception {
         UUID outroAluno = api.criarAluno(treinador, "Outro Aluno Fictício");

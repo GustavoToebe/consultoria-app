@@ -138,7 +138,7 @@ test('C26: a carga do período anterior aparece no período novo (sem registro n
   await abrir(page, [ws], { x1: { carga: 60, repeticoes: 7, data: '2026-09-28' } }, 1);
   await page.goto(EXERCICIO);
   await expect(page.getByText('Última vez: 60 kg × 7 em 28/09/2026.', { exact: true })).toBeVisible();
-  await expect(page.getByText('Sugestão: 60 kg · Última vez: 60 kg × 7', { exact: true })).toBeVisible();
+  await expect(page.getByText('Sugestão: 60 kg × 8 reps · Última vez: 60 kg × 7', { exact: true })).toBeVisible();
   await expect(peso(page, 1)).toHaveValue('');
   await expect(page.getByRole('textbox', { name: 'Carga de trabalho do dia', exact: true })).toHaveValue('');
 

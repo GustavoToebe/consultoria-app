@@ -7,7 +7,7 @@ import { textoDaCarga, type UnidadeDeCarga } from './unidadeDeCarga';
  * aluno digitou (D3). "Sem carga" grava a série feita com carga nula, que o histórico mostra como "Feito, sem carga" (D4).
  */
 
-export type EscolhaDoPainel = 'SIM' | 'OUTRA_CARGA' | 'SEM_CARGA';
+export type EscolhaDoPainel = 'SIM' | 'MANTER_ANTERIOR' | 'OUTRA_CARGA' | 'SEM_CARGA';
 
 export interface EntradaDoCheck {
   /** A série já está marcada feita: tocar de novo desmarca. */
@@ -54,18 +54,29 @@ export interface PainelDoCheck {
   opcoes: OpcaoDoPainel[];
 }
 
-/** Textos do painel: "Fez com 60 kg?" e as três opções, nesta ordem. */
-export function painelDoCheck(sugestaoKg: number, unidade: UnidadeDeCarga = 'kg'): PainelDoCheck {
+export interface ExtraDoPainel {
+  /** Repetições da progressão. Entram na pergunta só quando o campo de reps está vazio. */
+  sugestaoReps?: number | null;
+  /** O que o aluno já digitou em Reps (`null` = vazio). */
+  repeticoesDigitadas?: number | null;
+  /** Última carga. Com sugestão maior, o painel oferece "Manter X kg". */
+  ultimaCargaKg?: number | null;
+}
+
+/** Textos do painel. Sem repetições sugeridas: "Fez com 60 kg?". Com elas e o campo vazio: "Fez 77,5 kg × 5 reps?". */
+export function painelDoCheck(sugestaoKg: number, unidade: UnidadeDeCarga = 'kg', extra: ExtraDoPainel = {}): PainelDoCheck {
   // Só o texto muda: "Sim" continua gravando `sugestaoKg`, em kg, sem passar por libra.
   const kg = textoDaCarga(sugestaoKg, unidade);
-  return {
-    pergunta: `Fez com ${kg}?`,
-    opcoes: [
-      { escolha: 'SIM', rotulo: `Sim, ${kg}` },
-      { escolha: 'OUTRA_CARGA', rotulo: 'Outra carga' },
-      { escolha: 'SEM_CARGA', rotulo: 'Sem carga' },
-    ],
-  };
+  const comReps = extra.repeticoesDigitadas == null && extra.sugestaoReps != null;
+  const reps = extra.sugestaoReps;
+  const pergunta = comReps ? `Fez ${kg} × ${reps} ${reps === 1 ? 'rep' : 'reps'}?` : `Fez com ${kg}?`;
+  const sim = comReps ? `Sim, ${kg} × ${reps}` : `Sim, ${kg}`;
+  const opcoes: OpcaoDoPainel[] = [{ escolha: 'SIM', rotulo: sim }];
+  if (extra.ultimaCargaKg != null && sugestaoKg > extra.ultimaCargaKg) {
+    opcoes.push({ escolha: 'MANTER_ANTERIOR', rotulo: `Manter ${textoDaCarga(extra.ultimaCargaKg, unidade)}` });
+  }
+  opcoes.push({ escolha: 'OUTRA_CARGA', rotulo: 'Outra carga' }, { escolha: 'SEM_CARGA', rotulo: 'Sem carga' });
+  return { pergunta, opcoes };
 }
 
 export type ResultadoDaEscolha = { gravar: GravacaoDaSerie } | { gravar: null; focarCarga: true };
@@ -74,10 +85,19 @@ export type ResultadoDaEscolha = { gravar: GravacaoDaSerie } | { gravar: null; f
  * O que cada escolha faz, com as repetições que o aluno já digitou: "Sim" grava a sugestão como carga, "Sem carga" grava
  * a série feita sem carga, "Outra carga" não grava: fecha o painel e leva o aluno ao campo de carga.
  */
-export function aplicarEscolhaDoPainel(escolha: EscolhaDoPainel, sugestaoKg: number, repeticoes: number | null): ResultadoDaEscolha {
+export function aplicarEscolhaDoPainel(
+  escolha: EscolhaDoPainel,
+  sugestaoKg: number,
+  repeticoes: number | null,
+  extra: { sugestaoReps?: number | null; ultimaCargaKg?: number | null } = {},
+): ResultadoDaEscolha {
+  // Reps digitadas vencem a sugestão. Campo vazio usa as repetições da progressão, quando há.
+  const reps = repeticoes != null ? repeticoes : (extra.sugestaoReps ?? null);
   switch (escolha) {
     case 'SIM':
-      return { gravar: { carga: sugestaoKg, repeticoes, concluida: true } };
+      return { gravar: { carga: sugestaoKg, repeticoes: reps, concluida: true } };
+    case 'MANTER_ANTERIOR':
+      return { gravar: { carga: extra.ultimaCargaKg ?? null, repeticoes: reps, concluida: true } };
     case 'SEM_CARGA':
       return { gravar: { carga: null, repeticoes, concluida: true } };
     case 'OUTRA_CARGA':

@@ -96,7 +96,7 @@ for (const largura of [390, 1280]) {
     // Exercício: campo em libras, dica convertida (60 kg = 132,3 lb), "Última vez" e "Anterior" também.
     await page.goto(EXERCICIO);
     for (const n of [2, 3, 4]) await expect(pesoEm(page, n, 'libras')).toHaveValue('');
-    await expect(page.getByText('Sugestão: 132,3 lb · Última vez: 132,3 lb × 7', { exact: true })).toHaveCount(3);
+    await expect(page.getByText('Sugestão: 132,3 lb × 8 reps · Última vez: 132,3 lb × 7', { exact: true })).toHaveCount(3);
     await expect(page.getByText(/ kg/)).toHaveCount(0);
     await semEstourar(page);
     await page.screenshot({ path: testInfo.outputPath(`lb-${largura}.png`), fullPage: true });
@@ -108,12 +108,12 @@ for (const largura of [390, 1280]) {
     await expect(pesoEm(page, 2, 'libras')).toHaveValue('100');
     await expect.poll(() => api.enviados.filter((r) => r.serieUid === 'ws1').at(-1)).toMatchObject({ carga: 45.35, concluida: true });
 
-    // Painel "Fez com X?" na unidade do aluno; "Sim" grava a sugestão em kg (60), não 132,3.
+    // Painel na unidade do aluno; "Sim" grava a sugestão em kg (60 × 8), não 132,3.
     await marcar(page, 3).click();
-    await expect(page.getByText('Fez com 132,3 lb?', { exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Sim, 132,3 lb, série 3', exact: true }).click();
+    await expect(page.getByText('Fez 132,3 lb × 8 reps?', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Sim, 132,3 lb × 8, série 3', exact: true }).click();
     await expect(marcar(page, 3)).toBeChecked();
-    await expect.poll(() => api.enviados.filter((r) => r.serieUid === 'ws2').at(-1)).toMatchObject({ carga: 60, concluida: true });
+    await expect.poll(() => api.enviados.filter((r) => r.serieUid === 'ws2').at(-1)).toMatchObject({ carga: 60, repeticoes: 8, concluida: true });
     await expect(pesoEm(page, 3, 'libras')).toHaveValue('132,3');
     // Daqui em diante nada novo pode ser enviado: recarregar, ver o histórico e trocar de unidade não regravam carga.
     const enviadosAntes = api.enviados.length;
@@ -192,7 +192,7 @@ test('chave desligada: sem a escolha e tudo em kg, mesmo com lb salvo de antes',
 
   await page.goto(EXERCICIO);
   await expect(pesoEm(page, 2, 'quilos')).toHaveValue('');
-  await expect(page.getByText('Sugestão: 60 kg · Última vez: 60 kg × 7', { exact: true })).toHaveCount(3);
+  await expect(page.getByText('Sugestão: 60 kg × 8 reps · Última vez: 60 kg × 7', { exact: true })).toHaveCount(3);
   await expect(page.getByText(/ lb/)).toHaveCount(0);
   await pesoEm(page, 2, 'quilos').fill('62,5');
   await marcar(page, 2).click();
@@ -205,7 +205,7 @@ test('controle da chave: o mesmo lb salvo, com a chave ligada, mostra o campo em
   const api = await abrir(page, { chave: true, preferida: 'lb' });
   await page.goto(EXERCICIO);
   await expect(pesoEm(page, 2, 'libras')).toHaveValue('');
-  await expect(page.getByText('Sugestão: 132,3 lb · Última vez: 132,3 lb × 7', { exact: true })).toHaveCount(3);
+  await expect(page.getByText('Sugestão: 132,3 lb × 8 reps · Última vez: 132,3 lb × 7', { exact: true })).toHaveCount(3);
   await expect(page.getByText(/ kg/)).toHaveCount(0);
   expect(api.errosDaPagina).toEqual([]);
 });

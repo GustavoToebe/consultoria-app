@@ -1,6 +1,7 @@
 import type { ExercicioPlano, Serie } from '../api/tipos';
 import { CONFIGURACAO_PADRAO } from './metodologiaPadrao';
-import { ajustarCarga, arredondar, calcularCargasDoExercicio, cargaQueContaComoReferencia, ehSerieDeTrabalho, metaDaSerie, passoDaCarga, seriesSeguintesDependemDesta, textoDaOrigem, usaCargaDeTrabalho } from './cargas';
+import { ajustarCarga, arredondar, calcularCargasDoExercicio, calcularProgressaoDeTrabalho, cargaQueContaComoReferencia, ehSerieDeTrabalho, melhorUltimaCarga, metaDaSerie, passoDaCarga, seriesSeguintesDependemDesta, textoDaOrigem, usaCargaDeTrabalho } from './cargas';
+import { kgParaTela, passoNaTela, telaParaKg } from './unidadeDeCarga';
 import { carga, exercicio as exercicioDeTeste, rir, serie as serieDeTeste, tecnica } from './exemplosDeTreino.apoioTeste';
 
 const serie = (uid: string, tipo: string | null, extra: Partial<Serie>): Serie => serieDeTeste(uid, { tipo, repsMin: 3, repsMax: 3, carga: null, ...extra });
@@ -301,5 +302,80 @@ describe('cargaQueContaComoReferencia (desmarcar tira da conta, 31/10)', () => {
     expect(cargaQueContaComoReferencia({ carga: 42, concluida: false, etapas: [{ situacao: 'NAO_REALIZADA' }] })).toBeNull();
     expect(cargaQueContaComoReferencia({ carga: null, concluida: true })).toBeNull();
     expect(cargaQueContaComoReferencia(undefined)).toBeNull();
+  });
+});
+
+describe('dupla progressão da série de trabalho (N16)', () => {
+  const ultima = { carga: 75, repeticoes: 5, data: '2026-11-02' };
+  const comUltima = (series: Serie[], passo: number, unidade: 'kg' | 'lb' = 'kg', manual = false) =>
+    calcularCargasDoExercicio(exercicio(series), 75, {}, { arredondamentoKg: passo, tipoTrabalho: 'WS', ultima, cargaManual: manual, unidade });
+
+  it('meta exata batida: sobe 1 passo (0,25, 0,5, 1 e 2,5 kg) e volta ao piso das repetições', () => {
+    const serie5 = serie('w', 'WORKING', { repsMin: 5, repsMax: 5, carga: carga('CARGA_TRABALHO') });
+    const faixa = serie('w', 'WORKING', { repsMin: 4, repsMax: 5, carga: carga('CARGA_TRABALHO') });
+    for (const passo of [0.25, 0.5, 1, 2.5]) {
+      const [exata] = comUltima([serie5], passo);
+      expect(exata.sugestao).toBe(arredondar(75 + passo, passo));
+      expect(exata.sugestaoReps).toBe(5);
+      expect(exata.progressao).toBe('SUBIR_CARGA');
+      expect(exata.incrementoKg).toBeCloseTo(passo, 5);
+      const [deFaixa] = comUltima([faixa], passo);
+      expect(deFaixa.sugestao).toBe(arredondar(75 + passo, passo));
+      expect(deFaixa.sugestaoReps).toBe(4);
+    }
+  });
+
+  it('meta 6 a 8 ainda não batida: mantém 75 kg e sugere a próxima repetição, sem passar do topo', () => {
+    const faixa = (feita: number) => calcularProgressaoDeTrabalho(
+      serie('w', 'WORKING', { repsMin: 6, repsMax: 8, carga: carga('CARGA_TRABALHO') }),
+      { carga: 75, repeticoes: feita }, 2.5);
+    expect(faixa(5)).toMatchObject({ sugestaoKg: 75, incrementoKg: 0, sugestaoReps: 6, progressao: 'BUSCAR_REPS' });
+    expect(faixa(6)).toMatchObject({ sugestaoReps: 7 });
+    expect(faixa(7)).toMatchObject({ sugestaoReps: 8 });
+    expect(faixa(8)).toMatchObject({ sugestaoKg: 77.5, sugestaoReps: 6, progressao: 'SUBIR_CARGA' });
+  });
+
+  it('sem última carga, com base digitada, AMRAP ou técnica: não sobe sozinho', () => {
+    const ws5 = serie('w', 'WORKING', { repsMin: 5, repsMax: 5, carga: carga('CARGA_TRABALHO') });
+    expect(calcularCargasDoExercicio(exercicio([ws5]), null, {}, CONFIG)[0].sugestao).toBeNull();
+    expect(comUltima([ws5], 2.5, 'kg', true)[0]).toMatchObject({ sugestao: 75, progressao: null, sugestaoReps: null });
+    const amrap = serie('a', 'WORKING', { repsMin: null, repsMax: null, amrap: true, carga: carga('CARGA_TRABALHO') });
+    expect(calcularProgressaoDeTrabalho(amrap, ultima, 2.5)).toBeNull();
+    const cluster = serie('c', 'WORKING', { repsMin: 6, repsMax: 8, carga: carga('CARGA_TRABALHO'), tecnica: tecnica('CLUSTER', { blocos: [4, 2], pausaSegundos: 15 }) });
+    expect(calcularProgressaoDeTrabalho(cluster, ultima, 2.5)).toBeNull();
+  });
+
+  it('em libras sobe 1 passo da tela e a diferença volta a kg', () => {
+    const [r] = comUltima([serie('w', 'WORKING', { repsMin: 5, repsMax: 5, carga: carga('CARGA_TRABALHO') })], 2.5, 'lb');
+    const esperado = telaParaKg((kgParaTela(75, 'lb') as number) + passoNaTela(2.5, 'lb'), 'lb');
+    expect(r.sugestao).toBe(esperado);
+    expect(r.sugestaoReps).toBe(5);
+    expect(r.progressao).toBe('SUBIR_CARGA');
+  });
+
+  it('o % da WS antes do ✓ continua na última carga, sem o incremento', () => {
+    const series = [
+      serie('w', 'WORKING', { repsMin: 5, repsMax: 5, carga: carga('CARGA_TRABALHO') }),
+      backOff('b', 80),
+    ];
+    const r = comUltima(series, 2.5);
+    expect(r[0].sugestao).toBe(77.5);
+    expect(r[1].sugestao).toBe(60);
+    expect(r[1].referencia).toEqual({ valor: 75, origem: 'BASE_DO_DIA' });
+    expect(textoDaOrigem(r[0], { baseDaUltimaVez: true, arredondamentoKg: 2.5 })).toBe('meta batida na última vez (+2,5 kg pelo arredondamento da metodologia)');
+    const buscando = calcularCargasDoExercicio(exercicio([
+      serie('w', 'WORKING', { repsMin: 6, repsMax: 8, carga: carga('CARGA_TRABALHO') }),
+    ]), 75, {}, { arredondamentoKg: 2.5, tipoTrabalho: 'WS', ultima, unidade: 'kg' });
+    expect(textoDaOrigem(buscando[0], { baseDaUltimaVez: true })).toBe('mesma carga da última vez · busque atingir a meta de repetições');
+  });
+
+  it('no mesmo dia, a maior carga vence e, no empate, mais repetições', () => {
+    const dia = '2026-11-02';
+    const base = { carga: 75, repeticoes: 4, data: dia };
+    expect(melhorUltimaCarga(base, { carga: 75, repeticoes: 6, data: dia }).repeticoes).toBe(6);
+    expect(melhorUltimaCarga({ carga: 75, repeticoes: 6, data: dia }, base).repeticoes).toBe(6);
+    expect(melhorUltimaCarga(base, { carga: 80, repeticoes: 2, data: dia }).carga).toBe(80);
+    expect(melhorUltimaCarga(base, { carga: 70, repeticoes: 12, data: dia }).carga).toBe(75);
+    expect(melhorUltimaCarga(base, { carga: 60, repeticoes: 10, data: '2026-11-09' }).data).toBe('2026-11-09');
   });
 });

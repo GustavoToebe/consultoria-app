@@ -1,7 +1,7 @@
-import type { Configuracao, ExercicioPlano, OrigemDaReferencia, Serie } from '../api/tipos';
+import type { Configuracao, ExercicioPlano, OrigemDaReferencia, Serie, UltimaCarga } from '../api/tipos';
 import { textoCardio, textoCarga, textoDasRepeticoes, textoEsforco, textoTecnica } from './agrupamento';
 import { numeroParaTela } from './formatos';
-import { kgParaTela, passoNaTela, telaParaKg, type UnidadeDeCarga } from './unidadeDeCarga';
+import { kgParaTela, passoNaTela, telaParaKg, textoDaCarga, textoDoPasso, type UnidadeDeCarga } from './unidadeDeCarga';
 import { tipoTrabalho as tipoTrabalhoDaMetodologia } from './metodologia';
 import { cargaIlegivel } from './modoDeCarga';
 import { temEtapaEmPercentual } from './validacaoDeSerie';
@@ -16,10 +16,29 @@ import { temEtapaEmPercentual } from './validacaoDeSerie';
  * `tipoTrabalho` ("WS") só aparece nos textos; nunca se compara com `Serie.tipo`, que é código.
  */
 
+/** Dupla progressão da série de trabalho (N16): subir a carga ou buscar as repetições da meta. */
+export type ProgressaoDeCarga = 'SUBIR_CARGA' | 'BUSCAR_REPS';
+
+export interface ProgressaoDeTrabalho {
+  /** Carga sugerida em kg. */
+  sugestaoKg: number;
+  /** Quanto a sugestão subiu em relação à última carga, em kg; 0 quando a carga fica. */
+  incrementoKg: number;
+  /** Repetições sugeridas; `null` quando a série não tem meta numérica. */
+  sugestaoReps: number | null;
+  progressao: ProgressaoDeCarga;
+}
+
 export interface SerieCalculada {
   serie: Serie;
   /** Carga sugerida em kg; `null` quando não há base ou a série não é por carga. */
   sugestao: number | null;
+  /** Repetições sugeridas na série de trabalho; `null` nas outras e quando não há meta numérica. */
+  sugestaoReps: number | null;
+  /** Kg a mais que a última carga; `null` fora da progressão, 0 quando a carga fica. */
+  incrementoKg: number | null;
+  /** `null` quando esta série não entra na dupla progressão. */
+  progressao: ProgressaoDeCarga | null;
   /** A referência externa usada (WS anterior ou base do dia); `null` nos modos que não têm (ver `referenciaDaSerie`). */
   referencia: ReferenciaDaCarga | null;
   /** Texto da meta: "Meta: 3 a 6 reps · 50% da WS", "Meta: AMRAP reps · 1 RIR". */
@@ -114,24 +133,84 @@ export function sugestaoSobreReferencia(s: Serie, referencia: number | null, pas
 }
 
 /**
- * @param cargaTrabalho base do dia que o aluno digitou (ou `null`).
+ * Última carga de trabalho do exercício: a data mais recente; no mesmo dia, a maior carga; no empate de carga, mais
+ * repetições. Espelho de `HistoricoService.ultimasCargas`.
+ */
+export function melhorUltimaCarga(atual: UltimaCarga | null, candidata: UltimaCarga): UltimaCarga {
+  if (!atual || candidata.data > atual.data) return candidata;
+  if (candidata.data < atual.data) return atual;
+  const cargaDa = (u: UltimaCarga) => u.carga ?? Number.NEGATIVE_INFINITY;
+  if (cargaDa(candidata) > cargaDa(atual)) return candidata;
+  if (cargaDa(candidata) < cargaDa(atual)) return atual;
+  return (candidata.repeticoes ?? -1) > (atual.repeticoes ?? -1) ? candidata : atual;
+}
+
+/**
+ * Dupla progressão da série de trabalho sobre o último treino (N16). Sobe 1 passo do arredondamento quando as
+ * repetições bateram o topo da meta; senão mantém a carga e sugere uma repetição a mais, sem passar do topo.
+ * AMRAP, técnica com etapas e série sem meta numérica ficam de fora (`null`: a sugestão continua a última carga).
+ * Em libra, o passo é o da tela (`passoNaTela`) e volta a kg por `telaParaKg`, para o número em lb ficar exato.
+ */
+export function calcularProgressaoDeTrabalho(
+  serie: Serie,
+  ultima: { carga: number | null; repeticoes: number | null } | null,
+  arredondamentoKg: number,
+  unidade: UnidadeDeCarga = 'kg',
+): ProgressaoDeTrabalho | null {
+  if (!ehSerieDeTrabalho(serie) || serie.cardio) return null;
+  if (ultima?.carga == null || ultima.carga <= 0) return null;
+  if (serie.amrap || serie.tecnica != null || (serie.repsMin == null && serie.repsMax == null)) return null;
+  const metaTopo = serie.repsMax ?? serie.repsMin;
+  const metaPiso = serie.repsMin ?? serie.repsMax;
+  if (metaTopo == null || metaPiso == null) return null;
+  const bateu = ultima.repeticoes != null && ultima.repeticoes >= metaTopo;
+  if (bateu) {
+    const sugestaoKg = unidade === 'kg'
+      ? arredondar(ultima.carga + arredondamentoKg, arredondamentoKg)
+      : telaParaKg((kgParaTela(ultima.carga, 'lb') as number) + passoNaTela(arredondamentoKg, 'lb'), 'lb') as number;
+    return {
+      sugestaoKg,
+      incrementoKg: Math.round((sugestaoKg - ultima.carga) * 1000) / 1000,
+      sugestaoReps: metaPiso,
+      progressao: 'SUBIR_CARGA',
+    };
+  }
+  const sugestaoReps = ultima.repeticoes != null ? Math.min(metaTopo, Math.max(metaPiso, ultima.repeticoes + 1)) : metaPiso;
+  return { sugestaoKg: ultima.carga, incrementoKg: 0, sugestaoReps, progressao: 'BUSCAR_REPS' };
+}
+
+/**
+ * @param cargaTrabalho base do dia que o aluno digitou, ou a última carga quando a caixa está vazia (ou `null`).
  * @param cargasDoDia cargas já registradas hoje, por `serieUid` (para a referência das séries em %).
  *
- * Por forma de carga: `CARGA_TRABALHO` = a carga de trabalho do dia; `PERCENTUAL_WS` = % da referência da WS (acima);
- * `CARGA_FIXA` = os kg do treinador, sem arredondar; `NENHUMA` = nada. Em faixa ("85 a 90%") vale o percentual MÍNIMO.
- * Resultado arredondado pelo passo da metodologia (exceto carga de trabalho, que repete o número).
+ * Por forma de carga: `CARGA_TRABALHO` = a base do dia, ou a progressão (N16) quando a caixa está vazia e há última
+ * carga; `PERCENTUAL_WS` = % da referência da WS (a registrada hoje, ou a base do dia — sem o incremento — enquanto a
+ * WS não foi marcada); `CARGA_FIXA` = os kg do treinador, sem arredondar; `NENHUMA` = nada. Em faixa ("85 a 90%") vale
+ * o percentual MÍNIMO. Resultado arredondado pelo passo da metodologia (exceto carga de trabalho digitada, que repete o número).
  */
 export function calcularCargasDoExercicio(
   exercicio: ExercicioPlano,
   cargaTrabalho: number | null,
   cargasDoDia: Record<string, number | null | undefined>,
-  config: { arredondamentoKg: number; tipoTrabalho: string; metodologia?: Configuracao },
+  config: {
+    arredondamentoKg: number;
+    tipoTrabalho: string;
+    metodologia?: Configuracao;
+    /** Última série de trabalho do exercício. Sem ela, não há progressão. */
+    ultima?: { carga: number | null; repeticoes: number | null } | null;
+    /** O aluno digitou a caixa "Carga de trabalho do dia": a sugestão usa esse número, sem progressão. */
+    cargaManual?: boolean;
+    unidade?: UnidadeDeCarga;
+  },
 ): SerieCalculada[] {
   const semCarga = exercicio.unidade === 'nenhuma';
   const series = exercicio.series;
 
   return series.map((serie, indice) => {
     let sugestao: number | null = null;
+    let sugestaoReps: number | null = null;
+    let incrementoKg: number | null = null;
+    let progressao: ProgressaoDeCarga | null = null;
     const carga = serie.carga;
     // Forma de carga que o app não conhece: sem sugestão e sem referência (a etapa em % congelaria uma base para uma carga
     // que o app não lê). O texto "atualize o app" vem do `metaDaSerie`.
@@ -139,7 +218,18 @@ export function calcularCargasDoExercicio(
     const referencia = semCarga || ilegivel ? null : referenciaDaSerie(series, indice, cargaTrabalho, cargasDoDia);
     if (!semCarga && !ilegivel && !serie.cardio) {
       switch (modo(serie)) {
-        case 'CARGA_TRABALHO':
+        case 'CARGA_TRABALHO': {
+          const prog = config.cargaManual ? null : calcularProgressaoDeTrabalho(serie, config.ultima ?? null, config.arredondamentoKg, config.unidade ?? 'kg');
+          if (prog) {
+            sugestao = prog.sugestaoKg;
+            sugestaoReps = prog.sugestaoReps;
+            incrementoKg = prog.incrementoKg;
+            progressao = prog.progressao;
+          } else {
+            sugestao = sugestaoSobreReferencia(serie, referencia?.valor ?? null, config.arredondamentoKg);
+          }
+          break;
+        }
         case 'PERCENTUAL_WS':
           sugestao = sugestaoSobreReferencia(serie, referencia?.valor ?? null, config.arredondamentoKg);
           break;
@@ -151,7 +241,7 @@ export function calcularCargasDoExercicio(
       }
     }
     // `meta` fica em kg: a tela do aluno monta o texto da meta em `aluno/serieDoAluno` (com a unidade dele) e não lê este campo.
-    return { serie, sugestao, referencia, meta: metaDaSerie(serie, config.tipoTrabalho, semCarga, config.metodologia) };
+    return { serie, sugestao, sugestaoReps, incrementoKg, progressao, referencia, meta: metaDaSerie(serie, config.tipoTrabalho, semCarga, config.metodologia) };
   });
 }
 
@@ -162,6 +252,10 @@ export interface NomesDaOrigem {
   metodologia?: Configuracao | null;
   /** Sem base do dia gravada a conta parte da última carga (D1): o texto diz "da última vez", não "da base do dia". */
   baseDaUltimaVez?: boolean;
+  /** Unidade em que o aluno vê o passo da progressão. */
+  unidade?: UnidadeDeCarga;
+  /** Passo da metodologia. O texto da progressão mostra esse passo na unidade da tela. */
+  arredondamentoKg?: number;
 }
 
 const SEM_NOME_DA_WS = 'carga de trabalho';
@@ -187,7 +281,17 @@ export function textoDaOrigem(calculada: SerieCalculada, nomes: NomesDaOrigem = 
 
   switch (modo(serie)) {
     case 'CARGA_TRABALHO':
-      return referencia ? `carga da ${base}` : null;
+      if (!referencia) return null;
+      if (nomes.baseDaUltimaVez && calculada.progressao === 'SUBIR_CARGA' && calculada.incrementoKg != null && calculada.incrementoKg > 0) {
+        const passo = nomes.arredondamentoKg != null
+          ? textoDoPasso(nomes.arredondamentoKg, nomes.unidade ?? 'kg')
+          : textoDaCarga(calculada.incrementoKg, nomes.unidade ?? 'kg');
+        return `meta batida na última vez (+${passo} pelo arredondamento da metodologia)`;
+      }
+      if (nomes.baseDaUltimaVez && calculada.progressao === 'BUSCAR_REPS') {
+        return 'mesma carga da última vez · busque atingir a meta de repetições';
+      }
+      return `carga da ${base}`;
     case 'CARGA_FIXA':
       return 'carga definida pelo treinador';
     case 'PERCENTUAL_WS':
