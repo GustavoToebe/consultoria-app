@@ -52,8 +52,12 @@ const FORMAS_CURTAS: { valor: FormaDasRepeticoes; rotulo: string }[] = [
   { valor: 'AMRAP', rotulo: 'AMRAP' },
 ];
 
-/** Cabe "20" e o "mín"/"reps" dentro da caixa no tamanho de texto padrão; cresce com o texto da pessoa. */
-const LARGURA_DO_NUMERO = 92;
+/**
+ * Largura da caixa do número com o sufixo dentro: borda de 1 px de cada lado, o padding dos dois lados, o que o `Campo`
+ * reserva para o sufixo (16 px por letra) e espaço para três dígitos ("100"). Fixa em 92, "10" saía cortado com "mín" e
+ * "máx"; "reps", com uma letra a mais, ficava com menos de um dígito. Cresce com o texto da pessoa.
+ */
+const larguraDoNumero = (sufixo: string) => 2 + 2 * espaco(1.5) + 16 * sufixo.length + 32;
 
 /**
  * Quantidade exata, faixa ou AMRAP. A escolha fica com a tela enquanto o valor não a distingue (faixa 8 a 8, ou vazio).
@@ -87,20 +91,20 @@ export function CamposDasRepeticoes({ valor, aoMudar, erros, rotulo = 'Repetiç�
     {vazio && forma !== 'AMRAP' && semRepeticoes ? <Texto variante="pequeno">{semRepeticoes}</Texto> : null}
   </>;
   if (compacta) {
-    const largura = { width: escalar(LARGURA_DO_NUMERO, fatorTexto) };
+    const largura = (sufixo: string) => ({ width: escalar(larguraDoNumero(sufixo), fatorTexto) });
     // Limitada à largura de quem a contém: numa linha que quebra (a Estrutura), sem isso ela não quebra por dentro em 390 px.
     return <View style={[estilos.juntos, estilos.limitada]}>
       {rotuloVisivel ? <Texto variante="rotulo">{rotulo}</Texto> : null}
       <View style={estilos.linhaCompacta}>
         <Escolha descricao={rotulo} compacta opcoes={FORMAS_CURTAS} valor={forma} aoMudar={mudarForma} />
-        {forma === 'EXATA' ? <View style={largura}>
+        {forma === 'EXATA' ? <View style={largura('reps')}>
           <CampoNumerico rotulo={nome('Repetições')} rotuloOculto sufixo="reps" sufixoNaCaixa erroSemTexto inteiro valor={valor.repsMin ?? valor.repsMax ?? null}
             aoMudar={exata} erro={erros.repsMin ?? erros.repsMax} />
         </View> : null}
         {forma === 'FAIXA' ? <>
-          <View style={largura}><CampoNumerico rotulo={nome('Reps mín.')} rotuloOculto sufixo="mín" sufixoNaCaixa erroSemTexto inteiro valor={valor.repsMin ?? null}
+          <View style={largura('mín')}><CampoNumerico rotulo={nome('Reps mín.')} rotuloOculto sufixo="mín" sufixoNaCaixa erroSemTexto inteiro valor={valor.repsMin ?? null}
             aoMudar={minimo} erro={erros.repsMin} /></View>
-          <View style={largura}><CampoNumerico rotulo={nome('Reps máx.')} rotuloOculto sufixo="máx" sufixoNaCaixa erroSemTexto inteiro valor={valor.repsMax ?? null}
+          <View style={largura('máx')}><CampoNumerico rotulo={nome('Reps máx.')} rotuloOculto sufixo="máx" sufixoNaCaixa erroSemTexto inteiro valor={valor.repsMax ?? null}
             aoMudar={maximo} erro={erros.repsMax} /></View>
         </> : null}
       </View>

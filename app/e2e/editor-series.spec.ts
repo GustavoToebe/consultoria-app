@@ -48,6 +48,12 @@ for (const largura of [390, 1280]) {
     await expect(page.getByText(/1×3 a 6 · WS \+ Rest pause/)).toBeVisible();
     await expect(page.getByRole('button', { name: 'Técnica da série: Rest pause. Escolher.', exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    // O "mín" e o "máx" ficam dentro da caixa do número: com três dígitos o texto não passa da área dele (não é cortado).
+    for (const [nome, original] of [['Reps mín.', '3'], ['Reps máx.', '6']]) {
+      await campo(nome).fill('100');
+      expect(await campo(nome).evaluate((e) => e.scrollWidth <= e.clientWidth), `${nome} cortado`).toBe(true);
+      await campo(nome).fill(original);
+    }
     await page.screenshot({ path: testInfo.outputPath('series-prescritas.png'), fullPage: true });
     await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();
     await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(1);
