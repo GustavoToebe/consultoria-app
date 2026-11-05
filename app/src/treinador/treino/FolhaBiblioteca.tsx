@@ -29,16 +29,19 @@ export function normalizar(texto: string): string {
  * Escolher o exercício da biblioteca da consultoria (busca na lista). Também dá para usar só o nome digitado, sem
  * ligar à biblioteca (aí o progresso desse exercício não junta com outros planos). Com `multiplo` (exercício novo) dá
  * para marcar vários do grupo escolhido e adicionar de uma vez; sem ele (trocar um exercício) a escolha é uma só.
- * `aoEscolher` recebe sempre a lista, na ordem em que foram marcados.
+ * `aoEscolher` recebe sempre a lista, na ordem em que foram marcados. Com `cardio` ("+ Adicionar cardio") a lista traz só
+ * os exercícios de cardio da biblioteca; o nome digitado também vale.
  */
 export function FolhaBiblioteca({
   visivel,
   multiplo = false,
+  cardio = false,
   aoEscolher,
   aoFechar,
 }: {
   visivel: boolean;
   multiplo?: boolean;
+  cardio?: boolean;
   aoEscolher: (escolhidos: (Exercicio | { nome: string })[]) => void;
   aoFechar: () => void;
 }) {
@@ -56,12 +59,13 @@ export function FolhaBiblioteca({
     listarExercicios(),
   );
   const termo = normalizar(busca.trim());
-  const grupos = gruposDosExercicios(dados ?? []);
+  const daFolha = (dados ?? []).filter((e) => !cardio || e.modalidade === 'CARDIO');
+  const grupos = gruposDosExercicios(daFolha);
   const noGrupo = (e: Exercicio, g: string) => !g || e.grupoMuscular?.trim() === g;
   // Trocar de grupo tira da seleção o que não é do grupo novo: só se adiciona o que está no grupo escolhido.
   const escolherGrupo = (g: string) => {
     setGrupo(g);
-    const doGrupo = new Set((dados ?? []).filter((e) => noGrupo(e, g)).map((e) => e.id));
+    const doGrupo = new Set(daFolha.filter((e) => noGrupo(e, g)).map((e) => e.id));
     setMarcados((atual) => new Set([...atual].filter((id) => doGrupo.has(id))));
   };
   const alternar = (id: string, marcar: boolean) =>
@@ -71,7 +75,7 @@ export function FolhaBiblioteca({
       else novo.delete(id);
       return novo;
     });
-  const filtrados = (dados ?? []).filter(
+  const filtrados = daFolha.filter(
     (e) =>
       noGrupo(e, grupo) &&
       (!termo || normalizar(`${e.nome} ${e.grupoMuscular ?? ''} ${e.equipamento ?? ''}`).includes(termo)),
@@ -98,29 +102,30 @@ export function FolhaBiblioteca({
   return (
     <Folha
       visivel={visivel}
-      titulo="Escolher exercício"
+      titulo={cardio ? 'Escolher cardio' : 'Escolher exercício'}
       aoFechar={aoFechar}
       rodape={multiplo ? (
         <>
           <Botao rotulo="Cancelar" tipo="secundario" aoTocar={aoFechar} />
-          <Botao rotulo={marcados.size > 1 ? `Adicionar ${marcados.size} exercícios` : 'Adicionar exercício'} aoTocar={adicionar} desabilitado={marcados.size === 0} motivo="Marque ao menos um exercício." />
+          <Botao rotulo={cardio ? (marcados.size > 1 ? `Adicionar ${marcados.size} cardios` : 'Adicionar cardio') : marcados.size > 1 ? `Adicionar ${marcados.size} exercícios` : 'Adicionar exercício'}
+            aoTocar={adicionar} desabilitado={marcados.size === 0} motivo={cardio ? 'Marque ao menos um cardio.' : 'Marque ao menos um exercício.'} />
         </>
       ) : undefined}>
-      <Campo rotulo="Buscar na biblioteca" valor={busca} aoMudar={setBusca} placeholder="Nome, grupo ou equipamento" autoFocus />
+      <Campo rotulo="Buscar na biblioteca" valor={busca} aoMudar={setBusca} placeholder={cardio ? 'Ex.: Esteira, bicicleta' : 'Nome, grupo ou equipamento'} autoFocus />
       {grupos.length ? (
         grupos.length + 1 > OPCOES_PARA_BUSCAR
           ? <EscolhaEmFolha rotulo="Grupo muscular" opcoes={[{ valor: '', rotulo: 'Todos' }, ...grupos.map((g) => ({ valor: g, rotulo: g }))]} valor={grupo} aoMudar={escolherGrupo} />
           : <Escolha descricao="Grupo muscular" opcoes={[{ valor: '', rotulo: 'Todos' }, ...grupos.map((g) => ({ valor: g, rotulo: g }))]} valor={grupo} aoMudar={escolherGrupo} />
       ) : null}
       {busca.trim() ? (
-        <Botao rotulo={`Exercício manual: “${busca.trim()}”`} rotuloAcessivel={`Usar só o nome ${busca.trim()}, fora da biblioteca`} tipo="secundario" aoTocar={() => aoEscolher([...marcadosEmOrdem(), { nome: busca.trim() }])} />
-      ) : <Texto variante="pequeno">Não está na biblioteca? Digite o nome na busca para usar um exercício manual.</Texto>}
+        <Botao rotulo={`${cardio ? 'Cardio' : 'Exercício'} manual: “${busca.trim()}”`} rotuloAcessivel={`Usar só o nome ${busca.trim()}, fora da biblioteca`} tipo="secundario" aoTocar={() => aoEscolher([...marcadosEmOrdem(), { nome: busca.trim() }])} />
+      ) : <Texto variante="pequeno">{cardio ? 'Não está na biblioteca? Digite o nome na busca para usar um cardio manual.' : 'Não está na biblioteca? Digite o nome na busca para usar um exercício manual.'}</Texto>}
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && filtrados.length === 0 ? (
         <Texto variante="suave">
-          {dados.length === 0
-            ? 'A biblioteca está vazia. Importe exercícios do catálogo na tela Biblioteca.'
+          {daFolha.length === 0
+            ? cardio ? 'A biblioteca não tem cardio. Digite o nome (ex.: Esteira) para usar um cardio manual.' : 'A biblioteca está vazia. Importe exercícios do catálogo na tela Biblioteca.'
             : grupo ? 'Nenhum exercício neste grupo com essa busca.' : 'Nenhum exercício encontrado.'}
         </Texto>
       ) : null}

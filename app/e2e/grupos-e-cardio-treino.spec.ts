@@ -6,9 +6,9 @@ import { sessaoFalsa } from './aluno';
 // Dia de treino fictício com dois exercícios de peso livre, lado a lado. Nada chega ao banco: a API é simulada.
 const ID = 'm0000000-0000-4000-8000-000000000004';
 
-async function abrirDiaDeTreino(page: Page) {
+async function abrirDiaDeTreino(page: Page, observacaoDaRemada: string | null = null) {
   const dia = sessaoFalsa('dia', 'Dia de teste', 1, 2);
-  dia.exercicios = dia.exercicios.map((e, i) => ({ ...e, nome: ['Supino de teste', 'Remada de teste'][i], modalidade: 'LIVRE', progressao: true }));
+  dia.exercicios = dia.exercicios.map((e, i) => ({ ...e, nome: ['Supino de teste', 'Remada de teste'][i], modalidade: 'LIVRE', progressao: true, observacao: i === 1 ? observacaoDaRemada : null }));
   const conteudo: ConteudoTreino = { objetivo: null, orientacoes: null, sessoes: [dia] };
   let atual: Receita = { id: ID, tipo: 'SESSAO_TREINO', nome: 'Dia de treino fictício', descricao: null, pastaId: null, ordem: 1, versao: 1, conteudo };
   const api = await simularApi(page, {
@@ -51,21 +51,22 @@ for (const largura of [390, 1280]) {
     expect(api.naoTratadas).toEqual([]);
   });
 
-  test(`treino: trocar o exercício para Cardio pede confirmação e abre a prescrição de cardio (${largura}px)`, async ({ page }, testInfo) => {
+  test(`treino: "Adicionar cardio" cria o item de cardio pela folha, sem seletor de modalidade (${largura}px)`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const api = await abrirDiaDeTreino(page);
-    // Em duas colunas o exercício se escolhe na lista; no estreito o título do cartão abre.
-    if (largura >= 960) await page.getByRole('button', { name: /^Exercício 1 de 2: Supino de teste/ }).click();
-    else await page.getByRole('button', { name: 'Editar Supino de teste', exact: true }).click();
-    // A modalidade aparece como resumo; a escolha só abre pelo "Alterar" (reunião de 30/10).
-    await expect(page.getByText('Modalidade:', { exact: false }).first()).toBeVisible();
-    await page.getByRole('button', { name: 'Alterar modalidade', exact: true }).click();
-    await page.getByRole('button', { name: 'Cardio', exact: true }).click();
-    // O exercício tem séries: a troca espera a confirmação e só então apaga.
-    await expect(page.getByText('Trocar para cardio?', { exact: true })).toBeVisible();
-    await expect(page.getByText(/As 3 séries deste exercício serão apagadas/)).toBeVisible();
-    await page.getByRole('button', { name: 'Apagar séries e trocar', exact: true }).click();
-    await expect(page.getByText('Trocar para cardio?', { exact: true })).toHaveCount(0);
+    // O exercício não tem mais Modalidade, Alterar, Carga do exercício nem Progressão (04/11).
+    await expect(page.getByText('Modalidade:', { exact: false })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Alterar modalidade', exact: true })).toHaveCount(0);
+    await expect(page.getByText('Carga do exercício', { exact: false })).toHaveCount(0);
+    await expect(page.getByText('Progressão de carga', { exact: false })).toHaveCount(0);
+    // O cardio entra pelo botão ao lado de "Adicionar exercício", na mesma folha da biblioteca.
+    await page.getByRole('button', { name: 'Adicionar cardio', exact: true }).first().click();
+    await expect(page.getByText('Escolher cardio', { exact: true })).toBeVisible();
+    await page.getByRole('textbox', { name: 'Buscar na biblioteca', exact: true }).fill('Esteira de teste');
+    await page.getByRole('button', { name: 'Usar só o nome Esteira de teste, fora da biblioteca', exact: true }).click();
+    await expect(page.getByText('Escolher cardio', { exact: true })).toHaveCount(0);
+    // O novo fica escolhido: no estreito o cartão dele já nasce aberto.
+    if (largura < 960) await expect(page.getByRole('button', { name: 'Fechar Esteira de teste', exact: true })).toBeVisible();
     await expect(page.getByText(/Cardio tem prescrição própria/)).toBeVisible();
     // Sem séries de força: só a prescrição de cardio.
     await expect(page.getByRole('button', { name: 'Adicionar série', exact: true })).toHaveCount(0);
@@ -77,13 +78,44 @@ for (const largura of [390, 1280]) {
     await page.screenshot({ path: testInfo.outputPath('cardio.png'), fullPage: true });
     await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();
     await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(1);
-    const [esteira, remada] = api.salvo().sessoes[0].exercicios;
-    expect(esteira).toMatchObject({ nome: 'Supino de teste', modalidade: 'CARDIO', unidade: 'nenhuma' });
+    const [supino, remada, esteira] = api.salvo().sessoes[0].exercicios;
+    expect(esteira).toMatchObject({ nome: 'Esteira de teste', exercicioId: null, modalidade: 'CARDIO', unidade: 'nenhuma' });
     expect(esteira.series).toHaveLength(1);
     expect(esteira.series[0]).toMatchObject({ tipo: null, carga: null, esforco: null, tecnica: null, cardio: { duracaoMin: 40, zona: 2 } });
-    // O outro exercício não muda.
-    expect(remada.modalidade).toBe('LIVRE');
-    expect(remada.series).toHaveLength(3);
+    // Os outros exercícios não mudam.
+    expect([supino.modalidade, remada.modalidade]).toEqual(['LIVRE', 'LIVRE']);
+    expect([supino.series.length, remada.series.length]).toEqual([3, 3]);
+    expect(api.errosDaPagina).toEqual([]);
+    expect(api.naoTratadas).toEqual([]);
+  });
+
+  test(`treino: "Instruções, vídeo e cadência" fica fechado sem conteúdo e aberto com conteúdo (${largura}px)`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const api = await abrirDiaDeTreino(page, 'Desça devagar, fictício.');
+    const abrirExercicio = async (n: number, nome: string) => {
+      if (largura >= 960) await page.getByRole('button', { name: new RegExp(`^Exercício ${n} de 2: ${nome}`) }).click();
+      else await page.getByRole('button', { name: `Editar ${nome}`, exact: true }).click();
+    };
+    const extras = page.getByRole('button', { name: 'Instruções, vídeo e cadência (opcional)', exact: true });
+    const observacao = page.getByRole('textbox', { name: 'Observação para o aluno', exact: true });
+    // Supino sem instrução, vídeo nem cadência: fechado, e as séries vêm logo depois do nome.
+    await abrirExercicio(1, 'Supino de teste');
+    await expect(extras.first()).toHaveAttribute('aria-expanded', 'false');
+    await expect(observacao).toHaveCount(0);
+    await expect(page.getByRole('textbox', { name: 'Nome de exibição', exact: true }).first()).toHaveValue('Supino de teste');
+    await page.screenshot({ path: testInfo.outputPath('extras-fechados.png'), fullPage: true });
+    // Abre e fecha pelo botão.
+    await extras.first().click();
+    await expect(extras.first()).toHaveAttribute('aria-expanded', 'true');
+    await expect(observacao.first()).toBeVisible();
+    await extras.first().click();
+    await expect(observacao).toHaveCount(0);
+    // Remada com observação: já abre aberto, com o texto.
+    await abrirExercicio(2, 'Remada de teste');
+    await expect(observacao.last()).toHaveValue('Desça devagar, fictício.');
+    await expect(extras.last()).toHaveAttribute('aria-expanded', 'true');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath('extras-abertos.png'), fullPage: true });
     expect(api.errosDaPagina).toEqual([]);
     expect(api.naoTratadas).toEqual([]);
   });

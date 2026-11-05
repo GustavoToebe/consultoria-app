@@ -12,7 +12,7 @@ export async function sessaoDeAluno(page: Page): Promise<RespostasApi> {
   return sessaoDeAlunoComTreino(page, null);
 }
 
-const CARGA_DE_TRABALHO: Carga = { modo: 'CARGA_TRABALHO', percentualMin: null, percentualMax: null, referenciaUid: null };
+const CARGA_DE_TRABALHO: Carga = { modo: 'CARGA_TRABALHO', percentualMin: null, percentualMax: null };
 
 /** Exercício com séries simples, só para o plano ter o que contar. */
 function exercicioFalso(uid: string): ExercicioPlano {
@@ -127,15 +127,15 @@ const serie = (uid: string, resto: Partial<Serie>): Serie => ({
 });
 
 /**
- * Exercício com WS, Top set e Back off: o Top set sobe 5% sobre a anterior e o Back off fica 10% abaixo do Top set (a
- * referência é a série `top`). A carga do Back off só é sugerida depois de registrada a do Top set.
+ * Exercício com WS, Top set e Back off: o Top set também é na carga de trabalho e o Back off fica a 90% da WS (sem carga
+ * "acima da anterior" nem "abaixo da referência", que saíram). A carga do Back off sai da carga do dia.
  */
 export function sessaoComTopSetEBackOff(): Sessao[] {
   const sessao = sessaoFalsa('topo', 'Treino de top set', 1, 1);
   sessao.exercicios[0] = { ...sessao.exercicios[0], uid: 'agacho', nome: 'Agachamento de teste', series: [
     serie('ws', { repsMin: 5, repsMax: 5, esforco: { rir: 1 } }),
-    serie('top', { tipo: 'TOP_SET', repsMin: 3, repsMax: 3, carga: { modo: 'ACIMA_DA_ANTERIOR', percentualMin: 5, percentualMax: 5, referenciaUid: null } }),
-    serie('back', { tipo: 'BACK_OFF', repsMin: 6, repsMax: 8, carga: { modo: 'ABAIXO_DA_REFERENCIA', percentualMin: 10, percentualMax: 10, referenciaUid: 'top' } }),
+    serie('top', { tipo: 'TOP_SET', repsMin: 3, repsMax: 3 }),
+    serie('back', { tipo: 'BACK_OFF', repsMin: 6, repsMax: 8, carga: { modo: 'PERCENTUAL_WS', percentualMin: 90, percentualMax: null } }),
   ] };
   return [sessao];
 }

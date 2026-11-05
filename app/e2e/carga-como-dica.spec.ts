@@ -16,8 +16,8 @@ const LISTA = '/aluno/sessao/sx?data=2026-10-19';
 const EXERCICIO = '/aluno/sessao/sx/sxe1?data=2026-10-19';
 const DICA = 'Sugestão: 60 kg · Última vez: 60 kg × 7';
 
-const NENHUMA: Carga = { modo: 'NENHUMA', percentualMin: null, percentualMax: null, referenciaUid: null };
-const DE_TRABALHO: Carga = { modo: 'CARGA_TRABALHO', percentualMin: null, percentualMax: null, referenciaUid: null };
+const NENHUMA: Carga = { modo: 'NENHUMA', percentualMin: null, percentualMax: null };
+const DE_TRABALHO: Carga = { modo: 'CARGA_TRABALHO', percentualMin: null, percentualMax: null };
 const aquecimento = (n: number): Serie => ({ uid: `aq${n}`, tipo: 'WARM_UP', repsMin: 12, repsMax: 15, carga: NENHUMA, esforco: null, descansoSegundos: null });
 const ws = (n: number): Serie => ({ uid: `ws${n}`, tipo: 'WORKING', repsMin: 6, repsMax: 8, carga: DE_TRABALHO, esforco: null, descansoSegundos: null });
 

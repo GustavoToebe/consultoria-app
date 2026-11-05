@@ -38,7 +38,7 @@ const ROTULOS_DO_CAMPO: [RegExp, string][] = [
   [/^papel$/, 'Papel'],
   [/^repeticoes$/, 'Repetições'],
   [/^cargaPadrao/, 'Carga padrão'],
-  [/^esforcoPadrao/, 'Esforço padrão'],
+  [/^esforcoPadrao/, 'RIR padrão'],
   [/^regraPercentuais/, 'Regra de percentuais'],
   [/^explicacao$/, 'Explicação'],
   [/^padrao/, 'Padrão'],

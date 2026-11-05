@@ -565,9 +565,9 @@ export function normalizarTreino(conteudo: unknown): ConteudoTreino {
   };
 }
 
-/** Unidade sugerida ao escolher da biblioteca: elástico, peso corporal e cardio não têm campo de carga. */
+/** Unidade ao escolher da biblioteca: só o cardio fica sem carga; todo exercício de musculação aceita carga (04/11). */
 export function unidadeDaModalidade(modalidade: string | null): 'kg' | 'nenhuma' {
-  return modalidade === 'ELASTICO' || modalidade === 'PESO_CORPORAL' || modalidade === 'CARDIO' ? 'nenhuma' : 'kg';
+  return modalidade === 'CARDIO' ? 'nenhuma' : 'kg';
 }
 
 /** Trocar a modalidade de/para cardio descarta as séries (a prescrição é outra). Vale avisar antes quando há série. */

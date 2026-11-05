@@ -3,13 +3,6 @@ import { PAPEIS, tecnicaDescritiva, TIPOS_DE_GRUPO, TIPOS_DE_TECNICA } from './m
 import { chaveDeTipo, codigoDoNovoTipo, codigoValido, MAXIMO_DO_NOME, mensagemTipoECombinacao, mensagemTipoETecnica, nomeDeCombinacao, nomeDeTecnica, NOMES_DE_COMBINACAO, NOMES_DE_TECNICA } from './tiposDeSerie';
 import { esforcoVazio, problemasDaCarga, problemasDaTecnica, problemasDoEsforco, type Problemas } from './validacaoDeSerie';
 
-/** Carga padrão do tipo: as regras da carga, e sem carga fixa (os kg são da série de um exercício; a API recusa também). */
-function problemasDaCargaPadrao(carga: Carga | null | undefined) {
-  const p = problemasDaCarga(carga);
-  if (carga?.modo === 'CARGA_FIXA') p.modo = 'A carga fixa só vale na série de um exercício.';
-  return p;
-}
-
 type FaixaEmEdicao = { min: number | null; max: number | null };
 export type TipoEmEdicao = Omit<TipoDeSerie, 'repeticoes' | 'regraPercentuais'> & {
   repeticoes: FaixaEmEdicao | null;
@@ -77,7 +70,7 @@ export function problemasDaMetodologia(c: MetodologiaEmEdicao): Problemas {
     if (r && (r.min != null || r.max != null) && (!dentro(r.min, 0, 500) || !dentro(r.max, r.min ?? 0, 500))) {
       p[`${em}.repeticoes`] = 'Repetições: mínima e máxima de 0 a 500, com a máxima maior ou igual à mínima.';
     }
-    comPrefixo(p, `${em}.cargaPadrao`, problemasDaCargaPadrao(t.cargaPadrao));
+    comPrefixo(p, `${em}.cargaPadrao`, problemasDaCarga(t.cargaPadrao));
     if (!esforcoVazio(t.esforcoPadrao)) comPrefixo(p, `${em}.esforcoPadrao`, problemasDoEsforco(t.esforcoPadrao));
     const regras = Object.entries(t.regraPercentuais ?? {});
     if (regras.length && t.papel !== 'PREPARACAO') p[`${em}.regraPercentuais`] = 'Regra de percentuais só em tipo de preparação.';

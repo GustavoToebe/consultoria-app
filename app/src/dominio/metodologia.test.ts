@@ -32,6 +32,7 @@ jest.mock('./uid', () => {
 test('o cartão fechado resume só o que o tipo já tem', () => {
   expect(resumoDoTipo(c.tipos[1], 'WS')).toBe('Preparação · 3 a 5 reps · 85% da WS');
   expect(resumoDoTipo(c.tipos[2], 'WS')).toBe('Trabalho · 3 a 6 reps · carga de trabalho · até a falha');
+  expect(resumoDoTipo({ ...c.tipos[0], cargaPadrao: { modo: 'CARGA_FIXA', percentualMin: null, percentualMax: null, valorKg: 20 } }, 'WS')).toContain('20 kg');
   expect(resumoDoTipo(c.tipos[0], 'WS')).toBe('Aquecimento · 10 a 15 reps');
   expect(resumoDoTipo(c.tipos[3], 'WS')).toBe('Pós-trabalho · 6 a 8 reps · 85% da WS · até a falha');
   expect(resumoDoTipo({

@@ -37,3 +37,17 @@ export function moverDestaque(atual: number, total: number, tecla: string): numb
     default: return atual;
   }
 }
+
+/** Distância entre o botão e o painel aberto. */
+export const VAO_DO_PAINEL = 4;
+
+/**
+ * Lado e altura da lista no PC: abre embaixo se o painel inteiro (busca + lista) cabe ali, ou se embaixo há pelo menos
+ * tanto espaço quanto em cima; e a lista nunca passa do espaço do lado escolhido (antes, a ponta da lista saía da
+ * janela e a última opção ficava fora do alcance do mouse). `embaixo` e `emCima` já descontam a folga da borda.
+ */
+export function posicaoDaLista(embaixo: number, emCima: number, alturaDaBusca: number, alturaDaLista: number, alturaMinima: number) {
+  const cabe = (espaco: number) => espaco - VAO_DO_PAINEL - alturaDaBusca;
+  const abreEmbaixo = cabe(embaixo) >= alturaDaLista || embaixo >= emCima;
+  return { abreEmbaixo, alturaMaxima: Math.max(alturaMinima, Math.min(alturaDaLista, cabe(abreEmbaixo ? embaixo : emCima))) };
+}

@@ -132,10 +132,17 @@ test('carga e esforço padrão do tipo', () => {
   const config = copia();
   config.tipos[2].esforcoPadrao = { rir: 11, rpe: null };
   expect(problemasDaMetodologia(config)['tipos[2].esforcoPadrao.rir']).toBeDefined();
-  // A carga fixa é da série de um exercício: não vale como padrão do tipo.
+  // Carga fixa vale como padrão do tipo, com kg > 0, até 1000 e 2 casas (como a API).
   const fixa = copia();
-  fixa.tipos[0].cargaPadrao = { modo: 'CARGA_FIXA', percentualMin: null, percentualMax: null, valorKg: 12 };
-  expect(problemasDaMetodologia(fixa)['tipos[0].cargaPadrao.modo']).toContain('carga fixa');
+  fixa.tipos[0].cargaPadrao = { modo: 'CARGA_FIXA', percentualMin: null, percentualMax: null, valorKg: 12.5 };
+  expect(problemasDaMetodologia(fixa)).toEqual({});
+  expect(metodologiaParaSalvar(fixa).tipos[0].cargaPadrao).toEqual(fixa.tipos[0].cargaPadrao);
+  for (const valorKg of [null, 0, 1000.01, 12.345]) {
+    fixa.tipos[0].cargaPadrao = { modo: 'CARGA_FIXA', percentualMin: null, percentualMax: null, valorKg };
+    expect(problemasDaMetodologia(fixa)['tipos[0].cargaPadrao.valorKg']).toBeDefined();
+  }
+  fixa.tipos[0].cargaPadrao = { modo: 'CARGA_FIXA', percentualMin: null, percentualMax: null, valorKg: 1000 };
+  expect(problemasDaMetodologia(fixa)).toEqual({});
   // Back off a 85% da WS é o padrão e é válido.
   const back = copia();
   back.tipos[3].cargaPadrao = { modo: 'PERCENTUAL_WS', percentualMin: 85, percentualMax: null };

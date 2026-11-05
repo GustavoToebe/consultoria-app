@@ -22,7 +22,9 @@ for (const largura of [390, 1280]) {
     await page.setViewportSize({ width: largura, height: 900 });
     await fixarHoje(page);
     const sessoes = sessaoComTopSetEBackOff();
-    sessoes[0]!.exercicios[0]!.series[0] = { ...sessoes[0]!.exercicios[0]!.series[0]!, alvoExtra: 'Segure 2 s embaixo' };
+    const [ws0, top0, back0] = sessoes[0]!.exercicios[0]!.series;
+    // O Back off logo depois da WS: o Top set (também na carga de trabalho) no meio passaria a ser a referência dele.
+    sessoes[0]!.exercicios[0]!.series = [{ ...ws0!, alvoExtra: 'Segure 2 s embaixo' }, back0!, top0!];
     const enviados: RegistroEnvio[] = [];
     const { errosDaPagina, naoTratadas } = await simularApi(page, {
       ...(await sessaoDeAlunoComTreino(page, sessoes)),
@@ -45,8 +47,9 @@ for (const largura of [390, 1280]) {
     // então o aviso de marcar a série aparece.
     await page.getByRole('textbox', { name: 'Carga de trabalho do dia', exact: true }).fill('100');
     await expect(page.getByRole('textbox', { name: 'Peso da série 1, em quilos', exact: true })).toHaveValue('');
-    await expect(page.getByText('Sugestão: 100 kg', { exact: true })).toBeVisible();
-    await expect(page.getByText('carga da base do dia', { exact: true })).toBeVisible();
+    const ws = page.getByTestId('serie-ws');
+    await expect(ws.getByText('Sugestão: 100 kg', { exact: true })).toBeVisible();
+    await expect(ws.getByText('carga da base do dia', { exact: true })).toBeVisible();
     await expect(page.getByText('As séries seguintes só usam este peso depois que você marcar a série como feita.', { exact: true })).toBeVisible();
 
     // Marcar com o peso vazio pergunta "Fez com 100 kg?" (D2); "Sim" grava. só essa série ganha o selo "Feita" e
@@ -56,10 +59,10 @@ for (const largura of [390, 1280]) {
     await expect(page.getByText('Fez com 100 kg?', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Sim, 100 kg, série 1', exact: true }).click();
     await expect(page.getByText('Feita', { exact: true })).toHaveCount(1);
-    await expect(page.getByText('Sugestão: 100 kg', { exact: true })).toHaveCount(0);
-    // O Top set parte da WS registrada e diz isso.
-    await expect(page.getByText('Sugestão: 105 kg', { exact: true })).toBeVisible();
-    await expect(page.getByText(/^5% acima da série anterior/)).toBeVisible();
+    await expect(ws.getByText('Sugestão: 100 kg', { exact: true })).toHaveCount(0);
+    // O Back off parte da WS registrada e diz isso.
+    await expect(page.getByTestId('serie-back').getByText('Sugestão: 90 kg', { exact: true })).toBeVisible();
+    await expect(page.getByTestId('serie-back').getByText(/^90% da WS registrada nesta sessão/)).toBeVisible();
     await expect.poll(() => enviados.filter((r) => r.serieUid === 'ws' && r.concluida).length).toBeGreaterThan(0);
     // O corpo enviado é o de sempre: carga e repetições digitadas.
     expect(enviados.filter((r) => r.serieUid === 'ws').at(-1)).toMatchObject({ carga: 100, repeticoes: 5, concluida: true });

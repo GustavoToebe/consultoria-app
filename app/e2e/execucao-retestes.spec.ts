@@ -12,11 +12,11 @@ import { json, simularApi } from './api-falsa';
  */
 const EXERCICIO = '/aluno/sessao/sx/sxe1?data=2026-10-19';
 
-const NENHUMA: Carga = { modo: 'NENHUMA', percentualMin: null, percentualMax: null, referenciaUid: null };
-const DE_TRABALHO: Carga = { modo: 'CARGA_TRABALHO', percentualMin: null, percentualMax: null, referenciaUid: null };
+const NENHUMA: Carga = { modo: 'NENHUMA', percentualMin: null, percentualMax: null };
+const DE_TRABALHO: Carga = { modo: 'CARGA_TRABALHO', percentualMin: null, percentualMax: null };
 const aquecimento: Serie = { uid: 'aq1', tipo: 'WARM_UP', repsMin: 12, repsMax: 15, carga: NENHUMA, esforco: null, descansoSegundos: null };
 const ws: Serie = { uid: 'ws1', tipo: 'WORKING', repsMin: 6, repsMax: 8, carga: DE_TRABALHO, esforco: null, descansoSegundos: null };
-const backOff: Serie = { uid: 'bo1', tipo: 'BACK_OFF', repsMin: 8, repsMax: 10, carga: { modo: 'PERCENTUAL_WS', percentualMin: 80, percentualMax: 80, referenciaUid: null }, esforco: null, descansoSegundos: null };
+const backOff: Serie = { uid: 'bo1', tipo: 'BACK_OFF', repsMin: 8, repsMax: 10, carga: { modo: 'PERCENTUAL_WS', percentualMin: 80, percentualMax: 80 }, esforco: null, descansoSegundos: null };
 
 /** Histórico do servidor montado com o que o app enviou (o servidor guarda o que chega). */
 function historicoDe(enviados: RegistroEnvio[]): DiaDeTreino[] {

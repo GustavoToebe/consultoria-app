@@ -65,11 +65,9 @@ test.describe('editor de treino no PC (1440)', () => {
     await expect(page.getByRole('tab', { name: /^Série 2 · WS/ })).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByText('Editando: Série 2', { exact: true })).toBeVisible();
 
-    // "+ Nova série" abre o painel; a série de outro tipo vira um grupo próprio e a aba dela fica escolhida.
+    // "+ Nova série" mostra um botão por tipo; um toque cria o grupo próprio e a aba dele fica escolhida.
     await page.getByRole('button', { name: 'Nova série', exact: true }).click();
-    // O painel vem antes do grupo aberto, que tem o mesmo grupo de tipos.
-    await page.getByRole('radiogroup', { name: 'Tipo da série' }).first().getByRole('button', { name: 'Aquecimento', exact: true }).click();
-    await page.getByRole('button', { name: 'Adicionar série', exact: true }).click();
+    await page.getByRole('button', { name: 'Adicionar Aquecimento', exact: true }).click();
     await expect(abasDasSeries(page)).toHaveCount(4);
     await expect(abaSelecionada(page)).toHaveAccessibleName(/Aquecimento/);
     const numero = (await abaSelecionada(page).getAttribute('aria-label'))?.match(/^Série (\d+)/)?.[1];

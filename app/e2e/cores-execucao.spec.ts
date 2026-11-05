@@ -12,7 +12,7 @@ import { ALUNO, json, simularApi } from './api-falsa';
  * "Fez com X kg?" uma vez por série (D17). Só dados fictícios.
  */
 
-const TRABALHO: Carga = { modo: 'CARGA_TRABALHO', percentualMin: null, percentualMax: null, referenciaUid: null };
+const TRABALHO: Carga = { modo: 'CARGA_TRABALHO', percentualMin: null, percentualMax: null };
 const SEM_TECNICA = { pausaSegundos: null, pausaRespiracoes: null, pausas: null, blocos: null, quedas: null, reducaoPercentual: null, repsPorQueda: null };
 
 /** Aquecimento, FS, WS com Cluster 4+4+2 (15 s de pausa) e Back off: os quatro tipos padrão, cada um com a sua cor. */
@@ -21,9 +21,9 @@ function sessaoColorida(): Sessao[] {
   const base = { repsMin: 6, repsMax: 8, descansoSegundos: null, esforco: null, tecnica: null };
   sessao.exercicios[0] = { ...sessao.exercicios[0], uid: 'supino', nome: 'Supino de teste', series: [
     { ...base, uid: 'aq', tipo: 'WARM_UP', repsMin: 10, repsMax: 15, carga: null },
-    { ...base, uid: 'fs', tipo: 'FEEDER', repsMin: 3, repsMax: 3, carga: { modo: 'PERCENTUAL_WS', percentualMin: 70, percentualMax: 70, referenciaUid: null } },
+    { ...base, uid: 'fs', tipo: 'FEEDER', repsMin: 3, repsMax: 3, carga: { modo: 'PERCENTUAL_WS', percentualMin: 70, percentualMax: 70 } },
     { ...base, uid: 'cluster', tipo: 'WORKING', repsMin: 10, repsMax: 10, carga: TRABALHO, tecnica: { ...SEM_TECNICA, tipo: 'CLUSTER', blocos: [4, 4, 2], pausaSegundos: 15 } },
-    { ...base, uid: 'back', tipo: 'BACK_OFF', carga: { modo: 'PERCENTUAL_WS', percentualMin: 85, percentualMax: 85, referenciaUid: null } },
+    { ...base, uid: 'back', tipo: 'BACK_OFF', carga: { modo: 'PERCENTUAL_WS', percentualMin: 85, percentualMax: 85 } },
   ] };
   return [sessao];
 }

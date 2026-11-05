@@ -7,7 +7,7 @@ import { EditorSeries } from './EditorSeries';
 
 /**
  * Abas das séries com a aba aberta controlada pelo editor (D8, D12): abre o grupo que contém o uid, trocar o tipo não
- * fecha a aba, "Nova série" abre a nova e, sem as props, o componente guarda a aba sozinho (receita do Planejamento).
+ * fecha a aba, os botões de 1 clique do "Nova série" abrem a nova e, sem as props, o componente guarda a aba sozinho (receita do Planejamento).
  * As peças de `ui/` com primitivos nativos viram falsas que só repassam rótulo, estado e toque.
  */
 jest.mock('lucide-react-native', () => new Proxy({}, { get: () => () => null }));
@@ -72,7 +72,7 @@ function tocar(arvore: Arvore, rotulo: string) {
 function Controlado({ inicial, aoAbrir, comeco = SERIES }: { inicial: string | null; aoAbrir: jest.Mock; comeco?: Serie[] }) {
   const [series, setSeries] = useState(comeco);
   const [aberto, setAberto] = useState<string | null>(inicial);
-  return <EditorSeries series={series} config={null} modalidade={null} aoMudar={setSeries} grupoAbertoUid={aberto}
+  return <EditorSeries series={series} config={null} cardio={false} aoMudar={setSeries} grupoAbertoUid={aberto}
     aoAbrirGrupo={(uid) => { aoAbrir(uid); setAberto(uid); }} />;
 }
 
@@ -112,19 +112,33 @@ describe('EditorSeries com a aba controlada', () => {
     expect(aoAbrir).not.toHaveBeenCalled();
   });
 
-  it('"Nova série" e "Adicionar série" abrem a aba nova (o último grupo)', () => {
+  it('"Nova série" mostra os botões de 1 clique; "FS" adiciona e abre a aba nova (o último grupo)', () => {
     const aoAbrir = jest.fn();
     const arvore = montar(<Controlado inicial="a1" aoAbrir={aoAbrir} />);
     tocar(arvore, 'Nova série');
-    // O painel nasce com o tipo de trabalho: escolhe outro, para a série nova ser um grupo próprio.
-    const preparo = arvore.root.findAll((n) => typeof n.props.accessibilityLabel === 'string' && n.props.accessibilityLabel.startsWith('Tipo da série: ') && typeof n.props.onPress === 'function');
-    Renderer.act(() => preparo[0].props.onPress());
-    tocar(arvore, 'Adicionar série');
+    // O último grupo é a WS: o FS novo vira um grupo próprio, no fim.
+    tocar(arvore, 'Adicionar FS');
     const editor = arvore.root.findByType(EditorSeries);
     const novas: Serie[] = editor.props.series;
     expect(novas.length).toBe(SERIES.length + 1);
+    expect(novas.at(-1)?.tipo).toBe('FEEDER');
     expect(aoAbrir).toHaveBeenLastCalledWith(agrupar(novas).at(-1)?.series[0].uid);
     expect(abaSelecionada(arvore)).toMatch(new RegExp(`^Série ${agrupar(novas).length}`));
+  });
+
+  it('"Cluster" cria a série de trabalho já com a técnica', () => {
+    const arvore = montar(<Controlado inicial="a1" aoAbrir={jest.fn()} />);
+    tocar(arvore, 'Nova série');
+    tocar(arvore, 'Adicionar WS com Cluster');
+    const novas: Serie[] = arvore.root.findByType(EditorSeries).props.series;
+    expect(novas.at(-1)).toMatchObject({ tipo: 'WORKING', tecnica: { tipo: 'CLUSTER' } });
+    expect(agrupar(novas)).toHaveLength(3);
+  });
+
+  it('sem séries, os botões de 1 clique já aparecem', () => {
+    const arvore = montar(<Controlado inicial={null} comeco={[]} aoAbrir={jest.fn()} />);
+    tocar(arvore, 'Adicionar Aquecimento');
+    expect(arvore.root.findByType(EditorSeries).props.series).toHaveLength(1);
   });
 
   it('sem nada guardado, mover o 1º grupo para baixo leva a aba junto', () => {
@@ -146,7 +160,7 @@ describe('EditorSeries com a aba controlada', () => {
   });
 
   it('sem as props, guarda a aba sozinho (receita de séries do Planejamento)', () => {
-    const arvore = montar(<EditorSeries series={SERIES} config={null} modalidade={null} aoMudar={() => undefined} />);
+    const arvore = montar(<EditorSeries series={SERIES} config={null} cardio={false} aoMudar={() => undefined} />);
     expect(abaSelecionada(arvore)).toMatch(/^Série 1/);
     tocar(arvore, rotulosDasAbas(arvore)[1]);
     expect(abaSelecionada(arvore)).toMatch(/^Série 2/);

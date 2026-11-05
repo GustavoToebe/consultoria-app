@@ -16,6 +16,7 @@ import type {
 import { numeroParaTela } from './formatos';
 import { CONFIGURACAO_PADRAO } from './metodologiaPadrao';
 import { textoDaFaixa } from './percentuais';
+import { textoDaCarga } from './unidadeDeCarga';
 
 /**
  * Leitura da metodologia para o editor, o aluno e o PDF. A metodologia só preenche padrões no editor (ao criar a série
@@ -46,6 +47,8 @@ function faixaPreenchida(min: number | null | undefined, max: number | null | un
 function textoDaCargaPadrao(c: Carga | null | undefined, nomeDaWs?: string | null): string {
   if (!c || c.modo === 'NENHUMA') return '';
   if (c.modo === 'CARGA_TRABALHO') return 'carga de trabalho';
+  // A metodologia fica em kg (`docs/planos/libras.md`).
+  if (c.modo === 'CARGA_FIXA') return c.valorKg != null && Number.isFinite(c.valorKg) && c.valorKg > 0 ? textoDaCarga(c.valorKg, 'kg') : '';
   const daWs = nomeDaWs ? ` da ${nomeDaWs}` : '';
   const max = c.percentualMax ?? c.percentualMin;
   if (c.percentualMin == null || max == null || !Number.isFinite(c.percentualMin) || !Number.isFinite(max)) return '';

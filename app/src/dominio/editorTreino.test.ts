@@ -665,10 +665,10 @@ describe('exercícios feitos juntos ao mover e remover', () => {
 });
 
 describe('modalidade do exercício', () => {
-  it('cardio, elástico e peso corporal não têm campo de carga', () => {
+  it('só o cardio fica sem carga; elástico e peso corporal aceitam carga como toda musculação', () => {
     expect(unidadeDaModalidade('CARDIO')).toBe('nenhuma');
-    expect(unidadeDaModalidade('ELASTICO')).toBe('nenhuma');
-    expect(unidadeDaModalidade('PESO_CORPORAL')).toBe('nenhuma');
+    expect(unidadeDaModalidade('ELASTICO')).toBe('kg');
+    expect(unidadeDaModalidade('PESO_CORPORAL')).toBe('kg');
     expect(unidadeDaModalidade('LIVRE')).toBe('kg');
     expect(unidadeDaModalidade(null)).toBe('kg');
   });
