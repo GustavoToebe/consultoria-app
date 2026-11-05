@@ -1,6 +1,6 @@
 # Redesenho de série, carga, esforço (RIR), cartão de exercício e metodologia
 
-Situação: Pronta, sem push nem PR · Onde: branch `series-redesenho` (a partir da `origin/main`) · Atualizado: 04/11/2026
+Situação: Pronta, sem push nem PR · Onde: branch `series-redesenho` (a partir da `origin/main`) · Atualizado: 05/11/2026
 
 ## Objetivo
 O treinador prescreve cada exercício como uma lista enxuta de blocos `Séries × Repetições - Tipo/Técnica`, com % da WS e RIR lado a lado em cada série, sem submenus de modalidade, de outras formas de carga nem de esforço não prescrito. Sem compatibilidade com o formato anterior (AGENTS.md, "Sem compatibilidade com o que é antigo"): o banco é recriado do zero.
@@ -32,8 +32,8 @@ O treinador prescreve cada exercício como uma lista enxuta de blocos `Séries �
 - Os trabalhos da branch `editores-revisao` (revisão visual dos três editores), que partiu de outro ponto da main.
 
 ## O que ficou para trás
-- Aquecimento com % preenchido só em parte das séries: as vazias continuam erro (a API recusa `PERCENTUAL_WS` sem mínimo).
-- Removidos o aviso `TOP_SET_SEM_PERCENTUAL` (`MontagemDeSeries`, `planilhaCompleta`) e `TOP_SET` de `corDaSerie`; o TS da planilha vira mais uma WS sem aviso. Sobra `TOP_SET` só como código de exemplo em fixtures de teste e o rótulo da coluna em `diagnosticoDoArquivo`.
+- Aquecimento com % só em parte das séries: resolvido em 05/11 (cada série decide por si, `NENHUMA` sem erro, o grupo continua uma aba; `chave` do agrupamento não separa `NENHUMA` de `PERCENTUAL_WS` e separa RPE de RIR).
+- Removidos o aviso `TOP_SET_SEM_PERCENTUAL` (`MontagemDeSeries`, `planilhaCompleta`) e `TOP_SET` de `corDaSerie`; o TS da planilha vira mais uma WS com o aviso `TS_COMO_WS` (API e script, "Top set virou uma série WS"). Sobra `TOP_SET` só como código de exemplo em fixtures de teste e o rótulo da coluna em `diagnosticoDoArquivo`.
 - `referenciaCarga`/`referenciaOrigem` do registro de execução: conferir uso.
 - Dia de treino (`unica`) sem metodologia visível (consequência literal do texto 3.1).
 - `*IntegrationTest`: `mvn -o verify` completo passou em 04/11 (2128 testes, 0 falhas, Testcontainers); o banco recriado (`docker compose down -v`) foi conferido no stack local da 8089 (seed sem erro, planos validam).

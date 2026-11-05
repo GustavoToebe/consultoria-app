@@ -211,7 +211,8 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
           </View>
           {/* Em 390 px os quatro botões não cabiam numa linha e "Lista de compras" e "Abrir todas" saíam cortados. */}
           <LinhaDeAcoes>
-            {unica ? null : adicionarRefeicao}
+            {/* Em duas colunas o botão fica só no pé da lista; em uma coluna, ou sem refeição escolhida, fica aqui. */}
+            {unica || (duas && escolhida) ? null : adicionarRefeicao}
             {unica ? null : <Botao rotulo="Modelos" tipo="secundario" Icone={NotebookTabs} aoTocar={() => setModelos(true)} />}
             <Botao
               rotulo="Lista de compras"

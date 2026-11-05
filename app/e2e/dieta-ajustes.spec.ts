@@ -5,7 +5,7 @@ import { MARCA, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './ap
 
 /**
  * Ajustes do editor de dieta (04/11): observação e modo de preparo vazios recolhidos num link, unidade do alimento numa
- * lista suspensa ao lado da quantidade, "Adicionar refeição" também no pé da lista (duas colunas), cada linha de
+ * lista suspensa ao lado da quantidade, "Adicionar refeição" só no pé da lista (duas colunas) e no topo (uma coluna), cada linha de
  * Suplementação e de "Outros" num sub-cartão "#N · Nome" com a lixeira, "Mais detalhes" em "Outros" e o modelo de uma
  * refeição só sem complementos, sem duas colunas e sem "Salvar como modelo de refeição". Só dados fictícios.
  */
@@ -81,10 +81,10 @@ for (const [largura, escuro] of [[1280, false], [1280, true], [390, false], [390
     const duas = largura >= 1280;
     const adicionar = page.getByRole('button', { name: 'Adicionar refeição' });
     if (duas) {
-      // Também no pé da lista: abaixo do último item e à esquerda do inspetor.
-      await expect(adicionar).toHaveCount(2);
+      // Em duas colunas só no pé da lista: abaixo do último item e à esquerda do inspetor.
+      await expect(adicionar).toHaveCount(1);
       const ultimo = await page.getByRole('button', { name: /^Refeição 2 de 2: 12:00 · Almoço/ }).boundingBox();
-      const pe = await adicionar.last().boundingBox();
+      const pe = await adicionar.boundingBox();
       const inspetor = await page.getByRole('heading', { name: '07:00 · Café da manhã', level: 3 }).boundingBox();
       if (!ultimo || !pe || !inspetor) throw new Error('sem caixa');
       expect(pe.y).toBeGreaterThan(ultimo.y + ultimo.height - 1);
