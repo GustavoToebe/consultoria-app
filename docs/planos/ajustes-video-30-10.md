@@ -41,7 +41,7 @@ referência foi conferida no código atual. A análise em si fica fora do git.
 | N13 | Voltar não leva ao contexto; publicar um a um | Lote B 3 (voltar à pasta). Publicar junto: pendência (Lote C), feito em 02/11 (`c7a2f673`, #40) |
 | N14 | Tipo e meta da série pouco visíveis no aluno | Lote A 8 |
 | N15 | Alterar a WS não parece atualizar o Back off | Lote B 1 (reproduzir primeiro) e Lote A 9 (texto da origem) |
-| N16 | Carga e repetições anteriores; sugestão de progressão | Pendência (as definições em aberto) |
+| N16 | Carga e repetições anteriores; sugestão de progressão | Feito em 05/11: dupla progressão sobre a última série de trabalho (1 passo do arredondamento ao bater a meta; mesma carga e +1 rep enquanto não bate; o aluno confirma no ✓) |
 | N17 | Resumo comemorativo ao marcar as séries | Lote B 5 (concluir treino descoberto) |
 | N18 | Dieta, compras, histórico e impressão; contraste | Lote A 12, Lote B 6 e 7 |
 | N19 | Atualização enviada, feedback, peso e nova pasta | Lote B 4 e Lote A 13 |

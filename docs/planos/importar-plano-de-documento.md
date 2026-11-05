@@ -1,6 +1,6 @@
 # Importar plano de treino (e dieta) de um PDF ou Google Docs
 
-Situação: Decidido, esperando os exemplos fictícios do Gustavo · Onde: branch `atualizacao-visual-app-full` · Atualizado: 30/10/2026
+Situação: **Opção (a) implementada em 05/11 (N20, branch `top-set-restaurado`, sem commit ainda): colar o texto, ver o que foi entendido e trazer para o editor; sem envio de arquivo, sem dieta** · Onde: branch `atualizacao-visual-app-full` (plano) e `top-set-restaurado` (código) · Atualizado: 05/11/2026
 
 ## Objetivo
 O treinador já tem planos prontos em PDF ou em Google Docs. Hoje ele precisa digitar tudo de novo no editor. A ideia
@@ -179,11 +179,11 @@ na pergunta 2), mobilidade, vários documentos de uma vez, publicar ou aplicar a
 
 ## Passos propostos
 - [ ] 1. Gustavo: responder as perguntas acima (feito em 30/10, decisões 2 a 10) e escrever 2 ou 3 exemplos fictícios no formato real (falta) — commit/run: —
-- [ ] 2. Listar os formatos que aparecem nos exemplos fictícios (quais jeitos de escrever sessão, exercício, séries e repetições) — commit/run: —
-- [ ] 3. Regra pura de reconhecimento de treino em `dominio/`, com teste e só dados fictícios ("—" no que não reconhecer) — commit/run: —
-- [ ] 4. Protótipo da tela "Importar de texto" (texto ao lado do plano reconhecido, correção, texto livre opcional) e aprovação, como foi com o editor — commit/run: —
-- [ ] 5. Tela e criação do modelo (ou do rascunho, conforme a pergunta 3) pelas rotas existentes; sugestão de exercício da biblioteca só com confirmação do treinador — commit/run: —
-- [ ] 6. Ajuda, `AGENTS.md`, e2e em 390 e 1280 — commit/run: —
+- [x] 2. Formatos tratados (05/11, três formatos da especificação N20, em vez dos exemplos do Gustavo, que não chegaram): (1) tabela de PDF, nome numa linha e `NxM - Tipo` nas seguintes; (2) uma linha por exercício, com vários blocos (`Supino - 2x3 a 5 FS + 1x8 WS - 90s`), com ou sem numeração; (3) lista com marcadores, rótulo antes do número (`- FS: 2x3 a 5`), percentuais e RIR/RPE — commit/run: pendente
+- [x] 3. Regra pura em `app/src/dominio/importarTreinoDeTexto.ts` (`lerTreinoDeTexto`, `trazerParaOEditor`, `modoDeTrazer`, `textoDoResumo`, `descreverSeries`), 79 testes em `importarTreinoDeTexto.test.ts`, só dados fictícios. Reconhece divisões (Treino A, Sessão B, Dia N, dias da semana, Upper/Lower/Push/Pull/Legs), tipos de série pelo nome, código e apelidos (aquecimento, FS, WS, Back off, Top set), técnicas (Rest pause, Cluster, Drop-set, sem inventar blocos), RIR/RPE, `%` da WS, descanso (`60s`, `2 min`) e cardio. Carga e esforço vêm da metodologia vinculada (`cargaPadrao`/`esforcoPadrao` e a regra de percentuais do FS); sem dado = "—", nada inventado. Vínculo com a biblioteca só quando o nome casa com um único exercício; senão fica com o nome do texto e o selo "Sem vínculo" — commit/run: pendente
+- [x] 4. Tela: `treinador/treino/FolhaImportarDeTexto.tsx` (campo "Texto do treino", resumo "X divisões · Y exercícios · Z séries prontas", divisões e exercícios lidos, "Linhas que não viraram nada", avisos), botão "Colar treino (Docs / PDF)" no `EditorDeTreino` (plano do aluno, semana e dia de treino) — commit/run: pendente
+- [x] 5. "Trazer para o editor" só mexe no **rascunho do editor** (com "Desfazer"; salvar é do treinador): plano vazio é substituído, plano com exercícios recebe as divisões novas no fim ("Adicionar ao plano"), dia de treino troca a sessão; atalho "Colar treino de PDF / Docs" na Importação cria o modelo de Semana de Treino (pede o nome) e abre o editor já com a Folha (`?novo=1&colar=1` no Planejamento, `?colar=1` no editor, consumidos na chegada). Nenhuma rota nova na API — commit/run: pendente
+- [x] 6. Ajuda e `AGENTS.md` (texto de ajuda não alterado), e2e `e2e/importar-treino-de-texto.spec.ts` em 390 e 1280 — commit/run: pendente
 - [ ] 7. Só se decidido: envio de DOCX/PDF, com plano de segurança revisto antes do código (parser, limites, rota própria) — commit/run: —
 - [ ] 8. Só se decidido: dieta — commit/run: —
 
@@ -193,4 +193,6 @@ na pergunta 2), mobilidade, vários documentos de uma vez, publicar ou aplicar a
 - Importação de planilha (alunos, pesos, exercícios, alimentos, suplementos): já existe; não muda.
 
 ## O que ficou para trás
-- Decidido em 30/10; nada foi implementado. O passo 3 espera os exemplos fictícios do Gustavo. Cada sobra futura vai também para "Pendências soltas" do README.
+- Feito em 05/11: passos 2 a 6 (colar texto). Faltam o passo 1 (os exemplos fictícios reais do Gustavo, para conferir o parser: os três formatos testados foram os da especificação N20), 7 (envio de DOCX/PDF) e 8 (dieta). Cada sobra futura vai também para "Pendências soltas" do README.
+- Diferenças em relação ao decidido: (1) a decisão 6 pedia que texto livre só entrasse se o treinador marcasse na prévia; hoje uma linha `Obs:` vira a observação do exercício anterior, que o treinador confere no editor antes de salvar (o texto colado em si não sai da tela nem vai a log). (2) A decisão 4 falava de modelo no Planejamento: o botão do editor serve ao modelo e ao plano do aluno; o atalho da Importação cria o modelo.
+- Limites do reconhecedor: `grupoMuscular` aparece só na prévia (não é gravado no plano); `diaSemana` não é preenchido; `Cluster` escrito sem número de blocos vira WS com o aviso, nunca com blocos inventados; texto colado acima de 30.000 caracteres é recusado pelo campo; tabela com colunas coladas sem separador depende do PDF preservar espaços ou tabulações.

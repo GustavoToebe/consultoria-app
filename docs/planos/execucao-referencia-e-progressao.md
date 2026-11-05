@@ -68,8 +68,7 @@ trabalho.
 - Um treino com 2 aquecimentos e 4 de trabalho conta "x de 4".
 
 ## Fora do escopo
-- Sugerir quanto subir de carga e os critérios da sugestão de progressão (esperam os dados dos 5 alunos, D11); RPE/1RM
-  (decidido não mudar; Powerlifting não se faz, ver o README); mexer na VPS.
+- RPE/1RM (decidido não mudar; Powerlifting não se faz, ver o README); mexer na VPS. A sugestão de progressão (N16) foi fechada em 05/11: dupla progressão sobre a última série de trabalho, 1 passo de `arredondamentoKg` ao bater a meta, mesma carga e +1 repetição enquanto não bate, confirmação no ✓.
 
 ## O que ficou para trás
 - Conferência da C31 contra a prévia da Frente G (4bad4704, 03/11): a dica já batia no texto; ajustado o visual (a "Sugestão" em destaque e "Última vez" em peso normal, `partesDaDica`). A prévia mostra "Primeira vez" sempre que falta a última vez, mas nunca a mostra com sugestão e sem última vez; o app segue dizendo só "Sugestão: X kg" nesse caso (não esconde a sugestão).
