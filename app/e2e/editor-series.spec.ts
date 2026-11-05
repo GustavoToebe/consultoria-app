@@ -49,8 +49,10 @@ for (const largura of [390, 1280]) {
     await expect(page.getByRole('button', { name: 'Técnica da série: Rest pause. Escolher.', exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     // O "mín" e o "máx" ficam dentro da caixa do número: com três dígitos o texto não passa da área dele (não é cortado).
-    for (const [nome, original] of [['Reps mín.', '3'], ['Reps máx.', '6']]) {
-      await campo(nome).fill('100');
+    // O descanso cabe "3600" (4 dígitos) na caixa estreita que deixa a linha Séries × Repetições × Descanso numa linha só.
+    for (const [nome, cheio] of [['Reps mín.', '100'], ['Reps máx.', '100'], ['Descanso depois da série, em segundos', '3600']]) {
+      const original = await campo(nome).inputValue();
+      await campo(nome).fill(cheio);
       expect(await campo(nome).evaluate((e) => e.scrollWidth <= e.clientWidth), `${nome} cortado`).toBe(true);
       await campo(nome).fill(original);
     }

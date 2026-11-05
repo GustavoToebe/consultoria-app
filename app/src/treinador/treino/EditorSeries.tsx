@@ -224,8 +224,12 @@ const LARGURA_LADO_A_LADO = 640;
  */
 let ultimaLargura: number | null = null;
 
-/** Largura da caixa do descanso: cabe "3600" e o "s" no tamanho de texto padrão; cresce com o texto da pessoa. */
-const LARGURA_DO_DESCANSO = 112;
+/**
+ * Largura da caixa do descanso: cabe "3600" e o "s" no tamanho de texto padrão; cresce com o texto da pessoa. Em 90 (não 112)
+ * para a linha Séries × Repetições × Descanso seguir numa linha só em 1280 e 1440 com as caixas mín/máx proporcionais ao sufixo
+ * (84 cortava o "3600"). shortcut: folga de ~2 px em 1280/1440; se faltar, a linha quebra e o descanso desce, sem cortar nada.
+ */
+const LARGURA_DO_DESCANSO = 90;
 
 /**
  * Uma faixa do grupo aberto: título de seção (h3) e, da segunda em diante, um fio em cima. Sem caixa: três faixas planas no
