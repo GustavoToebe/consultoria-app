@@ -25,7 +25,7 @@ O treinador prescreve cada exercício como uma lista enxuta de blocos `Séries �
 - [x] 3. Telas do treinador: `CartaoDoTipo`, `EditorModelo`, `EditorDeTreino`, `CartaoExercicio`, `EditorSeries`, `CamposDaPrescricao` — commit: `aa85f865`
 - [x] 4. Testes: typecheck, lint, Jest, mvn (sem `*IntegrationTest`), scripts e a suíte Playwright inteira (869 passaram, 10 pulados, 1 falha anterior à mudança: `links-do-menu.spec.ts:20`); ajustes finais (Aquecimento binário, seed com `kg`, guias, `AGENTS.md`) — commit: o último desta branch
 
-- [x] 5. Limpeza de `TOP_SET` — commit: `8d4abeb5`. Ajustes de usabilidade de Dieta (observação/preparo recolhidos, unidade compacta, "Adicionar refeição" no pé, sub-cartões em Suplementação e Outros, modelo de refeição avulsa enxuto) e Mobilidade (botão "Modelos", PDF, Orientações recolhidas, Nome e Prescrição lado a lado) — commit: o seguinte a `8d4abeb5`
+- [x] 5. Limpeza de `TOP_SET` — commit: `8d4abeb5`. Ajustes de usabilidade de Dieta (observação/preparo recolhidos, unidade compacta, "Adicionar refeição" no pé, sub-cartões em Suplementação e Outros, modelo de refeição avulsa enxuto) e Mobilidade (botão "Modelos", PDF, Orientações recolhidas, Nome e Prescrição lado a lado) — commit: `e3ab6443`
 
 ## Fora do escopo
 - Migration de conversão de JSON antigo (o banco é recriado).
