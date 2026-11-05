@@ -25,8 +25,8 @@ for (const largura of [390, 1280]) {
     const api = await abrir(page, sessaoComTopSetEBackOff(), '/aluno/sessao/topo/agacho?data=2026-10-19');
     const peso = (n: number) => page.getByRole('textbox', { name: `Peso da série ${n}, em quilos`, exact: true });
     await page.getByRole('textbox', { name: 'Carga de trabalho do dia', exact: true }).fill('80');
-    // O Top set usa a carga de trabalho do dia e o Back off, 90% da WS: as duas viram dica (o campo segue vazio).
-    await expect(page.getByTestId('serie-top').getByText('Sugestão: 80 kg', { exact: true })).toBeVisible();
+    // O Top set não tem sugestão de carga; o Back off, 90% da WS, vira dica (o campo segue vazio).
+    await expect(page.getByTestId('serie-top').getByText(/Sugestão/)).toHaveCount(0);
     await expect(page.getByTestId('serie-back').getByText('Sugestão: 72 kg', { exact: true })).toBeVisible();
     await expect(peso(3)).toHaveValue('');
     await page.getByRole('textbox', { name: 'Repetições da série 1', exact: true }).fill('5');
@@ -39,6 +39,8 @@ for (const largura of [390, 1280]) {
     await peso(2).fill('100');
     await page.getByRole('textbox', { name: 'Repetições da série 2', exact: true }).fill('3');
     await page.getByRole('checkbox', { name: 'Série 2 feita', exact: true }).click();
+    // O Top set registrado (100 kg) não vira a referência do Back off: ele segue partindo da WS.
+    await expect(page.getByTestId('serie-back').getByText(/^90% da WS registrada nesta sessão/)).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath('top-set-back-off.png'), fullPage: true });
     await expect.poll(() => api.enviados.find((r) => r.serieUid === 'top')?.carga).toBe(100);

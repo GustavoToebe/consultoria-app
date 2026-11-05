@@ -78,11 +78,12 @@ export const CONFIGURACAO_PADRAO: Configuracao = {
     },
     {
       // Depois da WS: o primeiro tipo de trabalho (o que dá nome ao "% da WS") continua sendo a WS.
+      // Sem sugestão de carga: com CARGA_TRABALHO contaria como série de trabalho (referência do "% da WS" e da última carga).
       codigo: 'TOP_SET',
       nome: 'Top set',
       papel: 'TRABALHO',
       repeticoes: { min: 6, max: 8 },
-      cargaPadrao: cargaDeTrabalho(),
+      cargaPadrao: carga('NENHUMA'),
       esforcoPadrao: rir(0),
       regraPercentuais: null,
       explicacao:

@@ -110,7 +110,7 @@
         "max": 8
       },
       "cargaPadrao": {
-        "modo": "CARGA_TRABALHO",
+        "modo": "NENHUMA",
         "percentualMin": null,
         "percentualMax": null
       },

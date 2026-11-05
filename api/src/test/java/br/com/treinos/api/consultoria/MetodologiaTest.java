@@ -102,12 +102,12 @@ class MetodologiaTest {
         assertThat(backOff.cargaPadrao().percentualMin()).isEqualByComparingTo("85");
         assertThat(backOff.esforcoPadrao()).isEqualTo(Esforco.deRir(0));
         assertThat(PADRAO.tipoPorCodigo("FEEDER").cargaPadrao().percentualMin()).isEqualByComparingTo("85");
-        // Top set: a carga é de trabalho (nunca "acima da anterior" como modo) e a regra mora na explicação do tipo.
+        // Top set: sem sugestão de carga (com CARGA_TRABALHO contaria como série de trabalho) e a regra mora na explicação do tipo.
         TipoDeSerie topSet = PADRAO.tipoPorCodigo("TOP_SET");
         assertThat(topSet.nome()).isEqualTo("Top set");
         assertThat(topSet.papel()).isEqualTo(Papel.TRABALHO);
         assertThat(topSet.repeticoes()).isEqualTo(new Repeticoes(6, 8));
-        assertThat(topSet.cargaPadrao().modo()).isEqualTo("CARGA_TRABALHO");
+        assertThat(topSet.cargaPadrao().modo()).isEqualTo("NENHUMA");
         assertThat(topSet.esforcoPadrao()).isEqualTo(Esforco.deRir(0));
         assertThat(topSet.explicacao()).contains("maior que a da série anterior").contains("5% a 10%").contains("1% a 5%");
         // A WS continua sendo o primeiro tipo de trabalho: dá nome ao "% da WS" e é o que a série de trabalho grava.

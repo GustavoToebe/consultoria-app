@@ -57,6 +57,22 @@ describe('cargas do aluno', () => {
     expect(metaDaSerie(s, 'WS')).toBe('Meta: AMRAP · carga de trabalho · até a falha · Sem pausa');
   });
 
+  it('WS → Top set → Back off 80%: o Back off parte da WS; o Top set (sem sugestão de carga) não é série de trabalho nem referência', () => {
+    const topSet = serie('t', 'TOP_SET', { repsMin: 6, repsMax: 8, carga: carga('NENHUMA') });
+    const sequencia = exercicio([ws('d'), topSet, backOff('e', 80)]);
+    // WS registrada em 100 e Top set em 110 (mais pesado): o Back off é 80% da WS (80), nunca do Top set (88).
+    const r = calcularCargasDoExercicio(sequencia, 90, { d: 100, t: 110 }, CONFIG);
+    expect(r.map((x) => x.sugestao)).toEqual([90, null, 80]);
+    expect(r[2].referencia).toEqual({ valor: 100, origem: 'WS_ANTERIOR' });
+    // Sem a WS registrada, o Back off parte da base do dia, não da carga do Top set.
+    const semWs = calcularCargasDoExercicio(sequencia, 90, { t: 110 }, CONFIG);
+    expect(semWs[2].sugestao).toBe(72);
+    expect(semWs[2].referencia).toEqual({ valor: 90, origem: 'BASE_DO_DIA' });
+    // O Top set não tem sugestão e só a WS conta como série de trabalho ("última carga" e `serie_trabalho`).
+    expect(r[1].sugestao).toBeNull();
+    expect(sequencia.series.filter(ehSerieDeTrabalho).map((x) => x.uid)).toEqual(['d']);
+  });
+
   it('série de trabalho é a de carga de trabalho, não a de tipo com o nome do rótulo', () => {
     expect(ehSerieDeTrabalho(ws('a'))).toBe(true);
     expect(ehSerieDeTrabalho(serie('b', 'WS', { carga: carga('PERCENTUAL_WS', 85) }))).toBe(false);

@@ -79,7 +79,7 @@ public final class ReceitasPadrao {
                         "2 FS em rampa (50% e 75% da WS) + 1 WS pesada + 1 Top set (6 a 8, carga acima da WS) + 1 Back off a 80% da WS.",
                         List.of(serie("FEEDER", 3, 5, percentual(50, null)), serie("FEEDER", 3, 5, percentual(75, null)),
                                 wsAteFalha(8, 8),
-                                serie("TOP_SET", 6, 8, Carga.de(ConteudoTreino.CARGA_TRABALHO)).comEsforco(Esforco.deRir(0)),
+                                serie("TOP_SET", 6, 8, Carga.de(ConteudoTreino.NENHUMA)).comEsforco(Esforco.deRir(0)),
                                 serie("BACK_OFF", 8, 12, percentual(80, null)).comEsforco(Esforco.deRir(0)))));
     }
 

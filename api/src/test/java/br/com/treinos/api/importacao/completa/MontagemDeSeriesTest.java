@@ -48,8 +48,10 @@ class MontagemDeSeriesTest {
         Resultado r = MontagemDeSeries.montar(entrada(1, 1, Logico.SIM, Logico.SIM, 0.9, TRES_A_SEIS), PADRAO);
         assertThat(r.series()).extracting(Serie::tipo).containsExactly("FEEDER", "WORKING", "TOP_SET", "BACK_OFF");
         assertThat(r.series()).extracting(s -> s.carga().modo())
-                .containsExactly("PERCENTUAL_WS", "CARGA_TRABALHO", "CARGA_TRABALHO", "PERCENTUAL_WS");
-        // TS: o tipo Top set da metodologia, com as repetições dele (6 a 8); percentual nunca inventado.
+                .containsExactly("PERCENTUAL_WS", "CARGA_TRABALHO", "NENHUMA", "PERCENTUAL_WS");
+        // TS: o tipo Top set da metodologia, com as repetições dele (6 a 8), sem sugestão de carga (não é série de
+        // trabalho: não vira a referência do back off nem a última carga); percentual nunca inventado.
+        assertThat(r.series().get(2).deTrabalho()).isFalse();
         assertThat(r.series().get(2).carga().percentualMin()).isNull();
         assertThat(r.series().get(2).repsMin()).isEqualTo(6);
         assertThat(r.series().get(2).repsMax()).isEqualTo(8);

@@ -3,6 +3,7 @@ package br.com.treinos.api.execucao;
 import br.com.treinos.api.AbstractIntegrationTest;
 import br.com.treinos.api.ApiDeTeste;
 import br.com.treinos.api.consultoria.ConfiguracaoConsultoria;
+import br.com.treinos.api.treino.ConteudoTreino;
 import br.com.treinos.api.web.Fuso;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -109,6 +110,54 @@ class ExecucoesIntegrationTest extends AbstractIntegrationTest {
                 "select exercicio_id, serie_trabalho from execucao_serie where id = ?", id);
         assertThat(linha.get("exercicio_id")).isEqualTo(treino.exercicioId());
         assertThat(linha.get("serie_trabalho")).isEqualTo(true);
+    }
+
+    /**
+     * Top set sem sugestão de carga (NENHUMA) não é série de trabalho: grava {@code serie_trabalho = false}, não vira a
+     * "última carga" do exercício, mas segue contando no progresso (papel TRABALHO na metodologia).
+     */
+    @Test
+    void topSetSemCargaNaoEhSerieDeTrabalhoENaoViraUltimaCarga() throws Exception {
+        UUID outroId = api.criarAluno(treinador, "Aluno do Top set Fictício");
+        UUID sessaoUid = UUID.randomUUID();
+        UUID exercicioUid = UUID.randomUUID();
+        UUID exercicioId = UUID.randomUUID();
+        UUID ws = UUID.randomUUID();
+        UUID top = UUID.randomUUID();
+        UUID backOff = UUID.randomUUID();
+        ConteudoTreino.ExercicioPlano ex = new ConteudoTreino.ExercicioPlano(exercicioUid, exercicioId, "Agachamento fictício",
+                "MAQUINA", null, null, true, "kg", List.of(
+                ConteudoTreino.Serie.de(ws, "WORKING", 3, 6, ConteudoTreino.Carga.de(ConteudoTreino.CARGA_TRABALHO)),
+                ConteudoTreino.Serie.de(top, "TOP_SET", 6, 8, ConteudoTreino.Carga.de(ConteudoTreino.NENHUMA)),
+                ConteudoTreino.Serie.de(backOff, "BACK_OFF", 6, 8,
+                        ConteudoTreino.Carga.percentual(ConteudoTreino.PERCENTUAL_WS, 80, null))));
+        ConteudoTreino conteudo = new ConteudoTreino("Objetivo fictício", null, List.of(
+                new ConteudoTreino.Sessao(sessaoUid, "Segunda - Pernas", 1, "TREINO", null, null, null, List.of(ex)),
+                new ConteudoTreino.Sessao(UUID.randomUUID(), "Domingo - Off", 7, "DESCANSO", null, null, null, List.of())));
+        api.publicarTreino(treinador, outroId, conteudo);
+        JsonNode outro = api.convidarEEntrar(treinador, outroId);
+        String versao = api.get("/aluno/painel", outro, 200).get("treino").get("versaoId").asString();
+
+        Instant quando = Instant.now();
+        UUID idWs = UUID.randomUUID();
+        UUID idTop = UUID.randomUUID();
+        List<Map<String, Object>> registros = new java.util.ArrayList<>();
+        // O Top set é registrado depois e mais pesado: se contasse como trabalho, viraria a "última carga".
+        for (Object[] x : new Object[][] {{idWs, ws, "100", quando}, {idTop, top, "110", quando.plusSeconds(60)}}) {
+            Map<String, Object> r = new LinkedHashMap<>(registro((UUID) x[0], (UUID) x[1], (String) x[2], 6, (Instant) x[3]));
+            r.put("planoVersaoId", versao);
+            r.put("sessaoUid", sessaoUid.toString());
+            r.put("exercicioUid", exercicioUid.toString());
+            registros.add(r);
+        }
+        assertThat(situacoes(api.post("/aluno/execucoes/lote", outro, Map.of("registros", registros), 200)))
+                .containsExactly("ACEITO", "ACEITO");
+
+        assertThat(jdbc.queryForObject("select serie_trabalho from execucao_serie where id = ?", Boolean.class, idWs)).isTrue();
+        assertThat(jdbc.queryForObject("select serie_trabalho from execucao_serie where id = ?", Boolean.class, idTop)).isFalse();
+        assertThat(jdbc.queryForObject("select conta_no_progresso from execucao_serie where id = ?", Boolean.class, idTop)).isTrue();
+        JsonNode ultima = api.get("/aluno/painel", outro, 200).get("ultimasCargas").get(exercicioId.toString());
+        assertThat(ultima.get("carga").decimalValue()).isEqualByComparingTo("100");
     }
 
     @Test

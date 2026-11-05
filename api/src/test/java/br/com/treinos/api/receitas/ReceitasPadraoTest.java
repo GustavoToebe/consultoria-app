@@ -91,7 +91,9 @@ class ReceitasPadraoTest {
         assertThat(comTopSet.get(0).carga().percentualMin()).isEqualByComparingTo("50");
         assertThat(comTopSet.get(1).carga().percentualMin()).isEqualByComparingTo("75");
         assertThat(comTopSet.get(2).carga().modo()).isEqualTo("CARGA_TRABALHO");
-        assertThat(comTopSet.get(3).carga().modo()).isEqualTo("CARGA_TRABALHO");
+        assertThat(comTopSet.get(3).carga().modo()).isEqualTo("NENHUMA");
+        assertThat(comTopSet.get(3).deTrabalho()).isFalse();
+        assertThat(comTopSet.stream().filter(Serie::deTrabalho)).hasSize(1);
         assertThat(comTopSet.get(4).carga().modo()).isEqualTo("PERCENTUAL_WS");
         assertThat(comTopSet.get(4).carga().percentualMin()).isEqualByComparingTo("80");
 

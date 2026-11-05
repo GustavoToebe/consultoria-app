@@ -158,13 +158,13 @@ public final class MontagemDeSeries {
             avisos.add("TS_INVALIDO");
         }
         if (e.ts() == Logico.SIM) {
-            // Top set é um tipo da metodologia (só pelo código: nunca vira WS), com a carga de trabalho e as
-            // repetições do tipo; o "acima da anterior" é a explicação do tipo, não um percentual (nunca inventado).
+            // Top set é um tipo da metodologia (só pelo código: nunca vira WS), sem sugestão de carga (NENHUMA: não é
+            // série de trabalho) e com as repetições do tipo; o "acima da anterior" é a explicação do tipo.
             TipoDeSerie tipoTs = metodologia == null ? null : metodologia.tipoPorCodigo("TOP_SET");
             if (tipoTs == null) {
                 avisos.add("TIPO_FORA_DA_METODOLOGIA");
             } else {
-                series.add(serie(tipoTs, repsMin(tipoTs), repsMax(tipoTs), Carga.de(ConteudoTreino.CARGA_TRABALHO)));
+                series.add(serie(tipoTs, repsMin(tipoTs), repsMax(tipoTs), Carga.de(ConteudoTreino.NENHUMA)));
             }
         }
 

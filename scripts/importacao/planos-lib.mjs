@@ -14,7 +14,7 @@
  * Como a metodologia do Saraiva aparece nas séries (a mesma de `ConfiguracaoConsultoria.padrao()`, espelhada em
  * `app/src/dominio/metodologiaPadrao.ts` e usada por `importar.mjs`): o `tipo` da série é o **código** do tipo (`FEEDER`,
  * `WORKING`, `BACK_OFF`, `TOP_SET`). "FS" tem `carga` `PERCENTUAL_WS` pela regra de preparação do total de FS (1 FS = 85; 2 =
- * 70/85; 3 = 50/70/85); "WS" = `CARGA_TRABALHO`; "Top set" = o tipo `TOP_SET`, também `CARGA_TRABALHO` (nunca vira WS); "Back off" =
+ * 70/85; 3 = 50/70/85); "WS" = `CARGA_TRABALHO`; "Top set" = o tipo `TOP_SET`, sem sugestão de carga (`NENHUMA`: não é série de trabalho; nunca vira WS); "Back off" =
  * `PERCENTUAL_WS` com o % da coluna "Back Off %". Esforço (RIR/RPE) é separado da carga e a planilha não o traz: `esforco` fica nulo.
  *
  * O **tipo** da série (Aquecimento, FS, WS, Back off) diz para que ela serve; a **técnica** (cluster, rest pause,
@@ -440,7 +440,7 @@ export function montarSeries({ ws, fs, ts, bo, backoff, faixa }, avisar, aoRecup
   }
   for (let i = 0; i < nWs; i++) series.push(serie('WS', reps, cargaDe('CARGA_TRABALHO')));
   if (ts === null) avisar('TS inválido (ignorado)');
-  if (ts === true) series.push(serie('Top set', repsDoTipo('Top set'), cargaDe('CARGA_TRABALHO')));
+  if (ts === true) series.push(serie('Top set', repsDoTipo('Top set'), cargaDe('NENHUMA')));
   if (bo === null) avisar('BO inválido (ignorado)');
   if (bo === true) {
     // A planilha diz só se há back off, não quantas séries: uma. Percentual da WS: fração da planilha (0,85) vira 85.

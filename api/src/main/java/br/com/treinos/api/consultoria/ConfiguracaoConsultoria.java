@@ -198,8 +198,10 @@ public record ConfiguracaoConsultoria(
                 new TipoDeSerie("BACK_OFF", "Back off", Papel.POS_TRABALHO, new Repeticoes(6, 8), percentual(85, null),
                         Esforco.deRir(0), null, "Depois da série de trabalho, com 85% da carga dela."),
                 // Depois da WS na lista: tipoTrabalho()/codigoTrabalho() pegam o primeiro tipo de trabalho (a WS).
+                // Sem sugestão de carga (NENHUMA): com CARGA_TRABALHO ele contaria como série de trabalho e viraria a
+                // referência do "% da WS" e da "última carga"; a explicação do tipo diz quanto subir.
                 new TipoDeSerie("TOP_SET", "Top set", Papel.TRABALHO, new Repeticoes(6, 8),
-                        Carga.de(ConteudoTreino.CARGA_TRABALHO), Esforco.deRir(0), null,
+                        Carga.de(ConteudoTreino.NENHUMA), Esforco.deRir(0), null,
                         "Quando estiver escrito Top set na série do seu treino, significa que a carga dessa série deve "
                                 + "ser maior que a da série anterior. Máquinas: 5% a 10% acima da série anterior. "
                                 + "Livres: 1% a 5% acima da série anterior."));

@@ -208,10 +208,10 @@ test('treino: Rep Range que virou data (recuperada, só contada), WS absurdo, FS
   assert.equal(gigante.videoUrl, null);
   assert.equal(problemasDe(r, 'Treinos_Exercicios', 'link de vídeo não aceito').length, 1);
   assert.equal(problemasDe(r, 'Treinos_Exercicios', 'nome do exercício com mais de 120').length, 1);
-  assert.deepEqual(gigante.series.map((s) => [s.tipo, s.carga.modo]), [['FEEDER', 'PERCENTUAL_WS'], ['WORKING', 'CARGA_TRABALHO'], ['WORKING', 'CARGA_TRABALHO'], ['TOP_SET', 'CARGA_TRABALHO']]);
-  // o Top set da planilha não traz repetições: a série leva as do tipo (6 a 8), com a carga de trabalho
+  assert.deepEqual(gigante.series.map((s) => [s.tipo, s.carga.modo]), [['FEEDER', 'PERCENTUAL_WS'], ['WORKING', 'CARGA_TRABALHO'], ['WORKING', 'CARGA_TRABALHO'], ['TOP_SET', 'NENHUMA']]);
+  // o Top set da planilha não traz repetições: a série leva as do tipo (6 a 8), sem sugestão de carga
   assert.deepEqual([gigante.series.at(-1).repsMin, gigante.series.at(-1).repsMax], [6, 8]);
-  assert.deepEqual(gigante.series.at(-1).carga, { modo: 'CARGA_TRABALHO', percentualMin: null, percentualMax: null });
+  assert.deepEqual(gigante.series.at(-1).carga, { modo: 'NENHUMA', percentualMin: null, percentualMax: null });
   assert.equal(gigante.series.find((s) => s.tipo === 'FEEDER').carga.percentualMin, 85);
   // sem série (aluno AL6): o exercício fica no plano, sem séries, para o treinador preencher à mão
   const semSerie = doAluno(r, 'AL6').treino.conteudo.sessoes[0].exercicios;
@@ -327,7 +327,7 @@ test('regras pequenas: faixa de repetições, dia da semana, vídeo, séries e n
   const base = { ws: undefined, fs: undefined, ts: undefined, bo: undefined, backoff: undefined, faixa: { min: 3, max: 6 } };
   assert.deepEqual(montarSeries({ ...base, fs: 1, ws: 1, bo: true, backoff: 0.9 }, (a) => avisos.push(a)).map((s) => s.carga.percentualMin), [85, null, 90]);
   assert.deepEqual(montarSeries({ ...base, fs: 1, ws: 1, ts: true, bo: true, backoff: 0.9 }, () => {}).map((s) => [s.tipo, s.carga.modo]),
-    [['FEEDER', 'PERCENTUAL_WS'], ['WORKING', 'CARGA_TRABALHO'], ['TOP_SET', 'CARGA_TRABALHO'], ['BACK_OFF', 'PERCENTUAL_WS']]);
+    [['FEEDER', 'PERCENTUAL_WS'], ['WORKING', 'CARGA_TRABALHO'], ['TOP_SET', 'NENHUMA'], ['BACK_OFF', 'PERCENTUAL_WS']]);
   const semPercentual = montarSeries({ ...base, ws: 1, bo: true, backoff: 0 }, (a) => avisos.push(a));
   assert.equal(semPercentual[1].carga.modo, 'NENHUMA');
   assert.deepEqual(avisos, ['back off sem percentual válido (série sem carga)']);

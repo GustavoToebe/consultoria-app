@@ -117,10 +117,10 @@ test('drop-set fica na série de trabalho, com a queda do padrão ou a escrita',
   assert.equal(b.tecnica.quedas, 2);
   conferir([a, b]);
 });
-test('top set da planilha é o tipo TOP_SET (nunca WS), com carga de trabalho', () => {
+test('top set da planilha é o tipo TOP_SET (nunca WS), sem sugestão de carga (não é série de trabalho)', () => {
   const [s] = montarSeries(['1x6 - Top set'], 'Top set - Faça com +5% da carga usada na WS', REGRA);
   assert.deepEqual([s.tipo, s.repsMin, s.repsMax], ['TOP_SET', 6, 6]);
-  assert.deepEqual(s.carga, cargaDe('CARGA_TRABALHO'));
+  assert.deepEqual(s.carga, cargaDe('NENHUMA'));
   assert.equal(s.esforco, null);
   assert.equal(montarSeries(['Top set'], '', REGRA)[0].tipo, 'TOP_SET');
   const [ws, ts] = montarSeries(['1x8 - WS', '1x6 a 8 - Top set'], '', REGRA);

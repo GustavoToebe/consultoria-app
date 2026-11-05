@@ -275,14 +275,14 @@ export function montarSeries(linhas, obs, regra = REGRA_PADRAO) {
   for (const i of itens) for (let k = 0; k < i.n; k++) {
     if (i.cardio) { series.push(serieDeCardio(i.cardio)); continue; }
     // Rest pause, cluster e drop-set são técnicas da série de trabalho: sem tipo escrito, é uma WS com a técnica.
-    // Top set é um tipo da metodologia (TOP_SET, carga de trabalho): nunca vira WS. O "+N%" escrito continua na observação (`obsLimpa` não o tira).
+    // Top set é um tipo da metodologia (TOP_SET, sem sugestão de carga: não é série de trabalho): nunca vira WS. O "+N%" escrito continua na observação (`obsLimpa` não o tira).
     const tipo = i.tipo || 'WS';
     let carga = cargaDe('NENHUMA');
     const esforco = null;
     if (tipo === 'FS') {
       const faixa = regra[totalFs]?.[fs++];
       if (faixa != null) carga = cargaDe('PERCENTUAL_WS', { percentualMin: faixa.min, percentualMax: faixa.max ?? null });
-    } else if (tipo === 'WS' || tipo === 'Top set') {
+    } else if (tipo === 'WS') {
       carga = cargaDe('CARGA_TRABALHO');
     } else if (tipo === 'Back off') {
       if (reducao) {

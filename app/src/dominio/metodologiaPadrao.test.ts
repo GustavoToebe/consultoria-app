@@ -34,7 +34,7 @@ test('padrão de cinco tipos: aquecimento, FS, WS, back off e Top set, cada um c
   expect(por('FEEDER')).toMatchObject({ repeticoes: { min: 3, max: 5 }, cargaPadrao: { modo: 'PERCENTUAL_WS', percentualMin: 85 }, esforcoPadrao: null });
   expect(por('WORKING')).toMatchObject({ repeticoes: { min: 3, max: 6 }, cargaPadrao: { modo: 'CARGA_TRABALHO' }, esforcoPadrao: { rir: 0 } });
   expect(por('BACK_OFF')).toMatchObject({ repeticoes: { min: 6, max: 8 }, cargaPadrao: { modo: 'PERCENTUAL_WS', percentualMin: 85 }, esforcoPadrao: { rir: 0 } });
-  expect(por('TOP_SET')).toMatchObject({ nome: 'Top set', papel: 'TRABALHO', repeticoes: { min: 6, max: 8 }, cargaPadrao: { modo: 'CARGA_TRABALHO' }, esforcoPadrao: { rir: 0 } });
+  expect(por('TOP_SET')).toMatchObject({ nome: 'Top set', papel: 'TRABALHO', repeticoes: { min: 6, max: 8 }, cargaPadrao: { modo: 'NENHUMA' }, esforcoPadrao: { rir: 0 } });
   expect(por('TOP_SET').explicacao).toContain('maior que a da série anterior');
   expect(c.tipos.some((t) => 'porModalidade' in t)).toBe(false);
 });
