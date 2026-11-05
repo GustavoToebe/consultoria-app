@@ -38,11 +38,17 @@ test('FS sem regra para a quantidade fica sem carga, sem inventar percentual', (
   const series = montarSeries(['4x3 - FS'], '', REGRA);
   assert.deepEqual(cargas(series), Array(4).fill(['NENHUMA', null, null]));
 });
-test('WS é a carga de trabalho e a planilha não traz esforço: fica nulo', () => {
+test('WS é a carga de trabalho e, sem esforço escrito, leva o esforço padrão do tipo (RIR 0)', () => {
   const [s] = montarSeries(['1x3 a 6 - WS'], '', REGRA);
   assert.equal(s.tipo, 'WORKING');
   assert.equal(s.carga.modo, 'CARGA_TRABALHO');
-  assert.equal(s.esforco, null);
+  assert.deepEqual(s.esforco, { rir: 0, rpe: null });
+});
+test('esforço padrão por tipo: Back off RIR 0, FS e aquecimento sem esforço', () => {
+  const [fs] = montarSeries(['1x3 - FS'], '', REGRA);
+  const [bo] = montarSeries(['1x6 - Back off'], '', REGRA);
+  assert.equal(fs.esforco, null);
+  assert.deepEqual(bo.esforco, { rir: 0, rpe: null });
 });
 test('back off lê o percentual explícito da WS como PERCENTUAL_WS', () => {
   const series = montarSeries(['1x6 - WS', '2x6 a 8 - Back off (85% da WS)'], '', REGRA);
@@ -121,7 +127,7 @@ test('top set da planilha é o tipo TOP_SET (nunca WS), sem sugestão de carga (
   const [s] = montarSeries(['1x6 - Top set'], 'Top set - Faça com +5% da carga usada na WS', REGRA);
   assert.deepEqual([s.tipo, s.repsMin, s.repsMax], ['TOP_SET', 6, 6]);
   assert.deepEqual(s.carga, cargaDe('NENHUMA'));
-  assert.equal(s.esforco, null);
+  assert.deepEqual(s.esforco, { rir: 0, rpe: null });
   assert.equal(montarSeries(['Top set'], '', REGRA)[0].tipo, 'TOP_SET');
   const [ws, ts] = montarSeries(['1x8 - WS', '1x6 a 8 - Top set'], '', REGRA);
   assert.deepEqual([ws.tipo, ts.tipo, ts.repsMin, ts.repsMax], ['WORKING', 'TOP_SET', 6, 8]);

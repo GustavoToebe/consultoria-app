@@ -278,7 +278,10 @@ export function montarSeries(linhas, obs, regra = REGRA_PADRAO) {
     // Top set é um tipo da metodologia (TOP_SET, sem sugestão de carga: não é série de trabalho): nunca vira WS. O "+N%" escrito continua na observação (`obsLimpa` não o tira).
     const tipo = i.tipo || 'WS';
     let carga = cargaDe('NENHUMA');
-    const esforco = null;
+    // Esforço sem valor escrito vem do `esforcoPadrao` do tipo (RIR 0 em WS, Top set e Back off; nulo em FS), como em `planos-lib.mjs`.
+    const padraoDoTipo = tipoPadrao(tipo).esforcoPadrao;
+    const esforco = padraoDoTipo && (padraoDoTipo.rir != null || padraoDoTipo.rpe != null)
+      ? { rir: padraoDoTipo.rir ?? null, rpe: padraoDoTipo.rpe ?? null } : null;
     if (tipo === 'FS') {
       const faixa = regra[totalFs]?.[fs++];
       if (faixa != null) carga = cargaDe('PERCENTUAL_WS', { percentualMin: faixa.min, percentualMax: faixa.max ?? null });
