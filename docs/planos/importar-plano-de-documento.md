@@ -16,7 +16,7 @@ nesta rodada** (decisão D5 de `atualizacao-visual-app-full.md`).
 | 3 | O que importar primeiro (2) | Só treino | Gustavo, 30/10 |
 | 4 | Onde o resultado entra (3) | Como modelo no Planejamento; depois "Aplicar ao aluno" como hoje | Gustavo, 30/10 |
 | 5 | Formatos reais (4) | O Gustavo escreve 2 ou 3 exemplos fictícios no jeito real de escrever. **Até eles chegarem, o reconhecedor (passo 3) não começa** | Gustavo, 30/10 |
-| 6 | Texto livre (5) | Só entra se o treinador marcar na prévia | Gustavo, 30/10 |
+| 6 | Texto livre (5) | Observação técnica solta do exercício ("faça igual o vídeo", "pegada neutra" e equivalentes) **entra direto e automaticamente** em `observacao` do exercício, sem caixinha na prévia (a linha `Obs:` também). Cabeçalho de documento (Aluno, Nome, Objetivo...) e texto explicativo de metodologia (o que é FS, WS, rest pause, top set, páginas de instrução) **continuam de fora**. Regra fechada pelo Gustavo em 05/11; vale no lugar de "só entra se marcar na prévia" de 30/10 | Gustavo, 30/10; revista em 05/11 |
 | 7 | Limite, se um dia houver envio de arquivo (6) | 3 MiB e 20 páginas, só nessa rota | Gustavo, 30/10 |
 | 8 | PDF escaneado (7) | Recusado, com mensagem | Gustavo, 30/10 |
 | 9 | Google Docs (8) | Sem integração: copiar o texto (ou, depois, baixar como DOCX/PDF) | Gustavo, 30/10 |

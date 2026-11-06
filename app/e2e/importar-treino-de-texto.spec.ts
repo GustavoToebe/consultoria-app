@@ -108,6 +108,47 @@ test('plano que já tem exercício: o botão vira "Adicionar ao plano" e a divis
   expect(api.errosDaPagina).toEqual([]);
 });
 
+test('tabela de PDF colada: nome quebrado, tipo na linha de baixo, faixa do back off com aviso e observação solta no editor', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const { api, plano } = await abrirEditor(page, []);
+  await page.getByRole('button', { name: 'Colar treino (Docs / PDF)', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Texto do treino', exact: true }).fill([
+    'Segunda - Costas',
+    'EXERCÍCIO SÉRIES x REPS OBS LINKS',
+    'Remada fictícia na polia',
+    'unilateral',
+    '1x10 a 15 -',
+    'Aquecimento',
+    '3x3 - FS',
+    '1x3 a 6 - WS',
+    '2x6 a 8 - Back off',
+    'Back off - Faça com 80%, 85% ou 90% da carga realizada na WS',
+    'Vídeo',
+    'Faça igual o vídeo do lado',
+    'Domingo - Off ativo',
+    'Cardio 50 min ou HIIT de 25 min',
+  ].join('\n'));
+
+  // Um exercício só (não um por linha), com as 7 séries, e o cardio do dia off.
+  await expect(page.getByTestId('resumo-do-texto')).toContainText('2 divisões · 2 exercícios · 8 séries prontas');
+  await expect(page.getByTestId('exercicio-lido').first()).toContainText('Remada fictícia na polia unilateral');
+  await expect(page.getByText('o texto traz vários percentuais de back off (80%, 85% ou 90%). Gravei a faixa de 80% a 90%; confira.', { exact: false })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Trazer para o editor', exact: true }).click();
+  await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();
+  await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(1);
+  const [costas, domingo] = (plano().conteudo as ConteudoTreino).sessoes;
+  expect(costas.exercicios).toHaveLength(1);
+  expect(costas.exercicios[0].observacao).toBe('Faça igual o vídeo do lado');
+  const backOff = costas.exercicios[0].series.filter((s) => s.tipo === 'BACK_OFF');
+  expect(backOff.map((s) => s.carga)).toEqual([
+    { modo: 'PERCENTUAL_WS', percentualMin: 80, percentualMax: 90 }, { modo: 'PERCENTUAL_WS', percentualMin: 80, percentualMax: 90 },
+  ]);
+  expect(domingo.exercicios[0]).toMatchObject({ nome: 'Cardio', observacao: 'Cardio 50 min ou HIIT de 25 min' });
+  expect(api.errosDaPagina).toEqual([]);
+  expect(api.naoTratadas).toEqual([]);
+});
+
 test('texto sem exercício reconhecido não deixa trazer e diz o motivo', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 900 });
   await abrirEditor(page, []);
