@@ -71,6 +71,10 @@ export function EditorModelo({ receita: r, aoRecarregar, salvoAs, aoSalvar }: { 
     try { await alterarReceita(r.id, { ...r, nome: nome.trim(), descricao: descricao.trim() || null, conteudo: paraApi(conteudo) }); setPendente(false); aoSalvar(new Date()); avisar('Modelo salvo.', 'sucesso'); aoRecarregar(); }
     catch (e) { setErro(e); } finally { setSalvando(false); }
   };
+  const cartaoDoNome = <Cartao>
+    <Campo rotulo="Nome do modelo" valor={nome} aoMudar={(v) => { setNome(v); setPendente(true); }} maxLength={120} erro={nome.trim() ? null : 'Informe o nome do modelo.'} />
+    <Campo rotulo="Descrição (opcional)" valor={descricao} aoMudar={(v) => { setDescricao(v); setPendente(true); }} linhas={2} maxLength={LIMITE_DESCRICAO_DO_MODELO} />
+  </Cartao>;
   const situacao: SituacaoDoEditor = salvando ? 'salvando' : erro ? 'erro' : pendente ? 'pendente' : 'salvo';
   return <TelaDoEditor
     colunas={r.tipo === 'MOBILIDADE'}
@@ -78,14 +82,12 @@ export function EditorModelo({ receita: r, aoRecarregar, salvoAs, aoSalvar }: { 
     barra={<BarraDoModelo situacao={situacao} salvoAs={salvoAs} mensagemDeErro={erro ? textoDoErro(erro) : null} salvando={salvando}
       desabilitado={motivo !== null} motivo={motivo ?? undefined} aoSalvar={() => void salvar()} aoRecarregar={aoRecarregar} receita={r} />}>
     <FaixaDoModelo />
-    <Cartao>
-      <Campo rotulo="Nome do modelo" valor={nome} aoMudar={(v) => { setNome(v); setPendente(true); }} maxLength={120} erro={nome.trim() ? null : 'Informe o nome do modelo.'} />
-      <Campo rotulo="Descrição (opcional)" valor={descricao} aoMudar={(v) => { setDescricao(v); setPendente(true); }} linhas={2} maxLength={LIMITE_DESCRICAO_DO_MODELO} />
-    </Cartao>
+    {/* Na mobilidade o nome do modelo divide a linha com as Orientações em duas colunas (`aoLado`). */}
+    {mob ? null : cartaoDoNome}
     {erro ? <Botao rotulo="Recarregar modelo (descartar alterações)" tipo="secundario" aoTocar={aoRecarregar} /> : null}
     {metodologia ? <CartaoMetodologia configuracao={metodologia} aoMudar={mudarConteudo} codigosSalvos={codigosDaVersaoSalva(r.conteudo)} /> : null}
     {r.tipo === 'SERIES' ? <Cartao titulo="Séries"><EditorSeries series={(conteudo as { series: ReturnType<typeof seriesDaReceita> }).series} config={configDaConsultoria} modalidade={null} aoMudar={(series) => mudarConteudo({ series })} /></Cartao> : null}
-    {mob ? <SecoesDeMobilidade conteudo={mob} aoMudar={mudarConteudo} /> : null}
+    {mob ? <SecoesDeMobilidade conteudo={mob} aoMudar={mudarConteudo} aoLado={cartaoDoNome} /> : null}
     {r.tipo === 'PASTA_PLANO' ? <Cartao titulo="Planos do pacote" descricao="Cópias dos modelos de semana, dieta e mobilidade. Mudar o modelo original depois não muda o pacote: para atualizar um item, remova e adicione de novo.">
       {pasta.planos.length === 0 ? <Texto variante="suave">Pacote vazio. Adicione uma semana de treino, uma dieta ou uma mobilidade.</Texto> : null}
       {pasta.planos.map((p, i) => <ItemDoPacote key={i} posicao={i} total={pasta.planos.length} plano={p}

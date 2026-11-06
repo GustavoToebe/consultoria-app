@@ -218,8 +218,8 @@ for (const [largura, escuro] of [[1920, false], [1920, true], [1440, false], [12
     await page.goto(`/treinador/mobilidades/${MOB_ID}`);
     await expect(page.getByRole('heading', { name: 'Seções (2)' })).toBeVisible();
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
-    const secao1 = page.getByRole('textbox', { name: 'Seção 1' });
-    const secao2 = page.getByRole('textbox', { name: 'Seção 2' });
+    const secao1 = page.getByRole('textbox', { name: 'Título da seção 1' });
+    const secao2 = page.getByRole('textbox', { name: 'Título da seção 2' });
     if (duasColunas(largura)) {
       const item1 = page.getByRole('button', { name: 'Seção 1 de 2: Aquecimento. 2 itens: Gato-vaca, Lunge' });
       const item2 = page.getByRole('button', { name: 'Seção 2 de 2: Alongamento, corrigir. 1 item' });
@@ -231,7 +231,7 @@ for (const [largura, escuro] of [[1920, false], [1920, true], [1440, false], [12
       await expect(secao2).toHaveValue('Alongamento');
       await expect(secao1).toHaveCount(0);
       await page.getByRole('button', { name: 'Adicionar seção' }).click();
-      await expect(page.getByRole('textbox', { name: 'Seção 3' })).toHaveValue('');
+      await expect(page.getByRole('textbox', { name: 'Título da seção 3' })).toHaveValue('');
       await expect(page.getByRole('button', { name: /^Seção 3 de 3: Seção 3/ })).toHaveAttribute('aria-current', 'true');
     } else {
       await expect(page.getByRole('button', { name: /^Seção \d de/ })).toHaveCount(0);

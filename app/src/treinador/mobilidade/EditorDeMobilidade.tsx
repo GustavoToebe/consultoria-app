@@ -15,6 +15,7 @@ import { AtualizacaoDoPlano } from '../plano/AtualizacaoDoPlano';
 import { ConfiguracaoDoPlano } from '../plano/ConfiguracaoDoPlano';
 import { VoltarParaAPasta } from '../plano/VoltarParaAPasta';
 import { BarraDoPlano, ProblemasDoPlano } from '../plano/TopoPlano';
+import { ComColunas } from '../plano/ColunasDoEditor';
 import { TelaDoEditor } from '../plano/TelaDoEditor';
 import { FaixaDoPlanoDoAluno, useNomeDoAluno } from '../plano/FaixaDoPlano';
 import { trilhaDoPlano } from '../plano/trilha';
@@ -23,7 +24,8 @@ import { SecoesDeMobilidade } from './SecoesDeMobilidade';
 
 /**
  * Editor do plano de mobilidade do aluno: mesmo ciclo do treino e da dieta (salvar rascunho, validar, publicar
- * versão imutável), com as seções e itens do modelo de mobilidade. Sem PDF nesta versão.
+ * versão imutável), com as seções e itens do modelo de mobilidade. O PDF fica na barra (`BarraDoPlano`); não há
+ * "Ver como o aluno" na mobilidade.
  */
 export default function EditorDeMobilidade() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -57,11 +59,15 @@ export default function EditorDeMobilidade() {
           <AtualizacaoDoPlano alunoId={estado.plano.alunoId} pastaId={estado.plano.pastaId} />
         </LinhaDeAcoes>
       ) : null}
-      <FaixaDoPlanoDoAluno tipo="mobilidade" />
+      {/* A mesma ordem do treino e da dieta: pasta, problemas, de quem é o plano, o plano. */}
       <ProblemasDoPlano editor={editor} problemas={problemas} aoProblemas={setProblemas}
         aoIrAoPrimeiro={(uids) => setIrPara((p) => ({ uids, vez: (p?.vez ?? 0) + 1 }))} />
-      <ConfiguracaoDoPlano editor={editor} recolhido={estado.titulo.trim() !== ''} descricao="Título e período da mobilidade." />
-      <SecoesDeMobilidade conteudo={estado.conteudo} aoMudar={(c) => editor.alterarConteudo(() => c)} irPara={irPara} />
+      <FaixaDoPlanoDoAluno tipo="mobilidade" />
+      <SecoesDeMobilidade conteudo={estado.conteudo} aoMudar={(c) => editor.alterarConteudo(() => c)} irPara={irPara}
+        aoLado={<ComColunas>{(duas) => (
+          // Em duas colunas a configuração divide a linha com as Orientações: aberta não custa altura, então começa aberta.
+          <ConfiguracaoDoPlano editor={editor} recolhido={!duas && estado.titulo.trim() !== ''} descricao="Título e período da mobilidade." />
+        )}</ComColunas>} />
     </TelaDoEditor>
   );
 }
