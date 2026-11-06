@@ -1,6 +1,6 @@
 # Redesenho de série, carga, esforço (RIR), cartão de exercício e metodologia
 
-Situação: Pronta, PR aberto sem mesclar (deploy e dados da PRD dependem do Gustavo, ver "Dados da PRD no formato antigo") · Onde: branch `series-redesenho` (a partir da `origin/main`) · Atualizado: 05/11/2026
+Situação: Mesclada (#102 em 05/11, #103 em 05/11; deploy e dados da PRD dependem do Gustavo, ver "Dados da PRD no formato antigo") · Onde: `main` · Atualizado: 06/11/2026
 
 ## Objetivo
 O treinador prescreve cada exercício como uma lista enxuta de blocos `Séries × Repetições - Tipo/Técnica`, com % da WS e RIR lado a lado em cada série, sem submenus de modalidade, de outras formas de carga nem de esforço não prescrito. Sem compatibilidade com o formato anterior (AGENTS.md, "Sem compatibilidade com o que é antigo"): o banco é recriado do zero.
