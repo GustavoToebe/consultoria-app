@@ -1,6 +1,6 @@
 import { ArrowDown, ArrowLeftRight, ArrowUp, ChevronDown, ChevronUp, NotebookTabs, Save, Trash2, Unlink } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View, type LayoutChangeEvent } from 'react-native';
 
 import type { Configuracao, ExercicioPlano } from '../../api/tipos';
 import { descreverSeries } from '../../dominio/agrupamento';
@@ -108,8 +108,127 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
     (p.aoMudarApagandoSeries ?? p.aoMudar)(novo);
   };
   const nomeDaModalidade = OPCOES_DE_MODALIDADE.find((o) => o.valor === (e.modalidade ?? null))?.rotulo ?? e.modalidade ?? 'Não informada';
+  // Corpo largo (o inspetor em 1920): dados numa coluna estreita à esquerda e as séries no resto, em vez de tudo esticado.
+  const [largura, setLargura] = useState<number | null>(ultimaLarguraDoCorpo);
+  const dividido = largura !== null && largura >= CORPO_DIVIDIDO;
+  const medir = (ev: LayoutChangeEvent) => { ultimaLarguraDoCorpo = ev.nativeEvent.layout.width; setLargura(ultimaLarguraDoCorpo); };
 
   const foraDaBiblioteca = e.exercicioId === null && !!e.nome;
+  // As partes do exercício aberto, montadas uma vez para as duas disposições (uma coluna, ou dados | séries).
+  const dados = <>
+    <Texto variante="secao" nivel={3}>Dados do exercício</Texto>
+    <Campo rotulo="Nome de exibição" valor={e.nome} aoMudar={(nome) => mudar({ nome })} maxLength={120} erro={erros.nome} />
+    {/* Modalidade e carga lado a lado quando cabem (inspetor do PC); quebram para baixo no estreito. */}
+    <View style={estilos.ladoALado}>
+      <View style={estilos.metade}>
+        {alterandoModalidade ? (
+          <View style={estilos.modalidade}>
+            <Escolha rotulo="Modalidade" compacta opcoes={OPCOES_DE_MODALIDADE} valor={e.modalidade} aoMudar={trocarModalidade} />
+            <Texto variante="pequeno">Livre e máquina mantêm as séries como estão. Trocar de ou para cardio apaga as séries (dá para desfazer).</Texto>
+            <View style={estilos.linhaDaModalidade}>
+              <Botao rotulo="Manter como está" rotuloAcessivel="Manter a modalidade como está" tipo="fantasma" aoTocar={() => setAlterandoModalidade(false)} />
+            </View>
+          </View>
+        ) : (
+          <View style={estilos.linhaDaModalidade}>
+            <Texto><Texto variante="rotulo">Modalidade: </Texto>{nomeDaModalidade}</Texto>
+            <Botao rotulo="Alterar" rotuloAcessivel="Alterar modalidade" tipo="secundario" aoTocar={() => setAlterandoModalidade(true)} />
+          </View>
+        )}
+      </View>
+      {!cardio ? (
+        <View style={estilos.metade}>
+          <Escolha
+            rotulo="Carga do exercício"
+            opcoes={[
+              { valor: 'kg', rotulo: `Em ${unidade}` },
+              { valor: 'nenhuma', rotulo: 'Sem carga (elástico, peso corporal)' },
+            ]}
+            valor={e.unidade}
+            aoMudar={(unidade) => mudar({ unidade })}
+          />
+        </View>
+      ) : null}
+    </View>
+    {/* Progressão perto da carga: as duas são decisões de carga do exercício inteiro (teste local de 30/10). */}
+    {!cardio ? (
+      <Interruptor
+        rotulo="Progressão de carga"
+        ajuda={e.progressao ? 'O aluno busca subir a carga.' : 'O aluno vê "Foco em controle, não em carga".'}
+        valor={e.progressao}
+        aoMudar={(progressao) => mudar({ progressao })}
+      />
+    ) : null}
+    {!cardio ? <AvisoDoCampo mensagem={avisos.progressao} /> : null}
+    {cardio ? <Texto variante="pequeno">Cardio tem prescrição própria: duração, distância, ritmo, zona e intervalos. Trocar de ou para cardio apaga as séries.</Texto> : null}
+    {p.noGrupo && p.aoTirarDoGrupo ? (
+      <Botao rotulo="Tirar do grupo" rotuloAcessivel={`Tirar ${e.nome || 'o exercício'} do grupo`} tipo="fantasma" Icone={Unlink} aoTocar={p.aoTirarDoGrupo} />
+    ) : null}
+  </>;
+  const series = <>
+    <View style={estilos.tituloDasSeries}>
+      <Texto variante="secao">{cardio ? 'Cardio' : 'Séries'}</Texto>
+      {cardio ? null : <Botao rotulo="Receita de séries" rotuloAcessivel="Usar uma receita de séries" tipo="secundario" Icone={NotebookTabs} aoTocar={p.aoUsarReceita} />}
+    </View>
+    <EditorSeries modalidade={e.modalidade} series={e.series} config={p.config} semCarga={e.unidade === 'nenhuma'}
+      exercicioComCarga={e.unidade !== 'nenhuma' && e.modalidade !== 'CARDIO'} descansoPorSerie={p.descansoPorSerie !== false} aoMudar={(series) => mudar({ series })}
+      grupoAbertoUid={p.grupoAbertoUid} aoAbrirGrupo={p.aoAbrirGrupo} />
+  </>;
+  const execucaoEVideo = <>
+    <CabecalhoDeGrupo titulo="Execução e cadência" resumo={execucaoAberta ? undefined : resumoDaExecucao(e)} aberto={execucaoAberta} aoAlternar={() => setExecucaoAberta((v) => !v)} />
+    {execucaoAberta ? <View style={estilos.linhaExecucao}>
+      <View style={estilos.cadencia}>
+        <Campo
+          rotulo="Cadência"
+          valor={e.cadencia ?? ''}
+          aoMudar={(t) => mudar({ cadencia: normalizarCadencia(t) })}
+          erro={erroDaCadencia(e.cadencia) ?? erros.cadencia}
+          ajuda="Descida-pausa embaixo-subida-pausa em cima, em segundos; X = o mais rápido possível."
+          placeholder="Ex.: 3-1-1-0"
+          autoCapitalize="characters"
+          maxLength={15}
+        />
+      </View>
+      <View style={estilos.isometria}>
+        <CampoNumerico
+          rotulo="Isometria"
+          inteiro
+          sufixo="s"
+          valor={e.isometriaSegundos ?? null}
+          aoMudar={(isometriaSegundos) => mudar({ isometriaSegundos })}
+          erro={erroDaIsometria(e.isometriaSegundos) ?? erros.isometriaSegundos}
+          ajuda="Segure N s; diga onde na observação."
+        />
+      </View>
+    </View> : null}
+    <CabecalhoDeGrupo titulo="Vídeo e instruções" resumo={extrasAbertos ? undefined : resumoDosExtras(e)} aberto={extrasAbertos} aoAlternar={() => setExtrasAbertos((v) => !v)} />
+    {extrasAbertos ? (
+      <>
+        <Campo
+          rotulo="Observação para o aluno"
+          valor={e.observacao ?? ''}
+          aoMudar={(t) => mudar({ observacao: t || null })}
+          linhas={2}
+          maxLength={1000}
+        />
+        <Campo
+          rotulo="Vídeo (link do YouTube, opcional)"
+          valor={e.videoUrl ?? ''}
+          aoMudar={(t) => mudar({ videoUrl: t.trim() || null })}
+          erro={erroDoVideo(e.videoUrl) ?? erros.videoUrl}
+          autoCapitalize="none"
+          keyboardType="url"
+          maxLength={500}
+        />
+      </>
+    ) : null}
+  </>;
+  const salvarReceita = e.series.length && !cardio ? (
+    <View style={estilos.rodape}>
+      <Botao rotulo={rotuloSalvarComo('SERIES')} tipo="fantasma" Icone={Save} aoTocar={p.aoSalvarReceita} />
+    </View>
+  ) : null;
+
   return (
     <AlvoDeRolagem chave={e.uid}
       style={[
@@ -161,116 +280,14 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
         </View>
       </View>
       {p.aberto ? (
-        <View style={estilos.corpo}>
-          <Texto variante="secao" nivel={3}>Dados do exercício</Texto>
-          <Campo rotulo="Nome de exibição" valor={e.nome} aoMudar={(nome) => mudar({ nome })} maxLength={120} erro={erros.nome} />
-          {/* Modalidade e carga lado a lado quando cabem (inspetor do PC); quebram para baixo no estreito. */}
-          <View style={estilos.ladoALado}>
-          <View style={estilos.metade}>
-          {alterandoModalidade ? (
-            <View style={estilos.modalidade}>
-              <Escolha rotulo="Modalidade" compacta opcoes={OPCOES_DE_MODALIDADE} valor={e.modalidade} aoMudar={trocarModalidade} />
-              <Texto variante="pequeno">Livre e máquina mantêm as séries como estão. Trocar de ou para cardio apaga as séries (dá para desfazer).</Texto>
-              <View style={estilos.linhaDaModalidade}>
-                <Botao rotulo="Manter como está" rotuloAcessivel="Manter a modalidade como está" tipo="fantasma" aoTocar={() => setAlterandoModalidade(false)} />
-              </View>
+        <View style={estilos.corpo} onLayout={medir}>
+          {dividido ? (
+            <View style={estilos.divididas}>
+              <View style={estilos.colunaDosDados}>{dados}<Divisor style={estilos.divisor} />{execucaoEVideo}</View>
+              <View aria-hidden style={[estilos.fio, { backgroundColor: cores.divisor }]} />
+              <View style={estilos.colunaDasSeries}>{series}{salvarReceita}</View>
             </View>
-          ) : (
-            <View style={estilos.linhaDaModalidade}>
-              <Texto><Texto variante="rotulo">Modalidade: </Texto>{nomeDaModalidade}</Texto>
-              <Botao rotulo="Alterar" rotuloAcessivel="Alterar modalidade" tipo="secundario" aoTocar={() => setAlterandoModalidade(true)} />
-            </View>
-          )}
-          </View>
-          {!cardio ? (
-            <View style={estilos.metade}>
-            <Escolha
-              rotulo="Carga do exercício"
-              opcoes={[
-                { valor: 'kg', rotulo: `Em ${unidade}` },
-                { valor: 'nenhuma', rotulo: 'Sem carga (elástico, peso corporal)' },
-              ]}
-              valor={e.unidade}
-              aoMudar={(unidade) => mudar({ unidade })}
-            />
-            </View>
-          ) : null}
-          </View>
-          {/* Progressão perto da carga: as duas são decisões de carga do exercício inteiro (teste local de 30/10). */}
-          {!cardio ? (
-            <Interruptor
-              rotulo="Progressão de carga"
-              ajuda={e.progressao ? 'O aluno busca subir a carga.' : 'O aluno vê "Foco em controle, não em carga".'}
-              valor={e.progressao}
-              aoMudar={(progressao) => mudar({ progressao })}
-            />
-          ) : null}
-          {!cardio ? <AvisoDoCampo mensagem={avisos.progressao} /> : null}
-          {cardio ? <Texto variante="pequeno">Cardio tem prescrição própria: duração, distância, ritmo, zona e intervalos. Trocar de ou para cardio apaga as séries.</Texto> : null}
-          {p.noGrupo && p.aoTirarDoGrupo ? (
-            <Botao rotulo="Tirar do grupo" rotuloAcessivel={`Tirar ${e.nome || 'o exercício'} do grupo`} tipo="fantasma" Icone={Unlink} aoTocar={p.aoTirarDoGrupo} />
-          ) : null}
-          <Divisor style={estilos.divisor} />
-          <View style={estilos.tituloDasSeries}>
-            <Texto variante="secao">{cardio ? 'Cardio' : 'Séries'}</Texto>
-            {cardio ? null : <Botao rotulo="Receita de séries" rotuloAcessivel="Usar uma receita de séries" tipo="secundario" Icone={NotebookTabs} aoTocar={p.aoUsarReceita} />}
-          </View>
-          <EditorSeries modalidade={e.modalidade} series={e.series} config={p.config} semCarga={e.unidade === 'nenhuma'}
-            exercicioComCarga={e.unidade !== 'nenhuma' && e.modalidade !== 'CARDIO'} descansoPorSerie={p.descansoPorSerie !== false} aoMudar={(series) => mudar({ series })}
-            grupoAbertoUid={p.grupoAbertoUid} aoAbrirGrupo={p.aoAbrirGrupo} />
-          <Divisor style={estilos.divisor} />
-          <CabecalhoDeGrupo titulo="Execução e cadência" resumo={execucaoAberta ? undefined : resumoDaExecucao(e)} aberto={execucaoAberta} aoAlternar={() => setExecucaoAberta((v) => !v)} />
-          {execucaoAberta ? <View style={estilos.linhaExecucao}>
-            <View style={estilos.cadencia}>
-              <Campo
-                rotulo="Cadência"
-                valor={e.cadencia ?? ''}
-                aoMudar={(t) => mudar({ cadencia: normalizarCadencia(t) })}
-                erro={erroDaCadencia(e.cadencia) ?? erros.cadencia}
-                ajuda="Descida-pausa embaixo-subida-pausa em cima, em segundos; X = o mais rápido possível."
-                placeholder="Ex.: 3-1-1-0"
-                autoCapitalize="characters"
-                maxLength={15}
-              />
-            </View>
-            <View style={estilos.isometria}>
-              <CampoNumerico
-                rotulo="Isometria"
-                inteiro
-                sufixo="s"
-                valor={e.isometriaSegundos ?? null}
-                aoMudar={(isometriaSegundos) => mudar({ isometriaSegundos })}
-                erro={erroDaIsometria(e.isometriaSegundos) ?? erros.isometriaSegundos}
-                ajuda="Segure N s; diga onde na observação."
-              />
-            </View>
-          </View> : null}
-          <CabecalhoDeGrupo titulo="Vídeo e instruções" resumo={extrasAbertos ? undefined : resumoDosExtras(e)} aberto={extrasAbertos} aoAlternar={() => setExtrasAbertos((v) => !v)} />
-          {extrasAbertos ? (
-            <>
-              <Campo
-                rotulo="Observação para o aluno"
-                valor={e.observacao ?? ''}
-                aoMudar={(t) => mudar({ observacao: t || null })}
-                linhas={2}
-                maxLength={1000}
-              />
-              <Campo
-                rotulo="Vídeo (link do YouTube, opcional)"
-                valor={e.videoUrl ?? ''}
-                aoMudar={(t) => mudar({ videoUrl: t.trim() || null })}
-                erro={erroDoVideo(e.videoUrl) ?? erros.videoUrl}
-                autoCapitalize="none"
-                keyboardType="url"
-                maxLength={500}
-              />
-            </>
-          ) : null}
-          {e.series.length && !cardio ? (
-            <View style={estilos.rodape}>
-              <Botao rotulo={rotuloSalvarComo('SERIES')} tipo="fantasma" Icone={Save} aoTocar={p.aoSalvarReceita} />
-            </View>
-          ) : null}
+          ) : <>{dados}<Divisor style={estilos.divisor} />{series}<Divisor style={estilos.divisor} />{execucaoEVideo}{salvarReceita}</>}
         </View>
       ) : null}
       <PainelConfirmacao
@@ -298,7 +315,26 @@ function resumoDosExtras(e: ExercicioPlano): string {
   return partes.length ? partes.join(' · ') : 'Nada preenchido';
 }
 
+/** Largura da coluna dos dados quando o corpo se divide (cabe o nome, a modalidade, a carga e a cadência com a isometria). */
+const COLUNA_DOS_DADOS = 400;
+/**
+ * A partir desta largura do corpo do exercício aberto, dados | séries: a coluna dos dados, o vão com o fio e ao menos
+ * 640 para as séries (Tipo e Técnica lado a lado e a prescrição 2 + 2). Na prática, só o inspetor das janelas bem largas
+ * (1920); 1440, 1280 e o empilhado seguem numa coluna.
+ */
+const CORPO_DIVIDIDO = COLUNA_DOS_DADOS + 2 * 12 + 1 + 640 + 2 * 12;
+/**
+ * Última largura medida do corpo: todos os inspetores têm a mesma, e o cartão remonta ao trocar de exercício (sem piscar).
+ * shortcut: na 1ª abertura vale uma coluna por um quadro; se piscar, medir mais acima, como o `EditorSeries`.
+ */
+let ultimaLarguraDoCorpo: number | null = null;
+
 const estilos = StyleSheet.create({
+  // Dados | fio | séries; o fio vai de cima a baixo, as colunas começam no topo.
+  divididas: { flexDirection: 'row', alignItems: 'stretch', gap: espaco(1.5) },
+  colunaDosDados: { width: COLUNA_DOS_DADOS, flexShrink: 0, gap: espaco(1.5) },
+  colunaDasSeries: { flex: 1, minWidth: 0, gap: espaco(1.5) },
+  fio: { width: 1 },
   cartao: { borderWidth: BORDA_BLOCO, borderRadius: RAIO, overflow: 'hidden' },
   topo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1), paddingHorizontal: espaco(1.5), paddingVertical: espaco(1.25) },
   linhaDoNome: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1) },

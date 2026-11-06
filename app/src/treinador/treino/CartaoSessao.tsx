@@ -5,7 +5,7 @@ import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import type { Sessao } from '../../api/tipos';
 import { DIAS_CURTOS, resumoDaSessao, TIPOS_SESSAO } from '../../dominio/editorTreino';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, LARGURA_MENU_LATERAL, RAIO } from '../../tema/tokens';
+import { espaco, LARGURA_EDITOR, LARGURA_MENU_LATERAL, RAIO } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
 import { Campo } from '../../ui/Campo';
@@ -87,41 +87,49 @@ export function CartaoSessao(p: Props) {
         />
   );
   const corpo = <>
-      <View style={[estilos.linhaSessao, largo ? null : estilos.coluna]}>
-        <View style={largo ? estilos.nome : null}>
-          <Campo rotulo="Nome da sessão" valor={s.nome} aoMudar={(nome) => mudar({ nome })} maxLength={80} placeholder="Ex.: Segunda - Costas" />
+      {/* Dados da sessão na medida (Nome, Dia, Tipo) e a Observação ao lado quando as duas cabem (1440 e 1920); abaixo
+          disso ela desce, como antes. */}
+      <View style={estilos.topoDaSessao}>
+        <View style={estilos.dadosDaSessao}>
+          <View style={[estilos.linhaSessao, largo ? null : estilos.coluna]}>
+            <View style={largo ? estilos.nome : null}>
+              <Campo rotulo="Nome da sessão" valor={s.nome} aoMudar={(nome) => mudar({ nome })} maxLength={80} placeholder="Ex.: Segunda - Costas" />
+            </View>
+            <View style={estilos.escolhas}>
+              <EscolhaEmFolha rotulo="Dia" titulo="Dia da semana" opcoes={DIAS} valor={s.diaSemana} aoMudar={(diaSemana) => mudar({ diaSemana })} />
+              <EscolhaEmFolha rotulo="Tipo" titulo="Tipo da sessão" opcoes={TIPOS_SESSAO} valor={s.tipo} aoMudar={(t) => mudar({ tipo: t, frequenciaSemanal: t === 'ACESSORIOS' ? s.frequenciaSemanal : null })} />
+            </View>
+          </View>
+          {s.tipo === 'ACESSORIOS' ? (
+            <View style={estilos.campoCurto}>
+              <CampoNumerico rotulo="Vezes por semana" inteiro valor={s.frequenciaSemanal} aoMudar={(frequenciaSemanal) => mudar({ frequenciaSemanal })} />
+            </View>
+          ) : null}
         </View>
-        <View style={estilos.escolhas}>
-          <EscolhaEmFolha rotulo="Dia" titulo="Dia da semana" opcoes={DIAS} valor={s.diaSemana} aoMudar={(diaSemana) => mudar({ diaSemana })} />
-          <EscolhaEmFolha rotulo="Tipo" titulo="Tipo da sessão" opcoes={TIPOS_SESSAO} valor={s.tipo} aoMudar={(t) => mudar({ tipo: t, frequenciaSemanal: t === 'ACESSORIOS' ? s.frequenciaSemanal : null })} />
+        <View style={estilos.observacaoDaSessao}>
+          <CabecalhoDeGrupo titulo={comTextoDeCardio ? 'Cardio (texto) e observação' : 'Observação'} resumo={maisAberto ? undefined : resumoDoMais(s)} aberto={maisAberto} aoAlternar={() => setMaisAberto((v) => !v)} />
+          {maisAberto ? (
+            <>
+              {comTextoDeCardio ? (
+                <Campo
+                  rotulo="Cardio da sessão (texto)"
+                  valor={s.cardio ?? ''}
+                  aoMudar={(t) => mudar({ cardio: t || null })}
+                  ajuda="Texto livre. Para prescrever duração, ritmo e zona, adicione um exercício com modalidade Cardio."
+                  maxLength={500}
+                />
+              ) : null}
+              <Campo
+                rotulo="Observação da sessão (opcional)"
+                valor={s.observacao ?? ''}
+                aoMudar={(t) => mudar({ observacao: t || null })}
+                linhas={2}
+                maxLength={1000}
+              />
+            </>
+          ) : null}
         </View>
       </View>
-      {s.tipo === 'ACESSORIOS' ? (
-        <View style={estilos.campoCurto}>
-          <CampoNumerico rotulo="Vezes por semana" inteiro valor={s.frequenciaSemanal} aoMudar={(frequenciaSemanal) => mudar({ frequenciaSemanal })} />
-        </View>
-      ) : null}
-      <CabecalhoDeGrupo titulo={comTextoDeCardio ? 'Cardio (texto) e observação' : 'Observação'} resumo={maisAberto ? undefined : resumoDoMais(s)} aberto={maisAberto} aoAlternar={() => setMaisAberto((v) => !v)} />
-      {maisAberto ? (
-        <>
-          {comTextoDeCardio ? (
-            <Campo
-              rotulo="Cardio da sessão (texto)"
-              valor={s.cardio ?? ''}
-              aoMudar={(t) => mudar({ cardio: t || null })}
-              ajuda="Texto livre. Para prescrever duração, ritmo e zona, adicione um exercício com modalidade Cardio."
-              maxLength={500}
-            />
-          ) : null}
-          <Campo
-            rotulo="Observação da sessão (opcional)"
-            valor={s.observacao ?? ''}
-            aoMudar={(t) => mudar({ observacao: t || null })}
-            linhas={2}
-            maxLength={1000}
-          />
-        </>
-      ) : null}
       <Texto variante="secao">Exercícios ({s.exercicios.length})</Texto>
       <View style={estilos.exercicios}>{p.children}</View>
       {p.adicionarNoFim !== false ? (
@@ -173,6 +181,10 @@ function resumoDoMais(s: Sessao): string {
 const BARRA_DA_SESSAO = 4;
 
 const estilos = StyleSheet.create({
+  // 640 + 480 + o vão: lado a lado a partir de ~1140 px de conteúdo (1440 e 1920); em 1280 e no celular quebra.
+  topoDaSessao: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', gap: espaco(2) },
+  dadosDaSessao: { flexGrow: 1, flexShrink: 1, flexBasis: 640, minWidth: 0, maxWidth: LARGURA_EDITOR, gap: espaco(2) },
+  observacaoDaSessao: { flexGrow: 1, flexShrink: 1, flexBasis: 480, minWidth: 0, gap: espaco(2) },
   linhaSessao: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(1.5) },
   coluna: { flexDirection: 'column', alignItems: 'stretch' },
   nome: { flexGrow: 1, flexShrink: 1, flexBasis: 240 },

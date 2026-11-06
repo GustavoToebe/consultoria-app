@@ -7,7 +7,7 @@ import { DESCANSO_MAXIMO_DO_GRUPO, grupoEmSequencia, MAXIMO_DE_VOLTAS, type Muda
 import { explicacaoDaCombinacao, nomeDaCombinacao } from '../../dominio/metodologia';
 import type { Problemas } from '../../dominio/validacaoDeSerie';
 import { useTema } from '../../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, LINHA_DA_FAIXA, RAIO } from '../../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, LARGURA_EDITOR, LINHA_DA_FAIXA, RAIO } from '../../tema/tokens';
 import { AlvoDeRolagem } from '../../ui/AlvoDeRolagem';
 import { Botao } from '../../ui/Botao';
 import { CampoNumerico } from '../../ui/Campos';
@@ -174,7 +174,8 @@ const estilos = StyleSheet.create({
   topo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1), paddingHorizontal: espaco(1.5), paddingVertical: espaco(1.25), borderBottomWidth: LINHA_DA_FAIXA },
   titulo: { flexGrow: 1, flexShrink: 1, flexBasis: 200, gap: 2, minHeight: ALVO_TOQUE, justifyContent: 'center' },
   setas: { flexDirection: 'row', gap: espaco(0.75), marginLeft: 'auto' },
-  corpo: { gap: espaco(1.5), padding: espaco(1.5), paddingTop: espaco(2) },
+  // Em 1920 o inspetor passa de 1200 px: o texto e os campos do grupo ficam na medida do editor.
+  corpo: { gap: espaco(1.5), padding: espaco(1.5), paddingTop: espaco(2), maxWidth: LARGURA_EDITOR },
   campos: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5), alignItems: 'flex-start' },
   campo: { flexGrow: 1, flexBasis: 200, maxWidth: 320 },
   semDescanso: { flexBasis: '100%' },

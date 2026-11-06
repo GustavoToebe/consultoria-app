@@ -48,6 +48,26 @@ for (const largura of [1280, 1440, 1920]) {
   });
 }
 
+// Largura (04/11): em 1920 o inspetor divide em dados | séries; a Observação da sessão vai ao lado do Nome em 1440 e 1920.
+for (const largura of [1280, 1440, 1920]) {
+  test(`largura do treino: sessão e inspetor (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 1000 });
+    await abrir(page);
+    await expect(page.getByText(/^Editando: Série 1( ·|$)/)).toBeVisible();
+    const caixa = async (nome: RegExp | string) => (await page.getByText(nome, { exact: nome instanceof RegExp ? undefined : true }).first().boundingBox())!;
+    const nome = (await page.getByRole('textbox', { name: 'Nome da sessão' }).boundingBox())!;
+    const observacao = await caixa('Observação');
+    if (largura >= 1440) expect(observacao.x).toBeGreaterThan(nome.x + nome.width);
+    else expect(observacao.y).toBeGreaterThan(nome.y + nome.height);
+    const exibicao = (await page.getByRole('textbox', { name: 'Nome de exibição' }).boundingBox())!;
+    const series = await caixa(/^Editando: Série 1/);
+    if (largura === 1920) {
+      expect(series.x).toBeGreaterThan(exibicao.x + exibicao.width);
+      expect(exibicao.width).toBeLessThanOrEqual(400);
+    } else expect(series.y).toBeGreaterThan(exibicao.y + exibicao.height);
+  });
+}
+
 test('prescrição uma por linha no celular (390px)', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 900 });
   await abrir(page);
