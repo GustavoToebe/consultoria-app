@@ -114,6 +114,21 @@ test('duas colunas: remover item e seção com Desfazer, sem painel de confirma�
   expect(errosDaPagina).toEqual([]);
 });
 
+test('seção sem item acende o "Corrigir" e o Desfazer o apaga (1280px)', async ({ page }) => {
+  const { naoTratadas, errosDaPagina } = await abrir(page, 1280);
+  await expect(page.getByText('Corrigir', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: /^Seção 2 de 2: Alongamento/ }).click();
+  await page.getByRole('button', { name: 'Remover Posterior' }).click();
+  // A API recusa "Seção sem item.": a tela já acusa antes de salvar ou publicar.
+  await expect(page.getByText('Seção sem item. Adicione ao menos um.')).toBeVisible();
+  await expect(page.getByText('Corrigir', { exact: true }).first()).toBeVisible();
+  await page.getByRole('button', { name: 'Desfazer' }).click();
+  await expect(page.getByText('Seção sem item. Adicione ao menos um.')).toHaveCount(0);
+  await expect(page.getByText('Corrigir', { exact: true })).toHaveCount(0);
+  expect(naoTratadas).toEqual([]);
+  expect(errosDaPagina).toEqual([]);
+});
+
 test('1920: configuração ao lado das Orientações e os três campos do item numa linha', async ({ page }) => {
   const { naoTratadas, errosDaPagina } = await abrir(page, 1920);
   const config = await page.getByRole('textbox', { name: 'Título', exact: true }).boundingBox();

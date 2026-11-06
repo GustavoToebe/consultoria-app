@@ -65,7 +65,7 @@ export function mobilidadeValida(c: ConteudoMobilidade): boolean {
 
 /** A parte de `mobilidadeValida` de uma seção (o selo "Corrigir" da lista de seções em duas colunas). */
 export function secaoValida(s: SecaoMobilidade): boolean {
-  return s.itens.every((i) => !!i.nome.trim() && (!i.videoUrl.trim() || videoValido(i.videoUrl)));
+  return s.itens.length > 0 && s.itens.every((i) => !!i.nome.trim() && (!i.videoUrl.trim() || videoValido(i.videoUrl)));
 }
 
 type VersaoMobilidade = VersaoDetalhe<ConteudoMobilidadeApi>;

@@ -88,6 +88,10 @@ test('Estrutura quebra a linha no celular, sem passar da borda (390px)', async (
   // As faixas seguem uma embaixo da outra e o descanso desce para a linha seguinte.
   expect(descanso.y).toBeGreaterThan(series.y);
   for (const r of [series, maximo, descanso]) expect(r.x + r.width).toBeLessThanOrEqual(390);
+  // O par mín/máx quebra junto: o "máx" fica ao lado do "mín", não sozinho na linha de baixo.
+  const minimo = (await page.getByRole('textbox', { name: 'Reps mín.', exact: true }).first().boundingBox())!;
+  expect(Math.abs(maximo.y - minimo.y)).toBeLessThan(2);
+  expect(maximo.x).toBeGreaterThan(minimo.x + minimo.width);
   const nova = page.getByRole('button', { name: 'Nova série', exact: true }).first();
   await nova.scrollIntoViewIfNeeded();
   await expect(nova).toBeInViewport({ ratio: 1 });

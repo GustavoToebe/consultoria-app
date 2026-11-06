@@ -101,12 +101,13 @@ export function CamposDasRepeticoes({ valor, aoMudar, erros, rotulo = 'Repetiç�
           <CampoNumerico rotulo={nome('Repetições')} rotuloOculto sufixo="reps" sufixoNaCaixa erroSemTexto inteiro valor={valor.repsMin ?? valor.repsMax ?? null}
             aoMudar={exata} erro={erros.repsMin ?? erros.repsMax} />
         </View> : null}
-        {forma === 'FAIXA' ? <>
+        {/* O par mín/máx quebra junto: em 390 px o "máx" não fica sozinho na linha de baixo. */}
+        {forma === 'FAIXA' ? <View style={estilos.linhaCompacta}>
           <View style={largura('mín')}><CampoNumerico rotulo={nome('Reps mín.')} rotuloOculto sufixo="mín" sufixoNaCaixa erroSemTexto inteiro valor={valor.repsMin ?? null}
             aoMudar={minimo} erro={erros.repsMin} /></View>
           <View style={largura('máx')}><CampoNumerico rotulo={nome('Reps máx.')} rotuloOculto sufixo="máx" sufixoNaCaixa erroSemTexto inteiro valor={valor.repsMax ?? null}
             aoMudar={maximo} erro={erros.repsMax} /></View>
-        </> : null}
+        </View> : null}
       </View>
       {/* Na caixa estreita o erro só marca a borda: a frase vem embaixo da linha inteira. */}
       <ErroDoCampo mensagem={forma === 'AMRAP' ? null : erros.repsMin ?? erros.repsMax} />

@@ -70,7 +70,8 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
   const [escolhidaUid, setEscolhidaUid] = useState<string | null>(null);
   const [problemas, setProblemas] = useState<ResultadoValidacao | null>(null);
   const [folha, setFolha] = useState<FolhaDaDieta | null>(null);
-  const [desfazer, setDesfazer] = useState<Desfazer<ConteudoDieta> | null>(null);
+  // `refeicaoDaOpcao`/`indiceDaRefeicao`: onde o aviso aparece empilhado (no lugar do que saiu, para o Desfazer ficar à vista).
+  const [desfazer, setDesfazer] = useState<(Desfazer<ConteudoDieta> & OndeDesfazer) | null>(null);
   // Porção da embalagem dos produtos escolhidos nesta abertura, só para referência ao escrever a dose (não é gravada).
   const [porcoes, setPorcoes] = useState<Record<string, string>>({});
 
@@ -91,8 +92,8 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
   const mudar = (parcial: Partial<ConteudoDieta>) => editor.alterarConteudo((a) => ({ ...a, ...parcial }));
   const mudarRefeicoes = (fn: (r: ConteudoDieta['refeicoes']) => ConteudoDieta['refeicoes']) =>
     editor.alterarConteudo((a) => ({ ...a, refeicoes: fn(a.refeicoes) }));
-  const comDesfazer = (rotulo: string, mudanca: (a: ConteudoDieta) => ConteudoDieta) => {
-    setDesfazer({ rotulo, conteudo: c });
+  const comDesfazer = (rotulo: string, mudanca: (a: ConteudoDieta) => ConteudoDieta, onde: OndeDesfazer = {}) => {
+    setDesfazer({ rotulo, conteudo: c, ...onde });
     editor.alterarConteudo(mudanca);
   };
   const alternar = (uid: string) =>
@@ -155,6 +156,23 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
       </ConfiguracaoDoPlano>}
       <TotalDoDia conteudo={c} semValor={semValor} aoAbrirRefeicao={abrirRefeicao} aoMudarAgua={unica ? undefined : (aguaLitros) => mudar({ aguaLitros })} />
       <ComColunas>{(duas) => {
+        const barra = desfazer ? (
+          <BarraDesfazer
+            key="desfazer"
+            desfazer={desfazer}
+            aoDesfazer={() => {
+              const anterior = desfazer.conteudo;
+              setDesfazer(null);
+              editor.alterarConteudo(() => anterior);
+            }}
+            aoFechar={() => setDesfazer(null)}
+          />
+        ) : null;
+        // Empilhadas, várias refeições abertas empurravam o aviso do topo para fora da janela. Opção removida: o aviso fica
+        // na refeição dela (se ela está aberta); refeição removida: no lugar dela. Em duas colunas e no resto, no topo.
+        const avisoNaRefeicao = !duas && desfazer?.refeicaoDaOpcao !== undefined
+          && c.refeicoes.some((r) => r.uid === desfazer.refeicaoDaOpcao && (unica || abertas.has(r.uid)));
+        const avisoNoLugar = !duas && desfazer?.indiceDaRefeicao !== undefined ? Math.min(desfazer.indiceDaRefeicao, c.refeicoes.length) : null;
         const cartao = (r: ConteudoDieta['refeicoes'][number], ri: number, noInspetor: boolean) => (
           <CartaoRefeicao
             key={r.uid}
@@ -164,15 +182,17 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
             aberta={noInspetor || unica || abertas.has(r.uid)}
             comProblema={comErro}
             alimentos={porId}
+            aviso={avisoNaRefeicao && desfazer?.refeicaoDaOpcao === r.uid ? barra : undefined}
             aoAbrir={noInspetor || unica ? undefined : () => alternar(r.uid)}
             aoMudar={(nova) => mudarRefeicoes((lista) => substituir(lista, ri, nova))}
             aoRemoverOpcao={(oi) => comDesfazer(`Opção ${r.opcoes[oi]?.rotulo ?? oi + 1} removida.`, (a) =>
-              ({ ...a, refeicoes: substituir(a.refeicoes, ri, { ...a.refeicoes[ri], opcoes: remover(a.refeicoes[ri].opcoes, oi) }) }))}
+              ({ ...a, refeicoes: substituir(a.refeicoes, ri, { ...a.refeicoes[ri], opcoes: remover(a.refeicoes[ri].opcoes, oi) }) }),
+              { refeicaoDaOpcao: r.uid })}
             aoMover={(d) => mudarRefeicoes((lista) => mover(lista, ri, d))}
             aoRemover={unica ? undefined : () => {
               const depois = remover(c.refeicoes, ri);
               setEscolhidaUid(proximaSelecao(c.refeicoes.map((x) => x.uid), depois.map((x) => x.uid), escolhida?.uid ?? null));
-              comDesfazer(`Refeição “${r.nome || ri + 1}” removida.`, (a) => ({ ...a, refeicoes: remover(a.refeicoes, ri) }));
+              comDesfazer(`Refeição “${r.nome || ri + 1}” removida.`, (a) => ({ ...a, refeicoes: remover(a.refeicoes, ri) }), { indiceDaRefeicao: ri });
             }}
             aoSalvarModelo={unica ? undefined : () => setFolha({ tipo: 'salvarRefeicao', indice: ri })}
             aoEscolherAlimento={(opcao) => setFolha({ tipo: 'alimento', refeicao: ri, opcao })}
@@ -191,17 +211,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
               ) : null}
             </LinhaDeAcoes>
           </View>
-          {desfazer ? (
-            <BarraDesfazer
-              desfazer={desfazer}
-              aoDesfazer={() => {
-                const anterior = desfazer.conteudo;
-                setDesfazer(null);
-                editor.alterarConteudo(() => anterior);
-              }}
-              aoFechar={() => setDesfazer(null)}
-            />
-          ) : null}
+          {avisoNaRefeicao || avisoNoLugar !== null ? null : barra}
           {c.refeicoes.length === 0 ? <Vazio texto="Nenhuma refeição ainda. Adicione a primeira ou comece de um modelo pronto." /> : null}
           {duas && escolhida ? (
             <View style={estilos.colunas}>
@@ -224,7 +234,8 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
               <View style={estilos.inspetor}>{cartao(escolhida, c.refeicoes.indexOf(escolhida), true)}</View>
             </View>
           ) : <>
-            {c.refeicoes.map((r, ri) => cartao(r, ri, false))}
+            {c.refeicoes.flatMap((r, ri) => (ri === avisoNoLugar ? [barra, cartao(r, ri, false)] : [cartao(r, ri, false)]))}
+            {avisoNoLugar === c.refeicoes.length ? barra : null}
             {adicionar}
           </>}
         </>;
@@ -263,6 +274,12 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
       />
     </TelaDoEditor>
   );
+}
+
+/** De onde saiu o que o "Desfazer" devolve: a refeição da opção removida ou a posição da refeição removida. */
+interface OndeDesfazer {
+  refeicaoDaOpcao?: string;
+  indiceDaRefeicao?: number;
 }
 
 /** Objetivo, data de início e profissional (como no topo do PDF do Saraiva). A água fica no "Total do dia". */

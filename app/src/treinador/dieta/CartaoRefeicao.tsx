@@ -1,5 +1,5 @@
 import { ArrowDown, ArrowUp, PencilLine, Plus, Trash2 } from 'lucide-react-native';
-import { Fragment, useState } from 'react';
+import { Fragment, type ReactNode, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import type { Alimento, ItemDieta, OpcaoRefeicao, Refeicao, UnidadeAlimento } from '../../api/tipos';
@@ -63,6 +63,8 @@ interface Props {
   aoMudar: (r: Refeicao) => void;
   /** Remove a opção com "Desfazer" (leva os itens dela junto). */
   aoRemoverOpcao: (indice: number) => void;
+  /** O "Desfazer" da opção removida, logo abaixo das opções (empilhado, para ficar à vista). */
+  aviso?: ReactNode;
   aoMover: (delta: -1 | 1) => void;
   /** Lixeira no cabeçalho; sem ele, a refeição não se remove (modelo de uma refeição só). */
   aoRemover?: () => void;
@@ -170,6 +172,7 @@ export function CartaoRefeicao(p: Props) {
               </Fragment>
             ))}
           </View>
+          {p.aviso}
           {r.opcoes.length < 6 || p.aoSalvarModelo ? (
             <>
               <Divisor />

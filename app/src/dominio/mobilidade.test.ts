@@ -34,7 +34,10 @@ it('só valida com nome em todo item e link do YouTube quando informado', () => 
   expect(mobilidadeValida({ orientacoes: '', secoes: [base] })).toBe(true);
   expect(mobilidadeValida({ orientacoes: '', secoes: [] })).toBe(false);
   expect(secaoValida(base)).toBe(true);
-  expect(secaoValida({ ...base, itens: [...base.itens, { ...base.itens[0], uid: 'c', nome: ' ' }] })).toBe(false);
+  // Seção sem item é recusada pela API ("Seção sem item."): o selo "Corrigir" e o "Salvar modelo" a acusam também.
+  expect(secaoValida({ ...base, itens: [] })).toBe(false);
+  expect(mobilidadeValida({ orientacoes: '', secoes: [{ ...base, itens: [] }] })).toBe(false);
+  expect(secaoValida({ ...base, itens: [...base.itens,{ ...base.itens[0], uid: 'c', nome: ' ' }] })).toBe(false);
 });
 
 describe('mobilidade do aluno', () => {

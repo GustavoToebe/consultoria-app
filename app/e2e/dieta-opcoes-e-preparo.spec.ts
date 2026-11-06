@@ -119,6 +119,91 @@ for (const [largura, ladoALado] of [[390, false], [1280, true]] as const) {
 }
 
 /**
+ * Empilhado (celular), várias refeições abertas empurravam o "Desfazer" do topo para fora da janela: a opção removida
+ * mostra o aviso na refeição dela e a refeição removida, no lugar onde estava. Em duas colunas o aviso fica onde sempre
+ * esteve, entre "Refeições (N)" e a lista. Com `CAPTURAS=<pasta>`, guarda as telas.
+ */
+const REFEICOES = ['Café da manhã', 'Almoço', 'Jantar'].map((nome, i) => ({
+  uid: `r${i}`, nome, horario: `0${7 + i * 6}:00`.slice(-5), observacao: null, modoDePreparo: null,
+  opcoes: ['A', 'B'].map((rotulo) => ({ uid: `r${i}${rotulo}`, rotulo, itens: [
+    item(`r${i}${rotulo}1`, `Arroz ${rotulo}${i}`, 100, 130, 0.3), item(`r${i}${rotulo}2`, `Frango ${rotulo}${i}`, 120, 190, 4),
+  ] })),
+}));
+const VARIAS: PlanoDetalhe<ConteudoDieta> = { ...DETALHE, rascunho: { ...CONTEUDO, refeicoes: REFEICOES } };
+
+for (const [largura, escuro] of [[390, false], [390, true], [1280, false]] as const) {
+  test(`treinador: o Desfazer de opção e refeição removidas fica à vista (${largura}px${escuro ? ', escuro' : ''})`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    if (escuro) await page.addInitScript(([id]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: 'ESCURO' })), [TREINADOR.id]);
+    const { naoTratadas, errosDaPagina } = await simularApi(page, {
+      ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'DIETA_LER', 'DIETA_ALTERAR'] })),
+      'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
+      'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+      'GET /alimentos': { corpo: [] },
+      'GET /consultoria': { corpo: { marca: MARCA, versao: 1, diasAtualizacaoPadrao: null } },
+      [`GET /alunos/${ALUNO_ID}`]: { corpo: { id: ALUNO_ID, nome: 'Aluno Teste' } },
+      [`GET /planos-dieta/${PLANO_ID}`]: { corpo: VARIAS },
+    });
+    await page.goto(`/treinador/dietas/${PLANO_ID}`);
+    const cabecalho = page.getByRole('heading', { name: 'Refeições (3)' });
+    await expect(cabecalho).toBeVisible();
+    const opcoesB = page.getByRole('heading', { name: 'Opção B' });
+    const capturar = async (nome: string) => {
+      if (process.env.CAPTURAS) await page.screenshot({ path: `${process.env.CAPTURAS}/${nome}-${largura}${escuro ? '-escuro' : ''}.png` });
+    };
+
+    if (largura === 390) {
+      await page.getByRole('button', { name: 'Abrir todas' }).click();
+      // A opção B do jantar, lá embaixo: o aviso aparece no jantar, não no topo (que ficou fora da janela).
+      await page.getByRole('button', { name: 'Remover opção B' }).last().click();
+      await expect(opcoesB).toHaveCount(2);
+      await expect(page.getByText('Opção B removida.')).toBeInViewport();
+      await expect(cabecalho).not.toBeInViewport();
+      await capturar('desfazer-opcao');
+      await page.getByRole('button', { name: 'Desfazer' }).click();
+      await expect(opcoesB).toHaveCount(3);
+      await expect(page.getByText('Opção B removida.')).toHaveCount(0);
+
+      await page.getByRole('button', { name: 'Remover 19:00 · Jantar' }).click();
+      await expect(page.getByRole('heading', { name: 'Refeições (2)' })).toBeAttached();
+      await expect(page.getByText('Refeição “Jantar” removida.')).toBeInViewport();
+      await capturar('desfazer-refeicao');
+      await page.getByRole('button', { name: 'Desfazer' }).click();
+      await expect(page.getByRole('heading', { name: 'Refeições (3)' })).toBeAttached();
+      await expect(page.getByRole('button', { name: 'Remover 19:00 · Jantar' })).toBeVisible();
+    } else {
+      // Duas colunas: o aviso fica entre "Refeições (N)" e a lista, como antes.
+      await page.getByRole('button', { name: /^Refeição 3 de 3: 19:00 · Jantar/ }).click();
+      await page.getByRole('button', { name: 'Remover opção B' }).click();
+      const aviso = page.getByText('Opção B removida.');
+      await expect(aviso).toBeInViewport();
+      const [topo, caixa, lista] = [await cabecalho.boundingBox(), await aviso.boundingBox(),
+        await page.getByRole('button', { name: /^Refeição 1 de 3/ }).boundingBox()];
+      if (!topo || !caixa || !lista) throw new Error('sem caixa');
+      expect(caixa.y).toBeGreaterThan(topo.y);
+      expect(caixa.y).toBeLessThan(lista.y);
+      await capturar('desfazer-opcao');
+      await expect(opcoesB).toHaveCount(0);
+      await page.getByRole('button', { name: 'Desfazer' }).click();
+      await expect(opcoesB).toHaveCount(1);
+
+      // Refeição removida também avisa no topo; a seguinte fica escolhida e o Desfazer devolve o Jantar.
+      await page.getByRole('button', { name: 'Remover 19:00 · Jantar' }).click();
+      const avisoDaRefeicao = page.getByText('Refeição “Jantar” removida.');
+      await expect(avisoDaRefeicao).toBeInViewport();
+      const [caixa2, lista2] = [await avisoDaRefeicao.boundingBox(), await page.getByRole('button', { name: /^Refeição 1 de 2/ }).boundingBox()];
+      if (!caixa2 || !lista2) throw new Error('sem caixa');
+      expect(caixa2.y).toBeGreaterThan(topo.y);
+      expect(caixa2.y).toBeLessThan(lista2.y);
+      await page.getByRole('button', { name: 'Desfazer' }).click();
+      await expect(page.getByRole('button', { name: /^Refeição 3 de 3: 19:00 · Jantar/ })).toBeVisible();
+    }
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+/**
  * 30/10: "Água por dia" fica no cartão "Total do dia", à vista. Antes morava na "Configuração do plano", que já abre
  * fechada quando a dieta tem refeições, e o treinador não a achava.
  */
