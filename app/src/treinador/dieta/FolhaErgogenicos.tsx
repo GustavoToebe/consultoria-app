@@ -27,7 +27,7 @@ export function FolhaErgogenicos({
   const filtrados = filtrarErgogenicos(itens, busca, categoria);
   const grupos = agruparErgogenicos(filtrados);
   return (
-    <Folha visivel titulo="Escolher da biblioteca" aoFechar={aoFechar}>
+    <Folha visivel titulo="Ergogênico da biblioteca" aoFechar={aoFechar}>
       <Campo rotulo="Buscar item" valor={busca} aoMudar={setBusca} autoFocus />
       {categorias.length ? (
         <Escolha
@@ -38,7 +38,7 @@ export function FolhaErgogenicos({
         />
       ) : null}
       {itens.length === 0 ? (
-        <Texto variante="suave">Nenhum item na biblioteca. Cadastre em Biblioteca → Outros ou use “Adicionar linha”.</Texto>
+        <Texto variante="suave">Nenhum item na biblioteca. Cadastre em Biblioteca → Outros ou use “Ergogênico manual”.</Texto>
       ) : filtrados.length === 0 ? (
         <Texto variante="suave">Nenhum item encontrado.</Texto>
       ) : null}

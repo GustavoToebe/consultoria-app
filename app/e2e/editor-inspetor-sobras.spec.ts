@@ -7,10 +7,10 @@ import { ALUNO_ID, BIBLIOTECA, PLANO_ID, planoDetalhe } from './editor-inspetor.
 /**
  * Sobras do editor em lista + inspetor (`docs/planos/editor-treino-inspetor.md`, S1 a S5): o grupo de exercícios abre no
  * inspetor, a prescrição da série lado a lado conforme a largura, e a dieta e a mobilidade no mesmo layout. Duas colunas a
- * partir de 960 px de conteúdo (1440 e 1280); 1024 e 390 empilham. Dados fictícios. Com `CAPTURAS=<pasta>`, guarda as telas.
+ * partir de 960 px de conteúdo (1920, 1440 e 1280); 1024 e 390 empilham. Em 1920 o editor usa todo o espaço útil (04/11). Dados fictícios. Com `CAPTURAS=<pasta>`, guarda as telas.
  */
 
-const LARGURAS = [1440, 1280, 1024, 390] as const;
+const LARGURAS = [1920, 1440, 1280, 1024, 390] as const;
 const duasColunas = (largura: number) => largura >= 1280;
 
 async function tema(page: Page, escuro: boolean) {
@@ -56,9 +56,9 @@ for (const largura of LARGURAS) {
     await expect(page.getByLabel(/Descanso depois do grupo/).first()).toHaveValue('90');
     if (duasColunas(largura)) {
       // O grupo toma o lugar do exercício no inspetor; escolher um exercício volta a ele.
-      await expect(page.getByText('Editando: Série 1', { exact: true })).toHaveCount(0);
+      await expect(page.getByText(/^Editando: Série 1( ·|$)/)).toHaveCount(0);
       await page.getByRole('button', { name: /^Exercício 1 de 7: Supino reto com barra/ }).click();
-      await expect(page.getByText('Editando: Série 1', { exact: true })).toBeVisible();
+      await expect(page.getByText(/^Editando: Série 1( ·|$)/)).toBeVisible();
       await expect(page.getByRole('button', { name: /^Desfazer o grupo Superset/ })).toHaveCount(0);
     }
     expect(naoTratadas).toEqual([]);
@@ -66,13 +66,13 @@ for (const largura of LARGURAS) {
   });
 }
 
-for (const [largura, escuro] of [[1440, false], [1280, false], [1280, true], [1024, false], [390, false], [390, true]] as const) {
+for (const [largura, escuro] of [[1920, false], [1920, true], [1440, false], [1280, false], [1280, true], [1024, false], [390, false], [390, true]] as const) {
   test(`treino: as três faixas da série (Tipo e técnica, Estrutura, Carga e RIR) cabem em ${largura}px${escuro ? ', escuro' : ''}`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 1000 });
     await tema(page, escuro);
     const { naoTratadas, errosDaPagina } = await abrirTreino(page);
     if (!duasColunas(largura)) await page.getByRole('button', { name: 'Editar Supino reto com barra', exact: true }).click();
-    await expect(page.getByText('Editando: Série 1', { exact: true })).toBeVisible();
+    await expect(page.getByText(/^Editando: Série 1( ·|$)/)).toBeVisible();
     const caixa = async (b: ReturnType<Page['getByRole']>, nome: string) => {
       const r = await b.first().boundingBox();
       if (!r) throw new Error(`sem ${nome}`);
@@ -128,7 +128,7 @@ const DETALHE_DIETA: PlanoDetalhe<ConteudoDieta> = {
   versoes: [{ id: 'v0000000-0000-4000-8000-0000000000d1', numero: 1, publicadoEm: '2026-11-01T12:00:00Z' }],
 };
 
-for (const [largura, escuro] of [[1440, false], [1280, false], [1280, true], [1024, false], [390, false], [390, true]] as const) {
+for (const [largura, escuro] of [[1920, false], [1920, true], [1440, false], [1280, false], [1280, true], [1024, false], [390, false], [390, true]] as const) {
   test(`dieta: refeições ${duasColunas(largura) ? 'na lista e a escolhida no inspetor' : 'empilhadas, abrindo uma a uma'} (${largura}px${escuro ? ', escuro' : ''})`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 1000 });
     await tema(page, escuro);
@@ -157,8 +157,13 @@ for (const [largura, escuro] of [[1440, false], [1280, false], [1280, true], [10
       const [a, b] = [await page.getByRole('heading', { name: 'Opção A' }).boundingBox(), await page.getByRole('heading', { name: 'Opção B' }).boundingBox()];
       if (!a || !b) throw new Error('sem opção');
       expect(Math.abs(a.y - b.y)).toBeLessThan(2);
-      // Adicionar escolhe a refeição nova (o botão do pé da lista; o outro fica na linha de ações de cima).
-      await page.getByRole('button', { name: 'Adicionar refeição' }).last().click();
+      if (largura === 1920) {
+        // Sem teto de 1440: a linha de "Refeições" vai até a beirada da área útil (1920 − 16 de recuo).
+        const compras = await page.getByRole('button', { name: 'Lista de compras' }).boundingBox();
+        expect((compras?.x ?? 0) + (compras?.width ?? 0)).toBeGreaterThan(1850);
+      }
+      // Adicionar escolhe a refeição nova.
+      await page.getByRole('button', { name: 'Adicionar refeição' }).click();
       await expect(page.getByRole('button', { name: /^Refeição 3 de 3: Refeição 3/ })).toHaveAttribute('aria-current', 'true');
     } else {
       await expect(page.getByRole('button', { name: /^Refeição \d de/ })).toHaveCount(0);
@@ -198,7 +203,7 @@ const DETALHE_MOB: PlanoDetalhe<ConteudoMobilidadeApi> = {
   versoes: [{ id: 'v0000000-0000-4000-8000-0000000000e1', numero: 1, publicadoEm: '2026-11-01T12:00:00Z' }],
 };
 
-for (const [largura, escuro] of [[1440, false], [1280, false], [1280, true], [1024, false], [390, false], [390, true]] as const) {
+for (const [largura, escuro] of [[1920, false], [1920, true], [1440, false], [1280, false], [1280, true], [1024, false], [390, false], [390, true]] as const) {
   test(`mobilidade: seções ${duasColunas(largura) ? 'na lista e a escolhida no inspetor' : 'empilhadas'} (${largura}px${escuro ? ', escuro' : ''})`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 1000 });
     await tema(page, escuro);
@@ -213,8 +218,8 @@ for (const [largura, escuro] of [[1440, false], [1280, false], [1280, true], [10
     await page.goto(`/treinador/mobilidades/${MOB_ID}`);
     await expect(page.getByRole('heading', { name: 'Seções (2)' })).toBeVisible();
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
-    const secao1 = page.getByRole('textbox', { name: 'Seção 1' });
-    const secao2 = page.getByRole('textbox', { name: 'Seção 2' });
+    const secao1 = page.getByRole('textbox', { name: 'Título da seção 1' });
+    const secao2 = page.getByRole('textbox', { name: 'Título da seção 2' });
     if (duasColunas(largura)) {
       const item1 = page.getByRole('button', { name: 'Seção 1 de 2: Aquecimento. 2 itens: Gato-vaca, Lunge' });
       const item2 = page.getByRole('button', { name: 'Seção 2 de 2: Alongamento, corrigir. 1 item' });
@@ -226,7 +231,7 @@ for (const [largura, escuro] of [[1440, false], [1280, false], [1280, true], [10
       await expect(secao2).toHaveValue('Alongamento');
       await expect(secao1).toHaveCount(0);
       await page.getByRole('button', { name: 'Adicionar seção' }).click();
-      await expect(page.getByRole('textbox', { name: 'Seção 3' })).toHaveValue('');
+      await expect(page.getByRole('textbox', { name: 'Título da seção 3' })).toHaveValue('');
       await expect(page.getByRole('button', { name: /^Seção 3 de 3: Seção 3/ })).toHaveAttribute('aria-current', 'true');
     } else {
       await expect(page.getByRole('button', { name: /^Seção \d de/ })).toHaveCount(0);

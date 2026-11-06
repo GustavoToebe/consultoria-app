@@ -5,16 +5,16 @@ import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import type { Sessao } from '../../api/tipos';
 import { DIAS_CURTOS, resumoDaSessao, TIPOS_SESSAO } from '../../dominio/editorTreino';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, LARGURA_MENU_LATERAL, RAIO } from '../../tema/tokens';
+import { espaco, LARGURA_EDITOR, LARGURA_MENU_LATERAL, RAIO } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
 import { Campo } from '../../ui/Campo';
 import { CampoNumerico } from '../../ui/Campos';
-import { Cartao } from '../../ui/Cartao';
 import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { FolhaDeAcoes } from '../FolhaDeAcoes';
+import { BlocoAdicionar } from '../plano/BlocoAdicionar';
 import { rotuloSalvarComo } from '../planejamento/modelos';
 import { AlvoDeRolagem } from '../../ui/AlvoDeRolagem';
 import { Texto } from '../../ui/Texto';
@@ -54,6 +54,8 @@ interface Props {
  * uma linha Nome · Dia · Tipo, "Observação" recolhível, os exercícios e os grupos (nível 3) e, no rodapé, adicionar
  * exercício e adicionar cardio (os primeiros controles), modelos e criar grupo; remover a sessão fica no ⋯ do cabeçalho. O cardio é
  * um exercício de cardio, que nasce do "+ Adicionar cardio".
+ * A sessão não tem moldura em largura nenhuma, só a faixa do título: as duas molduras do editor são o exercício e a
+ * série aberta (§5.1 e S4), e os campos ganham a largura toda.
  */
 export function CartaoSessao(p: Props) {
   const { cores, marca, bordas } = useTema();
@@ -88,41 +90,49 @@ export function CartaoSessao(p: Props) {
         />
   );
   const corpo = <>
-      <View style={[estilos.linhaSessao, largo ? null : estilos.coluna]}>
-        <View style={largo ? estilos.nome : null}>
-          <Campo rotulo="Nome da sessão" valor={s.nome} aoMudar={(nome) => mudar({ nome })} maxLength={80} placeholder="Ex.: Segunda - Costas" />
+      {/* Dados da sessão na medida (Nome, Dia, Tipo) e a Observação ao lado quando as duas cabem (1440 e 1920); abaixo
+          disso ela desce, como antes. */}
+      <View style={estilos.topoDaSessao}>
+        <View style={estilos.dadosDaSessao}>
+          <View style={[estilos.linhaSessao, largo ? null : estilos.coluna]}>
+            <View style={largo ? estilos.nome : null}>
+              <Campo rotulo="Nome da sessão" valor={s.nome} aoMudar={(nome) => mudar({ nome })} maxLength={80} placeholder="Ex.: Segunda - Costas" />
+            </View>
+            <View style={estilos.escolhas}>
+              <EscolhaEmFolha rotulo="Dia" titulo="Dia da semana" opcoes={DIAS} valor={s.diaSemana} aoMudar={(diaSemana) => mudar({ diaSemana })} />
+              <EscolhaEmFolha rotulo="Tipo" titulo="Tipo da sessão" opcoes={TIPOS_SESSAO} valor={s.tipo} aoMudar={(t) => mudar({ tipo: t, frequenciaSemanal: t === 'ACESSORIOS' ? s.frequenciaSemanal : null })} />
+            </View>
+          </View>
+          {s.tipo === 'ACESSORIOS' ? (
+            <View style={estilos.campoCurto}>
+              <CampoNumerico rotulo="Vezes por semana" inteiro valor={s.frequenciaSemanal} aoMudar={(frequenciaSemanal) => mudar({ frequenciaSemanal })} />
+            </View>
+          ) : null}
         </View>
-        <View style={estilos.escolhas}>
-          <EscolhaEmFolha rotulo="Dia" titulo="Dia da semana" opcoes={DIAS} valor={s.diaSemana} aoMudar={(diaSemana) => mudar({ diaSemana })} />
-          <EscolhaEmFolha rotulo="Tipo" titulo="Tipo da sessão" opcoes={TIPOS_SESSAO} valor={s.tipo} aoMudar={(t) => mudar({ tipo: t, frequenciaSemanal: t === 'ACESSORIOS' ? s.frequenciaSemanal : null })} />
+        <View style={estilos.observacaoDaSessao}>
+          <CabecalhoDeGrupo titulo={comTextoDeCardio ? 'Cardio (texto) e observação' : 'Observação'} resumo={maisAberto ? undefined : resumoDoMais(s)} aberto={maisAberto} aoAlternar={() => setMaisAberto((v) => !v)} />
+          {maisAberto ? (
+            <>
+              {comTextoDeCardio ? (
+                <Campo
+                  rotulo="Cardio da sessão (texto)"
+                  valor={s.cardio ?? ''}
+                  aoMudar={(t) => mudar({ cardio: t || null })}
+                  ajuda="Texto livre. Para prescrever duração, ritmo e zona, use “Adicionar cardio”."
+                  maxLength={500}
+                />
+              ) : null}
+              <Campo
+                rotulo="Observação da sessão (opcional)"
+                valor={s.observacao ?? ''}
+                aoMudar={(t) => mudar({ observacao: t || null })}
+                linhas={2}
+                maxLength={1000}
+              />
+            </>
+          ) : null}
         </View>
       </View>
-      {s.tipo === 'ACESSORIOS' ? (
-        <View style={estilos.campoCurto}>
-          <CampoNumerico rotulo="Vezes por semana" inteiro valor={s.frequenciaSemanal} aoMudar={(frequenciaSemanal) => mudar({ frequenciaSemanal })} />
-        </View>
-      ) : null}
-      <CabecalhoDeGrupo titulo={comTextoDeCardio ? 'Cardio (texto) e observação' : 'Observação'} resumo={maisAberto ? undefined : resumoDoMais(s)} aberto={maisAberto} aoAlternar={() => setMaisAberto((v) => !v)} />
-      {maisAberto ? (
-        <>
-          {comTextoDeCardio ? (
-            <Campo
-              rotulo="Cardio da sessão (texto)"
-              valor={s.cardio ?? ''}
-              aoMudar={(t) => mudar({ cardio: t || null })}
-              ajuda="Texto livre. Para prescrever duração, ritmo e zona, use “Adicionar cardio”."
-              maxLength={500}
-            />
-          ) : null}
-          <Campo
-            rotulo="Observação da sessão (opcional)"
-            valor={s.observacao ?? ''}
-            aoMudar={(t) => mudar({ observacao: t || null })}
-            linhas={2}
-            maxLength={1000}
-          />
-        </>
-      ) : null}
       <Texto variante="secao">Exercícios ({s.exercicios.length})</Texto>
       <View style={estilos.exercicios}>{p.children}</View>
       {p.adicionarNoFim !== false ? (
@@ -139,18 +149,13 @@ export function CartaoSessao(p: Props) {
         ]} />
       ) : null}
   </>;
-  // Barra de 4 px na cor da marca à esquerda: onde a sessão começa (protótipo de 30/10). É identidade, não status.
-  const barra = [{ borderLeftWidth: BARRA_DA_SESSAO, borderLeftColor: marca }, p.comProblema ? { borderColor: cores.perigo, borderLeftColor: marca } : null];
+  // Barra de 4 px na cor da marca à esquerda da faixa: onde a sessão começa (protótipo de 30/10). É identidade, não status.
   return (
     <AlvoDeRolagem chave={s.uid}>
-      {largo ? <Cartao style={barra} cabecalho={cabecalho}>{corpo}</Cartao> : (
-        // Celular: sem a moldura da sessão (só a faixa do título), para o cartão do exercício e o grupo de séries serem
-        // os dois únicos níveis com borda e os campos ganharem a largura toda.
-        <View style={estilos.semMoldura}>
-          <View style={[estilos.faixaSolta, { borderWidth: bordas.bloco, borderColor: cores.borda }, barra]}>{cabecalho}</View>
-          {corpo}
-        </View>
-      )}
+      <View style={estilos.semMoldura}>
+        <View style={[estilos.faixaSolta, { borderWidth: bordas.bloco, borderColor: p.comProblema ? cores.perigo : cores.borda, borderLeftWidth: BARRA_DA_SESSAO, borderLeftColor: marca }]}>{cabecalho}</View>
+        {corpo}
+      </View>
     </AlvoDeRolagem>
   );
 }
@@ -160,20 +165,13 @@ export function CartaoSessao(p: Props) {
  * No fim do cartão da sessão (coluna única) ou da lista da coluna da esquerda (duas colunas).
  */
 export function AdicionarProximoExercicio(p: Pick<Props, 'aoNovoExercicio' | 'aoNovoCardio' | 'aoAbrirModelos' | 'aoCriarGrupo' | 'motivoSemGrupo'>) {
-  const { cores } = useTema();
   return (
-    <View style={[estilos.proximo, { borderColor: cores.bordaCampo }]}>
-      <View style={estilos.textoDoProximo}>
-        <Texto variante="bloco" nivel={3}>Adicionar próximo exercício</Texto>
-        <Texto variante="suave">Escolha da biblioteca da consultoria ou use um modelo pronto.</Texto>
-      </View>
-      <LinhaDeAcoes>
-        <Botao rotulo="Adicionar exercício" tipo="secundario" Icone={Plus} aoTocar={p.aoNovoExercicio} />
-        <Botao rotulo="Adicionar cardio" tipo="secundario" Icone={HeartPulse} aoTocar={p.aoNovoCardio} />
-        {p.aoAbrirModelos ? <Botao rotulo="Modelos prontos" tipo="secundario" Icone={NotebookTabs} aoTocar={p.aoAbrirModelos} /> : null}
-        {p.aoCriarGrupo ? <Botao rotulo="Criar grupo" tipo="secundario" Icone={Link2} aoTocar={p.aoCriarGrupo} desabilitado={!!p.motivoSemGrupo} motivo={p.motivoSemGrupo ?? undefined} /> : null}
-      </LinhaDeAcoes>
-    </View>
+    <BlocoAdicionar titulo="Adicionar próximo exercício" descricao="Escolha da biblioteca da consultoria ou use um modelo pronto.">
+      <Botao rotulo="Adicionar exercício" tipo="secundario" Icone={Plus} aoTocar={p.aoNovoExercicio} />
+      <Botao rotulo="Adicionar cardio" tipo="secundario" Icone={HeartPulse} aoTocar={p.aoNovoCardio} />
+      {p.aoAbrirModelos ? <Botao rotulo="Modelos prontos" tipo="secundario" Icone={NotebookTabs} aoTocar={p.aoAbrirModelos} /> : null}
+      {p.aoCriarGrupo ? <Botao rotulo="Criar grupo" tipo="secundario" Icone={Link2} aoTocar={p.aoCriarGrupo} desabilitado={!!p.motivoSemGrupo} motivo={p.motivoSemGrupo ?? undefined} /> : null}
+    </BlocoAdicionar>
   );
 }
 
@@ -187,8 +185,10 @@ function resumoDoMais(s: Sessao): string {
 const BARRA_DA_SESSAO = 4;
 
 const estilos = StyleSheet.create({
-  proximo: { borderWidth: 1, borderStyle: 'dashed', borderRadius: RAIO, padding: espaco(2), gap: espaco(1.5), flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' },
-  textoDoProximo: { flexGrow: 1, flexShrink: 1, flexBasis: 240, gap: 2 },
+  // 640 + 480 + o vão: lado a lado a partir de ~1140 px de conteúdo (1440 e 1920); em 1280 e no celular quebra.
+  topoDaSessao: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', gap: espaco(2) },
+  dadosDaSessao: { flexGrow: 1, flexShrink: 1, flexBasis: 640, minWidth: 0, maxWidth: LARGURA_EDITOR, gap: espaco(2) },
+  observacaoDaSessao: { flexGrow: 1, flexShrink: 1, flexBasis: 480, minWidth: 0, gap: espaco(2) },
   linhaSessao: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(1.5) },
   coluna: { flexDirection: 'column', alignItems: 'stretch' },
   nome: { flexGrow: 1, flexShrink: 1, flexBasis: 240 },

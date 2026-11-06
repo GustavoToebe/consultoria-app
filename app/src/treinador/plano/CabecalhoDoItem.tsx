@@ -10,6 +10,8 @@ import { Texto } from '../../ui/Texto';
 
 interface Props {
   titulo: string;
+  /** A posição por extenso, pequena, em cima do título ("Refeição 2 de 5"), como o "Exercício N de M" do treino. Fica fora do título. */
+  contexto?: string;
   /** Linha de resumo do item fechado ("2×10 · com vídeo"). */
   resumo?: string;
   selo?: { texto: string; tipo: TipoSelo };
@@ -33,10 +35,11 @@ interface Props {
  * gramática em todos os editores (padrão das telas de 19/10): título e resumo (tocar abre/fecha) · setas ↑↓ = mover ·
  * chevron = abrir/fechar · remover. O chevron nunca move e a seta nunca abre. Sem `aoAlternar`, o título é só texto.
  */
-export function CabecalhoDoItem({ titulo, resumo, selo, aberto, aoAlternar, posicao = 0, total = 1, aoMover, nomeDoItem, remover, faixa }: Props) {
+export function CabecalhoDoItem({ titulo, contexto, resumo, selo, aberto, aoAlternar, posicao = 0, total = 1, aoMover, nomeDoItem, remover, faixa }: Props) {
   const { cores } = useTema();
   const Seta = aberto ? ChevronUp : ChevronDown;
   const textos = <>
+    {contexto ? <Texto variante="pequeno" numerico>{contexto}</Texto> : null}
     <Texto variante="bloco" nivel={aoAlternar ? undefined : 3} style={estilos.titulo}>{titulo}</Texto>
     {resumo ? <Texto variante="suave" numerico>{resumo}</Texto> : null}
     {selo ? <View style={estilos.selo}><Selo texto={selo.texto} tipo={selo.tipo} /></View> : null}
@@ -46,7 +49,7 @@ export function CabecalhoDoItem({ titulo, resumo, selo, aberto, aoAlternar, posi
       {aoAlternar ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`${titulo}, ${aberto ? 'aberto' : 'fechado'}`}
+          accessibilityLabel={`${contexto ? `${contexto}: ` : ''}${titulo}, ${aberto ? 'aberto' : 'fechado'}`}
           accessibilityState={{ expanded: aberto }}
           onPress={aoAlternar}
           style={({ pressed }) => [estilos.textos, { opacity: pressed ? 0.7 : 1 }]}>

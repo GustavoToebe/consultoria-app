@@ -179,8 +179,8 @@ for (const largura of [390, 1280]) {
     await expect(page.getByRole('tab', { name: /^Série \d · WS/ })).toHaveCount(3);
     await page.getByRole('tab', { name: /^Série 2 · WS/ }).click();
     await expect(page.getByRole('tab', { name: /^Série 2 · WS/ })).toHaveAttribute('aria-selected', 'true');
-    await expect(page.getByText(/1×10 · WS \+ Pirâmide decrescente/)).toBeVisible();
-    await expect(page.getByText('Editando: Série 2', { exact: true })).toBeVisible();
+    await expect(page.getByText(/1×10 · WS \+ Pirâmide decrescente/).first()).toBeVisible();
+    await expect(page.getByText(/^Editando: Série 2( ·|$)/)).toBeVisible();
     expect(api.errosDaPagina).toEqual([]);
     expect(api.naoTratadas).toEqual([]);
   });

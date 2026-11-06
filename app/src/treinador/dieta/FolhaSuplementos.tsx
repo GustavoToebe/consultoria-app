@@ -37,7 +37,7 @@ export function FolhaSuplementos({
         />
       ) : null}
       {suplementos.length === 0 ? (
-        <Texto variante="suave">Nenhum suplemento na biblioteca. Cadastre em Biblioteca → Suplementos ou use “Adicionar linha”.</Texto>
+        <Texto variante="suave">Nenhum suplemento na biblioteca. Cadastre em Biblioteca → Suplementos ou use “Suplemento manual”.</Texto>
       ) : lista.length === 0 ? (
         <Texto variante="suave">Nenhum suplemento encontrado.</Texto>
       ) : null}

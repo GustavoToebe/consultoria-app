@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../../tema/tokens';
+import { NumeroInvertido } from '../../ui/NumeroInvertido';
 import { Selo, type TipoSelo } from '../../ui/Selo';
 import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
@@ -47,9 +48,7 @@ export function ItemDaListaDoEditor({ numero, titulo, selo, linha, rotulo, escol
           backgroundColor: escolhido ? cores.superficie : sobre(s) ? cores.superficie3 : cores.superficie2,
         },
       ]}>
-      <View style={[estilos.numero, escolhido ? { backgroundColor: cores.texto, borderColor: cores.texto } : { borderColor: cores.bordaCampo }]}>
-        <Texto numerico style={[estilos.textoDoNumero, { color: escolhido ? cores.fundo : cores.texto }]}>{numero}</Texto>
-      </View>
+      <NumeroInvertido numero={numero} invertido={escolhido} />
       <View style={estilos.meio}>
         <Texto style={estilos.nome} numberOfLines={2}>{titulo}</Texto>
         {selo ? <View style={estilos.selo}><Selo texto={selo.texto} tipo={selo.tipo} Icone={selo.Icone} /></View> : null}
@@ -65,8 +64,6 @@ const BARRA = 4;
 
 const estilos = StyleSheet.create({
   item: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.25), minHeight: ALVO_TOQUE, borderRadius: RAIO, paddingVertical: espaco(1), paddingHorizontal: espaco(1.25) },
-  numero: { width: 28, height: 28, borderRadius: 8, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  textoDoNumero: { fontFamily: fontes.semi, fontSize: 13 },
   meio: { flex: 1, gap: 4 },
   nome: { fontFamily: fontes.semi, fontSize: 15, lineHeight: 20 },
   selo: { flexDirection: 'row' },

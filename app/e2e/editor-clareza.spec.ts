@@ -86,29 +86,29 @@ for (const largura of [390, 1280]) {
     // Contadores: o plano inteiro e a sessão aberta, separados.
     await expect(page.getByText('Plano inteiro: 1 sessão · 2 exercícios · 5 séries cadastradas', { exact: true })).toBeVisible();
     await expect(page.getByText('Sessão aberta: 2 exercícios · 5 séries', { exact: true })).toBeVisible();
-    // A posição por extenso, sem confundir com o número da série: no estreito está no título de cada cartão; em duas
-    // colunas, no nome acessível de cada item da lista (e no título do exercício escolhido, no inspetor).
-    await expect(page.getByText('Exercício 1 de 2 · Agachamento fictício', { exact: true })).toBeVisible();
+    // A posição por extenso, sem confundir com o número da série: no estreito, em texto pequeno no alto de cada cartão, com
+    // o nome embaixo; em duas colunas, no nome acessível de cada item da lista (e no alto do exercício escolhido).
+    await expect(page.getByText(/^Exercício 1 de 2( ·|$)/).first()).toBeVisible();
     if (largura >= 960) {
       await expect(page.getByRole('button', { name: /^Exercício 1 de 2: Agachamento fictício/ })).toHaveAttribute('aria-current', 'true');
       await expect(page.getByRole('button', { name: /^Exercício 2 de 2: Remada fictícia/ })).toBeVisible();
     } else {
-      await expect(page.getByText('Exercício 2 de 2 · Remada fictícia', { exact: true })).toBeVisible();
+      await expect(page.getByText(/^Exercício 2 de 2( ·|$)/).first()).toBeVisible();
     }
     await escolherExercicio(page, largura, 1, 2, 'Agachamento fictício');
-    // Mover o exercício e mover o grupo de séries têm nomes diferentes; o primeiro não sobe.
-    await expect(page.getByRole('button', { name: 'Mover exercício para cima', exact: true }).first()).toBeDisabled();
-    await expect(page.getByRole('button', { name: 'Mover exercício para baixo', exact: true }).first()).toBeEnabled();
-    await expect(page.getByRole('button', { name: 'Mover grupo de séries para cima', exact: true }).first()).toBeDisabled();
-    await expect(page.getByRole('button', { name: 'Mover grupo de séries para baixo', exact: true }).first()).toBeEnabled();
-    // A partir de 768 px os botões de mover dizem o quê; no celular ficam só com a seta (nome acessível igual).
-    const comTexto = page.getByRole('button', { name: 'Mover exercício para baixo', exact: true }).first().getByText('Mover exercício', { exact: true });
-    await expect(comTexto).toHaveCount(largura >= 768 ? 1 : 0);
+    // Subir e descer o exercício levam o nome dele; os da série, "série N". O primeiro não sobe.
+    await expect(page.getByRole('button', { name: 'Subir Agachamento fictício', exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Descer Agachamento fictício', exact: true })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Subir série 1', exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Descer série 1', exact: true })).toBeEnabled();
+    // Só a seta, em todas as larguras (o nome acessível diz o quê).
+    await expect(page.getByText('Mover exercício', { exact: true })).toHaveCount(0);
     // O grupo: uma aba por grupo ("Série 1 · FS"), já aberta no 1º; o "Para o aluno" diz o tipo e os percentuais de cada série.
     await expect(page.getByRole('tab', { name: /^Série 1 · FS/ })).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByText(/3×3 · FS · 50% · 70% · 85% a 90% da WS/).first()).toBeVisible();
-    // Faixa curta com o exercício no topo do grupo aberto.
-    await expect(page.getByText('Exercício 1 · Agachamento fictício', { exact: true })).toBeVisible();
+    // A série aberta diz o que se edita; a faixa "Exercício 1 · nome" saiu (o exercício já está no alto do cartão).
+    await expect(page.getByText('Editando: Série 1 · Preparação · FS', { exact: true })).toBeVisible();
+    await expect(page.getByText('Exercício 1 · Agachamento fictício', { exact: true })).toHaveCount(0);
     await expect(page.getByRole('textbox', { name: 'Série 3 · Mínimo (%)', exact: true })).toHaveValue('85');
     await expect(page.getByRole('textbox', { name: 'Série 3 · Máximo (%)', exact: true })).toHaveValue('90');
     expect(await semRolagemDeLado(page)).toBe(true);
@@ -119,8 +119,8 @@ for (const largura of [390, 1280]) {
     const desenho = (await lixo.locator(':scope > div').first().boundingBox())!;
     expect([Math.round(desenho.width), Math.round(desenho.height)]).toEqual([40, 40]);
     await page.screenshot({ path: testInfo.outputPath('editor-clareza.png'), fullPage: true });
-    // Mover o grupo FS para baixo muda só a ordem das séries do exercício.
-    await page.getByRole('button', { name: 'Mover grupo de séries para baixo', exact: true }).first().click();
+    // Descer a série 1 (o grupo FS) muda só a ordem das séries do exercício.
+    await page.getByRole('button', { name: 'Descer série 1', exact: true }).click();
     await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();
     await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(1);
     const corpo = api.pedidos.filter((p) => p.metodo === 'PUT').at(-1)!.corpo as { conteudo: { sessoes: { exercicios: { nome: string; series: Serie[] }[] }[] } };

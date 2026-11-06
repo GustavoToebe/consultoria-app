@@ -29,7 +29,10 @@ interface Props<T extends string> {
    * invertida (fundo `texto`, texto `fundo`), como a opção ativa da `Escolha`; é a das séries do exercício.
    */
   variante?: 'sublinhado' | 'invertida';
-  /** Fica no fim da faixa, dentro da rolagem e fora da lista de abas (o "+ Nova série"). */
+  /**
+   * À direita da faixa, fora da rolagem e da lista de abas (o "+ Nova série"): sempre inteiro à vista, por mais abas que
+   * haja; só as abas rolam.
+   */
   depois?: ReactNode;
 }
 
@@ -82,7 +85,8 @@ export function Abas<T extends string>({ abas, ativa, aoMudar, fundo, variante =
   };
   return (
     <Tabs value={ativa} onValueChange={(v) => aoMudar(v as T)} style={invertida ? null : [estilos.borda, { borderColor: cores.borda }]}>
-      <View style={estilos.area}>
+      <View style={depois ? estilos.comDepois : null}>
+      <View style={[estilos.area, depois ? estilos.areaQueCede : null]}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={estilos.rolagem} contentContainerStyle={estilos.conteudoRolagem} {...medidasDaRolagem}>
         <TabsList style={[estilos.linha, invertida ? estilos.linhaInvertida : null]}>
           {abas.map((a) => {
@@ -119,10 +123,11 @@ export function Abas<T extends string>({ abas, ativa, aoMudar, fundo, variante =
             );
           })}
         </TabsList>
-        {depois}
       </ScrollView>
       {direita ? <Esmaecido cor={cor} lado="direita" /> : null}
       {esquerda ? <Esmaecido cor={cor} lado="esquerda" /> : null}
+      </View>
+      {depois ? <View style={estilos.depois}>{depois}</View> : null}
       </View>
     </Tabs>
   );
@@ -136,6 +141,9 @@ const PIXEL_DO_GATILHO = 1;
 const estilos = StyleSheet.create({
   borda: { borderBottomWidth: 1 },
   area: { position: 'relative' },
+  comDepois: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
+  areaQueCede: { flex: 1, minWidth: 0 },
+  depois: { flexShrink: 0 },
   linha: { flexDirection: 'row' },
   // A rolagem corta tudo que passa da sua caixa, e o anel de foco (2 px + 2 px de folga, global.css) passa da aba:
   // a folga dentro do conteúdo é devolvida com margem negativa, então o layout não muda.

@@ -1,10 +1,10 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { FileText, NotebookTabs } from 'lucide-react-native';
+import { FileText } from 'lucide-react-native';
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { baixarFotoDePerfilDoAluno, criarReceita, listarExercicios, salvarPlanoComoReceita } from '../../api/rotas';
-import type { Configuracao, ConteudoTreino, ExercicioPlano, Receita, ResultadoValidacao, Sessao } from '../../api/tipos';
+import { baixarFotoDePerfilDoAluno, listarExercicios } from '../../api/rotas';
+import type { ConteudoTreino, ExercicioPlano, Receita, ResultadoValidacao, Sessao } from '../../api/tipos';
 import { uidsComProblema } from '../../dominio/caminhos';
 import {
   alterarGrupoDaSessao,
@@ -19,20 +19,15 @@ import {
   type MudancaDoGrupo,
 } from '../../dominio/combinacoes';
 import {
-  aplicarReceitaDePlano,
   comModalidade,
-  comUidsNovos,
   mover,
   normalizarTreino,
   novaSessao,
   novoExercicio,
   sessaoSelecionadaDepois,
-  seriesDaReceita,
-  seriesParaReceita,
   substituir,
   trocaApagaSeries,
 } from '../../dominio/editorTreino';
-import { agrupar } from '../../dominio/agrupamento';
 import { textoDoResumo, trazerParaOEditor } from '../../dominio/importarTreinoDeTexto';
 import { proximaSelecao, resumoDaSessaoPorContagem, serieDoProblema } from '../../dominio/inspetorDoTreino';
 import { validarTreino } from '../../dominio/validacaoDoTreino';
@@ -41,11 +36,7 @@ import { BarraDoModeloDoEditor, NomeDoModelo } from '../../treinador/plano/TopoM
 import { BarraDoPlano, ProblemasDoPlano } from '../../treinador/plano/TopoPlano';
 import { TelaDoEditor } from '../plano/TelaDoEditor';
 import { ComColunas, useDuasColunas } from '../plano/ColunasDoEditor';
-import { avisoModeloSalvo, rotuloSalvarComo } from '../planejamento/modelos';
 import { usePlanoEditor } from '../../treinador/plano/usePlanoEditor';
-import { FolhaReceitas } from '../../treinador/FolhaReceitas';
-import { FolhaSalvarReceita } from '../../treinador/FolhaSalvarReceita';
-import { useAviso } from '../../ui/Aviso';
 import { CartaoExercicio } from '../../treinador/treino/CartaoExercicio';
 import { EditorDoGrupo, GrupoNaLista } from '../../treinador/treino/CartaoGrupo';
 import { novoUid } from '../../dominio/uid';
@@ -55,31 +46,28 @@ import { FolhaCriarGrupo } from '../../treinador/treino/FolhaCriarGrupo';
 import { FolhaImportarDeTexto } from '../../treinador/treino/FolhaImportarDeTexto';
 import { criarGrupoPronto, dicaDoGrupo, motivoSemGrupo, vizinhosQuePodemEntrar } from '../../treinador/treino/acoesDeGrupo';
 import { juntarProblemas, problemasDoExercicio, problemasDoGrupo } from '../../treinador/treino/problemasDaSessao';
-import { useTema } from '../../tema/TemaProvider';
-import { espaco, LARGURA_EDITOR, RAIO } from '../../tema/tokens';
+import { espaco, LARGURA_EDITOR } from '../../tema/tokens';
 import { nomeDaCombinacao } from '../../dominio/metodologia';
 import { descansoSoDoGrupo } from '../../dominio/textoDoGrupo';
 import { CONFIGURACAO_PADRAO } from '../../dominio/metodologiaPadrao';
-import { ConfiguracaoDoPlano } from '../plano/ConfiguracaoDoPlano';
 import { AtualizacaoDoPlano } from '../plano/AtualizacaoDoPlano';
 import { VoltarParaAPasta } from '../plano/VoltarParaAPasta';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
+import { useAviso } from '../../ui/Aviso';
+import { Botao } from '../../ui/Botao';
+import { ConfiguracaoDoTreino } from './ConfiguracaoDoTreino';
 import { ContadoresDoTreino } from './ContadoresDoTreino';
+import { FolhasDoTreino, type FolhaDoTreino } from './FolhasDoTreino';
 import { InspetorDoExercicio, type PropsDoInspetor } from './InspetorDoExercicio';
 import { ItemDaListaDeExercicios, ListaDeExercicios } from './ListaDeExercicios';
 import { FotoDePerfil } from '../../ui/FotoDePerfil';
 import { SeletorDeSessoes } from './SeletorDeSessoes';
-import { Folha } from '../../ui/Folha';
-import { Botao } from '../../ui/Botao';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Cabecalho } from '../../ui/Cabecalho';
-import { Campo } from '../../ui/Campo';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { useCarregar } from '../../ui/useCarregar';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
-import { coresDoDesabilitado } from '../../ui/desabilitado';
-import { Texto } from '../../ui/Texto';
 import { Tela } from '../../ui/Tela';
 import { tituloDoModelo, tituloDoPlanoDoAluno } from '../../dominio/planoDoAluno';
 import { CartaoCicloNoPeriodo } from '../ciclo/CicloNaFicha';
@@ -88,13 +76,7 @@ import { trilhaDoPlano } from '../plano/trilha';
 
 /** Exercício alvo da folha; `exercicio` nulo = um novo no fim da sessão, criado só quando se escolhe algo. `cardio` = o item é de cardio. */
 type Alvo = { sessao: number; exercicio: number | null; cardio?: boolean };
-type AlvoExistente = { sessao: number; exercicio: number };
-type FolhaAberta =
-  | { tipo: 'biblioteca'; alvo: Alvo }
-  | { tipo: 'receitaSeries'; alvo: AlvoExistente }
-  | { tipo: 'salvarSeries'; alvo: AlvoExistente }
-  | { tipo: 'receitaPlano' }
-  | { tipo: 'salvarPlano' } | { tipo: 'metodologia' } | { tipo: 'sessao' } | { tipo: 'salvarSessao'; indice: number } | { tipo: 'grupo' };
+type FolhaAberta = FolhaDoTreino | { tipo: 'biblioteca'; alvo: Alvo } | { tipo: 'grupo' };
 
 /** Troca de exercício da biblioteca que apagaria as séries (de ou para cardio): espera a confirmação. */
 interface TrocaPendente {
@@ -139,7 +121,6 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
   const [desfazer, setDesfazer] = useState<Desfazer<ConteudoTreino> | null>(null);
   // Uma sessão aparece por vez. Se o uid sumiu (desfazer, recarregar), vale a primeira.
   const [selecionadaUid, setSelecionadaUid] = useState<string | null>(null);
-  const [modelos, setModelos] = useState(false);
   // Miniatura da demonstração: vem da biblioteca, pelo vínculo `exercicioId`. Sem permissão ou sem internet, fica sem miniatura.
   const biblioteca = useCarregar('biblioteca-exercicios', () => listarExercicios());
   const demonstracoes = new Map((biblioteca.dados ?? []).map((x) => [x.id, { imagens: x.imagens, imagemPropriaEm: x.imagemPropriaEm, grupoMuscular: x.grupoMuscular }]));
@@ -285,6 +266,9 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
     aoAbrirGrupo: (uid) => abrirGrupo(e.uid, uid),
   });
 
+  // Fica visível com o plano vazio e no dia de treino (sem cabeçalho de sessões): é por onde o treino colado entra.
+  const botaoDeColar = <Botao rotulo="Colar treino (Docs / PDF)" tipo="secundario" Icone={FileText} aoTocar={() => setColando(true)} />;
+
   const titulo = modelo ? tituloDoModelo(unica ? 'SESSAO_TREINO' : 'PLANO_TREINO') : tituloDoPlanoDoAluno('treino', nomeDoAluno);
 
   return (
@@ -299,11 +283,26 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
           <AtualizacaoDoPlano alunoId={estado.plano.alunoId} pastaId={estado.plano.pastaId} />
         </LinhaDeAcoes>
       ) : null}
-      {modelo ? <FaixaDoModelo /> : <FaixaDoPlanoDoAluno tipo="treino" />}
-      {modelo ? null : <CartaoCicloNoPeriodo alunoId={estado.plano.alunoId} inicio={estado.plano.inicio} fim={estado.plano.fim} />}
-      {modelo ? <NomeDoModelo editor={editor} /> : null}
-      {unica ? null : <ContadoresDoTreino conteudo={c} sessao={sessaoAtual} aoIrAoPrimeiro={(uids, caminho) => { setVerificando(true); irAoPrimeiro(uids, caminho); }} />}
       <ProblemasDoPlano editor={editor} problemas={problemas ?? validacaoLocal} aoProblemas={fecharVerificacao} aoIrAoPrimeiro={irAoPrimeiro} />
+      {/* Contexto (de quem é o plano, o ciclo da aluna) junto; depois o plano; depois as sessões. */}
+      <View style={estilos.grupo}>
+        {modelo ? <FaixaDoModelo /> : <FaixaDoPlanoDoAluno tipo="treino" />}
+        {modelo ? null : <CartaoCicloNoPeriodo alunoId={estado.plano.alunoId} inicio={estado.plano.inicio} fim={estado.plano.fim} />}
+      </View>
+      {modelo ? <NomeDoModelo editor={editor} /> : null}
+      {unica ? null : <ConfiguracaoDoTreino editor={editor} modelo={modelo} aoTrocarMetodologia={() => setFolha({ tipo: 'metodologia' })} />}
+      {unica ? null : (
+        <View style={estilos.grupo}>
+          <ContadoresDoTreino conteudo={c} sessao={sessaoAtual} acao={botaoDeColar} aoIrAoPrimeiro={(uids, caminho) => { setVerificando(true); irAoPrimeiro(uids, caminho); }} />
+          <SeletorDeSessoes
+            sessoes={c.sessoes}
+            selecionada={sessaoAtual?.uid ?? null}
+            comProblema={sessoesComProblema}
+            aoSelecionar={setSelecionadaUid}
+            aoAdicionar={adicionarSessao}
+          />
+        </View>
+      )}
       {desfazer ? (
         <BarraDesfazer
           desfazer={desfazer}
@@ -315,49 +314,10 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
           aoFechar={() => setDesfazer(null)}
         />
       ) : null}
-      {unica ? null :       <ConfiguracaoDoPlano
-        editor={editor}
-        modelo={modelo}
-        recolhido={c.sessoes.length > 0 && estado.titulo.trim() !== ''}
-        descricao="Título, período, metodologia e orientações gerais do plano.">
-        <View style={estilos.metodologia}>
-          <Texto style={estilos.metodologiaTexto}>{c.metodologia ? `Metodologia: ${c.metodologia.nome}` : 'Metodologia: nenhuma vinculada'}</Texto>
-          <Botao rotulo={c.metodologia ? 'Trocar' : 'Vincular'} tipo="secundario" aoTocar={() => setFolha({ tipo: 'metodologia' })} />
-        </View>
-        <Texto variante="suave">Uma cópia das regras acompanha este treino. Vincular outra metodologia orienta as novas séries; as séries existentes continuam editáveis.</Texto>
-        <Campo
-          rotulo="Objetivo (opcional)"
-          valor={c.objetivo ?? ''}
-          aoMudar={(t) => editor.alterarConteudo((a) => ({ ...a, objetivo: t || null }))}
-          maxLength={200}
-        />
-        <Campo
-          rotulo="Orientações gerais (opcional)"
-          valor={c.orientacoes ?? ''}
-          aoMudar={(t) => editor.alterarConteudo((a) => ({ ...a, orientacoes: t || null }))}
-          linhas={4}
-          maxLength={8000}
-        />
-      </ConfiguracaoDoPlano>}
-      <View style={estilos.cabecalhoSessoes}>
-        {unica ? <View /> : <Texto variante="bloco" nivel={2}>Sessões ({c.sessoes.length})</Texto>}
-        <View style={estilos.botoesDasSessoes}>
-          {unica ? null : <Botao rotulo="Modelos" tipo="secundario" Icone={NotebookTabs} aoTocar={() => setModelos(true)} />}
-          <Botao rotulo="Colar treino (Docs / PDF)" tipo="secundario" Icone={FileText} aoTocar={() => setColando(true)} />
-        </View>
-      </View>
-      {unica ? null : (
-        <SeletorDeSessoes
-          sessoes={c.sessoes}
-          selecionada={sessaoAtual?.uid ?? null}
-          config={config}
-          comProblema={sessoesComProblema}
-          aoSelecionar={setSelecionadaUid}
-          aoAdicionar={adicionarSessao}
-        />
-      )}
+      {unica ? <LinhaDeAcoes>{botaoDeColar}</LinhaDeAcoes> : null}
       {c.sessoes.length === 0 ? (
-        <Vazio texto="O plano ainda não tem sessões. Adicione uma ou comece de uma semana de treino pronta (botão Modelos)." />
+        <Vazio texto="O plano ainda não tem sessões. Adicione uma ou comece de uma semana de treino pronta."
+          acao={unica ? undefined : { rotulo: 'Modelos prontos', aoTocar: () => setFolha({ tipo: 'modelos' }) }} />
       ) : null}
       {sessaoAtual ? <ComColunas>{(duas) => {
         // Com um grupo de exercícios escolhido, nenhum exercício fica realçado e o inspetor mostra o grupo.
@@ -414,7 +374,7 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
         const adicionar = {
           aoNovoExercicio: () => adicionarExercicio(indiceSelecionado),
           aoNovoCardio: () => adicionarExercicio(indiceSelecionado, true),
-          aoAbrirModelos: unica ? undefined : () => setModelos(true),
+          aoAbrirModelos: unica ? undefined : () => setFolha({ tipo: 'modelos' }),
           aoCriarGrupo: () => setFolha({ tipo: 'grupo' }),
           motivoSemGrupo: motivoSemGrupo(sessaoAtual, config),
         };
@@ -452,30 +412,8 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
         );
       }}</ComColunas> : null}
 
-      {modelos ? (
-        <Folha visivel titulo="Modelos" aoFechar={() => setModelos(false)}>
-          <OpcaoDeModelo
-            titulo="Usar semana de treino"
-            descricao="Troca as sessões do plano pelas da semana escolhida (objetivo e orientações ficam). Dá para desfazer."
-            desabilitado={unica}
-            aoEscolher={() => { setModelos(false); setFolha({ tipo: 'receitaPlano' }); }}
-          />
-          <OpcaoDeModelo
-            titulo="Adicionar dia de treino"
-            descricao="Acrescenta ao plano as sessões de um dia de treino pronto."
-            desabilitado={unica}
-            aoEscolher={() => { setModelos(false); setFolha({ tipo: 'sessao' }); }}
-          />
-          {!modelo && c.sessoes.length ? (
-            <OpcaoDeModelo
-              titulo={rotuloSalvarComo('PLANO_TREINO')}
-              descricao="Guarda as sessões, os exercícios e as séries deste rascunho para reutilizar. O plano continua igual."
-              aoEscolher={() => { setModelos(false); setFolha({ tipo: 'salvarPlano' }); }}
-            />
-          ) : null}
-        </Folha>
-      ) : null}
-
+      <FolhasDoTreino folha={folha} abrir={setFolha} fechar={() => setFolha(null)} conteudo={c} config={config} modelo={modelo} unica={unica}
+        planoId={id} salvar={editor.salvar} comDesfazer={comDesfazer} abrirGrupo={abrirGrupo} />
       {colando ? (
         <FolhaImportarDeTexto
           conteudo={c}
@@ -498,16 +436,6 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
           }}
         />
       ) : null}
-      {folha?.tipo === 'metodologia' ? <FolhaReceitas tipo="METODOLOGIA" titulo="Vincular metodologia" aoFechar={() => setFolha(null)} aoUsar={(r) => {
-        setFolha(null); comDesfazer('Metodologia vinculada.', (a) => ({ ...a, metodologia: { id: r.id, nome: r.nome, configuracao: JSON.parse(JSON.stringify(r.conteudo)) as Configuracao } }));
-      }} /> : null}
-      {folha?.tipo === 'sessao' ? <FolhaReceitas tipo="SESSAO_TREINO" titulo="Adicionar dia de treino" aoFechar={() => setFolha(null)} aoUsar={(r) => {
-        setFolha(null); comDesfazer('Dia de treino adicionado.', (a) => ({ ...a, sessoes: [...a.sessoes, ...comUidsNovos(normalizarTreino(r.conteudo)).sessoes] }));
-      }} /> : null}
-      {folha?.tipo === 'salvarSessao' ? <FolhaSalvarReceita titulo={rotuloSalvarComo('SESSAO_TREINO')} aoFechar={() => setFolha(null)} aoSalvar={async (nome, descricao) => {
-        await criarReceita({ tipo: 'SESSAO_TREINO', nome, descricao, conteudo: { ...c, sessoes: [c.sessoes[folha.indice]] } });
-        setFolha(null); avisar(avisoModeloSalvo('SESSAO_TREINO'), 'sucesso');
-      }} /> : null}
       <FolhaBiblioteca
         visivel={folha?.tipo === 'biblioteca'}
         multiplo={folha?.tipo === 'biblioteca' && folha.alvo.exercicio === null}
@@ -577,69 +505,6 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
           }}
         />
       ) : null}
-      {folha?.tipo === 'receitaSeries' ? (
-        <FolhaReceitas
-          tipo="SERIES"
-          titulo="Usar receita de séries"
-          explicacao="Escolha a receita pela sequência de séries. Ao aplicar, dá para desfazer logo depois."
-          config={config}
-          aoFechar={() => setFolha(null)}
-          aoUsar={(r) => {
-            const { sessao: si, exercicio: ei } = folha.alvo;
-            setFolha(null);
-            // Gerada uma vez, fora do `comDesfazer`, para a aba aberta (a do último grupo, D12) apontar para estas séries.
-            const series = seriesDaReceita(r.conteudo);
-            const alvo = c.sessoes[si]?.exercicios[ei];
-            if (alvo) abrirGrupo(alvo.uid, agrupar(series).at(-1)?.series[0].uid ?? null);
-            comDesfazer(`Receita “${r.nome}” aplicada.`, (a) => {
-              const sessao = a.sessoes[si];
-              const exercicio = sessao?.exercicios[ei];
-              if (!exercicio) return a;
-              const novo = { ...exercicio, series };
-              return { ...a, sessoes: substituir(a.sessoes, si, { ...sessao, exercicios: substituir(sessao.exercicios, ei, novo) }) };
-            });
-          }}
-        />
-      ) : null}
-      {folha?.tipo === 'receitaPlano' ? (
-        <FolhaReceitas
-          tipo="PLANO_TREINO"
-          titulo="Usar semana de treino"
-          explicacao="As sessões do plano são trocadas pelas da semana escolhida (o objetivo e as orientações ficam). Dá para desfazer logo depois."
-          aoFechar={() => setFolha(null)}
-          aoUsar={(r) => {
-            setFolha(null);
-            comDesfazer(`Semana “${r.nome}” aplicada.`, (a) => aplicarReceitaDePlano(a, r.conteudo));
-          }}
-        />
-      ) : null}
-      {folha?.tipo === 'salvarSeries' ? (
-        <FolhaSalvarReceita
-          titulo={rotuloSalvarComo('SERIES')}
-          explicacao="Guarda a estrutura das séries deste exercício (tipos, repetições, carga, esforço e técnica) para usar em outros exercícios e planos."
-          aoFechar={() => setFolha(null)}
-          aoSalvar={async (nome, descricao) => {
-            const exercicio = c.sessoes[folha.alvo.sessao]?.exercicios[folha.alvo.exercicio];
-            if (!exercicio) return;
-            await criarReceita({ tipo: 'SERIES', nome, descricao, conteudo: seriesParaReceita(exercicio.series) });
-            setFolha(null);
-            avisar(avisoModeloSalvo('SERIES'), 'sucesso');
-          }}
-        />
-      ) : null}
-      {folha?.tipo === 'salvarPlano' && id ? (
-        <FolhaSalvarReceita
-          titulo={rotuloSalvarComo('PLANO_TREINO')}
-          explicacao="Guarda as sessões, os exercícios e as séries do rascunho como semana de treino no Planejamento. O plano continua igual."
-          aoFechar={() => setFolha(null)}
-          aoSalvar={async (nome, descricao) => {
-            if (!(await editor.salvar())) throw new Error('Não deu para salvar o rascunho antes.');
-            await salvarPlanoComoReceita('treino', id, nome, descricao);
-            setFolha(null);
-            avisar(avisoModeloSalvo('PLANO_TREINO'), 'sucesso');
-          }}
-        />
-      ) : null}
     </TelaDoEditor>
   );
 }
@@ -654,30 +519,8 @@ function FotoNaBarra({ alunoId, nome }: { alunoId: string; nome: string | null }
   return <FotoDePerfil chave={`perfil:${alunoId}`} carregar={() => baixarFotoDePerfilDoAluno(alunoId)} nome={nome} tamanho={32} />;
 }
 
-/** Linha de ação da folha "Modelos": título, o que faz e um toque para escolher. */
-function OpcaoDeModelo({ titulo, descricao, desabilitado, aoEscolher }: { titulo: string; descricao: string; desabilitado?: boolean; aoEscolher: () => void }) {
-  const { cores } = useTema();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={titulo}
-      disabled={desabilitado}
-      onPress={aoEscolher}
-      style={({ pressed }) => [
-        estilos.opcaoModelo,
-        { backgroundColor: desabilitado ? coresDoDesabilitado(cores).fundo : pressed ? cores.superficie3 : cores.superficie2, borderColor: cores.borda },
-      ]}>
-      <Texto variante="bloco" cor={desabilitado ? cores.textoSuave : undefined}>{titulo}</Texto>
-      <Texto variante="suave">{descricao}</Texto>
-    </Pressable>
-  );
-}
-
 const estilos = StyleSheet.create({
   colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(2) },
-  cabecalhoSessoes: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
-  botoesDasSessoes: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1) },
-  metodologia: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
-  metodologiaTexto: { flexShrink: 1 },
-  opcaoModelo: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: 4, minHeight: 56 },
+  // Partes que andam juntas ficam mais perto entre si que dos outros blocos da tela (24).
+  grupo: { gap: espaco(1.5) },
 });

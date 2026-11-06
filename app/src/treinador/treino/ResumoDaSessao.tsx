@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import type { ResumoDaSessaoPorContagem } from '../../dominio/inspetorDoTreino';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../../tema/tokens';
+import { Divisor } from '../../ui/Divisor';
 import { Texto } from '../../ui/Texto';
 
 /**
@@ -18,12 +19,12 @@ export function ResumoDaSessao({ resumo }: { resumo: ResumoDaSessaoPorContagem }
       <Linha rotulo="Exercícios" valor={resumo.exercicios} />
       <Linha rotulo="Séries" valor={resumo.series} />
       <Linha rotulo="Séries de trabalho" valor={resumo.seriesDeTrabalho} />
-      <View style={[estilos.divisor, { backgroundColor: cores.borda }]} />
+      <Divisor style={estilos.divisor} />
       <Texto variante="rotulo">Séries por tipo</Texto>
       {resumo.porTipo.length
         ? resumo.porTipo.map((t) => <Linha key={t.codigo} rotulo={t.nome || t.codigo} valor={t.quantidade} />)
         : <Texto variante="suave">—</Texto>}
-      <View style={[estilos.divisor, { backgroundColor: cores.borda }]} />
+      <Divisor style={estilos.divisor} />
       <Texto variante="rotulo">Séries de trabalho por grupo muscular</Texto>
       {resumo.porGrupoMuscular.length
         ? resumo.porGrupoMuscular.map((g) => <Linha key={g.grupo} rotulo={g.grupo} valor={g.seriesDeTrabalho} />)
@@ -46,5 +47,5 @@ const estilos = StyleSheet.create({
   linha: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: espaco(1) },
   rotulo: { flexShrink: 1 },
   valor: { fontFamily: fontes.semi },
-  divisor: { height: StyleSheet.hairlineWidth, marginVertical: espaco(0.5) },
+  divisor: { marginVertical: espaco(0.5) },
 });

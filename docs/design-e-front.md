@@ -159,7 +159,9 @@ fundo da página (quase branco: #F7F7F8)
 - Seleção (chips, escolhas) é **invertida**: fundo escuro e letra clara, nunca a cor da marca.
 - Larguras:
   - formulário: 640;
-  - editor: 1040;
+  - editor: 1040 (em coluna única);
+  - editor em lista + inspetor (treino, dieta, mobilidade, a partir de 960 px de conteúdo): até 1800, como as
+    listas, com a "Configuração do plano" segurando os campos em 1040 (Gustavo, 04/11);
   - lista e painel: até 1800;
   - aluno: 720.
 - Pontos de quebra: abaixo de 768 px é celular (barra inferior); de 768 a 1023, menu lateral em trilho, com o

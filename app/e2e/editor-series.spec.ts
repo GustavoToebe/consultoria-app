@@ -35,8 +35,9 @@ for (const largura of [390, 1280]) {
     await expect(campo('Série 2 · Mínimo (%)')).toHaveValue('70');
     await expect(campo('Série 3 · Mínimo (%)')).toHaveValue('85');
     await expect(campo('Série 3 · Máximo (%)')).toHaveValue('90');
-    // "Para o aluno" numa linha só, com os números do grupo.
-    await expect(page.getByText(/3×3 a 5 · FS · 50% · 70% · 85% a 90% da WS/)).toBeVisible();
+    // O título do grupo aberto diz o que se edita (o tipo como o treinador lê); "Para o aluno" numa linha só, com os números.
+    await expect(page.getByText('Editando: Série 1 · Preparação · FS', { exact: true })).toBeVisible();
+    await expect(page.getByText(/3×3 a 5 · FS · 50% · 70% · 85% a 90% da WS/).first()).toBeVisible();
     await novaSerie(page, 'Adicionar WS');
     // A técnica não é um tipo: a série é WS e o rest pause vai dentro dela.
     await page.getByRole('button', { name: 'Nova série', exact: true }).click();
@@ -45,7 +46,8 @@ for (const largura of [390, 1280]) {
     // Três grupos, três abas; a nova (a 3ª, WS com Rest pause) é a aberta.
     await expect(page.getByRole('tab', { name: /^Série \d/ })).toHaveCount(3);
     await expect(page.getByRole('tab', { name: /^Série 3 · WS/, selected: true })).toBeVisible();
-    await expect(page.getByText(/1×3 a 6 · WS \+ Rest pause/)).toBeVisible();
+    await expect(page.getByText(/^Editando: Série \d · Trabalho · WS \+ Rest pause$/)).toBeVisible();
+    await expect(page.getByText(/1×3 a 6 · WS \+ Rest pause/).first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'Técnica da série: Rest pause. Escolher.', exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     // O "mín" e o "máx" ficam dentro da caixa do número: com três dígitos o texto não passa da área dele (não é cortado).

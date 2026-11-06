@@ -1,15 +1,13 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { NotebookTabs } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
 
 import { salvarPlanoComoReceita } from '../../api/rotas';
 import type { ResultadoValidacao } from '../../api/tipos';
 import { aplicarModeloDeMobilidade, type ConteudoMobilidade, normalizarMobilidade } from '../../dominio/mobilidade';
 import { tituloDoPlanoDoAluno } from '../../dominio/planoDoAluno';
 import { useSessao } from '../../sessao/SessaoProvider';
-import { useTema } from '../../tema/TemaProvider';
-import { espaco, LARGURA_EDITOR, RAIO } from '../../tema/tokens';
+import { LARGURA_EDITOR } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
@@ -19,15 +17,16 @@ import { textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Tela } from '../../ui/Tela';
-import { Texto } from '../../ui/Texto';
 import { FolhaReceitas } from '../FolhaReceitas';
 import { FolhaSalvarReceita } from '../FolhaSalvarReceita';
 import { avisoModeloSalvo, rotuloSalvarComo } from '../planejamento/modelos';
 import { AtualizacaoDoPlano } from '../plano/AtualizacaoDoPlano';
 import { BarraDesfazer, type Desfazer } from '../plano/BarraDesfazer';
 import { ConfiguracaoDoPlano } from '../plano/ConfiguracaoDoPlano';
+import { OpcaoDeModelo } from '../plano/OpcaoDeModelo';
 import { VoltarParaAPasta } from '../plano/VoltarParaAPasta';
 import { BarraDoPlano, ProblemasDoPlano } from '../plano/TopoPlano';
+import { ComColunas } from '../plano/ColunasDoEditor';
 import { TelaDoEditor } from '../plano/TelaDoEditor';
 import { FaixaDoPlanoDoAluno, useNomeDoAluno } from '../plano/FaixaDoPlano';
 import { trilhaDoPlano } from '../plano/trilha';
@@ -38,7 +37,7 @@ import { SecoesDeMobilidade } from './SecoesDeMobilidade';
  * Editor do plano de mobilidade do aluno: mesmo ciclo do treino e da dieta (salvar rascunho, validar, publicar
  * versão imutável, PDF do rascunho ou da versão publicada pela `BarraDoPlano`), com as seções e itens do modelo de
  * mobilidade. "Modelos" (como no treino e na dieta) usa um modelo de mobilidade no rascunho, com "Desfazer", ou guarda o
- * rascunho como modelo no Planejamento.
+ * rascunho como modelo no Planejamento. Não há "Ver como o aluno" na mobilidade.
  */
 export default function EditorDeMobilidade() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -79,9 +78,11 @@ export default function EditorDeMobilidade() {
           <AtualizacaoDoPlano alunoId={estado.plano.alunoId} pastaId={estado.plano.pastaId} />
         </LinhaDeAcoes>
       ) : null}
-      <FaixaDoPlanoDoAluno tipo="mobilidade" />
+      {/* A mesma ordem do treino e da dieta: pasta, problemas, de quem é o plano, o plano. */}
       <ProblemasDoPlano editor={editor} problemas={problemas} aoProblemas={setProblemas}
         aoIrAoPrimeiro={(uids) => setIrPara((p) => ({ uids, vez: (p?.vez ?? 0) + 1 }))} />
+      <FaixaDoPlanoDoAluno tipo="mobilidade" />
+      {/* O modelo aplicado troca as seções inteiras: o Desfazer fica logo acima delas. */}
       {desfazer ? (
         <BarraDesfazer
           desfazer={desfazer}
@@ -93,9 +94,12 @@ export default function EditorDeMobilidade() {
           aoFechar={() => setDesfazer(null)}
         />
       ) : null}
-      <ConfiguracaoDoPlano editor={editor} recolhido={estado.titulo.trim() !== ''} descricao="Título e período da mobilidade." />
       <SecoesDeMobilidade conteudo={estado.conteudo} aoMudar={(c) => editor.alterarConteudo(() => c)} irPara={irPara}
-        acoes={escritaLiberada ? <Botao rotulo="Modelos" tipo="secundario" Icone={NotebookTabs} aoTocar={() => setModelos(true)} /> : null} />
+        acoes={escritaLiberada ? <Botao rotulo="Modelos" tipo="secundario" Icone={NotebookTabs} aoTocar={() => setModelos(true)} /> : null}
+        aoLado={<ComColunas>{(duas) => (
+          // Em duas colunas a configuração divide a linha com as Orientações: aberta não custa altura, então começa aberta.
+          <ConfiguracaoDoPlano editor={editor} recolhido={!duas && estado.titulo.trim() !== ''} descricao="Título e período da mobilidade." />
+        )}</ComColunas>} />
 
       {modelos ? (
         <Folha visivel titulo="Modelos" aoFechar={() => setModelos(false)}>
@@ -140,22 +144,3 @@ export default function EditorDeMobilidade() {
     </TelaDoEditor>
   );
 }
-
-/** Linha de ação da folha "Modelos": título, o que faz e um toque para escolher (a mesma do treino e da dieta). */
-function OpcaoDeModelo({ titulo, descricao, aoEscolher }: { titulo: string; descricao: string; aoEscolher: () => void }) {
-  const { cores } = useTema();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={titulo}
-      onPress={aoEscolher}
-      style={({ pressed }) => [estilos.opcaoModelo, { backgroundColor: pressed ? cores.superficie3 : cores.superficie2, borderColor: cores.borda }]}>
-      <Texto variante="bloco">{titulo}</Texto>
-      <Texto variante="suave">{descricao}</Texto>
-    </Pressable>
-  );
-}
-
-const estilos = StyleSheet.create({
-  opcaoModelo: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: 4, minHeight: 56 },
-});

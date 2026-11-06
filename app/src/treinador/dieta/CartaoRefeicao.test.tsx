@@ -51,7 +51,7 @@ function montar(r: Refeicao): Arvore {
   Renderer.act(() => {
     arvore = Renderer.create(
       <CartaoRefeicao refeicao={r} posicao={0} total={1} aberta comProblema={new Set()} alimentos={new Map()}
-        aoMudar={() => undefined} aoMover={() => undefined} aoRemover={() => undefined} aoEscolherAlimento={() => undefined} />,
+        aoMudar={() => undefined} aoRemoverOpcao={() => undefined} aoMover={() => undefined} aoRemover={() => undefined} aoEscolherAlimento={() => undefined} />,
     );
   });
   return arvore as Arvore;
