@@ -61,7 +61,7 @@ for (const largura of [1280, 1440, 1920]) {
   });
 }
 
-// Largura (04/11): em 1920 o inspetor divide em dados | séries; a Observação da sessão vai ao lado do Nome em 1440 e 1920.
+// Largura (04/11): a Observação da sessão vai ao lado do Nome em 1440 e 1920.
 for (const largura of [1280, 1440, 1920]) {
   test(`largura do treino: sessão e inspetor (${largura}px)`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 1000 });
@@ -74,10 +74,8 @@ for (const largura of [1280, 1440, 1920]) {
     else expect(observacao.y).toBeGreaterThan(nome.y + nome.height);
     const exibicao = (await page.getByRole('textbox', { name: 'Nome de exibição' }).boundingBox())!;
     const series = await caixa(/^Editando: Série 1/);
-    if (largura === 1920) {
-      expect(series.x).toBeGreaterThan(exibicao.x + exibicao.width);
-      expect(exibicao.width).toBeLessThanOrEqual(400);
-    } else expect(series.y).toBeGreaterThan(exibicao.y + exibicao.height);
+    // Uma coluna só em qualquer largura: as séries ficam abaixo dos dados do exercício, sem coluna vazia ao lado.
+    expect(series.y).toBeGreaterThan(exibicao.y + exibicao.height);
   });
 }
 

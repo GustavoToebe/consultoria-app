@@ -1,6 +1,6 @@
 import { ArrowDown, ArrowLeftRight, ArrowUp, ChevronDown, ChevronUp, NotebookTabs, Save, Trash2, Unlink } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, useWindowDimensions, View, type LayoutChangeEvent } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import type { Configuracao, ExercicioPlano } from '../../api/tipos';
 import { descreverSeries } from '../../dominio/agrupamento';
@@ -79,13 +79,8 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
   const extrasComErro = !!(erroDoVideo(e.videoUrl) ?? erros.videoUrl ?? erroDaCadencia(e.cadencia) ?? erros.cadencia ?? erroDaIsometria(e.isometriaSegundos) ?? erros.isometriaSegundos);
   const extrasPreenchidos = !!(e.observacao || e.videoUrl || e.cadencia || e.isometriaSegundos != null);
   const extrasAbertos = extrasComErro || (escolhaDosExtras ?? extrasPreenchidos);
-  // Corpo largo (o inspetor em 1920): dados numa coluna estreita à esquerda e as séries no resto, em vez de tudo esticado.
-  const [largura, setLargura] = useState<number | null>(ultimaLarguraDoCorpo);
-  const dividido = largura !== null && largura >= CORPO_DIVIDIDO;
-  const medir = (ev: LayoutChangeEvent) => { ultimaLarguraDoCorpo = ev.nativeEvent.layout.width; setLargura(ultimaLarguraDoCorpo); };
   const foraDaBiblioteca = e.exercicioId === null && !!e.nome;
 
-  // As partes do exercício aberto, montadas uma vez para as duas disposições (uma coluna, ou dados | séries).
   const dados = <>
     {/* Linha de contexto (04/11, C08): nome de exibição e, ao lado, o acordeão do que é opcional; logo abaixo, as séries. */}
     <View style={estilos.contexto}>
@@ -209,40 +204,18 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
         </View>
       </View>
       {p.aberto ? (
-        <View style={estilos.corpo} onLayout={medir}>
-          {dividido ? (
-            <View style={estilos.divididas}>
-              <View style={estilos.colunaDosDados}>{dados}</View>
-              <View aria-hidden style={[estilos.fio, { backgroundColor: cores.divisor }]} />
-              <View style={estilos.colunaDasSeries}>{series}{salvarReceita}</View>
-            </View>
-          ) : <>{dados}<Divisor style={estilos.divisor} />{series}{salvarReceita}</>}
+        <View style={estilos.corpo}>
+          {dados}
+          <Divisor style={estilos.divisor} />
+          {series}
+          {salvarReceita}
         </View>
       ) : null}
     </AlvoDeRolagem>
   );
 }
 
-/** Largura da coluna dos dados quando o corpo se divide (cabe o nome de exibição, o acordeão e a cadência com a isometria). */
-const COLUNA_DOS_DADOS = 400;
-/**
- * A partir desta largura do corpo do exercício aberto, dados | séries: a coluna dos dados, o vão com o fio e ao menos
- * 640 para as séries (Tipo e Técnica lado a lado e Séries × Repetições × Descanso numa linha). Na prática, só o inspetor
- * das janelas bem largas (1920); 1440, 1280 e o empilhado seguem numa coluna.
- */
-const CORPO_DIVIDIDO = COLUNA_DOS_DADOS + 2 * 12 + 1 + 640 + 2 * 12;
-/**
- * Última largura medida do corpo: todos os inspetores têm a mesma, e o cartão remonta ao trocar de exercício (sem piscar).
- * shortcut: na 1ª abertura vale uma coluna por um quadro; se piscar, medir mais acima, como o `EditorSeries`.
- */
-let ultimaLarguraDoCorpo: number | null = null;
-
 const estilos = StyleSheet.create({
-  // Dados | fio | séries; o fio vai de cima a baixo, as colunas começam no topo.
-  divididas: { flexDirection: 'row', alignItems: 'stretch', gap: espaco(1.5) },
-  colunaDosDados: { width: COLUNA_DOS_DADOS, flexShrink: 0, gap: espaco(1.5) },
-  colunaDasSeries: { flex: 1, minWidth: 0, gap: espaco(1.5) },
-  fio: { width: 1 },
   cartao: { borderWidth: BORDA_BLOCO, borderRadius: RAIO, overflow: 'hidden' },
   topo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1), paddingHorizontal: espaco(1.5), paddingVertical: espaco(1.25) },
   linhaDoNome: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1) },
@@ -255,7 +228,7 @@ const estilos = StyleSheet.create({
   acoesLargas: { flexWrap: 'wrap', justifyContent: 'flex-end' },
   // Nome e o acordeão numa linha no inspetor do PC; no estreito o botão desce para baixo do campo.
   contexto: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', columnGap: espaco(2), rowGap: espaco(0.5) },
-  nomeDeExibicao: { flexGrow: 1, flexShrink: 1, flexBasis: 280, minWidth: 0 },
+  nomeDeExibicao: { flexGrow: 1, flexShrink: 1, flexBasis: 280, maxWidth: 560, minWidth: 0 },
   extras: { gap: espaco(1.5), paddingLeft: espaco(1.5), borderLeftWidth: 2 },
   tituloDasSeries: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
   corpo: { gap: espaco(1.5), padding: espaco(1.5), paddingTop: espaco(2) },
