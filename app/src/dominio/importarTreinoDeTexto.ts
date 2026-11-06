@@ -618,12 +618,15 @@ export function lerTreinoDeTexto(
       if (cardio) {
         const r = comecarExercicio(cardio.nome, true);
         if (r) {
-          // "Cardio 50 min ou HIIT de 25 min": duas opções, nenhuma escolhida por nós; a frase inteira vai na observação.
-          const alternativas = cardio.frase !== null;
+          // "Cardio 50 min ou HIIT de 25 min": usa a primeira opção (50 min); a frase inteira vai na observação e a prévia avisa.
           r.item.plano.series = [novaSerieDeCardio({
-            duracaoMin: alternativas ? null : cardio.minutos, distanciaKm: alternativas ? null : cardio.km, ritmo: alternativas ? null : cardio.ritmo, zona: null, intervalos: null,
+            duracaoMin: cardio.minutos, distanciaKm: cardio.km, ritmo: cardio.ritmo, zona: null, intervalos: null,
           })];
-          if (cardio.frase) anexarObservacao(r, cardio.frase);
+          if (cardio.frase) {
+            anexarObservacao(r, cardio.frase);
+            if (cardio.minutos !== null) dizer(`“${r.item.plano.nome}”: o texto traz mais de uma opção; usei o primeiro tempo (${cardio.minutos} min) e a frase inteira ficou na observação. Confira.`);
+            else if (cardio.km !== null) dizer(`“${r.item.plano.nome}”: o texto traz mais de uma opção; usei a primeira distância (${String(cardio.km).replace('.', ',')} km) e a frase inteira ficou na observação. Confira.`);
+          }
         }
         continue;
       }
@@ -774,7 +777,7 @@ export function lerTreinoDeTexto(
 
 // ---- Cardio ----
 
-/** `frase`: o texto trazia duas opções ("50 min ou HIIT de 25 min"); a frase inteira vai para a observação e nada é escolhido. */
+/** `frase`: o texto trazia duas opções ("50 min ou HIIT de 25 min"); `minutos`/`km` trazem só a primeira medida e a frase inteira vai para a observação. */
 interface CardioLido { nome: string; minutos: number | null; km: number | null; ritmo: string | null; frase: string | null }
 
 function lerCardio(linha: string, plain: string, indice: Entrada[]): CardioLido | null {
@@ -792,13 +795,15 @@ function lerCardio(linha: string, plain: string, indice: Entrada[]): CardioLido 
   const resto = semMarcadores(linha.slice(fimDoUltimo));
   const depois = plain.slice(fimDoPrimeiro);
   const comAlternativa = /^\s*(?:ou|\/)\s*\S/.test(depois) && (acharTempos(depois).length > 0 || /\bkm\b|\bhiit\b/.test(depois));
-  const minutos = min ? Number(min[1]) : null;
-  const kmNumero = km ? Number(km[1].replace(',', '.')) : null;
+  // Com alternativas só vale a PRIMEIRA medida da linha (tempo ou distância); a outra fica só na frase da observação.
+  const primeiraEKm = comAlternativa && !!km && (!min || km.index < min.index);
+  const minutos = min && !(comAlternativa && primeiraEKm) ? Number(min[1]) : null;
+  const kmNumero = km && !(comAlternativa && !primeiraEKm) ? Number(km[1].replace(',', '.')) : null;
   return {
     nome,
     minutos: minutos !== null && minutos >= 1 && minutos <= 600 ? minutos : null,
     km: kmNumero !== null && kmNumero > 0 && kmNumero <= 1000 ? kmNumero : null,
-    ritmo: resto && resto.length <= 40 ? resto : null,
+    ritmo: comAlternativa ? null : resto && resto.length <= 40 ? resto : null,
     frase: comAlternativa ? semMarcadores(linha) : null,
   };
 }

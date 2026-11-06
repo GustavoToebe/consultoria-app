@@ -133,6 +133,7 @@ test('tabela de PDF colada: nome quebrado, tipo na linha de baixo, faixa do back
   await expect(page.getByTestId('resumo-do-texto')).toContainText('2 divisões · 2 exercícios · 8 séries prontas');
   await expect(page.getByTestId('exercicio-lido').first()).toContainText('Remada fictícia na polia unilateral');
   await expect(page.getByText('o texto traz vários percentuais de back off (80%, 85% ou 90%). Gravei a faixa de 80% a 90%; confira.', { exact: false })).toBeVisible();
+  await expect(page.getByText('usei o primeiro tempo (50 min)', { exact: false })).toBeVisible();
 
   await page.getByRole('button', { name: 'Trazer para o editor', exact: true }).click();
   await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();
@@ -145,6 +146,7 @@ test('tabela de PDF colada: nome quebrado, tipo na linha de baixo, faixa do back
     { modo: 'PERCENTUAL_WS', percentualMin: 80, percentualMax: 90 }, { modo: 'PERCENTUAL_WS', percentualMin: 80, percentualMax: 90 },
   ]);
   expect(domingo.exercicios[0]).toMatchObject({ nome: 'Cardio', observacao: 'Cardio 50 min ou HIIT de 25 min' });
+  expect(domingo.exercicios[0].series[0].cardio).toMatchObject({ duracaoMin: 50, distanciaKm: null });
   expect(api.errosDaPagina).toEqual([]);
   expect(api.naoTratadas).toEqual([]);
 });

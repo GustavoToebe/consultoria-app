@@ -531,7 +531,8 @@ describe('tabela de PDF colada: o plano fictício todo', () => {
     expect(leitura.resumo.divisoes).toBe(7);
     expect(leitura.resumo.exercicios).toBe(24);
     expect(leitura.resumo.semSeries).toBe(0);
-    expect(leitura.avisos).toEqual([]);
+    // Único aviso do texto real: o cardio com duas opções usou o primeiro tempo (o mesmo texto nos dois dias, um aviso só).
+    expect(leitura.avisos).toEqual([expect.stringContaining('usei o primeiro tempo (50 min)')]);
   });
 
   test('1. nome quebrado em várias linhas vira um exercício só, com as séries', () => {
@@ -573,12 +574,13 @@ describe('tabela de PDF colada: o plano fictício todo', () => {
     expect(nomesTodos.some((n) => /CONSULTORIA|Aluno|Instru|Nota|Objetivo|Rest Pause|Feeder|Top set|Dias? |BPM|Acess/i.test(n))).toBe(false);
   });
 
-  test('5. "Cardio 50 min ou HIIT de 25 min" guarda a frase inteira, sem escolher uma das duas', () => {
+  test('5. "Cardio 50 min ou HIIT de 25 min" usa o primeiro tempo (50 min), guarda a frase inteira e avisa', () => {
     for (const dia of [3, 6]) {
       const [cardio] = leitura.sessoes[dia].exercicios;
       expect(cardio).toMatchObject({ nome: 'Cardio', modalidade: 'CARDIO', observacao: 'Cardio 50 min ou HIIT de 25 min' });
-      expect(cardio.series[0].cardio).toMatchObject({ duracaoMin: null, distanciaKm: null });
+      expect(cardio.series[0].cardio).toMatchObject({ duracaoMin: 50, distanciaKm: null });
     }
+    expect(leitura.avisos.filter((a) => a.includes('usei o primeiro tempo (50 min)'))).toHaveLength(1);
     // As páginas de cardio explicado e de instruções do fim não viram exercício.
     expect(leitura.sessoes[6].exercicios).toHaveLength(1);
   });
@@ -641,12 +643,21 @@ describe('tabela de PDF colada: casos isolados', () => {
     expect(l.sessoes[1].exercicios.map((e) => e.nome)).toEqual(['Puxada frontal aberta']);
   });
 
-  test('cardio com duas opções guarda a frase; uma opção só continua com os minutos', () => {
-    const duas = ler('Treino A\nCardio 40 min ou 5 km').sessoes[0].exercicios[0];
+  test('cardio com duas opções usa a primeira medida, guarda a frase e avisa; uma opção só continua como era', () => {
+    const duasTexto = ler('Treino A\nCardio 40 min ou 5 km');
+    const duas = duasTexto.sessoes[0].exercicios[0];
     expect(duas.observacao).toBe('Cardio 40 min ou 5 km');
-    expect(duas.series[0].cardio).toMatchObject({ duracaoMin: null, distanciaKm: null });
-    const uma = ler('Treino A\nCardio 40 min').sessoes[0].exercicios[0];
+    expect(duas.series[0].cardio).toMatchObject({ duracaoMin: 40, distanciaKm: null });
+    expect(duasTexto.avisos.some((a) => a.includes('usei o primeiro tempo (40 min)'))).toBe(true);
+    const duasKmTexto = ler('Treino A\nCardio 5 km ou 40 min');
+    const duasKm = duasKmTexto.sessoes[0].exercicios[0];
+    expect(duasKm.observacao).toBe('Cardio 5 km ou 40 min');
+    expect(duasKm.series[0].cardio).toMatchObject({ duracaoMin: null, distanciaKm: 5 });
+    expect(duasKmTexto.avisos.some((a) => a.includes('usei a primeira distância (5 km)'))).toBe(true);
+    const umaTexto = ler('Treino A\nCardio 40 min');
+    const uma = umaTexto.sessoes[0].exercicios[0];
     expect(uma.series[0].cardio).toMatchObject({ duracaoMin: 40 });
     expect(uma.observacao).toBeNull();
+    expect(umaTexto.avisos.some((a) => a.includes('primeiro tempo') || a.includes('primeira distância'))).toBe(false);
   });
 });
