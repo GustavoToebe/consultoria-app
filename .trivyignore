@@ -18,6 +18,11 @@ CVE-2026-111943 exp:2026-11-28
 # autenticação por JWT), então nunca lê JWK de fonte externa. Este arquivo vale também para a imagem da API, que é Java e
 # não tem go-jose: a exceção não muda nada nela. Em 04/11 a imagem ainda traz v4.1.5. Mesma validade.
 CVE-2026-116587 exp:2026-11-28
+# CVE-2026-78661 (golang.org/x/net v0.60.0, corrigida na 0.62.0): negação de serviço por HTML malformado (x/net/html).
+# Vem dentro do mesmo binário do Caddy oficial. Em 07/11/2026 o Caddy mais novo publicado era o 2.11.9, que ainda pede a
+# x/net 0.60.0; a 0.62.0 só está na master deles, então não há versão para fixar. Este contêiner só serve arquivos
+# estáticos, atrás do proxy da VPS. Exceção temporária decidida pelo Gustavo em 07/11. Mesma validade.
+CVE-2026-78661 exp:2026-11-28
 # CVE-2023-54404 / GHSA-mrhx-c7xc-m3w5 (zod 3.25.76, corrigida na 4.6.6): negação de serviço por memória ao validar um array
 # grande sem limite de tamanho. O zod vem só do @expo/cli, a ferramenta de build do `expo export` e do EAS, e dos plugins de lint;
 # nenhum arquivo do app importa zod, então ele não vai no bundle. Forçar o zod 4 pode quebrar o @expo/cli (exige ^3.25.76).
