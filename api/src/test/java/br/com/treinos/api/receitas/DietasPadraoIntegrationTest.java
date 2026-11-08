@@ -50,7 +50,7 @@ class DietasPadraoIntegrationTest extends AbstractIntegrationTest {
     @Test
     void consultoriaNovaResolveOAlimentoENaoDuplica() throws Exception {
         UUID consultoria = consultoriaNova();
-        assertThat(contarReceitas(consultoria)).isEqualTo(DietasPadrao.totalNaConsultoriaNova());
+        assertThat(contarReceitas(consultoria)).isEqualTo(SemanasPadrao.totalNaConsultoriaNova());
         assertThat(jdbc.queryForObject("select count(*) from receita where consultoria_id = ? and tipo = 'PLANO_DIETA' "
                 + "and pasta_id is not null", Long.class, consultoria)).isZero();
         for (DietasPadrao.Modelo modelo : DietasPadrao.modelos()) {

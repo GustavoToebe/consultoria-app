@@ -96,11 +96,14 @@ class ReceitasPadraoGarantidasIntegrationTest extends AbstractIntegrationTest {
                 consultoria)).isZero();
         assertThat(jdbc.queryForObject("select count(*) from receita where consultoria_id = ? and nome = 'Série do treinador'",
                 Long.class, consultoria)).isZero();
-        assertThat(receitasDe(consultoria)).isEqualTo((long) SemanasPadrao.totalNaConsultoriaNova());
+        // A V024 apaga semana e dia (PLANO_TREINO e SESSAO_TREINO) e não os recria. Dieta e mobilidade ficam.
+        long depoisDaV024 = SemanasPadrao.totalNaConsultoriaNova()
+                - SemanasPadrao.semanas().size() - SemanasPadrao.dias().size();
+        assertThat(receitasDe(consultoria)).isEqualTo(depoisDaV024);
         assertThat(jdbc.queryForObject("select count(*) from receita where consultoria_id = ? and tipo in "
                 + "('PLANO_DIETA', 'REFEICAO')", Long.class, consultoria)).isEqualTo(dieta);
         rodarV024();
-        assertThat(receitasDe(consultoria)).isEqualTo((long) SemanasPadrao.totalNaConsultoriaNova());
+        assertThat(receitasDe(consultoria)).isEqualTo(depoisDaV024);
         String metodologia = jdbc.queryForObject(
                 "select conteudo from receita where consultoria_id = ? and tipo = 'METODOLOGIA'", String.class, consultoria);
         assertThat(json.readValue(metodologia, ConfiguracaoConsultoria.class)).isEqualTo(ConfiguracaoConsultoria.padrao());

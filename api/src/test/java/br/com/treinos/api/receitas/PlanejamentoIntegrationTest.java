@@ -259,7 +259,8 @@ class PlanejamentoIntegrationTest extends AbstractIntegrationTest {
         var conteudo = Map.of("orientacoes", "Podem ser feitos todos os dias.", "secoes", List.of(Map.of("titulo", "Alongamentos", "itens", List.of(item))));
         var criado = modelo("MOBILIDADE", conteudo);
         assertThat(criado.get("conteudo").get("secoes").get(0).get("itens").get(0).get("nome").asString()).isEqualTo("Lunge Stretch");
-        assertThat(api.get("/receitas?tipo=MOBILIDADE", treinador, 200)).hasSize(1);
+        assertThat(api.get("/receitas?tipo=MOBILIDADE", treinador, 200))
+                .hasSize(SemanasPadrao.mobilidades().size() + 1);
         var aplicada = aplicar(criado, aluno);
         assertThat(aplicada.get("tipo").asString()).isEqualTo("mobilidade");
         var plano = api.get("/planos-mobilidade/" + aplicada.get("planoId").asString(), treinador, 200);
