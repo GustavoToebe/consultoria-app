@@ -56,12 +56,15 @@ public class ReceitaService {
 
     private final br.com.treinos.api.conta.PlanoDaConsultoria plano;
     private final BibliotecaService biblioteca;
+    private final DietasPadraoService dietas;
 
     public ReceitaService(ReceitaRepository receitas, JsonMapper json, Validator validator, PastaModeloRepository pastas,
                           VideoUrls videoUrls, ConsultoriaRepository consultorias,
-                          br.com.treinos.api.conta.PlanoDaConsultoria plano, BibliotecaService biblioteca) {
+                          br.com.treinos.api.conta.PlanoDaConsultoria plano, BibliotecaService biblioteca,
+                          DietasPadraoService dietas) {
         this.plano = plano;
         this.biblioteca = biblioteca;
+        this.dietas = dietas;
         this.receitas = receitas;
         this.json = json;
         this.validator = validator;
@@ -113,8 +116,8 @@ public class ReceitaService {
     }
 
     /**
-     * Receitas padrão da consultoria no {@code TenantContext}: cria só as que faltam (mesmo tipo e nome), então pode ser
-     * chamada de novo sem duplicar. Roda no cadastro do treinador, no provisionamento pela Central e no primeiro acesso do
+     * Receitas padrão da consultoria no {@code TenantContext}: cria só as que faltam (mesmo tipo e nome), inclusive as
+     * 11 dietas, então pode ser chamada de novo sem duplicar. Roda no cadastro do treinador, no provisionamento pela Central e no primeiro acesso do
      * administrador, que corrige um provisionamento que falhou no meio. Trava a consultoria antes de ler (o mesmo lock da
      * equipe), porque {@code receita} não tem índice único: duas chamadas juntas, como um duplo envio do convite, leriam
      * a lista vazia e criariam tudo duas vezes.
@@ -134,6 +137,7 @@ public class ReceitaService {
             }
         }
         biblioteca.garantirSuplementosPadrao();
+        dietas.garantir();
     }
 
     /**

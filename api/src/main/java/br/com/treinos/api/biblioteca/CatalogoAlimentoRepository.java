@@ -21,4 +21,6 @@ public interface CatalogoAlimentoRepository extends JpaRepository<CatalogoAlimen
 
     @Query("select distinct c.grupo from CatalogoAlimento c where c.grupo is not null order by c.grupo")
     List<String> grupos();
+
+    List<CatalogoAlimento> findByNomeBusca(String nomeBusca);
 }
