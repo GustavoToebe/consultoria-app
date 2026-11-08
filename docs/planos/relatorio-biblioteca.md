@@ -22,4 +22,4 @@ A V059 já rodou em produção em 05/11/2026. O código dela foi editado nesta f
 
 ## Fora deste commit
 
-As 11 dietas (V062) continuam no working tree, sem commit e sem push. Semanas, Dias e Mobilidades não estão nesta branch.
+As 11 dietas estão na V062, em commit à parte, sem push. Semanas, Dias e Mobilidades não estão nesta branch.

@@ -1,0 +1,372 @@
+{
+  "formato": "modelos-planejamento/1",
+  "modelos": [
+    {
+      "tipo": "PLANO_DIETA",
+      "nome": "Ganho de massa 3000 kcal",
+      "descricao": "Modelo-rascunho para o treinador revisar e ajustar.",
+      "conteudo": {
+        "objetivo": "Ganho de massa muscular",
+        "dataInicio": null,
+        "profissional": null,
+        "refeicoes": [
+          {
+            "uid": "290c49f3-c41a-403d-b03f-8d350688c9f5",
+            "nome": "Café da manhã",
+            "horario": "07:00",
+            "observacao": null,
+            "opcoes": [
+              {
+                "uid": "eb0c8508-7988-4364-9424-7472f1f82b9d",
+                "rotulo": "A",
+                "itens": [
+                  {
+                    "uid": "3b1c5ff7-763c-4640-8122-5637d0ffe4f9",
+                    "alimentoId": null,
+                    "nome": "Pão de forma branco",
+                    "quantidade": 100,
+                    "unidade": "g",
+                    "kcal": null,
+                    "proteina": null,
+                    "carboidrato": null,
+                    "gordura": null,
+                    "manual": true
+                  },
+                  {
+                    "uid": "62e43e15-aabf-47e5-9fe8-802e29578db3",
+                    "alimentoId": null,
+                    "nome": "Ovo, de galinha, inteiro, cozido/10minutos",
+                    "quantidade": 3,
+                    "unidade": "un",
+                    "kcal": null,
+                    "proteina": null,
+                    "carboidrato": null,
+                    "gordura": null,
+                    "manual": false
+                  },
+                  {
+                    "uid": "ac9e2e69-660b-43f3-9344-9e9f3bf077ee",
+                    "alimentoId": null,
+                    "nome": "Banana, prata, crua",
+                    "quantidade": 100,
+                    "unidade": "g",
+                    "kcal": null,
+                    "proteina": null,
+                    "carboidrato": null,
+                    "gordura": null,
+                    "manual": false
+                  },
+                  {
+                    "uid": "67d03a5d-71ef-4102-9154-23d86c11a743",
+                    "alimentoId": null,
+                    "nome": "Aveia, flocos, crua",
+                    "quantidade": 25,
+                    "unidade": "g",
+                    "kcal": null,
+                    "proteina": null,
+                    "carboidrato": null,
+                    "gordura": null,
+                    "manual": false
+                  }
+                ]
+              }
+            ],
+            "modoDePreparo": null
+          },
+          {
+            "uid": "3066f65f-f0e3-46c6-a713-f6734b0d032c",
+            "nome": "Lanche da manhã",
+            "horario": "10:00",
+            "observacao": null,
+            "opcoes": [
+              {
+                "uid": "0efcc6db-5bb2-45f9-a0ce-c773e37df4f6",
+                "rotulo": "A",
+                "itens": [
+                  {
+                    "uid": "26e18f08-3e86-462a-ad89-13ed861d164a",
+                    "alimentoId": null,
+                    "nome": "Iogurte, natural, desnatado",
+                    "quantidade": 200,
+                    "unidade": "g",
+                    "kcal": null,
+                    "proteina": null,
+                    "carboidrato": null,
+                    "gordura": null,
+                    "manual": false
+                  },
+                  {
+                    "uid": "bb97dfe6-49a6-48a7-8fda-3d5af4324a34",
+                    "alimentoId": null,
+                    "nome": "Aveia, flocos, crua",
+                    "quantidade": 40,
+                    "unidade": "g",
+                    "kcal": null,
+                    "proteina": null,
+                    "carboidrato": null,
+                    "gordura": null,
+                    "manual": false
+                  },
+                  {
+                    "uid": "67c8dbc2-2859-4e14-8f92-424dee7c9f65",
+                    "alimentoId": null,
+                    "nome": "Banana, prata, crua",
+                    "quantidade": 100,
+                    "unidade": "g",
+                    "kcal": null,
+                    "proteina": null,
+                    "carboidrato": null,
+                    "gordura": null,
+                    "manual": false
+                  },
+                  {
+                    "uid": "baffda07-045d-4020-a1c7-b685e99fbd0a",
+                    "alimentoId": null,
+                    "nome": "Frutas (mamão, abacaxi, melão, morango, maçã ou kiwi)",
+                    "quantidade": 100,
+                    "unidade": "g",
+                    "kcal": null,
+                    "proteina": null,
+                    "carboidrato": null,
+                    "gordura": null,
+                    "manual": true
+                  },
+                  {
+                    "uid": "46885d24-df5e-4573-9a22-a8a0a53e04be",
+                    "alimentoId": null,
+                    "nome": "Semente de chia",
+                    "quantidade": 15,
+                    "unidade": "g",
+                    "kcal": null,
+                    "proteina": null,
+                    "carboidrato": null,
+                    "gordura": null,
+                    "manual": true
+                  }
+                ]
+              }
+            ],
+            "modoDePreparo": null
+          },
+          {
+            "uid": "b5c71c3c-ab09-4819-84e1-1fd6a5c89502",
+            "nome": "Almoço",
+            "horario": "13:00",
+            "observacao": null,
+            "opcoes": [
+              {
+                "uid": "f6815158-9c69-4285-ad4d-2a4a607b0b54",
+                "rotulo": "A",
+                "itens": [
+                  {
+                    "uid": "9a00ea9e-b477-4a3d-9fe2-7b737d5c8251",
+                    "alimentoId": null,
+                    "nome": "Arroz, tipo 1, cozido",
+                    "quantidade": 220,
+                    "unidade": "g",
+                    "kcal": null,
+                    "proteina": null,
+                    "carboidrato": null,
+                    "gordura": null,
+                    "manual": false
+                  },
+                  {
+                    "uid": "e75aa2bc-502e-4276-bc9b-e7e3366dedf5",
+                    "alimentoId": null,
+                    "nome": "Frango, peito, sem pele, grelhado",
+                    "quantidade": 170,
+                    "unidade": "g",
+                    "kcal": null,
+                    "proteina": null,
+                    "carboidrato": null,
+                    "gordura": null,
+                    "manual": false
+                  },
+                  {
+                    "uid": "e2f31e72-76a4-469e-83d3-af0db4ffd565",
+                    "alimentoId": null,
+                    "nome": "Batata, inglesa, cozida",
+                    "quantidade": 100,
+                    "unidade": "g",
+                    "kcal": null,
+                    "proteina": null,
+                    "carboidrato": null,
+                    "gordura": null,
+                    "manual": false
+                  },
+                  {
+                    "uid": "86b2e82f-de6c-4e23-afd3-4073c94cf392",
+                    "alimentoId": null,
+                    "nome": "Legumes (brócolis, abobrinha, chuchu, beterraba, vagem ou tomate)",
+                    "quantidade": 150,
+                    "unidade": "g",
+                    "kcal": null,
+                    "proteina": null,
+                    "carboidrato": null,
+                    "gordura": null,
+                    "manual": true
+                  },
+                  {
+                    "uid": "68ed99b7-ffe2-4231-921d-ad46a388d59b",
+                    "alimentoId": null,
+                    "nome": "Semente de chia",
+                    "quantidade": 10,
+                    "unidade": "g",
+                    "kcal": null,
+                    "proteina": null,
+                    "carboidrato": null,
+                    "gordura": null,
+                    "manual": true
+                  }
+                ]
+              }
+            ],
+            "modoDePreparo": null
+          },
+          {
+            "uid": "8b05f582-c777-4dc8-bdbd-ee9322a078b1",
+            "nome": "Lanche da tarde",
+            "horario": "16:00",
+            "observacao": null,
+            "opcoes": [
+              {
+                "uid": "1d5d7e49-148e-4ae7-a0df-1708ad7b7c6d",
+                "rotulo": "A",
+                "itens": [
+                  {
+                    "uid": "2100961e-7da4-4fa4-b4f7-89968bf6a4c2",
+                    "alimentoId": null,
+                    "nome": "Pão de forma branco",
+                    "quantidade": 75,
+                    "unidade": "g",
+                    "kcal": null,
+                    "proteina": null,
+                    "carboidrato": null,
+                    "gordura": null,
+                    "manual": true
+                  },
+                  {
+                    "uid": "8ea35893-7f8a-48db-ae2e-feaaaec563c3",
+                    "alimentoId": null,
+                    "nome": "Ovo, de galinha, inteiro, cozido/10minutos",
+                    "quantidade": 3,
+                    "unidade": "un",
+                    "kcal": null,
+                    "proteina": null,
+                    "carboidrato": null,
+                    "gordura": null,
+                    "manual": false
+                  },
+                  {
+                    "uid": "63841973-ec06-45ac-ad6c-5f943d0f40fe",
+                    "alimentoId": null,
+                    "nome": "Banana, prata, crua",
+                    "quantidade": 100,
+                    "unidade": "g",
+                    "kcal": null,
+                    "proteina": null,
+                    "carboidrato": null,
+                    "gordura": null,
+                    "manual": false
+                  },
+                  {
+                    "uid": "7c91297d-9e07-4a46-837a-da1adc991e84",
+                    "alimentoId": null,
+                    "nome": "Aveia, flocos, crua",
+                    "quantidade": 25,
+                    "unidade": "g",
+                    "kcal": null,
+                    "proteina": null,
+                    "carboidrato": null,
+                    "gordura": null,
+                    "manual": false
+                  }
+                ]
+              }
+            ],
+            "modoDePreparo": null
+          },
+          {
+            "uid": "c8201d3f-0c81-4293-932d-2206d08923a4",
+            "nome": "Jantar",
+            "horario": "20:00",
+            "observacao": null,
+            "opcoes": [
+              {
+                "uid": "6af17b25-fa0e-40da-8404-a8466b5c2527",
+                "rotulo": "A",
+                "itens": [
+                  {
+                    "uid": "466ac849-5842-49e4-a414-81afa0c8a966",
+                    "alimentoId": null,
+                    "nome": "Arroz, tipo 1, cozido",
+                    "quantidade": 220,
+                    "unidade": "g",
+                    "kcal": null,
+                    "proteina": null,
+                    "carboidrato": null,
+                    "gordura": null,
+                    "manual": false
+                  },
+                  {
+                    "uid": "e4ab6c69-9fe1-4e02-821d-3777a1a5f4d0",
+                    "alimentoId": null,
+                    "nome": "Frango, peito, sem pele, grelhado",
+                    "quantidade": 170,
+                    "unidade": "g",
+                    "kcal": null,
+                    "proteina": null,
+                    "carboidrato": null,
+                    "gordura": null,
+                    "manual": false
+                  },
+                  {
+                    "uid": "c733a7b9-ac72-4043-899b-93e15bb3bc6f",
+                    "alimentoId": null,
+                    "nome": "Batata, inglesa, cozida",
+                    "quantidade": 100,
+                    "unidade": "g",
+                    "kcal": null,
+                    "proteina": null,
+                    "carboidrato": null,
+                    "gordura": null,
+                    "manual": false
+                  },
+                  {
+                    "uid": "f8302692-4d45-4e18-870a-7efc96078ab3",
+                    "alimentoId": null,
+                    "nome": "Legumes (brócolis, abobrinha, chuchu, beterraba, vagem ou tomate)",
+                    "quantidade": 150,
+                    "unidade": "g",
+                    "kcal": null,
+                    "proteina": null,
+                    "carboidrato": null,
+                    "gordura": null,
+                    "manual": true
+                  },
+                  {
+                    "uid": "c9466922-d17a-43e4-a338-41aa2f7c37c0",
+                    "alimentoId": null,
+                    "nome": "Semente de chia",
+                    "quantidade": 10,
+                    "unidade": "g",
+                    "kcal": null,
+                    "proteina": null,
+                    "carboidrato": null,
+                    "gordura": null,
+                    "manual": true
+                  }
+                ]
+              }
+            ],
+            "modoDePreparo": null
+          }
+        ],
+        "orientacoes": [],
+        "observacoes": null,
+        "suplementacao": [],
+        "aguaLitros": null
+      }
+    }
+  ]
+}

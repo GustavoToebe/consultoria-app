@@ -2,7 +2,7 @@ package br.com.treinos.api.biblioteca;
 
 import br.com.treinos.api.AbstractIntegrationTest;
 import br.com.treinos.api.ApiDeTeste;
-import br.com.treinos.api.receitas.ReceitasPadrao;
+import br.com.treinos.api.receitas.DietasPadrao;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -80,9 +80,14 @@ class BibliotecaIntegrationTest extends AbstractIntegrationTest {
                 .findFirst()
                 .orElseThrow();
         assertThat(taco.get("fonte").asString()).contains("TACO");
-        api.post("/alimentos/importar-catalogo", treinador,
+        JsonNode biblioteca = api.get("/alimentos", treinador, 200);
+        assertThat(biblioteca.valueStream().filter(a -> "Arroz, tipo 1, cozido".equals(a.get("nome").asString())))
+                .hasSize(1);
+        JsonNode deNovo = api.post("/alimentos/importar-catalogo", treinador,
                 Map.of("ids", List.of(taco.get("id").asString())), 200);
-        assertThat(api.get("/alimentos", treinador, 200)).hasSize(1);
+        assertThat(deNovo.get("importados").asInt()).isZero();
+        assertThat(deNovo.get("ignorados").asInt()).isEqualTo(1);
+        assertThat(api.get("/alimentos", treinador, 200)).hasSize(biblioteca.size());
     }
 
     @Test
@@ -160,7 +165,7 @@ class BibliotecaIntegrationTest extends AbstractIntegrationTest {
     @Test
     void consultoriaNovaJaTemAsReceitasPadrao() throws Exception {
         JsonNode receitas = api.get("/receitas", treinador, 200);
-        assertThat(receitas).hasSize(ReceitasPadrao.todas().size());
+        assertThat(receitas).hasSize(DietasPadrao.totalNaConsultoriaNova());
         assertThat(api.get("/receitas?tipo=METODOLOGIA", treinador, 200)).hasSize(1);
         assertThat(api.get("/receitas?tipo=SERIES", treinador, 200).valueStream().map(r -> r.get("nome").asString()))
                 .contains("Aquecimento + 3 FS + WS + 2 Back off 85%", "Séries simples 3x8-12", "WS + Rest pause", "3 FS + WS + Rest pause", "3 FS + Cluster")
