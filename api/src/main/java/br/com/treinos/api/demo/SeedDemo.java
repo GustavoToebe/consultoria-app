@@ -170,7 +170,8 @@ public class SeedDemo {
             for (AlimentoDemo a : ALIMENTOS) {
                 alimentos.put(a.nome(), biblioteca.criarAlimento(new AlimentoRequest(a.nome(), new BigDecimal("100"),
                         "g", new BigDecimal(a.kcal()), new BigDecimal(a.proteina()), new BigDecimal(a.carboidrato()),
-                        new BigDecimal(a.gordura()), null, FONTE_ALIMENTOS, null, null, a.grupo())).id());
+                        new BigDecimal(a.gordura()), null, FONTE_ALIMENTOS, null, null, a.grupo(),
+                        null, null, null, null, null, null, null)).id());
             }
 
             UUID aluno = alunos.criar(new AlunoRequest("Aluno Demonstração", ALUNO, "Melhorar o físico (secar e crescer)",

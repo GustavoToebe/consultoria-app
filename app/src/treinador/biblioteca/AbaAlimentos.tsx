@@ -37,7 +37,8 @@ export const UNIDADES: { valor: UnidadeAlimento; rotulo: string }[] = [
 ];
 
 /** "100 g · 266 kcal · P 8,4 · C 49,6 · G 3,2" */
-export function resumoAlimento(a: Pick<Alimento, 'baseQuantidade' | 'baseUnidade' | 'kcal' | 'proteina' | 'carboidrato' | 'gordura'>) {
+export function resumoAlimento(a: Pick<Alimento, 'baseQuantidade' | 'baseUnidade' | 'kcal' | 'proteina' | 'carboidrato' | 'gordura' | 'porcao'>) {
+  if (a.kcal == null) return a.porcao?.trim() || '—';
   return `${numeroParaTela(a.baseQuantidade)} ${a.baseUnidade} · ${numeroParaTela(a.kcal, 0)} kcal · P ${numeroParaTela(a.proteina, 1)} · C ${numeroParaTela(a.carboidrato, 1)} · G ${numeroParaTela(a.gordura, 1)}`;
 }
 

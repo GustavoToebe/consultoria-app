@@ -1,10 +1,9 @@
-export type AbaDaBiblioteca = 'exercicios' | 'alimentos' | 'suplementos' | 'ergogenicos' | 'catalogo';
+export type AbaDaBiblioteca = 'exercicios' | 'alimentos' | 'ergogenicos' | 'catalogo';
 
 /** Abas na ordem da tela; `permissao` é a que a aba exige além de ler a Biblioteca (a API autoriza de novo). */
 const ABAS: readonly { valor: AbaDaBiblioteca; rotulo: string; permissao: string | null }[] = [
   { valor: 'exercicios', rotulo: 'Exercícios', permissao: null },
   { valor: 'alimentos', rotulo: 'Alimentos', permissao: null },
-  { valor: 'suplementos', rotulo: 'Suplementos', permissao: null },
   { valor: 'ergogenicos', rotulo: 'Outros', permissao: 'ERGOGENICO_LER' },
   { valor: 'catalogo', rotulo: 'Copiar do catálogo pronto', permissao: null },
 ];
@@ -16,6 +15,8 @@ export function abasDaBiblioteca(pode: (codigo: string) => boolean): { valor: Ab
 
 /** Aba pedida pelo endereço (`?aba=`); se não existe ou o perfil não pode, abre a primeira. */
 export function abaInicial(parametro: string | string[] | undefined, permitidas: { valor: AbaDaBiblioteca }[]): AbaDaBiblioteca {
-  const pedida = Array.isArray(parametro) ? parametro[0] : parametro;
+  const bruta = Array.isArray(parametro) ? parametro[0] : parametro;
+  // O endereço antigo `?aba=suplementos` abre Alimentos no filtro de suplementos.
+  const pedida = bruta === 'suplementos' ? 'alimentos' : bruta;
   return permitidas.find((a) => a.valor === pedida)?.valor ?? permitidas[0]?.valor ?? 'exercicios';
 }

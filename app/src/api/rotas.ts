@@ -832,7 +832,13 @@ export const demonstracoesDoAluno = () => requisicao<DemonstracaoDoAluno[]>('/al
 export const baixarImagemDoExercicioDoAluno = (id: string) =>
   requisicao<Blob>(`/aluno/exercicios/${seg(id)}/imagem`, { binario: true, limiteMs: 30000 });
 
-export const listarAlimentos = (texto?: string) => requisicao<Alimento[]>(`/alimentos${busca(texto)}`);
+export const listarAlimentos = (texto?: string, tipo?: 'ALIMENTO' | 'SUPLEMENTO') => {
+  const q = new URLSearchParams();
+  if (texto) q.set('busca', texto);
+  if (tipo) q.set('tipo', tipo);
+  const s = q.toString();
+  return requisicao<Alimento[]>(`/alimentos${s ? `?${s}` : ''}`);
+};
 /** Fatores atuais dos alimentos (até 200 ids) para a lista de compras do editor da dieta; id de fora fica sem resposta. */
 export const fatoresDosAlimentos = (ids: string[]) =>
   requisicao<FatoresDoAlimento[]>(`/alimentos/fatores?ids=${ids.map(seg).join(',')}`);
@@ -1072,12 +1078,29 @@ export const consumoDoPlano = () => requisicao<ConsumoDoPlano>('/minha-conta/con
 export const linkDePagamento = (cobrancaId: string) =>
   requisicao<{ url: string }>(`/minha-conta/cobrancas/${seg(cobrancaId)}/pagar`, { metodo: 'POST' });
 
-export const listarSuplementos = () => requisicao<SuplementoDaBiblioteca[]>('/suplementos');
+/** A lista de suplementos é a de alimentos com tipo SUPLEMENTO; a tela continua falando em categoria. */
+export function suplementoDaResposta(a: Alimento): SuplementoDaBiblioteca {
+  return {
+    id: a.id, nome: a.nome, marca: a.marca ?? null, categoria: a.grupo ?? null, porcao: a.porcao ?? null,
+    porcoesPorEmbalagem: a.porcoesPorEmbalagem ?? null, sabores: a.sabores ?? [], link: a.link ?? null, cupom: a.cupom ?? null,
+  };
+}
+
+function pedidoDeSuplemento(dados: SuplementoDaBibliotecaRequest): AlimentoRequest {
+  return {
+    nome: dados.nome, tipo: 'SUPLEMENTO', marca: dados.marca, grupo: dados.categoria, porcao: dados.porcao,
+    porcoesPorEmbalagem: dados.porcoesPorEmbalagem, sabores: dados.sabores, link: dados.link, cupom: dados.cupom,
+    baseQuantidade: null, baseUnidade: null, kcal: null, proteina: null, carboidrato: null, gordura: null,
+    gramasPorUnidade: null, fonte: null, fatorCorrecao: null, fatorCoccao: null,
+  };
+}
+
+export const listarSuplementos = () => listarAlimentos(undefined, 'SUPLEMENTO').then((lista) => lista.map(suplementoDaResposta));
 export const criarSuplemento = (dados: SuplementoDaBibliotecaRequest) =>
-  requisicao<SuplementoDaBiblioteca>('/suplementos', { metodo: 'POST', corpo: dados });
+  criarAlimento(pedidoDeSuplemento(dados)).then(suplementoDaResposta);
 export const alterarSuplemento = (id: string, dados: SuplementoDaBibliotecaRequest) =>
-  requisicao<SuplementoDaBiblioteca>(`/suplementos/${seg(id)}`, { metodo: 'PUT', corpo: dados });
-export const inativarSuplemento = (id: string) => requisicao<void>(`/suplementos/${seg(id)}`, { metodo: 'DELETE' });
+  alterarAlimento(id, pedidoDeSuplemento(dados)).then(suplementoDaResposta);
+export const inativarSuplemento = (id: string) => inativarAlimento(id);
 
 export const listarErgogenicos = () => requisicao<ErgogenicoDaBiblioteca[]>('/ergogenicos');
 export const criarErgogenico = (dados: ErgogenicoDaBibliotecaRequest) =>

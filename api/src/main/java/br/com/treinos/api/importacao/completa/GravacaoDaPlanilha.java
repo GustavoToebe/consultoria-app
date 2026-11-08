@@ -11,8 +11,6 @@ import br.com.treinos.api.biblioteca.Ergogenico;
 import br.com.treinos.api.biblioteca.ErgogenicoRepository;
 import br.com.treinos.api.biblioteca.Exercicio;
 import br.com.treinos.api.biblioteca.ExercicioRepository;
-import br.com.treinos.api.biblioteca.Suplemento;
-import br.com.treinos.api.biblioteca.SuplementoRepository;
 import br.com.treinos.api.consultoria.ConsultoriaRepository;
 import br.com.treinos.api.conta.PlanoDaConsultoria;
 import br.com.treinos.api.dieta.ConteudoDieta;
@@ -94,7 +92,6 @@ public class GravacaoDaPlanilha {
 
     private final ExercicioRepository exercicios;
     private final AlimentoRepository alimentos;
-    private final SuplementoRepository suplementos;
     private final ErgogenicoRepository ergogenicos;
     private final AlunoRepository alunos;
     private final RegistroPesoRepository pesos;
@@ -113,7 +110,7 @@ public class GravacaoDaPlanilha {
     private final GuardaDasRespostas guarda;
 
     public GravacaoDaPlanilha(ExercicioRepository exercicios, AlimentoRepository alimentos,
-                              SuplementoRepository suplementos, ErgogenicoRepository ergogenicos, AlunoRepository alunos,
+                              ErgogenicoRepository ergogenicos, AlunoRepository alunos,
                               RegistroPesoRepository pesos, PastaRepository pastas, PlanoTreinoRepository treinos,
                               PlanoDietaRepository dietas, ImportacaoRepository importacoes, ReceitaService receitas,
                               PlanoDaConsultoria plano, ConsultoriaRepository consultorias, Auditoria auditoria,
@@ -122,7 +119,6 @@ public class GravacaoDaPlanilha {
         this.limiteDoTreinador = limiteDoTreinador;
         this.exercicios = exercicios;
         this.alimentos = alimentos;
-        this.suplementos = suplementos;
         this.ergogenicos = ergogenicos;
         this.alunos = alunos;
         this.pesos = pesos;
@@ -286,7 +282,8 @@ public class GravacaoDaPlanilha {
                 .toList();
         List<AlimentoDaBiblioteca> alimentosDaBiblioteca = alimentos.buscarAtivos("%").stream()
                 .map((Alimento a) -> new AlimentoDaBiblioteca(a.getId(), a.getNome())).toList();
-        List<String> nomesDeSuplementos = suplementos.findAll().stream().map(Suplemento::getNome).toList();
+        List<String> nomesDeSuplementos = alimentos.findAll().stream()
+                .filter(a -> a.getTipo() == Alimento.Tipo.SUPLEMENTO).map(Alimento::getNome).toList();
         List<String> nomesDeErgogenicos = ergogenicos.findAll().stream().map(Ergogenico::getNome).toList();
         Map<UUID, Set<LocalDate>> datas = new HashMap<>();
         for (RegistroPeso p : pesos.findAll()) {

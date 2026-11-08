@@ -9,15 +9,19 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.TenantId;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Alimento da biblioteca: valores por {@code baseQuantidade} {@code baseUnidade} (ex.: por 100 g). O app calcula o item
- * da dieta ao editar e grava o resultado; a versão publicada guarda os números e não recalcula depois.
+ * Alimento da biblioteca, ou suplemento na mesma tabela ({@link Tipo#SUPLEMENTO}). O suplemento reaproveita {@code grupo}
+ * como categoria. Sem kcal, os macros ficam nulos: ausência não vira zero. Valores por {@code baseQuantidade}
+ * {@code baseUnidade} (ex.: por 100 g). O app calcula o item da dieta ao editar e grava o resultado; a versão publicada
+ * guarda os números e não recalcula depois.
  *
  * <p>{@code fatorCorrecao} (peso bruto ÷ líquido) e {@code fatorCoccao} (peso pronto ÷ cru) servem à lista de compras
  * do aluno (reunião de 17/10, R13/R14/R32). O cadastro, a importação e a V060 preenchem os dois com
@@ -30,6 +34,9 @@ import java.util.UUID;
 @Entity
 @Table(name = "alimento")
 public class Alimento {
+
+    /** {@code ALIMENTO} soma na dieta como hoje. {@code SUPLEMENTO} pode ficar sem kcal (creatina, vitamina). */
+    public enum Tipo { ALIMENTO, SUPLEMENTO }
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -48,7 +55,8 @@ public class Alimento {
     @Column(name = "base_unidade", nullable = false)
     private String baseUnidade;
 
-    @Column(nullable = false)
+    /** Nulo só em {@link Tipo#SUPLEMENTO} sem valor nutricional. */
+    @Column(nullable = true)
     private BigDecimal kcal;
 
     /** Nulo quando a fonte só publicou a caloria. Ausente não vira zero. */
@@ -76,6 +84,34 @@ public class Alimento {
     @Column(length = GrupoDoAlimento.MAXIMO)
     private String grupo;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, updatable = false)
+    private Tipo tipo = Tipo.ALIMENTO;
+
+    @Column(length = 80)
+    private String marca;
+
+    @Column(length = 500)
+    private String link;
+
+    @Column(length = 40)
+    private String cupom;
+
+    /** Lista de textos em JSON ({@code ["Maracujá","Morango"]}); nulo no alimento comum. */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private String sabores;
+
+    @Column(name = "porcoes_por_embalagem", length = 40)
+    private String porcoesPorEmbalagem;
+
+    @Column(length = 80)
+    private String porcao;
+
+    /** Sem acento, só no suplemento: é a chave única do nome. Nulo no alimento comum. */
+    @Column(name = "nome_busca", length = 160)
+    private String nomeBusca;
+
     @Column(nullable = false)
     private boolean ativo = true;
 
@@ -93,8 +129,13 @@ public class Alimento {
     }
 
     public Alimento(Valores valores, Exercicio.Origem origem) {
+        this(valores, origem, Tipo.ALIMENTO);
+    }
+
+    public Alimento(Valores valores, Exercicio.Origem origem, Tipo tipo) {
         aplicar(valores);
         this.origem = origem;
+        this.tipo = tipo == null ? Tipo.ALIMENTO : tipo;
     }
 
     public void alterar(Valores valores) {
@@ -114,6 +155,13 @@ public class Alimento {
         this.fatorCorrecao = v.fatorCorrecao();
         this.fatorCoccao = v.fatorCoccao();
         this.grupo = v.grupo();
+        this.marca = v.marca();
+        this.link = v.link();
+        this.cupom = v.cupom();
+        this.porcao = v.porcao();
+        this.porcoesPorEmbalagem = v.porcoesPorEmbalagem();
+        this.sabores = v.saboresJson();
+        this.nomeBusca = v.nomeBusca();
     }
 
     public void inativar() {
@@ -176,6 +224,38 @@ public class Alimento {
         return grupo;
     }
 
+    public Tipo getTipo() {
+        return tipo;
+    }
+
+    public String getMarca() {
+        return marca;
+    }
+
+    public String getLink() {
+        return link;
+    }
+
+    public String getCupom() {
+        return cupom;
+    }
+
+    public String getSabores() {
+        return sabores;
+    }
+
+    public String getPorcoesPorEmbalagem() {
+        return porcoesPorEmbalagem;
+    }
+
+    public String getPorcao() {
+        return porcao;
+    }
+
+    public String getNomeBusca() {
+        return nomeBusca;
+    }
+
     public boolean isAtivo() {
         return ativo;
     }
@@ -199,6 +279,16 @@ public class Alimento {
     public record Valores(String nome, BigDecimal baseQuantidade, String baseUnidade, BigDecimal kcal,
                           BigDecimal proteina, BigDecimal carboidrato, BigDecimal gordura,
                           BigDecimal gramasPorUnidade, String fonte, BigDecimal fatorCorrecao,
-                          BigDecimal fatorCoccao, String grupo) {
+                          BigDecimal fatorCoccao, String grupo, String marca, String link, String cupom,
+                          String porcao, String porcoesPorEmbalagem, String saboresJson, String nomeBusca) {
+
+        /** Alimento comum: sem marca, link, cupom, porção de rótulo nem nome de busca. */
+        public static Valores deAlimento(String nome, BigDecimal baseQuantidade, String baseUnidade, BigDecimal kcal,
+                                         BigDecimal proteina, BigDecimal carboidrato, BigDecimal gordura,
+                                         BigDecimal gramasPorUnidade, String fonte, BigDecimal fatorCorrecao,
+                                         BigDecimal fatorCoccao, String grupo) {
+            return new Valores(nome, baseQuantidade, baseUnidade, kcal, proteina, carboidrato, gordura,
+                    gramasPorUnidade, fonte, fatorCorrecao, fatorCoccao, grupo, null, null, null, null, null, null, null);
+        }
     }
 }
