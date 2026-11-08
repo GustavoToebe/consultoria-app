@@ -89,7 +89,7 @@ dia (Grok, Claude local) entrega numa branch só, para o lote já nascer junto.
 - O app anexa token e cookies **somente** à própria API (`caminhoDaApi` do `@plataforma/web`). Link de vídeo abre fora do app, sem token.
 - Nada de `alert()`, `confirm()` ou `Alert.alert`: confirmação é painel na tela.
 - Não opinar nem calcular nada sobre saúde, suplementos ou protocolos. Não inventar carga, repetição ou valor
-  nutricional: ausência de dado é "—". Recurso que não existe não aparece na tela.
+  nutricional: ausência de dado é "—" (com exceção dos modelos e alimentos padrão da biblioteca inicial, D-007). Recurso que não existe não aparece na tela.
 
 ## Stack
 - `api/`: Java 25 · Spring Boot 4.1.1 · Hibernate 7 · Jackson 3 · PostgreSQL 18 · Flyway · Testcontainers (`postgres:18-alpine`, igual ao compose) · Maven.

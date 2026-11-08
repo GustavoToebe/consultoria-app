@@ -13,7 +13,9 @@ import java.util.List;
 
 /**
  * Receitas criadas em toda consultoria nova (inclusive o catálogo de séries e os dois exemplos com Cluster): ponto de
- * partida genérico, com nomes neutros (nada que identifique outra consultoria). São só estrutura (séries, dias, refeições); nenhuma carga nem alimento é sugerido.
+ * partida genérico, com nomes neutros (nada que identifique outra consultoria). As receitas base aqui são estruturais
+ * (séries, dias, refeições vazias sem alimento sugerido); os modelos completos de dieta, semana, dia e mobilidade vivem em
+ * {@code DietasPadrao} e {@code SemanasPadrao} (recursos em {@code receitas-padrao/}).
  * As séries seguem a metodologia padrão, pelo código do tipo: FEEDER em % da WS pela regra 50/70/85–90, WORKING na carga
  * de trabalho, BACK_OFF a 85% da WS. Rest pause é
  * técnica da própria série de trabalho, não um tipo. As seis primeiras receitas de série são as combinações reais dos
