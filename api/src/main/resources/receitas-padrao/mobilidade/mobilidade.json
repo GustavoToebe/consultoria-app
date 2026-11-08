@@ -1,0 +1,258 @@
+{
+  "formato": "modelos-planejamento/1",
+  "colecao": "Saraiva Team (mobilidade)",
+  "modelos": [
+    {
+      "tipo": "MOBILIDADE",
+      "nome": "Mobilidade de quadril e membros inferiores",
+      "descricao": "Rotina para antes do treino de pernas ou para dias de descanso ativo, focando em tornozelos, quadril e cadeia posterior.",
+      "conteudo": {
+        "orientacoes": "Realize de forma controlada, respirando profundamente em cada movimento. Não force a amplitude além do ponto de desconforto leve. Indicado como aquecimento dinâmico antes de agachamentos e treinos de perna ou para soltura em dias de descanso ativo.",
+        "secoes": [
+          {
+            "uid": "8bc06699-5a87-44e9-9fcf-6a45de537920",
+            "titulo": "Soltura e aquecimento articular",
+            "itens": [
+              {
+                "uid": "dd74b02a-b768-4ada-88d6-8f78d9e7cc39",
+                "nome": "Círculos de tornozelo",
+                "prescricao": "10 rotações cada sentido (cada lado)",
+                "videoUrl": null
+              },
+              {
+                "uid": "f6a6ce9c-9828-4a8d-bf7e-2496f6a6e747",
+                "nome": "Balanço de pernas (frontal e lateral)",
+                "prescricao": "15 repetições cada perna",
+                "videoUrl": null
+              },
+              {
+                "uid": "f3fe3793-d898-4551-9f64-9b744e7b7667",
+                "nome": "Gato-vaca",
+                "prescricao": "10 a 12 repetições lentas",
+                "videoUrl": null
+              }
+            ]
+          },
+          {
+            "uid": "2d00af7f-aed9-40c3-b443-0fd4df9574d7",
+            "titulo": "Mobilidade de quadril",
+            "itens": [
+              {
+                "uid": "4e03f62f-7c6c-48f5-84e9-c0e6c36d6f4c",
+                "nome": "90/90 de quadril com transição",
+                "prescricao": "8 a 10 transições controladas",
+                "videoUrl": null
+              },
+              {
+                "uid": "a9c3b062-c8d5-4cf4-81d5-f3de22022686",
+                "nome": "Alongamento do flexor de quadril semi-ajoelhado",
+                "prescricao": "2 x 30s cada lado",
+                "videoUrl": null
+              },
+              {
+                "uid": "55225a6e-3011-48c9-8390-e1608e5fb642",
+                "nome": "Adutor no chão com perna estendida",
+                "prescricao": "10 repetições dinâmicas cada lado",
+                "videoUrl": null
+              },
+              {
+                "uid": "a2ed96c7-e3d5-4d8e-85fc-ba6817d6a0d3",
+                "nome": "Cossack squat com apoio",
+                "prescricao": "8 repetições lentas cada lado",
+                "videoUrl": null
+              }
+            ]
+          },
+          {
+            "uid": "e0c14141-6426-4135-a3ac-c983630d8c2c",
+            "titulo": "Ativação e agachamento profundo",
+            "itens": [
+              {
+                "uid": "ce5d3077-6d33-46d3-941f-a71636fb556e",
+                "nome": "Agachamento profundo com apoio",
+                "prescricao": "2 x 45s com respiração profunda",
+                "videoUrl": null
+              },
+              {
+                "uid": "9fb651bf-2d10-4560-9e3c-76a47065be2e",
+                "nome": "Ponte de glúteo com pausa no topo",
+                "prescricao": "12 repetições com 2s de isometria",
+                "videoUrl": null
+              },
+              {
+                "uid": "2cba39ea-1a18-4105-8ca3-9a6ac4a51642",
+                "nome": "Passada com rotação de tronco",
+                "prescricao": "6 a 8 repetições cada lado",
+                "videoUrl": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "tipo": "MOBILIDADE",
+      "nome": "Mobilidade de ombro e coluna torácica",
+      "descricao": "Preparação para treinos de membros superiores (peito, costas e ombro), melhorando a extensão torácica e a amplitude glenoumeral.",
+      "conteudo": {
+        "orientacoes": "Movimente-se de maneira suave e sincronizada com a respiração. Ideal antes de supinos, desenvolvimentos e puxadas para soltar a cintura escapular e a coluna torácica sem fadigar os músculos.",
+        "secoes": [
+          {
+            "uid": "8cbd3335-c829-4056-859e-909367ef076b",
+            "titulo": "Soltura torácica e escapular",
+            "itens": [
+              {
+                "uid": "7b6612e8-8d83-4a72-a314-e63fc03886e2",
+                "nome": "Gato-vaca com foco torácico",
+                "prescricao": "10 a 12 repetições lentas",
+                "videoUrl": null
+              },
+              {
+                "uid": "c5b94d3c-f85d-4908-8b1e-2d22e21e03b9",
+                "nome": "Rotação torácica no quatro apoios",
+                "prescricao": "8 a 10 repetições cada lado",
+                "videoUrl": null
+              },
+              {
+                "uid": "fb82b173-f7fc-4927-a629-63a47d840f5f",
+                "nome": "Extensão torácica no solo com braços estendidos",
+                "prescricao": "2 x 30s a 45s",
+                "videoUrl": null
+              }
+            ]
+          },
+          {
+            "uid": "6f1341df-aafd-4aef-8b14-3495289299e7",
+            "titulo": "Mobilidade da cintura escapular e ombros",
+            "itens": [
+              {
+                "uid": "ce91d390-68c3-4731-afee-972a041a17ac",
+                "nome": "Círculos amplos de ombro",
+                "prescricao": "10 para frente e 10 para trás",
+                "videoUrl": null
+              },
+              {
+                "uid": "c1d54cf2-bbdc-42c5-acf1-01cdaf83eb74",
+                "nome": "Rotação interna e externa de ombro no solo",
+                "prescricao": "10 repetições controladas cada lado",
+                "videoUrl": null
+              },
+              {
+                "uid": "cdcc271e-727b-4483-9db3-e430a6e176fd",
+                "nome": "Deslocamento escapular no quatro apoios",
+                "prescricao": "12 repetições lentas",
+                "videoUrl": null
+              },
+              {
+                "uid": "2849ca1d-9cef-48ff-8d76-adbca3cc3c4c",
+                "nome": "Deslizamento na parede (Wall slide)",
+                "prescricao": "10 repetições lentas mantendo contato",
+                "videoUrl": null
+              }
+            ]
+          },
+          {
+            "uid": "aaf3d67f-0a63-4462-9257-9eca65f923c1",
+            "titulo": "Ativação e integração",
+            "itens": [
+              {
+                "uid": "93f8ce9b-7e54-4736-9585-bc67a4edab0e",
+                "nome": "Elevação Y-T-W deitado no chão",
+                "prescricao": "8 repetições de cada posição",
+                "videoUrl": null
+              },
+              {
+                "uid": "ed481e18-3c1e-4d75-ade0-711b5dd18eb3",
+                "nome": "Alongamento peitoral na parede com braço flexionado",
+                "prescricao": "2 x 30s cada lado",
+                "videoUrl": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "tipo": "MOBILIDADE",
+      "nome": "Mobilidade geral do corpo todo (8 a 10 minutos)",
+      "descricao": "Rotina rápida e abrangente de 8 a 10 minutos para o corpo todo, ideal para acordar o corpo ou aquecer antes de qualquer treino.",
+      "conteudo": {
+        "orientacoes": "Sequência fluida que percorre tornozelos, quadril, coluna torácica e ombros em 8 a 10 minutos. Mantenha ritmo constante, respire pelo nariz e execute cada repetição com controle total.",
+        "secoes": [
+          {
+            "uid": "383ba4bd-785c-421a-af2c-f475a412df0c",
+            "titulo": "Coluna e articulações centrais",
+            "itens": [
+              {
+                "uid": "3eb3a27c-feb9-454f-ac39-024323e8f3af",
+                "nome": "Gato-vaca",
+                "prescricao": "10 repetições lentas",
+                "videoUrl": null
+              },
+              {
+                "uid": "65de0433-4472-4f9c-a819-a95a37f14b02",
+                "nome": "Cachorro olhando para baixo alternando calcanhares",
+                "prescricao": "10 a 12 pedaladas lentas",
+                "videoUrl": null
+              },
+              {
+                "uid": "d15b24e1-7cf1-4023-b33a-4272dbb31038",
+                "nome": "Passada com rotação torácica",
+                "prescricao": "6 repetições cada lado",
+                "videoUrl": null
+              }
+            ]
+          },
+          {
+            "uid": "f722db49-dd31-48c7-b466-299d7681da42",
+            "titulo": "Quadril e membros inferiores",
+            "itens": [
+              {
+                "uid": "a813debf-9a61-4e51-83c8-f76c64338931",
+                "nome": "90/90 de quadril",
+                "prescricao": "8 transições suaves",
+                "videoUrl": null
+              },
+              {
+                "uid": "14cca764-b776-4dd2-9ca2-cf9894e5c605",
+                "nome": "Agachamento profundo com elevação de braço",
+                "prescricao": "8 a 10 repetições alternando braços",
+                "videoUrl": null
+              },
+              {
+                "uid": "0ff5cefd-f377-42a1-bd38-331de7911d10",
+                "nome": "Afundo dinâmico com extensão de quadril",
+                "prescricao": "8 repetições cada lado",
+                "videoUrl": null
+              }
+            ]
+          },
+          {
+            "uid": "30ab8929-f6e4-49af-bd67-6d4519e73f2a",
+            "titulo": "Membros superiores e finalização",
+            "itens": [
+              {
+                "uid": "7e5fa7af-4892-4cc6-bb0d-c750e1fad01e",
+                "nome": "Círculos de ombro e abertura peitoral",
+                "prescricao": "10 repetições dinâmicas",
+                "videoUrl": null
+              },
+              {
+                "uid": "24487bf3-6e69-4835-a8f7-754605a42c37",
+                "nome": "Rotação de tronco no quatro apoios",
+                "prescricao": "8 repetições cada lado",
+                "videoUrl": null
+              },
+              {
+                "uid": "42051668-9d78-4ee0-85ed-f8d76c390c69",
+                "nome": "Respiração profunda em agachamento profundo com apoio",
+                "prescricao": "45s a 60s",
+                "videoUrl": null
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

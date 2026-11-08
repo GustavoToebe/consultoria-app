@@ -57,14 +57,16 @@ public class ReceitaService {
     private final br.com.treinos.api.conta.PlanoDaConsultoria plano;
     private final BibliotecaService biblioteca;
     private final DietasPadraoService dietas;
+    private final SemanasPadraoService semanas;
 
     public ReceitaService(ReceitaRepository receitas, JsonMapper json, Validator validator, PastaModeloRepository pastas,
                           VideoUrls videoUrls, ConsultoriaRepository consultorias,
                           br.com.treinos.api.conta.PlanoDaConsultoria plano, BibliotecaService biblioteca,
-                          DietasPadraoService dietas) {
+                          DietasPadraoService dietas, SemanasPadraoService semanas) {
         this.plano = plano;
         this.biblioteca = biblioteca;
         this.dietas = dietas;
+        this.semanas = semanas;
         this.receitas = receitas;
         this.json = json;
         this.validator = validator;
@@ -138,6 +140,7 @@ public class ReceitaService {
         }
         biblioteca.garantirSuplementosPadrao();
         dietas.garantir();
+        semanas.garantir();
     }
 
     /**

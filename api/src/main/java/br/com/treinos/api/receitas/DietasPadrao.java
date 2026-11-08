@@ -4,10 +4,7 @@ import br.com.treinos.api.dieta.ConteudoDieta;
 import br.com.treinos.api.dieta.ConteudoDieta.Item;
 import br.com.treinos.api.web.Buscas;
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.json.JsonMapper;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -24,7 +21,6 @@ import java.util.UUID;
  */
 public final class DietasPadrao {
 
-    private static final JsonMapper JSON = JsonMapper.builder().build();
     private static final List<String> ARQUIVOS = List.of(
             "dieta-1-emagrecimento-1800.json",
             "dieta-2-manutencao-2200.json",
@@ -151,29 +147,14 @@ public final class DietasPadrao {
         List<Modelo> modelos = new ArrayList<>();
         for (String arquivo : ARQUIVOS) {
             String caminho = "receitas-padrao/dietas/" + arquivo;
-            try (InputStream in = DietasPadrao.class.getClassLoader().getResourceAsStream(caminho)) {
-                if (in == null) {
-                    throw new IllegalStateException("Dieta padrão ausente: " + caminho);
-                }
-                JsonNode raiz = JSON.readTree(in);
-                JsonNode lista = raiz.get("modelos");
-                if (lista == null || lista.size() != 1) {
-                    throw new IllegalStateException("Dieta padrão sem um modelo: " + arquivo);
-                }
-                JsonNode modelo = lista.get(0);
-                String nome = modelo.path("nome").asString("").strip();
-                if (nome.isEmpty() || nome.length() > 120) {
-                    throw new IllegalStateException("Nome de dieta padrão inválido: " + arquivo);
-                }
-                String descricao = modelo.path("descricao").asString(null);
-                if (descricao != null && descricao.length() > 400) {
-                    throw new IllegalStateException("Descrição de dieta padrão longa demais: " + arquivo);
-                }
-                ConteudoDieta conteudo = JSON.treeToValue(modelo.get("conteudo"), ConteudoDieta.class);
-                modelos.add(new Modelo(nome, descricao, conteudo));
-            } catch (IOException e) {
-                throw new IllegalStateException("Não foi possível ler " + arquivo, e);
+            List<JsonNode> lista = LeitorDeModelos.modelos(caminho);
+            if (lista.size() != 1) {
+                throw new IllegalStateException("Dieta padrão sem um modelo: " + arquivo);
             }
+            JsonNode modelo = lista.get(0);
+            ConteudoDieta conteudo = LeitorDeModelos.json().treeToValue(modelo.get("conteudo"), ConteudoDieta.class);
+            modelos.add(new Modelo(LeitorDeModelos.nome(modelo, arquivo), LeitorDeModelos.descricao(modelo, arquivo),
+                    conteudo));
         }
         return List.copyOf(modelos);
     }

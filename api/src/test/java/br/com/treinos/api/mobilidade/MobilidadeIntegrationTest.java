@@ -2,6 +2,7 @@ package br.com.treinos.api.mobilidade;
 
 import br.com.treinos.api.AbstractIntegrationTest;
 import br.com.treinos.api.ApiDeTeste;
+import br.com.treinos.api.receitas.SemanasPadrao;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -176,7 +177,8 @@ class MobilidadeIntegrationTest extends AbstractIntegrationTest {
         JsonNode nova = api.post("/planos-mobilidade/" + id + "/salvar-como-receita", treinador,
                 Map.of("nome", "Meu modelo de mobilidade"), 200);
         assertThat(nova.get("tipo").asString()).isEqualTo("MOBILIDADE");
-        assertThat(api.get("/receitas?tipo=MOBILIDADE", treinador, 200)).hasSize(2);
+        assertThat(api.get("/receitas?tipo=MOBILIDADE", treinador, 200))
+                .hasSize(SemanasPadrao.mobilidades().size() + 2);
     }
 
     @Test
