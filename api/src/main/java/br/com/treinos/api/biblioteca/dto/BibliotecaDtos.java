@@ -4,6 +4,8 @@ import br.com.treinos.api.biblioteca.Alimento;
 import br.com.treinos.api.biblioteca.CatalogoAlimento;
 import br.com.treinos.api.biblioteca.CatalogoExercicio;
 import br.com.treinos.api.biblioteca.Exercicio;
+import br.com.treinos.api.web.LinkExterno;
+import br.com.treinos.api.web.LinksExternos;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
@@ -47,33 +49,46 @@ public final class BibliotecaDtos {
     }
 
     /**
-     * {@code fatorCorrecao} e {@code fatorCoccao} podem vir nulos: o serviço preenche com
-     * {@code FatoresDeRendimento.estimar}. Número fora da faixa ou com mais de duas casas dá 422 {@code ALIMENTO_INVALIDO}
-     * no campo. {@code grupo} é texto livre opcional (até 60 depois de tirar os espaços sobrando; em branco = sem grupo).
+     * {@code fatorCorrecao} e {@code fatorCoccao} podem vir nulos no alimento comum: o serviço preenche com
+     * {@code FatoresDeRendimento.estimar}. No suplemento ({@code tipo = SUPLEMENTO}) nulo permanece nulo: nada é
+     * estimado. Número fora da faixa ou com mais de duas casas dá 422 {@code ALIMENTO_INVALIDO} no campo.
+     * {@code grupo} é texto livre opcional (até 60; no suplemento é a categoria). {@code tipo} ausente = {@code ALIMENTO}.
+     * Kcal e macros nulos só valem no suplemento. Base ausente no suplemento vira 100 g só para preencher a coluna.
      */
     public record AlimentoRequest(
             @NotBlank @Size(max = 160) String nome,
-            @NotNull @DecimalMin(value = "0", inclusive = false) @Digits(integer = 6, fraction = 2) BigDecimal baseQuantidade,
-            @NotNull @Pattern(regexp = "g|ml|un", message = "use g, ml ou un") String baseUnidade,
-            @NotNull @DecimalMin("0") @DecimalMax("99999") @Digits(integer = 6, fraction = 2) BigDecimal kcal,
-            @NotNull @DecimalMin("0") @DecimalMax("99999") @Digits(integer = 6, fraction = 2) BigDecimal proteina,
-            @NotNull @DecimalMin("0") @DecimalMax("99999") @Digits(integer = 6, fraction = 2) BigDecimal carboidrato,
-            @NotNull @DecimalMin("0") @DecimalMax("99999") @Digits(integer = 6, fraction = 2) BigDecimal gordura,
+            @DecimalMin(value = "0", inclusive = false) @Digits(integer = 6, fraction = 2) BigDecimal baseQuantidade,
+            @Pattern(regexp = "g|ml|un", message = "use g, ml ou un") String baseUnidade,
+            @DecimalMin("0") @DecimalMax("99999") @Digits(integer = 6, fraction = 2) BigDecimal kcal,
+            @DecimalMin("0") @DecimalMax("99999") @Digits(integer = 6, fraction = 2) BigDecimal proteina,
+            @DecimalMin("0") @DecimalMax("99999") @Digits(integer = 6, fraction = 2) BigDecimal carboidrato,
+            @DecimalMin("0") @DecimalMax("99999") @Digits(integer = 6, fraction = 2) BigDecimal gordura,
             @DecimalMin(value = "0", inclusive = false) @Digits(integer = 6, fraction = 2) BigDecimal gramasPorUnidade,
             @Size(max = 200) String fonte,
             BigDecimal fatorCorrecao,
             BigDecimal fatorCoccao,
-            String grupo) {
+            String grupo,
+            String tipo,
+            @Size(max = 80) String marca,
+            @LinkExterno @Size(max = LinksExternos.TAMANHO_MAXIMO) String link,
+            String cupom,
+            @Size(max = 20) List<@NotNull @Size(max = 60) String> sabores,
+            @Size(max = 40) String porcoesPorEmbalagem,
+            @Size(max = 80) String porcao) {
     }
 
     public record AlimentoResponse(UUID id, String nome, BigDecimal baseQuantidade, String baseUnidade,
                                    BigDecimal kcal, BigDecimal proteina, BigDecimal carboidrato, BigDecimal gordura,
                                    BigDecimal gramasPorUnidade, String fonte, String origem,
-                                   BigDecimal fatorCorrecao, BigDecimal fatorCoccao, String grupo) {
-        public static AlimentoResponse de(Alimento a) {
+                                   BigDecimal fatorCorrecao, BigDecimal fatorCoccao, String grupo,
+                                   String tipo, String marca, String link, String cupom, List<String> sabores,
+                                   String porcoesPorEmbalagem, String porcao) {
+        public static AlimentoResponse de(Alimento a, List<String> sabores) {
             return new AlimentoResponse(a.getId(), a.getNome(), a.getBaseQuantidade(), a.getBaseUnidade(),
                     a.getKcal(), a.getProteina(), a.getCarboidrato(), a.getGordura(), a.getGramasPorUnidade(),
-                    a.getFonte(), a.getOrigem().name(), a.getFatorCorrecao(), a.getFatorCoccao(), a.getGrupo());
+                    a.getFonte(), a.getOrigem().name(), a.getFatorCorrecao(), a.getFatorCoccao(), a.getGrupo(),
+                    a.getTipo().name(), a.getMarca(), a.getLink(), a.getCupom(), sabores,
+                    a.getPorcoesPorEmbalagem(), a.getPorcao());
         }
     }
 

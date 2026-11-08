@@ -33,8 +33,10 @@ public class AlimentoController {
 
     @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_LER')")
     @GetMapping
-    public List<AlimentoResponse> listar(@RequestParam(required = false) String busca) {
-        return biblioteca.listarAlimentos(busca);
+    public List<AlimentoResponse> listar(@RequestParam(required = false) String busca,
+                                         @RequestParam(required = false) String tipo,
+                                         @RequestParam(required = false) String grupo) {
+        return biblioteca.listarAlimentos(busca, tipo, grupo);
     }
 
     /**

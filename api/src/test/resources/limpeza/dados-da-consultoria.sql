@@ -58,7 +58,7 @@ insert into exercicio(id,consultoria_id,nome) values ('{EX}','{C}','Exercício f
 insert into exercicio_imagem(exercicio_id,consultoria_id,tipo,bytes,tamanho) values ('{EX}','{C}','image/png','\x00',1);
 insert into alimento(id,consultoria_id,nome,kcal) values (gen_random_uuid(),'{C}','Alimento fictício',100);
 insert into ergogenico(id,consultoria_id,nome,nome_busca) values (gen_random_uuid(),'{C}','Ergogênico','ergogenico');
-insert into suplemento(id,consultoria_id,nome,nome_busca) values (gen_random_uuid(),'{C}','Suplemento','suplemento');
+insert into alimento(id,consultoria_id,nome,tipo,nome_busca) values (gen_random_uuid(),'{C}','Suplemento fictício','SUPLEMENTO','suplemento');
 insert into direitos_locais(consultoria_id,contratacao_id,versao,situacao,acesso_liberado,plano_codigo,plano_nome,confirmado_em) values ('{C}',gen_random_uuid(),1,'ATIVA',true,'cod','Plano',now());
 insert into conta_comercial_local(consultoria_id,cliente,contratacao) values ('{C}','{}'::jsonb,'{}'::jsonb);
 insert into cobranca_local(id,consultoria_id,competencia_inicio,competencia_fim,vencimento,valor,situacao) values (gen_random_uuid(),'{C}',current_date,current_date,current_date,10,'ABERTA');

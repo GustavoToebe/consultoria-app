@@ -18,8 +18,6 @@ import br.com.treinos.api.biblioteca.Exercicio;
 import br.com.treinos.api.biblioteca.FatoresDeRendimento;
 import br.com.treinos.api.biblioteca.ExercicioRepository;
 import br.com.treinos.api.biblioteca.GrupoDoAlimento;
-import br.com.treinos.api.biblioteca.Suplemento;
-import br.com.treinos.api.biblioteca.SuplementoRepository;
 import br.com.treinos.api.conta.PlanoDaConsultoria;
 import br.com.treinos.api.execucao.RegistroPeso;
 import br.com.treinos.api.execucao.RegistroPesoRepository;
@@ -87,14 +85,13 @@ class GravadorDaImportacao {
     private final RegistroPesoRepository pesos;
     private final ExercicioRepository exercicios;
     private final AlimentoRepository alimentos;
-    private final SuplementoRepository suplementos;
     private final ErgogenicoRepository ergogenicos;
     private final VideoUrls videos;
     private final JsonMapper json;
 
     GravadorDaImportacao(AlunoRepository alunos, AlunoService alunoService, UsuarioRepository usuarios,
                          PlanoDaConsultoria plano, RegistroPesoRepository pesos, ExercicioRepository exercicios,
-                         AlimentoRepository alimentos, SuplementoRepository suplementos,
+                         AlimentoRepository alimentos,
                          ErgogenicoRepository ergogenicos, VideoUrls videos, JsonMapper json,
                          LimiteDoTreinador limiteDoTreinador) {
         this.limiteDoTreinador = limiteDoTreinador;
@@ -105,7 +102,6 @@ class GravadorDaImportacao {
         this.pesos = pesos;
         this.exercicios = exercicios;
         this.alimentos = alimentos;
-        this.suplementos = suplementos;
         this.ergogenicos = ergogenicos;
         this.videos = videos;
         this.json = json;
@@ -391,7 +387,7 @@ class GravadorDaImportacao {
     private void alimentos(List<Linha> dados, ConfiguracaoDaImportacao config, boolean gravar, Conta conta) {
         Map<String, Alimento> porNome = new LinkedHashMap<>();
         for (Alimento a : alimentos.findAll()) {
-            if (a.isAtivo()) {
+            if (a.isAtivo() && a.getTipo() == Alimento.Tipo.ALIMENTO) {
                 porNome.put(Buscas.semAcento(a.getNome()), a);
             }
         }
@@ -429,7 +425,7 @@ class GravadorDaImportacao {
                     fc = estimado.fatorCorrecao();
                     fcc = estimado.fatorCoccao();
                 }
-                var valores = new Alimento.Valores(nome, quantidade, unidade, kcal, proteina, carboidrato, gordura, gramas, fonte, fc, fcc, grupo);
+                var valores = Alimento.Valores.deAlimento(nome, quantidade, unidade, kcal, proteina, carboidrato, gordura, gramas, fonte, fc, fcc, grupo);
                 if (novo) {
                     Alimento criado = new Alimento(valores, Exercicio.Origem.IMPORTACAO);
                     if (gravar) {
@@ -450,10 +446,11 @@ class GravadorDaImportacao {
         }
     }
 
+    /** Aba "Suplementos": grava alimento com tipo SUPLEMENTO. Kcal que já estava no item não é apagado (a planilha não traz). */
     private void suplementos(List<Linha> dados, ConfiguracaoDaImportacao config, boolean gravar, Conta conta) {
-        Map<String, Suplemento> porNome = new LinkedHashMap<>();
-        for (Suplemento s : suplementos.findAll()) {
-            if (s.isAtivo()) {
+        Map<String, Alimento> porNome = new LinkedHashMap<>();
+        for (Alimento s : alimentos.findAll()) {
+            if (s.isAtivo() && s.getTipo() == Alimento.Tipo.SUPLEMENTO) {
                 porNome.put(s.getNome() == null ? "" : Buscas.semAcento(s.getNome()), s);
             }
         }
@@ -467,7 +464,7 @@ class GravadorDaImportacao {
                     throw falha(linha, "marca", CELULA_COM_ERRO);
                 }
                 String marcaInformada = marcaLida.mapeado() && !marcaLida.vazio() ? limitar(marcaLida.texto(), 80, linha.numero(), "marca") : null;
-                Suplemento atual = porNome.get(Buscas.semAcento(nome));
+                Alimento atual = porNome.get(Buscas.semAcento(nome));
                 if (atual != null && !mesmaMarca(atual.getMarca(), marcaInformada)) {
                     throw falha(linha, "marca", "Já existe um suplemento com este nome.");
                 }
@@ -477,23 +474,31 @@ class GravadorDaImportacao {
                 }
                 boolean novo = atual == null;
                 String marca = novo ? marcaInformada : escolher(atual.getMarca(), marcaInformada, marcaLida.mapeado() && !marcaLida.vazio(), config.existentes());
-                String categoria = textoFinal(novo, atual == null ? null : atual.getCategoria(), leitura(linha, config, "categoria"), "categoria", 60, false);
+                String categoria = textoFinal(novo, atual == null ? null : atual.getGrupo(), leitura(linha, config, "categoria"), "categoria", 60, false);
                 String porcao = textoFinal(novo, atual == null ? null : atual.getPorcao(), leitura(linha, config, "porcao"), "porcao", 80, false);
                 String porcoes = textoFinal(novo, atual == null ? null : atual.getPorcoesPorEmbalagem(), leitura(linha, config, "porcoes"), "porcoes", 40, false);
-                String sabores = sabores(novo, atual == null ? "[]" : atual.getSabores(), leitura(linha, config, "sabores"), config.existentes(), linha.numero());
+                String saboresAtuais = atual == null || atual.getSabores() == null ? "[]" : atual.getSabores();
+                String sabores = sabores(novo, saboresAtuais, leitura(linha, config, "sabores"), config.existentes(), linha.numero());
                 String link = link(novo, atual == null ? null : atual.getLink(), leitura(linha, config, "link"), linha.numero());
                 String cupom = cupom(novo, atual == null ? null : atual.getCupom(), leitura(linha, config, "cupom"), linha.numero());
-                var valores = new Suplemento.Valores(nome, Buscas.semAcento(nome), marca, categoria, porcao, porcoes, sabores, link, cupom);
+                BigDecimal base = novo ? new BigDecimal("100") : atual.getBaseQuantidade();
+                String unidade = novo ? "g" : atual.getBaseUnidade();
+                var valores = new Alimento.Valores(nome, base, unidade,
+                        novo ? null : atual.getKcal(), novo ? null : atual.getProteina(),
+                        novo ? null : atual.getCarboidrato(), novo ? null : atual.getGordura(),
+                        novo ? null : atual.getGramasPorUnidade(), novo ? null : atual.getFonte(),
+                        novo ? null : atual.getFatorCorrecao(), novo ? null : atual.getFatorCoccao(),
+                        categoria, marca, link, cupom, porcao, porcoes, sabores, Buscas.semAcento(nome));
                 if (novo) {
-                    Suplemento criado = new Suplemento(valores);
+                    Alimento criado = new Alimento(valores, Exercicio.Origem.IMPORTACAO, Alimento.Tipo.SUPLEMENTO);
                     if (gravar) {
-                        suplementos.saveAndFlush(criado);
+                        alimentos.saveAndFlush(criado);
                     }
                     porNome.put(Buscas.semAcento(nome), criado);
                     conta.novos++;
                 } else if (gravar) {
                     atual.alterar(valores);
-                    suplementos.saveAndFlush(atual);
+                    alimentos.saveAndFlush(atual);
                     conta.atualizados++;
                 } else {
                     conta.atualizados++;

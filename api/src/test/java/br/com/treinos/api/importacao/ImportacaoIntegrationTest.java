@@ -457,8 +457,9 @@ class ImportacaoIntegrationTest extends AbstractIntegrationTest {
         // O grupo passa pela mesma regra do cadastro (espaços sobrando saem, até 60 caracteres).
         assertThat(feitoAlimentos.path("comErro").asInt()).isEqualTo(1);
         assertThat(feitoAlimentos.path("erros").get(0).path("campo").asString()).isEqualTo("grupo");
-        assertThat(api.get("/alimentos", treinador, 200)).hasSize(1);
-        assertThat(api.get("/alimentos", treinador, 200).get(0).path("grupo").asString()).isEqualTo("Cereais e derivados");
+        assertThat(api.get("/alimentos", treinador, 200).valueStream()
+                .filter(a -> "Aveia fictícia".equals(a.path("nome").asString()))
+                .map(a -> a.path("grupo").asString())).containsExactly("Cereais e derivados");
 
         String suplementos = "nome;marca\nWhey fictício;Marca Fictícia\n";
         String configSu = config("nome_marca", "IGNORAR", Map.of("nome", 0, "marca", 1));
@@ -487,7 +488,7 @@ class ImportacaoIntegrationTest extends AbstractIntegrationTest {
         assertThat(feito.path("erros").get(0).path("campo").asString()).isEqualTo("cupom");
         // A amostra é a própria planilha devolvida a quem a enviou; a regra vale para a mensagem do erro.
         assertThat(feito.path("erros").toString()).doesNotContain(longo);
-        JsonNode lista = api.get("/suplementos", treinador, 200);
+        JsonNode lista = api.get("/alimentos?tipo=SUPLEMENTO", treinador, 200);
         assertThat(lista.valueStream().filter(x -> x.path("nome").asString().equals("Whey com cupom fictício"))
                 .findFirst().orElseThrow().path("cupom").asString()).isEqualTo("TESTE10");
         assertThat(lista.valueStream().filter(x -> x.path("nome").asString().equals("Cafeína sem cupom fictícia"))

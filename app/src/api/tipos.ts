@@ -403,9 +403,18 @@ export type UnidadeAlimento = 'g' | 'ml' | 'un';
 export interface Alimento {
   id: string;
   nome: string;
-  baseQuantidade: number;
-  baseUnidade: UnidadeAlimento;
-  kcal: number;
+  baseQuantidade: number | null;
+  baseUnidade: UnidadeAlimento | null;
+  kcal: number | null;
+  /** Ausente no alimento comum. `SUPLEMENTO` entra na mesma lista, com busca `?tipo=SUPLEMENTO`. */
+  tipo?: 'ALIMENTO' | 'SUPLEMENTO';
+  marca?: string | null;
+  link?: string | null;
+  cupom?: string | null;
+  sabores?: string[];
+  porcoesPorEmbalagem?: string | null;
+  /** Texto do rótulo. Sem kcal, a tela mostra isto em vez da base de armazenamento. */
+  porcao?: string | null;
   /** Nulo quando a fonte só publicou a caloria. Ausente não vira zero. */
   proteina: number | null;
   carboidrato: number | null;

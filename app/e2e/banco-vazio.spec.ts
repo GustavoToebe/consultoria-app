@@ -37,7 +37,6 @@ const VAZIO: RespostasApi = {
   'GET /exercicios': { corpo: [] },
   'GET /exercicios/pagina': { corpo: { itens: [], total: 0, grupos: [] } },
   'GET /alimentos': { corpo: [] },
-  'GET /suplementos': { corpo: [] },
   'GET /ergogenicos': { corpo: [] },
   'GET /catalogo/exercicios': { corpo: { itens: [], total: 0 } },
   'GET /catalogo/exercicios/grupos': { corpo: [] },

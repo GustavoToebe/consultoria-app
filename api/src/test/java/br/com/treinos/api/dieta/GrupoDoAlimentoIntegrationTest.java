@@ -138,14 +138,16 @@ class GrupoDoAlimentoIntegrationTest extends AbstractIntegrationTest {
         String grupoDoCatalogo = item.get("grupo").asString();
         assertThat(grupoDoCatalogo).isNotBlank();
         api.post("/alimentos/importar-catalogo", treinador, Map.of("ids", List.of(item.get("id").asString())), 200);
-        assertThat(api.get("/alimentos", treinador, 200).get(0).get("grupo").asString()).isEqualTo(grupoDoCatalogo);
+        assertThat(api.get("/alimentos", treinador, 200).valueStream()
+                .filter(a -> "Abobrinha, italiana, crua".equals(a.get("nome").asString()))
+                .map(a -> a.get("grupo").asString())).containsExactly(grupoDoCatalogo);
 
         // A regra da V038, rodada só nas linhas deste teste (o banco é compartilhado).
         String grupoDoArroz = jdbc.queryForObject("select grupo from catalogo_alimento where nome = 'Arroz, tipo 1, cozido'",
                 String.class);
         UUID doCatalogo = inserir(consultoria, "arroz, tipo 1, cozido ", "CATALOGO", null);
         UUID jaTinha = inserir(consultoria, "Morango, cru", "CATALOGO", "Meu grupo");
-        UUID manual = inserir(consultoria, "Banana, prata, crua", "MANUAL", null);
+        UUID manual = inserir(consultoria, "Abacaxi, cru", "MANUAL", null);
         UUID renomeado = inserir(consultoria, "Meu arroz fictício", "CATALOGO", null);
         jdbc.update("""
                 update alimento as a
@@ -181,7 +183,8 @@ class GrupoDoAlimentoIntegrationTest extends AbstractIntegrationTest {
 
     private static AlimentoRequest alimento(String nome, String grupo) {
         return new AlimentoRequest(nome, new BigDecimal("100"), "g", new BigDecimal("100"), BigDecimal.ONE,
-                BigDecimal.TEN, BigDecimal.ZERO, null, null, null, null, grupo);
+                BigDecimal.TEN, BigDecimal.ZERO, null, null, null, null, grupo,
+                null, null, null, null, null, null, null);
     }
 
     private static Item item(UUID alimentoId, String nome, String grupo) {

@@ -8,8 +8,6 @@ import br.com.treinos.api.biblioteca.Ergogenico;
 import br.com.treinos.api.biblioteca.ErgogenicoRepository;
 import br.com.treinos.api.biblioteca.Exercicio;
 import br.com.treinos.api.biblioteca.ExercicioRepository;
-import br.com.treinos.api.biblioteca.Suplemento;
-import br.com.treinos.api.biblioteca.SuplementoRepository;
 import br.com.treinos.api.equipe.AcessoAtual;
 import br.com.treinos.api.importacao.completa.PlanilhaCompletaDtos.Analise;
 import br.com.treinos.api.web.Fuso;
@@ -31,17 +29,15 @@ public class PlanilhaCompletaService {
     private final ExercicioRepository exercicios;
     private final AlimentoRepository alimentos;
 
-    private final SuplementoRepository suplementos;
     private final ErgogenicoRepository ergogenicos;
     private final AlunoRepository alunos;
     private final GuardaDasRespostas guarda;
 
     public PlanilhaCompletaService(ExercicioRepository exercicios, AlimentoRepository alimentos,
-                                   SuplementoRepository suplementos, ErgogenicoRepository ergogenicos,
+                                   ErgogenicoRepository ergogenicos,
                                    AlunoRepository alunos, GuardaDasRespostas guarda) {
         this.exercicios = exercicios;
         this.alimentos = alimentos;
-        this.suplementos = suplementos;
         this.ergogenicos = ergogenicos;
         this.alunos = alunos;
         this.guarda = guarda;
@@ -55,7 +51,8 @@ public class PlanilhaCompletaService {
         List<String> alimentosDaBiblioteca = alimentosAtivos.stream().map(Alimento::getNome).toList();
         // Os nomes da aba de suplementos (que podem ser de medicação) só voltam a quem pode gravar a dieta.
         boolean dieta = AcessoAtual.pode("PASTA_ALTERAR") && AcessoAtual.pode("DIETA_ALTERAR");
-        List<String> nomesDeSuplementos = dieta ? suplementos.findAll().stream().map(Suplemento::getNome).toList() : null;
+        List<String> nomesDeSuplementos = dieta ? alimentos.findAll().stream()
+                .filter(a -> a.getTipo() == Alimento.Tipo.SUPLEMENTO).map(Alimento::getNome).toList() : null;
         List<String> nomesDeErgogenicos = dieta ? ergogenicos.findAll().stream().map(Ergogenico::getNome).toList() : List.of();
         // Os nomes dos alunos só servem para dizer se o aluno da aba (ou do bloco) já existe; não voltam na resposta.
         List<String> nomesDeAlunos = alunos.findAll().stream().filter(a -> !a.isAnonimizado()).map(Aluno::getNome).toList();

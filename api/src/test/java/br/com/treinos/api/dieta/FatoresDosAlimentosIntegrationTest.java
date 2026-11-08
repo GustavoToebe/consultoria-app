@@ -201,7 +201,9 @@ class FatoresDosAlimentosIntegrationTest extends AbstractIntegrationTest {
         assertThat(cru.get("fatorCoccao").decimalValue()).isEqualByComparingTo("1.00");
 
         api.post("/alimentos/importar-catalogo", treinador, Map.of("ids", List.of(item.get("id").asString())), 200);
-        JsonNode copiado = api.get("/alimentos", treinador, 200).get(0);
+        JsonNode copiado = api.get("/alimentos", treinador, 200).valueStream()
+                .filter(a -> "Abobrinha, italiana, crua".equals(a.get("nome").asString()))
+                .findFirst().orElseThrow();
         assertThat(copiado.get("fatorCorrecao").decimalValue()).isEqualByComparingTo("1.25");
         assertThat(copiado.get("fatorCoccao").decimalValue()).isEqualByComparingTo("1.00");
         assertThat(jdbc.queryForObject(
@@ -218,7 +220,8 @@ class FatoresDosAlimentosIntegrationTest extends AbstractIntegrationTest {
 
     private static AlimentoRequest alimento(String nome, String fatorCorrecao, String fatorCoccao) {
         return new AlimentoRequest(nome, new BigDecimal("100"), "g", new BigDecimal("100"), BigDecimal.ONE,
-                BigDecimal.TEN, BigDecimal.ZERO, null, null, decimal(fatorCorrecao), decimal(fatorCoccao), null);
+                BigDecimal.TEN, BigDecimal.ZERO, null, null, decimal(fatorCorrecao), decimal(fatorCoccao), null,
+                null, null, null, null, null, null, null);
     }
 
     private static BigDecimal decimal(String texto) {

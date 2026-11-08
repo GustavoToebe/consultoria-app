@@ -3,7 +3,7 @@ import { ChevronsDownUp, ChevronsUpDown, NotebookTabs, Plus, ShoppingCart } from
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { listarAlimentos, listarErgogenicos, listarSuplementos } from '../../api/rotas';
+import { listarAlimentos, listarErgogenicos, suplementoDaResposta } from '../../api/rotas';
 import type { Alimento, ConteudoDieta, Receita, ResultadoValidacao } from '../../api/tipos';
 import { uidsComProblema } from '../../dominio/caminhos';
 import { dataDaTelaNaFaixa } from '../../dominio/datasValidas';
@@ -55,11 +55,13 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
   const { id } = useLocalSearchParams<{ id: string }>();
   const editor = usePlanoEditor<ConteudoDieta>('dieta', id, normalizarDieta, modelo);
   const nomeDoAluno = useNomeDoAluno(modelo ? null : editor.estado?.plano.alunoId);
-  const alimentos = useCarregar('biblioteca-alimentos', () => listarAlimentos()).dados ?? [];
+  const alimentosComuns = useCarregar('biblioteca-alimentos', () => listarAlimentos()).dados ?? [];
   const { pode } = useSessao();
   // Sem BIBLIOTECA_LER a API recusa a lista: nem pede, e o botão "Suplemento da biblioteca" some.
   const veBiblioteca = pode('BIBLIOTECA_LER');
-  const suplementosDaBiblioteca = useCarregar(veBiblioteca ? 'biblioteca-suplementos' : null, () => listarSuplementos()).dados ?? [];
+  const suplementosAlimento = useCarregar(veBiblioteca ? 'biblioteca-suplementos-alimento' : null, () => listarAlimentos(undefined, 'SUPLEMENTO')).dados ?? [];
+  const suplementosDaBiblioteca = suplementosAlimento.map(suplementoDaResposta);
+  const alimentos = [...alimentosComuns, ...suplementosAlimento];
   // Medicação e ergogênicos é dado sensível: sem ERGOGENICO_LER a lista nem é pedida; modelos nunca a levam.
   const veErgogenicos = !modelo && pode('ERGOGENICO_LER');
   const editaErgogenicos = veErgogenicos && pode('ERGOGENICO_ALTERAR');

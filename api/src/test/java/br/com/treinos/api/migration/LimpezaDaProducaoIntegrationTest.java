@@ -40,7 +40,7 @@ class LimpezaDaProducaoIntegrationTest extends AbstractIntegrationTest {
 
     /** Tabelas que a limpeza do conteúdo mantém, linha a linha, na consultoria que continua. */
     private static final Set<String> IGUAIS = Set.of("perfil", "usuario_convite", "inscricao_configuracao", "direitos_locais",
-            "conta_comercial_local", "cobranca_local", "alimento", "ergogenico", "exercicio", "exercicio_imagem", "suplemento",
+            "conta_comercial_local", "cobranca_local", "alimento", "ergogenico", "exercicio", "exercicio_imagem",
             "plano_comercial", "lancamento_financeiro", "credencial_pagamento", "lembrete_configuracao", "auditoria");
 
     /** Têm conferência própria: sobra só o treinador / só o dele; a fila é global e entra pelos ids das fotos. */

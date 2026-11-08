@@ -67,10 +67,13 @@ public class V059__limpeza_da_producao extends BaseJavaMigration {
             // questionários de todas as finalidades e receitas (a receita aponta para a coleção)
             "questionario_imagem", "questionario_versao", "questionario", "receita", "pasta_modelo");
 
-    /** Só a Toebe: o que sobra da consultoria depois do conteúdo, antes das pessoas. */
+    /**
+     * Só a Toebe: o que sobra da consultoria depois do conteúdo, antes das pessoas.
+     * Suplemento não está aqui: desde a V061 a linha é alimento com tipo SUPLEMENTO, e o delete de alimento a cobre.
+     */
     private static final List<String> DA_CONSULTORIA = List.of(
             "inscricao_configuracao", "lembrete_configuracao", "credencial_pagamento", "lancamento_financeiro", "plano_comercial",
-            "exercicio_imagem", "exercicio", "alimento", "ergogenico", "suplemento",
+            "exercicio_imagem", "exercicio", "alimento", "ergogenico",
             "direitos_locais", "conta_comercial_local", "cobranca_local", "aceite_termo", "auditoria", "usuario_convite");
 
     /** Tabelas do módulo de autenticação (esquema plataforma) que guardam algo por usuário; "sujeito" é o id do usuário. */

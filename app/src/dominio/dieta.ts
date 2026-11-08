@@ -29,7 +29,7 @@ const arredondar = (n: number) => Math.round(n * 1000) / 1000;
 export function recalcularItem(item: ItemDieta, alimento: Alimento | undefined): ItemDieta {
   if (item.manual || !alimento) return item;
   const base = item.quantidade && item.quantidade > 0 ? quantidadeNaBase(alimento, item.quantidade, item.unidade) : null;
-  const fator = base === null ? null : base / alimento.baseQuantidade;
+  const fator = base === null || !alimento.baseQuantidade ? null : base / alimento.baseQuantidade;
   const valor = (v: number | null | undefined) =>
     (fator === null || v === null || v === undefined ? null : arredondar(v * fator));
   return {
@@ -92,7 +92,7 @@ export function novoItem(alimento?: Alimento): ItemDieta {
       alimentoId: alimento.id,
       nome: alimento.nome,
       quantidade: alimento.baseQuantidade,
-      unidade: alimento.baseUnidade,
+      unidade: alimento.baseUnidade ?? 'g',
       kcal: null,
       proteina: null,
       carboidrato: null,

@@ -11,11 +11,16 @@ import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ExerciciosPagina;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.FatoresDoAlimento;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ImportacaoResultado;
 import br.com.treinos.api.web.Buscas;
+import br.com.treinos.api.web.CupomDeSuplemento;
+import br.com.treinos.api.web.FiltrosDeLista;
+import br.com.treinos.api.web.LinksExternos;
 import br.com.plataforma.comum.web.ApiError;
 import br.com.plataforma.comum.web.BadRequestException;
 import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.web.NaoEncontradoException;
 import br.com.treinos.api.web.ValidacaoException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.json.JsonMapper;
 import br.com.treinos.api.web.VideoUrls;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -54,6 +59,10 @@ public class BibliotecaService {
     private static final BigDecimal FC_MAXIMO = new BigDecimal("20.00");
     private static final BigDecimal FCC_MINIMO = new BigDecimal("0.10");
     private static final BigDecimal FCC_MAXIMO = new BigDecimal("10.00");
+    private static final BigDecimal BASE_DE_ARMAZENAMENTO = new BigDecimal("100");
+    /** Nome neutro: o rótulo não trouxe marca nem nome comercial. */
+    static final String WHEY = WheyDoRotulo.NOME;
+    private static final TypeReference<List<String>> TEXTOS = new TypeReference<>() { };
 
     private final ExercicioRepository exercicios;
     private final AlimentoRepository alimentos;
@@ -61,17 +70,19 @@ public class BibliotecaService {
     private final CatalogoAlimentoRepository catalogoAlimentos;
     private final VideoUrls videoUrls;
     private final ExercicioImagemRepository imagensProprias;
+    private final JsonMapper json;
 
     public BibliotecaService(ExercicioRepository exercicios, AlimentoRepository alimentos,
                              CatalogoExercicioRepository catalogoExercicios,
                              CatalogoAlimentoRepository catalogoAlimentos, VideoUrls videoUrls,
-                             ExercicioImagemRepository imagensProprias) {
+                             ExercicioImagemRepository imagensProprias, JsonMapper json) {
         this.exercicios = exercicios;
         this.alimentos = alimentos;
         this.catalogoExercicios = catalogoExercicios;
         this.catalogoAlimentos = catalogoAlimentos;
         this.videoUrls = videoUrls;
         this.imagensProprias = imagensProprias;
+        this.json = json;
     }
 
     // ---- Exercícios ----
@@ -218,9 +229,21 @@ public class BibliotecaService {
 
     // ---- Alimentos ----
 
+    /**
+     * {@code tipo} vazio = só alimentos comuns (a lista de hoje). {@code SUPLEMENTO} lista os suplementos, com busca sem
+     * acento e filtro de categoria em {@code grupo}. Outro valor = 400 {@code FILTRO_INVALIDO}, sem repetir o texto.
+     */
     @Transactional(readOnly = true)
-    public List<AlimentoResponse> listarAlimentos(String busca) {
-        return alimentos.buscarAtivos(Buscas.padrao(busca)).stream().map(AlimentoResponse::de).toList();
+    public List<AlimentoResponse> listarAlimentos(String busca, String tipo, String grupo) {
+        if (tipo == null || tipo.isBlank() || "ALIMENTO".equals(tipo)) {
+            return alimentos.buscarAtivos(Buscas.padrao(busca)).stream().map(this::resposta).toList();
+        }
+        if (!"SUPLEMENTO".equals(tipo)) {
+            throw new BadRequestException("Filtro de tipo inválido.", FiltrosDeLista.CODIGO);
+        }
+        String categoria = grupo == null ? "" : grupo.trim();
+        return alimentos.buscarSuplementos(Buscas.padraoSemAcento(busca), categoria, Alimento.Tipo.SUPLEMENTO).stream()
+                .map(this::resposta).toList();
     }
 
     /**
@@ -241,18 +264,57 @@ public class BibliotecaService {
 
     @Transactional
     public AlimentoResponse criarAlimento(AlimentoRequest r) {
-        Alimento.Valores valores = valores(r);
-        exigirNomeLivreAlimento(valores.nome(), NENHUM);
-        return AlimentoResponse.de(alimentos.saveAndFlush(new Alimento(valores, Exercicio.Origem.MANUAL)));
+        Alimento.Tipo tipo = tipoDoCorpo(r.tipo());
+        Alimento.Valores valores = valores(r, tipo, null);
+        exigirNomeLivre(valores, tipo, NENHUM);
+        return resposta(alimentos.saveAndFlush(new Alimento(valores, Exercicio.Origem.MANUAL, tipo)));
     }
 
     @Transactional
     public AlimentoResponse alterarAlimento(UUID id, AlimentoRequest r) {
         Alimento a = alimentoAtivo(id);
-        Alimento.Valores valores = valores(r);
-        exigirNomeLivreAlimento(valores.nome(), id);
+        if (r.tipo() != null && !r.tipo().isBlank() && !a.getTipo().name().equals(r.tipo())) {
+            throw new ValidacaoException("Confira os dados do alimento.", "ALIMENTO_INVALIDO",
+                    List.of(new ApiError.FieldError("tipo", "O tipo não muda depois de gravado.")));
+        }
+        Alimento.Valores valores = valores(r, a.getTipo(), a);
+        exigirNomeLivre(valores, a.getTipo(), id);
         a.alterar(valores);
-        return AlimentoResponse.de(alimentos.saveAndFlush(a));
+        return resposta(alimentos.saveAndFlush(a));
+    }
+
+    /**
+     * Cria os suplementos padrão que esta consultoria ainda não tem. Nome que já existe (mesmo inativo) fica como está.
+     * Kcal fica nulo no catálogo Heavy Suppz, que não traz valor nutricional. O Whey do rótulo entra com os valores gravados.
+     */
+    @Transactional
+    public void garantirSuplementosPadrao() {
+        Set<String> nomes = new HashSet<>();
+        for (String nome : alimentos.nomes(Alimento.Tipo.SUPLEMENTO)) {
+            nomes.add(Buscas.semAcento(nome));
+        }
+        for (SuplementosPadrao.Item item : SuplementosPadrao.itens(json)) {
+            String busca = Buscas.semAcento(item.nome());
+            if (!nomes.add(busca)) continue;
+            alimentos.save(new Alimento(new Alimento.Valores(item.nome(), BASE_DE_ARMAZENAMENTO, "g", null, null, null,
+                    null, null, null, null, null, Buscas.opcional(item.categoria()), Buscas.opcional(item.marca()),
+                    item.link(), null, Buscas.opcional(item.porcao()), Buscas.opcional(item.porcoesPorEmbalagem()),
+                    json.writeValueAsString(item.sabores()), busca), Exercicio.Origem.MANUAL, Alimento.Tipo.SUPLEMENTO));
+        }
+        garantirWhey(nomes);
+    }
+
+    /**
+     * Rótulo do Whey (E-002): 30 g, 124 kcal, carboidrato 2,3 g, proteína 24 g, gordura 2,1 g, cerca de 33 porções.
+     * Sem marca. Nome que já existe não é alterado. Fibras e sódio não têm coluna.
+     */
+    private void garantirWhey(Set<String> nomesSemAcento) {
+        String busca = Buscas.semAcento(WHEY);
+        if (!nomesSemAcento.add(busca)) return;
+        alimentos.save(new Alimento(new Alimento.Valores(WHEY, WheyDoRotulo.BASE, "g", WheyDoRotulo.KCAL,
+                WheyDoRotulo.PROTEINA, WheyDoRotulo.CARBOIDRATO, WheyDoRotulo.GORDURA, null, null, null, null, null,
+                null, null, null, WheyDoRotulo.PORCAO, WheyDoRotulo.PORCOES, WheyDoRotulo.SABORES, busca),
+                Exercicio.Origem.MANUAL, Alimento.Tipo.SUPLEMENTO));
     }
 
     @Transactional
@@ -275,7 +337,7 @@ public class BibliotecaService {
 
     @Transactional
     public ImportacaoResultado importarCatalogoAlimentos(List<UUID> ids) {
-        Set<String> existentes = new HashSet<>(alimentos.nomesAtivos());
+        Set<String> existentes = new HashSet<>(alimentos.nomesAtivos(Alimento.Tipo.ALIMENTO));
         Set<UUID> pedidos = new HashSet<>(ids);
         int importados = 0;
         for (CatalogoAlimento c : catalogoAlimentos.findAllById(pedidos)) {
@@ -284,7 +346,7 @@ public class BibliotecaService {
             }
             var fatores = FatoresDeRendimento.completar(c.getFatorCorrecao(), c.getFatorCoccao(), c.getNome(),
                     c.getGrupo(), c.getKcal(), c.getBaseQuantidade(), c.getBaseUnidade());
-            alimentos.save(new Alimento(new Alimento.Valores(c.getNome(), c.getBaseQuantidade(), c.getBaseUnidade(),
+            alimentos.save(new Alimento(Alimento.Valores.deAlimento(c.getNome(), c.getBaseQuantidade(), c.getBaseUnidade(),
                     c.getKcal(), c.getProteina(), c.getCarboidrato(), c.getGordura(), c.getGramasPorUnidade(),
                     c.getFonte(), fatores.fatorCorrecao(), fatores.fatorCoccao(), GrupoDoAlimento.doCatalogo(c.getGrupo())),
                     Exercicio.Origem.CATALOGO));
@@ -293,14 +355,81 @@ public class BibliotecaService {
         return new ImportacaoResultado(importados, pedidos.size() - importados);
     }
 
-    private static Alimento.Valores valores(AlimentoRequest r) {
+    private Alimento.Valores valores(AlimentoRequest r, Alimento.Tipo tipo, Alimento atual) {
         String grupo = GrupoDoAlimento.normalizar(r.grupo());
+        if (tipo == Alimento.Tipo.SUPLEMENTO) {
+            return valoresDeSuplemento(r, grupo, atual);
+        }
+        exigirNutricaoDeAlimento(r);
         var fatores = FatoresDeRendimento.completar(r.fatorCorrecao(), r.fatorCoccao(), r.nome(), grupo,
                 r.kcal(), r.baseQuantidade(), r.baseUnidade());
         exigirFatoresEGrupo(fatores.fatorCorrecao(), fatores.fatorCoccao(), grupo);
-        return new Alimento.Valores(r.nome().trim(), r.baseQuantidade(), r.baseUnidade(), r.kcal(), r.proteina(),
+        return Alimento.Valores.deAlimento(r.nome().trim(), r.baseQuantidade(), r.baseUnidade(), r.kcal(), r.proteina(),
                 r.carboidrato(), r.gordura(), r.gramasPorUnidade(), Buscas.opcional(r.fonte()),
                 fatores.fatorCorrecao(), fatores.fatorCoccao(), grupo);
+    }
+
+    /**
+     * Suplemento: não estima fator nem kcal. Base omitida vira 100 g só para a coluna, sem ser valor de rótulo.
+     * Na edição, kcal e macros omitidos ficam os que já estavam: o formulário de suplemento não os envia.
+     */
+    private Alimento.Valores valoresDeSuplemento(AlimentoRequest r, String grupo, Alimento atual) {
+        BigDecimal base = r.baseQuantidade() != null ? r.baseQuantidade()
+                : atual != null ? atual.getBaseQuantidade() : BASE_DE_ARMAZENAMENTO;
+        String unidade = r.baseUnidade() != null && !r.baseUnidade().isBlank() ? r.baseUnidade()
+                : atual != null ? atual.getBaseUnidade() : "g";
+        exigirFatoresEGrupo(r.fatorCorrecao(), r.fatorCoccao(), grupo);
+        List<String> sabores = r.sabores() == null ? List.of() : List.copyOf(new LinkedHashSet<>(r.sabores().stream()
+                .map(Buscas::opcional).filter(Objects::nonNull).toList()));
+        String nome = r.nome().trim();
+        return new Alimento.Valores(nome, base, unidade,
+                primeiro(r.kcal(), atual == null ? null : atual.getKcal()),
+                primeiro(r.proteina(), atual == null ? null : atual.getProteina()),
+                primeiro(r.carboidrato(), atual == null ? null : atual.getCarboidrato()),
+                primeiro(r.gordura(), atual == null ? null : atual.getGordura()),
+                primeiro(r.gramasPorUnidade(), atual == null ? null : atual.getGramasPorUnidade()),
+                primeiroTexto(Buscas.opcional(r.fonte()), atual == null ? null : atual.getFonte()),
+                primeiro(r.fatorCorrecao(), atual == null ? null : atual.getFatorCorrecao()),
+                primeiro(r.fatorCoccao(), atual == null ? null : atual.getFatorCoccao()),
+                grupo, Buscas.opcional(r.marca()), LinksExternos.normalizar(r.link()),
+                CupomDeSuplemento.normalizar(r.cupom(), "ALIMENTO_INVALIDO"), Buscas.opcional(r.porcao()),
+                Buscas.opcional(r.porcoesPorEmbalagem()), json.writeValueAsString(sabores), Buscas.semAcento(nome));
+    }
+
+    private static BigDecimal primeiro(BigDecimal pedido, BigDecimal gravado) {
+        return pedido != null ? pedido : gravado;
+    }
+
+    private static String primeiroTexto(String pedido, String gravado) {
+        return pedido != null ? pedido : gravado;
+    }
+
+    private static void exigirNutricaoDeAlimento(AlimentoRequest r) {
+        List<ApiError.FieldError> erros = new ArrayList<>();
+        if (r.baseQuantidade() == null) erros.add(new ApiError.FieldError("baseQuantidade", "Informe a quantidade da base."));
+        if (r.baseUnidade() == null || r.baseUnidade().isBlank()) {
+            erros.add(new ApiError.FieldError("baseUnidade", "Informe a unidade da base."));
+        }
+        if (r.kcal() == null) erros.add(new ApiError.FieldError("kcal", "Informe as calorias."));
+        if (r.proteina() == null) erros.add(new ApiError.FieldError("proteina", "Informe a proteína."));
+        if (r.carboidrato() == null) erros.add(new ApiError.FieldError("carboidrato", "Informe o carboidrato."));
+        if (r.gordura() == null) erros.add(new ApiError.FieldError("gordura", "Informe a gordura."));
+        if (!erros.isEmpty()) {
+            throw new ValidacaoException("Confira os dados do alimento.", "ALIMENTO_INVALIDO", erros);
+        }
+    }
+
+    private static Alimento.Tipo tipoDoCorpo(String tipo) {
+        if (tipo == null || tipo.isBlank() || "ALIMENTO".equals(tipo)) return Alimento.Tipo.ALIMENTO;
+        if ("SUPLEMENTO".equals(tipo)) return Alimento.Tipo.SUPLEMENTO;
+        throw new ValidacaoException("Confira os dados do alimento.", "ALIMENTO_INVALIDO",
+                List.of(new ApiError.FieldError("tipo", "Use ALIMENTO ou SUPLEMENTO.")));
+    }
+
+    private AlimentoResponse resposta(Alimento a) {
+        List<String> sabores = a.getSabores() == null || a.getSabores().isBlank()
+                ? List.of() : json.readValue(a.getSabores(), TEXTOS);
+        return AlimentoResponse.de(a, sabores);
     }
 
     /**
@@ -355,8 +484,14 @@ public class BibliotecaService {
         }
     }
 
-    private void exigirNomeLivreAlimento(String nome, UUID exceto) {
-        if (alimentos.existeNomeAtivo(nome.toLowerCase(Locale.ROOT), exceto)) {
+    private void exigirNomeLivre(Alimento.Valores valores, Alimento.Tipo tipo, UUID exceto) {
+        if (tipo == Alimento.Tipo.SUPLEMENTO) {
+            if (alimentos.existeNomeBusca(valores.nomeBusca(), tipo, exceto)) {
+                throw new ConflictException("Já existe um suplemento com este nome.", "NOME_EM_USO");
+            }
+            return;
+        }
+        if (alimentos.existeNomeAtivo(valores.nome().toLowerCase(Locale.ROOT), tipo, exceto)) {
             throw new ConflictException("Já existe um alimento com este nome.", "NOME_EM_USO");
         }
     }
