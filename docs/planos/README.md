@@ -87,7 +87,8 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Infra de 04/11 (Caddy sem correção na imagem, dependabot do app, `lock_timeout` do módulo auth no Servirea e na Central, roteiro do Mercado Pago) | [infra-04-11.md](infra-04-11.md) | branch `lote-04-11-b` e `infra-04-11` na Central e no Servirea | Em andamento: PRs abertos; roteiro do Mercado Pago espera o Gustavo | 04/11/2026 |
 | Páginas públicas: privacidade, termo de uso e exclusão de conta (pedido das lojas) | [paginas-publicas.md](paginas-publicas.md) | `main` (PR #95) | Concluída em 04/11/2026 (termos ainda em rascunho) | 04/11/2026 |
 | Fatores de alimento nativos (FC e FCc estimados, V060; C52) | [fatores-de-alimento-nativos.md](fatores-de-alimento-nativos.md) | branch `top-set-restaurado` (PR #103) | Código e testes prontos; conferir na tela depois do deploy | 05/11/2026 |
-| Biblioteca unificada (alimentos e suplementos, V061) | [relatorio-biblioteca.md](relatorio-biblioteca.md) | branch `biblioteca-unificada` | Commit local, sem push. A V059 foi editada (saiu "suplemento" de `DA_CONSULTORIA`); produção já rodou a V059 em 05/11. Modelos e dietas ficam fora deste commit | 07/11/2026 |
+| Biblioteca unificada: Alimentos e Suplementos numa tabela só (Whey soma na dieta) | [biblioteca-unificada-alimentos-suplementos.md](biblioteca-unificada-alimentos-suplementos.md) | `main` (PR #104, `ea2c2559` e PR #105, `88dfb654`) | Concluída em 08/11/2026 (deploy verde runs 42434144981 e 42443936995) | 08/11/2026 |
+| Modelos padrão do sistema: 32 Semanas, 37 Dias, 26 Receitas de séries, 3 Mobilidades e 13 Dietas, sem coleção | [modelos-padrao-do-sistema.md](modelos-padrao-do-sistema.md) | `main` (PR #106, `e895a0e1`) | Concluída em 08/11/2026 (deploy verde run 42444911092) | 08/11/2026 |
 
 ## Pendências soltas
 
