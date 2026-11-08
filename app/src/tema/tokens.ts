@@ -317,7 +317,7 @@ export const LARGURA_DUAS_COLUNAS = 960;
 /**
  * Largura dos editores com lista + inspetor (treino, dieta, mobilidade) em duas colunas: todo o espaço útil, como as
  * listas. Era 1440 e, em 1920 px, sobravam duas faixas vazias dos lados (Gustavo, 04/11). Os campos de texto não esticam
- * junto: a "Configuração do plano" segura a medida em `LARGURA_EDITOR`.
+ * junto (a "Configuração do plano" preenche a largura do cartão).
  */
 export const LARGURA_EDITOR_DUAS_COLUNAS = LARGURA_MAXIMA;
 /** Listas e painéis (ficha do aluno, início, alunos, biblioteca, planejamento): todo o espaço útil (= `LARGURA_MAXIMA`). */

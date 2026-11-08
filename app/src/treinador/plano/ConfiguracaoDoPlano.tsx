@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { espaco, LARGURA_EDITOR } from '../../tema/tokens';
+import { espaco } from '../../tema/tokens';
 import { Campo } from '../../ui/Campo';
 import { CampoData } from '../../ui/Campos';
 import { Cartao } from '../../ui/Cartao';
@@ -23,8 +23,7 @@ interface Props<C> {
 
 /**
  * "Configuração do plano": título, período (quando não vem da pasta) e os campos do tipo. Recolhível: o treinador mexe
- * pouco aqui depois de montado o plano. Os campos ficam na medida de `LARGURA_EDITOR`: com o editor em todo o espaço útil
- * (1920 px), um campo de título com 1600 px de largura ficava difícil de ler e de achar o fim (04/11).
+ * pouco aqui depois de montado o plano. Os campos preenchem a largura do cartão.
  */
 export function ConfiguracaoDoPlano<C>({ editor, modelo, recolhido, descricao, children }: Props<C>) {
   const e = editor.estado;
@@ -62,7 +61,7 @@ export function ConfiguracaoDoPlano<C>({ editor, modelo, recolhido, descricao, c
 }
 
 const estilos = StyleSheet.create({
-  medida: { width: '100%', maxWidth: LARGURA_EDITOR, gap: espaco(2) },
+  medida: { width: '100%', gap: espaco(2) },
   datas: { flexDirection: 'row', gap: espaco(1.5), flexWrap: 'wrap' },
   data: { flex: 1, minWidth: 190 },
 });

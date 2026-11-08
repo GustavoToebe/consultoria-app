@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, CircleAlert, CircleCheck, Minus, Plus, Smartphone, Trash2, TriangleAlert, type LucideIcon } from 'lucide-react-native';
+import { ArrowDown, ArrowUp, Check, CircleAlert, CircleCheck, Minus, Plus, Smartphone, Trash2, TriangleAlert, type LucideIcon } from 'lucide-react-native';
 import { type ReactNode, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -24,7 +24,7 @@ import { EscolhaSuspensa } from '../../ui/EscolhaSuspensa';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { NumeroInvertido } from '../../ui/NumeroInvertido';
-import type { TipoSelo } from '../../ui/Selo';
+import { Selo, type TipoSelo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useUnidadeDeCarga } from '../../ui/unidadeDeCargaEmUso';
 import { BotaoDeAbrir } from './BotaoDeAbrir';
@@ -224,19 +224,24 @@ export function EditorGrupo({ largo, grupo: g, series, config, cardio, semCarga,
 }
 
 /**
- * "Para o aluno: 3×3 a 5 · FS · 50% · 70% · 85% a 90% da WS". Sem selo (ele fica só no "Editando", em cima): pronta, é uma
- * linha como as outras; com aviso ou erro, ganha fundo e borda na cor do estado.
+ * "Para o aluno: 3×3 a 5 · FS · 50% · 70% · 85% a 90% da WS". Fundo e borda na cor do estado; quando pronta, exibe o selo
+ * "Série pronta" à direita.
  */
 function ParaOAluno({ nivel, texto }: { nivel: Nivel; texto: string }) {
   const { cores } = useTema();
-  const linha = <View style={estilos.textoDaPrevia}>
-    <Smartphone size={16} color={cores.texto} />
-    <Texto numerico cor={cores.texto} style={estilos.flexivel}>
-      <Texto variante="rotulo" cor={cores.texto}>Para o aluno: </Texto>{texto}
-    </Texto>
-  </View>;
-  if (nivel === 'sucesso') return linha;
-  return <View style={[estilos.previa, { borderColor: cores[nivel], backgroundColor: tingido(cores[nivel], cores.superficie) }]}>{linha}</View>;
+  return (
+    <View style={[estilos.previa, { borderColor: cores[nivel], backgroundColor: tingido(cores[nivel], cores.superficie) }]}>
+      <View style={estilos.linhaDaPrevia}>
+        <View style={estilos.textoDaPrevia}>
+          <Smartphone size={16} color={cores.texto} />
+          <Texto numerico cor={cores.texto} style={estilos.flexivel}>
+            <Texto variante="rotulo" cor={cores.texto}>Para o aluno: </Texto>{texto}
+          </Texto>
+        </View>
+        {nivel === 'sucesso' ? <Selo texto="Série pronta" tipo="sucesso" Icone={Check} /> : null}
+      </View>
+    </View>
+  );
 }
 
 const estilos = StyleSheet.create({
@@ -256,7 +261,8 @@ const estilos = StyleSheet.create({
   juntos: { gap: espaco(0.5) },
   explicacao: { borderLeftWidth: 2, paddingLeft: espaco(1.5), paddingVertical: espaco(0.5) },
   previa: { borderWidth: 1, borderRadius: RAIO, paddingHorizontal: espaco(1.5), paddingVertical: espaco(1) },
-  textoDaPrevia: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75) },
+  linhaDaPrevia: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: espaco(1) },
+  textoDaPrevia: { flex: 1, minWidth: 200, flexDirection: 'row', alignItems: 'center', gap: espaco(0.75) },
   flexivel: { flex: 1, minWidth: 0 },
   contador: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
   numero: { fontFamily: fontes.negrito, fontSize: 18, lineHeight: 24, minWidth: 24, textAlign: 'center' },
