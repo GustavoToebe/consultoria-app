@@ -18,8 +18,8 @@ Totais do Flyway desta frente: 61 (`FlywayMigrationIntegrationTest` e `PapeisBan
 
 ## V059 editada
 
-A V059 já rodou em produção em 05/11/2026. O código dela foi editado nesta frente: "suplemento" saiu da lista `DA_CONSULTORIA` (e do conjunto `IGUAIS` do teste). Desde a V061 o suplemento é alimento com tipo SUPLEMENTO, e o delete de `alimento` cobre a linha. A regra de sem compatibilidade cobre o checksum novo: a produção não restaura o histórico antigo. O risco que sobra é restaurar um dump anterior a 05/11, em que a V059 gravada tem outro checksum e o Flyway recusa a subida até um repair. Não rodei repair.
+A V059 já rodou em produção em 05/11/2026. O código dela foi editado nesta frente: "suplemento" saiu da lista `DA_CONSULTORIA` (e do conjunto `IGUAIS` do teste). Desde a V061 o suplemento é alimento com tipo SUPLEMENTO, e o delete de `alimento` cobre a linha. A V059 estende `BaseJavaMigration` sem `getChecksum()`: o checksum gravado é nulo e o Flyway não o confere. Não há repair nem risco de checksum. O risco que sobra, ao restaurar um dump anterior a 05/11, é só a FK de `suplemento` na V059. A regra de sem compatibilidade cobre.
 
 ## Fora deste commit
 
-Modelos e as 11 dietas (V062) continuam no working tree, sem commit e sem push.
+As 11 dietas (V062) continuam no working tree, sem commit e sem push. Semanas, Dias e Mobilidades não estão nesta branch.
