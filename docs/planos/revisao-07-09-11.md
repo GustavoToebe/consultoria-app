@@ -1,6 +1,6 @@
 # Revisão geral de 07 a 09/11 (correção de back, banco e front)
 
-Situação: Em andamento · Onde: `main` (árvore local, sem commit) · Atualizado: 09/11/2026
+Situação: Publicada em 09/11/2026 (`133d6cc6`, run 42716103970); sobras abaixo · Onde: `main` · Atualizado: 09/11/2026
 
 ## Objetivo
 Corrigir o que as entregas de 07 a 09/11 (V061 a V066) deixaram fora do padrão do sistema, com ênfase no front: link
@@ -26,7 +26,7 @@ Base: HEAD `5d4c8cc4` (em produção). Corrigido em migrations novas, porque V06
 - [x] 4. Importação assistida, `ImportacaoAssistidaIntegrationTest` 8/8 e `ImportacaoAssistidaServiceTest` 13/13.
 - [x] 5. Totais de migrations em 68 e lista do Flyway com as duas novas — `FlywayMigrationIntegrationTest` 4/4, `PapeisBancoIntegrationTest` 6/6.
 - [x] 6. `mvn verify` completo com JaCoCo — evidência: BUILD SUCCESS em 09/11/2026, 2229 testes sem falha, ArchUnit 17/17, "All coverage checks have been met" (Postgres 18 via Testcontainers; o 17 não foi rodado).
-- [ ] 7. Commit e push na `main` — commit/run: —
+- [x] 7. Commit e push na `main` — commit/run: `133d6cc6`, run 42716103970 (todos os jobs verdes, inclusive `publicar`); `/api/actuator/health` UP e site 200 em 09/11/2026.
 
 ## Fora do escopo
 - IA externa (Gemini/Claude) segue desligada até decisão do Gustavo.

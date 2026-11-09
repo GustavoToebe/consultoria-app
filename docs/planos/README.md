@@ -91,7 +91,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Modelos padrão do sistema: 32 Semanas, 37 Dias, 26 Receitas de séries, 3 Mobilidades e 13 Dietas, sem coleção | [modelos-padrao-do-sistema.md](modelos-padrao-do-sistema.md) | `main` (PR #106, `e895a0e1`) | Concluída em 08/11/2026 (deploy verde run 42444911092) | 08/11/2026 |
 | Formulários unificados da consultoria ("Google Forms interno", C62) | [formularios-unificados.md](formularios-unificados.md) | `main` | Concluída em 09/11/2026 (V064); correções da revisão na V067, testes ainda não executados | 09/11/2026 |
 | Importação assistida por IA (Lote misto PDF/DOCX/XLSX/Texto, Gemini/Claude e regras) | [importacao-assistida-ia.md](importacao-assistida-ia.md) | `main` | Concluída em 09/11/2026 (V066); correções da revisão (LGPD, permissões, retenção) aplicadas localmente, testes ainda não executados | 09/11/2026 |
-| Revisão geral de 07 a 09/11 (back, banco e front; V067 e V068) | [revisao-07-09-11.md](revisao-07-09-11.md) | `main` | Em andamento: falta o `mvn verify` completo e o push | 09/11/2026 |
+| Revisão geral de 07 a 09/11 (back, banco e front; V067 e V068) | [revisao-07-09-11.md](revisao-07-09-11.md) | `main` | Publicada em 09/11/2026 (`133d6cc6`, run 42716103970); sobras em "Pendências soltas" | 09/11/2026 |
 
 ## Pendências soltas
 
