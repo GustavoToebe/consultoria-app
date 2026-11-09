@@ -68,12 +68,6 @@ public class QuestionarioController {
     }
 
     @PreAuthorize("hasAuthority('PERM_QUESTIONARIO_ALTERAR')")
-    @PostMapping("/questionarios/{id}/regenerar-codigo-publico")
-    public QuestionarioDetalhe regenerarCodigoPublico(@PathVariable UUID id) {
-        return questionarios.regenerarCodigoPublico(id);
-    }
-
-    @PreAuthorize("hasAuthority('PERM_QUESTIONARIO_ALTERAR')")
     @PostMapping("/questionarios/{id}/validar")
     public ResultadoValidacao validar(@PathVariable UUID id) {
         return questionarios.validar(id);

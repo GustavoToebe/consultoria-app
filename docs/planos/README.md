@@ -89,13 +89,15 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Fatores de alimento nativos (FC e FCc estimados, V060; C52) | [fatores-de-alimento-nativos.md](fatores-de-alimento-nativos.md) | branch `top-set-restaurado` (PR #103) | Código e testes prontos; conferir na tela depois do deploy | 05/11/2026 |
 | Biblioteca unificada: Alimentos e Suplementos numa tabela só (Whey soma na dieta) | [biblioteca-unificada-alimentos-suplementos.md](biblioteca-unificada-alimentos-suplementos.md) | `main` (PR #104, `ea2c2559` e PR #105, `88dfb654`) | Concluída em 08/11/2026 (deploy verde runs 42434144981 e 42443936995) | 08/11/2026 |
 | Modelos padrão do sistema: 32 Semanas, 37 Dias, 26 Receitas de séries, 3 Mobilidades e 13 Dietas, sem coleção | [modelos-padrao-do-sistema.md](modelos-padrao-do-sistema.md) | `main` (PR #106, `e895a0e1`) | Concluída em 08/11/2026 (deploy verde run 42444911092) | 08/11/2026 |
-| Formulários unificados da consultoria ("Google Forms interno", C62) | [formularios-unificados.md](formularios-unificados.md) | `main` | Concluída em 09/11/2026 (V064) | 09/11/2026 |
-| Importação assistida por IA (Lote misto PDF/DOCX/XLSX/Texto, Gemini/Claude e regras) | [importacao-assistida-ia.md](importacao-assistida-ia.md) | `main` | Concluída em 09/11/2026 (V066) | 09/11/2026 |
+| Formulários unificados da consultoria ("Google Forms interno", C62) | [formularios-unificados.md](formularios-unificados.md) | `main` | Concluída em 09/11/2026 (V064); correções da revisão na V067, testes ainda não executados | 09/11/2026 |
+| Importação assistida por IA (Lote misto PDF/DOCX/XLSX/Texto, Gemini/Claude e regras) | [importacao-assistida-ia.md](importacao-assistida-ia.md) | `main` | Concluída em 09/11/2026 (V066); correções da revisão (LGPD, permissões, retenção) aplicadas localmente, testes ainda não executados | 09/11/2026 |
+| Revisão geral de 07 a 09/11 (back, banco e front; V067 e V068) | [revisao-07-09-11.md](revisao-07-09-11.md) | `main` | Em andamento: falta o `mvn verify` completo e o push | 09/11/2026 |
 
 ## Pendências soltas
 
 | Pendência | Quem | Origem |
 | --- | --- | --- |
+| Sobras da revisão de 07 a 09/11 (nome civil no mural, permissão de moderação, `sessionStorage` da inscrição, reversões do lote C, vigência no `PlanoDoAluno`, erro permanente da importação e demais itens de front) | Gustavo decide; depois executor ou executor-front | [revisao-07-09-11.md](revisao-07-09-11.md) |
 | ~~Editores de treino, dieta e mobilidade (06/11): aviso de suplemento/ergogênico removido no topo e foco do teclado no "Desfazer"~~ · resolvido em 09/11: aviso de complementos fica na própria seção e foco automático ao montar no botão "Desfazer" | Claude (`executor-front`) | [editores-revisao.md](editores-revisao.md) |
 | ~~Importar treino de texto: decisão 6 (observação solta)~~ · Gustavo confirmou em 06/11 que a observação solta entra direto e automática (doc atualizado) | — | [importar-plano-de-documento.md](importar-plano-de-documento.md) |
 | ~~Colar treino: Back off com lista ("80%, 85% ou 90%")~~ · decidido pelo Gustavo em 06/11/2026: grava a faixa de 80 a 90 (`percentualMin` 80, `percentualMax` 90) e avisa na prévia; a regra já estava no código | — | [importar-plano-de-documento.md](importar-plano-de-documento.md) |

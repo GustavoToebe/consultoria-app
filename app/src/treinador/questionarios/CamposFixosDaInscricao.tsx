@@ -1,8 +1,9 @@
 import { useState } from 'react';
 
+import { ErroApi } from '../../api/cliente';
 import { configuracaoInscricao, esconderCamposDaInscricao } from '../../api/rotas';
 import type { CampoDaInscricao } from '../../api/inscricoesTipos';
-import { alternarCampoOculto, CAMPOS_DA_INSCRICAO } from '../../dominio/inscricoes';
+import { alternarCampoOculto, CAMPOS_DA_INSCRICAO, SEM_FORMULARIO_PADRAO } from '../../dominio/inscricoes';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useAviso } from '../../ui/Aviso';
 import { Interruptor } from '../../ui/Campos';
@@ -38,14 +39,16 @@ function Campos({ podeAlterar }: { podeAlterar: boolean }) {
     esconderCamposDaInscricao(alternarCampoOculto(ocultos, campo, !mostrar), config.dados.versao)
       .then((nova) => config.definir(nova), (e: unknown) => {
         config.recarregar();
-        avisar(codigoApi(e) === 'CONFLITO_EDICAO' ? 'Outra pessoa ou aba mudou a página de inscrição. Confira e tente de novo.' : textoDoErro(e), 'perigo');
+        if (codigoApi(e) === 'CONFLITO_EDICAO') avisar('Outra pessoa ou aba mudou a página de inscrição. Recarregamos para você conferir.', 'neutro');
+        else avisar(textoDoErro(e), 'perigo');
       })
       .finally(() => setSalvando(false));
   };
 
   return <Cartao titulo="Campos fixos da página"
     descricao="Nome, WhatsApp e a ciência do texto da consultoria sempre aparecem. Os outros você pode esconder; as suas perguntas entram embaixo deles.">
-    {config.erro ? <MensagemErro texto={textoDoErro(config.erro)} erro={config.erro} tentarDeNovo={config.recarregar} /> : null}
+    {config.erro instanceof ErroApi && config.erro.status === 404 ? <Texto variante="suave">{SEM_FORMULARIO_PADRAO}</Texto>
+      : config.erro ? <MensagemErro texto={textoDoErro(config.erro)} erro={config.erro} tentarDeNovo={config.recarregar} /> : null}
     {!config.dados && config.carregando ? <Esqueleto /> : null}
     {config.dados ? CAMPOS_DA_INSCRICAO.map((c) => podeAlterar
       ? <Interruptor key={c.valor} rotulo={`Mostrar "${c.rotulo}"`} ajuda={c.uso} valor={!ocultos.includes(c.valor)}

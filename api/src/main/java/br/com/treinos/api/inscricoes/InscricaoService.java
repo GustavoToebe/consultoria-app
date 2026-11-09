@@ -25,6 +25,7 @@ import br.com.treinos.api.inscricoes.InscricaoDtos.NotaRequest;
 import br.com.treinos.api.inscricoes.InscricaoDtos.ReabrirRequest;
 import br.com.treinos.api.atualizacoes.ValidadorAtualizacao;
 import br.com.treinos.api.questionarios.ConteudoQuestionario;
+import br.com.treinos.api.questionarios.Questionario;
 import br.com.treinos.api.questionarios.QuestionarioResolver;
 import br.com.treinos.api.questionarios.QuestionarioService;
 import br.com.treinos.api.tenant.TenantContext;
@@ -70,7 +71,6 @@ public class InscricaoService {
 
     private final InscricaoRepository inscricoes;
     private final InscricaoNotaRepository notas;
-    private final InscricaoConfiguracaoRepository configuracoes;
     private final ResponsaveisDaInscricao responsaveis;
     private final HistoricoDaInscricao historico;
     private final DetalheDaInscricao detalhes;
@@ -86,7 +86,6 @@ public class InscricaoService {
     private final int limiteDiario;
 
     public InscricaoService(InscricaoRepository inscricoes, InscricaoNotaRepository notas,
-                            InscricaoConfiguracaoRepository configuracoes,
                             ResponsaveisDaInscricao responsaveis, HistoricoDaInscricao historico,
                             DetalheDaInscricao detalhes, AlunoService alunos, ConviteService convites,
                             AnamneseService anamneses, QuestionarioService questionarios, Auditoria auditoria,
@@ -99,7 +98,6 @@ public class InscricaoService {
         this.limiteDiario = limiteDiario;
         this.inscricoes = inscricoes;
         this.notas = notas;
-        this.configuracoes = configuracoes;
         this.responsaveis = responsaveis;
         this.historico = historico;
         this.detalhes = detalhes;
@@ -117,41 +115,32 @@ public class InscricaoService {
     // ---- Público (com a consultoria do link no TenantContext) ----
 
     /**
-     * O que a página pública do link aberto mostra: o texto, os campos fixos visíveis e as perguntas do padrão de
-     * inscrição publicado (só o necessário para responder; nulo sem padrão). O código é conferido de novo aqui (pode ter
-     * mudado depois da busca).
+     * O que a página pública do link aberto mostra: o texto, os campos fixos visíveis e as perguntas
+     * do próprio formulário do link, se já publicado (só o necessário para responder; nulo sem versão publicada). O código
+     * é conferido de novo aqui (pode ter mudado depois da busca).
      */
     public record PaginaDoLink(String texto, List<CampoDaInscricao> campos, InscricaoDtos.PerguntasDaInscricao perguntas,
-                               UUID questionarioId, String questionarioNome, String proximoQuestionarioCodigo) {
-        public PaginaDoLink(String texto, List<CampoDaInscricao> campos, InscricaoDtos.PerguntasDaInscricao perguntas) {
-            this(texto, campos, perguntas, null, null, null);
-        }
+                               UUID questionarioId, String proximoQuestionarioCodigo) {
     }
 
     @Transactional(readOnly = true)
     public PaginaDoLink paginaDoLink(String codigo) {
-        var optQ = resolver.porCodigoPublico(codigo);
-        if (optQ.isPresent()) {
-            var q = optQ.get();
-            String texto = q.getDescricao() != null ? q.getDescricao() : "";
-            InscricaoDtos.PerguntasDaInscricao perguntas = null;
-            if (q.getVersaoPublicada() > 0) {
-                var v = resolver.publicada(q);
-                perguntas = new InscricaoDtos.PerguntasDaInscricao(v.versaoId(),
-                        PerguntasPublicas.de(json.readValue(v.conteudo(), ConteudoQuestionario.class)));
-            }
-            String proximo = q.getProximoQuestionarioId() != null
-                    ? resolver.findById(q.getProximoQuestionarioId()).map(br.com.treinos.api.questionarios.Questionario::getCodigoPublico).orElse(null)
-                    : null;
-            return new PaginaDoLink(texto, List.of(CampoDaInscricao.values()), perguntas, q.getId(), q.getNome(), proximo);
+        Questionario q = resolver.porCodigoPublico(codigo).orElseThrow(InscricaoPublicaService::linkInvalido);
+        InscricaoDtos.PerguntasDaInscricao perguntas = null;
+        if (q.getVersaoPublicada() > 0) {
+            var v = resolver.publicada(q);
+            perguntas = new InscricaoDtos.PerguntasDaInscricao(v.versaoId(),
+                    PerguntasPublicas.de(json.readValue(v.conteudo(), ConteudoQuestionario.class)));
         }
-        InscricaoConfiguracao link = linkAberto(codigo);
-        InscricaoDtos.PerguntasDaInscricao perguntas = resolver.padraoDaInscricao()
-                .map(v -> new InscricaoDtos.PerguntasDaInscricao(v.versaoId(),
-                        PerguntasPublicas.de(json.readValue(v.conteudo(), ConteudoQuestionario.class))))
-                .orElse(null);
-        return new PaginaDoLink(link.getTexto(), List.copyOf(CampoDaInscricao.visiveis(link.getCamposOcultos())), perguntas,
-                null, null, null);
+        return new PaginaDoLink(q.getTextoApresentacao(), List.copyOf(CampoDaInscricao.visiveis(CampoDaInscricao.ler(q.getCamposOcultos()))),
+                perguntas, q.getId(), codigoDoProximo(q));
+    }
+
+    /** Código do próximo formulário só se ele também recebe inscrição agora (inscrição, aberto e não arquivado). */
+    private String codigoDoProximo(Questionario q) {
+        return q.getProximoQuestionarioId() == null ? null
+                : resolver.findById(q.getProximoQuestionarioId()).filter(Questionario::isLinkPublicoAberto)
+                        .map(Questionario::getCodigoPublico).orElse(null);
     }
 
     /**
@@ -179,57 +168,13 @@ public class InscricaoService {
      */
     @Transactional
     public String registrarPublica(String codigo, InscricaoPublicaRequest r) {
-        var linkParaTrava = configuracoes.atualParaAlterar();
+        // shortcut: a trava é da linha do link e o teto é da consultoria; vários links abertos ao mesmo tempo podem passar
+        // do teto por até (links - 1) envios; trocar por consultorias.travar se isso importar.
+        Questionario q = resolver.porCodigoPublicoParaTrava(codigo).orElseThrow(InscricaoPublicaService::linkInvalido);
         if (inscricoes.countByCriadaEmAfter(Instant.now().minus(JANELA_DO_TETO)) >= limiteDiario) {
             throw new MuitasRequisicoesException(JANELA_DO_TETO.toSeconds());
         }
-        var optQ = resolver.porCodigoPublico(codigo);
-        if (optQ.isPresent()) {
-            var q = optQ.get();
-            String texto = q.getDescricao();
-            if (texto != null && !TextoDaInscricao.confere(texto, r.textoVersao())) {
-                throw new ConflictException("O texto da consultoria mudou enquanto você preenchia. Leia o texto novo e confirme.",
-                        "TEXTO_ALTERADO");
-            }
-            if (texto != null && !Boolean.TRUE.equals(r.cienciaPrivacidade())) {
-                throw new BadRequestException("Confirme que leu o texto da consultoria para enviar.", "CIENCIA_OBRIGATORIA");
-            }
-            String whatsapp = Formatos.telefone(r.whatsapp());
-            UUID responsavel = responsaveis.ativo(q.getResponsavelPadraoId()) ? q.getResponsavelPadraoId() : null;
-            String sexo = r.sexo();
-            if (sexo != null && !sexo.isBlank() && Sexo.ler(sexo) == null) {
-                throw new br.com.treinos.api.web.ValidacaoException("Confira os campos.", "INSCRICAO_INVALIDA",
-                        List.of(new br.com.plataforma.comum.web.ApiError.FieldError("sexo", "Escolha Masculino, Feminino ou Outro.")));
-            }
-            Inscricao nova = new Inscricao(r.nome().trim(), whatsapp, Buscas.opcional(r.email()),
-                    Buscas.opcional(r.objetivo()), null, texto, responsavel, Sexo.ler(sexo));
-            nova.qualificar(r.interesse(), r.modalidade(), r.previsaoInicio(), r.origem(), Crm.origemLinkValida(r.origemLink()));
-            nova.setQuestionarioId(q.getId());
-            nova.setQuestionarioNome(q.getNome());
-            nova.setIndicadoPor(r.indicadoPor());
-            if (q.getVersaoPublicada() > 0) {
-                var v = resolver.publicada(q);
-                boolean temRespostas = r.respostas() != null && !r.respostas().isNull() && !r.respostas().isMissingNode()
-                        && !(r.respostas().isObject() && r.respostas().isEmpty());
-                if (r.questionarioVersaoId() != null && !r.questionarioVersaoId().equals(v.versaoId())) {
-                    throw perguntasAlteradas();
-                }
-                JsonNode limpas = validadorDeRespostas.validar(json.readTree(v.conteudo()),
-                        temRespostas ? r.respostas() : json.createObjectNode(), false, "INSCRICAO_INVALIDA", LocalDate.now(Fuso.BRASILIA));
-                nova.responder(v.versaoId(), json.writeValueAsString(limpas));
-            } else if (r.questionarioVersaoId() != null || (r.respostas() != null && !r.respostas().isEmpty())) {
-                throw perguntasAlteradas();
-            }
-            Inscricao gravada = inscricoes.saveAndFlush(nova);
-            historico.registrar(gravada, TipoEvento.CRIADA, null, null, null, null);
-            return q.getProximoQuestionarioId() != null
-                    ? resolver.findById(q.getProximoQuestionarioId()).map(br.com.treinos.api.questionarios.Questionario::getCodigoPublico).orElse(null)
-                    : null;
-        }
-
-        InscricaoConfiguracao link = linkParaTrava.filter(c -> c.isAberta() && c.getCodigo().equals(codigo))
-                .orElseThrow(InscricaoPublicaService::linkInvalido);
-        String texto = link.getTexto();
+        String texto = q.getTextoApresentacao();
         if (!TextoDaInscricao.confere(texto, r.textoVersao())) {
             throw new ConflictException("O texto da consultoria mudou enquanto você preenchia. Leia o texto novo e confirme.",
                     "TEXTO_ALTERADO");
@@ -238,8 +183,8 @@ public class InscricaoService {
             throw new BadRequestException("Confirme que leu o texto da consultoria para enviar.", "CIENCIA_OBRIGATORIA");
         }
         String whatsapp = Formatos.telefone(r.whatsapp());
-        UUID responsavel = responsaveis.ativo(link.getResponsavelId()) ? link.getResponsavelId() : null;
-        Set<CampoDaInscricao> ocultos = link.getCamposOcultos();
+        UUID responsavel = responsaveis.ativo(q.getResponsavelPadraoId()) ? q.getResponsavelPadraoId() : null;
+        Set<CampoDaInscricao> ocultos = CampoDaInscricao.ler(q.getCamposOcultos());
         String sexo = ocultos.contains(CampoDaInscricao.SEXO) ? null : r.sexo();
         if (sexo != null && !sexo.isBlank() && Sexo.ler(sexo) == null) {
             throw new br.com.treinos.api.web.ValidacaoException("Confira os campos.", "INSCRICAO_INVALIDA",
@@ -253,37 +198,33 @@ public class InscricaoService {
                 ocultos.contains(CampoDaInscricao.MODALIDADE) ? null : r.modalidade(),
                 ocultos.contains(CampoDaInscricao.PREVISAO_INICIO) ? null : r.previsaoInicio(),
                 ocultos.contains(CampoDaInscricao.ORIGEM) ? null : r.origem(), Crm.origemLinkValida(r.origemLink()));
+        nova.setQuestionarioId(q.getId());
+        nova.setQuestionarioNome(q.getNome());
         nova.setIndicadoPor(r.indicadoPor());
-        responderPerguntas(nova, r.questionarioVersaoId(), r.respostas());
+        responderPerguntas(nova, q, r.questionarioVersaoId(), r.respostas());
         Inscricao gravada = inscricoes.saveAndFlush(nova);
         historico.registrar(gravada, TipoEvento.CRIADA, null, null, null, null);
-        return null;
+        return codigoDoProximo(q);
     }
 
     /** Confere a versão das perguntas e valida as respostas por ela (regras no javadoc de {@link #registrarPublica}). */
-    private void responderPerguntas(Inscricao nova, UUID versaoEnviada, JsonNode enviadas) {
+    private void responderPerguntas(Inscricao nova, Questionario q, UUID versaoEnviada, JsonNode enviadas) {
         boolean temRespostas = enviadas != null && !enviadas.isNull() && !enviadas.isMissingNode()
                 && !(enviadas.isObject() && enviadas.isEmpty());
-        var padrao = resolver.padraoDaInscricao();
-        if (padrao.isEmpty()) {
+        if (q.getVersaoPublicada() <= 0) {
             if (versaoEnviada != null || temRespostas) throw perguntasAlteradas();
             return;
         }
-        UUID versao = padrao.get().versaoId();
-        if (versaoEnviada != null ? !versaoEnviada.equals(versao) : temRespostas) throw perguntasAlteradas();
-        JsonNode limpas = validadorDeRespostas.validar(json.readTree(padrao.get().conteudo()),
+        var v = resolver.publicada(q);
+        if (versaoEnviada != null ? !versaoEnviada.equals(v.versaoId()) : temRespostas) throw perguntasAlteradas();
+        JsonNode limpas = validadorDeRespostas.validar(json.readTree(v.conteudo()),
                 temRespostas ? enviadas : json.createObjectNode(), false, "INSCRICAO_INVALIDA", LocalDate.now(Fuso.BRASILIA));
-        nova.responder(versao, json.writeValueAsString(limpas));
+        nova.responder(v.versaoId(), json.writeValueAsString(limpas));
     }
 
     private static ConflictException perguntasAlteradas() {
         return new ConflictException("A consultoria mudou as perguntas enquanto você preenchia. Confira as perguntas e envie de novo.",
                 "PERGUNTAS_ALTERADAS");
-    }
-
-    private InscricaoConfiguracao linkAberto(String codigo) {
-        return configuracoes.atual().filter(c -> c.isAberta() && c.getCodigo().equals(codigo))
-                .orElseThrow(InscricaoPublicaService::linkInvalido);
     }
 
     // ---- Fila da equipe ----

@@ -1,29 +1,22 @@
 package br.com.treinos.api.importacao.assistida.ia;
 
-import br.com.treinos.api.dieta.ConteudoDieta;
-import br.com.treinos.api.importacao.assistida.BlocoTexto;
-import br.com.treinos.api.treino.ConteudoTreino;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import org.springframework.stereotype.Component;
 
-import java.math.BigDecimal;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.time.LocalDate;
-import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
 /**
  * Conector para Anthropic Claude (claude-sonnet-4-5 e claude-haiku-4-5) usando HttpClient nativo do Java 25.
- * Envia texto ou bloco document base64 (PDF) e extrai a estrutura via tool calling.
+ * Envia SÓ o texto redigido (LGPD), sem PDF bruto nem nome de arquivo, e só quando o roteador libera
+ * ({@code enviar-dados-ao-provedor}). Extrai a estrutura via tool calling.
  */
 @Component
 public class InterpretadorClaude implements InterpretadorIa {
@@ -69,12 +62,18 @@ public class InterpretadorClaude implements InterpretadorIa {
 
             HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() != 200) {
-                throw new RuntimeException("Falha na chamada Claude (HTTP " + response.statusCode() + "): " + response.body());
+                // Corpo da resposta fora da mensagem: pode ecoar o conteúdo enviado.
+                throw new IllegalStateException("Falha na chamada Claude (HTTP " + response.statusCode() + ").");
             }
 
             return processarResposta(response.body(), contexto);
+        } catch (IllegalStateException e) {
+            throw e;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Consulta ao Claude interrompida.");
         } catch (Exception e) {
-            throw new RuntimeException("Erro ao consultar Anthropic Claude: " + e.getMessage(), e);
+            throw new IllegalStateException("Erro ao consultar Anthropic Claude (" + e.getClass().getSimpleName() + ").");
         }
     }
 
@@ -86,29 +85,12 @@ public class InterpretadorClaude implements InterpretadorIa {
         String systemPrompt = "Você é o assistente de importação da plataforma Overtraining.\n"
                 + "Extraia cadastros de alunos, evolução de peso, treinos e dietas.\n"
                 + "Metodologia: séries válidas: " + String.join(", ", contexto.metodosConsultoria()) + ".\n"
-                + "Apelidos da consultoria: " + contexto.apelidosConhecidos() + ".\n"
+                + "Apelidos da consultoria: " + DecodificadorDaProposta.formatarApelidos(contexto.apelidosConhecidos()) + ".\n"
                 + "Sempre acione a ferramenta 'propor_importacao'.";
         req.put("system", systemPrompt);
 
-        List<Map<String, Object>> contentList = new ArrayList<>();
-        if (contexto.pdfBytesSeHouver() != null && contexto.pdfBytesSeHouver().length > 0) {
-            String base64Pdf = Base64.getEncoder().encodeToString(contexto.pdfBytesSeHouver());
-            contentList.add(Map.of(
-                    "type", "document",
-                    "source", Map.of(
-                            "type", "base64",
-                            "media_type", "application/pdf",
-                            "data", base64Pdf
-                    )
-            ));
-            contentList.add(Map.of("type", "text", "text", "Extraia os dados deste documento."));
-        } else {
-            StringBuilder sb = new StringBuilder("Arquivo: ").append(contexto.nomeArquivo()).append("\n\n");
-            for (BlocoTexto b : contexto.blocos()) {
-                sb.append("--- ").append(b.titulo()).append(" ---\n").append(b.conteudo()).append("\n\n");
-            }
-            contentList.add(Map.of("type", "text", "text", sb.toString()));
-        }
+        List<Map<String, Object>> contentList = List.of(
+                Map.of("type", "text", "text", DecodificadorDaProposta.textoParaEnvio(contexto)));
 
         req.put("messages", List.of(Map.of("role", "user", "content", contentList)));
 
@@ -149,86 +131,9 @@ public class InterpretadorClaude implements InterpretadorIa {
                 throw new IllegalStateException("Claude não retornou chamada de ferramenta propor_importacao.");
             }
 
-            return decodificarEstrutura(toolUse, contexto);
+            return DecodificadorDaProposta.decodificar(json, toolUse, contexto);
         } catch (Exception e) {
-            throw new RuntimeException("Falha ao decodificar resposta do Claude: " + e.getMessage(), e);
+            throw new IllegalStateException("Falha ao decodificar a resposta do Claude.");
         }
-    }
-
-    private ResultadoInterpretacao decodificarEstrutura(JsonNode root, ContextoIa contexto) {
-        List<ResultadoInterpretacao.PropostaGrupo> grupos = new ArrayList<>();
-        List<ResultadoInterpretacao.PropostaDuvida> duvidas = new ArrayList<>();
-
-        JsonNode gruposNode = root.path("grupos");
-        if (gruposNode.isArray()) {
-            for (JsonNode g : gruposNode) {
-                String nome = g.path("nomeAluno").asText(contexto.nomeArquivo());
-                String email = g.path("email").isNull() ? null : g.path("email").asText();
-                String telefone = g.path("telefone").isNull() ? null : g.path("telefone").asText();
-                String objetivo = g.path("objetivo").isNull() ? null : g.path("objetivo").asText();
-                String observacoes = g.path("observacoes").isNull() ? null : g.path("observacoes").asText();
-
-                List<ResultadoInterpretacao.PropostaPeso> pesos = new ArrayList<>();
-                JsonNode pesosNode = g.path("pesos");
-                if (pesosNode.isArray()) {
-                    for (JsonNode p : pesosNode) {
-                        try {
-                            LocalDate data = p.has("data") ? LocalDate.parse(p.path("data").asText()) : LocalDate.now(ZoneId.systemDefault());
-                            BigDecimal kg = new BigDecimal(p.path("kg").asText("70"));
-                            pesos.add(new ResultadoInterpretacao.PropostaPeso(data, kg, p.path("observacao").asText(null)));
-                        } catch (Exception ignored) {
-                            // Ignora peso mal formatado
-                        }
-                    }
-                }
-
-                ConteudoTreino treino = null;
-                if (g.has("treino") && !g.path("treino").isNull()) {
-                    try {
-                        treino = json.treeToValue(g.path("treino"), ConteudoTreino.class);
-                    } catch (Exception ignored) {
-                        // Ignora treino estruturado com falha de parsing
-                    }
-                }
-
-                ConteudoDieta dieta = null;
-                if (g.has("dieta") && !g.path("dieta").isNull()) {
-                    try {
-                        dieta = json.treeToValue(g.path("dieta"), ConteudoDieta.class);
-                    } catch (Exception ignored) {
-                        // Ignora dieta estruturada com falha de parsing
-                    }
-                }
-
-                grupos.add(new ResultadoInterpretacao.PropostaGrupo(
-                        contexto.nomeArquivo(), nome, email, telefone, objetivo, observacoes,
-                        List.copyOf(pesos), treino, dieta
-                ));
-            }
-        }
-
-        JsonNode duvidasNode = root.path("duvidas");
-        if (duvidasNode.isArray()) {
-            for (JsonNode d : duvidasNode) {
-                String tipo = d.path("tipo").asText("EXERCICIO_NAO_RECONHECIDO");
-                String termo = d.path("termoOriginal").asText("");
-                String trecho = d.path("trechoOriginal").asText("");
-
-                List<ResultadoInterpretacao.PropostaSugestao> sugestoes = new ArrayList<>();
-                JsonNode sugsNode = d.path("sugestoes");
-                if (sugsNode.isArray()) {
-                    for (JsonNode s : sugsNode) {
-                        sugestoes.add(new ResultadoInterpretacao.PropostaSugestao(
-                                s.path("termo").asText(), s.path("nota").asDouble(0.8)
-                        ));
-                    }
-                }
-
-                duvidas.add(new ResultadoInterpretacao.PropostaDuvida(tipo, termo, trecho, contexto.nomeArquivo(),
-                        List.copyOf(sugestoes)));
-            }
-        }
-
-        return new ResultadoInterpretacao(List.copyOf(grupos), List.copyOf(duvidas));
     }
 }

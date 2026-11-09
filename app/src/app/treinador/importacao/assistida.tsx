@@ -7,8 +7,8 @@ export default function ImportacaoAssistidaTela() {
   return (
     <Tela bordas={['top']} largura={LARGURA_LISTA}>
       <Cabecalho
-        titulo="Importação Assistida por IA"
-        subtitulo="Lote misto de PDFs, DOCX, planilhas e texto colado com agrupamento e reconhecimento automático."
+        titulo="Importação assistida"
+        subtitulo="PDFs, DOCX, planilhas e texto colado num lote só. Você confere tudo antes de gravar."
       />
       <PainelImportacaoAssistida />
     </Tela>

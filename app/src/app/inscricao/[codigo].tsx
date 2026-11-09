@@ -95,6 +95,7 @@ export default function Inscricao() {
   const refModalidade = useRef<{ focus: () => void } | null>(null);
   const refPrevisao = useRef<{ focus: () => void } | null>(null);
   const refOrigem = useRef<{ focus: () => void } | null>(null);
+  const refIndicadoPor = useRef<TextInput>(null);
   // Duas partes antes de um envio só (D6): o que foi digitado fica neste estado ao ir e voltar; nada vai ao aparelho.
   const [parte, setParte] = useState<ParteDaInscricao>(1);
   // Conta as trocas de parte feitas pela pessoa: o topo da parte rola e recebe o foco a cada uma.
@@ -103,7 +104,7 @@ export default function Inscricao() {
   const [paraFocar, setParaFocar] = useState<Record<string, string> | null>(null);
   const focarErros = useCallback((locais: Record<string, string>) => focarPrimeiroComErro(locais, [
     ['nome', refNome], ['whatsapp', refWhatsapp], ['email', refEmail], ['sexo', refSexo], ['objetivo', refObjetivo],
-    ['interesse', refInteresse], ['modalidade', refModalidade], ['previsaoInicio', refPrevisao], ['origem', refOrigem],
+    ['interesse', refInteresse], ['modalidade', refModalidade], ['previsaoInicio', refPrevisao], ['origem', refOrigem], ['indicadoPor', refIndicadoPor],
   ]), []);
   useEffect(() => {
     if (paraFocar) focarErros(paraFocar);
@@ -345,8 +346,8 @@ export default function Inscricao() {
           {mostra('ORIGEM') ? <Escolha ref={refOrigem} rotulo="Como conheceu a consultoria?" valor={dados.origem} aoMudar={escolher('origem')} erro={campos.origem} distribuida
             opcoes={opcoesOpcionais(ORIGENS_INFORMADAS)} /> : null}
           {mostra('ORIGEM') && (dados.origem === 'ALUNO_DO_TIME' || dados.origem === 'INFLUENCIADOR') ? (
-            <Campo rotulo="Quem indicou? (nome do aluno ou influenciador)" valor={dados.indicadoPor}
-              aoMudar={mudar('indicadoPor')} placeholder="Ex.: João Silva" maxLength={120} />
+            <Campo ref={refIndicadoPor} rotulo="Quem indicou? (opcional)" ajuda="Nome do aluno ou do influenciador." valor={dados.indicadoPor}
+              aoMudar={mudar('indicadoPor')} erro={campos.indicadoPor} maxLength={120} />
           ) : null}
         </Cartao>
       ) : null}

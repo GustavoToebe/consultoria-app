@@ -59,7 +59,8 @@ public final class PrivacidadeDtos {
                              Secao<br.com.treinos.api.agenda.AgendaDtos.AvisoExportado> avisosDeCompromisso,
                              Secao<br.com.treinos.api.avaliacoes.AvaliacaoFisicaDtos.AvaliacaoResponse> avaliacoesFisicas,
                              Secao<br.com.treinos.api.agua.AguaDoDiaDtos.AguaRegistrada> agua,
-                             Secao<br.com.treinos.api.push.PushDtos.PushExportado> pushDoCelular) { }
+                             Secao<br.com.treinos.api.push.PushDtos.PushExportado> pushDoCelular,
+                             br.com.treinos.api.comunidade.dto.ComunidadeDtos.ComunidadeExportada comunidade) { }
 
     /** Só a data em que a foto de perfil foi trocada; a imagem não vai no arquivo. Sem foto: {@code null}. */
     public record FotoPerfilExportada(Instant atualizadaEm) { }

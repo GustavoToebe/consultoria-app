@@ -66,10 +66,62 @@ public final class ImportacaoAssistidaDtos {
     public record GrupoImportavel(String id, String identificadorOrigem, String nomeDetectado, String destino,
                                   UUID alunoExistenteId, List<String> arquivosOrigem, CadastroImportavel cadastro,
                                   List<PesoImportavel> pesos, ConteudoTreino treino, ConteudoDieta dieta,
-                                  List<String> pendenciasIds, String estado) {
+                                  List<String> pendenciasIds, String estado, String erroCodigo,
+                                  List<CandidatoAluno> candidatos) {
         @Override
         public String toString() {
             return "GrupoImportavel[id=" + id + ", destino=" + destino + ", estado=" + estado + "]";
+        }
+
+        public GrupoImportavel comDestino(String novoDestino, UUID novoAluno, String novoNome) {
+            CadastroImportavel cad = cadastro == null ? null : new CadastroImportavel(novoNome, cadastro.email(),
+                    cadastro.telefone(), cadastro.objetivo(), cadastro.observacoes(), cadastro.ativo());
+            return new GrupoImportavel(id, identificadorOrigem, novoNome, novoDestino, novoAluno, arquivosOrigem, cad,
+                    pesos, treino, dieta, pendenciasIds, estado, erroCodigo, candidatos);
+        }
+
+        public GrupoImportavel comErro(String codigo) {
+            return new GrupoImportavel(id, identificadorOrigem, nomeDetectado, destino, alunoExistenteId, arquivosOrigem,
+                    cadastro, pesos, treino, dieta, pendenciasIds, "ERRO", codigo, candidatos);
+        }
+
+        public GrupoImportavel comCandidatos(List<CandidatoAluno> novos) {
+            return new GrupoImportavel(id, identificadorOrigem, nomeDetectado, destino, alunoExistenteId, arquivosOrigem,
+                    cadastro, pesos, treino, dieta, pendenciasIds, estado, erroCodigo, novos);
+        }
+
+        public GrupoImportavel comTreinoEDieta(ConteudoTreino novoTreino, ConteudoDieta novaDieta) {
+            return new GrupoImportavel(id, identificadorOrigem, nomeDetectado, destino, alunoExistenteId, arquivosOrigem,
+                    cadastro, pesos, novoTreino, novaDieta, pendenciasIds, estado, erroCodigo, candidatos);
+        }
+
+        /**
+         * Grupo já gravado (ou descartado): fica só o esqueleto, sem nome, arquivo, cadastro, peso, treino, dieta nem
+         * candidatos. O dado pessoal não precisa mais da sessão depois de gravado (LGPD).
+         */
+        public GrupoImportavel limpo(String novoEstado, String novoDestino) {
+            return new GrupoImportavel(id, "", "Importado", novoDestino, null, List.of(), null, List.of(), null, null,
+                    List.of(), novoEstado, null, List.of());
+        }
+
+        /** Sem objetivo, observações e peso (dado sensível sem {@code ALUNO_SENSIVEL_LER}), treino e dieta sem as permissões de ler. */
+        public GrupoImportavel paraLeitura(boolean sensivel, boolean treinoLer, boolean dietaLer) {
+            CadastroImportavel cad = cadastro == null || sensivel ? cadastro : new CadastroImportavel(cadastro.nome(),
+                    cadastro.email(), cadastro.telefone(), null, null, cadastro.ativo());
+            return new GrupoImportavel(id, identificadorOrigem, nomeDetectado, destino, alunoExistenteId, arquivosOrigem,
+                    cad, sensivel ? pesos : List.of(), treinoLer ? treino : null, dietaLer ? dieta : null,
+                    pendenciasIds, estado, erroCodigo, candidatos);
+        }
+    }
+
+    /**
+     * Aluno que já existe e pode ser o mesmo da planilha ou do texto. O treinador escolhe: o servidor nunca vincula
+     * sozinho por nome (só por e-mail, quando um único aluno ativo o tem).
+     */
+    public record CandidatoAluno(UUID alunoId, String nome, String motivo) {
+        @Override
+        public String toString() {
+            return "CandidatoAluno[alunoId=" + alunoId + "]";
         }
     }
 
@@ -100,9 +152,15 @@ public final class ImportacaoAssistidaDtos {
     public record SugestaoDuvida(String termo, UUID referenciaId, String origem, double nota) {
     }
 
+    /**
+     * {@code situacao}: {@code CONCLUIDA}, {@code CONCLUIDA_COM_ERROS} (algum grupo ficou com {@code erroCodigo} e pode
+     * ser tentado de novo) ou {@code FALHOU}. Peso sem data legível ou repetido na data não é gravado e entra em
+     * {@code pesosIgnorados}.
+     */
     public record ConfirmacaoResultado(UUID id, String situacao, int gruposImportados, int alunosCriados,
                                        int alunosVinculados, int treinosCriados, int dietasCriadas,
-                                       int modelosCriados) {
+                                       int modelosCriados, int gruposComErro, int pesosGravados,
+                                       int pesosIgnorados) {
     }
 
     public record ApelidoDto(UUID id, String tipo, String termoOriginal, String valorMapeado,

@@ -1558,7 +1558,9 @@ export interface QuestionarioResumo {
   /** 0 = nunca publicado. */
   versaoPublicada: number; publicadoEm: string | null; alteradoDesdePublicacao: boolean;
   rascunhoAlteradoEm: string | null; uso: UsoQuestionario;
+  /** Link público (só finalidade INSCRICAO; a escrita é de `/questionarios/{id}/link`, com `INSCRICAO_ALTERAR`). */
   codigoPublico?: string | null; publicoAberto?: boolean | null; responsavelPadraoId?: string | null; proximoQuestionarioId?: string | null;
+  textoApresentacao?: string | null; camposOcultos?: string[]; linkVersao?: number;
 }
 export interface QuestionarioDetalhe extends QuestionarioResumo {
   /** Trava otimista do rascunho. */
@@ -1602,9 +1604,6 @@ export interface SalvarQuestionarioRequest {
   descricao: string | null;
   conteudo: ConteudoQuestionario;
   versao: number;
-  codigoPublico?: string | null;
-  publicoAberto?: boolean | null;
-  responsavelPadraoId?: string | null;
   proximoQuestionarioId?: string | null;
 }
 export interface ConteudoPastaModelo { planos: { titulo: string; treino: ConteudoTreino | null; dieta: ConteudoDieta | null; mobilidade?: ConteudoMobilidadeApi | null }[] }

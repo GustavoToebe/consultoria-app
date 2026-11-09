@@ -14,6 +14,14 @@ public interface QuestionarioRepository extends JpaRepository<Questionario, UUID
 
     Optional<Questionario> findByCodigoPublico(String codigoPublico);
 
+    /**
+     * Trava a linha do link pelo código (o envio público conta o teto diário com ela travada: dois envios simultâneos no
+     * último lugar ficam em série). Quem chama confere {@link Questionario#isLinkPublicoAberto()}.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select q from Questionario q where q.codigoPublico = :codigo")
+    Optional<Questionario> buscarPorCodigoParaTrava(String codigo);
+
     /** Trava a linha: publicar e trocar o padrão em paralelo esperam em fila e a segunda cai em CONFLITO_EDICAO. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select q from Questionario q where q.id = :id")

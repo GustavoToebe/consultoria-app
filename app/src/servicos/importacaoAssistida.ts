@@ -54,6 +54,17 @@ export interface DuvidaImportacao {
   respostaEscolhida?: string | null;
 }
 
+/** Aluno já cadastrado que pode ser o mesmo do arquivo. Por nome o servidor nunca vincula sozinho: o treinador escolhe. */
+export interface CandidatoAluno {
+  alunoId: string;
+  nome: string;
+  motivo: 'EMAIL' | 'NOME';
+}
+
+/**
+ * Grupo da sessão. `IMPORTADO` e `IGNORADO` voltam só como esqueleto (sem nome, cadastro, peso, treino, dieta nem
+ * candidatos). Sem `ALUNO_SENSIVEL_LER` o GET tira peso, objetivo e observações; sem `TREINO_LER`/`DIETA_LER`, o treino e a dieta.
+ */
 export interface GrupoImportavel {
   id: string;
   identificadorOrigem: string;
@@ -66,7 +77,10 @@ export interface GrupoImportavel {
   treino?: any | null;
   dieta?: any | null;
   pendenciasIds: string[];
-  estado: 'PRONTO' | 'COM_DUVIDAS' | 'IMPORTADO' | 'ERRO';
+  estado: 'PRONTO' | 'COM_DUVIDAS' | 'IMPORTADO' | 'IGNORADO' | 'ERRO';
+  /** Código fixo de por que o grupo não foi gravado (só em `ERRO`). */
+  erroCodigo?: string | null;
+  candidatos?: CandidatoAluno[];
 }
 
 export interface SessaoDetalhe {
@@ -81,15 +95,21 @@ export interface SessaoDetalhe {
   expiraEm: string;
 }
 
+export type SituacaoDaConfirmacao = 'CONCLUIDA' | 'CONCLUIDA_COM_ERROS' | 'FALHOU';
+
+/** `pesosIgnorados`: peso sem data legível, fora da faixa ou repetido na data (nunca ganha data inventada). */
 export interface ConfirmacaoResultado {
   id: string;
-  situacao: string;
+  situacao: SituacaoDaConfirmacao;
   gruposImportados: number;
   alunosCriados: number;
   alunosVinculados: number;
   treinosCriados: number;
   dietasCriadas: number;
   modelosCriados: number;
+  gruposComErro: number;
+  pesosGravados: number;
+  pesosIgnorados: number;
 }
 
 export interface ApelidoDto {
@@ -128,7 +148,7 @@ export async function adicionarTexto(sessaoId: string, titulo: string, conteudo:
   });
 }
 
-/** Dispara o processamento com redação LGPD e interpretação (IA / Regras) */
+/** Lê os arquivos da sessão no servidor (por regras) e devolve os grupos e os termos para conferir */
 export async function processarSessao(sessaoId: string): Promise<SessaoDetalhe> {
   return requisicao<SessaoDetalhe>(`/importacoes/assistidas/sessoes/${sessaoId}/processar`, {
     metodo: 'POST',
@@ -177,7 +197,7 @@ export async function atualizarGrupo(
   });
 }
 
-/** Confirma e grava grupos selecionados como rascunhos ou modelos */
+/** Grava os grupos escolhidos (nunca vazio: vazio grava todos os pendentes) como rascunhos ou modelos */
 export async function confirmarSessao(
   sessaoId: string,
   gruposIds: string[],

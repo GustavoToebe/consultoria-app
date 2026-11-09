@@ -128,7 +128,6 @@ public class QuestionarioService {
                 : escrever(new ConteudoQuestionario(FORMATO, List.of(),
                         List.of(new Secao(UUID.randomUUID().toString(), "Geral", List.of()))));
         Questionario novo = new Questionario(nome, descricao(r.descricao()), rascunho, finalidade);
-        novo.setCodigoPublico(UUID.randomUUID().toString().replace("-", "").substring(0, 16));
         return detalhe(gravar(novo));
     }
 
@@ -145,23 +144,27 @@ public class QuestionarioService {
             throw new ValidacaoException("O questionário é grande demais.", "QUESTIONARIO_GRANDE_DEMAIS", List.of());
         }
         q.salvarRascunho(nome, descricao(r.descricao()), rascunho);
-        if (r.codigoPublico() != null && !r.codigoPublico().isBlank()) {
-            q.setCodigoPublico(r.codigoPublico().trim());
+        // O link (código, abertura, responsável, texto, campos escondidos) não passa por aqui: ver LinkDoFormularioController.
+        if (!java.util.Objects.equals(q.getProximoQuestionarioId(), r.proximoQuestionarioId())) {
+            exigirProximoValido(q, r.proximoQuestionarioId());
+            q.setProximoQuestionarioId(r.proximoQuestionarioId());
         }
-        if (r.publicoAberto() != null) {
-            q.setPublicoAberto(r.publicoAberto());
-        }
-        q.setResponsavelPadraoId(r.responsavelPadraoId());
-        q.setProximoQuestionarioId(r.proximoQuestionarioId());
         return detalhe(gravar(q));
     }
 
-    @Transactional
-    public QuestionarioDetalhe regenerarCodigoPublico(UUID id) {
-        Questionario q = buscarParaAlterar(id);
-        exigirAtivo(q);
-        q.setCodigoPublico(UUID.randomUUID().toString().replace("-", "").substring(0, 16));
-        return detalhe(gravar(q));
+    /** Encadeamento: só entre formulários de inscrição da mesma consultoria (o filtro de tenant esconde os de outra), ativos. */
+    private void exigirProximoValido(Questionario q, UUID proximoId) {
+        if (proximoId == null) {
+            return;
+        }
+        if (q.getFinalidade() != Finalidade.INSCRICAO) {
+            throw new ConflictException("Só o formulário de inscrição pode ter um próximo formulário.", "LINK_SO_DA_INSCRICAO");
+        }
+        Questionario proximo = questionarios.findById(proximoId)
+                .orElseThrow(() -> new NaoEncontradoException("Questionário não encontrado."));
+        if (proximo.getId().equals(q.getId()) || proximo.getFinalidade() != Finalidade.INSCRICAO || proximo.isArquivado()) {
+            throw new ConflictException("Escolha outro formulário de inscrição, ativo, como próximo.", "QUESTIONARIO_INDISPONIVEL");
+        }
     }
 
     @Transactional
@@ -485,13 +488,19 @@ public class QuestionarioService {
         return new QuestionarioDetalhe(q.getId(), q.getNome(), q.getDescricao(), q.getFinalidade(), q.isPadrao(), q.isArquivado(),
                 q.getVersaoPublicada(), q.getPublicadoEm(), alterado(q), q.getRascunhoAlteradoEm(), q.getVersao(),
                 usos().de(q.getId()), ler(q.getRascunho()), publicadas,
-                q.getCodigoPublico(), q.isPublicoAberto(), q.getResponsavelPadraoId(), q.getProximoQuestionarioId());
+                q.getCodigoPublico(), q.isPublicoAberto(), q.getResponsavelPadraoId(), q.getProximoQuestionarioId(),
+                q.getTextoApresentacao(), camposOcultos(q), q.getLinkVersao());
+    }
+
+    private static List<String> camposOcultos(Questionario q) {
+        return q.getCamposOcultos().isBlank() ? List.of() : List.of(q.getCamposOcultos().split(","));
     }
 
     private static QuestionarioResumo resumo(Questionario q, Uso uso) {
         return new QuestionarioResumo(q.getId(), q.getNome(), q.getDescricao(), q.getFinalidade(), q.isPadrao(), q.isArquivado(),
                 q.getVersaoPublicada(), q.getPublicadoEm(), alterado(q), q.getRascunhoAlteradoEm(), uso,
-                q.getCodigoPublico(), q.isPublicoAberto(), q.getResponsavelPadraoId(), q.getProximoQuestionarioId());
+                q.getCodigoPublico(), q.isPublicoAberto(), q.getResponsavelPadraoId(), q.getProximoQuestionarioId(),
+                q.getTextoApresentacao(), camposOcultos(q), q.getLinkVersao());
     }
 
     private static boolean alterado(Questionario q) {

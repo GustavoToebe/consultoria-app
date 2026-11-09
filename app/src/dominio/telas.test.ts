@@ -44,6 +44,15 @@ describe('catálogo de telas', () => {
     expect(agruparPorSecao(telasPermitidas(com(['QUESTIONARIO_LER']))).flatMap((s) => ids(s.telas))).not.toContain('questionarios');
   });
 
+  it('Comunidade só com TREINO_LER (a regra da tela, sem permissão extra no catálogo) e a busca acha por "mural" e "aulões"', () => {
+    expect(TELAS.find((t) => t.id === 'comunidade')?.permissao).toBeNull();
+    expect(ids(telasPermitidas(com(ADMIN)))).not.toContain('comunidade');
+    const leitor = telasPermitidas(com(['TREINO_LER']));
+    expect(ids(buscarTelas('mural', leitor))).toEqual(['comunidade']);
+    expect(ids(buscarTelas('auloes', leitor))).toEqual(['comunidade']);
+    expect(ids(buscarTelas('ranking', leitor))).toEqual([]);
+  });
+
   it('Interessados só com INSCRICAO_LER, e a busca acha por "inscrição" e "link"', () => {
     expect(ids(telasPermitidas(com(ADMIN)))).not.toContain('interessados');
     const atendente = telasPermitidas(com(['INSCRICAO_LER']));

@@ -15,6 +15,8 @@ public class ConfiguracaoIaImportacao {
     private String modeloForte = "gemini-2.5-pro";
     private String geminiApiKey = "";
     private String claudeApiKey = "";
+    // Fail-closed: sem esta chave ligada nada sai do servidor, mesmo com provedor e chave de API configurados.
+    private boolean enviarDadosAoProvedor;
 
     public String getProvedor() {
         return provedor != null ? provedor.strip().toLowerCase(java.util.Locale.ROOT) : "regras";
@@ -54,6 +56,14 @@ public class ConfiguracaoIaImportacao {
 
     public void setClaudeApiKey(String claudeApiKey) {
         this.claudeApiKey = claudeApiKey;
+    }
+
+    public boolean isEnviarDadosAoProvedor() {
+        return enviarDadosAoProvedor;
+    }
+
+    public void setEnviarDadosAoProvedor(boolean enviarDadosAoProvedor) {
+        this.enviarDadosAoProvedor = enviarDadosAoProvedor;
     }
 
     public boolean temChaveGemini() {

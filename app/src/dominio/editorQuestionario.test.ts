@@ -299,10 +299,15 @@ describe('destino no cadastro (anamnese)', () => {
   const c = (...perguntas: PerguntaAtualizacao[]): ConteudoQuestionario => ({ formato: 2, instrucoes: [], secoes: [{ uid: 's1', titulo: 'A', perguntas }] });
   it('só na anamnese: peso → registro de peso, texto curto → objetivo ou CPF, telefone, endereço', () => {
     expect(destinosPossiveis('PESO', 'ANAMNESE')).toEqual(['PESO']);
-    expect(destinosPossiveis('TEXTO', 'ANAMNESE')).toEqual(['NOME', 'CPF', 'OBJETIVO']);
+    expect(destinosPossiveis('TEXTO', 'ANAMNESE')).toEqual(['CPF', 'OBJETIVO']);
     expect(destinosPossiveis('TELEFONE', 'ANAMNESE')).toEqual(['TELEFONE']);
     expect(destinosPossiveis('ENDERECO', 'ANAMNESE')).toEqual(['ENDERECO']);
-    expect(destinosPossiveis('TEXTO_LONGO', 'ANAMNESE')).toEqual(['OBSERVACOES']);
+    expect(destinosPossiveis('TEXTO_LONGO', 'ANAMNESE')).toEqual([]);
+    // A API recusa (422 `destino`) nome, e-mail, nascimento, altura e observações: o editor nem os oferece.
+    expect(destinosPossiveis('EMAIL', 'ANAMNESE')).toEqual([]);
+    expect(destinosPossiveis('DATA', 'ANAMNESE')).toEqual([]);
+    expect(destinosPossiveis('NUMERO', 'ANAMNESE')).toEqual([]);
+    expect(destinosPossiveis('FOTOS', 'ANAMNESE')).toEqual([]);
     expect(destinosPossiveis('PESO', 'ATUALIZACAO')).toEqual([]);
     expect(destinosPossiveis('ENDERECO', 'ATUALIZACAO')).toEqual([]);
   });
@@ -335,6 +340,13 @@ describe('destino no cadastro (anamnese)', () => {
     expect(validarQuestionario(paraApi(x, 'ANAMNESE'), 'ANAMNESE').erros).toEqual([]);
     expect(paraApi(x, 'ATUALIZACAO').secoes[0].perguntas[1].destino).toBeUndefined();
     expect(duplicarPergunta(peso).destino).toBeUndefined();
+  });
+  it('destino que o sistema não grava (rascunho antigo) não vai à API e o validador o recusa como a API', () => {
+    const x = c(P('n', 'TEXTO', { destino: 'NOME' }), P('e', 'EMAIL', { destino: 'EMAIL' }), P('o', 'TEXTO_LONGO', { destino: 'OBSERVACOES' }));
+    expect(podeUsarDestino(x, 'n', 'NOME', 'ANAMNESE').pode).toBe(false);
+    expect(paraApi(x, 'ANAMNESE').secoes[0].perguntas.map((p) => p.destino)).toEqual([undefined, undefined, undefined]);
+    expect(validarQuestionario(x, 'ANAMNESE').erros.map((e) => e.caminho)).toEqual(
+      ['secoes[0].perguntas[0].destino', 'secoes[0].perguntas[1].destino', 'secoes[0].perguntas[2].destino']);
   });
   it('paraApi leva o sexo da opção só com destino SEXO', () => {
     const opcoes = [

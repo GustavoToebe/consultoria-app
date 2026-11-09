@@ -73,6 +73,15 @@ treinos:
       modelo-forte: ${TREINOS_IA_MODELO_FORTE:gemini-2.5-pro}
       gemini-api-key: ${TREINOS_IA_GEMINI_API_KEY:}
       claude-api-key: ${TREINOS_IA_CLAUDE_API_KEY:}
+      # LGPD, fail-closed: com false (padrão) nada do arquivo sai do servidor e o roteador usa sempre as regras locais,
+      # mesmo com provedor gemini/claude e chave. Só ligar depois de decisão registrada; ligado, vai SÓ o texto redigido
+      # (sem PDF nem nome do arquivo), e o texto redigido ainda carrega nome, peso e dieta (o redator só troca CPF, e-mail,
+      # telefone e CEP).
+      enviar-dados-ao-provedor: ${TREINOS_IA_ENVIAR_DADOS_AO_PROVEDOR:false}
+    # Sessão da importação assistida: a retenção diária apaga o que passou do prazo de 7 dias (expira_em), com os arquivos.
+    # Só os testes a desligam (eles a chamam à mão).
+    assistida:
+      retencao-agendada: ${TREINOS_IMPORTACAO_ASSISTIDA_RETENCAO_AGENDADA:true}
   # Verificação humana (Cloudflare Turnstile) no cadastro de treinador, no login e no "esqueci a senha". Desligada por padrão.
   # Ligada, a API só sobe com a chave pública e o segredo; o segredo só em variável de ambiente, sem valor padrão. A chave
   # pública chega ao app por GET /publico/configuracao. Só ligar depois de a CSP do site liberar challenges.cloudflare.com.

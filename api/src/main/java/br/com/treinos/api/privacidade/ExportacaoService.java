@@ -63,6 +63,7 @@ public class ExportacaoService {
     private final br.com.treinos.api.avaliacoes.AvaliacaoFisicaService avaliacoesFisicas;
     private final br.com.treinos.api.agua.AguaDoDiaService agua;
     private final br.com.treinos.api.push.PushService push;
+    private final br.com.treinos.api.comunidade.ComunidadeService comunidade;
 
     public ExportacaoService(AlunoService alunos, PastaRepository pastas, PlanoTreinoService treinos,
                              PlanoDietaService dietas, PlanoMobilidadeService mobilidades, HistoricoService historico,
@@ -77,7 +78,9 @@ public class ExportacaoService {
                              br.com.treinos.api.agenda.AvisosDeCompromissoService avisosDeCompromisso,
                              br.com.treinos.api.avaliacoes.AvaliacaoFisicaService avaliacoesFisicas,
                              br.com.treinos.api.agua.AguaDoDiaService agua,
-                             br.com.treinos.api.push.PushService push) {
+                             br.com.treinos.api.push.PushService push,
+                             br.com.treinos.api.comunidade.ComunidadeService comunidade) {
+        this.comunidade = comunidade;
         this.push = push;
         this.agua = agua;
         this.agenda = agenda;
@@ -157,9 +160,14 @@ public class ExportacaoService {
                 () -> avisosDeCompromisso.exportar(alunoId));
         // Aparelhos com push do aluno: só plataforma e data de registro, nunca o valor do token (ALUNO_LER, a da ficha).
         var pushDoCelular = secao(AcessoAtual.pode("ALUNO_LER"), "pushDoCelular", omitidas, () -> push.exportarDoAluno(alunoId));
+        // Posts, comentários e reações do aluno na comunidade, mais as conquistas: com a permissão da rota que mostra o mural à equipe.
+        var comunidadeDoAluno = AcessoAtual.pode("TREINO_LER") ? comunidade.exportarDoAluno(alunoId) : null;
+        if (comunidadeDoAluno == null) {
+            omitidas.add("comunidade");
+        }
         return new Exportacao(Instant.now(), List.copyOf(omitidas), cadastro, pastasDoAluno, treino, dieta, mobilidade,
                 registros, mobilidadeFeita, sessaoConcluida, peso, lesao, atualizacao, anamnese, inscricaoDoAluno, financeiro, fotoDePerfil,
-                cicloMenstrual, compromissos, avisos, avaliacaoFisica, aguaDoDia, pushDoCelular);
+                cicloMenstrual, compromissos, avisos, avaliacaoFisica, aguaDoDia, pushDoCelular, comunidadeDoAluno);
     }
 
     private static <T> Secao<T> secao(boolean pode, String nome, List<String> omitidas, Supplier<List<T>> busca) {

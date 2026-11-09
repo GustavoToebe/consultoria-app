@@ -112,5 +112,14 @@ ALTER TABLE inscricao
 
 ---
 
+## Correções da revisão independente (09/11/2026, V067)
+Situação: implementadas no código, testes escritos e **ainda não executados** (sem `mvn` neste lote) · Atualizado: 09/11/2026
+- **Uma fonte do link:** o questionário de inscrição (`codigo_publico`, `publico_aberto`, `responsavel_padrao_id`, `texto_apresentacao`, `campos_ocultos`, `link_versao`). O código sai sempre de `CodigoDeInscricao.novo()` (144 bits), nunca do cliente; "gerar novo link" e fechar agem nessa coluna, então o código antigo dá 404. `inscricao_configuracao` deixou de ser lida e escrita (a tabela fica; sai numa migration depois de conferida em produção).
+- **Rotas do link:** `GET/PUT /questionarios/{id}/link`, `PUT .../link/campos-ocultos`, `POST .../link/novo-link`, com `INSCRICAO_LER`/`INSCRICAO_ALTERAR` e auditoria (`INSCRICAO_CONFIGURACAO_ALTERADA`, `INSCRICAO_LINK_RENOVADO`, resumo fixo). `/inscricoes/configuracao*` continua e age no formulário de inscrição padrão. `PUT /questionarios/{id}` não aceita mais código, abertura nem responsável.
+- **D4 x AGENTS.md:** o link público só existe para finalidade `INSCRICAO` (a anamnese se responde logada); o encadeamento vai de inscrição para inscrição, e a resposta só traz o próximo código se ele também está aberto. O "texto de apresentação" ficou em 2000 (o plano previa 1000), igual ao da configuração antiga.
+- **Destinos que não gravam nada** (`NOME`, `EMAIL`, `DATA_NASCIMENTO`, `ALTURA`, `OBSERVACOES`) são recusados na publicação (422 no campo `destino`) e saem do CHECK de `anamnese_pendencia`; as constantes ficam no enum porque versão publicada é imutável.
+- **Código fraco:** a V067 zera o código de inscrição fechado que não está em `inscricao_configuracao` (abrir sempre gera um novo no servidor); código fraco de link já aberto fica (trocar quebraria o link divulgado: "Gerar novo link" resolve). Arquivar fecha o link e desarquivar não o reabre.
+- **Pendências:** o envio encadeado pede de novo nome e WhatsApp e cria outra inscrição (falta um vínculo entre as duas respostas); o app ainda chama `/questionarios/{id}/codigo-publico` e oferece os destinos recusados (lote do front).
+
 ## O que ficou para trás
 - —

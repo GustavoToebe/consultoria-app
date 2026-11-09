@@ -1,7 +1,5 @@
 import { router } from 'expo-router';
 import { Archive, ArchiveRestore, Copy, Ellipsis, Pencil, Star, Trash2 } from 'lucide-react-native';
-
-
 import { useEffect, useRef, useState } from 'react';
 
 import {
@@ -135,9 +133,9 @@ export function ListaDeQuestionarios({ finalidade = 'ATUALIZACAO', pedirNovo, ao
       {!menu.padrao && !menu.arquivado ? <Botao rotulo="Definir como padrão" tipo="secundario" Icone={Star} cheio desabilitado={menu.versaoPublicada === 0}
         motivo="Publique o questionário antes de torná-lo o padrão." aoTocar={() => executar(menu, () => definirQuestionarioPadrao(menu.id), 'Padrão alterado.')} /> : null}
       {menu.arquivado
-        ? <Botao rotulo="Desarquivar" tipo="secundario" Icone={ArchiveRestore} cheio aoTocar={() => executar(menu, () => desarquivarQuestionario(menu.id), 'Questionário desarquivado.')} />
+        ? <Botao rotulo="Desarquivar" tipo="secundario" Icone={ArchiveRestore} cheio aoTocar={() => executar(menu, () => desarquivarQuestionario(menu.id), menu.codigoPublico ? 'Questionário desarquivado. O link continua fechado até você abri-lo de novo.' : 'Questionário desarquivado.')} />
         : <Botao rotulo="Arquivar" tipo="secundario" Icone={Archive} cheio desabilitado={menu.padrao} motivo="O padrão não pode ser arquivado. Defina outro como padrão antes."
-          aoTocar={() => executar(menu, () => arquivarQuestionario(menu.id), 'Questionário arquivado.')} />}
+          aoTocar={() => executar(menu, () => arquivarQuestionario(menu.id), menu.publicoAberto ? 'Questionário arquivado. O link de inscrição dele foi fechado.' : 'Questionário arquivado.')} />}
       <Botao rotulo="Excluir questionário" tipo="perigoTexto" Icone={Trash2} cheio desabilitado={menu.padrao || menu.uso.envios > 0}
         motivo={menu.padrao ? 'O padrão não pode ser excluído.' : 'Já foi respondido: arquive em vez de excluir.'} aoTocar={() => { setExcluir(menu); setMenu(null); }} />
     </Folha> : null}

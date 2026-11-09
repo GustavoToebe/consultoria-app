@@ -105,6 +105,18 @@ for (const largura of [390, 1280]) {
 
     await expect.poll(() => api.conclusoes.length, { timeout: 15_000 }).toBe(1);
     expect(api.naoTratadas).toEqual([]);
+
+    // O mural precisa de internet: sem rede o botão fica desabilitado com o motivo; com rede abre o mural com a mensagem escrita.
+    const mural = page.getByRole('button', { name: 'Publicar no mural do time' });
+    await page.context().setOffline(true);
+    await expect(mural).toBeDisabled();
+    await expect(page.getByText('Sem conexão: o mural precisa de internet.')).toBeVisible();
+    await page.context().setOffline(false);
+    await page.evaluate(() => (navigator as Navigator & { connection?: EventTarget }).connection?.dispatchEvent(new Event('change')));
+    await expect(mural).toBeEnabled();
+    await mural.click();
+    await expect(page).toHaveURL(/\/aluno\/comunidade\?.*compartilharTreino=true/);
+    await expect(page.getByRole('textbox', { name: 'Mensagem para o time' })).toHaveValue('Acabei de finalizar meu Treino curto!');
     expect(api.errosDaPagina).toEqual([]);
   });
 }

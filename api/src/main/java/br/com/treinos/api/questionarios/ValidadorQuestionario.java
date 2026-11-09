@@ -261,6 +261,8 @@ public class ValidadorQuestionario {
         if (d != null) {
             if (estado.finalidade != Finalidade.ANAMNESE) {
                 c.erro(cp + ".destino", "O campo do perfil só vale na anamnese.");
+            } else if (!d.temEfeito()) {
+                c.erro(cp + ".destino", "O sistema ainda não grava este campo no cadastro do aluno.");
             } else if (!d.aceita(p.tipo())) {
                 c.erro(cp + ".destino", "Este tipo de pergunta não alimenta este campo.");
             } else if (!estado.destinos.add(d)) {

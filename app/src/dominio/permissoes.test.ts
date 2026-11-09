@@ -76,6 +76,15 @@ describe('navegação de membros da equipe', () => {
     expect(PERMISSOES_DO_PLANO.mobilidade).toEqual(PERMISSOES_DO_PLANO.treino);
     expect(PERMISSOES_DO_PLANO.dieta).toEqual({ ler: 'DIETA_LER', alterar: 'DIETA_ALTERAR', publicar: 'DIETA_PUBLICAR' });
   });
+  it('a importação assistida pede ALUNO_ALTERAR, a mesma permissão da API', () => {
+    expect(podeAcessarTela('/treinador/importacao/assistida', acesso(['ALUNO_ALTERAR']))).toBe(true);
+    expect(podeAcessarTela('/treinador/importacao/assistida', acesso(['ALUNO_LER','BIBLIOTECA_ALTERAR','ALUNO_SENSIVEL_ALTERAR']))).toBe(false);
+    expect(podeAcessarTela('/treinador/importacao/assistida', acesso([]))).toBe(false);
+  });
+  it('a Comunidade abre com TREINO_LER, a permissão de leitura da API', () => {
+    expect(podeAcessarTela('/treinador/comunidade', acesso(['TREINO_LER']))).toBe(true);
+    expect(podeAcessarTela('/treinador/comunidade', acesso(['ALUNO_LER','TREINO_ALTERAR']))).toBe(false);
+  });
 });
 
 describe('módulo desligado (C4)', () => {

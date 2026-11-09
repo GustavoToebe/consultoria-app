@@ -1,7 +1,5 @@
 import { router } from 'expo-router';
 import { Plus, Save, Send, Trash2 } from 'lucide-react-native';
-
-
 import { useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
@@ -20,8 +18,6 @@ import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Campo } from '../../ui/Campo';
-
-
 import { Cartao } from '../../ui/Cartao';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { Alerta, MensagemErro } from '../../ui/Estados';

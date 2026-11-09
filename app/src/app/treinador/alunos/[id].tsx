@@ -136,7 +136,6 @@ export default function FichaAluno() {
           <Permitido codigo="ALUNO_SENSIVEL_LER"><CartaoLesoes alunoId={aluno.id} /></Permitido>
           {pode('ANAMNESE_LER') && pode('ALUNO_SENSIVEL_LER') ? <CartaoAnamnese alunoId={aluno.id} anonimizado={aluno.anonimizado}
             aoMudarCadastro={() => { recarregar(); setGeracaoPeso((g) => g + 1); }} /> : null}
-          
           {renovacao.painel}
           {menu ? (
             <FolhaDeAcoes titulo={aluno.nome} aoFechar={() => setMenu(false)} acoes={[

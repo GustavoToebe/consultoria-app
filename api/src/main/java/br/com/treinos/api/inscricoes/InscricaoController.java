@@ -71,25 +71,25 @@ public class InscricaoController {
     @PreAuthorize("hasAuthority('PERM_INSCRICAO_LER')")
     @GetMapping("/configuracao")
     public ConfiguracaoResponse configuracao() {
-        return configuracao.ler();
+        return configuracao.ler(configuracao.idDoPadrao());
     }
 
     @PreAuthorize("hasAuthority('PERM_INSCRICAO_ALTERAR')")
     @PutMapping("/configuracao")
     public ConfiguracaoResponse alterarConfiguracao(@RequestBody @Valid ConfiguracaoRequest request) {
-        return configuracao.alterar(request);
+        return configuracao.alterar(configuracao.idDoPadrao(), request);
     }
 
     @PreAuthorize("hasAuthority('PERM_INSCRICAO_ALTERAR')")
     @PutMapping("/configuracao/campos-ocultos")
     public ConfiguracaoResponse esconderCampos(@RequestBody @Valid InscricaoDtos.CamposOcultosRequest request) {
-        return configuracao.esconderCampos(request);
+        return configuracao.esconderCampos(configuracao.idDoPadrao(), request);
     }
 
     @PreAuthorize("hasAuthority('PERM_INSCRICAO_ALTERAR')")
     @PostMapping("/configuracao/novo-link")
     public ConfiguracaoResponse novoLink(@RequestBody(required = false) NovoLinkRequest request) {
-        return configuracao.novoLink(request);
+        return configuracao.novoLink(configuracao.idDoPadrao(), request);
     }
 
     /**

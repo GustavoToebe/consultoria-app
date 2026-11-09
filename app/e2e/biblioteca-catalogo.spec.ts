@@ -133,7 +133,7 @@ test('catálogo de alimentos mostra o fator, a importação copia e a biblioteca
     },
   });
   await page.goto('/treinador/biblioteca?aba=catalogo');
-  await page.getByRole('radiogroup', { name: 'Catálogo' }).getByRole('button', { name: 'Alimentos' }).click();
+  await page.getByRole('radiogroup', { name: 'Catálogo' }).getByRole('radio', { name: 'Alimentos' }).click();
   await expect(page.getByText('Abacaxi com casca', { exact: true })).toBeVisible();
   await expect(page.getByText('FC 1,75')).toBeVisible();
   await page.getByText('Abacaxi com casca', { exact: true }).click();

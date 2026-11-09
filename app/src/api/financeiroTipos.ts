@@ -163,8 +163,6 @@ export interface ValorEQuantidade {
 }
 
 export interface CartoesDoPainel {
-  renovacoesProximasCount?: number;
-  projecaoAnualCentavos?: number;
   recebidoCentavos: number | null;
   aReceberCentavos: number | null;
   emAtraso: ValorEQuantidade;
@@ -234,9 +232,18 @@ export interface Liquido {
   brutoCentavos: number | null;
 }
 
+/**
+ * `GET /financeiro/visao-geral` (`FINANCEIRO_LER`): sem período nem "meus", sempre a consultoria inteira. `renovacoesProximas*`:
+ * contratações ATIVAS cuja vigência vence em até 40 dias ou já venceu (conta da API); `projecaoAnualCentavos`: valor ×
+ * parcelas por ano das ATIVAS (parcela única fica fora).
+ */
+export interface VisaoGeralDoFinanceiro {
+  renovacoesProximasCount: number;
+  renovacoesProximasCentavos: number;
+  projecaoAnualCentavos: number;
+}
+
 export interface Painel {
-  renovacoesProximasCount?: number;
-  projecaoAnualCentavos?: number;
   periodo: PeriodoDoPainel;
   somenteMeus: boolean;
   cartoes: CartoesDoPainel;
@@ -276,6 +283,7 @@ export interface PlanoDoAluno {
   periodicidade: PeriodoDoPlano;
   situacao: SituacaoDaContratacao;
   proximoVencimento: string | null;
+  // A API ainda não manda a vigência no plano do aluno (só `GET /aluno/contratacao`, que o app não usa): hoje não chega.
   terminoVigencia?: string | null;
   diasRestantesVigencia?: number | null;
 }

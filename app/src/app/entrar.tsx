@@ -24,7 +24,8 @@ import { VerificacaoHumana } from '../ui/VerificacaoHumana';
 export default function Entrar({ modoFixo }: { modoFixo?: 'ALUNO' | 'TREINADOR' } = {}) {
   const sessao = useSessao();
   const verificacao = useVerificacaoHumana();
-    const [modoEntrada, setModoEntrada] = useState<'ALUNO' | 'TREINADOR'>(modoFixo ?? 'ALUNO');
+  // Só muda o texto e o link de criar conta: o papel vem do login, a senha é a mesma tela para os dois.
+  const [modoEntrada, setModoEntrada] = useState<'ALUNO' | 'TREINADOR'>(modoFixo ?? 'ALUNO');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   // Depois da senha, quem tem verificação em duas etapas informa o código do aplicativo (ou de recuperação).
@@ -125,22 +126,19 @@ export default function Entrar({ modoFixo }: { modoFixo?: 'ALUNO' | 'TREINADOR' 
   // ao trocar de passo (o token novo chega como no passo do código do MFA).
   return (
     <TelaPublica titulo={criarSenha ? 'Crie sua senha' : 'Entrar'}
-      subtitulo={criarSenha ? 'Seu treinador criou uma senha provisória. Escolha agora a sua senha para entrar.' : modoEntrada === 'ALUNO' ? 'Acesso do Aluno — Entre com o e-mail e a senha enviados pelo seu treinador.' : 'Acesso da Equipe — Treinos e gestão da sua consultoria.'}>
+      subtitulo={criarSenha ? 'Seu treinador criou uma senha provisória. Escolha agora a sua senha para entrar.' : modoEntrada === 'ALUNO' ? 'Entre com o e-mail e a senha que seu treinador enviou.' : 'Treinos, dietas e a gestão da sua consultoria.'}>
       <Cartao>
         {!criarSenha && !modoFixo ? (
-          <View style={{ marginBottom: espaco(1.5) }}>
-            <Escolha
-              rotulo="Perfil de acesso"
-              descricao="Perfil de acesso"
-              distribuida
-              opcoes={[
-                { valor: 'ALUNO', rotulo: 'Sou Aluno' },
-                { valor: 'TREINADOR', rotulo: 'Sou Treinador' },
-              ]}
-              valor={modoEntrada}
-              aoMudar={(v) => setModoEntrada(v as 'ALUNO' | 'TREINADOR')}
-            />
-          </View>
+          <Escolha
+            rotulo="Quem está entrando"
+            distribuida
+            opcoes={[
+              { valor: 'ALUNO', rotulo: 'Sou aluno' },
+              { valor: 'TREINADOR', rotulo: 'Sou treinador' },
+            ]}
+            valor={modoEntrada}
+            aoMudar={setModoEntrada}
+          />
         ) : null}
         {criarSenha ? (
           <>

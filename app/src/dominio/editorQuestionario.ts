@@ -2,7 +2,7 @@ import type {
   CondicaoPergunta, ConteudoQuestionario, DestinoNoPerfil, FinalidadeQuestionario, OpcaoPergunta, PerguntaAtualizacao, SecaoAtualizacao, TipoPergunta,
 } from '../api/tipos';
 import { mover, remover, substituir } from './editorTreino';
-import { controlaCondicao, LIMITES_QUESTIONARIO as L, temOpcoes, TIPO_DO_DESTINO, TIPOS_FORA_DA_INSCRICAO, type ProblemaDoQuestionario } from './questionario';
+import { controlaCondicao, type DestinoOferecido, LIMITES_QUESTIONARIO as L, temEfeitoNoCadastro, temOpcoes, TIPO_DO_DESTINO, TIPOS_FORA_DA_INSCRICAO, type ProblemaDoQuestionario } from './questionario';
 import { novoUid } from './uid';
 
 /**
@@ -156,7 +156,7 @@ export function paraApi(c: ConteudoQuestionario, finalidade: FinalidadeQuestiona
         const destacada = aceitaDestaque(p.tipo) && p.destaque === true;
         const numerico = p.tipo === 'NUMERO';
         const nota = p.tipo === 'NOTA';
-        const destino = p.destino != null && destinosPossiveis(p.tipo, finalidade).includes(p.destino) ? p.destino : undefined;
+        const destino = p.destino != null && temEfeitoNoCadastro(p.destino) && destinosPossiveis(p.tipo, finalidade).includes(p.destino) ? p.destino : undefined;
         return {
           id: p.id,
           tipo: p.tipo,
@@ -348,17 +348,18 @@ export const alterarCondicaoDaSecao = (c: ConteudoQuestionario, secao: number, m
 
 /**
  * Campos do cadastro que este tipo pode alimentar (só na anamnese): PESO → registro de peso, TEXTO → objetivo ou CPF,
- * TELEFONE → telefone, ENDERECO → endereço, ESCOLHA_UNICA → sexo. A ordem é a do menu.
+ * TELEFONE → telefone, ENDERECO → endereço, ESCOLHA_UNICA → sexo. Só os que o sistema grava (`temEfeitoNoCadastro`: nome,
+ * e-mail, nascimento, altura e observações a API recusa). A ordem é a do menu.
  */
-export function destinosPossiveis(tipo: TipoPergunta, finalidade: FinalidadeQuestionario): DestinoNoPerfil[] {
+export function destinosPossiveis(tipo: TipoPergunta, finalidade: FinalidadeQuestionario): DestinoOferecido[] {
   if (finalidade !== 'ANAMNESE') return [];
-  return (Object.keys(TIPO_DO_DESTINO) as DestinoNoPerfil[]).filter((x) => TIPO_DO_DESTINO[x] === tipo);
+  return (Object.keys(TIPO_DO_DESTINO) as DestinoNoPerfil[]).filter((x): x is DestinoOferecido => temEfeitoNoCadastro(x) && TIPO_DO_DESTINO[x] === tipo);
 }
 
 /** Ligar este destino nesta pergunta: só um por campo no questionário. */
 export function podeUsarDestino(c: ConteudoQuestionario, id: string, destino: DestinoNoPerfil, finalidade: FinalidadeQuestionario): Permissao {
   const p = todas(c).find((x) => x.id === id);
-  if (!p || !destinosPossiveis(p.tipo, finalidade).includes(destino)) return { pode: false, motivo: 'Este tipo não alimenta o cadastro.' };
+  if (!p || !temEfeitoNoCadastro(destino) || !destinosPossiveis(p.tipo, finalidade).includes(destino)) return { pode: false, motivo: 'Este tipo não alimenta o cadastro.' };
   if (p.destino === destino) return { pode: true };
   return todas(c).some((x) => x.id !== id && x.destino === destino)
     ? { pode: false, motivo: 'Outra pergunta já alimenta este campo do cadastro.' } : { pode: true };

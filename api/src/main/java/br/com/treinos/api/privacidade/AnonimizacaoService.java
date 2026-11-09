@@ -65,6 +65,7 @@ public class AnonimizacaoService {
     private final br.com.treinos.api.agenda.AgendaService agenda;
     private final br.com.treinos.api.avaliacoes.AvaliacaoFisicaService avaliacoesFisicas;
     private final br.com.treinos.api.agua.AguaDoDiaService agua;
+    private final br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDoAluno importacoesAssistidas;
 
     public AnonimizacaoService(AlunoRepository alunos, ConsultoriaRepository consultorias, UsuarioRepository usuarios, Autenticador autenticador,
                                PasswordEncoder senhas, RegistroPesoRepository pesos,
@@ -76,7 +77,9 @@ public class AnonimizacaoService {
                                br.com.treinos.api.ciclo.CicloMenstrualService ciclo,
                                br.com.treinos.api.agenda.AgendaService agenda,
                                br.com.treinos.api.avaliacoes.AvaliacaoFisicaService avaliacoesFisicas,
-                               br.com.treinos.api.agua.AguaDoDiaService agua, br.com.treinos.api.push.PushService push) {
+                               br.com.treinos.api.agua.AguaDoDiaService agua, br.com.treinos.api.push.PushService push,
+                               br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDoAluno importacoesAssistidas) {
+        this.importacoesAssistidas = importacoesAssistidas;
         this.push = push;
         this.agua = agua;
         this.agenda = agenda;
@@ -153,6 +156,8 @@ public class AnonimizacaoService {
         lesoes.deleteAll(lesoes.findByAlunoIdOrderByDataInicioDescCriadoEmDesc(alunoId));
         // Circunferências da avaliação física: saem inteiras (o peso de cada data já sai com os pesos, acima).
         avaliacoesFisicas.apagarDoAluno(alunoId);
+        // Sessões da importação assistida ainda abertas: o que guardam do aluno (grupo ligado a ele, candidato) sai.
+        importacoesAssistidas.apagarDoAluno(alunoId);
         // Água marcada pelo aluno (dado de dieta): sai inteira, como a dieta.
         agua.apagarDoAluno(consultoriaId, alunoId);
         atualizacoes.findByAlunoIdOrderByDataAtualizacaoDesc(alunoId).forEach(a -> a.limparDadosPessoais());
@@ -185,6 +190,8 @@ public class AnonimizacaoService {
                         senhas.encode(segredoAleatorio()));
             });
             push.apagarDoUsuario(consultoriaId, aluno.getUsuarioId());
+            // Posts e comentários da comunidade (autor_nome e texto) e as reações dele; as conquistas não têm texto e ficam.
+            nativo.anonimizarComunidade(consultoriaId, aluno.getUsuarioId(), Aluno.NOME_ANONIMIZADO);
             autenticador.encerrarSessoes(aluno.getUsuarioId().toString());
         }
         aluno.anonimizar(Instant.now());

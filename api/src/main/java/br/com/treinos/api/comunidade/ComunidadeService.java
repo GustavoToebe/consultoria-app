@@ -1,21 +1,21 @@
 package br.com.treinos.api.comunidade;
 
+import br.com.plataforma.comum.web.ApiError;
 import br.com.treinos.api.alunos.Aluno;
 import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.auth.Usuario;
 import br.com.treinos.api.auth.UsuarioRepository;
 import br.com.treinos.api.comunidade.dto.ComunidadeDtos.*;
 import br.com.treinos.api.security.UsuarioAutenticado;
-import br.com.treinos.api.sessoesconcluidas.SessaoConcluida;
 import br.com.treinos.api.sessoesconcluidas.SessaoConcluidaRepository;
+import br.com.treinos.api.web.LinksExternos;
 import br.com.treinos.api.web.NaoEncontradoException;
+import br.com.treinos.api.web.ValidacaoException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -24,6 +24,9 @@ import java.util.stream.Collectors;
 @Service
 @Transactional
 public class ComunidadeService {
+
+    /** Teto de cada lista da exportação; é o mesmo dos {@code findTop5000By...} dos repositórios. */
+    private static final int LIMITE_DA_EXPORTACAO = 5000;
 
     private final ComunidadeAulaRepository aulas;
     private final ComunidadeAulaComentarioRepository aulaComentarios;
@@ -60,52 +63,49 @@ public class ComunidadeService {
     @Transactional(readOnly = true)
     public List<AulaResumo> listarAulasAluno() {
         return aulas.findByPublicadaTrueOrderByOrdemAscCriadaEmDesc().stream()
-                .map(a -> new AulaResumo(a.getId(), a.getTitulo(), a.getDescricao(), a.getVideoUrl(), a.getMiniaturaUrl(),
-                        a.getCategoria(), a.getOrdem(), a.isPublicada(), a.getCriadaEm(),
-                        aulaComentarios.countByAulaIdAndOcultoFalse(a.getId())))
+                .map(a -> resumo(a, aulaComentarios.countByAulaIdAndOcultoFalse(a.getId())))
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public List<AulaResumo> listarAulasEquipe() {
         return aulas.findAllByOrderByOrdemAscCriadaEmDesc().stream()
-                .map(a -> new AulaResumo(a.getId(), a.getTitulo(), a.getDescricao(), a.getVideoUrl(), a.getMiniaturaUrl(),
-                        a.getCategoria(), a.getOrdem(), a.isPublicada(), a.getCriadaEm(),
-                        aulaComentarios.countByAulaIdAndOcultoFalse(a.getId())))
+                .map(a -> resumo(a, aulaComentarios.countByAulaIdAndOcultoFalse(a.getId())))
                 .toList();
     }
 
     public AulaResumo criarAula(CriarAulaRequest r) {
-        ComunidadeAula a = new ComunidadeAula(r.titulo().trim(), r.descricao(), r.videoUrl().trim(),
-                r.miniaturaUrl(), r.categoria(), r.ordem() == null ? 0 : r.ordem(),
+        ComunidadeAula a = new ComunidadeAula(r.titulo().trim(), r.descricao(), linkDaEntrada("videoUrl", r.videoUrl()),
+                linkDaEntrada("miniaturaUrl", r.miniaturaUrl()), r.categoria(), r.ordem() == null ? 0 : r.ordem(),
                 r.publicada() == null || r.publicada());
         aulas.saveAndFlush(a);
-        return new AulaResumo(a.getId(), a.getTitulo(), a.getDescricao(), a.getVideoUrl(), a.getMiniaturaUrl(),
-                a.getCategoria(), a.getOrdem(), a.isPublicada(), a.getCriadaEm(), 0);
+        return resumo(a, 0);
     }
 
     public AulaResumo alterarAula(UUID id, CriarAulaRequest r) {
         ComunidadeAula a = aulas.findById(id).orElseThrow(() -> new NaoEncontradoException("Aula não encontrada."));
-        a.atualizar(r.titulo().trim(), r.descricao(), r.videoUrl().trim(), r.miniaturaUrl(), r.categoria(),
+        a.atualizar(r.titulo().trim(), r.descricao(), linkDaEntrada("videoUrl", r.videoUrl()),
+                linkDaEntrada("miniaturaUrl", r.miniaturaUrl()), r.categoria(),
                 r.ordem() == null ? 0 : r.ordem(), r.publicada() == null || r.publicada());
         aulas.saveAndFlush(a);
-        return new AulaResumo(a.getId(), a.getTitulo(), a.getDescricao(), a.getVideoUrl(), a.getMiniaturaUrl(),
-                a.getCategoria(), a.getOrdem(), a.isPublicada(), a.getCriadaEm(),
-                aulaComentarios.countByAulaIdAndOcultoFalse(a.getId()));
+        return resumo(a, aulaComentarios.countByAulaIdAndOcultoFalse(a.getId()));
     }
 
     public void excluirAula(UUID id) {
-        aulas.deleteById(id);
+        // findById passa pelo @TenantId: aula de outra consultoria dá 404 (deleteById responderia 204 sem avisar).
+        aulas.delete(aulas.findById(id).orElseThrow(() -> new NaoEncontradoException("Aula não encontrada.")));
     }
 
     @Transactional(readOnly = true)
-    public List<ComentarioResponse> listarComentariosAula(UUID aulaId) {
+    public List<ComentarioResponse> listarComentariosAula(UUID aulaId, UsuarioAutenticado eu) {
+        exigirAula(aulaId, eu);
         return aulaComentarios.findByAulaIdAndOcultoFalseOrderByCriadoEmAsc(aulaId).stream()
                 .map(c -> new ComentarioResponse(c.getId(), c.getAutorId(), c.getAutorNome(), c.getAutorFotoUrl(), c.getTexto(), c.getCriadoEm()))
                 .toList();
     }
 
     public ComentarioResponse adicionarComentarioAula(UUID aulaId, String texto, UsuarioAutenticado eu) {
+        exigirAula(aulaId, eu);
         String nome = usuarios.findById(eu.usuarioId()).map(Usuario::getNome).orElse("Membro");
         ComunidadeAulaComentario c = new ComunidadeAulaComentario(aulaId, eu.usuarioId(), nome, null, texto.trim());
         aulaComentarios.saveAndFlush(c);
@@ -113,10 +113,42 @@ public class ComunidadeService {
     }
 
     public void excluirComentarioAula(UUID id) {
-        aulaComentarios.findById(id).ifPresent(c -> {
-            c.ocultar();
-            aulaComentarios.saveAndFlush(c);
-        });
+        ComunidadeAulaComentario c = aulaComentarios.findById(id)
+                .orElseThrow(() -> new NaoEncontradoException("Comentário não encontrado."));
+        c.ocultar();
+        aulaComentarios.saveAndFlush(c);
+    }
+
+    /** Aula da consultoria da sessão (de outra consultoria, 404); o aluno só enxerga as publicadas. */
+    private void exigirAula(UUID aulaId, UsuarioAutenticado eu) {
+        boolean aluno = "ALUNO".equals(eu.papel());
+        if (aulas.findById(aulaId).filter(a -> !aluno || a.isPublicada()).isEmpty()) {
+            throw new NaoEncontradoException("Aula não encontrada.");
+        }
+    }
+
+    private static AulaResumo resumo(ComunidadeAula a, long totalComentarios) {
+        // Link guardado que não passa mais na regra (linha antiga) não vai ao app: abriria o que não deveria.
+        return new AulaResumo(a.getId(), a.getTitulo(), a.getDescricao(), linkSeguro(a.getVideoUrl()),
+                linkSeguro(a.getMiniaturaUrl()), a.getCategoria(), a.getOrdem(), a.isPublicada(), a.getCriadaEm(),
+                totalComentarios);
+    }
+
+    /** Vazio vira nulo; só https sem credenciais, senão 422 no campo (sem repetir o valor). */
+    private static String linkDaEntrada(String campo, String url) {
+        if (url == null || url.isBlank()) {
+            return null;
+        }
+        String limpo = url.trim();
+        if (!LinksExternos.valido(limpo)) {
+            throw new ValidacaoException("Dados inválidos.", "COMUNIDADE_INVALIDA",
+                    List.of(new ApiError.FieldError(campo, LinksExternos.MENSAGEM)));
+        }
+        return limpo;
+    }
+
+    private static String linkSeguro(String url) {
+        return url != null && LinksExternos.valido(url) ? url : null;
     }
 
     // ---- Mural ----
@@ -134,19 +166,22 @@ public class ComunidadeService {
                     .toList();
             long totalComentarios = muralComentarios.countByPostIdAndOcultoFalse(p.getId());
             return new MuralPostResponse(p.getId(), p.getAutorId(), p.getAutorNome(), p.getAutorFotoUrl(),
-                    p.getTexto(), p.getImagemUrl(), p.isFixado(), p.getCriadoEm(), contagem, minhas, totalComentarios);
+                    p.getTexto(), linkSeguro(p.getImagemUrl()), p.isFixado(), p.getCriadoEm(), contagem, minhas,
+                    totalComentarios);
         });
     }
 
     public MuralPostResponse criarPostMural(CriarPostRequest r, UsuarioAutenticado eu) {
+        String imagem = linkDaEntrada("imagemUrl", r.imagemUrl());
         String nome = usuarios.findById(eu.usuarioId()).map(Usuario::getNome).orElse("Membro");
-        ComunidadeMuralPost post = new ComunidadeMuralPost(eu.usuarioId(), nome, null, r.texto().trim(), r.imagemUrl());
+        ComunidadeMuralPost post = new ComunidadeMuralPost(eu.usuarioId(), nome, null, r.texto().trim(), imagem);
         muralPosts.saveAndFlush(post);
         return new MuralPostResponse(post.getId(), post.getAutorId(), post.getAutorNome(), post.getAutorFotoUrl(),
                 post.getTexto(), post.getImagemUrl(), post.isFixado(), post.getCriadoEm(), Map.of(), List.of(), 0);
     }
 
     public void alternarReacaoMural(UUID postId, String emoji, UsuarioAutenticado eu) {
+        exigirPostVisivel(postId);
         var existente = muralReacoes.findByPostIdAndUsuarioIdAndEmoji(postId, eu.usuarioId(), emoji);
         if (existente.isPresent()) {
             muralReacoes.delete(existente.get());
@@ -157,12 +192,14 @@ public class ComunidadeService {
 
     @Transactional(readOnly = true)
     public List<ComentarioResponse> listarComentariosMural(UUID postId) {
+        exigirPostVisivel(postId);
         return muralComentarios.findByPostIdAndOcultoFalseOrderByCriadoEmAsc(postId).stream()
                 .map(c -> new ComentarioResponse(c.getId(), c.getAutorId(), c.getAutorNome(), c.getAutorFotoUrl(), c.getTexto(), c.getCriadoEm()))
                 .toList();
     }
 
     public ComentarioResponse adicionarComentarioMural(UUID postId, String texto, UsuarioAutenticado eu) {
+        exigirPostVisivel(postId);
         String nome = usuarios.findById(eu.usuarioId()).map(Usuario::getNome).orElse("Membro");
         ComunidadeMuralComentario c = new ComunidadeMuralComentario(postId, eu.usuarioId(), nome, null, texto.trim());
         muralComentarios.saveAndFlush(c);
@@ -170,15 +207,28 @@ public class ComunidadeService {
     }
 
     public void moderarPost(UUID postId) {
-        muralPosts.findById(postId).ifPresent(p -> { p.ocultar(); muralPosts.saveAndFlush(p); });
+        ComunidadeMuralPost p = muralPosts.findById(postId).orElseThrow(() -> new NaoEncontradoException("Post não encontrado."));
+        p.ocultar();
+        muralPosts.saveAndFlush(p);
     }
 
     public void fixarPost(UUID postId) {
-        muralPosts.findById(postId).ifPresent(p -> { p.alternarFixado(); muralPosts.saveAndFlush(p); });
+        ComunidadeMuralPost p = exigirPostVisivel(postId);
+        p.alternarFixado();
+        muralPosts.saveAndFlush(p);
     }
 
     public void moderarComentarioMural(UUID comentarioId) {
-        muralComentarios.findById(comentarioId).ifPresent(c -> { c.ocultar(); muralComentarios.saveAndFlush(c); });
+        ComunidadeMuralComentario c = muralComentarios.findById(comentarioId)
+                .orElseThrow(() -> new NaoEncontradoException("Comentário não encontrado."));
+        c.ocultar();
+        muralComentarios.saveAndFlush(c);
+    }
+
+    /** Post da consultoria da sessão e não oculto; de outra consultoria (ou oculto), 404. */
+    private ComunidadeMuralPost exigirPostVisivel(UUID postId) {
+        return muralPosts.findById(postId).filter(p -> !p.isOculto())
+                .orElseThrow(() -> new NaoEncontradoException("Post não encontrado."));
     }
 
     // ---- Conquistas ----
@@ -207,46 +257,47 @@ public class ComunidadeService {
 
     // ---- Ranking ----
 
+    /**
+     * A posição do próprio aluno entre os ativos da consultoria (empate divide a posição) e quantos são. Não há apelido público
+     * nem opt-in, então nada de outro aluno (nome, id, contagem) sai daqui. O ranking de força saiu: carga nunca se inventa.
+     */
     @Transactional(readOnly = true)
     public RankingResponse obterRanking(UUID alunoId) {
-        Aluno alunoAtual = alunos.findById(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
-        List<Aluno> listaAlunos = alunos.findAll().stream().filter(Aluno::isAtivo).toList();
-        List<ItemRanking> constancia = new ArrayList<>();
-        for (Aluno a : listaAlunos) {
-            long treinos = sessoes.countByAlunoIdAndSituacaoAndConcluidaTrue(a.getId(), "ACEITO");
-            int pontuacao = (int) treinos * 10;
-            constancia.add(new ItemRanking(a.getId(), a.getNome(), null, pontuacao, (int) treinos, 0, 0));
+        if (alunos.findById(alunoId).isEmpty()) {
+            throw new NaoEncontradoException("Aluno não encontrado.");
         }
-        constancia.sort(Comparator.comparingInt(ItemRanking::pontuacao).reversed());
-        List<ItemRanking> constanciaRanqueada = new ArrayList<>();
-        for (int i = 0; i < constancia.size(); i++) {
-            ItemRanking item = constancia.get(i);
-            constanciaRanqueada.add(new ItemRanking(item.alunoId(), item.alunoNome(), item.fotoUrl(),
-                    item.pontuacao(), item.treinosConcluidos(), item.recordesBatidos(), i + 1));
-        }
-
-        List<ItemRankingForca> forca = new ArrayList<>();
-        if (alunoAtual.isParticipaRankingForca()) {
-            for (Aluno a : listaAlunos) {
-                if (a.isParticipaRankingForca()) {
-                    forca.add(new ItemRankingForca(a.getId(), a.getNome(), null, "Supino / Agachamento", 100.0, 0));
-                }
-            }
-            forca.sort(Comparator.comparingDouble(ItemRankingForca::cargaKg).reversed());
-            List<ItemRankingForca> forcaRanqueada = new ArrayList<>();
-            for (int i = 0; i < forca.size(); i++) {
-                ItemRankingForca it = forca.get(i);
-                forcaRanqueada.add(new ItemRankingForca(it.alunoId(), it.alunoNome(), it.fotoUrl(), it.exercicio(), it.cargaKg(), i + 1));
-            }
-            forca = forcaRanqueada;
-        }
-
-        return new RankingResponse(constanciaRanqueada, forca, alunoAtual.isParticipaRankingForca());
+        long treinos = sessoes.countByAlunoIdAndSituacaoAndConcluidaTrue(alunoId, "ACEITO");
+        long adiante = alunos.contarAtivosComMaisTreinosConcluidos(treinos);
+        return new RankingResponse((int) (adiante + 1), (int) treinos, (int) treinos * 10, alunos.countByAtivoTrue());
     }
 
-    public void alterarOptInForca(UUID alunoId, boolean participa) {
-        Aluno a = alunos.findById(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
-        a.alterarParticipaRankingForca(participa);
-        alunos.saveAndFlush(a);
+    // ---- Exportação LGPD ----
+
+    /** O que o aluno escreveu e marcou na comunidade, mais as conquistas; quem nunca teve acesso (sem usuário) só tem as conquistas. */
+    @Transactional(readOnly = true)
+    public ComunidadeExportada exportarDoAluno(UUID alunoId) {
+        Aluno aluno = alunos.findById(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
+        var minhasConquistas = conquistas.findByAlunoIdOrderByConquistadaEmDesc(alunoId).stream()
+                .map(c -> new ConquistaResponse(c.getId(), c.getTipo(), c.getTitulo(), c.getDescricao(), c.getIcone(), c.getConquistadaEm()))
+                .toList();
+        UUID usuarioId = aluno.getUsuarioId();
+        if (usuarioId == null) {
+            return new ComunidadeExportada(List.of(), List.of(), List.of(), List.of(), minhasConquistas, false);
+        }
+        var posts = muralPosts.findTop5000ByAutorIdOrderByCriadoEmDesc(usuarioId).stream()
+                .map(p -> new PostExportado(p.getId(), p.getTexto(), p.getImagemUrl(), p.isFixado(), p.isOculto(), p.getCriadoEm()))
+                .toList();
+        var deAulas = aulaComentarios.findTop5000ByAutorIdOrderByCriadoEmDesc(usuarioId).stream()
+                .map(c -> new ComentarioExportado(c.getId(), c.getAulaId(), c.getTexto(), c.isOculto(), c.getCriadoEm()))
+                .toList();
+        var doMural = muralComentarios.findTop5000ByAutorIdOrderByCriadoEmDesc(usuarioId).stream()
+                .map(c -> new ComentarioExportado(c.getId(), c.getPostId(), c.getTexto(), c.isOculto(), c.getCriadoEm()))
+                .toList();
+        var reacoes = muralReacoes.findTop5000ByUsuarioIdOrderByCriadoEmDesc(usuarioId).stream()
+                .map(r -> new ReacaoExportada(r.getPostId(), r.getEmoji(), r.getCriadoEm()))
+                .toList();
+        boolean truncado = posts.size() == LIMITE_DA_EXPORTACAO || deAulas.size() == LIMITE_DA_EXPORTACAO
+                || doMural.size() == LIMITE_DA_EXPORTACAO || reacoes.size() == LIMITE_DA_EXPORTACAO;
+        return new ComunidadeExportada(posts, deAulas, doMural, reacoes, minhasConquistas, truncado);
     }
 }

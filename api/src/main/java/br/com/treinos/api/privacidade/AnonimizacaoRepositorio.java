@@ -41,6 +41,22 @@ class AnonimizacaoRepositorio {
     }
 
     /**
+     * Comunidade (V065): o que o usuário do aluno escreveu sai do ar. Posts e comentários perdem texto, imagem, foto e nome
+     * (o nome civil ficava gravado em {@code autor_nome}) e ficam ocultos; as reações dele são apagadas. Uma linha vazia e oculta
+     * preserva as contagens dos outros e a FK. As linhas saem de {@code consultoria_id} e do usuário do aluno
+     * ({@code autor_id}/{@code usuario_id}, é o que a tabela guarda, não o {@code aluno_id}).
+     */
+    void anonimizarComunidade(UUID consultoriaId, UUID usuarioId, String nomeAnonimizado) {
+        jdbc.update("update comunidade_mural_post set autor_nome = ?, autor_foto_url = null, texto = '', imagem_url = null, "
+                + "oculto = true where consultoria_id = ? and autor_id = ?", nomeAnonimizado, consultoriaId, usuarioId);
+        jdbc.update("update comunidade_mural_comentario set autor_nome = ?, autor_foto_url = null, texto = '', oculto = true "
+                + "where consultoria_id = ? and autor_id = ?", nomeAnonimizado, consultoriaId, usuarioId);
+        jdbc.update("update comunidade_aula_comentario set autor_nome = ?, autor_foto_url = null, texto = '', oculto = true "
+                + "where consultoria_id = ? and autor_id = ?", nomeAnonimizado, consultoriaId, usuarioId);
+        jdbc.update("delete from comunidade_mural_reacao where consultoria_id = ? and usuario_id = ?", consultoriaId, usuarioId);
+    }
+
+    /**
      * O app sugere "Treino de nome" como título, então o nome da pessoa fica gravado nos títulos de planos, versões e
      * pastas. O conteúdo dos treinos (exercícios) e as datas ficam, para as contagens.
      */

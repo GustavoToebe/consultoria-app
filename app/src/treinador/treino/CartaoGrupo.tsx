@@ -167,7 +167,7 @@ const estilos = StyleSheet.create({
   naLista: { gap: espaco(1) },
   linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.25), minHeight: ALVO_TOQUE, borderRadius: RAIO, paddingVertical: espaco(1), paddingHorizontal: espaco(1.25) },
   textos: { flex: 1, gap: 2 },
-  nome: { fontFamily: fontes.semi, fontSize: 15, lineHeight: 20 },
+  nome: { fontFamily: fontes.semi },
   // O fio prende os membros ao grupo sem mais uma caixa em volta.
   membros: { borderLeftWidth: 2, marginLeft: espaco(1.5), paddingLeft: espaco(1.25), gap: espaco(1) },
   cartao: { borderRadius: RAIO, overflow: 'hidden' },

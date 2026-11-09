@@ -1,5 +1,6 @@
 package br.com.treinos.api.comunidade;
 
+import br.com.treinos.api.auth.LimiteTentativas;
 import br.com.treinos.api.comunidade.dto.ComunidadeDtos.*;
 import br.com.treinos.api.execucao.AlunoAppService;
 import br.com.treinos.api.security.UsuarioAutenticado;
@@ -19,9 +20,11 @@ import java.util.UUID;
 public class AlunoComunidadeController {
 
     private final ComunidadeService comunidade;
+    private final LimiteTentativas limite;
 
-    public AlunoComunidadeController(ComunidadeService comunidade) {
+    public AlunoComunidadeController(ComunidadeService comunidade, LimiteTentativas limite) {
         this.comunidade = comunidade;
+        this.limite = limite;
     }
 
     // ---- Aulões ----
@@ -34,14 +37,15 @@ public class AlunoComunidadeController {
 
     @PreAuthorize("hasRole('ALUNO')")
     @GetMapping("/aulas/{id}/comentarios")
-    public List<ComentarioResponse> listarComentariosAula(@PathVariable UUID id) {
-        return comunidade.listarComentariosAula(id);
+    public List<ComentarioResponse> listarComentariosAula(@PathVariable UUID id, @AuthenticationPrincipal UsuarioAutenticado eu) {
+        return comunidade.listarComentariosAula(id, eu);
     }
 
     @PreAuthorize("hasRole('ALUNO')")
     @PostMapping("/aulas/{id}/comentarios")
     public ComentarioResponse comentarAula(@PathVariable UUID id, @RequestBody @Valid ComentarioRequest request,
                                            @AuthenticationPrincipal UsuarioAutenticado eu) {
+        limite.comunidade(eu.usuarioId());
         return comunidade.adicionarComentarioAula(id, request.texto(), eu);
     }
 
@@ -59,6 +63,7 @@ public class AlunoComunidadeController {
     @PostMapping("/mural")
     public MuralPostResponse criarPost(@RequestBody @Valid CriarPostRequest request,
                                        @AuthenticationPrincipal UsuarioAutenticado eu) {
+        limite.comunidade(eu.usuarioId());
         return comunidade.criarPostMural(request, eu);
     }
 
@@ -66,6 +71,7 @@ public class AlunoComunidadeController {
     @PostMapping("/mural/{id}/reacoes")
     public ResponseEntity<Void> reagirMural(@PathVariable UUID id, @RequestBody @Valid ReacaoRequest request,
                                             @AuthenticationPrincipal UsuarioAutenticado eu) {
+        limite.comunidade(eu.usuarioId());
         comunidade.alternarReacaoMural(id, request.emoji(), eu);
         return ResponseEntity.noContent().build();
     }
@@ -80,6 +86,7 @@ public class AlunoComunidadeController {
     @PostMapping("/mural/{id}/comentarios")
     public ComentarioResponse comentarMural(@PathVariable UUID id, @RequestBody @Valid ComentarioRequest request,
                                             @AuthenticationPrincipal UsuarioAutenticado eu) {
+        limite.comunidade(eu.usuarioId());
         return comunidade.adicionarComentarioMural(id, request.texto(), eu);
     }
 
@@ -99,14 +106,5 @@ public class AlunoComunidadeController {
     public RankingResponse ranking(@AuthenticationPrincipal UsuarioAutenticado eu) {
         UUID alunoId = AlunoAppService.alunoDaSessao(eu);
         return comunidade.obterRanking(alunoId);
-    }
-
-    @PreAuthorize("hasRole('ALUNO')")
-    @PutMapping("/ranking/opt-in")
-    public ResponseEntity<Void> optInRanking(@RequestBody @Valid OptInRankingRequest request,
-                                             @AuthenticationPrincipal UsuarioAutenticado eu) {
-        UUID alunoId = AlunoAppService.alunoDaSessao(eu);
-        comunidade.alterarOptInForca(alunoId, request.participa());
-        return ResponseEntity.noContent().build();
     }
 }

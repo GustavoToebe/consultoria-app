@@ -3,7 +3,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import type { CobrancaResponse, Inadimplente, PaginaInadimplentes } from '../../api/financeiroTipos';
-import { listarCobrancasDoAluno, listarInadimplentes, painelFinanceiro } from '../../api/rotas';
+import { listarCobrancasDoAluno, listarInadimplentes, painelFinanceiro, visaoGeralDoFinanceiro } from '../../api/rotas';
 import {
   ATALHOS_DE_PERIODO, atrasoParaTela, cartoesDoPainel, COMO_CALCULAMOS, hojeEmBrasilia, inadimplenciaParaTela, liquidoParaTela,
   periodoDoPainel, rotuloDaForma, serieDoGrafico, valorEQuantidadeParaTela, type AtalhoDePeriodo, type CartaoDoPainel, NOTA_CONSIDERA_GERADAS,
@@ -51,13 +51,17 @@ export function VisaoGeral({ escopo, aoMudarEscopo, podeAlterar }: {
   const meus = escopo === 'meus';
   const painel = useCarregar(`painel|${periodo.de}|${periodo.ate}|${meus}`, () => painelFinanceiro({ ...periodo, meus }));
   const atrasados = useCarregar(`inadimplentes|${meus}`, () => listarInadimplentes({ meus, pagina: 0 }));
+  // A rota é da consultoria inteira (não filtra por responsável nem por período): com "só os seus alunos" o cartão não aparece.
+  // Falhar aqui não derruba a tela; o cartão só fica de fora.
+  const renovacoes = useCarregar(meus ? null : 'visao-geral-financeiro', () => visaoGeralDoFinanceiro());
   const [aberta, setAberta] = useState<{ cobranca: CobrancaResponse; emBaixa: boolean } | null>(null);
   const [buscando, setBuscando] = useState<string | null>(null);
   const { recarregar: recarregarPainel } = painel;
   const { recarregar: recarregarAtrasados } = atrasados;
+  const { recarregar: recarregarRenovacoes } = renovacoes;
   const dados = painel.dados;
   // Voltando da ficha ou de outra tela, os números são buscados de novo.
-  useFocusEffect(useCallback(() => { recarregarPainel(); recarregarAtrasados(); }, [recarregarPainel, recarregarAtrasados]));
+  useFocusEffect(useCallback(() => { recarregarPainel(); recarregarAtrasados(); recarregarRenovacoes(); }, [recarregarPainel, recarregarAtrasados, recarregarRenovacoes]));
 
   // A lista de inadimplentes não traz a versão da cobrança: busca a do aluno para abrir (ou dar a baixa) com ela.
   const abrirCobrancaDe = (i: Inadimplente, emBaixa: boolean) => {
@@ -103,14 +107,16 @@ export function VisaoGeral({ escopo, aoMudarEscopo, podeAlterar }: {
           <Cartao titulo="Recebido e previsto por mês" descricao={`O previsto ${NOTA_CONSIDERA_GERADAS}.`}>
             {dados.serie.length === 0 ? <Texto variante="suave">Nenhum valor recebido ou previsto no período.</Texto> : <GraficoBarras barras={serieDoGrafico(dados.serie)} />}
           </Cartao>
-          <Grade gap={espaco(2)}>
-            <Cartao titulo="Renovações próximas (≤ 40 dias)" descricao="Alunos com término de vigência próximo." style={estilos.esticar}>
+          {renovacoes.dados ? (
+            <Cartao titulo="Renovações próximas" descricao="Contratações ativas com a vigência vencida ou terminando nos próximos 40 dias.">
               <CamposEmLinha>
-                <CampoLeitura rotulo="Próximos 40 dias" valor={(dados as any).renovacoesProximasCount != null ? `${dados.renovacoesProximasCount} planos` : '—'} numerico />
-                <CampoLeitura rotulo="Projeção Anual" valor={(dados as any).projecaoAnualCentavos != null ? centavosParaTela(dados.projecaoAnualCentavos) : '—'} numerico />
+                <CampoLeitura rotulo="Para renovar" numerico
+                  valor={`${renovacoes.dados.renovacoesProximasCount} ${renovacoes.dados.renovacoesProximasCount === 1 ? 'plano' : 'planos'}`} />
+                <CampoLeitura rotulo="Valor dessas renovações" valor={centavosParaTela(renovacoes.dados.renovacoesProximasCentavos)} numerico />
+                <CampoLeitura rotulo="Projeção anual" valor={centavosParaTela(renovacoes.dados.projecaoAnualCentavos)} numerico />
               </CamposEmLinha>
             </Cartao>
-          </Grade>
+          ) : null}
           <Grade gap={espaco(2)}>
             <Cartao titulo="Próximos recebimentos" descricao={`O previsto ${NOTA_CONSIDERA_GERADAS}.`} style={estilos.esticar}>
               <CamposEmLinha>

@@ -52,8 +52,8 @@ public class ComunidadeController {
 
     @PreAuthorize("hasAuthority('PERM_TREINO_LER')")
     @GetMapping("/aulas/{id}/comentarios")
-    public List<ComentarioResponse> listarComentariosAula(@PathVariable UUID id) {
-        return comunidade.listarComentariosAula(id);
+    public List<ComentarioResponse> listarComentariosAula(@PathVariable UUID id, @AuthenticationPrincipal UsuarioAutenticado eu) {
+        return comunidade.listarComentariosAula(id, eu);
     }
 
     @PreAuthorize("hasAuthority('PERM_TREINO_ALTERAR')")

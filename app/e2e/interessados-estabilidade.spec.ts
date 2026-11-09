@@ -86,7 +86,7 @@ test('Interessados: a última página esvaziada volta sozinha para a página que
   await expect(page.getByText('Página 2 de 2')).toBeVisible();
   await page.getByRole('button', { name: 'Abrir inscrição de Pessoa Fictícia 31' }).click();
   await page.getByRole('button', { name: 'Encerrar', exact: true }).click();
-  await page.getByRole('button', { name: 'Preço', exact: true }).click();
+  await page.getByRole('radio', { name: 'Preço', exact: true }).click();
   await page.getByRole('button', { name: 'Recusar', exact: true }).click();
   await page.getByRole('button', { name: 'Fechar' }).first().click();
 
@@ -113,7 +113,7 @@ test('Interessados: salvar o andamento não apaga a nota ainda não acrescentada
   });
   await page.getByRole('button', { name: 'Abrir inscrição de Pessoa Fictícia 1' }).click();
   await page.getByLabel('Nova nota').fill('Ligou de volta.');
-  await page.getByRole('dialog').getByRole('button', { name: 'Em contato', exact: true }).click();
+  await page.getByRole('dialog').getByRole('radio', { name: 'Em contato', exact: true }).click();
   await page.getByRole('button', { name: 'Salvar andamento' }).click();
   await expect(page.getByText('Andamento salvo.')).toBeVisible();
   await expect(page.getByLabel('Nova nota')).toHaveValue('Ligou de volta.');

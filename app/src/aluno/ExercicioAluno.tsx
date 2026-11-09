@@ -15,7 +15,7 @@ import { aplicarEscolhaDoPainel, decidirCheck, type EscolhaDoPainel } from '../d
 import { etapasDaSerie } from '../dominio/etapas';
 import { textosDeExecucao } from '../dominio/execucaoDoExercicio';
 import { dataCurta, dataParaTela } from '../dominio/formatos';
-import { kgParaTela, textoDaCarga, textoDoPasso } from '../dominio/unidadeDeCarga';
+import { textoDaCarga, textoDoPasso } from '../dominio/unidadeDeCarga';
 import { textoDoRecorde, type Recorde } from '../dominio/recordesPessoais';
 import { acompanharPendente, digitarPendente, valorExibido, type ValorPendente } from '../dominio/valorPendente';
 import { repeticaoDaAnterior } from '../dominio/repetirSerie';
@@ -481,7 +481,6 @@ function CartaoSerie({
       rotulo="Peso"
       rotuloOculto
       rotuloAcessivel={`Peso da série ${numero}`}
-      placeholder={calculada.sugestao != null ? String(kgParaTela(calculada.sugestao, unidade)) : undefined}
       valorKg={carga}
       aoMudarKg={(v) => mudar({ carga: v })}
       aoValidade={(v) => setCargaInvalida(!v)}
@@ -553,15 +552,11 @@ function CartaoSerie({
       {semCargaNaSerie ? <Texto variante="pequeno" cor={cores.texto} accessibilityLiveRegion="polite">{semCargaNaSerie}</Texto> : null}
       {dica ? <DicaDoCampo dica={dica} origem={origem} numero={numero} /> : null}
       {calculada.sugestao != null && carga === null && !feita && !semCampoDePeso ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Usar sugestão de ${textoDaCarga(calculada.sugestao, unidade)}, série ${numero}`}
-          style={[estilos.seloSugestao, { backgroundColor: cores.superficie3, borderColor: cores.bordaCampo }]}
-          onPress={() => mudar({ carga: calculada.sugestao })}>
-          <Texto variante="pequeno" cor={cores.texto} style={estilos.textoSugestao}>
-            {`Sugerido: ${textoDaCarga(calculada.sugestao, unidade)} — usar`}
-          </Texto>
-        </Pressable>
+        <View style={estilos.usarSugestao}>
+          <Botao tipo="secundario" rotulo={`Usar sugestão: ${textoDaCarga(calculada.sugestao, unidade)}`}
+            rotuloAcessivel={`Usar sugestão de ${textoDaCarga(calculada.sugestao, unidade)}, série ${numero}`}
+            aoTocar={() => mudar({ carga: calculada.sugestao })} />
+        </View>
       ) : null}
       {avisoDasReps ? <Texto numerico variante="pequeno" cor={cores.texto} accessibilityLiveRegion="polite">{avisoDasReps}</Texto> : null}
       {painelAberto ? (
@@ -602,6 +597,5 @@ const estilos = StyleSheet.create({
   linhaDosCampos: { flexDirection: 'row', alignItems: 'stretch', gap: espaco(1) },
   metaNaLinha: { flexGrow: 1.3, flexShrink: 1, flexBasis: 0, minWidth: 0 },
   metaEmCima: { flex: 1, minWidth: 0 },
-  seloSugestao: { borderWidth: 1, borderRadius: RAIO, paddingHorizontal: espaco(1), paddingVertical: espaco(0.5), alignSelf: 'flex-start', marginTop: espaco(0.5) },
-  textoSugestao: { fontFamily: fontes.semi },
+  usarSugestao: { alignSelf: 'flex-start' },
 });

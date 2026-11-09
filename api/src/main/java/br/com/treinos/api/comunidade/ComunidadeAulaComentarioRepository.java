@@ -8,4 +8,5 @@ public interface ComunidadeAulaComentarioRepository extends JpaRepository<Comuni
     List<ComunidadeAulaComentario> findByAulaIdAndOcultoFalseOrderByCriadoEmAsc(UUID aulaId);
     List<ComunidadeAulaComentario> findByAulaIdOrderByCriadoEmAsc(UUID aulaId);
     long countByAulaIdAndOcultoFalse(UUID aulaId);
+    List<ComunidadeAulaComentario> findTop5000ByAutorIdOrderByCriadoEmDesc(UUID autorId);
 }

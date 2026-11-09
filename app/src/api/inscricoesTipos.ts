@@ -70,23 +70,25 @@ export interface InscricaoPublicaRequest {
   respostas: RespostasAtualizacao | null;
 }
 
+/** `GET /inscricoes/configuracao` (= `GET /questionarios/{id}/link` do formulário padrão; 404 se não há padrão). */
 export interface ConfiguracaoInscricao {
   aberta: boolean;
-  /** Nulos até o link ser gerado pela primeira vez. */
+  /** Nulos até o link ser aberto pela primeira vez. */
   codigo: string | null;
   link: string | null;
   responsavelId: string | null;
   texto: string | null;
   /** Campos fixos escondidos da página. */
   camposOcultos: CampoDaInscricao[];
-  versao: number | null;
+  /** `linkVersao` do questionário (começa em 0): vai de volta em toda escrita; diferente = 409 `CONFLITO_EDICAO`. */
+  versao: number;
 }
 
 export interface ConfiguracaoInscricaoRequest {
   aberta: boolean;
   responsavelId: string | null;
   texto: string | null;
-  versao: number | null;
+  versao: number;
 }
 
 /**

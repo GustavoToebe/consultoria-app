@@ -9,7 +9,9 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.OptimisticLock;
 import org.hibernate.annotations.TenantId;
 import org.hibernate.type.SqlTypes;
 
@@ -17,10 +19,15 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Questionário de uma consultoria, de atualização ou de anamnese ({@link Finalidade}, fixa desde a criação): o rascunho é
- * editável; publicar cria uma {@link QuestionarioVersao} imutável. Um por consultoria e finalidade é o padrão (sempre
- * publicado e ativo).
+ * Questionário de uma consultoria, de atualização, de anamnese ou de inscrição ({@link Finalidade}, fixa desde a criação): o
+ * rascunho é editável; publicar cria uma {@link QuestionarioVersao} imutável. Um por consultoria e finalidade é o padrão
+ * (sempre publicado e ativo). O questionário de inscrição é também a única fonte do link público ({@code /inscricao/<código>}):
+ * código (gerado só no servidor), abertura, responsável, texto de apresentação e campos fixos escondidos. Essas colunas
+ * ficam fora da {@code versao} do rascunho ({@code @OptimisticLock(excluded)}) e têm a {@code linkVersao} própria;
+ * {@code @DynamicUpdate} faz o UPDATE levar só o que mudou, para um salvar do editor (que leu o link antes) nunca regravar
+ * o código velho por cima de um "gerar novo link".
  */
+@DynamicUpdate
 @Entity
 @Table(name = "questionario")
 public class Questionario {
@@ -64,14 +71,32 @@ public class Questionario {
     @Column(name = "criado_em", insertable = false, updatable = false)
     private Instant criadoEm;
 
+    @OptimisticLock(excluded = true)
     @Column(name = "codigo_publico", unique = true)
     private String codigoPublico;
 
+    @OptimisticLock(excluded = true)
     @Column(name = "publico_aberto", nullable = false)
     private boolean publicoAberto;
 
+    @OptimisticLock(excluded = true)
     @Column(name = "responsavel_padrao_id")
     private UUID responsavelPadraoId;
+
+    /** Texto de privacidade/consentimento do link (até 2000): com texto, a ciência é obrigatória. Nulo = sem texto. */
+    @OptimisticLock(excluded = true)
+    @Column(name = "texto_apresentacao")
+    private String textoApresentacao;
+
+    /** Campos fixos escondidos da página ({@code CampoDaInscricao}), separados por vírgula; vazio = todos visíveis. */
+    @OptimisticLock(excluded = true)
+    @Column(name = "campos_ocultos", nullable = false)
+    private String camposOcultos = "";
+
+    /** Lock otimista das ações do link; sobe à mão em cada uma. */
+    @OptimisticLock(excluded = true)
+    @Column(name = "link_versao", nullable = false)
+    private long linkVersao;
 
     @Column(name = "proximo_questionario_id")
     private UUID proximoQuestionarioId;
@@ -109,7 +134,14 @@ public class Questionario {
 
     public void definirPadrao(boolean padrao) { this.padrao = padrao; }
 
-    public void arquivar() { this.arquivado = true; }
+    /** Arquivar fecha o link: desarquivar não o recoloca no ar (abrir é ação própria). */
+    public void arquivar() {
+        this.arquivado = true;
+        if (publicoAberto) {
+            this.publicoAberto = false;
+            subirLinkVersao();
+        }
+    }
 
     public void desarquivar() { this.arquivado = false; }
 
@@ -134,6 +166,17 @@ public class Questionario {
     public void setPublicoAberto(boolean publicoAberto) { this.publicoAberto = publicoAberto; }
     public UUID getResponsavelPadraoId() { return responsavelPadraoId; }
     public void setResponsavelPadraoId(UUID responsavelPadraoId) { this.responsavelPadraoId = responsavelPadraoId; }
+    public String getTextoApresentacao() { return textoApresentacao; }
+    public void setTextoApresentacao(String textoApresentacao) { this.textoApresentacao = textoApresentacao; }
+    public String getCamposOcultos() { return camposOcultos; }
+    public void setCamposOcultos(String camposOcultos) { this.camposOcultos = camposOcultos; }
+    public long getLinkVersao() { return linkVersao; }
+    public void subirLinkVersao() { this.linkVersao++; }
+
+    /** Link que recebe inscrição: só questionário de inscrição, aberto e não arquivado (a anamnese se responde logada). */
+    public boolean isLinkPublicoAberto() {
+        return finalidade == Finalidade.INSCRICAO && publicoAberto && !arquivado && codigoPublico != null;
+    }
     public UUID getProximoQuestionarioId() { return proximoQuestionarioId; }
     public void setProximoQuestionarioId(UUID proximoQuestionarioId) { this.proximoQuestionarioId = proximoQuestionarioId; }
 

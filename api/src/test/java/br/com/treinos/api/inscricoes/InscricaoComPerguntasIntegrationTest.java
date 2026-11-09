@@ -71,6 +71,15 @@ class InscricaoComPerguntasIntegrationTest extends AbstractIntegrationTest {
         return api.put("/inscricoes/configuracao", login, corpo, 200).path("codigo").asString();
     }
 
+    /** Abre o link de um formulário de inscrição qualquer, pela rota própria do link (INSCRICAO_ALTERAR). */
+    private String abrirLinkDe(JsonNode login, String questionarioId) throws Exception {
+        JsonNode atual = api.get("/questionarios/" + questionarioId + "/link", login, 200);
+        Map<String, Object> corpo = new HashMap<>();
+        corpo.put("aberta", true);
+        corpo.put("versao", atual.path("versao").asLong());
+        return api.put("/questionarios/" + questionarioId + "/link", login, corpo, 200).path("codigo").asString();
+    }
+
     private static Map<String, Object> inscricao(String nome) {
         Map<String, Object> corpo = new HashMap<>();
         corpo.put("nome", nome);
@@ -188,12 +197,15 @@ class InscricaoComPerguntasIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void envioValidaPelaVersaoRecusaAVelhaEAObrigatoriaEGravaAsRespostas() throws Exception {
-        String codigo = abrirLink(admin);
-        String versaoAntiga = pagina(codigo).path("perguntas").path("versaoId").asString();
+        String codigoDoPadraoAntigo = abrirLink(admin);
+        String versaoAntiga = pagina(codigoDoPadraoAntigo).path("perguntas").path("versaoId").asString();
         novoPadrao(admin, "Inscrição com obrigatória fictícia", List.of(
                 pergunta("treina", "SIM_NAO", "obrigatoria", true),
                 pergunta("onde", "TEXTO", "obrigatoria", true, "mostrarSe", Map.of("perguntaId", "treina", "valores", List.of("sim"))),
                 pergunta("horario", "ESCOLHA_UNICA", "opcoes", opcoes("manha", "noite"))));
+        // O link é do formulário, não do "padrão": o cartão do Interessados passa a controlar o padrão novo (código próprio).
+        String codigo = abrirLink(admin);
+        assertThat(codigo).isNotEqualTo(codigoDoPadraoAntigo);
         JsonNode pagina = pagina(codigo);
         String versao = pagina.path("perguntas").path("versaoId").asString();
         assertThat(versao).isNotEqualTo(versaoAntiga);
@@ -297,30 +309,27 @@ class InscricaoComPerguntasIntegrationTest extends AbstractIntegrationTest {
     }
 
     /**
-     * Consultoria sem nenhum questionário de inscrição (zerada): a página pública abre (200) só com os campos fixos e
+     * Link de um formulário de inscrição ainda não publicado: a página pública abre (200) só com os campos fixos e
      * {@code perguntas} nulo; o envio sem versão e sem respostas segue (202); com versão ou com respostas é 409
-     * {@code PERGUNTAS_ALTERADAS} (a página recarrega). Criar e definir um padrão novo, sem padrão anterior, devolve as perguntas.
+     * {@code PERGUNTAS_ALTERADAS} (a página recarrega). Publicar o formulário devolve as perguntas.
      */
     @Test
-    void semPadraoDeInscricaoAPaginaAbreSoComOsCamposFixosEOEnvioSegue() throws Exception {
-        UUID consultoria = consultoriaDe(admin);
-        String codigo = abrirLink(admin);
-        assertThat(banco.update("delete from questionario where consultoria_id = ? and finalidade = 'INSCRICAO'", consultoria))
-                .isEqualTo(1);
-        assertThat(api.get("/questionarios?finalidade=INSCRICAO", admin, 200)).isEmpty();
+    void formularioSemVersaoPublicadaAbreSoComOsCamposFixosEOEnvioSegue() throws Exception {
+        JsonNode rascunho = rascunhoDeInscricao(admin, "Inscrição em rascunho fictícia", List.of(pergunta("t", "TEXTO")));
+        String codigo = abrirLinkDe(admin, rascunho.path("id").asString());
 
         JsonNode pagina = pagina(codigo);
         assertThat(semValor(pagina.path("perguntas"))).isTrue();
         assertThat(pagina.path("campos")).hasSize(7);
 
-        // Com versão ou com respostas, sem padrão: 409 e nada gravado.
+        // Com versão ou com respostas, sem versão publicada: 409 e nada gravado.
         Map<String, Object> comVersao = inscricao("Pessoa Fictícia Com Versão");
         comVersao.put("questionarioVersaoId", UUID.randomUUID().toString());
-        comVersao.put("respostas", Map.of("observacao", "x"));
+        comVersao.put("respostas", Map.of("t", "x"));
         assertThat(api.post("/publico/inscricoes/" + codigo, null, comVersao, 409).path("codigo").asString())
                 .isEqualTo("PERGUNTAS_ALTERADAS");
         Map<String, Object> soRespostas = inscricao("Pessoa Fictícia Só Respostas");
-        soRespostas.put("respostas", Map.of("observacao", "x"));
+        soRespostas.put("respostas", Map.of("t", "x"));
         api.post("/publico/inscricoes/" + codigo, null, soRespostas, 409);
         assertThat(api.get("/inscricoes?situacao=TODAS", admin, 200).path("total").asLong()).isZero();
 
@@ -329,8 +338,8 @@ class InscricaoComPerguntasIntegrationTest extends AbstractIntegrationTest {
         JsonNode detalhe = api.get("/inscricoes/" + unica(admin).path("id").asString(), admin, 200);
         assertThat(semValor(detalhe.path("respostas"))).isTrue();
 
-        // O treinador cria e define um padrão novo (nenhum padrão anterior para desmarcar): as perguntas voltam.
-        novoPadrao(admin, "Inscrição recriada fictícia", List.of(pergunta("t", "TEXTO")));
+        // Publicado, o mesmo link passa a trazer as perguntas.
+        publicar(admin, api.get("/questionarios/" + rascunho.path("id").asString(), admin, 200), 200);
         assertThat(pagina(codigo).path("perguntas").path("versaoId").asString()).isNotEmpty();
     }
 
@@ -338,8 +347,8 @@ class InscricaoComPerguntasIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void questionarioQueRecebeuInscricaoNaoSeExcluiEContaComoEnvio() throws Exception {
-        String codigo = abrirLink(admin);
         JsonNode primeiro = novoPadrao(admin, "Inscrição usada fictícia", List.of(pergunta("t", "TEXTO")));
+        String codigo = abrirLink(admin);
         Map<String, Object> corpo = inscricao("Pessoa Fictícia Uso");
         corpo.put("questionarioVersaoId", pagina(codigo).path("perguntas").path("versaoId").asString());
         corpo.put("respostas", Map.of("t", "Texto fictício"));

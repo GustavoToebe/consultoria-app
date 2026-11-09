@@ -32,7 +32,8 @@ public class InscricaoPublicaService {
         UUID consultoriaId = busca.consultoriaDoLinkAberto(codigo).orElseThrow(InscricaoPublicaService::linkInvalido);
         InscricaoService.PaginaDoLink pagina = TenantContext.executarComo(consultoriaId, () -> inscricoes.paginaDoLink(codigo));
         return new InscricaoPublica(marcas.marca(consultoriaId), pagina.texto(), TextoDaInscricao.versao(pagina.texto()), true,
-                pagina.campos(), pagina.perguntas(), pagina.questionarioId(), pagina.questionarioNome(), pagina.proximoQuestionarioCodigo());
+                pagina.campos(), pagina.perguntas(), pagina.questionarioId(),
+                null, pagina.proximoQuestionarioCodigo()); // nome de trabalho do treinador: nunca na página pública
     }
 
     public String inscrever(String codigo, InscricaoPublicaRequest request) {

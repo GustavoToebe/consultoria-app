@@ -43,15 +43,6 @@ public class QuestionarioResolver {
         return publicada(questionarios.findByPadraoTrueAndFinalidade(Finalidade.ATUALIZACAO).orElseThrow(naoEncontrado()));
     }
 
-    /**
-     * Perguntas da página "Quero ser aluno": a versão publicada do padrão de inscrição da consultoria (D8). Vazio quando
-     * não há padrão de inscrição (a página mostra só os campos fixos).
-     */
-    public java.util.Optional<Resolvida> padraoDaInscricao() {
-        return questionarios.findByPadraoTrueAndFinalidade(Finalidade.INSCRICAO).filter(Questionario::isUsavel)
-                .map(this::publicada);
-    }
-
     /** Versão já fixada numa atualização enviada (continua valendo mesmo se o questionário for arquivado). */
     public Resolvida fixa(UUID versaoId) {
         QuestionarioVersao v = versoes.findById(versaoId).orElseThrow(naoEncontrado());
@@ -59,15 +50,14 @@ public class QuestionarioResolver {
         return new Resolvida(v.getId(), v.getNumero(), q.getNome(), v.getConteudo());
     }
 
-    public java.util.Optional<Resolvida> publicaPorCodigo(String codigo) {
-        return questionarios.findByCodigoPublico(codigo)
-                .filter(q -> q.isPublicoAberto() && !q.isArquivado() && q.getVersaoPublicada() > 0)
-                .map(this::publicada);
+    /** Link público aberto de inscrição (do tenant da sessão); anamnese e atualização nunca saem por aqui. */
+    public java.util.Optional<Questionario> porCodigoPublico(String codigo) {
+        return questionarios.findByCodigoPublico(codigo).filter(Questionario::isLinkPublicoAberto);
     }
 
-    public java.util.Optional<Questionario> porCodigoPublico(String codigo) {
-        return questionarios.findByCodigoPublico(codigo)
-                .filter(q -> q.isPublicoAberto() && !q.isArquivado());
+    /** Igual a {@link #porCodigoPublico}, com a linha travada (envio público). */
+    public java.util.Optional<Questionario> porCodigoPublicoParaTrava(String codigo) {
+        return questionarios.buscarPorCodigoParaTrava(codigo).filter(Questionario::isLinkPublicoAberto);
     }
 
     public java.util.Optional<Questionario> findById(UUID id) {

@@ -9,4 +9,5 @@ public interface ComunidadeMuralReacaoRepository extends JpaRepository<Comunidad
     List<ComunidadeMuralReacao> findByPostId(UUID postId);
     Optional<ComunidadeMuralReacao> findByPostIdAndUsuarioIdAndEmoji(UUID postId, UUID usuarioId, String emoji);
     void deleteByPostIdAndUsuarioIdAndEmoji(UUID postId, UUID usuarioId, String emoji);
+    List<ComunidadeMuralReacao> findTop5000ByUsuarioIdOrderByCriadoEmDesc(UUID usuarioId);
 }

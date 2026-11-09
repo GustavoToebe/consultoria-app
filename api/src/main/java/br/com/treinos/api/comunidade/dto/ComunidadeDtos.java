@@ -12,7 +12,7 @@ public final class ComunidadeDtos {
 
     public record CriarAulaRequest(
             @NotBlank @Size(max = 120) String titulo,
-            String descricao,
+            @Size(max = 4000) String descricao,
             @NotBlank @Size(max = 500) String videoUrl,
             @Size(max = 500) String miniaturaUrl,
             @Size(max = 60) String categoria,
@@ -68,27 +68,29 @@ public final class ComunidadeDtos {
             String icone,
             Instant conquistadaEm) {}
 
-    public record ItemRanking(
-            UUID alunoId,
-            String alunoNome,
-            String fotoUrl,
-            int pontuacao,
-            int treinosConcluidos,
-            int recordesBatidos,
-            int posicao) {}
-
-    public record ItemRankingForca(
-            UUID alunoId,
-            String alunoNome,
-            String fotoUrl,
-            String exercicio,
-            double cargaKg,
-            int posicao) {}
-
+    /**
+     * O ranking de constância mostra ao aluno só a posição dele: nunca nome, id ou contagem de outro aluno (sem apelido público
+     * e sem opt-in, o nome civil de quem pode ser menor de idade não sai da ficha). Empate divide a posição.
+     */
     public record RankingResponse(
-            List<ItemRanking> constancia,
-            List<ItemRankingForca> forca,
-            boolean participaRankingForca) {}
+            int posicao,
+            int treinosConcluidos,
+            int pontuacao,
+            long participantes) {}
 
-    public record OptInRankingRequest(boolean participa) {}
+    /** Tudo o que o aluno escreveu ou marcou na comunidade (exportação LGPD). Inclui o que a moderação ocultou. */
+    public record ComunidadeExportada(
+            List<PostExportado> posts,
+            List<ComentarioExportado> comentariosDeAulas,
+            List<ComentarioExportado> comentariosDoMural,
+            List<ReacaoExportada> reacoes,
+            List<ConquistaResponse> conquistas,
+            boolean truncado) {}
+
+    public record PostExportado(UUID id, String texto, String imagemUrl, boolean fixado, boolean oculto, Instant criadoEm) {}
+
+    /** {@code alvoId} é a aula ou o post comentado. */
+    public record ComentarioExportado(UUID id, UUID alvoId, String texto, boolean oculto, Instant criadoEm) {}
+
+    public record ReacaoExportada(UUID postId, String emoji, Instant criadoEm) {}
 }

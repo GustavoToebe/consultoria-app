@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { ImagePlus, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
@@ -21,6 +20,7 @@ import { Cartao } from '../../ui/Cartao';
 import { MensagemErro } from '../../ui/Estados';
 import { errosPorCampo, textoDoErro } from '../../ui/erros';
 import { GradeDeOpcoes } from '../../ui/GradeDeOpcoes';
+import { LinkTexto } from '../../ui/LinkTexto';
 import { FAMILIAS, MarcaTitulo } from '../../ui/MarcaTitulo';
 import { OpcaoCartao } from '../../ui/OpcaoCartao';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
@@ -161,19 +161,6 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
 
   return (
     <>
-      <Cartao titulo="Personalização da Marca do Aluno"
-        descricao="Estas cores, logo e tema padrão são aplicados exclusivamente ao aplicativo dos seus alunos.">
-        <Texto variante="suave">
-          Para alternar o seu próprio painel de treinador entre Tema Claro e Tema Escuro, acesse o menu de preferências da sua conta.
-        </Texto>
-        <View style={estilos.botoesEsquerda}>
-          <Botao
-            rotulo="Ajustar tema do meu painel (Conta)"
-            tipo="secundario"
-            aoTocar={() => router.push('/treinador/perfil')}
-          />
-        </View>
-      </Cartao>
       <Cartao titulo="Prévia do app do aluno" descricao="Acompanha o que você escolhe abaixo.">
         <View style={estilos.previas}>
           <Previa marca={previa} tema={tema} />
@@ -204,7 +191,7 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
               }}
               amostra={
                 <View style={[estilos.amostra, { backgroundColor: p.cor }]}>
-                  <Texto style={[estilos.inicial, { color: textoSobre(p.cor) }]}>{p.nome.charAt(0)}</Texto>
+                  <Texto variante="bloco" style={{ color: textoSobre(p.cor) }}>{p.nome.charAt(0)}</Texto>
                 </View>
               }
             />
@@ -216,7 +203,7 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
             aoEscolher={() => setPersonalizada(true)}
             amostra={
               <View style={[estilos.amostra, { backgroundColor: corValida ? cor : MARCA_NEUTRA }]}>
-                <Texto style={[estilos.inicial, { color: textoSobre(corValida ? cor : MARCA_NEUTRA) }]}>#</Texto>
+                <Texto variante="bloco" style={{ color: textoSobre(corValida ? cor : MARCA_NEUTRA) }}>#</Texto>
               </View>
             }
           />
@@ -251,7 +238,7 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
           ))}
         </GradeDeOpcoes>
       </Cartao>
-      <Cartao titulo="Paleta padrão dos alunos" descricao="Fundo e cartões do app. Cada pessoa ainda pode trocar para o Escuro, o Claro ou a Areia na própria conta.">
+      <Cartao titulo="Paleta padrão dos alunos" descricao="Fundo e cartões do app dos alunos e da equipe. Cada pessoa ainda pode trocar para o Escuro, o Claro ou a Areia na própria conta.">
         {/* Uma escolha só: um radiogroup com dois subgrupos rotulados (leitor de tela: "Escuras, grupo", "Oceano, selecionado"). */}
         <View role="radiogroup" aria-label="Paleta padrão dos alunos" style={estilos.paletas}>
         {(['ESCURO', 'CLARO'] as const).map((modo) => (
@@ -273,6 +260,7 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
         <View accessibilityLiveRegion="polite">
           {!avaliacao.bloqueia && avaliacao.aviso ? <Texto variante="suave" testID="aviso-marca-apagada-na-paleta">{avaliacao.aviso}</Texto> : null}
         </View>
+        <LinkTexto texto="Escolher o tema do meu painel em Ajustes" href="/treinador/ajustes" />
       </Cartao>
       <Cartao titulo="Acompanhamento" descricao="Vale para os alunos sem ciclo ou meta própria no cadastro.">
         <View style={estilos.campoDias}>
@@ -375,7 +363,6 @@ const estilos = StyleSheet.create({
   textoRodape: { flexShrink: 1 },
   logo: { gap: espaco(0.75) },
   amostra: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  inicial: { fontFamily: fontes.negrito, fontSize: 18 },
   miniatura: { width: 40, height: 40, borderWidth: 1, borderRadius: RAIO, padding: 4, gap: 3 },
   miniaturaFaixa: { height: 7, borderRadius: 2 },
   miniaturaCartao: { flex: 1, borderWidth: 1, borderRadius: 3, padding: 3, justifyContent: 'space-between' },

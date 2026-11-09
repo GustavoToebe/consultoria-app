@@ -1,5 +1,6 @@
 package br.com.treinos.api.questionarios.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import br.com.treinos.api.questionarios.ConteudoQuestionario;
 import br.com.treinos.api.questionarios.Finalidade;
 import jakarta.validation.Valid;
@@ -24,12 +25,13 @@ public final class QuestionarioDtos {
     public record QuestionarioResumo(UUID id, String nome, String descricao, Finalidade finalidade, boolean padrao, boolean arquivado,
                                      int versaoPublicada, Instant publicadoEm, boolean alteradoDesdePublicacao,
                                      Instant rascunhoAlteradoEm, Uso uso,
-                                     String codigoPublico, boolean publicoAberto, UUID responsavelPadraoId, UUID proximoQuestionarioId) {
+                                     String codigoPublico, boolean publicoAberto, UUID responsavelPadraoId, UUID proximoQuestionarioId,
+                                     String textoApresentacao, List<String> camposOcultos, long linkVersao) {
         public QuestionarioResumo(UUID id, String nome, String descricao, Finalidade finalidade, boolean padrao, boolean arquivado,
                                   int versaoPublicada, Instant publicadoEm, boolean alteradoDesdePublicacao,
                                   Instant rascunhoAlteradoEm, Uso uso) {
             this(id, nome, descricao, finalidade, padrao, arquivado, versaoPublicada, publicadoEm, alteradoDesdePublicacao,
-                    rascunhoAlteradoEm, uso, null, false, null, null);
+                    rascunhoAlteradoEm, uso, null, false, null, null, null, List.of(), 0L);
         }
     }
 
@@ -39,13 +41,14 @@ public final class QuestionarioDtos {
                                       int versaoPublicada, Instant publicadoEm, boolean alteradoDesdePublicacao,
                                       Instant rascunhoAlteradoEm, Long versao, Uso uso,
                                       ConteudoQuestionario rascunho, List<VersaoResumo> versoes,
-                                      String codigoPublico, boolean publicoAberto, UUID responsavelPadraoId, UUID proximoQuestionarioId) {
+                                      String codigoPublico, boolean publicoAberto, UUID responsavelPadraoId, UUID proximoQuestionarioId,
+                                      String textoApresentacao, List<String> camposOcultos, long linkVersao) {
         public QuestionarioDetalhe(UUID id, String nome, String descricao, Finalidade finalidade, boolean padrao, boolean arquivado,
                                    int versaoPublicada, Instant publicadoEm, boolean alteradoDesdePublicacao,
                                    Instant rascunhoAlteradoEm, Long versao, Uso uso,
                                    ConteudoQuestionario rascunho, List<VersaoResumo> versoes) {
             this(id, nome, descricao, finalidade, padrao, arquivado, versaoPublicada, publicadoEm, alteradoDesdePublicacao,
-                    rascunhoAlteradoEm, versao, uso, rascunho, versoes, null, false, null, null);
+                    rascunhoAlteradoEm, versao, uso, rascunho, versoes, null, false, null, null, null, List.of(), 0L);
         }
     }
 
@@ -60,12 +63,16 @@ public final class QuestionarioDtos {
         }
     }
 
+    /**
+     * Conteúdo do rascunho e encadeamento. O link público (código, abertura, responsável, texto e campos escondidos) NÃO
+     * entra aqui: tem rotas próprias com {@code INSCRICAO_ALTERAR} ({@code /questionarios/{id}/link}), e o código é
+     * sempre gerado no servidor. Campo desconhecido (inclusive os do link, que versões antigas do app ainda mandam) é
+     * ignorado.
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public record SalvarRequest(@NotBlank @Size(max = 120) String nome, @Size(max = 400) String descricao,
                                 @NotNull @Valid ConteudoQuestionario conteudo, @NotNull Long versao,
-                                String codigoPublico, Boolean publicoAberto, UUID responsavelPadraoId, UUID proximoQuestionarioId) {
-        public SalvarRequest(String nome, String descricao, ConteudoQuestionario conteudo, Long versao) {
-            this(nome, descricao, conteudo, versao, null, null, null, null);
-        }
+                                UUID proximoQuestionarioId) {
     }
 
     public record PublicarRequest(@NotNull Long versao, boolean confirmarAvisos) { }

@@ -3,10 +3,11 @@ import { Copy, RefreshCw, Settings } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { ErroApi } from '../../api/cliente';
 import type { ResponsavelEquipe } from '../../api/equipeTipos';
 import type { ConfiguracaoInscricao } from '../../api/inscricoesTipos';
 import { alterarConfiguracaoInscricao, configuracaoInscricao, novoLinkInscricao } from '../../api/rotas';
-import { LIMITES_INSCRICAO } from '../../dominio/inscricoes';
+import { LIMITES_INSCRICAO, SEM_FORMULARIO_PADRAO } from '../../dominio/inscricoes';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
@@ -37,6 +38,10 @@ const SEM_RESPONSAVEL = '';
 export function CartaoLinkInscricao({ podeAlterar, responsaveis }: { podeAlterar: boolean; responsaveis: readonly ResponsavelEquipe[] }) {
   const config = useCarregar('inscricao-configuracao', () => configuracaoInscricao());
   if (config.erro) {
+    // 404 = a consultoria não tem formulário de inscrição padrão (a API não devolve mais "desligado").
+    if (config.erro instanceof ErroApi && config.erro.status === 404) {
+      return <Cartao titulo="Link de inscrição"><Texto variante="suave">{SEM_FORMULARIO_PADRAO}</Texto></Cartao>;
+    }
     return (
       <Cartao titulo="Link de inscrição">
         <MensagemErro texto={textoDoErro(config.erro)} tentarDeNovo={config.recarregar} erro={config.erro} />

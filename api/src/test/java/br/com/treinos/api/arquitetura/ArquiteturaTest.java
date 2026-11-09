@@ -61,7 +61,8 @@ class ArquiteturaTest {
      * {@code IntegracaoRepositorio} (nonce, operações idempotentes e provisionamento da integração com a Central: roda
      * fora do tenant, e todo método recebe e filtra {@code consultoria_id});
      * {@code AnonimizacaoRepositorio} (anonimização do aluno: limpa texto livre de {@code execucao_serie} e títulos de versões,
-     * que a JPA trata como imutáveis; todo método filtra {@code consultoria_id} e {@code aluno_id});
+     * que a JPA trata como imutáveis, e posts, comentários e reações da comunidade, que guardam {@code autor_id}/{@code usuario_id} e não
+     * {@code aluno_id}; todo método filtra {@code consultoria_id} e o aluno, ou o usuário dele);
      * {@code FotoRemocaoRepositorio} (fila durável de remoção das fotos no bucket e limpeza das fotos pendentes vencidas: roda no job, sem tenant,
      * e só mexe em ids de objeto e em linhas ainda não ligadas a nenhuma atualização; nenhum método devolve dado de pessoa);
      * {@code InscricaoBusca} (link público de inscrição: descobre só a consultoria de um link aberto pelo código, antes de abrir a

@@ -7,7 +7,7 @@ import { gruposDosExercicios } from '../../dominio/catalogo';
 import { coincideComBuscaExercicio } from '../../dominio/termosExerciciosIngles';
 import { MODALIDADES } from '../../dominio/modalidades';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, RAIO } from '../../tema/tokens';
+import { ALVO_TOQUE, espaco, RAIO } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { CaixaSelecao } from '../../ui/CaixaSelecao';
 import { Campo } from '../../ui/Campo';
@@ -17,6 +17,7 @@ import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
+import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 
@@ -141,9 +142,9 @@ export function FolhaBiblioteca({
           accessibilityRole="button"
           accessibilityLabel={`Escolher ${e.nome}`}
           onPress={() => aoEscolher([e])}
-          style={({ pressed }) => [
+          style={(estado) => [
             estilos.item,
-            { borderColor: cores.borda, backgroundColor: pressed ? cores.superficie3 : cores.superficie },
+            { borderColor: cores.borda, backgroundColor: sobre(estado) ? cores.superficie3 : cores.superficie },
           ]}>
           <Texto>{e.nome}</Texto>
           <Texto variante="pequeno">
@@ -158,5 +159,5 @@ export function FolhaBiblioteca({
 }
 
 const estilos = StyleSheet.create({
-  item: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: 2, minHeight: 44 },
+  item: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(0.25), minHeight: ALVO_TOQUE },
 });

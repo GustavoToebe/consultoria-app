@@ -58,6 +58,10 @@ treinos:
   migracao-assistida:
     habilitado: true
   # Pagamentos ligados em toda a suíte; o modo desligado tem a sua classe (PagamentosDesligadosIntegrationTest).
+  # A retenção das sessões da importação assistida fica desligada: o teste chama ImportacaoAssistidaRetencao.limpar à mão.
+  importacao:
+    assistida:
+      retencao-agendada: false
   # A limpeza diária dos avisos de compromisso fica desligada: o teste chama AvisosDeCompromissoRetencao.limpar à mão.
   agenda:
     avisos:

@@ -7,4 +7,5 @@ import java.util.UUID;
 public interface ComunidadeMuralComentarioRepository extends JpaRepository<ComunidadeMuralComentario, UUID> {
     List<ComunidadeMuralComentario> findByPostIdAndOcultoFalseOrderByCriadoEmAsc(UUID postId);
     long countByPostIdAndOcultoFalse(UUID postId);
+    List<ComunidadeMuralComentario> findTop5000ByAutorIdOrderByCriadoEmDesc(UUID autorId);
 }

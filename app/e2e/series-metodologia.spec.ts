@@ -206,7 +206,7 @@ for (const largura of [390, 1280]) {
     await page.getByRole('textbox', { name: 'Repetições em cada bloco', exact: true }).fill('4');
     // A pausa é um número e uma unidade; trocar a unidade limpa o valor (15 s não são 15 respirações).
     await expect(page.getByRole('textbox', { name: 'Pausa entre blocos (s)', exact: true })).toHaveValue('15');
-    await page.getByRole('radiogroup', { name: 'Unidade da pausa entre blocos', exact: true }).getByRole('button', { name: 'Respirações', exact: true }).click();
+    await page.getByRole('radiogroup', { name: 'Unidade da pausa entre blocos', exact: true }).getByRole('radio', { name: 'Respirações', exact: true }).click();
     const respiracoes = page.getByRole('textbox', { name: 'Pausa entre blocos em respirações', exact: true });
     await expect(respiracoes).toHaveValue('');
     await expect(page.getByRole('textbox', { name: 'Pausa entre blocos (s)', exact: true })).toHaveCount(0);
@@ -325,10 +325,10 @@ for (const largura of [390, 1280]) {
     await page.getByRole('textbox', { name: 'Blocos de repetições', exact: true }).fill('4+2');
     await expect(page.getByRole('textbox', { name: 'Bloco 1', exact: true })).toHaveValue('4');
     await expect(page.getByRole('textbox', { name: 'Bloco 2', exact: true })).toHaveValue('2');
-    await page.getByRole('button', { name: 'Blocos iguais', exact: true }).click();
+    await page.getByRole('radio', { name: 'Blocos iguais', exact: true }).click();
     await page.getByRole('button', { name: 'Converter para blocos iguais', exact: true }).click();
     await expect(page.getByText('2 blocos × 4 reps = 8 reps', { exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Blocos diferentes', exact: true }).click();
+    await page.getByRole('radio', { name: 'Blocos diferentes', exact: true }).click();
     await expect(page.getByRole('textbox', { name: 'Bloco 1', exact: true })).toHaveValue('4');
     await expect(page.getByRole('textbox', { name: 'Bloco 2', exact: true })).toHaveValue('4');
     await page.getByRole('textbox', { name: 'Bloco 1', exact: true }).fill('1');
@@ -407,7 +407,7 @@ for (const largura of [390, 1280]) {
     await page.getByRole('button', { name: 'Digitar como 4+2', exact: true }).click();
     await page.getByRole('textbox', { name: 'Blocos de repetições', exact: true }).fill('4+2');
     await page.getByRole('textbox', { name: 'Blocos de repetições', exact: true }).fill('2×3');
-    await page.getByRole('button', { name: 'Blocos diferentes', exact: true }).click();
+    await page.getByRole('radio', { name: 'Blocos diferentes', exact: true }).click();
     await expect(page.getByRole('textbox', { name: 'Bloco 1', exact: true })).toHaveValue('3');
     await expect(page.getByRole('textbox', { name: 'Bloco 2', exact: true })).toHaveValue('3');
     await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();
@@ -421,7 +421,7 @@ for (const largura of [390, 1280]) {
       { uid: 'ws', tipo: 'WORKING', repsMin: 3, repsMax: 6, carga: cargaDeTrabalho, esforco: { rir: 2, rpe: null }, descansoSegundos: null, tecnica: null },
       { uid: 'legado', tipo: 'LEGADO', repsMin: 8, repsMax: 8, carga: cargaDeTrabalho, esforco: null, descansoSegundos: null, tecnica: null },
     ]);
-    await page.getByRole('button', { name: 'LEGADO', exact: true }).click();
+    await page.getByRole('radio', { name: 'LEGADO', exact: true }).click();
     await escolherTecnica(page, 'Técnica da série', 'Cluster');
     await page.getByRole('button', { name: 'Digitar como 4+2', exact: true }).click();
     await page.getByRole('textbox', { name: 'Blocos de repetições', exact: true }).fill('4×4');
@@ -437,7 +437,7 @@ for (const largura of [390, 1280]) {
     const api = await modeloDeSeries(page, [
       { uid: 'fs', tipo: 'FEEDER', repsMin: 3, repsMax: 3, carga: cargaDeTrabalho, esforco: { rir: 2, rpe: null }, descansoSegundos: null, tecnica: null },
     ]);
-    await page.getByRole('button', { name: 'WS', exact: true }).click();
+    await page.getByRole('radio', { name: 'WS', exact: true }).click();
     await escolherTecnica(page, 'Técnica da série', 'Cluster');
     await page.getByRole('button', { name: 'Digitar como 4+2', exact: true }).click();
     await page.getByRole('textbox', { name: 'Blocos de repetições', exact: true }).fill('4×4');
@@ -484,7 +484,7 @@ for (const largura of [390, 1280]) {
     // A receita de séries funciona como a série de um exercício: as formas de carga da WS estão à vista.
     const forma = page.getByRole('radiogroup', { name: 'Forma de carga', exact: true });
     await expect(forma.getByRole('radio', { name: 'Carga de trabalho (WS)', exact: true })).toHaveAttribute('aria-checked', 'true');
-    await expect(forma.getByRole('button', { name: 'Carga fixa (kg)', exact: true })).toBeVisible();
+    await expect(forma.getByRole('radio', { name: 'Carga fixa (kg)', exact: true })).toBeVisible();
     // O RIR fica na linha da série; no PC a lista abre colada ao botão e no celular numa folha (as duas com `option`).
     await page.getByRole('button', { name: 'Série 1 · RIR: 1. Escolher.', exact: true }).click();
     // A última opção ("10") fica ao alcance do clique: a lista nunca sai da janela.
@@ -582,7 +582,7 @@ for (const largura of [390, 1280]) {
     const api = await modeloDeSeries(page, [serieCom('aq', 'WARM_UP', percentualDaWs(40), null, [10, 15]), serieInicial]);
     const forma = page.getByRole('radiogroup', { name: 'Forma de carga', exact: true });
     // Só "% da WS | Carga fixa": "Sem sugestão" é o % em branco.
-    await expect(forma.getByRole('button')).toHaveText([/% da WS/, /Carga fixa/]);
+    await expect(forma.getByRole('radio')).toHaveText([/% da WS/, /Carga fixa/]);
     await page.getByRole('textbox', { name: 'Série 1 · Mínimo (%)', exact: true }).fill('');
     await expect(forma.getByRole('radio', { name: '% da WS', exact: true })).toHaveAttribute('aria-checked', 'true');
     await expect(page.getByText('Percentual da WS entre 1 e 200.', { exact: true })).toHaveCount(0);
@@ -620,7 +620,7 @@ for (const largura of [390, 1280]) {
     const api = await planoComUmExercicio(page, [0, 1, 2].map((i) => serieCom(`ws-${i}`, 'WORKING', cargaDeTrabalho, { rir: 1, rpe: null }, [12, 12])));
     await escolherExercicio(page, largura, 1, 1, 'Supino fictício');
     // A WS escolhe entre a carga de trabalho (marcada) e a fixa, no mesmo seletor.
-    await page.getByRole('radiogroup', { name: 'Forma de carga', exact: true }).getByRole('button', { name: 'Carga fixa (kg)', exact: true }).click();
+    await page.getByRole('radiogroup', { name: 'Forma de carga', exact: true }).getByRole('radio', { name: 'Carga fixa (kg)', exact: true }).click();
     const kg = page.getByRole('textbox', { name: 'Carga (kg)', exact: true });
     await kg.fill('0');
     await expect(page.getByText('Carga fixa: maior que zero e até 1000 kg.', { exact: true }).first()).toBeVisible();

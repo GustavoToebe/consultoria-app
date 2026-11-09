@@ -61,13 +61,13 @@ for (const largura of [390, 1440]) {
     await expect(page.getByText('Preencha este campo.')).toBeVisible();
     expect(envios(pedidos)).toHaveLength(0);
 
-    await page.getByRole('radiogroup', { name: 'Já treina? *' }).getByRole('button', { name: 'Sim', exact: true }).click();
+    await page.getByRole('radiogroup', { name: 'Já treina? *' }).getByRole('radio', { name: 'Sim', exact: true }).click();
     await expect(page.getByLabel('Onde treina? *')).toBeVisible();
     await page.getByLabel('Onde treina? *').fill('Academia do bairro');
     // Mudou de ideia: a condição esconde de novo e a resposta escondida não vai.
-    await page.getByRole('radiogroup', { name: 'Já treina? *' }).getByRole('button', { name: 'Não', exact: true }).click();
+    await page.getByRole('radiogroup', { name: 'Já treina? *' }).getByRole('radio', { name: 'Não', exact: true }).click();
     await expect(page.getByLabel('Onde treina? *')).toHaveCount(0);
-    await page.getByRole('radiogroup', { name: 'Melhor horário' }).getByRole('button', { name: 'Noite', exact: true }).click();
+    await page.getByRole('radiogroup', { name: 'Melhor horário' }).getByRole('radio', { name: 'Noite', exact: true }).click();
     await page.getByRole('button', { name: 'Enviar inscrição' }).click();
 
     await expect(page.getByRole('heading', { name: 'Inscrição enviada' })).toBeVisible();
@@ -107,8 +107,8 @@ test('inscrição pública: perguntas trocadas no meio do preenchimento recarreg
   await page.getByLabel('Nome').fill('Pessoa Fictícia');
   await page.getByLabel('WhatsApp com DDD').pressSequentially('11987654321');
   await page.getByRole('button', { name: 'Continuar' }).click();
-  await page.getByRole('radiogroup', { name: 'Já treina? *' }).getByRole('button', { name: 'Não', exact: true }).click();
-  await page.getByRole('radiogroup', { name: 'Melhor horário' }).getByRole('button', { name: 'Manhã', exact: true }).click();
+  await page.getByRole('radiogroup', { name: 'Já treina? *' }).getByRole('radio', { name: 'Não', exact: true }).click();
+  await page.getByRole('radiogroup', { name: 'Melhor horário' }).getByRole('radio', { name: 'Manhã', exact: true }).click();
   await page.getByRole('button', { name: 'Enviar inscrição' }).click();
 
   await expect(page.getByText('As perguntas da consultoria mudaram. Confira as perguntas e envie de novo.')).toBeVisible();

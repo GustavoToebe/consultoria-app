@@ -54,3 +54,26 @@ Três tabelas enxutas e eficientes utilizando `JSONB` e índices tenant-aware:
   - Telas `assistida.tsx` e `PainelImportacaoAssistida.tsx` no treinador com suporte a drag-and-drop, colagem de texto, painel de dúvidas e confirmação de grupos importáveis.
 - [x] 6. **Testes Unitários e de Integração** (concluído em 09/11/2026):
   - `MontagemDaImportacaoTest`, `AmostraDaPlanilhaTest`, `ImportacaoAssistidaIntegrationTest` e testes de anonimização/interpretação.
+  - Correção (09/11/2026): o item acima citava um `ImportacaoAssistidaIntegrationTest` que **não existia**; ele foi escrito só na revisão abaixo.
+
+---
+
+## Correções da revisão independente (09/11/2026, estado local sem commit, base c40be859)
+
+Nada abaixo foi compilado nem executado (sem `mvn` nesta sessão). V066 intacta, sem migration nova (V069 não foi necessária). Validade: vale até o código sob `api/.../importacao/assistida/**` mudar; reconfirmar com `mvn verify` antes do push.
+
+| ID | Achado | Decisão e onde |
+|---|---|---|
+| C3 | LGPD nos conectores | Falha fechada: `treinos.ia.enviar-dados-ao-provedor` (`TREINOS_IA_ENVIAR_DADOS_AO_PROVEDOR`, padrão `false`) em `ia/RoteadorInterpretadorIa`; os conectores só recebem `RedatorLgpdImportacao.textoRedigido` (`DecodificadorDaProposta.textoParaEnvio`), sem PDF nem nome do arquivo; chave do Gemini no cabeçalho `x-goog-api-key`; exceção sem corpo de resposta. **O redator só mascara CPF, e-mail, telefone e CEP: nome, peso e dieta seguem no texto. A chave deve ficar desligada até o Gustavo decidir.** |
+| A1 | Permissões, tenant e aluno | `ConfirmacaoDaImportacaoAssistida` exige, antes de qualquer efeito, `ALUNO_SENSIVEL_ALTERAR` (peso, objetivo, observações), `TREINO_ALTERAR`/`DIETA_ALTERAR` + `PASTA_ALTERAR`, `MODELO_ALTERAR`; GET omite o sensível como a ficha; `alunoExistenteId` pelo repositório do tenant (404 outra consultoria, 409 `ALUNO_ANONIMIZADO`/`ALUNO_INATIVO`); aluno novo por `AlunoService.criar`; controller com `@ExigeMigracaoAssistida`. |
+| A2 | Vínculo por nome | Nunca vincula só pelo nome: nome gera `candidatos` (máx. 5, o treinador escolhe); e-mail/telefone só quando o arquivo tem um grupo e um contato; e-mail vincula sozinho só com exatamente um aluno ativo. |
+| A3 | Retenção | `ImportacaoAssistidaRetencao` (por `expira_em`, diária, desligável no teste); bytes do arquivo apagados ao fim do processamento; `ImportacaoAssistidaDoAluno` na anonimização/exclusão de conta. Sem SQL nativo. |
+| A5 | Pesos e erros | Peso sem data legível nunca ganha data inventada (vira ignorado e contado); `erro_codigo` fixo; validação antes de gravar; uma transação por grupo (erro de um não derruba os outros). |
+| M4 | Tetos | Sessões abertas por usuário, arquivos, bytes, nome, formato por extensão e assinatura, teto do XML do DOCX, `LimiteTentativas.importacaoAssistida` (120/h). |
+| M7 | PDF | Só relatório: `ExtratorPdf` lê só `Tj`/`TJ` literais por regex; PDF real sai quase vazio. Nada de PDF vai a provedor. |
+
+Contrato para o app (o front **não** foi alterado): `GrupoImportavel.erroCodigo` e `candidatos[] {alunoId, nome, motivo EMAIL|NOME}`; estados de grupo `IMPORTADO`/`IGNORADO`/`ERRO` (importado e ignorado voltam só como esqueleto); `ConfirmacaoResultado {id, situacao CONCLUIDA|CONCLUIDA_COM_ERROS|FALHOU, gruposImportados, alunosCriados, alunosVinculados, treinosCriados, dietasCriadas, modelosCriados, gruposComErro, pesosGravados, pesosIgnorados}`; GET sem peso/objetivo/observações/treino/dieta conforme a permissão; 403 antes de qualquer efeito; 503 `MIGRACAO_INDISPONIVEL` com a flag desligada.
+
+Testes escritos e **não executados**: `ImportacaoAssistidaIntegrationTest` (404 de outra consultoria, 403 sem permissão do plano e sem sensível, aluno de outra consultoria/inativo/anonimizado, vários alunos numa sessão, erro isolado por grupo, retenção, anonimização), `ImportacaoAssistidaServiceTest`, `RoteadorInterpretadorIaTest`, `InterpretadorPorRegrasTest`.
+
+Pendências desta frente: (1) `app/src/treinador/equipe/acoesAuditoria.ts` não tem `IMPORTACAO_ASSISTIDA_CONCLUIDA` (espelho manual; responsável: quem mexer no app); (2) a tela `assistida.tsx` precisa dos campos novos acima (escolha de aluno por grupo, estados IMPORTADO/IGNORADO/ERRO, resultado novo); (3) decidir sobre `enviar-dados-ao-provedor` (redator não cobre nome, peso e dieta); (4) rodar `mvn verify`.

@@ -84,6 +84,7 @@ for (const largura of [390, 1440]) {
       modalidade: null,
       previsaoInicio: null,
       origem: null,
+      indicadoPor: null,
       origemLink: null,
       cienciaPrivacidade: true,
       textoVersao: 'versao-1',
@@ -117,7 +118,7 @@ for (const largura of [390, 1440]) {
 
     await page.getByRole('button', { name: 'Continuar' }).click();
     await expect(page.getByLabel('Objetivo (opcional)')).toHaveValue('Voltar a treinar.');
-    await expect(page.getByRole('radiogroup', { name: 'Quando quer começar?' }).getByRole('button', { name: 'Tô só de passagem' }))
+    await expect(page.getByRole('radiogroup', { name: 'Quando quer começar?' }).getByRole('radio', { name: 'Tô só de passagem' }))
       .toHaveAttribute('aria-checked', 'true');
     await page.getByRole('button', { name: 'Enviar inscrição' }).click();
 
@@ -198,6 +199,9 @@ test('inscrição pública: tema escuro nas duas partes (390 e 1440 px)', async 
   for (const largura of [390, 1440]) {
     await page.setViewportSize({ width: largura, height: 900 });
     await page.goto(`/inscricao/${CODIGO}`);
+    // A tela guarda o que foi digitado no sessionStorage e repõe ao recarregar: sem limpar, a 2ª largura abriria na parte 2.
+    await page.evaluate(() => window.sessionStorage.clear());
+    await page.reload();
     await page.getByRole('button', { name: 'Continuar' }).click();
     await expect(page.getByText('Informe seu nome.')).toBeVisible();
     await capturar(page, `escuro-parte1-erros-${largura}`);
@@ -251,7 +255,7 @@ test('inscrição pública: a escolha mostra o erro que a API apontou', async ({
   await page.getByRole('button', { name: 'Enviar inscrição' }).click();
   // O campo é da parte 2: a página fica nela.
   await expect(page.getByText('Escolha o que você procura.')).toBeVisible();
-  await expect(page.getByRole('radiogroup', { name: 'O que você procura?' }).getByRole('button', { name: 'Não informar' })).toBeFocused();
+  await expect(page.getByRole('radiogroup', { name: 'O que você procura?' }).getByRole('radio', { name: 'Não informar' })).toBeFocused();
 });
 
 test('inscrição pública: limite de envios (429) mostra o texto do formulário, não o do login', async ({ page }) => {
@@ -353,14 +357,14 @@ for (const largura of [390, 1280]) {
     const aceite: AceiteInscricao = { id: INSCRICAO_ID, alunoId: ALUNO_NOVO, convite: null, anamneseId: null };
     const { pedidos, naoTratadas, errosDaPagina } = await abrirAceite(page, aceite);
     await expect(page.getByRole('radio', { name: 'Anamnese geral (padrão)' })).toHaveAttribute('aria-checked', 'true');
-    await page.getByRole('button', { name: 'Não enviar agora', exact: true }).click();
+    await page.getByRole('radio', { name: 'Não enviar agora', exact: true }).click();
     await expect(page.getByRole('radio', { name: 'Não enviar agora' })).toHaveAttribute('aria-checked', 'true');
     // Sem anamnese escolhida não há dica; com ela e sem convite, a dica aparece.
     await expect(page.getByText('O aluno responde quando entrar no app.')).toHaveCount(0);
     await page.getByRole('checkbox', { name: 'Enviar convite de acesso ao app' }).click();
-    await page.getByRole('button', { name: 'Anamnese esportiva', exact: true }).click();
+    await page.getByRole('radio', { name: 'Anamnese esportiva', exact: true }).click();
     await expect(page.getByText('O aluno responde quando entrar no app.')).toBeVisible();
-    await page.getByRole('button', { name: 'Não enviar agora', exact: true }).click();
+    await page.getByRole('radio', { name: 'Não enviar agora', exact: true }).click();
     await page.getByRole('button', { name: 'Aceitar e cadastrar' }).click();
 
     await expect(page.getByText('Inscrição aceita: o aluno foi cadastrado.', { exact: true })).toBeVisible();
@@ -413,12 +417,12 @@ for (const largura of [390, 1280]) {
         return json(route, aceite);
       },
     });
-    await page.getByRole('button', { name: 'Anamnese esportiva', exact: true }).click();
+    await page.getByRole('radio', { name: 'Anamnese esportiva', exact: true }).click();
     await page.getByRole('button', { name: 'Aceitar e cadastrar' }).click();
 
     await expect(page.getByText('Essa anamnese não está mais disponível. Escolha outra.')).toBeVisible();
     await expect(page.getByText('Aceitar inscrição?')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Anamnese esportiva', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('radio', { name: 'Anamnese esportiva', exact: true })).toHaveCount(0);
     await expect(page.getByRole('radio', { name: 'Anamnese geral (padrão)', exact: true })).toHaveAttribute('aria-checked', 'true');
     await page.getByRole('button', { name: 'Aceitar e cadastrar' }).click();
 

@@ -9,6 +9,8 @@ import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.CriarSess
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.AdicionarTextoRequisicao;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.RespostaDuvidaRequisicao;
 import br.com.treinos.api.importacao.assistida.ImportacaoAssistidaDtos.SessaoDetalhe;
+import br.com.treinos.api.auth.LimiteTentativas;
+import br.com.treinos.api.migracao.ExigeMigracaoAssistida;
 import br.com.treinos.api.security.UsuarioAutenticado;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -29,43 +31,55 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Controller REST para a importação assistida por IA (lote misto PDF, DOCX, planilhas e texto).
+ * Controller REST para a importação assistida por IA (lote misto PDF, DOCX, planilhas e texto). Atrás da chave da
+ * migração assistida ({@link ExigeMigracaoAssistida}); toda rota que grava ou processa passa pelo limite de tentativas
+ * (fora da transação, a recusa também conta). As permissões finas (sensível, treino, dieta, pasta, modelo) são do serviço.
  */
+@ExigeMigracaoAssistida
 @RestController
 @RequestMapping("/importacoes/assistidas")
 public class ImportacaoAssistidaController {
 
     private final ImportacaoAssistidaService service;
+    private final ConfirmacaoDaImportacaoAssistida confirmacao;
+    private final LimiteTentativas limites;
 
-    public ImportacaoAssistidaController(ImportacaoAssistidaService service) {
+    public ImportacaoAssistidaController(ImportacaoAssistidaService service, ConfirmacaoDaImportacaoAssistida confirmacao,
+                                         LimiteTentativas limites) {
         this.service = service;
+        this.confirmacao = confirmacao;
+        this.limites = limites;
     }
 
     @PostMapping("/sessoes")
     @PreAuthorize("hasAuthority('PERM_ALUNO_ALTERAR')")
     public SessaoDetalhe criarSessao(@AuthenticationPrincipal UsuarioAutenticado eu,
                                      @RequestBody(required = false) CriarSessaoRequisicao req) {
-        String objetivo = req != null ? req.objetivo() : "CADASTROS_E_PLANOS_ATUAIS";
+        limites.importacaoAssistida(eu.usuarioId());
+        String objetivo = req != null ? req.objetivo() : null;
         return service.criarSessao(eu.usuarioId(), objetivo);
     }
 
     @PostMapping(value = "/sessoes/{id}/arquivos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAuthority('PERM_ALUNO_ALTERAR')")
-    public ArquivoResumo adicionarArquivo(@PathVariable UUID id,
+    public ArquivoResumo adicionarArquivo(@AuthenticationPrincipal UsuarioAutenticado eu, @PathVariable UUID id,
                                           @RequestPart("arquivo") MultipartFile arquivo) throws IOException {
+        limites.importacaoAssistida(eu.usuarioId());
         return service.adicionarArquivo(id, arquivo);
     }
 
     @PostMapping("/sessoes/{id}/textos")
     @PreAuthorize("hasAuthority('PERM_ALUNO_ALTERAR')")
-    public ArquivoResumo adicionarTexto(@PathVariable UUID id,
+    public ArquivoResumo adicionarTexto(@AuthenticationPrincipal UsuarioAutenticado eu, @PathVariable UUID id,
                                         @RequestBody AdicionarTextoRequisicao req) {
+        limites.importacaoAssistida(eu.usuarioId());
         return service.adicionarTexto(id, req.titulo(), req.conteudo());
     }
 
     @PostMapping("/sessoes/{id}/processar")
     @PreAuthorize("hasAuthority('PERM_ALUNO_ALTERAR')")
-    public SessaoDetalhe processar(@PathVariable UUID id) {
+    public SessaoDetalhe processar(@AuthenticationPrincipal UsuarioAutenticado eu, @PathVariable UUID id) {
+        limites.importacaoAssistida(eu.usuarioId());
         return service.processar(id);
     }
 
@@ -77,16 +91,18 @@ public class ImportacaoAssistidaController {
 
     @PostMapping("/sessoes/{id}/respostas")
     @PreAuthorize("hasAuthority('PERM_ALUNO_ALTERAR')")
-    public SessaoDetalhe responderDuvida(@PathVariable UUID id,
+    public SessaoDetalhe responderDuvida(@AuthenticationPrincipal UsuarioAutenticado eu, @PathVariable UUID id,
                                          @RequestBody RespostaDuvidaRequisicao req) {
+        limites.importacaoAssistida(eu.usuarioId());
         return service.responderDuvida(id, req);
     }
 
     @PutMapping("/sessoes/{id}/grupos/{grupoId}")
     @PreAuthorize("hasAuthority('PERM_ALUNO_ALTERAR')")
-    public SessaoDetalhe atualizarGrupo(@PathVariable UUID id,
+    public SessaoDetalhe atualizarGrupo(@AuthenticationPrincipal UsuarioAutenticado eu, @PathVariable UUID id,
                                         @PathVariable String grupoId,
                                         @RequestBody AtualizarGrupoRequisicao req) {
+        limites.importacaoAssistida(eu.usuarioId());
         return service.atualizarGrupo(id, grupoId, req);
     }
 
@@ -95,7 +111,8 @@ public class ImportacaoAssistidaController {
     public ConfirmacaoResultado confirmar(@AuthenticationPrincipal UsuarioAutenticado eu,
                                           @PathVariable UUID id,
                                           @RequestBody ConfirmarSessaoRequisicao req) {
-        return service.confirmar(id, eu, req);
+        limites.importacaoAssistida(eu.usuarioId());
+        return confirmacao.confirmar(id, eu.usuarioId(), req);
     }
 
     @GetMapping("/apelidos")
@@ -106,7 +123,8 @@ public class ImportacaoAssistidaController {
 
     @DeleteMapping("/apelidos/{id}")
     @PreAuthorize("hasAuthority('PERM_ALUNO_ALTERAR')")
-    public void removerApelido(@PathVariable UUID id) {
+    public void removerApelido(@AuthenticationPrincipal UsuarioAutenticado eu, @PathVariable UUID id) {
+        limites.importacaoAssistida(eu.usuarioId());
         service.removerApelido(id);
     }
 }

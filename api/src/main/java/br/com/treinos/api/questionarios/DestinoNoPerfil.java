@@ -33,6 +33,18 @@ public enum DestinoNoPerfil {
     }
 
     /**
+     * Se o sistema grava este campo no cadastro (o envio cria pendência ou preenche, ver {@code PerfilDaAnamnese}). Nome,
+     * e-mail, data de nascimento, altura e observações não têm onde gravar: a publicação recusa e o editor não os oferece.
+     * As constantes ficam no enum porque versão publicada é imutável e ainda pode citá-las.
+     */
+    public boolean temEfeito() {
+        return switch (this) {
+            case TELEFONE, SEXO, PESO, CPF, ENDERECO, OBJETIVO -> true;
+            case NOME, EMAIL, DATA_NASCIMENTO, ALTURA, OBSERVACOES -> false;
+        };
+    }
+
+    /**
      * Permissão de quem aplica ou descarta uma alteração proposta para este campo.
      */
     public String permissao() {

@@ -55,7 +55,7 @@ const PENDENTE: AnamneseDetalhe = {
 
 /** Botão de uma opção dentro do grupo (`Escolha`) com o rótulo dado. */
 const opcao = (page: Page, grupo: string, rotulo: string) =>
-  page.getByRole('radiogroup', { name: grupo }).getByRole('button', { name: rotulo, exact: true });
+  page.getByRole('radiogroup', { name: grupo }).getByRole('radio', { name: rotulo, exact: true });
 
 test('aluno responde a anamnese: a condição mostra e esconde a pergunta, a grade exige todas as linhas e o envio fica só leitura', async ({ page }) => {
   const { pedidos, naoTratadas, errosDaPagina } = await simularApi(page, {
@@ -337,7 +337,7 @@ test('grade de cinco colunas no celular (390 px): duas fileiras, alvo de 44 px e
   await page.goto('/aluno/anamnese');
   await page.getByRole('radiogroup', { name: 'Azia' }).waitFor();
   for (const linha of ['Azia', 'Insônia']) {
-    const medidas = await page.getByRole('radiogroup', { name: linha }).getByRole('button').evaluateAll((botoes) => botoes.map((b) => {
+    const medidas = await page.getByRole('radiogroup', { name: linha }).getByRole('radio').evaluateAll((botoes) => botoes.map((b) => {
       const caixa = b.getBoundingClientRect();
       return { topo: Math.round(caixa.top), altura: caixa.height, largura: caixa.width, fonte: parseFloat(getComputedStyle(b.querySelector('*') ?? b).fontSize) };
     }));

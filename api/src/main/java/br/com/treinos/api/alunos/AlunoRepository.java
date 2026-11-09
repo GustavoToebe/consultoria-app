@@ -33,12 +33,23 @@ public interface AlunoRepository extends JpaRepository<Aluno, UUID>, JpaSpecific
     @Query("select a from Aluno a where a.conviteHash = :hash")
     Optional<Aluno> buscarPorConvite(String hash);
 
+    /** Alunos da consultoria da sessão com este e-mail, sem diferenciar maiúsculas (importação assistida). */
+    List<Aluno> findByEmailIgnoreCase(String email);
+
     /** CPF já formatado; a consulta fica só na consultoria da sessão. */
     boolean existsByCpf(String cpf);
 
     boolean existsByCpfAndIdNot(String cpf, UUID id);
 
     long countByAtivoTrue();
+
+    /**
+     * Alunos ativos com mais treinos concluídos (aceitos, não reabertos) do que {@code treinos}: a posição de um aluno no
+     * ranking de constância da comunidade é este número + 1. Uma consulta só, sem nome nem id de ninguém.
+     */
+    @Query("select count(a) from Aluno a where a.ativo = true and (select count(s) from SessaoConcluida s "
+            + "where s.alunoId = a.id and s.situacao = 'ACEITO' and s.concluida = true) > :treinos")
+    long contarAtivosComMaisTreinosConcluidos(long treinos);
 
     List<Aluno> findByAtivoTrueOrderByNomeAsc();
 

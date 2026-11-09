@@ -11,7 +11,7 @@ import {
 } from '../../dominio/editorQuestionario';
 import { ROTULO_DO_DESTINO } from '../../dominio/anamnese';
 import { mover, remover, substituir } from '../../dominio/editorTreino';
-import { escalaDaNota, LIMITES_QUESTIONARIO as L, maximoDeFotos, temOpcoes } from '../../dominio/questionario';
+import { type DestinoOferecido, escalaDaNota, LIMITES_QUESTIONARIO as L, maximoDeFotos, temOpcoes } from '../../dominio/questionario';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
@@ -139,7 +139,7 @@ function EscalaDaNota({ pergunta: p, aoMudar }: { pergunta: PerguntaAtualizacao;
 const SEM_DATA = '__envio__';
 
 /** Rótulo do interruptor (um destino possível) e do item da escolha (vários) para cada campo do cadastro. */
-const ROTULO_DO_INTERRUPTOR: any = {
+const ROTULO_DO_INTERRUPTOR: Record<DestinoOferecido, string> = {
   PESO: 'Guardar no registro de peso do aluno', OBJETIVO: 'Guardar no objetivo do cadastro do aluno', CPF: 'Guardar no CPF do cadastro do aluno',
   TELEFONE: 'Guardar no telefone do cadastro do aluno', ENDERECO: 'Guardar no endereço do cadastro do aluno',
   SEXO: 'Guardar no sexo do cadastro do aluno',

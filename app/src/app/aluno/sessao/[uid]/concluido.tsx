@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Download, Medal, Share2 } from 'lucide-react-native';
+import { ArrowLeft, Download, Medal, Share2, Users } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import type Svg from 'react-native-svg';
@@ -158,18 +158,16 @@ export default function TreinoConcluido() {
         />
         <LinhaDeAcoes>
           <Botao
-            rotulo="Compartilhar no Mural do Time"
+            rotulo="Publicar no mural do time"
             tipo="secundario"
-            Icone={Share2}
+            Icone={Users}
+            desabilitado={!aluno.online}
+            motivo="Sem conexão: o mural precisa de internet."
             aoTocar={() =>
               router.push({
                 pathname: '/aluno/comunidade',
-                params: {
-                  compartilharTreino: 'true',
-                  tituloTreino: sessao.nome,
-                  dataTreino: data,
-                },
-              } as any)
+                params: { compartilharTreino: 'true', tituloTreino: sessao.nome, dataTreino: data },
+              })
             }
           />
           {modos.includes('baixar') ? (

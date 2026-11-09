@@ -26,6 +26,7 @@ import type {
   LembretesDaCobranca,
   LembretesDoAluno,
   LembretesRequest,
+  VisaoGeralDoFinanceiro,
 } from './financeiroTipos';
 import type { PerfilEquipe, PerfilEquipeRequest, PermissaoEquipe, MembroEquipe, ConviteEquipe, ResponsavelEquipe, PaginaAuditoria } from './equipeTipos';
 import type {
@@ -248,7 +249,6 @@ export const enviarAnamnese = (id: string, questionarioVersaoId: string, respost
 export const criarQuestionario = (corpo: CriarQuestionarioRequest) => requisicao<QuestionarioDetalhe>('/questionarios', { metodo: 'POST', corpo });
 export const buscarQuestionario = (id: string) => requisicao<QuestionarioDetalhe>(`/questionarios/${seg(id)}`);
 export const salvarQuestionario = (id: string, corpo: SalvarQuestionarioRequest) => requisicao<QuestionarioDetalhe>(`/questionarios/${seg(id)}`, { metodo: 'PUT', corpo });
-export const regenerarCodigoPublicoQuestionario = (id: string) => requisicao<{ codigoPublico: string }>(`/questionarios/${seg(id)}/codigo-publico`, { metodo: 'POST' });
 export const publicarQuestionario = (id: string, versao: number, confirmarAvisos: boolean) =>
   requisicao<QuestionarioDetalhe>(`/questionarios/${seg(id)}/publicar`, { metodo: 'POST', corpo: { versao, confirmarAvisos } });
 export const duplicarQuestionario = (id: string) => requisicao<QuestionarioDetalhe>(`/questionarios/${seg(id)}/duplicar`, { metodo: 'POST' });
@@ -471,17 +471,19 @@ export const enviarInscricao = (codigo: string, corpo: InscricaoPublicaRequest) 
 
 // ---- Treinador: interessados (fila de inscrições) ----
 
+// Link do formulário de inscrição PADRÃO (os mesmos de `/questionarios/{id}/link*`, que a API resolve pelo padrão; 404 sem
+// padrão). Toda escrita leva a `versao` lida (`linkVersao`, começa em 0): outra pessoa ou aba mudou antes = 409 `CONFLITO_EDICAO`.
 export const configuracaoInscricao = () => requisicao<ConfiguracaoInscricao>('/inscricoes/configuracao');
 
 export const alterarConfiguracaoInscricao = (corpo: ConfiguracaoInscricaoRequest) =>
   requisicao<ConfiguracaoInscricao>('/inscricoes/configuracao', { metodo: 'PUT', corpo });
 
-/** Troca o código: o link anterior para de valer na hora. */
 /** Campos fixos escondidos da página pública (lista inteira; vazia = todos visíveis). */
-export const esconderCamposDaInscricao = (camposOcultos: CampoDaInscricao[], versao: number | null) =>
+export const esconderCamposDaInscricao = (camposOcultos: CampoDaInscricao[], versao: number) =>
   requisicao<ConfiguracaoInscricao>('/inscricoes/configuracao/campos-ocultos', { metodo: 'PUT', corpo: { camposOcultos, versao } });
 
-export const novoLinkInscricao = (versao: number | null) =>
+/** Troca o código: o link anterior para de valer na hora. */
+export const novoLinkInscricao = (versao: number) =>
   requisicao<ConfiguracaoInscricao>('/inscricoes/configuracao/novo-link', { metodo: 'POST', corpo: { versao } });
 
 /** Parâmetros comuns da lista, das contagens e do Kanban (busca, responsáveis, origens e os dois períodos). */
@@ -1173,6 +1175,8 @@ export const manterCobrancaPaga = (id: string, corpo: MotivoRequest) =>
 
 export const painelFinanceiro = (filtro: { de: string; ate: string; meus: boolean }) =>
   requisicao<Painel>(`/financeiro/painel${consultaFinanceiro({ de: filtro.de, ate: filtro.ate, meus: filtro.meus ? true : undefined })}`);
+/** Renovações próximas e projeção anual: da consultoria inteira (a rota não filtra por responsável nem por período). */
+export const visaoGeralDoFinanceiro = () => requisicao<VisaoGeralDoFinanceiro>('/financeiro/visao-geral');
 export const listarInadimplentes = (filtro: { meus: boolean; pagina?: number }) =>
   requisicao<PaginaInadimplentes>(`/financeiro/inadimplentes${consultaFinanceiro({ meus: filtro.meus ? true : undefined, pagina: filtro.pagina ?? 0 })}`);
 /** CSV como texto (cobranças e lançamentos do período). 422 se passar de 5.000 linhas. */

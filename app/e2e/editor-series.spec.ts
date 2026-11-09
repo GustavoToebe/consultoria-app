@@ -91,7 +91,7 @@ for (const largura of [390, 1280]) {
     await campo('Repetições em cada bloco').fill('4');
     await page.getByRole('switch', { name: 'Personalizar carga por bloco' }).click();
     for (const bloco of [2, 3, 4]) {
-      await page.getByRole('radiogroup', { name: `Bloco ${bloco} (4 reps)` }).getByRole('button', { name: 'Percentual da carga de trabalho (WS)', exact: true }).click();
+      await page.getByRole('radiogroup', { name: `Bloco ${bloco} (4 reps)` }).getByRole('radio', { name: 'Percentual da carga de trabalho (WS)', exact: true }).click();
       await campo(`Percentual da WS, bloco ${bloco}`).fill('90');
     }
     // O "Para o aluno" é a linha do grupo, com a carga de cada bloco no fim.
@@ -103,10 +103,10 @@ for (const largura of [390, 1280]) {
     await campo('Quantas pausas').fill('2');
     await page.getByRole('switch', { name: 'Definir a meta das retomadas' }).click();
     const r1 = page.getByRole('radiogroup', { name: 'Retomada 1', exact: true });
-    await r1.getByRole('button', { name: 'Faixa', exact: true }).click();
+    await r1.getByRole('radio', { name: 'Faixa', exact: true }).click();
     await campo('Retomada 1: reps mín.').fill('2');
     await campo('Retomada 1: reps máx.').fill('3');
-    await page.getByRole('radiogroup', { name: 'Carga da retomada 2' }).getByRole('button', { name: 'Percentual da carga de trabalho (WS)', exact: true }).click();
+    await page.getByRole('radiogroup', { name: 'Carga da retomada 2' }).getByRole('radio', { name: 'Percentual da carga de trabalho (WS)', exact: true }).click();
     await campo('Percentual da WS, retomada 2').fill('85');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await expect(page.getByText(/^Para o aluno: 1×3 a 6 · WS \+ Rest pause.* · Retomada 1: 2 a 3 reps, carga da série · Retomada 2: AMRAP, 85% da WS$/)).toBeVisible();

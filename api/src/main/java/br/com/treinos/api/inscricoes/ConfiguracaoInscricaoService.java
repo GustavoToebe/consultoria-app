@@ -6,7 +6,11 @@ import br.com.treinos.api.inscricoes.InscricaoDtos.CamposOcultosRequest;
 import br.com.treinos.api.inscricoes.InscricaoDtos.ConfiguracaoRequest;
 import br.com.treinos.api.inscricoes.InscricaoDtos.ConfiguracaoResponse;
 import br.com.treinos.api.inscricoes.InscricaoDtos.NovoLinkRequest;
+import br.com.treinos.api.questionarios.Finalidade;
+import br.com.treinos.api.questionarios.Questionario;
+import br.com.treinos.api.questionarios.QuestionarioRepository;
 import br.com.treinos.api.web.Buscas;
+import br.com.treinos.api.web.NaoEncontradoException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -15,90 +19,113 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
 /**
- * Link de inscrição da consultoria da sessão: ligar/desligar, responsável padrão, texto de apresentação e privacidade e
- * "Gerar novo link" (troca o código; o antigo para de valer na hora) e os campos fixos escondidos da página (D4). A linha nasce no primeiro salvar ou gerar link;
- * antes disso a leitura devolve tudo desligado e sem código. Lock otimista pela {@code versao}.
+ * Link público do formulário de inscrição: a ÚNICA fonte é o próprio {@link Questionario} (código, aberto/fechado,
+ * responsável, texto de apresentação e campos fixos escondidos). O código nasce sempre aqui, no servidor
+ * ({@link CodigoDeInscricao#novo()}, 144 bits), nunca vem do cliente; "Gerar novo link" e fechar agem na mesma coluna que o
+ * resolvedor público lê, então o código antigo dá 404 na hora. Só questionário de INSCRICAO tem link (a anamnese se
+ * responde logada). Lock otimista pelo {@code linkVersao}, separado da {@code versao} do editor.
  */
 @Service
 public class ConfiguracaoInscricaoService {
 
-    private final InscricaoConfiguracaoRepository configuracoes;
+    private final QuestionarioRepository questionarios;
     private final ResponsaveisDaInscricao responsaveis;
     private final String appUrl;
 
-    public ConfiguracaoInscricaoService(InscricaoConfiguracaoRepository configuracoes,
-                                        ResponsaveisDaInscricao responsaveis,
+    public ConfiguracaoInscricaoService(QuestionarioRepository questionarios, ResponsaveisDaInscricao responsaveis,
                                         @Value("${treinos.app-url}") String appUrl) {
-        this.configuracoes = configuracoes;
+        this.questionarios = questionarios;
         this.responsaveis = responsaveis;
         this.appUrl = appUrl.endsWith("/") ? appUrl.substring(0, appUrl.length() - 1) : appUrl;
     }
 
+    /** O formulário de inscrição padrão da consultoria da sessão (o que o cartão "Link" do Interessados controla). */
     @Transactional(readOnly = true)
-    public ConfiguracaoResponse ler() {
-        return configuracoes.atual().map(this::resposta)
-                .orElseGet(() -> new ConfiguracaoResponse(false, null, null, null, null, List.of(), null));
+    public UUID idDoPadrao() {
+        return questionarios.findByPadraoTrueAndFinalidade(Finalidade.INSCRICAO).map(Questionario::getId)
+                .orElseThrow(() -> new NaoEncontradoException("Formulário de inscrição não encontrado."));
+    }
+
+    @Transactional(readOnly = true)
+    public ConfiguracaoResponse ler(UUID questionarioId) {
+        return resposta(questionarios.findById(questionarioId)
+                .orElseThrow(() -> new NaoEncontradoException("Questionário não encontrado.")));
     }
 
     @Transactional
-    @Auditar(acao = "INSCRICAO_CONFIGURACAO_ALTERADA", entidade = "INSCRICAO_CONFIGURACAO",
-            resumo = "Alterou o link de inscrição.")
-    public ConfiguracaoResponse alterar(ConfiguracaoRequest r) {
-        InscricaoConfiguracao c = paraAlterar(r.versao());
-        c.alterar(r.aberta(), responsaveis.exigirValido(r.responsavelId()), Buscas.opcional(r.texto()));
-        return resposta(gravar(c));
+    @Auditar(acao = "INSCRICAO_CONFIGURACAO_ALTERADA", entidade = "QUESTIONARIO", resumo = "Alterou o link de inscrição.")
+    public ConfiguracaoResponse alterar(UUID questionarioId, ConfiguracaoRequest r) {
+        Questionario q = paraAlterar(questionarioId, r.versao());
+        if (r.aberta() && q.isArquivado()) {
+            throw new ConflictException("Questionário arquivado não recebe inscrição. Desarquive antes de abrir o link.",
+                    "QUESTIONARIO_ARQUIVADO");
+        }
+        q.setPublicoAberto(r.aberta());
+        q.setResponsavelPadraoId(responsaveis.exigirValido(r.responsavelId()));
+        q.setTextoApresentacao(Buscas.opcional(r.texto()));
+        if (r.aberta() && q.getCodigoPublico() == null) {
+            q.setCodigoPublico(CodigoDeInscricao.novo());
+        }
+        q.subirLinkVersao();
+        return resposta(gravar(q));
     }
 
     /**
      * Esconde da página os campos fixos da lista (sempre a lista inteira; vazia = todos visíveis). Nome, WhatsApp e a
-     * ciência do texto não estão no {@link CampoDaInscricao} e nunca se escondem. Sem configuração ainda, ela nasce
-     * desligada, como no primeiro salvar.
+     * ciência do texto não estão no {@link CampoDaInscricao} e nunca se escondem.
      */
     @Transactional
-    @Auditar(acao = "INSCRICAO_CONFIGURACAO_ALTERADA", entidade = "INSCRICAO_CONFIGURACAO",
+    @Auditar(acao = "INSCRICAO_CONFIGURACAO_ALTERADA", entidade = "QUESTIONARIO",
             resumo = "Alterou os campos da página de inscrição.")
-    public ConfiguracaoResponse esconderCampos(CamposOcultosRequest r) {
-        InscricaoConfiguracao c = paraAlterar(r.versao());
-        c.esconder(r.camposOcultos().isEmpty() ? EnumSet.noneOf(CampoDaInscricao.class) : EnumSet.copyOf(r.camposOcultos()));
-        return resposta(gravar(c));
+    public ConfiguracaoResponse esconderCampos(UUID questionarioId, CamposOcultosRequest r) {
+        Questionario q = paraAlterar(questionarioId, r.versao());
+        q.setCamposOcultos(CampoDaInscricao.escrever(
+                r.camposOcultos().isEmpty() ? EnumSet.noneOf(CampoDaInscricao.class) : EnumSet.copyOf(r.camposOcultos())));
+        q.subirLinkVersao();
+        return resposta(gravar(q));
     }
 
     @Transactional
-    @Auditar(acao = "INSCRICAO_LINK_RENOVADO", entidade = "INSCRICAO_CONFIGURACAO",
+    @Auditar(acao = "INSCRICAO_LINK_RENOVADO", entidade = "QUESTIONARIO",
             resumo = "Gerou um novo link de inscrição; o anterior parou de valer.")
-    public ConfiguracaoResponse novoLink(NovoLinkRequest r) {
-        InscricaoConfiguracao c = paraAlterar(r == null ? null : r.versao());
-        c.trocarCodigo(CodigoDeInscricao.novo());
-        return resposta(gravar(c));
+    public ConfiguracaoResponse novoLink(UUID questionarioId, NovoLinkRequest r) {
+        Questionario q = paraAlterar(questionarioId, r == null ? null : r.versao());
+        q.setCodigoPublico(CodigoDeInscricao.novo());
+        q.subirLinkVersao();
+        return resposta(gravar(q));
     }
 
-    /** Existente: trava e confere a versão. Nova: nasce desligada e já com código. */
-    private InscricaoConfiguracao paraAlterar(Long versao) {
-        var existente = configuracoes.atualParaAlterar();
-        if (existente.isEmpty()) {
-            return new InscricaoConfiguracao(CodigoDeInscricao.novo());
+    /** Trava a linha, exige formulário de inscrição (404 de outra consultoria pelo filtro de tenant) e confere a versão. */
+    private Questionario paraAlterar(UUID id, Long versao) {
+        Questionario q = questionarios.buscarParaAlterar(id)
+                .orElseThrow(() -> new NaoEncontradoException("Questionário não encontrado."));
+        if (q.getFinalidade() != Finalidade.INSCRICAO) {
+            throw new ConflictException("Só o formulário de inscrição tem link público.", "LINK_SO_DA_INSCRICAO");
         }
-        InscricaoConfiguracao c = existente.get();
-        if (!Objects.equals(versao, c.getVersao())) {
+        if (!Objects.equals(versao, q.getLinkVersao())) {
             throw conflito();
         }
-        return c;
+        return q;
     }
 
-    private InscricaoConfiguracao gravar(InscricaoConfiguracao c) {
+    private Questionario gravar(Questionario q) {
         try {
-            return configuracoes.saveAndFlush(c);
-        } catch (DataIntegrityViolationException corrida) {
-            // Duas abas criando a primeira configuração ao mesmo tempo (consultoria única na tabela).
+            return questionarios.saveAndFlush(q);
+        } catch (DataIntegrityViolationException colisao) {
+            // Código já usado (chave única global, praticamente impossível com 144 bits) ou CHECK do link.
             throw conflito();
         }
     }
 
-    private ConfiguracaoResponse resposta(InscricaoConfiguracao c) {
-        return new ConfiguracaoResponse(c.isAberta(), c.getCodigo(), appUrl + "/inscricao/" + c.getCodigo(),
-                c.getResponsavelId(), c.getTexto(), List.copyOf(c.getCamposOcultos()), c.getVersao());
+    private ConfiguracaoResponse resposta(Questionario q) {
+        boolean inscricao = q.getFinalidade() == Finalidade.INSCRICAO;
+        String codigo = inscricao ? q.getCodigoPublico() : null;
+        return new ConfiguracaoResponse(q.isLinkPublicoAberto(), codigo, codigo == null ? null : appUrl + "/inscricao/" + codigo,
+                q.getResponsavelPadraoId(), q.getTextoApresentacao(), List.copyOf(CampoDaInscricao.ler(q.getCamposOcultos())),
+                q.getLinkVersao());
     }
 
     private static ConflictException conflito() {

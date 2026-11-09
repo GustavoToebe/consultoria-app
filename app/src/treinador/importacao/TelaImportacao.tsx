@@ -1,5 +1,5 @@
 import * as DocumentPicker from 'expo-document-picker';
-import { Apple, Check, Download, Dumbbell, FileSpreadsheet, FileText, FileUp, FlaskConical, Pill, Scale, Sparkles, Trash2, Undo2, Users, type LucideIcon } from 'lucide-react-native';
+import { Apple, Check, Download, Dumbbell, FileSpreadsheet, FileText, FileUp, FlaskConical, Pill, Scale, Trash2, Undo2, Users, type LucideIcon } from 'lucide-react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { createElement, useId, useRef, useState } from 'react';
 import { Linking, Platform, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
@@ -102,7 +102,7 @@ export function TelaImportacao() {
     <>
       <LinhaDeAcoes>
         <Botao rotulo="Nova importação" Icone={FileUp} aoTocar={() => router.push('/treinador/importacao/nova')} />
-        <Botao rotulo="Importação com IA" tipo="primario" Icone={Sparkles} aoTocar={() => router.push('/treinador/importacao/assistida')} />
+        <Botao rotulo="Importação assistida" tipo="primario" Icone={FileUp} aoTocar={() => router.push('/treinador/importacao/assistida')} />
         <Botao rotulo="Modelos de planilha" tipo="secundario" aoTocar={() => setModelos(true)} />
         {/* Treino que está num PDF ou Google Docs: vira um modelo de semana de treino já com a Folha de colar aberta. */}
         {pode('MODELO_LER') && pode('MODELO_ALTERAR') ? (

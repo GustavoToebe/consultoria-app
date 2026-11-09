@@ -30,22 +30,21 @@ export function CabecalhoDaSerie({ numero, tipo, tecnica, recordes, registro }: 
   /** Só a série registrada tem selo (auditoria 03/11): sem registro, os campos já dizem que está vazia. */
   registro: 'FEITA' | 'NAO_FEITA' | null;
 }) {
-  const { cores, identificacao } = useTema();
-  const fundoTipo = tipo?.cor ? identificacao[tipo.cor]?.fundo : undefined;
+  const { cores } = useTema();
   const unidade = useUnidadeDeCarga();
   const comRecorde = !!recordes?.length;
   return (
-    <View style={[estilos.cabeca, fundoTipo ? { backgroundColor: fundoTipo, borderRadius: RAIO, paddingHorizontal: espaco(1), paddingVertical: espaco(0.5) } : null]}>
+    <View style={estilos.cabeca}>
       <View style={estilos.titulo}>
         {comRecorde ? (
           <View accessible accessibilityRole="text" accessibilityLabel={`Série ${numero}, recorde pessoal: ${recordes!.map((r) => textoDoRecorde(r, unidade)).join('; ')}`}>
             <Medal size={20} color={cores.sucesso} />
           </View>
         ) : null}
-        <Texto style={estilos.nome} nivel={3}>{`Série ${numero}`}</Texto>
+        <Texto variante="bloco" nivel={3}>{`Série ${numero}`}</Texto>
         {tipo ? (
           <>
-            <Texto style={estilos.nome} accessibilityElementsHidden importantForAccessibility="no">·</Texto>
+            <Texto variante="bloco" accessibilityElementsHidden importantForAccessibility="no">·</Texto>
             <TipoDaSerieComExplicacao nome={tipo.nome} explicacao={tipo.explicacao} numero={numero} cor={tipo.cor} />
           </>
         ) : null}
@@ -59,7 +58,7 @@ export function CabecalhoDaSerie({ numero, tipo, tecnica, recordes, registro }: 
 }
 
 /** Largura da barra lateral do cartão da série com a cor do tipo (Frente G, D10: barra de 6 px + selo colorido). */
-export const LARGURA_DA_BARRA_DO_TIPO = 4;
+export const LARGURA_DA_BARRA_DO_TIPO = 6;
 
 /**
  * A barra lateral do cartão da série na cor de identificação do tipo (`useTema().identificacao[chave].cor`); sem cor, nada
@@ -75,7 +74,7 @@ export function MetaDaSerie({ texto, complemento }: { texto: string; complemento
   return (
     <View style={[estilos.meta, { backgroundColor: cores.superficie3, borderLeftColor: cores.bordaCampo }]} accessible accessibilityLabel={`Meta: ${texto}${complemento ? `. ${complemento}` : ''}`}>
       <Texto variante="secao">Meta</Texto>
-      <Texto numerico style={estilos.valorDaMeta} cor={cores.texto}>{texto}</Texto>
+      <Texto numerico variante="bloco" cor={cores.texto}>{texto}</Texto>
       {complemento ? <Texto numerico variante="pequeno">{complemento}</Texto> : null}
     </View>
   );
@@ -111,8 +110,8 @@ export function DicaDoCampo({ dica, origem, numero, de }: { dica: string; origem
   const { destaque, resto } = partesDaDica(dica);
   return (
     <View style={estilos.dica} accessible accessibilityLabel={`Dica ${de ? `d${de}` : `da série ${numero}`}: ${dica}${origem ? `. ${origem}` : ''}`}>
-      <Texto numerico style={estilos.restoDaDica} cor={cores.textoSuave}>
-        {destaque ? <Texto numerico style={estilos.textoDaDica} cor={cores.texto}>{destaque}</Texto> : null}
+      <Texto numerico variante="suave">
+        {destaque ? <Texto numerico variante="suave" style={estilos.textoDaDica} cor={cores.texto}>{destaque}</Texto> : null}
         {destaque && resto ? ' · ' : null}
         {resto}
       </Texto>
@@ -139,15 +138,12 @@ export function RotuloDeHoje() {
 const estilos = StyleSheet.create({
   cabeca: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: espaco(1), rowGap: espaco(0.5) },
   titulo: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5), flexShrink: 1 },
-  nome: { fontFamily: fontes.semi, fontSize: 16 },
   meta: { borderRadius: RAIO, borderLeftWidth: 3, paddingVertical: espaco(1), paddingHorizontal: espaco(1.25), gap: 2 },
-  valorDaMeta: { fontFamily: fontes.semi, fontSize: 16, lineHeight: 22 },
   linha: { flexDirection: 'row', alignItems: 'baseline', gap: espaco(0.75), flexWrap: 'wrap' },
   rotuloDaLinha: { fontFamily: fontes.semi },
   hoje: { marginTop: espaco(0.5) },
   metaAoLado: { borderRadius: RAIO, borderLeftWidth: 3, paddingVertical: espaco(0.75), paddingHorizontal: espaco(1), gap: 2, justifyContent: 'center', minHeight: 52 },
   repsDaMeta: { fontFamily: fontes.semi, fontSize: 20, lineHeight: 26 },
   dica: { gap: 2 },
-  textoDaDica: { fontFamily: fontes.semi, fontSize: 14, lineHeight: 20 },
-  restoDaDica: { fontFamily: fontes.normal, fontSize: 14, lineHeight: 20 },
+  textoDaDica: { fontFamily: fontes.semi },
 });

@@ -28,7 +28,7 @@ const FICHA: AlunoDetalhe = {
 
 /** Botão de uma opção dentro do grupo (`Escolha`) com o rótulo dado. */
 const opcao = (page: Page, grupo: string, rotulo: string) =>
-  page.getByRole('radiogroup', { name: grupo }).getByRole('button', { name: rotulo, exact: true });
+  page.getByRole('radiogroup', { name: grupo }).getByRole('radio', { name: rotulo, exact: true });
 
 test('visão geral com dados: cartões, líquido indisponível, resultado do mês, inadimplentes e nenhum "Pagar"', async ({ page }) => {
   await fixarHoje(page);

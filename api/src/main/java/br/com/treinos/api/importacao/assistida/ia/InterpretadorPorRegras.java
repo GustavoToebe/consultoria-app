@@ -9,7 +9,6 @@ import org.springframework.stereotype.Component;
 import java.util.UUID;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -39,6 +38,10 @@ public class InterpretadorPorRegras implements InterpretadorIa {
 
     private static final Pattern PESO_REGEX = Pattern.compile(
             "(?i)(?:peso|balanca|massa)\\s*[:=-]?\\s*([0-9]{2,3}(?:[.,][0-9]+)?)\\s*(?:kg|quilos)?");
+
+    // dd/mm/aaaa ou aaaa-mm-dd
+    private static final Pattern DATA_REGEX = Pattern.compile(
+            "\\b(?:(\\d{1,2})/(\\d{1,2})/(\\d{4})|(\\d{4})-(\\d{2})-(\\d{2}))\\b");
 
     @Override
     public String nomeProvedor() {
@@ -95,14 +98,31 @@ public class InterpretadorPorRegras implements InterpretadorIa {
         Matcher m = PESO_REGEX.matcher(texto);
         while (m.find()) {
             try {
-                String num = m.group(1).replace(',', '.');
-                BigDecimal kg = new BigDecimal(num);
-                lista.add(new ResultadoInterpretacao.PropostaPeso(LocalDate.now(ZoneId.systemDefault()), kg, "Peso extraído do documento"));
-            } catch (Exception ignored) {
+                BigDecimal kg = new BigDecimal(m.group(1).replace(',', '.'));
+                // Data só se vier escrita na mesma linha; sem ela o peso segue sem data e o service não o grava.
+                lista.add(new ResultadoInterpretacao.PropostaPeso(dataDaLinha(texto, m.start()), kg, null));
+            } catch (NumberFormatException ignored) {
                 // Formato de número inválido ignorado
             }
         }
         return List.copyOf(lista);
+    }
+
+    private static LocalDate dataDaLinha(String texto, int posicao) {
+        int ini = texto.lastIndexOf('\n', posicao) + 1;
+        int fim = texto.indexOf('\n', posicao);
+        Matcher d = DATA_REGEX.matcher(texto.substring(ini, fim < 0 ? texto.length() : fim));
+        if (!d.find()) {
+            return null;
+        }
+        try {
+            if (d.group(1) != null) {
+                return LocalDate.of(Integer.parseInt(d.group(3)), Integer.parseInt(d.group(2)), Integer.parseInt(d.group(1)));
+            }
+            return LocalDate.of(Integer.parseInt(d.group(4)), Integer.parseInt(d.group(5)), Integer.parseInt(d.group(6)));
+        } catch (java.time.DateTimeException e) {
+            return null;
+        }
     }
 
     private ConteudoTreino extrairTreino(List<BlocoTexto> blocos, ContextoIa contexto) {

@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import type { Configuracao, ExercicioPlano } from '../../api/tipos';
 import { linhaDoExercicio, type ResumoDaSessaoPorContagem } from '../../dominio/inspetorDoTreino';
@@ -10,8 +10,13 @@ import { AdicionarProximoExercicio } from './CartaoSessao';
 import { estadoDoExercicio } from './estadoDoExercicio';
 import { ResumoDaSessao } from './ResumoDaSessao';
 
-/** Largura da coluna da esquerda (lista) em duas colunas; o inspetor fica com o resto. */
+/**
+ * Largura da coluna da esquerda (lista) em duas colunas: 30% da linha, entre `LARGURA_MINIMA_DA_LISTA` e
+ * `LARGURA_DA_LISTA`; o inspetor fica com o resto. Vale a medida da linha, não a janela: num notebook de 1280 px a lista
+ * encolhe e o inspetor mantém Séries, Repetições e Descanso lado a lado (N23, 08/11).
+ */
 export const LARGURA_DA_LISTA = 360;
+const LARGURA_MINIMA_DA_LISTA = espaco(30);
 
 interface Props {
   /** Os itens (`ItemDaListaDeExercicios`), com os grupos de exercícios (`GrupoNaLista`: linha do grupo e os membros embaixo). */
@@ -27,10 +32,8 @@ interface Props {
  * fica só em "Configuração do plano" (04/11).
  */
 export function ListaDeExercicios({ children, vazia, resumo, adicionar }: Props) {
-  const { width } = useWindowDimensions();
-  const largura = width > 0 && width <= 1440 ? 220 : LARGURA_DA_LISTA;
   return (
-    <View style={[estilos.coluna, { width: largura }]}>
+    <View style={estilos.coluna}>
       <View style={estilos.itens} role="group" accessibilityLabel="Exercícios da sessão">
         {vazia ? <Texto variante="suave">Nenhum exercício nesta sessão ainda.</Texto> : children}
       </View>
@@ -65,6 +68,6 @@ export function ItemDaListaDeExercicios({ exercicio: e, posicao, total, config, 
 }
 
 const estilos = StyleSheet.create({
-  coluna: { width: LARGURA_DA_LISTA, flexShrink: 0, gap: espaco(1.5) },
+  coluna: { flexBasis: '30%', minWidth: LARGURA_MINIMA_DA_LISTA, maxWidth: LARGURA_DA_LISTA, flexShrink: 0, gap: espaco(1.5) },
   itens: { gap: espaco(1) },
 });

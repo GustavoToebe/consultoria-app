@@ -101,6 +101,11 @@ public class LimiteTentativas {
         porUsuario("importacao-diagnostico", usuarioId, 30);
     }
 
+    /** Importação assistida (sessão, arquivos, texto, processar e confirmar): balde próprio, 120 por usuário por hora. */
+    public void importacaoAssistida(java.util.UUID usuarioId) {
+        porUsuario("importacao-assistida", usuarioId, 120);
+    }
+
     public void confirmacaoDeImportacao(java.util.UUID usuarioId) {
         porUsuario("importacao-confirmacao", usuarioId, 10);
     }
@@ -112,6 +117,14 @@ public class LimiteTentativas {
         if (estado.tentativas() > 60) {
             throw new MuitasRequisicoesException(segundosAte(estado.ateMs(), agora));
         }
+    }
+
+    /**
+     * Escrita do aluno na comunidade (post, comentário, reação): 120 por usuário por hora, contadas fora da transação e antes de
+     * gravar, então a tentativa recusada também conta. Passa disso, 429 com {@code Retry-After}.
+     */
+    public void comunidade(java.util.UUID usuarioId) {
+        porUsuario("comunidade", usuarioId, 120);
     }
 
     /**

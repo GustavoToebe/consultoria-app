@@ -1,26 +1,24 @@
-import { Award, Calendar, Flame, Heart, MessageSquare, Plus, Share2, Trophy, Video } from 'lucide-react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { MessageSquare, Plus, Video } from 'lucide-react-native';
 import { useState } from 'react';
-import { Linking, Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import {
-  criarAvisoAulao,
-  criarPostMural,
-  curtirPostMural,
-  listarAvisosEAuloes,
-  listarPostsMural,
-  listarRanking,
-} from '../../api/comunidade';
+import { criarAula, listarAulasDaEquipe, listarMuralDaEquipe, publicarNoMuralDaEquipe } from '../../api/comunidade';
+import { dataHoraParaTela } from '../../dominio/formatos';
+import { erroDoLink } from '../../dominio/links';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, RAIO } from '../../tema/tokens';
+import { espaco, LARGURA_LISTA } from '../../tema/tokens';
+import { abrirLinkExterno } from '../../ui/abrirLinkExterno';
 import { Abas } from '../../ui/Abas';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Campo } from '../../ui/Campo';
 import { Cartao } from '../../ui/Cartao';
-import { Escolha } from '../../ui/Escolha';
+import { separarErros, textoDoErro } from '../../ui/erros';
 import { Esqueleto } from '../../ui/Esqueleto';
+import { MensagemErro, Vazio } from '../../ui/Estados';
 import { Folha } from '../../ui/Folha';
 import { IniciaisDePerfil } from '../../ui/FotoDePerfil';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
@@ -29,58 +27,79 @@ import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 
-type AbaComunidade = 'auloes' | 'mural' | 'ranking';
+type AbaComunidade = 'auloes' | 'mural';
+
+/** Estado de uma fonte da tela: carregando, erro (com tentar de novo) ou vazio; `null` = mostrar os dados. */
+function EstadoDaFonte({ carregando, erro, vazio, textoVazio, recarregar }: {
+  carregando: boolean; erro: unknown; vazio: boolean; textoVazio: string; recarregar: () => void;
+}) {
+  if (erro) return <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} />;
+  if (carregando && vazio) return <Esqueleto />;
+  if (vazio) return <Vazio texto={textoVazio} />;
+  return null;
+}
 
 export default function ComunidadeTreinador() {
   const { cores } = useTema();
-  const { usuario } = useSessao();
+  const { pode } = useSessao();
   const { avisar } = useAviso();
-  const [aba, setAba] = useState<AbaComunidade>('auloes');
+  // A tela abre com TREINO_LER; publicar pede TREINO_ALTERAR (a API confere de novo).
+  const podePublicar = pode('TREINO_ALTERAR');
+  // A aba mora no endereço (`?aba=`). `setParams` e não `push`: o push remonta a tela e perderia o rascunho do mural.
+  const { aba: abaPedida } = useLocalSearchParams<{ aba?: string }>();
+  const aba: AbaComunidade = abaPedida === 'mural' ? 'mural' : 'auloes';
+  const setAba = (valor: AbaComunidade) => { if (valor !== aba) router.setParams({ aba: valor }); };
 
-  // Aulões & Avisos
-  const { dados: auloes, carregando: carregandoAuloes, recarregar: recarregarAuloes } = useCarregar('treinador-auloes', () => listarAvisosEAuloes());
-  const [folhaNovoAviso, setFolhaNovoAviso] = useState(false);
+  const auloes = useCarregar('treinador-auloes', () => listarAulasDaEquipe());
+  const [folhaNovaAula, setFolhaNovaAula] = useState(false);
   const [novoTitulo, setNovoTitulo] = useState('');
   const [novaDescricao, setNovaDescricao] = useState('');
-  const [novoTipo, setNovoTipo] = useState<'AVISO' | 'AULAO_AO_VIVO' | 'WORKSHOP'>('AULAO_AO_VIVO');
-  const [novaDataHorario, setNovaDataHorario] = useState('');
+  const [novaCategoria, setNovaCategoria] = useState('');
   const [novoLink, setNovoLink] = useState('');
-  const [salvandoAviso, setSalvandoAviso] = useState(false);
+  const [tentouSalvar, setTentouSalvar] = useState(false);
+  const [salvandoAula, setSalvandoAula] = useState(false);
+  // Erro que a API apontou no campo (422 `COMUNIDADE_INVALIDA`); some quando o link muda.
+  const [errosApi, setErrosApi] = useState<Record<string, string>>({});
 
-  // Mural do Time
-  const { dados: posts, carregando: carregandoPosts, recarregar: recarregarPosts } = useCarregar('treinador-mural', () => listarPostsMural());
+  const mural = useCarregar('treinador-mural', () => listarMuralDaEquipe());
   const [novoPost, setNovoPost] = useState('');
   const [postando, setPostando] = useState(false);
 
-  // Ranking
-  const { dados: ranking, carregando: carregandoRanking } = useCarregar('treinador-ranking', () => listarRanking());
+  const erros = {
+    titulo: novoTitulo.trim() ? null : 'Escreva o título.',
+    link: novoLink.trim() ? erroDoLink(novoLink) : 'Cole o link do vídeo.',
+  };
 
-  const salvarAviso = async () => {
-    if (!novoTitulo.trim() || !novaDescricao.trim()) {
-      avisar('Preencha o título e a descrição.', 'atencao');
-      return;
-    }
-    setSalvandoAviso(true);
+  const fecharFolha = () => {
+    setFolhaNovaAula(false);
+    setTentouSalvar(false);
+    setErrosApi({});
+  };
+
+  const salvarAula = async () => {
+    setTentouSalvar(true);
+    if (erros.titulo || erros.link) return;
+    setSalvandoAula(true);
     try {
-      await criarAvisoAulao({
+      await criarAula({
         titulo: novoTitulo.trim(),
-        descricao: novaDescricao.trim(),
-        tipo: novoTipo,
-        dataHorario: novaDataHorario.trim() || null,
-        linkAcesso: novoLink.trim() || null,
-        autorNome: usuario?.nome ?? 'Treinador',
+        descricao: novaDescricao.trim() || undefined,
+        videoUrl: novoLink.trim(),
+        categoria: novaCategoria.trim() || undefined,
       });
-      avisar('Aviso/Aulão publicado com sucesso para todo o time!', 'sucesso');
-      setFolhaNovoAviso(false);
+      avisar('Aulão publicado para o time.', 'sucesso');
+      fecharFolha();
       setNovoTitulo('');
       setNovaDescricao('');
-      setNovaDataHorario('');
+      setNovaCategoria('');
       setNovoLink('');
-      recarregarAuloes();
-    } catch {
-      avisar('Erro ao publicar aviso.', 'perigo');
+      auloes.recarregar();
+    } catch (e) {
+      const { campos, geral } = separarErros(e, ['videoUrl']);
+      setErrosApi(campos);
+      if (geral) avisar(geral, 'perigo');
     } finally {
-      setSalvandoAviso(false);
+      setSalvandoAula(false);
     }
   };
 
@@ -88,346 +107,141 @@ export default function ComunidadeTreinador() {
     if (!novoPost.trim()) return;
     setPostando(true);
     try {
-      await criarPostMural({
-        conteudo: novoPost.trim(),
-        autorNome: usuario?.nome ?? 'Treinador',
-        papelAutor: 'TREINADOR',
-      });
+      await publicarNoMuralDaEquipe(novoPost.trim());
       setNovoPost('');
-      avisar('Mensagem publicada no mural do time!', 'sucesso');
-      recarregarPosts();
-    } catch {
-      avisar('Erro ao publicar no mural.', 'perigo');
+      avisar('Publicado no mural.', 'sucesso');
+      mural.recarregar();
+    } catch (e) {
+      avisar(textoDoErro(e), 'perigo');
     } finally {
       setPostando(false);
     }
   };
 
-  const curtir = async (postId: string) => {
-    await curtirPostMural(postId);
-    recarregarPosts();
+  const abrir = async (url: string | null | undefined) => {
+    if (!(await abrirLinkExterno(url))) avisar('Não foi possível abrir o link.', 'perigo');
   };
 
   return (
-    <Tela bordas={['top']} largura={900}>
-      <Cabecalho
-        titulo="Comunidade do Time"
-        subtitulo="Aulões ao vivo, mural de engajamento e ranking de conquistas dos alunos"
-      />
+    <Tela bordas={['top']} largura={LARGURA_LISTA}>
+      <Cabecalho titulo="Comunidade" subtitulo="Aulões e mural do time." />
 
-      <Abas
+      <Abas<AbaComunidade>
         abas={[
-          { valor: 'auloes', rotulo: 'Avisos & Aulões' },
-          { valor: 'mural', rotulo: 'Mural do Time' },
-          { valor: 'ranking', rotulo: 'Ranking & Conquistas' },
+          { valor: 'auloes', rotulo: 'Aulões' },
+          { valor: 'mural', rotulo: 'Mural' },
         ]}
         ativa={aba}
         aoMudar={setAba}
       />
 
       {aba === 'auloes' ? (
-        <View style={estilos.secao}>
-          <LinhaDeAcoes alinhar="fim">
-            <Botao
-              rotulo="Novo Aviso ou Aulão"
-              tipo="primario"
-              Icone={Plus}
-              aoTocar={() => setFolhaNovoAviso(true)}
-            />
-          </LinhaDeAcoes>
+        <View style={estilos.blocos}>
+          {podePublicar ? (
+            <LinhaDeAcoes alinhar="fim">
+              <Botao rotulo="Novo aulão" tipo="primario" Icone={Plus} aoTocar={() => setFolhaNovaAula(true)} />
+            </LinhaDeAcoes>
+          ) : null}
 
-          {carregandoAuloes ? (
-            <Esqueleto />
-          ) : auloes && auloes.length > 0 ? (
-            auloes.map((item) => (
-              <Cartao key={item.id}>
-                <View style={estilos.cabecalhoItem}>
-                  <View style={estilos.linhaFlex}>
-                    <Video size={20} color={cores.texto} />
-                    <Texto variante="bloco" nivel={3}>{item.titulo}</Texto>
-                  </View>
-                  <Selo
-                    texto={item.tipo === 'AULAO_AO_VIVO' ? 'Ao Vivo' : item.tipo === 'WORKSHOP' ? 'Workshop' : 'Aviso'}
-                    tipo={item.tipo === 'AULAO_AO_VIVO' ? 'sucesso' : 'sucesso'}
-                  />
-                </View>
+          <EstadoDaFonte carregando={auloes.carregando} erro={auloes.erro} vazio={!auloes.dados?.length}
+            textoVazio="Nenhum aulão publicado." recarregar={auloes.recarregar} />
 
-                <Texto>{item.descricao}</Texto>
-
-                {item.dataHorario ? (
-                  <View style={estilos.linhaInfo}>
-                    <Calendar size={16} color={cores.textoSuave} />
-                    <Texto variante="suave">{item.dataHorario}</Texto>
-                  </View>
-                ) : null}
-
-                {item.linkAcesso ? (
-                  <LinhaDeAcoes>
-                    <Botao
-                      rotulo="Acessar Sala / Link"
-                      tipo="secundario"
-                      Icone={Video}
-                      aoTocar={() => Linking.openURL(item.linkAcesso!)}
-                    />
-                  </LinhaDeAcoes>
-                ) : null}
-              </Cartao>
-            ))
-          ) : (
-            <Cartao>
-              <Texto variante="suave">Nenhum aulão ou aviso publicado ainda.</Texto>
+          {auloes.dados?.map((item) => (
+            <Cartao
+              key={item.id}
+              titulo={item.titulo}
+              acoes={item.publicada ? (item.categoria ? <Selo texto={item.categoria} tipo="neutro" /> : undefined) : <Selo texto="Não publicado" tipo="neutro" />}>
+              {item.descricao ? <Texto>{item.descricao}</Texto> : null}
+              {item.videoUrl ? (
+                <LinhaDeAcoes>
+                  <Botao rotulo="Abrir o vídeo" tipo="secundario" Icone={Video} aoTocar={() => void abrir(item.videoUrl)} />
+                </LinhaDeAcoes>
+              ) : null}
             </Cartao>
-          )}
+          ))}
         </View>
       ) : null}
 
       {aba === 'mural' ? (
-        <View style={estilos.secao}>
-          <Cartao titulo="Publicar para o Time">
-            <Campo
-              rotulo="Mensagem do Treinador"
-              placeholder="Envie uma mensagem motivacional, dica técnica ou recado para seus alunos..."
-              valor={novoPost}
-              aoMudar={setNovoPost}
-              linhas={3}
-            />
-            <LinhaDeAcoes alinhar="fim">
-              <Botao
-                rotulo="Publicar no Mural"
-                tipo="primario"
-                Icone={Share2}
-                carregando={postando}
-                desabilitado={!novoPost.trim()}
-                aoTocar={publicarNoMural}
+        <View style={estilos.blocos}>
+          {podePublicar ? (
+            <Cartao titulo="Publicar para o time">
+              <Campo
+                rotulo="Mensagem"
+                placeholder="Um recado, uma dica técnica ou uma mensagem para os alunos"
+                valor={novoPost}
+                aoMudar={setNovoPost}
+                linhas={3}
               />
-            </LinhaDeAcoes>
-          </Cartao>
-
-          {carregandoPosts ? (
-            <Esqueleto />
-          ) : posts && posts.length > 0 ? (
-            posts.map((post) => (
-              <Cartao key={post.id}>
-                <View style={estilos.postCabecalho}>
-                  <IniciaisDePerfil nome={post.autorNome} tamanho={36} />
-                  <View style={estilos.postAutorInfo}>
-                    <View style={estilos.linhaFlex}>
-                      <Texto variante="rotulo">{post.autorNome}</Texto>
-                      {post.papelAutor === 'TREINADOR' ? (
-                        <Selo texto="Treinador" tipo="sucesso" />
-                      ) : null}
-                    </View>
-                    <Texto variante="pequeno" cor={cores.textoSuave}>
-                      {new Date(post.criadoEm).toLocaleDateString('pt-BR')}
-                    </Texto>
-                  </View>
-                </View>
-
-                <Texto>{post.conteudo}</Texto>
-
-                {post.treinoCompartilhado ? (
-                  <View style={[estilos.blocoTreino, { borderColor: cores.borda, backgroundColor: cores.superficie3 }]}>
-                    <Texto variante="rotulo">{post.treinoCompartilhado.titulo}</Texto>
-                    <Texto variante="pequeno" cor={cores.textoSuave}>
-                      {post.treinoCompartilhado.seriesFeitas ? `${post.treinoCompartilhado.seriesFeitas} séries completadas` : ''}
-                      {post.treinoCompartilhado.volumeKg ? ` · Volume total: ${post.treinoCompartilhado.volumeKg.toLocaleString('pt-BR')} kg` : ''}
-                    </Texto>
-                  </View>
-                ) : null}
-
-                <View style={estilos.linhaInteracao}>
-                  <Pressable
-                    style={estilos.botaoCurtida}
-                    onPress={() => curtir(post.id)}
-                    accessibilityRole="button"
-                    accessibilityLabel="Curtir publicação"
-                  >
-                    <Heart
-                      size={18}
-                      color={post.curtidoPorMim ? cores.perigo : cores.textoSuave}
-                      fill={post.curtidoPorMim ? cores.perigo : 'transparent'}
-                    />
-                    <Texto variante="pequeno" cor={cores.textoSuave}>
-                      {post.curtidas}
-                    </Texto>
-                  </Pressable>
-
-                  <View style={estilos.botaoCurtida}>
-                    <MessageSquare size={18} color={cores.textoSuave} />
-                    <Texto variante="pequeno" cor={cores.textoSuave}>
-                      {post.comentariosCount}
-                    </Texto>
-                  </View>
-                </View>
-              </Cartao>
-            ))
-          ) : (
-            <Cartao>
-              <Texto variante="suave">Nenhuma publicação no mural ainda.</Texto>
+              <LinhaDeAcoes alinhar="fim">
+                <Botao
+                  rotulo="Publicar no mural"
+                  tipo="primario"
+                  carregando={postando}
+                  desabilitado={!novoPost.trim()}
+                  motivo="Escreva a mensagem."
+                  aoTocar={() => void publicarNoMural()}
+                />
+              </LinhaDeAcoes>
             </Cartao>
-          )}
-        </View>
-      ) : null}
+          ) : null}
 
-      {aba === 'ranking' ? (
-        <View style={estilos.secao}>
-          <Cartao titulo="Leaderboard de Engajamento">
-            <Texto variante="suave">
-              Pontuação calculada por treinos concluídos, consistência semanal e registros de carga no app.
-            </Texto>
+          <EstadoDaFonte carregando={mural.carregando} erro={mural.erro} vazio={!mural.dados?.content.length}
+            textoVazio="Nenhuma publicação no mural ainda." recarregar={mural.recarregar} />
 
-            {carregandoRanking ? (
-              <Esqueleto />
-            ) : ranking && ranking.length > 0 ? (
-              <View style={estilos.listaRanking}>
-                {ranking.map((aluno) => (
-                  <View
-                    key={aluno.alunoId}
-                    style={[
-                      estilos.itemRanking,
-                      { borderColor: cores.borda, backgroundColor: cores.superficie3 },
-                    ]}
-                  >
-                    <View style={estilos.posicaoBadge}>
-                      {aluno.posicao === 1 ? (
-                        <Trophy size={20} color="#EAB308" />
-                      ) : aluno.posicao === 2 ? (
-                        <Award size={20} color="#94A3B8" />
-                      ) : aluno.posicao === 3 ? (
-                        <Award size={20} color="#B45309" />
-                      ) : (
-                        <Texto variante="rotulo">#{aluno.posicao}</Texto>
-                      )}
-                    </View>
-
-                    <IniciaisDePerfil nome={aluno.nome} tamanho={36} />
-
-                    <View style={estilos.infoAluno}>
-                      <Texto variante="rotulo">{aluno.nome}</Texto>
-                      <Texto variante="pequeno" cor={cores.textoSuave}>
-                        Nível {aluno.nivel} · {aluno.treinosNoMes} treinos no mês
-                      </Texto>
-                    </View>
-
-                    <View style={estilos.pontosBox}>
-                      <View style={estilos.linhaFlex}>
-                        <Flame size={16} color={cores.texto} />
-                        <Texto variante="rotulo">{aluno.pontos} pts</Texto>
-                      </View>
-                      <Texto variante="pequeno" cor={cores.textoSuave}>
-                        {aluno.diasSeguidos}d seguidos
-                      </Texto>
-                    </View>
+          {mural.dados?.content.map((post) => (
+            <Cartao key={post.id}>
+              <View style={estilos.linha}>
+                <IniciaisDePerfil nome={post.autorNome} tamanho={36} />
+                <View style={estilos.encolher}>
+                  <View style={estilos.linha}>
+                    <Texto variante="bloco" nivel={3}>{post.autorNome}</Texto>
+                    {post.fixado ? <Selo texto="Fixado" tipo="neutro" /> : null}
                   </View>
-                ))}
+                  <Texto variante="pequeno" cor={cores.textoSuave} numerico>{dataHoraParaTela(post.criadoEm)}</Texto>
+                </View>
               </View>
-            ) : null}
-          </Cartao>
+
+              <Texto>{post.texto}</Texto>
+
+              <View style={[estilos.linha, estilos.rodapePost, { borderTopColor: cores.divisor }]}>
+                <View style={estilos.linha}>
+                  <MessageSquare size={18} color={cores.textoSuave} aria-hidden />
+                  <Texto variante="suave" numerico>{post.totalComentarios} comentário(s)</Texto>
+                </View>
+              </View>
+            </Cartao>
+          ))}
         </View>
       ) : null}
 
-      {/* Folha para criar novo Aviso / Aulão */}
       <Folha
-        visivel={folhaNovoAviso}
-        titulo="Novo Aviso ou Aulão"
-        aoFechar={() => setFolhaNovoAviso(false)}
+        visivel={folhaNovaAula}
+        titulo="Novo aulão"
+        aoFechar={fecharFolha}
         rodape={
           <LinhaDeAcoes>
-            <Botao
-              rotulo="Cancelar"
-              tipo="secundario"
-              aoTocar={() => setFolhaNovoAviso(false)}
-            />
-            <Botao
-              rotulo="Publicar para o Time"
-              tipo="primario"
-              carregando={salvandoAviso}
-              aoTocar={salvarAviso}
-            />
+            <Botao rotulo="Cancelar" tipo="secundario" aoTocar={fecharFolha} />
+            <Botao rotulo="Publicar para o time" tipo="primario" carregando={salvandoAula} aoTocar={() => void salvarAula()} />
           </LinhaDeAcoes>
-        }
-      >
-        <Campo
-          rotulo="Título"
-          placeholder="Ex: Aulão Ao Vivo sobre Sobrecarga Progressiva"
-          valor={novoTitulo}
-          aoMudar={setNovoTitulo}
-        />
-
-        <Escolha
-          rotulo="Tipo de Conteúdo"
-          valor={novoTipo}
-          aoMudar={(v) => setNovoTipo(v as any)}
-          opcoes={[
-            { valor: 'AULAO_AO_VIVO', rotulo: 'Aulão Ao Vivo' },
-            { valor: 'WORKSHOP', rotulo: 'Workshop / Gravação' },
-            { valor: 'AVISO', rotulo: 'Aviso Geral' },
-          ]}
-        />
-
-        <Campo
-          rotulo="Data e Horário (opcional)"
-          placeholder="Ex: Quinta-feira às 19:30 pelo Zoom"
-          valor={novaDataHorario}
-          aoMudar={setNovaDataHorario}
-        />
-
-        <Campo
-          rotulo="Link de Acesso ou Gravação (opcional)"
-          placeholder="https://zoom.us/... ou link do YouTube"
-          valor={novoLink}
-          aoMudar={setNovoLink}
-        />
-
-        <Campo
-          rotulo="Descrição / Pauta"
-          placeholder="O que será abordado, pré-requisitos ou instruções importantes..."
-          valor={novaDescricao}
-          aoMudar={setNovaDescricao}
-          linhas={4}
-        />
+        }>
+        <Campo rotulo="Título" placeholder="Ex.: Aulão sobre progressão de carga" valor={novoTitulo}
+          aoMudar={setNovoTitulo} erro={tentouSalvar ? erros.titulo ?? undefined : undefined} />
+        <Campo rotulo="Link do vídeo" placeholder="https://" valor={novoLink}
+          aoMudar={(v) => { setNovoLink(v); setErrosApi({}); }}
+          erro={(tentouSalvar && erros.link) || errosApi.videoUrl || undefined} />
+        <Campo rotulo="Categoria (opcional)" placeholder="Ex.: Técnica" valor={novaCategoria} aoMudar={setNovaCategoria} />
+        <Campo rotulo="Descrição (opcional)" placeholder="O que será abordado e o que o aluno precisa saber" valor={novaDescricao}
+          aoMudar={setNovaDescricao} linhas={4} />
       </Folha>
     </Tela>
   );
 }
 
 const estilos = StyleSheet.create({
-  secao: { gap: espaco(1.5) },
-  cabecalhoItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  linhaFlex: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75) },
-  linhaInfo: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5) },
-  postCabecalho: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
-  postAutorInfo: { flex: 1, gap: 2 },
-  blocoTreino: {
-    padding: espaco(1),
-    borderWidth: 1,
-    borderRadius: RAIO,
-    gap: 4,
-    marginVertical: espaco(0.5),
-  },
-  linhaInteracao: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: espaco(2),
-    marginTop: espaco(0.5),
-  },
-  botaoCurtida: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-  },
-  listaRanking: { gap: espaco(0.75), marginTop: espaco(1) },
-  itemRanking: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: espaco(1),
-    padding: espaco(1),
-    borderRadius: RAIO,
-    borderWidth: 1,
-  },
-  posicaoBadge: { width: 32, alignItems: 'center' },
-  infoAluno: { flex: 1, gap: 2 },
-  pontosBox: { alignItems: 'flex-end', gap: 2 },
+  // 24 px entre blocos; 16 px dentro do cartão e do item.
+  blocos: { gap: espaco(3) },
+  linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexWrap: 'wrap' },
+  encolher: { flex: 1, minWidth: 0, gap: 2 },
+  rodapePost: { borderTopWidth: 1, paddingTop: espaco(1), gap: espaco(2) },
 });

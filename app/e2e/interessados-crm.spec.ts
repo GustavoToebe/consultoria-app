@@ -96,9 +96,9 @@ for (const largura of [390, 1280]) {
       });
       await page.getByRole('button', { name: 'Abrir inscrição de Pessoa Fictícia 1' }).click();
       await page.getByRole('button', { name: 'Encerrar', exact: true }).click();
-      await page.getByRole('button', { name: 'A pessoa desistiu', exact: true }).click();
+      await page.getByRole('radio', { name: 'A pessoa desistiu', exact: true }).click();
       await expect(page.getByRole('button', { name: 'Registrar desistência' })).toBeDisabled();
-      await page.getByRole('button', { name: 'Sem retorno', exact: true }).click();
+      await page.getByRole('radio', { name: 'Sem retorno', exact: true }).click();
       await page.getByLabel('Detalhe (opcional)').fill('Não respondeu');
       await page.getByRole('button', { name: 'Registrar desistência' }).click();
       await expect(page.getByText('Desistência registrada.')).toBeVisible();
@@ -169,7 +169,7 @@ for (const largura of [390, 1280]) {
       await expect(page.getByText('Valor inválido. Use, por exemplo, 199,90.')).toBeVisible();
       expect(pedidos.some((p) => p.caminho.endsWith('/proposta'))).toBe(false);
       await page.getByLabel('Valor de referência (R$)').fill('200');
-      await page.getByRole('dialog').getByRole('button', { name: 'Online', exact: true }).click();
+      await page.getByRole('dialog').getByRole('radio', { name: 'Online', exact: true }).click();
       await page.getByRole('button', { name: 'Salvar proposta' }).click();
       await expect(page.getByText('Proposta salva.')).toBeVisible();
       expect(pedidos.find((p) => p.caminho.endsWith('/proposta'))?.corpo).toEqual({
@@ -224,7 +224,7 @@ for (const largura of [390, 1280]) {
       });
       await page.getByRole('button', { name: 'Abrir inscrição de Ana Fictícia' }).click();
       await page.getByRole('button', { name: 'Responder com modelo' }).click();
-      await page.getByRole('button', { name: 'Apresentação', exact: true }).click();
+      await page.getByRole('radio', { name: 'Apresentação', exact: true }).click();
       await expect(page.getByLabel('Mensagem')).toHaveValue('Oi, Ana! Sobre o {plano}.');
       await expect(page.getByRole('button', { name: 'Copiar', exact: true })).toBeDisabled();
       await page.getByLabel('Mensagem').fill('Oi, Ana! Sobre o plano mensal.');
@@ -252,7 +252,7 @@ for (const largura of [390, 1280]) {
       // Situação (com a contagem) e responsável ficam no painel de filtros (PC) ou na folha "Filtros" (celular).
       await page.getByRole('button', { name: /^Filtros, / }).click();
       const painel = largura < 768 ? page.getByRole('dialog', { name: 'Filtros' }) : page.locator('body');
-      await expect(painel.getByRole('button', { name: 'Novas · 2' })).toBeVisible();
+      await expect(painel.getByRole('radio', { name: 'Novas · 2' })).toBeVisible();
       // Responsável é de várias opções (nada marcado = toda a equipe): marcar só "Meus" vira `meus=true`.
       await painel.getByRole('button', { name: 'Responsável: Toda a equipe. Escolher.' }).click();
       const lista = page.getByRole('dialog', { name: 'Responsável' });

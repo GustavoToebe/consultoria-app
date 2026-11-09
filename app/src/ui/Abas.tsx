@@ -112,7 +112,8 @@ export function Abas<T extends string>({ abas, ativa, aoMudar, fundo, variante =
                 <View style={estilos.conteudo}>
                   {/* Na selecionada o ícone fica na cor do texto invertido: vermelho ou âmbar sobre o fundo escuro não passa 3:1 em todo tema. */}
                   {invertida && corDoProblema ? <IconeDoProblema size={16} color={sel ? cores.fundo : corDoProblema} strokeWidth={2.5} /> : null}
-                  {a.corIndicador ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: a.corIndicador, marginRight: 2 }} /> : null}
+                  {/* Na selecionada a cor do tipo (livre, do treinador) não passa 3:1 sobre o fundo invertido: o anel em `fundo` separa o ponto. */}
+                  {a.corIndicador ? <View style={[estilos.ponto, { backgroundColor: a.corIndicador, borderColor: invertida && sel ? cores.fundo : 'transparent' }]} /> : null}
                   <Texto style={[estilos.texto, { color: invertida ? (sel ? cores.fundo : cores.texto) : sel ? cores.texto : cores.textoSuave }]}>{a.rotulo}</Texto>
                   {a.detalhe ? <Selo texto={a.detalhe} tipo="neutro" /> : null}
                   {a.contagem === undefined ? null : (
@@ -139,6 +140,7 @@ export function Abas<T extends string>({ abas, ativa, aoMudar, fundo, variante =
 const FOLGA_DO_ANEL = 4;
 /** O gatilho (web) fica 1 px mais alto que a lista (`h-[calc(100%-1px)]` contra o `minHeight` da aba): sem este pixel a borda de baixo do anel perde 1 px. */
 const PIXEL_DO_GATILHO = 1;
+const ANEL_DO_PONTO = 1;
 
 const estilos = StyleSheet.create({
   borda: { borderBottomWidth: 1 },
@@ -168,6 +170,8 @@ const estilos = StyleSheet.create({
   caixa: { minHeight: ALVO_TOQUE, paddingHorizontal: espaco(1.5), justifyContent: 'center', borderWidth: BORDA_ITEM, borderRadius: RAIO },
   conteudo: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75) },
   texto: { fontFamily: fontes.semi, fontSize: 15 },
+  // Anel de 1 px sempre presente (transparente na aba não selecionada), para a aba não mudar de tamanho ao selecionar.
+  ponto: { width: espaco(1) + 2 * ANEL_DO_PONTO, height: espaco(1) + 2 * ANEL_DO_PONTO, borderRadius: espaco(0.5) + ANEL_DO_PONTO, borderWidth: ANEL_DO_PONTO, marginRight: espaco(0.25) },
   contagem: { minWidth: 22, height: 22, paddingHorizontal: 6, borderRadius: 11, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   textoContagem: { fontFamily: fontes.semi, fontSize: 12, lineHeight: 16 },
 });

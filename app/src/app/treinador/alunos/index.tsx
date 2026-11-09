@@ -4,7 +4,7 @@ import { EntradaEmCascata, usePrimeiraLista } from '../../../ui/EntradaEmCascata
 import { router, useLocalSearchParams } from 'expo-router';
 import { CalendarClock, CircleAlert, CircleCheck, Pencil, Plus, TriangleAlert, type LucideIcon } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import type { ResponsavelEquipe } from '../../../api/equipeTipos';
 import { listarAlunos, responsaveisEquipe } from '../../../api/rotas';
@@ -14,16 +14,16 @@ import { SEM_DADO } from '../../../dominio/formatos';
 import { agruparAlunos, colunasDaLista, metadadosDaLinha, primeiroNome, ultimoRegistroDaLinha, vazioDaLista, type TomDoGrupo } from '../../../dominio/gruposDeAlunos';
 import { LIMITE_LOTE, textoDaSelecao } from '../../../dominio/loteDeAlunos';
 import {
-  chaveDosFiltros, chipsDosFiltros, filtrosVisiveis, lerDoEndereco, paraEndereco, pedidoDaApi, permissoesDosFiltros, SEM_FILTROS,
+  chaveDosFiltros, chipsDosFiltros, filtrosVisiveis, lerDoEndereco, opcoesDeResponsavel, paraEndereco, pedidoDaApi, permissoesDosFiltros, SEM_FILTROS,
   CHAVES_DO_ENDERECO, semOFiltro, semOQueNaoPode, type ChaveDoFiltro, type FiltrosDeAlunos, type ParametrosDoEndereco,
 } from '../../../dominio/filtrosDeAlunos';
 import { alternarComLimite, marcarVisiveis } from '../../../dominio/selecaoMultipla';
 import { useTema } from '../../../tema/TemaProvider';
-import { espaco, fontes, LARGURA_LISTA } from '../../../tema/tokens';
+import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
 import { SeletoresDosFiltrosDeAlunos } from '../../../treinador/SeletoresDosFiltrosDeAlunos';
 import { BarraDeFiltros } from '../../../ui/BarraDeFiltros';
+import { Escolha } from '../../../ui/Escolha';
 import { FaixaDeChips } from '../../../ui/FaixaDeChips';
-
 import { Folha } from '../../../ui/Folha';
 import { LinhaDeAcoes } from '../../../ui/LinhaDeAcoes';
 import { AcoesEmLote } from '../../../treinador/AcoesEmLote';
@@ -54,6 +54,9 @@ const COLUNAS: readonly ColunaDaLista[] = [
 ];
 /** Ícone do selo da atualização, como os selos do editor de treino; o texto continua dizendo o estado. */
 const ICONE_DO_SELO: Record<TipoSelo, LucideIcon> = { sucesso: CircleCheck, atencao: TriangleAlert, perigo: CircleAlert, neutro: CalendarClock };
+
+/** Opção "Todos" da faixa de responsáveis (nada filtrado); não colide com ids nem com `meus`/`nenhum`. */
+const TODOS_OS_RESPONSAVEIS = 'todos';
 
 export default function Alunos() {
   const { pode, perfilEquipe, usuario } = useSessao();
@@ -152,61 +155,15 @@ export default function Alunos() {
           <SeletoresDosFiltrosDeAlunos visiveis={visiveis} filtros={atuais} aoMudar={mudar} responsaveis={responsaveis} usuarioId={usuario?.id} />
         )}
       />
-      <View style={estilos.faixaResponsaveis}>
-        <FaixaDeChips accessibilityLabel="Filtrar por responsável">
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Filtrar por: Todos"
-            onPress={() => aplicar({ ...filtros, responsaveis: [] })}
-            style={[
-              estilos.chipResponsavel,
-              {
-                backgroundColor: filtros.responsaveis.length === 0 ? cores.texto : cores.superficie,
-                borderColor: filtros.responsaveis.length === 0 ? cores.texto : cores.borda,
-              },
-            ]}>
-            <Texto style={[estilos.textoChipResponsavel, { color: filtros.responsaveis.length === 0 ? cores.fundo : cores.texto }]}>
-              Todos
-            </Texto>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Filtrar por: Meus alunos"
-            onPress={() => aplicar({ ...filtros, responsaveis: ['meus'] })}
-            style={[
-              estilos.chipResponsavel,
-              {
-                backgroundColor: filtros.responsaveis.length === 1 && filtros.responsaveis[0] === 'meus' ? cores.texto : cores.superficie,
-                borderColor: filtros.responsaveis.length === 1 && filtros.responsaveis[0] === 'meus' ? cores.texto : cores.borda,
-              },
-            ]}>
-            <Texto style={[estilos.textoChipResponsavel, { color: filtros.responsaveis.length === 1 && filtros.responsaveis[0] === 'meus' ? cores.fundo : cores.texto }]}>
-              Meus alunos
-            </Texto>
-          </Pressable>
-          {responsaveis.map((r) => {
-            const ativo = filtros.responsaveis.length === 1 && filtros.responsaveis[0] === r.id;
-            return (
-              <Pressable
-                key={r.id}
-                accessibilityRole="button"
-                accessibilityLabel={`Filtrar por: ${primeiroNome(r.nome)}`}
-                onPress={() => aplicar({ ...filtros, responsaveis: [r.id] })}
-                style={[
-                  estilos.chipResponsavel,
-                  {
-                    backgroundColor: ativo ? cores.texto : cores.superficie,
-                    borderColor: ativo ? cores.texto : cores.borda,
-                  },
-                ]}>
-                <Texto style={[estilos.textoChipResponsavel, { color: ativo ? cores.fundo : cores.texto }]}>
-                  {primeiroNome(r.nome)}
-                </Texto>
-              </Pressable>
-            );
-          })}
+      {/* Atalho do filtro de responsável (o mesmo do painel): só com mais alguém na equipe; vários marcados = nenhum chip. */}
+      {responsaveis.some((r) => r.id !== usuario?.id) ? (
+        <FaixaDeChips quebrar accessibilityLabel="Filtrar por responsável">
+          <Escolha<string | null> descricao="Filtrar por responsável"
+            valor={filtros.responsaveis.length === 0 ? TODOS_OS_RESPONSAVEIS : filtros.responsaveis.length === 1 ? filtros.responsaveis[0] : null}
+            aoMudar={(v) => aplicar({ ...filtros, responsaveis: v === TODOS_OS_RESPONSAVEIS || v === null ? [] : [v] })}
+            opcoes={[{ valor: TODOS_OS_RESPONSAVEIS, rotulo: 'Todos' }, ...opcoesDeResponsavel(responsaveis, usuario?.id)]} />
         </FaixaDeChips>
-      </View>
+      ) : null}
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && dados.itens.length === 0 ? (
@@ -361,9 +318,6 @@ const estilos = StyleSheet.create({
   raiz: { flex: 1 },
   barraLote: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), borderTopWidth: 1, paddingHorizontal: espaco(2), paddingVertical: espaco(1.25) },
   textoLote: { flexShrink: 1 },
-  faixaResponsaveis: { marginVertical: espaco(1) },
-  chipResponsavel: { minHeight: 36, paddingHorizontal: espaco(1.5), paddingVertical: espaco(0.5), borderRadius: 999, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  textoChipResponsavel: { fontFamily: fontes.semi, fontSize: 13 },
   acoesDoTopo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1) },
   // 24 px entre os blocos dos grupos.
   lista: { gap: espaco(3) },

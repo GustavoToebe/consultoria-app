@@ -41,6 +41,9 @@ export const LIMITES_INSCRICAO = {
   modeloNome: 60, modeloTexto: 1000,
 } as const;
 
+/** `GET /inscricoes/configuracao` responde 404 sem formulário de inscrição padrão (a API não devolve mais "desligado"). */
+export const SEM_FORMULARIO_PADRAO = 'Não há formulário de inscrição padrão. Defina um em Planejamento › Inscrição.';
+
 const SITUACOES: Record<SituacaoInscricao, { texto: string; tipo: TipoDeSelo }> = {
   NOVA: { texto: 'Nova', tipo: 'atencao' },
   EM_CONTATO: { texto: 'Em contato', tipo: 'atencao' },

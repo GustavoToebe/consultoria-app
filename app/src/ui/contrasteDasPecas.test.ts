@@ -45,6 +45,10 @@ describe.each(VARIANTES)('peças comuns no tema %s', (_nome, cores) => {
     expect(contraste(cores.textoSuave, cores.superficie)).toBeGreaterThanOrEqual(4.5);
   });
 
+  it('Abas invertida: aba selecionada (fundo `texto`) com o anel do ponto de tipo, o ícone de problema e o rótulo em `fundo` ≥ 4,5:1 (WCAG 1.4.11)', () => {
+    expect(contraste(cores.fundo, cores.texto)).toBeGreaterThanOrEqual(4.5);
+  });
+
   it('Alerta e Selo: texto na cor do tom sobre o fundo opaco `tingido` (não depende de onde a caixa está)', () => {
     for (const tom of [cores.perigo, cores.atencao, cores.sucesso]) {
       expect(contraste(tom, tingido(tom, cores.superficie))).toBeGreaterThanOrEqual(4.5);

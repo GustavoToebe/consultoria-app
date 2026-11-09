@@ -12,6 +12,7 @@ import { centavosParaTela, dataParaTela } from '../../dominio/formatos';
 import { rotuloDoMes } from '../../dominio/numeros';
 import { espaco, RAIO } from '../../tema/tokens';
 import { useTema } from '../../tema/TemaProvider';
+import { ICONE_DO_SELO } from '../../treinador/iconesDosSelos';
 import { abrirPagamento } from '../../ui/abrirPagamento';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
@@ -28,6 +29,20 @@ import { InterruptorDeLembretes } from './InterruptorDeLembretes';
 import { useFinanceiroDoAluno, useRecarregarFinanceiroAoFocar } from './FinanceiroDoAlunoProvider';
 
 const HISTORICO_VISIVEL = 6;
+
+const dias = (n: number) => `${n} ${n === 1 ? 'dia' : 'dias'}`;
+
+/**
+ * Vigência do plano para o aluno, sempre neutra: quem renova é o treinador, o aluno espera (seção 4.5). Encerrado não
+ * mostra vigência.
+ */
+function textoDaVigencia(situacao: string, restantes: number | null | undefined): string | null {
+  if (restantes == null || situacao === 'ENCERRADA') return null;
+  if (restantes < 0) return `Vigência terminou há ${dias(-restantes)}`;
+  // shortcut: os 40 dias da janela de renovação repetem a API (`alertaRenovacao`), trocar quando o `PlanoDoAluno` da API o trouxer (hoje nem a vigência chega ao aluno, então este selo não aparece).
+  if (restantes <= 40) return restantes === 0 ? 'Renovação hoje' : `Renovação em ${dias(restantes)}`;
+  return `Vigente · ${dias(restantes)} restantes`;
+}
 
 /**
  * "Meu plano" na Conta do aluno: o plano comercial com o treinador (nome, valor, periodicidade, próximo vencimento), as
@@ -51,6 +66,8 @@ export function CartaoMeuPlano() {
     );
   }
   const historico = dados?.historico ?? [];
+  const situacao = dados?.plano ? seloDaContratacao(dados.plano.situacao) : null;
+  const vigencia = dados?.plano ? textoDaVigencia(dados.plano.situacao, dados.plano.diasRestantesVigencia) : null;
   const textoDoModo = textoDeComoPagar(modo);
   const visiveis = todas ? historico : historico.slice(0, HISTORICO_VISIVEL);
   return (
@@ -63,16 +80,10 @@ export function CartaoMeuPlano() {
             <View style={estilos.bloco}>
               <View style={estilos.linha}>
                 <Texto variante="bloco" style={estilos.nome}>{dados.plano.planoNome ?? 'Plano'}</Texto>
-                <Selo texto={seloDaContratacao(dados.plano.situacao).rotulo} tipo={seloDaContratacao(dados.plano.situacao).tom} />
-                {dados.plano.diasRestantesVigencia != null ? (
-                  dados.plano.diasRestantesVigencia < 0 ? (
-                    <Selo texto={`Vencido há ${Math.abs(dados.plano.diasRestantesVigencia)} dias`} tipo="perigo" />
-                  ) : dados.plano.diasRestantesVigencia <= 40 ? (
-                    <Selo texto={`Renovação em ${dados.plano.diasRestantesVigencia} dias (≤ 40d)`} tipo="atencao" />
-                  ) : (
-                    <Selo texto={`Vigente · ${dados.plano.diasRestantesVigencia} dias restantes`} tipo="sucesso" />
-                  )
-                ) : null}
+                <View style={estilos.selos}>
+                  {situacao ? <Selo texto={situacao.rotulo} tipo={situacao.tom} Icone={ICONE_DO_SELO[situacao.tom]} /> : null}
+                  {vigencia ? <Selo texto={vigencia} tipo="neutro" Icone={ICONE_DO_SELO.neutro} /> : null}
+                </View>
               </View>
               <CamposEmLinha minimo={110}>
                 <CampoLeitura rotulo="Valor" valor={centavosParaTela(dados.plano.valorCentavos)} numerico />
@@ -169,7 +180,7 @@ function LinhaDaCobranca({ cobranca, modo, children }: { cobranca: CobrancaDoAlu
       <View accessible accessibilityLabel={`${mes}, ${valor}, ${selo.rotulo}. ${detalhe}`} style={estilos.textos}>
         <View style={estilos.linha}>
           <Texto variante="bloco">{mes}</Texto>
-          <Selo texto={selo.rotulo} tipo={selo.tom} />
+          <Selo texto={selo.rotulo} tipo={selo.tom} Icone={ICONE_DO_SELO[selo.tom]} />
         </View>
         <Texto numerico>{valor}</Texto>
         <Texto variante="suave">{detalhe}</Texto>
@@ -192,6 +203,7 @@ const estilos = StyleSheet.create({
   bloco: { gap: espaco(1) },
   linha: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
   nome: { flexShrink: 1 },
+  selos: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(0.5) },
   // Texto e "Pagar" lado a lado quando cabem (PC), o botão embaixo e à direita quando não (celular).
   cobranca: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(1), flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'flex-end' },
   textos: { gap: espaco(0.25), flexGrow: 1, flexShrink: 1, flexBasis: 240 },

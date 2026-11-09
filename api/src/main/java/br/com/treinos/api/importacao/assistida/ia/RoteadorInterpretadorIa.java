@@ -26,6 +26,10 @@ public class RoteadorInterpretadorIa {
     }
 
     public ResultadoInterpretacao interpretar(ContextoIa contexto) {
+        // Fail-closed (LGPD): sem a chave explícita nada sai do servidor, mesmo com provedor e chave de API.
+        if (!config.isEnviarDadosAoProvedor()) {
+            return regras.interpretar(contexto);
+        }
         String provedor = config.getProvedor();
 
         if ("gemini".equals(provedor) && config.temChaveGemini()) {

@@ -18,6 +18,10 @@ import java.util.zip.ZipInputStream;
  */
 public final class ExtratorDocx {
 
+    /** Teto do {@code word/document.xml} já descomprimido (o arquivo enviado tem no máximo 900 KiB). */
+    static final int XML_MAXIMO = 8 * 1024 * 1024;
+    private static final int ENTRADAS_MAXIMAS = 2000;
+
     private ExtratorDocx() {
     }
 
@@ -32,13 +36,23 @@ public final class ExtratorDocx {
 
         try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(bytes))) {
             ZipEntry entry;
+            int entradas = 0;
             while ((entry = zis.getNextEntry()) != null) {
+                if (++entradas > ENTRADAS_MAXIMAS) {
+                    throw new ExtracaoRecusadaException("DOCX_COMPACTADO_DEMAIS");
+                }
                 if ("word/document.xml".equals(entry.getName())) {
+                    // Teto de descompressão (zip-bomba): lê no máximo XML_MAXIMO bytes do document.xml; passou, recusa.
+                    byte[] xml = zis.readNBytes(XML_MAXIMO + 1);
+                    if (xml.length > XML_MAXIMO) {
+                        throw new ExtracaoRecusadaException("DOCX_COMPACTADO_DEMAIS");
+                    }
                     XMLInputFactory factory = XMLInputFactory.newFactory();
                     factory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
                     factory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
 
-                    XMLStreamReader reader = factory.createXMLStreamReader(zis, StandardCharsets.UTF_8.name());
+                    XMLStreamReader reader = factory.createXMLStreamReader(new ByteArrayInputStream(xml),
+                            StandardCharsets.UTF_8.name());
                     StringBuilder paragrafoAtual = new StringBuilder();
                     StringBuilder celulaAtual = new StringBuilder();
                     List<String> celulasLinha = new ArrayList<>();
@@ -110,6 +124,8 @@ public final class ExtratorDocx {
                     break;
                 }
             }
+        } catch (ExtracaoRecusadaException e) {
+            throw e;
         } catch (Exception e) {
             // Em caso de XML corrompido, retorna o que conseguiu extrair
         }

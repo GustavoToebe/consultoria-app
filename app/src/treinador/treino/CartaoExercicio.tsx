@@ -8,7 +8,7 @@ import { erroDaCadencia, erroDaIsometria, normalizarCadencia, textoExecucao } fr
 import type { Problemas } from '../../dominio/validacaoDeSerie';
 import { erroDoVideo } from '../../dominio/video';
 import { useTema } from '../../tema/TemaProvider';
-import { BORDA_BLOCO, espaco, fontes, LARGURA_MENU_LATERAL, LINHA_DA_FAIXA, RAIO } from '../../tema/tokens';
+import { BORDA_BLOCO, espaco, LARGURA_MENU_LATERAL, LINHA_DA_FAIXA, RAIO } from '../../tema/tokens';
 import { AlvoDeRolagem } from '../../ui/AlvoDeRolagem';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
@@ -179,7 +179,7 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
               (reunião de 30/10). O nome é o título; ao lado, um selo só, o da situação. */}
           <Texto variante="pequeno" numerico>{[`Exercício ${p.posicao + 1} de ${p.total}`, p.grupoMuscular].filter(Boolean).join(' · ')}</Texto>
           <View style={estilos.linhaDoNome}>
-            <Texto style={estilos.nome}>{e.nome || 'sem nome'}</Texto>
+            <Texto variante="bloco" style={estilos.nome}>{e.nome || 'sem nome'}</Texto>
             <Selo texto={estado.texto} tipo={estado.tipo} Icone={estado.Icone} />
           </View>
           {/* Fechado, o resumo e os atributos; aberto, eles estão nos próprios campos logo abaixo. "Fora da biblioteca" não
@@ -221,7 +221,7 @@ const estilos = StyleSheet.create({
   linhaDoNome: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1) },
   acoesEstreitas: { marginLeft: 'auto' },
   titulo: { flexGrow: 1, flexShrink: 1, flexBasis: 220, gap: 2, minHeight: 44, justifyContent: 'center' },
-  nome: { fontFamily: fontes.semi, fontSize: 17, lineHeight: 24, flexShrink: 1 },
+  nome: { flexShrink: 1 },
   selos: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(0.5), marginTop: espaco(0.25) },
   acoes: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75) },
   // No PC os botões de mover têm texto: a linha quebra em vez de apertar o nome do exercício.

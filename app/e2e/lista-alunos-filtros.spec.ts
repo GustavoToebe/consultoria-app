@@ -47,7 +47,7 @@ const filtrosDoPedido = (pedidos: PedidoFalso[]) => ultimoPedido(pedidos).filter
 const busca = (page: Page) => new URL(page.url()).searchParams;
 const botaoFiltros = (page: Page) => page.getByRole('button', { name: /^Filtros, / });
 const opcao = (onde: Locator, grupo: string, rotulo: string) =>
-  onde.getByRole('radiogroup', { name: grupo }).getByRole('button', { name: rotulo, exact: true });
+  onde.getByRole('radiogroup', { name: grupo }).getByRole('radio', { name: rotulo, exact: true });
 
 for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
   test.describe(`${largura} px`, () => {

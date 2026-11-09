@@ -194,7 +194,7 @@ function CamposDePausa({ t, mudar, e, rotulo = 'Pausa', antes = [] }: {
   // O nome acessível sempre diz a unidade ("Pausa (s)", "Pausa em respirações"). O rótulo visível só a diz com os dois
   // campos na tela; com um só, quem diz a unidade é a escolha Segundos | Respirações ao lado.
   const segundos = (erro: string | null | undefined, aoMudar: (parte: Partial<Tecnica>) => void, comUnidade: boolean) => <CampoNumerico
-    rotulo={comUnidade ? `${rotulo} (Segundos — s)` : `${rotulo} (s)`} rotuloAcessivel={`${rotulo} (Segundos — s)`} inteiro valor={t.pausaSegundos ?? null}
+    rotulo={comUnidade ? `${rotulo} (s)` : rotulo} rotuloAcessivel={`${rotulo} (s)`} inteiro valor={t.pausaSegundos ?? null}
     aoMudar={(pausaSegundos) => aoMudar({ pausaSegundos })} erro={erro} autoFocus={focar === 'SEGUNDOS'} />;
   const respiracoes = (erro: string | null | undefined, aoMudar: (parte: Partial<Tecnica>) => void, comUnidade: boolean) => <CampoNumerico
     rotulo={comUnidade ? `${rotulo} em respirações` : rotulo} rotuloAcessivel={`${rotulo} em respirações`} inteiro valor={t.pausaRespiracoes ?? null}
@@ -393,5 +393,4 @@ const estilos = StyleSheet.create({
   linhaDaEtapa: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(0.75) },
   limitada: { maxWidth: '100%', flexShrink: 1 },
   retomada: { gap: espaco(1), borderLeftWidth: 2, paddingLeft: espaco(1.5) },
-  linhaPersonalizar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: espaco(1), paddingVertical: espaco(0.5) },
 });

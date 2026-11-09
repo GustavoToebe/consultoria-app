@@ -113,6 +113,16 @@ export const TIPO_DO_DESTINO: Record<DestinoNoPerfil, TipoPergunta> = {
   FOTO_PERFIL: 'FOTOS',
 };
 
+/**
+ * Destinos que o sistema não grava no cadastro (`DestinoNoPerfil.temEfeito()` falso na API: a publicação recusa com 422 no
+ * campo `destino` e o editor não os oferece). Ficam no tipo porque versão publicada é imutável e ainda pode citá-los;
+ * `FOTO_PERFIL` nem existe na API.
+ */
+export const DESTINOS_SEM_EFEITO = ['NOME', 'EMAIL', 'DATA_NASCIMENTO', 'ALTURA', 'OBSERVACOES', 'FOTO_PERFIL'] as const;
+/** Os destinos que o editor oferece (os que gravam no cadastro). */
+export type DestinoOferecido = Exclude<DestinoNoPerfil, (typeof DESTINOS_SEM_EFEITO)[number]>;
+export const temEfeitoNoCadastro = (d: DestinoNoPerfil): d is DestinoOferecido => !(DESTINOS_SEM_EFEITO as readonly string[]).includes(d);
+
 export function tipoAceitoPeloDestino(d: DestinoNoPerfil, tipo: TipoPergunta): boolean {
   if (TIPO_DO_DESTINO[d] === tipo) return true;
   if (d === 'PESO' && tipo === 'NUMERO') return true;
@@ -273,6 +283,7 @@ function destino(p: PerguntaAtualizacao, cp: string, estado: Estado, erro: Erro)
   const d = p.destino;
   if (d != null) {
     if (estado.finalidade !== 'ANAMNESE') erro(`${cp}.destino`, 'O campo do perfil só vale na anamnese.');
+    else if (!temEfeitoNoCadastro(d)) erro(`${cp}.destino`, 'O sistema ainda não grava este campo no cadastro do aluno.');
     else if (TIPO_DO_DESTINO[d] !== p.tipo) erro(`${cp}.destino`, 'Este tipo de pergunta não alimenta este campo.');
     else if (estado.destinos.has(d)) erro(`${cp}.destino`, 'Outra pergunta já alimenta este campo.');
     else estado.destinos.add(d);

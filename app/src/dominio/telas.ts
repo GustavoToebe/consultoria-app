@@ -36,7 +36,7 @@ const CATALOGO: readonly Omit<TelaDoCatalogo, 'secao'>[] = [
   { id: 'alunos', rotulo: 'Alunos', href: '/treinador/alunos', palavras: ['clientes', 'lista', 'ficha', 'cadastro'], permissao: null },
   { id: 'atualizacoes', rotulo: 'Atualizações', href: '/treinador/atualizacoes', palavras: ['check-in', 'checkin', 'revisar', 'feedback', 'atraso'], permissao: null },
   { id: 'agenda', rotulo: 'Agenda', href: '/treinador/agenda', palavras: ['semana', 'calendario', 'proximas', 'vencem', 'dias', 'prazos', 'compromissos', 'consultas', 'retornos', 'horarios', 'presencial', 'mes', 'ano', 'eventos', 'agendas'], permissao: null },
-  { id: 'comunidade', rotulo: 'Comunidade', href: '/treinador/comunidade', palavras: ['mural', 'auloes', 'avisos', 'ranking', 'gamificacao', 'comunidade'], permissao: null },
+  { id: 'comunidade', rotulo: 'Comunidade', href: '/treinador/comunidade', palavras: ['mural', 'auloes', 'aulas', 'videos', 'comunidade'], permissao: null },
   { id: 'biblioteca', rotulo: 'Biblioteca', href: '/treinador/biblioteca', palavras: ['exercicios', 'alimentos', 'suplementos', 'videos', 'catalogo', 'conteudo'], permissao: null },
   { id: 'planejamento', rotulo: 'Planejamento', href: '/treinador/planejamento', palavras: ['modelos', 'treinos', 'dietas', 'mobilidade', 'pacotes', 'receitas'], permissao: null },
   { id: 'interessados', rotulo: 'Interessados', href: '/treinador/interessados', palavras: ['inscricoes', 'inscricao', 'link de inscricao', 'fila', 'candidatos', 'novos alunos', 'whatsapp', 'captacao'], permissao: null },
