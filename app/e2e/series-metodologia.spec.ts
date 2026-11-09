@@ -483,7 +483,7 @@ for (const largura of [390, 1280]) {
     const api = await modelo(page, 'SERIES');
     // A receita de séries funciona como a série de um exercício: as formas de carga da WS estão à vista.
     const forma = page.getByRole('radiogroup', { name: 'Forma de carga', exact: true });
-    await expect(forma.getByRole('button', { name: 'Carga de trabalho (WS)', exact: true })).toHaveAttribute('aria-checked', 'true');
+    await expect(forma.getByRole('radio', { name: 'Carga de trabalho (WS)', exact: true })).toHaveAttribute('aria-checked', 'true');
     await expect(forma.getByRole('button', { name: 'Carga fixa (kg)', exact: true })).toBeVisible();
     // O RIR fica na linha da série; no PC a lista abre colada ao botão e no celular numa folha (as duas com `option`).
     await page.getByRole('button', { name: 'Série 1 · RIR: 1. Escolher.', exact: true }).click();
@@ -584,7 +584,7 @@ for (const largura of [390, 1280]) {
     // Só "% da WS | Carga fixa": "Sem sugestão" é o % em branco.
     await expect(forma.getByRole('button')).toHaveText([/% da WS/, /Carga fixa/]);
     await page.getByRole('textbox', { name: 'Série 1 · Mínimo (%)', exact: true }).fill('');
-    await expect(forma.getByRole('button', { name: '% da WS', exact: true })).toHaveAttribute('aria-checked', 'true');
+    await expect(forma.getByRole('radio', { name: '% da WS', exact: true })).toHaveAttribute('aria-checked', 'true');
     await expect(page.getByText('Percentual da WS entre 1 e 200.', { exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();
     await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(1);

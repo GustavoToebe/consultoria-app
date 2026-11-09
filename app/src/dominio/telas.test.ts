@@ -307,9 +307,9 @@ describe('título da aba do navegador', () => {
     expect(tituloDaPagina('/inscricao/abc', 'Saraiva Team')).toBe('Inscrição · Saraiva Team');
   });
   it('páginas públicas de privacidade, termos e exclusão da conta têm título, mas não entram na busca de telas', () => {
-    expect(tituloDaPagina('/privacidade', null)).toBe('Privacidade · Treinos');
-    expect(tituloDaPagina('/termos-de-uso', null)).toBe('Termos de uso · Treinos');
-    expect(tituloDaPagina('/excluir-conta', null)).toBe('Excluir conta · Treinos');
+    expect(tituloDaPagina('/privacidade', null)).toBe('Privacidade · Overtraining');
+    expect(tituloDaPagina('/termos-de-uso', null)).toBe('Termos de uso · Overtraining');
+    expect(tituloDaPagina('/excluir-conta', null)).toBe('Excluir conta · Overtraining');
     expect(TELAS.some((t) => ['/privacidade', '/termos-de-uso', '/excluir-conta'].includes(t.href))).toBe(false);
   });
   it('tela desconhecida fica só com o nome', () => {

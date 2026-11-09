@@ -23,7 +23,7 @@ Fechar a limpeza e os prazos de 14/11, os defeitos pequenos do app e os dois e2e
 
 Apagadas (46): agenda-mostra-adiada, auditoria-aluno, auditoria-cores, auditoria-ficha, auditoria-pecas, auditoria-treinador, auditoria-ui-ux-lote-1-b, chaves-libras-migracao-ligadas, claude/saraiva-api-direcionamento-treinos-dv10io, cor-da-variacao-do-peso, cores-por-tipo-de-serie, datas-validas, decisoes-gustavo-03-11, docs-pendencias-03-11, docs-planos-reuniao-30-10, editor-de-series-reuniao, execucao-referencia-e-progressao, foco-da-folha-nativo, formaluno-responsavel, frente-g, frente-g-exec, frente-g-hist, historico-ajustes-g, imagem-api-libexpat, impressao-sem-innerhtml, interessados-busca-vazia, libras-fase-1, libras-passo-e-decisoes, limite-de-alunos-telas, menu-todas-as-telas, migracao-assistida-fase-1, miudezas-03-11, paletas-corte, paletas-da-marca, paletas-previa-2, pasta-publicar-copiar, pendencias-app-03-11, pendencias-app-03-11-b, peso-medidas-foto, plano-paletas, planos-c-e-e-concluidas, planos-d1-d2-confirmados, planos-f-e-miudezas-concluidas, planos-g-concluida, push-do-expo, supervisao-da-equipe.
 
-Ficaram: `main`, `montador-de-telas` (PR #37 aberto), `cores-por-tipo-previa`, `nome-overtraining` (o nome Overtraining não está na `main`) e `paletas-previa` (a ponta não é a do PR #57 mesclado).
+Ficaram: `main`, `montador-de-telas` (PR #37 aberto), `cores-por-tipo-previa` e `paletas-previa` (a ponta não é a do PR #57 mesclado); `nome-overtraining` incorporado na `main` em 09/11 com aval do Gustavo.
 
 ## Fora do escopo
 - VPS, Cloudflare e banco de produção.

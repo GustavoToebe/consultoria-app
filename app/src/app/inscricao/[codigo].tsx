@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, CircleCheck } from 'lucide-react-native';
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AccessibilityInfo, BackHandler, findNodeHandle, Platform, StyleSheet, View, type TextInput } from 'react-native';
 
 import { ErroApi } from '../../api/cliente';
@@ -60,6 +60,16 @@ import { VerificacaoHumana } from '../../ui/VerificacaoHumana';
  * tema do aparelho e mostra a marca da consultoria. Depois do envio só a mensagem neutra; nada da fila nem de outras
  * pessoas aparece.
  */
+function rascunhoSalvo(codigo: string) {
+  if (Platform.OS === 'web' && codigo && typeof window !== 'undefined' && window.sessionStorage) {
+    try {
+      const salvo = window.sessionStorage.getItem(`inscricao_${codigo}`);
+      if (salvo) return JSON.parse(salvo);
+    } catch {}
+  }
+  return null;
+}
+
 export default function Inscricao() {
   const { codigo: bruto, origem } = useLocalSearchParams<{ codigo?: string; origem?: string }>();
   const codigo = typeof bruto === 'string' ? bruto : '';
@@ -67,9 +77,10 @@ export default function Inscricao() {
   const origemLink = origemDoLink(origem);
   const pagina = useCarregar(codigo ? `inscricao-publica:${codigo}` : null, () => inscricaoPublica(codigo));
   const verificacao = useVerificacaoHumana();
-  const [dados, setDados] = useState<DadosDaInscricao>(INSCRICAO_VAZIA);
-  const [ciencia, setCiencia] = useState(false);
-  const [respostas, setRespostas] = useState<RespostasAtualizacao>({});
+  const salvo = useMemo(() => rascunhoSalvo(codigo), [codigo]);
+  const [dados, setDados] = useState<DadosDaInscricao>(() => (salvo?.dados ? { ...INSCRICAO_VAZIA, ...salvo.dados } : INSCRICAO_VAZIA));
+  const [ciencia, setCiencia] = useState(() => (typeof salvo?.ciencia === 'boolean' ? salvo.ciencia : false));
+  const [respostas, setRespostas] = useState<RespostasAtualizacao>(() => salvo?.respostas ?? {});
   const [campos, setCampos] = useState<Record<string, string>>({});
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -100,6 +111,9 @@ export default function Inscricao() {
     setParte(p);
     setTrocas((t) => t + 1);
     setErro(null);
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      if (p === 2) window.history.pushState({ parte: 2 }, '');
+    }
   };
   /** Mostra os erros: volta à parte 1 se algum é do contato e foca o primeiro campo marcado. */
   const mostrarErros = (locais: Record<string, string>) => {
@@ -129,8 +143,32 @@ export default function Inscricao() {
     });
     return () => assinatura.remove();
   }, [duasPartes, parte]);
-  // Na web o voltar do navegador na parte 2 sairia da página e perderia o digitado: o navegador pergunta antes
-  // (`beforeunload`), como na guarda de saída dos editores. Depois do envio não pergunta mais.
+  // Na web o botão voltar do navegador na parte 2 volta à parte 1 sem sair da página e sem perder os dados digitados.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !duasPartes) return;
+    const aoNavegarVoltar = () => {
+      if (parte === 2) {
+        setParte(1);
+        setTrocas((t) => t + 1);
+      }
+    };
+    window.addEventListener('popstate', aoNavegarVoltar);
+    return () => window.removeEventListener('popstate', aoNavegarVoltar);
+  }, [duasPartes, parte]);
+
+  useEffect(() => {
+    if (Platform.OS === 'web' && codigo && typeof window !== 'undefined' && window.sessionStorage) {
+      if (recebida) {
+        try { window.sessionStorage.removeItem(`inscricao_${codigo}`); } catch {}
+      } else {
+        try {
+          window.sessionStorage.setItem(`inscricao_${codigo}`, JSON.stringify({ dados, respostas, ciencia }));
+        } catch {}
+      }
+    }
+  }, [dados, respostas, ciencia, codigo, recebida]);
+
+  // Se fechar a aba/janela na parte 2 sem enviar, avisa antes para não perder o digitado.
   useEffect(() => {
     if (Platform.OS !== 'web' || !duasPartes || parte !== 2 || recebida) return;
     const perguntar = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
@@ -213,7 +251,13 @@ export default function Inscricao() {
     }
     irPara(2);
   };
-  const voltar = () => irPara(1);
+  const voltar = () => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.history.state?.parte === 2) {
+      window.history.back();
+    } else {
+      irPara(1);
+    }
+  };
 
   if (!codigo || pagina.erro) {
     return (

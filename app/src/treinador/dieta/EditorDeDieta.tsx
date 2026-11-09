@@ -125,6 +125,19 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
     </BlocoAdicionar>
   );
 
+  const barra = desfazer ? (
+    <BarraDesfazer
+      key="desfazer"
+      desfazer={desfazer}
+      aoDesfazer={() => {
+        const anterior = desfazer.conteudo;
+        setDesfazer(null);
+        editor.alterarConteudo(() => anterior);
+      }}
+      aoFechar={() => setDesfazer(null)}
+    />
+  ) : null;
+
   return (
     <TelaDoEditor
       colunas={!unica}
@@ -158,18 +171,6 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
       </ConfiguracaoDoPlano>}
       <TotalDoDia conteudo={c} semValor={semValor} aoAbrirRefeicao={abrirRefeicao} aoMudarAgua={unica ? undefined : (aguaLitros) => mudar({ aguaLitros })} />
       <ComColunas>{(duas) => {
-        const barra = desfazer ? (
-          <BarraDesfazer
-            key="desfazer"
-            desfazer={desfazer}
-            aoDesfazer={() => {
-              const anterior = desfazer.conteudo;
-              setDesfazer(null);
-              editor.alterarConteudo(() => anterior);
-            }}
-            aoFechar={() => setDesfazer(null)}
-          />
-        ) : null;
         // Empilhadas, várias refeições abertas empurravam o aviso do topo para fora da janela. Opção removida: o aviso fica
         // na refeição dela (se ela está aberta); refeição removida: no lugar dela. Em duas colunas e no resto, no topo.
         const avisoNaRefeicao = !duas && desfazer?.refeicaoDaOpcao !== undefined
@@ -213,7 +214,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
               ) : null}
             </LinhaDeAcoes>
           </View>
-          {avisoNaRefeicao || avisoNoLugar !== null ? null : barra}
+          {avisoNaRefeicao || avisoNoLugar !== null || desfazer?.secao === 'complementos' ? null : barra}
           {c.refeicoes.length === 0 ? <Vazio texto="Nenhuma refeição ainda. Adicione a primeira ou comece de um modelo pronto." /> : null}
           {duas && escolhida ? (
             <View style={estilos.colunas}>
@@ -248,6 +249,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
           conteudo={c}
           aoMudar={mudar}
           comDesfazer={comDesfazer}
+          aviso={desfazer?.secao === 'complementos' ? barra : undefined}
           aoEscolherDaBiblioteca={(tipo) => setFolha({ tipo })}
           porcoes={porcoes}
           veBiblioteca={veBiblioteca}
@@ -282,6 +284,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
 interface OndeDesfazer {
   refeicaoDaOpcao?: string;
   indiceDaRefeicao?: number;
+  secao?: 'complementos';
 }
 
 /** Objetivo, data de início e profissional (como no topo do PDF do Saraiva). A água fica no "Total do dia". */

@@ -7,6 +7,7 @@ import { ALVO_TOQUE, espaco, fontes, RAIO } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
+import { proximoItemDoMenu } from '../../dominio/agendaCalendario';
 
 interface Props {
   aoCompromisso: () => void;
@@ -92,14 +93,7 @@ export function MenuCriar({ aoCompromisso, aoEvento, aoMudarAberto }: Props) {
  * Para onde o foco vai com a tecla, a partir do item `atual` (-1 = nenhum item com o foco): setas dão a volta, Home e End
  * vão às pontas; outra tecla, `null` (o menu não a trata).
  */
-function proximoItemDoMenu(tecla: string, atual: number, total: number): number | null {
-  if (total === 0) return null;
-  if (tecla === 'ArrowDown') return atual < 0 ? 0 : (atual + 1) % total;
-  if (tecla === 'ArrowUp') return atual < 0 ? total - 1 : (atual - 1 + total) % total;
-  if (tecla === 'Home') return 0;
-  if (tecla === 'End') return total - 1;
-  return null;
-}
+
 
 function Item({ Icone, rotulo, descricao, aoTocar, refDoItem }: {
   Icone: typeof Plus; rotulo: string; descricao: string; aoTocar: () => void; refDoItem?: RefObject<View | null>;

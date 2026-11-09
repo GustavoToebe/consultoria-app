@@ -690,3 +690,15 @@ export function minutoInicialDaGrade(itens: readonly ItemDoCalendario[], dias: r
   }
   return Number.isFinite(cedo) ? Math.max(0, Math.min(padrao, cedo - 60)) : padrao;
 }
+
+/**
+ * Para onde o foco vai com a tecla dentro de menus (Criar, Visão): setas dão a volta, Home e End vão às pontas.
+ */
+export function proximoItemDoMenu(tecla: string, atual: number, total: number): number | null {
+  if (total === 0) return null;
+  if (tecla === 'ArrowDown') return atual < 0 ? 0 : (atual + 1) % total;
+  if (tecla === 'ArrowUp') return atual < 0 ? total - 1 : (atual - 1 + total) % total;
+  if (tecla === 'Home') return 0;
+  if (tecla === 'End') return total - 1;
+  return null;
+}

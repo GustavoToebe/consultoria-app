@@ -26,7 +26,8 @@ interface Props {
   conteudo: ConteudoDieta;
   aoMudar: (parcial: Partial<ConteudoDieta>) => void;
   /** Remoção com a barra "Desfazer" do editor. */
-  comDesfazer: (rotulo: string, mudanca: (a: ConteudoDieta) => ConteudoDieta) => void;
+  comDesfazer: (rotulo: string, mudanca: (a: ConteudoDieta) => ConteudoDieta, onde?: { secao?: 'complementos' }) => void;
+  aviso?: ReactNode;
   /** Porção da embalagem do produto escolhido nesta abertura (só referência ao escrever a dose). */
   porcoes: Record<string, string>;
   veBiblioteca: boolean;
@@ -43,11 +44,12 @@ interface Props {
  * refeição só não tem complementos (seriam descartados ao aplicar). Em janela larga, dois cartões por linha (orientações e
  * observações, suplementação e outros), e cada botão tem um nome só seu. Nada é calculado nem sugerido.
  */
-export function ComplementosDaDieta({ conteudo: c, aoMudar: mudar, comDesfazer, porcoes, veBiblioteca, veErgogenicos, editaErgogenicos, aoEscolherDaBiblioteca }: Props) {
+export function ComplementosDaDieta({ conteudo: c, aoMudar: mudar, comDesfazer, aviso, porcoes, veBiblioteca, veErgogenicos, editaErgogenicos, aoEscolherDaBiblioteca }: Props) {
   const { cores } = useTema();
   const ergogenicos = c.ergogenicos ?? [];
   return <>
     <Texto variante="bloco" nivel={2}>Complementos</Texto>
+    {aviso}
     {/* Em janela larga, dois por linha (orientações e observações, suplementação e outros): os campos de texto não
         passam de uns 800 px e a página fica mais curta. Abaixo de ~1170 px de conteúdo, um por linha. */}
     <View style={estilos.blocos}>
@@ -77,7 +79,7 @@ export function ComplementosDaDieta({ conteudo: c, aoMudar: mudar, comDesfazer, 
           {c.suplementacao.map((s, si) => (
             <ItemDeSuplementacao key={s.uid} item={s} posicao={si} porcao={porcoes[s.uid]}
               aoMudar={(parcial) => mudar({ suplementacao: substituir(c.suplementacao, si, { ...s, ...parcial }) })}
-              aoRemover={() => comDesfazer(`Suplementação “${s.nome || si + 1}” removida.`, (a) => ({ ...a, suplementacao: remover(a.suplementacao, si) }))} />
+              aoRemover={() => comDesfazer(`Suplementação “${s.nome || si + 1}” removida.`, (a) => ({ ...a, suplementacao: remover(a.suplementacao, si) }), { secao: 'complementos' })} />
           ))}
           <LinhaDeAcoes>
             {veBiblioteca ? <Botao rotulo="Suplemento da biblioteca" tipo="secundario" Icone={Library} aoTocar={() => aoEscolherDaBiblioteca('suplemento')} /> : null}
@@ -97,7 +99,7 @@ export function ComplementosDaDieta({ conteudo: c, aoMudar: mudar, comDesfazer, 
             {ergogenicos.map((e, ei) => (
               <ItemDeErgogenico key={e.uid} item={e} posicao={ei} editavel={editaErgogenicos}
                 aoMudar={(parcial) => mudar({ ergogenicos: substituir(ergogenicos, ei, { ...e, ...parcial }) })}
-                aoRemover={() => comDesfazer(`Item “${e.nome || ei + 1}” removido.`, (a) => ({ ...a, ergogenicos: remover(a.ergogenicos ?? [], ei) }))} />
+                aoRemover={() => comDesfazer(`Item “${e.nome || ei + 1}” removido.`, (a) => ({ ...a, ergogenicos: remover(a.ergogenicos ?? [], ei) }), { secao: 'complementos' })} />
             ))}
             {editaErgogenicos ? (
               <LinhaDeAcoes>

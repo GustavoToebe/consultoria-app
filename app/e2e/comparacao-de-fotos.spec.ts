@@ -110,7 +110,7 @@ for (const largura of [390, 1280, 3440]) {
     expect(imagens.length).toBe(2);
     const linhas = await Promise.all(imagens.map(async (c) => (await c.boundingBox())?.y ?? 0));
     expect(Math.max(...linhas) - Math.min(...linhas)).toBeLessThan(8);
-    await expect(page.getByRole('button', { name: 'Stories' })).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByRole('radio', { name: 'Stories' })).toHaveAttribute('aria-checked', 'true');
     await page.getByRole('button', { name: 'Os dois' }).click();
     await expect(page.getByRole('button', { name: 'Baixar zip' })).toBeVisible();
     await expect(page.getByText('O Feed retrato sai junto, na pasta Feed.')).toBeVisible();

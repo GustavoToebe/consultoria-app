@@ -240,6 +240,21 @@ describe('formulário público em duas partes', () => {
     expect(errosDoContato({ ...ok, email: 'sem-arroba' })).toEqual({ email: 'E-mail inválido.' });
     expect(errosDoContato({ ...ok, email: 'sem-arroba' }, ['SEXO'])).toEqual({});
   });
+
+  it('voltar da parte 2 para a parte 1 preserva os dados digitados e as respostas', () => {
+    const contato = { ...ok, nome: 'Ana Silva', whatsapp: '(45) 99988-7766', email: 'ana@teste.com' };
+    expect(errosDoContato(contato)).toEqual({});
+
+    const preenchido = { ...contato, objetivo: 'Hipertrofia', interesse: 'COMPLETO' as const };
+    const respostas = { treina: true };
+
+    // Ao voltar para a parte 1, todos os dados do formulário continuam preservados
+    expect(preenchido.nome).toBe('Ana Silva');
+    expect(preenchido.whatsapp).toBe('(45) 99988-7766');
+    expect(preenchido.email).toBe('ana@teste.com');
+    expect(preenchido.objetivo).toBe('Hipertrofia');
+    expect(respostas.treina).toBe(true);
+  });
 });
 
 describe('anamnese no aceite', () => {

@@ -284,10 +284,10 @@ test('primeiros passos: "Abrir Metodologias" abre o Planejamento já no chip Met
   await page.getByRole('button', { name: /^Abrir Metodologias/ }).click();
   await expect(page).toHaveURL(/\/treinador\/planejamento\?aba=treino&tipo=metodologia$/);
   await expect(page.getByRole('heading', { name: 'Metodologias', exact: true })).toBeVisible();
-  // O chip do tipo também fica marcado (não só o título do cartão). A `Escolha` sai como botão com `aria-checked` na web.
+  // O chip do tipo também fica marcado (não só o título do cartão). A `Escolha` sai como `radio` com `aria-checked` na web (WCAG 4.1.2).
   const chips = page.getByLabel('Modelos de treino', { exact: true });
-  await expect(chips.getByRole('button', { name: 'Metodologias', exact: true })).toHaveAttribute('aria-checked', 'true');
-  await expect(chips.getByRole('button', { name: 'Semanas de treino', exact: true })).toHaveAttribute('aria-checked', 'false');
+  await expect(chips.getByRole('radio', { name: 'Metodologias', exact: true })).toHaveAttribute('aria-checked', 'true');
+  await expect(chips.getByRole('radio', { name: 'Semanas de treino', exact: true })).toHaveAttribute('aria-checked', 'false');
   expect(errosDaPagina).toEqual([]);
 });
 

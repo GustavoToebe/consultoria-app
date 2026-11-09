@@ -290,7 +290,7 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
         {modelo ? null : <CartaoCicloNoPeriodo alunoId={estado.plano.alunoId} inicio={estado.plano.inicio} fim={estado.plano.fim} />}
       </View>
       {modelo ? <NomeDoModelo editor={editor} /> : null}
-      {unica ? null : <ConfiguracaoDoTreino editor={editor} modelo={modelo} aoTrocarMetodologia={() => setFolha({ tipo: 'metodologia' })} />}
+      <ConfiguracaoDoTreino editor={editor} modelo={modelo} aoTrocarMetodologia={() => setFolha({ tipo: 'metodologia' })} />
       {unica ? null : (
         <View style={estilos.grupo}>
           <ContadoresDoTreino conteudo={c} sessao={sessaoAtual} acao={botaoDeColar} aoIrAoPrimeiro={(uids, caminho) => { setVerificando(true); irAoPrimeiro(uids, caminho); }} />

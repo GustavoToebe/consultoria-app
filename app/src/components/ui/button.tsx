@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { TextClassContext } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';
@@ -90,19 +91,26 @@ const buttonTextVariants = cva(
 
 type ButtonProps = React.ComponentProps<typeof Pressable> &
   React.RefAttributes<typeof Pressable> &
-  VariantProps<typeof buttonVariants>;
+  VariantProps<typeof buttonVariants> & {
+    autoFocus?: boolean;
+  };
 
-function Button({ className, variant, size, ...props }: ButtonProps) {
-  return (
-    <TextClassContext.Provider value={buttonTextVariants({ variant, size })}>
-      <Pressable
-        className={cn(buttonVariants({ variant, size }), className)}
-        role="button"
-        {...props}
-      />
-    </TextClassContext.Provider>
-  );
-}
+const Button = React.forwardRef<React.ElementRef<typeof Pressable>, ButtonProps>(
+  ({ className, variant, size, autoFocus, ...props }, ref) => {
+    return (
+      <TextClassContext.Provider value={buttonTextVariants({ variant, size })}>
+        <Pressable
+          ref={ref}
+          {...(autoFocus !== undefined ? { autoFocus } as any : {})}
+          className={cn(buttonVariants({ variant, size }), className)}
+          role="button"
+          {...props}
+        />
+      </TextClassContext.Provider>
+    );
+  }
+);
+Button.displayName = 'Button';
 
 export { Button, buttonTextVariants, buttonVariants };
 export type { ButtonProps };

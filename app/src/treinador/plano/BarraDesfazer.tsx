@@ -1,5 +1,6 @@
 import { Undo2, X } from 'lucide-react-native';
-import { StyleSheet, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, RAIO } from '../../tema/tokens';
@@ -18,18 +19,31 @@ export function BarraDesfazer<C>({
   desfazer,
   aoDesfazer,
   aoFechar,
+  focarAoMontar = true,
 }: {
   desfazer: Desfazer<C>;
   aoDesfazer: () => void;
   aoFechar: () => void;
+  focarAoMontar?: boolean;
 }) {
   const { cores } = useTema();
+  const refBotao = useRef<View>(null);
+
+  useEffect(() => {
+    if (focarAoMontar && Platform.OS === 'web') {
+      const relogio = setTimeout(() => {
+        (refBotao.current as unknown as HTMLElement | null)?.focus?.();
+      }, 0);
+      return () => clearTimeout(relogio);
+    }
+  }, [focarAoMontar]);
+
   return (
     <View
       accessibilityLiveRegion="polite"
       style={[estilos.barra, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
       <Texto style={estilos.texto}>{desfazer.rotulo}</Texto>
-      <Botao rotulo="Desfazer" tipo="secundario" Icone={Undo2} aoTocar={aoDesfazer} />
+      <Botao ref={refBotao} autoFocus={focarAoMontar} rotulo="Desfazer" tipo="secundario" Icone={Undo2} aoTocar={aoDesfazer} />
       <IconeBotao Icone={X} rotulo="Fechar aviso" aoTocar={aoFechar} />
     </View>
   );

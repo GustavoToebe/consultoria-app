@@ -158,4 +158,13 @@ describe('Para o aluno numa linha', () => {
     ] } };
     expect(textoParaOAluno({ inicio: 0, series: [rest] }, cfg, 'kg')).toMatch(/ · Retomada 1: 2 a 3 reps, carga da série · Retomada 2: AMRAP, 85% da WS$/);
   });
+  test('nome do tipo com " - " não quebra o resumo para o aluno', () => {
+    const cfgComHifen = {
+      ...cfg,
+      tipos: cfg.tipos.map((t) => (t.codigo === codigo('PREPARACAO') ? { ...t, nome: 'FS - Força Especial' } : t)),
+    };
+    const s = adicionarSerie([], cfgComHifen, codigo('PREPARACAO'));
+    const grupo = agrupar(s)[0];
+    expect(textoParaOAluno(grupo, cfgComHifen, 'kg')).toBe('1×3 a 5 · FS - Força Especial · 85% da WS');
+  });
 });

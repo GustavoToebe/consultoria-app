@@ -240,7 +240,7 @@ async function baixarDietaDetalhada(page: Page) {
   const folha = page.getByRole('dialog', { name: 'PDF da dieta' });
   await expect(folha).toBeVisible();
   await folha.getByRole('radiogroup', { name: 'Forma do PDF' }).getByRole('button', { name: 'Detalhado' }).click();
-  await folha.getByRole('radiogroup', { name: 'Período da lista' }).getByRole('button', { name: 'Mês' }).click();
+  await folha.getByRole('radiogroup', { name: 'Período da lista' }).getByRole('radio', { name: 'Mês' }).click();
   await folha.getByRole('button', { name: 'Baixar PDF', exact: true }).click();
   const bloco = page.locator('#treinos-impressao');
   await expect(bloco).toContainText('Lista de compras · 30 dias');

@@ -51,12 +51,14 @@ export function Escolha<T extends string | number | null>({ opcoes, valor, aoMud
   return (
     <View ref={grupo} style={[estilos.campo, erro ? { borderWidth: 1, borderColor: cores.perigo, borderRadius: RAIO, padding: espaco(1) } : null]} aria-invalid={!!erro}>
       {rotulo ? <Texto variante="rotulo" cor={cores.texto}>{rotulo}</Texto> : null}
-      <ToggleGroup type="single" value={String(opcoes.findIndex((o) => o.valor === valor))} onValueChange={(v) => { if (v === undefined || v === '') { if (limpavel) aoMudar(null as T); return; } const opcao = opcoes[Number(v)]; if (opcao) aoMudar(opcao.valor); }} style={[estilos.linha, compacta && estilos.linhaCompacta, erro ? { borderColor: cores.perigo } : null]} accessibilityLabel={rotulo ?? descricao} accessibilityHint={erro ?? undefined}>
+      <ToggleGroup type="single" role="radiogroup" accessibilityRole="radiogroup" value={String(opcoes.findIndex((o) => o.valor === valor))} onValueChange={(v) => { if (v === undefined || v === '') { if (limpavel) aoMudar(null as T); return; } const opcao = opcoes[Number(v)]; if (opcao) aoMudar(opcao.valor); }} style={[estilos.linha, compacta && estilos.linhaCompacta, erro ? { borderColor: cores.perigo } : null]} accessibilityLabel={rotulo ?? descricao} accessibilityHint={erro ?? undefined}>
         {opcoes.map((o, indice) => {
           const ativo = o.valor === valor;
           return (
             <ToggleGroupItem value={String(indice)}
               key={String(o.valor)}
+              role="radio"
+              accessibilityRole="radio"
               accessibilityLabel={o.rotulo}
               accessibilityHint={o.desabilitada ? o.motivo : undefined}
               accessibilityState={{ checked: ativo, disabled: !!o.desabilitada }}

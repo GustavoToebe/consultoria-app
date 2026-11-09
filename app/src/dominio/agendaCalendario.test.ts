@@ -2,6 +2,7 @@ import type { AgendaPessoal, Compromisso, OcorrenciaDeEvento } from '../api/agen
 import type { AtualizacaoDaLista } from '../api/tipos';
 import { instanteDeBrasilia } from './agendaPresencial';
 import {
+  proximoItemDoMenu,
   agendasDoPainel,
   agendasOcultasValidas,
   agendasParaBuscar,
@@ -391,5 +392,33 @@ describe('grade de horários', () => {
     expect(minutoInicialDaGrade([evento('e1', '12:00', '13:00')], [HOJE])).toBe(420);
     expect(minutoInicialDaGrade([evento('e1', '07:30', '08:00')], [HOJE])).toBe(390);
     expect(minutoInicialDaGrade([evento('e1', '00:30', '01:00')], [HOJE])).toBe(0);
+  });
+});
+
+describe('proximoItemDoMenu (navegação por setas)', () => {
+  it('sem itens devolve null', () => {
+    expect(proximoItemDoMenu('ArrowDown', 0, 0)).toBeNull();
+  });
+
+  it('ArrowDown avança e dá a volta no fim', () => {
+    expect(proximoItemDoMenu('ArrowDown', -1, 2)).toBe(0);
+    expect(proximoItemDoMenu('ArrowDown', 0, 2)).toBe(1);
+    expect(proximoItemDoMenu('ArrowDown', 1, 2)).toBe(0);
+  });
+
+  it('ArrowUp recua e dá a volta no início', () => {
+    expect(proximoItemDoMenu('ArrowUp', -1, 2)).toBe(1);
+    expect(proximoItemDoMenu('ArrowUp', 0, 2)).toBe(1);
+    expect(proximoItemDoMenu('ArrowUp', 1, 2)).toBe(0);
+  });
+
+  it('Home vai ao primeiro e End vai ao último', () => {
+    expect(proximoItemDoMenu('Home', 1, 2)).toBe(0);
+    expect(proximoItemDoMenu('End', 0, 2)).toBe(1);
+  });
+
+  it('outra tecla devolve null', () => {
+    expect(proximoItemDoMenu('Enter', 0, 2)).toBeNull();
+    expect(proximoItemDoMenu('Tab', 0, 2)).toBeNull();
   });
 });
