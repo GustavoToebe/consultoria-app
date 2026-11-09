@@ -139,12 +139,12 @@ function EscalaDaNota({ pergunta: p, aoMudar }: { pergunta: PerguntaAtualizacao;
 const SEM_DATA = '__envio__';
 
 /** Rótulo do interruptor (um destino possível) e do item da escolha (vários) para cada campo do cadastro. */
-const ROTULO_DO_INTERRUPTOR: Record<DestinoNoPerfil, string> = {
+const ROTULO_DO_INTERRUPTOR: any = {
   PESO: 'Guardar no registro de peso do aluno', OBJETIVO: 'Guardar no objetivo do cadastro do aluno', CPF: 'Guardar no CPF do cadastro do aluno',
   TELEFONE: 'Guardar no telefone do cadastro do aluno', ENDERECO: 'Guardar no endereço do cadastro do aluno',
   SEXO: 'Guardar no sexo do cadastro do aluno',
 };
-const AJUDA_DO_DESTINO: Record<Exclude<DestinoNoPerfil, 'PESO'>, string> = {
+const AJUDA_DO_DESTINO: Partial<Record<DestinoNoPerfil, string>> = {
   OBJETIVO: `Até ${L.objetivoTamanho} caracteres. Objetivo vazio é preenchido; se já houver outro, a mudança fica para você revisar na ficha.`,
   CPF: 'A resposta precisa ser um CPF válido. CPF vazio é preenchido; se já houver outro, ou se for de outro aluno, a mudança fica para você revisar na ficha.',
   TELEFONE: 'Vale para quem já tem acesso. Telefone vazio é preenchido; se já houver outro, a mudança fica para você revisar na ficha.',

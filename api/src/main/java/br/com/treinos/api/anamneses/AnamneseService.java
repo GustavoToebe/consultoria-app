@@ -112,6 +112,13 @@ public class AnamneseService {
         return detalhe(nova, aluno);
     }
 
+    @Transactional
+    public Anamnese gravarAnamneseRespondida(UUID alunoId, UUID questionarioVersaoId, String respostas, UUID autorId) {
+        Instant agora = Instant.now();
+        Anamnese a = new Anamnese(alunoId, questionarioVersaoId, autorId, agora, respostas, Anamnese.Situacao.ENVIADA, agora);
+        return anamneses.saveAndFlush(a);
+    }
+
     /** Índice único da anamnese pendente por aluno (V013). Só olha o nome da restrição, nunca a mensagem do banco. */
     static final String INDICE_DA_PENDENTE = "ux_anamnese_pendente";
 

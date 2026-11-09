@@ -47,7 +47,11 @@ public class FilaDeInscricoesService {
      * de Brasília, cada ponta opcional). As contagens usam todos menos a situação.
      */
     public record Filtro(String situacao, UUID meus, List<String> responsavel, List<String> origem, String busca,
-                         LocalDate de, LocalDate ate, LocalDate atividadeDe, LocalDate atividadeAte) {
+                         LocalDate de, LocalDate ate, LocalDate atividadeDe, LocalDate atividadeAte, UUID questionarioId) {
+        public Filtro(String situacao, UUID meus, List<String> responsavel, List<String> origem, String busca,
+                      LocalDate de, LocalDate ate, LocalDate atividadeDe, LocalDate atividadeAte) {
+            this(situacao, meus, responsavel, origem, busca, de, ate, atividadeDe, atividadeAte, null);
+        }
     }
 
     /** Mais novas primeiro (ordem fixa; a reaberta conta como nova, pela data da reabertura), em páginas de até 100. */
@@ -84,7 +88,7 @@ public class FilaDeInscricoesService {
     /** Lê o filtro e confere os responsáveis escolhidos (membros desta consultoria, senão 404). */
     private FiltrosDaFila ler(Filtro f) {
         FiltrosDaFila filtros = FiltrosDaFila.ler(f.meus(), f.responsavel(), f.origem(), f.busca(), f.de(), f.ate(),
-                f.atividadeDe(), f.atividadeAte());
+                f.atividadeDe(), f.atividadeAte(), f.questionarioId());
         if (f.meus() == null) membros.exigir(filtros.responsaveis());
         return filtros;
     }

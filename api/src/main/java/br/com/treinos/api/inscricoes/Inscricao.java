@@ -168,6 +168,15 @@ public class Inscricao {
     @Column(columnDefinition = "jsonb", updatable = false)
     private String respostas;
 
+    @Column(name = "questionario_id")
+    private UUID questionarioId;
+
+    @Column(name = "questionario_nome")
+    private String questionarioNome;
+
+    @Column(name = "indicado_por")
+    private String indicadoPor;
+
     /** Coluna gerada no banco (nome sem acento, em minúsculas), lida pela busca. */
     @Column(name = "nome_busca", insertable = false, updatable = false)
     private String nomeBusca;
@@ -259,6 +268,12 @@ public class Inscricao {
     public UUID getRelacionadaA() { return relacionadaA; }
     public UUID getQuestionarioVersaoId() { return questionarioVersaoId; }
     public String getRespostas() { return respostas; }
+    public UUID getQuestionarioId() { return questionarioId; }
+    public void setQuestionarioId(UUID questionarioId) { this.questionarioId = questionarioId; }
+    public String getQuestionarioNome() { return questionarioNome; }
+    public void setQuestionarioNome(String questionarioNome) { this.questionarioNome = questionarioNome; }
+    public String getIndicadoPor() { return indicadoPor; }
+    public void setIndicadoPor(String indicadoPor) { this.indicadoPor = indicadoPor; }
 
     /** Só na criação (as colunas não mudam depois): a versão respondida e as respostas, em JSON, já validadas. */
     void responder(UUID questionarioVersaoId, String respostas) {

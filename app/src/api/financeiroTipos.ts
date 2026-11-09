@@ -44,6 +44,7 @@ export interface ContratarRequest {
   motivoValor?: string | null;
   inicio: string;
   diaVencimento: number;
+  primeiroPeriodoPago?: boolean;
 }
 
 export interface AlterarContratacaoRequest {
@@ -56,6 +57,8 @@ export interface AlterarContratacaoRequest {
 export interface ContratacaoResponse {
   id: string;
   alunoId: string;
+  alunoNome?: string | null;
+  alunoTelefone?: string | null;
   planoComercialId: string;
   planoNome: string | null;
   periodicidade: PeriodoDoPlano;
@@ -65,6 +68,9 @@ export interface ContratacaoResponse {
   diaVencimento: number;
   situacao: SituacaoDaContratacao;
   encerradaEm: string | null;
+  terminoVigencia?: string | null;
+  diasRestantesVigencia?: number | null;
+  alertaRenovacao?: 'EM_DIA' | 'PROXIMO_VENCIMENTO' | 'VENCIDO' | null;
   criadoEm: string;
   versao: number;
 }
@@ -157,6 +163,8 @@ export interface ValorEQuantidade {
 }
 
 export interface CartoesDoPainel {
+  renovacoesProximasCount?: number;
+  projecaoAnualCentavos?: number;
   recebidoCentavos: number | null;
   aReceberCentavos: number | null;
   emAtraso: ValorEQuantidade;
@@ -227,6 +235,8 @@ export interface Liquido {
 }
 
 export interface Painel {
+  renovacoesProximasCount?: number;
+  projecaoAnualCentavos?: number;
   periodo: PeriodoDoPainel;
   somenteMeus: boolean;
   cartoes: CartoesDoPainel;
@@ -266,6 +276,8 @@ export interface PlanoDoAluno {
   periodicidade: PeriodoDoPlano;
   situacao: SituacaoDaContratacao;
   proximoVencimento: string | null;
+  terminoVigencia?: string | null;
+  diasRestantesVigencia?: number | null;
 }
 
 export interface CobrancaDoAluno {

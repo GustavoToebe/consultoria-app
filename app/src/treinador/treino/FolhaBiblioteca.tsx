@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { listarExercicios } from '../../api/rotas';
 import type { Exercicio } from '../../api/tipos';
 import { gruposDosExercicios } from '../../dominio/catalogo';
+import { coincideComBuscaExercicio } from '../../dominio/termosExerciciosIngles';
 import { MODALIDADES } from '../../dominio/modalidades';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, RAIO } from '../../tema/tokens';
@@ -78,7 +79,7 @@ export function FolhaBiblioteca({
   const filtrados = daFolha.filter(
     (e) =>
       noGrupo(e, grupo) &&
-      (!termo || normalizar(`${e.nome} ${e.grupoMuscular ?? ''} ${e.equipamento ?? ''}`).includes(termo)),
+      (!termo || coincideComBuscaExercicio(normalizar(`${e.nome} ${e.grupoMuscular ?? ''} ${e.equipamento ?? ''}`), termo)),
   );
 
   const visiveis = filtrados.slice(0, 80);

@@ -59,6 +59,21 @@ public class QuestionarioResolver {
         return new Resolvida(v.getId(), v.getNumero(), q.getNome(), v.getConteudo());
     }
 
+    public java.util.Optional<Resolvida> publicaPorCodigo(String codigo) {
+        return questionarios.findByCodigoPublico(codigo)
+                .filter(q -> q.isPublicoAberto() && !q.isArquivado() && q.getVersaoPublicada() > 0)
+                .map(this::publicada);
+    }
+
+    public java.util.Optional<Questionario> porCodigoPublico(String codigo) {
+        return questionarios.findByCodigoPublico(codigo)
+                .filter(q -> q.isPublicoAberto() && !q.isArquivado());
+    }
+
+    public java.util.Optional<Questionario> findById(UUID id) {
+        return questionarios.findById(id);
+    }
+
     /** Última versão publicada de um questionário usável (anamnese: a atribuição fixa esta versão). */
     public Resolvida publicada(Questionario q) {
         QuestionarioVersao v = versoes.findByQuestionarioIdAndNumero(q.getId(), q.getVersaoPublicada())

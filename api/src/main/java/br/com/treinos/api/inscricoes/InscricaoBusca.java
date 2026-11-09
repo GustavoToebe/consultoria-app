@@ -25,6 +25,12 @@ public class InscricaoBusca {
         if (!CodigoDeInscricao.valido(codigo)) {
             return Optional.empty();
         }
+        List<UUID> qIds = jdbc.query(
+                "select consultoria_id from questionario where codigo_publico = ? and publico_aberto and not arquivado and ativo",
+                (rs, n) -> rs.getObject(1, UUID.class), codigo);
+        if (!qIds.isEmpty()) {
+            return qIds.stream().findFirst();
+        }
         List<UUID> ids = jdbc.query("select consultoria_id from inscricao_configuracao where codigo = ? and aberta",
                 (rs, n) -> rs.getObject(1, UUID.class), codigo);
         return ids.stream().findFirst();

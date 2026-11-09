@@ -248,6 +248,7 @@ export const enviarAnamnese = (id: string, questionarioVersaoId: string, respost
 export const criarQuestionario = (corpo: CriarQuestionarioRequest) => requisicao<QuestionarioDetalhe>('/questionarios', { metodo: 'POST', corpo });
 export const buscarQuestionario = (id: string) => requisicao<QuestionarioDetalhe>(`/questionarios/${seg(id)}`);
 export const salvarQuestionario = (id: string, corpo: SalvarQuestionarioRequest) => requisicao<QuestionarioDetalhe>(`/questionarios/${seg(id)}`, { metodo: 'PUT', corpo });
+export const regenerarCodigoPublicoQuestionario = (id: string) => requisicao<{ codigoPublico: string }>(`/questionarios/${seg(id)}/codigo-publico`, { metodo: 'POST' });
 export const publicarQuestionario = (id: string, versao: number, confirmarAvisos: boolean) =>
   requisicao<QuestionarioDetalhe>(`/questionarios/${seg(id)}/publicar`, { metodo: 'POST', corpo: { versao, confirmarAvisos } });
 export const duplicarQuestionario = (id: string) => requisicao<QuestionarioDetalhe>(`/questionarios/${seg(id)}/duplicar`, { metodo: 'POST' });
@@ -466,7 +467,7 @@ export const inscricaoPublica = (codigo: string) =>
   requisicao<InscricaoPublica>(`/publico/inscricoes/${seg(codigo)}`, { semRenovar: true });
 
 export const enviarInscricao = (codigo: string, corpo: InscricaoPublicaRequest) =>
-  requisicao<{ mensagem: string }>(`/publico/inscricoes/${seg(codigo)}`, { metodo: 'POST', corpo, semRenovar: true });
+  requisicao<{ mensagem: string; proximoQuestionarioCodigo?: string | null }>(`/publico/inscricoes/${seg(codigo)}`, { metodo: 'POST', corpo, semRenovar: true });
 
 // ---- Treinador: interessados (fila de inscrições) ----
 

@@ -526,7 +526,7 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
     // ---- direitos ----
 
     @Test
-    void direitosSoAplicamVersaoMaiorEVersaoMenorApenasConfirma() throws Exception {
+    void direitosSoAplicamVersaoMaiorEVersaoMenorEIgnoradaSemConfirmar() throws Exception {
         UUID contratacao = UUID.randomUUID();
         UUID tenant = UUID.fromString(provisionar(contratacao, ApiDeTeste.emailUnico("admin")).path("tenantId").asString());
         String caminho = "/integracao/v1/instancias/" + tenant + "/direitos";
@@ -541,6 +541,12 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
         assertThat(velha.path("versaoAtual").asLong()).isEqualTo(3);
         assertThat(jdbc.queryForObject("select situacao from direitos_locais where consultoria_id = ?", String.class, tenant))
                 .isEqualTo("INADIMPLENTE");
+        assertThat(jdbc.queryForObject("select confirmado_em < now() - interval '1 hour' from direitos_locais "
+                + "where consultoria_id = ?", Boolean.class, tenant)).isTrue();
+
+        JsonNode mesma = central("PUT", caminho, direitos(contratacao, tenant, 3, "INADIMPLENTE", true), null, 200);
+        assertThat(mesma.path("aplicado").asBoolean()).isFalse();
+        assertThat(mesma.path("versaoAtual").asLong()).isEqualTo(3);
         assertThat(jdbc.queryForObject("select confirmado_em > now() - interval '1 minute' from direitos_locais "
                 + "where consultoria_id = ?", Boolean.class, tenant)).isTrue();
     }

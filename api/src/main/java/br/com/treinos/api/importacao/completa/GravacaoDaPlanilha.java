@@ -171,6 +171,16 @@ public class GravacaoDaPlanilha {
     @Transactional
     public Confirmacao confirmar(UsuarioAutenticado eu, String nomeDoArquivo, byte[] bytes, String respostasJson,
                                  String hash, List<Integer> alunosIgnorados) {
+        return confirmar(eu, nomeDoArquivo, bytes, respostasJson, hash, alunosIgnorados, Set.of());
+    }
+
+    /**
+     * {@code alunosIgnorados} = as posições (de 1, na ordem da amostra) dos alunos que o treinador desmarcou: ficam fora de
+     * tudo o que é gravado. {@code chavesIgnoradas} = as chaves estáveis dos donos (linha:N, nome:chave, aluno:id).
+     */
+    @Transactional
+    public Confirmacao confirmar(UsuarioAutenticado eu, String nomeDoArquivo, byte[] bytes, String respostasJson,
+                                 String hash, List<Integer> alunosIgnorados, Set<String> chavesIgnoradas) {
         RespostasDaPlanilha respostas = RespostasDaPlanilha.ler(respostasJson, json);
         LeituraDasAbas.Leitura leitura = LeituraDasAbas.ler(nomeDoArquivo, bytes);
         String calculado = RespostasDaPlanilha.hash(bytes, respostas, json);
@@ -182,7 +192,7 @@ public class GravacaoDaPlanilha {
         Exigir.existe(consultorias.travar(TenantContext.get()), () -> new NaoEncontradoException("Importação não encontrada."));
 
         Montagem completa = MontagemDaImportacao.montar(leitura, respostas, contexto(eu.usuarioId()));
-        Set<Dono> ignorados = donosIgnorados(completa, alunosIgnorados);
+        Set<Dono> ignorados = donosIgnorados(completa, alunosIgnorados, chavesIgnoradas);
         Montagem antes = completa.semDonos(ignorados);
         Criacao criacao = criacao(antes);
         int total = criacao.alunosNovos() + criacao.pesos() + criacao.exercicios() + criacao.pastas();
@@ -256,17 +266,30 @@ public class GravacaoDaPlanilha {
      * (nada sobra para gravar) também. Repetida conta uma vez.
      */
     static Set<Dono> donosIgnorados(Montagem m, List<Integer> posicoes) {
-        if (posicoes == null || posicoes.isEmpty()) {
+        return donosIgnorados(m, posicoes, Set.of());
+    }
+
+    static Set<Dono> donosIgnorados(Montagem m, List<Integer> posicoes, Set<String> chaves) {
+        if ((posicoes == null || posicoes.isEmpty()) && (chaves == null || chaves.isEmpty())) {
             return Set.of();
         }
         List<Dono> ordem = AmostraDaPlanilha.ordemDosDonos(m);
         Set<Dono> ignorados = new HashSet<>();
-        for (Integer n : posicoes) {
-            if (n == null || n < 1 || n > ordem.size()) {
-                throw new ValidacaoException("Um aluno marcado para ignorar não está na planilha. Gere a prévia de novo.",
-                        "ALUNO_IGNORADO_INVALIDO", List.of());
+        if (posicoes != null && !posicoes.isEmpty()) {
+            for (Integer n : posicoes) {
+                if (n == null || n < 1 || n > ordem.size()) {
+                    throw new ValidacaoException("Um aluno marcado para ignorar não está na planilha. Gere a prévia de novo.",
+                            "ALUNO_IGNORADO_INVALIDO", List.of());
+                }
+                ignorados.add(ordem.get(n - 1));
             }
-            ignorados.add(ordem.get(n - 1));
+        }
+        if (chaves != null && !chaves.isEmpty()) {
+            for (Dono d : ordem) {
+                if (chaves.contains(d.chaveEstavel()) || (d.chave() != null && chaves.contains(d.chave()))) {
+                    ignorados.add(d);
+                }
+            }
         }
         if (ignorados.size() == ordem.size()) {
             throw new ValidacaoException("Marque pelo menos um aluno para importar.", "NENHUM_ALUNO_MARCADO", List.of());

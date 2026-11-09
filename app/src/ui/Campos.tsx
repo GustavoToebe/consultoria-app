@@ -182,6 +182,7 @@ export function CampoNumericoGrande({
   destaque,
   ajuda,
   rotuloOculto,
+  placeholder,
   aoValidade,
   mascara,
   ref,
@@ -199,6 +200,7 @@ export function CampoNumericoGrande({
   aoValidade?: (valido: boolean) => void;
   /** Ajusta o texto a cada digitação (a carga em libra, com 1 casa); sem ela, vale o que foi digitado. */
   mascara?: (texto: string) => string;
+  placeholder?: string;
   /** Rótulo completo para o leitor de tela ("Peso da série 2"). */
   rotuloAcessivel?: string;
   /** Caixa maior (carga de trabalho do dia). */
@@ -223,7 +225,7 @@ export function CampoNumericoGrande({
           onChangeText={mudar}
           onFocus={() => setFoco(true)}
           onBlur={() => setFoco(false)}
-          placeholder="—"
+          placeholder={placeholder ?? "—"}
           placeholderTextColor={cores.textoSuave}
           keyboardType={inteiro ? 'number-pad' : 'decimal-pad'}
           inputMode={inteiro ? 'numeric' : 'decimal'}

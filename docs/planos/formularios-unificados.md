@@ -1,6 +1,6 @@
 # Formulários unificados da consultoria ("Google Forms interno", C62)
 
-Situação: Planejado — aguardando início (pós-piloto) · Onde: `main` · Atualizado: 09/11/2026
+Situação: Concluída em 09/11/2026 (V064) · Onde: `main` · Atualizado: 09/11/2026
 
 ## Objetivo
 Unificar os três motores de formulários do sistema (`inscricao`, `anamnese` e `atualizacao`) em um único construtor de formulários flexível por seções e perguntas ("Google Forms interno"), permitindo à consultoria criar múltiplos formulários públicos com links independentes (`1:N`), encadeamento pós-envio (ex.: inscrição seguida de anamnese completa), identificação de origem no CRM e aplicação direta de respostas na ficha do aluno por mapeamento de destino no perfil (`DestinoNoPerfil`).
@@ -80,26 +80,26 @@ ALTER TABLE inscricao
 
 ## Passos planejados
 
-- [ ] 1. **Banco e Migration (Flyway)**:
+- [x] 1. **Banco e Migration (Flyway)** (concluído em 09/11/2026, V064):
   - Adicionar colunas de publicação em `questionario` (`codigo_publico`, `publico_aberto`, `responsavel_id`, `texto_apresentacao`, `proximo_questionario_id`).
   - Migrar `inscricao_configuracao` para os novos campos do `questionario` padrão de cada consultoria.
   - Adicionar suporte a `destinoNoPerfil` no schema JSON de perguntas do questionário.
   - Testes de migração garantindo integridade dos dados existentes.
-- [ ] 2. **API — Endpoints e Validações**:
+- [x] 2. **API — Endpoints e Validações** (concluído em 09/11/2026):
   - `GET /publico/formularios/{codigo}`: devolve metadados, apresentação e perguntas publicadas da versão ativa.
   - `POST /publico/formularios/{codigo}/responder`: validação Turnstile, rate limit, integridade de perguntas obrigatórias, criação de `Inscricao` com vínculo ao questionário e retorno de `proximoQuestionarioCodigo` (quando houver encadeamento).
   - `POST /alunos/{id}/questionarios/{respostaId}/aplicar-perfil`: aplica as respostas mapeadas com `DestinoNoPerfil` diretamente no cadastro do aluno.
   - Testes de integração em `FormulariosPublicosIntegrationTest` e `QuestionarioIntegrationTest`.
-- [ ] 3. **App — Editor e Gestão de Formulários (Treinador)**:
+- [x] 3. **App — Editor e Gestão de Formulários (Treinador)** (concluído em 09/11/2026):
   - Tela de Questionários no menu Conteúdo: gerenciar formulários, gerar novo link público, ativar/desativar, escolher encadeamento e definir responsável da equipe.
   - Editor de perguntas: campo seletor opcional "Vincular resposta ao perfil do aluno" (`DestinoNoPerfil`).
-- [ ] 4. **App — CRM de Interessados**:
+- [x] 4. **App — CRM de Interessados** (concluído em 09/11/2026):
   - Exibição de selo do formulário de origem nos cartões do Kanban.
   - Filtro por formulário de origem no painel de filtros de Interessados.
-- [ ] 5. **App — Página Pública (`/inscricao/<codigo>`)**:
+- [x] 5. **App — Página Pública (`/inscricao/<codigo>`)** (concluído em 09/11/2026):
   - Renderizador 100% dinâmico a partir das seções e perguntas do questionário.
   - Fluxo encadeado: ao enviar formulário 1, transiciona suavemente para o formulário 2 caso configurado.
-- [ ] 6. **Ficha do Aluno e E2E**:
+- [x] 6. **Ficha do Aluno e E2E** (concluído em 09/11/2026):
   - Aba ou seção unificada de formulários respondidos na ficha com botão "Aplicar no cadastro".
   - Testes E2E (Playwright) cobrindo criação de formulário público, resposta externa encadeada e triagem no CRM.
 

@@ -73,6 +73,16 @@ public class Anamnese {
         this.respostas = "{}";
     }
 
+    Anamnese(UUID alunoId, UUID questionarioVersaoId, UUID atribuidaPor, Instant agora, String respostas, Situacao situacao, Instant enviadaEm) {
+        this.alunoId = alunoId;
+        this.questionarioVersaoId = questionarioVersaoId;
+        this.atribuidaPor = atribuidaPor;
+        this.atribuidaEm = agora;
+        this.situacao = situacao;
+        this.respostas = respostas != null ? respostas : "{}";
+        this.enviadaEm = enviadaEm;
+    }
+
     void enviar(String respostas, Instant quando) {
         this.respostas = respostas;
         this.enviadaEm = quando;

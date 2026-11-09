@@ -163,6 +163,7 @@ describe('formulário público', () => {
       modalidade: null,
       previsaoInicio: null,
       origem: null,
+      indicadoPor: null,
       origemLink: null,
       cienciaPrivacidade: true,
       textoVersao: null,

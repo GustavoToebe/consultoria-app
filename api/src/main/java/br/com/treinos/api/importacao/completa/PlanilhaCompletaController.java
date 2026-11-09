@@ -20,6 +20,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -68,10 +69,12 @@ public class PlanilhaCompletaController {
                                  @RequestPart("arquivo") MultipartFile arquivo,
                                  @RequestPart(value = "respostas", required = false) String respostas,
                                  @RequestParam String hash,
-                                 @RequestParam(value = "alunosIgnorados", required = false) List<Integer> alunosIgnorados)
+                                 @RequestParam(value = "alunosIgnorados", required = false) List<Integer> alunosIgnorados,
+                                 @RequestParam(value = "chavesIgnoradas", required = false) Set<String> chavesIgnoradas)
             throws IOException {
         limites.confirmacaoDeImportacao(eu.usuarioId());
-        return gravacao.confirmar(eu, arquivo.getOriginalFilename(), arquivo.getBytes(), respostas, hash, alunosIgnorados);
+        return gravacao.confirmar(eu, arquivo.getOriginalFilename(), arquivo.getBytes(), respostas, hash, alunosIgnorados,
+                chavesIgnoradas == null ? Set.of() : chavesIgnoradas);
     }
 
     /** Apaga as respostas guardadas das importações anteriores (a próxima análise volta sem sugestão marcada). */

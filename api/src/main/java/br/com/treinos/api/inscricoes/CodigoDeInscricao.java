@@ -12,7 +12,7 @@ import java.util.regex.Pattern;
 final class CodigoDeInscricao {
 
     static final int TAMANHO = 24;
-    private static final Pattern FORMATO = Pattern.compile("[A-Za-z0-9_-]{24}");
+    private static final Pattern FORMATO = Pattern.compile("[A-Za-z0-9_-]{12,64}");
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private CodigoDeInscricao() {

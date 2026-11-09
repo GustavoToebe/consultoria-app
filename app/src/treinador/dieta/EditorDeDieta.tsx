@@ -191,6 +191,15 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
             aoRemoverOpcao={(oi) => comDesfazer(`Opção ${r.opcoes[oi]?.rotulo ?? oi + 1} removida.`, (a) =>
               ({ ...a, refeicoes: substituir(a.refeicoes, ri, { ...a.refeicoes[ri], opcoes: remover(a.refeicoes[ri].opcoes, oi) }) }),
               { refeicaoDaOpcao: r.uid })}
+            aoRemoverItem={(oi, ii, nomeItem) => comDesfazer(`Alimento “${nomeItem}” removido.`, (a) =>
+              ({ ...a, refeicoes: substituir(a.refeicoes, ri, {
+                ...a.refeicoes[ri],
+                opcoes: substituir(a.refeicoes[ri].opcoes, oi, {
+                  ...a.refeicoes[ri].opcoes[oi],
+                  itens: remover(a.refeicoes[ri].opcoes[oi].itens, ii),
+                }),
+              }) }),
+              { refeicaoDaOpcao: r.uid })}
             aoMover={(d) => mudarRefeicoes((lista) => mover(lista, ri, d))}
             aoRemover={unica ? undefined : () => {
               const depois = remover(c.refeicoes, ri);

@@ -88,7 +88,13 @@ public class ContratacaoService {
             }
             throw e;
         }
-        gerador.primeira(contratacao);
+        CobrancaAluno primeira = gerador.primeira(contratacao);
+        if (Boolean.TRUE.equals(r.primeiroPeriodoPago())) {
+            primeira.pagar(CobrancaAluno.MANUAL, FormaDePagamento.OUTRO, LocalDate.now(Fuso.BRASILIA), null,
+                    "Período inicial já pago", null);
+            cobrancas.save(primeira);
+            gerador.garantirSeguinte(contratacao);
+        }
         cobrancas.flush();
         return Respostas.contratacao(contratacao, plano.getNome());
     }

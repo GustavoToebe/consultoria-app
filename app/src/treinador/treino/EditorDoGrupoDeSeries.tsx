@@ -1,6 +1,6 @@
 import { ArrowDown, ArrowUp, Check, CircleAlert, CircleCheck, Minus, Plus, Smartphone, Trash2, TriangleAlert, type LucideIcon } from 'lucide-react-native';
 import { type ReactNode, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import type { Configuracao, Serie } from '../../api/tipos';
 import { tituloDoGrupoDeSeries, type GrupoDeSeries } from '../../dominio/agrupamento';
@@ -116,6 +116,8 @@ interface PropsDoGrupo {
  */
 export function EditorGrupo({ largo, grupo: g, series, config, cardio, semCarga, tipos, podeMais, primeiro, ultimo, numero, porSerie, aoMover, aoAlterar, aoMudarSeries, aoQuantidade, aoRestPauseNaUltima, aoRemover }: PropsDoGrupo) {
   const { cores, bordas, fatorTexto } = useTema();
+  const { width } = useWindowDimensions();
+  const telaNotebook = width > 0 && width <= 1440;
   const unidade = useUnidadeDeCarga();
   // Explicações do tipo e da técnica começam recolhidas; o "O que é?" abre.
   const [explicarTipo, setExplicarTipo] = useState(false);
@@ -186,7 +188,7 @@ export function EditorGrupo({ largo, grupo: g, series, config, cardio, semCarga,
             </View>
           </View>
           {/* Repetições e descanso quebram juntos: sem espaço para os três, as Séries ficam em cima e os dois descem lado a lado. */}
-          {secoes.prescricao ? <View style={[estilos.estrutura, estilos.repeticoesEDescanso]}>
+          {secoes.prescricao ? <View style={[estilos.estrutura, estilos.repeticoesEDescanso, telaNotebook && estilos.prescricao2x2]}>
             {secoes.prescricao && !cluster ? <CamposDasRepeticoes compacta valor={s} erros={erros} semRepeticoes="Sem repetições: o aluno lê a série por tempo."
               aoMudar={(r) => aoAlterar({ repsMin: r.repsMin, repsMax: r.repsMax, amrap: r.amrap })} /> : null}
             {secoes.prescricao && cluster ? <View style={estilos.juntos}>
@@ -258,6 +260,7 @@ const estilos = StyleSheet.create({
   // Séries, repetições e descanso: lado a lado enquanto couberem; no celular a linha quebra.
   estrutura: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', columnGap: espaco(3), rowGap: espaco(1.5) },
   repeticoesEDescanso: { flexShrink: 1, minWidth: 0, maxWidth: '100%' },
+  prescricao2x2: { flexWrap: 'wrap', rowGap: espaco(1.5), columnGap: espaco(2) },
   juntos: { gap: espaco(0.5) },
   explicacao: { borderLeftWidth: 2, paddingLeft: espaco(1.5), paddingVertical: espaco(0.5) },
   previa: { borderWidth: 1, borderRadius: RAIO, paddingHorizontal: espaco(1.5), paddingVertical: espaco(1) },

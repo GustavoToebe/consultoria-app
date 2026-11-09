@@ -58,6 +58,7 @@ export interface InscricaoPublicaRequest {
   modalidade?: ModalidadeDesejada | null;
   previsaoInicio?: PrevisaoInicio | null;
   origem?: OrigemInformada | null;
+  indicadoPor?: string | null;
   /** Parâmetro `?origem=` do link (só `[a-z0-9_-]{1,40}`; outro valor a API ignora). */
   origemLink?: string | null;
   cienciaPrivacidade: boolean;
@@ -146,6 +147,7 @@ export interface InscricaoResumo {
   origem: Origem | null;
   propostaPlanoNome: string | null;
   proximoRetorno: ProximoRetorno | null;
+  indicadoPor?: string | null;
   versao: number;
   duplicidade: DuplicidadeInscricao;
 }
@@ -268,6 +270,7 @@ export interface InscricaoDetalhe {
   observacao: string | null;
   sexo?: string | null;
   interesse: Interesse | null;
+  indicadoPor?: string | null;
   modalidadeDesejada: ModalidadeDesejada | null;
   previsaoInicio: PrevisaoInicio | null;
   origemInformada: OrigemInformada | null;

@@ -82,7 +82,11 @@ describe('permissão por destino (igual a DestinoNoPerfil.permissao() na API)', 
     expect(permissaoDoDestino('SEXO')).toBe('ALUNO_ALTERAR');
     expect(permissaoDeLeituraDoDestino('TELEFONE')).toBe('ALUNO_LER');
     expect(permissaoDeLeituraDoDestino('SEXO')).toBe('ALUNO_LER');
-    for (const d of ['PESO', 'OBJETIVO', 'CPF', 'ENDERECO'] as const) {
+    for (const d of ['NOME', 'EMAIL', 'DATA_NASCIMENTO', 'FOTO_PERFIL'] as const) {
+      expect(permissaoDoDestino(d)).toBe('ALUNO_ALTERAR');
+      expect(permissaoDeLeituraDoDestino(d)).toBe('ALUNO_LER');
+    }
+    for (const d of ['PESO', 'OBJETIVO', 'CPF', 'ENDERECO', 'ALTURA', 'OBSERVACOES'] as const) {
       expect(permissaoDoDestino(d)).toBe('ALUNO_SENSIVEL_ALTERAR');
       expect(permissaoDeLeituraDoDestino(d)).toBe('ALUNO_SENSIVEL_LER');
     }

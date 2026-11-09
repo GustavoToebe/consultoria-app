@@ -32,15 +32,12 @@ public class InscricaoPublicaService {
         UUID consultoriaId = busca.consultoriaDoLinkAberto(codigo).orElseThrow(InscricaoPublicaService::linkInvalido);
         InscricaoService.PaginaDoLink pagina = TenantContext.executarComo(consultoriaId, () -> inscricoes.paginaDoLink(codigo));
         return new InscricaoPublica(marcas.marca(consultoriaId), pagina.texto(), TextoDaInscricao.versao(pagina.texto()), true,
-                pagina.campos(), pagina.perguntas());
+                pagina.campos(), pagina.perguntas(), pagina.questionarioId(), pagina.questionarioNome(), pagina.proximoQuestionarioCodigo());
     }
 
-    public void inscrever(String codigo, InscricaoPublicaRequest request) {
+    public String inscrever(String codigo, InscricaoPublicaRequest request) {
         UUID consultoriaId = busca.consultoriaDoLinkAberto(codigo).orElseThrow(InscricaoPublicaService::linkInvalido);
-        TenantContext.executarComo(consultoriaId, () -> {
-            inscricoes.registrarPublica(codigo, request);
-            return null;
-        });
+        return TenantContext.executarComo(consultoriaId, () -> inscricoes.registrarPublica(codigo, request));
     }
 
     static NaoEncontradoException linkInvalido() {

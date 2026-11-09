@@ -86,7 +86,14 @@ public final class PagamentosDtos {
             @Positive @Max(VALOR_MAXIMO) Long valorCentavos,
             @Size(max = 200) String motivoValor,
             @NotNull LocalDate inicio,
-            @NotNull @Min(1) @Max(31) Integer diaVencimento) { }
+            @NotNull @Min(1) @Max(31) Integer diaVencimento,
+            Boolean primeiroPeriodoPago) {
+
+        public ContratarRequest(UUID planoComercialId, Long valorCentavos, String motivoValor,
+                                LocalDate inicio, Integer diaVencimento) {
+            this(planoComercialId, valorCentavos, motivoValor, inicio, diaVencimento, null);
+        }
+    }
 
     public record AlterarContratacaoRequest(
             @NotNull @Positive @Max(VALOR_MAXIMO) Long valorCentavos,
@@ -97,7 +104,20 @@ public final class PagamentosDtos {
     public record ContratacaoResponse(UUID id, UUID alunoId, UUID planoComercialId, String planoNome,
                                       PeriodoDoPlano periodicidade, long valorCentavos, String motivoValor, LocalDate inicio,
                                       int diaVencimento, ContratacaoAluno.Situacao situacao, Instant encerradaEm,
-                                      Instant criadoEm, Long versao) { }
+                                      Instant criadoEm, Long versao,
+                                      LocalDate terminoVigencia, Long diasRestantesVigencia, String alertaRenovacao) {
+
+        public ContratacaoResponse(UUID id, UUID alunoId, UUID planoComercialId, String planoNome,
+                                   PeriodoDoPlano periodicidade, long valorCentavos, String motivoValor, LocalDate inicio,
+                                   int diaVencimento, ContratacaoAluno.Situacao situacao, Instant encerradaEm,
+                                   Instant criadoEm, Long versao) {
+            this(id, alunoId, planoComercialId, planoNome, periodicidade, valorCentavos, motivoValor, inicio, diaVencimento,
+                    situacao, encerradaEm, criadoEm, versao,
+                    Respostas.calcularTerminoVigencia(inicio, periodicidade),
+                    Respostas.calcularDiasRestantes(Respostas.calcularTerminoVigencia(inicio, periodicidade)),
+                    Respostas.calcularAlerta(Respostas.calcularDiasRestantes(Respostas.calcularTerminoVigencia(inicio, periodicidade))));
+        }
+    }
 
     // ---- Cobrança ----
 
@@ -185,6 +205,11 @@ public final class PagamentosDtos {
                                long diasDeAtraso) { }
 
     public record PaginaInadimplentes(List<Inadimplente> itens, long total, Long valorTotalCentavos, int pagina) { }
+
+    public record VisaoGeralResponse(
+            int renovacoesProximasCount,
+            long renovacoesProximasCentavos,
+            long projecaoAnualCentavos) { }
 
     // ---- Aluno ----
 

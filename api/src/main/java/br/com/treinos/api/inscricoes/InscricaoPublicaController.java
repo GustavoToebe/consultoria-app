@@ -50,7 +50,7 @@ public class InscricaoPublicaController {
                                        HttpServletRequest http) {
         verificacao.exigir(request.turnstileToken(), http.getRemoteAddr());
         limite.inscricao(http.getRemoteAddr());
-        inscricoes.inscrever(codigo, request);
-        return new InscricaoRecebida(RECEBIDA);
+        String proximo = inscricoes.inscrever(codigo, request);
+        return new InscricaoRecebida(RECEBIDA, proximo);
     }
 }

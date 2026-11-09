@@ -127,7 +127,9 @@ public class QuestionarioService {
                         () -> new NaoEncontradoException("Modelo de fábrica não encontrado.")).getConteudo()
                 : escrever(new ConteudoQuestionario(FORMATO, List.of(),
                         List.of(new Secao(UUID.randomUUID().toString(), "Geral", List.of()))));
-        return detalhe(gravar(new Questionario(nome, descricao(r.descricao()), rascunho, finalidade)));
+        Questionario novo = new Questionario(nome, descricao(r.descricao()), rascunho, finalidade);
+        novo.setCodigoPublico(UUID.randomUUID().toString().replace("-", "").substring(0, 16));
+        return detalhe(gravar(novo));
     }
 
     /** Rascunho: sem auditoria (é salvo o tempo todo); publicar é que fica registrado. */
@@ -143,6 +145,22 @@ public class QuestionarioService {
             throw new ValidacaoException("O questionário é grande demais.", "QUESTIONARIO_GRANDE_DEMAIS", List.of());
         }
         q.salvarRascunho(nome, descricao(r.descricao()), rascunho);
+        if (r.codigoPublico() != null && !r.codigoPublico().isBlank()) {
+            q.setCodigoPublico(r.codigoPublico().trim());
+        }
+        if (r.publicoAberto() != null) {
+            q.setPublicoAberto(r.publicoAberto());
+        }
+        q.setResponsavelPadraoId(r.responsavelPadraoId());
+        q.setProximoQuestionarioId(r.proximoQuestionarioId());
+        return detalhe(gravar(q));
+    }
+
+    @Transactional
+    public QuestionarioDetalhe regenerarCodigoPublico(UUID id) {
+        Questionario q = buscarParaAlterar(id);
+        exigirAtivo(q);
+        q.setCodigoPublico(UUID.randomUUID().toString().replace("-", "").substring(0, 16));
         return detalhe(gravar(q));
     }
 
@@ -466,12 +484,14 @@ public class QuestionarioService {
                 .map(v -> new VersaoResumo(v.getNumero(), v.getPublicadoEm())).toList();
         return new QuestionarioDetalhe(q.getId(), q.getNome(), q.getDescricao(), q.getFinalidade(), q.isPadrao(), q.isArquivado(),
                 q.getVersaoPublicada(), q.getPublicadoEm(), alterado(q), q.getRascunhoAlteradoEm(), q.getVersao(),
-                usos().de(q.getId()), ler(q.getRascunho()), publicadas);
+                usos().de(q.getId()), ler(q.getRascunho()), publicadas,
+                q.getCodigoPublico(), q.isPublicoAberto(), q.getResponsavelPadraoId(), q.getProximoQuestionarioId());
     }
 
     private static QuestionarioResumo resumo(Questionario q, Uso uso) {
         return new QuestionarioResumo(q.getId(), q.getNome(), q.getDescricao(), q.getFinalidade(), q.isPadrao(), q.isArquivado(),
-                q.getVersaoPublicada(), q.getPublicadoEm(), alterado(q), q.getRascunhoAlteradoEm(), uso);
+                q.getVersaoPublicada(), q.getPublicadoEm(), alterado(q), q.getRascunhoAlteradoEm(), uso,
+                q.getCodigoPublico(), q.isPublicoAberto(), q.getResponsavelPadraoId(), q.getProximoQuestionarioId());
     }
 
     private static boolean alterado(Questionario q) {

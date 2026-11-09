@@ -7,7 +7,8 @@ import { agrupar, type GrupoDeSeries } from '../../dominio/agrupamento';
 import { adicionarSerie, alterarGrupo, LIMITE_SERIES, moverGrupo, mudarQuantidade, novoExercicio, removerGrupo, type AlteracaoDeGrupo } from '../../dominio/editorTreino';
 import { grupoComSerie, uidDaAbaAposMudar } from '../../dominio/inspetorDoTreino';
 import { restPauseNestaSerie, textoDaContagemDeSeries } from '../../dominio/exemplosDePrescricao';
-import { codigoTrabalho, nomeDoTipo, tecnicaNaMetodologia } from '../../dominio/metodologia';
+import { corDoTipoDeSerie } from '../../dominio/corDaSerie';
+import { codigoTrabalho, nomeDoTipo, papelDe, tecnicaNaMetodologia } from '../../dominio/metodologia';
 import { CONFIGURACAO_PADRAO } from '../../dominio/metodologiaPadrao';
 import { validarExercicio } from '../../dominio/validacaoDoTreino';
 import { useTema } from '../../tema/TemaProvider';
@@ -52,7 +53,7 @@ const TECNICAS_DE_1_CLIQUE: TipoDeTecnica[] = ['REST_PAUSE', 'CLUSTER', 'DROP_SE
  * próprios. Cada campo mostra o erro e o aviso da validação (a mesma da publicação).
  */
 export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, grupoAbertoUid, aoAbrirGrupo, semCarga = false }: Props) {
-  const { cores } = useTema();
+  const { cores, identificacao } = useTema();
   const cfg = config ?? CONFIGURACAO_PADRAO;
   const modalidade = cardio ? 'CARDIO' : null;
   const grupos = agrupar(series);
@@ -108,12 +109,17 @@ export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, gru
   const botoesDaNova = cardio || cheio ? null : <BotoesDeNovaSerie config={cfg} aoAdicionar={adicionar} />;
   return <View style={estilos.lista} onLayout={medir}>
     {grupos.length > 0 ? <Abas variante="invertida" fundo={cores.superficie} ativa={uidAberto ?? grupos[0].series[0].uid} aoMudar={definirAberto}
-      abas={grupos.map((x, i) => ({
-        valor: x.series[0].uid,
-        rotulo: `Série ${i + 1}${cardio ? '' : ` · ${tipos.find((t) => t.valor === x.series[0].tipo)?.rotulo ?? nomeDoTipo(cfg, x.series[0].tipo)}`}`,
-        detalhe: detalheDaAba(x),
-        problema: problemaDaAba(nivelDoGrupo(validacao.porSerieErros, x)),
-      }))}
+      abas={grupos.map((x, i) => {
+        const chaveCor = corDoTipoDeSerie(x.series[0].tipo, papelDe(cfg, x.series[0].tipo));
+        const corIndicador = chaveCor && identificacao ? identificacao[chaveCor]?.cor : undefined;
+        return {
+          valor: x.series[0].uid,
+          rotulo: `Série ${i + 1}${cardio ? '' : ` · ${tipos.find((t) => t.valor === x.series[0].tipo)?.rotulo ?? nomeDoTipo(cfg, x.series[0].tipo)}`}`,
+          detalhe: detalheDaAba(x),
+          problema: problemaDaAba(nivelDoGrupo(validacao.porSerieErros, x)),
+          corIndicador,
+        };
+      })}
       // Cheio, o botão sai da linha das abas: desabilitado ele perdia o tracejado e o motivo ficava escondido.
       depois={cheio ? undefined : <Botao rotulo={rotuloDaNova} tipo="secundario" Icone={Plus} style={estilos.tracejado} aoTocar={aoNova} />} />
       : <View style={estilos.vazio}>

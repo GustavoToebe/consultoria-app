@@ -104,6 +104,14 @@ export function VisaoGeral({ escopo, aoMudarEscopo, podeAlterar }: {
             {dados.serie.length === 0 ? <Texto variante="suave">Nenhum valor recebido ou previsto no período.</Texto> : <GraficoBarras barras={serieDoGrafico(dados.serie)} />}
           </Cartao>
           <Grade gap={espaco(2)}>
+            <Cartao titulo="Renovações próximas (≤ 40 dias)" descricao="Alunos com término de vigência próximo." style={estilos.esticar}>
+              <CamposEmLinha>
+                <CampoLeitura rotulo="Próximos 40 dias" valor={(dados as any).renovacoesProximasCount != null ? `${dados.renovacoesProximasCount} planos` : '—'} numerico />
+                <CampoLeitura rotulo="Projeção Anual" valor={(dados as any).projecaoAnualCentavos != null ? centavosParaTela(dados.projecaoAnualCentavos) : '—'} numerico />
+              </CamposEmLinha>
+            </Cartao>
+          </Grade>
+          <Grade gap={espaco(2)}>
             <Cartao titulo="Próximos recebimentos" descricao={`O previsto ${NOTA_CONSIDERA_GERADAS}.`} style={estilos.esticar}>
               <CamposEmLinha>
                 <CampoLeitura rotulo="Próximos 7 dias" valor={valorEQuantidadeParaTela(dados.proximosRecebimentos.em7Dias)} numerico />

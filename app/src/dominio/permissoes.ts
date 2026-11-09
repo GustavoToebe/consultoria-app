@@ -27,6 +27,7 @@ export function moduloDesligadoDaTela(caminho:string,pagamentosHabilitados:boole
  */
 export function podeAcessarTela(caminho:string,tem:(codigo:string)=>boolean,pagamentosHabilitados:boolean=false,administrador:boolean=false):boolean {
   if(['/treinador/perfil','/treinador/meus-dados','/treinador/seguranca','/treinador/ajustes','/treinador/ajuda','/treinador/termos'].includes(caminho)) return true;
+  if(caminho==='/treinador/comunidade') return tem('TREINO_LER');
   if(caminho==='/treinador/minha-conta') return tem('CONTA_LER');
   if(caminho==='/treinador') return tem('PAINEL_VER');
   // A Agenda junta as atualizações dos próximos dias (mesma permissão das Atualizações) e os compromissos presenciais

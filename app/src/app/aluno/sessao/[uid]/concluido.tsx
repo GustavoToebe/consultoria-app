@@ -157,6 +157,21 @@ export default function TreinoConcluido() {
           ajuda="O cartão nunca mostra peso, fotos, medidas ou dieta."
         />
         <LinhaDeAcoes>
+          <Botao
+            rotulo="Compartilhar no Mural do Time"
+            tipo="secundario"
+            Icone={Share2}
+            aoTocar={() =>
+              router.push({
+                pathname: '/aluno/comunidade',
+                params: {
+                  compartilharTreino: 'true',
+                  tituloTreino: sessao.nome,
+                  dataTreino: data,
+                },
+              } as any)
+            }
+          />
           {modos.includes('baixar') ? (
             <Botao rotulo="Baixar imagem" Icone={Download} carregando={saindo === 'baixar'} aoTocar={() => void sair('baixar')} />
           ) : null}

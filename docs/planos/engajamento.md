@@ -1,6 +1,6 @@
 # Comunidade, Aulões & Gamificação (antigo Engajamento — C81 / N45)
 
-Situação: Etapa 0 concluída em produção (V039/V040); Comunidade, Aulões & Gamificação planejada para pós-piloto · Onde: `main` · Atualizado: 09/11/2026
+Situação: Concluída em 09/11/2026 (Etapa 0 em V039/V040; Comunidade, Aulões, Mural e Conquistas em V065) · Onde: `main` · Atualizado: 09/11/2026
 
 ## Objetivo
 Transformar a consultoria em uma verdadeira comunidade viva dentro do próprio aplicativo, evitando que o aluno treine em uma "ilha solitária" e aumentando substancialmente a consistência de treinos, a taxa de retenção e a renovação de ciclos. 
@@ -87,25 +87,25 @@ A base do retorno imediato foi entregue na Etapa 0, testada com sucesso e coloca
 
 ---
 
-## Passos Planejados (Para Implementação Pós-Piloto)
+## Passos Planejados
 
-- [ ] 1. **Banco e Migrations (Flyway)**:
+- [x] 1. **Banco e Migrations (Flyway)** (concluído em 09/11/2026, V065):
   - Criar tabelas `aula_comunidade` e `aula_comentario` para os aulões e dúvidas.
   - Criar tabelas `post_mural`, `reacao_mural` e `comentario_mural` com índices por `consultoria_id` e data.
   - Criar tabela `conquista_aluno` e catálogo de conquistas (`codigo`, `nome`, `icone`, `categoria`).
-- [ ] 2. **API — Endpoints e Regras**:
+- [x] 2. **API — Endpoints e Regras** (concluído em 09/11/2026):
   - Gestão de Aulões: rotas de criação/edição pelo treinador e listagem/comentários pelos alunos.
   - Mural Social: publicação com validação de opt-in, listagem paginada, reações e comentários.
   - Motor de Conquistas: listener assíncrono ao concluir sessão que avalia e grava conquistas em `conquista_aluno`.
   - Ranking Mensal: serviço com consulta agregada mensal de constância e PRs.
-- [ ] 3. **App — Aba Comunidade & Aulões (Aluno e Treinador)**:
+- [x] 3. **App — Aba Comunidade & Aulões (Aluno e Treinador)** (concluído em 09/11/2026):
   - Nova aba ou seção "Comunidade" no app com duas visões: "Aulões & Avisos" e "Mural do Time".
   - Player de vídeo de aula com caixa de perguntas abaixo.
   - Feed do mural com cards elegantes de treino concluído, botões de reação rápida e comentários.
-- [ ] 4. **App — Galeria de Conquistas e Vitrine de Troféus**:
+- [x] 4. **App — Galeria de Conquistas e Vitrine de Troféus** (concluído em 09/11/2026):
   - Seção "Minhas Conquistas" no perfil do aluno com troféus coloridos desbloqueados e silhuetas dos próximos a conquistar.
   - Notificação comemorativa especial ao desbloquear uma nova conquista.
-- [ ] 5. **E2E e Testes de Carga**:
+- [x] 5. **E2E e Testes de Carga** (concluído em 09/11/2026):
   - Testes cobrindo fluxo completo: concluir treino → publicar no mural → outro aluno reagir/comentar → moderação pelo treinador.
   - Garantia de isolamento multi-tenant nos feeds e rankings.
 

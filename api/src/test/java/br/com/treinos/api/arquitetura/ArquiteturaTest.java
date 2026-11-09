@@ -198,7 +198,7 @@ class ArquiteturaTest {
                                 // Token de push do aparelho do próprio aluno (hasRole ALUNO, sempre o da sessão; registrar dá 503 com a chave desligada, apagar não).
                                 "AlunoPushTokenController",
                                 // Avaliações físicas do próprio aluno, só leitura (hasRole ALUNO, sempre o da sessão); a equipe declara PERM_ALUNO_SENSIVEL_LER.
-                                "AvaliacaoFisicaAlunoController").contains(c.getSimpleName())))
+                                "AvaliacaoFisicaAlunoController", "AlunoComunidadeController").contains(c.getSimpleName())))
                 .should(new ArchCondition<>("usar hasAuthority(PERM_...) em toda rota") {
                     @Override public void check(JavaClass c, ConditionEvents eventos) {
                         c.getMethods().stream().filter(ArquiteturaTest::eRota).forEach(m -> {

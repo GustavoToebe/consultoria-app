@@ -64,11 +64,23 @@ export function CartaoMeuPlano() {
               <View style={estilos.linha}>
                 <Texto variante="bloco" style={estilos.nome}>{dados.plano.planoNome ?? 'Plano'}</Texto>
                 <Selo texto={seloDaContratacao(dados.plano.situacao).rotulo} tipo={seloDaContratacao(dados.plano.situacao).tom} />
+                {dados.plano.diasRestantesVigencia != null ? (
+                  dados.plano.diasRestantesVigencia < 0 ? (
+                    <Selo texto={`Vencido há ${Math.abs(dados.plano.diasRestantesVigencia)} dias`} tipo="perigo" />
+                  ) : dados.plano.diasRestantesVigencia <= 40 ? (
+                    <Selo texto={`Renovação em ${dados.plano.diasRestantesVigencia} dias (≤ 40d)`} tipo="atencao" />
+                  ) : (
+                    <Selo texto={`Vigente · ${dados.plano.diasRestantesVigencia} dias restantes`} tipo="sucesso" />
+                  )
+                ) : null}
               </View>
               <CamposEmLinha minimo={110}>
                 <CampoLeitura rotulo="Valor" valor={centavosParaTela(dados.plano.valorCentavos)} numerico />
                 <CampoLeitura rotulo="Periodicidade" valor={rotuloDaPeriodicidade(dados.plano.periodicidade)} />
                 <CampoLeitura rotulo="Próximo vencimento" valor={dados.plano.proximoVencimento ? dataParaTela(dados.plano.proximoVencimento) : null} numerico />
+                {dados.plano.terminoVigencia ? (
+                  <CampoLeitura rotulo="Término da vigência" valor={dataParaTela(dados.plano.terminoVigencia)} numerico />
+                ) : null}
               </CamposEmLinha>
             </View>
           ) : (

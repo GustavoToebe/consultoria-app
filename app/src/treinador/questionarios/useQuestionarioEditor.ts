@@ -15,6 +15,10 @@ interface Estado {
   nome: string;
   descricao: string;
   conteudo: ConteudoQuestionario;
+  codigoPublico?: string | null;
+  publicoAberto?: boolean;
+  responsavelPadraoId?: string | null;
+  proximoQuestionarioId?: string | null;
   /** Cada alteração soma 1; `salvoEm` é a revisão que o servidor já tem. */
   revisao: number;
   salvoEm: number;
@@ -53,7 +57,7 @@ export function useQuestionarioEditor(id: string | undefined) {
 
   const aplicarDetalhe = useCallback((d: QuestionarioDetalhe) => {
     versao.current = d.versao;
-    setEstado({ detalhe: d, nome: d.nome, descricao: d.descricao ?? '', conteudo: normalizarQuestionario(d.rascunho), revisao: 0, salvoEm: 0 });
+    setEstado({ detalhe: d, nome: d.nome, descricao: d.descricao ?? '', conteudo: normalizarQuestionario(d.rascunho), codigoPublico: d.codigoPublico ?? null, publicoAberto: d.publicoAberto ?? false, responsavelPadraoId: d.responsavelPadraoId ?? null, proximoQuestionarioId: d.proximoQuestionarioId ?? null, revisao: 0, salvoEm: 0 });
   }, []);
 
   useEffect(() => {
@@ -87,7 +91,7 @@ export function useQuestionarioEditor(id: string | undefined) {
       }
       const enviada = e.revisao;
       setSalvando(true);
-      const envio = salvarQuestionario(id, { nome: e.nome.trim(), descricao: e.descricao.trim() || null, conteudo: paraApi(e.conteudo, e.detalhe.finalidade), versao: versao.current }).then(
+      const envio = salvarQuestionario(id, { nome: e.nome.trim(), descricao: e.descricao.trim() || null, conteudo: paraApi(e.conteudo, e.detalhe.finalidade), versao: versao.current, codigoPublico: e.codigoPublico, publicoAberto: e.publicoAberto, responsavelPadraoId: e.responsavelPadraoId, proximoQuestionarioId: e.proximoQuestionarioId }).then(
         (d) => {
           versao.current = d.versao;
           setErroSalvar(null);

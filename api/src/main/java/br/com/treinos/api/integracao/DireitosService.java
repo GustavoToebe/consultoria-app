@@ -14,8 +14,8 @@ import java.util.UUID;
 
 /**
  * Aplica os direitos que a Central manda (webhook, contrato 5.3) ou lista na sincronização (6.1). Regra única: só versão
- * maior que a gravada altera o snapshot; versão igual ou menor só atualiza {@code confirmado_em}, que é o que mantém o
- * acesso liberado dentro da tolerância. A consultoria precisa ter sido provisionada antes (tem linha em
+ * maior que a gravada altera o snapshot; reenvio idempotente da mesma versão renova {@code confirmado_em}, que é o que mantém o
+ * acesso liberado dentro da tolerância; versão inferior é ignorada sem alterar o banco. A consultoria precisa ter sido provisionada antes (tem linha em
  * {@code direitos_locais}): a Central não adota uma consultoria só por conhecer o UUID dela.
  */
 @Service
@@ -49,7 +49,7 @@ public class DireitosService {
             throw new ConflictException("A contratação dos direitos não é a vinculada a esta instância.",
                     "IDEMPOTENCY_KEY_CONFLITO");
         }
-        boolean aplicado = gravar(consultoriaId, d);
+        boolean aplicado = gravar(consultoriaId, d, existente);
         return new Resultado(aplicado, contas.direitos(consultoriaId).map(DireitosLocais::versao).orElse(d.versao()));
     }
 
@@ -69,13 +69,19 @@ public class DireitosService {
             LOG.warn("Sincronização: a instância {} está vinculada a outra contratação; ignorada.", d.tenantId());
             return Efeito.IGNORADO;
         }
-        return gravar(d.tenantId(), d) ? Efeito.APLICADO : Efeito.CONFIRMADO;
+        if (d.versao() < existente.versao()) {
+            return Efeito.IGNORADO;
+        }
+        return gravar(d.tenantId(), d, existente) ? Efeito.APLICADO : Efeito.CONFIRMADO;
     }
 
-    private boolean gravar(UUID consultoriaId, DireitosInstancia d) {
+    private boolean gravar(UUID consultoriaId, DireitosInstancia d, DireitosLocais existente) {
         Instant agora = Instant.now();
+        if (d.versao() < existente.versao()) {
+            return false;
+        }
         boolean aplicado = contas.aplicarSeMaisNova(d.paraLocal(consultoriaId, agora));
-        if (!aplicado) {
+        if (!aplicado && d.versao() == existente.versao()) {
             contas.confirmar(consultoriaId, agora);
         }
         return aplicado;

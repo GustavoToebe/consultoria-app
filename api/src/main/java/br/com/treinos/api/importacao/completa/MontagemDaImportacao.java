@@ -141,6 +141,19 @@ public final class MontagemDaImportacao {
             this(linha, existente, null);
         }
 
+        public String chaveEstavel() {
+            if (linha != null) {
+                return "linha:" + linha;
+            }
+            if (chave != null && !chave.isBlank()) {
+                return "nome:" + chave;
+            }
+            if (existente != null) {
+                return "aluno:" + existente;
+            }
+            return "";
+        }
+
         @Override
         public String toString() {
             return "Dono[linha=" + linha + "]"; // nunca a chave (é o nome do aluno)
@@ -383,10 +396,10 @@ public final class MontagemDaImportacao {
             Reconhecimento r = aba.reconhecimento();
             int cCodigo = r.coluna(Campo.CODIGO);
             Set<String> codigos = new HashSet<>();
-            Map<String, AlunoExistente> porEmail = new HashMap<>();
+            Map<String, List<AlunoExistente>> porEmail = new HashMap<>();
             for (AlunoExistente e : ctx.alunos()) {
                 if (e.email() != null && !e.email().isBlank()) {
-                    porEmail.putIfAbsent(Emails.normalizar(e.email()), e);
+                    porEmail.computeIfAbsent(Emails.normalizar(e.email()), _ -> new ArrayList<>()).add(e);
                 }
             }
             for (Linha l : aba.dados()) {
@@ -416,7 +429,24 @@ public final class MontagemDaImportacao {
                     problema(aba, l.numero(), Campo.EMAIL, "EMAIL_INVALIDO");
                     email = "";
                 }
-                AlunoExistente existente = email.isEmpty() ? null : porEmail.get(Emails.normalizar(email));
+                AlunoExistente existente = null;
+                if (!email.isEmpty()) {
+                    List<AlunoExistente> porEmailCandidatos = porEmail.getOrDefault(Emails.normalizar(email), List.of());
+                    if (porEmailCandidatos.size() == 1) {
+                        existente = porEmailCandidatos.getFirst();
+                    } else if (porEmailCandidatos.size() > 1) {
+                        String chaveNome = Normalizacao.chaveDoNome(nome);
+                        List<AlunoExistente> casamNome = porEmailCandidatos.stream()
+                                .filter(e -> Normalizacao.chaveDoNome(e.nome()).equals(chaveNome))
+                                .toList();
+                        if (casamNome.size() == 1) {
+                            existente = casamNome.getFirst();
+                        } else {
+                            problema(aba, l.numero(), Campo.EMAIL, "ALUNO_EMAIL_COMPARTILHADO_AMBIGUO");
+                            continue;
+                        }
+                    }
+                }
                 if (existente == null) {
                     List<AlunoExistente> mesmos = existentesPorNome.getOrDefault(Normalizacao.chaveDoNome(nome), List.of());
                     if (mesmos.size() > 1) {
@@ -431,7 +461,7 @@ public final class MontagemDaImportacao {
                 }
                 Dono dono;
                 if (existente != null) {
-                    dono = new Dono(null, existente.id());
+                    dono = new Dono(l.numero(), existente.id(), Normalizacao.chaveDoNome(nome));
                     reaproveitados++;
                 } else {
                     String status = Normalizacao.chaveDoNome(AnaliseDaPlanilha.texto(l, r.coluna(Campo.STATUS)));
@@ -443,7 +473,7 @@ public final class MontagemDaImportacao {
                             continue;
                         }
                     }
-                    dono = new Dono(l.numero(), null);
+                    dono = new Dono(l.numero(), null, Normalizacao.chaveDoNome(nome));
                     novos.add(new AlunoNovo(dono, nome, email.isEmpty() ? null : email, telefone(aba, l),
                             sensivel(aba, l, Campo.OBJETIVO, OBJETIVO), sensivel(aba, l, Campo.OBSERVACAO, OBSERVACOES_ALUNO),
                             ativo));
@@ -494,7 +524,7 @@ public final class MontagemDaImportacao {
                 if (e.anonimizado()) {
                     return new Achado(null, "ALUNO_ANONIMIZADO");
                 }
-                Dono d = new Dono(null, e.id());
+                Dono d = new Dono(null, e.id(), chave);
                 reaproveitados++;
                 nomes.put(d, nome);
                 return new Achado(d, null);

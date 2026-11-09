@@ -4,7 +4,7 @@ import { EntradaEmCascata, usePrimeiraLista } from '../../../ui/EntradaEmCascata
 import { router, useLocalSearchParams } from 'expo-router';
 import { CalendarClock, CircleAlert, CircleCheck, Pencil, Plus, TriangleAlert, type LucideIcon } from 'lucide-react-native';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { ResponsavelEquipe } from '../../../api/equipeTipos';
 import { listarAlunos, responsaveisEquipe } from '../../../api/rotas';
@@ -19,9 +19,11 @@ import {
 } from '../../../dominio/filtrosDeAlunos';
 import { alternarComLimite, marcarVisiveis } from '../../../dominio/selecaoMultipla';
 import { useTema } from '../../../tema/TemaProvider';
-import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
+import { espaco, fontes, LARGURA_LISTA } from '../../../tema/tokens';
 import { SeletoresDosFiltrosDeAlunos } from '../../../treinador/SeletoresDosFiltrosDeAlunos';
 import { BarraDeFiltros } from '../../../ui/BarraDeFiltros';
+import { FaixaDeChips } from '../../../ui/FaixaDeChips';
+
 import { Folha } from '../../../ui/Folha';
 import { LinhaDeAcoes } from '../../../ui/LinhaDeAcoes';
 import { AcoesEmLote } from '../../../treinador/AcoesEmLote';
@@ -150,6 +152,61 @@ export default function Alunos() {
           <SeletoresDosFiltrosDeAlunos visiveis={visiveis} filtros={atuais} aoMudar={mudar} responsaveis={responsaveis} usuarioId={usuario?.id} />
         )}
       />
+      <View style={estilos.faixaResponsaveis}>
+        <FaixaDeChips accessibilityLabel="Filtrar por responsável">
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Filtrar por: Todos"
+            onPress={() => aplicar({ ...filtros, responsaveis: [] })}
+            style={[
+              estilos.chipResponsavel,
+              {
+                backgroundColor: filtros.responsaveis.length === 0 ? cores.texto : cores.superficie,
+                borderColor: filtros.responsaveis.length === 0 ? cores.texto : cores.borda,
+              },
+            ]}>
+            <Texto style={[estilos.textoChipResponsavel, { color: filtros.responsaveis.length === 0 ? cores.fundo : cores.texto }]}>
+              Todos
+            </Texto>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Filtrar por: Meus alunos"
+            onPress={() => aplicar({ ...filtros, responsaveis: ['meus'] })}
+            style={[
+              estilos.chipResponsavel,
+              {
+                backgroundColor: filtros.responsaveis.length === 1 && filtros.responsaveis[0] === 'meus' ? cores.texto : cores.superficie,
+                borderColor: filtros.responsaveis.length === 1 && filtros.responsaveis[0] === 'meus' ? cores.texto : cores.borda,
+              },
+            ]}>
+            <Texto style={[estilos.textoChipResponsavel, { color: filtros.responsaveis.length === 1 && filtros.responsaveis[0] === 'meus' ? cores.fundo : cores.texto }]}>
+              Meus alunos
+            </Texto>
+          </Pressable>
+          {responsaveis.map((r) => {
+            const ativo = filtros.responsaveis.length === 1 && filtros.responsaveis[0] === r.id;
+            return (
+              <Pressable
+                key={r.id}
+                accessibilityRole="button"
+                accessibilityLabel={`Filtrar por: ${primeiroNome(r.nome)}`}
+                onPress={() => aplicar({ ...filtros, responsaveis: [r.id] })}
+                style={[
+                  estilos.chipResponsavel,
+                  {
+                    backgroundColor: ativo ? cores.texto : cores.superficie,
+                    borderColor: ativo ? cores.texto : cores.borda,
+                  },
+                ]}>
+                <Texto style={[estilos.textoChipResponsavel, { color: ativo ? cores.fundo : cores.texto }]}>
+                  {primeiroNome(r.nome)}
+                </Texto>
+              </Pressable>
+            );
+          })}
+        </FaixaDeChips>
+      </View>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && dados.itens.length === 0 ? (
@@ -304,6 +361,9 @@ const estilos = StyleSheet.create({
   raiz: { flex: 1 },
   barraLote: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), borderTopWidth: 1, paddingHorizontal: espaco(2), paddingVertical: espaco(1.25) },
   textoLote: { flexShrink: 1 },
+  faixaResponsaveis: { marginVertical: espaco(1) },
+  chipResponsavel: { minHeight: 36, paddingHorizontal: espaco(1.5), paddingVertical: espaco(0.5), borderRadius: 999, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  textoChipResponsavel: { fontFamily: fontes.semi, fontSize: 13 },
   acoesDoTopo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1) },
   // 24 px entre os blocos dos grupos.
   lista: { gap: espaco(3) },

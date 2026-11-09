@@ -63,6 +63,7 @@ interface Props {
   aoMudar: (r: Refeicao) => void;
   /** Remove a opção com "Desfazer" (leva os itens dela junto). */
   aoRemoverOpcao: (indice: number) => void;
+  aoRemoverItem?: (opcaoIndice: number, itemIndice: number, nomeItem: string) => void;
   /** O "Desfazer" da opção removida, logo abaixo das opções (empilhado, para ficar à vista). */
   aviso?: ReactNode;
   aoMover: (delta: -1 | 1) => void;
@@ -168,6 +169,7 @@ export function CartaoRefeicao(p: Props) {
                   aoMudarItens={(fn) => mudarItens(indice, fn)}
                   aoEscolherAlimento={() => p.aoEscolherAlimento(indice)}
                   aoRemover={varias ? () => p.aoRemoverOpcao(indice) : undefined}
+                  aoRemoverItem={p.aoRemoverItem ? (ii, nome) => p.aoRemoverItem!(indice, ii, nome) : undefined}
                 />
               </Fragment>
             ))}
@@ -206,6 +208,7 @@ function OpcaoDaRefeicao({
   aoMudarItens,
   aoEscolherAlimento,
   aoRemover,
+  aoRemoverItem,
 }: {
   opcao: OpcaoRefeicao;
   /** Largura da coluna no PC; sem ela, a opção ocupa a linha toda (celular). */
@@ -216,6 +219,7 @@ function OpcaoDaRefeicao({
   aoMudarItens: (fn: (itens: ItemDieta[]) => ItemDieta[]) => void;
   aoEscolherAlimento: () => void;
   aoRemover?: () => void;
+  aoRemoverItem?: (itemIndice: number, nomeItem: string) => void;
 }) {
   const { cores } = useTema();
   // Com várias opções, o nome acessível diz a qual delas o botão serve (o texto visível é o mesmo em cada coluna).
@@ -237,7 +241,7 @@ function OpcaoDaRefeicao({
           total={opcao.itens.length}
           comProblema={comProblema.has(item.uid)}
           aoMudar={(novo) => aoMudarItens((itens) => substituir(itens, ii, recalcularItem(novo, novo.alimentoId ? alimentos.get(novo.alimentoId) : undefined)))}
-          aoRemover={() => aoMudarItens((itens) => remover(itens, ii))}
+          aoRemover={() => (aoRemoverItem ? aoRemoverItem(ii, item.nome || `Item ${ii + 1}`) : aoMudarItens((itens) => remover(itens, ii)))}
           aoMover={(d) => aoMudarItens((itens) => mover(itens, ii, d))}
         />
       ))}

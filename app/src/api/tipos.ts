@@ -1454,7 +1454,7 @@ export interface CondicaoPergunta { perguntaId: string; valores: string[] }
  * registro de peso), OBJETIVO e CPF (pergunta TEXTO → objetivo ou CPF do aluno), TELEFONE (pergunta TELEFONE → telefone do
  * usuário do aluno) e ENDERECO (pergunta ENDERECO → os 7 campos do endereço). Nome e e-mail nunca.
  */
-export type DestinoNoPerfil = 'PESO' | 'OBJETIVO' | 'CPF' | 'TELEFONE' | 'ENDERECO' | 'SEXO';
+export type DestinoNoPerfil = 'PESO' | 'ALTURA' | 'NOME' | 'EMAIL' | 'TELEFONE' | 'CPF' | 'ENDERECO' | 'DATA_NASCIMENTO' | 'SEXO' | 'OBJETIVO' | 'OBSERVACOES' | 'FOTO_PERFIL';
 export interface PerguntaAtualizacao {
   id: string;
   tipo: TipoPergunta;
@@ -1558,6 +1558,7 @@ export interface QuestionarioResumo {
   /** 0 = nunca publicado. */
   versaoPublicada: number; publicadoEm: string | null; alteradoDesdePublicacao: boolean;
   rascunhoAlteradoEm: string | null; uso: UsoQuestionario;
+  codigoPublico?: string | null; publicoAberto?: boolean | null; responsavelPadraoId?: string | null; proximoQuestionarioId?: string | null;
 }
 export interface QuestionarioDetalhe extends QuestionarioResumo {
   /** Trava otimista do rascunho. */
@@ -1577,7 +1578,7 @@ export interface AnamneseResumo {
 }
 export type SituacaoAlteracaoDoCadastro = 'PENDENTE' | 'APLICADA' | 'DESCARTADA';
 /** Valor de uma alteração do cadastro: `{texto}` no objetivo, CPF e telefone, `{pesoKg, data}` no peso, `{endereco}` no endereço. */
-export interface ValorDoCadastro { texto?: string; pesoKg?: number; data?: string; endereco?: EnderecoDoAluno }
+export interface ValorDoCadastro { texto?: string; pesoKg?: number; data?: string; endereco?: EnderecoDoAluno; numero?: number; fotoId?: string }
 /**
  * O que a anamnese fez no cadastro (`AnamneseDtos.AlteracaoDoCadastro`): PENDENTE = o cadastro tinha outro valor
  * (`valorAtual`), APLICADA (`automatica` = campo vazio preenchido no envio) ou DESCARTADA. Só para a equipe.
@@ -1596,7 +1597,16 @@ export interface AnamneseDetalhe {
   /** Só para a equipe (nulo nas rotas do aluno). */
   alteracoes: AlteracaoDoCadastro[] | null;
 }
-export interface SalvarQuestionarioRequest { nome: string; descricao: string | null; conteudo: ConteudoQuestionario; versao: number }
+export interface SalvarQuestionarioRequest {
+  nome: string;
+  descricao: string | null;
+  conteudo: ConteudoQuestionario;
+  versao: number;
+  codigoPublico?: string | null;
+  publicoAberto?: boolean | null;
+  responsavelPadraoId?: string | null;
+  proximoQuestionarioId?: string | null;
+}
 export interface ConteudoPastaModelo { planos: { titulo: string; treino: ConteudoTreino | null; dieta: ConteudoDieta | null; mobilidade?: ConteudoMobilidadeApi | null }[] }
 
 export type PeriodicidadeDaConta = 'MENSAL' | 'TRIMESTRAL' | 'SEMESTRAL' | 'ANUAL';

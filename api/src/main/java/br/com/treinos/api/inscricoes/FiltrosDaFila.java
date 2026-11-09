@@ -30,7 +30,11 @@ import java.util.UUID;
  * </ul>
  */
 record FiltrosDaFila(Set<UUID> responsaveis, boolean semResponsavel, Set<Crm.Origem> origens, boolean semOrigem,
-                     String busca, Periodo entrada, Periodo atividade) {
+                     String busca, Periodo entrada, Periodo atividade, UUID questionarioId) {
+    public FiltrosDaFila(Set<UUID> responsaveis, boolean semResponsavel, Set<Crm.Origem> origens, boolean semOrigem,
+                         String busca, Periodo entrada, Periodo atividade) {
+        this(responsaveis, semResponsavel, origens, semOrigem, busca, entrada, atividade, null);
+    }
 
     static final String SEM_ORIGEM = "NAO_INFORMADA";
     private static final String CODIGO_PERIODO = "PERIODO_INVALIDO";
@@ -52,7 +56,7 @@ record FiltrosDaFila(Set<UUID> responsaveis, boolean semResponsavel, Set<Crm.Ori
      * {@code meus} junto de {@code responsavel} também é 400. Quem chama confere se os responsáveis são da equipe.
      */
     static FiltrosDaFila ler(UUID meus, List<String> responsavel, List<String> origem, String busca, LocalDate de,
-                             LocalDate ate, LocalDate atividadeDe, LocalDate atividadeAte) {
+                             LocalDate ate, LocalDate atividadeDe, LocalDate atividadeAte, UUID questionarioId) {
         FiltrosDeLista.Responsaveis r = FiltrosDeLista.Responsaveis.ler(responsavel, meus != null);
         Set<UUID> ids = meus != null ? Set.of(meus) : r.ids();
         Set<Crm.Origem> origens = EnumSet.noneOf(Crm.Origem.class);
@@ -62,7 +66,12 @@ record FiltrosDaFila(Set<UUID> responsaveis, boolean semResponsavel, Set<Crm.Ori
             else origens.add(FiltrosDeLista.umEnum(Crm.Origem.class, o, "origem"));
         }
         return new FiltrosDaFila(ids, r.semResponsavel(), Set.copyOf(origens), semOrigem, Buscas.opcional(busca),
-                Periodo.de(de, ate), Periodo.de(atividadeDe, atividadeAte));
+                Periodo.de(de, ate), Periodo.de(atividadeDe, atividadeAte), questionarioId);
+    }
+
+    static FiltrosDaFila ler(UUID meus, List<String> responsavel, List<String> origem, String busca, LocalDate de,
+                             LocalDate ate, LocalDate atividadeDe, LocalDate atividadeAte) {
+        return ler(meus, responsavel, origem, busca, de, ate, atividadeDe, atividadeAte, null);
     }
 
     /** Os filtros com as situações escolhidas (vazio = todas). */
@@ -91,6 +100,9 @@ record FiltrosDaFila(Set<UUID> responsaveis, boolean semResponsavel, Set<Crm.Ori
                 String digitos = digitos(busca);
                 if (!digitos.isEmpty()) ou.add(cb.like(root.get("whatsappDigitos"), "%" + digitos + "%"));
                 e.add(cb.or(ou.toArray(Predicate[]::new)));
+            }
+            if (questionarioId != null) {
+                e.add(cb.equal(root.get("questionarioId"), questionarioId));
             }
             intervalo(e, cb, root.get("criadaEm"), entrada);
             intervalo(e, cb, root.get("ultimaAtividadeEm"), atividade);

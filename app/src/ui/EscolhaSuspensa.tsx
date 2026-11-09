@@ -176,6 +176,7 @@ const estilos = StyleSheet.create({
   valor: { fontFamily: fontes.semi, fontSize: 15 },
   painel: {
     position: 'absolute',
+    zIndex: 9999,
     borderWidth: 1,
     borderRadius: RAIO,
     overflow: 'hidden',

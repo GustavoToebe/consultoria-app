@@ -38,6 +38,8 @@ public interface ContratacaoAlunoRepository extends JpaRepository<ContratacaoAlu
 
     List<ContratacaoAluno> findByAlunoIdOrderByCriadoEmDescIdDesc(UUID alunoId);
 
+    List<ContratacaoAluno> findBySituacao(ContratacaoAluno.Situacao situacao);
+
     @Query("select c.periodicidade as periodicidade, c.valorCentavos as valor, count(c) as quantidade "
             + "from ContratacaoAluno c join Aluno a on a.id = c.alunoId "
             + "where c.situacao = :ativa and c.periodicidade <> :unica "

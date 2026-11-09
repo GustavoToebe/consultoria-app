@@ -20,7 +20,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Teste com 5 alunos | [teste-5-alunos.md](teste-5-alunos.md) | produção | Preparando | 27/10/2026 |
 | Anamnese ao aceitar a inscrição | [anamnese-no-aceite.md](anamnese-no-aceite.md) | `main` | Concluída em 27/10/2026 | 27/10/2026 |
 | Listas padronizadas no treinador | [listas-padronizadas.md](listas-padronizadas.md) | `main` | Concluída em 27/10/2026 | 27/10/2026 |
-| Comunidade, Aulões & Gamificação (antigo Engajamento, C81 / N45) | [engajamento.md](engajamento.md) | `main` | Etapa 0 concluída em produção; Comunidade, Aulões & Gamificação planejada para pós-piloto | 09/11/2026 |
+| Comunidade, Aulões & Gamificação (antigo Engajamento, C81 / N45) | [engajamento.md](engajamento.md) | `main` | Concluída em 09/11/2026 (Etapa 0 V039/V040; Comunidade, Aulões, Mural e Conquistas V065) | 09/11/2026 |
 | Revisão de segurança de 28/10 | [revisao-seguranca-28-10.md](revisao-seguranca-28-10.md) | `main` | Publicada em 28/10/2026 (run 40719287212); falta provar o reenvio do Mercado Pago | 28/10/2026 |
 | PDFs menores e mais rápidos | [pdfs-otimizacao.md](pdfs-otimizacao.md) | `main` | Publicada em 28/10/2026 (run 40719287212); item 4 e conferência no APK pendentes | 28/10/2026 |
 | Proteção contra robôs (Cloudflare + Turnstile) | [cloudflare-turnstile.md](cloudflare-turnstile.md) | Cloudflare e VPS | Concluída em 28/10/2026 (Turnstile ligado em produção; falta só o teste no iPhone nativo) | 28/10/2026 |
@@ -89,7 +89,8 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Fatores de alimento nativos (FC e FCc estimados, V060; C52) | [fatores-de-alimento-nativos.md](fatores-de-alimento-nativos.md) | branch `top-set-restaurado` (PR #103) | Código e testes prontos; conferir na tela depois do deploy | 05/11/2026 |
 | Biblioteca unificada: Alimentos e Suplementos numa tabela só (Whey soma na dieta) | [biblioteca-unificada-alimentos-suplementos.md](biblioteca-unificada-alimentos-suplementos.md) | `main` (PR #104, `ea2c2559` e PR #105, `88dfb654`) | Concluída em 08/11/2026 (deploy verde runs 42434144981 e 42443936995) | 08/11/2026 |
 | Modelos padrão do sistema: 32 Semanas, 37 Dias, 26 Receitas de séries, 3 Mobilidades e 13 Dietas, sem coleção | [modelos-padrao-do-sistema.md](modelos-padrao-do-sistema.md) | `main` (PR #106, `e895a0e1`) | Concluída em 08/11/2026 (deploy verde run 42444911092) | 08/11/2026 |
-| Formulários unificados da consultoria ("Google Forms interno", C62) | [formularios-unificados.md](formularios-unificados.md) | `main` | Planejado — aguardando início (pós-piloto) | 09/11/2026 |
+| Formulários unificados da consultoria ("Google Forms interno", C62) | [formularios-unificados.md](formularios-unificados.md) | `main` | Concluída em 09/11/2026 (V064) | 09/11/2026 |
+| Importação assistida por IA (Lote misto PDF/DOCX/XLSX/Texto, Gemini/Claude e regras) | [importacao-assistida-ia.md](importacao-assistida-ia.md) | `main` | Concluída em 09/11/2026 (V066) | 09/11/2026 |
 
 ## Pendências soltas
 
@@ -113,8 +114,8 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Redesenho de série (04/11): nativo, leitor de tela real, temas areia e contraste alto do campo de carga fixa do `CartaoDoTipo` e do Aquecimento não foram conferidos | Claude | [series-redesenho.md](series-redesenho.md) |
 | ~~Redesenho de série (05/11, code-review): `linhaDoGrupo` (`cargaDaSerie.ts`)~~ · resolvido em 09/11: coberto por teste unitário garantindo formatação íntegra mesmo com " - " no nome do tipo | Claude | [series-redesenho.md](series-redesenho.md) |
 | ~~Editor de lista + inspetor: caixas da prescrição~~ · resolvido em 09/11: estrutura e caixas de repetições/descanso quebram limpas com `flexWrap: 'wrap'` em qualquer janela | Claude | editor-treino-inspetor |
-| Comunidade, Aulões & Gamificação (C81, N45, reunião 08/11): novo desenho unificado de comunidade no app (substituindo Circle/Hotmart e trazendo feed social, reações, aulões e vitrine de conquistas do Hevy) | Claude / Gustavo | [engajamento.md](engajamento.md) |
-| Questionário de Inscrição / Condicionais (N37, reunião 08/11): pergunta "Quem indicou?" condicional para "Aluno do time" ou "Influenciador" incorporada ao desenho de formulários unificados | Claude / Gustavo | [formularios-unificados.md](formularios-unificados.md) |
+| ~~Comunidade, Aulões & Gamificação (C81, N45, reunião 08/11): novo desenho unificado de comunidade no app (substituindo Circle/Hotmart e trazendo feed social, reações, aulões e vitrine de conquistas do Hevy)~~ · concluído em 09/11/2026 na V065 (rotas de aulões, mural com opt-in, catálogo de conquistas e telas do app) | Claude | [engajamento.md](engajamento.md) |
+| ~~Questionário de Inscrição / Condicionais (N37, reunião 08/11): pergunta "Quem indicou?" condicional para "Aluno do time" ou "Influenciador" incorporada ao desenho de formulários unificados~~ · concluído em 09/11/2026 na V064 (motor unificado, DestinoNoPerfil e múltiplos links públicos) | Claude | [formularios-unificados.md](formularios-unificados.md) |
 | E-mail de produção (N01, reunião 08/11): `TREINOS_EMAIL_NOME_APP` e `TREINOS_EMAIL_REMETENTE` verificados no `consultoria.env` da VPS como "Consultoria"; ajustar para "Overtraining" no próximo ciclo de manutenção | Gustavo / Claude | reunião 08/11, N01 |
 | Menores de idade (decisão de 04/11: o Saraiva atende): revisão jurídica do termo de uso e do aviso de privacidade (`resources/termos/*.md` não falam de idade nem de responsável legal; a revisão antes previa "maiores de 18 anos", que não vale mais; subir `Termos.VERSAO` ao mudar) e da anamnese, que não tem responsável legal | Gustavo, com revisão jurídica | inscricao-saraiva |
 | "Hormonizado ou natural" é dado de saúde perguntado na inscrição pública (sem login), a pedido do Saraiva: rever com a LGPD (base legal, aviso no texto do link, retenção de 180 dias) | Gustavo, com revisão jurídica | inscricao-saraiva |

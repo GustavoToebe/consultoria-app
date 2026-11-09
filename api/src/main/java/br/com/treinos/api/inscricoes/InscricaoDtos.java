@@ -42,7 +42,12 @@ public final class InscricaoDtos {
      * padrão de inscrição publicado, nulo sem padrão.
      */
     public record InscricaoPublica(MarcaPublica consultoria, String texto, String textoVersao, boolean aberta,
-                                   List<CampoDaInscricao> campos, PerguntasDaInscricao perguntas) {
+                                   List<CampoDaInscricao> campos, PerguntasDaInscricao perguntas,
+                                   UUID questionarioId, String questionarioNome, String proximoQuestionarioCodigo) {
+        public InscricaoPublica(MarcaPublica consultoria, String texto, String textoVersao, boolean aberta,
+                               List<CampoDaInscricao> campos, PerguntasDaInscricao perguntas) {
+            this(consultoria, texto, textoVersao, aberta, campos, perguntas, null, null, null);
+        }
     }
 
     /**
@@ -78,11 +83,23 @@ public final class InscricaoDtos {
             /** {@code perguntas.versaoId} recebido na página; nulo quando a página não tinha perguntas. */
             UUID questionarioVersaoId,
             /** Respostas às perguntas do treinador, por id da pergunta (as mesmas regras da atualização e da anamnese). */
-            JsonNode respostas) {
+            JsonNode respostas,
+            @Size(max = 120) String indicadoPor) {
+        public InscricaoPublicaRequest(String nome, String whatsapp, String email, String objetivo,
+                                       Boolean cienciaPrivacidade, String textoVersao, String turnstileToken,
+                                       String sexo, Interesse interesse, ModalidadeDesejada modalidade,
+                                       PrevisaoInicio previsaoInicio, OrigemInformada origem, String origemLink,
+                                       UUID questionarioVersaoId, JsonNode respostas) {
+            this(nome, whatsapp, email, objetivo, cienciaPrivacidade, textoVersao, turnstileToken, sexo, interesse,
+                    modalidade, previsaoInicio, origem, origemLink, questionarioVersaoId, respostas, null);
+        }
     }
 
     /** Resposta neutra: não diz nada sobre a fila nem sobre outras inscrições. */
-    public record InscricaoRecebida(String mensagem) {
+    public record InscricaoRecebida(String mensagem, String proximoQuestionarioCodigo) {
+        public InscricaoRecebida(String mensagem) {
+            this(mensagem, null);
+        }
     }
 
     // ---- Configuração do link ----
@@ -126,7 +143,17 @@ public final class InscricaoDtos {
                                   SituacaoInscricao situacao, PagamentoInscricao pagamento, UUID responsavelId,
                                   String responsavelNome, UUID alunoId, Instant criadaEm, Instant ultimaAtividadeEm,
                                   int ciclo, Origem origem, String propostaPlanoNome, ProximoRetorno proximoRetorno,
-                                  Long versao, Duplicidade duplicidade) {
+                                  Long versao, Duplicidade duplicidade,
+                                  UUID questionarioId, String questionarioNome, String indicadoPor) {
+        public InscricaoResumo(UUID id, String nome, String objetivo, String whatsapp, String email,
+                              SituacaoInscricao situacao, PagamentoInscricao pagamento, UUID responsavelId,
+                              String responsavelNome, UUID alunoId, Instant criadaEm, Instant ultimaAtividadeEm,
+                              int ciclo, Origem origem, String propostaPlanoNome, ProximoRetorno proximoRetorno,
+                              Long versao, Duplicidade duplicidade) {
+            this(id, nome, objetivo, whatsapp, email, situacao, pagamento, responsavelId, responsavelNome, alunoId,
+                    criadaEm, ultimaAtividadeEm, ciclo, origem, propostaPlanoNome, proximoRetorno, versao, duplicidade,
+                    null, null, null);
+        }
     }
 
     /** Contagens no escopo dos filtros (sem a situação). */
@@ -174,7 +201,27 @@ public final class InscricaoDtos {
                                    UUID responsavelId, String responsavelNome, UUID alunoId, Instant aceitaEm,
                                    Relacionada relacionadaA, Proposta proposta, Instant criadaEm, Instant atualizadaEm,
                                    Instant ultimaAtividadeEm, Long versao, Duplicidade duplicidade, List<Nota> notas,
-                                   List<Retorno> retornos, List<Evento> eventos, RespostasDaInscricao respostas) {
+                                   List<Retorno> retornos, List<Evento> eventos, RespostasDaInscricao respostas,
+                                   UUID questionarioId, String questionarioNome, String indicadoPor) {
+        public InscricaoDetalhe(UUID id, String nome, String whatsapp, String email, String objetivo,
+                               String observacao, String sexo, Interesse interesse,
+                               ModalidadeDesejada modalidadeDesejada, PrevisaoInicio previsaoInicio,
+                               OrigemInformada origemInformada, String origemLink, Origem origem,
+                               Instant cienciaEm, String cienciaTexto, SituacaoInscricao situacao, int ciclo,
+                               MotivoEncerramento motivoEncerramento, String motivoDetalhe, Instant encerradaEm,
+                               String encerradaPorNome, PagamentoInscricao pagamento,
+                               String pagamentoConfirmadoPorNome, Instant pagamentoConfirmadoEm,
+                               UUID responsavelId, String responsavelNome, UUID alunoId, Instant aceitaEm,
+                               Relacionada relacionadaA, Proposta proposta, Instant criadaEm, Instant atualizadaEm,
+                               Instant ultimaAtividadeEm, Long versao, Duplicidade duplicidade, List<Nota> notas,
+                               List<Retorno> retornos, List<Evento> eventos, RespostasDaInscricao respostas) {
+            this(id, nome, whatsapp, email, objetivo, observacao, sexo, interesse, modalidadeDesejada, previsaoInicio,
+                    origemInformada, origemLink, origem, cienciaEm, cienciaTexto, situacao, ciclo, motivoEncerramento,
+                    motivoDetalhe, encerradaEm, encerradaPorNome, pagamento, pagamentoConfirmadoPorNome,
+                    pagamentoConfirmadoEm, responsavelId, responsavelNome, alunoId, aceitaEm, relacionadaA, proposta,
+                    criadaEm, atualizadaEm, ultimaAtividadeEm, versao, duplicidade, notas, retornos, eventos, respostas,
+                    null, null, null);
+        }
     }
 
     /**

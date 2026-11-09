@@ -58,7 +58,13 @@ public final class AmostraDaPlanilha {
      */
     public record AlunoDaAmostra(int numero, String situacao, String nome, Boolean ativo, String email, String telefone,
                                  String objetivo, String observacoes, int pesos, List<Peso> ultimosPesos,
-                                 ConteudoTreino treino, ConteudoDieta dieta) {
+                                 ConteudoTreino treino, ConteudoDieta dieta, String chave) {
+        public AlunoDaAmostra(int numero, String situacao, String nome, Boolean ativo, String email, String telefone,
+                              String objetivo, String observacoes, int pesos, List<Peso> ultimosPesos,
+                              ConteudoTreino treino, ConteudoDieta dieta) {
+            this(numero, situacao, nome, ativo, email, telefone, objetivo, observacoes, pesos, ultimosPesos, treino, dieta, null);
+        }
+
         @Override
         public String toString() {
             return "AlunoDaAmostra[numero=" + numero + "]"; // nunca nome, contatos, peso nem plano
@@ -101,26 +107,40 @@ public final class AmostraDaPlanilha {
             alunos.add(novo != null
                     ? new AlunoDaAmostra(i + 1, "NOVO", novo.nome(), novo.ativo(), novo.email(), novo.telefone(),
                             novo.objetivo(), novo.observacoes(), dele.size(), ultimos, plano == null ? null : plano.treino(),
-                            plano == null ? null : plano.dieta())
+                            plano == null ? null : plano.dieta(), dono.chaveEstavel())
                     // Aluno que já existe: sempre o nome oficial do cadastro (com plano ou só com pesos); o texto da
                     // planilha só entra se, por algum motivo, o cadastro não estiver na lista.
                     : new AlunoDaAmostra(i + 1, "EXISTENTE",
                             nomesDoCadastro.getOrDefault(dono.existente(), plano != null ? plano.nome() : null), null, null,
                             null, null, null, dele.size(), ultimos, plano == null ? null : plano.treino(),
-                            plano == null ? null : plano.dieta()));
+                            plano == null ? null : plano.dieta(), dono.chaveEstavel()));
         }
         return new Amostra(hash, ordem.size(), de, MontagemDaImportacao.TITULO_PASTA, List.copyOf(alunos));
     }
 
     /**
      * A ordem dos alunos da planilha, a mesma da amostra (o {@code numero} de cada um é a posição + 1) e da lista de
-     * ignorados da confirmação: cadastros novos, depois quem tem plano, depois o aluno que já existe e só recebe pesos.
+     * ignorados da confirmação: preserva a ordem das linhas na planilha para evitar que cadastros simultâneos alterem a ordem.
      */
     static List<Dono> ordemDosDonos(Montagem m) {
-        Set<Dono> donos = new LinkedHashSet<>();
-        m.alunosNovos().forEach(a -> donos.add(a.dono()));
-        m.planos().forEach(p -> donos.add(p.dono()));
-        m.pesos().forEach(p -> donos.add(p.dono())); // já está na lista se tem cadastro novo ou plano
-        return List.copyOf(donos);
+        Set<Dono> todos = new LinkedHashSet<>();
+        m.alunosNovos().forEach(a -> todos.add(a.dono()));
+        m.planos().forEach(p -> todos.add(p.dono()));
+        m.pesos().forEach(p -> todos.add(p.dono())); // já está na lista se tem cadastro novo ou plano
+
+        List<Dono> lista = new ArrayList<>(todos);
+        lista.sort((d1, d2) -> {
+            if (d1.linha() != null && d2.linha() != null) {
+                return Integer.compare(d1.linha(), d2.linha());
+            }
+            if (d1.linha() != null) {
+                return -1;
+            }
+            if (d2.linha() != null) {
+                return 1;
+            }
+            return 0; // preserva a ordem de inserção do LinkedHashSet
+        });
+        return List.copyOf(lista);
     }
 }

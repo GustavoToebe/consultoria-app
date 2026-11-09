@@ -85,6 +85,7 @@ export default function Inscricao() {
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [recebida, setRecebida] = useState<string | null>(null);
+  const [proximoCodigo, setProximoCodigo] = useState<string | null>(null);
   const refNome = useRef<TextInput>(null);
   const refWhatsapp = useRef<TextInput>(null);
   const refEmail = useRef<TextInput>(null);
@@ -211,6 +212,7 @@ export default function Inscricao() {
         corpoDaInscricao(dados, !!texto && ciencia, verificacao.token, pagina.dados?.textoVersao ?? null, origemLink, visiveis,
           perguntas ? { versaoId: perguntas.versaoId, respostas: respostasDaPagina(perguntas.conteudo, respostas) } : null));
       setRecebida(resposta.mensagem);
+      if (resposta.proximoQuestionarioCodigo) setProximoCodigo(resposta.proximoQuestionarioCodigo);
     } catch (e) {
       falha = e;
       if (codigoApi(e) === 'TEXTO_ALTERADO') {
@@ -280,7 +282,7 @@ export default function Inscricao() {
   if (recebida) {
     return (
       <TelaPublica titulo="Inscrição enviada" marca={consultoria}>
-        <Recebida mensagem={recebida} />
+        <Recebida mensagem={recebida} proximoCodigo={proximoCodigo} />
         <LinksDosTermos />
       </TelaPublica>
     );
@@ -342,6 +344,10 @@ export default function Inscricao() {
             opcoes={opcoesOpcionais(PREVISOES)} /> : null}
           {mostra('ORIGEM') ? <Escolha ref={refOrigem} rotulo="Como conheceu a consultoria?" valor={dados.origem} aoMudar={escolher('origem')} erro={campos.origem} distribuida
             opcoes={opcoesOpcionais(ORIGENS_INFORMADAS)} /> : null}
+          {mostra('ORIGEM') && (dados.origem === 'ALUNO_DO_TIME' || dados.origem === 'INFLUENCIADOR') ? (
+            <Campo rotulo="Quem indicou? (nome do aluno ou influenciador)" valor={dados.indicadoPor}
+              aoMudar={mudar('indicadoPor')} placeholder="Ex.: João Silva" maxLength={120} />
+          ) : null}
         </Cartao>
       ) : null}
       {/* Perguntas do treinador (o padrão de inscrição publicado), no mesmo formulário da anamnese, uma seção por cartão.
@@ -405,7 +411,7 @@ function CabecalhoDaParte({ numero, titulo, aviso, children }: {
   );
 }
 
-function Recebida({ mensagem }: { mensagem: string }) {
+function Recebida({ mensagem, proximoCodigo }: { mensagem: string; proximoCodigo?: string | null }) {
   const { cores } = useTema();
   return (
     <Cartao>

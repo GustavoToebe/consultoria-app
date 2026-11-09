@@ -12,6 +12,8 @@ import java.util.UUID;
 public interface QuestionarioRepository extends JpaRepository<Questionario, UUID> {
     Optional<Questionario> findByPadraoTrueAndFinalidade(Finalidade finalidade);
 
+    Optional<Questionario> findByCodigoPublico(String codigoPublico);
+
     /** Trava a linha: publicar e trocar o padrão em paralelo esperam em fila e a segunda cai em CONFLITO_EDICAO. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select q from Questionario q where q.id = :id")

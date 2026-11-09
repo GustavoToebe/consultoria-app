@@ -98,7 +98,8 @@ class DetalheDaInscricao {
                 listaEventos.stream().map(e -> new Evento(e.getId(), e.getTipo(), e.getCiclo(), e.getDe(), e.getPara(),
                         e.getMotivo() == null ? null : MotivoEncerramento.valueOf(e.getMotivo()), e.getDetalhe(),
                         nomes.get(e.getAutorId()), e.getCriadoEm())).toList(),
-                respostas(i));
+                respostas(i),
+                i.getQuestionarioId(), i.getQuestionarioNome(), i.getIndicadoPor());
     }
 
     /**
@@ -120,7 +121,8 @@ class DetalheDaInscricao {
                 i.getWhatsapp(), i.getEmail(), i.getSituacao(), i.getPagamento(), i.getResponsavelId(),
                 nomes.get(i.getResponsavelId()), alunoVisivel(i.getAlunoId()), i.getCriadaEm(), i.getUltimaAtividadeEm(),
                 i.getCiclo(), i.getOrigem(), i.getPropostaPlanoNome(), proximos.get(i.getId()), i.getVersao(),
-                duplicidades.getOrDefault(i.getId(), Duplicidade.NENHUMA))).toList();
+                duplicidades.getOrDefault(i.getId(), Duplicidade.NENHUMA),
+                i.getQuestionarioId(), i.getQuestionarioNome(), i.getIndicadoPor())).toList();
     }
 
     static Retorno retorno(InscricaoRetorno r, Map<UUID, String> nomes) {

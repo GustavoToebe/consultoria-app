@@ -15,7 +15,7 @@ import { aplicarEscolhaDoPainel, decidirCheck, type EscolhaDoPainel } from '../d
 import { etapasDaSerie } from '../dominio/etapas';
 import { textosDeExecucao } from '../dominio/execucaoDoExercicio';
 import { dataCurta, dataParaTela } from '../dominio/formatos';
-import { textoDaCarga, textoDoPasso } from '../dominio/unidadeDeCarga';
+import { kgParaTela, textoDaCarga, textoDoPasso } from '../dominio/unidadeDeCarga';
 import { textoDoRecorde, type Recorde } from '../dominio/recordesPessoais';
 import { acompanharPendente, digitarPendente, valorExibido, type ValorPendente } from '../dominio/valorPendente';
 import { repeticaoDaAnterior } from '../dominio/repetirSerie';
@@ -101,7 +101,7 @@ const SEM_EFEITO = () => undefined;
  */
 export function ExercicioAluno(props: Props) {
   const p: Props = props.previa
-    ? { ...props, registroDe: SEM_EFEITO, aoMudarCargaDoDia: SEM_EFEITO, aoRegistrar: SEM_EFEITO, aoIniciarPausa: undefined, aoCancelarPausa: undefined, acaoDescanso: undefined, demonstracao: null }
+    ? { ...props, registroDe: SEM_EFEITO, aoMudarCargaDoDia: props.aoMudarCargaDoDia ?? SEM_EFEITO, aoRegistrar: SEM_EFEITO, aoIniciarPausa: undefined, aoCancelarPausa: undefined, acaoDescanso: undefined, demonstracao: null }
     : props;
   return (
     <ProvedorDaPrevia value={!!props.previa}>
@@ -137,10 +137,13 @@ function CorpoDoExercicio(p: Props) {
   const cargasDoDia: Record<string, number | null> = {};
   // Só a carga de série feita (ou com etapa feita) serve de referência: desmarcar tira da conta (31/10).
   for (const s of e.series) cargasDoDia[s.uid] = cargaQueContaComoReferencia(p.registroDe(s.uid));
-  const calculadas = calcularCargasDoExercicio(e, base, cargasDoDia, {
-    ...p.config, ultima: p.ultima, cargaManual: p.cargaDoDia != null, unidade,
+  const baseDigitada = baseNaCaixa;
+  const baseEfetiva = baseDigitada ?? p.cargaDoDia ?? p.ultima?.carga ?? null;
+  const temCargaManual = (baseDigitada ?? p.cargaDoDia) != null;
+  const calculadas = calcularCargasDoExercicio(e, baseEfetiva, cargasDoDia, {
+    ...p.config, ultima: p.ultima, cargaManual: temCargaManual, unidade,
   });
-  const progressaoDeHoje = p.cargaDoDia == null ? calculadas.find((c) => c.progressao === 'SUBIR_CARGA') : undefined;
+  const progressaoDeHoje = !temCargaManual ? calculadas.find((c) => c.progressao === 'SUBIR_CARGA') : undefined;
   // `feitas` (todas as séries) só decide a vibração do último ✓ (`ultimaDoExercicio`); o contador na tela é `contagem`.
   const feitas = e.series.filter((s) => p.registroDe(s.uid)?.concluida).length;
   // "x de y feitas": a mesma conta da faixa e do "Bom trabalho" (D6, `contagemDoExercicio`); sem série contada, não aparece.
@@ -269,7 +272,7 @@ function CorpoDoExercicio(p: Props) {
             tipoTrabalho={p.config.tipoTrabalho}
             arredondamentoKg={p.config.arredondamentoKg}
             descansoNaSerie={p.descansoNaSerie ?? true}
-            baseDaUltimaVez={p.cargaDoDia == null && p.ultima?.carga != null}
+            baseDaUltimaVez={!temCargaManual && p.ultima?.carga != null}
             registro={p.registroDe(c.serie.uid)}
             execucao={p.chaveDaExecucao(c.serie.uid)}
             anterior={anterior(i)}
@@ -296,7 +299,7 @@ function CorpoDoExercicio(p: Props) {
             recordes={p.recordes?.[c.serie.uid] ?? null}
             anterior={anterior(i)}
             ultimaCarga={p.ultima}
-            baseDaUltimaVez={p.cargaDoDia == null && p.ultima?.carga != null}
+            baseDaUltimaVez={!temCargaManual && p.ultima?.carga != null}
             arredondamentoKg={p.config.arredondamentoKg}
             aoRegistrar={(d) => p.aoRegistrar(c.serie.uid, d)}
             aoIniciarPausa={p.aoIniciarPausa}
@@ -478,6 +481,7 @@ function CartaoSerie({
       rotulo="Peso"
       rotuloOculto
       rotuloAcessivel={`Peso da série ${numero}`}
+      placeholder={calculada.sugestao != null ? String(kgParaTela(calculada.sugestao, unidade)) : undefined}
       valorKg={carga}
       aoMudarKg={(v) => mudar({ carga: v })}
       aoValidade={(v) => setCargaInvalida(!v)}
@@ -548,6 +552,17 @@ function CartaoSerie({
       {invalido ? <Texto variante="pequeno" cor={cores.perigo} accessibilityLiveRegion="polite">{textoDoNumeroInvalido(cargaInvalida, repsInvalidas)}</Texto> : null}
       {semCargaNaSerie ? <Texto variante="pequeno" cor={cores.texto} accessibilityLiveRegion="polite">{semCargaNaSerie}</Texto> : null}
       {dica ? <DicaDoCampo dica={dica} origem={origem} numero={numero} /> : null}
+      {calculada.sugestao != null && carga === null && !feita && !semCampoDePeso ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Usar sugestão de ${textoDaCarga(calculada.sugestao, unidade)}, série ${numero}`}
+          style={[estilos.seloSugestao, { backgroundColor: cores.superficie3, borderColor: cores.bordaCampo }]}
+          onPress={() => mudar({ carga: calculada.sugestao })}>
+          <Texto variante="pequeno" cor={cores.texto} style={estilos.textoSugestao}>
+            {`Sugerido: ${textoDaCarga(calculada.sugestao, unidade)} — usar`}
+          </Texto>
+        </Pressable>
+      ) : null}
       {avisoDasReps ? <Texto numerico variante="pequeno" cor={cores.texto} accessibilityLiveRegion="polite">{avisoDasReps}</Texto> : null}
       {painelAberto ? (
         <PainelDoCheck sugestaoKg={painel} numero={numero} aoEscolher={escolher}
@@ -587,4 +602,6 @@ const estilos = StyleSheet.create({
   linhaDosCampos: { flexDirection: 'row', alignItems: 'stretch', gap: espaco(1) },
   metaNaLinha: { flexGrow: 1.3, flexShrink: 1, flexBasis: 0, minWidth: 0 },
   metaEmCima: { flex: 1, minWidth: 0 },
+  seloSugestao: { borderWidth: 1, borderRadius: RAIO, paddingHorizontal: espaco(1), paddingVertical: espaco(0.5), alignSelf: 'flex-start', marginTop: espaco(0.5) },
+  textoSugestao: { fontFamily: fontes.semi },
 });

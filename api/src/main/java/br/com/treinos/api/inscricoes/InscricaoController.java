@@ -110,10 +110,11 @@ public class InscricaoController {
                                    @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate ate,
                                    @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate atividadeDe,
                                    @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate atividadeAte,
+                                   @RequestParam(required = false) UUID questionarioId,
                                    @RequestParam(defaultValue = "0") int pagina,
                                    @RequestParam(defaultValue = "30") int tamanho) {
         return fila.listar(new Filtro(situacao, meus ? eu.usuarioId() : null, responsavel, origem, busca, de, ate,
-                atividadeDe, atividadeAte), pagina, tamanho);
+                atividadeDe, atividadeAte, questionarioId), pagina, tamanho);
     }
 
     @PreAuthorize("hasAuthority('PERM_INSCRICAO_LER')")

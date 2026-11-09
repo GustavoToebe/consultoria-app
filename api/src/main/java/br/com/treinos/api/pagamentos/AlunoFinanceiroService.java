@@ -2,6 +2,7 @@ package br.com.treinos.api.pagamentos;
 
 import br.com.treinos.api.execucao.AlunoAppService;
 import br.com.treinos.api.pagamentos.PagamentosDtos.CobrancaDoAluno;
+import br.com.treinos.api.pagamentos.PagamentosDtos.ContratacaoResponse;
 import br.com.treinos.api.pagamentos.PagamentosDtos.FinanceiroDoAluno;
 import br.com.treinos.api.pagamentos.PagamentosDtos.PlanoDoAluno;
 import br.com.treinos.api.security.UsuarioAutenticado;
@@ -11,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -40,6 +42,10 @@ public class AlunoFinanceiroService {
         this.infinitePay = infinitePay;
     }
 
+
+
+
+
     @Transactional(readOnly = true)
     public FinanceiroDoAluno meu(UsuarioAutenticado eu) {
         UUID alunoId = AlunoAppService.alunoDaSessao(eu);
@@ -60,4 +66,15 @@ public class AlunoFinanceiroService {
         return new FinanceiroDoAluno(plano, abertas.stream().map(c -> Respostas.cobrancaDoAluno(c, hoje)).toList(), historico,
                 pagamentoOnline);
     }
+
+    @Transactional(readOnly = true)
+    public Optional<ContratacaoResponse> minhaContratacao(UsuarioAutenticado eu) {
+        UUID alunoId = AlunoAppService.alunoDaSessao(eu);
+        return contratacoes.findFirstByAlunoIdAndSituacaoNot(alunoId, ContratacaoAluno.Situacao.ENCERRADA)
+                .map(c -> Respostas.contratacao(c, planos.findById(c.getPlanoComercialId()).map(PlanoComercial::getNome).orElse(null)));
+    }
+
+
+
+
 }

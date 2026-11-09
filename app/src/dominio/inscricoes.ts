@@ -263,10 +263,11 @@ export interface DadosDaInscricao {
   modalidade: ModalidadeDesejada | '';
   previsaoInicio: PrevisaoInicio | '';
   origem: OrigemInformada | '';
+  indicadoPor: string;
 }
 
 export const INSCRICAO_VAZIA: DadosDaInscricao = {
-  nome: '', whatsapp: '', email: '', objetivo: '', sexo: '', interesse: '', modalidade: '', previsaoInicio: '', origem: '',
+  nome: '', whatsapp: '', email: '', objetivo: '', sexo: '', interesse: '', modalidade: '', previsaoInicio: '', origem: '', indicadoPor: '',
 };
 
 /**
@@ -354,6 +355,7 @@ export function corpoDaInscricao(d: DadosDaInscricao, ciencia: boolean, token: s
     modalidade: mostra('MODALIDADE') ? d.modalidade || null : null,
     previsaoInicio: mostra('PREVISAO_INICIO') ? d.previsaoInicio || null : null,
     origem: mostra('ORIGEM') ? d.origem || null : null,
+    indicadoPor: (d.origem === 'ALUNO_DO_TIME' || d.origem === 'INFLUENCIADOR') && d.indicadoPor.trim() ? d.indicadoPor.trim() : null,
     origemLink,
     cienciaPrivacidade: ciencia,
     textoVersao,

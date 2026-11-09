@@ -121,17 +121,37 @@ public class InscricaoService {
      * inscrição publicado (só o necessário para responder; nulo sem padrão). O código é conferido de novo aqui (pode ter
      * mudado depois da busca).
      */
-    public record PaginaDoLink(String texto, List<CampoDaInscricao> campos, InscricaoDtos.PerguntasDaInscricao perguntas) {
+    public record PaginaDoLink(String texto, List<CampoDaInscricao> campos, InscricaoDtos.PerguntasDaInscricao perguntas,
+                               UUID questionarioId, String questionarioNome, String proximoQuestionarioCodigo) {
+        public PaginaDoLink(String texto, List<CampoDaInscricao> campos, InscricaoDtos.PerguntasDaInscricao perguntas) {
+            this(texto, campos, perguntas, null, null, null);
+        }
     }
 
     @Transactional(readOnly = true)
     public PaginaDoLink paginaDoLink(String codigo) {
+        var optQ = resolver.porCodigoPublico(codigo);
+        if (optQ.isPresent()) {
+            var q = optQ.get();
+            String texto = q.getDescricao() != null ? q.getDescricao() : "";
+            InscricaoDtos.PerguntasDaInscricao perguntas = null;
+            if (q.getVersaoPublicada() > 0) {
+                var v = resolver.publicada(q);
+                perguntas = new InscricaoDtos.PerguntasDaInscricao(v.versaoId(),
+                        PerguntasPublicas.de(json.readValue(v.conteudo(), ConteudoQuestionario.class)));
+            }
+            String proximo = q.getProximoQuestionarioId() != null
+                    ? resolver.findById(q.getProximoQuestionarioId()).map(br.com.treinos.api.questionarios.Questionario::getCodigoPublico).orElse(null)
+                    : null;
+            return new PaginaDoLink(texto, List.of(CampoDaInscricao.values()), perguntas, q.getId(), q.getNome(), proximo);
+        }
         InscricaoConfiguracao link = linkAberto(codigo);
         InscricaoDtos.PerguntasDaInscricao perguntas = resolver.padraoDaInscricao()
                 .map(v -> new InscricaoDtos.PerguntasDaInscricao(v.versaoId(),
                         PerguntasPublicas.de(json.readValue(v.conteudo(), ConteudoQuestionario.class))))
                 .orElse(null);
-        return new PaginaDoLink(link.getTexto(), List.copyOf(CampoDaInscricao.visiveis(link.getCamposOcultos())), perguntas);
+        return new PaginaDoLink(link.getTexto(), List.copyOf(CampoDaInscricao.visiveis(link.getCamposOcultos())), perguntas,
+                null, null, null);
     }
 
     /**
@@ -158,12 +178,56 @@ public class InscricaoService {
      * respostas para o cadastro.
      */
     @Transactional
-    public void registrarPublica(String codigo, InscricaoPublicaRequest r) {
-        InscricaoConfiguracao link = configuracoes.atualParaAlterar().filter(c -> c.isAberta() && c.getCodigo().equals(codigo))
-                .orElseThrow(InscricaoPublicaService::linkInvalido);
+    public String registrarPublica(String codigo, InscricaoPublicaRequest r) {
         if (inscricoes.countByCriadaEmAfter(Instant.now().minus(JANELA_DO_TETO)) >= limiteDiario) {
             throw new MuitasRequisicoesException(JANELA_DO_TETO.toSeconds());
         }
+        var optQ = resolver.porCodigoPublico(codigo);
+        if (optQ.isPresent()) {
+            var q = optQ.get();
+            String texto = q.getDescricao();
+            if (texto != null && !TextoDaInscricao.confere(texto, r.textoVersao())) {
+                throw new ConflictException("O texto da consultoria mudou enquanto você preenchia. Leia o texto novo e confirme.",
+                        "TEXTO_ALTERADO");
+            }
+            if (texto != null && !Boolean.TRUE.equals(r.cienciaPrivacidade())) {
+                throw new BadRequestException("Confirme que leu o texto da consultoria para enviar.", "CIENCIA_OBRIGATORIA");
+            }
+            String whatsapp = Formatos.telefone(r.whatsapp());
+            UUID responsavel = responsaveis.ativo(q.getResponsavelPadraoId()) ? q.getResponsavelPadraoId() : null;
+            String sexo = r.sexo();
+            if (sexo != null && !sexo.isBlank() && Sexo.ler(sexo) == null) {
+                throw new br.com.treinos.api.web.ValidacaoException("Confira os campos.", "INSCRICAO_INVALIDA",
+                        List.of(new br.com.plataforma.comum.web.ApiError.FieldError("sexo", "Escolha Masculino, Feminino ou Outro.")));
+            }
+            Inscricao nova = new Inscricao(r.nome().trim(), whatsapp, Buscas.opcional(r.email()),
+                    Buscas.opcional(r.objetivo()), null, texto, responsavel, Sexo.ler(sexo));
+            nova.qualificar(r.interesse(), r.modalidade(), r.previsaoInicio(), r.origem(), Crm.origemLinkValida(r.origemLink()));
+            nova.setQuestionarioId(q.getId());
+            nova.setQuestionarioNome(q.getNome());
+            nova.setIndicadoPor(r.indicadoPor());
+            if (q.getVersaoPublicada() > 0) {
+                var v = resolver.publicada(q);
+                boolean temRespostas = r.respostas() != null && !r.respostas().isNull() && !r.respostas().isMissingNode()
+                        && !(r.respostas().isObject() && r.respostas().isEmpty());
+                if (r.questionarioVersaoId() != null && !r.questionarioVersaoId().equals(v.versaoId())) {
+                    throw perguntasAlteradas();
+                }
+                JsonNode limpas = validadorDeRespostas.validar(json.readTree(v.conteudo()),
+                        temRespostas ? r.respostas() : json.createObjectNode(), false, "INSCRICAO_INVALIDA", LocalDate.now(Fuso.BRASILIA));
+                nova.responder(v.versaoId(), json.writeValueAsString(limpas));
+            } else if (r.questionarioVersaoId() != null || (r.respostas() != null && !r.respostas().isEmpty())) {
+                throw perguntasAlteradas();
+            }
+            Inscricao gravada = inscricoes.saveAndFlush(nova);
+            historico.registrar(gravada, TipoEvento.CRIADA, null, null, null, null);
+            return q.getProximoQuestionarioId() != null
+                    ? resolver.findById(q.getProximoQuestionarioId()).map(br.com.treinos.api.questionarios.Questionario::getCodigoPublico).orElse(null)
+                    : null;
+        }
+
+        InscricaoConfiguracao link = configuracoes.atualParaAlterar().filter(c -> c.isAberta() && c.getCodigo().equals(codigo))
+                .orElseThrow(InscricaoPublicaService::linkInvalido);
         String texto = link.getTexto();
         if (!TextoDaInscricao.confere(texto, r.textoVersao())) {
             throw new ConflictException("O texto da consultoria mudou enquanto você preenchia. Leia o texto novo e confirme.",
@@ -188,9 +252,11 @@ public class InscricaoService {
                 ocultos.contains(CampoDaInscricao.MODALIDADE) ? null : r.modalidade(),
                 ocultos.contains(CampoDaInscricao.PREVISAO_INICIO) ? null : r.previsaoInicio(),
                 ocultos.contains(CampoDaInscricao.ORIGEM) ? null : r.origem(), Crm.origemLinkValida(r.origemLink()));
+        nova.setIndicadoPor(r.indicadoPor());
         responderPerguntas(nova, r.questionarioVersaoId(), r.respostas());
         Inscricao gravada = inscricoes.saveAndFlush(nova);
         historico.registrar(gravada, TipoEvento.CRIADA, null, null, null, null);
+        return null;
     }
 
     /** Confere a versão das perguntas e valida as respostas por ela (regras no javadoc de {@link #registrarPublica}). */
@@ -395,6 +461,9 @@ public class InscricaoService {
         inscricoes.saveAndFlush(i);
         historico.registrar(i, TipoEvento.ACEITA, de, SituacaoInscricao.ACEITA.name(), null, usuarioId);
         UUID anamneseId = questionarioId == null ? null : anamneses.atribuir(aluno.id(), questionarioId, usuarioId).id();
+        if (anamneseId == null && i.getQuestionarioVersaoId() != null && i.getRespostas() != null && !i.getRespostas().isBlank() && !i.getRespostas().equals("{}")) {
+            anamneseId = anamneses.gravarAnamneseRespondida(aluno.id(), i.getQuestionarioVersaoId(), i.getRespostas(), usuarioId).getId();
+        }
         ConviteResponse convite = convidar ? convites.gerar(aluno.id()) : null;
         return new AceiteResponse(i.getId(), aluno.id(), convite, anamneseId);
     }

@@ -212,4 +212,46 @@ class MontagemDaImportacaoTest {
         assertThat(MontagemDaImportacao.parecido("whey", "creatina")).isFalse();
         assertThat(Map.of()).isEmpty();
     }
+
+    @Test
+    void doisAlunosComMesmoEmailDesempatamPeloNome() {
+        UUID idCarlos = UUID.randomUUID();
+        UUID idAna = UUID.randomUUID();
+        List<AlunoExistente> existentes = List.of(
+                new AlunoExistente(idCarlos, "Carlos Silva", "familia@example.com", false, Set.of()),
+                new AlunoExistente(idAna, "Ana Silva", "familia@example.com", false, Set.of()));
+
+        Map<String, List<List<Object>>> abas = new java.util.LinkedHashMap<>(PlanilhaDeTeste.abasDoTreinador());
+        abas.put("Alunos", List.of(PlanilhaDeTeste.CAB_ALUNOS,
+                PlanilhaDeTeste.linha("C1", "Carlos Silva", "familia@example.com", "Ativo", null, null, null, null)));
+        LeituraDasAbas.Leitura leitura = LeituraDasAbas.ler("planilha.xlsx", PlanilhaDeTeste.xlsx(abas));
+
+        Montagem m = MontagemDaImportacao.montar(leitura, RespostasDaPlanilha.VAZIAS,
+                contexto(TODAS, null, List.of(), existentes, List.of()));
+
+        assertThat(m.alunosReaproveitados()).isEqualTo(1);
+        assertThat(m.alunosNovos()).isEmpty();
+        assertThat(m.problemas()).filteredOn(p -> "ALUNO_EMAIL_COMPARTILHADO_AMBIGUO".equals(p.tipo())).isEmpty();
+    }
+
+    @Test
+    void doisAlunosComMesmoEmailSemCasarNomeGeraProblemaAmbiguo() {
+        UUID idCarlos = UUID.randomUUID();
+        UUID idAna = UUID.randomUUID();
+        List<AlunoExistente> existentes = List.of(
+                new AlunoExistente(idCarlos, "Carlos Silva", "familia@example.com", false, Set.of()),
+                new AlunoExistente(idAna, "Ana Silva", "familia@example.com", false, Set.of()));
+
+        Map<String, List<List<Object>>> abas = new java.util.LinkedHashMap<>(PlanilhaDeTeste.abasDoTreinador());
+        abas.put("Alunos", List.of(PlanilhaDeTeste.CAB_ALUNOS,
+                PlanilhaDeTeste.linha("C1", "Pedro Silva", "familia@example.com", "Ativo", null, null, null, null)));
+        LeituraDasAbas.Leitura leitura = LeituraDasAbas.ler("planilha.xlsx", PlanilhaDeTeste.xlsx(abas));
+
+        Montagem m = MontagemDaImportacao.montar(leitura, RespostasDaPlanilha.VAZIAS,
+                contexto(TODAS, null, List.of(), existentes, List.of()));
+
+        assertThat(m.alunosReaproveitados()).isEqualTo(0);
+        assertThat(m.alunosNovos()).isEmpty();
+        assertThat(m.problemas()).filteredOn(p -> "ALUNO_EMAIL_COMPARTILHADO_AMBIGUO".equals(p.tipo())).hasSize(1);
+    }
 }

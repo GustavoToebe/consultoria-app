@@ -1,6 +1,6 @@
 import { Plus } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Linking, StyleSheet, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 
 import type { CobrancaResponse, ContratacaoResponse, PlanoResponse } from '../../api/financeiroTipos';
@@ -19,6 +19,7 @@ import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
+import { CaixaSelecao } from '../../ui/CaixaSelecao';
 import { CampoLeitura } from '../../ui/CampoLeitura';
 import { CamposEmLinha } from '../../ui/CamposEmLinha';
 import { CampoData, CampoNumerico } from '../../ui/Campos';
@@ -55,7 +56,7 @@ function emOrdemDeAtencao(lista: readonly CobrancaResponse[]): CobrancaResponse[
  * pausa, retoma e encerra, e registra pagamento. Aluno inativo ou anonimizado não ganha contratação nova. O valor da
  * cobrança nunca é digitado aqui: sai do plano ou da contratação, no servidor.
  */
-export function CartaoPlanoContratado({ alunoId, ativo, anonimizado }: { alunoId: string; ativo: boolean; anonimizado: boolean }) {
+export function CartaoPlanoContratado({ alunoId, ativo, anonimizado, alunoNome, telefoneAluno }: { alunoId: string; ativo: boolean; anonimizado: boolean; alunoNome?: string; telefoneAluno?: string | null }) {
   const { pode } = useSessao();
   const { avisar } = useAviso();
   const podeAlterar = pode('FINANCEIRO_ALTERAR') && !anonimizado;
@@ -113,15 +114,42 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado }: { alunoId
         <View style={estilos.bloco}>
           <View style={estilos.linha}>
             <Texto variante="bloco" style={estilos.encolher}>{vigente.planoNome ?? 'Plano'}</Texto>
-            <Selo texto={seloDaContratacao(vigente.situacao).rotulo} tipo={seloDaContratacao(vigente.situacao).tom} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: espaco(0.5), flexWrap: 'wrap' }}>
+              <Selo texto={seloDaContratacao(vigente.situacao).rotulo} tipo={seloDaContratacao(vigente.situacao).tom} />
+              {vigente.diasRestantesVigencia != null ? (
+                vigente.diasRestantesVigencia < 0 ? (
+                  <Selo texto={`Vencido há ${Math.abs(vigente.diasRestantesVigencia)} dias`} tipo="perigo" />
+                ) : vigente.diasRestantesVigencia <= 40 ? (
+                  <Selo texto={`Renovação em ${vigente.diasRestantesVigencia} dias (≤ 40d)`} tipo="atencao" />
+                ) : (
+                  <Selo texto={`Vigente · ${vigente.diasRestantesVigencia} dias restantes`} tipo="sucesso" />
+                )
+              ) : null}
+            </View>
           </View>
           <CamposEmLinha>
             <CampoLeitura rotulo="Valor" valor={centavosParaTela(vigente.valorCentavos)} numerico />
             <CampoLeitura rotulo="Periodicidade" valor={rotuloDaPeriodicidade(vigente.periodicidade)} />
             <CampoLeitura rotulo="Vencimento" valor={`Todo dia ${vigente.diaVencimento}`} />
             <CampoLeitura rotulo="Início" valor={dataParaTela(vigente.inicio)} numerico />
+            {vigente.terminoVigencia ? (
+              <CampoLeitura rotulo="Término da vigência" valor={dataParaTela(vigente.terminoVigencia)} numerico />
+            ) : null}
           </CamposEmLinha>
           {vigente.motivoValor ? <CampoLeitura rotulo="Motivo do valor" valor={vigente.motivoValor} /> : null}
+          {telefoneAluno ? (
+            <LinhaDeAcoes>
+              <Botao
+                rotulo="Cobrar renovação (WhatsApp)"
+                tipo="secundario"
+                aoTocar={() => {
+                  const num = telefoneAluno.replace(/\D/g, '');
+                  const texto = encodeURIComponent(`Olá ${alunoNome || ''}! Seu plano (${vigente.planoNome}) está no período de renovação. Vamos confirmar a continuidade para o próximo ciclo?`);
+                  Linking.openURL(`https://wa.me/55${num}?text=${texto}`);
+                }}
+              />
+            </LinhaDeAcoes>
+          ) : null}
           {podeAlterar ? (
             <LinhaDeAcoes>
               <Botao rotulo="Alterar" tipo="secundario" aoTocar={() => setFormulario('alterar')} desabilitado={vigente.situacao === 'ENCERRADA'} />
@@ -256,6 +284,13 @@ function FolhaDeContratacao({ alunoId, contratacao, aoFechar, aoMudar }: {
         ) : null}
         {contratacao ? null : <CampoData rotulo="Início" valor={inicio} aoMudar={setInicio} />}
         <CampoNumerico rotulo="Dia do vencimento" inteiro valor={dia} aoMudar={setDia} ajuda="De 1 a 31. Em meses mais curtos, vale o último dia do mês." />
+        {!contratacao ? (
+          <CaixaSelecao
+            rotulo="Período inicial já pago (não gerar cobrança em aberto para o ciclo atual)"
+            marcado={false}
+            aoMudar={(() => {})}
+          />
+        ) : null}
         {tentou && problema ? <MensagemErro texto={problema} /> : null}
         {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} /> : null}
       </View>

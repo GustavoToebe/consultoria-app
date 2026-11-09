@@ -102,6 +102,15 @@ export default function FichaAluno() {
           <ResumoDoAluno aluno={aluno} acompanhamento={acompanhamento} aoRenovar={renovacao.pedir} aoAnonimizado={recarregar}>
             <DadosDoAluno aluno={aluno} padrao={padrao} aoAlterar={definir} />
           </ResumoDoAluno>
+          {pagamentosHabilitados && pode('FINANCEIRO_LER') ? (
+            <CartaoPlanoContratado
+              alunoId={aluno.id}
+              ativo={aluno.ativo}
+              anonimizado={aluno.anonimizado}
+              alunoNome={aluno.nome}
+              telefoneAluno={aluno.telefone}
+            />
+          ) : null}
           <CartaoPastas key={`${aluno.id}:${pedidoDePasta.vez}`} pastaInicialId={pedidoDePasta.id} alunoId={aluno.id} alunoNome={aluno.nome} diasAtualizacao={cicloDoAluno(aluno.diasAtualizacao, padrao)}
             geracao={geracaoPastas} aoMudar={mudouPastas} aoGravarPeso={() => setGeracaoPeso((g) => g + 1)} />
           {/* Frequência, Mobilidade e Água são o mesmo tipo de contagem: lado a lado no PC, uma embaixo da outra no celular. */}
@@ -127,7 +136,7 @@ export default function FichaAluno() {
           <Permitido codigo="ALUNO_SENSIVEL_LER"><CartaoLesoes alunoId={aluno.id} /></Permitido>
           {pode('ANAMNESE_LER') && pode('ALUNO_SENSIVEL_LER') ? <CartaoAnamnese alunoId={aluno.id} anonimizado={aluno.anonimizado}
             aoMudarCadastro={() => { recarregar(); setGeracaoPeso((g) => g + 1); }} /> : null}
-          {pagamentosHabilitados && pode('FINANCEIRO_LER') ? <CartaoPlanoContratado alunoId={aluno.id} ativo={aluno.ativo} anonimizado={aluno.anonimizado} /> : null}
+          
           {renovacao.painel}
           {menu ? (
             <FolhaDeAcoes titulo={aluno.nome} aoFechar={() => setMenu(false)} acoes={[

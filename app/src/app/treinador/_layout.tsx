@@ -32,6 +32,7 @@ const ITENS: ItemMenu[] = naOrdemDoMenu<ItemMenu>([
   { rotulo: 'Alunos', href: '/treinador/alunos', caminho: '/treinador/alunos', Icone: ContactRound },
   { rotulo: 'Atualizações', href: '/treinador/atualizacoes', caminho: '/treinador/atualizacoes', Icone: ClipboardCheck, soLateral: true },
   { rotulo: 'Agenda', href: '/treinador/agenda', caminho: '/treinador/agenda', Icone: CalendarDays, soLateral: true },
+  { rotulo: 'Comunidade', href: '/treinador/comunidade', caminho: '/treinador/comunidade', Icone: UsersRound, soLateral: true },
   { rotulo: 'Biblioteca', href: '/treinador/biblioteca', caminho: '/treinador/biblioteca', Icone: BookOpen },
   { rotulo: 'Planejamento', rotuloCurto: 'Planos', href: '/treinador/planejamento', caminho: '/treinador/planejamento', Icone: NotebookTabs },
   { rotulo: 'Interessados', href: '/treinador/interessados', caminho: '/treinador/interessados', Icone: Inbox, soLateral: true },

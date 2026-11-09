@@ -1,6 +1,6 @@
 import { BarraDescanso } from '../../aluno/BarraDescanso';
 import { SeloSincronizacao } from '../../aluno/SeloSincronizacao';
-import { CalendarDays, Dumbbell, House, Salad, UserRound } from 'lucide-react-native';
+import { CalendarDays, Dumbbell, House, Salad, UserRound, Users } from 'lucide-react-native';
 
 import { AlunoProvider, useAluno } from '../../offline/AlunoProvider';
 import { faseAtualizacao, temAcaoAtualizacao } from '../../dominio/atualizacao';
@@ -27,6 +27,7 @@ const ITENS: ItemMenu[] = [
   // A sessão e o endereço antigo da mobilidade continuam acendendo Treino.
   { rotulo: 'Treino', href: '/aluno/treino', caminho: '/aluno/treino', Icone: Dumbbell, tambem: ['/aluno/sessao', '/aluno/mobilidade'] },
   { rotulo: 'Dieta', href: '/aluno/dieta', caminho: '/aluno/dieta', Icone: Salad, tambem: ['/aluno/lista-de-compras'] },
+  { rotulo: 'Comunidade', href: '/aluno/comunidade', caminho: '/aluno/comunidade', Icone: Users },
   { rotulo: 'Histórico', href: '/aluno/historico', caminho: '/aluno/historico', Icone: CalendarDays },
   // Ajuda e Termos abrem pela Conta: o item fica aceso enquanto estão abertos.
   { rotulo: 'Conta', href: '/aluno/conta', caminho: '/aluno/conta', Icone: UserRound, tambem: telasDaOrigem('/aluno/conta') },

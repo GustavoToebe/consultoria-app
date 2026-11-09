@@ -501,7 +501,7 @@ describe('B1 · gravação ASSÍNCRONA (como no app): o que a caixa mostra entre
     t.adiar();
     await t.digitarBase('45');
     expect(t.caixaDaBase()).toBe('45');
-    expect([t.sugestao(1), t.sugestao(2)]).toEqual(['40', '32']); // a conta usa a base gravada
+    expect([t.sugestao(1), t.sugestao(2)]).toEqual(['45', '36']); // N29: recalcula imediatamente a partir de baseNaCaixa
     await t.liberar();
     expect(t.controle.base()).toBe(45);
     expect(t.caixaDaBase()).toBe('45');
@@ -653,5 +653,46 @@ describe('N6 · série marcada sem kg avisa que não entra no progresso (D3 e D6
     await t.marcar(1);
     expect(t.controle.gravacoes.at(-1)).toMatchObject({ dados: { carga: null, repeticoes: 12, concluida: true } });
     expect(t.avisoSemCarga()).toBe(false);
+  });
+
+  it('N29: ao digitar 50 na base do dia, recalcula imediatamente todas as séries (50%, 75%, 100%, 80%)', async () => {
+    const ex = treino(
+      serieDeTeste('s1', { tipo: 'WARM_UP', carga: carga('PERCENTUAL_WS', 50) }),
+      serieDeTeste('s2', { tipo: 'FEEDER', carga: carga('PERCENTUAL_WS', 75) }),
+      ws('s3'),
+      backOff('s4', 80),
+    );
+    const t = await montar(ex, null);
+    t.adiar();
+    await t.digitarBase('50');
+    expect(t.caixaDaBase()).toBe('50');
+    expect([t.sugestao(1), t.sugestao(2), t.sugestao(3), t.sugestao(4)]).toEqual(['25', '37,5', '50', '40']);
+  });
+
+  it('N29: funciona na prévia chamando aoMudarCargaDoDia', async () => {
+    const ex = treino(ws('s1'), backOff('s2', 80));
+    let baseCapturada: number | null = null;
+    let arvore!: Arvore;
+    await Renderer.act(async () => {
+      arvore = Renderer.create(
+        <ExercicioAluno
+          previa
+          exercicio={ex}
+          data={DATA}
+          cargaDoDia={null}
+          ultima={null}
+          registroDe={() => undefined}
+          config={CONFIG}
+          aoMudarCargaDoDia={(kg) => { baseCapturada = kg; }}
+          aoRegistrar={() => undefined}
+          chaveDaExecucao={(uid) => `v1|${uid}|${DATA}`}
+        />,
+      );
+    });
+    const achar = arvore.root.findAll((x) => x.props.accessibilityLabel === 'Carga de trabalho do dia' && typeof x.props.onChangeText === 'function')[0];
+    await Renderer.act(async () => {
+      achar.props.onChangeText('50');
+    });
+    expect(baseCapturada).toBe(50);
   });
 });

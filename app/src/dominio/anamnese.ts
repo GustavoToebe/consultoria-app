@@ -68,14 +68,35 @@ export function notaDoCadastro(p: Pick<PerguntaAtualizacao, 'tipo' | 'destino' |
 }
 
 /** Nome do campo do cadastro, para a equipe. */
-export const ROTULO_DO_DESTINO: Record<DestinoNoPerfil, string> = { PESO: 'Peso', OBJETIVO: 'Objetivo', CPF: 'CPF', TELEFONE: 'Telefone', ENDERECO: 'Endereço', SEXO: 'Sexo' };
+export const ROTULO_DO_DESTINO: Record<DestinoNoPerfil, string> = {
+  PESO: 'Peso',
+  ALTURA: 'Altura',
+  NOME: 'Nome',
+  EMAIL: 'E-mail',
+  TELEFONE: 'Telefone',
+  CPF: 'CPF',
+  ENDERECO: 'Endereço',
+  DATA_NASCIMENTO: 'Data de nascimento',
+  SEXO: 'Sexo',
+  OBJETIVO: 'Objetivo',
+  OBSERVACOES: 'Observações',
+  FOTO_PERFIL: 'Foto de perfil',
+};
 
 /**
  * Permissão que aplica ou descarta a alteração do destino (igual a `DestinoNoPerfil.permissao()` na API): o telefone é
  * contato do aluno (`ALUNO_ALTERAR`); peso, objetivo, CPF e endereço são dado sensível.
  */
-export const permissaoDeLeituraDoDestino = (d: DestinoNoPerfil): 'ALUNO_LER' | 'ALUNO_SENSIVEL_LER' => (d === 'TELEFONE' || d === 'SEXO' ? 'ALUNO_LER' : 'ALUNO_SENSIVEL_LER');
-export const permissaoDoDestino = (d: DestinoNoPerfil): 'ALUNO_ALTERAR' | 'ALUNO_SENSIVEL_ALTERAR' => (d === 'TELEFONE' || d === 'SEXO' ? 'ALUNO_ALTERAR' : 'ALUNO_SENSIVEL_ALTERAR');
+export const permissaoDeLeituraDoDestino = (d: DestinoNoPerfil): 'ALUNO_LER' | 'ALUNO_SENSIVEL_LER' => (
+  d === 'TELEFONE' || d === 'SEXO' || d === 'NOME' || d === 'EMAIL' || d === 'DATA_NASCIMENTO' || d === 'FOTO_PERFIL'
+    ? 'ALUNO_LER'
+    : 'ALUNO_SENSIVEL_LER'
+);
+export const permissaoDoDestino = (d: DestinoNoPerfil): 'ALUNO_ALTERAR' | 'ALUNO_SENSIVEL_ALTERAR' => (
+  d === 'TELEFONE' || d === 'SEXO' || d === 'NOME' || d === 'EMAIL' || d === 'DATA_NASCIMENTO' || d === 'FOTO_PERFIL'
+    ? 'ALUNO_ALTERAR'
+    : 'ALUNO_SENSIVEL_ALTERAR'
+);
 
 /** Valor do cadastro em texto: "80,5 kg em 10/01/2026" ou o objetivo; ausente, "—". */
 export function textoDoValor(destino: DestinoNoPerfil, v: ValorDoCadastro | null | undefined): string {

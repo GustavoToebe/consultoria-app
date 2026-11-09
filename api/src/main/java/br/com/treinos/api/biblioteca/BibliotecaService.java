@@ -89,7 +89,10 @@ public class BibliotecaService {
 
     @Transactional(readOnly = true)
     public List<ExercicioResponse> listarExercicios(String busca) {
-        return responder(exercicios.buscarAtivos(Buscas.padrao(busca)));
+        if (busca == null || busca.isBlank()) {
+            return responder(exercicios.buscarAtivos(Buscas.padrao(busca)));
+        }
+        return responder(exercicios.todosAtivos().stream().filter(e -> ExpansorTermosExercicio.casou(e, busca)).toList());
     }
 
     /**
@@ -112,8 +115,8 @@ public class BibliotecaService {
         String procurado = termo;
         List<Exercicio> casaram = ativos.stream()
                 .filter(e -> filtro.isEmpty() || filtro.contains(Objects.toString(Buscas.opcional(e.getGrupoMuscular()), "")))
-                .filter(e -> procurado.isEmpty()
-                        || Buscas.semAcento(e.getNome() + " " + Objects.toString(e.getGrupoMuscular(), "")).contains(procurado))
+                .filter(e -> ExpansorTermosExercicio.casou(e, procurado))
+
                 .toList();
         int tam = tamanho == null ? TAMANHO_DA_PAGINA : Math.max(1, Math.min(tamanho, LIMITE_MAXIMO));
         long de = Math.min((long) Math.max(0, pagina == null ? 0 : pagina) * tam, casaram.size());

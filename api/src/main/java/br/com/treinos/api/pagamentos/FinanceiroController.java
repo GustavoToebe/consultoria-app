@@ -3,6 +3,7 @@ package br.com.treinos.api.pagamentos;
 import br.com.treinos.api.pagamentos.PagamentosDtos.Numeros;
 import br.com.treinos.api.pagamentos.PagamentosDtos.PaginaInadimplentes;
 import br.com.treinos.api.pagamentos.PagamentosDtos.Painel;
+import br.com.treinos.api.pagamentos.PagamentosDtos.VisaoGeralResponse;
 import br.com.treinos.api.security.UsuarioAutenticado;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.CacheControl;
@@ -50,6 +51,12 @@ public class FinanceiroController {
                          @RequestParam(defaultValue = "false") boolean meus,
                          @AuthenticationPrincipal UsuarioAutenticado eu) {
         return financeiro.painel(de, ate, meus ? eu.usuarioId() : null);
+    }
+
+    @PreAuthorize(LER)
+    @GetMapping("/financeiro/visao-geral")
+    public VisaoGeralResponse visaoGeral() {
+        return financeiro.visaoGeral();
     }
 
     @PreAuthorize(LER_COM_ALUNO)

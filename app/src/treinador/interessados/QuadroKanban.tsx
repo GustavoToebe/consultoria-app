@@ -232,6 +232,7 @@ function CartaoDoQuadro({ item, movendo, aoAbrir, aoMover, aoComecarArrasto, aoS
           <Texto variante="bloco" numberOfLines={2}>{item.nome}</Texto>
           <Texto variante="pequeno">{item.responsavelNome ?? (item.responsavelId ? 'Membro inativo' : 'Sem responsável')} · {instanteRelativo(item.ultimaAtividadeEm)}</Texto>
           {item.propostaPlanoNome ? <Texto variante="pequeno" numberOfLines={1}>Plano: {item.propostaPlanoNome}</Texto> : null}
+          {item.indicadoPor ? <Texto variante="pequeno" numberOfLines={1}>Indicado por: {item.indicadoPor}</Texto> : null}
           <View style={estilos.selos}>
             {retorno ? <Selo texto={seloRetorno ? `Retorno: ${seloRetorno.texto}` : `Retorno ${dataParaTela(retorno.data)}`} tipo={seloRetorno?.tipo ?? 'neutro'} /> : null}
             {item.ciclo > 1 ? <Selo texto={`${item.ciclo}º atendimento`} tipo="neutro" /> : null}

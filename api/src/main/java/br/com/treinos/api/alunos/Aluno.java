@@ -85,6 +85,9 @@ public class Aluno {
     private Instant usoDeImagemAutorizadoEm;
 
     /** Quando o aluno desligou, só para ele, os lembretes de cobrança por e-mail. Nulo = recebe. */
+    @Column(name = "participa_ranking_forca", nullable = false)
+    private boolean participaRankingForca;
+
     @Column(name = "lembretes_cobranca_desligados_em")
     private Instant lembretesCobrancaDesligadosEm;
 
@@ -389,6 +392,15 @@ public class Aluno {
     /** Grava o instante da autorização, ou nulo quando o aluno desliga. */
     public void definirUsoDeImagem(Instant quando) {
         this.usoDeImagemAutorizadoEm = quando;
+    }
+
+    public boolean isParticipaRankingForca() {
+        return participaRankingForca;
+    }
+
+    public void alterarParticipaRankingForca(boolean participa) {
+        this.participaRankingForca = participa;
+        this.atualizadoEm = Instant.now();
     }
 
     public Instant getLembretesCobrancaDesligadosEm() {

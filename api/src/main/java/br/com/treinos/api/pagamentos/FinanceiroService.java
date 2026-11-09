@@ -20,6 +20,7 @@ import br.com.treinos.api.pagamentos.PagamentosDtos.Periodo;
 import br.com.treinos.api.pagamentos.PagamentosDtos.ProximosRecebimentos;
 import br.com.treinos.api.pagamentos.PagamentosDtos.ResultadoDoMes;
 import br.com.treinos.api.pagamentos.PagamentosDtos.ValorEQuantidade;
+import br.com.treinos.api.pagamentos.PagamentosDtos.VisaoGeralResponse;
 import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.web.Fuso;
 import org.springframework.data.domain.PageRequest;
@@ -261,6 +262,36 @@ public class FinanceiroService {
         Long saidas = avulsoDoMes(totaisDeSaida, mes, mes, mesDaCriacao);
         return new ResultadoDoMes(ROTULO_RESULTADO, mes.toString(), recebido, entradas, saidas,
                 resultado(recebido, entradas, saidas));
+    }
+
+    // ---- GET /financeiro/visao-geral ----
+
+    @Transactional(readOnly = true)
+    public VisaoGeralResponse visaoGeral() {
+        List<ContratacaoAluno> ativas = contratacoes.findBySituacao(ContratacaoAluno.Situacao.ATIVA);
+        int renovacoesCount = 0;
+        long renovacoesCentavos = 0;
+        long projecaoAnual = 0;
+
+        for (ContratacaoAluno c : ativas) {
+            LocalDate base = c.getAncora() != null && c.getAncora().isAfter(c.getInicio()) ? c.getAncora() : c.getInicio();
+            LocalDate termino = Respostas.calcularTerminoVigencia(base, c.getPeriodicidade());
+            Long diasRestantes = Respostas.calcularDiasRestantes(termino);
+            if (diasRestantes != null && diasRestantes <= 40) {
+                renovacoesCount++;
+                renovacoesCentavos += c.getValorCentavos();
+            }
+            int multiplicador = switch (c.getPeriodicidade()) {
+                case MENSAL -> 12;
+                case TRIMESTRAL -> 4;
+                case SEMESTRAL -> 2;
+                case ANUAL -> 1;
+                case PARCELA_UNICA -> 0;
+            };
+            projecaoAnual += c.getValorCentavos() * multiplicador;
+        }
+
+        return new VisaoGeralResponse(renovacoesCount, renovacoesCentavos, projecaoAnual);
     }
 
     // ---- GET /financeiro/inadimplentes ----

@@ -7,6 +7,7 @@ import br.com.treinos.api.pagamentos.PagamentosDtos.LancamentoResponse;
 import br.com.treinos.api.pagamentos.PagamentosDtos.PlanoResponse;
 
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 
 /** Entidade para resposta HTTP. Nada aqui lê o banco: quem chama já tem os nomes. */
@@ -21,9 +22,41 @@ final class Respostas {
     }
 
     static ContratacaoResponse contratacao(ContratacaoAluno c, String planoNome) {
+        LocalDate base = c.getAncora() != null && c.getAncora().isAfter(c.getInicio()) ? c.getAncora() : c.getInicio();
+        LocalDate termino = calcularTerminoVigencia(base, c.getPeriodicidade());
+        Long dias = calcularDiasRestantes(termino);
+        String alerta = calcularAlerta(dias);
         return new ContratacaoResponse(c.getId(), c.getAlunoId(), c.getPlanoComercialId(), planoNome, c.getPeriodicidade(),
                 c.getValorCentavos(), c.getMotivoValor(), c.getInicio(), c.getDiaVencimento(), c.getSituacao(),
-                c.getEncerradaEm(), c.getCriadoEm(), c.getVersao());
+                c.getEncerradaEm(), c.getCriadoEm(), c.getVersao(), termino, dias, alerta);
+    }
+
+    static LocalDate calcularTerminoVigencia(LocalDate inicio, PeriodoDoPlano periodicidade) {
+        if (inicio == null) {
+            return null;
+        }
+        int meses = periodicidade != null && periodicidade.meses() > 0 ? periodicidade.meses() : 1;
+        return inicio.plusMonths(meses);
+    }
+
+    static Long calcularDiasRestantes(LocalDate termino) {
+        if (termino == null) {
+            return null;
+        }
+        return ChronoUnit.DAYS.between(LocalDate.now(ZoneOffset.UTC), termino);
+    }
+
+    static String calcularAlerta(Long dias) {
+        if (dias == null) {
+            return "EM_DIA";
+        }
+        if (dias < 0) {
+            return "VENCIDO";
+        }
+        if (dias <= 40) {
+            return "PROXIMO_VENCIMENTO";
+        }
+        return "EM_DIA";
     }
 
     static CobrancaResponse cobranca(LinhaDeCobranca l, LocalDate hoje) {

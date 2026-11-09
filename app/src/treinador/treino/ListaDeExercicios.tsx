@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import type { Configuracao, ExercicioPlano } from '../../api/tipos';
 import { linhaDoExercicio, type ResumoDaSessaoPorContagem } from '../../dominio/inspetorDoTreino';
@@ -27,8 +27,10 @@ interface Props {
  * fica só em "Configuração do plano" (04/11).
  */
 export function ListaDeExercicios({ children, vazia, resumo, adicionar }: Props) {
+  const { width } = useWindowDimensions();
+  const largura = width > 0 && width <= 1440 ? 220 : LARGURA_DA_LISTA;
   return (
-    <View style={estilos.coluna}>
+    <View style={[estilos.coluna, { width: largura }]}>
       <View style={estilos.itens} role="group" accessibilityLabel="Exercícios da sessão">
         {vazia ? <Texto variante="suave">Nenhum exercício nesta sessão ainda.</Texto> : children}
       </View>

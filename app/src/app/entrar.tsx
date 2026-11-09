@@ -9,6 +9,7 @@ import { useSessao } from '../sessao/SessaoProvider';
 import { espaco } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
+import { Escolha } from '../ui/Escolha';
 import { CampoSenha } from '../ui/CampoSenha';
 import { Cartao } from '../ui/Cartao';
 import { MensagemErro } from '../ui/Estados';
@@ -20,9 +21,10 @@ import { useVerificacaoHumana } from '../ui/useVerificacaoHumana';
 import { VerificacaoHumana } from '../ui/VerificacaoHumana';
 
 /** Entrar (símbolo e nome do produto: a marca do treinador só aparece depois do login). */
-export default function Entrar() {
+export default function Entrar({ modoFixo }: { modoFixo?: 'ALUNO' | 'TREINADOR' } = {}) {
   const sessao = useSessao();
   const verificacao = useVerificacaoHumana();
+    const [modoEntrada, setModoEntrada] = useState<'ALUNO' | 'TREINADOR'>(modoFixo ?? 'ALUNO');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   // Depois da senha, quem tem verificação em duas etapas informa o código do aplicativo (ou de recuperação).
@@ -123,8 +125,23 @@ export default function Entrar() {
   // ao trocar de passo (o token novo chega como no passo do código do MFA).
   return (
     <TelaPublica titulo={criarSenha ? 'Crie sua senha' : 'Entrar'}
-      subtitulo={criarSenha ? 'Seu treinador criou uma senha provisória. Escolha agora a sua senha para entrar.' : 'Treinos e dieta da sua consultoria.'}>
+      subtitulo={criarSenha ? 'Seu treinador criou uma senha provisória. Escolha agora a sua senha para entrar.' : modoEntrada === 'ALUNO' ? 'Acesso do Aluno — Entre com o e-mail e a senha enviados pelo seu treinador.' : 'Acesso da Equipe — Treinos e gestão da sua consultoria.'}>
       <Cartao>
+        {!criarSenha && !modoFixo ? (
+          <View style={{ marginBottom: espaco(1.5) }}>
+            <Escolha
+              rotulo="Perfil de acesso"
+              descricao="Perfil de acesso"
+              distribuida
+              opcoes={[
+                { valor: 'ALUNO', rotulo: 'Sou Aluno' },
+                { valor: 'TREINADOR', rotulo: 'Sou Treinador' },
+              ]}
+              valor={modoEntrada}
+              aoMudar={(v) => setModoEntrada(v as 'ALUNO' | 'TREINADOR')}
+            />
+          </View>
+        ) : null}
         {criarSenha ? (
           <>
             <CampoSenha ref={refNovaSenha} rotulo="Nova senha" valor={novaSenha} aoMudar={setNovaSenha} erro={campos.novaSenha}
@@ -157,7 +174,7 @@ export default function Entrar() {
           <>
             <LinkTexto href="/esqueci-senha" texto="Esqueci minha senha" />
             <LinkTexto href="/convite" texto="Tenho um convite" />
-            {verificacao.cadastroAberto ? <LinkTexto href="/cadastro" texto="Sou treinador, criar conta" /> : null}
+            {verificacao.cadastroAberto && modoEntrada === 'TREINADOR' ? <LinkTexto href="/cadastro" texto="Sou treinador, criar conta" /> : null}
           </>
         )}
       </View>

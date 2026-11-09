@@ -100,6 +100,7 @@ public class PerfilDaAnamnese {
                     case TELEFONE -> telefoneNoEnvio(a.getAlunoId(), resposta);
                     case ENDERECO -> enderecoNoEnvio(a.getAlunoId(), resposta);
                     case SEXO -> sexoNoEnvio(a.getAlunoId(), resposta, p);
+                    default -> new Resultado(Resultado.Situacao.IGUAL, null);
                 };
                 if (r.situacao() == Resultado.Situacao.PREENCHIDO) {
                     pendencias.save(AnamnesePendencia.automatica(a.getId(), a.getAlunoId(), destino, perguntaId, r.valor(), agora));
@@ -153,6 +154,7 @@ public class PerfilDaAnamnese {
             case ENDERECO -> alunos.findById(p.getAlunoId()).map(Aluno::endereco).map(this::enderecoEmJson).orElse(null);
             case SEXO -> alunos.findById(p.getAlunoId()).map(Aluno::getSexo).map(Enum::name)
                     .map(PerfilDaAnamnese::texto).map(this::paraJson).orElse(null);
+            default -> null;
         };
     }
 
@@ -183,6 +185,7 @@ public class PerfilDaAnamnese {
                 aluno.alterarSexo(Sexo.valueOf(valor.path("texto").asString()));
                 ciclo.desligarSeDeixouDeSerFeminino(aluno);
             }
+            default -> {}
         }
         p.resolver(AnamnesePendencia.Situacao.APLICADA, usuarioId, Instant.now());
         try {

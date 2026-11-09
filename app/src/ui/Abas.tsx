@@ -19,6 +19,7 @@ interface Props<T extends string> {
     detalhe?: string;
     /** Aba com erro ou aviso da validação: ícone e borda na cor, e o nome acessível diz qual. */
     problema?: 'perigo' | 'atencao';
+    corIndicador?: string;
   }[];
   ativa: T;
   aoMudar: (valor: T) => void;
@@ -111,6 +112,7 @@ export function Abas<T extends string>({ abas, ativa, aoMudar, fundo, variante =
                 <View style={estilos.conteudo}>
                   {/* Na selecionada o ícone fica na cor do texto invertido: vermelho ou âmbar sobre o fundo escuro não passa 3:1 em todo tema. */}
                   {invertida && corDoProblema ? <IconeDoProblema size={16} color={sel ? cores.fundo : corDoProblema} strokeWidth={2.5} /> : null}
+                  {a.corIndicador ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: a.corIndicador, marginRight: 2 }} /> : null}
                   <Texto style={[estilos.texto, { color: invertida ? (sel ? cores.fundo : cores.texto) : sel ? cores.texto : cores.textoSuave }]}>{a.rotulo}</Texto>
                   {a.detalhe ? <Selo texto={a.detalhe} tipo="neutro" /> : null}
                   {a.contagem === undefined ? null : (

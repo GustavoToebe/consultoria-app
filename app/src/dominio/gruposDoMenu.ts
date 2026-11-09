@@ -49,6 +49,7 @@ export const MENU_DO_TREINADOR: readonly LugarNoMenu[] = [
   { caminho: '/treinador/alunos', grupo: 'Acompanhamento' },
   { caminho: '/treinador/atualizacoes', grupo: 'Acompanhamento' },
   { caminho: '/treinador/agenda', grupo: 'Acompanhamento' },
+  { caminho: '/treinador/comunidade', grupo: 'Acompanhamento' },
   { caminho: '/treinador/biblioteca', grupo: 'Conteúdo' },
   { caminho: '/treinador/planejamento', grupo: 'Conteúdo' },
   { caminho: '/treinador/interessados', grupo: 'Negócio' },

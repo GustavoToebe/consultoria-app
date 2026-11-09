@@ -64,6 +64,18 @@ public class Questionario {
     @Column(name = "criado_em", insertable = false, updatable = false)
     private Instant criadoEm;
 
+    @Column(name = "codigo_publico", unique = true)
+    private String codigoPublico;
+
+    @Column(name = "publico_aberto", nullable = false)
+    private boolean publicoAberto;
+
+    @Column(name = "responsavel_padrao_id")
+    private UUID responsavelPadraoId;
+
+    @Column(name = "proximo_questionario_id")
+    private UUID proximoQuestionarioId;
+
     @Version
     private Long versao;
 
@@ -116,5 +128,14 @@ public class Questionario {
     public int getVersaoPublicada() { return versaoPublicada; }
     public Instant getPublicadoEm() { return publicadoEm; }
     public Instant getCriadoEm() { return criadoEm; }
+    public String getCodigoPublico() { return codigoPublico; }
+    public void setCodigoPublico(String codigoPublico) { this.codigoPublico = codigoPublico; }
+    public boolean isPublicoAberto() { return publicoAberto; }
+    public void setPublicoAberto(boolean publicoAberto) { this.publicoAberto = publicoAberto; }
+    public UUID getResponsavelPadraoId() { return responsavelPadraoId; }
+    public void setResponsavelPadraoId(UUID responsavelPadraoId) { this.responsavelPadraoId = responsavelPadraoId; }
+    public UUID getProximoQuestionarioId() { return proximoQuestionarioId; }
+    public void setProximoQuestionarioId(UUID proximoQuestionarioId) { this.proximoQuestionarioId = proximoQuestionarioId; }
+
     public Long getVersao() { return versao; }
 }

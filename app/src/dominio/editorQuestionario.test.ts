@@ -299,10 +299,10 @@ describe('destino no cadastro (anamnese)', () => {
   const c = (...perguntas: PerguntaAtualizacao[]): ConteudoQuestionario => ({ formato: 2, instrucoes: [], secoes: [{ uid: 's1', titulo: 'A', perguntas }] });
   it('só na anamnese: peso → registro de peso, texto curto → objetivo ou CPF, telefone, endereço', () => {
     expect(destinosPossiveis('PESO', 'ANAMNESE')).toEqual(['PESO']);
-    expect(destinosPossiveis('TEXTO', 'ANAMNESE')).toEqual(['OBJETIVO', 'CPF']);
+    expect(destinosPossiveis('TEXTO', 'ANAMNESE')).toEqual(['NOME', 'CPF', 'OBJETIVO']);
     expect(destinosPossiveis('TELEFONE', 'ANAMNESE')).toEqual(['TELEFONE']);
     expect(destinosPossiveis('ENDERECO', 'ANAMNESE')).toEqual(['ENDERECO']);
-    expect(destinosPossiveis('TEXTO_LONGO', 'ANAMNESE')).toEqual([]);
+    expect(destinosPossiveis('TEXTO_LONGO', 'ANAMNESE')).toEqual(['OBSERVACOES']);
     expect(destinosPossiveis('PESO', 'ATUALIZACAO')).toEqual([]);
     expect(destinosPossiveis('ENDERECO', 'ATUALIZACAO')).toEqual([]);
   });

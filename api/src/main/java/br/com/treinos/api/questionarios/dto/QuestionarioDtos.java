@@ -23,14 +23,31 @@ public final class QuestionarioDtos {
 
     public record QuestionarioResumo(UUID id, String nome, String descricao, Finalidade finalidade, boolean padrao, boolean arquivado,
                                      int versaoPublicada, Instant publicadoEm, boolean alteradoDesdePublicacao,
-                                     Instant rascunhoAlteradoEm, Uso uso) { }
+                                     Instant rascunhoAlteradoEm, Uso uso,
+                                     String codigoPublico, boolean publicoAberto, UUID responsavelPadraoId, UUID proximoQuestionarioId) {
+        public QuestionarioResumo(UUID id, String nome, String descricao, Finalidade finalidade, boolean padrao, boolean arquivado,
+                                  int versaoPublicada, Instant publicadoEm, boolean alteradoDesdePublicacao,
+                                  Instant rascunhoAlteradoEm, Uso uso) {
+            this(id, nome, descricao, finalidade, padrao, arquivado, versaoPublicada, publicadoEm, alteradoDesdePublicacao,
+                    rascunhoAlteradoEm, uso, null, false, null, null);
+        }
+    }
 
     public record VersaoResumo(int numero, Instant publicadoEm) { }
 
     public record QuestionarioDetalhe(UUID id, String nome, String descricao, Finalidade finalidade, boolean padrao, boolean arquivado,
                                       int versaoPublicada, Instant publicadoEm, boolean alteradoDesdePublicacao,
                                       Instant rascunhoAlteradoEm, Long versao, Uso uso,
-                                      ConteudoQuestionario rascunho, List<VersaoResumo> versoes) { }
+                                      ConteudoQuestionario rascunho, List<VersaoResumo> versoes,
+                                      String codigoPublico, boolean publicoAberto, UUID responsavelPadraoId, UUID proximoQuestionarioId) {
+        public QuestionarioDetalhe(UUID id, String nome, String descricao, Finalidade finalidade, boolean padrao, boolean arquivado,
+                                   int versaoPublicada, Instant publicadoEm, boolean alteradoDesdePublicacao,
+                                   Instant rascunhoAlteradoEm, Long versao, Uso uso,
+                                   ConteudoQuestionario rascunho, List<VersaoResumo> versoes) {
+            this(id, nome, descricao, finalidade, padrao, arquivado, versaoPublicada, publicadoEm, alteradoDesdePublicacao,
+                    rascunhoAlteradoEm, versao, uso, rascunho, versoes, null, false, null, null);
+        }
+    }
 
     /** Opção de escolha no aluno e na pasta: só questionários publicados e não arquivados. */
     public record OpcaoQuestionario(UUID id, String nome, boolean padrao) { }
@@ -44,7 +61,12 @@ public final class QuestionarioDtos {
     }
 
     public record SalvarRequest(@NotBlank @Size(max = 120) String nome, @Size(max = 400) String descricao,
-                                @NotNull @Valid ConteudoQuestionario conteudo, @NotNull Long versao) { }
+                                @NotNull @Valid ConteudoQuestionario conteudo, @NotNull Long versao,
+                                String codigoPublico, Boolean publicoAberto, UUID responsavelPadraoId, UUID proximoQuestionarioId) {
+        public SalvarRequest(String nome, String descricao, ConteudoQuestionario conteudo, Long versao) {
+            this(nome, descricao, conteudo, versao, null, null, null, null);
+        }
+    }
 
     public record PublicarRequest(@NotNull Long versao, boolean confirmarAvisos) { }
 

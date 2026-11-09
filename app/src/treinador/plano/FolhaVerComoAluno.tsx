@@ -112,6 +112,7 @@ function PreviaDoTreino({ estado, agora }: { estado: PlanoNoEditor<ConteudoTrein
   const { rolarAte } = useRolagem();
   const [sessaoUid, setSessaoUid] = useState<string | null>(null);
   const [exercicioUid, setExercicioUid] = useState<string | null>(null);
+  const [cargasDoDia, setCargasDoDia] = useState<Record<string, number | null>>({});
   const treino = treinoDaPrevia(estado, agora);
   const conteudo = treino.conteudo;
   const hoje = hojeIso();
@@ -144,11 +145,11 @@ function PreviaDoTreino({ estado, agora }: { estado: PlanoNoEditor<ConteudoTrein
           previa
           exercicio={exercicio}
           data={hoje}
-          cargaDoDia={null}
+          cargaDoDia={cargasDoDia[exercicio.uid] ?? null}
           ultima={null}
           registroDe={SEM_EFEITO}
           config={config}
-          aoMudarCargaDoDia={SEM_EFEITO}
+          aoMudarCargaDoDia={(kg) => setCargasDoDia((atual) => ({ ...atual, [exercicio.uid]: kg }))}
           aoRegistrar={SEM_EFEITO}
           chaveDaExecucao={(serieUid) => `${treino.versaoId}|${serieUid}|${hoje}`}
           descansoNaSerie={!noGrupo || noGrupo.descansoPorSerie}

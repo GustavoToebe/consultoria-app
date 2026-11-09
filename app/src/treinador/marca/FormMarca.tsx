@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { ImagePlus, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
@@ -160,6 +161,19 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
 
   return (
     <>
+      <Cartao titulo="Personalização da Marca do Aluno"
+        descricao="Estas cores, logo e tema padrão são aplicados exclusivamente ao aplicativo dos seus alunos.">
+        <Texto variante="suave">
+          Para alternar o seu próprio painel de treinador entre Tema Claro e Tema Escuro, acesse o menu de preferências da sua conta.
+        </Texto>
+        <View style={estilos.botoesEsquerda}>
+          <Botao
+            rotulo="Ajustar tema do meu painel (Conta)"
+            tipo="secundario"
+            aoTocar={() => router.push('/treinador/perfil')}
+          />
+        </View>
+      </Cartao>
       <Cartao titulo="Prévia do app do aluno" descricao="Acompanha o que você escolhe abaixo.">
         <View style={estilos.previas}>
           <Previa marca={previa} tema={tema} />

@@ -98,7 +98,30 @@ export const TIPOS_FORA_DA_INSCRICAO: readonly TipoPergunta[] = ['FOTOS', 'ENDER
 /** A página pública não mostra imagem (D6). */
 const SEM_IMAGEM_NA_INSCRICAO = 'A página de inscrição não mostra imagem.';
 /** Tipo de pergunta que alimenta cada campo do cadastro (igual a `DestinoNoPerfil` do Java). */
-export const TIPO_DO_DESTINO: Record<DestinoNoPerfil, TipoPergunta> = { PESO: 'PESO', OBJETIVO: 'TEXTO', CPF: 'TEXTO', TELEFONE: 'TELEFONE', ENDERECO: 'ENDERECO', SEXO: 'ESCOLHA_UNICA' };
+export const TIPO_DO_DESTINO: Record<DestinoNoPerfil, TipoPergunta> = {
+  PESO: 'PESO',
+  ALTURA: 'NUMERO',
+  NOME: 'TEXTO',
+  EMAIL: 'EMAIL',
+  TELEFONE: 'TELEFONE',
+  CPF: 'TEXTO',
+  ENDERECO: 'ENDERECO',
+  DATA_NASCIMENTO: 'DATA',
+  SEXO: 'ESCOLHA_UNICA',
+  OBJETIVO: 'TEXTO',
+  OBSERVACOES: 'TEXTO_LONGO',
+  FOTO_PERFIL: 'FOTOS',
+};
+
+export function tipoAceitoPeloDestino(d: DestinoNoPerfil, tipo: TipoPergunta): boolean {
+  if (TIPO_DO_DESTINO[d] === tipo) return true;
+  if (d === 'PESO' && tipo === 'NUMERO') return true;
+  if (d === 'TELEFONE' && tipo === 'TEXTO') return true;
+  if (d === 'EMAIL' && tipo === 'TEXTO') return true;
+  if (d === 'OBJETIVO' && tipo === 'TEXTO_LONGO') return true;
+  if (d === 'OBSERVACOES' && tipo === 'TEXTO') return true;
+  return false;
+}
 
 /** Escala da NOTA: `min` (0 ou 1) e `max` (2 a 10) da pergunta; sem eles (ou fora da regra), 0 a 10. */
 export function escalaDaNota(p: Pick<PerguntaAtualizacao, 'min' | 'max'>): { min: number; max: number } {

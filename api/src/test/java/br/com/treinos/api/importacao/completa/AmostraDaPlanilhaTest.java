@@ -124,4 +124,39 @@ class AmostraDaPlanilhaTest {
         assertThat(aluno.ultimosPesos().get(0).data()).isEqualTo(LocalDate.of(2026, 1, 3));
         assertThat(amostra.toString() + aluno + aluno.ultimosPesos().get(0)).doesNotContain("Fictício").doesNotContain("70.");
     }
+
+    @Test
+    void ordemDosDonosPermaneceEstavelMesmoSeAlunoForCadastradoEntreAmostraEConfirmacao() {
+        AlunoNovo a2 = novo(2);
+        AlunoNovo a3 = novo(3);
+        AlunoNovo a4 = novo(4);
+
+        // Cenário 1: Durante a amostra, todos os 3 são novos
+        Montagem amostra = montagem(List.of(a2, a3, a4), List.of(), List.of());
+        List<Dono> ordemNaAmostra = AmostraDaPlanilha.ordemDosDonos(amostra);
+        assertThat(ordemNaAmostra).containsExactly(a2.dono(), a3.dono(), a4.dono());
+
+        // Cenário 2: Entre amostra e confirmação, o aluno da linha 3 foi cadastrado no banco
+        UUID idA3 = UUID.randomUUID();
+        Dono donoA3Existente = new Dono(3, idA3, "aluno ficticio 3");
+        PlanosDoAluno planoA3 = new PlanosDoAluno(donoA3Existente, "Aluno Fictício 3", null, null);
+        Montagem confirmacao = montagem(List.of(a2, a4), List.of(), List.of(planoA3));
+        List<Dono> ordemNaConfirmacao = AmostraDaPlanilha.ordemDosDonos(confirmacao);
+
+        // A linha 3 deve continuar entre a linha 2 e a linha 4!
+        assertThat(ordemNaConfirmacao).containsExactly(a2.dono(), donoA3Existente, a4.dono());
+    }
+
+    @Test
+    void chavesIgnoradasFiltraDonosPorChaveEstavel() {
+        AlunoNovo a2 = novo(2);
+        AlunoNovo a3 = novo(3);
+        Montagem m = montagem(List.of(a2, a3), List.of(), List.of());
+
+        Set<Dono> ignorados = GravacaoDaPlanilha.donosIgnorados(m, List.of(), Set.of("linha:3"));
+        assertThat(ignorados).containsExactly(a3.dono());
+
+        Montagem filtrada = m.semDonos(ignorados);
+        assertThat(filtrada.alunosNovos()).containsExactly(a2);
+    }
 }

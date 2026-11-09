@@ -1,6 +1,7 @@
 package br.com.treinos.api.pagamentos;
 
 import br.com.treinos.api.execucao.AlunoAppService;
+import br.com.treinos.api.pagamentos.PagamentosDtos.ContratacaoResponse;
 import br.com.treinos.api.pagamentos.PagamentosDtos.FinanceiroDoAluno;
 import br.com.treinos.api.pagamentos.PagamentosDtos.LembretesDoAlunoRequest;
 import br.com.treinos.api.pagamentos.PagamentosDtos.LembretesDoAlunoResponse;
@@ -48,6 +49,14 @@ public class AlunoFinanceiroController {
     @GetMapping("/aluno/financeiro")
     public ResponseEntity<FinanceiroDoAluno> meu(@AuthenticationPrincipal UsuarioAutenticado eu) {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(financeiro.meu(eu));
+    }
+
+    @PreAuthorize("hasRole('ALUNO')")
+    @GetMapping({"/eu/contratacao", "/aluno/contratacao"})
+    public ResponseEntity<ContratacaoResponse> minhaContratacao(@AuthenticationPrincipal UsuarioAutenticado eu) {
+        return financeiro.minhaContratacao(eu)
+                .map(c -> ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(c))
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     @ExigeInfinitePay

@@ -30,11 +30,12 @@ export function CabecalhoDaSerie({ numero, tipo, tecnica, recordes, registro }: 
   /** Só a série registrada tem selo (auditoria 03/11): sem registro, os campos já dizem que está vazia. */
   registro: 'FEITA' | 'NAO_FEITA' | null;
 }) {
-  const { cores } = useTema();
+  const { cores, identificacao } = useTema();
+  const fundoTipo = tipo?.cor ? identificacao[tipo.cor]?.fundo : undefined;
   const unidade = useUnidadeDeCarga();
   const comRecorde = !!recordes?.length;
   return (
-    <View style={estilos.cabeca}>
+    <View style={[estilos.cabeca, fundoTipo ? { backgroundColor: fundoTipo, borderRadius: RAIO, paddingHorizontal: espaco(1), paddingVertical: espaco(0.5) } : null]}>
       <View style={estilos.titulo}>
         {comRecorde ? (
           <View accessible accessibilityRole="text" accessibilityLabel={`Série ${numero}, recorde pessoal: ${recordes!.map((r) => textoDoRecorde(r, unidade)).join('; ')}`}>
@@ -58,7 +59,7 @@ export function CabecalhoDaSerie({ numero, tipo, tecnica, recordes, registro }: 
 }
 
 /** Largura da barra lateral do cartão da série com a cor do tipo (Frente G, D10: barra de 6 px + selo colorido). */
-export const LARGURA_DA_BARRA_DO_TIPO = 6;
+export const LARGURA_DA_BARRA_DO_TIPO = 4;
 
 /**
  * A barra lateral do cartão da série na cor de identificação do tipo (`useTema().identificacao[chave].cor`); sem cor, nada
