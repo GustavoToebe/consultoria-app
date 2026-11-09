@@ -35,6 +35,7 @@ Hoje o sistema trata formulários em três silos com lógicas divergentes:
 | D5 | **Origem no CRM (Interessados)** | O Kanban de Interessados exibe um selo com o nome do formulário respondido e ganha filtro por formulário/link de origem, permitindo filtrar leads por canal ou campanha sem depender apenas de parâmetros de URL soltos. | Gustavo / Claude, 09/11 |
 | D6 | **Aplicação na ficha do aluno** | O histórico da ficha do aluno passa a exibir todos os questionários respondidos (inscrições, anamneses, atualizações e avulsos). Na visualização de qualquer resposta com `destinoNoPerfil`, o treinador pode acionar a ação "Aplicar na ficha" para atualizar os dados cadastrais do aluno automaticamente. | Gustavo / Claude, 09/11 |
 | D7 | **Migração retrocompatível (preservação do Saraiva)** | A migration unificadora migra os dados de produção sem perda: o formulário de 14 perguntas da `Inscrição Saraiva Team` e o de 57 perguntas da `Anamnese Saraiva Team` são preservados como questionários independentes; o `codigo_publico` atual do Saraiva permanece idêntico apontando para sua Inscrição padrão. | Claude, 09/11 |
+| D8 | **Perguntas condicionais no fluxo público (Exemplo N37)** | O motor de exibição condicional já existente em `QuestionarioVersao` passa a valer também no formulário público unificado. Exemplo real `N37` da reunião de 08/11: pergunta *"Quem indicou?"* exibida condicionalmente apenas se a opção selecionada na pergunta anterior (*"Como conheceu a consultoria?"*) for *"Aluno do time"* ou *"Influenciador"*. | Gustavo, 08/11 e 09/11 |
 
 ---
 
