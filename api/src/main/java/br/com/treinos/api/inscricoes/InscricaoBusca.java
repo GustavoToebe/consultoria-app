@@ -26,7 +26,7 @@ public class InscricaoBusca {
             return Optional.empty();
         }
         List<UUID> qIds = jdbc.query(
-                "select consultoria_id from questionario where codigo_publico = ? and publico_aberto and not arquivado and ativo",
+                "select consultoria_id from questionario where codigo_publico = ? and publico_aberto and not arquivado",
                 (rs, n) -> rs.getObject(1, UUID.class), codigo);
         if (!qIds.isEmpty()) {
             return qIds.stream().findFirst();

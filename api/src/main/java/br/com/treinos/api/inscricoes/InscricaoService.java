@@ -179,6 +179,7 @@ public class InscricaoService {
      */
     @Transactional
     public String registrarPublica(String codigo, InscricaoPublicaRequest r) {
+        var linkParaTrava = configuracoes.atualParaAlterar();
         if (inscricoes.countByCriadaEmAfter(Instant.now().minus(JANELA_DO_TETO)) >= limiteDiario) {
             throw new MuitasRequisicoesException(JANELA_DO_TETO.toSeconds());
         }
@@ -226,7 +227,7 @@ public class InscricaoService {
                     : null;
         }
 
-        InscricaoConfiguracao link = configuracoes.atualParaAlterar().filter(c -> c.isAberta() && c.getCodigo().equals(codigo))
+        InscricaoConfiguracao link = linkParaTrava.filter(c -> c.isAberta() && c.getCodigo().equals(codigo))
                 .orElseThrow(InscricaoPublicaService::linkInvalido);
         String texto = link.getTexto();
         if (!TextoDaInscricao.confere(texto, r.textoVersao())) {

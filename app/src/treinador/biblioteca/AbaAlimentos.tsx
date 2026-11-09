@@ -1,15 +1,28 @@
 import { Permitido } from '../../ui/Permitido';
-import { Pencil, Plus, Trash2 } from 'lucide-react-native';
+import { Pencil, Plus, Trash2, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { alterarAlimento, criarAlimento, gruposDoCatalogo, inativarAlimento, listarAlimentos } from '../../api/rotas';
 import type { Alimento, AlimentoRequest, UnidadeAlimento } from '../../api/tipos';
-import { AJUDA_FC, AJUDA_FCC, descricaoDosFatores, erroDoFatorCoccao, erroDoFatorCorrecao, estimarFatoresDoAlimento, PERFIS_FC, PERFIS_FCC, perfilFcDoValor, perfilFccDoValor, previaDeConversao } from '../../dominio/fatoresDoAlimento';
+import {
+  AJUDA_FC,
+  AJUDA_FCC,
+  descricaoDosFatores,
+  erroDoFatorCoccao,
+  erroDoFatorCorrecao,
+  estimarFatoresDoAlimento,
+  PERFIS_FC,
+  PERFIS_FCC,
+  perfilFcDoValor,
+  perfilFccDoValor,
+  previaDeConversao,
+} from '../../dominio/fatoresDoAlimento';
 import { numeroParaTela } from '../../dominio/formatos';
 import { sugerirGrupos } from '../../dominio/gruposDaLista';
-import { espaco } from '../../tema/tokens';
+import { espaco, RAIO } from '../../tema/tokens';
 import { useSessao } from '../../sessao/SessaoProvider';
+import { useTema } from '../../tema/TemaProvider';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
@@ -23,17 +36,38 @@ import { FaixaDeChips } from '../../ui/FaixaDeChips';
 import { Folha } from '../../ui/Folha';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
+import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
 import { Texto } from '../../ui/Texto';
-import { BarraDaBiblioteca } from './BarraDaBiblioteca';
 import { useCarregar } from '../../ui/useCarregar';
 import { LinhaDaLista, ListaDeLinhas } from '../../ui/LinhaDaLista';
-import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { normalizar } from '../treino/FolhaBiblioteca';
 
 export const UNIDADES: { valor: UnidadeAlimento; rotulo: string }[] = [
   { valor: 'g', rotulo: 'g' },
   { valor: 'ml', rotulo: 'ml' },
   { valor: 'un', rotulo: 'un' },
+];
+
+const OPCOES_UNIDADE: { valor: UnidadeAlimento; rotulo: string }[] = [
+  { valor: 'g', rotulo: 'Gramas (g)' },
+  { valor: 'ml', rotulo: 'Mililitros (ml)' },
+  { valor: 'un', rotulo: 'Unidade (un)' },
+];
+
+export const GRUPOS_PADRAO_ALIMENTOS: readonly string[] = [
+  'Carnes e derivados',
+  'Cereais e derivados',
+  'Frutas e derivados',
+  'Leite e derivados',
+  'Leguminosas e derivados',
+  'Gorduras e óleos',
+  'Outros / Sem grupo',
+];
+
+const OPCOES_PREPARO = [
+  { valor: 'DIRETO', rotulo: 'Direto / Cru (FCc = 1)' },
+  { valor: 'HIDRATA', rotulo: 'Hidrata no cozimento (FCc > 1)' },
+  { valor: 'REDUZ', rotulo: 'Reduz no preparo (FCc < 1)' },
 ];
 
 /** "100 g · 266 kcal · P 8,4 · C 49,6 · G 3,2" */
@@ -58,10 +92,64 @@ export function AbaAlimentos() {
   const { pode } = useSessao();
   const { dados, erro, carregando, recarregar } = useCarregar('biblioteca-alimentos', () => listarAlimentos());
   const [busca, setBusca] = useState('');
+  const [gruposMarcados, setGruposMarcados] = useState<ReadonlySet<string>>(new Set());
+  const [unidadesMarcadas, setUnidadesMarcadas] = useState<ReadonlySet<string>>(new Set());
+  const [fontesMarcadas, setFontesMarcadas] = useState<ReadonlySet<string>>(new Set());
+  const [coccaoMarcadas, setCoccaoMarcadas] = useState<ReadonlySet<string>>(new Set());
   const [editando, setEditando] = useState<Alimento | 'novo' | null>(null);
   const [inativar, setInativar] = useState<Alimento | null>(null);
+
+  // Lista de grupos: padrão + grupos presentes na base da consultoria
+  const gruposDosDados = (dados ?? [])
+    .map((a) => a.grupo?.trim())
+    .filter((g): g is string => !!g && g !== 'Outros itens' && g !== 'Outros / Sem grupo');
+  const todosOsGrupos = Array.from(new Set([...GRUPOS_PADRAO_ALIMENTOS.filter((g) => g !== 'Outros / Sem grupo'), ...gruposDosDados]))
+    .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  todosOsGrupos.push('Outros / Sem grupo');
+  const opcoesGrupos = todosOsGrupos.map((g) => ({ valor: g, rotulo: g }));
+
+  // Lista de fontes presentes nos alimentos
+  const temSemFonte = (dados ?? []).some((a) => !a.fonte || !a.fonte.trim());
+  const fontesDosDados = Array.from(
+    new Set((dados ?? []).map((a) => a.fonte?.trim()).filter((f): f is string => !!f))
+  ).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const opcoesFontes = [
+    ...fontesDosDados.map((f) => ({ valor: f, rotulo: f })),
+    ...(temSemFonte || fontesDosDados.length === 0 ? [{ valor: '__SEM_FONTE__', rotulo: 'Sem fonte' }] : []),
+  ];
+
+  const classificarCoccao = (fcc: number | null | undefined): 'DIRETO' | 'HIDRATA' | 'REDUZ' => {
+    const v = fcc ?? 1;
+    if (Math.abs(v - 1) < 0.001) return 'DIRETO';
+    return v > 1 ? 'HIDRATA' : 'REDUZ';
+  };
+
   const termo = normalizar(busca.trim());
-  const lista = (dados ?? []).filter((a) => !termo || normalizar(a.nome).includes(termo));
+  const temFiltroAtivo = !!termo || gruposMarcados.size > 0 || unidadesMarcadas.size > 0 || fontesMarcadas.size > 0 || coccaoMarcadas.size > 0;
+
+  const limparFiltros = () => {
+    setBusca('');
+    setGruposMarcados(new Set());
+    setUnidadesMarcadas(new Set());
+    setFontesMarcadas(new Set());
+    setCoccaoMarcadas(new Set());
+  };
+
+  const lista = (dados ?? []).filter((a) => {
+    if (termo && !normalizar(a.nome).includes(termo)) return false;
+    if (gruposMarcados.size > 0) {
+      const g = a.grupo?.trim();
+      const semGrupo = !g || g === 'Outros itens' || g === 'Outros / Sem grupo';
+      if (semGrupo ? !gruposMarcados.has('Outros / Sem grupo') : !gruposMarcados.has(g)) return false;
+    }
+    if (unidadesMarcadas.size > 0 && (!a.baseUnidade || !unidadesMarcadas.has(a.baseUnidade))) return false;
+    if (fontesMarcadas.size > 0) {
+      const f = a.fonte?.trim();
+      if (!f ? !fontesMarcadas.has('__SEM_FONTE__') : !fontesMarcadas.has(f)) return false;
+    }
+    if (coccaoMarcadas.size > 0 && !coccaoMarcadas.has(classificarCoccao(a.fatorCoccao))) return false;
+    return true;
+  });
 
   const confirmarInativar = () => {
     const alvo = inativar;
@@ -81,17 +169,66 @@ export function AbaAlimentos() {
       titulo="Alimentos da biblioteca"
       descricao="Os alimentos que você escolhe ao montar a dieta, com os valores por quantidade-base."
       acoes={<Permitido codigo="BIBLIOTECA_ALTERAR"><Botao rotulo="Novo alimento" Icone={Plus} aoTocar={() => setEditando('novo')} /></Permitido>}>
-      <BarraDaBiblioteca rotulo="Buscar alimento" placeholder="Nome do alimento" valor={busca} aoMudar={setBusca} />
+      <View style={estilos.barraDeFiltros}>
+        <View style={estilos.campoBusca}>
+          <Campo rotulo="Buscar alimento" placeholder="Nome do alimento" valor={busca} aoMudar={setBusca} autoCorrect={false} />
+        </View>
+        <SelecaoMultiplaSuspensa
+          rotulo="Grupo"
+          rotuloDeTodos="Todos os grupos"
+          opcoes={opcoesGrupos}
+          marcados={gruposMarcados}
+          aoMudar={setGruposMarcados}
+          style={estilos.seletorFiltro}
+        />
+        <SelecaoMultiplaSuspensa
+          rotulo="Unidade"
+          rotuloDeTodos="Todas as unidades"
+          opcoes={OPCOES_UNIDADE}
+          marcados={unidadesMarcadas}
+          aoMudar={setUnidadesMarcadas}
+          style={estilos.seletorFiltro}
+        />
+        <SelecaoMultiplaSuspensa
+          rotulo="Fonte"
+          rotuloDeTodos="Todas as fontes"
+          opcoes={opcoesFontes}
+          marcados={fontesMarcadas}
+          aoMudar={setFontesMarcadas}
+          style={estilos.seletorFiltro}
+        />
+        <SelecaoMultiplaSuspensa
+          rotulo="Preparo / Cocção"
+          rotuloDeTodos="Todos os preparos"
+          opcoes={OPCOES_PREPARO}
+          marcados={coccaoMarcadas}
+          aoMudar={setCoccaoMarcadas}
+          style={estilos.seletorFiltro}
+        />
+      </View>
+      <View style={estilos.linhaResumoFiltros}>
+        <Texto variante="suave" numerico style={estilos.contador}>
+          {lista.length} {lista.length === 1 ? 'alimento encontrado' : 'alimentos encontrados'}
+          {dados && dados.length !== lista.length ? ` de ${dados.length}` : ''}
+        </Texto>
+        {temFiltroAtivo ? (
+          <Botao rotulo="Limpar filtros" tipo="fantasma" Icone={X} aoTocar={limparFiltros} />
+        ) : null}
+      </View>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && lista.length === 0 ? (
-        <Vazio titulo={dados.length ? 'Nenhum alimento encontrado' : 'Biblioteca de alimentos vazia'} texto={dados.length ? 'Tente outro termo de busca.' : pode('BIBLIOTECA_ALTERAR') ? 'Importe do catálogo ou cadastre um alimento.' : 'Ainda não há itens cadastrados.'} acao={dados.length ? { rotulo: 'Limpar busca', aoTocar: () => setBusca('') } : pode('BIBLIOTECA_ALTERAR') ? { rotulo: 'Cadastrar alimento', aoTocar: () => setEditando('novo') } : undefined} />
+        <Vazio
+          titulo={dados.length ? 'Nenhum alimento encontrado' : 'Biblioteca de alimentos vazia'}
+          texto={dados.length ? 'Tente outros termos de busca ou filtros.' : pode('BIBLIOTECA_ALTERAR') ? 'Importe do catálogo ou cadastre um alimento.' : 'Ainda não há itens cadastrados.'}
+          acao={dados.length ? { rotulo: 'Limpar filtros', aoTocar: limparFiltros } : pode('BIBLIOTECA_ALTERAR') ? { rotulo: 'Cadastrar alimento', aoTocar: () => setEditando('novo') } : undefined}
+        />
       ) : null}
-      {lista.length ? <ListaDeLinhas>{lista.map((a) => {
-        return <LinhaDaLista key={a.id} titulo={a.nome} metadados={resumoAlimento(a)} descricao={descricaoDoAlimento(a) ?? undefined}
+      {lista.length ? <ListaDeLinhas>{lista.map((a) => (
+        <LinhaDaLista key={a.id} titulo={a.nome} metadados={resumoAlimento(a)} descricao={descricaoDoAlimento(a) ?? undefined}
           acoesAoLado
-          acoes={<Permitido codigo="BIBLIOTECA_ALTERAR"><IconeBotao Icone={Pencil} rotulo={`Editar ${a.nome}`} aoTocar={() => setEditando(a)} /></Permitido>} />;
-      })}</ListaDeLinhas> : null}
+          acoes={<Permitido codigo="BIBLIOTECA_ALTERAR"><IconeBotao Icone={Pencil} rotulo={`Editar ${a.nome}`} aoTocar={() => setEditando(a)} /></Permitido>} />
+      ))}</ListaDeLinhas> : null}
       {editando ? (
         <FolhaAlimento
           inicial={editando === 'novo' ? null : editando}
@@ -126,6 +263,7 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
   aoFechar: () => void;
   aoSalvar: () => void;
 }) {
+  const { cores } = useTema();
   const [nome, setNome] = useState(inicial?.nome ?? '');
   const [base, setBase] = useState<number | null>(inicial?.baseQuantidade ?? 100);
   const [unidade, setUnidade] = useState<UnidadeAlimento>(inicial?.baseUnidade ?? 'g');
@@ -193,86 +331,253 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
           <Botao rotulo="Salvar" aoTocar={salvar} carregando={salvando} desabilitado={!completo} motivo={erroFc || erroFcc ? 'Confira os fatores do alimento.' : undefined} />
         </>
       }>
-      <Campo rotulo="Nome" valor={nome} aoMudar={setNome} erro={campos.nome} maxLength={160} />
-      <Campo
-        rotulo="Grupo (opcional)"
-        valor={grupo}
-        aoMudar={setGrupo}
-        erro={campos.grupo}
-        maxLength={LIMITE_GRUPO_DO_ALIMENTO}
-        ajuda="Agrupa a lista de compras do aluno (ex.: Carnes e derivados). Escreva ou toque numa sugestão. Vazio fica em “Outros itens”."
-      />
-      {sugestoes.length ? (
-        <LinhaDeAcoes>
-          {sugestoes.map((g) => (
-            <Botao key={g} rotulo={g} tipo="secundario" aoTocar={() => setGrupo(g)} />
-          ))}
-        </LinhaDeAcoes>
-      ) : null}
-      <View style={estilos.grade}>
-        <View style={estilos.campo}>
-          <CampoNumerico rotulo="Quantidade-base" valor={base} aoMudar={setBase} erro={campos.baseQuantidade} />
+      {/* Seção 1 — Identificação e Categoria */}
+      <View style={[estilos.bloco, { backgroundColor: cores.superficie2, borderColor: cores.bordaCampo }]}>
+        <Texto variante="secao" cor={cores.texto}>Identificação e categoria</Texto>
+        <View style={estilos.linhaIdentificacao}>
+          <View style={estilos.campoNome}>
+            <Campo rotulo="Nome" valor={nome} aoMudar={setNome} erro={campos.nome} maxLength={160} />
+          </View>
+          <View style={estilos.campoFonte}>
+            <Campo rotulo="Fonte dos valores (opcional)" valor={fonte} aoMudar={setFonte} maxLength={200} placeholder="ex.: TACO, Rótulo..." />
+          </View>
         </View>
-        <Escolha rotulo="Unidade" opcoes={UNIDADES} valor={unidade} aoMudar={setUnidade} />
-      </View>
-      <Texto variante="suave">Valores para a quantidade-base, como no rótulo ou na tabela que você usa.</Texto>
-      <View style={estilos.grade}>
-        <View style={estilos.campo}>
-          <CampoNumerico rotulo="Kcal" valor={kcal} aoMudar={setKcal} erro={campos.kcal} />
-        </View>
-        <View style={estilos.campo}>
-          <CampoNumerico rotulo="Proteína" sufixo="g" valor={proteina} aoMudar={setProteina} erro={campos.proteina} />
-        </View>
-        <View style={estilos.campo}>
-          <CampoNumerico rotulo="Carboidrato" sufixo="g" valor={carboidrato} aoMudar={setCarboidrato} erro={campos.carboidrato} />
-        </View>
-        <View style={estilos.campo}>
-          <CampoNumerico rotulo="Gordura" sufixo="g" valor={gordura} aoMudar={setGordura} erro={campos.gordura} />
-        </View>
-      </View>
-      <View style={estilos.campo}>
-        <CampoNumerico
-          rotulo="Gramas por unidade (opcional)"
-          valor={gramas}
-          aoMudar={setGramas}
-          ajuda="Permite usar o alimento em unidades (ex.: 1 fatia = 25 g)."
-          erro={campos.gramasPorUnidade}
+        <Campo
+          rotulo="Grupo (opcional)"
+          valor={grupo}
+          aoMudar={setGrupo}
+          erro={campos.grupo}
+          maxLength={LIMITE_GRUPO_DO_ALIMENTO}
+          ajuda="Agrupa a lista de compras do aluno (ex.: Carnes e derivados). Escreva ou toque numa sugestão. Vazio fica em “Outros itens”."
         />
+        {sugestoes.length ? (
+          <View style={estilos.sugestoesBloco}>
+            <Texto variante="pequeno" cor={cores.textoSuave}>Sugestões rápidas:</Texto>
+            <View style={estilos.chipsDeGrupo}>
+              {sugestoes.map((g) => (
+                <Botao key={g} rotulo={g} tipo={grupo === g ? 'primario' : 'secundario'} aoTocar={() => setGrupo(g)} />
+              ))}
+            </View>
+          </View>
+        ) : null}
       </View>
-      <Campo rotulo="Fonte dos valores (opcional)" valor={fonte} aoMudar={setFonte} maxLength={200} />
-      <Texto variante="secao">Lista de compras (estimativa automática)</Texto>
-      <Texto variante="suave">O nome sugere o descarte e a cocção. Escolha um perfil ou digite o número que você usa.</Texto>
-      {inicial ? <Botao rotulo="Sugerir pelo nome" tipo="secundario" aoTocar={sugerirPeloNome} /> : null}
-      <Texto variante="rotulo">Descarte / limpeza antes do preparo (FC)</Texto>
-      <FaixaDeChips quebrar accessibilityLabel="Descarte e limpeza">
-        {PERFIS_FC.map((p) => (
-          <Botao key={p.codigo} rotulo={p.rotulo} tipo={perfilFcDoValor(fcMostrado) === p.codigo ? 'primario' : 'secundario'} aoTocar={() => escolherFc(p.valor)} />
-        ))}
-        <Botao rotulo="Personalizado" tipo={perfilFcDoValor(fcMostrado) === 'PERSONALIZADO' ? 'primario' : 'secundario'} aoTocar={travarFatores} />
-      </FaixaDeChips>
-      <Texto variante="rotulo">Estado do alimento na dieta / cocção (FCc)</Texto>
-      <FaixaDeChips quebrar accessibilityLabel="Cocção">
-        {PERFIS_FCC.map((p) => (
-          <Botao key={p.codigo} rotulo={p.rotulo} tipo={perfilFccDoValor(fccMostrado) === p.codigo ? 'primario' : 'secundario'} aoTocar={() => escolherFcc(p.valor)} />
-        ))}
-        <Botao rotulo="Personalizado" tipo={perfilFccDoValor(fccMostrado) === 'PERSONALIZADO' ? 'primario' : 'secundario'} aoTocar={travarFatores} />
-      </FaixaDeChips>
-      <View style={estilos.grade}>
-        <View style={estilos.campo}>
-          <CampoNumerico rotulo="Fator de correção (FC)" valor={fcMostrado} aoMudar={(v) => { setFc(v); setFcc(fccMostrado); setTocouFatores(true); }} ajuda={AJUDA_FC} erro={campos.fatorCorrecao ?? erroFc} />
+
+      {/* Seção 2 — Porção e Macronutrientes */}
+      <View style={[estilos.bloco, { backgroundColor: cores.superficie2, borderColor: cores.bordaCampo }]}>
+        <Texto variante="secao" cor={cores.texto}>Porção e macronutrientes</Texto>
+        <Texto variante="suave">Valores para a quantidade-base, como no rótulo ou na tabela nutricional.</Texto>
+        <View style={estilos.linhaPorcao}>
+          <View style={estilos.campoBase}>
+            <CampoNumerico rotulo="Quantidade-base" valor={base} aoMudar={setBase} erro={campos.baseQuantidade} />
+          </View>
+          <View style={estilos.campoUnidade}>
+            <Escolha rotulo="Unidade" opcoes={UNIDADES} valor={unidade} aoMudar={setUnidade} />
+          </View>
+          <View style={estilos.campoGramas}>
+            <CampoNumerico
+              rotulo="Gramas por unidade (opcional)"
+              valor={gramas}
+              aoMudar={setGramas}
+              ajuda="Permite usar o alimento em unidades (ex.: 1 fatia = 25 g)."
+              erro={campos.gramasPorUnidade}
+            />
+          </View>
         </View>
-        <View style={estilos.campo}>
-          <CampoNumerico rotulo="Fator de cocção (FCc)" valor={fccMostrado} aoMudar={(v) => { setFc(fcMostrado); setFcc(v); setTocouFatores(true); }} ajuda={AJUDA_FCC} erro={campos.fatorCoccao ?? erroFcc} />
+        <View style={estilos.gradeMacros}>
+          <View style={estilos.campoMacro}>
+            <CampoNumerico rotulo="Kcal" valor={kcal} aoMudar={setKcal} erro={campos.kcal} />
+          </View>
+          <View style={estilos.campoMacro}>
+            <CampoNumerico rotulo="Proteína" sufixo="g" valor={proteina} aoMudar={setProteina} erro={campos.proteina} />
+          </View>
+          <View style={estilos.campoMacro}>
+            <CampoNumerico rotulo="Carboidrato" sufixo="g" valor={carboidrato} aoMudar={setCarboidrato} erro={campos.carboidrato} />
+          </View>
+          <View style={estilos.campoMacro}>
+            <CampoNumerico rotulo="Gordura" sufixo="g" valor={gordura} aoMudar={setGordura} erro={campos.gordura} />
+          </View>
         </View>
       </View>
-      {fcMostrado !== null && fccMostrado !== null && fccMostrado !== 0 ? <Texto variante="suave">{previaDeConversao(fcMostrado, fccMostrado)}</Texto> : null}
+
+      {/* Seção 3 — Lista de Compras (Fator de Correção e Cocção) */}
+      <View style={[estilos.bloco, { backgroundColor: cores.superficie2, borderColor: cores.bordaCampo }]}>
+        <View style={estilos.cabecalhoSecao3}>
+          <View style={estilos.titulosSecao3}>
+            <Texto variante="secao" cor={cores.texto}>Lista de compras (estimativa automática)</Texto>
+            <Texto variante="suave">O nome sugere o descarte e a cocção. Escolha um perfil ou digite o número que você usa.</Texto>
+          </View>
+          {inicial ? <Botao rotulo="Sugerir pelo nome" tipo="secundario" aoTocar={sugerirPeloNome} /> : null}
+        </View>
+
+        <View style={estilos.subBlocoFator}>
+          <Texto variante="rotulo" cor={cores.texto}>Descarte / limpeza antes do preparo (FC)</Texto>
+          <FaixaDeChips quebrar accessibilityLabel="Descarte e limpeza">
+            {PERFIS_FC.map((p) => (
+              <Botao key={p.codigo} rotulo={p.rotulo} tipo={perfilFcDoValor(fcMostrado) === p.codigo ? 'primario' : 'secundario'} aoTocar={() => escolherFc(p.valor)} />
+            ))}
+            <Botao rotulo="Personalizado" tipo={perfilFcDoValor(fcMostrado) === 'PERSONALIZADO' ? 'primario' : 'secundario'} aoTocar={travarFatores} />
+          </FaixaDeChips>
+        </View>
+
+        <View style={estilos.subBlocoFator}>
+          <Texto variante="rotulo" cor={cores.texto}>Estado do alimento na dieta / cocção (FCc)</Texto>
+          <FaixaDeChips quebrar accessibilityLabel="Cocção">
+            {PERFIS_FCC.map((p) => (
+              <Botao key={p.codigo} rotulo={p.rotulo} tipo={perfilFccDoValor(fccMostrado) === p.codigo ? 'primario' : 'secundario'} aoTocar={() => escolherFcc(p.valor)} />
+            ))}
+            <Botao rotulo="Personalizado" tipo={perfilFccDoValor(fccMostrado) === 'PERSONALIZADO' ? 'primario' : 'secundario'} aoTocar={travarFatores} />
+          </FaixaDeChips>
+        </View>
+
+        <View style={estilos.linhaNumerosFatores}>
+          <View style={estilos.campoFator}>
+            <CampoNumerico rotulo="Fator de correção (FC)" valor={fcMostrado} aoMudar={(v) => { setFc(v); setFcc(fccMostrado); setTocouFatores(true); }} ajuda={AJUDA_FC} erro={campos.fatorCorrecao ?? erroFc} />
+          </View>
+          <View style={estilos.campoFator}>
+            <CampoNumerico rotulo="Fator de cocção (FCc)" valor={fccMostrado} aoMudar={(v) => { setFc(fcMostrado); setFcc(v); setTocouFatores(true); }} ajuda={AJUDA_FCC} erro={campos.fatorCoccao ?? erroFcc} />
+          </View>
+        </View>
+
+        {fcMostrado !== null && fccMostrado !== null && fccMostrado !== 0 ? (
+          <View style={[estilos.quadroEstimativa, { backgroundColor: cores.superficie3, borderColor: cores.bordaCampo }]}>
+            <Texto variante="pequeno" cor={cores.texto}>{previaDeConversao(fcMostrado, fccMostrado)}</Texto>
+          </View>
+        ) : null}
+      </View>
+
       {erro && Object.keys(campos).length === 0 ? <MensagemErro texto={textoDoErro(erro)} /> : null}
-      {inicial && aoTirar ? <Botao rotulo="Tirar da biblioteca" tipo="perigoTexto" Icone={Trash2} aoTocar={aoTirar} /> : null}
+
+      {inicial && aoTirar ? (
+        <View style={[estilos.separadorExcluir, { borderTopColor: cores.bordaCampo }]}>
+          <Botao rotulo="Tirar da biblioteca" tipo="perigoTexto" Icone={Trash2} aoTocar={aoTirar} />
+        </View>
+      ) : null}
     </Folha>
   );
 }
 
 const estilos = StyleSheet.create({
-  grade: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5), alignItems: 'flex-end' },
-  campo: { minWidth: 140, flex: 1 },
+  barraDeFiltros: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'flex-end',
+    gap: espaco(1.5),
+  },
+  campoBusca: {
+    flexGrow: 2,
+    flexBasis: 220,
+    minWidth: 180,
+    maxWidth: 360,
+  },
+  seletorFiltro: {
+    flexGrow: 1,
+    flexBasis: 160,
+    minWidth: 150,
+  },
+  linhaResumoFiltros: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: espaco(1),
+    flexWrap: 'wrap',
+    minHeight: 32,
+  },
+  contador: {
+    flexShrink: 1,
+  },
+  bloco: {
+    borderWidth: 1,
+    borderRadius: RAIO,
+    padding: espaco(2),
+    gap: espaco(1.5),
+  },
+  linhaIdentificacao: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: espaco(1.5),
+  },
+  campoNome: {
+    flexGrow: 2,
+    flexBasis: 240,
+    minWidth: 200,
+  },
+  campoFonte: {
+    flexGrow: 1,
+    flexBasis: 180,
+    minWidth: 160,
+  },
+  sugestoesBloco: {
+    gap: espaco(0.75),
+  },
+  chipsDeGrupo: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: espaco(0.75),
+  },
+  linhaPorcao: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: espaco(1.5),
+    alignItems: 'flex-start',
+  },
+  campoBase: {
+    flexGrow: 1,
+    flexBasis: 120,
+    minWidth: 100,
+  },
+  campoUnidade: {
+    flexGrow: 1,
+    flexBasis: 140,
+    minWidth: 120,
+  },
+  campoGramas: {
+    flexGrow: 1.5,
+    flexBasis: 180,
+    minWidth: 160,
+  },
+  gradeMacros: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: espaco(1.5),
+  },
+  campoMacro: {
+    flexGrow: 1,
+    flexBasis: 100,
+    minWidth: 90,
+  },
+  cabecalhoSecao3: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: espaco(1),
+  },
+  titulosSecao3: {
+    flex: 1,
+    minWidth: 220,
+    gap: 2,
+  },
+  subBlocoFator: {
+    gap: espaco(0.75),
+  },
+  linhaNumerosFatores: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: espaco(1.5),
+  },
+  campoFator: {
+    flexGrow: 1,
+    flexBasis: 180,
+    minWidth: 160,
+  },
+  quadroEstimativa: {
+    borderWidth: 1,
+    borderRadius: RAIO,
+    padding: espaco(1.25),
+  },
+  separadorExcluir: {
+    borderTopWidth: 1,
+    paddingTop: espaco(1.5),
+    marginTop: espaco(0.5),
+  },
 });

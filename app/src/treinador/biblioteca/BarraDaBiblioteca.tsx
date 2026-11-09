@@ -57,5 +57,5 @@ export function BarraDaBiblioteca<T extends string>({ rotulo, placeholder, valor
 }
 
 const estilos = StyleSheet.create({
-  busca: { flexGrow: 1, flexBasis: 220, maxWidth: 480 },
+  busca: { flexGrow: 1, minWidth: 200, maxWidth: 480 },
 });

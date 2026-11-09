@@ -25,8 +25,8 @@ class CodigoDeInscricaoTest {
     void formatoForaDoPadraoEInvalido() {
         assertThat(CodigoDeInscricao.valido(null)).isFalse();
         assertThat(CodigoDeInscricao.valido("")).isFalse();
-        assertThat(CodigoDeInscricao.valido("A".repeat(23))).isFalse();
-        assertThat(CodigoDeInscricao.valido("A".repeat(25))).isFalse();
+        assertThat(CodigoDeInscricao.valido("A".repeat(11))).isFalse();
+        assertThat(CodigoDeInscricao.valido("A".repeat(65))).isFalse();
         assertThat(CodigoDeInscricao.valido("A".repeat(23) + "/")).isFalse();
         assertThat(CodigoDeInscricao.valido("A".repeat(23) + "=")).isFalse();
         assertThat(CodigoDeInscricao.valido("a-_".repeat(8))).isTrue();

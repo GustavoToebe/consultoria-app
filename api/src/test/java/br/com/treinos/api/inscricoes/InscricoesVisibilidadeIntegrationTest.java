@@ -85,7 +85,7 @@ class InscricoesVisibilidadeIntegrationTest extends AbstractIntegrationTest {
     /** Envia pelo link público (202) e devolve o id da inscrição, achada pelo e-mail único do próprio teste. */
     private String inscrever(Map<String, Object> corpo) throws Exception {
         JsonNode resposta = api.post("/publico/inscricoes/" + codigo, null, corpo, 202);
-        assertThat(resposta.propertyNames()).containsExactly("mensagem");
+        assertThat(resposta.propertyNames()).containsExactlyInAnyOrder("mensagem", "proximoQuestionarioCodigo");
         JsonNode achadas = api.get("/inscricoes?situacao=TODAS&busca=" + corpo.get("email"), admin, 200);
         assertThat(achadas.path("total").asLong()).isGreaterThanOrEqualTo(1);
         return achadas.path("itens").get(0).path("id").asString();

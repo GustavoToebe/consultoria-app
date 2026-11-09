@@ -122,7 +122,7 @@ class InscricoesIntegrationTest extends AbstractIntegrationTest {
 
         JsonNode recebida = inscrever(codigoA, inscricao("Interessada Fictícia A", "a-" + UUID.randomUUID() + "@teste.local"), 202);
         // CA02: resposta neutra, sem dado nenhum da inscrição nem da fila.
-        assertThat(recebida.propertyNames()).containsExactly("mensagem");
+        assertThat(recebida.propertyNames()).containsExactlyInAnyOrder("mensagem", "proximoQuestionarioCodigo");
         assertThat(recebida.toString()).doesNotContain("Fictícia");
         inscrever(codigoB, inscricao("Interessado Fictício B", null), 202);
 
@@ -157,7 +157,7 @@ class InscricoesIntegrationTest extends AbstractIntegrationTest {
         assertThat(pagina.path("consultoria").path("nome").asString()).startsWith("Consultoria ");
         // A marca, o texto, os campos fixos visíveis e as perguntas: nada da fila nem da equipe.
         assertThat(pagina.propertyNames()).containsExactlyInAnyOrder("consultoria", "texto", "textoVersao", "aberta",
-                "campos", "perguntas");
+                "campos", "perguntas", "questionarioId", "questionarioNome", "proximoQuestionarioCodigo");
         String versaoDoTexto = pagina.path("textoVersao").asString();
         assertThat(versaoDoTexto).hasSize(64);
         assertThat(pagina.path("consultoria").propertyNames()).containsExactlyInAnyOrder("id", "nome", "corPrimaria",
