@@ -24,6 +24,7 @@ import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.treino.PlanoTreinoRepository;
 import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.json.JsonMapper;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -58,6 +59,11 @@ class ImportacaoAssistidaServiceTest {
 
     private final UUID consultoriaId = UUID.randomUUID();
     private final UUID usuarioId = UUID.randomUUID();
+
+    @AfterEach
+    void tearDown() {
+        TenantContext.clear();
+    }
 
     @BeforeEach
     void setup() {
