@@ -23,19 +23,16 @@ test('menu lateral: cada item é um link com href e o Ctrl+clique abre em outra 
   await expect(biblioteca).toHaveAttribute('href', '/treinador/biblioteca');
   await expect(page.getByRole('link', { name: 'Alunos', exact: true })).toHaveAttribute('href', '/treinador/alunos');
 
-  // A guia nova não tem a API simulada: abre no href e, assim que o app carrega, volta ao Entrar.
-  // Com a máquina carregada o evento `page` chega depois dessa volta. `guia.url()` já é o Entrar, e o
-  // `framenavigated` da Biblioteca não é repetido — o poll de 10 s não vê o caminho e falha. O pedido de
-  // documento sai no Ctrl+clique; ouvir o contexto antes do clique guarda a ida, mesmo que o evento atrase.
-  const documentos: string[] = [];
-  context.on('request', (pedido) => {
-    if (pedido.resourceType() !== 'document') return;
-    documentos.push(new URL(pedido.url()).pathname);
-  });
+  // A guia nova não tem a API simulada: abre no href e, assim que o app carrega, volta ao Entrar. O popup já nasce
+  // navegado (o Playwright só se liga depois de o pedido sair: nem `request` nem `route` o veem) e, com a máquina
+  // carregada, `guia.url()` já é o Entrar. O documento que a guia carregou fica no `PerformanceNavigationTiming`,
+  // que a volta ao Entrar (troca de rota dentro do app) não muda.
   const guiaNova = context.waitForEvent('page');
   await biblioteca.click({ modifiers: ['Control'] });
-  await guiaNova;
-  await expect.poll(() => documentos.includes('/treinador/biblioteca')).toBe(true);
+  const guia = await guiaNova;
+  await guia.waitForLoadState('domcontentloaded');
+  const documento = await guia.evaluate(() => new URL((performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming).name).pathname);
+  expect(documento).toBe('/treinador/biblioteca');
   // A guia de origem não saiu do lugar.
   expect(new URL(page.url()).pathname).toBe(`/treinador/planejamento/modelo/${ID}`);
   expect(errosDaPagina).toEqual([]);

@@ -44,6 +44,20 @@ export interface PostDoMural {
   totalComentarios: number;
 }
 
+/** Comentário de um post do mural (`ComentarioResponse`): autor como no post, sem ocultos, mais antigo primeiro. */
+export interface ComentarioDoMural {
+  id: string;
+  autorId: string;
+  /** Nome e sobrenome; o apelido aparece ao lado, nunca no lugar. */
+  autorNome: string;
+  autorApelido: string | null;
+  /** `true` só para aluno ativo: só então o perfil abre; equipe e conta encerrada nunca viram link. */
+  autorEhAluno: boolean;
+  autorFotoUrl: string | null;
+  texto: string;
+  criadoEm: string;
+}
+
 /** Página do Spring (`Page`): só o que o app usa. */
 export interface PaginaDoMural {
   content: PostDoMural[];

@@ -42,3 +42,25 @@ export function erroDoApelido(texto: string): string | null {
   if (LINK_NO_APELIDO.test(limpo.normalize('NFKC'))) return MENSAGEM_APELIDO_LINK;
   return null;
 }
+
+/**
+ * Comentário do mural: 1 a 2000 caracteres depois do strip, contados por code point (um emoji conta 1). A API confere
+ * de novo (`@Size(max = 2000)`, que conta UTF-16 antes do trim): o que ela recusar volta no campo.
+ */
+export const COMENTARIO_MAXIMO = 2000;
+/** A partir daqui o contador aparece junto do campo. */
+export const COMENTARIO_AVISO_A_PARTIR = 1800;
+export const MENSAGEM_COMENTARIO_VAZIO = 'Escreva o comentário.';
+export const MENSAGEM_COMENTARIO_LONGO = `Use até ${COMENTARIO_MAXIMO} caracteres.`;
+
+/** O que vai no `POST`; `null` = nada para enviar. */
+export const comentarioParaEnviar = (texto: string): string | null => texto.trim() || null;
+
+/** Em unidades UTF-16, como o `@Size(max = 2000)` da API (um emoji conta 2): contar por caractere deixaria passar o que ela recusa. */
+export const tamanhoDoComentario = (texto: string): number => texto.trim().length;
+
+/** Erro do campo, ou `null` se o comentário pode ser enviado. */
+export function erroDoComentario(texto: string): string | null {
+  if (comentarioParaEnviar(texto) === null) return MENSAGEM_COMENTARIO_VAZIO;
+  return tamanhoDoComentario(texto) > COMENTARIO_MAXIMO ? MENSAGEM_COMENTARIO_LONGO : null;
+}

@@ -1,6 +1,6 @@
 import { requisicao } from './cliente';
 import type {
-  AulaDaComunidade, ConquistaDoAluno, NovaAula, PaginaDoMural, PerfilDaComunidade, PosicaoNoRanking, PostDoMural,
+  AulaDaComunidade, ComentarioDoMural, ConquistaDoAluno, NovaAula, PaginaDoMural, PerfilDaComunidade, PosicaoNoRanking, PostDoMural,
 } from './comunidadeTipos';
 
 // Rotas reais da API (`AlunoComunidadeController` e `ComunidadeController`). Erro é erro: a tela mostra o aviso com
@@ -21,6 +21,14 @@ export const publicarNoMuralDoAluno = (texto: string) =>
 /** Liga ou desliga a reação do aluno (a API alterna; responde 204). */
 export const alternarReacaoDoAluno = (postId: string, emoji: string) =>
   requisicao<void>(`/aluno/comunidade/mural/${postId}/reacoes`, { metodo: 'POST', corpo: { emoji } });
+
+/** 404 se o post não está ao alcance (outra consultoria ou oculto). */
+export const listarComentariosDoMural = (postId: string) =>
+  requisicao<ComentarioDoMural[]>(`/aluno/comunidade/mural/${encodeURIComponent(postId)}/comentarios`);
+
+/** A API faz o trim e confere 1 a 2000 caracteres; passa pelo limite de 120 por hora (429 `LOGIN_LIMITADO`). */
+export const comentarMural = (postId: string, texto: string) =>
+  requisicao<ComentarioDoMural>(`/aluno/comunidade/mural/${encodeURIComponent(postId)}/comentarios`, { metodo: 'POST', corpo: { texto } });
 
 export const listarMinhasConquistas = () => requisicao<ConquistaDoAluno[]>('/aluno/comunidade/conquistas');
 
@@ -44,6 +52,13 @@ export const listarMuralDaEquipe = () => requisicao<PaginaDoMural>(`/comunidade/
 
 export const publicarNoMuralDaEquipe = (texto: string) =>
   requisicao<PostDoMural>('/comunidade/mural', { metodo: 'POST', corpo: { texto } });
+
+export const listarComentariosDoMuralEquipe = (postId: string) =>
+  requisicao<ComentarioDoMural[]>(`/comunidade/mural/${encodeURIComponent(postId)}/comentarios`);
+
+/** Moderação (`COMUNIDADE_MODERAR`): 204; 404 = o comentário já não existe. A equipe não comenta no mural. */
+export const removerComentarioDoMural = (comentarioId: string) =>
+  requisicao<void>(`/comunidade/mural/comentarios/${encodeURIComponent(comentarioId)}`, { metodo: 'DELETE' });
 
 /** Limpa o apelido de um aluno (moderação); ele pode pôr outro depois. */
 export const removerApelidoDoAutor = (autorId: string) =>

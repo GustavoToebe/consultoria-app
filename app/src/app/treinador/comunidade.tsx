@@ -1,15 +1,16 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { MessageSquare, Plus, UserX, Video } from 'lucide-react-native';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { criarAula, listarAulasDaEquipe, listarMuralDaEquipe, publicarNoMuralDaEquipe, removerApelidoDoAutor } from '../../api/comunidade';
 import { ErroApi } from '../../api/cliente';
 import { AutorDoPost } from '../../comunidade/AutorDoPost';
+import { FolhaComentarios } from '../../comunidade/FolhaComentarios';
 import { erroDoLink } from '../../dominio/links';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, LARGURA_LISTA } from '../../tema/tokens';
+import { ALVO_TOQUE, espaco, LARGURA_LISTA, RAIO } from '../../tema/tokens';
 import { abrirLinkExterno } from '../../ui/abrirLinkExterno';
 import { Abas } from '../../ui/Abas';
 import { useAviso } from '../../ui/Aviso';
@@ -24,6 +25,7 @@ import { Folha } from '../../ui/Folha';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Selo } from '../../ui/Selo';
+import { sobre } from '../../ui/sobre';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
@@ -68,6 +70,8 @@ export default function ComunidadeTreinador() {
   // Autor cujo apelido a moderação vai remover (painel de confirmação aberto).
   const [removerApelidoDe, setRemoverApelidoDe] = useState<{ autorId: string; autorNome: string; autorApelido: string } | null>(null);
   const [removendoApelido, setRemovendoApelido] = useState(false);
+  // Post cujos comentários estão abertos (a equipe lê e, com COMUNIDADE_MODERAR, remove; não comenta).
+  const [comentariosDe, setComentariosDe] = useState<string | null>(null);
 
   const removerApelido = async () => {
     if (!removerApelidoDe) return;
@@ -223,10 +227,14 @@ export default function ComunidadeTreinador() {
               <Texto>{post.texto}</Texto>
 
               <View style={[estilos.linha, estilos.rodapePost, { borderTopColor: cores.divisor }]}>
-                <View style={estilos.linha}>
-                  <MessageSquare size={18} color={cores.textoSuave} aria-hidden />
-                  <Texto variante="suave" numerico>{post.totalComentarios} comentário(s)</Texto>
-                </View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Ver ${post.totalComentarios} comentário(s)`}
+                  onPress={() => setComentariosDe(post.id)}
+                  style={(estado) => [estilos.interacao, sobre(estado) && { backgroundColor: cores.superficie3 }]}>
+                  <MessageSquare size={18} color={cores.texto} aria-hidden />
+                  <Texto variante="suave" cor={cores.texto} numerico>{post.totalComentarios} comentário(s)</Texto>
+                </Pressable>
               </View>
             </Cartao>
           ))}
@@ -243,6 +251,9 @@ export default function ComunidadeTreinador() {
         aoConfirmar={() => void removerApelido()}
         aoCancelar={() => setRemoverApelidoDe(null)}
       />
+
+      <FolhaComentarios postId={comentariosDe} modo={{ tipo: 'equipe', podeModerar: podePublicar }}
+        aoFechar={() => setComentariosDe(null)} aoAlterar={mural.recarregar} />
 
       <Folha
         visivel={folhaNovaAula}
@@ -272,4 +283,6 @@ const estilos = StyleSheet.create({
   blocos: { gap: espaco(3) },
   linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexWrap: 'wrap' },
   rodapePost: { borderTopWidth: 1, paddingTop: espaco(1), gap: espaco(2) },
+  // Hover e pressionado pintam `superficie3` (`ui/sobre`), como no mural do aluno.
+  interacao: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5), minHeight: ALVO_TOQUE, minWidth: ALVO_TOQUE, borderRadius: RAIO, paddingHorizontal: espaco(1), marginHorizontal: -espaco(1) },
 });

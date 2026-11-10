@@ -1,6 +1,6 @@
 # Comunidade: perfil do aluno, apelido e moderação própria
 
-Situação: Em andamento · Onde: `main` · Atualizado: 09/11/2026
+Situação: Em andamento (passo 5 aguardando o deploy) · Onde: `main` · Atualizado: 09/11/2026
 
 ## Objetivo
 O aluno pode ter um apelido (vulgo, como no Discord) e os colegas podem abrir o perfil dele a partir do mural (como no Steam). A moderação da comunidade passa a ter permissão própria. A página pública de inscrição deixa de guardar no aparelho mais do que o contato.
@@ -22,6 +22,7 @@ O aluno pode ter um apelido (vulgo, como no Discord) e os colegas podem abrir o 
 - [x] 2b. Folha "Editar alimento" reorganizada (4 cartões, chips que não passam da borda; pedido do Gustavo de 09/11) — `AbaAlimentos.tsx`, textos de `AJUDA_FC`/`AJUDA_FCC` em `dominio/fatoresDoAlimento.ts` e e2e em `biblioteca-catalogo.spec.ts`; commit `aff3f594`
 - [x] 3. Revisão independente (permissão, LGPD, migration) — evidência: revisor da API achou A–D (aplicados); revisor do app achou os itens 1–6 (1–5 corrigidos: reabrir o perfil busca de novo, 404 na moderação recarrega o mural, `sessionStorage` com `try/catch`, seletores, comentário) e concluiu "pode subir"; o item 6 (o cartão do apelido refaz `GET /aluno/meus-dados`) ficou de fora
 - [x] 4. `mvn verify`, `jest`, e2e e push na `main` — `mvn verify` completo (2247 testes, 0 falhas, cobertura ok), `typecheck`, `lint` (0 erros), `jest` (283 suítes, 6098 testes) em 09/11; commit `aff3f594` na `main`; run do deploy: 42742734020 (resultado abaixo)
+- [x] 5. Comentários do mural no app e `links-do-menu` (pedidos do Gustavo de 09/11 e 10/11) — rota nova de equipe `GET /comunidade/mural/{id}/comentarios` (`TREINO_LER`, mesmo serviço da rota do aluno, teste em `ComunidadeIntegrationTest`), `app/src/comunidade/FolhaComentarios.tsx` (aluno lê e comenta só com internet; equipe lê e, com `COMUNIDADE_MODERAR`, remove com confirmação; equipe não comenta), regra `comentarioParaEnviar`/`erroDoComentario` (2000 unidades UTF-16, como o `@Size` da API) em `dominio/comunidade.ts`; e2e do Ctrl+clique corrigido (o popup nasce navegado e nem `request` nem `route` veem o documento: o teste lê o `PerformanceNavigationTiming` da guia). Evidência em 10/11: jest 283 suítes/6101 testes, typecheck, lint (0 erros), e2e `comunidade` + `links-do-menu` 85 verdes; `mvn verify` completo 2248 testes, 0 falhas, cobertura ok; commit/run: — (registrados depois do push)
 
 ## Fora do escopo
 - Foto do colega no perfil (decisão 2) e perfil de membro da equipe.
@@ -29,10 +30,9 @@ O aluno pode ter um apelido (vulgo, como no Discord) e os colegas podem abrir o 
 
 ## O que ficou para trás
 - (cada sobra também vai para "Pendências soltas" no README)
-- `e2e/links-do-menu.spec.ts` (Ctrl+clique) falhou na rodada local de 09/11; não foi conferido se já falhava antes, fora do diff.
 - Revisor do app, item 6: o cartão do apelido refaz `GET /aluno/meus-dados`.
 - V069 só foi testada em banco novo; o gatilho sob o papel `consultoria_app` e os dados reais da produção não foram provados.
-- Comentários do mural não aparecem em tela nenhuma do app (só "N comentário(s)"); a API já traz `autorApelido`/`autorEhAluno` neles.
+- Comentários das **aulas** ainda não têm tela no app (a API tem tudo); a lista de comentários do mural não pagina; folha dentro de folha, teclado com o campo no rodapé e leitor de tela não foram testados no iOS/Android.
 - Foto do colega no perfil (decisão 2, a confirmar com o Gustavo).
 - Padrão `FaixaDeChips quebrar` em volta de um único `Escolha` ainda existe em `treinador/alunos/index.tsx`, `planejamento/index.tsx`, `montador/catalogo.tsx` e `catalogoDeComponentes.tsx`.
 - Textos de ajuda de FC/FCc foram encurtados (perdeu "abaixo de 1, encolhe").

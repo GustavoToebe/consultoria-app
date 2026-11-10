@@ -103,6 +103,12 @@ public class ComunidadeController {
         return ResponseEntity.noContent().build();
     }
 
+    @PreAuthorize("hasAuthority('PERM_TREINO_LER')")
+    @GetMapping("/mural/{id}/comentarios")
+    public List<ComentarioResponse> listarComentariosMural(@PathVariable UUID id) {
+        return comunidade.listarComentariosMural(id);
+    }
+
     @PreAuthorize("hasAuthority('PERM_COMUNIDADE_MODERAR')")
     @DeleteMapping("/mural/comentarios/{id}")
     public ResponseEntity<Void> moderarComentarioMural(@PathVariable UUID id) {

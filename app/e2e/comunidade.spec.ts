@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import type { AulaDaComunidade, ConquistaDoAluno, PaginaDoMural, PerfilDaComunidade, PosicaoNoRanking, PostDoMural } from '../src/api/comunidadeTipos';
+import type { AulaDaComunidade, ComentarioDoMural, ConquistaDoAluno, PaginaDoMural, PerfilDaComunidade, PosicaoNoRanking, PostDoMural } from '../src/api/comunidadeTipos';
 import type { EuResponse } from '../src/api/tipos';
 import { MEUS_DADOS_VAZIOS, sessaoDeAluno } from './aluno';
 import { ALUNO, erroApi, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type RespostasApi } from './api-falsa';
@@ -29,6 +29,21 @@ const CONQUISTAS: ConquistaDoAluno[] = [
 ];
 const PERFIL: PerfilDaComunidade = { autorId: 'u2', nome: 'Aluno Fictício', apelido: 'Fictí', treinosConcluidos: 8, conquistas: CONQUISTAS, ehVoce: false };
 const RANKING: PosicaoNoRanking = { posicao: 2, treinosConcluidos: 8, pontuacao: 80, participantes: 12 };
+
+const COMENTARIOS: ComentarioDoMural[] = [
+  { id: 'c1', autorId: 'u2', autorNome: 'Aluno Fictício', autorApelido: 'Fictí', autorEhAluno: true, autorFotoUrl: null, texto: 'Bora, time!', criadoEm: '2026-10-19T13:00:00-03:00' },
+  { id: 'c2', autorId: 'u1', autorNome: 'Treinadora Teste', autorApelido: null, autorEhAluno: false, autorFotoUrl: null, texto: 'Mandou bem.', criadoEm: '2026-10-19T14:00:00-03:00' },
+];
+
+/** Mural e comentários com estado: o total do post acompanha a lista, como na API (só os não ocultos). */
+function comComentarios(caminhoDoMural: string, rotaDaLista: string) {
+  const estado = { lista: [...COMENTARIOS] };
+  const rotas: RespostasApi = {
+    [`GET ${caminhoDoMural}`]: (_p, route) => json(route, pagina({ ...POST, totalComentarios: estado.lista.length }, POST_CURTIDO)),
+    [`GET ${rotaDaLista}`]: (_p, route) => json(route, estado.lista),
+  };
+  return { estado, rotas };
+}
 
 const cheia: RespostasApi = {
   'GET /aluno/comunidade/mural': { corpo: pagina(POST, POST_CURTIDO) },
@@ -292,6 +307,140 @@ for (const largura of [390, 1280]) {
       expect(api.errosDaPagina).toEqual([]);
     });
 
+    test('aluno: abre os comentários, comenta, o total sobe; perfil abre pelo autor aluno e a equipe não é link', async ({ page }) => {
+      await tema(page, ALUNO.id, 'CLARO');
+      const { estado, rotas } = comComentarios('/aluno/comunidade/mural', '/aluno/comunidade/mural/{id}/comentarios');
+      const api = await simularApi(page, {
+        ...(await sessaoDeAluno(page)), ...cheia, ...rotas,
+        'GET /aluno/comunidade/perfis/{id}': { corpo: PERFIL },
+        'POST /aluno/comunidade/mural/{id}/comentarios': (p, route) => {
+          const novo: ComentarioDoMural = {
+            id: 'c3', autorId: ALUNO.id, autorNome: ALUNO.nome, autorApelido: null, autorEhAluno: true, autorFotoUrl: null,
+            texto: (p.corpo as { texto: string }).texto.trim(), criadoEm: '2026-10-20T09:00:00-03:00',
+          };
+          estado.lista.push(novo);
+          return json(route, novo);
+        },
+      });
+      await page.goto('/aluno/comunidade');
+      const abrir = page.getByRole('button', { name: 'Ver 2 comentário(s)' });
+      expect((await abrir.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      await abrir.click();
+      const folha = page.getByRole('dialog', { name: 'Comentários' });
+      await expect(folha.getByText('Bora, time!')).toBeVisible();
+      await expect(folha.getByText('Mandou bem.')).toBeVisible();
+      await expect(folha.getByText('«Fictí»')).toBeVisible();
+      await expect(folha.getByRole('button', { name: 'Ver perfil de Treinadora Teste' })).toHaveCount(0);
+      const comentar = folha.getByRole('button', { name: /^Comentar/ });
+      await expect(comentar).toBeDisabled();
+      await expect(folha.getByText('Escreva o comentário.')).toBeVisible();
+      await capturar(page, `aluno-comentarios-${largura}`);
+      expect(api.pedidos.filter((p) => p.metodo === 'GET' && p.caminho.endsWith('/comentarios')).map((p) => p.caminho))
+        .toEqual(['/aluno/comunidade/mural/p1/comentarios']);
+
+      const campo = folha.getByRole('textbox', { name: 'Seu comentário' });
+      await campo.fill('  Boa, time!  ');
+      await comentar.click();
+      await expect.poll(() => api.pedidos.find((p) => foiPost(p, '/aluno/comunidade/mural/p1/comentarios'))?.corpo).toEqual({ texto: 'Boa, time!' });
+      await expect(folha.getByText('Boa, time!', { exact: true })).toBeVisible();
+      await expect(campo).toHaveValue('');
+
+      // Perfil do colega por cima dos comentários; o Esc fecha só o perfil.
+      await folha.getByRole('button', { name: 'Ver perfil de Aluno Fictício' }).click();
+      const perfil = page.getByRole('dialog', { name: 'Perfil na Comunidade' });
+      await expect(perfil.getByText('Treinos concluídos')).toBeVisible();
+      await capturar(page, `aluno-comentarios-perfil-${largura}`);
+      await page.keyboard.press('Escape');
+      await expect(perfil).toHaveCount(0);
+      await expect(folha).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(folha).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Ver 3 comentário(s)' })).toBeVisible();
+      expect(api.naoTratadas).toEqual([]);
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('aluno: 429 ao comentar vira aviso na folha e o texto fica; acima de 2000 caracteres o campo avisa', async ({ page }) => {
+      const e = erroApi(429, 'Muitas tentativas. Tente de novo em alguns minutos.', 'LOGIN_LIMITADO');
+      const { rotas } = comComentarios('/aluno/comunidade/mural', '/aluno/comunidade/mural/{id}/comentarios');
+      const api = await simularApi(page, {
+        ...(await sessaoDeAluno(page)), ...cheia, ...rotas,
+        'POST /aluno/comunidade/mural/{id}/comentarios': (_p, route) => route.fulfill({
+          status: e.status, contentType: 'application/json', headers: { 'Retry-After': '60' }, body: JSON.stringify(e.corpo),
+        }),
+      });
+      await page.goto('/aluno/comunidade');
+      await page.getByRole('button', { name: 'Ver 2 comentário(s)' }).click();
+      const folha = page.getByRole('dialog', { name: 'Comentários' });
+      const campo = folha.getByRole('textbox', { name: 'Seu comentário' });
+      await campo.fill('Oi, time');
+      await folha.getByRole('button', { name: /^Comentar/ }).click();
+      await expect(folha.getByText('Muitas tentativas. Tente de novo em alguns minutos.')).toBeVisible();
+      await expect(campo).toHaveValue('Oi, time');
+      await capturar(page, `aluno-comentarios-429-${largura}`);
+
+      await campo.fill('a'.repeat(2001));
+      await expect(folha.getByText('2001/2000')).toBeVisible();
+      await expect(folha.getByText('Use até 2000 caracteres.').first()).toBeVisible();
+      await expect(folha.getByRole('button', { name: /^Comentar/ })).toBeDisabled();
+      await capturar(page, `aluno-comentarios-limite-${largura}`);
+      expect(api.pedidos.filter((p) => foiPost(p, '/aluno/comunidade/mural/p1/comentarios'))).toHaveLength(1);
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('aluno: post fora do alcance (404) diz "Post não disponível" sem tentar de novo; sem internet o campo trava com o motivo', async ({ page }) => {
+      let lista: 'ok' | '404' = '404';
+      await simularApi(page, {
+        ...(await sessaoDeAluno(page)), ...cheia,
+        'GET /aluno/comunidade/mural/{id}/comentarios': (_p, route) => {
+          if (lista === 'ok') return json(route, COMENTARIOS);
+          const e = erroApi(404, 'Post não encontrado.', 'NAO_ENCONTRADO');
+          return json(route, e.corpo, e.status);
+        },
+      });
+      await page.goto('/aluno/comunidade');
+      await page.getByRole('button', { name: 'Ver 4 comentário(s)' }).click();
+      const folha = page.getByRole('dialog', { name: 'Comentários' });
+      await expect(folha.getByText('Post não disponível')).toBeVisible();
+      await expect(folha.getByRole('button', { name: 'Tentar de novo' })).toHaveCount(0);
+      await expect(folha.getByRole('textbox', { name: 'Seu comentário' })).toHaveCount(0);
+      await capturar(page, `aluno-comentarios-404-${largura}`);
+      await page.keyboard.press('Escape');
+
+      lista = 'ok';
+      await page.getByRole('button', { name: 'Ver 4 comentário(s)' }).click();
+      await expect(folha.getByText('Bora, time!')).toBeVisible();
+      const campo = folha.getByRole('textbox', { name: 'Seu comentário' });
+      await campo.fill('Rascunho');
+      await page.context().setOffline(true);
+      await expect(folha.getByText('Sem conexão. Comentar precisa de internet.')).toBeVisible();
+      await expect(campo).not.toBeEditable();
+      await expect(folha.getByRole('button', { name: /^Comentar/ })).toBeDisabled();
+      await expect(campo).toHaveValue('Rascunho');
+      await capturar(page, `aluno-comentarios-offline-${largura}`);
+      await page.context().setOffline(false);
+    });
+
+    test('aluno: post sem comentários mostra "Ninguém comentou ainda."', async ({ page }) => {
+      await simularApi(page, { ...(await sessaoDeAluno(page)), ...cheia, 'GET /aluno/comunidade/mural/{id}/comentarios': { corpo: [] } });
+      await page.goto('/aluno/comunidade');
+      await page.getByRole('button', { name: 'Ver 0 comentário(s)' }).click();
+      await expect(page.getByRole('dialog', { name: 'Comentários' }).getByText('Ninguém comentou ainda.')).toBeVisible();
+      await capturar(page, `aluno-comentarios-vazio-${largura}`);
+    });
+
+    for (const [nome, t, contraste] of TEMAS) {
+      test(`aluno: comentários no tema ${nome}`, async ({ page }) => {
+        await tema(page, ALUNO.id, t, contraste);
+        const { rotas } = comComentarios('/aluno/comunidade/mural', '/aluno/comunidade/mural/{id}/comentarios');
+        await simularApi(page, { ...(await sessaoDeAluno(page)), ...cheia, ...rotas });
+        await page.goto('/aluno/comunidade');
+        await page.getByRole('button', { name: 'Ver 2 comentário(s)' }).click();
+        await expect(page.getByRole('dialog', { name: 'Comentários' }).getByText('Mandou bem.')).toBeVisible();
+        await capturar(page, `aluno-comentarios-tema-${nome}-${largura}`);
+      });
+    }
+
     for (const [nome, t, contraste] of TEMAS) {
       test(`aluno: conquistas no tema ${nome}`, async ({ page }) => {
         await tema(page, ALUNO.id, t, contraste);
@@ -379,6 +528,78 @@ for (const largura of [390, 1280]) {
       await expect(page.getByRole('button', { name: 'Remover apelido' })).toHaveCount(0);
       expect(api.errosDaPagina).toEqual([]);
     });
+
+    test('treinador: lê os comentários sem campo de texto e remove com confirmação; 404 tira da lista', async ({ page }) => {
+      const { estado, rotas } = comComentarios('/comunidade/mural', '/comunidade/mural/{id}/comentarios');
+      const api = await abrirTreinador(page, {
+        ...cheia, ...rotas,
+        'DELETE /comunidade/mural/comentarios/{id}': (p, route) => {
+          const id = p.caminho.split('/').pop();
+          estado.lista = estado.lista.filter((c) => c.id !== id);
+          // c2 já tinha sido removido por outra pessoa: a API responde 404.
+          if (id === 'c2') { const e = erroApi(404, 'Comentário não encontrado.', 'NAO_ENCONTRADO'); return json(route, e.corpo, e.status); }
+          return route.fulfill({ status: 204 });
+        },
+      });
+      await page.goto('/treinador/comunidade?aba=mural');
+      await page.getByRole('button', { name: 'Ver 2 comentário(s)' }).click();
+      const folha = page.getByRole('dialog', { name: 'Comentários' });
+      await expect(folha.getByText('Bora, time!')).toBeVisible();
+      await expect(folha.getByText('«Fictí»')).toBeVisible();
+      // A equipe não comenta no mural e nenhum autor vira link para ela.
+      await expect(folha.getByRole('textbox')).toHaveCount(0);
+      await expect(folha.getByRole('button', { name: /^Comentar/ })).toHaveCount(0);
+      await expect(folha.getByRole('button', { name: /^Ver perfil/ })).toHaveCount(0);
+      await expect(folha.getByRole('button', { name: /^Remover comentário de / })).toHaveCount(2);
+      await capturar(page, `treinador-comentarios-${largura}`);
+
+      await folha.getByRole('button', { name: 'Remover comentário de Aluno Fictício' }).click();
+      const painel = page.getByRole('alertdialog', { name: 'Remover o comentário?' });
+      await expect(painel.getByText('O comentário de Aluno Fictício sai do mural para todos.')).toBeVisible();
+      await capturar(page, `treinador-comentarios-remover-${largura}`);
+      await painel.getByRole('button', { name: 'Cancelar' }).click();
+      await expect(painel).toHaveCount(0);
+      expect(api.pedidos.some((p) => p.metodo === 'DELETE')).toBe(false);
+
+      await folha.getByRole('button', { name: 'Remover comentário de Aluno Fictício' }).click();
+      await painel.getByRole('button', { name: 'Remover comentário' }).click();
+      await expect(painel).toHaveCount(0);
+      await expect(folha.getByText('Bora, time!')).toHaveCount(0);
+
+      await folha.getByRole('button', { name: 'Remover comentário de Treinadora Teste' }).click();
+      await painel.getByRole('button', { name: 'Remover comentário' }).click();
+      await expect(painel).toHaveCount(0);
+      await expect(folha.getByText('Ninguém comentou ainda.')).toBeVisible();
+      expect(api.pedidos.filter((p) => p.metodo === 'DELETE').map((p) => p.caminho))
+        .toEqual(['/comunidade/mural/comentarios/c1', '/comunidade/mural/comentarios/c2']);
+      await page.keyboard.press('Escape');
+      // O post de teste e o outro post do mural ficam com zero.
+      await expect(page.getByRole('button', { name: 'Ver 0 comentário(s)' })).toHaveCount(2);
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('treinador: sem COMUNIDADE_MODERAR lê os comentários, sem "Remover comentário"', async ({ page }) => {
+      const { rotas } = comComentarios('/comunidade/mural', '/comunidade/mural/{id}/comentarios');
+      await abrirTreinador(page, { ...cheia, ...rotas }, [...PERMISSOES_TREINADOR, 'TREINO_LER', 'TREINO_ALTERAR']);
+      await page.goto('/treinador/comunidade?aba=mural');
+      await page.getByRole('button', { name: 'Ver 2 comentário(s)' }).click();
+      const folha = page.getByRole('dialog', { name: 'Comentários' });
+      await expect(folha.getByText('Mandou bem.')).toBeVisible();
+      await expect(folha.getByRole('button', { name: /Remover comentário/ })).toHaveCount(0);
+      await expect(folha.getByRole('textbox')).toHaveCount(0);
+    });
+
+    for (const [nome, t, contraste] of TEMAS) {
+      test(`treinador: comentários no tema ${nome}`, async ({ page }) => {
+        await tema(page, TREINADOR.id, t, contraste);
+        const { rotas } = comComentarios('/comunidade/mural', '/comunidade/mural/{id}/comentarios');
+        await abrirTreinador(page, { ...cheia, ...rotas });
+        await page.goto('/treinador/comunidade?aba=mural');
+        await page.getByRole('button', { name: 'Ver 2 comentário(s)' }).click();
+        await expect(page.getByRole('dialog', { name: 'Comentários' }).getByText('Mandou bem.')).toBeVisible();
+        await capturar(page, `treinador-comentarios-tema-${nome}-${largura}`);
+      });
+    }
 
     test('treinador: folha do aulão pede título e link https e envia os campos da API', async ({ page }) => {
       const api = await abrirTreinador(page, { ...vazia, 'POST /comunidade/aulas': { corpo: { ...AULA, id: 'novo' } } });

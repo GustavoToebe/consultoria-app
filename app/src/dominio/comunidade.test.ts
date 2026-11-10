@@ -1,4 +1,7 @@
-import { apelidoParaEnviar, curtidoPorMim, EMOJI_DA_CURTIDA, erroDoApelido, MENSAGEM_APELIDO_FORMATO, MENSAGEM_APELIDO_LINK, textoDaPosicao, totalDeCurtidas } from './comunidade';
+import {
+  apelidoParaEnviar, COMENTARIO_MAXIMO, comentarioParaEnviar, erroDoComentario, MENSAGEM_COMENTARIO_LONGO, MENSAGEM_COMENTARIO_VAZIO, tamanhoDoComentario,
+  curtidoPorMim, EMOJI_DA_CURTIDA, erroDoApelido, MENSAGEM_APELIDO_FORMATO, MENSAGEM_APELIDO_LINK, textoDaPosicao, totalDeCurtidas,
+} from './comunidade';
 
 describe('curtida do mural', () => {
   it('conta só a curtida e ignora as outras reações', () => {
@@ -42,5 +45,25 @@ describe('apelido da comunidade', () => {
   it('recusa link', () => {
     for (const link of ['www.ana', 'httpana', 'site.com', 'loja.BR', 'meu.gg', 'ｗｗｗ.ana', 'ana.co', '𝐰𝐰𝐰.x.𝐜𝐨𝐦']) expect(erroDoApelido(link)).toBe(MENSAGEM_APELIDO_LINK);
     expect(erroDoApelido('ana.costa')).toBeNull();
+  });
+});
+
+describe('comentário do mural', () => {
+  it('envia o texto sem os espaços das pontas; só espaço é nada', () => {
+    expect(comentarioParaEnviar('  Boa, time!\n')).toBe('Boa, time!');
+    expect(comentarioParaEnviar(' \n\t ')).toBeNull();
+    expect(comentarioParaEnviar('')).toBeNull();
+  });
+  it('vazio pede o texto', () => {
+    expect(erroDoComentario('   ')).toBe(MENSAGEM_COMENTARIO_VAZIO);
+    expect(erroDoComentario('Oi')).toBeNull();
+  });
+  it('conta por code point depois do strip: 2000 passa, 2001 não', () => {
+    expect(erroDoComentario(`  ${'a'.repeat(COMENTARIO_MAXIMO)}  `)).toBeNull();
+    expect(erroDoComentario('a'.repeat(COMENTARIO_MAXIMO + 1))).toBe(MENSAGEM_COMENTARIO_LONGO);
+    // Igual à API: unidades UTF-16 (um emoji conta 2), então 1000 emojis cabem e 1001 não.
+    expect(tamanhoDoComentario('💪'.repeat(1000))).toBe(2000);
+    expect(erroDoComentario('💪'.repeat(1000))).toBeNull();
+    expect(erroDoComentario('💪'.repeat(1001))).toBe(MENSAGEM_COMENTARIO_LONGO);
   });
 });

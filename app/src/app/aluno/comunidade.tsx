@@ -8,6 +8,7 @@ import {
   publicarNoMuralDoAluno,
 } from '../../api/comunidade';
 import { AutorDoPost } from '../../comunidade/AutorDoPost';
+import { FolhaComentarios } from '../../comunidade/FolhaComentarios';
 import { FolhaPerfilDoColega } from '../../comunidade/FolhaPerfilDoColega';
 import { curtidoPorMim, EMOJI_DA_CURTIDA, textoDaPosicao, totalDeCurtidas } from '../../dominio/comunidade';
 import { dataHoraParaTela } from '../../dominio/formatos';
@@ -26,6 +27,7 @@ import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Selo } from '../../ui/Selo';
+import { sobre } from '../../ui/sobre';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
@@ -65,6 +67,8 @@ export default function ComunidadeAluno() {
   const [perfilAberto, setPerfilAberto] = useState<string | null>(null);
   // Sem internet a folha fecha de vez: não reabre sozinha quando a conexão volta.
   if (!online && perfilAberto) setPerfilAberto(null);
+  // Post cujos comentários estão abertos; a folha fica aberta sem internet (o campo trava com o motivo).
+  const [comentariosDe, setComentariosDe] = useState<string | null>(null);
   const auloes = useCarregar(online ? 'auloes-lista' : null, () => listarAulasDoAluno());
   const ranking = useCarregar(online ? 'ranking-lista' : null, () => obterMeuRanking());
   const conquistas = useCarregar(online ? 'conquistas-lista' : null, () => listarMinhasConquistas());
@@ -155,14 +159,18 @@ export default function ComunidadeAluno() {
                         accessibilityLabel={curtiu ? 'Desfazer curtida' : 'Curtir'}
                         accessibilityState={{ selected: curtiu }}
                         onPress={() => void curtir(p.id)}
-                        style={estilos.interacao}>
+                        style={(estado) => [estilos.interacao, sobre(estado) && { backgroundColor: cores.superficie3 }]}>
                         <Heart size={18} color={cores.texto} fill={curtiu ? cores.texto : 'none'} aria-hidden />
                         <Texto variante="suave" cor={cores.texto} numerico>{totalDeCurtidas(p)} curtida(s)</Texto>
                       </Pressable>
-                      <View style={estilos.interacao}>
-                        <MessageSquare size={18} color={cores.textoSuave} aria-hidden />
-                        <Texto variante="suave" numerico>{p.totalComentarios} comentário(s)</Texto>
-                      </View>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Ver ${p.totalComentarios} comentário(s)`}
+                        onPress={() => setComentariosDe(p.id)}
+                        style={(estado) => [estilos.interacao, sobre(estado) && { backgroundColor: cores.superficie3 }]}>
+                        <MessageSquare size={18} color={cores.texto} aria-hidden />
+                        <Texto variante="suave" cor={cores.texto} numerico>{p.totalComentarios} comentário(s)</Texto>
+                      </Pressable>
                     </View>
                   </Cartao>
                 );
@@ -229,6 +237,7 @@ export default function ComunidadeAluno() {
         </>
       )}
       <FolhaPerfilDoColega autorId={perfilAberto} aoFechar={() => setPerfilAberto(null)} />
+      <FolhaComentarios postId={comentariosDe} modo={{ tipo: 'aluno', online }} aoFechar={() => setComentariosDe(null)} aoAlterar={mural.recarregar} />
     </Tela>
   );
 }
@@ -240,7 +249,8 @@ const estilos = StyleSheet.create({
   encolher: { flex: 1, minWidth: 0, gap: 2 },
   item: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2) },
   rodapePost: { borderTopWidth: 1, paddingTop: espaco(1), gap: espaco(2) },
-  interacao: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5), minHeight: ALVO_TOQUE, minWidth: ALVO_TOQUE },
+  // Hover e pressionado pintam `superficie3` (`ui/sobre`); o respiro e o raio dão forma ao fundo.
+  interacao: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5), minHeight: ALVO_TOQUE, minWidth: ALVO_TOQUE, borderRadius: RAIO, paddingHorizontal: espaco(1), marginHorizontal: -espaco(1) },
   grade: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(2) },
   conquista: { flexGrow: 1, flexBasis: 150, alignItems: 'center', gap: espaco(1) },
   centro: { textAlign: 'center' },

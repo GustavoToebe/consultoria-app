@@ -100,6 +100,17 @@ class ComunidadeIntegrationTest extends AbstractIntegrationTest {
         return new Outra(treinador, aula, post, comentarioDeAula, comentarioDeMural);
     }
 
+    @Test
+    void equipeListaOsComentariosDoMuralDaPropriaConsultoria() throws Exception {
+        String post = criarPost(loginA, "Post fictício para a equipe ler");
+        api.post("/aluno/comunidade/mural/" + post + "/comentarios", loginA, Map.of("texto", "Comentário fictício"), 200);
+
+        JsonNode lista = api.get("/comunidade/mural/" + post + "/comentarios", admin, 200);
+
+        assertThat(lista).hasSize(1);
+        assertThat(lista.get(0).get("texto").asString()).isEqualTo("Comentário fictício");
+    }
+
     // ---- isolamento (B1) ----
 
     @Test
@@ -128,6 +139,7 @@ class ComunidadeIntegrationTest extends AbstractIntegrationTest {
         api.delete("/comunidade/aulas/comentarios/" + o.comentarioDeAula, admin, 404);
         api.delete("/comunidade/mural/" + o.post, admin, 404);
         api.post("/comunidade/mural/" + o.post + "/fixar", admin, null, 404);
+        api.get("/comunidade/mural/" + o.post + "/comentarios", admin, 404);
         api.delete("/comunidade/mural/comentarios/" + o.comentarioDeMural, admin, 404);
         // Id que não existe em lugar nenhum: o mesmo 404.
         api.delete("/comunidade/mural/" + UUID.randomUUID(), admin, 404);
