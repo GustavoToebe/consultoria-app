@@ -56,7 +56,7 @@ public class InterpretadorClaude implements InterpretadorIa {
                     .header("x-api-key", apiKey)
                     .header("anthropic-version", "2023-06-01")
                     .header("content-type", "application/json")
-                    .timeout(Duration.ofSeconds(120))
+                    .timeout(Duration.ofMinutes(2))
                     .POST(HttpRequest.BodyPublishers.ofString(corpoRequisicao, StandardCharsets.UTF_8))
                     .build();
 
