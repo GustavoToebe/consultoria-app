@@ -61,7 +61,8 @@ const cortar = (texto: string) => (texto.length > ROTULO_MAXIMO ? `${texto.slice
 export interface ResumoDoTreinador {
   /** Nulo quando o questionário não tem pergunta PESO; com a pergunta e sem resposta, `valor` é nulo (mostra "—"). */
   peso: { valor: number | null; variacao: number | null } | null;
-  destaques: { id: string; rotulo: string; texto: string }[];
+  /** `nota`: só nas NOTA respondidas; o cartão mostra `valor` grande e `escala` pequena (a frase inteira não cabe no bloco). */
+  destaques: { id: string; rotulo: string; texto: string; nota?: { valor: string; escala: string } }[];
   diasComTreino: number | null;
   mediaDiasPorSemana: number | null;
   pesoAnterior: number | null;
@@ -85,6 +86,7 @@ export function resumoDoTreinador(
     peso,
     destaques: perguntasDestaque(modelo).map((p) => ({
       id: p.id, rotulo: cortar(p.rotuloCurto?.trim() || p.rotulo), texto: textoDaResposta(p, respostasDe[p.id]),
+      ...(p.tipo === 'NOTA' && typeof respostasDe[p.id] === 'number' ? { nota: notaEmDuasPartes(p, respostasDe[p.id] as number) } : {}),
     })),
     diasComTreino: resumo?.diasComTreino ?? null,
     mediaDiasPorSemana: resumo?.mediaDiasPorSemana ?? null,
@@ -175,6 +177,12 @@ export function textoDaNota(p: Pick<PerguntaAtualizacao, 'min' | 'max'>, valor: 
   const { min, max } = escalaDaNota(p);
   const nota = numeroParaTela(valor, 0);
   return min === 0 ? `${nota} de 0 a ${max}` : `${nota}/${max}`;
+}
+
+/** A nota separada da escala ("0" e "de 0 a 10"), para blocos estreitos; `textoDaNota` segue sendo o texto inteiro. */
+export function notaEmDuasPartes(p: Pick<PerguntaAtualizacao, 'min' | 'max'>, valor: number) {
+  const { min, max } = escalaDaNota(p);
+  return { valor: numeroParaTela(valor, 0), escala: `de ${min} a ${max}` };
 }
 
 /** GRADE na leitura: uma linha por item, com a coluna escolhida ou "—". */

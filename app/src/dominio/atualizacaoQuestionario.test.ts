@@ -1,7 +1,7 @@
 import type { ConteudoQuestionario, PerguntaAtualizacao } from '../api/tipos';
 import {
   ajudaDoNumero, alternarMarcado, escolhaParaSimNao, perguntaPeso, perguntasDestaque, rascunhoVigente, respostasCompativeis,
-  progressoDasSecoes, resumoDoTreinador, simNaoParaEscolha, textoDaResposta, textoDoProgresso, textoDaNota, respostasDaGrade,
+  progressoDasSecoes, resumoDoTreinador, simNaoParaEscolha, textoDaResposta, textoDoProgresso, textoDaNota, notaEmDuasPartes, respostasDaGrade,
   colunasDasOpcoes,
 } from './atualizacaoQuestionario';
 import { errosRespostasAtualizacao, respondida } from './respostasAtualizacao';
@@ -65,7 +65,7 @@ describe('resumoDoTreinador', () => {
     const r = resumoDoTreinador(modelo, { peso: 80.5, sono: 0, dor: false, humor: 'a', passos: 12 }, resumoApi);
     expect(r.peso).toEqual({ valor: 80.5, variacao: -0.5 });
     expect(r.destaques).toEqual([
-      { id: 'sono', rotulo: 'Sono', texto: '0 de 0 a 10' },
+      { id: 'sono', rotulo: 'Sono', texto: '0 de 0 a 10', nota: { valor: '0', escala: 'de 0 a 10' } },
       { id: 'dor', rotulo: 'Sentiu dor?', texto: 'Não' },
       { id: 'humor', rotulo: 'Humor', texto: 'Ruim' },
       { id: 'passos', rotulo: 'Passos', texto: '12 mil' },
@@ -204,6 +204,8 @@ describe('apoio da nota, da grade e das opções com imagem', () => {
     expect(textoDaNota({}, 0)).toBe('0 de 0 a 10');
     expect(textoDaNota({ min: 1, max: 10 }, 7)).toBe('7/10');
     expect(textoDaNota({}, null)).toBe('—');
+    expect(notaEmDuasPartes({}, 0)).toEqual({ valor: '0', escala: 'de 0 a 10' });
+    expect(notaEmDuasPartes({ min: 1, max: 5 }, 4)).toEqual({ valor: '4', escala: 'de 1 a 5' });
   });
 
   it('grade na leitura: uma linha por item, "—" na linha sem resposta', () => {

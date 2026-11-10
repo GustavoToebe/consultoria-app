@@ -21,7 +21,7 @@ export interface LinhaDoBloco {
 const TEXTO_DO_PROBLEMA = { perigo: 'com problema a corrigir', atencao: 'com aviso' } as const;
 
 /** Abaixo desta largura da própria tabela as quatro colunas viram uma linha de bloco empilhada (390 e o inspetor estreito). */
-const LARGURA_DAS_COLUNAS = 480;
+const LARGURA_DAS_COLUNAS = 540;
 
 /**
  * Tabela dos blocos do exercício (10/11): Bloco, Quantidade, Repetições e Descanso, uma linha por bloco de `agrupar`, com o
@@ -117,7 +117,7 @@ const estilos = StyleSheet.create({
   bloco: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minWidth: 0 },
   quantidade: { width: 88, flexShrink: 0 },
   repeticoes: { width: 120, flexShrink: 0 },
-  descanso: { width: 104, flexShrink: 0 },
+  descanso: { width: 148, flexShrink: 0 },
   nome: { gap: espaco(0.25), minWidth: 0 },
   titulo: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75), flexWrap: 'wrap' },
   forte: { fontFamily: fontes.semi, fontSize: 15, flexShrink: 1 },

@@ -37,19 +37,19 @@ export function ResumoDaAtualizacao({atualizacao:a,modelo,selo,descricao}: {atua
   const corDaVariacao=tom==='positivo'?cores.sucesso:tom==='problema'?cores.perigo:undefined;
   const sinal=(valor:number)=>valor>0?`▲ +${numeroParaTela(valor,1)}`:valor<0?`▼ −${numeroParaTela(-valor,1)}`:'0';
   const linha=variacao?linhaDaMeta(meta,'equipe'):null;
-  const numeros:[string,string,string?][]=[
+  const numeros:[string,string,string?,string?][]=[
     ...(resumo.peso?[
       ['Peso (kg)',numeroParaTela(resumo.peso.valor,1)] as [string,string],
       ['Variação (kg)',variacao==null?'—':sinal(variacao),corDaVariacao] as [string,string,string?],
     ]:[]),
-    ...resumo.destaques.map(d=>[d.rotulo,d.texto] as [string,string]),
+    ...resumo.destaques.map(d=>[d.rotulo,d.nota?.valor??d.texto,undefined,d.nota?.escala] as [string,string,string?,string?]),
   ];
   // Fotos da atualização (um bloco por pergunta FOTOS, até 6): miniaturas pela rota do treinador, "—" sem nenhuma.
   const perguntasFotos=modelo.secoes.flatMap(s=>s.perguntas).filter(p=>p.tipo==='FOTOS');
   return <Cartao titulo="Resumo do período" descricao={descricao} acoes={selo?<Selo texto={selo.texto} tipo={selo.tipo} Icone={selo.Icone} />:undefined}>
     {numeros.length?<View style={estilos.numeros}>
-      {numeros.map(([rotulo,valor,cor],i)=><View key={`${i}:${rotulo}`} style={[estilos.numero,{backgroundColor:cores.superficie2,borderColor:cores.borda}]}>
-        <Texto variante="rotulo">{rotulo}</Texto><Texto variante="destaque" numerico cor={cor}>{valor}</Texto>
+      {numeros.map(([rotulo,valor,cor,escala],i)=><View key={`${i}:${rotulo}`} style={[estilos.numero,{backgroundColor:cores.superficie2,borderColor:cores.borda}]}>
+        <Texto variante="rotulo">{rotulo}</Texto><Texto variante="destaque" numerico cor={cor}>{valor}</Texto>{escala?<Texto variante="pequeno">{escala}</Texto>:null}
       </View>)}
     </View>:null}
     <Texto>{fraseDeTreinosNoPeriodo(resumo.diasComTreino,resumo.mediaDiasPorSemana)}</Texto>
