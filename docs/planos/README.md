@@ -92,7 +92,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Formulários unificados da consultoria ("Google Forms interno", C62) | [formularios-unificados.md](formularios-unificados.md) | `main` | Concluída em 09/11/2026 (V064); correções da revisão na V067, testes ainda não executados | 09/11/2026 |
 | Importação assistida por IA (Lote misto PDF/DOCX/XLSX/Texto, Gemini/Claude e regras) | [importacao-assistida-ia.md](importacao-assistida-ia.md) | `main` | Concluída em 09/11/2026 (V066); correções da revisão (LGPD, permissões, retenção) aplicadas localmente, testes ainda não executados | 09/11/2026 |
 | Revisão geral de 07 a 09/11 (back, banco e front; V067 e V068) | [revisao-07-09-11.md](revisao-07-09-11.md) | `main` | Publicada em 09/11/2026 (`133d6cc6`, run 42716103970); sobras em "Pendências soltas" | 09/11/2026 |
-| Comunidade: perfil do aluno, apelido e moderação própria (V069) | [comunidade-perfil-e-apelido.md](comunidade-perfil-e-apelido.md) | `main` | Publicada em 09/11/2026 (`aff3f594`, run 42742734020); sobras em "Pendências soltas" | 09/11/2026 |
+| Comunidade: perfil do aluno, apelido e moderação própria (V069) | [comunidade-perfil-e-apelido.md](comunidade-perfil-e-apelido.md) | `main` | Publicada em 09/11/2026 (`aff3f594`, run 42742734020) e em 10/11 (comentários do mural, `d3ef4e8d`, run 42809233359); sobras em "Pendências soltas" | 09/11/2026 |
 
 ## Pendências soltas
 
