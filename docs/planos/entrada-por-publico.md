@@ -1,6 +1,6 @@
 # Entrada por público: `/aluno/entrar` e `/treinador/entrar`
 
-Situação: Em andamento (passos 1 a 4 feitos, local; falta o 5; intermediária e avançada são propostas) · Onde: `main`, local, sem commit · Atualizado: 10/11/2026
+Situação: Etapa inicial feita (passos 1 a 5; commit `dd1c0120`); intermediária e avançada são propostas · Onde: `main` · Atualizado: 10/11/2026
 
 ## Objetivo
 Cada público abre direto o formulário dele, sem escolher "Sou aluno" ou "Sou treinador", com título, texto e links próprios.
@@ -31,10 +31,10 @@ para sempre); acesso concluído. Colar, preenchimento automático e gerenciador 
 tem nome acessível e estado.
 
 ## Passos
-- [x] 1. Rotas: `/aluno/entrar` e `/treinador/entrar` abrem sem login; `/entrar` vira a escolha; o `GuardaDePapel` e o "Sair" mandam para a entrada do público certo; links antigos preservados — responsável: `executor-front` — commit: —, local
-- [x] 2. Textos, composição e posição dos links (D4, D5 e a ordem acima) em um `Entrar` só — `executor-front` — commit: —, local
-- [x] 3. Estados (lista acima) e aviso de entrada errada depois de autenticar (D6) — `executor-front` — commit: —, local
-- [x] 4. e2e (rotas, estados, entrada errada, teclado, preenchimento) e ajuste dos e2e que usavam o seletor "Sou aluno/Sou treinador" — `executor-front` — commit: —, local
+- [x] 1. Rotas: `/aluno/entrar` e `/treinador/entrar` abrem sem login; `/entrar` vira a escolha; o `GuardaDePapel` e o "Sair" mandam para a entrada do público certo; links antigos preservados — responsável: `executor-front` — commit: `dd1c0120`
+- [x] 2. Textos, composição e posição dos links (D4, D5 e a ordem acima) em um `Entrar` só — `executor-front` — commit: `dd1c0120`
+- [x] 3. Estados (lista acima) e aviso de entrada errada depois de autenticar (D6) — `executor-front` — commit: `dd1c0120`
+- [x] 4. e2e (rotas, estados, entrada errada, teclado, preenchimento) e ajuste dos e2e que usavam o seletor "Sou aluno/Sou treinador" — `executor-front` — commit: `dd1c0120`
 
 ### Registro dos passos 1 a 4 (`executor-front`, 10/11/2026, base `0bd5846f` + mudanças locais sem commit)
 - **Causa confirmada (passo 1):** `app/aluno/entrar.tsx` ficava sob o `_layout` do aluno, que monta a `GuardaDePapel`: anônimo era mandado para `/entrar`. A tentativa de isentar a rota pelo `usePathname` no layout quebrou (a pilha da raiz mantém o layout de baixo montado e o `usePathname` é global: `/aluno/entrar` aberto a partir de `/treinador/entrar` renderizava tela do aluno sem o `AlunoProvider`). Solução: grupo de rotas `app/(entrada)/aluno/entrar.tsx` e `app/(entrada)/treinador/entrar.tsx` (o grupo não entra na URL e fica fora dos layouts guardados); os dois `_layout.tsx` não mudaram.
@@ -43,7 +43,10 @@ tem nome acessível e estado.
 - **Verificação:** `entrada-por-publico` 21/21 ✅; `senha-provisoria` + `telas-publicas-erros` + `paginas-publicas` 30/30 ✅; `npm run typecheck` ✅; `npm run lint` ✅ (11 avisos antigos, nenhum nos arquivos tocados); jest `entradaPorPublico`, `telas`, `catalogoDeComponentes` e `src/sessao` ✅. Capturas não foram salvas (pedido).
 - **NÃO conferido:** app nativo (Android/iOS: `checked` no olho, WebView da verificação, teclado "próximo"); temas areia e contraste alto; web local real em `:8088` (só a API simulada do e2e); o `name` dos inputs (o RN-web não repassa; o preenchimento usa `autocomplete` e `type=password`); a suíte e2e inteira.
 - **Validade:** refazer os e2e acima se mudarem `ui/EntradaDoPublico.tsx`, `app/entrar.tsx`, `app/(entrada)/*`, `ui/GuardaDePapel.tsx`, `ui/CampoSenha.tsx`, `ui/ConfirmarSaida.tsx`, `dominio/entradaPorPublico.ts` ou os layouts de `app/aluno` e `app/treinador`.
-- [ ] 5. Conferência em 390, 768, 1280 e 1920, claro e escuro, de ambas as entradas, com teclado e preenchimento automático (sem salvar imagem); revisão independente dos pontos de D6 antes de declarar pronto — sessão principal + `advisor` — commit: —
+- [x] 5. Conferência e revisão independente dos pontos de D6 — sessão principal + `advisor` — commit: `dd1c0120` (código); este registro em commit de docs
+  - **Conferido (10/11/2026, base `dd1c0120`):** suíte e2e inteira (1240 passaram; as 10 falhas são as mesmas de antes da entrada: `button`→`radio` em agenda, cores, unidade de carga, e o `?aba=` de `painel:187`; nenhuma de entrada); jest 6337 ✅; lint 0 erros; `mvn verify` ✅ (exit 0, compilando a árvore com edições de outra conversa em `importacao/assistida`); larguras 390/768/1280/1920, claro e escuro, pelos 21 casos de `entrada-por-publico.spec.ts`.
+  - **Revisão independente (`advisor`, D6):** sem defeito bloqueante: a URL não vai ao corpo do login, o aviso de entrada errada só aparece depois de autenticar, o erro de credencial é o mesmo nas duas entradas, `ConfirmarSaida` lê o papel antes do `sair()` e `CartaoExcluirConta` fixa ALUNO.
+  - **Não conferido:** app nativo (`checked` do olho, WebView da verificação, grupo `(entrada)` no build nativo); temas areia e contraste alto; API real em `:8088`; teclado e preenchimento automático reais (só `autocomplete`/`type=password` testados); as 10 falhas antigas continuam sem dono (troca mecânica `button`→`radio`; `painel:187`).
 - Aceite: duas entradas claras, formulário consistente, fluxos existentes (convite, recuperação, senha provisória, MFA, verificação humana) preservados; nenhuma permissão sai da URL.
 
 ## Propostas futuras (não são recurso disponível nem condição da primeira entrega)

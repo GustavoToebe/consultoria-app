@@ -1,6 +1,6 @@
 # Composição visual: padrões compartilhados (modais, formulários, opções, prévia, mensagens)
 
-Situação: Em andamento (4a, 4b e 4c feitos; 5 e 6 abertos) · Onde: local, sem commit · Atualizado: 10/11/2026
+Situação: Em andamento (4a, 4b e 4c feitos; 5 e 6 abertos) · Onde: `main`, commits locais (4a `04cb44ea`, 4b `6a726e29`, 4c `f9790e2c`) · Atualizado: 10/11/2026
 
 ## Objetivo
 A mesma função tem o mesmo alinhamento, espaçamento, hierarquia e comportamento em todas as telas: modal com cabeçalho,
@@ -35,7 +35,7 @@ Fonte: `C:\Users\GustavoToebe\Desktop\orientacoes-correcao-visual-front.pdf` (oi
 - [x] 2. Linha no `AGENTS.md`, procedimento no `executor-front.md`, princípios na skill — commit: — (a skill e o agente ficam em `~/.claude`, fora do repositório)
 - [x] 3. Prints recebidos (PDF acima) e mapeados nos padrões (tabela acima) — commit: —
 - [ ] 4. Implementação pelo `executor-front`, **uma chamada por vez** (os e2e compartilham `dist-e2e`; entra depois da troca de seleções e da ficha em abas): confirmar a causa na tela e corrigir na peça compartilhada, nunca margem por tela — commit: —
-  - [x] 4a. P1 + P5: rodapé único da `Folha` e do `PainelConfirmacao` com `LinhaDeAcoes`, grupo ação + motivo (evidências 05 e 06 e as folhas equivalentes) — commit: — (local, 10/11/2026)
+  - [x] 4a. P1 + P5: rodapé único da `Folha` e do `PainelConfirmacao` com `LinhaDeAcoes`, grupo ação + motivo (evidências 05 e 06 e as folhas equivalentes) — commit: `04cb44ea`
     - Feito: `ui/LinhaDeAcoes` ganhou `RodapeDeAcoes` (PC: status à esquerda, ações à direita com a principal na ponta;
       celular: status em cima e ações em coluna, principal em cima e cheia) e o contexto de arranjo que o `Botao` lê
       (motivo colado sob a ação, alinhado à mesma borda; `cheio` automático no rodapé empilhado); `Folha` com
@@ -49,7 +49,7 @@ Fonte: `C:\Users\GustavoToebe\Desktop\orientacoes-correcao-visual-front.pdf` (oi
     - Não conferido: celular nativo (só web); folhas que não passam pelos specs acima (leitura do código).
     - Validade: árvore local de 10/11/2026 sem commit; refazer o e2e se `ui/Folha`, `ui/LinhaDeAcoes`, `ui/Botao`,
       `ui/PainelConfirmacao` ou `ui/RolagemComTopo` mudarem.
-  - [x] 4b. P4 (+ P1, P3, P5): `fotos/CartaoFotos`, `FolhaGerar` e comparação (evidências 01 a 04) — commit: — (local, 10/11/2026, `executor-front`)
+  - [x] 4b. P4 (+ P1, P3, P5): `fotos/CartaoFotos`, `FolhaGerar` e comparação (evidências 01 a 04) — commit: `6a726e29`
     - Causas confirmadas na tela: 01 = célula com `flexGrow` e foto de 400 px fixos à esquerda (vão de ~86 px em 1280 e
       ~406 em 1920) e altura fixa com `cover` (proporção mudava com a largura); 02/04 = botão no fim do corpo rolável,
       fora da janela em 390 (borda em 915 com janela de 844) e com rolagem em 1280, prévia de altura fixa 460; 03 =
@@ -74,7 +74,7 @@ Fonte: `C:\Users\GustavoToebe\Desktop\orientacoes-correcao-visual-front.pdf` (oi
       moldura (por isso o `Quadro` local da `PreviaDaImagem`).
     - Validade: árvore local de 10/11/2026 sem commit; refazer o e2e se `ui/Folha`, `ui/Escolha`, `ui/Interruptor`
       (`Campos.tsx`), `ui/Botao` ou `dominio/comparacaoDeFotos` mudarem.
-  - [x] 4c. P2 + P3: `treinador/interessados` (evidências 07 e 08) — commit: — (local, 10/11/2026, `executor-front`)
+  - [x] 4c. P2 + P3: `treinador/interessados` (evidências 07 e 08) — commit: `f9790e2c`
     - Causas confirmadas na tela: 08 = `CamposDePeriodo` com dois níveis de rótulo e base de 280 px por célula (De e Até
       empilhados até em 1280 e 768), seletor de 52 px com rótulo dentro ao lado de data de 44 px com rótulo em cima,
       nomes "De"/"Até" repetidos; 07 = botões de larguras diferentes, sem grupo, e a faixa vazia no fim vem do
