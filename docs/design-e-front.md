@@ -252,6 +252,150 @@ Qualquer outro lugar precisa de decisão nova.
 
 **Cor do perfil da Comunidade (10/11/2026, escolha do Gustavo):** o aluno escolhe uma entre AZUL, ROXO (VIOLETA), ROSA (MAGENTA), LARANJA, TERRA e OLIVA (`dominio/perfilDaComunidade.ts`, `CORES_DO_PERFIL`). O laranja é o único token novo e mora numa paleta irmã, `PALETA_SO_DO_PERFIL` em `tema/tokens.ts` (claro `#D15700`, escuro `#FF7A1A`; `corDoTomDoPerfil`, tipo `TomDoPerfil`), e **não** na `PALETA_DA_AGENDA`, porque o tipo da agenda espelha o enum da API e a V043. No tema claro o laranja tem 3,23:1 como pior caso (4,14:1 sobre o branco): só serve de anel, amostra, ícone e borda, **nunca de texto**; no escuro passa de 5,3:1. A cor do colega pinta só marcador, nunca o texto, e a moldura tem forma própria (fina, dupla, tracejada, grossa), então nada depende só da cor. VERDE usa OLIVA (`shortcut:` no mapeamento), porque o único verde dos tokens é o `sucesso`, de status.
 
+### 4.6 Padrões de composição (proposta de 10/11/2026)
+
+Plano e passos: `docs/planos/composicao-visual.md`. A regra: **a mesma função tem o mesmo alinhamento, espaçamento,
+hierarquia e comportamento em qualquer tela.** O que muda de uma tela para outra é uma **variante nomeada** aqui
+(por tarefa ou por dispositivo), nunca uma margem solta. Problema comum se corrige na peça de `ui/`, não em cada tela.
+
+**Como ler o status de cada padrão**
+
+| Marca | Significa |
+| --- | --- |
+| **Peça existe** | A peça compartilhada existe e foi **lida no código** em 10/11/2026 (não foi conferida na tela). |
+| **Proposto** | A regra ainda não existe em código: é decisão a aprovar e implementar. |
+| **Verificado** | Conferido na tela renderizada em 390 e 1280 px, nos 4 temas, com o e2e ou a conferência citada em `docs/planos/composicao-visual.md` (sem capturas salvas: decisão do Gustavo, 10/11). **Nenhum padrão está verificado na peça compartilhada**; P2 e P3 têm partes "Verificado só em" uma tela, com a tela, as larguras e os temas citados. |
+
+Cada padrão só sobe de "Proposto" para "Verificado" depois da captura; quem implementar atualiza esta tabela e o plano.
+A seção "Observado no código" de cada padrão são **hipóteses de causa** achadas na leitura, a confirmar na tela.
+
+#### P1. Modal: cabeçalho, corpo rolável e rodapé de ações
+
+- **Quando usar:** formulário, escolha ou detalhe por cima da tela (`Folha`); pergunta curta de sim ou não
+  (`PainelConfirmacao`).
+- **Estrutura:** cabeçalho fixo (faixa `superficie3`, título, X) · corpo que rola sozinho · rodapé fixo com as ações,
+  sempre visível. O rodapé tem uma ação principal à direita (a última na ordem de leitura) e as secundárias à esquerda
+  dela; "Cancelar" nunca é o principal. O motivo de uma ação indisponível aparece **uma vez**, no padrão P5.
+- **Peça:** `Folha` (`topo`, `faixa`, `area`, `conteudo`, `rodape`), `PainelConfirmacao`, `LinhaDeAcoes`.
+- **Larguras (variantes):** confirmação 480 · formulário `LARGURA_FOLHA` 600 · editor ou prévia com mídia
+  `LARGURA_EDITOR`. A largura vem da tarefa, não do conteúdo que sobrou.
+- **Responsivo:** no PC a folha é uma caixa centrada com a largura da variante; no celular ocupa a largura e o rodapé
+  fica colado embaixo, com os botões em coluna, o principal em cima, `cheio`.
+- **Conferência visual:** o rodapé está sempre visível sem rolar a página; as ações ficam na mesma borda em todas as
+  folhas equivalentes; nenhum espaço vazio entre o último campo e o rodapé que não seja do corpo rolável; o X, o Esc e
+  o voltar fecham.
+- **Status:** `Folha` e `PainelConfirmacao` = **Peça existe**. Regra de ordem das ações, rodapé com `LinhaDeAcoes` e
+  largura por variante = **Proposto**.
+- **Observado no código:** o rodapé da `Folha` usa `flex-end` com quebra própria (`flexWrap`), enquanto o do
+  `PainelConfirmacao` usa a sua e põe o motivo à direita; as duas não passam pela `LinhaDeAcoes`. Hipótese: as ações
+  mudam de lugar conforme a peça.
+
+#### P2. Formulário e barra de filtros, incluindo intervalo de datas
+
+- **Quando usar:** formulário de cadastro ou edição (`Campo`, `CamposEmLinha`); filtro de lista (`BarraDeFiltros`).
+- **Estrutura do formulário:** rótulo em cima, campo, ajuda ou erro embaixo (`Campo`); campos relacionados na mesma
+  linha por `CamposEmLinha` e **sempre com o mesmo número de colunas** num mesmo formulário. O erro fica junto do campo.
+- **Estrutura do intervalo de datas (Proposto):** dois `CampoData`, "Data inicial" e "Data final", lado a lado no
+  PC e empilhados no celular, na mesma `CamposEmLinha`, com a faixa de `dominio/datasValidas`. Um único rótulo de grupo
+  ("Período") só se os dois rótulos individuais ficarem ocultos para o olho e continuarem para o leitor de tela.
+- **Estrutura da barra de filtros:** busca · "Filtros" com contagem · "Limpar filtros" · "Filtrado por" com chips. No
+  PC, os seletores abrem num cartão logo abaixo; no celular, numa `Folha` com rascunho.
+- **Peça:** `Campo`, `CamposEmLinha`, `CampoData`, `BarraDeFiltros`, `SelecaoMultiplaSuspensa`, `EscolhaEmFolha`.
+- **Responsivo:** a partir de `LARGURA_TABELA` os campos relacionados ficam em linha; abaixo disso, uma coluna.
+- **Conferência visual:** os campos de uma linha têm a mesma altura e a base alinhada (com e sem mensagem de erro em
+  um deles); intervalo de datas: os dois campos têm o mesmo tamanho; a linha de filtros não deixa buraco quando um
+  seletor some por permissão.
+- **Status:** `Campo`, `CamposEmLinha`, `CampoData` e `BarraDeFiltros` = **Peça existe**. Intervalo de datas como par
+  padrão e o alinhamento por base com erro em só um campo = **Proposto** na peça compartilhada.
+  **Verificado só nos Interessados** (passo 4c, 10/11; peça local `treinador/interessados/PeriodoDoFiltro`, ainda não
+  promovida): painel de filtros do Kanban e da Lista em 390 e 1280 px nos 4 temas e em 768 e 1920 px no claro e no
+  escuro, com De e Até lado a lado de mesmo topo, altura e largura (também com "Fim antes do início." no Até), nomes
+  "Entrada: data inicial" etc., data inteira sem corte, calendário dentro da janela, Responsável e Origem numa linha e
+  os períodos embaixo nas mesmas colunas, sem sobreposição: `app/e2e/interessados-composicao.spec.ts`.
+- **Observado no código:** a `BarraDeFiltros` posiciona seletores em grade com `columnGap` e `rowGap`, mas não define
+  nada para o par de datas. O par compartilhado já existe, `treinador/SeletoresDeFiltro.CamposDePeriodo` (Atualizações,
+  Auditoria, Importação, Cobranças, Lançamentos), e é ele que empilha De e Até até em 1280 px: rótulo de grupo mais o
+  rótulo "De"/"Até" de cada campo (dois níveis) e base de 280 px por célula. Confirmado na tela dos Interessados em 10/11.
+  A caixa do `SelecaoMultiplaSuspensa` (rótulo dentro, 52 px) e a do `Campo`/`CampoData` (rótulo em cima, 44 px) têm
+  alturas e idiomas de rótulo diferentes: na mesma linha a base não fecha; por isso os Interessados usam duas linhas.
+
+#### P3. Seleção de opções e lista de ações
+
+- **Quando usar:** até 8 opções: `Escolha` (botões lado a lado) ou `GradeDeOpcoes` com `OpcaoCartao` quando cada opção
+  tem descrição ou amostra. Mais de 8: `EscolhaEmFolha`. Várias marcadas: `SelecaoMultiplaSuspensa`. Registros com
+  ações: `LinhaDaLista` dentro de `ListaDeLinhas`; atalhos e itens de ação: `ItemDeLista`.
+- **Estrutura:** a opção escolhida é a invertida (cor `texto`), com ✓ no cartão; motivo de opção desabilitada fica sob o
+  grupo (P5); as ações de uma linha ficam **à direita**, a principal da linha só uma.
+- **Peça:** `Escolha` (`distribuida` para dividir a largura, `compacta` para caber em duas fileiras no celular),
+  `GradeDeOpcoes` (1 coluna abaixo de 700 px, 2 acima), `OpcaoCartao`, `LinhaDaLista`.
+- **Responsivo:** `Escolha` quebra linha; com `distribuida` nenhuma linha termina com sobra. `GradeDeOpcoes` troca de
+  1 para 2 colunas em 700 px.
+- **Conferência visual:** em 390 e 1280 px nenhuma linha de opções termina com um botão solto e esticado; os cartões de
+  uma grade têm a mesma altura; a opção escolhida é reconhecível sem a cor.
+- **Status:** todas as peças acima = **Peça existe** (`Escolha`, `GradeDeOpcoes`, `OpcaoCartao` lidas em 10/11).
+  Regra de quando usar `distribuida` = **Proposto**. Lista de ações com `ItemDeLista` em grupos ("Mudar de etapa", que
+  vale na hora, e "Aceitar ou encerrar", que abre a confirmação) = **Verificado só no "Mover para" dos Interessados**
+  (passo 4c, 10/11): 390 e 1280 px nos 4 temas, nome longo, linhas de mesma borda e largura com
+  44 px ou mais, foco inicial (X na folha de baixo, primeira ação na centrada), Esc devolve o foco ao botão, Recusar
+  abre a confirmação sem gravar, encerrada só com "Reabrir atendimento": `app/e2e/interessados-composicao.spec.ts`.
+- **Observado no código:** `Escolha` sem `distribuida` deixa a sobra à direita; `GradeDeOpcoes` usa 700 e a
+  `BarraDeFiltros`, outro ponto de quebra. Hipótese: telas vizinhas mudam de colunas em larguras diferentes.
+
+#### P4. Prévia de mídia com configurações e exportação
+
+- **Quando usar:** gerar uma imagem, um carrossel ou um PDF a partir do que a pessoa escolheu, com prévia (hoje: comparação
+  de fotos).
+- **Estrutura (Proposto):** prévia no topo, centralizada, com a proporção real da saída · configurações abaixo, na ordem
+  em que mudam a prévia · aviso ou motivo (P5) · ação de exportar **no rodapé fixo da folha (P1)**, não no fim do
+  corpo. Várias imagens: uma prévia por imagem, com o rótulo em cima de cada.
+- **Peça:** `Folha` (`LARGURA_EDITOR`), `ImagemProtegida`, `Escolha`, `Interruptor`, `Botao`; hoje o corpo vive em
+  `fotos/CartaoFotos.tsx` (`FolhaGerar`). Peça compartilhada nova só se uma segunda tela precisar.
+- **Responsivo:** no PC, prévia e configurações podem ficar lado a lado quando a prévia é alta (Stories); no celular, em
+  coluna, com a prévia limitada à altura da janela.
+- **Conferência visual:** a prévia não corta nem estica; o botão de exportar está visível sem rolar; configurações e
+  botão compartilham o mesmo alinhamento; a prévia do Feed e a do Stories mostram a proporção certa.
+- **Status:** **Verificado** na comparação de fotos (`fotos/FolhaGerar` em `CartaoFotos.tsx` e `fotos/PreviaDaImagem.tsx`;
+  10/11/2026, árvore local sem commit; `app/e2e/comparacao-de-fotos.spec.ts`, casos "composição…", em 390, 768, 1280 e
+  1920 nos temas claro e escuro, e em 390 e 1280 nos temas areia e contraste alto; sem capturas): prévia com a proporção
+  do arquivo (Stories e Feed, ±2%) e, no Stories, quadros e logo no lugar do `layoutDaImagem` (±2 px); lado a lado a partir de 768 e empilhada em 390;
+  ação no rodapé, visível sem rolar; trocar Stories, Feed e "Os dois" não move a ação nem as configurações; explicação
+  de "Os dois" logo abaixo do seletor; autorização uma vez (status com a data, ou o motivo do botão); erro ao gerar no
+  rodapé, sem mover a ação; carrossel com duas prévias por linha. **Não verificado (P1, passo 4a):** em 768 e 1920 sobra
+  uma faixa vazia abaixo do rodapé, porque a `Folha` com `largura` fixa a altura em 90% e o corpo não cresce.
+
+#### P5. Legendas, resumos, avisos e motivos de ação indisponível
+
+- **Quando usar cada um (Proposto):**
+
+  | Situação | Peça | Onde |
+  | --- | --- | --- |
+  | Explicar um campo | `Campo` `ajuda` (`pequeno`, suave) | Embaixo do campo |
+  | Erro de um campo | `Campo` `erro` | Embaixo do campo, mesma posição da ajuda |
+  | Erro ou aviso da tela inteira | `Alerta` (`perigo`, `atencao`, `sucesso`) | No topo do corpo, antes dos campos |
+  | Conteúdo que o papel não pode ver | `Bloqueado` / `SemPermissao` | No lugar do conteúdo |
+  | Item sem valor informado | `Incompleto` | No item |
+  | Por que o botão está apagado | `Botao` `motivo` | **Colado embaixo do botão**, no mesmo alinhamento dele |
+  | Por que uma opção está apagada | `OpcaoEscolha.motivo` | Embaixo do grupo |
+  | Resumo de uma lista ou seção | `Texto` `suave` na faixa do `Cartao` | Na faixa, nunca solto no corpo |
+
+- **Estrutura:** uma mensagem por motivo, uma vez. O mesmo texto não aparece como aviso e como `motivo` ao mesmo
+  tempo. Legenda nunca fica solta entre dois blocos: ela pertence ao campo, ao grupo ou à faixa que descreve.
+- **Peça:** `Campo`, `Botao`, `Escolha`, `Alerta`, `Bloqueado`, `Incompleto`, `Cartao`, `Texto` (`pequeno`, `suave`).
+- **Responsivo:** o texto quebra linha; o motivo de um botão `cheio` fica centralizado, o de um botão com o tamanho do
+  texto fica alinhado à esquerda dele. Num rodapé de modal (P1), o motivo fica sob a ação a que se refere.
+- **Conferência visual:** nenhuma mensagem repetida na mesma tela; nenhuma legenda sem o elemento a que se refere
+  ao lado; o motivo está dentro do rodapé visível; a mensagem de estado tem ícone ou texto, não só cor.
+- **Status:** as peças = **Peça existe**. A tabela "quando usar cada um" e a regra "uma mensagem, uma vez" =
+  **Proposto**.
+- **Observado no código:** o motivo do `Botao` fica abaixo dele alinhado à esquerda (ou centralizado se `cheio`); o do
+  `PainelConfirmacao` fica abaixo da linha de botões e à direita; os dois usam o mesmo texto pequeno.
+
+**Sugestões para a peça compartilhada (Proposto; só com o escopo autorizado, ver 4.4 e a tabela do `executor-front`):**
+(a) um rodapé único para `Folha` e `PainelConfirmacao` (ordem, alinhamento, motivo) sobre `LinhaDeAcoes`; (b)
+`CamposEmLinha` aceitar o par de datas; (c) uma largura nomeada por variante de modal.
+
+---
+
 ## 5. Os problemas de design que estamos resolvendo
 
 Origem principal: a reunião gravada de 29/10, com o treinador usando o sistema por 40 minutos. Ele elogiou a
@@ -394,6 +538,22 @@ Como garantimos:
 - [ ] Teclado, foco, leitor de tela e toque de 44 px continuam funcionando?
 - [ ] A tela não ficou mais pesada (mais camadas, lista inteira sem página, import grande numa tela do aluno)?
 - [ ] Jest, lint, typecheck e o e2e da tela passaram?
+
+**Composição (4.6; vale para tela com modal, formulário, filtro, opções, prévia ou mensagens):**
+
+- [ ] Qual padrão da 4.6 a tela usa (P1 a P5)? Foi reutilizada a peça dele, e a exceção, se houver, está justificada?
+- [ ] **Alinhamento:** rótulos, campos, botões e legendas compartilham a mesma borda esquerda; campos de uma linha têm a
+  mesma altura e a base alinhada, também quando só um deles mostra erro.
+- [ ] **Espaços vazios:** nenhum vão entre blocos que não seja o espaçamento da grade de 8 px; nenhum bloco com sobra
+  esticada ao lado (linha de opções, grade de cartões, par de campos).
+- [ ] **Posição das ações:** a ação principal fica no mesmo lugar que nas telas equivalentes (rodapé fixo, à direita no
+  PC, em coluna e `cheia` no celular); só uma ação principal por área.
+- [ ] **Rolagem:** o cabeçalho e o rodapé do modal não rolam, só o corpo; o rodapé está visível sem rolar em 390 e em
+  1280 px (e com o teclado aberto no celular).
+- [ ] **Mensagens:** cada motivo ou aviso aparece uma vez, junto do elemento a que se refere, com ícone ou texto além da cor.
+- [ ] **Consistência:** a tela foi comparada com pelo menos uma tela equivalente (mesmo padrão) em 390 e 1280 px e a
+  diferença que sobrou é uma variante nomeada na 4.6.
+- [ ] A captura de cada largura e tema conferido está citada no plano da frente; o que não foi conferido está dito.
 
 ---
 

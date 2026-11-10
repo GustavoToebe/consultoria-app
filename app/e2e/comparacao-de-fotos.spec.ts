@@ -354,8 +354,8 @@ for (const [largura, altura, tema] of CASOS_DA_COMPOSICAO) {
     const folha = await caixa(dialogo);
     expect(Math.abs(folha.x + folha.width - 16 - (stories.botao.x + stories.botao.width))).toBeLessThanOrEqual(2);
     if (largura < 768) expect(Math.abs(stories.botao.x - (folha.x + 16))).toBeLessThanOrEqual(2);
-    // shortcut: sem conferir que o rodapé fica no pé da folha; em 768 e 1920 sobra uma faixa vazia embaixo dele (a `Folha`
-    // com `largura` fixa a altura em 90% e o corpo não cresce), trocar pela asserção quando o passo 4a corrigir a `Folha`.
+    // O rodapé fica no pé da folha: a altura é fixa (90%) e o corpo cresce até ele, sem faixa vazia embaixo (P1).
+    expect(await dialogo.evaluate((d) => d.getBoundingClientRect().bottom - d.lastElementChild!.getBoundingClientRect().bottom)).toBeLessThanOrEqual(3);
 
     // 03: autorização uma vez só, como status; switch junto do rótulo.
     await expect(dialogo.getByText(/autoriz/i)).toHaveCount(1);

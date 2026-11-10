@@ -147,8 +147,8 @@ function FolhaDaAgenda({ edicao, pessoais, aoFechar, aoMudar }: {
   const mensagem = erro ? textoDoErroDoCalendario(erro, 'agenda') ?? textoDoErro(erro) : erros.geral ?? null;
   return (
     <Folha visivel={edicao !== null} titulo={editando ? 'Editar agenda' : 'Nova agenda'} aoFechar={aoFechar}
+      statusDoRodape={mensagem ? <MensagemErro texto={mensagem} erro={erro ?? undefined} /> : undefined}
       rodape={<>
-        {mensagem ? <View style={estilos.mensagem}><MensagemErro texto={mensagem} erro={erro ?? undefined} /></View> : null}
         {editando ? <Botao rotulo="Apagar agenda" tipo="perigoTexto" aoTocar={() => void pedirApagar()} carregando={contando}
           desabilitado={salvando || contando} motivo="Aguarde." /> : null}
         <Botao rotulo="Cancelar" tipo="secundario" aoTocar={aoFechar} />
@@ -206,5 +206,4 @@ const estilos = StyleSheet.create({
   cor: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), minHeight: ALVO_TOQUE, paddingHorizontal: espaco(1.5), borderWidth: 1, borderRadius: RAIO },
   amostra: { width: 16, height: 16, borderRadius: 8 },
   nomeDaCor: { fontFamily: fontes.semi, fontSize: 14 },
-  mensagem: { flexBasis: '100%' },
 });

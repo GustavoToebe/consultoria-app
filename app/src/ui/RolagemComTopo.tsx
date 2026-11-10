@@ -25,6 +25,8 @@ const SEM_ROLAGEM: Rolagem = { registrar: () => undefined, rolarAte: () => undef
 const LIMITE_TOPO = 400;
 /** Movimento mínimo (px) para contar como rolar para cima ou para baixo (ignora o tremor do dedo). */
 const DIFERENCA_MINIMA = 4;
+/** Espaço no fim da rolagem para o botão flutuante não cobrir o último item. */
+const FOLGA_DO_BOTAO = espaco(2) + ALVO_TOQUE + espaco(1);
 
 interface Props {
   children: ReactNode;
@@ -46,6 +48,18 @@ export function RolagemComTopo({ children, contentContainerStyle, preencher }: P
   const area = useRef<View>(null);
   const deslocamento = useRef(0);
   const alvos = useRef(new Map<string, View>());
+  // A folga só existe quando o botão pode aparecer (dá para rolar mais de `LIMITE_TOPO`). Antes valia sempre: numa folha
+  // ou tela curta sobravam 68 px vazios embaixo do último item, acima do rodapé (evidência 05 do guia de 10/11).
+  // `conteudo` é a altura sem a folga, para a decisão não oscilar ao pôr ou tirar a folga.
+  const medidas = useRef({ conteudo: 0, janela: 0, folga: false });
+  const [folga, setFolga] = useState(false);
+  const conferirFolga = useCallback(() => {
+    const m = medidas.current;
+    const precisa = m.conteudo - m.janela > LIMITE_TOPO;
+    if (precisa === m.folga) return;
+    m.folga = precisa;
+    setFolga(precisa);
+  }, []);
   const registrar = useCallback((chave: string, vista: View | null) => {
     if (vista) alvos.current.set(chave, vista);
     else alvos.current.delete(chave);
@@ -64,8 +78,13 @@ export function RolagemComTopo({ children, contentContainerStyle, preencher }: P
     <View ref={area} style={[estilos.area, preencher && estilos.preencher]}>
       <ScrollView
         ref={rolagem}
-        contentContainerStyle={[contentContainerStyle, estilos.fim]}
+        contentContainerStyle={[contentContainerStyle, folga && estilos.fim]}
         keyboardShouldPersistTaps="handled"
+        onLayout={(e) => { medidas.current.janela = e.nativeEvent.layout.height; conferirFolga(); }}
+        onContentSizeChange={(_largura, altura) => {
+          medidas.current.conteudo = altura - (medidas.current.folga ? FOLGA_DO_BOTAO : 0);
+          conferirFolga();
+        }}
         scrollEventThrottle={100}
         onScroll={(e) => {
           const y = e.nativeEvent.contentOffset.y;
@@ -95,6 +114,6 @@ const estilos = StyleSheet.create({
   area: { flexShrink: 1, minHeight: 0 },
   preencher: { flex: 1 },
   // Espaço no fim da rolagem: o botão flutuante nunca cobre o último botão ou item da tela.
-  fim: { paddingBottom: espaco(2) + ALVO_TOQUE + espaco(1) },
+  fim: { paddingBottom: FOLGA_DO_BOTAO },
   botao: { position: 'absolute', right: espaco(2), bottom: espaco(2), width: ALVO_TOQUE, height: ALVO_TOQUE, borderRadius: RAIO, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
 });

@@ -191,24 +191,24 @@ function FolhaAberta({ aberto, dataSugerida, hoje, responsaveis, carregados, aoF
   };
 
   const mensagem = erro ? textoDoErroDaAgenda(erro, hoje) ?? textoDoErro(erro) : conferir ? 'Confira os campos destacados.' : null;
-  const linhaDaMensagem = mensagem ? <View style={estilos.mensagem}><MensagemErro texto={mensagem} erro={erro ?? undefined} /></View> : null;
+  const linhaDaMensagem = mensagem ? <MensagemErro texto={mensagem} erro={erro ?? undefined} /> : null;
   const ocupado = salvando || enviando !== null;
 
   const titulo = novo ? 'Novo compromisso' : modo === 'formulario' ? 'Editar compromisso' : 'Compromisso';
   const avisoDoCompleto = novo && !completo ? linhaDoCompletoDoCompromisso(form) : null;
+  // Mensagem e aviso vão no status do rodapé, acima das ações no celular (P1).
+  const avisoNoRodape = modo === 'formulario' && avisoDoCompleto ? <Texto variante="suave">{avisoDoCompleto}</Texto> : null;
+  const statusDoRodape = linhaDaMensagem || avisoNoRodape ? <>{linhaDaMensagem}{avisoNoRodape}</> : undefined;
   const rodape = modo === 'formulario' ? <>
-    {linhaDaMensagem}
-    {avisoDoCompleto ? <Texto variante="suave" style={estilos.mensagem}>{avisoDoCompleto}</Texto> : null}
     {novo && completo ? <Botao rotulo="Menos opções" tipo="secundario" aoTocar={() => setCompleto(false)} /> : null}
     {completo ? <Botao rotulo="Cancelar" tipo="secundario" aoTocar={novo ? aoFechar : voltarAoDetalhe} />
       : <Botao rotulo="Mais opções" tipo="secundario" aoTocar={() => setCompleto(true)} />}
     <Botao rotulo={c ? 'Salvar alterações' : 'Marcar compromisso'} aoTocar={salvar} carregando={salvando} desabilitado={salvando} motivo="Salvando." />
   </> : c && pode('AGENDA_ALTERAR') && acaoInteiro ? <>
-    {linhaDaMensagem}
     <Botao rotulo={acaoInteiro.rotulo} tipo={acaoInteiro.perigo ? 'perigoTexto' : 'secundario'} aoTocar={pedirInteiro}
       carregando={enviando === `inteiro:${acaoInteiro.cancelado}`} desabilitado={ocupado} motivo="Salvando." />
     <Botao rotulo="Editar" tipo="secundario" aoTocar={editar} desabilitado={ocupado} motivo="Salvando." />
-  </> : linhaDaMensagem ?? undefined;
+  </> : undefined;
 
   const ocorrencia = c ? textoDaOcorrencia(c) : null;
   const dataMudou = !!c && !!c.serieId && mudouAData(form, c);
@@ -224,7 +224,7 @@ function FolhaAberta({ aberto, dataSugerida, hoje, responsaveis, carregados, aoF
   </View> : null;
 
   return (
-    <Folha visivel={aberto !== null} titulo={titulo} aoFechar={aoFechar} rodape={rodape}
+    <Folha visivel={aberto !== null} titulo={titulo} aoFechar={aoFechar} rodape={rodape} statusDoRodape={statusDoRodape}
       largura={modo === 'formulario' && completo ? LARGURA_EDITOR : undefined}>
       {modo === 'formulario' ? (
         <CamposDoCompromisso form={form} erros={erros} errosDaRepeticao={errosDaRepeticao} mudar={mudar} mudarRepeticao={mudarRepeticao}
@@ -281,7 +281,6 @@ function Confirmacao({ pergunta, compromisso: c, hoje, agora, escopo, aoEscolher
 
 const estilos = StyleSheet.create({
   // O rodapé é uma linha alinhada à direita: a mensagem ocupa a linha inteira, logo acima dos botões que acabaram de ser tocados.
-  mensagem: { flexBasis: '100%' },
   avisos: { gap: espaco(0.5) },
   escopo: { gap: espaco(1) },
 });

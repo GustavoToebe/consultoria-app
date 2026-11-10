@@ -208,29 +208,27 @@ function FolhaAberta({ aberto, agendas, erroDasAgendas, recarregarAgendas, hoje,
   };
 
   const mensagem = erro ? textoDoErroDoCalendario(erro, 'evento') ?? textoDoErro(erro) : conferir ? 'Confira os campos destacados.' : aviso;
-  const linhaDaMensagem = mensagem ? <View style={estilos.mensagem}>
-    {erro || conferir ? <MensagemErro texto={mensagem} erro={erro ?? undefined} />
-      : <Texto variante="suave" accessibilityLiveRegion="polite">{mensagem}</Texto>}
-  </View> : null;
+  const linhaDaMensagem = mensagem ? (erro || conferir ? <MensagemErro texto={mensagem} erro={erro ?? undefined} />
+    : <Texto variante="suave" accessibilityLiveRegion="polite">{mensagem}</Texto>) : null;
 
   // O formulário só abre sabendo as agendas: carregando, espera; falhou, diz e deixa tentar de novo (sem beco sem saída).
   const semListaDeAgendas = modo === 'formulario' && agendas === null;
   const titulo = novo ? 'Novo evento' : modo === 'formulario' ? 'Editar evento' : 'Evento';
   const avisoDoCompleto = novo && !completo && !semListaDeAgendas ? linhaDoCompletoDoEvento(formComAgenda) : null;
+  // Mensagem e aviso vão no status do rodapé, acima das ações no celular (P1).
+  const avisoNoRodape = modo === 'formulario' && avisoDoCompleto ? <Texto variante="suave">{avisoDoCompleto}</Texto> : null;
+  const statusDoRodape = !semListaDeAgendas && (linhaDaMensagem || avisoNoRodape) ? <>{linhaDaMensagem}{avisoNoRodape}</> : undefined;
   const rodape = semListaDeAgendas ? <>
     <Botao rotulo="Cancelar" tipo="secundario" aoTocar={novo ? aoFechar : () => { limpar(); setModo('detalhe'); }} />
   </> : modo === 'formulario' ? <>
-    {linhaDaMensagem}
-    {avisoDoCompleto ? <Texto variante="suave" style={estilos.mensagem}>{avisoDoCompleto}</Texto> : null}
     {novo && completo ? <Botao rotulo="Menos opções" tipo="secundario" aoTocar={() => setCompleto(false)} /> : null}
     {completo ? <Botao rotulo="Cancelar" tipo="secundario" aoTocar={novo ? aoFechar : () => { limpar(); setModo('detalhe'); }} />
       : <Botao rotulo="Mais opções" tipo="secundario" aoTocar={() => setCompleto(true)} />}
     <Botao rotulo={e ? 'Salvar alterações' : 'Salvar'} aoTocar={salvar} carregando={salvando} desabilitado={salvando} motivo="Salvando." />
   </> : e && podeAlterar ? <>
-    {linhaDaMensagem}
     <Botao rotulo="Excluir" tipo="perigoTexto" aoTocar={pedirExcluir} desabilitado={salvando} motivo="Salvando." />
     <Botao rotulo="Editar" tipo="secundario" aoTocar={editar} desabilitado={salvando} motivo="Salvando." />
-  </> : linhaDaMensagem ?? undefined;
+  </> : undefined;
 
   const dataDaOcorrencia = ocorrencia?.data ?? e?.data ?? hoje;
   const sobreASerie = e && serie ? <Texto variante="suave" accessibilityLiveRegion="polite">
@@ -241,7 +239,7 @@ function FolhaAberta({ aberto, agendas, erroDasAgendas, recarregarAgendas, hoje,
   </Texto> : null;
 
   return (
-    <Folha visivel={aberto !== null} titulo={titulo} aoFechar={aoFechar} rodape={rodape}
+    <Folha visivel={aberto !== null} titulo={titulo} aoFechar={aoFechar} rodape={rodape} statusDoRodape={statusDoRodape}
       largura={modo === 'formulario' && completo && !semListaDeAgendas ? LARGURA_EDITOR : undefined}>
       {semListaDeAgendas ? (
         erroDasAgendas ? <MensagemErro texto={`Não deu para carregar as suas agendas. ${textoDoErro(erroDasAgendas)}`} erro={erroDasAgendas}
@@ -299,7 +297,6 @@ function DetalheDoEvento({ evento: e, agendas, hoje }: { evento: EventoDetalhe; 
 }
 
 const estilos = StyleSheet.create({
-  mensagem: { flexBasis: '100%' },
   escopo: { gap: espaco(1) },
   detalhe: { gap: espaco(1.5) },
   agenda: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },

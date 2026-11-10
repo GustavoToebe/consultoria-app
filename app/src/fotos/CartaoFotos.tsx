@@ -395,7 +395,6 @@ function FolhaGerar({ titulo, imagens, baixar, gerar, autorizadoEm, aoFechar, ao
       desabilitado={!autorizado || grupos.length === 0}
       motivo={autorizado ? undefined : AVISO_AUTORIZACAO}
       carregando={baixando}
-      cheio={!centralizada}
       aoTocar={baixarImagem}
     />
   );
@@ -405,20 +404,12 @@ function FolhaGerar({ titulo, imagens, baixar, gerar, autorizadoEm, aoFechar, ao
       <Texto variante="suave" style={estilos.textoDoStatus}>Aluno autorizou em {dataParaTela(autorizadoEm)}</Texto>
     </View>
   ) : null;
-  // shortcut: arranjo do rodapé montado aqui (status à esquerda, ação à direita; em coluna no celular), trocar pelo rodapé único da Folha (passo 4a).
   // O erro do "Baixar" fica no rodapé, junto da ação: no celular o corpo empilhado o esconderia abaixo da prévia.
-  // O rodapé fica preso ao pé da folha, então o erro cresce para cima e o botão não sai do lugar.
-  const rodape = (
-    <View style={[estilos.rodape, estilos.rodapeEmColuna]}>
-      {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} /> : null}
-      {centralizada
-        ? <LinhaDeAcoes alinhar={autorizado ? 'entre' : 'fim'}>{status}{acao}</LinhaDeAcoes>
-        : <View style={estilos.rodapeEmColuna}>{status}{acao}</View>}
-    </View>
-  );
+  // O rodapé da `Folha` prende a ação embaixo, então o erro cresce para cima e o botão não sai do lugar.
+  const statusDoRodape = erro || status ? <>{erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} /> : null}{status}</> : undefined;
 
   return (
-    <Folha visivel titulo={titulo} aoFechar={aoFechar} largura={LARGURA_EDITOR} rodape={rodape}>
+    <Folha visivel titulo={titulo} aoFechar={aoFechar} largura={LARGURA_EDITOR} rodape={acao} statusDoRodape={statusDoRodape}>
       <View style={[estilos.gerar, ladoALado && estilos.gerarLadoALado]} onLayout={(e) => setLarguraUtil(Math.floor(e.nativeEvent.layout.width))}>
         <View style={[estilos.previas, ladoALado && estilos.previasLadoALado]}>
           {larguraUtil > 0 ? imagens.map((imagem) => (
@@ -484,9 +475,6 @@ const estilos = StyleSheet.create({
   configuracoes: { gap: espaco(2) },
   grupo: { gap: espaco(0.5) },
   junto: { alignSelf: 'flex-start', maxWidth: '100%' },
-  // Ocupa a linha do rodapé da `Folha` inteira (sem isso, um erro comprido o alargaria além da folha).
-  rodape: { width: '100%' },
-  rodapeEmColuna: { gap: espaco(1) },
   status: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75), flexShrink: 1 },
   textoDoStatus: { flexShrink: 1 },
 });

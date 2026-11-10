@@ -13,6 +13,7 @@ import { espaco, LARGURA_MENU_LATERAL, LINHA_DA_FAIXA, RAIO, VEU } from '../tema
 import { marcarFolhaDoTopoFechando, useFolhaNoHistorico } from './historicoDasFolhas';
 import { capturaDoGatilho, useDevolverFocoNoNativo } from './focoDaFolha';
 import { IconeBotao } from './IconeBotao';
+import { RodapeDeAcoes } from './LinhaDeAcoes';
 import { RolagemComTopo } from './RolagemComTopo';
 import { Texto } from './Texto';
 
@@ -33,8 +34,10 @@ interface Props {
   titulo: string;
   aoFechar: () => void;
   children: ReactNode;
-  /** Botões fixos no rodapé (fora da rolagem). */
+  /** Botões fixos no rodapé (fora da rolagem), a ação principal por último; arranjo do `RodapeDeAcoes`. */
   rodape?: ReactNode;
+  /** Situação ou mensagem do rodapé (erro ao salvar, status): à esquerda das ações no PC, acima delas no celular. */
+  statusDoRodape?: ReactNode;
   /** Ação do cabeçalho, ao lado do X (ex.: menu ⋯); fica fixa enquanto o conteúdo rola. */
   acaoNoTopo?: ReactNode;
   /** Faixa fixa logo abaixo do cabeçalho, fora da rolagem (ex.: o aviso da prévia "Ver como o aluno"). */
@@ -49,7 +52,7 @@ interface Props {
  * de tela é um diálogo modal com o nome do título; na web o foco entra no primeiro controle do conteúdo e, ao fechar,
  * volta a quem abriu a folha; no celular, com leitor de tela, também volta (`ui/focoDaFolha.ts`).
  */
-export function Folha({ visivel, titulo, aoFechar, children, rodape, largura, acaoNoTopo, faixa }: Props) {
+export function Folha({ visivel, titulo, aoFechar, children, rodape, statusDoRodape, largura, acaoNoTopo, faixa }: Props) {
   // Quem estava com o foco ao abrir (web). Ao fechar, o foco volta para ele (C3): na hora em que o painel sai (a folha
   // inteira deixou a tela) e de novo no `onDismiss`, quando a camada do Modal some. Antes disso a trava de foco do Modal,
   // que fica um render a mais depois do `visible={false}`, puxaria o foco de volta para dentro.
@@ -60,7 +63,7 @@ export function Folha({ visivel, titulo, aoFechar, children, rodape, largura, ac
     aoFechar();
   }, [aoFechar]);
   return <Modal ref={semPapelNoModal} transparent visible={visivel} animationType="none" onRequestClose={fechar} onDismiss={() => devolverFoco(quemAbriuRef)}>
-    {visivel ? <Painel titulo={titulo} aoFechar={fechar} rodape={rodape} largura={largura} acaoNoTopo={acaoNoTopo} faixa={faixa} quemAbriuRef={quemAbriuRef}>{children}</Painel> : null}
+    {visivel ? <Painel titulo={titulo} aoFechar={fechar} rodape={rodape} statusDoRodape={statusDoRodape} largura={largura} acaoNoTopo={acaoNoTopo} faixa={faixa} quemAbriuRef={quemAbriuRef}>{children}</Painel> : null}
   </Modal>;
 }
 
@@ -93,13 +96,16 @@ function devolverFoco(quemAbriuRef: RefObject<HTMLElement | null>) {
 }
 
 /** Arraste no cabeçalho para preservar a rolagem e os campos dentro do conteúdo: no PC move a folha, no celular fecha. */
-function Painel({titulo,aoFechar,children,rodape,largura,acaoNoTopo,faixa,quemAbriuRef}:Omit<Props,'visivel'> & { quemAbriuRef: RefObject<HTMLElement | null> }) {
+function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura,acaoNoTopo,faixa,quemAbriuRef}:Omit<Props,'visivel'> & { quemAbriuRef: RefObject<HTMLElement | null> }) {
   const { cores, bordas } = useTema();
   const { width, height } = useWindowDimensions();
   // No Android o `Modal` já fica acima da barra do sistema; somar a margem de baixo do provider (que está fora dele)
   // deixava um vão sob o rodapé.
   const margem = useSafeAreaInsets();
   const centralizado = width >= LARGURA_MENU_LATERAL;
+  // Com `largura` no PC a altura é fixa (a folha não muda de tamanho ao trocar o conteúdo); o corpo ocupa o que sobra
+  // entre o topo e o rodapé, para o rodapé ficar no pé da folha e não sobrar faixa vazia embaixo dele.
+  const alturaFixa = centralizado && !!largura;
   const reduzido = useMovimentoReduzido();
   const portal = useId();
   const [elementoPortal, setElementoPortal] = useState<HTMLElement | null>(null);
@@ -197,10 +203,14 @@ function Painel({titulo,aoFechar,children,rodape,largura,acaoNoTopo,faixa,quemAb
             </View>
           </View>
           {faixa ? <View style={[estilos.faixa, { borderBottomColor: cores.borda }]}>{faixa}</View> : null}
-          <View ref={conteudo} collapsable={false} style={estilos.area}>
-            <RolagemComTopo contentContainerStyle={estilos.conteudo}>{children}</RolagemComTopo>
+          <View ref={conteudo} collapsable={false} style={[estilos.area, alturaFixa && estilos.areaQuePreenche]}>
+            <RolagemComTopo contentContainerStyle={estilos.conteudo} preencher={alturaFixa}>{children}</RolagemComTopo>
           </View>
-          {rodape ? <View style={[estilos.rodape, { borderColor: cores.borda }]}>{rodape}</View> : null}
+          {rodape || statusDoRodape ? (
+            <View style={[estilos.rodape, { borderColor: cores.borda }]}>
+              <RodapeDeAcoes status={statusDoRodape} empilhar={!centralizado}>{rodape}</RodapeDeAcoes>
+            </View>
+          ) : null}
         </Animated.View>
       </View>
       </KeyboardAvoidingView>
@@ -236,14 +246,8 @@ const estilos = StyleSheet.create({
   faixa: { paddingHorizontal: espaco(2), paddingVertical: espaco(1), borderBottomWidth: 1 },
   // O botão "voltar ao início" do `RolagemComTopo` é absoluto dentro desta área, logo nunca sai do painel.
   area: { flexShrink: 1, minHeight: 0 },
+  areaQuePreenche: { flexGrow: 1, flexBasis: 0 },
   // A folga do topo (16 px) também deixa o anel de foco (2 px + recuo de 2 px) do primeiro controle inteiro.
   conteudo: { padding: espaco(2), gap: espaco(1.5) },
-  rodape: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    flexWrap: 'wrap',
-    gap: espaco(1),
-    padding: espaco(2),
-    borderTopWidth: 1,
-  },
+  rodape: { padding: espaco(2), borderTopWidth: 1 },
 });

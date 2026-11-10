@@ -6,6 +6,7 @@ import { Button } from '../components/ui/button';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO, textoSobre } from '../tema/tokens';
 import { coresDoDesabilitado, visualDoInativo } from './desabilitado';
+import { useArranjoDasAcoes } from './LinhaDeAcoes';
 import { Texto } from './Texto';
 
 type Tipo = 'primario' | 'secundario' | 'perigo' | 'fantasma' | 'perigoTexto';
@@ -25,7 +26,7 @@ interface Props {
    */
   motivo?: string;
   carregando?: boolean;
-  /** Ocupa a largura toda (entrar, ação única da tela no celular). Sem isto o botão tem o tamanho do texto. */
+  /** Ocupa a largura toda (entrar, ação única da tela no celular). Sem isto o botão tem o tamanho do texto, menos no rodapé empilhado do celular (`RodapeDeAcoes`), onde já é cheio. */
   cheio?: boolean;
   autoFocus?: boolean;
   style?: StyleProp<ViewStyle>;
@@ -44,6 +45,9 @@ export const Botao = forwardRef<View, Props>(function Botao(
   ref
 ) {
   const { cores, marca, sobreMarca } = useTema();
+  // Na fila de ações do rodapé no celular todo botão é cheio; um `cheio` explícito vale mais.
+  const arranjo = useArranjoDasAcoes();
+  const largo = cheio ?? arranjo.empilhar;
   const inativo = desabilitado || carregando;
   const semFundo = tipo === 'fantasma' || tipo === 'perigoTexto';
   const cinza = coresDoDesabilitado(cores);
@@ -52,6 +56,9 @@ export const Botao = forwardRef<View, Props>(function Botao(
   const texto = visual.cinza ? cinza.texto : tipo === 'primario' ? sobreMarca : tipo === 'perigo' ? textoSobre(cores.perigoFundo) : tipo === 'perigoTexto' ? cores.perigo : cores.texto;
   const borda = visual.cinza && !semFundo ? cinza.borda : tipo === 'secundario' ? cores.borda : fundo;
   const explicacao = desabilitado && !carregando && motivo ? motivo : undefined;
+  // Ação e motivo são um bloco (P5): numa fila alinhada à direita o botão fica na ponta e o motivo, colado sob ele,
+  // alinhado à mesma borda; o motivo mais largo que o botão não o empurra para dentro.
+  const aDireita = !!explicacao && !largo && arranjo.alinhar === 'fim';
   const botao = (
     <Button
       ref={ref}
@@ -71,7 +78,8 @@ export const Botao = forwardRef<View, Props>(function Botao(
           borderColor: semFundo && pressed && !inativo ? cores.superficie3 : borda,
           opacity: visual.apagado ? 0.5 : pressed && !semFundo && !inativo ? 0.8 : 1,
         },
-        cheio && estilos.cheio,
+        largo && estilos.cheio,
+        aDireita && estilos.naPonta,
         explicacao ? null : style,
       ]}>
       <View style={estilos.linha}>
@@ -82,9 +90,9 @@ export const Botao = forwardRef<View, Props>(function Botao(
   );
   if (!explicacao) return botao;
   return (
-    <View style={[estilos.comMotivo, cheio && estilos.cheio, style]}>
+    <View style={[estilos.comMotivo, largo && estilos.cheio, aDireita && estilos.comMotivoADireita, style]}>
       {botao}
-      <Texto variante="pequeno" style={cheio ? estilos.motivoCentro : null}>{explicacao}</Texto>
+      <Texto variante="pequeno" style={largo ? estilos.motivoCentro : aDireita ? estilos.motivoADireita : null}>{explicacao}</Texto>
     </View>
   );
 });
@@ -106,4 +114,7 @@ const estilos = StyleSheet.create({
   rotulo: { fontFamily: fontes.semi, fontSize: 15, flexShrink: 1, textAlign: 'center' },
   comMotivo: { alignSelf: 'flex-start', maxWidth: '100%', gap: espaco(0.5) },
   motivoCentro: { textAlign: 'center' },
+  comMotivoADireita: { alignItems: 'flex-end' },
+  naPonta: { alignSelf: 'flex-end' },
+  motivoADireita: { textAlign: 'right' },
 });

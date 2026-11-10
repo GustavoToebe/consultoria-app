@@ -2,12 +2,13 @@ import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescript
 import { ESTILOS_TEXTO } from './tipografia';
 import { TriangleAlert } from 'lucide-react-native';
 import { useRef, type ReactNode } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, LINHA_DA_FAIXA, RAIO } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, LARGURA_MENU_LATERAL, LINHA_DA_FAIXA, RAIO } from '../tema/tokens';
 import { Botao } from './Botao';
 import { usePortalDaFolha, type PortalDaFolhaValor } from './Folha';
+import { RodapeDeAcoes } from './LinhaDeAcoes';
 import { Texto } from './Texto';
 
 interface Props {
@@ -37,6 +38,7 @@ interface Props {
  */
 export function PainelConfirmacao(props: Props) {
   const { cores, bordas } = useTema();
+  const { width } = useWindowDimensions();
   const focoAnterior = useRef<HTMLElement | null>(null);
   // Dentro de uma Folha o diálogo vai para o portal dela; no da raiz ficaria escondido atrás do Modal.
   const portalDeQuemContem = usePortalDaFolha();
@@ -57,7 +59,9 @@ export function PainelConfirmacao(props: Props) {
           <View style={estilos.corpo}>
             {props.mensagem ? <AlertDialogDescription style={[ESTILOS_TEXTO.suave, {color:cores.textoSuave}]}>{props.mensagem}</AlertDialogDescription> : null}
             {props.children}
-            <View style={estilos.botoes}>
+            {/* Mesmo rodapé da `Folha`: Cancelar e a ação à direita; no celular em coluna, a ação em cima e cheia. O motivo
+                fica colado sob a ação, alinhado à direita (o `Botao` o põe; antes ficava solto embaixo da linha). */}
+            <View style={estilos.botoes}><RodapeDeAcoes empilhar={width < LARGURA_MENU_LATERAL}>
               <AlertDialogCancel style={[estilos.cancelar, { borderColor: cores.borda }]}>
                 <Texto style={estilos.textoCancelar}>{props.rotuloCancelar ?? 'Cancelar'}</Texto>
               </AlertDialogCancel>
@@ -68,11 +72,10 @@ export function PainelConfirmacao(props: Props) {
                 carregando={props.carregando}
                 desabilitado={props.desabilitado}
                 rotuloAcessivel={props.desabilitado && props.motivo ? `${props.rotuloConfirmar}. ${props.motivo}` : undefined}
+                motivo={props.motivo}
                 aoTocar={props.aoConfirmar}
               />
-            </View>
-            {/* O motivo fica abaixo da linha dos botões: dentro do botão ele esticava a altura e o Cancelar crescia junto. */}
-            {props.desabilitado && props.motivo && !props.carregando ? <Texto variante="pequeno" style={estilos.motivo}>{props.motivo}</Texto> : null}
+            </RodapeDeAcoes></View>
           </View>
       </AlertDialogContent>
     </AlertDialog>
@@ -91,8 +94,7 @@ const estilos = StyleSheet.create({
   },
   faixa: { paddingHorizontal: espaco(2.5), paddingVertical: espaco(1.5), borderBottomWidth: LINHA_DA_FAIXA },
   corpo: { padding: espaco(2.5), gap: espaco(1.5) },
-  botoes: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: espaco(1), flexWrap: 'wrap', marginTop: espaco(0.5) },
-  motivo: { textAlign: 'right' },
+  botoes: { marginTop: espaco(0.5) },
   cancelar: { minHeight: ALVO_TOQUE, borderRadius: RAIO, borderWidth: 1, paddingHorizontal: espaco(2), alignItems: 'center', justifyContent: 'center' },
   textoCancelar: { fontFamily: fontes.semi },
 });

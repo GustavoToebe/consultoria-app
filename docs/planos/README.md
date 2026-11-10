@@ -18,6 +18,8 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Frente | Arquivo | Onde | Situação | Atualizado |
 | --- | --- | --- | --- | --- |
 | Teste com 5 alunos | [teste-5-alunos.md](teste-5-alunos.md) | produção | Preparando | 27/10/2026 |
+| Editor de treino reorganizado (topo, hierarquia, blocos de séries, lateral, vazio, status) | [editor-de-treino-reorganizado.md](editor-de-treino-reorganizado.md) | `main` | Em andamento em 10/11: passos 1 e 2 feitos, telas pendentes (no mesmo lote, push único) | 10/11/2026 |
+| Composição visual: padrões de modal, formulário, opções, prévia e mensagens | [composicao-visual.md](composicao-visual.md) | local, sem commit | Em andamento: passos 4a, 4b e 4c feitos (e2e verdes, sem capturas); faltam 5 e 6 | 10/11/2026 |
 | Anamnese ao aceitar a inscrição | [anamnese-no-aceite.md](anamnese-no-aceite.md) | `main` | Concluída em 27/10/2026 | 27/10/2026 |
 | Listas padronizadas no treinador | [listas-padronizadas.md](listas-padronizadas.md) | `main` | Concluída em 27/10/2026 | 27/10/2026 |
 | Comunidade, Aulões & Gamificação (antigo Engajamento, C81 / N45) | [engajamento.md](engajamento.md) | `main` | Concluída em 09/11/2026 (Etapa 0 V039/V040; Comunidade, Aulões, Mural e Conquistas V065) | 09/11/2026 |
