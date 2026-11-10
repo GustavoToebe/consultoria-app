@@ -94,6 +94,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Revisão geral de 07 a 09/11 (back, banco e front; V067 e V068) | [revisao-07-09-11.md](revisao-07-09-11.md) | `main` | Publicada em 09/11/2026 (`133d6cc6`, run 42716103970); sobras em "Pendências soltas" | 09/11/2026 |
 | Comunidade: perfil do aluno, apelido e moderação própria (V069) | [comunidade-perfil-e-apelido.md](comunidade-perfil-e-apelido.md) | `main` | Publicada em 09/11/2026 (`aff3f594`, run 42742734020) e em 10/11 (comentários do mural, `d3ef4e8d`, run 42809233359); sobras em "Pendências soltas" | 09/11/2026 |
 | Perfil do colega no estilo Steam (foto, nível, destaques, cor e moldura; entra na gamificação existente) | [perfil-estilo-steam.md](perfil-estilo-steam.md) | `main` | Implementada em 10/11 (V070, API, revisão independente e app), junto do A1/A2 do mural e do limite de 280 caracteres; verificada no local (mvn verify, Jest e e2e verdes), aguardando o teste do Gustavo e o push único (um commit por passo no plano). A revisão jurídica sobre menores foi dispensada pelo Gustavo: o menor mostra ou reserva pelo botão | 10/11/2026 |
+| Ficha do aluno em abas e atividade recente (rota nova; etapas intermediária e avançada só documentadas) | [ficha-do-aluno-em-abas.md](ficha-do-aluno-em-abas.md) | `main` | Planejando em 10/11 (no mesmo lote do perfil Steam, push único) | 10/11/2026 |
 
 ## Pendências soltas
 
