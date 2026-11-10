@@ -58,7 +58,7 @@ import {
 } from '../../dominio/inscricoes';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, fontes, RAIO } from '../../tema/tokens';
+import { espaco, fontes, LARGURA_EDITOR, RAIO } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { CaixaSelecao } from '../../ui/CaixaSelecao';
@@ -137,7 +137,7 @@ export function FolhaDaInscricao({ id, pedidoInicial, responsaveis, aoFechar, ao
     </>
   ) : undefined;
   return (
-    <Folha visivel={!!id} titulo={dados?.nome ?? 'Inscrição'} aoFechar={fechar} rodape={rodape}>
+    <Folha visivel={!!id} titulo={dados?.nome ?? 'Inscrição'} aoFechar={fechar} rodape={rodape} largura={LARGURA_EDITOR}>
       {detalhe.erro ? <MensagemErro texto={textoDoErro(detalhe.erro)} tentarDeNovo={detalhe.recarregar} erro={detalhe.erro} /> : null}
       {!dados && !detalhe.erro ? <Esqueleto /> : null}
       {dados ? (
