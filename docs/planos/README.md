@@ -92,7 +92,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Formulários unificados da consultoria ("Google Forms interno", C62) | [formularios-unificados.md](formularios-unificados.md) | `main` | Concluída em 09/11/2026 (V064); correções da revisão na V067, testes ainda não executados | 09/11/2026 |
 | Importação assistida por IA (Lote misto PDF/DOCX/XLSX/Texto, Gemini/Claude e regras) | [importacao-assistida-ia.md](importacao-assistida-ia.md) | `main` | Concluída em 09/11/2026 (V066); correções da revisão (LGPD, permissões, retenção) aplicadas localmente, testes ainda não executados | 09/11/2026 |
 | Revisão geral de 07 a 09/11 (back, banco e front; V067 e V068) | [revisao-07-09-11.md](revisao-07-09-11.md) | `main` | Publicada em 09/11/2026 (`133d6cc6`, run 42716103970); sobras em "Pendências soltas" | 09/11/2026 |
-| Comunidade: perfil do aluno, apelido e moderação própria (V069) | [comunidade-perfil-e-apelido.md](comunidade-perfil-e-apelido.md) | `main` | Em andamento | 09/11/2026 |
+| Comunidade: perfil do aluno, apelido e moderação própria (V069) | [comunidade-perfil-e-apelido.md](comunidade-perfil-e-apelido.md) | `main` | Publicada em 09/11/2026 (`aff3f594`, run 42742734020); sobras em "Pendências soltas" | 09/11/2026 |
 
 ## Pendências soltas
 
@@ -233,6 +233,10 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Push do Expo: ao ligar, ativar o enhanced security no Expo e gravar `TREINOS_PUSH_EXPO_TOKEN` pelo `gravar-segredo.sh` (sem ele, quem tiver o token do aparelho pode mandar notificação) | Gustavo | push-do-expo |
 | Paletas: conferir no celular as 4 escuras novas (item dentro do cartão mais escuro que o cartão) | Gustavo | paletas-da-marca |
 | Libras e migração assistida ligadas em produção em 04/11: conferir logado (o Claude não tem conta fictícia em produção) que o `GET /eu` traz `unidadeDeCargaHabilitada` e `migracaoAssistidaHabilitada` verdadeiros, que a Importação mostra o diagnóstico do arquivo (só com planilha fictícia) e que Conta › Preferências do aluno tem kg/lb; APK gerado antes do #82 mostra o −/+ antigo em libra (o app não tem `expo-updates`): gerar APK novo antes de alunos de celular usarem libra | Gustavo | libras, migracao-assistida |
+| `e2e/links-do-menu.spec.ts` (Ctrl+clique) falhou na rodada local de 09/11 (fora do diff da Comunidade; não confirmado se já falhava antes) | Claude | comunidade-perfil-e-apelido
+| Comunidade: o cartão do apelido refaz `GET /aluno/meus-dados`; comentários do mural sem tela no app; foto do colega no perfil (decisão 2, a confirmar com o Gustavo) | Claude / Gustavo | comunidade-perfil-e-apelido
+| V069 só testada em banco novo: conferir o gatilho sob o papel `consultoria_app` e o efeito nos dados reais na próxima ida à VPS | Claude | comunidade-perfil-e-apelido
+| Padrão `FaixaDeChips quebrar` em volta de um único `Escolha` em `treinador/alunos/index.tsx`, `planejamento/index.tsx`, `montador/catalogo.tsx` e `catalogoDeComponentes.tsx` | Claude (front) | comunidade-perfil-e-apelido
 | ~~Agenda: e2e do clique em "Menos opções"~~ · feito em 09/11 no `agenda-calendario.spec.ts` (abrir o completo, digitar, voltar ao rápido e ver o digitado) | Claude | conferencia-pendencias-04-11 |
 | ~~`ui/Escolha`: acessibilidade web WCAG 4.1.2~~ · corrigido em 09/11: chips usam `role="radio"` e grupo usa `role="radiogroup"`, tornando o `aria-checked` 100% válido | Claude | miudos-sem-api-04-11 |
 | Libras: textos de `ajuda/conteudo.ts` com "kg" de exemplo, mensagem da lista de problemas do editor (compartilhada com a API) e texto digitado pelo treinador não são convertidos | Claude, quando o Gustavo pedir | libras |

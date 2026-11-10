@@ -17,11 +17,11 @@ O aluno pode ter um apelido (vulgo, como no Discord) e os colegas podem abrir o 
 | 7 | Moderar apelido | Quem tem `COMUNIDADE_MODERAR` pode limpar o apelido de um aluno; o aluno pode pôr outro depois | Claude |
 
 ## Passos
-- [x] 1. API (V069: permissão, coluna `aluno.apelido`, rotas, exportação LGPD e anonimização) — evidência: testes locais verdes em 09/11 (`ComunidadeApelidoIntegrationTest`, `ApelidoDoAlunoServiceTest`, `ComunidadeModerarMigrationTest`, Flyway 69); correções do revisor (A–D: `@OptimisticLock(excluded = true)` no apelido, recusa de preenchimentos Hangul e de apelido sem letra/dígito, link conferido em NFKC, comentário do ranking) e `autorEhAluno` no mural e nos comentários (só aluno ativo abre perfil) aplicados em 09/11 e testados; sem commit ainda
-- [x] 2. App (apelido na Conta, apelido no mural, perfil do colega, permissão no app, `sessionStorage`) — evidência: `npm run typecheck`, `npm run lint` (0 erros), `npx jest` (283 suítes, 6096 testes) e e2e `comunidade`, `inscricao`, `inscricao-perguntas`, `meus-dados-aluno`, `biblioteca-catalogo`, `entrar-perfil`, `supervisao-da-equipe` (113 verdes) em 09/11; commit/run: —
-- [x] 2b. Folha "Editar alimento" reorganizada (4 cartões, chips que não passam da borda; pedido do Gustavo de 09/11) — `AbaAlimentos.tsx`, textos de `AJUDA_FC`/`AJUDA_FCC` em `dominio/fatoresDoAlimento.ts` e e2e em `biblioteca-catalogo.spec.ts`; commit/run: —
-- [ ] 3. Revisão independente (permissão, LGPD, migration) — evidência: —
-- [ ] 4. `mvn verify`, `jest`, e2e e push na `main` — commit/run: —
+- [x] 1. API (V069: permissão, coluna `aluno.apelido`, rotas, exportação LGPD e anonimização) — evidência: testes locais verdes em 09/11 (`ComunidadeApelidoIntegrationTest`, `ApelidoDoAlunoServiceTest`, `ComunidadeModerarMigrationTest`, Flyway 69); correções do revisor (A–D: `@OptimisticLock(excluded = true)` no apelido, recusa de preenchimentos Hangul e de apelido sem letra/dígito, link conferido em NFKC, comentário do ranking) e `autorEhAluno` no mural e nos comentários (só aluno ativo abre perfil) aplicados em 09/11 e testados; commit `aff3f594`
+- [x] 2. App (apelido na Conta, apelido no mural, perfil do colega, permissão no app, `sessionStorage`) — evidência: `npm run typecheck`, `npm run lint` (0 erros), `npx jest` (283 suítes, 6096 testes) e e2e `comunidade`, `inscricao`, `inscricao-perguntas`, `meus-dados-aluno`, `biblioteca-catalogo`, `entrar-perfil`, `supervisao-da-equipe` (113 verdes) em 09/11, depois das correções da revisão 88 verdes (`comunidade`, `inscricao`, `inscricao-perguntas`, `meus-dados-aluno`); commit `aff3f594`
+- [x] 2b. Folha "Editar alimento" reorganizada (4 cartões, chips que não passam da borda; pedido do Gustavo de 09/11) — `AbaAlimentos.tsx`, textos de `AJUDA_FC`/`AJUDA_FCC` em `dominio/fatoresDoAlimento.ts` e e2e em `biblioteca-catalogo.spec.ts`; commit `aff3f594`
+- [x] 3. Revisão independente (permissão, LGPD, migration) — evidência: revisor da API achou A–D (aplicados); revisor do app achou os itens 1–6 (1–5 corrigidos: reabrir o perfil busca de novo, 404 na moderação recarrega o mural, `sessionStorage` com `try/catch`, seletores, comentário) e concluiu "pode subir"; o item 6 (o cartão do apelido refaz `GET /aluno/meus-dados`) ficou de fora
+- [x] 4. `mvn verify`, `jest`, e2e e push na `main` — `mvn verify` completo (2247 testes, 0 falhas, cobertura ok), `typecheck`, `lint` (0 erros), `jest` (283 suítes, 6098 testes) em 09/11; commit `aff3f594` na `main`; run do deploy: 42742734020 (resultado abaixo)
 
 ## Fora do escopo
 - Foto do colega no perfil (decisão 2) e perfil de membro da equipe.
@@ -29,3 +29,11 @@ O aluno pode ter um apelido (vulgo, como no Discord) e os colegas podem abrir o 
 
 ## O que ficou para trás
 - (cada sobra também vai para "Pendências soltas" no README)
+- `e2e/links-do-menu.spec.ts` (Ctrl+clique) falhou na rodada local de 09/11; não foi conferido se já falhava antes, fora do diff.
+- Revisor do app, item 6: o cartão do apelido refaz `GET /aluno/meus-dados`.
+- V069 só foi testada em banco novo; o gatilho sob o papel `consultoria_app` e os dados reais da produção não foram provados.
+- Comentários do mural não aparecem em tela nenhuma do app (só "N comentário(s)"); a API já traz `autorApelido`/`autorEhAluno` neles.
+- Foto do colega no perfil (decisão 2, a confirmar com o Gustavo).
+- Padrão `FaixaDeChips quebrar` em volta de um único `Escolha` ainda existe em `treinador/alunos/index.tsx`, `planejamento/index.tsx`, `montador/catalogo.tsx` e `catalogoDeComponentes.tsx`.
+- Textos de ajuda de FC/FCc foram encurtados (perdeu "abaixo de 1, encolhe").
+- Temas areia e contraste alto da Conta e do treinador, app nativo (Android e iOS) e web real em `:8088` não foram conferidos.
