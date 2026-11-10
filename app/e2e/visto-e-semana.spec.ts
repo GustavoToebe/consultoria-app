@@ -75,7 +75,7 @@ for (const largura of [390, 1280]) {
   test(`ficha: treinos concluídos com "Marcar como visto", desfazer, e os recordes da semana (${largura} px)`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const api = await treinador(page, ['REGISTRO_REAGIR']);
-    await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+    await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=acompanhamento`);
 
     const cartao = page.getByRole('heading', { name: 'Treinos concluídos' });
     await expect(cartao).toBeVisible();
@@ -101,7 +101,7 @@ for (const largura of [390, 1280]) {
 
 test('sem REGISTRO_REAGIR o treinador só lê: sem botão, com o selo "Visto" quando já marcado', async ({ page }) => {
   const api = await treinador(page, [], '2026-10-19T10:00:00Z');
-  await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+  await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=acompanhamento`);
   await expect(page.getByText('Treino curto · ontem')).toBeVisible();
   await expect(page.getByText('Visto', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /como visto|Tocar desfaz/ })).toHaveCount(0);
@@ -115,7 +115,7 @@ test('Início do treinador: o cartão Recordes do bloco Treinos abre a Folha, e 
   const folha = page.getByRole('dialog', { name: 'Recordes dos últimos 7 dias' });
   await expect(folha.getByText(/1 série com recorde/)).toBeVisible();
   await folha.getByRole('link', { name: /^Aluno Teste, Supino de teste/ }).click();
-  await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${ALUNO_ID}$`));
+  await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${ALUNO_ID}\\?aba=acompanhamento$`));
   expect(api.errosDaPagina).toEqual([]);
 });
 

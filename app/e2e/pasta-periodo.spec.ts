@@ -32,10 +32,10 @@ for (const largura of [390, 1280]) {
       [`POST /alunos/${ALUNO_ID}/pastas`]: { corpo: { ...PASTAS[1], id: 'p3', titulo: 'Plano 18' } },
     });
 
-    await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+    await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=planos`);
     // "Abertas", não "Ativas": pasta aberta não quer dizer plano em uso pelo aluno.
-    await expect(page.getByRole('button', { name: 'Abertas' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Ativas' })).toHaveCount(0);
+    await expect(page.getByRole('radio', { name: 'Abertas' })).toBeVisible();
+    await expect(page.getByRole('radio', { name: 'Ativas' })).toHaveCount(0);
 
     await page.getByRole('button', { name: 'Nova pasta' }).click();
     const folha = page.getByRole('dialog');
@@ -84,7 +84,7 @@ for (const largura of [390, 1280]) {
       [`POST /alunos/${ALUNO_ID}/pastas`]: { corpo: { ...PASTAS[1], id: 'p3', titulo: 'Plano 18' } },
     });
 
-    await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+    await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=planos`);
     await page.getByRole('button', { name: 'Nova pasta' }).click();
     const folha = page.getByRole('dialog');
     await folha.getByLabel('Título').fill('Plano 18');
@@ -122,7 +122,7 @@ for (const largura of [390, 1280]) {
       'POST /pastas/p1/replicar': { corpo: { ...PASTAS[0], id: 'p3', titulo: 'Plano 18', concluidaEm: null } },
     });
 
-    await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+    await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=planos`);
     await page.getByRole('button', { name: 'Nova pasta' }).click();
     const folha = page.getByRole('dialog', { name: 'Nova pasta' });
     await folha.getByRole('button', { name: 'Copiar de: Não copiar. Escolher.' }).click();
@@ -150,7 +150,7 @@ test('pasta nova: uma pasta só não oferece copiar', async ({ page }) => {
     [`GET /alunos/${ALUNO_ID}`]: { corpo: FICHA },
     [`GET /alunos/${ALUNO_ID}/pastas`]: { corpo: [PASTAS[0]] },
   });
-  await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+  await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=planos`);
   await page.getByRole('button', { name: 'Nova pasta' }).click();
   await expect(page.getByRole('dialog').getByText('Copiar de')).toHaveCount(0);
   expect(errosDaPagina).toEqual([]);

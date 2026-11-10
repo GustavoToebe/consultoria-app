@@ -30,7 +30,7 @@ test('aluno sem conta: define e-mail e senha gerada, mostra o e-mail em uso no c
       return json(route, { ...SEM_CONTA, temAcesso: true, aguardandoPrimeiroAcesso: true, emailDeAcesso: email });
     },
   });
-  await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+  await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
   const acesso = acessoDoAluno(page);
   await expect(acesso.getByText('Sem acesso', { exact: true })).toBeVisible();
   await expect(acesso.getByRole('button', { name: 'Gerar convite' })).toBeVisible();
@@ -73,7 +73,7 @@ test('aluno com conta: "Definir nova senha" confirma que as sessões serão ence
     [`GET /alunos/${ALUNO_ID}`]: { corpo: COM_CONTA },
     [`PUT /alunos/${ALUNO_ID}/acesso`]: { corpo: { ...COM_CONTA, aguardandoPrimeiroAcesso: true } },
   });
-  await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+  await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
   const acesso = acessoDoAluno(page);
   await expect(acesso.getByText('Com acesso', { exact: true })).toBeVisible();
   await expect(acesso.getByText(`Entra com ${ALUNO.email}.`)).toBeVisible();
@@ -103,10 +103,10 @@ test('cartão de lesões vazio segue o formato dos outros cartões da ficha', as
     [`GET /alunos/${ALUNO_ID}`]: { corpo: SEM_CONTA },
     [`GET /alunos/${ALUNO_ID}/lesoes`]: { corpo: [] },
   });
-  await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+  await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
   const cartaoDe = (nome: string) => page.getByRole('heading', { name: nome }).locator('xpath=ancestor::div[3]');
   const lesoes = cartaoDe('Histórico de lesões');
-  const peso = cartaoDe('Peso');
+  const peso = cartaoDe('Anamnese');
   await expect(lesoes.getByText('Lesões registradas na ficha do aluno.')).toBeVisible();
   await expect(lesoes.getByText('Nenhuma lesão registrada.')).toBeVisible();
   await expect(lesoes.getByRole('button', { name: 'Registrar lesão' })).toBeVisible();
@@ -126,7 +126,7 @@ test('aluno aguardando o primeiro acesso: "Definir outra senha"; inativo não mo
     ...ROTAS_DA_FICHA,
     [`GET /alunos/${ALUNO_ID}`]: (_p, route) => json(route, ficha),
   });
-  await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+  await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
   const acesso = acessoDoAluno(page);
   await expect(acesso.getByText(`O aluno entra com ${ALUNO.email} e a senha provisória e cria a senha dele.`)).toBeVisible();
   await expect(acesso.getByRole('button', { name: 'Definir outra senha' })).toBeVisible();

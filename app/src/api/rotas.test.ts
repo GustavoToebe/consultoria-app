@@ -1,6 +1,6 @@
 import { requisicao } from './cliente';
 import {
-  aceitarInscricao, alterarCancelamentoCompromisso, alterarCompromisso, alterarSituacaoDoAluno, aplicarAlteracaoDaAnamnese, avisosDeCompromisso, listarAlunosOcupados, marcarAvisoDeCompromissoVisto, compromissosDoAluno, criarCompromisso, listarCompromissos, buscarQuestionario, descartarAlteracaoDaAnamnese, fatoresDosAlimentos, inscricao, inscricaoPublica, listarPlanos,
+  atividadeRecenteDoAluno, aceitarInscricao, alterarCancelamentoCompromisso, alterarCompromisso, alterarSituacaoDoAluno, aplicarAlteracaoDaAnamnese, avisosDeCompromisso, listarAlunosOcupados, marcarAvisoDeCompromissoVisto, compromissosDoAluno, criarCompromisso, listarCompromissos, buscarQuestionario, descartarAlteracaoDaAnamnese, fatoresDosAlimentos, inscricao, inscricaoPublica, listarPlanos,
   retornoDoPagamento, definirLembretesDoAluno, lembretesDaCobranca, lembretesDoAluno,
   alterarAgendaPessoal, alterarEvento, apagarAgendaPessoal, contarEventosDaAgenda, criarAgendaPessoal, criarEvento, cruzamentosDoEvento,
   detalheDoEvento, excluirEvento, listarAgendasPessoais, listarAlunos, listarAtualizacoes, listarAtualizacoesPagina, contagensAtualizacoes, listarEventos, resumoDaAgenda,
@@ -28,6 +28,11 @@ describe('caminhos da API', () => {
   it('alteração do cadastro proposta pela anamnese: os dois ids codificados', async () => {
     await expect(aplicarAlteracaoDaAnamnese('a/b', '../c')).resolves.toBe('/anamneses/a%2Fb/alteracoes/..%2Fc/aplicar');
     await expect(descartarAlteracaoDaAnamnese('a', 'b')).resolves.toBe('/anamneses/a/alteracoes/b/descartar');
+  });
+
+  it('atividade recente: id codificado e limite na busca (padrão 5)', async () => {
+    await expect(atividadeRecenteDoAluno('a/b')).resolves.toBe('/alunos/a%2Fb/atividade-recente?limite=5');
+    await expect(atividadeRecenteDoAluno('a', 20)).resolves.toBe('/alunos/a/atividade-recente?limite=20');
   });
 
   it('lembretes de pagamento do aluno: sem id (é sempre o da sessão), GET para ler e PUT com só o `receber`', async () => {

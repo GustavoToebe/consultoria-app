@@ -138,7 +138,7 @@ test('treinador vê a anamnese respondida no cartão da ficha, com "Não se apli
     [`GET /alunos/${ALUNO_ID}/anamneses`]: { corpo: [resumo] },
     [`GET /anamneses/${ANAMNESE_ID}`]: { corpo: enviada },
   });
-  await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+  await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
   const cartao = page.getByText('Questionário inicial que o aluno responde no app.');
   await expect(cartao).toBeVisible();
   await page.getByText('Anamnese inicial').first().click();

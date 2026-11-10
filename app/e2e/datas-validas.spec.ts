@@ -19,7 +19,7 @@ const FICHA: AlunoDetalhe = {
   emailDeAcesso: ALUNO.email, aguardandoPrimeiroAcesso: false,
 };
 
-async function abrirFicha(page: Page) {
+async function abrirFicha(page: Page, aba: 'evolucao' | 'ficha') {
   await fixarHoje(page);
   const api = await simularApi(page, {
     ...(await sessao(page, TREINADOR, { permissoes: PERMISSOES_TREINADOR })),
@@ -36,7 +36,7 @@ async function abrirFicha(page: Page) {
     },
     [`POST /alunos/${ALUNO_ID}/lesoes`]: (p, route) => json(route, { id: 'l1', ...(p.corpo as Omit<Lesao, 'id'>) }),
   });
-  await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+  await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=${aba}`);
   return api;
 }
 
@@ -47,7 +47,7 @@ for (const largura of [390, 1280]) {
     test.use({ viewport: { width: largura, height: 900 } });
 
     test('peso: ano 0261 e data futura são recusados no campo, com o Registrar travado; a data de hoje passa', async ({ page }) => {
-      const { pedidos, errosDaPagina } = await abrirFicha(page);
+      const { pedidos, errosDaPagina } = await abrirFicha(page, 'evolucao');
       await page.getByRole('button', { name: 'Registrar peso' }).click();
       const folha = page.getByRole('dialog', { name: 'Registrar peso' });
       // A observação do peso é só da equipe: o formulário diz isso.
@@ -79,7 +79,7 @@ for (const largura of [390, 1280]) {
     });
 
     test('lesão: início em 0261 e fim no futuro são recusados nos campos, com o Salvar travado; datas passadas passam', async ({ page }) => {
-      const { pedidos, errosDaPagina } = await abrirFicha(page);
+      const { pedidos, errosDaPagina } = await abrirFicha(page, 'ficha');
       await page.getByRole('button', { name: 'Registrar lesão' }).click();
       const folha = page.getByRole('dialog', { name: 'Registrar lesão' });
       const salvar = folha.getByRole('button', { name: 'Salvar', exact: true });
@@ -111,7 +111,7 @@ for (const largura of [390, 1280]) {
     });
 
     test('avaliação física: ano 0261 e data futura mostram a mensagem no campo e o Salvar não chama a API', async ({ page }) => {
-      const { pedidos, errosDaPagina } = await abrirFicha(page);
+      const { pedidos, errosDaPagina } = await abrirFicha(page, 'evolucao');
       await page.getByRole('button', { name: 'Nova avaliação' }).click();
       const folha = page.getByRole('dialog', { name: 'Nova avaliação física' });
       const data = folha.getByLabel('Data', { exact: true });

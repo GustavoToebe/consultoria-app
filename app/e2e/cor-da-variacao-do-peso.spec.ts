@@ -37,7 +37,7 @@ function rgb(hex: string): string {
 
 /** Opção do `Escolha` (como em `agenda-calendario.spec.ts`): botão dentro do grupo, marcada com `aria-checked`. */
 const opcao = (onde: Locator | Page, grupo: string, rotulo: string) =>
-  onde.getByRole('radiogroup', { name: grupo }).getByRole('button', { name: rotulo, exact: true });
+  onde.getByRole('radiogroup', { name: grupo }).getByRole('radio', { name: rotulo, exact: true });
 
 async function corDe(page: Page, texto: string): Promise<string> {
   const alvo = page.getByText(texto, { exact: true });
@@ -62,7 +62,7 @@ async function abrirFicha(page: Page, meta: MetaDoPeso | undefined) {
     [`GET /alunos/${ALUNO_ID}`]: { corpo: FICHA },
     [`GET /alunos/${ALUNO_ID}/pesos`]: { corpo: pesos(meta) },
   });
-  await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+  await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=evolucao`);
   await expect(page.getByLabel('Registros de peso').getByText('80,5 kg', { exact: true })).toBeVisible();
   return api;
 }
@@ -151,9 +151,17 @@ for (const largura of [390, 1280]) {
         return json(route, { ...FICHA, versao: 2, ...(doAluno ? { metaDoPeso: doAluno } : {}) });
       },
     });
-    await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+    // A meta fica nos Dados do aluno (aba Ficha do aluno) e as cores no Peso (aba Evolução).
+    const corNoPeso = async (linha: string) => {
+      await page.getByRole('tab', { name: 'Evolução', exact: true }).click();
+      await expect(page.getByText(linha, { exact: true })).toBeVisible();
+      const cor = await corDe(page, '▼ −0,7 kg');
+      await page.getByRole('tab', { name: 'Ficha do aluno', exact: true }).click();
+      return cor;
+    };
+    await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
     await expect(page.getByLabel('Meta do peso: Padrão da consultoria', { exact: true })).toBeVisible();
-    expect(await corDe(page, '▼ −0,7 kg')).toBe(rgb(CLARO.sucesso));
+    expect(await corNoPeso('Cores pela meta: reduzir o peso')).toBe(rgb(CLARO.sucesso));
 
     // Meta própria: Aumentar. Salvar troca as cores sem recarregar a página.
     await page.getByRole('button', { name: 'Editar', exact: true }).click();
@@ -163,8 +171,7 @@ for (const largura of [390, 1280]) {
     await page.getByRole('button', { name: 'Salvar', exact: true }).click();
     await expect(page.getByText('Dados salvos.')).toBeVisible();
     await expect(page.getByLabel('Meta do peso: Aumentar', { exact: true })).toBeVisible();
-    await expect(page.getByText('Cores pela meta: aumentar o peso', { exact: true })).toBeVisible();
-    expect(await corDe(page, '▼ −0,7 kg')).toBe(rgb(CLARO.perigo));
+    expect(await corNoPeso('Cores pela meta: aumentar o peso')).toBe(rgb(CLARO.perigo));
 
     // Salvar outro campo reenvia a meta escolhida (não a apaga) e volta ao padrão só com PADRAO_DA_CONSULTORIA.
     await page.getByRole('button', { name: 'Editar', exact: true }).click();
@@ -172,8 +179,7 @@ for (const largura of [390, 1280]) {
     await opcao(page, 'Meta do peso', 'Padrão da consultoria').click();
     await page.getByRole('button', { name: 'Salvar', exact: true }).click();
     await expect(page.getByLabel('Meta do peso: Padrão da consultoria', { exact: true })).toBeVisible();
-    await expect(page.getByText('Cores pela meta: reduzir o peso', { exact: true })).toBeVisible();
-    expect(await corDe(page, '▼ −0,7 kg')).toBe(rgb(CLARO.sucesso));
+    expect(await corNoPeso('Cores pela meta: reduzir o peso')).toBe(rgb(CLARO.sucesso));
 
     const envios = pedidos.filter((p) => p.metodo === 'PUT' && p.caminho === `/alunos/${ALUNO_ID}`).map((p) => (p.corpo as { metaDoPeso?: unknown }).metaDoPeso);
     expect(envios).toEqual(['AUMENTAR', 'PADRAO_DA_CONSULTORIA']);
@@ -191,7 +197,7 @@ for (const largura of [390, 1280]) {
       [`GET /alunos/${ALUNO_ID}`]: { corpo: FICHA },
       [`PUT /alunos/${ALUNO_ID}`]: (_p, route) => json(route, { ...FICHA, versao: 2 }),
     });
-    await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+    await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
     await expect(page.getByText('Dados do aluno', { exact: true })).toBeVisible();
     await expect(page.getByText('Meta do peso', { exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: 'Editar', exact: true }).click();

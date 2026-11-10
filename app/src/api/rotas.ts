@@ -62,6 +62,7 @@ import type {
 import type {
   Atualizacao,
   AtualizacaoDaLista, PaginaDeAtualizacoes,
+  AtividadeRecente,
   EvolucaoRespostas,
   ConfiguracaoDeFotos,
   FotoDaLinha,
@@ -299,6 +300,9 @@ export const atualizacoesDoAluno = (id: string) => requisicao<Atualizacao[]>(`/a
 export const atualizacaoDoAluno = (id: string) => requisicao<Atualizacao>(`/alunos/${seg(id)}/atualizacao`);
 export const evolucaoRespostasDoAluno = (id: string) =>
   requisicao<EvolucaoRespostas>(`/alunos/${seg(id)}/atualizacoes/evolucao`);
+/** Últimos acontecimentos do aluno (Resumo da ficha); o servidor corta o limite em 1 a 20 e confere a permissão de cada tipo. */
+export const atividadeRecenteDoAluno = (id: string, limite = 5) =>
+  requisicao<AtividadeRecente>(`/alunos/${seg(id)}/atividade-recente?limite=${limite}`);
 
 // ---- Fotos da atualização (bytes só pela API, com token; nada de link direto para o bucket) ----
 

@@ -46,8 +46,8 @@ export function CartaoRecordesDaSemana(p: { alunoId: string; meus?: never; style
               <LinhaDaLista key={`${s.data}:${s.exercicioId}:${i}`} titulo={textoDaSerieComRecorde(s, unidade)} metadados={dataRelativa(s.data)} inicio={medalha} />
             ) : (
               <LinhaDaLista key={`${s.alunoId}:${s.data}:${s.exercicioId}:${i}`} titulo={s.alunoNome} descricao={textoDaSerieComRecorde(s, unidade)}
-                metadados={dataRelativa(s.data)} inicio={medalha} href={`/treinador/alunos/${s.alunoId}`}
-                aoAbrir={() => router.push(`/treinador/alunos/${s.alunoId}`)}
+                metadados={dataRelativa(s.data)} inicio={medalha} href={`/treinador/alunos/${s.alunoId}?aba=acompanhamento`}
+                aoAbrir={() => router.push(`/treinador/alunos/${s.alunoId}?aba=acompanhamento`)}
                 rotulo={`Abrir ${s.alunoNome}: ${textoDaSerieComRecorde(s, unidade)}, ${dataRelativa(s.data)}`} />
             ),
           )}

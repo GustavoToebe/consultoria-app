@@ -41,7 +41,7 @@ async function abrirFicha(page: Page, largura: number, tema: Tema) {
     [`GET /alunos/${ALUNO_ID}`]: { corpo: FICHA },
     [`GET /alunos/${ALUNO_ID}/pesos`]: { corpo: PESOS },
   });
-  await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+  await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=evolucao`);
   const abaGrafico = page.getByRole('tab', { name: 'Gráfico' });
   await abaGrafico.scrollIntoViewIfNeeded();
   await expect(abaGrafico).toBeVisible();

@@ -86,6 +86,8 @@ export async function simularApi(page: Page, respostas: RespostasApi = {}) {
     'GET /aluno/comunidade/perfil': { corpo: { perfilReservado: false, reservadoEfetivo: false, destaques: [], cor: 'AZUL', moldura: 'SIMPLES', opcoesDeDestaque: [] } },
     // A faixa do ciclo na pasta e nos editores do aluno consulta isto; desligado não desenha nada.
     'GET /alunos/{id}/ciclo': { corpo: { ativo: false, registros: [], dias: [] } },
+    // "Atividade recente" do Resumo da ficha: vazia nos testes que não conferem isso.
+    'GET /alunos/{id}/atividade-recente': { corpo: { itens: [] } },
     // O número das abas de Atualizações (os mesmos filtros da lista); zero nos testes que não conferem isso.
     'GET /atualizacoes/contagens': { corpo: { PARA_REVISAR: 0, ATRASADAS: 0, AVISARAM_ATRASO: 0, PROXIMAS: 0 } },
     ...respostas,

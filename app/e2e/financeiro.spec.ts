@@ -163,7 +163,7 @@ test('fluxo completo: o treinador cria o plano, contrata na ficha e dá a baixa;
   const planoId = estado.planos[0].id;
 
   // 2. Contratação na ficha do aluno.
-  await page.goto(`/treinador/alunos/${ALUNO_FINANCEIRO_ID}`);
+  await page.goto(`/treinador/alunos/${ALUNO_FINANCEIRO_ID}?aba=ficha`);
   await expect(page.getByText('Nenhum plano comercial contratado.')).toBeVisible();
   await page.getByRole('button', { name: 'Contratar plano' }).click();
   await page.getByRole('button', { name: /^Plano:/ }).click();
@@ -233,7 +233,7 @@ test('Pausar e Encerrar avisam das cobranças abertas (as vencidas incluídas) s
     ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(comAbertas),
     'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } }, [`GET /alunos/${ALUNO_FINANCEIRO_ID}`]: { corpo: FICHA },
   });
-  await page.goto(`/treinador/alunos/${ALUNO_FINANCEIRO_ID}`);
+  await page.goto(`/treinador/alunos/${ALUNO_FINANCEIRO_ID}?aba=ficha`);
   const aviso = 'Há 2 cobranças abertas; elas continuam valendo. Cancele uma a uma se precisar.';
 
   await page.getByRole('button', { name: 'Pausar', exact: true }).click();
@@ -253,7 +253,7 @@ test('Pausar e Encerrar avisam das cobranças abertas (as vencidas incluídas) s
     ...(await sessaoComFinanceiro(outra)), ...rotasDoFinanceiro(semAbertas),
     'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } }, [`GET /alunos/${ALUNO_FINANCEIRO_ID}`]: { corpo: FICHA },
   });
-  await outra.goto(`/treinador/alunos/${ALUNO_FINANCEIRO_ID}`);
+  await outra.goto(`/treinador/alunos/${ALUNO_FINANCEIRO_ID}?aba=ficha`);
   await outra.getByRole('button', { name: 'Pausar', exact: true }).click();
   const painel = outra.getByRole('alertdialog', { name: 'Pausar este plano?' });
   await expect(painel).toBeVisible();

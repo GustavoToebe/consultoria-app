@@ -192,7 +192,7 @@ for (const largura of [390, 1280]) {
     await voltar.click();
     await expect(page.getByRole('dialog', { name: 'Plano 17' })).toBeVisible();
     // C22: aberta a Folha, o `?pastaId=` sai do endereço (recarregar não a reabre).
-    await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${ALUNO_ID}$`));
+    await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${ALUNO_ID}\\?aba=planos$`));
     expect(errosDaPagina).toEqual([]);
   });
 
@@ -208,7 +208,7 @@ for (const largura of [390, 1280]) {
     await page.getByRole('button', { name: 'Sair sem salvar' }).click();
     const pasta = page.getByRole('dialog', { name: 'Plano 17' });
     await expect(pasta).toBeVisible();
-    await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${ALUNO_ID}$`));
+    await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${ALUNO_ID}\\?aba=planos$`));
 
     // O editor saiu da pilha: navegar a partir da ficha não traz a pergunta de volta.
     await pasta.getByRole('button', { name: 'Fechar', exact: true }).click();
@@ -578,7 +578,7 @@ for (const largura of [390, 1280]) {
     const { errosDaPagina } = await abrirComPasta(page);
     const folha = page.getByRole('dialog', { name: 'Plano 17' });
     await expect(folha).toBeVisible();
-    await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${ALUNO_ID}$`));
+    await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${ALUNO_ID}\\?aba=planos$`));
     await page.reload();
     const linha = page.getByRole('button', { name: /^Pasta Plano 17, aberta/ });
     await expect(linha).toBeVisible();
@@ -590,7 +590,7 @@ for (const largura of [390, 1280]) {
     await expect(page).toHaveURL(new RegExp(`/treinador/dietas/${PLANO_ID}$`));
     await page.getByRole('link', { name: 'Voltar à pasta' }).click();
     await expect(folha).toBeVisible();
-    await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${ALUNO_ID}$`));
+    await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${ALUNO_ID}\\?aba=planos$`));
     expect(errosDaPagina).toEqual([]);
   });
 }

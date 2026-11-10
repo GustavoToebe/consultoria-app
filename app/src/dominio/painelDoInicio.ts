@@ -819,7 +819,7 @@ export interface FolhaDoPainel {
   itens: ItemDaFolha[];
 }
 
-const fichaDoAluno = (id: string) => `/treinador/alunos/${id}`;
+const fichaDoAluno = (id: string, aba?: string) => (aba ? `/treinador/alunos/${id}?aba=${aba}` : `/treinador/alunos/${id}`);
 
 function diasEntre(de: string, ate: string): number {
   return Math.round((Date.parse(ate.slice(0, 10)) - Date.parse(de.slice(0, 10))) / 86_400_000);
@@ -868,7 +868,7 @@ export function folhaRecordes(r: Pick<RecordesDaSemana, 'total' | 'series'>, o: 
     const quando = dataRelativa(s.data, o.hoje);
     return {
       chave: `${s.alunoId}:${s.data}:${s.exercicioId}:${i}`, alunoId: s.alunoId, nome: s.alunoNome, descricao: s.exercicioNome, detalhes, direita: quando,
-      href: fichaDoAluno(s.alunoId), falado: `${s.alunoNome}, ${s.exercicioNome}, ${detalhes.join(' e ')}, ${quando}. Abrir a ficha`,
+      href: fichaDoAluno(s.alunoId, 'acompanhamento'), falado: `${s.alunoNome}, ${s.exercicioNome}, ${detalhes.join(' e ')}, ${quando}. Abrir a ficha`,
     };
   });
   return folha('recordes', 'Recordes dos últimos 7 dias', o.meus, r.total, itens, ['série com recorde', 'séries com recorde'], 'Nenhum recorde nos últimos 7 dias.');

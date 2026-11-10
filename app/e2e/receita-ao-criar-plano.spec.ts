@@ -46,11 +46,11 @@ for (const largura of [390, 1280]) {
       [`POST /alunos/${ALUNO_ID}/planos-treino`]: { corpo: { plano: { id: PLANO_ID } } },
     });
 
-    await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+    await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=planos`);
     await page.getByRole('button', { name: /^Pasta Plano 17, aberta/ }).click();
     await page.getByRole('dialog', { name: 'Plano 17' }).getByRole('button', { name: 'Novo treino', exact: true }).click();
     const novo = page.getByRole('dialog', { name: /^Novo treino em/ });
-    await novo.getByRole('button', { name: 'De um modelo', exact: true }).click();
+    await novo.getByRole('radio', { name: 'De um modelo', exact: true }).click();
 
     // Um botão só ("Receita: Escolher"); as receitas não aparecem como chips na folha do plano.
     const botao = novo.getByRole('button', { name: 'Receita: Escolher. Escolher.' });
@@ -93,7 +93,7 @@ for (const largura of [390, 1280]) {
       [`GET /alunos/${ALUNO_ID}/planos-mobilidade`]: { corpo: [] },
     });
 
-    await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+    await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=planos`);
     await page.getByRole('button', { name: /^Pasta Plano 17, aberta/ }).click();
     const pasta = page.getByRole('dialog', { name: 'Plano 17' });
 
@@ -103,7 +103,7 @@ for (const largura of [390, 1280]) {
     ] as const) {
       await pasta.getByRole('button', { name: botaoNovo, exact: true }).click();
       const novo = page.getByRole('dialog', { name: titulo });
-      await novo.getByRole('button', { name: 'De um modelo', exact: true }).click();
+      await novo.getByRole('radio', { name: 'De um modelo', exact: true }).click();
       await novo.getByRole('button', { name: 'Receita: Escolher. Escolher.' }).click();
       const escolha = page.getByRole('dialog', { name: 'Receita' });
       await escolha.getByRole('radio', { name: nome }).click();

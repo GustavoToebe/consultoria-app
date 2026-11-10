@@ -123,7 +123,7 @@ for (const largura of [390, 1280]) {
       [`GET /alunos/${ALUNO_ID}/planos-dieta`]: { corpo: [DIETA_ATIVA] },
       [`GET /planos-dieta/${DIETA_ATIVA.id}/versoes/1`]: { corpo: dietaFalsa(4, 3).dieta },
     });
-    await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+    await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=acompanhamento`);
     await expect(page.getByRole('heading', { name: 'Água', exact: true })).toBeVisible();
     await expect(page.getByText('Registrou 2 de 7 dias')).toBeVisible();
     await expect(page.getByText('1,5 L de 3,0 L')).toBeVisible();

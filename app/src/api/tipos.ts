@@ -1547,6 +1547,16 @@ export interface SerieDeResposta {
   pontos: PontoDeResposta[];
 }
 export interface EvolucaoRespostas { limite: number; atualizacoes: number; series: SerieDeResposta[] }
+/**
+ * `GET /alunos/{id}/atividade-recente?limite=5` (padrão 5, de 1 a 20): os últimos acontecimentos do aluno, do mais novo ao mais
+ * antigo. Título fixo da API (nunca peso, resposta, lesão nem nome de exercício). `ATUALIZACAO_ENVIADA` já inclui o peso e as
+ * fotos enviados com ela. `destino` só existe onde há tela de detalhe: a atualização (`/treinador/atualizacoes/[id]`) ou a pasta
+ * (`?pastaId=` da ficha).
+ */
+export type TipoDeAtividade = 'ATUALIZACAO_ENVIADA' | 'TREINO_CONCLUIDO' | 'PLANO_PUBLICADO' | 'PESO_REGISTRADO';
+export interface DestinoDeAtividade { tipo: 'ATUALIZACAO' | 'PASTA'; id: string }
+export interface ItemDeAtividade { tipo: TipoDeAtividade; titulo: string; quando: string; destino: DestinoDeAtividade | null }
+export interface AtividadeRecente { itens: ItemDeAtividade[] }
 /** `GET /aluno/fotos/configuracao`: o que o servidor aceita (os limites também valem lá). */
 export interface ConfiguracaoDeFotos { habilitado: boolean; maximoPorPergunta: number; bytesMaximo: number; porDia: number }
 /** Item das listas do treinador (`GET /atualizacoes`): sem modelo, respostas nem resumo, que só vêm no detalhe. */

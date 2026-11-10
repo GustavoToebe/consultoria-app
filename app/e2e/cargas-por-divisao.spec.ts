@@ -116,7 +116,7 @@ for (const largura of [390, 1280]) {
       [`GET /alunos/${ALUNO_ID}/execucoes`]: { corpo: DIAS },
       [`GET /alunos/${ALUNO_ID}/planos-treino`]: { corpo: [] },
     });
-    await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+    await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=planos`);
     await page.getByText('Pasta de outubro').click();
     await conferir(page);
     expect(errosDaPagina).toEqual([]);

@@ -42,7 +42,7 @@ for (const largura of [390, 1280]) {
       },
     });
 
-    await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+    await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=evolucao`);
     const cartao = page.getByText('Avaliação física', { exact: true }).first();
     await cartao.scrollIntoViewIfNeeded();
     await expect(page.getByText('2 medidas · Peso 82 kg')).toBeVisible();
@@ -161,7 +161,7 @@ for (const largura of [390, 1280]) {
       [`GET /alunos/${ALUNO_ID}`]: { corpo: FICHA },
       [`GET /alunos/${ALUNO_ID}/avaliacoes-fisicas`]: { corpo: DUAS },
     });
-    await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+    await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=evolucao`);
     const secao = page.getByText('Evolução por medida', { exact: true });
     await secao.scrollIntoViewIfNeeded();
     await expect(secao).toBeVisible();
@@ -173,7 +173,7 @@ for (const largura of [390, 1280]) {
     await expect(cintura.getByText('90,0 cm')).toBeVisible();
 
     // Quadril: só a data em que foi medido vira ponto; a outra aparece com "—" na lista, sem linha nem valor inventado.
-    await page.getByRole('radiogroup', { name: 'Medida' }).getByRole('button', { name: 'Quadril', exact: true }).click();
+    await page.getByRole('radiogroup', { name: 'Medida' }).getByRole('radio', { name: 'Quadril', exact: true }).click();
     expect(await desenhoDoGrafico(page, 'Gráfico de Quadril com 1 data')).toEqual({ pontos: 1, comLinha: false });
     await expect(page.getByText('Com uma data só, o gráfico mostra o ponto; a linha aparece a partir de duas datas.')).toBeVisible();
     const quadril = page.getByLabel('Quadril por data');

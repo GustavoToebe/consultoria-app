@@ -233,7 +233,8 @@ for (const largura of [390, 1280]) {
       [`GET /alunos/${ALUNO_ID}/pastas`]: { corpo: [PASTA] },
       [`GET /alunos/${ALUNO_ID}/pesos`]: { corpo: PESOS },
     });
-    await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+    // A linha do ciclo fica nos Dados do aluno (aba Ficha), o peso na Evolução e a pasta em Planos.
+    await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
     await expect(page.getByText('Ciclo menstrual: acompanhamento ligado pela aluna')).toBeVisible();
     await page.getByRole('button', { name: 'Ver ciclo' }).click();
     const [ano, mes] = DIA_SINTOMA.split('-');
@@ -243,10 +244,12 @@ for (const largura of [390, 1280]) {
     await expect(page.getByRole('button', { name: 'Salvar', exact: true })).toHaveCount(0);
     await page.keyboard.press('Escape');
 
+    await page.getByRole('tab', { name: 'Evolução', exact: true }).click();
     await expect(page.getByText('Lútea · dia 23')).toBeVisible();
     await page.getByRole('tab', { name: 'Gráfico' }).click();
     await expect(page.getByText('Menstrual').first()).toBeVisible();
 
+    await page.getByRole('tab', { name: 'Planos', exact: true }).click();
     await page.getByText('Pasta de janeiro').click();
     await expect(page.getByText('Ciclo no período da pasta')).toBeVisible();
   });
@@ -310,7 +313,7 @@ test('anamnese mostra o sexo trazido para o cadastro', async ({ page }) => {
     [`GET /alunos/${ALUNO_ID}/anamneses`]: { corpo: [{ id: ANAMNESE_ID, situacao: 'ENVIADA', atribuidaEm: detalhe.atribuidaEm, enviadaEm: detalhe.enviadaEm, revisadaEm: null, dispensadaEm: null, dispensaMotivo: null, versao: 1, questionarioNome: 'Anamnese inicial', questionarioVersaoNumero: 1, alteracoesParaRevisar: 1 }] },
     [`GET /anamneses/${ANAMNESE_ID}`]: { corpo: detalhe },
   });
-  await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+  await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
   await page.getByText('Anamnese inicial').click();
   await expect(page.getByText('Cadastro do aluno')).toBeVisible();
   await expect(page.getByText('Na anamnese: Feminino')).toBeVisible();
@@ -439,7 +442,7 @@ test('faixa do ciclo na pasta: a menstruação fica na data certa, depois dos di
     [`GET /alunos/${ALUNO_ID}/pastas`]: { corpo: [pasta] },
     [`GET /alunos/${ALUNO_ID}/pesos`]: { corpo: PESOS },
   });
-  await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+  await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=planos`);
   await page.getByText('Pasta de janeiro').click();
   await expect(page.getByText('Ciclo no período da pasta')).toBeVisible();
   const menstrual = page.getByRole('button', { name: 'Menstrual', exact: true }).first();

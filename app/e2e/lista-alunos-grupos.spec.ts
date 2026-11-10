@@ -115,11 +115,11 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       expect([Math.round(desenho.width), Math.round(desenho.height)]).toEqual([40, 40]);
       await lapis.click();
 
-      await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${id(1)}$`));
-      // Abre editando (o formulário com Salvar) e o `editar=1` sai do endereço.
+      await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${id(1)}\\?aba=ficha$`));
+      // Abre editando na aba Ficha do aluno (o formulário com Salvar) e o `editar=1` sai do endereço.
       await expect(page.getByRole('button', { name: 'Salvar', exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Editar', exact: true })).toHaveCount(0);
-      expect(new URL(page.url()).search).toBe('');
+      expect(new URL(page.url()).search).toBe('?aba=ficha');
 
       // Sem passo sobrando: um voltar leva de novo à lista.
       await page.goBack();

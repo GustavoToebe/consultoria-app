@@ -6,7 +6,7 @@ import { defineConfig, devices } from '@playwright/test';
  * da tela de verdade (React Native Web, folhas, painéis) sem o back nem o banco. Não rodam na CI (minutos do Actions):
  * `npm run e2e` antes de mexer nessas telas. `PW_CHROMIUM` aponta um Chromium já instalado, se for preciso.
  */
-// `E2E_PORTA` deixa várias cópias do projeto rodarem os testes de tela ao mesmo tempo.
+// `E2E_PORTA` deixa várias cópias (ou agentes) rodarem os testes de tela ao mesmo tempo: porta, exportação e resultados são por porta.
 const PORTA = Number(process.env.E2E_PORTA ?? 8099);
 
 export default defineConfig({
@@ -24,7 +24,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
-  outputDir: 'test-results-e2e',
+  outputDir: `test-results-e2e-${PORTA}`,
   projects: [
     {
       name: 'chromium',
@@ -36,7 +36,7 @@ export default defineConfig({
   ],
   webServer: {
     // Sem `EXPO_PUBLIC_API_URL`, a web chama a API na mesma origem (`/api`), que os testes simulam.
-    command: `npx expo export --platform web --output-dir dist-e2e && node e2e/servidor.mjs dist-e2e ${PORTA}`,
+    command: `npx expo export --platform web --output-dir dist-e2e-${PORTA} && node e2e/servidor.mjs dist-e2e-${PORTA} ${PORTA}`,
     url: `http://localhost:${PORTA}`,
     env: { EXPO_PUBLIC_API_URL: '' },
     reuseExistingServer: !process.env.CI,

@@ -243,7 +243,7 @@ function Inadimplencia({ painel, lista, buscando, podeAlterar, aoAbrir, aoRegist
               {podeAlterar ? <Botao rotulo="Registrar pagamento" tipo="secundario" carregando={buscando === x.cobrancaId}
                 rotuloAcessivel={`Registrar pagamento de ${x.alunoNome ?? 'aluno'}`} aoTocar={() => aoRegistrar(x)} /> : null}
               <Botao rotulo="Abrir ficha" tipo="fantasma" rotuloAcessivel={`Abrir ficha de ${x.alunoNome ?? 'aluno'}`}
-                aoTocar={() => router.push(`/treinador/alunos/${x.alunoId}`)} />
+                aoTocar={() => router.push(`/treinador/alunos/${x.alunoId}?aba=ficha`)} />
             </LinhaDeAcoes>
           ) },
         ]} />

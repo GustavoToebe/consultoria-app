@@ -7,6 +7,7 @@ import jakarta.persistence.Table;
 import org.hibernate.annotations.Immutable;
 import org.hibernate.annotations.TenantId;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -52,6 +53,10 @@ public class SessaoConcluida {
     @Column(nullable = false)
     private String situacao;
 
+    /** Instante em que o servidor gravou a última mudança (a conclusão, enquanto ela vale); só leitura. */
+    @Column(name = "atualizado_em", nullable = false, insertable = false, updatable = false)
+    private Instant atualizadoEm;
+
     protected SessaoConcluida() {
     }
 
@@ -66,6 +71,7 @@ public class SessaoConcluida {
     public Integer getDuracaoSegundos() { return duracaoSegundos; }
     public String getComentario() { return comentario; }
     public String getSituacao() { return situacao; }
+    public Instant getAtualizadoEm() { return atualizadoEm; }
 
     @Override
     public String toString() {

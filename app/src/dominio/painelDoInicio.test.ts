@@ -619,7 +619,7 @@ describe('Folhas', () => {
 
   it('Recordes: lista as séries com o recorde batido; o total vem da API', () => {
     const f = folhaRecordes(recordes(2), { meus: true, hoje: HOJE })!;
-    expect(f.itens[0]).toMatchObject({ nome: 'Aluno Um', descricao: 'Supino', detalhes: ['Maior carga · 70 kg'], href: '/treinador/alunos/a1' });
+    expect(f.itens[0]).toMatchObject({ nome: 'Aluno Um', descricao: 'Supino', detalhes: ['Maior carga · 70 kg'], href: '/treinador/alunos/a1?aba=acompanhamento' });
     expect(f.resumo).toBe('Mostrando 1 de 2 séries com recorde.');
     expect(f.escopo).toBe('Só os meus alunos');
     expect(folhaRecordes({ total: 0, series: [] }, { meus: false, hoje: HOJE }).vazio).toBe('Nenhum recorde nos últimos 7 dias.');

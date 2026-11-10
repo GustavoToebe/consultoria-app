@@ -31,6 +31,12 @@ interface Props<T extends string> {
    */
   variante?: 'sublinhado' | 'invertida';
   /**
+   * `automatica` (padrão): focar uma aba a seleciona (seta do teclado). `manual`: a seta só move o foco e Enter ou Espaço
+   * seleciona; use quando trocar de aba tem consequência (pergunta "Sair sem salvar?", que devolve o foco à aba clicada
+   * e, no modo automático, pediria a troca de novo).
+   */
+  ativacao?: 'automatica' | 'manual';
+  /**
    * À direita da faixa, fora da rolagem e da lista de abas (o "+ Nova série"): sempre inteiro à vista, por mais abas que
    * haja; só as abas rolam.
    */
@@ -44,7 +50,7 @@ const TEXTO_DO_PROBLEMA = { perigo: 'com problema a corrigir', atencao: 'com avi
  * do lado em que há mais abas (sem isso "Atua…" parecia cortado). A aba ativa é rolada para a vista, inteira e fora do
  * esmaecido (C5): ao abrir por link uma aba do fim (`?aba=`), ao voltar, ou ao tocar numa aba meio escondida. Alvo de 44 px.
  */
-export function Abas<T extends string>({ abas, ativa, aoMudar, fundo, variante = 'sublinhado', depois }: Props<T>) {
+export function Abas<T extends string>({ abas, ativa, aoMudar, fundo, variante = 'sublinhado', depois, ativacao = 'automatica' }: Props<T>) {
   const invertida = variante === 'invertida';
   const { cores, marca } = useTema();
   const { direita, esquerda, medidas } = useEsmaecimento();
@@ -85,7 +91,7 @@ export function Abas<T extends string>({ abas, ativa, aoMudar, fundo, variante =
     },
   };
   return (
-    <Tabs value={ativa} onValueChange={(v) => aoMudar(v as T)} style={invertida ? null : [estilos.borda, { borderColor: cores.borda }]}>
+    <Tabs value={ativa} onValueChange={(v) => aoMudar(v as T)} activationMode={ativacao === 'manual' ? 'manual' : 'automatic'} style={invertida ? null : [estilos.borda, { borderColor: cores.borda }]}>
       <View style={depois ? estilos.comDepois : null}>
       <View style={[estilos.area, depois ? estilos.areaQueCede : null]}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={estilos.rolagem} contentContainerStyle={estilos.conteudoRolagem} {...medidasDaRolagem}>

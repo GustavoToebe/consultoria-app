@@ -64,7 +64,8 @@ async function abrirFicha(page: Page, o: { largura: number; permissoes: string[]
   });
   await page.goto(`/treinador/alunos/${ALUNO_ID}`);
   jpeg = await jpegFicticio(page);
-  await expect(page.getByText('Dados do aluno', { exact: true })).toBeVisible();
+  // A foto fica no topo do Resumo, a aba em que a ficha abre.
+  await expect(page.getByRole('tab', { name: 'Resumo', exact: true })).toHaveAttribute('aria-selected', 'true');
   // O bloco antigo de "Dados do aluno" saiu: a foto se troca só no círculo.
   await expect(page.getByText(/Aparece no topo da ficha/)).toHaveCount(0);
   await expect(page.getByRole('button', { name: /^(Trocar|Escolher|Tirar|Remover) foto$/ })).toHaveCount(0);

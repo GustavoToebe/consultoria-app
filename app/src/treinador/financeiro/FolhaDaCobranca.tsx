@@ -232,7 +232,7 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
 
   const abrirFicha = () => confirmar(() => {
     aoFechar();
-    router.push(`/treinador/alunos/${cobranca.alunoId}`);
+    router.push(`/treinador/alunos/${cobranca.alunoId}?aba=ficha`);
   });
 
   const titulo = modo === 'baixa' ? 'Registrar pagamento' : `Cobrança de ${rotuloDoMes(cobranca.competencia)}`;
