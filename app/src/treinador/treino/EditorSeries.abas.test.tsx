@@ -27,8 +27,8 @@ jest.mock('../../ui/Botao', () => ({
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   Botao: ({ rotuloAcessivel, rotulo, aoTocar }: { rotuloAcessivel?: string; rotulo: string; aoTocar: () => void }) => require('react').createElement(require('react-native').Pressable, { accessibilityLabel: rotuloAcessivel ?? rotulo, onPress: aoTocar }),
 }));
-jest.mock('../../ui/Abas', () => ({
-  Abas: ({ abas, ativa, aoMudar, depois }: { abas: { valor: string; rotulo: string }[]; ativa: string; aoMudar: (v: string) => void; depois?: unknown }) => {
+jest.mock('./TabelaDeBlocos', () => ({
+  TabelaDeBlocos: ({ linhas: abas, ativa, aoMudar, depois }: { linhas: { valor: string; rotulo: string }[]; ativa: string; aoMudar: (v: string) => void; depois?: unknown }) => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { createElement } = require('react'); const { Pressable, View } = require('react-native');
     return createElement(View, null, ...abas.map((a) => createElement(Pressable, { key: a.valor, accessibilityRole: 'tab', accessibilityLabel: a.rotulo, accessibilityState: { selected: a.valor === ativa }, onPress: () => aoMudar(a.valor) })), depois);

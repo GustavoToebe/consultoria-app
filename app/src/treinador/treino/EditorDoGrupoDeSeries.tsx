@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Check, CircleAlert, CircleCheck, Minus, Plus, Smartphone, Trash2, TriangleAlert, type LucideIcon } from 'lucide-react-native';
+import { ArrowDown, ArrowUp, CircleAlert, CircleCheck, Minus, Plus, Smartphone, Trash2, TriangleAlert, type LucideIcon } from 'lucide-react-native';
 import { type ReactNode, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -24,7 +24,7 @@ import { EscolhaSuspensa } from '../../ui/EscolhaSuspensa';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { NumeroInvertido } from '../../ui/NumeroInvertido';
-import { Selo, type TipoSelo } from '../../ui/Selo';
+import { type TipoSelo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useUnidadeDeCarga } from '../../ui/unidadeDeCargaEmUso';
 import { BotaoDeAbrir } from './BotaoDeAbrir';
@@ -146,7 +146,7 @@ export function EditorGrupo({ largo, grupo: g, series, config, cardio, semCarga,
   return <View style={[estilos.grupo, { borderWidth: bordas.item, borderColor: borda, backgroundColor: cores.superficie }]}>
     {/* "Editando: Série 2 · Trabalho · WS" e, embaixo, os números (reunião de 30/10). Na coluna estreita as ações descem uma
         linha, senão o título quebra palavra por palavra. */}
-    <CabecalhoDeGrupo titulo={`Editando: ${titulo}`} resumo={leitura ?? undefined} selo={SELO_DO_NIVEL[nivel]} linha="fina"
+    <CabecalhoDeGrupo titulo={`Editando: ${titulo}`} resumo={leitura ?? undefined} selo={nivel === 'sucesso' ? undefined : SELO_DO_NIVEL[nivel]} linha="fina"
       inicio={<NumeroInvertido numero={numero} invertido />} acoesJuntas={largo} acoes={<>
       <IconeBotao moldura Icone={ArrowUp} rotulo={`Subir série ${numero}`} desabilitado={primeiro} aoTocar={() => aoMover(-1)} />
       <IconeBotao moldura Icone={ArrowDown} rotulo={`Descer série ${numero}`} desabilitado={ultimo} aoTocar={() => aoMover(1)} />
@@ -224,13 +224,15 @@ export function EditorGrupo({ largo, grupo: g, series, config, cardio, semCarga,
 }
 
 /**
- * "Para o aluno: 3×3 a 5 · FS · 50% · 70% · 85% a 90% da WS". Fundo e borda na cor do estado; quando pronta, exibe o selo
- * "Série pronta" à direita.
+ * "Para o aluno: 3×3 a 5 · FS · 50% · 70% · 85% a 90% da WS". Com aviso ou erro, fundo e borda na cor do estado; sem
+ * nada a corrigir, neutra e sem selo (o "Pronto" repetido em lista, cabeçalho e prévia saiu: reorganização de 10/11).
  */
 function ParaOAluno({ nivel, texto }: { nivel: Nivel; texto: string }) {
   const { cores } = useTema();
   return (
-    <View style={[estilos.previa, { borderColor: cores[nivel], backgroundColor: tingido(cores[nivel], cores.superficie) }]}>
+    <View style={[estilos.previa, nivel === 'sucesso'
+      ? { borderColor: cores.borda, backgroundColor: cores.superficie2 }
+      : { borderColor: cores[nivel], backgroundColor: tingido(cores[nivel], cores.superficie) }]}>
       <View style={estilos.linhaDaPrevia}>
         <View style={estilos.textoDaPrevia}>
           <Smartphone size={16} color={cores.texto} />
@@ -238,7 +240,6 @@ function ParaOAluno({ nivel, texto }: { nivel: Nivel; texto: string }) {
             <Texto variante="rotulo" cor={cores.texto}>Para o aluno: </Texto>{texto}
           </Texto>
         </View>
-        {nivel === 'sucesso' ? <Selo texto="Série pronta" tipo="sucesso" Icone={Check} /> : null}
       </View>
     </View>
   );

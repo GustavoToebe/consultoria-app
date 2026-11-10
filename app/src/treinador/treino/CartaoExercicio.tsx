@@ -76,21 +76,19 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
   // "Instruções, vídeo e cadência" fecha quando vazio e abre quando já tem algo (04/11). Até a pessoa tocar, segue o
   // conteúdo; com erro dentro fica aberto, para o "ir ao primeiro" cair num campo visível.
   const [escolhaDosExtras, setEscolhaDosExtras] = useState<boolean | null>(null);
-  const extrasComErro = !!(erroDoVideo(e.videoUrl) ?? erros.videoUrl ?? erroDaCadencia(e.cadencia) ?? erros.cadencia ?? erroDaIsometria(e.isometriaSegundos) ?? erros.isometriaSegundos);
+  const extrasComErro = !!(erros.nome ?? erroDoVideo(e.videoUrl) ?? erros.videoUrl ?? erroDaCadencia(e.cadencia) ?? erros.cadencia ?? erroDaIsometria(e.isometriaSegundos) ?? erros.isometriaSegundos);
   const extrasPreenchidos = !!(e.observacao || e.videoUrl || e.cadencia || e.isometriaSegundos != null);
-  const extrasAbertos = extrasComErro || (escolhaDosExtras ?? extrasPreenchidos);
+  const extrasAbertos = extrasComErro || !e.nome.trim() || (escolhaDosExtras ?? extrasPreenchidos);
   const foraDaBiblioteca = e.exercicioId === null && !!e.nome;
 
   const dados = <>
-    {/* Linha de contexto (04/11, C08): nome de exibição e, ao lado, o acordeão do que é opcional; logo abaixo, as séries. */}
-    <View style={estilos.contexto}>
-      <View style={estilos.nomeDeExibicao}>
-        <Campo rotulo="Nome de exibição" valor={e.nome} aoMudar={(nome) => mudar({ nome })} maxLength={120} erro={erros.nome} />
-      </View>
-      <BotaoDeAbrir texto="Instruções, vídeo e cadência (opcional)" aberto={extrasAbertos} aoAlternar={() => setEscolhaDosExtras(!extrasAbertos)} />
-    </View>
+    {/* Nome de exibição e o que é opcional num acordeão só (10/11): fechado, o botão diz o que já tem dentro. */}
+    <BotaoDeAbrir texto={textoDosExtras(e)} aberto={extrasAbertos} aoAlternar={() => setEscolhaDosExtras(!extrasAbertos)} />
     {extrasAbertos ? (
       <View style={[estilos.extras, { borderColor: cores.borda }]}>
+        <View style={estilos.nomeDeExibicao}>
+          <Campo rotulo="Nome de exibição" valor={e.nome} aoMudar={(nome) => mudar({ nome })} maxLength={120} erro={erros.nome} />
+        </View>
         <Campo
           rotulo="Observação para o aluno"
           valor={e.observacao ?? ''}
@@ -180,7 +178,7 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
           <Texto variante="pequeno" numerico>{[`Exercício ${p.posicao + 1} de ${p.total}`, p.grupoMuscular].filter(Boolean).join(' · ')}</Texto>
           <View style={estilos.linhaDoNome}>
             <Texto variante="bloco" style={estilos.nome}>{e.nome || 'sem nome'}</Texto>
-            <Selo texto={estado.texto} tipo={estado.tipo} Icone={estado.Icone} />
+            {estado.tipo === 'sucesso' ? null : <Selo texto={estado.texto} tipo={estado.tipo} Icone={estado.Icone} />}
           </View>
           {/* Fechado, o resumo e os atributos; aberto, eles estão nos próprios campos logo abaixo. "Fora da biblioteca" não
               tem campo: fica também aberto. */}
@@ -215,6 +213,12 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
   );
 }
 
+/** "Nome de exibição e instruções", com o que já está preenchido entre parênteses (o nome sempre está). */
+function textoDosExtras(e: ExercicioPlano): string {
+  const tem = [e.observacao ? 'observação' : null, e.videoUrl ? 'vídeo' : null, e.cadencia ? 'cadência' : null, e.isometriaSegundos != null ? 'isometria' : null].filter(Boolean);
+  return `Nome de exibição e instruções${tem.length ? ` (com ${tem.join(', ')})` : ''}`;
+}
+
 const estilos = StyleSheet.create({
   cartao: { borderWidth: BORDA_BLOCO, borderRadius: RAIO, overflow: 'hidden' },
   topo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1), paddingHorizontal: espaco(1.5), paddingVertical: espaco(1.25) },
@@ -226,8 +230,6 @@ const estilos = StyleSheet.create({
   acoes: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75) },
   // No PC os botões de mover têm texto: a linha quebra em vez de apertar o nome do exercício.
   acoesLargas: { flexWrap: 'wrap', justifyContent: 'flex-end' },
-  // Nome e o acordeão numa linha no inspetor do PC; no estreito o botão desce para baixo do campo.
-  contexto: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', columnGap: espaco(2), rowGap: espaco(0.5) },
   nomeDeExibicao: { flexGrow: 1, flexShrink: 1, flexBasis: 280, maxWidth: 560, minWidth: 0 },
   extras: { gap: espaco(1.5), paddingLeft: espaco(1.5), borderLeftWidth: 2 },
   tituloDasSeries: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },

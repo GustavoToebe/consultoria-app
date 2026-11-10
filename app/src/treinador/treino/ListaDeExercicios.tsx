@@ -2,13 +2,11 @@ import { useMemo, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import type { Configuracao, ExercicioPlano } from '../../api/tipos';
-import { linhaDoExercicio, type ResumoDaSessaoPorContagem } from '../../dominio/inspetorDoTreino';
+import { linhaDoExercicio } from '../../dominio/inspetorDoTreino';
 import { espaco } from '../../tema/tokens';
-import { Texto } from '../../ui/Texto';
 import { ItemDaListaDoEditor } from '../plano/ItemDaListaDoEditor';
 import { AdicionarProximoExercicio } from './CartaoSessao';
 import { estadoDoExercicio } from './estadoDoExercicio';
-import { ResumoDaSessao } from './ResumoDaSessao';
 
 /**
  * Largura da coluna da esquerda (lista) em duas colunas: 30% da linha, entre `LARGURA_MINIMA_DA_LISTA` e
@@ -21,24 +19,19 @@ const LARGURA_MINIMA_DA_LISTA = espaco(30);
 interface Props {
   /** Os itens (`ItemDaListaDeExercicios`), com os grupos de exercícios (`GrupoNaLista`: linha do grupo e os membros embaixo). */
   children: ReactNode;
-  vazia: boolean;
-  resumo: ResumoDaSessaoPorContagem;
   adicionar: Parameters<typeof AdicionarProximoExercicio>[0];
 }
 
 /**
- * Coluna da esquerda do editor de treino em duas colunas (mestre): um item por exercício da sessão, o bloco tracejado
- * "Adicionar próximo exercício" e o "Resumo da sessão". O exercício escolhido abre no inspetor, à direita. A metodologia
- * fica só em "Configuração do plano" (04/11).
+ * Coluna da esquerda do editor de treino em duas colunas (mestre): um item por exercício da sessão e o bloco tracejado
+ * "Adicionar próximo exercício" (com o "Criar grupo"). O exercício escolhido abre no inspetor, à direita. Os totais e a
+ * distribuição ficam no cabeçalho da sessão; a sessão vazia nem chega aqui (convite "Monte esta sessão", 10/11).
  */
-export function ListaDeExercicios({ children, vazia, resumo, adicionar }: Props) {
+export function ListaDeExercicios({ children, adicionar }: Props) {
   return (
     <View style={estilos.coluna}>
-      <View style={estilos.itens} role="group" accessibilityLabel="Exercícios da sessão">
-        {vazia ? <Texto variante="suave">Nenhum exercício nesta sessão ainda.</Texto> : children}
-      </View>
+      <View style={estilos.itens} role="group" accessibilityLabel="Exercícios da sessão">{children}</View>
       <AdicionarProximoExercicio {...adicionar} />
-      <ResumoDaSessao resumo={resumo} />
     </View>
   );
 }
@@ -60,10 +53,12 @@ export function ItemDaListaDeExercicios({ exercicio: e, posicao, total, config, 
   const estado = useMemo(() => estadoDoExercicio(e, config), [e, config]);
   const linha = useMemo(() => linhaDoExercicio(e, config), [e, config]);
   const nome = e.nome || 'sem nome';
+  // Só a pendência ganha selo: "Pronto" em todo item virava ruído (10/11).
+  const pendente = estado.tipo !== 'sucesso';
   return (
-    <ItemDaListaDoEditor numero={posicao + 1} titulo={nome} selo={estado} linha={linha} escolhido={escolhido}
+    <ItemDaListaDoEditor numero={posicao + 1} titulo={nome} selo={pendente ? estado : undefined} linha={linha} escolhido={escolhido}
       comProblema={comProblema || estado.tipo === 'perigo'} aoEscolher={aoEscolher}
-      rotulo={`Exercício ${posicao + 1} de ${total}: ${nome}, ${estado.texto}. ${linha}`} />
+      rotulo={`Exercício ${posicao + 1} de ${total}: ${nome}${pendente ? `, ${estado.texto}` : ''}. ${linha}`} />
   );
 }
 

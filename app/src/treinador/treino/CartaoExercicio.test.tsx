@@ -36,7 +36,7 @@ jest.mock('./EditorSeries', () => ({ EditorSeries: () => null, BotaoDeMover: () 
 const Renderer = require('react-test-renderer') as typeof import('react-test-renderer');
 type Arvore = import('react-test-renderer').ReactTestRenderer;
 
-const EXTRAS = 'Instruções, vídeo e cadência (opcional)';
+const EXTRAS = 'Nome de exibição e instruções';
 
 function montar(e: ExercicioPlano): Arvore {
   let arvore: Arvore | undefined;
@@ -49,19 +49,28 @@ function montar(e: ExercicioPlano): Arvore {
   });
   return arvore as Arvore;
 }
-const botaoDosExtras = (a: Arvore) => a.root.findAll((n) => n.props.accessibilityLabel === EXTRAS && typeof n.props.onPress === 'function')[0];
+const botaoDosExtras = (a: Arvore) => a.root.findAll((n) => String(n.props.accessibilityLabel ?? '').startsWith(EXTRAS) && typeof n.props.onPress === 'function')[0];
 const aberto = (a: Arvore) => botaoDosExtras(a).props.accessibilityState?.expanded as boolean;
 const temCampo = (a: Arvore, rotulo: string) => a.root.findAll((n) => n.props.accessibilityLabel === `campo ${rotulo}`).length > 0;
 const textos = (a: Arvore) => JSON.stringify(a.toJSON());
 
 const base = exercicio('ex', { nome: 'Supino de teste', modalidade: 'LIVRE', series: [serie('s1')] });
 
-describe('CartaoExercicio: instruções, vídeo e cadência', () => {
-  it('vazio começa fechado, com o nome de exibição à vista', () => {
+describe('CartaoExercicio: nome de exibição e instruções', () => {
+  it('só com o nome começa fechado, sem marcador; sem nome abre no campo', () => {
     const a = montar(base);
     expect(aberto(a)).toBe(false);
-    expect(temCampo(a, 'Nome de exibição')).toBe(true);
+    expect(botaoDosExtras(a).props.accessibilityLabel).toBe(EXTRAS);
+    expect(temCampo(a, 'Nome de exibição')).toBe(false);
     expect(temCampo(a, 'Observação para o aluno')).toBe(false);
+    const semNome = montar({ ...base, nome: '' });
+    expect(aberto(semNome)).toBe(true);
+    expect(temCampo(semNome, 'Nome de exibição')).toBe(true);
+  });
+
+  it('fechado, o botão diz o que já tem dentro', () => {
+    const a = montar({ ...base, observacao: 'Desça devagar.', cadencia: '3-1-1-0' });
+    expect(botaoDosExtras(a).props.accessibilityLabel).toBe(`${EXTRAS} (com observação, cadência)`);
   });
 
   it('com observação, vídeo, cadência ou isometria começa aberto', () => {

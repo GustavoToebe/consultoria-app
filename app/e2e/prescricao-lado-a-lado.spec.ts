@@ -19,7 +19,8 @@ async function abrir(page: Page) {
     [`GET /planos-treino/${PLANO_ID}`]: (_p, route) => json(route, planoDetalhe(false)),
   });
   await page.goto(`/treinador/treinos/${PLANO_ID}`);
-  await expect(page.getByRole('textbox', { name: 'Nome da sessão' })).toHaveValue('Peito e tríceps');
+  await expect(page.getByText('Peito e tríceps', { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Editar sessão/ })).toBeVisible();
 }
 
 /** As três partes da linha da Estrutura: o contador de séries, as repetições (o Máx. fecha a faixa) e o descanso. */
@@ -68,10 +69,12 @@ for (const largura of [1280, 1440, 1920]) {
     await abrir(page);
     await expect(page.getByText(/^Editando: Série 1( ·|$)/)).toBeVisible();
     const caixa = async (nome: RegExp | string) => (await page.getByText(nome, { exact: nome instanceof RegExp ? undefined : true }).first().boundingBox())!;
+    // 10/11: nome, dia, tipo e observação da sessão moram no recolhido "Editar sessão", observação embaixo do nome.
+    await page.getByRole('button', { name: /^Editar sessão/ }).click();
     const nome = (await page.getByRole('textbox', { name: 'Nome da sessão' }).boundingBox())!;
-    const observacao = await caixa('Observação');
-    if (largura >= 1440) expect(observacao.x).toBeGreaterThan(nome.x + nome.width);
-    else expect(observacao.y).toBeGreaterThan(nome.y + nome.height);
+    const observacao = await caixa('Observação da sessão (opcional)');
+    expect(observacao.y).toBeGreaterThan(nome.y + nome.height);
+    await page.getByRole('button', { name: /^Nome de exibição e instruções/ }).click();
     const exibicao = (await page.getByRole('textbox', { name: 'Nome de exibição' }).boundingBox())!;
     const series = await caixa(/^Editando: Série 1/);
     // Uma coluna só em qualquer largura: as séries ficam abaixo dos dados do exercício, sem coluna vazia ao lado.

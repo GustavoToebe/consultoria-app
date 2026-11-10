@@ -6,19 +6,20 @@ import type { Configuracao, PapelDaSerie, Serie, TipoDeTecnica } from '../../api
 import { agrupar, type GrupoDeSeries } from '../../dominio/agrupamento';
 import { adicionarSerie, alterarGrupo, LIMITE_SERIES, moverGrupo, mudarQuantidade, novoExercicio, removerGrupo, type AlteracaoDeGrupo } from '../../dominio/editorTreino';
 import { grupoComSerie, uidDaAbaAposMudar } from '../../dominio/inspetorDoTreino';
-import { restPauseNestaSerie, textoDaContagemDeSeries } from '../../dominio/exemplosDePrescricao';
+import { restPauseNestaSerie } from '../../dominio/exemplosDePrescricao';
+import { blocosESeries, resumoDoBloco, textoDeBlocosESeries } from '../../dominio/editorDeTreino';
 import { corDoTipoDeSerie } from '../../dominio/corDaSerie';
 import { codigoTrabalho, nomeDoTipo, papelDe, tecnicaNaMetodologia } from '../../dominio/metodologia';
 import { CONFIGURACAO_PADRAO } from '../../dominio/metodologiaPadrao';
 import { validarExercicio } from '../../dominio/validacaoDoTreino';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
-import { Abas } from '../../ui/Abas';
 import { Botao } from '../../ui/Botao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Texto } from '../../ui/Texto';
 import { AvisoDoCampo, ErroDoCampo, useCamposLadoALado } from './CamposDaPrescricao';
 import { EditorGrupo, nivelDoGrupo, type Nivel } from './EditorDoGrupoDeSeries';
+import { TabelaDeBlocos } from './TabelaDeBlocos';
 import { opcoesDeTecnica, opcoesDeTipo, problemasDoExercicioSemSeries, problemasPorSerie } from './opcoesDoEditor';
 
 interface Props {
@@ -53,7 +54,7 @@ const TECNICAS_DE_1_CLIQUE: TipoDeTecnica[] = ['REST_PAUSE', 'CLUSTER', 'DROP_SE
  * próprios. Cada campo mostra o erro e o aviso da validação (a mesma da publicação).
  */
 export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, grupoAbertoUid, aoAbrirGrupo, semCarga = false }: Props) {
-  const { cores, identificacao } = useTema();
+  const { identificacao } = useTema();
   const cfg = config ?? CONFIGURACAO_PADRAO;
   const modalidade = cardio ? 'CARDIO' : null;
   const grupos = agrupar(series);
@@ -108,19 +109,19 @@ export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, gru
   const nova = <Botao rotulo={rotuloDaNova} tipo="secundario" Icone={Plus} desabilitado={cheio} motivo={motivoCheio} aoTocar={aoNova} />;
   const botoesDaNova = cardio || cheio ? null : <BotoesDeNovaSerie config={cfg} aoAdicionar={adicionar} />;
   return <View style={estilos.lista} onLayout={medir}>
-    {grupos.length > 0 ? <Abas variante="invertida" fundo={cores.superficie} ativa={uidAberto ?? grupos[0].series[0].uid} aoMudar={definirAberto}
-      abas={grupos.map((x, i) => {
+    {grupos.length > 0 ? <TabelaDeBlocos ativa={uidAberto ?? grupos[0].series[0].uid} aoMudar={definirAberto}
+      linhas={grupos.map((x, i) => {
         const chaveCor = corDoTipoDeSerie(x.series[0].tipo, papelDe(cfg, x.series[0].tipo));
         const corIndicador = chaveCor && identificacao ? identificacao[chaveCor]?.cor : undefined;
         return {
           valor: x.series[0].uid,
           rotulo: `Série ${i + 1}${cardio ? '' : ` · ${tipos.find((t) => t.valor === x.series[0].tipo)?.rotulo ?? nomeDoTipo(cfg, x.series[0].tipo)}`}`,
-          detalhe: detalheDaAba(x),
+          resumo: resumoDoBloco(x, cfg),
           problema: problemaDaAba(nivelDoGrupo(validacao.porSerieErros, x)),
           corIndicador,
         };
       })}
-      // Cheio, o botão sai da linha das abas: desabilitado ele perdia o tracejado e o motivo ficava escondido.
+      // Cheio, o botão sai do fim da tabela: desabilitado ele perdia o tracejado e o motivo ficava escondido.
       depois={cheio ? undefined : <Botao rotulo={rotuloDaNova} tipo="secundario" Icone={Plus} style={estilos.tracejado} aoTocar={aoNova} />} />
       : <View style={estilos.vazio}>
         <Texto variante="suave">Nenhuma série ainda.</Texto>
@@ -139,7 +140,8 @@ export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, gru
       aoQuantidade={(n) => aoMudar(mudarQuantidade(series, g, n, cfg))}
       aoRestPauseNaUltima={() => aoMudar(restPauseNestaSerie(series, g, cfg))}
       aoRemover={() => aoMudar(removerGrupo(series, g))} /> : null}
-    <Texto variante="pequeno">{textoDaContagemDeSeries(series.length)}</Texto>
+    {/* "2 blocos · 7 séries": quantidade de blocos e total de séries não se confundem (a coluna Quantidade é do bloco). */}
+    {series.length ? <Texto variante="pequeno" numerico>{`Este exercício: ${textoDeBlocosESeries(blocosESeries(series))}`}</Texto> : null}
   </View>;
 }
 
@@ -161,11 +163,6 @@ function BotoesDeNovaSerie({ config, aoAdicionar }: { config: Configuracao; aoAd
         aoTocar={() => aoAdicionar(ws ?? undefined, o.valor)} />)}
     </LinhaDeAcoes>
   </View>;
-}
-
-/** "3 séries": quantas séries completas o grupo tem, quando são mais de uma (o tipo já está no rótulo da aba). */
-function detalheDaAba(g: GrupoDeSeries): string | undefined {
-  return g.series.length > 1 ? `${g.series.length} séries` : undefined;
 }
 
 function problemaDaAba(nivel: Nivel): 'perigo' | 'atencao' | undefined {

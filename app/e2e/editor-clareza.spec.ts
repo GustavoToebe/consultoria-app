@@ -83,9 +83,9 @@ for (const largura of [390, 1280]) {
   test(`editor: posição do exercício, mover exercício × grupo e percentuais por série (${largura}px)`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const api = await planoComDoisExercicios(page);
-    // Contadores: o plano inteiro e a sessão aberta, separados.
+    // Contadores: o plano inteiro no cabeçalho e os totais da sessão aberta no cabeçalho dela (10/11), separados.
     await expect(page.getByText('Plano inteiro: 1 sessão · 2 exercícios · 5 séries cadastradas', { exact: true })).toBeVisible();
-    await expect(page.getByText('Sessão aberta: 2 exercícios · 5 séries', { exact: true })).toBeVisible();
+    await expect(page.getByText(/^2 exercícios · 5 séries · \d+ séries? de trabalho$/)).toBeVisible();
     // A posição por extenso, sem confundir com o número da série: no estreito, em texto pequeno no alto de cada cartão, com
     // o nome embaixo; em duas colunas, no nome acessível de cada item da lista (e no alto do exercício escolhido).
     await expect(page.getByText(/^Exercício 1 de 2( ·|$)/).first()).toBeVisible();
@@ -258,13 +258,15 @@ for (const largura of [390, 1280]) {
     await expect(page.getByRole('button', { name: /^Mais ações da sessão/ })).toHaveCount(1);
     await page.getByRole('button', { name: 'Adicionar sessão', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Remover sessão', exact: true })).toHaveCount(0);
-    // O primeiro controle da linha de adição é "Adicionar exercício"; "Adicionar cardio" vem logo depois (04/11).
+    // Sessão nova e vazia: o convite "Monte esta sessão" com "Adicionar exercício" primeiro, "Usar modelo" e "Adicionar
+    // cardio" (10/11).
+    await expect(page.getByText('Monte esta sessão', { exact: true })).toBeVisible();
     const antes = (a: { x: number; y: number }, b: { x: number; y: number }) => a.y < b.y || (a.y === b.y && a.x < b.x);
     const adicionar = (await page.getByRole('button', { name: 'Adicionar exercício', exact: true }).boundingBox())!;
+    const modelos = (await page.getByRole('button', { name: 'Usar modelo', exact: true }).boundingBox())!;
     const cardio = (await page.getByRole('button', { name: 'Adicionar cardio', exact: true }).boundingBox())!;
-    const modelos = (await page.getByRole('button', { name: 'Modelos prontos', exact: true }).boundingBox())!;
-    expect(antes(adicionar, cardio)).toBe(true);
-    expect(antes(cardio, modelos)).toBe(true);
+    expect(antes(adicionar, modelos)).toBe(true);
+    expect(antes(modelos, cardio)).toBe(true);
     await page.getByRole('button', { name: /^Mais ações da sessão/ }).first().click();
     await page.getByText('Remover sessão', { exact: true }).click();
     await expect(page.getByText(/Sessão “.*” removida\./)).toBeVisible();
@@ -279,11 +281,13 @@ for (const largura of [390, 1280]) {
   test(`editor: a metodologia aparece uma vez só, dentro de "Configuração do plano" (${largura}px)`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const api = await planoComDoisExercicios(page);
-    // A coluna dos exercícios não repete a metodologia (04/11); ela mora só na configuração, recolhida aqui.
-    await expect(page.getByText(/Metodologia fictícia/)).toHaveCount(0);
+    // A coluna dos exercícios não repete a metodologia (04/11); ela mora só na configuração, recolhida aqui, que mostra
+    // o resumo "Objetivo · Metodologia" na faixa (10/11).
+    await expect(page.getByText(/Metodologia fictícia/)).toHaveCount(1);
+    await expect(page.getByText(/^(Sem objetivo|Objetivo: .*) · Metodologia: Metodologia fictícia$/)).toBeVisible();
     await expect(page.getByRole('button', { name: 'Trocar a metodologia', exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: 'Configuração do plano, recolhido', exact: true }).click();
-    await expect(page.getByText(/Metodologia fictícia/)).toHaveCount(1);
+    await expect(page.getByText(/Metodologia fictícia/)).toHaveCount(2);
     await expect(page.getByText('Metodologia: Metodologia fictícia', { exact: true })).toBeVisible();
     expect(api.errosDaPagina).toEqual([]);
     expect(api.naoTratadas).toEqual([]);

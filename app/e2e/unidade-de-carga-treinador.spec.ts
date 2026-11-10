@@ -51,8 +51,8 @@ for (const largura of [390, 1280]) {
     await page.setViewportSize({ width: largura, height: 900 });
     const api = await planoEmLibra(page, 'lb');
     await abrirExercicio(page, largura);
-    await expect(page.getByRole('button', { name: 'Carga fixa (kg)', exact: true })).toHaveCount(0);
-    await page.getByRole('button', { name: 'Carga fixa (lb)', exact: true }).click();
+    await expect(page.getByRole('radio', { name: 'Carga fixa (kg)', exact: true })).toHaveCount(0);
+    await page.getByRole('radio', { name: 'Carga fixa (lb)', exact: true }).click();
     const campo = page.getByRole('textbox', { name: 'Carga, em libras', exact: true });
     await campo.fill('0');
     await expect(page.getByText('Carga fixa: maior que zero e até 2204,6 lb.', { exact: true }).first()).toBeVisible();
@@ -77,8 +77,8 @@ for (const largura of [390, 1280]) {
     await page.setViewportSize({ width: largura, height: 900 });
     const api = await planoEmLibra(page, 'kg');
     await abrirExercicio(page, largura);
-    await expect(page.getByRole('button', { name: 'Carga fixa (lb)', exact: true })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Carga fixa (kg)', exact: true })).toBeVisible();
+    await expect(page.getByRole('radio', { name: 'Carga fixa (lb)', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('radio', { name: 'Carga fixa (kg)', exact: true })).toBeVisible();
     expect(api.errosDaPagina).toEqual([]);
   });
 }
@@ -88,12 +88,12 @@ test('treinador escolhe lb em Ajustes e o editor passa a falar libras', async ({
   await page.setViewportSize({ width: 1280, height: 900 });
   await planoEmLibra(page, null, { ir: false });
   await page.goto('/treinador/ajustes');
-  const opcao = (rotulo: string) => page.getByRole('radiogroup', { name: 'Unidade da carga' }).getByRole('button', { name: rotulo, exact: true });
+  const opcao = (rotulo: string) => page.getByRole('radiogroup', { name: 'Unidade da carga' }).getByRole('radio', { name: rotulo, exact: true });
   await expect(page.getByText('Unidade da carga', { exact: true })).toBeVisible();
   await opcao('Libras (lb)').click();
   await irAoModelo(page);
   await abrirExercicio(page, 1280);
-  await expect(page.getByRole('button', { name: 'Carga fixa (lb)', exact: true })).toBeVisible();
+  await expect(page.getByRole('radio', { name: 'Carga fixa (lb)', exact: true })).toBeVisible();
 });
 
 test('chave desligada: o treinador nem vê a escolha e segue em kg, mesmo com lb salvo de antes', async ({ page }) => {
@@ -104,6 +104,6 @@ test('chave desligada: o treinador nem vê a escolha e segue em kg, mesmo com lb
   await expect(page.getByText('Unidade da carga', { exact: true })).toHaveCount(0);
   await irAoModelo(page);
   await abrirExercicio(page, 1280);
-  await expect(page.getByRole('button', { name: 'Carga fixa (kg)', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Carga fixa (lb)', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('radio', { name: 'Carga fixa (kg)', exact: true })).toBeVisible();
+  await expect(page.getByRole('radio', { name: 'Carga fixa (lb)', exact: true })).toHaveCount(0);
 });

@@ -73,7 +73,7 @@ for (const largura of [390, 1280]) {
     await expect(page.getByRole('button', { name: 'Nova série', exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: 'Novo cardio', exact: true }).click();
     await page.getByRole('textbox', { name: 'Duração (min)', exact: true }).fill('40');
-    await page.getByRole('button', { name: 'Zona 2', exact: true }).click();
+    await page.getByRole('radio', { name: 'Zona 2', exact: true }).click();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath('cardio.png'), fullPage: true });
     await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();
@@ -96,24 +96,27 @@ for (const largura of [390, 1280]) {
       if (largura >= 960) await page.getByRole('button', { name: new RegExp(`^Exercício ${n} de 2: ${nome}`) }).click();
       else await page.getByRole('button', { name: `Editar ${nome}`, exact: true }).click();
     };
-    const extras = page.getByRole('button', { name: 'Instruções, vídeo e cadência (opcional)', exact: true });
+    // 10/11: o nome de exibição entrou no mesmo recolhido, que diz o que já tem ("(com observação)").
+    const extras = page.getByRole('button', { name: /^Nome de exibição e instruções/ });
     const observacao = page.getByRole('textbox', { name: 'Observação para o aluno', exact: true });
     // Supino sem instrução, vídeo nem cadência: fechado, e as séries vêm logo depois do nome.
     await abrirExercicio(1, 'Supino de teste');
     await expect(extras.first()).toHaveAttribute('aria-expanded', 'false');
     await expect(observacao).toHaveCount(0);
-    await expect(page.getByRole('textbox', { name: 'Nome de exibição', exact: true }).first()).toHaveValue('Supino de teste');
+    await expect(page.getByRole('textbox', { name: 'Nome de exibição', exact: true })).toHaveCount(0);
     await page.screenshot({ path: testInfo.outputPath('extras-fechados.png'), fullPage: true });
     // Abre e fecha pelo botão.
     await extras.first().click();
     await expect(extras.first()).toHaveAttribute('aria-expanded', 'true');
     await expect(observacao.first()).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Nome de exibição', exact: true }).first()).toHaveValue('Supino de teste');
     await extras.first().click();
     await expect(observacao).toHaveCount(0);
     // Remada com observação: já abre aberto, com o texto.
     await abrirExercicio(2, 'Remada de teste');
     await expect(observacao.last()).toHaveValue('Desça devagar, fictício.');
     await expect(extras.last()).toHaveAttribute('aria-expanded', 'true');
+    await expect(extras.last()).toHaveAccessibleName('Nome de exibição e instruções (com observação)');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath('extras-abertos.png'), fullPage: true });
     expect(api.errosDaPagina).toEqual([]);

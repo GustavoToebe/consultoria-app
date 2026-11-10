@@ -31,7 +31,8 @@ async function abrir(page: Page, comProblema: boolean) {
     },
   });
   await page.goto(`/treinador/treinos/${PLANO_ID}`);
-  await expect(page.getByRole('textbox', { name: 'Nome da sessão' })).toHaveValue('Peito e tríceps');
+  await expect(page.getByText('Peito e tríceps', { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Editar sessão/ })).toBeVisible();
   return api;
 }
 
@@ -68,9 +69,12 @@ test.describe('editor de treino no PC (1440)', () => {
     await item(page, 3, 'Crucifixo na máquina').click();
     await expect(item(page, 3, 'Crucifixo na máquina')).toHaveAttribute('aria-current', 'true');
     await expect(item(page, 1, 'Supino reto com barra')).not.toHaveAttribute('aria-current', 'true');
+    // O nome de exibição mora no recolhido "Nome de exibição e instruções" (10/11).
+    await page.getByRole('button', { name: /^Nome de exibição e instruções/ }).click();
     await expect(page.getByRole('textbox', { name: 'Nome de exibição' })).toHaveValue('Crucifixo na máquina');
 
     await item(page, 1, 'Supino reto com barra').click();
+    await page.getByRole('button', { name: /^Nome de exibição e instruções/ }).click();
     await expect(page.getByRole('textbox', { name: 'Nome de exibição' })).toHaveValue('Supino reto com barra');
     await expect(abasDasSeries(page)).toHaveCount(3);
     await expect(abaSelecionada(page)).toHaveAccessibleName(/^Série 1 · FS/);
@@ -93,10 +97,10 @@ test.describe('editor de treino no PC (1440)', () => {
     expect(api.errosDaPagina).toEqual([]);
   });
 
-  test('"ir ao primeiro" escolhe o exercício e a aba do problema', async ({ page }) => {
+  test('"Ir à primeira pendência" escolhe o exercício e a aba do problema', async ({ page }) => {
     const api = await abrir(page, true);
     await expect(page.getByText(/^Editando: Série 1( ·|$)/)).toBeVisible();
-    await page.getByRole('button', { name: /ir ao primeiro/ }).click();
+    await page.getByRole('button', { name: /Ir à primeira pendência$/ }).click();
     await expect(item(page, 2, 'Supino inclinado com halteres')).toHaveAttribute('aria-current', 'true');
     await expect(page.getByRole('tab', { name: /^Série 2 · Back off/ })).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByText(/^Editando: Série 2( ·|$)/)).toBeVisible();
@@ -106,6 +110,7 @@ test.describe('editor de treino no PC (1440)', () => {
   test('"Publicar para o aluno" salva o que mudou e publica', async ({ page }) => {
     const api = await abrir(page, false);
     await expect(page.getByText(/^Editando: Série 1( ·|$)/)).toBeVisible();
+    await page.getByRole('button', { name: /^Nome de exibição e instruções/ }).click();
     await page.getByRole('textbox', { name: 'Nome de exibição' }).fill('Supino reto');
     await expect(page.getByRole('button', { name: 'Salvar rascunho' })).toBeEnabled();
     expect(escritas(api.pedidos)).toEqual([]);
@@ -141,9 +146,9 @@ test.describe('editor de treino no celular (390)', () => {
     expect(api.errosDaPagina).toEqual([]);
   });
 
-  test('"ir ao primeiro" abre o exercício e a aba do problema', async ({ page }) => {
+  test('"Ir à primeira pendência" abre o exercício e a aba do problema', async ({ page }) => {
     const api = await abrir(page, true);
-    await page.getByRole('button', { name: /ir ao primeiro/ }).click();
+    await page.getByRole('button', { name: /Ir à primeira pendência$/ }).click();
     await expect(page.getByRole('button', { name: 'Fechar Supino inclinado com halteres', exact: true })).toBeVisible();
     await expect(page.getByRole('tab', { name: /^Série 2 · Back off/ })).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByText(/^Editando: Série 2( ·|$)/)).toBeVisible();

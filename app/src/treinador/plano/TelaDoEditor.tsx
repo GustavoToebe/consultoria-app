@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, useWindowDimensions, View, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -51,6 +51,8 @@ export function TelaDoEditor({ cabecalho, barra, children, largura = LARGURA_EDI
   const duas = !!colunas && duasColunas((medida ?? estimada) - 2 * espaco(2));
   const larguraUtil = duas ? larguraDoEditor(true) : Math.min(largura, LARGURA_MAXIMA);
   const web = Platform.OS === 'web';
+  const barraGrudada = useRef<View>(null);
+  useEffect(() => (web ? semFocoDebaixoDaBarra(barraGrudada.current as unknown as HTMLElement | null) : undefined), [web]);
   const fundoDaBarra = { backgroundColor: cores.fundo, borderColor: cores.borda };
   return (
     <ProvedorDeColunas value={duas}>
@@ -61,7 +63,7 @@ export function TelaDoEditor({ cabecalho, barra, children, largura = LARGURA_EDI
         <RolagemComTopo preencher contentContainerStyle={estilos.rolagem}>
           <View style={[estilos.conteudo, { maxWidth: larguraUtil }]}>
             {cabecalho}
-            {web ? <View style={[GRUDADA, estilos.barraGrudada, fundoDaBarra]}>{barra}</View> : null}
+            {web ? <View ref={barraGrudada} style={[GRUDADA, estilos.barraGrudada, fundoDaBarra]}>{barra}</View> : null}
             {children}
             {web && rodape ? <View style={[GRUDADA_EMBAIXO, estilos.rodapeGrudado, fundoDaBarra]}>{rodape}</View> : null}
           </View>
@@ -71,6 +73,23 @@ export function TelaDoEditor({ cabecalho, barra, children, largura = LARGURA_EDI
     </SafeAreaView>
     </ProvedorDeColunas>
   );
+}
+
+/**
+ * Web: o campo que ganha foco (Tab, Shift+Tab, foco por script) por baixo da barra grudada vem para o meio da tela
+ * (WCAG 2.4.11, foco não encoberto). O navegador só rola o necessário para a borda, e a borda de cima fica sob a barra.
+ * shortcut: o certo seria `scroll-padding-top` na rolagem de `ui/RolagemComTopo`, peça compartilhada fora deste escopo.
+ */
+function semFocoDebaixoDaBarra(barra: HTMLElement | null): (() => void) | undefined {
+  if (!barra) return undefined;
+  const aoFocar = (e: FocusEvent) => {
+    const alvo = e.target as HTMLElement | null;
+    // Só o conteúdo do editor (irmão da barra); folha e painel em portal ficam de fora.
+    if (!alvo || barra.contains(alvo) || !barra.parentElement?.contains(alvo)) return;
+    if (alvo.getBoundingClientRect().top < barra.getBoundingClientRect().bottom) alvo.scrollIntoView({ block: 'center' });
+  };
+  document.addEventListener('focusin', aoFocar);
+  return () => document.removeEventListener('focusin', aoFocar);
 }
 
 const estilos = StyleSheet.create({

@@ -17,6 +17,11 @@ interface Props<C> {
   /** Começa recolhido (plano que já tem conteúdo); só vale na primeira exibição. */
   recolhido: boolean;
   descricao?: string;
+  /**
+   * Resumo que fica à vista também recolhido ("Objetivo: X · Metodologia: Y"), na faixa ao lado do título.
+   * shortcut: vai nas `acoes` do `Cartao` porque a `descricao` dele some quando fechado; trocar por uma prop do `Cartao`.
+   */
+  resumo?: string;
   /** Campos próprios do tipo de plano (metodologia, objetivo, orientações...). */
   children?: ReactNode;
 }
@@ -25,11 +30,12 @@ interface Props<C> {
  * "Configuração do plano": título, período (quando não vem da pasta) e os campos do tipo. Recolhível: o treinador mexe
  * pouco aqui depois de montado o plano. Os campos preenchem a largura do cartão.
  */
-export function ConfiguracaoDoPlano<C>({ editor, modelo, recolhido, descricao, children }: Props<C>) {
+export function ConfiguracaoDoPlano<C>({ editor, modelo, recolhido, descricao, resumo, children }: Props<C>) {
   const e = editor.estado;
   if (!e) return null;
   return (
-    <Cartao faixa titulo="Configuração do plano" descricao={descricao} recolhivel recolhido={recolhido}>
+    <Cartao faixa titulo="Configuração do plano" descricao={descricao} recolhivel recolhido={recolhido}
+      acoes={resumo ? <Texto variante="suave" style={estilos.resumo}>{resumo}</Texto> : undefined}>
       <View style={estilos.medida}>
         {modelo ? null : (
           <Campo
@@ -62,6 +68,7 @@ export function ConfiguracaoDoPlano<C>({ editor, modelo, recolhido, descricao, c
 
 const estilos = StyleSheet.create({
   medida: { width: '100%', gap: espaco(2) },
+  resumo: { flexShrink: 1 },
   datas: { flexDirection: 'row', gap: espaco(1.5), flexWrap: 'wrap' },
   data: { flex: 1, minWidth: 190 },
 });

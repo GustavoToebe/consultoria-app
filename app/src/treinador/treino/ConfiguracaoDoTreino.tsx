@@ -12,9 +12,11 @@ import type { usePlanoEditor } from '../plano/usePlanoEditor';
  * "Configuração do plano" do treino: título, período, a metodologia, objetivo e orientações. A metodologia mora só aqui,
  * em qualquer largura (o exercício não a repete).
  */
-export function ConfiguracaoDoTreino({ editor, modelo, aoTrocarMetodologia }: {
+export function ConfiguracaoDoTreino({ editor, modelo, aberta = false, aoTrocarMetodologia }: {
   editor: ReturnType<typeof usePlanoEditor<ConteudoTreino>>;
   modelo: boolean;
+  /** Abre na montagem (o editor remonta por `key` para abrir no "Ir à primeira pendência" de um campo daqui). */
+  aberta?: boolean;
   aoTrocarMetodologia: () => void;
 }) {
   const estado = editor.estado;
@@ -24,8 +26,8 @@ export function ConfiguracaoDoTreino({ editor, modelo, aoTrocarMetodologia }: {
     <ConfiguracaoDoPlano
       editor={editor}
       modelo={modelo}
-      recolhido={c.sessoes.length > 0 && estado.titulo.trim() !== ''}
-      descricao="Título, período, metodologia e orientações gerais do plano.">
+      recolhido={!aberta && c.sessoes.length > 0 && estado.titulo.trim() !== ''}
+      resumo={resumoDaConfiguracao(c)}>
       <View style={estilos.metodologia}>
         <Texto style={estilos.metodologiaTexto}>{c.metodologia ? `Metodologia: ${c.metodologia.nome}` : 'Metodologia: nenhuma vinculada'}</Texto>
         <Botao rotulo={c.metodologia ? 'Trocar' : 'Vincular'} tipo="secundario" aoTocar={aoTrocarMetodologia} />
@@ -46,6 +48,11 @@ export function ConfiguracaoDoTreino({ editor, modelo, aoTrocarMetodologia }: {
       />
     </ConfiguracaoDoPlano>
   );
+}
+
+/** Resumo na faixa, à vista também recolhida (10/11): "Objetivo: hipertrofia · Metodologia: Padrão". */
+export function resumoDaConfiguracao(c: Pick<ConteudoTreino, 'objetivo' | 'metodologia'>): string {
+  return [c.objetivo ? `Objetivo: ${c.objetivo}` : 'Sem objetivo', c.metodologia ? `Metodologia: ${c.metodologia.nome}` : 'Sem metodologia'].join(' · ');
 }
 
 const estilos = StyleSheet.create({

@@ -72,7 +72,7 @@ test('escolher exercício: marca vários do grupo escolhido e adiciona de uma ve
   await folha.getByRole('checkbox', { name: 'Remada baixa' }).click();
   await expect(folha.getByRole('button', { name: 'Adicionar 2 exercícios' })).toBeEnabled();
   // Trocar de grupo tira da seleção o que não é do grupo novo.
-  await folha.getByRole('button', { name: 'Peito' }).click();
+  await folha.getByRole('radio', { name: 'Peito' }).click();
   await expect(folha.getByRole('checkbox', { name: 'Remada baixa' })).toHaveCount(0);
   await expect(folha.getByRole('button', { name: 'Adicionar exercício' })).toBeEnabled();
   await folha.getByRole('button', { name: /Marcar todos os 2 da lista/ }).click();

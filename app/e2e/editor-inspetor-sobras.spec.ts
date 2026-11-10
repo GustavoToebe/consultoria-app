@@ -39,7 +39,8 @@ async function abrirTreino(page: Page) {
     [`GET /planos-treino/${PLANO_ID}`]: (_p, route) => json(route, planoDetalhe(false)),
   });
   await page.goto(`/treinador/treinos/${PLANO_ID}`);
-  await expect(page.getByRole('textbox', { name: 'Nome da sessão' })).toHaveValue('Peito e tríceps');
+  await expect(page.getByText('Peito e tríceps', { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Editar sessão/ })).toBeVisible();
   return api;
 }
 

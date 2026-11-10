@@ -88,6 +88,7 @@ for (const tema of ['CLARO', 'ESCURO'] as const) {
       await page.setViewportSize({ width: largura, height: 900 });
       const { naoTratadas, errosDaPagina } = await abrirApi(page, tema, { [`GET /planos-treino/${TREINO_ID}`]: { corpo: TREINO } });
       await page.goto(`/treinador/treinos/${TREINO_ID}`);
+      await page.getByRole('button', { name: /^Editar sessão/ }).click();
       const nome = page.getByRole('textbox', { name: 'Nome da sessão' });
       await expect(nome).toHaveValue('Costas');
       await nome.fill('Costas no rascunho');
