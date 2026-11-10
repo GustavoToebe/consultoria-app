@@ -58,7 +58,7 @@ import {
 } from '../../dominio/inscricoes';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, fontes, LARGURA_EDITOR, RAIO } from '../../tema/tokens';
+import { espaco, fontes, LARGURA_EDITOR, LARGURA_FORMULARIO, RAIO } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { CaixaSelecao } from '../../ui/CaixaSelecao';
@@ -67,6 +67,7 @@ import { CampoLeitura } from '../../ui/CampoLeitura';
 import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
 import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
+import { EscolhaSuspensa } from '../../ui/EscolhaSuspensa';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { Folha } from '../../ui/Folha';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
@@ -443,8 +444,9 @@ function Conteudo({ dados, responsaveis, rascunhos, aoFechar, aoMudarLista, aoAt
             <EscolhaEmFolha rotulo="Responsável" valor={responsavelId} aoMudar={setResponsavelId}
               opcoes={[{ valor: SEM_RESPONSAVEL, rotulo: 'Sem responsável' }, ...responsaveis.map((r) => ({ valor: r.id, rotulo: r.nome }))]}
               rotuloDoValor={dados.responsavelNome ?? 'Membro inativo'} />
-            <Escolha rotulo="Origem" opcoes={[{ valor: SEM_ORIGEM as Origem | '', rotulo: 'Não informada' }, ...OPCOES_ORIGEM]}
-              valor={origem} aoMudar={setOrigem} />
+            {/* Dez opções: lista suspensa de escolha única, sem busca (os chips ocupavam quatro linhas). */}
+            <EscolhaSuspensa<Origem | ''> rotulo="Origem" titulo="Origem da inscrição" semBusca style={estilos.origem}
+              opcoes={[{ valor: SEM_ORIGEM, rotulo: 'Não informada' }, ...OPCOES_ORIGEM]} valor={origem} aoMudar={setOrigem} />
           </>
         ) : (
           <>
@@ -623,6 +625,8 @@ function Passo({ feito, texto }: { feito: boolean; texto: string }) {
 
 const estilos = StyleSheet.create({
   corpo: { gap: espaco(2) },
+  // A origem é curta: o campo não atravessa a folha inteira (a 390 px ele já cabe na largura toda).
+  origem: { maxWidth: LARGURA_FORMULARIO / 2 },
   selos: { flexDirection: 'row', gap: espaco(0.75), flexWrap: 'wrap' },
   anamnese: { gap: espaco(0.75) },
   conferir: { gap: 2 },

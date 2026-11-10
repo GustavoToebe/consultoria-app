@@ -20,7 +20,7 @@ import {
 } from '../../dominio/fatoresDoAlimento';
 import { numeroParaTela } from '../../dominio/formatos';
 import { chipDeVarias } from '../../dominio/filtrosDaBiblioteca';
-import { sugerirGrupos } from '../../dominio/gruposDaLista';
+import { grupoDoTexto, gruposDoCampo } from '../../dominio/gruposDaLista';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, RAIO } from '../../tema/tokens';
 import { useSessao } from '../../sessao/SessaoProvider';
@@ -31,6 +31,7 @@ import { Campo } from '../../ui/Campo';
 import { Cartao } from '../../ui/Cartao';
 import { CampoNumerico } from '../../ui/Campos';
 import { Escolha } from '../../ui/Escolha';
+import { EscolhaSuspensa } from '../../ui/EscolhaSuspensa';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { errosPorCampo, textoDoErro } from '../../ui/erros';
@@ -88,8 +89,6 @@ export function resumoAlimento(a: Pick<Alimento, 'baseQuantidade' | 'baseUnidade
 
 /** Tamanho do grupo do alimento (`GrupoDoAlimento.MAXIMO` na API). */
 export const LIMITE_GRUPO_DO_ALIMENTO = 60;
-/** Quantas sugestões de grupo aparecem de uma vez embaixo do campo. */
-const SUGESTOES_DE_GRUPO = 8;
 
 /** Grupo e a conversão de 100 g, ou "Peso direto" quando FC e FCc são 1. */
 export function descricaoDoAlimento(a: Pick<Alimento, 'grupo' | 'fatorCorrecao' | 'fatorCoccao'>): string | null {
@@ -245,7 +244,7 @@ export function AbaAlimentos() {
 function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTirar }: {
   aoTirar?: () => void;
   inicial: Alimento | null;
-  /** Grupos já usados na biblioteca, para as sugestões do campo Grupo. */
+  /** Grupos já usados na biblioteca, para as opções do campo Grupo. */
   gruposDaConsultoria: (string | null)[];
   aoFechar: () => void;
   aoSalvar: () => void;
@@ -263,11 +262,14 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
   const [fc, setFc] = useState<number | null>(inicial?.fatorCorrecao ?? null);
   const [fcc, setFcc] = useState<number | null>(inicial?.fatorCoccao ?? null);
   const [grupo, setGrupo] = useState(inicial?.grupo ?? '');
-  // No alimento novo a sugestão acompanha o nome. Na edição, só depois de "Sugerir pelo nome", até a pessoa tocar num chip ou no número.
+  // No alimento novo a sugestão acompanha o nome. Na edição, só depois de "Sugerir pelo nome", até a pessoa escolher um perfil ou digitar o número.
   const [tocouFatores, setTocouFatores] = useState(inicial !== null);
-  // Grupos do catálogo público como sugestão; sem eles (erro ou sem rede), sugere só os da consultoria.
+  // "Personalizado" escolhido com um número igual ao de um perfil: o campo do número continua aberto até escolher um perfil.
+  const [fcLivre, setFcLivre] = useState(false);
+  const [fccLivre, setFccLivre] = useState(false);
+  // Grupos do catálogo público como opção; sem eles (erro ou sem rede), só os da consultoria (e o digitado).
   const doCatalogo = useCarregar('grupos-catalogo-alimentos', () => gruposDoCatalogo('alimentos'));
-  const sugestoes = sugerirGrupos(gruposDaConsultoria, doCatalogo.dados ?? [], grupo).slice(0, SUGESTOES_DE_GRUPO);
+  const grupos = gruposDoCampo(gruposDaConsultoria, doCatalogo.dados ?? [], grupo);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
   const campos = errosPorCampo(erro);
@@ -281,12 +283,17 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
       : kcal === null || proteina === null || carboidrato === null || gordura === null ? 'Preencha kcal, proteína, carboidrato e gordura.'
         : erroFc || erroFcc ? 'Confira os fatores do alimento.' : null;
 
-  const sugerirPeloNome = () => setTocouFatores(false);
-  const perfilFc = perfilFcDoValor(fcMostrado);
-  const perfilFcc = perfilFccDoValor(fccMostrado);
+  const sugerirPeloNome = () => { setTocouFatores(false); setFcLivre(false); setFccLivre(false); };
+  const perfilFc = fcLivre ? 'PERSONALIZADO' : perfilFcDoValor(fcMostrado);
+  const perfilFcc = fccLivre ? 'PERSONALIZADO' : perfilFccDoValor(fccMostrado);
   const travarFatores = () => { setFc(fcMostrado); setFcc(fccMostrado); setTocouFatores(true); };
   const escolherFc = (valor: number) => { setFc(valor); setFcc(fccMostrado); setTocouFatores(true); };
   const escolherFcc = (valor: number) => { setFc(fcMostrado); setFcc(valor); setTocouFatores(true); };
+  // O número só aparece no "Personalizado" (ou com erro da API nele); nos perfis, o fator já está no nome.
+  const numeroDoFc = perfilFc === 'PERSONALIZADO' || !!campos.fatorCorrecao;
+  const numeroDoFcc = perfilFcc === 'PERSONALIZADO' || !!campos.fatorCoccao;
+  const personalizado = (escolhido: boolean, valor: number | null) =>
+    ({ valor: 'PERSONALIZADO', rotulo: escolhido && valor !== null ? `Personalizado (${numeroParaTela(valor)})` : 'Personalizado', detalhe: 'Digite o fator' });
 
   const salvar = () => {
     if (pendencia || !base) return;
@@ -337,18 +344,17 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
             </View>
           </View>
           <View style={estilos.grupo}>
-            <Campo
-              rotulo="Grupo (opcional)"
-              valor={grupo}
-              aoMudar={setGrupo}
-              erro={campos.grupo}
-              maxLength={LIMITE_GRUPO_DO_ALIMENTO}
-              ajuda="Agrupa a lista de compras do aluno. Vazio fica em “Outros itens”."
-            />
-            {sugestoes.length ? (
-              <Escolha<string | null> descricao="Sugestões de grupo" valor={sugestoes.includes(grupo) ? grupo : null}
-                aoMudar={(g) => { if (g) setGrupo(g); }} opcoes={sugestoes.map((g) => ({ valor: g, rotulo: g }))} />
-            ) : null}
+            {/* Um campo só: busca nos grupos da consultoria e do catálogo, aceita um grupo próprio ("Usar “…”") e
+                "Sem grupo" limpa (vazio fica em "Outros itens"). */}
+            <EscolhaSuspensa<string> rotulo="Grupo (opcional)" titulo="Grupo do alimento" valor={grupo} aoMudar={setGrupo}
+              rotuloDaBusca="Buscar ou digitar um grupo" textoVazio="Nenhum grupo encontrado."
+              opcoes={[{ valor: '', rotulo: 'Sem grupo', detalhe: 'Fica em “Outros itens” na lista de compras' }, ...grupos.map((g) => ({ valor: g, rotulo: g }))]}
+              digitado={{
+                maxLength: LIMITE_GRUPO_DO_ALIMENTO,
+                opcao: (t) => { const g = grupoDoTexto(t, grupos); return g === null ? null : { valor: g, rotulo: `Usar “${g}”`, detalhe: 'Grupo novo' }; },
+              }} />
+            {campos.grupo ? <Texto variante="pequeno" cor={cores.perigo} accessibilityLiveRegion="polite">{campos.grupo}</Texto> : null}
+            <Texto variante="pequeno">Agrupa a lista de compras do aluno. Vazio fica em “Outros itens”.</Texto>
           </View>
         </Cartao>
 
@@ -390,22 +396,27 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
           </View>
         </Cartao>
 
-        <Cartao titulo="Lista de compras" descricao="O nome sugere os fatores. Escolha um perfil ou digite o número." nivel={3}
+        <Cartao titulo="Lista de compras" descricao="O nome sugere os fatores. Escolha um perfil, ou “Personalizado” para digitar o número." nivel={3}
           acoes={inicial ? <Botao rotulo="Sugerir pelo nome" tipo="secundario" aoTocar={sugerirPeloNome} /> : null}>
-          {/* Perfil e número com o mesmo código (FC, FCc) e na mesma ordem: tocar no perfil preenche o campo logo abaixo. */}
-          <Escolha<string> rotulo="Descarte e limpeza antes do preparo (FC)" valor={perfilFc}
-            opcoes={[...PERFIS_FC.map((p) => ({ valor: p.codigo as string, rotulo: p.rotulo })), { valor: 'PERSONALIZADO', rotulo: 'Personalizado' }]}
-            aoMudar={(c) => { const perfil = PERFIS_FC.find((p) => p.codigo === c); if (perfil) escolherFc(perfil.valor); else travarFatores(); }} />
-          <Escolha<string> rotulo="Estado na dieta e cocção (FCc)" valor={perfilFcc}
-            opcoes={[...PERFIS_FCC.map((p) => ({ valor: p.codigo as string, rotulo: p.rotulo })), { valor: 'PERSONALIZADO', rotulo: 'Personalizado' }]}
-            aoMudar={(c) => { const perfil = PERFIS_FCC.find((p) => p.codigo === c); if (perfil) escolherFcc(perfil.valor); else travarFatores(); }} />
-          <View style={estilos.linhaDeCampos}>
-            <View style={estilos.campoLargo}>
+          {/* O fator está no nome do perfil; o "Personalizado" abre o número logo abaixo, já com o valor de agora. FC são
+              cinco opções (sem busca); FCc, dez (com busca). Duas linhas no valor: no celular o nome longo do perfil não
+              esconde o fator do fim. */}
+          <View style={estilos.fator}>
+            <EscolhaSuspensa<string> rotulo="Descarte e limpeza antes do preparo (FC)" titulo="Descarte e limpeza (FC)" valor={perfilFc} semBusca linhasDoValor={2}
+              opcoes={[...PERFIS_FC.map((p) => ({ valor: p.codigo as string, rotulo: p.rotulo })), personalizado(perfilFc === 'PERSONALIZADO', fcMostrado)]}
+              aoMudar={(c) => { const perfil = PERFIS_FC.find((p) => p.codigo === c); setFcLivre(!perfil); if (perfil) escolherFc(perfil.valor); else travarFatores(); }} />
+            {numeroDoFc ? (
               <CampoNumerico rotulo="Fator de correção (FC)" valor={fcMostrado} aoMudar={(v) => { setFc(v); setFcc(fccMostrado); setTocouFatores(true); }} ajuda={AJUDA_FC} erro={campos.fatorCorrecao ?? erroFc} />
-            </View>
-            <View style={estilos.campoLargo}>
+            ) : null}
+          </View>
+          <View style={estilos.fator}>
+            <EscolhaSuspensa<string> rotulo="Estado na dieta e cocção (FCc)" valor={perfilFcc} linhasDoValor={2}
+              rotuloDaBusca="Buscar perfil" textoVazio="Nenhum perfil encontrado."
+              opcoes={[...PERFIS_FCC.map((p) => ({ valor: p.codigo as string, rotulo: p.rotulo })), personalizado(perfilFcc === 'PERSONALIZADO', fccMostrado)]}
+              aoMudar={(c) => { const perfil = PERFIS_FCC.find((p) => p.codigo === c); setFccLivre(!perfil); if (perfil) escolherFcc(perfil.valor); else travarFatores(); }} />
+            {numeroDoFcc ? (
               <CampoNumerico rotulo="Fator de cocção (FCc)" valor={fccMostrado} aoMudar={(v) => { setFc(fcMostrado); setFcc(v); setTocouFatores(true); }} ajuda={AJUDA_FCC} erro={campos.fatorCoccao ?? erroFcc} />
-            </View>
+            ) : null}
           </View>
           {fcMostrado !== null && fccMostrado !== null && fccMostrado !== 0 ? (
             <View style={[estilos.exemplo, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
@@ -439,8 +450,9 @@ const estilos = StyleSheet.create({
   // 180 px: FC e FCc lado a lado na folha do PC (600) e um embaixo do outro no celular.
   campoLargo: { flexGrow: 1, flexBasis: 180 },
   campoMacro: { flexGrow: 1, flexBasis: 100 },
-  // Sugestões coladas no campo Grupo (8 px), não soltas no cartão.
+  // Erro e ajuda colados no campo Grupo (8 px), não soltos no cartão; o mesmo no perfil do fator e no número dele.
   grupo: { gap: espaco(1) },
+  fator: { gap: espaco(1) },
   // Nível de dentro do cartão: divisor, não outro contorno (seção 5.1).
   macros: { gap: espaco(1.5), borderTopWidth: 1, paddingTop: espaco(2) },
   exemplo: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(1.5), borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5) },

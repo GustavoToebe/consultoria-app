@@ -1,4 +1,4 @@
-import { destaqueInicial, filtrarOpcoesSuspensas, moverDestaque, posicaoDaLista, VAO_DO_PAINEL } from './escolhaSuspensa';
+import { comDigitado, destaqueInicial,filtrarOpcoesSuspensas, moverDestaque, posicaoDaLista, VAO_DO_PAINEL } from './escolhaSuspensa';
 
 const OPCOES = [
   { valor: null, rotulo: 'Não importar' },
@@ -14,6 +14,21 @@ describe('filtrarOpcoesSuspensas', () => {
   });
   it('filtro vazio ou só espaços devolve todas, na mesma ordem', () => {
     expect(filtrarOpcoesSuspensas(OPCOES, '  ')).toEqual(OPCOES);
+  });
+});
+
+describe('comDigitado', () => {
+  const novo = { valor: 'rua', rotulo: 'Usar “rua”' };
+  it('sem texto, a lista fica como está', () => {
+    expect(comDigitado(OPCOES, OPCOES, null)).toEqual(OPCOES);
+  });
+  it('valor novo vai no fim (o Enter continua escolhendo o que já existe)', () => {
+    expect(comDigitado(OPCOES.slice(1), OPCOES, novo).map((o) => o.valor)).toEqual(['nome', 'cep', 'rua']);
+  });
+  it('valor que já é uma opção: vale a de lá, no topo, sem repetir, mesmo se o filtro a escondia', () => {
+    const doTexto = { valor: 'cep', rotulo: 'Usar “cep”' };
+    expect(comDigitado(OPCOES, OPCOES, doTexto)).toEqual([OPCOES[2], OPCOES[0], OPCOES[1]]);
+    expect(comDigitado([], OPCOES, doTexto)).toEqual([OPCOES[2]]);
   });
 });
 

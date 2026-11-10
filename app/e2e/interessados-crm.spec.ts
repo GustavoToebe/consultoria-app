@@ -31,7 +31,8 @@ function comUma(r: InscricaoResumo, inicial: InscricaoDetalhe) {
   return { estado, rotas };
 }
 
-for (const largura of [390, 1280]) {
+// Com CAPTURAS_DIR (conferência visual) roda também a 768, a primeira largura com a lista colada ao botão.
+for (const largura of process.env.CAPTURAS_DIR ? [390, 768, 1280] : [390, 1280]) {
   test.describe(`${largura}px`, () => {
     test.beforeEach(async ({ page }) => {
       await page.setViewportSize({ width: largura, height: 900 });
@@ -391,7 +392,27 @@ for (const largura of [390, 1280]) {
       await page.getByRole('button', { name: 'Abrir inscrição de Pessoa Fictícia 1' }).click();
       await expect(page.getByText('Tô só de passagem', { exact: true })).toBeVisible();
       await expect(page.getByText('TikTok · Link: tt', { exact: true })).toBeVisible();
-      await page.getByLabel('Aluno do time', { exact: true }).click();
+      // Origem é uma lista de escolha única (sem busca): o campo fechado já mostra a salva, e a lista tem as dez opções.
+      const origem = page.getByRole('button', { name: 'Origem: TikTok. Escolher.', exact: true });
+      await expect(origem).toBeVisible();
+      await expect(page.getByLabel('Aluno do time', { exact: true })).toHaveCount(0);
+      await origem.click();
+      const lista = page.getByRole('listbox', { name: 'Origem da inscrição' });
+      await expect(lista.getByRole('option')).toHaveCount(10);
+      await expect(lista.getByRole('option', { name: 'TikTok', exact: true })).toHaveAttribute('aria-selected', 'true');
+      if (process.env.CAPTURAS_DIR) await page.screenshot({ path: `${process.env.CAPTURAS_DIR}/origem-${largura}-aberta.png`, animations: 'disabled' });
+      if (largura >= 768) {
+        // Teclado: o foco abre na salva, setas andam, Enter escolhe e o foco volta ao botão; a folha continua aberta.
+        await expect(lista.getByRole('option', { name: 'TikTok', exact: true })).toBeFocused();
+        await page.keyboard.press('End');
+        await expect(lista.getByRole('option', { name: 'Outra', exact: true })).toBeFocused();
+        await page.keyboard.press('Escape');
+        await expect(lista).toHaveCount(0);
+        await expect(origem).toBeFocused();
+        await origem.click();
+      }
+      await lista.getByRole('option', { name: 'Aluno do time', exact: true }).click();
+      await expect(page.getByRole('button', { name: 'Origem: Aluno do time. Escolher.', exact: true })).toBeVisible();
       await page.getByRole('button', { name: 'Salvar andamento' }).click();
       await expect.poll(() => pedidos.find((p) => p.metodo === 'PUT' && p.caminho.endsWith('/origem'))?.corpo)
         .toEqual({ origem: 'ALUNO_DO_TIME', versao: 1 });

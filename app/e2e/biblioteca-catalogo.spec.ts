@@ -148,10 +148,11 @@ test('catálogo de alimentos mostra o fator, a importação copia e a biblioteca
 });
 
 /**
- * Folha "Editar alimento": as sugestões de grupo e os perfis de FC e FCc quebram linha dentro da folha (antes a fileira
- * passava da borda e os chips apareciam cortados, "Cere…", "Feijã…"). Confere a caixa de cada opção contra a da folha.
- * No claro também confere o "Novo alimento" e a confirmação do "Tirar da biblioteca". Com `CAPTURAS_DIR` roda os
- * quatro temas e grava as partes da folha em cada tema e largura.
+ * Folha "Editar alimento": Grupo, FC e FCc são listas de escolha única (`EscolhaSuspensa`) em vez de chips. Cada lista
+ * abre por cima da folha (PC) ou numa folha própria (celular), com as opções inteiras dentro da janela; o Esc fecha só a
+ * lista e o foco volta ao botão. No claro também confere o teclado da lista sem busca (FC), o "Novo alimento" e a
+ * confirmação do "Tirar da biblioteca". Com `CAPTURAS_DIR` roda os quatro temas e três larguras e grava as partes da
+ * folha, com as listas abertas.
  */
 const ARROZ: Alimento = {
   id: 'f0000001-0000-4000-8000-000000000000', nome: 'Arroz branco cozido', baseQuantidade: 100, baseUnidade: 'g',
@@ -164,76 +165,209 @@ const TEMAS_DA_FOLHA = {
   claro: { tema: 'CLARO' }, escuro: { tema: 'ESCURO' }, areia: { tema: 'AREIA' }, 'contraste-alto': { tema: 'CLARO', contraste: 'ALTO' },
 } as const;
 
-/** Todas as opções de escolha da folha cabem na largura dela. */
-async function opcoesDentroDa(folha: Locator, minimo: number) {
-  const caixa = (await folha.boundingBox())!;
-  const opcoes = await folha.getByRole('radio').all();
-  expect(opcoes.length).toBeGreaterThan(minimo);
+/** Botão fechado da lista: "Rótulo: valor. Escolher." (o leitor de tela ouve o rótulo e o valor escolhido). */
+const botaoDa = (onde: Locator | Page, rotulo: string, valor: string) => onde.getByRole('button', { name: `${rotulo}: ${valor}. Escolher.`, exact: true });
+
+/** Todas as opções da lista aberta cabem na largura da janela, e a lista não sai da janela por baixo. */
+async function listaNaJanela(page: Page, lista: Locator, quantas: number) {
+  const janela = page.viewportSize()!;
+  const opcoes = await lista.getByRole('option').all();
+  expect(opcoes).toHaveLength(quantas);
   for (const opcao of opcoes) {
     const b = (await opcao.boundingBox())!;
     const nome = await opcao.getAttribute('aria-label');
-    expect(b.x, `${nome} começa antes da folha`).toBeGreaterThanOrEqual(caixa.x - 0.5);
-    expect(b.x + b.width, `${nome} passa da borda direita da folha`).toBeLessThanOrEqual(caixa.x + caixa.width + 0.5);
+    expect(b.x, `${nome} começa fora da janela`).toBeGreaterThanOrEqual(-0.5);
+    expect(b.x + b.width, `${nome} passa da borda direita`).toBeLessThanOrEqual(janela.width + 0.5);
   }
+  const caixa = (await lista.boundingBox())!;
+  expect(caixa.y).toBeGreaterThanOrEqual(-0.5);
 }
 
-// Os outros temas só mudam as capturas: sem CAPTURAS_DIR roda só o claro, para não gastar minutos da CI.
+async function abrirAlimento(page: Page, largura: number, alimentos: Alimento[], preferencias: object = TEMAS_DA_FOLHA.claro) {
+  await page.setViewportSize({ width: largura, height: largura < 768 ? 844 : 900 });
+  await page.addInitScript(([id, pref]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify(pref)), [TREINADOR.id, preferencias] as const);
+  let tirados = 0;
+  const api = await simularApi(page, {
+    ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'BIBLIOTECA_LER', 'BIBLIOTECA_ALTERAR'] })),
+    'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+    'GET /alimentos': { corpo: alimentos },
+    'GET /catalogo/alimentos/grupos': { corpo: GRUPOS_LONGOS },
+    'PUT /alimentos/{id}': (p, route) => json(route, { ...alimentos[0], ...(p.corpo as object) }),
+    'DELETE /alimentos/{id}': (_p, route) => { tirados += 1; return route.fulfill({ status: 204 }); },
+  });
+  await page.goto('/treinador/biblioteca?aba=alimentos');
+  await page.getByRole('button', { name: `Editar ${alimentos[0].nome}` }).click();
+  return { ...api, tirados: () => tirados, folha: page.getByRole('dialog', { name: 'Editar alimento' }) };
+}
+
+// Os outros temas e o 768 só mudam as capturas: sem CAPTURAS_DIR roda só o claro em 390 e 1280, para não gastar minutos.
 const temasDaFolha = process.env.CAPTURAS_DIR ? Object.entries(TEMAS_DA_FOLHA) : [['claro', TEMAS_DA_FOLHA.claro] as const];
+const largurasDaFolha = process.env.CAPTURAS_DIR ? [390, 768, 1280] : [390, 1280];
+const capturar = (page: Page, nome: string) =>
+  process.env.CAPTURAS_DIR ? page.screenshot({ path: `${process.env.CAPTURAS_DIR}/${nome}.png`, animations: 'disabled' }) : Promise.resolve();
 
-for (const largura of [390, 1280]) {
+for (const largura of largurasDaFolha) {
   for (const [nomeDoTema, preferencias] of temasDaFolha) {
-    test(`folha do alimento em ${largura}px, tema ${nomeDoTema}: nenhum chip passa da borda da folha`, async ({ page }) => {
-      await page.setViewportSize({ width: largura, height: largura < 768 ? 844 : 900 });
-      await page.addInitScript(([id, pref]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify(pref)), [TREINADOR.id, preferencias] as const);
-      let tirados = 0;
-      const { naoTratadas, errosDaPagina } = await simularApi(page, {
-        ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'BIBLIOTECA_LER', 'BIBLIOTECA_ALTERAR'] })),
-        'GET /inscricoes': { corpo: { itens: [], total: 0 } },
-        'GET /alimentos': { corpo: [ARROZ] },
-        'GET /catalogo/alimentos/grupos': { corpo: GRUPOS_LONGOS },
-        'DELETE /alimentos/{id}': (_p, route) => { tirados += 1; return route.fulfill({ status: 204 }); },
-      });
-      await page.goto('/treinador/biblioteca?aba=alimentos');
-      await page.getByRole('button', { name: `Editar ${ARROZ.nome}` }).click();
-      const folha = page.getByRole('dialog', { name: 'Editar alimento' });
-      await expect(folha.getByRole('radiogroup', { name: 'Sugestões de grupo' })).toBeVisible();
-      await expect(folha.getByRole('radio', { name: 'Feijão/leguminosa cozida (1,85)' })).toBeAttached();
-      await opcoesDentroDa(folha, 20);
+    test(`folha do alimento em ${largura}px, tema ${nomeDoTema}: Grupo, FC e FCc em listas de escolha única que cabem na janela`, async ({ page }) => {
+      const { folha, naoTratadas, errosDaPagina, tirados } = await abrirAlimento(page, largura, [ARROZ], preferencias);
+      const grupo = botaoDa(folha, 'Grupo (opcional)', 'Sem grupo');
+      await expect(grupo).toBeVisible();
+      await expect(botaoDa(folha, 'Descarte e limpeza antes do preparo (FC)', 'Sem perda (1,00)')).toBeVisible();
+      await expect(botaoDa(folha, 'Estado na dieta e cocção (FCc)', 'Arroz/grão cozido (2,60)')).toBeVisible();
+      // Perfil escolhido: o número fica escondido (o fator está no nome).
+      await expect(folha.getByLabel('Fator de correção (FC)')).toHaveCount(0);
+      await expect(folha.getByLabel('Fator de cocção (FCc)')).toHaveCount(0);
+      // Nada de chips de grupo nem de perfil; só os da unidade (g, ml, un) continuam.
+      await expect(folha.getByRole('radiogroup', { name: 'Sugestões de grupo' })).toHaveCount(0);
+      await expect(folha.getByRole('radio', { name: 'g', exact: true })).toBeVisible();
+      const prefixo = `alimento-${largura}-${nomeDoTema}`;
+      await capturar(page, `${prefixo}-topo`);
 
-      if (process.env.CAPTURAS_DIR) {
-        await page.screenshot({ path: `${process.env.CAPTURAS_DIR}/alimento-${largura}-${nomeDoTema}-topo.png`, animations: 'disabled' });
-        await folha.getByRole('heading', { name: 'Porção e macronutrientes' }).evaluate((el) => el.scrollIntoView({ block: 'start' }));
-        await page.screenshot({ path: `${process.env.CAPTURAS_DIR}/alimento-${largura}-${nomeDoTema}-porcao.png`, animations: 'disabled' });
-        await folha.getByRole('heading', { name: 'Lista de compras' }).evaluate((el) => el.scrollIntoView({ block: 'start' }));
-        await page.screenshot({ path: `${process.env.CAPTURAS_DIR}/alimento-${largura}-${nomeDoTema}-meio.png`, animations: 'disabled' });
-        await folha.getByRole('button', { name: 'Tirar da biblioteca' }).scrollIntoViewIfNeeded();
-        await page.screenshot({ path: `${process.env.CAPTURAS_DIR}/alimento-${largura}-${nomeDoTema}-fim.png`, animations: 'disabled' });
+      // Grupo: com busca, "Sem grupo" no topo e os grupos da consultoria e do catálogo.
+      await grupo.click();
+      const listaDoGrupo = page.getByRole('listbox', { name: 'Grupo do alimento' });
+      await listaNaJanela(page, listaDoGrupo, GRUPOS_LONGOS.length + 1);
+      await expect(page.getByLabel('Buscar ou digitar um grupo')).toBeVisible();
+      await capturar(page, `${prefixo}-grupo-aberto`);
+      await page.keyboard.press('Escape');
+      await expect(listaDoGrupo).toHaveCount(0);
+      await expect(folha).toBeVisible();
+      if (largura >= 768) await expect(grupo).toBeFocused();
+
+      // FCc: com busca; busca sem resultado diz que não achou.
+      await folha.getByRole('heading', { name: 'Lista de compras' }).evaluate((el) => el.scrollIntoView({ block: 'start' }));
+      await capturar(page, `${prefixo}-meio`);
+      const fcc = botaoDa(folha, 'Estado na dieta e cocção (FCc)', 'Arroz/grão cozido (2,60)');
+      await fcc.click();
+      const listaDoFcc = page.getByRole('listbox', { name: 'Estado na dieta e cocção (FCc)' });
+      await listaNaJanela(page, listaDoFcc, 10);
+      await expect(listaDoFcc.getByRole('option', { name: 'Arroz/grão cozido (2,60)', exact: true })).toHaveAttribute('aria-selected', 'true');
+      await capturar(page, `${prefixo}-fcc-aberto`);
+      await page.getByLabel('Buscar perfil').fill('xyz');
+      await expect(page.getByText('Nenhum perfil encontrado.')).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(listaDoFcc).toHaveCount(0);
+      await expect(folha).toBeVisible();
+
+      // FC: sem busca (cinco opções); o foco vai à escolhida e as setas e o Enter escolhem.
+      const fc = botaoDa(folha, 'Descarte e limpeza antes do preparo (FC)', 'Sem perda (1,00)');
+      await fc.click();
+      const listaDoFc = page.getByRole('listbox', { name: 'Descarte e limpeza (FC)' });
+      await listaNaJanela(page, listaDoFc, 5);
+      await expect(page.getByLabel('Buscar campo')).toHaveCount(0);
+      await capturar(page, `${prefixo}-fc-aberto`);
+      if (nomeDoTema === 'claro') {
+        await expect(listaDoFc.getByRole('option', { name: 'Sem perda (1,00)', exact: true })).toBeFocused();
+        await page.keyboard.press('ArrowDown');
+        await expect(listaDoFc.getByRole('option', { name: 'Limpeza leve (1,12)', exact: true })).toBeFocused();
+        await page.keyboard.press('Enter');
+        await expect(listaDoFc).toHaveCount(0);
+        await expect(folha).toBeVisible();
+        await expect(botaoDa(folha, 'Descarte e limpeza antes do preparo (FC)', 'Limpeza leve (1,12)')).toBeVisible();
+      } else {
+        await page.keyboard.press('Escape');
+        await expect(listaDoFc).toHaveCount(0);
       }
 
       if (nomeDoTema === 'claro') {
-        // Novo alimento: as mesmas sugestões de grupo aparecem e também cabem na folha.
+        // Novo alimento: o grupo começa vazio e a lista traz os mesmos grupos.
         await folha.getByRole('button', { name: 'Cancelar' }).click();
         await page.getByRole('button', { name: 'Novo alimento' }).click();
         const novo = page.getByRole('dialog', { name: 'Novo alimento' });
-        await expect(novo.getByRole('radiogroup', { name: 'Sugestões de grupo' }).getByRole('radio', { name: 'Cereais e derivados' })).toBeVisible();
+        await expect(botaoDa(novo, 'Grupo (opcional)', 'Sem grupo')).toBeVisible();
         await expect(novo.getByRole('button', { name: 'Tirar da biblioteca' })).toHaveCount(0);
-        await opcoesDentroDa(novo, 20);
-        if (process.env.CAPTURAS_DIR) await page.screenshot({ path: `${process.env.CAPTURAS_DIR}/alimento-${largura}-novo.png`, animations: 'disabled' });
+        await capturar(page, `alimento-${largura}-novo`);
         await novo.getByRole('button', { name: 'Cancelar' }).click();
 
         // Tirar da biblioteca: a área separada no fim da folha continua abrindo a confirmação.
         await page.getByRole('button', { name: `Editar ${ARROZ.nome}` }).click();
         await page.getByRole('dialog', { name: 'Editar alimento' }).getByRole('button', { name: 'Tirar da biblioteca' }).click();
         await expect(page.getByText(`Tirar “${ARROZ.nome}” da biblioteca?`)).toBeVisible();
-        expect(tirados).toBe(0);
+        expect(tirados()).toBe(0);
         await page.getByRole('button', { name: 'Tirar da biblioteca' }).click();
         await expect(page.getByText(`“${ARROZ.nome}” saiu da biblioteca.`)).toBeVisible();
-        expect(tirados).toBe(1);
+        expect(tirados()).toBe(1);
       }
       expect(naoTratadas).toEqual([]);
       expect(errosDaPagina).toEqual([]);
     });
   }
+}
+
+for (const largura of [390, 1280]) {
+  test(`alimento salvo em ${largura}px: grupo próprio e FC personalizado aparecem; trocar, grupo novo, Personalizado com validação e salvar`, async ({ page }) => {
+    const salvo: Alimento = { ...ARROZ, id: 'f0000002-0000-4000-8000-000000000000', nome: 'Frango grelhado', grupo: 'Marmitas da semana', fatorCorrecao: 1.3, fatorCoccao: 0.78 };
+    const { folha, pedidos, naoTratadas, errosDaPagina } = await abrirAlimento(page, largura, [salvo]);
+    // O que foi salvo aparece como está, sem abrir as listas.
+    await expect(botaoDa(folha, 'Grupo (opcional)', 'Marmitas da semana')).toBeVisible();
+    await expect(botaoDa(folha, 'Descarte e limpeza antes do preparo (FC)', 'Personalizado (1,3)')).toBeVisible();
+    await expect(folha.getByLabel('Fator de correção (FC)')).toHaveValue('1,3');
+    await expect(botaoDa(folha, 'Estado na dieta e cocção (FCc)', 'Carne/peixe grelhado ou assado (0,78)')).toBeVisible();
+    await expect(folha.getByLabel('Fator de cocção (FCc)')).toHaveCount(0);
+
+    // Grupo: um pedaço do nome + Enter escolhe o que já existe (o "Usar" vai no fim).
+    await botaoDa(folha, 'Grupo (opcional)', 'Marmitas da semana').click();
+    const busca = page.getByLabel('Buscar ou digitar um grupo');
+    await busca.fill('cere');
+    const lista = page.getByRole('listbox', { name: 'Grupo do alimento' });
+    await expect(lista.getByRole('option')).toHaveText([/Cereais e derivados/, /Usar “cere”/]);
+    await busca.press('Enter');
+    await expect(botaoDa(folha, 'Grupo (opcional)', 'Cereais e derivados')).toBeVisible();
+    // Grupo próprio: "Usar “…”" com o nome digitado.
+    await botaoDa(folha, 'Grupo (opcional)', 'Cereais e derivados').click();
+    await page.getByLabel('Buscar ou digitar um grupo').fill('Lanches   da tarde');
+    await page.getByRole('option', { name: 'Usar “Lanches da tarde”, Grupo novo' }).click();
+    await expect(botaoDa(folha, 'Grupo (opcional)', 'Lanches da tarde')).toBeVisible();
+
+    // FC: um perfil esconde o número.
+    await botaoDa(folha, 'Descarte e limpeza antes do preparo (FC)', 'Personalizado (1,3)').click();
+    await page.getByRole('option', { name: 'Limpeza leve (1,12)', exact: true }).click();
+    await expect(botaoDa(folha, 'Descarte e limpeza antes do preparo (FC)', 'Limpeza leve (1,12)')).toBeVisible();
+    await expect(folha.getByLabel('Fator de correção (FC)')).toHaveCount(0);
+
+    // FCc: "Personalizado" abre o número com o valor de agora; as validações de sempre valem.
+    await botaoDa(folha, 'Estado na dieta e cocção (FCc)', 'Carne/peixe grelhado ou assado (0,78)').click();
+    await page.getByRole('option', { name: 'Personalizado, Digite o fator' }).click();
+    const numero = folha.getByLabel('Fator de cocção (FCc)');
+    await expect(numero).toHaveValue('0,78');
+    await expect(botaoDa(folha, 'Estado na dieta e cocção (FCc)', 'Personalizado (0,78)')).toBeVisible();
+    await numero.fill('20');
+    await expect(folha.getByText('Use um valor de 0,1 a 10.')).toBeVisible();
+    await expect(folha.getByRole('button', { name: 'Salvar' })).toBeDisabled();
+    await numero.fill('0,8');
+    await expect(botaoDa(folha, 'Estado na dieta e cocção (FCc)', 'Personalizado (0,8)')).toBeVisible();
+    await capturar(page, `alimento-${largura}-personalizado`);
+
+    await folha.getByRole('button', { name: 'Salvar' }).click();
+    await expect(page.getByText('Alimento salvo.')).toBeVisible();
+    const corpo = pedidos.find((p) => p.metodo === 'PUT' && p.caminho.endsWith(`/alimentos/${salvo.id}`))?.corpo;
+    expect(corpo).toMatchObject({ nome: 'Frango grelhado', grupo: 'Lanches da tarde', fatorCorrecao: 1.12, fatorCoccao: 0.8 });
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`alimento salvo em ${largura}px: Sugerir pelo nome atualiza as duas listas, "Sem grupo" limpa e salvar manda os sugeridos`, async ({ page }) => {
+    const salvo: Alimento = { ...ARROZ, grupo: 'Cereais e derivados', fatorCorrecao: 1.3, fatorCoccao: 1.9 };
+    const { folha, pedidos, naoTratadas, errosDaPagina } = await abrirAlimento(page, largura, [salvo]);
+    await expect(botaoDa(folha, 'Descarte e limpeza antes do preparo (FC)', 'Personalizado (1,3)')).toBeVisible();
+    await expect(botaoDa(folha, 'Estado na dieta e cocção (FCc)', 'Personalizado (1,9)')).toBeVisible();
+    await folha.getByRole('button', { name: 'Sugerir pelo nome' }).click();
+    await expect(botaoDa(folha, 'Descarte e limpeza antes do preparo (FC)', 'Sem perda (1,00)')).toBeVisible();
+    await expect(botaoDa(folha, 'Estado na dieta e cocção (FCc)', 'Arroz/grão cozido (2,60)')).toBeVisible();
+    await expect(folha.getByLabel('Fator de correção (FC)')).toHaveCount(0);
+    await expect(folha.getByLabel('Fator de cocção (FCc)')).toHaveCount(0);
+
+    await botaoDa(folha, 'Grupo (opcional)', 'Cereais e derivados').click();
+    await page.getByRole('option', { name: 'Sem grupo, Fica em “Outros itens” na lista de compras' }).click();
+    await expect(botaoDa(folha, 'Grupo (opcional)', 'Sem grupo')).toBeVisible();
+
+    await folha.getByRole('button', { name: 'Salvar' }).click();
+    await expect(page.getByText('Alimento salvo.')).toBeVisible();
+    const corpo = pedidos.find((p) => p.metodo === 'PUT' && p.caminho.endsWith(`/alimentos/${salvo.id}`))?.corpo;
+    expect(corpo).toMatchObject({ grupo: null, fatorCorrecao: 1, fatorCoccao: 2.6 });
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
 }
 
 test('exercícios da biblioteca: filtro de vários grupos no servidor', async ({ page }) => {

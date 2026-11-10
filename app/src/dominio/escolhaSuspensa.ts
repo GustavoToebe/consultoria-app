@@ -18,6 +18,17 @@ export function filtrarOpcoesSuspensas<T>(opcoes: readonly OpcaoSuspensa<T>[], f
   return opcoes.filter((o) => semAcento(`${o.rotulo} ${o.detalhe ?? ''}`).includes(termo));
 }
 
+/**
+ * Lista com a opção do texto digitado (ex.: "Usar “Lanches”"): se o valor dela já é uma das opções, vale a de lá, no
+ * topo; se é novo, vai no fim, para o Enter depois de um pedaço do nome escolher o que já existe, e não criar outro.
+ */
+export function comDigitado<T>(visiveis: readonly OpcaoSuspensa<T>[], todas: readonly OpcaoSuspensa<T>[], doTexto: OpcaoSuspensa<T> | null): OpcaoSuspensa<T>[] {
+  if (!doTexto) return [...visiveis];
+  const existente = todas.find((o) => o.valor === doTexto.valor);
+  const resto = visiveis.filter((o) => o.valor !== doTexto.valor);
+  return existente ? [existente, ...resto] : [...resto, doTexto];
+}
+
 /** O destaque começa na opção escolhida, se ela estiver visível; senão na primeira (ou -1 sem opções). */
 export function destaqueInicial<T>(visiveis: readonly OpcaoSuspensa<T>[], valor: T): number {
   if (visiveis.length === 0) return -1;

@@ -131,20 +131,31 @@ export function tituloDoGrupoNoPdf(grupo: { titulo: string; itens: readonly unkn
   return `${grupo.titulo} (${grupo.itens.length})`;
 }
 
+/** O grupo como a API grava (`GrupoDoAlimento.normalizar`): espaços seguidos viram um, sem espaço nas pontas. */
+export const normalizarGrupo = (texto: string) => texto.replace(/\s+/g, ' ').trim();
+
 /**
- * Grupos já usados na biblioteca da consultoria e os do catálogo público, sem repetir (sem acento e sem caixa) e em
- * ordem alfabética, para as sugestões do campo "Grupo" do alimento. Sugere só os que contêm o que foi digitado; some o
- * que já é exatamente o texto digitado.
+ * Opções do campo "Grupo" do alimento: os grupos já usados na biblioteca da consultoria e os do catálogo público, sem
+ * repetir (sem acento e sem caixa) e em ordem alfabética. O grupo atual entra com a grafia dele quando não está igual
+ * na lista, para o campo nunca mostrar "—" nem trocar o que foi salvo sem a pessoa mexer.
  */
-export function sugerirGrupos(daConsultoria: readonly (string | null)[], doCatalogo: readonly string[], digitado: string): string[] {
+export function gruposDoCampo(daConsultoria: readonly (string | null)[], doCatalogo: readonly string[], atual: string): string[] {
   const vistos = new Map<string, string>();
   for (const g of [...daConsultoria, ...doCatalogo]) {
-    const nome = (g ?? '').replace(/\s+/g, ' ').trim();
+    const nome = normalizarGrupo(g ?? '');
     if (nome && !vistos.has(chaveDoNome(nome))) vistos.set(chaveDoNome(nome), nome);
   }
-  const termo = chaveDoNome(digitado);
-  return [...vistos.entries()]
-    .filter(([chave]) => chave !== termo && chave.includes(termo))
-    .sort(([a], [b]) => a.localeCompare(b, 'pt-BR'))
-    .map(([, nome]) => nome);
+  const nomes = [...vistos.entries()].sort(([a], [b]) => a.localeCompare(b, 'pt-BR')).map(([, nome]) => nome);
+  const doAtual = normalizarGrupo(atual);
+  return doAtual && !nomes.includes(doAtual) ? [doAtual, ...nomes] : nomes;
+}
+
+/**
+ * O texto digitado na busca do Grupo: o grupo da lista com o mesmo nome (igual, senão sem acento e sem caixa), para não
+ * criar um quase repetido, ou o texto como grupo novo. Vazio = nada a oferecer.
+ */
+export function grupoDoTexto(texto: string, grupos: readonly string[]): string | null {
+  const nome = normalizarGrupo(texto);
+  if (!nome) return null;
+  return grupos.find((g) => g === nome) ?? grupos.find((g) => chaveDoNome(g) === chaveDoNome(nome)) ?? nome;
 }

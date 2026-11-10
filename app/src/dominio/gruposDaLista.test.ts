@@ -1,4 +1,4 @@
-import { agruparLista, contagemDoGrupo, GRUPOS_DO_CATALOGO_NA_ORDEM_DO_MERCADO, sugerirGrupos, TITULO_DO_ALUNO, TITULO_SEM_GRUPO, tituloDoGrupoNoPdf } from './gruposDaLista';
+import { agruparLista, contagemDoGrupo, grupoDoTexto, gruposDoCampo, GRUPOS_DO_CATALOGO_NA_ORDEM_DO_MERCADO, TITULO_DO_ALUNO, TITULO_SEM_GRUPO, tituloDoGrupoNoPdf } from './gruposDaLista';
 
 /** Itens fictícios: nome, grupo e se o aluno acrescentou. */
 type Item = { nome: string; grupo?: string | null; aluno?: boolean };
@@ -103,12 +103,30 @@ describe('textos dos grupos', () => {
   });
 });
 
-describe('sugerirGrupos', () => {
-  it('junta os da consultoria e os do catálogo sem repetir, filtra pelo digitado sem acento e some o que já está igual', () => {
-    const daConsultoria = ['Proteínas', null, 'Carnes e derivados', 'proteinas'];
-    const doCatalogo = ['Carnes e derivados', 'Cereais e derivados', 'Frutas e derivados'];
-    expect(sugerirGrupos(daConsultoria, doCatalogo, '')).toEqual(['Carnes e derivados', 'Cereais e derivados', 'Frutas e derivados', 'Proteínas']);
-    expect(sugerirGrupos(daConsultoria, doCatalogo, 'CER')).toEqual(['Cereais e derivados']);
-    expect(sugerirGrupos(daConsultoria, doCatalogo, 'proteinas')).toEqual([]);
+describe('gruposDoCampo', () => {
+  const daConsultoria = ['Proteínas', null, 'Carnes  e derivados', 'proteinas'];
+  const doCatalogo = ['Carnes e derivados', 'Cereais e derivados', 'Frutas e derivados'];
+  it('junta os da consultoria e os do catálogo sem repetir (sem acento e sem caixa), em ordem alfabética', () => {
+    expect(gruposDoCampo(daConsultoria, doCatalogo, '')).toEqual(['Carnes e derivados', 'Cereais e derivados', 'Frutas e derivados', 'Proteínas']);
+  });
+  it('o grupo atual fica com a grafia dele quando não está igual na lista (nada muda sem a pessoa mexer)', () => {
+    expect(gruposDoCampo(daConsultoria, doCatalogo, 'proteinas')[0]).toBe('proteinas');
+    expect(gruposDoCampo(daConsultoria, doCatalogo, 'Meu grupo')).toEqual(['Meu grupo', 'Carnes e derivados', 'Cereais e derivados', 'Frutas e derivados', 'Proteínas']);
+    expect(gruposDoCampo(daConsultoria, doCatalogo, 'Proteínas')).toHaveLength(4);
+  });
+});
+
+describe('grupoDoTexto', () => {
+  const grupos = ['Carnes e derivados', 'Proteínas', 'proteinas'];
+  it('vazio não oferece nada', () => {
+    expect(grupoDoTexto('   ', grupos)).toBeNull();
+  });
+  it('o grupo que já existe vale mais que o digitado: igual primeiro, depois sem acento e sem caixa', () => {
+    expect(grupoDoTexto('proteinas', grupos)).toBe('proteinas');
+    expect(grupoDoTexto('PROTEÍNAS', grupos)).toBe('Proteínas');
+    expect(grupoDoTexto(' carnes   e derivados ', grupos)).toBe('Carnes e derivados');
+  });
+  it('texto novo vira grupo novo, com os espaços como a API grava', () => {
+    expect(grupoDoTexto('  Lanches   da tarde ', grupos)).toBe('Lanches da tarde');
   });
 });
