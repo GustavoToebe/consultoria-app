@@ -18,7 +18,7 @@ const OUTRA = { id: 'u0000000-0000-4000-8000-000000000007', nome: 'Bia Fictícia
 const ultimo = (pedidos: PedidoFalso[], caminho: string) => pedidos.filter((p) => p.metodo === 'GET' && p.caminho === caminho).at(-1)?.busca;
 const botaoFiltros = (page: Page) => page.getByRole('button', { name: /^Filtros, / });
 const opcao = (onde: Locator, grupo: string, rotulo: string) =>
-  onde.getByRole('radiogroup', { name: grupo }).getByRole('button', { name: rotulo, exact: true });
+  onde.getByRole('radiogroup', { name: grupo }).getByRole('radio', { name: rotulo, exact: true });
 
 /** Abre os filtros: no PC o painel fica na página; no celular, a folha "Filtros". */
 async function abrirFiltros(page: Page, celular: boolean): Promise<Locator> {

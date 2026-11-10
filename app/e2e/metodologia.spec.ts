@@ -19,7 +19,7 @@ for (const largura of [390, 1280]) {
       [`PUT /receitas/${id}`]: (p, route) => { modelo = { ...modelo!, ...p.corpo as Receita, versao: 2 }; return json(route, modelo); },
     });
     await page.goto('/treinador/planejamento');
-    await page.getByRole('button', { name: 'Metodologias', exact: true }).click();
+    await page.getByRole('radio', { name: 'Metodologias', exact: true }).click();
     await page.getByRole('button', { name: 'Nova metodologia', exact: true }).click();
     await page.getByRole('textbox', { name: 'Nome do modelo', exact: true }).fill('Metodologia fictícia');
     await page.getByRole('button', { name: 'Criar e editar', exact: true }).click();
@@ -27,7 +27,7 @@ for (const largura of [390, 1280]) {
     await page.getByRole('button', { name: 'Adicionar tipo', exact: true }).click();
     // O formulário só pede nome e papel; a regra de percentuais mora no cartão do tipo, depois de criado.
     await page.getByRole('textbox', { name: 'Nome do tipo', exact: true }).fill('Preparação técnica');
-    await page.getByRole('button', { name: 'Preparação', exact: true }).click();
+    await page.getByRole('radio', { name: 'Preparação', exact: true }).click();
     await expect(page.getByRole('button', { name: /^Regra para \d+ séries?$/ })).toHaveCount(0);
     await page.getByRole('button', { name: 'Criar tipo', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Preparação técnica, aberto', exact: true })).toBeVisible();
@@ -194,8 +194,8 @@ for (const largura of [390, 1280]) {
     await page.getByRole('button', { name: 'Back off, recolhido', exact: true }).click();
     const carga = page.getByRole('radiogroup', { name: 'Carga padrão', exact: true });
     // Back off: % da WS | Carga fixa | Sem sugestão.
-    await expect(carga.getByRole('button')).toHaveText([/% da WS/, /Carga fixa/, /Sem sugestão/]);
-    await carga.getByRole('button', { name: 'Carga fixa (kg)', exact: true }).click();
+    await expect(carga.getByRole('radio')).toHaveText([/% da WS/, /Carga fixa/, /Sem sugestão/]);
+    await carga.getByRole('radio', { name: 'Carga fixa (kg)', exact: true }).click();
     const kg = page.getByRole('textbox', { name: 'Peso da carga fixa padrão (kg)', exact: true });
     await kg.fill('0');
     await expect(page.getByText('Carga fixa: maior que zero e até 1000 kg.', { exact: true }).first()).toBeVisible();

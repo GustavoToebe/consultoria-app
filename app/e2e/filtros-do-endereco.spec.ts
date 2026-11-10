@@ -19,7 +19,7 @@ const daTela = (p: { caminho: string; busca: URLSearchParams }) =>
   p.caminho === '/inscricoes' && !(p.busca.get('situacao') === 'NOVA' && p.busca.get('meus') === 'false' && p.busca.get('pagina') === '0' && !p.busca.has('tamanho'));
 
 const opcao = (page: Page, grupo: string, rotulo: string) =>
-  page.getByRole('radiogroup', { name: grupo }).getByRole('button', { name: rotulo, exact: true });
+  page.getByRole('radiogroup', { name: grupo }).getByRole('radio', { name: rotulo, exact: true });
 
 function retorno(n: number, data: string): RetornoPendente {
   return {
