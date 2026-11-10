@@ -1,10 +1,11 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { MessageSquare, Plus, Video } from 'lucide-react-native';
+import { MessageSquare, Plus, UserX, Video } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { criarAula, listarAulasDaEquipe, listarMuralDaEquipe, publicarNoMuralDaEquipe } from '../../api/comunidade';
-import { dataHoraParaTela } from '../../dominio/formatos';
+import { criarAula, listarAulasDaEquipe, listarMuralDaEquipe, publicarNoMuralDaEquipe, removerApelidoDoAutor } from '../../api/comunidade';
+import { ErroApi } from '../../api/cliente';
+import { AutorDoPost } from '../../comunidade/AutorDoPost';
 import { erroDoLink } from '../../dominio/links';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
@@ -20,8 +21,8 @@ import { separarErros, textoDoErro } from '../../ui/erros';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { Folha } from '../../ui/Folha';
-import { IniciaisDePerfil } from '../../ui/FotoDePerfil';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
+import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Selo } from '../../ui/Selo';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
@@ -43,8 +44,8 @@ export default function ComunidadeTreinador() {
   const { cores } = useTema();
   const { pode } = useSessao();
   const { avisar } = useAviso();
-  // A tela abre com TREINO_LER; publicar pede TREINO_ALTERAR (a API confere de novo).
-  const podePublicar = pode('TREINO_ALTERAR');
+  // A tela abre com TREINO_LER; publicar e moderar (aulões, mural, apelidos) pedem COMUNIDADE_MODERAR (a API confere de novo).
+  const podePublicar = pode('COMUNIDADE_MODERAR');
   // A aba mora no endereço (`?aba=`). `setParams` e não `push`: o push remonta a tela e perderia o rascunho do mural.
   const { aba: abaPedida } = useLocalSearchParams<{ aba?: string }>();
   const aba: AbaComunidade = abaPedida === 'mural' ? 'mural' : 'auloes';
@@ -64,6 +65,29 @@ export default function ComunidadeTreinador() {
   const mural = useCarregar('treinador-mural', () => listarMuralDaEquipe());
   const [novoPost, setNovoPost] = useState('');
   const [postando, setPostando] = useState(false);
+  // Autor cujo apelido a moderação vai remover (painel de confirmação aberto).
+  const [removerApelidoDe, setRemoverApelidoDe] = useState<{ autorId: string; autorNome: string; autorApelido: string } | null>(null);
+  const [removendoApelido, setRemovendoApelido] = useState(false);
+
+  const removerApelido = async () => {
+    if (!removerApelidoDe) return;
+    setRemovendoApelido(true);
+    try {
+      await removerApelidoDoAutor(removerApelidoDe.autorId);
+      setRemoverApelidoDe(null);
+      avisar('Apelido removido.', 'sucesso');
+      mural.recarregar();
+    } catch (e) {
+      avisar(textoDoErro(e), 'perigo');
+      // 404: o aluno saiu (conta excluída ou anonimizada) depois de o mural carregar; nada a remover, e o botão some ao recarregar.
+      if (e instanceof ErroApi && e.status === 404) {
+        setRemoverApelidoDe(null);
+        mural.recarregar();
+      }
+    } finally {
+      setRemovendoApelido(false);
+    }
+  };
 
   const erros = {
     titulo: novoTitulo.trim() ? null : 'Escreva o título.',
@@ -191,16 +215,10 @@ export default function ComunidadeTreinador() {
 
           {mural.dados?.content.map((post) => (
             <Cartao key={post.id}>
-              <View style={estilos.linha}>
-                <IniciaisDePerfil nome={post.autorNome} tamanho={36} />
-                <View style={estilos.encolher}>
-                  <View style={estilos.linha}>
-                    <Texto variante="bloco" nivel={3}>{post.autorNome}</Texto>
-                    {post.fixado ? <Selo texto="Fixado" tipo="neutro" /> : null}
-                  </View>
-                  <Texto variante="pequeno" cor={cores.textoSuave} numerico>{dataHoraParaTela(post.criadoEm)}</Texto>
-                </View>
-              </View>
+              <AutorDoPost post={post} acao={podePublicar && post.autorApelido ? (
+                <Botao rotulo="Remover apelido" tipo="secundario" Icone={UserX}
+                  aoTocar={() => setRemoverApelidoDe({ autorId: post.autorId, autorNome: post.autorNome, autorApelido: post.autorApelido ?? '' })} />
+              ) : undefined} />
 
               <Texto>{post.texto}</Texto>
 
@@ -214,6 +232,17 @@ export default function ComunidadeTreinador() {
           ))}
         </View>
       ) : null}
+
+      <PainelConfirmacao
+        visivel={!!removerApelidoDe}
+        titulo="Remover o apelido?"
+        mensagem={removerApelidoDe ? `O apelido «${removerApelidoDe.autorApelido}» sai de ${removerApelidoDe.autorNome} em todo o mural. O aluno pode escolher outro depois.` : undefined}
+        rotuloConfirmar="Remover apelido"
+        perigo
+        carregando={removendoApelido}
+        aoConfirmar={() => void removerApelido()}
+        aoCancelar={() => setRemoverApelidoDe(null)}
+      />
 
       <Folha
         visivel={folhaNovaAula}
@@ -242,6 +271,5 @@ const estilos = StyleSheet.create({
   // 24 px entre blocos; 16 px dentro do cartão e do item.
   blocos: { gap: espaco(3) },
   linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexWrap: 'wrap' },
-  encolher: { flex: 1, minWidth: 0, gap: 2 },
   rodapePost: { borderTopWidth: 1, paddingTop: espaco(1), gap: espaco(2) },
 });

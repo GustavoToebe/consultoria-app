@@ -18,9 +18,11 @@ import java.util.UUID;
 public class ComunidadeController {
 
     private final ComunidadeService comunidade;
+    private final ApelidoDoAlunoService apelidos;
 
-    public ComunidadeController(ComunidadeService comunidade) {
+    public ComunidadeController(ComunidadeService comunidade, ApelidoDoAlunoService apelidos) {
         this.comunidade = comunidade;
+        this.apelidos = apelidos;
     }
 
     // ---- Aulões (Equipe) ----
@@ -31,19 +33,19 @@ public class ComunidadeController {
         return comunidade.listarAulasEquipe();
     }
 
-    @PreAuthorize("hasAuthority('PERM_TREINO_ALTERAR')")
+    @PreAuthorize("hasAuthority('PERM_COMUNIDADE_MODERAR')")
     @PostMapping("/aulas")
     public AulaResumo criarAula(@RequestBody @Valid CriarAulaRequest request) {
         return comunidade.criarAula(request);
     }
 
-    @PreAuthorize("hasAuthority('PERM_TREINO_ALTERAR')")
+    @PreAuthorize("hasAuthority('PERM_COMUNIDADE_MODERAR')")
     @PutMapping("/aulas/{id}")
     public AulaResumo alterarAula(@PathVariable UUID id, @RequestBody @Valid CriarAulaRequest request) {
         return comunidade.alterarAula(id, request);
     }
 
-    @PreAuthorize("hasAuthority('PERM_TREINO_ALTERAR')")
+    @PreAuthorize("hasAuthority('PERM_COMUNIDADE_MODERAR')")
     @DeleteMapping("/aulas/{id}")
     public ResponseEntity<Void> excluirAula(@PathVariable UUID id) {
         comunidade.excluirAula(id);
@@ -56,14 +58,14 @@ public class ComunidadeController {
         return comunidade.listarComentariosAula(id, eu);
     }
 
-    @PreAuthorize("hasAuthority('PERM_TREINO_ALTERAR')")
+    @PreAuthorize("hasAuthority('PERM_COMUNIDADE_MODERAR')")
     @PostMapping("/aulas/{id}/comentarios")
     public ComentarioResponse comentarAula(@PathVariable UUID id, @RequestBody @Valid ComentarioRequest request,
                                            @AuthenticationPrincipal UsuarioAutenticado eu) {
         return comunidade.adicionarComentarioAula(id, request.texto(), eu);
     }
 
-    @PreAuthorize("hasAuthority('PERM_TREINO_ALTERAR')")
+    @PreAuthorize("hasAuthority('PERM_COMUNIDADE_MODERAR')")
     @DeleteMapping("/aulas/comentarios/{id}")
     public ResponseEntity<Void> excluirComentarioAula(@PathVariable UUID id) {
         comunidade.excluirComentarioAula(id);
@@ -80,31 +82,39 @@ public class ComunidadeController {
         return comunidade.listarMural(PageRequest.of(Math.max(0, pagina), Math.clamp(tamanho, 1, 50)), eu);
     }
 
-    @PreAuthorize("hasAuthority('PERM_TREINO_ALTERAR')")
+    @PreAuthorize("hasAuthority('PERM_COMUNIDADE_MODERAR')")
     @PostMapping("/mural")
     public MuralPostResponse criarPost(@RequestBody @Valid CriarPostRequest request,
                                        @AuthenticationPrincipal UsuarioAutenticado eu) {
         return comunidade.criarPostMural(request, eu);
     }
 
-    @PreAuthorize("hasAuthority('PERM_TREINO_ALTERAR')")
+    @PreAuthorize("hasAuthority('PERM_COMUNIDADE_MODERAR')")
     @PostMapping("/mural/{id}/fixar")
     public ResponseEntity<Void> fixarPost(@PathVariable UUID id) {
         comunidade.fixarPost(id);
         return ResponseEntity.noContent().build();
     }
 
-    @PreAuthorize("hasAuthority('PERM_TREINO_ALTERAR')")
+    @PreAuthorize("hasAuthority('PERM_COMUNIDADE_MODERAR')")
     @DeleteMapping("/mural/{id}")
     public ResponseEntity<Void> moderarPost(@PathVariable UUID id) {
         comunidade.moderarPost(id);
         return ResponseEntity.noContent().build();
     }
 
-    @PreAuthorize("hasAuthority('PERM_TREINO_ALTERAR')")
+    @PreAuthorize("hasAuthority('PERM_COMUNIDADE_MODERAR')")
     @DeleteMapping("/mural/comentarios/{id}")
     public ResponseEntity<Void> moderarComentarioMural(@PathVariable UUID id) {
         comunidade.moderarComentarioMural(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Limpa o apelido de um aluno (o aluno pode pôr outro depois). {@code autorId} é o id de usuário do mural; idempotente. */
+    @PreAuthorize("hasAuthority('PERM_COMUNIDADE_MODERAR')")
+    @DeleteMapping("/perfis/{autorId}/apelido")
+    public ResponseEntity<Void> removerApelido(@PathVariable UUID autorId) {
+        apelidos.remover(autorId);
         return ResponseEntity.noContent().build();
     }
 }

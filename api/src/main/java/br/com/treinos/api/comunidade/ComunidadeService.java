@@ -3,6 +3,7 @@ package br.com.treinos.api.comunidade;
 import br.com.plataforma.comum.web.ApiError;
 import br.com.treinos.api.alunos.Aluno;
 import br.com.treinos.api.alunos.AlunoRepository;
+import br.com.treinos.api.alunos.ApelidoDoAutor;
 import br.com.treinos.api.auth.Usuario;
 import br.com.treinos.api.auth.UsuarioRepository;
 import br.com.treinos.api.comunidade.dto.ComunidadeDtos.*;
@@ -16,10 +17,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @Transactional
@@ -99,8 +102,11 @@ public class ComunidadeService {
     @Transactional(readOnly = true)
     public List<ComentarioResponse> listarComentariosAula(UUID aulaId, UsuarioAutenticado eu) {
         exigirAula(aulaId, eu);
-        return aulaComentarios.findByAulaIdAndOcultoFalseOrderByCriadoEmAsc(aulaId).stream()
-                .map(c -> new ComentarioResponse(c.getId(), c.getAutorId(), c.getAutorNome(), c.getAutorFotoUrl(), c.getTexto(), c.getCriadoEm()))
+        List<ComunidadeAulaComentario> lista = aulaComentarios.findByAulaIdAndOcultoFalseOrderByCriadoEmAsc(aulaId);
+        Map<UUID, String> apelidos = apelidosDe(lista.stream().map(ComunidadeAulaComentario::getAutorId));
+        return lista.stream()
+                .map(c -> new ComentarioResponse(c.getId(), c.getAutorId(), c.getAutorNome(), apelidos.get(c.getAutorId()),
+                        apelidos.containsKey(c.getAutorId()), c.getAutorFotoUrl(), c.getTexto(), c.getCriadoEm()))
                 .toList();
     }
 
@@ -109,7 +115,9 @@ public class ComunidadeService {
         String nome = usuarios.findById(eu.usuarioId()).map(Usuario::getNome).orElse("Membro");
         ComunidadeAulaComentario c = new ComunidadeAulaComentario(aulaId, eu.usuarioId(), nome, null, texto.trim());
         aulaComentarios.saveAndFlush(c);
-        return new ComentarioResponse(c.getId(), c.getAutorId(), c.getAutorNome(), c.getAutorFotoUrl(), c.getTexto(), c.getCriadoEm());
+        Map<UUID, String> autor = apelidosDe(Stream.of(c.getAutorId()));
+        return new ComentarioResponse(c.getId(), c.getAutorId(), c.getAutorNome(), autor.get(c.getAutorId()),
+                autor.containsKey(c.getAutorId()), c.getAutorFotoUrl(), c.getTexto(), c.getCriadoEm());
     }
 
     public void excluirComentarioAula(UUID id) {
@@ -156,6 +164,8 @@ public class ComunidadeService {
     @Transactional(readOnly = true)
     public Page<MuralPostResponse> listarMural(Pageable pageable, UsuarioAutenticado eu) {
         Page<ComunidadeMuralPost> page = muralPosts.findByOcultoFalseOrderByFixadoDescCriadoEmDesc(pageable);
+        // Uma consulta de apelidos por página, não por post.
+        Map<UUID, String> apelidos = apelidosDe(page.getContent().stream().map(ComunidadeMuralPost::getAutorId));
         return page.map(p -> {
             List<ComunidadeMuralReacao> reacoes = muralReacoes.findByPostId(p.getId());
             Map<String, Long> contagem = reacoes.stream()
@@ -165,8 +175,8 @@ public class ComunidadeService {
                     .map(ComunidadeMuralReacao::getEmoji)
                     .toList();
             long totalComentarios = muralComentarios.countByPostIdAndOcultoFalse(p.getId());
-            return new MuralPostResponse(p.getId(), p.getAutorId(), p.getAutorNome(), p.getAutorFotoUrl(),
-                    p.getTexto(), linkSeguro(p.getImagemUrl()), p.isFixado(), p.getCriadoEm(), contagem, minhas,
+            return new MuralPostResponse(p.getId(), p.getAutorId(), p.getAutorNome(), apelidos.get(p.getAutorId()),
+                    apelidos.containsKey(p.getAutorId()), p.getAutorFotoUrl(), p.getTexto(), linkSeguro(p.getImagemUrl()), p.isFixado(), p.getCriadoEm(), contagem, minhas,
                     totalComentarios);
         });
     }
@@ -176,8 +186,9 @@ public class ComunidadeService {
         String nome = usuarios.findById(eu.usuarioId()).map(Usuario::getNome).orElse("Membro");
         ComunidadeMuralPost post = new ComunidadeMuralPost(eu.usuarioId(), nome, null, r.texto().trim(), imagem);
         muralPosts.saveAndFlush(post);
-        return new MuralPostResponse(post.getId(), post.getAutorId(), post.getAutorNome(), post.getAutorFotoUrl(),
-                post.getTexto(), post.getImagemUrl(), post.isFixado(), post.getCriadoEm(), Map.of(), List.of(), 0);
+        Map<UUID, String> autor = apelidosDe(Stream.of(post.getAutorId()));
+        return new MuralPostResponse(post.getId(), post.getAutorId(), post.getAutorNome(), autor.get(post.getAutorId()),
+                autor.containsKey(post.getAutorId()), post.getAutorFotoUrl(), post.getTexto(), post.getImagemUrl(), post.isFixado(), post.getCriadoEm(), Map.of(), List.of(), 0);
     }
 
     public void alternarReacaoMural(UUID postId, String emoji, UsuarioAutenticado eu) {
@@ -193,8 +204,11 @@ public class ComunidadeService {
     @Transactional(readOnly = true)
     public List<ComentarioResponse> listarComentariosMural(UUID postId) {
         exigirPostVisivel(postId);
-        return muralComentarios.findByPostIdAndOcultoFalseOrderByCriadoEmAsc(postId).stream()
-                .map(c -> new ComentarioResponse(c.getId(), c.getAutorId(), c.getAutorNome(), c.getAutorFotoUrl(), c.getTexto(), c.getCriadoEm()))
+        List<ComunidadeMuralComentario> lista = muralComentarios.findByPostIdAndOcultoFalseOrderByCriadoEmAsc(postId);
+        Map<UUID, String> apelidos = apelidosDe(lista.stream().map(ComunidadeMuralComentario::getAutorId));
+        return lista.stream()
+                .map(c -> new ComentarioResponse(c.getId(), c.getAutorId(), c.getAutorNome(), apelidos.get(c.getAutorId()),
+                        apelidos.containsKey(c.getAutorId()), c.getAutorFotoUrl(), c.getTexto(), c.getCriadoEm()))
                 .toList();
     }
 
@@ -203,7 +217,9 @@ public class ComunidadeService {
         String nome = usuarios.findById(eu.usuarioId()).map(Usuario::getNome).orElse("Membro");
         ComunidadeMuralComentario c = new ComunidadeMuralComentario(postId, eu.usuarioId(), nome, null, texto.trim());
         muralComentarios.saveAndFlush(c);
-        return new ComentarioResponse(c.getId(), c.getAutorId(), c.getAutorNome(), c.getAutorFotoUrl(), c.getTexto(), c.getCriadoEm());
+        Map<UUID, String> autor = apelidosDe(Stream.of(c.getAutorId()));
+        return new ComentarioResponse(c.getId(), c.getAutorId(), c.getAutorNome(), autor.get(c.getAutorId()),
+                autor.containsKey(c.getAutorId()), c.getAutorFotoUrl(), c.getTexto(), c.getCriadoEm());
     }
 
     public void moderarPost(UUID postId) {
@@ -229,6 +245,40 @@ public class ComunidadeService {
     private ComunidadeMuralPost exigirPostVisivel(UUID postId) {
         return muralPosts.findById(postId).filter(p -> !p.isOculto())
                 .orElseThrow(() -> new NaoEncontradoException("Post não encontrado."));
+    }
+
+    /**
+     * Autores que são aluno ativo (a chave existe) e o apelido atual de cada um, lido do aluno na hora (não é cópia no post);
+     * o valor é nulo sem apelido. Autor da equipe, inativo ou anonimizado não entra, então {@code containsKey} diz se o perfil
+     * abre. Uma consulta por lista; aluno de outra consultoria nem aparece (o filtro de tenant).
+     */
+    private Map<UUID, String> apelidosDe(Stream<UUID> autores) {
+        List<UUID> ids = autores.distinct().toList();
+        Map<UUID, String> mapa = new HashMap<>();
+        if (!ids.isEmpty()) {
+            for (ApelidoDoAutor a : alunos.autoresAlunosDosUsuarios(ids)) {
+                mapa.putIfAbsent(a.usuarioId(), a.apelido());
+            }
+        }
+        return mapa;
+    }
+
+    // ---- Perfil do colega ----
+
+    /**
+     * Perfil de um aluno ativo da mesma consultoria, a partir do id de usuário que o mural expõe. Equipe, inexistente, inativo,
+     * anonimizado e de outra consultoria dão o mesmo 404. Só dado público da comunidade: as conquistas são as já desbloqueadas
+     * (nenhuma é gravada numa leitura de GET) e os treinos concluídos são a contagem que o ranking já usa.
+     */
+    @Transactional(readOnly = true)
+    public PerfilResponse perfilDoColega(UUID autorId, UsuarioAutenticado eu) {
+        Aluno aluno = alunos.findByUsuarioId(autorId).filter(a -> a.isAtivo() && !a.isAnonimizado())
+                .orElseThrow(() -> new NaoEncontradoException("Perfil não encontrado."));
+        int treinos = (int) sessoes.countByAlunoIdAndSituacaoAndConcluidaTrue(aluno.getId(), "ACEITO");
+        List<ConquistaResponse> deles = conquistas.findByAlunoIdOrderByConquistadaEmDesc(aluno.getId()).stream()
+                .map(c -> new ConquistaResponse(c.getId(), c.getTipo(), c.getTitulo(), c.getDescricao(), c.getIcone(), c.getConquistadaEm()))
+                .toList();
+        return new PerfilResponse(autorId, aluno.getNome(), aluno.getApelido(), treinos, deles, autorId.equals(eu.usuarioId()));
     }
 
     // ---- Conquistas ----
@@ -282,7 +332,7 @@ public class ComunidadeService {
                 .toList();
         UUID usuarioId = aluno.getUsuarioId();
         if (usuarioId == null) {
-            return new ComunidadeExportada(List.of(), List.of(), List.of(), List.of(), minhasConquistas, false);
+            return new ComunidadeExportada(aluno.getApelido(), List.of(), List.of(), List.of(), List.of(), minhasConquistas, false);
         }
         var posts = muralPosts.findTop5000ByAutorIdOrderByCriadoEmDesc(usuarioId).stream()
                 .map(p -> new PostExportado(p.getId(), p.getTexto(), p.getImagemUrl(), p.isFixado(), p.isOculto(), p.getCriadoEm()))
@@ -298,6 +348,6 @@ public class ComunidadeService {
                 .toList();
         boolean truncado = posts.size() == LIMITE_DA_EXPORTACAO || deAulas.size() == LIMITE_DA_EXPORTACAO
                 || doMural.size() == LIMITE_DA_EXPORTACAO || reacoes.size() == LIMITE_DA_EXPORTACAO;
-        return new ComunidadeExportada(posts, deAulas, doMural, reacoes, minhasConquistas, truncado);
+        return new ComunidadeExportada(aluno.getApelido(), posts, deAulas, doMural, reacoes, minhasConquistas, truncado);
     }
 }

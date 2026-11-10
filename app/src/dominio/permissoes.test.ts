@@ -84,6 +84,8 @@ describe('navegação de membros da equipe', () => {
   it('a Comunidade abre com TREINO_LER, a permissão de leitura da API', () => {
     expect(podeAcessarTela('/treinador/comunidade', acesso(['TREINO_LER']))).toBe(true);
     expect(podeAcessarTela('/treinador/comunidade', acesso(['ALUNO_LER','TREINO_ALTERAR']))).toBe(false);
+    // Moderar (COMUNIDADE_MODERAR) só vale dentro da tela; quem abre continua sendo a leitura.
+    expect(podeAcessarTela('/treinador/comunidade', acesso(['COMUNIDADE_MODERAR']))).toBe(false);
   });
 });
 

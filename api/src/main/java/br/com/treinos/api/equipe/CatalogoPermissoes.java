@@ -45,6 +45,7 @@ public final class CatalogoPermissoes {
         new Permissao("MODELO_APLICAR","Conteúdo","Modelos","Aplicar ao aluno: modelos.",false),
         new Permissao("QUESTIONARIO_LER","Conteúdo","Questionários","Consultar: questionários de atualização e de anamnese.",false),
         new Permissao("QUESTIONARIO_ALTERAR","Conteúdo","Questionários","Criar, editar e publicar: questionários de atualização e de anamnese.",false),
+        new Permissao("COMUNIDADE_MODERAR","Conteúdo","Comunidade","Moderar: aulões, mural, comentários e apelidos da comunidade.",false),
         new Permissao("MARCA_ALTERAR","Consultoria","Marca","Criar e editar: marca.",false),
         new Permissao("EQUIPE_LER","Consultoria","Equipe","Consultar: equipe.",false),
         new Permissao("USUARIO_ALTERAR","Consultoria","Equipe","Criar e editar: equipe.",false),
@@ -82,6 +83,7 @@ public final class CatalogoPermissoes {
         Map.entry("MODELO_ALTERAR",Set.of("MODELO_LER")),
         Map.entry("MODELO_APLICAR",Set.of("MODELO_LER")),
         Map.entry("QUESTIONARIO_ALTERAR",Set.of("QUESTIONARIO_LER")),
+        Map.entry("COMUNIDADE_MODERAR",Set.of("TREINO_LER")),
         Map.entry("USUARIO_ALTERAR",Set.of("EQUIPE_LER")),
         Map.entry("PERFIL_ALTERAR",Set.of("EQUIPE_LER")));
     public static Set<String> validar(Set<String> codigos) {

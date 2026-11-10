@@ -7,6 +7,8 @@ import {
   alternarReacaoDoAluno, listarAulasDoAluno, listarMinhasConquistas, listarMuralDoAluno, obterMeuRanking,
   publicarNoMuralDoAluno,
 } from '../../api/comunidade';
+import { AutorDoPost } from '../../comunidade/AutorDoPost';
+import { FolhaPerfilDoColega } from '../../comunidade/FolhaPerfilDoColega';
 import { curtidoPorMim, EMOJI_DA_CURTIDA, textoDaPosicao, totalDeCurtidas } from '../../dominio/comunidade';
 import { dataHoraParaTela } from '../../dominio/formatos';
 import { useAluno } from '../../offline/AlunoProvider';
@@ -22,7 +24,6 @@ import { Cartao } from '../../ui/Cartao';
 import { textoDoErro } from '../../ui/erros';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
-import { IniciaisDePerfil } from '../../ui/FotoDePerfil';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Selo } from '../../ui/Selo';
 import { Tela } from '../../ui/Tela';
@@ -43,7 +44,7 @@ function EstadoDaFonte({ carregando, erro, vazio, textoVazio, recarregar }: {
 
 /**
  * Comunidade do aluno: mural do time, aulões, conquistas e a própria posição no ranking. Tudo vem da API e nada fica no aparelho:
- * sem conexão a tela só avisa.
+ * sem conexão a tela só avisa. O apelido aparece ao lado do nome do autor; tocar num autor que é aluno abre o perfil dele.
  */
 export default function ComunidadeAluno() {
   const { cores } = useTema();
@@ -60,6 +61,10 @@ export default function ComunidadeAluno() {
     params.compartilharTreino === 'true' ? `Acabei de finalizar meu ${params.tituloTreino ?? 'treino'}!` : ''
   );
   const [criandoPost, setCriandoPost] = useState(false);
+  // Autor (usuário) cujo perfil está aberto na folha; `null` = fechada.
+  const [perfilAberto, setPerfilAberto] = useState<string | null>(null);
+  // Sem internet a folha fecha de vez: não reabre sozinha quando a conexão volta.
+  if (!online && perfilAberto) setPerfilAberto(null);
   const auloes = useCarregar(online ? 'auloes-lista' : null, () => listarAulasDoAluno());
   const ranking = useCarregar(online ? 'ranking-lista' : null, () => obterMeuRanking());
   const conquistas = useCarregar(online ? 'conquistas-lista' : null, () => listarMinhasConquistas());
@@ -140,16 +145,7 @@ export default function ComunidadeAluno() {
                 const curtiu = curtidoPorMim(p);
                 return (
                   <Cartao key={p.id}>
-                    <View style={estilos.linha}>
-                      <IniciaisDePerfil nome={p.autorNome} tamanho={36} />
-                      <View style={estilos.encolher}>
-                        <View style={estilos.linha}>
-                          <Texto variante="bloco" nivel={3}>{p.autorNome}</Texto>
-                          {p.fixado ? <Selo texto="Fixado" tipo="neutro" /> : null}
-                        </View>
-                        <Texto variante="pequeno" cor={cores.textoSuave} numerico>{dataHoraParaTela(p.criadoEm)}</Texto>
-                      </View>
-                    </View>
+                    <AutorDoPost post={p} aoAbrirPerfil={p.autorEhAluno ? () => setPerfilAberto(p.autorId) : undefined} />
 
                     <Texto>{p.texto}</Texto>
 
@@ -232,6 +228,7 @@ export default function ComunidadeAluno() {
           ) : null}
         </>
       )}
+      <FolhaPerfilDoColega autorId={perfilAberto} aoFechar={() => setPerfilAberto(null)} />
     </Tela>
   );
 }

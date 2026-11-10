@@ -7,6 +7,9 @@ import { CODIGO, contagensFalsas, detalheFalso, paginaPublica, resumoFalso, rota
 const envios = (pedidos: { metodo: string; caminho: string; corpo?: unknown }[]) =>
   pedidos.filter((p) => p.metodo === 'POST' && p.caminho.startsWith('/publico/inscricoes/'));
 
+/** O que a página guardou no `sessionStorage` desta guia (`null` = nada). */
+const guardado = (page: Page) => page.evaluate((c) => window.sessionStorage.getItem(`inscricao_${c}`), CODIGO);
+
 /** Parte 1 preenchida (nome e WhatsApp) e "Continuar": a página mostra a parte 2. */
 async function irParaASegundaParte(page: Page) {
   await page.getByLabel('Nome').fill('Pessoa Fictícia');
@@ -70,10 +73,14 @@ for (const largura of [390, 1440]) {
 
     await page.getByLabel('Objetivo (opcional)').fill('Ganhar condicionamento.');
     await page.getByRole('checkbox', { name: 'Li e estou ciente' }).click();
+    // A guia guarda só o contato (decisão 4): nem o objetivo nem a ciência.
+    expect(JSON.parse((await guardado(page))!)).toEqual({ nome: 'Pessoa Fictícia', whatsapp: '(11) 98765-4321', email: '' });
     await page.getByRole('button', { name: 'Enviar inscrição' }).click();
 
     await expect(page.getByRole('heading', { name: 'Inscrição enviada' })).toBeVisible();
     await expect(page.getByText('Recebemos sua inscrição. A equipe vai falar com você.')).toBeVisible();
+    // Enviou com sucesso: nada fica na guia.
+    await expect.poll(() => guardado(page)).toBeNull();
     expect(envios(pedidos)).toHaveLength(1);
     expect(envios(pedidos)[0].corpo).toEqual({
       nome: 'Pessoa Fictícia',

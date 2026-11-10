@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, CircleCheck } from 'lucide-react-native';
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { AccessibilityInfo, BackHandler, findNodeHandle, Platform, StyleSheet, View, type TextInput } from 'react-native';
 
 import { ErroApi } from '../../api/cliente';
@@ -10,6 +10,8 @@ import type { CampoDaInscricao } from '../../api/inscricoesTipos';
 import { QuestionarioAtualizacao } from '../../aluno/atualizacao/QuestionarioAtualizacao';
 import { errosRespostasAtualizacao } from '../../dominio/respostasAtualizacao';
 import {
+  contatoGuardado,
+  contatoParaGuardar,
   corpoDaInscricao,
   errosDaInscricao,
   errosDoContato,
@@ -60,14 +62,14 @@ import { VerificacaoHumana } from '../../ui/VerificacaoHumana';
  * tema do aparelho e mostra a marca da consultoria. Depois do envio só a mensagem neutra; nada da fila nem de outras
  * pessoas aparece.
  */
-function rascunhoSalvo(codigo: string) {
-  if (Platform.OS === 'web' && codigo && typeof window !== 'undefined' && window.sessionStorage) {
-    try {
-      const salvo = window.sessionStorage.getItem(`inscricao_${codigo}`);
-      if (salvo) return JSON.parse(salvo);
-    } catch {}
-  }
-  return null;
+// Contato guardado na guia (só nome, WhatsApp e e-mail; `contatoParaGuardar`). Chave por link.
+const chaveDoContato = (codigo: string) => `inscricao_${codigo}`;
+// O próprio acesso ao `sessionStorage` lança em navegador com armazenamento bloqueado: sem guarda, a página funciona igual.
+const guardaDaGuia = () => {
+  try { return Platform.OS === 'web' && typeof window !== 'undefined' ? window.sessionStorage ?? null : null; } catch { return null; }
+};
+function contatoSalvo(codigo: string) {
+  try { return codigo ? contatoGuardado(guardaDaGuia()?.getItem(chaveDoContato(codigo)) ?? null) : {}; } catch { return {}; }
 }
 
 export default function Inscricao() {
@@ -77,10 +79,9 @@ export default function Inscricao() {
   const origemLink = origemDoLink(origem);
   const pagina = useCarregar(codigo ? `inscricao-publica:${codigo}` : null, () => inscricaoPublica(codigo));
   const verificacao = useVerificacaoHumana();
-  const salvo = useMemo(() => rascunhoSalvo(codigo), [codigo]);
-  const [dados, setDados] = useState<DadosDaInscricao>(() => (salvo?.dados ? { ...INSCRICAO_VAZIA, ...salvo.dados } : INSCRICAO_VAZIA));
-  const [ciencia, setCiencia] = useState(() => (typeof salvo?.ciencia === 'boolean' ? salvo.ciencia : false));
-  const [respostas, setRespostas] = useState<RespostasAtualizacao>(() => salvo?.respostas ?? {});
+  const [dados, setDados] = useState<DadosDaInscricao>(() => ({ ...INSCRICAO_VAZIA, ...contatoSalvo(codigo) }));
+  const [ciencia, setCiencia] = useState(false);
+  const [respostas, setRespostas] = useState<RespostasAtualizacao>({});
   const [campos, setCampos] = useState<Record<string, string>>({});
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -96,7 +97,9 @@ export default function Inscricao() {
   const refPrevisao = useRef<{ focus: () => void } | null>(null);
   const refOrigem = useRef<{ focus: () => void } | null>(null);
   const refIndicadoPor = useRef<TextInput>(null);
-  // Duas partes antes de um envio só (D6): o que foi digitado fica neste estado ao ir e voltar; nada vai ao aparelho.
+  // Duas partes antes de um envio só (D6): o que foi digitado fica neste estado ao ir e voltar. Na web, só o contato
+  // (nome, WhatsApp e e-mail) também fica no `sessionStorage` desta guia, para recarregar sem redigitar: some ao fechar a
+  // guia e é apagado ao enviar com sucesso. As respostas, a ciência e os outros campos ficam só na memória da página.
   const [parte, setParte] = useState<ParteDaInscricao>(1);
   // Conta as trocas de parte feitas pela pessoa: o topo da parte rola e recebe o foco a cada uma.
   const [trocas, setTrocas] = useState(0);
@@ -158,17 +161,15 @@ export default function Inscricao() {
     return () => window.removeEventListener('popstate', aoNavegarVoltar);
   }, [duasPartes, parte]);
 
+  const { nome, whatsapp, email } = dados;
   useEffect(() => {
-    if (Platform.OS === 'web' && codigo && typeof window !== 'undefined' && window.sessionStorage) {
-      if (recebida) {
-        try { window.sessionStorage.removeItem(`inscricao_${codigo}`); } catch {}
-      } else {
-        try {
-          window.sessionStorage.setItem(`inscricao_${codigo}`, JSON.stringify({ dados, respostas, ciencia }));
-        } catch {}
-      }
-    }
-  }, [dados, respostas, ciencia, codigo, recebida]);
+    const guarda = guardaDaGuia();
+    if (!guarda || !codigo) return;
+    try {
+      if (recebida) guarda.removeItem(chaveDoContato(codigo));
+      else guarda.setItem(chaveDoContato(codigo), JSON.stringify(contatoParaGuardar({ ...INSCRICAO_VAZIA, nome, whatsapp, email })));
+    } catch { /* guia sem armazenamento (modo privado): só não guarda */ }
+  }, [nome, whatsapp, email, codigo, recebida]);
 
   // Se fechar a aba/janela na parte 2 sem enviar, avisa antes para não perder o digitado.
   useEffect(() => {

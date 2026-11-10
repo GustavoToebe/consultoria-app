@@ -2,6 +2,7 @@ import { BookOpen, FileText, LogOut, RefreshCw, SlidersHorizontal } from 'lucide
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { CartaoApelido } from '../../aluno/CartaoApelido';
 import { CartaoExcluirConta } from '../../aluno/CartaoExcluirConta';
 import { CartaoUsoDeImagem } from '../../aluno/CartaoUsoDeImagem';
 import { CartaoCiclo } from '../../aluno/CartaoCiclo';
@@ -48,6 +49,7 @@ export default function ContaAluno() {
       <Cabecalho titulo="Conta" subtitulo={[sessao.usuario?.nome, sessao.usuario?.email].filter(Boolean).join(' · ') || undefined} />
       <CartaoFotoDePerfil />
       <CartaoMeusDados />
+      <CartaoApelido />
       <CartaoCiclo />
       <CartaoMeuPlano />
       <Cartao titulo="Sincronização" descricao="Os registros ficam salvos neste aparelho e vão para o seu treinador quando houver internet.">

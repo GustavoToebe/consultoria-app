@@ -274,6 +274,8 @@ export interface MeusDadosResponse {
   endereco?: EnderecoDoAluno | null;
   /** `MASCULINO`, `FEMININO` ou `OUTRO`. Ausente ou nulo = não informado. */
   sexo?: string | null;
+  /** Apelido da Comunidade: só se lê aqui; troca-se em `PUT /aluno/comunidade/apelido`. */
+  apelido?: string | null;
   versao: number;
 }
 

@@ -62,6 +62,13 @@ class CatalogoPermissoesTest {
                 .containsExactlyInAnyOrder("REGISTRO_REAGIR","REGISTRO_LER");
         assertThatThrownBy(() -> CatalogoPermissoes.validar(Set.of("REGISTRO_REAGIR"))).isInstanceOf(BadRequestException.class);
     }
+    @Test void moderarComunidadeNaoESensivelEDependeDeLerTreino() {
+        assertThat(CatalogoPermissoes.CATALOGO).filteredOn(p -> p.codigo().equals("COMUNIDADE_MODERAR"))
+                .extracting(CatalogoPermissoes.Permissao::sensivel).containsExactly(false);
+        assertThat(CatalogoPermissoes.validar(CatalogoPermissoes.comDependencias(Set.of("COMUNIDADE_MODERAR"))))
+                .containsExactlyInAnyOrder("COMUNIDADE_MODERAR","TREINO_LER");
+        assertThatThrownBy(() -> CatalogoPermissoes.validar(Set.of("COMUNIDADE_MODERAR"))).isInstanceOf(BadRequestException.class);
+    }
     @Test void agendaNaoESensivelEAlterarDependeDeLerQueDependeDeLerAluno() {
         assertThat(CatalogoPermissoes.CATALOGO).filteredOn(p -> p.codigo().startsWith("AGENDA_"))
                 .extracting(CatalogoPermissoes.Permissao::codigo,CatalogoPermissoes.Permissao::sensivel)

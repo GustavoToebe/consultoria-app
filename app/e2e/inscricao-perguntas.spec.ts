@@ -68,9 +68,14 @@ for (const largura of [390, 1440]) {
     await page.getByRole('radiogroup', { name: 'Já treina? *' }).getByRole('radio', { name: 'Não', exact: true }).click();
     await expect(page.getByLabel('Onde treina? *')).toHaveCount(0);
     await page.getByRole('radiogroup', { name: 'Melhor horário' }).getByRole('radio', { name: 'Noite', exact: true }).click();
+    // As respostas ficam só na memória: a guia guarda o contato e nada mais.
+    const salvo = await page.evaluate((c) => window.sessionStorage.getItem(`inscricao_${c}`), CODIGO);
+    expect(JSON.parse(salvo!)).toEqual({ nome: 'Pessoa Fictícia', whatsapp: '(11) 98765-4321', email: '' });
+    expect(salvo).not.toContain('Academia do bairro');
     await page.getByRole('button', { name: 'Enviar inscrição' }).click();
 
     await expect(page.getByRole('heading', { name: 'Inscrição enviada' })).toBeVisible();
+    await expect.poll(() => page.evaluate(() => window.sessionStorage.length)).toBe(0);
     expect(envios(pedidos)).toHaveLength(1);
     expect(envios(pedidos)[0].corpo).toMatchObject({
       nome: 'Pessoa Fictícia', email: null, origem: null, questionarioVersaoId: VERSAO_1,

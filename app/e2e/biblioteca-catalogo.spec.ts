@@ -1,6 +1,6 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 
-import type { CatalogoExercicio, Exercicio } from '../src/api/tipos';
+import type { Alimento, CatalogoExercicio, Exercicio } from '../src/api/tipos';
 import { json, paginaDeExerciciosFalsa, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
 import { pngDeCor } from './imagens-falsas';
 
@@ -146,6 +146,95 @@ test('catálogo de alimentos mostra o fator, a importação copia e a biblioteca
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);
 });
+
+/**
+ * Folha "Editar alimento": as sugestões de grupo e os perfis de FC e FCc quebram linha dentro da folha (antes a fileira
+ * passava da borda e os chips apareciam cortados, "Cere…", "Feijã…"). Confere a caixa de cada opção contra a da folha.
+ * No claro também confere o "Novo alimento" e a confirmação do "Tirar da biblioteca". Com `CAPTURAS_DIR` roda os
+ * quatro temas e grava as partes da folha em cada tema e largura.
+ */
+const ARROZ: Alimento = {
+  id: 'f0000001-0000-4000-8000-000000000000', nome: 'Arroz branco cozido', baseQuantidade: 100, baseUnidade: 'g',
+  kcal: 128, proteina: 2.5, carboidrato: 28.1, gordura: 0.2, gramasPorUnidade: null, fonte: 'Plano do treinador (exemplo)',
+  origem: 'MANUAL', fatorCorrecao: 1, fatorCoccao: 2.6, grupo: null,
+};
+const GRUPOS_LONGOS = ['Bebidas (alcoólicas e não alcoólicas)', 'Carnes', 'Carnes e derivados', 'Cereais e derivados',
+  'Frutas e derivados', 'Leguminosas e derivados', 'Leite e derivados', 'Gorduras e óleos', 'Pescados e frutos do mar'];
+const TEMAS_DA_FOLHA = {
+  claro: { tema: 'CLARO' }, escuro: { tema: 'ESCURO' }, areia: { tema: 'AREIA' }, 'contraste-alto': { tema: 'CLARO', contraste: 'ALTO' },
+} as const;
+
+/** Todas as opções de escolha da folha cabem na largura dela. */
+async function opcoesDentroDa(folha: Locator, minimo: number) {
+  const caixa = (await folha.boundingBox())!;
+  const opcoes = await folha.getByRole('radio').all();
+  expect(opcoes.length).toBeGreaterThan(minimo);
+  for (const opcao of opcoes) {
+    const b = (await opcao.boundingBox())!;
+    const nome = await opcao.getAttribute('aria-label');
+    expect(b.x, `${nome} começa antes da folha`).toBeGreaterThanOrEqual(caixa.x - 0.5);
+    expect(b.x + b.width, `${nome} passa da borda direita da folha`).toBeLessThanOrEqual(caixa.x + caixa.width + 0.5);
+  }
+}
+
+// Os outros temas só mudam as capturas: sem CAPTURAS_DIR roda só o claro, para não gastar minutos da CI.
+const temasDaFolha = process.env.CAPTURAS_DIR ? Object.entries(TEMAS_DA_FOLHA) : [['claro', TEMAS_DA_FOLHA.claro] as const];
+
+for (const largura of [390, 1280]) {
+  for (const [nomeDoTema, preferencias] of temasDaFolha) {
+    test(`folha do alimento em ${largura}px, tema ${nomeDoTema}: nenhum chip passa da borda da folha`, async ({ page }) => {
+      await page.setViewportSize({ width: largura, height: largura < 768 ? 844 : 900 });
+      await page.addInitScript(([id, pref]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify(pref)), [TREINADOR.id, preferencias] as const);
+      let tirados = 0;
+      const { naoTratadas, errosDaPagina } = await simularApi(page, {
+        ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'BIBLIOTECA_LER', 'BIBLIOTECA_ALTERAR'] })),
+        'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+        'GET /alimentos': { corpo: [ARROZ] },
+        'GET /catalogo/alimentos/grupos': { corpo: GRUPOS_LONGOS },
+        'DELETE /alimentos/{id}': (_p, route) => { tirados += 1; return route.fulfill({ status: 204 }); },
+      });
+      await page.goto('/treinador/biblioteca?aba=alimentos');
+      await page.getByRole('button', { name: `Editar ${ARROZ.nome}` }).click();
+      const folha = page.getByRole('dialog', { name: 'Editar alimento' });
+      await expect(folha.getByRole('radiogroup', { name: 'Sugestões de grupo' })).toBeVisible();
+      await expect(folha.getByRole('radio', { name: 'Feijão/leguminosa cozida (1,85)' })).toBeAttached();
+      await opcoesDentroDa(folha, 20);
+
+      if (process.env.CAPTURAS_DIR) {
+        await page.screenshot({ path: `${process.env.CAPTURAS_DIR}/alimento-${largura}-${nomeDoTema}-topo.png`, animations: 'disabled' });
+        await folha.getByRole('heading', { name: 'Porção e macronutrientes' }).evaluate((el) => el.scrollIntoView({ block: 'start' }));
+        await page.screenshot({ path: `${process.env.CAPTURAS_DIR}/alimento-${largura}-${nomeDoTema}-porcao.png`, animations: 'disabled' });
+        await folha.getByRole('heading', { name: 'Lista de compras' }).evaluate((el) => el.scrollIntoView({ block: 'start' }));
+        await page.screenshot({ path: `${process.env.CAPTURAS_DIR}/alimento-${largura}-${nomeDoTema}-meio.png`, animations: 'disabled' });
+        await folha.getByRole('button', { name: 'Tirar da biblioteca' }).scrollIntoViewIfNeeded();
+        await page.screenshot({ path: `${process.env.CAPTURAS_DIR}/alimento-${largura}-${nomeDoTema}-fim.png`, animations: 'disabled' });
+      }
+
+      if (nomeDoTema === 'claro') {
+        // Novo alimento: as mesmas sugestões de grupo aparecem e também cabem na folha.
+        await folha.getByRole('button', { name: 'Cancelar' }).click();
+        await page.getByRole('button', { name: 'Novo alimento' }).click();
+        const novo = page.getByRole('dialog', { name: 'Novo alimento' });
+        await expect(novo.getByRole('radiogroup', { name: 'Sugestões de grupo' }).getByRole('radio', { name: 'Cereais e derivados' })).toBeVisible();
+        await expect(novo.getByRole('button', { name: 'Tirar da biblioteca' })).toHaveCount(0);
+        await opcoesDentroDa(novo, 20);
+        if (process.env.CAPTURAS_DIR) await page.screenshot({ path: `${process.env.CAPTURAS_DIR}/alimento-${largura}-novo.png`, animations: 'disabled' });
+        await novo.getByRole('button', { name: 'Cancelar' }).click();
+
+        // Tirar da biblioteca: a área separada no fim da folha continua abrindo a confirmação.
+        await page.getByRole('button', { name: `Editar ${ARROZ.nome}` }).click();
+        await page.getByRole('dialog', { name: 'Editar alimento' }).getByRole('button', { name: 'Tirar da biblioteca' }).click();
+        await expect(page.getByText(`Tirar “${ARROZ.nome}” da biblioteca?`)).toBeVisible();
+        expect(tirados).toBe(0);
+        await page.getByRole('button', { name: 'Tirar da biblioteca' }).click();
+        await expect(page.getByText(`“${ARROZ.nome}” saiu da biblioteca.`)).toBeVisible();
+        expect(tirados).toBe(1);
+      }
+      expect(naoTratadas).toEqual([]);
+      expect(errosDaPagina).toEqual([]);
+    });
+  }
+}
 
 test('exercícios da biblioteca: filtro de vários grupos no servidor', async ({ page }) => {
   await servirFotos(page);

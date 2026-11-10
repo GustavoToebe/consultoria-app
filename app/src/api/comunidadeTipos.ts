@@ -26,7 +26,12 @@ export interface NovaAula {
 export interface PostDoMural {
   id: string;
   autorId: string;
+  /** Nome e sobrenome; o apelido aparece ao lado, nunca no lugar. */
   autorNome: string;
+  /** Apelido atual do aluno autor; nulo se não tem ou se o autor é da equipe. */
+  autorApelido: string | null;
+  /** `true` só quando o autor é aluno ativo (a API decide): só então o perfil abre; equipe nunca vira link. */
+  autorEhAluno: boolean;
   autorFotoUrl: string | null;
   texto: string;
   imagemUrl: string | null;
@@ -52,6 +57,16 @@ export interface ConquistaDoAluno {
   descricao: string;
   icone: string;
   conquistadaEm: string;
+}
+
+/** Perfil de um colega (`GET /aluno/comunidade/perfis/{autorId}`): nunca foto, contato, medidas, dieta nem saúde. */
+export interface PerfilDaComunidade {
+  autorId: string;
+  nome: string;
+  apelido: string | null;
+  treinosConcluidos: number;
+  conquistas: ConquistaDoAluno[];
+  ehVoce: boolean;
 }
 
 /** Só a posição do próprio aluno: a API nunca manda nome, id ou contagem de outro aluno. */

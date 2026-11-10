@@ -33,10 +33,25 @@ public final class ComunidadeDtos {
 
     public record ComentarioRequest(@NotBlank @Size(max = 2000) String texto) {}
 
+    public record ApelidoRequest(String apelido) {
+
+        /** O apelido é dado do aluno: o {@code toString} não o mostra. */
+        @Override
+        public String toString() {
+            return "ApelidoRequest[...]";
+        }
+    }
+
+    /**
+     * {@code autorApelido} é o apelido atual do aluno autor (lido na hora, não é cópia); nulo se não houver ou se o autor é da equipe.
+     * {@code autorEhAluno}: aluno ativo, não anonimizado, da consultoria (o perfil dele abre); equipe e conta encerrada, falso.
+     */
     public record ComentarioResponse(
             UUID id,
             UUID autorId,
             String autorNome,
+            String autorApelido,
+            boolean autorEhAluno,
             String autorFotoUrl,
             String texto,
             Instant criadoEm) {}
@@ -47,10 +62,13 @@ public final class ComunidadeDtos {
 
     public record ReacaoRequest(@NotBlank @Size(max = 16) String emoji) {}
 
+    /** {@code autorEhAluno} como em {@link ComentarioResponse}: só aluno ativo abre o perfil. */
     public record MuralPostResponse(
             UUID id,
             UUID autorId,
             String autorNome,
+            String autorApelido,
+            boolean autorEhAluno,
             String autorFotoUrl,
             String texto,
             String imagemUrl,
@@ -69,8 +87,8 @@ public final class ComunidadeDtos {
             Instant conquistadaEm) {}
 
     /**
-     * O ranking de constância mostra ao aluno só a posição dele: nunca nome, id ou contagem de outro aluno (sem apelido público
-     * e sem opt-in, o nome civil de quem pode ser menor de idade não sai da ficha). Empate divide a posição.
+     * O ranking de constância mostra ao aluno só a posição dele: nunca nome, id ou contagem de outro aluno (sem opt-in e sem lista
+     * de colegas; o perfil de um colega só abre pelo mural, em {@code PerfilResponse}). Empate divide a posição.
      */
     public record RankingResponse(
             int posicao,
@@ -78,8 +96,21 @@ public final class ComunidadeDtos {
             int pontuacao,
             long participantes) {}
 
+    /**
+     * Perfil de um colega (só aluno ativo da mesma consultoria): nome, apelido, treinos concluídos e as conquistas já desbloqueadas.
+     * Nunca foto, contato, medidas, dieta ou dado de saúde.
+     */
+    public record PerfilResponse(
+            UUID autorId,
+            String nome,
+            String apelido,
+            int treinosConcluidos,
+            List<ConquistaResponse> conquistas,
+            boolean ehVoce) {}
+
     /** Tudo o que o aluno escreveu ou marcou na comunidade (exportação LGPD). Inclui o que a moderação ocultou. */
     public record ComunidadeExportada(
+            String apelido,
             List<PostExportado> posts,
             List<ComentarioExportado> comentariosDeAulas,
             List<ComentarioExportado> comentariosDoMural,

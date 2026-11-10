@@ -11,6 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.OptimisticLock;
 import org.hibernate.annotations.TenantId;
 import org.hibernate.type.SqlTypes;
 
@@ -91,6 +92,10 @@ public class Aluno {
     /** Nulo = não informado. Dado pessoal: nunca em log. */
     @Enumerated(EnumType.STRING)
     private Sexo sexo;
+
+    /** Apelido na comunidade (V069), já normalizado pelo {@code ApelidoDoAlunoService}; nulo = sem apelido. Nunca em log nem auditoria. */
+    @OptimisticLock(excluded = true)
+    private String apelido;
 
     /** Meta do peso do aluno (V052); nulo = vale a da consultoria. Dado sensível: nunca em log nem em auditoria. */
     @Enumerated(EnumType.STRING)
@@ -316,6 +321,7 @@ public class Aluno {
         this.usoDeImagemAutorizadoEm = null;
         this.lembretesCobrancaDesligadosEm = null;
         this.sexo = null;
+        this.apelido = null;
         this.metaDoPeso = null;
         this.cicloAtivadoEm = null;
         this.cicloConsentimentoVersao = null;
@@ -389,6 +395,15 @@ public class Aluno {
     /** Grava o instante da autorização, ou nulo quando o aluno desliga. */
     public void definirUsoDeImagem(Instant quando) {
         this.usoDeImagemAutorizadoEm = quando;
+    }
+
+    public String getApelido() {
+        return apelido;
+    }
+
+    /** Já validado pelo serviço; nulo apaga. */
+    public void definirApelido(String apelido) {
+        this.apelido = apelido;
     }
 
     public Instant getLembretesCobrancaDesligadosEm() {

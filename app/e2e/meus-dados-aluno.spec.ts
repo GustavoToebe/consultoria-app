@@ -88,7 +88,7 @@ for (const largura of [390, 1280]) {
     await expect(page.getByText('Informe o número (ou s/n).')).toBeVisible();
     await expect(salvar).toBeDisabled();
     await page.getByRole('textbox', { name: /^Número/ }).fill('100');
-    await page.getByRole('radiogroup', { name: 'Sexo' }).getByRole('button', { name: 'Feminino', exact: true }).click();
+    await page.getByRole('radiogroup', { name: 'Sexo' }).getByRole('radio', { name: 'Feminino', exact: true }).click();
     await semRolagemHorizontal(page);
 
     await expect(salvar).toBeEnabled();
@@ -170,7 +170,8 @@ test('409 de versão recarrega com aviso neutro; 422 marca o campo e some ao cor
   await expect(page.getByText(CONFLITO)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Salvar', exact: true })).toHaveCount(0);
   await expect(page.getByLabel('Telefone: (11) 97777-6666')).toBeVisible();
-  expect(pedidos.filter((p) => p.metodo === 'GET' && p.caminho === '/aluno/meus-dados')).toHaveLength(2);
+  // Duas leituras do cartão (abrir e recarregar depois do 409) e uma do cartão do apelido, que lê a mesma rota.
+  expect(pedidos.filter((p) => p.metodo === 'GET' && p.caminho === '/aluno/meus-dados')).toHaveLength(3);
 
   // A edição seguinte leva a versão recarregada; o servidor recusa o telefone: erro no campo e aviso geral.
   await page.getByRole('button', { name: 'Editar', exact: true }).click();
@@ -201,7 +202,7 @@ test('ciclo ligado e sexo Feminino mantém o cartão do ciclo; salvar Masculino 
   await expect(page.getByRole('button', { name: 'Ativar acompanhamento' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Editar', exact: true }).click();
-  await page.getByRole('radiogroup', { name: 'Sexo' }).getByRole('button', { name: 'Masculino', exact: true }).click();
+  await page.getByRole('radiogroup', { name: 'Sexo' }).getByRole('radio', { name: 'Masculino', exact: true }).click();
   await page.getByRole('button', { name: 'Salvar', exact: true }).click();
   await expect(page.getByText('Seus dados foram salvos.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Ciclo menstrual' })).toHaveCount(0);

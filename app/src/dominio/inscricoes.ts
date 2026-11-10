@@ -274,6 +274,23 @@ export const INSCRICAO_VAZIA: DadosDaInscricao = {
 };
 
 /**
+ * O que a página pública guarda no `sessionStorage` da guia (decisão 4 de `docs/planos/comunidade-perfil-e-apelido.md`):
+ * só nome, WhatsApp e e-mail, para recarregar a página sem redigitar o contato. Nunca as respostas das perguntas, a
+ * ciência nem os outros campos. A leitura aceita só essas três chaves em texto (o que sobrar de outro formato é ignorado).
+ */
+export type ContatoDaInscricao = Pick<DadosDaInscricao, 'nome' | 'whatsapp' | 'email'>;
+export const contatoParaGuardar = (d: DadosDaInscricao): ContatoDaInscricao => ({ nome: d.nome, whatsapp: d.whatsapp, email: d.email });
+export function contatoGuardado(salvo: string | null): Partial<ContatoDaInscricao> {
+  let lido: unknown;
+  try { lido = salvo ? JSON.parse(salvo) : null; } catch { return {}; }
+  if (!lido || typeof lido !== 'object') return {};
+  const obj = lido as Record<string, unknown>;
+  const contato: Partial<ContatoDaInscricao> = {};
+  for (const chave of ['nome', 'whatsapp', 'email'] as const) if (typeof obj[chave] === 'string') contato[chave] = obj[chave];
+  return contato;
+}
+
+/**
  * A página pública em duas partes (D6 de `docs/planos/auditoria-ui-ux-lote-1.md`), antes de um envio só: a 1 é o
  * contato (nome, WhatsApp e e-mail), a 2 é todo o resto (sexo, objetivo, perguntas rápidas, perguntas do treinador,
  * ciência e envio). As chaves são as dos erros, iguais às da API; o que não é do contato (pergunta do treinador,

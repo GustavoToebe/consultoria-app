@@ -2,6 +2,8 @@ import { ErroApi } from '@plataforma/web';
 
 import {
   alunoDoConflito,
+  contatoGuardado,
+  contatoParaGuardar,
   anamneseInicialDoAceite,
   opcoesDeAnamneseDoAceite,
   alternarCampoOculto,
@@ -484,5 +486,19 @@ describe('CRM: estados vazios, retornos, proposta e indicadores', () => {
     expect(intervaloDoPeriodo('ano', '2026-10-29')).toEqual({ de: '2026-01-01', ate: '2026-10-29' });
     expect(linhasPorMotivo({ porMotivo: [{ motivo: null, quantidade: 1 }, { motivo: 'PRECO', quantidade: 3 }] }))
       .toEqual([{ rotulo: 'Preço', quantidade: 3 }, { rotulo: 'Não informado', quantidade: 1 }]);
+  });
+});
+
+describe('contato guardado na guia (sessionStorage)', () => {
+  it('guarda só nome, WhatsApp e e-mail, nunca o resto do formulário', () => {
+    const dados = { ...INSCRICAO_VAZIA, nome: 'Ana Fictícia', whatsapp: '(45) 99999-0000', email: 'ana@exemplo.test', objetivo: 'segredo', sexo: 'FEMININO', indicadoPor: 'x' };
+    expect(contatoParaGuardar(dados)).toEqual({ nome: 'Ana Fictícia', whatsapp: '(45) 99999-0000', email: 'ana@exemplo.test' });
+  });
+  it('lê só as três chaves em texto e ignora o formato antigo (respostas, ciência, dados)', () => {
+    expect(contatoGuardado(JSON.stringify({ nome: 'Ana', email: 'a@b.test', respostas: { p1: 'sim' }, ciencia: true, objetivo: 'x', whatsapp: 3 })))
+      .toEqual({ nome: 'Ana', email: 'a@b.test' });
+    expect(contatoGuardado(JSON.stringify({ dados: { nome: 'Ana' }, respostas: { p1: 'x' } }))).toEqual({});
+    expect(contatoGuardado('não é json')).toEqual({});
+    expect(contatoGuardado(null)).toEqual({});
   });
 });

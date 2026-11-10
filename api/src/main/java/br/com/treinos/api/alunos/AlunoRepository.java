@@ -33,6 +33,22 @@ public interface AlunoRepository extends JpaRepository<Aluno, UUID>, JpaSpecific
     @Query("select a from Aluno a where a.conviteHash = :hash")
     Optional<Aluno> buscarPorConvite(String hash);
 
+    /** O aluno do usuário (único por consultoria da sessão); de outra consultoria ou sem aluno, vazio. */
+    Optional<Aluno> findByUsuarioId(UUID usuarioId);
+
+    /** Como {@link #findByUsuarioId}, travando a linha (moderação do apelido). */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select a from Aluno a where a.usuarioId = :usuarioId")
+    Optional<Aluno> buscarPorUsuarioParaAlterar(UUID usuarioId);
+
+    /**
+     * Autores da comunidade (por id de usuário) que são aluno ativo e não anonimizado, com o apelido atual (nulo se não tem), numa
+     * consulta só: quem não vem é da equipe ou não abre perfil (o mural usa isso para saber se o autor é clicável).
+     */
+    @Query("select new br.com.treinos.api.alunos.ApelidoDoAutor(a.usuarioId, a.apelido) from Aluno a "
+            + "where a.usuarioId in :usuarioIds and a.ativo = true and a.anonimizadoEm is null")
+    List<ApelidoDoAutor> autoresAlunosDosUsuarios(java.util.Collection<UUID> usuarioIds);
+
     /** Alunos da consultoria da sessão com este e-mail, sem diferenciar maiúsculas (importação assistida). */
     List<Aluno> findByEmailIgnoreCase(String email);
 

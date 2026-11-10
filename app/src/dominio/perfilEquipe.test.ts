@@ -20,6 +20,11 @@ describe('seleção de permissões de perfil',()=>{
     expect(sem).toContain('TREINO_LER');
     expect(desmarcarPermissoes(atuais,['FINANCEIRO_LER'])).not.toContain('FINANCEIRO_ALTERAR');
   });
+  it('moderar a comunidade marca a leitura do treino (com que a tela abre) e não depende de alterar treino',()=>{
+    expect(completarPermissoes(['COMUNIDADE_MODERAR'])).toEqual(['COMUNIDADE_MODERAR','TREINO_LER']);
+    expect(desmarcarPermissoes(completarPermissoes(['COMUNIDADE_MODERAR','TREINO_ALTERAR']),['TREINO_ALTERAR'])).toContain('COMUNIDADE_MODERAR');
+    expect(desmarcarPermissoes(completarPermissoes(['COMUNIDADE_MODERAR']),['TREINO_LER'])).not.toContain('COMUNIDADE_MODERAR');
+  });
   it('uma seção inteira pode ser removida sem permissões dependentes órfãs',()=>{
     const atuais=completarPermissoes(['TREINO_PUBLICAR','ALUNO_CONVITE']);
     expect(desmarcarPermissoes(atuais,['TREINO_LER','TREINO_ALTERAR'])).toEqual(expect.arrayContaining(['ALUNO_LER','ALUNO_CONVITE']));

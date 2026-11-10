@@ -1,5 +1,5 @@
 import { Permitido } from '../../ui/Permitido';
-import { Pencil, Plus, Trash2 } from 'lucide-react-native';
+import { Pencil, Plus, ShoppingCart, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -21,7 +21,8 @@ import {
 import { numeroParaTela } from '../../dominio/formatos';
 import { chipDeVarias } from '../../dominio/filtrosDaBiblioteca';
 import { sugerirGrupos } from '../../dominio/gruposDaLista';
-import { espaco } from '../../tema/tokens';
+import { useTema } from '../../tema/TemaProvider';
+import { espaco, RAIO } from '../../tema/tokens';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useAviso } from '../../ui/Aviso';
 import { BarraDeFiltros } from '../../ui/BarraDeFiltros';
@@ -29,15 +30,12 @@ import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { Cartao } from '../../ui/Cartao';
 import { CampoNumerico } from '../../ui/Campos';
-import { Divisor } from '../../ui/Divisor';
 import { Escolha } from '../../ui/Escolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { errosPorCampo, textoDoErro } from '../../ui/erros';
-import { FaixaDeChips } from '../../ui/FaixaDeChips';
 import { Folha } from '../../ui/Folha';
 import { IconeBotao } from '../../ui/IconeBotao';
-import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
 import { Texto } from '../../ui/Texto';
@@ -252,6 +250,7 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
   aoFechar: () => void;
   aoSalvar: () => void;
 }) {
+  const { cores } = useTema();
   const [nome, setNome] = useState(inicial?.nome ?? '');
   const [base, setBase] = useState<number | null>(inicial?.baseQuantidade ?? 100);
   const [unidade, setUnidade] = useState<UnidadeAlimento>(inicial?.baseUnidade ?? 'g');
@@ -324,119 +323,131 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
           <Botao rotulo="Salvar" aoTocar={salvar} carregando={salvando} desabilitado={!!pendencia} motivo={pendencia ?? undefined} />
         </>
       }>
-      <View style={estilos.secao}>
-        <Texto variante="secao" nivel={3}>Identificação</Texto>
-        <View style={estilos.linhaDeCampos}>
-          <View style={estilos.campoNome}>
-            <Campo rotulo="Nome" valor={nome} aoMudar={setNome} erro={campos.nome} maxLength={160} />
+      {/* Cada parte é um cartão com faixa de título (padrão da Folha da inscrição): onde começa e onde termina, sem
+          depender da cor. 24 px entre os blocos. As escolhas vão direto, sem `FaixaDeChips`: a `Escolha` já quebra
+          linha, e dentro da faixa ela ficava numa fileira só, cortada na borda da folha. */}
+      <View style={estilos.partes}>
+        <Cartao titulo="Identificação" nivel={3}>
+          <View style={estilos.linhaDeCampos}>
+            <View style={estilos.campoNome}>
+              <Campo rotulo="Nome" valor={nome} aoMudar={setNome} erro={campos.nome} maxLength={160} />
+            </View>
+            <View style={estilos.campoLargo}>
+              <Campo rotulo="Fonte dos valores (opcional)" valor={fonte} aoMudar={setFonte} maxLength={200} placeholder="ex.: TACO, rótulo" />
+            </View>
           </View>
-          <View style={estilos.campoLargo}>
-            <Campo rotulo="Fonte dos valores (opcional)" valor={fonte} aoMudar={setFonte} maxLength={200} placeholder="ex.: TACO, rótulo" />
-          </View>
-        </View>
-        <Campo
-          rotulo="Grupo (opcional)"
-          valor={grupo}
-          aoMudar={setGrupo}
-          erro={campos.grupo}
-          maxLength={LIMITE_GRUPO_DO_ALIMENTO}
-          ajuda="Agrupa a lista de compras do aluno (ex.: Carnes e derivados). Escreva ou toque numa sugestão. Vazio fica em “Outros itens”."
-        />
-        {sugestoes.length ? (
-          <FaixaDeChips quebrar accessibilityLabel="Sugestões de grupo">
-            <Escolha<string | null> descricao="Sugestões de grupo" valor={sugestoes.includes(grupo) ? grupo : null}
-              aoMudar={(g) => { if (g) setGrupo(g); }} opcoes={sugestoes.map((g) => ({ valor: g, rotulo: g }))} />
-          </FaixaDeChips>
-        ) : null}
-      </View>
-      <Divisor />
-      <View style={estilos.secao}>
-        <Texto variante="secao" nivel={3}>Porção e macronutrientes</Texto>
-        <Texto variante="suave">Valores para a quantidade-base, como no rótulo ou na tabela nutricional.</Texto>
-        <View style={estilos.linhaDeCampos}>
-          <View style={estilos.campoCurto}>
-            <CampoNumerico rotulo="Quantidade-base" valor={base} aoMudar={setBase} erro={campos.baseQuantidade} />
-          </View>
-          <View style={estilos.campoCurto}>
-            <Escolha rotulo="Unidade" opcoes={UNIDADES} valor={unidade} aoMudar={setUnidade} />
-          </View>
-          <View style={estilos.campoLargo}>
-            <CampoNumerico
-              rotulo="Gramas por unidade (opcional)"
-              valor={gramas}
-              aoMudar={setGramas}
-              ajuda="Permite usar o alimento em unidades (ex.: 1 fatia = 25 g)."
-              erro={campos.gramasPorUnidade}
+          <View style={estilos.grupo}>
+            <Campo
+              rotulo="Grupo (opcional)"
+              valor={grupo}
+              aoMudar={setGrupo}
+              erro={campos.grupo}
+              maxLength={LIMITE_GRUPO_DO_ALIMENTO}
+              ajuda="Agrupa a lista de compras do aluno. Vazio fica em “Outros itens”."
             />
+            {sugestoes.length ? (
+              <Escolha<string | null> descricao="Sugestões de grupo" valor={sugestoes.includes(grupo) ? grupo : null}
+                aoMudar={(g) => { if (g) setGrupo(g); }} opcoes={sugestoes.map((g) => ({ valor: g, rotulo: g }))} />
+            ) : null}
           </View>
-        </View>
-        <View style={estilos.linhaDeCampos}>
-          <View style={estilos.campoMacro}>
-            <CampoNumerico rotulo="Kcal" valor={kcal} aoMudar={setKcal} erro={campos.kcal} />
+        </Cartao>
+
+        <Cartao titulo="Porção e macronutrientes" descricao="Como no rótulo ou na tabela nutricional." nivel={3}>
+          <View style={estilos.linhaDeCampos}>
+            <View style={estilos.campoCurto}>
+              <CampoNumerico rotulo="Quantidade-base" valor={base} aoMudar={setBase} erro={campos.baseQuantidade} />
+            </View>
+            <View style={estilos.campoUnidade}>
+              <Escolha rotulo="Unidade" opcoes={UNIDADES} valor={unidade} aoMudar={setUnidade} />
+            </View>
+            <View style={estilos.campoLargo}>
+              <CampoNumerico
+                rotulo="Gramas por unidade (opcional)"
+                valor={gramas}
+                aoMudar={setGramas}
+                ajuda={'Para usar em unidades (1 fatia = 25 g).'}
+                erro={campos.gramasPorUnidade}
+              />
+            </View>
           </View>
-          <View style={estilos.campoMacro}>
-            <CampoNumerico rotulo="Proteína" sufixo="g" valor={proteina} aoMudar={setProteina} erro={campos.proteina} />
+          {/* Os macros dizem a que quantidade se referem: a ligação com a quantidade-base fica escrita. */}
+          <View style={[estilos.macros, { borderTopColor: cores.borda }]}>
+            <Texto variante="secao" numerico>{base ? `Valores por ${numeroParaTela(base)} ${unidade}` : 'Valores pela quantidade-base'}</Texto>
+            <View style={estilos.linhaDeCampos}>
+              <View style={estilos.campoMacro}>
+                <CampoNumerico rotulo="Kcal" valor={kcal} aoMudar={setKcal} erro={campos.kcal} />
+              </View>
+              <View style={estilos.campoMacro}>
+                <CampoNumerico rotulo="Proteína" sufixo="g" valor={proteina} aoMudar={setProteina} erro={campos.proteina} />
+              </View>
+              <View style={estilos.campoMacro}>
+                <CampoNumerico rotulo="Carboidrato" sufixo="g" valor={carboidrato} aoMudar={setCarboidrato} erro={campos.carboidrato} />
+              </View>
+              <View style={estilos.campoMacro}>
+                <CampoNumerico rotulo="Gordura" sufixo="g" valor={gordura} aoMudar={setGordura} erro={campos.gordura} />
+              </View>
+            </View>
           </View>
-          <View style={estilos.campoMacro}>
-            <CampoNumerico rotulo="Carboidrato" sufixo="g" valor={carboidrato} aoMudar={setCarboidrato} erro={campos.carboidrato} />
-          </View>
-          <View style={estilos.campoMacro}>
-            <CampoNumerico rotulo="Gordura" sufixo="g" valor={gordura} aoMudar={setGordura} erro={campos.gordura} />
-          </View>
-        </View>
-      </View>
-      <Divisor />
-      <View style={estilos.secao}>
-        <View style={estilos.cabecalhoDaSecao}>
-          <View style={estilos.tituloDaSecao}>
-            <Texto variante="secao" nivel={3}>Lista de compras (estimativa automática)</Texto>
-            <Texto variante="suave">O nome sugere o descarte e a cocção. Escolha um perfil ou digite o número que você usa.</Texto>
-          </View>
-          {inicial ? <Botao rotulo="Sugerir pelo nome" tipo="secundario" aoTocar={sugerirPeloNome} /> : null}
-        </View>
-        <FaixaDeChips quebrar accessibilityLabel="Descarte e limpeza antes do preparo (FC)">
-          <Escolha<string> descricao="Descarte e limpeza antes do preparo (FC)" valor={perfilFc}
+        </Cartao>
+
+        <Cartao titulo="Lista de compras" descricao="O nome sugere os fatores. Escolha um perfil ou digite o número." nivel={3}
+          acoes={inicial ? <Botao rotulo="Sugerir pelo nome" tipo="secundario" aoTocar={sugerirPeloNome} /> : null}>
+          {/* Perfil e número com o mesmo código (FC, FCc) e na mesma ordem: tocar no perfil preenche o campo logo abaixo. */}
+          <Escolha<string> rotulo="Descarte e limpeza antes do preparo (FC)" valor={perfilFc}
             opcoes={[...PERFIS_FC.map((p) => ({ valor: p.codigo as string, rotulo: p.rotulo })), { valor: 'PERSONALIZADO', rotulo: 'Personalizado' }]}
             aoMudar={(c) => { const perfil = PERFIS_FC.find((p) => p.codigo === c); if (perfil) escolherFc(perfil.valor); else travarFatores(); }} />
-        </FaixaDeChips>
-        <FaixaDeChips quebrar accessibilityLabel="Estado na dieta e cocção (FCc)">
-          <Escolha<string> descricao="Estado na dieta e cocção (FCc)" valor={perfilFcc}
+          <Escolha<string> rotulo="Estado na dieta e cocção (FCc)" valor={perfilFcc}
             opcoes={[...PERFIS_FCC.map((p) => ({ valor: p.codigo as string, rotulo: p.rotulo })), { valor: 'PERSONALIZADO', rotulo: 'Personalizado' }]}
             aoMudar={(c) => { const perfil = PERFIS_FCC.find((p) => p.codigo === c); if (perfil) escolherFcc(perfil.valor); else travarFatores(); }} />
-        </FaixaDeChips>
-        <View style={estilos.linhaDeCampos}>
-          <View style={estilos.campoLargo}>
-            <CampoNumerico rotulo="Fator de correção (FC)" valor={fcMostrado} aoMudar={(v) => { setFc(v); setFcc(fccMostrado); setTocouFatores(true); }} ajuda={AJUDA_FC} erro={campos.fatorCorrecao ?? erroFc} />
+          <View style={estilos.linhaDeCampos}>
+            <View style={estilos.campoLargo}>
+              <CampoNumerico rotulo="Fator de correção (FC)" valor={fcMostrado} aoMudar={(v) => { setFc(v); setFcc(fccMostrado); setTocouFatores(true); }} ajuda={AJUDA_FC} erro={campos.fatorCorrecao ?? erroFc} />
+            </View>
+            <View style={estilos.campoLargo}>
+              <CampoNumerico rotulo="Fator de cocção (FCc)" valor={fccMostrado} aoMudar={(v) => { setFc(fcMostrado); setFcc(v); setTocouFatores(true); }} ajuda={AJUDA_FCC} erro={campos.fatorCoccao ?? erroFcc} />
+            </View>
           </View>
-          <View style={estilos.campoLargo}>
-            <CampoNumerico rotulo="Fator de cocção (FCc)" valor={fccMostrado} aoMudar={(v) => { setFc(fcMostrado); setFcc(v); setTocouFatores(true); }} ajuda={AJUDA_FCC} erro={campos.fatorCoccao ?? erroFcc} />
-          </View>
-        </View>
-        {fcMostrado !== null && fccMostrado !== null && fccMostrado !== 0 ? (
-          <Texto variante="suave" numerico>{previaDeConversao(fcMostrado, fccMostrado)}</Texto>
+          {fcMostrado !== null && fccMostrado !== null && fccMostrado !== 0 ? (
+            <View style={[estilos.exemplo, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
+              <View style={estilos.iconeDoExemplo} aria-hidden><ShoppingCart size={18} color={cores.textoSuave} /></View>
+              <Texto numerico style={estilos.textoDoExemplo}>{previaDeConversao(fcMostrado, fccMostrado)}</Texto>
+            </View>
+          ) : null}
+        </Cartao>
+
+        {erro && Object.keys(campos).length === 0 ? <MensagemErro texto={textoDoErro(erro)} /> : null}
+
+        {inicial && aoTirar ? (
+          <Cartao>
+            <View style={estilos.tirar}>
+              <Texto variante="suave" style={estilos.textoDoTirar}>As dietas que já usam este alimento continuam com os valores gravados.</Texto>
+              <Botao rotulo="Tirar da biblioteca" tipo="perigoTexto" Icone={Trash2} aoTocar={aoTirar} />
+            </View>
+          </Cartao>
         ) : null}
       </View>
-
-      {erro && Object.keys(campos).length === 0 ? <MensagemErro texto={textoDoErro(erro)} /> : null}
-
-      {inicial && aoTirar ? (
-        <>
-          <Divisor />
-          <LinhaDeAcoes><Botao rotulo="Tirar da biblioteca" tipo="perigoTexto" Icone={Trash2} aoTocar={aoTirar} /></LinhaDeAcoes>
-        </>
-      ) : null}
     </Folha>
   );
 }
 
 const estilos = StyleSheet.create({
-  // 16 px dentro de cada parte da folha; as partes se separam pelo divisor.
-  secao: { gap: espaco(2) },
+  // 24 px entre os cartões da folha (seção 4.3 do design); dentro de cada cartão, os 16 px do próprio `Cartao`.
+  partes: { gap: espaco(3) },
   linhaDeCampos: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', gap: espaco(2) },
   campoNome: { flexGrow: 2, flexBasis: 240 },
   campoCurto: { flexGrow: 1, flexBasis: 120 },
+  // 180 px: FC e FCc lado a lado na folha do PC (600) e um embaixo do outro no celular.
   campoLargo: { flexGrow: 1, flexBasis: 180 },
   campoMacro: { flexGrow: 1, flexBasis: 100 },
-  cabecalhoDaSecao: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
-  tituloDaSecao: { flexGrow: 1, flexBasis: 220, gap: espaco(0.5) },
+  // Sugestões coladas no campo Grupo (8 px), não soltas no cartão.
+  grupo: { gap: espaco(1) },
+  // Nível de dentro do cartão: divisor, não outro contorno (seção 5.1).
+  macros: { gap: espaco(1.5), borderTopWidth: 1, paddingTop: espaco(2) },
+  exemplo: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(1.5), borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5) },
+  iconeDoExemplo: { flexShrink: 0, paddingTop: 2 },
+  textoDoExemplo: { flexShrink: 1 },
+  // As três unidades numa linha só, sem o "un" cair embaixo.
+  campoUnidade: { flexShrink: 0 },
+  tirar: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5) },
+  textoDoTirar: { flexGrow: 1, flexShrink: 1, flexBasis: 240 },
 });

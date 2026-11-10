@@ -1,6 +1,6 @@
 import { requisicao } from './cliente';
 import type {
-  AulaDaComunidade, ConquistaDoAluno, NovaAula, PaginaDoMural, PosicaoNoRanking, PostDoMural,
+  AulaDaComunidade, ConquistaDoAluno, NovaAula, PaginaDoMural, PerfilDaComunidade, PosicaoNoRanking, PostDoMural,
 } from './comunidadeTipos';
 
 // Rotas reais da API (`AlunoComunidadeController` e `ComunidadeController`). Erro é erro: a tela mostra o aviso com
@@ -26,7 +26,15 @@ export const listarMinhasConquistas = () => requisicao<ConquistaDoAluno[]>('/alu
 
 export const obterMeuRanking = () => requisicao<PosicaoNoRanking>('/aluno/comunidade/ranking');
 
-// ---- Equipe (TREINO_LER para ler, TREINO_ALTERAR para publicar) ----
+/** 404 para qualquer autor fora do alcance (equipe, outra consultoria, anonimizado). */
+export const obterPerfilDaComunidade = (autorId: string) =>
+  requisicao<PerfilDaComunidade>(`/aluno/comunidade/perfis/${encodeURIComponent(autorId)}`);
+
+/** `null` apaga. 422 com o erro no campo `apelido`; o apelido nunca fica no aparelho. */
+export const definirMeuApelido = (apelido: string | null) =>
+  requisicao<void>('/aluno/comunidade/apelido', { metodo: 'PUT', corpo: { apelido } });
+
+// ---- Equipe (TREINO_LER para ler, COMUNIDADE_MODERAR para publicar e moderar) ----
 
 export const listarAulasDaEquipe = () => requisicao<AulaDaComunidade[]>('/comunidade/aulas');
 
@@ -36,3 +44,7 @@ export const listarMuralDaEquipe = () => requisicao<PaginaDoMural>(`/comunidade/
 
 export const publicarNoMuralDaEquipe = (texto: string) =>
   requisicao<PostDoMural>('/comunidade/mural', { metodo: 'POST', corpo: { texto } });
+
+/** Limpa o apelido de um aluno (moderação); ele pode pôr outro depois. */
+export const removerApelidoDoAutor = (autorId: string) =>
+  requisicao<void>(`/comunidade/perfis/${encodeURIComponent(autorId)}/apelido`, { metodo: 'DELETE' });

@@ -20,10 +20,12 @@ import java.util.UUID;
 public class AlunoComunidadeController {
 
     private final ComunidadeService comunidade;
+    private final ApelidoDoAlunoService apelidos;
     private final LimiteTentativas limite;
 
-    public AlunoComunidadeController(ComunidadeService comunidade, LimiteTentativas limite) {
+    public AlunoComunidadeController(ComunidadeService comunidade, ApelidoDoAlunoService apelidos, LimiteTentativas limite) {
         this.comunidade = comunidade;
+        this.apelidos = apelidos;
         this.limite = limite;
     }
 
@@ -88,6 +90,24 @@ public class AlunoComunidadeController {
                                             @AuthenticationPrincipal UsuarioAutenticado eu) {
         limite.comunidade(eu.usuarioId());
         return comunidade.adicionarComentarioMural(id, request.texto(), eu);
+    }
+
+    // ---- Apelido e perfil ----
+
+    /** Sempre o aluno da sessão; vazio ou nulo apaga. */
+    @PreAuthorize("hasRole('ALUNO')")
+    @PutMapping("/apelido")
+    public ResponseEntity<Void> definirApelido(@RequestBody ApelidoRequest request, @AuthenticationPrincipal UsuarioAutenticado eu) {
+        limite.comunidade(eu.usuarioId());
+        apelidos.alterar(eu, request.apelido());
+        return ResponseEntity.noContent().build();
+    }
+
+    /** {@code autorId} é o id de usuário que o mural expõe; só colega ativo da mesma consultoria, senão 404 igual. */
+    @PreAuthorize("hasRole('ALUNO')")
+    @GetMapping("/perfis/{autorId}")
+    public PerfilResponse perfil(@PathVariable UUID autorId, @AuthenticationPrincipal UsuarioAutenticado eu) {
+        return comunidade.perfilDoColega(autorId, eu);
     }
 
     // ---- Conquistas ----

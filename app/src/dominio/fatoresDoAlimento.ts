@@ -9,8 +9,8 @@ export const FC_MAXIMO = 20;
 export const FCC_MINIMO = 0.1;
 export const FCC_MAXIMO = 10;
 
-export const AJUDA_FC = 'Peso bruto ÷ peso limpo. O chip sugere pelo nome; você pode trocar o número.';
-export const AJUDA_FCC = 'Peso pronto ÷ peso cru. Acima de 1 o alimento hidrata; abaixo de 1, encolhe.';
+export const AJUDA_FC = 'Peso bruto ÷ peso limpo.';
+export const AJUDA_FCC = 'Peso pronto ÷ peso cru. Acima de 1, hidrata.';
 
 export const NOTA_DA_ESTIMATIVA = 'Apenas um cálculo estimado: as quantidades convertem automaticamente o peso da dieta para peso aproximado de compra no mercado (considerando descarte de limpeza/casca e absorção ou perda de água no preparo).';
 
