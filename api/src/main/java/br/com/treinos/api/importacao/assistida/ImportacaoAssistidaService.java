@@ -52,7 +52,7 @@ import java.util.regex.Pattern;
  * Importação assistida (lote de PDF, DOCX, planilha e texto): recebe, interpreta e deixa em rascunho de revisão. A
  * gravação dos grupos é da {@link ConfirmacaoDaImportacaoAssistida}. Dado do aluno só vive na sessão por 7 dias
  * ({@link ImportacaoAssistidaRetencao}); os bytes do arquivo saem logo depois de processados e o grupo gravado perde o
- * conteúdo. Nada sai do servidor sem {@code treinos.importacao.ia.enviar-dados-ao-provedor}, e então só o texto redigido.
+ * conteúdo. Nada sai do servidor sem {@code treinos.importacao.ia.enviar-dados-ao-provedor}, e então só o texto extraído (sem máscara).
  */
 @Service
 public class ImportacaoAssistidaService {
@@ -223,8 +223,9 @@ public class ImportacaoAssistidaService {
         try {
             ResultadoExtracao extracao = extrairArquivo(arq);
             RedatorLgpdImportacao.RedacaoResultado redacao = RedatorLgpdImportacao.redigir(extracao.textoCompleto());
+            // A redação fica só para vincular o aluno aqui; ao provedor vai o texto inteiro (decisão de 10/11/2026).
             ContextoIa contexto = new ContextoIa(arq.getNomeOriginal(), arq.getFormato(), extracao.blocos(),
-                    redacao.textoRedigido(), objetivo, SIGLAS_METODOLOGIA, dicionario);
+                    extracao.textoCompleto(), objetivo, SIGLAS_METODOLOGIA, dicionario);
             ResultadoInterpretacao resultado = roteador.interpretar(contexto);
             arq.marcarProcessado(json.writeValueAsString(extracao.metadados()));
             return new Interpretado(resultado, redacao);

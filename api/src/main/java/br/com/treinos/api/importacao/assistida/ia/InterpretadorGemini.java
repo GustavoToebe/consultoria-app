@@ -15,7 +15,7 @@ import java.util.Map;
 
 /**
  * Conector para Google Gemini (gemini-2.5-flash e gemini-2.5-pro) usando HttpClient nativo do Java 25.
- * Envia SÓ o texto redigido (LGPD), sem PDF bruto nem nome de arquivo, e só quando o roteador libera
+ * Envia SÓ o texto extraído (com CPF, e-mail, telefone e CEP desde 10/11/2026), sem PDF bruto nem nome de arquivo, e só quando o roteador libera
  * ({@code enviar-dados-ao-provedor}). A chave vai no cabeçalho, nunca na URL.
  */
 @Component

@@ -14,18 +14,18 @@ import java.util.Map;
 /**
  * Trecho comum aos conectores externos: texto que pode sair do servidor e decodificação da proposta devolvida.
  * Valor ausente continua ausente: peso sem data ou sem número é descartado, nunca preenchido (AGENTS.md: não
- * inventar valor). E-mail e telefone não vêm da IA: ela só vê o texto redigido, e a identificação é local.
+ * inventar valor). E-mail e telefone não vêm da IA: a identificação é local.
  */
 final class DecodificadorDaProposta {
 
     private DecodificadorDaProposta() {
     }
 
-    /** Único texto do aluno que um conector pode enviar: já redigido; sem nome de arquivo nem PDF. */
+    /** Único texto do aluno que um conector pode enviar: o extraído, sem nome de arquivo nem PDF. */
     static String textoParaEnvio(ContextoIa contexto) {
-        String texto = contexto.textoRedigido();
+        String texto = contexto.textoParaProvedor();
         if (texto == null || texto.isBlank()) {
-            throw new IllegalStateException("Sem texto redigido para enviar.");
+            throw new IllegalStateException("Sem texto para enviar.");
         }
         return texto;
     }

@@ -68,7 +68,7 @@ class RoteadorInterpretadorIaTest {
     }
 
     @Test
-    void conectorSoEnviaOTextoRedigidoEExigeTexto() {
+    void conectorSoEnviaOTextoDoContextoEExigeTexto() {
         ContextoIa c = contexto();
         assertThat(DecodificadorDaProposta.textoParaEnvio(c)).isEqualTo("Aluno: [NOME]\n").doesNotContain("Sentinela");
 

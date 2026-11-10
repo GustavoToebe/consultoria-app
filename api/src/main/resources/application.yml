@@ -73,10 +73,13 @@ treinos:
       modelo-forte: ${TREINOS_IA_MODELO_FORTE:gemini-2.5-pro}
       gemini-api-key: ${TREINOS_IA_GEMINI_API_KEY:}
       claude-api-key: ${TREINOS_IA_CLAUDE_API_KEY:}
+      # Haiku 5.5 é o mais barato da família; esforço low|medium|high|xhigh|max (high pensa mais e gasta mais).
+      claude-modelo: ${TREINOS_IA_CLAUDE_MODELO:claude-haiku-5-5}
+      claude-esforco: ${TREINOS_IA_CLAUDE_ESFORCO:medium}
       # LGPD, fail-closed: com false (padrão) nada do arquivo sai do servidor e o roteador usa sempre as regras locais,
-      # mesmo com provedor gemini/claude e chave. Só ligar depois de decisão registrada; ligado, vai SÓ o texto redigido
-      # (sem PDF nem nome do arquivo), e o texto redigido ainda carrega nome, peso e dieta (o redator só troca CPF, e-mail,
-      # telefone e CEP).
+      # mesmo com provedor gemini/claude e chave. Só ligar depois de decisão registrada; ligado, vai SÓ o texto extraído
+      # (sem PDF nem nome do arquivo), inteiro: nome, peso, dieta, CPF, e-mail, telefone e CEP (decisão de 10/11/2026;
+      # o redator só serve para vincular o aluno no servidor).
       enviar-dados-ao-provedor: ${TREINOS_IA_ENVIAR_DADOS_AO_PROVEDOR:false}
     # Sessão da importação assistida: a retenção diária apaga o que passou do prazo de 7 dias (expira_em), com os arquivos.
     # Só os testes a desligam (eles a chamam à mão).

@@ -14,8 +14,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Conector para Anthropic Claude (claude-sonnet-4-5 e claude-haiku-4-5) usando HttpClient nativo do Java 25.
- * Envia SÓ o texto redigido (LGPD), sem PDF bruto nem nome de arquivo, e só quando o roteador libera
+ * Conector para Anthropic Claude (padrão claude-haiku-5-5, esforço configurável) usando HttpClient nativo do Java 25.
+ * Envia SÓ o texto extraído (com CPF, e-mail, telefone e CEP desde 10/11/2026), sem PDF bruto nem nome de arquivo, e só quando o roteador libera
  * ({@code enviar-dados-ao-provedor}). Extrai a estrutura via tool calling.
  */
 @Component
@@ -45,7 +45,7 @@ public class InterpretadorClaude implements InterpretadorIa {
             throw new IllegalStateException("Chave da API Claude não configurada.");
         }
 
-        String modelo = "claude-sonnet-4-5";
+        String modelo = config.getClaudeModelo();
         String url = "https://api.anthropic.com/v1/messages";
 
         try {
@@ -56,7 +56,7 @@ public class InterpretadorClaude implements InterpretadorIa {
                     .header("x-api-key", apiKey)
                     .header("anthropic-version", "2023-06-01")
                     .header("content-type", "application/json")
-                    .timeout(Duration.ofSeconds(60))
+                    .timeout(Duration.ofSeconds(120))
                     .POST(HttpRequest.BodyPublishers.ofString(corpoRequisicao, StandardCharsets.UTF_8))
                     .build();
 
@@ -80,7 +80,9 @@ public class InterpretadorClaude implements InterpretadorIa {
     private String montarCorpo(ContextoIa contexto, String modelo) throws Exception {
         Map<String, Object> req = new java.util.HashMap<>();
         req.put("model", modelo);
-        req.put("max_tokens", 4096);
+        // O raciocínio (adaptativo, ligado por padrão) conta dentro do max_tokens.
+        req.put("max_tokens", 16000);
+        req.put("output_config", Map.of("effort", config.getClaudeEsforco()));
 
         String systemPrompt = "Você é o assistente de importação da plataforma Overtraining.\n"
                 + "Extraia cadastros de alunos, evolução de peso, treinos e dietas.\n"
@@ -108,7 +110,8 @@ public class InterpretadorClaude implements InterpretadorIa {
                 )
         );
         req.put("tools", List.of(tool));
-        req.put("tool_choice", Map.of("type", "tool", "name", "propor_importacao"));
+        // "auto": forçar a ferramenta não combina com o raciocínio ligado; o prompt pede a ferramenta e, sem ela, cai nas regras.
+        req.put("tool_choice", Map.of("type", "auto"));
 
         return json.writeValueAsString(req);
     }
@@ -116,6 +119,11 @@ public class InterpretadorClaude implements InterpretadorIa {
     private ResultadoInterpretacao processarResposta(String jsonResposta, ContextoIa contexto) {
         try {
             JsonNode root = json.readTree(jsonResposta);
+            String parada = root.path("stop_reason").asText();
+            if ("refusal".equals(parada) || "max_tokens".equals(parada)) {
+                // Recusa ou resposta cortada: a ferramenta viria incompleta, então volta às regras.
+                throw new IllegalStateException("Claude não concluiu a resposta (" + parada + ").");
+            }
             JsonNode content = root.path("content");
             JsonNode toolUse = null;
             if (content.isArray()) {
