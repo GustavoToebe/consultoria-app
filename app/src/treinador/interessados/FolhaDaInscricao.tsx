@@ -443,9 +443,9 @@ function Conteudo({ dados, responsaveis, rascunhos, aoFechar, aoMudarLista, aoAt
             <Escolha rotulo="Pagamento (registro manual)" opcoes={OPCOES_PAGAMENTO} valor={pagamento} aoMudar={setPagamento} />
             <EscolhaEmFolha rotulo="Responsável" valor={responsavelId} aoMudar={setResponsavelId}
               opcoes={[{ valor: SEM_RESPONSAVEL, rotulo: 'Sem responsável' }, ...responsaveis.map((r) => ({ valor: r.id, rotulo: r.nome }))]}
-              rotuloDoValor={dados.responsavelNome ?? 'Membro inativo'} />
+              rotuloDoValor={dados.responsavelNome ?? 'Membro inativo'} style={estilos.seletor} />
             {/* Dez opções: lista suspensa de escolha única, sem busca (os chips ocupavam quatro linhas). */}
-            <EscolhaSuspensa<Origem | ''> rotulo="Origem" titulo="Origem da inscrição" semBusca style={estilos.origem}
+            <EscolhaSuspensa<Origem | ''> rotulo="Origem" titulo="Origem da inscrição" semBusca style={estilos.seletor}
               opcoes={[{ valor: SEM_ORIGEM, rotulo: 'Não informada' }, ...OPCOES_ORIGEM]} valor={origem} aoMudar={setOrigem} />
           </>
         ) : (
@@ -626,7 +626,8 @@ function Passo({ feito, texto }: { feito: boolean; texto: string }) {
 const estilos = StyleSheet.create({
   corpo: { gap: espaco(2) },
   // A origem é curta: o campo não atravessa a folha inteira (a 390 px ele já cabe na largura toda).
-  origem: { maxWidth: LARGURA_FORMULARIO / 2 },
+  // Responsável e Origem um sob o outro com a mesma largura (as duas peças têm alturas próprias: 44 e 52).
+  seletor: { alignSelf: 'stretch', maxWidth: LARGURA_FORMULARIO / 2 },
   selos: { flexDirection: 'row', gap: espaco(0.75), flexWrap: 'wrap' },
   anamnese: { gap: espaco(0.75) },
   conferir: { gap: 2 },

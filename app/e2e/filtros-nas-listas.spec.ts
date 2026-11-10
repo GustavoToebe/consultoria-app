@@ -210,8 +210,8 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       const painel = await abrirFiltros(page, celular);
       await marcar(page, painel, 'Responsável', 'Toda a equipe', ['Meus', 'Bia Fictícia'], celular);
       await marcar(page, painel, 'Origem', 'Todas', ['Instagram', 'Não informada'], celular);
-      await painel.getByRole('group', { name: 'Entrada' }).getByRole('textbox', { name: 'De', exact: true }).fill('01/10/2026');
-      await painel.getByRole('group', { name: 'Última atividade' }).getByRole('textbox', { name: 'Até', exact: true }).fill('31/10/2026');
+      await painel.getByRole('textbox', { name: 'Entrada: data inicial', exact: true }).fill('01/10/2026');
+      await painel.getByRole('textbox', { name: 'Última atividade: data final', exact: true }).fill('31/10/2026');
       await verResultado(page, celular, 'Ver inscrições');
       // Meus junto de outra pessoa vira o id do usuário (a API recusa `meus` com `responsavel`).
       await expect.poll(() => daTela(1)?.get('atividadeAte')).toBe('2026-10-31');

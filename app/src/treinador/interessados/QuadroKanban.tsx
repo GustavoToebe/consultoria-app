@@ -32,6 +32,7 @@ import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro } from '../../ui/Estados';
 import { codigoApi, textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
+import { ItemDeLista } from '../../ui/ItemDeLista';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
@@ -134,14 +135,47 @@ export function QuadroKanban({ filtros, contagens, rodada, etapas, aoAbrir, aoMu
         ))}
       </View>
       <Folha visivel={!!mover} titulo={mover ? `Mover ${mover.nome}` : 'Mover'} aoFechar={() => setMover(null)}>
-        <View style={estilos.destinos}>
-          {mover ? destinosDoCartao(mover.situacao).map((d) => (
-            <Botao key={`${d.tipo}:${'situacao' in d ? d.situacao : ''}`} rotulo={d.rotulo}
-              tipo={d.tipo === 'encerrar' ? 'perigoTexto' : 'secundario'} aoTocar={() => executar(mover, d)} />
-          )) : null}
-          {mover && destinosDoCartao(mover.situacao).length === 0 ? <Texto variante="suave">Inscrição aceita: abra a ficha do aluno.</Texto> : null}
-        </View>
+        {mover ? <DestinosDoCartao situacao={mover.situacao} rotuloDaEtapa={seloDaSituacao(mover.situacao).texto} aoEscolher={(d) => executar(mover, d)} /> : null}
       </Folha>
+    </View>
+  );
+}
+
+/**
+ * Destinos do "Mover para" (P3 de `docs/design-e-front.md` 4.6): uma ação por linha, todas da mesma largura
+ * (`ItemDeLista`, como a `FolhaDeAcoes`), em dois grupos. "Mudar de etapa" vale na hora; aceitar, encerrar e reabrir
+ * só abrem a confirmação na folha da inscrição (encerrar e reabrir pedem o motivo), por isso ficam à parte, com
+ * Recusar e Desistiu em vermelho como o painel deles.
+ */
+function DestinosDoCartao({ situacao, rotuloDaEtapa, aoEscolher }: {
+  situacao: SituacaoInscricao;
+  rotuloDaEtapa: string;
+  aoEscolher: (destino: DestinoDoCartao) => void;
+}) {
+  const destinos = destinosDoCartao(situacao);
+  if (destinos.length === 0) return <Texto variante="suave">Inscrição aceita: abra a ficha do aluno.</Texto>;
+  const etapas = destinos.filter((d) => d.tipo === 'etapa');
+  const decisoes = destinos.filter((d) => d.tipo !== 'etapa');
+  const linha = (d: DestinoDoCartao) => (
+    <ItemDeLista key={`${d.tipo}:${'situacao' in d ? d.situacao : ''}`} titulo={d.rotulo} perigo={d.tipo === 'encerrar'} aoTocar={() => aoEscolher(d)} />
+  );
+  // Encerrada só tem "Reabrir atendimento": o grupo dispensa o título (a etapa atual já diz por quê).
+  const tituloDasDecisoes = etapas.length ? 'Aceitar ou encerrar' : null;
+  return (
+    <View style={estilos.destinos}>
+      <Texto variante="suave">Etapa atual: {rotuloDaEtapa}.</Texto>
+      {etapas.length ? (
+        <View style={estilos.grupo} role="group" aria-label="Mudar de etapa">
+          <Texto variante="rotulo">Mudar de etapa</Texto>
+          <Texto variante="pequeno">Muda na hora.</Texto>
+          {etapas.map(linha)}
+        </View>
+      ) : null}
+      <View style={estilos.grupo} role="group" aria-label={tituloDasDecisoes ?? 'Reabrir'}>
+        {tituloDasDecisoes ? <Texto variante="rotulo">{tituloDasDecisoes}</Texto> : null}
+        <Texto variante="pequeno">Abre a confirmação antes de valer.</Texto>
+        {decisoes.map(linha)}
+      </View>
     </View>
   );
 }
@@ -258,5 +292,6 @@ const estilos = StyleSheet.create({
   cartao: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1), gap: espaco(0.5) },
   abrir: { gap: 2, minHeight: ALVO_TOQUE },
   selos: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(0.5) },
-  destinos: { gap: espaco(1) },
+  destinos: { gap: espaco(2) },
+  grupo: { gap: espaco(1) },
 });
