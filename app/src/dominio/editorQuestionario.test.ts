@@ -303,9 +303,12 @@ describe('destino no cadastro (anamnese)', () => {
     expect(destinosPossiveis('TELEFONE', 'ANAMNESE')).toEqual(['TELEFONE']);
     expect(destinosPossiveis('ENDERECO', 'ANAMNESE')).toEqual(['ENDERECO']);
     expect(destinosPossiveis('TEXTO_LONGO', 'ANAMNESE')).toEqual([]);
-    // A API recusa (422 `destino`) nome, e-mail, nascimento, altura e observações: o editor nem os oferece.
+    // A API recusa (422 `destino`) nome, e-mail, altura e observações: o editor nem os oferece.
     expect(destinosPossiveis('EMAIL', 'ANAMNESE')).toEqual([]);
-    expect(destinosPossiveis('DATA', 'ANAMNESE')).toEqual([]);
+    // Data de nascimento (V070): só na anamnese; o link público da inscrição não aceita destino nenhum.
+    expect(destinosPossiveis('DATA', 'ANAMNESE')).toEqual(['DATA_NASCIMENTO']);
+    expect(destinosPossiveis('DATA', 'INSCRICAO')).toEqual([]);
+    expect(destinosPossiveis('DATA', 'ATUALIZACAO')).toEqual([]);
     expect(destinosPossiveis('NUMERO', 'ANAMNESE')).toEqual([]);
     expect(destinosPossiveis('FOTOS', 'ANAMNESE')).toEqual([]);
     expect(destinosPossiveis('PESO', 'ATUALIZACAO')).toEqual([]);

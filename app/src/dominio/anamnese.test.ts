@@ -63,6 +63,8 @@ describe('anamnese', () => {
         .toBe('Rua Exemplo, 100 - Centro · Cidade Exemplo/SP - 01310-100');
       expect(textoDoValor('ENDERECO', {})).toBe('—');
       expect(textoDoValor('CPF', null)).toBe('—');
+      expect(textoDoValor('DATA_NASCIMENTO', { texto: '2001-03-09' })).toBe('09/03/2001');
+      expect(textoDoValor('DATA_NASCIMENTO', {})).toBe('—');
     });
     it('selo e contagem das alterações', () => {
       expect(seloDaAlteracao({ situacao: 'PENDENTE', automatica: false })).toEqual({ texto: 'Para revisar', tipo: 'atencao' });

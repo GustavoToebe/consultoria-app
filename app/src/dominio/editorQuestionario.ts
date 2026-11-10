@@ -348,8 +348,8 @@ export const alterarCondicaoDaSecao = (c: ConteudoQuestionario, secao: number, m
 
 /**
  * Campos do cadastro que este tipo pode alimentar (só na anamnese): PESO → registro de peso, TEXTO → objetivo ou CPF,
- * TELEFONE → telefone, ENDERECO → endereço, ESCOLHA_UNICA → sexo. Só os que o sistema grava (`temEfeitoNoCadastro`: nome,
- * e-mail, nascimento, altura e observações a API recusa). A ordem é a do menu.
+ * TELEFONE → telefone, ENDERECO → endereço, ESCOLHA_UNICA → sexo, DATA → data de nascimento. Só os que o sistema grava
+ * (`temEfeitoNoCadastro`: nome, e-mail, altura e observações a API recusa). A ordem é a do menu.
  */
 export function destinosPossiveis(tipo: TipoPergunta, finalidade: FinalidadeQuestionario): DestinoOferecido[] {
   if (finalidade !== 'ANAMNESE') return [];

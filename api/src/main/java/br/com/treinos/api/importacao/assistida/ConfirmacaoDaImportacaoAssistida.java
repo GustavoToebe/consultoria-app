@@ -293,7 +293,7 @@ public class ConfirmacaoDaImportacaoAssistida {
         Aluno existente = null;
         if (novo) {
             alunoId = alunoService.criar(new AlunoRequest(nome.strip(), email, telefone, objetivo, observacoes, null, null,
-                    null, null, null, null, null)).id();
+                    null, null, null, null, null, null)).id();
         } else {
             if (g.alunoExistenteId() == null) {
                 throw new BadRequestException("Escolha o aluno existente.", "ALUNO_NAO_ESCOLHIDO");

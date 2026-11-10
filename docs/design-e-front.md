@@ -221,7 +221,7 @@ Qualquer outro lugar precisa de decisão nova.
 | Encerrado, inativo ou informativo | `neutro` | Acabou, foi desligado, ou é só informação, inclusive o que ainda vai acontecer, sempre com a data; também quem espera a ação de outro | Cancelada, Estornada, Encerrada, Arquivado, Inativo, Pasta concluída, Dispensada, Sem conexão, "Em 15 dias", "Enviada · aguardando revisão" (quem espera) | Sim | 4,5:1 | 4,97 · 4,79 · 4,98 (sobre `superficie3`) |
 | Desabilitado | fundo `superficie3`, borda `borda`, texto e ícone `textoSuave`, sem opacidade e sem a marca | Controle que não pode ser usado agora | Botão com `motivo` ("Preencha o nome"), opção indisponível, ✓ na prévia | Sim | Isento pela WCAG 1.4.3; o `motivo` abaixo é texto comum (4,5:1) | `textoSuave` sobre `superficie3`: 6,26 · 6,04 · 5,42 |
 | Seleção | invertida: fundo `texto`, letra `fundo` | Opção escolhida (chips, `Escolha`, calendário, `Interruptor`) | Chip marcado | Sim | 4,5:1 | igual a texto sobre fundo |
-| Identificação | paletas próprias (`PALETA_DE_IDENTIFICACAO`, agendas, fases) | Diz *qual* coisa é, nunca status | Tipo de série, refeição, agenda, fase do ciclo | Sim | 4,5:1 (texto); 3:1 (marcador) | conferido em `tokens.test.ts` |
+| Identificação | paletas próprias (`PALETA_DE_IDENTIFICACAO`, agendas, fases e `PALETA_SO_DO_PERFIL`) | Diz *qual* coisa é, nunca status | Tipo de série, refeição, agenda, fase do ciclo, cor do perfil na Comunidade | Sim | 4,5:1 (texto); 3:1 (marcador) | conferido em `tokens.test.ts` |
 
 - **Casos que não estão na tabela** (04/11; teste `dominio/corPorSituacao.test.ts`):
   - **Acesso do aluno** (`CartaoAcesso`, só a equipe vê; `dominio/cadastroDoAluno.seloDoAcesso`): Sem acesso `neutro`,
@@ -249,6 +249,8 @@ Qualquer outro lugar precisa de decisão nova.
   pelo tom.
 
 ---
+
+**Cor do perfil da Comunidade (10/11/2026, escolha do Gustavo):** o aluno escolhe uma entre AZUL, ROXO (VIOLETA), ROSA (MAGENTA), LARANJA, TERRA e OLIVA (`dominio/perfilDaComunidade.ts`, `CORES_DO_PERFIL`). O laranja é o único token novo e mora numa paleta irmã, `PALETA_SO_DO_PERFIL` em `tema/tokens.ts` (claro `#D15700`, escuro `#FF7A1A`; `corDoTomDoPerfil`, tipo `TomDoPerfil`), e **não** na `PALETA_DA_AGENDA`, porque o tipo da agenda espelha o enum da API e a V043. No tema claro o laranja tem 3,23:1 como pior caso (4,14:1 sobre o branco): só serve de anel, amostra, ícone e borda, **nunca de texto**; no escuro passa de 5,3:1. A cor do colega pinta só marcador, nunca o texto, e a moldura tem forma própria (fina, dupla, tracejada, grossa), então nada depende só da cor. VERDE usa OLIVA (`shortcut:` no mapeamento), porque o único verde dos tokens é o `sucesso`, de status.
 
 ## 5. Os problemas de design que estamos resolvendo
 

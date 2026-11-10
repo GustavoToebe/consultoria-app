@@ -8100,6 +8100,199 @@
   "avisos": []
  },
  {
+  "nome": "destino_nascimento_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "nasc",
+       "tipo": "DATA",
+       "rotulo": "Pergunta nasc",
+       "obrigatoria": false,
+       "destino": "DATA_NASCIMENTO"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": [],
+  "finalidade": "ANAMNESE"
+ },
+ {
+  "nome": "destino_nascimento_e_pesagem_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "pesagem",
+       "tipo": "DATA",
+       "rotulo": "Pergunta pesagem",
+       "obrigatoria": false,
+       "somentePassado": true
+      },
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false,
+       "destino": "PESO",
+       "destinoData": "pesagem"
+      },
+      {
+       "id": "nasc",
+       "tipo": "DATA",
+       "rotulo": "Pergunta nasc",
+       "obrigatoria": false,
+       "destino": "DATA_NASCIMENTO"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": [],
+  "finalidade": "ANAMNESE"
+ },
+ {
+  "nome": "destino_nascimento_tipo_errado",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "a",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta a",
+       "obrigatoria": false,
+       "destino": "DATA_NASCIMENTO"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[0].destino"
+  ],
+  "avisos": [],
+  "finalidade": "ANAMNESE"
+ },
+ {
+  "nome": "destino_nascimento_repetido",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "a",
+       "tipo": "DATA",
+       "rotulo": "Pergunta a",
+       "obrigatoria": false,
+       "destino": "DATA_NASCIMENTO"
+      },
+      {
+       "id": "b",
+       "tipo": "DATA",
+       "rotulo": "Pergunta b",
+       "obrigatoria": false,
+       "destino": "DATA_NASCIMENTO"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].destino"
+  ],
+  "avisos": [],
+  "finalidade": "ANAMNESE"
+ },
+ {
+  "nome": "destino_nome_e_email_sem_efeito",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "n",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta n",
+       "obrigatoria": false,
+       "destino": "NOME"
+      },
+      {
+       "id": "e",
+       "tipo": "EMAIL",
+       "rotulo": "Pergunta e",
+       "obrigatoria": false,
+       "destino": "EMAIL"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[0].destino",
+   "secoes[0].perguntas[1].destino"
+  ],
+  "avisos": [],
+  "finalidade": "ANAMNESE"
+ },
+ {
+  "nome": "destino_nascimento_na_atualizacao",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "nasc",
+       "tipo": "DATA",
+       "rotulo": "Pergunta nasc",
+       "obrigatoria": false,
+       "destino": "DATA_NASCIMENTO"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].destino"
+  ],
+  "avisos": []
+ },
+ {
   "nome": "inscricao_tipos_permitidos_ok",
   "conteudo": {
    "formato": 2,
@@ -8452,6 +8645,33 @@
    "secoes[0].perguntas[1].destino",
    "secoes[0].perguntas[2].destino",
    "secoes[0].perguntas[3].destino"
+  ],
+  "avisos": [],
+  "finalidade": "INSCRICAO"
+ },
+ {
+  "nome": "inscricao_destino_nascimento",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "nasc",
+       "tipo": "DATA",
+       "rotulo": "Pergunta nasc",
+       "obrigatoria": false,
+       "destino": "DATA_NASCIMENTO"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[0].destino"
   ],
   "avisos": [],
   "finalidade": "INSCRICAO"

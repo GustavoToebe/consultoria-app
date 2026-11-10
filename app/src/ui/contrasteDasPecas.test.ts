@@ -2,7 +2,8 @@ import { coresComBordasReforcadas, coresComContraste } from '../dominio/preferen
 import { coresDoDesabilitado } from './desabilitado';
 import { coresDoInterruptor } from './interruptor';
 import { coresDoMarcar } from './marcar';
-import { CAMADA_DA_FOTO, MARCA_NEUTRA, PALETAS, contraste, marcaParaTexto, textoSobre, tingido, type Cores } from '../tema/tokens';
+import { CORES_DO_PERFIL } from '../dominio/perfilDaComunidade';
+import { CAMADA_DA_FOTO, MARCA_NEUTRA, PALETAS, contraste, corDoTomDoPerfil, marcaParaTexto, textoSobre, tingido, type Cores } from '../tema/tokens';
 
 /**
  * Pares de cor que as peças comuns de `ui/` usam depois do passo 1 da atualização visual (30/10), conferidos em todos os
@@ -140,6 +141,21 @@ describe('camada da foto de perfil na ficha: a mesma nos temas, por cima de qual
     const composta = sobreposta(...corDe(CAMADA_DA_FOTO.fundo), foto);
     expect(contraste(CAMADA_DA_FOTO.icone, composta)).toBeGreaterThanOrEqual(4.5);
     expect(contraste(CAMADA_DA_FOTO.icone, sobreposta(...corDe(CAMADA_DA_FOTO.sobre), composta))).toBeGreaterThanOrEqual(3);
+  });
+});
+
+/**
+ * Perfil da Comunidade (`comunidade/MolduraDaFoto`, amostras do `CartaoMeuPerfil`, dias treinados da `FolhaPerfilDoColega`):
+ * as cinco cores do perfil pintam só anel, amostra e quadradinho (marcador ≥ 3:1, WCAG 1.4.11), nunca texto, em todos os
+ * temas, com contraste alto e bordas reforçadas. O dia sem treino é só o contorno `borda`, e a forma (cheio × vazio) já distingue.
+ */
+describe.each(BASES.flatMap(([nome, base, escuro]) => [false, true].map((alto): [string, Cores, boolean] => [
+  `${nome}${alto ? ', contraste alto e bordas reforçadas' : ''}`,
+  alto ? coresComBordasReforcadas(coresComContraste(base, 'ALTO', escuro), true) : base,
+  escuro,
+])))('cores do perfil no tema %s', (_nome, cores, escuro) => {
+  it.each(CORES_DO_PERFIL.map((c) => [c.nome, c.tom] as const))('%s: anel, amostra e dia treinado ≥ 3:1 sobre o fundo e as superfícies', (_cor, tom) => {
+    for (const s of [cores.fundo, cores.superficie, cores.superficie2, cores.superficie3]) expect(contraste(corDoTomDoPerfil(tom, escuro), s)).toBeGreaterThanOrEqual(3);
   });
 });
 

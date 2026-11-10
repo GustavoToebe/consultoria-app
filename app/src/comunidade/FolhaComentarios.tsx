@@ -1,12 +1,14 @@
 import { MessageSquare, MessageSquareOff, Send, Trash2 } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, StyleSheet, View } from 'react-native';
 
 import { ErroApi } from '../api/cliente';
-import { comentarMural, listarComentariosDoMural, listarComentariosDoMuralEquipe, removerComentarioDoMural } from '../api/comunidade';
-import type { ComentarioDoMural } from '../api/comunidadeTipos';
+import { comentarComoAluno, listarComentariosDaEquipe, listarComentariosDoAluno, removerComentario } from '../api/comunidade';
+import type { AlvoDosComentarios, ComentarioDoMural } from '../api/comunidadeTipos';
 import {
-  COMENTARIO_AVISO_A_PARTIR, COMENTARIO_MAXIMO, comentarioParaEnviar, erroDoComentario, MENSAGEM_COMENTARIO_VAZIO, tamanhoDoComentario,
+  COMENTARIO_MAXIMO, comentarioParaEnviar, comentariosDaPrimeiraPagina, comentariosQueFaltam, comComentarioEnviado, contadorDoComentario,
+  erroDoComentario, juntarPaginaDeComentarios, MENSAGEM_COMENTARIO_VAZIO, proximaPaginaDeComentarios, semOComentario,
+  type ComentariosLidos,
 } from '../dominio/comunidade';
 import { useTema } from '../tema/TemaProvider';
 import { espaco } from '../tema/tokens';
@@ -23,102 +25,142 @@ import { useCarregar } from '../ui/useCarregar';
 import { AutorDoPost } from './AutorDoPost';
 import { FolhaPerfilDoColega } from './FolhaPerfilDoColega';
 
-/** Aluno lê e comenta (só com internet); a equipe lê e, com `COMUNIDADE_MODERAR`, remove. A equipe não comenta no mural. */
+/** Aluno lê e comenta (só com internet); a equipe lê e, com `COMUNIDADE_MODERAR`, remove. A equipe não comenta. */
 export type ModoDosComentarios = { tipo: 'aluno'; online: boolean } | { tipo: 'equipe'; podeModerar: boolean };
 
-const PREFIXO = 'comentarios-mural:';
+type Lidos = ComentariosLidos<ComentarioDoMural>;
+
 const SEM_INTERNET = 'Sem conexão. Comentar precisa de internet.';
 // Recuo do texto até o nome do autor: iniciais de 36 px + o espaço da linha do `AutorDoPost`.
 const RECUO_DO_TEXTO = 36 + espaco(1);
 
+const TEXTOS = {
+  post: { indisponivel: 'Post não disponível', saiu: 'Este post saiu do mural.', onde: 'do mural' },
+  aula: { indisponivel: 'Aulão não disponível', saiu: 'Este aulão saiu da Comunidade.', onde: 'do aulão' },
+} as const;
+
 const eh404 = (erro: unknown) => erro instanceof ErroApi && erro.status === 404;
+const chaveDe = (alvo: AlvoDosComentarios | null) => (alvo ? `comentarios:${alvo.tipo}:${alvo.id}` : null);
+const alvoDa = (chave: string): AlvoDosComentarios => {
+  const [, tipo, ...id] = chave.split(':');
+  return { tipo: tipo === 'aula' ? 'aula' : 'post', id: id.join(':') };
+};
 
 /**
- * Comentários de um post do mural, numa `Folha` (aluno e equipe; `docs/design-e-front.md`). Lista do mais antigo ao
- * mais novo, com o autor como no post (apelido ao lado; só aluno abre o perfil do colega, numa folha por cima desta).
- * 404 = o post saiu do alcance (oculto ou de outra consultoria): "Post não disponível", sem tentar de novo. Nada fica no
- * aparelho: o rascunho vive só na memória enquanto a tela existe. `aoAlterar` avisa a tela para atualizar o total.
+ * Comentários de um post do mural ou de uma aula, numa `Folha` (aluno e equipe; `docs/design-e-front.md`). Lista do mais
+ * antigo ao mais novo, 30 por vez, com "Carregar mais" que acrescenta a próxima página sem perder o que já foi lido; o
+ * autor aparece como no post (apelido ao lado; só aluno abre o perfil do colega, numa folha por cima desta). 404 = o
+ * post ou a aula saiu do alcance: "não disponível", sem tentar de novo. Nada fica no aparelho: o rascunho vive só na
+ * memória enquanto a tela existe. `aoAlterar` avisa a tela para atualizar o total.
  */
-export function FolhaComentarios({ postId, modo, aoFechar, aoAlterar }: {
-  postId: string | null;
+export function FolhaComentarios({ alvo, modo, aoFechar, aoAlterar }: {
+  alvo: AlvoDosComentarios | null;
   modo: ModoDosComentarios;
   aoFechar: () => void;
   aoAlterar: () => void;
 }) {
   const { cores } = useTema();
-  const chave = postId ? `${PREFIXO}${postId}` : null;
-  const lista = useCarregar(chave, (c) => {
-    const id = c.slice(PREFIXO.length);
-    return modo.tipo === 'aluno' ? listarComentariosDoMural(id) : listarComentariosDoMuralEquipe(id);
-  });
-  // Reabrir o mesmo post busca de novo (alguém pode ter comentado ou moderado nesse meio-tempo), como o perfil do colega.
-  useEffect(() => {
-    if (postId && lista.dados !== undefined && !lista.dadosDeOutraChave) lista.recarregar();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [postId]);
+  const chave = chaveDe(alvo);
+  const aluno = modo.tipo === 'aluno';
+  const lista = useCarregar<Lidos>(chave, (c) =>
+    (aluno ? listarComentariosDoAluno : listarComentariosDaEquipe)(alvoDa(c), 0).then(comentariosDaPrimeiraPagina));
   const dados = lista.dadosDeOutraChave ? undefined : lista.dados;
+  // As respostas (enviar, remover, carregar mais) chegam depois: juntam sobre o que está na tela agora, não sobre o de quando começaram.
+  const atual = useRef(dados);
+  useEffect(() => { atual.current = dados; });
 
-  // Rascunho por post: trocar de post não leva o texto junto; fechar e reabrir o mesmo post mantém.
-  const [rascunho, setRascunho] = useState<{ postId: string | null; texto: string; erroCampo?: string; alerta?: { tom: 'atencao' | 'perigo'; texto: string } }>({ postId: null, texto: '' });
-  const meu = rascunho.postId === postId ? rascunho : { postId, texto: '' };
+  // Rascunho por alvo: trocar de post ou aula não leva o texto junto; fechar e reabrir o mesmo mantém.
+  const [rascunho, setRascunho] = useState<{ chave: string | null; texto: string; erroCampo?: string; alerta?: { tom: 'atencao' | 'perigo'; texto: string } }>({ chave: null, texto: '' });
+  const meu = rascunho.chave === chave ? rascunho : { chave, texto: '' };
   const [enviando, setEnviando] = useState(false);
-  // Post que deu 404 ao comentar (saiu do mural depois de a lista abrir).
+  // Alvo que deu 404 depois de a lista abrir (ao comentar ou ao carregar mais).
   const [sumiu, setSumiu] = useState<string | null>(null);
   const [perfilAberto, setPerfilAberto] = useState<string | null>(null);
   const [remover, setRemover] = useState<ComentarioDoMural | null>(null);
   const [removendo, setRemovendo] = useState(false);
   const [erroAoRemover, setErroAoRemover] = useState<string | null>(null);
+  // "Carregar mais" da chave aberta: buscando ou com erro (o que já foi lido fica).
+  const [mais, setMais] = useState<{ chave: string; carregando: boolean; erro?: unknown } | null>(null);
+  const maisAqui = mais && mais.chave === chave ? mais : null;
+  // Fechar põe a chave em nulo; reabrir o mesmo alvo muda a chave e o `useCarregar` já busca a página 0 de novo (alguém
+  // pode ter comentado ou moderado nesse meio-tempo). O erro de um "Carregar mais" antigo não sobrevive a isso.
+  if (chave === null && mais) setMais(null);
 
-  const aluno = modo.tipo === 'aluno';
+  const textos = TEXTOS[alvo?.tipo ?? 'post'];
   const semInternet = aluno && !modo.online;
-  // Sem internet o perfil fecha de vez, como no mural.
-  if (semInternet && perfilAberto) setPerfilAberto(null);
-  const naoDisponivel = eh404(lista.erro) || (postId !== null && sumiu === postId);
+  const naoDisponivel = eh404(lista.erro) || (chave !== null && sumiu === chave);
 
   const erroLocal = erroDoComentario(meu.texto);
-  const tamanho = tamanhoDoComentario(meu.texto);
+  const contador = contadorDoComentario(meu.texto);
   const motivo = semInternet ? SEM_INTERNET : erroLocal ?? undefined;
+  // Perto do limite o leitor de tela ouve uma vez (não a cada tecla); acima dele, o erro do campo já é anunciado.
+  const tomDoContador = contador?.tom;
+  useEffect(() => {
+    if (tomDoContador === 'atencao') AccessibilityInfo.announceForAccessibility(`Perto do limite de ${COMENTARIO_MAXIMO} caracteres.`);
+  }, [tomDoContador]);
 
   const enviar = () => {
-    const id = postId;
+    const k = chave;
     const limpo = comentarioParaEnviar(meu.texto);
-    if (!id || !limpo || erroLocal || semInternet) return;
+    if (!alvo || !k || !limpo || erroLocal || semInternet) return;
     setEnviando(true);
-    setRascunho({ postId: id, texto: meu.texto });
-    comentarMural(id, limpo).then(
+    setRascunho({ chave: k, texto: meu.texto });
+    comentarComoAluno(alvo, limpo).then(
       (novo) => {
         setEnviando(false);
-        setRascunho({ postId: id, texto: '' });
-        lista.definir([...(dados ?? []), novo], `${PREFIXO}${id}`);
+        setRascunho({ chave: k, texto: '' });
+        if (atual.current) lista.definir(comComentarioEnviado(atual.current, novo), k);
         AccessibilityInfo.announceForAccessibility('Comentário publicado.');
         aoAlterar();
       },
       (erro: unknown) => {
         setEnviando(false);
         if (eh404(erro)) {
-          setSumiu(id);
+          setSumiu(k);
           aoAlterar();
           return;
         }
         // 422 do texto vai ao campo; o resto (429 do limite, rede, 5xx) vira aviso dentro da folha. O texto fica.
         const { campos, geral } = separarErros(erro, ['texto']);
         const tom = erro instanceof ErroApi && erro.status === 429 ? 'atencao' : 'perigo';
-        setRascunho({ postId: id, texto: meu.texto, erroCampo: campos.texto, alerta: geral ? { tom, texto: geral } : undefined });
+        setRascunho({ chave: k, texto: meu.texto, erroCampo: campos.texto, alerta: geral ? { tom, texto: geral } : undefined });
+      },
+    );
+  };
+
+  const carregarMais = () => {
+    const k = chave;
+    if (!alvo || !k || !dados || maisAqui?.carregando) return;
+    setMais({ chave: k, carregando: true });
+    (aluno ? listarComentariosDoAluno : listarComentariosDaEquipe)(alvo, proximaPaginaDeComentarios(dados)).then(
+      (pagina) => {
+        setMais(null);
+        const antes = atual.current;
+        if (!antes) return;
+        const depois = juntarPaginaDeComentarios(antes, pagina);
+        lista.definir(depois, k);
+        const chegaram = depois.itens.length - antes.itens.length;
+        AccessibilityInfo.announceForAccessibility(chegaram === 1 ? '1 comentário carregado.' : `${chegaram} comentários carregados.`);
+      },
+      (erro: unknown) => {
+        if (eh404(erro)) { setMais(null); setSumiu(k); aoAlterar(); return; }
+        setMais({ chave: k, carregando: false, erro });
       },
     );
   };
 
   const confirmarRemocao = () => {
-    const alvo = remover;
-    if (!alvo) return;
+    const alvoDoPainel = remover;
+    const k = chave;
+    if (!alvoDoPainel || !alvo) return;
     setRemovendo(true);
     setErroAoRemover(null);
     const tirar = () => {
       setRemover(null);
-      lista.definir((dados ?? []).filter((c) => c.id !== alvo.id), chave ?? undefined);
+      if (atual.current && k) lista.definir(semOComentario(atual.current, alvoDoPainel.id), k);
       aoAlterar();
     };
-    removerComentarioDoMural(alvo.id).then(
+    removerComentario(alvo.tipo, alvoDoPainel.id).then(
       () => { setRemovendo(false); tirar(); },
       (erro: unknown) => {
         setRemovendo(false);
@@ -131,20 +173,21 @@ export function FolhaComentarios({ postId, modo, aoFechar, aoAlterar }: {
 
   const fecharPainel = () => { setRemover(null); setErroAoRemover(null); };
 
+  const corDoContador = contador?.tom === 'perigo' ? cores.perigo : contador?.tom === 'atencao' ? cores.atencao : undefined;
   const escrever = aluno && dados && !naoDisponivel ? (
     <View style={estilos.escrever}>
       <Campo
         rotulo="Seu comentário"
         placeholder="Escreva para o time"
         valor={meu.texto}
-        aoMudar={(t) => setRascunho({ postId, texto: t })}
+        aoMudar={(t) => setRascunho({ chave, texto: t })}
         linhas={3}
         editable={!enviando && !semInternet}
         erro={meu.erroCampo ?? (erroLocal && erroLocal !== MENSAGEM_COMENTARIO_VAZIO ? erroLocal : null)}
       />
-      {tamanho >= COMENTARIO_AVISO_A_PARTIR ? (
-        <Texto variante="pequeno" numerico style={estilos.contador} accessibilityLabel={`${tamanho} de ${COMENTARIO_MAXIMO} caracteres`}>
-          {tamanho}/{COMENTARIO_MAXIMO}
+      {contador ? (
+        <Texto variante="pequeno" numerico cor={corDoContador} style={estilos.contador} accessibilityLabel={contador.rotuloAcessivel}>
+          {contador.texto}
         </Texto>
       ) : null}
       {meu.alerta ? <Alerta tom={meu.alerta.tom} texto={meu.alerta.texto} /> : null}
@@ -155,34 +198,53 @@ export function FolhaComentarios({ postId, modo, aoFechar, aoAlterar }: {
     </View>
   ) : undefined;
 
+  const linha = (c: ComentarioDoMural, separado: boolean) => (
+    <View key={c.id} style={[estilos.comentario, separado && [estilos.separado, { borderTopColor: cores.divisor }]]}>
+      <AutorDoPost
+        post={{ ...c, fixado: false }}
+        aoAbrirPerfil={aluno && c.autorEhAluno ? () => setPerfilAberto(c.autorId) : undefined}
+      />
+      <Texto style={estilos.recuo}>{c.texto}</Texto>
+      {/* Depois do texto, e não ao lado do nome: no celular a ação ao lado desceria para entre o nome e o texto. */}
+      {modo.tipo === 'equipe' && modo.podeModerar ? (
+        <View style={[estilos.recuo, estilos.acaoDoComentario]}>
+          <Botao rotulo="Remover comentário" rotuloAcessivel={`Remover comentário de ${c.autorNome}`} tipo="perigoTexto"
+            Icone={Trash2} aoTocar={() => setRemover(c)} />
+        </View>
+      ) : null}
+    </View>
+  );
+
+  const faltam = dados ? comentariosQueFaltam(dados) : 0;
+  const mostrados = dados ? dados.itens.length + dados.enviados.length : 0;
+
   return (
-    <Folha visivel={!!postId} titulo="Comentários" aoFechar={aoFechar} rodape={escrever}>
+    <Folha visivel={!!alvo} titulo="Comentários" aoFechar={aoFechar} rodape={escrever}>
       {naoDisponivel ? (
-        <Vazio Icone={MessageSquareOff} titulo="Post não disponível" texto="Este post saiu do mural." />
+        <Vazio Icone={MessageSquareOff} titulo={textos.indisponivel} texto={textos.saiu} />
       ) : lista.erro ? (
         <MensagemErro texto={textoDoErro(lista.erro)} erro={lista.erro} tentarDeNovo={lista.recarregar} />
       ) : !dados ? (
         <Esqueleto cartoes={2} texto="Carregando os comentários" />
-      ) : dados.length === 0 ? (
+      ) : mostrados === 0 ? (
         <Vazio Icone={MessageSquare} texto="Ninguém comentou ainda." />
       ) : (
         <View style={estilos.lista}>
-          {dados.map((c, i) => (
-            <View key={c.id} style={[estilos.comentario, i > 0 && [estilos.separado, { borderTopColor: cores.divisor }]]}>
-              <AutorDoPost
-                post={{ ...c, fixado: false }}
-                aoAbrirPerfil={aluno && c.autorEhAluno ? () => setPerfilAberto(c.autorId) : undefined}
-              />
-              <Texto style={estilos.recuo}>{c.texto}</Texto>
-              {/* Depois do texto, e não ao lado do nome: no celular a ação ao lado desceria para entre o nome e o texto. */}
-              {modo.tipo === 'equipe' && modo.podeModerar ? (
-                <View style={[estilos.recuo, estilos.acaoDoComentario]}>
-                  <Botao rotulo="Remover comentário" rotuloAcessivel={`Remover comentário de ${c.autorNome}`} tipo="perigoTexto"
-                    Icone={Trash2} aoTocar={() => setRemover(c)} />
-                </View>
-              ) : null}
+          {dados.itens.map((c, i) => linha(c, i > 0))}
+          {faltam > 0 ? (
+            <View style={[estilos.mais, { borderTopColor: cores.divisor }]}>
+              <Texto variante="suave" numerico>{`Mostrando ${mostrados} de ${dados.total} comentários.`}</Texto>
+              {maisAqui?.erro ? (
+                <MensagemErro texto={textoDoErro(maisAqui.erro)} erro={maisAqui.erro} tentarDeNovo={carregarMais} />
+              ) : (
+                <LinhaDeAcoes>
+                  <Botao rotulo="Carregar mais comentários" tipo="secundario" carregando={!!maisAqui?.carregando} aoTocar={carregarMais} />
+                </LinhaDeAcoes>
+              )}
             </View>
-          ))}
+          ) : null}
+          {/* Comentários que o aluno acabou de enviar enquanto faltavam páginas: no fim, onde a API também os põe. */}
+          {dados.enviados.map((c, i) => linha(c, i > 0 || dados.itens.length > 0))}
         </View>
       )}
 
@@ -190,7 +252,7 @@ export function FolhaComentarios({ postId, modo, aoFechar, aoAlterar }: {
       <PainelConfirmacao
         visivel={!!remover}
         titulo="Remover o comentário?"
-        mensagem={remover ? `O comentário de ${remover.autorNome} sai do mural para todos.` : undefined}
+        mensagem={remover ? `O comentário de ${remover.autorNome} sai ${textos.onde} para todos.` : undefined}
         rotuloConfirmar="Remover comentário"
         perigo
         carregando={removendo}
@@ -198,7 +260,7 @@ export function FolhaComentarios({ postId, modo, aoFechar, aoAlterar }: {
         aoCancelar={fecharPainel}>
         {erroAoRemover ? <MensagemErro texto={erroAoRemover} /> : null}
       </PainelConfirmacao>
-      {aluno ? <FolhaPerfilDoColega autorId={perfilAberto} aoFechar={() => setPerfilAberto(null)} /> : null}
+      {aluno ? <FolhaPerfilDoColega autorId={perfilAberto} online={!semInternet} aoFechar={() => setPerfilAberto(null)} /> : null}
     </Folha>
   );
 }
@@ -210,6 +272,8 @@ const estilos = StyleSheet.create({
   recuo: { paddingLeft: RECUO_DO_TEXTO },
   // O botão fantasma tem respiro interno; a margem negativa alinha o ícone ao texto.
   acaoDoComentario: { flexDirection: 'row', marginLeft: -espaco(2) },
+  // Divisor como entre os comentários: o "Carregar mais" é o fim do trecho já lido.
+  mais: { borderTopWidth: 1, paddingTop: espaco(1.5), gap: espaco(1) },
   // O rodapé da folha é uma linha; o bloco de escrever ocupa a largura toda dela.
   escrever: { flexBasis: '100%', flexGrow: 1, gap: espaco(1) },
   contador: { alignSelf: 'flex-end' },

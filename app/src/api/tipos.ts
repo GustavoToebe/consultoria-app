@@ -322,6 +322,8 @@ export interface AlunoDetalhe {
   usoDeImagemAutorizadoEm?: string | null;
   /** `MASCULINO`, `FEMININO` ou `OUTRO`. Ausente ou nulo = não informado. Lê com `ALUNO_LER`. */
   sexo?: string | null;
+  /** `AAAA-MM-DD`, opcional; só a equipe a lê (`ALUNO_LER`). Nunca vai a tela de colega, log nem outro aluno. */
+  dataNascimento?: string | null;
 }
 
 /** Foto já enviada na linha do tempo (`GET /alunos/{id}/fotos` e `GET /aluno/fotos/linha-do-tempo`). */
@@ -357,6 +359,8 @@ export interface AlunoRequest {
   diasAtualizacao?: number | null;
   /** `null` apaga. Fora do enum a API responde 422 no campo. */
   sexo?: string | null;
+  /** `AAAA-MM-DD` de 1900 até hoje. Ausente ou `null` não mexe; texto em branco apaga (`dominio/cadastroDoAluno.nascimentoParaEnvio`). */
+  dataNascimento?: string | null;
 }
 
 export interface ConviteGerado {

@@ -1,6 +1,6 @@
 import {
   enderecoComCep, enderecoDaResposta, enderecoEmBranco, normalizarEndereco, enderecoParaEnvio, enderecoParaForm, enderecoParaLeitura, ENDERECO_VAZIO, erroDoCpf, erroDoTelefone, errosDoEndereco,
-  mascaraCep, mascaraCpf, mascaraTelefone, respostaDeEndereco,
+  mascaraCep, mascaraCpf, mascaraTelefone, nascimentoParaEnvio, respostaDeEndereco,
 } from './cadastroDoAluno';
 
 // Só dados de teste: 529.982.247-25 é um CPF válido de exemplo (dígitos verificadores corretos), sem dono.
@@ -101,5 +101,19 @@ describe('endereço preenchido pela busca de CEP', () => {
   it('UF inválida não entra', () => {
     expect(enderecoComCep({ ...ENDERECO_VAZIO, uf: 'SP' }, { ...ACHADO, uf: 'ZZ' }).uf).toBe('SP');
     expect(enderecoComCep(ENDERECO_VAZIO, { ...ACHADO, uf: 'pr' }).uf).toBe('PR');
+  });
+});
+
+describe('data de nascimento no envio da ficha', () => {
+  const HOJE = '2026-11-10';
+  it('data válida vai em ISO; vazio só apaga quando havia uma', () => {
+    expect(nascimentoParaEnvio('09/03/2001', false, HOJE)).toBe('2001-03-09');
+    expect(nascimentoParaEnvio('  ', true, HOJE)).toBe('');
+    expect(nascimentoParaEnvio('', false, HOJE)).toBeNull();
+  });
+  it('incompleta, impossível, no futuro ou antes de 1900 não vai', () => {
+    for (const t of ['09/03/20', '31/02/2001', '11/11/2026', '31/12/1899']) expect(nascimentoParaEnvio(t, true, HOJE)).toBeUndefined();
+    expect(nascimentoParaEnvio('10/11/2026', false, HOJE)).toBe('2026-11-10');
+    expect(nascimentoParaEnvio('01/01/1900', false, HOJE)).toBe('1900-01-01');
   });
 });

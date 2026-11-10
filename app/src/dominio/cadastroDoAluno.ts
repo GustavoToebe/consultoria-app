@@ -1,6 +1,7 @@
 import { cepValido, cpfValido, formatarCep, formatarCpf, formatarTelefone, somenteDigitos, telefoneValido, ufValida } from '@plataforma/web';
 
 import type { AlunoDetalhe, EnderecoDoAluno } from '../api/tipos';
+import { dataDaTelaNaFaixa } from './datasValidas';
 import { enderecoParaTela } from './minhaConta';
 
 /**
@@ -143,4 +144,14 @@ export function seloDoAcesso(aluno: Pick<AlunoDetalhe, 'temAcesso' | 'aguardando
   if (!aluno.temAcesso) return { texto: 'Sem acesso', tipo: 'neutro' };
   if (aluno.aguardandoPrimeiroAcesso) return { texto: 'Aguardando primeiro acesso', tipo: 'neutro' };
   return { texto: 'Com acesso', tipo: 'sucesso' };
+}
+
+/**
+ * Data de nascimento no envio da ficha (texto da tela DD/MM/AAAA): a API não mexe com ausente ou `null` e apaga com texto
+ * em branco. Vazio só apaga se havia uma data (salvar outros campos nunca a apaga por engano); `undefined` = incompleta,
+ * impossível ou fora de 1900 até hoje (a tela mostra o erro e não envia).
+ */
+export function nascimentoParaEnvio(texto: string, havia: boolean, hoje?: string): string | null | undefined {
+  const iso = dataDaTelaNaFaixa(texto.trim(), 'REGISTRO', hoje);
+  return iso === null ? (havia ? '' : null) : iso;
 }

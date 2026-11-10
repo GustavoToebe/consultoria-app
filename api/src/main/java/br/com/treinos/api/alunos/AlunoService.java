@@ -21,6 +21,7 @@ import br.com.plataforma.comum.web.BadRequestException;
 import br.com.treinos.api.web.Buscas;
 import br.com.plataforma.comum.web.ConflictException;
 import br.com.plataforma.comum.web.ForbiddenException;
+import br.com.treinos.api.web.FaixaDeData;
 import br.com.treinos.api.web.Formatos;
 import br.com.treinos.api.web.Fuso;
 import br.com.treinos.api.web.ValidacaoException;
@@ -262,6 +263,7 @@ public class AlunoService {
         // O responsável final (o criador ou o escolhido) recebe um aluno ativo novo: só ele é conferido (D7, D8).
         limiteDoTreinador.exigirVaga(aluno.getResponsavelId(), 1, null);
         aplicarSexo(aluno, r.sexo());
+        aluno.alterarDataNascimento(dados.dataNascimento());
         return detalheDe(gravar(aluno));
     }
 
@@ -313,6 +315,10 @@ public class AlunoService {
             aplicarSexo(aluno, r.sexo());
         }
         trocarTelefone(aluno, r.telefone(), dados.telefone());
+        // Nulo (ou ausente) não mexe na data de nascimento; em branco apaga (dados.dataNascimento() fica nulo).
+        if (r.dataNascimento() != null) {
+            aluno.alterarDataNascimento(dados.dataNascimento());
+        }
         UUID anterior=aluno.getResponsavelId();
         definirResponsavel(aluno,r.responsavelId());
         if(!java.util.Objects.equals(anterior,aluno.getResponsavelId()))
@@ -447,16 +453,35 @@ public class AlunoService {
      * {@code endereco.uf}, {@code endereco.logradouro}...) e uma mensagem fixa do {@code Formatos} ou da {@code RegrasDoEndereco}, nunca o valor enviado. CPF e endereço só são lidos
      * (e conferidos) com {@code ALUNO_SENSIVEL_ALTERAR}.
      */
-    record Dados(String telefone, String cpf, Endereco endereco) {
+    record Dados(String telefone, String cpf, Endereco endereco, LocalDate dataNascimento) {
         static Dados de(AlunoRequest r, boolean sensivel) {
             var erros = new ArrayList<ApiError.FieldError>();
+            LocalDate nascimento = dataNascimento(erros, r.dataNascimento());
             String telefone = formato(erros, "telefone", Formatos::telefone, r.telefone());
             String cpf = sensivel ? formato(erros, "cpf", Formatos::cpf, r.cpf()) : null;
             Endereco endereco = sensivel ? endereco(erros, r.endereco()) : null;
             if (!erros.isEmpty()) {
                 throw new ValidacaoException("Confira os dados do aluno.", "ALUNO_INVALIDO", erros);
             }
-            return new Dados(telefone, cpf, endereco);
+            return new Dados(telefone, cpf, endereco, nascimento);
+        }
+
+        /** Em branco ou nulo = sem data. Texto fora de {@code AAAA-MM-DD} ou fora da faixa de registro vira erro no campo, sem o valor. */
+        static LocalDate dataNascimento(List<ApiError.FieldError> erros, String texto) {
+            if (texto == null || texto.isBlank()) {
+                return null;
+            }
+            LocalDate hoje = FaixaDeData.hoje();
+            LocalDate data;
+            try {
+                data = LocalDate.parse(texto.strip());
+            } catch (java.time.format.DateTimeParseException e) {
+                erros.add(new ApiError.FieldError("dataNascimento", FaixaDeData.REGISTRO.mensagem("Data de nascimento", hoje)));
+                return null;
+            }
+            var fora = FaixaDeData.problemas(hoje, FaixaDeData.REGISTRO.campo("dataNascimento", "Data de nascimento", data));
+            erros.addAll(fora);
+            return fora.isEmpty() ? data : null;
         }
 
         /** A regra única do endereço ({@link RegrasDoEndereco}); cada erro vira um campo {@code endereco.*}. */

@@ -328,10 +328,10 @@ class LinkDoFormularioIntegrationTest extends AbstractIntegrationTest {
     @Test
     void publicarDestinoQueNaoGravaNoCadastroDa422() throws Exception {
         JsonNode q = criar(admin, "Anamnese com destino fictícia", "ANAMNESE");
-        for (String destino : List.of("NOME", "EMAIL", "DATA_NASCIMENTO", "ALTURA", "OBSERVACOES")) {
+        for (String destino : List.of("NOME", "EMAIL", "ALTURA", "OBSERVACOES")) {
             Map<String, Object> pergunta = new LinkedHashMap<>();
             pergunta.put("id", "p1");
-            pergunta.put("tipo", destino.equals("ALTURA") ? "NUMERO" : destino.equals("DATA_NASCIMENTO") ? "DATA"
+            pergunta.put("tipo", destino.equals("ALTURA") ? "NUMERO"
                     : destino.equals("EMAIL") ? "EMAIL" : destino.equals("OBSERVACOES") ? "TEXTO_LONGO" : "TEXTO");
             pergunta.put("rotulo", "Pergunta fictícia");
             pergunta.put("destino", destino);

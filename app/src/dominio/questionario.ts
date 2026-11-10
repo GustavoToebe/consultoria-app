@@ -116,9 +116,9 @@ export const TIPO_DO_DESTINO: Record<DestinoNoPerfil, TipoPergunta> = {
 /**
  * Destinos que o sistema não grava no cadastro (`DestinoNoPerfil.temEfeito()` falso na API: a publicação recusa com 422 no
  * campo `destino` e o editor não os oferece). Ficam no tipo porque versão publicada é imutável e ainda pode citá-los;
- * `FOTO_PERFIL` nem existe na API.
+ * `FOTO_PERFIL` nem existe na API. A data de nascimento grava desde a V070, só na anamnese (como todo destino).
  */
-export const DESTINOS_SEM_EFEITO = ['NOME', 'EMAIL', 'DATA_NASCIMENTO', 'ALTURA', 'OBSERVACOES', 'FOTO_PERFIL'] as const;
+export const DESTINOS_SEM_EFEITO = ['NOME', 'EMAIL', 'ALTURA', 'OBSERVACOES', 'FOTO_PERFIL'] as const;
 /** Os destinos que o editor oferece (os que gravam no cadastro). */
 export type DestinoOferecido = Exclude<DestinoNoPerfil, (typeof DESTINOS_SEM_EFEITO)[number]>;
 export const temEfeitoNoCadastro = (d: DestinoNoPerfil): d is DestinoOferecido => !(DESTINOS_SEM_EFEITO as readonly string[]).includes(d);

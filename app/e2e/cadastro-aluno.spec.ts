@@ -74,6 +74,46 @@ test('ficha: telefone, CPF e endereço na leitura; edição valida, envia e most
   expect(errosDaPagina).toEqual([]);
 });
 
+// Data de nascimento (V070): opcional, só na ficha; vai como AAAA-MM-DD e o 422 da API fica no próprio campo.
+for (const largura of [390, 1280]) {
+  test(`ficha (${largura}px): data de nascimento digitada vai como AAAA-MM-DD; o 422 da API aparece no campo`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    let tentativas = 0;
+    const { pedidos, errosDaPagina } = await simularApi(page, {
+      ...(await sessao(page, TREINADOR)),
+      ...ROTAS_DA_FICHA,
+      ...CEP_SEM_RESULTADO,
+      [`GET /alunos/${ALUNO_ID}`]: { corpo: FICHA },
+      [`PUT /alunos/${ALUNO_ID}`]: (p, route) => {
+        tentativas++;
+        if (tentativas === 1) {
+          const e = erroApi(422, 'Confira os dados.', 'ALUNO_INVALIDO', [{ field: 'dataNascimento', message: 'Data de nascimento fora do intervalo permitido.' }]);
+          return json(route, e.corpo, 422);
+        }
+        return json(route, { ...FICHA, ...(p.corpo as object), versao: 2 });
+      },
+    });
+    await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+    await page.getByRole('button', { name: 'Editar', exact: true }).click();
+    const campo = page.getByLabel('Data de nascimento (opcional)');
+    await campo.pressSequentially('09032001');
+    await expect(campo).toHaveValue('09/03/2001');
+    await expect(page.getByText('Ajuda a definir o perfil do aluno na comunidade.', { exact: false })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Salvar', exact: true }).click();
+    await expect(page.getByText('Data de nascimento fora do intervalo permitido.')).toBeVisible();
+    await campo.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath(`ficha-data-nascimento-422-${largura}.png`) });
+    if (process.env.CAPTURAS_DIR) await page.screenshot({ path: `${process.env.CAPTURAS_DIR}/ficha-data-nascimento-422-${largura}.png` });
+
+    await page.getByRole('button', { name: 'Salvar', exact: true }).click();
+    await expect(page.getByText('Dados salvos.')).toBeVisible();
+    const envios = pedidos.filter((p) => p.metodo === 'PUT' && p.caminho === `/alunos/${ALUNO_ID}`);
+    expect(envios.map((e) => (e.corpo as { dataNascimento?: unknown }).dataNascimento)).toEqual(['2001-03-09', '2001-03-09']);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
 test('ficha: o CEP completo preenche rua, bairro, cidade e UF sem tocar no número e no complemento; CEP que não existe só avisa', async ({ page }) => {
   const { pedidos, errosDaPagina } = await simularApi(page, {
     ...(await sessao(page, TREINADOR)),

@@ -111,6 +111,25 @@ public class FotoPerfilService {
         return fotos.atualizadaEm(alunoId);
     }
 
+    /**
+     * Foto de um colega da comunidade: vazio quando não tem. Quem chama já decidiu que o perfil abre (aluno ativo, da mesma
+     * consultoria, não reservado); aqui só se lê, sem distinguir a falta de foto de qualquer outra recusa.
+     */
+    @Transactional(readOnly = true)
+    public Optional<byte[]> jpegDoColega(UUID alunoId) {
+        return fotos.findById(alunoId).map(FotoPerfil::getJpeg);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean temFoto(UUID alunoId) {
+        return fotos.existsById(alunoId);
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.Set<UUID> comFoto(java.util.Collection<UUID> alunoIds) {
+        return alunoIds.isEmpty() ? java.util.Set.of() : new java.util.HashSet<>(fotos.comFoto(alunoIds));
+    }
+
     private byte[] ler(UUID alunoId) {
         return fotos.findById(alunoId).map(FotoPerfil::getJpeg)
                 .orElseThrow(() -> new NaoEncontradoException("Sem foto de perfil."));

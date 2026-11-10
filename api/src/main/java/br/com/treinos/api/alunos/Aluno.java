@@ -97,6 +97,33 @@ public class Aluno {
     @OptimisticLock(excluded = true)
     private String apelido;
 
+    /** Data de nascimento (V070), opcional; só a equipe a lê. Dado pessoal: nunca em log, auditoria nem DTO que outro aluno recebe. */
+    @Column(name = "data_nascimento")
+    private java.time.LocalDate dataNascimento;
+
+    /**
+     * Escolha do próprio aluno de reservar o perfil na comunidade (V070). Nulo = não escolheu: vale a regra da idade
+     * ({@code RegrasDoPerfil.reservadoEfetivo}). Sem default no banco, de propósito. Preferência: não sobe a versão do cadastro.
+     */
+    @OptimisticLock(excluded = true)
+    @Column(name = "perfil_reservado")
+    private Boolean perfilReservado;
+
+    @OptimisticLock(excluded = true)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "perfil_cor")
+    private br.com.treinos.api.comunidade.CorDoPerfil perfilCor;
+
+    @OptimisticLock(excluded = true)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "perfil_moldura")
+    private br.com.treinos.api.comunidade.MolduraDoPerfil perfilMoldura;
+
+    /** Até 4 nomes de {@code TipoConquista} separados por vírgula, na ordem escolhida; nulo = nenhum. */
+    @OptimisticLock(excluded = true)
+    @Column(name = "perfil_destaques")
+    private String perfilDestaques;
+
     /** Meta do peso do aluno (V052); nulo = vale a da consultoria. Dado sensível: nunca em log nem em auditoria. */
     @Enumerated(EnumType.STRING)
     @Column(name = "meta_do_peso")
@@ -322,6 +349,11 @@ public class Aluno {
         this.lembretesCobrancaDesligadosEm = null;
         this.sexo = null;
         this.apelido = null;
+        this.dataNascimento = null;
+        this.perfilReservado = null;
+        this.perfilCor = null;
+        this.perfilMoldura = null;
+        this.perfilDestaques = null;
         this.metaDoPeso = null;
         this.cicloAtivadoEm = null;
         this.cicloConsentimentoVersao = null;
@@ -404,6 +436,42 @@ public class Aluno {
     /** Já validado pelo serviço; nulo apaga. */
     public void definirApelido(String apelido) {
         this.apelido = apelido;
+    }
+
+    public java.time.LocalDate getDataNascimento() {
+        return dataNascimento;
+    }
+
+    /** Já conferida na faixa de registro pelo chamador; nulo apaga. */
+    public void alterarDataNascimento(java.time.LocalDate data) {
+        this.dataNascimento = data;
+        this.atualizadoEm = Instant.now();
+    }
+
+    public Boolean getPerfilReservado() {
+        return perfilReservado;
+    }
+
+    public br.com.treinos.api.comunidade.CorDoPerfil getPerfilCor() {
+        return perfilCor;
+    }
+
+    public br.com.treinos.api.comunidade.MolduraDoPerfil getPerfilMoldura() {
+        return perfilMoldura;
+    }
+
+    /** Os destaques na ordem escolhida (nomes de {@code TipoConquista}); lista vazia = nenhum. */
+    public java.util.List<String> getPerfilDestaques() {
+        return perfilDestaques == null || perfilDestaques.isBlank() ? java.util.List.of() : java.util.List.of(perfilDestaques.split(","));
+    }
+
+    /** Preferências do perfil, já validadas pelo serviço; {@code reservado} nulo = voltar à regra da idade. */
+    public void definirPerfil(Boolean reservado, java.util.List<String> destaques, br.com.treinos.api.comunidade.CorDoPerfil cor,
+                              br.com.treinos.api.comunidade.MolduraDoPerfil moldura) {
+        this.perfilReservado = reservado;
+        this.perfilDestaques = destaques.isEmpty() ? null : String.join(",", destaques);
+        this.perfilCor = cor;
+        this.perfilMoldura = moldura;
     }
 
     public Instant getLembretesCobrancaDesligadosEm() {

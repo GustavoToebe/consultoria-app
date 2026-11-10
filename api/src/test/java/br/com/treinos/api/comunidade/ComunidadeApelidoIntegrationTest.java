@@ -231,11 +231,11 @@ class ComunidadeApelidoIntegrationTest extends AbstractIntegrationTest {
         // O perfil só abre para aluno: o mural diz quem é (equipe = falso).
         assertThat(post.get("autorEhAluno").asBoolean()).isTrue();
         assertThat(postNoMural(loginB, postDaEquipe).get("autorEhAluno").asBoolean()).isFalse();
-        for (JsonNode c : api.get("/aluno/comunidade/mural/" + postA + "/comentarios", loginB, 200)) {
+        for (JsonNode c : api.get("/aluno/comunidade/mural/" + postA + "/comentarios", loginB, 200).get("itens")) {
             assertThat(c.get("autorEhAluno").asBoolean()).isTrue();
             assertThat(c.get("autorApelido").asString()).isEqualTo(APELIDO);
         }
-        for (JsonNode c : api.get("/aluno/comunidade/aulas/" + aula + "/comentarios", loginB, 200)) {
+        for (JsonNode c : api.get("/aluno/comunidade/aulas/" + aula + "/comentarios", loginB, 200).get("itens")) {
             assertThat(c.get("autorApelido").asString()).isEqualTo(APELIDO);
         }
         // Quem escreve agora já recebe o próprio apelido; a equipe recebe nulo.
@@ -270,10 +270,13 @@ class ComunidadeApelidoIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.get("/aluno/comunidade/conquistas", loginB, 200)).isNotEmpty();
 
         UUID usuarioB = usuarioDoAluno(alunoB);
+        // Aluno novo sem data de nascimento nasce reservado (V070); aqui B escolhe aparecer.
+        jdbc.update("update aluno set perfil_reservado = false where id = ?", alunoB);
         JsonNode perfil = api.get("/aluno/comunidade/perfis/" + usuarioB, loginA, 200);
         List<String> campos = new ArrayList<>();
         perfil.propertyNames().forEach(campos::add);
-        assertThat(campos).containsExactlyInAnyOrder("autorId", "nome", "apelido", "treinosConcluidos", "conquistas", "ehVoce");
+        assertThat(campos).containsExactlyInAnyOrder("autorId", "nome", "apelido", "ehVoce", "reservado", "treinosConcluidos", "nivel",
+                "conquistas", "destaques", "cor", "moldura", "temFoto", "atividade", "recordes");
         assertThat(perfil.get("autorId").asString()).isEqualTo(usuarioB.toString());
         assertThat(perfil.get("nome").asString()).isEqualTo("Beto Fictício Apelido");
         assertThat(perfil.get("apelido").asString()).isEqualTo(APELIDO);
@@ -281,7 +284,8 @@ class ComunidadeApelidoIntegrationTest extends AbstractIntegrationTest {
         assertThat(perfil.get("conquistas").get(0).get("tipo").asString()).isEqualTo("PRIMEIRO_TREINO");
         assertThat(perfil.get("ehVoce").asBoolean()).isFalse();
         String email = jdbc.queryForObject("select email from usuario where id = ?", String.class, usuarioB);
-        assertThat(perfil.toString()).doesNotContain(email).doesNotContain(alunoB.toString()).doesNotContain("foto").doesNotContain("telefone")
+        assertThat(perfil.get("temFoto").asBoolean()).isFalse();
+        assertThat(perfil.toString()).doesNotContain(email).doesNotContain(alunoB.toString()).doesNotContain("\"foto").doesNotContain("telefone")
                 .doesNotContain("email").doesNotContain("cpf");
 
         assertThat(api.get("/aluno/comunidade/perfis/" + usuarioB, loginB, 200).get("ehVoce").asBoolean()).isTrue();

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { criarAula, listarAulasDaEquipe, listarMuralDaEquipe, publicarNoMuralDaEquipe, removerApelidoDoAutor } from '../../api/comunidade';
+import type { AlvoDosComentarios } from '../../api/comunidadeTipos';
 import { ErroApi } from '../../api/cliente';
 import { AutorDoPost } from '../../comunidade/AutorDoPost';
 import { FolhaComentarios } from '../../comunidade/FolhaComentarios';
@@ -70,8 +71,8 @@ export default function ComunidadeTreinador() {
   // Autor cujo apelido a moderação vai remover (painel de confirmação aberto).
   const [removerApelidoDe, setRemoverApelidoDe] = useState<{ autorId: string; autorNome: string; autorApelido: string } | null>(null);
   const [removendoApelido, setRemovendoApelido] = useState(false);
-  // Post cujos comentários estão abertos (a equipe lê e, com COMUNIDADE_MODERAR, remove; não comenta).
-  const [comentariosDe, setComentariosDe] = useState<string | null>(null);
+  // Post ou aula cujos comentários estão abertos (a equipe lê e, com COMUNIDADE_MODERAR, remove; não comenta).
+  const [comentariosDe, setComentariosDe] = useState<AlvoDosComentarios | null>(null);
 
   const removerApelido = async () => {
     if (!removerApelidoDe) return;
@@ -185,6 +186,16 @@ export default function ComunidadeTreinador() {
                   <Botao rotulo="Abrir o vídeo" tipo="secundario" Icone={Video} aoTocar={() => void abrir(item.videoUrl)} />
                 </LinhaDeAcoes>
               ) : null}
+              <View style={[estilos.linha, estilos.rodapePost, { borderTopColor: cores.divisor }]}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Ver ${item.totalComentarios} comentário(s) do aulão ${item.titulo}`}
+                  onPress={() => setComentariosDe({ tipo: 'aula', id: item.id })}
+                  style={(estado) => [estilos.interacao, sobre(estado) && { backgroundColor: cores.superficie3 }]}>
+                  <MessageSquare size={18} color={cores.texto} aria-hidden />
+                  <Texto variante="suave" cor={cores.texto} numerico>{item.totalComentarios} comentário(s)</Texto>
+                </Pressable>
+              </View>
             </Cartao>
           ))}
         </View>
@@ -230,7 +241,7 @@ export default function ComunidadeTreinador() {
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={`Ver ${post.totalComentarios} comentário(s)`}
-                  onPress={() => setComentariosDe(post.id)}
+                  onPress={() => setComentariosDe({ tipo: 'post', id: post.id })}
                   style={(estado) => [estilos.interacao, sobre(estado) && { backgroundColor: cores.superficie3 }]}>
                   <MessageSquare size={18} color={cores.texto} aria-hidden />
                   <Texto variante="suave" cor={cores.texto} numerico>{post.totalComentarios} comentário(s)</Texto>
@@ -252,8 +263,8 @@ export default function ComunidadeTreinador() {
         aoCancelar={() => setRemoverApelidoDe(null)}
       />
 
-      <FolhaComentarios postId={comentariosDe} modo={{ tipo: 'equipe', podeModerar: podePublicar }}
-        aoFechar={() => setComentariosDe(null)} aoAlterar={mural.recarregar} />
+      <FolhaComentarios alvo={comentariosDe} modo={{ tipo: 'equipe', podeModerar: podePublicar }}
+        aoFechar={() => setComentariosDe(null)} aoAlterar={comentariosDe?.tipo === 'aula' ? auloes.recarregar : mural.recarregar} />
 
       <Folha
         visivel={folhaNovaAula}

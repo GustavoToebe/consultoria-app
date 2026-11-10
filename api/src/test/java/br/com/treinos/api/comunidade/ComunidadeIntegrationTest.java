@@ -105,8 +105,10 @@ class ComunidadeIntegrationTest extends AbstractIntegrationTest {
         String post = criarPost(loginA, "Post fictício para a equipe ler");
         api.post("/aluno/comunidade/mural/" + post + "/comentarios", loginA, Map.of("texto", "Comentário fictício"), 200);
 
-        JsonNode lista = api.get("/comunidade/mural/" + post + "/comentarios", admin, 200);
+        JsonNode pagina = api.get("/comunidade/mural/" + post + "/comentarios", admin, 200);
+        JsonNode lista = pagina.get("itens");
 
+        assertThat(pagina.get("total").asLong()).isEqualTo(1);
         assertThat(lista).hasSize(1);
         assertThat(lista.get(0).get("texto").asString()).isEqualTo("Comentário fictício");
     }
@@ -333,6 +335,135 @@ class ComunidadeIntegrationTest extends AbstractIntegrationTest {
         // O banco é compartilhado entre os testes: só o post do colega deste teste.
         assertThat(contar("select count(*) from comunidade_mural_post where autor_id = ?"
                 + " and texto = 'Texto fictício do colega' and not oculto", usuarioDoAluno(alunoB))).isEqualTo(1);
+    }
+
+    // ---- paginação dos comentários (A2) e limite de 280 ----
+
+    /** Cria {@code n} comentários do aluno A direto no banco (sem gastar o limite de escritas), com {@code criado_em} crescente. */
+    private void semear(boolean deAula, String alvo, int n) {
+        String tabela = deAula ? "comunidade_aula_comentario" : "comunidade_mural_comentario";
+        String coluna = deAula ? "aula_id" : "post_id";
+        String pai = deAula ? "comunidade_aula" : "comunidade_mural_post";
+        UUID autor = usuarioDoAluno(alunoA);
+        for (int i = 0; i < n; i++) {
+            jdbc.update("insert into " + tabela + " (id, consultoria_id, " + coluna + ", autor_id, autor_nome, texto, oculto, criado_em)"
+                    + " select gen_random_uuid(), consultoria_id, id, ?, 'Ana Fictícia', ?, false, now() + (? * interval '1 second')"
+                    + " from " + pai + " where id = ?", autor, "Comentário " + i, i, UUID.fromString(alvo));
+        }
+    }
+
+    @Test
+    void comentariosVemPaginadosNosQuatroGets() throws Exception {
+        String aula = criarAula(admin, true);
+        String post = criarPost(loginA, TEXTO_A);
+        semear(true, aula, 35);
+        semear(false, post, 35);
+        Map<String, JsonNode> rotas = new LinkedHashMap<>();
+        rotas.put("/aluno/comunidade/aulas/" + aula + "/comentarios", loginA);
+        rotas.put("/aluno/comunidade/mural/" + post + "/comentarios", loginA);
+        rotas.put("/comunidade/aulas/" + aula + "/comentarios", admin);
+        rotas.put("/comunidade/mural/" + post + "/comentarios", admin);
+        for (var rota : rotas.entrySet()) {
+            String caminho = rota.getKey();
+            JsonNode quem = rota.getValue();
+            JsonNode primeira = api.get(caminho, quem, 200);
+            assertThat(primeira.get("total").asLong()).isEqualTo(35);
+            assertThat(primeira.get("itens")).hasSize(30);
+            assertThat(primeira.get("itens").get(0).get("texto").asString()).isEqualTo("Comentário 0");
+            JsonNode ultima = api.get(caminho + "?pagina=1", quem, 200);
+            assertThat(ultima.get("itens")).hasSize(5);
+            assertThat(ultima.get("itens").get(0).get("texto").asString()).isEqualTo("Comentário 30");
+            // Acima do máximo vale 100 (aqui cabem os 35); além do fim, lista vazia com o mesmo total.
+            assertThat(api.get(caminho + "?tamanho=1000", quem, 200).get("itens")).hasSize(35);
+            JsonNode alem = api.get(caminho + "?pagina=9", quem, 200);
+            assertThat(alem.get("itens")).isEmpty();
+            assertThat(alem.get("total").asLong()).isEqualTo(35);
+        }
+    }
+
+    @Test
+    void paginaGiganteNaoEstouraOInteiroEDaListaVaziaComOTotalReal() throws Exception {
+        String aula = criarAula(admin, true);
+        String post = criarPost(loginA, TEXTO_A);
+        semear(true, aula, 2);
+        semear(false, post, 2);
+        Map<String, JsonNode> rotas = new LinkedHashMap<>();
+        rotas.put("/aluno/comunidade/aulas/" + aula + "/comentarios", loginA);
+        rotas.put("/aluno/comunidade/mural/" + post + "/comentarios", loginA);
+        rotas.put("/comunidade/aulas/" + aula + "/comentarios", admin);
+        rotas.put("/comunidade/mural/" + post + "/comentarios", admin);
+        for (var rota : rotas.entrySet()) {
+            // pagina * tamanho passa de Integer.MAX_VALUE: antes virava 500.
+            for (String consulta : List.of("?pagina=50000000&tamanho=100", "?pagina=2147483647&tamanho=1", "?pagina=2147483647&tamanho=100")) {
+                JsonNode p = api.get(rota.getKey() + consulta, rota.getValue(), 200);
+                assertThat(p.get("itens")).isEmpty();
+                assertThat(p.get("total").asLong()).isEqualTo(2);
+            }
+        }
+    }
+
+    @Test
+    void comentarioOcultoNaoContaNoTotalDaPagina() throws Exception {
+        String post = criarPost(loginA, TEXTO_A);
+        semear(false, post, 3);
+        jdbc.update("update comunidade_mural_comentario set oculto = true where post_id = ? and texto = 'Comentário 1'", UUID.fromString(post));
+        JsonNode p = api.get("/aluno/comunidade/mural/" + post + "/comentarios?tamanho=2", loginA, 200);
+        assertThat(p.get("total").asLong()).isEqualTo(2);
+        assertThat(p.get("itens")).hasSize(2);
+    }
+
+    @Test
+    void comentarioTemLimiteDe280UnidadesDepoisDoStrip() throws Exception {
+        String aula = criarAula(admin, true);
+        String post = criarPost(loginA, TEXTO_A);
+        String exato = "a".repeat(280);
+        // 280 exatos passam, também com espaços em volta (o limite vale depois do strip).
+        api.post("/aluno/comunidade/mural/" + post + "/comentarios", loginA, Map.of("texto", "  " + exato + "  "), 200);
+        api.post("/aluno/comunidade/aulas/" + aula + "/comentarios", loginA, Map.of("texto", exato), 200);
+        assertThat(contar("select length(texto) from comunidade_mural_comentario where post_id = ?", UUID.fromString(post))).isEqualTo(280);
+        // 281 é recusado, sem repetir o texto.
+        for (String caminho : List.of("/aluno/comunidade/mural/" + post + "/comentarios", "/aluno/comunidade/aulas/" + aula + "/comentarios")) {
+            JsonNode erro = api.post(caminho, loginA, Map.of("texto", "b".repeat(281)), 400);
+            assertThat(erro.toString()).doesNotContain("bbbbbbbbbb");
+        }
+        // O emoji vale 2 (UTF-16): 279 letras + 1 emoji = 281 recusa; 278 + 1 emoji = 280 passa.
+        api.post("/aluno/comunidade/mural/" + post + "/comentarios", loginA, Map.of("texto", "c".repeat(279) + "🔥"), 400);
+        api.post("/aluno/comunidade/mural/" + post + "/comentarios", loginA, Map.of("texto", "c".repeat(278) + "🔥"), 200);
+        // A equipe tem o mesmo limite.
+        api.post("/comunidade/aulas/" + aula + "/comentarios", admin, Map.of("texto", "d".repeat(281)), 400);
+        assertThat(contar("select count(*) from comunidade_aula_comentario where aula_id = ?", UUID.fromString(aula))).isEqualTo(1);
+    }
+
+    @Test
+    void rotasDaEquipeParaComentariosNegamQuemNaoPodeEResponde404ONaoAchado() throws Exception {
+        String aula = criarAula(admin, true);
+        String post = criarPost(loginA, TEXTO_A);
+        semear(true, aula, 1);
+        semear(false, post, 1);
+        String semPermissao = api.post("/perfis", admin, Map.of("nome", "Sem treino " + UUID.randomUUID(), "permissoes", java.util.Set.of("ALUNO_LER")), 200)
+                .get("id").asString();
+        JsonNode convite = api.post("/usuarios/convites", admin,
+                Map.of("nome", "Membro fictício", "email", ApiDeTeste.emailUnico("membro"), "perfilId", semPermissao), 200);
+        JsonNode semTreinoLer = api.post("/publico/convites-equipe/aceitar", null,
+                Map.of("codigo", convite.get("codigo").asString(), "senha", ApiDeTeste.SENHA), 200);
+
+        for (String caminho : List.of("/comunidade/mural/" + post + "/comentarios", "/comunidade/aulas/" + aula + "/comentarios")) {
+            api.get(caminho, loginA, 403);          // aluno não usa a rota da equipe
+            api.get(caminho, semTreinoLer, 403);    // membro sem TREINO_LER
+            api.get(caminho, null, 401);
+            JsonNode ok = api.get(caminho, admin, 200);
+            assertThat(ok.get("total").asLong()).isEqualTo(1);
+            // Nada de e-mail nem de consultoria na resposta.
+            String email = jdbc.queryForObject("select email from usuario where id = ?", String.class, usuarioDoAluno(alunoA));
+            UUID consultoria = jdbc.queryForObject("select consultoria_id from aluno where id = ?", UUID.class, alunoA);
+            assertThat(ok.toString()).doesNotContain(email).doesNotContain(consultoria.toString()).doesNotContain("consultoriaId");
+        }
+        UUID inexistente = UUID.randomUUID();
+        api.get("/comunidade/mural/" + inexistente + "/comentarios", admin, 404);
+        api.get("/comunidade/aulas/" + inexistente + "/comentarios", admin, 404);
+        // Post oculto some também para a equipe.
+        jdbc.update("update comunidade_mural_post set oculto = true where id = ?", UUID.fromString(post));
+        api.get("/comunidade/mural/" + post + "/comentarios", admin, 404);
     }
 
     // ---- limite de escritas (B5) ----

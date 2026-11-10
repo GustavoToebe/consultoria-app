@@ -37,6 +37,11 @@ public interface ExecucaoSerieRepository extends JpaRepository<ExecucaoSerie, UU
     List<ExecucaoSerie> findByAlunoIdAndExercicioIdInAndConcluidaTrueAndCargaNotNullAndRepeticoesNotNullAndEtapasIsNullAndDataBefore(
             UUID alunoId, Collection<UUID> exercicioIds, LocalDate ate);
 
+    /** Exercícios em que o aluno já fez série com carga e repetições e sem etapas (perfil do colega: recordes de carga). */
+    @Query("select distinct e.exercicioId from ExecucaoSerie e where e.alunoId = :alunoId and e.concluida = true "
+            + "and e.carga is not null and e.repeticoes is not null and e.etapas is null and e.exercicioId is not null")
+    List<UUID> exerciciosComSerieFeita(UUID alunoId);
+
     /** Recordes da semana (Engajamento 0.5): as séries simples candidatas do período, de vários alunos. */
     List<ExecucaoSerie> findByAlunoIdInAndConcluidaTrueAndCargaNotNullAndRepeticoesNotNullAndEtapasIsNullAndDataBetween(
             Collection<UUID> alunoIds, LocalDate de, LocalDate ate);

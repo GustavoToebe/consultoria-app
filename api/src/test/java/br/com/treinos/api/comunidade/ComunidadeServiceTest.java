@@ -123,7 +123,7 @@ class ComunidadeServiceTest {
         for (UUID id : List.of(deOutra, oculto)) {
             assertThatThrownBy(() -> service.alternarReacaoMural(id, "🔥", eu)).isInstanceOf(NaoEncontradoException.class);
             assertThatThrownBy(() -> service.adicionarComentarioMural(id, "Oi", eu)).isInstanceOf(NaoEncontradoException.class);
-            assertThatThrownBy(() -> service.listarComentariosMural(id)).isInstanceOf(NaoEncontradoException.class);
+            assertThatThrownBy(() -> service.listarComentariosMural(id, null, null)).isInstanceOf(NaoEncontradoException.class);
             assertThatThrownBy(() -> service.fixarPost(id)).isInstanceOf(NaoEncontradoException.class);
         }
         verify(muralReacoes, never()).saveAndFlush(any());
@@ -156,7 +156,7 @@ class ComunidadeServiceTest {
 
         assertThatThrownBy(() -> service.adicionarComentarioAula(deOutra, "Dúvida", eu)).isInstanceOf(NaoEncontradoException.class);
         assertThatThrownBy(() -> service.adicionarComentarioAula(rascunho, "Dúvida", eu)).isInstanceOf(NaoEncontradoException.class);
-        assertThatThrownBy(() -> service.listarComentariosAula(rascunho, eu)).isInstanceOf(NaoEncontradoException.class);
+        assertThatThrownBy(() -> service.listarComentariosAula(rascunho, eu, null, null)).isInstanceOf(NaoEncontradoException.class);
         verify(aulaComentarios, never()).saveAndFlush(any());
 
         // A equipe enxerga o rascunho da própria consultoria.

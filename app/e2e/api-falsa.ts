@@ -82,6 +82,8 @@ export async function simularApi(page: Page, respostas: RespostasApi = {}) {
     'GET /aluno/exercicios/demonstracoes': { corpo: [] },
     // O ponto da aba do aluno pergunta pela anamnese; 404 = nenhuma atribuída (o teste da anamnese troca).
     'GET /aluno/anamnese': erroApi(404, 'Nenhuma anamnese.', 'NAO_ENCONTRADO'),
+    // O cartão "Meu perfil" da Conta e o aviso da Comunidade leem isto; visível por escolha (sem aviso) e sem conquistas.
+    'GET /aluno/comunidade/perfil': { corpo: { perfilReservado: false, reservadoEfetivo: false, destaques: [], cor: 'AZUL', moldura: 'SIMPLES', opcoesDeDestaque: [] } },
     // A faixa do ciclo na pasta e nos editores do aluno consulta isto; desligado não desenha nada.
     'GET /alunos/{id}/ciclo': { corpo: { ativo: false, registros: [], dias: [] } },
     // O número das abas de Atualizações (os mesmos filtros da lista); zero nos testes que não conferem isso.

@@ -1,9 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import type { AulaDaComunidade, ComentarioDoMural, ConquistaDoAluno, PaginaDoMural, PerfilDaComunidade, PosicaoNoRanking, PostDoMural } from '../src/api/comunidadeTipos';
+import type {
+  AulaDaComunidade, ComentarioDoMural, ConquistaDoAluno, PaginaDeComentarios, PaginaDoMural, PerfilDaComunidade, PosicaoNoRanking, PostDoMural,
+} from '../src/api/comunidadeTipos';
 import type { EuResponse } from '../src/api/tipos';
 import { MEUS_DADOS_VAZIOS, sessaoDeAluno } from './aluno';
-import { ALUNO, erroApi, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type RespostasApi } from './api-falsa';
+import { ALUNO, erroApi, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type PedidoFalso, type RespostasApi } from './api-falsa';
 
 /**
  * Comunidade do aluno e do treinador, com a API simulada nas rotas e nos formatos reais (`/aluno/comunidade/{aulas, mural,
@@ -27,7 +29,12 @@ const AULA: AulaDaComunidade = {
 const CONQUISTAS: ConquistaDoAluno[] = [
   { id: 'c1', tipo: 'PRIMEIRO_TREINO', titulo: 'Primeiro treino', descricao: 'Concluiu o primeiro treino.', icone: 'award', conquistadaEm: '2026-10-19T12:00:00-03:00' },
 ];
-const PERFIL: PerfilDaComunidade = { autorId: 'u2', nome: 'Aluno Fictício', apelido: 'Fictí', treinosConcluidos: 8, conquistas: CONQUISTAS, ehVoce: false };
+// Colega visível como a API manda (V070): conquistas sem id nem horário, sem foto.
+const PERFIL: PerfilDaComunidade = {
+  autorId: 'u2', nome: 'Aluno Fictício', apelido: 'Fictí', ehVoce: false, reservado: false, treinosConcluidos: 8, nivel: 2,
+  conquistas: CONQUISTAS.map(({ tipo, titulo, descricao, icone }) => ({ tipo, titulo, descricao, icone })), destaques: [],
+  temFoto: false, atividade: { diasTreinadosUltimos30: [], ultimasConquistas: [] }, recordes: [],
+};
 const RANKING: PosicaoNoRanking = { posicao: 2, treinosConcluidos: 8, pontuacao: 80, participantes: 12 };
 
 const COMENTARIOS: ComentarioDoMural[] = [
@@ -35,15 +42,37 @@ const COMENTARIOS: ComentarioDoMural[] = [
   { id: 'c2', autorId: 'u1', autorNome: 'Treinadora Teste', autorApelido: null, autorEhAluno: false, autorFotoUrl: null, texto: 'Mandou bem.', criadoEm: '2026-10-19T14:00:00-03:00' },
 ];
 
+/** Uma página da lista, como a API: `?pagina=` (0 primeiro) e `?tamanho=` (padrão 30), `{itens, total}`. */
+function paginaDe(lista: ComentarioDoMural[], p: PedidoFalso): PaginaDeComentarios {
+  const n = Number(p.busca.get('pagina') ?? 0);
+  const tamanho = Number(p.busca.get('tamanho') ?? 30);
+  return { itens: lista.slice(n * tamanho, (n + 1) * tamanho), total: lista.length };
+}
+
 /** Mural e comentários com estado: o total do post acompanha a lista, como na API (só os não ocultos). */
-function comComentarios(caminhoDoMural: string, rotaDaLista: string) {
-  const estado = { lista: [...COMENTARIOS] };
+function comComentarios(caminhoDoMural: string, rotaDaLista: string, inicial: ComentarioDoMural[] = COMENTARIOS) {
+  const estado = { lista: [...inicial] };
   const rotas: RespostasApi = {
     [`GET ${caminhoDoMural}`]: (_p, route) => json(route, pagina({ ...POST, totalComentarios: estado.lista.length }, POST_CURTIDO)),
-    [`GET ${rotaDaLista}`]: (_p, route) => json(route, estado.lista),
+    [`GET ${rotaDaLista}`]: (p, route) => json(route, paginaDe(estado.lista, p)),
   };
   return { estado, rotas };
 }
+
+/** Aulas e comentários da aula com estado (aluno ou equipe), como `comComentarios`. */
+function comComentariosDaAula(caminhoDasAulas: string, rotaDaLista: string, inicial: ComentarioDoMural[] = COMENTARIOS) {
+  const estado = { lista: [...inicial] };
+  const rotas: RespostasApi = {
+    [`GET ${caminhoDasAulas}`]: (_p, route) => json(route, [{ ...AULA, totalComentarios: estado.lista.length }]),
+    [`GET ${rotaDaLista}`]: (p, route) => json(route, paginaDe(estado.lista, p)),
+  };
+  return { estado, rotas };
+}
+
+/** `n` comentários fictícios, do mais antigo ao mais novo. */
+const varios = (n: number): ComentarioDoMural[] => Array.from({ length: n }, (_, i) => ({
+  ...COMENTARIOS[0], id: `v${i + 1}`, texto: `Comentário de teste ${i + 1}`, criadoEm: `2026-10-19T13:${String(i).padStart(2, '0')}:00-03:00`,
+}));
 
 const cheia: RespostasApi = {
   'GET /aluno/comunidade/mural': { corpo: pagina(POST, POST_CURTIDO) },
@@ -208,13 +237,13 @@ for (const largura of [390, 1280]) {
         const folha = page.getByRole('dialog', { name: 'Perfil na Comunidade' });
         await expect(folha.getByText('Aluno Fictício', { exact: true })).toBeVisible();
         await expect(folha.getByText('«Fictí»')).toBeVisible();
-        await expect(folha.getByText('Treinos concluídos')).toBeVisible();
-        await expect(folha.getByText('8', { exact: true })).toBeVisible();
+        await expect(folha.getByText('8 treinos concluídos')).toBeVisible();
+        await expect(folha.getByText('Nível 2', { exact: true })).toBeVisible();
         await expect(folha.getByText('Primeiro treino', { exact: true })).toBeVisible();
-        await expect(folha.getByText(/^Conquistada em /)).toBeVisible();
+        // Nunca horário de conquista.
+        await expect(folha.getByText(/\d{2}:\d{2}/)).toHaveCount(0);
         await expect(folha.getByText('Você', { exact: true })).toHaveCount(0);
-        // Nada de foto nem de compartilhar no perfil.
-        // Foto seria um <img>; os ícones são SVG.
+        // Sem `temFoto` não busca foto (as iniciais ficam) e não há compartilhar. Foto seria um <img>; os ícones são SVG.
         await expect(folha.locator('img')).toHaveCount(0);
         await expect(folha.getByRole('button', { name: /Compartilhar/ })).toHaveCount(0);
         await capturar(page, `aluno-perfil-${nome}-${largura}`);
@@ -224,7 +253,7 @@ for (const largura of [390, 1280]) {
       });
     }
 
-    test('aluno: o próprio perfil mostra "Você"; perfil fora do alcance (404) diz "Perfil não disponível" sem tentar de novo', async ({ page }) => {
+    test('aluno: o próprio perfil mostra "Você"; perfil fora do alcance (404) diz "Perfil não encontrado." sem tentar de novo', async ({ page }) => {
       let resposta: 'meu' | '404' | '503' = 'meu';
       const api = await simularApi(page, {
         ...(await sessaoDeAluno(page)), ...cheia,
@@ -244,9 +273,9 @@ for (const largura of [390, 1280]) {
 
       resposta = '404';
       await autor.click();
-      await expect(folha.getByText('Perfil não disponível')).toBeVisible();
+      await expect(folha.getByText('Perfil não encontrado.')).toBeVisible();
       await expect(folha.getByRole('button', { name: 'Tentar de novo' })).toHaveCount(0);
-      await expect(folha.getByText('Treinos concluídos')).toHaveCount(0);
+      await expect(folha.getByText('8 treinos concluídos')).toHaveCount(0);
       await capturar(page, `aluno-perfil-404-${largura}`);
       await page.keyboard.press('Escape');
       await expect(folha).toHaveCount(0);
@@ -256,7 +285,12 @@ for (const largura of [390, 1280]) {
       await expect(folha.getByRole('button', { name: 'Tentar de novo' })).toBeVisible();
       resposta = 'meu';
       await folha.getByRole('button', { name: 'Tentar de novo' }).click();
-      await expect(folha.getByText('Treinos concluídos')).toBeVisible();
+      await expect(folha.getByText('8 treinos concluídos')).toBeVisible();
+      // O próprio perfil leva ao cartão "Meu perfil" da Conta, fechando a folha.
+      await folha.getByRole('button', { name: 'Editar meu perfil' }).click();
+      // A Conta consome o `?secao=` ao rolar até o cartão (como o atalho do aviso).
+      await expect(page).toHaveURL(/\/aluno\/conta/);
+      await expect(page.getByTestId('cartao-meu-perfil')).toBeInViewport();
       expect(api.errosDaPagina).toEqual([]);
     });
 
@@ -348,7 +382,7 @@ for (const largura of [390, 1280]) {
       // Perfil do colega por cima dos comentários; o Esc fecha só o perfil.
       await folha.getByRole('button', { name: 'Ver perfil de Aluno Fictício' }).click();
       const perfil = page.getByRole('dialog', { name: 'Perfil na Comunidade' });
-      await expect(perfil.getByText('Treinos concluídos')).toBeVisible();
+      await expect(perfil.getByText('8 treinos concluídos')).toBeVisible();
       await capturar(page, `aluno-comentarios-perfil-${largura}`);
       await page.keyboard.press('Escape');
       await expect(perfil).toHaveCount(0);
@@ -360,7 +394,7 @@ for (const largura of [390, 1280]) {
       expect(api.errosDaPagina).toEqual([]);
     });
 
-    test('aluno: 429 ao comentar vira aviso na folha e o texto fica; acima de 2000 caracteres o campo avisa', async ({ page }) => {
+    test('aluno: 429 ao comentar vira aviso na folha e o texto fica', async ({ page }) => {
       const e = erroApi(429, 'Muitas tentativas. Tente de novo em alguns minutos.', 'LOGIN_LIMITADO');
       const { rotas } = comComentarios('/aluno/comunidade/mural', '/aluno/comunidade/mural/{id}/comentarios');
       const api = await simularApi(page, {
@@ -378,22 +412,199 @@ for (const largura of [390, 1280]) {
       await expect(folha.getByText('Muitas tentativas. Tente de novo em alguns minutos.')).toBeVisible();
       await expect(campo).toHaveValue('Oi, time');
       await capturar(page, `aluno-comentarios-429-${largura}`);
-
-      await campo.fill('a'.repeat(2001));
-      await expect(folha.getByText('2001/2000')).toBeVisible();
-      await expect(folha.getByText('Use até 2000 caracteres.').first()).toBeVisible();
-      await expect(folha.getByRole('button', { name: /^Comentar/ })).toBeDisabled();
-      await capturar(page, `aluno-comentarios-limite-${largura}`);
       expect(api.pedidos.filter((p) => foiPost(p, '/aluno/comunidade/mural/p1/comentarios'))).toHaveLength(1);
       expect(api.errosDaPagina).toEqual([]);
     });
+
+    test('aluno: comentário até 280 caracteres (emoji conta 2), contador com texto e o antigo maior aparece inteiro', async ({ page }) => {
+      const ANTIGO = `Comentário antigo e longo ${'x'.repeat(380)} fim.`;
+      const { rotas } = comComentarios('/aluno/comunidade/mural', '/aluno/comunidade/mural/{id}/comentarios',
+        [...COMENTARIOS, { ...COMENTARIOS[0], id: 'c9', texto: ANTIGO }]);
+      const api = await simularApi(page, {
+        ...(await sessaoDeAluno(page)), ...cheia, ...rotas,
+        'POST /aluno/comunidade/mural/{id}/comentarios': (p, route) => json(route, {
+          ...COMENTARIOS[0], id: 'n1', autorId: ALUNO.id, autorNome: ALUNO.nome, texto: (p.corpo as { texto: string }).texto,
+        }),
+      });
+      await page.goto('/aluno/comunidade');
+      await page.getByRole('button', { name: 'Ver 3 comentário(s)' }).click();
+      const folha = page.getByRole('dialog', { name: 'Comentários' });
+      await expect(folha.getByText(ANTIGO)).toBeVisible();
+      const campo = folha.getByRole('textbox', { name: 'Seu comentário' });
+      const comentar = folha.getByRole('button', { name: /^Comentar/ });
+      // Sem texto, sem contador; ao digitar, o número aparece.
+      await expect(folha.getByText(/\/280/)).toHaveCount(0);
+      await campo.fill('Oi');
+      await expect(folha.getByText('2/280', { exact: true })).toBeVisible();
+
+      await campo.fill('a'.repeat(281));
+      await expect(folha.getByText('281/280 · 1 a mais')).toBeVisible();
+      await expect(folha.getByText('Use até 280 caracteres.').first()).toBeVisible();
+      await expect(comentar).toBeDisabled();
+      await capturar(page, `aluno-comentarios-limite-${largura}`);
+
+      await campo.fill(`${'a'.repeat(279)}💪`);
+      await expect(folha.getByText('281/280 · 1 a mais')).toBeVisible();
+      await expect(comentar).toBeDisabled();
+
+      await campo.fill(`${'a'.repeat(262)}💪`);
+      await expect(folha.getByText('264/280 · faltam 16')).toBeVisible();
+      await expect(comentar).toBeEnabled();
+      await capturar(page, `aluno-comentarios-perto-do-limite-${largura}`);
+
+      await campo.fill('a'.repeat(280));
+      await expect(folha.getByText('280/280 · no limite')).toBeVisible();
+      await expect(comentar).toBeEnabled();
+      await comentar.click();
+      await expect.poll(() => api.pedidos.filter((p) => foiPost(p, '/aluno/comunidade/mural/p1/comentarios'))
+        .map((p) => (p.corpo as { texto: string }).texto.length)).toEqual([280]);
+      await expect(campo).toHaveValue('');
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('aluno: 35 comentários vêm 30 por vez; "Carregar mais" acrescenta sem perder, a falha mantém o lido e o enviado não se repete', async ({ page }) => {
+      const { estado, rotas } = comComentarios('/aluno/comunidade/mural', '/aluno/comunidade/mural/{id}/comentarios', varios(35));
+      let falharMais = true;
+      const api = await simularApi(page, {
+        ...(await sessaoDeAluno(page)), ...cheia, ...rotas,
+        'GET /aluno/comunidade/mural/{id}/comentarios': (p, route) => {
+          if (p.busca.get('pagina') !== '0' && falharMais) { const e = erroApi(503, 'Indisponível.'); return json(route, e.corpo, e.status); }
+          return json(route, paginaDe(estado.lista, p));
+        },
+        'POST /aluno/comunidade/mural/{id}/comentarios': (p, route) => {
+          const novo: ComentarioDoMural = {
+            ...COMENTARIOS[0], id: 'novo', autorId: ALUNO.id, autorNome: ALUNO.nome, autorApelido: null, texto: (p.corpo as { texto: string }).texto,
+          };
+          estado.lista.push(novo);
+          return json(route, novo);
+        },
+      });
+      await page.goto('/aluno/comunidade');
+      await page.getByRole('button', { name: 'Ver 35 comentário(s)' }).click();
+      const folha = page.getByRole('dialog', { name: 'Comentários' });
+      await expect(folha.getByText('Comentário de teste 30', { exact: true })).toBeVisible();
+      await expect(folha.getByText('Comentário de teste 31', { exact: true })).toHaveCount(0);
+      await expect(folha.getByText('Mostrando 30 de 35 comentários.')).toBeVisible();
+
+      // Comentar com páginas faltando: o novo aparece no fim, sem buscar a lista de novo.
+      await folha.getByRole('textbox', { name: 'Seu comentário' }).fill('Meu comentário novo');
+      await folha.getByRole('button', { name: /^Comentar/ }).click();
+      await expect(folha.getByText('Meu comentário novo', { exact: true })).toBeVisible();
+      await expect(folha.getByText('Mostrando 31 de 36 comentários.')).toBeVisible();
+
+      const carregar = folha.getByRole('button', { name: 'Carregar mais comentários' });
+      expect((await carregar.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      await carregar.scrollIntoViewIfNeeded();
+      await capturar(page, `aluno-comentarios-carregar-mais-${largura}`);
+      await carregar.click();
+      await expect(folha.getByText('Indisponível.')).toBeVisible();
+      await expect(folha.getByText('Comentário de teste 1', { exact: true })).toBeVisible();
+      await expect(folha.getByText('Comentário de teste 30', { exact: true })).toBeVisible();
+      await folha.getByText('Indisponível.').scrollIntoViewIfNeeded();
+      await capturar(page, `aluno-comentarios-carregar-mais-erro-${largura}`);
+
+      falharMais = false;
+      await folha.getByRole('button', { name: 'Tentar de novo' }).click();
+      await expect(folha.getByText('Comentário de teste 35', { exact: true })).toBeVisible();
+      await expect(folha.getByText('Comentário de teste 1', { exact: true })).toBeVisible();
+      await expect(folha.getByText('Meu comentário novo', { exact: true })).toHaveCount(1);
+      await expect(folha.getByRole('button', { name: 'Carregar mais comentários' })).toHaveCount(0);
+      await expect(folha.getByText(/^Mostrando /)).toHaveCount(0);
+      const paginas = api.pedidos.filter((p) => p.metodo === 'GET' && p.caminho === '/aluno/comunidade/mural/p1/comentarios')
+        .map((p) => `${p.busca.get('pagina')}/${p.busca.get('tamanho')}`);
+      expect(paginas).toEqual(['0/30', '1/30', '1/30']);
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('aluno: comentários do aulão abrem pelo cartão, comenta e o total do aulão sobe', async ({ page }) => {
+      await tema(page, ALUNO.id, 'CLARO');
+      const { estado, rotas } = comComentariosDaAula('/aluno/comunidade/aulas', '/aluno/comunidade/aulas/{id}/comentarios');
+      const api = await simularApi(page, {
+        ...(await sessaoDeAluno(page)), ...cheia, ...rotas,
+        'POST /aluno/comunidade/aulas/{id}/comentarios': (p, route) => {
+          const novo: ComentarioDoMural = {
+            ...COMENTARIOS[0], id: 'c3', autorId: ALUNO.id, autorNome: ALUNO.nome, autorApelido: null, texto: (p.corpo as { texto: string }).texto,
+          };
+          estado.lista.push(novo);
+          return json(route, novo);
+        },
+      });
+      await page.goto('/aluno/comunidade?aba=auloes');
+      const abrir = page.getByRole('button', { name: 'Ver 2 comentário(s) do aulão Aulão de técnica' });
+      expect((await abrir.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      await capturar(page, `aluno-aulao-com-comentarios-${largura}`);
+      await abrir.click();
+      const folha = page.getByRole('dialog', { name: 'Comentários' });
+      await expect(folha.getByText('Bora, time!')).toBeVisible();
+      await folha.getByRole('textbox', { name: 'Seu comentário' }).fill('Aulão excelente');
+      await folha.getByRole('button', { name: /^Comentar/ }).click();
+      await expect.poll(() => api.pedidos.find((p) => foiPost(p, '/aluno/comunidade/aulas/a1/comentarios'))?.corpo).toEqual({ texto: 'Aulão excelente' });
+      await expect(folha.getByText('Aulão excelente', { exact: true })).toBeVisible();
+      await capturar(page, `aluno-aulao-comentarios-${largura}`);
+      await page.keyboard.press('Escape');
+      await expect(page.getByRole('button', { name: 'Ver 3 comentário(s) do aulão Aulão de técnica' })).toBeVisible();
+      expect(api.pedidos.filter((p) => p.metodo === 'GET' && p.caminho.endsWith('/comentarios')).map((p) => p.caminho))
+        .toEqual(['/aluno/comunidade/aulas/a1/comentarios']);
+      expect(api.naoTratadas).toEqual([]);
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('aluno: aulão fora do alcance (404) diz "Aulão não disponível"; erro comum tem "Tentar de novo"', async ({ page }) => {
+      let resposta: '404' | '503' | 'ok' = '404';
+      await simularApi(page, {
+        ...(await sessaoDeAluno(page)), ...cheia,
+        'GET /aluno/comunidade/aulas/{id}/comentarios': (p, route) => {
+          if (resposta === 'ok') return json(route, paginaDe([], p));
+          const e = resposta === '404' ? erroApi(404, 'Aula não encontrada.', 'NAO_ENCONTRADO') : erroApi(503, 'Indisponível.');
+          return json(route, e.corpo, e.status);
+        },
+      });
+      await page.goto('/aluno/comunidade?aba=auloes');
+      const abrir = page.getByRole('button', { name: /^Ver 0 comentário\(s\) do aulão/ });
+      await abrir.click();
+      const folha = page.getByRole('dialog', { name: 'Comentários' });
+      await expect(folha.getByText('Aulão não disponível')).toBeVisible();
+      await expect(folha.getByText('Este aulão saiu da Comunidade.')).toBeVisible();
+      await expect(folha.getByRole('button', { name: 'Tentar de novo' })).toHaveCount(0);
+      await expect(folha.getByRole('textbox', { name: 'Seu comentário' })).toHaveCount(0);
+      await capturar(page, `aluno-aulao-comentarios-404-${largura}`);
+      await page.keyboard.press('Escape');
+      await expect(folha).toHaveCount(0);
+
+      resposta = '503';
+      await abrir.click();
+      await expect(folha.getByRole('button', { name: 'Tentar de novo' })).toBeVisible();
+      resposta = 'ok';
+      await folha.getByRole('button', { name: 'Tentar de novo' }).click();
+      await expect(folha.getByText('Ninguém comentou ainda.')).toBeVisible();
+      await capturar(page, `aluno-aulao-comentarios-vazio-${largura}`);
+    });
+
+    for (const [nome, t, contraste] of TEMAS) {
+      test(`aluno: comentários do aulão no tema ${nome}`, async ({ page }) => {
+        await tema(page, ALUNO.id, t, contraste);
+        const { rotas } = comComentariosDaAula('/aluno/comunidade/aulas', '/aluno/comunidade/aulas/{id}/comentarios', varios(32));
+        await simularApi(page, { ...(await sessaoDeAluno(page)), ...cheia, ...rotas });
+        await page.goto('/aluno/comunidade?aba=auloes');
+        const verComentarios = page.getByRole('button', { name: /^Ver 32 comentário\(s\) do aulão/ });
+        await expect(verComentarios).toBeVisible();
+        await capturar(page, `aluno-auloes-tema-${nome}-${largura}`);
+        await verComentarios.click();
+        const folha = page.getByRole('dialog', { name: 'Comentários' });
+        await expect(folha.getByText('Mostrando 30 de 32 comentários.')).toBeVisible();
+        await folha.getByRole('textbox', { name: 'Seu comentário' }).fill('a'.repeat(270));
+        await expect(folha.getByText('270/280 · faltam 10')).toBeVisible();
+        await folha.getByRole('button', { name: 'Carregar mais comentários' }).scrollIntoViewIfNeeded();
+        await capturar(page, `aluno-aulao-comentarios-tema-${nome}-${largura}`);
+      });
+    }
 
     test('aluno: post fora do alcance (404) diz "Post não disponível" sem tentar de novo; sem internet o campo trava com o motivo', async ({ page }) => {
       let lista: 'ok' | '404' = '404';
       await simularApi(page, {
         ...(await sessaoDeAluno(page)), ...cheia,
         'GET /aluno/comunidade/mural/{id}/comentarios': (_p, route) => {
-          if (lista === 'ok') return json(route, COMENTARIOS);
+          if (lista === 'ok') return json(route, { itens: COMENTARIOS, total: COMENTARIOS.length });
           const e = erroApi(404, 'Post não encontrado.', 'NAO_ENCONTRADO');
           return json(route, e.corpo, e.status);
         },
@@ -422,7 +633,7 @@ for (const largura of [390, 1280]) {
     });
 
     test('aluno: post sem comentários mostra "Ninguém comentou ainda."', async ({ page }) => {
-      await simularApi(page, { ...(await sessaoDeAluno(page)), ...cheia, 'GET /aluno/comunidade/mural/{id}/comentarios': { corpo: [] } });
+      await simularApi(page, { ...(await sessaoDeAluno(page)), ...cheia, 'GET /aluno/comunidade/mural/{id}/comentarios': { corpo: { itens: [], total: 0 } } });
       await page.goto('/aluno/comunidade');
       await page.getByRole('button', { name: 'Ver 0 comentário(s)' }).click();
       await expect(page.getByRole('dialog', { name: 'Comentários' }).getByText('Ninguém comentou ainda.')).toBeVisible();
@@ -587,6 +798,70 @@ for (const largura of [390, 1280]) {
       await expect(folha.getByText('Mandou bem.')).toBeVisible();
       await expect(folha.getByRole('button', { name: /Remover comentário/ })).toHaveCount(0);
       await expect(folha.getByRole('textbox')).toHaveCount(0);
+    });
+
+    test('treinador: comentários do aulão; lê sem campo, remove com confirmação e o total do aulão desce', async ({ page }) => {
+      const { estado, rotas } = comComentariosDaAula('/comunidade/aulas', '/comunidade/aulas/{id}/comentarios', varios(31));
+      const api = await abrirTreinador(page, {
+        ...cheia, ...rotas,
+        'DELETE /comunidade/aulas/comentarios/{id}': (p, route) => {
+          estado.lista = estado.lista.filter((c) => c.id !== p.caminho.split('/').pop());
+          return route.fulfill({ status: 204 });
+        },
+      });
+      await page.goto('/treinador/comunidade');
+      await capturar(page, `treinador-auloes-comentarios-${largura}`);
+      await page.getByRole('button', { name: 'Ver 31 comentário(s) do aulão Aulão de técnica' }).click();
+      const folha = page.getByRole('dialog', { name: 'Comentários' });
+      await expect(folha.getByText('Comentário de teste 1', { exact: true })).toBeVisible();
+      await expect(folha.getByText('Mostrando 30 de 31 comentários.')).toBeVisible();
+      // A equipe não comenta no aulão (a rota existe na API, o app não a oferece).
+      await expect(folha.getByRole('textbox')).toHaveCount(0);
+      await expect(folha.getByRole('button', { name: /^Comentar/ })).toHaveCount(0);
+
+      await folha.getByRole('button', { name: 'Remover comentário de Aluno Fictício' }).first().click();
+      const painel = page.getByRole('alertdialog', { name: 'Remover o comentário?' });
+      await expect(painel.getByText('O comentário de Aluno Fictício sai do aulão para todos.')).toBeVisible();
+      await capturar(page, `treinador-aulao-comentarios-remover-${largura}`);
+      await painel.getByRole('button', { name: 'Remover comentário' }).click();
+      await expect(painel).toHaveCount(0);
+      await expect(folha.getByText('Comentário de teste 1', { exact: true })).toHaveCount(0);
+      // Depois da remoção a API andou uma posição: o "Carregar mais" pede a página que ainda tem o próximo e ninguém é pulado.
+      await folha.getByRole('button', { name: 'Carregar mais comentários' }).click();
+      await expect(folha.getByText('Comentário de teste 31', { exact: true })).toBeVisible();
+      await expect(folha.getByText(/^Comentário de teste \d+$/)).toHaveCount(30);
+      expect(api.pedidos.filter((p) => p.metodo === 'DELETE').map((p) => p.caminho)).toEqual(['/comunidade/aulas/comentarios/v1']);
+      expect(api.pedidos.some((p) => foiPost(p, '/comunidade/aulas/a1/comentarios'))).toBe(false);
+      await page.keyboard.press('Escape');
+      await expect(page.getByRole('button', { name: 'Ver 30 comentário(s) do aulão Aulão de técnica' })).toBeVisible();
+      // Só as rotas dos comentários importam aqui (o menu do treinador consulta outras, como nos demais casos da equipe).
+      expect(api.naoTratadas.filter((r) => r.includes('/comunidade'))).toEqual([]);
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('treinador: aulão fora do alcance (404) diz "Aulão não disponível"; sem COMUNIDADE_MODERAR não há "Remover"', async ({ page }) => {
+      let resposta: '404' | 'ok' = '404';
+      await abrirTreinador(page, {
+        ...cheia,
+        'GET /comunidade/aulas': { corpo: [{ ...AULA, totalComentarios: 2 }] },
+        'GET /comunidade/aulas/{id}/comentarios': (p, route) => {
+          if (resposta === 'ok') return json(route, paginaDe(COMENTARIOS, p));
+          const e = erroApi(404, 'Aula não encontrada.', 'NAO_ENCONTRADO');
+          return json(route, e.corpo, e.status);
+        },
+      }, [...PERMISSOES_TREINADOR, 'TREINO_LER']);
+      await page.goto('/treinador/comunidade');
+      const abrir = page.getByRole('button', { name: 'Ver 2 comentário(s) do aulão Aulão de técnica' });
+      await abrir.click();
+      const folha = page.getByRole('dialog', { name: 'Comentários' });
+      await expect(folha.getByText('Aulão não disponível')).toBeVisible();
+      await expect(folha.getByRole('button', { name: 'Tentar de novo' })).toHaveCount(0);
+      await page.keyboard.press('Escape');
+      await expect(folha).toHaveCount(0);
+      resposta = 'ok';
+      await abrir.click();
+      await expect(folha.getByText('Mandou bem.')).toBeVisible();
+      await expect(folha.getByRole('button', { name: /Remover comentário/ })).toHaveCount(0);
     });
 
     for (const [nome, t, contraste] of TEMAS) {

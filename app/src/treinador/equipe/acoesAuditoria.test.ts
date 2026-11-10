@@ -41,5 +41,5 @@ test('importar e desfazer a importação têm rótulo no filtro da auditoria', (
 });
 
 test('o apelido da Comunidade (do aluno e da moderação) tem rótulo no filtro da auditoria', () => {
-  for (const acao of ['ALUNO_APELIDO_ALTERADO', 'COMUNIDADE_APELIDO_REMOVIDO']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
+  for (const acao of ['ALUNO_APELIDO_ALTERADO', 'COMUNIDADE_APELIDO_REMOVIDO', 'ALUNO_PERFIL_COMUNIDADE_ALTERADO']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
 });

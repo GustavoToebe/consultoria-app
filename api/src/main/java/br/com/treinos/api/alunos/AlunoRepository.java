@@ -49,6 +49,14 @@ public interface AlunoRepository extends JpaRepository<Aluno, UUID>, JpaSpecific
             + "where a.usuarioId in :usuarioIds and a.ativo = true and a.anonimizadoEm is null")
     List<ApelidoDoAutor> autoresAlunosDosUsuarios(java.util.Collection<UUID> usuarioIds);
 
+    /**
+     * Alunos ativos e não anonimizados com acesso, da consultoria da sessão (o {@code @TenantId}) e sem o do próprio {@code usuarioId}:
+     * a base da lista de colegas. Uma consulta só; o filtro de reserva e idade é feito pela regra pura, em memória.
+     */
+    @Query("select new br.com.treinos.api.alunos.ColegaDaComunidade(a.id, a.usuarioId, a.nome, a.apelido, a.perfilReservado, a.dataNascimento) "
+            + "from Aluno a where a.ativo = true and a.anonimizadoEm is null and a.usuarioId is not null and a.usuarioId <> :usuarioId")
+    List<ColegaDaComunidade> colegasDaComunidade(UUID usuarioId);
+
     /** Alunos da consultoria da sessão com este e-mail, sem diferenciar maiúsculas (importação assistida). */
     List<Aluno> findByEmailIgnoreCase(String email);
 

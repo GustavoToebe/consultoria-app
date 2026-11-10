@@ -243,6 +243,16 @@ ca('destino_sexo_repetido', so(DSEXO('a'), DSEXO('b')), ['secoes[0].perguntas[1]
 ca('destino_sexo_tipo_errado', so(P('t', 'TEXTO', { destino: 'SEXO' })), ['secoes[0].perguntas[0].destino', 'secoes[0].perguntas[0].opcoes']);
 c('destino_sexo_na_atualizacao', com(DSEXO()), [`${pp(1)}.destino`]);
 
+// Data de nascimento (V070): só da pergunta DATA, uma por questionário, só na anamnese. Nome e e-mail seguem sem efeito.
+const DNASC = (id = 'nasc', extra = {}) => P(id, 'DATA', { destino: 'DATA_NASCIMENTO', ...extra });
+ca('destino_nascimento_ok', so(DNASC()));
+ca('destino_nascimento_e_pesagem_ok', so(DS(), DP({ destinoData: 'pesagem' }), DNASC()));
+ca('destino_nascimento_tipo_errado', so(DNASC('a', { tipo: 'TEXTO' })), ['secoes[0].perguntas[0].destino']);
+ca('destino_nascimento_repetido', so(DNASC('a'), DNASC('b')), ['secoes[0].perguntas[1].destino']);
+ca('destino_nome_e_email_sem_efeito', so(P('n', 'TEXTO', { destino: 'NOME' }), P('e', 'EMAIL', { destino: 'EMAIL' })),
+  ['secoes[0].perguntas[0].destino', 'secoes[0].perguntas[1].destino']);
+c('destino_nascimento_na_atualizacao', com(DNASC()), [`${pp(1)}.destino`]);
+
 // Inscrição (página "Quero ser aluno", D5 e D6 de docs/planos/inscricao-com-perguntas-proprias.md): sem FOTOS, ENDERECO,
 // PESO, NOTAS_POR_DIA e DATA_AUTOMATICA, sem destino no cadastro, sem imagem e sem ajuda automática; sem aviso de peso.
 const ci = (nome, conteudo, erros = [], avisos = []) => c(nome, conteudo, erros, avisos, 'INSCRICAO');
@@ -257,6 +267,7 @@ ci('inscricao_imagem_na_pergunta_e_na_opcao', so(P('e', 'ESCOLHA_UNICA', { image
   ['secoes[0].perguntas[0].imagemId', 'secoes[0].perguntas[0].opcoes[0].imagemId', 'secoes[0].perguntas[1].imagemId']);
 ci('inscricao_destinos', so(P('o', 'TEXTO', { destino: 'OBJETIVO' }), DCPF('c'), DTEL('f'), DSEXO('s')),
   ['secoes[0].perguntas[0].destino', 'secoes[0].perguntas[1].destino', 'secoes[0].perguntas[2].destino', 'secoes[0].perguntas[3].destino']);
+ci('inscricao_destino_nascimento', so(DNASC()), ['secoes[0].perguntas[0].destino']);
 ci('inscricao_ajuda_automatica', so(P('t', 'TEXTO', { ajudaAutomatica: 'MEDIA_DIAS_TREINO' })), ['secoes[0].perguntas[0].ajudaAutomatica']);
 // O padrão de inscrição que a V050 cria em toda consultoria (a mesma pergunta "Observação").
 ci('inscricao_padrao_da_v050', JSON.parse(readFileSync(`${RAIZ}/api/src/main/resources/db/migration/V050__inscricao_com_perguntas_proprias.sql`, 'utf8')

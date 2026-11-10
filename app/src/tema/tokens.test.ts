@@ -5,7 +5,9 @@ import {
   CLARO,
   ESCURO,
   PALETA_DA_AGENDA,
+  PALETA_SO_DO_PERFIL,
   PALETAS,
+  corDoTomDoPerfil,
   PALETA_DE_IDENTIFICACAO,
   contraste,
   corDaAgenda,
@@ -145,6 +147,48 @@ describe('corDaAgenda', () => {
     expect(corDaAgenda('AZUL', true)).toBe(PALETA_DA_AGENDA.escuro.AZUL);
     expect(corDaAgenda('ROSA', true)).toBe(PALETA_DA_AGENDA.escuro.ARDOSIA);
     expect(corDaAgenda(null, false)).toBe(PALETA_DA_AGENDA.claro.ARDOSIA);
+  });
+});
+
+// ---- Cores só do perfil da Comunidade (laranja, 10/11) ----
+
+describe.each(TODAS)('cores só do perfil (%s)', (_codigo, base, escuro) => {
+  const paleta = PALETA_SO_DO_PERFIL[escuro ? 'escuro' : 'claro'];
+  const agendas = PALETA_DA_AGENDA[escuro ? 'escuro' : 'claro'];
+  // O contraste alto mexe só em borda, divisor e texto suave: as superfícies são as mesmas, e o anel continua passando.
+  const variantes = [base, coresComContraste(base, 'ALTO', escuro), coresComBordasReforcadas(coresComContraste(base, 'ALTO', escuro), true)];
+
+  it('anel e amostra (marcador) ≥ 3:1 sobre o fundo e as três superfícies, também no contraste alto', () => {
+    for (const cores of variantes) {
+      for (const hex of Object.values(paleta)) {
+        expect(hex).toMatch(/^#[0-9A-F]{6}$/);
+        for (const fundo of [cores.fundo, cores.superficie, cores.superficie2, cores.superficie3]) expect(contraste(hex, fundo)).toBeGreaterThanOrEqual(3);
+      }
+    }
+  });
+
+  it('no escuro também serve de texto e ícone (≥ 4,5:1); no claro fica só de marcador', () => {
+    if (!escuro) return;
+    for (const hex of Object.values(paleta)) {
+      for (const fundo of [base.fundo, base.superficie, base.superficie2, base.superficie3]) expect(contraste(hex, fundo)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it('não parece status nem nenhuma das oito agendas', () => {
+    for (const hex of Object.values(paleta)) {
+      for (const status of [base.sucesso, base.atencao, base.perigo]) expect(distanciaDeCor(hex, status)).toBeGreaterThanOrEqual(DISTANCIA_DO_STATUS);
+      for (const agenda of Object.values(agendas)) expect(distanciaDeCor(hex, agenda)).toBeGreaterThanOrEqual(DISTANCIA_ENTRE_AGENDAS);
+    }
+  });
+});
+
+describe('corDoTomDoPerfil', () => {
+  it('o laranja sai da paleta só do perfil; o resto, da das agendas, sem mudar valor nenhum delas', () => {
+    expect(corDoTomDoPerfil('LARANJA', false)).toBe(PALETA_SO_DO_PERFIL.claro.LARANJA);
+    expect(corDoTomDoPerfil('LARANJA', true)).toBe(PALETA_SO_DO_PERFIL.escuro.LARANJA);
+    expect(corDoTomDoPerfil('OLIVA', true)).toBe(PALETA_DA_AGENDA.escuro.OLIVA);
+    expect(corDoTomDoPerfil('TERRA', false)).toBe('#A64F43');
+    expect(CHAVES_DA_AGENDA).not.toContain('LARANJA');
   });
 });
 

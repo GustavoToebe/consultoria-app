@@ -69,7 +69,10 @@ public final class AlunoDtos {
      * aluno até o acesso existir (V048). {@code metaDoPeso} é dado sensível e, como CPF e endereço, sem
      * {@code ALUNO_SENSIVEL_ALTERAR} é ignorado (o gravado fica). Com ela, como o {@code sexo}: ausente ou nulo no
      * {@code PUT} não mexe no gravado; {@code PADRAO_DA_CONSULTORIA} volta ao padrão (grava nulo). No {@code POST},
-     * ausente, nulo e {@code PADRAO_DA_CONSULTORIA} dão nulo.
+     * ausente, nulo e {@code PADRAO_DA_CONSULTORIA} dão nulo. {@code dataNascimento} ({@code AAAA-MM-DD}, faixa de registro:
+     * 1900 até hoje; dado pessoal, nunca em log nem em mensagem de erro; exige {@code ALUNO_ALTERAR}): no {@code PUT}, nulo ou
+     * ausente não mexe no gravado e texto em branco apaga (como o telefone e o sexo); no {@code POST}, nulo e em branco
+     * dão nulo; data inválida ou fora da faixa = 422 {@code ALUNO_INVALIDO} no campo {@code dataNascimento}.
      */
     public record AlunoRequest(
             @NotBlank @Size(max = 120) String nome,
@@ -82,7 +85,8 @@ public final class AlunoDtos {
             Long versao,
             @Min(1) @Max(365) Integer diasAtualizacao, UUID responsavelId,
             @Size(max = 10) String sexo,
-            MetaDoPesoPedida metaDoPeso) {
+            MetaDoPesoPedida metaDoPeso,
+            @Size(max = 10) String dataNascimento) {
 
         /** Dado pessoal e de saúde: o texto padrão do record os mostraria. */
         @Override
@@ -91,7 +95,7 @@ public final class AlunoDtos {
         }
 
         public AlunoRequest(String nome,String email,String objetivo,String observacoes,Long versao,Integer diasAtualizacao,UUID responsavelId) {
-            this(nome,email,null,objetivo,observacoes,null,null,versao,diasAtualizacao,responsavelId,null,null);
+            this(nome,email,null,objetivo,observacoes,null,null,versao,diasAtualizacao,responsavelId,null,null,null);
         }
 
         public AlunoRequest(String nome,String email,String objetivo,String observacoes,Long versao,Integer diasAtualizacao) {
@@ -138,7 +142,10 @@ public final class AlunoDtos {
                                String sexo,
                                /** Meta própria do aluno; omitida sem {@code ALUNO_SENSIVEL_LER} e quando vale a da consultoria (nulo). */
                                @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
-                               br.com.treinos.api.consultoria.MetaDoPeso metaDoPeso) {
+                               br.com.treinos.api.consultoria.MetaDoPeso metaDoPeso,
+                               /** Data de nascimento; com {@code ALUNO_LER}, como o sexo. Só a equipe a recebe. */
+                               @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+                               LocalDate dataNascimento) {
         /**
          * {@code usuario} é o do aluno (o chamador o busca pelo {@code usuarioId}); nulo se ele ainda não tem acesso. Dele
          * saem o telefone e o e-mail de login (com {@code ALUNO_LER}) e se a senha provisória do treinador ainda não foi trocada.
@@ -157,7 +164,8 @@ public final class AlunoDtos {
                     ler && usuario != null && !a.isAnonimizado() ? usuario.getEmail() : null, usuario != null && usuario.isTrocarSenha(),
                     sensivel ? a.getUsoDeImagemAutorizadoEm() : null,
                     ler && a.getSexo() != null ? a.getSexo().name() : null,
-                    sensivel ? a.getMetaDoPeso() : null);
+                    sensivel ? a.getMetaDoPeso() : null,
+                    ler ? a.getDataNascimento() : null);
         }
     }
 

@@ -16,6 +16,7 @@ import br.com.treinos.api.execucao.RegistroPeso;
 import br.com.treinos.api.execucao.RegistroPesoRepository;
 import br.com.treinos.api.questionarios.DestinoNoPerfil;
 import br.com.treinos.api.questionarios.TipoPergunta;
+import br.com.treinos.api.web.FaixaDeData;
 import br.com.treinos.api.web.Formatos;
 import br.com.treinos.api.web.NaoEncontradoException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -100,6 +101,7 @@ public class PerfilDaAnamnese {
                     case TELEFONE -> telefoneNoEnvio(a.getAlunoId(), resposta);
                     case ENDERECO -> enderecoNoEnvio(a.getAlunoId(), resposta);
                     case SEXO -> sexoNoEnvio(a.getAlunoId(), resposta, p);
+                    case DATA_NASCIMENTO -> dataDeNascimentoNoEnvio(a.getAlunoId(), resposta, hoje);
                     default -> new Resultado(Resultado.Situacao.IGUAL, null);
                 };
                 if (r.situacao() == Resultado.Situacao.PREENCHIDO) {
@@ -154,6 +156,8 @@ public class PerfilDaAnamnese {
             case ENDERECO -> alunos.findById(p.getAlunoId()).map(Aluno::endereco).map(this::enderecoEmJson).orElse(null);
             case SEXO -> alunos.findById(p.getAlunoId()).map(Aluno::getSexo).map(Enum::name)
                     .map(PerfilDaAnamnese::texto).map(this::paraJson).orElse(null);
+            case DATA_NASCIMENTO -> alunos.findById(p.getAlunoId()).map(Aluno::getDataNascimento).map(LocalDate::toString)
+                    .map(PerfilDaAnamnese::texto).map(this::paraJson).orElse(null);
             default -> null;
         };
     }
@@ -181,6 +185,7 @@ public class PerfilDaAnamnese {
             case CPF -> aplicarCpf(aluno, valor.path("texto").asString());
             case TELEFONE -> aplicarTelefone(aluno, valor.path("texto").asString());
             case ENDERECO -> aluno.alterarEndereco(enderecoDoJson(valor.path("endereco")));
+            case DATA_NASCIMENTO -> aluno.alterarDataNascimento(dataParaAplicar(valor.path("texto").asString()));
             case SEXO -> {
                 aluno.alterarSexo(Sexo.valueOf(valor.path("texto").asString()));
                 ciclo.desligarSeDeixouDeSerFeminino(aluno);
@@ -319,6 +324,37 @@ public class PerfilDaAnamnese {
         return new Resultado(atual.equals(proposto) ? Resultado.Situacao.IGUAL : Resultado.Situacao.DIFERENTE, valor);
     }
 
+    /**
+     * Data de nascimento (V070): resposta de uma pergunta DATA, só vale na faixa de registro (1900 até hoje); fora dela, ou
+     * ilegível, conta como sem resposta (nada é gravado nem proposto). Cadastro sem data preenche; igual não muda; diferente
+     * vira pendência. O valor é dado pessoal: só vai à pendência (apagada na anonimização), nunca a log nem à auditoria.
+     */
+    private Resultado dataDeNascimentoNoEnvio(UUID alunoId, JsonNode resposta, LocalDate hoje) {
+        LocalDate proposta = dataOuNula(resposta);
+        if (proposta == null || !FaixaDeData.REGISTRO.aceita(proposta, hoje)) {
+            return new Resultado(Resultado.Situacao.IGUAL, null);
+        }
+        Aluno aluno = alunos.buscarParaAlterar(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
+        String valor = json.writeValueAsString(texto(proposta.toString()));
+        if (aluno.getDataNascimento() == null) {
+            aluno.alterarDataNascimento(proposta);
+            alunos.flush();
+            return new Resultado(Resultado.Situacao.PREENCHIDO, valor);
+        }
+        return new Resultado(aluno.getDataNascimento().equals(proposta) ? Resultado.Situacao.IGUAL : Resultado.Situacao.DIFERENTE, valor);
+    }
+
+    private static LocalDate dataOuNula(JsonNode resposta) {
+        if (!resposta.isString()) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(resposta.asString());
+        } catch (java.time.format.DateTimeParseException ilegivel) {
+            return null;
+        }
+    }
+
     /** Opção sem valor no cadastro não mexe. Cadastro vazio preenche; diferente fica pendente. */
     private Resultado sexoNoEnvio(UUID alunoId, JsonNode resposta, JsonNode pergunta) {
         String escolhida = resposta.isString() ? resposta.asString() : "";
@@ -423,6 +459,13 @@ public class PerfilDaAnamnese {
             throw AlunoService.cpfEmUso();
         }
         aluno.alterarCpf(cpf);
+    }
+
+    /** Aplicar: a data guardada passa de novo pela faixa de registro (422 sem repetir o valor, como na ficha). */
+    private static LocalDate dataParaAplicar(String texto) {
+        LocalDate data = LocalDate.parse(texto);
+        FaixaDeData.exigir("ANAMNESE_INVALIDA", FaixaDeData.REGISTRO.campo("dataNascimento", "Data de nascimento", data));
+        return data;
     }
 
     /** Aplicar: o telefone mora no usuário do aluno; sem acesso não há onde guardar (409 {@code ALUNO_SEM_ACESSO}). */

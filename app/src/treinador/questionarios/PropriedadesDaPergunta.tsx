@@ -142,13 +142,14 @@ const SEM_DATA = '__envio__';
 const ROTULO_DO_INTERRUPTOR: Record<DestinoOferecido, string> = {
   PESO: 'Guardar no registro de peso do aluno', OBJETIVO: 'Guardar no objetivo do cadastro do aluno', CPF: 'Guardar no CPF do cadastro do aluno',
   TELEFONE: 'Guardar no telefone do cadastro do aluno', ENDERECO: 'Guardar no endereço do cadastro do aluno',
-  SEXO: 'Guardar no sexo do cadastro do aluno',
+  SEXO: 'Guardar no sexo do cadastro do aluno', DATA_NASCIMENTO: 'Guardar na data de nascimento do cadastro do aluno',
 };
 const AJUDA_DO_DESTINO: Partial<Record<DestinoNoPerfil, string>> = {
   OBJETIVO: `Até ${L.objetivoTamanho} caracteres. Objetivo vazio é preenchido; se já houver outro, a mudança fica para você revisar na ficha.`,
   CPF: 'A resposta precisa ser um CPF válido. CPF vazio é preenchido; se já houver outro, ou se for de outro aluno, a mudança fica para você revisar na ficha.',
   TELEFONE: 'Vale para quem já tem acesso. Telefone vazio é preenchido; se já houver outro, a mudança fica para você revisar na ficha.',
   ENDERECO: 'Endereço vazio é preenchido; se já houver outro, a mudança fica para você revisar na ficha.',
+  DATA_NASCIMENTO: 'Data vazia é preenchida; se já houver outra, a mudança fica para você revisar na ficha. Data no futuro ou antes de 1900 não muda o cadastro.',
   SEXO: 'Sexo vazio é preenchido; se já houver outro, a mudança fica para você revisar na ficha. Uma opção sem valor, como “Prefiro não dizer”, não muda o cadastro.',
 };
 const SEM_DESTINO = '__nenhum__';

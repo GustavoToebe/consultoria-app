@@ -7,8 +7,9 @@ import type { AlunoDetalhe, AlunoRequest } from '../api/tipos';
 import { responsaveisEquipe } from '../api/rotas';
 import {
   CAMPOS_DO_ENDERECO, CPF_EM_USO, ENDERECO_VAZIO, MENSAGEM_CPF_EM_USO, enderecoParaEnvio, enderecoParaForm, erroDoCpf, erroDoTelefone, errosDoEndereco,
-  mascaraCpf, mascaraTelefone,
+  mascaraCpf, mascaraTelefone, nascimentoParaEnvio,
 } from '../dominio/cadastroDoAluno';
+import { dataParaTela } from '../dominio/formatos';
 import { CamposDeEndereco } from '../ui/CamposDeEndereco';
 import { Escolha } from '../ui/Escolha';
 import { useCarregar } from '../ui/useCarregar';
@@ -17,6 +18,7 @@ import { metaParaEnvio, OPCOES_DA_META_DO_ALUNO, opcaoDaMeta, type OpcaoDaMeta }
 import { espaco } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
+import { CampoData } from '../ui/Campos';
 import { MensagemErro } from '../ui/Estados';
 import { codigoApi, errosPorCampo, textoDoErro } from '../ui/erros';
 import { Texto } from '../ui/Texto';
@@ -56,6 +58,7 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
   const {dados:responsaveis,erro:erroResponsaveis,recarregar}=useCarregar('responsaveis-form',()=>responsaveisEquipe());
   const [nome, setNome] = useState(inicial?.nome ?? '');
   const [sexo, setSexo] = useState(inicial?.sexo ?? '');
+  const [nascimento, setNascimento] = useState(dataParaTela(inicial?.dataNascimento ?? null));
   const [email, setEmail] = useState(inicial?.email ?? '');
   const [telefone, setTelefone] = useState(inicial?.telefone ?? '');
   const [objetivo, setObjetivo] = useState(inicial?.objetivo ?? '');
@@ -77,11 +80,14 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
   const erroTelefone = comTelefone ? erroDoTelefone(telefone) : undefined;
   const erroCpf = comSensivel ? erroDoCpf(cpf) : undefined;
   const errosEndereco = comSensivel ? errosDoEndereco(endereco) : {};
-  const dadosInvalidos = !!erroTelefone || !!erroCpf || Object.keys(errosEndereco).length > 0;
+  const nascimentoEnvio = nascimentoParaEnvio(nascimento, !!inicial?.dataNascimento);
+  // O campo de data já avisa a data impossível ou fora da faixa; a incompleta é avisada aqui, para o botão não travar sem motivo à vista.
+  const nascimentoIncompleto = nascimento.trim().length > 0 && nascimento.trim().length < 10;
+  const dadosInvalidos = !!erroTelefone || !!erroCpf || Object.keys(errosEndereco).length > 0 || nascimentoEnvio === undefined;
   const cpfEmUso = codigoApi(erro) === CPF_EM_USO ? MENSAGEM_CPF_EM_USO : undefined;
   // C7: qualquer campo diferente do que abriu deixa a saída guardada ("Sair sem salvar?"). O retrato é o da primeira
   // renderização; o questionário da ficha grava na hora e não entra. Quem salva e sai usa `useSairSemPerguntar`.
-  const retrato = JSON.stringify([nome, sexo, email, telefone, objetivo, cpf, endereco, observacoes, meta, dias, responsavelId]);
+  const retrato = JSON.stringify([nome, sexo, nascimento, email, telefone, objetivo, cpf, endereco, observacoes, meta, dias, responsavelId]);
   const [retratoInicial] = useState(retrato);
   useGuardaDeSaida(retrato !== retratoInicial);
 
@@ -104,6 +110,7 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
       ...(comMeta && (inicial || meta !== 'PADRAO') ? { metaDoPeso: metaParaEnvio(meta) } : {}),
       versao: inicial?.versao ?? null,
       sexo: sexoDoCampo(sexo),
+      dataNascimento: nascimentoEnvio ?? null,
       diasAtualizacao: diasDoCampo(dias),
       responsavelId:responsavelId||null,
     }).then(
@@ -121,6 +128,11 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
       <Texto variante="secao">Cadastro</Texto>
       <Campo rotulo="Nome" valor={nome} aoMudar={setNome} erro={campos.nome} autoComplete="off" maxLength={120} />
       <Escolha rotulo="Sexo" valor={sexo} aoMudar={setSexo} opcoes={[{ valor: '', rotulo: 'Não informado' }, ...OPCOES_DE_SEXO]} />
+      <View style={estilos.meta}>
+        <CampoData rotulo="Data de nascimento (opcional)" nome="Data de nascimento" regra="REGISTRO" valor={nascimento} aoMudar={setNascimento}
+          erro={campos.dataNascimento ?? (nascimentoIncompleto ? 'Complete a data: DD/MM/AAAA.' : null)} />
+        <Texto variante="pequeno">Ajuda a definir o perfil do aluno na comunidade. Só a equipe vê.</Texto>
+      </View>
       <Campo
         rotulo="E-mail (opcional)"
         valor={email}

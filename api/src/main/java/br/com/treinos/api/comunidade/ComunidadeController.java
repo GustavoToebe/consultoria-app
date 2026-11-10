@@ -54,8 +54,10 @@ public class ComunidadeController {
 
     @PreAuthorize("hasAuthority('PERM_TREINO_LER')")
     @GetMapping("/aulas/{id}/comentarios")
-    public List<ComentarioResponse> listarComentariosAula(@PathVariable UUID id, @AuthenticationPrincipal UsuarioAutenticado eu) {
-        return comunidade.listarComentariosAula(id, eu);
+    public PaginaDeComentarios listarComentariosAula(@PathVariable UUID id, @RequestParam(required = false) Integer pagina,
+                                                     @RequestParam(required = false) Integer tamanho,
+                                                     @AuthenticationPrincipal UsuarioAutenticado eu) {
+        return comunidade.listarComentariosAula(id, eu, pagina, tamanho);
     }
 
     @PreAuthorize("hasAuthority('PERM_COMUNIDADE_MODERAR')")
@@ -105,8 +107,9 @@ public class ComunidadeController {
 
     @PreAuthorize("hasAuthority('PERM_TREINO_LER')")
     @GetMapping("/mural/{id}/comentarios")
-    public List<ComentarioResponse> listarComentariosMural(@PathVariable UUID id) {
-        return comunidade.listarComentariosMural(id);
+    public PaginaDeComentarios listarComentariosMural(@PathVariable UUID id, @RequestParam(required = false) Integer pagina,
+                                                      @RequestParam(required = false) Integer tamanho) {
+        return comunidade.listarComentariosMural(id, pagina, tamanho);
     }
 
     @PreAuthorize("hasAuthority('PERM_COMUNIDADE_MODERAR')")

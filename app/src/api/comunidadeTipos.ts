@@ -44,7 +44,7 @@ export interface PostDoMural {
   totalComentarios: number;
 }
 
-/** Comentário de um post do mural (`ComentarioResponse`): autor como no post, sem ocultos, mais antigo primeiro. */
+/** Comentário de um post do mural ou de uma aula (`ComentarioResponse`): autor como no post, sem ocultos, mais antigo primeiro. */
 export interface ComentarioDoMural {
   id: string;
   autorId: string;
@@ -57,6 +57,12 @@ export interface ComentarioDoMural {
   texto: string;
   criadoEm: string;
 }
+
+/** De onde são os comentários: um post do mural ou uma aula (aulão). */
+export interface AlvoDosComentarios { tipo: 'post' | 'aula'; id: string }
+
+/** Uma página dos comentários (`?pagina=&tamanho=`, como `GET /atualizacoes/pagina`); `total` é o do post ou da aula. */
+export interface PaginaDeComentarios { itens: ComentarioDoMural[]; total: number }
 
 /** Página do Spring (`Page`): só o que o app usa. */
 export interface PaginaDoMural {
@@ -73,15 +79,49 @@ export interface ConquistaDoAluno {
   conquistadaEm: string;
 }
 
-/** Perfil de um colega (`GET /aluno/comunidade/perfis/{autorId}`): nunca foto, contato, medidas, dieta nem saúde. */
+/**
+ * Conquista no perfil de um colega: para outro aluno a API manda só `{tipo,titulo,descricao,icone}` (o instante mostraria
+ * quando o colega abriu o app); `id` e `conquistadaEm` só vêm no próprio perfil. A tela chaveia por `tipo` e nunca mostra hora.
+ */
+export type ConquistaDoColega = Omit<ConquistaDoAluno, 'id' | 'conquistadaEm'> & { id?: string; conquistadaEm?: string };
+
+/** Destaque escolhido pelo colega (até 4, já na ordem dele). */
+export interface DestaqueDoColega { tipo: string; titulo: string; icone: string }
+
+/** Conquista recente da atividade: só o dia (`AAAA-MM-DD`), nunca a hora. */
+export interface ConquistaRecente extends DestaqueDoColega { data: string }
+
+/** Maior carga (kg) de um exercício; nunca data, série nem treino. */
+export interface RecordeDoColega { exercicio: string; carga: number }
+
+/**
+ * Perfil de um colega (`GET /aluno/comunidade/perfis/{autorId}`, `@JsonInclude(NON_NULL)`). Sempre: `autorId`, `nome`,
+ * `apelido`, `ehVoce` e `reservado`. Reservado e visto por outro aluno, só isso; aberto (ou o próprio aluno, que vê tudo),
+ * o resto. Nunca contato, peso corporal, medidas, dieta nem saúde.
+ */
 export interface PerfilDaComunidade {
   autorId: string;
   nome: string;
   apelido: string | null;
-  treinosConcluidos: number;
-  conquistas: ConquistaDoAluno[];
   ehVoce: boolean;
+  reservado: boolean;
+  treinosConcluidos?: number;
+  nivel?: number;
+  conquistas?: ConquistaDoColega[];
+  destaques?: DestaqueDoColega[];
+  cor?: string;
+  moldura?: string;
+  temFoto?: boolean;
+  /** `diasTreinadosUltimos30`: `AAAA-MM-DD` de Brasília, de hoje−29 a hoje, sem repetir, do mais antigo ao mais novo. */
+  atividade?: { diasTreinadosUltimos30: string[]; ultimasConquistas: ConquistaRecente[] };
+  recordes?: RecordeDoColega[];
 }
+
+/** Colega na lista (`GET /aluno/comunidade/perfis`): só quem não reservou o perfil. Sem cor nem moldura. */
+export interface ColegaDaLista { autorId: string; nome: string; apelido: string | null; nivel: number; temFoto: boolean }
+
+/** Uma página da lista de colegas; `total` conta só os visíveis. */
+export interface PaginaDeColegas { itens: ColegaDaLista[]; total: number }
 
 /** Só a posição do próprio aluno: a API nunca manda nome, id ou contagem de outro aluno. */
 export interface PosicaoNoRanking {
@@ -89,4 +129,18 @@ export interface PosicaoNoRanking {
   treinosConcluidos: number;
   pontuacao: number;
   participantes: number;
+}
+
+/**
+ * Preferências do próprio perfil (`GET`/`PUT /aluno/comunidade/perfil`). `perfilReservado` nulo = o aluno não escolheu (vale o
+ * padrão da idade, que a API resolve em `reservadoEfetivo`). `destaques` são `tipo`s de conquista; `cor` e `moldura` vêm
+ * sempre preenchidas.
+ */
+export interface PreferenciasDoPerfil {
+  perfilReservado: boolean | null;
+  reservadoEfetivo: boolean;
+  destaques: string[];
+  cor: string;
+  moldura: string;
+  opcoesDeDestaque: ConquistaDoAluno[];
 }

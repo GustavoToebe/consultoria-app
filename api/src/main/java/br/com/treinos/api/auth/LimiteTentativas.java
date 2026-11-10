@@ -128,6 +128,23 @@ public class LimiteTentativas {
     }
 
     /**
+     * Leitura do perfil de um colega e da lista de colegas: 300 por usuário por hora, balde próprio (não gasta o das escritas na
+     * comunidade). Cada perfil relê o histórico de séries do colega, por isso o teto. Chamado antes de qualquer checagem.
+     */
+    public void perfilDoColega(java.util.UUID usuarioId) {
+        porUsuario("perfil-colega", usuarioId, 300);
+    }
+
+    /**
+     * Foto de perfil de um colega na comunidade: 300 por usuário por hora (o mesmo teto da logo, mas por usuário, porque a rota é
+     * logada), balde próprio para não gastar o das escritas na comunidade. Chamado antes de qualquer checagem, então toda
+     * tentativa conta, também as recusadas (404).
+     */
+    public void fotoDoColega(java.util.UUID usuarioId) {
+        porUsuario("foto-colega", usuarioId, 300);
+    }
+
+    /**
      * CPF enviado pelo próprio aluno em "Meus dados" ({@code PUT /aluno/meus-dados}): o CPF só preenche um cadastro vazio, e a
      * resposta (200 ou 409 {@code ALUNO_CPF_EM_USO}) diria se um CPF já é de outro aluno da consultoria. Dez envios com CPF por
      * usuário em 24 h fecham essa consulta; chamado fora da transação, então a tentativa recusada também conta.

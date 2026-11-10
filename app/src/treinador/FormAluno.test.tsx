@@ -37,6 +37,11 @@ jest.mock('../ui/Campo', () => ({
     }),
 }));
 jest.mock('../ui/CamposDeEndereco', () => ({ CamposDeEndereco: () => null }));
+// Tocar no campo de data apaga o que estava escrito (o suficiente para conferir o envio).
+jest.mock('../ui/Campos', () => ({
+  CampoData: ({ rotulo, aoMudar, erro }: { rotulo: string; aoMudar: (valor: string) => void; erro?: string | null }) =>
+    require('react').createElement(require('react-native').Pressable, { accessibilityLabel: rotulo, accessibilityHint: erro ?? undefined, onPress: () => aoMudar('') }),
+}));
 jest.mock('../ui/Estados', () => ({ MensagemErro: () => null }));
 jest.mock('../ui/Botao', () => ({
   Botao: ({ rotulo, aoTocar, desabilitado }: { rotulo: string; aoTocar: () => void; desabilitado?: boolean }) =>
@@ -151,6 +156,37 @@ describe('FormAluno responsável', () => {
     tocar(raiz, 'Sem responsável');
     await tocarEEsperar(raiz, 'Salvar');
     expect(aoSalvar).toHaveBeenCalledWith(expect.objectContaining({ responsavelId: null }));
+    await Renderer.act(async () => { raiz.unmount(); });
+  });
+});
+
+describe('FormAluno data de nascimento', () => {
+  it('salvar outro campo reenvia a data que já estava, sem apagar', async () => {
+    const { raiz, aoSalvar } = await montar(aluno({ dataNascimento: '2001-03-09' }));
+    await tocarEEsperar(raiz, 'Salvar');
+    expect(aoSalvar).toHaveBeenCalledWith(expect.objectContaining({ dataNascimento: '2001-03-09' }));
+    await Renderer.act(async () => { raiz.unmount(); });
+  });
+
+  it('sem data antes e sem digitar manda null (não mexe); apagar a que havia manda texto vazio', async () => {
+    const semData = await montar(aluno());
+    await tocarEEsperar(semData.raiz, 'Salvar');
+    expect(semData.aoSalvar).toHaveBeenCalledWith(expect.objectContaining({ dataNascimento: null }));
+    await Renderer.act(async () => { semData.raiz.unmount(); });
+
+    const comData = await montar(aluno({ dataNascimento: '2001-03-09' }));
+    tocar(comData.raiz, 'Data de nascimento (opcional)');
+    await tocarEEsperar(comData.raiz, 'Salvar');
+    expect(comData.aoSalvar).toHaveBeenCalledWith(expect.objectContaining({ dataNascimento: '' }));
+    await Renderer.act(async () => { comData.raiz.unmount(); });
+  });
+
+  it('422 da API na data aparece no próprio campo', async () => {
+    const { ErroApi } = require('@plataforma/web') as typeof import('@plataforma/web');
+    const { raiz, aoSalvar } = await montar(aluno({ dataNascimento: '2001-03-09' }));
+    aoSalvar.mockImplementationOnce(() => Promise.reject(new ErroApi(422, 'ALUNO_INVALIDO', 'Confira os dados.', [{ field: 'dataNascimento', message: 'Data fora do intervalo permitido.' }])));
+    await tocarEEsperar(raiz, 'Salvar');
+    expect(alvoDe(raiz, 'Data de nascimento (opcional)').props.accessibilityHint).toBe('Data fora do intervalo permitido.');
     await Renderer.act(async () => { raiz.unmount(); });
   });
 });

@@ -1,88 +1,149 @@
-import { Award, UserX } from 'lucide-react-native';
-import { useEffect } from 'react';
+import { router } from 'expo-router';
+import { Lock, Pencil, UserX, WifiOff } from 'lucide-react-native';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { ErroApi } from '../api/cliente';
 import { obterPerfilDaComunidade } from '../api/comunidade';
-import { dataParaTela } from '../dominio/formatos';
+import type { PerfilDaComunidade } from '../api/comunidadeTipos';
+import { CHAVE_DO_MEU_PERFIL } from '../aluno/AvisoDoPerfil';
+import { hojeEmBrasilia } from '../dominio/financeiro';
+import { corDoPerfil, molduraDoPerfil } from '../dominio/perfilDaComunidade';
+import {
+  buscarFotoDoColega, erroDaLeitura, soONome, TEXTO_LIMITE_DE_LEITURA, TEXTO_PERFIL_NAO_ENCONTRADO, TEXTO_PERFIL_RESERVADO,
+  TEXTO_PERFIL_SEM_CONEXAO, textoDoNivel, textoDosTreinos,
+} from '../dominio/perfilDoColega';
 import { useTema } from '../tema/TemaProvider';
-import { espaco, RAIO } from '../tema/tokens';
+import { corDoTomDoPerfil, espaco, RAIO } from '../tema/tokens';
+import { Botao } from '../ui/Botao';
 import { Esqueleto } from '../ui/Esqueleto';
-import { MensagemErro, Vazio } from '../ui/Estados';
+import { Alerta, MensagemErro, Vazio } from '../ui/Estados';
 import { Folha } from '../ui/Folha';
 import { IniciaisDePerfil } from '../ui/FotoDePerfil';
+import { LinhaDeAcoes } from '../ui/LinhaDeAcoes';
 import { Selo } from '../ui/Selo';
 import { Texto } from '../ui/Texto';
 import { textoDoErro } from '../ui/erros';
 import { useCarregar } from '../ui/useCarregar';
+import { FotoDoColega } from './FotoDoColega';
+import { AtividadeRecente, Destaques, Insignias, RecordesDeCarga } from './SecoesDoPerfilDoColega';
+
+const FOTO = 88;
 
 /**
- * Perfil de um colega, aberto pelo autor de um post do mural: só nome, apelido, treinos concluídos e conquistas
- * (decisão 2 do plano: sem foto, contato, medidas, dieta nem saúde; nada de compartilhar). Busca só com a folha aberta;
- * 404 (equipe, outra consultoria, anonimizado) vira "Perfil não disponível" sem tentar de novo e sem dado inventado.
+ * Perfil de um colega na Comunidade, no estilo do Steam (plano `perfil-estilo-steam`): capa com a foto na moldura e na cor
+ * que ele escolheu, nome, apelido, nível e treinos; depois destaques, atividade dos últimos 30 dias, insígnias e recordes de
+ * carga. Aberto pelo autor de um post ou comentário e pela lista de colegas. Só com internet e nada fica no aparelho: sem
+ * conexão a folha diz isso e não mostra o que tinha lido. Reservado e visto por outro aluno: só nome, apelido e iniciais. O
+ * próprio aluno vê tudo e ganha o atalho "Editar meu perfil". Nunca peso corporal, medidas, dieta, saúde nem horário.
  */
-export function FolhaPerfilDoColega({ autorId, aoFechar }: { autorId: string | null; aoFechar: () => void }) {
-  const { cores } = useTema();
-  const perfil = useCarregar(autorId ? `perfil-comunidade:${autorId}` : null, (chave) => obterPerfilDaComunidade(chave.slice('perfil-comunidade:'.length)));
-  // Os dados de outro autor não aparecem enquanto o novo carrega.
-  const dados = perfil.dadosDeOutraChave ? undefined : perfil.dados;
-  // Reabrir o mesmo perfil busca de novo: o apelido pode ter sido removido ou o colega ter saído desde a última vez.
-  // (Outro perfil ou a primeira abertura já buscam pela chave; só o que sobrou na memória pede a nova busca.)
-  useEffect(() => {
-    if (autorId && perfil.dados !== undefined && !perfil.dadosDeOutraChave) perfil.recarregar();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autorId]);
-  const naoDisponivel = perfil.erro instanceof ErroApi && perfil.erro.status === 404;
+export function FolhaPerfilDoColega({ autorId, online, aoFechar }: { autorId: string | null; online: boolean; aoFechar: () => void }) {
+  // Cada abertura (e cada volta da internet) é uma leitura nova: o colega pode ter reservado o perfil ou saído no meio-tempo,
+  // e a chave nova garante que o lido antes não aparece enquanto a resposta não chega.
+  const [abertura, setAbertura] = useState({ autorId, online, n: 0 });
+  if (abertura.autorId !== autorId || abertura.online !== online) setAbertura({ autorId, online, n: abertura.n + 1 });
+  const chave = autorId && online ? `perfil-comunidade:${abertura.n}:${autorId}` : null;
+  const perfil = useCarregar(chave, (k) => obterPerfilDaComunidade(k.split(':').slice(2).join(':')));
+  const dados = perfil.dadosDeOutraChave || perfil.carregando ? undefined : perfil.dados;
+  const erro = perfil.carregando ? undefined : perfil.erro;
+  const tipoDoErro = erro ? erroDaLeitura(erro) : null;
+
+  const editar = () => {
+    aoFechar();
+    router.push({ pathname: '/aluno/conta', params: { secao: CHAVE_DO_MEU_PERFIL } });
+  };
 
   return (
     <Folha visivel={!!autorId} titulo="Perfil na Comunidade" aoFechar={aoFechar}>
-      {naoDisponivel ? (
-        <Vazio Icone={UserX} titulo="Perfil não disponível" texto="Este perfil não pode ser aberto." />
-      ) : perfil.erro ? (
-        <MensagemErro texto={textoDoErro(perfil.erro)} erro={perfil.erro} tentarDeNovo={perfil.recarregar} />
-      ) : !dados || perfil.carregando ? (
-        <Esqueleto cartoes={1} texto="Carregando o perfil" />
+      {!online ? (
+        <Vazio Icone={WifiOff} texto={TEXTO_PERFIL_SEM_CONEXAO} />
+      ) : tipoDoErro === 'nao-encontrado' ? (
+        <Vazio Icone={UserX} texto={TEXTO_PERFIL_NAO_ENCONTRADO} />
+      ) : tipoDoErro === 'limite' ? (
+        <Alerta tom="atencao" texto={TEXTO_LIMITE_DE_LEITURA}>
+          <LinhaDeAcoes><Botao rotulo="Tentar de novo" tipo="secundario" aoTocar={perfil.recarregar} /></LinhaDeAcoes>
+        </Alerta>
+      ) : erro ? (
+        <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={perfil.recarregar} />
+      ) : !dados ? (
+        <Esqueleto cartoes={2} texto="Carregando o perfil" />
       ) : (
-        <View style={estilos.blocos}>
-          <View style={estilos.linha}>
-            <IniciaisDePerfil nome={dados.nome} tamanho={56} />
-            <View style={estilos.encolher}>
-              <View style={estilos.linha}>
-                <Texto variante="bloco" nivel={2}>{dados.nome}</Texto>
-                {dados.ehVoce ? <Selo texto="Você" tipo="neutro" /> : null}
-              </View>
-              {dados.apelido ? <Texto variante="suave" accessibilityLabel={`apelido ${dados.apelido}`}>«{dados.apelido}»</Texto> : null}
-            </View>
-          </View>
-
-          <View style={[estilos.item, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
-            <Texto variante="rotulo">Treinos concluídos</Texto>
-            <Texto variante="bloco" numerico>{dados.treinosConcluidos}</Texto>
-          </View>
-
-          <View style={estilos.secao}>
-            <Texto variante="secao" nivel={3}>Conquistas</Texto>
-            {dados.conquistas.length ? dados.conquistas.map((c) => (
-              <View key={c.id} style={[estilos.item, estilos.linha, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
-                <Award size={20} color={cores.texto} aria-hidden />
-                <View style={estilos.encolher}>
-                  <Texto variante="bloco">{c.titulo}</Texto>
-                  <Texto variante="suave">{c.descricao}</Texto>
-                  <Texto variante="pequeno" numerico>Conquistada em {dataParaTela(c.conquistadaEm)}</Texto>
-                </View>
-              </View>
-            )) : <Texto variante="suave">Nenhuma conquista por enquanto.</Texto>}
-          </View>
-        </View>
+        <PerfilAberto perfil={dados} aoEditar={editar} />
       )}
     </Folha>
   );
 }
 
+function PerfilAberto({ perfil, aoEditar }: { perfil: PerfilDaComunidade; aoEditar: () => void }) {
+  const { cores, modo } = useTema();
+  const reservadoParaMim = soONome(perfil);
+  // Reservado para quem vê: nada da cor nem da moldura (a API nem manda); a faixa da capa fica neutra.
+  const tom = reservadoParaMim ? cores.borda : corDoTomDoPerfil(corDoPerfil(perfil.cor).tom, modo === 'ESCURO');
+  const atividade = perfil.atividade;
+
+  return (
+    <View style={estilos.blocos}>
+      <View style={[estilos.capa, { backgroundColor: cores.superficie2, borderColor: cores.borda, borderTopColor: tom }]}>
+        <View style={estilos.foto}>
+          {reservadoParaMim
+            ? <IniciaisDePerfil nome={perfil.nome} tamanho={FOTO} />
+            : <FotoDoColega autorId={perfil.autorId} nome={perfil.nome} temFoto={buscarFotoDoColega(perfil)} tamanho={FOTO}
+                cor={tom} moldura={molduraDoPerfil(perfil.moldura).valor} />}
+        </View>
+        <View style={estilos.identidade}>
+          <View style={estilos.linha}>
+            <Texto variante="titulo" nivel={3}>{perfil.nome}</Texto>
+            {perfil.ehVoce ? <Selo texto="Você" tipo="neutro" /> : null}
+          </View>
+          {perfil.apelido ? <Texto variante="suave" accessibilityLabel={`apelido ${perfil.apelido}`}>«{perfil.apelido}»</Texto> : null}
+          {reservadoParaMim ? (
+            <View style={[estilos.linha, estilos.reservado]}>
+              <Lock size={16} color={cores.textoSuave} aria-hidden />
+              <Texto variante="suave">{TEXTO_PERFIL_RESERVADO}</Texto>
+            </View>
+          ) : (
+            <View style={[estilos.linha, estilos.numeros]}>
+              {perfil.nivel !== undefined ? (
+                <View style={[estilos.nivel, { borderColor: tom, backgroundColor: cores.superficie }]}>
+                  <Texto variante="rotulo" cor={cores.texto} numerico>{textoDoNivel(perfil.nivel)}</Texto>
+                </View>
+              ) : null}
+              {perfil.treinosConcluidos !== undefined ? <Texto variante="suave" numerico>{textoDosTreinos(perfil.treinosConcluidos)}</Texto> : null}
+            </View>
+          )}
+        </View>
+      </View>
+
+      {perfil.ehVoce ? (
+        <View style={estilos.meu}>
+          {perfil.reservado ? <Texto variante="suave">Seu perfil está reservado: os colegas veem só o seu nome e o apelido.</Texto> : null}
+          <LinhaDeAcoes><Botao rotulo="Editar meu perfil" tipo="secundario" Icone={Pencil} aoTocar={aoEditar} /></LinhaDeAcoes>
+        </View>
+      ) : null}
+
+      {reservadoParaMim ? null : (
+        <>
+          <Destaques destaques={perfil.destaques ?? []} tom={tom} />
+          {atividade ? (
+            <AtividadeRecente dias={atividade.diasTreinadosUltimos30} conquistas={atividade.ultimasConquistas} hoje={hojeEmBrasilia()} tom={tom} />
+          ) : null}
+          <Insignias conquistas={perfil.conquistas ?? []} tom={tom} />
+          <RecordesDeCarga recordes={perfil.recordes ?? []} />
+        </>
+      )}
+    </View>
+  );
+}
+
 const estilos = StyleSheet.create({
-  blocos: { gap: espaco(2) },
-  secao: { gap: espaco(1) },
-  linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.5), flexWrap: 'wrap' },
-  encolher: { flex: 1, minWidth: 0, gap: 2 },
-  item: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: 2 },
+  blocos: { gap: espaco(3) },
+  // A faixa de cima, na cor do colega, é o "fundo do perfil" do Steam em versão contida: identifica sem pintar texto.
+  capa: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(2), borderWidth: 1, borderTopWidth: 6, borderRadius: RAIO, padding: espaco(2) },
+  foto: { flexShrink: 0 },
+  identidade: { flexGrow: 1, flexShrink: 1, flexBasis: 180, minWidth: 0, gap: espaco(0.5) },
+  linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexWrap: 'wrap' },
+  numeros: { marginTop: espaco(0.5), gap: espaco(1.5) },
+  reservado: { marginTop: espaco(0.5), flexWrap: 'nowrap' },
+  // Nível num selo de contorno na cor do colega; o número fica na cor do texto (o laranja do claro não serve de texto).
+  nivel: { borderWidth: 2, borderRadius: 999, paddingHorizontal: espaco(1.25), paddingVertical: 2 },
+  meu: { gap: espaco(1) },
 });

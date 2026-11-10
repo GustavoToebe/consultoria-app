@@ -107,6 +107,7 @@ export function textoDoValor(destino: DestinoNoPerfil, v: ValorDoCadastro | null
     return sexo ? ROTULO_DO_SEXO[sexo] : SEM_DADO;
   }
   if (destino === 'ENDERECO') return enderecoParaLeitura(v.endereco)?.replace('\n', ' · ') || SEM_DADO;
+  if (destino === 'DATA_NASCIMENTO') return dataParaTela(v.texto ?? null) || SEM_DADO;
   if (v.pesoKg == null) return SEM_DADO;
   const data = dataParaTela(v.data ?? null);
   return `${numeroParaTela(v.pesoKg, 1)} kg${data ? ` em ${data}` : ''}`;

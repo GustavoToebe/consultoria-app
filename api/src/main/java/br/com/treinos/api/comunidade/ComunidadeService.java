@@ -13,6 +13,7 @@ import br.com.treinos.api.web.LinksExternos;
 import br.com.treinos.api.web.NaoEncontradoException;
 import br.com.treinos.api.web.ValidacaoException;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +31,8 @@ public class ComunidadeService {
 
     /** Teto de cada lista da exportação; é o mesmo dos {@code findTop5000By...} dos repositórios. */
     private static final int LIMITE_DA_EXPORTACAO = 5000;
+    private static final int TAMANHO_DA_PAGINA = 30;
+    private static final int TAMANHO_MAXIMO = 100;
 
     private final ComunidadeAulaRepository aulas;
     private final ComunidadeAulaComentarioRepository aulaComentarios;
@@ -100,14 +103,22 @@ public class ComunidadeService {
     }
 
     @Transactional(readOnly = true)
-    public List<ComentarioResponse> listarComentariosAula(UUID aulaId, UsuarioAutenticado eu) {
+    public PaginaDeComentarios listarComentariosAula(UUID aulaId, UsuarioAutenticado eu, Integer pagina, Integer tamanho) {
         exigirAula(aulaId, eu);
-        List<ComunidadeAulaComentario> lista = aulaComentarios.findByAulaIdAndOcultoFalseOrderByCriadoEmAsc(aulaId);
-        Map<UUID, String> apelidos = apelidosDe(lista.stream().map(ComunidadeAulaComentario::getAutorId));
-        return lista.stream()
+        Page<ComunidadeAulaComentario> pg = aulaComentarios.findByAulaIdAndOcultoFalseOrderByCriadoEmAscIdAsc(aulaId,
+                paginar(pagina, tamanho));
+        Map<UUID, String> apelidos = apelidosDe(pg.getContent().stream().map(ComunidadeAulaComentario::getAutorId));
+        return new PaginaDeComentarios(pg.getContent().stream()
                 .map(c -> new ComentarioResponse(c.getId(), c.getAutorId(), c.getAutorNome(), apelidos.get(c.getAutorId()),
                         apelidos.containsKey(c.getAutorId()), c.getAutorFotoUrl(), c.getTexto(), c.getCriadoEm()))
-                .toList();
+                .toList(), pg.getTotalElements());
+    }
+
+    /** Mesma convenção de GET /atualizacoes/pagina: base 0, 30 por padrão, entre 1 e 100; a ordem tem desempate por id. */
+    private static Pageable paginar(Integer pagina, Integer tamanho) {
+        int tam = tamanho == null ? TAMANHO_DA_PAGINA : Math.max(1, Math.min(tamanho, TAMANHO_MAXIMO));
+        // O deslocamento (pagina * tam) precisa caber num int: página além disso vira a última possível (lista vazia, total real).
+        return PageRequest.of(Math.max(0, Math.min(pagina == null ? 0 : pagina, Integer.MAX_VALUE / tam)), tam);
     }
 
     public ComentarioResponse adicionarComentarioAula(UUID aulaId, String texto, UsuarioAutenticado eu) {
@@ -202,14 +213,15 @@ public class ComunidadeService {
     }
 
     @Transactional(readOnly = true)
-    public List<ComentarioResponse> listarComentariosMural(UUID postId) {
+    public PaginaDeComentarios listarComentariosMural(UUID postId, Integer pagina, Integer tamanho) {
         exigirPostVisivel(postId);
-        List<ComunidadeMuralComentario> lista = muralComentarios.findByPostIdAndOcultoFalseOrderByCriadoEmAsc(postId);
-        Map<UUID, String> apelidos = apelidosDe(lista.stream().map(ComunidadeMuralComentario::getAutorId));
-        return lista.stream()
+        Page<ComunidadeMuralComentario> pg = muralComentarios.findByPostIdAndOcultoFalseOrderByCriadoEmAscIdAsc(postId,
+                paginar(pagina, tamanho));
+        Map<UUID, String> apelidos = apelidosDe(pg.getContent().stream().map(ComunidadeMuralComentario::getAutorId));
+        return new PaginaDeComentarios(pg.getContent().stream()
                 .map(c -> new ComentarioResponse(c.getId(), c.getAutorId(), c.getAutorNome(), apelidos.get(c.getAutorId()),
                         apelidos.containsKey(c.getAutorId()), c.getAutorFotoUrl(), c.getTexto(), c.getCriadoEm()))
-                .toList();
+                .toList(), pg.getTotalElements());
     }
 
     public ComentarioResponse adicionarComentarioMural(UUID postId, String texto, UsuarioAutenticado eu) {
@@ -263,24 +275,6 @@ public class ComunidadeService {
         return mapa;
     }
 
-    // ---- Perfil do colega ----
-
-    /**
-     * Perfil de um aluno ativo da mesma consultoria, a partir do id de usuário que o mural expõe. Equipe, inexistente, inativo,
-     * anonimizado e de outra consultoria dão o mesmo 404. Só dado público da comunidade: as conquistas são as já desbloqueadas
-     * (nenhuma é gravada numa leitura de GET) e os treinos concluídos são a contagem que o ranking já usa.
-     */
-    @Transactional(readOnly = true)
-    public PerfilResponse perfilDoColega(UUID autorId, UsuarioAutenticado eu) {
-        Aluno aluno = alunos.findByUsuarioId(autorId).filter(a -> a.isAtivo() && !a.isAnonimizado())
-                .orElseThrow(() -> new NaoEncontradoException("Perfil não encontrado."));
-        int treinos = (int) sessoes.countByAlunoIdAndSituacaoAndConcluidaTrue(aluno.getId(), "ACEITO");
-        List<ConquistaResponse> deles = conquistas.findByAlunoIdOrderByConquistadaEmDesc(aluno.getId()).stream()
-                .map(c -> new ConquistaResponse(c.getId(), c.getTipo(), c.getTitulo(), c.getDescricao(), c.getIcone(), c.getConquistadaEm()))
-                .toList();
-        return new PerfilResponse(autorId, aluno.getNome(), aluno.getApelido(), treinos, deles, autorId.equals(eu.usuarioId()));
-    }
-
     // ---- Conquistas ----
 
     public List<ConquistaResponse> minhasConquistas(UUID alunoId) {
@@ -330,9 +324,12 @@ public class ComunidadeService {
         var minhasConquistas = conquistas.findByAlunoIdOrderByConquistadaEmDesc(alunoId).stream()
                 .map(c -> new ConquistaResponse(c.getId(), c.getTipo(), c.getTitulo(), c.getDescricao(), c.getIcone(), c.getConquistadaEm()))
                 .toList();
+        var perfil = new PerfilExportado(aluno.getPerfilReservado(), aluno.getPerfilDestaques(),
+                aluno.getPerfilCor() == null ? null : aluno.getPerfilCor().name(),
+                aluno.getPerfilMoldura() == null ? null : aluno.getPerfilMoldura().name());
         UUID usuarioId = aluno.getUsuarioId();
         if (usuarioId == null) {
-            return new ComunidadeExportada(aluno.getApelido(), List.of(), List.of(), List.of(), List.of(), minhasConquistas, false);
+            return new ComunidadeExportada(aluno.getApelido(), perfil, List.of(), List.of(), List.of(), List.of(), minhasConquistas, false);
         }
         var posts = muralPosts.findTop5000ByAutorIdOrderByCriadoEmDesc(usuarioId).stream()
                 .map(p -> new PostExportado(p.getId(), p.getTexto(), p.getImagemUrl(), p.isFixado(), p.isOculto(), p.getCriadoEm()))
@@ -348,6 +345,6 @@ public class ComunidadeService {
                 .toList();
         boolean truncado = posts.size() == LIMITE_DA_EXPORTACAO || deAulas.size() == LIMITE_DA_EXPORTACAO
                 || doMural.size() == LIMITE_DA_EXPORTACAO || reacoes.size() == LIMITE_DA_EXPORTACAO;
-        return new ComunidadeExportada(aluno.getApelido(), posts, deAulas, doMural, reacoes, minhasConquistas, truncado);
+        return new ComunidadeExportada(aluno.getApelido(), perfil, posts, deAulas, doMural, reacoes, minhasConquistas, truncado);
     }
 }

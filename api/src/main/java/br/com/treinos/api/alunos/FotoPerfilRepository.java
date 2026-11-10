@@ -4,6 +4,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -12,4 +14,8 @@ public interface FotoPerfilRepository extends JpaRepository<FotoPerfil, UUID> {
     /** Só a data, sem carregar os bytes (exportação). */
     @Query("select f.atualizadaEm from FotoPerfil f where f.alunoId = :alunoId")
     Optional<Instant> atualizadaEm(UUID alunoId);
+
+    /** Quais desses alunos têm foto, sem carregar os bytes (lista de colegas da comunidade); a consultoria sai do tenant. */
+    @Query("select f.alunoId from FotoPerfil f where f.alunoId in :alunoIds")
+    List<UUID> comFoto(Collection<UUID> alunoIds);
 }

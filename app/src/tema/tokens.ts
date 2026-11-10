@@ -231,6 +231,29 @@ export function corDaAgenda(chave: string | null | undefined, escuro: boolean): 
 }
 
 /**
+ * Cores de identificação que só o perfil da Comunidade usa (decisão do Gustavo de 10/11: laranja de verdade, não o TERRA).
+ * Ficam fora de `PALETA_DA_AGENDA` porque a API das agendas não aceita estas chaves e o seletor de agenda percorre
+ * `CHAVES_DA_AGENDA`. Mesma regra das agendas: par claro/escuro, não muda no contraste alto, marcador ≥ 3:1 sobre o fundo e
+ * as superfícies de todas as paletas e longe das cores de status e das oito das agendas (`tokens.test.ts`). O laranja do
+ * claro passa só como marcador (anel, amostra, quadradinho): nunca vira texto; o do escuro também passa 4,5:1.
+ */
+export type CorSoDoPerfil = 'LARANJA';
+
+export const PALETA_SO_DO_PERFIL: Record<'claro' | 'escuro', Record<CorSoDoPerfil, string>> = {
+  claro: { LARANJA: '#D15700' },
+  escuro: { LARANJA: '#FF7A1A' },
+};
+
+/** Tom de uma cor do perfil: uma das agendas ou uma só do perfil. */
+export type TomDoPerfil = CorDaAgenda | CorSoDoPerfil;
+
+/** Cor do anel e da amostra do perfil no tema em uso; o que não é só do perfil sai da paleta das agendas. */
+export function corDoTomDoPerfil(tom: TomDoPerfil, escuro: boolean): string {
+  const so = PALETA_SO_DO_PERFIL[escuro ? 'escuro' : 'claro'];
+  return Object.hasOwn(so, tom) ? so[tom as CorSoDoPerfil] : corDaAgenda(tom, escuro);
+}
+
+/**
  * Paleta de IDENTIFICAÇÃO (Frente G, D9 a D14, prévia `docs/prototipos/cores-por-tipo-de-serie.html` aprovada em 03/11):
  * a cor diz QUAL tipo de série, divisão ou refeição é, nunca status (D6); o selo de texto continua (D7). Só ciano, azul,
  * índigo, violeta e magenta: sem verde, âmbar, vermelho nem cinza (D11). Claro e areia usam a mesma cor; o escuro, a

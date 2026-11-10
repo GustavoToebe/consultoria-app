@@ -7,11 +7,14 @@ import {
   alternarReacaoDoAluno, listarAulasDoAluno, listarMinhasConquistas, listarMuralDoAluno, obterMeuRanking,
   publicarNoMuralDoAluno,
 } from '../../api/comunidade';
+import type { AlvoDosComentarios } from '../../api/comunidadeTipos';
+import { AvisoDoPerfilNaComunidade } from '../../aluno/AvisoDoPerfil';
 import { AutorDoPost } from '../../comunidade/AutorDoPost';
 import { FolhaComentarios } from '../../comunidade/FolhaComentarios';
 import { FolhaPerfilDoColega } from '../../comunidade/FolhaPerfilDoColega';
+import { ListaDeColegas } from '../../comunidade/ListaDeColegas';
 import { curtidoPorMim, EMOJI_DA_CURTIDA, textoDaPosicao, totalDeCurtidas } from '../../dominio/comunidade';
-import { dataHoraParaTela } from '../../dominio/formatos';
+import { dataParaTela } from '../../dominio/formatos';
 import { useAluno } from '../../offline/AlunoProvider';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, RAIO } from '../../tema/tokens';
@@ -32,7 +35,7 @@ import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 
-type AbaComunidade = 'mural' | 'auloes' | 'ranking';
+type AbaComunidade = 'mural' | 'auloes' | 'ranking' | 'colegas';
 
 /** Estado de uma fonte da tela: carregando, erro (com tentar de novo) ou vazio; `null` = mostrar os dados. */
 function EstadoDaFonte({ carregando, erro, vazio, textoVazio, recarregar }: {
@@ -45,7 +48,7 @@ function EstadoDaFonte({ carregando, erro, vazio, textoVazio, recarregar }: {
 }
 
 /**
- * Comunidade do aluno: mural do time, aulões, conquistas e a própria posição no ranking. Tudo vem da API e nada fica no aparelho:
+ * Comunidade do aluno: mural do time, aulões, conquistas, a própria posição no ranking e os colegas com perfil visível. Tudo vem da API e nada fica no aparelho:
  * sem conexão a tela só avisa. O apelido aparece ao lado do nome do autor; tocar num autor que é aluno abre o perfil dele.
  */
 export default function ComunidadeAluno() {
@@ -54,7 +57,7 @@ export default function ComunidadeAluno() {
   const { avisar } = useAviso();
   const params = useLocalSearchParams<{ aba?: string; compartilharTreino?: string; tituloTreino?: string }>();
   // A aba mora no endereço (`?aba=`). `setParams` mantém a tela montada (o rascunho fica) e preserva os outros parâmetros.
-  const aba: AbaComunidade = params.aba === 'auloes' || params.aba === 'ranking' ? params.aba : 'mural';
+  const aba: AbaComunidade = params.aba === 'auloes' || params.aba === 'ranking' || params.aba === 'colegas' ? params.aba : 'mural';
   const setAba = (valor: AbaComunidade) => { if (valor !== aba) router.setParams({ aba: valor }); };
 
   const mural = useCarregar(online ? 'mural-posts' : null, () => listarMuralDoAluno());
@@ -65,10 +68,8 @@ export default function ComunidadeAluno() {
   const [criandoPost, setCriandoPost] = useState(false);
   // Autor (usuário) cujo perfil está aberto na folha; `null` = fechada.
   const [perfilAberto, setPerfilAberto] = useState<string | null>(null);
-  // Sem internet a folha fecha de vez: não reabre sozinha quando a conexão volta.
-  if (!online && perfilAberto) setPerfilAberto(null);
-  // Post cujos comentários estão abertos; a folha fica aberta sem internet (o campo trava com o motivo).
-  const [comentariosDe, setComentariosDe] = useState<string | null>(null);
+  // Post ou aula cujos comentários estão abertos; a folha fica aberta sem internet (o campo trava com o motivo).
+  const [comentariosDe, setComentariosDe] = useState<AlvoDosComentarios | null>(null);
   const auloes = useCarregar(online ? 'auloes-lista' : null, () => listarAulasDoAluno());
   const ranking = useCarregar(online ? 'ranking-lista' : null, () => obterMeuRanking());
   const conquistas = useCarregar(online ? 'conquistas-lista' : null, () => listarMinhasConquistas());
@@ -102,11 +103,12 @@ export default function ComunidadeAluno() {
 
   return (
     <Tela bordas={['top']} largura={720}>
-      <Cabecalho titulo="Comunidade" subtitulo="Mural do time, aulões e conquistas da sua consultoria." />
+      <Cabecalho titulo="Comunidade" subtitulo="Mural do time, aulões, conquistas e colegas da sua consultoria." />
+      <AvisoDoPerfilNaComunidade online={online} />
 
       {!online ? (
         <Cartao>
-          <Vazio Icone={WifiOff} texto="Sem conexão. O mural, os aulões e as conquistas aparecem quando o aparelho voltar a ter internet." />
+          <Vazio Icone={WifiOff} texto="Sem conexão. O mural, os aulões, as conquistas e os colegas aparecem quando o aparelho voltar a ter internet." />
         </Cartao>
       ) : (
         <>
@@ -117,6 +119,7 @@ export default function ComunidadeAluno() {
               { valor: 'mural', rotulo: 'Mural' },
               { valor: 'auloes', rotulo: 'Aulões' },
               { valor: 'ranking', rotulo: 'Conquistas' },
+              { valor: 'colegas', rotulo: 'Colegas' },
             ]}
           />
 
@@ -166,7 +169,7 @@ export default function ComunidadeAluno() {
                       <Pressable
                         accessibilityRole="button"
                         accessibilityLabel={`Ver ${p.totalComentarios} comentário(s)`}
-                        onPress={() => setComentariosDe(p.id)}
+                        onPress={() => setComentariosDe({ tipo: 'post', id: p.id })}
                         style={(estado) => [estilos.interacao, sobre(estado) && { backgroundColor: cores.superficie3 }]}>
                         <MessageSquare size={18} color={cores.texto} aria-hidden />
                         <Texto variante="suave" cor={cores.texto} numerico>{p.totalComentarios} comentário(s)</Texto>
@@ -190,6 +193,16 @@ export default function ComunidadeAluno() {
                       <Botao rotulo="Assistir ao aulão" tipo="secundario" Icone={Video} aoTocar={() => void abrir(a.videoUrl)} />
                     </LinhaDeAcoes>
                   ) : null}
+                  <View style={[estilos.linha, estilos.rodapePost, { borderTopColor: cores.divisor }]}>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Ver ${a.totalComentarios} comentário(s) do aulão ${a.titulo}`}
+                      onPress={() => setComentariosDe({ tipo: 'aula', id: a.id })}
+                      style={(estado) => [estilos.interacao, sobre(estado) && { backgroundColor: cores.superficie3 }]}>
+                      <MessageSquare size={18} color={cores.texto} aria-hidden />
+                      <Texto variante="suave" cor={cores.texto} numerico>{a.totalComentarios} comentário(s)</Texto>
+                    </Pressable>
+                  </View>
                 </Cartao>
               ))}
             </View>
@@ -210,7 +223,7 @@ export default function ComunidadeAluno() {
                         <View style={estilos.seloCentral}>
                           <Selo texto="Conquistada" tipo="sucesso" />
                         </View>
-                        <Texto variante="pequeno" cor={cores.textoSuave} numerico style={estilos.centro}>{dataHoraParaTela(c.conquistadaEm)}</Texto>
+                        <Texto variante="pequeno" cor={cores.textoSuave} numerico style={estilos.centro}>{dataParaTela(c.conquistadaEm)}</Texto>
                       </View>
                     ))}
                   </View>
@@ -234,10 +247,13 @@ export default function ComunidadeAluno() {
               </Cartao>
             </View>
           ) : null}
+
+          {aba === 'colegas' ? <ListaDeColegas aoAbrir={setPerfilAberto} /> : null}
         </>
       )}
-      <FolhaPerfilDoColega autorId={perfilAberto} aoFechar={() => setPerfilAberto(null)} />
-      <FolhaComentarios postId={comentariosDe} modo={{ tipo: 'aluno', online }} aoFechar={() => setComentariosDe(null)} aoAlterar={mural.recarregar} />
+      <FolhaPerfilDoColega autorId={perfilAberto} online={online} aoFechar={() => setPerfilAberto(null)} />
+      <FolhaComentarios alvo={comentariosDe} modo={{ tipo: 'aluno', online }} aoFechar={() => setComentariosDe(null)}
+        aoAlterar={comentariosDe?.tipo === 'aula' ? auloes.recarregar : mural.recarregar} />
     </Tela>
   );
 }

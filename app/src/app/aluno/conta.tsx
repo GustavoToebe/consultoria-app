@@ -7,6 +7,7 @@ import { CartaoExcluirConta } from '../../aluno/CartaoExcluirConta';
 import { CartaoUsoDeImagem } from '../../aluno/CartaoUsoDeImagem';
 import { CartaoCiclo } from '../../aluno/CartaoCiclo';
 import { CartaoFotoDePerfil } from '../../aluno/CartaoFotoDePerfil';
+import { CartaoMeuPerfil } from '../../aluno/CartaoMeuPerfil';
 import { CartaoMeusDados } from '../../aluno/CartaoMeusDados';
 import { InterruptorDeLembretesDeCompromisso } from '../../aluno/compromissos/InterruptorDeLembretesDeCompromisso';
 import { InterruptorDeAvisoNoCelular } from '../../aluno/push/InterruptorDeAvisoNoCelular';
@@ -50,6 +51,7 @@ export default function ContaAluno() {
       <CartaoFotoDePerfil />
       <CartaoMeusDados />
       <CartaoApelido />
+      <CartaoMeuPerfil />
       <CartaoCiclo />
       <CartaoMeuPlano />
       <Cartao titulo="Sincronização" descricao="Os registros ficam salvos neste aparelho e vão para o seu treinador quando houver internet.">

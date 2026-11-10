@@ -710,4 +710,39 @@ class AnamnesePerfilIntegrationTest extends AbstractIntegrationTest {
         assertThat(ficha(x[0]).path("sexo").asString()).isEqualTo("MASCULINO");
         assertThat(api.get("/aluno/ciclo", x[1], 200).path("disponivel").asBoolean()).isFalse();
     }
+
+    @Test
+    void dataDeNascimentoPreencheVazioViraPendenciaSeDiferenteEForaDaFaixaNaoFazNada() throws Exception {
+        Map<String, Object> conteudo = Map.of("instrucoes", List.of(), "secoes", List.of(Map.of("uid", "s1", "titulo", "Cadastro",
+                "perguntas", List.of(Map.of("id", "nasc", "tipo", "DATA", "rotulo", "Nascimento", "obrigatoria", false,
+                        "destino", "DATA_NASCIMENTO")))));
+        JsonNode q = publicar(treinador, conteudo);
+        JsonNode[] x = alunoComAnamnese(null, q);
+        assertThat(semValor(ficha(x[0]).path("dataNascimento"))).isTrue();
+
+        // Cadastro vazio: preenche no envio (já aplicada, automática).
+        enviar(x[1], x[0], Map.of("nasc", "1990-05-20"), 200);
+        assertThat(ficha(x[0]).path("dataNascimento").asString()).isEqualTo("1990-05-20");
+        assertThat(alteracao(detalhe(x[0], treinador), "DATA_NASCIMENTO").path("situacao").asString()).isEqualTo("APLICADA");
+
+        // Igual não faz nada; diferente vira pendência e só o aplicar grava.
+        JsonNode igual = api.post("/alunos/" + alunoId(x[0]) + "/anamneses", treinador, Map.of("questionarioId", q.path("id").asString()), 200);
+        enviar(x[1], igual, Map.of("nasc", "1990-05-20"), 200);
+        assertThat(detalhe(igual, treinador).path("alteracoes")).isEmpty();
+
+        JsonNode outra = api.post("/alunos/" + alunoId(x[0]) + "/anamneses", treinador, Map.of("questionarioId", q.path("id").asString()), 200);
+        enviar(x[1], outra, Map.of("nasc", "1991-01-02"), 200);
+        JsonNode pendente = alteracao(detalhe(outra, treinador), "DATA_NASCIMENTO");
+        assertThat(pendente.path("situacao").asString()).isEqualTo("PENDENTE");
+        assertThat(pendente.path("valorAtual").path("texto").asString()).isEqualTo("1990-05-20");
+        assertThat(ficha(x[0]).path("dataNascimento").asString()).isEqualTo("1990-05-20");
+        api.post(acao(outra, pendente.path("id").asString(), "aplicar"), treinador, null, 200);
+        assertThat(ficha(x[0]).path("dataNascimento").asString()).isEqualTo("1991-01-02");
+
+        // Data de amanhã (a pergunta DATA aceita futuro) fica fora da faixa de registro: nada é gravado nem proposto.
+        JsonNode futura = api.post("/alunos/" + alunoId(x[0]) + "/anamneses", treinador, Map.of("questionarioId", q.path("id").asString()), 200);
+        enviar(x[1], futura, Map.of("nasc", LocalDate.now(Fuso.BRASILIA).plusDays(1).toString()), 200);
+        assertThat(detalhe(futura, treinador).path("alteracoes")).isEmpty();
+        assertThat(ficha(x[0]).path("dataNascimento").asString()).isEqualTo("1991-01-02");
+    }
 }
