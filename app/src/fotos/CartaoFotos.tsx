@@ -1,4 +1,4 @@
-import { Image } from 'expo-image';
+import { CircleCheck } from 'lucide-react-native';
 import { Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useState } from 'react';
 
@@ -50,12 +50,19 @@ import { Esqueleto } from '../ui/Esqueleto';
 import { MensagemErro } from '../ui/Estados';
 import { Folha } from '../ui/Folha';
 import { ImagemProtegida } from '../ui/ImagemProtegida';
+import { LinhaDeAcoes } from '../ui/LinhaDeAcoes';
 import { Texto } from '../ui/Texto';
 import { textoDoErro } from '../ui/erros';
 import { useCarregar } from '../ui/useCarregar';
 import { baixarComparacao } from './baixarComparacao';
+import { PreviaDaImagem } from './PreviaDaImagem';
 
 const AVISO_AUTORIZACAO = 'O aluno ainda não autorizou o uso das fotos. Ele autoriza em Conta › Uso das suas fotos.';
+/** Teto da largura de cada foto na comparação: em tela larga o par fica junto, em vez de espalhado pelo cartão. */
+const LARGURA_MAXIMA_DA_FOTO = 280;
+const ESPACO_ENTRE_FOTOS = espaco(1);
+/** Mesma área para todas as fotos, em retrato (3:4, o formato comum da câmera do celular em pé). */
+const PROPORCAO_DA_FOTO = 3 / 4;
 
 /**
  * Fotos do aluno: lista e comparação. Na ficha do treinador também gera a imagem.
@@ -102,8 +109,8 @@ function Corpo({ fotos, baixar, gerar, autorizadoEm, aoRecarregar }: {
   autorizadoEm: string | null;
   aoRecarregar?: () => void;
 }) {
-  const { width } = useWindowDimensions();
-  const estreita = width < LARGURA_MENU_LATERAL;
+  const { cores } = useTema();
+  const [larguraDaFileira, setLarguraDaFileira] = useState(0);
   const [visao, setVisao] = useState<'lista' | 'comparar'>('lista');
   const [posicaoEscolhida, setPosicaoEscolhida] = useState<string | null>(null);
   const [datasMarcadas, setDatasMarcadas] = useState<Set<string>>(new Set());
@@ -125,6 +132,10 @@ function Corpo({ fotos, baixar, gerar, autorizadoEm, aoRecarregar }: {
     .filter((f): f is FotoDaLinha => !!f);
   const pontas = escolhidas.length >= MINIMO_DATAS ? textoDaDiferenca(escolhidas[0], escolhidas[escolhidas.length - 1]) : null;
   const colunas = colunasNaTela(escolhidas.length);
+  // Largura de cada foto: a fileira dividida pelas fotos, até o teto (em tela larga o par fica junto, não espalhado).
+  const foto = larguraDaFileira > 0
+    ? Math.min(LARGURA_MAXIMA_DA_FOTO, Math.floor((larguraDaFileira - ESPACO_ENTRE_FOTOS * (colunas - 1)) / colunas))
+    : 0;
   const carrossel = grupo && marcadas.length === 2 ? paresNaOrdem(grupo.fotos, marcadas[0], marcadas[1]) : [];
   const imagensDaFolha: ImagemDaComparacao[] = folha === 'carrossel'
     ? carrossel
@@ -168,31 +179,38 @@ function Corpo({ fotos, baixar, gerar, autorizadoEm, aoRecarregar }: {
             aoTocar={() => setDatasMarcadas(new Set(primeiraEUltima(datas)))}
           />
           {escolhidas.length >= MINIMO_DATAS ? (
-            <View style={[estilos.grade, estilos.fileira]} accessibilityLabel="Prévia da comparação">
-              {escolhidas.map((foto) => {
-                const varias = fotosDaData(grupo.fotos, foto.data).length > 1;
-                return (
-                  <View key={foto.fotoId} style={[estilos.celula, { maxWidth: `${Math.floor(100 / colunas)}%` }]}>
-                    <ImagemProtegida
-                      chave={`comparar:${foto.fotoId}`}
-                      carregar={() => baixar(foto)}
-                      descricao={`${foto.posicao} ${rotuloDaData(grupo.fotos, foto.data)}`}
-                      tamanho={400}
-                      altura={estreita ? 175 : 225}
-                      aoTocar={varias ? () => setTrocas((atual) => ({ ...atual, [foto.data]: proximaFoto(grupo.fotos, foto.data, foto.fotoId) })) : undefined}
-                    />
-                    <Texto numerico variante="pequeno">{rotuloDaData(grupo.fotos, foto.data)}</Texto>
-                    <Texto numerico variante="pequeno">{foto.pesoKg == null ? SEM_DADO : `${numeroParaTela(foto.pesoKg)} kg`}</Texto>
-                  </View>
-                );
-              })}
+            // O par e o resumo formam um bloco: o resumo fica colado embaixo das fotos, as ações vêm depois.
+            <View style={estilos.par}>
+              {/* A fileira ocupa a largura do cartão só para ser medida; as fotos têm largura fixa e ficam juntas à esquerda. */}
+              <View style={estilos.fileira} role="group" accessibilityLabel="Prévia da comparação" onLayout={(e) => setLarguraDaFileira(e.nativeEvent.layout.width)}>
+                {foto > 0 ? escolhidas.map((f) => {
+                  const varias = fotosDaData(grupo.fotos, f.data).length > 1;
+                  return (
+                    <View key={f.fotoId} style={[estilos.celula, { width: foto }]}>
+                      {/* Mesma área para todas e a foto inteira (`contain`): nada é cortado de um lado só. */}
+                      <ImagemProtegida
+                        chave={`comparar:${f.fotoId}`}
+                        carregar={() => baixar(f)}
+                        descricao={`${f.posicao} ${rotuloDaData(grupo.fotos, f.data)}`}
+                        tamanho={foto}
+                        altura={Math.round(foto / PROPORCAO_DA_FOTO)}
+                        ajuste="contain"
+                        aoTocar={varias ? () => setTrocas((atual) => ({ ...atual, [f.data]: proximaFoto(grupo.fotos, f.data, f.fotoId) })) : undefined}
+                      />
+                      <Texto numerico variante="rotulo" cor={cores.texto}>{rotuloDaData(grupo.fotos, f.data)}</Texto>
+                      <Texto numerico>{f.pesoKg == null ? SEM_DADO : `${numeroParaTela(f.pesoKg)} kg`}</Texto>
+                    </View>
+                  );
+                }) : null}
+              </View>
+              {/* Variação neutra: sem cor nem "melhorou", porque subir ou descer de peso só tem sentido com a meta. */}
+              {pontas ? <Texto numerico>{pontas}</Texto> : null}
             </View>
           ) : (
             <Texto variante="suave">Escolha de 2 a 4 datas.</Texto>
           )}
-          {pontas ? <Texto numerico>{pontas}</Texto> : null}
           {gerar ? (
-            <View style={estilos.chips}>
+            <LinhaDeAcoes>
               <Botao
                 rotulo="Gerar imagem"
                 tipo="secundario"
@@ -202,7 +220,7 @@ function Corpo({ fotos, baixar, gerar, autorizadoEm, aoRecarregar }: {
               {carrossel.length >= 2 ? (
                 <Botao rotulo="Gerar carrossel" tipo="secundario" aoTocar={() => setFolha('carrossel')} />
               ) : null}
-            </View>
+            </LinhaDeAcoes>
           ) : null}
         </View>
       ) : null}
@@ -211,19 +229,16 @@ function Corpo({ fotos, baixar, gerar, autorizadoEm, aoRecarregar }: {
           <ImagemProtegida chave={`grande:${ampliada.fotoId}`} carregar={() => baixar(ampliada)} descricao={ampliada.posicao} tamanho={360} altura={450} />
         ) : null}
       </Folha>
-      {gerar ? (
-        <Folha titulo={folha === 'carrossel' ? 'Gerar carrossel' : 'Gerar imagem'} visivel={folha !== null} aoFechar={() => setFolha(null)} largura={LARGURA_EDITOR}>
-          {folha ? (
-            <FolhaGerar
-              imagens={imagensDaFolha}
-              baixar={baixar}
-              gerar={gerar}
-              autorizadoEm={autorizadoEm}
-              aoFechar={() => setFolha(null)}
-              aoRecarregar={aoRecarregar}
-            />
-          ) : null}
-        </Folha>
+      {gerar && folha ? (
+        <FolhaGerar
+          titulo={folha === 'carrossel' ? 'Gerar carrossel' : 'Gerar imagem'}
+          imagens={imagensDaFolha}
+          baixar={baixar}
+          gerar={gerar}
+          autorizadoEm={autorizadoEm}
+          aoFechar={() => setFolha(null)}
+          aoRecarregar={aoRecarregar}
+        />
       ) : null}
     </View>
   );
@@ -278,14 +293,27 @@ function Chip({ rotulo, marcado, aoTocar }: { rotulo: string; marcado: boolean; 
       aria-selected={marcado}
       accessibilityLabel={rotulo}
       onPress={aoTocar}
-      style={[estilos.chip, { borderColor: marcado ? cores.texto : cores.borda, backgroundColor: marcado ? cores.superficie2 : cores.superficie }]}
+      // Seleção invertida (fundo `texto`, letra `fundo`), como no `Escolha`: reconhecível sem depender só da borda.
+      style={[estilos.chip, { borderColor: marcado ? cores.texto : cores.borda, backgroundColor: marcado ? cores.texto : cores.superficie }]}
     >
-      <Texto>{rotulo}</Texto>
+      <Texto cor={marcado ? cores.fundo : cores.texto}>{rotulo}</Texto>
     </Pressable>
   );
 }
 
-function FolhaGerar({ imagens, baixar, gerar, autorizadoEm, aoFechar, aoRecarregar }: {
+/** Largura útil do corpo a partir da qual prévia e configurações ficam lado a lado (no celular, empilhadas). */
+const LARGURA_LADO_A_LADO = 640;
+/** Coluna das configurações no PC: curta, para o switch ficar perto do rótulo e o formato caber numa linha. */
+const LARGURA_CONFIGURACOES = 320;
+/** Altura da prévia de uma imagem: o Stories cabe inteiro no corpo da folha sem rolar (cabeçalho, rodapé e rótulo à parte). */
+const ALTURA_MINIMA_PREVIA = 240;
+const ALTURA_MAXIMA_PREVIA = 560;
+const FOLGA_DA_FOLHA = 230;
+/** No carrossel, cada prévia é menor para caberem lado a lado. */
+const ALTURA_MAXIMA_CARROSSEL = 220;
+
+function FolhaGerar({ titulo, imagens, baixar, gerar, autorizadoEm, aoFechar, aoRecarregar }: {
+  titulo: string;
   imagens: ImagemDaComparacao[];
   baixar: (foto: FotoDaLinha) => Promise<Blob>;
   gerar: (pedido: PedidoDeComparacao) => Promise<Blob>;
@@ -293,9 +321,12 @@ function FolhaGerar({ imagens, baixar, gerar, autorizadoEm, aoFechar, aoRecarreg
   aoFechar: () => void;
   aoRecarregar?: () => void;
 }) {
-  const { preferencias, escolherPreferencia } = useTema();
+  const { cores, preferencias, escolherPreferencia } = useTema();
   const { marca } = useSessao();
-  const { cores } = useTema();
+  const { width, height } = useWindowDimensions();
+  // Mesmo corte da `Folha`: caixa centralizada a partir dele, folha de baixo no celular.
+  const centralizada = width >= LARGURA_MENU_LATERAL;
+  const [larguraUtil, setLarguraUtil] = useState(0);
   const temLogo = !!marca?.logoUrl;
   const [formato, setFormato] = useState<FormatoComparacao>('STORIES');
   const [comLogo, setComLogo] = useState(preferencias.logoNaComparacao && temLogo);
@@ -307,10 +338,21 @@ function FolhaGerar({ imagens, baixar, gerar, autorizadoEm, aoFechar, aoRecarreg
   const zip = comparacaoEmZip(formato, grupos.length);
   const visual = formatoDaPrevia(formato);
   const alturaCheia = visual === 'FEED' ? ALTURA_FEED : ALTURA_STORIES;
-  const alturaPrevia = imagens.length > 1 ? 220 : 460;
+
+  const ladoALado = larguraUtil >= LARGURA_LADO_A_LADO;
+  const areaDaPrevia = ladoALado ? larguraUtil - espaco(3) - LARGURA_CONFIGURACOES : larguraUtil;
+  const varias = imagens.length > 1;
+  const alturaLimite = varias
+    ? ALTURA_MAXIMA_CARROSSEL
+    : Math.max(ALTURA_MINIMA_PREVIA, Math.min(ALTURA_MAXIMA_PREVIA, centralizada ? Math.round(height * 0.9) - FOLGA_DA_FOLHA : Math.round(height * 0.5)));
+  // A vaga de cada prévia é calculada pelo formato mais largo (Feed): Stories e Feed têm a mesma altura e a mesma vaga,
+  // então trocar o formato não move as configurações nem o rodapé. No carrossel cabem ao menos duas por linha.
+  const porLinha = varias ? 2 : 1;
+  const vaga = Math.floor((areaDaPrevia - espaco(2) * (porLinha - 1)) / porLinha) - 2;
+  const alturaPrevia = Math.max(1, Math.min(alturaLimite, Math.floor((vaga * ALTURA_FEED) / LARGURA_IMAGEM)));
+  const larguraDaVaga = Math.round((alturaPrevia * LARGURA_IMAGEM) / ALTURA_FEED) + 2;
   const larguraPrevia = Math.max(1, Math.round((alturaPrevia * LARGURA_IMAGEM) / alturaCheia));
-  const quantidade = Math.max(2, ...imagens.map((imagem) => imagem.fotos.length));
-  const tile = Math.max(1, Math.floor((larguraPrevia - 4 * (quantidade - 1)) / quantidade));
+  const logoUrl = comLogo && temLogo && marca?.logoUrl ? urlDaApi(marca.logoUrl) : null;
 
   const mudarLogo = (ligada: boolean) => {
     if (!temLogo) return;
@@ -340,67 +382,88 @@ function FolhaGerar({ imagens, baixar, gerar, autorizadoEm, aoFechar, aoRecarreg
     );
   };
 
-  const rotuloBaixar = Platform.OS === 'web'
-    ? (zip ? 'Baixar zip' : 'Baixar imagem')
-    : (zip ? 'Compartilhar zip' : 'Compartilhar imagem');
+  const verbo = Platform.OS === 'web' ? 'Baixar' : 'Compartilhar';
+  const rotuloBaixar = zip ? `${verbo} imagens (.zip)` : `${verbo} imagem`;
+  const explicacaoDosDois = varias
+    ? `Sai um .zip com ${imagens.length} imagens em cada pasta, Stories e Feed. A prévia mostra o Stories.`
+    : 'Sai um .zip com duas imagens: o Stories na pasta Stories e o Feed retrato na pasta Feed. A prévia mostra o Stories.';
+
+  // A autorização aparece uma vez só: autorizado, como status ao lado da ação; sem autorização, como o motivo do botão.
+  const acao = (
+    <Botao
+      rotulo={rotuloBaixar}
+      desabilitado={!autorizado || grupos.length === 0}
+      motivo={autorizado ? undefined : AVISO_AUTORIZACAO}
+      carregando={baixando}
+      cheio={!centralizada}
+      aoTocar={baixarImagem}
+    />
+  );
+  const status = autorizado ? (
+    <View style={estilos.status}>
+      <CircleCheck size={16} color={cores.sucesso} strokeWidth={2.5} />
+      <Texto variante="suave" style={estilos.textoDoStatus}>Aluno autorizou em {dataParaTela(autorizadoEm)}</Texto>
+    </View>
+  ) : null;
+  // shortcut: arranjo do rodapé montado aqui (status à esquerda, ação à direita; em coluna no celular), trocar pelo rodapé único da Folha (passo 4a).
+  // O erro do "Baixar" fica no rodapé, junto da ação: no celular o corpo empilhado o esconderia abaixo da prévia.
+  // O rodapé fica preso ao pé da folha, então o erro cresce para cima e o botão não sai do lugar.
+  const rodape = (
+    <View style={[estilos.rodape, estilos.rodapeEmColuna]}>
+      {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} /> : null}
+      {centralizada
+        ? <LinhaDeAcoes alinhar={autorizado ? 'entre' : 'fim'}>{status}{acao}</LinhaDeAcoes>
+        : <View style={estilos.rodapeEmColuna}>{status}{acao}</View>}
+    </View>
+  );
 
   return (
-    <View style={estilos.corpo}>
-      {imagens.map((imagem) => (
-        <View key={imagem.chave} style={estilos.corpo}>
-          <Texto variante="rotulo">{imagem.rotulo}</Texto>
-          <View style={[estilos.previa, { width: larguraPrevia, height: alturaPrevia, backgroundColor: '#000' }]}>
-            <View accessibilityLabel="Prévia da imagem" style={[estilos.grade, estilos.fileira, { gap: 4, height: '100%' }]}>
-              {imagem.fotos.map((foto) => (
-                <ImagemProtegida
-                  key={foto.fotoId}
-                  chave={`gerar:${imagem.chave}:${foto.fotoId}`}
-                  carregar={() => baixar(foto)}
-                  descricao={imagem.rotulo}
-                  tamanho={tile}
-                  altura={alturaPrevia}
-                />
-              ))}
+    <Folha visivel titulo={titulo} aoFechar={aoFechar} largura={LARGURA_EDITOR} rodape={rodape}>
+      <View style={[estilos.gerar, ladoALado && estilos.gerarLadoALado]} onLayout={(e) => setLarguraUtil(Math.floor(e.nativeEvent.layout.width))}>
+        <View style={[estilos.previas, ladoALado && estilos.previasLadoALado]}>
+          {larguraUtil > 0 ? imagens.map((imagem) => (
+            <View key={imagem.chave} style={[estilos.vaga, { width: larguraDaVaga }]}>
+              <Texto variante="rotulo" style={estilos.rotuloDaVaga}>{imagem.rotulo}</Texto>
+              <PreviaDaImagem
+                chave={imagem.chave}
+                rotulo={imagem.rotulo}
+                fotos={imagem.fotos}
+                formato={visual}
+                largura={larguraPrevia}
+                altura={alturaPrevia}
+                logoUrl={logoUrl}
+                baixar={baixar}
+              />
             </View>
-            {comLogo && temLogo && marca?.logoUrl ? (
-              <View style={estilos.logo} pointerEvents="none">
-                <Image source={{ uri: urlDaApi(marca.logoUrl) }} style={estilos.logoImagem} contentFit="contain" accessibilityLabel="Logo da consultoria" />
-              </View>
-            ) : null}
+          )) : null}
+        </View>
+        <View style={[estilos.configuracoes, ladoALado && { width: LARGURA_CONFIGURACOES }]}>
+          <View style={estilos.grupo}>
+            <Escolha
+              rotulo="Formato"
+              valor={formato}
+              aoMudar={setFormato}
+              distribuida
+              opcoes={[
+                { valor: 'STORIES', rotulo: 'Stories' },
+                { valor: 'FEED', rotulo: 'Feed retrato' },
+                { valor: 'AMBOS', rotulo: 'Os dois' },
+              ]}
+            />
+            {formato === 'AMBOS' ? <Texto variante="pequeno">{explicacaoDosDois}</Texto> : null}
+          </View>
+          {/* O `Interruptor` estica o rótulo até a borda; numa caixa do tamanho do conteúdo o switch fica junto dele. */}
+          <View style={estilos.junto}>
+            <Interruptor
+              rotulo="Com a logo da consultoria"
+              valor={comLogo && temLogo}
+              aoMudar={mudarLogo}
+              ajuda={temLogo ? undefined : 'A consultoria não tem logo.'}
+            />
           </View>
         </View>
-      ))}
-      {formato === 'AMBOS' ? <Texto variante="suave">O Feed retrato sai junto, na pasta Feed.</Texto> : null}
-      <Escolha
-        rotulo="Formato"
-        valor={formato}
-        aoMudar={setFormato}
-        opcoes={[
-          { valor: 'STORIES', rotulo: 'Stories' },
-          { valor: 'FEED', rotulo: 'Feed retrato' },
-          { valor: 'AMBOS', rotulo: 'Os dois' },
-        ]}
-      />
-      <Interruptor
-        rotulo="Com a logo da consultoria"
-        valor={comLogo && temLogo}
-        aoMudar={mudarLogo}
-        ajuda={temLogo ? undefined : 'A consultoria não tem logo.'}
-      />
-      {autorizado ? (
-        <Texto style={{ color: cores.sucesso }}>Aluno autorizou em {dataParaTela(autorizadoEm)}</Texto>
-      ) : (
-        <Texto>{AVISO_AUTORIZACAO}</Texto>
-      )}
-      {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} /> : null}
-      <Botao
-        rotulo={rotuloBaixar}
-        desabilitado={!autorizado || grupos.length === 0}
-        motivo={autorizado ? undefined : AVISO_AUTORIZACAO}
-        carregando={baixando}
-        aoTocar={baixarImagem}
-      />
-    </View>
+      </View>
+    </Folha>
   );
 }
 
@@ -408,11 +471,22 @@ const estilos = StyleSheet.create({
   corpo: { gap: espaco(2) },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
   chip: { borderWidth: 1, borderRadius: RAIO, paddingHorizontal: espaco(2), paddingVertical: espaco(1), minHeight: 44, justifyContent: 'center' },
-  grade: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
-  fileira: { flexWrap: 'nowrap' },
-  celula: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minWidth: 0 },
+  par: { gap: espaco(1) },
+  fileira: { flexDirection: 'row', gap: ESPACO_ENTRE_FOTOS },
+  celula: { gap: 2 },
   envio: { gap: espaco(1) },
-  previa: { position: 'relative', alignSelf: 'center', borderRadius: RAIO, overflow: 'hidden' },
-  logo: { position: 'absolute', left: 0, right: 0, bottom: 12, alignItems: 'center' },
-  logoImagem: { width: '30%', height: 48 },
+  gerar: { gap: espaco(3) },
+  gerarLadoALado: { flexDirection: 'row', alignItems: 'flex-start' },
+  previas: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: espaco(2) },
+  previasLadoALado: { flex: 1, minWidth: 0 },
+  vaga: { alignItems: 'center', gap: espaco(1) },
+  rotuloDaVaga: { textAlign: 'center' },
+  configuracoes: { gap: espaco(2) },
+  grupo: { gap: espaco(0.5) },
+  junto: { alignSelf: 'flex-start', maxWidth: '100%' },
+  // Ocupa a linha do rodapé da `Folha` inteira (sem isso, um erro comprido o alargaria além da folha).
+  rodape: { width: '100%' },
+  rodapeEmColuna: { gap: espaco(1) },
+  status: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75), flexShrink: 1 },
+  textoDoStatus: { flexShrink: 1 },
 });
