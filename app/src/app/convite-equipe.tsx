@@ -122,7 +122,7 @@ export default function ConviteEquipe() {
       </Cartao>
       <View style={estilos.links}>
         <LinkTexto href="/convite" texto="Sou aluno" />
-        <LinkTexto href="/entrar" texto="Já tenho conta" />
+        <LinkTexto href="/treinador/entrar" texto="Já tenho conta" />
       </View>
     </TelaPublica>
   );

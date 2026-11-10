@@ -300,7 +300,9 @@ A seção "Observado no código" de cada padrão são **hipóteses de causa** ac
   ("Período") só se os dois rótulos individuais ficarem ocultos para o olho e continuarem para o leitor de tela.
 - **Estrutura da barra de filtros:** busca · "Filtros" com contagem · "Limpar filtros" · "Filtrado por" com chips. No
   PC, os seletores abrem num cartão logo abaixo; no celular, numa `Folha` com rascunho.
-- **Peça:** `Campo`, `CamposEmLinha`, `CampoData`, `BarraDeFiltros`, `SelecaoMultiplaSuspensa`, `EscolhaEmFolha`.
+- **Peça:** `Campo`, `CamposEmLinha`, `CampoData`, `CampoSenha`, `BarraDeFiltros`, `SelecaoMultiplaSuspensa`, `EscolhaEmFolha`.
+- **Senha:** `CampoSenha` tem o olho como botão de alternar (WAI-ARIA APG): o nome fixo "Mostrar senha" e o estado em
+  `aria-pressed` na web e em `checked` no celular, nunca o nome que troca junto com o estado (10/11, `e2e/entrada-por-publico.spec.ts`).
 - **Responsivo:** a partir de `LARGURA_TABELA` os campos relacionados ficam em linha; abaixo disso, uma coluna.
 - **Conferência visual:** os campos de uma linha têm a mesma altura e a base alinhada (com e sem mensagem de erro em
   um deles); intervalo de datas: os dois campos têm o mesmo tamanho; a linha de filtros não deixa buraco quando um

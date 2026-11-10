@@ -84,7 +84,7 @@ export default function Cadastro() {
           desabilitado={verificacao.aguardando} motivo={MOTIVO_VERIFICANDO} />
       </Cartao>
       <View style={estilos.links}>
-        <LinkTexto href="/entrar" texto="Já tenho conta" />
+        <LinkTexto href="/treinador/entrar" texto="Já tenho conta" />
       </View>
     </TelaPublica>
   );

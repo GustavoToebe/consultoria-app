@@ -312,6 +312,8 @@ describe('título da aba do navegador', () => {
     expect(tituloDaPagina('/aluno', 'Saraiva Team')).toBe('Início · Saraiva Team');
     expect(tituloDaPagina('/aluno/sessao/x/y', 'Saraiva Team')).toBe('Treino do dia · Saraiva Team');
     expect(tituloDaPagina('/entrar', null)).toBe('Entrar · Overtraining');
+    expect(tituloDaPagina('/aluno/entrar', null)).toBe('Entrar · Overtraining');
+    expect(tituloDaPagina('/treinador/entrar', null)).toBe('Entrar · Overtraining');
     expect(tituloDaPagina('/convite-equipe', null)).toBe('Convite da equipe · Overtraining');
     expect(tituloDaPagina('/inscricao/abc', 'Saraiva Team')).toBe('Inscrição · Saraiva Team');
   });

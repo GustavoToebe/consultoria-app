@@ -22,7 +22,7 @@ test('senha provisória: o login pede a senha nova, confere as duas e entra depo
   });
   const logins = () => pedidos.filter((p) => p.metodo === 'POST' && p.caminho === '/auth/login');
 
-  await page.goto('/entrar');
+  await page.goto('/aluno/entrar');
   await page.getByLabel('E-mail').fill(ALUNO.email);
   await page.getByLabel('Senha', { exact: true }).fill(PROVISORIA);
   await page.getByRole('button', { name: 'Entrar' }).click();
@@ -64,13 +64,13 @@ test('senha provisória: "Voltar" limpa o passo e volta para o login', async ({ 
   await simularApi(page, {
     'POST /auth/login': erroApi(401, 'Crie a sua senha para entrar.', 'TROCA_DE_SENHA_NECESSARIA'),
   });
-  await page.goto('/entrar');
+  await page.goto('/aluno/entrar');
   await page.getByLabel('E-mail').fill(ALUNO.email);
   await page.getByLabel('Senha', { exact: true }).fill(PROVISORIA);
   await page.getByRole('button', { name: 'Entrar' }).click();
   await page.getByLabel('Nova senha', { exact: true }).fill(NOVA);
   await page.getByRole('button', { name: 'Voltar' }).click();
-  await expect(page.getByRole('heading', { name: 'Entrar' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Entre na sua área de aluno' })).toBeVisible();
   await expect(page.getByLabel('Senha', { exact: true })).toHaveValue('');
   await expect(page.getByLabel('E-mail')).toHaveValue(ALUNO.email);
 });

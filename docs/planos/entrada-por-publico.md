@@ -1,11 +1,11 @@
 # Entrada por público: `/aluno/entrar` e `/treinador/entrar`
 
-Situação: Em andamento (só a etapa inicial; intermediária e avançada são propostas) · Onde: `main`, local, sem commit · Atualizado: 10/11/2026
+Situação: Em andamento (passos 1 a 4 feitos, local; falta o 5; intermediária e avançada são propostas) · Onde: `main`, local, sem commit · Atualizado: 10/11/2026
 
 ## Objetivo
 Cada público abre direto o formulário dele, sem escolher "Sou aluno" ou "Sou treinador", com título, texto e links próprios.
 A entrada genérica `/entrar` continua para quem não recebeu um link específico. Formulário, lógica e estados são uma
-implementação só (o `Entrar` de `app/src/app/entrar.tsx`), parametrizada pelo público.
+implementação só (`app/src/ui/EntradaDoPublico.tsx`), parametrizada pelo público.
 
 ## Decisões (Gustavo, 10/11, pedido do guia de login)
 | # | Decisão | Valor |
@@ -31,10 +31,18 @@ para sempre); acesso concluído. Colar, preenchimento automático e gerenciador 
 tem nome acessível e estado.
 
 ## Passos
-- [ ] 1. Rotas: `/aluno/entrar` e `/treinador/entrar` abrem sem login (hoje `app/aluno/entrar.tsx` está sob o `GuardaDePapel` do layout do aluno e manda o anônimo de volta para `/entrar`); `/entrar` vira a escolha; o `GuardaDePapel` e o "Sair" mandam para a entrada do público certo; links antigos preservados — responsável: `executor-front` — commit: —
-- [ ] 2. Textos, composição e posição dos links (D4, D5 e a ordem acima) em um `Entrar` só — `executor-front` — commit: —
-- [ ] 3. Estados (lista acima) e aviso de entrada errada depois de autenticar (D6) — `executor-front` — commit: —
-- [ ] 4. e2e (rotas, estados, entrada errada, teclado, preenchimento) e ajuste dos e2e que usavam o seletor "Sou aluno/Sou treinador" (`entrar-perfil`, `senha-provisoria`, `paginas-publicas`, `telas-publicas-erros`) — `executor-front` — commit: —
+- [x] 1. Rotas: `/aluno/entrar` e `/treinador/entrar` abrem sem login; `/entrar` vira a escolha; o `GuardaDePapel` e o "Sair" mandam para a entrada do público certo; links antigos preservados — responsável: `executor-front` — commit: —, local
+- [x] 2. Textos, composição e posição dos links (D4, D5 e a ordem acima) em um `Entrar` só — `executor-front` — commit: —, local
+- [x] 3. Estados (lista acima) e aviso de entrada errada depois de autenticar (D6) — `executor-front` — commit: —, local
+- [x] 4. e2e (rotas, estados, entrada errada, teclado, preenchimento) e ajuste dos e2e que usavam o seletor "Sou aluno/Sou treinador" — `executor-front` — commit: —, local
+
+### Registro dos passos 1 a 4 (`executor-front`, 10/11/2026, base `0bd5846f` + mudanças locais sem commit)
+- **Causa confirmada (passo 1):** `app/aluno/entrar.tsx` ficava sob o `_layout` do aluno, que monta a `GuardaDePapel`: anônimo era mandado para `/entrar`. A tentativa de isentar a rota pelo `usePathname` no layout quebrou (a pilha da raiz mantém o layout de baixo montado e o `usePathname` é global: `/aluno/entrar` aberto a partir de `/treinador/entrar` renderizava tela do aluno sem o `AlunoProvider`). Solução: grupo de rotas `app/(entrada)/aluno/entrar.tsx` e `app/(entrada)/treinador/entrar.tsx` (o grupo não entra na URL e fica fora dos layouts guardados); os dois `_layout.tsx` não mudaram.
+- **Feito:** `ui/EntradaDoPublico.tsx` (o formulário único, com MFA, "Crie sua senha", verificação humana e erros por campo; sem a escolha de perfil); textos e links em `dominio/entradaPorPublico.ts` (+ teste); `app/entrar.tsx` virou a escolha "Área do aluno"/"Painel da consultoria" (logado vai para a área dele); `GuardaDePapel` manda o anônimo para `entradaDoPublico(papel)`; `ConfirmarSaida` e `CartaoExcluirConta` voltam à entrada do papel; "Já tenho conta"/"Já sou aluno" de `convite`, `convite-equipe`, `cadastro` e `inscricao/[codigo]` apontam para a entrada do público; títulos das duas rotas em `dominio/telas.ts`. Envio: trava por ref (Enter duplo e clique não duplicam). Entrada errada: depois do login, aviso "Sua conta é do painel da consultoria/da área do aluno. Abrimos a área certa." e a área sai do papel da sessão (a URL não vai à API). `CampoSenha` (peça compartilhada, 11 usos): nome fixo "Mostrar senha" e o estado em `aria-pressed` (web) / `checked` (nativo). "Criar conta de treinador" só na entrada do treinador e só com `cadastroAberto`. Convite: `/convite` já tem o campo "Código do convite" com suporte na API, então nada novo foi criado (D5). D4 conferido: o aluno tem treino, dieta e atualização; o treinador tem o Planejamento.
+- **e2e:** `e2e/entrada-por-publico.spec.ts` (novo, 21 casos: composição e ordem em 390/768/1280/1920 claro e escuro, sem rolagem horizontal, início e fim alcançáveis em 390×600, `/entrar` e links de troca com voltar do navegador, "Sair" do aluno, rotas protegidas sem login, envio sem duplicar, 401 e sem conexão preservando o e-mail, verificação que não carrega com "Tentar de novo", mostrar senha com `aria-pressed` e tipo, entrada errada nos dois sentidos, já logado); `entrar-perfil.spec.ts` apagado (a escolha de perfil saiu); `senha-provisoria` e `telas-publicas-erros` passaram a abrir `/aluno/entrar`.
+- **Verificação:** `entrada-por-publico` 21/21 ✅; `senha-provisoria` + `telas-publicas-erros` + `paginas-publicas` 30/30 ✅; `npm run typecheck` ✅; `npm run lint` ✅ (11 avisos antigos, nenhum nos arquivos tocados); jest `entradaPorPublico`, `telas`, `catalogoDeComponentes` e `src/sessao` ✅. Capturas não foram salvas (pedido).
+- **NÃO conferido:** app nativo (Android/iOS: `checked` no olho, WebView da verificação, teclado "próximo"); temas areia e contraste alto; web local real em `:8088` (só a API simulada do e2e); o `name` dos inputs (o RN-web não repassa; o preenchimento usa `autocomplete` e `type=password`); a suíte e2e inteira.
+- **Validade:** refazer os e2e acima se mudarem `ui/EntradaDoPublico.tsx`, `app/entrar.tsx`, `app/(entrada)/*`, `ui/GuardaDePapel.tsx`, `ui/CampoSenha.tsx`, `ui/ConfirmarSaida.tsx`, `dominio/entradaPorPublico.ts` ou os layouts de `app/aluno` e `app/treinador`.
 - [ ] 5. Conferência em 390, 768, 1280 e 1920, claro e escuro, de ambas as entradas, com teclado e preenchimento automático (sem salvar imagem); revisão independente dos pontos de D6 antes de declarar pronto — sessão principal + `advisor` — commit: —
 - Aceite: duas entradas claras, formulário consistente, fluxos existentes (convite, recuperação, senha provisória, MFA, verificação humana) preservados; nenhuma permissão sai da URL.
 
@@ -60,4 +68,5 @@ Registradas para decidir depois; nada abaixo está implementado nem aprovado.
 Mudar API, permissão, contrato de sessão, tokens ou temas; subdomínio; passkeys; gestão de sessões.
 
 ## O que ficou para trás
-- Nada implementado ainda. Validade: a leitura do código é de 10/11/2026 (`entrar.tsx`, `aluno/entrar.tsx`, `GuardaDePapel`).
+- Passo 5 (sessão principal + `advisor`): conferência visual com teclado e preenchimento automático e revisão independente de D6.
+- Testar no Android/iPhone o olho da senha (`checked`) e o fluxo das duas entradas; temas areia e contraste alto.

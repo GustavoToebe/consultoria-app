@@ -45,7 +45,7 @@ for (const largura of [390, 1280]) {
       const email = page.getByLabel('E-mail', { exact: true });
       const senha = page.getByLabel('Senha', { exact: true });
       const entrar = page.getByRole('button', { name: 'Entrar', exact: true });
-      await page.goto('/entrar');
+      await page.goto('/aluno/entrar');
 
       await entrar.click();
       await erroNoCampo(page, email, 'Informe o e-mail.');
@@ -71,7 +71,7 @@ for (const largura of [390, 1280]) {
     test('entrar, crie sua senha: verificação recusada vai ao topo; regra e fieldErrors da senha nova, ao campo', async ({ page }) => {
       const login = rotaTrocavel(erroApi(401, 'Crie a sua senha para entrar.', 'TROCA_DE_SENHA_NECESSARIA'));
       const { errosDaPagina } = await simularApi(page, { 'POST /auth/login': login.rota });
-      await page.goto('/entrar');
+      await page.goto('/aluno/entrar');
       await page.getByLabel('E-mail', { exact: true }).fill('pessoa.ficticia@exemplo.com');
       await page.getByLabel('Senha', { exact: true }).fill('provisoria-ficticia');
       await page.getByRole('button', { name: 'Entrar', exact: true }).click();

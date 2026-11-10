@@ -270,7 +270,7 @@ export default function Inscricao() {
           tentarDeNovo={codigo ? pagina.recarregar : undefined} erro={pagina.erro ?? undefined} />
         {/* Um texto só (o da API ou o do link incompleto já diz o que fazer); quem já é aluno tem o link abaixo. */}
         <View style={estilos.links}>
-          <LinkTexto href="/entrar" texto="Já sou aluno: entrar no app" />
+          <LinkTexto href="/aluno/entrar" texto="Já sou aluno: entrar no app" />
         </View>
         <LinksDosTermos />
       </TelaPublica>

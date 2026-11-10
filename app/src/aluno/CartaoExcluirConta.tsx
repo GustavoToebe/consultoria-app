@@ -3,6 +3,7 @@ import { UserX } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { entradaDoPublico } from '../dominio/entradaPorPublico';
 import { avisoDeNaoEnviados, EXPLICACAO_DA_EXCLUSAO, motivoParaNaoExcluir, PALAVRA_DE_CONFIRMACAO } from '../dominio/excluirConta';
 import { diasDeAguaNaoEnviados, diasDeMobilidadeNaoEnviados, treinosNaoEnviados } from '../dominio/treinosNaoEnviados';
 import { useAluno } from '../offline/AlunoProvider';
@@ -46,7 +47,7 @@ export function CartaoExcluirConta() {
     sessao.excluirConta(senha, palavra).then(
       () => {
         avisar('Conta excluída.', 'sucesso');
-        router.replace('/entrar');
+        router.replace(entradaDoPublico('ALUNO'));
       },
       (e: unknown) => {
         setExcluindo(false);

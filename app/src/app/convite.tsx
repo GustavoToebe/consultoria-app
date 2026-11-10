@@ -152,7 +152,7 @@ export default function Convite() {
       <View style={estilos.links}>
         {/* O convite da equipe da consultoria é outro (outro código e outra tela). */}
         {convite ? null : <LinkTexto href="/convite-equipe" texto="Sou da equipe da consultoria" />}
-        <LinkTexto href="/entrar" texto="Já tenho conta" />
+        <LinkTexto href="/aluno/entrar" texto="Já tenho conta" />
       </View>
     </TelaPublica>
   );

@@ -2,6 +2,7 @@ import { Redirect } from 'expo-router';
 import type { ReactNode } from 'react';
 
 import type { Papel } from '../api/tipos';
+import { entradaDoPublico } from '../dominio/entradaPorPublico';
 import { useSessao } from '../sessao/SessaoProvider';
 import { Carregando } from './Estados';
 import { GuardaDeTermos } from './GuardaDeTermos';
@@ -21,7 +22,8 @@ export function GuardaDePapel({ papel, children }: { papel: Papel; children: Rea
     );
   }
   if (situacao === 'anonimo' || !usuario) {
-    return <Redirect href="/entrar" />;
+    // A entrada do público da área, no grupo `(entrada)`, fora do layout guardado: sem laço.
+    return <Redirect href={entradaDoPublico(papel)} />;
   }
   if (usuario.papel !== papel) {
     return <Redirect href="/" />;

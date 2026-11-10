@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 
+import { entradaDoPublico } from '../dominio/entradaPorPublico';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useSaidaGuardada } from './GuardaDeSaida';
 import { PainelConfirmacao } from './PainelConfirmacao';
@@ -20,11 +21,13 @@ export function ConfirmarSaida({ visivel, aoFechar, aviso }: { visivel: boolean;
   const sair = async () => {
     setSaindo(true);
     const soltar = liberar();
+    // Lido antes de sair: depois o usuário é nulo. Volta à entrada do público que saiu.
+    const entrada = sessao.usuario ? entradaDoPublico(sessao.usuario.papel) : '/entrar';
     try {
       await sessao.sair();
       setSaindo(false);
       aoFechar();
-      router.replace('/entrar');
+      router.replace(entrada);
     } finally {
       setTimeout(soltar, TEMPO_DA_LIBERACAO_MS);
     }
