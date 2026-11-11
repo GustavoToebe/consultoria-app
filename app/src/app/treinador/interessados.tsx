@@ -157,12 +157,10 @@ export default function Interessados() {
   return (
     <Tela largura={LARGURA_LISTA} bordas={['top']}>
       <Cabecalho titulo="Interessados" mostrarMarca="celular"
+        subtitulo="Quem se inscreveu pelo link. Converse pelo WhatsApp; só o aceite cadastra o aluno."
         acoes={pode('INSCRICAO_ALTERAR') ? <Botao rotulo="Respostas prontas" Icone={MessageSquareText} tipo="secundario" aoTocar={() => setModelos(true)} /> : undefined} />
-      <Texto variante="suave">
-        Quem se inscreveu pelo link da consultoria. Converse pelo WhatsApp, registre o andamento e, quando fechar, aceite:
-        o aluno é cadastrado na hora.
-      </Texto>
-      {/* A fila vem antes da configuração: o link é uma faixa compacta (copiar e situação) e "Configurar" abre a folha. */}
+      {/* O link é uma faixa curta (situação, copiar e "Configurar", que abre a folha), para a busca e a primeira pessoa
+          aparecerem cedo no celular. */}
       <CartaoLinkInscricao podeAlterar={pode('INSCRICAO_ALTERAR')} responsaveis={responsaveis.dados ?? []} />
       <Abas abas={VISOES} ativa={visao} aoMudar={setVisao} />
       {visao === 'indicadores' ? <Indicadores /> : soRetornos ? (
@@ -186,7 +184,7 @@ export default function Interessados() {
         <>
           {etapas ? <FiltroDoEndereco rotulo={rotuloDasEtapas(etapas)} aoLimpar={limparEtapas} /> : null}
           <CartaoRetornos retornos={retornos.dados} aoAbrir={(id) => abrir(id)} />
-          {/* Ordem das listas: busca → filtros (botão "Filtros" com o painel e o "Filtrado por"). */}
+          {/* Ordem das listas: busca → filtros (botão "Filtros" com o painel e o "Filtrando:"). */}
           <BarraDeFiltros
             busca={{ valor: buscaDigitada, aoMudar: (t) => { setBuscaDigitada(t); setPagina(0); }, placeholder: 'Nome, e-mail ou WhatsApp' }}
             valor={filtrosDaTela} aoAplicar={aplicar} limpo={limpos(filtrosDaTela, visaoDosFiltros)} chips={chips}
@@ -205,11 +203,12 @@ export default function Interessados() {
                   <View style={lista.carregando ? estilos.esmaecido : null}>
                     <Tabela rotulo="Inscrições" larguraMinima={760} linhas={dados.itens} chave={(i) => i.id}
                       aoTocarLinha={(i) => abrir(i.id)} rotuloDaLinha={(i) => `Abrir inscrição de ${i.nome}`} colunas={[
+                      // Nome → etapa → próximo retorno → responsável: a etapa logo ao lado do nome (no celular, o primeiro par).
                       { chave: 'nome', titulo: 'Nome', flex: 1.4, principal: true, render: (i) => <Texto variante="bloco" numberOfLines={2}>{i.nome}</Texto> },
-                      { chave: 'responsavel', titulo: 'Responsável', flex: 1.1, render: (i) => <Texto>{nomeDoResponsavel(i)}</Texto> },
+                      { chave: 'situacao', titulo: 'Situação', flex: 1.5, render: (i) => <Situacao inscricao={i} /> },
                       { chave: 'retorno', titulo: 'Próximo retorno', flex: 1.1, render: (i) => <ProximoRetorno inscricao={i} hoje={hoje} /> },
-                      { chave: 'atividade', titulo: 'Última atividade', flex: 1, render: (i) => <Texto numerico>{instanteRelativo(i.ultimaAtividadeEm)}</Texto> },
-                      { chave: 'situacao', titulo: 'Situação', flex: 1.6, render: (i) => <Situacao inscricao={i} /> },
+                      { chave: 'responsavel', titulo: 'Responsável', flex: 1.1, render: (i) => <Texto>{nomeDoResponsavel(i)}</Texto> },
+                      { chave: 'atividade', titulo: 'Última atividade', flex: 1, render: (i) => <Texto variante="suave" numerico>{instanteRelativo(i.ultimaAtividadeEm)}</Texto> },
                     ]} />
                   </View>
                   {paginas > 1 ? (

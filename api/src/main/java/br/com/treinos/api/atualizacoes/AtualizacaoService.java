@@ -283,16 +283,14 @@ public class AtualizacaoService {
         return new PaginaDeAtualizacoes(todos.subList((int) de, (int) Math.min(de + tam, todos.size())), todos.size());
     }
 
-    @Transactional(readOnly = true)
-    public Map<String,Long> contar(UUID responsavelId) {
-        return contar(FiltroDaLista.de(responsavelId, null, null));
-    }
-
     /** Quantas há em cada situação (as abas) com os mesmos filtros da lista: a mesma consulta e a mesma classificação. */
     @Transactional(readOnly = true)
     public Map<String,Long> contar(FiltroDaLista f) {
         exigirPeriodo(f.de(), f.ate());
-        List<Classificada> todas = classificar(f);
+        return contagem(f, classificar(f));
+    }
+
+    private static Map<String,Long> contagem(FiltroDaLista f, List<Classificada> todas) {
         Map<String,Long> contagem = new LinkedHashMap<>();
         for (String situacao : SITUACOES) contagem.put(situacao, todas.stream().filter(c -> pertence(situacao, c, f.de(), f.ate())).count());
         return contagem;
@@ -303,25 +301,35 @@ public class AtualizacaoService {
         FiltrosDeLista.exigirPeriodoNaFaixa(de, ate, JANELA_MAXIMA_DIAS, "PERIODO_INVALIDO");
     }
     /**
-     * Alunos ativos do escopo que têm pasta vigente com período (mesma consulta da lista e dos contadores). Quem não está
-     * aqui é "sem pasta com período". Só ids, para o painel contar.
+     * O que o Início tira da mesma leitura: os contadores (os mesmos de {@link #contar(FiltroDaLista)}) e os alunos ativos do escopo
+     * que têm pasta vigente com período (quem não está aqui é "sem pasta com período"). Só ids e números.
      */
+    public record LeituraDoPainel(Map<String,Long> contagem, java.util.Set<UUID> alunosComPastaVigente) { }
+
+    /** Uma consulta só ({@code linhasDoPainel}) para as duas respostas do painel. */
     @Transactional(readOnly = true)
-    public java.util.Set<UUID> alunosComPastaVigente(UUID responsavelId) {
-        return atualizacoes.linhasDoPainel(responsavelId).stream().map(LinhaAtualizacao::alunoId)
-            .collect(java.util.stream.Collectors.toSet());
+    public LeituraDoPainel leituraDoPainel(UUID responsavelId) {
+        List<LinhaAtualizacao> linhas = atualizacoes.linhasDoPainel(responsavelId);
+        FiltroDaLista f = FiltroDaLista.de(responsavelId, null, null);
+        return new LeituraDoPainel(contagem(f, classificar(f, linhas)),
+            linhas.stream().map(LinhaAtualizacao::alunoId).collect(java.util.stream.Collectors.toSet()));
     }
     /**
      * Um responsável só vai à consulta (como o "Meus"); vários, ou "sem responsável", leem o escopo inteiro e recortam
      * aqui pelo responsável de cada linha. A busca compara o nome sem acento ({@link Buscas#semAcento}).
      */
     private List<Classificada> classificar(FiltroDaLista f) {
-        LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
         FiltrosDeLista.Responsaveis r = f.responsaveis();
         UUID unico = r.ids().size() == 1 && !r.semResponsavel() ? r.ids().iterator().next() : null;
+        return classificar(f, atualizacoes.linhasDoPainel(unico));
+    }
+
+    private static List<Classificada> classificar(FiltroDaLista f, List<LinhaAtualizacao> linhas) {
+        LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
+        FiltrosDeLista.Responsaveis r = f.responsaveis();
         String termo = Buscas.semAcento(f.busca());
         String procurado = termo.length() > 100 ? termo.substring(0, 100) : termo;
-        return atualizacoes.linhasDoPainel(unico).stream()
+        return linhas.stream()
             .filter(l -> r.aceita(l.responsavelId()))
             .filter(l -> procurado.isEmpty() || Buscas.semAcento(l.nomeAluno()).contains(procurado))
             .map(l -> new Classificada(l, RegrasAtualizacao.calcular(hoje,l.data(),l.atrasoAte(),l.estado()))).toList();

@@ -175,6 +175,7 @@ for (const largura of [390, 1280]) {
       const estado = { atual: { ...SEM_ESCOLHA } };
       const api = await simularApi(page, {
         ...(await sessaoDeAluno(page)), ...rotasDoPerfil(estado),
+        'GET /aluno/comunidade/configuracao': { corpo: { alunosPublicam: true, podeAnexarFoto: false } },
         'GET /aluno/comunidade/mural': { corpo: { content: [], totalElements: 0 } },
         'GET /aluno/comunidade/aulas': { corpo: [] },
         'GET /aluno/comunidade/conquistas': { corpo: [] },

@@ -201,7 +201,9 @@ export default function InicioTreinador() {
       semRegistro: pode('REGISTRO_LER') ? padrao.alunosSemRegistroTotal ?? null : null,
       diasSemRegistro: dias,
     });
-    proximo = p ? { texto: p.texto, acao: { rotulo: p.acao, aoTocar: () => irPara(p.destino) } } : { texto: TUDO_EM_DIA, acao: null };
+    // Atraso em `perigo`, como o indicador: os retornos só são atraso quando os atrasados vêm antes dos de hoje.
+    const atraso = p?.destino === 'ATRASADAS' || (p?.destino === 'RETORNOS' && !!interessados?.retornosAtrasados);
+    proximo = p ? { texto: p.texto, acao: { rotulo: p.acao, aoTocar: () => irPara(p.destino) }, atraso } : { texto: TUDO_EM_DIA, acao: null };
   }
 
   // ---- Primeiros passos montados (espera o aparelho e as consultas, para não piscar) ----

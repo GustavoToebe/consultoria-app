@@ -43,8 +43,9 @@ export function OpcaoCartao({ titulo, descricao, selecionada, aoEscolher, amostr
       style={(estado) => [
         estilos.opcao,
         {
-          backgroundColor: sobre(estado) ? cores.superficie3 : cores.superficie2,
-          borderColor: selecionada ? cores.texto : cores.borda,
+          // Seleção neutra (`ui/selecao.ts`): superfície de seleção, contorno forte de 2 px e ✓.
+          backgroundColor: selecionada ? cores.superficie3 : sobre(estado) ? cores.superficie2 : cores.superficie,
+          borderColor: selecionada ? cores.bordaCampo : cores.divisor,
           // A borda cresce 1 px para dentro: o conteúdo não pula ao selecionar.
           borderWidth: selecionada ? 2 : 1,
           padding: espaco(1.5) - (selecionada ? 1 : 0),

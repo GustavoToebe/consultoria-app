@@ -92,24 +92,7 @@ export function VerificacaoEmDuasEtapas() {
       avisar('Verificação em duas etapas desativada. As outras sessões foram encerradas.', 'sucesso');
     });
 
-  if (sessao.offline) return null;
-  if (status.erro) {
-    return (
-      <Cartao titulo="Verificação em duas etapas">
-        <MensagemErro texto={textoDoErro(status.erro)} />
-        <Botao rotulo="Tentar de novo" tipo="secundario" aoTocar={status.recarregar} />
-      </Cartao>
-    );
-  }
-  if (!status.dados) {
-    return (
-      <Cartao titulo="Verificação em duas etapas">
-        <Carregando />
-      </Cartao>
-    );
-  }
-  const ativa = status.dados.ativo;
-
+  // Antes do offline e do status: os códigos aparecem uma vez só e não podem sumir se a conexão cair.
   if (etapa === 'recuperacao') {
     return (
       <Cartao titulo="Guarde os códigos de recuperação"
@@ -127,6 +110,31 @@ export function VerificacaoEmDuasEtapas() {
     );
   }
 
+  // Sem internet não dá para saber se está ativa: diz o porquê em vez de sumir ou parecer desligada.
+  if (sessao.offline) {
+    return (
+      <Cartao titulo="Verificação em duas etapas">
+        <Texto variante="suave">Conecte-se à internet para consultar e alterar a verificação em duas etapas.</Texto>
+      </Cartao>
+    );
+  }
+  if (status.erro) {
+    return (
+      <Cartao titulo="Verificação em duas etapas">
+        <MensagemErro texto={textoDoErro(status.erro)} />
+        <Botao rotulo="Tentar de novo" tipo="secundario" aoTocar={status.recarregar} />
+      </Cartao>
+    );
+  }
+  if (!status.dados) {
+    return (
+      <Cartao titulo="Verificação em duas etapas">
+        <Carregando />
+      </Cartao>
+    );
+  }
+  const ativa = status.dados.ativo;
+
   return (
     <Cartao titulo="Verificação em duas etapas" descricao="Além da senha, o login pede um código de 6 dígitos de um aplicativo autenticador.">
       <View style={estilos.linhaDeSelo}>
@@ -134,11 +142,12 @@ export function VerificacaoEmDuasEtapas() {
         {ativa ? <Texto variante="suave">{textoDosCodigos(status.dados.codigosRestantes)}</Texto> : null}
       </View>
 
-      {etapa === 'repouso' && !ativa ? <Botao rotulo="Ativar" aoTocar={() => setEtapa('senha')} /> : null}
-      {etapa === 'repouso' && ativa ? <Botao rotulo="Desativar" tipo="perigoTexto" aoTocar={() => setEtapa('desativar')} /> : null}
+      {etapa === 'repouso' && !ativa ? <Botao rotulo="Ativar verificação em duas etapas" aoTocar={() => setEtapa('senha')} /> : null}
+      {etapa === 'repouso' && ativa ? <Botao rotulo="Desativar verificação em duas etapas" tipo="perigoTexto" aoTocar={() => setEtapa('desativar')} /> : null}
 
       {etapa === 'senha' ? (
         <>
+          <Texto variante="secao" nivel={3}>Confirme sua senha</Texto>
           <CampoSenha rotulo="Senha atual" valor={senha} aoMudar={setSenha} autoComplete="current-password" onSubmitEditing={preparar} />
           {erro ? <MensagemErro texto={erro} /> : null}
           <LinhaDeAcoes>
@@ -150,7 +159,7 @@ export function VerificacaoEmDuasEtapas() {
 
       {etapa === 'configurar' && preparacao ? (
         <>
-          <Texto variante="secao">1. Adicione ao aplicativo autenticador</Texto>
+          <Texto variante="secao" nivel={3}>1. Adicione ao autenticador</Texto>
           <Texto variante="suave">
             Escaneie o QR code com o aplicativo (Google Authenticator, Microsoft Authenticator, Authy…). No próprio celular, use o botão
             Abrir no autenticador ou digite o segredo.
@@ -170,7 +179,8 @@ export function VerificacaoEmDuasEtapas() {
                 }} />
             ) : null}
           </LinhaDeAcoes>
-          <Texto variante="secao">2. Confirme com o código</Texto>
+          <Texto variante="secao" nivel={3}>2. Confirme o código</Texto>
+          <Texto variante="suave">Ao ativar, as outras sessões abertas com a sua conta são encerradas. Esta continua.</Texto>
           <Campo rotulo="Código de 6 dígitos" valor={codigo} aoMudar={setCodigo} numerico inputMode="numeric"
             autoComplete="one-time-code" onSubmitEditing={ativar} />
           {erro ? <MensagemErro texto={erro} /> : null}
@@ -184,7 +194,11 @@ export function VerificacaoEmDuasEtapas() {
 
       {etapa === 'desativar' ? (
         <>
-          <Texto variante="suave">Para desativar, informe a senha e um código do aplicativo (ou de recuperação).</Texto>
+          <Texto variante="secao" nivel={3}>Desativar a verificação</Texto>
+          <Texto variante="suave">
+            Informe a senha e um código do aplicativo (ou de recuperação). O login volta a pedir só a senha, e as outras sessões
+            abertas com a sua conta são encerradas.
+          </Texto>
           <CampoSenha rotulo="Senha atual" valor={senha} aoMudar={setSenha} autoComplete="current-password" />
           <Campo rotulo="Código" valor={codigo} aoMudar={setCodigo} autoComplete="one-time-code" autoCapitalize="none" />
           {erro ? <MensagemErro texto={erro} /> : null}

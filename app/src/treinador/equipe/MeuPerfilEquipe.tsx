@@ -16,6 +16,6 @@ export function MeuPerfilEquipe() {
   return <Cartao titulo="Seus dados"><CampoLeitura rotulo="Perfil na equipe" valor={perfilEquipe?.nome}/>
     <Campo rotulo="Seu nome" valor={nome} aoMudar={setNome} maxLength={120}/>
     <Campo rotulo="Telefone (opcional)" valor={telefone} aoMudar={setTelefone} maxLength={30} keyboardType="phone-pad" autoComplete="tel" ajuda="Informe o DDD e o número."/>
-    {erro?<MensagemErro texto={textoDoErro(erro)}/>:null}<Botao rotulo="Salvar seus dados" carregando={ocupado} desabilitado={!nome.trim()} aoTocar={()=>void salvar()}/>
+    {erro?<MensagemErro texto={textoDoErro(erro)}/>:null}<Botao rotulo="Salvar seus dados" carregando={ocupado} desabilitado={!nome.trim()} motivo={!nome.trim()?'Informe o seu nome.':undefined} aoTocar={()=>void salvar()}/>
   </Cartao>;
 }

@@ -1,61 +1,18 @@
 import type { Compromisso } from '../api/agendaTipos';
-import { contraste } from '../tema/tokens';
 import { resumoDosParticipantes } from './agendaPresencial';
 
 /**
  * Legibilidade dos itens da agenda (reunião de 30/10 com o Saraiva: "a cor ocupa pouco do evento"). A cor da agenda
- * aparece numa faixa de 8 px à esquerda e num fundo levemente tingido; o texto do item é sempre a cor `texto` do tema,
- * nunca a cor da agenda, e o status vai escrito (selo) ou, no bloco que não cabe, em ícone com o nome acessível.
+ * aparece só numa faixa de 8 px à esquerda, sobre o fundo neutro (o fundo tingido saiu com o guia de 11/11: cor é sinal);
+ * o texto do item é sempre a cor `texto` do tema, nunca a cor da agenda, e o status vai escrito (selo) ou, no bloco que
+ * não cabe, em ícone com o nome acessível.
  */
 
 /** Largura da faixa da cor da agenda, à esquerda do item (antes eram 4 px). */
 export const LARGURA_DA_FAIXA = 8;
-/** Quanto da cor da agenda entra no fundo do item (0 = só o fundo do tema). Baixa se o contraste pedir. */
-export const PROPORCAO_DO_TINGIDO = 0.16;
 /** Texto ≥ 4,5:1 (WCAG 1.4.3); faixa e ícones ≥ 3:1 (WCAG 1.4.11). */
 export const CONTRASTE_DO_TEXTO = 4.5;
 export const CONTRASTE_DO_GRAFICO = 3;
-
-const HEX = /^#[0-9a-f]{6}$/i;
-
-/** Mistura `base` com `cor` na proporção `t` (0 = base, 1 = cor), canal a canal, em #RRGGBB. */
-export function misturarCores(base: string, cor: string, t: number): string {
-  const a = parseInt(base.slice(1), 16);
-  const b = parseInt(cor.slice(1), 16);
-  const canal = (desl: number) => Math.round(((a >> desl) & 255) * (1 - t) + ((b >> desl) & 255) * t);
-  return `#${[16, 8, 0].map((d) => canal(d).toString(16).padStart(2, '0').toUpperCase()).join('')}`;
-}
-
-export interface PedidoDeFundo {
-  /** A cor da agenda no tema em uso (a do treinador ou a fixa de compromissos e atualizações). */
-  cor: string;
-  /** O fundo do item sem tinta (`superficie2` em repouso, `superficie3` no hover). */
-  base: string;
-  /** Cores de texto desenhadas direto sobre o fundo (título e horário): todas ficam ≥ 4,5:1. */
-  textos: readonly string[];
-  /** Outros gráficos desenhados direto sobre o fundo (ícone de status): ficam ≥ 3:1, como a faixa. */
-  graficos?: readonly string[];
-  proporcao?: number;
-}
-
-/**
- * Fundo do item da agenda: `base` tingido com a cor da agenda, na maior proporção (até {@link PROPORCAO_DO_TINGIDO}) em
- * que todo texto continua ≥ 4,5:1 e a faixa (e os ícones) ≥ 3:1 sobre ele. A cor vem da agenda que o treinador escolheu,
- * então a proporção é calculada, não presumida; se nenhuma passar, o fundo fica o do tema. Cor inválida = `base`.
- */
-export function fundoDoItemDaAgenda({ cor, base, textos, graficos = [], proporcao = PROPORCAO_DO_TINGIDO }: PedidoDeFundo): string {
-  if (!HEX.test(cor) || !HEX.test(base)) return base;
-  // A faixa só é exigida quando já passava sobre o fundo sem tinta (tingir nunca melhora o contraste dela).
-  const faixaExigida = contraste(cor, base) >= CONTRASTE_DO_GRAFICO;
-  const passa = (fundo: string) => textos.every((t) => contraste(t, fundo) >= CONTRASTE_DO_TEXTO)
-    && graficos.every((g) => contraste(g, fundo) >= CONTRASTE_DO_GRAFICO)
-    && (!faixaExigida || contraste(cor, fundo) >= CONTRASTE_DO_GRAFICO);
-  for (let passo = Math.round(Math.max(0, Math.min(1, proporcao)) * 100); passo > 0; passo -= 1) {
-    const fundo = misturarCores(base, cor, passo / 100);
-    if (passa(fundo)) return fundo;
-  }
-  return base;
-}
 
 /** "09:00" vira "9h"; "09:30", "9h30". Texto que não é hora fica como veio. */
 function horaPorExtenso(hhmm: string): string {

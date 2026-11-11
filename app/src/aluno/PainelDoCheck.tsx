@@ -54,6 +54,6 @@ export function PainelDoCheck({ sugestaoKg, numero, aoEscolher, sugestaoReps = n
 }
 
 const estilos = StyleSheet.create({
-  painel: { borderWidth: 2, borderRadius: RAIO, padding: espaco(1.25), gap: espaco(1) },
+  painel: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.25), gap: espaco(1) },
   pergunta: { fontFamily: fontes.semi, fontSize: 16, lineHeight: 22 },
 });

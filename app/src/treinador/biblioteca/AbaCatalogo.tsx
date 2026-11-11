@@ -1,5 +1,5 @@
 import { Permitido } from '../../ui/Permitido';
-import { Download } from 'lucide-react-native';
+import { Check, Download } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -43,7 +43,7 @@ interface ListaCatalogo {
 
 /** Catálogo público (só leitura): marcar vários e importar para a biblioteca da consultoria. */
 export function AbaCatalogo() {
-  const { marcaTexto } = useTema();
+  const { cores } = useTema();
   const { avisar } = useAviso();
   const [tipo, setTipo] = useState<TipoBiblioteca>('exercicios');
   const [busca, setBusca] = useState('');
@@ -125,6 +125,7 @@ export function AbaCatalogo() {
         Icone={Download}
         carregando={importando}
         desabilitado={marcados.size === 0}
+        motivo="Marque ao menos um item para importar."
         aoTocar={importar}
       /></Permitido>}>
       <Escolha
@@ -146,7 +147,7 @@ export function AbaCatalogo() {
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && dados.itens.length === 0 ? <Vazio titulo="Nenhum resultado no catálogo" texto="Tente outro nome ou ajuste o filtro de grupo." /> : null}
-      {dados && dados.itens.length > 0 ? <ListaDeLinhas>{dados.itens.map((item) => {
+      {dados && dados.itens.length > 0 ? <ListaDeLinhas divisorias>{dados.itens.map((item) => {
         const sel = marcados.has(item.id);
         const expandido = aberto === item.id;
         const jaTem = nomesNaBiblioteca.has(normalizar(item.nome.trim()));
@@ -154,10 +155,13 @@ export function AbaCatalogo() {
         return (
           <LinhaDaLista key={item.id} titulo={item.nome} metadados={item.detalhe} descricao={fatores || undefined}
             selos={jaTem ? [{ texto: 'Já na biblioteca', tipo: 'neutro' }] : undefined}
-            marcado={sel} esmaecido={jaTem}
+            marcado={sel}
             // A foto é irmã (não filha) da caixa e do toque que marca: tocar nela só amplia.
             inicio={<View style={estilos.inicio}>
-              <CaixaDaLinha rotulo={jaTem ? `${item.nome}, já na biblioteca` : item.nome} marcado={sel} desabilitado={jaTem} aoMudar={() => alternar(item.id)} />
+              {/* Já importado não se escolhe: no lugar da caixa, o ✓ neutro do que já foi feito (sem opacidade, o texto
+                  segue legível); o selo "Já na biblioteca" diz o porquê. */}
+              {jaTem ? <View style={estilos.jaNaBiblioteca} aria-hidden><Check size={18} color={cores.textoSuave} strokeWidth={2.5} /></View>
+                : <CaixaDaLinha rotulo={item.nome} marcado={sel} aoMudar={() => alternar(item.id)} />}
               {/* Exercício sem foto reserva a caixa (ícone), para o título alinhar com os que têm; alimento não tem miniatura. */}
               {tipo === 'exercicios' ? <DemonstracaoDoExercicio exercicioId={null} nome={item.nome} imagens={item.imagens} papel="EQUIPE" largura={56} altura={56} preencher ampliavel reservarEspaco /> : null}
             </View>}
@@ -169,7 +173,7 @@ export function AbaCatalogo() {
                 accessibilityLabel={`${expandido ? 'Esconder' : 'Ver'} instruções de ${item.nome}`}
                 onPress={() => setAberto(expandido ? null : item.id)}
                 style={estilos.verInstrucoes}>
-                <Texto variante="pequeno" cor={marcaTexto}>{expandido ? 'Esconder instruções' : 'Ver instruções'}</Texto>
+                <Texto variante="pequeno" cor={cores.texto} style={estilos.link}>{expandido ? 'Esconder instruções' : 'Ver instruções'}</Texto>
               </Pressable>
             ) : undefined}>
             {expandido ? (
@@ -195,6 +199,9 @@ export function AbaCatalogo() {
 const estilos = StyleSheet.create({
   inicio: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
   verInstrucoes: { minHeight: ALVO_TOQUE, justifyContent: 'center', paddingHorizontal: espaco(1) },
+  // Como o `LinkTexto`: cor do texto e sublinhado (a marca fica para o primário da área).
+  link: { textDecorationLine: 'underline' },
+  jaNaBiblioteca: { width: ALVO_TOQUE, height: ALVO_TOQUE, alignItems: 'center', justifyContent: 'center' },
   passos: { gap: espaco(0.5), paddingHorizontal: espaco(1.5), paddingBottom: espaco(1.5) },
   creditos: { marginTop: espaco(2) },
   /** O seletor nasce com alignSelf flex-start; na barra (alinhada pela base) ele subia e ficava fora do lugar. */

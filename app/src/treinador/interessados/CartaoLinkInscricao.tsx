@@ -1,6 +1,6 @@
 import * as Clipboard from 'expo-clipboard';
 import { Copy, RefreshCw, Settings } from 'lucide-react-native';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ErroApi } from '../../api/cliente';
@@ -13,9 +13,7 @@ import { espaco, fontes, RAIO } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
-import { CampoLeitura } from '../../ui/CampoLeitura';
 import { Interruptor } from '../../ui/Campos';
-import { Cartao } from '../../ui/Cartao';
 import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
 import { Folha } from '../../ui/Folha';
 import { Esqueleto } from '../../ui/Esqueleto';
@@ -40,16 +38,16 @@ export function CartaoLinkInscricao({ podeAlterar, responsaveis }: { podeAlterar
   if (config.erro) {
     // 404 = a consultoria não tem formulário de inscrição padrão (a API não devolve mais "desligado").
     if (config.erro instanceof ErroApi && config.erro.status === 404) {
-      return <Cartao titulo="Link de inscrição"><Texto variante="suave">{SEM_FORMULARIO_PADRAO}</Texto></Cartao>;
+      return <FaixaDoLink><Texto variante="suave">{SEM_FORMULARIO_PADRAO}</Texto></FaixaDoLink>;
     }
     return (
-      <Cartao titulo="Link de inscrição">
+      <FaixaDoLink>
         <MensagemErro texto={textoDoErro(config.erro)} tentarDeNovo={config.recarregar} erro={config.erro} />
-      </Cartao>
+      </FaixaDoLink>
     );
   }
   if (!config.dados) {
-    return <Cartao titulo="Link de inscrição"><Esqueleto /></Cartao>;
+    return <FaixaDoLink><Esqueleto texto="Carregando o link de inscrição" cartoes={1} /></FaixaDoLink>;
   }
   // `key` pela versão: depois de salvar (ou recarregar), o formulário volta ao que está gravado.
   return <Formulario key={String(config.dados.versao)} config={config.dados} podeAlterar={podeAlterar}
@@ -122,20 +120,21 @@ function Formulario({ config, podeAlterar, responsaveis, aoGravar, aoConflito }:
     );
   };
 
+  const configurar = podeAlterar ? () => setConfigurando(true) : undefined;
   return (
-    <Cartao titulo="Link de inscrição"
-      acoes={<Selo texto={config.aberta ? 'Recebendo inscrições' : 'Desligado'} tipo={config.aberta ? 'sucesso' : 'neutro'} />}>
+    <FaixaDoLink
+      situacao={<Selo texto={config.aberta ? 'Recebendo inscrições' : 'Desligado'} tipo={config.aberta ? 'sucesso' : 'neutro'} />}
+      acoes={config.link || configurar ? <LinhaDeAcoes>
+        {config.link ? <Botao rotulo="Copiar link" tipo="secundario" Icone={Copy} aoTocar={() => copiar(config.link ?? '')} /> : null}
+        {configurar ? <Botao rotulo="Configurar" tipo="secundario" Icone={Settings} aoTocar={configurar} /> : null}
+      </LinhaDeAcoes> : null}>
       {config.link ? (
-        <LinkDestacado link={config.link} aberto={config.aberta} aoCopiar={() => copiar(config.link ?? '')}
-          aoConfigurar={podeAlterar ? () => setConfigurando(true) : undefined} />
+        <Texto variante="suave" selectable numberOfLines={1}>{config.link}</Texto>
       ) : (
-        <LinhaDeAcoes alinhar="entre">
-          <Texto variante="suave">{podeAlterar ? 'Ligue a inscrição para gerar o link.' : 'O link ainda não foi gerado.'}</Texto>
-          {podeAlterar ? <Botao rotulo="Configurar" tipo="secundario" Icone={Settings} aoTocar={() => setConfigurando(true)} /> : null}
-        </LinhaDeAcoes>
+        <Texto variante="suave">{podeAlterar ? 'Ligue a inscrição para gerar o link.' : 'O link ainda não foi gerado.'}</Texto>
       )}
       {!podeAlterar ? (
-        <CampoLeitura rotulo="Responsável pelas novas" valor={config.responsavelId ? nomeDoResponsavel ?? 'Membro inativo' : 'Sem responsável'} />
+        <Texto variante="pequeno">Responsável pelas novas: {config.responsavelId ? nomeDoResponsavel ?? 'Membro inativo' : 'Sem responsável'}</Texto>
       ) : null}
       {configurando ? (
         <Folha visivel titulo="Configurar o link de inscrição" aoFechar={fecharConfiguracao} rodape={<>
@@ -162,37 +161,42 @@ function Formulario({ config, podeAlterar, responsaveis, aoGravar, aoConflito }:
             rotuloConfirmar="Gerar novo link" aoConfirmar={gerarNovo} aoCancelar={() => setConfirmarNovo(false)} />
         </Folha>
       ) : null}
-    </Cartao>
+    </FaixaDoLink>
   );
 }
 
-/** Faixa compacta: o link numa linha (cortado se não couber; copiar leva o inteiro), Copiar e Configurar. */
-function LinkDestacado({ link, aberto, aoCopiar, aoConfigurar }: { link: string; aberto: boolean; aoCopiar: () => void; aoConfigurar?: () => void }) {
-  const { cores } = useTema();
+/**
+ * Faixa curta do link (padrão P5: a situação e as ações moram na própria faixa): título e situação numa linha, o link
+ * cortado numa linha (copiar leva o inteiro) e Copiar/Configurar à direita, que descem para baixo no celular. Mesma
+ * casca no carregando, no erro e sem formulário, para a fila não pular quando o link chega.
+ */
+function FaixaDoLink({ situacao, acoes, children }: { situacao?: ReactNode; acoes?: ReactNode; children: ReactNode }) {
+  const { cores, bordas } = useTema();
   return (
-    <View style={[estilos.destaque, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
-      <View style={estilos.textoDestaque}>
-        <Texto variante="pequeno">{aberto ? 'Link para divulgar' : 'Link (desligado)'}</Texto>
-        <Texto selectable numberOfLines={1} style={estilos.link}>{link}</Texto>
+    <View style={[estilos.faixa, { borderWidth: bordas.bloco, borderColor: cores.divisor, backgroundColor: cores.superficie }]}>
+      <View style={estilos.textos}>
+        <View style={estilos.titulo}>
+          <Texto nivel={2} style={estilos.nome}>Link de inscrição</Texto>
+          {situacao}
+        </View>
+        {children}
       </View>
-      <LinhaDeAcoes>
-        <Botao rotulo="Copiar link" tipo="secundario" Icone={Copy} aoTocar={aoCopiar} />
-        {aoConfigurar ? <Botao rotulo="Configurar" tipo="secundario" Icone={Settings} aoTocar={aoConfigurar} /> : null}
-      </LinhaDeAcoes>
+      {acoes}
     </View>
   );
 }
 
 const estilos = StyleSheet.create({
-  destaque: {
+  faixa: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: espaco(1),
-    borderWidth: 1,
-    borderRadius: RAIO,
-    padding: espaco(1.5),
     flexWrap: 'wrap',
+    gap: espaco(1.5),
+    borderRadius: RAIO,
+    paddingHorizontal: espaco(2),
+    paddingVertical: espaco(1.25),
   },
-  textoDestaque: { flex: 1, minWidth: 180, gap: 2 },
-  link: { fontFamily: fontes.normal, fontSize: 14 },
+  textos: { flex: 1, minWidth: 220, gap: 2 },
+  titulo: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(1) },
+  nome: { fontFamily: fontes.semi },
 });

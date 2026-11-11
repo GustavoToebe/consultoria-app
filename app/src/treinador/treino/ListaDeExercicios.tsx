@@ -31,7 +31,7 @@ export function ListaDeExercicios({ children, adicionar }: Props) {
   return (
     <View style={estilos.coluna}>
       <View style={estilos.itens} role="group" accessibilityLabel="Exercícios da sessão">{children}</View>
-      <AdicionarProximoExercicio {...adicionar} />
+      <AdicionarProximoExercicio {...adicionar} emColuna />
     </View>
   );
 }

@@ -1,31 +1,42 @@
 import type { LucideIcon } from 'lucide-react-native';
 
 import { Badge } from '../components/ui/badge';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
-import { espaco, fontes, tingido } from '../tema/tokens';
+import { espaco, fontes } from '../tema/tokens';
 import { Texto } from './Texto';
 
 export type TipoSelo = 'sucesso' | 'atencao' | 'perigo' | 'neutro';
 
+const FUNDO_DO_SELO = { sucesso: 'sucessoSuave', atencao: 'atencaoSuave', perigo: 'perigoSuave' } as const;
+
 /**
- * Status sempre com texto (selo de 12 px, caixa alta e borda fina, com fundo opaco leve da própria cor). Nunca usa a cor da marca:
- * verde = feito/sincronizado/ativo; âmbar = pendente/rascunho; vermelho = erro; cinza = inativo/encerrado. As
- * cores de status dão ≥ 4,5:1 sobre o próprio fundo `tingido` (teste em `ui/contrasteDasPecas.test.ts`). Com `Icone`, vira
- * uma pílula (o "Pronta" verde do editor de treino).
+ * Situação sempre com texto, nunca na cor da marca (11/11, guia pág. 4). O estado normal (`neutro`: em dia, inativo,
+ * encerrado, código "3× WS") não ganha selo colorido: é só o texto secundário. O que pede ação ou confirma (`atencao`,
+ * `perigo`, `sucesso`) vira pílula com o ponto e o texto na cor da situação sobre o fundo `*Suave` dela (≥ 4,5:1 e ponto
+ * ≥ 3:1, `tema/tokens.test.ts`; fundo opaco, então vale sobre qualquer faixa). Com `Icone`, o ícone ocupa o lugar do ponto.
+ *
+ * `categoria` (tipo de série, divisão, refeição: `useTema().identificacao[chave]`) é a terceira família: pílula escura
+ * tingida com o texto na cor da categoria, sem ponto (guia pág. 17); vale mais que o `tipo`.
  */
-export function Selo({ texto, tipo, larguraMinima, Icone }: { texto: string; tipo: TipoSelo; larguraMinima?: number; Icone?: LucideIcon }) {
+export function Selo({ texto, tipo = 'neutro', categoria, larguraMinima, Icone }: {
+  texto: string; tipo?: TipoSelo; categoria?: { cor: string; fundo: string }; larguraMinima?: number; Icone?: LucideIcon;
+}) {
   const { cores } = useTema();
-  const cor = cores[tipo];
-  // Fundo sempre opaco (`tingido`, D4 de `docs/planos/auditoria-cores.md`): transparente, o contraste dependia da faixa onde o
-  // selo está (sobre a `faixaForte` do exercício ficava abaixo de 4,5:1). O do selo sem ícone é o mesmo do `Alerta`.
+  const normal = tipo === 'neutro' && !categoria;
+  const cor = categoria ? categoria.cor : normal ? cores.textoSuave : cores[tipo];
+  const fundo = categoria ? categoria.fundo : normal ? 'transparent' : cores[FUNDO_DO_SELO[tipo as Exclude<TipoSelo, 'neutro'>]];
   return (
     <Badge variant="outline"
       accessibilityRole="text"
-      style={[estilos.selo, larguraMinima ? { minWidth: larguraMinima, justifyContent: 'center' } : null, { borderColor: cor, backgroundColor: tingido(cor, cores.superficie) }, Icone ? estilos.comIcone : null]}>
-      {Icone ? <Icone size={12} color={cor} strokeWidth={2.5} /> : null}
-      <Texto style={[estilos.texto, { color: cor }, Icone ? estilos.textoComIcone : null]}>{texto}</Texto>
+      style={[
+        estilos.selo,
+        larguraMinima ? { minWidth: larguraMinima, justifyContent: 'center' } : null,
+        normal ? estilos.semPilula : { borderColor: 'transparent', backgroundColor: fundo },
+      ]}>
+      {Icone ? <Icone size={12} color={cor} strokeWidth={2.5} /> : normal || categoria ? null : <View aria-hidden style={[estilos.ponto, { backgroundColor: cor }]} />}
+      <Texto style={[estilos.texto, { color: cor }]}>{texto}</Texto>
     </Badge>
   );
 }
@@ -34,12 +45,16 @@ const estilos = StyleSheet.create({
   selo: {
     alignSelf: 'flex-start',
     maxWidth: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minHeight: 22,
     borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: espaco(0.75),
-    paddingVertical: 2,
+    borderRadius: 999,
+    paddingHorizontal: espaco(1),
+    paddingVertical: 1,
   },
-  texto: { fontFamily: fontes.semi, fontSize: 12, lineHeight: 16, letterSpacing: 0.5, textTransform: 'uppercase' },
-  comIcone: { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', gap: 4, borderRadius: 999, paddingHorizontal: espaco(1) },
-  textoComIcone: { textTransform: 'none', letterSpacing: 0 },
+  semPilula: { borderColor: 'transparent', backgroundColor: 'transparent', paddingHorizontal: 0 },
+  ponto: { width: 6, height: 6, borderRadius: 3 },
+  texto: { fontFamily: fontes.medio, fontSize: 12, lineHeight: 16 },
 });

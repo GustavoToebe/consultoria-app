@@ -78,6 +78,8 @@ services:
       TREINOS_FOTOS_CHAVE: ${TREINOS_FOTOS_CHAVE:-}
       TREINOS_FOTOS_SEGREDO: ${TREINOS_FOTOS_SEGREDO:-}
       TREINOS_FOTOS_REGIAO: ${TREINOS_FOTOS_REGIAO:-auto}
+      # Retorno imediato (Concluir treino, recordes, treino ao vivo, "Bom trabalho!", Visto, mapa de treinos): desligado por padrão.
+      TREINOS_RETORNO_HABILITADO: ${TREINOS_RETORNO_HABILITADO:-false}
       TREINOS_PAGAMENTOS_HABILITADO: ${TREINOS_PAGAMENTOS_HABILITADO:-false}
       # Recebimento online (InfinitePay): desligado por padrão; ligado, exige as três variáveis seguintes (ver .env.example).
       TREINOS_PAGAMENTOS_INFINITEPAY_HABILITADO: ${TREINOS_PAGAMENTOS_INFINITEPAY_HABILITADO:-false}

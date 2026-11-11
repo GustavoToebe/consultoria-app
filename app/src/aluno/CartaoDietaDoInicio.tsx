@@ -22,7 +22,7 @@ const LARGURA_COM_ICONE = 380;
 export function CartaoDietaDoInicio({ estado, aoTentarDeNovo }: { estado: DietaNoInicio; aoTentarDeNovo: () => void }) {
   const { cores } = useTema();
   const { width } = useWindowDimensions();
-  const moldura = { backgroundColor: cores.superficie, borderColor: cores.borda };
+  const moldura = { backgroundColor: cores.superficie, borderColor: cores.divisor };
 
   if (estado.tipo === 'carregando') {
     return <View accessibilityLabel="Carregando a dieta" style={[estilos.cartao, estilos.carregando, moldura]} />;
@@ -50,9 +50,9 @@ export function CartaoDietaDoInicio({ estado, aoTentarDeNovo }: { estado: DietaN
       accessibilityRole="link"
       accessibilityLabel={`Dieta, ${refeicoes}${agua ? `, água do dia ${agua}` : ''}. Ver dieta.`}
       {...propsDeLink('/aluno/dieta', () => router.navigate('/aluno/dieta'))}
-      style={(e) => [estilos.cartao, estilos.linha, { backgroundColor: sobre(e) ? cores.superficie3 : cores.superficie, borderColor: cores.borda }]}>
+      style={(e) => [estilos.cartao, estilos.linha, { backgroundColor: sobre(e) ? cores.superficie3 : cores.superficie, borderColor: cores.divisor }]}>
       {width >= LARGURA_COM_ICONE ? (
-        <View style={[estilos.icone, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
+        <View style={[estilos.icone, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
           <Utensils size={20} color={cores.texto} aria-hidden />
         </View>
       ) : null}
@@ -65,7 +65,7 @@ export function CartaoDietaDoInicio({ estado, aoTentarDeNovo }: { estado: DietaN
       </View>
       {agua ? (
         <>
-          <View style={[estilos.traco, { backgroundColor: cores.borda }]} />
+          <View style={[estilos.traco, { backgroundColor: cores.divisor }]} />
           <View style={estilos.agua}>
             <View style={estilos.rotuloAgua}>
               <Droplet size={14} color={cores.texto} aria-hidden />

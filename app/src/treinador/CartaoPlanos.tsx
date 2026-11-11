@@ -61,18 +61,22 @@ export function periodo(p: { inicio: string | null; fim: string | null }): strin
   return `${dataParaTela(p.inicio) || '—'} a ${dataParaTela(p.fim) || '—'}`;
 }
 
-/** Selos do plano: em uso pelo aluno (verde; "ativo" se confundia com pasta aberta, reunião de 29/10), rascunho nunca publicado ou alterado depois de publicar (âmbar), versão (cinza). */
+/**
+ * Selos do plano: em uso pelo aluno (verde; "ativo" se confundia com pasta aberta, reunião de 29/10), versão, rascunho
+ * nunca publicado e "Alterações não publicadas" ao lado do plano que mudou. Rascunho sem erro é neutro (guia premium,
+ * pág. 8): a decisão pendente aparece no "Publicar" da pasta, não em âmbar aqui.
+ */
 export function SelosDoPlano({ plano }: { plano: PlanoResumo }) {
   return (
     <View style={estilos.selos}>
       {plano.ativo ? <Selo texto="Em uso pelo aluno" tipo="sucesso" /> : null}
       {plano.versaoPublicada === 0 ? (
-        <Selo texto="Rascunho" tipo="atencao" />
+        <Selo texto="Rascunho" tipo="neutro" />
       ) : (
         <Selo texto={`Publicado v${plano.versaoPublicada}`} tipo="neutro" />
       )}
       {plano.versaoPublicada > 0 && plano.rascunhoAlteradoDepoisDePublicar ? (
-        <Selo texto="Alterado desde a publicação" tipo="atencao" />
+        <Selo texto="Alterações não publicadas" tipo="neutro" />
       ) : null}
     </View>
   );

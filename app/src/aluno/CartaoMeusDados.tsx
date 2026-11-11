@@ -92,7 +92,7 @@ function SoLeitura({ resp }: { resp: MeusDadosResponse }) {
 function Leitura({ resp }: { resp: MeusDadosResponse }) {
   const { cores } = useTema();
   return (
-    <View style={[estilos.bloco, estilos.divisoria, { borderTopColor: cores.borda }]}>
+    <View style={[estilos.bloco, estilos.divisoria, { borderTopColor: cores.divisor }]}>
       <CamposEmLinha minimo={200}>
         <CampoLeitura rotulo="Telefone" valor={resp.telefone} numerico />
         <CampoLeitura rotulo="Sexo" valor={rotuloDoSexo(resp.sexo)} />
@@ -155,7 +155,7 @@ function Edicao({ resp, form, aoMudar, aoTerminar, aoRecarregar, aoCancelar }: P
 
   const erroDoEndereco = Object.fromEntries(CAMPOS_DO_ENDERECO.map((c) => [c, locais.endereco[c] ?? doServidor.endereco[c]]));
   return (
-    <View style={[estilos.bloco, estilos.divisoria, { borderTopColor: cores.borda }]}>
+    <View style={[estilos.bloco, estilos.divisoria, { borderTopColor: cores.divisor }]}>
       <Campo rotulo="Telefone (opcional)" valor={form.telefone} aoMudar={(t) => mudar({ telefone: mascaraTelefone(t) })}
         erro={locais.telefone ?? doServidor.telefone} keyboardType="phone-pad" autoComplete="tel" maxLength={15} numerico />
       <View style={estilos.campo}>

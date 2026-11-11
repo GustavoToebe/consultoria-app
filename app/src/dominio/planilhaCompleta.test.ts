@@ -8,7 +8,7 @@ import {
   textoDaPartePulada, textoDoProblema, tipoDaAba, valorDaResposta,
   AVISO_RESPONDIDO_ANTES, abaRespondidaAntes, alunosDaAba, blocoFicaDeFora, nomeRespondidoAntes, quantasRespostasSalvasMarcadas,
   respostasSalvasMarcadas, semRespostasSalvas, suplementoRespondidoAntes, textoDaSituacaoDoAluno, textoDasRespostasSalvas,
-  textoDoBloco, textoDoFormato, textoDosAlunosDaAba, preencherSugestoes,
+  textoDoBloco, textoDoFormato, textoDosAlunosDaAba, preencherSugestoes, alertaDoResultado,
 } from './planilhaCompleta';
 
 const ANALISE: AnaliseDaPlanilha = {
@@ -297,5 +297,14 @@ describe('pré-preenchimento da etapa Nomes', () => {
 
   test('sem nada a sugerir não conta nada', () => {
     expect(preencherSugestoes({ ...ANALISE, exercicios: [], alimentos: [], suplementos: [] }, SEM_RESPOSTAS)).toEqual({ estado: SEM_RESPOSTAS, preenchidas: 0 });
+  });
+});
+
+describe('aviso do resultado', () => {
+  it('sem problema é sucesso; com problema ou "concluída com erros" é atenção, com a contagem', () => {
+    expect(alertaDoResultado({ situacao: 'CONCLUIDA', problemas: 0 })).toMatchObject({ tom: 'sucesso', texto: expect.stringMatching(/^Importação confirmada\./) });
+    expect(alertaDoResultado({ situacao: 'CONCLUIDA_COM_ERROS', problemas: 3 })).toMatchObject({ tom: 'atencao', texto: expect.stringMatching(/^Importação concluída com erros: 3 linhas tiveram problema;/) });
+    expect(alertaDoResultado({ situacao: 'CONCLUIDA', problemas: 1 }).texto).toContain('1 linha teve problema');
+    expect(alertaDoResultado({ situacao: 'CONCLUIDA_COM_ERROS', problemas: 0 })).toMatchObject({ tom: 'atencao', texto: expect.stringContaining('Algumas linhas tiveram problema') });
   });
 });

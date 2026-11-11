@@ -25,8 +25,9 @@ interface Props {
 
 /**
  * Item da lista (mestre) dos editores em duas colunas (exercício, refeição, seção da mobilidade): número, título, selo,
- * resumo e a seta. O escolhido segue a seleção invertida do app (borda e barra na cor do texto, número invertido, como a
- * aba de série aberta), com `aria-current` e `selected`; a cor da marca ficava igual à do erro em marca vermelha.
+ * resumo e a seta. O escolhido segue a seleção neutra (`ui/selecao.ts`, guia premium pág. 9): superfície de seleção,
+ * contorno e barra na cor do texto e o número em destaque, como a linha da série em edição, com `aria-current` e
+ * `selected`; nunca a cor da marca, que ficava igual à do erro em marca vermelha.
  */
 export function ItemDaListaDoEditor({ numero, titulo, selo, linha, rotulo, escolhido, comProblema, aoEscolher }: Props) {
   const { cores, bordas } = useTema();
@@ -44,8 +45,9 @@ export function ItemDaListaDoEditor({ numero, titulo, selo, linha, rotulo, escol
           borderWidth: bordas.bloco,
           borderLeftWidth: BARRA,
           borderColor: borda,
-          borderLeftColor: borda,
-          backgroundColor: escolhido ? cores.superficie : sobre(s) ? cores.superficie3 : cores.superficie2,
+          // Escolhido e com erro: o contorno é o da seleção, a barra continua vermelha (o erro não some ao escolher).
+          borderLeftColor: comProblema ? cores.perigo : borda,
+          backgroundColor: escolhido || sobre(s) ? cores.superficie3 : cores.superficie2,
         },
       ]}>
       <NumeroInvertido numero={numero} invertido={escolhido} />

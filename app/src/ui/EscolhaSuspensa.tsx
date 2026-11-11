@@ -4,7 +4,7 @@ import { Modal, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions
 
 import { comDigitado, destaqueInicial, filtrarOpcoesSuspensas, moverDestaque, posicaoDaLista, VAO_DO_PAINEL, type OpcaoSuspensa } from '../dominio/escolhaSuspensa';
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, LARGURA_MENU_LATERAL, RAIO, SOMBRA_FLUTUANTE } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, LARGURA_MENU_LATERAL, RAIO, RAIO_CONTROLE } from '../tema/tokens';
 import type { Ancora } from './Calendario';
 import { Campo } from './Campo';
 import { Folha } from './Folha';
@@ -177,12 +177,12 @@ function Lista<T extends string | number | null>({ ancora, rotulo, valor, opcoes
           <Pressable key={String(o.valor)} ref={(no) => { itens.current[i] = no; }} nativeID={`${prefixo}-${i}`} role="option" aria-selected={escolhida}
             accessibilityLabel={o.detalhe ? `${o.rotulo}, ${o.detalhe}` : o.rotulo}
             onHoverIn={() => setDestaque(i)} onFocus={() => setDestaque(i)} onPress={() => aoEscolher(o.valor)}
-            style={[estilos.opcao, { backgroundColor: escolhida ? cores.texto : i === atual ? cores.superficie3 : 'transparent' }]}>
+            style={[estilos.opcao, { backgroundColor: escolhida ? cores.superficie3 : i === atual ? cores.superficie3 : 'transparent', borderColor: escolhida ? cores.bordaCampo : 'transparent' }]}>
             <View style={estilos.textos}>
-              <Texto style={[estilos.rotuloOpcao, { color: escolhida ? cores.fundo : cores.texto }]}>{o.rotulo}</Texto>
-              {o.detalhe ? <Texto variante="pequeno" cor={escolhida ? cores.fundo : undefined}>{o.detalhe}</Texto> : null}
+              <Texto style={[estilos.rotuloOpcao, { color: cores.texto }]}>{o.rotulo}</Texto>
+              {o.detalhe ? <Texto variante="pequeno">{o.detalhe}</Texto> : null}
             </View>
-            {escolhida ? <Check size={18} color={cores.fundo} strokeWidth={2.5} /> : null}
+            {escolhida ? <Check size={18} color={cores.texto} strokeWidth={2.5} /> : null}
           </Pressable>
         );
       })}
@@ -201,7 +201,7 @@ function Lista<T extends string | number | null>({ ancora, rotulo, valor, opcoes
     <Modal transparent visible animationType="none" statusBarTranslucent onRequestClose={aoFechar}>
       <Pressable style={StyleSheet.absoluteFill} onPress={aoFechar} accessibilityLabel={`Fechar ${rotulo}`} />
       <View accessibilityViewIsModal role="dialog" aria-label={rotulo}
-        style={[estilos.painel, posicao, { left: esquerda, width: largura, backgroundColor: cores.superficie, borderColor: cores.borda }]}>
+        style={[estilos.painel, posicao, { left: esquerda, width: largura, backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
         {campoDeBusca}
         <ScrollView style={{ maxHeight: alturaMaxima }} keyboardShouldPersistTaps="handled">{lista}</ScrollView>
       </View>
@@ -219,7 +219,7 @@ const estilos = StyleSheet.create({
     paddingHorizontal: espaco(1.5),
     paddingVertical: espaco(0.5),
     borderWidth: 1,
-    borderRadius: RAIO,
+    borderRadius: RAIO_CONTROLE,
   },
   textos: { flex: 1, gap: 1 },
   valor: { fontFamily: fontes.semi, fontSize: 15 },
@@ -229,10 +229,9 @@ const estilos = StyleSheet.create({
     borderWidth: 1,
     borderRadius: RAIO,
     overflow: 'hidden',
-    ...Platform.select({ web: { boxShadow: SOMBRA_FLUTUANTE }, default: { elevation: 8 } }),
   },
   busca: { padding: espaco(1) },
-  opcao: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), minHeight: ALVO_TOQUE, paddingHorizontal: espaco(1.5), paddingVertical: espaco(0.5) },
+  opcao: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), minHeight: ALVO_TOQUE, paddingHorizontal: espaco(1.5), paddingVertical: espaco(0.5), borderWidth: 1 },
   rotuloOpcao: { fontFamily: fontes.semi },
   vazio: { padding: espaco(1.5) },
 });

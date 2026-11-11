@@ -1,5 +1,5 @@
 import type { Configuracao, ModoDeCarga, PapelDaSerie, Serie } from '../../api/tipos';
-import { descreverGrupo, type GrupoDeSeries } from '../../dominio/agrupamento';
+import { descreverGrupo, modoDoGrupo, textoCarga, textoDosPercentuaisDoGrupo, type GrupoDeSeries } from '../../dominio/agrupamento';
 import { alterarPercentuais, cargaDoModo, modosDeCarga } from '../../dominio/editorTreino';
 import { nomeDoTipo, papelDe } from '../../dominio/metodologia';
 import { linhasDasEtapas } from '../../dominio/resumoDaSerie';
@@ -60,6 +60,18 @@ export function percentuaisNoGrupo(
 }
 
 /**
+ * Coluna Carga da tabela dos blocos (guia pág. 9): "50% · 70% da WS", "Carga de trabalho", "60 kg" (um valor só quando todas
+ * as séries do bloco têm o mesmo; senão cada um, na ordem) e "—" sem carga prescrita. Nada é calculado: só o que está gravado.
+ */
+export function cargaDoBloco(grupo: GrupoDeSeries, config: Configuracao | null | undefined, unidade: UnidadeDeCarga): string {
+  const modo = modoDoGrupo(grupo);
+  if (modo === 'PERCENTUAL_WS') return textoDosPercentuaisDoGrupo(grupo, config) || '—';
+  if (modo === 'CARGA_TRABALHO') return 'Carga de trabalho';
+  const textos = grupo.series.map((s) => textoCarga(s.carga, null, unidade) || '—');
+  return textos.every((t) => t === textos[0]) ? textos[0] : textos.join(' · ');
+}
+
+/**
  * "Para o aluno" numa linha: "3×3 a 5 · FS · 50% · 70% · 85% a 90% da WS". Sai da mesma leitura do resumo do grupo
  * (`descreverGrupo`), só com a separação da prévia, e termina com a carga de cada bloco do Cluster ou as retomadas do
  * Rest pause, quando o treinador as escreveu (`linhasDasEtapas`, as mesmas do PDF).
@@ -80,4 +92,30 @@ function linhaDoGrupo(grupo: GrupoDeSeries, config: Configuracao | null | undefi
   const depois = nome && resto.startsWith(`${nome} `) && /^\d/.test(resto.slice(nome.length + 1)) ? `${nome} · ${resto.slice(nome.length + 1)}` : resto;
   const quantas = reps.trim() ? `${n}×${reps.trim()}` : `${n} ${n === '1' ? 'série' : 'séries'}`;
   return `${quantas} · ${depois}`;
+}
+
+/** Texto da pendência de carga (guia premium págs. 4 e 9): âmbar, é preenchimento pendente, não erro. */
+export const FALTA_A_CARGA = 'Falta a carga';
+
+/**
+ * O erro da validação no `caminho` (relativo a `raiz`: o plano, o exercício ou a série) é só a carga obrigatória ainda
+ * vazia: o % de uma carga em % da WS, os kg de uma carga fixa, a carga de um bloco do cluster ou de uma retomada. A tela
+ * mostra isso em âmbar ("Falta a carga"); valor preenchido e fora da faixa continua vermelho. A validação não muda e
+ * continua impedindo publicar.
+ */
+export function cargaPendente(raiz: unknown, caminho: string): boolean {
+  const partes = caminho.split(/[.[\]]+/).filter(Boolean);
+  const ultima = partes.at(-1);
+  let pai: unknown;
+  let valor: unknown = raiz;
+  for (const p of partes) {
+    pai = valor;
+    valor = valor != null && typeof valor === 'object' ? (valor as Record<string, unknown>)[p] : undefined;
+  }
+  if (valor != null) return false;
+  const modo = (pai as { modo?: string } | null | undefined)?.modo;
+  if (ultima === 'percentualMin' || ultima === 'percentual') return modo === 'PERCENTUAL_WS';
+  if (ultima === 'valorKg') return modo === 'CARGA_FIXA';
+  // `tecnica.cargasDosBlocos[i]` (o bloco sem carga) e `tecnica.retomadas[i].carga` (a retomada sem carga).
+  return /cargasDosBlocos\[\d+\]$/.test(caminho) || /retomadas\[\d+\]\.carga$/.test(caminho);
 }

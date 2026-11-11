@@ -3,7 +3,7 @@ import type { FaseAtualizacao, SituacaoFiltro } from '../api/tipos';
 /**
  * Filtros avançados da lista de alunos (`docs/planos/filtros-da-lista-de-alunos.md`, 31/10): o que a tela guarda, como
  * vai para o endereço (`/treinador/alunos?acesso=SEM&...`), como vai para a API (`GET /alunos`, parâmetros repetidos), os
- * chips do "Filtrado por" e quais filtros cada permissão vê. Funções puras.
+ * chips do "Filtrando:" e quais filtros cada permissão vê. Funções puras.
  *
  * No endereço, filtro de várias opções vai numa vírgula só (`acesso=SEM,AGUARDANDO`), como o `etapas` dos Interessados;
  * para a API cada opção vira um parâmetro repetido. Valor desconhecido no endereço é ignorado (link velho ou digitado),
@@ -271,6 +271,30 @@ export function opcoesDeResponsavel(pessoas: readonly { id: string; nome: string
   const outras = pessoas.filter((p) => p.id !== usuarioId).map((p) => ({ valor: p.id, rotulo: p.nome }))
     .sort((a, b) => a.rotulo.localeCompare(b.rotulo, 'pt-BR'));
   return [{ valor: MEUS, rotulo: 'Meus alunos' }, ...outras, { valor: SEM_RESPONSAVEL, rotulo: 'Sem responsável' }];
+}
+
+/** Atalhos da lista (guia de 11/11, pág. 7): "Todos", "Para revisar" e "Atrasados" mexem só no filtro de atualização. */
+export type AtalhoDaLista = 'todos' | 'revisar' | 'atrasados';
+
+export const ATALHOS: readonly { valor: AtalhoDaLista; rotulo: string }[] = [
+  { valor: 'todos', rotulo: 'Todos' },
+  { valor: 'revisar', rotulo: 'Para revisar' },
+  { valor: 'atrasados', rotulo: 'Atrasados' },
+];
+
+const FASE_DO_ATALHO: Record<AtalhoDaLista, FaseDoFiltro[]> = { todos: [], revisar: ['ENVIADA'], atrasados: ['ATRASADA'] };
+
+/** Qual atalho o filtro de atualização é; nulo quando é outra combinação (escolhida em "Filtros"). */
+export function atalhoAtual(f: FiltrosDeAlunos): AtalhoDaLista | null {
+  const fases = f.atualizacao;
+  if (fases.length === 0) return 'todos';
+  if (fases.length !== 1) return null;
+  return fases[0] === 'ENVIADA' ? 'revisar' : fases[0] === 'ATRASADA' ? 'atrasados' : null;
+}
+
+/** Os mesmos filtros com o atalho no lugar do filtro de atualização (os outros ficam). */
+export function comAtalho(f: FiltrosDeAlunos, atalho: AtalhoDaLista): FiltrosDeAlunos {
+  return { ...f, atualizacao: FASE_DO_ATALHO[atalho] };
 }
 
 /** Há filtro ligado além da busca? (texto do estado vazio). */

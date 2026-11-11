@@ -22,7 +22,7 @@ export function LinksDosTermos({ todas }: { todas?: boolean }) {
   const caminho = usePathname();
   const links = todas ? PAGINAS.filter(([href]) => href !== caminho) : PAGINAS.slice(0, 2);
   return (
-    <View role="navigation" aria-label="Termos e privacidade" style={[estilos.rodape, { borderTopColor: cores.borda }]}>
+    <View role="navigation" aria-label="Termos e privacidade" style={[estilos.rodape, { borderTopColor: cores.divisor }]}>
       {links.map(([href, texto]) => <LinkTexto key={href} href={href} texto={texto} />)}
     </View>
   );

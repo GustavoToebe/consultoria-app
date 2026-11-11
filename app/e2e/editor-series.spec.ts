@@ -2,10 +2,11 @@ import { expect, test, type Page } from '@playwright/test';
 import type { Receita, Serie } from '../src/api/tipos';
 import { CONFIGURACAO_PADRAO } from '../src/dominio/metodologiaPadrao';
 import { json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
+import { linhaDaSerie } from './linhaDaSerie';
 
 // "Nova série" mostra os botões de 1 clique ("Adicionar FS", "Adicionar WS com Cluster"); sem série nenhuma eles já estão à vista.
 async function novaSerie(page: Page, botao: string) {
-  if (await page.getByRole('tab', { name: /^Série \d/ }).count()) await page.getByRole('button', { name: 'Nova série', exact: true }).click();
+  if (await linhaDaSerie(page, /^Série \d/).count()) await page.getByRole('button', { name: 'Nova série', exact: true }).click();
   await page.getByRole('button', { name: botao, exact: true }).click();
 }
 
@@ -44,8 +45,8 @@ for (const largura of [390, 1280]) {
     await expect(page.getByRole('button', { name: 'Só técnica', exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: 'Adicionar WS com Rest pause', exact: true }).click();
     // Três grupos, três abas; a nova (a 3ª, WS com Rest pause) é a aberta.
-    await expect(page.getByRole('tab', { name: /^Série \d/ })).toHaveCount(3);
-    await expect(page.getByRole('tab', { name: /^Série 3 · WS/, selected: true })).toBeVisible();
+    await expect(linhaDaSerie(page, /^Série \d/)).toHaveCount(3);
+    await expect(linhaDaSerie(page, /^Série 3 · WS/, true)).toBeVisible();
     await expect(page.getByText(/^Editando: Série \d · Trabalho · WS \+ Rest pause$/)).toBeVisible();
     await expect(page.getByText(/1×3 a 6 · WS \+ Rest pause/).first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'Técnica da série: Rest pause. Escolher.', exact: true })).toBeVisible();

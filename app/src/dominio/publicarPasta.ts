@@ -176,13 +176,38 @@ export function textoDosPendentesDuplicados(
 /** Fecha o texto do 409 de pendentes duplicados: o que fazer. */
 export const ORIENTACAO_DOS_DUPLICADOS = 'Arquive o que não deve ir ao aluno (⋯ › Excluir plano) e publique de novo.';
 
-/** Aviso depois do 200: "2 publicados, 1 sem alteração." ou, sem nada publicado, que não havia o que publicar. */
+const ROTULO_GERAL_DO_PUBLICAR = 'Publicar alterações da pasta';
+
+/**
+ * Rótulo do "Publicar" da pasta pelo alcance (guia premium, pág. 8): um tipo só com alteração e todas as listas
+ * conhecidas = "Publicar dieta"; senão (dois tipos, nenhum, ou um tipo desconhecido que pode ter alteração) =
+ * "Publicar alterações da pasta". O nome acessível começa pelo rótulo visível (WCAG 2.5.3) e diz a pasta.
+ */
+export function rotuloDoPublicarDaPasta(planos: PlanosDaPasta | null, tituloDaPasta: string): { rotulo: string; rotuloAcessivel: string } {
+  const pendentes = planos ? TIPOS_DA_PASTA.filter((t) => (planos[t] ?? []).some(planoPendente)) : [];
+  const todosConhecidos = !!planos && TIPOS_DA_PASTA.every((t) => planos[t] !== null);
+  if (todosConhecidos && pendentes.length === 1) {
+    const rotulo = `Publicar ${ARTIGOS_DO_TIPO[pendentes[0]].nome}`;
+    return { rotulo, rotuloAcessivel: `${rotulo} da pasta ${tituloDaPasta}` };
+  }
+  return { rotulo: ROTULO_GERAL_DO_PUBLICAR, rotuloAcessivel: `${ROTULO_GERAL_DO_PUBLICAR} ${tituloDaPasta}` };
+}
+
+const PUBLICADO: Record<TipoPlano, string> = { treino: 'Treino publicado', dieta: 'Dieta publicada', mobilidade: 'Mobilidade publicada' };
+
+/**
+ * Aviso depois do 200 (só depois da confirmação da API): "Dieta publicada.", "Treino e dieta publicados. 1 plano sem
+ * alteração." ou, sem nada publicado, que não havia o que publicar.
+ */
 export function resumoDaPublicacao(r: Pick<PublicarPastaResposta, 'publicados' | 'pulados'>): string {
-  const n = r.publicados.length;
+  const tipos = TIPOS_DA_PASTA.filter((t) => r.publicados.some((p) => p.tipo === t));
+  if (tipos.length === 0) return 'Nada para publicar: os planos já estão publicados e sem alteração.';
+  const lista = listaComE(tipos.map((t) => ARTIGOS_DO_TIPO[t].nome));
+  const publicados = tipos.length === 1
+    ? PUBLICADO[tipos[0]]
+    : `${lista.charAt(0).toUpperCase()}${lista.slice(1)} ${tipos.includes('treino') ? 'publicados' : 'publicadas'}`;
   const m = r.pulados.length;
-  if (n === 0) return 'Nada para publicar: os planos já estão publicados e sem alteração.';
-  const publicados = n === 1 ? '1 publicado' : `${n} publicados`;
-  return m > 0 ? `${publicados}, ${m} sem alteração.` : `${publicados}.`;
+  return m > 0 ? `${publicados}. ${m === 1 ? '1 plano' : `${m} planos`} sem alteração.` : `${publicados}.`;
 }
 
 export interface ProblemaDoPlano {

@@ -74,7 +74,7 @@ const pesoEm = (page: Page, n: number, unidade: 'libras' | 'quilos') => page.get
 const marcar = (page: Page, n: number) => page.getByRole('checkbox', { name: `Série ${n} feita`, exact: true });
 /** Preferências do aluno ficam numa folha aberta pelo item "Aparência e preferências" da Conta. */
 /** Opção do `Escolha` (botão dentro do grupo, marcada com `aria-checked`). */
-const opcao = (page: Page, rotulo: string) => page.getByRole('radiogroup', { name: 'Unidade da carga' }).getByRole('button', { name: rotulo, exact: true });
+const opcao = (page: Page, rotulo: string) => page.getByRole('radiogroup', { name: 'Unidade da carga' }).getByRole('radio', { name: rotulo, exact: true });
 const abrirPreferencias = async (page: Page) => {
   await page.goto('/aluno/conta');
   await page.getByRole('button', { name: /^Aparência e preferências/ }).click();

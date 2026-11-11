@@ -15,7 +15,7 @@ export function ProblemasAgrupados({ erros, alem }: { erros: readonly { linha: n
   return (
     <View style={estilos.coluna}>
       {grupos.slice(0, GRUPOS_NA_TELA).map((g) => (
-        <View key={`${g.campo}-${g.motivo}`} style={[estilos.grupo, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
+        <View key={`${g.campo}-${g.motivo}`} style={[estilos.grupo, { borderColor: cores.divisor, backgroundColor: cores.superficie2 }]}>
           <Texto>{textoDoGrupoDeErros(g, ondeDaAba(g.campo))}</Texto>
         </View>
       ))}

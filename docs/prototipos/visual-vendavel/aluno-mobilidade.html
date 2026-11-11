@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<!-- Dados fictícios (D8). Nada aqui fala com a API. -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mobilidade do aluno · prévia visual</title>
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="aluno.css">
+<script src="base.js"></script>
+</head>
+<body data-casca="aluno" data-ativo="treino">
+<svg style="display:none" aria-hidden="true">
+  <symbol id="i-play" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5-6-3.5Z"/></g></symbol>
+  <symbol id="i-alongar" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.5" r="1.8"/><path d="M5 9l7 1.5L19 9M12 10.5V15l-4 5M12 15l4 5"/></g></symbol>
+</svg>
+<template id="prot-extra">
+  <div class="prot-grupo" role="group" aria-labelledby="prot-r-plano"><span class="prot-rot" id="prot-r-plano">Plano</span>
+    <div class="prot-segmento" id="chave-vazio">
+      <button type="button" data-vazio="0">Com itens</button><button type="button" data-vazio="1">Ainda não publicado</button>
+    </div>
+  </div>
+</template>
+<main id="conteudo" class="pagina">
+  <div class="pilha">
+    <header class="cab-pagina">
+      <a class="botao botao--fantasma voltar" href="aluno-treino.html"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-seta-esquerda"/></svg>Treino</a>
+      <span class="sobretitulo">Hoje · terça, 10/11</span>
+      <h1 class="t-titulo-pagina">Mobilidade</h1>
+      <p class="subtitulo t-apoio">Do seu treinador · Pasta Força</p>
+    </header>
+
+    <div id="com-itens" class="pilha">
+      <div class="pilha-8">
+        <div class="progresso-linha">
+          <div class="progresso" id="prog" role="progressbar" aria-label="Itens feitos hoje" aria-valuemin="0" aria-valuemax="8"><span></span></div>
+          <span class="num" id="prog-txt"></span>
+        </div>
+        <span class="selo selo--feito selo-feito-hoje" id="feito-hoje" hidden><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-check"/></svg>Feito hoje</span>
+      </div>
+      <div id="grupos" class="pilha-16"></div>
+      <span class="anotacao">3c · marcar à esquerda (44 px), nome e prescrição, vídeo à direita; feito = caixa cheia neutra; verde só no item que a pessoa acabou de marcar</span>
+    </div>
+
+    <section class="cartao" id="vazio" hidden aria-labelledby="vazio-t">
+      <div class="vazio">
+        <span class="vazio-icone"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-alongar"/></svg></span>
+        <h2 id="vazio-t">Seu treinador ainda não publicou a mobilidade</h2>
+        <p>Quando ele publicar, os exercícios aparecem aqui, separados em antes e depois do treino.</p>
+        <a class="botao" href="aluno-treino.html">Ver meu treino</a>
+      </div>
+    </section>
+  </div>
+  <p class="sr-only" role="status" id="anuncio"></p>
+</main>
+<script>
+(function () {
+  var GRUPOS = [
+    { id: 'antes', nome: 'Antes do treino', itens: [
+      { nome: 'Rotação de tronco no chão', presc: '2 × 10 de cada lado', feito: true },
+      { nome: 'Mobilidade de quadril 90/90', presc: '1 min de cada lado', feito: true },
+      { nome: 'Gato e vaca', presc: '10 repetições', feito: true },
+      { nome: 'Ombro com bastão', presc: '2 × 12', feito: false },
+    ] },
+    { id: 'depois', nome: 'Depois do treino', itens: [
+      { nome: 'Alongamento de peitoral na parede', presc: '30 s de cada lado', feito: false },
+      { nome: 'Posterior de coxa sentado', presc: '2 × 30 s', feito: false },
+      { nome: 'Flexor de quadril ajoelhado', presc: '30 s de cada lado', feito: false },
+      { nome: 'Respiração diafragmática', presc: '5 respirações lentas', feito: false },
+    ] },
+  ];
+  var aberto = { antes: true, depois: true };
+  var $ = function (id) { return document.getElementById(id); };
+  var ic = function (n) { return VV.icone(n); };
+  var feitosDe = function (g) { return g.itens.filter(function (i) { return i.feito; }).length; };
+
+  function itemHtml(g, k) {
+    var it = g.itens[k];
+    return '<li class="item-mob' + (it.feito ? ' feito' : '') + (it.feito && it.agora ? ' agora' : '') + '">' +
+      '<button type="button" class="marcar-mob clicavel" aria-pressed="' + it.feito + '" data-g="' + g.id + '" data-k="' + k + '" aria-label="Feito: ' + it.nome + '">' + ic('check') + '</button>' +
+      '<span class="texto"><b>' + it.nome + '</b><span>' + it.presc + '</span></span>' +
+      '<a class="botao botao--icone botao--fantasma video-mob" href="https://example.com/" target="_blank" rel="noopener noreferrer" aria-label="Vídeo: ' + it.nome + ' (abre fora do app)">' + ic('play') + '</a></li>';
+  }
+  function grupoHtml(g) {
+    var f = feitosDe(g), n = g.itens.length;
+    return '<section class="cartao grupo-mob" aria-labelledby="gc-' + g.id + '">' +
+      '<h2 class="t-titulo-cartao"><button type="button" class="grupo-mob-cab clicavel" id="gc-' + g.id + '" aria-expanded="' + aberto[g.id] + '" aria-controls="gi-' + g.id + '">' +
+      '<span class="nome">' + g.nome + '</span>' +
+      (f === n ? '<span class="selo selo--feito">Tudo feito</span>' : '<span class="t-apoio num">' + f + ' de ' + n + '</span>') +
+      ic('chevron-baixo', 'seta') + '</button></h2>' +
+      '<ul class="itens-mob" id="gi-' + g.id + '"' + (aberto[g.id] ? '' : ' hidden') + '>' + g.itens.map(function (_, k) { return itemHtml(g, k); }).join('') + '</ul></section>';
+  }
+  function progresso() {
+    var f = GRUPOS.reduce(function (a, g) { return a + feitosDe(g); }, 0), n = 8;
+    $('prog').style.setProperty('--p', (f / n * 100) + '%');
+    $('prog').setAttribute('aria-valuenow', f);
+    $('prog').setAttribute('aria-valuetext', f + ' de ' + n + ' feitos');
+    $('prog-txt').textContent = f + ' de ' + n + ' feitos hoje';
+    $('feito-hoje').hidden = f < n;
+    return f;
+  }
+  function desenhar() { $('grupos').innerHTML = GRUPOS.map(grupoHtml).join(''); progresso(); }
+  function anunciar(t) { var a = $('anuncio'); a.textContent = ''; setTimeout(function () { a.textContent = t; }, 30); }
+
+  function rota() {
+    var vazio = new URLSearchParams(location.hash.slice(1)).get('vazio') === '1';
+    $('com-itens').hidden = vazio;
+    $('vazio').hidden = !vazio;
+    document.querySelectorAll('#chave-vazio [data-vazio]').forEach(function (b) { b.setAttribute('aria-pressed', String((b.dataset.vazio === '1') === vazio)); });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    desenhar(); rota();
+    window.addEventListener('hashchange', rota);
+    // estados da prévia: na barra "Prévia" (montada pelo base.js a partir do <template id="prot-extra">)
+    document.addEventListener('click', function (ev) {
+      var b = ev.target.closest('#chave-vazio [data-vazio]'); if (!b) return;
+      history.replaceState(null, '', b.dataset.vazio === '1' ? '#vazio=1' : '#');
+      rota();
+    });
+    $('grupos').addEventListener('click', function (ev) {
+      var cab = ev.target.closest('.grupo-mob-cab');
+      if (cab) {
+        var id = cab.id.slice(3); aberto[id] = !aberto[id];
+        cab.setAttribute('aria-expanded', String(aberto[id]));
+        $('gi-' + id).hidden = !aberto[id];
+        return;
+      }
+      var m = ev.target.closest('.marcar-mob'); if (!m) return;
+      var g = GRUPOS.filter(function (x) { return x.id === m.dataset.g; })[0], k = Number(m.dataset.k), it = g.itens[k];
+      it.feito = !it.feito; it.agora = it.feito;
+      var completo = feitosDe(g) === g.itens.length;
+      if (completo && it.feito) aberto[g.id] = false;
+      var sec = m.closest('.grupo-mob'), novo = document.createElement('div');
+      novo.innerHTML = grupoHtml(g); sec.replaceWith(novo.firstChild);
+      var li = document.querySelector('.marcar-mob[data-g="' + g.id + '"][data-k="' + k + '"]');
+      if (li && it.feito) li.closest('.item-mob').classList.add('acabou'); // o ✓ entra (o CSS só anima sem reduce)
+      var f = progresso();
+      if (completo && it.feito) {
+        $('gc-' + g.id).focus();
+        anunciar(g.nome + ': tudo feito. ' + f + ' de 8 feitos hoje.');
+      } else {
+        document.querySelector('.marcar-mob[data-g="' + g.id + '"][data-k="' + k + '"]').focus();
+        anunciar(it.nome + (it.feito ? ' feito. ' : ' desmarcado. ') + f + ' de 8 feitos hoje.');
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>

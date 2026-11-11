@@ -1,12 +1,13 @@
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
+import { CircleAlert } from 'lucide-react-native';
 import { ESTILOS_TEXTO } from './tipografia';
 import { useEffect, useState, type ReactNode, type Ref } from 'react';
 import { AccessibilityInfo, Platform, StyleSheet, View, type TextInput, type TextInputProps } from 'react-native';
 
 import { escalar } from '../dominio/preferencias';
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, RAIO_CONTROLE } from '../tema/tokens';
 import { coresDoDesabilitado } from './desabilitado';
 import { Texto } from './Texto';
 
@@ -39,8 +40,10 @@ interface Props extends Omit<TextInputProps, 'style' | 'onChangeText' | 'value'>
 }
 
 /**
- * Campo de digitar com rótulo, ajuda e erro. O rótulo vai na cor do texto (protótipo de 30/10: só a ajuda é suave). O erro vai ao leitor de tela: `aria-invalid` na web, região viva no
- * Android e anúncio no iOS. Foco = borda de 2 px na cor do anel de foco (a cor da marca não contrasta no escuro).
+ * Campo de digitar com rótulo fixo em cima (o exemplo do `placeholder` nunca o substitui), ajuda e erro embaixo. O rótulo
+ * vai na cor do texto; só a ajuda é suave. Erro = ícone + mensagem + borda `perigo` juntos (cor nunca sozinha); vai ao
+ * leitor de tela: `aria-invalid` na web, região viva no Android e anúncio no iOS. Foco = borda de 2 px na cor do anel de
+ * foco (a cor da marca não contrasta no escuro).
  */
 export function Campo({ rotulo, valor, aoMudar, erro, ajuda, linhas, numerico, acao, rotuloAcessivel, rotuloOculto, sufixo, erroSemTexto, grande, ...resto }: Props) {
   const { cores, fatorTexto } = useTema();
@@ -90,8 +93,19 @@ export function Campo({ rotulo, valor, aoMudar, erro, ajuda, linhas, numerico, a
         </View>
       ) : null}
       </View>
-      {erro && !erroSemTexto ? <Texto variante="pequeno" cor={cores.perigo} accessibilityLiveRegion="polite">{erro}</Texto> : null}
+      {erro && !erroSemTexto ? <MensagemDeErro erro={erro} /> : null}
       {!erro && ajuda ? <Texto variante="pequeno">{ajuda}</Texto> : null}
+    </View>
+  );
+}
+
+/** Mensagem de erro sob o campo: ícone e texto em `perigo` (o ícone é decorativo; o texto é que é lido). */
+export function MensagemDeErro({ erro }: { erro: string }) {
+  const { cores } = useTema();
+  return (
+    <View style={estilos.erro}>
+      <View aria-hidden style={estilos.iconeDoErro}><CircleAlert size={14} color={cores.perigo} strokeWidth={2.5} /></View>
+      <Texto variante="pequeno" cor={cores.perigo} accessibilityLiveRegion="polite" style={estilos.textoDoErro}>{erro}</Texto>
     </View>
   );
 }
@@ -105,11 +119,15 @@ export function useAnunciarErro(erro: string | null | undefined, rotulo: string)
 
 const estilos = StyleSheet.create({
   campo: { gap: espaco(0.5) },
+  erro: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(0.5) },
+  // O ícone desce até o meio da primeira linha do texto pequeno (linha de 16 px).
+  iconeDoErro: { paddingTop: 1 },
+  textoDoErro: { flexShrink: 1 },
   acao: { position: 'absolute', right: 0, top: 0, bottom: 0, justifyContent: 'center' },
   sufixo: { position: 'absolute', right: espaco(1.5), top: 0, bottom: 0, justifyContent: 'center' },
   entrada: {
     minHeight: ALVO_TOQUE,
-    borderRadius: RAIO,
+    borderRadius: RAIO_CONTROLE,
     fontFamily: fontes.normal,
     fontSize: 16,
   },

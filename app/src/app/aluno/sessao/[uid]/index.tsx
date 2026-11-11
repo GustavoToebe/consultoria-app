@@ -37,7 +37,7 @@ export default function SessaoAluno() {
   const { sessao, data, hoje } = dia;
   const animar = usePrimeiraLista(dia.carregado);
   const reduzido = useMovimentoReduzido();
-  const { cores } = useTema();
+  const { cores, marcaPeca } = useTema();
   const { retornoHabilitado } = useSessao();
 
   if (!dia.carregado) {
@@ -86,7 +86,7 @@ export default function SessaoAluno() {
           )}
         </View>
         <FaixaDoTreino versaoId={dia.treino.versaoId} sessao={sessao} data={data} hoje={hoje} feitas={feitas} total={total} registroDe={dia.registroDe} />
-        <BarraProgresso feitas={feitas} total={total} />
+        <BarraProgresso feitas={feitas} total={total} cor={marcaPeca} trilho={cores.superficie3} />
         {dia.recordesNoDia ? (
           <View style={estilos.recordes}>
             <Medal size={18} color={cores.sucesso} />

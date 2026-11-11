@@ -219,7 +219,7 @@ function CartaoDoAluno({ aluno, puladas, abertoAoMontar, aoVerComoAluno, ignorad
 function Bloco({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   const { cores } = useTema();
   return (
-    <View style={[estilos.bloco, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
+    <View style={[estilos.bloco, { borderColor: cores.divisor, backgroundColor: cores.superficie2 }]}>
       <Texto variante="subtitulo" nivel={3}>{titulo}</Texto>
       {children}
     </View>

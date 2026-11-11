@@ -10,6 +10,7 @@ import {
   planosDaPasta,
   podeSugerirPeso,
   resumoDaPublicacao,
+  rotuloDoPublicarDaPasta,
   situacaoDoPublicar,
   TEXTO_DO_CONFLITO_DA_PUBLICACAO,
   textoDoErroDaCopia,
@@ -39,6 +40,22 @@ describe('publicarPasta: plano pendente', () => {
     expect(planoPendente(plano('1', 'A'))).toBe(true);
     expect(planoPendente(alteradoDepois('1', 'A'))).toBe(true);
     expect(planoPendente(publicadoSemAlteracao('1', 'A'))).toBe(false);
+  });
+});
+
+describe('publicarPasta: rótulo pelo alcance', () => {
+  const geral = { rotulo: 'Publicar alterações da pasta', rotuloAcessivel: 'Publicar alterações da pasta Plano 17' };
+
+  it('um tipo só com alteração e todas as listas conhecidas: o nome do tipo', () => {
+    const planos: PlanosDaPasta = { treino: [publicadoSemAlteracao('t', 'T')], dieta: [plano('d', 'D')], mobilidade: [] };
+    expect(rotuloDoPublicarDaPasta(planos, 'Plano 17')).toEqual({ rotulo: 'Publicar dieta', rotuloAcessivel: 'Publicar dieta da pasta Plano 17' });
+  });
+
+  it('lista desconhecida, nenhum ou dois tipos com alteração: o rótulo geral', () => {
+    expect(rotuloDoPublicarDaPasta({ treino: null, dieta: [plano('d', 'D')], mobilidade: [] }, 'Plano 17')).toEqual(geral);
+    expect(rotuloDoPublicarDaPasta({ treino: [publicadoSemAlteracao('t', 'T')], dieta: [], mobilidade: [] }, 'Plano 17')).toEqual(geral);
+    expect(rotuloDoPublicarDaPasta({ treino: [alteradoDepois('t', 'T')], dieta: [plano('d', 'D')], mobilidade: [] }, 'Plano 17')).toEqual(geral);
+    expect(rotuloDoPublicarDaPasta(null, 'Plano 17')).toEqual(geral);
   });
 });
 
@@ -236,10 +253,13 @@ describe('publicarPasta: resumo', () => {
   const pub = (n: number) => Array.from({ length: n }, (_, i) => ({ tipo: 'treino' as const, planoId: `${i}`, versao: 1 }));
   const pul = (n: number) => Array.from({ length: n }, (_, i) => ({ tipo: 'dieta' as const, planoId: `${i}` }));
 
-  it('singular, plural e sem os pulados', () => {
-    expect(resumoDaPublicacao({ publicados: pub(1), pulados: pul(1) })).toBe('1 publicado, 1 sem alteração.');
-    expect(resumoDaPublicacao({ publicados: pub(2), pulados: pul(3) })).toBe('2 publicados, 3 sem alteração.');
-    expect(resumoDaPublicacao({ publicados: pub(3), pulados: [] })).toBe('3 publicados.');
+  it('diz o que foi publicado, pelo tipo, e quantos ficaram sem alteração', () => {
+    expect(resumoDaPublicacao({ publicados: pub(1), pulados: pul(1) })).toBe('Treino publicado. 1 plano sem alteração.');
+    expect(resumoDaPublicacao({ publicados: [{ tipo: 'dieta', planoId: 'd', versao: 1 }], pulados: [] })).toBe('Dieta publicada.');
+    expect(resumoDaPublicacao({ publicados: [{ tipo: 'mobilidade', planoId: 'm', versao: 1 }, { tipo: 'dieta', planoId: 'd', versao: 1 }], pulados: pul(3) }))
+      .toBe('Dieta e mobilidade publicadas. 3 planos sem alteração.');
+    expect(resumoDaPublicacao({ publicados: [...pub(1), { tipo: 'dieta', planoId: 'd', versao: 1 }, { tipo: 'mobilidade', planoId: 'm', versao: 1 }], pulados: [] }))
+      .toBe('Treino, dieta e mobilidade publicados.');
   });
 
   it('nada publicado: diz que não havia o que publicar', () => {

@@ -13,7 +13,7 @@ import {
 } from '../dominio/historicoDoAluno';
 import { partesDaDivisao, textoDoVolume, textoSerie, volumeDoExercicio } from '../dominio/relatorio';
 import { useTema } from '../tema/TemaProvider';
-import { espaco, fontes, LINHA_DA_FAIXA, RAIO } from '../tema/tokens';
+import { espaco, fontes, RAIO } from '../tema/tokens';
 import { EntradaEmCascata, usePrimeiraLista } from '../ui/EntradaEmCascata';
 import { Texto } from '../ui/Texto';
 import { useUnidadeDeCarga } from '../ui/unidadeDeCargaEmUso';
@@ -71,14 +71,15 @@ export function HistoricoPorSemana({ dias, nomeDaSessao, letras, periodo, hoje }
 }
 
 function CabecalhoDaSemana({ titulo, resumo, marcas }: { titulo: string; resumo: string; marcas: MarcaDoDia[] }) {
-  const { cores, identificacao } = useTema();
+  const { cores, identificacao, bordas } = useTema();
   const treinados = marcas.filter((m) => m.sessoes.length).map((m) => `${partesDaData(m.data).nomeDoDia}, ${m.sessoes.map((x) => (x.letra ? `${x.nome} (${x.letra})` : x.nome)).join(' e ')}`);
   const fora = marcas.filter((m) => m.foraDoPeriodo);
   const futuros = marcas.filter((m) => m.aindaNaoChegou);
   const nomes = (lista: MarcaDoDia[]) => lista.map((m) => partesDaData(m.data).nomeDoDia).join(', ');
   const rotulo = `Dias com treino: ${treinados.join('; ') || 'nenhum'}${fora.length ? `. Fora do período: ${nomes(fora)}` : ''}${futuros.length ? `. Ainda não chegou: ${nomes(futuros)}` : ''}`;
   return (
-    <View style={[estilos.cabecalhoDaSemana, { borderBottomColor: cores.bordaCampo }]}>
+    // A linha separa o cabeçalho da semana dos dias embaixo (era 2 px; com o contorno de 1 px virou 0 e sumiu).
+    <View style={[estilos.cabecalhoDaSemana, { borderBottomWidth: bordas.bloco, borderBottomColor: cores.divisor }]}>
       <View style={estilos.textosDaSemana}>
         <Texto variante="subtitulo" numerico nivel={3}>{titulo}</Texto>
         <Texto variante="suave">{resumo}</Texto>
@@ -147,7 +148,7 @@ function SessaoNoDia({ sessao, nome, letra }: { sessao: SessaoDoDia; nome: strin
 const estilos = StyleSheet.create({
   lista: { gap: espaco(3) },
   semana: { gap: espaco(1.25) },
-  cabecalhoDaSemana: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1.25), paddingBottom: espaco(1), borderBottomWidth: LINHA_DA_FAIXA - 1 },
+  cabecalhoDaSemana: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1.25), paddingBottom: espaco(1) },
   textosDaSemana: { flexGrow: 1, flexBasis: 160, gap: 1 },
   marcas: { flexDirection: 'row', alignItems: 'flex-start', gap: 4 },
   diaDaGrade: { gap: 4 },

@@ -6,6 +6,7 @@ import { dataComDiaDaSemana, miniCalendario, type VisaoDoCalendario } from '../.
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, LINHA_DA_FAIXA, RAIO } from '../../tema/tokens';
 import { IconeBotao } from '../../ui/IconeBotao';
+import { coresDaSelecao } from '../../ui/selecao';
 import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
 
@@ -28,9 +29,12 @@ export function MiniCalendario(props: Props) {
 }
 
 function MiniDoMes({ visao, data, hoje, aoEscolher }: Props) {
-  const { cores, bordas } = useTema();
+  const { cores, bordas, marcaTexto } = useTema();
   const [mes, setMes] = useState(data);
   const m = miniCalendario(mes, visao, data, hoje);
+  // Como o `ui/Calendario`: o escolhido é o mais forte (superficie3 com contorno, sem inverter); hoje é só o número na
+  // cor da marca.
+  const selecao = coresDaSelecao(cores, true);
   return (
     <View style={[estilos.mini, { borderWidth: bordas.bloco, borderColor: cores.borda, backgroundColor: cores.superficie }]}>
       <View style={[estilos.topo, { backgroundColor: cores.superficie3, borderBottomColor: cores.bordaCampo }]}>
@@ -51,9 +55,9 @@ function MiniDoMes({ visao, data, hoje, aoEscolher }: Props) {
               <Pressable key={c.data} accessibilityRole="button" accessibilityState={{ selected: marcado }} aria-current={marcado ? 'date' : undefined}
                 accessibilityLabel={`${dataComDiaDaSemana(c.data)}${c.hoje ? ', hoje' : ''}`} onPress={() => aoEscolher(c.data)}
                 style={(e) => [estilos.dia, c.destaque && { backgroundColor: cores.superficie2, borderRadius: 0 }, sobre(e) && !marcado && { backgroundColor: cores.superficie3 }]}>
-                <View style={[estilos.numero, marcado && { backgroundColor: cores.texto }, c.hoje && !marcado && { borderWidth: 2, borderColor: cores.texto }]}>
+                <View style={[estilos.numero, marcado && { backgroundColor: selecao.fundo, borderWidth: 1, borderColor: selecao.borda }]}>
                   <Texto variante="pequeno" numerico style={c.hoje || marcado ? estilos.forte : undefined}
-                    cor={marcado ? cores.fundo : c.doMes ? cores.texto : cores.textoSuave}>{String(c.dia)}</Texto>
+                    cor={marcado ? selecao.texto : c.hoje ? marcaTexto : c.doMes ? cores.texto : cores.textoSuave}>{String(c.dia)}</Texto>
                 </View>
               </Pressable>
             );

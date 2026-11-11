@@ -56,7 +56,7 @@ export function MarcaTitulo({ marca, tamanho = 'medio', nivel, fundo }: {
   );
 }
 
-/** Família de cada fonte do nome da consultoria (a Padrão é a Inter em negrito). */
+/** Família de cada fonte do nome da consultoria (a Padrão é a Geist em negrito). */
 export const FAMILIAS: Record<string, string> = {
   PADRAO: fontes.negrito,
   METAL: fontes.metal,

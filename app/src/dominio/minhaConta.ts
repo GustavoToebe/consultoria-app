@@ -7,6 +7,7 @@ import type {
   PeriodicidadeDaConta,
   SituacaoComercial,
 } from '../api/tipos';
+import { nomeDoMes } from './agendaCalendario';
 import { SEM_DADO } from './formatos';
 
 /**
@@ -53,7 +54,8 @@ export function situacaoDaCobrancaParaTela(c: Pick<CobrancaDaConta, 'situacao' |
 export function competenciaParaTela(inicio: string, fim: string): string {
   const mes = (iso: string) => {
     const [a, m] = iso.slice(0, 10).split('-');
-    return a && m ? `${m}/${a}` : SEM_DADO;
+    const nome = nomeDoMes(Number(m));
+    return a && nome ? `${nome.charAt(0).toUpperCase()}${nome.slice(1)}/${a}` : SEM_DADO;
   };
   const de = mes(inicio);
   const ate = mes(fim);

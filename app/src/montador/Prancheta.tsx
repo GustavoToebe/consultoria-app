@@ -134,11 +134,14 @@ function ItemBloco({
       }}
       style={[
         estilos.bloco,
+        // A seleção da ferramenta não pinta o fundo nem usa a seleção neutra da interface simulada (superficie3 com
+        // contorno cheio): contorno tracejado, fundo transparente e a barra das ferramentas, para não se confundir com o desenho.
         selecionado
           ? {
               borderColor: cores.bordaCampo,
               borderWidth: BORDA_BLOCO,
-              backgroundColor: cores.superficie,
+              borderStyle: 'dashed',
+              backgroundColor: 'transparent',
               padding: espaco(1),
             }
           : estilos.blocoInativo,
@@ -148,11 +151,11 @@ function ItemBloco({
         <View
           style={[
             estilos.barraSelecionado,
-            { backgroundColor: cores.superficie3, borderColor: cores.bordaCampo },
+            { backgroundColor: cores.superficie2, borderColor: cores.divisor },
           ]}
         >
           <Texto variante="pequeno" style={estilos.rotuloTipo}>
-            {`${cat.rotulo} (${bloco.tipo})`}
+            {`Bloco: ${cat.rotulo} (${bloco.tipo})`}
           </Texto>
           <View style={estilos.acoesBloco}>
             <IconeBotao

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import * as api from '../../api/rotas';
 import type { PerfilEquipe, PermissaoEquipe } from '../../api/equipeTipos';
-import { completarPermissoes, desmarcarPermissoes, permissaoMarcavel, podeDuplicarPerfil, podeEditarPerfil } from '../../dominio/perfilEquipe';
+import { completarPermissoes, desmarcarPermissoes, permissaoMarcavel, motivoSemEditarPerfil, podeDuplicarPerfil, podeEditarPerfil } from '../../dominio/perfilEquipe';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
@@ -52,9 +52,11 @@ export function PerfisEquipe({perfis,catalogo,recarregar}:{perfis:PerfilEquipe[]
       {!p.ativo?<Selo texto="Inativo" tipo="neutro"/>:null}
     </>}>
       <Texto variante="suave">{p.descricao||DESCRICOES_PADRAO[p.nome]||'—'}</Texto><Texto variante="suave">{p.usuarios} {p.usuarios===1?'usuário':'usuários'}</Texto>
-      <Permitido codigo="PERFIL_ALTERAR"><View style={{flexDirection:'row',gap:espaco(1),flexWrap:'wrap'}}>
-        {/* Rótulo curto na tela (o nome já é o título do cartão); o leitor de tela ouve o nome junto. */}
-        {podeEditarPerfil(ator,p)?<Botao rotulo="Editar" rotuloAcessivel={`Editar ${p.nome}`} tipo="secundario" aoTocar={()=>setEditar(p)}/>:null}
+      <Permitido codigo="PERFIL_ALTERAR"><View style={{flexDirection:'row',gap:espaco(1),flexWrap:'wrap',alignItems:'center'}}>
+        {/* Rótulo curto na tela (o nome já é o título do cartão); o leitor de tela ouve o nome junto. Sem "Editar", o
+            motivo em texto no lugar (nada de botão apagado sem explicação). */}
+        {podeEditarPerfil(ator,p)?<Botao rotulo="Editar" rotuloAcessivel={`Editar ${p.nome}`} tipo="secundario" aoTocar={()=>setEditar(p)}/>
+          :<Texto variante="pequeno" style={{flexBasis:'100%'}}>{motivoSemEditarPerfil(ator,p)}</Texto>}
         {criaLiberado&&podeDuplicarPerfil(ator,p)?<Botao rotulo="Duplicar" rotuloAcessivel={`Duplicar ${p.nome}`} tipo="secundario" aoTocar={()=>void duplicar(p)}/>:null}
         {!p.sistema?<Botao rotulo="Excluir" rotuloAcessivel={`Excluir ${p.nome}`} tipo="perigoTexto" aoTocar={()=>setExcluir(p)}/>:null}
       </View></Permitido>

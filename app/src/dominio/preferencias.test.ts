@@ -50,8 +50,8 @@ describe('preferências pessoais', () => {
       expect(contraste(r.borda, r.superficie)).toBeGreaterThan(contraste(base.borda, base.superficie));
       expect({ ...r, borda: base.borda, divisor: base.divisor }).toEqual(base);
     }
-    expect(espessurasDasBordas(false)).toEqual({ bloco: 2, item: 2 });
-    expect(espessurasDasBordas(true)).toEqual({ bloco: 3, item: 2 });
+    expect(espessurasDasBordas(false)).toEqual({ bloco: 1, item: 1 });
+    expect(espessurasDasBordas(true)).toEqual({ bloco: 2, item: 2 });
   });
 
   it('lembretes de compromisso: desligados por padrão; só um booleano os liga', () => {

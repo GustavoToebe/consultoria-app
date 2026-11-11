@@ -64,11 +64,11 @@ export function Tabela<T>({ colunas, linhas, chave, larguraMinima = LARGURA_TABE
       role={empilhada ? undefined : 'table'}
       accessibilityLabel={rotulo}
       onLayout={(e) => setLargura(e.nativeEvent.layout.width)}
-      style={empilhada ? estilos.cartoes : [estilos.tabela, { borderWidth: bordas.bloco, borderColor: cores.borda }]}>
+      style={empilhada ? estilos.cartoes : [estilos.tabela, { borderWidth: bordas.bloco, borderColor: cores.divisor }]}>
       {largura === null ? null : empilhada ? (
         linhas.map((l) => (
           <Toque key={chave(l)} linha={l} aoTocar={aoTocarLinha} rotulo={rotuloDaLinha}
-            style={(ativo) => [estilos.cartao, { backgroundColor: ativo ? cores.superficie3 : cores.superficie2, borderColor: cores.borda }]}>
+            style={(ativo) => [estilos.cartao, { backgroundColor: ativo ? cores.superficie3 : cores.superficie2, borderColor: cores.divisor }]}>
             {principal || acao ? (
               <View style={estilos.topoCartao}>
                 {principal ? <View style={estilos.principal}>{principal.render(l)}</View> : null}
@@ -99,7 +99,7 @@ export function Tabela<T>({ colunas, linhas, chave, larguraMinima = LARGURA_TABE
           </View>
           {linhas.map((l, i) => (
             <Toque key={chave(l)} linha={l} aoTocar={aoTocarLinha} rotulo={rotuloDaLinha} papel="row"
-              style={(ativo) => [estilos.corpoLinha, ativo ? { backgroundColor: cores.superficie3 } : null, i < linhas.length - 1 && { borderColor: cores.borda, borderBottomWidth: 1 }]}>
+              style={(ativo) => [estilos.corpoLinha, ativo ? { backgroundColor: cores.superficie3 } : null, i < linhas.length - 1 && { borderColor: cores.divisor, borderBottomWidth: 1 }]}>
               <View style={estilos.linha}>
                 {colunas.map((c) => (
                   <View key={c.chave} role="cell" style={estiloColuna(c)}>{c.render(l)}</View>

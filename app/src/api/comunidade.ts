@@ -3,7 +3,8 @@ import type { CorpoDoPerfil } from '../dominio/perfilDaComunidade';
 import { COLEGAS_POR_PAGINA } from '../dominio/perfilDoColega';
 import { requisicao } from './cliente';
 import type {
-  AlvoDosComentarios, AulaDaComunidade, ComentarioDoMural, ConquistaDoAluno, NovaAula, PaginaDeColegas, PaginaDeComentarios, PaginaDoMural,
+  AlvoDosComentarios, AulaDaComunidade, ComentarioDoMural, ConfiguracaoDaComunidade, ConfiguracaoDoAluno, ConquistaDoAluno,
+  CriarPostRequest, FiltrosDoMural, MotivoDeDenuncia, NovaAula, PaginaDeColegas, PaginaDeComentarios, PaginaDoMural,
   PerfilDaComunidade, PosicaoNoRanking, PostDoMural, PreferenciasDoPerfil,
 } from './comunidadeTipos';
 
@@ -18,14 +19,56 @@ const DO_ALVO = { post: 'mural', aula: 'aulas' } as const;
 const comentariosDoAlvo = (alvo: AlvoDosComentarios) => `${DO_ALVO[alvo.tipo]}/${encodeURIComponent(alvo.id)}/comentarios`;
 const pagina = (n: number) => `?pagina=${n}&tamanho=${COMENTARIOS_POR_PAGINA}`;
 
+/** Filtros do mural na query: sem valor não vai (a API trata `tipo`/`busca` ausentes como "todos"); busca em branco não vai. */
+const filtrosDoMural = (f: FiltrosDoMural | undefined, comDenunciados: boolean): string => {
+  const busca = f?.busca?.trim();
+  return [
+    f?.tipo ? `&tipo=${f.tipo}` : '',
+    busca ? `&busca=${encodeURIComponent(busca)}` : '',
+    comDenunciados && f?.denunciados ? '&denunciados=true' : '',
+  ].join('');
+};
+
+const comBusca =(caminho: string, busca?: string): string => {
+  const b = busca?.trim();
+  return b ? `${caminho}?busca=${encodeURIComponent(b)}` : caminho;
+};
+
 // ---- Aluno ----
 
-export const listarAulasDoAluno = () => requisicao<AulaDaComunidade[]>('/aluno/comunidade/aulas');
+export const listarAulasDoAluno = (busca?: string) => requisicao<AulaDaComunidade[]>(comBusca('/aluno/comunidade/aulas', busca));
 
-export const listarMuralDoAluno = () => requisicao<PaginaDoMural>(`/aluno/comunidade/mural${PAGINA_DO_MURAL}`);
+export const listarMuralDoAluno = (filtros?: FiltrosDoMural) =>
+  requisicao<PaginaDoMural>(`/aluno/comunidade/mural${PAGINA_DO_MURAL}${filtrosDoMural(filtros, false)}`);
 
-export const publicarNoMuralDoAluno = (texto: string) =>
-  requisicao<PostDoMural>('/aluno/comunidade/mural', { metodo: 'POST', corpo: { texto } });
+/**
+ * Aluno: só `CONVERSA`, `DUVIDA` e `RESULTADO` (0 a 4 `fotoIds` enviados antes). 403 `PUBLICACAO_DESLIGADA`, 403 `FOTO_NAO_PERMITIDA`,
+ * 422 `POST_INVALIDO` com o erro no campo (`tipo`, `videoUrl`, `fotoIds`).
+ */
+export const publicarNoMuralDoAluno = (post: CriarPostRequest) =>
+  requisicao<PostDoMural>('/aluno/comunidade/mural', { metodo: 'POST', corpo: post });
+
+/** Quem publica e se pode anexar foto; ler antes de mostrar o compositor. */
+export const obterConfiguracaoDoAluno = () => requisicao<ConfiguracaoDoAluno>('/aluno/comunidade/configuracao');
+
+/**
+ * Uma foto pendente por chamada: `arquivo` é um `FormData` com o campo `arquivo` (JPEG já reduzido; `anexarFoto`). 403 `FOTO_NAO_PERMITIDA`;
+ * 422 `FOTO_INVALIDA`, `FOTO_GRANDE_DEMAIS` (300 KB) ou `FOTOS_LIMITE_DIARIO` (20 em 24 h).
+ */
+export const enviarFotoDoMural = (arquivo: FormData) =>
+  requisicao<{ id: string }>('/aluno/comunidade/mural/fotos', { metodo: 'POST', corpoBruto: arquivo, limiteMs: 60000 });
+
+/** Remove a foto pendente do próprio aluno (204); a já publicada ou de outro autor dá 404. */
+export const apagarFotoPendenteDoMural = (id: string) =>
+  requisicao<void>(`/aluno/comunidade/mural/fotos/${encodeURIComponent(id)}`, { metodo: 'DELETE' });
+
+/** Bytes da foto de um post visível ou da própria pendente, com o token. */
+export const baixarFotoDoMuralDoAluno = (id: string) =>
+  requisicao<Blob>(`/aluno/comunidade/mural/fotos/${encodeURIComponent(id)}`, { binario: true, limiteMs: 30000 });
+
+/** 204, idempotente; o aluno nunca vê quem denunciou nem quantas há. 422 `DENUNCIA_INVALIDA` (motivo ou o próprio post). */
+export const denunciarPost = (postId: string, motivo: MotivoDeDenuncia) =>
+  requisicao<void>(`/aluno/comunidade/mural/${encodeURIComponent(postId)}/denuncias`, { metodo: 'POST', corpo: { motivo } });
 
 /** Liga ou desliga a reação do aluno (a API alterna; responde 204). */
 export const alternarReacaoDoAluno = (postId: string, emoji: string) =>
@@ -67,19 +110,47 @@ export const salvarMeuPerfilDaComunidade = (corpo: CorpoDoPerfil) =>
 
 // ---- Equipe (TREINO_LER para ler, COMUNIDADE_MODERAR para publicar e moderar) ----
 
-export const listarAulasDaEquipe = () => requisicao<AulaDaComunidade[]>('/comunidade/aulas');
+export const listarAulasDaEquipe = (busca?: string) => requisicao<AulaDaComunidade[]>(comBusca('/comunidade/aulas', busca));
 
 export const criarAula = (aula: NovaAula) => requisicao<AulaDaComunidade>('/comunidade/aulas', { metodo: 'POST', corpo: aula });
 
-export const listarMuralDaEquipe = () => requisicao<PaginaDoMural>(`/comunidade/mural${PAGINA_DO_MURAL}`);
+export const listarMuralDaEquipe = (filtros?: FiltrosDoMural) =>
+  requisicao<PaginaDoMural>(`/comunidade/mural${PAGINA_DO_MURAL}${filtrosDoMural(filtros, true)}`);
 
-export const publicarNoMuralDaEquipe = (texto: string) =>
-  requisicao<PostDoMural>('/comunidade/mural', { metodo: 'POST', corpo: { texto } });
+/** Equipe (`COMUNIDADE_MODERAR`): todos os tipos, sem fotos; `VIDEO` exige `videoUrl` https; `AVISO` nasce fixado. 422 `POST_INVALIDO`. */
+export const publicarNoMuralDaEquipe = (post: CriarPostRequest) =>
+  requisicao<PostDoMural>('/comunidade/mural', { metodo: 'POST', corpo: post });
+
+/** Fixa ou desafixa (a API alterna; 204). O aviso já nasce fixado. */
+export const alternarFixadoDoPost = (postId: string) =>
+  requisicao<void>(`/comunidade/mural/${encodeURIComponent(postId)}/fixar`, { metodo: 'POST' });
+
+/** Remove o post do mural para todos (204; `COMUNIDADE_MODERAR`). */
+export const removerPostDoMural = (postId: string) =>
+  requisicao<void>(`/comunidade/mural/${encodeURIComponent(postId)}`, { metodo: 'DELETE' });
+
+/** A equipe responde no mural (`COMUNIDADE_MODERAR`); o comentário volta com `daEquipe`. */
+export const comentarComoEquipe = (postId: string, texto: string) =>
+  requisicao<ComentarioDoMural>(`/comunidade/mural/${encodeURIComponent(postId)}/comentarios`, { metodo: 'POST', corpo: { texto } });
+
+/** Bytes da foto de um post (`TREINO_LER`), com o token. */
+export const baixarFotoDoMuralDaEquipe = (id: string) =>
+  requisicao<Blob>(`/comunidade/mural/fotos/${encodeURIComponent(id)}`, { binario: true, limiteMs: 30000 });
+
+/** Apaga todas as denúncias do post (204, idempotente); o post continua (`COMUNIDADE_MODERAR`). */
+export const dispensarDenuncias = (postId: string) =>
+  requisicao<void>(`/comunidade/mural/${encodeURIComponent(postId)}/denuncias/dispensar`, { metodo: 'POST' });
+
+export const obterConfiguracaoDaComunidade = () => requisicao<ConfiguracaoDaComunidade>('/comunidade/configuracao');
+
+/** Os dois campos são obrigatórios (`COMUNIDADE_MODERAR`). */
+export const salvarConfiguracaoDaComunidade = (c: ConfiguracaoDaComunidade) =>
+  requisicao<ConfiguracaoDaComunidade>('/comunidade/configuracao', { metodo: 'PUT', corpo: c });
 
 export const listarComentariosDaEquipe = (alvo: AlvoDosComentarios, n: number) =>
   requisicao<PaginaDeComentarios>(`/comunidade/${comentariosDoAlvo(alvo)}${pagina(n)}`);
 
-/** Moderação (`COMUNIDADE_MODERAR`): 204; 404 = o comentário já não existe. A equipe não comenta (nem no mural, nem na aula). */
+/** Moderação (`COMUNIDADE_MODERAR`): 204; 404 = o comentário já não existe. */
 export const removerComentario = (tipo: AlvoDosComentarios['tipo'], comentarioId: string) =>
   requisicao<void>(`/comunidade/${DO_ALVO[tipo]}/comentarios/${encodeURIComponent(comentarioId)}`, { metodo: 'DELETE' });
 

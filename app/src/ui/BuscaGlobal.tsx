@@ -6,7 +6,7 @@ import { Platform, Pressable, ScrollView, StyleSheet, View, type PressableProps,
 import { Input } from '../components/ui/input';
 import { atalhosPadrao, buscarTelas, favoritosVisiveis, legendaDaTela, type TelaDoCatalogo } from '../dominio/telas';
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, RAIO, SOMBRA_FLUTUANTE } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
 import { useSaidaGuardada } from './GuardaDeSaida';
 import { propsDeLink } from './propsDeLink';
 import { sobre } from './sobre';
@@ -18,19 +18,19 @@ interface Props {
   permitidas: readonly TelaDoCatalogo[];
   /** Ids favoritos, na ordem de marcação; aparecem quando o campo está vazio. */
   favoritos?: readonly string[];
-  /** Largura máxima do campo (encolhe com a barra); o menu abaixo acompanha. */
-  largura?: number;
 }
 
 /** Texto da dica de atalho; no Mac o atalho é Cmd + K, e o rótulo mostra o que vale ali. */
 const ATALHO = Platform.OS === 'web' && typeof navigator !== 'undefined' && /mac|iphone|ipad/i.test(navigator.platform) ? '⌘ K' : 'Ctrl K';
 
 /**
- * Busca da barra de topo: "O que você deseja fazer?". Filtra o catálogo de telas e ações (`dominio/telas.ts`) só
+ * Busca global da barra de topo: "Buscar" com o atalho à vista (prévia de 11/11). O nome acessível diz que ela vale para o
+ * app todo, porque a busca de cada lista procura só nela. Ocupa a largura que a barra lhe dá; a lista abre alinhada à
+ * direita com 400 px, para os nomes caberem mesmo com o campo estreito. Filtra o catálogo de telas e ações (`dominio/telas.ts`) só
  * entre o que o usuário pode abrir. Ctrl+K / Cmd+K foca o campo (web), setas escolhem, Enter abre, Esc fecha e
  * limpa. Para o leitor de tela é um combobox com a lista de opções. Não procura alunos pelo nome.
  */
-export function BuscaGlobal({ permitidas, favoritos = [], largura = 440 }: Props) {
+export function BuscaGlobal({ permitidas, favoritos = [] }: Props) {
   const { cores } = useTema();
   const [texto, setTexto] = useState('');
   const [aberto, setAberto] = useState(false);
@@ -84,18 +84,18 @@ export function BuscaGlobal({ permitidas, favoritos = [], largura = 440 }: Props
 
   const idDaOpcao = (i: number) => `${idLista}-opcao-${i}`;
   return (
-    <View ref={caixa} style={[estilos.caixa, { width: '100%', maxWidth: largura }]}>
+    <View ref={caixa} style={estilos.caixa}>
       <View>
         <Search size={16} color={cores.textoSuave} strokeWidth={2} style={estilos.lupa} />
         <Input
           ref={campo}
-          accessibilityLabel="O que você deseja fazer?"
+          accessibilityLabel="Buscar telas e ações em todo o app"
           role="combobox"
           aria-expanded={aberto}
           aria-controls={idLista}
           aria-activedescendant={aberto && resultados[indice] ? idDaOpcao(indice) : undefined}
           aria-autocomplete="list"
-          placeholder="O que você deseja fazer?"
+          placeholder="Buscar"
           placeholderTextColor={cores.textoSuave}
           value={texto}
           onChangeText={(t) => {
@@ -122,7 +122,7 @@ export function BuscaGlobal({ permitidas, favoritos = [], largura = 440 }: Props
           nativeID={idLista}
           role={'listbox' as Role}
           accessibilityLabel="Telas e ações"
-          style={[estilos.menu, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
+          style={[estilos.menu, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
           {resultados.length === 0 ? (
             <Texto variante="suave" style={estilos.vazio}>
               {digitando ? 'Nada encontrado. Tente outra palavra.' : 'Digite para buscar telas e ações.'}
@@ -167,7 +167,7 @@ function LinkDeTela({ href, navegar, ...resto }: PressableProps & { href?: Href;
 }
 
 const estilos = StyleSheet.create({
-  caixa: { position: 'relative', maxWidth: '100%', zIndex: 30 },
+  caixa: { position: 'relative', width: '100%', zIndex: 30 },
   lupa: { position: 'absolute', left: espaco(1.25), top: 14, zIndex: 1 },
   entrada: {
     minHeight: ALVO_TOQUE,
@@ -191,15 +191,15 @@ const estilos = StyleSheet.create({
   textoAtalho: { fontSize: 12, fontFamily: fontes.semi },
   menu: {
     position: 'absolute',
-    top: ALVO_TOQUE + 6,
-    left: 0,
+    top: '100%',
+    marginTop: 6,
     right: 0,
+    width: 400,
     borderWidth: 1,
     borderRadius: RAIO,
     paddingVertical: espaco(0.5),
     overflow: 'hidden',
     zIndex: 40,
-    boxShadow: SOMBRA_FLUTUANTE,
   },
   // Muitas telas casam com uma letra só: a lista rola dentro do quadro em vez de vazar por cima da página.
   rolagem: { maxHeight: 400 },

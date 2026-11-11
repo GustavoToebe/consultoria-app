@@ -10,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.OptimisticLock;
 import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
@@ -63,6 +64,17 @@ public class Consultoria {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "textos_fases_ciclo", columnDefinition = "jsonb")
     private String textosFasesCiclo;
+
+    /**
+     * Chaves da comunidade (V071, C9). Fora do bloqueio otimista: ligar ou desligar não deve derrubar quem edita a marca.
+     */
+    @OptimisticLock(excluded = true)
+    @Column(name = "comunidade_alunos_publicam", nullable = false)
+    private boolean comunidadeAlunosPublicam = true;
+
+    @OptimisticLock(excluded = true)
+    @Column(name = "comunidade_alunos_anexam_fotos", nullable = false)
+    private boolean comunidadeAlunosAnexamFotos = true;
 
     @Column(name = "logo_tipo", insertable = false, updatable = false)
     private String logoTipo;
@@ -126,6 +138,19 @@ public class Consultoria {
 
     public void definirTextosFasesCiclo(String textosFasesCiclo) {
         this.textosFasesCiclo = textosFasesCiclo;
+    }
+
+    public boolean isComunidadeAlunosPublicam() {
+        return comunidadeAlunosPublicam;
+    }
+
+    public boolean isComunidadeAlunosAnexamFotos() {
+        return comunidadeAlunosAnexamFotos;
+    }
+
+    public void definirChavesDaComunidade(boolean alunosPublicam, boolean alunosAnexamFotos) {
+        this.comunidadeAlunosPublicam = alunosPublicam;
+        this.comunidadeAlunosAnexamFotos = alunosAnexamFotos;
     }
 
     public String getLogoTipo() {

@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<!-- Dados fictícios (D8). Nada aqui fala com a API. -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Início do aluno · prévia visual</title>
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="aluno.css">
+<script src="base.js"></script>
+</head>
+<body data-casca="aluno" data-ativo="inicio">
+<svg style="display:none" aria-hidden="true">
+  <symbol id="i-gota" viewBox="0 0 24 24"><path d="M12 3c3.5 4.2 6 7.6 6 10.8A6 6 0 0 1 6 13.8C6 10.6 8.5 7.2 12 3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+  <symbol id="i-alongar" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.5" r="1.8"/><path d="M5 9l7 1.5L19 9M12 10.5V15l-4 5M12 15l4 5"/></g></symbol>
+</svg>
+<template id="prot-extra">
+  <div class="prot-grupo" role="group" aria-labelledby="prot-r-hoje"><span class="prot-rot" id="prot-r-hoje">Cartão Hoje</span>
+    <div class="prot-segmento" id="chave-hoje">
+      <button type="button" data-hoje="nao">A fazer</button><button type="button" data-hoje="andamento">Andamento</button><button type="button" data-hoje="concluido">Concluído</button><button type="button" data-hoje="descanso">Descanso</button>
+    </div>
+  </div>
+  <div class="prot-grupo"><label class="prot-check"><input type="checkbox" id="chave-cor"> Letra da divisão com cor</label></div>
+</template>
+<main id="conteudo" class="pagina">
+  <div class="pilha">
+    <header class="cab-pagina">
+      <span class="sobretitulo" id="data-hoje">Terça, 10 de novembro</span>
+      <h1 class="t-titulo-pagina">Bom dia, Caio</h1>
+    </header>
+
+    <section class="cartao-hoje" id="cartao-hoje" aria-labelledby="hoje-titulo"></section>
+    
+    <section class="cartao" aria-labelledby="pend-titulo">
+      <div class="cartao-cab">
+        <div><h2 class="t-titulo-cartao" id="pend-titulo">Pendências</h2></div>
+      </div>
+      <ul class="lista">
+        <li class="linha">
+          <span class="icone-marcador"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-relogio"/></svg></span>
+          <div class="linha-principal">
+            <span class="t-corpo" style="font-weight:600">Atualização da pasta</span>
+            <span class="linha-meta"><span>Até quinta, 12/11</span><span class="selo st-atencao selo--informa">Em 2 dias</span></span>
+          </div>
+          <div class="linha-lado"><a class="botao" href="index.html">Responder</a></div>
+        </li>
+      </ul>
+    </section>
+
+    <section class="cartao" aria-labelledby="semana-titulo">
+      <div class="cartao-cab">
+        <div>
+          <h2 class="t-titulo-cartao" id="semana-titulo">Sua semana</h2>
+          <p class="t-apoio num" id="semana-conta">1 de 3 treinos</p>
+        </div>
+      </div>
+      <div class="cartao-corpo">
+        <ul class="semana-dias" id="semana" aria-label="Dias da semana"></ul>
+        <div class="legenda-semana" aria-hidden="true"><span><i class="cheio"></i>Feito</span><span><i class="tracejado"></i>A fazer</span><span>Letra = divisão do treino</span></div>
+              </div>
+    </section>
+
+    <section aria-labelledby="atalhos-titulo" class="pilha-16">
+      <h2 class="sobretitulo" id="atalhos-titulo">Atalhos</h2>
+      <div class="grade-atalhos">
+        <a class="atalho clicavel" href="aluno-dieta.html">
+          <span class="icone-marcador"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-prato"/></svg></span>
+          <b>Dieta de hoje</b>
+          <span class="t-apoio">Próxima: almoço às 12:30</span>
+        </a>
+        <a class="atalho clicavel" href="index.html">
+          <span class="icone-marcador"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-gota"/></svg></span>
+          <b>Água</b>
+          <span class="t-apoio">1,2 L de 3,0 L</span>
+          <div class="progresso" aria-hidden="true" style="--p:40%"><span></span></div>
+        </a>
+        <a class="atalho clicavel" href="aluno-mobilidade.html">
+          <span class="icone-marcador"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-alongar"/></svg></span>
+          <b>Mobilidade</b>
+          <span class="t-apoio">3 de 8 feitos hoje</span>
+        </a>
+        <a class="atalho clicavel" href="index.html">
+          <span class="icone-marcador"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-caderno"/></svg></span>
+          <b>Atualização</b>
+          <span class="t-apoio">Até quinta, 12/11</span>
+          <span class="selo">Em 2 dias</span>
+        </a>
+      </div>
+    </section>
+  </div>
+</main>
+<script>
+(function () {
+  var ESTADOS = {
+    nao: { data: 'Terça, 10 de novembro', feitos: ['seg'], hoje: 'ter' },
+    andamento: { data: 'Terça, 10 de novembro', feitos: ['seg'], hoje: 'ter' },
+    concluido: { data: 'Terça, 10 de novembro', feitos: ['seg', 'ter'], hoje: 'ter' },
+    descanso: { data: 'Quarta, 11 de novembro', feitos: ['seg', 'ter'], hoje: 'qua' },
+  };
+  var DIAS = [
+    { id: 'seg', curto: 'Seg', nome: 'segunda', letra: 'C', cor: 'id-ciano' },
+    { id: 'ter', curto: 'Ter', nome: 'terça', letra: 'A', cor: 'id-azul' },
+    { id: 'qua', curto: 'Qua', nome: 'quarta' },
+    { id: 'qui', curto: 'Qui', nome: 'quinta', letra: 'B', cor: 'id-magenta' },
+    { id: 'sex', curto: 'Sex', nome: 'sexta' },
+    { id: 'sab', curto: 'Sáb', nome: 'sábado' },
+    { id: 'dom', curto: 'Dom', nome: 'domingo' },
+  ];
+  var ic = function (n) { return VV.icone(n); };
+
+  function cartaoHoje(e) {
+    var titulo = '<h2 class="hoje-titulo" id="hoje-titulo">Treino A · Peito e tríceps</h2>';
+    if (e === 'nao') return '<span class="sobretitulo hoje-sobre">Hoje · terça</span>' + titulo +
+      '<p class="hoje-linha num">5 exercícios · 14 séries</p>' +
+      '<a class="botao botao--sobre-marca botao--cheio" href="aluno-treino.html#sessao=0">Começar treino</a>';
+    if (e === 'andamento') return '<span class="sobretitulo hoje-sobre">Hoje · em andamento</span>' + titulo +
+      '<div class="hoje-progresso"><div class="progresso" role="progressbar" aria-label="Séries feitas hoje" aria-valuemin="0" aria-valuemax="14" aria-valuenow="6" aria-valuetext="6 de 14 séries" style="--p:42.9%"><span></span></div>' +
+      '<p class="hoje-linha num">6 de 14 séries · 1 de 5 exercícios</p></div>' +
+      '<a class="botao botao--sobre-marca botao--cheio" href="aluno-treino.html#sessao=6">Continuar treino</a>';
+    if (e === 'concluido') return '<span class="sobretitulo hoje-sobre">Hoje · terça <span class="hoje-selo">' + ic('check') + 'Concluído</span></span>' + titulo +
+      '<p class="hoje-linha num">14 de 14 séries · 5 exercícios</p>' +
+      '<a class="botao botao--sobre-marca botao--cheio" href="aluno-treino.html#sessao=14">Ver o treino de hoje</a>';
+    return '<span class="sobretitulo hoje-sobre">Hoje · quarta</span><h2 class="hoje-titulo" id="hoje-titulo">Dia de descanso</h2>' +
+      '<p class="hoje-linha">Próximo treino: amanhã, quinta</p><p class="hoje-linha">Treino B · Costas e bíceps</p>' +
+      '<a class="botao botao--sobre-marca botao--cheio" href="aluno-mobilidade.html">Fazer a mobilidade</a>';
+  }
+
+  function semana(e) {
+    var est = ESTADOS[e], n = 0;
+    document.getElementById('semana').innerHTML = DIAS.map(function (d) {
+      var feito = est.feitos.indexOf(d.id) >= 0, hoje = d.id === est.hoje, treino = !!d.letra;
+      if (feito) n++;
+      var cls = [treino ? (feito ? 'feito' : '') : 'descanso', hoje ? 'hoje' : '', d.cor || ''].join(' ').trim();
+      var sr = d.nome + (hoje ? ', hoje' : '') + (treino ? ', Treino ' + d.letra + (feito ? ', feito' : ', a fazer') : ', descanso');
+      return '<li class="' + cls + '"><span aria-hidden="true">' + d.curto + '</span><span class="marca-dia" aria-hidden="true">' + (d.letra || '') + '</span><span class="sr-only">' + sr + '</span></li>';
+    }).join('');
+    document.getElementById('semana-conta').textContent = n + ' de 3 treinos';
+  }
+
+  function ler() {
+    var p = new URLSearchParams(location.hash.slice(1));
+    return { hoje: ESTADOS[p.get('hoje')] ? p.get('hoje') : 'nao', cor: p.get('cor') === '1' };
+  }
+  function desenhar() {
+    var s = ler();
+    document.getElementById('data-hoje').textContent = ESTADOS[s.hoje].data;
+    document.getElementById('cartao-hoje').innerHTML = cartaoHoje(s.hoje);
+    semana(s.hoje);
+    document.getElementById('semana').classList.toggle('com-cor', s.cor);
+    document.querySelectorAll('#chave-hoje button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.hoje === s.hoje)); });
+    var cor = document.getElementById('chave-cor'); if (cor) cor.checked = s.cor;
+  }
+  function escrever(mudanca) {
+    var s = ler(); Object.keys(mudanca).forEach(function (k) { s[k] = mudanca[k]; });
+    history.replaceState(null, '', '#hoje=' + s.hoje + (s.cor ? '&cor=1' : ''));
+    desenhar();
+  }
+
+  /* S1: marca crua com contraste < 3 sobre a superfície ganha contorno de 2 px */
+  function contornoDaMarca() {
+    var e = VV.estado(), c = VV.coresDe(e.marca, e.paleta);
+    var baixo = Math.min(VV.contraste(c.papeis.marca, c.superficies.fundo), VV.contraste(c.papeis.marca, c.superficies.sup)) < 3;
+    document.documentElement.toggleAttribute('data-marca-baixa', baixo);
+  }
+  document.addEventListener('vv:tema', contornoDaMarca);
+
+  document.addEventListener('DOMContentLoaded', function () {
+    contornoDaMarca();
+    desenhar();
+    // estados da prévia: na barra "Prévia" (montada pelo base.js a partir do <template id="prot-extra">)
+    document.addEventListener('click', function (ev) {
+      var b = ev.target.closest('#chave-hoje [data-hoje]'); if (b) escrever({ hoje: b.dataset.hoje });
+    });
+    document.addEventListener('change', function (ev) { if (ev.target.id === 'chave-cor') escrever({ cor: ev.target.checked }); });
+    window.addEventListener('hashchange', desenhar);
+  });
+})();
+</script>
+</body>
+</html>

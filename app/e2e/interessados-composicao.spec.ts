@@ -72,9 +72,10 @@ for (const { largura, temas } of CASOS) {
         // Nome acessível inequívoco: um campo por nome, sem "De"/"Até" soltos.
         for (const nome of DATAS) await expect(page.getByRole('textbox', { name: nome, exact: true })).toHaveCount(1);
         await expect(page.getByRole('textbox', { name: 'De', exact: true })).toHaveCount(0);
-        const datas = await Promise.all(DATAS.map((n) => caixa(page.getByRole('textbox', { name: n, exact: true }))));
-        const [responsavel, origem] = await Promise.all([
+        // Tudo medido de uma vez: as contagens dos chips chegam depois e podem quebrar a linha da Situação entre duas medidas.
+        const [responsavel, origem, ...datas] = await Promise.all([
           caixa(page.getByRole('button', { name: /^Responsável:/ })), caixa(page.getByRole('button', { name: /^Origem:/ })),
+          ...DATAS.map((n) => caixa(page.getByRole('textbox', { name: n, exact: true }))),
         ]);
         const [entradaDe, entradaAte, atividadeDe, atividadeAte] = datas;
 

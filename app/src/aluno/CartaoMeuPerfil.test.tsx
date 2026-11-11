@@ -33,6 +33,7 @@ jest.mock('../ui/Texto', () => ({
   Texto: ({ children }: { children?: ReactNode }) => require('react').createElement(require('react-native').Text, null, children),
 }));
 jest.mock('../ui/Selo', () => ({ Selo: ({ texto }: { texto: string }) => require('react').createElement(require('react-native').Text, null, texto) }));
+jest.mock('../ui/Campo', () => ({ MensagemDeErro: ({ erro }: { erro: string }) => require('react').createElement(require('react-native').Text, null, erro) }));
 jest.mock('../ui/Estados', () => ({
   Alerta: ({ texto, children }: { texto?: string; children?: ReactNode }) =>
     require('react').createElement(require('react-native').View, null, require('react').createElement(require('react-native').Text, null, texto), children),

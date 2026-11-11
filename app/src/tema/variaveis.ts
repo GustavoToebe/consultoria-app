@@ -7,7 +7,7 @@ export function variaveisDoTema(cores: Cores, marca: string) {
   '--color-muted': cores.superficie2, '--color-muted-foreground': cores.textoSuave,
   '--color-accent': cores.superficie3, '--color-accent-foreground': cores.texto,
   '--color-secondary': cores.superficie2, '--color-secondary-foreground': cores.texto,
-  '--color-border': cores.borda, '--color-input': cores.bordaCampo, '--color-ring': cores.anelFoco,
+  '--color-border': cores.divisor, '--color-input': cores.bordaCampo, '--color-ring': cores.anelFoco,
   '--color-primary': marca, '--color-primary-foreground': textoSobre(marca),
   '--color-destructive': cores.perigoFundo, '--color-sucesso': cores.sucesso,
   '--color-atencao': cores.atencao, '--color-perigo': cores.perigo, '--color-neutro': cores.neutro,

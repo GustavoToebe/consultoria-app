@@ -79,15 +79,14 @@ const ATUALIZACAO: AtualizacaoDaLista = {
 const PAINEL = { atualizacoesParaRevisar: 0, atualizacoesAtrasadas: 0, atualizacoesAvisaramAtraso: 0, atualizacoesProximas: 1, alunosAtivos: 4, alunosSemRegistro: [], ultimasExecucoes: [], planosTerminando: [] };
 
 /**
- * Cores esperadas (tema claro da marca de teste e tema escuro escolhido nas preferências). O fundo é a `superficie2` com
- * 16% da cor da agenda (`PROPORCAO_DO_TINGIDO`; nessas cores o contraste não pede menos, ver `contrasteDaAgenda.test.ts`).
+ * Cores esperadas (tema claro da marca de teste e tema escuro escolhido nas preferências). O fundo do item é neutro, a
+ * `superficie2` do tema (guia de 11/11: a cor da agenda fica só na faixa; contraste em `contrasteDaAgenda.test.ts`).
  */
 const CLARO = {
   texto: 'rgb(17, 17, 20)', superficie2: 'rgb(244, 244, 245)',
-  azul: 'rgb(27, 111, 214)', fundoAzul: 'rgb(209, 223, 240)', indigo: 'rgb(75, 63, 191)', fundoIndigo: 'rgb(217, 215, 236)',
-  oliva: 'rgb(117, 132, 24)', fundoOliva: 'rgb(224, 226, 210)',
+  azul: 'rgb(27, 111, 214)', indigo: 'rgb(75, 63, 191)', oliva: 'rgb(117, 132, 24)',
 };
-const ESCURO = { texto: 'rgb(244, 244, 245)', azul: 'rgb(74, 144, 247)', fundoAzul: 'rgb(40, 52, 71)' };
+const ESCURO = { texto: 'rgb(244, 244, 245)', azul: 'rgb(74, 144, 247)', superficie2: 'rgb(34, 34, 38)' };
 
 async function abrirAgenda(page: Page, opcoes: { escuro?: boolean } = {}) {
   await fixarHoje(page);
@@ -147,8 +146,9 @@ test.describe('390 px (lista do celular)', () => {
     await expect(page.getByText('Adiada para 21/10', { exact: true })).toBeVisible();
     await expect.poll(() => opacidadeAcumulada(cancelado)).toBe(1);
 
-    // O evento curto e os de dia inteiro dizem o horário nos metadados.
-    await expect(page.getByText('Evento · Dia inteiro · Feriados')).toBeVisible();
+    // O título começa pelo horário ("Dia inteiro" no de dia inteiro); a agenda fica embaixo, depois do que é.
+    await expect(page.getByText('Dia inteiro · Feriado fictício', { exact: true })).toBeVisible();
+    await expect(page.getByText('Evento · Feriados', { exact: true })).toBeVisible();
     await expect(page.getByText(/09:00–09:15/)).toBeVisible();
 
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -160,23 +160,23 @@ test.describe('390 px (lista do celular)', () => {
 test.describe('1280 px (grade de horários)', () => {
   test.use({ viewport: { width: 1280, height: 900 } });
 
-  test('Dia: faixa de 8 px, fundo tingido, texto na cor do texto e status escrito ou em ícone', async ({ page }) => {
+  test('Dia: faixa de 8 px, fundo neutro, texto na cor do texto e status escrito ou em ícone', async ({ page }) => {
     const { naoTratadas, errosDaPagina } = await abrirAgenda(page);
     await page.goto(`/treinador/agenda?visao=dia&data=${HOJE}`);
 
-    // Evento: faixa larga na cor da agenda e fundo tingido com ela; título e horário em `texto`.
+    // Evento: faixa larga na cor da agenda e fundo neutro; título e horário em `texto`.
     const reuniao = doCompromisso(page, NOMES.reuniao);
     await expect(reuniao).toBeVisible();
     await expect(reuniao).toHaveCSS('border-left-width', '8px');
     await expect(reuniao).toHaveCSS('border-left-color', CLARO.azul);
-    await expect(reuniao).toHaveCSS('background-color', CLARO.fundoAzul);
+    await expect(reuniao).toHaveCSS('background-color', CLARO.superficie2);
     await expect(reuniao.getByText('Reunião de teste', { exact: true })).toHaveCSS('color', CLARO.texto);
     await expect(reuniao.getByText('14:00–15:00', { exact: true })).toHaveCSS('color', CLARO.texto);
 
     // Sobrepostos: cada um com a sua faixa e o seu texto, lado a lado (metade do dia cada).
     const sobreposto = doCompromisso(page, NOMES.sobreposto);
     await expect(sobreposto).toHaveCSS('border-left-color', CLARO.indigo);
-    await expect(sobreposto).toHaveCSS('background-color', CLARO.fundoIndigo);
+    await expect(sobreposto).toHaveCSS('background-color', CLARO.superficie2);
     await expect(sobreposto.getByText('Carla Teste', { exact: true })).toBeVisible();
     const [a, b] = [await reuniao.boundingBox(), await sobreposto.boundingBox()];
     expect(a && b && (a.x + a.width <= b.x + 1 || b.x + b.width <= a.x + 1)).toBe(true);
@@ -186,18 +186,18 @@ test.describe('1280 px (grade de horários)', () => {
     await expect(curto.getByText('Davi Modelo', { exact: true })).toBeVisible();
     await expect(curto.getByText('09:00–09:15', { exact: true })).toBeVisible();
 
-    // Cancelado: selo "Cancelado" escrito, título riscado, sem tinta e sem opacidade.
+    // Cancelado: selo "Cancelado" escrito, título riscado e sem opacidade.
     const cancelado = doCompromisso(page, NOMES.cancelado);
     await expect(cancelado.getByText('Cancelado', { exact: true })).toBeVisible();
     await expect(cancelado.getByText('Bruno Exemplo', { exact: true })).toHaveCSS('text-decoration-line', 'line-through');
     await expect(cancelado).toHaveCSS('background-color', CLARO.superficie2);
     await expect.poll(() => opacidadeAcumulada(cancelado)).toBe(1);
 
-    // Dia inteiro: a mesma faixa e o fundo tingido; a atualização adiada leva o selo escrito ao lado do nome.
+    // Dia inteiro: a mesma faixa e o fundo neutro; a atualização adiada leva o selo escrito ao lado do nome.
     const feriado = doCompromisso(page, NOMES.feriado);
     await expect(feriado).toHaveCSS('border-left-width', '8px');
     await expect(feriado).toHaveCSS('border-left-color', CLARO.oliva);
-    await expect(feriado).toHaveCSS('background-color', CLARO.fundoOliva);
+    await expect(feriado).toHaveCSS('background-color', CLARO.superficie2);
     const atualizacao = page.getByRole('link', { name: /^Abrir atualização de Bruno Exemplo, .*Adiada para 21\/10$/ });
     await expect(atualizacao.getByText('Adiada para 21/10', { exact: true })).toBeVisible();
     await expect(atualizacao).toHaveCSS('border-left-width', '8px');
@@ -229,12 +229,12 @@ test.describe('1280 px (grade de horários)', () => {
     expect(errosDaPagina).toEqual([]);
   });
 
-  test('tema escuro: fundo tingido pela cor escura da agenda e texto claro', async ({ page }) => {
+  test('tema escuro: faixa na cor escura da agenda, fundo neutro e texto claro', async ({ page }) => {
     const { naoTratadas, errosDaPagina } = await abrirAgenda(page, { escuro: true });
     await page.goto(`/treinador/agenda?visao=dia&data=${HOJE}`);
     const reuniao = doCompromisso(page, NOMES.reuniao);
     await expect(reuniao).toHaveCSS('border-left-color', ESCURO.azul);
-    await expect(reuniao).toHaveCSS('background-color', ESCURO.fundoAzul);
+    await expect(reuniao).toHaveCSS('background-color', ESCURO.superficie2);
     await expect(reuniao.getByText('Reunião de teste', { exact: true })).toHaveCSS('color', ESCURO.texto);
     expect(naoTratadas).toEqual([]);
     expect(errosDaPagina).toEqual([]);

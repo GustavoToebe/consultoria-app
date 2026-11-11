@@ -56,7 +56,7 @@ function Evento({ item, aoAbrirPasta }: { item: ItemDeAtividade; aoAbrirPasta: (
   }
   // Sem tela de detalhe (treino concluído, peso): a mesma linha, sem toque nem seta.
   return (
-    <View style={[estilos.item, { backgroundColor: cores.superficie2, borderColor: cores.borda }]} accessible accessibilityLabel={`${titulo}, ${quando}`}>
+    <View style={[estilos.item, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]} accessible accessibilityLabel={`${titulo}, ${quando}`}>
       <Icone size={20} color={cores.textoSuave} strokeWidth={2} />
       <View style={estilos.textos}>
         <Texto style={estilos.titulo}>{titulo}</Texto>

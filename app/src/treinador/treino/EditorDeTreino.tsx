@@ -55,6 +55,7 @@ import { VoltarParaAPasta } from '../plano/VoltarParaAPasta';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
+import { cargaPendente } from './cargaDaSerie';
 import { ConfiguracaoDoTreino } from './ConfiguracaoDoTreino';
 import { ContadoresDoTreino, EstadoDasPendencias, ID_DA_CONFIGURACAO } from './ContadoresDoTreino';
 import { estadoDaSessao, type PrimeiraPendencia } from '../../dominio/editorDeTreino';
@@ -154,7 +155,8 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
   const errosDoServidor = servidor && servidor.para === c ? servidor.resultado.erros : [];
   const errosVivos = juntarProblemas(validacaoLocal?.erros ?? [], errosDoServidor);
   const errosDoEstado = juntarProblemas(validacaoSempre?.erros ?? [], errosDoServidor);
-  const comErro = uidsComProblema(c, errosVivos.map((p) => p.caminho));
+  // A carga ainda vazia é pendência (selo âmbar "Falta a carga" no exercício), não borda vermelha nem ponto na sessão.
+  const comErro = uidsComProblema(c, errosVivos.filter((p) => !cargaPendente(c, p.caminho)).map((p) => p.caminho));
   // O "Validar", o "Salvar rascunho", o "Publicar" e o "Salvar modelo" ligam a validação local antes de agir; nenhum é travado por ela.
   const comVerificacao = {
     ...editor,

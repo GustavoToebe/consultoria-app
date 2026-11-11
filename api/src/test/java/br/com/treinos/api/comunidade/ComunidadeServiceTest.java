@@ -37,6 +37,9 @@ class ComunidadeServiceTest {
     @Mock private AlunoRepository alunos;
     @Mock private SessaoConcluidaRepository sessoes;
     @Mock private UsuarioRepository usuarios;
+    @Mock private ComunidadeMuralFotoRepository fotos;
+    @Mock private ComunidadeMuralDenunciaRepository denuncias;
+    @Mock private ConfiguracaoDaComunidadeService configuracao;
 
     private ComunidadeService service;
     private final UUID consultoriaId = UUID.randomUUID();
@@ -47,7 +50,7 @@ class ComunidadeServiceTest {
     @BeforeEach
     void setUp() {
         service = new ComunidadeService(aulas, aulaComentarios, muralPosts, muralReacoes, muralComentarios,
-                conquistas, alunos, sessoes, usuarios);
+                conquistas, alunos, sessoes, usuarios, fotos, denuncias, configuracao);
         eu = new UsuarioAutenticado(usuarioId, consultoriaId, "ALUNO", alunoId);
     }
 
@@ -81,20 +84,33 @@ class ComunidadeServiceTest {
     }
 
     @Test
-    void criarPostGravaComNomeDoUsuarioEImagemSoHttps() {
+    void criarPostGravaComNomeDoUsuarioEVideoSoHttpsDaEquipe() {
         Usuario usuario = mock(Usuario.class);
         when(usuario.getNome()).thenReturn("Aluno Fictício");
         when(usuarios.findById(usuarioId)).thenReturn(Optional.of(usuario));
 
-        MuralPostResponse post = service.criarPostMural(new CriarPostRequest("Treino concluído hoje!", null), eu);
+        MuralPostResponse post = service.criarPostMural(new CriarPostRequest(null, "Treino concluído hoje!", null, null), eu);
 
         assertThat(post.texto()).isEqualTo("Treino concluído hoje!");
         assertThat(post.autorNome()).isEqualTo("Aluno Fictício");
         verify(muralPosts).saveAndFlush(any(ComunidadeMuralPost.class));
 
-        assertThatThrownBy(() -> service.criarPostMural(new CriarPostRequest("Oi", "http://exemplo.test/f.png"), eu))
+        assertThat(post.tipo()).isEqualTo("CONVERSA");
+        UsuarioAutenticado equipe = new UsuarioAutenticado(UUID.randomUUID(), consultoriaId, "TREINADOR", null);
+        assertThatThrownBy(() -> service.criarPostMural(new CriarPostRequest("VIDEO", "Oi", "http://exemplo.test/v", null), equipe))
+                .isInstanceOfSatisfying(ValidacaoException.class, e -> {
+                    assertThat(e.getProblemas().get(0).field()).isEqualTo("videoUrl");
+                    assertThat(e.getMessage()).doesNotContain("exemplo.test");
+                });
+        // Aluno não publica vídeo nem aviso, e só vídeo leva link.
+        for (String tipo : List.of("VIDEO", "AVISO", "NAO_EXISTE")) {
+            assertThatThrownBy(() -> service.criarPostMural(new CriarPostRequest(tipo, "Oi", null, null), eu))
+                    .isInstanceOfSatisfying(ValidacaoException.class,
+                            e -> assertThat(e.getProblemas().get(0).field()).isEqualTo("tipo"));
+        }
+        assertThatThrownBy(() -> service.criarPostMural(new CriarPostRequest("DUVIDA", "Oi", "https://exemplo.test/v", null), eu))
                 .isInstanceOfSatisfying(ValidacaoException.class,
-                        e -> assertThat(e.getProblemas().get(0).field()).isEqualTo("imagemUrl"));
+                        e -> assertThat(e.getProblemas().get(0).field()).isEqualTo("videoUrl"));
         verify(muralPosts, times(1)).saveAndFlush(any());
     }
 

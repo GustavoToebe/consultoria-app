@@ -71,7 +71,7 @@ export function Bloqueado({ titulo, texto, Icone = Lock, acao, children }: {
 }) {
   const { cores } = useTema();
   return (
-    <View accessibilityRole="summary" style={[estilos.faixa, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
+    <View accessibilityRole="summary" style={[estilos.faixa, { borderColor: cores.divisor, backgroundColor: cores.superficie2 }]}>
       <Icone size={20} color={cores.textoSuave} aria-hidden />
       <View style={estilos.faixaTextos}>
         <Texto variante="subtitulo">{titulo}</Texto>

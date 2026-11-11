@@ -5,16 +5,17 @@ import { fontes } from '../tema/tokens';
 import { Texto } from './Texto';
 
 /**
- * Número numa caixinha de 28 px (posição do item na lista do editor, número da série aberta): claro no comum e invertido
- * (fundo `texto`, letra `fundo`) no escolhido, a seleção invertida do app. Decorativo: quem o usa diz o número no rótulo
- * ou no título ao lado. Cresce com o texto da pessoa e com dois dígitos.
+ * Número numa caixinha de 28 px (posição do item na lista do editor, número da série aberta). Com `invertido` (o item
+ * escolhido) vale a seleção neutra de 11/11 (`ui/selecao.ts`): `superficie3` com o contorno forte; o comum fica no
+ * cartão com o filete discreto e o número em texto secundário. O nome ficou da seleção invertida que substituiu.
+ * Decorativo: quem o usa diz o número no rótulo ou no título ao lado. Cresce com o texto da pessoa e com dois dígitos.
  */
 export function NumeroInvertido({ numero, invertido }: { numero: number; invertido: boolean }) {
   const { cores } = useTema();
   return (
-    <View style={[estilos.caixa, invertido ? { backgroundColor: cores.texto, borderColor: cores.texto } : { backgroundColor: cores.superficie, borderColor: cores.bordaCampo }]}
+    <View style={[estilos.caixa, invertido ? { backgroundColor: cores.superficie3, borderColor: cores.bordaCampo } : { backgroundColor: cores.superficie, borderColor: cores.divisor }]}
       aria-hidden>
-      <Texto numerico style={[estilos.texto, { color: invertido ? cores.fundo : cores.texto }]}>{numero}</Texto>
+      <Texto numerico style={[estilos.texto, { color: invertido ? cores.texto : cores.textoSuave }]}>{numero}</Texto>
     </View>
   );
 }

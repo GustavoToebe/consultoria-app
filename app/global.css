@@ -3,13 +3,16 @@
 
 /* Espelho de tema/tokens.ts. Não editar uma cor sem atualizar os tokens. */
 @theme {
- --font-normal: 'Inter_400Regular';
- --font-semi: 'Inter_600SemiBold';
- --font-negrito: 'Inter_700Bold';
+ --font-normal: 'Geist_400Regular';
+ --font-medio: 'Geist_500Medium';
+ --font-semi: 'Geist_600SemiBold';
+ --font-negrito: 'Geist_700Bold';
  --font-metal: 'MetalMania_400Regular';
  --font-esportiva: 'BebasNeue_400Regular';
  --font-condensada: 'Oswald_700Bold';
- --radius-md: 12px;
+ /* RAIO_CONTROLE (botão, campo, chip, aba); cartão e painel usam rounded-xl = RAIO (12). */
+ --radius-md: 8px;
+ --radius-xl: 12px;
 }
 @layer theme {
  :root {
@@ -24,7 +27,7 @@
    --color-accent-foreground: #111114;
    --color-secondary: #F4F4F5;
    --color-secondary-foreground: #111114;
-   --color-border: #B9B9C0;
+   --color-border: #D4D4D8;
    --color-input: #80808A;
    --color-destructive: #B71C1C;
    --color-sucesso: #176E3C;
@@ -45,22 +48,22 @@
    --color-card: #18181B;
    --color-card-foreground: #F4F4F5;
    --color-muted: #222226;
-   --color-muted-foreground: #A1A1AA;
+   --color-muted-foreground: #B5B5BE;
    --color-accent: #2C2C31;
    --color-accent-foreground: #F4F4F5;
    --color-secondary: #222226;
    --color-secondary-foreground: #F4F4F5;
-   --color-border: #4C4C55;
-   --color-input: #76767E;
+   --color-border: #36363C;
+   --color-input: #82828C;
    --color-destructive: #C62828;
-   --color-sucesso: #2BB36A;
-   --color-atencao: #D9962C;
-   --color-perigo: #F0666B;
+   --color-sucesso: #4ADE80;
+   --color-atencao: #FBBF24;
+   --color-perigo: #FA717B;
    --color-neutro: #9A9AA3;
-   --color-fase1: #E3A0B6;
+   --color-fase1: #E7AEC1;
    --color-fase2: #7DCFC6;
    --color-fase3: #E2C56A;
-   --color-fase4: #A9B6EA;
+   --color-fase4: #ADBAEB;
    --color-primary: #52525B;
    --color-primary-foreground: #FFFFFF;
    --color-ring: #F4F4F5;

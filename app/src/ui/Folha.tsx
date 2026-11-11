@@ -188,7 +188,7 @@ function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura,acaoNoTo
             centralizado
               ? [estilos.painelCentral, largura ? { width: largura, height: '90%' as const } : null]
               : [estilos.painelInferior, { paddingBottom: Platform.OS === 'android' ? 0 : margem.bottom }],
-            { backgroundColor: cores.superficie, borderColor: cores.borda, borderWidth: bordas.bloco },
+            { backgroundColor: cores.superficie, borderColor: cores.divisor, borderWidth: bordas.bloco },
           ]}>
           {/* Faixa do título (reunião de 29/10): o topo da folha se separa do conteúdo, como nos cartões; o X tem moldura,
               como as ações na faixa do exercício (protótipo de 30/10). */}
@@ -202,12 +202,12 @@ function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura,acaoNoTo
               <View ref={fechar} collapsable={false}><IconeBotao Icone={X} rotulo="Fechar" aoTocar={aoFechar} moldura /></View>
             </View>
           </View>
-          {faixa ? <View style={[estilos.faixa, { borderBottomColor: cores.borda }]}>{faixa}</View> : null}
+          {faixa ? <View style={[estilos.faixa, { borderBottomColor: cores.divisor }]}>{faixa}</View> : null}
           <View ref={conteudo} collapsable={false} style={[estilos.area, alturaFixa && estilos.areaQuePreenche]}>
             <RolagemComTopo contentContainerStyle={estilos.conteudo} preencher={alturaFixa}>{children}</RolagemComTopo>
           </View>
           {rodape || statusDoRodape ? (
-            <View style={[estilos.rodape, { borderColor: cores.borda }]}>
+            <View style={[estilos.rodape, { borderColor: cores.divisor }]}>
               <RodapeDeAcoes status={statusDoRodape} empilhar={!centralizado}>{rodape}</RodapeDeAcoes>
             </View>
           ) : null}

@@ -68,7 +68,7 @@ test('catálogo: marcar vários grupos filtra por "ou", Marcar todos age só no 
   await page.keyboard.press('Escape');
   await expect(painel).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Grupo: Peito. Escolher.' })).toBeVisible();
-  // O "Filtrado por" mostra o grupo, e o ✕ do chip tira o filtro.
+  // O "Filtrando:" mostra o grupo, e o ✕ do chip tira o filtro.
   await page.getByRole('button', { name: 'Tirar filtro: Grupo: Peito' }).click();
   await expect.poll(() => consultas.at(-1)).toBe('');
 

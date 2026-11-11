@@ -228,7 +228,7 @@ test('inscrição pública: origens do time, "Tô só de passagem" e o texto do 
   await irParaASegundaParte(page);
   // Os asteriscos somem e o trecho fica em negrito.
   await expect(page.getByText('**', { exact: false })).toHaveCount(0);
-  await expect(page.getByText('Obs: não preencha se não for entrar agora.', { exact: true })).toHaveCSS('font-family', /Inter_700Bold/);
+  await expect(page.getByText('Obs: não preencha se não for entrar agora.', { exact: true })).toHaveCSS('font-family', /Geist_700Bold/);
 
   // As quatro origens novas e a previsão nova estão entre as opções (as antigas continuam).
   for (const rotulo of ['Indicação', 'Instagram', 'Google', 'YouTube', 'TikTok', 'Influenciador(a) ou atleta do time', 'Aluno do time', 'Outra']) {

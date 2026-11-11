@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import type { Configuracao, Receita, Serie } from '../src/api/tipos';
 import { CONFIGURACAO_PADRAO } from '../src/dominio/metodologiaPadrao';
 import { json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
+import { linhaDaSerie } from './linhaDaSerie';
 
 // Só modelos e prescrições fictícios; nenhuma chamada chega ao banco.
 const serieInicial: Serie = {
@@ -146,7 +147,7 @@ for (const largura of [390, 1280]) {
     await page.getByRole('button', { name: 'Digitar como 4+2', exact: true }).click();
     await page.getByRole('textbox', { name: 'Blocos de repetições', exact: true }).fill('4+2');
     await expect(page.getByRole('textbox', { name: 'Reps mín.', exact: true })).toHaveCount(0);
-    await expect(page.getByRole('tab', { name: /^Série 2 · WS/, selected: true })).toBeVisible();
+    await expect(linhaDaSerie(page, /^Série 2 · WS/, true)).toBeVisible();
     await expect(page.getByText(/^Editando: Série \d · Trabalho · WS com Cluster$/)).toBeVisible();
     await expect(page.getByText(/1×6 \(4\+2\) · WS com Cluster 15 s/).first()).toBeVisible();
     await expect(page.getByText('Blocos 4+2 = 6 reps', { exact: true })).toBeVisible();
@@ -354,13 +355,13 @@ for (const largura of [390, 1280]) {
     await page.getByRole('button', { name: 'Aplicar receita Exemplo: FS e Cluster', exact: true }).click();
     await expect(page.getByText('Substitui as séries deste exercício', { exact: true })).toHaveCount(0);
     // Dois grupos, duas abas; a aberta é a última (WS com Cluster) e o título dela traz a faixa dos números.
-    await expect(page.getByRole('tab', { name: /^Série \d/ })).toHaveCount(2);
+    await expect(linhaDaSerie(page, /^Série \d/)).toHaveCount(2);
     await expect(page.getByText(/^Editando: Série \d · Trabalho · WS com Cluster$/)).toBeVisible();
     await expect(page.getByText(/1×16 \(4×4\) · WS com Cluster/).first()).toBeVisible();
     await expect(page.getByText(/1×3 a 6 · WS/)).toHaveCount(0);
-    await page.getByRole('tab', { name: /^Série 1 · FS/ }).click();
+    await linhaDaSerie(page, /^Série 1 · FS/).click();
     await expect(page.getByText(/1×10 a 15 · FS/).first()).toBeVisible();
-    await page.getByRole('tab', { name: /^Série 2 · WS/ }).click();
+    await linhaDaSerie(page, /^Série 2 · WS/).click();
     await expect(page.getByText('4 blocos × 4 reps = 16 reps', { exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();
@@ -503,7 +504,7 @@ for (const largura of [390, 1280]) {
   test(`esforço: 4 séries iguais com RIR 3, 2, 2, 1 são um grupo, com o RIR de cada série (${largura}px)`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width: largura, height: 900 });
     const api = await modeloDeSeries(page, [3, 2, 2, 1].map((rir, i) => serieCom(`ws-${i}`, 'WORKING', cargaDeTrabalho, { rir, rpe: null })));
-    await expect(page.getByRole('tab', { name: /^Série \d · WS/ })).toHaveCount(1);
+    await expect(linhaDaSerie(page, /^Série \d · WS/)).toHaveCount(1);
     // Cada série tem a sua lista de RIR, sem um RIR do grupo por cima.
     for (const [i, rir] of [3, 2, 2, 1].entries()) await expect(page.getByRole('button', { name: `Série ${i + 1} · RIR: ${rir}. Escolher.`, exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Série 2 · RIR: 2. Escolher.', exact: true }).click();
@@ -528,7 +529,7 @@ for (const largura of [390, 1280]) {
       ...[2, 1, 1].map((rir, i) => serieCom(`bo-${i}`, 'BACK_OFF', percentualDaWs(85 - i * 5), { rir, rpe: null })),
       serieCom('bo-sem', 'BACK_OFF', percentualDaWs(70), null),
     ]);
-    await page.getByRole('tab', { name: /^Série 2 · Back off/ }).click();
+    await linhaDaSerie(page, /^Série 2 · Back off/).click();
     await expect(page.getByRole('textbox', { name: 'Série 3 · Mínimo (%)', exact: true })).toHaveValue('75');
     const min1 = await caixaDe(page, 'Série 1 · Mínimo (%)');
     const min2 = await caixaDe(page, 'Série 2 · Mínimo (%)');
@@ -557,7 +558,7 @@ for (const largura of [390, 1280]) {
     await expect(page.getByText('Modelo salvo.')).toBeVisible();
     await page.evaluate((id) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: 'ESCURO' })), TREINADOR.id);
     await page.reload();
-    await page.getByRole('tab', { name: /^Série 2 · Back off/ }).click();
+    await linhaDaSerie(page, /^Série 2 · Back off/).click();
     await page.getByRole('button', { name: 'Série 2 · RIR: 1. Escolher.', exact: true }).scrollIntoViewIfNeeded();
     await page.screenshot({ path: testInfo.outputPath('rir-na-linha-do-percentual-escuro.png') });
     expect(api.errosDaPagina).toEqual([]);
@@ -569,7 +570,7 @@ for (const largura of [390, 1280]) {
     const api = await modeloDeSeries(page, [serieCom('aq', 'WARM_UP', null, { rir: null, rpe: 6 }, [10, 15]), serieInicial]);
     await expect(page.getByRole('textbox', { name: 'Série 1 · RPE', exact: true })).toHaveValue('6');
     await novaSerie(page, 'Adicionar Aquecimento');
-    await expect(page.getByRole('tab', { name: /^Série 3 · Aquecimento/, selected: true })).toBeVisible();
+    await expect(linhaDaSerie(page, /^Série 3 · Aquecimento/, true)).toBeVisible();
     await expect(page.getByRole('button', { name: /^Série 1 · RIR: / })).toHaveCount(1);
     await expect(page.getByRole('textbox', { name: 'Série 1 · RPE', exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: /^Prescrever por RPE/ })).toHaveCount(0);
@@ -597,9 +598,9 @@ for (const largura of [390, 1280]) {
     await page.setViewportSize({ width: largura, height: 900 });
     const aq = (n: number) => serieCom(`aq${n}`, 'WARM_UP', null, null, [10, 15]);
     const api = await modeloDeSeries(page, [aq(1), aq(2), aq(3), serieInicial]);
-    const abas = page.getByRole('tab', { name: /^Série \d/ });
+    const abas = linhaDaSerie(page, /^Série \d/);
     await expect(abas).toHaveCount(2);
-    await page.getByRole('tab', { name: /^Série 1 · Aquecimento/ }).click();
+    await linhaDaSerie(page, /^Série 1 · Aquecimento/).click();
     await page.getByRole('textbox', { name: 'Série 1 · Mínimo (%)', exact: true }).fill('40');
     // Continua uma aba só (as séries 2 e 3 seguem em branco no mesmo grupo) e nenhuma ficou com erro.
     await expect(abas).toHaveCount(2);

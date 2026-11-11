@@ -1,7 +1,6 @@
 import { ChevronDown, ChevronUp, PlayCircle, Repeat, Timer } from 'lucide-react-native';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { Linking, Pressable, StyleSheet, View, type TextInput } from 'react-native';
-import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import type { AnteriorDoExercicio, Configuracao, DemonstracaoDoAluno, EtapaRegistrada, ExercicioPlano, OrigemDaReferencia, Serie, UltimaCarga } from '../api/tipos';
 import { cargaIlegivel as cargaDeFormaDesconhecida } from '../dominio/modoDeCarga';
@@ -37,12 +36,12 @@ import { IconeBotao } from '../ui/IconeBotao';
 import { ProvedorDaPrevia } from '../ui/emPrevia';
 import { sobre } from '../ui/sobre';
 import { Texto } from '../ui/Texto';
-import { useMovimentoReduzido } from '../ui/useMovimentoReduzido';
 import { CartaoSerieComEtapas } from './CartaoSerieComEtapas';
 import { CartaoSerieDeCardio } from './CartaoSerieDeCardio';
 import { PainelDoCheck } from './PainelDoCheck';
 import { RotuloDoIcone } from './RotuloDoIcone';
 import { barraDoTipo, CabecalhoDaSerie, DicaDoCampo, LinhaDoUltimoRegistro, MetaAoLado, RotuloDeHoje } from './PartesDaSerie';
+import { useMarcadoAgora } from './useMarcadoAgora';
 import { ehExercicioDeCardio, partesDaMeta, selosDaSerie, textosDaSerie } from './serieDoAluno';
 
 export interface DadosSerie {
@@ -395,13 +394,9 @@ function CartaoSerie({
   const semCampoDePeso = semCarga || cargaIlegivel;
   const reps = registro ? (valorExibido(repsAcompanhadas, registro.repeticoes) ?? null) : repsDigitadas;
   const feita = !!registro?.concluida;
-  const reduzido = useMovimentoReduzido();
-  const progresso = useSharedValue(feita ? 1 : 0);
-  useEffect(() => {
-    progresso.set(reduzido ? (feita ? 1 : 0) : withTiming(feita ? 1 : 0, { duration: feita ? 200 : 150 }));
-  }, [feita, reduzido, progresso]);
-  // O cartão fica na superfície (Frente G, D10): a cor do tipo é só a barra e o selo; o verde da série feita é status.
-  const fundo = useAnimatedStyle(() => ({ backgroundColor: interpolateColor(progresso.get(), [0, 1], [cores.superficie, `${cores.sucesso}29`]) }));
+  // Guia de 11/11: a série feita fica neutra (cartão na superfície, contorno discreto); o verde vai só no selo "Feita" da
+  // série que a pessoa acabou de marcar. A cor do tipo (barra e selo) continua com a série feita ou atrasada.
+  const agora = useMarcadoAgora(feita);
   const s = calculada.serie;
   const numero = indice + 1;
   const textos = textosDaSerie(s, { tipoTrabalho, semCarga, metodologia, descansoPorSerie: descansoNaSerie, unidade });
@@ -500,6 +495,7 @@ function CartaoSerie({
       />
       <BotaoMarcar
         feito={feita}
+        agora={agora}
         ultimaDoExercicio={ultimaDoExercicio}
         desabilitado={invalido}
         semVibrar={decisao.acao === 'PAINEL'}
@@ -510,8 +506,8 @@ function CartaoSerie({
   );
 
   return (
-    <Animated.View testID={`serie-${s.uid}`} style={[estilos.serie, { borderColor: feita ? cores.sucesso : cores.borda }, barra, fundo]}>
-      <CabecalhoDaSerie numero={numero} tipo={selos.tipo} tecnica={selos.tecnica} recordes={recordes} registro={feita ? 'FEITA' : null} />
+    <View testID={`serie-${s.uid}`} style={[estilos.serie, { backgroundColor: cores.superficie, borderColor: ativa && !feita ? cores.bordaCampo : cores.divisor }, barra]}>
+      <CabecalhoDaSerie numero={numero} tipo={selos.tipo} tecnica={selos.tecnica} recordes={recordes} registro={feita ? 'FEITA' : null} agora={agora} />
       {textos.alvoExtra ? <Texto numerico variante="pequeno">Observação desta série: {textos.alvoExtra}</Texto> : null}
       {textos.amrap ? <Texto numerico variante="pequeno">AMRAP: faça o máximo de repetições que conseguir e anote quantas fez.</Texto> : null}
       {textos.tecnica ? (
@@ -524,7 +520,7 @@ function CartaoSerie({
       ) : null}
       {anterior != null ? <LinhaDoUltimoRegistro texto={anterior} numero={numero} /> : null}
       {recordes?.length ? (
-        <Texto numerico variante="pequeno" cor={cores.sucesso} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        <Texto numerico variante="pequeno" cor={cores.texto} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           {recordes.map((r) => textoDoRecorde(r, unidade)).join(' · ')}
         </Texto>
       ) : null}
@@ -573,7 +569,7 @@ function CartaoSerie({
           aoTocar={() => aoRegistrar({ carga: repetir.carga, repeticoes: repetir.repeticoes, concluida: true })} />
       ) : null}
       {registro?.situacao === 'FALHOU' ? <Texto numerico variante="pequeno" cor={cores.perigo}>Não enviado: {registro.motivo}</Texto> : null}
-    </Animated.View>
+    </View>
   );
 }
 

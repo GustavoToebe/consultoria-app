@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "dependencies": {
     "@expo-google-fonts/bebas-neue": "^0.4.1",
-    "@expo-google-fonts/inter": "^0.4.2",
+    "@expo-google-fonts/geist": "^0.4.2",
     "@expo-google-fonts/metal-mania": "^0.4.1",
     "@expo-google-fonts/oswald": "^0.4.2",
     "@plataforma/web": "https://github.com/GustavoToebe/plataforma/releases/download/web-v0.1.0/plataforma-web-0.1.0.tgz",

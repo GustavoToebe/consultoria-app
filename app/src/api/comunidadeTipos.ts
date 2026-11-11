@@ -23,6 +23,12 @@ export interface NovaAula {
   categoria?: string;
 }
 
+/** Tipo da publicação do mural (`TipoDePost` da API). */
+export type TipoDePost = 'AVISO' | 'VIDEO' | 'DUVIDA' | 'RESULTADO' | 'CONVERSA';
+
+/** Motivo de uma denúncia (`MotivoDeDenuncia` da API, lista fechada). */
+export type MotivoDeDenuncia = 'OFENSIVO' | 'SPAM' | 'IMPROPRIO' | 'OUTRO';
+
 export interface PostDoMural {
   id: string;
   autorId: string;
@@ -34,7 +40,13 @@ export interface PostDoMural {
   autorEhAluno: boolean;
   autorFotoUrl: string | null;
   texto: string;
-  imagemUrl: string | null;
+  tipo: TipoDePost;
+  /** Link https; só no tipo `VIDEO`. */
+  videoUrl: string | null;
+  /** Ids das fotos, na ordem (bytes por `baixarFotoDoMural`, com o token). Só posts do aluno têm. */
+  fotos: string[];
+  /** Só vale em `DUVIDA`: já há comentário da equipe. */
+  respondida: boolean;
   fixado: boolean;
   criadoEm: string;
   /** Contagem por emoji. */
@@ -42,7 +54,26 @@ export interface PostDoMural {
   /** Emojis que o usuário da sessão marcou neste post. */
   minhasReacoes: string[];
   totalComentarios: number;
+  /** Quantidade de denúncias: só na rota da equipe; o aluno nunca recebe (o campo some). */
+  denuncias?: number | null;
 }
+
+/** Corpo do `POST` do mural. `tipo` ausente = `CONVERSA`; `videoUrl` só em `VIDEO`; `fotoIds` só do aluno (0 a 4). */
+export interface CriarPostRequest {
+  tipo?: TipoDePost;
+  texto: string;
+  videoUrl?: string;
+  fotoIds?: string[];
+}
+
+/** Chaves da Comunidade da equipe (`GET`/`PUT /comunidade/configuracao`). */
+export interface ConfiguracaoDaComunidade { alunosPublicam: boolean; alunosAnexamFotos: boolean }
+
+/** O que o aluno vê (`GET /aluno/comunidade/configuracao`): sem o motivo, que pode ser a idade. */
+export interface ConfiguracaoDoAluno { alunosPublicam: boolean; podeAnexarFoto: boolean }
+
+/** Filtros do mural: `tipo` (`undefined` = todos), `busca` livre e, só na equipe, `denunciados`. */
+export interface FiltrosDoMural { tipo?: TipoDePost; busca?: string; denunciados?: boolean }
 
 /** Comentário de um post do mural ou de uma aula (`ComentarioResponse`): autor como no post, sem ocultos, mais antigo primeiro. */
 export interface ComentarioDoMural {
@@ -56,6 +87,8 @@ export interface ComentarioDoMural {
   autorFotoUrl: string | null;
   texto: string;
   criadoEm: string;
+  /** O autor comentou como equipe (a resposta da dúvida). */
+  daEquipe: boolean;
 }
 
 /** De onde são os comentários: um post do mural ou uma aula (aulão). */

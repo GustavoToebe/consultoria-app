@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entrar · Aluno · Prévia visual vendável</title>
+<!-- Dados fictícios (D8). Nada aqui fala com a API. Textos de app/src/dominio/entradaPorPublico.ts (ALUNO) e
+     app/src/ui/EntradaDoPublico.tsx. Sem login social e sem "Criar conta de treinador" (não existem na entrada do aluno). -->
+<link rel="stylesheet" href="base.css">
+<script src="base.js"></script>
+<style>
+  /* fundo apagado; a marca centrada acima de um cartão estreito; termos pequenos embaixo */
+  .entrada { min-height: 100dvh; display: grid; place-items: center; padding: 32px 16px 40px; }
+  .entrada-coluna { width: 100%; max-width: 400px; display: flex; flex-direction: column; align-items: stretch; gap: 24px; }
+  .entrada-marca { justify-content: center; gap: 12px; }
+  .entrada-marca .inicial { width: 36px; height: 36px; font-size: 14px; }
+  .entrada-marca b { font-size: 18px; line-height: 24px; }
+  html[data-nome="metal"] .entrada-marca .nome-consultoria { font-size: 24px; line-height: 28px; }
+  .entrada-cartao { padding: 24px; gap: 20px; }
+  @media (min-width: 768px) { .entrada-cartao { padding: 28px; } }
+  .entrada-cab { display: flex; flex-direction: column; gap: 6px; text-align: center; }
+  .entrada-cab h1 { font-size: 22px; font-weight: 600; line-height: 28px; letter-spacing: -.02em; }
+  .entrada-cab p { font-size: var(--t-apoio); color: var(--suave); line-height: 20px; }
+  .entrada-form { display: flex; flex-direction: column; gap: 16px; }
+  .entrada-form .alerta { padding: 10px 12px; font-size: var(--t-apoio); }
+  .entrada-form .alerta > .ic { margin-top: 0; }
+  /* senha: o olho dentro do campo, alvo de 44 (36 no PC com mouse, como os outros controles) */
+  .campo-senha { display: grid; }
+  .campo-senha > * { grid-area: 1 / 1; }
+  .campo-senha .campo-entrada { padding-right: 48px; }
+  .campo-senha .olho { justify-self: end; align-self: center; margin-right: 2px; color: var(--suave); }
+  .campo-senha .olho[aria-pressed="true"] { color: var(--texto); }
+  .campo .link { align-self: flex-start; margin-top: -2px; }
+  .entrada-outras { display: flex; flex-direction: column; align-items: center; gap: 0; text-align: center; font-size: var(--t-rotulo); color: var(--suave); }
+  .entrada-outras p { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; column-gap: 6px; }
+  .entrada-termos { display: flex; justify-content: center; gap: 4px 20px; flex-wrap: wrap; padding-top: 8px; border-top: 1px solid var(--divisor); }
+</style>
+</head>
+<body>
+<main id="conteudo" class="entrada">
+  <div class="entrada-coluna">
+    <div class="marca-consultoria entrada-marca"><span class="inicial" aria-hidden="true">SF</span><b class="nome-consultoria" translate="no">Studio Forja</b></div>
+
+    <section class="cartao entrada-cartao" aria-labelledby="titulo">
+      <div class="entrada-cab">
+        <h1 id="titulo" tabindex="-1">Entre na sua área de aluno</h1>
+        <p id="subtitulo">Acesse seus treinos, alimentação e acompanhamento.</p>
+      </div>
+
+      <form class="entrada-form" id="form" novalidate>
+        <div id="passo-entrar" class="pilha-16">
+          <div class="campo" id="c-email">
+            <label class="campo-rotulo" for="email">E-mail</label>
+            <input class="campo-entrada" id="email" name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" aria-describedby="email-erro">
+            <span class="campo-erro" id="email-erro" hidden><svg class="ic ic--16" aria-hidden="true"><use href="#i-erro"/></svg><span>Informe o e-mail.</span></span>
+          </div>
+          <div class="campo" id="c-senha">
+            <label class="campo-rotulo" for="senha">Senha</label>
+            <div class="campo-senha">
+              <input class="campo-entrada" id="senha" name="senha" type="password" autocomplete="current-password" aria-describedby="senha-erro">
+              <button type="button" class="botao botao--icone botao--fantasma olho" aria-label="Mostrar senha" aria-pressed="false" aria-controls="senha"><svg class="ic" aria-hidden="true"><use href="#i-olho"/></svg></button>
+            </div>
+            <span class="campo-erro" id="senha-erro" hidden><svg class="ic ic--16" aria-hidden="true"><use href="#i-erro"/></svg><span>Informe a senha.</span></span>
+            <a class="link" href="#">Esqueci minha senha</a>
+          </div>
+        </div>
+
+        <div id="passo-criar" class="pilha-16" hidden>
+          <div class="campo" id="c-nova">
+            <label class="campo-rotulo" for="nova">Nova senha</label>
+            <div class="campo-senha">
+              <input class="campo-entrada" id="nova" name="nova-senha" type="password" autocomplete="new-password" aria-describedby="nova-ajuda nova-erro">
+              <button type="button" class="botao botao--icone botao--fantasma olho" aria-label="Mostrar senha" aria-pressed="false" aria-controls="nova"><svg class="ic" aria-hidden="true"><use href="#i-olho"/></svg></button>
+            </div>
+            <span class="campo-ajuda" id="nova-ajuda">Mínimo de 8 caracteres.</span>
+            <span class="campo-erro" id="nova-erro" hidden><svg class="ic ic--16" aria-hidden="true"><use href="#i-erro"/></svg><span>A senha precisa ter pelo menos 8 caracteres.</span></span>
+          </div>
+          <div class="campo" id="c-repetida">
+            <label class="campo-rotulo" for="repetida">Repita a nova senha</label>
+            <div class="campo-senha">
+              <input class="campo-entrada" id="repetida" name="repetida" type="password" autocomplete="new-password" aria-describedby="repetida-erro">
+              <button type="button" class="botao botao--icone botao--fantasma olho" aria-label="Mostrar senha" aria-pressed="false" aria-controls="repetida"><svg class="ic" aria-hidden="true"><use href="#i-olho"/></svg></button>
+            </div>
+            <span class="campo-erro" id="repetida-erro" hidden><svg class="ic ic--16" aria-hidden="true"><use href="#i-erro"/></svg><span>As senhas não conferem.</span></span>
+          </div>
+        </div>
+
+        <!-- erro de credencial: uma mensagem só, que descreve os dois campos marcados (não diz qual dos dois errou) -->
+        <div class="alerta st-perigo" id="erro-geral" role="alert" hidden><svg class="ic" aria-hidden="true"><use href="#i-erro"/></svg><span>E-mail ou senha inválidos.</span></div>
+
+        <button type="submit" class="botao botao--primario botao--cheio" id="enviar"><span class="girando" aria-hidden="true" hidden></span><span id="enviar-rotulo">Entrar</span></button>
+      </form>
+    </section>
+
+    <div class="entrada-outras" id="outras">
+      <p>Primeiro acesso? <a class="link" href="#">Ativar convite</a></p>
+      <p>É treinador? <a class="link" href="#">Acessar painel da consultoria</a></p>
+    </div>
+    <div class="entrada-outras" id="voltar-area" hidden>
+      <button type="button" class="botao botao--fantasma" id="voltar"><svg class="ic" aria-hidden="true"><use href="#i-seta-esquerda"/></svg>Voltar</button>
+    </div>
+
+    <nav class="entrada-termos" aria-label="Termos e privacidade">
+      <a class="link link--apagado" href="#">Privacidade</a>
+      <a class="link link--apagado" href="#">Termos de uso</a>
+    </nav>
+  </div>
+</main>
+
+<!-- estados da prévia: entram na barra do topo; também abrem por #estado=vazio|erro|enviando|criar-senha -->
+<template id="prot-extra">
+  <div class="prot-grupo" role="group" aria-labelledby="prot-r-estado"><span class="prot-rot" id="prot-r-estado">Estado</span>
+    <div class="prot-segmento" id="prot-estados">
+      <button type="button" data-estado="normal">Normal</button><button type="button" data-estado="vazio">Campos vazios</button><button type="button" data-estado="erro">Erro de acesso</button><button type="button" data-estado="enviando">Enviando</button><button type="button" data-estado="criar-senha">Crie sua senha</button>
+    </div>
+  </div>
+</template>
+
+<script>
+(function () {
+  'use strict';
+  function $(id) { return document.getElementById(id); }
+  var TEXTOS = {
+    entrar: { titulo: 'Entre na sua área de aluno', sub: 'Acesse seus treinos, alimentação e acompanhamento.', botao: 'Entrar' },
+    criar: { titulo: 'Crie sua senha', sub: 'Seu treinador criou uma senha provisória. Escolha agora a sua senha para entrar.', botao: 'Salvar e entrar' },
+  };
+  var criando = false, enviando = false;
+
+  function erroNoCampo(id, sim) {
+    var c = $('c-' + id), e = $(id + '-erro'), i = $(id);
+    c.classList.toggle('campo--erro', sim); e.hidden = !sim;
+    if (sim) i.setAttribute('aria-invalid', 'true'); else i.removeAttribute('aria-invalid');
+  }
+  // credencial recusada: os dois campos marcados e descritos pela mesma mensagem (não diz qual dos dois errou)
+  function credencial(sim) {
+    ['email', 'senha'].forEach(function (id) {
+      $('c-' + id).classList.toggle('campo--erro', sim);
+      if (sim) $(id).setAttribute('aria-invalid', 'true'); else $(id).removeAttribute('aria-invalid');
+      $(id).setAttribute('aria-describedby', id + '-erro' + (sim ? ' erro-geral' : ''));
+    });
+    $('erro-geral').hidden = !sim;
+  }
+  function limparErros() { ['email', 'senha', 'nova', 'repetida'].forEach(function (id) { erroNoCampo(id, false); }); credencial(false); }
+  function marcarEnvio(sim) {
+    enviando = sim;
+    var b = $('enviar');
+    if (sim) { b.setAttribute('aria-disabled', 'true'); b.setAttribute('aria-busy', 'true'); } else { b.removeAttribute('aria-disabled'); b.removeAttribute('aria-busy'); }
+    b.querySelector('.girando').hidden = !sim;
+  }
+  function passo(criar, focar) {
+    criando = criar;
+    var t = criar ? TEXTOS.criar : TEXTOS.entrar;
+    $('titulo').textContent = t.titulo; $('subtitulo').textContent = t.sub; $('enviar-rotulo').textContent = t.botao;
+    $('passo-entrar').hidden = criar; $('passo-criar').hidden = !criar;
+    $('outras').hidden = criar; $('voltar-area').hidden = !criar;
+    // o passo novo entra no lugar dos campos anteriores: o foco vai para o campo novo (como no app)
+    if (focar) $(criar ? 'nova' : 'email').focus();
+  }
+  function estado(nome, focar) {
+    limparErros(); marcarEnvio(false); passo(nome === 'criar-senha', focar);
+    if (nome === 'vazio') { erroNoCampo('email', true); erroNoCampo('senha', true); if (focar) $('email').focus(); }
+    if (nome === 'erro') { $('email').value = 'aluna@exemplo.com'; $('senha').value = 'senha1234'; credencial(true); }
+    if (nome === 'enviando') { $('email').value = 'aluna@exemplo.com'; $('senha').value = 'senha1234'; marcarEnvio(true); }
+    if (nome === 'normal') { $('email').value = ''; $('senha').value = ''; }
+    document.querySelectorAll('#prot-estados [data-estado]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-estado') === nome)); });
+  }
+
+  $('form').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    if (enviando) return;
+    limparErros();
+    var primeiro = null;
+    function falta(id, sim) { erroNoCampo(id, sim); if (sim && !primeiro) primeiro = $(id); }
+    if (criando) {
+      var nova = $('nova').value, rep = $('repetida').value;
+      falta('nova', nova.length < 8);
+      falta('repetida', nova.length >= 8 && nova !== rep);
+    } else {
+      falta('email', !$('email').value.trim());
+      falta('senha', !$('senha').value);
+    }
+    if (primeiro) { primeiro.focus(); return; }
+    // prévia: qualquer e-mail e senha entram (nada sai daqui); abre o Início do aluno
+    marcarEnvio(true);
+    setTimeout(function () { location.href = 'aluno-inicio.html'; }, 1200);
+  });
+  // os botões de olho: nome fixo "Mostrar senha" com o estado em aria-pressed (como o CampoSenha do app)
+  document.addEventListener('click', function (ev) {
+    var olho = ev.target.closest('.olho');
+    if (olho) {
+      var campo = $(olho.getAttribute('aria-controls')), mostra = olho.getAttribute('aria-pressed') !== 'true';
+      olho.setAttribute('aria-pressed', String(mostra)); campo.type = mostra ? 'text' : 'password';
+      olho.querySelector('use').setAttribute('href', mostra ? '#i-olho-fechado' : '#i-olho');
+      return;
+    }
+    var e = ev.target.closest('#prot-estados [data-estado]');
+    if (e) { history.replaceState(null, '', '#estado=' + e.getAttribute('data-estado')); estado(e.getAttribute('data-estado'), false); }
+  });
+  $('voltar').addEventListener('click', function () { $('senha').value = ''; $('nova').value = ''; $('repetida').value = ''; estado('normal', true); });
+  // o Enter não envia de novo enquanto o primeiro envio não voltou
+  $('enviar').addEventListener('click', function (ev) { if (enviando) ev.preventDefault(); });
+
+  var VALIDOS = ['normal', 'vazio', 'erro', 'enviando', 'criar-senha'];
+  function doEndereco() { var m = /estado=([a-z-]+)/.exec(location.hash); return m && VALIDOS.indexOf(m[1]) >= 0 ? m[1] : 'normal'; }
+  document.addEventListener('DOMContentLoaded', function () { estado(doEndereco(), false); });
+  window.addEventListener('hashchange', function () { estado(doEndereco(), false); });
+})();
+</script>
+</body>
+</html>

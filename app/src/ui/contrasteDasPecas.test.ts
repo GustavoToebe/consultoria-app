@@ -46,11 +46,27 @@ describe.each(VARIANTES)('peças comuns no tema %s', (_nome, cores) => {
     expect(contraste(cores.textoSuave, cores.superficie)).toBeGreaterThanOrEqual(4.5);
   });
 
-  it('Abas invertida: aba selecionada (fundo `texto`) com o anel do ponto de tipo, o ícone de problema e o rótulo em `fundo` ≥ 4,5:1 (WCAG 1.4.11)', () => {
-    expect(contraste(cores.fundo, cores.texto)).toBeGreaterThanOrEqual(4.5);
+  it('Abas: contagem neutra (`texto` sobre `superficie3`) e ícone de problema em `perigo`/`atencao` ≥ 3:1 sobre o fundo e o cartão', () => {
+    expect(contraste(cores.texto, cores.superficie3)).toBeGreaterThanOrEqual(4.5);
+    for (const cor of [cores.perigo, cores.atencao]) for (const s of [cores.fundo, cores.superficie]) expect(contraste(cor, s)).toBeGreaterThanOrEqual(3);
   });
 
-  it('Alerta e Selo: texto na cor do tom sobre o fundo opaco `tingido` (não depende de onde a caixa está)', () => {
+  it('Selo normal (`neutro`, sem pílula): texto secundário direto sobre qualquer superfície, inclusive a `faixaForte` do exercício', () => {
+    for (const s of [...superficies, cores.painel, cores.faixaForte]) expect(contraste(cores.textoSuave, s)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('Selo de situação: texto e ponto na cor da situação sobre o fundo `*Suave` opaco', () => {
+    for (const [tom, fundo] of [[cores.sucesso, cores.sucessoSuave], [cores.atencao, cores.atencaoSuave], [cores.perigo, cores.perigoSuave]]) {
+      expect(contraste(tom, fundo)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it('Botao fantasma e perigoTexto com o mouse em cima: `texto` e `perigo` sobre a superfície elevada (`superficie2`)', () => {
+    expect(contraste(cores.texto, cores.superficie2)).toBeGreaterThanOrEqual(4.5);
+    expect(contraste(cores.perigo, cores.superficie2)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('Alerta: texto na cor do tom sobre o fundo opaco `tingido` (não depende de onde a caixa está)', () => {
     for (const tom of [cores.perigo, cores.atencao, cores.sucesso]) {
       expect(contraste(tom, tingido(tom, cores.superficie))).toBeGreaterThanOrEqual(4.5);
     }
@@ -77,12 +93,23 @@ describe.each(VARIANTES)('peças comuns no tema %s', (_nome, cores) => {
     for (const s of [cores.superficie, cores.superficie2]) expect(contraste(cores.anelFoco, s)).toBeGreaterThanOrEqual(3);
   });
 
-  it('BotaoMarcar desabilitado (prévia e número inválido num já feito): ícone `textoSuave` sobre a faixa `superficie3` ≥ 4,5:1 (sem opacidade)', () => {
+  it('BotaoMarcar desabilitado (prévia e número inválido num já feito): faixa `superficie3`; o ✓ só no já feito, `textoSuave` ≥ 4,5:1 (sem opacidade)', () => {
     for (const feito of [false, true]) {
       const c = coresDoMarcar(cores, { feito, desabilitado: true, pressionado: false });
       expect(c.fundo).toBe(cores.superficie3);
-      expect(c.icone).toBe(cores.textoSuave);
-      expect(contraste(c.icone, c.fundo)).toBeGreaterThanOrEqual(4.5);
+      expect(c.icone).toBe(feito ? cores.textoSuave : null);
+    }
+    expect(contraste(cores.textoSuave, cores.superficie3)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('BotaoMarcar feito (neutro) e feito agora (verde): ✓ ≥ 3:1 sobre o fundo e o contorno ≥ 3:1 sobre o cartão', () => {
+    const feito = coresDoMarcar(cores, { feito: true, desabilitado: false, pressionado: false });
+    const agora = coresDoMarcar(cores, { feito: true, agora: true, desabilitado: false, pressionado: false });
+    expect(feito).toEqual({ borda: cores.bordaCampo, fundo: cores.superficie3, icone: cores.textoSuave });
+    expect(agora).toEqual({ borda: cores.sucesso, fundo: cores.sucessoSuave, icone: cores.sucesso });
+    for (const c of [feito, agora]) {
+      expect(contraste(c.icone!, c.fundo)).toBeGreaterThanOrEqual(3);
+      for (const s of [cores.superficie, cores.superficie2]) expect(contraste(c.borda, s)).toBeGreaterThanOrEqual(3);
     }
   });
 
@@ -215,25 +242,5 @@ describe.each(VARIANTES)('telas do aluno (reunião de 30/10) no tema %s', (_nome
       expect(contraste(cores.texto, fundo)).toBeGreaterThanOrEqual(4.5);
       expect(contraste(cores.textoSuave, fundo)).toBeGreaterThanOrEqual(4.5);
     }
-  });
-
-  it('Abas invertidas (séries do exercício): a selecionada em `fundo` sobre `texto`, a outra em `texto` sobre `superficie2` com borda `bordaCampo`', () => {
-    expect(contraste(cores.fundo, cores.texto)).toBeGreaterThanOrEqual(4.5);
-    expect(contraste(cores.texto, cores.superficie2)).toBeGreaterThanOrEqual(4.5);
-    // A caixa da aba fica sobre o cartão do exercício (`superficie`): a borda dela separa uma aba da outra.
-    expect(contraste(cores.bordaCampo, cores.superficie)).toBeGreaterThanOrEqual(3);
-    // A selecionada se separa do cartão pelo próprio fundo invertido.
-    expect(contraste(cores.texto, cores.superficie)).toBeGreaterThanOrEqual(3);
-    // O selo neutro do código ("3× WS") vale sobre as duas, porque tem fundo opaco próprio.
-    expect(contraste(cores.neutro, tingido(cores.neutro, cores.superficie))).toBeGreaterThanOrEqual(4.5);
-  });
-
-  it('Abas invertidas com problema: ícone e borda em `perigo`/`atencao` sobre a aba não selecionada (`superficie2`) e o cartão ≥ 3:1', () => {
-    for (const cor of [cores.perigo, cores.atencao]) {
-      expect(contraste(cor, cores.superficie2)).toBeGreaterThanOrEqual(3);
-      expect(contraste(cor, cores.superficie)).toBeGreaterThanOrEqual(3);
-    }
-    // Na selecionada o ícone vai em `fundo` (o mesmo par do texto invertido), não na cor do problema.
-    expect(contraste(cores.fundo, cores.texto)).toBeGreaterThanOrEqual(3);
   });
 });

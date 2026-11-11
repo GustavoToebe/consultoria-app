@@ -17,9 +17,11 @@ import { espaco } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Texto } from '../../ui/Texto';
+import { useUnidadeDeCarga } from '../../ui/unidadeDeCargaEmUso';
+import { cargaDoBloco, FALTA_A_CARGA } from './cargaDaSerie';
 import { AvisoDoCampo, ErroDoCampo, useCamposLadoALado } from './CamposDaPrescricao';
-import { EditorGrupo, nivelDoGrupo, type Nivel } from './EditorDoGrupoDeSeries';
-import { TabelaDeBlocos } from './TabelaDeBlocos';
+import { EditorGrupo, faltaCargaNoGrupo, nivelDoGrupo, type Nivel } from './EditorDoGrupoDeSeries';
+import { LARGURA_DAS_COLUNAS, TabelaDeBlocos } from './TabelaDeBlocos';
 import { opcoesDeTecnica, opcoesDeTipo, problemasDoExercicioSemSeries, problemasPorSerie } from './opcoesDoEditor';
 
 interface Props {
@@ -55,6 +57,7 @@ const TECNICAS_DE_1_CLIQUE: TipoDeTecnica[] = ['REST_PAUSE', 'CLUSTER', 'DROP_SE
  */
 export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, grupoAbertoUid, aoAbrirGrupo, semCarga = false }: Props) {
   const { identificacao } = useTema();
+  const unidade = useUnidadeDeCarga();
   const cfg = config ?? CONFIGURACAO_PADRAO;
   const modalidade = cardio ? 'CARDIO' : null;
   const grupos = agrupar(series);
@@ -108,17 +111,34 @@ export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, gru
   const aoNova = cardio ? () => adicionar(undefined, null) : () => setNovaAberta(!novaAberta);
   const nova = <Botao rotulo={rotuloDaNova} tipo="secundario" Icone={Plus} desabilitado={cheio} motivo={motivoCheio} aoTocar={aoNova} />;
   const botoesDaNova = cardio || cheio ? null : <BotoesDeNovaSerie config={cfg} aoAdicionar={adicionar} />;
+  // Estreito (390): a linha vira divulgação e o editor abre logo abaixo da série escolhida (guia premium pág. 9).
+  const empilhado = largura !== null && largura < LARGURA_DAS_COLUNAS;
+  const editor = g ? <EditorGrupo key={g.series[0].uid} largo={largo} grupo={g} series={series} config={cfg} cardio={cardio} semCarga={semCarga}
+    tipos={tipos} podeMais={!cheio} primeiro={iAberto === 0} ultimo={iAberto === grupos.length - 1} numero={iAberto + 1}
+    porSerie={validacao.porSerieErros}
+    aoMover={(d) => aoMudar(moverGrupo(series, iAberto, d))}
+    aoAlterar={(m) => alterar(g, m)}
+    aoMudarSeries={(novas) => aoMudar(novas)}
+    aoQuantidade={(n) => aoMudar(mudarQuantidade(series, g, n, cfg))}
+    aoRestPauseNaUltima={() => aoMudar(restPauseNestaSerie(series, g, cfg))}
+    aoRemover={() => aoMudar(removerGrupo(series, g))} /> : null;
   return <View style={estilos.lista} onLayout={medir}>
     {grupos.length > 0 ? <TabelaDeBlocos ativa={uidAberto ?? grupos[0].series[0].uid} aoMudar={definirAberto}
+      empilhado={empilhado} detalhe={empilhado ? editor : null}
       linhas={grupos.map((x, i) => {
+        const faltaCarga = !cardio && faltaCargaNoGrupo(validacao.porSerieErros, x);
         const chaveCor = corDoTipoDeSerie(x.series[0].tipo, papelDe(cfg, x.series[0].tipo));
-        const corIndicador = chaveCor && identificacao ? identificacao[chaveCor]?.cor : undefined;
+        const tipo = cardio ? undefined : tipos.find((t) => t.valor === x.series[0].tipo)?.rotulo ?? nomeDoTipo(cfg, x.series[0].tipo);
         return {
           valor: x.series[0].uid,
-          rotulo: `Série ${i + 1}${cardio ? '' : ` · ${tipos.find((t) => t.valor === x.series[0].tipo)?.rotulo ?? nomeDoTipo(cfg, x.series[0].tipo)}`}`,
+          rotulo: `Série ${i + 1}${tipo ? ` · ${tipo}` : ''}`,
+          serie: `Série ${i + 1}`,
+          tipo,
+          categoria: chaveCor && identificacao ? identificacao[chaveCor] : undefined,
+          carga: cardio ? '—' : faltaCarga ? FALTA_A_CARGA : cargaDoBloco(x, cfg, unidade),
+          cargaFalta: faltaCarga,
           resumo: resumoDoBloco(x, cfg),
           problema: problemaDaAba(nivelDoGrupo(validacao.porSerieErros, x)),
-          corIndicador,
         };
       })}
       // Cheio, o botão sai do fim da tabela: desabilitado ele perdia o tracejado e o motivo ficava escondido.
@@ -131,15 +151,7 @@ export function EditorSeries({ series, config, cardio, aoMudar: aoMudarFora, gru
     {grupos.length > 0 && novaAberta ? botoesDaNova : null}
     <ErroDoCampo mensagem={validacao.daLista.series} />
     <AvisoDoCampo mensagem={validacao.avisosDaLista.series} />
-    {g ? <EditorGrupo key={g.series[0].uid} largo={largo} grupo={g} series={series} config={cfg} cardio={cardio} semCarga={semCarga}
-      tipos={tipos} podeMais={!cheio} primeiro={iAberto === 0} ultimo={iAberto === grupos.length - 1} numero={iAberto + 1}
-      porSerie={validacao.porSerieErros}
-      aoMover={(d) => aoMudar(moverGrupo(series, iAberto, d))}
-      aoAlterar={(m) => alterar(g, m)}
-      aoMudarSeries={(novas) => aoMudar(novas)}
-      aoQuantidade={(n) => aoMudar(mudarQuantidade(series, g, n, cfg))}
-      aoRestPauseNaUltima={() => aoMudar(restPauseNestaSerie(series, g, cfg))}
-      aoRemover={() => aoMudar(removerGrupo(series, g))} /> : null}
+    {empilhado ? null : editor}
     {/* "2 blocos · 7 séries": quantidade de blocos e total de séries não se confundem (a coluna Quantidade é do bloco). */}
     {series.length ? <Texto variante="pequeno" numerico>{`Este exercício: ${textoDeBlocosESeries(blocosESeries(series))}`}</Texto> : null}
   </View>;

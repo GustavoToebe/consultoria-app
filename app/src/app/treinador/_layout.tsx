@@ -70,10 +70,13 @@ export default function LayoutTreinador() {
   const verInscricoes=pode('INSCRICAO_LER');
   const novas=useCarregar(verInscricoes?`ponto-interessados:${caminho}`:null,()=>listarInscricoes({situacao:'NOVA',meus:false,pagina:0}));
   const pontoInteressados=verInscricoes&&(novas.dados?.total??0)>0;
+  // No menu aberto do PC o número toma o lugar do ponto (prévia de 11/11), com os mesmos dados; sem dado, nada aparece.
+  const paraRevisar=verAtualizacoes?painel.dados?.atualizacoesParaRevisar??0:0;
+  const inscricoesNovas=verInscricoes?novas.dados?.total??0:0;
   const comPontos=(i:ItemMenu):ItemMenu=>{
     if(i.caminho==='/treinador') return {...i,ponto:pontoAtualizacoes?'inferior':false};
-    if(i.caminho==='/treinador/atualizacoes') return {...i,ponto:pontoAtualizacoes};
-    if(i.caminho==='/treinador/interessados') return {...i,ponto:pontoInteressados};
+    if(i.caminho==='/treinador/atualizacoes') return {...i,ponto:pontoAtualizacoes,contagem:{numero:paraRevisar,descricao:'para revisar'}};
+    if(i.caminho==='/treinador/interessados') return {...i,ponto:pontoInteressados,contagem:{numero:inscricoesNovas,descricao:inscricoesNovas===1?'inscrição nova':'inscrições novas'}};
     if(i.caminho==='/treinador/perfil') return {...i,ponto:pontoInteressados?'inferior':false};
     return i;
   };

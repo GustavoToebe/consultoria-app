@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -132,12 +133,19 @@ public class HistoricoService {
         if (exercicioIds.isEmpty()) {
             return mapa;
         }
-        for (ExecucaoSerie e : execucoes
-                .findByAlunoIdAndExercicioIdInAndSerieTrabalhoTrueAndCargaNotNullOrderByDataDesc(alunoId, exercicioIds)) {
+        // Primeiro a data mais recente de cada exercício, depois só as séries dessas datas (não o histórico inteiro).
+        Map<UUID, LocalDate> ultimaData = new HashMap<>();
+        execucoes.ultimaDataDeTrabalho(alunoId, exercicioIds).forEach(u -> ultimaData.put(u.exercicioId(), u.data()));
+        if (ultimaData.isEmpty()) {
+            return mapa;
+        }
+        for (ExecucaoSerie e : execucoes.findByAlunoIdAndExercicioIdInAndSerieTrabalhoTrueAndCargaNotNullAndDataIn(
+                alunoId, ultimaData.keySet(), new HashSet<>(ultimaData.values()))) {
+            if (!e.getData().equals(ultimaData.get(e.getExercicioId()))) {
+                continue;
+            }
             UltimaCarga atual = mapa.get(e.getExercicioId());
-            if (atual == null) {
-                mapa.put(e.getExercicioId(), new UltimaCarga(e.getCarga(), e.getRepeticoes(), e.getData()));
-            } else if (atual.data().equals(e.getData()) && prevaleceNoMesmoDia(e, atual)) {
+            if (atual == null || prevaleceNoMesmoDia(e, atual)) {
                 mapa.put(e.getExercicioId(), new UltimaCarga(e.getCarga(), e.getRepeticoes(), e.getData()));
             }
         }

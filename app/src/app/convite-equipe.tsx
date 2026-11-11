@@ -118,7 +118,8 @@ export default function ConviteEquipe() {
         <CampoSenha ref={refConfirmacao} rotulo="Confirmar senha" valor={confirmacao} aoMudar={setConfirmacao} erro={campos.confirmacao} autoComplete="new-password"
           onSubmitEditing={() => void aceitar()} returnKeyType="go" />
         {erro ? <MensagemErro texto={erro} /> : null}
-        <BotaoPublico rotulo="Criar meu acesso à equipe" carregando={ocupado} aoTocar={() => void aceitar()} />
+        {/* Com a consultoria reconhecida, a ação usa a marca dela; sem, o contraste neutro do produto. */}
+        <BotaoPublico rotulo="Criar meu acesso à equipe" carregando={ocupado} aoTocar={() => void aceitar()} cor={marca?.corPrimaria} />
       </Cartao>
       <View style={estilos.links}>
         <LinkTexto href="/convite" texto="Sou aluno" />

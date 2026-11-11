@@ -30,7 +30,7 @@ import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
 import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
 import { Esqueleto } from '../../ui/Esqueleto';
-import { MensagemErro, Vazio } from '../../ui/Estados';
+import { MensagemErro } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
 import { depoisDeFecharAsFolhas, portalDaFolhaDoTopo } from '../../ui/historicoDasFolhas';
@@ -176,8 +176,12 @@ export default function AgendaDoTreinador() {
     });
     return () => { vivo = false; };
   }, [p.novo, podeAlterar, diaSugerido]);
+  // O item aberto na folha fica marcado na grade e na lista (contorno forte), só enquanto a folha dele está aberta.
+  const [chaveAberta, setChaveAberta] = useState<string | null>(null);
+  const escolhido = (compromisso && compromisso !== 'novo') || evento?.tipo === 'abrir' ? chaveAberta : null;
   const abrirItem = (item: ItemDoCalendario) => {
     const f = item.fonte;
+    setChaveAberta(item.chave);
     if (f.origem === 'COMPROMISSO') setCompromisso(f.compromisso);
     else if (f.origem === 'EVENTO') setEvento({ tipo: 'abrir', eventoId: f.ocorrencia.eventoId, ocorrencia: item.ocorrencia });
   };
@@ -195,17 +199,17 @@ export default function AgendaDoTreinador() {
     podeAlterar={podeAlterar} aoAlternar={alternar} aoMudar={() => { cal.recarregarAgendas(); cal.recarregarEventos(); }} /> : null;
 
   const conteudo = !cal.pronto && !cal.erros.length ? <Esqueleto texto="Carregando a agenda" /> : <>
-    {vazio && modo === 'lista' ? <Vazio titulo="Nada neste período" texto="Nenhum compromisso, evento ou atualização nestes dias." /> : null}
-    {vazio && modo !== 'lista' ? <Texto variante="suave" accessibilityLiveRegion="polite">Nada neste período.</Texto> : null}
+    {/* Na lista os dias continuam todos à vista (nunca esconder datas), cada um com o seu "Nada marcado". */}
+    {vazio ? <Texto variante="suave" accessibilityLiveRegion="polite">Nada neste período.</Texto> : null}
     {modo === 'grade' ? <GradeDeHorarios dias={diasDoPeriodo(de, ate)} itens={itens} hoje={hoje} meus={meus} chaveDoPeriodo={`${visao}:${de}`}
       aoAbrir={abrirItem} aoAbrirDia={visao === 'semana' ? abrirDia : undefined}
-      aoCriarNoHorario={podeAlterar ? (d, hora) => setEvento({ tipo: 'novo', data: d, hora }) : undefined} /> : null}
-    {modo === 'lista' && !vazio ? <ListaDoCalendario itens={itens} de={de} ate={ate} hoje={hoje} meus={meus} nomesDasAgendas={nomesDasAgendas}
-      semData={cal.semData} aoAbrir={abrirItem} /> : null}
+      aoCriarNoHorario={podeAlterar ? (d, hora) => setEvento({ tipo: 'novo', data: d, hora }) : undefined} escolhido={escolhido} /> : null}
+    {modo === 'lista' ? <ListaDoCalendario itens={itens} de={de} ate={ate} hoje={hoje} meus={meus} nomesDasAgendas={nomesDasAgendas}
+      semData={cal.semData} aoAbrir={abrirItem} escolhido={escolhido} /> : null}
     {modo === 'mes' ? <VisaoDoMes data={data} hoje={hoje} itens={itens} compacta={false} aoTocarDia={abrirDia} /> : null}
     {modo === 'mesCompacto' ? <>
       <VisaoDoMes data={data} hoje={hoje} itens={itens} compacta aoTocarDia={escolherData} />
-      <ListaDoCalendario itens={itens} de={data} ate={data} hoje={hoje} meus={meus} nomesDasAgendas={nomesDasAgendas} aoAbrir={abrirItem} />
+      <ListaDoCalendario itens={itens} de={data} ate={data} hoje={hoje} meus={meus} nomesDasAgendas={nomesDasAgendas} aoAbrir={abrirItem} escolhido={escolhido} />
     </> : null}
     {modo === 'ano' && cal.contagem ? <VisaoDoAno ano={Number(data.slice(0, 4))} hoje={hoje} contagem={cal.contagem} aoAbrirDia={abrirDia}
       aoAbrirMes={(primeiro) => ir({ visao: 'mes', data: primeiro.slice(0, 7) === hoje.slice(0, 7) ? undefined : primeiro }, 'push')} /> : null}

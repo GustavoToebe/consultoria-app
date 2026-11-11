@@ -18,7 +18,7 @@ import { Texto } from '../../ui/Texto';
 import { useUnidadeDeCarga } from '../../ui/unidadeDeCargaEmUso';
 import { BotaoDeTexto } from './BotaoDeAbrir';
 import { AvisoDoCampo, CampoSozinho, ErroDoCampo, useCamposLadoALado } from './CamposBasicos';
-import { escolhaDeCargaDoPapel, modoAoEscolher, OPCOES_DO_RIR, percentuaisNoGrupo } from './cargaDaSerie';
+import { cargaPendente, escolhaDeCargaDoPapel, FALTA_A_CARGA, modoAoEscolher, OPCOES_DO_RIR, percentuaisNoGrupo } from './cargaDaSerie';
 import { ajudaDaCarga, problemasDoGrupoDeSeries, rotulosDaFaixa, type ProblemasDaSerie } from './opcoesDoEditor';
 
 /**
@@ -118,14 +118,17 @@ export function CargaERirDaSerie({ grupo: g, series, config, porSerie, semCarga,
     esforco: emLinha ? { flexGrow: 1, flexBasis: escalar(LARGURA_DO_RIR, fatorTexto), maxWidth: escalar(220, fatorTexto) } : estilos.esforcoEmpilhado,
   } satisfies Record<string, StyleProp<ViewStyle>>;
   const nomeDoEsforco = rpe ? 'RPE' : 'RIR';
+  // Carga obrigatória ainda vazia: aviso âmbar "Falta a carga." (guia premium págs. 4 e 9), não o erro vermelho do valor inválido.
+  const kgPendente = !!erros['carga.valorKg'] && cargaPendente(s, 'carga.valorKg');
   const medir = (e: LayoutChangeEvent) => setLargura(e.nativeEvent.layout.width);
   return <View style={estilos.bloco} onLayout={medir}>
     {semCarga ? null : <Escolha<ModoDeCarga> descricao="Forma de carga" opcoes={escolha.opcoes} valor={escolha.marcado}
       aoMudar={(m) => { if (m !== escolha.marcado) aoMudar(alterarGrupo(series, g, { modo: modoAoEscolher(papel, m) }, config)); }} />}
     <ErroDoCampo mensagem={erros['carga.modo'] ?? erros.carga} />
     {/* Os kg são do grupo: kg diferentes já separam as séries em grupos (`agrupamento`). */}
-    {!semCarga && modo === 'CARGA_FIXA' ? <CampoDaCargaFixa rotulo="Carga" valor={s.carga?.valorKg} erro={erros['carga.valorKg']}
+    {!semCarga && modo === 'CARGA_FIXA' ? <CampoDaCargaFixa rotulo="Carga" valor={s.carga?.valorKg} erro={kgPendente ? null : erros['carga.valorKg']}
       aoMudar={(valorKg) => aoMudar(alterarGrupo(series, g, { carga: { modo: 'CARGA_FIXA', valorKg } }, config))} /> : null}
+    {!semCarga && modo === 'CARGA_FIXA' && kgPendente ? <AvisoDoCampo mensagem={`${FALTA_A_CARGA}.`} /> : null}
     {/* Cabeçalho das colunas, uma vez; cada campo tem o nome inteiro para o leitor de tela ("Série 2 · Mínimo (%)"). */}
     {/* No celular o RIR desce para uma linha só dele (com o próprio rótulo), para o valor caber inteiro. */}
     {emLinha || !semCarga ? <View style={estilos.linha} aria-hidden>
@@ -144,14 +147,15 @@ export function CargaERirDaSerie({ grupo: g, series, config, porSerie, semCarga,
         {rpe ? <CampoNumerico rotulo={`Série ${n} · RPE`} rotuloOculto={emLinha} erroSemTexto valor={x.esforco?.rpe ?? null} erro={e['esforco.rpe']} aoMudar={(v) => rpeDaSerie(i, v)} />
           : <EscolhaDoRir rotulo={`Série ${n} · RIR`} valor={x.esforco?.rir ?? null} aoMudar={(rir) => aoMudar(alterarRirDaSerie(series, i, rir))} />}
       </View>;
-      const mensagens = [...new Set([e['carga.percentualMin'], e['carga.percentualMax'], rpe ? e['esforco.rpe'] : e['esforco.rir']].filter(Boolean))];
+      const minPendente = !!e['carga.percentualMin'] && cargaPendente(x, 'carga.percentualMin');
+      const mensagens = [...new Set([minPendente ? null : e['carga.percentualMin'], e['carga.percentualMax'], rpe ? e['esforco.rpe'] : e['esforco.rir']].filter(Boolean))];
       return <View key={x.uid} style={[estilos.serie, emLinha ? null : [estilos.serieEmpilhada, { borderTopColor: cores.divisor }]]}>
         {emLinha ? null : <Texto variante="rotulo" cor={cores.texto}>Série {n}</Texto>}
         {emLinha || !semCarga ? <View style={estilos.linha}>
           {emLinha ? <Texto variante="rotulo" cor={cores.texto} style={celula.serie}>Série {n}</Texto> : null}
           {semCarga ? null : percentual ? <>
             <View style={celula.numero}><CampoNumerico rotulo={`Série ${n} · Mínimo`} rotuloAcessivel={`Série ${n} · Mínimo (%)`} rotuloOculto sufixo="%" sufixoNaCaixa erroSemTexto
-              valor={x.carga?.percentualMin ?? null} erro={e['carga.percentualMin']} aoMudar={(min) => aoMudar(percentuaisNoGrupo(series, g, j, min, x.carga?.percentualMax ?? null, config))} /></View>
+              valor={x.carga?.percentualMin ?? null} erro={minPendente ? null : e['carga.percentualMin']} aoMudar={(min) => aoMudar(percentuaisNoGrupo(series, g, j, min, x.carga?.percentualMax ?? null, config))} /></View>
             <View style={celula.numero}><CampoNumerico rotulo={`Série ${n} · Máximo`} rotuloAcessivel={`Série ${n} · Máximo (%)`} rotuloOculto sufixo="%" sufixoNaCaixa erroSemTexto
               valor={x.carga?.percentualMax ?? null} erro={e['carga.percentualMax']} aoMudar={(max) => aoMudar(percentuaisNoGrupo(series, g, j, x.carga?.percentualMin ?? null, max, config))} /></View>
           </> : <Texto numerico cor={cores.texto} style={[celula.texto, estilos.textoDaCarga]}>{textoDaCarga(x)}</Texto>}
@@ -159,6 +163,7 @@ export function CargaERirDaSerie({ grupo: g, series, config, porSerie, semCarga,
         </View> : null}
         {emLinha ? null : esforco}
         {mensagens.map((m) => <ErroDoCampo key={m} mensagem={m} />)}
+        {minPendente ? <AvisoDoCampo mensagem={`${FALTA_A_CARGA}.`} /> : null}
         <AvisoDoCampo mensagem={porSerie[i]?.avisos['esforco.rir']} />
       </View>;
     })}

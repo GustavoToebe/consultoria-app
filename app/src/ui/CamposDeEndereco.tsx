@@ -4,11 +4,10 @@ import { StyleSheet, View } from 'react-native';
 
 import { ErroApi } from '../api/cliente';
 import { buscarCep } from '../api/rotas';
-import { useTema } from '../tema/TemaProvider';
 
 import { enderecoComCep, LIMITES_ENDERECO, mascaraCep, type CampoDoEndereco, type EnderecoNoForm } from '../dominio/cadastroDoAluno';
 import { espaco } from '../tema/tokens';
-import { Campo } from './Campo';
+import { Campo, MensagemDeErro } from './Campo';
 import { Texto } from './Texto';
 import { EscolhaEmFolha, type OpcaoDaFolha } from './EscolhaEmFolha';
 
@@ -35,7 +34,6 @@ interface Props {
  * buscado de novo, para não trocar um endereço salvo. Usado na ficha do aluno e na pergunta de endereço da anamnese.
  */
 export function CamposDeEndereco({ valor, aoMudar, erros = {}, desabilitado, naPergunta }: Props) {
-  const { cores } = useTema();
   const mudar = (campo: CampoDoEndereco) => (texto: string) => aoMudar({ ...valor, [campo]: texto });
   const [buscando, setBuscando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -98,7 +96,7 @@ export function CamposDeEndereco({ valor, aoMudar, erros = {}, desabilitado, naP
           <Texto variante="rotulo" accessibilityElementsHidden importantForAccessibility="no-hide-descendants"> </Texto>
           <EscolhaEmFolha<string | null> rotulo="UF *" titulo="Escolha a UF" valor={valor.uf || null} opcoes={OPCOES_UF} aoMudar={(uf) => mudar('uf')(uf ?? '')} rotuloDoValor="—"
             desabilitado={desabilitado} />
-          {erros.uf ? <Texto variante="pequeno" cor={cores.perigo} accessibilityLiveRegion="polite">{erros.uf}</Texto> : null}
+          {erros.uf ? <MensagemDeErro erro={erros.uf} /> : null}
         </View>
       </View>
     </View>

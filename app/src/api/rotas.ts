@@ -712,7 +712,7 @@ export const numerosDaConsultoria = () => requisicao<NumerosDaConsultoria>('/num
  * `filtros`: os filtros avançados já montados por `dominio/filtrosDeAlunos.pedidoDaApi` (situação, meus ou responsável,
  * acesso, atualização, plano, pasta e registro; repetidos quando são várias opções). Sem eles, situação e meus simples.
  */
-export const listarAlunos = (filtro: { busca?: string; situacao?: SituacaoFiltro; pagina?: number; meus?:boolean; filtros?: readonly [string, string][] }) => {
+export const listarAlunos = (filtro: { busca?: string; situacao?: SituacaoFiltro; pagina?: number; tamanho?: number; meus?:boolean; filtros?: readonly [string, string][] }) => {
   const q = new URLSearchParams();
   if (filtro.busca) q.set('busca', filtro.busca);
   if (filtro.filtros) {
@@ -722,6 +722,8 @@ export const listarAlunos = (filtro: { busca?: string; situacao?: SituacaoFiltro
     q.set('meus', String(filtro.meus ?? false));
   }
   q.set('pagina', String(filtro.pagina ?? 0));
+  // Sem `tamanho` vale o padrão da API (30).
+  if (filtro.tamanho) q.set('tamanho', String(filtro.tamanho));
   return requisicao<PaginaAlunos>(`/alunos?${q.toString()}`);
 };
 

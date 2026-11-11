@@ -1,7 +1,7 @@
 import { router, usePathname, type Href } from 'expo-router';
 import { Check, ChevronRight } from 'lucide-react-native';
-import { useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Children, createContext, useContext, useState, type ReactNode } from 'react';
+import { Pressable, StyleSheet, useWindowDimensions, View, type PointerEvent } from 'react-native';
 
 import { mesmaTela } from '../dominio/mesmaTela';
 import { useTema } from '../tema/TemaProvider';
@@ -48,8 +48,6 @@ interface Base {
    * metadados e selos embaixo dela.
    */
   colunas?: { definicao: readonly ColunaDaLista[]; celulas: CelulasDaLinha };
-  /** Fundo em repouso (a lista da agenda no celular usa a tinta da cor da agenda); hover e toque seguem `superficie3`. Sem isto, `superficie2`. */
-  fundo?: string;
 }
 
 /** A linha inteira abre outra tela: na web é um `<a href>` e não tem botão dentro. */
@@ -90,24 +88,33 @@ export type PropsDaLinha = LinhaComLink | LinhaComAcoes | LinhaDeMarcar;
  */
 export const LARGURA_DAS_COLUNAS = LARGURA_MENU_EXPANDIDO;
 
+/** A `ListaDeLinhas divisorias` avisa as linhas de dentro (padrão desligado: a linha continua na caixa). */
+const DivisoriasDaLista = createContext(false);
+
 export function LinhaDaLista(p: PropsDaLinha) {
   const { cores } = useTema();
   const { width } = useWindowDimensions();
   const largo = width >= (p.colunas ? LARGURA_DAS_COLUNAS : LARGURA_MENU_LATERAL);
   const [ativo, setAtivo] = useState(false);
+  const [foco, setFoco] = useState(false);
+  const divisorias = useContext(DivisoriasDaLista);
   const caminho = usePathname();
   const { confirmar } = useSaidaGuardada();
   const selos = p.selos ?? [];
   const escolhida = !!(p.marcado || p.marcar?.marcado);
   // Em colunas no PC a linha é linha de tabela: sem caixa, só a divisória embaixo (a borda transparente mantém o 1 px
-  // que o cabeçalho desconta). A linha marcada no Selecionar continua com a borda na cor do texto, como na caixa.
+  // que o cabeçalho desconta). A linha marcada no Selecionar tem a seleção neutra: contorno forte e `superficie3`.
+  // Na lista com divisórias também não há caixa, nas duas larguras; a divisória é da lista, entre as linhas.
   const tabela = !!p.colunas && largo;
-  const caixa = tabela
+  const semCaixa = tabela || divisorias;
+  const caixa = semCaixa
     ? [estilos.linhaDeTabela, escolhida
-      ? { borderColor: cores.texto }
-      : { borderTopColor: 'transparent', borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: cores.divisor }]
-    : { borderColor: escolhida ? cores.texto : cores.borda };
-  const fundo = (aceso: boolean) => ({ backgroundColor: aceso ? cores.superficie3 : p.fundo ?? (tabela ? 'transparent' : cores.superficie2) });
+      ? { borderColor: cores.bordaCampo }
+      : divisorias
+        ? { borderColor: 'transparent' }
+        : { borderTopColor: 'transparent', borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: cores.divisor }]
+    : { borderColor: escolhida ? cores.bordaCampo : cores.divisor };
+  const fundo = (aceso: boolean) => ({ backgroundColor: aceso || escolhida ? cores.superficie3 : semCaixa ? 'transparent' : cores.superficie2 });
   const apagado = p.esmaecido ? estilos.esmaecido : null;
 
   const colunas = p.colunas;
@@ -198,8 +205,16 @@ export function LinhaDaLista(p: PropsDaLinha) {
   const principal = p.inicio
     ? <View style={[estilos.comInicio, apagado]}><View style={estilos.fixo}>{p.inicio}</View>{conteudo}</View>
     : apagado ? <View style={[estilos.comInicio, apagado]}>{conteudo}</View> : conteudo;
+  // Na lista com divisórias a linha com ações também acende: mouse em cima, foco num dos botões dela (o `onFocus` do
+  // react-native-web sobe dos filhos) ou o conteúdo de baixo aberto (as instruções do Catálogo). Só o mouse: com o dedo,
+  // tocar no lápis acenderia a linha junto, como se fossem um alvo só, e rolar faria a linha piscar.
+  const realce = divisorias ? {
+    onPointerEnter: (e: PointerEvent) => { if (e.nativeEvent.pointerType === 'mouse') setAtivo(true); },
+    onPointerLeave: () => setAtivo(false),
+    onFocus: () => setFoco(true), onBlur: () => setFoco(false),
+  } : null;
   return (
-    <View style={[estilos.contorno, caixa, fundo(false)]}>
+    <View {...realce} style={[estilos.contorno, caixa, fundo(divisorias && (ativo || foco || !!p.children))]}>
       <View style={[estilos.linha, largo || p.acoesAoLado ? estilos.linhaLarga : null]}>
         {principal}
         {p.acoes ? <View style={[estilos.acoes, p.acoesAoLado ? estilos.fixo : null]}>{p.acoes}</View> : null}
@@ -246,9 +261,33 @@ export function CabecalhoDasColunas({ colunas, marcar, aoLado }: { colunas: read
  * linhas usam `colunas`; no PC (a partir de `LARGURA_DAS_COLUNAS`) viram linhas de tabela, encostadas uma na outra e
  * separadas só pela divisória de cada uma.
  */
-export function ListaDeLinhas({ children, emColunas }: { children: ReactNode; emColunas?: boolean }) {
+export function ListaDeLinhas({ children, emColunas, divisorias }: {
+  children: ReactNode;
+  emColunas?: boolean;
+  /**
+   * Superfície comum (a Biblioteca): nas duas larguras as linhas ficam sem caixa, encostadas, com uma divisória
+   * `divisor` só entre elas (nem em cima da primeira nem embaixo da última), e acendem em `superficie3` no hover, no
+   * foco e com o conteúdo de baixo aberto; a escolhida (`marcado`) mantém a seleção neutra. Desligada, nada muda.
+   */
+  divisorias?: boolean;
+}) {
   const { width } = useWindowDimensions();
+  if (divisorias) {
+    const linhas = Children.toArray(children);
+    return (
+      <DivisoriasDaLista.Provider value>
+        <View style={estilos.listaDeTabela}>
+          {linhas.flatMap((linha, i) => (i ? [<Divisoria key={`divisoria-${i}`} />, linha] : [linha]))}
+        </View>
+      </DivisoriasDaLista.Provider>
+    );
+  }
   return <View style={emColunas && width >= LARGURA_DAS_COLUNAS ? estilos.listaDeTabela : estilos.lista}>{children}</View>;
+}
+
+function Divisoria() {
+  const { cores } = useTema();
+  return <View style={[estilos.divisoria, { backgroundColor: cores.divisor }]} />;
 }
 
 /**
@@ -285,6 +324,7 @@ function DesenhoDaCaixa({ marcado }: { marcado: boolean }) {
 const estilos = StyleSheet.create({
   lista: { gap: espaco(2) },
   listaDeTabela: { gap: 0 },
+  divisoria: { height: 1 },
   contorno: { borderWidth: BORDA_DA_LINHA, borderRadius: RAIO },
   // Linha de tabela: cantos retos, para o realce encostar na divisória de cima e na de baixo.
   linhaDeTabela: { borderRadius: 0 },

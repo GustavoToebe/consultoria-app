@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-nativ
 
 import { disposicaoDaEscala } from '../dominio/escalaNota';
 import { useTema } from '../tema/TemaProvider';
-import { espaco, fontes, RAIO } from '../tema/tokens';
+import { espaco, fontes, RAIO_CONTROLE } from '../tema/tokens';
 import { Texto } from './Texto';
 import { vibrar } from './vibrar';
 
@@ -53,10 +53,11 @@ export function SeletorDeNota({ rotulo, valor, aoMudar, minimo = 0, maximo = 10,
                 accessibilityLabel={`${n} de ${maximo}${ponta ? `, ${ponta}` : ''}`}
                 style={({ pressed }) => [estilos.botao, {
                   width: lado, height: lado,
-                  backgroundColor: ativo ? cores.texto : pressed ? cores.superficie3 : cores.superficie2,
-                  borderColor: ativo ? cores.texto : cores.borda,
+                  // Seleção neutra: a nota escolhida em `superficie3` com o contorno forte (≥ 3:1 contra as vizinhas).
+                  backgroundColor: ativo ? cores.superficie3 : pressed ? cores.superficie3 : cores.superficie2,
+                  borderColor: ativo ? cores.bordaCampo : cores.divisor,
                 }]}>
-                <Texto numerico style={[estilos.numero, { color: ativo ? cores.fundo : cores.texto }]}>{String(n)}</Texto>
+                <Texto numerico style={[estilos.numero, { color: cores.texto }, ativo ? { fontFamily: fontes.negrito } : null]}>{String(n)}</Texto>
               </Pressable>
             );
           })}
@@ -76,7 +77,7 @@ const estilos = StyleSheet.create({
   campo: { gap: espaco(1) },
   medida: { alignSelf: 'stretch', gap: espaco(0.75) },
   grade: { flexDirection: 'row', flexWrap: 'wrap', gap: VAO, maxWidth: '100%' },
-  botao: { borderWidth: 1, borderRadius: RAIO, alignItems: 'center', justifyContent: 'center' },
+  botao: { borderWidth: 1, borderRadius: RAIO_CONTROLE, alignItems: 'center', justifyContent: 'center' },
   numero: { fontFamily: fontes.semi, fontSize: 16, lineHeight: 22 },
   pontas: { flexDirection: 'row', justifyContent: 'space-between', gap: espaco(2), maxWidth: '100%' },
   pontaInicio: { flex: 1 },

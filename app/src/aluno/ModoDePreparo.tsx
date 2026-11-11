@@ -32,7 +32,7 @@ export function ModoDePreparo({ texto }: { texto: string | null | undefined }) {
         <Seta size={20} color={cores.texto} />
       </Pressable>
       {aberto ? (
-        <View style={[estilos.texto, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
+        <View style={[estilos.texto, { borderColor: cores.divisor, backgroundColor: cores.superficie2 }]}>
           <Texto numerico>{mostrar}</Texto>
         </View>
       ) : null}

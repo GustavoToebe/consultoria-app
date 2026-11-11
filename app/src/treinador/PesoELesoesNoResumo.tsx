@@ -31,7 +31,7 @@ export function PesoELesoesNoResumo({ alunoId, aoVerLesoes }: { alunoId: string;
       <CampoLeitura rotulo="Último peso" valor={valorDoPeso} numerico />
       {aviso ? (
         // Informativo, em neutro: não é status de ação nem erro (decisão 4 do plano); nenhum detalhe da lesão aparece aqui.
-        <View style={[estilos.aviso, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
+        <View style={[estilos.aviso, { borderColor: cores.divisor, backgroundColor: cores.superficie2 }]}>
           <Info size={18} color={cores.textoSuave} strokeWidth={2} />
           <Texto style={estilos.textoDoAviso}>{aviso}</Texto>
           <Botao rotulo="Ver na ficha" rotuloAcessivel={`${aviso}: ver na ficha do aluno`} tipo="fantasma" Icone={ChevronRight} aoTocar={aoVerLesoes} />

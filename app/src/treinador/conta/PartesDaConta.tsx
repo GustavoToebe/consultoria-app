@@ -134,15 +134,13 @@ function LinhaDeCobranca({ c, previa }: { c: CobrancaDaConta; previa: boolean })
   const situacao = situacaoDaCobrancaParaTela(c);
   return (
     <View style={[estilos.item, estilos.cobranca, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
+      {/* Competência e valor primeiro; vencimento e situação juntos; o pagamento é apoio. O valor fica neutro: só o selo sinaliza. */}
+      <Texto variante="bloco" numerico>{`${competenciaParaTela(c.competenciaInicio, c.competenciaFim)} · ${moedaParaTela(c.valor)}`}</Texto>
       <View style={estilos.tituloDaLinha}>
-        <Texto variante="bloco">{competenciaParaTela(c.competenciaInicio, c.competenciaFim)}</Texto>
+        <Texto variante="suave" numerico>{`Vencimento: ${dataParaTela(c.vencimento) || SEM_DADO}`}</Texto>
         <Selo texto={situacao.texto} tipo={situacao.tipo} />
       </View>
-      <Texto numerico>{moedaParaTela(c.valor)}</Texto>
-      <Texto variante="suave" numerico>
-        Vence em {dataParaTela(c.vencimento) || SEM_DADO}
-        {c.pagoEm ? ` · pago em ${dataParaTela(c.pagoEm)}` : ''}
-      </Texto>
+      {c.pagoEm ? <Texto variante="suave" numerico>{`Paga em ${dataParaTela(c.pagoEm)}`}</Texto> : null}
       {/* No celular o "Pagar" segue a chave da plataforma; sem ela a linha só informa vencimento e pagamento. */}
       {podePagar(c, previa) && pagarPermitidoNaPlataforma(plataformaDoApp(Platform.OS), { pagarNoIos, pagarNoAndroid }) ? <BotaoPagar cobrancaId={c.id} /> : null}
     </View>
@@ -188,7 +186,7 @@ function LinhaDeConsumo({ item }: { item: ItemDoConsumo }) {
 export function CartaoConsumo({ consumo }: { consumo: ConsumoDoPlano }) {
   return (
     <Cartao titulo="Consumo do plano"
-      descricao={`Atualizado em ${dataHoraParaTela(consumo.consultadoEm)}. Só informa: nada é bloqueado por limite.`}>
+      descricao={`Uso atual comparado aos limites do plano. Atualizado em ${dataHoraParaTela(consumo.consultadoEm)}.`}>
       <Grade>{consumo.itens.map((i) => <LinhaDeConsumo key={i.codigo} item={i} />)}</Grade>
     </Cartao>
   );

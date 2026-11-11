@@ -4,8 +4,8 @@ import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'rea
 
 import { semAcento } from '../dominio/telas';
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
-import { Campo } from './Campo';
+import { ALVO_TOQUE, espaco, fontes, RAIO_CONTROLE } from '../tema/tokens';
+import { Campo, MensagemDeErro } from './Campo';
 import { Esqueleto } from './Esqueleto';
 import { Folha } from './Folha';
 import { sobre } from './sobre';
@@ -102,7 +102,7 @@ export function EscolhaEmFolha<T extends string | number | null>({
           {busca ? <Campo rotulo={busca.rotulo ?? 'Buscar'} valor={busca.valor} aoMudar={busca.aoMudar} autoCorrect={false} /> : null}
           {comBuscaLocal ? <Campo rotulo={digitado?.rotulo ?? 'Buscar'} valor={filtro} aoMudar={setFiltro} autoCorrect={false}
             onSubmitEditing={opcaoDoTexto ? () => escolher(opcaoDoTexto.valor) : undefined} /> : null}
-          {avisoDoTexto ? <Texto variante="pequeno" cor={cores.perigo} accessibilityLiveRegion="polite">{avisoDoTexto}</Texto> : null}
+          {avisoDoTexto ? <MensagemDeErro erro={avisoDoTexto} /> : null}
           <View accessibilityRole="radiogroup" accessibilityLabel={rotulo} style={estilos.lista}>
             {visiveis.length === 0 ? (carregando ? <Esqueleto texto="Carregando opções" cartoes={2} /> : <Texto variante="suave">{textoVazio}</Texto>) : null}
             {visiveis.map((o) => {
@@ -115,12 +115,12 @@ export function EscolhaEmFolha<T extends string | number | null>({
                   accessibilityState={{ checked: ativa }}
                   aria-checked={ativa}
                   onPress={() => escolher(o.valor)}
-                  style={(estado) => [estilos.opcao, { borderColor: ativa ? cores.texto : cores.borda, backgroundColor: ativa ? cores.texto : sobre(estado) ? cores.superficie3 : cores.superficie2 }]}>
+                  style={(estado) => [estilos.opcao, { borderColor: ativa ? cores.bordaCampo : cores.divisor, backgroundColor: ativa ? cores.superficie3 : sobre(estado) ? cores.superficie2 : cores.superficie }]}>
                   <View style={estilos.textosOpcao}>
-                    <Texto style={[estilos.rotuloOpcao, { color: ativa ? cores.fundo : cores.texto }]}>{o.rotulo}</Texto>
-                    {o.detalhe ? <Texto variante="pequeno" cor={ativa ? cores.fundo : undefined}>{o.detalhe}</Texto> : null}
+                    <Texto style={[estilos.rotuloOpcao, { color: cores.texto }]}>{o.rotulo}</Texto>
+                    {o.detalhe ? <Texto variante="pequeno">{o.detalhe}</Texto> : null}
                   </View>
-                  {ativa ? <Check size={18} color={cores.fundo} strokeWidth={2.5} /> : null}
+                  {ativa ? <Check size={18} color={cores.texto} strokeWidth={2.5} /> : null}
                 </Pressable>
               );
             })}
@@ -142,11 +142,11 @@ const estilos = StyleSheet.create({
     gap: espaco(1),
     paddingHorizontal: espaco(1.5),
     borderWidth: 1,
-    borderRadius: RAIO,
+    borderRadius: RAIO_CONTROLE,
   },
   textoBotao: { fontFamily: fontes.semi, fontSize: 15, flexShrink: 1 },
   lista: { gap: espaco(0.75) },
-  opcao: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), minHeight: ALVO_TOQUE, paddingHorizontal: espaco(1.5), paddingVertical: espaco(0.75), borderWidth: 1, borderRadius: RAIO },
+  opcao: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), minHeight: ALVO_TOQUE, paddingHorizontal: espaco(1.5), paddingVertical: espaco(0.75), borderWidth: 1, borderRadius: RAIO_CONTROLE },
   textosOpcao: { flex: 1, gap: 1 },
   rotuloOpcao: { fontFamily: fontes.semi },
 });

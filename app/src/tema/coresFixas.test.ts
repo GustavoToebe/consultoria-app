@@ -3,8 +3,8 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 /**
- * Peças que tinham cor fixa e passaram a usar tokens (04/11): véu (`VEU`), `Switch` (`ui/interruptor`) e a sombra dos
- * painéis flutuantes (`SOMBRA_FLUTUANTE`). Trava para a cor fixa não voltar; a cor nova entra em `tema/tokens.ts`.
+ * Peças que tinham cor fixa e passaram a usar tokens (04/11): véu (`VEU`), `Switch` (`ui/interruptor`). Os painéis flutuantes
+ * (listas suspensas, calendário, busca, cartão do usuário) não têm mais sombra (guia de 11/11): separam pelo tom `superficie2`. Trava para a cor fixa não voltar; a cor nova entra em `tema/tokens.ts`.
  */
 const ARQUIVOS = [
   'ui/Passeio.tsx',

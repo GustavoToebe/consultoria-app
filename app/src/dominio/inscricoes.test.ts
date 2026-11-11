@@ -58,10 +58,10 @@ import {
 } from './inscricoes';
 
 describe('selos da inscrição', () => {
-  it('cor com significado: em atendimento âmbar, aceita verde, encerrada cinza', () => {
-    expect(seloDaSituacao('NOVA')).toEqual({ texto: 'Nova', tipo: 'atencao' });
-    expect(seloDaSituacao('EM_CONTATO').tipo).toBe('atencao');
-    expect(seloDaSituacao('EM_NEGOCIACAO').tipo).toBe('atencao');
+  it('cor com significado: etapa aberta neutra (Nova não é pendência), aceita verde, encerrada cinza', () => {
+    expect(seloDaSituacao('NOVA')).toEqual({ texto: 'Nova', tipo: 'neutro' });
+    expect(seloDaSituacao('EM_CONTATO').tipo).toBe('neutro');
+    expect(seloDaSituacao('EM_NEGOCIACAO').tipo).toBe('neutro');
     expect(seloDaSituacao('ACEITA')).toEqual({ texto: 'Aceita', tipo: 'sucesso' });
     expect(seloDaSituacao('RECUSADA').tipo).toBe('neutro');
     expect(seloDaSituacao('DESISTIU').tipo).toBe('neutro');

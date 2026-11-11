@@ -7,7 +7,7 @@ import { deixarParaONavegador, type CliqueDoNavegador } from '../dominio/cliqueD
 import { itensDoMenuDoUsuario, type IdDoItemDoMenu } from '../dominio/menuDoUsuario';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, RAIO, SOMBRA_FLUTUANTE } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
 import { ConfirmarSaida } from './ConfirmarSaida';
 import { useSaidaGuardada } from './GuardaDeSaida';
 import { sobre } from './sobre';
@@ -83,12 +83,12 @@ export function CartaoDoUsuario({ compacto, ativo: naConta }: { compacto?: boole
         style={(estado) => [estilos.cartao, compacto && estilos.cartaoCompacto, { borderColor: cores.borda }, naConta && { backgroundColor: cores.superficie2 }, (aberto || sobre(estado)) && { backgroundColor: cores.superficie3 }]}>
         <View style={estilos.textos}>
           <Texto numberOfLines={1} style={estilos.nome}>{usuario?.nome ?? '—'}</Texto>
-          {compacto ? null : <Texto variante="pequeno" numberOfLines={1}>{perfilEquipe?.nome ?? '—'}</Texto>}
+          {compacto ? null : <Texto variante="pequeno" numberOfLines={1} style={estilos.perfil}>{perfilEquipe?.nome ?? '—'}</Texto>}
         </View>
         <ChevronDown size={16} color={cores.textoSuave} strokeWidth={2} />
       </Pressable>
       {aberto ? (
-        <View accessibilityRole="menu" style={[estilos.menu, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
+        <View accessibilityRole="menu" style={[estilos.menu, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
           {itens.map((item, i) => {
             const Icone = ICONES_DO_MENU[item.id];
             const perigo = item.id === 'sair';
@@ -133,23 +133,26 @@ const estilos = StyleSheet.create({
     minHeight: ALVO_TOQUE,
     maxWidth: 260,
     paddingHorizontal: espaco(1.5),
-    paddingVertical: espaco(0.5),
+    // Nome (18) + perfil (16) + 3 em cima e embaixo + o contorno = 42: cabe nos 44 e a barra de topo fica com 52 (prévia).
+    paddingVertical: 3,
     borderWidth: 1,
     borderRadius: RAIO,
   },
   // No trilho (768 a 1023 px) o cartão encurta: só o nome.
   cartaoCompacto: { maxWidth: 180 },
   textos: { flexShrink: 1, minWidth: 0 },
-  nome: { fontFamily: fontes.semi, fontSize: 14 },
+  nome: { fontFamily: fontes.semi, fontSize: 14, lineHeight: 18 },
+  perfil: { fontSize: 12, lineHeight: 16 },
+  // Logo abaixo do cartão, qualquer que seja a altura dele (texto ampliado).
   menu: {
     position: 'absolute',
-    top: 52,
+    top: '100%',
+    marginTop: 4,
     right: 0,
     width: 240,
     borderWidth: 1,
     borderRadius: RAIO,
     paddingVertical: espaco(0.5),
-    boxShadow: SOMBRA_FLUTUANTE,
   },
   item: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.5), minHeight: ALVO_TOQUE, paddingHorizontal: espaco(1.5) },
   rotulo: { fontFamily: fontes.semi, fontSize: 14 },

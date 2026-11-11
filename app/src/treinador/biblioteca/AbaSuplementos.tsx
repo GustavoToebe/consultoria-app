@@ -81,13 +81,13 @@ export function AbaSuplementos() {
             : pode('BIBLIOTECA_ALTERAR') ? { rotulo: 'Cadastrar suplemento', aoTocar: () => setEditando('novo') } : undefined}
         />
       ) : null}
-      {lista.length ? <ListaDeLinhas>{lista.map((s) => (
+      {lista.length ? <ListaDeLinhas divisorias>{lista.map((s) => (
         <LinhaDaLista key={s.id} titulo={s.nome} metadados={marcaECategoria(s)}
           descricao={[`Porção: ${descricaoDaPorcao(s)}`, saboresParaTela(s) !== '—' ? `Sabores: ${saboresParaTela(s)}` : null].filter(Boolean).join(' · ')}
           acoesAoLado={!s.link}
           acoes={<>
             {s.link ? <Botao rotulo="Ver produto" tipo="secundario" Icone={ExternalLink} aoTocar={() => abrir(s)} /> : null}
-            <Permitido codigo="BIBLIOTECA_ALTERAR"><IconeBotao Icone={Pencil} rotulo={`Editar ${s.nome}`} aoTocar={() => setEditando(s)} /></Permitido>
+            <Permitido codigo="BIBLIOTECA_ALTERAR"><IconeBotao Icone={Pencil} moldura rotulo={`Editar ${s.nome}`} aoTocar={() => setEditando(s)} /></Permitido>
           </>} />
       ))}</ListaDeLinhas> : null}
       {editando ? (

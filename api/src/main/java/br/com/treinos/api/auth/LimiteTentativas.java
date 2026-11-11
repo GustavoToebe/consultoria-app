@@ -158,6 +158,17 @@ public class LimiteTentativas {
     }
 
     /**
+     * Foto do mural (C7): 20 por usuário em 24 h, sem lançar (quem chama responde 422 {@code FOTOS_LIMITE_DIARIO}). Conta cada envio
+     * aceito pelo arquivo; apagar a pendente não devolve cota. A contagem é uma instrução só no banco (envios em paralelo
+     * serializam na linha da chave); chamada dentro da transação do envio, o consumo de quem falha depois volta com o rollback.
+     */
+    public boolean fotoDoMuralCabe(java.util.UUID usuarioId) {
+        long agora = clock.millis();
+        var estado = contador.tentar(chave("foto-mural", usuarioId.toString()), agora, 86_400_000L);
+        return estado.tentativas() <= 20;
+    }
+
+    /**
      * Verificação humana: antes de chamar a Cloudflare, recusa o IP que já gastou as falhas da janela (não conta nada, assim
      * quem está bloqueado também não gera chamada ao siteverify).
      */

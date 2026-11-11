@@ -54,7 +54,7 @@ export function ImagemProtegida({ chave, carregar, descricao, tamanho = 96, aoTo
     [endereco],
   );
   const alturaDaCaixa = proporcional && razao ? Math.min(alturaMaxima ?? Number.POSITIVE_INFINITY, Math.round(tamanho / razao)) : altura ?? tamanho;
-  const caixa = [estilos.caixa, { width: tamanho, height: alturaDaCaixa, maxWidth: '100%' as const, borderColor: cores.borda, backgroundColor: cores.superficie2 }];
+  const caixa = [estilos.caixa, { width: tamanho, height: alturaDaCaixa, maxWidth: '100%' as const, borderColor: cores.divisor, backgroundColor: cores.superficie2 }];
   if (erro) {
     return (
       <Pressable accessibilityRole="button" accessibilityLabel={`${descricao}: não foi possível carregar. Tocar para tentar de novo`}

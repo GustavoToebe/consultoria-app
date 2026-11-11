@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<!-- Dados fictícios (D8). Nada aqui fala com a API. -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Editor de mobilidade · Treinador · Prévia visual vendável</title>
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="editores.css">
+<script src="base.js"></script>
+</head>
+<body data-casca="treinador" data-ativo="alunos">
+<!-- ícones que a base não tem (lixeira, alça, vídeo); mesmo traço do sprite da base -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <symbol id="i-ed-lixeira" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
+  <symbol id="i-ed-alca" viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.3" fill="currentColor"/><circle cx="15" cy="6" r="1.3" fill="currentColor"/><circle cx="9" cy="12" r="1.3" fill="currentColor"/><circle cx="15" cy="12" r="1.3" fill="currentColor"/><circle cx="9" cy="18" r="1.3" fill="currentColor"/><circle cx="15" cy="18" r="1.3" fill="currentColor"/></symbol>
+  <symbol id="i-ed-video" viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></symbol>
+  <symbol id="i-ed-copiar" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></symbol>
+</svg>
+<main id="conteudo" class="pagina pagina--editor pagina--editor-medio">
+
+  <header class="cab-pagina">
+    <nav class="migalha" aria-label="Você está em"><ol><li><a href="treinador-alunos.html">Alunos</a></li><li><a href="treinador-alunos.html#aluno=julia-prado">Júlia Prado</a></li><li><span aria-current="page">Pasta Retorno ao treino</span></li></ol></nav>
+    <div class="cab-pagina-linha">
+      <div class="cab-pagina-texto">
+        <h1 class="t-titulo-pagina">Mobilidade de Júlia Prado</h1>
+        <div class="cab-situacao">
+          <span class="selo" id="situacao">Publicada · sem alterações</span>
+          <span class="t-apoio" id="situacao-apoio">A aluna vê esta versão desde 28/10.</span>
+        </div>
+      </div>
+      <div class="cab-pagina-acoes">
+        <button type="button" class="botao">Salvar rascunho</button>
+        <button type="button" class="botao botao--primario">Publicar</button>
+        <button type="button" class="botao botao--icone" data-menu="menu-mob" aria-label="Mais ações da mobilidade"><svg class="ic" aria-hidden="true"><use href="#i-mais"/></svg></button>
+        <div class="menu-flutuante" id="menu-mob" hidden>
+          <button type="button" class="menu-flutuante-item"><svg class="ic" aria-hidden="true"><use href="#i-importar"/></svg>Baixar PDF</button>
+          <button type="button" class="menu-flutuante-item"><svg class="ic" aria-hidden="true"><use href="#i-ed-copiar"/></svg>Copiar para outro aluno</button>
+          <button type="button" class="menu-flutuante-item"><svg class="ic" aria-hidden="true"><use href="#i-ed-lixeira"/></svg>Excluir plano</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="mob">
+    <div class="mob-editor" id="editor"></div>
+
+    <aside class="cartao mob-previa" aria-labelledby="t-previa">
+      <div class="cartao-cab"><div><h2 class="t-titulo-cartao" id="t-previa">Como o aluno vê</h2><p class="t-apoio">Atualiza enquanto você edita</p></div></div>
+      <div class="cartao-corpo" id="previa"></div>
+    </aside>
+  </div>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  var seq = 0;
+  function I(nome, presc, video) { return { id: 'i' + (++seq), nome: nome, presc: presc, video: video || '', aberto: false }; }
+  function S(nome, itens) { return { id: 's' + (++seq), nome: nome, itens: itens }; }
+  var secoes = [
+    S('Antes do treino', [I('Mobilidade de quadril 90/90', '2 × 8 por lado'), I('Rotação torácica no chão', '2 × 10 por lado', 'https://www.youtube.com/watch?v=exemplo-toracica'), I('Ativação de glúteo com miniband', '2 × 15'), I('Gato-camelo', '1 × 10 lento')]),
+    S('Depois do treino', [I('Alongamento de posterior de coxa', '2 × 30 s por perna'), I('Alongamento de flexor do quadril', '2 × 30 s por lado', 'https://www.youtube.com/watch?v=exemplo-flexor'), I('Respiração diafragmática', '2 min')]),
+  ];
+  var desfeito = null; // { tipo: 'item'|'secao', s, i, dado }
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = function (t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  var ic = function (id) { return '<svg class="ic" aria-hidden="true"><use href="#' + id + '"/></svg>'; };
+  var plural = function (n) { return n + (n === 1 ? ' item' : ' itens'); };
+  // contagem com o número num span só dele (o VV.trocarNumero troca o número com movimento)
+  var contagemHtml = function (n) { return '<span class="contagem-num">' + n + '</span> <span class="contagem-pal">' + (n === 1 ? 'item' : 'itens') + '</span>'; };
+  function recontar(el, n) { if (!el) return; VV.trocarNumero(el.querySelector('.contagem-num'), n); el.querySelector('.contagem-pal').textContent = n === 1 ? 'item' : 'itens'; }
+  var nomeOu = function (t, sem) { return t.trim() || sem; };
+  function acharItem(id) { for (var s = 0; s < secoes.length; s++) for (var i = 0; i < secoes[s].itens.length; i++) if (secoes[s].itens[i].id === id) return { s: s, i: i }; return null; }
+  function acharSecao(id) { for (var s = 0; s < secoes.length; s++) if (secoes[s].id === id) return s; return -1; }
+
+  function htmlItem(it, s, i) {
+    var n = secoes[s].itens.length, nome = esc(nomeOu(it.nome, 'item sem nome'));
+    var mover = (i > 0 ? '<button type="button" class="menu-flutuante-item" data-acao="item-subir">Mover para cima</button>' : '') +
+      (i < n - 1 ? '<button type="button" class="menu-flutuante-item" data-acao="item-descer">Mover para baixo</button>' : '') +
+      secoes.map(function (outra, o) { return o === s ? '' : '<button type="button" class="menu-flutuante-item" data-acao="item-para" data-secao="' + o + '">Mover para ' + esc(nomeOu(outra.nome, 'seção sem nome')) + '</button>'; }).join('');
+    var video = it.aberto
+      ? '<div class="campo"><label class="campo-rotulo" for="v-' + it.id + '">Link do vídeo (opcional)</label><input class="campo-entrada" id="v-' + it.id + '" name="video-' + it.id + '" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://…" data-campo="video" value="' + esc(it.video) + '"><span class="campo-ajuda">O aluno abre o vídeo fora do app.</span></div>' +
+        '<button type="button" class="botao botao--fantasma" data-acao="video-pronto" style="align-self:flex-end;margin-bottom:22px">Pronto</button>'
+      : it.video
+        ? '<span class="feito">' + ic('i-check') + 'Vídeo adicionado</span><button type="button" class="botao botao--fantasma" data-acao="video-abrir">Alterar<span class="sr-only"> o vídeo de ' + nome + '</span></button>'
+        : '<button type="button" class="botao botao--fantasma" data-acao="video-abrir" style="margin-left:-12px">' + ic('i-ed-video') + 'Adicionar vídeo<span class="sr-only"> a ' + nome + '</span></button>';
+    return '<li class="mob-item" data-item="' + it.id + '"><div class="mover">' +
+      '<button type="button" class="botao botao--icone botao--fantasma alca" data-menu="mv-' + it.id + '" aria-label="Mover ' + nome + '">' + ic('i-ed-alca') + '</button>' +
+      '<div class="menu-flutuante" id="mv-' + it.id + '" hidden>' + (mover || '<span class="t-apoio" style="padding:10px 12px">Único item: nada para mover.</span>') + '</div></div>' +
+      '<div class="mob-campos">' +
+        '<div class="campo"><label class="campo-rotulo" for="n-' + it.id + '">Exercício</label><input class="campo-entrada" id="n-' + it.id + '" name="nome-' + it.id + '" autocomplete="off" data-campo="nome" value="' + esc(it.nome) + '" placeholder="Ex.: Gato-camelo…"></div>' +
+        '<div class="campo"><label class="campo-rotulo" for="p-' + it.id + '">Prescrição</label><input class="campo-entrada" id="p-' + it.id + '" name="prescricao-' + it.id + '" autocomplete="off" data-campo="presc" value="' + esc(it.presc) + '" placeholder="Ex.: 2 × 10 por lado…"></div>' +
+        '<div class="mob-video">' + video + '</div>' +
+      '</div>' +
+      '<button type="button" class="botao botao--icone botao--fantasma lixeira" data-acao="item-remover" aria-label="Remover ' + nome + '">' + ic('i-ed-lixeira') + '</button>' +
+      '</li>';
+  }
+  function htmlSecao(sec, s) {
+    var nome = esc(nomeOu(sec.nome, 'seção sem nome')), menu = 'ms-' + sec.id;
+    // o nome visível da seção é o campo; o h2 (só para leitor de tela) dá o título e a navegação por cabeçalhos
+    return '<section class="cartao" data-secao-id="' + sec.id + '" aria-labelledby="h-' + sec.id + '">' +
+      '<h2 class="sr-only" id="h-' + sec.id + '">' + nome + '</h2>' +
+      '<div class="cartao-cab"><div class="mob-secao-cab" style="flex:1">' +
+        '<div class="campo"><label class="campo-rotulo" for="sn-' + sec.id + '">Nome da seção</label><input class="campo-entrada" id="sn-' + sec.id + '" name="secao-' + sec.id + '" autocomplete="off" data-campo="secao" value="' + esc(sec.nome) + '"></div>' +
+        '<span class="contagem" data-contagem>' + contagemHtml(sec.itens.length) + '</span>' +
+        '<button type="button" class="botao botao--icone botao--fantasma" data-menu="' + menu + '" aria-label="Mais ações da seção ' + nome + '">' + ic('i-mais') + '</button>' +
+        '<div class="menu-flutuante" id="' + menu + '" hidden>' +
+          '<button type="button" class="menu-flutuante-item" data-acao="secao-duplicar">Duplicar seção</button>' +
+          (s > 0 ? '<button type="button" class="menu-flutuante-item" data-acao="secao-subir">Mover para cima</button>' : '') +
+          (s < secoes.length - 1 ? '<button type="button" class="menu-flutuante-item" data-acao="secao-descer">Mover para baixo</button>' : '') +
+          '<button type="button" class="menu-flutuante-item" data-acao="secao-remover">Remover seção</button>' +
+        '</div>' +
+      '</div></div>' +
+      '<div class="cartao-corpo">' +
+        (sec.itens.length ? '<ul class="mob-itens">' + sec.itens.map(function (it, i) { return htmlItem(it, s, i); }).join('') + '</ul>'
+          : '<p class="mob-vazio">Nenhum item nesta seção ainda.</p>') +
+        '<div class="mob-acoes"><button type="button" class="botao" data-acao="item-adicionar">' + ic('i-adicionar') + 'Adicionar item<span class="sr-only"> em ' + nome + '</span></button></div>' +
+      '</div></section>';
+  }
+  function desenharEditor() {
+    $('editor').innerHTML = secoes.map(htmlSecao).join('') +
+      '<div><button type="button" class="botao" data-acao="secao-adicionar">' + ic('i-adicionar') + 'Adicionar seção</button></div>';
+    $('editor').querySelectorAll('[data-menu]').forEach(function (b) { b.setAttribute('aria-expanded', 'false'); b.setAttribute('aria-controls', b.getAttribute('data-menu')); });
+  }
+  function desenharPrevia() {
+    $('previa').innerHTML = secoes.length ? secoes.map(function (sec) {
+      return '<div class="previa-secao" data-previa-secao="' + sec.id + '"><h3 class="t-secao">' + esc(nomeOu(sec.nome, 'Seção sem nome')) + ' · <span class="previa-contagem">' + contagemHtml(sec.itens.length) + '</span></h3>' +
+        (sec.itens.length ? sec.itens.map(function (it) {
+          return '<div class="previa-item" data-previa-item="' + it.id + '"><span class="marcar" aria-hidden="true"></span><div><b' + (it.nome.trim() ? '' : ' class="suave"') + '>' + esc(nomeOu(it.nome, 'Sem nome')) + '</b><span class="t-apoio">' + (it.presc.trim() ? esc(it.presc) : '—') + '</span></div>' +
+            (it.video ? ic('i-ed-video') + '<span class="sr-only">com vídeo</span>' : '<span></span>') + '</div>';
+        }).join('') : '<p class="t-apoio">Seção vazia: o aluno não a vê.</p>') + '</div>';
+    }).join('') : '<p class="t-apoio">Nada para mostrar ainda.</p>';
+  }
+  function alterou() {
+    var sel = $('situacao');
+    if (sel.classList.contains('st-atencao')) return;
+    // pede ação (publicar): pílula com o ponto âmbar; o estado parado de antes era só texto
+    sel.className = 'selo st-atencao';
+    sel.textContent = 'Rascunho · alterado agora';
+    $('situacao-apoio').textContent = 'A aluna continua vendo a versão publicada em 28/10.';
+  }
+  // o aviso da base (VV.avisar) dura 10 s com ação, pausa com o foco ou o mouse e devolve o foco ao fechar
+  var aviso = null;
+  function avisar(texto) { aviso = VV.avisar(texto, { rotulo: 'Desfazer', fazer: desfazer }); }
+  function limparAviso() { if (aviso) aviso.fechar(true); aviso = null; desfeito = null; }
+  function desfazer() {
+    var d = desfeito; if (!d) return;
+    desfeito = null; aviso = null;
+    if (d.tipo === 'item') secoes[Math.min(d.s, secoes.length - 1)].itens.splice(d.i, 0, d.dado);
+    else secoes.splice(d.s, 0, d.dado);
+    tudo();
+    // o que volta entra abrindo (VV.voltar); a contagem da seção sobe com movimento
+    var el = document.querySelector(d.tipo === 'item' ? '[data-item="' + d.dado.id + '"]' : '[data-secao-id="' + d.dado.id + '"]');
+    el.hidden = true; VV.voltar(el);
+    if (d.tipo === 'item') {
+      var secEl = el.closest('[data-secao-id]'), n = secoes[acharSecao(secEl.getAttribute('data-secao-id'))].itens.length;
+      [secEl.querySelector('[data-contagem]'), document.querySelector('[data-previa-secao="' + secEl.getAttribute('data-secao-id') + '"] .previa-contagem')].forEach(function (c) {
+        if (c) { c.querySelector('.contagem-num').textContent = n - 1; recontar(c, n); }
+      });
+    }
+    focar(d.tipo === 'item' ? '#n-' + d.dado.id : '#sn-' + d.dado.id);
+  }
+  function tudo() { desenharEditor(); desenharPrevia(); }
+  // WCAG 2.4.11: o foco não pode ficar sob o aviso nem sob a barra inferior fixos.
+  function focar(sel) {
+    var el = document.querySelector(sel); if (!el) return;
+    el.focus();
+    var teto = innerHeight;
+    [document.querySelector('.aviso-area'), document.querySelector('.barra-inferior')].forEach(function (f) {
+      if (f && f.childElementCount && f.getClientRects().length && getComputedStyle(f).position === 'fixed') teto = Math.min(teto, f.getBoundingClientRect().top);
+    });
+    var r = el.getBoundingClientRect();
+    if (r.bottom > teto - 8) scrollBy(0, r.bottom - teto + 24);
+  }
+  function mover(lista, de, para) { lista.splice(para, 0, lista.splice(de, 1)[0]); }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    tudo();
+    document.addEventListener('click', function (ev) {
+      var b = ev.target.closest('[data-acao]'); if (!b) return;
+      var acao = b.getAttribute('data-acao');
+      // outra alteração encerra o desfazer: o índice guardado deixaria de valer
+      if (!/^(item-remover|secao-remover|video-abrir)$/.test(acao)) limparAviso();
+      var li = b.closest('[data-item]'), pos = li ? acharItem(li.getAttribute('data-item')) : null;
+      var secEl = b.closest('[data-secao-id]'), s = secEl ? acharSecao(secEl.getAttribute('data-secao-id')) : -1;
+      var it = pos ? secoes[pos.s].itens[pos.i] : null;
+      if (acao === 'video-abrir') { it.aberto = true; desenharEditor(); focar('#v-' + it.id); return; }
+      if (acao === 'video-pronto') { it.aberto = false; desenharEditor(); desenharPrevia(); focar('[data-item="' + it.id + '"] [data-acao="video-abrir"]'); return; }
+      if (acao === 'item-adicionar') {
+        var novo = I('', ''); secoes[s].itens.push(novo); alterou(); tudo(); focar('#n-' + novo.id); return;
+      }
+      if (acao === 'item-remover') {
+        // anima a saída primeiro e só depois tira do modelo (redesenhar antes apagaria a animação)
+        if (li.hasAttribute('data-saindo')) return;
+        li.setAttribute('data-saindo', '');
+        var secId = secoes[pos.s].id, itId = it.id, resta = secoes[pos.s].itens.length - 1;
+        alterou();
+        recontar(secEl.querySelector('[data-contagem]'), resta);
+        recontar(document.querySelector('[data-previa-secao="' + secId + '"] .previa-contagem'), resta);
+        var noPrevia = document.querySelector('[data-previa-item="' + itId + '"]'); if (noPrevia) VV.sair(noPrevia);
+        VV.sair(li).then(function () {
+          var p = acharItem(itId); if (!p) return;
+          var lista = secoes[p.s].itens, prox = lista[p.i + 1] || lista[p.i - 1];
+          desfeito = { tipo: 'item', s: p.s, i: p.i, dado: lista.splice(p.i, 1)[0] };
+          tudo();
+          avisar('"' + nomeOu(desfeito.dado.nome, 'Item sem nome') + '" removido.');
+          if (prox) focar('[data-item="' + prox.id + '"] .lixeira'); else focar('[data-secao-id="' + secId + '"] [data-acao="item-adicionar"]');
+        });
+        return;
+      }
+      if (acao === 'item-subir' || acao === 'item-descer') {
+        mover(secoes[pos.s].itens, pos.i, pos.i + (acao === 'item-subir' ? -1 : 1)); alterou(); tudo(); focar('[data-item="' + it.id + '"] .alca'); return;
+      }
+      if (acao === 'item-para') {
+        secoes[+b.getAttribute('data-secao')].itens.push(secoes[pos.s].itens.splice(pos.i, 1)[0]); alterou(); tudo(); focar('[data-item="' + it.id + '"] .alca'); return;
+      }
+      if (acao === 'secao-adicionar') {
+        var nova = S('Nova seção', []); secoes.push(nova); alterou(); tudo(); focar('#sn-' + nova.id); $('sn-' + nova.id).select(); return;
+      }
+      if (acao === 'secao-duplicar') {
+        var orig = secoes[s], copia = S(orig.nome + ' (cópia)', orig.itens.map(function (x) { return I(x.nome, x.presc, x.video); }));
+        secoes.splice(s + 1, 0, copia); alterou(); tudo(); focar('#sn-' + copia.id); return;
+      }
+      if (acao === 'secao-subir' || acao === 'secao-descer') {
+        var id = secoes[s].id; mover(secoes, s, s + (acao === 'secao-subir' ? -1 : 1)); alterou(); tudo(); focar('[data-menu="ms-' + id + '"]'); return;
+      }
+      if (acao === 'secao-remover') {
+        if (secEl.hasAttribute('data-saindo')) return;
+        secEl.setAttribute('data-saindo', '');
+        var sid = secoes[s].id;
+        alterou();
+        var secPrevia = document.querySelector('[data-previa-secao="' + sid + '"]'); if (secPrevia) VV.sair(secPrevia);
+        VV.sair(secEl).then(function () {
+          var k = acharSecao(sid); if (k < 0) return;
+          desfeito = { tipo: 'secao', s: k, dado: secoes.splice(k, 1)[0] };
+          tudo();
+          avisar('Seção "' + nomeOu(desfeito.dado.nome, 'sem nome') + '" removida com ' + plural(desfeito.dado.itens.length) + '.');
+          focar('[data-acao="secao-adicionar"]');
+        });
+        return;
+      }
+    });
+    document.addEventListener('input', function (ev) {
+      var campo = ev.target.getAttribute('data-campo'); if (!campo) return;
+      if (campo === 'secao') {
+        var s = acharSecao(ev.target.closest('[data-secao-id]').getAttribute('data-secao-id'));
+        secoes[s].nome = ev.target.value;
+        var secEl = ev.target.closest('[data-secao-id]'), nomeSec = nomeOu(ev.target.value, 'seção sem nome');
+        secEl.querySelector('.mob-secao-cab [data-menu]').setAttribute('aria-label', 'Mais ações da seção ' + nomeSec);
+        secEl.querySelector('h2.sr-only').textContent = nomeSec;
+      } else {
+        var pos = acharItem(ev.target.closest('[data-item]').getAttribute('data-item')), it = secoes[pos.s].itens[pos.i];
+        it[campo] = ev.target.value.trim() && campo === 'video' ? ev.target.value.trim() : ev.target.value;
+        if (campo === 'nome') {
+          var li = ev.target.closest('[data-item]'), nome = nomeOu(it.nome, 'item sem nome');
+          li.querySelector('.alca').setAttribute('aria-label', 'Mover ' + nome);
+          li.querySelector('.lixeira').setAttribute('aria-label', 'Remover ' + nome);
+        }
+      }
+      if (desfeito) limparAviso();
+      alterou(); desenharPrevia();
+    });
+  });
+})();
+</script>
+</body>
+</html>

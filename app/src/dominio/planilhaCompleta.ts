@@ -619,6 +619,17 @@ export function resumoDoDesfazer(d: ImportacaoDesfeita): string {
   return `${n(apagados, 'item apagado', 'itens apagados')}; ${n(ficaram, 'ficou', 'ficaram')}, pelos motivos abaixo.`;
 }
 
+/**
+ * O aviso do fim da planilha completa. Com problemas (ou a situação "concluída com erros") é âmbar e diz quantas linhas
+ * ficaram de fora: não pode parecer sucesso completo (guia de 11/11, pág. 14). Sem problema nenhum, o verde de sempre.
+ */
+export function alertaDoResultado(r: { situacao: string; problemas: number }): { tom: 'sucesso' | 'atencao'; texto: string } {
+  const fim = 'Treinos e dietas estão em rascunho na pasta de cada aluno. Se precisar, desfaça pelo histórico da Importação.';
+  if (r.situacao !== 'CONCLUIDA_COM_ERROS' && r.problemas === 0) return { tom: 'sucesso', texto: `Importação confirmada. ${fim}` };
+  const quantas = r.problemas > 0 ? n(r.problemas, 'linha teve problema', 'linhas tiveram problema') : 'Algumas linhas tiveram problema';
+  return { tom: 'atencao', texto: `Importação concluída com erros: ${quantas}; a lista fica no histórico da importação. ${fim}` };
+}
+
 // ---------------------------------------------------------------------------------------------- etapas
 
 export function motivoParaNaoAvancar(etapa: EtapaDaPlanilha, e: { arquivoAceito: boolean | null; ocupado: boolean; temAnalise: boolean }): string | null {

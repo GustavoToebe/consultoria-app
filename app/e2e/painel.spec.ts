@@ -203,7 +203,7 @@ test('as três Folhas: "Mostrando N de M" e a linha abre a ficha', async ({ page
   const recordes = page.getByRole('dialog', { name: 'Recordes dos últimos 7 dias' });
   await expect(recordes.getByText(/^Mostrando 50 de 57 séries com recorde\./)).toBeVisible();
   await recordes.getByRole('link', { name: /^Atleta Fictício 1, Supino de teste/ }).click();
-  await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${id(300)}$`));
+  await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${id(300)}\\?aba=acompanhamento$`));
 });
 
 test('Editar: esconder e ordenar os blocos, e continua depois de recarregar', async ({ page }) => {

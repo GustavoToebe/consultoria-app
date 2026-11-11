@@ -49,7 +49,9 @@ export default function AtualizacaoTreinador() {
   const questionario=a?.questionarioNome?`Questionário: ${a.questionarioNome} · versão ${a.questionarioVersaoNumero}`:undefined;
   const feedback=a?.modelo&&a.enviadaEm?(pode('ATUALIZACAO_RESPONDER')
     ?<EditorFeedback key={`${a.id}:${a.versao}`} atualizacao={a} aoSalvar={detalhe.definir} recarregar={detalhe.recarregar} />
-    :<FeedbackAtualizacao feedback={a.feedback}/>):null;
+    :a.feedback?<FeedbackAtualizacao feedback={a.feedback}/>
+      // Sem a permissão e sem feedback a coluna ficava vazia: diz o que falta e por quê.
+      :<Cartao titulo="Feedback para o aluno"><Texto variante="suave">Ainda sem feedback. Seu perfil não tem permissão para responder atualizações.</Texto></Cartao>):null;
   const navegacao=a?<LinhaDeAcoes alinhar="entre">
     <Botao rotulo="Abrir pasta" tipo="secundario" aoTocar={()=>router.push(`/treinador/alunos/${a.alunoId}?pastaId=${a.pastaId}` as never)} />
     {fila?<ProximaDaFila fila={fila} pastaAtual={a.pastaId} />:null}

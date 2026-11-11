@@ -43,11 +43,12 @@ public class RecordesService {
 
     /** Exercício sem nenhuma série simples antes de hoje fica de fora do mapa (o app então não comemora: primeiro registro). */
     @Transactional(readOnly = true)
-    public RecordesDoPacote doPacote(UUID alunoId, Collection<UUID> exercicioIds) {
-        return doPacote(alunoId, exercicioIds, true);
+    public RecordesDoPacote doPacote(UUID alunoId, Collection<UUID> exercicioIds, Map<UUID, IndiceVersao> cacheDeIndices) {
+        return doPacote(alunoId, exercicioIds, true, cacheDeIndices);
     }
 
-    private RecordesDoPacote doPacote(UUID alunoId, Collection<UUID> exercicioIds, boolean naDuvida) {
+    private RecordesDoPacote doPacote(UUID alunoId, Collection<UUID> exercicioIds, boolean naDuvida,
+                                      Map<UUID, IndiceVersao> cacheDeIndices) {
         LocalDate ate = LocalDate.now(Fuso.BRASILIA);
         Map<UUID, Melhores> mapa = new HashMap<>();
         if (exercicioIds.isEmpty()) {
@@ -56,10 +57,10 @@ public class RecordesService {
         List<ExecucaoSerie> lista = execucoes
                 .findByAlunoIdAndExercicioIdInAndConcluidaTrueAndCargaNotNullAndRepeticoesNotNullAndEtapasIsNullAndDataBefore(
                         alunoId, exercicioIds, ate);
-        Map<UUID, IndiceVersao> porVersao = indices.carregar(lista.stream().map(ExecucaoSerie::getPlanoVersaoId).distinct().toList());
+        Map<UUID, IndiceVersao> porVersao = indices.carregar(cacheDeIndices, lista.stream().map(ExecucaoSerie::getPlanoVersaoId).distinct().toList());
         Map<UUID, List<Marca>> marcas = new HashMap<>();
         for (ExecucaoSerie e : lista) {
-            if (simples(porVersao.get(e.getPlanoVersaoId()), e, naDuvida) && RecordesPessoais.conta(e.getCarga(), e.getRepeticoes())) {
+            if (IndiceVersao.simples(porVersao.get(e.getPlanoVersaoId()), e.getSerieUid(), naDuvida) && RecordesPessoais.conta(e.getCarga(), e.getRepeticoes())) {
                 marcas.computeIfAbsent(e.getExercicioId(), x -> new ArrayList<>()).add(new Marca(e.getCarga(), e.getRepeticoes()));
             }
         }
@@ -79,17 +80,9 @@ public class RecordesService {
      */
     @Transactional(readOnly = true)
     public List<MaiorCarga> maioresCargas(UUID alunoId, int limite) {
-        return doPacote(alunoId, execucoes.exerciciosComSerieFeita(alunoId), false).exercicios().entrySet().stream()
+        return doPacote(alunoId, execucoes.exerciciosComSerieFeita(alunoId), false, new HashMap<>()).exercicios().entrySet().stream()
                 .map(e -> new MaiorCarga(e.getKey(), e.getValue().maiorCarga()))
                 .sorted(Comparator.comparing(MaiorCarga::carga).reversed().thenComparing(MaiorCarga::exercicioId))
                 .limit(limite).toList();
-    }
-
-    /**
-     * Série simples pela versão executada. Sem a versão ou a série no índice (não deveria acontecer) vale {@code naDuvida}: o
-     * pacote do próprio aluno aceita (na dúvida a série só impede uma comemoração), a carga que outro aluno vê não aceita.
-     */
-    private static boolean simples(IndiceVersao indice, ExecucaoSerie e, boolean naDuvida) {
-        return indice == null ? naDuvida : indice.serie(e.getSerieUid()).map(IndiceVersao.LocalSerie::simples).orElse(naDuvida);
     }
 }

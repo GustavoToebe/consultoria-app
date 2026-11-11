@@ -21,6 +21,8 @@ import { criarArmazemDePreferencias } from './armazemDePreferencias';
 import {
   coresDeIdentificacao,
   MARCA_NEUTRA,
+  marcaAoPassar,
+  marcaParaPeca,
   marcaParaTexto,
   paletaDe,
   textoSobre,
@@ -40,7 +42,7 @@ interface ValorTema {
   /** Tema em uso agora (escuro ou claro), já resolvido: consultoria, escolha da pessoa ou aparelho. */
   modo: ModoDoTema;
   cores: Cores;
-  /** Espessura da borda do bloco e do item (2 px; 3 px no bloco com "Bordas reforçadas"). */
+  /** Espessura do contorno do bloco e do item (1 px; 2 px com "Bordas reforçadas"). */
   bordas: { bloco: number; item: number };
   marca: string;
   sobreMarca: string;
@@ -50,6 +52,13 @@ interface ValorTema {
    * continuam com `marca`.
    */
   marcaTexto: string;
+  /** Fundo do botão principal com o mouse em cima ou apertado (o `sobreMarca` continua ≥ 4,5:1 sobre ele). */
+  marcaHover: string;
+  /**
+   * A marca como peça: indicador do item ativo (menu, aba, barra inferior) e progresso. ≥ 3:1 sobre o fundo, o painel, o
+   * cartão e a seleção neutra (WCAG 1.4.11).
+   */
+  marcaPeca: string;
   /**
    * Cores de identificação (tipo de série, divisão, refeição) no tema em uso: a chave vem de `dominio/corDaSerie`
    * (`corDoTipoDeSerie`, `corDaDivisao`, `corDaRefeicao`); `cor` para texto, ícone e barra, `fundo` para o selo.
@@ -125,6 +134,8 @@ export function TemaProvider({ children }: { children: ReactNode }) {
       sobreMarca: textoSobre(marca),
       // Contra a superfície de pior contraste: `superficie3` é a mais clara no escuro e a mais escura no claro.
       marcaTexto: marcaParaTexto(marca, cores.superficie3),
+      marcaHover: marcaAoPassar(marca),
+      marcaPeca: marcaParaPeca(marca, [cores.superficie3, cores.fundo, cores.painel, cores.superficie]),
       identificacao: coresDeIdentificacao(cores, modo !== 'CLARO'),
       preferencias,
       preferenciasLidas,

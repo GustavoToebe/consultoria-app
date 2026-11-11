@@ -1,4 +1,4 @@
-import { Medal } from 'lucide-react-native';
+import { Check, Medal } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 
 import { partesDaDica } from '../dominio/dicaDeCarga';
@@ -21,14 +21,17 @@ import { TipoDaSerieComExplicacao } from './TipoDaSerieComExplicacao';
 /**
  * "Série 3 · Back off" (o tipo é o toque da explicação), o selo da técnica e, só na série já registrada, o selo "Feita" ou
  * "Não feita" (série sem registro não tem selo). Com recorde, a medalha e o selo "Recorde" (verde: é um fato concluído).
+ * "Feita" só é verde na série que a pessoa acabou de marcar (`agora`); a que já estava feita leva o selo neutro.
  */
-export function CabecalhoDaSerie({ numero, tipo, tecnica, recordes, registro }: {
+export function CabecalhoDaSerie({ numero, tipo, tecnica, recordes, registro, agora = false }: {
   numero: number;
   tipo: SeloDaSerie | null;
   tecnica: SeloDaSerie | null;
   recordes?: Recorde[] | null;
   /** Só a série registrada tem selo (auditoria 03/11): sem registro, os campos já dizem que está vazia. */
   registro: 'FEITA' | 'NAO_FEITA' | null;
+  /** Marcada agora, com a tela aberta (`useMarcadoAgora`). */
+  agora?: boolean;
 }) {
   const { cores } = useTema();
   const unidade = useUnidadeDeCarga();
@@ -51,7 +54,7 @@ export function CabecalhoDaSerie({ numero, tipo, tecnica, recordes, registro }: 
       </View>
       {tecnica ? <SeloComExplicacao nome={tecnica.nome} explicacao={tecnica.explicacao} rotuloAcessivel={`Explicação de ${tecnica.nome}, série ${numero}`} /> : null}
       {comRecorde ? <Selo texto="Recorde" tipo="sucesso" /> : null}
-      {registro === 'FEITA' ? <Selo texto="Feita" tipo="sucesso" /> : null}
+      {registro === 'FEITA' ? <Selo texto="Feita" tipo={agora ? 'sucesso' : 'neutro'} Icone={Check} /> : null}
       {registro === 'NAO_FEITA' ? <Selo texto="Não feita" tipo="neutro" /> : null}
     </View>
   );

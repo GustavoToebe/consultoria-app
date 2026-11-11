@@ -6,6 +6,7 @@ import { espaco, fontes, RAIO } from '../tema/tokens';
 import { BotaoMarcar } from '../ui/BotaoMarcar';
 import { Texto } from '../ui/Texto';
 import { linhasDoCardio } from './serieDoAluno';
+import { useMarcadoAgora } from './useMarcadoAgora';
 
 /**
  * Série de cardio: a prescrição (duração, distância, ritmo, zona, intervalos) e um único gesto, marcar "feito". Não há
@@ -25,9 +26,10 @@ export function CartaoSerieDeCardio({
   aoMarcar: (concluida: boolean) => void;
 }) {
   const { cores } = useTema();
+  const agora = useMarcadoAgora(feita);
   const linhas = linhasDoCardio(serie.cardio);
   return (
-    <View style={[estilos.serie, { borderColor: feita ? cores.sucesso : cores.borda, backgroundColor: feita ? `${cores.sucesso}29` : cores.superficie2 }]}>
+    <View style={[estilos.serie, { borderColor: cores.divisor, backgroundColor: cores.superficie2 }]}>
       <View style={estilos.linha}>
         <View style={estilos.textos}>
           <Texto style={estilos.nome}>Série {numero}</Texto>
@@ -35,6 +37,7 @@ export function CartaoSerieDeCardio({
         </View>
         <BotaoMarcar
           feito={feita}
+          agora={agora}
           ultimaDoExercicio={ultimaDoExercicio}
           rotulo={`Cardio da série ${numero} feito`}
           aoTocar={() => aoMarcar(!feita)}

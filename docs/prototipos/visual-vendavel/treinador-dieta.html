@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<!-- Dados fictícios (D8). Nada aqui fala com a API. -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Editor de dieta · Treinador · Prévia visual vendável</title>
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="editores.css">
+<script src="base.js"></script>
+</head>
+<body data-casca="treinador" data-ativo="alunos">
+<!-- ícones que a base não tem (copiar, lixeira); mesmo traço do sprite da base -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <symbol id="i-ed-copiar" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></symbol>
+  <symbol id="i-ed-lixeira" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
+</svg>
+<main id="conteudo" class="pagina pagina--editor pagina--editor-medio">
+
+  <header class="cab-pagina">
+    <nav class="migalha" aria-label="Você está em"><ol><li><a href="treinador-alunos.html">Alunos</a></li><li><a href="treinador-alunos.html#aluno=ana-beatriz-lima">Ana Beatriz Lima</a></li><li><span aria-current="page">Pasta Recomposição</span></li></ol></nav>
+    <div class="cab-pagina-linha">
+      <div class="cab-pagina-texto">
+        <h1 class="t-titulo-pagina">Dieta de Ana Beatriz Lima</h1>
+        <div class="cab-situacao">
+          <span class="selo st-atencao">Rascunho · alterado há 2 min</span>
+          <span class="t-apoio">O aluno vê a versão publicada em 28/10.</span>
+        </div>
+      </div>
+      <div class="cab-pagina-acoes">
+        <button type="button" class="botao">Salvar rascunho</button>
+        <button type="button" class="botao botao--primario">Publicar</button>
+        <button type="button" class="botao botao--icone" data-menu="menu-dieta" aria-label="Mais ações da dieta"><svg class="ic" aria-hidden="true"><use href="#i-mais"/></svg></button>
+        <div class="menu-flutuante" id="menu-dieta" hidden>
+          <button type="button" class="menu-flutuante-item"><svg class="ic" aria-hidden="true"><use href="#i-usuario"/></svg>Ver como o aluno</button>
+          <button type="button" class="menu-flutuante-item"><svg class="ic" aria-hidden="true"><use href="#i-importar"/></svg>Baixar PDF</button>
+          <button type="button" class="menu-flutuante-item"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>Validar</button>
+          <button type="button" class="menu-flutuante-item"><svg class="ic" aria-hidden="true"><use href="#i-ed-copiar"/></svg>Copiar para outro aluno</button>
+          <button type="button" class="menu-flutuante-item"><svg class="ic" aria-hidden="true"><use href="#i-ed-lixeira"/></svg>Excluir plano</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <section class="faixa-total" aria-labelledby="t-total">
+    <h2 class="sobretitulo" id="t-total">Total do dia</h2>
+    <div class="kcal"><span class="t-numero" id="total-kcal"></span><span class="t-rotulo suave">kcal</span></div>
+    <dl class="macros" id="total-macros"></dl>
+    <p class="variacao" id="total-variacao"></p>
+  </section>
+
+  <div class="editor" id="editor" data-vista="lista">
+    <div class="editor-grade">
+      <section class="cartao editor-lista" aria-labelledby="t-refeicoes">
+        <div class="cartao-cab">
+          <div><h2 class="t-titulo-cartao" id="t-refeicoes">Refeições</h2><p class="t-apoio" id="sub-lista"></p></div>
+        </div>
+        <ul class="lista" id="lista-ref"></ul>
+      </section>
+
+      <section class="cartao inspetor editor-inspetor" id="inspetor" aria-labelledby="insp-titulo">
+        <div class="cartao-cab cartao-cab--faixa">
+          <div class="pilha-8">
+            <button type="button" class="botao botao--fantasma so-uma-coluna" id="voltar" style="align-self:flex-start;margin-left:-12px"><svg class="ic" aria-hidden="true"><use href="#i-seta-esquerda"/></svg>Voltar às refeições</button>
+            <div><h2 class="t-titulo-cartao" id="insp-titulo" tabindex="-1"></h2><p class="t-apoio" id="insp-meta"></p></div>
+          </div>
+        </div>
+        <div class="cartao-corpo">
+          <div class="abas" role="tablist" aria-label="Opções da refeição">
+            <button type="button" class="aba" role="tab" id="aba-a" aria-controls="painel-a" aria-selected="true">Opção A</button>
+            <button type="button" class="aba" role="tab" id="aba-b" aria-controls="painel-b" aria-selected="false">Opção B</button>
+          </div>
+          <div role="tabpanel" id="painel-a" aria-labelledby="aba-a" tabindex="0"></div>
+          <div role="tabpanel" id="painel-b" aria-labelledby="aba-b" tabindex="0" hidden></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <section class="cartao" aria-labelledby="t-compl">
+    <div class="cartao-cab"><div><h2 class="t-titulo-cartao" id="t-compl">Complementos</h2></div></div>
+    <div class="cartao-corpo">
+      <div class="abas" role="tablist" aria-label="Complementos da dieta">
+        <button type="button" class="aba" role="tab" id="aba-ori" aria-controls="painel-ori" aria-selected="true">Orientações<span class="ponto-aba" aria-hidden="true"></span><span class="sr-only"> (preenchida)</span></button>
+        <button type="button" class="aba" role="tab" id="aba-obs" aria-controls="painel-obs" aria-selected="false">Observações</button>
+        <button type="button" class="aba" role="tab" id="aba-sup" aria-controls="painel-sup" aria-selected="false">Suplementação<span class="ponto-aba" aria-hidden="true"></span><span class="sr-only"> (preenchida)</span></button>
+        <button type="button" class="aba" role="tab" id="aba-out" aria-controls="painel-out" aria-selected="false">Outros</button>
+      </div>
+      <div role="tabpanel" id="painel-ori" aria-labelledby="aba-ori" tabindex="0">
+        <div class="campo"><label class="campo-rotulo" for="f-ori">Orientações para o aluno</label>
+          <textarea class="campo-entrada" id="f-ori" name="orientacoes" rows="4" style="padding:10px 12px;min-height:112px">Beba água ao longo do dia. Se precisar trocar, use a opção B da mesma refeição. Temperos naturais à vontade.</textarea></div>
+      </div>
+      <div role="tabpanel" id="painel-obs" aria-labelledby="aba-obs" tabindex="0" hidden>
+        <div class="campo"><label class="campo-rotulo" for="f-obs">Observações (opcional)</label>
+          <textarea class="campo-entrada" id="f-obs" name="observacoes" rows="4" style="padding:10px 12px;min-height:112px"></textarea></div>
+      </div>
+      <div role="tabpanel" id="painel-sup" aria-labelledby="aba-sup" tabindex="0" hidden>
+        <ul class="lista">
+          <li class="suplemento"><div class="linha-principal"><b>Creatina monoidratada</b><span class="linha-meta">3 g · todos os dias, com uma refeição</span></div><span class="selo st-neutro">Cupom <span translate="no">FORJA10</span></span></li>
+          <li class="suplemento"><div class="linha-principal"><b>Whey Protein</b><span class="linha-meta">30 g · no lanche da tarde</span></div></li>
+        </ul>
+      </div>
+      <div role="tabpanel" id="painel-out" aria-labelledby="aba-out" tabindex="0" hidden>
+        <div class="vazio" style="padding:16px"><h3>Nada em Outros</h3><p>Ergogênicos da biblioteca entram aqui.</p></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+(function () {
+  'use strict';
+  /* ====== dados fictícios: valores por porção, sem arredondar; null = sem dado ====== */
+  function A(nome, qtd, kcal, p, c, g) { return { nome: nome, qtd: qtd, kcal: kcal, p: p, c: c, g: g }; }
+  var CORES = ['ciano', 'azul', 'indigo', 'violeta', 'magenta']; // pela ordem, repetindo (corDaRefeicao)
+  var REFEICOES = [
+    { nome: 'Café da manhã', hora: '07:00', A: [A('Pão integral', '2 fatias', 125, 6, 22, 1.5), A('Ovo inteiro', '2 unidades', 143, 12.6, 0.7, 9.5), A('Queijo minas frescal', '30 g', 79, 5.2, 1, 6), A('Café sem açúcar', '200 ml', 4, 0.3, 0.6, 0)],
+      B: [A('Tapioca', '60 g', 144, 0, 35, 0), A('Ovo mexido', '2 unidades', 166, 12, 1.4, 12.4), A('Café sem açúcar', '200 ml', 4, 0.3, 0.6, 0)] },
+    { nome: 'Lanche da manhã', hora: '10:00', A: [A('Iogurte natural', '170 g', 105, 6.5, 8, 5.3), A('Banana prata', '1 unidade', 89, 1.1, 23, 0.3), A('Aveia em flocos', '30 g', 117, 4.4, 20, 2.2)], B: null },
+    { nome: 'Almoço', hora: '12:30', A: [A('Arroz branco cozido', '150 g', 192, 3.8, 42, 0.3), A('Feijão carioca cozido', '100 g', 76, 4.8, 13.6, 0.5), A('Peito de frango grelhado', '150 g', 239, 48, 0, 4.4), A('Salada de folhas', '50 g', 8, 0.7, 1.3, 0.1), A('Azeite de oliva', '10 ml', 88, 0, 0, 10)],
+      B: [A('Batata-doce cozida', '200 g', 172, 1.2, 40, 0.2), A('Patinho moído refogado', '120 g', 262, 36, 0, 12.5), A('Legumes no vapor', '100 g', 35, 1.8, 6.5, 0.3)] },
+    { nome: 'Lanche da tarde', hora: '16:00', A: [A('Whey Protein', '30 g', 124, 24, 2.3, 2.1), A('Maçã', '1 unidade', 72, 0.4, 19, 0.2)],
+      B: [A('Pão de forma integral', '2 fatias', 120, 5, 21, 1.6), A('Pasta de amendoim', '15 g', 88, 3.5, 3, 7.5)] },
+    { nome: 'Jantar', hora: '19:30', A: [A('Arroz integral cozido', '120 g', 149, 3, 31, 1.2), A('Tilápia grelhada', '150 g', 192, 39, 0, 4), A('Brócolis cozido', '100 g', 25, 2.1, 4.4, 0.5)],
+      B: [A('Picanha grelhada (porção da casa)', '1 porção', 320, null, null, null), A('Arroz branco cozido', '100 g', 128, 2.5, 28, 0.2), A('Vinagrete', '50 g', 18, 0.4, 3.5, 0.2)] },
+    { nome: 'Ceia', hora: '22:00', A: [A('Queijo cottage', '100 g', 98, 11, 3.4, 4.3), A('Castanha-do-pará', '10 g', 66, 1.4, 1.2, 6.3)], B: null },
+  ];
+  var VARIACAO = { kcal: 120, p: 8, c: -3, g: 2 }; // contra a versão publicada em 28/10 (fictícia)
+  var MACROS = [['p', 'Proteína'], ['c', 'Carboidrato'], ['g', 'Gordura']];
+  var estado = { ref: 2 };
+
+  /* ====== regra do app (dominio/dieta.somar): algum item sem valor deixa aquele total "—" ====== */
+  function somar(itens) {
+    var t = { kcal: 0, p: 0, c: 0, g: 0 };
+    itens.forEach(function (i) { Object.keys(t).forEach(function (k) { t[k] = t[k] === null || i[k] === null ? null : t[k] + i[k]; }); });
+    return t;
+  }
+  var $ = function (id) { return document.getElementById(id); };
+  var num = function (v, casas) { return v.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas }); };
+  var SEM = '<span class="sem-dado" aria-hidden="true">—</span><span class="sr-only">sem dado</span>';
+  var valor = function (v, casas) { return v === null ? SEM : num(v, casas); };
+  var sinal = function (v, un) { return (v > 0 ? '+' : v < 0 ? '−' : '') + num(Math.abs(v), 0) + un; };
+  var rot = function (m) { return m[1].slice(0, 4) + '. (g)'; }; // rótulo curto, o mesmo do cabeçalho da tabela
+  var cor = function (i) { return 'id-' + CORES[i % CORES.length]; };
+  var umaColuna = function () { return getComputedStyle($('voltar')).display !== 'none'; };
+
+  function desenharTotal() {
+    var t = somar([].concat.apply([], REFEICOES.map(function (r) { return r.A; })));
+    $('total-kcal').innerHTML = t.kcal === null ? SEM : num(t.kcal, 0);
+    $('total-macros').innerHTML = MACROS.map(function (m) { return '<div><dt>' + m[1] + '</dt><dd>' + (t[m[0]] === null ? SEM : num(t[m[0]], 1) + ' g') + '</dd></div>'; }).join('');
+    $('total-variacao').textContent = 'Soma da opção A de cada refeição. Desde a publicada em 28/10: ' + sinal(VARIACAO.kcal, ' kcal') + ' · ' + MACROS.map(function (m) { return sinal(VARIACAO[m[0]], ' g') + ' de ' + m[1].toLowerCase(); }).join(' · ');
+  }
+  function desenharLista() {
+    $('sub-lista').textContent = REFEICOES.length + ' refeições';
+    $('lista-ref').innerHTML = REFEICOES.map(function (r, i) {
+      var t = somar(r.A), atual = i === estado.ref;
+      return '<li class="linha item-editor refeicao ' + cor(i) + (atual ? ' escolhida' : '') + '"><div class="linha-principal">' +
+        '<span class="linha-meta"><span class="hora">' + r.hora + '</span></span>' +
+        '<button type="button" class="linha-link" data-ref="' + i + '"' + (atual ? ' aria-current="true"' : '') + '>' + r.nome + '</button>' +
+        '<span class="linha-meta"><span>' + r.A.length + ' alimentos</span><span class="num">' + valor(t.kcal, 0) + ' kcal na opção A</span>' + (r.B ? '<span>Opção B</span>' : '') + '</span>' +
+        '</div></li>';
+    }).join('');
+  }
+  function tabela(r, letra, itens) {
+    var t = somar(itens), faltam = itens.filter(function (i) { return i.kcal === null || i.p === null || i.c === null || i.g === null; }).length;
+    var linha = function (i) {
+      return '<tr role="row"><td role="cell" class="nome">' + i.nome + '</td><td role="cell" class="qtd"><span class="etiqueta-qtd">' + i.qtd + '</span></td>' +
+        '<td role="cell" class="n" data-rot="kcal">' + valor(i.kcal, 0) + '</td>' + MACROS.map(function (m) { return '<td role="cell" class="n" data-rot="' + rot(m) + '">' + valor(i[m[0]], 1) + '</td>'; }).join('') + '</tr>';
+    };
+    return '<table class="tabela-alimentos" role="table"><caption class="sr-only">Alimentos da opção ' + letra + ' · ' + r.nome + '</caption>' +
+      '<thead><tr role="row"><th role="columnheader" scope="col">Alimento</th><th role="columnheader" scope="col"><span aria-hidden="true">Qtd.</span><span class="sr-only">Quantidade</span></th><th role="columnheader" scope="col" class="n">kcal</th>' + MACROS.map(function (m) { return '<th role="columnheader" scope="col" class="n"><span aria-hidden="true">' + m[1].slice(0, 4) + '. (g)</span><span class="sr-only">' + m[1] + ' em gramas</span></th>'; }).join('') + '</tr></thead>' +
+      '<tbody>' + itens.map(linha).join('') + '</tbody>' +
+      '<tfoot><tr role="row"><td role="cell" class="nome">Total da opção ' + letra + '</td><td role="cell" class="qtd"></td><td role="cell" class="n" data-rot="kcal">' + valor(t.kcal, 0) + '</td>' + MACROS.map(function (m) { return '<td role="cell" class="n" data-rot="' + rot(m) + '">' + valor(t[m[0]], 1) + '</td>'; }).join('') + '</tr></tfoot></table>' +
+      (faltam ? '<p class="t-apoio" style="display:flex;gap:8px;align-items:flex-start;margin-top:12px"><svg class="ic" aria-hidden="true"><use href="#i-info"/></svg><span>' + faltam + (faltam === 1 ? ' item' : ' itens') + ' sem proteína, carboidrato ou gordura na biblioteca. O total desses macros fica "—": nada é estimado.</span></p>' : '') +
+      (letra === 'A' ? '' : '<p class="t-apoio" style="margin-top:12px">A opção B é a troca que o aluno pode fazer. Não entra no total do dia.</p>');
+  }
+  function desenharInspetor() {
+    var r = REFEICOES[estado.ref];
+    $('insp-titulo').textContent = r.nome;
+    $('insp-meta').textContent = r.hora + ' · ' + r.A.length + ' alimentos na opção A' + (r.B ? ' · ' + r.B.length + ' na opção B' : '');
+    $('painel-a').innerHTML = tabela(r, 'A', r.A);
+    $('painel-b').innerHTML = r.B ? tabela(r, 'B', r.B) :
+      '<div class="vazio" style="padding:16px"><span class="vazio-icone">' + VV.icone('prato', 'ic--24') + '</span><h3>Esta refeição não tem opção B</h3><p>A opção B é a troca que o aluno pode fazer pela A. Ela não entra no total do dia.</p></div>';
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    desenharTotal(); desenharLista(); desenharInspetor();
+    document.addEventListener('click', function (ev) {
+      var b = ev.target.closest('button'); if (!b || !$('conteudo').contains(b)) return;
+      if (b.hasAttribute('data-ref')) {
+        estado.ref = +b.getAttribute('data-ref');
+        desenharLista(); desenharInspetor(); VV.selecionarAba($('aba-a'));
+        if (umaColuna()) { $('editor').setAttribute('data-vista', 'inspetor'); $('insp-titulo').focus(); $('inspetor').scrollIntoView({ block: 'start' }); }
+        else $('lista-ref').querySelector('[data-ref="' + estado.ref + '"]').focus();
+      } else if (b.id === 'voltar') {
+        $('editor').setAttribute('data-vista', 'lista'); $('lista-ref').querySelector('[data-ref="' + estado.ref + '"]').focus();
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>

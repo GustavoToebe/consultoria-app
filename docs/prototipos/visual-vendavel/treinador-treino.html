@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<!-- Dados fictícios (D8). Nada aqui fala com a API. -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Editor de treino · Treinador · Prévia visual vendável</title>
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="editores.css">
+<script src="base.js"></script>
+</head>
+<body data-casca="treinador" data-ativo="alunos">
+<!-- ícones que a base não tem (copiar, lixeira); mesmo traço do sprite da base -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <symbol id="i-ed-copiar" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></symbol>
+  <symbol id="i-ed-lixeira" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
+</svg>
+<main id="conteudo" class="pagina pagina--editor">
+
+  <header class="cab-pagina">
+    <nav class="migalha" aria-label="Você está em"><ol><li><a href="treinador-alunos.html">Alunos</a></li><li><a href="treinador-alunos.html#aluno=caio-mendes">Caio Mendes</a></li><li><span aria-current="page">Pasta Força</span></li></ol></nav>
+    <div class="cab-pagina-linha">
+      <div class="cab-pagina-texto">
+        <h1 class="t-titulo-pagina">Treino de Caio Mendes</h1>
+        <div class="cab-situacao">
+          <span class="selo st-atencao">Rascunho · alterado há 5 min</span>
+          <span class="t-apoio">O aluno vê a versão publicada em 28/10.</span>
+        </div>
+      </div>
+      <div class="cab-pagina-acoes">
+        <button type="button" class="botao">Salvar rascunho</button>
+        <button type="button" class="botao botao--primario">Publicar</button>
+        <button type="button" class="botao botao--icone" data-menu="menu-treino" aria-label="Mais ações do treino"><svg class="ic" aria-hidden="true"><use href="#i-mais"/></svg></button>
+        <div class="menu-flutuante" id="menu-treino" hidden>
+          <button type="button" class="menu-flutuante-item"><svg class="ic" aria-hidden="true"><use href="#i-usuario"/></svg>Ver como o aluno</button>
+          <button type="button" class="menu-flutuante-item"><svg class="ic" aria-hidden="true"><use href="#i-importar"/></svg>Baixar PDF</button>
+          <button type="button" class="menu-flutuante-item"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>Validar</button>
+          <button type="button" class="menu-flutuante-item"><svg class="ic" aria-hidden="true"><use href="#i-ed-copiar"/></svg>Copiar para outro aluno</button>
+          <button type="button" class="menu-flutuante-item"><svg class="ic" aria-hidden="true"><use href="#i-ed-lixeira"/></svg>Excluir plano</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <section class="cartao" aria-labelledby="t-sessoes">
+    <div class="cartao-corpo">
+      <h2 class="sobretitulo" id="t-sessoes">Sessões</h2>
+      <div class="grupo-chips faixa-rolavel" id="sessoes" role="group" aria-labelledby="t-sessoes"></div>
+    </div>
+  </section>
+
+  <div class="editor" id="editor" data-vista="lista">
+    <div class="editor-grade">
+      <section class="cartao editor-lista" aria-labelledby="t-lista">
+        <div class="cartao-cab">
+          <div><h2 class="t-titulo-cartao" id="t-lista">Exercícios</h2><p class="t-apoio" id="sub-lista"></p></div>
+        </div>
+        <ul class="lista" id="lista-ex"></ul>
+        <div class="resumo-lista">
+          <h3 class="t-secao" id="t-resumo">Resumo da sessão</h3>
+          <div class="composicao-barra" id="resumo-barra" aria-hidden="true"></div>
+          <dl class="chave-valor" id="resumo-kv"></dl>
+        </div>
+      </section>
+
+      <section class="cartao inspetor editor-inspetor" id="inspetor" aria-labelledby="insp-titulo"></section>
+    </div>
+  </div>
+
+</main>
+
+<script>
+(function () {
+  'use strict';
+  /* ====== dados fictícios ====== */
+  // carga: 'trab' carga de trabalho · 'sem' sem carga · 'p60' 60% da WS · 'p' % da WS sem o número · 'k25' 25 kg · 'k' fixa sem o número
+  function S(tipo, carga, reps, rir, desc, tec) {
+    var c = { modo: 'trab', valor: null };
+    if (carga === 'sem') c.modo = 'sem';
+    else if (carga[0] === 'p') c = { modo: 'pct', valor: carga.length > 1 ? +carga.slice(1) : null };
+    else if (carga[0] === 'k') c = { modo: 'fixa', valor: carga.length > 1 ? +carga.slice(1) : null };
+    return { tipo: tipo, carga: c, reps: reps, rir: rir, desc: desc, tec: tec || { nome: 'nenhuma' } };
+  }
+  var CLUSTER = function (b, r) { return { nome: 'cluster', blocos: b, repsBloco: r, pausa: 15 }; };
+  var SESSOES = [
+    { nome: 'Treino A', foco: 'Peito, ombros e tríceps', exercicios: [
+      { nome: 'Supino reto com barra', grupo: 'Peito', series: [S('aq', 'sem', '15', '', 60), S('fs', 'p50', '8', '', 90), S('fs', 'p65', '5', '', 90), S('fs', 'p80', '3', '', 120), S('ws', 'trab', '6', '1', 180), S('bo', 'p85', '10', '1', 120), S('bo', 'p85', '10', '1', 120)] },
+      { nome: 'Supino inclinado com halteres', grupo: 'Peito', series: [S('fs', 'p60', '8', '', 90), S('fs', 'p80', '4', '', 120), S('ws', 'trab', '', '1', 180, CLUSTER(4, 3)), S('bo', 'p85', '10', '1', 120)] },
+      { nome: 'Crucifixo na polia', grupo: 'Peito', series: [S('fs', 'p70', '10', '', 60), S('ws', 'trab', '12', '1', 90), S('bo', 'p', '15', '0', 60)] },
+      { nome: 'Desenvolvimento com halteres', grupo: 'Ombros', series: [S('aq', 'sem', '15', '', 60), S('fs', 'p60', '8', '', 90), S('fs', 'p80', '4', '', 90), S('top', 'trab', '5', '1', 180), S('bo', 'p85', '8', '1', 120), S('bo', 'p85', '8', '1', 120)] },
+      { nome: 'Tríceps na polia com corda', grupo: 'Tríceps', series: [S('fs', 'k15', '12', '', 60), S('ws', 'k25', '10', '1', 90), S('ws', 'k25', '10', '1', 90)] },
+      { nome: 'Tríceps francês com halter', grupo: 'Tríceps', series: [S('fs', 'p70', '10', '', 60), S('ws', 'trab', '10', '1', 90, { nome: 'restpause' })] },
+    ] },
+    { nome: 'Treino B', foco: 'Costas e bíceps', exercicios: [
+      { nome: 'Puxada frontal', grupo: 'Costas', series: [S('aq', 'sem', '15', '', 60), S('fs', 'p60', '8', '', 90), S('fs', 'p80', '4', '', 90), S('ws', 'trab', '8', '1', 150), S('bo', 'p85', '12', '1', 90)] },
+      { nome: 'Remada curvada com barra', grupo: 'Costas', series: [S('fs', 'p50', '8', '', 90), S('fs', 'p65', '5', '', 90), S('fs', 'p80', '3', '', 120), S('ws', 'trab', '6', '1', 180), S('bo', 'p85', '10', '1', 120), S('bo', 'p85', '10', '1', 120)] },
+      { nome: 'Remada baixa sentado', grupo: 'Costas', series: [S('fs', 'p70', '10', '', 60), S('ws', 'trab', '10', '1', 120), S('ws', 'trab', '10', '1', 120)] },
+      { nome: 'Rosca direta com barra', grupo: 'Bíceps', series: [S('fs', 'p70', '10', '', 60), S('ws', 'trab', '8', '1', 120), S('bo', 'p80', '12', '0', 60, { nome: 'dropset' })] },
+    ] },
+    { nome: 'Treino C', foco: 'Pernas', exercicios: [
+      { nome: 'Agachamento livre', grupo: 'Quadríceps e glúteos', series: [S('aq', 'sem', '15', '', 60), S('aq', 'sem', '10', '', 60), S('fs', 'p50', '8', '', 120), S('fs', 'p65', '5', '', 120), S('fs', 'p80', '3', '', 150), S('top', 'trab', '4', '1', 240), S('bo', 'p85', '8', '1', 180), S('bo', 'p85', '8', '1', 180)] },
+      { nome: 'Leg press 45°', grupo: 'Quadríceps', series: [S('fs', 'p60', '10', '', 90), S('fs', 'p80', '5', '', 120), S('ws', 'trab', '10', '1', 180), S('bo', 'p85', '12', '1', 120)] },
+      { nome: 'Cadeira extensora', grupo: 'Quadríceps', series: [S('fs', 'k20', '12', '', 60), S('ws', 'k35', '12', '0', 90), S('ws', 'k35', '12', '0', 90)] },
+      { nome: 'Mesa flexora', grupo: 'Posterior de coxa', series: [S('fs', 'p70', '10', '', 60), S('ws', 'trab', '10', '1', 120), S('bo', 'p85', '12', '1', 90)] },
+    ] },
+  ];
+  var ORDEM = ['aq', 'fs', 'ws', 'top', 'bo'];
+  var EXPLICA = {
+    aq: 'Série leve, só para preparar o movimento. Fica longe da falha.',
+    fs: 'Feeder set: série de reconhecimento. Aumente a carga a cada série, dentro das repetições, para chegar à carga da série de trabalho. Não chega na falha.',
+    ws: 'Working set: a série de trabalho, com a carga máxima do dia nas repetições propostas. Peso livre: 1 repetição na reserva. Máquina: até a falha.',
+    top: 'Uma série mais pesada que a anterior: suba a carga de 1 a 5% no peso livre ou de 5 a 10% na máquina.',
+    bo: 'Depois da série de trabalho, com menos carga. No padrão, 85% da carga da série de trabalho.',
+  };
+  var CARGAS = [['trab', 'Carga de trabalho', 'O aluno informa a carga do dia. Ela vira a referência das séries em %.'], ['pct', '% da WS', 'Uma porcentagem da carga da WS registrada no dia.'], ['fixa', 'Carga fixa', 'A carga em kg que você definir.'], ['sem', 'Sem carga', 'O aluno não registra carga nesta série.']];
+  var TECNICAS = [['nenhuma', 'Nenhuma', ''], ['cluster', 'Cluster', 'Muscle Round: a série é dividida em blocos de repetições com a mesma carga e uma pausa de 10 a 15 segundos entre os blocos. O padrão usa 15 segundos.'], ['restpause', 'Rest-pause', 'Faça a série, pause de 15 a 20 segundos e continue com a mesma carga até a falha. O padrão usa 20 segundos.'], ['dropset', 'Drop-set', 'Ao terminar a série, reduza a carga e continue sem descanso.']];
+  var estado = { sessao: 0, ex: 0, serie: 4 };
+
+  /* ====== textos ====== */
+  var $ = function (id) { return document.getElementById(id); };
+  var ic = function (n) { return VV.icone(n); };
+  var fmt = function (n) { return Number(n).toLocaleString('pt-BR'); };
+  var nomeTipo = function (t) { return VV.TIPOS[t].nome; };
+  var trabalho = function (t) { return t === 'ws' || t === 'top'; };
+  function cargaTexto(s) {
+    if (s.carga.modo === 'trab') return 'Carga de trabalho';
+    if (s.carga.modo === 'sem') return 'Sem carga';
+    if (s.carga.valor === null || isNaN(s.carga.valor)) return null;
+    return s.carga.modo === 'pct' ? fmt(s.carga.valor) + '% da WS' : fmt(s.carga.valor) + ' kg';
+  }
+  function repsTexto(s) { return s.tec.nome === 'cluster' ? (s.tec.blocos || '?') + ' × ' + (s.tec.repsBloco || '?') : (s.reps || '—'); }
+  function descTexto(seg) {
+    if (!seg) return '—';
+    var m = Math.floor(seg / 60), r = seg % 60;
+    return m ? m + ' min' + (r ? ' ' + r + ' s' : '') : r + ' s';
+  }
+  function contagem(series) { var c = {}; series.forEach(function (s) { c[s.tipo] = (c[s.tipo] || 0) + 1; }); return c; }
+  function composicao(series) { var c = contagem(series); return ORDEM.filter(function (t) { return c[t]; }).map(function (t) { return t + ':' + c[t]; }).join(' '); }
+  function problemas(ex) { return ex.series.filter(function (s) { return cargaTexto(s) === null; }).length; }
+  function descansos(ex) {
+    var v = ex.series.map(function (s) { return s.desc; }).filter(Boolean);
+    var a = Math.min.apply(null, v), b = Math.max.apply(null, v);
+    return a === b ? descTexto(a) : descTexto(a) + ' a ' + descTexto(b);
+  }
+  var sessao = function () { return SESSOES[estado.sessao]; };
+  var exercicio = function () { return sessao().exercicios[estado.ex]; };
+  var umaColuna = function () { return getComputedStyle($('voltar')).display !== 'none'; };
+
+  /* ====== sessões e resumo ====== */
+  function desenharSessoes() {
+    $('sessoes').innerHTML = SESSOES.map(function (s, i) {
+      return '<button type="button" class="chip" data-sessao="' + i + '" aria-pressed="' + (i === estado.sessao) + '">' + s.nome + ' · ' + s.foco + ' <span class="chip-contagem">' + s.exercicios.length + '</span></button>';
+    }).join('');
+    // a faixa rola de lado no celular: a sessão escolhida nunca fica fora da vista
+    var f = $('sessoes'), ch = f.querySelector('[aria-pressed="true"]');
+    if (ch && f.scrollWidth > f.clientWidth) f.scrollLeft += ch.getBoundingClientRect().left - f.getBoundingClientRect().left - (f.clientWidth - ch.offsetWidth) / 2;
+  }
+  function desenharResumo() {
+    var c = contagem([].concat.apply([], sessao().exercicios.map(function (e) { return e.series; })));
+    var total = ORDEM.reduce(function (a, t) { return a + (c[t] || 0); }, 0);
+    // uma barra de composição (a cor do tipo uma vez na tela) e a lista chave–valor, que também é a legenda dela
+    var presentes = ORDEM.filter(function (t) { return c[t]; });
+    $('resumo-barra').innerHTML = presentes.map(function (t) { return '<span class="' + VV.TIPOS[t].classe + '" style="--n:' + c[t] + '"></span>'; }).join('');
+    var linhas = [['ex', 'Exercícios', sessao().exercicios.length, ''], ['series', 'Séries', total, '']].concat(presentes.map(function (t, i) { return [t, NOME_LONGO[t], c[t], VV.TIPOS[t].classe + ' com-ponto' + (i ? '' : ' separa')]; }));
+    var kv = $('resumo-kv'), chave = linhas.map(function (l) { return l[0]; }).join(' ');
+    // mesmas linhas: só os números trocam (com movimento); linhas novas ou a menos: redesenha
+    if (kv.getAttribute('data-chave') === chave) { linhas.forEach(function (l) { VV.trocarNumero(kv.querySelector('[data-k="' + l[0] + '"]'), l[2]); }); return; }
+    kv.setAttribute('data-chave', chave);
+    kv.innerHTML = linhas.map(function (l) { return '<div' + (l[3] ? ' class="' + l[3] + '"' : '') + '><dt>' + l[1] + '</dt><dd class="num" data-k="' + l[0] + '">' + l[2] + '</dd></div>'; }).join('');
+  }
+  var NOME_LONGO = { aq: 'Aquecimento (Aq)', fs: 'Preparação (FS)', ws: 'Trabalho (WS)', top: 'Top set', bo: 'Back off' };
+
+  /* ====== lista ====== */
+  function desenharLista() {
+    var exs = sessao().exercicios;
+    $('sub-lista').textContent = sessao().nome + ' · ' + exs.length + ' exercícios';
+    $('lista-ex').innerHTML = exs.map(function (e, i) {
+      var p = problemas(e), atual = i === estado.ex;
+      return '<li class="linha item-editor' + (atual ? ' escolhida' : '') + '">' +
+        '<div class="linha-principal">' +
+        '<button type="button" class="linha-link" data-ex="' + i + '"' + (atual ? ' aria-current="true"' : '') + '>' + e.nome + '</button>' +
+        '<div class="composicao--mini composicao--linha" data-composicao="' + composicao(e.series) + '"></div>' +
+        '<span class="linha-meta"><span>' + e.series.length + ' séries</span><span>Descanso ' + descansos(e) + '</span></span>' +
+        (p ? '<span><span class="selo st-atencao">' + (p === 1 ? 'Falta a carga' : 'Falta a carga em ' + p + ' séries') + '</span></span>' : '') +
+        '</div></li>';
+    }).join('');
+    VV.desenharComposicoes($('lista-ex'));
+  }
+
+  /* ====== inspetor ====== */
+  function linhaSerie(s, i) {
+    var t = VV.TIPOS[s.tipo], carga = cargaTexto(s), tec = TECNICAS.filter(function (x) { return x[0] === s.tec.nome; })[0];
+    var extra = '';
+    if (s.tec.nome === 'cluster') extra = '<span class="serie-extra"><b>Cluster</b> · ' + (s.tec.blocos || '?') + ' blocos de ' + (s.tec.repsBloco || '?') + ' · pausa de ' + (s.tec.pausa || '?') + ' s entre os blocos</span>';
+    else if (s.tec.nome !== 'nenhuma') extra = '<span class="serie-extra"><b>' + tec[1] + '</b></span>';
+    return '<button type="button" class="serie ' + t.classe + (trabalho(s.tipo) ? ' trabalho' : '') + '" data-serie="' + i + '" aria-pressed="' + (i === estado.serie) + '">' +
+      '<span class="cel-tipo"><span class="num-serie' + (i === estado.serie ? ' ordem' : '') + '"><span class="sr-only">Série </span>' + (i + 1) + '</span><span class="selo ' + t.classe + (trabalho(s.tipo) ? ' selo--forte' : '') + '">' + t.nome + '</span></span>' +
+      '<span class="cel-carga valor"><span class="sr-only">Carga: </span>' + (carga === null ? '<span class="falta">Falta a carga</span>' : carga) + '</span>' +
+      '<span class="cel-info"><span class="valor"><span class="rot">Reps</span>' + repsTexto(s) + '</span>' +
+      '<span class="valor"><span class="rot">RIR</span>' + (s.rir === '' ? '<span class="suave">—</span>' : s.rir) + '</span>' +
+      '<span class="valor"><span class="rot">Descanso</span>' + descTexto(s.desc) + '</span></span>' +
+      extra + '</button>';
+  }
+  function desenharSeries() {
+    var e = exercicio();
+    $('insp-series').innerHTML = e.series.map(linhaSerie).join('');
+    $('insp-meta').textContent = e.grupo + ' · ' + e.series.length + ' séries · descanso ' + descansos(e);
+  }
+  function chips(grupo, rotulo, opcoes, atual, classe) {
+    return '<div class="grupo-chips" role="group" aria-label="' + rotulo + '">' + opcoes.map(function (o) {
+      return '<button type="button" class="chip' + (classe ? ' ' + classe(o[0]) : '') + '" data-' + grupo + '="' + o[0] + '" aria-pressed="' + (o[0] === atual) + '">' + (classe ? '<span class="ponto" aria-hidden="true"></span>' : '') + o[1] + '</button>';
+    }).join('') + '</div>';
+  }
+  function campo(id, rotulo, valor, sufixo, ajuda, extraAttr) {
+    // o sufixo visual é aria-hidden: a unidade vai no rótulo para o leitor de tela
+    var unidade = sufixo ? '<span class="sr-only"> (' + ({ s: 'segundos', '%': 'por cento' }[sufixo] || sufixo) + ')</span>' : '';
+    return '<div class="campo" id="c-' + id + '"><label class="campo-rotulo" for="f-' + id + '">' + rotulo + unidade + '</label>' +
+      '<div class="campo-sufixo"><input class="campo-entrada num" id="f-' + id + '" name="' + id + '" data-campo="' + id + '" inputmode="' + (id === 'carga' ? 'decimal' : 'numeric') + '" autocomplete="off" value="' + (valor === null || valor === undefined ? '' : valor) + '"' + (extraAttr || '') + '>' + (sufixo ? '<span class="sufixo" aria-hidden="true">' + sufixo + '</span>' : '') + '</div>' +
+      (ajuda ? '<span class="campo-ajuda">' + ajuda + '</span>' : '') + '</div>';
+  }
+  function desenharEditorSerie() {
+    var s = exercicio().series[estado.serie], i = estado.serie;
+    var cargaInfo = CARGAS.filter(function (c) { return c[0] === s.carga.modo; })[0];
+    var tec = TECNICAS.filter(function (x) { return x[0] === s.tec.nome; })[0];
+    var h = '<h3 class="t-titulo-cartao" id="serie-titulo">Série ' + (i + 1) + ' · ' + nomeTipo(s.tipo) + '</h3>';
+    h += '<div class="grupo-campos"><span class="t-secao" id="r-tipo">Tipo da série</span>' +
+      chips('tipo', 'Tipo da série', ORDEM.map(function (t) { return [t, nomeTipo(t)]; }), s.tipo, function (t) { return 'chip--tipo chip--ponto ' + VV.TIPOS[t].classe; }) +
+      '<p class="explica">' + EXPLICA[s.tipo] + '</p></div>';
+    h += '<div class="grupo-campos"><span class="t-secao">Carga</span>' + chips('carga', 'Como a carga é definida', CARGAS, s.carga.modo) + '<p class="explica">' + cargaInfo[2] + '</p>';
+    if (s.carga.modo === 'pct' || s.carga.modo === 'fixa') {
+      var pct = s.carga.modo === 'pct';
+      h += campo('carga', pct ? 'Percentual da WS' : 'Carga', s.carga.valor === null ? '' : String(s.carga.valor).replace('.', ','), pct ? '%' : 'kg', '', ' aria-describedby="e-carga"');
+    }
+    h += '<span class="campo-erro" id="e-carga" hidden>' + ic('erro') + 'Informe a carga desta série.</span></div>';
+    h += '<div class="grupo-campos"><span class="t-secao">Repetições e esforço</span><div class="campos-lado">' +
+      (s.tec.nome === 'cluster' ? '' : campo('reps', 'Repetições', s.reps, '', '')) + campo('rir', 'RIR', s.rir, '', 'Vazio: sem RIR.') + campo('desc', 'Descanso', s.desc, 's', '') + '</div></div>';
+    h += '<div class="grupo-campos"><span class="t-secao">Técnica</span>' + chips('tec', 'Técnica da série', TECNICAS, s.tec.nome) + (tec[2] ? '<p class="explica">' + tec[2] + '</p>' : '');
+    if (s.tec.nome === 'cluster') h += '<div class="campos-lado">' + campo('blocos', 'Quantos blocos', s.tec.blocos, '', 'De 2 a 10.') + campo('repsBloco', 'Repetições em cada bloco', s.tec.repsBloco, '', 'De 1 a 50.') + campo('pausa', 'Pausa entre os blocos', s.tec.pausa, 's', '') + '</div>';
+    h += '</div>';
+    $('insp-serie').innerHTML = h;
+    atualizarErroCarga();
+  }
+  function atualizarErroCarga() {
+    var s = exercicio().series[estado.serie], falta = cargaTexto(s) === null, c = $('c-carga');
+    $('e-carga').hidden = !falta;
+    if (c) { c.classList.toggle('campo--erro', falta); $('f-carga').setAttribute('aria-invalid', String(falta)); }
+  }
+  function desenharInspetor() {
+    var e = exercicio();
+    $('inspetor').innerHTML =
+      '<div class="cartao-cab cartao-cab--faixa"><div class="pilha-8">' +
+      '<button type="button" class="botao botao--fantasma so-uma-coluna" id="voltar" style="align-self:flex-start;margin-left:-12px">' + ic('seta-esquerda') + 'Voltar aos exercícios</button>' +
+      '<div><h2 class="t-titulo-cartao" id="insp-titulo" tabindex="-1">' + e.nome + '</h2><p class="t-apoio" id="insp-meta"></p></div></div></div>' +
+      '<div class="cartao-corpo">' +
+      '<div class="inspetor-grade">' +
+      '<div class="pilha-8">' +
+      '<div class="series-cab" aria-hidden="true"><span>Série</span><span>Carga</span><span>Reps</span><span>RIR</span><span>Descanso</span></div>' +
+      '<div class="series" id="insp-series" role="group" aria-label="Séries de ' + e.nome + '"></div>' +
+      '<div><button type="button" class="botao botao--fantasma" id="add-serie">' + ic('adicionar') + 'Adicionar série</button></div></div>' +
+      '<div class="editor-serie" id="insp-serie" aria-labelledby="serie-titulo" role="region"></div>' +
+      '</div>' +
+      '</div>';
+    desenharSeries();
+    desenharEditorSerie();
+  }
+  function tudo() { desenharSessoes(); desenharResumo(); desenharLista(); desenharInspetor(); }
+  function derivados() { desenharSeries(); desenharLista(); desenharResumo(); atualizarErroCarga(); }
+  function focar(sel) { var el = document.querySelector(sel); if (el) el.focus(); }
+
+  /* ====== interação ====== */
+  // depois do DOMContentLoaded da base: casca, ícones e composição já montados
+  document.addEventListener('DOMContentLoaded', function () {
+    tudo();
+    // na faixa que rola de lado, o chip que recebe o foco pelo teclado entra inteiro na vista
+    $('sessoes').addEventListener('focusin', function (ev) { ev.target.scrollIntoView({ block: 'nearest', inline: 'nearest' }); });
+    document.addEventListener('click', function (ev) {
+      var b = ev.target.closest('button'); if (!b || !$('conteudo').contains(b)) return;
+      var e = exercicio(), s = e.series[estado.serie];
+      if (b.hasAttribute('data-sessao')) {
+        estado = { sessao: +b.getAttribute('data-sessao'), ex: 0, serie: 0 };
+        $('editor').setAttribute('data-vista', 'lista'); tudo(); focar('[data-sessao="' + estado.sessao + '"]');
+      } else if (b.hasAttribute('data-ex')) {
+        estado.ex = +b.getAttribute('data-ex');
+        var ws = exercicio().series.map(function (x) { return x.tipo; }).findIndex(trabalho);
+        estado.serie = ws < 0 ? 0 : ws;
+        desenharLista(); desenharInspetor();
+        if (umaColuna()) { $('editor').setAttribute('data-vista', 'inspetor'); $('insp-titulo').focus(); $('inspetor').scrollIntoView({ block: 'start' }); }
+        else focar('[data-ex="' + estado.ex + '"]');
+      } else if (b.id === 'voltar') {
+        $('editor').setAttribute('data-vista', 'lista'); focar('[data-ex="' + estado.ex + '"]');
+      } else if (b.hasAttribute('data-serie')) {
+        estado.serie = +b.getAttribute('data-serie'); desenharSeries(); desenharEditorSerie(); focar('[data-serie="' + estado.serie + '"]');
+      } else if (b.id === 'add-serie') {
+        var ult = e.series[e.series.length - 1];
+        e.series.push(S(ult.tipo === 'aq' ? 'fs' : ult.tipo, 'p', ult.reps || '10', ult.rir, ult.desc));
+        estado.serie = e.series.length - 1; derivados(); desenharEditorSerie(); focar('[data-serie="' + estado.serie + '"]');
+      } else if (b.hasAttribute('data-tipo')) {
+        s.tipo = b.getAttribute('data-tipo'); derivados(); desenharEditorSerie(); focar('[data-tipo="' + s.tipo + '"]');
+      } else if (b.hasAttribute('data-carga')) {
+        var modo = b.getAttribute('data-carga');
+        if (modo !== s.carga.modo) s.carga = { modo: modo, valor: null };
+        derivados(); desenharEditorSerie(); focar('[data-carga="' + modo + '"]');
+      } else if (b.hasAttribute('data-tec')) {
+        var t = b.getAttribute('data-tec');
+        if (t !== s.tec.nome) s.tec = t === 'cluster' ? CLUSTER(4, 3) : { nome: t };
+        derivados(); desenharEditorSerie(); focar('[data-tec="' + t + '"]');
+      }
+    });
+    document.addEventListener('input', function (ev) {
+      var f = ev.target.getAttribute('data-campo'); if (!f) return;
+      var s = exercicio().series[estado.serie], v = ev.target.value.trim(), n = v === '' ? null : parseFloat(v.replace(',', '.'));
+      if (f === 'carga') s.carga.valor = n;
+      else if (f === 'reps') s.reps = v;
+      else if (f === 'rir') s.rir = v;
+      else if (f === 'desc') s.desc = n;
+      else s.tec[f] = n;
+      derivados();
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -2,17 +2,18 @@ import type { CorDaAgenda } from '../api/agendaTipos';
 import type { Tema } from '../api/tipos';
 
 /**
- * Design flat utilitário: cores sólidas, sem sombra nem gradiente, cantos de 12 px, bordas de
- * 1 px nos campos e 2 px nos blocos, grade de 8 px. A cor da marca só aparece em ação principal, menu e aba ativos, cartão "Hoje" e título da
- * marca; seleção (chips, escolhas) é invertida (fundo `texto`, letra `fundo`); status nunca usa a cor da marca (verde
- * ok, âmbar pendente, vermelho erro, cinza inativo) e sempre vem com texto. A tabela situação → cor (quem age, quem espera,
- * vencida, desabilitado) está em `docs/design-e-front.md`, seção 4.5.
+ * Visual de 11/11 (prévia `docs/prototipos/visual-vendavel/` + guia em PDF; resumo em
+ * `docs/planos/visual-vendavel/guia-premium-no-app.md`): flat, sem sombra nem gradiente, contorno de 1 px (2 px com
+ * "bordas reforçadas"), raio 8 nos controles (`RAIO_CONTROLE`) e 12 nos cartões (`RAIO`), grade de 8 px, fonte Geist.
  *
- * Níveis: fundo quase branco → cartão (`superficie` + `borda` de 2 px) → faixa do título (`superficie3`, ou `faixaForte` no
- * exercício, com linha de 3 px embaixo) → item (`superficie2` + `borda`).
- * Bordas e divisores ficaram mais fortes em 30/10 (reunião de 29/10: o treinador não via onde um bloco terminava); a
- * borda do cartão não precisa de 3:1 (é decorativa), mas passa de 1,9:1 nos dois temas.
- * Campo de digitar = `campo` + `bordaCampo` (mais escuro que o cartão, um "buraco" onde se escreve).
+ * Três famílias de cor que não se misturam: **marca** (logo, pequeno indicador do item ativo, ação principal; papéis
+ * calculados no `TemaProvider`), **situação** (`sucesso`, `atencao`, `perigo`, `neutro`, com o fundo `*Suave` do selo;
+ * fixas no tema, nunca derivadas da marca, sempre com texto) e **categoria** (`PALETA_DE_IDENTIFICACAO`: tipo de série,
+ * divisão, refeição). Seleção é neutra (`ui/selecao.ts`). Tabela situação → cor: `docs/design-e-front.md`, seção 4.5.
+ *
+ * Superfícies: `fundo` (menu e página) → `painel` (área do conteúdo no PC) → `superficie` (cartão, contorno `divisor`,
+ * discreto) → `superficie2` (elevada: menus, apoio, hover) → `superficie3` (seleção neutra: fundo do item escolhido).
+ * Campo de digitar = `campo` + `bordaCampo` (≥ 3:1): campo, foco e seleção têm contorno forte; contêiner, discreto.
  */
 export interface Cores {
   fundo: string;
@@ -30,6 +31,11 @@ export interface Cores {
   campo: string;
   /** Borda de campo de digitar (≥ 3:1 sobre `campo`, WCAG 1.4.11). */
   bordaCampo: string;
+  /**
+   * Área do conteúdo ao lado do menu no PC (o menu fica no `fundo`): no escuro, 45% do caminho do fundo ao cartão; no
+   * claro, o próprio cartão (branco).
+   */
+  painel: string;
   texto: string;
   textoSuave: string;
   /** Status como texto e borda (≥ 4,5:1 sobre `superficie`, `superficie2` e `superficie3`). */
@@ -37,6 +43,10 @@ export interface Cores {
   atencao: string;
   perigo: string;
   neutro: string;
+  /** Fundo do selo de cada situação: o texto do selo é a própria cor da situação (≥ 4,5:1 sobre ele). */
+  sucessoSuave: string;
+  atencaoSuave: string;
+  perigoSuave: string;
   /** Fundo do botão destrutivo preenchido (texto branco ≥ 4,5:1); o `perigo` claro do tema escuro não serve de fundo. */
   perigoFundo: string;
   /** Anel de foco do teclado: a cor do texto (≥ 4,5:1 em qualquer superfície), nunca a da marca. */
@@ -57,19 +67,25 @@ export const ESCURO: Cores = {
   divisor: '#36363C',
   borda: '#4C4C55',
   campo: '#0F0F12',
-  bordaCampo: '#76767E',
+  bordaCampo: '#82828C',
+  painel: '#101013',
   texto: '#F4F4F5',
-  textoSuave: '#A1A1AA',
-  sucesso: '#2BB36A',
-  atencao: '#D9962C',
-  perigo: '#F0666B',
+  textoSuave: '#B5B5BE',
+  sucesso: '#4ADE80',
+  atencao: '#FBBF24',
+  // O guia propõe #FB7185; fica um passo mais vermelho para não se confundir com o magenta da categoria (ΔE ≥ 40 em `tokens.test.ts`).
+  perigo: '#FA717B',
   neutro: '#9A9AA3',
+  sucessoSuave: '#143222',
+  atencaoSuave: '#352915',
+  perigoSuave: '#3B1C26',
   perigoFundo: '#C62828',
   anelFoco: '#F4F4F5',
-  fase1: '#E3A0B6',
+  // Rosa e lavanda um pouco mais claros que antes: o `perigo` novo é mais claro e a fase não pode parecer erro.
+  fase1: '#E7AEC1',
   fase2: '#7DCFC6',
   fase3: '#E2C56A',
-  fase4: '#A9B6EA',
+  fase4: '#ADBAEB',
 };
 
 export const CLARO: Cores = {
@@ -82,12 +98,16 @@ export const CLARO: Cores = {
   borda: '#B9B9C0',
   campo: '#FFFFFF',
   bordaCampo: '#80808A',
+  painel: '#FFFFFF',
   texto: '#111114',
   textoSuave: '#52525B',
   sucesso: '#176E3C',
   atencao: '#875710',
   perigo: '#B71C1C',
   neutro: '#616169',
+  sucessoSuave: tingido('#176E3C', '#FFFFFF'),
+  atencaoSuave: tingido('#875710', '#FFFFFF'),
+  perigoSuave: tingido('#B71C1C', '#FFFFFF'),
   perigoFundo: '#B71C1C',
   anelFoco: '#111114',
   fase1: '#C46B86',
@@ -118,14 +138,29 @@ export const AREIA: Cores = {
 export type ModoDoTema = 'ESCURO' | 'CLARO';
 
 /**
+ * Paleta escura a partir do "chão" dela: texto e situação do Escuro (fixos, nunca da marca), `painel` a 45% do fundo ao
+ * cartão (a mesma regra que dá o #101013 do Escuro) e fundos dos selos tingidos sobre o cartão dela (os do Escuro são os
+ * pares do guia).
+ */
+function paletaEscura(chao: Pick<Cores, 'fundo' | 'superficie' | 'superficie2' | 'superficie3' | 'faixaForte' | 'divisor' | 'borda' | 'campo' | 'bordaCampo'>): Cores {
+  return {
+    ...ESCURO,
+    ...chao,
+    painel: misturar(chao.fundo, chao.superficie, 0.45),
+    sucessoSuave: tingido(ESCURO.sucesso, chao.superficie),
+    atencaoSuave: tingido(ESCURO.atencao, chao.superficie),
+    perigoSuave: tingido(ESCURO.perigo, chao.superficie),
+  };
+}
+
+/**
  * Paletas da marca (`docs/planos/paletas-da-marca.md`, decisão 1 de 03/11): a consultoria escolhe uma da lista em Marca.
  * A paleta muda só o "chão" (fundo, cartão, faixas, divisor, bordas e campo); texto, status, fases e foco são os do Escuro
  * ou do Claro. Valores literais, calculados uma vez pela prévia `docs/prototipos/paletas-da-marca.html` (item = 40% do caminho do cartão ao fundo, mais escuro que o cartão: o trilho das barras de progresso aparece dentro dele, e um item mais claro faria a série feita (verde translúcido) cair abaixo de 4,5:1 no Oceano;
  * faixa no tom mais claro em que texto e status passam 4,5:1; `faixaForte` = faixa + 0,03 de mistura com branco, escolha
  * deste passo porque a prévia não calcula esse tom). Nas claras o cartão é branco e o segundo tom da paleta é a faixa.
  */
-export const MEIA_NOITE: Cores = {
-  ...ESCURO,
+export const MEIA_NOITE: Cores = paletaEscura({
   fundo: '#06141B',
   superficie: '#11212D',
   superficie2: '#0D1C26',
@@ -135,10 +170,9 @@ export const MEIA_NOITE: Cores = {
   borda: '#48545D',
   campo: '#162531',
   bordaCampo: '#737C83',
-};
+});
 
-export const AMEIXA: Cores = {
-  ...ESCURO,
+export const AMEIXA: Cores = paletaEscura({
   fundo: '#190019',
   superficie: '#2B124C',
   superficie2: '#240B38',
@@ -148,11 +182,10 @@ export const AMEIXA: Cores = {
   borda: '#5C4975',
   campo: '#2F1750',
   bordaCampo: '#827395',
-};
+});
 
 /** Cartão ajustado da prévia (o original era #1C2541): o mais claro em que série feita, tingido e neutro passam 4,5:1. */
-export const OCEANO: Cores = {
-  ...ESCURO,
+export const OCEANO: Cores = paletaEscura({
   fundo: '#0B132B',
   superficie: '#1A223C',
   superficie2: '#141C35',
@@ -162,11 +195,10 @@ export const OCEANO: Cores = {
   borda: '#4F5569',
   campo: '#1F2640',
   bordaCampo: '#787D8C',
-};
+});
 
 /** Cartão ajustado da prévia (o original era #3A2418): o mais claro em que série feita, tingido e neutro passam 4,5:1. */
-export const CAFE: Cores = {
-  ...ESCURO,
+export const CAFE: Cores = paletaEscura({
   fundo: '#1A120E',
   superficie: '#301E14',
   superficie2: '#271912',
@@ -176,7 +208,7 @@ export const CAFE: Cores = {
   borda: '#60524A',
   campo: '#342319',
   bordaCampo: '#857A74',
-};
+});
 
 export const LAVANDA: Cores = { ...CLARO, fundo: '#F7F8FF', superficie3: '#E6E0FF' };
 export const CEU: Cores = { ...CLARO, fundo: '#F0F7FF', superficie3: '#DBEAFE' };
@@ -297,12 +329,6 @@ export const MARCA_NEUTRA = '#52525B';
  */
 export const VEU = 'rgba(0,0,0,0.55)';
 /**
- * Sombra dos painéis que flutuam por cima da tela (listas suspensas, calendário, busca e cartão do usuário), a mesma nos
- * temas, como o véu. Só na web (`boxShadow`); no celular essas peças usam `elevation: 8`. É decorativa: quem separa o
- * painel do fundo é a borda dele.
- */
-export const SOMBRA_FLUTUANTE = '0 8px 24px rgba(0,0,0,0.35)';
-/**
  * Camada sobre a foto de perfil no topo da ficha (troca e remoção no próprio círculo): a foto pode ter qualquer cor,
  * então a camada é a mesma nos três temas, como o véu. Ícone e anel de foco brancos passam 4,5:1 no pior caso (foto
  * branca coberta pela camada) e o hover do botão não cai de 3:1 (`ui/contrasteDasPecas.test.ts`).
@@ -315,16 +341,17 @@ export const CAMADA_DA_FOTO = {
 } as const;
 
 export const espaco = (n: number) => n * 8;
-/** Cantos de 12 px (protótipo do editor, 30/10: o Gustavo escolheu 12 em vez de 8). */
+/** Cantos de 12 px nos cartões, folhas e painéis. */
 export const RAIO = 12;
+/** Cantos de 8 px nos controles: botão, campo, chip, aba, item do menu, item selecionável. */
+export const RAIO_CONTROLE = 8;
 /**
- * Espessuras escolhidas no protótipo do editor (30/10): borda do bloco (cartão, sessão, exercício) de 2 px, linha de
- * 3 px embaixo da faixa do título e 2 px na borda de um item com cabeçalho próprio (o grupo de séries). Com o fundo
- * quase branco, quem separa os blocos é a borda e a faixa, não o cinza da página.
+ * Contorno de 1 px (11/11); "bordas reforçadas" sobe para 2 px pelo `useTema().bordas` (`espessurasDasBordas`). Estas
+ * constantes são a espessura padrão para quem não lê o tema.
  */
-export const BORDA_BLOCO = 2;
-export const LINHA_DA_FAIXA = 3;
-export const BORDA_ITEM = 2;
+export const BORDA_BLOCO = 1;
+export const LINHA_DA_FAIXA = 1;
+export const BORDA_ITEM = 1;
 export const ALVO_TOQUE = 44;
 export const LARGURA_MAXIMA = 1800;
 /** Telas declaradas até esta largura são formulários curtos e não esticam. */
@@ -346,10 +373,12 @@ export const LARGURA_EDITOR_DUAS_COLUNAS = LARGURA_MAXIMA;
 /** Listas e painéis (ficha do aluno, início, alunos, biblioteca, planejamento): todo o espaço útil (= `LARGURA_MAXIMA`). */
 export const LARGURA_LISTA = 1800;
 
+/** Geist (11/11) no texto; Metal Mania só no nome da marca. Peso médio dá a hierarquia; negrito em nome, número central e ação. */
 export const fontes = {
-  normal: 'Inter_400Regular',
-  semi: 'Inter_600SemiBold',
-  negrito: 'Inter_700Bold',
+  normal: 'Geist_400Regular',
+  medio: 'Geist_500Medium',
+  semi: 'Geist_600SemiBold',
+  negrito: 'Geist_700Bold',
   metal: 'MetalMania_400Regular',
   esportiva: 'BebasNeue_400Regular',
   condensada: 'Oswald_700Bold',
@@ -380,7 +409,7 @@ export function textoSobre(fundo: string): string {
 }
 
 /** Mistura `cor` com `alvo` na proporção `t` (0 = cor, 1 = alvo). */
-function misturar(cor: string, alvo: string, t: number): string {
+export function misturar(cor: string, alvo: string, t: number): string {
   const a = parseInt(cor.slice(1), 16);
   const b = parseInt(alvo.slice(1), 16);
   const canal = (desl: number) => Math.round(((a >> desl) & 255) * (1 - t) + ((b >> desl) & 255) * t);
@@ -406,6 +435,29 @@ export function marcaParaTexto(marca: string, fundo: string): string {
   for (let t = 0; t <= 1.0001; t += 0.04) {
     const cor = misturar(marca.trim(), alvo, Math.min(t, 1));
     if (contraste(cor, fundo) >= 4.5) return cor;
+  }
+  return alvo;
+}
+
+/**
+ * Botão principal com o mouse em cima ou apertado: a marca 14% mais escura quando o texto sobre ela é branco, 14% mais
+ * clara quando é preto (o texto ganha contraste nos dois casos).
+ */
+export function marcaAoPassar(marca: string): string {
+  if (!/^#[0-9a-f]{6}$/i.test(marca.trim())) return marca;
+  return misturar(marca.trim(), textoSobre(marca) === '#FFFFFF' ? '#000000' : '#FFFFFF', 0.14);
+}
+
+/**
+ * A marca como peça (indicador do item ativo, progresso): a própria cor quando já dá 3:1 (WCAG 1.4.11) sobre todos os
+ * fundos, senão a variante mais clara (escuro) ou mais escura (claro) mais próxima que chega lá.
+ */
+export function marcaParaPeca(marca: string, fundos: readonly string[]): string {
+  if (!/^#[0-9a-f]{6}$/i.test(marca.trim()) || fundos.length === 0) return marca;
+  const alvo = luminancia(fundos[0]) < 0.18 ? '#FFFFFF' : '#000000';
+  for (let t = 0; t <= 1.0001; t += 0.04) {
+    const cor = misturar(marca.trim(), alvo, Math.min(t, 1));
+    if (fundos.every((fundo) => contraste(cor, fundo) >= 3)) return cor;
   }
   return alvo;
 }

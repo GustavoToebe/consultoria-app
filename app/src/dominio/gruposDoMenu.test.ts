@@ -1,4 +1,4 @@
-import { GRUPOS_DO_MENU, gruposDoMenu, MENU_DO_TREINADOR, naOrdemDoMenu, posicaoNoMenu, rotuloCurtoDoMenu, type GrupoDoMenu } from './gruposDoMenu';
+import { contextoDoTopo, GRUPOS_DO_MENU, gruposDoMenu, MENU_DO_TREINADOR, naOrdemDoMenu, posicaoNoMenu, rotuloCurtoDoMenu, type GrupoDoMenu } from './gruposDoMenu';
 
 const item = (rotulo: string, grupo?: GrupoDoMenu) => ({ rotulo, grupo });
 
@@ -98,5 +98,23 @@ describe('posicaoNoMenu', () => {
   it('caminho fora do menu (nem item, nem tambem, nem subpágina) é null; a raiz não vira pai de tudo', () => {
     expect(posicaoNoMenu('/treinador/xyz')).toBeNull();
     expect(posicaoNoMenu('/aluno')).toBeNull();
+  });
+});
+
+describe('contextoDoTopo', () => {
+  it('o grupo da tela, "Início" no item sem grupo e "Conta" nas telas do cartão do usuário', () => {
+    expect(contextoDoTopo('/treinador')).toBe('Início');
+    expect(contextoDoTopo('/treinador/atualizacoes')).toBe('Acompanhamento');
+    expect(contextoDoTopo('/treinador/alunos/abc')).toBe('Acompanhamento');
+    expect(contextoDoTopo('/treinador/planejamento/modelo/x')).toBe('Conteúdo');
+    expect(contextoDoTopo('/treinador/interessados')).toBe('Negócio');
+    expect(contextoDoTopo('/treinador/termos')).toBe('Configurações');
+    // Marca e Ajustes estão no `tambem` do Perfil (Configurações), mas no topo valem como Conta.
+    expect(contextoDoTopo('/treinador/marca')).toBe('Conta');
+    expect(contextoDoTopo('/treinador/ajustes')).toBe('Conta');
+  });
+
+  it('tela que nenhum item acende fica sem contexto', () => {
+    expect(contextoDoTopo('/treinador/treinos/abc')).toBeNull();
   });
 });

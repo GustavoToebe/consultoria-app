@@ -6,7 +6,7 @@ import { StyleSheet, View } from 'react-native';
 
 import type { ConteudoDieta, Refeicao, VersaoDetalhe } from '../api/tipos';
 import { corDaRefeicao } from '../dominio/corDaSerie';
-import { normalizarDieta, somar, textoDaAgua, textoEscolhaDasOpcoes, totalDoDia } from '../dominio/dieta';
+import { normalizarDieta, somar, textoDaAgua, textoEscolhaDasOpcoes, totalDoDia, type Totais } from '../dominio/dieta';
 import { ergogenicosPreenchidos } from '../dominio/ergogenicos';
 import { linhasDoComplemento } from '../dominio/linhasDoComplemento';
 import { dataParaTela, numeroParaTela } from '../dominio/formatos';
@@ -14,7 +14,6 @@ import { linkParaAbrir } from '../dominio/links';
 import type { DadosPdfDieta } from '../pdf/pdfDieta';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../tema/tokens';
-import { textoTotais } from '../treinador/dieta/CartaoRefeicao';
 import { Abas } from '../ui/Abas';
 import { abrirLinkExterno } from '../ui/abrirLinkExterno';
 import { useAviso } from '../ui/Aviso';
@@ -26,7 +25,8 @@ import { Selo } from '../ui/Selo';
 import { FolhaPdfDieta } from '../ui/FolhaPdfDieta';
 import { NoPlano } from '../ui/NoPlano';
 import { Texto } from '../ui/Texto';
-import { TotaisAnimados } from '../ui/TotaisAnimados';
+import { NumeroAnimado } from '../ui/NumeroAnimado';
+import { MACROS, MarcaDoMacro, ValoresDaDieta } from '../ui/ValoresDaDieta';
 import { ModoDePreparo } from './ModoDePreparo';
 
 /** Por que a lista de compras e o PDF ficam desabilitados na prévia do treinador. */
@@ -96,7 +96,7 @@ export function DietaDoAluno({
       ) : null}
       <Botao rotulo="Lista de compras" tipo="secundario" cheio Icone={ShoppingCart} desabilitado={previa} motivo={previa ? MOTIVO_NA_PREVIA : undefined} aoTocar={() => { if (!previa) router.push('/aluno/lista-de-compras'); }} />
       <Cartao titulo="Total do dia" descricao="Soma da opção A de cada refeição.">
-        <TotaisAnimados totais={totalDoDia(c)} />
+        <TotalDoDia totais={totalDoDia(c)} />
         <Texto variante="pequeno">P = proteína · C = carboidrato · G = gordura</Texto>
         {Object.values(totalDoDia(c)).some((v) => v === null) ? <Incompleto texto="Há itens sem valor nutricional informado; o total não os soma." /> : null}
       </Cartao>
@@ -106,7 +106,7 @@ export function DietaDoAluno({
       {ergogenicos.length ? (
         <Cartao titulo="Medicação e ergogênicos">
           {ergogenicos.map((e) => (
-            <View key={e.uid} style={[estilos.item, { borderColor: cores.borda }]}>
+            <View key={e.uid} style={[estilos.item, { borderColor: cores.divisor }]}>
               <Texto numerico style={estilos.forte}>{e.nome || '—'}</Texto>
               {e.principioAtivo ? <Texto numerico variante="suave">{e.principioAtivo}</Texto> : null}
               <LinhasDoComplemento item={e} />
@@ -118,7 +118,7 @@ export function DietaDoAluno({
       {c.suplementacao.length ? (
         <Cartao titulo="Suplementação">
           {c.suplementacao.map((s) => (
-            <View key={s.uid} style={[estilos.item, { borderColor: cores.borda }]}>
+            <View key={s.uid} style={[estilos.item, { borderColor: cores.divisor }]}>
               <Texto numerico style={estilos.forte}>{s.nome || '—'}</Texto>
               <LinhasDoComplemento item={s} />
               {linkParaAbrir(s.link) ? <VerProduto link={s.link} /> : null}
@@ -200,6 +200,7 @@ function CartaoRefeicaoAluno({ refeicao, indice }: { refeicao: Refeicao; indice:
   const [ativa, setAtiva] = useState(0);
   const opcao = refeicao.opcoes[Math.min(ativa, refeicao.opcoes.length - 1)];
   const escolha = textoEscolhaDasOpcoes(refeicao.opcoes.map((o) => o.rotulo));
+  const rotuloDoTotal = refeicao.opcoes.length > 1 && opcao ? `Total da opção ${opcao.rotulo}` : 'Total';
   return (
     <Cartao
       style={{ borderLeftWidth: BARRA_DA_REFEICAO, borderLeftColor: cor.cor }}
@@ -226,10 +227,10 @@ function CartaoRefeicaoAluno({ refeicao, indice }: { refeicao: Refeicao; indice:
         const quantidade = numeroParaTela(i.quantidade);
         const unidade = i.quantidade === null ? '' : (i.unidade ?? '').trim();
         return (
-          <View key={i.uid} style={[estilos.itemComQuantidade, { borderColor: cores.borda }]}>
+          <View key={i.uid} style={[estilos.itemComQuantidade, { borderColor: cores.divisor }]}>
             <View style={estilos.nomeDoItem}>
               <Texto numerico style={estilos.forte}>{i.nome}</Texto>
-              <Texto numerico variante="suave">{textoTotais(somar([i]))}</Texto>
+              <ValoresDaDieta totais={somar([i])} inicio />
             </View>
             <View
               style={[estilos.quantidade, { borderColor: cor.cor, backgroundColor: cor.fundo }]}
@@ -242,10 +243,9 @@ function CartaoRefeicaoAluno({ refeicao, indice }: { refeicao: Refeicao; indice:
         );
       })}
       {opcao ? (
-        <View style={[estilos.totalDaRefeicao, { borderColor: cores.bordaCampo }]}>
-          <Texto numerico style={estilos.forte} cor={cores.texto}>
-            {refeicao.opcoes.length > 1 ? `Total da opção ${opcao.rotulo}` : 'Total'}: {textoTotais(somar(opcao.itens))}
-          </Texto>
+        <View style={[estilos.totalDaRefeicao, { borderColor: cores.bordaCampo }]} role="group" aria-label={rotuloDoTotal}>
+          <Texto numerico style={estilos.forte} cor={cores.texto}>{rotuloDoTotal}</Texto>
+          <ValoresDaDieta totais={somar(opcao.itens)} forte inicio />
         </View>
       ) : null}
       <ModoDePreparo texto={refeicao.modoDePreparo} />
@@ -253,6 +253,30 @@ function CartaoRefeicaoAluno({ refeicao, indice }: { refeicao: Refeicao; indice:
   );
 }
 
+
+/**
+ * Total do dia: kcal em destaque na cor do texto e, por macro, a marca de cor da peça única (`ui/ValoresDaDieta`, a mesma do
+ * editor) com o valor e o nome por extenso ("—" sem valor).
+ */
+function TotalDoDia({ totais }: { totais: Totais }) {
+  return (
+    <View style={estilos.totalDoDia}>
+      <NumeroAnimado valor={totais.kcal} variante="destaque" sufixo=" kcal" />
+      <View style={estilos.macros}>
+        {MACROS.map((m) => (
+          <View key={m.chave} style={estilos.macro}>
+            <MarcaDoMacro cor={m.cor} />
+            {totais[m.chave] === null ? (
+              <Texto numerico>{`${m.nome} —`}</Texto>
+            ) : (
+              <NumeroAnimado valor={totais[m.chave]} casas={1} sufixo={` g de ${m.nome.toLowerCase()}`} />
+            )}
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
 
 /** Barra lateral da refeição, como a do tipo de série (D10). */
 const BARRA_DA_REFEICAO = 6;
@@ -270,6 +294,9 @@ const estilos = StyleSheet.create({
   forte: { fontFamily: fontes.semi },
   item: { borderTopWidth: 1, paddingTop: espaco(1), gap: 2 },
   escolha: { borderRadius: RAIO, borderLeftWidth: 3, paddingVertical: espaco(1), paddingHorizontal: espaco(1.25), gap: 2 },
-  totalDaRefeicao: { borderTopWidth: 2, paddingTop: espaco(1), marginTop: espaco(0.5) },
+  totalDaRefeicao: { borderTopWidth: 1, paddingTop: espaco(1), marginTop: espaco(0.5), gap: espaco(0.5) },
+  totalDoDia: { gap: espaco(1) },
+  macros: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(2), rowGap: espaco(0.75) },
+  macro: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75) },
   produto: { alignItems: 'flex-start', paddingTop: espaco(0.5), gap: espaco(0.5) },
 });

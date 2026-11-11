@@ -70,7 +70,7 @@ export const alvoDaPergunta = (id: string) => `pergunta:${id}`;
  * Perguntas não são numeradas (a condição esconde algumas e a numeração pularia); obrigatória leva " *" no rótulo.
  */
 export function QuestionarioAtualizacao({ modelo, respostas, aoMudar, erros = {}, campos, dataAtualizacao, resumo, carregarFotoDaEquipe, pagina, progresso }: Props) {
-  const { cores } = useTema();
+  const { cores, marcaPeca } = useTema();
   const fotos = useControleDeFotos();
   const rolagem = useRolagem();
   if (!modelo) return null;
@@ -118,7 +118,7 @@ export function QuestionarioAtualizacao({ modelo, respostas, aoMudar, erros = {}
   return <>
     {progresso && total > 0 ? <View style={estilos.parte}>
       <Texto variante="pequeno" numerico>{`${feitas} de ${total} respondidas`}</Texto>
-      <BarraProgresso feitas={feitas} total={total} cor={cores.sucesso} />
+      <BarraProgresso feitas={feitas} total={total} cor={marcaPeca} trilho={cores.superficie3} />
     </View> : null}
     {modelo.secoes.map((secao, si) => {
       const escondida = secoesEscondidas.has(si);
@@ -249,7 +249,7 @@ function Controle({ p, valor, dataAtualizacao, resumo, erro, nota, carregarFotoD
   if (p.tipo === 'ACEITE') return <View style={estilos.pergunta}>
     <Texto variante="rotulo" cor={cores.texto}>{rotulo}</Texto>
     {/* O texto (regras, termo) num quadro próprio: lê-se como um documento, separado da caixa de aceitar. */}
-    {p.texto?.trim() ? <View style={[estilos.documento, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
+    {p.texto?.trim() ? <View style={[estilos.documento, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
       <TextoFormatado texto={p.texto} />
     </View> : null}
     <CaixaSelecao rotulo={p.declaracao ?? 'Li e concordo.'} marcado={valor === true} aoMudar={(marcado) => aoMudar(marcado ? true : null)} />
@@ -273,17 +273,17 @@ function Leitura({ p, valor, ajuda }: { p: PerguntaAtualizacao; valor: RespostaA
   const { cores } = useTema();
   let resposta: ReactNode;
   if (p.tipo === 'GRADE') {
-    resposta = <View style={[estilos.listaDaGrade, { borderColor: cores.borda }]}>
-      {respostasDaGrade(p, valor).map((r, i) => <View key={r.id} style={[estilos.itemDaLista, i > 0 && { borderTopWidth: 1, borderTopColor: cores.borda }]}>
+    resposta = <View style={[estilos.listaDaGrade, { borderColor: cores.divisor }]}>
+      {respostasDaGrade(p, valor).map((r, i) => <View key={r.id} style={[estilos.itemDaLista, i > 0 && { borderTopWidth: 1, borderTopColor: cores.divisor }]}>
         <Texto style={estilos.itemRotulo}>{r.linha}</Texto>
         <Texto style={estilos.itemValor}>{r.resposta}</Texto>
       </View>)}
     </View>;
   } else if (temImagemNasOpcoes(p)) resposta = <OpcoesComImagem p={p} valor={valor} />;
   else if (p.tipo === 'NOTA') resposta = <Texto numerico>{textoDaNota(p, valor)}</Texto>;
-  else resposta = <Texto>{textoDaResposta(p, valor)}</Texto>;
+  else resposta = <Texto style={estilos.respostaLida}>{textoDaResposta(p, valor)}</Texto>;
   return <View style={estilos.pergunta}>
-    <Texto variante="rotulo" cor={cores.texto}>{p.rotulo}</Texto>
+    <Texto variante="rotulo" cor={cores.texto} style={estilos.perguntaLida}>{p.rotulo}</Texto>
     {p.tipo === 'ACEITE' ? <TextoFormatado texto={p.texto} variante="suave" /> : null}
     {resposta}
     {ajuda}
@@ -301,8 +301,8 @@ function GradeParaResponder({ p, valor, aoMudar, faltando }: {
   const { cores } = useTema();
   const marcadas = typeof valor === 'object' && valor !== null && !Array.isArray(valor) ? valor as Record<string, string> : {};
   const colunas = (p.colunas ?? []).map((c) => ({ valor: c.id, rotulo: c.rotulo }));
-  return <View style={[estilos.listaDaGrade, { borderColor: cores.borda }]}>
-    {(p.linhas ?? []).map((l, i) => <View key={l.id} style={[estilos.linhaDaGrade, i > 0 && { borderTopWidth: 1, borderTopColor: cores.borda }]}>
+  return <View style={[estilos.listaDaGrade, { borderColor: cores.divisor }]}>
+    {(p.linhas ?? []).map((l, i) => <View key={l.id} style={[estilos.linhaDaGrade, i > 0 && { borderTopWidth: 1, borderTopColor: cores.divisor }]}>
       <Texto style={estilos.rotuloDaLinha}>{l.rotulo}</Texto>
       {faltando && marcadas[l.id] == null ? <Texto variante="pequeno" cor={cores.perigo}>Falta responder esta linha.</Texto> : null}
       <Escolha compacta descricao={l.rotulo} opcoes={colunas} valor={marcadas[l.id] ?? null} limpavel
@@ -352,11 +352,11 @@ function OpcoesComImagem({ p, valor, aoMudar }: { p: PerguntaAtualizacao; valor:
           width: celula,
           borderWidth: marcado ? 2 : 1,
           padding: marcado ? espaco(1) - 1 : espaco(1),
-          borderColor: marcado ? cores.texto : cores.borda,
+          borderColor: marcado ? cores.texto : cores.bordaCampo,
           backgroundColor: !aoMudar && !marcado ? coresDoDesabilitado(cores).fundo : marcado || pressed ? cores.superficie3 : cores.superficie2,
         }]}>
         {o.imagemId ? <ImagemDaOpcao id={o.imagemId} descricao={`Imagem da opção ${o.rotulo}`} largura={imagem} />
-          : <View style={[estilos.semImagem, { height: Math.round(imagem * 0.75), borderColor: cores.borda }]} />}
+          : <View style={[estilos.semImagem, { height: Math.round(imagem * 0.75), borderColor: cores.divisor }]} />}
         <View style={estilos.rodapeDaOpcao}>
           <View style={[unica ? estilos.bolinha : estilos.caixinha, { borderColor: marcado ? cores.texto : cores.bordaCampo, backgroundColor: marcado ? cores.texto : cores.campo }]}>
             {marcado ? <Check size={14} color={cores.fundo} /> : null}
@@ -392,6 +392,9 @@ const estilos = StyleSheet.create({
   // 24 px entre perguntas (o mesmo vão entre blocos): num formulário longo cada pergunta precisa se separar da próxima.
   perguntas: { gap: espaco(3) },
   pergunta: { gap: espaco(1) },
+  // Leitura (guia de 11/11, pág. 5): pergunta em peso médio e resposta na largura de leitura do projeto (720).
+  perguntaLida: { fontFamily: fontes.medio },
+  respostaLida: { maxWidth: 720 },
   parte: { gap: espaco(0.75) },
   linhaDaParte: { flexDirection: 'row', justifyContent: 'space-between', gap: espaco(1), flexWrap: 'wrap' },
   documento: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5) },

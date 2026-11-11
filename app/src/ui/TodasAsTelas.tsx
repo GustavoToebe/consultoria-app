@@ -62,7 +62,7 @@ export function TodasAsTelas({ visivel, aoFechar, permitidas, favoritos, aoAlter
 function LinhaDaTela({ tela, favorita, aoAbrir, aoAlternar }: { tela: TelaDoCatalogo; favorita: boolean; aoAbrir: () => void; aoAlternar: () => void }) {
   const { cores } = useTema();
   return (
-    <View style={[estilos.linha, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
+    <View style={[estilos.linha, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
       <Pressable accessibilityRole="link" accessibilityLabel={tela.rotulo} {...propsDeLink(tela.href as Href, aoAbrir)}
         style={(estado) => [estilos.abrir, sobre(estado) && { backgroundColor: cores.superficie3 }]}>
         <Texto style={estilos.nome}>{tela.rotulo}</Texto>

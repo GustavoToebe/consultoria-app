@@ -54,7 +54,7 @@ export function ResumoDoAluno({ aluno, acompanhamento, aoRenovar, aoAnonimizado,
   });
   const pasta = dados?.pasta ?? null;
   const f = dados?.frequencia ?? null;
-  const corFaixa = passo.tipo === 'perigo' ? cores.perigo : passo.tipo === 'atencao' ? cores.atencao : cores.borda;
+  const corFaixa = passo.tipo === 'perigo' ? cores.perigo : passo.tipo === 'atencao' ? cores.atencao : cores.divisor;
   const acao = passo.acao === 'revisar' && a && pode('ATUALIZACAO_LER')
     ? <Botao rotulo="Revisar atualização" aoTocar={() => confirmar(() => router.push(caminhoAtualizacaoTreinador(a)))} />
     : passo.acao === 'renovar' && pasta && pode('PASTA_ALTERAR')
@@ -67,7 +67,11 @@ export function ResumoDoAluno({ aluno, acompanhamento, aoRenovar, aoAnonimizado,
         <View style={estilos.fatos}>
           {aluno.anonimizado || !aluno.ativo ? <Selo texto={aluno.anonimizado ? 'Anonimizado' : 'Inativo'} tipo="neutro" /> : null}
           <View style={estilos.linhaFatos}>
-            <CampoLeitura rotulo="Pasta vigente" valor={dados ? (pasta ? `${pasta.titulo} · ${periodoCurto(pasta.inicio, pasta.fim, hoje)}` : 'Nenhuma') : null} numerico />
+            {/* "Pasta vencida" fica junto da pasta (guia de 11/11, pág. 13): o período já passou e ela não foi finalizada. */}
+            <View style={estilos.fato}>
+              <CampoLeitura rotulo="Pasta vigente" valor={dados ? (pasta ? `${pasta.titulo} · ${periodoCurto(pasta.inicio, pasta.fim, hoje)}` : 'Nenhuma') : null} numerico />
+              {pasta?.fim && pasta.fim < hoje && !pasta.concluidaEm ? <Selo texto="Pasta vencida" tipo="perigo" /> : null}
+            </View>
             {verAtualizacao ? (
               <View style={estilos.fato} accessibilityLabel={`Atualização: ${selo?.curto ?? 'nenhuma'}`}>
                 <Texto variante="rotulo">Atualização</Texto>
@@ -80,7 +84,7 @@ export function ResumoDoAluno({ aluno, acompanhamento, aoRenovar, aoAnonimizado,
         </View>
       </View>
       {/* Próximo passo: a borda à esquerda tem a cor do status (nunca a marca); a ação, quando há, é a principal da ficha. */}
-      <View style={[estilos.passo, { borderColor: cores.borda, borderLeftColor: corFaixa, backgroundColor: cores.superficie2 }]}>
+      <View style={[estilos.passo, { borderColor: cores.divisor, borderLeftColor: corFaixa, backgroundColor: cores.superficie2 }]}>
         <View style={estilos.passoTexto}>
           <Texto variante="rotulo">Próximo passo</Texto>
           <Texto>{passo.texto}</Texto>
@@ -89,7 +93,7 @@ export function ResumoDoAluno({ aluno, acompanhamento, aoRenovar, aoAnonimizado,
       </View>
       {children ? (
         <>
-          <View style={[estilos.divisor, { backgroundColor: cores.borda }]} />
+          <View style={[estilos.divisor, { backgroundColor: cores.divisor }]} />
           {children}
         </>
       ) : null}

@@ -1,5 +1,5 @@
 import type { PerfilEquipe } from '../api/equipeTipos';
-import { completarPermissoes,desmarcarPermissoes,perfisAtribuiveis,permissaoMarcavel,podeCancelarConvite,podeDuplicarPerfil,podeEditarMembro,podeEditarPerfil,type AtorEquipe } from './perfilEquipe';
+import { completarPermissoes,desmarcarPermissoes,perfisAtribuiveis,permissaoMarcavel,podeCancelarConvite,podeDuplicarPerfil,podeEditarMembro,podeEditarPerfil,motivoSemEditarPerfil,type AtorEquipe } from './perfilEquipe';
 describe('seleção de permissões de perfil',()=>{
   it('feedback marca a cadeia de leitura sensível e cadastro',()=>{
     expect(completarPermissoes(['ATUALIZACAO_RESPONDER'])).toEqual(expect.arrayContaining(['ATUALIZACAO_RESPONDER','ATUALIZACAO_LER','ALUNO_SENSIVEL_LER','ALUNO_LER']));
@@ -75,6 +75,13 @@ describe('teto de permissões na tela (espelha a API)',()=>{
     expect(permissaoMarcavel(membroGestor,'ALUNO_SENSIVEL_LER')).toBe(false);
     expect(permissaoMarcavel(membroGestor,'EQUIPE_LER')).toBe(true);
     expect(permissaoMarcavel(administrador,'ALUNO_SENSIVEL_LER')).toBe(true);
+  });
+  it('sem "Editar", o motivo em texto: perfil do sistema, o próprio perfil ou acima do teto',()=>{
+    expect(motivoSemEditarPerfil(membroGestor,leitura)).toBeNull();
+    expect(motivoSemEditarPerfil(administrador,admin)).toMatch(/^Perfil do sistema/);
+    expect(motivoSemEditarPerfil(membroGestor,admin)).toMatch(/^Perfil do sistema/);
+    expect(motivoSemEditarPerfil(membroGestor,gestor)).toMatch(/^É o seu perfil/);
+    expect(motivoSemEditarPerfil(membroGestor,nutri)).toMatch(/^Tem permissões que você não tem/);
   });
 });
 

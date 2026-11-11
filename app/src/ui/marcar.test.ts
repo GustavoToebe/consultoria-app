@@ -14,3 +14,15 @@ it('o ✓ desabilitado não tem a cara do habilitado, nem quando já está feito
   expect(feitoEDesabilitado.fundo).toBe(CLARO.superficie3);
   expect(feitoEDesabilitado.fundo).not.toBe(CLARO.sucesso);
 });
+it('vazio e feito se distinguem pelo ✓, não só pela cor; o verde só no feito agora; o desabilitado vazio fica sem ✓', () => {
+  const vazio = coresDoMarcar(CLARO, { feito: false, desabilitado: false, pressionado: false });
+  const feito = coresDoMarcar(CLARO, { feito: true, desabilitado: false, pressionado: false });
+  const agora = coresDoMarcar(CLARO, { feito: true, agora: true, desabilitado: false, pressionado: false });
+  expect(vazio.icone).toBeNull();
+  expect(feito.icone).toBe(CLARO.textoSuave);
+  expect([feito.borda, feito.fundo, feito.icone]).not.toContain(CLARO.sucesso);
+  expect(agora).toEqual({ borda: CLARO.sucesso, fundo: CLARO.sucessoSuave, icone: CLARO.sucesso });
+  // `agora` sem estar feito não pinta nada.
+  expect(coresDoMarcar(CLARO, { feito: false, agora: true, desabilitado: false, pressionado: false })).toEqual(vazio);
+  expect(coresDoMarcar(CLARO, { feito: false, desabilitado: true, pressionado: false }).icone).toBeNull();
+});

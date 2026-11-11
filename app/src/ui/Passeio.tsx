@@ -209,7 +209,7 @@ function Sobreposicao({ passos, indice, mudar, dispensar, origem, nos }: {
         onLayout={(e) => setAlturaBalao(e.nativeEvent.layout.height)}
         style={[
           estilos.balao,
-          { backgroundColor: cores.superficie, borderColor: cores.borda, width: largura, left: posicao.x, top: posicao.y, opacity: pronto ? 1 : 0 },
+          { backgroundColor: cores.superficie2, borderColor: cores.divisor, width: largura, left: posicao.x, top: posicao.y, opacity: pronto ? 1 : 0 },
         ]}>
         <Texto variante="pequeno">{`Passeio pelo menu · ${andamento.progresso}`}</Texto>
         <Texto variante="bloco" nivel={2}>{passo.titulo}</Texto>

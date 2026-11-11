@@ -95,7 +95,7 @@ async function abrirComoTreinador(page: Page, lista: Compromisso[], opcoes: {
 
 /** Uma opção de `Escolha` (grupo com o rótulo dado). */
 const opcao = (onde: Locator | Page, grupo: string, rotulo: string) =>
-  onde.getByRole('radiogroup', { name: grupo }).getByRole('button', { name: rotulo, exact: true });
+  onde.getByRole('radiogroup', { name: grupo }).getByRole('radio', { name: rotulo, exact: true });
 
 /**
  * Escolhe numa lista suspensa (`EscolhaEmFolha`): o botão "Rótulo: valor. Escolher." abre uma folha com rádios, que fecha
@@ -159,13 +159,15 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
 
       // Hoje: o compromisso (horário, local, responsável) e a atualização, cada um com o seu texto.
       if (naLista) await expect(page.getByText('Hoje, 19/10')).toBeVisible();
-      if (naLista) await expect(page.getByText('Compromisso · 09:00–10:00 · Sala 2 · com Treinadora Teste')).toBeVisible();
+      if (naLista) await expect(page.getByText('09:00–10:00 · Ana Fictícia', { exact: true })).toBeVisible();
+      if (naLista) await expect(page.getByText('Compromisso · Sala 2 · com Treinadora Teste', { exact: true }).first()).toBeVisible();
       await expect(page.getByRole('link', { name: /Abrir atualização de Bruno Exemplo/ })).toBeVisible();
       if (naLista) await expect(page.getByText('1 compromisso · 1 atualização')).toBeVisible();
       // Vários alunos: dois nomes e "+2"; o selo resume a situação; a série aparece nos metadados; o cancelado se diz.
       if (naLista) await expect(page.getByText('Ana Fictícia, Bruno Exemplo +2')).toBeVisible();
       if (naLista) await expect(page.getByText('4 agendados', { exact: true })).toBeVisible();
-      if (naLista) await expect(page.getByText('Compromisso · 15:00–16:00 · Sala 2 · com Treinadora Teste · Ocorrência 3 de 10')).toBeVisible();
+      if (naLista) await expect(page.getByText('15:00–16:00 · Ana Fictícia, Bruno Exemplo +2', { exact: true })).toBeVisible();
+      if (naLista) await expect(page.getByText('Compromisso · Sala 2 · com Treinadora Teste · Ocorrência 3 de 10')).toBeVisible();
       await expect(page.getByRole('button', { name: 'Abrir compromisso de Ana Fictícia, Bruno Exemplo e mais 2, das 15h às 16h', exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Abrir compromisso de Bruno Exemplo, das 11h às 12h, cancelado', exact: true })).toBeVisible();
       // O período pedido é o da semana (segunda a domingo).
@@ -339,7 +341,9 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await escolherInicio(page, folha, '07:00');
       await folha.getByRole('button', { name: 'Marcar compromisso', exact: true }).click();
       await expect(folha).toBeHidden();
-      if (naLista) await expect(page.getByText('Compromisso · 07:00–08:00 · Sala 2 · com Treinadora Teste · Ocorrência 1 de 6')).toBeVisible();
+      // A série cai em mais de um dia da semana: o título se repete; a ocorrência diz qual.
+      if (naLista) await expect(page.getByText('07:00–08:00 · Ana Fictícia', { exact: true }).first()).toBeVisible();
+      if (naLista) await expect(page.getByText('Compromisso · Sala 2 · com Treinadora Teste · Ocorrência 1 de 6')).toBeVisible();
       await expect(page.getByRole('button', { name: 'Abrir compromisso de Ana Fictícia, das 7h às 8h', exact: true })).toBeVisible();
 
       const repeticao = { tipo: 'SEMANAL', diasDaSemana: ['MONDAY', 'WEDNESDAY'], vezes: 6 };

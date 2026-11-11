@@ -70,7 +70,7 @@ export function CartaoExercicioDoDia({
       {...(href ? propsDeLink(href, aoAbrir) : { onPress: aoAbrir })}
       style={({ pressed }) => [
         estilos.cartao,
-        { backgroundColor: pressed ? cores.superficie3 : cores.superficie2, borderColor: completo ? cores.sucesso : cores.borda },
+        { backgroundColor: pressed ? cores.superficie3 : cores.superficie2, borderColor: cores.divisor },
       ]}>
       <View style={estilos.topo}>
         <View style={estilos.nomes}>
@@ -81,9 +81,9 @@ export function CartaoExercicioDoDia({
           {resumo ? <Texto numerico variante="pequeno">{resumo}</Texto> : null}
           {prescricaoDeCardio ? <Texto numerico variante="pequeno">{prescricaoDeCardio}</Texto> : null}
         </View>
-        {completo ? <CheckCircle2 size={22} color={cores.sucesso} /> : <ChevronRight size={22} color={cores.textoSuave} />}
+        {completo ? <CheckCircle2 size={22} color={cores.texto} /> : <ChevronRight size={22} color={cores.textoSuave} />}
       </View>
-      <View style={[estilos.rodape, { borderTopColor: cores.borda }]}>
+      <View style={[estilos.rodape, { borderTopColor: cores.divisor }]}>
         {carga ? (
           <Texto numerico variante="suave" style={estilos.carga}>
             {carga.rotulo}: <Texto numerico style={estilos.valor}>{carga.valor}</Texto>
@@ -94,7 +94,7 @@ export function CartaoExercicioDoDia({
           </Texto>
         )}
         {total > 0 ? (
-          <Selo texto={`${feitas}/${total} séries`} tipo={completo ? 'sucesso' : feitas ? 'atencao' : 'neutro'} />
+          <Selo texto={`${feitas}/${total} séries`} tipo="neutro" />
         ) : null}
       </View>
     </Pressable>

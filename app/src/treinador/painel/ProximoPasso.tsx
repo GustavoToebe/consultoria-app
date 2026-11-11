@@ -9,18 +9,20 @@ export interface ProximoPassoDaTela {
   texto: string;
   /** Botão (o único primário do Início); `null` quando está tudo em dia. */
   acao: { rotulo: string; aoTocar: () => void } | null;
+  /** A pendência é um atraso: a borda acende em `perigo`, o mesmo do indicador "Atrasadas" (guia de 11/11, pág. 16). */
+  atraso?: boolean;
 }
 
 /**
  * A primeira coisa do painel, quando os Primeiros passos não ocupam o lugar: a pendência mais importante e um botão.
- * A borda à esquerda acende em âmbar com pendência; sem nada, fica neutra e sem botão.
+ * A borda à esquerda acende em âmbar com pendência (em `perigo` se for atraso); sem nada, fica neutra e sem botão.
  */
 export function ProximoPasso({ passo }: { passo: ProximoPassoDaTela }) {
   const { cores, bordas } = useTema();
-  const acesa = !!passo.acao;
+  const acento = !passo.acao ? cores.divisor : passo.atraso ? cores.perigo : cores.atencao;
   return (
     <View accessibilityRole="summary"
-      style={[estilos.passo, { borderWidth: bordas.bloco, borderColor: cores.borda, borderLeftColor: acesa ? cores.atencao : cores.borda, backgroundColor: cores.superficie }]}>
+      style={[estilos.passo, { borderWidth: bordas.bloco, borderColor: cores.divisor, borderLeftColor: acento, backgroundColor: cores.superficie }]}>
       <View style={estilos.texto}>
         <Texto variante="secao">Próximo passo</Texto>
         <Texto variante="bloco">{passo.texto}</Texto>

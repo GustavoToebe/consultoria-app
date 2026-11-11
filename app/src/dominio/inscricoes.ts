@@ -45,9 +45,9 @@ export const LIMITES_INSCRICAO = {
 export const SEM_FORMULARIO_PADRAO = 'Não há formulário de inscrição padrão. Defina um em Planejamento › Inscrição.';
 
 const SITUACOES: Record<SituacaoInscricao, { texto: string; tipo: TipoDeSelo }> = {
-  NOVA: { texto: 'Nova', tipo: 'atencao' },
-  EM_CONTATO: { texto: 'Em contato', tipo: 'atencao' },
-  EM_NEGOCIACAO: { texto: 'Em negociação', tipo: 'atencao' },
+  NOVA: { texto: 'Nova', tipo: 'neutro' },
+  EM_CONTATO: { texto: 'Em contato', tipo: 'neutro' },
+  EM_NEGOCIACAO: { texto: 'Em negociação', tipo: 'neutro' },
   ACEITA: { texto: 'Aceita', tipo: 'sucesso' },
   RECUSADA: { texto: 'Recusada', tipo: 'neutro' },
   DESISTIU: { texto: 'Desistiu', tipo: 'neutro' },
@@ -59,7 +59,10 @@ const PAGAMENTOS: Record<PagamentoInscricao, { texto: string; tipo: TipoDeSelo }
   CONFIRMADO_MANUAL: { texto: 'Confirmado (manual)', tipo: 'sucesso' },
 };
 
-/** Selo da situação comercial: âmbar enquanto em atendimento, verde aceita, cinza encerrada (nunca a cor da marca). */
+/**
+ * Selo da situação comercial: a etapa aberta é neutra (é etapa, não pendência; o destaque fica no retorno atrasado ou
+ * de hoje, `seloDoRetorno`), verde aceita, cinza encerrada (nunca a cor da marca).
+ */
 export function seloDaSituacao(s: SituacaoInscricao): { texto: string; tipo: TipoDeSelo } {
   return SITUACOES[s];
 }

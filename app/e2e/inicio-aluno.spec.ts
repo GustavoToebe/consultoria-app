@@ -317,3 +317,48 @@ test('a barra tem Início, Treino, Dieta, Histórico e Conta', async ({ page }) 
   }
   await expect(page.getByRole('link', { name: 'Mobilidade', exact: true })).toHaveCount(0);
 });
+
+test('M1–M4: mapa de treinos abaixo de "Sua semana", com título, legenda escrita e o dia tocado na linha de baixo', async ({ page }) => {
+  const VERSAO = 't0000000-0000-4000-8000-000000000002';
+  const conclusao = (data: string, resultado: 'COMPLETA' | 'PARCIAL', sessaoNome: string) =>
+    ({ planoVersaoId: VERSAO, sessaoUid: 'sa', sessaoNome, data, concluida: true, resultado, duracaoSegundos: 3000, comentario: null });
+  const { errosDaPagina } = await abrirInicio(page, {
+    extra: {
+      ...(await sessao(page, ALUNO, { retornoHabilitado: true })),
+      'GET /aluno/sessoes-concluidas': {
+        corpo: {
+          totalConcluidos: 2,
+          sessoes: [conclusao('2026-10-14', 'PARCIAL', 'Treino fictício B'), conclusao('2026-10-19', 'COMPLETA', 'Treino fictício A')],
+        } satisfies SessoesConcluidasResponse,
+      },
+    },
+  });
+
+  const titulo = page.getByRole('heading', { name: '2 dias de treino no último ano' });
+  await expect(titulo).toBeVisible();
+  expect(await topo(page, 'Sua semana')).toBeLessThan(await topo(page, '2 dias de treino no último ano'));
+  for (const legenda of ['Sem treino', 'Fiz em parte', 'Fiz tudo']) await expect(page.getByText(legenda, { exact: true }).first()).toBeVisible();
+
+  // Tocar no dia mostra o texto dele na linha fixa abaixo da grade; dia futuro não é botão.
+  await page.getByRole('button', { name: '14 de outubro: Treino fictício B, fiz em parte', exact: true }).click();
+  await expect(page.getByText('14 de outubro: Treino fictício B, fiz em parte', { exact: true }).last()).toBeVisible();
+  await expect(page.getByRole('button', { name: /ainda não chegou/ })).toHaveCount(0);
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('mapa de treinos vazio: grade com a frase', async ({ page }) => {
+  await abrirInicio(page, {
+    extra: {
+      ...(await sessao(page, ALUNO, { retornoHabilitado: true })),
+      'GET /aluno/sessoes-concluidas': { corpo: { totalConcluidos: 0, sessoes: [] } satisfies SessoesConcluidasResponse },
+    },
+  });
+  await expect(page.getByRole('heading', { name: 'Seu ano de treinos' })).toBeVisible();
+  await expect(page.getByText('Seus treinos concluídos aparecem aqui, um quadrado por dia.')).toBeVisible();
+});
+
+test('sem o retorno ligado o mapa de treinos não aparece', async ({ page }) => {
+  await abrirInicio(page);
+  await expect(page.getByRole('heading', { name: 'Sua semana' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /dias? de treino no último ano|Seu ano de treinos/ })).toHaveCount(0);
+});

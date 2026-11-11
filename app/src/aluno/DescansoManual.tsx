@@ -35,7 +35,7 @@ export function DescansoManual({ sugeridoSegundos }: { sugeridoSegundos?: number
       {linha.map(s=><Botao key={s} rotulo={rotuloDescanso(s)} tipo="secundario" style={{flex:1}} aoTocar={()=>iniciar(s)} />)}
      </View>)}
     </View>
-    <View style={{gap:8,borderTopWidth:1,borderTopColor:cores.borda,paddingTop:16}}>
+    <View style={{gap:8,borderTopWidth:1,borderTopColor:cores.divisor,paddingTop:16}}>
      <Texto variante="pequeno">Outro tempo</Texto>
      <View style={{flexDirection:'row',gap:8}}>
       <View style={{flex:1}}><Campo numerico rotulo="Minutos" valor={minutos} aoMudar={t=>mudarMinutos(soDigitos(t))} keyboardType="number-pad" inputMode="numeric" placeholder="0" maxLength={2} /></View>

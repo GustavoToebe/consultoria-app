@@ -14,8 +14,8 @@ import { ALUNO, erroApi, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINAD
  */
 const CURTIDA = '❤️';
 const POST: PostDoMural = {
-  id: 'p1', autorId: 'u1', autorNome: 'Treinadora Teste', autorApelido: null, autorEhAluno: false, autorFotoUrl: null, texto: 'Semana de constância, time!', imagemUrl: null,
-  fixado: true, criadoEm: '2026-10-19T12:00:00-03:00', reacoes: { [CURTIDA]: 2, '🔥': 5 }, minhasReacoes: [], totalComentarios: 4,
+  id: 'p1', autorId: 'u1', autorNome: 'Treinadora Teste', autorApelido: null, autorEhAluno: false, autorFotoUrl: null, texto: 'Semana de constância, time!',
+  tipo: 'CONVERSA', videoUrl: null, fotos: [], respondida: false, fixado: true, criadoEm: '2026-10-19T12:00:00-03:00', reacoes: { [CURTIDA]: 2, '🔥': 5 }, minhasReacoes: [], totalComentarios: 4,
 };
 const POST_CURTIDO: PostDoMural = {
   ...POST, id: 'p2', autorId: 'u2', autorNome: 'Aluno Fictício', autorApelido: 'Fictí', autorEhAluno: true, texto: 'Treino feito.', fixado: false,
@@ -38,8 +38,8 @@ const PERFIL: PerfilDaComunidade = {
 const RANKING: PosicaoNoRanking = { posicao: 2, treinosConcluidos: 8, pontuacao: 80, participantes: 12 };
 
 const COMENTARIOS: ComentarioDoMural[] = [
-  { id: 'c1', autorId: 'u2', autorNome: 'Aluno Fictício', autorApelido: 'Fictí', autorEhAluno: true, autorFotoUrl: null, texto: 'Bora, time!', criadoEm: '2026-10-19T13:00:00-03:00' },
-  { id: 'c2', autorId: 'u1', autorNome: 'Treinadora Teste', autorApelido: null, autorEhAluno: false, autorFotoUrl: null, texto: 'Mandou bem.', criadoEm: '2026-10-19T14:00:00-03:00' },
+  { id: 'c1', autorId: 'u2', autorNome: 'Aluno Fictício', autorApelido: 'Fictí', autorEhAluno: true, autorFotoUrl: null, texto: 'Bora, time!', criadoEm: '2026-10-19T13:00:00-03:00', daEquipe: false },
+  { id: 'c2', autorId: 'u1', autorNome: 'Treinadora Teste', autorApelido: null, autorEhAluno: false, autorFotoUrl: null, texto: 'Mandou bem.', criadoEm: '2026-10-19T14:00:00-03:00', daEquipe: true },
 ];
 
 /** Uma página da lista, como a API: `?pagina=` (0 primeiro) e `?tamanho=` (padrão 30), `{itens, total}`. */
@@ -74,7 +74,13 @@ const varios = (n: number): ComentarioDoMural[] => Array.from({ length: n }, (_,
   ...COMENTARIOS[0], id: `v${i + 1}`, texto: `Comentário de teste ${i + 1}`, criadoEm: `2026-10-19T13:${String(i).padStart(2, '0')}:00-03:00`,
 }));
 
+// Chaves do mural (C9): ligadas para publicar, sem foto; cada teste que mexe nelas troca a rota.
+const CONFIGURACAO_DO_ALUNO = { alunosPublicam: true, podeAnexarFoto: false };
+const CONFIGURACAO_DA_EQUIPE = { alunosPublicam: true, alunosAnexamFotos: false };
+
 const cheia: RespostasApi = {
+  'GET /aluno/comunidade/configuracao': { corpo: CONFIGURACAO_DO_ALUNO },
+  'GET /comunidade/configuracao': { corpo: CONFIGURACAO_DA_EQUIPE },
   'GET /aluno/comunidade/mural': { corpo: pagina(POST, POST_CURTIDO) },
   'GET /aluno/comunidade/aulas': { corpo: [AULA] },
   'GET /aluno/comunidade/conquistas': { corpo: CONQUISTAS },
@@ -84,6 +90,8 @@ const cheia: RespostasApi = {
   'GET /comunidade/aulas': { corpo: [AULA] },
 };
 const vazia: RespostasApi = {
+  'GET /aluno/comunidade/configuracao': { corpo: CONFIGURACAO_DO_ALUNO },
+  'GET /comunidade/configuracao': { corpo: CONFIGURACAO_DA_EQUIPE },
   'GET /aluno/comunidade/mural': { corpo: pagina() },
   'GET /aluno/comunidade/aulas': { corpo: [] },
   'GET /aluno/comunidade/conquistas': { corpo: [] },
@@ -104,6 +112,26 @@ async function tema(page: Page, usuarioId: string, t: string, contraste = 'PADRA
 const TEMAS = [['claro', 'CLARO', 'PADRAO'], ['escuro', 'ESCURO', 'PADRAO'], ['areia', 'AREIA', 'PADRAO'], ['contraste', 'CLARO', 'ALTO']] as const;
 
 const foiPost = (p: { metodo: string; caminho: string }, caminho: string) => p.metodo === 'POST' && p.caminho === caminho;
+const novaPublicacao = (page: Page) => page.getByRole('dialog', { name: 'Nova publicação' });
+
+/** Posts de cada tipo, como a API manda (o aviso fixado vem por último para conferir que a tela o põe no topo). */
+const DUVIDA: PostDoMural = { ...POST_CURTIDO, id: 'p3', tipo: 'DUVIDA', texto: 'Dúvida de teste sobre o aquecimento.', respondida: true, minhasReacoes: [] };
+const VIDEO: PostDoMural = { ...POST, id: 'p4', tipo: 'VIDEO', texto: 'Vídeo de teste da técnica', videoUrl: 'https://video.exemplo.invalid/aula', fixado: false, totalComentarios: 0 };
+const AVISO: PostDoMural = { ...POST, id: 'p5', tipo: 'AVISO', texto: 'Aviso de teste para o time.', fixado: true, totalComentarios: 0 };
+
+/** JPEG fictício gerado na página (quadrado em degradê), para o seletor de arquivo da web. */
+async function jpegFicticio(page: Page): Promise<Buffer> {
+  const base64 = await page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 64;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = '#5a7d9a';
+    ctx.fillRect(0, 0, 64, 64);
+    return canvas.toDataURL('image/jpeg', 0.9).split(',')[1];
+  });
+  return Buffer.from(base64, 'base64');
+}
 
 for (const largura of [390, 1280]) {
   test.describe(`${largura} px`, () => {
@@ -140,35 +168,68 @@ for (const largura of [390, 1280]) {
       expect(api.errosDaPagina).toEqual([]);
     });
 
-    test('aluno: publicar fica desabilitado com motivo até escrever e envia só o texto', async ({ page }) => {
+    test('aluno: "Nova publicação" abre a folha, valida no envio, escolhe o tipo e manda o objeto; sem foto, sem botão de foto', async ({ page }) => {
       const api = await simularApi(page, { ...(await sessaoDeAluno(page)), ...vazia, 'POST /aluno/comunidade/mural': { corpo: { ...POST, id: 'novo', texto: 'Oi, time' } } });
       await page.goto('/aluno/comunidade');
-      const publicar = page.getByRole('button', { name: /^Publicar/ });
-      await expect(publicar).toBeDisabled();
-      await expect(page.getByText('Escreva a mensagem.')).toBeVisible();
-      await page.getByRole('textbox', { name: 'Mensagem para o time' }).fill('Oi, time');
-      await expect(publicar).toBeEnabled();
-      await publicar.click();
-      await expect.poll(() => api.pedidos.find((p) => foiPost(p, '/aluno/comunidade/mural'))?.corpo).toEqual({ texto: 'Oi, time' });
+      await page.getByRole('button', { name: 'Nova publicação' }).click();
+      const folha = novaPublicacao(page);
+      // O aluno escolhe só Conversa, Dúvida e Resultado; Aviso e Vídeo são da equipe.
+      await expect(folha.getByRole('radio', { name: 'Conversa', exact: true })).toBeChecked();
+      await expect(folha.getByRole('radio', { name: 'Aviso', exact: true })).toHaveCount(0);
+      await expect(folha.getByRole('button', { name: 'Adicionar foto' })).toHaveCount(0);
+      await folha.getByRole('button', { name: /^Publicar/ }).click();
+      await expect(folha.getByText('Escreva a publicação.')).toBeVisible();
+      expect(api.pedidos.some((p) => foiPost(p, '/aluno/comunidade/mural'))).toBe(false);
+      await capturar(page, `aluno-nova-publicacao-erro-${largura}`);
+
+      await folha.getByRole('radio', { name: 'Dúvida', exact: true }).click();
+      await folha.getByRole('textbox', { name: 'Texto', exact: true }).fill('Oi, time');
+      await folha.getByRole('button', { name: /^Publicar/ }).click();
+      await expect.poll(() => api.pedidos.find((p) => foiPost(p, '/aluno/comunidade/mural'))?.corpo).toEqual({ tipo: 'DUVIDA', texto: 'Oi, time' });
+      await expect(folha).toHaveCount(0);
+      await expect(page.getByText('Publicado no mural.')).toBeVisible();
+      expect(api.naoTratadas).toEqual([]);
+      expect(api.errosDaPagina).toEqual([]);
     });
 
-    test('aluno: vindo do "Bom trabalho!", a mensagem vem escrita e a aba muda sem perder o rascunho', async ({ page }) => {
-      const api = await simularApi(page, { ...(await sessaoDeAluno(page)), ...vazia, 'POST /aluno/comunidade/mural': { corpo: { ...POST, id: 'novo' } } });
-      await page.goto('/aluno/comunidade?compartilharTreino=true&tituloTreino=Treino%20A&dataTreino=2026-10-19');
-      const mensagem = page.getByRole('textbox', { name: 'Mensagem para o time' });
-      await expect(mensagem).toHaveValue('Acabei de finalizar meu Treino A!');
-      // O mural só guarda texto: não há treino anexado.
-      await expect(page.getByText('Treino anexado: Treino A')).toHaveCount(0);
-      await capturar(page, `aluno-compartilhar-${largura}`);
-
-      await page.getByRole('tab', { name: 'Conquistas' }).click();
-      await expect(page).toHaveURL(/aba=ranking/);
-      await page.getByRole('tab', { name: 'Mural' }).click();
-      await expect(mensagem).toHaveValue('Acabei de finalizar meu Treino A!');
-
-      await page.getByRole('button', { name: /^Publicar/ }).click();
-      await expect.poll(() => api.pedidos.find((p) => foiPost(p, '/aluno/comunidade/mural'))?.corpo).toEqual({ texto: 'Acabei de finalizar meu Treino A!' });
+    test('aluno: com "Alunos podem publicar" desligado, só a frase neutra; curtir e comentar continuam', async ({ page }) => {
+      const api = await simularApi(page, { ...(await sessaoDeAluno(page)), ...cheia, 'GET /aluno/comunidade/configuracao': { corpo: { alunosPublicam: false, podeAnexarFoto: false } } });
+      await page.goto('/aluno/comunidade');
+      await expect(page.getByText('No momento, só a equipe publica no mural. Você pode curtir e comentar.')).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Nova publicação' })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Curtir' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Ver 4 comentário(s)' })).toBeVisible();
       expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('aluno: vindo do "Bom trabalho!", abre Resultado com o texto editável, limpa o endereço e não publica sozinho', async ({ page }) => {
+      const api = await simularApi(page, { ...(await sessaoDeAluno(page)), ...vazia, 'POST /aluno/comunidade/mural': { corpo: { ...POST, id: 'novo' } } });
+      await page.goto('/aluno/comunidade?publicar=RESULTADO&texto=Treino%20conclu%C3%ADdo%3A%20Treino%20A.');
+      const folha = novaPublicacao(page);
+      const texto = folha.getByRole('textbox', { name: 'Texto', exact: true });
+      await expect(texto).toHaveValue('Treino concluído: Treino A.');
+      await expect(folha.getByRole('radio', { name: 'Resultado', exact: true })).toBeChecked();
+      await expect(page).not.toHaveURL(/publicar=/);
+      await capturar(page, `aluno-publicar-resultado-${largura}`);
+      expect(api.pedidos.some((p) => foiPost(p, '/aluno/comunidade/mural'))).toBe(false);
+
+      // Fechar e reabrir mantém o rascunho; o texto pronto é editável.
+      await folha.getByRole('button', { name: 'Cancelar' }).click();
+      await page.getByRole('button', { name: 'Nova publicação' }).click();
+      await texto.fill('Treino concluído: Treino A. Bora!');
+      await folha.getByRole('button', { name: /^Publicar/ }).click();
+      await expect.poll(() => api.pedidos.find((p) => foiPost(p, '/aluno/comunidade/mural'))?.corpo)
+        .toEqual({ tipo: 'RESULTADO', texto: 'Treino concluído: Treino A. Bora!' });
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('aluno: vindo do "Bom trabalho!" com a chave desligada, nada abre e fica a frase neutra', async ({ page }) => {
+      const api = await simularApi(page, { ...(await sessaoDeAluno(page)), ...vazia, 'GET /aluno/comunidade/configuracao': { corpo: { alunosPublicam: false, podeAnexarFoto: false } } });
+      await page.goto('/aluno/comunidade?publicar=RESULTADO&texto=Treino%20conclu%C3%ADdo.');
+      await expect(page.getByText('No momento, só a equipe publica no mural. Você pode curtir e comentar.')).toBeVisible();
+      await expect(novaPublicacao(page)).toHaveCount(0);
+      await expect(page).not.toHaveURL(/publicar=/);
+      expect(api.pedidos.some((p) => foiPost(p, '/aluno/comunidade/mural'))).toBe(false);
     });
 
     test('aluno: vazio em cada fonte e aviso sem conexão', async ({ page }) => {
@@ -210,15 +271,138 @@ for (const largura of [390, 1280]) {
       expect(api.errosDaPagina).toEqual([]);
     });
 
-    test('aluno: publicar com erro da API avisa e não finge que publicou', async ({ page }) => {
+    test('aluno: publicar com erro da API avisa dentro da folha e não finge que publicou', async ({ page }) => {
       const e = erroApi(429, 'Muitas publicações. Tente de novo em instantes.');
       await simularApi(page, { ...(await sessaoDeAluno(page)), ...vazia, 'POST /aluno/comunidade/mural': (_p, route) => json(route, e.corpo, e.status) });
       await page.goto('/aluno/comunidade');
-      await page.getByRole('textbox', { name: 'Mensagem para o time' }).fill('Oi, time');
-      await page.getByRole('button', { name: /^Publicar/ }).click();
-      await expect(page.getByText('Muitas publicações. Tente de novo em instantes.')).toBeVisible();
-      await expect(page.getByRole('textbox', { name: 'Mensagem para o time' })).toHaveValue('Oi, time');
+      await page.getByRole('button', { name: 'Nova publicação' }).click();
+      const folha = novaPublicacao(page);
+      await folha.getByRole('textbox', { name: 'Texto', exact: true }).fill('Oi, time');
+      await folha.getByRole('button', { name: /^Publicar/ }).click();
+      await expect(folha.getByText('Muitas publicações. Tente de novo em instantes.')).toBeVisible();
+      await expect(folha.getByRole('textbox', { name: 'Texto', exact: true })).toHaveValue('Oi, time');
+      await page.keyboard.press('Escape');
       await expect(page.getByText('Nenhuma publicação no mural ainda.')).toBeVisible();
+    });
+
+    test('aluno: chips do tipo e busca vão à API; vazio com filtro diz isso e limpa', async ({ page }) => {
+      const api = await simularApi(page, {
+        ...(await sessaoDeAluno(page)), ...cheia,
+        'GET /aluno/comunidade/mural': (p, route) => json(route, p.busca.get('tipo') || p.busca.get('busca') ? pagina() : pagina(POST, POST_CURTIDO)),
+      });
+      await page.goto('/aluno/comunidade');
+      await expect(page.getByText('Treino feito.')).toBeVisible();
+      for (const rotulo of ['Todos', 'Avisos', 'Vídeos', 'Dúvidas', 'Resultados', 'Conversas']) {
+        await expect(page.getByRole('radio', { name: rotulo, exact: true })).toHaveCount(1);
+      }
+      await expect(page.getByRole('radio', { name: 'Denunciados', exact: true })).toHaveCount(0);
+      await page.getByRole('radio', { name: 'Dúvidas', exact: true }).click();
+      await expect.poll(() => api.pedidos.some((p) => p.caminho === '/aluno/comunidade/mural' && p.busca.get('tipo') === 'DUVIDA')).toBe(true);
+      await expect(page.getByText('Nenhuma publicação encontrada com esse filtro.')).toBeVisible();
+      await capturar(page, `aluno-mural-filtro-vazio-${largura}`);
+      await page.getByRole('button', { name: 'Limpar filtros' }).click();
+      await expect(page.getByText('Treino feito.')).toBeVisible();
+
+      await page.getByRole('searchbox', { name: 'Buscar na comunidade' }).fill('supino');
+      await expect.poll(() => api.pedidos.some((p) => p.caminho === '/aluno/comunidade/mural' && p.busca.get('busca') === 'supino')).toBe(true);
+      await expect(page.getByText('Nenhuma publicação encontrada com esse filtro.')).toBeVisible();
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('aluno: aviso fixado no topo, vídeo com "Assistir" fora do app e dúvida respondida', async ({ page, context }) => {
+      await context.route('https://video.exemplo.invalid/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<p>Vídeo de teste</p>' }));
+      const api = await simularApi(page, { ...(await sessaoDeAluno(page)), ...cheia, 'GET /aluno/comunidade/mural': { corpo: pagina(VIDEO, DUVIDA, AVISO) } });
+      await page.goto('/aluno/comunidade');
+      const aviso = page.getByText('Aviso de teste para o time.');
+      const video = page.getByText('Vídeo de teste da técnica');
+      await expect(aviso).toBeVisible();
+      // Fixado primeiro, com os dois selos.
+      expect((await aviso.boundingBox())!.y).toBeLessThan((await video.boundingBox())!.y);
+      await expect(page.getByText('Aviso', { exact: true })).toBeVisible();
+      await expect(page.getByText('Fixado', { exact: true })).toBeVisible();
+      await expect(page.getByText('Respondida', { exact: true })).toBeVisible();
+      // O vídeo não traz miniatura de fora: só o título e o botão.
+      await expect(page.locator('img[src^="http"]')).toHaveCount(0);
+      await capturar(page, `aluno-mural-tipos-${largura}`);
+      const [popup] = await Promise.all([page.waitForEvent('popup'), page.getByRole('button', { name: 'Assistir: Vídeo de teste da técnica' }).click()]);
+      await popup.waitForURL('https://video.exemplo.invalid/aula');
+      expect(await popup.evaluate(() => window.opener)).toBeNull();
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('aluno: com foto liberada, anexa uma, vê a miniatura, remove a pendente e publica com as fotos', async ({ page }) => {
+      let n = 0;
+      let jpeg: Buffer = Buffer.alloc(0);
+      const api = await simularApi(page, {
+        ...(await sessaoDeAluno(page)), ...vazia,
+        'GET /aluno/comunidade/configuracao': { corpo: { alunosPublicam: true, podeAnexarFoto: true } },
+        'POST /aluno/comunidade/mural/fotos': (_p, route) => json(route, { id: `f${++n}` }),
+        'GET /aluno/comunidade/mural/fotos/{id}': (_p, route) => route.fulfill({ status: 200, contentType: 'image/jpeg', body: jpeg }),
+        'DELETE /aluno/comunidade/mural/fotos/{id}': (_p, route) => route.fulfill({ status: 204 }),
+        'POST /aluno/comunidade/mural': { corpo: { ...POST, id: 'novo' } },
+      });
+      await page.goto('/aluno/comunidade');
+      jpeg = await jpegFicticio(page);
+      await page.getByRole('button', { name: 'Nova publicação' }).click();
+      const folha = novaPublicacao(page);
+      const anexar = async () => {
+        const [seletor] = await Promise.all([page.waitForEvent('filechooser'), folha.getByRole('button', { name: 'Adicionar foto' }).click()]);
+        await seletor.setFiles({ name: 'foto-ficticia.jpg', mimeType: 'image/jpeg', buffer: jpeg });
+      };
+      await anexar();
+      await expect(folha.getByRole('button', { name: 'Remover a foto 1' })).toBeVisible();
+      await anexar();
+      await expect(folha.getByRole('button', { name: 'Remover a foto 2' })).toBeVisible();
+      await capturar(page, `aluno-nova-publicacao-fotos-${largura}`);
+      await folha.getByRole('button', { name: 'Remover a foto 1' }).click();
+      await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'DELETE').map((p) => p.caminho)).toEqual(['/aluno/comunidade/mural/fotos/f1']);
+      await expect(folha.getByRole('button', { name: 'Remover a foto 2' })).toHaveCount(0);
+      await folha.getByRole('textbox', { name: 'Texto', exact: true }).fill('Resultado de teste');
+      await folha.getByRole('button', { name: /^Publicar/ }).click();
+      await expect.poll(() => api.pedidos.find((p) => foiPost(p, '/aluno/comunidade/mural'))?.corpo).toEqual({ tipo: 'CONVERSA', texto: 'Resultado de teste', fotoIds: ['f2'] });
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('aluno: foto recusada pela API (422) aparece junto das fotos', async ({ page }) => {
+      const e = erroApi(422, 'A foto passou do tamanho.', 'FOTO_GRANDE_DEMAIS');
+      await simularApi(page, {
+        ...(await sessaoDeAluno(page)), ...vazia,
+        'GET /aluno/comunidade/configuracao': { corpo: { alunosPublicam: true, podeAnexarFoto: true } },
+        'POST /aluno/comunidade/mural/fotos': (_p, route) => json(route, e.corpo, e.status),
+      });
+      await page.goto('/aluno/comunidade');
+      const jpeg = await jpegFicticio(page);
+      await page.getByRole('button', { name: 'Nova publicação' }).click();
+      const folha = novaPublicacao(page);
+      const [seletor] = await Promise.all([page.waitForEvent('filechooser'), folha.getByRole('button', { name: 'Adicionar foto' }).click()]);
+      await seletor.setFiles({ name: 'foto-ficticia.jpg', mimeType: 'image/jpeg', buffer: jpeg });
+      await expect(folha.getByText('A foto passou do tamanho.')).toBeVisible();
+      await expect(folha.getByRole('button', { name: /^Remover a foto/ })).toHaveCount(0);
+    });
+
+    test('aluno: denuncia o post de outra pessoa pelo ⋯, com motivo, e o próprio post não tem ⋯', async ({ page }) => {
+      const MEU: PostDoMural = { ...POST_CURTIDO, id: 'p9', autorId: ALUNO.id, autorNome: ALUNO.nome, texto: 'Post do próprio aluno.' };
+      const api = await simularApi(page, {
+        ...(await sessaoDeAluno(page)), ...cheia,
+        'GET /aluno/comunidade/mural': { corpo: pagina(POST, MEU) },
+        'POST /aluno/comunidade/mural/{id}/denuncias': { status: 204 },
+      });
+      await page.goto('/aluno/comunidade');
+      await expect(page.getByText('Post do próprio aluno.')).toBeVisible();
+      await expect(page.getByRole('button', { name: `Ações da publicação de ${ALUNO.nome}` })).toHaveCount(0);
+      await page.getByRole('button', { name: 'Ações da publicação de Treinadora Teste' }).click();
+      await page.getByRole('dialog', { name: 'Ações da publicação' }).getByRole('button', { name: /^Denunciar/ }).click();
+      const painel = page.getByRole('alertdialog', { name: 'Denunciar a publicação?' });
+      await expect(painel.getByText(/Quem publicou não fica sabendo quem denunciou/)).toBeVisible();
+      await expect(painel.getByRole('button', { name: /^Denunciar/ })).toBeDisabled();
+      await painel.getByRole('radio', { name: 'Propaganda ou spam', exact: true }).click();
+      await capturar(page, `aluno-denunciar-${largura}`);
+      await painel.getByRole('button', { name: /^Denunciar/ }).click();
+      await expect.poll(() => api.pedidos.find((p) => foiPost(p, '/aluno/comunidade/mural/p1/denuncias'))?.corpo).toEqual({ motivo: 'SPAM' });
+      await expect(painel).toHaveCount(0);
+      await expect(page.getByText('Denúncia enviada.')).toBeVisible();
+      expect(api.naoTratadas).toEqual([]);
+      expect(api.errosDaPagina).toEqual([]);
     });
 
     for (const [nome, t, contraste] of TEMAS) {
@@ -350,7 +534,7 @@ for (const largura of [390, 1280]) {
         'POST /aluno/comunidade/mural/{id}/comentarios': (p, route) => {
           const novo: ComentarioDoMural = {
             id: 'c3', autorId: ALUNO.id, autorNome: ALUNO.nome, autorApelido: null, autorEhAluno: true, autorFotoUrl: null,
-            texto: (p.corpo as { texto: string }).texto.trim(), criadoEm: '2026-10-20T09:00:00-03:00',
+            texto: (p.corpo as { texto: string }).texto.trim(), criadoEm: '2026-10-20T09:00:00-03:00', daEquipe: false,
           };
           estado.lista.push(novo);
           return json(route, novo);
@@ -681,23 +865,111 @@ for (const largura of [390, 1280]) {
       await expect(page.getByText('Treino feito.')).toBeVisible();
       await expect(page.getByText('Fixado', { exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Curtir' })).toHaveCount(0);
-      await page.getByRole('textbox', { name: 'Mensagem' }).fill('Rascunho de teste');
+      await page.getByRole('button', { name: 'Nova publicação' }).click();
+      await novaPublicacao(page).getByRole('textbox', { name: 'Texto', exact: true }).fill('Rascunho de teste');
+      await novaPublicacao(page).getByRole('button', { name: 'Cancelar' }).click();
       await page.getByRole('tab', { name: 'Aulões' }).click();
       await expect(page).toHaveURL(/aba=auloes/);
       await capturar(page, `treinador-mural-${largura}`);
       // A aba mora no endereço e a tela continua montada: o rascunho do mural continua lá.
       await page.getByRole('tab', { name: 'Mural' }).click();
       await expect(page).toHaveURL(/aba=mural/);
-      await expect(page.getByRole('textbox', { name: 'Mensagem' })).toHaveValue('Rascunho de teste');
+      await page.getByRole('button', { name: 'Nova publicação' }).click();
+      await expect(novaPublicacao(page).getByRole('textbox', { name: 'Texto', exact: true })).toHaveValue('Rascunho de teste');
+      expect(api.naoTratadas.filter((r) => r.includes('/comunidade'))).toEqual([]);
       expect(api.errosDaPagina).toEqual([]);
     });
 
-    test('treinador: publicar no mural envia só o texto', async ({ page }) => {
+    test('treinador: publica aviso (nasce fixado, a tela diz) e vídeo (link https conferido no envio)', async ({ page }) => {
       const api = await abrirTreinador(page, { ...vazia, 'POST /comunidade/mural': { corpo: { ...POST, id: 'novo' } } });
       await page.goto('/treinador/comunidade?aba=mural');
-      await page.getByRole('textbox', { name: 'Mensagem' }).fill('Recado do time');
-      await page.getByRole('button', { name: 'Publicar no mural' }).click();
-      await expect.poll(() => api.pedidos.find((p) => foiPost(p, '/comunidade/mural'))?.corpo).toEqual({ texto: 'Recado do time' });
+      await page.getByRole('button', { name: 'Nova publicação' }).click();
+      const folha = novaPublicacao(page);
+      await folha.getByRole('radio', { name: 'Aviso', exact: true }).click();
+      await expect(folha.getByText(/O aviso nasce fixado no topo do mural/)).toBeVisible();
+      await folha.getByRole('textbox', { name: 'Texto', exact: true }).fill('Recado do time');
+      await capturar(page, `treinador-nova-publicacao-aviso-${largura}`);
+      await folha.getByRole('button', { name: /^Publicar/ }).click();
+      await expect.poll(() => api.pedidos.find((p) => foiPost(p, '/comunidade/mural'))?.corpo).toEqual({ tipo: 'AVISO', texto: 'Recado do time' });
+      await expect(folha).toHaveCount(0);
+
+      await page.getByRole('button', { name: 'Nova publicação' }).click();
+      await folha.getByRole('radio', { name: 'Vídeo', exact: true }).click();
+      await folha.getByRole('textbox', { name: 'Título do vídeo' }).fill('Vídeo de teste');
+      await folha.getByRole('textbox', { name: 'Link do vídeo' }).fill('http://video.exemplo.invalid/aula');
+      await folha.getByRole('button', { name: /^Publicar/ }).click();
+      await expect(folha.getByText(/https/)).toBeVisible();
+      await folha.getByRole('textbox', { name: 'Link do vídeo' }).fill('https://video.exemplo.invalid/aula');
+      await folha.getByRole('button', { name: /^Publicar/ }).click();
+      await expect.poll(() => api.pedidos.filter((p) => foiPost(p, '/comunidade/mural')).map((p) => p.corpo))
+        .toEqual([{ tipo: 'AVISO', texto: 'Recado do time' }, { tipo: 'VIDEO', texto: 'Vídeo de teste', videoUrl: 'https://video.exemplo.invalid/aula' }]);
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('treinador: as chaves do mural mudam na hora, o PUT manda as duas e a recusa volta com aviso', async ({ page }) => {
+      let recusar = false;
+      const api = await abrirTreinador(page, {
+        ...cheia,
+        'PUT /comunidade/configuracao': (p, route) => {
+          if (recusar) { const e = erroApi(409, 'Configuração recusada.', 'CONFLITO_EDICAO'); return json(route, e.corpo, e.status); }
+          return json(route, p.corpo);
+        },
+      });
+      await page.goto('/treinador/comunidade?aba=mural');
+      const publicar = page.getByRole('switch', { name: 'Alunos podem publicar' });
+      const fotos = page.getByRole('switch', { name: 'Alunos podem anexar fotos' });
+      await expect(publicar).toBeChecked();
+      await expect(fotos).not.toBeChecked();
+      await capturar(page, `treinador-chaves-${largura}`);
+      await fotos.click();
+      await expect(fotos).toBeChecked();
+      await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').map((p) => p.corpo)).toEqual([{ alunosPublicam: true, alunosAnexamFotos: true }]);
+
+      recusar = true;
+      await publicar.click();
+      await expect(page.getByText('Configuração recusada.')).toBeVisible();
+      await expect(publicar).toBeChecked();
+      expect(api.pedidos.filter((p) => p.metodo === 'PUT').at(-1)?.corpo).toEqual({ alunosPublicam: false, alunosAnexamFotos: true });
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('treinador: moderação pelo ⋯ — desafixar, denunciados com a contagem, dispensar e remover com confirmação', async ({ page }) => {
+      const DENUNCIADO: PostDoMural = { ...POST_CURTIDO, denuncias: 2 };
+      const api = await abrirTreinador(page, {
+        ...cheia,
+        'GET /comunidade/mural': (p, route) => json(route, p.busca.get('denunciados') === 'true' ? pagina(DENUNCIADO) : pagina(POST, DENUNCIADO)),
+        'POST /comunidade/mural/{id}/fixar': { status: 204 },
+        'POST /comunidade/mural/{id}/denuncias/dispensar': { status: 204 },
+        'DELETE /comunidade/mural/{id}': { status: 204 },
+      });
+      await page.goto('/treinador/comunidade?aba=mural');
+      await expect(page.getByText('2 denúncias', { exact: true })).toBeVisible();
+      await page.getByRole('button', { name: 'Ações da publicação de Treinadora Teste' }).click();
+      const menu = page.getByRole('dialog', { name: 'Ações da publicação' });
+      await expect(menu.getByRole('button', { name: /^Dispensar denúncias/ })).toHaveCount(0);
+      await menu.getByRole('button', { name: /^Desafixar/ }).click();
+      await expect.poll(() => api.pedidos.some((p) => foiPost(p, '/comunidade/mural/p1/fixar'))).toBe(true);
+      await expect(page.getByText('Publicação desafixada.')).toBeVisible();
+
+      await page.getByRole('radio', { name: 'Denunciados', exact: true }).click();
+      await expect.poll(() => api.pedidos.some((p) => p.caminho === '/comunidade/mural' && p.busca.get('denunciados') === 'true')).toBe(true);
+      await expect(page.getByText('Semana de constância, time!')).toHaveCount(0);
+      await capturar(page, `treinador-denunciados-${largura}`);
+      await page.getByRole('button', { name: 'Ações da publicação de Aluno Fictício' }).click();
+      await menu.getByRole('button', { name: /^Dispensar denúncias/ }).click();
+      await expect.poll(() => api.pedidos.some((p) => foiPost(p, '/comunidade/mural/p2/denuncias/dispensar'))).toBe(true);
+
+      await page.getByRole('button', { name: 'Ações da publicação de Aluno Fictício' }).click();
+      await menu.getByRole('button', { name: /^Remover publicação/ }).click();
+      const painel = page.getByRole('alertdialog', { name: 'Remover a publicação?' });
+      await painel.getByRole('button', { name: 'Cancelar' }).click();
+      expect(api.pedidos.some((p) => p.metodo === 'DELETE')).toBe(false);
+      await page.getByRole('button', { name: 'Ações da publicação de Aluno Fictício' }).click();
+      await menu.getByRole('button', { name: /^Remover publicação/ }).click();
+      await painel.getByRole('button', { name: 'Remover publicação' }).click();
+      await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'DELETE').map((p) => p.caminho)).toEqual(['/comunidade/mural/p2']);
+      expect(api.naoTratadas.filter((r) => r.includes('/comunidade'))).toEqual([]);
+      expect(api.errosDaPagina).toEqual([]);
     });
 
     test('treinador: sem COMUNIDADE_MODERAR (mesmo com TREINO_ALTERAR) lê, mas não publica nem remove apelido', async ({ page }) => {
@@ -707,10 +979,12 @@ for (const largura of [390, 1280]) {
       await expect(page.getByRole('button', { name: 'Novo aulão' })).toHaveCount(0);
       await page.getByRole('tab', { name: 'Mural' }).click();
       await expect(page.getByText('Treino feito.')).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Publicar no mural' })).toHaveCount(0);
-      // O apelido aparece para todos; só a ação de moderar some.
+      await expect(page.getByRole('button', { name: 'Nova publicação' })).toHaveCount(0);
+      await expect(page.getByRole('switch')).toHaveCount(0);
+      await expect(page.getByRole('radio', { name: 'Denunciados', exact: true })).toHaveCount(0);
+      // O apelido aparece para todos; só a moderação (o ⋯) some.
       await expect(page.getByText('«Fictí»')).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Remover apelido' })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: /^Ações da publicação/ })).toHaveCount(0);
     });
 
     test('treinador: "Remover apelido" pede confirmação, chama o DELETE e recarrega o mural', async ({ page }) => {
@@ -722,9 +996,13 @@ for (const largura of [390, 1280]) {
       });
       await page.goto('/treinador/comunidade?aba=mural');
       await expect(page.getByText('«Fictí»')).toBeVisible();
+      const menu = page.getByRole('dialog', { name: 'Ações da publicação' });
       // Só o post do aluno com apelido tem a ação; o da equipe (sem apelido) não.
-      await expect(page.getByRole('button', { name: 'Remover apelido' })).toHaveCount(1);
-      await page.getByRole('button', { name: 'Remover apelido' }).click();
+      await page.getByRole('button', { name: 'Ações da publicação de Treinadora Teste' }).click();
+      await expect(menu.getByRole('button', { name: /^Remover apelido/ })).toHaveCount(0);
+      await page.keyboard.press('Escape');
+      await page.getByRole('button', { name: 'Ações da publicação de Aluno Fictício' }).click();
+      await menu.getByRole('button', { name: /^Remover apelido/ }).click();
       const painel = page.getByRole('alertdialog', { name: 'Remover o apelido?' });
       await expect(painel.getByText(/O apelido «Fictí» sai de Aluno Fictício/)).toBeVisible();
       await capturar(page, `treinador-remover-apelido-${largura}`);
@@ -732,15 +1010,42 @@ for (const largura of [390, 1280]) {
       await expect(painel).toHaveCount(0);
       expect(api.pedidos.some((p) => p.metodo === 'DELETE')).toBe(false);
 
-      await page.getByRole('button', { name: 'Remover apelido' }).click();
+      await page.getByRole('button', { name: 'Ações da publicação de Aluno Fictício' }).click();
+      await menu.getByRole('button', { name: /^Remover apelido/ }).click();
       await painel.getByRole('button', { name: 'Remover apelido' }).click();
       await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'DELETE').map((p) => p.caminho)).toEqual(['/comunidade/perfis/u2/apelido']);
       await expect(page.getByText('«Fictí»')).toHaveCount(0);
-      await expect(page.getByRole('button', { name: 'Remover apelido' })).toHaveCount(0);
       expect(api.errosDaPagina).toEqual([]);
     });
 
-    test('treinador: lê os comentários sem campo de texto e remove com confirmação; 404 tira da lista', async ({ page }) => {
+    test('treinador: com COMUNIDADE_MODERAR responde como equipe no post; o comentário entra com o selo', async ({ page }) => {
+      const { estado, rotas } = comComentarios('/comunidade/mural', '/comunidade/mural/{id}/comentarios');
+      const api = await abrirTreinador(page, {
+        ...cheia, ...rotas,
+        'POST /comunidade/mural/{id}/comentarios': (p, route) => {
+          const novo: ComentarioDoMural = {
+            id: 'c3', autorId: TREINADOR.id, autorNome: TREINADOR.nome, autorApelido: null, autorEhAluno: false, autorFotoUrl: null,
+            texto: (p.corpo as { texto: string }).texto.trim(), criadoEm: '2026-10-20T09:00:00-03:00', daEquipe: true,
+          };
+          estado.lista.push(novo);
+          return json(route, novo);
+        },
+      });
+      await page.goto('/treinador/comunidade?aba=mural');
+      await page.getByRole('button', { name: 'Ver 2 comentário(s)' }).click();
+      const folha = page.getByRole('dialog', { name: 'Comentários' });
+      await expect(folha.getByText('Equipe', { exact: true })).toHaveCount(1);
+      await folha.getByRole('textbox', { name: 'Responder como equipe' }).fill('Resposta de teste da equipe.');
+      await folha.getByRole('button', { name: /^Comentar/ }).click();
+      await expect.poll(() => api.pedidos.find((p) => foiPost(p, '/comunidade/mural/p1/comentarios'))?.corpo).toEqual({ texto: 'Resposta de teste da equipe.' });
+      await expect(folha.getByText('Resposta de teste da equipe.')).toBeVisible();
+      await expect(folha.getByText('Equipe', { exact: true })).toHaveCount(2);
+      await capturar(page, `treinador-comentar-como-equipe-${largura}`);
+      expect(api.naoTratadas.filter((r) => r.includes('/comunidade'))).toEqual([]);
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('treinador: lê os comentários e remove com confirmação; 404 tira da lista', async ({ page }) => {
       const { estado, rotas } = comComentarios('/comunidade/mural', '/comunidade/mural/{id}/comentarios');
       const api = await abrirTreinador(page, {
         ...cheia, ...rotas,
@@ -757,9 +1062,8 @@ for (const largura of [390, 1280]) {
       const folha = page.getByRole('dialog', { name: 'Comentários' });
       await expect(folha.getByText('Bora, time!')).toBeVisible();
       await expect(folha.getByText('«Fictí»')).toBeVisible();
-      // A equipe não comenta no mural e nenhum autor vira link para ela.
-      await expect(folha.getByRole('textbox')).toHaveCount(0);
-      await expect(folha.getByRole('button', { name: /^Comentar/ })).toHaveCount(0);
+      // O comentário da equipe leva o selo; nenhum autor vira link para ela.
+      await expect(folha.getByText('Equipe', { exact: true })).toHaveCount(1);
       await expect(folha.getByRole('button', { name: /^Ver perfil/ })).toHaveCount(0);
       await expect(folha.getByRole('button', { name: /^Remover comentário de / })).toHaveCount(2);
       await capturar(page, `treinador-comentarios-${largura}`);

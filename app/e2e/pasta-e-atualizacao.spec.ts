@@ -270,7 +270,7 @@ for (const largura of [390, 1280]) {
     const folha = page.getByRole('dialog', { name: 'Plano 17' });
     await expect(folha.getByText('Rascunho', { exact: true })).toBeVisible();
 
-    await folha.getByRole('button', { name: 'Publicar tudo da pasta Plano 17' }).click();
+    await folha.getByRole('button', { name: 'Publicar dieta da pasta Plano 17' }).click();
     await expect(folha.getByText('Nada foi publicado', { exact: true })).toBeVisible();
     await expect(folha.getByText('Dieta: Dieta do Plano 17')).toBeVisible();
     await expect(folha.getByText('Inclua ao menos uma refeição.')).toBeVisible();
@@ -284,18 +284,22 @@ for (const largura of [390, 1280]) {
 
   test(`publicar tudo: com sucesso diz quantos foram publicados e os selos mudam (${largura}px)`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
-    const { errosDaPagina } = await abrirComPasta(page);
+    // A API diz que esta é a pasta vigente (o treino ativo está nela): "Vigente" no cabeçalho, e a dieta com rascunho.
+    const { errosDaPagina } = await abrirComPasta(page, {}, PERMISSOES_DA_PASTA, {
+      [`GET /alunos/${ALUNO_ID}/pastas/vigente`]: { corpo: { pasta: PASTAS.find((p) => p.id === PASTA_ID) } },
+    });
     const folha = page.getByRole('dialog', { name: 'Plano 17' });
+    await expect(folha.getByText('Vigente', { exact: true })).toBeVisible();
     await expect(folha.getByText('Rascunho', { exact: true })).toBeVisible();
-    await folha.getByRole('button', { name: 'Publicar tudo da pasta Plano 17' }).click();
-    await expect(folha.getByText('1 publicado, 1 sem alteração.')).toBeVisible();
+    await folha.getByRole('button', { name: 'Publicar dieta da pasta Plano 17' }).click();
+    await expect(folha.getByText('Dieta publicada. 1 plano sem alteração.')).toBeVisible();
     // A Folha continua aberta e recarrega os planos: a dieta passa a v1 e o treino segue na v2.
     await expect(folha.getByText('Publicado v1', { exact: true })).toBeVisible();
     await expect(folha.getByText('Publicado v2', { exact: true })).toBeVisible();
     await expect(folha.getByText('Rascunho', { exact: true })).toHaveCount(0);
 
-    // De novo, sem nada alterado: nada para publicar.
-    await folha.getByRole('button', { name: 'Publicar tudo da pasta Plano 17' }).click();
+    // De novo, sem nada alterado: o rótulo volta ao geral e não há o que publicar.
+    await folha.getByRole('button', { name: 'Publicar alterações da pasta Plano 17' }).click();
     await expect(folha.getByText('Nada para publicar: os planos já estão publicados e sem alteração.')).toBeVisible();
     expect(errosDaPagina).toEqual([]);
   });
@@ -304,11 +308,11 @@ for (const largura of [390, 1280]) {
     await page.setViewportSize({ width: largura, height: 900 });
     const { pedidos, errosDaPagina } = await abrirComPasta(page, { avisos: [{ field: 'dieta.aguaLitros', message: 'Sem água por dia.' }] });
     const folha = page.getByRole('dialog', { name: 'Plano 17' });
-    await folha.getByRole('button', { name: 'Publicar tudo da pasta Plano 17' }).click();
+    await folha.getByRole('button', { name: 'Publicar dieta da pasta Plano 17' }).click();
     await expect(folha.getByText('Nada foi publicado ainda', { exact: true })).toBeVisible();
     await expect(folha.getByText('Sem água por dia.')).toBeVisible();
     await folha.getByRole('button', { name: 'Publicar mesmo assim' }).click();
-    await expect(folha.getByText('1 publicado, 1 sem alteração.')).toBeVisible();
+    await expect(folha.getByText('Dieta publicada. 1 plano sem alteração.')).toBeVisible();
     expect(pedidos.filter((p) => p.caminho === `/pastas/${PASTA_ID}/publicar`).map((p) => p.corpo))
       .toEqual([
         { confirmarAvisos: false, versoes: { [PLANO_ID]: DIETA.plano.versao } },
@@ -323,7 +327,7 @@ for (const largura of [390, 1280]) {
     const { pedidos, errosDaPagina } = await abrirComPasta(page, {}, permissoes);
     const folha = page.getByRole('dialog', { name: 'Plano 17' });
     await expect(folha.getByText('Falta permissão para publicar a dieta.')).toBeVisible();
-    await expect(folha.getByRole('button', { name: 'Publicar tudo da pasta Plano 17' })).toBeDisabled();
+    await expect(folha.getByRole('button', { name: 'Publicar dieta da pasta Plano 17' })).toBeDisabled();
     expect(pedidos.some((p) => p.caminho.endsWith('/publicar'))).toBe(false);
     expect(errosDaPagina).toEqual([]);
   });
@@ -338,7 +342,8 @@ for (const largura of [390, 1280]) {
     ];
     const { pedidos, errosDaPagina } = await abrirComPasta(page, { planos }, permissoes);
     const folha = page.getByRole('dialog', { name: 'Plano 17' });
-    const botao = folha.getByRole('button', { name: 'Publicar tudo da pasta Plano 17' });
+    // O treino é desconhecido: o rótulo não promete "Publicar dieta".
+    const botao = folha.getByRole('button', { name: 'Publicar alterações da pasta Plano 17' });
     await expect(botao).toBeEnabled();
     await botao.click();
     await expect(folha.getByText('Você não tem permissão para publicar todos os planos com alteração desta pasta. Nada foi publicado.')).toBeVisible();
@@ -351,9 +356,10 @@ for (const largura of [390, 1280]) {
     await page.setViewportSize({ width: largura, height: 900 });
     const { pedidos, errosDaPagina } = await abrirComPasta(page, { listaFalhaNaPrimeiraVez: ['dieta'] });
     const folha = page.getByRole('dialog', { name: 'Plano 17' });
-    const botao = folha.getByRole('button', { name: 'Publicar tudo da pasta Plano 17' });
+    // Sem a lista da dieta o alcance é desconhecido: rótulo geral; depois de carregar, "Publicar dieta".
+    const botao = folha.getByRole('button', { name: 'Publicar dieta da pasta Plano 17' });
     await expect(folha.getByText('Não foi possível carregar a dieta. Tente de novo.')).toBeVisible();
-    await expect(botao).toBeDisabled();
+    await expect(folha.getByRole('button', { name: 'Publicar alterações da pasta Plano 17' })).toBeDisabled();
     const tentar = folha.getByRole('button', { name: 'Tentar carregar os planos de novo' });
     await expect(tentar).toBeVisible();
     expect(pedidos.some((p) => p.caminho.endsWith('/publicar'))).toBe(false);
@@ -365,7 +371,7 @@ for (const largura of [390, 1280]) {
 
     // Liberado, publica com a versão que a lista recarregada trouxe, sem aviso de que os planos mudaram.
     await botao.click();
-    await expect(folha.getByText('1 publicado, 1 sem alteração.')).toBeVisible();
+    await expect(folha.getByText('Dieta publicada. 1 plano sem alteração.')).toBeVisible();
     await expect(folha.getByText(/Os planos mudaram/)).toHaveCount(0);
     expect(pedidos.filter((p) => p.caminho === `/pastas/${PASTA_ID}/publicar`).map((p) => p.corpo))
       .toEqual([{ confirmarAvisos: false, versoes: { [PLANO_ID]: DIETA.plano.versao } }]);
@@ -381,15 +387,15 @@ for (const largura of [390, 1280]) {
     const antes = listasDeDieta();
 
     const recarga = page.waitForResponse((r) => r.request().method() === 'GET' && r.url().endsWith(`/alunos/${ALUNO_ID}/planos-dieta`));
-    await folha.getByRole('button', { name: 'Publicar tudo da pasta Plano 17' }).click();
+    await folha.getByRole('button', { name: 'Publicar dieta da pasta Plano 17' }).click();
     await expect(folha.getByText('Os planos mudaram enquanto você olhava. Nada foi publicado; confira e publique de novo.')).toBeVisible();
     await recarga;
     expect(listasDeDieta()).toBeGreaterThan(antes);
     // Nada foi publicado: a dieta segue em rascunho.
     await expect(folha.getByText('Rascunho', { exact: true })).toBeVisible();
 
-    await folha.getByRole('button', { name: 'Publicar tudo da pasta Plano 17' }).click();
-    await expect(folha.getByText('1 publicado, 1 sem alteração.')).toBeVisible();
+    await folha.getByRole('button', { name: 'Publicar dieta da pasta Plano 17' }).click();
+    await expect(folha.getByText('Dieta publicada. 1 plano sem alteração.')).toBeVisible();
     expect(pedidos.filter((p) => p.metodo === 'POST' && p.caminho === `/pastas/${PASTA_ID}/publicar`).map((p) => p.corpo)).toEqual([
       { confirmarAvisos: false, versoes: { [PLANO_ID]: DIETA.plano.versao } },
       { confirmarAvisos: false, versoes: { [PLANO_ID]: DIETA.plano.versao + 1 } },
@@ -407,7 +413,7 @@ for (const largura of [390, 1280]) {
     ];
     const { pedidos, errosDaPagina } = await abrirComPasta(page, { planos });
     const folha = page.getByRole('dialog', { name: 'Plano 17' });
-    await folha.getByRole('button', { name: 'Publicar tudo da pasta Plano 17' }).click();
+    await folha.getByRole('button', { name: 'Publicar dieta da pasta Plano 17' }).click();
     await expect(folha.getByText('Nada foi publicado', { exact: true })).toBeVisible();
     await expect(folha.getByText('Há mais de uma dieta pendente nesta pasta (“Dieta do Plano 17” e “Dieta B do Plano 17”). Nada foi publicado. Arquive o que não deve ir ao aluno (⋯ › Excluir plano) e publique de novo.')).toBeVisible();
     // Nada publicado e nenhuma nova tentativa sozinha.

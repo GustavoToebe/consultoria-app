@@ -63,7 +63,7 @@ test('aviso de atenção (edição em conflito): borda âmbar, ícone e fica at�
     'PUT /consultoria/marca': (_p, route) => json(route, erroApi(409, 'Conflito.', 'CONFLITO_EDICAO').corpo, 409),
   });
   await page.goto('/treinador/marca');
-  await page.getByRole('radiogroup', { name: 'Meta do peso dos alunos' }).getByRole('button', { name: 'Aumentar', exact: true }).click();
+  await page.getByRole('radiogroup', { name: 'Meta do peso dos alunos' }).getByRole('radio', { name: 'Aumentar', exact: true }).click();
   await page.getByRole('button', { name: 'Salvar marca', exact: true }).click();
   const aviso = page.getByRole('alert').filter({ hasText: 'A marca foi alterada em outra aba' });
   await expect(aviso).toBeVisible();
@@ -88,9 +88,9 @@ test('marca parecida com o erro: avisa na Marca, sem bloquear o Salvar', async (
   });
   await page.goto('/treinador/marca');
   const aviso = page.getByTestId('aviso-marca-perto-de-status');
-  await page.getByRole('radio', { name: /^Azul\./ }).click();
+  await page.getByRole('radio', { name: 'Azul', exact: true }).click();
   await expect(aviso).toHaveCount(0);
-  await page.getByRole('radio', { name: /^Vermelho intenso\./ }).click();
+  await page.getByRole('radio', { name: 'Vermelho intenso', exact: true }).click();
   await expect(aviso).toContainText('erro (vermelho)');
   await expect(page.getByRole('button', { name: 'Salvar marca', exact: true })).toBeEnabled();
   expect(api.errosDaPagina).toEqual([]);

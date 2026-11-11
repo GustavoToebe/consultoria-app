@@ -188,7 +188,7 @@ const DIAS_UTEIS = 'Todos os dias da semana (segunda a sexta-feira)';
 
 /** Uma opção de `Escolha` (grupo com o rótulo dado). */
 const opcao = (onde: Locator | Page, grupo: string, rotulo: string) =>
-  onde.getByRole('radiogroup', { name: grupo }).getByRole('button', { name: rotulo, exact: true });
+  onde.getByRole('radiogroup', { name: grupo }).getByRole('radio', { name: rotulo, exact: true });
 /** O botão "Mês ▾" da barra: o nome diz a visão atual. */
 const botaoDaVisao = (page: Page, rotulo: string) => page.getByRole('button', { name: `Visão do calendário: ${rotulo}`, exact: true });
 /** Troca a visão pelo menu suspenso da barra (o item é `menuitemradio`; o menu fecha ao escolher). */
@@ -399,12 +399,14 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
         await expect(doEvento).toBeVisible();
         await semRolagemHorizontal(page);
       } else {
-        // Lista por dia: um cartão por dia da semana, com o resumo; dia vazio só com a faixa.
+        // Lista por dia: um cartão por dia com compromisso, com o resumo; dia vazio numa linha compacta, sem esconder a data.
         await expect(page.getByText('Hoje, 19/10', { exact: true })).toBeVisible();
         await expect(page.getByText('1 compromisso · 1 evento · 1 atualização', { exact: true })).toBeVisible();
         await expect(page.getByText('Amanhã, 20/10', { exact: true })).toBeVisible();
         await expect(page.getByText('Nada marcado', { exact: true })).toHaveCount(6);
-        await expect(page.getByText('Evento · 10:00–11:00 · Pessoal', { exact: true })).toBeVisible();
+        // O horário abre o título; o que é e a agenda ficam embaixo.
+        await expect(page.getByText('10:00–11:00 · Consulta pessoal', { exact: true })).toBeVisible();
+        await expect(page.getByText('Evento · Pessoal', { exact: true })).toBeVisible();
         // Sem grade nem mini calendário no celular; o painel abre numa folha.
         await expect(page.getByRole('button', { name: /^Abrir o dia / })).toHaveCount(0);
         await expect(page.getByRole('heading', { name: 'Minhas agendas', exact: true })).toHaveCount(0);
@@ -631,7 +633,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await editar.getByRole('button', { name: 'Salvar alterações', exact: true }).click();
       let pergunta = page.getByRole('alertdialog', { name: 'Salvar em quais eventos da série?' });
       await expect(pergunta).toBeVisible();
-      await expect(pergunta.getByRole('radiogroup', { name: 'Aplicar a' }).getByRole('button')).toHaveText(['Somente este evento', 'Este e os seguintes', 'Todos os eventos da série']);
+      await expect(pergunta.getByRole('radiogroup', { name: 'Aplicar a' }).getByRole('radio')).toHaveText(['Somente este evento', 'Este e os seguintes', 'Todos os eventos da série']);
       await expect(pergunta.getByText('Só o evento de 21/10. A repetição da série não muda por aqui.', { exact: true })).toBeVisible();
       await pergunta.getByRole('button', { name: 'Salvar alterações', exact: true }).click();
       await expect(editar).toBeHidden();

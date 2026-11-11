@@ -21,6 +21,7 @@ import { temEtapaEmPercentual } from '../dominio/validacaoDeSerie';
 import { acompanharPendente, digitarPendente, valorExibido, type ValorPendente } from '../dominio/valorPendente';
 import type { RegistroLocal } from '../offline/repositorioLocal';
 import { useTema } from '../tema/TemaProvider';
+import { useMarcadoAgora } from './useMarcadoAgora';
 import { espaco, fontes, RAIO } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
 import { BotaoMarcar } from '../ui/BotaoMarcar';
@@ -83,6 +84,8 @@ export function CartaoSerieComEtapas(p: Props) {
   const registro = p.registro;
   const etapas = registro?.etapas ?? [];
   const feita = !!registro?.concluida;
+  // Feita fica neutra; o verde só na série concluída agora, com a tela aberta (guia de 11/11).
+  const agora = useMarcadoAgora(feita);
   const cluster = s.tecnica?.tipo === 'CLUSTER';
   const pausa = s.tecnica?.pausaSegundos != null && s.tecnica.pausaSegundos > 0 ? s.tecnica.pausaSegundos : null;
   const temPausa = !!s.tecnica && (s.tecnica.pausaSegundos != null || s.tecnica.pausaRespiracoes != null);
@@ -134,8 +137,8 @@ export function CartaoSerieComEtapas(p: Props) {
 
   return (
     <View testID={`serie-${s.uid}`}
-      style={[estilos.serie, { borderColor: feita ? cores.sucesso : cores.borda, backgroundColor: feita ? `${cores.sucesso}29` : cores.superficie }, barra]}>
-      <CabecalhoDaSerie numero={p.numero} tipo={selos.tipo} tecnica={selos.tecnica} registro={seloDaSerieComEtapas(feita, etapas, quantas)} />
+      style={[estilos.serie, { borderColor: cores.divisor, backgroundColor: cores.superficie }, barra]}>
+      <CabecalhoDaSerie numero={p.numero} tipo={selos.tipo} tecnica={selos.tecnica} registro={seloDaSerieComEtapas(feita, etapas, quantas)} agora={agora} />
       <MetaDaSerie texto={estruturaDaSerie(s, p.metodologia)} />
       {p.cargaIlegivel ? <Texto numerico variante="pequeno">{TEXTO_CARGA_ILEGIVEL}</Texto> : null}
       {p.anterior != null ? <LinhaDoUltimoRegistro texto={p.anterior} numero={p.numero} /> : null}
@@ -143,7 +146,7 @@ export function CartaoSerieComEtapas(p: Props) {
       {semDetalhe ? <Texto numerico variante="pequeno">Registro sem detalhe por {cluster ? 'bloco' : 'etapa'}: {registro!.repeticoes ?? '—'} reps{registro!.carga != null ? ` · ${textoDaCarga(registro!.carga, unidade)}` : ''}.</Texto> : null}
       <RotuloDeHoje />
 
-      <View role="group" aria-label={nomeDoGrupo} style={[estilos.etapas, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
+      <View role="group" aria-label={nomeDoGrupo} style={[estilos.etapas, { borderColor: cores.divisor, backgroundColor: cores.superficie2 }]}>
         {previstas.map((prevista, i) => {
           const anteriorFeita = i > 0 && etapas.some((e) => e.posicao === previstas[i - 1].posicao && e.situacao === 'FEITA');
           const daVez = atual === prevista.posicao && !feita;
@@ -184,7 +187,7 @@ export function CartaoSerieComEtapas(p: Props) {
             aoTocar={() => agir({ tipo: 'CONCLUIR' })} />
         )}
       </View>
-      {feita ? <Texto variante="pequeno" cor={cores.sucesso}>Série concluída.</Texto> : null}
+      {feita ? <Texto variante="pequeno" cor={agora ? cores.sucesso : cores.textoSuave}>Série concluída.</Texto> : null}
       {p.descansoNaSerie && s.descansoSegundos != null && s.descansoSegundos > 0 ? <Texto variante="pequeno">Descanso depois da série: {rotuloDescanso(s.descansoSegundos)}</Texto> : null}
       {registro?.situacao === 'FALHOU' ? <Texto numerico variante="pequeno" cor={cores.perigo}>Não enviado: {registro.motivo}</Texto> : null}
     </View>
@@ -228,6 +231,7 @@ function LinhaDaEtapa({ prevista, numeroDaSerie, registrada, atual, comDivisao, 
   const invalido = repsInvalidas || cargaInvalida;
   const feita = registrada?.situacao === 'FEITA';
   const naoRealizada = registrada?.situacao === 'NAO_REALIZADA';
+  const agora = useMarcadoAgora(feita);
   if ((feita || naoRealizada) && painel !== null) setPainel(null);
   // Etapa já feita: a edição só volta gravada depois (B1, 30/10); a caixa mostra o digitado até lá (`dominio/valorPendente`).
   const [pendenteDasReps, setPendenteDasReps] = useState<ValorPendente<number | null | undefined> | undefined>(undefined);
@@ -302,7 +306,7 @@ function LinhaDaEtapa({ prevista, numeroDaSerie, registrada, atual, comDivisao, 
             <CampoNumericoGrande rotulo="Reps" rotuloOculto rotuloAcessivel={`Repetições feitas, ${nome}`} sufixo="reps" inteiro valor={reps}
               aoMudar={(v) => { if (feita) editar({ repeticoes: v }); else setRepsDigitadas(v); }}
               aoValidade={(ok) => setRepsInvalidas(!ok)} />
-            <BotaoMarcar feito={feita} desabilitado={invalido} semVibrar={abrePainel}
+            <BotaoMarcar feito={feita} agora={agora} desabilitado={invalido} semVibrar={abrePainel}
               rotulo={invalido ? `${prevista.rotulo} ${feito}: corrija o número antes de marcar` : `${prevista.rotulo} ${feito}, série ${numeroDaSerie}`}
               aoTocar={marcar} />
           </View>

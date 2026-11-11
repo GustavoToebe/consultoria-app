@@ -37,7 +37,7 @@ export function CartaoCompromissos() {
             const cancelado = c.situacao === 'CANCELADO';
             const selo = seloDaSituacao(c.situacao);
             return (
-              <View key={c.id} style={[estilos.item, { backgroundColor: cores.superficie2, borderColor: cores.borda }, cancelado && estilos.apagado]}>
+              <View key={c.id} style={[estilos.item, { backgroundColor: cores.superficie2, borderColor: cores.divisor }, cancelado && estilos.apagado]}>
                 <CalendarDays size={20} color={cores.textoSuave} />
                 <View style={estilos.textos}>
                   <Texto variante="rotulo" cor={cores.texto}>{titulo}</Texto>

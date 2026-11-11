@@ -8,7 +8,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { atualizacaoDoAluno, atualizacoesDoAluno, excluirPasta, finalizarPasta, reabrirPasta, salvarPastaComoModelo, atualizarPasta, criarPasta, escolherQuestionarioDaPasta, listarPastas, pesosDoAluno, pesoSugeridoDaPasta, replicarPasta } from '../api/rotas';
+import { atualizacaoDoAluno, atualizacoesDoAluno, excluirPasta, finalizarPasta, reabrirPasta, salvarPastaComoModelo, atualizarPasta, criarPasta, escolherQuestionarioDaPasta, listarPastas, pastaVigenteDoAluno, pesosDoAluno, pesoSugeridoDaPasta, replicarPasta } from '../api/rotas';
 import { SeletorDeQuestionario } from './questionarios/SeletorDeQuestionario';
 import type { Atualizacao, PastaResumo, Receita } from '../api/tipos';
 import { atualizacaoDaPasta, caminhoAtualizacaoTreinador, statusAtualizacaoTreinador } from '../dominio/atualizacao';
@@ -126,6 +126,9 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
   // usam a mesma lista.
   const emFoco = aberta ?? menuPasta ?? copiar;
   const planosEmFoco = usePlanosDaPasta(alunoId, emFoco?.id ?? null, geracao);
+  // "Vigente" no cabeçalho da Folha (guia premium, pág. 8) vem da regra da API (`PastaVigente`), nunca de um palpite
+  // da tela; falhou ou nenhuma = sem selo.
+  const { dados: vigente } = useCarregar(aberta ? `pasta-vigente:${alunoId}:${geracao}` : null, () => pastaVigenteDoAluno(alunoId));
   // A atualização fecha o período da pasta: vem junto na lista e na folha (dado sensível, só com ATUALIZACAO_LER).
   const verAtualizacoes = pode('ATUALIZACAO_LER');
   const { dados: atualizacoes, recarregar: recarregarAtualizacoes } = useCarregar(verAtualizacoes ? `atualizacoes-pastas:${alunoId}` : null, async () => {
@@ -183,6 +186,7 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
         <Folha visivel titulo={aberta.titulo} largura={LARGURA_EDITOR} aoFechar={() => setAbertaId(null)}
           acaoNoTopo={temAcaoNoMenuDaPasta(pode) ? <IconeBotao Icone={Ellipsis} moldura rotulo={`Mais ações da pasta ${aberta.titulo}`} aoTocar={() => { setAbertaId(null); setMenuPasta(aberta); }} /> : undefined}>
           <View style={estilos.resumo}>
+            {vigente?.pasta?.id === aberta.id ? <Selo texto="Vigente" tipo="sucesso" /> : null}
             <Texto numerico variante="suave">Período: {periodoCurto(aberta.inicio, aberta.fim, hoje)}</Texto>
             <CartaoCicloNoPeriodo alunoId={alunoId} inicio={aberta.inicio} fim={aberta.fim} />
             {aberta.concluidaEm ? <Selo texto={`Concluída em ${dataSemAnoCorrente(hojeIso(new Date(aberta.concluidaEm)), hoje)}`} tipo="neutro" /> : null}

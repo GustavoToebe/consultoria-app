@@ -1,5 +1,5 @@
 import {
-  chaveDosFiltros, chipsDosFiltros, filtrosVisiveis, lerDoEndereco, MEUS, opcoesDeResponsavel, paraEndereco, pedidoDaApi,
+  atalhoAtual, chaveDosFiltros, comAtalho, chipsDosFiltros, filtrosVisiveis, lerDoEndereco, MEUS, opcoesDeResponsavel, paraEndereco, pedidoDaApi,
   permissoesDosFiltros, quantosFiltros, SEM_FILTROS, SEM_RESPONSAVEL, semOFiltro, semOQueNaoPode, type FiltrosDeAlunos,
 } from './filtrosDeAlunos';
 
@@ -116,6 +116,23 @@ describe('permissões', () => {
     expect(limpo).toEqual(f({ acesso: ['SEM'] }));
     expect(pedidoDaApi(limpo, EU).map(([k]) => k)).toEqual(['situacao', 'meus', 'acesso']);
     expect(semOQueNaoPode(doEndereco, tudo)).toEqual(doEndereco);
+  });
+});
+
+describe('atalhos da lista', () => {
+  it('reconhece o atalho só quando o filtro de atualização é exatamente o dele', () => {
+    expect(atalhoAtual(f({ responsaveis: [MEUS] }))).toBe('todos');
+    expect(atalhoAtual(f({ atualizacao: ['ENVIADA'] }))).toBe('revisar');
+    expect(atalhoAtual(f({ atualizacao: ['ATRASADA'] }))).toBe('atrasados');
+    expect(atalhoAtual(f({ atualizacao: ['ATRASADA', 'ENVIADA'] }))).toBeNull();
+    expect(atalhoAtual(f({ atualizacao: ['SEM_PASTA'] }))).toBeNull();
+  });
+
+  it('trocar o atalho mexe só na atualização e mantém os outros filtros', () => {
+    const filtros = f({ acesso: ['SEM'], atualizacao: ['SEM_PASTA', 'ENVIADA'] });
+    expect(comAtalho(filtros, 'atrasados')).toEqual(f({ acesso: ['SEM'], atualizacao: ['ATRASADA'] }));
+    expect(comAtalho(filtros, 'todos')).toEqual(f({ acesso: ['SEM'] }));
+    expect(pedidoDaApi(comAtalho(filtros, 'revisar'), EU)).toContainEqual(['atualizacao', 'ENVIADA']);
   });
 });
 

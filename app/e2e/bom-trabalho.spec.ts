@@ -50,6 +50,12 @@ async function abrir(page: Page, ligada = true) {
           },
         }
       : {}),
+    // A Comunidade, para onde o "Publicar na comunidade" leva (C11): chave ligada, mural vazio.
+    'GET /aluno/comunidade/configuracao': { corpo: { alunosPublicam: true, podeAnexarFoto: false } },
+    'GET /aluno/comunidade/mural': { corpo: { content: [], totalElements: 0 } },
+    'GET /aluno/comunidade/aulas': { corpo: [] },
+    'GET /aluno/comunidade/conquistas': { corpo: [] },
+    'GET /aluno/comunidade/ranking': { corpo: { posicao: 1, treinosConcluidos: 12, pontuacao: 0, participantes: 1 } },
   });
   return { ...api, conclusoes };
 }
@@ -106,17 +112,25 @@ for (const largura of [390, 1280]) {
     await expect.poll(() => api.conclusoes.length, { timeout: 15_000 }).toBe(1);
     expect(api.naoTratadas).toEqual([]);
 
-    // O mural precisa de internet: sem rede o botão fica desabilitado com o motivo; com rede abre o mural com a mensagem escrita.
-    const mural = page.getByRole('button', { name: 'Publicar no mural do time' });
+    // C11: a comunidade precisa de internet; sem rede o botão fica desabilitado com o motivo; com rede abre a publicação
+    // RESULTADO com o texto pronto (nome do treino e resultado, nunca carga), editável, e tira os parâmetros do endereço.
+    const publicar = page.getByRole('button', { name: 'Publicar na comunidade' });
     await page.context().setOffline(true);
-    await expect(mural).toBeDisabled();
-    await expect(page.getByText('Sem conexão: o mural precisa de internet.')).toBeVisible();
+    await expect(publicar).toBeDisabled();
+    await expect(page.getByText('Sem conexão: a comunidade precisa de internet.')).toBeVisible();
     await page.context().setOffline(false);
     await page.evaluate(() => (navigator as Navigator & { connection?: EventTarget }).connection?.dispatchEvent(new Event('change')));
-    await expect(mural).toBeEnabled();
-    await mural.click();
-    await expect(page).toHaveURL(/\/aluno\/comunidade\?.*compartilharTreino=true/);
-    await expect(page.getByRole('textbox', { name: 'Mensagem para o time' })).toHaveValue('Acabei de finalizar meu Treino curto!');
+    await expect(publicar).toBeEnabled();
+    await publicar.click();
+    const nova = page.getByRole('dialog', { name: 'Nova publicação' });
+    await expect(nova.getByRole('radio', { name: 'Resultado', exact: true })).toBeChecked();
+    const texto = nova.getByRole('textbox', { name: 'Texto', exact: true });
+    await expect(texto).toHaveValue(/^Treino concluído: Treino curto/);
+    expect(await texto.inputValue()).not.toMatch(/kg|lb/);
+    await expect(page).toHaveURL(/\/aluno\/comunidade/);
+    await expect(page).not.toHaveURL(/publicar=/);
+    // Nunca publica sozinho.
+    expect(api.pedidos.some((p) => p.metodo === 'POST' && p.caminho === '/aluno/comunidade/mural')).toBe(false);
     expect(api.errosDaPagina).toEqual([]);
   });
 }

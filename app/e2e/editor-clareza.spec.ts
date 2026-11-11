@@ -1,7 +1,8 @@
+import { linhaDaSerie } from './linhaDaSerie';
 import { expect, test, type Page } from '@playwright/test';
 import type { Receita, Serie } from '../src/api/tipos';
 import { CONFIGURACAO_PADRAO } from '../src/dominio/metodologiaPadrao';
-import { CLARO, ESCURO, PALETA_DE_IDENTIFICACAO, tingido } from '../src/tema/tokens';
+import { CLARO, ESCURO, PALETA_DE_IDENTIFICACAO } from '../src/tema/tokens';
 import { json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
 
 // Clareza do editor de treino (reunião de 30/10): posição do exercício por extenso, mover exercício × mover grupo,
@@ -104,7 +105,7 @@ for (const largura of [390, 1280]) {
     // Só a seta, em todas as larguras (o nome acessível diz o quê).
     await expect(page.getByText('Mover exercício', { exact: true })).toHaveCount(0);
     // O grupo: uma aba por grupo ("Série 1 · FS"), já aberta no 1º; o "Para o aluno" diz o tipo e os percentuais de cada série.
-    await expect(page.getByRole('tab', { name: /^Série 1 · FS/ })).toHaveAttribute('aria-selected', 'true');
+    await expect(linhaDaSerie(page, /^Série 1 · FS/, true)).toBeVisible();
     await expect(page.getByText(/3×3 · FS · 50% · 70% · 85% a 90% da WS/).first()).toBeVisible();
     // A série aberta diz o que se edita; a faixa "Exercício 1 · nome" saiu (o exercício já está no alto do cartão).
     await expect(page.getByText('Editando: Série 1 · Preparação · FS', { exact: true })).toBeVisible();
@@ -163,13 +164,13 @@ for (const largura of [390, 1280]) {
     await expect(page.getByText('Substitui as séries deste exercício', { exact: true })).toHaveCount(0);
     await expect(page.getByText('Receita “Volume fictício” aplicada.', { exact: true })).toBeVisible();
     // A receita vira duas abas (uma por grupo); a aberta é a última, e o "Para o aluno" dela traz a faixa dos números.
-    await expect(page.getByRole('tab', { name: /^Série \d/ })).toHaveCount(2);
+    await expect(linhaDaSerie(page, /^Série \d/)).toHaveCount(2);
     await expect(page.getByText(/2×10 a 12 · Back off/).first()).toBeVisible();
-    await page.getByRole('tab', { name: /^Série 1 · WS/ }).click();
+    await linhaDaSerie(page, /^Série 1 · WS/).click();
     await expect(page.getByText(/1×8 a 10 · WS/).first()).toBeVisible();
     // Desfazer volta as séries de antes.
     await page.getByRole('button', { name: 'Desfazer', exact: true }).click();
-    await expect(page.getByRole('tab', { name: /^Série \d/ })).toHaveCount(1);
+    await expect(linhaDaSerie(page, /^Série \d/)).toHaveCount(1);
     await expect(page.getByText(/2×10 a 12 · Back off/)).toHaveCount(0);
     await expect(page.getByText(/1×8 a 12 · WS/).first()).toBeVisible();
     // Nada foi gravado: aplicar e desfazer só mexem no rascunho da tela.
@@ -235,17 +236,18 @@ for (const nomeDoTema of ['claro', 'escuro'] as const) {
   }
 }
 
-// D4 de `docs/planos/auditoria-cores.md`: o selo tem fundo opaco (`tingido` da própria cor), não transparente, para o
-// contraste não depender da faixa onde ele está. O "Fora da biblioteca" é um selo neutro na faixa do exercício.
+// Guia premium (11/11, pág. 4): o estado normal não ganha selo colorido. O "Fora da biblioteca" é um selo neutro na
+// faixa do exercício: só o texto secundário, sem pílula (o contraste sobre a faixa é conferido em
+// `ui/contrasteDasPecas.test.ts`). Quem tem fundo opaco é o selo de situação (`*Suave`).
 for (const [tema, cores] of [['CLARO', CLARO], ['ESCURO', ESCURO]] as const) {
-  test(`editor: selo na faixa do exercício com fundo opaco (${tema.toLowerCase()})`, async ({ page }) => {
+  test(`editor: selo neutro na faixa do exercício é texto secundário, sem pílula (${tema.toLowerCase()})`, async ({ page }) => {
     await page.addInitScript(([id, t]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: t })), [TREINADOR.id, tema]);
     await planoComDoisExercicios(page);
-    const fundo = tingido(cores.neutro, cores.superficie);
-    const [r, g, b] = [1, 3, 5].map((i) => parseInt(fundo.slice(i, i + 2), 16));
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(cores.textoSuave.slice(i, i + 2), 16));
     const selo = page.getByText('Fora da biblioteca', { exact: true }).first();
     await expect(selo).toBeVisible();
-    await expect(selo.locator('..')).toHaveCSS('background-color', `rgb(${r}, ${g}, ${b})`);
+    await expect(selo).toHaveCSS('color', `rgb(${r}, ${g}, ${b})`);
+    await expect(selo.locator('..')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   });
 }
 

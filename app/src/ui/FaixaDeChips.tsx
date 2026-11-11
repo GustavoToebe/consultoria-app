@@ -1,8 +1,8 @@
 import { type ReactNode, useState } from 'react';
 import { ScrollView, StyleSheet, useWindowDimensions, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent, type StyleProp, type ViewStyle } from 'react-native';
 
-import { useTema } from '../tema/TemaProvider';
 import { espaco, LARGURA_MENU_LATERAL } from '../tema/tokens';
+import { useFundoDaArea } from './fundoDaArea';
 
 interface Props {
   children: ReactNode;
@@ -27,9 +27,9 @@ export const LARGURA_ESMAECIDO = 28;
  * gradiente, sem biblioteca.
  */
 export function FaixaDeChips({ children, fundo, contentContainerStyle, accessibilityRole, accessibilityLabel, quebrar }: Props) {
-  const { cores } = useTema();
+  const daArea = useFundoDaArea();
   const { width } = useWindowDimensions();
-  const cor = fundo ?? cores.fundo;
+  const cor = fundo ?? daArea;
   const { direita, esquerda, medidas } = useEsmaecimento();
   if (quebrar && width >= LARGURA_MENU_LATERAL) {
     return (

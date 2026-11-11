@@ -68,7 +68,7 @@ export function ChipData({
   const { cores } = useTema();
   const fundo = cores.superficie2;
   const Icone = feito ? Check : CalendarDays;
-  const corIcone = feito ? cores.sucesso : cores.textoSuave;
+  const corIcone = feito ? cores.texto : cores.textoSuave;
   return (
     <Pressable
       accessibilityRole="button"
@@ -80,7 +80,7 @@ export function ChipData({
         estilos.chip,
         {
           backgroundColor: fundo,
-          borderColor: feito ? cores.sucesso : hoje || atual ? cores.texto : fundo,
+          borderColor: hoje || atual ? cores.texto : cores.divisor,
           borderWidth: hoje || atual ? 2 : 1,
           opacity: !ativo ? 0.45 : pressed ? 0.75 : 1,
         },

@@ -47,7 +47,7 @@ public class SeriesAnterioresService {
 
     /** Exercício nunca feito antes de hoje fica de fora do mapa (o app mostra "—"). */
     @Transactional(readOnly = true)
-    public AnterioresDoPacote doPacote(UUID alunoId, Collection<UUID> exercicioIds) {
+    public AnterioresDoPacote doPacote(UUID alunoId, Collection<UUID> exercicioIds, Map<UUID, IndiceVersao> cacheDeIndices) {
         LocalDate ate = LocalDate.now(Fuso.BRASILIA);
         if (exercicioIds.isEmpty()) {
             return new AnterioresDoPacote(ate, Map.of());
@@ -62,7 +62,7 @@ public class SeriesAnterioresService {
         Set<LocalDate> datas = new HashSet<>(ultimaVez.values());
         List<ExecucaoSerie> lista = execucoes.findByAlunoIdAndExercicioIdInAndConcluidaTrueAndDataIn(alunoId, ultimaVez.keySet(), datas)
                 .stream().filter(e -> e.getData().equals(ultimaVez.get(e.getExercicioId()))).toList();
-        Map<UUID, IndiceVersao> porVersao = indices.carregar(lista.stream().map(ExecucaoSerie::getPlanoVersaoId).distinct().toList());
+        Map<UUID, IndiceVersao> porVersao = indices.carregar(cacheDeIndices, lista.stream().map(ExecucaoSerie::getPlanoVersaoId).distinct().toList());
         List<Feita> feitas = new ArrayList<>();
         for (ExecucaoSerie e : lista) {
             IndiceVersao indice = porVersao.get(e.getPlanoVersaoId());

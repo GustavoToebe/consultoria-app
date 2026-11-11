@@ -197,16 +197,16 @@ class ComunidadeIntegrationTest extends AbstractIntegrationTest {
         assertThat(miniatura.get("fieldErrors").get(0).get("field").asString()).isEqualTo("miniaturaUrl");
 
         Map<String, Object> post = new LinkedHashMap<>();
+        post.put("tipo", "VIDEO");
         post.put("texto", "Oi");
-        post.put("imagemUrl", "javascript:alert(1)");
-        JsonNode imagem = api.post("/aluno/comunidade/mural", loginA, post, 422);
-        assertThat(imagem.get("fieldErrors").get(0).get("field").asString()).isEqualTo("imagemUrl");
-        assertThat(imagem.toString()).doesNotContain("javascript");
+        post.put("videoUrl", "javascript:alert(1)");
+        JsonNode video = api.post("/comunidade/mural", admin, post, 422);
+        assertThat(video.get("codigo").asString()).isEqualTo("POST_INVALIDO");
+        assertThat(video.get("fieldErrors").get(0).get("field").asString()).isEqualTo("videoUrl");
+        assertThat(video.toString()).doesNotContain("javascript");
 
-        assertThat(contar("select count(*) from comunidade_mural_post where autor_id = ?", usuarioDoAluno(alunoA))).isZero();
-        post.put("imagemUrl", "https://exemplo.test/foto.png");
-        assertThat(api.post("/aluno/comunidade/mural", loginA, post, 200).get("imagemUrl").asString())
-                .isEqualTo("https://exemplo.test/foto.png");
+        post.put("videoUrl", "https://exemplo.test/video");
+        assertThat(api.post("/comunidade/mural", admin, post, 200).get("videoUrl").asString()).isEqualTo("https://exemplo.test/video");
     }
 
     @Test

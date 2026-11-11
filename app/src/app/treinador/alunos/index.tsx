@@ -14,8 +14,8 @@ import { SEM_DADO } from '../../../dominio/formatos';
 import { agruparAlunos, colunasDaLista, metadadosDaLinha, primeiroNome, ultimoRegistroDaLinha, vazioDaLista, type TomDoGrupo } from '../../../dominio/gruposDeAlunos';
 import { LIMITE_LOTE, textoDaSelecao } from '../../../dominio/loteDeAlunos';
 import {
-  chaveDosFiltros, chipsDosFiltros, filtrosVisiveis, lerDoEndereco, opcoesDeResponsavel, paraEndereco, pedidoDaApi, permissoesDosFiltros, SEM_FILTROS,
-  CHAVES_DO_ENDERECO, semOFiltro, semOQueNaoPode, type ChaveDoFiltro, type FiltrosDeAlunos, type ParametrosDoEndereco,
+  ATALHOS, atalhoAtual, chaveDosFiltros, chipsDosFiltros, comAtalho, filtrosVisiveis, lerDoEndereco, paraEndereco, pedidoDaApi, permissoesDosFiltros, SEM_FILTROS,
+  CHAVES_DO_ENDERECO, semOFiltro, semOQueNaoPode, type AtalhoDaLista, type ChaveDoFiltro, type FiltrosDeAlunos, type ParametrosDoEndereco,
 } from '../../../dominio/filtrosDeAlunos';
 import { alternarComLimite, marcarVisiveis } from '../../../dominio/selecaoMultipla';
 import { useTema } from '../../../tema/TemaProvider';
@@ -23,7 +23,6 @@ import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
 import { SeletoresDosFiltrosDeAlunos } from '../../../treinador/SeletoresDosFiltrosDeAlunos';
 import { BarraDeFiltros } from '../../../ui/BarraDeFiltros';
 import { Escolha } from '../../../ui/Escolha';
-import { FaixaDeChips } from '../../../ui/FaixaDeChips';
 import { Folha } from '../../../ui/Folha';
 import { LinhaDeAcoes } from '../../../ui/LinhaDeAcoes';
 import { AcoesEmLote } from '../../../treinador/AcoesEmLote';
@@ -44,19 +43,19 @@ import { useAtrasado, useCarregar } from '../../../ui/useCarregar';
 
 const TAMANHO_PAGINA = 30;
 
-/** Colunas da lista no PC (D2; larguras do protótipo `docs/prototipos/alunos.html`). */
+/**
+ * Colunas da lista no PC (guia de 11/11, pág. 18, e a grade da prévia `visual-vendavel`): a situação logo depois do nome
+ * e o resto em colunas estáveis.
+ */
 const COLUNAS: readonly ColunaDaLista[] = [
-  { chave: 'aluno', rotulo: 'Aluno', peso: 2.2, minima: 220 },
-  { chave: 'plano', rotulo: 'Plano em uso', peso: 1.6 },
+  { chave: 'aluno', rotulo: 'Aluno', peso: 2, minima: 220 },
   { chave: 'atualizacao', rotulo: 'Atualização', peso: 1.5 },
-  { chave: 'ultimo', rotulo: 'Último registro', peso: 1.1 },
-  { chave: 'responsavel', rotulo: 'Responsável', peso: 1.1 },
+  { chave: 'plano', rotulo: 'Plano em uso', peso: 1.3 },
+  { chave: 'ultimo', rotulo: 'Último registro', peso: 1 },
+  { chave: 'responsavel', rotulo: 'Responsável', peso: 1 },
 ];
 /** Ícone do selo da atualização, como os selos do editor de treino; o texto continua dizendo o estado. */
 const ICONE_DO_SELO: Record<TipoSelo, LucideIcon> = { sucesso: CircleCheck, atencao: TriangleAlert, perigo: CircleAlert, neutro: CalendarClock };
-
-/** Opção "Todos" da faixa de responsáveis (nada filtrado); não colide com ids nem com `meus`/`nenhum`. */
-const TODOS_OS_RESPONSAVEIS = 'todos';
 
 export default function Alunos() {
   const { pode, perfilEquipe, usuario } = useSessao();
@@ -87,7 +86,7 @@ export default function Alunos() {
   const [busca, setBusca] = useState('');
   const [pagina, setPagina] = useState(0);
   const termo = useAtrasado(busca.trim(), 300);
-  const { dados, erro, carregando, recarregar } = useCarregar(`${termo}|${chaveFiltros}|${pagina}`, () =>
+  const { dados, erro, carregando, recarregar, dadosDeOutraChave } = useCarregar(`${termo}|${chaveFiltros}|${pagina}`, () =>
     listarAlunos({ busca: termo, pagina, filtros: pedidoDaApi(filtros, usuario?.id) }),
   );
   const animar = usePrimeiraLista(!!dados, `${termo}|${chaveFiltros}|${pagina}`);
@@ -123,6 +122,22 @@ export default function Alunos() {
   const chips = chipsDosFiltros(filtros, nomeCompleto);
   const vazio = vazioDaLista({ termo, chaves: chips.map((c) => c.chave), responsaveis: filtros.responsaveis });
 
+  // Número de cada atalho = o `total` da API com aquele filtro (e a mesma busca e os outros filtros), nunca contado na tela.
+  // O atalho em vigor usa o total da própria lista; sem a leitura, o chip fica sem número.
+  // Pede `tamanho=1` (o mínimo do `GET /alunos`): só o `total` interessa. shortcut: ainda são dois pedidos por troca
+  // de filtro; trocar por uma rota de contagens, como a de `/atualizacoes/contagens`, se a lista ficar lenta.
+  const atalho = atalhoAtual(filtros);
+  const chaveDaContagem = (a: AtalhoDaLista) => (veAtualizacao && a !== atalho ? `contagem-alunos:${termo}|${chaveDosFiltros(comAtalho(filtros, a))}` : null);
+  const contar = (a: AtalhoDaLista) => () => listarAlunos({ busca: termo, pagina: 0, tamanho: 1, filtros: pedidoDaApi(comAtalho(filtros, a), usuario?.id) }).then((r) => r.total);
+  const contagens: Record<AtalhoDaLista, { dados?: number; erro?: unknown }> = {
+    todos: useCarregar(chaveDaContagem('todos'), contar('todos')),
+    revisar: useCarregar(chaveDaContagem('revisar'), contar('revisar')),
+    atrasados: useCarregar(chaveDaContagem('atrasados'), contar('atrasados')),
+  };
+  // Na troca de atalho, enquanto a lista nova chega, o atalho em vigor usa o último total que a contagem dele leu (o do
+  // mesmo filtro), em vez de ficar sem número.
+  const contagemDo = (a: AtalhoDaLista) => (a === atalho ? (dadosDeOutraChave ? contagens[a].dados : dados?.total) : contagens[a].erro ? undefined : contagens[a].dados);
+
   return (
     <View style={estilos.raiz}>
     <Tela bordas={['top']} largura={LARGURA_LISTA}>
@@ -142,9 +157,16 @@ export default function Alunos() {
           </View>
         }
       />
-      {/* Ordem das listas: busca → filtros (botão "Filtros" com o painel e o "Filtrado por"). */}
+      {/* Ordem (guia de 11/11, pág. 7): busca → atalhos com contagem → "Mais filtros" (o resto, com o painel e o
+          "Filtrando:"). Sem ver atualizações os dois atalhos não filtram nada: somem todos (só sobraria "Todos"). */}
       <BarraDeFiltros
-        busca={{ valor: busca, aoMudar: mudarBusca, placeholder: 'Nome do aluno' }}
+        busca={{ valor: busca, aoMudar: mudarBusca, rotulo: 'Buscar nome do aluno' }}
+        rotuloDoBotao={veAtualizacao ? 'Mais filtros' : 'Filtros'}
+        atalhos={veAtualizacao ? (
+          <Escolha<AtalhoDaLista | null> chips descricao="Mostrar alunos" valor={atalho}
+            aoMudar={(v) => { if (v) aplicar(comAtalho(filtros, v)); }}
+            opcoes={ATALHOS.map((a) => ({ valor: a.valor, rotulo: a.rotulo, contagem: contagemDo(a.valor) }))} />
+        ) : undefined}
         valor={filtros}
         aoAplicar={aplicar}
         limpo={SEM_FILTROS}
@@ -155,15 +177,6 @@ export default function Alunos() {
           <SeletoresDosFiltrosDeAlunos visiveis={visiveis} filtros={atuais} aoMudar={mudar} responsaveis={responsaveis} usuarioId={usuario?.id} />
         )}
       />
-      {/* Atalho do filtro de responsável (o mesmo do painel): só com mais alguém na equipe; vários marcados = nenhum chip. */}
-      {responsaveis.some((r) => r.id !== usuario?.id) ? (
-        <FaixaDeChips quebrar accessibilityLabel="Filtrar por responsável">
-          <Escolha<string | null> descricao="Filtrar por responsável"
-            valor={filtros.responsaveis.length === 0 ? TODOS_OS_RESPONSAVEIS : filtros.responsaveis.length === 1 ? filtros.responsaveis[0] : null}
-            aoMudar={(v) => aplicar({ ...filtros, responsaveis: v === TODOS_OS_RESPONSAVEIS || v === null ? [] : [v] })}
-            opcoes={[{ valor: TODOS_OS_RESPONSAVEIS, rotulo: 'Todos' }, ...opcoesDeResponsavel(responsaveis, usuario?.id)]} />
-        </FaixaDeChips>
-      ) : null}
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && dados.itens.length === 0 ? (
@@ -206,7 +219,7 @@ export default function Alunos() {
     </Tela>
     {/* No modo Selecionar a barra fica fixa embaixo: a contagem e as ações não somem ao rolar a lista. */}
     {selecionando ? (
-      <View style={[estilos.barraLote, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
+      <View style={[estilos.barraLote, { backgroundColor: cores.superficie, borderColor: cores.divisor }]}>
         <Texto numerico style={estilos.textoLote}>{textoDaSelecao(marcados.size)}</Texto>
         <LinhaDeAcoes>
           <Botao rotulo="Marcar visíveis" tipo="secundario" desabilitado={!dados || dados.itens.length === 0} aoTocar={marcarOsVisiveis} />
@@ -245,7 +258,7 @@ interface PropsDaLinhaAluno {
 
 /**
  * Uma linha da lista (D2 e D3): no PC, colunas Aluno (iniciais, nome e só os selos de exceção, "Inativo" e "Sem
- * acesso"), Plano em uso, Atualização, Último registro e Responsável; no celular, o aluno em cima e uma linha com o plano
+ * acesso"), Atualização, Plano em uso, Último registro e Responsável; no celular, o aluno em cima e uma linha com o plano
  * e o último registro, mais o selo da atualização. A linha é o link para a ficha e o lápis (editar cadastro) fica antes
  * da seta, fora do link. No PC a linha é linha de tabela (divisória e realce, sem caixa). No Selecionar a linha inteira
  * vira a caixa de marcar (sem link, sem lápis).

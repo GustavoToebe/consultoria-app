@@ -33,19 +33,22 @@ export function seloDoEditor(situacao: SituacaoDoEditor, salvoAs: Date | null, p
   if (!publicacao) return { texto: textoDoSalvo(salvoAs), tipo: 'sucesso' };
   const falta = publicacao.versao === 0 || publicacao.alterado;
   if (falta && salvoAs) return { texto: `Salvo às ${horaDoSalvamento(salvoAs)}`, tipo: 'neutro' };
-  if (publicacao.versao === 0) return { texto: 'Ainda não publicado', tipo: 'atencao' };
-  if (publicacao.alterado) return { texto: 'Rascunho diferente do publicado', tipo: 'atencao' };
+  // Rascunho salvo e sem erro é neutro (guia premium, pág. 8): âmbar fica para o que pede decisão, como "não salvas".
+  if (publicacao.versao === 0) return { texto: 'Ainda não publicado', tipo: 'neutro' };
+  if (publicacao.alterado) return { texto: 'Alterações não publicadas', tipo: 'neutro' };
   return { texto: `Publicado v${publicacao.versao}`, tipo: 'sucesso' };
 }
 
 /**
  * Motivo de "Publicar" estar desabilitado (N18), ou `undefined` quando dá para publicar. A API publica uma versão idêntica
  * sem reclamar, então a tela segura: só quando há versão publicada, o plano é o ativo do aluno, nada mudou desde ela e
- * nada está por salvar. Plano inativo continua publicável (republicar é o jeito de reativá-lo).
+ * nada está por salvar. Plano inativo continua publicável (republicar é o jeito de reativá-lo). Nunca publicado, mesmo
+ * vazio, fica habilitado: publicar valida e a lista de problemas diz o que falta. O texto fala de publicar (o "Já está
+ * salvo." é do Salvar) e a próxima ação ("Ver como o aluno", PDF) fica na mesma barra.
  */
 export function motivoSemPublicar(situacao: SituacaoDoEditor, p: { versao: number; alterado: boolean; ativo: boolean }): string | undefined {
   if (situacao !== 'salvo' || p.versao === 0 || p.alterado || !p.ativo) return undefined;
-  return `Nada mudou desde a v${p.versao} publicada.`;
+  return `Nada novo para publicar: o aluno já vê a v${p.versao}.`;
 }
 
 /** `19/10/2026` → `19/10` quando o ano é o corrente (textos curtos omitem o ano de agora). */

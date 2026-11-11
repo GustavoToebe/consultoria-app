@@ -11,7 +11,7 @@ import { contagensFalsas, resumoFalso, rotasDaTela } from './inscricoes-falsas';
  * A barra de filtros nas listas do treinador (`docs/planos/filtros-nas-listas.md`, lotes 1 e 2): Atualizações,
  * Interessados, Financeiro (Cobranças e Lançamentos), Auditoria, Importação, Membros da equipe e Questionários. Cada
  * escolha vai ao pedido da API (ou filtra o que já veio) e, nas listas filtradas pela API, ao endereço; o chip do
- * "Filtrado por" tira o filtro. Só dados fictícios, API simulada.
+ * "Filtrando:" tira o filtro. Só dados fictícios, API simulada.
  */
 const OUTRA = { id: 'u0000000-0000-4000-8000-000000000007', nome: 'Bia Fictícia' };
 

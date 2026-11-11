@@ -33,7 +33,7 @@ Aplicar à tela e ao domínio do treinador os achados da 1ª passada ([auditoria
 - **Questionário:** `QuestionarioService.publicar` (`api/.../questionarios/QuestionarioService.java:152-172`) faz o mesmo (n+1, sem comparar).
 - **Tela:** `treinador/plano/TopoPlano.tsx:171` e `treinador/questionarios/EditorQuestionario.tsx:127` desenham "Publicar" sempre habilitado; só "Salvar rascunho" é desabilitado por `situacao === 'salvo'`.
 - **Sinal disponível:** o plano traz `ativo`, `versaoPublicada` e `rascunhoAlteradoDepoisDePublicar`; o questionário traz `alteradoDesdePublicacao` (o editor já soma `editor.pendente` no selo).
-- **Regra proposta:** "Publicar" desabilitado, com `motivo` "Nada mudou desde a v{N} publicada.", quando `versaoPublicada > 0` e o plano está ativo e o rascunho não mudou desde a publicação e não há alteração por salvar. Plano inativo (outro foi publicado depois) segue habilitado. A API não é alterada (não é preciso contrato novo; um 409 no servidor seria decisão de regra de negócio, fica como pendência).
+- **Regra proposta:** "Publicar" desabilitado, com `motivo` "Nada mudou desde a v{N} publicada." (texto trocado em 11/11 para "Nada novo para publicar: o aluno já vê a v{N}.", `dominio/barraDoEditor.ts`), quando `versaoPublicada > 0` e o plano está ativo e o rascunho não mudou desde a publicação e não há alteração por salvar. Plano inativo (outro foi publicado depois) segue habilitado. A API não é alterada (não é preciso contrato novo; um 409 no servidor seria decisão de regra de negócio, fica como pendência).
 
 ## Passos
 Cada passo diz o aceite. Marcar com o commit quando entregar. "Espera" = depende de arquivo de outra frente, não será feito aqui.

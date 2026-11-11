@@ -11,7 +11,7 @@ import type { AnaliseDaPlanilha, ConfirmacaoDaPlanilha, PerguntaDaPlanilha, Prev
 import { TODOS_IGNORADOS, alternarIgnorado, todosIgnorados } from '../../../dominio/amostraDaPlanilha';
 import { tipoDoArquivo } from '../../../dominio/assistenteDaImportacao';
 import {
-  AVISO_PREENCHIDO_AUTOMATICAMENTE, AVISO_RESPONDIDO_ANTES, ETAPA_AMOSTRA, ETAPA_PREVIA, ETAPA_RESULTADO, NOMES_POR_PAGINA, ROTULOS_DO_DESTINO, SEM_RESPOSTAS, abaRespondidaAntes,
+  AVISO_PREENCHIDO_AUTOMATICAMENTE, AVISO_RESPONDIDO_ANTES, ETAPA_AMOSTRA, ETAPA_PREVIA, ETAPA_RESULTADO, NOMES_POR_PAGINA, ROTULOS_DO_DESTINO, SEM_RESPOSTAS, abaRespondidaAntes, alertaDoResultado,
   aceitarSugestoesDeSuplemento, aceitarTodosOsProvaveis, blocoFicaDeFora, chaveDaLigacao, errosDosProblemas, escolherLigacao, etapasDaPlanilha,
   escolherTipo, filtrarPorNome, frasesDaCriacao, linhasAmbiguas, motivoParaNaoAvancar, nomeRespondidoAntes, opcoesDaPergunta,
   opcoesDoSuplemento, opcoesDoTipoDaAba, pendencias, preencherSugestoes, respostaDoValor, respostasParaApi, respostasSalvasMarcadas, responderNome,
@@ -249,7 +249,9 @@ export function AssistenteDaPlanilha() {
         trilha={[{ rotulo: 'Importação', href: '/treinador/importacao' }]} />}
       barra={<Etapas etapa={etapa} estreita={estreita} comAmostra={comAmostra} />}>
       <View onLayout={(e) => setLargura(e.nativeEvent.layout.width)} style={estilos.coluna}>
-        {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
+        {/* Sem conexão na leitura ou na prévia, o "Tentar de novo" repete o pedido; a confirmação o treinador refaz. */}
+        {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro}
+          tentarDeNovo={etapa === ETAPA_PREVIA && !previa ? gerarPrevia : etapa === 1 && !analise ? ler : undefined} /> : null}
 
         {etapa === 1 ? (
           <>
@@ -379,7 +381,7 @@ function EtapaDasAbas({ analise, respostas, aoMudar, aoEsquecer }: {
           const alunos = textoDosAlunosDaAba(a);
           const ignorada = tipo === 'IGNORAR' || tipo === 'DESCONHECIDA';
           return (
-            <View key={a.indice} style={[estilos.item, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
+            <View key={a.indice} style={[estilos.item, { borderColor: cores.divisor, backgroundColor: cores.superficie2 }]}>
               <View style={estilos.textos}>
                 <Texto variante="bloco">{`“${a.nome}”`}</Texto>
                 <Texto variante="suave">{`${formato ? `${formato} · ` : ''}${a.linhas} ${a.linhas === 1 ? 'linha' : 'linhas'} · ${Object.keys(a.campos).length} colunas reconhecidas${trocado ? ` · reconhecida como ${rotuloDoTipoDeAba(a.tipo)}` : ''}`}</Texto>
@@ -410,7 +412,7 @@ function EtapaDasAbas({ analise, respostas, aoMudar, aoEsquecer }: {
           {ambiguas.map((l) => {
             const escolhida = respostas.ligacoes[chaveDaLigacao(l.aba, l.linha)] ?? null;
             return (
-              <View key={chaveDaLigacao(l.aba, l.linha)} style={[estilos.item, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
+              <View key={chaveDaLigacao(l.aba, l.linha)} style={[estilos.item, { borderColor: cores.divisor, backgroundColor: cores.superficie2 }]}>
                 <Texto style={estilos.textos}>{`Linha ${l.linha} da aba “${nomeDaAba(l.aba)}”`}</Texto>
                 <EscolhaEmFolha rotulo={`Linha ${l.linha} de “${nomeDaAba(l.aba)}” liga à`} valor={escolhida}
                   rotuloDoValor={escolhida === null ? 'Não ligar' : `linha ${escolhida} de “${nomeDaAba(l.abaMae)}”`}
@@ -472,7 +474,7 @@ function ListaDeNomes({ titulo, lista, perguntas, respostas, aoMudar, biblioteca
         const opcoes = opcoesDaPergunta(x, lista, biblioteca);
         const rotuloDoValor = r?.acao === 'BIBLIOTECA' ? `Biblioteca: ${nomeDaBiblioteca(r.id) ?? 'item escolhido'}` : opcoes.find((o) => o.valor === valor)?.rotulo;
         return (
-          <View key={x.nome} style={[estilos.item, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
+          <View key={x.nome} style={[estilos.item, { borderColor: cores.divisor, backgroundColor: cores.superficie2 }]}>
             <View style={estilos.textos}>
               <Texto variante="bloco">{x.nome}</Texto>
               <Texto variante="suave">{`${x.ocorrencias} ${x.ocorrencias === 1 ? 'vez' : 'vezes'} na planilha${x.sugestao ? ` · sugestão: “${x.sugestao}”` : ' · sem sugestão'}`}</Texto>
@@ -503,7 +505,7 @@ function ListaDeSuplementos({ analise, respostas, aoMudar }: { analise: AnaliseD
         const valor = respostas.suplementos[x.nome] ?? '';
         const opcoes = opcoesDoSuplemento(x);
         return (
-          <View key={x.nome} style={[estilos.item, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
+          <View key={x.nome} style={[estilos.item, { borderColor: cores.divisor, backgroundColor: cores.superficie2 }]}>
             <View style={estilos.textos}>
               <Texto variante="bloco">{x.nome}</Texto>
               <Texto variante="suave">{`${x.ocorrencias} ${x.ocorrencias === 1 ? 'vez' : 'vezes'}${x.sugestao ? ` · sugestão: ${ROTULOS_DO_DESTINO[x.sugestao]}` : ' · a biblioteca não reconhece'}`}</Texto>
@@ -558,7 +560,7 @@ function Previa({ previa }: { previa: PreviaDaPlanilha }) {
 function Resultado({ resultado }: { resultado: ConfirmacaoDaPlanilha }) {
   return (
     <>
-      <Alerta tom="sucesso" texto="Importação confirmada. Treinos e dietas estão em rascunho na pasta de cada aluno. Se precisar, desfaça pelo histórico da Importação." />
+      <Alerta {...alertaDoResultado(resultado)} />
       <Cartao titulo="O que foi criado">
         {frasesDaCriacao(resultado.criados, true).map((f) => <Texto key={f}>{f}</Texto>)}
       </Cartao>
@@ -567,7 +569,6 @@ function Resultado({ resultado }: { resultado: ConfirmacaoDaPlanilha }) {
           {resultado.partesPuladas.map((p) => <Texto key={p.parte}>{textoDaPartePulada(p)}</Texto>)}
         </Cartao>
       ) : null}
-      {resultado.problemas > 0 ? <Texto variante="suave">{`${resultado.problemas} ${resultado.problemas === 1 ? 'linha teve problema' : 'linhas tiveram problema'}; a lista fica no histórico da importação.`}</Texto> : null}
     </>
   );
 }

@@ -3,7 +3,7 @@ import { useSessao } from '../../../sessao/SessaoProvider';
 import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Copy, Ellipsis, Library, Pencil, Trash2 } from 'lucide-react-native';
+import { Copy, Ellipsis, Library, Pencil, Plus, Trash2 } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 import { alterarPastaModelo, alterarReceita, criarPastaModelo, criarReceita, duplicarReceita, excluirPastaModelo, excluirReceita, listarPastasModelos, listarReceitas } from '../../../api/rotas';
 import type { PastaModelo, Receita, TipoReceita } from '../../../api/tipos';
@@ -109,7 +109,9 @@ export default function Planejamento() {
   };
   return <Tela bordas={['top']} largura={LARGURA_LISTA}>
     <Cabecalho titulo="Planejamento" mostrarMarca="celular" />
-    <Texto variante="suave">{emInscricao ? 'Monte as perguntas da página "Quero ser aluno", embaixo dos campos fixos.' : emAnamnese ? 'Monte as anamneses que você envia ao aluno pela ficha dele.' : emAtualizacao ? 'Monte os questionários de atualização que o aluno responde a cada período.' : 'Monte modelos, vincule metodologias às semanas e reutilize nos alunos. Cada aplicação cria uma cópia independente.'}</Texto>
+    {/* Nas abas de modelo o apoio é a descrição do tipo, no cartão: sem frase de página repetindo a mesma ideia, o
+        primeiro modelo fica mais perto do topo. "Aplicar" já diz que cria uma cópia para o aluno. */}
+    {emAtualizacao ? <Texto variante="suave">{emInscricao ? 'Monte as perguntas da página "Quero ser aluno", embaixo dos campos fixos.' : emAnamnese ? 'Monte as anamneses que você envia ao aluno pela ficha dele.' : 'Monte os questionários de atualização que o aluno responde a cada período.'}</Texto> : null}
     <Abas abas={[...(veModelos ? grupos.map((g) => ({ valor: g.rotulo, rotulo: g.rotulo })) : []), ...(veAtualizacao ? ABAS_DE_QUESTIONARIO.map((r) => ({ valor: r, rotulo: r })) : [])]}
       ativa={aba}
       aoMudar={(rotulo) => { if (rotulo !== aba) router.push({ pathname: '/treinador/planejamento', params: { aba: slugDaAba(rotulo) } }); }} />
@@ -121,12 +123,17 @@ export default function Planejamento() {
     ) : null}
     {emAtualizacao ? null : <Cartao
       titulo={categoria.rotulo}
-      descricao={uso.linha ? `${categoria.descricao} ${uso.linha}` : categoria.descricao}
-      acoes={<Permitido codigo="MODELO_ALTERAR"><Botao rotulo={rotuloNovoModelo(tipo)} aoTocar={() => setFormulario('novo')} /></Permitido>}>
-      {/* Mesma barra das outras listas: a busca procura em todas as coleções (que são os grupos abaixo, não um filtro). */}
+      descricao={uso.linha ? `${categoria.descricao} ${uso.linha}` : categoria.descricao}>
+      {/* Busca e criação na mesma fileira: a busca procura em todas as coleções (os grupos abaixo, não um filtro) e o
+          primário da área ("Nova …") fica ao lado dela, no fim. */}
       <View style={estilos.busca}>
         <View style={estilos.campoBusca}><Campo rotulo="Buscar modelo" valor={busca} aoMudar={buscar} placeholder="Nome ou descrição" autoCorrect={false} /></View>
-        <Permitido codigo="MODELO_ALTERAR"><Botao rotulo="Organizar coleções" tipo="secundario" Icone={Library} style={estilos.aoPeDoCampo} aoTocar={() => setOrganizar({ editar: null })} /></Permitido>
+        <Permitido codigo="MODELO_ALTERAR">
+          <View style={estilos.acoesDaBusca}>
+            <Botao rotulo="Organizar coleções" tipo="secundario" Icone={Library} aoTocar={() => setOrganizar({ editar: null })} />
+            <Botao rotulo={rotuloNovoModelo(tipo)} Icone={Plus} aoTocar={() => setFormulario('novo')} />
+          </View>
+        </Permitido>
       </View>
       {modelos.erro || colecoes.erro ? <MensagemErro texto={textoDoErro(modelos.erro ?? colecoes.erro)} tentarDeNovo={atualizar} /> : null}
       {carregando ? <Esqueleto /> : null}
@@ -223,6 +230,6 @@ function OrganizarColecoes({ colecoes: pastas, inicial = null, aoFechar, atualiz
 const estilos = StyleSheet.create({
   busca: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: espaco(1) },
   campoBusca: { flexGrow: 1, flexBasis: 240 },
-  // O Botao se alinha ao topo por padrão; aqui fica na base, rente ao campo de busca.
-  aoPeDoCampo: { alignSelf: 'flex-end' },
+  // Os botões ficam na base, rentes ao campo de busca; quebram juntos para baixo dele no celular.
+  acoesDaBusca: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: espaco(1) },
 });

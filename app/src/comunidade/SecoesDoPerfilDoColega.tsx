@@ -158,7 +158,7 @@ export function RecordesDeCarga({ recordes }: { recordes: readonly RecordeDoCole
 const estilos = StyleSheet.create({
   secao: { gap: espaco(1) },
   grade: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
-  destaque: { flexGrow: 1, flexBasis: 120, alignItems: 'center', gap: espaco(1), borderWidth: 2, borderRadius: RAIO, padding: espaco(2) },
+  destaque: { flexGrow: 1, flexBasis: 120, alignItems: 'center', gap: espaco(1), borderWidth: 1, borderRadius: RAIO, padding: espaco(2) },
   insignia: { flexGrow: 1, flexBasis: 150, alignItems: 'center', gap: espaco(0.5), borderWidth: 1, borderRadius: RAIO, padding: espaco(2) },
   centro: { textAlign: 'center' },
   calendario: { gap: 4, alignSelf: 'flex-start' },

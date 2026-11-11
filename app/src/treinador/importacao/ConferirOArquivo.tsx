@@ -92,7 +92,7 @@ function Resultado({ diagnostico }: { diagnostico: DiagnosticoDoArquivo }) {
       {diagnostico.abas.map((aba) => {
         const { reconhecidas, naoReconhecidas } = colunasDaAba(aba);
         return (
-          <View key={aba.indice} style={[estilos.aba, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
+          <View key={aba.indice} style={[estilos.aba, { borderColor: cores.divisor, backgroundColor: cores.superficie2 }]}>
             <Texto variante="subtitulo">{tituloDaAba(aba)}</Texto>
             <Texto variante="suave">{contagensDaAba(aba).join(' · ')}</Texto>
             {problemasEmOrdem(aba.problemas).map((p) => <Texto key={p.codigo}>{`• ${textoDoProblema(p)}`}</Texto>)}

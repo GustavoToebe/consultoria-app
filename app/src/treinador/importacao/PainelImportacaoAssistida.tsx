@@ -284,7 +284,7 @@ export function PainelImportacaoAssistida() {
           </Texto>
 
           {mostrarTexto ? (
-            <View style={[estilos.item, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
+            <View style={[estilos.item, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
               <Campo
                 rotulo="Título ou origem"
                 valor={tituloTexto}
@@ -360,7 +360,7 @@ export function PainelImportacaoAssistida() {
             >
               {erroEm('duvidas')}
               {sessao.duvidas.map((d) => (
-                <View key={d.id} style={[estilos.item, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
+                <View key={d.id} style={[estilos.item, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
                   <View style={estilos.cabecalhoItem}>
                     <Texto variante="bloco" nivel={3} style={estilos.encolher}>{rotuloDaDuvida(d.tipo)}</Texto>
                     <Selo texto={d.resolvida ? 'Resolvida' : 'Conferir'} tipo={d.resolvida ? 'sucesso' : 'atencao'} />
@@ -453,7 +453,7 @@ export function PainelImportacaoAssistida() {
 
               {/* Resultado junto dos botões: quem tocou em gravar o vê sem rolar a página. */}
               {resumo ? (
-                <View style={[estilos.item, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
+                <View style={[estilos.item, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
                   <View style={estilos.lista}>
                     <Texto variante="bloco" nivel={3}>{resumo.titulo}</Texto>
                     {resumo.descricao ? <Texto variante="suave">{resumo.descricao}</Texto> : null}
@@ -513,7 +513,7 @@ function LinhaResumida({ grupo }: { grupo: GrupoImportavel }) {
   const { cores } = useTema();
   const selo = seloDoGrupo(grupo.estado);
   return (
-    <View style={[estilos.resumida, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
+    <View style={[estilos.resumida, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
       <View style={estilos.cabecalhoItem}>
         <Texto style={estilos.encolher}>{tituloDoGrupoResumido(grupo)}</Texto>
         <Selo texto={selo.texto} tipo={selo.tipo} />
@@ -533,7 +533,7 @@ function GrupoParaConferir({ grupo, pode, conferidos, aoMudar }: {
   const { cores } = useTema();
   const selo = seloDoGrupo(grupo.estado);
   return (
-    <View style={[estilos.item, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
+    <View style={[estilos.item, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
       <View style={estilos.cabecalhoItem}>
         <Texto variante="bloco" nivel={3} style={estilos.encolher}>{grupo.nomeDetectado}</Texto>
         <Selo texto={selo.texto} tipo={selo.tipo} />

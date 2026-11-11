@@ -16,7 +16,8 @@ import { useMovimentoReduzido } from '../ui/useMovimentoReduzido';
 /**
  * Treinos da semana. Os registros do provedor já trazem o que está no servidor (a semana atual é buscada ao abrir e
  * guardada no aparelho), então esta conta e o "Hoje" usam a mesma fonte. Com "Concluir treino" ligado, a semana em que
- * todos os treinos com dia fixo têm registro ganha o "Semana completa" (Engajamento 0.6, P5); sem dia fixo, nada.
+ * todos os treinos com dia fixo têm registro ganha o "Semana completa" (Engajamento 0.6, P5); sem dia fixo, nada. O verde
+ * fica só no selo (guia de 11/11, pág. 4: nunca a faixa inteira); o contêiner e o troféu são neutros.
  */
 export function ProgressoSemana({ hoje }: { hoje: string }) {
   const { pacote, registros, semanaDoAparelho } = useAluno();
@@ -40,9 +41,9 @@ export function ProgressoSemana({ hoje }: { hoje: string }) {
       </View>
       {completa ? (
         <Animated.View entering={reduzido ? undefined : FadeIn.duration(220).reduceMotion(ReduceMotion.System)}
-          style={[estilos.completa, { borderColor: cores.sucesso, backgroundColor: `${cores.sucesso}1F` }]}
+          style={[estilos.completa, { borderColor: cores.divisor, backgroundColor: cores.superficie2 }]}
           accessibilityRole="text" accessibilityLabel="Semana completa: você fez todos os treinos desta semana.">
-          <Trophy size={22} color={cores.sucesso} />
+          <Trophy size={22} color={cores.texto} />
           <View style={estilos.textos}>
             <View style={estilos.selo}><Selo texto="Semana completa" tipo="sucesso" /></View>
             <Texto>Você fez todos os treinos desta semana.</Texto>

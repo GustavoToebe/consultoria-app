@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native';
 
 import type { CorDaAgenda, SituacaoCompromisso } from '../../api/agendaTipos';
 import type { ItemDoCalendario } from '../../dominio/agendaCalendario';
-import { fundoDoItemDaAgenda, horarioNoRotuloDoCompromisso, LARGURA_DA_FAIXA, statusNoRotuloDoCompromisso } from '../../dominio/agendaLegivel';
+import { horarioNoRotuloDoCompromisso, LARGURA_DA_FAIXA, statusNoRotuloDoCompromisso } from '../../dominio/agendaLegivel';
 import { nomesPorExtenso, seloDaSituacao, seloDoCompromisso, situacaoDoCompromisso } from '../../dominio/agendaPresencial';
 import { caminhoAtualizacaoTreinador, statusAtualizacaoTreinador } from '../../dominio/atualizacao';
 import { dataSemAnoCorrente } from '../../dominio/datasRelativas';
@@ -48,7 +48,9 @@ export function rotuloDoItem(item: ItemDoCalendario, hoje: string): string {
  */
 export function seloDaAtualizacaoNaAgenda(a: Parameters<typeof statusAtualizacaoTreinador>[0], hoje: string) {
   const s = statusAtualizacaoTreinador(a, hoje);
-  return s.tipo === 'neutro' && !a.atrasoAte ? null : s;
+  // "Revisada" é neutra (informativa) desde 11/11, mas diz algo além do dia: continua aparecendo, com o ✓.
+  if (a.fase === 'REVISADA') return { ...s, Icone: CircleCheck };
+  return s.tipo === 'neutro' && !a.atrasoAte ? null : { ...s, Icone: ICONE_DO_TOM[s.tipo] };
 }
 
 /** Selo da agenda: o texto e o tom de sempre, com o ícone (status sempre com texto e ícone; a cor nunca fala sozinha). */
@@ -80,7 +82,7 @@ export function seloDoItem(item: ItemDoCalendario, hoje: string): SeloDaAgenda |
   if (f.origem === 'COMPROMISSO') return seloDoCompromissoComIcone(f.compromisso);
   if (f.origem === 'ATUALIZACAO') {
     const s = seloDaAtualizacaoNaAgenda(f.atualizacao, hoje);
-    return s ? { texto: s.curto, tipo: s.tipo, Icone: ICONE_DO_TOM[s.tipo] } : null;
+    return s ? { texto: s.curto, tipo: s.tipo, Icone: s.Icone } : null;
   }
   return null;
 }
@@ -117,18 +119,16 @@ export function useCorDaAgenda() {
 }
 
 /**
- * Fundo do item na grade (bloco e dia inteiro): a superfície do item tingida com a cor da agenda, na maior proporção em
- * que o texto (`texto`) fica ≥ 4,5:1 e a faixa e os ícones de status ≥ 3:1 (`dominio/agendaLegivel`, conferido em
- * `contrasteDaAgenda.test.ts` com os mesmos argumentos). O cancelado fica sem tinta: o selo "Cancelado" e o riscado dizem
- * o status, e nada é esmaecido (a opacidade baixava o contraste do texto e do selo).
+ * Fundo e contorno do item na grade (bloco e dia inteiro), sempre neutros: a cor da agenda fica só na faixa de 8 px
+ * (guia de 11/11, "cor como sinal"). Hover = `superficie3`; o item aberto na folha ganha também o contorno forte
+ * (`bordaCampo`), que o separa do hover. A faixa ≥ 3:1 sobre as duas superfícies está em `contrasteDaAgenda.test.ts`.
  */
-export function useFundoDoItem() {
+export function useCoresDoItem() {
   const { cores } = useTema();
-  return (cor: string, aceso: boolean, cancelado: boolean) => {
-    const base = aceso ? cores.superficie3 : cores.superficie2;
-    if (cancelado) return base;
-    return fundoDoItemDaAgenda({ cor, base, textos: [cores.texto], graficos: [cores.sucesso, cores.atencao, cores.perigo, cores.neutro] });
-  };
+  return (aceso: boolean, escolhido: boolean) => ({
+    backgroundColor: aceso || escolhido ? cores.superficie3 : cores.superficie2,
+    borderColor: escolhido ? cores.bordaCampo : cores.borda,
+  });
 }
 
 /** O status só em ícone (bloco curto ou coluna estreita): decorativo, porque o nome acessível do item já o diz. */

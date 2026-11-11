@@ -1,4 +1,4 @@
-import { AlignLeft, Clock, MapPin, UserRound, Users, X } from 'lucide-react-native';
+import { AlignLeft, Check, Clock, MapPin, UserRound, Users, X } from 'lucide-react-native';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
@@ -25,6 +25,7 @@ import { depoisDeFecharAsFolhas } from '../../ui/historicoDasFolhas';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { sobre } from '../../ui/sobre';
+import { coresDaSelecao } from '../../ui/selecao';
 import { Texto } from '../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../ui/useCarregar';
 import { CamposDoHorario, LinhaComIcone, SeletorDaRepeticao, TituloDaParte } from './PecasDoFormulario';
@@ -252,10 +253,12 @@ export function DiasDaSemana({ dias, aoMudar }: { dias: readonly DiaDaSemana[]; 
             <Pressable key={d.valor} accessibilityRole="checkbox" accessibilityLabel={d.completo} accessibilityState={{ checked: ativo }} aria-checked={ativo}
               onPress={() => aoMudar(alternarDiaDaRepeticao(dias, d.valor))}
               style={(e) => [estilos.dia, {
-                backgroundColor: ativo ? cores.texto : sobre(e) ? cores.superficie3 : cores.superficie2,
-                borderColor: ativo ? cores.texto : cores.borda,
+                // Seleção neutra (`ui/selecao`): superfície de seleção, contorno forte e ✓.
+                backgroundColor: ativo ? coresDaSelecao(cores, true).fundo : sobre(e) ? cores.superficie3 : cores.superficie2,
+                borderColor: ativo ? coresDaSelecao(cores, true).borda : cores.borda,
               }]}>
-              <Texto style={[estilos.textoDoDia, { color: ativo ? cores.fundo : cores.texto }]}>{d.rotulo}</Texto>
+              {ativo ? <Check size={14} color={cores.texto} strokeWidth={2.5} /> : null}
+              <Texto style={[estilos.textoDoDia, { color: cores.texto }]}>{d.rotulo}</Texto>
             </Pressable>
           );
         })}
@@ -277,6 +280,6 @@ const estilos = StyleSheet.create({
   chip: { flexDirection: 'row', alignItems: 'center', maxWidth: '100%', minHeight: ALVO_TOQUE, paddingLeft: espaco(1.5), borderWidth: 1, borderRadius: RAIO },
   nomeDoChip: { flexShrink: 1 },
   dias: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(0.75) },
-  dia: { minWidth: ALVO_TOQUE + 8, minHeight: ALVO_TOQUE, paddingHorizontal: espaco(1), borderWidth: 1, borderRadius: RAIO, alignItems: 'center', justifyContent: 'center' },
+  dia: { minWidth: ALVO_TOQUE + 8, minHeight: ALVO_TOQUE, paddingHorizontal: espaco(1), borderWidth: 1, borderRadius: RAIO, flexDirection: 'row', gap: 4, alignItems: 'center', justifyContent: 'center' },
   textoDoDia: { fontFamily: fontes.semi, fontSize: 14 },
 });

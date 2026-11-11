@@ -1,5 +1,5 @@
 import * as DocumentPicker from 'expo-document-picker';
-import { Apple, Check, Download, Dumbbell, FileSpreadsheet, FileText, FileUp, FlaskConical, Pill, Scale, Trash2, Undo2, Users, type LucideIcon } from 'lucide-react-native';
+import { Apple, Check, Download, Dumbbell, FileSearch, FileSpreadsheet, FileText, FileUp, FlaskConical, Pill, Scale, Trash2, Undo2, Users, type LucideIcon } from 'lucide-react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { createElement, useId, useRef, useState } from 'react';
 import { Linking, Platform, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
@@ -35,8 +35,11 @@ import { Esqueleto } from '../../ui/Esqueleto';
 import { Alerta, MensagemErro, Vazio } from '../../ui/Estados';
 import { Folha } from '../../ui/Folha';
 import { useGuardaDeSaida, useSaidaGuardada } from '../../ui/GuardaDeSaida';
+import { ItemDeLista } from '../../ui/ItemDeLista';
+import { corDoNumero } from '../../ui/indicador';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Selo, type TipoSelo } from '../../ui/Selo';
+import { coresDaSelecao } from '../../ui/selecao';
 import { sobre } from '../../ui/sobre';
 import { Tabela } from '../../ui/Tabela';
 import { Texto } from '../../ui/Texto';
@@ -102,7 +105,6 @@ export function TelaImportacao() {
     <>
       <LinhaDeAcoes>
         <Botao rotulo="Nova importação" Icone={FileUp} aoTocar={() => router.push('/treinador/importacao/nova')} />
-        <Botao rotulo="Importação assistida" tipo="primario" Icone={FileUp} aoTocar={() => router.push('/treinador/importacao/assistida')} />
         <Botao rotulo="Modelos de planilha" tipo="secundario" aoTocar={() => setModelos(true)} />
         {/* Treino que está num PDF ou Google Docs: vira um modelo de semana de treino já com a Folha de colar aberta. */}
         {pode('MODELO_LER') && pode('MODELO_ALTERAR') ? (
@@ -110,6 +112,9 @@ export function TelaImportacao() {
             aoTocar={() => router.push({ pathname: '/treinador/planejamento', params: { aba: 'treino', tipo: 'plano_treino', novo: '1', colar: '1' } })} />
         ) : null}
       </LinhaDeAcoes>
+      {/* Um caminho principal (Nova importação); o de documentos fica descrito ao lado, sem outro botão primário. */}
+      <ItemDeLista titulo="Importação assistida" Icone={FileSearch}
+        detalhe="PDFs, DOCX, planilhas e texto colado num lote só. Você confere tudo antes de gravar." href="/treinador/importacao/assistida" />
       <BarraDeFiltros valor={filtros} aoAplicar={aplicar} limpo={SEM_FILTROS} chips={chips}
         aoTirar={(chave) => aplicar(semOFiltro(filtros, chave as ChaveDoFiltro))} rotuloDoResultado="Ver importações"
         seletores={(atuais, mudar) => <>
@@ -209,7 +214,7 @@ function ListaDeErros({ erros, onde }: { erros: readonly { linha: number; campo:
   return (
     <View style={estilos.erros}>
       {grupos.slice(0, ERROS_NA_TELA).map((g) => (
-        <View key={`${g.campo}-${g.motivo}`} style={[estilos.grupoDeErro, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
+        <View key={`${g.campo}-${g.motivo}`} style={[estilos.grupoDeErro, { borderColor: cores.divisor, backgroundColor: cores.superficie2 }]}>
           <Texto>{textoDoGrupoDeErros(g, onde(g.campo))}</Texto>
         </View>
       ))}
@@ -231,15 +236,18 @@ function FolhaDetalhe({ id, aoFechar }: { id: string; aoFechar: () => void }) {
   );
 }
 
-/** Números lado a lado (quebram linha no celular), como o resumo da validação. */
-export function Numeros({ itens }: { itens: { rotulo: string; valor: number; tipo?: 'perigo' | 'sucesso' }[] }) {
+/**
+ * Números lado a lado (quebram linha no celular), como o resumo da validação. Neutros (`ui/indicador`): só o "com erro"
+ * acima de zero ganha o vermelho; zero fica em `textoSuave`. Nunca verde: o número não é selo de sucesso.
+ */
+export function Numeros({ itens }: { itens: { rotulo: string; valor: number; tipo?: 'perigo' }[] }) {
   const { cores } = useTema();
   return (
     <View style={estilos.numeros}>
       {itens.map((i) => (
-        <View key={i.rotulo} style={[estilos.numero, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}
+        <View key={i.rotulo} style={[estilos.numero, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}
           accessible accessibilityLabel={`${i.rotulo}: ${i.valor}`}>
-          <Texto variante="destaque" cor={i.tipo === 'perigo' ? cores.perigo : i.tipo === 'sucesso' ? cores.sucesso : undefined}>{i.valor}</Texto>
+          <Texto variante="destaque" numerico cor={corDoNumero(cores, i.tipo === 'perigo' && i.valor > 0 ? 'atraso' : i.valor === 0 ? 'zero' : 'geral')}>{i.valor}</Texto>
           <Texto variante="suave">{i.rotulo}</Texto>
         </View>
       ))}
@@ -452,7 +460,7 @@ export function AssistenteDaImportacao() {
         <Botao rotulo={etapa === 3 ? 'Validar' : 'Continuar'} carregando={ocupado && etapa === 2} desabilitado={motivo !== null} motivo={motivo ?? undefined} aoTocar={avancar} />
       ) : (
         <Botao rotulo="Confirmar importação" carregando={ocupado} desabilitado={!previa || !resumo || resumo.corretas === 0}
-          motivo={!previa ? 'Aguarde a validação.' : 'Nenhuma linha correta para importar.'} aoTocar={confirmar} />
+          motivo={previa ? 'Nenhuma linha correta para importar.' : ocupado ? 'Aguarde a validação.' : 'A validação não terminou. Tente de novo.'} aoTocar={confirmar} />
       )}
     </>
   );
@@ -463,7 +471,10 @@ export function AssistenteDaImportacao() {
         trilha={[{ rotulo: 'Importação', href: '/treinador/importacao' }]} />}
       barra={<Etapas etapa={etapa} estreita={estreita} />}>
       <View onLayout={(e) => setLargura(e.nativeEvent.layout.width)} style={estilos.coluna}>
-        {erro ? <MensagemErro texto={textoDoErroDaApi(erro)} /> : null}
+        {/* Sem conexão na leitura ou na validação, o "Tentar de novo" repete o mesmo pedido (a confirmação não: o
+            treinador confere e toca em Confirmar de novo). */}
+        {erro ? <MensagemErro texto={textoDoErroDaApi(erro)} erro={erro}
+          tentarDeNovo={etapa === 4 && !previa ? validar : etapa === 2 && !colunas ? () => lerColunas(aba, linhaDoCabecalho) : undefined} /> : null}
 
         {etapa === 1 ? (
           <>
@@ -531,8 +542,10 @@ export function AssistenteDaImportacao() {
               <>
                 <Numeros itens={[
                   { rotulo: 'Total', valor: resumo.total },
-                  { rotulo: 'Com erro', valor: resumo.comErro, tipo: resumo.comErro > 0 ? 'perigo' : undefined },
-                  { rotulo: 'Corretas', valor: resumo.corretas, tipo: resumo.corretas > 0 ? 'sucesso' : undefined },
+                  { rotulo: 'Novos', valor: previa.novos },
+                  { rotulo: 'Atualizados', valor: previa.atualizados },
+                  { rotulo: 'Já existem (ficam como estão)', valor: previa.ignorados },
+                  { rotulo: 'Com erro (ficam de fora)', valor: previa.comErro, tipo: 'perigo' },
                 ]} />
                 <Texto>{textoDoQueVaiAcontecer(previa)}</Texto>
                 {previa.comErro > 0 ? (
@@ -550,7 +563,15 @@ export function AssistenteDaImportacao() {
           </>
         ) : null}
 
-        {etapa === 5 && resultado ? <ResultadoDaImportacao dados={resultado} /> : null}
+        {etapa === 5 && resultado ? (
+          <>
+            {/* "Concluída com erros" em âmbar: não pode parecer sucesso completo. */}
+            <View style={estilos.linha}>
+              <Selo texto={SITUACAO[resultado.situacao]?.texto ?? resultado.situacao} tipo={SITUACAO[resultado.situacao]?.tipo ?? 'neutro'} />
+            </View>
+            <ResultadoDaImportacao dados={resultado} />
+          </>
+        ) : null}
       </View>
     </TelaDoEditor>
   );
@@ -574,11 +595,13 @@ function CartoesDeDestino({ destinos, valor, aoMudar }: { destinos: Destino[]; v
             <Pressable key={d.id} accessibilityRole="radio" accessibilityLabel={d.rotulo} accessibilityState={{ checked: ativo }} aria-checked={ativo}
               onPress={() => aoMudar(d.id)}
               style={(e) => [estilos.destino, {
-                borderColor: ativo ? cores.texto : cores.borda,
-                backgroundColor: ativo ? cores.texto : sobre(e) ? cores.superficie3 : cores.superficie2,
+                // Seleção neutra (`ui/selecao`): superfície de seleção, contorno forte e o rótulo em semi.
+                borderColor: ativo ? coresDaSelecao(cores, true).borda : cores.divisor,
+                backgroundColor: ativo ? coresDaSelecao(cores, true).fundo : sobre(e) ? cores.superficie3 : cores.superficie2,
               }]}>
-              <Icone size={26} color={ativo ? cores.fundo : cores.texto} strokeWidth={1.75} />
-              <Texto style={[estilos.rotuloDoDestino, { color: ativo ? cores.fundo : cores.texto }]} numberOfLines={2}>{d.rotulo}</Texto>
+              <Icone size={26} color={cores.texto} strokeWidth={ativo ? 2.25 : 1.75} />
+              <Texto style={[estilos.rotuloDoDestino, { color: cores.texto }, ativo && { fontFamily: fontes.semi }]} numberOfLines={2}>{d.rotulo}</Texto>
+              {ativo ? <View style={estilos.marcaDoDestino}><Check size={16} color={cores.texto} strokeWidth={2.5} /></View> : null}
             </Pressable>
           );
         })}
@@ -649,7 +672,7 @@ function Mapeamento({ destino, colunas, linhaDoCabecalho, chave, mapa, estreita,
       </View>
       {aviso ? <Texto variante="pequeno">{aviso}</Texto> : null}
       {total.celulas > 0 || total.removidas > 0 ? (
-        <View style={[estilos.linha, estilos.resumoDosAjustes, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
+        <View style={[estilos.linha, estilos.resumoDosAjustes, { borderColor: cores.divisor, backgroundColor: cores.superficie2 }]}>
           <Texto>{[
             total.celulas > 0 ? `${total.celulas} ${total.celulas === 1 ? 'célula corrigida' : 'células corrigidas'}` : null,
             total.removidas > 0 ? `${total.removidas} ${total.removidas === 1 ? 'linha tirada' : 'linhas tiradas'} (${[...ajustes.removidas].sort((a, b) => a - b).join(', ')})` : null,
@@ -661,7 +684,7 @@ function Mapeamento({ destino, colunas, linhaDoCabecalho, chave, mapa, estreita,
           {total.removidas > 1 ? <Botao rotulo="Devolver todas" tipo="fantasma" aoTocar={() => aoAjustar({ ...ajustes, removidas: [] })} /> : null}
         </View>
       ) : null}
-      <ScrollView horizontal style={[estilos.tabela, { borderColor: cores.borda }]}>
+      <ScrollView horizontal style={[estilos.tabela, { borderColor: cores.divisor }]}>
         <View>
           <View style={[estilos.linhaDaTabela, { backgroundColor: cores.superficie3, borderBottomColor: cores.borda }]}>
             <View style={estilos.celulaLinha}><Texto variante="rotulo">ID</Texto></View>
@@ -783,7 +806,7 @@ export function ZonaDeArquivo({ arquivo, aoEscolher }: { arquivo: ArquivoEscolhi
     <View style={estilos.arquivo}>
       <FileSpreadsheet size={28} color={cores.texto} />
       <View style={estilos.textosDoArquivo}>
-        <Texto variante="bloco" numberOfLines={1}>{arquivo.nome}</Texto>
+        <Texto variante="bloco" numberOfLines={2}>{arquivo.nome}</Texto>
         <Texto variante="suave">{[tipo ?? 'Formato não aceito', tamanho].filter(Boolean).join(' · ')}{' · selecionado, ainda não enviado'}</Texto>
         {!tipo ? <Texto cor={cores.perigo}>Envie um arquivo .xlsx ou .csv.</Texto> : null}
       </View>
@@ -832,6 +855,7 @@ const estilos = StyleSheet.create({
   textosDoArquivo: { flex: 1, minWidth: 180, gap: 2 },
   tabela: { borderWidth: 1, borderRadius: RAIO },
   destinos: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
+  marcaDoDestino: { position: 'absolute', top: espaco(1), right: espaco(1) },
   destino: { flexGrow: 1, flexBasis: 150, minHeight: 96, borderWidth: 1, borderRadius: RAIO, alignItems: 'center', justifyContent: 'center', gap: espaco(1), padding: espaco(1.5) },
   rotuloDoDestino: { fontFamily: fontes.semi, textAlign: 'center' },
   busca: { flexGrow: 1, flexBasis: 260 },

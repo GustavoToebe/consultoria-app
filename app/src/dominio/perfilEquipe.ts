@@ -46,6 +46,13 @@ export function podeEditarMembro(ator:AtorEquipe,membro:{id:string;perfilId:stri
   return !!perfil&&podeAtribuir(ator,perfil);
 }
 export const podeEditarPerfil=(ator:AtorEquipe,p:PerfilEquipe)=>!p.sistema&&(ator.administrador||(p.id!==ator.perfilId&&cabeNoTeto(ator,p.permissoes)));
+/** Por que o perfil não tem "Editar", em texto claro no lugar do botão; `null` quando `podeEditarPerfil` deixa. */
+export function motivoSemEditarPerfil(ator:AtorEquipe,p:PerfilEquipe):string|null {
+  if(podeEditarPerfil(ator,p))return null;
+  if(p.sistema)return 'Perfil do sistema: não pode ser editado nem excluído.';
+  if(p.id===ator.perfilId)return 'É o seu perfil: só um administrador o altera.';
+  return 'Tem permissões que você não tem: só um administrador o altera.';
+}
 /** Convite pendente só é cancelado por quem poderia convidar para aquele perfil (a API decide de verdade). */
 export const podeCancelarConvite=(ator:AtorEquipe,convite:{convitePendente:boolean;perfilId:string},perfis:readonly PerfilEquipe[])=>{
   const perfil=perfis.find(p=>p.id===convite.perfilId);

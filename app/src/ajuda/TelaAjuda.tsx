@@ -7,7 +7,7 @@ import { AVISO_DE_VOLTA, mostrarDeNovo, temPrimeirosPassos } from '../dominio/pr
 import { useSessao } from '../sessao/SessaoProvider';
 import { usePrimeirosPassosGuardados } from '../treinador/painel/usePrimeirosPassosGuardados';
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, LARGURA_EDITOR } from '../tema/tokens';
+import { ALVO_TOQUE, espaco } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
 import { Cabecalho } from '../ui/Cabecalho';
 import { Cartao } from '../ui/Cartao';
@@ -20,11 +20,15 @@ import { Texto } from '../ui/Texto';
 import { GUIAS, secoesDoGuia, textoDoItem, type Publico } from './conteudo';
 import { TutorialGuiado } from './TutorialGuiado';
 
+/** Coluna de leitura, igual nas duas áreas: os assuntos são texto corrido (guia de 11/11, pág. 19). */
+const LARGURA_DE_LEITURA = 720;
+
 /**
- * Ajuda de cada área: "Conhecer o app" (o passeio pelo menu e o tutorial passo a passo, que antes eram dois cartões com
- * nomes parecidos), primeiros passos (aluno: a lista com "Abrir"; treinador: o "Mostrar no Início de novo"), guia em PDF (web) e um cartão só
- * com as seções e as perguntas, cada uma numa linha que abre (antes eram vários cartões de ~85 px). Passo só do PDF (o
- * convite, para quem ainda não entrou) não aparece aqui. A seta de voltar vem do `Cabecalho` (origem: Perfil ou Conta).
+ * Ajuda de cada área, por intenção (guia de 11/11, pág. 19). "Começar a usar": o tutorial passo a passo (a ação clara) e o
+ * "Conhecer o menu" (secundário), seguidos dos primeiros passos (aluno: a lista com "Abrir"; treinador: o "Mostrar no Início
+ * de novo"). "Consultar": as seções e as perguntas, cada uma numa linha que abre, com o guia em PDF (web) como acesso
+ * secundário no topo do cartão. Passo só do PDF (o convite, para quem ainda não entrou) não aparece aqui. A seta de voltar
+ * vem do `Cabecalho` (origem: Perfil ou Conta).
  */
 export function TelaAjuda({ publico }: { publico: Publico }) {
   const guia = GUIAS[publico];
@@ -33,9 +37,9 @@ export function TelaAjuda({ publico }: { publico: Publico }) {
   const { cicloHabilitado, retornoHabilitado, pode, perfilEquipe } = useSessao();
   const passos = guia.primeirosPassos.filter((p) => !p.soNoPdf);
   return (
-    <Tela bordas={['top']} largura={publico === 'aluno' ? 720 : LARGURA_EDITOR}>
+    <Tela bordas={['top']} largura={LARGURA_DE_LEITURA}>
       <Cabecalho titulo="Ajuda" subtitulo={guia.introducao} />
-      <Cartao titulo="Conhecer o app">
+      <Cartao titulo="Começar a usar">
         <Texto variante="suave">
           {`O tutorial passa pelas telas, na ordem em que você vai usá-las (${guia.tutorial.length} passos). "Conhecer o menu" destaca cada item do menu, como no primeiro acesso. Dá para sair dos dois a qualquer momento.`}
         </Texto>
@@ -62,11 +66,13 @@ export function TelaAjuda({ publico }: { publico: Publico }) {
           ))}
         </Cartao>
       )}
-      {Platform.OS === 'web' ? (
-        <Cartao titulo="Guia do usuário em PDF" descricao="Para ler com calma, imprimir ou enviar."
-          acoes={<Botao rotulo="Abrir o guia" rotuloAcessivel={`Abrir ${guia.titulo.toLowerCase()}`} tipo="secundario" Icone={FileDown} aoTocar={() => void Linking.openURL(`/guias/${guia.arquivoPdf}`)} />}>{null}</Cartao>
-      ) : null}
-      <Cartao titulo="Como usar">
+      <Cartao titulo="Consultar"
+        descricao={Platform.OS === 'web'
+          ? 'Os assuntos do app e as perguntas frequentes. O guia em PDF serve para ler com calma, imprimir ou enviar.'
+          : 'Os assuntos do app e as perguntas frequentes.'}
+        acoes={Platform.OS === 'web'
+          ? <Botao rotulo="Abrir o guia" rotuloAcessivel={`Abrir ${guia.titulo.toLowerCase()}`} tipo="secundario" Icone={FileDown} aoTocar={() => void Linking.openURL(`/guias/${guia.arquivoPdf}`)} />
+          : undefined}>
         {secoesDoGuia(guia, retornoHabilitado).map((s) => (
           <LinhaRecolhivel key={s.titulo} titulo={s.titulo}>
             {s.itens.map((item) => (

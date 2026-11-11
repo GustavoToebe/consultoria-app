@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Alunos · Treinador · Prévia visual vendável</title>
+<!-- Dados fictícios (D8). Nada aqui fala com a API. -->
+<link rel="stylesheet" href="base.css">
+<script src="base.js"></script>
+<style>
+  /* lista: uma grade só, que muda de forma por largura (celular, intermediária, colunas a partir de 1280) */
+  .linha-aluno { display: grid; gap: 4px 12px; align-items: center; grid-template-columns: 40px minmax(0, 1fr) auto; grid-template-areas: "av nome acesso" "av sit sit" "av info info"; }
+  .linha-aluno .avatar { grid-area: av; align-self: start; }
+  .col-nome { grid-area: nome; } .col-sit { grid-area: sit; } .col-info { grid-area: info; display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: var(--t-apoio); color: var(--suave); }
+  .col-acesso { grid-area: acesso; position: relative; z-index: 1; display: grid; place-items: center; width: 32px; height: 32px; color: var(--suave); }
+  .col-semana { display: inline-flex; align-items: center; gap: 8px; }
+  .col-semana .progresso { width: 56px; min-width: 56px; }
+  /* 48 barrinhas da marca gritavam; na lista a barra é neutra (o "1 de 4" ao lado é a informação) */
+  .col-semana .progresso > span { background: var(--suave); }
+  /* pasta: "Hipertrofia · até 24/11" numa linha; nas colunas (1280) o prazo desce para a segunda linha, como o e-mail */
+  .pasta-fim { white-space: nowrap; }
+  .pasta-fim::before { content: " · "; }
+  @media (min-width: 768px) { .linha-aluno { grid-template-columns: 40px minmax(0, 1fr) auto 32px; grid-template-areas: "av nome sit acesso" "av info info info"; } }
+  @media (min-width: 1280px) {
+    .linha-aluno, .lista-cab { grid-template-columns: 40px minmax(180px, 2fr) minmax(170px, 1.5fr) minmax(140px, 1.3fr) minmax(100px, 1fr) minmax(110px, 1fr) 32px; grid-template-areas: "av nome sit pasta ult sem acesso"; }
+    .linha-aluno .avatar { align-self: center; }
+    .col-info { display: contents; }
+    .col-pasta { grid-area: pasta; display: flex; flex-direction: column; color: var(--texto); min-width: 0; }
+    .col-pasta .pasta-fim { color: var(--suave); font-size: var(--t-rotulo); }
+    .col-pasta .pasta-fim::before { content: none; }
+    .col-ultimo { grid-area: ult; } .col-semana { grid-area: sem; }
+    .lista-cab { display: grid; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--divisor); }
+    .lista-cab span:first-child { grid-column: 1 / 3; }
+  }
+  /* até 1280 a semana desce para a linha dela: todas as linhas do celular com o mesmo ritmo */
+  @media (max-width: 1279.98px) { .col-semana { flex-basis: 100%; } }
+  .filtros { display: flex; flex-direction: column; gap: 12px; }
+  /* celular: os 7 filtros numa faixa que rola de lado (quebrando, ocupavam 4 linhas antes do primeiro aluno); o respiro deixa o anel de foco inteiro */
+  @media (max-width: 767.98px) {
+    html[data-selecao="neutra"] #filtros { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; padding: 4px; margin: -4px; contain: inline-size; }
+    #filtros::-webkit-scrollbar { display: none; }
+    #filtros > .chip { flex-shrink: 0; }
+  }
+  @media (min-width: 1024px) { .filtros { flex-direction: row; align-items: center; } .filtros .campo-busca { width: 320px; flex-shrink: 0; } }
+  .resultado { font-size: var(--t-apoio); color: var(--suave); padding: 12px 16px 0; }
+
+  /* ficha */
+  .ficha-topo { align-items: center; }
+  .ficha-topo .cab-pagina-texto { flex: 1 1 260px; }
+  .ficha-nome-linha { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+  .ficha-nome-linha h1:focus { outline: none; }
+  .ficha-nome-linha h1:focus-visible { outline: 2px solid var(--foco); outline-offset: 4px; border-radius: 4px; }
+  .exercicio { padding: 12px 0; border-top: 1px solid var(--divisor); display: flex; flex-direction: column; gap: 10px; }
+  .exercicio:first-child { border-top: 0; padding-top: 0; }
+  /* Calma: sem duas linhas seguidas (divisor + borda do 1º exercício) e sem caixa dentro do cartão no Último treino */
+  html[data-cor="calma"] .divisor + .exercicio { border-top: 0; padding-top: 4px; }
+  html[data-cor="calma"] #resumo-cheio .bloco-interno { background: none; border-radius: 0; padding: 12px 0 0; border-top: 1px solid var(--divisor); }
+  .exercicio-cab { display: flex; align-items: baseline; gap: 8px 12px; flex-wrap: wrap; }
+  .exercicio-cab b { font-size: var(--t-corpo); }
+  .series { display: flex; flex-direction: column; gap: 6px; }
+  .tempo-item { display: flex; flex-direction: column; gap: 2px; padding-top: 2px; }
+  .tempo-item b { font-weight: 600; }
+  .linha-plano { flex-wrap: wrap; }
+  .linha-plano .linha-principal { flex: 1 1 220px; }
+  .linha-plano .composicao { max-width: 360px; }
+  @media (max-width: 767px) { .linha-plano .linha-lado { width: 100%; flex-shrink: 1; flex-wrap: wrap; justify-content: space-between; padding-left: 52px; } .linha-plano .linha-lado .botao { margin-left: auto; } }
+  .recorde { display: flex; align-items: center; gap: 8px; font-size: var(--t-apoio); }
+  /* celular: a migalha da base tem 32 px; o alvo cresce para 44 sem mudar o desenho (igual ao editores.css) */
+  @media (max-width: 767.98px) { .migalha a { min-height: 44px; margin-block: -6px; } }
+</style>
+</head>
+<body data-casca="treinador" data-ativo="alunos">
+<main id="conteudo" class="pagina">
+
+  <!-- ===================== LISTA ===================== -->
+  <section id="vista-lista" class="pilha" aria-labelledby="titulo-lista">
+    <header class="cab-pagina">
+      <div class="cab-pagina-linha">
+        <div class="cab-pagina-texto">
+          <h1 class="t-titulo-pagina" id="titulo-lista">Alunos</h1>
+          <p class="subtitulo" id="sub-lista"></p>
+        </div>
+        <div class="cab-pagina-acoes">
+          <a class="botao botao--primario" href="#"><svg class="ic" aria-hidden="true"><use href="#i-adicionar"/></svg>Novo aluno</a>
+          <button type="button" class="botao botao--icone botao--secundario" data-menu="menu-lista" aria-label="Mais ações dos alunos"><svg class="ic" aria-hidden="true"><use href="#i-mais"/></svg></button>
+          <div class="menu-flutuante" id="menu-lista" hidden>
+            <a class="menu-flutuante-item" href="#"><svg class="ic" aria-hidden="true"><use href="#i-importar"/></svg>Importar planilha</a>
+            <a class="menu-flutuante-item" href="#"><svg class="ic" aria-hidden="true"><use href="#i-caixa"/></svg>Convidar por link</a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <section class="cartao" aria-label="Lista de alunos">
+      <div class="cartao-cab cartao-cab--coluna">
+        <div class="filtros">
+          <div class="campo campo-busca">
+            <label class="sr-only" for="busca">Buscar aluno pelo nome</label>
+            <svg class="ic" aria-hidden="true"><use href="#i-busca"/></svg>
+            <input class="campo-entrada" id="busca" name="busca" type="search" placeholder="Buscar pelo nome…" autocomplete="off">
+          </div>
+          <div class="grupo-chips" data-unico role="group" aria-label="Filtrar por situação" id="filtros"></div>
+        </div>
+      </div>
+      <div class="lista-cab t-secao" aria-hidden="true"><span>Aluno</span><span>Situação</span><span>Pasta</span><span>Último treino</span><span>Semana</span><span></span></div>
+      <ul class="lista" id="lista-alunos"></ul>
+      <p class="resultado" role="status" id="resultado" style="padding-bottom:12px"></p>
+      <div class="vazio" id="vazio-lista" hidden>
+        <span class="vazio-icone"><svg class="ic ic--24" aria-hidden="true"><use href="#i-busca"/></svg></span>
+        <h3>Nenhum aluno com esse nome nesta situação</h3>
+        <p>Confira a grafia ou volte para todos os alunos.</p>
+        <button type="button" class="botao botao--secundario" id="limpar">Mostrar todos</button>
+      </div>
+    </section>
+  </section>
+
+  <!-- ===================== FICHA ===================== -->
+  <section id="vista-ficha" class="pilha" hidden aria-labelledby="ficha-nome">
+    <header class="cab-pagina">
+      <nav class="migalha" aria-label="Você está em"><ol><li><a href="#lista">Alunos</a></li><li><span aria-current="page" id="mig-nome"></span></li></ol></nav>
+      <div class="cab-pagina-linha ficha-topo">
+        <span class="avatar avatar--grande" id="ficha-avatar" aria-hidden="true"></span>
+        <div class="cab-pagina-texto">
+          <div class="ficha-nome-linha"><h1 class="t-titulo-pagina" id="ficha-nome" tabindex="-1"></h1><span id="ficha-selo"></span></div>
+          <p class="subtitulo" id="ficha-sub"></p>
+        </div>
+        <div class="cab-pagina-acoes">
+          <a class="botao botao--secundario" href="#"><svg class="ic" aria-hidden="true"><use href="#i-conversa"/></svg>WhatsApp</a>
+          <button type="button" class="botao botao--icone botao--secundario" data-menu="menu-ficha" aria-label="Mais ações do aluno"><svg class="ic" aria-hidden="true"><use href="#i-mais"/></svg></button>
+          <div class="menu-flutuante" id="menu-ficha" hidden>
+            <a class="menu-flutuante-item" href="#"><svg class="ic" aria-hidden="true"><use href="#i-lapis"/></svg>Editar dados do aluno</a>
+            <a class="menu-flutuante-item" href="#"><svg class="ic" aria-hidden="true"><use href="#i-pasta"/></svg>Copiar pasta para outro aluno</a>
+            <a class="menu-flutuante-item" href="#"><svg class="ic" aria-hidden="true"><use href="#i-sem-acesso"/></svg>Definir acesso ao app</a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="faixa-kpi" id="ficha-kpi"></div>
+
+    <div class="destaque-acao" id="ficha-passo"></div>
+
+    <div>
+      <div class="abas" role="tablist" aria-label="Seções da ficha" id="abas-ficha">
+        <button type="button" class="aba" role="tab" id="aba-resumo" aria-controls="painel-resumo" aria-selected="true">Resumo</button>
+        <button type="button" class="aba" role="tab" id="aba-planos" aria-controls="painel-planos" aria-selected="false">Planos</button>
+        <button type="button" class="aba" role="tab" id="aba-acompanhamento" aria-controls="painel-acompanhamento" aria-selected="false">Acompanhamento</button>
+        <button type="button" class="aba" role="tab" id="aba-evolucao" aria-controls="painel-evolucao" aria-selected="false">Evolução</button>
+        <button type="button" class="aba" role="tab" id="aba-ficha" aria-controls="painel-ficha" aria-selected="false">Ficha</button>
+      </div>
+
+      <!-- Resumo -->
+      <div role="tabpanel" id="painel-resumo" aria-labelledby="aba-resumo" tabindex="0">
+        <div class="cartao" id="resumo-vazio" hidden><div class="vazio"><span class="vazio-icone"><svg class="ic ic--24" aria-hidden="true"><use href="#i-pasta"/></svg></span><h3>Sem pasta vigente</h3><p>O aluno está inativo. Os planos e o histórico continuam guardados na aba Planos.</p></div></div>
+        <div class="grade-2" id="resumo-cheio">
+          <div class="pilha">
+            <section class="cartao" aria-labelledby="t-hoje">
+              <div class="cartao-cab">
+                <div><h2 class="t-titulo-cartao" id="t-hoje">Treino de hoje</h2><p class="t-apoio">Treino A · Peito e tríceps · 4 exercícios · 17 séries</p></div>
+                <span id="hoje-selo"></span>
+              </div>
+              <div class="cartao-corpo">
+                <div data-composicao="aq:2 fs:9 ws:2 bo:4"></div>
+                <div class="divisor"></div>
+                <div class="exercicio">
+                  <div class="exercicio-cab"><b>1. Supino reto com barra</b><span class="t-apoio">7 séries · descanso 90 s</span></div>
+                  <div class="series">
+                    <div class="serie-linha tipo-aq"><span><span class="selo tipo-aq">Aquecimento</span></span><span class="valor">1 × 12</span><span class="valor suave">20 kg</span></div>
+                    <div class="serie-linha tipo-fs"><span><span class="selo tipo-fs">FS</span></span><span class="valor">3 × 8 a 10</span><span class="valor">50 kg</span></div>
+                    <div class="serie-linha tipo-ws"><span><span class="selo tipo-ws">WS</span></span><span class="valor">1 × 6</span><span class="valor">57,5 kg</span></div>
+                    <div class="serie-linha tipo-bo"><span><span class="selo tipo-bo">Back off</span></span><span class="valor">2 × 12</span><span class="valor">40 kg</span></div>
+                  </div>
+                </div>
+                <div class="exercicio"><div class="exercicio-cab"><b>2. Supino inclinado com halteres</b><span class="t-apoio">4 séries</span></div><div class="composicao--mini composicao--linha" data-composicao="aq:1 fs:2 bo:1"></div></div>
+                <div class="exercicio"><div class="exercicio-cab"><b>3. Crucifixo na máquina</b><span class="t-apoio">2 séries</span></div><div class="composicao--mini composicao--linha" data-composicao="fs:2"></div></div>
+                <div class="exercicio"><div class="exercicio-cab"><b>4. Tríceps na polia com corda</b><span class="t-apoio">4 séries</span></div><div class="composicao--mini composicao--linha" data-composicao="fs:2 ws:1 bo:1"></div></div>
+              </div>
+            </section>
+
+            <section class="cartao" aria-labelledby="t-ultimo">
+              <div class="cartao-cab">
+                <div><h2 class="t-titulo-cartao" id="t-ultimo">Último treino</h2><p class="t-apoio" id="ultimo-apoio"></p></div>
+                <span id="ultimo-selo"></span>
+              </div>
+              <div class="cartao-corpo">
+                <div class="composicao--linha" data-composicao="aq:2 fs:10 top:1 bo:3"></div>
+                <div class="bloco-interno pilha-8">
+                  <span class="t-rotulo" id="ultimo-series"></span>
+                  <span class="recorde" id="ultimo-recorde"></span>
+                </div>
+              </div>
+              <div class="cartao-rodape" id="ultimo-visto"><span class="selo st-neutro">Visto por você hoje</span></div>
+            </section>
+          </div>
+
+          <div class="pilha">
+            <section class="cartao" aria-labelledby="t-semana">
+              <div class="cartao-cab"><div><h2 class="t-titulo-cartao" id="t-semana">Semana</h2><p class="t-apoio" id="semana-apoio"></p></div></div>
+              <div class="cartao-corpo">
+                <ol class="semana-dias" id="semana-dias">
+                  <li class="feito"><span>Seg</span><span class="marca-dia">B</span><span class="sr-only">Treino B, feito</span></li>
+                  <li class="hoje"><span>Ter</span><span class="marca-dia">A</span><span class="sr-only">Hoje, Treino A, ainda não feito</span></li>
+                  <li class="descanso"><span>Qua</span><span class="marca-dia" aria-hidden="true">·</span><span class="sr-only">Descanso</span></li>
+                  <li><span>Qui</span><span class="marca-dia">C</span><span class="sr-only">Treino C, previsto</span></li>
+                  <li class="descanso"><span>Sex</span><span class="marca-dia" aria-hidden="true">·</span><span class="sr-only">Descanso</span></li>
+                  <li><span>Sáb</span><span class="marca-dia">A</span><span class="sr-only">Treino A, previsto</span></li>
+                  <li class="descanso"><span>Dom</span><span class="marca-dia" aria-hidden="true">·</span><span class="sr-only">Descanso</span></li>
+                </ol>
+                <p class="t-apoio">Círculo cheio = feito, contorno tracejado = previsto, hoje marcado com o nome do dia.</p>
+              </div>
+            </section>
+
+            <section class="cartao" aria-labelledby="t-atividade">
+              <div class="cartao-cab"><div><h2 class="t-titulo-cartao" id="t-atividade">Atividade recente</h2><p class="t-apoio">Últimos 5 dias</p></div></div>
+              <div class="cartao-corpo">
+                <ol class="linha-do-tempo" id="atividade">
+                  <li><span class="icone-marcador"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg></span><span class="tempo-item"><b>Concluiu o Treino B</b><span class="t-apoio">Ontem, 19:40</span></span></li>
+                  <li><span class="icone-marcador"><svg class="ic" aria-hidden="true"><use href="#i-prancheta"/></svg></span><span class="tempo-item"><b>Enviou a atualização da pasta</b><span class="t-apoio">08/11 · <a href="#">Revisar</a></span></span></li>
+                  <li><span class="icone-marcador"><svg class="ic" aria-hidden="true"><use href="#i-foto"/></svg></span><span class="tempo-item"><b>Anexou 3 fotos à atualização</b><span class="t-apoio">08/11</span></span></li>
+                  <li><span class="icone-marcador"><svg class="ic" aria-hidden="true"><use href="#i-balanca"/></svg></span><span class="tempo-item"><b>Registrou o peso: 64,2 kg</b><span class="t-apoio">07/11</span></span></li>
+                </ol>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+
+      <!-- Planos -->
+      <div role="tabpanel" id="painel-planos" aria-labelledby="aba-planos" tabindex="0" hidden>
+        <div class="pilha">
+          <div class="cartao" id="planos-vazio" hidden><div class="vazio"><span class="vazio-icone"><svg class="ic ic--24" aria-hidden="true"><use href="#i-pasta"/></svg></span><h3>Sem pasta vigente</h3><p>Ao reativar o aluno, monte uma pasta nova ou replique a última.</p></div></div>
+          <section class="cartao" aria-labelledby="t-pasta" id="pasta-vigente">
+            <div class="cartao-cab">
+              <div><h2 class="t-titulo-cartao" id="t-pasta"></h2><p class="t-apoio" id="pasta-apoio"></p></div>
+              <div class="cartao-cab-acoes">
+                <span id="pasta-selo"></span>
+                <button type="button" class="botao botao--icone botao--fantasma" data-menu="menu-pasta" aria-label="Mais ações da pasta"><svg class="ic" aria-hidden="true"><use href="#i-mais"/></svg></button>
+                <div class="menu-flutuante" id="menu-pasta" hidden>
+                  <a class="menu-flutuante-item" href="#">Replicar para o próximo ciclo</a>
+                  <a class="menu-flutuante-item" href="#">Copiar pasta para outro aluno</a>
+                  <a class="menu-flutuante-item" href="#">Finalizar pasta</a>
+                </div>
+              </div>
+            </div>
+            <ul class="lista">
+              <li class="linha linha-plano">
+                <span class="icone-marcador"><svg class="ic" aria-hidden="true"><use href="#i-haltere"/></svg></span>
+                <div class="linha-principal"><b>Treino ABC</b><span class="linha-meta">3 sessões · publicado em 28/10</span><div class="composicao--mini composicao--linha" data-composicao="aq:6 fs:27 ws:4 top:1 bo:10"></div></div>
+                <div class="linha-lado"><span class="selo st-sucesso">Publicado</span><a class="botao botao--secundario" href="treinador-treino.html">Abrir treino</a></div>
+              </li>
+              <li class="linha linha-plano">
+                <span class="icone-marcador"><svg class="ic" aria-hidden="true"><use href="#i-prato"/></svg></span>
+                <div class="linha-principal"><b>Dieta 2.100 kcal</b><span class="linha-meta" id="dieta-meta"></span></div>
+                <div class="linha-lado"><span id="dieta-selo"></span><a class="botao botao--secundario" href="treinador-dieta.html">Abrir dieta</a></div>
+              </li>
+              <li class="linha linha-plano">
+                <span class="icone-marcador"><svg class="ic" aria-hidden="true"><use href="#i-raio"/></svg></span>
+                <div class="linha-principal"><b>Mobilidade de ombros</b><span class="linha-meta">2 seções · 8 itens</span></div>
+                <div class="linha-lado"><span class="selo st-sucesso">Publicado</span><a class="botao botao--secundario" href="treinador-mobilidade.html">Abrir mobilidade</a></div>
+              </li>
+            </ul>
+            <div class="cartao-rodape" id="pasta-rodape"></div>
+          </section>
+
+          <section class="cartao" aria-labelledby="t-anteriores">
+            <div class="cartao-cab"><div><h2 class="t-titulo-cartao" id="t-anteriores">Pastas anteriores</h2><p class="t-apoio">1 pasta</p></div></div>
+            <ul class="lista">
+              <li class="linha"><span class="icone-marcador"><svg class="ic" aria-hidden="true"><use href="#i-pasta"/></svg></span><div class="linha-principal"><a class="linha-link" href="#">Pasta Adaptação · 1º ciclo</a><span class="linha-meta">30/09 a 27/10 · treino e dieta</span></div><span class="selo st-neutro">Concluída</span></li>
+            </ul>
+          </section>
+        </div>
+      </div>
+
+      <div role="tabpanel" id="painel-acompanhamento" aria-labelledby="aba-acompanhamento" tabindex="0" hidden></div>
+      <div role="tabpanel" id="painel-evolucao" aria-labelledby="aba-evolucao" tabindex="0" hidden></div>
+      <div role="tabpanel" id="painel-ficha" aria-labelledby="aba-ficha" tabindex="0" hidden></div>
+    </div>
+  </section>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  // Dados fictícios (D8): nenhum nome, número ou texto vem da produção.
+  var SITUACOES = {
+    revisar: { rotulo: 'Para revisar', tom: 'st-atencao', filtro: 'Para revisar' },
+    renovar: { rotulo: 'Renovar em 7 dias', tom: 'st-atencao', filtro: 'Renovar em 7 dias' },
+    'sem-registro': { rotulo: 'Sem registro', tom: 'st-atencao', filtro: 'Sem registro' },
+    vencida: { rotulo: 'Pasta vencida', tom: 'st-perigo', filtro: 'Pasta vencida' },
+    ativo: { rotulo: 'Em dia', tom: 'st-sucesso', filtro: 'Em dia' },
+    inativos: { rotulo: 'Inativo', tom: 'st-neutro', filtro: 'Inativos' },
+  };
+  var ALUNOS = [
+    { id: 'ana-beatriz-lima', nome: 'Ana Beatriz Lima', ini: 'AL', email: 'ana.lima@exemplo.com', sit: 'revisar', selo: 'Atualização para revisar', pasta: 'Hipertrofia', fim: '24/11', periodo: '28/10 a 24/11', ciclo: '2º ciclo', ultimo: 'Ontem', feitos: 1, previstos: 4, peso: '64,2', pesoEm: '07/11', dias: 14, acesso: true },
+    { id: 'caio-mendes', nome: 'Caio Mendes', ini: 'CM', email: 'caio.mendes@exemplo.com', sit: 'renovar', selo: 'Renova em 2 dias', pasta: 'Força', fim: '12/11', periodo: '15/10 a 12/11', ciclo: '3º ciclo', ultimo: 'Hoje', feitos: 2, previstos: 3, peso: '82,5', pesoEm: '01/11', dias: 2, acesso: true },
+    { id: 'julia-prado', nome: 'Júlia Prado', ini: 'JP', email: 'julia.prado@exemplo.com', sit: 'revisar', selo: 'Atualização para revisar', pasta: 'Condicionamento', fim: '30/11', periodo: '03/11 a 30/11', ciclo: '1º ciclo', ultimo: 'Hoje', feitos: 2, previstos: 5, peso: '58,0', pesoEm: '08/11', dias: 20, acesso: true },
+    { id: 'rafael-tavares', nome: 'Rafael Tavares', ini: 'RT', email: 'rafael.tavares@exemplo.com', sit: 'ativo', selo: 'Em dia', pasta: 'Hipertrofia', fim: '05/12', periodo: '08/11 a 05/12', ciclo: '4º ciclo', ultimo: 'Hoje', feitos: 2, previstos: 4, peso: '90,1', pesoEm: '08/11', dias: 25, acesso: true },
+    { id: 'livia-sarmento', nome: 'Lívia Sarmento', ini: 'LS', email: 'livia.sarmento@exemplo.com', sit: 'renovar', selo: 'Renova em 5 dias', pasta: 'Emagrecimento', fim: '15/11', periodo: '18/10 a 15/11', ciclo: '2º ciclo', ultimo: 'Ontem', feitos: 1, previstos: 4, peso: '71,3', pesoEm: '04/11', dias: 5, acesso: true },
+    { id: 'otavio-reis', nome: 'Otávio Reis', ini: 'OR', email: 'otavio.reis@exemplo.com', sit: 'sem-registro', selo: 'Sem registro há 9 dias', pasta: 'Adaptação', fim: '28/11', periodo: '31/10 a 28/11', ciclo: '1º ciclo', ultimo: 'Há 9 dias', feitos: 0, previstos: 3, peso: null, pesoEm: null, dias: 18, acesso: false },
+    { id: 'marcos-vieira', nome: 'Marcos Vieira', ini: 'MV', email: 'marcos.vieira@exemplo.com', sit: 'sem-registro', selo: 'Sem registro há 8 dias', pasta: 'Força', fim: '01/12', periodo: '04/11 a 01/12', ciclo: '2º ciclo', ultimo: 'Há 8 dias', feitos: 0, previstos: 4, peso: '77,8', pesoEm: '29/10', dias: 21, acesso: true },
+    { id: 'beatriz-nunes', nome: 'Beatriz Nunes', ini: 'BN', email: 'beatriz.nunes@exemplo.com', sit: 'vencida', selo: 'Pasta vencida há 5 dias', pasta: 'Hipertrofia', fim: '05/11', periodo: '08/10 a 05/11', ciclo: '3º ciclo', ultimo: 'Ontem', feitos: 1, previstos: 4, peso: '61,7', pesoEm: '02/11', dias: -5, acesso: true },
+    { id: 'renata-alves', nome: 'Renata Alves', ini: 'RA', email: 'renata.alves@exemplo.com', sit: 'ativo', selo: 'Em dia', pasta: 'Condicionamento', fim: '02/12', periodo: '05/11 a 02/12', ciclo: '1º ciclo', ultimo: 'Ontem', feitos: 1, previstos: 3, peso: null, pesoEm: null, dias: 22, acesso: false },
+    { id: 'gabriel-souto', nome: 'Gabriel Souto', ini: 'GS', email: 'gabriel.souto@exemplo.com', sit: 'inativos', selo: 'Inativo', pasta: null, fim: null, periodo: null, ciclo: null, ultimo: 'Há 40 dias', feitos: 0, previstos: 0, peso: null, pesoEm: null, dias: null, acesso: false },
+  ];
+  // completa a carteira até os 48 do Início (42 ativos + 6 inativos), com contagens iguais às de lá
+  (function completar() {
+    var nomes = ['Bruno Calado', 'Carla Antunes', 'Diego Farias', 'Elisa Moraes', 'Fábio Lacerda', 'Gisele Torres', 'Hugo Batista', 'Isadora Melo',
+      'João Pedro Rocha', 'Karina Duarte', 'Leonardo Brandão', 'Marta Siqueira', 'Nícolas Freire', 'Paula Teixeira', 'Rodrigo Pires', 'Sabrina Couto',
+      'Tiago Vasconcelos', 'Úrsula Campos', 'Vinícius Prado', 'Yara Monteiro', 'André Quintana', 'Bianca Ribeiro', 'César Albuquerque', 'Débora Lins',
+      'Eduardo Neves', 'Fernanda Paiva', 'Gilberto Lemos', 'Helena Barros', 'Igor Matos', 'Jéssica Cordeiro', 'Lucas Fontes', 'Mariana Dutra',
+      'Natália Castro', 'Pedro Henrique Salles', 'Raquel Bastos', 'Sérgio Amaral', 'Talita Moura', 'Wagner Rezende'];
+    var pastas = ['Hipertrofia', 'Força', 'Condicionamento', 'Emagrecimento', 'Adaptação'];
+    var plano = ['revisar'].concat(['sem-registro', 'sem-registro', 'sem-registro'], ['inativos', 'inativos', 'inativos', 'inativos', 'inativos']);
+    nomes.forEach(function (nome, i) {
+      var sit = plano[i] || 'ativo', p = nome.split(' ');
+      var id = nome.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, '-');
+      var dia = 18 + (i % 12), fim = (dia > 30 ? dia - 30 : dia) + (dia > 30 ? '/12' : '/11');
+      ALUNOS.push({ id: id, nome: nome, ini: p[0][0] + p[p.length - 1][0], email: id.replace(/-/g, '.') + '@exemplo.com', sit: sit,
+        selo: sit === 'revisar' ? 'Atualização para revisar' : sit === 'sem-registro' ? 'Sem registro há ' + (7 + i) + ' dias' : sit === 'inativos' ? 'Inativo' : 'Em dia',
+        pasta: sit === 'inativos' ? null : pastas[i % 5], fim: sit === 'inativos' ? null : fim, periodo: sit === 'inativos' ? null : 'até ' + fim, ciclo: (1 + i % 4) + 'º ciclo',
+        ultimo: sit === 'inativos' ? 'Há ' + (30 + i) + ' dias' : sit === 'sem-registro' ? 'Há ' + (7 + i) + ' dias' : i % 2 ? 'Hoje' : 'Ontem',
+        feitos: sit === 'inativos' || sit === 'sem-registro' ? 0 : 1 + i % 2, previstos: sit === 'inativos' ? 0 : 3 + i % 2,
+        peso: null, pesoEm: null, dias: sit === 'inativos' ? null : 8 + i % 20, acesso: i % 7 !== 3 });
+    });
+  })();
+  // quem pede ação vem primeiro; dentro do grupo, ordem alfabética
+  var PRIORIDADE = ['revisar', 'vencida', 'renovar', 'sem-registro', 'ativo', 'inativos'];
+  ALUNOS.sort(function (a, b) { return PRIORIDADE.indexOf(a.sit) - PRIORIDADE.indexOf(b.sit) || a.nome.localeCompare(b.nome, 'pt-BR'); });
+  var $ = function (id) { return document.getElementById(id); };
+  var ic = function (nome, cls) { return VV.icone(nome, cls); };
+  var semAcento = function (s) { return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); };
+  var filtro = 'todos';
+
+  function lerEndereco() {
+    var r = {};
+    location.hash.replace(/^#/, '').split('&').forEach(function (p) { var kv = p.split('='); if (kv[0]) r[kv[0]] = decodeURIComponent(kv[1] || ''); });
+    return r;
+  }
+
+  /* ---------- lista ---------- */
+  function desenharFiltros() {
+    var contagem = { todos: ALUNOS.length };
+    ALUNOS.forEach(function (a) { contagem[a.sit] = (contagem[a.sit] || 0) + 1; });
+    var ordem = ['todos', 'revisar', 'renovar', 'sem-registro', 'vencida', 'ativo', 'inativos'];
+    $('filtros').innerHTML = ordem.filter(function (k) { return contagem[k]; }).map(function (k) {
+      var nome = k === 'todos' ? 'Todos' : SITUACOES[k].filtro;
+      return '<button type="button" class="chip" data-filtro="' + k + '" aria-pressed="' + (k === filtro) + '">' + nome + ' <span class="chip-contagem">' + contagem[k] + '</span></button>';
+    }).join('');
+    var ativos = ALUNOS.length - (contagem.inativos || 0);
+    var revisar = contagem.revisar || 0;
+    $('sub-lista').textContent = ativos + ' ativos · ' + revisar + ' com atualização para revisar';
+  }
+  function linha(a) {
+    var s = SITUACOES[a.sit];
+    var semana = a.previstos ? '<span class="col-semana"><span class="sr-only">Semana: </span><span class="num">' + a.feitos + ' de ' + a.previstos + '</span>' +
+      '<span class="progresso" role="img" aria-label="' + a.feitos + ' de ' + a.previstos + ' treinos"><span style="--p:' + Math.round(100 * a.feitos / a.previstos) + '%"></span></span></span>' : '<span class="col-semana">—</span>';
+    return '<li class="linha linha-aluno" data-id="' + a.id + '">' +
+      '<span class="avatar" aria-hidden="true">' + a.ini + '</span>' +
+      '<div class="linha-principal col-nome"><a class="linha-link" href="#aluno=' + a.id + '">' + a.nome + '</a><span class="linha-meta">' + a.email + '</span></div>' +
+      '<div class="col-sit"><span class="sr-only">Situação: </span><span class="selo ' + s.tom + '">' + a.selo + '</span></div>' +
+      '<div class="col-info"><span class="col-pasta"><span class="sr-only">Pasta: </span>' + (a.pasta ? '<span>' + a.pasta + '</span><span class="pasta-fim">até ' + a.fim + '</span>' : 'Sem pasta vigente') + '</span>' +
+      '<span class="col-ultimo"><span class="sr-only">Último treino: </span>' + a.ultimo + '</span>' + semana + '</div>' +
+      '<span class="col-acesso">' + (a.acesso ? '' : '<span role="img" aria-label="Sem acesso ao app" title="Sem acesso ao app">' + ic('sem-acesso', 'ic--16') + '</span>') + '</span>' +
+      '</li>';
+  }
+  function desenharLista() {
+    var termo = semAcento($('busca').value.trim());
+    var lista = ALUNOS.filter(function (a) { return (filtro === 'todos' || a.sit === filtro) && (!termo || semAcento(a.nome).indexOf(termo) >= 0); });
+    $('lista-alunos').innerHTML = lista.map(linha).join('');
+    $('vazio-lista').hidden = lista.length > 0;
+    $('resultado').textContent = lista.length === 1 ? '1 aluno' : lista.length + ' alunos';
+  }
+  // celular: o filtro que recebe o foco pelo teclado entra inteiro na faixa
+  $('filtros').addEventListener('focusin', function (ev) { ev.target.scrollIntoView({ block: 'nearest', inline: 'nearest' }); });
+  $('filtros').addEventListener('escolha', function (ev) {
+    filtro = ev.detail.chip.getAttribute('data-filtro');
+    history.replaceState(null, '', filtro === 'todos' ? location.pathname : '#filtro=' + filtro);
+    desenharLista();
+  });
+  $('busca').addEventListener('input', desenharLista);
+  $('limpar').addEventListener('click', function () { $('busca').value = ''; filtro = 'todos'; desenharFiltros(); desenharLista(); $('busca').focus(); });
+
+  /* ---------- ficha ---------- */
+  var PASSO = {
+    revisar: function () { return ['A atualização da pasta chegou em 08/11 com 3 fotos.', 'Revisar atualização']; },
+    renovar: function (a) { return ['A pasta termina em ' + a.fim + '. Monte a próxima para o aluno não ficar sem plano.', 'Renovar pasta']; },
+    'sem-registro': function (a) { return ['Nenhuma série marcada nos últimos dias. Último treino: ' + a.ultimo.toLowerCase() + '.', 'Mandar mensagem']; },
+    vencida: function (a) { return ['A pasta venceu em ' + a.fim + ' e o aluno está sem plano novo.', 'Renovar pasta']; },
+    ativo: function (a) { return ['Nada pendente. A próxima atualização é em ' + a.fim + '.', 'Abrir treino']; },
+    inativos: function () { return ['Aluno inativo desde 01/10. Os planos e o histórico continuam guardados.', 'Reativar aluno']; },
+  };
+  function kpi(rotulo, numero, apoio, estado) {
+    return '<div class="kpi ' + estado + '"><span class="kpi-rotulo">' + rotulo + '</span><span class="kpi-numero">' + numero + '</span><span class="kpi-apoio">' + apoio + '</span></div>';
+  }
+  function desenharFicha(a) {
+    var s = SITUACOES[a.sit];
+    $('mig-nome').textContent = a.nome;
+    $('ficha-nome').textContent = a.nome;
+    $('ficha-avatar').textContent = a.ini;
+    $('ficha-selo').innerHTML = '<span class="selo ' + s.tom + '">' + a.selo + '</span>';
+    $('ficha-sub').textContent = a.pasta ? 'Pasta ' + a.pasta + ' · ' + a.ciclo + ' · ' + a.periodo : 'Sem pasta vigente';
+    var renovar = a.dias === null ? kpi('Dias até renovar', '—', 'Sem pasta vigente', 'kpi--zero')
+      : a.dias < 0 ? kpi('Pasta vencida há', -a.dias + '<small>dias</small>', ic('erro', 'ic--16') + 'Venceu em ' + a.fim, 'kpi--perigo')
+      : kpi('Dias até renovar', a.dias, (a.dias <= 7 ? ic('alerta', 'ic--16') : '') + 'Pasta até ' + a.fim, a.dias <= 7 ? 'kpi--atencao' : '');
+    $('ficha-kpi').innerHTML =
+      (a.previstos ? kpi('Treinos na semana', a.feitos + '<small>de ' + a.previstos + '</small>', 'Semana de 09 a 15/11', a.feitos ? '' : 'kpi--zero') : kpi('Treinos na semana', '—', 'Sem plano ativo', 'kpi--zero')) +
+      kpi('Último treino', a.ultimo, a.sit === 'sem-registro' ? ic('alerta', 'ic--16') + 'Sem registro desde então' : a.sit === 'inativos' ? 'Antes de ficar inativo' : sessaoDoUltimo(a).nome, a.sit === 'sem-registro' ? 'kpi--atencao' : '') +
+      kpi('Último peso', a.peso ? a.peso + '<small>kg</small>' : '—', a.peso ? 'Registrado em ' + a.pesoEm : 'Nenhum peso registrado', a.peso ? '' : 'kpi--zero') +
+      renovar;
+    var p = PASSO[a.sit](a);
+    $('ficha-passo').innerHTML = '<div class="texto"><span class="sobretitulo">Próximo passo</span><span class="t-corpo" style="font-weight:600">' + p[0] + '</span></div>' +
+      '<a class="botao botao--primario" href="#">' + p[1] + ic('seta-direita') + '</a>';
+    document.title = a.nome + ' · Alunos · Prévia visual vendável';
+    desenharResumo(a);
+    desenharPlanos(a);
+  }
+  /* semana de 09 a 15/11, hoje = terça; a letra do treino gira C, A, B pelos dias de treino (terça é sempre o Treino A) */
+  var DIAS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+  var DIAS_DE_TREINO = { 3: [0, 1, 3], 4: [0, 1, 3, 5], 5: [0, 1, 2, 3, 4] };
+  var SESSOES = { A: 'Treino A · Peito e tríceps', B: 'Treino B · Costas e bíceps', C: 'Treino C · Pernas' };
+  function sessaoDoUltimo(a) { return a.ultimo === 'Hoje' ? { letra: 'A', nome: SESSOES.A } : { letra: 'C', nome: SESSOES.C }; }
+  function desenharResumo(a) {
+    var inativo = a.sit === 'inativos';
+    $('resumo-vazio').hidden = !inativo;
+    $('resumo-cheio').hidden = inativo;
+    if (inativo) return;
+    var fezHoje = a.ultimo === 'Hoje';
+    $('hoje-selo').innerHTML = fezHoje ? '<span class="selo st-sucesso">' + ic('check') + 'Feito hoje</span>' : '<span class="selo st-neutro">Ainda não feito</span>';
+    var ult = sessaoDoUltimo(a), semRegistro = a.sit === 'sem-registro';
+    $('ultimo-apoio').textContent = ult.nome + ' · ' + a.ultimo.toLowerCase() + (semRegistro ? '' : fezHoje ? ', 07:15 · 48 min' : ', 19:40 · 52 min');
+    $('ultimo-selo').innerHTML = semRegistro ? '<span class="selo st-atencao">' + ic('alerta') + 'Sem registro desde então</span>' : '<span class="selo st-sucesso">' + ic('check') + 'Completo</span>';
+    $('ultimo-series').textContent = semRegistro ? '9 de 16 séries feitas' : '16 de 16 séries feitas';
+    $('ultimo-recorde').innerHTML = semRegistro ? 'Nenhum recorde neste treino.' : '<svg class="ic ic--16" aria-hidden="true"><use href="#i-raio"/></svg>Recorde pessoal: ' + (fezHoje ? 'Supino reto com barra, 52,5 kg × 8' : 'Agachamento livre, 70 kg × 8');
+    $('ultimo-visto').hidden = semRegistro;
+    var treino = DIAS_DE_TREINO[a.previstos] || [], letras = ['C', 'A', 'B'], feitos = 0;
+    $('semana-apoio').textContent = '09 a 15/11 · ' + a.feitos + ' de ' + a.previstos + ' treinos feitos';
+    $('semana-dias').innerHTML = DIAS.map(function (dia, d) {
+      var k = treino.indexOf(d);
+      if (k < 0) return '<li class="descanso"><span>' + dia + '</span><span class="marca-dia" aria-hidden="true">·</span><span class="sr-only">Descanso</span></li>';
+      var letra = letras[k % 3], feito = feitos < a.feitos && d <= 1;
+      if (feito) feitos++;
+      var hoje = d === 1;
+      return '<li class="' + (feito ? 'feito' : '') + (hoje ? ' hoje' : '') + '"' + (hoje ? ' aria-current="date"' : '') + '><span>' + dia + '</span><span class="marca-dia">' + letra + '</span><span class="sr-only">' +
+        (hoje ? 'Hoje, ' : '') + 'Treino ' + letra + ', ' + (feito ? 'feito' : d < 1 ? 'não feito' : 'previsto') + '</span></li>';
+    }).join('');
+    var itens = [];
+    if (!semRegistro) itens.push(['st-sucesso', 'check', 'Concluiu o ' + ult.nome.split(' · ')[0], a.ultimo + (fezHoje ? ', 07:15' : ', 19:40')]);
+    else itens.push(['st-atencao', 'relogio', 'Nenhuma série marcada desde o último treino', a.ultimo]);
+    if (a.sit === 'revisar') {
+      itens.push(['st-atencao', 'prancheta', 'Enviou a atualização da pasta', '08/11 · <a href="#">Revisar</a>']);
+      itens.push(['st-neutro', 'foto', 'Anexou 3 fotos à atualização', '08/11']);
+    }
+    if (a.peso) itens.push(['st-neutro', 'balanca', 'Registrou o peso: ' + a.peso + ' kg', a.pesoEm]);
+    $('atividade').innerHTML = itens.map(function (i) {
+      return '<li><span class="icone-marcador">' + ic(i[1]) + '</span><span class="tempo-item"><b>' + i[2] + '</b><span class="t-apoio">' + i[3] + '</span></span></li>';
+    }).join('');
+  }
+  function desenharPlanos(a) {
+    var tem = !!a.pasta;
+    $('planos-vazio').hidden = tem;
+    $('pasta-vigente').hidden = !tem;
+    if (!tem) return;
+    var vencida = a.dias < 0, alterada = a.id === 'ana-beatriz-lima';
+    $('t-pasta').textContent = 'Pasta ' + a.pasta + ' · ' + a.ciclo;
+    $('pasta-apoio').textContent = a.periodo + ' · ' + (vencida ? 'venceu há ' + -a.dias + ' dias' : 'faltam ' + a.dias + ' dias');
+    $('pasta-selo').innerHTML = vencida ? '<span class="selo st-perigo">' + ic('erro') + 'Vencida</span>' : '<span class="selo st-sucesso">Vigente</span>';
+    $('dieta-meta').textContent = alterada ? '5 refeições · alterada hoje, 09:12' : '5 refeições · publicada no início da pasta';
+    $('dieta-selo').innerHTML = alterada ? '<span class="selo st-atencao">' + ic('alerta') + 'Alteração não publicada</span>' : '<span class="selo st-sucesso">Publicado</span>';
+    $('pasta-rodape').innerHTML = alterada
+      ? '<button type="button" class="botao" aria-describedby="motivo-publicar">Publicar 1 alteração</button><span class="motivo" id="motivo-publicar">A dieta mudou e o aluno ainda vê a versão de 28/10.</span>'
+      : vencida
+        ? '<a class="botao" href="#">Renovar a pasta</a><span class="motivo">O aluno está sem plano novo desde ' + a.fim + '.</span>'
+        : '<button type="button" class="botao" aria-disabled="true" aria-describedby="motivo-publicar">Publicar tudo</button><span class="motivo" id="motivo-publicar">Nada mudou desde a última publicação.</span>';
+  }
+  ['acompanhamento', 'evolucao', 'ficha'].forEach(function (id) {
+    $('painel-' + id).innerHTML = '<div class="cartao"><div class="vazio"><span class="vazio-icone">' + ic('caderno', 'ic--24') + '</span>' +
+      '<h3>Esta aba fica para outra fase da prévia</h3><p>Nesta fase a prévia mostra só o Resumo e os Planos. No app esta aba continua como está hoje.</p>' +
+      '<button type="button" class="botao botao--secundario" data-voltar-resumo>Voltar ao Resumo</button></div></div>';
+  });
+  document.addEventListener('click', function (ev) { if (ev.target.closest('[data-voltar-resumo]')) VV.selecionarAba($('aba-resumo'), true); });
+  $('abas-ficha').addEventListener('aba', function (ev) {
+    var r = lerEndereco(); if (!r.aluno) return;
+    history.replaceState(null, '', '#aluno=' + r.aluno + '&aba=' + ev.detail.id.replace('aba-', ''));
+  });
+
+  /* ---------- rota pelo endereço: #aluno=<id>&aba=<aba> ou #filtro=<situação> ---------- */
+  function rota(focar) {
+    var r = lerEndereco();
+    var aluno = ALUNOS.filter(function (a) { return a.id === r.aluno; })[0];
+    $('vista-lista').hidden = !!aluno;
+    $('vista-ficha').hidden = !aluno;
+    if (aluno) {
+      desenharFicha(aluno);
+      var aba = $('aba-' + (r.aba || 'resumo')) || $('aba-resumo');
+      VV.selecionarAba(aba);
+      if (focar) $('ficha-nome').focus();
+      window.scrollTo(0, 0);
+    } else {
+      document.title = 'Alunos · Treinador · Prévia visual vendável';
+      if (r.filtro && (SITUACOES[r.filtro] || r.filtro === 'todos')) filtro = r.filtro;
+      desenharFiltros();
+      desenharLista();
+      if (focar) $('titulo-lista').setAttribute('tabindex', '-1'), $('titulo-lista').focus();
+    }
+  }
+  // ações sem tela nesta fase: não mexem no endereço (senão a ficha voltaria para a lista)
+  document.addEventListener('click', function (ev) { var a = ev.target.closest('a[href="#"]'); if (a) ev.preventDefault(); });
+  window.addEventListener('hashchange', function () { rota(true); });
+  document.addEventListener('DOMContentLoaded', function () { rota(false); });
+})();
+</script>
+</body>
+</html>

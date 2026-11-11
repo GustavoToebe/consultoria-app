@@ -97,7 +97,7 @@ interface ConteudoProps {
 
 function Conteudo({ demo, catalogo, exercicioId, descricao, papel, largura, altura, preencher, reserva = null }: ConteudoProps) {
   const { cores } = useTema();
-  const caixa = [estilos.caixa, { width: largura, height: altura, maxWidth: '100%' as const, borderColor: cores.borda, backgroundColor: cores.superficie2 }];
+  const caixa = [estilos.caixa, { width: largura, height: altura, maxWidth: '100%' as const, borderColor: cores.divisor, backgroundColor: cores.superficie2 }];
   if (demo.tipo === 'PROPRIA' && exercicioId) {
     return <ImagemPropria exercicioId={exercicioId} versao={demo.versao} descricao={descricao} papel={papel} caixa={caixa} caminhos={catalogo} preencher={preencher} reserva={reserva} />;
   }
@@ -114,7 +114,7 @@ function CaixaVazia({ largura, altura }: { largura: number; altura: number }) {
       accessible={false}
       aria-hidden
       importantForAccessibility="no-hide-descendants"
-      style={[estilos.caixa, estilos.caixaVazia, { width: largura, height: altura, maxWidth: '100%', borderColor: cores.borda, backgroundColor: cores.superficie3 }]}>
+      style={[estilos.caixa, estilos.caixaVazia, { width: largura, height: altura, maxWidth: '100%', borderColor: cores.divisor, backgroundColor: cores.superficie3 }]}>
       <Dumbbell size={Math.max(16, Math.round(Math.min(largura, altura) * 0.42))} color={cores.textoSuave} />
     </View>
   );

@@ -3,10 +3,11 @@ import { type ReactNode, useState } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, LARGURA_MENU_LATERAL, RAIO } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, LARGURA_MENU_LATERAL, RAIO_CONTROLE } from '../tema/tokens';
 import { Botao } from './Botao';
 import { Campo } from './Campo';
 import { Cartao } from './Cartao';
+import { FaixaDeChips } from './FaixaDeChips';
 import { Folha } from './Folha';
 import { depoisDeFecharAsFolhas } from './historicoDasFolhas';
 import { sobre } from './sobre';
@@ -37,27 +38,35 @@ interface Props<T> {
   tituloDoPainel?: string;
   /** Texto do botão que fecha a folha no celular ("Ver alunos"). */
   rotuloDoResultado?: string;
+  /** Texto do botão que abre o painel; padrão "Filtros" ("Mais filtros" quando há `atalhos` ao lado). */
+  rotuloDoBotao?: string;
+  /**
+   * Chips rápidos (um `Escolha chips`, por exemplo) entre a busca e o botão. Ficam com o botão numa faixa que rola de lado
+   * no celular (`FaixaDeChips`), embaixo da busca, para a lista começar cedo.
+   */
+  atalhos?: ReactNode;
 }
 
-/** Texto do botão "Filtros" para o leitor de tela: diz quantos estão ligados. */
-export function rotuloDoBotaoDeFiltros(quantos: number): string {
-  if (quantos === 0) return 'Filtros, nenhum ligado';
-  return `Filtros, ${quantos} ${quantos === 1 ? 'ligado' : 'ligados'}`;
+/** Texto do botão de filtros para o leitor de tela: o rótulo visível e quantos estão ligados. */
+export function rotuloDoBotaoDeFiltros(quantos: number, rotulo = 'Filtros'): string {
+  if (quantos === 0) return `${rotulo}, nenhum ligado`;
+  return `${rotulo}, ${quantos} ${quantos === 1 ? 'ligado' : 'ligados'}`;
 }
 
 /**
  * Barra de filtros das listas (padrão da Central: busca + botão de filtros que abre os filtros avançados). Linha de
- * cima: o campo de busca, o botão "Filtros" com o número de filtros ligados e "Limpar filtros" quando há algum. No PC
+ * cima: o campo de busca, os `atalhos` (se houver) e o botão "Filtros" com o número de filtros ligados. No PC
  * (janela ≥ 768) o botão abre e fecha um cartão "Filtros avançados" logo abaixo, com os seletores em grade; no celular
- * abre uma `Folha` "Filtros". Embaixo, "Filtrado por" com um chip por filtro, cada um com o ✕ que o tira. Serve a todas
- * as listas do treinador (`docs/planos/filtros-nas-listas.md`): quem usa decide os seletores e o que cada chip significa.
+ * abre uma `Folha` "Filtros". Embaixo, numa linha só: "Filtrando:", um chip por filtro (o ✕ tira aquele) e
+ * "• Limpar filtros" (guia de 11/11, pág. 7). Serve a todas as listas do treinador (`docs/planos/filtros-nas-listas.md`):
+ * quem usa decide os seletores e o que cada chip significa.
  *
  * No PC cada escolha vale na hora (a de um seletor que abre a própria Folha, como `EscolhaEmFolha`, quando ela fecha, pelo
  * mesmo motivo do celular). Na folha do celular as escolhas ficam num rascunho e só são gravadas quando ela fecha
  * (X, tocar fora ou "Ver resultado"), depois do histórico assentar (`depoisDeFecharAsFolhas`): gravar no endereço com a
  * Folha aberta cairia na entrada de histórico dela e o fechar desfaria a escolha.
  */
-export function BarraDeFiltros<T>({ busca, valor, aoAplicar, limpo, chips, aoTirar, seletores, tituloDoPainel = 'Filtros avançados', rotuloDoResultado = 'Ver resultado' }: Props<T>) {
+export function BarraDeFiltros<T>({ busca, valor, aoAplicar, limpo, chips, aoTirar, seletores, tituloDoPainel = 'Filtros avançados', rotuloDoResultado = 'Ver resultado', rotuloDoBotao = 'Filtros', atalhos }: Props<T>) {
   const { cores } = useTema();
   const { width } = useWindowDimensions();
   const [aberto, setAberto] = useState(false);
@@ -81,33 +90,37 @@ export function BarraDeFiltros<T>({ busca, valor, aoAplicar, limpo, chips, aoTir
     if (escolhido) depoisDeFecharAsFolhas(() => aoAplicar(escolhido.filtros));
   };
 
+  const botao = (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={rotuloDoBotaoDeFiltros(quantos, rotuloDoBotao)}
+      accessibilityState={{ expanded: aberto }}
+      aria-expanded={aberto}
+      onPress={alternar}
+      style={(e) => [estilos.filtros, { borderColor: cores.bordaCampo, backgroundColor: aberto ? cores.superficie3 : sobre(e) ? cores.superficie2 : 'transparent' }]}>
+      <SlidersHorizontal size={18} color={cores.texto} strokeWidth={2} />
+      <Texto style={estilos.rotuloFiltros} cor={cores.texto}>{rotuloDoBotao}</Texto>
+      {/* Contagem neutra: `superficie3` com o botão fechado; aberto (o botão já é `superficie3`), o cartão. */}
+      {quantos > 0 ? (
+        <View style={[estilos.contagem, { backgroundColor: aberto ? cores.superficie : cores.superficie3 }]}>
+          <Texto variante="pequeno" numerico cor={cores.texto} style={estilos.numero}>{String(quantos)}</Texto>
+        </View>
+      ) : null}
+      {emFolha ? null : <Seta size={18} color={cores.textoSuave} strokeWidth={2} />}
+    </Pressable>
+  );
+
   return (
     <View style={estilos.raiz}>
       <View style={estilos.linha}>
         {busca ? (
           <View style={estilos.busca}>
-            <Campo rotulo={busca.rotulo ?? 'Buscar'} valor={busca.valor} aoMudar={busca.aoMudar} placeholder={busca.placeholder} autoCapitalize="none" />
+            <Campo rotulo={busca.rotulo ?? 'Buscar'} valor={busca.valor} aoMudar={busca.aoMudar} placeholder={busca.placeholder}
+              autoCapitalize="none" autoCorrect={false} spellCheck={false} autoComplete="off" enterKeyHint="search" />
           </View>
         ) : null}
-        <View style={estilos.botoes}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={rotuloDoBotaoDeFiltros(quantos)}
-            accessibilityState={{ expanded: aberto }}
-            aria-expanded={aberto}
-            onPress={alternar}
-            style={(e) => [estilos.filtros, { borderColor: cores.borda, backgroundColor: sobre(e) || aberto ? cores.superficie3 : 'transparent' }]}>
-            <SlidersHorizontal size={18} color={cores.texto} strokeWidth={2} />
-            <Texto style={estilos.rotuloFiltros} cor={cores.texto}>Filtros</Texto>
-            {quantos > 0 ? (
-              <View style={[estilos.contagem, { backgroundColor: cores.texto }]}>
-                <Texto variante="pequeno" numerico cor={cores.fundo} style={estilos.numero}>{String(quantos)}</Texto>
-              </View>
-            ) : null}
-            {emFolha ? null : <Seta size={18} color={cores.textoSuave} strokeWidth={2} />}
-          </Pressable>
-          {quantos > 0 ? <Botao rotulo="Limpar filtros" tipo="fantasma" Icone={X} aoTocar={() => aoAplicar(limpo)} /> : null}
-        </View>
+        {/* Com atalhos, eles e o botão rolam juntos de lado no celular: o botão nunca fica sozinho numa linha. */}
+        {atalhos ? <View style={estilos.faixa}><FaixaDeChips>{atalhos}{botao}</FaixaDeChips></View> : botao}
       </View>
       {aberto && !emFolha ? (
         <Cartao titulo={tituloDoPainel}>
@@ -123,19 +136,23 @@ export function BarraDeFiltros<T>({ busca, valor, aoAplicar, limpo, chips, aoTir
         </Folha>
       ) : null}
       {quantos > 0 ? (
-        <View style={estilos.filtrado} accessibilityRole="list" accessibilityLabel="Filtrado por">
-          <Texto variante="suave">Filtrado por</Texto>
-          {chips.map((c) => (
-            <Pressable
-              key={c.chave}
-              accessibilityRole="button"
-              accessibilityLabel={`Tirar filtro: ${c.texto}`}
-              onPress={() => aoTirar(c.chave)}
-              style={(e) => [estilos.chip, { borderColor: cores.bordaCampo, backgroundColor: sobre(e) ? cores.superficie3 : cores.superficie2 }]}>
-              <Texto variante="pequeno" cor={cores.texto} style={estilos.textoDoChip}>{c.texto}</Texto>
-              <X size={14} color={cores.texto} strokeWidth={2.5} />
-            </Pressable>
-          ))}
+        <View style={estilos.filtrado}>
+          <Texto variante="suave">Filtrando:</Texto>
+          <View style={[estilos.filtrado, estilos.chipsAtivos]} accessibilityRole="list" accessibilityLabel="Filtrando">
+            {chips.map((c) => (
+              <Pressable
+                key={c.chave}
+                accessibilityRole="button"
+                accessibilityLabel={`Tirar filtro: ${c.texto}`}
+                onPress={() => aoTirar(c.chave)}
+                style={(e) => [estilos.chip, { borderColor: cores.bordaCampo, backgroundColor: sobre(e) ? cores.superficie3 : cores.superficie2 }]}>
+                <Texto variante="pequeno" cor={cores.texto} style={estilos.textoDoChip}>{c.texto}</Texto>
+                <X size={14} color={cores.texto} strokeWidth={2.5} />
+              </Pressable>
+            ))}
+          </View>
+          <Texto variante="suave" aria-hidden>•</Texto>
+          <Botao rotulo="Limpar filtros" tipo="fantasma" aoTocar={() => aoAplicar(limpo)} />
         </View>
       ) : null}
     </View>
@@ -146,10 +163,11 @@ const estilos = StyleSheet.create({
   raiz: { gap: espaco(1.5) },
   linha: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', columnGap: espaco(1.5), rowGap: espaco(1) },
   busca: { flexGrow: 1, flexShrink: 1, flexBasis: 240, maxWidth: 480 },
-  botoes: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1) },
+  // A faixa nunca passa da largura da linha: o que sobra rola dentro dela.
+  faixa: { flexShrink: 1, minWidth: 0, maxWidth: '100%' },
   filtros: {
     minHeight: ALVO_TOQUE, flexDirection: 'row', alignItems: 'center', gap: espaco(1), paddingHorizontal: espaco(1.5),
-    borderWidth: 1, borderRadius: RAIO,
+    borderWidth: 1, borderRadius: RAIO_CONTROLE,
   },
   rotuloFiltros: { fontFamily: fontes.semi },
   contagem: { minWidth: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
@@ -160,9 +178,11 @@ const estilos = StyleSheet.create({
   // base viraria altura.
   pilha: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(3), rowGap: espaco(2), alignItems: 'flex-start' },
   filtrado: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1) },
+  // Os chips seguem a frase na mesma linha e só quebram quando não cabem.
+  chipsAtivos: { flexShrink: 1, maxWidth: '100%' },
   chip: {
     minHeight: ALVO_TOQUE, flexDirection: 'row', alignItems: 'center', gap: espaco(0.75), paddingHorizontal: espaco(1.25),
-    borderWidth: 1, borderRadius: RAIO, maxWidth: '100%',
+    borderWidth: 1, borderRadius: RAIO_CONTROLE, maxWidth: '100%',
   },
   textoDoChip: { flexShrink: 1 },
 });

@@ -80,7 +80,7 @@ function Contador({ total }: { total: number }) {
   return (
     <View
       accessibilityLabel={contagem(total, 'pendência', 'pendências')}
-      style={[estilos.contador, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
+      style={[estilos.contador, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
       <Texto numerico style={estilos.numero}>{total}</Texto>
     </View>
   );

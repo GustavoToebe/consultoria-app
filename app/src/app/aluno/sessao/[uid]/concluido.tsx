@@ -21,6 +21,7 @@ import {
 } from '../../../../dominio/cartaoDoTreino';
 import { resumoDaConclusao } from '../../../../dominio/conclusaoNaTela';
 import { dataParaTela } from '../../../../dominio/formatos';
+import { textoDoResultado } from '../../../../dominio/publicarResultado';
 import { textoDoRecorde } from '../../../../dominio/recordesPessoais';
 import { useUnidadeDeCarga } from '../../../../ui/unidadeDeCargaEmUso';
 import { contagemDeSeries } from '../../../../dominio/conclusaoDoTreino';
@@ -157,16 +158,17 @@ export default function TreinoConcluido() {
           ajuda="O cartão nunca mostra peso, fotos, medidas ou dieta."
         />
         <LinhaDeAcoes>
+          {/* C11: abre a publicação RESULTADO com o texto pronto e editável; nada é publicado daqui. */}
           <Botao
-            rotulo="Publicar no mural do time"
+            rotulo="Publicar na comunidade"
             tipo="secundario"
             Icone={Users}
             desabilitado={!aluno.online}
-            motivo="Sem conexão: o mural precisa de internet."
+            motivo="Sem conexão: a comunidade precisa de internet."
             aoTocar={() =>
               router.push({
                 pathname: '/aluno/comunidade',
-                params: { compartilharTreino: 'true', tituloTreino: sessao.nome, dataTreino: data },
+                params: { publicar: 'RESULTADO', texto: textoDoResultado({ treino: sessao.nome, resultado: conclusao.resultado ?? null, recordes: recordes.length }) },
               })
             }
           />

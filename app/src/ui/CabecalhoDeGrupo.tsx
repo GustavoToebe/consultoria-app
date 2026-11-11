@@ -57,7 +57,7 @@ export function CabecalhoDeGrupo({ titulo, resumo, Icone, selo, inicio, acoes, a
       style={[
         estilos.faixa,
         largo ? estilos.faixaLarga : estilos.faixaEstreita,
-        linha === 'forte' ? { backgroundColor: cores.superficie3, borderColor: cores.bordaCampo, borderBottomWidth: LINHA_DA_FAIXA } : { backgroundColor: cores.superficie3, borderColor: cores.borda },
+        linha === 'forte' ? { backgroundColor: cores.superficie2, borderColor: cores.divisor, borderBottomWidth: LINHA_DA_FAIXA } : { backgroundColor: cores.superficie2, borderColor: cores.divisor },
         // Item fechado (`fina`): a faixa é o item inteiro, sem linha embaixo encostando na borda dele.
         linha === 'fina' && aoAlternar && !aberto ? { borderBottomWidth: 0 } : null,
       ]}>

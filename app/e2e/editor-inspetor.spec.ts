@@ -1,3 +1,4 @@
+import { linhaDaSerie } from './linhaDaSerie';
 import { expect, test, type Page } from '@playwright/test';
 
 import { erroApi, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type PedidoFalso } from './api-falsa';
@@ -40,8 +41,8 @@ async function abrir(page: Page, comProblema: boolean) {
 const escritas = (pedidos: PedidoFalso[]) => pedidos.filter((p) => (p.metodo === 'PUT' || p.metodo === 'POST') && !p.caminho.startsWith('/auth/')).map((p) => `${p.metodo} ${p.caminho}`);
 const item = (page: Page, n: number, nome: string) => page.getByRole('button', { name: new RegExp(`^Exercício ${n} de 7: ${nome}`) });
 // As sessões também são abas: as das séries começam por "Série".
-const abasDasSeries = (page: Page) => page.getByRole('tab', { name: /^Série \d/ });
-const abaSelecionada = (page: Page) => page.getByRole('tab', { name: /^Série \d/, selected: true });
+const abasDasSeries = (page: Page) => linhaDaSerie(page, /^Série \d/);
+const abaSelecionada = (page: Page) => linhaDaSerie(page, /^Série \d/, true);
 
 test.describe('editor de treino em janela larga (1920)', () => {
   test.use({ viewport: { width: 1920, height: 1000 } });
@@ -78,8 +79,8 @@ test.describe('editor de treino no PC (1440)', () => {
     await expect(page.getByRole('textbox', { name: 'Nome de exibição' })).toHaveValue('Supino reto com barra');
     await expect(abasDasSeries(page)).toHaveCount(3);
     await expect(abaSelecionada(page)).toHaveAccessibleName(/^Série 1 · FS/);
-    await page.getByRole('tab', { name: /^Série 2 · WS/ }).click();
-    await expect(page.getByRole('tab', { name: /^Série 2 · WS/ })).toHaveAttribute('aria-selected', 'true');
+    await linhaDaSerie(page, /^Série 2 · WS/).click();
+    await expect(linhaDaSerie(page, /^Série 2 · WS/, true)).toBeVisible();
     await expect(page.getByText(/^Editando: Série 2( ·|$)/)).toBeVisible();
 
     // "+ Nova série" mostra um botão por tipo; um toque cria o grupo próprio e a aba dele fica escolhida.
@@ -102,12 +103,12 @@ test.describe('editor de treino no PC (1440)', () => {
     await expect(page.getByText(/^Editando: Série 1( ·|$)/)).toBeVisible();
     await page.getByRole('button', { name: /Ir à primeira pendência$/ }).click();
     await expect(item(page, 2, 'Supino inclinado com halteres')).toHaveAttribute('aria-current', 'true');
-    await expect(page.getByRole('tab', { name: /^Série 2 · Back off/ })).toHaveAttribute('aria-selected', 'true');
+    await expect(linhaDaSerie(page, /^Série 2 · Back off/, true)).toBeVisible();
     await expect(page.getByText(/^Editando: Série 2( ·|$)/)).toBeVisible();
     expect(api.errosDaPagina).toEqual([]);
   });
 
-  test('"Publicar para o aluno" salva o que mudou e publica', async ({ page }) => {
+  test('"Publicar treino" salva o que mudou e publica', async ({ page }) => {
     const api = await abrir(page, false);
     await expect(page.getByText(/^Editando: Série 1( ·|$)/)).toBeVisible();
     await page.getByRole('button', { name: /^Nome de exibição e instruções/ }).click();
@@ -115,7 +116,7 @@ test.describe('editor de treino no PC (1440)', () => {
     await expect(page.getByRole('button', { name: 'Salvar rascunho' })).toBeEnabled();
     expect(escritas(api.pedidos)).toEqual([]);
 
-    await page.getByRole('button', { name: 'Publicar para o aluno', exact: true }).click();
+    await page.getByRole('button', { name: 'Publicar treino', exact: true }).click();
     await expect(page.getByText('Publicado v1. O aluno já vê esta versão.')).toBeVisible();
     expect(escritas(api.pedidos)).toEqual([`PUT /planos-treino/${PLANO_ID}/rascunho`, `POST /planos-treino/${PLANO_ID}/publicar`]);
     const publicar = api.pedidos.find((p) => p.caminho.endsWith('/publicar'))?.corpo as { versao: number; confirmarAvisos: boolean };
@@ -133,8 +134,8 @@ test.describe('editor de treino no celular (390)', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
     await page.getByRole('button', { name: 'Editar Supino reto com barra', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Fechar Supino reto com barra', exact: true })).toBeVisible();
-    await page.getByRole('tab', { name: /^Série 2 · WS/ }).click();
-    await expect(page.getByRole('tab', { name: /^Série 2 · WS/ })).toHaveAttribute('aria-selected', 'true');
+    await linhaDaSerie(page, /^Série 2 · WS/).click();
+    await expect(linhaDaSerie(page, /^Série 2 · WS/, true)).toBeVisible();
     await expect(page.getByText(/^Editando: Série 2( ·|$)/)).toBeVisible();
 
     await page.getByRole('button', { name: 'Editar Crucifixo na máquina', exact: true }).click();
@@ -150,15 +151,16 @@ test.describe('editor de treino no celular (390)', () => {
     const api = await abrir(page, true);
     await page.getByRole('button', { name: /Ir à primeira pendência$/ }).click();
     await expect(page.getByRole('button', { name: 'Fechar Supino inclinado com halteres', exact: true })).toBeVisible();
-    await expect(page.getByRole('tab', { name: /^Série 2 · Back off/ })).toHaveAttribute('aria-selected', 'true');
+    await expect(linhaDaSerie(page, /^Série 2 · Back off/, true)).toBeVisible();
     await expect(page.getByText(/^Editando: Série 2( ·|$)/)).toBeVisible();
     expect(api.errosDaPagina).toEqual([]);
   });
 
-  test('"Publicar" publica sem mudança pendente', async ({ page }) => {
+  test('"Publicar treino" publica sem mudança pendente', async ({ page }) => {
     const api = await abrir(page, false);
-    await expect(page.getByRole('button', { name: 'Publicar para o aluno' })).toHaveCount(0);
-    await page.getByRole('button', { name: 'Publicar', exact: true }).click();
+    // O mesmo rótulo do PC: no celular ele não encurta.
+    await expect(page.getByRole('button', { name: 'Publicar treino', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Publicar treino', exact: true }).click();
     await expect(page.getByText('Publicado v1. O aluno já vê esta versão.')).toBeVisible();
     // Sem alteração o rascunho não é salvo de novo: só a publicação vai à API.
     expect(escritas(api.pedidos)).toEqual([`POST /planos-treino/${PLANO_ID}/publicar`]);

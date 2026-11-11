@@ -175,7 +175,7 @@ test('Financeiro ?situacao=VENCIDA com meus=true: só as vencidas, "Vencidas" e 
   await expect(page.getByText('Aluna Atrasada', { exact: true })).toBeVisible();
   await expect(page.getByText('Aluno Vencendo', { exact: true })).toHaveCount(0);
   await expect(page.getByText('Aluna Paga', { exact: true })).toHaveCount(0);
-  // Os filtros do endereço aparecem como chips no "Filtrado por" e marcados no painel de filtros.
+  // Os filtros do endereço aparecem como chips no "Filtrando:" e marcados no painel de filtros.
   await expect(page.getByRole('button', { name: 'Tirar filtro: Situação: Vencidas' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Tirar filtro: Responsável: Meus' })).toBeVisible();
   await page.getByRole('button', { name: /^Filtros, / }).click();

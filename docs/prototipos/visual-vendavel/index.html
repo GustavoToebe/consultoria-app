@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Todas as telas · Prévia visual vendável</title>
+<!-- Dados fictícios (D8). Nada aqui fala com a API. -->
+<link rel="stylesheet" href="base.css">
+<script src="base.js"></script>
+<style>
+  .indice { padding: 24px 16px 64px; }
+  @media (min-width: 768px) { .indice { padding: 32px 32px 80px; } }
+  .indice h2 { font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
+  code, pre { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 13px; }
+  code { background: var(--sup3); padding: 1px 6px; border-radius: 6px; overflow-wrap: anywhere; }
+  pre { margin: 0; padding: 16px; background: var(--sup2); border-radius: var(--raio-p); overflow-x: auto; line-height: 1.5; max-width: 100%; }
+  .peca { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .peca > .t-rotulo { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+  .amostra-linha { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .escala > * { display: block; }
+  /* grade marca × paleta: cada cartão recebe as variáveis da sua cor por style */
+  #mp-grade { grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); }
+  .mp-cab { display: flex; align-items: center; gap: 12px; }
+  .mp-cor { width: 28px; height: 28px; border-radius: 8px; background: var(--marca); flex-shrink: 0; }
+  .mp-pecas { display: flex; flex-direction: column; gap: 10px; }
+  .mp-pecas .menu-item { pointer-events: none; }
+  .mp-razoes { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; font-size: var(--t-rotulo); }
+  .mp-razoes dt { color: var(--suave); } .mp-razoes dd { margin: 0; font-variant-numeric: tabular-nums; font-weight: 600; text-align: right; }
+  .mp-razoes .baixo { color: var(--perigo); }
+</style>
+</head>
+<body>
+<main id="conteudo" class="indice pilha" tabindex="-1">
+  <header class="cab-pagina">
+    <div class="cab-pagina-linha">
+      <div class="cab-pagina-texto">
+        <h1 class="t-titulo-pagina">Prévia visual vendável</h1>
+        <p class="subtitulo">Telas de demonstração com dados fictícios. Use a barra do topo para trocar a cor da marca, a paleta e a seleção.</p>
+      </div>
+    </div>
+  </header>
+
+  <!-- ====== telas ====== -->
+  <section class="cartao" aria-labelledby="t-telas">
+    <div class="cartao-cab"><div><h2 class="t-titulo-cartao" id="t-telas">Telas</h2><p class="t-apoio">Dez telas: cinco do treinador e cinco do aluno (com a de entrar). A barra do topo vale para todas.</p></div></div>
+    <ul class="lista">
+      <li class="linha"><span class="icone-marcador id-azul"><svg class="ic" aria-hidden="true"><use href="#i-casa"/></svg></span><div class="linha-principal"><a class="linha-link" href="treinador-inicio.html">Treinador · Início</a><span class="linha-meta">Fila "Precisa de você hoje", números da semana e cartões · S1, S2, S3, S4</span></div><span class="selo">Pronta</span></li>
+      <li class="linha"><span class="icone-marcador id-azul"><svg class="ic" aria-hidden="true"><use href="#i-alunos"/></svg></span><div class="linha-principal"><a class="linha-link" href="treinador-alunos.html">Treinador · Alunos e ficha</a><span class="linha-meta">Lista com filtro rápido; a linha abre a ficha com Resumo e Planos · S1, S2, S3, S5</span></div><span class="selo">Pronta</span></li>
+      <li class="linha"><span class="icone-marcador id-azul"><svg class="ic" aria-hidden="true"><use href="#i-haltere"/></svg></span><div class="linha-principal"><a class="linha-link" href="treinador-treino.html">Treinador · Editor de treino</a><span class="linha-meta">Sessões, lista de exercícios com a composição por tipo, séries com barra e selo do tipo, chips de tipo coloridos · S1, S2, S3</span></div><span class="selo">Pronta</span></li>
+      <li class="linha"><span class="icone-marcador id-azul"><svg class="ic" aria-hidden="true"><use href="#i-prato"/></svg></span><div class="linha-principal"><a class="linha-link" href="treinador-dieta.html">Treinador · Editor de dieta</a><span class="linha-meta">Total do dia fixo no topo, refeições com cor e horário, tabela de alimentos, complementos em abas · S1, S3, S7</span></div><span class="selo">Pronta</span></li>
+      <li class="linha"><span class="icone-marcador id-azul"><svg class="ic" aria-hidden="true"><use href="#i-raio"/></svg></span><div class="linha-principal"><a class="linha-link" href="treinador-mobilidade.html">Treinador · Editor de mobilidade</a><span class="linha-meta">Item compacto, vídeo só quando pedido, remover com Desfazer e prévia de como o aluno vê · S3, S8</span></div><span class="selo">Pronta</span></li>
+      <li class="linha"><span class="icone-marcador id-violeta"><svg class="ic" aria-hidden="true"><use href="#i-seta-direita"/></svg></span><div class="linha-principal"><a class="linha-link" href="entrar.html">Aluno · Entrar</a><span class="linha-meta">Marca da consultoria sobre um cartão estreito; estados normal, campos vazios, erro de acesso, enviando e "Crie sua senha" (barra do topo)</span></div><span class="selo">Pronta</span></li>
+      <li class="linha"><span class="icone-marcador id-violeta"><svg class="ic" aria-hidden="true"><use href="#i-casa"/></svg></span><div class="linha-principal"><a class="linha-link" href="aluno-inicio.html">Aluno · Início</a><span class="linha-meta">Cartão Hoje em quatro estados, semana com a cor da divisão, pendências e atalhos · S1, S3, S6</span></div><span class="selo">Pronta</span></li>
+      <li class="linha"><span class="icone-marcador id-violeta"><svg class="ic" aria-hidden="true"><use href="#i-haltere"/></svg></span><div class="linha-principal"><a class="linha-link" href="aluno-treino.html">Aluno · Treino do dia e exercício</a><span class="linha-meta">Barra de séries por tipo, registro de carga com a sugestão como dica, Cluster e rodapé fixo · S2, S3, S6</span></div><span class="selo">Pronta</span></li>
+      <li class="linha"><span class="icone-marcador id-violeta"><svg class="ic" aria-hidden="true"><use href="#i-prato"/></svg></span><div class="linha-principal"><a class="linha-link" href="aluno-dieta.html">Aluno · Dieta</a><span class="linha-meta">Total do dia em faixa, refeições na linha do tempo com a de agora em destaque, suplementação · S3, S7</span></div><span class="selo">Pronta</span></li>
+      <li class="linha"><span class="icone-marcador id-violeta"><svg class="ic" aria-hidden="true"><use href="#i-raio"/></svg></span><div class="linha-principal"><a class="linha-link" href="aluno-mobilidade.html">Aluno · Mobilidade</a><span class="linha-meta">Progresso do dia, seções recolhíveis e item marcável; estado sem plano · S3, S8</span></div><span class="selo">Pronta</span></li>
+    </ul>
+  </section>
+
+  <!-- ====== marca × paleta ====== -->
+  <section class="pilha-16" aria-labelledby="t-mp">
+    <div>
+      <h2 id="t-mp">Marca × paleta</h2>
+      <p class="t-apoio" id="mp-sub">As 12 cores prontas na paleta atual. Troque a paleta na barra do topo para ver as outras.</p>
+    </div>
+    <span class="anotacao">S1 · a cor sólida só no botão principal; texto, sublinhado, anel de foco e progresso usam o "texto da marca" (≥ 4,5:1 em todas as superfícies)</span>
+    <div class="grade-cartoes grade-cartoes--4" id="mp-grade"></div>
+  </section>
+
+  <!-- ====== como montar uma página ====== -->
+  <section class="cartao" aria-labelledby="t-como">
+    <div class="cartao-cab"><div><h2 class="t-titulo-cartao" id="t-como">Como montar uma página nova</h2><p class="t-apoio">A casca (menu, topo do celular, barra inferior, "Pular para o conteúdo") e a barra da prévia vêm do base.js.</p></div></div>
+    <div class="cartao-corpo">
+<pre><code>&lt;!doctype html&gt;
+&lt;html lang="pt-BR"&gt;
+&lt;head&gt;
+&lt;meta charset="utf-8"&gt;
+&lt;meta name="viewport" content="width=device-width, initial-scale=1"&gt;
+&lt;title&gt;Nome da tela · Prévia visual vendável&lt;/title&gt;
+&lt;!-- Dados fictícios (D8). Nada aqui fala com a API. --&gt;
+&lt;link rel="stylesheet" href="base.css"&gt;
+&lt;script src="base.js"&gt;&lt;/script&gt;   &lt;!-- sem defer: pinta a marca antes do primeiro quadro --&gt;
+&lt;/head&gt;
+&lt;body data-casca="treinador" data-ativo="planejamento"&gt;   &lt;!-- ou data-casca="aluno" data-ativo="treino" --&gt;
+&lt;main id="conteudo" class="pagina"&gt;          &lt;!-- .pagina--editor limita a 1040 --&gt;
+  &lt;header class="cab-pagina"&gt; … um único h1.t-titulo-pagina … &lt;/header&gt;
+  …
+&lt;/main&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+      <p class="t-apoio">Ids de <code>data-ativo</code>: treinador <code>inicio alunos atualizacoes agenda comunidade biblioteca planejamento interessados financeiro numeros perfil equipe ajuda</code>; aluno <code>inicio treino dieta time historico conta</code>. Ícones: <code>&lt;svg class="ic" aria-hidden="true"&gt;&lt;use href="#i-haltere"/&gt;&lt;/svg&gt;</code> ou <code>VV.icone('haltere')</code>. Composição: <code>data-composicao="aq:1 fs:3 ws:1 top:1 bo:2"</code>. HTML montado depois do carregamento chama <code>VV.desenharComposicoes(raiz)</code>. Mudança de marca ou paleta dispara o evento <code>vv:tema</code> no <code>document</code>.</p>
+    </div>
+  </section>
+
+  <!-- ====== mostruário ====== -->
+  <section class="pilha-16" aria-labelledby="t-pecas">
+    <div><h2 id="t-pecas">Peças do base.css</h2><p class="t-apoio">Cada peça com a classe que a monta. O índice completo está no topo do base.css.</p></div>
+    <div class="grade-cartoes">
+
+      <section class="cartao"><div class="cartao-corpo peca">
+        <span class="t-rotulo">Escala de texto (S3)</span>
+        <div class="escala pilha-8">
+          <span class="t-titulo-pagina">Título de página 24/28</span>
+          <span class="t-numero">128</span>
+          <span class="t-titulo-cartao">Título de cartão 18</span>
+          <span class="t-corpo">Corpo 15: o texto que se lê na tela.</span>
+          <span class="t-apoio">Apoio 14: data, contexto, explicação curta.</span>
+          <span class="t-rotulo">Rótulo 13</span>
+          <span class="t-secao">Seção 12</span>
+        </div>
+        <span class="t-apoio"><code>.t-titulo-pagina .t-numero .t-titulo-cartao .t-corpo .t-apoio .t-rotulo .t-secao</code></span>
+      </div></section>
+
+      <section class="cartao"><div class="cartao-corpo peca">
+        <span class="t-rotulo">Botões</span>
+        <div class="amostra-linha">
+          <button type="button" class="botao botao--primario">Publicar</button>
+          <button type="button" class="botao botao--secundario">Pré-visualizar</button>
+          <button type="button" class="botao botao--fantasma">Cancelar</button>
+          <button type="button" class="botao botao--icone botao--secundario" aria-label="Mais ações"><svg class="ic" aria-hidden="true"><use href="#i-mais"/></svg></button>
+        </div>
+        <div class="amostra-linha">
+          <button type="button" class="botao botao--perigo">Excluir plano</button>
+          <button type="button" class="botao botao--primario" aria-disabled="true" aria-describedby="mot-1">Publicar tudo</button>
+          <span class="motivo" id="mot-1">Nada mudou desde a última publicação.</span>
+        </div>
+        <span class="t-apoio"><code>.botao--primario --secundario --fantasma --perigo --icone</code> · desabilitado com <code>aria-disabled</code> + <code>.motivo</code></span>
+      </div></section>
+
+      <section class="cartao"><div class="cartao-corpo peca">
+        <span class="t-rotulo">Selos: estado normal apagado; cor só no que pede ação (e no recém-feito)</span>
+        <div class="amostra-linha">
+          <span class="selo">Publicado</span>
+          <span class="selo">Em dia</span>
+          <span class="selo st-atencao">Para revisar</span>
+          <span class="selo st-perigo">Vencida</span>
+          <span class="selo selo--feito">Feito hoje</span>
+        </div>
+        <div class="amostra-linha">
+          <span class="selo tipo-aq">Aquecimento</span><span class="selo tipo-fs">FS</span><span class="selo tipo-ws">WS</span><span class="selo tipo-top">Top set</span><span class="selo tipo-bo">Back off</span>
+        </div>
+        <span class="t-apoio"><code>.selo</code> (normal) · <code>.selo.st-atencao</code> / <code>.selo.st-perigo</code> (pede ação, com ponto) · <code>.selo.selo--feito</code> (só logo depois de a pessoa fazer) · <code>.tipo-aq .tipo-fs .tipo-ws .tipo-top .tipo-bo</code></span>
+      </div></section>
+
+      <section class="cartao"><div class="cartao-corpo peca">
+        <span class="t-rotulo">Chips de filtro e de tipo</span>
+        <div class="grupo-chips" data-unico role="group" aria-label="Exemplo de filtro">
+          <button type="button" class="chip" aria-pressed="true">Todos <span class="chip-contagem">48</span></button>
+          <button type="button" class="chip" aria-pressed="false">Para revisar <span class="chip-contagem">3</span></button>
+          <button type="button" class="chip" aria-pressed="false">Inativos <span class="chip-contagem">6</span></button>
+        </div>
+        <div class="grupo-chips" data-unico role="group" aria-label="Exemplo de tipo de série">
+          <button type="button" class="chip chip--tipo tipo-fs" aria-pressed="true">FS</button>
+          <button type="button" class="chip chip--tipo tipo-ws" aria-pressed="false">WS</button>
+          <button type="button" class="chip chip--tipo tipo-bo" aria-pressed="false">Back off</button>
+        </div>
+        <span class="t-apoio"><code>.grupo-chips[data-unico|data-multiplo] &gt; .chip[aria-pressed]</code> · <code>.chip--tipo.tipo-*</code> · evento <code>escolha</code></span>
+      </div></section>
+
+      <section class="cartao"><div class="cartao-corpo peca">
+        <span class="t-rotulo">Avisos (ícone e texto, nunca só a cor)</span>
+        <div class="alerta st-perigo" role="alert"><svg class="ic" aria-hidden="true"><use href="#i-erro"/></svg><span><b>Não foi possível publicar</b>Duas séries do Treino A estão sem repetições.</span></div>
+        <div class="alerta st-atencao"><svg class="ic" aria-hidden="true"><use href="#i-alerta"/></svg><span><b>Alteração não publicada</b>O aluno ainda vê a versão de 28/10.</span></div>
+        <div class="alerta st-sucesso"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg><span><b>Publicado</b>O aluno já vê a versão nova.</span></div>
+        <div class="alerta st-neutro"><svg class="ic" aria-hidden="true"><use href="#i-info"/></svg><span><b>Sem internet</b>As séries marcadas sobem quando a conexão voltar.</span></div>
+        <span class="t-apoio"><code>.alerta.st-*</code>. Com a marca vermelha padrão, o erro se distingue pelo ícone e pelo título.</span>
+      </div></section>
+
+      <section class="cartao"><div class="cartao-corpo peca">
+        <span class="t-rotulo">Próximo passo</span>
+        <div class="destaque-acao"><div class="texto"><span class="t-secao">Próximo passo</span><span class="t-corpo" style="font-weight:600">A atualização chegou em 08/11.</span></div><a class="botao botao--primario" href="treinador-alunos.html#aluno=ana-beatriz-lima">Revisar atualização</a></div>
+        <span class="t-apoio"><code>.destaque-acao &gt; .texto + .botao--primario</code></span>
+      </div></section>
+
+      <section class="cartao"><div class="cartao-corpo peca">
+        <span class="t-rotulo">Faixa de números</span>
+        <div class="faixa-kpi">
+          <div class="kpi kpi--info"><span class="kpi-rotulo">Alunos ativos</span><span class="kpi-numero">42</span><span class="kpi-apoio">Informativo</span></div>
+          <div class="kpi kpi--atencao"><span class="kpi-rotulo">Para revisar</span><span class="kpi-numero">3</span><span class="kpi-apoio"><svg class="ic ic--16" aria-hidden="true"><use href="#i-alerta"/></svg>Pede ação</span></div>
+          <div class="kpi kpi--perigo"><span class="kpi-rotulo">Vencidas</span><span class="kpi-numero">1</span><span class="kpi-apoio"><svg class="ic ic--16" aria-hidden="true"><use href="#i-erro"/></svg>Urgente</span></div>
+          <div class="kpi kpi--zero"><span class="kpi-rotulo">Atrasadas</span><span class="kpi-numero">0</span><span class="kpi-apoio">Nada a fazer</span></div>
+        </div>
+        <span class="t-apoio"><code>.faixa-kpi &gt; .kpi.kpi--info|--atencao|--perigo|--zero</code></span>
+      </div></section>
+
+      <section class="cartao"><div class="cartao-corpo peca">
+        <span class="t-rotulo">Abas</span>
+        <div class="abas" role="tablist" aria-label="Exemplo de abas">
+          <button type="button" class="aba" role="tab" id="ex-a1" aria-controls="ex-p1" aria-selected="true">Resumo</button>
+          <button type="button" class="aba" role="tab" id="ex-a2" aria-controls="ex-p2" aria-selected="false">Planos</button>
+          <button type="button" class="aba" role="tab" id="ex-a3" aria-controls="ex-p3" aria-selected="false">Evolução</button>
+        </div>
+        <div role="tabpanel" id="ex-p1" aria-labelledby="ex-a1" tabindex="0" class="t-apoio">Painel do Resumo. Setas, Home e End trocam de aba.</div>
+        <div role="tabpanel" id="ex-p2" aria-labelledby="ex-a2" tabindex="0" class="t-apoio" hidden>Painel dos Planos.</div>
+        <div role="tabpanel" id="ex-p3" aria-labelledby="ex-a3" tabindex="0" class="t-apoio" hidden>Painel da Evolução.</div>
+        <span class="t-apoio"><code>[role=tablist].abas &gt; .aba[role=tab]</code> + <code>[role=tabpanel]</code></span>
+      </div></section>
+
+      <section class="cartao"><div class="cartao-corpo peca">
+        <span class="t-rotulo">Composição e linha de série (S2)</span>
+        <div data-composicao="aq:1 fs:3 ws:1 top:1 bo:2"></div>
+        <div class="serie-linha tipo-ws"><span><span class="selo tipo-ws">WS</span></span><span class="valor">1 × 6</span><span class="valor">57,5 kg</span></div>
+        <div class="serie-linha tipo-bo"><span><span class="selo tipo-bo">Back off</span></span><span class="valor">2 × 12</span><span class="valor suave">—</span></div>
+        <span class="t-apoio"><code>[data-composicao]</code> · <code>.composicao--mini</code> · <code>.serie-linha.tipo-*</code></span>
+      </div></section>
+
+      <section class="cartao"><div class="cartao-corpo peca">
+        <span class="t-rotulo">Campos</span>
+        <div class="campo"><label class="campo-rotulo" for="ex-c1">Nome do treino</label><input class="campo-entrada" id="ex-c1" name="nome-treino" value="Treino A" autocomplete="off"><span class="campo-ajuda">Aparece assim para o aluno.</span></div>
+        <div class="campo campo--erro"><label class="campo-rotulo" for="ex-c2">Repetições</label><input class="campo-entrada" id="ex-c2" name="repeticoes" inputmode="numeric" aria-invalid="true" aria-describedby="ex-c2-erro" autocomplete="off"><span class="campo-erro" id="ex-c2-erro"><svg class="ic ic--16" aria-hidden="true"><use href="#i-erro"/></svg>Informe as repetições da série.</span></div>
+        <div class="campo campo-busca"><label class="sr-only" for="ex-c3">Buscar exercício</label><svg class="ic" aria-hidden="true"><use href="#i-busca"/></svg><input class="campo-entrada" id="ex-c3" name="busca-exercicio" type="search" placeholder="Buscar exercício…" autocomplete="off"></div>
+        <span class="t-apoio"><code>.campo &gt; .campo-rotulo + .campo-entrada + .campo-ajuda|.campo-erro</code> · <code>.campo--erro</code> · <code>.campo-busca</code></span>
+      </div></section>
+
+      <section class="cartao"><div class="cartao-corpo peca">
+        <span class="t-rotulo">Lista com a linha inteira clicável</span>
+        <ul class="lista" style="margin:0 -16px">
+          <li class="linha"><span class="avatar" aria-hidden="true">CM</span><div class="linha-principal"><a class="linha-link" href="treinador-alunos.html#aluno=caio-mendes">Caio Mendes</a><span class="linha-meta">Força · até 12/11</span></div><span class="selo st-atencao">Renova em 2 dias</span></li>
+          <li class="linha"><span class="avatar" aria-hidden="true">RT</span><div class="linha-principal"><a class="linha-link" href="treinador-alunos.html#aluno=rafael-tavares">Rafael Tavares</a><span class="linha-meta">Hipertrofia · até 05/12</span></div><span class="selo">Em dia</span></li>
+        </ul>
+        <span class="t-apoio"><code>ul.lista &gt; li.linha &gt; a.linha-link + .linha-meta</code></span>
+      </div></section>
+
+      <section class="cartao"><div class="cartao-corpo peca">
+        <span class="t-rotulo">Progresso, semana e menu ⋯</span>
+        <div class="progresso" role="progressbar" aria-label="Primeiros passos" aria-valuenow="3" aria-valuemin="0" aria-valuemax="5"><span style="--p:60%"></span></div>
+        <ol class="semana-dias">
+          <li class="feito"><span>Seg</span><span class="marca-dia">B</span><span class="sr-only">Feito</span></li>
+          <li class="hoje"><span>Ter</span><span class="marca-dia">A</span><span class="sr-only">Hoje</span></li>
+          <li class="descanso"><span>Qua</span><span class="marca-dia" aria-hidden="true">·</span><span class="sr-only">Descanso</span></li>
+          <li><span>Qui</span><span class="marca-dia">C</span><span class="sr-only">Previsto</span></li>
+          <li class="descanso"><span>Sex</span><span class="marca-dia" aria-hidden="true">·</span><span class="sr-only">Descanso</span></li>
+          <li><span>Sáb</span><span class="marca-dia">A</span><span class="sr-only">Previsto</span></li>
+          <li class="descanso"><span>Dom</span><span class="marca-dia" aria-hidden="true">·</span><span class="sr-only">Descanso</span></li>
+        </ol>
+        <div class="amostra-linha" style="position:relative">
+          <button type="button" class="botao botao--icone botao--secundario" data-menu="ex-menu" aria-label="Mais ações do exemplo"><svg class="ic" aria-hidden="true"><use href="#i-mais"/></svg></button>
+          <div class="menu-flutuante" id="ex-menu" hidden><a class="menu-flutuante-item" href="index.html">Duplicar</a><a class="menu-flutuante-item" href="index.html">Arquivar</a></div>
+        </div>
+        <span class="t-apoio"><code>.progresso</code> · <code>.semana-dias</code> · <code>[data-menu]</code> + <code>.menu-flutuante[hidden]</code></span>
+      </div></section>
+
+      <section class="cartao"><div class="vazio">
+        <span class="vazio-icone"><svg class="ic ic--24" aria-hidden="true"><use href="#i-caderno"/></svg></span>
+        <h3>Nenhum modelo de dieta ainda</h3>
+        <p>Monte um modelo uma vez e aplique a vários alunos.</p>
+        <button type="button" class="botao botao--secundario">Criar modelo</button>
+        <span class="t-apoio"><code>.vazio &gt; .vazio-icone + h3 + p + ação</code></span>
+      </div></section>
+    </div>
+  </section>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  function fmt(r) { return r.toFixed(2).replace('.', ',') + ':1'; }
+  function razao(rotulo, r, minimo) {
+    return '<dt>' + rotulo + '</dt><dd' + (r < minimo ? ' class="baixo"' : '') + '>' + fmt(r) + (r < minimo ? ' (abaixo de ' + String(minimo).replace('.', ',') + ')' : '') + '</dd>';
+  }
+  function desenhar() {
+    var est = VV.estado();
+    var paleta = VV.PALETAS.filter(function (p) { return p.codigo === est.paleta; })[0];
+    document.getElementById('mp-sub').textContent = 'As 12 cores prontas na paleta ' + paleta.nome + '. Troque a paleta na barra do topo para ver as outras.';
+    document.getElementById('mp-grade').innerHTML = VV.MARCAS.map(function (m, i) {
+      var c = VV.coresDe(m.cor, est.paleta), p = c.papeis, s = c.superficies, v = VV.varsDaMarca(p);
+      var estilo = Object.keys(v).map(function (k) { return k + ':' + v[k]; }).join(';');
+      var c1 = VV.contraste(p.sobreMarca, p.marca);
+      var c2 = Math.min(VV.contraste(p.marcaTexto, s.fundo), VV.contraste(p.marcaTexto, s.sup), VV.contraste(p.marcaTexto, s.sup2), VV.contraste(p.marcaTexto, s.sup3));
+      var c3 = VV.contraste(p.marcaTexto, p.marcaSuave);
+      var c4 = VV.contraste(p.marca, s.fundo);
+      return '<section class="cartao" style="' + estilo + '" aria-labelledby="mp-' + i + '"><div class="cartao-corpo">' +
+        '<div class="mp-cab"><span class="mp-cor" aria-hidden="true"></span><div><h3 class="t-corpo" style="font-weight:600" id="mp-' + i + '">' + m.nome + '</h3><span class="t-apoio num">' + m.cor + '</span></div></div>' +
+        '<div class="mp-pecas" aria-hidden="true">' +
+        '<button type="button" class="botao botao--primario botao--cheio" tabindex="-1">Ação principal</button>' +
+        '<span class="menu-item" aria-current="page"><svg class="ic" aria-hidden="true"><use href="#i-alunos"/></svg><span>Item ativo do menu</span></span>' +
+        '<span class="amostra-linha"><span class="chip" aria-pressed="true">Selecionado <span class="chip-contagem">3</span></span><span class="chip" aria-pressed="false">Outro</span></span>' +
+        '</div>' +
+        '<dl class="mp-razoes">' +
+        razao('Texto sobre a marca', c1, 4.5) +
+        razao('Texto da marca (pior superfície)', c2, 4.5) +
+        razao('Texto da marca no selecionado', c3, 4.5) +
+        razao('Marca crua no fundo (hoje)', c4, 3) +
+        '</dl></div></section>';
+    }).join('');
+  }
+  document.addEventListener('DOMContentLoaded', desenhar);
+  document.addEventListener('vv:tema', function () { if (document.getElementById('mp-grade')) desenhar(); });
+})();
+</script>
+</body>
+</html>

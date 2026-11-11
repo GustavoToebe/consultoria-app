@@ -2,7 +2,7 @@ import type { LucideIcon } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, RAIO } from '../tema/tokens';
+import { ALVO_TOQUE, RAIO_CONTROLE } from '../tema/tokens';
 import { sobre } from './sobre';
 
 interface Props {
@@ -47,8 +47,8 @@ export function IconeBotao({ Icone, rotulo, aoTocar, cor, desabilitado, compacto
 }
 
 const estilos = StyleSheet.create({
-  alvo: { width: ALVO_TOQUE, height: ALVO_TOQUE, alignItems: 'center', justifyContent: 'center', borderRadius: RAIO },
-  desenho: { width: ALVO_TOQUE, height: ALVO_TOQUE, alignItems: 'center', justifyContent: 'center', borderRadius: RAIO },
+  alvo: { width: ALVO_TOQUE, height: ALVO_TOQUE, alignItems: 'center', justifyContent: 'center', borderRadius: RAIO_CONTROLE },
+  desenho: { width: ALVO_TOQUE, height: ALVO_TOQUE, alignItems: 'center', justifyContent: 'center', borderRadius: RAIO_CONTROLE },
   compacto: { width: 32, height: 32 },
   moldura: { width: 40, height: 40, borderWidth: 1 },
 });

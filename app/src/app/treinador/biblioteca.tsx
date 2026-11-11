@@ -1,5 +1,4 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { View } from 'react-native';
 
 import { abaInicial, abasDaBiblioteca, type AbaDaBiblioteca } from '../../dominio/abasDaBiblioteca';
 import { destinosPermitidos } from '../../dominio/mapeamentoDaImportacao';
@@ -11,8 +10,8 @@ import { AbaErgogenicos } from '../../treinador/biblioteca/AbaErgogenicos';
 import { AbaExercicios } from '../../treinador/biblioteca/AbaExercicios';
 import { AbaSuplementos } from '../../treinador/biblioteca/AbaSuplementos';
 import { Abas } from '../../ui/Abas';
-import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
+import { Escolha } from '../../ui/Escolha';
 import { LinkTexto } from '../../ui/LinkTexto';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
@@ -37,10 +36,13 @@ export default function Biblioteca() {
       {aba === 'exercicios' ? <AbaExercicios /> : null}
       {aba === 'alimentos' ? (
         <>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <Botao rotulo="Alimentos" tipo={verSuplementos ? 'secundario' : 'primario'} aoTocar={() => router.push({ pathname: '/treinador/biblioteca', params: { aba: 'alimentos' } })} />
-            <Botao rotulo="Suplementos" tipo={verSuplementos ? 'primario' : 'secundario'} aoTocar={() => router.push({ pathname: '/treinador/biblioteca', params: { aba: 'suplementos' } })} />
-          </View>
+          {/* Seleção neutra (não é ação): o primário da área é o "Novo alimento"/"Novo suplemento" do cartão. */}
+          <Escolha
+            descricao="Mostrar"
+            opcoes={[{ valor: 'alimentos', rotulo: 'Alimentos' }, { valor: 'suplementos', rotulo: 'Suplementos' }]}
+            valor={verSuplementos ? 'suplementos' : 'alimentos'}
+            aoMudar={(valor) => router.push({ pathname: '/treinador/biblioteca', params: { aba: valor } })}
+          />
           {verSuplementos ? <AbaSuplementos /> : <AbaAlimentos />}
         </>
       ) : null}

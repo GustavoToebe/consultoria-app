@@ -33,6 +33,15 @@ public class IndicesDeVersao {
         this.json = json;
     }
 
+    /**
+     * Como {@link #carregar(Collection)}, mas só lê as versões que ainda não estão em {@code cache} e completa o próprio
+     * {@code cache}: quem monta uma resposta com várias leituras (o pacote do aluno) lê cada versão uma vez só.
+     */
+    public Map<UUID, IndiceVersao> carregar(Map<UUID, IndiceVersao> cache, Collection<UUID> versaoIds) {
+        cache.putAll(carregar(versaoIds.stream().filter(id -> !cache.containsKey(id)).toList()));
+        return cache;
+    }
+
     public Map<UUID, IndiceVersao> carregar(Collection<UUID> versaoIds) {
         Map<UUID, IndiceVersao> indices = new HashMap<>();
         if (versaoIds.isEmpty()) {

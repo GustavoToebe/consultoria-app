@@ -111,7 +111,8 @@ export const caminhoListaAtualizacoes = (situacao: string, meus: boolean, fila?:
 export function statusAtualizacaoTreinador(a:Pick<AtualizacaoDaLista,'fase'|'diasDeAtraso'|'diasParaData'|'atrasoAte'>, hoje:string=hojeIso()) {
   const selo=(curto:string,tipo:'atencao'|'sucesso'|'perigo'|'neutro',texto=`Atualização ${curto[0].toLowerCase()}${curto.slice(1)}`)=>({texto,curto,tipo});
   if(a.fase==='ENVIADA')return selo('Para revisar','atencao');
-  if(a.fase==='REVISADA')return selo('Revisada','sucesso');
+  // Para o treinador "Revisada" é informativa (guia de 11/11, pág. 5): o que já foi feito é neutro.
+  if(a.fase==='REVISADA')return selo('Revisada','neutro');
   if(a.fase==='ATRASADA')return selo(`Atrasada ${atrasoEmTexto(a.diasDeAtraso,hoje)}`,'perigo');
   if(a.atrasoAte)return selo(`Adiada para ${paraQuando(a.atrasoAte,hoje)}`,'neutro');
   return selo(comMaiuscula(emDias(a.diasParaData)),'neutro');

@@ -113,3 +113,21 @@ export function posicaoNoMenu(caminho: string, menu: readonly LugarNoMenu[] = ME
   });
   return melhor >= 0 ? { grupo: menu[melhor].grupo, indice: melhor, propria: false } : null;
 }
+
+/** Telas abertas pelo cartão do usuário: com elas abertas o cartão fica realçado e o topo diz "Conta". */
+export const TELAS_DA_CONTA: readonly string[] = ['/treinador/meus-dados', '/treinador/seguranca', '/treinador/minha-conta', '/treinador/marca', '/treinador/ajustes'];
+
+export function naConta(caminho: string): boolean {
+  return TELAS_DA_CONTA.some((t) => caminho === t || caminho.startsWith(`${t}/`));
+}
+
+/**
+ * Contexto curto da barra de topo: "Conta" nas telas do cartão do usuário, o grupo do menu da tela, "Início" no item sem
+ * grupo (só o Início fica fora de grupo). Tela que nenhum item do menu acende (editor do plano do aluno) fica sem contexto.
+ */
+export function contextoDoTopo(caminho: string): string | null {
+  if (naConta(caminho)) return 'Conta';
+  const lugar = posicaoNoMenu(caminho);
+  if (!lugar) return null;
+  return lugar.grupo ?? 'Início';
+}

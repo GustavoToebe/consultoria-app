@@ -55,7 +55,7 @@ export function CampoFotos({ pergunta: p, valor, carregarDaEquipe, rotulo }: Pro
       <ImagemProtegida chave={item.id} carregar={carregar(item)} descricao="Foto enviada" tamanho={tamanho} aoTocar={aoTocar} />
     ) : (
       <Pressable accessibilityRole="imagebutton" accessibilityLabel="Foto ainda neste aparelho" onPress={aoTocar}
-        style={[estilos.local, { width: tamanho, height: tamanho, borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
+        style={[estilos.local, { width: tamanho, height: tamanho, borderColor: cores.divisor, backgroundColor: cores.superficie2 }]}>
         <Image source={{ uri: uriDaFotoLocal(controle?.usuarioId ?? '', item.nome) }} cachePolicy="none" contentFit="cover" style={estilos.imagem} />
       </Pressable>
     );
@@ -111,7 +111,7 @@ export function CampoFotos({ pergunta: p, valor, carregarDaEquipe, rotulo }: Pro
             <View key={chaveDe(item)} style={estilos.celula}>
               {miniatura(item, MINIATURA, () => setAmpliada(item))}
               <Pressable accessibilityRole="button" accessibilityLabel="Remover esta foto" onPress={() => setRemovendo(item)}
-                hitSlop={8} style={[estilos.remover, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
+                hitSlop={8} style={[estilos.remover, { backgroundColor: cores.superficie, borderColor: cores.divisor }]}>
                 <X size={16} color={cores.texto} />
               </Pressable>
             </View>

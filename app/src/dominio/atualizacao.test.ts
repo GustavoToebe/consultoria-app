@@ -140,7 +140,7 @@ describe('selo da atualização para o treinador', () => {
   it('diz de quê no texto e fica curto onde o assunto já é a atualização', () => {
     expect(statusAtualizacaoTreinador(base, '2026-10-19')).toEqual({ texto: 'Atualização em 15 dias', curto: 'Em 15 dias', tipo: 'neutro' });
     expect(statusAtualizacaoTreinador({ ...base, fase: 'ENVIADA' })).toMatchObject({ texto: 'Atualização para revisar', curto: 'Para revisar', tipo: 'atencao' });
-    expect(statusAtualizacaoTreinador({ ...base, fase: 'REVISADA' })).toMatchObject({ curto: 'Revisada', tipo: 'sucesso' });
+    expect(statusAtualizacaoTreinador({ ...base, fase: 'REVISADA' })).toMatchObject({ curto: 'Revisada', tipo: 'neutro' });
   });
   it('atraso, adiamento e distância relativa', () => {
     expect(statusAtualizacaoTreinador({ ...base, fase: 'ATRASADA', diasDeAtraso: 1 })).toMatchObject({ texto: 'Atualização atrasada há 1 dia', tipo: 'perigo' });

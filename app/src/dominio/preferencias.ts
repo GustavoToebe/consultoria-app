@@ -206,7 +206,7 @@ export function coresComContraste(cores: Cores, contraste: Contraste, escuro: bo
 
 /**
  * "Bordas reforçadas" (Perfil › Preferências): a borda dos blocos passa a usar `bordaCampo` (a mais escura do tema) e
- * o divisor, a `borda`; a espessura do bloco sobe de 2 para 3 px (`espessurasDasBordas`). Texto e status não mudam.
+ * o divisor, a `borda`; o contorno de bloco e de item sobe de 1 para 2 px (`espessurasDasBordas`). Texto e status não mudam.
  */
 export function coresComBordasReforcadas(cores: Cores, reforcadas: boolean): Cores {
   if (!reforcadas) return cores;
@@ -215,5 +215,5 @@ export function coresComBordasReforcadas(cores: Cores, reforcadas: boolean): Cor
 
 /** Espessura da borda do bloco (cartão, sessão, exercício, tabela) e do item com cabeçalho próprio (grupo de séries). */
 export function espessurasDasBordas(reforcadas: boolean): { bloco: number; item: number } {
-  return reforcadas ? { bloco: BORDA_BLOCO + 1, item: BORDA_ITEM } : { bloco: BORDA_BLOCO, item: BORDA_ITEM };
+  return reforcadas ? { bloco: BORDA_BLOCO + 1, item: BORDA_ITEM + 1 } : { bloco: BORDA_BLOCO, item: BORDA_ITEM };
 }

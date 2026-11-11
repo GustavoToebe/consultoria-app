@@ -1,3 +1,4 @@
+import { PALETAS as CORES_DA_MARCA } from '../dominio/paletas';
 import { coresComBordasReforcadas, coresComContraste } from '../dominio/preferencias';
 import {
   CHAVES_DA_AGENDA,
@@ -12,11 +13,15 @@ import {
   contraste,
   corDaAgenda,
   coresDeIdentificacao,
+  luminancia,
+  marcaAoPassar,
+  marcaParaPeca,
   marcaParaTexto,
   textoSobre,
   tingido,
   type Cores,
 } from './tokens';
+import { variaveisDoTema } from './variaveis';
 
 /** Todas as paletas da marca (decisão 1 do plano `paletas-da-marca`): cada teste de contraste percorre a lista inteira. */
 const TODAS: [string, Cores, boolean][] = Object.entries(PALETAS).map(([codigo, p]) => [codigo, p.cores, p.modo === 'ESCURO']);
@@ -280,4 +285,96 @@ describe.each(TEMAS_DA_IDENTIFICACAO)('cores de identificação (%s)', (_nome, c
       }
     }
   });
+});
+
+// ---- Visual de 11/11 (guia em PDF, págs. 4, 5, 6, 12 e 13) ----
+
+describe('pares medidos do guia na paleta de partida (Escuro)', () => {
+  it('texto, texto secundário e borda de campo dão o que o guia mediu', () => {
+    expect(contraste(ESCURO.texto, ESCURO.superficie)).toBeCloseTo(16.12, 1);
+    expect(contraste(ESCURO.textoSuave, ESCURO.superficie2)).toBeCloseTo(7.79, 1);
+    expect(contraste(ESCURO.bordaCampo, ESCURO.superficie)).toBeCloseTo(4.66, 1);
+    expect(contraste(ESCURO.sucesso, ESCURO.sucessoSuave)).toBeCloseTo(7.99, 1);
+    expect(contraste(ESCURO.atencao, ESCURO.atencaoSuave)).toBeCloseTo(8.5, 1);
+    expect(contraste('#FFFFFF', '#C62828')).toBeCloseTo(5.62, 1);
+  });
+  it('o painel do conteúdo é o #101013 do guia', () => {
+    expect(ESCURO.painel).toBe('#101013');
+  });
+});
+
+it.each(TODAS)('%s: o painel do conteúdo fica entre o fundo (menu) e o cartão', (_codigo, cores, escuro) => {
+  if (!escuro) {
+    expect(cores.painel).toBe(cores.superficie);
+    return;
+  }
+  const [l, f, s] = [luminancia(cores.painel), luminancia(cores.fundo), luminancia(cores.superficie)];
+  expect(l).toBeGreaterThan(Math.min(f, s));
+  expect(l).toBeLessThan(Math.max(f, s));
+});
+
+/** Pág. 12: os pares reais de cada paleta, com contraste alto e com bordas reforçadas. */
+const VARIANTES: [string, Cores, boolean][] = TODAS.flatMap(([nome, base, escuro]) => [
+  [nome, base, escuro],
+  [`${nome} com contraste alto`, coresComContraste(base, 'ALTO', escuro), escuro],
+  [`${nome} com bordas reforçadas`, coresComBordasReforcadas(base, true), escuro],
+]) as [string, Cores, boolean][];
+
+describe.each(VARIANTES)('medidas do guia (%s)', (_nome, cores) => {
+  const superficies = [cores.fundo, cores.painel, cores.superficie, cores.superficie2, cores.superficie3];
+
+  it('texto e texto secundário ≥ 4,5:1 em toda superfície (inclusive hover e seleção)', () => {
+    for (const fundo of superficies) {
+      expect(contraste(cores.texto, fundo)).toBeGreaterThanOrEqual(4.5);
+      expect(contraste(cores.textoSuave, fundo)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it('borda de campo ≥ 3:1 contra o campo e o cartão vizinhos', () => {
+    for (const fundo of [cores.campo, cores.superficie, cores.painel]) expect(contraste(cores.bordaCampo, fundo)).toBeGreaterThanOrEqual(3);
+  });
+
+  it('seleção neutra: o contorno do escolhido (bordaCampo) ≥ 3:1 contra a seleção e a trilha em volta', () => {
+    for (const fundo of [cores.superficie3, cores.superficie2, cores.superficie]) expect(contraste(cores.bordaCampo, fundo)).toBeGreaterThanOrEqual(3);
+  });
+
+  it('anel de foco ≥ 3:1 sobre toda superfície e sobre o campo', () => {
+    for (const fundo of [...superficies, cores.campo]) expect(contraste(cores.anelFoco, fundo)).toBeGreaterThanOrEqual(3);
+  });
+
+  it('texto do selo (a própria cor) ≥ 4,5:1 sobre o fundo suave da situação', () => {
+    expect(contraste(cores.sucesso, cores.sucessoSuave)).toBeGreaterThanOrEqual(4.5);
+    expect(contraste(cores.atencao, cores.atencaoSuave)).toBeGreaterThanOrEqual(4.5);
+    expect(contraste(cores.perigo, cores.perigoSuave)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('ponto do selo e ícone de situação ≥ 3:1 sobre o cartão e o fundo suave', () => {
+    for (const [cor, suave] of [[cores.sucesso, cores.sucessoSuave], [cores.atencao, cores.atencaoSuave], [cores.perigo, cores.perigoSuave]]) {
+      for (const fundo of [cores.superficie, cores.superficie2, suave]) expect(contraste(cor, fundo)).toBeGreaterThanOrEqual(3);
+    }
+  });
+});
+
+describe.each(TODAS)('as 12 cores da marca na paleta %s (pág. 6)', (_codigo, cores) => {
+  it.each(CORES_DA_MARCA.map((p) => [p.nome, p.cor]))('%s: texto do botão, hover, peça e texto da marca', (_nome, marca) => {
+    const sobre = textoSobre(marca);
+    expect(contraste(sobre, marca)).toBeGreaterThanOrEqual(4.5);
+    expect(contraste(sobre, marcaAoPassar(marca))).toBeGreaterThanOrEqual(4.5);
+    const peca = marcaParaPeca(marca, [cores.superficie3, cores.fundo, cores.painel, cores.superficie]);
+    for (const fundo of [cores.superficie3, cores.fundo, cores.painel, cores.superficie]) expect(contraste(peca, fundo)).toBeGreaterThanOrEqual(3);
+    expect(contraste(marcaParaTexto(marca, cores.superficie3), cores.superficie3)).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+it('trocar a marca não muda nenhuma cor de situação nem de categoria (pág. 4)', () => {
+  // A categoria (`coresDeIdentificacao`) nem recebe a marca: só a paleta e o modo.
+  for (const { cores } of Object.values(PALETAS)) {
+    const comNeutra = variaveisDoTema(cores, '#52525B');
+    for (const { cor } of CORES_DA_MARCA) {
+      const comMarca = variaveisDoTema(cores, cor);
+      for (const chave of ['--color-sucesso', '--color-atencao', '--color-perigo', '--color-neutro', '--color-destructive'] as const) {
+        expect(comMarca[chave]).toBe(comNeutra[chave]);
+      }
+    }
+  }
 });

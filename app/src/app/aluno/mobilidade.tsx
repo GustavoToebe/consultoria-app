@@ -1,8 +1,9 @@
 import { FileDown, PlayCircle } from 'lucide-react-native';
-import { useState } from 'react';
+import { useState, type ComponentProps } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { DatasDaMobilidade } from '../../aluno/DatasDaMobilidade';
+import { useMarcadoAgora } from '../../aluno/useMarcadoAgora';
 import { SeletorPlano } from '../../aluno/SeletorPlano';
 import type { ConteudoMobilidadeApi, VersaoDetalhe } from '../../api/tipos';
 import { dataCurta, hojeIso } from '../../dominio/formatos';
@@ -137,7 +138,8 @@ export function ConteudoDaMobilidade({ versao }: { versao: VersaoDetalhe<Conteud
                   {i.video ? <Botao rotulo="Ver vídeo" tipo="secundario" Icone={PlayCircle} aoTocar={() => abrirVideo(i.video!)} /> : null}
                 </View>
                 {podeMarcar && data ? (
-                  <BotaoMarcar
+                  <MarcarItem
+                    key={data}
                     feito={feito}
                     rotulo={`${i.nome}: ${feito ? 'feito' : 'não feito'} em ${data === hoje ? 'hoje' : dataCurta(data)}`}
                     aoTocar={() => void marcarMobilidade({ planoVersaoId: versao.id, secaoUid: secao.uid, itemUid: item.uid, data, feito: !feito })}
@@ -151,6 +153,12 @@ export function ConteudoDaMobilidade({ versao }: { versao: VersaoDetalhe<Conteud
       <NoPlano funcionalidade="PDF"><Botao rotulo="Baixar PDF da mobilidade" tipo="secundario" cheio Icone={FileDown} carregando={gerando} aoTocar={() => void pdf()} /></NoPlano>
     </>
   );
+}
+
+/** ✓ do item: verde só no marcado agora; a chave pela data faz trocar de dia não acender o que já estava feito. */
+function MarcarItem(p: Omit<ComponentProps<typeof BotaoMarcar>, 'agora'>) {
+  const agora = useMarcadoAgora(p.feito);
+  return <BotaoMarcar {...p} agora={agora} />;
 }
 
 /** Por que a tela não oferece marcar (o aluno vê o conteúdo, mas sem os botões). */

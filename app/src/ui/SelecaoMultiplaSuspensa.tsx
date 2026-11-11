@@ -12,7 +12,7 @@ import {
   type OpcaoDaSelecao,
 } from '../dominio/selecaoMultiplaSuspensa';
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, LARGURA_MENU_LATERAL, RAIO, SOMBRA_FLUTUANTE } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, LARGURA_MENU_LATERAL, RAIO } from '../tema/tokens';
 import type { Ancora } from './Calendario';
 import { Campo } from './Campo';
 import { Folha } from './Folha';
@@ -113,7 +113,7 @@ function Suspensa({ ancora, rotulo, aoFechar, children }: { ancora: Ancora; rotu
         accessibilityViewIsModal
         role="dialog"
         aria-label={rotulo}
-        style={[estilos.painel, posicao, { left: esquerda, width: largura, backgroundColor: cores.superficie, borderColor: cores.borda }]}>
+        style={[estilos.painel, posicao, { left: esquerda, width: largura, backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
         {children}
       </View>
     </Modal>
@@ -150,7 +150,7 @@ function ListaDeOpcoes({ rotulo, opcoes, marcados, aoMudar, comFoco, limiteDeAlt
       <View style={estilos.filtro}>
         <Campo rotulo="Filtro" valor={filtro} aoMudar={setFiltro} autoCorrect={false} autoFocus={comFoco && Platform.OS === 'web'} />
       </View>
-      <View style={[estilos.divisoria, { borderColor: cores.borda }]}>
+      <View style={[estilos.divisoria, { borderColor: cores.divisor }]}>
         <View style={estilos.marcarTodos}>
           <Linha rotulo={filtro.trim() ? 'Marcar todos os visíveis' : 'Marcar todos'} estado={estado} aoTocar={() => aoMudar(alternarVisiveis(visiveis, marcados))} negrito />
         </View>
@@ -212,7 +212,6 @@ const estilos = StyleSheet.create({
     borderWidth: 1,
     borderRadius: RAIO,
     overflow: 'hidden',
-    ...Platform.select({ web: { boxShadow: SOMBRA_FLUTUANTE }, default: { elevation: 8 } }),
   },
   lista: { gap: espaco(0.5) },
   filtro: { padding: espaco(1), paddingBottom: 0 },

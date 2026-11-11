@@ -74,7 +74,7 @@ export function SelecaoMultipla({ rotulo, opcoes, marcados, aoMudar, limite, aoP
       {grupos ? (
         <View style={estilos.grupos}>
           {grupos.map((g) => (
-            <View key={g.titulo} style={[estilos.grupo, { borderColor: cores.borda }]}>
+            <View key={g.titulo} style={[estilos.grupo, { borderColor: cores.divisor }]}>
               <CabecalhoDeGrupo titulo={g.titulo} resumo={g.resumo} />
               <View style={estilos.itensDoGrupo}>{g.opcoes.map(caixa)}</View>
             </View>

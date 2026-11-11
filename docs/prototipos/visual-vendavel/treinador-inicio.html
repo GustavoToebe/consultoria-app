@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Início · Treinador · Prévia visual vendável</title>
+<!-- Dados fictícios (D8). Nada aqui fala com a API. -->
+<link rel="stylesheet" href="base.css">
+<script src="base.js"></script>
+<style>
+  .linha-status { display: flex; align-items: center; gap: 8px; font-size: var(--t-rotulo); color: var(--suave); margin-top: 4px; }
+  .linha-status .ic { width: 16px; height: 16px; }
+  .secao-cab { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 16px; }
+  .secao-cab h2 { font-size: var(--t-titulo-cartao); font-weight: 600; letter-spacing: -.015em; line-height: 24px; }
+  .secao-cab .t-apoio { margin-top: 2px; }
+  #fila-lista { padding-top: 12px; }
+  /* fila: ponto de situação + título com a contagem, meta e a ação; a linha inteira abre o resumo na folha */
+  .fila-item .linha-link .ponto { margin-right: 10px; vertical-align: 1px; }
+  .fila-item .linha-meta { padding-left: 18px; }
+  .fila-item .linha-lado { gap: 12px; }
+  .fila-item .seta-linha { color: var(--suave); display: none; }
+  /* celular: ícone | título e meta | seta; a ação principal da atrasada ocupa a linha de baixo */
+  @media (max-width: 767px) {
+    .fila-item { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; column-gap: 12px; row-gap: 10px; align-items: center; }
+    .fila-item .icone-marcador { grid-row: 1; align-self: start; }
+    .fila-item:has(.acao-cheia) .icone-marcador { grid-row: 1 / span 2; }
+    .fila-item .linha-principal { grid-column: 2; }
+    .fila-item .linha-lado { display: none; }
+    .fila-item .seta-linha { display: block; grid-column: 3; grid-row: 1; }
+    .fila-item .acao-cheia { grid-column: 2 / -1; }
+    .fila-item .acao-cheia .botao { width: 100%; }
+  }
+  @media (min-width: 768px) { .fila-item .acao-cheia { display: contents; } }
+  .hora { width: 52px; flex-shrink: 0; font-weight: 600; }
+  /* primeiros passos: recolhível; os feitos numa linha, os que faltam em cartão */
+  .passos-bloco > summary { list-style: none; cursor: pointer; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 4px 0; border-radius: var(--raio-p); }
+  .passos-bloco > summary::-webkit-details-marker { display: none; }
+  .passos-bloco > summary h2 { font-size: var(--t-titulo-cartao); font-weight: 600; letter-spacing: -.015em; }
+  .passos-bloco > summary .progresso { flex: 1 1 64px; max-width: 240px; }
+  .passos-bloco > summary .seta { color: var(--suave); margin-left: auto; }
+  @media (prefers-reduced-motion: no-preference) { .passos-bloco > summary .seta { transition: transform var(--t-medio) var(--curva); } }
+  .passos-bloco[open] > summary .seta { transform: rotate(180deg); }
+  .passos-bloco .passos-feitos { margin-top: 12px; }
+  .passos-bloco .passos { margin-top: 12px; }
+  #passos-faltam { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  @media (min-width: 768px) {
+    #passos-faltam .passo { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: 16px; }
+    #passos-faltam .passo .ordem { font-size: var(--t-apoio); }
+    #passos-faltam .passo .botao { margin: 0; align-self: center; }
+    #passos-faltam .passo > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  }
+  @media (max-width: 639px) { #passos-faltam .passo p { display: none; } .passo { padding: 14px; } }
+</style>
+</head>
+<body data-casca="treinador" data-ativo="inicio">
+<main id="conteudo" class="pagina">
+
+  <header class="cab-pagina">
+    <div class="cab-pagina-linha">
+      <div class="cab-pagina-texto">
+        <span class="sobretitulo">Terça-feira, 10 de novembro</span>
+        <h1 class="t-titulo-pagina">Bom dia, Marina</h1>
+        <p class="linha-status"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>Financeiro em dia: nenhuma cobrança vencida</p>
+      </div>
+      <div class="cab-pagina-acoes">
+        <a class="botao botao--secundario" href="treinador-alunos.html"><svg class="ic" aria-hidden="true"><use href="#i-adicionar"/></svg>Novo aluno</a>
+        <button type="button" class="botao botao--icone botao--secundario" data-menu="menu-pagina" aria-label="Mais ações do início"><svg class="ic" aria-hidden="true"><use href="#i-mais"/></svg></button>
+        <div class="menu-flutuante" id="menu-pagina" hidden>
+          <a class="menu-flutuante-item" href="#"><svg class="ic" aria-hidden="true"><use href="#i-importar"/></svg>Importar planilha de alunos</a>
+          <a class="menu-flutuante-item" href="#"><svg class="ic" aria-hidden="true"><use href="#i-caixa"/></svg>Copiar link de inscrição</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- S4: a fila do dia vem primeiro. Tocar na linha abre o resumo na folha; o botão principal da folha resolve -->
+  <section aria-labelledby="t-fila">
+    <div class="secao-cab">
+      <div>
+        <h2 id="t-fila" tabindex="-1">Precisa de você hoje</h2>
+        <p class="t-apoio" id="fila-apoio"><span id="fila-apoio-n">4</span> <span id="fila-apoio-t">assuntos pedem uma ação sua</span></p>
+      </div>
+      <div class="abas" role="tablist" aria-label="Filtrar a fila" id="fila-abas">
+        <button type="button" class="aba" role="tab" id="aba-todas" aria-selected="true" aria-controls="fila-lista" data-filtro="todas">Todas <span class="aba-contagem">4</span></button>
+        <button type="button" class="aba" role="tab" id="aba-urgente" aria-selected="false" aria-controls="fila-lista" data-filtro="urgente">Atrasado <span class="aba-contagem">1</span></button>
+        <button type="button" class="aba" role="tab" id="aba-semana" aria-selected="false" aria-controls="fila-lista" data-filtro="semana">Esta semana <span class="aba-contagem">3</span></button>
+      </div>
+    </div>
+    <div role="tabpanel" id="fila-lista" aria-labelledby="aba-todas">
+      <div class="cartao">
+        <ul class="lista">
+          <li class="linha fila-item" data-assunto="vencida" data-grupo="urgente">
+            <span class="icone-marcador"><svg class="ic" aria-hidden="true"><use href="#i-pasta"/></svg></span>
+            <div class="linha-principal">
+              <button type="button" class="linha-link" data-folha="folha-vencida" aria-haspopup="dialog"><span class="ponto st-perigo" aria-hidden="true"></span><span class="sr-only">Atrasado: </span><span class="fila-n">1</span> <span class="fila-t">pasta vencida sem plano novo</span></button>
+              <span class="linha-meta fila-meta">Beatriz Nunes, desde 05/11</span>
+            </div>
+            <div class="acao-cheia"><a class="botao botao--primario" href="treinador-alunos.html#aluno=beatriz-nunes&amp;aba=planos">Renovar a pasta<svg class="ic" aria-hidden="true"><use href="#i-seta-direita"/></svg></a></div>
+          </li>
+          <li class="linha fila-item" data-assunto="revisar" data-grupo="semana">
+            <span class="icone-marcador"><svg class="ic" aria-hidden="true"><use href="#i-prancheta"/></svg></span>
+            <div class="linha-principal">
+              <button type="button" class="linha-link" data-folha="folha-revisar" aria-haspopup="dialog"><span class="ponto st-atencao" aria-hidden="true"></span><span class="sr-only">Esta semana: </span><span class="fila-n">3</span> <span class="fila-t">atualizações para revisar</span></button>
+              <span class="linha-meta fila-meta">A mais antiga chegou há 2 dias, de Júlia Prado</span>
+            </div>
+            <div class="linha-lado"><a class="botao botao--secundario" href="treinador-alunos.html#filtro=revisar">Revisar</a></div><svg class="ic seta-linha" aria-hidden="true"><use href="#i-chevron-direita"/></svg>
+          </li>
+          <li class="linha fila-item" data-assunto="vencem" data-grupo="semana">
+            <span class="icone-marcador"><svg class="ic" aria-hidden="true"><use href="#i-calendario"/></svg></span>
+            <div class="linha-principal">
+              <button type="button" class="linha-link" data-folha="folha-vencem" aria-haspopup="dialog"><span class="ponto st-atencao" aria-hidden="true"></span><span class="sr-only">Esta semana: </span><span class="fila-n">2</span> <span class="fila-t">pastas vencem em 7 dias</span></button>
+              <span class="linha-meta fila-meta">Caio Mendes em 12/11 e Lívia Sarmento em 15/11</span>
+            </div>
+            <div class="linha-lado"><a class="botao botao--secundario" href="treinador-alunos.html#filtro=renovar">Renovar</a></div><svg class="ic seta-linha" aria-hidden="true"><use href="#i-chevron-direita"/></svg>
+          </li>
+          <li class="linha fila-item" data-assunto="sem-registro" data-grupo="semana">
+            <span class="icone-marcador"><svg class="ic" aria-hidden="true"><use href="#i-relogio"/></svg></span>
+            <div class="linha-principal">
+              <button type="button" class="linha-link" data-folha="folha-sem-registro" aria-haspopup="dialog"><span class="ponto st-atencao" aria-hidden="true"></span><span class="sr-only">Esta semana: </span><span class="fila-n">5</span> <span class="fila-t">alunos sem registro há 7 dias</span></button>
+              <span class="linha-meta fila-meta">Nenhuma série marcada desde 03/11</span>
+            </div>
+            <div class="linha-lado"><a class="botao botao--secundario" href="treinador-alunos.html#filtro=sem-registro">Ver alunos</a></div><svg class="ic seta-linha" aria-hidden="true"><use href="#i-chevron-direita"/></svg>
+          </li>
+        </ul>
+        <div class="vazio" id="fila-vazia" hidden>
+          <span class="vazio-icone"><svg class="ic ic--24" aria-hidden="true"><use href="#i-check"/></svg></span>
+          <h3 id="fila-vazia-t">Nada pede você agora</h3>
+          <p id="fila-vazia-p">Quando chegar uma atualização ou uma pasta estiver para vencer, ela aparece aqui.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- S4: a fileira de números grandes, na cor da marca (zero fica apagado), entre dois fios -->
+  <section aria-labelledby="t-numeros" class="pilha-16">
+    <h2 class="sobretitulo" id="t-numeros">Esta semana</h2>
+    <ul class="faixa-numeros">
+      <li><a class="numero" href="treinador-alunos.html"><span class="numero-valor">42</span><span class="numero-legenda"><span>alunos ativos, 3 novos no mês</span></span></a></li>
+      <li><a class="numero" href="#"><span class="numero-valor">82%</span><span class="numero-legenda"><span>dos treinos feitos, 128 de 156</span></span></a></li>
+      <li><a class="numero" href="treinador-alunos.html#filtro=revisar"><span class="numero-valor">1</span><span class="numero-legenda"><span class="ponto st-perigo" aria-hidden="true"></span><span>atualização atrasada</span></span></a></li>
+      <li><a class="numero numero--zero" href="#"><span class="numero-valor">0</span><span class="numero-legenda"><span>interessados sem resposta</span></span></a></li>
+    </ul>
+  </section>
+
+  <!-- S3: três cartões da mesma altura, um só ⋯ no cabeçalho; em duas colunas o terceiro ocupa a linha -->
+  <div class="grade-cartoes grade-cartoes--3">
+
+    <section class="cartao" aria-labelledby="t-agenda">
+      <div class="cartao-cab">
+        <div><h2 class="t-titulo-cartao" id="t-agenda">Agenda de hoje</h2><p class="t-apoio">3 compromissos</p></div>
+        <div class="cartao-cab-acoes">
+          <button type="button" class="botao botao--icone botao--fantasma" data-menu="menu-agenda" aria-label="Mais ações da agenda"><svg class="ic" aria-hidden="true"><use href="#i-mais"/></svg></button>
+          <div class="menu-flutuante" id="menu-agenda" hidden>
+            <a class="menu-flutuante-item" href="#">Novo compromisso</a>
+            <a class="menu-flutuante-item" href="#">Abrir a semana</a>
+          </div>
+        </div>
+      </div>
+      <ul class="lista">
+        <li class="linha"><span class="hora">08:00</span><div class="linha-principal"><a class="linha-link" href="#">Avaliação presencial</a><span class="linha-meta">Rafael Tavares · Studio</span></div></li>
+        <li class="linha"><span class="hora">12:30</span><div class="linha-principal"><a class="linha-link" href="#">Retorno por vídeo</a><span class="linha-meta">Ana Beatriz Lima · 30 min</span></div></li>
+        <li class="linha"><span class="hora">18:00</span><div class="linha-principal"><a class="linha-link" href="#">Consulta inicial</a><span class="linha-meta">Otávio Reis · Studio</span></div></li>
+      </ul>
+      <div class="cartao-rodape" style="margin-top:auto"><a class="botao botao--fantasma" href="#">Abrir agenda<svg class="ic" aria-hidden="true"><use href="#i-seta-direita"/></svg></a></div>
+    </section>
+
+    <section class="cartao" aria-labelledby="t-interessados">
+      <div class="cartao-cab">
+        <div><h2 class="t-titulo-cartao" id="t-interessados">Interessados</h2><p class="t-apoio">4 novos esta semana</p></div>
+        <div class="cartao-cab-acoes">
+          <button type="button" class="botao botao--icone botao--fantasma" data-menu="menu-interessados" aria-label="Mais ações dos interessados"><svg class="ic" aria-hidden="true"><use href="#i-mais"/></svg></button>
+          <div class="menu-flutuante" id="menu-interessados" hidden>
+            <a class="menu-flutuante-item" href="#">Copiar link de inscrição</a>
+            <a class="menu-flutuante-item" href="#">Ver indicadores</a>
+          </div>
+        </div>
+      </div>
+      <ul class="lista">
+        <li class="linha"><span class="avatar" aria-hidden="true">HD</span><div class="linha-principal"><a class="linha-link" href="#">Helena Duarte</a><span class="linha-meta">Instagram · ontem</span></div><span class="selo">Nova</span></li>
+        <li class="linha"><span class="avatar" aria-hidden="true">BC</span><div class="linha-principal"><a class="linha-link" href="#">Bruno Calixto</a><span class="linha-meta">Indicação · há 2 dias</span></div><span class="selo">Nova</span></li>
+        <li class="linha"><span class="avatar" aria-hidden="true">TF</span><div class="linha-principal"><a class="linha-link" href="#">Tainá Freitas</a><span class="linha-meta">Google · há 4 dias</span></div><span class="selo">Em contato</span></li>
+      </ul>
+      <div class="cartao-rodape" style="margin-top:auto"><a class="botao botao--fantasma" href="#">Abrir interessados<svg class="ic" aria-hidden="true"><use href="#i-seta-direita"/></svg></a></div>
+    </section>
+
+    <section class="cartao" aria-labelledby="t-treinos">
+      <div class="cartao-cab">
+        <div><h2 class="t-titulo-cartao" id="t-treinos">Treinos</h2><p class="t-apoio">18 concluídos hoje</p></div>
+        <div class="cartao-cab-acoes">
+          <button type="button" class="botao botao--icone botao--fantasma" data-menu="menu-treinos" aria-label="Mais ações dos treinos"><svg class="ic" aria-hidden="true"><use href="#i-mais"/></svg></button>
+          <div class="menu-flutuante" id="menu-treinos" hidden>
+            <a class="menu-flutuante-item" href="#">Recordes da semana</a>
+            <a class="menu-flutuante-item" href="#">Marcar todos como vistos</a>
+          </div>
+        </div>
+      </div>
+      <ul class="lista">
+        <li class="linha"><div class="linha-principal"><a class="linha-link" href="treinador-alunos.html#aluno=caio-mendes">Caio Mendes</a><span class="linha-meta">Treino A · 48 min · 17 séries</span></div><span class="selo">Completo</span></li>
+        <li class="linha"><div class="linha-principal"><a class="linha-link" href="treinador-alunos.html#aluno=rafael-tavares">Rafael Tavares</a><span class="linha-meta">Treino A · 61 min · 17 séries</span></div><span class="selo">Completo</span></li>
+        <li class="linha"><div class="linha-principal"><a class="linha-link" href="treinador-alunos.html#aluno=julia-prado">Júlia Prado</a><span class="linha-meta">Treino A · 35 min · 8 séries</span></div><span class="selo">Em parte</span></li>
+      </ul>
+      <div class="cartao-rodape" style="margin-top:auto"><a class="botao botao--fantasma" href="#">Ver os 18 treinos<svg class="ic" aria-hidden="true"><use href="#i-seta-direita"/></svg></a></div>
+    </section>
+  </div>
+
+  <!-- S4: primeiros passos compactos e recolhíveis, com "3 de 5" e o progresso -->
+  <details class="passos-bloco" open>
+    <summary>
+      <h2>Primeiros passos</h2>
+      <div class="progresso" role="progressbar" aria-label="Primeiros passos concluídos" aria-valuemin="0" aria-valuemax="5" aria-valuenow="3" aria-valuetext="3 de 5"><span style="--p:60%"></span></div>
+      <span class="t-rotulo suave">3 de 5</span>
+      <svg class="ic seta" aria-hidden="true"><use href="#i-chevron-baixo"/></svg>
+    </summary>
+    <p class="passos-feitos"><span class="sr-only">Já feitos: </span><span>Definir a marca<svg class="ic" aria-hidden="true"><use href="#i-check"/></svg></span> · <span>Cadastrar o primeiro aluno<svg class="ic" aria-hidden="true"><use href="#i-check"/></svg></span> · <span>Montar um modelo de treino<svg class="ic" aria-hidden="true"><use href="#i-check"/></svg></span></p>
+    <ol class="passos" id="passos-faltam" aria-label="Falta fazer">
+      <li class="passo"><span class="ordem">04</span><div><h3>Ligar o link de inscrição</h3><p>Interessados chegam direto à sua fila.</p></div><a class="botao botao--secundario" href="#">Ligar</a></li>
+      <li class="passo"><span class="ordem">05</span><div><h3>Convidar a equipe</h3><p>Cada pessoa com o próprio perfil.</p></div><a class="botao botao--secundario" href="#">Convidar</a></li>
+    </ol>
+  </details>
+
+</main>
+
+<!-- Folhas: o resumo de cada assunto da fila (entra da direita no PC, de baixo no celular).
+     O botão principal resolve um item por vez (o app não tem revisão nem renovação em lote). -->
+<dialog class="folha" id="folha-vencida" aria-labelledby="folha-vencida-t">
+  <div class="folha-caixa">
+    <div class="folha-cab">
+      <div><h2 class="t-titulo-cartao" id="folha-vencida-t" tabindex="-1">1 pasta vencida sem plano novo</h2><p class="t-apoio">O treino e a dieta continuam os da pasta antiga.</p></div>
+      <button type="button" class="botao botao--icone botao--fantasma" data-fechar-folha aria-label="Fechar"><svg class="ic" aria-hidden="true"><use href="#i-fechar"/></svg></button>
+    </div>
+    <div class="folha-corpo">
+      <dl class="chave-valor" data-item>
+        <div><dt>Aluna</dt><dd>Beatriz Nunes</dd></div>
+        <div><dt>Pasta</dt><dd>Outubro · Hipertrofia</dd></div>
+        <div><dt>Venceu em</dt><dd>05/11</dd></div>
+        <div><dt>Situação</dt><dd><span class="selo st-perigo">Atrasada</span></dd></div>
+      </dl>
+    </div>
+    <div class="folha-rodape">
+      <a class="botao botao--secundario" href="treinador-alunos.html#aluno=beatriz-nunes">Abrir a ficha</a>
+      <button type="button" class="botao botao--primario" data-resolver="vencida">Renovar a pasta</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="folha" id="folha-revisar" aria-labelledby="folha-revisar-t">
+  <div class="folha-caixa">
+    <div class="folha-cab">
+      <div><h2 class="t-titulo-cartao" id="folha-revisar-t" tabindex="-1">3 atualizações para revisar</h2><p class="t-apoio">Da mais antiga para a mais nova.</p></div>
+      <button type="button" class="botao botao--icone botao--fantasma" data-fechar-folha aria-label="Fechar"><svg class="ic" aria-hidden="true"><use href="#i-fechar"/></svg></button>
+    </div>
+    <div class="folha-corpo">
+      <ul class="lista">
+        <li class="linha" data-item><span class="avatar" aria-hidden="true">JP</span><div class="linha-principal"><span class="linha-nome">Júlia Prado</span><span class="linha-meta">Enviada há 2 dias</span></div></li>
+        <li class="linha" data-item><span class="avatar" aria-hidden="true">OR</span><div class="linha-principal"><span class="linha-nome">Otávio Reis</span><span class="linha-meta">Enviada ontem</span></div></li>
+        <li class="linha" data-item><span class="avatar" aria-hidden="true">AL</span><div class="linha-principal"><span class="linha-nome">Ana Beatriz Lima</span><span class="linha-meta">Enviada hoje</span></div></li>
+      </ul>
+    </div>
+    <div class="folha-rodape">
+      <a class="botao botao--secundario" href="treinador-alunos.html#filtro=revisar">Abrir a atualização</a>
+      <button type="button" class="botao botao--primario" data-resolver="revisar">Marcar a de Júlia como revisada</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="folha" id="folha-vencem" aria-labelledby="folha-vencem-t">
+  <div class="folha-caixa">
+    <div class="folha-cab">
+      <div><h2 class="t-titulo-cartao" id="folha-vencem-t" tabindex="-1">2 pastas vencem em 7 dias</h2><p class="t-apoio">Renove antes do fim para o aluno não ficar sem plano.</p></div>
+      <button type="button" class="botao botao--icone botao--fantasma" data-fechar-folha aria-label="Fechar"><svg class="ic" aria-hidden="true"><use href="#i-fechar"/></svg></button>
+    </div>
+    <div class="folha-corpo">
+      <ul class="lista">
+        <li class="linha" data-item><span class="avatar" aria-hidden="true">CM</span><div class="linha-principal"><span class="linha-nome">Caio Mendes</span><span class="linha-meta">Vence em 12/11, em 2 dias</span></div></li>
+        <li class="linha" data-item><span class="avatar" aria-hidden="true">LS</span><div class="linha-principal"><span class="linha-nome">Lívia Sarmento</span><span class="linha-meta">Vence em 15/11, em 5 dias</span></div></li>
+      </ul>
+    </div>
+    <div class="folha-rodape">
+      <button type="button" class="botao botao--secundario" data-fechar-folha>Agora não</button>
+      <button type="button" class="botao botao--primario" data-resolver="vencem">Renovar a de Caio</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="folha" id="folha-sem-registro" aria-labelledby="folha-sem-registro-t">
+  <div class="folha-caixa">
+    <div class="folha-cab">
+      <div><h2 class="t-titulo-cartao" id="folha-sem-registro-t" tabindex="-1">5 alunos sem registro há 7 dias</h2><p class="t-apoio">Nenhuma série marcada desde 03/11.</p></div>
+      <button type="button" class="botao botao--icone botao--fantasma" data-fechar-folha aria-label="Fechar"><svg class="ic" aria-hidden="true"><use href="#i-fechar"/></svg></button>
+    </div>
+    <div class="folha-corpo">
+      <ul class="lista">
+        <li class="linha"><span class="avatar" aria-hidden="true">TM</span><div class="linha-principal"><span class="linha-nome">Tiago Moreira</span><span class="linha-meta">Último registro em 03/11</span></div></li>
+        <li class="linha"><span class="avatar" aria-hidden="true">SA</span><div class="linha-principal"><span class="linha-nome">Sofia Andrade</span><span class="linha-meta">Último registro em 02/11</span></div></li>
+        <li class="linha"><span class="avatar" aria-hidden="true">PC</span><div class="linha-principal"><span class="linha-nome">Paulo Henrique Castro</span><span class="linha-meta">Último registro em 01/11</span></div></li>
+        <li class="linha"><span class="avatar" aria-hidden="true">RF</span><div class="linha-principal"><span class="linha-nome">Renato Faria</span><span class="linha-meta">Último registro em 31/10</span></div></li>
+        <li class="linha"><span class="avatar" aria-hidden="true">LM</span><div class="linha-principal"><span class="linha-nome">Lara Menezes</span><span class="linha-meta">Último registro em 29/10</span></div></li>
+      </ul>
+    </div>
+    <div class="folha-rodape">
+      <button type="button" class="botao botao--secundario" data-fechar-folha>Agora não</button>
+      <a class="botao botao--primario" href="treinador-alunos.html#filtro=sem-registro">Ver os 5 alunos</a>
+    </div>
+  </div>
+</dialog>
+
+<script>
+(function () {
+  'use strict';
+  function $(id) { return document.getElementById(id); }
+  function primeiroNome(nome) { return nome.split(' ')[0]; }
+  // o que cada assunto resolvível tem; "restantes" é o estado da prévia (nada é gravado)
+  var ASSUNTOS = {
+    vencida: {
+      restantes: [{ nome: 'Beatriz Nunes', desde: '05/11' }],
+      t: function (n) { return n === 1 ? 'pasta vencida sem plano novo' : 'pastas vencidas sem plano novo'; },
+      meta: function (r) { return r[0].nome + ', desde ' + r[0].desde; },
+      botao: function () { return 'Renovar a pasta'; },
+      feito: function (i) { return 'Pasta de ' + i.nome + ' renovada.'; },
+    },
+    revisar: {
+      restantes: [{ nome: 'Júlia Prado', quando: 'há 2 dias' }, { nome: 'Otávio Reis', quando: 'ontem' }, { nome: 'Ana Beatriz Lima', quando: 'hoje' }],
+      t: function (n) { return n === 1 ? 'atualização para revisar' : 'atualizações para revisar'; },
+      meta: function (r) { return (r.length > 1 ? 'A mais antiga chegou ' : 'Chegou ') + r[0].quando + ', de ' + r[0].nome; },
+      botao: function (i) { return 'Marcar a de ' + primeiroNome(i.nome) + ' como revisada'; },
+      feito: function (i) { return 'Atualização de ' + i.nome + ' marcada como revisada.'; },
+      menu: 'atualizacoes',
+    },
+    vencem: {
+      restantes: [{ nome: 'Caio Mendes', data: '12/11' }, { nome: 'Lívia Sarmento', data: '15/11' }],
+      t: function (n) { return n === 1 ? 'pasta vence em 7 dias' : 'pastas vencem em 7 dias'; },
+      meta: function (r) { return r.map(function (i) { return i.nome + ' em ' + i.data; }).join(' e '); },
+      botao: function (i) { return 'Renovar a de ' + primeiroNome(i.nome); },
+      feito: function (i) { return 'Pasta de ' + i.nome + ' renovada.'; },
+    },
+  };
+  var linhas = Array.prototype.slice.call(document.querySelectorAll('#fila-lista .fila-item'));
+  function linhaDe(chave) { return document.querySelector('.fila-item[data-assunto="' + chave + '"]'); }
+  function ativa(li) { return !li.hasAttribute('data-resolvido'); }
+  function filtroAtual() { return document.querySelector('#fila-abas [aria-selected="true"]').getAttribute('data-filtro'); }
+  function entra(li, filtro) { return ativa(li) && (filtro === 'todas' || li.getAttribute('data-grupo') === filtro); }
+
+  function textosDoAssunto(chave) {
+    var a = ASSUNTOS[chave], n = a.restantes.length, li = linhaDe(chave), d = $('folha-' + chave);
+    if (n > 0) {
+      VV.trocarNumero(li.querySelector('.fila-n'), n);
+      li.querySelector('.fila-t').textContent = a.t(n);
+      li.querySelector('.fila-meta').textContent = a.meta(a.restantes);
+      d.querySelector('h2').textContent = n + ' ' + a.t(n);
+      d.querySelector('[data-resolver]').textContent = a.botao(a.restantes[0]);
+    }
+    if (a.menu) VV.contagemDoMenu(a.menu, n);
+  }
+  function contagens() {
+    var ativas = linhas.filter(ativa), filtro = filtroAtual(), visiveis = linhas.filter(function (li) { return entra(li, filtro); }).length;
+    VV.trocarNumero(document.querySelector('#aba-todas .aba-contagem'), ativas.length);
+    VV.trocarNumero(document.querySelector('#aba-urgente .aba-contagem'), ativas.filter(function (li) { return li.getAttribute('data-grupo') === 'urgente'; }).length);
+    VV.trocarNumero(document.querySelector('#aba-semana .aba-contagem'), ativas.filter(function (li) { return li.getAttribute('data-grupo') === 'semana'; }).length);
+    var nEl = $('fila-apoio-n'), tEl = $('fila-apoio-t');
+    nEl.hidden = visiveis === 0;
+    if (visiveis > 0) VV.trocarNumero(nEl, visiveis);
+    tEl.textContent = visiveis === 0 ? (ativas.length ? 'Nada neste filtro' : 'Tudo em dia') : visiveis === 1 ? 'assunto pede uma ação sua' : 'assuntos pedem uma ação sua';
+  }
+  // estado vazio curto: a fila toda resolvida ou o filtro sem nada
+  function vazio(animar) {
+    var filtro = filtroAtual(), nada = !linhas.some(function (li) { return entra(li, filtro); }), v = $('fila-vazia');
+    if (nada) {
+      var tudo = !linhas.some(ativa);
+      $('fila-vazia-t').textContent = tudo ? 'Nada pede você agora' : filtro === 'urgente' ? 'Nada atrasado agora' : 'Nada para esta semana';
+      $('fila-vazia-p').textContent = tudo ? 'Quando chegar uma atualização ou uma pasta estiver para vencer, ela aparece aqui.' : 'Os outros assuntos estão na aba Todas.';
+      if (v.hidden) { if (animar) VV.voltar(v); else v.hidden = false; }
+    } else v.hidden = true;
+  }
+
+  // filtro da fila: as três abas controlam a mesma lista
+  $('fila-abas').addEventListener('aba', function (ev) {
+    var aba = $(ev.detail.id), filtro = aba.getAttribute('data-filtro');
+    linhas.forEach(function (li) { li.hidden = !entra(li, filtro); });
+    $('fila-lista').setAttribute('aria-labelledby', aba.id);
+    contagens();
+    vazio(false);
+  });
+
+  function proximoFoco(li) {
+    var i = linhas.indexOf(li), filtro = filtroAtual();
+    var depois = linhas.slice(i + 1).filter(function (x) { return entra(x, filtro); })[0];
+    var antes = linhas.slice(0, i).filter(function (x) { return entra(x, filtro); }).pop();
+    var alvo = depois || antes;
+    return alvo ? alvo.querySelector('.linha-link') : $('t-fila');
+  }
+
+  function resolver(chave) {
+    var a = ASSUNTOS[chave], item = a.restantes.shift(), li = linhaDe(chave), d = $('folha-' + chave);
+    var itemFolha = d.querySelector('[data-item]:not([hidden])');
+    var sai = a.restantes.length === 0;
+    if (sai) li.setAttribute('data-resolvido', '');
+    // a linha que sai não pode ficar com o foco: vai para a próxima da fila (ou para o título dela)
+    VV.fecharFolha(d, sai ? proximoFoco(li) : li.querySelector('.linha-link'));
+    if (itemFolha) itemFolha.hidden = true;
+    textosDoAssunto(chave);
+    contagens();
+    if (sai) VV.sair(li).then(function () { if (!ativa(li)) vazio(true); });
+    VV.avisar(a.feito(item), { rotulo: 'Desfazer', fazer: function () {
+      a.restantes.unshift(item);
+      if (itemFolha) itemFolha.hidden = false;
+      var voltaLinha = li.hasAttribute('data-resolvido');
+      li.removeAttribute('data-resolvido');
+      vazio(false);
+      if (voltaLinha && entra(li, filtroAtual())) VV.voltar(li);
+      textosDoAssunto(chave);
+      contagens();
+      var link = li.querySelector('.linha-link');
+      (entra(li, filtroAtual()) ? link : $('t-fila')).focus();
+    } });
+  }
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-resolver]');
+    if (b) resolver(b.getAttribute('data-resolver'));
+  });
+})();
+</script>
+</body>
+</html>

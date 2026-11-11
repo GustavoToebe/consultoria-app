@@ -22,7 +22,7 @@ export function LinhaDaDivisao({ sessao, letra, hoje, href, aoAbrir }: { sessao:
   const detalhe = detalheDaDivisao(sessao);
   const conteudo = (
     <>
-      <View style={[estilos.letra, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
+      <View style={[estilos.letra, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
         <Texto style={estilos.letraTexto}>{letra}</Texto>
       </View>
       <View style={estilos.textos}>
@@ -35,14 +35,14 @@ export function LinhaDaDivisao({ sessao, letra, hoje, href, aoAbrir }: { sessao:
   );
   const rotulo = `Divisão ${letra}, ${sessao.nome}, ${detalhe}${hoje ? ', hoje' : ''}`;
   if (!aoAbrir) {
-    return <View accessible accessibilityLabel={rotulo} style={[estilos.linha, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>{conteudo}</View>;
+    return <View accessible accessibilityLabel={rotulo} style={[estilos.linha, { backgroundColor: cores.superficie, borderColor: cores.divisor }]}>{conteudo}</View>;
   }
   return (
     <Pressable
       accessibilityRole={href ? 'link' : 'button'}
       accessibilityLabel={rotulo}
       {...(href ? propsDeLink(href, aoAbrir) : { onPress: aoAbrir })}
-      style={(estado) => [estilos.linha, { backgroundColor: sobre(estado) ? cores.superficie3 : cores.superficie, borderColor: cores.borda }]}>
+      style={(estado) => [estilos.linha, { backgroundColor: sobre(estado) ? cores.superficie3 : cores.superficie, borderColor: cores.divisor }]}>
       {conteudo}
     </Pressable>
   );
@@ -52,7 +52,7 @@ export function LinhaDaDivisao({ sessao, letra, hoje, href, aoAbrir }: { sessao:
 export function CartaoDivisaoLeitura({ sessao }: { sessao: Sessao }) {
   const { cores } = useTema();
   return (
-    <View style={[estilos.leitura, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
+    <View style={[estilos.leitura, { backgroundColor: cores.superficie, borderColor: cores.divisor }]}>
       <View style={estilos.textos}>
         <Texto numerico style={estilos.nome}>{nomeComDia(sessao)}</Texto>
         <Texto numerico variante="suave">

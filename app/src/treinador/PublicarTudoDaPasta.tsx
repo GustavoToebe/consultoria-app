@@ -11,6 +11,7 @@ import {
   agruparProblemasPorPlano,
   contagemDeProblemas,
   resumoDaPublicacao,
+  rotuloDoPublicarDaPasta,
   situacaoDoPublicar,
   TEXTO_DO_CONFLITO_DA_PUBLICACAO,
   textoDoErroDaPublicacao,
@@ -116,11 +117,10 @@ export function PublicarTudoDaPasta({ pasta, planos, versoes: versoesDaTela, car
   return (
     <View style={estilos.bloco}>
       <Texto variante="suave">
-        Publica de uma vez os rascunhos alterados de treino, dieta e mobilidade desta pasta. Se algum plano tiver erro,
-        nada é publicado.
+        Publica de uma vez os planos com alterações não publicadas desta pasta. Se algum plano tiver erro, nada é publicado.
       </Texto>
       <LinhaDeAcoes>
-        <Botao rotulo="Publicar tudo" rotuloAcessivel={`Publicar tudo da pasta ${pasta.titulo}`} tipo="secundario" Icone={Send}
+        <Botao {...rotuloDoPublicarDaPasta(planos, pasta.titulo)} tipo="secundario" Icone={Send}
           carregando={publicando} desabilitado={!!motivo} motivo={motivo ?? undefined} aoTocar={() => void publicar(false)} />
         {!carregando && situacao.tiposComFalha.length ? (
           <Botao rotulo="Tentar de novo" rotuloAcessivel="Tentar carregar os planos de novo" tipo="fantasma" aoTocar={() => aoTentarDeNovo(situacao.tiposComFalha)} />

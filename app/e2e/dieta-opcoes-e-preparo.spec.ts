@@ -42,7 +42,10 @@ for (const largura of [390, 1280]) {
     await page.goto('/aluno/dieta');
     await expect(page.getByText('Escolha uma das opções: A ou B.')).toBeVisible();
     await expect(page.getByText(/equivalente/i)).toHaveCount(0);
-    await expect(page.getByText('Total da opção A: 190 kcal', { exact: false })).toBeVisible();
+    // Total da opção pela peça única dos macros (`ui/ValoresDaDieta`): o rótulo e, logo abaixo, kcal e P, C e G.
+    const totalDaOpcao = page.getByRole('group', { name: 'Total da opção A' });
+    await expect(totalDaOpcao.getByText('190 kcal', { exact: true })).toBeVisible();
+    await expect(totalDaOpcao.getByText('P 4,0 g', { exact: true })).toBeVisible();
 
     // Fechado por padrão; abre ao tocar e mostra o texto com as quebras de linha.
     await expect(page.getByText('Cozinhe o arroz por 15 minutos.', { exact: false })).toHaveCount(0);
@@ -92,10 +95,12 @@ for (const [largura, ladoALado] of [[390, false], [1280, true]] as const) {
     const b = page.getByRole('heading', { name: 'Opção B' });
     await expect(a).toBeVisible();
     await expect(b).toBeVisible();
-    await expect(page.getByText('O aluno escolhe uma das opções. O total do dia usa só a opção A.')).toBeVisible();
-    // Total de cada opção; o que falta (gordura da batata) é "—".
-    await expect(page.getByText('Total da opção A: 190 kcal · P 4 g · C 30 g · G 0,4 g')).toBeVisible();
-    await expect(page.getByText('Total da opção B: 170 kcal · P 4 g · C 30 g · G —')).toBeVisible();
+    await expect(page.getByText('Cada opção substitui a refeição inteira: o aluno escolhe uma. O total do dia soma só a opção A.')).toBeVisible();
+    // Total de cada opção, separado dos itens, gramas com uma casa; o que falta (gordura da batata) é "—".
+    const totalA = page.getByRole('group', { name: 'Total da opção A' });
+    const totalB = page.getByRole('group', { name: 'Total da opção B' });
+    for (const texto of ['190 kcal', 'P 4,0 g', 'C 30,0 g', 'G 0,4 g']) await expect(totalA.getByText(texto, { exact: true })).toBeVisible();
+    for (const texto of ['170 kcal', 'P 4,0 g', 'C 30,0 g', 'G —']) await expect(totalB.getByText(texto, { exact: true })).toBeVisible();
     const [caixaA, caixaB] = [await a.boundingBox(), await b.boundingBox()];
     if (!caixaA || !caixaB) throw new Error('sem caixa');
     if (ladoALado) {

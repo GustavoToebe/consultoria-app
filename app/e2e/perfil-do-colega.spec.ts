@@ -62,6 +62,7 @@ async function abrirColegas(page: Page, o: { lista?: ColegaDaLista[]; perfil?: (
   const lista = o.lista ?? COLEGAS;
   const jpeg = await jpegFicticio(page);
   const rotas: RespostasApi = {
+    'GET /aluno/comunidade/configuracao': { corpo: { alunosPublicam: true, podeAnexarFoto: false } },
     'GET /aluno/comunidade/mural': { corpo: { content: [], totalElements: 0 } },
     'GET /aluno/comunidade/aulas': { corpo: [] },
     'GET /aluno/comunidade/conquistas': { corpo: [] },

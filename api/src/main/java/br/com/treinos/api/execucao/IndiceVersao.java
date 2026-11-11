@@ -86,6 +86,15 @@ public final class IndiceVersao {
         return tipo == null || tipo.nome() == null || tipo.nome().isBlank() ? codigo : tipo.nome().trim();
     }
 
+    /**
+     * Série simples (recorde pessoal) pela versão executada. Sem a versão ({@code indice} nulo) ou a série no índice (não
+     * deveria acontecer) vale {@code naDuvida}: o pacote do próprio aluno aceita (na dúvida a série só impede uma comemoração),
+     * a carga que outro aluno vê e o período dos recordes da semana não aceitam.
+     */
+    public static boolean simples(IndiceVersao indice, UUID serieUid, boolean naDuvida) {
+        return indice == null ? naDuvida : indice.serie(serieUid).map(LocalSerie::simples).orElse(naDuvida);
+    }
+
     /** Aluno dono do plano desta versão: registro de outro aluno nesta versão é recusado. */
     public UUID alunoId() {
         return alunoId;

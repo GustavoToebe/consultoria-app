@@ -36,7 +36,7 @@ function resumoDoDia(c: ContagemDoDia | undefined): string {
  * resumo da API (só números) mais as atualizações do ano. Cada mês é um bloco, com o nome (o botão que abre o Mês) na faixa.
  */
 export function VisaoDoAno({ ano, hoje, contagem, aoAbrirDia, aoAbrirMes }: Props) {
-  const { cores, bordas } = useTema();
+  const { cores, bordas, marcaTexto } = useTema();
   const [largura, setLargura] = useState(0);
   const porLinha = Math.max(1, Math.floor((largura + espaco(2)) / (LARGURA_DO_MES + espaco(2))));
   const meses = mesesDoAno(ano, hoje);
@@ -63,8 +63,9 @@ export function VisaoDoAno({ ano, hoje, contagem, aoAbrirDia, aoAbrirMes }: Prop
                   <Pressable key={c.data} accessibilityRole="button" onPress={() => aoAbrirDia(c.data)}
                     accessibilityLabel={`${dataComDiaDaSemana(c.data)}${c.hoje ? ', hoje' : ''}, ${resumoDoDia(conta)}. Abrir o dia`}
                     style={(e) => [estilos.dia, sobre(e) && { backgroundColor: cores.superficie3 }]}>
-                    <View style={[estilos.numero, c.hoje && { backgroundColor: cores.texto }]}>
-                      <Texto variante="pequeno" numerico cor={c.hoje ? cores.fundo : cores.texto} style={conta ? estilos.forte : undefined}>{String(c.dia)}</Texto>
+                    {/* Hoje como no `ui/Calendario`: o número na cor da marca, sem círculo invertido. */}
+                    <View style={estilos.numero}>
+                      <Texto variante="pequeno" numerico cor={c.hoje ? marcaTexto : cores.texto} style={conta || c.hoje ? estilos.forte : undefined}>{String(c.dia)}</Texto>
                     </View>
                     <View style={[estilos.marca, conta && { backgroundColor: cores.texto }]} />
                   </Pressable>

@@ -5,7 +5,7 @@ import { useRef, type ReactNode } from 'react';
 import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, LARGURA_MENU_LATERAL, LINHA_DA_FAIXA, RAIO } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, LARGURA_MENU_LATERAL, LINHA_DA_FAIXA, RAIO, RAIO_CONTROLE } from '../tema/tokens';
 import { Botao } from './Botao';
 import { usePortalDaFolha, type PortalDaFolhaValor } from './Folha';
 import { RodapeDeAcoes } from './LinhaDeAcoes';
@@ -52,7 +52,7 @@ export function PainelConfirmacao(props: Props) {
         accessibilityViewIsModal
         onOpenAutoFocus={() => { if (Platform.OS === 'web') focoAnterior.current = document.activeElement as HTMLElement; }}
         onCloseAutoFocus={evento => { if (Platform.OS === 'web' && focoAnterior.current?.isConnected) { evento.preventDefault(); focoAnterior.current.focus(); } }}
-        style={[estilos.painel, { backgroundColor: cores.superficie, borderColor: cores.borda, borderWidth: bordas.bloco }]}>
+        style={[estilos.painel, { backgroundColor: cores.superficie, borderColor: cores.divisor, borderWidth: bordas.bloco }]}>
           <View style={[estilos.faixa, { backgroundColor: cores.superficie3, borderBottomColor: cores.bordaCampo }]}>
             <AlertDialogTitle style={[ESTILOS_TEXTO.bloco, { color: cores.texto }]}>{props.titulo}</AlertDialogTitle>
           </View>
@@ -62,7 +62,7 @@ export function PainelConfirmacao(props: Props) {
             {/* Mesmo rodapé da `Folha`: Cancelar e a ação à direita; no celular em coluna, a ação em cima e cheia. O motivo
                 fica colado sob a ação, alinhado à direita (o `Botao` o põe; antes ficava solto embaixo da linha). */}
             <View style={estilos.botoes}><RodapeDeAcoes empilhar={width < LARGURA_MENU_LATERAL}>
-              <AlertDialogCancel style={[estilos.cancelar, { borderColor: cores.borda }]}>
+              <AlertDialogCancel style={[estilos.cancelar, { borderColor: cores.bordaCampo }]}>
                 <Texto style={estilos.textoCancelar}>{props.rotuloCancelar ?? 'Cancelar'}</Texto>
               </AlertDialogCancel>
               <Botao
@@ -95,6 +95,6 @@ const estilos = StyleSheet.create({
   faixa: { paddingHorizontal: espaco(2.5), paddingVertical: espaco(1.5), borderBottomWidth: LINHA_DA_FAIXA },
   corpo: { padding: espaco(2.5), gap: espaco(1.5) },
   botoes: { marginTop: espaco(0.5) },
-  cancelar: { minHeight: ALVO_TOQUE, borderRadius: RAIO, borderWidth: 1, paddingHorizontal: espaco(2), alignItems: 'center', justifyContent: 'center' },
+  cancelar: { minHeight: ALVO_TOQUE, borderRadius: RAIO_CONTROLE, borderWidth: 1, paddingHorizontal: espaco(2), alignItems: 'center', justifyContent: 'center' },
   textoCancelar: { fontFamily: fontes.semi },
 });

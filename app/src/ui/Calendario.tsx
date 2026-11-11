@@ -1,11 +1,11 @@
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useState } from 'react';
-import { Modal, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { mesDeIso, mudarMes, NOMES_DOS_DIAS, semanasDoMes } from '../dominio/calendario';
 import { hojeIso } from '../dominio/formatos';
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, RAIO, SOMBRA_FLUTUANTE } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, RAIO, RAIO_CONTROLE } from '../tema/tokens';
 import { IconeBotao } from './IconeBotao';
 import { Texto } from './Texto';
 
@@ -53,7 +53,7 @@ export function Calendario({ ancora, valor, aoEscolher, aoLimpar, aoFechar }: Pr
       <Pressable style={StyleSheet.absoluteFill} onPress={aoFechar} accessibilityLabel="Fechar calendário" />
       <View
         accessibilityViewIsModal
-        style={[estilos.painel, { left: esquerda, top: topo, backgroundColor: cores.superficie, borderColor: cores.borda }]}>
+        style={[estilos.painel, { left: esquerda, top: topo, backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
         <View style={estilos.cabecalho}>
           <IconeBotao Icone={ChevronLeft} rotulo="Mês anterior" aoTocar={() => setVisto((v) => mudarMes(v, -1))} />
           <Texto numerico style={estilos.titulo}>
@@ -70,7 +70,7 @@ export function Calendario({ ancora, valor, aoEscolher, aoLimpar, aoFechar }: Pr
           <View key={si} style={estilos.linha}>
             {semana.map((d) => {
               const escolhido = d.iso === valor;
-              const cor = escolhido ? cores.fundo : d.doMes ? (d.iso === hoje ? marcaTexto : cores.texto) : cores.textoSuave;
+              const cor = escolhido ? cores.texto : d.doMes ? (d.iso === hoje ? marcaTexto : cores.texto) : cores.textoSuave;
               return (
                 <Pressable
                   key={d.iso}
@@ -78,14 +78,14 @@ export function Calendario({ ancora, valor, aoEscolher, aoLimpar, aoFechar }: Pr
                   accessibilityLabel={d.iso.split('-').reverse().join('/')}
                   accessibilityState={{ selected: escolhido }}
                   onPress={() => aoEscolher(d.iso)}
-                  style={({ pressed }) => [estilos.dia, escolhido && { backgroundColor: cores.texto }, { opacity: pressed ? 0.7 : d.doMes ? 1 : 0.6 }]}>
+                  style={({ pressed }) => [estilos.dia, escolhido && { backgroundColor: cores.superficie3, borderColor: cores.bordaCampo }, { opacity: pressed ? 0.7 : d.doMes ? 1 : 0.6 }]}>
                   <Texto numerico style={[estilos.numeroDia, { color: cor }]}>{d.dia}</Texto>
                 </Pressable>
               );
             })}
           </View>
         ))}
-        <View style={[estilos.rodape, { borderColor: cores.borda }]}>
+        <View style={[estilos.rodape, { borderColor: cores.divisor }]}>
           <Pressable accessibilityRole="button" onPress={() => aoEscolher(hoje)} style={({ pressed }) => [estilos.botaoRodape, pressed && { backgroundColor: cores.superficie3 }]}>
             <Texto style={[estilos.acao, { color: marcaTexto }]}>Hoje</Texto>
           </Pressable>
@@ -113,15 +113,14 @@ const estilos = StyleSheet.create({
     borderRadius: RAIO,
     paddingHorizontal: espaco(1),
     paddingTop: espaco(0.5),
-    ...Platform.select({ web: { boxShadow: SOMBRA_FLUTUANTE }, default: { elevation: 8 } }),
   },
   cabecalho: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   titulo: { fontFamily: fontes.semi, fontSize: 15 },
   linha: { flexDirection: 'row' },
   nomeDoDia: { flex: 1, textAlign: 'center', paddingVertical: espaco(0.5) },
-  dia: { flex: 1, height: CELULA, alignItems: 'center', justifyContent: 'center', borderRadius: RAIO },
+  dia: { flex: 1, height: CELULA, alignItems: 'center', justifyContent: 'center', borderRadius: RAIO_CONTROLE, borderWidth: 1, borderColor: 'transparent' },
   numeroDia: { fontFamily: fontes.semi, fontSize: 15 },
   rodape: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 'auto', borderTopWidth: 1, paddingVertical: espaco(0.5) },
-  botaoRodape: { minHeight: ALVO_TOQUE, justifyContent: 'center', paddingHorizontal: espaco(1.5), borderRadius: RAIO },
+  botaoRodape: { minHeight: ALVO_TOQUE, justifyContent: 'center', paddingHorizontal: espaco(1.5), borderRadius: RAIO_CONTROLE },
   acao: { fontFamily: fontes.semi, fontSize: 14 },
 });

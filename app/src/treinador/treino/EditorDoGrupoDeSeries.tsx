@@ -29,15 +29,29 @@ import { Texto } from '../../ui/Texto';
 import { useUnidadeDeCarga } from '../../ui/unidadeDeCargaEmUso';
 import { BotaoDeAbrir } from './BotaoDeAbrir';
 import { AvisoDoCampo, CamposDaTecnica, CamposDasRepeticoes, CamposDoCardio, CargaERirDaSerie, ErroDoCampo } from './CamposDaPrescricao';
-import { textoParaOAluno } from './cargaDaSerie';
+import { cargaPendente, textoParaOAluno } from './cargaDaSerie';
 import { type EscolhaDeTecnica, opcoesDeTecnica, problemasDoGrupoDeSeries, problemasPorSerie, secoesDaSerie, subProblemas } from './opcoesDoEditor';
 
 export type Nivel = 'sucesso' | 'atencao' | 'perigo';
 
-/** Nível do grupo pela validação (a mesma da publicação): erro em qualquer série do grupo, aviso, ou pronta. */
+/**
+ * Nível do grupo pela validação (a mesma da publicação): erro em qualquer série do grupo, aviso ou só a carga por
+ * preencher (âmbar, `cargaPendente`), ou pronta.
+ */
 export function nivelDoGrupo(porSerie: ReturnType<typeof problemasPorSerie>, g: GrupoDeSeries): Nivel {
-  for (let i = g.inicio; i < g.inicio + g.series.length; i++) if (Object.keys(porSerie[i]?.erros ?? {}).length > 0) return 'perigo';
-  return Object.keys(problemasDoGrupoDeSeries(porSerie, g.inicio, g.series.length).avisos).length > 0 ? 'atencao' : 'sucesso';
+  let pendente = false;
+  for (let j = 0; j < g.series.length; j++) {
+    for (const campo of Object.keys(porSerie[g.inicio + j]?.erros ?? {})) {
+      if (!cargaPendente(g.series[j], campo)) return 'perigo';
+      pendente = true;
+    }
+  }
+  return pendente || Object.keys(problemasDoGrupoDeSeries(porSerie, g.inicio, g.series.length).avisos).length > 0 ? 'atencao' : 'sucesso';
+}
+
+/** O grupo tem carga obrigatória ainda vazia: a coluna Carga diz "Falta a carga" (âmbar). */
+export function faltaCargaNoGrupo(porSerie: ReturnType<typeof problemasPorSerie>, g: GrupoDeSeries): boolean {
+  return g.series.some((s, j) => Object.keys(porSerie[g.inicio + j]?.erros ?? {}).some((campo) => cargaPendente(s, campo)));
 }
 
 /** Selo do grupo de séries pela validação (a mesma da publicação): pronta, com aviso ou com erro. Só no "Editando". */
@@ -224,18 +238,16 @@ export function EditorGrupo({ largo, grupo: g, series, config, cardio, semCarga,
 }
 
 /**
- * "Para o aluno: 3×3 a 5 · FS · 50% · 70% · 85% a 90% da WS". Com aviso ou erro, fundo e borda na cor do estado; sem
- * nada a corrigir, neutra e sem selo (o "Pronto" repetido em lista, cabeçalho e prévia saiu: reorganização de 10/11).
+ * "Para o aluno: 3×3 a 5 · FS · 50% · 70% · 85% a 90% da WS". Fundo e borda na cor do estado: verde sem nada a
+ * corrigir (pedido do Gustavo, 11/11), âmbar ou vermelho com aviso ou erro. Sem selo: o "Pronto" repetido saiu em 10/11.
  */
 function ParaOAluno({ nivel, texto }: { nivel: Nivel; texto: string }) {
   const { cores } = useTema();
   return (
-    <View style={[estilos.previa, nivel === 'sucesso'
-      ? { borderColor: cores.borda, backgroundColor: cores.superficie2 }
-      : { borderColor: cores[nivel], backgroundColor: tingido(cores[nivel], cores.superficie) }]}>
+    <View style={[estilos.previa, { borderColor: cores[nivel], backgroundColor: tingido(cores[nivel], cores.superficie) }]}>
       <View style={estilos.linhaDaPrevia}>
         <View style={estilos.textoDaPrevia}>
-          <Smartphone size={16} color={cores.texto} />
+          <Smartphone size={16} color={cores[nivel]} />
           <Texto numerico cor={cores.texto} style={estilos.flexivel}>
             <Texto variante="rotulo" cor={cores.texto}>Para o aluno: </Texto>{texto}
           </Texto>

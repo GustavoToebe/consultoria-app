@@ -2,7 +2,7 @@ import { StyleSheet, View } from 'react-native';
 
 import type { ConteudoDieta } from '../../api/tipos';
 import { AGUA_MAXIMA, AGUA_MINIMA, aguaValida, type ItemSemValor, textoItensSemValor, totalDoDia } from '../../dominio/dieta';
-import { numeroParaTela, SEM_DADO } from '../../dominio/formatos';
+import { numeroParaTela } from '../../dominio/formatos';
 import { espaco } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { CampoNumerico } from '../../ui/Campos';
@@ -10,10 +10,11 @@ import { Cartao } from '../../ui/Cartao';
 import { Incompleto } from '../../ui/Estados';
 import { useRolagem } from '../../ui/RolagemComTopo';
 import { Texto } from '../../ui/Texto';
+import { gramasNaTela, kcalNaTela, MACROS, MarcaDoMacro } from '../../ui/ValoresDaDieta';
 
 /**
- * "Total do dia" (opção A de cada refeição), compacto: kcal e os três macros lado a lado, o número antes do nome ("—" sem
- * unidade quando falta valor), e a água por dia na mesma faixa, sempre à vista (dentro da "Configuração do plano", que fecha
+ * "Total do dia" (opção A de cada refeição; guia premium pág. 10), compacto: kcal em destaque neutro e os três macros
+ * lado a lado com a marca da cor, o número antes do nome ("—" sem unidade quando falta valor), e a água por dia na mesma faixa, sempre à vista (dentro da "Configuração do plano", que fecha
  * sozinha quando a dieta já tem refeições, o treinador não a encontrava, 30/10). Se algum item deixa o total incompleto,
  * diz quantos são e leva ao primeiro. Modelo de uma refeição só não tem água.
  */
@@ -22,25 +23,26 @@ export function TotalDoDia({ conteudo: c, semValor, aoAbrirRefeicao, aoMudarAgua
 }) {
   const { rolarAte } = useRolagem();
   const t = totalDoDia(c);
+  const kcal = kcalNaTela(t.kcal);
   const primeiro = semValor[0];
-  const grama = (v: number | null) => (v === null ? SEM_DADO : `${numeroParaTela(v, 1)} g`);
-  const numeros = [
-    { rotulo: 'kcal', valor: t.kcal === null ? SEM_DADO : numeroParaTela(t.kcal, 0) },
-    { rotulo: 'Proteína', valor: grama(t.proteina) },
-    { rotulo: 'Carboidrato', valor: grama(t.carboidrato) },
-    { rotulo: 'Gordura', valor: grama(t.gordura) },
-  ];
   return (
-    <Cartao faixa titulo="Total do dia" descricao="Soma da opção A de cada refeição.">
+    <Cartao faixa titulo="Total do dia" descricao="Soma só a opção A de cada refeição: as outras opções substituem a refeição e não entram no total.">
       <View style={estilos.faixa}>
+        {/* Um destaque só, as kcal, em texto neutro (nunca vermelho por ser alto) com a unidade pequena; os macros ao lado,
+            menores, cada um com a marca da cor e o nome escrito. No celular os macros descem juntos para a linha de baixo. */}
         <View style={estilos.numeros} role="list">
-          {/* Um destaque só, as kcal; os macros ao lado, menores, com o rótulo embaixo alinhado. */}
-          {numeros.map((n, i) => (
-            <View key={n.rotulo} style={estilos.numero} role="listitem" accessibilityLabel={`${n.rotulo}: ${n.valor}`}>
-              <Texto variante={i === 0 ? 'destaque' : 'subtitulo'} numerico>{n.valor}</Texto>
-              <Texto variante="pequeno">{n.rotulo}</Texto>
-            </View>
-          ))}
+          <View style={estilos.kcal} role="listitem" accessibilityLabel={`Calorias: ${t.kcal === null ? kcal : `${kcal} kcal`}`}>
+            <Texto variante="destaque" numerico>{kcal}</Texto>
+            {t.kcal === null ? null : <Texto variante="pequeno">kcal</Texto>}
+          </View>
+          <View style={estilos.macros}>
+            {MACROS.map((m) => (
+              <View key={m.chave} style={estilos.macro} role="listitem" accessibilityLabel={`${m.nome}: ${gramasNaTela(t[m.chave])}`}>
+                <Texto variante="subtitulo" numerico>{gramasNaTela(t[m.chave])}</Texto>
+                <View style={estilos.nomeDoMacro}><MarcaDoMacro cor={m.cor} /><Texto variante="pequeno">{m.nome}</Texto></View>
+              </View>
+            ))}
+          </View>
         </View>
         {aoMudarAgua ? (
           <View style={estilos.agua}>
@@ -70,8 +72,11 @@ const estilos = StyleSheet.create({
   // Números e água na mesma faixa no PC, a água logo depois dos números (em 1920 px, encostada na beirada, ficava longe
   // demais do que ela soma); no celular a água desce para a linha de baixo.
   faixa: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', columnGap: espaco(6), rowGap: espaco(2) },
-  numeros: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', columnGap: espaco(3), rowGap: espaco(1), flexShrink: 1 },
-  numero: { minWidth: 72, gap: 2 },
+  numeros: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', columnGap: espaco(3), rowGap: espaco(1.5), flexShrink: 1 },
+  kcal: { flexDirection: 'row', alignItems: 'baseline', gap: espaco(0.5) },
+  macros: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', columnGap: espaco(3), rowGap: espaco(1) },
+  macro: { minWidth: 72, gap: 2 },
+  nomeDoMacro: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5) },
   agua: { width: 220, maxWidth: '100%' },
   // Coluna: o aviso de item sem valor ocupa a linha toda (em 390 px cortava ao lado do botão).
   semValor: { gap: espaco(0.5), alignItems: 'flex-start' },

@@ -1,5 +1,4 @@
 import * as Clipboard from 'expo-clipboard';
-import { CircleSlash } from 'lucide-react-native';
 import { useState } from 'react';
 import { Platform, Share, View } from 'react-native';
 import * as api from '../../api/rotas';
@@ -11,7 +10,6 @@ import { MOTIVO_FORA_DO_PLANO } from '../../dominio/funcionalidadesDoPlano';
 import { AJUDA_DO_LIMITE, lerLimiteDeAlunos, limiteParaCampo, textoDoLimite } from '../../dominio/limiteDeAlunos';
 import { perfisAtribuiveis, podeCancelarConvite, podeEditarMembro } from '../../dominio/perfilEquipe';
 import { useSessao } from '../../sessao/SessaoProvider';
-import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { BarraDeFiltros } from '../../ui/BarraDeFiltros';
@@ -24,15 +22,14 @@ import { Escolha } from '../../ui/Escolha';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { errosPorCampo, textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
+import { LinhaDaLista, ListaDeLinhas } from '../../ui/LinhaDaLista';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { NoPlano } from '../../ui/NoPlano';
 import { Permitido } from '../../ui/Permitido';
 import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
-import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useAvisoDoPlano } from '../../ui/useAvisoDoPlano';
 import { CelulaDoFiltro } from '../SeletoresDeFiltro';
-import { ICONE_DO_SELO } from '../iconesDosSelos';
 import { useAtorEquipe } from './useAtorEquipe';
 
 export function UsuariosEquipe({membros,perfis,recarregar}:{membros:MembroEquipe[];perfis:PerfilEquipe[];recarregar:()=>void}) {
@@ -42,7 +39,6 @@ export function UsuariosEquipe({membros,perfis,recarregar}:{membros:MembroEquipe
   const {temFuncionalidade}=useSessao();
   // Equipe fora do plano: dá para ver e desativar membros, mas não convidar nem renovar convite.
   const convidaLiberado=temFuncionalidade('EQUIPE');
-  const {cores}=useTema();
   // Filtros da lista (`docs/planos/filtros-nas-listas.md`, D11): a lista vem inteira, então filtram aqui.
   const [busca,setBusca]=useState('');const [filtros,setFiltros]=useState<FiltrosDeMembros>(SEM_FILTROS);
   const visiveis=filtrarMembros(membros,filtros,busca);const chips=chipsDosFiltros(filtros,perfis);
@@ -57,21 +53,23 @@ export function UsuariosEquipe({membros,perfis,recarregar}:{membros:MembroEquipe
         <CelulaDoFiltro><SelecaoMultiplaSuspensa rotulo="Perfil" opcoes={opcoesDePerfil} marcados={new Set(atuais.perfis)} aoMudar={(m)=>mudar({...atuais,perfis:naOrdem(m,opcoesDePerfil)})} rotuloDeTodos="Todos"/></CelulaDoFiltro>
       </>}/>
     {membros.length&&!visiveis.length?<Vazio titulo="Nenhum membro encontrado" texto="Tente outro nome ou tire algum filtro." acao={chips.length?{rotulo:'Limpar filtros',aoTocar:()=>setFiltros(SEM_FILTROS)}:undefined}/>:null}
-    {visiveis.map(m=><Cartao key={m.id} titulo={m.nome} style={{backgroundColor:cores.superficie2}} acoes={<SeloDoMembro membro={m}/>}>
-      <Texto variante="suave">{m.email} · {m.perfilNome}</Texto>
-      <Texto variante="suave">{m.convitePendente?`Convite até ${dataHoraParaTela(m.conviteExpiraEm)}`:`Último acesso: ${dataHoraParaTela(m.ultimoAcesso)||'—'} · ${textoDoLimite(m.limiteDeAlunos)}`}</Texto>
-      {podeEditarMembro(ator,m,perfis)&&(convidaLiberado||!m.convitePendente)?<Permitido codigo="USUARIO_ALTERAR"><Botao rotulo={m.convitePendente?'Renovar convite':'Editar'} rotuloAcessivel={m.convitePendente?`Renovar convite de ${m.nome}`:`Editar ${m.nome}`} tipo="secundario" aoTocar={()=>setEditar(m)}/></Permitido>:null}
-      {podeCancelarConvite(ator,m,perfis)?<Permitido codigo="USUARIO_ALTERAR"><Botao rotulo="Cancelar convite" rotuloAcessivel={`Cancelar convite de ${m.nome}`} tipo="perigoTexto" aoTocar={()=>setCancelar(m)}/></Permitido>:null}
-    </Cartao>)}
+    {/* Linhas comparáveis (P3): nome em destaque, perfil e situação logo abaixo (texto neutro: convite pendente é espera, não
+        pendência de quem olha) e e-mail, último acesso e limite como contexto. No PC as ações ficam à direita. */}
+    {visiveis.length?<ListaDeLinhas>{visiveis.map(m=><LinhaDaLista key={m.id} titulo={m.nome}
+      metadados={`${m.perfilNome} · ${situacaoDoMembro(m)}`}
+      descricao={m.convitePendente?`${m.email} · Convite até ${dataHoraParaTela(m.conviteExpiraEm)}`:`${m.email} · Último acesso: ${dataHoraParaTela(m.ultimoAcesso)||'—'} · ${textoDoLimite(m.limiteDeAlunos)}`}
+      acoes={<>
+        {podeEditarMembro(ator,m,perfis)&&(convidaLiberado||!m.convitePendente)?<Permitido codigo="USUARIO_ALTERAR"><Botao rotulo={m.convitePendente?'Renovar convite':'Editar'} rotuloAcessivel={m.convitePendente?`Renovar convite de ${m.nome}`:`Editar ${m.nome}`} tipo="secundario" aoTocar={()=>setEditar(m)}/></Permitido>:null}
+        {podeCancelarConvite(ator,m,perfis)?<Permitido codigo="USUARIO_ALTERAR"><Botao rotulo="Cancelar convite" rotuloAcessivel={`Cancelar convite de ${m.nome}`} tipo="perigoTexto" aoTocar={()=>setCancelar(m)}/></Permitido>:null}
+      </>}/>)}</ListaDeLinhas>:null}
     </Cartao>
     <PainelConfirmacao visivel={!!cancelar} titulo="Cancelar convite?" mensagem={`O link enviado para ${cancelar?.email??''} deixa de funcionar.`} perigo rotuloConfirmar="Cancelar convite" carregando={ocupado} aoConfirmar={()=>void cancelarConvite()} aoCancelar={()=>setCancelar(null)}/>
     {editar?<EditorUsuario membro={editar==='novo'?null:editar} perfis={perfis} aoFechar={()=>setEditar(null)} recarregar={recarregar}/>:null}
   </>;
 }
-/** Situação do membro no selo do estilo novo (pílula com ícone e texto; status nunca na cor da marca). */
-function SeloDoMembro({membro:m}:{membro:MembroEquipe}) {
-  const tipo=m.convitePendente?'atencao':m.ativo?'sucesso':'neutro';
-  return <Selo texto={m.convitePendente?'Convite pendente':m.ativo?'Ativo':'Inativo'} tipo={tipo} Icone={tipo==='neutro'?CircleSlash:ICONE_DO_SELO[tipo]}/>;
+/** Situação do membro em texto, ao lado do perfil ("Treinadora · Ativo"). */
+function situacaoDoMembro(m:MembroEquipe):string {
+  return m.convitePendente?'Convite pendente':m.ativo?'Ativo':'Inativo';
 }
 function EditorUsuario({membro,perfis,aoFechar,recarregar}:{membro:MembroEquipe|null;perfis:PerfilEquipe[];aoFechar:()=>void;recarregar:()=>void}) {
   const novo=!membro||membro.convitePendente;

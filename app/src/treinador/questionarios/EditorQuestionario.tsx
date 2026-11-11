@@ -7,7 +7,7 @@ import type { RespostasAtualizacao } from '../../api/tipos';
 import {
   agruparProblemas, alterarInstrucoes, descricaoDoLocal, type ProblemasAgrupados,
 } from '../../dominio/editorQuestionario';
-import { quandoPublicado, seloDoEditor } from '../../dominio/barraDoEditor';
+import { motivoSemPublicar, quandoPublicado, seloDoEditor } from '../../dominio/barraDoEditor';
 import { AVISO_SAUDE_NA_INSCRICAO } from '../../dominio/inscricoes';
 import { LIMITES_QUESTIONARIO as L, type ProblemaDoQuestionario } from '../../dominio/questionario';
 import { useSessao } from '../../sessao/SessaoProvider';
@@ -116,6 +116,10 @@ export function EditorQuestionario({ id }: { id: string }) {
     ultima ? `publicado em ${quandoPublicado(ultima.publicadoEm)}` : inscricao ? 'a página de inscrição ainda não mostra' : anamnese ? 'ainda não dá para enviar a um aluno' : 'nenhum aluno vê ainda']
     .filter(Boolean).join(' · ');
   const titulo = inscricao ? 'Perguntas da inscrição' : anamnese ? 'Anamnese' : 'Questionário de atualização';
+  // O botão diz o alcance (guia de 11/11, pág. 9) e só é o principal quando há o que publicar; sem mudança desde a
+  // última versão ele fica secundário, mas continua tocável (o fluxo de publicar não muda).
+  const rotuloPublicar = inscricao ? 'Publicar perguntas' : anamnese ? 'Publicar anamnese' : 'Publicar questionário';
+  const nadaNovo = !!motivoSemPublicar(editor.situacao, { versao: d.versaoPublicada, alterado: d.alteradoDesdePublicacao, ativo: !d.arquivado });
 
   return <TelaDoEditor
     cabecalho={<Cabecalho titulo={titulo}
@@ -126,7 +130,7 @@ export function EditorQuestionario({ id }: { id: string }) {
         <Botao rotulo={estreito ? 'Salvar' : 'Salvar rascunho'} rotuloAcessivel="Salvar rascunho" tipo="secundario" Icone={Save} carregando={editor.situacao === 'salvando'}
           desabilitado={editor.situacao === 'salvo' || editor.situacao === 'conflito'}
           motivo={editor.situacao === 'conflito' ? 'Recarregue o questionário antes.' : undefined} aoTocar={salvar} />
-        <Botao rotulo="Publicar" Icone={Send} carregando={publicando} aoTocar={() => setConfirmando(true)} />
+        <Botao rotulo={rotuloPublicar} tipo={nadaNovo ? 'secundario' : 'primario'} Icone={Send} carregando={publicando} aoTocar={() => setConfirmando(true)} />
       </> : null}
     </BarraDoEditor>}>
     <Cartao>
@@ -174,7 +178,7 @@ export function EditorQuestionario({ id }: { id: string }) {
       mensagem={inscricao ? 'Se este for o padrão, a página de inscrição passa a mostrar a versão nova. Quem já se inscreveu continua com a versão que respondeu.'
         : anamnese ? 'As próximas anamneses enviadas usam a versão nova. Quem já recebeu continua com a versão que recebeu.'
         : 'Quem ainda não enviou passa a ver a versão nova. Quem já enviou mantém a versão que respondeu.'}
-      rotuloConfirmar="Publicar" carregando={publicando} aoConfirmar={() => publicar(false)} aoCancelar={() => setConfirmando(false)} />
+      rotuloConfirmar={rotuloPublicar} carregando={publicando} aoConfirmar={() => publicar(false)} aoCancelar={() => setConfirmando(false)} />
     <PainelConfirmacao visivel={avisos !== null} titulo="Publicar com avisos?" mensagem="O questionário pode ser publicado, mas confira:"
       rotuloConfirmar="Publicar mesmo assim" carregando={publicando} aoConfirmar={() => publicar(true)} aoCancelar={() => { setAvisos(null); setConfirmando(false); }}>
       {(avisos ?? []).map((p, i) => <ItemProblema key={i} onde={descricaoDoLocal(e.conteudo, p.caminho)} mensagem={p.mensagem} tipo="atencao" />)}

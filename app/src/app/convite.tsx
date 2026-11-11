@@ -9,7 +9,7 @@ import { useSessao } from '../sessao/SessaoProvider';
 import { Campo } from '../ui/Campo';
 import { CampoSenha } from '../ui/CampoSenha';
 import { Cartao } from '../ui/Cartao';
-import { Carregando, MensagemErro } from '../ui/Estados';
+import { MensagemErro } from '../ui/Estados';
 import { erroDeSenhaNoCampo, focarPrimeiroComErro, separarErros } from '../ui/erros';
 import { LinkTexto } from '../ui/LinkTexto';
 import { BotaoPublico, TelaPublica } from '../ui/TelaPublica';
@@ -127,7 +127,7 @@ export default function Convite() {
 
   return (
     <TelaPublica
-      titulo={convite ? `Olá, ${convite.primeiroNomeAluno}!` : 'Convite'}
+      titulo={convite ? `Olá, ${convite.primeiroNomeAluno}!` : 'Convite de aluno'}
       subtitulo={convite ? 'Crie seu acesso para ver seus treinos e registrar suas cargas.' : 'Digite o código que seu treinador enviou.'}
       marca={convite?.consultoria}>
       {!convite ? (
@@ -135,7 +135,8 @@ export default function Convite() {
           <Campo ref={refCodigo} rotulo="Código do convite" valor={codigo} aoMudar={setCodigo} erro={campos.codigo} autoCapitalize="characters"
             autoCorrect={false} maxLength={20} onSubmitEditing={() => consultar(codigo)} />
           {erro ? <MensagemErro texto={erro} /> : null}
-          {carregando ? <Carregando /> : <BotaoPublico rotulo="Continuar" aoTocar={() => consultar(codigo)} />}
+          {/* O botão fica no lugar durante a consulta (só ganha o indicador), sem a tela pular. */}
+          <BotaoPublico rotulo="Continuar" aoTocar={() => consultar(codigo)} carregando={carregando} />
         </Cartao>
       ) : (
         <Cartao>

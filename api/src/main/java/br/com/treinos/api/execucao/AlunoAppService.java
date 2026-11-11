@@ -36,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -90,11 +91,13 @@ public class AlunoAppService {
                 ? treino.conteudo().metodologia().configuracao() : ConfiguracaoConsultoria.padrao();
         // Recordes pessoais (Engajamento 0.2): só com a chave ligada e um treino publicado; desligada, o pacote não os traz.
         boolean comRetorno = retorno.habilitado() && treino != null;
+        // Os dois leem o índice das versões executadas: o mesmo mapa vai aos dois, cada versão é lida uma vez.
+        Map<UUID, IndiceVersao> indicesLidos = new HashMap<>();
         RecordesService.RecordesDoPacote melhores = comRetorno
-                ? recordes.doPacote(alunoId, exerciciosDaBiblioteca(treino.conteudo())) : null;
+                ? recordes.doPacote(alunoId, exerciciosDaBiblioteca(treino.conteudo()), indicesLidos) : null;
         // Coluna "Anterior" (0.3): a última vez de cada exercício do plano, também só com a chave ligada.
         SeriesAnterioresService.AnterioresDoPacote ultimaVez = comRetorno
-                ? anteriores.doPacote(alunoId, exerciciosDaBiblioteca(treino.conteudo())) : null;
+                ? anteriores.doPacote(alunoId, exerciciosDaBiblioteca(treino.conteudo()), indicesLidos) : null;
         return new PainelAluno(marcas.marca(eu.consultoriaId()), new AlunoNome(aluno.getNome()), treino, ultimas,
                 new ConfiguracaoAluno(config.arredondamentoKg(), config.tipoTrabalho(), config.instrucoesTreino()), Instant.now(),
                 semNome(atualizacoes.atualDoAluno(alunoId)), melhores, ultimaVez);
@@ -103,14 +106,14 @@ public class AlunoAppService {
     @Transactional(readOnly = true)
     public DietaAtual dieta(UsuarioAutenticado eu) {
         UUID alunoId = alunoDaSessao(eu);
-        return new DietaAtual(dietas.versaoAtiva(alunoId).map(AlunoAppService::dietaDe).orElse(null));
+        return new DietaAtual(dietas.versaoAtiva(alunoId).map(AlunoAppService::versaoDe).orElse(null));
     }
 
     /** Versão publicada da mobilidade vigente do aluno; sem plano publicado, 404 (o app não mostra a aba). */
     @Transactional(readOnly = true)
     public MobilidadeAtual mobilidade(UsuarioAutenticado eu) {
         UUID alunoId = alunoDaSessao(eu);
-        return mobilidades.versaoAtiva(alunoId).map(AlunoAppService::mobilidadeDe).map(MobilidadeAtual::new)
+        return mobilidades.versaoAtiva(alunoId).map(AlunoAppService::versaoDe).map(MobilidadeAtual::new)
                 .orElseThrow(() -> new NaoEncontradoException("Mobilidade não encontrada."));
     }
 
@@ -146,9 +149,9 @@ public class AlunoAppService {
                 .orElseThrow(() -> new NaoEncontradoException("Pasta não encontrada."));
         TreinoAtual treino = treinos.versaoPublicadaDaPasta(alunoId, pasta.getId()).map(AlunoAppService::treinoDe).orElse(null);
         VersaoDetalhe<br.com.treinos.api.dieta.ConteudoDieta> dieta =
-                dietas.versaoPublicadaDaPasta(alunoId, pasta.getId()).map(AlunoAppService::dietaDe).orElse(null);
+                dietas.versaoPublicadaDaPasta(alunoId, pasta.getId()).map(AlunoAppService::versaoDe).orElse(null);
         VersaoDetalhe<ConteudoMobilidade> mobilidade =
-                mobilidades.versaoPublicadaDaPasta(alunoId, pasta.getId()).map(AlunoAppService::mobilidadeDe).orElse(null);
+                mobilidades.versaoPublicadaDaPasta(alunoId, pasta.getId()).map(AlunoAppService::versaoDe).orElse(null);
         if (treino == null && dieta == null && mobilidade == null) {
             throw new NaoEncontradoException("Pasta não encontrada.");
         }
@@ -160,15 +163,8 @@ public class AlunoAppService {
                 a.versao().getInicio(), a.versao().getFim(), a.versao().getPublicadoEm(), a.conteudo());
     }
 
-    private static VersaoDetalhe<br.com.treinos.api.dieta.ConteudoDieta> dietaDe(
-            VersaoAtiva<? extends PlanoBase, ? extends VersaoBase, br.com.treinos.api.dieta.ConteudoDieta> a) {
-        return new VersaoDetalhe<>(a.versao().getId(), a.plano().getId(), a.versao().getNumero(),
-                a.versao().getTitulo(), a.versao().getInicio(), a.versao().getFim(), a.versao().getPublicadoEm(),
-                a.conteudo());
-    }
-
-    private static VersaoDetalhe<ConteudoMobilidade> mobilidadeDe(
-            VersaoAtiva<? extends PlanoBase, ? extends VersaoBase, ConteudoMobilidade> a) {
+    /** Dieta e mobilidade: a mesma forma, só muda o conteúdo. */
+    private static <C> VersaoDetalhe<C> versaoDe(VersaoAtiva<? extends PlanoBase, ? extends VersaoBase, C> a) {
         return new VersaoDetalhe<>(a.versao().getId(), a.plano().getId(), a.versao().getNumero(),
                 a.versao().getTitulo(), a.versao().getInicio(), a.versao().getFim(), a.versao().getPublicadoEm(),
                 a.conteudo());

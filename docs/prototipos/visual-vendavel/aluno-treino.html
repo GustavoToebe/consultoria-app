@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<!-- Dados fictícios (D8). Nada aqui fala com a API. -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Treino do aluno · prévia visual</title>
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="aluno.css">
+<script src="base.js"></script>
+</head>
+<body data-casca="aluno" data-ativo="treino">
+<svg style="display:none" aria-hidden="true">
+  <symbol id="i-alongar" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.5" r="1.8"/><path d="M5 9l7 1.5L19 9M12 10.5V15l-4 5M12 15l4 5"/></g></symbol>
+</svg>
+<template id="prot-extra">
+  <div class="prot-grupo" role="group" aria-labelledby="prot-r-sessao"><span class="prot-rot" id="prot-r-sessao">Começar com</span>
+    <div class="prot-segmento" id="chave-sessao">
+      <button type="button" data-sessao="0">0 de 14</button><button type="button" data-sessao="3">3 de 14</button><button type="button" data-sessao="6">6 de 14</button><button type="button" data-sessao="14">14 de 14</button>
+    </div>
+  </div>
+</template>
+<main id="conteudo" class="pagina">
+
+  <!-- ====== vista 1: sessão do dia ====== -->
+  <section id="vista-sessao" class="pilha" aria-labelledby="h1-sessao">
+    <header class="cab-pagina">
+      <span class="sobretitulo">Hoje · terça, 10/11</span>
+      <h1 class="t-titulo-pagina" id="h1-sessao" tabindex="-1">Treino A · Peito e tríceps</h1>
+      <p class="subtitulo t-apoio">Pasta Força · 5 exercícios</p>
+    </header>
+
+    <div class="pilha-8">
+      <div class="progresso-linha">
+        <div class="progresso" id="prog-sessao" role="progressbar" aria-label="Séries feitas hoje" aria-valuemin="0" aria-valuemax="14"><span></span></div>
+        <span class="num" id="prog-sessao-txt"></span>
+      </div>
+      <p class="t-apoio num" id="ex-concluidos"></p>
+      <p class="t-rotulo suave so-calma rotulo-composicao">Séries de hoje por tipo</p>
+      <div class="composicao--mini" data-composicao="aq:1 fs:3 ws:7 top:1 bo:2"></div>
+    </div>
+    <span class="anotacao">S3 · onde estou: exercícios e séries feitos no topo; a barra por tipo usa as mesmas cores das séries</span>
+
+    <a class="cartao linha-mob clicavel" href="aluno-mobilidade.html">
+      <span class="icone-marcador"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-alongar"/></svg></span>
+      <span><b>Mobilidade</b><span class="t-apoio">3 de 8 feitos hoje</span></span>
+      <svg class="ic" aria-hidden="true" focusable="false"><use href="#i-chevron-direita"/></svg>
+    </a>
+
+    <div class="alerta" id="tudo-feito" hidden>
+      <svg class="ic" aria-hidden="true" focusable="false"><use href="#i-check"/></svg>
+      <div><b>Você fez todas as séries de hoje.</b><span class="t-apoio">Para corrigir uma carga, abra o exercício.</span></div>
+    </div>
+
+    <section class="pilha-16" aria-labelledby="h2-exercicios">
+      <h2 class="sobretitulo" id="h2-exercicios">Exercícios</h2>
+      <ol class="lista-exercicios" id="lista-ex"></ol>
+      <span class="anotacao">3c · próximo com sobretítulo e contorno firme, sem cor; concluído recolhido numa linha com ✓ neutro; segmentos neutros (feita cheia, por fazer em contorno)</span>
+    </section>
+  </section>
+
+  <!-- ====== vista 2: exercício ====== -->
+  <section id="vista-ex" class="pilha" aria-labelledby="h1-ex" hidden>
+    <header class="cab-pagina">
+      <a class="botao botao--fantasma voltar" id="voltar" href="#"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-seta-esquerda"/></svg>Treino A</a>
+      <span class="sobretitulo num" id="ex-sobre"></span>
+      <h1 class="t-titulo-pagina" id="h1-ex" tabindex="-1"></h1>
+      <div class="pilha-8" id="ex-progresso"></div>
+    </header>
+
+    <div class="bloco-interno explicacao pilha-8" id="explicacao"></div>
+
+    <ol class="lista-series" id="lista-series"></ol>
+    <span class="anotacao">3c · só a série da vez leva a cor do tipo (barra, cabeçalho tingido da WS/Top set e o número em .ordem); marcar assenta a linha, troca o "N de M" e passa a vez; ✓ verde só no que acabou de ser marcado</span>
+  </section>
+
+  <p class="sr-only" role="status" id="anuncio"></p>
+
+  <div class="rodape-fixo" id="rodape">
+    <div class="rodape-fixo-corpo">
+      <a class="botao botao--primario" id="rodape-acao" href="#"></a>
+    </div>
+  </div>
+</main>
+<script>
+(function () {
+  /* ====== dados fictícios do Treino A ====== */
+  var EX = [
+    { id: 'supino-reto', nome: 'Supino reto com barra', ultima: '60 kg', ws: 60, series: [
+      { t: 'aq', meta: '10 a 15 reps', resto: 'carga leve', ult: '20 kg × 12', sug: 20, sugTxt: 'igual à última vez', r: 12 },
+      { t: 'fs', meta: '3 reps', resto: '50% da WS', ult: '30 kg × 3', sug: 30, sugTxt: '50% da WS', r: 3 },
+      { t: 'fs', meta: '3 reps', resto: '70% da WS', ult: '42 kg × 3', sug: 42.5, sugTxt: '70% da WS', r: 3 },
+      { t: 'ws', meta: '4 + 4 + 2 reps', resto: 'Cluster · pausa de 15 s entre os blocos', ult: '60 kg × 4+4+2', sug: 60, sugTxt: 'igual à última vez', blocos: [4, 4, 2] },
+      { t: 'top', meta: '1 a 3 reps', resto: '+1% a 5% da WS', ult: '62 kg × 2', sug: 62.5, sugTxt: '+1% da última vez', r: 2 },
+      { t: 'bo', meta: '6 a 8 reps', resto: '85% da WS', ult: '51 kg × 8', sug: 53, sugTxt: '85% da última vez', r: 8 },
+    ] },
+    { id: 'supino-inclinado', nome: 'Supino inclinado com halteres', ultima: '24 kg', ws: 24, series: [
+      { t: 'fs', meta: '8 reps', resto: '60% da WS', ult: '14 kg × 8', sug: 14, sugTxt: '60% da WS', r: 8 },
+      { t: 'ws', meta: '8 a 10 reps', resto: 'até perto da falha', ult: '24 kg × 9', sug: 24, sugTxt: 'igual à última vez', r: 9 },
+      { t: 'bo', meta: '10 a 12 reps', resto: '80% da WS', ult: '19 kg × 12', sug: 19, sugTxt: '80% da WS', r: 12 },
+    ] },
+    { id: 'crucifixo', nome: 'Crucifixo na máquina', ultima: '35 kg', series: [
+      { t: 'ws', meta: '10 a 12 reps', resto: '', ult: '35 kg × 12', sug: 35, sugTxt: 'igual à última vez', r: 12 },
+      { t: 'ws', meta: '10 a 12 reps', resto: '', ult: '35 kg × 11', sug: 35, sugTxt: 'igual à última vez', r: 11 },
+    ] },
+    { id: 'triceps-polia', nome: 'Tríceps na polia', ultima: '25 kg', series: [
+      { t: 'ws', meta: '10 a 12 reps', resto: '', ult: '25 kg × 11', sug: 25, sugTxt: 'igual à última vez', r: 11 },
+      { t: 'ws', meta: '10 a 12 reps', resto: '', ult: '25 kg × 10', sug: 25, sugTxt: 'igual à última vez', r: 10 },
+    ] },
+    { id: 'triceps-frances', nome: 'Tríceps francês', ultima: '12 kg', series: [
+      { t: 'ws', meta: '8 a 10 reps', resto: '', ult: '12 kg × 10', sug: 12, sugTxt: 'igual à última vez', r: 10 },
+    ] },
+  ];
+  var TOTAL = 14;
+  var TRABALHO = { ws: 1, top: 1 };
+  var $ = function (id) { return document.getElementById(id); };
+  var ic = function (n) { return VV.icone(n); };
+  var fmt = function (n) { return n.toLocaleString('pt-BR', { maximumFractionDigits: 2 }); };
+  var paraTexto = function (n) { return String(n).replace('.', ','); };
+  var series = function (n) { return n + (n > 1 ? ' séries' : ' série'); };
+  /* aceita vírgula: "52,5" → 52.5; vazio → null; inválido → NaN */
+  function numero(txt) { var t = String(txt || '').trim().replace(',', '.'); if (!t) return null; var n = Number(t); return isFinite(n) && n > 0 ? n : NaN; }
+  function inteiro(txt) { var n = numero(txt); return n === null ? null : (n === Math.floor(n) ? n : NaN); }
+
+  /* ====== estado ====== */
+  var preset = null, exAtual = null;
+  var acabouAgora = false; // o treino acabou de ser concluído: o ✓ do "Você fez todas" fica verde só na volta seguinte à lista
+  function zerar() {
+    EX.forEach(function (ex) { ex.series.forEach(function (s) {
+      s.feita = false; s.recente = false; s.kg = ''; s.reps = ''; s.ui = {};
+      if (s.blocos) s.b = s.blocos.map(function () { return { kg: '', reps: '', feito: false }; });
+    }); });
+  }
+  function fazer(s) {
+    s.feita = true;
+    if (s.blocos) s.b.forEach(function (b, j) { b.kg = paraTexto(s.sug); b.reps = String(s.blocos[j]); b.feito = true; });
+    else { s.kg = paraTexto(s.sug); s.reps = String(s.r); }
+  }
+  function aplicarPreset(p) {
+    zerar(); preset = p;
+    var n = Number(p), sup = EX[0].series;
+    if (n >= 6) EX.forEach(function (ex, i) { if (i === 0 || n >= 14) ex.series.forEach(fazer); });
+    if (n === 3) { fazer(sup[0]); fazer(sup[1]); fazer(sup[2]); [0, 1].forEach(function (j) { var b = sup[3].b[j]; b.kg = '60'; b.reps = '4'; b.feito = true; }); }
+  }
+  var feitasDe = function (ex) { return ex.series.filter(function (s) { return s.feita; }).length; };
+  var concluido = function (ex) { return feitasDe(ex) === ex.series.length; };
+  var totalFeitas = function () { return EX.reduce(function (a, ex) { return a + feitasDe(ex); }, 0); };
+  var vezDe = function (ex) { return ex.series.findIndex(function (x) { return !x.feita; }); };
+  var proximo = function () { return EX.filter(function (ex) { return !concluido(ex); })[0] || null; };
+  function rotulo(ex, i) {
+    var s = ex.series[i], iguais = ex.series.filter(function (x) { return x.t === s.t; }).length;
+    var n = ex.series.slice(0, i + 1).filter(function (x) { return x.t === s.t; }).length;
+    return VV.TIPOS[s.t].nome + (iguais > 1 ? ' ' + n : '');
+  }
+  function valorDa(s) {
+    if (!s.blocos) return fmt(numero(s.kg)) + ' kg × ' + s.reps;
+    var kgs = s.b.map(function (b) { return fmt(numero(b.kg)); });
+    var iguais = kgs.every(function (k) { return k === kgs[0]; });
+    return iguais ? kgs[0] + ' kg × ' + s.b.map(function (b) { return b.reps; }).join('+')
+      : s.b.map(function (b, j) { return kgs[j] + ' kg × ' + b.reps; }).join(' · ');
+  }
+  function hrefDe(ex) { return '#sessao=' + preset + (ex ? '&ex=' + ex.id : ''); }
+
+  /* ====== peças ====== */
+  function barraSeries(ex) {
+    return '<div class="barra-series" aria-hidden="true">' + ex.series.map(function (s) {
+      return '<span class="' + VV.TIPOS[s.t].classe + (s.feita ? ' feita' : '') + '"></span>';
+    }).join('') + '</div>';
+  }
+  // comTexto: nos cartões da lista vai também a linha de texto neutra que o modo Calma mostra no lugar da legenda
+  function legenda(ex, comTexto) {
+    var ordem = ['aq', 'fs', 'ws', 'top', 'bo'], conta = {};
+    ex.series.forEach(function (s) { conta[s.t] = (conta[s.t] || 0) + 1; });
+    var tipos = ordem.filter(function (t) { return conta[t]; });
+    return '<ul class="legenda-curta" aria-label="Séries por tipo">' + tipos.map(function (t) {
+      return '<li class="' + VV.TIPOS[t].classe + '"><span><b class="num">' + conta[t] + '</b> ' + VV.TIPOS[t].nome + '</span></li>';
+    }).join('') + '</ul>' +
+      (comTexto ? '<p class="composicao-texto num">' + tipos.map(function (t) { return conta[t] + ' ' + VV.TIPOS[t].nome; }).join(' · ') + '</p>' : '');
+  }
+
+  /* ====== vista 1: sessão ====== */
+  function desenharSessao() {
+    var feitas = totalFeitas(), prox = proximo(), conc = EX.filter(concluido).length;
+    var prog = $('prog-sessao');
+    prog.style.setProperty('--p', (feitas / TOTAL * 100) + '%');
+    prog.setAttribute('aria-valuenow', feitas);
+    prog.setAttribute('aria-valuetext', feitas + ' de ' + TOTAL + ' séries');
+    $('prog-sessao-txt').textContent = feitas + ' de ' + TOTAL + ' séries';
+    $('ex-concluidos').textContent = conc + ' de ' + EX.length + ' exercícios concluídos';
+    $('tudo-feito').hidden = !!prox;
+    $('tudo-feito').classList.toggle('st-sucesso', !prox && acabouAgora);
+    acabouAgora = false;
+    document.querySelectorAll('#chave-sessao [data-sessao]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.sessao === preset)); });
+    $('lista-ex').innerHTML = EX.map(function (ex, i) {
+      var f = feitasDe(ex), n = ex.series.length;
+      if (f === n) return '<li class="cartao exercicio-dia exercicio-dia--feito"><span class="ok">' + ic('check') + '</span>' +
+        '<a class="abrir" href="' + hrefDe(ex) + '"><span class="sr-only">Concluído: </span>' + ex.nome + '</a><span class="contagem-series num">' + n + ' de ' + series(n) + '</span></li>';
+      var eh = ex === prox;
+      return '<li class="cartao exercicio-dia' + (eh ? ' exercicio-dia--proximo' : '') + '">' +
+        '<div class="exercicio-dia-topo"><div>' + (eh ? '<span class="sobretitulo">Próximo</span>' : '') +
+        '<a class="abrir" href="' + hrefDe(ex) + '">' + ex.nome + '</a>' +
+        '<span class="contagem-series num">Exercício ' + (i + 1) + ' · ' + f + ' de ' + series(n) + '</span></div>' +
+        '<div class="ultima">Última carga<b>' + ex.ultima + '</b></div></div>' + barraSeries(ex) + legenda(ex, true) + '</li>';
+    }).join('');
+    rodapeSessao(prox, feitas);
+  }
+  function rodapeSessao(prox, feitas) {
+    $('rodape').hidden = !prox;
+    if (!prox) return;
+    var i = EX.indexOf(prox);
+    $('rodape-acao').href = hrefDe(prox);
+    $('rodape-acao').innerHTML = '<span class="rodape-2l"><small>' + (feitas ? 'Continuar' : 'Começar') + ' · exercício ' + (i + 1) + ' de ' + EX.length + '</small><span>' + prox.nome + '</span></span>';
+  }
+
+  /* ====== vista 2: exercício ====== */
+  function desenharCabEx(ex) {
+    var i = EX.indexOf(ex), f = feitasDe(ex);
+    $('ex-sobre').textContent = 'Treino A · exercício ' + (i + 1) + ' de ' + EX.length;
+    $('h1-ex').textContent = ex.nome;
+    $('ex-progresso').innerHTML = barraSeries(ex) + '<div class="linha-acoes" style="justify-content:space-between">' + legenda(ex) +
+      '<span class="num t-rotulo contagem-ex"><span id="ex-feitas">' + f + '</span> de ' + series(ex.series.length) + '</span></div>';
+  }
+  /* marcar não redesenha o cabeçalho: só troca o número (VV.trocarNumero anima) e enche o segmento */
+  function atualizarCabEx(ex) {
+    VV.trocarNumero($('ex-feitas'), feitasDe(ex));
+    $('ex-progresso').querySelectorAll('.barra-series > span').forEach(function (seg, i) { seg.classList.toggle('feita', !!ex.series[i].feita); });
+  }
+  function desenharExplicacao(ex) {
+    var el = $('explicacao');
+    el.hidden = !ex.ws;
+    if (!ex.ws) return;
+    el.innerHTML = '<p>Carga de trabalho (WS) de hoje: <b class="num">' + fmt(ex.ws) + ' kg</b>. As FS e o Back off saem dela.</p>' +
+      '<details><summary>Como funciona' + ic('chevron-baixo') + '</summary><div>' +
+      '<p>As porcentagens das FS e do Back off são calculadas sobre a WS, a série que guia as outras.</p>' +
+      '<p>A sugestão de cada série é só uma dica: o campo de carga começa vazio e vale o que você informar.</p></div></details>';
+  }
+  /* contexto só para o leitor de tela: vários campos 'Carga (kg)' na mesma página */
+  function sr(txt) { return '<span class="sr-only">, ' + txt + '</span>'; }
+  function campo(id, rot, val, extra, erro) {
+    return '<div class="campo"><label class="campo-rotulo" for="' + id + '">' + rot + '</label>' +
+      '<input class="campo-entrada campo-grande' + extra + '" id="' + id + '" inputmode="' + (extra ? 'numeric' : 'decimal') + '" autocomplete="off" value="' + val + '"' +
+      (erro ? ' aria-invalid="true" aria-describedby="' + erro + '"' : '') + '></div>';
+  }
+  function painel(i, s) {
+    return '<div class="painel-serie" role="group" aria-labelledby="pn-' + i + '"><p id="pn-' + i + '">Fez com ' + fmt(s.sug) + ' kg?</p>' +
+      '<div class="linha-acoes"><button type="button" class="botao" data-acao="sim" data-i="' + i + '">Sim, ' + fmt(s.sug) + ' kg</button>' +
+      '<button type="button" class="botao" data-acao="informar" data-i="' + i + '">Informar a carga</button></div></div>';
+  }
+  function erroLinha(i, s) {
+    return s.ui.erro ? '<p class="campo-erro-linha" id="er-' + i + '">' + ic('erro') + s.ui.erro + '</p>' : '';
+  }
+  function sugestao(i, s) {
+    return '<div class="serie-sugestao"><span>Sugestão <b>' + fmt(s.sug) + ' kg</b> · ' + s.sugTxt + '</span>' +
+      '<button type="button" class="botao" data-acao="usar" data-i="' + i + '">Usar ' + fmt(s.sug) + ' kg</button></div>';
+  }
+  /* kg e reps separados para as colunas da linha feita; carga diferente entre blocos fica "60 / 62,5 kg" */
+  function colunasDa(s) {
+    if (!s.blocos) return { kg: fmt(numero(s.kg)) + ' kg', rp: '× ' + s.reps };
+    var kgs = s.b.map(function (b) { return fmt(numero(b.kg)); });
+    var unicos = kgs.filter(function (k, j) { return kgs.indexOf(k) === j; });
+    return { kg: unicos.join(' / ') + ' kg', rp: '× ' + s.b.map(function (b) { return b.reps; }).join('+') };
+  }
+  function liSerie(ex, i) {
+    var s = ex.series[i], tipo = VV.TIPOS[s.t], nome = rotulo(ex, i), trab = TRABALHO[s.t], c;
+    if (s.feita) {
+      c = colunasDa(s);
+      return '<li id="s-' + i + '"><button type="button" class="serie-linha serie-feita clicavel" data-acao="corrigir" data-i="' + i + '" aria-label="' + nome + ' feita: ' + valorDa(s) + '. Corrigir">' +
+        '<span class="ok' + (s.recente ? ' ok--agora' : '') + '">' + ic('check') + '</span><span><span class="selo">' + nome + '</span></span>' +
+        '<span class="kg">' + c.kg + '</span><span class="rp">' + c.rp + '</span>' +
+        '<span class="corrigir">' + ic('lapis') + '<span class="corrigir-txt">Corrigir</span></span></button></li>';
+    }
+    var agora = vezDe(ex) === i; // a série da vez: só ela leva a cor do tipo e o número em .ordem
+    var cab = '<div class="serie-cab"><span class="selo' + (trab ? ' selo--forte' : '') + '">' + nome + '</span>' + (s.blocos ? '<span class="selo st-neutro">Cluster</span>' : '') +
+      '<span class="n">Série ' + (agora ? '<span class="ordem">' + (i + 1) + '</span>' : (i + 1)) + ' de ' + ex.series.length + (agora ? '<span class="sr-only">, a da vez</span>' : '') + '</span></div>';
+    var meta = '<div class="serie-meta"><span class="reps">' + s.meta + '</span>' + (s.resto ? '<span class="resto">' + s.resto + '</span>' : '') + '</div>' +
+      '<p class="serie-ultima">Última vez: ' + s.ult + '</p>';
+    var corpo;
+    if (s.blocos) corpo = meta + sugestao(i, s) + blocos(i, s) + (s.ui.painel ? painel(i, s) : '') + rodapeCluster(i, s);
+    else corpo = meta + sugestao(i, s) + '<div class="serie-registro">' +
+      campo('kg-' + i, 'Carga (kg)' + sr(nome), s.kg, '', s.ui.campo === 'kg' ? 'er-' + i : '') +
+      campo('rp-' + i, 'Repetições' + sr(nome), s.reps, ' reps', s.ui.campo === 'reps' ? 'er-' + i : '') +
+      '<button type="button" class="botao-check" data-acao="marcar" data-i="' + i + '" aria-label="Marcar ' + nome + ' como feita">' + ic('check') + '</button>' +
+      erroLinha(i, s) + '</div>' + (s.ui.painel ? painel(i, s) : '');
+    return '<li id="s-' + i + '" class="cartao serie ' + tipo.classe + (trab ? ' serie--trabalho' : ' serie--leve') + (agora ? ' serie--agora' : '') + '">' + cab + '<div class="serie-corpo">' + corpo + '</div></li>';
+  }
+  function agoraDe(s) { for (var j = 0; j < s.b.length; j++) if (!s.b[j].feito) return j; return -1; }
+  function blocos(i, s) {
+    var ag = agoraDe(s);
+    return '<ol class="blocos" aria-label="Blocos da série">' + s.b.map(function (b, j) {
+      var nome = '<div class="bloco-nome"><b>Bloco ' + (j + 1) + '</b><span>' + s.blocos[j] + ' reps</span>' + (j === ag ? '<span>agora</span>' : '') + '</div>';
+      if (b.feito) return '<li class="bloco">' + nome + '<span class="feito-valor">' + fmt(numero(b.kg)) + ' kg × ' + b.reps + '</span><span class="ok' + (b.recente ? ' ok--agora' : '') + '" role="img" aria-label="feito">' + ic('check') + '</span></li>';
+      if (j !== ag) return '<li class="bloco">' + nome + '<span class="suave" style="margin-left:auto">—</span></li>';
+      return '<li class="bloco bloco--agora">' + nome +
+        campo('kg-' + i, 'kg' + sr(rotulo(exAtual, i) + ', bloco ' + (j + 1)), b.kg, '', s.ui.campo === 'kg' ? 'er-' + i : '') +
+        campo('rp-' + i, 'reps' + sr(rotulo(exAtual, i) + ', bloco ' + (j + 1)), b.reps, ' reps', s.ui.campo === 'reps' ? 'er-' + i : '') +
+        '<button type="button" class="botao-check" data-acao="marcar" data-i="' + i + '" aria-label="Marcar bloco ' + (j + 1) + ' como feito">' + ic('check') + '</button>' +
+        erroLinha(i, s) + '</li>';
+    }).join('') + '</ol>';
+  }
+  function rodapeCluster(i, s) {
+    var ag = agoraDe(s), meta = s.blocos.reduce(function (a, n) { return a + n; }, 0);
+    var feito = s.b.reduce(function (a, b) { return a + (b.feito ? Number(b.reps) : 0); }, 0);
+    var motivo = ag >= 0 ? 'Falta o bloco ' + (ag + 1) + (ag < s.b.length - 1 ? ' e os seguintes' : '') + ' para concluir.' : '';
+    return '<div class="rodape-serie"><p class="num t-apoio">Feito até agora: <b style="color:var(--texto)">' + feito + ' de ' + meta + ' reps</b></p>' +
+      '<button type="button" class="botao botao--cheio" data-acao="concluir" data-i="' + i + '"' + (motivo ? ' aria-disabled="true" aria-describedby="mo-' + i + '"' : '') + '>Concluir série</button>' +
+      (motivo ? '<p class="motivo" id="mo-' + i + '">' + motivo + '</p>' : '') + '</div>';
+  }
+  function desenharEx(ex) {
+    ex.series.forEach(function (s) { s.recente = false; if (s.b) s.b.forEach(function (b) { b.recente = false; }); });
+    desenharCabEx(ex); desenharExplicacao(ex);
+    $('lista-series').innerHTML = ex.series.map(function (_, i) { return liSerie(ex, i); }).join('');
+    $('voltar').href = hrefDe(null);
+    $('rodape').hidden = false;
+    rodapeEx(ex);
+  }
+  function rodapeEx(ex) {
+    var i = EX.indexOf(ex), prox = EX[i + 1], tudo = totalFeitas() === TOTAL;
+    $('rodape-acao').href = hrefDe(tudo ? null : prox || null);
+    $('rodape-acao').innerHTML = tudo
+      ? '<span class="rodape-2l"><small>Treino concluído · ' + TOTAL + ' de ' + TOTAL + ' séries</small><span>Voltar ao treino</span></span>'
+      : prox
+        ? '<span class="rodape-2l"><small>Próximo · exercício ' + (i + 2) + ' de ' + EX.length + '</small><span>' + prox.nome + '</span></span>'
+        : '<span class="rodape-2l"><small>Último exercício</small><span>Voltar ao treino</span></span>';
+  }
+  /* só os cartões mexidos são redesenhados; o resto da lista fica (foco e rolagem não pulam).
+     classe = animação de estado (.assentou na linha feita, .abriu na nova série da vez); o CSS só a roda sem reduce */
+  function redesenharSerie(i, classe) {
+    var el = $('s-' + i);
+    el.outerHTML = liSerie(exAtual, i);
+    el = $('s-' + i); // o nó antigo saiu do documento
+    if (classe) (el.querySelector('.serie-feita') || el).classList.add(classe);
+    return el;
+  }
+  /* mudar uma série pode passar a vez: redesenha a série, a que era da vez e a que passou a ser */
+  function mudarSerie(i, mudar) {
+    var ex = exAtual, antes = vezDe(ex);
+    mudar();
+    var depois = vezDe(ex);
+    redesenharSerie(i, ex.series[i].feita ? 'assentou' : '');
+    if (antes >= 0 && antes !== i && antes !== depois) redesenharSerie(antes);
+    if (depois >= 0 && depois !== i && depois !== antes) redesenharSerie(depois, 'abriu');
+    atualizarCabEx(ex);
+    rodapeEx(ex);
+    return depois;
+  }
+
+  /* ====== ações ====== */
+  function alvo(s) { return s.blocos ? s.b[agoraDe(s)] : s; }
+  function validar(i) {
+    var s = exAtual.series[i], a = alvo(s), kg = numero(a.kg), reps = inteiro(a.reps);
+    s.ui = {};
+    if (reps === null) s.ui = { erro: 'Informe as repetições.', campo: 'reps' };
+    else if (isNaN(reps)) s.ui = { erro: 'Repetições: use um número inteiro.', campo: 'reps' };
+    else if (kg !== null && isNaN(kg)) s.ui = { erro: 'Carga: use só números, como 42,5.', campo: 'kg' };
+    else if (kg === null) s.ui = { painel: true };
+    if (s.ui.erro || s.ui.painel) { redesenharSerie(i); focar(s.ui.painel ? '[data-acao="sim"][data-i="' + i + '"]' : '#' + (s.ui.campo === 'kg' ? 'kg-' : 'rp-') + i); return; }
+    marcar(i);
+  }
+  function marcar(i) {
+    var ex = exAtual, s = ex.series[i];
+    s.ui = {};
+    if (s.blocos) {
+      var j = agoraDe(s), b = s.b[j];
+      b.feito = true; b.recente = true;
+      redesenharSerie(i);
+      VV.vibrar('leve');
+      var meta = s.blocos.reduce(function (a, n) { return a + n; }, 0);
+      var feito = s.b.reduce(function (a, x) { return a + (x.feito ? Number(x.reps) : 0); }, 0);
+      anunciar('Bloco ' + (j + 1) + ' feito: ' + fmt(numero(b.kg)) + ' kg × ' + b.reps + '. Feito até agora: ' + feito + ' de ' + meta + ' reps.');
+      focar(agoraDe(s) >= 0 ? '#kg-' + i : '[data-acao="concluir"][data-i="' + i + '"]');
+      return;
+    }
+    concluirSerie(i);
+  }
+  /* a série assenta como feita, o "N de M" troca e a próxima passa a ser a da vez; o foco fica na linha feita
+     (Corrigir à mão) e a próxima é anunciada. Treino inteiro feito = vibração firme; senão, leve.
+     A conclusão aparece uma vez só, no rodapé (junto de "Voltar ao treino"); o leitor de tela a ouve pelo #anuncio. */
+  function concluirSerie(i) {
+    var ex = exAtual, s = ex.series[i];
+    var vez = mudarSerie(i, function () { s.feita = true; s.recente = true; });
+    var tudo = totalFeitas() === TOTAL;
+    acabouAgora = tudo;
+    VV.vibrar(tudo ? 'firme' : 'leve');
+    anunciar(rotulo(ex, i) + ' feita: ' + valorDa(s) + '. ' + feitasDe(ex) + ' de ' + series(ex.series.length) + '.' +
+      (vez >= 0 ? ' Agora: ' + rotulo(ex, vez) + '.' : '') +
+      (tudo ? ' Treino concluído: ' + TOTAL + ' de ' + TOTAL + ' séries.' : ''));
+    focar('#s-' + i + ' button');
+  }
+  function focar(sel) { var el = document.querySelector(sel); if (el) el.focus(); }
+  function anunciar(t) { var a = $('anuncio'); a.textContent = ''; setTimeout(function () { a.textContent = t; }, 30); }
+
+  document.addEventListener('input', function (ev) {
+    var m = /^(kg|rp)-(\d+)$/.exec(ev.target.id || ''); if (!m || !exAtual) return;
+    var s = exAtual.series[Number(m[2])], a = alvo(s);
+    a[m[1] === 'kg' ? 'kg' : 'reps'] = ev.target.value;
+  });
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-acao]'); if (!b || !exAtual) return;
+    var i = Number(b.dataset.i), s = exAtual.series[i], acao = b.dataset.acao;
+    if (acao === 'usar') {
+      if (s.feita) return;
+      var a = alvo(s); a.kg = paraTexto(s.sug); s.ui = {};
+      redesenharSerie(i); focar('#rp-' + i);
+    } else if (acao === 'marcar') validar(i);
+    else if (acao === 'sim') { alvo(s).kg = paraTexto(s.sug); marcar(i); }
+    else if (acao === 'informar') { s.ui = {}; redesenharSerie(i); focar('#kg-' + i); }
+    else if (acao === 'corrigir') { // desmarcar devolve o estado; não vibra
+      mudarSerie(i, function () {
+        s.feita = false; s.recente = false;
+        if (s.blocos) s.b.forEach(function (x) { x.feito = false; x.recente = false; });
+      });
+      focar('#kg-' + i);
+      anunciar(rotulo(exAtual, i) + ' aberta para corrigir. ' + feitasDe(exAtual) + ' de ' + series(exAtual.series.length) + '.');
+    } else if (acao === 'concluir') {
+      if (b.getAttribute('aria-disabled') === 'true') return;
+      concluirSerie(i);
+    }
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key !== 'Enter') return;
+    var m = /^(kg|rp)-(\d+)$/.exec(ev.target.id || ''); if (!m) return;
+    ev.preventDefault();
+    if (m[1] === 'kg') focar('#rp-' + m[2]); else validar(Number(m[2]));
+  });
+
+  /* ====== rota: #sessao=N&ex=id ====== */
+  var primeira = true;
+  function rota() {
+    var p = new URLSearchParams(location.hash.slice(1)), pre = p.get('sessao');
+    if (['0', '3', '6', '14'].indexOf(pre) < 0) pre = preset || '3';
+    if (pre !== preset) aplicarPreset(pre);
+    var ex = EX.filter(function (x) { return x.id === p.get('ex'); })[0] || null;
+    exAtual = ex;
+    $('vista-sessao').hidden = !!ex;
+    $('vista-ex').hidden = !ex;
+    if (ex) desenharEx(ex); else desenharSessao();
+    if (!primeira) { window.scrollTo(0, 0); $(ex ? 'h1-ex' : 'h1-sessao').focus(); }
+    primeira = false;
+  }
+
+  function contornoDaMarca() {
+    var e = VV.estado(), c = VV.coresDe(e.marca, e.paleta);
+    var baixo = Math.min(VV.contraste(c.papeis.marca, c.superficies.fundo), VV.contraste(c.papeis.marca, c.superficies.sup)) < 3;
+    document.documentElement.toggleAttribute('data-marca-baixa', baixo);
+  }
+  document.addEventListener('vv:tema', contornoDaMarca);
+
+  document.addEventListener('DOMContentLoaded', function () {
+    contornoDaMarca();
+    rota();
+    window.addEventListener('hashchange', rota);
+    // estados da prévia: na barra "Prévia" (montada pelo base.js a partir do <template id="prot-extra">)
+    document.addEventListener('click', function (ev) {
+      var b = ev.target.closest('#chave-sessao [data-sessao]'); if (!b) return;
+      aplicarPreset(b.dataset.sessao);
+      history.replaceState(null, '', '#sessao=' + b.dataset.sessao);
+      exAtual = null; $('vista-sessao').hidden = false; $('vista-ex').hidden = true;
+      desenharSessao();
+      anunciar(totalFeitas() + ' de ' + TOTAL + ' séries feitas.');
+    });
+  });
+})();
+</script>
+</body>
+</html>

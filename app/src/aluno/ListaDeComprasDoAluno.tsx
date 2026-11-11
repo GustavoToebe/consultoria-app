@@ -39,6 +39,7 @@ import {
 } from '../dominio/listaDeComprasDoAluno';
 import { contagemDoGrupo } from '../dominio/gruposDaLista';
 import { novoUid } from '../dominio/uid';
+import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes } from '../tema/tokens';
 import { useAviso } from '../ui/Aviso';
 import { BarraProgresso } from '../ui/BarraProgresso';
@@ -58,6 +59,7 @@ import { EscolhasDaLista } from '../ui/ListaDeCompras';
 import { NoPlano } from '../ui/NoPlano';
 import { Texto } from '../ui/Texto';
 import { useListaDoAparelho } from './useListaDoAparelho';
+import { useMarcadoAgora } from './useMarcadoAgora';
 
 /** O que o PDF do aluno precisa: o período, as opções escolhidas e os itens com ajustes e avulsos. */
 export interface ListaParaPdf {
@@ -86,6 +88,7 @@ export function ListaDeComprasDoAluno({
   aoGerarPdf: (lista: ListaParaPdf) => Promise<void>;
 }) {
   const { avisar } = useAviso();
+  const { cores, marcaPeca } = useTema();
   const lista = useListaDoAparelho(versaoId);
   const [ajustando, setAjustando] = useState(false);
   const [edicao, setEdicao] = useState<Edicao | null>(null);
@@ -136,7 +139,7 @@ export function ListaDeComprasDoAluno({
         {itens.length ? (
           <View style={estilos.progresso}>
             <Texto numerico style={estilos.forte} accessibilityLiveRegion="polite">{textoDaContagem(contagem)}</Texto>
-            <BarraProgresso feitas={contagem.comprados} total={contagem.total} />
+            <BarraProgresso feitas={contagem.comprados} total={contagem.total} cor={marcaPeca} trilho={cores.superficie3} />
           </View>
         ) : (
           <Vazio titulo="Nada para listar" texto="A dieta não tem itens com quantidade." />
@@ -213,13 +216,14 @@ function LinhaDoItem({ item, ajustando, aoMarcar, aoAjustar, aoRemover }: {
   aoRemover: () => void;
 }) {
   const origem = textoDaOrigem(item.origem);
+  const agora = useMarcadoAgora(item.comprado);
   const acoes = ajustando ? (
     <View style={estilos.acoes}>
       <IconeBotao Icone={Pencil} rotulo={`${item.avulso ? 'Editar' : 'Ajustar'} ${item.nome}`} aoTocar={aoAjustar} />
       {item.avulso ? <IconeBotao Icone={Trash2} rotulo={`Remover ${item.nome}`} aoTocar={aoRemover} /> : null}
     </View>
   ) : (
-    <BotaoMarcar feito={item.comprado} rotulo={`${item.nome}: ${item.comprado ? 'comprado' : 'não comprado'}`} aoTocar={aoMarcar} />
+    <BotaoMarcar feito={item.comprado} agora={agora} rotulo={`${item.nome}: ${item.comprado ? 'comprado' : 'não comprado'}`} aoTocar={aoMarcar} />
   );
   return (
     <LinhaDaLista

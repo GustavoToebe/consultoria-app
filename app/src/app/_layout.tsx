@@ -1,10 +1,11 @@
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import '../../global.css';
 import { PortalHost } from '@rn-primitives/portal';
-// Só os pesos usados (o import pela raiz do pacote levaria os 18 pesos da Inter para o bundle).
-import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular';
-import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
-import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
+// Só os pesos usados (o import pela raiz do pacote levaria os 18 pesos da Geist para o bundle).
+import { Geist_400Regular } from '@expo-google-fonts/geist/400Regular';
+import { Geist_500Medium } from '@expo-google-fonts/geist/500Medium';
+import { Geist_600SemiBold } from '@expo-google-fonts/geist/600SemiBold';
+import { Geist_700Bold } from '@expo-google-fonts/geist/700Bold';
 import { BebasNeue_400Regular } from '@expo-google-fonts/bebas-neue/400Regular';
 import { MetalMania_400Regular } from '@expo-google-fonts/metal-mania/400Regular';
 import { Oswald_700Bold } from '@expo-google-fonts/oswald/700Bold';
@@ -31,9 +32,10 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') {
 
 export default function Raiz() {
   const [fontesProntas, erroFontes] = useFonts({
-    Inter_400Regular,
-    Inter_600SemiBold,
-    Inter_700Bold,
+    Geist_400Regular,
+    Geist_500Medium,
+    Geist_600SemiBold,
+    Geist_700Bold,
     MetalMania_400Regular,
     BebasNeue_400Regular,
     Oswald_700Bold,

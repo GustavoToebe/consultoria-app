@@ -1,3 +1,4 @@
+import { linhaDaSerie } from './linhaDaSerie';
 import { expect, test, type Page } from '@playwright/test';
 
 import type { Receita } from '../src/api/tipos';
@@ -42,8 +43,8 @@ async function abrirModelo(page: Page) {
   return api;
 }
 
-const blocos = (page: Page) => page.getByRole('tab', { name: /^Série \d/ });
-const bloco = (page: Page, n: number) => page.getByRole('tab', { name: new RegExp(`^Série ${n}( ·|,)`) });
+const blocos = (page: Page) => linhaDaSerie(page, /^Série \d/);
+const bloco = (page: Page, n: number) => linhaDaSerie(page, new RegExp(`^Série ${n}( ·|,)`));
 const semRolagemLateral = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
 /** Base da barra grudada do editor (a única `position: sticky` no topo). */
 const baseDaBarra = (page: Page) => page.evaluate(() => {
@@ -56,7 +57,7 @@ test.describe('PC (1280)', () => {
 
   test('tabela de blocos: colunas, variação, blocos × séries e teclado (setas movem o foco, Enter e Espaço escolhem)', async ({ page }) => {
     const api = await abrirPlano(page);
-    for (const coluna of ['Bloco', 'Quantidade', 'Repetições', 'Descanso']) await expect(page.getByText(coluna, { exact: true }).first()).toBeVisible();
+    for (const coluna of ['Série', 'Tipo', 'Carga', 'Reps', 'Descanso']) await expect(page.getByText(coluna, { exact: true }).first()).toBeVisible();
     await expect(page.getByRole('tablist', { name: 'Blocos do exercício' })).toHaveAttribute('aria-orientation', 'vertical');
     await expect(blocos(page)).toHaveCount(3);
     // Supino: 3 FS com % diferentes, 1 WS e 1 Back off.
@@ -101,13 +102,12 @@ test.describe('PC (1280)', () => {
     const api = await abrirPlano(page, true);
     const estado = page.getByRole('button', { name: /· Ir à primeira pendência$/ });
     await expect(estado).toBeVisible();
-    // Erro = borda própria (e o nome acessível diz): a linha com problema, não escolhida, difere de uma sem problema.
-    const borda = () => bloco(page, 2).evaluate((e) => getComputedStyle(e).borderTopColor);
-    const semProblema = await borda();
+    // Erro = ícone na cor da gravidade (e o nome acessível diz); a borda fica para a seleção e a faixa para a categoria.
+    await expect(bloco(page, 2).locator('svg')).toHaveCount(0);
     await page.getByRole('button', { name: /^Exercício 2 de 7:/ }).click();
     await expect(bloco(page, 2)).toHaveAccessibleName(/, com problema a corrigir$/);
     await expect(bloco(page, 2)).toHaveAttribute('aria-selected', 'false');
-    expect(await borda()).not.toBe(semProblema);
+    await expect(bloco(page, 2).locator('svg')).toHaveCount(1);
     await expect(page.getByText('Pronto para publicar', { exact: true })).toHaveCount(0);
     await estado.click();
     await expect(page.getByRole('button', { name: /^Exercício 2 de 7:/ })).toHaveAttribute('aria-current', 'true');
@@ -182,7 +182,7 @@ test.describe('celular (390)', () => {
     await page.getByRole('radio', { name: /^6\. / }).click();
     await expect(blocos(page).first()).toBeVisible();
     // Empilhada: sem o cabeçalho das colunas e cada linha cabe na largura.
-    await expect(page.getByText('Quantidade', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('Reps', { exact: true })).toHaveCount(0);
     const linha = (await blocos(page).first().boundingBox())!;
     expect(linha.x + linha.width).toBeLessThanOrEqual(390);
     expect(await semRolagemLateral(page)).toBe(true);
@@ -207,10 +207,13 @@ for (const largura of [390, 768, 1280, 1920]) {
         expect(c.x).toBeGreaterThanOrEqual(0);
         expect(c.x + c.width).toBeLessThanOrEqual(largura);
       }
-      // A linha escolhida é invertida (fundo na cor do texto): escura no claro, clara no escuro; prova que o tema valeu.
-      const fundo = await page.getByRole('tab', { name: /^Série \d/, selected: true }).evaluate((e) => getComputedStyle(e).backgroundColor);
+      // A linha escolhida é neutra (guia pág. 9): fundo de superfície (claro no claro, escuro no escuro, prova que o tema
+      // valeu), contorno na cor do texto e o marcador "Editando".
+      const escolhida = linhaDaSerie(page, /^Série \d/, true);
+      const fundo = await escolhida.evaluate((e) => getComputedStyle(e).backgroundColor);
       const soma = (fundo.match(/\d+/g) ?? []).slice(0, 3).reduce((t, v) => t + Number(v), 0);
-      expect(tema === 'ESCURO' ? soma > 382 : soma < 382).toBe(true);
+      expect(tema === 'ESCURO' ? soma < 382 : soma > 382).toBe(true);
+      await expect(escolhida.getByText('Editando', { exact: true })).toBeVisible();
       // Alvo de 44 px pelo estilo da própria linha (o primitivo descarta `style` em função: este teste o pegou).
       for (const n of [1, 2, 3]) expect(await bloco(page, n).evaluate((e) => parseFloat(getComputedStyle(e).minHeight))).toBeGreaterThanOrEqual(44);
       // Hover numa linha não escolhida muda o fundo dela.

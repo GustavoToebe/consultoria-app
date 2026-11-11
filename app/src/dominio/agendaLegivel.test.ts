@@ -1,62 +1,9 @@
 import type { Participante } from '../api/agendaTipos';
-import { CLARO, contraste, ESCURO } from '../tema/tokens';
 import {
-  arranjoDoBloco, CONTRASTE_DO_GRAFICO, CONTRASTE_DO_TEXTO, fundoDoItemDaAgenda, horarioNoRotuloDoCompromisso, LARGURA_PARA_SELO, LARGURA_PARA_SELO_AO_LADO, misturarCores,
-  PROPORCAO_DO_TINGIDO, statusNoDiaInteiro, statusNoRotuloDoCompromisso, textoDoItemNoMes,
+  arranjoDoBloco, horarioNoRotuloDoCompromisso, LARGURA_PARA_SELO, LARGURA_PARA_SELO_AO_LADO, statusNoDiaInteiro, statusNoRotuloDoCompromisso, textoDoItemNoMes,
 } from './agendaLegivel';
 
 const p = (situacao: Participante['situacao'], n = 1): Participante => ({ id: `a${n}`, nome: `Aluno ${n}`, situacao });
-
-describe('misturarCores', () => {
-  it('0 é a base, 1 é a cor, meio a meio arredonda por canal', () => {
-    expect(misturarCores('#FFFFFF', '#000000', 0)).toBe('#FFFFFF');
-    expect(misturarCores('#FFFFFF', '#000000', 1)).toBe('#000000');
-    expect(misturarCores('#FFFFFF', '#000000', 0.5)).toBe('#808080');
-    expect(misturarCores('#102030', '#305070', 0.5)).toBe('#203850');
-  });
-});
-
-describe('fundoDoItemDaAgenda', () => {
-  it('tinge na proporção padrão quando o contraste permite', () => {
-    const fundo = fundoDoItemDaAgenda({ cor: '#1B6FD6', base: CLARO.superficie2, textos: [CLARO.texto] });
-    expect(fundo).toBe(misturarCores(CLARO.superficie2, '#1B6FD6', PROPORCAO_DO_TINGIDO));
-    expect(fundo).not.toBe(CLARO.superficie2);
-  });
-
-  it('baixa a proporção até o texto voltar a 4,5:1 (texto suave sobre um tingido forte)', () => {
-    const pedido = { cor: '#000000', base: CLARO.superficie2, textos: [CLARO.textoSuave], proporcao: 0.6 };
-    const fundo = fundoDoItemDaAgenda(pedido);
-    expect(contraste(CLARO.textoSuave, fundo)).toBeGreaterThanOrEqual(CONTRASTE_DO_TEXTO);
-    // E é a maior proporção que passa: um passo a mais já não passaria.
-    const passo = [...Array(61).keys()].reverse().find((i) => misturarCores(CLARO.superficie2, '#000000', i / 100) === fundo)!;
-    expect(contraste(CLARO.textoSuave, misturarCores(CLARO.superficie2, '#000000', (passo + 1) / 100))).toBeLessThan(CONTRASTE_DO_TEXTO);
-  });
-
-  it('segura a faixa em 3:1 contra o fundo tingido, mesmo com o texto sobrando', () => {
-    const cor = '#6E7F1E';
-    const fundo = fundoDoItemDaAgenda({ cor, base: CLARO.superficie3, textos: [CLARO.texto], proporcao: 0.5 });
-    expect(contraste(cor, fundo)).toBeGreaterThanOrEqual(CONTRASTE_DO_GRAFICO);
-  });
-
-  it('confere também os gráficos pedidos (ícone de status) a 3:1', () => {
-    const fundo = fundoDoItemDaAgenda({ cor: '#C0306F', base: CLARO.superficie2, textos: [CLARO.texto], graficos: [CLARO.perigo], proporcao: 0.6 });
-    expect(contraste(CLARO.perigo, fundo)).toBeGreaterThanOrEqual(CONTRASTE_DO_GRAFICO);
-  });
-
-  it('cor que já não passava na base não trava o tingido, e nenhum passo que sirva devolve a base', () => {
-    // Amarelo claro no tema claro: a faixa já não tinha 3:1; o texto segue mandando.
-    const amarelo = fundoDoItemDaAgenda({ cor: '#FFF2A8', base: CLARO.superficie2, textos: [CLARO.texto] });
-    expect(amarelo).not.toBe(CLARO.superficie2);
-    expect(contraste(CLARO.texto, amarelo)).toBeGreaterThanOrEqual(CONTRASTE_DO_TEXTO);
-    // Texto que não passa nem na base: fica a base.
-    expect(fundoDoItemDaAgenda({ cor: '#1B6FD6', base: ESCURO.superficie2, textos: ['#333333'] })).toBe(ESCURO.superficie2);
-  });
-
-  it('cor inválida devolve a base', () => {
-    expect(fundoDoItemDaAgenda({ cor: 'AZUL', base: CLARO.superficie2, textos: [CLARO.texto] })).toBe(CLARO.superficie2);
-    expect(fundoDoItemDaAgenda({ cor: '#12', base: CLARO.superficie2, textos: [CLARO.texto] })).toBe(CLARO.superficie2);
-  });
-});
 
 describe('horarioNoRotuloDoCompromisso', () => {
   it('com fim: das X às Y, sem zero à esquerda e sem minutos zerados', () => {

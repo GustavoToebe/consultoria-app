@@ -88,6 +88,8 @@ export async function simularApi(page: Page, respostas: RespostasApi = {}) {
     'GET /alunos/{id}/ciclo': { corpo: { ativo: false, registros: [], dias: [] } },
     // "Atividade recente" do Resumo da ficha: vazia nos testes que não conferem isso.
     'GET /alunos/{id}/atividade-recente': { corpo: { itens: [] } },
+    // O selo "Vigente" da Folha da pasta (e o cartão de frequência) perguntam isto; nenhuma vigente nos testes que não conferem.
+    'GET /alunos/{id}/pastas/vigente': { corpo: { pasta: null } },
     // O número das abas de Atualizações (os mesmos filtros da lista); zero nos testes que não conferem isso.
     'GET /atualizacoes/contagens': { corpo: { PARA_REVISAR: 0, ATRASADAS: 0, AVISARAM_ATRASO: 0, PROXIMAS: 0 } },
     ...respostas,

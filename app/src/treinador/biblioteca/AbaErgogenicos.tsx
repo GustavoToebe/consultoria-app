@@ -1,6 +1,5 @@
 import { Pencil, Plus, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { alterarErgogenico, criarErgogenico, inativarErgogenico, listarErgogenicos } from '../../api/rotas';
 import type { ErgogenicoDaBiblioteca, ErgogenicoDaBibliotecaRequest } from '../../api/tipos';
@@ -13,8 +12,6 @@ import {
   sugerirCategorias,
   textoOuTraco,
 } from '../../dominio/ergogenicos';
-import { useTema } from '../../tema/TemaProvider';
-import { espaco, LARGURA_MENU_LATERAL, RAIO } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
@@ -25,10 +22,10 @@ import { MensagemErro, Vazio } from '../../ui/Estados';
 import { errosPorCampo, textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
 import { IconeBotao } from '../../ui/IconeBotao';
+import { LinhaDaLista, ListaDeLinhas } from '../../ui/LinhaDaLista';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Permitido } from '../../ui/Permitido';
-import { Texto } from '../../ui/Texto';
 import { BarraDaBiblioteca } from './BarraDaBiblioteca';
 import { useCarregar } from '../../ui/useCarregar';
 
@@ -46,8 +43,6 @@ export function AbaErgogenicos() {
   const [inativar, setInativar] = useState<ErgogenicoDaBiblioteca | null>(null);
   const categorias = categoriasDosErgogenicos(dados ?? []);
   const grupos = agruparErgogenicos(filtrarErgogenicos(dados ?? [], busca, categoria));
-  const { width } = useWindowDimensions();
-  const largo = width >= LARGURA_MENU_LATERAL;
 
   const confirmarInativar = () => {
     const alvo = inativar;
@@ -83,10 +78,13 @@ export function AbaErgogenicos() {
       </Cartao>
       {grupos.map((g) => (
         <Cartao key={g.categoria ?? ''} cabecalho={<CabecalhoDeGrupo titulo={g.rotulo} resumo={resumoDoGrupo(g.itens.length)} />}>
-          {largo ? <TitulosDasColunas /> : null}
-          {g.itens.map((e) => (
-            <LinhaDeErgogenico key={e.id} item={e} largo={largo} aoEditar={() => setEditando(e)} />
-          ))}
+          {/* Uma superfície só, com divisórias entre os itens (sem caixa por registro): o cartão já é o contêiner. */}
+          <ListaDeLinhas divisorias>{g.itens.map((e) => (
+            <LinhaDaLista key={e.id} titulo={nomeEPrincipio(e)}
+              metadados={`Concentração: ${textoOuTraco(e.concentracao)} · Apresentação: ${textoOuTraco(e.apresentacao)}`}
+              acoesAoLado
+              acoes={<Permitido codigo="ERGOGENICO_ALTERAR"><IconeBotao Icone={Pencil} moldura rotulo={`Editar ${e.nome}`} aoTocar={() => setEditando(e)} /></Permitido>} />
+          ))}</ListaDeLinhas>
         </Cartao>
       ))}
       {editando ? (
@@ -112,42 +110,6 @@ export function AbaErgogenicos() {
         aoCancelar={() => setInativar(null)}
       />
     </>
-  );
-}
-
-function TitulosDasColunas() {
-  const { cores } = useTema();
-  return (
-    <View style={[estilos.titulos, { borderColor: cores.divisor }]}>
-      <Texto variante="rotulo" style={estilos.colNome}>Nome / Princípio ativo</Texto>
-      <Texto variante="rotulo" style={estilos.colValor}>Concentração</Texto>
-      <Texto variante="rotulo" style={estilos.colValor}>Apresentação</Texto>
-      <View style={estilos.colAcao} />
-    </View>
-  );
-}
-
-function LinhaDeErgogenico({ item, largo, aoEditar }: { item: ErgogenicoDaBiblioteca; largo: boolean; aoEditar: () => void }) {
-  const { cores } = useTema();
-  return (
-    <View style={[estilos.linha, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
-      {largo ? (
-        <>
-          <Texto style={estilos.colNome}>{nomeEPrincipio(item)}</Texto>
-          <Texto numerico style={estilos.colValor}>{textoOuTraco(item.concentracao)}</Texto>
-          <Texto numerico style={estilos.colValor}>{textoOuTraco(item.apresentacao)}</Texto>
-        </>
-      ) : (
-        <View style={estilos.empilhado}>
-          <Texto variante="bloco">{nomeEPrincipio(item)}</Texto>
-          <Texto variante="suave" numerico>Concentração: {textoOuTraco(item.concentracao)}</Texto>
-          <Texto variante="suave" numerico>Apresentação: {textoOuTraco(item.apresentacao)}</Texto>
-        </View>
-      )}
-      <View style={estilos.colAcao}>
-        <Permitido codigo="ERGOGENICO_ALTERAR"><IconeBotao Icone={Pencil} rotulo={`Editar ${item.nome}`} aoTocar={aoEditar} /></Permitido>
-      </View>
-    </View>
   );
 }
 
@@ -232,13 +194,3 @@ function FolhaErgogenico({
     </Folha>
   );
 }
-
-const estilos = StyleSheet.create({
-  busca: { flex: 1, minWidth: 220, maxWidth: 480 },
-  titulos: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.5), paddingHorizontal: espaco(1.5), paddingBottom: espaco(0.75), borderBottomWidth: 1 },
-  linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.5), borderWidth: 1, borderRadius: RAIO, paddingLeft: espaco(1.5), paddingVertical: 2, minHeight: 48 },
-  empilhado: { flex: 1, gap: 2, paddingVertical: espaco(0.75) },
-  colNome: { flex: 3, minWidth: 0 },
-  colValor: { flex: 1.2, minWidth: 0 },
-  colAcao: { width: 48, alignItems: 'flex-end' },
-});

@@ -1,7 +1,7 @@
 import { Check } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useTema } from '../tema/TemaProvider';
-import { espaco, RAIO } from '../tema/tokens';
+import { espaco, RAIO_CONTROLE } from '../tema/tokens';
 import { coresDoDesabilitado } from './desabilitado';
 import { Texto } from './Texto';
 /**
@@ -12,9 +12,9 @@ export function CaixaSelecao({rotulo,ajuda,marcado,aoMudar,desabilitado}:{rotulo
   const {cores}=useTema();
   const cinza=coresDoDesabilitado(cores);
   return <Pressable accessibilityRole="checkbox" accessibilityLabel={rotulo} accessibilityState={{checked:marcado,disabled:!!desabilitado}} aria-checked={marcado} aria-disabled={!!desabilitado} accessibilityHint={desabilitado?ajuda:undefined}
-    disabled={desabilitado} onPress={()=>aoMudar(!marcado)} style={({pressed})=>[estilos.linha,{backgroundColor:desabilitado?cinza.fundo:pressed?cores.superficie3:cores.superficie2,borderColor:cores.borda}]}>
-    <View style={[estilos.caixa,{backgroundColor:desabilitado?(marcado?cinza.texto:cinza.fundo):marcado?cores.texto:cores.campo,borderColor:cores.borda}]}>{marcado?<Check size={18} color={desabilitado?cinza.fundo:cores.fundo}/>:null}</View>
+    disabled={desabilitado} onPress={()=>aoMudar(!marcado)} style={({pressed})=>[estilos.linha,{backgroundColor:desabilitado?cinza.fundo:pressed?cores.superficie3:cores.superficie2,borderColor:cores.divisor}]}>
+    <View style={[estilos.caixa,{backgroundColor:desabilitado?(marcado?cinza.texto:cinza.fundo):marcado?cores.texto:cores.campo,borderColor:desabilitado?cinza.borda:marcado?cores.texto:cores.bordaCampo}]}>{marcado?<Check size={18} color={desabilitado?cinza.fundo:cores.fundo}/>:null}</View>
     <View style={estilos.textos}><Texto cor={desabilitado?cinza.texto:undefined}>{rotulo}</Texto>{ajuda?<Texto variante="pequeno">{ajuda}</Texto>:null}</View>
   </Pressable>;
 }
-const estilos=StyleSheet.create({linha:{flexDirection:'row',alignItems:'center',gap:espaco(1.5),padding:espaco(1.5),minHeight:48,borderWidth:1,borderRadius:RAIO},caixa:{width:24,height:24,borderWidth:1,borderRadius:4,alignItems:'center',justifyContent:'center'},textos:{flex:1,gap:4}});
+const estilos=StyleSheet.create({linha:{flexDirection:'row',alignItems:'center',gap:espaco(1.5),padding:espaco(1.5),minHeight:48,borderWidth:1,borderRadius:RAIO_CONTROLE},caixa:{width:24,height:24,borderWidth:1,borderRadius:4,alignItems:'center',justifyContent:'center'},textos:{flex:1,gap:4}});

@@ -86,9 +86,7 @@ export function CartaoExercicio(p: PropsDoCartaoExercicio) {
     <BotaoDeAbrir texto={textoDosExtras(e)} aberto={extrasAbertos} aoAlternar={() => setEscolhaDosExtras(!extrasAbertos)} />
     {extrasAbertos ? (
       <View style={[estilos.extras, { borderColor: cores.borda }]}>
-        <View style={estilos.nomeDeExibicao}>
-          <Campo rotulo="Nome de exibição" valor={e.nome} aoMudar={(nome) => mudar({ nome })} maxLength={120} erro={erros.nome} />
-        </View>
+        <Campo rotulo="Nome de exibição" valor={e.nome} aoMudar={(nome) => mudar({ nome })} maxLength={120} erro={erros.nome} />
         <Campo
           rotulo="Observação para o aluno"
           valor={e.observacao ?? ''}
@@ -230,7 +228,6 @@ const estilos = StyleSheet.create({
   acoes: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75) },
   // No PC os botões de mover têm texto: a linha quebra em vez de apertar o nome do exercício.
   acoesLargas: { flexWrap: 'wrap', justifyContent: 'flex-end' },
-  nomeDeExibicao: { flexGrow: 1, flexShrink: 1, flexBasis: 280, maxWidth: 560, minWidth: 0 },
   extras: { gap: espaco(1.5), paddingLeft: espaco(1.5), borderLeftWidth: 2 },
   tituloDasSeries: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
   corpo: { gap: espaco(1.5), padding: espaco(1.5), paddingTop: espaco(2) },

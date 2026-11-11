@@ -30,8 +30,15 @@ public class ComunidadeMuralPost {
     @Column(nullable = false, length = 2000)
     private String texto;
 
-    @Column(name = "imagem_url", length = 500)
-    private String imagemUrl;
+    @Column(nullable = false, length = 20)
+    private String tipo;
+
+    @Column(name = "video_url", length = 500)
+    private String videoUrl;
+
+    /** Texto sem acento para a busca ({@code Buscas.semAcento}); quem grava é o serviço. */
+    @Column(name = "texto_busca", nullable = false, length = 2000)
+    private String textoBusca;
 
     @Column(nullable = false)
     private boolean fixado;
@@ -44,12 +51,25 @@ public class ComunidadeMuralPost {
 
     protected ComunidadeMuralPost() {}
 
-    public ComunidadeMuralPost(UUID autorId, String autorNome, String autorFotoUrl, String texto, String imagemUrl) {
+    /** O aviso nasce fixado (C3). */
+    public ComunidadeMuralPost(UUID autorId, String autorNome, String autorFotoUrl, String texto, TipoDePost tipo,
+                               String videoUrl, String textoBusca) {
         this.autorId = autorId;
         this.autorNome = autorNome;
         this.autorFotoUrl = autorFotoUrl;
         this.texto = texto;
-        this.imagemUrl = imagemUrl;
+        this.tipo = tipo.name();
+        this.videoUrl = videoUrl;
+        this.textoBusca = cortarBusca(textoBusca);
+        this.fixado = tipo == TipoDePost.AVISO;
+    }
+
+    /** A forma decomposta (NFD) pode passar do texto (sílaba coreana vira 2 a 3 letras): corta na coluna, sem partir par substituto. */
+    static String cortarBusca(String busca) {
+        if (busca.length() <= 2000) {
+            return busca;
+        }
+        return busca.substring(0, Character.isHighSurrogate(busca.charAt(1999)) ? 1999 : 2000);
     }
 
     public void ocultar() { this.oculto = true; }
@@ -61,7 +81,8 @@ public class ComunidadeMuralPost {
     public String getAutorNome() { return autorNome; }
     public String getAutorFotoUrl() { return autorFotoUrl; }
     public String getTexto() { return texto; }
-    public String getImagemUrl() { return imagemUrl; }
+    public String getTipo() { return tipo; }
+    public String getVideoUrl() { return videoUrl; }
     public boolean isFixado() { return fixado; }
     public boolean isOculto() { return oculto; }
     public Instant getCriadoEm() { return criadoEm; }

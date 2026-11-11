@@ -215,7 +215,7 @@ public class AlunoService {
         return lotesDeIds(alunosDoLote.stream().map(Aluno::getId).toList());
     }
 
-    private static List<List<UUID>> lotesDeIds(List<UUID> ids) {
+    public static List<List<UUID>> lotesDeIds(List<UUID> ids) {
         List<List<UUID>> lotes = new ArrayList<>();
         for (int i = 0; i < ids.size(); i += LOTE_DE_IDS) {
             lotes.add(ids.subList(i, Math.min(ids.size(), i + LOTE_DE_IDS)));

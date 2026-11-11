@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<!-- Dados fictícios (D8). Nada aqui fala com a API. -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dieta do aluno · prévia visual</title>
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="aluno.css">
+<script src="base.js"></script>
+</head>
+<body data-casca="aluno" data-ativo="dieta">
+<svg style="display:none" aria-hidden="true">
+  <symbol id="i-copiar" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></g></symbol>
+</svg>
+<template id="prot-extra">
+  <div class="prot-grupo" role="group" aria-labelledby="prot-r-total"><span class="prot-rot" id="prot-r-total">Total do dia</span>
+    <div class="prot-segmento" id="chave-total">
+      <button type="button" data-total="completo">Completo</button><button type="button" data-total="so-kcal">Só calorias</button>
+    </div>
+  </div>
+</template>
+<main id="conteudo" class="pagina">
+  <div class="pilha">
+    <header class="cab-pagina">
+      <span class="sobretitulo">Pasta Força · até 12/11</span>
+      <h1 class="t-titulo-pagina">Dieta</h1>
+      <p class="subtitulo t-apoio">Plano de hoje · 4 refeições</p>
+    </header>
+
+    <section class="faixa-total" aria-labelledby="total-titulo">
+      <div class="kcal">
+        <h2 class="sobretitulo" id="total-titulo">Total do dia</h2>
+        <p><span class="t-numero">1.670</span> <span class="t-corpo" style="font-weight:600">kcal</span></p>
+        <p class="t-apoio">Conta a opção A de cada refeição.</p>
+      </div>
+      <ul class="macros" id="macros"></ul>
+    </section>
+    <span class="anotacao">S7 · total como faixa; barra neutra proporcional às calorias de cada macro; macro sem dado vira "—" e fica sem barra; sem meta</span>
+
+    <div class="dieta-grade">
+      <section aria-labelledby="ref-titulo" class="pilha-16">
+        <h2 class="sobretitulo" id="ref-titulo">Refeições</h2>
+        <ol class="linha-do-tempo refeicoes">
+          <li>
+            <div class="hora-refeicao num">07:30</div>
+            <article class="cartao refeicao id-ciano" aria-labelledby="r1-t">
+              <div class="cartao-cab">
+                <div><h3 class="t-titulo-cartao" id="r1-t">Café da manhã</h3><p class="t-apoio">2 opções · escolha uma</p></div>
+                <span class="kcal-refeicao" id="r1-kcal">400 kcal</span>
+              </div>
+              <div class="cartao-corpo">
+                <div role="tablist" class="abas" aria-label="Opções do café da manhã" id="r1-abas">
+                  <button type="button" role="tab" class="aba" id="r1-a" aria-selected="true" aria-controls="r1-pa" data-kcal="400 kcal">Opção A</button>
+                  <button type="button" role="tab" class="aba" id="r1-b" aria-selected="false" aria-controls="r1-pb" data-kcal="345 kcal">Opção B</button>
+                </div>
+                <div role="tabpanel" id="r1-pa" aria-labelledby="r1-a" class="pilha-8">
+                  <ul class="itens-dieta">
+                    <li class="item-dieta"><span class="nome"><b>Ovo inteiro</b><span>210&nbsp;kcal · P&nbsp;18&nbsp;g · C&nbsp;1&nbsp;g · G&nbsp;15&nbsp;g</span></span><span class="qtd"><span class="v">3</span><span class="u">unid</span></span></li>
+                    <li class="item-dieta"><span class="nome"><b>Pão integral</b><span>125&nbsp;kcal · P&nbsp;6&nbsp;g · C&nbsp;22&nbsp;g · G&nbsp;2&nbsp;g</span></span><span class="qtd"><span class="v">50</span><span class="u">g</span></span></li>
+                    <li class="item-dieta"><span class="nome"><b>Mamão</b><span>60&nbsp;kcal · P&nbsp;1&nbsp;g · C&nbsp;15&nbsp;g · G&nbsp;0&nbsp;g</span></span><span class="qtd"><span class="v">150</span><span class="u">g</span></span></li>
+                    <li class="item-dieta"><span class="nome"><b>Café sem açúcar</b><span>5&nbsp;kcal · P&nbsp;— · C&nbsp;— · G&nbsp;—</span></span><span class="qtd"><span class="v">200</span><span class="u">ml</span></span></li>
+                  </ul>
+                  <p class="total-refeicao">Total: 400&nbsp;kcal · P&nbsp;25&nbsp;g · C&nbsp;38&nbsp;g · G&nbsp;17&nbsp;g</p>
+                </div>
+                <div role="tabpanel" id="r1-pb" aria-labelledby="r1-b" class="pilha-8" hidden>
+                  <ul class="itens-dieta">
+                    <li class="item-dieta"><span class="nome"><b>Iogurte natural</b><span>105&nbsp;kcal · P&nbsp;7&nbsp;g · C&nbsp;8&nbsp;g · G&nbsp;5&nbsp;g</span></span><span class="qtd"><span class="v">170</span><span class="u">g</span></span></li>
+                    <li class="item-dieta"><span class="nome"><b>Aveia em flocos</b><span>150&nbsp;kcal · P&nbsp;5&nbsp;g · C&nbsp;26&nbsp;g · G&nbsp;3&nbsp;g</span></span><span class="qtd"><span class="v">40</span><span class="u">g</span></span></li>
+                    <li class="item-dieta"><span class="nome"><b>Banana</b><span>90&nbsp;kcal · P&nbsp;1&nbsp;g · C&nbsp;23&nbsp;g · G&nbsp;0&nbsp;g</span></span><span class="qtd"><span class="v">1</span><span class="u">unid</span></span></li>
+                  </ul>
+                  <p class="total-refeicao">Total: 345&nbsp;kcal · P&nbsp;13&nbsp;g · C&nbsp;57&nbsp;g · G&nbsp;8&nbsp;g</p>
+                </div>
+                <p class="escolha-opcao">As opções não se somam: o total do dia conta só a opção A.</p>
+              </div>
+            </article>
+          </li>
+          <li>
+            <div class="hora-refeicao num">12:30</div>
+            <article class="cartao refeicao refeicao--agora id-azul" aria-labelledby="r2-t">
+              <div class="cartao-cab">
+                <div><span class="sobretitulo">Agora</span><h3 class="t-titulo-cartao" id="r2-t">Almoço</h3></div>
+                <span class="kcal-refeicao">620 kcal</span>
+              </div>
+              <div class="cartao-corpo">
+                <ul class="itens-dieta">
+                  <li class="item-dieta"><span class="nome"><b>Arroz branco cozido</b><span>190&nbsp;kcal · P&nbsp;4&nbsp;g · C&nbsp;42&nbsp;g · G&nbsp;0&nbsp;g</span></span><span class="qtd"><span class="v">150</span><span class="u">g</span></span></li>
+                  <li class="item-dieta"><span class="nome"><b>Feijão carioca cozido</b><span>75&nbsp;kcal · P&nbsp;5&nbsp;g · C&nbsp;13&nbsp;g · G&nbsp;1&nbsp;g</span></span><span class="qtd"><span class="v">100</span><span class="u">g</span></span></li>
+                  <li class="item-dieta"><span class="nome"><b>Peito de frango grelhado</b><span>240&nbsp;kcal · P&nbsp;48&nbsp;g · C&nbsp;0&nbsp;g · G&nbsp;4&nbsp;g</span></span><span class="qtd"><span class="v">150</span><span class="u">g</span></span></li>
+                  <li class="item-dieta"><span class="nome"><b>Brócolis cozido</b><span>25&nbsp;kcal · P&nbsp;2&nbsp;g · C&nbsp;4&nbsp;g · G&nbsp;0&nbsp;g</span></span><span class="qtd"><span class="v">80</span><span class="u">g</span></span></li>
+                  <li class="item-dieta"><span class="nome"><b>Azeite de oliva</b><span>90&nbsp;kcal · P&nbsp;— · C&nbsp;— · G&nbsp;10&nbsp;g</span></span><span class="qtd"><span class="v">10</span><span class="u">ml</span></span></li>
+                </ul>
+                <p class="total-refeicao">Total: 620&nbsp;kcal · P&nbsp;59&nbsp;g · C&nbsp;59&nbsp;g · G&nbsp;15&nbsp;g</p>
+              </div>
+            </article>
+          </li>
+          <li>
+            <div class="hora-refeicao num">16:00</div>
+            <article class="cartao refeicao id-violeta" aria-labelledby="r3-t">
+              <div class="cartao-cab">
+                <div><h3 class="t-titulo-cartao" id="r3-t">Lanche da tarde</h3></div>
+                <span class="kcal-refeicao">210 kcal</span>
+              </div>
+              <div class="cartao-corpo">
+                <ul class="itens-dieta">
+                  <li class="item-dieta"><span class="nome"><b>Whey protein</b><span>120&nbsp;kcal · P&nbsp;24&nbsp;g · C&nbsp;3&nbsp;g · G&nbsp;2&nbsp;g</span></span><span class="qtd"><span class="v">30</span><span class="u">g</span></span></li>
+                  <li class="item-dieta"><span class="nome"><b>Banana</b><span>90&nbsp;kcal · P&nbsp;1&nbsp;g · C&nbsp;23&nbsp;g · G&nbsp;0&nbsp;g</span></span><span class="qtd"><span class="v">1</span><span class="u">unid</span></span></li>
+                </ul>
+                <p class="total-refeicao">Total: 210&nbsp;kcal · P&nbsp;25&nbsp;g · C&nbsp;26&nbsp;g · G&nbsp;2&nbsp;g</p>
+              </div>
+            </article>
+          </li>
+          <li>
+            <div class="hora-refeicao num">20:00</div>
+            <article class="cartao refeicao id-magenta" aria-labelledby="r4-t">
+              <div class="cartao-cab">
+                <div><h3 class="t-titulo-cartao" id="r4-t">Jantar</h3></div>
+                <span class="kcal-refeicao">440 kcal</span>
+              </div>
+              <div class="cartao-corpo">
+                <ul class="itens-dieta">
+                  <li class="item-dieta"><span class="nome"><b>Batata-doce cozida</b><span>170&nbsp;kcal · P&nbsp;2&nbsp;g · C&nbsp;40&nbsp;g · G&nbsp;0&nbsp;g</span></span><span class="qtd"><span class="v">200</span><span class="u">g</span></span></li>
+                  <li class="item-dieta"><span class="nome"><b>Patinho moído</b><span>240&nbsp;kcal · P&nbsp;40&nbsp;g · C&nbsp;0&nbsp;g · G&nbsp;8&nbsp;g</span></span><span class="qtd"><span class="v">150</span><span class="u">g</span></span></li>
+                  <li class="item-dieta"><span class="nome"><b>Abobrinha refogada</b><span>30&nbsp;kcal · P&nbsp;1&nbsp;g · C&nbsp;4&nbsp;g · G&nbsp;1&nbsp;g</span></span><span class="qtd"><span class="v">100</span><span class="u">g</span></span></li>
+                </ul>
+                <p class="total-refeicao">Total: 440&nbsp;kcal · P&nbsp;43&nbsp;g · C&nbsp;44&nbsp;g · G&nbsp;9&nbsp;g</p>
+              </div>
+            </article>
+          </li>
+        </ol>
+        <span class="anotacao">3c · horário à esquerda; a cor da refeição só na barra de 6 px; quantidade neutra; a de agora com sobretítulo e contorno firme, sem cor</span>
+      </section>
+
+      <aside aria-labelledby="trein-titulo">
+        <section class="cartao">
+          <div class="cartao-cab"><div><h2 class="t-titulo-cartao" id="trein-titulo">Do seu treinador</h2></div></div>
+          <div class="cartao-corpo texto-treinador">
+            <h3 class="t-rotulo">Orientações</h3>
+            <ul>
+              <li>Pese os alimentos já cozidos.</li>
+              <li>Tempere com sal e ervas, sem molhos prontos.</li>
+            </ul>
+            <hr class="divisor">
+            <h3 class="t-rotulo">Observações</h3>
+            <p>Se faltar algum alimento, me chame no WhatsApp antes de trocar.</p>
+          </div>
+        </section>
+      </aside>
+
+      <section class="cartao" aria-labelledby="sup-titulo">
+        <div class="cartao-cab"><div><h2 class="t-titulo-cartao" id="sup-titulo">Suplementação</h2></div></div>
+        <div class="cartao-corpo">
+          <div class="suplemento">
+            <b>Creatina</b>
+            <span class="t-apoio">5 g · todos os dias, em qualquer horário</span>
+          </div>
+          <div class="suplemento">
+            <b>Whey protein</b>
+            <span class="t-apoio">30 g · no lanche da tarde</span>
+            <div class="linha-acoes">
+              <span class="selo st-neutro">Cupom <span class="cupom">FORJA10</span></span>
+              <button type="button" class="botao" id="copiar"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-copiar"/></svg>Copiar cupom</button>
+            </div>
+            <p class="t-apoio" role="status" id="copiar-status"></p>
+          </div>
+        </div>
+      </section>
+    </div>
+    <span class="anotacao">S7 · "Do seu treinador" vem depois das refeições no celular e vira coluna lateral a partir de 1024 px</span>
+  </div>
+</main>
+<script>
+(function () {
+  var MACROS = [
+    { nome: 'Proteína', g: 152, kcal: 4 },
+    { nome: 'Carboidratos', g: 167, kcal: 4 },
+    { nome: 'Gorduras', g: 43, kcal: 9 },
+  ];
+  function desenharMacros(soKcal) {
+    var total = MACROS.reduce(function (a, m) { return a + m.g * m.kcal; }, 0);
+    document.getElementById('macros').innerHTML = MACROS.map(function (m) {
+      if (soKcal) return '<li class="macro macro--vazio"><span class="t-rotulo">' + m.nome + '</span><span class="valor">—</span></li>';
+      return '<li class="macro"><span class="t-rotulo">' + m.nome + '</span><span class="valor">' + m.g + '<small>g</small></span>' +
+        '<span class="barra-macro" aria-hidden="true"><span style="--p:' + (m.g * m.kcal / total * 100).toFixed(1) + '%"></span></span></li>';
+    }).join('');
+    document.querySelectorAll('#chave-total [data-total]').forEach(function (b) { b.setAttribute('aria-pressed', String((b.dataset.total === 'so-kcal') === soKcal)); });
+  }
+  function rota() { desenharMacros(new URLSearchParams(location.hash.slice(1)).get('total') === 'so-kcal'); }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    rota();
+    window.addEventListener('hashchange', rota);
+    // estados da prévia: na barra "Prévia" (montada pelo base.js a partir do <template id="prot-extra">)
+    document.addEventListener('click', function (ev) {
+      var b = ev.target.closest('#chave-total [data-total]'); if (!b) return;
+      history.replaceState(null, '', b.dataset.total === 'so-kcal' ? '#total=so-kcal' : '#');
+      rota();
+    });
+    document.getElementById('r1-abas').addEventListener('aba', function (ev) {
+      document.getElementById('r1-kcal').textContent = document.getElementById(ev.detail.id).dataset.kcal;
+    });
+    document.getElementById('copiar').addEventListener('click', function () {
+      var st = document.getElementById('copiar-status');
+      var falhou = function () { st.textContent = 'Não deu para copiar aqui. Digite o cupom na loja: FORJA10.'; };
+      if (!navigator.clipboard) { falhou(); return; }
+      navigator.clipboard.writeText('FORJA10').then(function () { st.textContent = 'Cupom copiado.'; }).catch(falhou);
+    });
+  });
+})();
+</script>
+</body>
+</html>

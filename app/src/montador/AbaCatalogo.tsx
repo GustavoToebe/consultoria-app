@@ -58,6 +58,8 @@ export function AbaCatalogo({ tema, aoMudarTema }: { tema: TemaDoMontador; aoMud
         <Texto variante="suave" numerico accessibilityLiveRegion="polite">
           {resumoDaBusca(filtrados.length, EXEMPLOS_DO_CATALOGO.length)}
         </Texto>
+        {/* O foco não ganha exemplo desenhado: é o anel de verdade de cada peça, visto pelo teclado. */}
+        <Texto variante="pequeno">Os exemplos funcionam: use Tab para ver o foco de cada um (normal, com erro e selecionado já estão nos cartões).</Texto>
 
         {grupos.length === 0 ? (
           <Vazio

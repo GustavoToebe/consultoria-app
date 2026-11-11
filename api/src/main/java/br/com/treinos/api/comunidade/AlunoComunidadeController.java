@@ -2,16 +2,21 @@ package br.com.treinos.api.comunidade;
 
 import br.com.treinos.api.auth.LimiteTentativas;
 import br.com.treinos.api.comunidade.dto.ComunidadeDtos.*;
+import br.com.plataforma.comum.web.BadRequestException;
 import br.com.treinos.api.execucao.AlunoAppService;
 import br.com.treinos.api.fotos.RespostaDeFoto;
 import br.com.treinos.api.security.UsuarioAutenticado;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 
 import java.util.List;
 import java.util.UUID;
@@ -25,9 +30,16 @@ public class AlunoComunidadeController {
     private final PerfilDoAlunoService perfil;
     private final ColegasDaComunidadeService colegas;
     private final LimiteTentativas limite;
+    private final FotosDoMuralService fotos;
+    private final DenunciasDoMuralService denuncias;
+    private final ConfiguracaoDaComunidadeService configuracao;
 
     public AlunoComunidadeController(ComunidadeService comunidade, ApelidoDoAlunoService apelidos, PerfilDoAlunoService perfil,
-                                     ColegasDaComunidadeService colegas, LimiteTentativas limite) {
+                                     ColegasDaComunidadeService colegas, LimiteTentativas limite, FotosDoMuralService fotos,
+                                     DenunciasDoMuralService denuncias, ConfiguracaoDaComunidadeService configuracao) {
+        this.fotos = fotos;
+        this.denuncias = denuncias;
+        this.configuracao = configuracao;
         this.comunidade = comunidade;
         this.apelidos = apelidos;
         this.perfil = perfil;
@@ -39,8 +51,8 @@ public class AlunoComunidadeController {
 
     @PreAuthorize("hasRole('ALUNO')")
     @GetMapping("/aulas")
-    public List<AulaResumo> listarAulas() {
-        return comunidade.listarAulasAluno();
+    public List<AulaResumo> listarAulas(@RequestParam(required = false) String busca) {
+        return comunidade.listarAulasAluno(busca);
     }
 
     @PreAuthorize("hasRole('ALUNO')")
@@ -65,8 +77,10 @@ public class AlunoComunidadeController {
     @GetMapping("/mural")
     public Page<MuralPostResponse> listarMural(@RequestParam(defaultValue = "0") int pagina,
                                                @RequestParam(defaultValue = "20") int tamanho,
+                                               @RequestParam(required = false) String tipo,
+                                               @RequestParam(required = false) String busca,
                                                @AuthenticationPrincipal UsuarioAutenticado eu) {
-        return comunidade.listarMural(PageRequest.of(Math.max(0, pagina), Math.clamp(tamanho, 1, 50)), eu);
+        return comunidade.listarMural(PageRequest.of(Math.max(0, pagina), Math.clamp(tamanho, 1, 50)), eu, tipo, busca, false);
     }
 
     @PreAuthorize("hasRole('ALUNO')")
@@ -99,6 +113,51 @@ public class AlunoComunidadeController {
                                             @AuthenticationPrincipal UsuarioAutenticado eu) {
         limite.comunidade(eu.usuarioId());
         return comunidade.adicionarComentarioMural(id, request.texto(), eu);
+    }
+
+    /** Uma foto por requisição, pendente até o post; o corpo fica no limite de 1 MiB. Só quem pode anexar (403 {@code FOTO_NAO_PERMITIDA}). */
+    @PreAuthorize("hasRole('ALUNO')")
+    @PostMapping(value = "/mural/fotos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public FotoCriada enviarFoto(@RequestPart("arquivo") MultipartFile arquivo, @AuthenticationPrincipal UsuarioAutenticado eu) {
+        limite.comunidade(eu.usuarioId());
+        try {
+            return new FotoCriada(fotos.enviar(eu, arquivo.getBytes()));
+        } catch (IOException e) {
+            throw new BadRequestException("Não foi possível ler o arquivo enviado.");
+        }
+    }
+
+    /** Remove a foto pendente do próprio aluno (204); de outro autor, já publicada ou inexistente = 404. */
+    @PreAuthorize("hasRole('ALUNO')")
+    @DeleteMapping("/mural/fotos/{id}")
+    public ResponseEntity<Void> apagarFotoPendente(@PathVariable UUID id, @AuthenticationPrincipal UsuarioAutenticado eu) {
+        limite.comunidade(eu.usuarioId());
+        fotos.apagarPendente(eu, id);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Bytes da foto de um post visível ou da própria pendente, sempre {@code no-store}. */
+    @PreAuthorize("hasRole('ALUNO')")
+    @GetMapping("/mural/fotos/{id}")
+    public ResponseEntity<byte[]> foto(@PathVariable UUID id, @AuthenticationPrincipal UsuarioAutenticado eu) {
+        return RespostaDeFoto.de(fotos.lerDoAluno(eu, id));
+    }
+
+    /** Denuncia um post (204, idempotente). O aluno nunca vê quem denunciou nem a contagem. */
+    @PreAuthorize("hasRole('ALUNO')")
+    @PostMapping("/mural/{id}/denuncias")
+    public ResponseEntity<Void> denunciar(@PathVariable UUID id, @RequestBody @Valid DenunciaRequest request,
+                                          @AuthenticationPrincipal UsuarioAutenticado eu) {
+        limite.comunidade(eu.usuarioId());
+        denuncias.denunciar(eu, id, request);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** O que a tela do aluno precisa: se publica e se pode anexar foto (sem o motivo, que pode ser a idade). */
+    @PreAuthorize("hasRole('ALUNO')")
+    @GetMapping("/configuracao")
+    public ConfiguracaoDoAluno configuracao(@AuthenticationPrincipal UsuarioAutenticado eu) {
+        return configuracao.doAluno(eu);
     }
 
     // ---- Apelido e perfil ----

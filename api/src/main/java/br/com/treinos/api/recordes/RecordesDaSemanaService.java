@@ -2,8 +2,10 @@ package br.com.treinos.api.recordes;
 
 import br.com.treinos.api.alunos.Aluno;
 import br.com.treinos.api.alunos.AlunoRepository;
+import br.com.treinos.api.alunos.AlunoService;
 import br.com.treinos.api.execucao.ExecucaoSerie;
 import br.com.treinos.api.execucao.ExecucaoSerieRepository;
+import br.com.treinos.api.execucao.ExecucaoSerieRepository.MelhorRepeticao;
 import br.com.treinos.api.execucao.IndiceVersao;
 import br.com.treinos.api.execucao.IndicesDeVersao;
 import br.com.treinos.api.recordes.RecordesPessoais.Marca;
@@ -27,8 +29,8 @@ import java.util.stream.Collectors;
 /**
  * "Recordes da semana" do treinador (Engajamento 0.5, P3): as séries simples dos últimos 7 dias (hoje de Brasília
  * inclusive) que bateram recorde pessoal, pela mesma regra que o app usa para o aluno ({@link RecordesPessoais}). Nada é
- * gravado: é calculado a cada leitura a partir das séries registradas (duas consultas: as do período e as de antes dele,
- * dos mesmos alunos e exercícios). Exercício fora da biblioteca nunca tem recorde. Sem 1RM (P7).
+ * gravado: é calculado a cada leitura a partir das séries registradas (duas consultas, por lotes de alunos: as do período e as
+ * de antes dele, estas já agrupadas por carga com a maior repetição). Exercício fora da biblioteca nunca tem recorde. Sem 1RM (P7).
  */
 @Service
 public class RecordesDaSemanaService {
@@ -77,34 +79,42 @@ public class RecordesDaSemanaService {
             return new RecordesDaSemanaResponse(de, ate, 0, List.of());
         }
         Map<UUID, Aluno> porId = lista.stream().collect(Collectors.toMap(Aluno::getId, a -> a));
-        List<ExecucaoSerie> doPeriodo = execucoes
-                .findByAlunoIdInAndConcluidaTrueAndCargaNotNullAndRepeticoesNotNullAndEtapasIsNullAndDataBetween(porId.keySet(), de, ate)
-                .stream().filter(e -> e.getExercicioId() != null).toList();
+        // Ids dos alunos em lotes (como a lista de alunos): o `in` não cresce sem limite com o escopo.
+        List<List<UUID>> lotes = AlunoService.lotesDeIds(new ArrayList<>(porId.keySet()));
+        List<ExecucaoSerie> doPeriodo = new ArrayList<>();
+        for (List<UUID> lote : lotes) {
+            execucoes.findByAlunoIdInAndConcluidaTrueAndCargaNotNullAndRepeticoesNotNullAndEtapasIsNullAndDataBetween(lote, de, ate)
+                    .stream().filter(e -> e.getExercicioId() != null).forEach(doPeriodo::add);
+        }
         if (doPeriodo.isEmpty()) {
             return new RecordesDaSemanaResponse(de, ate, 0, List.of());
         }
         Set<UUID> exercicios = doPeriodo.stream().map(ExecucaoSerie::getExercicioId).collect(Collectors.toSet());
-        List<ExecucaoSerie> antes = execucoes
-                .findByAlunoIdInAndExercicioIdInAndConcluidaTrueAndCargaNotNullAndRepeticoesNotNullAndEtapasIsNullAndDataBefore(
-                        porId.keySet(), exercicios, de);
-        Map<UUID, IndiceVersao> porVersao = indices.carregar(java.util.stream.Stream.concat(doPeriodo.stream(), antes.stream())
-                .map(ExecucaoSerie::getPlanoVersaoId).distinct().toList());
+        // As de antes do período já vêm agrupadas (a maior repetição por aluno, exercício, versão, série e carga).
+        List<MelhorRepeticao> antes = new ArrayList<>();
+        for (List<UUID> lote : lotes) {
+            antes.addAll(execucoes.melhoresAntesDe(lote, exercicios, de));
+        }
+        Map<UUID, IndiceVersao> porVersao = indices.carregar(java.util.stream.Stream.concat(
+                        doPeriodo.stream().map(ExecucaoSerie::getPlanoVersaoId), antes.stream().map(MelhorRepeticao::planoVersaoId))
+                .distinct().toList());
 
         // Base: os melhores de antes do período, por aluno e exercício. Sem a versão no índice, entra (na dúvida só impede).
         Map<String, List<Marca>> marcasAntes = new HashMap<>();
-        for (ExecucaoSerie e : antes) {
-            if (simples(porVersao.get(e.getPlanoVersaoId()), e, true) && RecordesPessoais.conta(e.getCarga(), e.getRepeticoes())) {
-                marcasAntes.computeIfAbsent(chave(e), k -> new ArrayList<>()).add(new Marca(e.getCarga(), e.getRepeticoes()));
+        for (MelhorRepeticao m : antes) {
+            if (IndiceVersao.simples(porVersao.get(m.planoVersaoId()), m.serieUid(), true) && RecordesPessoais.conta(m.carga(), m.repeticoes())) {
+                marcasAntes.computeIfAbsent(chave(m.alunoId(), m.exercicioId()), k -> new ArrayList<>())
+                        .add(new Marca(m.carga(), m.repeticoes()));
             }
         }
         Map<String, List<RecordesDaSemana.SerieDoPeriodo<ExecucaoSerie>>> noPeriodo = new HashMap<>();
         for (ExecucaoSerie e : doPeriodo) {
             IndiceVersao indice = porVersao.get(e.getPlanoVersaoId());
             // No período, só conta a série que se sabe simples; a outra entra como nula (não é recorde, não muda a base).
-            Marca marca = simples(indice, e, false) && RecordesPessoais.conta(e.getCarga(), e.getRepeticoes())
+            Marca marca = IndiceVersao.simples(indice, e.getSerieUid(), false) && RecordesPessoais.conta(e.getCarga(), e.getRepeticoes())
                     ? new Marca(e.getCarga(), e.getRepeticoes()) : null;
             int ordem = indice == null ? 0 : indice.serie(e.getSerieUid()).map(IndiceVersao.LocalSerie::ordem).orElse(0);
-            noPeriodo.computeIfAbsent(chave(e), k -> new ArrayList<>()).add(new RecordesDaSemana.SerieDoPeriodo<>(e.getData(), ordem, marca, e));
+            noPeriodo.computeIfAbsent(chave(e.getAlunoId(), e.getExercicioId()), k -> new ArrayList<>()).add(new RecordesDaSemana.SerieDoPeriodo<>(e.getData(), ordem, marca, e));
         }
         List<SerieComRecorde> resultado = new ArrayList<>();
         noPeriodo.forEach((chave, series) -> {
@@ -122,12 +132,7 @@ public class RecordesDaSemanaService {
         return new RecordesDaSemanaResponse(de, ate, resultado.size(), resultado.stream().limit(LIMITE).toList());
     }
 
-    private static String chave(ExecucaoSerie e) {
-        return e.getAlunoId() + "|" + e.getExercicioId();
-    }
-
-    /** Série simples pela versão executada; sem a versão ou a série no índice vale {@code naDuvida}. */
-    private static boolean simples(IndiceVersao indice, ExecucaoSerie e, boolean naDuvida) {
-        return indice == null ? naDuvida : indice.serie(e.getSerieUid()).map(IndiceVersao.LocalSerie::simples).orElse(naDuvida);
+    private static String chave(UUID alunoId, UUID exercicioId) {
+        return alunoId + "|" + exercicioId;
     }
 }

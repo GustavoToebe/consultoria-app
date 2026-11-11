@@ -20,6 +20,7 @@ import { Folha } from '../../ui/Folha';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { sobre } from '../../ui/sobre';
+import { coresDaSelecao } from '../../ui/selecao';
 import { Texto } from '../../ui/Texto';
 import { ErroDoCampo } from './CamposDoCompromisso';
 import { useCorDaAgenda } from './itemDaAgenda';
@@ -182,10 +183,12 @@ function EscolhaDeCor({ valor, aoMudar }: { valor: CorDaAgenda; aoMudar: (c: Cor
             <Pressable key={c} role="radio" aria-checked={ativo} accessibilityState={{ checked: ativo }} accessibilityLabel={ROTULOS_DAS_CORES_DA_AGENDA[c]}
               onPress={() => aoMudar(c)}
               style={(e) => [estilos.cor, {
-                backgroundColor: ativo ? cores.texto : sobre(e) ? cores.superficie3 : cores.superficie2, borderColor: ativo ? cores.texto : cores.borda,
+                // Seleção neutra (`ui/selecao`): superfície de seleção, contorno forte e ✓.
+                backgroundColor: ativo ? coresDaSelecao(cores, true).fundo : sobre(e) ? cores.superficie3 : cores.superficie2, borderColor: ativo ? coresDaSelecao(cores, true).borda : cores.borda,
               }]}>
               <View style={[estilos.amostra, { backgroundColor: corDe(c) }]} />
-              <Texto style={[estilos.nomeDaCor, { color: ativo ? cores.fundo : cores.texto }]}>{ROTULOS_DAS_CORES_DA_AGENDA[c]}</Texto>
+              <Texto style={[estilos.nomeDaCor, { color: cores.texto }, ativo && { fontFamily: fontes.semi }]}>{ROTULOS_DAS_CORES_DA_AGENDA[c]}</Texto>
+              {ativo ? <Check size={16} color={cores.texto} strokeWidth={2.5} /> : null}
             </Pressable>
           );
         })}

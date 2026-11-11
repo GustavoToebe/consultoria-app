@@ -2,7 +2,7 @@
 import type { ReactNode } from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 
-import { comentarComoAluno, listarComentariosDoAluno } from '../api/comunidade';
+import { comentarComoAluno, comentarComoEquipe, listarComentariosDaEquipe, listarComentariosDoAluno } from '../api/comunidade';
 import type { AlvoDosComentarios, ComentarioDoMural } from '../api/comunidadeTipos';
 import { FolhaComentarios } from './FolhaComentarios';
 
@@ -13,6 +13,7 @@ jest.mock('../api/comunidade', () => ({
   listarComentariosDoAluno: jest.fn(),
   listarComentariosDaEquipe: jest.fn(),
   comentarComoAluno: jest.fn(),
+  comentarComoEquipe: jest.fn(),
   removerComentario: jest.fn(),
 }));
 jest.mock('../tema/TemaProvider', () => ({ useTema: () => ({ cores: require('../tema/tokens').CLARO }) }));
@@ -40,12 +41,13 @@ jest.mock('../ui/Estados', () => ({
 jest.mock('../ui/Esqueleto', () => ({ Esqueleto: () => null }));
 jest.mock('../ui/LinhaDeAcoes', () => ({ LinhaDeAcoes: ({ children }: { children?: ReactNode }) => children }));
 jest.mock('../ui/PainelConfirmacao', () => ({ PainelConfirmacao: () => null }));
+jest.mock('../ui/Selo', () => ({ Selo: () => null }));
 jest.mock('./AutorDoPost', () => ({ AutorDoPost: () => null }));
 jest.mock('./FolhaPerfilDoColega', () => ({ FolhaPerfilDoColega: () => null }));
 
 const comentario = (n: number): ComentarioDoMural => ({
   id: `c${n}`, autorId: 'u1', autorNome: 'Aluno Fictício', autorApelido: null, autorEhAluno: true, autorFotoUrl: null,
-  texto: `Comentário de teste ${n}`, criadoEm: '2026-10-19T16:00:00Z',
+  texto: `Comentário de teste ${n}`, criadoEm: '2026-10-19T16:00:00Z', daEquipe: false,
 });
 const de = (a: number, b: number) => Array.from({ length: b - a + 1 }, (_, i) => comentario(a + i));
 const listar = listarComentariosDoAluno as jest.Mock;
@@ -110,4 +112,27 @@ it('o contador avisa perto do limite e o comentário enviado entra sem buscar a 
   expect(textos(r)).toContain('Bora!');
   expect(campo().props.value).toBe('');
   expect(listar).toHaveBeenCalledTimes(1);
+});
+
+it('a equipe com moderar responde no post do mural pela rota dela; no aulão e sem moderar, não há campo', async () => {
+  const daEquipe = listarComentariosDaEquipe as jest.Mock;
+  const comoEquipe = comentarComoEquipe as jest.Mock;
+  const POST: AlvoDosComentarios = { tipo: 'post', id: 'p1' };
+  const equipe = (alvo: AlvoDosComentarios, podeModerar: boolean) => (
+    <FolhaComentarios alvo={alvo} modo={{ tipo: 'equipe', podeModerar }} aoFechar={() => undefined} aoAlterar={() => undefined} />
+  );
+  daEquipe.mockResolvedValue({ itens: de(1, 1), total: 1 });
+  let r!: ReactTestRenderer;
+  await act(async () => { r = create(equipe(POST, true)); });
+  comoEquipe.mockResolvedValueOnce({ ...comentario(2), texto: 'Resposta da equipe', daEquipe: true });
+  await act(async () => { r.root.findByProps({ accessibilityLabel: 'Responder como equipe' }).props.onChangeText('Resposta da equipe'); });
+  await act(async () => { botao(r, 'Comentar').props.onPress(); });
+  expect(comoEquipe).toHaveBeenCalledWith('p1', 'Resposta da equipe');
+  expect(comentar).not.toHaveBeenCalled();
+  expect(textos(r)).toContain('Resposta da equipe');
+
+  await act(async () => { r.update(equipe(AULA, true)); });
+  expect(r.root.findAllByProps({ accessibilityLabel: 'Responder como equipe' })).toHaveLength(0);
+  await act(async () => { r.update(equipe(POST, false)); });
+  expect(r.root.findAllByProps({ accessibilityLabel: 'Responder como equipe' })).toHaveLength(0);
 });

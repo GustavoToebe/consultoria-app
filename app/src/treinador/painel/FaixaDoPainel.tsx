@@ -2,7 +2,7 @@ import { createContext, forwardRef, useCallback, useContext, useId, useMemo, use
 import { StyleSheet, useWindowDimensions, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, LARGURA_MENU_LATERAL, LINHA_DA_FAIXA } from '../../tema/tokens';
+import { espaco, LARGURA_MENU_LATERAL } from '../../tema/tokens';
 import { Texto } from '../../ui/Texto';
 
 type Medida = 'titulo' | 'faixa';
@@ -35,14 +35,14 @@ export function LinhaDeBlocos({ children, style }: { children: ReactNode; style?
 }
 
 /**
- * Faixa de título dos blocos do painel (a mesma do `Cartao`: `superficie3`, linha de 3 px embaixo), com o título e a
+ * Faixa de título dos blocos do painel (a mesma do `Cartao`: `superficie2`, linha `divisor` embaixo), com o título e a
  * linha pequena embaixo dele à esquerda e as ações à direita na mesma linha; num bloco estreito (1 coluna, celular) as
  * ações descem para uma segunda linha, à direita (os ícones continuam com 44 px). `ref`: o passeio aponta para a faixa
  * dos Primeiros passos.
  */
 export const FaixaDoPainel = forwardRef<View, { titulo: string; descricao?: string | null; acoes?: ReactNode; meio?: ReactNode }>(
   function FaixaDoPainel({ titulo, descricao, acoes, meio }, ref) {
-    const { cores } = useTema();
+    const { cores, bordas } = useTema();
     const { width } = useWindowDimensions();
     const linha = useContext(AlturasDaLinhaContexto);
     const id = useId();
@@ -53,8 +53,8 @@ export const FaixaDoPainel = forwardRef<View, { titulo: string; descricao?: stri
     const recuo = espaco(width >= LARGURA_MENU_LATERAL ? 2.5 : 2);
     return (
       <View ref={ref} collapsable={false}
-        style={[estilos.faixa, { backgroundColor: cores.superficie3, borderBottomColor: cores.bordaCampo, paddingHorizontal: recuo },
-          linha ? { minHeight: Math.max(MINIMA, linha.faixa + 2 * VERTICAL + LINHA_DA_FAIXA) } : null]}>
+        style={[estilos.faixa, { backgroundColor: cores.superficie2, borderBottomColor: cores.divisor, borderBottomWidth: bordas.bloco, paddingHorizontal: recuo },
+          linha ? { minHeight: Math.max(MINIMA, linha.faixa + 2 * VERTICAL + bordas.bloco) } : null]}>
         <View onLayout={linha ? medirFaixa : undefined} style={estilos.conteudo}>
           <View style={[estilos.titulo, linha ? { minHeight: linha.titulo } : null]}>
             <View onLayout={linha ? medirTitulo : undefined} style={estilos.textos}>
@@ -74,7 +74,7 @@ const VERTICAL = espaco(1);
 const MINIMA = 60;
 
 const estilos = StyleSheet.create({
-  faixa: { justifyContent: 'center', paddingVertical: VERTICAL, minHeight: MINIMA, borderBottomWidth: LINHA_DA_FAIXA },
+  faixa: { justifyContent: 'center', paddingVertical: VERTICAL, minHeight: MINIMA },
   conteudo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: espaco(1), rowGap: espaco(0.5) },
   // O título reserva 150 px antes de dividir a linha com as ações: num bloco estreito as ações descem para a linha de
   // baixo em vez de espremer o título letra por letra.

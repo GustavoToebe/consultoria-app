@@ -134,7 +134,7 @@ const estilos = StyleSheet.create({
   bloco: { gap: espaco(1) },
   juntos: { gap: espaco(0.5) },
   linha: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5), alignItems: 'flex-start' },
-  linhaCompacta: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1), alignItems: 'center' },
+  linhaCompacta: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1), alignItems: 'flex-start' },
   limitada: { maxWidth: '100%', flexShrink: 1 },
   campo: { minWidth: 130, flexGrow: 1, flexBasis: 130, maxWidth: 220 },
   sozinho: { width: '100%', maxWidth: 220 },

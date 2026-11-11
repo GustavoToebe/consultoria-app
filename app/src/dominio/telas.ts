@@ -294,7 +294,7 @@ const TITULOS_FORA_DO_CATALOGO: readonly [string, string][] = [
   ['/entrar', 'Entrar'],
   ['/cadastro', 'Criar conta'],
   ['/convite-equipe', 'Convite da equipe'],
-  ['/convite', 'Convite'],
+  ['/convite', 'Convite de aluno'],
   ['/esqueci-senha', 'Esqueci a senha'],
   ['/redefinir-senha', 'Nova senha'],
   ['/inscricao', 'Inscrição'],

@@ -210,10 +210,10 @@ export function AbaAlimentos() {
           acao={dados.length ? { rotulo: 'Limpar filtros', aoTocar: limparFiltros } : pode('BIBLIOTECA_ALTERAR') ? { rotulo: 'Cadastrar alimento', aoTocar: () => setEditando('novo') } : undefined}
         />
       ) : null}
-      {lista.length ? <ListaDeLinhas>{lista.map((a) => (
+      {lista.length ? <ListaDeLinhas divisorias>{lista.map((a) => (
         <LinhaDaLista key={a.id} titulo={a.nome} metadados={resumoAlimento(a)} descricao={descricaoDoAlimento(a) ?? undefined}
           acoesAoLado
-          acoes={<Permitido codigo="BIBLIOTECA_ALTERAR"><IconeBotao Icone={Pencil} rotulo={`Editar ${a.nome}`} aoTocar={() => setEditando(a)} /></Permitido>} />
+          acoes={<Permitido codigo="BIBLIOTECA_ALTERAR"><IconeBotao Icone={Pencil} moldura rotulo={`Editar ${a.nome}`} aoTocar={() => setEditando(a)} /></Permitido>} />
       ))}</ListaDeLinhas> : null}
       {editando ? (
         <FolhaAlimento

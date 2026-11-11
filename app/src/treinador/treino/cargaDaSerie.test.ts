@@ -3,7 +3,7 @@ import { adicionarSerie, alterarGrupo, mudarQuantidade, novoExercicio, tecnicaVa
 import { previaDoGrupo } from '../../dominio/resumoDaSerie';
 import { validarExercicio } from '../../dominio/validacaoDoTreino';
 import { CONFIGURACAO_PADRAO } from '../../dominio/metodologiaPadrao';
-import { escolhaDeCargaDoPapel, modoAoEscolher, OPCOES_DO_RIR, percentuaisNoGrupo, textoParaOAluno } from './cargaDaSerie';
+import { cargaDoBloco, cargaPendente, escolhaDeCargaDoPapel, modoAoEscolher, OPCOES_DO_RIR, percentuaisNoGrupo, textoParaOAluno } from './cargaDaSerie';
 
 jest.mock('../../dominio/uid', () => { let n = 0; return { novoUid: () => `u${++n}` }; });
 
@@ -126,6 +126,22 @@ describe('percentual do aquecimento', () => {
   });
 });
 
+describe('coluna Carga da tabela dos blocos', () => {
+  test('% da WS, carga de trabalho, sem carga e carga fixa igual ou diferente', () => {
+    let s = adicionarSerie([], cfg, codigo('PREPARACAO'));
+    s = mudarQuantidade(s, agrupar(s)[0], 3, cfg);
+    s = adicionarSerie(s, cfg);
+    s = adicionarSerie(s, cfg, codigo('AQUECIMENTO'));
+    const [fs, ws, aq] = agrupar(s);
+    expect(cargaDoBloco(fs, cfg, 'kg')).toBe('50% · 70% · 85% a 90% da WS');
+    expect(cargaDoBloco(ws, cfg, 'kg')).toBe('Carga de trabalho');
+    expect(cargaDoBloco(aq, cfg, 'kg')).toBe('—');
+    const fixa = (kg: number) => ({ ...ws.series[0], carga: { modo: 'CARGA_FIXA' as const, valorKg: kg, percentualMin: null, percentualMax: null } });
+    expect(cargaDoBloco({ inicio: 0, series: [fixa(60), fixa(60)] }, cfg, 'kg')).toBe('60 kg');
+    expect(cargaDoBloco({ inicio: 0, series: [fixa(60), fixa(70)] }, cfg, 'kg')).toBe('60 kg · 70 kg');
+  });
+});
+
 describe('Para o aluno numa linha', () => {
   test('Aquecimento com % só na Série 1: um grupo, com o % dela e "—" nas outras', () => {
     const s = adicionarSerie([], cfg, codigo('AQUECIMENTO'));
@@ -166,5 +182,31 @@ describe('Para o aluno numa linha', () => {
     const s = adicionarSerie([], cfgComHifen, codigo('PREPARACAO'));
     const grupo = agrupar(s)[0];
     expect(textoParaOAluno(grupo, cfgComHifen, 'kg')).toBe('1×3 a 5 · FS - Força Especial · 85% da WS');
+  });
+});
+
+describe('carga pendente (âmbar) × carga inválida (vermelho)', () => {
+  const serie = (carga: object | null, tecnica?: object) => ({ carga, tecnica });
+  it('o % vazio da carga em % da WS e os kg vazios da carga fixa são pendência', () => {
+    expect(cargaPendente(serie({ modo: 'PERCENTUAL_WS', percentualMin: null }), 'carga.percentualMin')).toBe(true);
+    expect(cargaPendente(serie({ modo: 'CARGA_FIXA', valorKg: null }), 'carga.valorKg')).toBe(true);
+  });
+  it('valor preenchido e fora da faixa continua erro', () => {
+    expect(cargaPendente(serie({ modo: 'PERCENTUAL_WS', percentualMin: 0 }), 'carga.percentualMin')).toBe(false);
+    expect(cargaPendente(serie({ modo: 'CARGA_FIXA', valorKg: -1 }), 'carga.valorKg')).toBe(false);
+  });
+  it('"carga fixa não leva percentual" (mínimo vazio, máximo preenchido) não é pendência', () => {
+    expect(cargaPendente(serie({ modo: 'CARGA_FIXA', valorKg: 50, percentualMin: null, percentualMax: 80 }), 'carga.percentualMin')).toBe(false);
+  });
+  it('bloco do cluster e retomada sem carga são pendência, também pelo caminho do plano', () => {
+    expect(cargaPendente(serie(null, { cargasDosBlocos: [{ modo: 'DA_SERIE' }, null] }), 'tecnica.cargasDosBlocos[1]')).toBe(true);
+    expect(cargaPendente(serie(null, { retomadas: [{ carga: null }] }), 'tecnica.retomadas[0].carga')).toBe(true);
+    expect(cargaPendente(serie(null, { cargasDosBlocos: [{ modo: 'PERCENTUAL_WS', percentual: null }] }), 'tecnica.cargasDosBlocos[0].percentual')).toBe(true);
+    const plano = { sessoes: [{ exercicios: [{ series: [serie({ modo: 'CARGA_FIXA', valorKg: null })] }] }] };
+    expect(cargaPendente(plano, 'sessoes[0].exercicios[0].series[0].carga.valorKg')).toBe(true);
+  });
+  it('outros campos vazios (tipo, repetições) não viram "Falta a carga"', () => {
+    expect(cargaPendente({ tipo: null }, 'tipo')).toBe(false);
+    expect(cargaPendente({ repsMin: null }, 'repsMin')).toBe(false);
   });
 });

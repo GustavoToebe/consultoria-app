@@ -213,7 +213,7 @@ for (const largura of [390, 1280]) {
       });
       await page.goto('/treinador/numeros');
       await expect(page.getByText('Mês a mês')).toBeVisible();
-      await expect(page.getByText('Equipe', { exact: true })).toHaveCount(0);
+      await expect(page.getByText('Equipe hoje', { exact: true })).toHaveCount(0);
       await expect(page.getByText('Sem responsável')).toHaveCount(0);
       await expect(page.getByText(/Na equipe, atrasadas/)).toHaveCount(0);
       expect(naoTratadas).toEqual([]);

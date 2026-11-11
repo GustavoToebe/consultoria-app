@@ -7,7 +7,7 @@ import { json, MARCA, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from
 /**
  * Tela Marca, paletas (plano paletas-da-marca, passo 5): as 10 paletas em dois grupos (Escuras e Claras), a prévia na
  * paleta escolhida, o `temaPadrao` no PUT e a checagem da cor personalizada medida contra a paleta (decisão 4).
- * Os dois grupos são subgrupos (`group`) de um único `radiogroup` "Paleta padrão dos alunos". Dados fictícios. A cor `#386CB8` passa no Escuro e no Claro e some no cartão do Oceano (`dominio/paletas.test.ts`).
+ * Os dois grupos são subgrupos (`group`) de um único `radiogroup` "Tema padrão da consultoria". Dados fictícios. A cor `#386CB8` passa no Escuro e no Claro e some no cartão do Oceano (`dominio/paletas.test.ts`).
  */
 const rgb = (hex: string) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`;
 const ADMIN = { permissoes: [...PERMISSOES_TREINADOR, 'MARCA_ALTERAR'], perfil: { id: 'p1', nome: 'Administrador', acessoTotal: true } };
@@ -54,7 +54,7 @@ for (const temaDoEditor of ['CLARO', 'ESCURO'] as const) {
       await expect(page.getByText('Paleta Oceano', { exact: true })).toBeVisible();
 
       // Um radiogroup só, com os dois subgrupos dentro dele.
-      const todas = page.getByRole('radiogroup', { name: 'Paleta padrão dos alunos' });
+      const todas = page.getByRole('radiogroup', { name: 'Tema padrão da consultoria' });
       await expect(todas.getByRole('group')).toHaveCount(2);
       await expect(todas.getByRole('radio')).toHaveCount(Object.keys(PALETAS).length);
       // Sem rolagem horizontal na página e nenhuma opção passa da largura da janela; todas têm alvo de 44 px.

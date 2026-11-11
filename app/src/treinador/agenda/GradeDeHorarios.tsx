@@ -14,7 +14,7 @@ import { Selo } from '../../ui/Selo';
 import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
 import {
-  type AoAbrirItem, horarioDoItem, IconeDoStatus, rotuloDoItem, seloCurtoDoItem, toqueDoItem, useCorDaAgenda, useFundoDoItem,
+  type AoAbrirItem, horarioDoItem, IconeDoStatus, rotuloDoItem, seloCurtoDoItem, toqueDoItem, useCorDaAgenda, useCoresDoItem,
 } from './itemDaAgenda';
 
 /** Altura de uma hora: 48 px, como no Google Agenda. O item tem no mínimo o alvo de toque (44 px). */
@@ -35,6 +35,8 @@ interface Props {
   aoAbrirDia?: (data: string) => void;
   /** Clique num horário vazio (só no PC, com `AGENDA_ALTERAR`): abre o evento novo já com o dia e a hora. */
   aoCriarNoHorario?: (data: string, hora: string) => void;
+  /** Chave do item aberto na folha (`ItemDoCalendario.chave`): ganha o contorno forte. */
+  escolhido?: string | null;
 }
 
 /**
@@ -43,8 +45,8 @@ interface Props {
  * período) e a linha do "agora" no dia de hoje. O cabeçalho e a faixa ficam fora da rolagem. A grade é um bloco (borda do
  * bloco) e a linha dos dias é a faixa dele (`superficie3` com a linha forte embaixo); os itens são o nível de item.
  */
-export function GradeDeHorarios({ dias, itens, hoje, meus, chaveDoPeriodo, aoAbrir, aoAbrirDia, aoCriarNoHorario }: Props) {
-  const { cores, bordas } = useTema();
+export function GradeDeHorarios({ dias, itens, hoje, meus, chaveDoPeriodo, aoAbrir, aoAbrirDia, aoCriarNoHorario, escolhido = null }: Props) {
+  const { cores, bordas, marcaTexto } = useTema();
   const { height } = useWindowDimensions();
   const colunas = colunasDaGrade(itens, dias, { alturaPorHora: ALTURA_DA_HORA, alturaMinima: ALVO_TOQUE });
   const altura = alturaDaGrade(ALTURA_DA_HORA);
@@ -75,8 +77,9 @@ export function GradeDeHorarios({ dias, itens, hoje, meus, chaveDoPeriodo, aoAbr
           const dia = Number(c.data.slice(8, 10));
           const conteudo = <>
             <Texto variante="pequeno" cor={cores.textoSuave}>{DIAS_DA_SEMANA_CURTOS[diaDaSemanaIso(c.data) - 1]}</Texto>
-            <View style={[estilos.numero, ehHoje && { backgroundColor: cores.texto }]}>
-              <Texto variante="bloco" numerico cor={ehHoje ? cores.fundo : cores.texto}>{String(dia)}</Texto>
+            {/* Hoje como no `ui/Calendario`: o número na cor da marca, sem círculo invertido. */}
+            <View style={estilos.numero}>
+              <Texto variante="bloco" numerico cor={ehHoje ? marcaTexto : cores.texto}>{String(dia)}</Texto>
             </View>
           </>;
           return (
@@ -99,7 +102,7 @@ export function GradeDeHorarios({ dias, itens, hoje, meus, chaveDoPeriodo, aoAbr
             const mais = c.diaInteiro.length - visiveis.length;
             return (
               <View key={c.data} style={[estilos.faixaDoDia, { borderLeftColor: cores.divisor }]}>
-                {visiveis.map((item) => <ItemDeDiaInteiro key={item.chave} item={item} hoje={hoje} meus={meus} aoAbrir={aoAbrir} aoRotulo={setDiaInteiroAberto} />)}
+                {visiveis.map((item) => <ItemDeDiaInteiro key={item.chave} item={item} hoje={hoje} meus={meus} aoAbrir={aoAbrir} aoRotulo={setDiaInteiroAberto} escolhido={item.chave === escolhido} />)}
                 {mais > 0 ? (
                   <Pressable accessibilityRole="button" accessibilityLabel={`Mais ${mais} de dia inteiro em ${dataComDiaDaSemana(c.data)}. Abrir o dia`}
                     onPress={() => aoAbrirDia?.(c.data)} style={(e) => [estilos.mais, sobre(e) && { backgroundColor: cores.superficie3 }]}>
@@ -128,7 +131,7 @@ export function GradeDeHorarios({ dias, itens, hoje, meus, chaveDoPeriodo, aoAbr
               <Pressable accessible={false} focusable={false} tabIndex={-1} style={StyleSheet.absoluteFill}
                 onPress={(e) => aoCriarNoHorario(c.data, horaDoPontoDaGrade(pontoY(e), ALTURA_DA_HORA))} />
             ) : null}
-            {c.segmentos.map((s) => <Bloco key={s.chave} segmento={s} hoje={hoje} meus={meus} aoAbrir={aoAbrir} />)}
+            {c.segmentos.map((s) => <Bloco key={s.chave} segmento={s} hoje={hoje} meus={meus} aoAbrir={aoAbrir} escolhido={s.item.chave === escolhido} />)}
             {c.data === hoje ? (
               <View pointerEvents="none" aria-hidden style={[estilos.agora, { top: posicaoDoMinuto(minutoDeAgora, ALTURA_DA_HORA) }]}>
                 <View style={[estilos.pontoDoAgora, { backgroundColor: cores.texto }]} />
@@ -169,15 +172,15 @@ function useAgora(): Date {
 }
 
 /**
- * Bloco de um item com horário. A cor da agenda é a faixa de 8 px à esquerda (a borda, que o e2e confere) e o fundo
- * tingido; título e horário na cor `texto`. O que entra depende da altura e da largura medidas (`arranjoDoBloco`): no
+ * Bloco de um item com horário. A cor da agenda é só a faixa de 8 px à esquerda (a borda, que o e2e confere); o fundo é
+ * neutro e título e horário vão na cor `texto`. O que entra depende da altura e da largura medidas (`arranjoDoBloco`): no
  * bloco curto (15 a 30 min) ou estreito (sobrepostos) o status vira ícone, e o nome acessível o diz por extenso.
  */
-function Bloco({ segmento: s, hoje, meus, aoAbrir }: { segmento: SegmentoNaGrade; hoje: string; meus: boolean; aoAbrir: AoAbrirItem }) {
+function Bloco({ segmento: s, hoje, meus, aoAbrir, escolhido }: { segmento: SegmentoNaGrade; hoje: string; meus: boolean; aoAbrir: AoAbrirItem; escolhido: boolean }) {
   const { cores, fatorTexto } = useTema();
   const { aberto, eventos } = useRotulo();
   const corDe = useCorDaAgenda();
-  const fundoDe = useFundoDoItem();
+  const coresDe = useCoresDoItem();
   const [largura, setLargura] = useState(0);
   const item = s.item;
   const status = seloCurtoDoItem(item, hoje);
@@ -190,7 +193,7 @@ function Bloco({ segmento: s, hoje, meus, aoAbrir }: { segmento: SegmentoNaGrade
     <View pointerEvents="box-none" style={[estilos.lugar, { top: s.topo, height: s.altura, left: `${s.esquerda * 100}%`, width: `${s.largura * 100}%` }, aberto && { height: undefined, minHeight: s.altura, zIndex: 10 }]}>
       <Pressable {...toqueDoItem(item, meus, aoAbrir)} accessibilityLabel={rotuloDoItem(item, hoje)}
         onLayout={(e) => setLargura(Math.round(e.nativeEvent.layout.width))} {...eventos}
-        style={(e) => [estilos.bloco, { backgroundColor: fundoDe(faixa, sobre(e), item.cancelado), borderColor: cores.borda, borderLeftColor: faixa }]}>
+        style={(e) => [estilos.bloco, coresDe(sobre(e), escolhido), { borderLeftColor: faixa }]}>
         <View style={estilos.linhaDoBloco}>
           {arranjo.horarioSeparado ? null : icone}
           <Texto variante="pequeno" cor={cores.texto} numberOfLines={aberto ? undefined : arranjo.linhasDoTitulo}
@@ -212,14 +215,14 @@ function Bloco({ segmento: s, hoje, meus, aoAbrir }: { segmento: SegmentoNaGrade
 }
 
 /**
- * Item de dia inteiro (evento ou atualização) na faixa do topo: a mesma faixa de 8 px e o mesmo fundo tingido do bloco, e
+ * Item de dia inteiro (evento ou atualização) na faixa do topo: a mesma faixa de 8 px e o mesmo fundo neutro do bloco, e
  * o status (atualização atrasada ou adiada, item cancelado) escrito no selo ao lado do título quando cabe, ou em ícone.
  */
-function ItemDeDiaInteiro({ item, hoje, meus, aoAbrir, aoRotulo }: { item: ItemDoCalendario; hoje: string; meus: boolean; aoAbrir: AoAbrirItem; aoRotulo: (aberto: boolean) => void }) {
+function ItemDeDiaInteiro({ item, hoje, meus, aoAbrir, aoRotulo, escolhido }: { item: ItemDoCalendario; hoje: string; meus: boolean; aoAbrir: AoAbrirItem; aoRotulo: (aberto: boolean) => void; escolhido: boolean }) {
   const { cores, fatorTexto } = useTema();
   const { aberto, eventos } = useRotulo(aoRotulo);
   const corDe = useCorDaAgenda();
-  const fundoDe = useFundoDoItem();
+  const coresDe = useCoresDoItem();
   const [largura, setLargura] = useState(0);
   const status = seloCurtoDoItem(item, hoje);
   const forma = statusNoDiaInteiro(largura, !!status, escalar(16, fatorTexto));
@@ -229,9 +232,7 @@ function ItemDeDiaInteiro({ item, hoje, meus, aoAbrir, aoRotulo }: { item: ItemD
     <View style={[estilos.reserva, aberto && estilos.porCima]}>
     <Pressable {...toqueDoItem(item, meus, aoAbrir)} accessibilityLabel={rotuloDoItem(item, hoje)} {...eventos}
       onLayout={(e) => setLargura(Math.round(e.nativeEvent.layout.width))}
-      style={(e) => [estilos.diaInteiro, aberto && estilos.soltoDoFluxo, {
-        backgroundColor: fundoDe(faixa, sobre(e), item.cancelado), borderColor: cores.borda, borderLeftColor: faixa,
-      }]}>
+      style={(e) => [estilos.diaInteiro, aberto && estilos.soltoDoFluxo, coresDe(sobre(e), escolhido), { borderLeftColor: faixa }]}>
       {forma === 'icone' && status ? <IconeDoStatus selo={status} /> : null}
       <Texto variante="pequeno" cor={cores.texto} numberOfLines={aberto ? undefined : 1} style={[estilos.tituloDoBloco, item.cancelado && estilos.riscado]}>{aberto ? tituloCompleto(item) : item.titulo}</Texto>
       {forma === 'selo' && status ? <View style={estilos.seloAoLado}><Selo texto={status.texto} tipo={status.tipo} Icone={status.Icone} /></View> : null}

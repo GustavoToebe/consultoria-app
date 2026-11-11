@@ -13,6 +13,7 @@ import { useAviso } from '../ui/Aviso';
 import { textoDoErro } from '../ui/erros';
 import { Folha } from '../ui/Folha';
 import { Selo } from '../ui/Selo';
+import { coresDaSelecao } from '../ui/selecao';
 import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
 
@@ -73,7 +74,7 @@ export function SeletorPlano({ rotulo, soComVarios }: { rotulo: string | null; /
         onPress={() => setAberto(true)}
         style={({ pressed }) => [
           estilos.barra,
-          { backgroundColor: cores.superficie, borderColor: cores.borda, opacity: pressed ? 0.75 : 1 },
+          { backgroundColor: cores.superficie, borderColor: cores.divisor, opacity: pressed ? 0.75 : 1 },
         ]}>
         <View style={estilos.textos}>
           <Texto numerico variante="suave">{texto}</Texto>
@@ -97,8 +98,9 @@ export function SeletorPlano({ rotulo, soComVarios }: { rotulo: string | null; /
                 style={({ pressed }) => [
                   estilos.opcao,
                   {
-                    backgroundColor: pressed ? cores.superficie3 : cores.superficie,
-                    borderColor: selecionada ? cores.sucesso : cores.borda,
+                    // Seleção neutra (`ui/selecao`): superfície de seleção, contorno forte e o ✓ neutro.
+                    backgroundColor: coresDaSelecao(cores, selecionada || pressed).fundo,
+                    borderColor: selecionada ? cores.texto : cores.divisor,
                     opacity: abrindo !== null && abrindo !== p.id ? 0.5 : 1,
                   },
                 ]}>
@@ -111,7 +113,7 @@ export function SeletorPlano({ rotulo, soComVarios }: { rotulo: string | null; /
                 </View>
                 <View style={estilos.lado}>
                   <SeloStatus pasta={p} />
-                  {selecionada ? <Check size={20} color={cores.sucesso} strokeWidth={3} /> : null}
+                  {selecionada ? <Check size={20} color={cores.texto} strokeWidth={3} /> : null}
                 </View>
               </Pressable>
             );

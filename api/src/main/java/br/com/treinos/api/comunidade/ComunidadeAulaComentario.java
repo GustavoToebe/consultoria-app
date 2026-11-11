@@ -36,6 +36,9 @@ public class ComunidadeAulaComentario {
     @Column(nullable = false)
     private boolean oculto;
 
+    @Column(name = "da_equipe", nullable = false)
+    private boolean daEquipe;
+
     @Column(name = "criado_em", nullable = false, updatable = false)
     private Instant criadoEm = Instant.now();
 
@@ -53,6 +56,8 @@ public class ComunidadeAulaComentario {
         this.oculto = true;
     }
 
+    public void marcarDaEquipe() { this.daEquipe = true; }
+
     public UUID getId() { return id; }
     public UUID getConsultoriaId() { return consultoriaId; }
     public UUID getAulaId() { return aulaId; }
@@ -60,6 +65,7 @@ public class ComunidadeAulaComentario {
     public String getAutorNome() { return autorNome; }
     public String getAutorFotoUrl() { return autorFotoUrl; }
     public String getTexto() { return texto; }
+    public boolean isDaEquipe() { return daEquipe; }
     public boolean isOculto() { return oculto; }
     public Instant getCriadoEm() { return criadoEm; }
 }

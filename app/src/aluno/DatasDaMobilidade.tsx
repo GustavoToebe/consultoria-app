@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { dataCurta } from '../dominio/formatos';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
+import { coresDaSelecao } from '../ui/selecao';
 import { Texto } from '../ui/Texto';
 
 /**
@@ -50,13 +51,13 @@ export function DatasDaMobilidade({
             style={({ pressed }) => [
               estilos.chip,
               {
-                backgroundColor: escolhido ? cores.texto : cores.superficie2,
-                borderColor: escolhido ? cores.texto : cores.borda,
-                opacity: pressed && !escolhido ? 0.75 : 1,
+                // Seleção neutra (`ui/selecao`): superfície de seleção + contorno forte, nunca inversão nem cor.
+                backgroundColor: coresDaSelecao(cores, escolhido || pressed).fundo,
+                borderColor: escolhido ? cores.texto : cores.bordaCampo,
               },
             ]}>
-            {feito ? <Check size={16} color={escolhido ? cores.fundo : cores.sucesso} strokeWidth={2.5} /> : null}
-            <Texto numerico style={[estilos.texto, { color: escolhido ? cores.fundo : cores.texto }]}>{rotulo}</Texto>
+            {feito ? <Check size={16} color={cores.texto} strokeWidth={2.5} /> : null}
+            <Texto numerico style={[estilos.texto, { color: cores.texto }]}>{rotulo}</Texto>
           </Pressable>
         );
       })}

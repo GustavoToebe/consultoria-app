@@ -43,8 +43,8 @@ describe('cobranças', () => {
     expect(situacaoDaCobrancaParaTela(cobranca('ISENTA')).texto).toBe('Isenta');
   });
   it('competência de um mês e de vários', () => {
-    expect(competenciaParaTela('2026-09-01', '2026-09-30')).toBe('09/2026');
-    expect(competenciaParaTela('2026-07-01', '2026-09-30')).toBe('07/2026 a 09/2026');
+    expect(competenciaParaTela('2026-09-01', '2026-09-30')).toBe('Setembro/2026');
+    expect(competenciaParaTela('2026-07-01', '2026-09-30')).toBe('Julho/2026 a Setembro/2026');
   });
   it('resumo separa as vencidas das abertas no prazo', () => {
     const lista = [cobranca('PAGA'), cobranca('ABERTA', true), cobranca('ABERTA'), cobranca('ISENTA')];

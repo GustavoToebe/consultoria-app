@@ -263,15 +263,18 @@ function CartaoDoQuadro({ item, movendo, aoAbrir, aoMover, aoComecarArrasto, aoS
     <GestureDetector gesture={gesto}>
       <Animated.View style={[estilos.cartao, { borderColor: cores.borda, backgroundColor: cores.superficie2, opacity: movendo ? 0.5 : 1 }, estilo]}>
         <Pressable accessibilityRole="button" accessibilityLabel={`Abrir inscrição de ${item.nome}`} onPress={tocar} style={estilos.abrir}>
+          {/* Nome → (a etapa é a coluna) → próximo retorno → responsável; o resto é contexto. Cor só na exceção. */}
           <Texto variante="bloco" numberOfLines={2}>{item.nome}</Texto>
+          {retorno || item.ciclo > 1 || temDuplicidade(item.duplicidade) ? (
+            <View style={estilos.selos}>
+              {retorno ? <Selo texto={seloRetorno ? `Retorno: ${seloRetorno.texto}` : `Retorno ${dataParaTela(retorno.data)}`} tipo={seloRetorno?.tipo ?? 'neutro'} /> : null}
+              {item.ciclo > 1 ? <Selo texto={`${item.ciclo}º atendimento`} tipo="neutro" /> : null}
+              {temDuplicidade(item.duplicidade) ? <Selo texto="Possível duplicidade" tipo="atencao" /> : null}
+            </View>
+          ) : null}
           <Texto variante="pequeno">{item.responsavelNome ?? (item.responsavelId ? 'Membro inativo' : 'Sem responsável')} · {instanteRelativo(item.ultimaAtividadeEm)}</Texto>
           {item.propostaPlanoNome ? <Texto variante="pequeno" numberOfLines={1}>Plano: {item.propostaPlanoNome}</Texto> : null}
           {item.indicadoPor ? <Texto variante="pequeno" numberOfLines={1}>Indicado por: {item.indicadoPor}</Texto> : null}
-          <View style={estilos.selos}>
-            {retorno ? <Selo texto={seloRetorno ? `Retorno: ${seloRetorno.texto}` : `Retorno ${dataParaTela(retorno.data)}`} tipo={seloRetorno?.tipo ?? 'neutro'} /> : null}
-            {item.ciclo > 1 ? <Selo texto={`${item.ciclo}º atendimento`} tipo="neutro" /> : null}
-            {temDuplicidade(item.duplicidade) ? <Selo texto="Possível duplicidade" tipo="atencao" /> : null}
-          </View>
         </Pressable>
         <Botao rotulo="Mover para" rotuloAcessivel={`Mover ${item.nome} para`} Icone={ArrowRightLeft} tipo="fantasma" aoTocar={aoMover}
           desabilitado={movendo} motivo="Movendo." />

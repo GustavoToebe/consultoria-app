@@ -30,7 +30,7 @@ export interface FiltroDeVarias {
 
 /**
  * Barra única das abas da Biblioteca: a mesma barra de filtros das outras listas (`ui/BarraDeFiltros`; busca, botão
- * "Filtros", "Filtrado por"), com o filtro de cada aba (grupo, fatores ou categoria) no painel. Sem filtro (lista ainda
+ * "Filtros", "Filtrando:"), com o filtro de cada aba (grupo, fatores ou categoria) no painel. Sem filtro (lista ainda
  * sem categorias, por exemplo) fica só a busca.
  */
 export function BarraDaBiblioteca<T extends string>({ rotulo, placeholder, valor, aoMudar, filtro }: Busca & { filtro?: FiltroDeUmaOpcao<T> | FiltroDeVarias | null }) {

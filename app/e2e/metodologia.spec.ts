@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import type { Configuracao, Receita, Serie } from '../src/api/tipos';
 import { CONFIGURACAO_PADRAO } from '../src/dominio/metodologiaPadrao';
 import { json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
+import { linhaDaSerie } from './linhaDaSerie';
 
 // Criação completa pela tela, com dados fictícios e API simulada.
 for (const largura of [390, 1280]) {
@@ -176,9 +177,9 @@ for (const largura of [390, 1280]) {
     await page.getByRole('button', { name: 'Aplicar receita Pirâmide decrescente', exact: true }).click();
     await expect(page.getByText('Substitui as séries deste exercício', { exact: true })).toHaveCount(0);
     // A receita vira três abas, uma por faixa de repetições, todas "WS + Pirâmide decrescente"; a de 10 reps é a segunda.
-    await expect(page.getByRole('tab', { name: /^Série \d · WS/ })).toHaveCount(3);
-    await page.getByRole('tab', { name: /^Série 2 · WS/ }).click();
-    await expect(page.getByRole('tab', { name: /^Série 2 · WS/ })).toHaveAttribute('aria-selected', 'true');
+    await expect(linhaDaSerie(page, /^Série \d · WS/)).toHaveCount(3);
+    await linhaDaSerie(page, /^Série 2 · WS/).click();
+    await expect(linhaDaSerie(page, /^Série 2 · WS/, true)).toBeVisible();
     await expect(page.getByText(/1×10 · WS \+ Pirâmide decrescente/).first()).toBeVisible();
     await expect(page.getByText(/^Editando: Série 2( ·|$)/)).toBeVisible();
     expect(api.errosDaPagina).toEqual([]);

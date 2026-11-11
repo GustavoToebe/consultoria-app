@@ -5,26 +5,26 @@ export interface Paleta {
   id: string;
   nome: string;
   cor: string;
-  descricao: string;
 }
 
 /**
- * Cores prontas para a marca da consultoria. O servidor continua recebendo só o `#RRGGBB`: a paleta é um atalho.
+ * Cores prontas para a marca da consultoria. O servidor continua recebendo só o `#RRGGBB`: a paleta é um atalho. Só nome e
+ * amostra, sem frase de emoção ou resultado (guia de 11/11, pág. 16).
  * Todas têm texto branco com contraste ≥ 4,5 por cima e ≥ 3 contra o fundo dos dois temas (ícone e menu ativo).
  */
 export const PALETAS: Paleta[] = [
-  { id: 'vermelho', nome: 'Vermelho intenso', cor: '#C62828', descricao: 'Força e energia' },
-  { id: 'laranja', nome: 'Laranja', cor: '#C2410C', descricao: 'Calor e explosão' },
-  { id: 'ambar', nome: 'Âmbar', cor: '#A16207', descricao: 'Ouro e conquista' },
-  { id: 'verde', nome: 'Verde', cor: '#15803D', descricao: 'Saúde e equilíbrio' },
-  { id: 'esmeralda', nome: 'Esmeralda', cor: '#047857', descricao: 'Profundo e sóbrio' },
-  { id: 'turquesa', nome: 'Turquesa', cor: '#0F766E', descricao: 'Leve e moderno' },
-  { id: 'ciano', nome: 'Ciano', cor: '#0E7490', descricao: 'Água e foco' },
-  { id: 'azul', nome: 'Azul', cor: '#2563EB', descricao: 'Confiança' },
-  { id: 'indigo', nome: 'Índigo', cor: '#4F46E5', descricao: 'Concentração' },
-  { id: 'roxo', nome: 'Roxo', cor: '#7C3AED', descricao: 'Ousado' },
-  { id: 'magenta', nome: 'Magenta', cor: '#BE185D', descricao: 'Vibrante' },
-  { id: 'bronze', nome: 'Bronze', cor: '#9A5B13', descricao: 'Terroso, clássico' },
+  { id: 'vermelho', nome: 'Vermelho intenso', cor: '#C62828' },
+  { id: 'laranja', nome: 'Laranja', cor: '#C2410C' },
+  { id: 'ambar', nome: 'Âmbar', cor: '#A16207' },
+  { id: 'verde', nome: 'Verde', cor: '#15803D' },
+  { id: 'esmeralda', nome: 'Esmeralda', cor: '#047857' },
+  { id: 'turquesa', nome: 'Turquesa', cor: '#0F766E' },
+  { id: 'ciano', nome: 'Ciano', cor: '#0E7490' },
+  { id: 'azul', nome: 'Azul', cor: '#2563EB' },
+  { id: 'indigo', nome: 'Índigo', cor: '#4F46E5' },
+  { id: 'roxo', nome: 'Roxo', cor: '#7C3AED' },
+  { id: 'magenta', nome: 'Magenta', cor: '#BE185D' },
+  { id: 'bronze', nome: 'Bronze', cor: '#9A5B13' },
 ];
 
 /** Paleta com exatamente esta cor (sem diferenciar maiúsculas), ou `undefined` = "Cor personalizada". */

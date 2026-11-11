@@ -17,8 +17,9 @@ describe('seloDoEditor', () => {
   });
 
   it('plano salvo diz a relação com o que o aluno vê', () => {
-    expect(seloDoEditor('salvo', null, { versao: 0, alterado: false })).toEqual({ texto: 'Ainda não publicado', tipo: 'atencao' });
-    expect(seloDoEditor('salvo', null, { versao: 2, alterado: true })).toEqual({ texto: 'Rascunho diferente do publicado', tipo: 'atencao' });
+    // Salvo e sem erro é neutro; o âmbar fica com "Alterações não salvas".
+    expect(seloDoEditor('salvo', null, { versao: 0, alterado: false })).toEqual({ texto: 'Ainda não publicado', tipo: 'neutro' });
+    expect(seloDoEditor('salvo', null, { versao: 2, alterado: true })).toEqual({ texto: 'Alterações não publicadas', tipo: 'neutro' });
     expect(seloDoEditor('salvo', null, { versao: 2, alterado: false })).toEqual({ texto: 'Publicado v2', tipo: 'sucesso' });
   });
 
@@ -33,7 +34,7 @@ describe('motivoSemPublicar', () => {
   const publicado = { versao: 2, alterado: false, ativo: true };
 
   it('publicado, ativo e sem alteração: desabilitado com o motivo', () => {
-    expect(motivoSemPublicar('salvo', publicado)).toBe('Nada mudou desde a v2 publicada.');
+    expect(motivoSemPublicar('salvo', publicado)).toBe('Nada novo para publicar: o aluno já vê a v2.');
   });
 
   it('alteração (salva ou por salvar), nunca publicado ou plano inativo: habilitado', () => {

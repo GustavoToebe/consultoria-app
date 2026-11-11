@@ -2,8 +2,8 @@ import type { ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
-import { useTema } from '../tema/TemaProvider';
 import { espaco, LARGURA_MAXIMA } from '../tema/tokens';
+import { useFundoDaArea } from './fundoDaArea';
 import { RolagemComTopo } from './RolagemComTopo';
 
 interface Props {
@@ -19,15 +19,15 @@ interface Props {
 
 /**
  * Base de toda tela: SafeAreaView do react-native-safe-area-context (o do react-native está obsoleto e quebrou o
- * topo no protótipo), fundo do tema e conteúdo centralizado até LARGURA_MAXIMA. Com rolagem própria, mostra o botão
+ * topo no protótipo), fundo da área (`painel` ao lado do menu no PC, `fundo` no resto) e conteúdo centralizado até LARGURA_MAXIMA. Com rolagem própria, mostra o botão
  * "voltar ao início da página" (`RolagemComTopo`).
  */
 export function Tela({ children, rolar = true, largura = LARGURA_MAXIMA, bordas = ['top', 'bottom'], centrado }: Props) {
-  const { cores } = useTema();
+  const fundo = useFundoDaArea();
   const larguraUtil = Math.min(largura, LARGURA_MAXIMA);
   const conteudo = <View style={[estilos.conteudo, { maxWidth: larguraUtil }, !rolar && { flex: 1, minHeight: 0 }]}>{children}</View>;
   return (
-    <SafeAreaView edges={bordas} style={[estilos.raiz, { backgroundColor: cores.fundo }]}>
+    <SafeAreaView edges={bordas} style={[estilos.raiz, { backgroundColor: fundo }]}>
       <KeyboardAvoidingView style={estilos.raiz} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {rolar ? (
           <RolagemComTopo preencher contentContainerStyle={[estilos.rolagem, centrado && estilos.centrado]}>{conteudo}</RolagemComTopo>

@@ -176,7 +176,7 @@ function LinhaDaCobranca({ cobranca, modo, children }: { cobranca: CobrancaDoAlu
   const mes = rotuloDoMes(cobranca.competencia);
   const valor = centavosParaTela(cobranca.valorCentavos);
   return (
-    <View style={[estilos.cobranca, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
+    <View style={[estilos.cobranca, { borderColor: cores.divisor, backgroundColor: cores.superficie2 }]}>
       <View accessible accessibilityLabel={`${mes}, ${valor}, ${selo.rotulo}. ${detalhe}`} style={estilos.textos}>
         <View style={estilos.linha}>
           <Texto variante="bloco">{mes}</Texto>

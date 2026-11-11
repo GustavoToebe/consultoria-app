@@ -6,6 +6,7 @@ import { rotuloDaSessao } from '../../dominio/editorTreino';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../../tema/tokens';
 import { FaixaDeChips } from '../../ui/FaixaDeChips';
+import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
 
 const ICONES: Record<TipoSessao, LucideIcon> = {
@@ -27,7 +28,8 @@ interface Props {
 
 /**
  * Uma sessão por vez: chips ("Seg · Costas" e quantos exercícios) que quebram linha no PC e rolam no celular, o
- * selecionado invertido, ponto vermelho nas sessões com erro e o chip "+ Sessão" no fim. As contagens da sessão
+ * selecionado neutro (superfície de seleção, contorno na cor do texto e o texto pleno; os outros em texto secundário,
+ * guia premium pág. 9), ponto vermelho nas sessões com erro e o chip "+ Sessão" no fim. As contagens da sessão
  * aberta ficam uma vez só, no cabeçalho "Sessões" (`ContadoresDoTreino`), e o resumo dela embaixo da lista.
  */
 export function SeletorDeSessoes({ sessoes, selecionada, comProblema, aoSelecionar, aoAdicionar }: Props) {
@@ -40,7 +42,7 @@ export function SeletorDeSessoes({ sessoes, selecionada, comProblema, aoSelecion
           const erro = comProblema.has(s.uid);
           const Icone = ICONES[s.tipo] ?? Dumbbell;
           const rotulo = rotuloDaSessao(s, i);
-          const corTexto = ativo ? cores.fundo : cores.texto;
+          const corTexto = ativo ? cores.texto : cores.textoSuave;
           return (
             <Pressable
               key={s.uid}
@@ -48,10 +50,10 @@ export function SeletorDeSessoes({ sessoes, selecionada, comProblema, aoSelecion
               accessibilityState={{ selected: ativo }}
               accessibilityLabel={`${rotulo}, ${quantos(s.exercicios.length, 'exercício', 'exercícios')}${erro ? ', precisa corrigir' : ''}`}
               onPress={() => aoSelecionar(s.uid)}
-              style={({ pressed }) => [
+              style={(st) => [
                 estilos.chip,
                 {
-                  backgroundColor: ativo ? cores.texto : pressed ? cores.superficie3 : cores.superficie2,
+                  backgroundColor: ativo || sobre(st) ? cores.superficie3 : cores.superficie2,
                   borderColor: ativo ? cores.texto : cores.borda,
                 },
               ]}>
@@ -61,7 +63,7 @@ export function SeletorDeSessoes({ sessoes, selecionada, comProblema, aoSelecion
               <View style={[estilos.contagem, { borderColor: corTexto }]} accessible={false}>
                 <Texto numerico style={[estilos.numero, { color: corTexto }]}>{s.exercicios.length}</Texto>
               </View>
-              {erro ? <View style={[estilos.ponto, { backgroundColor: cores.perigo, borderColor: ativo ? cores.texto : cores.superficie2 }]} /> : null}
+              {erro ? <View style={[estilos.ponto, { backgroundColor: cores.perigo, borderColor: ativo ? cores.superficie3 : cores.superficie2 }]} /> : null}
             </Pressable>
           );
         })}
@@ -69,10 +71,10 @@ export function SeletorDeSessoes({ sessoes, selecionada, comProblema, aoSelecion
           accessibilityRole="button"
           accessibilityLabel="Adicionar sessão"
           onPress={aoAdicionar}
-          style={({ pressed }) => [
+          style={(st) => [
             estilos.chip,
             estilos.adicionar,
-            { borderColor: cores.bordaCampo, backgroundColor: pressed ? cores.superficie3 : 'transparent' },
+            { borderColor: cores.bordaCampo, backgroundColor: sobre(st) ? cores.superficie3 : 'transparent' },
           ]}>
           <Plus size={16} color={cores.texto} strokeWidth={2} />
           <Texto style={[estilos.texto, { color: cores.texto }]}>Sessão</Texto>

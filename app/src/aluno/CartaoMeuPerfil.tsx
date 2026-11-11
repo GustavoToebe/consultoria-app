@@ -18,6 +18,7 @@ import { AlvoDeRolagem } from '../ui/AlvoDeRolagem';
 import { useAviso } from '../ui/Aviso';
 import { Botao } from '../ui/Botao';
 import { CaixaSelecao } from '../ui/CaixaSelecao';
+import { MensagemDeErro } from '../ui/Campo';
 import { Interruptor } from '../ui/Campos';
 import { Cartao } from '../ui/Cartao';
 import { Esqueleto } from '../ui/Esqueleto';
@@ -122,7 +123,7 @@ export function CartaoMeuPerfil() {
   };
 
   const erroDoGrupo = (campo: string) =>
-    erros[campo] ? <Texto variante="pequeno" cor={cores.perigo} accessibilityLiveRegion="polite">{erros[campo]}</Texto> : null;
+    erros[campo] ? <MensagemDeErro erro={erros[campo]} /> : null;
 
   return (
     <AlvoDeRolagem chave={CHAVE_DO_MEU_PERFIL}>

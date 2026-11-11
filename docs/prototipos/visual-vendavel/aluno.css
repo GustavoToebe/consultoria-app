@@ -1,0 +1,296 @@
+/* Prévia "visual vendável", telas do aluno (11/11/2026). Dados fictícios (D8). Nada aqui fala com a API.
+   Carregar DEPOIS do base.css. Só peças do aluno; o resto vem do base.css (índice no topo dele).
+   Acabamento único (3c): contorno de var(--bw) em var(--divisor), raio 12 no cartão e 8 no controle, sem sombra.
+   A marca só no cartão Hoje, no botão principal, em .sobretitulo e .ordem e no progresso; verde só no que a pessoa
+   acabou de marcar (.ok--agora, .item-mob.agora); a cor do tipo só na série da vez e no resumo do topo do exercício.
+   Os estados da prévia (antes .chave-prev na página) moram na barra "Prévia" (<template id="prot-extra">).
+
+   ÍNDICE DAS PEÇAS DO ALUNO
+   ------------------------------------------------------------------------------------------------------------------
+   Casca           barra inferior também em 1280; scroll-padding; .rodape-fixo > .rodape-fixo-corpo (acima da barra)
+   S1              html[data-marca-baixa] = marca crua com contraste < 3 sobre a superfície: sólido ganha contorno
+   Início          .cartao-hoje (único sólido da marca) > .sobretitulo.hoje-sobre .hoje-titulo .hoje-linha
+                   .hoje-progresso .hoje-selo .botao--sobre-marca · .semana-dias.com-cor · .grade-atalhos > a.atalho
+   Sessão          .barra-series (um segmento por série) + .legenda-curta · .exercicio-dia (+ --proximo, --feito)
+                   · .ok (✓ neutro) / .ok--agora (✓ verde: acabou de marcar)
+   Exercício       li.serie (+ --trabalho, --leve, --agora: só ela leva a cor do tipo) > .serie-cab .serie-meta
+                   .serie-registro (.campo-grande) .serie-sugestao .botao-check · .painel-serie · .blocos > .bloco
+                   · button.serie-feita (linha feita: nome | kg | reps alinhados à direita | Corrigir) · .explicacao
+   Dieta           .faixa-total · .macros · .linha-do-tempo.refeicoes > .refeicao (+ --agora) · .item-dieta + .qtd
+                   · .dieta-grade (coluna lateral a partir de 1024)
+   Mobilidade      .grupo-mob > button.grupo-mob-cab + ul.itens-mob > li.item-mob(.feito .agora .acabou) > .marcar-mob
+   Movimento       @keyframes vv-assenta / vv-aparece (só com prefers-reduced-motion: no-preference)
+   ------------------------------------------------------------------------------------------------------------------ */
+
+/* ====== casca do aluno ====== */
+html:has(body[data-casca="aluno"]) { scroll-padding-bottom: 96px; scroll-padding-top: 16px; }
+html:has(.rodape-fixo:not([hidden])) { scroll-padding-bottom: 176px; }
+.casca--aluno .casca-area:has(.rodape-fixo:not([hidden])) { padding-bottom: 164px; }
+
+/* rodapé fixo: acima da barra inferior (65 px = 4 + 56 + 4 + 1 de borda), nunca por cima dela */
+.rodape-fixo { position: fixed; left: 0; right: 0; bottom: calc(65px + env(safe-area-inset-bottom)); z-index: 19; background: var(--sup); border-top: var(--bw) solid var(--divisor); }
+.rodape-fixo-corpo { max-width: 720px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 12px; }
+.rodape-fixo-corpo .botao--primario { flex: 1; min-width: 0; min-height: 52px; padding: 6px 16px; }
+.rodape-fixo-corpo .botao--primario span { overflow: hidden; text-overflow: ellipsis; }
+.rodape-2l { display: flex; flex-direction: column; align-items: center; line-height: 1.25; min-width: 0; max-width: 100%; }
+.rodape-2l small { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.rodape-2l > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* A ação principal do aluno (cartão Hoje e rodapé fixo) não encolhe na densidade de PC: o prefixo precisa vencer
+   html[data-cor="calma"] .botao do base.css */
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  html[data-cor="calma"] .botao--sobre-marca,
+  html[data-cor="calma"] .rodape-fixo-corpo .botao--primario { min-height: 52px; padding: 6px 16px; font-size: var(--t-corpo); font-weight: 600; }
+}
+
+/* atalho para a mobilidade dentro do Treino (uma linha tocável) */
+.linha-mob { flex-direction: row; align-items: center; gap: 12px; padding: 12px 16px; min-height: 64px; text-decoration: none; color: var(--texto); }
+.linha-mob > span:nth-child(2) { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.linha-mob > .ic { color: var(--suave); }
+
+/* ====== S1: marca escura sobre paleta escura (contraste da cor crua com a superfície < 3) ======
+   contorno, não sombra; no botão vai na borda para não brigar com o anel de foco */
+html[data-marca-baixa] .botao--primario { border-color: var(--marca-texto); }
+html[data-marca-baixa] .cartao-hoje { outline: 2px solid var(--marca-texto); outline-offset: -2px; }
+
+/* ====== Início: cartão Hoje (único sólido da marca; sobre ele só texto em sobreMarca) ====== */
+.cartao-hoje { background: var(--marca); color: var(--sobre-marca); border-radius: var(--raio); padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+.cartao-hoje .sobretitulo { color: var(--sobre-marca); }
+.hoje-sobre { display: flex; flex-wrap: wrap; row-gap: 8px; }
+.hoje-titulo { font-size: 24px; font-weight: 700; line-height: 1.2; letter-spacing: -.015em; }
+.hoje-linha { font-size: var(--t-corpo); font-variant-numeric: tabular-nums; }
+.hoje-linha + .hoje-linha { margin-top: -8px; }
+.hoje-progresso { display: flex; flex-direction: column; gap: 6px; }
+.hoje-progresso .progresso { height: 8px; background: color-mix(in srgb, var(--sobre-marca) 28%, transparent); }
+.hoje-progresso .progresso > span { background: var(--sobre-marca); }
+.hoje-selo { display: inline-flex; align-items: center; gap: 4px; min-height: 24px; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; border: var(--bw) solid var(--sobre-marca); }
+.hoje-selo .ic { width: 14px; height: 14px; }
+.botao--sobre-marca { background: var(--sobre-marca); border-color: var(--sobre-marca); color: var(--marca); min-height: 52px; font-weight: 600; }
+@media (hover: hover) { .botao--sobre-marca:hover { background: var(--sobre-marca); filter: brightness(.94); } }
+.cartao-hoje .botao--sobre-marca:focus-visible { outline-color: var(--sobre-marca); outline-offset: 3px; }
+
+/* "Sua semana" com a cor da divisão (opção da prévia): só a letra do dia ganha a cor; feito continua cheio */
+.semana-dias li { min-height: 72px; }
+.semana-dias.com-cor li.feito .marca-dia { background: var(--ct); color: var(--c); border: 2px solid var(--c); }
+.semana-dias.com-cor li:not(.feito):not(.descanso) .marca-dia { color: var(--c); border-color: var(--c); }
+.semana-dias.com-cor li.hoje:not(.feito) .marca-dia { border: 2px solid var(--texto); }
+.semana-dias li.feito.hoje .marca-dia { border: 0; } /* o dia de hoje já tem o fundo; o anel ficaria duplo */
+.legenda-semana { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12px; color: var(--suave); }
+.legenda-semana span { display: inline-flex; align-items: center; gap: 6px; }
+.legenda-semana i { width: 14px; height: 14px; border-radius: 999px; display: inline-block; }
+.legenda-semana .cheio { background: var(--suave); }
+.legenda-semana .tracejado { border: 1px dashed var(--suave); }
+
+/* Grade de atalhos (dois por linha; um só abaixo de 340): o mesmo acabamento do .cartao */
+.grade-atalhos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 339px) { .grade-atalhos { grid-template-columns: minmax(0, 1fr); } }
+.atalho { display: flex; flex-direction: column; gap: 6px; padding: 14px; min-height: 120px; background: var(--sup); border: var(--bw) solid var(--divisor); border-radius: var(--raio); color: var(--texto); text-decoration: none; min-width: 0; }
+.atalho .icone-marcador { margin-bottom: 2px; }
+.atalho b { font-size: var(--t-corpo); font-weight: 600; }
+.atalho .t-apoio { font-variant-numeric: tabular-nums; }
+.atalho .selo, .atalho .progresso { margin-top: auto; }
+.atalho .selo { align-self: flex-start; }
+
+/* ====== sessão do dia ====== */
+/* segmentos: cheio = feita, contorno = por fazer; na lista do dia, neutros (a cor do tipo fica no resumo do topo) */
+.barra-series { display: flex; gap: 3px; height: 12px; }
+.barra-series > span { flex: 1 1 0; border-radius: 3px; min-width: 6px; border: 2px solid var(--c); transition: background-color var(--t-medio) var(--curva); }
+.barra-series > span.feita { background: var(--c); }
+.barra-series > span:first-child { border-radius: 999px 3px 3px 999px; }
+.barra-series > span:last-child { border-radius: 3px 999px 999px 3px; }
+.barra-series > span:only-child { border-radius: 999px; }
+.exercicio-dia .barra-series > span { border: 1px solid var(--borda-campo); }
+.exercicio-dia .barra-series > span.feita { background: var(--suave); border-color: var(--suave); }
+.legenda-curta { display: flex; flex-wrap: wrap; gap: 2px 12px; list-style: none; margin: 0; padding: 0; font-size: var(--t-rotulo); color: var(--suave); }
+.legenda-curta li { display: inline-flex; align-items: center; gap: 6px; }
+.legenda-curta li::before { content: ""; width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
+.legenda-curta b { color: var(--texto); font-weight: 600; }
+.exercicio-dia .legenda-curta { display: none; }
+.exercicio-dia .composicao-texto { display: block; font-size: var(--t-rotulo); color: var(--suave); line-height: 18px; }
+
+.rotulo-composicao { margin-top: 8px; }
+.lista-exercicios { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.exercicio-dia { position: relative; padding: 16px; display: flex; flex-direction: column; gap: 10px; transition: border-color var(--t-rapido) ease; }
+.exercicio-dia-topo { display: flex; align-items: flex-start; gap: 12px; }
+.exercicio-dia-topo > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.exercicio-dia a.abrir { color: var(--texto); text-decoration: none; font-weight: 600; font-size: var(--t-titulo-cartao); line-height: 24px; }
+.exercicio-dia a.abrir::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
+.exercicio-dia a.abrir:focus-visible { outline: none; }
+.exercicio-dia:has(a.abrir:focus-visible) { outline: 2px solid var(--foco); outline-offset: 2px; }
+@media (hover: hover) { .exercicio-dia:hover { border-color: var(--borda-campo); } }
+.exercicio-dia .ultima { text-align: right; flex: none; font-size: var(--t-rotulo); color: var(--suave); line-height: 18px; }
+.exercicio-dia .ultima b { display: block; color: var(--texto); font-size: var(--t-corpo); font-weight: 600; font-variant-numeric: tabular-nums; }
+.exercicio-dia .contagem-series { font-size: var(--t-apoio); color: var(--suave); font-variant-numeric: tabular-nums; }
+.exercicio-dia .sobretitulo { margin-bottom: 4px; }
+/* o próximo se destaca pelo sobretítulo e por um contorno mais firme, sem cor */
+.exercicio-dia--proximo { border-color: var(--borda-campo); }
+.exercicio-dia--feito { flex-direction: row; align-items: center; gap: 12px; padding: 10px 16px; min-height: 60px; }
+.exercicio-dia--feito a.abrir { font-size: var(--t-corpo); flex: 1; min-width: 0; }
+
+/* ✓ de feito: neutro no estado; verde só no que a pessoa acabou de marcar */
+.ok { width: 28px; height: 28px; border-radius: 999px; display: grid; place-items: center; background: var(--sup3); color: var(--texto); flex-shrink: 0; }
+.ok .ic { width: 16px; height: 16px; stroke-width: 2.5; }
+.ok.ok--agora { background: var(--sucesso-tinto); color: var(--sucesso); }
+/* "Você fez todas as séries": ✓ neutro ao abrir a lista; verde (.st-sucesso) só na volta logo depois de concluir */
+#tudo-feito:not(.st-sucesso) > .ic { color: var(--suave); }
+/* "N de M séries" do topo do exercício fica à direita também quando a legenda quebra linha (390 px) */
+.contagem-ex { margin-left: auto; white-space: nowrap; }
+
+/* ====== exercício: cartão da série ====== */
+.lista-series { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+/* só a série da vez leva a cor do tipo; as outras ficam neutras (o selo continua dizendo o tipo) */
+.serie { border-left: 6px solid var(--borda); }
+.serie.serie--agora { border-left-color: var(--c); }
+.serie-cab { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 12px 16px 0; min-height: 44px; }
+.serie-cab .n { margin-left: auto; font-size: var(--t-rotulo); color: var(--suave); font-variant-numeric: tabular-nums; }
+.serie-cab .n .ordem { font-size: var(--t-apoio); }
+.serie--trabalho .serie-cab { background: var(--sup2); border-bottom: var(--bw) solid var(--divisor); padding: 12px 16px; border-radius: calc(var(--raio) - var(--bw)) calc(var(--raio) - var(--bw)) 0 0; }
+.serie--trabalho.serie--agora .serie-cab { background: var(--ct); border-bottom-color: var(--c); }
+.serie--trabalho .serie-cab .n { color: var(--texto); }
+/* sobre o tinto do tipo a marca não chega a 4,5:1 em todas as paletas: o número ganha um fundo de superfície */
+.serie--trabalho.serie--agora .serie-cab .ordem { background: var(--sup); padding: 1px 6px; border-radius: 4px; }
+:is(li.serie:not(.serie--agora), .serie-feita) .selo { color: var(--texto) !important; background: var(--sup3) !important; }
+.serie-corpo { padding: 12px 16px 16px; display: flex; flex-direction: column; gap: 12px; }
+.serie--leve .serie-corpo { gap: 8px; padding-top: 8px; }
+.serie-meta { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; }
+.serie-meta .reps { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.serie--trabalho .serie-meta .reps { font-size: 24px; }
+.serie--leve .serie-meta .reps { font-size: var(--t-titulo-cartao); }
+.serie-meta .resto { color: var(--suave); font-size: var(--t-apoio); }
+.serie-ultima { font-size: var(--t-rotulo); color: var(--suave); font-variant-numeric: tabular-nums; }
+.serie-registro { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
+.serie-registro .campo { flex: 0 0 auto; }
+.campo-grande { min-height: 48px; width: 104px; font-size: 20px; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; padding: 0 12px; }
+.campo-grande.reps { width: 80px; }
+.botao-check { width: 48px; height: 48px; padding: 0; border-radius: var(--raio-p); border: var(--bw) solid var(--borda-campo); background: var(--campo); color: var(--texto); display: grid; place-items: center; flex-shrink: 0; margin-left: auto; transition: border-color var(--t-rapido) ease; }
+@media (hover: hover) { .botao-check:hover { border-color: var(--texto); } }
+.botao-check .ic { width: 24px; height: 24px; stroke-width: 2.5; }
+.serie-sugestao { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; font-size: var(--t-apoio); color: var(--suave); font-variant-numeric: tabular-nums; }
+.serie-sugestao b { color: var(--texto); font-weight: 600; }
+.serie-sugestao .botao { min-height: 44px; padding: 0 12px; font-size: var(--t-apoio); }
+.campo-erro-linha { font-size: var(--t-rotulo); color: var(--perigo); font-weight: 600; display: flex; gap: 6px; align-items: center; flex-basis: 100%; }
+
+/* confirmação na tela (nunca alert/confirm): preenchimento sup2, sem contorno, dentro do cartão */
+.painel-serie { background: var(--sup2); border-radius: var(--raio-p); padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.painel-serie p { font-weight: 600; }
+.painel-serie .linha-acoes .botao { flex: 1 1 140px; }
+
+/* série feita: uma linha tocável para corrigir; kg e reps em colunas alinhadas à direita (dígitos tabulares) */
+button.serie-feita { width: 100%; font: inherit; color: var(--texto); text-align: left; border: 0; border-left: 6px solid var(--borda); cursor: pointer; grid-template-columns: 28px minmax(0, 1fr) minmax(4.5em, max-content) minmax(3.75em, max-content) auto; gap: 10px; min-height: 52px; }
+button.serie-feita .kg, button.serie-feita .rp { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+button.serie-feita .rp { color: var(--suave); font-weight: 500; }
+button.serie-feita .corrigir { font-size: var(--t-rotulo); color: var(--suave); display: inline-flex; align-items: center; gap: 4px; }
+@media (max-width: 479px) { button.serie-feita .corrigir-txt { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } }
+
+/* Cluster: um cartão só com os blocos dentro (preenchimento, sem cartão contornado dentro de cartão) */
+.blocos { list-style: none; margin: 0; padding: 0; background: var(--sup2); border-radius: var(--raio-p); display: flex; flex-direction: column; overflow: hidden; }
+.bloco { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; }
+.bloco + .bloco { border-top: 1px solid var(--divisor); }
+.bloco-nome { min-width: 64px; display: flex; flex-direction: column; }
+.bloco-nome b { font-size: var(--t-corpo); }
+.bloco-nome span { font-size: 12px; color: var(--suave); font-variant-numeric: tabular-nums; }
+.bloco--agora { border-left: 3px solid var(--c); padding-left: 9px; }
+.bloco--agora .bloco-nome span + span { color: var(--texto); font-weight: 600; }
+.bloco .campo-grande { width: 80px; min-height: 44px; font-size: 18px; }
+.bloco .campo-grande.reps { width: 64px; }
+.bloco .botao-check { width: 44px; height: 44px; }
+.bloco .feito-valor { margin-left: auto; font-weight: 600; font-variant-numeric: tabular-nums; }
+.rodape-serie { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+
+/* explicação recolhida: uma frase + "Como funciona" */
+.explicacao summary { list-style: none; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; cursor: pointer; color: var(--texto); font-weight: 600; font-size: var(--t-apoio); }
+.explicacao summary::-webkit-details-marker { display: none; }
+.explicacao summary .ic { transition: transform var(--t-rapido) var(--curva); }
+.explicacao[open] summary .ic { transform: rotate(180deg); }
+.explicacao[open] > div { display: flex; flex-direction: column; gap: 8px; font-size: var(--t-apoio); color: var(--suave); padding-bottom: 4px; }
+
+/* cabeçalho de vista do aluno (onde estou, o que é, quanto falta) */
+.voltar { align-self: flex-start; margin-left: -12px; }
+.progresso-linha { display: flex; align-items: center; gap: 12px; }
+.progresso-linha .progresso { flex: 1; height: 8px; }
+.progresso-linha span.num { font-weight: 600; white-space: nowrap; }
+.progresso > span { transition: width var(--t-medio) var(--curva); }
+
+/* ====== dieta ====== */
+.faixa-total { background: var(--sup); border: var(--bw) solid var(--divisor); border-radius: var(--raio); padding: 16px; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 560px) { .faixa-total { grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); align-items: center; } }
+.faixa-total .kcal { display: flex; flex-direction: column; gap: 4px; }
+.macros { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.macro { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.macro .valor { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.macro .valor small { font-size: var(--t-apoio); font-weight: 600; color: var(--suave); margin-left: 2px; }
+.macro--vazio .valor { color: var(--suave); }
+.barra-macro { height: 6px; border-radius: 999px; background: var(--sup3); overflow: hidden; }
+.barra-macro > span { display: block; height: 100%; width: var(--p); border-radius: 999px; background: var(--texto); }
+.macro:nth-child(2) .barra-macro > span { opacity: .7; }
+.macro:nth-child(3) .barra-macro > span { opacity: .45; }
+
+.dieta-grade { display: grid; gap: 24px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (min-width: 1024px) {
+  .dieta-grade { grid-template-columns: minmax(0, 1fr) 212px; }
+  .dieta-grade > aside { grid-column: 2; grid-row: 1 / span 2; position: sticky; top: 16px; }
+}
+
+.linha-do-tempo.refeicoes > li { grid-template-columns: 52px minmax(0, 1fr); padding-bottom: 16px; }
+.linha-do-tempo.refeicoes > li:not(:last-child)::after { left: 25px; top: 32px; }
+/* a base estiliza todo li descendente da linha do tempo; os itens da refeição voltam ao normal */
+.linha-do-tempo li li { display: flex; position: static; padding-bottom: 10px; }
+.linha-do-tempo li li::after { content: none; }
+.hora-refeicao { font-weight: 600; font-variant-numeric: tabular-nums; padding-top: 14px; text-align: center; font-size: var(--t-corpo); }
+/* a cor da refeição só na barra de 6 px; quantidade, hora e "agora" ficam neutras */
+.refeicao { border-left: 6px solid var(--c); }
+.refeicao .cartao-cab { padding: 12px 16px; min-height: 56px; flex-wrap: nowrap; align-items: flex-start; }
+.refeicao .cartao-cab > :first-child { flex: 1 1 0; }
+.refeicao .kcal-refeicao { padding-top: 2px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.refeicao--agora { border-top-color: var(--borda-campo); border-right-color: var(--borda-campo); border-bottom-color: var(--borda-campo); }
+.refeicao .sobretitulo { margin-bottom: 4px; }
+.refeicao [role="tabpanel"] { padding-top: 4px; }
+.escolha-opcao { background: var(--sup2); border-radius: var(--raio-p); padding: 10px 12px; font-size: var(--t-apoio); color: var(--suave); }
+.itens-dieta { list-style: none; margin: 0; padding: 0; }
+.item-dieta { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--divisor); }
+.item-dieta:first-child { border-top: 0; }
+.item-dieta .nome { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.item-dieta .nome b { font-size: var(--t-corpo); font-weight: 600; }
+.item-dieta .nome span { font-size: var(--t-rotulo); color: var(--suave); font-variant-numeric: tabular-nums; }
+.qtd { display: inline-flex; align-items: baseline; justify-content: flex-end; gap: 4px; min-width: 76px; padding: 6px 10px; border-radius: var(--raio-p); background: var(--sup2); color: var(--texto); font-weight: 600; white-space: nowrap; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.qtd .v { font-size: 17px; } .qtd .u { font-size: 13px; color: var(--suave); font-weight: 500; }
+.total-refeicao { border-top: var(--bw) solid var(--divisor); padding-top: 10px; font-weight: 600; font-variant-numeric: tabular-nums; font-size: var(--t-apoio); }
+.texto-treinador { display: flex; flex-direction: column; gap: 8px; font-size: var(--t-apoio); }
+.texto-treinador ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+.suplemento { display: flex; flex-direction: column; gap: 8px; padding: 12px 0; border-top: 1px solid var(--divisor); }
+.suplemento:first-child { border-top: 0; padding-top: 0; }
+.suplemento .linha-acoes { gap: 8px 12px; }
+.cupom { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; letter-spacing: .04em; color: var(--texto); }
+
+/* ====== mobilidade ====== */
+.grupo-mob > h2 { margin: 0; }
+.grupo-mob-cab { font: inherit; width: 100%; display: flex; align-items: center; gap: 12px; padding: 14px 16px; min-height: 56px; background: none; border: 0; text-align: left; color: var(--texto); border-radius: calc(var(--raio) - var(--bw)); }
+.grupo-mob-cab:focus-visible { outline: 2px solid var(--foco); outline-offset: -2px; }
+.grupo-mob-cab .nome { flex: 1; min-width: 0; font: inherit; }
+.grupo-mob-cab .ic.seta { color: var(--suave); transition: transform var(--t-rapido) var(--curva); }
+.grupo-mob-cab[aria-expanded="false"] .ic.seta { transform: rotate(-90deg); }
+.vazio h2 { font-size: var(--t-corpo); font-weight: 600; }
+.itens-mob { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--divisor); }
+.item-mob { display: flex; align-items: center; gap: 12px; padding: 8px 16px; min-height: 64px; }
+.item-mob + .item-mob { border-top: 1px solid var(--divisor); }
+.marcar-mob { width: 44px; height: 44px; flex-shrink: 0; border-radius: var(--raio-p); border: var(--bw) solid var(--borda-campo); background: var(--campo); color: transparent; display: grid; place-items: center; padding: 0; transition: background-color var(--t-rapido) ease, border-color var(--t-rapido) ease, color var(--t-rapido) ease; }
+@media (hover: hover) { .marcar-mob:hover { border-color: var(--texto); } }
+.marcar-mob .ic { width: 22px; height: 22px; stroke-width: 2.5; }
+/* feito = o mesmo ✓ neutro do .ok do treino (superfície e ✓ suave, contorno de campo mantido); feito agora = verde (confirma o toque) */
+.marcar-mob[aria-pressed="true"] { background: var(--sup3); color: var(--suave); }
+.item-mob.agora .marcar-mob[aria-pressed="true"] { background: var(--sucesso-tinto); border-color: var(--sucesso); color: var(--sucesso); }
+.item-mob .texto { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.item-mob .texto b { font-weight: 600; }
+.item-mob .texto span { font-size: var(--t-apoio); color: var(--suave); }
+.item-mob.feito .texto b { color: var(--suave); text-decoration: line-through; text-decoration-color: var(--borda-campo); }
+.video-mob { color: var(--suave); }
+@media (hover: hover) { .video-mob:hover { color: var(--texto); } }
+.selo-feito-hoje { font-size: var(--t-apoio); min-height: 32px; padding: 4px 12px; }
+
+/* ====== movimento (o base.css zera transições e animações de CSS com reduce; as de JS checam VV.reduzir) ====== */
+@media (prefers-reduced-motion: no-preference) {
+  .serie-feita.assentou { animation: vv-assenta var(--t-medio) var(--curva); }
+  .serie-feita.assentou .ok, .item-mob.acabou .marcar-mob { animation: vv-aparece var(--t-medio) var(--curva); }
+  .serie--agora.abriu .serie-cab { animation: vv-assenta var(--t-medio) var(--curva); }
+}
+@keyframes vv-assenta { from { opacity: .4; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes vv-aparece { from { transform: scale(.6); } to { transform: none; } }

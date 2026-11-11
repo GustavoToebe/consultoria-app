@@ -63,14 +63,17 @@ export default function EsqueciSenha() {
   };
 
   return (
-    <TelaPublica titulo="Esqueci minha senha" subtitulo="Enviaremos um link para você criar uma senha nova.">
+    // Um título por estado: o pedido é "solicitado", nunca "entregue" (a tela não sabe se a conta existe nem se o e-mail chegou).
+    <TelaPublica titulo={pedido ? 'Link solicitado' : 'Esqueci minha senha'}
+      subtitulo={pedido ? undefined : 'Enviaremos um link para você criar uma senha nova.'}>
       {pedido ? (
         <Cartao>
-          <Texto variante="bloco" nivel={2}>Confira seu e-mail</Texto>
-          <Texto>
-            Se existir uma conta com este e-mail, o link já está a caminho. Ele vale por 30 minutos e só pode ser usado uma vez.
-            Se não chegar, olhe também o spam.
-          </Texto>
+          <View accessibilityLiveRegion="polite">
+            <Texto>
+              Se existir uma conta com este e-mail, o link já está a caminho. Ele vale por 30 minutos e só pode ser usado uma vez.
+              Se não chegar, olhe também o spam.
+            </Texto>
+          </View>
           <Botao rotulo="Pedir outro link" tipo="secundario" aoTocar={() => setPedido(false)} cheio />
         </Cartao>
       ) : (

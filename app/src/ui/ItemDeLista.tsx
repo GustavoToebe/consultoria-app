@@ -54,7 +54,7 @@ export function ItemDeLista({ titulo, detalhe, Icone, selo, href, aoTocar, rotul
       accessibilityRole={href ? 'link' : 'button'}
       accessibilityLabel={rotulo ?? [titulo, detalhe, selo?.texto].filter(Boolean).join(', ')}
       {...(href ? propsDeLink(href, abrir) : { onPress: abrir })}
-      style={(estado) => [estilos.item, { backgroundColor: sobre(estado) ? cores.superficie3 : cores.superficie2, borderColor: cores.borda }]}>
+      style={(estado) => [estilos.item, { backgroundColor: sobre(estado) ? cores.superficie3 : cores.superficie2, borderColor: cores.divisor }]}>
       {Icone ? <Icone size={20} color={perigo ? cores.perigo : cores.textoSuave} strokeWidth={2} /> : null}
       <View style={estilos.textos}>
         <Texto style={[estilos.titulo, { color: corTexto }]}>{titulo}</Texto>

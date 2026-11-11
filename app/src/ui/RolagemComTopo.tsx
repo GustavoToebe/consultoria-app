@@ -101,7 +101,7 @@ export function RolagemComTopo({ children, contentContainerStyle, preencher }: P
           accessibilityRole="button"
           accessibilityLabel="Voltar ao início da página"
           onPress={() => rolagem.current?.scrollTo({ y: 0, animated: !reduzido })}
-          style={({ pressed }) => [estilos.botao, { backgroundColor: cores.superficie, borderColor: cores.borda, opacity: pressed ? 0.7 : 1 }]}>
+          style={({ pressed }) => [estilos.botao, { backgroundColor: cores.superficie, borderColor: cores.bordaCampo, opacity: pressed ? 0.7 : 1 }]}>
           <ArrowUp size={20} color={cores.texto} />
         </Pressable>
       ) : null}

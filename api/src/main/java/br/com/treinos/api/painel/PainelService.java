@@ -147,9 +147,11 @@ public class PainelService {
         boolean registros = br.com.treinos.api.equipe.AcessoAtual.pode("REGISTRO_LER");
         boolean checkin = br.com.treinos.api.equipe.AcessoAtual.pode("ATUALIZACAO_LER")
                 && br.com.treinos.api.equipe.AcessoAtual.pode("ALUNO_SENSIVEL_LER");
-        // Uma leitura só para os quatro contadores; são os mesmos números das listas que a tela abre.
-        Map<String,Long> contagem = checkin ? atualizacoes.contar(responsavelId) : Map.of();
         boolean treinos = br.com.treinos.api.equipe.AcessoAtual.pode("TREINO_LER");
+        // Uma leitura só para os quatro contadores e para "sem pasta com período"; são os mesmos números das listas que a tela abre.
+        AtualizacaoService.LeituraDoPainel leitura = checkin || (treinos && !ativos.isEmpty())
+                ? atualizacoes.leituraDoPainel(responsavelId) : null;
+        Map<String,Long> contagem = checkin ? leitura.contagem() : Map.of();
         // Pastas a renovar: a contagem (sem teto) e a lista (até 20) saem da mesma consulta, então a regra é uma só.
         List<PastaPlano> aRenovar = treinos ? pastas.aRenovar(responsavelId, hoje.plusDays(DIAS_PARA_RENOVAR)) : List.of();
         List<PastaARenovar> listaARenovar = new ArrayList<>();
@@ -161,7 +163,7 @@ public class PainelService {
             }
         }
         // Contagens novas: só números, sem teto; null (nunca 0) quando o treinador não pode ver.
-        Long semPasta = treinos ? semPastaComPeriodo(ativos, responsavelId) : null;
+        Long semPasta = treinos ? semPastaComPeriodo(ativos, leitura) : null;
         Long semAcesso = ativos.stream().filter(a -> a.getUsuarioId() == null).count();
         // Mesma janela dos recordes da semana (hoje e os 6 dias antes); sem retorno ou sem REGISTRO_LER, null.
         Long concluidas = registros && retorno.habilitado() ? concluidasNa7Dias(ativos, hoje) : null;
@@ -186,27 +188,27 @@ public class PainelService {
      * Alunos ativos do escopo sem pasta vigente com período: os que a lista de atualizações (mesma consulta) não alcança.
      * É o grupo "Sem pasta com período" da lista de alunos do app.
      */
-    private long semPastaComPeriodo(List<Aluno> ativos, UUID responsavelId) {
+    private long semPastaComPeriodo(List<Aluno> ativos, AtualizacaoService.LeituraDoPainel leitura) {
         if (ativos.isEmpty()) {
             return 0L;
         }
-        java.util.Set<UUID> comPasta = atualizacoes.alunosComPastaVigente(responsavelId);
+        java.util.Set<UUID> comPasta = leitura.alunosComPastaVigente();
         return ativos.stream().filter(a -> !comPasta.contains(a.getId())).count();
     }
 
-    /** Agrupa os registros mais recentes por aluno, dia e sessão. Nomes de aluno só de alunos ativos. */
+    /** Agrupa os registros mais recentes por aluno, dia e sessão. Só alunos ativos do escopo: o filtro vai na consulta, não depois do teto de 300. */
     private List<ExecucaoRecente> ultimasExecucoes(Map<UUID, Aluno> porId) {
-        List<ExecucaoSerie> recentes = execucoes.findTop300ByOrderByRecebidoEmDesc();
+        if (porId.isEmpty()) {
+            return List.of();
+        }
+        List<ExecucaoSerie> recentes = execucoes.findTop300ByAlunoIdInOrderByRecebidoEmDesc(porId.keySet());
         Map<UUID, IndiceVersao> indice = indices.carregar(recentes.stream()
                 .map(ExecucaoSerie::getPlanoVersaoId).distinct().toList());
         record Grupo(UUID alunoId, LocalDate data, UUID sessaoUid, UUID versaoId) {
         }
         Map<Grupo, Integer> grupos = new LinkedHashMap<>();
         for (ExecucaoSerie e : recentes) {
-            if (porId.containsKey(e.getAlunoId())) {
-                grupos.merge(new Grupo(e.getAlunoId(), e.getData(), e.getSessaoUid(), e.getPlanoVersaoId()), 1,
-                        Integer::sum);
-            }
+            grupos.merge(new Grupo(e.getAlunoId(), e.getData(), e.getSessaoUid(), e.getPlanoVersaoId()), 1, Integer::sum);
         }
         List<ExecucaoRecente> lista = new ArrayList<>();
         grupos.forEach((g, quantidade) -> {

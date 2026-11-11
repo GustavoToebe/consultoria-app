@@ -245,10 +245,10 @@ for (const largura of process.env.CAPTURAS_DIR ? [390, 768, 1280] : [390, 1280])
           return json(route, { itens, total: 2 });
         },
       });
-      await page.getByLabel('Buscar').fill('ana');
+      await page.getByLabel('Buscar', { exact: true }).fill('ana');
       await expect(page.getByText('Nada encontrado para esta busca.')).toBeVisible();
       expect(pedidos.some((p) => p.caminho === '/inscricoes' && p.busca.get('busca') === 'ana')).toBe(true);
-      await page.getByLabel('Buscar').fill('');
+      await page.getByLabel('Buscar', { exact: true }).fill('');
       await expect(page.getByText('Pessoa Fictícia 1', { exact: true })).toBeVisible();
       // Situação (com a contagem) e responsável ficam no painel de filtros (PC) ou na folha "Filtros" (celular).
       await page.getByRole('button', { name: /^Filtros, / }).click();
@@ -274,7 +274,7 @@ for (const largura of process.env.CAPTURAS_DIR ? [390, 768, 1280] : [390, 1280])
         'GET /inscricoes/contagens': { corpo: contagensFalsas({ ACEITA: 1 }) },
         'GET /inscricoes': (p, route) => json(route, p.busca.get('situacao') === 'TODAS' ? { itens: [aceita], total: 1 } : { itens: [], total: 0 }),
       });
-      await page.getByLabel('Buscar').fill('fictícia');
+      await page.getByLabel('Buscar', { exact: true }).fill('fictícia');
       await expect(page.getByText('Nada encontrado para esta busca.')).toBeVisible();
       await expect(page.getByText('Também há inscrições em: Aceitas (1).')).toBeVisible();
       await page.getByRole('button', { name: 'Ver todas' }).click();
@@ -297,9 +297,9 @@ for (const largura of process.env.CAPTURAS_DIR ? [390, 768, 1280] : [390, 1280])
         },
         'GET /inscricoes': (p, route) => json(route, p.busca.get('situacao') === 'TODAS' ? { itens: [aceita], total: 1 } : { itens: [], total: 0 }),
       });
-      await page.getByLabel('Buscar').fill('ana');
+      await page.getByLabel('Buscar', { exact: true }).fill('ana');
       await expect(page.getByText('Também há inscrições em: Aceitas (1).')).toBeVisible();
-      await page.getByLabel('Buscar').fill('zzz');
+      await page.getByLabel('Buscar', { exact: true }).fill('zzz');
       await expect(page.getByText('Nada encontrado para esta busca.')).toBeVisible();
       await expect(page.getByText('Também há inscrições em:')).toHaveCount(0);
       await expect(page.getByRole('button', { name: 'Ver todas' })).toHaveCount(0);

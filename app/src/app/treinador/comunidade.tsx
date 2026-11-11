@@ -1,14 +1,21 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { MessageSquare, Plus, UserX, Video } from 'lucide-react-native';
+import { MessageSquare, Pin, PinOff, Plus, ShieldCheck, Trash2, UserX, Video } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { criarAula, listarAulasDaEquipe, listarMuralDaEquipe, publicarNoMuralDaEquipe, removerApelidoDoAutor } from '../../api/comunidade';
-import type { AlvoDosComentarios } from '../../api/comunidadeTipos';
+import {
+  alternarFixadoDoPost, baixarFotoDoMuralDaEquipe, criarAula, dispensarDenuncias, listarAulasDaEquipe, listarMuralDaEquipe,
+  obterConfiguracaoDaComunidade, removerApelidoDoAutor, removerPostDoMural, salvarConfiguracaoDaComunidade,
+} from '../../api/comunidade';
+import type { AlvoDosComentarios, ConfiguracaoDaComunidade, PostDoMural } from '../../api/comunidadeTipos';
 import { ErroApi } from '../../api/cliente';
-import { AutorDoPost } from '../../comunidade/AutorDoPost';
+import { BarraDoMural } from '../../comunidade/BarraDoMural';
+import { CartaoDoPost } from '../../comunidade/CartaoDoPost';
 import { FolhaComentarios } from '../../comunidade/FolhaComentarios';
+import { FolhaNovaPublicacao } from '../../comunidade/FolhaNovaPublicacao';
+import { type FiltroDoMural, filtrosParaApi, type RascunhoDoPost, textoDoMuralVazio, TIPO_PADRAO_DO_POST } from '../../dominio/comunidade';
 import { erroDoLink } from '../../dominio/links';
+import { FolhaDeAcoes } from '../../treinador/FolhaDeAcoes';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, LARGURA_LISTA, RAIO } from '../../tema/tokens';
@@ -18,6 +25,7 @@ import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Campo } from '../../ui/Campo';
+import { Interruptor } from '../../ui/Campos';
 import { Cartao } from '../../ui/Cartao';
 import { separarErros, textoDoErro } from '../../ui/erros';
 import { Esqueleto } from '../../ui/Esqueleto';
@@ -29,18 +37,64 @@ import { Selo } from '../../ui/Selo';
 import { sobre } from '../../ui/sobre';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
-import { useCarregar } from '../../ui/useCarregar';
+import { useAtrasado, useCarregar } from '../../ui/useCarregar';
 
 type AbaComunidade = 'auloes' | 'mural';
 
 /** Estado de uma fonte da tela: carregando, erro (com tentar de novo) ou vazio; `null` = mostrar os dados. */
-function EstadoDaFonte({ carregando, erro, vazio, textoVazio, recarregar }: {
+function EstadoDaFonte({ carregando, erro, vazio, textoVazio, recarregar, acaoVazio }: {
   carregando: boolean; erro: unknown; vazio: boolean; textoVazio: string; recarregar: () => void;
+  acaoVazio?: { rotulo: string; aoTocar: () => void };
 }) {
   if (erro) return <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} />;
   if (carregando && vazio) return <Esqueleto />;
-  if (vazio) return <Vazio texto={textoVazio} />;
+  if (vazio) return <Vazio texto={textoVazio} acao={acaoVazio} />;
   return null;
+}
+
+const RASCUNHO_VAZIO: RascunhoDoPost = { tipo: TIPO_PADRAO_DO_POST, texto: '' };
+const PREFIXO_DO_MURAL = 'treinador-mural:';
+const fixadosPrimeiro = (posts: PostDoMural[]) => [...posts].sort((a, b) => Number(b.fixado) - Number(a.fixado));
+
+/**
+ * As duas chaves do mural (C9, `COMUNIDADE_MODERAR`). Muda na hora e volta com aviso se a API recusar; o PUT manda sempre
+ * os dois campos. Uma mudança por vez: enquanto uma salva, a outra espera.
+ */
+function ChavesDoMural() {
+  const { avisar } = useAviso();
+  const config = useCarregar('treinador-comunidade-configuracao', () => obterConfiguracaoDaComunidade());
+  const [salvando, setSalvando] = useState(false);
+  const mudar = async (parte: Partial<ConfiguracaoDaComunidade>) => {
+    const antes = config.dados;
+    if (!antes || salvando) return;
+    const depois = { alunosPublicam: antes.alunosPublicam, alunosAnexamFotos: antes.alunosAnexamFotos, ...parte };
+    config.definir(depois);
+    setSalvando(true);
+    try {
+      config.definir(await salvarConfiguracaoDaComunidade(depois));
+    } catch (e) {
+      config.definir(antes);
+      avisar(textoDoErro(e), 'perigo');
+    } finally {
+      setSalvando(false);
+    }
+  };
+  return (
+    <Cartao titulo="Quem publica no mural" descricao="A equipe sempre publica. Comentar e curtir continuam liberados para os alunos.">
+      {config.erro ? (
+        <MensagemErro texto={textoDoErro(config.erro)} erro={config.erro} tentarDeNovo={config.recarregar} />
+      ) : !config.dados ? (
+        <Esqueleto cartoes={1} texto="Carregando as chaves do mural" />
+      ) : (
+        <>
+          <Interruptor rotulo="Alunos podem publicar" valor={config.dados.alunosPublicam}
+            aoMudar={(v) => void mudar({ alunosPublicam: v })} ajuda="Conversa, dúvida e resultado." />
+          <Interruptor rotulo="Alunos podem anexar fotos" valor={config.dados.alunosAnexamFotos}
+            aoMudar={(v) => void mudar({ alunosAnexamFotos: v })} ajuda="Até 4 por publicação; vale só com a de cima ligada." />
+        </>
+      )}
+    </Cartao>
+  );
 }
 
 export default function ComunidadeTreinador() {
@@ -65,9 +119,17 @@ export default function ComunidadeTreinador() {
   // Erro que a API apontou no campo (422 `COMUNIDADE_INVALIDA`); some quando o link muda.
   const [errosApi, setErrosApi] = useState<Record<string, string>>({});
 
-  const mural = useCarregar('treinador-mural', () => listarMuralDaEquipe());
-  const [novoPost, setNovoPost] = useState('');
-  const [postando, setPostando] = useState(false);
+  const [filtro, setFiltro] = useState<FiltroDoMural>(null);
+  const [busca, setBusca] = useState('');
+  const buscaAtrasada = useAtrasado(busca);
+  const mural = useCarregar(`${PREFIXO_DO_MURAL}${JSON.stringify(filtrosParaApi(filtro, buscaAtrasada))}`,
+    (c) => listarMuralDaEquipe(JSON.parse(c.slice(PREFIXO_DO_MURAL.length))));
+  const posts = mural.dadosDeOutraChave ? undefined : mural.dados?.content;
+  const [rascunho, setRascunho] = useState<RascunhoDoPost>(RASCUNHO_VAZIO);
+  const [compondo, setCompondo] = useState(false);
+  const [menuDe, setMenuDe] = useState<PostDoMural | null>(null);
+  const [removerPost, setRemoverPost] = useState<PostDoMural | null>(null);
+  const [removendoPost, setRemovendoPost] = useState(false);
   // Autor cujo apelido a moderação vai remover (painel de confirmação aberto).
   const [removerApelidoDe, setRemoverApelidoDe] = useState<{ autorId: string; autorNome: string; autorApelido: string } | null>(null);
   const [removendoApelido, setRemovendoApelido] = useState(false);
@@ -132,19 +194,36 @@ export default function ComunidadeTreinador() {
     }
   };
 
-  const publicarNoMural = async () => {
-    if (!novoPost.trim()) return;
-    setPostando(true);
+  const publicado = () => {
+    setRascunho(RASCUNHO_VAZIO);
+    setCompondo(false);
+    avisar('Publicado no mural.', 'sucesso');
+    mural.recarregar();
+  };
+
+  // Fixar, desafixar e dispensar: o aviso confirma e o mural vem de novo (404 = o post já saiu, e some ao recarregar).
+  const moderar = async (acao: () => Promise<void>, feito: string) => {
     try {
-      await publicarNoMuralDaEquipe(novoPost.trim());
-      setNovoPost('');
-      avisar('Publicado no mural.', 'sucesso');
-      mural.recarregar();
+      await acao();
+      avisar(feito, 'sucesso');
     } catch (e) {
       avisar(textoDoErro(e), 'perigo');
-    } finally {
-      setPostando(false);
     }
+    mural.recarregar();
+  };
+
+  const confirmarRemoverPost = async () => {
+    if (!removerPost) return;
+    setRemovendoPost(true);
+    try {
+      await removerPostDoMural(removerPost.id);
+      avisar('Publicação removida.', 'sucesso');
+    } catch (e) {
+      if (!(e instanceof ErroApi && e.status === 404)) { avisar(textoDoErro(e), 'perigo'); setRemovendoPost(false); return; }
+    }
+    setRemovendoPost(false);
+    setRemoverPost(null);
+    mural.recarregar();
   };
 
   const abrir = async (url: string | null | undefined) => {
@@ -203,54 +282,57 @@ export default function ComunidadeTreinador() {
 
       {aba === 'mural' ? (
         <View style={estilos.blocos}>
+          {podePublicar ? <ChavesDoMural /> : null}
           {podePublicar ? (
-            <Cartao titulo="Publicar para o time">
-              <Campo
-                rotulo="Mensagem"
-                placeholder="Um recado, uma dica técnica ou uma mensagem para os alunos"
-                valor={novoPost}
-                aoMudar={setNovoPost}
-                linhas={3}
-              />
-              <LinhaDeAcoes alinhar="fim">
-                <Botao
-                  rotulo="Publicar no mural"
-                  tipo="primario"
-                  carregando={postando}
-                  desabilitado={!novoPost.trim()}
-                  motivo="Escreva a mensagem."
-                  aoTocar={() => void publicarNoMural()}
-                />
-              </LinhaDeAcoes>
-            </Cartao>
+            <LinhaDeAcoes alinhar="fim">
+              <Botao rotulo="Nova publicação" tipo="primario" Icone={Plus} aoTocar={() => setCompondo(true)} />
+            </LinhaDeAcoes>
           ) : null}
 
-          <EstadoDaFonte carregando={mural.carregando} erro={mural.erro} vazio={!mural.dados?.content.length}
-            textoVazio="Nenhuma publicação no mural ainda." recarregar={mural.recarregar} />
+          <BarraDoMural filtro={filtro} aoFiltrar={setFiltro} busca={busca} aoBuscar={setBusca} comDenunciados={podePublicar} />
 
-          {mural.dados?.content.map((post) => (
-            <Cartao key={post.id}>
-              <AutorDoPost post={post} acao={podePublicar && post.autorApelido ? (
-                <Botao rotulo="Remover apelido" tipo="secundario" Icone={UserX}
-                  aoTocar={() => setRemoverApelidoDe({ autorId: post.autorId, autorNome: post.autorNome, autorApelido: post.autorApelido ?? '' })} />
-              ) : undefined} />
+          <EstadoDaFonte carregando={mural.carregando} erro={mural.erro} vazio={!posts?.length}
+            textoVazio={filtro === 'DENUNCIADOS' && !busca.trim() ? 'Nenhuma publicação denunciada.' : textoDoMuralVazio(filtro, busca)}
+            recarregar={mural.recarregar}
+            acaoVazio={filtro || busca.trim() ? { rotulo: 'Limpar filtros', aoTocar: () => { setFiltro(null); setBusca(''); } } : undefined} />
 
-              <Texto>{post.texto}</Texto>
-
-              <View style={[estilos.linha, estilos.rodapePost, { borderTopColor: cores.divisor }]}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Ver ${post.totalComentarios} comentário(s)`}
-                  onPress={() => setComentariosDe({ tipo: 'post', id: post.id })}
-                  style={(estado) => [estilos.interacao, sobre(estado) && { backgroundColor: cores.superficie3 }]}>
-                  <MessageSquare size={18} color={cores.texto} aria-hidden />
-                  <Texto variante="suave" cor={cores.texto} numerico>{post.totalComentarios} comentário(s)</Texto>
-                </Pressable>
-              </View>
-            </Cartao>
-          ))}
+          {posts ? fixadosPrimeiro(posts).map((post) => (
+            <CartaoDoPost
+              key={post.id}
+              post={post}
+              baixarFoto={baixarFotoDoMuralDaEquipe}
+              aoComentarios={() => setComentariosDe({ tipo: 'post', id: post.id })}
+              aoAbrirMenu={podePublicar ? () => setMenuDe(post) : undefined}
+              aoAssistir={(url) => void abrir(url)}
+            />
+          )) : null}
         </View>
       ) : null}
+
+      {menuDe ? (
+        <FolhaDeAcoes titulo="Ações da publicação" aoFechar={() => setMenuDe(null)} acoes={[
+          menuDe.fixado
+            ? { rotulo: 'Desafixar', detalhe: 'Volta para a ordem das publicações.', Icone: PinOff, aoTocar: () => void moderar(() => alternarFixadoDoPost(menuDe.id), 'Publicação desafixada.') }
+            : { rotulo: 'Fixar no topo', detalhe: 'Fica acima das outras publicações.', Icone: Pin, aoTocar: () => void moderar(() => alternarFixadoDoPost(menuDe.id), 'Publicação fixada.') },
+          (menuDe.denuncias ?? 0) > 0 && { rotulo: 'Dispensar denúncias', detalhe: 'A publicação continua no mural.', Icone: ShieldCheck, aoTocar: () => void moderar(() => dispensarDenuncias(menuDe.id), 'Denúncias dispensadas.') },
+          !!menuDe.autorApelido && { rotulo: 'Remover apelido', detalhe: `Tira o apelido de ${menuDe.autorNome} em todo o mural.`, Icone: UserX, aoTocar: () => setRemoverApelidoDe({ autorId: menuDe.autorId, autorNome: menuDe.autorNome, autorApelido: menuDe.autorApelido ?? '' }) },
+          { rotulo: 'Remover publicação', detalhe: 'Sai do mural para todos.', Icone: Trash2, perigo: true, aoTocar: () => setRemoverPost(menuDe) },
+        ]} />
+      ) : null}
+
+      <PainelConfirmacao
+        visivel={!!removerPost}
+        titulo="Remover a publicação?"
+        mensagem={removerPost ? `A publicação de ${removerPost.autorNome} sai do mural para todos.` : undefined}
+        rotuloConfirmar="Remover publicação"
+        perigo
+        carregando={removendoPost}
+        aoConfirmar={() => void confirmarRemoverPost()}
+        aoCancelar={() => setRemoverPost(null)}
+      />
+
+      <FolhaNovaPublicacao visivel={compondo && podePublicar} papel="equipe" rascunho={rascunho} aoMudar={setRascunho}
+        comFotos={false} aoFechar={() => setCompondo(false)} aoPublicar={publicado} />
 
       <PainelConfirmacao
         visivel={!!removerApelidoDe}

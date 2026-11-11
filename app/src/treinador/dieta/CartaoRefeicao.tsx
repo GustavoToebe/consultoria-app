@@ -12,7 +12,6 @@ import {
   novoItem,
   recalcularItem,
   somar,
-  type Totais,
 } from '../../dominio/dieta';
 import { mover, remover, substituir } from '../../dominio/editorTreino';
 import { numeroParaTela } from '../../dominio/formatos';
@@ -27,17 +26,13 @@ import { Divisor } from '../../ui/Divisor';
 import { EscolhaSuspensa } from '../../ui/EscolhaSuspensa';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
+import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
+import { ValoresDaDieta } from '../../ui/ValoresDaDieta';
 import { UNIDADES } from '../biblioteca/AbaAlimentos';
 import { CabecalhoDoItem } from '../plano/CabecalhoDoItem';
 import { BotaoDeTexto } from '../treino/BotaoDeAbrir';
 import { rotuloSalvarComo } from '../planejamento/modelos';
-
-/** "2.236 kcal · P 180,2 g · C 250 g · G 60,1 g"; valor que falta aparece como "—" (nunca inventado). */
-export function textoTotais(t: Totais): string {
-  const g = (v: number | null) => (v === null ? '—' : `${numeroParaTela(v, 1)} g`);
-  return `${t.kcal === null ? '—' : numeroParaTela(t.kcal, 0)} kcal · P ${g(t.proteina)} · C ${g(t.carboidrato)} · G ${g(t.gordura)}`;
-}
 
 /** "Almoço · 12:00" no título do cartão e do item da lista: "12:00 · Almoço" ("Refeição N" sem nome). */
 export function tituloDaRefeicao(r: Refeicao, posicao: number): string {
@@ -151,7 +146,7 @@ export function CartaoRefeicao(p: Props) {
           </View>
           <Divisor />
           {varias ? (
-            <Texto variante="suave">O aluno escolhe uma das opções. O total do dia usa só a opção {r.opcoes[0].rotulo}.</Texto>
+            <Texto variante="suave">Cada opção substitui a refeição inteira: o aluno escolhe uma. O total do dia soma só a opção {r.opcoes[0].rotulo}.</Texto>
           ) : (
             <Texto variante="secao">Alimentos ({r.opcoes[0]?.itens.length ?? 0})</Texto>
           )}
@@ -245,7 +240,11 @@ function OpcaoDaRefeicao({
           aoMover={(d) => aoMudarItens((itens) => mover(itens, ii, d))}
         />
       ))}
-      <Texto numerico style={estilos.total}>Total da opção {opcao.rotulo}: {textoTotais(somar(opcao.itens))}</Texto>
+      {/* Total separado dos itens por um fio suave: o nome à esquerda, os números à direita (guia pág. 10). */}
+      <View role="group" aria-label={`Total da opção ${opcao.rotulo}`} style={[estilos.total, { borderTopColor: cores.divisor }]}>
+        <Texto variante="rotulo" cor={cores.texto}>Total da opção {opcao.rotulo}</Texto>
+        <View style={estilos.cresce}><ValoresDaDieta totais={somar(opcao.itens)} forte /></View>
+      </View>
       <LinhaDeAcoes>
         <Botao rotulo="Adicionar alimento" rotuloAcessivel={`Adicionar alimento${naOpcao}`} tipo="secundario" Icone={Plus} aoTocar={aoEscolherAlimento} />
         <Botao rotulo="Item manual" rotuloAcessivel={`Item manual${naOpcao}`} tipo="secundario" Icone={PencilLine} aoTocar={() => aoMudarItens((itens) => [...itens, novoItem()])} />
@@ -267,8 +266,12 @@ function LinhaItem({ item, posicao, total, comProblema, aoMudar, aoRemover, aoMo
   const { cores } = useTema();
   const mudar = (parcial: Partial<ItemDieta>) => aoMudar({ ...item, ...parcial });
   const nome = item.nome || 'item';
+  // Quantidade vazia ou zero, a condição que a publicação recusa (`ValidadorDieta`). Vazia é pendência de preenchimento:
+  // âmbar, como o "Falta a carga" do treino (guia premium pág. 4); zero ou negativa é valor errado: vermelho.
+  const semQuantidade = !(item.quantidade && item.quantidade > 0);
+  const tom = item.quantidade == null ? 'atencao' : 'perigo';
   return (
-    <View style={[estilos.item, { borderColor: comProblema ? cores.perigo : cores.borda, backgroundColor: cores.superficie2 }]}>
+    <View style={[estilos.item, { borderColor: comProblema ? cores[tom] : cores.divisor, backgroundColor: cores.superficie2 }]}>
       <View style={estilos.topo}>
         <View style={estilos.titulo}>
           {item.manual ? (
@@ -276,6 +279,7 @@ function LinhaItem({ item, posicao, total, comProblema, aoMudar, aoRemover, aoMo
           ) : (
             <Texto style={estilos.nomeItem}>{item.nome}</Texto>
           )}
+          {semQuantidade ? <View style={estilos.selo}><Selo texto="Sem quantidade" tipo={tom} /></View> : null}
         </View>
         {total > 1 ? (
           <>
@@ -294,7 +298,7 @@ function LinhaItem({ item, posicao, total, comProblema, aoMudar, aoRemover, aoMo
         <EscolhaSuspensa<UnidadeAlimento> rotulo="Unidade" titulo={`Unidade de ${nome}`} opcoes={UNIDADES} valor={item.unidade}
           aoMudar={(unidade) => mudar({ unidade })} style={estilos.unidade} />
         {/* Item da biblioteca: os valores ficam na mesma linha da quantidade; só o manual abre os campos de valor. */}
-        {item.manual ? null : <Texto variante="suave" numerico style={estilos.valoresDoItem}>{textoTotais(somar([item]))}</Texto>}
+        {item.manual ? null : <View style={estilos.valoresDoItem}><ValoresDaDieta totais={somar([item])} /></View>}
       </View>
       {item.manual ? (
         // Os quatro valores numa linha só, também no celular (antes quebravam em 3 + 1).
@@ -329,7 +333,8 @@ const estilos = StyleSheet.create({
   unidade: { width: 112, minHeight: 44, alignSelf: 'flex-end' },
   valores: { flexDirection: 'row', gap: espaco(1) },
   valor: { flex: 1, minWidth: 0 },
-  total: { fontFamily: fontes.semi },
+  total: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: espaco(1.5), rowGap: espaco(0.5), borderTopWidth: 1, paddingTop: espaco(1) },
+  selo: { flexDirection: 'row' },
   // Sem espaço ao lado da quantidade e da unidade (opções lado a lado), os valores descem para a linha de baixo inteiros.
   valoresDoItem: { alignSelf: 'center', flexGrow: 1, flexShrink: 1, flexBasis: 180 },
 });

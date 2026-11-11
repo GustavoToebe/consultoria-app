@@ -213,6 +213,53 @@ class ExecucoesIntegrationTest extends AbstractIntegrationTest {
         assertThat(daMaior.get("repeticoes").asInt()).isEqualTo(3);
     }
 
+    /** Cada exercício usa a própria última data: a carga de uma data anterior do exercício A não pode vencer a de B. */
+    @Test
+    void ultimaCargaDeCadaExercicioVemDaUltimaDataDele() throws Exception {
+        UUID outroId = api.criarAluno(treinador, "Aluno da Última Data Fictício");
+        UUID sessaoUid = UUID.randomUUID();
+        UUID exercicioUidA = UUID.randomUUID();
+        UUID exercicioIdA = UUID.randomUUID();
+        UUID exercicioUidB = UUID.randomUUID();
+        UUID exercicioIdB = UUID.randomUUID();
+        UUID serieA = UUID.randomUUID();
+        UUID serieB = UUID.randomUUID();
+        ConteudoTreino.ExercicioPlano a = new ConteudoTreino.ExercicioPlano(exercicioUidA, exercicioIdA, "Supino fictício",
+                "MAQUINA", null, null, true, "kg", List.of(
+                ConteudoTreino.Serie.de(serieA, "WORKING", 6, 8, ConteudoTreino.Carga.de(ConteudoTreino.CARGA_TRABALHO))));
+        ConteudoTreino.ExercicioPlano b = new ConteudoTreino.ExercicioPlano(exercicioUidB, exercicioIdB, "Remada fictícia",
+                "MAQUINA", null, null, true, "kg", List.of(
+                ConteudoTreino.Serie.de(serieB, "WORKING", 6, 8, ConteudoTreino.Carga.de(ConteudoTreino.CARGA_TRABALHO))));
+        ConteudoTreino conteudo = new ConteudoTreino("Objetivo fictício", null, List.of(
+                new ConteudoTreino.Sessao(sessaoUid, "Segunda - Costas", 1, "TREINO", null, null, null, List.of(a, b)),
+                new ConteudoTreino.Sessao(UUID.randomUUID(), "Domingo - Off", 7, "DESCANSO", null, null, null, List.of())));
+        api.publicarTreino(treinador, outroId, conteudo);
+        JsonNode outro = api.convidarEEntrar(treinador, outroId);
+        String versao = api.get("/aluno/painel", outro, 200).get("treino").get("versaoId").asString();
+
+        LocalDate d0 = hoje.minusDays(3);
+        LocalDate d1 = hoje.minusDays(1);
+        Instant quando = Instant.now();
+        List<Map<String, Object>> registros = new java.util.ArrayList<>();
+        for (Object[] x : new Object[][] {
+                {serieA, exercicioUidA, "80", d0, quando},
+                {serieA, exercicioUidA, "60", d1, quando.plusSeconds(30)},
+                {serieB, exercicioUidB, "40", d0, quando}}) {
+            Map<String, Object> r = new LinkedHashMap<>(registro(UUID.randomUUID(), (UUID) x[0], (String) x[2], 6, (Instant) x[4]));
+            r.put("data", ((LocalDate) x[3]).toString());
+            r.put("planoVersaoId", versao);
+            r.put("sessaoUid", sessaoUid.toString());
+            r.put("exercicioUid", ((UUID) x[1]).toString());
+            registros.add(r);
+        }
+        assertThat(situacoes(api.post("/aluno/execucoes/lote", outro, Map.of("registros", registros), 200)))
+                .containsExactly("ACEITO", "ACEITO", "ACEITO");
+
+        JsonNode cargas = api.get("/aluno/painel", outro, 200).get("ultimasCargas");
+        assertThat(cargas.get(exercicioIdA.toString()).get("carga").decimalValue()).isEqualByComparingTo("60");
+        assertThat(cargas.get(exercicioIdB.toString()).get("carga").decimalValue()).isEqualByComparingTo("40");
+    }
+
     @Test
     void serieInexistenteVersaoDeOutroAlunoEDataForaDoPeriodoSaoRecusados() throws Exception {
         UUID outroAluno = api.criarAluno(treinador, "Outro Aluno Fictício");

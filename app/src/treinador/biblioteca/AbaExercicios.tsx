@@ -91,12 +91,12 @@ export function AbaExercicios() {
       {dados && total === 0 ? (
         <Vazio titulo={!semFiltro ? 'Nenhum exercício encontrado' : 'Biblioteca de exercícios vazia'} texto={!semFiltro ? 'Tente outro termo de busca ou outro grupo muscular.' : pode('BIBLIOTECA_ALTERAR') ? 'Importe do catálogo ou cadastre um exercício.' : 'Ainda não há itens cadastrados.'} acao={!semFiltro ? { rotulo: 'Limpar filtros', aoTocar: () => { mudarBusca(''); mudarGrupos(new Set()); } } : pode('BIBLIOTECA_ALTERAR') ? { rotulo: 'Cadastrar exercício', aoTocar: () => setEditando('novo') } : undefined} />
       ) : null}
-      {lista.length ? <ListaDeLinhas>{lista.map((e) => (
+      {lista.length ? <ListaDeLinhas divisorias>{lista.map((e) => (
         <LinhaDaLista key={e.id} titulo={e.nome}
           metadados={[MODALIDADES[e.modalidade], e.grupoMuscular, e.equipamento, e.videoUrl ? 'com vídeo' : null].filter(Boolean).join(' · ')}
           inicio={<DemonstracaoDoExercicio exercicioId={e.id} nome={e.nome} imagens={e.imagens} imagemPropriaEm={e.imagemPropriaEm} papel="EQUIPE" largura={56} altura={56} preencher ampliavel />}
           acoesAoLado
-          acoes={<Permitido codigo="BIBLIOTECA_ALTERAR"><IconeBotao Icone={Pencil} rotulo={`Editar ${e.nome}`} aoTocar={() => setEditando(e)} /></Permitido>} />
+          acoes={<Permitido codigo="BIBLIOTECA_ALTERAR"><IconeBotao Icone={Pencil} moldura rotulo={`Editar ${e.nome}`} aoTocar={() => setEditando(e)} /></Permitido>} />
       ))}</ListaDeLinhas> : null}
       {total > TAMANHO_DA_PAGINA_DE_EXERCICIOS ? (
         <View style={estilos.paginacao}>

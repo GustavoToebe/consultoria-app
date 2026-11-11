@@ -153,18 +153,21 @@ export function ListaDeQuestionarios({ finalidade = 'ATUALIZACAO', pedirNovo, ao
 
 /**
  * Metadados da linha do questionário: "Publicado v3 · Padrão · Arquivado · 2 alunos · 5 envios", cada parte só quando
- * vale. "Nunca publicado" não entra aqui: é selo, porque pede atenção.
+ * vale. "Nunca publicado" não entra aqui: é selo.
  */
 export function metadadosDoQuestionario(q: Pick<QuestionarioResumo, 'versaoPublicada' | 'padrao' | 'arquivado' | 'uso'>): string {
   return [q.versaoPublicada ? `Publicado v${q.versaoPublicada}` : null, q.padrao ? 'Padrão' : null, q.arquivado ? 'Arquivado' : null, linhaDeUso(q)]
     .filter(Boolean).join(' · ');
 }
 
-/** Selos só do que pede atenção: nunca publicado e alterado desde a publicação. */
+/**
+ * Selos da linha, os dois neutros, como o "Rascunho" e o "Alterações não publicadas" do editor de plano: rascunho sem
+ * erro não é pendência nem problema (guia premium, pág. 8).
+ */
 export function selosDoQuestionario(q: Pick<QuestionarioResumo, 'versaoPublicada' | 'alteradoDesdePublicacao'>): SeloDaLinha[] {
   return [
-    ...(q.versaoPublicada ? [] : [{ texto: 'Nunca publicado', tipo: 'atencao' as const }]),
-    ...(q.alteradoDesdePublicacao ? [{ texto: 'Alterado desde a publicação', tipo: 'atencao' as const }] : []),
+    ...(q.versaoPublicada ? [] : [{ texto: 'Nunca publicado', tipo: 'neutro' as const }]),
+    ...(q.alteradoDesdePublicacao ? [{ texto: 'Alterado desde a publicação', tipo: 'neutro' as const }] : []),
   ];
 }
 

@@ -38,7 +38,7 @@ vale acima de todas: **manter o sistema funcional, simples e rápido**. Escrito 
 | Gráficos | SVG próprio (`GraficoLinha`, `GraficoBarras`) | Sem biblioteca de gráficos. |
 | PDF | HTML montado no app + `expo-print` / impressão do navegador | |
 | Testes | **Jest** (cerca de 185 suítes, regras puras e telas) e **Playwright** (48 arquivos de e2e na web, com a API simulada) | O e2e roda em 390 px (celular) e 1280 px (PC). |
-| Fontes | Inter (texto); Bebas Neue, Oswald e Metal Mania só no nome da marca | |
+| Fontes | Geist (texto, desde 11/11); Bebas Neue, Oswald e Metal Mania só no nome da marca | |
 
 **O que não usamos de propósito:** biblioteca de UI pronta (Material, NativeBase etc.), CSS-in-JS de terceiros,
 biblioteca de gráficos, Redux ou outro gerenciador de estado global. O estado mora nos *providers* (sessão, tema,
@@ -94,35 +94,41 @@ app/src/
 ### 4.1 Como esse estilo se caracteriza
 
 É uma **interface flat utilitária, de painel SaaS, organizada em blocos com contorno** (definida no protótipo do
-editor de treino de 30/10; decisões em `docs/planos/editor-de-treino-visual.md`).
+editor de treino de 30/10; decisões em `docs/planos/editor-de-treino-visual.md`). **A partir de 11/11 a pele segue o
+guia visual de 11/11** (PDF do Gustavo sobre a prévia `docs/prototipos/visual-vendavel/`; o PDF vale sobre o plano):
+borda de 1 px, Geist, seleção neutra, conteúdo num painel ao lado do menu. O que mudou está marcado "(11/11)" abaixo.
 
 **Os nomes que descrevem**
 - **Flat design (flat UI):** cores chapadas, sem sombra, sem gradiente e sem efeito de vidro. A profundidade vem só de
   tons de superfície e de linhas.
 - **Interface de cartões com contorno (card-based, "outlined cards"):** cada assunto é um bloco fechado por uma borda
-  visível, com uma faixa de título no topo. É o que resolve o "onde começa e onde termina".
+  discreta (`divisor`), com uma faixa de título no topo. É o que resolve o "onde começa e onde termina". Contorno forte
+  (`bordaCampo`) fica para campo, foco e item selecionado (11/11).
 - **Painel SaaS utilitário, com muita informação:** tela de trabalho, densa, para quem usa todo dia (o treinador no
-  PC), no espírito de ferramentas como Linear, Stripe Dashboard e Notion, mas com bordas bem mais fortes.
-- **Toque de neo-brutalismo suave ("soft neo-brutalism"):** borda de 2 a 3 px, linha forte embaixo do título, cores
-  sólidas e botões com moldura, sem a sombra deslocada nem as cores berrantes do neo-brutalismo "puro".
+  PC), no espírito de ferramentas como Linear, Stripe Dashboard e Notion.
+- **Borda de 1 px (11/11):** containers com 1 px em `divisor`; a preferência "bordas reforçadas" sobe tudo para 2 px
+  (`dominio/preferencias`). O neo-brutalismo suave de 30/10 (2 a 3 px) saiu.
 
 **As regras que dão a identidade**
 - **Hierarquia por contenção:** página → bloco → faixa do título → item → campo, cada nível com um tom ou uma borda
   diferente. Não se usa cor aleatória para separar.
 - **Cor com significado (cor semântica):** verde é "pronto", âmbar é atenção, vermelho é problema e cinza é encerrado;
   onde a cor da marca pode aparecer está na lista fechada da seção 4.5.
-- **Seleção invertida (monocromática):** a opção escolhida fica com fundo escuro e letra clara, nunca na cor da marca.
+- **Seleção neutra (11/11, `ui/selecao.ts`):** a opção escolhida ganha fundo `superficie3`, contorno `bordaCampo` e ✓
+  (ou, no grupo segmentado de até cinco opções, sobe da trilha `superficie2`); a marca só aparece no indicador pequeno
+  (sublinhado da aba, barra do menu ativo). Caixa de seleção e interruptor continuam preenchidos (é o desenho do controle).
 - **Mostrar aos poucos (progressive disclosure, padrão "acordeão"):** uma série aberta por vez e as outras resumidas
   numa linha.
 - **Status sempre com texto e ícone:** "Pronta", "Corrigir", "1 problema a corrigir"; a cor nunca fala sozinha.
-- **Grade de 8 px, cantos de 12 px e fonte Inter**, com números alinhados (tabulares).
+- **Grade de 8 px, cantos de 12 px no cartão e 8 px no controle, fonte Geist (11/11)**, com números alinhados (tabulares).
 
 **Para descrever a um designer ou a outra IA**
 
-> UI flat utilitária de painel SaaS, organizada em cartões com contorno de 2 px e faixa de título com linha de 3 px;
-> fundo quase branco, sem sombras nem gradientes; cor só com significado (verde, âmbar, vermelho e cinza para status,
-> cor da marca só na ação principal e no menu ativo); seleção invertida em preto; detalhes revelados aos poucos, como
-> acordeão; cantos de 12 px, grade de 8 px, fonte Inter.
+> UI flat utilitária de painel SaaS, organizada em cartões com contorno discreto de 1 px e faixa de título; menu no
+> fundo e conteúdo num painel levemente destacado; sem sombras nem gradientes; cor só com significado (verde, âmbar,
+> vermelho e cinza para status, em pílula com ponto sobre um fundo escuro da própria cor; marca só na ação principal e
+> no indicador pequeno do item ativo); seleção neutra em cinza com ✓; detalhes revelados aos poucos, como acordeão;
+> cantos de 12 px no cartão e 8 px no controle, grade de 8 px, fonte Geist.
 
 Termos para procurar referências: *flat SaaS dashboard*, *outlined card UI*, *data-dense admin UI* e *soft
 neo-brutalism UI* (este último mostra o lado "borda forte").
@@ -137,26 +143,49 @@ neo-brutalism UI* (este último mostra o lado "borda forte").
 
    A cor da marca **nunca** diz status e só aparece nos lugares da lista fechada da seção 4.5. Status sempre vem num
    selo **com texto**.
-2. **Blocos:** tudo em cartão (cantos de 12 px, borda de 2 px, sem sombra; ajuste de 30/10). A ficha é feita de blocos pequenos, cada um
-   com seus botões.
+2. **Blocos:** tudo em cartão (cantos de 12 px, borda de 1 px em `divisor`, sem sombra nem gradiente; 11/11, antes
+   2 px). Controles (botão, campo, chip, item de lista escolhível, botão de ícone) têm canto de 8 px (`RAIO_CONTROLE`).
+   Sombra, borda e canto são os mesmos em todas as telas: tela não inventa a sua. A ficha é feita de blocos pequenos,
+   cada um com seus botões.
 3. **SaaS limpo:** visual *flat*, grade de 8 px, tipografia contida, nada decorativo.
 
 ### 4.3 Níveis de superfície (o coração da hierarquia)
 
-```
-fundo da página (quase branco: #F7F7F8)
- └─ Cartao               superficie  + borda de 2 px   (seção: "Dieta", "Exercício 1")
-     ├─ faixa de título   superficie3 + linha de 3 px embaixo   ← onde a seção COMEÇA
-     └─ item              superficie2 + borda      (série, alimento, linha)
-         └─ campo         campo + bordaCampo       (o "buraco" onde se escreve)
+```text
+fundo (menu lateral do PC, telas do celular)           escuro #0A0A0C
+ └─ painel (conteúdo ao lado do menu no PC)             escuro #101013, borda divisor
+     └─ Cartao              superficie + 1 px divisor   escuro #18181B / #36363C
+         ├─ faixa de título superficie2 + linha divisor ← onde a seção COMEÇA
+         ├─ item            superficie2 (elevada)       escuro #222226
+         │   └─ selecionado superficie3 + bordaCampo + ✓ escuro #2C2C31 / #82828C
+         └─ campo           campo + bordaCampo (3:1)    escuro #0F0F12
 ```
 
+Uso de cada nível (11/11):
+- **`superficie2` (elevada):** menus suspensos (lista suspensa, calendário, busca, cartão do usuário, passeio, com borda
+  `divisor` e **sem sombra**: o `SOMBRA_FLUTUANTE` saiu em 11/11), conteúdo de apoio, faixa de título e o hover de linhas
+  e botões. Dentro de um menu, o item em foco ou sob o ponteiro sobe para `superficie3`.
+- **`superficie3` (seleção neutra):** fundo do item escolhido (chip, opção da folha, dia do calendário, item do menu).
+- **`painel`:** separação discreta entre o menu e o conteúdo no PC (`Navegacao`). Quem pinta o fundo da tela ou casa
+  uma cor com ele (`Tela`, `BarraTopo`, o esmaecido das faixas que rolam) usa `useFundoDaArea()` (`ui/fundoDaArea`),
+  que devolve `painel` ali e `fundo` no resto.
+- **Cartão só informativo** (um número, uma legenda) pode ficar sobre o fundo sem contorno forte; a borda `divisor` basta.
+- **Texto secundário** perde peso (fonte regular, 13–14), não contraste: `textoSuave` ≥ 4,5:1 em toda superfície, nunca
+  opacidade.
+- Os HEX acima são o ponto de partida do escuro (guia de 11/11). As outras nove paletas (claro, areia, lavanda, céu,
+  rosa, meia-noite, ameixa, oceano, café) têm pares próprios e não precisam repetir esses valores: o que vale é o
+  contraste medido em `tema/tokens.test.ts`.
+
 - 24 px entre blocos, 16 px dentro do cartão.
-- Toque mínimo de 44 px; fonte mínima de 12.
+- Toque mínimo de 44 px (48 nas linhas de lista e caixas de seleção); fonte mínima de 12.
+- **Tipografia (11/11, Geist; `ui/tipografia.ts`):** página 24–28 (`titulo`), seção 18–20 (`bloco` 18/24), corpo 15–16,
+  meta 13–14 (`pequeno` 13/18), selo 12. Rótulo de campo sempre visível; o placeholder nunca o substitui.
+- **Movimento:** transições de 120–220 ms só em cor, borda e o "afundar" do botão (`translateY 1` + `scale 0,98`),
+  desligadas com `useMovimentoReduzido`; nada segura a ação.
 - Temas disponíveis: **claro** (padrão), **escuro**, **claro areia** (opção pedida na reunião de 29/10) e
   **contraste alto**. O contraste de cada combinação é conferido por teste (`tema/tokens.test.ts`): texto ≥ 4,5:1 e
   borda de campo ≥ 3:1.
-- Seleção (chips, escolhas) é **invertida**: fundo escuro e letra clara, nunca a cor da marca.
+- Seleção (chips, escolhas) é **neutra** (11/11): `superficie3` + `bordaCampo` + ✓, nunca a cor da marca.
 - Larguras:
   - formulário: 640;
   - editor: 1040 (em coluna única);
@@ -174,11 +203,16 @@ fundo da página (quase branco: #F7F7F8)
 | `Cartao` | Seção. Com título ganha a **faixa de cabeçalho**. Pode ser recolhível. |
 | `CabecalhoDeGrupo` | Faixa de grupo (sessão, refeição, pasta, dia), recolhível, com resumo e selo. |
 | `Folha` | Painel por cima da tela (formulários, escolhas). No PC pode ser arrastada pelo cabeçalho; no celular o mesmo arraste fecha. Entra no histórico do navegador. |
-| `LinhaDaLista` / `ListaDeLinhas` | Lista de registros numa coluna: título, metadados, selos, ações. |
+| `LinhaDaLista` / `ListaDeLinhas` | Lista de registros numa coluna: título, metadados, selos, ações. `ListaDeLinhas divisorias` (11/11): superfície comum, sem caixa por linha, divisória `divisor` só entre as linhas, realce `superficie3` no hover com mouse, no foco e com o conteúdo de baixo aberto; seleção neutra mantida; padrão desligado (hoje só a Biblioteca usa). |
 | `Tabela` | Colunas no PC, cartões empilhados no celular. |
 | `Alerta` | Caixa de aviso: `perigo` (erro), `atencao` (cuidado, mas não impede), `sucesso`. |
-| `Selo` | Status curto com texto e cor de significado. |
-| `Botao` | Um `primario` por área; o resto é secundário. Desabilitado sempre diz o porquê (`motivo`). |
+| `Selo` | Status curto com texto (11/11): `sucesso`/`atencao`/`perigo` viram pílula com ponto e texto na cor sobre o `*Suave` da situação; o estado normal (`neutro`) é só texto secundário, sem pílula. `categoria` (tipo de série, refeição: `useTema().identificacao[chave]`) é pílula escura com o texto na cor da categoria, sem ponto. |
+| `Botao` | Um `primario` por área, na cor da marca (hover `marcaHover`); o secundário tem borda `bordaCampo` e hover `superficie2`. Desabilitado sempre diz o porquê (`motivo`). |
+| `Campo` / `MensagemDeErro` | Rótulo permanente, ajuda abaixo do campo, erro com ícone + mensagem + borda `perigo` (`MensagemDeErro` também na `Escolha`, no endereço e na `EscolhaEmFolha`); foco visível pelo `anelFoco`. |
+| `Escolha` | Até cinco opções sem contagem = grupo segmentado; mais = chips com ✓. `contagem` mostra "Todos 48" em texto secundário sem mudar o alvo de toque. |
+| `Abas` | Aba ativa com texto forte e sublinhado de 2 px em `marcaPeca`; contagem em pílula neutra; sem a versão invertida. |
+| `Navegacao` | PC: menu no `fundo`, conteúdo no `painel`; item ativo em `superficie3` com a barrinha da marca; o trilho mostra o nome no hover/foco e tem rótulo acessível. O recolher/expandir mora na barra de topo (52 a 56 px; fica no rodapé do menu só onde não há barra, no tablet nativo largo); o menu aberto mostra a contagem neutra (contorno `divisor`, texto `texto`) de Atualizações e Interessados, e o ponto fica no trilho, no recolhido e no celular. Celular: barra inferior com pílula `superficie3` no ativo. |
+| `corDoNumero` (`ui/indicador.ts`) | Número de indicador: comum em `texto`, atrasado em `perigo`, zero em `textoSuave`, nunca a marca; o cartão fica neutro. |
 | `EscolhaSuspensa` / `EscolhaEmFolha` | Escolha com busca: lista suspensa no PC, folha no celular. |
 
 ### 4.5 Cor por situação (Gustavo, 03/11)
@@ -201,9 +235,9 @@ com o texto, sem ícone e sem mudar o desenho do `Selo` (Gustavo, 04/11).
 
 **Onde a marca pode aparecer (lista fechada):**
 - ação principal: `Botao primario` e, nas telas públicas da consultoria, `BotaoPublico`;
-- item de menu ativo e aba ativa;
+- indicador pequeno do item de menu ativo e da aba ativa (barra ou sublinhado, `marcaPeca`; o fundo do item é neutro, 11/11);
 - cartão "Hoje" do aluno;
-- nome da marca (`MarcaTitulo`) e a inicial no trilho do menu (`MarcaDoTrilho`);
+- nome da marca (`MarcaTitulo`), a inicial no trilho do menu (`MarcaDoTrilho`) e a da identidade do menu aberto (`MarcaDoMenu`, 68 px, logo e nome numa linha);
 - dia de hoje e ações do `Calendario`;
 - PDFs: faixa, título das seções, cabeçalho das tabelas e valores em destaque (carga e quantidade);
 - prévias da Marca e das Preferências;
@@ -212,18 +246,25 @@ com o texto, sem ícone e sem mudar o desenho do `Selo` (Gustavo, 04/11).
 
 Qualquer outro lugar precisa de decisão nova.
 
-| Situação | Tom (token) | Quando usar | Exemplos | Aluno e treinador | Mínimo WCAG AA | Pior valor medido (claro · areia · escuro) |
+| Situação | Tom (token) | Quando usar | Exemplos | Aluno e treinador | Mínimo WCAG AA | Pior valor medido (claro · areia · escuro; 11/11) |
 | --- | --- | --- | --- | --- | --- | --- |
 | Ação e destaque | fundo `marca` com texto `sobreMarca`; em texto ou ícone, `marcaTexto` | Só nos lugares da lista acima | "Salvar", menu ativo, cartão Hoje | Sim | 4,5:1 (texto) | `sobreMarca` sobre `marca` ≥ 4,5 (`avaliarMarca` recusa menos); `marcaTexto` ≥ 4,5 por construção (`marcaParaTexto`) |
-| Positivo, concluído | `sucesso` | Terminou bem e não falta nada | Paga, Ativa, Revisada, Sincronizado, Treino concluído, Realizado, Com acesso, Publicado | Sim | 4,5:1 | 5,11 · 4,92 · 5,13 (sobre `superficie3`) |
-| Pendente, alguém precisa agir | `atencao` | Falta uma ação de alguém, mas nada impede de seguir | Em aberto, Rascunho, Para revisar, Responder até, Adiada, Pausada, Contestada, Alterações não salvas | Só quem age (a cobrança Em aberto, para os dois: exceção acima) | 4,5:1 | 5,00 · 4,82 · 5,52 (sobre `superficie3`) |
-| Problema, erro ou atraso | `perigo` em texto e borda; `perigoFundo` em botão preenchido com texto branco | Algo deu errado, impede de seguir ou passou do prazo; ação destrutiva | Atrasada, "Vencida há N dias", Falhou, Faltou, Corrigir, Falha ao salvar, erro de campo | Sim | 4,5:1 | 5,32 · 5,13 · 4,51 (sobre `superficie3`); branco sobre `perigoFundo`: 6,57 · 6,57 · 5,62 |
-| Encerrado, inativo ou informativo | `neutro` | Acabou, foi desligado, ou é só informação, inclusive o que ainda vai acontecer, sempre com a data; também quem espera a ação de outro | Cancelada, Estornada, Encerrada, Arquivado, Inativo, Pasta concluída, Dispensada, Sem conexão, "Em 15 dias", "Enviada · aguardando revisão" (quem espera) | Sim | 4,5:1 | 4,97 · 4,79 · 4,98 (sobre `superficie3`) |
+| Positivo, concluído | `sucesso` | Terminou bem e não falta nada | Paga, Ativa, Revisada, Sincronizado, Treino concluído, Realizado, Com acesso, Publicado | Sim | 4,5:1 | 5,48 · 5,48 · 7,99 (sobre `sucessoSuave`, o fundo do selo) |
+| Pendente, alguém precisa agir | `atencao` | Falta uma ação de alguém, mas nada impede de seguir | Em aberto, Para revisar, Responder até, Adiada, Pausada, Contestada, Alterações não salvas, "Falta a carga" e "Sem quantidade" (campo vazio que ainda vai ser preenchido; valor inválido é `perigo`) | Só quem age (a cobrança Em aberto, para os dois: exceção acima) | 4,5:1 | 5,40 · 5,40 · 8,50 (sobre `atencaoSuave`) |
+| Problema, erro ou atraso | `perigo` em texto e borda; `perigoFundo` em botão preenchido com texto branco | Algo deu errado, impede de seguir ou passou do prazo; ação destrutiva | Atrasada, "Vencida há N dias", Falhou, Faltou, Corrigir, Falha ao salvar, erro de campo | Sim | 4,5:1 | 5,62 · 5,62 · 5,59 (sobre `perigoSuave`; pior das dez paletas 5,03, café); branco sobre `perigoFundo`: 6,57 · 6,57 · 5,62 |
+| Encerrado, inativo ou informativo | `neutro` | Acabou, foi desligado, ou é só informação, inclusive o que ainda vai acontecer, sempre com a data; também quem espera a ação de outro | Cancelada, Estornada, Encerrada, Arquivado, Inativo, Pasta concluída, Dispensada, Sem conexão, "Em 15 dias", "Enviada · aguardando revisão" (quem espera); rascunho sem erro (11/11): Rascunho, Nunca publicado, Alterações não publicadas, Alterado desde a publicação | Sim | 4,5:1 | `textoSuave` sem pílula: 6,26 · 6,04 · 6,83 (sobre `superficie3`) |
 | Desabilitado | fundo `superficie3`, borda `borda`, texto e ícone `textoSuave`, sem opacidade e sem a marca | Controle que não pode ser usado agora | Botão com `motivo` ("Preencha o nome"), opção indisponível, ✓ na prévia | Sim | Isento pela WCAG 1.4.3; o `motivo` abaixo é texto comum (4,5:1) | `textoSuave` sobre `superficie3`: 6,26 · 6,04 · 5,42 |
-| Seleção | invertida: fundo `texto`, letra `fundo` | Opção escolhida (chips, `Escolha`, calendário, `Interruptor`) | Chip marcado | Sim | 4,5:1 | igual a texto sobre fundo |
+| Seleção | neutra (11/11): fundo `superficie3`, contorno `bordaCampo`, ✓ e letra `texto`; caixa de seleção e `Interruptor` seguem preenchidos | Opção escolhida (chips, `Escolha`, calendário, opção de folha) | Chip marcado | Sim | 4,5:1 (texto); 3:1 (contorno) | `texto` sobre `superficie3` ≥ 12,6 (pior: ameixa); `bordaCampo` ≥ 3:1 (pior 3,56, ameixa) |
 | Identificação | paletas próprias (`PALETA_DE_IDENTIFICACAO`, agendas, fases e `PALETA_SO_DO_PERFIL`) | Diz *qual* coisa é, nunca status | Tipo de série, refeição, agenda, fase do ciclo, cor do perfil na Comunidade | Sim | 4,5:1 (texto); 3:1 (marcador) | conferido em `tokens.test.ts` |
 
 - **Casos que não estão na tabela** (04/11; teste `dominio/corPorSituacao.test.ts`):
+  - **Atualização revisada** (11/11, segundo guia): para o treinador `neutro` (`statusAtualizacaoTreinador`: é
+    informativa; "Para revisar" segue `atencao`); para o aluno continua `sucesso`.
+  - **Etapa da inscrição** (`dominio/inscricoes.seloDaSituacao`, 11/11): Nova, Em contato e Em negociação `neutro`
+    (é etapa; o destaque é do retorno atrasado ou de hoje), Aceita `sucesso`, encerradas `neutro`.
+  - **Situação do membro da equipe** (11/11): texto neutro ao lado do perfil (convite pendente é espera).
+  - **Cor da marca** (11/11): só nome e amostra, sem frase de emoção.
+  - **Prévia "Para o aluno"** do editor de séries (pedido do Gustavo, 11/11): fundo e borda na cor do estado, verde (`sucesso`) quando não há nada a corrigir, âmbar ou vermelho com aviso ou erro; o texto continua na cor do texto.
   - **Acesso do aluno** (`CartaoAcesso`, só a equipe vê; `dominio/cadastroDoAluno.seloDoAcesso`): Sem acesso `neutro`,
     Aguardando primeiro acesso `neutro` (quem age é o aluno; o treinador espera), Com acesso `sucesso`.
   - **Pagamento da inscrição** (`dominio/inscricoes.seloDoPagamento`): Aguardando `atencao` (exceção da cobrança; o
@@ -241,7 +282,23 @@ Qualquer outro lugar precisa de decisão nova.
   - `atencao` no areia: 4,28;
   - `perigo` no escuro: 4,01.
 
-  Regra: o selo tem sempre fundo opaco. Com o fundo `tingido` da própria cor, o pior caso é 5,14 (escuro, `perigo`).
+  Regra: o selo de situação tem sempre fundo opaco (`*Suave`, 11/11; os números acima são do selo antigo, transparente).
+  O `neutro` virou texto secundário sem pílula e é conferido sobre a `faixaForte` em `ui/contrasteDasPecas.test.ts`.
+- **Categoria e macros (11/11):** badge de categoria é pílula escura com o texto na cor da categoria (`Selo categoria`).
+  Marcas de macronutriente saem sempre da peça `ui/ValoresDaDieta` (`MACROS`, `MarcaDoMacro`, `kcalNaTela`,
+  `gramasNaTela`; editor da dieta e dieta do aluno usam a mesma): ponto na cor de identificação e o número neutro,
+  nunca o verde de `sucesso` nem o vermelho de `perigo` (a distância ΔE ≥ 40 entre categoria e status é conferida em
+  `tokens.test.ts`). Tela nova de macro reutiliza a peça; não cria cor nem formato próprio.
+- **Feito e recém-marcado (11/11, `ui/marcar.coresDoMarcar`, `aluno/useMarcadoAgora`):** o ✓ do que já estava feito é
+  neutro (`superficie3`, `bordaCampo`, ✓ em `textoSuave`); verde (`sucessoSuave`/`sucesso`) só no que a pessoa acabou
+  de marcar nesta tela. Verde é comemoração curta, não o estado permanente da lista.
+- **Número (11/11):** indicador, total do dia e número da série em `texto`; a série em edição ganha contorno
+  `bordaCampo` e o rótulo "EDITANDO", não cor. Só o atrasado é `perigo` (`ui/indicador.corDoNumero`).
+- **Publicar (11/11):** o botão diz o que publica ("Publicar treino", "Publicar dieta", "Publicar mobilidade",
+  "Publicar alterações da pasta", "Publicar questionário", "Publicar anamnese", "Publicar perguntas") e só é o
+  principal quando há o que publicar.
+- **Exceção da P5 no Planejamento (11/11, segundo guia, pág. 8):** busca, "Organizar coleções" e "Nova …" (primário)
+  ficam numa fileira só, acima das coleções, e não na faixa do cartão.
 - **Aviso de rodapé (`useAviso`):** o tom de atenção é para o aviso que não é erro, como "o navegador bloqueou a nova
   aba" ou "a mensagem foi preparada, mas não foi registrada". O vermelho fica para o que falhou.
 - **Marca parecida com um status:** a marca padrão `#C62828` é o mesmo vermelho do `perigoFundo` do escuro. Por isso
@@ -326,7 +383,7 @@ A seção "Observado no código" de cada padrão são **hipóteses de causa** ac
 - **Quando usar:** até 8 opções: `Escolha` (botões lado a lado) ou `GradeDeOpcoes` com `OpcaoCartao` quando cada opção
   tem descrição ou amostra. Mais de 8: `EscolhaEmFolha`. Várias marcadas: `SelecaoMultiplaSuspensa`. Registros com
   ações: `LinhaDaLista` dentro de `ListaDeLinhas`; atalhos e itens de ação: `ItemDeLista`.
-- **Estrutura:** a opção escolhida é a invertida (cor `texto`), com ✓ no cartão; motivo de opção desabilitada fica sob o
+- **Estrutura:** a opção escolhida é neutra (`superficie3` + `bordaCampo`, 11/11), com ✓; motivo de opção desabilitada fica sob o
   grupo (P5); as ações de uma linha ficam **à direita**, a principal da linha só uma.
 - **Peça:** `Escolha` (`distribuida` para dividir a largura, `compacta` para caber em duas fileiras no celular),
   `GradeDeOpcoes` (1 coluna abaixo de 700 px, 2 acima), `OpcaoCartao`, `LinhaDaLista`.

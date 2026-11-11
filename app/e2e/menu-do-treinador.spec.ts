@@ -4,15 +4,17 @@ import { PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa
 
 /**
  * Menu do treinador (auditoria-ficha, N29 e o menu do tablet): grupos com título no PC, rótulo curto embaixo do ícone no
- * trilho de 768 a 1023 px, PC minimizado só com ícone e dica, barra do celular igual. Só dados fictícios.
+ * trilho de 768 a 1023 px, PC minimizado só com ícone e dica, barra do celular igual. Desde 11/11 (guia, p. 28 a 31) o
+ * recolher mora na barra de topo, com o contexto curto, e o menu aberto mostra as contagens. Só dados fictícios.
  */
 const TODAS = [...PERMISSOES_TREINADOR, 'ATUALIZACAO_LER', 'AGENDA_LER', 'BIBLIOTECA_LER', 'MODELO_LER', 'FINANCEIRO_LER', 'EQUIPE_LER', 'AUDITORIA_LER'];
 
-async function abrir(page: Page, largura: number, altura: number, permissoes = TODAS, aparelho = {}) {
+async function abrir(page: Page, largura: number, altura: number, permissoes = TODAS, aparelho = {}, contagens = { revisar: 0, novas: 0 }) {
   await page.setViewportSize({ width: largura, height: altura });
   const { errosDaPagina } = await simularApi(page, {
     ...(await sessao(page, TREINADOR, { permissoes, pagamentosHabilitados: true }, aparelho)),
-    'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+    'GET /inscricoes': { corpo: { itens: [], total: contagens.novas } },
+    'GET /painel': { corpo: { atualizacoesParaRevisar: contagens.revisar } },
   });
   await page.goto('/treinador/ajuda');
   await expect(menu(page).getByRole('link', { name: 'Alunos', exact: true })).toBeVisible();
@@ -41,12 +43,56 @@ test('PC (1280): quatro grupos com título, na ordem do D6, e o fim do menu alca
   // O Início fica no topo, fora de grupo.
   await expect(menu(page).getByRole('link').first()).toHaveAttribute('aria-label', 'Início');
 
-  // Com os títulos o menu passa de 720 px: a lista rola e o "Minimizar" fica fixo embaixo.
+  // Com os títulos o menu passa de 720 px e a lista rola; o "Minimizar" mora na barra de topo, não no menu (sem cópia).
   await expect(page.getByRole('button', { name: 'Minimizar menu' })).toBeInViewport();
+  await expect(menu(page).getByRole('button', { name: /Minimizar menu|Expandir menu/ })).toHaveCount(0);
   const auditoria = menu(page).getByRole('link', { name: 'Auditoria', exact: true });
   await auditoria.scrollIntoViewIfNeeded();
   await expect(auditoria).toBeInViewport();
   expect(errosDaPagina).toEqual([]);
+});
+
+test('PC (1280×720): barra de topo de 52 a 56 px com recolher, contexto do grupo, busca global e conta', async ({ page }) => {
+  const { errosDaPagina } = await abrir(page, 1280, 720);
+  const minimizar = page.getByRole('button', { name: 'Minimizar menu' });
+  const busca = page.getByRole('combobox', { name: 'Buscar telas e ações em todo o app' });
+  const conta = page.getByRole('button', { name: /^Menu do usuário/ });
+  await expect(busca).toHaveAttribute('placeholder', 'Buscar');
+  // Ajuda fica em Configurações: o topo diz o grupo, sem repetir o título da tela.
+  await expect(page.getByText('Configurações', { exact: true }).and(page.locator(':not([role="menubar"] *)'))).toBeVisible();
+  const [caixaMin, caixaBusca, caixaConta] = [await minimizar.boundingBox(), await busca.boundingBox(), await conta.boundingBox()];
+  // Tudo na mesma faixa: recolher à esquerda, busca e conta à direita, alvos de 44.
+  expect(caixaMin!.x).toBeLessThan(caixaBusca!.x);
+  expect(caixaBusca!.x).toBeLessThan(caixaConta!.x);
+  for (const caixa of [caixaMin!, caixaBusca!, caixaConta!]) expect(caixa.height).toBeGreaterThanOrEqual(44);
+  const barra = await minimizar.evaluate((el) => {
+    let no: HTMLElement | null = el.parentElement;
+    while (no && getComputedStyle(no).borderBottomWidth === '0px') no = no.parentElement;
+    return no?.getBoundingClientRect().height ?? 0;
+  });
+  expect(barra).toBeGreaterThanOrEqual(52);
+  expect(barra).toBeLessThanOrEqual(56);
+  // Ctrl+K continua focando a busca.
+  await page.keyboard.press('Control+k');
+  await expect(busca).toBeFocused();
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('PC (1280): o menu aberto mostra o número de Atualizações e Interessados; recolhido volta ao ponto', async ({ page }) => {
+  const { errosDaPagina } = await abrir(page, 1280, 900, TODAS, {}, { revisar: 3, novas: 1 });
+  await expect(menu(page).getByRole('link', { name: 'Atualizações, 3 para revisar', exact: true })).toBeVisible();
+  await expect(menu(page).getByRole('link', { name: 'Interessados, 1 inscrição nova', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Minimizar menu' }).click();
+  await expect(menu(page).getByRole('link', { name: 'Atualizações, pendência', exact: true })).toBeVisible();
+  await expect(menu(page).getByRole('link', { name: 'Interessados, pendência', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Expandir menu' }).click();
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('PC (1280): sem nada para revisar, nenhum número nem ponto', async ({ page }) => {
+  await abrir(page, 1280, 900);
+  await expect(menu(page).getByRole('link', { name: 'Atualizações', exact: true })).toBeVisible();
+  await expect(menu(page).getByRole('link', { name: 'Interessados', exact: true })).toBeVisible();
 });
 
 test('PC (1280×720): o passeio traz para a tela o item que a lista rolada escondia', async ({ page }) => {

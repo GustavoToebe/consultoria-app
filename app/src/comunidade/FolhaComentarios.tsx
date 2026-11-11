@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, StyleSheet, View } from 'react-native';
 
 import { ErroApi } from '../api/cliente';
-import { comentarComoAluno, listarComentariosDaEquipe, listarComentariosDoAluno, removerComentario } from '../api/comunidade';
+import { comentarComoAluno, comentarComoEquipe, listarComentariosDaEquipe, listarComentariosDoAluno, removerComentario } from '../api/comunidade';
 import type { AlvoDosComentarios, ComentarioDoMural } from '../api/comunidadeTipos';
 import {
   COMENTARIO_MAXIMO, comentarioParaEnviar, comentariosDaPrimeiraPagina, comentariosQueFaltam, comComentarioEnviado, contadorDoComentario,
@@ -19,13 +19,14 @@ import { Alerta, MensagemErro, Vazio } from '../ui/Estados';
 import { Folha } from '../ui/Folha';
 import { LinhaDeAcoes } from '../ui/LinhaDeAcoes';
 import { PainelConfirmacao } from '../ui/PainelConfirmacao';
+import { Selo } from '../ui/Selo';
 import { Texto } from '../ui/Texto';
 import { separarErros, textoDoErro } from '../ui/erros';
 import { useCarregar } from '../ui/useCarregar';
 import { AutorDoPost } from './AutorDoPost';
 import { FolhaPerfilDoColega } from './FolhaPerfilDoColega';
 
-/** Aluno lê e comenta (só com internet); a equipe lê e, com `COMUNIDADE_MODERAR`, remove. A equipe não comenta. */
+/** Aluno lê e comenta (só com internet); a equipe lê e, com `COMUNIDADE_MODERAR`, remove e responde nos posts do mural (aulões, não). */
 export type ModoDosComentarios = { tipo: 'aluno'; online: boolean } | { tipo: 'equipe'; podeModerar: boolean };
 
 type Lidos = ComentariosLidos<ComentarioDoMural>;
@@ -88,6 +89,8 @@ export function FolhaComentarios({ alvo, modo, aoFechar, aoAlterar }: {
 
   const textos = TEXTOS[alvo?.tipo ?? 'post'];
   const semInternet = aluno && !modo.online;
+  // A equipe responde só no mural (a rota de comentar da equipe é do post); o comentário volta com `daEquipe`.
+  const escreve = aluno || (modo.podeModerar && alvo?.tipo === 'post');
   const naoDisponivel = eh404(lista.erro) || (chave !== null && sumiu === chave);
 
   const erroLocal = erroDoComentario(meu.texto);
@@ -105,7 +108,7 @@ export function FolhaComentarios({ alvo, modo, aoFechar, aoAlterar }: {
     if (!alvo || !k || !limpo || erroLocal || semInternet) return;
     setEnviando(true);
     setRascunho({ chave: k, texto: meu.texto });
-    comentarComoAluno(alvo, limpo).then(
+    (aluno ? comentarComoAluno(alvo, limpo) : comentarComoEquipe(alvo.id, limpo)).then(
       (novo) => {
         setEnviando(false);
         setRascunho({ chave: k, texto: '' });
@@ -174,11 +177,11 @@ export function FolhaComentarios({ alvo, modo, aoFechar, aoAlterar }: {
   const fecharPainel = () => { setRemover(null); setErroAoRemover(null); };
 
   const corDoContador = contador?.tom === 'perigo' ? cores.perigo : contador?.tom === 'atencao' ? cores.atencao : undefined;
-  const escrever = aluno && dados && !naoDisponivel ? (
+  const escrever = escreve && dados && !naoDisponivel ? (
     <View style={estilos.escrever}>
       <Campo
-        rotulo="Seu comentário"
-        placeholder="Escreva para o time"
+        rotulo={aluno ? 'Seu comentário' : 'Responder como equipe'}
+        placeholder={aluno ? 'Escreva para o time' : 'Resposta da equipe'}
         valor={meu.texto}
         aoMudar={(t) => setRascunho({ chave, texto: t })}
         linhas={3}
@@ -203,6 +206,7 @@ export function FolhaComentarios({ alvo, modo, aoFechar, aoAlterar }: {
       <AutorDoPost
         post={{ ...c, fixado: false }}
         aoAbrirPerfil={aluno && c.autorEhAluno ? () => setPerfilAberto(c.autorId) : undefined}
+        acao={c.daEquipe ? <Selo texto="Equipe" tipo="neutro" /> : undefined}
       />
       <Texto style={estilos.recuo}>{c.texto}</Texto>
       {/* Depois do texto, e não ao lado do nome: no celular a ação ao lado desceria para entre o nome e o texto. */}

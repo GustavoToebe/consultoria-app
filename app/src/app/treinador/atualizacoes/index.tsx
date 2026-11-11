@@ -33,6 +33,11 @@ const ABAS:{valor:SituacaoAtualizacao;rotulo:string}[]=[
   {valor:'PARA_REVISAR',rotulo:'Para revisar'},{valor:'ATRASADAS',rotulo:'Atrasadas'},
   {valor:'AVISARAM_ATRASO',rotulo:'Avisaram atraso'},{valor:'PROXIMAS',rotulo:'Próximas 7 dias'},
 ];
+/** Fila vazia sem filtro: diz a situação escolhida (a explicação das abas fica na Ajuda). */
+const VAZIO_DA_ABA:Record<SituacaoAtualizacao,string>={
+  PARA_REVISAR:'Nenhuma atualização para revisar agora.',ATRASADAS:'Nenhuma atualização atrasada nesta lista.',
+  AVISARAM_ATRASO:'Nenhum aviso de atraso nesta lista.',PROXIMAS:'Nenhuma atualização nos próximos 7 dias.',
+};
 /**
  * Atualizações enviadas pelos alunos: a situação nas abas (`?situacao=`, com a contagem) e, na barra de filtros, a busca
  * pelo nome, os responsáveis (vários) e a data (`docs/planos/filtros-nas-listas.md`, D5 e lote 2). Tudo vai à API (a
@@ -77,10 +82,10 @@ export default function ListaAtualizacoes() {
   const chips=chipsDosFiltros(filtros,nomeDe);
   const responsavelDaFila=pedido.filtro.responsavel&&typeof pedido.filtro.responsavel!=='string'?pedido.filtro.responsavel.join(','):undefined;
   const fila={situacao:filtro,meus:pedido.meus,...(responsavelDaFila?{responsavel:responsavelDaFila}:{}),...(pedido.filtro.de&&pedido.filtro.ate?{de:pedido.filtro.de,ate:pedido.filtro.ate}:{}),...(buscaAtrasada?{busca:buscaAtrasada}:{})};
-  const filtrado=chips.length>0||!!busca.trim();
+  // A busca que vale é a que já foi à API (a lista na tela é dela).
+  const filtrado=chips.length>0||!!buscaAtrasada;
   return <Tela largura={LARGURA_LISTA} bordas={['top']}>
-    <Cabecalho titulo="Atualizações" mostrarMarca="celular" />
-    <Texto variante="suave">Atualizações enviadas pelos alunos em cada pasta: revise, acompanhe os atrasos e responda com feedback.</Texto>
+    <Cabecalho titulo="Atualizações" subtitulo="Revise os envios e acompanhe os prazos." mostrarMarca="celular" />
     <BarraDeFiltros busca={{valor:busca,aoMudar:setBusca,placeholder:'Nome do aluno'}} valor={filtros} aoAplicar={aplicar} limpo={SEM_FILTROS}
       chips={chips} aoTirar={(chave)=>aplicar(semOFiltro(filtros,chave as ChaveDoFiltro))} rotuloDoResultado="Ver atualizações"
       seletores={(atuais,mudar)=><>
@@ -90,10 +95,13 @@ export default function ListaAtualizacoes() {
     {/* A aba (situação) é um passo do histórico; os filtros da barra vão junto. */}
     <Abas abas={ABAS.map(a=>({...a,contagem:contagens[a.valor]}))} ativa={filtro} aoMudar={valor=>{ if(valor!==filtro) router.push({pathname:'/treinador/atualizacoes',params:{situacao:valor,...paraEndereco(filtros)}}); }} />
     {erroDosResponsaveis?<MensagemErro texto={`Não foi possível carregar a lista de responsáveis do filtro. ${textoDoErro(erroDosResponsaveis)}`} erro={erroDosResponsaveis} tentarDeNovo={listaDeResponsaveis.recarregar} />:null}
-    {lista.erro?<MensagemErro texto={textoDoErro(lista.erro)} tentarDeNovo={recarregar} />:null}
+    {/* Falha não vira lista vazia: sem dados o vazio não aparece, só a mensagem com o tentar de novo. */}
+    {lista.erro?<MensagemErro texto={`Não foi possível carregar as atualizações. ${textoDoErro(lista.erro)}`} erro={lista.erro} tentarDeNovo={recarregar} />:null}
     {lista.carregando?<Esqueleto />:null}
-    {!lista.carregando && lista.dados && total===0?<Vazio titulo={filtrado?'Nenhuma atualização com esses filtros':'Nenhuma atualização nesta lista'} texto={filtrado?'Tire algum filtro ou limpe a busca.':'As atualizações aparecem conforme o período da pasta e o envio do aluno.'}
-      acao={chips.length?{rotulo:'Limpar filtros',aoTocar:()=>aplicar(SEM_FILTROS)}:undefined} />:null}
+    {!lista.carregando && lista.dados && total===0?(filtrado
+      ?<Vazio titulo={buscaAtrasada?`Nenhuma atualização para "${buscaAtrasada}"`:'Nenhuma atualização com esses filtros'} texto="Confira o nome, tire algum filtro ou limpe tudo."
+        acao={{rotulo:'Limpar filtros',aoTocar:()=>{setBusca('');if(chips.length) aplicar(SEM_FILTROS);}}} />
+      :<Vazio texto={VAZIO_DA_ABA[filtro]} />):null}
     {/* A aba já diz a lista: a faixa do cartão leva a contagem, não repete o nome da aba. Mais antiga primeiro (é a
         que espera há mais tempo). Sem título o cartão não tinha faixa e a descrição nem aparecia. */}
     {itens.length?<Cartao titulo={`${total} ${total===1?'atualização':'atualizações'}`} descricao="Da mais antiga para a mais nova.">

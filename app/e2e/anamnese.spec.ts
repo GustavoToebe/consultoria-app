@@ -211,7 +211,7 @@ test('anamnese em páginas: avançar confere a página, voltar mantém as respos
   await expect(page.getByText('Parte 1 de 3')).toBeVisible();
   await expect(page.getByText('Responda com calma; dá para continuar depois.')).toBeVisible();
   const negrito = page.getByText('fins fiscais', { exact: true });
-  await expect(negrito).toHaveCSS('font-family', /Inter_700Bold/);
+  await expect(negrito).toHaveCSS('font-family', /Geist_700Bold/);
   await expect(page.getByText('Leia com atenção', { exact: true })).toHaveCSS('text-decoration-line', 'underline');
   await expect(voltar).toHaveCount(0);
 
@@ -249,7 +249,7 @@ test('anamnese em páginas: avançar confere a página, voltar mantém as respos
   // Página 3: grade de três colunas e o aceite; a grade incompleta não envia.
   await expect(page.getByText('Parte 3 de 3')).toBeVisible();
   await expect(avancar).toHaveCount(0);
-  await expect(page.getByText('individual', { exact: true })).toHaveCSS('font-family', /Inter_700Bold/);
+  await expect(page.getByText('individual', { exact: true })).toHaveCSS('font-family', /Geist_700Bold/);
   await opcao(page, 'Azia', 'Ocasionalmente').click();
   await page.getByRole('checkbox', { name: 'Li e concordo com as regras.' }).click();
   await page.getByRole('button', { name: 'Enviar anamnese' }).click();

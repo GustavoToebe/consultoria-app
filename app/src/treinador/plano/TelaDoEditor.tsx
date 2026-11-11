@@ -7,6 +7,7 @@ import { espaco, LARGURA_EDITOR, LARGURA_MAXIMA, LARGURA_MENU_EXPANDIDO, LARGURA
 import { duasColunas, larguraDoEditor } from '../../dominio/colunasDoEditor';
 import { RolagemComTopo } from '../../ui/RolagemComTopo';
 import { ProvedorDeColunas } from './ColunasDoEditor';
+import { useFundoDaArea } from '../../ui/fundoDaArea';
 
 interface Props {
   /** O `Cabecalho` da tela (trilha, título, subtítulo): rola junto com o conteúdo. */
@@ -53,10 +54,11 @@ export function TelaDoEditor({ cabecalho, barra, children, largura = LARGURA_EDI
   const web = Platform.OS === 'web';
   const barraGrudada = useRef<View>(null);
   useEffect(() => (web ? semFocoDebaixoDaBarra(barraGrudada.current as unknown as HTMLElement | null) : undefined), [web]);
-  const fundoDaBarra = { backgroundColor: cores.fundo, borderColor: cores.borda };
+  const fundo = useFundoDaArea();
+  const fundoDaBarra = { backgroundColor: fundo, borderColor: cores.borda };
   return (
     <ProvedorDeColunas value={duas}>
-    <SafeAreaView edges={['top']} style={[estilos.raiz, { backgroundColor: cores.fundo }]}
+    <SafeAreaView edges={['top']} style={[estilos.raiz, { backgroundColor: fundo }]}
       onLayout={colunas ? (e) => setMedida(e.nativeEvent.layout.width) : undefined}>
       <KeyboardAvoidingView style={estilos.raiz} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {!web ? <View style={[estilos.barraFora, fundoDaBarra]}><View style={[estilos.largura, { maxWidth: larguraUtil }]}>{barra}</View></View> : null}

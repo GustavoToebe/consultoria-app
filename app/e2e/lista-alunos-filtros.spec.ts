@@ -6,7 +6,7 @@ import { PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type PedidoFalso }
 /**
  * Filtros avançados da lista de alunos (`docs/planos/filtros-da-lista-de-alunos.md`, 31/10): o botão "Filtros" abre o
  * painel (PC) ou a folha (celular), cada escolha vai para o pedido de `GET /alunos` e para o endereço, os chips do
- * "Filtrado por" têm ✕, "Limpar filtros" tira tudo, o endereço já abre filtrado, o filtro sem permissão some e o Início
+ * "Filtrando:" têm ✕, "Limpar filtros" tira tudo, o endereço já abre filtrado, o filtro sem permissão some e o Início
  * abre a lista filtrada. Só dados fictícios, API simulada.
  */
 const ontem = (() => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); })();
@@ -38,14 +38,17 @@ async function abrir(page: Page, { permissoes = TODAS, acessoTotal = true } = {}
   });
 }
 
-/** O último pedido de `GET /alunos`, como lista de pares (parâmetros repetidos ficam em ordem). */
+/** Pedido do número de um atalho (só o `total`, com `tamanho=1`), que não é o da lista na tela. */
+const ehContagemDeAtalho = (p: PedidoFalso) => p.busca.get('tamanho') === '1';
+
+/** O último pedido de `GET /alunos` da lista (sem os números dos atalhos), como lista de pares (parâmetros repetidos ficam em ordem). */
 const ultimoPedido = (pedidos: PedidoFalso[]) => {
-  const p = pedidos.filter((x) => x.metodo === 'GET' && x.caminho === '/alunos').at(-1);
+  const p = pedidos.filter((x) => x.metodo === 'GET' && x.caminho === '/alunos' && !ehContagemDeAtalho(x)).at(-1);
   return p ? [...p.busca.entries()] : [];
 };
 const filtrosDoPedido = (pedidos: PedidoFalso[]) => ultimoPedido(pedidos).filter(([k]) => k !== 'pagina' && k !== 'busca');
 const busca = (page: Page) => new URL(page.url()).searchParams;
-const botaoFiltros = (page: Page) => page.getByRole('button', { name: /^Filtros, / });
+const botaoFiltros = (page: Page) => page.getByRole('button', { name: /^(Mais filtros|Filtros), / });
 const opcao = (onde: Locator, grupo: string, rotulo: string) =>
   onde.getByRole('radiogroup', { name: grupo }).getByRole('radio', { name: rotulo, exact: true });
 
@@ -64,7 +67,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await page.getByRole('textbox', { name: 'Buscar' }).fill('ana');
       await expect.poll(() => ultimoPedido(pedidos).find(([k]) => k === 'busca')?.[1]).toBe('ana');
 
-      await expect(botaoFiltros(page)).toHaveAccessibleName('Filtros, nenhum ligado');
+      await expect(botaoFiltros(page)).toHaveAccessibleName('Mais filtros, nenhum ligado');
       await expect(botaoFiltros(page)).toHaveAttribute('aria-expanded', 'false');
       await botaoFiltros(page).click();
       // PC: o cartão "Filtros avançados" abaixo da barra, e cada escolha vale na hora. Celular: a folha "Filtros", com as
@@ -121,8 +124,8 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
 
       // A busca continua, e a contagem e os chips dizem o que está ligado.
       await expect(page.getByRole('textbox', { name: 'Buscar' })).toHaveValue('ana');
-      await expect(botaoFiltros(page)).toHaveAccessibleName('Filtros, 4 ligados');
-      const filtrado = page.getByRole('list', { name: 'Filtrado por' });
+      await expect(botaoFiltros(page)).toHaveAccessibleName('Mais filtros, 4 ligados');
+      const filtrado = page.getByRole('list', { name: 'Filtrando' });
       await expect(filtrado.getByRole('button')).toHaveCount(4);
       await expect(filtrado.getByRole('button', { name: 'Tirar filtro: Responsável: Bia Fictícia, Sem responsável' })).toBeVisible();
 
@@ -130,12 +133,12 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await expect.poll(() => busca(page).get('acesso')).toBeNull();
       await expect.poll(() => filtrosDoPedido(pedidos).some(([k]) => k === 'acesso')).toBe(false);
       expect(busca(page).get('registro')).toBe('NUNCA');
-      await expect(botaoFiltros(page)).toHaveAccessibleName('Filtros, 3 ligados');
+      await expect(botaoFiltros(page)).toHaveAccessibleName('Mais filtros, 3 ligados');
 
       await page.getByRole('button', { name: 'Limpar filtros', exact: true }).first().click();
       await expect.poll(() => [...busca(page).keys()]).toEqual([]);
       await expect.poll(() => filtrosDoPedido(pedidos)).toEqual([['situacao', 'ATIVO'], ['meus', 'false']]);
-      await expect(page.getByRole('list', { name: 'Filtrado por' })).toHaveCount(0);
+      await expect(page.getByRole('list', { name: 'Filtrando' })).toHaveCount(0);
 
       expect(naoTratadas).toEqual([]);
       expect(errosDaPagina).toEqual([]);
@@ -149,7 +152,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
         ['situacao', 'INATIVO'], ['meus', 'false'], ['acesso', 'SEM'], ['acesso', 'AGUARDANDO'], ['atualizacao', 'SEM_PASTA'],
         ['plano', 'COM'], ['pasta', 'A_RENOVAR'], ['registro', 'NUNCA'],
       ]);
-      await expect(botaoFiltros(page)).toHaveAccessibleName('Filtros, 6 ligados');
+      await expect(botaoFiltros(page)).toHaveAccessibleName('Mais filtros, 6 ligados');
       await expect(page.getByRole('button', { name: 'Tirar filtro: Atualização: Sem pasta com período' })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Tirar filtro: Pasta a renovar' })).toBeVisible();
       expect(errosDaPagina).toEqual([]);
@@ -176,6 +179,40 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       if (celular) await painel.getByRole('button', { name: 'Ver alunos' }).click();
       await expect.poll(() => busca(page).get('meus')).toBe('false');
       await expect.poll(() => filtrosDoPedido(pedidos)).toEqual([['situacao', 'ATIVO'], ['meus', 'false']]);
+      expect(errosDaPagina).toEqual([]);
+    });
+
+    test('atalhos Todos, Para revisar e Atrasados com o total da API; sem a leitura, sem número; sem permissão, somem', async ({ page }) => {
+      const { errosDaPagina } = await abrir(page);
+      // Esta rota vem depois da `simularApi` e responde antes dela. Total por atualização pedida: 2 na lista toda, 1 para revisar e a contagem dos atrasados falha.
+      await page.route(/\/api\/alunos\?/, (route) => {
+        const fases = new URL(route.request().url()).searchParams.getAll('atualizacao');
+        if (fases.join() === 'ATRASADA') return route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ codigo: 'ERRO', mensagem: 'Falhou.' }) });
+        const total = fases.join() === 'ENVIADA' ? 1 : ALUNOS.length;
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ itens: ALUNOS.slice(0, total), total }) });
+      });
+      await page.goto('/treinador/alunos');
+      await expect(page.getByRole('textbox', { name: 'Buscar nome do aluno' })).toBeVisible();
+      const atalhos = page.getByRole('radiogroup', { name: 'Mostrar alunos' });
+      await expect(atalhos.getByRole('radio', { name: 'Todos, 2' })).toHaveAttribute('aria-checked', 'true');
+      await expect(atalhos.getByRole('radio', { name: 'Para revisar, 1' })).toBeVisible();
+      // A contagem que falhou não vira zero: o chip fica só com o rótulo.
+      await expect(atalhos.getByRole('radio', { name: 'Atrasados', exact: true })).toBeVisible();
+
+      await atalhos.getByRole('radio', { name: 'Para revisar, 1' }).click();
+      await expect.poll(() => busca(page).get('atualizacao')).toBe('ENVIADA');
+      await expect(page.getByRole('button', { name: 'Tirar filtro: Atualização: Para revisar' })).toBeVisible();
+      await expect(atalhos.getByRole('radio', { name: 'Todos, 2' })).toBeVisible();
+      expect(errosDaPagina).toEqual([]);
+    });
+
+    test('sem ver atualizações os atalhos não aparecem', async ({ page }) => {
+      const { errosDaPagina } = await abrir(page, { permissoes: PERMISSOES_TREINADOR });
+      await page.goto('/treinador/alunos');
+      await expect(page.getByRole('link', { name: /^Abrir Ana Fictícia/ })).toBeVisible();
+      await expect(page.getByRole('radiogroup', { name: 'Mostrar alunos' })).toHaveCount(0);
+      // Sem atalhos ao lado, o botão volta a ser só "Filtros".
+      await expect(page.getByRole('button', { name: 'Filtros, nenhum ligado' })).toBeVisible();
       expect(errosDaPagina).toEqual([]);
     });
 

@@ -23,10 +23,12 @@ import { useCarregar } from '../../ui/useCarregar';
 import { useFavoritos } from '../../ui/useFavoritos';
 
 /**
- * Perfil: porta de entrada da conta no celular (no PC isso é o cartão do usuário na barra de topo). Mostra os mesmos
- * itens do menu do usuário (Marca só para o Administrador), a busca de telas (no celular não há barra de topo) e os
- * atalhos para agenda, ajuda, interessados, equipe, importação e auditoria. As telas abertas daqui voltam para cá pela seta.
+ * Perfil: porta de entrada da conta no celular (no PC isso é o cartão do usuário na barra de topo). Os mesmos itens do menu
+ * do usuário, em dois grupos (guia de 11/11, pág. 17): "Minha conta" (o que é da pessoa) e "Consultoria" (o que é do negócio,
+ * só o que o perfil pode abrir; Marca só para o Administrador). Depois a busca de telas (no celular não há barra de topo), os
+ * atalhos e, separado da navegação, o "Sair". As telas abertas daqui voltam para cá pela seta.
  */
+const DA_CONSULTORIA = new Set(['minha-conta', 'marca']);
 export default function PerfilTreinador() {
   const { usuario, perfilEquipe, pode, funcionalidadesDoPlano, pagamentosHabilitados } = useSessao();
   const [saindo, setSaindo] = useState(false);
@@ -37,19 +39,27 @@ export default function PerfilTreinador() {
   // Inscrições novas: o mesmo aviso do ponto no menu, aqui com a contagem.
   const novas = useCarregar(pode('INSCRICAO_LER') ? 'perfil-inscricoes-novas' : null, () => listarInscricoes({ situacao: 'NOVA', meus: false, pagina: 0 }));
   const totalNovas = novas.dados?.total ?? 0;
+  const itens = itensDoMenuDoUsuario(pode, administrador);
+  const sair = itens.find((i) => i.id === 'sair');
+  const linha = (item: (typeof itens)[number]) => (
+    <ItemDeLista key={item.id} titulo={item.rotulo} Icone={ICONES_DO_MENU[item.id]}
+      href={item.href === null ? undefined : (item.href as Href)}
+      aoTocar={() => (item.href === null ? setSaindo(true) : router.navigate(item.href as Href))} />
+  );
+  const daPessoa = itens.filter((i) => i.id !== 'sair' && !DA_CONSULTORIA.has(i.id));
+  const doNegocio = itens.filter((i) => DA_CONSULTORIA.has(i.id));
   return (
     <Tela bordas={['top']} largura={LARGURA_EDITOR}>
       <Cabecalho titulo="Perfil" subtitulo={[usuario?.nome, perfilEquipe?.nome].filter(Boolean).join(' · ') || undefined} />
-      <ItemDeLista titulo="Buscar telas" detalhe="Todas as telas do app, com busca e favoritos" Icone={LayoutGrid} aoTocar={() => setTodas(true)} />
-      <Cartao titulo="Sua conta">
-        <View style={estilos.lista}>
-          {itensDoMenuDoUsuario(pode, administrador).map((item) => (
-            <ItemDeLista key={item.id} titulo={item.rotulo} Icone={ICONES_DO_MENU[item.id]} perigo={item.id === 'sair'}
-              href={item.href === null ? undefined : (item.href as Href)}
-              aoTocar={() => (item.href === null ? setSaindo(true) : router.navigate(item.href as Href))} />
-          ))}
-        </View>
+      <Cartao titulo="Minha conta">
+        <View style={estilos.lista}>{daPessoa.map(linha)}</View>
       </Cartao>
+      {doNegocio.length > 0 ? (
+        <Cartao titulo="Consultoria">
+          <View style={estilos.lista}>{doNegocio.map(linha)}</View>
+        </Cartao>
+      ) : null}
+      <ItemDeLista titulo="Buscar telas" detalhe="Todas as telas do app, com busca e favoritos" Icone={LayoutGrid} aoTocar={() => setTodas(true)} />
       <Cartao titulo="Atalhos" descricao="Páginas de apoio e de gestão da consultoria.">
         {novas.erro ? <MensagemErro texto={`Não foi possível contar as inscrições novas. ${textoDoErro(novas.erro)}`} erro={novas.erro} tentarDeNovo={novas.recarregar} /> : null}
         <View style={estilos.lista}>
@@ -66,6 +76,11 @@ export default function PerfilTreinador() {
           <ItemDeLista href="/treinador/termos" Icone={FileText} titulo="Termos e privacidade" detalhe="Termo de uso e aviso de privacidade" />
         </View>
       </Cartao>
+      {sair ? (
+        <View style={estilos.sair}>
+          <ItemDeLista titulo={sair.rotulo} Icone={ICONES_DO_MENU.sair} perigo aoTocar={() => setSaindo(true)} />
+        </View>
+      ) : null}
       <TodasAsTelas visivel={todas} aoFechar={() => setTodas(false)} permitidas={permitidas} favoritos={favoritos} aoAlternarFavorito={alternar} />
       <ConfirmarSaida visivel={saindo} aoFechar={() => setSaindo(false)} />
     </Tela>
@@ -74,4 +89,6 @@ export default function PerfilTreinador() {
 
 const estilos = StyleSheet.create({
   lista: { gap: espaco(1) },
+  // Ação de saída longe da navegação, para não ser tocada no lugar de um item da conta.
+  sair: { marginTop: espaco(2) },
 });

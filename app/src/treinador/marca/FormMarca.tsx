@@ -1,7 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
 import { ImagePlus, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View, type ViewStyle } from 'react-native';
 
 import { ErroApi } from '../../api/cliente';
 import { alterarMarca, consultoria as buscarConsultoria, enviarLogo, removerLogo } from '../../api/rotas';
@@ -10,10 +10,10 @@ import { OPCOES_DA_META } from '../../dominio/metaDoPesoNaFicha';
 import { avaliarMarca, avisoDeMarcaPertoDeStatus, paletaDaCor, PALETAS } from '../../dominio/paletas';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, fontes, MARCA_NEUTRA, PALETAS as PALETAS_DO_TEMA, paletaDe, RAIO, textoSobre, type Cores } from '../../tema/tokens';
+import { espaco, fontes, LARGURA_DUAS_COLUNAS, MARCA_NEUTRA, PALETAS as PALETAS_DO_TEMA, paletaDe, RAIO, textoSobre, type Cores } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
-import { Campo } from '../../ui/Campo';
+import { Campo, MensagemDeErro } from '../../ui/Campo';
 import { CampoNumerico } from '../../ui/Campos';
 import { Escolha } from '../../ui/Escolha';
 import { Cartao } from '../../ui/Cartao';
@@ -29,6 +29,10 @@ import { anexarLogo } from './anexarLogo';
 
 const LOGO_MAXIMO = 512 * 1024;
 const HEX = /^#[0-9A-Fa-f]{6}$/;
+/** Largura do grupo Aparência a partir da qual a prévia vai para uma coluna ao lado (sobram duas colunas de opções). */
+const PREVIA_AO_LADO = LARGURA_DUAS_COLUNAS - 80;
+/** `position: sticky` existe no react-native-web (CSS), mas não no tipo do React Native (o mesmo de `plano/TelaDoEditor`). */
+const GRUDADA = (Platform.OS === 'web' ? { position: 'sticky', top: espaco(2), zIndex: 1 } : {}) as unknown as ViewStyle;
 
 interface Props {
   consultoria: ConsultoriaResponse;
@@ -71,6 +75,11 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
   const [salvando, setSalvando] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [confirmarRemocao, setConfirmarRemocao] = useState(false);
+  // Erro da logo fica no próprio campo (guia de 11/11, pág. 16): a prévia segue com a logo que valia.
+  const [erroLogo, setErroLogo] = useState<string | null>(null);
+  // Largura medida do grupo Aparência (não a janela: o menu lateral come largura). `null` até medir: nenhuma prévia pisca.
+  const [larguraDoGrupo, setLarguraDoGrupo] = useState<number | null>(null);
+  const previaAoLado = larguraDoGrupo !== null && larguraDoGrupo >= PREVIA_AO_LADO;
   const [erro, setErro] = useState<unknown>(null);
   const campos = errosPorCampo(erro);
   const corValida = HEX.test(cor);
@@ -114,12 +123,13 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
     if (r.canceled || !r.assets[0]) return;
     const a = r.assets[0];
     const tipo = a.mimeType ?? (a.uri.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg');
+    setErroLogo(null);
     if (tipo !== 'image/png' && tipo !== 'image/jpeg') {
-      avisar('A logo precisa ser PNG ou JPEG.', 'perigo');
+      setErroLogo('A logo precisa ser PNG ou JPEG.');
       return;
     }
     if (a.fileSize && a.fileSize > LOGO_MAXIMO) {
-      avisar('A logo pode ter no máximo 512 KB.', 'perigo');
+      setErroLogo('A logo pode ter no máximo 512 KB.');
       return;
     }
     const dados = new FormData();
@@ -129,10 +139,11 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
       const marca = await enviarLogo(dados);
       setLogoUrl(marca.logoUrl);
       atualizarMarca(marca);
-      aoSalvar(await buscarConsultoria());
+      // A logo já está salva: o aviso vem antes de reler a consultoria, que pode falhar sem desfazer o envio.
       avisar('Logo enviada.', 'sucesso');
+      buscarConsultoria().then(aoSalvar, () => undefined);
     } catch (e) {
-      avisar(textoDoErro(e), 'perigo');
+      setErroLogo(textoDoErro(e));
     } finally {
       setEnviando(false);
     }
@@ -140,128 +151,149 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
 
   const tirarLogo = () => {
     setConfirmarRemocao(false);
+    setErroLogo(null);
     removerLogo().then(
       (marca) => {
         setLogoUrl(null);
         atualizarMarca(marca);
         avisar('Logo removida. O nome da consultoria aparece no lugar.', 'sucesso');
       },
-      (e: unknown) => avisar(textoDoErro(e), 'perigo'),
+      (e: unknown) => setErroLogo(textoDoErro(e)),
     );
   };
 
   const nomeNaFonte = nome.trim() || inicial.nome;
   const paletaAtual = personalizada ? undefined : paletaDaCor(cor);
   const FONTES: { valor: Fonte; descricao: string }[] = [
-    { valor: 'PADRAO', descricao: 'Padrão (Inter)' },
+    { valor: 'PADRAO', descricao: 'Padrão (Geist)' },
     { valor: 'METAL', descricao: 'Metal, para um visual pesado' },
     { valor: 'ESPORTIVA', descricao: 'Esportiva, letras altas' },
     { valor: 'CONDENSADA', descricao: 'Condensada, firme e compacta' },
   ];
 
+  const previaDaMarca = <Previa marca={previa} tema={tema} compacta={!previaAoLado} />;
+
   return (
     <>
-      <Cartao titulo="Prévia do app do aluno" descricao="Acompanha o que você escolhe abaixo.">
-        <View style={estilos.previas}>
-          <Previa marca={previa} tema={tema} />
+      {/* Aparência (nome, logo, cor, fonte e tema) num grupo, com a prévia perto; o acompanhamento fica no cartão de baixo. */}
+      <View style={estilos.grupo}>
+        <View style={estilos.cabecaDoGrupo}>
+          <Texto variante="subtitulo" nivel={2}>Aparência</Texto>
+          <Texto variante="suave">
+            A marca aparece nas ações principais e na identidade. O tema define fundos e superfícies. Cada pessoa pode escolher sua aparência em Ajustes.
+          </Texto>
         </View>
-      </Cartao>
-      <Cartao titulo="Identidade" descricao="Nome e logo que os alunos veem no topo do app.">
-        <Campo rotulo="Nome da consultoria" valor={nome} aoMudar={setNome} erro={campos.nome} maxLength={120} />
-        <View style={estilos.logo}>
-          <Texto variante="rotulo">Logo</Texto>
-          <Texto variante="suave">PNG ou JPEG de até 512 KB. Com logo, ela aparece no lugar do nome.</Texto>
-          <View style={estilos.botoesEsquerda}>
-            <Botao rotulo={logoUrl ? 'Trocar logo' : 'Enviar logo'} tipo="secundario" Icone={ImagePlus} carregando={enviando} aoTocar={() => void escolherLogo()} />
-            {logoUrl ? <Botao rotulo="Remover logo" tipo="perigoTexto" Icone={Trash2} aoTocar={() => setConfirmarRemocao(true)} /> : null}
-          </View>
-        </View>
-      </Cartao>
-      <Cartao titulo="Cor" descricao="Aparece em botões principais, menu e aba ativos e no nome da consultoria.">
-        <GradeDeOpcoes rotulo="Cores prontas">
-          {PALETAS.map((p) => (
-            <OpcaoCartao
-              key={p.id}
-              titulo={p.nome}
-              descricao={p.descricao}
-              selecionada={paletaAtual?.id === p.id}
-              aoEscolher={() => {
-                setCor(p.cor);
-                setPersonalizada(false);
-              }}
-              amostra={
-                <View style={[estilos.amostra, { backgroundColor: p.cor }]}>
-                  <Texto variante="bloco" style={{ color: textoSobre(p.cor) }}>{p.nome.charAt(0)}</Texto>
+        <View style={[estilos.aparencia, previaAoLado ? estilos.aparenciaAoLado : null]}
+          onLayout={(e) => setLarguraDoGrupo(e.nativeEvent.layout.width)}>
+          {/* Celular: uma prévia compacta no topo do grupo, sem grudar (cobriria o campo em foco e metade da tela). */}
+          {larguraDoGrupo !== null && !previaAoLado ? previaDaMarca : null}
+          <View style={estilos.ajustes}>
+            <Cartao titulo="Identidade" nivel={3} descricao="Nome e logo que os alunos veem no topo do app.">
+              <Campo rotulo="Nome da consultoria" valor={nome} aoMudar={setNome} erro={campos.nome} maxLength={120} />
+              <View style={estilos.logo}>
+                <Texto variante="rotulo">Logo</Texto>
+                <Texto variante="suave">PNG ou JPEG de até 512 KB. Com logo, ela aparece no lugar do nome.</Texto>
+                <View style={estilos.botoesEsquerda}>
+                  <Botao rotulo={logoUrl ? 'Trocar logo' : 'Enviar logo'} tipo="secundario" Icone={ImagePlus} carregando={enviando} aoTocar={() => void escolherLogo()} />
+                  {logoUrl ? <Botao rotulo="Remover logo" tipo="perigoTexto" Icone={Trash2} aoTocar={() => setConfirmarRemocao(true)} /> : null}
                 </View>
-              }
-            />
-          ))}
-          <OpcaoCartao
-            titulo="Cor personalizada"
-            descricao="Digite um código #RRGGBB"
-            selecionada={personalizada}
-            aoEscolher={() => setPersonalizada(true)}
-            amostra={
-              <View style={[estilos.amostra, { backgroundColor: corValida ? cor : MARCA_NEUTRA }]}>
-                <Texto variante="bloco" style={{ color: textoSobre(corValida ? cor : MARCA_NEUTRA) }}>#</Texto>
+                {erroLogo ? <MensagemDeErro erro={erroLogo} /> : null}
               </View>
-            }
-          />
-        </GradeDeOpcoes>
-        {personalizada ? (
-          <View style={estilos.campoCor}>
-            <Campo
-              rotulo="Cor principal (#RRGGBB)"
-              valor={cor}
-              aoMudar={(t) => setCor(t.startsWith('#') ? t.toUpperCase() : `#${t.toUpperCase()}`)}
-              erro={campos.corPrimaria ?? (corValida ? null : 'Use o formato #RRGGBB.')}
-              autoCapitalize="characters"
-              maxLength={7}
-            />
+            </Cartao>
+            <Cartao titulo="Cor da marca" nivel={3} descricao="Aparece em botões principais, menu e aba ativos e no nome da consultoria.">
+              <GradeDeOpcoes rotulo="Cores prontas">
+                {PALETAS.map((p) => (
+                  <OpcaoCartao
+                    key={p.id}
+                    titulo={p.nome}
+                    selecionada={paletaAtual?.id === p.id}
+                    aoEscolher={() => {
+                      setCor(p.cor);
+                      setPersonalizada(false);
+                    }}
+                    amostra={
+                      <View style={[estilos.amostra, { backgroundColor: p.cor }]}>
+                        <Texto variante="bloco" style={{ color: textoSobre(p.cor) }}>{p.nome.charAt(0)}</Texto>
+                      </View>
+                    }
+                  />
+                ))}
+                <OpcaoCartao
+                  titulo="Cor personalizada"
+                  descricao="Digite um código #RRGGBB"
+                  selecionada={personalizada}
+                  aoEscolher={() => setPersonalizada(true)}
+                  amostra={
+                    <View style={[estilos.amostra, { backgroundColor: corValida ? cor : MARCA_NEUTRA }]}>
+                      <Texto variante="bloco" style={{ color: textoSobre(corValida ? cor : MARCA_NEUTRA) }}>#</Texto>
+                    </View>
+                  }
+                />
+              </GradeDeOpcoes>
+              {personalizada ? (
+                <View style={estilos.campoCor}>
+                  <Campo
+                    rotulo="Cor principal (#RRGGBB)"
+                    valor={cor}
+                    aoMudar={(t) => setCor(t.startsWith('#') ? t.toUpperCase() : `#${t.toUpperCase()}`)}
+                    erro={campos.corPrimaria ?? (corValida ? null : 'Use o formato #RRGGBB.')}
+                    autoCapitalize="characters"
+                    maxLength={7}
+                  />
+                </View>
+              ) : null}
+              {avaliacao.bloqueia ? <MensagemErro texto={avaliacao.bloqueia} /> : null}
+              {!avaliacao.bloqueia && avaliacao.aviso ? <View aria-hidden><Texto variante="suave" testID="aviso-marca-apagada">{avaliacao.aviso}</Texto></View> : null}
+              {pertoDeStatus ? <Texto variante="suave" testID="aviso-marca-perto-de-status">{pertoDeStatus}</Texto> : null}
+            </Cartao>
+            <Cartao titulo="Fonte do nome" nivel={3} descricao="Vale para quem não usa logo. O nome aparece em cada fonte.">
+              <GradeDeOpcoes rotulo="Fonte do nome">
+                {FONTES.map((f) => (
+                  <OpcaoCartao
+                    key={f.valor}
+                    titulo={nomeNaFonte}
+                    fonteDoTitulo={FAMILIAS[f.valor]}
+                    descricao={f.descricao}
+                    selecionada={fonte === f.valor}
+                    aoEscolher={() => setFonte(f.valor)}
+                  />
+                ))}
+              </GradeDeOpcoes>
+            </Cartao>
+            <Cartao titulo="Tema padrão da consultoria" nivel={3} descricao="Fundo e cartões do app dos alunos e da equipe, até a pessoa escolher outro em Ajustes.">
+              {/* Uma escolha só: um radiogroup com dois subgrupos rotulados (leitor de tela: "Escuras, grupo", "Oceano, selecionado"). */}
+              <View role="radiogroup" aria-label="Tema padrão da consultoria" style={estilos.paletas}>
+              {(['ESCURO', 'CLARO'] as const).map((modo) => (
+                <GradeDeOpcoes key={modo} papel="group" rotulo={modo === 'ESCURO' ? 'Escuras' : 'Claras'}>
+                  {CODIGOS_DAS_PALETAS.filter((c) => PALETAS_DO_TEMA[c].modo === modo).map((c) => (
+                    <OpcaoCartao
+                      key={c}
+                      titulo={PALETAS_DO_TEMA[c].nome}
+                      selecionada={tema === c}
+                      aoEscolher={() => setTema(c)}
+                      amostra={<MiniaturaDoTema cores={PALETAS_DO_TEMA[c].cores} marca={corValida ? cor : inicial.corPrimaria} />}
+                    />
+                  ))}
+                </GradeDeOpcoes>
+              ))}
+              </View>
+              {/* A mesma checagem do cartão Cor, repetida aqui: em 390 px quem troca a paleta não vê o cartão de cima. Este é o texto
+                  lido (região viva, anuncia ao trocar de paleta); o do cartão Cor fica aria-hidden para não ser lido duas vezes. */}
+              <View accessibilityLiveRegion="polite">
+                {!avaliacao.bloqueia && avaliacao.aviso ? <Texto variante="suave" testID="aviso-marca-apagada-na-paleta">{avaliacao.aviso}</Texto> : null}
+              </View>
+              <LinkTexto texto="Escolher o tema do meu painel em Ajustes" href="/treinador/ajustes" />
+            </Cartao>
           </View>
-        ) : null}
-        {avaliacao.bloqueia ? <MensagemErro texto={avaliacao.bloqueia} /> : null}
-        {!avaliacao.bloqueia && avaliacao.aviso ? <View aria-hidden><Texto variante="suave" testID="aviso-marca-apagada">{avaliacao.aviso}</Texto></View> : null}
-        {pertoDeStatus ? <Texto variante="suave" testID="aviso-marca-perto-de-status">{pertoDeStatus}</Texto> : null}
-      </Cartao>
-      <Cartao titulo="Fonte do nome" descricao="Vale para quem não usa logo. O nome aparece em cada fonte.">
-        <GradeDeOpcoes rotulo="Fonte do nome">
-          {FONTES.map((f) => (
-            <OpcaoCartao
-              key={f.valor}
-              titulo={nomeNaFonte}
-              fonteDoTitulo={FAMILIAS[f.valor]}
-              descricao={f.descricao}
-              selecionada={fonte === f.valor}
-              aoEscolher={() => setFonte(f.valor)}
-            />
-          ))}
-        </GradeDeOpcoes>
-      </Cartao>
-      <Cartao titulo="Paleta padrão dos alunos" descricao="Fundo e cartões do app dos alunos e da equipe. Cada pessoa ainda pode trocar para o Escuro, o Claro ou a Areia na própria conta.">
-        {/* Uma escolha só: um radiogroup com dois subgrupos rotulados (leitor de tela: "Escuras, grupo", "Oceano, selecionado"). */}
-        <View role="radiogroup" aria-label="Paleta padrão dos alunos" style={estilos.paletas}>
-        {(['ESCURO', 'CLARO'] as const).map((modo) => (
-          <GradeDeOpcoes key={modo} papel="group" rotulo={modo === 'ESCURO' ? 'Escuras' : 'Claras'}>
-            {CODIGOS_DAS_PALETAS.filter((c) => PALETAS_DO_TEMA[c].modo === modo).map((c) => (
-              <OpcaoCartao
-                key={c}
-                titulo={PALETAS_DO_TEMA[c].nome}
-                selecionada={tema === c}
-                aoEscolher={() => setTema(c)}
-                amostra={<MiniaturaDoTema cores={PALETAS_DO_TEMA[c].cores} marca={corValida ? cor : inicial.corPrimaria} />}
-              />
-            ))}
-          </GradeDeOpcoes>
-        ))}
+          {previaAoLado ? (
+            <View style={[estilos.colunaDaPrevia, GRUDADA]}>
+              <Cartao titulo="Prévia do app do aluno" nivel={3} descricao="Muda junto com o que você escolhe ao lado.">
+                {previaDaMarca}
+              </Cartao>
+            </View>
+          ) : null}
         </View>
-        {/* A mesma checagem do cartão Cor, repetida aqui: em 390 px quem troca a paleta não vê o cartão de cima. Este é o texto
-            lido (região viva, anuncia ao trocar de paleta); o do cartão Cor fica aria-hidden para não ser lido duas vezes. */}
-        <View accessibilityLiveRegion="polite">
-          {!avaliacao.bloqueia && avaliacao.aviso ? <Texto variante="suave" testID="aviso-marca-apagada-na-paleta">{avaliacao.aviso}</Texto> : null}
-        </View>
-        <LinkTexto texto="Escolher o tema do meu painel em Ajustes" href="/treinador/ajustes" />
-      </Cartao>
+      </View>
       <Cartao titulo="Acompanhamento" descricao="Vale para os alunos sem ciclo ou meta própria no cadastro.">
         <View style={estilos.campoDias}>
           <CampoNumerico
@@ -324,24 +356,34 @@ function MiniaturaDoTema({ cores, marca }: { cores: Cores; marca: string }) {
   );
 }
 
-/** Topo do app do aluno com as cores fixas da paleta escolhida (independe do tema de quem está editando). */
-function Previa({ marca, tema }: { marca: Marca; tema: Tema }) {
+/**
+ * Topo do app do aluno com as cores fixas da paleta escolhida (independe do tema de quem está editando). `compacta` (celular):
+ * só o topo com a marca e o botão, sem o cartão do treino, para caber perto das opções sem empurrá-las para longe.
+ */
+function Previa({ marca, tema, compacta }: { marca: Marca; tema: Tema; compacta: boolean }) {
   const { cores: atuais } = useTema();
   const { nome, cores } = paletaDe(tema);
+  const botao = (
+    <View style={[estilos.botaoPrevia, compacta ? estilos.botaoCompacto : null, { backgroundColor: marca.corPrimaria }]}>
+      <Texto style={[estilos.tituloPrevia, { color: textoSobre(marca.corPrimaria) }]}>Começar</Texto>
+    </View>
+  );
   return (
     <View style={estilos.previa}>
+      {compacta ? <Texto variante="rotulo" cor={atuais.texto}>Prévia do app do aluno</Texto> : null}
       <Texto variante="suave">{`Paleta ${nome}`}</Texto>
-      <View testID="previa-da-paleta" style={[estilos.telaPrevia, { backgroundColor: cores.fundo, borderColor: atuais.borda }]}>
-        <View style={[estilos.faixaPrevia, { backgroundColor: cores.superficie3 }]}>
-          <MarcaTitulo marca={marca} fundo={cores.superficie3} />
+      <View testID="previa-da-paleta" style={[estilos.telaPrevia, compacta ? estilos.telaCompacta : null, { backgroundColor: cores.fundo, borderColor: atuais.borda }]}>
+        <View style={[estilos.faixaPrevia, compacta ? estilos.faixaCompacta : null, { backgroundColor: cores.superficie3 }]}>
+          <View style={estilos.marcaCompacta}><MarcaTitulo marca={marca} fundo={cores.superficie3} /></View>
+          {compacta ? botao : null}
         </View>
+        {compacta ? null : (
         <View style={[estilos.cartaoPrevia, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
           <Texto style={[estilos.tituloPrevia, { color: cores.texto }]}>Treino de hoje</Texto>
           <Texto style={{ color: cores.textoSuave }}>Segunda - Costas</Texto>
-          <View style={[estilos.botaoPrevia, { backgroundColor: marca.corPrimaria }]}>
-            <Texto style={[estilos.tituloPrevia, { color: textoSobre(marca.corPrimaria) }]}>Começar</Texto>
-          </View>
+          {botao}
         </View>
+        )}
       </View>
     </View>
   );
@@ -351,10 +393,20 @@ const estilos = StyleSheet.create({
   campoDias: { maxWidth: 280 },
   paletas: { gap: espaco(1.5) },
   meta: { gap: espaco(0.5) },
-  previas: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(2) },
-  previa: { flex: 1, minWidth: 240, maxWidth: 480, gap: espaco(0.5) },
+  grupo: { gap: espaco(2) },
+  cabecaDoGrupo: { gap: espaco(0.5) },
+  aparencia: { gap: espaco(3) },
+  aparenciaAoLado: { flexDirection: 'row', alignItems: 'flex-start' },
+  ajustes: { flex: 1, minWidth: 0, gap: espaco(3) },
+  // `flex-start`: sem ele a coluna estica até a altura dos ajustes e o `sticky` não tem para onde andar.
+  colunaDaPrevia: { width: 320, alignSelf: 'flex-start' },
+  previa: { gap: espaco(0.5) },
   telaPrevia: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(1.5) },
+  telaCompacta: { padding: espaco(1) },
   faixaPrevia: { borderRadius: RAIO, paddingHorizontal: espaco(1.5), paddingVertical: espaco(1) },
+  faixaCompacta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5) },
+  marcaCompacta: { flexShrink: 1, minWidth: 0 },
+  botaoCompacto: { marginTop: 0, paddingHorizontal: espaco(2) },
   cartaoPrevia: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(0.5) },
   tituloPrevia: { fontFamily: fontes.semi },
   botaoPrevia: { borderRadius: RAIO, paddingVertical: espaco(1), alignItems: 'center', marginTop: espaco(0.5) },

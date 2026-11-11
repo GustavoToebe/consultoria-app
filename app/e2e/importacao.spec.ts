@@ -5,7 +5,7 @@ import { json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api
 /**
  * Importação em etapas (análise do vídeo de 29/10 e referência de 30/10): lista separada do assistente, destino em
  * cartões e arquivo juntos, configuração com ajuda, a planilha com o campo de cada coluna (lista suspensa com busca no
- * PC, folha no celular), busca, correção de célula e lixeira por linha, resumo Total / Com erro / Corretas e o
+ * PC, folha no celular), busca, correção de célula e lixeira por linha, resumo Total / Novos / Atualizados / Com erro e o
  * resultado. Desde 31/10 (reunião de 30/10) o assistente é uma tela inteira (`/treinador/importacao/nova`), com guarda de
  * saída, aviso de título de coluna com cara de dado e erros agrupados por motivo. API falsa, dados fictícios. 390 e 1280
  * são a mesma página com a largura trocada.
@@ -170,8 +170,11 @@ for (const largura of [390, 1280]) {
 
     // Etapa 4: resumo, o que vai acontecer e o erro com linha, campo e coluna.
     await expect(folha.getByLabel('Total: 3')).toBeVisible();
-    await expect(folha.getByLabel('Com erro: 1')).toBeVisible();
-    await expect(folha.getByLabel('Corretas: 2')).toBeVisible();
+    // Números neutros com o que cada linha vira: novos, atualizados, já existentes e com erro (guia de 11/11, pág. 14).
+    await expect(folha.getByLabel('Novos: 1')).toBeVisible();
+    await expect(folha.getByLabel('Atualizados: 1')).toBeVisible();
+    await expect(folha.getByLabel('Já existem (ficam como estão): 0')).toBeVisible();
+    await expect(folha.getByLabel('Com erro (ficam de fora): 1')).toBeVisible();
     await expect(folha.getByText('Ao confirmar, a importação vai criar 1 registro e atualizar 1.')).toBeVisible();
     await expect(folha.getByText('Linha 4 · Nome (coluna “Aluno”): Informe o nome.')).toBeVisible();
     expect(pedidos.previa).toBe(1);
@@ -190,7 +193,7 @@ for (const largura of [390, 1280]) {
     await folha.getByRole('button', { name: 'Mostrar todas as linhas' }).click();
     await expect(folha.getByLabel('Linha 2, coluna “Aluno”')).toBeVisible();
     await folha.getByRole('button', { name: 'Validar' }).click();
-    await expect(folha.getByLabel('Com erro: 0')).toBeVisible();
+    await expect(folha.getByLabel('Com erro (ficam de fora): 0')).toBeVisible();
     expect(pedidos.previa).toBe(2);
     expect(pedidos.configuracao?.ajustes).toEqual({ celulas: [{ linha: 4, coluna: 0, valor: 'Carla Fictícia' }], removidas: [] });
 
@@ -198,11 +201,13 @@ for (const largura of [390, 1280]) {
     await folha.getByRole('button', { name: 'Voltar' }).click();
     await escolherCampo(page, /Campo: Não importar/, 'Apelido', 'Cadastro > Telefone');
     await folha.getByRole('button', { name: 'Validar' }).click();
-    await expect(folha.getByLabel('Corretas: 3')).toBeVisible();
+    await expect(folha.getByLabel('Novos: 2')).toBeVisible();
     expect(pedidos.previa).toBe(3);
     expect(pedidos.configuracao?.ajustes?.celulas).toHaveLength(1);
 
     await folha.getByRole('button', { name: 'Confirmar importação' }).click();
+    // O resultado com erros não parece sucesso completo: selo âmbar com a situação.
+    await expect(folha.getByText('Concluída com erros')).toBeVisible();
     await expect(folha.getByLabel('Novos: 1')).toBeVisible();
     await expect(folha.getByLabel('Atualizados: 1')).toBeVisible();
     await folha.getByRole('button', { name: 'Concluir' }).click();
@@ -233,7 +238,11 @@ for (const largura of [390, 1280]) {
     await expect(folha.getByLabel('Linha 61, coluna “Aluno”')).toHaveValue('Pessoa Fictícia 60');
     if (largura >= 768) {
       // Teclado na lista suspensa: busca, setas e Enter escolhem; Esc fecha e o foco volta ao botão.
-      await folha.getByRole('button', { name: /Campo: Não importar/ }).click();
+      // A página 2 é curta e o botão fica sob o cabeçalho da tela: sem trazê-lo para o meio antes, a rolagem que o
+      // próprio clique faz chega entre o apertar e o soltar e cancela o toque (a lista não abre).
+      const campo = folha.getByRole('button', { name: /Campo: Não importar/ });
+      await campo.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+      await campo.click();
       const lista = page.getByRole('dialog', { name: 'Campo da coluna “Apelido”' });
       await expect(lista.getByLabel('Buscar campo')).toBeFocused();
       await page.keyboard.type('tele');

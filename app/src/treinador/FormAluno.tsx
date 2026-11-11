@@ -30,7 +30,7 @@ interface Props {
   rotuloSalvar: string;
   aoSalvar: (dados: AlunoRequest) => Promise<void>;
   aoCancelar?: () => void;
-  /** Ciclo padrão da consultoria: aparece no campo vazio ("Padrão: 30 dias"), para não parecer "sem prazo". */
+  /** Ciclo padrão da consultoria: aparece na ajuda do campo ("Padrão: 30 dias."), para o vazio não parecer "sem prazo". */
   diasPadrao?: number | null;
   /** Controle extra no começo da seção "Acompanhamento" (na ficha, a escolha do questionário, que grava na hora). */
   noAcompanhamento?: ReactNode;
@@ -166,8 +166,8 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
         valor={dias}
         aoMudar={(t) => setDias(t.replace(/\D/g, '').slice(0, 3))}
         erro={diasInvalidos ? 'Use de 1 a 365 dias.' : campos.diasAtualizacao}
-        placeholder={diasPadrao ? `Padrão: ${diasPadrao} dias` : undefined}
-        ajuda="Ao criar uma pasta de plano, o fim do período já vem preenchido com esses dias (você pode mudar). Vazio usa o padrão da consultoria, se houver (Marca › Acompanhamento)."
+        // O padrão vai na ajuda, embaixo do campo, e não como placeholder: o texto some ao digitar e parece valor preenchido.
+        ajuda={`${diasPadrao ? `Padrão: ${diasPadrao} dias. ` : ''}Ao criar uma pasta de plano, o fim do período já vem preenchido com esses dias (você pode mudar). Vazio usa o padrão da consultoria, se houver (Marca › Acompanhamento).`}
         keyboardType="number-pad"
         inputMode="numeric"
         maxLength={3}
@@ -189,7 +189,7 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
       /></Permitido>
       {erro && Object.keys(campos).length === 0 && !cpfEmUso ? <MensagemErro texto={textoDoErro(erro)} /> : null}
       <View style={estilos.botoes}>
-        {aoCancelar ? <Botao rotulo="Cancelar" tipo="secundario" aoTocar={aoCancelar} /> : null}
+        {aoCancelar ? <Botao rotulo="Cancelar" tipo="fantasma" aoTocar={aoCancelar} /> : null}
         <Botao rotulo={rotuloSalvar} aoTocar={salvar} carregando={salvando} desabilitado={!nome.trim() || diasInvalidos || dadosInvalidos}
           motivo={!nome.trim() ? 'Informe o nome do aluno.' : diasInvalidos ? 'Os dias de atualização vão de 1 a 365.' : 'Corrija os campos marcados.'} />
       </View>
@@ -199,7 +199,8 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
 
 const estilos = StyleSheet.create({
   form: { gap: espaco(1.5) },
-  secao: { marginTop: espaco(1) },
+  // Separação maior entre Cadastro, Dados pessoais e Acompanhamento (guia de 11/11, pág. 11).
+  secao: { marginTop: espaco(2) },
   meta: { gap: espaco(0.5) },
   botoes: { flexDirection: 'row', justifyContent: 'flex-end', gap: espaco(1), flexWrap: 'wrap' },
 });

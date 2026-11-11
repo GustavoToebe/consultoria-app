@@ -3,6 +3,8 @@ import {
   contadorDoComentario, erroDoComentario, juntarPaginaDeComentarios, MENSAGEM_COMENTARIO_LONGO, MENSAGEM_COMENTARIO_VAZIO,
   proximaPaginaDeComentarios, semOComentario, tamanhoDoComentario,
   curtidoPorMim, EMOJI_DA_CURTIDA, erroDoApelido, MENSAGEM_APELIDO_FORMATO, MENSAGEM_APELIDO_LINK, textoDaPosicao, totalDeCurtidas,
+  errosDoPost, MOTIVOS_DE_DENUNCIA, podeAnexarFoto, podePublicar, postParaEnviar, rotuloDoMotivo, rotuloDoTipo, TIPOS_DE_POST,
+  tiposParaEscolher, filtrosDoMural, filtrosParaApi, textoDoMuralVazio, textoDasDenuncias, tipoPedido,
 } from './comunidade';
 
 describe('curtida do mural', () => {
@@ -133,5 +135,95 @@ describe('páginas de comentários', () => {
     const lidos = comentariosDaPrimeiraPagina({ itens: faixa(0, 30), total: 40 });
     expect(comentariosQueFaltam(juntarPaginaDeComentarios(lidos, { itens: [], total: 40 }))).toBe(0);
     expect(semOComentario(lidos, 'outro')).toBe(lidos);
+  });
+});
+
+describe('tipos de publicação', () => {
+  it('lista os cinco tipos com rótulo em português', () => {
+    expect(TIPOS_DE_POST.map((t) => t.tipo)).toEqual(['AVISO', 'VIDEO', 'DUVIDA', 'RESULTADO', 'CONVERSA']);
+    expect(rotuloDoTipo('DUVIDA')).toBe('Dúvida');
+  });
+  it('o aluno escolhe só conversa, dúvida e resultado; a equipe, todos', () => {
+    expect(tiposParaEscolher('aluno').map((t) => t.tipo)).toEqual(['DUVIDA', 'RESULTADO', 'CONVERSA']);
+    expect(tiposParaEscolher('equipe')).toHaveLength(5);
+  });
+});
+
+describe('validação da publicação', () => {
+  it('conversa com texto passa; texto em branco ou longo demais não', () => {
+    expect(errosDoPost({ tipo: 'CONVERSA', texto: 'Bom treino, time!' }, 'aluno')).toEqual({});
+    expect(errosDoPost({ tipo: 'CONVERSA', texto: '   ' }, 'aluno').texto).toBeTruthy();
+    expect(errosDoPost({ tipo: 'CONVERSA', texto: 'a'.repeat(2000) }, 'aluno')).toEqual({});
+    expect(errosDoPost({ tipo: 'CONVERSA', texto: 'a'.repeat(2001) }, 'aluno').texto).toBeTruthy();
+  });
+  it('aluno não publica aviso nem vídeo', () => {
+    expect(errosDoPost({ tipo: 'AVISO', texto: 'x' }, 'aluno').tipo).toBeTruthy();
+    expect(errosDoPost({ tipo: 'VIDEO', texto: 'x', videoUrl: 'https://youtu.be/abc' }, 'aluno').tipo).toBeTruthy();
+    expect(errosDoPost({ tipo: 'AVISO', texto: 'x' }, 'equipe')).toEqual({});
+  });
+  it('vídeo exige link https e só ele leva link', () => {
+    expect(errosDoPost({ tipo: 'VIDEO', texto: 'Aula', videoUrl: '' }, 'equipe').videoUrl).toBeTruthy();
+    expect(errosDoPost({ tipo: 'VIDEO', texto: 'Aula', videoUrl: 'http://youtu.be/abc' }, 'equipe').videoUrl).toBeTruthy();
+    expect(errosDoPost({ tipo: 'VIDEO', texto: 'Aula', videoUrl: 'https://youtu.be/abc' }, 'equipe')).toEqual({});
+    expect(errosDoPost({ tipo: 'AVISO', texto: 'x', videoUrl: 'https://youtu.be/abc' }, 'equipe').videoUrl).toBeTruthy();
+  });
+  it('foto: de 1 a 4 sem repetir, e só do aluno', () => {
+    expect(errosDoPost({ tipo: 'RESULTADO', texto: 'x', fotoIds: ['a', 'b', 'c', 'd'] }, 'aluno')).toEqual({});
+    expect(errosDoPost({ tipo: 'RESULTADO', texto: 'x', fotoIds: ['a', 'b', 'c', 'd', 'e'] }, 'aluno').fotoIds).toBeTruthy();
+    expect(errosDoPost({ tipo: 'RESULTADO', texto: 'x', fotoIds: ['a', 'a'] }, 'aluno').fotoIds).toBeTruthy();
+    expect(errosDoPost({ tipo: 'CONVERSA', texto: 'x', fotoIds: ['a'] }, 'equipe').fotoIds).toBeTruthy();
+  });
+  it('o corpo do envio tem strip e só leva link e fotos quando valem', () => {
+    expect(postParaEnviar({ tipo: 'CONVERSA', texto: '  oi  ', videoUrl: 'https://x.com/a', fotoIds: [] })).toEqual({ tipo: 'CONVERSA', texto: 'oi' });
+    expect(postParaEnviar({ tipo: 'VIDEO', texto: 'Aula', videoUrl: ' https://youtu.be/abc ' })).toEqual({ tipo: 'VIDEO', texto: 'Aula', videoUrl: 'https://youtu.be/abc' });
+    expect(postParaEnviar({ tipo: 'RESULTADO', texto: 'x', fotoIds: ['a'] }).fotoIds).toEqual(['a']);
+  });
+});
+
+describe('quem pode publicar e anexar', () => {
+  it('sem a configuração ou com a chave desligada, o aluno não publica', () => {
+    expect(podePublicar(null)).toBe(false);
+    expect(podePublicar({ alunosPublicam: false })).toBe(false);
+    expect(podePublicar({ alunosPublicam: true })).toBe(true);
+  });
+  it('foto só com a chave de publicar ligada e a API liberando', () => {
+    expect(podeAnexarFoto({ alunosPublicam: true, podeAnexarFoto: true })).toBe(true);
+    expect(podeAnexarFoto({ alunosPublicam: true, podeAnexarFoto: false })).toBe(false);
+    expect(podeAnexarFoto({ alunosPublicam: false, podeAnexarFoto: true })).toBe(false);
+    expect(podeAnexarFoto(null)).toBe(false);
+  });
+});
+
+describe('motivos de denúncia', () => {
+  it('lista fechada com rótulo', () => {
+    expect(MOTIVOS_DE_DENUNCIA.map((m) => m.motivo)).toEqual(['OFENSIVO', 'SPAM', 'IMPROPRIO', 'OUTRO']);
+    expect(rotuloDoMotivo('IMPROPRIO')).toBe('Conteúdo impróprio');
+  });
+});
+
+describe('filtros do mural', () => {
+  it('chips no plural, "Denunciados" só para quem modera', () => {
+    expect(filtrosDoMural(false).map((f) => f.rotulo)).toEqual(['Todos', 'Avisos', 'Vídeos', 'Dúvidas', 'Resultados', 'Conversas']);
+    expect(filtrosDoMural(true).at(-1)).toEqual({ valor: 'DENUNCIADOS', rotulo: 'Denunciados' });
+  });
+  it('vira a query da API: tipo, denunciados e busca com strip', () => {
+    expect(filtrosParaApi(null, '  ')).toEqual({});
+    expect(filtrosParaApi('DUVIDA', ' supino ')).toEqual({ tipo: 'DUVIDA', busca: 'supino' });
+    expect(filtrosParaApi('DENUNCIADOS', '')).toEqual({ denunciados: true });
+  });
+  it('vazio com e sem filtro', () => {
+    expect(textoDoMuralVazio(null, '')).toBe('Nenhuma publicação no mural ainda.');
+    expect(textoDoMuralVazio('AVISO', '')).toBe('Nenhuma publicação encontrada com esse filtro.');
+    expect(textoDoMuralVazio(null, 'x')).toBe('Nenhuma publicação encontrada com esse filtro.');
+  });
+  it('denúncias no singular e no plural', () => {
+    expect(textoDasDenuncias(1)).toBe('1 denúncia');
+    expect(textoDasDenuncias(3)).toBe('3 denúncias');
+  });
+  it('tipo pedido pelo endereço só vale se o papel pode escolher', () => {
+    expect(tipoPedido('RESULTADO', 'aluno')).toBe('RESULTADO');
+    expect(tipoPedido('AVISO', 'aluno')).toBeNull();
+    expect(tipoPedido(undefined, 'aluno')).toBeNull();
+    expect(tipoPedido('AVISO', 'equipe')).toBe('AVISO');
   });
 });

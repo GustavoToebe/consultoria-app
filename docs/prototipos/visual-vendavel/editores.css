@@ -1,0 +1,223 @@
+/* Prévia "visual vendável", fase 2: peças dos editores do treinador (treino, dieta, mobilidade). Dados fictícios (D8).
+   Carregar DEPOIS do base.css. Só acrescenta; o que contorna da base está marcado com "contorno da base".
+   Cor: só o que a base permite (primário, .sobretitulo, .ordem, progresso, item ativo). Tipo de série e cor da refeição
+   identificam (barra de 6 px, selo do tipo, ponto); o resto é texto. Âmbar só em ponto de quem pede ação.
+
+   ÍNDICE
+   ------------------------------------------------------------------------------------------------------------------
+   Página        .pagina--editor (1480 aqui) · .pagina--editor-medio (1320: dieta e mobilidade) · .cab-situacao
+   Faixa         .faixa-rolavel (escolha única numa linha que rola de lado, sem quebrar: sessões do treino)
+   Duas colunas  .editor (container) > .editor-lista + .editor-inspetor · abre em duas colunas quando o próprio editor
+                 tem ≥ 880 px; abaixo, uma vista por vez pelo data-vista="lista|inspetor" · .so-uma-coluna (Voltar)
+   Lista         .linha.item-editor > .linha-principal > button.linha-link (reset do botão) · .item-editor.escolhida
+   Tipo          .chip .ponto (ponto da cor do tipo) · .resumo-lista (barra + chave–valor da sessão)
+   Séries        .series > .series-cab + button.serie (+ .tipo-*, .trabalho, [aria-pressed]) · .num-serie(.ordem) · .serie .rot
+                 (rótulo que só aparece na coluna estreita) · .serie-extra (linha do Cluster) · .falta (ponto âmbar + texto)
+   Inspetor      .inspetor-grade (tabela + editor da série lado a lado quando o inspetor tem ≥ 940 px) · .editor-serie
+                 · .grupo-campos (rótulo de seção + campos, sem cartão) · .campo-sufixo
+   Dieta         .faixa-total (fixa no topo) · .refeicao (barra da cor) · .tabela-alimentos · .etiqueta-qtd · .ponto-aba
+   Mobilidade    .mob (editor + prévia ≥ 1024) · .mob-secao-cab · .mob-item · .alca · .lixeira · .mob-previa
+   ------------------------------------------------------------------------------------------------------------------ */
+
+/* ====== página ====== */
+.pagina--editor { max-width: 1480px; }
+.pagina--editor-medio { max-width: 1320px; }
+.cab-situacao { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+/* o tabpanel da base tem 24 px em cima; dentro de cartão isso abria vão */
+.cartao [role="tabpanel"] { padding-top: 16px; }
+/* .sr-only é absolute: sem âncora ele escapava da faixa de abas (que rola sozinha) e abria rolagem na página em 390 */
+.abas { position: relative; }
+
+/* ====== faixa que rola de lado (contorno da base: o segmento da base quebra linha) ======
+   Nomes longos ("Treino A · Peito, ombros e tríceps") empilhavam o segmento em 390. Numa linha só, o último chip
+   aparece cortado na borda e diz que há mais; a página rola o escolhido para a vista (treinador-treino.html). */
+html[data-selecao="neutra"] .grupo-chips.faixa-rolavel { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
+.faixa-rolavel::-webkit-scrollbar { display: none; }
+.faixa-rolavel > .chip { flex-shrink: 0; }
+/* a faixa corta o que passa da borda (overflow): o anel de foco entra para dentro do chip para não ser cortado */
+.faixa-rolavel > .chip:focus-visible { outline-offset: -2px; }
+
+/* ====== duas colunas (lista + inspetor) ====== */
+.editor { container-type: inline-size; container-name: editor; }
+.editor-grade { display: grid; gap: 24px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+.editor-lista, .editor-inspetor { min-width: 0; }
+.so-uma-coluna { display: inline-flex; }
+@container editor (min-width: 880px) {
+  .editor-grade { grid-template-columns: minmax(300px, 360px) minmax(0, 1fr); }
+  .so-uma-coluna { display: none !important; }
+}
+@container editor (max-width: 879.98px) {
+  .editor[data-vista="lista"] .editor-inspetor { display: none; }
+  .editor[data-vista="inspetor"] .editor-lista { display: none; }
+}
+
+/* ====== lista com botão (a linha inteira escolhe) ====== */
+button.linha-link { background: none; border: 0; padding: 0; margin: 0; text-align: left; font: inherit; font-weight: 600; color: var(--texto); cursor: pointer; }
+.item-editor { align-items: flex-start; }
+.item-editor .linha-principal { gap: 6px; }
+.item-editor .composicao { max-width: 320px; }
+/* escolhida: superfície levantada + barra de 2 px em texto (a mesma do .linha[aria-current] da base) */
+.item-editor.escolhida { background: var(--sup3); box-shadow: inset 2px 0 0 var(--texto); }
+.item-editor .selo { position: relative; z-index: 1; pointer-events: none; }
+
+/* ====== cor do tipo ====== */
+.chip .ponto { width: 10px; height: 10px; border-radius: 3px; background: var(--c); flex-shrink: 0; }
+/* o chip de tipo leva o ponto: a faixa interna de 4 px da base sai para não repetir a cor duas vezes */
+html .chip.chip--tipo.chip--ponto, html .chip.chip--tipo.chip--ponto[aria-pressed="true"] { box-shadow: none; }
+/* resumo da sessão no pé da lista de exercícios: a barra é a única cor de tipo; a chave–valor é a legenda dela */
+.resumo-lista { display: flex; flex-direction: column; gap: 12px; padding: 16px; border-top: 1px solid var(--divisor); }
+.resumo-lista .composicao-barra { height: 8px; gap: 2px; }
+
+/* ====== tabela de séries ====== */
+.inspetor { container-type: inline-size; container-name: inspetor; }
+.series { display: flex; flex-direction: column; gap: 6px; }
+/* a última coluna tem piso: "Descanso" em caixa-alta quebrava em "DESCANS O" a 1280 */
+.series-cab, .serie { display: grid; gap: 8px 12px; align-items: center; grid-template-columns: minmax(124px, 1.2fr) minmax(150px, 1.5fr) minmax(0, .8fr) minmax(0, .6fr) minmax(84px, .8fr); }
+.series-cab { padding: 0 12px 0 18px; }
+.series-cab span { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--suave); white-space: nowrap; }
+.serie { width: 100%; min-height: 48px; padding: 8px 12px; text-align: left; font: inherit; color: var(--texto); background: var(--sup2); border: 2px solid transparent; border-left: 6px solid var(--c); border-radius: var(--raio-p); cursor: pointer; }
+.serie:hover { background: var(--sup3); }
+.serie .valor { font-variant-numeric: tabular-nums; font-weight: 500; }
+.serie .num-serie { font-size: 12px; color: var(--suave); font-weight: 700; font-variant-numeric: tabular-nums; min-width: 16px; }
+/* a série escolhida: contorno em texto e o número de ordem na marca (.ordem da base) */
+.serie[aria-pressed="true"] { border-color: var(--texto); border-left-color: var(--c); }
+.serie .num-serie.ordem { color: var(--marca-texto); }
+.serie .cel-tipo { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+/* série que vale (WS, Top set): o selo cheio e os valores em negrito dizem; o fundo fica o mesmo das outras */
+.serie.trabalho { min-height: 56px; }
+.serie.trabalho .valor { font-weight: 700; }
+.serie .rot { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.serie-extra { grid-column: 1 / -1; font-size: var(--t-rotulo); color: var(--suave); display: block; }
+.serie-extra b { color: var(--texto); font-weight: 600; }
+/* valor que falta pede ação: ponto âmbar + texto (a cor nunca vai no texto) */
+.falta { color: var(--texto); font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+.falta::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--atencao); flex-shrink: 0; }
+@container inspetor (max-width: 539.98px) {
+  .series-cab { display: none; }
+  .serie { grid-template-columns: minmax(0, auto) minmax(0, 1fr); grid-template-areas: "tipo carga" "info info"; }
+  .serie .cel-tipo { grid-area: tipo; } .serie .cel-carga { grid-area: carga; justify-self: end; text-align: right; }
+  .serie .cel-info { grid-area: info; display: flex; flex-wrap: wrap; gap: 2px 14px; font-size: var(--t-apoio); }
+  .serie .rot { position: static; width: auto; height: auto; overflow: visible; clip: auto; color: var(--suave); font-weight: 500; margin-right: 4px; }
+}
+@container inspetor (min-width: 540px) { .serie .cel-info { display: contents; } .serie .cel-carga { white-space: nowrap; } }
+
+/* ====== inspetor ====== */
+.inspetor-grade { display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+.editor-serie { display: flex; flex-direction: column; gap: 20px; padding-top: 20px; border-top: 1px solid var(--divisor); min-width: 0; }
+@container inspetor (min-width: 940px) {
+  .inspetor-grade { grid-template-columns: minmax(0, 1.25fr) minmax(320px, 1fr); gap: 24px; }
+  .editor-serie { padding-top: 0; border-top: 0; padding-left: 24px; border-left: 1px solid var(--divisor); }
+}
+.grupo-campos { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.grupo-campos > .t-secao { margin-bottom: 2px; }
+.campos-lado { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+.campo-sufixo { position: relative; }
+.campo-sufixo .campo-entrada { padding-right: 44px; }
+.campo-sufixo .sufixo { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--suave); font-size: var(--t-apoio); pointer-events: none; }
+.explica { font-size: var(--t-apoio); color: var(--suave); max-width: 60ch; }
+.inspetor .cartao-cab h2 { overflow-wrap: anywhere; }
+/* alvo de foco programático ao abrir o inspetor numa coluna (como o h1 da base) */
+.inspetor h2[tabindex="-1"]:focus { outline: none; }
+
+/* ====== dieta ====== */
+/* fixa no topo da página (filho direto do main): abaixo do menu ⋯ (30) e da barra inferior (20) */
+.faixa-total { position: sticky; top: 0; z-index: 15; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 28px; padding: 12px 16px; background: var(--sup); border: var(--bw) solid var(--divisor); border-radius: var(--raio); }
+.faixa-total > .sobretitulo { width: 100%; }
+.faixa-total .kcal { display: flex; flex-direction: column; gap: 2px; }
+.faixa-total .macros { display: grid; grid-template-columns: repeat(3, minmax(64px, auto)); gap: 4px 24px; margin: 0; }
+.faixa-total .macros div { display: flex; flex-direction: column; gap: 2px; }
+.faixa-total dt { font-size: 12px; color: var(--suave); font-weight: 600; order: 2; }
+.faixa-total dd { margin: 0; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.faixa-total .variacao { flex: 1 1 200px; font-size: var(--t-apoio); color: var(--suave); align-self: center; }
+@media (max-width: 767px) { .faixa-total { gap: 6px 18px; padding: 10px 14px; } .faixa-total .macros { gap: 2px 16px; } .faixa-total dd { font-size: 17px; } .faixa-total .variacao { flex-basis: 100%; } }
+html:has(.faixa-total) { scroll-padding-top: 168px; }
+@media (min-width: 768px) { html:has(.faixa-total) { scroll-padding-top: 128px; } }
+
+/* a cor da refeição (a mesma que o aluno vê) só na barra de 6 px; hora e quantidade em texto */
+.refeicao { box-shadow: inset 6px 0 0 var(--c); padding-left: 22px; }
+.refeicao.escolhida { background: var(--sup3); box-shadow: inset 6px 0 0 var(--c), inset 8px 0 0 var(--texto); }
+.refeicao .hora { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--texto); }
+
+.tabela-alimentos { width: 100%; border-collapse: collapse; font-size: var(--t-corpo); }
+.tabela-alimentos th { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--suave); text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--divisor); vertical-align: bottom; }
+.tabela-alimentos td { padding: 10px; border-bottom: 1px solid var(--divisor); vertical-align: middle; }
+.tabela-alimentos td.nome { min-width: 14ch; }
+.tabela-alimentos .n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* cabeçalhos curtos ("Prot. (g)", nome inteiro no sr-only) para o nome do alimento não virar uma coluna de sílabas */
+.tabela-alimentos th { white-space: nowrap; }
+.tabela-alimentos th.n { text-align: right; }
+.tabela-alimentos tfoot td { font-weight: 700; border-bottom: 0; border-top: 2px solid var(--divisor); }
+.tabela-alimentos .sem-dado { color: var(--suave); }
+.etiqueta-qtd { display: inline-flex; align-items: center; min-height: 28px; padding: 2px 10px; border-radius: 8px; font-size: var(--t-apoio); font-weight: 700; white-space: nowrap; color: var(--texto); background: var(--sup3); font-variant-numeric: tabular-nums; }
+@container inspetor (max-width: 559.98px) {
+  .tabela-alimentos thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  /* empilhada: nome + quantidade em cima, os quatro números numa grade de 4 (rótulo curto em cima, valor embaixo) */
+  .tabela-alimentos tr { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 8px; padding: 12px 0; border-bottom: 1px solid var(--divisor); }
+  .tabela-alimentos td, .tabela-alimentos tfoot td { padding: 0; border: 0; }
+  .tabela-alimentos td.nome { grid-column: 1 / 4; font-weight: 600; min-width: 0; }
+  .tabela-alimentos td.qtd { grid-column: 4; grid-row: 1; justify-self: end; }
+  .tabela-alimentos tfoot td.nome { grid-column: 1 / -1; }
+  .tabela-alimentos td.n { display: flex; flex-direction: column; text-align: left; }
+  .tabela-alimentos .n::before { content: attr(data-rot); font-size: 12px; color: var(--suave); font-weight: 600; }
+  .tabela-alimentos tfoot tr { border-bottom: 0; border-top: 2px solid var(--divisor); }
+  .tabela-alimentos tfoot td.qtd { display: none; }
+}
+.ponto-aba { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: currentColor; margin-left: 6px; vertical-align: middle; }
+.suplemento { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 12px 0; border-top: 1px solid var(--divisor); }
+.suplemento:first-child { border-top: 0; padding-top: 0; }
+.suplemento .linha-principal { flex: 1 1 220px; }
+
+/* ====== mobilidade ====== */
+.mob { display: grid; gap: 24px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+.mob-previa { display: none; }
+@media (min-width: 1024px) { .mob { grid-template-columns: minmax(0, 1fr) minmax(300px, 360px); } .mob-previa { display: flex; position: sticky; top: 16px; } }
+.mob-editor { container-type: inline-size; container-name: mob; display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+.mob-secao-cab { display: flex; align-items: flex-end; gap: 8px 12px; flex-wrap: wrap; position: relative; }
+.mob-secao-cab .contagem { min-height: 44px; display: inline-flex; align-items: center; gap: .3em; white-space: nowrap; font-size: var(--t-apoio); color: var(--suave); font-variant-numeric: tabular-nums; }
+.mob-acoes { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 12px; border-top: 1px solid var(--divisor); }
+.mob-secao-cab .campo { flex: 1 1 200px; }
+/* nome da seção: o contorno --borda dava 1,95:1 (campo precisa de 3:1); fica o dos outros campos */
+.mob-secao-cab .campo-entrada { font-size: var(--t-titulo-cartao); font-weight: 600; border-color: var(--borda-campo); }
+.mob-itens { list-style: none; margin: 0; padding: 0; }
+/* estreito: campos ocupam a largura e lixeira + alça ficam num trilho à direita (como o reordenar do iOS); largo: alça | campos | lixeira */
+.mob-item { display: grid; grid-template-columns: minmax(0, 1fr) 44px; grid-template-rows: auto 1fr; gap: 8px; align-items: start; padding: 12px 0; border-top: 1px solid var(--divisor); }
+.mob-item > .mob-campos { grid-column: 1; grid-row: 1 / span 2; }
+.mob-item > .lixeira { grid-column: 2; grid-row: 1; }
+.mob-item > .mover { grid-column: 2; grid-row: 2; }
+.mob-itens > .mob-item:first-child { border-top: 0; padding-top: 4px; }
+.mob-campos { display: grid; gap: 10px 12px; grid-template-columns: minmax(0, 1fr); min-width: 0; }
+@container mob (min-width: 560px) {
+  .mob-item { grid-template-columns: 44px minmax(0, 1fr) 44px; grid-template-rows: auto; }
+  .mob-item > .mover { grid-column: 1; grid-row: 1; margin-top: 26px; }
+  .mob-item > .mob-campos { grid-column: 2; grid-row: 1; }
+  .mob-item > .lixeira { grid-column: 3; grid-row: 1; }
+  .mover .menu-flutuante { left: 0; right: auto; }
+  .mob-campos { grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); } .mob-video { grid-column: 1 / -1; }
+  /* lado a lado, os rótulos do primeiro item servem de cabeçalho de coluna; nos seguintes ficam só para o leitor de tela */
+  .mob-item + .mob-item .mob-campos > .campo > .campo-rotulo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .mob-item + .mob-item .mover, .mob-item + .mob-item .lixeira { margin-top: 0; }
+}
+.mob-video .botao--fantasma { color: var(--suave); }
+.mob-video .botao--fantasma:hover { color: var(--texto); }
+.mob-video { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
+.mob-video .campo { flex: 1 1 260px; }
+/* "Vídeo adicionado" é estado parado, não confirmação do que acabou de acontecer: ✓ neutro */
+.mob-video .feito { display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-apoio); color: var(--texto); font-weight: 600; }
+.mob-video .feito .ic { color: var(--suave); }
+.mover { position: relative; }
+.lixeira { margin-top: 26px; }
+/* discretas até o hover ou o foco (cor suave, nunca transparência: o ícone continua com 3:1); remover não é perigo,
+   tem Desfazer: a lixeira fica em texto, sem vermelho */
+.alca, .lixeira { color: var(--suave); }
+.mob-item:hover .alca, .mob-item:hover .lixeira, .mob-item:focus-within .alca, .mob-item:focus-within .lixeira { color: var(--texto); }
+.mob-vazio { padding: 8px 0 12px; font-size: var(--t-apoio); color: var(--suave); }
+.mob-previa .cartao-corpo { gap: 16px; }
+.previa-secao { display: flex; flex-direction: column; }
+.previa-secao .t-secao { padding-bottom: 6px; }
+.previa-item { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--divisor); }
+.previa-item .marcar { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--borda-campo); }
+.previa-item b { font-weight: 600; display: block; }
+.previa-item .ic { color: var(--suave); }
+
+/* celular: a migalha da base tem 32 px; o alvo cresce para 44 sem mudar o desenho (a margem negativa devolve a altura) */
+@media (max-width: 767.98px) { .migalha a { min-height: 44px; margin-block: -6px; } }

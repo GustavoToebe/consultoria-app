@@ -1,4 +1,5 @@
-import type { PostDoMural } from '../api/comunidadeTipos';
+import type { ConfiguracaoDoAluno, CriarPostRequest, FiltrosDoMural, MotivoDeDenuncia, PostDoMural, TipoDePost } from '../api/comunidadeTipos';
+import { linkExternoSeguro, MENSAGEM_LINK } from './links';
 
 /** A única reação do app é a curtida; o resto das reações que a API aceita não aparece na tela. */
 export const EMOJI_DA_CURTIDA = '❤️';
@@ -138,3 +139,127 @@ export function semOComentario<T extends { id: string }>(c: ComentariosLidos<T>,
   if (!estava) return c;
   return { itens: c.itens.filter((i) => i.id !== id), enviados: c.enviados.filter((i) => i.id !== id), total: Math.max(0, c.total - 1) };
 }
+
+// ---- Publicações do mural: tipos, validação e quem pode publicar (espelho de `ComunidadeService.criarPostMural`) ----
+
+export const TIPOS_DE_POST: readonly { tipo: TipoDePost; rotulo: string }[] = [
+  { tipo: 'AVISO', rotulo: 'Aviso' },
+  { tipo: 'VIDEO', rotulo: 'Vídeo' },
+  { tipo: 'DUVIDA', rotulo: 'Dúvida' },
+  { tipo: 'RESULTADO', rotulo: 'Resultado' },
+  { tipo: 'CONVERSA', rotulo: 'Conversa' },
+];
+
+export const rotuloDoTipo = (tipo: TipoDePost): string => TIPOS_DE_POST.find((t) => t.tipo === tipo)?.rotulo ?? tipo;
+
+/** Aluno publica só estes três; `AVISO` e `VIDEO` são da equipe (decisão C2). A API confere de novo. */
+const TIPOS_DO_ALUNO: readonly TipoDePost[] = ['CONVERSA', 'DUVIDA', 'RESULTADO'];
+
+export type PapelNoMural = 'aluno' | 'equipe';
+
+/** Tipos que o papel pode escolher, na ordem de `TIPOS_DE_POST` (`CONVERSA` é o padrão e vai por último na equipe). */
+export const tiposParaEscolher = (papel: PapelNoMural): readonly { tipo: TipoDePost; rotulo: string }[] =>
+  papel === 'equipe' ? TIPOS_DE_POST : TIPOS_DE_POST.filter((t) => TIPOS_DO_ALUNO.includes(t.tipo));
+
+export const TIPO_PADRAO_DO_POST: TipoDePost = 'CONVERSA';
+/** O mesmo teto do `@Size` da API, contado em unidades UTF-16 sobre o texto como veio (antes do strip). */
+export const POST_TEXTO_MAXIMO = 2000;
+export const POST_FOTOS_MAXIMO = 4;
+export const MENSAGEM_POST_VAZIO = 'Escreva a publicação.';
+export const MENSAGEM_POST_LONGO = `Use até ${POST_TEXTO_MAXIMO} caracteres.`;
+export const MENSAGEM_POST_VIDEO_SEM_LINK = 'Informe o link do vídeo.';
+
+export type CampoDoPost = 'tipo' | 'texto' | 'videoUrl' | 'fotoIds';
+export interface RascunhoDoPost { tipo: TipoDePost; texto: string; videoUrl?: string; fotoIds?: string[] }
+
+/** Erros por campo (vazio = pode enviar), nas mesmas regras que o servidor devolve em 422 `POST_INVALIDO`. */
+export function errosDoPost(r: RascunhoDoPost, papel: PapelNoMural): Partial<Record<CampoDoPost, string>> {
+  const erros: Partial<Record<CampoDoPost, string>> = {};
+  if (papel === 'aluno' && !TIPOS_DO_ALUNO.includes(r.tipo)) erros.tipo = 'Este tipo só a equipe publica.';
+  if (!r.texto.trim()) erros.texto = MENSAGEM_POST_VAZIO;
+  else if (r.texto.length > POST_TEXTO_MAXIMO) erros.texto = MENSAGEM_POST_LONGO;
+  const link = r.videoUrl?.trim() ?? '';
+  if (r.tipo === 'VIDEO') {
+    if (!link) erros.videoUrl = MENSAGEM_POST_VIDEO_SEM_LINK;
+    else if (!linkExternoSeguro(link)) erros.videoUrl = MENSAGEM_LINK;
+  } else if (link) erros.videoUrl = 'Só a publicação de vídeo leva link.';
+  const fotos = r.fotoIds ?? [];
+  if (fotos.length > 0) {
+    if (papel === 'equipe') erros.fotoIds = 'A equipe não anexa fotos.';
+    else if (fotos.length > POST_FOTOS_MAXIMO || new Set(fotos).size !== fotos.length) erros.fotoIds = `Use de 1 a ${POST_FOTOS_MAXIMO} fotos, sem repetir.`;
+  }
+  return erros;
+}
+
+/** O corpo do `POST`: texto com strip, link só no vídeo, fotos só quando há. */
+export function postParaEnviar(r: RascunhoDoPost): CriarPostRequest {
+  const corpo: CriarPostRequest = { tipo: r.tipo, texto: r.texto.trim() };
+  if (r.tipo === 'VIDEO' && r.videoUrl?.trim()) corpo.videoUrl = r.videoUrl.trim();
+  if (r.fotoIds?.length) corpo.fotoIds = r.fotoIds;
+  return corpo;
+}
+
+/**
+ * O aluno publica com a chave ligada e a configuração conhecida (sem ela, por exemplo offline, não: a API é quem decide e
+ * recusaria com 403 `PUBLICACAO_DESLIGADA`). A equipe publica sempre que tem a permissão de moderar, que a tela confere.
+ */
+export const podePublicar = (config: Pick<ConfiguracaoDoAluno, 'alunosPublicam'> | null | undefined): boolean => config?.alunosPublicam === true;
+
+/** Anexar foto: só com a chave ligada e o servidor liberando (o motivo, como a idade, nunca chega ao app). */
+export const podeAnexarFoto = (config: ConfiguracaoDoAluno | null | undefined): boolean =>
+  podePublicar(config) && config?.podeAnexarFoto === true;
+
+// ---- Denúncia ----
+
+export const MOTIVOS_DE_DENUNCIA: readonly { motivo: MotivoDeDenuncia; rotulo: string }[] = [
+  { motivo: 'OFENSIVO', rotulo: 'Ofensivo ou desrespeitoso' },
+  { motivo: 'SPAM', rotulo: 'Propaganda ou spam' },
+  { motivo: 'IMPROPRIO', rotulo: 'Conteúdo impróprio' },
+  { motivo: 'OUTRO', rotulo: 'Outro motivo' },
+];
+
+export const rotuloDoMotivo = (motivo: MotivoDeDenuncia): string => MOTIVOS_DE_DENUNCIA.find((m) => m.motivo === motivo)?.rotulo ?? motivo;
+
+// ---- Filtros do mural ----
+
+/** Filtro da faixa de chips: um tipo, os denunciados (só a equipe) ou `null` = todos. */
+export type FiltroDoMural = TipoDePost | 'DENUNCIADOS' | null;
+
+const PLURAL_DO_TIPO: Record<TipoDePost, string> = {
+  AVISO: 'Avisos', VIDEO: 'Vídeos', DUVIDA: 'Dúvidas', RESULTADO: 'Resultados', CONVERSA: 'Conversas',
+};
+
+/** Chips do mural na ordem da tela; "Denunciados" só para quem modera. */
+export function filtrosDoMural(comDenunciados: boolean): { valor: FiltroDoMural; rotulo: string }[] {
+  return [
+    { valor: null, rotulo: 'Todos' },
+    ...TIPOS_DE_POST.map((t) => ({ valor: t.tipo, rotulo: PLURAL_DO_TIPO[t.tipo] })),
+    ...(comDenunciados ? [{ valor: 'DENUNCIADOS' as const, rotulo: 'Denunciados' }] : []),
+  ];
+}
+
+/** O filtro da tela no formato da API (`FiltrosDoMural`); busca em branco não vai. */
+export function filtrosParaApi(filtro: FiltroDoMural, busca: string): FiltrosDoMural {
+  const b = busca.trim();
+  return {
+    ...(filtro === 'DENUNCIADOS' ? { denunciados: true } : filtro ? { tipo: filtro } : {}),
+    ...(b ? { busca: b } : {}),
+  };
+}
+
+/** Mural vazio: com filtro ou busca a frase diz que nada bateu, sem filtro que ninguém publicou. */
+export const textoDoMuralVazio = (filtro: FiltroDoMural, busca: string): string =>
+  filtro || busca.trim() ? 'Nenhuma publicação encontrada com esse filtro.' : 'Nenhuma publicação no mural ainda.';
+
+/** "1 denúncia", "3 denúncias" (só a equipe vê o número). */
+export const textoDasDenuncias = (n: number): string => `${n} ${n === 1 ? 'denúncia' : 'denúncias'}`;
+
+/**
+ * Tipo pedido pelo endereço (`?publicar=RESULTADO`, do "Bom trabalho!"), só se o papel pode escolhê-lo; outro valor é
+ * ignorado e o formulário não abre.
+ */
+export const tipoPedido = (valor: string | undefined, papel: PapelNoMural): TipoDePost | null =>
+  tiposParaEscolher(papel).find((t) => t.tipo === valor)?.tipo ?? null;
+
+/** Fotos do mural: os mesmos tetos do servidor (`LADO_MAXIMO` 1600 px, `BYTES_MAXIMO` 300 KB); o reencode tira EXIF. */
+export const LIMITES_FOTO_DO_MURAL = { lados: [1600, 1200, 900, 640], bytesMaximo: 300_000 } as const;

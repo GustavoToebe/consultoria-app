@@ -6,6 +6,7 @@ import { StyleSheet, View } from 'react-native';
 import { obterPerfilDaComunidade } from '../api/comunidade';
 import type { PerfilDaComunidade } from '../api/comunidadeTipos';
 import { CHAVE_DO_MEU_PERFIL } from '../aluno/AvisoDoPerfil';
+import { MapaDeTreinos } from '../aluno/MapaDeTreinos';
 import { hojeEmBrasilia } from '../dominio/financeiro';
 import { corDoPerfil, molduraDoPerfil } from '../dominio/perfilDaComunidade';
 import {
@@ -82,6 +83,8 @@ function PerfilAberto({ perfil, aoEditar }: { perfil: PerfilDaComunidade; aoEdit
 
   return (
     <View style={estilos.blocos}>
+      {/* M1: o próprio aluno vê o mapa dos treinos no topo (some sozinho com o retorno desligado); colegas não. */}
+      {perfil.ehVoce ? <MapaDeTreinos /> : null}
       <View style={[estilos.capa, { backgroundColor: cores.superficie2, borderColor: cores.borda, borderTopColor: tom }]}>
         <View style={estilos.foto}>
           {reservadoParaMim
@@ -144,6 +147,6 @@ const estilos = StyleSheet.create({
   numeros: { marginTop: espaco(0.5), gap: espaco(1.5) },
   reservado: { marginTop: espaco(0.5), flexWrap: 'nowrap' },
   // Nível num selo de contorno na cor do colega; o número fica na cor do texto (o laranja do claro não serve de texto).
-  nivel: { borderWidth: 2, borderRadius: 999, paddingHorizontal: espaco(1.25), paddingVertical: 2 },
+  nivel: { borderWidth: 1, borderRadius: 999, paddingHorizontal: espaco(1.25), paddingVertical: 2 },
   meu: { gap: espaco(1) },
 });

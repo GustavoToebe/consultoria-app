@@ -2,6 +2,7 @@ package br.com.treinos.api.comunidade.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import java.util.List;
@@ -58,6 +59,7 @@ public final class ComunidadeDtos {
     /**
      * {@code autorApelido} é o apelido atual do aluno autor (lido na hora, não é cópia); nulo se não houver ou se o autor é da equipe.
      * {@code autorEhAluno}: aluno ativo, não anonimizado, da consultoria (o perfil dele abre); equipe e conta encerrada, falso.
+     * {@code daEquipe}: o autor comentou como equipe (gravado na hora; não muda se o autor deixar a equipe).
      */
     public record ComentarioResponse(
             UUID id,
@@ -67,15 +69,40 @@ public final class ComunidadeDtos {
             boolean autorEhAluno,
             String autorFotoUrl,
             String texto,
-            Instant criadoEm) {}
+            Instant criadoEm,
+            boolean daEquipe) {}
 
+    /**
+     * {@code tipo} ausente = {@code CONVERSA}. {@code videoUrl} só no tipo {@code VIDEO} (equipe); {@code fotoIds} só do aluno
+     * (0 a 4, enviadas antes por {@code POST /aluno/comunidade/mural/fotos}). Os limites e as regras por papel são do serviço
+     * (422 {@code POST_INVALIDO} no campo); aqui só um teto para não ler corpo enorme.
+     */
     public record CriarPostRequest(
+            @Size(max = 20) String tipo,
             @NotBlank @Size(max = 2000) String texto,
-            @Size(max = 500) String imagemUrl) {}
+            @Size(max = 500) String videoUrl,
+            @Size(max = 20) List<UUID> fotoIds) {}
+
+    /** Id da foto pendente que acabou de ser enviada. */
+    public record FotoCriada(UUID id) {}
+
+    public record DenunciaRequest(@NotBlank @Size(max = 20) String motivo) {}
+
+    /** As duas chaves do treinador (C9). */
+    public record ConfiguracaoRequest(@NotNull Boolean alunosPublicam, @NotNull Boolean alunosAnexamFotos) {}
+
+    public record ConfiguracaoResponse(boolean alunosPublicam, boolean alunosAnexamFotos) {}
+
+    /** O que o aluno precisa saber: se publica e se pode anexar foto (sem dizer o motivo, que pode ser a idade). */
+    public record ConfiguracaoDoAluno(boolean alunosPublicam, boolean podeAnexarFoto) {}
 
     public record ReacaoRequest(@NotBlank @Size(max = 16) String emoji) {}
 
-    /** {@code autorEhAluno} como em {@link ComentarioResponse}: só aluno ativo abre o perfil. */
+    /**
+     * {@code autorEhAluno} como em {@link ComentarioResponse}: só aluno ativo abre o perfil. {@code fotos} são ids, na ordem
+     * (os bytes vêm de {@code .../mural/fotos/{id}}). {@code respondida} só vale em {@code DUVIDA}: existe comentário visível
+     * da equipe. {@code denuncias} é a contagem e só sai na rota da equipe (o aluno nunca a vê: o campo some do JSON).
+     */
     public record MuralPostResponse(
             UUID id,
             UUID autorId,
@@ -84,12 +111,16 @@ public final class ComunidadeDtos {
             boolean autorEhAluno,
             String autorFotoUrl,
             String texto,
-            String imagemUrl,
+            String tipo,
+            String videoUrl,
+            List<UUID> fotos,
+            boolean respondida,
             boolean fixado,
             Instant criadoEm,
             Map<String, Long> reacoes,
             List<String> minhasReacoes,
-            long totalComentarios) {}
+            long totalComentarios,
+            @JsonInclude(JsonInclude.Include.NON_NULL) Long denuncias) {}
 
     /** Conquista no perfil: a do próprio aluno ({@link ConquistaResponse}) ou a que um colega vê ({@link ConquistaDoColega}). */
     public sealed interface ConquistaDoPerfil permits ConquistaResponse, ConquistaDoColega {}
@@ -199,10 +230,18 @@ public final class ComunidadeDtos {
             List<ComentarioExportado> comentariosDeAulas,
             List<ComentarioExportado> comentariosDoMural,
             List<ReacaoExportada> reacoes,
+            List<FotoExportada> fotos,
+            List<DenunciaExportada> denuncias,
             List<ConquistaResponse> conquistas,
             boolean truncado) {}
 
-    public record PostExportado(UUID id, String texto, String imagemUrl, boolean fixado, boolean oculto, Instant criadoEm) {}
+    public record PostExportado(UUID id, String tipo, String texto, String videoUrl, boolean fixado, boolean oculto, Instant criadoEm) {}
+
+    /** Foto enviada pelo aluno, só metadados (a imagem não sai); {@code postId} nulo = ainda pendente. */
+    public record FotoExportada(UUID id, UUID postId, int tamanho, Instant criadoEm) {}
+
+    /** Denúncia que o próprio aluno fez. */
+    public record DenunciaExportada(UUID postId, String motivo, Instant criadoEm) {}
 
     /** {@code alvoId} é a aula ou o post comentado. */
     public record ComentarioExportado(UUID id, UUID alvoId, String texto, boolean oculto, Instant criadoEm) {}

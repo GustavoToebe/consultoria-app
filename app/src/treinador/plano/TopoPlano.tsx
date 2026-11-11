@@ -27,12 +27,13 @@ import { gerarPdfDoPlano } from '../gerarPdf';
 import { FolhaPdfDieta } from '../../ui/FolhaPdfDieta';
 import { PERMISSOES_DO_PLANO } from '../../dominio/permissoes';
 import { BarraDoEditor } from './BarraDoEditor';
-import { useDuasColunas } from './ColunasDoEditor';
 import { FolhaVerComoAluno, type PreviaDoPlano } from './FolhaVerComoAluno';
 import type { usePlanoEditor } from './usePlanoEditor';
 import { useUnidadeDeCarga } from '../../ui/unidadeDeCargaEmUso';
 
 type Editor<C> = ReturnType<typeof usePlanoEditor<C>>;
+
+const ROTULO_PUBLICAR: Record<TipoPlano, string> = { treino: 'Publicar treino', dieta: 'Publicar dieta', mobilidade: 'Publicar mobilidade' };
 
 interface Props<C> {
   tipo: TipoPlano;
@@ -56,8 +57,6 @@ export function BarraDoPlano<C>({ tipo, editor, aoProblemas, inicio }: Props<C>)
   const unidade = useUnidadeDeCarga();
   const { width } = useWindowDimensions();
   const estreito = width < LARGURA_MENU_LATERAL;
-  // O rótulo longo só cabe na barra do editor de treino em duas colunas (em 1024 cortava o botão).
-  const duas = useDuasColunas();
   const { temFuncionalidade } = useSessao();
   // Mobilidade fora do plano: a API só bloqueia escrita, então o editor abre para consulta, sem salvar nem publicar.
   const escritaLiberada = tipo !== 'mobilidade' || temFuncionalidade('MOBILIDADE');
@@ -173,12 +172,13 @@ export function BarraDoPlano<C>({ tipo, editor, aoProblemas, inicio }: Props<C>)
               Icone={Save}
               carregando={editor.situacao === 'salvando'}
               desabilitado={editor.situacao === 'salvo' || editor.situacao === 'dataInvalida' || editor.situacao === 'conflito'}
-              motivo={editor.situacao === 'dataInvalida' ? 'Confira o título e as datas.' : editor.situacao === 'conflito' ? 'Recarregue o plano antes.' : undefined}
+              motivo={editor.situacao === 'dataInvalida' ? 'Confira o título e as datas.' : editor.situacao === 'conflito' ? 'Recarregue o plano antes.' : editor.situacao === 'salvo' ? 'Já está salvo.' : undefined}
               aoTocar={salvar}
             />
             <Permitido codigo={PERMISSOES_DO_PLANO[tipo].publicar}>
-              {/* Só o treino em duas colunas diz para quem vai: no celular, em 1024 e na dieta e mobilidade, "Publicar". */}
-              <Botao rotulo={tipo === 'treino' && duas ? 'Publicar para o aluno' : 'Publicar'} Icone={Send} carregando={publicando} desabilitado={!!semPublicar} motivo={semPublicar} aoTocar={() => publicar(false)} />
+              {/* O rótulo diz o alcance (guia de 11/11, pág. 6). Só é o principal quando há versão para publicar; sem ela,
+                  vira secundário com o motivo, e "Ver como o aluno" e o PDF ficam ao lado como próxima ação. */}
+              <Botao rotulo={ROTULO_PUBLICAR[tipo]} tipo={semPublicar ? 'secundario' : 'primario'} Icone={Send} carregando={publicando} desabilitado={!!semPublicar} motivo={semPublicar} aoTocar={() => publicar(false)} />
             </Permitido>
           </>
         ) : null}

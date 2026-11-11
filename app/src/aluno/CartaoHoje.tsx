@@ -32,7 +32,7 @@ interface Props {
  */
 export function CartaoHoje({ estado, aoVerTreino, aoEscolher, erro, proximo, concluido }: Props) {
   const { cores, marca, sobreMarca } = useTema();
-  const neutro = { backgroundColor: cores.superficie, borderColor: cores.borda };
+  const neutro = { backgroundColor: cores.superficie, borderColor: cores.divisor };
 
   if (estado.tipo === 'recusado') {
     return <View testID="pacote-recusado"><Alerta tom="atencao" texto={TEXTO_PACOTE_RECUSADO} /></View>;
