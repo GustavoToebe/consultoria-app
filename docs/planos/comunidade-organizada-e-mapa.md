@@ -1,6 +1,6 @@
 # Comunidade organizada e mapa de treinos
 
-Situação: Em andamento · Onde: branch `visual-premium-comunidade` (estado local, sem commit; base `6dca4d9f`) · Atualizado: 11/11/2026
+Situação: Publicado em 11/11/2026 (commit `3878563a`, run 43091035445 verde em 11/11) · Onde: `main` e produção · Atualizado: 11/11/2026
 
 ## Objetivo
 A comunidade deixa de ser um mural único: cada publicação tem tipo, dá para filtrar e buscar, o aviso é da equipe e
@@ -37,7 +37,7 @@ sobre a comunidade e do mapa"), sem compatibilidade com o que existe (ainda não
 - [x] 6. Revisão independente (migration, isolamento, LGPD, foto) e verificações locais — revisor — commit/run: revisão da API feita pelo revisor em 11/11 (achados corrigidos; o que ficou para depois está em Pendências soltas do índice); `mvn -o verify` da branch inteira em 11/11: 2328 testes, 0 falhas, cobertura atendida, BUILD SUCCESS (sem commit, branch local); app: typecheck e lint limpos, Jest 296 suítes / 6772 testes, e2e `comunidade`, `bom-trabalho`, `inicio-aluno`, `perfil-do-colega` e `perfil-comunidade` verdes. As telas não tiveram revisor nem foram vistas renderizadas
 - [x] 7. `AGENTS.md` (item Comunidade e contagem de migrations) e espelhos (`acoesAuditoria.ts`) — commit/run: sem commit (branch local): item "Comunidade organizada (V071)" e contagem 71 no `AGENTS.md`; `COMUNIDADE_CONFIGURACAO_ALTERADA` e `COMUNIDADE_DENUNCIAS_DISPENSADAS` espelhadas em `acoesAuditoria.ts`; `FlywayMigrationIntegrationTest` e `PapeisBancoIntegrationTest` verdes no verify; guias em PDF da Ajuda gerados de novo
 
-- [ ] 8. Na subida para produção: ligar `TREINOS_RETORNO_HABILITADO=true` no `consultoria.env` da VPS e conferir que o compose de produção (`central-api-back/deploy`) repassa a variável à API; sem ela o mapa e o "Publicar na comunidade" não aparecem — sessão principal — commit/run: — (autorizado pelo Gustavo em 11/11: "Quando subir pra prd pode ligar tbm"; a alteração na VPS pede o ok dele na hora, como toda mudança lá)
+- [x] 8. Na subida para produção: ligar `TREINOS_RETORNO_HABILITADO=true` no `consultoria.env` da VPS e conferir que o compose de produção (`central-api-back/deploy`) repassa a variável à API; sem ela o mapa e o "Publicar na comunidade" não aparecem — sessão principal — commit/run: commit `3878563a`, run 43091035445 verde em 11/11; a variável já estava `true` no `consultoria.env` (nada a alterar) e o contêiner da API da imagem `3878563a32c6` a recebe (`printenv` em 11/11, depois do deploy e de novo depois de recriar a API)
 
 ## Fora do escopo
 - Vídeo enviado pelo aluno (só se o uso pedir).

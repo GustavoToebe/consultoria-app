@@ -1,6 +1,6 @@
 # Domínio `overtraining.app`
 
-Situação: Em andamento (Cloudflare pronta em 11/11; faltam a VPS, o código, o APK, a Central e o Resend) · Onde: `main` e produção · Atualizado: 11/11/2026
+Situação: No ar em 11/11/2026 (o app atende em `overtraining.app`; faltam o merge do PR da Central, o endereço na integração da Central, o Resend e o DNSSEC) · Onde: `main` e produção · Atualizado: 11/11/2026
 
 ## Objetivo
 Passar a usar `overtraining.app` (comprado na GoDaddy em 10/11/2026, renova em 10/11/2027) como endereço do produto, sem
@@ -41,12 +41,12 @@ derrubar `consultoria.servirea.com.br` até todos os links já enviados (convite
 - [x] 3. Desenho decidido (D4 a D9) e lista do que muda na aplicação: `APP_URL` e `CORS_ALLOWED_ORIGINS` na VPS, hostname da verificação humana (segue o `APP_URL`), bloco do Caddy, `baseUrl` do WebView e `EXPO_PUBLIC_API_URL` no app — 11/11
 - [ ] 4. E-mail: verificar o domínio no Resend (SPF, DKIM, DMARC; os registros entram na Cloudflare) e trocar `TREINOS_EMAIL_REMETENTE`; só depois de verificado — responsável: Gustavo cadastra, Claude grava o DNS
 - [x] 5. Túnel e DNS (e também regras, HSTS e Turnstile): ver "Estado feito em 11/11/2026" — evidência: leitura da Cloudflare depois de cada alteração
-- [ ] 6. VPS: bloco do Caddy atende o endereço novo, redireciona `www` e as páginas do antigo; `APP_URL` e `CORS_ALLOWED_ORIGINS` com o endereço novo; recriar a API do consultoria e o Caddy — evidência: —
-- [ ] 7. Conferir: página de entrada, `GET /api/publico/configuracao`, login e "esqueci a senha" no endereço novo, redirecionamento do antigo e da `www`, `/api` do antigo — evidência: —
-- [ ] 8. Código: `app/eas.json`, `dominio/verificacaoHumana.ts` (e teste), textos, scripts e documentação — commit/run: —
+- [x] 6. VPS: bloco do Caddy atende o endereço novo, redireciona `www` e as páginas do antigo; `APP_URL` e `CORS_ALLOWED_ORIGINS` com o endereço novo; recriar a API do consultoria e o Caddy — sessão principal, 11/11, depois do deploy `3878563a` verde — evidência: `caddy validate` "Valid configuration" antes de recriar; `recriar.sh consultoria api` saudável; `printenv` do contêiner com os dois valores novos; cópias de antes da mudança apagadas (a do `.env` com `shred -u`). Só essas duas linhas do `consultoria.env` mudaram
+- [x] 7. Conferir: página de entrada, `GET /api/publico/configuracao`, login e "esqueci a senha" no endereço novo, redirecionamento do antigo e da `www`, `/api` do antigo — evidência (11/11, de fora da VPS): `overtraining.app/`, `/treinador/entrar`, `/api/actuator/health` e `/api/publico/configuracao` 200; `www` e as páginas do antigo 308 para o novo (o fragmento do convite sobrevive, visto no navegador); `/api` do antigo 200; `/api/actuator/env` e `/api/monitoramento/metrics` 404; Servirea e Central de pé depois de recriar o Caddy; no Chromium com janela a verificação humana resolveu no hostname novo e `POST /api/auth/esqueci-senha` deu 202 com e-mail fictício. **Não conferido:** login com conta de verdade (fica com o Gustavo), e-mail chegando com o link novo, iPhone
+- [x] 8. Código: `app/eas.json`, `dominio/verificacaoHumana.ts` (e teste), textos, scripts e documentação — sessão principal — commit `e3685a45`, run 43110771616 verde em 11/11 (só a parte `app/`; web `e3685a452b31` no ar); local: typecheck e lint sem erro, Jest 297 suítes e 6411 testes, `acesso.test.mjs` 8 de 8
 - [ ] 9. DNSSEC: ligar na Cloudflare e o Gustavo copia o DS para a GoDaddy — evidência: —
-- [ ] 10. APK novo apontando para `https://overtraining.app/api` — evidência: —
-- [ ] 11. Central (branch curta + PR): `consultoria.caddy.modelo`, `.env.example`, alvos do Prometheus, `proxy.test.sh`, `compose.test.sh`, `cloudflare-regras.md` e README — PR: —
+- [x] 10. APK novo apontando para `https://overtraining.app/api` — sessão principal — build do EAS `3953d1c0-0f3a-4098-9d4f-673afb2c81d2` (perfil `preview`, commit `e3685a45`, versão 0.1.0), concluído em 11/11. **Não conferido:** instalar e entrar pelo APK no celular (a verificação humana do app resolve no endereço novo pelo `baseUrl`)
+- [ ] 11. Central (branch curta + PR): `consultoria.caddy.modelo`, `.env.example`, alvos do Prometheus, `proxy.test.sh`, `compose.test.sh`, `cloudflare-regras.md` e README — PR: GustavoToebe/central#38 (commit `0d6c628`, aberto em 11/11; falta o Gustavo mesclar e, depois, `git pull` na VPS e recriar o Prometheus para monitorar o endereço novo)
 - [ ] 12. Central: endereço da consultoria na integração (só pelo painel ou pela configuração dela, nunca pelo banco) — evidência: —
 - Aceite: app abre em `https://overtraining.app` com certificado válido, login e e-mails funcionando; os links antigos (`consultoria.servirea.com.br`) chegam ao endereço novo.
 
@@ -60,6 +60,8 @@ Tunnel e as regras da zona nova podem ficar: sem o bloco no Caddy o endereço no
 - Trocar os nomes internos (`treinos`, `TREINOS_*`, `consultoria` nos contêineres e no banco).
 
 ## Pendências e riscos
+- Web Analytics da Cloudflare (11/11): a zona nova injeta o `beacon.min.js` de `static.cloudflareinsights.com` nas páginas, a CSP o bloqueia e fica um erro no console do navegador (nada é enviado, nada quebra). A zona antiga tem a mesma configuração, mas só injetava na raiz dela. Desligar o Web Analytics da zona `overtraining.app` pede o ok do Gustavo.
+- Quem tem o APK antigo instalado não consegue mais entrar (a verificação humana dele resolve no endereço antigo): instalar o APK novo (passo 10).
 - O domínio é `.app` (HSTS preloaded): só funciona por HTTPS, o que já é a regra.
 - A Central tem URLs e HMAC próprios: mapear os dois lados antes de mudar (`docs/integracao-central.md`).
 - Convites e e-mails já enviados apontam para o host antigo: não removê-lo cedo.

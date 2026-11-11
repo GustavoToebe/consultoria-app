@@ -1,6 +1,6 @@
 # Ajustes do back (leitura de 10/11)
 
-Situação: Em andamento · Onde: branch `visual-premium-comunidade` (estado local, sem commit; base `6dca4d9f`) · Atualizado: 11/11/2026
+Situação: Publicado em 11/11/2026 (commit `3878563a`, run 43091035445 verde em 11/11) · Onde: `main` e produção · Atualizado: 11/11/2026
 
 ## Objetivo
 Aplicar as sugestões que o revisor deixou em [visual-vendavel/back.md](visual-vendavel/back.md): um erro na atividade
