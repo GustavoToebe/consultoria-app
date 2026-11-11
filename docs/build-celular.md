@@ -5,7 +5,7 @@ Nada de segredo, token ou senha vai para o repositório: o login do EAS fica na 
 
 O que já está pronto no repositório:
 
-- `app/eas.json` com três perfis. Os três usam a API de produção: `EXPO_PUBLIC_API_URL=https://consultoria.servirea.com.br/api`
+- `app/eas.json` com três perfis. Os três usam a API de produção: `EXPO_PUBLIC_API_URL=https://overtraining.app/api`
   (é a variável que `app/src/api/cliente.ts` já lê; no celular ela entra na hora de montar o app).
 
   | Perfil | Para quê | Android | iOS |
@@ -305,7 +305,7 @@ Use o mesmo roteiro, com estas diferenças. Anote o modelo do iPhone e a versão
   Conta › "Excluir minha conta": pede a senha e a palavra EXCLUIR e apaga os dados pessoais na hora (a mesma anonimização
   que o treinador faz; `POST /aluno/conta/excluir`). Na revisão, se a Apple perguntar, o caminho é Conta › último cartão.
   O Google Play também pede, na "Data safety", um endereço na web para pedir a exclusão: a versão web do app
-  (`https://consultoria.servirea.com.br`, entrar como aluno › Conta) faz o mesmo. A conta do **treinador** é da
+  (`https://overtraining.app`, entrar como aluno › Conta) faz o mesmo. A conta do **treinador** é da
   consultoria contratada pela Central e não se exclui pelo app (ele não cria conta pelo app: o cadastro público está fechado).
 - Sem login social (Google etc.), então "Entrar com a Apple" não é exigido.
 

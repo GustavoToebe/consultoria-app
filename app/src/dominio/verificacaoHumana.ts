@@ -7,9 +7,9 @@
 export const URL_DO_SCRIPT_TURNSTILE = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
 
 /** Hostname cadastrado no widget da Cloudflare: o WebView finge ser esta página (`baseUrl`). Fica FORA do HTML. */
-export const ORIGEM_DO_WIDGET = 'https://consultoria.servirea.com.br';
+export const ORIGEM_DO_WIDGET = 'https://overtraining.app';
 
-const HOST_DA_ORIGEM = 'consultoria.servirea.com.br';
+const HOST_DA_ORIGEM = 'overtraining.app';
 const HOST_DO_DESAFIO = 'challenges.cloudflare.com';
 
 /** Tamanho máximo do token (o mesmo limite do campo `turnstileToken` na API). */

@@ -155,8 +155,8 @@ describe('navegação permitida no WebView', () => {
   it('deixa carregar a página em branco, a origem do widget e a Cloudflare', () => {
     expect(navegacaoPermitida('about:blank')).toBe(true);
     expect(navegacaoPermitida('about:srcdoc')).toBe(true);
-    expect(navegacaoPermitida('https://consultoria.servirea.com.br')).toBe(true);
-    expect(navegacaoPermitida('https://consultoria.servirea.com.br/')).toBe(true);
+    expect(navegacaoPermitida('https://overtraining.app')).toBe(true);
+    expect(navegacaoPermitida('https://overtraining.app/')).toBe(true);
     expect(navegacaoPermitida('https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit')).toBe(true);
     expect(navegacaoPermitida('https://challenges.cloudflare.com/cdn-cgi/challenge-platform/h/g/turnstile/if/ov2/av0/rcv0/0/x/0x4/light')).toBe(true);
     expect(navegacaoPermitida('https://CHALLENGES.cloudflare.com:443/x')).toBe(true);
@@ -170,7 +170,7 @@ describe('navegação permitida no WebView', () => {
     expect(navegacaoPermitida('https://evil.com#.challenges.cloudflare.com')).toBe(false);
     expect(navegacaoPermitida('https://challenges.cloudflare.com:8443/')).toBe(false);
     expect(navegacaoPermitida('http://challenges.cloudflare.com/')).toBe(false);
-    expect(navegacaoPermitida('http://consultoria.servirea.com.br/')).toBe(false);
+    expect(navegacaoPermitida('http://overtraining.app/')).toBe(false);
     expect(navegacaoPermitida('https://servirea.com.br/')).toBe(false);
     expect(navegacaoPermitida('javascript:alert(1)')).toBe(false);
     expect(navegacaoPermitida('data:text/html,<script>1</script>')).toBe(false);
@@ -184,7 +184,7 @@ describe('erro HTTP do WebView', () => {
   it('só derruba o widget se for a página ou o script do Turnstile', () => {
     expect(erroHttpFatalDoWidget('https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit', 503)).toBe(true);
     expect(erroHttpFatalDoWidget(ORIGEM_DO_WIDGET, 500)).toBe(true);
-    expect(erroHttpFatalDoWidget('https://consultoria.servirea.com.br/favicon.ico', 404)).toBe(false);
+    expect(erroHttpFatalDoWidget('https://overtraining.app/favicon.ico', 404)).toBe(false);
     expect(erroHttpFatalDoWidget('https://challenges.cloudflare.com/turnstile/v0/api.js', 200)).toBe(false);
     expect(erroHttpFatalDoWidget(undefined, 500)).toBe(false);
   });

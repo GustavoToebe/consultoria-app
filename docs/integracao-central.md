@@ -135,11 +135,11 @@ novo; nada é apagado nem desativado quando o plano cai.
 
 ## 6. Produção na VPS (Fase 6)
 
-O consultoria-app roda em `https://consultoria.servirea.com.br` (API em `/api`) a partir de imagens do GHCR; o compose, o proxy
+O consultoria-app roda em `https://overtraining.app` (API em `/api`) a partir de imagens do GHCR; o compose, o proxy
 e o `atualizar.sh` estão em `central-api-back/deploy` (`apps/consultoria/`, `proxy/extras/consultoria.caddy.modelo`).
 
 - Perfil `docker` (sem `demo`, sem `DEMO_SENHA`); `REFRESH_COOKIE_SECURE=true` e `REFRESH_COOKIE_PATH=/api/auth` fixos no compose;
-  `APP_URL` e `CORS_ALLOWED_ORIGINS` = `https://consultoria.servirea.com.br` no `consultoria.env` da VPS.
+  `APP_URL` e `CORS_ALLOWED_ORIGINS` = `https://overtraining.app` no `consultoria.env` da VPS.
 - A integração fica desligada (`TREINOS_INTEGRACAO_ATIVA=false`) até o `ligar-integracao.sh` rodar na VPS (seção 5); ele a liga **antes**
   de o produto ser cadastrado na Central, porque com a flag desligada todo `/integracao/**` responde 503, inclusive à tela da Central.
   O bloqueio por direitos (`TREINOS_INTEGRACAO_BLOQUEIO_ATIVO`) continua desligado.

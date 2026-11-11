@@ -59,7 +59,7 @@ O app acha a API sozinho em `http://IP-DO-PC:8088/api` (pelo endereço do Metro)
 
 ## Produção (VPS)
 
-Endereço: **https://consultoria.servirea.com.br** (a API fica em `/api`). Nada é compilado na VPS: o GitHub Actions
+Endereço: **https://overtraining.app** (a API fica em `/api`). Nada é compilado na VPS: o GitHub Actions
 (`.github/workflows/deploy.yml`) testa, constrói as imagens `ghcr.io/gustavotoebe/consultoria-api` e `consultoria-web`
 (tag = 12 primeiros caracteres do commit), varre com o Trivy e chama o `atualizar.sh` da VPS. O compose, o proxy único (Caddy) e
 os scripts de atualização e rollback moram em [central-api-back/deploy](https://github.com/GustavoToebe/central-api-back/tree/main/deploy)

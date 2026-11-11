@@ -5,7 +5,7 @@
 // apresentação do link trocado. Nada mais da configuração do link muda (ligado ou desligado, responsável, código).
 //
 // Uso (a senha só no ambiente, nunca na linha de comando nem em log):
-//   INSCRICAO_EMAIL=... INSCRICAO_SENHA=... [CODIGO_MFA=...] [API_URL=https://consultoria.servirea.com.br/api] \
+//   INSCRICAO_EMAIL=... INSCRICAO_SENHA=... [CODIGO_MFA=...] [API_URL=https://overtraining.app/api] \
 //     node scripts/questionario/inscricao-saraiva.mjs            # simula: lê, monta e mostra o resumo, sem gravar
 //   ... node scripts/questionario/inscricao-saraiva.mjs --gravar  # grava, publica e define como padrão
 //
@@ -19,7 +19,7 @@ import {
   resumo,
 } from './inscricao-saraiva-lib.mjs';
 
-const BASE = baseDaApiOuSair('https://consultoria.servirea.com.br/api');
+const BASE = baseDaApiOuSair('https://overtraining.app/api');
 const gravar = process.argv.includes('--gravar');
 const PERMISSOES = ['QUESTIONARIO_ALTERAR', 'INSCRICAO_ALTERAR'];
 

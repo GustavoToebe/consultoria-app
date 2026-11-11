@@ -57,7 +57,7 @@ const SITUACAO: Record<string, { texto: string; tipo: TipoSelo }> = {
   FALHOU: { texto: 'Falhou', tipo: 'perigo' },
 };
 
-const BASE_MODELO = 'https://consultoria.servirea.com.br/modelos/importacao';
+const BASE_MODELO = 'https://overtraining.app/modelos/importacao';
 /** Colunas fixas da tabela do mapeamento: o número da linha e a lixeira. */
 const LARGURA_DO_NUMERO = 72;
 const LARGURA_DA_ACAO = 56;

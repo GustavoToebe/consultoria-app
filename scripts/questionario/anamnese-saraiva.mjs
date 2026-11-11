@@ -6,7 +6,7 @@
 // faltam ficam para o treinador pôr pelo editor.
 //
 // Uso (a senha só no ambiente, nunca na linha de comando nem em log):
-//   ANAMNESE_EMAIL=... ANAMNESE_SENHA=... [CODIGO_MFA=...] [API_URL=https://consultoria.servirea.com.br/api] \
+//   ANAMNESE_EMAIL=... ANAMNESE_SENHA=... [CODIGO_MFA=...] [API_URL=https://overtraining.app/api] \
 //     node scripts/questionario/anamnese-saraiva.mjs            # simula: lê, monta e mostra o resumo, sem gravar
 //   ... node scripts/questionario/anamnese-saraiva.mjs --gravar  # salva o rascunho, valida e publica
 //   ... --imagens <pasta>                                         # junto com qualquer um dos dois: usa os arquivos
@@ -22,7 +22,7 @@ import {
   ARQUIVO_DA_IMAGEM, DESCRICAO, NOME, aplicarImagens, comImagensEnviadas, conteudoDaAnamnese, imagensDoConteudo, resumo,
 } from './anamnese-saraiva-lib.mjs';
 
-const BASE = baseDaApiOuSair('https://consultoria.servirea.com.br/api');
+const BASE = baseDaApiOuSair('https://overtraining.app/api');
 const gravar = process.argv.includes('--gravar');
 const indiceImagens = process.argv.indexOf('--imagens');
 const pastaImagens = indiceImagens > 0 ? process.argv[indiceImagens + 1] : null;

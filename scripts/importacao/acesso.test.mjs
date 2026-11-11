@@ -7,8 +7,8 @@ import { baseDaApi, corpoDoLogin, permissoesQueFaltam } from './acesso-lib.mjs';
 const SEM_ENV = {};
 
 test('https passa e a barra final sai', () => {
-  assert.equal(baseDaApi('https://consultoria.servirea.com.br/api', SEM_ENV), 'https://consultoria.servirea.com.br/api');
-  assert.equal(baseDaApi('https://consultoria.servirea.com.br/api/', SEM_ENV), 'https://consultoria.servirea.com.br/api');
+  assert.equal(baseDaApi('https://overtraining.app/api', SEM_ENV), 'https://overtraining.app/api');
+  assert.equal(baseDaApi('https://overtraining.app/api/', SEM_ENV), 'https://overtraining.app/api');
 });
 
 test('http só na própria máquina: localhost e 127.0.0.1, com qualquer porta', () => {
@@ -19,7 +19,7 @@ test('http só na própria máquina: localhost e 127.0.0.1, com qualquer porta',
 
 test('http para outro host é recusado, inclusive quando o nome só parece local', () => {
   for (const url of [
-    'http://consultoria.servirea.com.br/api',
+    'http://overtraining.app/api',
     'http://api:8080',
     'http://localhost.exemplo.com/api',
     'http://127.0.0.1.exemplo.com/api',
@@ -32,7 +32,7 @@ test('http para outro host é recusado, inclusive quando o nome só parece local
 });
 
 test('endereço que não é URL, outro protocolo ou com credencial é recusado', () => {
-  for (const url of ['', 'consultoria.servirea.com.br/api', 'ftp://localhost/api', 'https://usuario:senha@exemplo.com/api']) {
+  for (const url of ['', 'overtraining.app/api', 'ftp://localhost/api', 'https://usuario:senha@exemplo.com/api']) {
     assert.throws(() => baseDaApi(url, SEM_ENV), Error, url);
   }
 });

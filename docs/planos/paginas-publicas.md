@@ -18,9 +18,9 @@ explica como excluir a conta.
 | D6 | Texto jurídico | Nada novo e nenhum prazo prometido. Os termos continuam **RASCUNHO** para a revisão jurídica. | Gustavo, 04/11 |
 
 ## URLs para as lojas
-- Política de privacidade (App Store e Play): https://consultoria.servirea.com.br/privacidade
-- Termo de uso: https://consultoria.servirea.com.br/termos-de-uso
-- Exclusão de conta (Play, "Excluir conta" no Data safety): https://consultoria.servirea.com.br/excluir-conta
+- Política de privacidade (App Store e Play): https://overtraining.app/privacidade
+- Termo de uso: https://overtraining.app/termos-de-uso
+- Exclusão de conta (Play, "Excluir conta" no Data safety): https://overtraining.app/excluir-conta
 
 ## Passos
 - [x] 1. API: `GET /publico/termos`, teste sem login em `TermosIntegrationTest` e entrada no `ArquiteturaTest`. Commit: 1c62685

@@ -19,7 +19,7 @@ O resumo das regras de código está no `AGENTS.md` (item "Verificação humana"
 - As falhas (400) contam no limite por IP (`treinos.limites.verificacao-ip`, 20 por janela de 600 s). IP que já gastou o limite recebe
   `429` antes de a Cloudflare ser chamada. O `503` não conta (não é falha da pessoa).
 - `X-Treinos-Cliente: nativo` **não** dispensa nada. O app nativo resolve o desafio num `WebView` (`react-native-webview`) que
-  carrega o widget com `baseUrl` `https://consultoria.servirea.com.br` (o hostname precisa ser o cadastrado no widget).
+  carrega o widget com `baseUrl` `https://overtraining.app` (o hostname precisa ser o cadastrado no widget).
 - `/auth/refresh`, `/auth/redefinir-senha` e `/auth/logout` não passam pela verificação.
 
 ### Login com a Cloudflare fora do ar
@@ -59,7 +59,7 @@ continua `'self'`: a documentação da Cloudflare consultada não pede essa orig
 login e "esqueci a senha" no PC sem nenhum erro no console, então `connect-src 'self'` basta; não acrescentar a origem da Cloudflare.
 
 ## Para ligar em produção (ordem)
-1. Criar o widget no painel da Cloudflare (domínio `consultoria.servirea.com.br`, modo Managed). Copiar a site key e o segredo.
+1. Criar o widget no painel da Cloudflare (domínio `overtraining.app`, modo Managed). Copiar a site key e o segredo.
 2. Gravar o segredo na VPS com `gravar-segredo.sh` (`TREINOS_TURNSTILE_SEGREDO`); a site key vai em `TREINOS_TURNSTILE_SITE_KEY` no `consultoria.env`.
 3. Aplicar a CSP nova no proxy (`consultoria.caddy.modelo`, depois da Fase 5) e conferir no navegador que o cabeçalho saiu.
 4. Só então `TREINOS_TURNSTILE_HABILITADO=true` e recriar a API (o compose da VPS lê o `consultoria.env` inteiro por `env_file`, então as
@@ -69,13 +69,13 @@ login e "esqueci a senha" no PC sem nenhum erro no console, então `connect-src 
    fonte do limite de login do módulo auth).
 5. Ordem de validação: o corpo inválido (422) é conferido antes da verificação humana; a verificação vem antes dos limites, do módulo auth e do BCrypt.
 
-Os passos 1 a 4 foram feitos em 28/10/2026 (widget Managed em `consultoria.servirea.com.br`; segredo gravado pelo Gustavo na VPS,
+Os passos 1 a 4 foram feitos em 28/10/2026 (widget Managed em `consultoria.servirea.com.br`, que em 11/11/2026 ganhou também o domínio `overtraining.app`, com a mesma site key; segredo gravado pelo Gustavo na VPS,
 nunca pelo agente nem pelo chat).
 
 ## Verificado em produção (28/10/2026)
 - **PC e navegador:** login e "esqueci a senha" funcionam, sem erro no console.
 - **APK Android** (perfil `preview`): o widget aparece inteiro, passou sozinho (modo Managed, sem pedir clique) e o login entrou.
-  Isso cobre o `baseUrl` `https://consultoria.servirea.com.br` do WebView (o hostname foi aceito), o iframe de `challenges.cloudflare.com`
+  Isso cobre o `baseUrl` `https://overtraining.app` do WebView (o hostname foi aceito), o iframe de `challenges.cloudflare.com`
   e a altura/transparência do WebView no Android.
 - Continuou funcionando depois da troca do túnel (`cloudflared` 2026.10.5) e das regras da Cloudflare (`docs/planos/cloudflare-turnstile.md`).
 - **Não verificado:** o app nativo do **iPhone** (WKWebView) nunca foi testado. Precisa ser testado antes do TestFlight

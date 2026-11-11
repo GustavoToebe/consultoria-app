@@ -17,7 +17,7 @@ export default function ExcluirConta() {
     <TelaPublica titulo="Excluir sua conta" subtitulo="Como pedir que os seus dados sejam apagados.">
       <Cartao titulo="Se você é aluno">
         <Texto>
-          No app ou na web (consultoria.servirea.com.br), entre com o seu e-mail e a sua senha e vá em{' '}
+          No app ou na web (overtraining.app), entre com o seu e-mail e a sua senha e vá em{' '}
           <Texto style={estilos.destaque}>Conta › Excluir minha conta</Texto>. Para confirmar, você digita{' '}
           <Texto style={estilos.destaque}>{PALAVRA_DE_CONFIRMACAO}</Texto> e a sua senha.
         </Texto>
