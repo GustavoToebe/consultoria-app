@@ -2,7 +2,7 @@ import { type ReactNode, useState } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
-import { BORDA_BLOCO, espaco, RAIO } from '../tema/tokens';
+import { ALVO_TOQUE, BORDA_BLOCO, espaco, RAIO } from '../tema/tokens';
 import { sobre } from './sobre';
 import { Texto } from './Texto';
 
@@ -37,6 +37,11 @@ interface Props<T> {
   aoTocarLinha?: (linha: T) => void;
   /** Rótulo do toque para o leitor de tela ("Abrir inscrição de Fulana"). */
   rotuloDaLinha?: (linha: T) => string;
+  /**
+   * Controle no começo de cada linha, fora do toque que abre o registro (a caixa de marcar de uma ação em lote): nunca
+   * fica dentro do botão da linha. Ocupa uma coluna de 44 px, vazia no cabeçalho. Sem ele, a tabela é a de sempre.
+   */
+  inicio?: (linha: T) => ReactNode;
 }
 
 /** Largura em que a tabela ainda cabe em colunas; abaixo disso vira cartões. */
@@ -47,7 +52,7 @@ export const LARGURA_TABELA = 520;
  * empilhados no celular, cada um com os pares "rótulo: valor" (nenhuma coluna some, nada rola na horizontal). A
  * coluna `principal` é o título do cartão e a coluna `acao` fica no canto dele.
  */
-export function Tabela<T>({ colunas, linhas, chave, larguraMinima = LARGURA_TABELA, detalhe, rotulo, aoTocarLinha, rotuloDaLinha }: Props<T>) {
+export function Tabela<T>({ colunas, linhas, chave, larguraMinima = LARGURA_TABELA, detalhe, rotulo, aoTocarLinha, rotuloDaLinha, inicio }: Props<T>) {
   const { cores, bordas } = useTema();
   const [largura, setLargura] = useState<number | null>(null);
   const empilhada = largura !== null && largura < larguraMinima;
@@ -67,26 +72,29 @@ export function Tabela<T>({ colunas, linhas, chave, larguraMinima = LARGURA_TABE
       style={empilhada ? estilos.cartoes : [estilos.tabela, { borderWidth: bordas.bloco, borderColor: cores.divisor }]}>
       {largura === null ? null : empilhada ? (
         linhas.map((l) => (
-          <Toque key={chave(l)} linha={l} aoTocar={aoTocarLinha} rotulo={rotuloDaLinha}
-            style={(ativo) => [estilos.cartao, { backgroundColor: ativo ? cores.superficie3 : cores.superficie2, borderColor: cores.divisor }]}>
-            {principal || acao ? (
-              <View style={estilos.topoCartao}>
-                {principal ? <View style={estilos.principal}>{principal.render(l)}</View> : null}
-                {acao ? acao.render(l) : null}
-              </View>
-            ) : null}
-            {pares.map((c) => (
-              <View key={c.chave} style={estilos.par}>
-                <Texto variante="pequeno" style={estilos.rotuloPar}>{c.titulo}</Texto>
-                <View style={estilos.valorPar}>{c.render(l)}</View>
-              </View>
-            ))}
-            {detalhe ? detalhe(l) : null}
-          </Toque>
+          <ComInicio key={chave(l)} inicio={inicio?.(l)} estilo={estilos.cartaoComInicio}>
+            <Toque linha={l} aoTocar={aoTocarLinha} rotulo={rotuloDaLinha}
+              style={(ativo) => [estilos.cartao, inicio ? estilos.resto : null, { backgroundColor: ativo ? cores.superficie3 : cores.superficie2, borderColor: cores.divisor }]}>
+              {principal || acao ? (
+                <View style={estilos.topoCartao}>
+                  {principal ? <View style={estilos.principal}>{principal.render(l)}</View> : null}
+                  {acao ? acao.render(l) : null}
+                </View>
+              ) : null}
+              {pares.map((c) => (
+                <View key={c.chave} style={estilos.par}>
+                  <Texto variante="pequeno" style={estilos.rotuloPar}>{c.titulo}</Texto>
+                  <View style={estilos.valorPar}>{c.render(l)}</View>
+                </View>
+              ))}
+              {detalhe ? detalhe(l) : null}
+            </Toque>
+          </ComInicio>
         ))
       ) : (
         <>
-          <View role="row" style={[estilos.linha, estilos.cabecalho, { backgroundColor: cores.superficie3, borderColor: cores.bordaCampo }]}>
+          <View role="row" style={[estilos.linha, estilos.cabecalho, inicio ? estilos.semRecuo : null, { backgroundColor: cores.superficie3, borderColor: cores.bordaCampo }]}>
+            {inicio ? <View role="columnheader" style={estilos.inicio} /> : null}
             {colunas.map((c) => (
               <View key={c.chave} role="columnheader" style={estiloColuna(c)}>
                 {c.acao && !c.tituloNaTabela ? null : (
@@ -97,19 +105,35 @@ export function Tabela<T>({ colunas, linhas, chave, larguraMinima = LARGURA_TABE
               </View>
             ))}
           </View>
-          {linhas.map((l, i) => (
-            <Toque key={chave(l)} linha={l} aoTocar={aoTocarLinha} rotulo={rotuloDaLinha} papel="row"
-              style={(ativo) => [estilos.corpoLinha, ativo ? { backgroundColor: cores.superficie3 } : null, i < linhas.length - 1 && { borderColor: cores.divisor, borderBottomWidth: 1 }]}>
-              <View style={estilos.linha}>
-                {colunas.map((c) => (
-                  <View key={c.chave} role="cell" style={estiloColuna(c)}>{c.render(l)}</View>
-                ))}
-              </View>
-              {detalhe ? <View style={estilos.detalhe}>{detalhe(l)}</View> : null}
-            </Toque>
-          ))}
+          {linhas.map((l, i) => {
+            const divisoria = i < linhas.length - 1 && { borderColor: cores.divisor, borderBottomWidth: 1 };
+            return (
+              <ComInicio key={chave(l)} inicio={inicio?.(l)} estilo={[estilos.linhaComInicio, divisoria]} papel="row">
+                <Toque linha={l} aoTocar={aoTocarLinha} rotulo={rotuloDaLinha} papel={inicio ? undefined : 'row'}
+                  style={(ativo) => [estilos.corpoLinha, inicio ? estilos.resto : null, ativo ? { backgroundColor: cores.superficie3 } : null, !inicio && divisoria]}>
+                  <View style={[estilos.linha, inicio ? estilos.semRecuo : null]}>
+                    {colunas.map((c) => (
+                      <View key={c.chave} role="cell" style={estiloColuna(c)}>{c.render(l)}</View>
+                    ))}
+                  </View>
+                  {detalhe ? <View style={estilos.detalhe}>{detalhe(l)}</View> : null}
+                </Toque>
+              </ComInicio>
+            );
+          })}
         </>
       )}
+    </View>
+  );
+}
+
+/** Sem `inicio`, só os filhos (a tabela de sempre); com ele, o controle numa coluna fixa ao lado do toque da linha. */
+function ComInicio({ inicio, estilo, papel, children }: { inicio: ReactNode | undefined; estilo: StyleProp<ViewStyle>; papel?: 'row'; children: ReactNode }) {
+  if (inicio === undefined) return <>{children}</>;
+  return (
+    <View role={papel} style={estilo}>
+      <View role={papel ? 'cell' : undefined} style={estilos.inicio}>{inicio}</View>
+      {children}
     </View>
   );
 }
@@ -144,5 +168,11 @@ const estilos = StyleSheet.create({
   principal: { flex: 1 },
   par: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(1) },
   rotuloPar: { width: 96, paddingTop: 2 },
+  // Coluna do `inicio`: a caixa de 44 px mais o recuo da tabela à esquerda.
+  inicio: { width: ALVO_TOQUE + espaco(1.5), paddingLeft: espaco(1), alignItems: 'flex-start', justifyContent: 'center', flexShrink: 0 },
+  linhaComInicio: { flexDirection: 'row', alignItems: 'stretch', gap: espaco(1) },
+  cartaoComInicio: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(0.5) },
+  resto: { flex: 1, minWidth: 0 },
+  semRecuo: { paddingLeft: 0 },
   valorPar: { flex: 1, alignItems: 'flex-start' },
 });

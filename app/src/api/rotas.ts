@@ -2,8 +2,10 @@ import { requisicao } from './cliente';
 import type { PedidoDeComparacao } from '../dominio/comparacaoDeFotos';
 import type {
   AlterarContratacaoRequest,
+  BaixaEmLoteRequest,
   BaixaManualRequest,
   ContratacaoResponse,
+  ResultadoDoLote,
   ContratarRequest,
   ConferenciasDePagamento,
   FinanceiroDoAluno,
@@ -1157,16 +1159,22 @@ export const listarCobrancasDoAluno = (alunoId: string) =>
 export const listarCobrancas = (filtro: {
   situacoes?: readonly FiltroDeSituacao[]; de?: string; ate?: string; meus?: boolean; pagina?: number; busca?: string;
   alunoId?: string; planoId?: string; forma?: 'MANUAL' | 'ONLINE';
+  /** Emissão (dia em que a cobrança foi gerada) e pagamento (data da baixa), dias de Brasília. */
+  emissaoDe?: string; emissaoAte?: string; pagoDe?: string; pagoAte?: string;
 }) => {
   const q = new URLSearchParams();
   (filtro.situacoes ?? []).filter((s) => s !== 'TODAS').forEach((s) => q.append('situacao', s));
   const resto = { de: filtro.de, ate: filtro.ate, busca: filtro.busca?.trim(), alunoId: filtro.alunoId, planoId: filtro.planoId,
-    forma: filtro.forma, meus: filtro.meus ? 'true' : undefined, pagina: String(filtro.pagina ?? 0) };
+    forma: filtro.forma, emissaoDe: filtro.emissaoDe, emissaoAte: filtro.emissaoAte, pagoDe: filtro.pagoDe, pagoAte: filtro.pagoAte,
+    meus: filtro.meus ? 'true' : undefined, pagina: String(filtro.pagina ?? 0) };
   for (const [campo, valor] of Object.entries(resto)) if (valor) q.set(campo, valor);
   return requisicao<PaginaCobrancas>(`/financeiro/cobrancas?${q.toString()}`);
 };
 export const registrarPagamentoManual = (id: string, corpo: BaixaManualRequest) =>
   requisicao<CobrancaResponse>(`/cobrancas/${seg(id)}/baixa-manual`, { metodo: 'POST', corpo });
+/** Registrar pagamentos em lote: um resultado por item, na ordem do pedido; o que falha não desfaz o resto. */
+export const registrarPagamentosEmLote = (corpo: BaixaEmLoteRequest) =>
+  requisicao<ResultadoDoLote>('/cobrancas/baixa-em-lote', { metodo: 'POST', corpo });
 export const desfazerBaixaDaCobranca = (id: string, corpo: MotivoRequest) =>
   requisicao<CobrancaResponse>(`/cobrancas/${seg(id)}/desfazer-baixa`, { metodo: 'POST', corpo });
 export const cancelarCobranca = (id: string, corpo: MotivoRequest) =>

@@ -55,6 +55,20 @@ describe('filtros das cobranças', () => {
       .toBe('Em aberto, vencimento de hoje até 26/10/2026: 1 cobrança, por vencimento. Toque na linha para abrir.');
     expect(descricaoDasCobrancas(SEM_FILTROS_DE_COBRANCAS, HOJE, 2)).toBe('Todas: 2 cobranças, por vencimento. Toque na linha para abrir.');
   });
+  test('emissão e pagamento: endereço, API, chips e ✕', () => {
+    const f = { ...SEM_FILTROS_DE_COBRANCAS, situacoes: ['PAGA' as const], emissao: { de: '2026-09-01', ate: '2026-09-30' },
+      pagamento: { de: '2026-10-01', ate: null } };
+    const endereco = cobrancasParaEndereco(f);
+    expect(endereco).toEqual({ situacao: 'PAGA', emissaoDe: '2026-09-01', emissaoAte: '2026-09-30', pagoDe: '2026-10-01' });
+    expect(lerCobrancasDoEndereco(endereco)).toEqual(f);
+    expect(lerCobrancasDoEndereco({ emissaoDe: '31/02/2026', pagoAte: 'ontem' })).toEqual(SEM_FILTROS_DE_COBRANCAS);
+    expect(cobrancasParaApi(f, HOJE)).toEqual({ situacoes: ['PAGA'], meus: false, emissaoDe: '2026-09-01', emissaoAte: '2026-09-30',
+      pagoDe: '2026-10-01' });
+    expect(chipsDasCobrancas(f, HOJE).map((c) => c.texto)).toEqual(['Situação: Pagas', 'Emissão: 01/09/2026 a 30/09/2026',
+      'Pagamento: a partir de 01/10/2026']);
+    expect(semOFiltroDeCobrancas(f, 'emissao').emissao).toEqual({ de: null, ate: null });
+    expect(semOFiltroDeCobrancas(f, 'pagamento').pagamento).toEqual({ de: null, ate: null });
+  });
 });
 
 describe('filtros dos lançamentos', () => {

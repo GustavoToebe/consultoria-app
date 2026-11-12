@@ -1,7 +1,7 @@
 import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
 import { MessageCircle } from 'lucide-react-native';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
 import type { CobrancaResponse, FormaDePagamento, LembretesDaCobranca, RecebimentoOnline } from '../../api/financeiroTipos';
@@ -10,7 +10,7 @@ import {
   manterCobrancaPaga, registrarPagamentoManual,
 } from '../../api/rotas';
 import {
-  atrasoParaTela, ehPagamentoOnline, FORMAS_MANUAIS, hojeEmBrasilia, LIMITES, podeCancelarCobranca, podeCopiarLink, podeDesfazerBaixa,
+  atrasoParaTela, cpfMascarado, ehPagamentoOnline, emissaoDaCobranca, FORMAS_MANUAIS, hojeEmBrasilia, LIMITES, podeCancelarCobranca, podeCopiarLink, podeDesfazerBaixa,
   podeManterPaga, podeMarcarContestacao, podeMarcarEstorno, podeRegistrarPagamento, ROTULO_ONLINE, rotuloDaForma, seloDaCobranca,
   temBaixaRegistrada, TEXTO_SEM_CONFIGURAR_O_RECEBIMENTO, validarBaixa,
 } from '../../dominio/financeiro';
@@ -27,6 +27,7 @@ import { Campo } from '../../ui/Campo';
 import { CampoLeitura } from '../../ui/CampoLeitura';
 import { CamposEmLinha } from '../../ui/CamposEmLinha';
 import { CampoData } from '../../ui/Campos';
+import { Divisor } from '../../ui/Divisor';
 import { Escolha } from '../../ui/Escolha';
 import { MensagemErro } from '../../ui/Estados';
 import { codigoApi, textoDoErro } from '../../ui/erros';
@@ -236,6 +237,7 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
   });
 
   const titulo = modo === 'baixa' ? 'Registrar pagamento' : `Cobrança de ${rotuloDoMes(cobranca.competencia)}`;
+  const cpf = cpfMascarado(cobranca.alunoCpf);
   const rodape = modo === 'baixa' ? (
     <>
       <Botao rotulo="Voltar" tipo="secundario" aoTocar={() => (abrirEmBaixa ? aoFechar() : setModo('detalhe'))} desabilitado={enviando} />
@@ -265,6 +267,8 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
         <View style={estilos.topo}>
           <View style={estilos.quem}>
             <Texto variante="bloco">{cobranca.alunoNome ?? '—'}</Texto>
+            {/* CPF só quando a API manda (com `ALUNO_SENSIVEL_LER`), e só o meio dele. */}
+            {cpf ? <Texto variante="suave" numerico accessibilityLabel={`CPF ${cpf}`}>CPF {cpf}</Texto> : null}
             <Texto variante="suave">{cobranca.planoNome ?? '—'}{modo === 'baixa' ? ` · ${rotuloDoMes(cobranca.competencia)}` : ''}</Texto>
           </View>
           <View style={estilos.selos}>
@@ -275,17 +279,31 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
         <Texto variante="destaque" numerico accessibilityLabel={`Valor: ${centavosParaTela(cobranca.valorCentavos)}`}>{centavosParaTela(cobranca.valorCentavos)}</Texto>
         {modo === 'detalhe' ? (
           <>
-            <CamposEmLinha>
-              <CampoLeitura rotulo="Vencimento" valor={dataParaTela(cobranca.vencimento)} numerico />
-              {cobranca.situacao === 'ABERTA' && cobranca.vencida ? <CampoLeitura rotulo="Atraso" valor={atrasoParaTela(cobranca.diasDeAtraso)} /> : null}
-              {temBaixaRegistrada(cobranca) ? <CampoLeitura rotulo="Pago em" valor={dataParaTela(cobranca.pagoEm)} numerico /> : null}
-              {temBaixaRegistrada(cobranca) ? <CampoLeitura rotulo="Forma" valor={rotuloDaForma(cobranca.forma)} /> : null}
-              {temBaixaRegistrada(cobranca) ? (
-                <CampoLeitura rotulo="Baixa dada por" valor={ehPagamentoOnline(cobranca) ? 'Automática (pagamento online)' : cobranca.baixaPorNome} />
-              ) : null}
-            </CamposEmLinha>
-            {cobranca.observacao ? <CampoLeitura rotulo="Observação" valor={cobranca.observacao} /> : null}
-            {cobranca.motivo ? <CampoLeitura rotulo="Motivo" valor={cobranca.motivo} /> : null}
+            {/* Os detalhes em grupos com título (datas, pagamento, observações), cada um em campos lado a lado. */}
+            <Grupo titulo="Datas">
+              <CamposEmLinha>
+                <CampoLeitura rotulo="Competência" valor={rotuloDoMes(cobranca.competencia)} />
+                <CampoLeitura rotulo="Vencimento" valor={dataParaTela(cobranca.vencimento)} numerico />
+                <CampoLeitura rotulo="Emissão" valor={dataParaTela(emissaoDaCobranca(cobranca))} numerico />
+                {cobranca.situacao === 'ABERTA' && cobranca.vencida ? <CampoLeitura rotulo="Atraso" valor={atrasoParaTela(cobranca.diasDeAtraso)} /> : null}
+              </CamposEmLinha>
+            </Grupo>
+            {temBaixaRegistrada(cobranca) ? (
+              <Grupo titulo="Pagamento">
+                <CamposEmLinha>
+                  <CampoLeitura rotulo="Pago em" valor={dataParaTela(cobranca.pagoEm)} numerico />
+                  <CampoLeitura rotulo="Forma" valor={rotuloDaForma(cobranca.forma)} />
+                  <CampoLeitura rotulo="Baixa dada por" valor={ehPagamentoOnline(cobranca) ? 'Automática (pagamento online)' : cobranca.baixaPorNome} />
+                </CamposEmLinha>
+                {cobranca.idExterno ? <CampoLeitura rotulo="Transação no provedor" valor={cobranca.idExterno} /> : null}
+              </Grupo>
+            ) : null}
+            {cobranca.observacao || cobranca.motivo ? (
+              <Grupo titulo="Observações">
+                {cobranca.observacao ? <CampoLeitura rotulo="Observação" valor={cobranca.observacao} /> : null}
+                {cobranca.motivo ? <CampoLeitura rotulo="Motivo" valor={cobranca.motivo} /> : null}
+              </Grupo>
+            ) : null}
             {querLink && recebimento && !recebimento.configurado ? (
               <View style={estilos.aviso}>
                 <Texto variante="suave">{TEXTO_SEM_CONFIGURAR_O_RECEBIMENTO}</Texto>
@@ -321,9 +339,17 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
                 })}
               </View>
             ) : null}
+            {/* Com divisor próprio: sem ele o botão parecia parte do último grupo (Pagamento). */}
+            {mostrarFicha ? <Divisor /> : null}
             {mostrarFicha ? (
               <LinhaDeAcoes><Botao rotulo="Abrir ficha do aluno" tipo="secundario" rotuloAcessivel={`Abrir ficha de ${cobranca.alunoNome ?? 'aluno'}`} aoTocar={abrirFicha} /></LinhaDeAcoes>
             ) : null}
+            <Divisor />
+            {/* O id inteiro, selecionável, para conferir com quem pergunta pela cobrança (a tabela mostra só o final). */}
+            <View style={estilos.id}>
+              <Texto variante="rotulo">ID da cobrança</Texto>
+              <Texto variante="suave" numerico selectable>{cobranca.id}</Texto>
+            </View>
           </>
         ) : (
           <>
@@ -349,8 +375,21 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
   );
 }
 
+/** Um grupo de detalhes: título de seção e os campos, separado do anterior por um fio. */
+function Grupo({ titulo, children }: { titulo: string; children: ReactNode }) {
+  return (
+    <View style={estilos.grupo}>
+      <Divisor />
+      <Texto variante="secao" nivel={3}>{titulo}</Texto>
+      {children}
+    </View>
+  );
+}
+
 const estilos = StyleSheet.create({
   coluna: { gap: espaco(2) },
+  grupo: { gap: espaco(1.5) },
+  id: { gap: espaco(0.25) },
   topo: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: espaco(1.5) },
   quem: { flex: 1, gap: 2 },
   selos: { alignItems: 'flex-end', gap: espaco(0.5) },

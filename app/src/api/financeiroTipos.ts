@@ -111,6 +111,31 @@ export interface CobrancaResponse {
   observacao: string | null;
   motivo: string | null;
   versao: number;
+  /** Quando a linha da cobrança foi gerada (a "Emissão"). Opcional só no tipo (fixtures antigas); a API sempre manda. */
+  criadoEm?: string;
+  /** A transação no provedor (pagamento online); nulo na baixa manual. */
+  idExterno?: string | null;
+  /** CPF do aluno, só com `ALUNO_SENSIVEL_LER` (nulo sem ela ou sem CPF). Dado sensível: nunca em log nem no endereço. */
+  alunoCpf?: string | null;
+}
+
+/** `POST /cobrancas/baixa-em-lote`: o mesmo registro manual de cada cobrança, sem valor (o servidor decide), 1 a 100 itens. */
+export interface BaixaEmLoteRequest {
+  itens: { cobrancaId: string; versao: number }[];
+  data: string;
+  forma: FormaDePagamento;
+  observacao?: string | null;
+}
+
+/** `codigo` nulo quando deu certo; senão o código estável da recusa (o mesmo da baixa individual). */
+export interface ResultadoDoItemDoLote {
+  cobrancaId: string;
+  ok: boolean;
+  codigo: string | null;
+}
+
+export interface ResultadoDoLote {
+  resultados: ResultadoDoItemDoLote[];
 }
 
 export interface PaginaCobrancas {

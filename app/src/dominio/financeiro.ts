@@ -10,6 +10,7 @@ import type {
   MesDoPainel,
   Painel,
   PeriodoDoPlano,
+  PlanoResponse,
   RetornoDoPagamento,
   SituacaoDaCobranca,
   SituacaoDaContratacao,
@@ -773,4 +774,157 @@ export function pagamentoPendente(abertas: readonly CobrancaDoAluno[] | null | u
 /** `financeiro-2026-01-a-2026-06.csv`: o nome é montado aqui porque a requisição não expõe o cabeçalho da resposta. */
 export function nomeDoCsv(de: string, ate: string): string {
   return `financeiro-${de}-a-${ate}.csv`;
+}
+
+// ---- Identificação na lista de cobranças ----
+
+/** Os 8 últimos caracteres do id, em maiúsculas (`003F9A2C`): curto para conferir na tabela; a folha mostra o id inteiro. */
+export function idCurtoDaCobranca(id: string): string {
+  return id.replace(/-/g, '').slice(-8).toUpperCase();
+}
+
+/**
+ * CPF na lista e na folha da cobrança: só os seis dígitos do meio (`***.456.789-**`), o bastante para diferenciar dois
+ * alunos de mesmo nome sem expor o número. Sem CPF (ou sem `ALUNO_SENSIVEL_LER`, quando a API não manda) → `null`, e a
+ * tela não mostra nada. Nunca vai ao endereço nem a log.
+ */
+export function cpfMascarado(cpf: string | null | undefined): string | null {
+  const d = (cpf ?? '').replace(/\D/g, '');
+  return d.length === 11 ? `***.${d.slice(3, 6)}.${d.slice(6, 9)}-**` : null;
+}
+
+/** Emissão = o dia (Brasília) em que a cobrança foi gerada, o mesmo do filtro `emissaoDe`/`emissaoAte`. Sem dado → `null`. */
+export function emissaoDaCobranca(c: Pick<CobrancaResponse, 'criadoEm'>): string | null {
+  if (!c.criadoEm) return null;
+  const instante = new Date(c.criadoEm);
+  return Number.isNaN(instante.getTime()) ? null : hojeEmBrasilia(instante);
+}
+
+/**
+ * Opções do filtro "Plano" das cobranças: ativos primeiro, depois os arquivados com "(arquivado)" (uma cobrança antiga
+ * pode ser de um plano já arquivado); dois planos de mesmo nome levam o valor para se distinguirem. Id repetido entra uma vez.
+ */
+export function opcoesDePlanoDoFiltro(
+  planos: readonly Pick<PlanoResponse, 'id' | 'nome' | 'valorCentavos' | 'arquivado'>[],
+): { valor: string; rotulo: string }[] {
+  const unicos = [...new Map(planos.map((p) => [p.id, p])).values()].sort((a, b) => Number(a.arquivado) - Number(b.arquivado));
+  const vezes = new Map<string, number>();
+  for (const p of unicos) vezes.set(p.nome.trim().toLowerCase(), (vezes.get(p.nome.trim().toLowerCase()) ?? 0) + 1);
+  return unicos.map((p) => ({
+    valor: p.id,
+    rotulo: `${p.nome}${(vezes.get(p.nome.trim().toLowerCase()) ?? 0) > 1 ? ` · ${centavosParaTela(p.valorCentavos)}` : ''}${p.arquivado ? ' (arquivado)' : ''}`,
+  }));
+}
+
+// ---- Registrar pagamentos em lote (`POST /cobrancas/baixa-em-lote`) ----
+
+/** O mesmo teto da API: até 100 cobranças por envio. Acima disso a tela bloqueia e diz quantas tirar. */
+export const LIMITE_DO_LOTE = 100;
+
+type ItemDaSelecao = Pick<CobrancaResponse, 'id' | 'situacao'>;
+
+/** Só cobrança em aberto (vencida incluída) entra no lote: a mesma regra do "Registrar pagamento" de uma. */
+export const podeEntrarNoLote = (c: Pick<CobrancaResponse, 'situacao'>): boolean => podeRegistrarPagamento(c);
+
+/** Marca ou desmarca uma cobrança, mantendo a ordem em que foram escolhidas. Cobrança que não pode entrar não entra. */
+export function alternarNoLote<T extends ItemDaSelecao>(selecao: readonly T[], cobranca: T): T[] {
+  if (selecao.some((s) => s.id === cobranca.id)) return selecao.filter((s) => s.id !== cobranca.id);
+  return podeEntrarNoLote(cobranca) ? [...selecao, cobranca] : [...selecao];
+}
+
+/** "Selecionar todas desta página": só as que podem entrar; desmarcar tira só as da página (as de outras páginas ficam). */
+export function marcarPaginaNoLote<T extends ItemDaSelecao>(selecao: readonly T[], pagina: readonly T[], marcar: boolean): T[] {
+  const daPagina = new Set(pagina.filter(podeEntrarNoLote).map((c) => c.id));
+  if (!marcar) return selecao.filter((s) => !daPagina.has(s.id));
+  const ja = new Set(selecao.map((s) => s.id));
+  return [...selecao, ...pagina.filter((c) => daPagina.has(c.id) && !ja.has(c.id))];
+}
+
+/** Estado da caixa "todas desta página": `null` quando a página não tem nenhuma cobrança que possa entrar. */
+export function estadoDaPaginaNoLote(
+  selecao: readonly ItemDaSelecao[],
+  pagina: readonly ItemDaSelecao[],
+): 'nenhuma' | 'algumas' | 'todas' | null {
+  const elegiveis = pagina.filter(podeEntrarNoLote);
+  if (elegiveis.length === 0) return null;
+  const ids = new Set(selecao.map((s) => s.id));
+  const marcadas = elegiveis.filter((c) => ids.has(c.id)).length;
+  return marcadas === 0 ? 'nenhuma' : marcadas === elegiveis.length ? 'todas' : 'algumas';
+}
+
+/** Soma dos valores mostrados (centavos inteiros). É só conferência: o valor de cada baixa é sempre o do servidor. */
+export function totalDoLote(itens: readonly Pick<CobrancaResponse, 'valorCentavos'>[]): number {
+  return itens.reduce((soma, c) => soma + c.valorCentavos, 0);
+}
+
+export const contagemDoLote = (n: number): string => (n === 1 ? '1 cobrança selecionada' : `${n} cobranças selecionadas`);
+
+/** Motivo de não poder seguir com o lote (o botão fica desabilitado com ele), ou `null`. */
+export function problemaDoLote(quantidade: number): string | null {
+  if (quantidade <= 0) return 'Selecione ao menos uma cobrança em aberto.';
+  if (quantidade > LIMITE_DO_LOTE) {
+    const sobra = quantidade - LIMITE_DO_LOTE;
+    return `O limite é de ${LIMITE_DO_LOTE} cobranças por vez. Tire ${sobra === 1 ? '1 cobrança' : `${sobra} cobranças`} da seleção.`;
+  }
+  return null;
+}
+
+/** Item sem resultado na resposta: conta como não registrado, nunca como sucesso. */
+export const SEM_RESPOSTA_DO_LOTE = 'SEM_RESPOSTA';
+
+/** A API disse ok, mas a cobrança já estava paga: nada foi gravado agora (a forma e a data são as de antes). */
+export const JA_ESTAVA_PAGA = 'JA_ESTAVA_PAGA';
+
+const MENSAGENS_DO_LOTE: Record<string, string> = {
+  COBRANCA_NAO_ABERTA: 'A cobrança não está mais em aberto.',
+  CONFLITO_EDICAO: 'A cobrança foi alterada por outra pessoa ou aba.',
+  COBRANCA_NAO_ENCONTRADA: 'A cobrança não foi encontrada.',
+  COBRANCA_INVALIDA: 'Os dados do pagamento foram recusados.',
+  [SEM_RESPOSTA_DO_LOTE]: 'O servidor não respondeu por esta cobrança.',
+};
+
+/** O motivo em português de um item recusado; código desconhecido vira um texto genérico (nunca o código cru). */
+export function motivoDoItemDoLote(codigo: string | null | undefined): string {
+  return (codigo && MENSAGENS_DO_LOTE[codigo]) || 'Erro inesperado ao registrar.';
+}
+
+export interface ResultadoNaTela {
+  cobrancaId: string;
+  ok: boolean;
+  /** `null` quando registrou agora; texto quando falhou ou quando já estava paga (`ok` true, nada alterado). */
+  motivo: string | null;
+}
+
+export interface ResumoDoLote {
+  itens: ResultadoNaTela[];
+  certos: number;
+  falhas: number;
+  tom: 'sucesso' | 'atencao' | 'perigo';
+  texto: string;
+}
+
+/**
+ * Junta o que foi pedido com o que a API respondeu, na ordem do pedido. Falha parcial nunca aparece como sucesso: o tom
+ * só é `sucesso` quando todos deram certo; parte = `atencao` ("2 de 3 registrados"); nenhum = `perigo`.
+ */
+export function resumoDoLote(
+  pedidos: readonly string[],
+  resultados: readonly { cobrancaId: string; ok: boolean; codigo: string | null }[],
+): ResumoDoLote {
+  const porId = new Map(resultados.map((r) => [r.cobrancaId, r]));
+  const itens = pedidos.map((id): ResultadoNaTela => {
+    const r = porId.get(id);
+    if (r?.ok) return { cobrancaId: id, ok: true, motivo: r.codigo === JA_ESTAVA_PAGA ? 'Já estava paga; nada foi alterado.' : null };
+    return { cobrancaId: id, ok: false, motivo: motivoDoItemDoLote(r ? r.codigo : SEM_RESPOSTA_DO_LOTE) };
+  });
+  const certos = itens.filter((i) => i.ok && !i.motivo).length;
+  const jaPagas = itens.filter((i) => i.ok && i.motivo).length;
+  const falhas = itens.filter((i) => !i.ok).length;
+  const jaEstavam = jaPagas === 0 ? '' : jaPagas === 1 ? ' 1 já estava paga, sem alteração.' : ` ${jaPagas} já estavam pagas, sem alteração.`;
+  const registrados = (n: number) => (n === 1 ? '1 pagamento registrado' : `${n} pagamentos registrados`);
+  const naoRegistrados = falhas === 1 ? '1 não foi registrado' : `${falhas} não foram registrados`;
+  const texto = falhas === 0 ? (certos === 0 ? 'Nenhum pagamento novo: todas já estavam pagas.' : `${registrados(certos)}.${jaEstavam}`)
+    : certos === 0 ? (falhas === 1 ? 'O pagamento não foi registrado.' : `Nenhum dos ${falhas} pagamentos foi registrado.`)
+      : `${certos} de ${itens.length} registrados.${jaEstavam} ${naoRegistrados}: veja o motivo abaixo.`;
+  return { itens, certos, falhas, tom: falhas === 0 ? 'sucesso' : certos === 0 && jaPagas === 0 ? 'perigo' : 'atencao', texto };
 }

@@ -162,7 +162,7 @@ function Formulario({ plano, podeAlterar, aoFechar, aoMudar }: {
         ) : <CampoLeitura rotulo="Nome do plano" valor={plano?.nome} />}
         {editavel ? (
           <>
-            <CampoMoeda rotulo="Valor (R$)" texto={valor} aoMudar={setValor} erro={tentou && centavos === null ? 'Informe um valor maior que zero, por exemplo 150,00.' : null}
+            <CampoMoeda mascara rotulo="Valor" texto={valor} aoMudar={setValor} erro={tentou && centavos === null ? 'Informe um valor maior que zero, por exemplo 150,00.' : null}
               ajuda="Valor de cada cobrança do plano. Na ficha do aluno dá para combinar outro valor, com o motivo." />
             <Escolha rotulo="Periodicidade" opcoes={OPCOES_DE_PERIODICIDADE.map((o) => ({ valor: o.valor, rotulo: o.rotulo }))} valor={periodicidade} aoMudar={setPeriodicidade} />
           </>

@@ -297,7 +297,7 @@ test('lançamento de saída: o app envia centavos e o resultado do mês acompanh
   await page.getByRole('button', { name: 'Novo lançamento' }).click();
   const folha = page.getByRole('dialog');
   await folha.getByLabel('Descrição').fill('Aluguel da sala');
-  await folha.getByLabel('Valor (R$)').fill('350,00');
+  await folha.getByLabel('Valor', { exact: true }).fill('350,00');
   await folha.getByLabel('Categoria (opcional)').fill('Aluguel');
   await folha.getByRole('button', { name: 'Registrar lançamento' }).click();
 
@@ -346,7 +346,7 @@ test('fluxo completo: o treinador cria o plano, contrata na ficha e dá a baixa;
   await page.getByRole('button', { name: 'Novo plano' }).click();
   const novoPlano = page.getByRole('dialog');
   await novoPlano.getByLabel('Nome do plano').fill('Consultoria mensal');
-  await novoPlano.getByLabel('Valor (R$)').fill('150,00');
+  await novoPlano.getByLabel('Valor', { exact: true }).fill('150,00');
   await novoPlano.getByRole('button', { name: 'Criar plano' }).click();
   await expect(page.getByText('Plano criado.')).toBeVisible();
   await expect(page.getByText('Consultoria mensal').first()).toBeVisible();

@@ -1,6 +1,19 @@
 import type { CobrancaDoAluno, MesDoPainel, MotivoDaConferencia } from '../api/financeiroTipos';
 import {
   abertasDaContratacao,
+  alternarNoLote,
+  contagemDoLote,
+  cpfMascarado,
+  emissaoDaCobranca,
+  estadoDaPaginaNoLote,
+  idCurtoDaCobranca,
+  LIMITE_DO_LOTE,
+  marcarPaginaNoLote,
+  motivoDoItemDoLote,
+  opcoesDePlanoDoFiltro,
+  problemaDoLote,
+  resumoDoLote,
+  totalDoLote,
   atrasoParaTela,
   AVISO_LIQUIDO,
   AVISO_RETORNO_DO_PAGAMENTO,
@@ -703,5 +716,94 @@ describe('sem boleto', () => {
   });
   it('a forma BOLETO não existe mais: cai em "—"', () => {
     expect(rotuloDaForma('BOLETO' as never)).toBe('—');
+  });
+});
+
+describe('identificação da cobrança na lista', () => {
+  it('id curto, CPF mascarado e emissão no dia de Brasília', () => {
+    expect(idCurtoDaCobranca('c0000000-0000-4000-8000-0000003f9a2c')).toBe('003F9A2C');
+    expect(cpfMascarado('123.456.789-09')).toBe('***.456.789-**');
+    expect(cpfMascarado('12345678909')).toBe('***.456.789-**');
+    expect(cpfMascarado(null)).toBeNull();
+    expect(cpfMascarado('123')).toBeNull();
+    // 01:30 UTC ainda é o dia anterior em Brasília.
+    expect(emissaoDaCobranca({ criadoEm: '2026-10-02T01:30:00Z' })).toBe('2026-10-01');
+    expect(emissaoDaCobranca({ criadoEm: undefined })).toBeNull();
+    expect(emissaoDaCobranca({ criadoEm: 'ontem' })).toBeNull();
+  });
+});
+
+describe('planos do filtro das cobranças', () => {
+  it('ativos primeiro, arquivado marcado, nome repetido com o valor, id repetido uma vez', () => {
+    const p = (id: string, nome: string, valorCentavos: number, arquivado = false) => ({ id, nome, valorCentavos, arquivado });
+    expect(opcoesDePlanoDoFiltro([p('3', 'Mensal', 20000, true), p('1', 'Mensal', 15000), p('2', 'Trimestral', 40000), p('1', 'Mensal', 15000)]))
+      .toEqual([
+        { valor: '1', rotulo: 'Mensal · R$ 150,00' },
+        { valor: '2', rotulo: 'Trimestral' },
+        { valor: '3', rotulo: 'Mensal · R$ 200,00 (arquivado)' },
+      ]);
+    expect(opcoesDePlanoDoFiltro([])).toEqual([]);
+  });
+});
+
+describe('pagamentos em lote', () => {
+  const c = (id: string, situacao: 'ABERTA' | 'PAGA' | 'CANCELADA' = 'ABERTA', valorCentavos = 100) => ({ id, situacao, valorCentavos });
+
+  it('só em aberto entra; alternar mantém a ordem', () => {
+    let s = alternarNoLote([], c('a'));
+    s = alternarNoLote(s, c('b'));
+    s = alternarNoLote(s, c('p', 'PAGA'));
+    expect(s.map((x) => x.id)).toEqual(['a', 'b']);
+    expect(alternarNoLote(s, c('a')).map((x) => x.id)).toEqual(['b']);
+  });
+
+  it('todas desta página: marca só as elegíveis, desmarca só as da página', () => {
+    const pagina = [c('a'), c('p', 'PAGA'), c('b')];
+    const marcadas = marcarPaginaNoLote([c('z')], pagina, true);
+    expect(marcadas.map((x) => x.id)).toEqual(['z', 'a', 'b']);
+    expect(marcarPaginaNoLote(marcadas, pagina, true)).toHaveLength(3);
+    expect(estadoDaPaginaNoLote([], pagina)).toBe('nenhuma');
+    expect(estadoDaPaginaNoLote(marcadas, pagina)).toBe('todas');
+    expect(estadoDaPaginaNoLote([c('a')], pagina)).toBe('algumas');
+    expect(marcarPaginaNoLote(marcadas, pagina, false).map((x) => x.id)).toEqual(['z']);
+    expect(estadoDaPaginaNoLote([], [c('p', 'PAGA'), c('x', 'CANCELADA')])).toBeNull();
+  });
+
+  it('total, contagem e limite de 100', () => {
+    expect(totalDoLote([c('a', 'ABERTA', 15000), c('b', 'ABERTA', 9990)])).toBe(24990);
+    expect(totalDoLote([])).toBe(0);
+    expect(contagemDoLote(1)).toBe('1 cobrança selecionada');
+    expect(contagemDoLote(3)).toBe('3 cobranças selecionadas');
+    expect(problemaDoLote(0)).toBe('Selecione ao menos uma cobrança em aberto.');
+    expect(problemaDoLote(LIMITE_DO_LOTE)).toBeNull();
+    expect(problemaDoLote(101)).toBe('O limite é de 100 cobranças por vez. Tire 1 cobrança da seleção.');
+    expect(problemaDoLote(150)).toBe('O limite é de 100 cobranças por vez. Tire 50 cobranças da seleção.');
+  });
+
+  it('resultado: cobrança que já estava paga não conta como registrada agora', () => {
+    const r = resumoDoLote(['a', 'b'], [{ cobrancaId: 'a', ok: true, codigo: null }, { cobrancaId: 'b', ok: true, codigo: 'JA_ESTAVA_PAGA' }]);
+    expect(r).toMatchObject({ tom: 'sucesso', certos: 1, falhas: 0, texto: '1 pagamento registrado. 1 já estava paga, sem alteração.' });
+    expect(r.itens[1]).toEqual({ cobrancaId: 'b', ok: true, motivo: 'Já estava paga; nada foi alterado.' });
+    expect(resumoDoLote(['a'], [{ cobrancaId: 'a', ok: true, codigo: 'JA_ESTAVA_PAGA' }]).texto).toBe('Nenhum pagamento novo: todas já estavam pagas.');
+  });
+
+  it('resultado: tudo certo, parcial (nunca sucesso), nenhum; item sem resposta é falha', () => {
+    expect(resumoDoLote(['a', 'b'], [{ cobrancaId: 'a', ok: true, codigo: null }, { cobrancaId: 'b', ok: true, codigo: null }]))
+      .toMatchObject({ tom: 'sucesso', certos: 2, falhas: 0, texto: '2 pagamentos registrados.' });
+    const parcial = resumoDoLote(['a', 'b', 'c'], [
+      { cobrancaId: 'a', ok: true, codigo: null },
+      { cobrancaId: 'b', ok: false, codigo: 'COBRANCA_NAO_ABERTA' },
+    ]);
+    expect(parcial.tom).toBe('atencao');
+    expect(parcial.texto).toBe('1 de 3 registrados. 2 não foram registrados: veja o motivo abaixo.');
+    expect(parcial.itens).toEqual([
+      { cobrancaId: 'a', ok: true, motivo: null },
+      { cobrancaId: 'b', ok: false, motivo: 'A cobrança não está mais em aberto.' },
+      { cobrancaId: 'c', ok: false, motivo: 'O servidor não respondeu por esta cobrança.' },
+    ]);
+    expect(resumoDoLote(['a'], [{ cobrancaId: 'a', ok: false, codigo: 'CONFLITO_EDICAO' }]))
+      .toMatchObject({ tom: 'perigo', texto: 'O pagamento não foi registrado.' });
+    expect(motivoDoItemDoLote('QUALQUER_OUTRO')).toBe('Erro inesperado ao registrar.');
+    expect(motivoDoItemDoLote('COBRANCA_NAO_ENCONTRADA')).toBe('A cobrança não foi encontrada.');
   });
 });

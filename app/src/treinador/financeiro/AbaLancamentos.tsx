@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react-native';
+import { ArrowDownLeft, ArrowUpRight, Plus } from 'lucide-react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -14,8 +14,8 @@ import {
   type ChaveDoFiltroDeLancamentos, type FiltrosDeLancamentos,
 } from '../../dominio/filtrosDoFinanceiro';
 import { centavosDaTela, centavosParaCampo, centavosParaTela, dataDaTela, dataParaTela } from '../../dominio/formatos';
+import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
-import { CamposDePeriodo, CelulaDoFiltro } from '../SeletoresDeFiltro';
 import { useAviso } from '../../ui/Aviso';
 import { BarraDeFiltros } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
@@ -35,6 +35,7 @@ import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
 import { Texto } from '../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../ui/useCarregar';
 import { avisoDeConflito, CampoMoeda, ehConflito } from './comum';
+import { FiltrosEmGrade, PeriodoDoFiltro } from './FiltrosEmGrade';
 import { ListaOuTabela } from './ListaOuTabela';
 import { ResultadoDoMes } from './ResultadoDoMes';
 
@@ -44,6 +45,25 @@ const TIPOS: { valor: TipoDeLancamento; rotulo: string }[] = [
   { valor: 'SAIDA', rotulo: 'Saída' },
 ];
 const rotuloDoTipo = (t: TipoDeLancamento) => (t === 'SAIDA' ? 'Saída' : 'Entrada');
+/** Valor com o sinal do tipo ("+R$ 350,00", "−R$ 350,00"): o número fica neutro, quem leva a cor é o marcador do tipo. */
+const valorComSinal = (l: LancamentoResponse) => `${l.tipo === 'SAIDA' ? '−' : '+'}${centavosParaTela(l.valorCentavos)}`;
+
+/**
+ * Marcador do tipo: seta e o texto "Entrada"/"Saída", sempre juntos (a cor nunca é o único sinal). Azul de identificação
+ * para entrada e `perigo` para saída só como sinal de direção, sem selo (uma saída válida não é erro nem status).
+ */
+function TipoDoLancamento({ tipo }: { tipo: TipoDeLancamento }) {
+  const { cores, identificacao } = useTema();
+  const saida = tipo === 'SAIDA';
+  const cor = saida ? cores.perigo : identificacao.AZUL.cor;
+  const Icone = saida ? ArrowUpRight : ArrowDownLeft;
+  return (
+    <View style={estilos.tipo}>
+      <Icone size={16} color={cor} strokeWidth={2.5} aria-hidden />
+      <Texto variante="rotulo" cor={cor}>{rotuloDoTipo(tipo)}</Texto>
+    </View>
+  );
+}
 
 /**
  * Lançamentos avulsos da consultoria (aluguel, equipamento, entrada que não vem de plano). Entram no "Resultado do mês
@@ -91,17 +111,13 @@ export function AbaLancamentos({ podeAlterar }: { podeAlterar: boolean }) {
         valor={filtros} aoAplicar={aplicar} limpo={SEM_FILTROS_DE_LANCAMENTOS} chips={chipsDosLancamentos(filtros)}
         aoTirar={(chave) => aplicar(semOFiltroDeLancamentos(filtros, chave as ChaveDoFiltroDeLancamentos))} rotuloDoResultado="Ver lançamentos"
         seletores={(atuais, mudar) => (
-          <>
-            <CelulaDoFiltro><CamposDePeriodo rotulo="Data do lançamento" valor={atuais.periodo} aoMudar={(periodo) => mudar({ ...atuais, periodo })} /></CelulaDoFiltro>
-            <CelulaDoFiltro>
-              <Escolha<TipoDeLancamento | 'TODOS'> rotulo="Tipo" opcoes={[{ valor: 'TODOS', rotulo: 'Todos' }, ...TIPOS_DO_FILTRO]} valor={atuais.tipo ?? 'TODOS'}
-                aoMudar={(v) => mudar({ ...atuais, tipo: v === 'TODOS' ? null : v })} />
-            </CelulaDoFiltro>
-            <CelulaDoFiltro>
-              <SelecaoMultiplaSuspensa rotulo="Categoria" opcoes={opcoesDeCategoria} marcados={new Set(atuais.categorias)} rotuloDeTodos="Todas"
-                aoMudar={(m) => mudar({ ...atuais, categorias: opcoesDeCategoria.map((o) => o.valor).filter((v) => m.has(v)) })} style={estilos.cheio} />
-            </CelulaDoFiltro>
-          </>
+          <FiltrosEmGrade>
+            <Escolha<TipoDeLancamento | 'TODOS'> rotulo="Tipo" opcoes={[{ valor: 'TODOS', rotulo: 'Todos' }, ...TIPOS_DO_FILTRO]} valor={atuais.tipo ?? 'TODOS'}
+              aoMudar={(v) => mudar({ ...atuais, tipo: v === 'TODOS' ? null : v })} />
+            <SelecaoMultiplaSuspensa rotulo="Categoria" opcoes={opcoesDeCategoria} marcados={new Set(atuais.categorias)} rotuloDeTodos="Todas"
+              aoMudar={(m) => mudar({ ...atuais, categorias: opcoesDeCategoria.map((o) => o.valor).filter((v) => m.has(v)) })} style={estilos.cheio} />
+            <PeriodoDoFiltro rotulo="Data do lançamento" valor={atuais.periodo} aoMudar={(periodo) => mudar({ ...atuais, periodo })} />
+          </FiltrosEmGrade>
         )} />
       {lista.erro ? <MensagemErro texto={textoDoErro(lista.erro)} erro={lista.erro} tentarDeNovo={recarregarLista} /> : null}
       {!dados && lista.carregando ? <Esqueleto /> : null}
@@ -114,18 +130,19 @@ export function AbaLancamentos({ podeAlterar }: { podeAlterar: boolean }) {
         <Cartao descricao={`${dados.total} ${dados.total === 1 ? 'lançamento' : 'lançamentos'}, do mais recente ao mais antigo. Toque na linha para abrir.`}>
           <View style={lista.carregando ? estilos.esmaecido : null}>
             <ListaOuTabela rotulo="Lançamentos avulsos" linhas={dados.itens} chave={(l) => l.id} aoTocar={setAberto}
-              rotuloDaLinha={(l) => `Abrir lançamento ${l.descricao}`}
-              // Entrada e saída não são status: vão no texto, sem selo colorido.
+              rotuloDaLinha={(l) => `Abrir lançamento ${l.descricao}, ${rotuloDoTipo(l.tipo)} de ${centavosParaTela(l.valorCentavos)}`}
+              // Entrada e saída não são status: texto do tipo com a cor só de sinal, sem selo.
               item={(l) => ({
                 titulo: l.descricao,
-                detalhe: `${rotuloDoTipo(l.tipo)} de ${centavosParaTela(l.valorCentavos)} · ${dataSemAnoCorrente(l.data, hojeEmBrasilia())}${l.categoria ? ` · ${l.categoria}` : ''}`,
+                detalhe: `${valorComSinal(l)} · ${dataSemAnoCorrente(l.data, hojeEmBrasilia())}${l.categoria ? ` · ${l.categoria}` : ''}`,
+                extra: <TipoDoLancamento tipo={l.tipo} />,
               })}
               colunas={[
                 { chave: 'descricao', titulo: 'Descrição', flex: 2, principal: true, render: (l) => <Texto variante="bloco" numberOfLines={2}>{l.descricao}</Texto> },
                 { chave: 'data', titulo: 'Data', flex: 1, render: (l) => <Texto numerico>{dataParaTela(l.data)}</Texto> },
-                { chave: 'tipo', titulo: 'Tipo', flex: 1, render: (l) => <Texto>{rotuloDoTipo(l.tipo)}</Texto> },
+                { chave: 'tipo', titulo: 'Tipo', flex: 1, render: (l) => <TipoDoLancamento tipo={l.tipo} /> },
                 { chave: 'categoria', titulo: 'Categoria', flex: 1.2, render: (l) => <Texto numberOfLines={1}>{l.categoria ?? '—'}</Texto> },
-                { chave: 'valor', titulo: 'Valor', flex: 1, alinhar: 'direita', render: (l) => <Texto numerico>{centavosParaTela(l.valorCentavos)}</Texto> },
+                { chave: 'valor', titulo: 'Valor', flex: 1, alinhar: 'direita', render: (l) => <Texto numerico>{valorComSinal(l)}</Texto> },
               ]} />
           </View>
           {paginas > 1 ? (
@@ -226,7 +243,7 @@ function Formulario({ lancamento, podeAlterar, aoFechar, aoMudar }: {
             <CampoData rotulo="Data" valor={data} aoMudar={setData} erro={tentou && !iso ? 'Informe a data do lançamento.' : null} />
             <Campo rotulo="Descrição" valor={descricao} aoMudar={setDescricao} maxLength={LIMITES.descricaoDoLancamento}
               erro={tentou && !descricao.trim() ? 'Descreva o lançamento.' : null} />
-            <CampoMoeda rotulo="Valor (R$)" texto={valor} aoMudar={setValor}
+            <CampoMoeda mascara rotulo="Valor" texto={valor} aoMudar={setValor}
               erro={tentou && centavos === null ? 'Informe um valor maior que zero, por exemplo 150,00.' : null} />
             <Campo rotulo="Categoria (opcional)" valor={categoria} aoMudar={setCategoria} maxLength={LIMITES.categoria}
               ajuda="Texto livre, por exemplo Aluguel ou Equipamentos." />
@@ -236,7 +253,7 @@ function Formulario({ lancamento, podeAlterar, aoFechar, aoMudar }: {
             <CampoLeitura rotulo="Descrição" valor={lancamento.descricao} />
             <CamposEmLinha>
               <CampoLeitura rotulo="Tipo" valor={rotuloDoTipo(lancamento.tipo)} />
-              <CampoLeitura rotulo="Valor" valor={centavosParaTela(lancamento.valorCentavos)} numerico />
+              <CampoLeitura rotulo="Valor" valor={valorComSinal(lancamento)} numerico />
               <CampoLeitura rotulo="Data" valor={dataParaTela(lancamento.data)} numerico />
               <CampoLeitura rotulo="Categoria" valor={lancamento.categoria} />
             </CamposEmLinha>
@@ -261,5 +278,6 @@ const estilos = StyleSheet.create({
   explicacao: { flexGrow: 1, flexShrink: 1, flexBasis: 260 },
   esmaecido: { opacity: 0.6 },
   cheio: { alignSelf: 'stretch' },
+  tipo: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5) },
   paginacao: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), flexWrap: 'wrap' },
 });

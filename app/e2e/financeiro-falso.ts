@@ -152,6 +152,12 @@ export interface EstadoFinanceiro {
   pedidosDeLembretesDoAluno: unknown[];
   /** O que `GET /financeiro/visao-geral` devolve (renovações próximas); nulo = 404, e o cartão não aparece. */
   renovacoes: VisaoGeralDoFinanceiro | null;
+  /**
+   * Cobranças que o `POST /cobrancas/baixa-em-lote` recusa, com o código (falha parcial); as outras são baixadas como na
+   * baixa manual. Os corpos recebidos ficam em `lotesRecebidos`.
+   */
+  recusasDoLote: Record<string, string>;
+  lotesRecebidos: unknown[];
 }
 
 /** Os lembretes como a API devolve numa consultoria que nunca os configurou. */
@@ -162,7 +168,7 @@ export function estadoFinanceiro(parcial: Partial<EstadoFinanceiro> = {}): Estad
     planos: [], contratacoes: [], cobrancas: [], lancamentos: [], inadimplentes: [], painel: PAINEL_COM_DADOS,
     recebimento: { ...RECEBIMENTO_NAO_CONFIGURADO }, chaveGuardada: null, conferencias: [], pagamentoOnline: false, retornos: [],
     lembretes: { ...LEMBRETES_PADRAO }, lembretesDasCobrancas: {}, alunoRecebeLembretes: true, falhaAoDefinirLembretesDoAluno: null,
-    pedidosDeLembretesDoAluno: [], renovacoes: null, ...parcial,
+    pedidosDeLembretesDoAluno: [], renovacoes: null, recusasDoLote: {}, lotesRecebidos: [], ...parcial,
   };
 }
 
@@ -215,8 +221,15 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
       // Várias situações em OU (VENCIDA = aberta já vencida) e a busca pelo nome do aluno, como a API.
       const situacoes = p.busca.getAll('situacao');
       const busca = (p.busca.get('busca') ?? '').toLowerCase();
+      // Vencimento (`de`/`ate`), emissão (dia de `criadoEm`) e pagamento (`pagoEm`), dias inclusivos como na API.
+      const entre = (dia: string | null | undefined, de: string | null, ate: string | null) =>
+        (!de && !ate) || (!!dia && (!de || dia >= de) && (!ate || dia <= ate));
+      const q = (k: string) => p.busca.get(k);
       const itens = estado.cobrancas.filter((c) => (!situacoes.length || situacoes.some((s) => (s === 'VENCIDA' ? c.situacao === 'ABERTA' && c.vencida : c.situacao === s)))
-        && (!busca || (c.alunoNome ?? '').toLowerCase().includes(busca)));
+        && (!busca || (c.alunoNome ?? '').toLowerCase().includes(busca))
+        && entre(c.vencimento, q('de'), q('ate'))
+        && entre(c.criadoEm?.slice(0, 10), q('emissaoDe'), q('emissaoAte'))
+        && entre(c.pagoEm, q('pagoDe'), q('pagoAte')));
       return json(route, { itens, total: itens.length, pagina: 0 });
     },
     'GET /financeiro/inadimplentes': (_p, route) => json(route, {
@@ -290,6 +303,30 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
         vencida: false, diasDeAtraso: null, versao: cobranca.versao + 1,
       });
       return json(route, cobranca);
+    },
+    'POST /cobrancas/baixa-em-lote': (p, route) => {
+      // Como a API: cada item em separado, na ordem do pedido; já paga é ok; recusa só pelo código, sem mensagem.
+      const c = p.corpo as { itens: { cobrancaId: string; versao: number }[]; data: string; forma: CobrancaResponse['forma']; observacao?: string | null };
+      estado.lotesRecebidos.push(c);
+      if (!c.itens.length || c.itens.length > 100 || new Set(c.itens.map((i) => i.cobrancaId)).size !== c.itens.length) {
+        return json(route, erroApi(400, 'Lote inválido.', 'LOTE_INVALIDO').corpo, 400);
+      }
+      const resultados = c.itens.map(({ cobrancaId, versao }) => {
+        const cobranca = estado.cobrancas.find((x) => x.id === cobrancaId);
+        const recusa = estado.recusasDoLote[cobrancaId];
+        if (recusa) return { cobrancaId, ok: false, codigo: recusa };
+        if (!cobranca) return { cobrancaId, ok: false, codigo: 'COBRANCA_NAO_ENCONTRADA' };
+        if (cobranca.situacao === 'PAGA') return { cobrancaId, ok: true, codigo: null };
+        if (cobranca.situacao !== 'ABERTA') return { cobrancaId, ok: false, codigo: 'COBRANCA_NAO_ABERTA' };
+        if (cobranca.versao !== versao) return { cobrancaId, ok: false, codigo: 'CONFLITO_EDICAO' };
+        estado.inadimplentes = estado.inadimplentes.filter((i) => i.cobrancaId !== cobrancaId);
+        Object.assign(cobranca, {
+          situacao: 'PAGA', forma: c.forma, provedor: 'MANUAL', pagoEm: c.data, baixaPorNome: TREINADOR.nome, observacao: c.observacao ?? null,
+          vencida: false, diasDeAtraso: null, versao: cobranca.versao + 1,
+        });
+        return { cobrancaId, ok: true, codigo: null };
+      });
+      return json(route, { resultados });
     },
     'POST /cobrancas/{id}/contestar': (p, route) => marcar(p, route, ['PAGA'], 'CONTESTADA', 'COBRANCA_NAO_PAGA'),
     'POST /cobrancas/{id}/estornar': (p, route) => marcar(p, route, ['PAGA', 'CONTESTADA'], 'ESTORNADA', 'COBRANCA_NAO_PAGA'),

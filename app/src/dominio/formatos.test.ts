@@ -1,4 +1,4 @@
-import { centavosDaTela, centavosParaCampo, centavosParaTela, mascaraDeNumero, moedaParaTela } from './formatos';
+import { centavosDaTela, centavosParaCampo, centavosParaTela, mascaraDeMoeda, mascaraDeNumero, moedaParaTela } from './formatos';
 
 describe('moeda em reais', () => {
   it('usa vírgula, ponto de milhar e duas casas', () => {
@@ -93,5 +93,49 @@ describe('máscara de número enquanto digita', () => {
     expect(mascaraDeNumero('12,5', 0)).toBe('12');
     expect(mascaraDeNumero('2.5', 0)).toBe('2');
     expect(mascaraDeNumero('x', 0)).toBe('');
+  });
+});
+
+describe('máscara de moeda enquanto digita', () => {
+  /** Digita um caractere de cada vez, como o teclado. */
+  const digitar = (teclas: string, inicio = '') => [...teclas].reduce((t, c) => mascaraDeMoeda(t, t + c), inicio);
+
+  it('cada dígito entra pelos centavos', () => {
+    expect(digitar('1')).toBe('R$ 0,01');
+    expect(digitar('150')).toBe('R$ 1,50');
+    expect(digitar('100000')).toBe('R$ 1.000,00');
+    expect(centavosDaTela(digitar('123456'))).toBe(123456);
+  });
+  it('apagar tira o último dígito, também quando apaga a vírgula ou o "R$"', () => {
+    expect(mascaraDeMoeda('R$ 1,50', 'R$ 1,5')).toBe('R$ 0,15');
+    expect(mascaraDeMoeda('R$ 1,50', 'R$ 150')).toBe('R$ 0,15');
+    expect(mascaraDeMoeda('R$ 1,50', '$ 1,50')).toBe('R$ 0,15');
+    expect(mascaraDeMoeda('R$ 0,01', 'R$ 0,0')).toBe('');
+    expect(mascaraDeMoeda('R$ 0,01', '')).toBe('');
+  });
+  it('colar ou preencher de uma vez lê o valor como está (sem dividir por 100)', () => {
+    expect(mascaraDeMoeda('', '150')).toBe('R$ 150,00');
+    expect(mascaraDeMoeda('', '350,00')).toBe('R$ 350,00');
+    expect(mascaraDeMoeda('', '1.234,56')).toBe('R$ 1.234,56');
+    expect(mascaraDeMoeda('', 'R$ 99,90')).toBe('R$ 99,90');
+    expect(mascaraDeMoeda('', '12.50')).toBe('R$ 12,50');
+    expect(mascaraDeMoeda('R$ 1,00', '150')).toBe('R$ 150,00');
+  });
+  it('zero e campo vazio ficam vazios (sem "R$ 0,00" e sem erro)', () => {
+    expect(digitar('0')).toBe('');
+    expect(digitar('000')).toBe('');
+    expect(mascaraDeMoeda('', '0,00')).toBe('');
+    expect(mascaraDeMoeda('', '')).toBe('');
+  });
+  it('nunca negativo: o sinal e as letras são ignorados', () => {
+    expect(digitar('-5')).toBe('R$ 0,05');
+    expect(mascaraDeMoeda('', '-150,00')).toBe('R$ 150,00');
+    expect(mascaraDeMoeda('R$ 1,50', 'R$ 1,50a')).toBe('R$ 1,50');
+  });
+  it('valor alto: até 12 dígitos; o seguinte é ignorado', () => {
+    const maximo = digitar('999999999999');
+    expect(maximo).toBe('R$ 9.999.999.999,99');
+    expect(centavosDaTela(maximo)).toBe(999999999999);
+    expect(mascaraDeMoeda(maximo, `${maximo}1`)).toBe(maximo);
   });
 });

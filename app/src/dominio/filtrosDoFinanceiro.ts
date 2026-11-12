@@ -38,15 +38,27 @@ export interface FiltrosDeCobrancas {
   alunoId: string | null;
   planoId: string | null;
   forma: FormaDoFiltro | null;
+  /** Emissão: o dia (Brasília) em que a cobrança foi gerada. */
+  emissao: Periodo;
+  /** Pagamento: a data da baixa. */
+  pagamento: Periodo;
 }
 
-export type ChaveDoFiltroDeCobrancas = 'responsavel' | 'situacao' | 'vencimento' | 'aluno' | 'plano' | 'forma';
+export type ChaveDoFiltroDeCobrancas = 'responsavel' | 'situacao' | 'vencimento' | 'aluno' | 'plano' | 'forma' | 'emissao' | 'pagamento';
 
 export const SEM_FILTROS_DE_COBRANCAS: FiltrosDeCobrancas = {
   situacoes: [], meus: false, proximos7Dias: false, periodo: SEM_PERIODO, alunoId: null, planoId: null, forma: null,
+  emissao: SEM_PERIODO, pagamento: SEM_PERIODO,
 };
 
-export const CHAVES_DE_COBRANCAS = ['situacao', 'meus', 'vencimento', 'de', 'ate', 'alunoId', 'planoId', 'forma'] as const;
+export const CHAVES_DE_COBRANCAS = [
+  'situacao', 'meus', 'vencimento', 'de', 'ate', 'alunoId', 'planoId', 'forma', 'emissaoDe', 'emissaoAte', 'pagoDe', 'pagoAte',
+] as const;
+
+/** O período com os nomes da API e do endereço (`emissaoDe`/`emissaoAte`, `pagoDe`/`pagoAte`). */
+function periodoComNomes(p: Periodo, de: string, ate: string): Record<string, string> {
+  return { ...(p.de ? { [de]: p.de } : {}), ...(p.ate ? { [ate]: p.ate } : {}) };
+}
 
 export interface ParametrosDeCobrancas {
   situacao?: Parametro;
@@ -57,6 +69,10 @@ export interface ParametrosDeCobrancas {
   alunoId?: Parametro;
   planoId?: Parametro;
   forma?: Parametro;
+  emissaoDe?: Parametro;
+  emissaoAte?: Parametro;
+  pagoDe?: Parametro;
+  pagoAte?: Parametro;
 }
 
 export function lerCobrancasDoEndereco(q: ParametrosDeCobrancas): FiltrosDeCobrancas {
@@ -70,6 +86,8 @@ export function lerCobrancasDoEndereco(q: ParametrosDeCobrancas): FiltrosDeCobra
     alunoId: id(q.alunoId),
     planoId: id(q.planoId),
     forma: um(q.forma, FORMAS_DO_FILTRO),
+    emissao: periodoDoEndereco(q.emissaoDe, q.emissaoAte),
+    pagamento: periodoDoEndereco(q.pagoDe, q.pagoAte),
   };
 }
 
@@ -81,6 +99,8 @@ export function cobrancasParaEndereco(f: FiltrosDeCobrancas): Record<string, str
     ...(f.alunoId ? { alunoId: f.alunoId } : {}),
     ...(f.planoId ? { planoId: f.planoId } : {}),
     ...(f.forma ? { forma: f.forma } : {}),
+    ...periodoComNomes(f.emissao, 'emissaoDe', 'emissaoAte'),
+    ...periodoComNomes(f.pagamento, 'pagoDe', 'pagoAte'),
   };
 }
 
@@ -93,6 +113,8 @@ export function cobrancasParaApi(f: FiltrosDeCobrancas, hoje: string) {
     ...(f.alunoId ? { alunoId: f.alunoId } : {}),
     ...(f.planoId ? { planoId: f.planoId } : {}),
     ...(f.forma ? { forma: f.forma } : {}),
+    ...periodoComNomes(f.emissao, 'emissaoDe', 'emissaoAte'),
+    ...periodoComNomes(f.pagamento, 'pagoDe', 'pagoAte'),
   };
 }
 
@@ -103,7 +125,8 @@ export function vencimentoDaApi(f: FiltrosDeCobrancas, hoje: string): { de?: str
 }
 
 export const chaveDasCobrancas = (f: FiltrosDeCobrancas, busca = '') =>
-  JSON.stringify([[...f.situacoes].sort(), f.meus, f.proximos7Dias, f.periodo.de, f.periodo.ate, f.alunoId, f.planoId, f.forma, busca.trim()]);
+  JSON.stringify([[...f.situacoes].sort(), f.meus, f.proximos7Dias, f.periodo.de, f.periodo.ate, f.alunoId, f.planoId, f.forma,
+    f.emissao.de, f.emissao.ate, f.pagamento.de, f.pagamento.ate, busca.trim()]);
 
 export const temVencimento = (f: FiltrosDeCobrancas) => f.proximos7Dias || temPeriodo(f.periodo);
 
@@ -126,6 +149,8 @@ export function chipsDasCobrancas(f: FiltrosDeCobrancas, hoje: string, nomes: No
     ...(f.alunoId ? [{ chave: 'aluno' as const, texto: `Aluno: ${nomes.aluno ?? 'escolhido'}` }] : []),
     ...(f.planoId ? [{ chave: 'plano' as const, texto: `Plano: ${nomes.plano?.(f.planoId) ?? 'escolhido'}` }] : []),
     ...(f.forma ? [{ chave: 'forma' as const, texto: `Forma: ${FORMAS_DO_FILTRO.find((o) => o.valor === f.forma)?.rotulo ?? f.forma}` }] : []),
+    ...(temPeriodo(f.emissao) ? [{ chave: 'emissao' as const, texto: `Emissão: ${textoDoPeriodo(f.emissao)}` }] : []),
+    ...(temPeriodo(f.pagamento) ? [{ chave: 'pagamento' as const, texto: `Pagamento: ${textoDoPeriodo(f.pagamento)}` }] : []),
   ];
 }
 
@@ -137,6 +162,8 @@ export function semOFiltroDeCobrancas(f: FiltrosDeCobrancas, chave: ChaveDoFiltr
     case 'aluno': return { ...f, alunoId: null };
     case 'plano': return { ...f, planoId: null };
     case 'forma': return { ...f, forma: null };
+    case 'emissao': return { ...f, emissao: SEM_PERIODO };
+    case 'pagamento': return { ...f, pagamento: SEM_PERIODO };
   }
 }
 

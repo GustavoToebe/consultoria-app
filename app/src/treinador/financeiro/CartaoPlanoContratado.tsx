@@ -290,7 +290,7 @@ function FolhaDeContratacao({ alunoId, contratacao, aoFechar, aoMudar }: {
               aoMudar={setPlanoId} rotuloDoValor="Escolher plano" />
           </>
         )}
-        <CampoMoeda rotulo={contratacao ? 'Valor (R$)' : 'Valor (R$), em branco usa o do plano'} texto={valor} aoMudar={setValor}
+        <CampoMoeda mascara rotulo={contratacao ? 'Valor' : 'Valor, em branco usa o do plano'} texto={valor} aoMudar={setValor}
           ajuda={plano ? `Valor do plano: ${centavosParaTela(plano.valorCentavos)}. Digite outro só se combinou diferente.` : undefined} />
         {motivoVisivel ? (
           <Campo rotulo="Motivo do valor diferente" valor={motivo} aoMudar={setMotivo} maxLength={LIMITES.motivoDoValor}

@@ -170,3 +170,27 @@ export function centavosDaTela(texto: string): number | null {
   const centavos = Number(inteiro) * 100 + Number(decimal.padEnd(2, '0') || '0');
   return Number.isSafeInteger(centavos) && centavos > 0 ? centavos : null;
 }
+
+/** Dígitos que a máscara de moeda aceita: 12 (R$ 9.999.999.999,99), o mesmo teto do `centavosDaTela`. */
+const DIGITOS_DA_MOEDA = 12;
+
+/**
+ * Máscara de moeda enquanto digita, como no caixa eletrônico: cada dígito entra pelos centavos (`1`, `5`, `0` →
+ * `R$ 1,50`) e apagar tira o último (`R$ 1,50` → `R$ 0,15`). Colar ou preencher de uma vez (o texto cresce dois
+ * caracteres ou mais, ou troca o campo inteiro por um texto sem o "R$") lê o valor como está (`150` → `R$ 150,00`,
+ * `12.50` → `R$ 12,50`), para não dividir por 100 sem querer. Sinal e letras são ignorados (nunca negativo); zero ou
+ * sem dígitos → "" (vazio, sem erro). Recebe o texto que o campo mostrava e o novo; o resultado é sempre vazio ou
+ * `R$ …`, que o `centavosDaTela` lê.
+ */
+export function mascaraDeMoeda(anterior: string, novo: string): string {
+  const digitos = (t: string) => t.replace(/\D/g, '');
+  const deUmaVez = novo.length - anterior.length >= 2 || (novo.trim().length >= 2 && !/^\s*R\$/i.test(novo));
+  const colado = deUmaVez ? centavosDaTela(novo) : null;
+  if (colado !== null) return centavosParaTela(colado);
+  let d = digitos(novo);
+  // Apagou só a pontuação ("R$ 1,5|0" → tirou a vírgula): no caixa eletrônico apagar sempre tira um dígito.
+  if (novo.length < anterior.length && d === digitos(anterior)) d = d.slice(0, -1);
+  d = d.replace(/^0+/, '');
+  if (d.length > DIGITOS_DA_MOEDA) return anterior;
+  return d ? centavosParaTela(Number(d)) : '';
+}
