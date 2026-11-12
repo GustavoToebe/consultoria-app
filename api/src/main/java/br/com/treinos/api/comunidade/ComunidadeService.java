@@ -111,7 +111,7 @@ public class ComunidadeService {
 
     public AulaResumo criarAula(CriarAulaRequest r) {
         ComunidadeAula a = new ComunidadeAula(r.titulo().trim(), r.descricao(), linkDaEntrada("videoUrl", r.videoUrl()),
-                linkDaEntrada("miniaturaUrl", r.miniaturaUrl()), r.categoria(), r.ordem() == null ? 0 : r.ordem(),
+                linkDaEntrada("miniaturaUrl", r.miniaturaUrl()), categoriaLimpa(r.categoria()), r.ordem() == null ? 0 : r.ordem(),
                 r.publicada() == null || r.publicada());
         aulas.saveAndFlush(a);
         return resumo(a, 0);
@@ -120,7 +120,7 @@ public class ComunidadeService {
     public AulaResumo alterarAula(UUID id, CriarAulaRequest r) {
         ComunidadeAula a = aulas.findById(id).orElseThrow(() -> new NaoEncontradoException("Aula não encontrada."));
         a.atualizar(r.titulo().trim(), r.descricao(), linkDaEntrada("videoUrl", r.videoUrl()),
-                linkDaEntrada("miniaturaUrl", r.miniaturaUrl()), r.categoria(),
+                linkDaEntrada("miniaturaUrl", r.miniaturaUrl()), categoriaLimpa(r.categoria()),
                 r.ordem() == null ? 0 : r.ordem(), r.publicada() == null || r.publicada());
         aulas.saveAndFlush(a);
         return resumo(a, aulaComentarios.countByAulaIdAndOcultoFalse(a.getId()));
@@ -491,5 +491,12 @@ public class ComunidadeService {
                 || doMural.size() == LIMITE_DA_EXPORTACAO || reacoes.size() == LIMITE_DA_EXPORTACAO;
         return new ComunidadeExportada(aluno.getApelido(), perfil, posts, deAulas, doMural, reacoes, fotosEnviadas, denunciasFeitas,
                 minhasConquistas, truncado);
+    }
+
+    /** Categoria é texto livre opcional: sem espaços nas pontas nem repetidos no meio; vazio vira nulo (nunca "" no banco). */
+    static String categoriaLimpa(String categoria) {
+        if (categoria == null) return null;
+        String limpa = categoria.strip().replaceAll("\\s+", " ");
+        return limpa.isEmpty() ? null : limpa;
     }
 }

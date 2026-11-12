@@ -59,6 +59,13 @@ class ComunidadeServiceTest {
     }
 
     @Test
+    void categoriaDeAulaSemEspacosNasPontasEVazioViraNulo() {
+        assertThat(ComunidadeService.categoriaLimpa(null)).isNull();
+        assertThat(ComunidadeService.categoriaLimpa("   ")).isNull();
+        assertThat(ComunidadeService.categoriaLimpa("  Mobilidade   de  ombro ")).isEqualTo("Mobilidade de ombro");
+    }
+
+    @Test
     void criarAulaComLinksHttps() {
         AulaResumo resumo = service.criarAula(aula("https://youtube.com/watch?v=123", null));
 
