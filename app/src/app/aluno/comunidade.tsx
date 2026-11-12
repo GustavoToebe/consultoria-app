@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { Award, Flag, Medal, MessageSquare, Plus, Video, WifiOff } from 'lucide-react-native';
+import { Award, Flag, Medal, Plus, WifiOff } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import {
   alternarReacaoDoAluno, baixarFotoDoMuralDoAluno, listarAulasDoAluno, listarMinhasConquistas, listarMuralDoAluno, obterConfiguracaoDoAluno,
@@ -9,6 +9,7 @@ import {
 } from '../../api/comunidade';
 import type { AlvoDosComentarios, PostDoMural } from '../../api/comunidadeTipos';
 import { AvisoDoPerfilNaComunidade } from '../../aluno/AvisoDoPerfil';
+import { ColecoesDeAuloes } from '../../aluno/ColecoesDeAuloes';
 import { BarraDoMural } from '../../comunidade/BarraDoMural';
 import { CartaoDoPost } from '../../comunidade/CartaoDoPost';
 import { FolhaComentarios } from '../../comunidade/FolhaComentarios';
@@ -24,7 +25,7 @@ import { dataParaTela } from '../../dominio/formatos';
 import { useAluno } from '../../offline/AlunoProvider';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, RAIO } from '../../tema/tokens';
+import { espaco, RAIO } from '../../tema/tokens';
 import { FolhaDeAcoes } from '../../treinador/FolhaDeAcoes';
 import { abrirLinkExterno } from '../../ui/abrirLinkExterno';
 import { Abas } from '../../ui/Abas';
@@ -37,7 +38,6 @@ import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Selo } from '../../ui/Selo';
-import { sobre } from '../../ui/sobre';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../ui/useCarregar';
@@ -192,26 +192,10 @@ export default function ComunidadeAluno() {
             <View style={estilos.blocos}>
               <EstadoDaFonte carregando={auloes.carregando} erro={auloes.erro} vazio={!auloes.dados?.length}
                 textoVazio="Nenhum aulão por enquanto." recarregar={auloes.recarregar} />
-              {auloes.dados?.map((a) => (
-                <Cartao key={a.id} titulo={a.titulo} acoes={a.categoria ? <Selo texto={a.categoria} tipo="neutro" /> : undefined}>
-                  {a.descricao ? <Texto>{a.descricao}</Texto> : null}
-                  {a.videoUrl ? (
-                    <LinhaDeAcoes>
-                      <Botao rotulo="Assistir ao aulão" tipo="secundario" Icone={Video} aoTocar={() => void abrir(a.videoUrl)} />
-                    </LinhaDeAcoes>
-                  ) : null}
-                  <View style={[estilos.linha, estilos.rodapePost, { borderTopColor: cores.divisor }]}>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`Ver ${a.totalComentarios} comentário(s) do aulão ${a.titulo}`}
-                      onPress={() => setComentariosDe({ tipo: 'aula', id: a.id })}
-                      style={(estado) => [estilos.interacao, sobre(estado) && { backgroundColor: cores.superficie3 }]}>
-                      <MessageSquare size={18} color={cores.texto} aria-hidden />
-                      <Texto variante="suave" cor={cores.texto} numerico>{a.totalComentarios} comentário(s)</Texto>
-                    </Pressable>
-                  </View>
-                </Cartao>
-              ))}
+              {auloes.dados?.length ? (
+                <ColecoesDeAuloes aulas={auloes.dados} aoAssistir={(url) => void abrir(url)}
+                  aoComentarios={(a) => setComentariosDe({ tipo: 'aula', id: a.id })} />
+              ) : null}
             </View>
           ) : null}
 
@@ -278,9 +262,6 @@ const estilos = StyleSheet.create({
   linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexWrap: 'wrap' },
   encolher: { flex: 1, minWidth: 0, gap: 2 },
   item: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2) },
-  rodapePost: { borderTopWidth: 1, paddingTop: espaco(1), gap: espaco(2) },
-  // Hover e pressionado pintam `superficie3` (`ui/sobre`); o respiro e o raio dão forma ao fundo.
-  interacao: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5), minHeight: ALVO_TOQUE, minWidth: ALVO_TOQUE, borderRadius: RAIO, paddingHorizontal: espaco(1), marginHorizontal: -espaco(1) },
   grade: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(2) },
   conquista: { flexGrow: 1, flexBasis: 150, alignItems: 'center', gap: espaco(1) },
   centro: { textAlign: 'center' },

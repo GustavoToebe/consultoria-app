@@ -1,21 +1,24 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { MessageSquare, Pin, PinOff, Plus, Settings, ShieldCheck, Trash2, UserX, Video } from 'lucide-react-native';
+import { Ellipsis, MessageSquare, Pencil, Pin, PinOff, Plus, Settings, ShieldCheck, Trash2, UserX, Video } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import {
-  alternarFixadoDoPost, baixarFotoDoMuralDaEquipe, criarAula, dispensarDenuncias, listarAulasDaEquipe, listarMuralDaEquipe,
+  alternarFixadoDoPost, baixarFotoDoMuralDaEquipe, dispensarDenuncias, excluirAula, listarAulasDaEquipe, listarMuralDaEquipe,
   removerApelidoDoAutor, removerPostDoMural,
 } from '../../api/comunidade';
-import type { AlvoDosComentarios, PostDoMural } from '../../api/comunidadeTipos';
+import type { AlvoDosComentarios, AulaDaComunidade, PostDoMural } from '../../api/comunidadeTipos';
 import { ErroApi } from '../../api/cliente';
 import { BarraDoMural } from '../../comunidade/BarraDoMural';
 import { CartaoDoPost } from '../../comunidade/CartaoDoPost';
 import { FolhaComentarios } from '../../comunidade/FolhaComentarios';
 import { FolhaNovaPublicacao } from '../../comunidade/FolhaNovaPublicacao';
-import { type FiltroDoMural, filtrosParaApi, type RascunhoDoPost, textoDoMuralVazio, TIPO_PADRAO_DO_POST } from '../../dominio/comunidade';
-import { erroDoLink } from '../../dominio/links';
+import {
+  categoriasDosAuloes, type FiltroDeCategoria, filtrarAuloesPorCategoria, filtroDeCategoriaValido, type FiltroDoMural, filtrosParaApi,
+  opcoesDoFiltroDeCategoria, type RascunhoDoPost, textoDoMuralVazio, TIPO_PADRAO_DO_POST,
+} from '../../dominio/comunidade';
 import { FolhaConfiguracoesDoMural } from '../../treinador/comunidade/FolhaConfiguracoesDoMural';
+import { FolhaDoAulao } from '../../treinador/comunidade/FolhaDoAulao';
 import { FolhaDeAcoes } from '../../treinador/FolhaDeAcoes';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
@@ -25,14 +28,14 @@ import { Abas } from '../../ui/Abas';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
-import { Campo } from '../../ui/Campo';
 import { Cartao } from '../../ui/Cartao';
-import { separarErros, textoDoErro } from '../../ui/erros';
+import { textoDoErro } from '../../ui/erros';
+import { Escolha } from '../../ui/Escolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
-import { Folha } from '../../ui/Folha';
+import { FaixaDeChips } from '../../ui/FaixaDeChips';
 import { Grade } from '../../ui/Grade';
-import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
+import { IconeBotao } from '../../ui/IconeBotao';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Selo } from '../../ui/Selo';
 import { sobre } from '../../ui/sobre';
@@ -79,16 +82,18 @@ export default function ComunidadeTreinador() {
 
   const auloes = useCarregar('treinador-auloes', () => listarAulasDaEquipe());
   const [folhaNovaAula, setFolhaNovaAula] = useState(false);
-  const [novoTitulo, setNovoTitulo] = useState('');
-  const [novaDescricao, setNovaDescricao] = useState('');
-  const [novaCategoria, setNovaCategoria] = useState('');
-  const [novoLink, setNovoLink] = useState('');
-  const [tentouSalvar, setTentouSalvar] = useState(false);
-  const [salvandoAula, setSalvandoAula] = useState(false);
-  // Erro que a API apontou no campo (422 `COMUNIDADE_INVALIDA`); some quando o link muda.
-  const [errosApi, setErrosApi] = useState<Record<string, string>>({});
-  // Erro sem campo (rede, 503): no rodapé da folha, porque o aviso de rodapé da tela fica atrás do véu do Modal.
-  const [erroDaAula, setErroDaAula] = useState<string | null>(null);
+  const [editando, setEditando] = useState<AulaDaComunidade | null>(null);
+  const [menuDaAula, setMenuDaAula] = useState<AulaDaComunidade | null>(null);
+  const [excluirDe, setExcluirDe] = useState<AulaDaComunidade | null>(null);
+  const [excluindo, setExcluindo] = useState(false);
+  // Falha do DELETE: dentro do painel, porque o aviso de rodapé da tela fica atrás do véu do Modal.
+  const [erroAoExcluir, setErroAoExcluir] = useState<string | null>(null);
+  const [filtroPedido, setFiltroPedido] = useState<FiltroDeCategoria>(null);
+  const todasAsAulas = auloes.dados ?? [];
+  const categorias = categoriasDosAuloes(todasAsAulas);
+  // A categoria que sumiu (a última aula dela foi editada ou excluída) volta para "Todas" sem estado a corrigir.
+  const filtroDeCategoria = filtroDeCategoriaValido(filtroPedido, todasAsAulas);
+  const aulasVisiveis = filtrarAuloesPorCategoria(todasAsAulas, filtroDeCategoria);
 
   const [filtro, setFiltro] = useState<FiltroDoMural>(null);
   const [busca, setBusca] = useState('');
@@ -128,43 +133,28 @@ export default function ComunidadeTreinador() {
     }
   };
 
-  const erros = {
-    titulo: novoTitulo.trim() ? null : 'Escreva o título.',
-    link: novoLink.trim() ? erroDoLink(novoLink) : 'Cole o link do vídeo.',
+  // 404 ao salvar ou excluir: outra pessoa já excluiu; fecha, avisa e a lista vem de novo sem ela.
+  const aulaSumiu = () => {
+    setEditando(null);
+    setExcluirDe(null);
+    avisar('Este aulão já tinha sido excluído.', 'perigo');
+    auloes.recarregar();
   };
 
-  const fecharFolha = () => {
-    setFolhaNovaAula(false);
-    setTentouSalvar(false);
-    setErrosApi({});
-    setErroDaAula(null);
-  };
-
-  const salvarAula = async () => {
-    setTentouSalvar(true);
-    if (erros.titulo || erros.link) return;
-    setSalvandoAula(true);
-    setErroDaAula(null);
+  const confirmarExcluirAula = async () => {
+    if (!excluirDe) return;
+    setExcluindo(true);
+    setErroAoExcluir(null);
     try {
-      await criarAula({
-        titulo: novoTitulo.trim(),
-        descricao: novaDescricao.trim() || undefined,
-        videoUrl: novoLink.trim(),
-        categoria: novaCategoria.trim() || undefined,
-      });
-      avisar('Aulão publicado para o time.', 'sucesso');
-      fecharFolha();
-      setNovoTitulo('');
-      setNovaDescricao('');
-      setNovaCategoria('');
-      setNovoLink('');
+      await excluirAula(excluirDe.id);
+      setExcluirDe(null);
+      avisar('Aulão excluído.', 'sucesso');
       auloes.recarregar();
     } catch (e) {
-      const { campos, geral } = separarErros(e, ['videoUrl']);
-      setErrosApi(campos);
-      setErroDaAula(geral);
+      if (e instanceof ErroApi && e.status === 404) aulaSumiu();
+      else setErroAoExcluir(textoDoErro(e));
     } finally {
-      setSalvandoAula(false);
+      setExcluindo(false);
     }
   };
 
@@ -232,18 +222,36 @@ export default function ComunidadeTreinador() {
           <EstadoDaFonte carregando={auloes.carregando} erro={auloes.erro} vazio={!auloes.dados?.length}
             textoVazio="Nenhum aulão publicado." recarregar={auloes.recarregar} />
 
+          {/* Filtro por categoria (P2): só quando alguma aula tem uma; seleção neutra e a contagem em cada chip. */}
+          {!auloes.erro && categorias.length ? (
+            <FaixaDeChips quebrar accessibilityLabel="Categoria do aulão">
+              <Escolha descricao="Categoria do aulão" chips valor={filtroDeCategoria} aoMudar={setFiltroPedido}
+                opcoes={opcoesDoFiltroDeCategoria(todasAsAulas)} />
+            </FaixaDeChips>
+          ) : null}
+
           {/* Título primeiro; categoria e estado discretos (neutros, juntos); descrição de apoio; vídeo e comentários no rodapé.
               Grade pela largura medida (1 coluna no celular, 2 ou 3 no PC); um aulão só ocupa uma célula, à esquerda. */}
-          {auloes.dados?.length ? (
+          {auloes.erro ? null : aulasVisiveis.length ? (
             <Grade gap={espaco(3)}>
-              {auloes.dados.map((item) => (
+              {aulasVisiveis.map((item) => (
                 <Cartao
                   key={item.id}
                   titulo={item.titulo}
-                  acoes={item.categoria || !item.publicada ? (
-                    <View style={estilos.linha}>
-                      {item.categoria ? <Selo texto={item.categoria} tipo="neutro" /> : null}
-                      {!item.publicada ? <Selo texto="Não publicado" tipo="neutro" /> : null}
+                  acoes={item.categoria || !item.publicada || podePublicar ? (
+                    <View style={estilos.acoesDoAulao}>
+                      {/* O Selo se alinha ao início por conta própria; a caixa dele centraliza com o ⋯ de 44 px e encolhe
+                          (categoria de até 60) sem empurrar o ⋯ para fora do cartão em 390 px. */}
+                      {item.categoria || !item.publicada ? (
+                        <View style={[estilos.linha, estilos.selosDoAulao]}>
+                          {item.categoria ? <Selo texto={item.categoria} tipo="neutro" /> : null}
+                          {!item.publicada ? <Selo texto="Não publicado" tipo="neutro" /> : null}
+                        </View>
+                      ) : null}
+                      {/* Editar e excluir no ⋯, como a moderação do post: o rodapé do cartão fica inteiro em 390 px. */}
+                      {podePublicar ? (
+                        <IconeBotao Icone={Ellipsis} rotulo={`Ações do aulão ${item.titulo}`} aoTocar={() => setMenuDaAula(item)} />
+                      ) : null}
                     </View>
                   ) : undefined}>
                   {item.descricao ? <Texto>{item.descricao}</Texto> : null}
@@ -333,26 +341,34 @@ export default function ComunidadeTreinador() {
       <FolhaComentarios alvo={comentariosDe} modo={{ tipo: 'equipe', podeModerar: podePublicar }}
         aoFechar={() => setComentariosDe(null)} aoAlterar={comentariosDe?.tipo === 'aula' ? auloes.recarregar : mural.recarregar} />
 
-      <Folha
-        visivel={folhaNovaAula}
-        titulo="Novo aulão"
-        aoFechar={fecharFolha}
-        statusDoRodape={erroDaAula ? <MensagemErro texto={erroDaAula} /> : undefined}
-        rodape={
-          <LinhaDeAcoes>
-            <Botao rotulo="Cancelar" tipo="secundario" aoTocar={fecharFolha} />
-            <Botao rotulo="Publicar para o time" tipo="primario" carregando={salvandoAula} aoTocar={() => void salvarAula()} />
-          </LinhaDeAcoes>
-        }>
-        <Campo rotulo="Título" placeholder="Ex.: Aulão sobre progressão de carga" valor={novoTitulo}
-          aoMudar={setNovoTitulo} erro={tentouSalvar ? erros.titulo ?? undefined : undefined} />
-        <Campo rotulo="Link do vídeo" placeholder="https://" valor={novoLink}
-          aoMudar={(v) => { setNovoLink(v); setErrosApi({}); }}
-          erro={(tentouSalvar && erros.link) || errosApi.videoUrl || undefined} />
-        <Campo rotulo="Categoria (opcional)" placeholder="Ex.: Técnica" valor={novaCategoria} aoMudar={setNovaCategoria} />
-        <Campo rotulo="Descrição (opcional)" placeholder="O que será abordado e o que o aluno precisa saber" valor={novaDescricao}
-          aoMudar={setNovaDescricao} linhas={4} />
-      </Folha>
+      {/* Criar fica montada (o rascunho sobrevive ao Cancelar); editar monta por aula, já preenchida. */}
+      <FolhaDoAulao visivel={folhaNovaAula && podePublicar} categorias={categorias} aoFechar={() => setFolhaNovaAula(false)}
+        aoSalvar={() => { setFolhaNovaAula(false); avisar('Aulão publicado para o time.', 'sucesso'); auloes.recarregar(); }} />
+      {editando ? (
+        <FolhaDoAulao key={editando.id} visivel={podePublicar} original={editando} categorias={categorias}
+          aoFechar={() => setEditando(null)} aoSumir={aulaSumiu}
+          aoSalvar={() => { setEditando(null); avisar('Aulão atualizado.', 'sucesso'); auloes.recarregar(); }} />
+      ) : null}
+
+      {menuDaAula ? (
+        <FolhaDeAcoes titulo="Ações do aulão" aoFechar={() => setMenuDaAula(null)} acoes={[
+          { rotulo: 'Editar aulão', detalhe: 'Título, link, categoria e descrição.', Icone: Pencil, aoTocar: () => setEditando(menuDaAula) },
+          { rotulo: 'Excluir aulão', detalhe: 'Sai para todos, com os comentários.', Icone: Trash2, perigo: true,
+            aoTocar: () => { setErroAoExcluir(null); setExcluirDe(menuDaAula); } },
+        ]} />
+      ) : null}
+
+      <PainelConfirmacao
+        visivel={!!excluirDe}
+        titulo="Excluir o aulão?"
+        mensagem={excluirDe ? `Excluir o aulão “${excluirDe.titulo}”? Os comentários dele também somem. Essa ação não pode ser desfeita.` : undefined}
+        rotuloConfirmar="Excluir aulão"
+        perigo
+        carregando={excluindo}
+        aoConfirmar={() => void confirmarExcluirAula()}
+        aoCancelar={() => { setExcluirDe(null); setErroAoExcluir(null); }}>
+        {erroAoExcluir ? <MensagemErro texto={erroAoExcluir} /> : null}
+      </PainelConfirmacao>
     </Tela>
   );
 }
@@ -362,6 +378,8 @@ const estilos = StyleSheet.create({
   blocos: { gap: espaco(3) },
   colunaDasPublicacoes: { width: '100%', maxWidth: LARGURA_DAS_PUBLICACOES, gap: espaco(3) },
   linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexWrap: 'wrap' },
+  acoesDoAulao: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexShrink: 1, maxWidth: '100%' },
+  selosDoAulao: { flexShrink: 1, minWidth: 0 },
   rodapePost: { borderTopWidth: 1, paddingTop: espaco(1), gap: espaco(2) },
   // Comentários à esquerda (como no mural), "Abrir vídeo" à direita; no celular estreito o botão desce para a linha de baixo.
   rodapeDoAulao: { justifyContent: 'space-between' },

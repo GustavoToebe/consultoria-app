@@ -114,6 +114,14 @@ export const listarAulasDaEquipe = (busca?: string) => requisicao<AulaDaComunida
 
 export const criarAula = (aula: NovaAula) => requisicao<AulaDaComunidade>('/comunidade/aulas', { metodo: 'POST', corpo: aula });
 
+/** Substitui a aula inteira (`COMUNIDADE_MODERAR`): mande os sete campos (`corpoDaAula` com a original). 404 = já saiu. */
+export const alterarAula = (id: string, aula: NovaAula) =>
+  requisicao<AulaDaComunidade>(`/comunidade/aulas/${encodeURIComponent(id)}`, { metodo: 'PUT', corpo: aula });
+
+/** 204; os comentários da aula saem junto (FK `ON DELETE CASCADE`). 404 = já saiu. */
+export const excluirAula = (id: string) =>
+  requisicao<void>(`/comunidade/aulas/${encodeURIComponent(id)}`, { metodo: 'DELETE' });
+
 export const listarMuralDaEquipe = (filtros?: FiltrosDoMural) =>
   requisicao<PaginaDoMural>(`/comunidade/mural${PAGINA_DO_MURAL}${filtrosDoMural(filtros, true)}`);
 

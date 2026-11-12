@@ -1,5 +1,9 @@
-import type { ConfiguracaoDoAluno, CriarPostRequest, FiltrosDoMural, MotivoDeDenuncia, PostDoMural, TipoDePost } from '../api/comunidadeTipos';
-import { linkExternoSeguro, MENSAGEM_LINK } from './links';
+import type {
+  AulaDaComunidade, ConfiguracaoDoAluno, CriarPostRequest, FiltrosDoMural, MotivoDeDenuncia, NovaAula, PostDoMural, TipoDePost,
+} from '../api/comunidadeTipos';
+import { paraBusca } from './filtrosComuns';
+import { normalizarGrupo } from './gruposDaLista';
+import { erroDoLink, linkExternoSeguro, MENSAGEM_LINK } from './links';
 
 /** A única reação do app é a curtida; o resto das reações que a API aceita não aparece na tela. */
 export const EMOJI_DA_CURTIDA = '❤️';
@@ -263,3 +267,94 @@ export const tipoPedido = (valor: string | undefined, papel: PapelNoMural): Tipo
 
 /** Fotos do mural: os mesmos tetos do servidor (`LADO_MAXIMO` 1600 px, `BYTES_MAXIMO` 300 KB); o reencode tira EXIF. */
 export const LIMITES_FOTO_DO_MURAL = { lados: [1600, 1200, 900, 640], bytesMaximo: 300_000 } as const;
+
+// ---- Aulões: formulário, categorias (texto livre, decisão 8 de 12/11) e coleções ----
+
+/** Tetos do `CriarAulaRequest` (o campo corta no limite; a API confere de novo). */
+export const AULA_TITULO_MAXIMO = 120;
+export const AULA_DESCRICAO_MAXIMA = 4000;
+export const AULA_CATEGORIA_MAXIMA = 60;
+export const SEM_CATEGORIA_DO_AULAO = 'Sem categoria';
+
+export interface RascunhoDaAula { titulo: string; link: string; categoria: string; descricao: string }
+
+export const RASCUNHO_DA_AULA_VAZIO: RascunhoDaAula = { titulo: '', link: '', categoria: '', descricao: '' };
+
+/** O formulário de edição começa com o que a aula tem. */
+export const rascunhoDaAula = (a: AulaDaComunidade): RascunhoDaAula =>
+  ({ titulo: a.titulo, link: a.videoUrl ?? '', categoria: a.categoria ?? '', descricao: a.descricao ?? '' });
+
+/** Erros por campo (`null` = pode enviar), com as mensagens que a folha já mostrava. */
+export function errosDaAula(r: RascunhoDaAula): { titulo: string | null; link: string | null } {
+  return {
+    titulo: r.titulo.trim() ? null : 'Escreva o título.',
+    link: r.link.trim() ? erroDoLink(r.link) : 'Cole o link do vídeo.',
+  };
+}
+
+/**
+ * Corpo do envio. Sem `original` (criar) vai só o que a pessoa preencheu, e a API publica com ordem 0. Com `original`
+ * (editar) vão os sete campos: o `PUT` substitui tudo e despublicaria (`publicada` ausente = `true`), voltaria a ordem a 0
+ * e apagaria a miniatura se faltassem. Vazio vira nulo, para limpar a descrição ou a categoria.
+ */
+export function corpoDaAula(r: RascunhoDaAula, original?: AulaDaComunidade): NovaAula {
+  const titulo = r.titulo.trim();
+  const videoUrl = r.link.trim();
+  const descricao = r.descricao.trim() || null;
+  const categoria = normalizarGrupo(r.categoria) || null;
+  if (!original) return { titulo, descricao: descricao ?? undefined, videoUrl, categoria: categoria ?? undefined };
+  return { titulo, descricao, videoUrl, miniaturaUrl: original.miniaturaUrl, categoria, ordem: original.ordem, publicada: original.publicada };
+}
+
+/** Categoria da aula como a API grava (espaços nas pontas e repetidos saem); vazia = `null`. */
+const categoriaDa = (a: Pick<AulaDaComunidade, 'categoria'>): string | null => normalizarGrupo(a.categoria ?? '') || null;
+
+/** Categorias usadas, sem repetir e em ordem alfabética (pt-BR). Grafias diferentes são categorias diferentes, como na API. */
+export function categoriasDosAuloes(aulas: readonly Pick<AulaDaComunidade, 'categoria'>[]): string[] {
+  const nomes = new Set(aulas.map(categoriaDa).filter((c): c is string => c !== null));
+  return [...nomes].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+}
+
+/** Filtro da lista do treinador: `null` = todas, `''` = sem categoria, texto = a categoria. */
+export type FiltroDeCategoria = string | null;
+
+/** Chips do filtro com a contagem; "Sem categoria" só se alguma aula não tem. */
+export function opcoesDoFiltroDeCategoria(aulas: readonly AulaDaComunidade[]): { valor: FiltroDeCategoria; rotulo: string; contagem: number }[] {
+  const sem = aulas.filter((a) => categoriaDa(a) === null).length;
+  return [
+    { valor: null, rotulo: 'Todas', contagem: aulas.length },
+    ...categoriasDosAuloes(aulas).map((c) => ({ valor: c, rotulo: c, contagem: aulas.filter((a) => categoriaDa(a) === c).length })),
+    ...(sem ? [{ valor: '', rotulo: SEM_CATEGORIA_DO_AULAO, contagem: sem }] : []),
+  ];
+}
+
+/** O filtro escolhido, ou "Todas" se a categoria sumiu (a última aula dela foi editada ou excluída). */
+export const filtroDeCategoriaValido = (filtro: FiltroDeCategoria, aulas: readonly AulaDaComunidade[]): FiltroDeCategoria =>
+  opcoesDoFiltroDeCategoria(aulas).some((o) => o.valor === filtro) ? filtro : null;
+
+export function filtrarAuloesPorCategoria<T extends Pick<AulaDaComunidade, 'categoria'>>(aulas: readonly T[], filtro: FiltroDeCategoria): T[] {
+  if (filtro === null) return [...aulas];
+  return aulas.filter((a) => (categoriaDa(a) ?? '') === filtro);
+}
+
+export interface ColecaoDeAuloes<T> { categoria: string | null; rotulo: string; itens: T[] }
+
+/**
+ * Coleções do aluno, uma por categoria: ordem alfabética (pt-BR), "Sem categoria" por último; dentro de cada uma, a ordem
+ * da API (por `ordem` da aula). Categoria sem aula não aparece.
+ */
+export function agruparAuloesPorCategoria<T extends Pick<AulaDaComunidade, 'categoria'>>(aulas: readonly T[]): ColecaoDeAuloes<T>[] {
+  const colecoes: ColecaoDeAuloes<T>[] = categoriasDosAuloes(aulas)
+    .map((c) => ({ categoria: c, rotulo: c, itens: aulas.filter((a) => categoriaDa(a) === c) }));
+  const sem = aulas.filter((a) => categoriaDa(a) === null);
+  return sem.length ? [...colecoes, { categoria: null, rotulo: SEM_CATEGORIA_DO_AULAO, itens: sem }] : colecoes;
+}
+
+/** Busca local no título e na descrição, sem acento nem caixa (o mesmo que a API procura); vazia = todas. */
+export function buscarAuloes<T extends Pick<AulaDaComunidade, 'titulo' | 'descricao'>>(aulas: readonly T[], busca: string): T[] {
+  const termo = paraBusca(busca);
+  return termo ? aulas.filter((a) => paraBusca(`${a.titulo} ${a.descricao ?? ''}`).includes(termo)) : [...aulas];
+}
+
+/** "1 aulão" / "3 aulões", na faixa da coleção. */
+export const resumoDosAuloes = (n: number): string => (n === 1 ? '1 aulão' : `${n} aulões`);

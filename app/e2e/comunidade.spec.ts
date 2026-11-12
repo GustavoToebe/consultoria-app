@@ -856,7 +856,9 @@ for (const largura of [390, 1280]) {
       const api = await abrirTreinador(page, cheia);
       await page.goto('/treinador/comunidade');
       await expect(page.getByRole('heading', { level: 1, name: 'Comunidade' })).toBeVisible();
-      await expect(page.getByText('Técnica', { exact: true })).toBeVisible();
+      // A categoria aparece no chip do filtro (com a contagem) e no selo neutro do cartão.
+      await expect(page.getByRole('radio', { name: 'Técnica, 1' })).toBeVisible();
+      await expect(page.getByText('Técnica', { exact: true })).toHaveCount(2);
       await expect(page.getByRole('button', { name: 'Abrir vídeo: Aulão de técnica' })).toBeVisible();
       await expect(page.getByRole('tab', { name: 'Ranking' })).toHaveCount(0);
       // Uma ação principal por vez, a da aba ativa, no cabeçalho (guia pág. 35).
@@ -1000,6 +1002,8 @@ for (const largura of [390, 1280]) {
       await page.goto('/treinador/comunidade');
       await expect(page.getByText('Aulão de técnica')).toBeVisible();
       await expect(page.getByRole('button', { name: 'Novo aulão' })).toHaveCount(0);
+      // Editar e excluir moram no ⋯ do aulão, que só aparece com COMUNIDADE_MODERAR.
+      await expect(page.getByRole('button', { name: /^Ações do aulão/ })).toHaveCount(0);
       await page.getByRole('tab', { name: 'Mural' }).click();
       await expect(page.getByText('Treino feito.')).toBeVisible();
       await expect(page.getByRole('button', { name: 'Nova publicação' })).toHaveCount(0);
@@ -1221,7 +1225,11 @@ for (const largura of [390, 1280]) {
       expect(api.pedidos.some((p) => foiPost(p, '/comunidade/aulas'))).toBe(false);
 
       await folha.getByRole('textbox', { name: 'Link do vídeo' }).fill('https://exemplo.test/video');
-      await folha.getByRole('textbox', { name: /^Categoria/ }).fill('Técnica');
+      // Categoria: texto livre pela busca da escolha ("Usar “…”"), até 60.
+      await folha.getByRole('button', { name: /^Categoria \(opcional\): Sem categoria/ }).click();
+      await page.getByLabel('Buscar ou digitar uma categoria').fill('Técnica');
+      await page.getByRole('option', { name: 'Usar “Técnica”, Categoria nova' }).click();
+      await expect(folha.getByRole('button', { name: /^Categoria \(opcional\): Técnica/ })).toBeVisible();
       await folha.getByRole('textbox', { name: /^Descrição/ }).fill('Pauta de teste.');
       await folha.getByRole('button', { name: 'Publicar para o time' }).click();
       await expect.poll(() => api.pedidos.find((p) => foiPost(p, '/comunidade/aulas'))?.corpo)
@@ -1276,6 +1284,280 @@ for (const largura of [390, 1280]) {
     }
   });
 }
+
+/** Aulões de várias categorias, na ordem da API (por `ordem`); o terceiro não tem categoria. */
+const AULAS_VARIADAS: AulaDaComunidade[] = [
+  { ...AULA, id: 'a1', titulo: 'Aulão de técnica', categoria: 'Técnica', ordem: 0 },
+  { ...AULA, id: 'a2', titulo: 'Aulão de proteína', descricao: 'Proteína no café da manhã.', categoria: 'Alimentação', ordem: 1 },
+  { ...AULA, id: 'a3', titulo: 'Aulão de boas-vindas', descricao: 'Como o time funciona.', categoria: null, ordem: 2 },
+  { ...AULA, id: 'a4', titulo: 'Aulão de execução', descricao: 'Amplitude e cadência.', categoria: 'Técnica', ordem: 3 },
+];
+
+/** Títulos (h2) dos aulões na ordem da tela. */
+const titulosNaTela = (page: Page) => page.getByRole('heading', { level: 2, name: /^Aulão de/ }).allInnerTexts();
+
+for (const largura of [390, 1280]) {
+  test.describe(`aulões: editar e excluir em ${largura} px`, () => {
+    test.use({ viewport: { width: largura, height: 900 } });
+    const abrir = async (page: Page, respostas: RespostasApi) => {
+      await tema(page, TREINADOR.id, 'CLARO');
+      return simularApi(page, { ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'TREINO_LER', 'COMUNIDADE_MODERAR'] })), ...cheia, ...respostas });
+    };
+
+    test('editar abre a folha preenchida e o PUT reenvia os sete campos; o que gravou continua depois de recarregar', async ({ page }) => {
+      // Aula despublicada, na posição 3 e com miniatura: o PUT substitui tudo, e sem esses campos ela voltaria publicada e à ordem 0.
+      const estado: { aula: AulaDaComunidade } = { aula: { ...AULA, publicada: false, ordem: 3, miniaturaUrl: 'https://exemplo.test/miniatura.jpg' } };
+      const api = await abrir(page, {
+        'GET /comunidade/aulas': (_p, route) => json(route, [estado.aula]),
+        'PUT /comunidade/aulas/{id}': (p, route) => {
+          estado.aula = { ...estado.aula, ...(p.corpo as Partial<AulaDaComunidade>) };
+          return json(route, estado.aula);
+        },
+      });
+      await page.goto('/treinador/comunidade');
+      await page.getByRole('button', { name: 'Ações do aulão Aulão de técnica' }).click();
+      await page.getByRole('dialog', { name: 'Ações do aulão' }).getByRole('button', { name: /^Editar aulão/ }).click();
+      const folha = page.getByRole('dialog', { name: 'Editar aulão' });
+      await expect(folha.getByRole('textbox', { name: 'Título' })).toHaveValue('Aulão de técnica');
+      await expect(folha.getByRole('textbox', { name: 'Link do vídeo' })).toHaveValue('https://exemplo.test/video');
+      await expect(folha.getByRole('textbox', { name: /^Descrição/ })).toHaveValue('Pauta do aulão de teste.');
+      await expect(folha.getByRole('button', { name: /^Categoria \(opcional\): Técnica/ })).toBeVisible();
+      await expect(folha.getByRole('button', { name: 'Publicar para o time' })).toHaveCount(0);
+      await capturar(page, `treinador-editar-aulao-${largura}`);
+
+      // Link inválido não sai do aparelho.
+      await folha.getByRole('textbox', { name: 'Link do vídeo' }).fill('http://exemplo.test');
+      await folha.getByRole('button', { name: 'Salvar alterações' }).click();
+      await expect(folha.getByText('Use um link https completo.')).toBeVisible();
+      expect(api.pedidos.some((p) => p.metodo === 'PUT')).toBe(false);
+
+      await folha.getByRole('textbox', { name: 'Link do vídeo' }).fill('https://exemplo.test/video-novo');
+      await folha.getByRole('textbox', { name: 'Título' }).fill('Aulão de técnica avançada');
+      await folha.getByRole('button', { name: /^Categoria \(opcional\): Técnica/ }).click();
+      await page.getByLabel('Buscar ou digitar uma categoria').fill('Mobilidade');
+      await page.getByRole('option', { name: 'Usar “Mobilidade”, Categoria nova' }).click();
+      await folha.getByRole('textbox', { name: /^Descrição/ }).fill('');
+      await folha.getByRole('button', { name: 'Salvar alterações' }).click();
+      await expect.poll(() => api.pedidos.find((p) => p.metodo === 'PUT')?.corpo).toEqual({
+        titulo: 'Aulão de técnica avançada', descricao: null, videoUrl: 'https://exemplo.test/video-novo',
+        miniaturaUrl: 'https://exemplo.test/miniatura.jpg', categoria: 'Mobilidade', ordem: 3, publicada: false,
+      });
+      expect(api.pedidos.find((p) => p.metodo === 'PUT')?.caminho).toBe('/comunidade/aulas/a1');
+      await expect(folha).toHaveCount(0);
+      await expect(page.getByText('Aulão atualizado.')).toBeVisible();
+      await expect(page.getByRole('heading', { level: 2, name: 'Aulão de técnica avançada' })).toBeVisible();
+
+      await page.reload();
+      await expect(page.getByRole('heading', { level: 2, name: 'Aulão de técnica avançada' })).toBeVisible();
+      await expect(page.getByText('Não publicado', { exact: true })).toBeVisible();
+      await expect(page.getByRole('radio', { name: 'Mobilidade, 1' })).toBeVisible();
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('editar uma aula que já saiu (404) fecha a folha, avisa e recarrega', async ({ page }) => {
+      const estado = { aulas: [AULA] };
+      await abrir(page, {
+        'GET /comunidade/aulas': (_p, route) => json(route, estado.aulas),
+        'PUT /comunidade/aulas/{id}': (_p, route) => { estado.aulas = []; const e = erroApi(404, 'Aula não encontrada.'); return json(route, e.corpo, e.status); },
+      });
+      await page.goto('/treinador/comunidade');
+      await page.getByRole('button', { name: 'Ações do aulão Aulão de técnica' }).click();
+      await page.getByRole('dialog', { name: 'Ações do aulão' }).getByRole('button', { name: /^Editar aulão/ }).click();
+      await page.getByRole('dialog', { name: 'Editar aulão' }).getByRole('button', { name: 'Salvar alterações' }).click();
+      await expect(page.getByRole('dialog', { name: 'Editar aulão' })).toHaveCount(0);
+      await expect(page.getByText('Este aulão já tinha sido excluído.')).toBeVisible();
+      await expect(page.getByText('Nenhum aulão publicado.')).toBeVisible();
+    });
+
+    test('excluir pede confirmação com o aviso dos comentários; Cancelar não apaga; a falha fica no painel; confirmar chama o DELETE', async ({ page }) => {
+      const estado = { aulas: [...AULAS_VARIADAS], falhar: true };
+      const api = await abrir(page, {
+        'GET /comunidade/aulas': (_p, route) => json(route, estado.aulas),
+        'DELETE /comunidade/aulas/{id}': (p, route) => {
+          if (estado.falhar) { estado.falhar = false; const e = erroApi(503, 'Comunidade indisponível agora.'); return json(route, e.corpo, e.status); }
+          estado.aulas = estado.aulas.filter((a) => `/comunidade/aulas/${a.id}` !== p.caminho);
+          return route.fulfill({ status: 204 });
+        },
+      });
+      await page.goto('/treinador/comunidade');
+      const menu = page.getByRole('dialog', { name: 'Ações do aulão' });
+      const painel = page.getByRole('alertdialog', { name: 'Excluir o aulão?' });
+      await page.getByRole('button', { name: 'Ações do aulão Aulão de proteína' }).click();
+      await menu.getByRole('button', { name: /^Excluir aulão/ }).click();
+      await expect(painel.getByText('Excluir o aulão “Aulão de proteína”? Os comentários dele também somem. Essa ação não pode ser desfeita.')).toBeVisible();
+      await capturar(page, `treinador-excluir-aulao-${largura}`);
+      await painel.getByRole('button', { name: 'Cancelar' }).click();
+      expect(api.pedidos.some((p) => p.metodo === 'DELETE')).toBe(false);
+
+      await page.getByRole('button', { name: 'Ações do aulão Aulão de proteína' }).click();
+      await menu.getByRole('button', { name: /^Excluir aulão/ }).click();
+      await painel.getByRole('button', { name: 'Excluir aulão' }).click();
+      await expect(painel.getByText('Comunidade indisponível agora.')).toBeVisible();
+      expect(estado.aulas).toHaveLength(4);
+      await capturar(page, `treinador-excluir-aulao-falha-${largura}`);
+
+      await painel.getByRole('button', { name: 'Excluir aulão' }).click();
+      await expect(painel).toHaveCount(0);
+      await expect(page.getByText('Aulão excluído.')).toBeVisible();
+      await expect(page.getByRole('heading', { level: 2, name: 'Aulão de proteína' })).toHaveCount(0);
+      expect(api.pedidos.filter((p) => p.metodo === 'DELETE').map((p) => p.caminho)).toEqual(['/comunidade/aulas/a2', '/comunidade/aulas/a2']);
+      // A categoria que ficou sem aula sai do filtro.
+      await expect(page.getByRole('radio', { name: /^Alimentação/ })).toHaveCount(0);
+      expect(api.errosDaPagina).toEqual([]);
+    });
+  });
+}
+
+for (const [largura, altura] of [[390, 900], [1280, 900], [1440, 900], [1920, 1080]] as const) {
+  test.describe(`aulões por categoria em ${largura} px`, () => {
+    test.use({ viewport: { width: largura, height: altura } });
+
+    test('treinador: chips Todas, cada categoria e Sem categoria filtram a grade; vazio do filtro limpa', async ({ page }) => {
+      await tema(page, TREINADOR.id, 'CLARO');
+      const estado = { aulas: [...AULAS_VARIADAS] };
+      await simularApi(page, {
+        ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'TREINO_LER', 'COMUNIDADE_MODERAR'] })), ...cheia,
+        'GET /comunidade/aulas': (_p, route) => json(route, estado.aulas),
+      });
+      await page.goto('/treinador/comunidade');
+      const chips = page.getByRole('radiogroup', { name: 'Categoria do aulão' }).getByRole('radio');
+      // Ordem alfabética pt-BR e "Sem categoria" por último, com a contagem.
+      await expect(chips).toHaveText([/^Todas\s*4$/, /^Alimentação\s*1$/, /^Técnica\s*2$/, /^Sem categoria\s*1$/]);
+      await expect(page.getByRole('radio', { name: 'Todas, 4' })).toBeChecked();
+      await page.getByRole('radio', { name: 'Técnica, 2' }).click();
+      await expect.poll(() => titulosNaTela(page)).toEqual(['Aulão de técnica', 'Aulão de execução']);
+      await capturar(page, `treinador-filtro-categoria-${largura}`);
+      await page.getByRole('radio', { name: 'Sem categoria, 1' }).click();
+      await expect.poll(() => titulosNaTela(page)).toEqual(['Aulão de boas-vindas']);
+      await page.getByRole('radio', { name: 'Todas, 4' }).click();
+      await expect.poll(() => titulosNaTela(page)).toHaveLength(4);
+      expect(await semRolagemHorizontal(page)).toBe(true);
+    });
+
+    test('aluno: coleções por categoria (alfabética, Sem categoria por último, ordem da API dentro), recolher e buscar em todas', async ({ page }) => {
+      await tema(page, ALUNO.id, 'CLARO');
+      const api = await simularApi(page, { ...(await sessaoDeAluno(page)), ...cheia, 'GET /aluno/comunidade/aulas': { corpo: AULAS_VARIADAS } });
+      await page.goto('/aluno/comunidade?aba=auloes');
+      const cabecalhos = page.getByRole('button', { name: /, (aberto|recolhido)$/ });
+      await expect(cabecalhos).toHaveText([/^Alimentação\s*1 aulão/, /^Técnica\s*2 aulões/, /^Sem categoria\s*1 aulão/]);
+      await expect.poll(() => titulosNaTela(page)).toEqual(['Aulão de proteína', 'Aulão de técnica', 'Aulão de execução', 'Aulão de boas-vindas']);
+      // Sem o selo da categoria no item: a coleção já diz.
+      await expect(page.getByText('Técnica', { exact: true })).toHaveCount(1);
+      await expect(page.getByRole('button', { name: 'Assistir ao aulão' })).toHaveCount(4);
+      await capturar(page, `aluno-colecoes-${largura}`);
+
+      await page.getByRole('button', { name: 'Técnica, aberto' }).click();
+      await expect(page.getByRole('button', { name: 'Técnica, recolhido' })).toBeVisible();
+      await expect.poll(() => titulosNaTela(page)).toEqual(['Aulão de proteína', 'Aulão de boas-vindas']);
+      await capturar(page, `aluno-colecoes-recolhida-${largura}`);
+
+      // A busca procura em todas as coleções (título e descrição, sem acento) e reabre as recolhidas.
+      await page.getByRole('searchbox', { name: 'Buscar nos aulões' }).fill('cadencia');
+      await expect.poll(() => titulosNaTela(page)).toEqual(['Aulão de execução']);
+      await expect(page.getByRole('button', { name: 'Técnica, aberto' })).toBeVisible();
+      await page.getByRole('searchbox', { name: 'Buscar nos aulões' }).fill('PROTEINA');
+      await expect.poll(() => titulosNaTela(page)).toEqual(['Aulão de proteína']);
+      await page.getByRole('searchbox', { name: 'Buscar nos aulões' }).fill('nada disso');
+      await expect(page.getByText('Nenhum aulão encontrado com essa busca.')).toBeVisible();
+      await capturar(page, `aluno-colecoes-busca-vazia-${largura}`);
+      await page.getByRole('button', { name: 'Limpar busca' }).click();
+      await expect.poll(() => titulosNaTela(page)).toHaveLength(4);
+      expect(await semRolagemHorizontal(page)).toBe(true);
+      // Sem rede nova: a busca é local.
+      expect(api.pedidos.filter((p) => p.caminho === '/aluno/comunidade/aulas')).toHaveLength(1);
+      expect(api.errosDaPagina).toEqual([]);
+    });
+  });
+}
+
+test.describe('aulões do aluno: estados', () => {
+  test.use({ viewport: { width: 390, height: 900 } });
+
+  for (const [nome, t, contraste] of TEMAS) {
+    test(`coleções no tema ${nome}`, async ({ page }) => {
+      await tema(page, ALUNO.id, t, contraste);
+      const api = await simularApi(page, { ...(await sessaoDeAluno(page)), ...cheia, 'GET /aluno/comunidade/aulas': { corpo: AULAS_VARIADAS } });
+      await page.goto('/aluno/comunidade?aba=auloes');
+      await expect(page.getByRole('button', { name: 'Técnica, aberto' })).toBeVisible();
+      await capturar(page, `aluno-colecoes-tema-${nome}-390`);
+      expect(api.errosDaPagina).toEqual([]);
+    });
+  }
+
+  test('categoria de 60 caracteres e título longo cabem em 390 px, no aluno e no treinador, sem rolagem horizontal', async ({ page }) => {
+    const longa = 'Categoria muito comprida para conferir a quebra de linha 60';
+    const aula: AulaDaComunidade = {
+      ...AULA, categoria: longa, publicada: false,
+      titulo: 'Aulão com um título bem comprido para ver se o cartão quebra a linha sem espremer nada',
+    };
+    await simularApi(page, {
+      ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'TREINO_LER', 'COMUNIDADE_MODERAR'] })), ...cheia,
+      'GET /comunidade/aulas': { corpo: [aula] },
+    });
+    await page.goto('/treinador/comunidade');
+    await expect(page.getByRole('heading', { level: 2, name: aula.titulo })).toBeVisible();
+    expect(await semRolagemHorizontal(page)).toBe(true);
+    // O título continua com largura de leitura (não espremido pelos selos e pelo ⋯).
+    expect((await page.getByRole('heading', { level: 2, name: aula.titulo }).boundingBox())!.width).toBeGreaterThan(200);
+    // O ⋯ continua inteiro dentro da tela (o selo longo encolhe, não o empurra para fora do cartão).
+    const menu = (await page.getByRole('button', { name: `Ações do aulão ${aula.titulo}` }).boundingBox())!;
+    expect(menu.x + menu.width).toBeLessThanOrEqual(390);
+    // Selo neutro de duas linhas sem raio: o raio de pílula com overflow escondido cortava o início das linhas.
+    expect(await page.getByText(longa, { exact: true }).last().evaluate((el) => getComputedStyle(el.parentElement!).borderTopLeftRadius)).toBe('0px');
+    await capturar(page, 'treinador-categoria-longa-390');
+    await page.getByRole('button', { name: `Ações do aulão ${aula.titulo}` }).click();
+    await page.getByRole('dialog', { name: 'Ações do aulão' }).getByRole('button', { name: /^Editar aulão/ }).click();
+    await expect(page.getByRole('dialog', { name: 'Editar aulão' }).getByRole('button', { name: new RegExp(`^Categoria \\(opcional\\): ${longa}`) })).toBeVisible();
+    expect(await semRolagemHorizontal(page)).toBe(true);
+    await capturar(page, 'treinador-categoria-longa-folha-390');
+  });
+
+  test('aluno: categoria de 60 caracteres no cabeçalho da coleção cabe em 390 px', async ({ page }) => {
+    const longa = 'Categoria muito comprida para conferir a quebra de linha 60';
+    await simularApi(page, { ...(await sessaoDeAluno(page)), ...cheia, 'GET /aluno/comunidade/aulas': { corpo: [{ ...AULA, categoria: longa }] } });
+    await page.goto('/aluno/comunidade?aba=auloes');
+    await expect(page.getByRole('button', { name: `${longa}, aberto` })).toBeVisible();
+    expect(await semRolagemHorizontal(page)).toBe(true);
+    await capturar(page, 'aluno-categoria-longa-390');
+  });
+
+  test('treinador: carregando mostra o esqueleto e depois a grade', async ({ page }) => {
+    let liberar: () => void = () => {};
+    const espera = new Promise<void>((r) => { liberar = r; });
+    await simularApi(page, {
+      ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'TREINO_LER', 'COMUNIDADE_MODERAR'] })), ...cheia,
+      'GET /comunidade/aulas': async (_p, route) => { await espera; return json(route, AULAS_VARIADAS); },
+    });
+    await page.goto('/treinador/comunidade');
+    await expect(page.getByRole('progressbar').first()).toBeVisible();
+    await capturar(page, 'treinador-auloes-carregando-390');
+    liberar();
+    await expect(page.getByRole('radio', { name: 'Todas, 4' })).toBeVisible();
+  });
+
+  test('carregando mostra o esqueleto e depois as coleções; falha tem "Tentar de novo"', async ({ page }) => {
+    let liberar: () => void = () => {};
+    const espera = new Promise<void>((r) => { liberar = r; });
+    const estado = { falhar: true };
+    await simularApi(page, {
+      ...(await sessaoDeAluno(page)), ...cheia,
+      'GET /aluno/comunidade/aulas': async (_p, route) => {
+        await espera;
+        if (estado.falhar) { estado.falhar = false; const e = erroApi(503, 'Indisponível.'); return json(route, e.corpo, e.status); }
+        return json(route, AULAS_VARIADAS);
+      },
+    });
+    await page.goto('/aluno/comunidade?aba=auloes');
+    await expect(page.getByRole('progressbar').first()).toBeVisible();
+    await capturar(page, 'aluno-auloes-carregando-390');
+    liberar();
+    await expect(page.getByRole('button', { name: 'Tentar de novo' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: /^Aulão de/ })).toHaveCount(0);
+    await capturar(page, 'aluno-auloes-falha-390');
+    await page.getByRole('button', { name: 'Tentar de novo' }).click();
+    await expect(page.getByRole('button', { name: 'Alimentação, aberto' })).toBeVisible();
+  });
+});
 
 /** `n` aulões fictícios com títulos distintos. */
 const aulas = (n: number): AulaDaComunidade[] => Array.from({ length: n }, (_, i) => ({ ...AULA, id: `a${i + 1}`, titulo: `Aulão de teste ${i + 1}` }));

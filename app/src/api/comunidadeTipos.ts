@@ -16,11 +16,19 @@ export interface AulaDaComunidade {
   totalComentarios: number;
 }
 
+/**
+ * Corpo do `POST` e do `PUT /comunidade/aulas[/{id}]` (`CriarAulaRequest`). O `PUT` substitui tudo: campo ausente vira
+ * nulo, `ordem` ausente vira 0 e `publicada` ausente vira `true`; por isso a edição manda os sete (`dominio/comunidade.corpoDaAula`).
+ */
 export interface NovaAula {
   titulo: string;
-  descricao?: string;
+  descricao?: string | null;
   videoUrl: string;
-  categoria?: string;
+  miniaturaUrl?: string | null;
+  /** Até 60 depois da normalização do servidor (espaços nas pontas e repetidos saem; vazio vira nulo). */
+  categoria?: string | null;
+  ordem?: number;
+  publicada?: boolean;
 }
 
 /** Tipo da publicação do mural (`TipoDePost` da API). */

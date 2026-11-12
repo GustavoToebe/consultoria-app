@@ -5,7 +5,76 @@ import {
   curtidoPorMim, EMOJI_DA_CURTIDA, erroDoApelido, MENSAGEM_APELIDO_FORMATO, MENSAGEM_APELIDO_LINK, textoDaPosicao, totalDeCurtidas,
   errosDoPost, MOTIVOS_DE_DENUNCIA, podeAnexarFoto, podePublicar, postParaEnviar, rotuloDoMotivo, rotuloDoTipo, TIPOS_DE_POST,
   tiposParaEscolher, filtrosDoMural, filtrosParaApi, textoDoMuralVazio, textoDasDenuncias, tipoPedido,
+  agruparAuloesPorCategoria, buscarAuloes, categoriasDosAuloes, corpoDaAula, errosDaAula, filtrarAuloesPorCategoria,
+  filtroDeCategoriaValido, opcoesDoFiltroDeCategoria, RASCUNHO_DA_AULA_VAZIO, rascunhoDaAula, resumoDosAuloes,
 } from './comunidade';
+import type { AulaDaComunidade } from '../api/comunidadeTipos';
+
+const aula = (id: string, categoria: string | null, extra: Partial<AulaDaComunidade> = {}): AulaDaComunidade => ({
+  id, titulo: `Aula ${id}`, descricao: null, videoUrl: 'https://exemplo.com/v', miniaturaUrl: null, categoria,
+  ordem: 0, publicada: true, criadaEm: '2026-11-01T10:00:00Z', totalComentarios: 0, ...extra,
+});
+
+describe('aulões', () => {
+  const aulas = [aula('1', 'Técnica'), aula('2', null), aula('3', 'alimentação'), aula('4', 'Técnica'), aula('5', '  ')];
+
+  it('agrupa em ordem alfabética pt-BR, com Sem categoria por último e a ordem da API dentro de cada uma', () => {
+    const grupos = agruparAuloesPorCategoria(aulas);
+    expect(grupos.map((g) => g.rotulo)).toEqual(['alimentação', 'Técnica', 'Sem categoria']);
+    expect(grupos[1].itens.map((a) => a.id)).toEqual(['1', '4']);
+    expect(grupos[2].itens.map((a) => a.id)).toEqual(['2', '5']);
+    expect(agruparAuloesPorCategoria([aula('1', 'B')]).map((g) => g.rotulo)).toEqual(['B']);
+  });
+
+  it('filtra por todas, sem categoria e por uma categoria', () => {
+    expect(filtrarAuloesPorCategoria(aulas, null)).toHaveLength(5);
+    expect(filtrarAuloesPorCategoria(aulas, '').map((a) => a.id)).toEqual(['2', '5']);
+    expect(filtrarAuloesPorCategoria(aulas, 'Técnica').map((a) => a.id)).toEqual(['1', '4']);
+    expect(categoriasDosAuloes(aulas)).toEqual(['alimentação', 'Técnica']);
+  });
+
+  it('monta os chips com contagem e volta a Todas quando a categoria some', () => {
+    expect(opcoesDoFiltroDeCategoria(aulas)).toEqual([
+      { valor: null, rotulo: 'Todas', contagem: 5 },
+      { valor: 'alimentação', rotulo: 'alimentação', contagem: 1 },
+      { valor: 'Técnica', rotulo: 'Técnica', contagem: 2 },
+      { valor: '', rotulo: 'Sem categoria', contagem: 2 },
+    ]);
+    expect(opcoesDoFiltroDeCategoria([aula('1', 'A')]).map((o) => o.valor)).toEqual([null, 'A']);
+    expect(filtroDeCategoriaValido('Técnica', aulas)).toBe('Técnica');
+    expect(filtroDeCategoriaValido('Sumiu', aulas)).toBeNull();
+    expect(filtroDeCategoriaValido('', [aula('1', 'A')])).toBeNull();
+  });
+
+  it('busca no título e na descrição sem acento nem caixa', () => {
+    const lista = [aula('1', null, { titulo: 'Técnica do agachamento' }), aula('2', null, { descricao: 'Pauta: PROTEÍNA' })];
+    expect(buscarAuloes(lista, 'tecnica').map((a) => a.id)).toEqual(['1']);
+    expect(buscarAuloes(lista, 'proteina').map((a) => a.id)).toEqual(['2']);
+    expect(buscarAuloes(lista, '  ')).toHaveLength(2);
+  });
+
+  it('valida título e link', () => {
+    expect(errosDaAula(RASCUNHO_DA_AULA_VAZIO)).toEqual({ titulo: 'Escreva o título.', link: 'Cole o link do vídeo.' });
+    expect(errosDaAula({ ...RASCUNHO_DA_AULA_VAZIO, titulo: 'X', link: 'http://exemplo.com' }).link).not.toBeNull();
+    expect(errosDaAula({ ...RASCUNHO_DA_AULA_VAZIO, titulo: 'X', link: 'https://exemplo.com/v' })).toEqual({ titulo: null, link: null });
+  });
+
+  it('cria só com o que foi preenchido e edita reenviando os sete campos', () => {
+    const r = { titulo: ' Novo ', link: 'https://exemplo.com/v', categoria: ' Técnica  de base ', descricao: '' };
+    expect(corpoDaAula(r)).toEqual({ titulo: 'Novo', descricao: undefined, videoUrl: 'https://exemplo.com/v', categoria: 'Técnica de base' });
+    const original = aula('9', 'Antiga', { publicada: false, ordem: 3, miniaturaUrl: 'https://exemplo.com/m.jpg', descricao: 'Velha' });
+    expect(rascunhoDaAula(original)).toEqual({ titulo: 'Aula 9', link: 'https://exemplo.com/v', categoria: 'Antiga', descricao: 'Velha' });
+    expect(corpoDaAula({ ...rascunhoDaAula(original), categoria: '', descricao: '' }, original)).toEqual({
+      titulo: 'Aula 9', descricao: null, videoUrl: 'https://exemplo.com/v', miniaturaUrl: 'https://exemplo.com/m.jpg',
+      categoria: null, ordem: 3, publicada: false,
+    });
+  });
+
+  it('resume a quantidade', () => {
+    expect(resumoDosAuloes(1)).toBe('1 aulão');
+    expect(resumoDosAuloes(3)).toBe('3 aulões');
+  });
+});
 
 describe('curtida do mural', () => {
   it('conta só a curtida e ignora as outras reações', () => {

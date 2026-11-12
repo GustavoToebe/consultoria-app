@@ -54,7 +54,8 @@ const estilos = StyleSheet.create({
     paddingHorizontal: espaco(1),
     paddingVertical: 1,
   },
-  semPilula: { borderColor: 'transparent', backgroundColor: 'transparent', paddingHorizontal: 0 },
+  // Sem pílula, sem raio: o raio de 999 com o overflow do Badge cortava o início das linhas quando o texto quebra.
+  semPilula: { borderColor: 'transparent', backgroundColor: 'transparent', paddingHorizontal: 0, borderRadius: 0 },
   ponto: { width: 6, height: 6, borderRadius: 3 },
   texto: { fontFamily: fontes.medio, fontSize: 12, lineHeight: 16 },
 });
