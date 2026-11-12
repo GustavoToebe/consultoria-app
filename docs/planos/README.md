@@ -105,7 +105,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Larguras das telas do treinador: Números lado a lado, Aulões em grade e Mural sem faixa estreita | [larguras-das-telas.md](larguras-das-telas.md) | `main` (765e06d5) | Concluída em 12/11/2026 (tsc, lint, Jest e e2e verdes) | 12/11/2026 |
 | Composição de telas: editores da Biblioteca, instruções do catálogo e Visão geral do Financeiro | [composicao-de-telas-12-11.md](composicao-de-telas-12-11.md) | `main` (ee2824d3) | Concluída em 12/11/2026 (tsc, lint, Jest e e2e verdes) | 12/11/2026 |
 | Larguras de Ajustes e Novo aluno (lote 2 das margens do PC) e acertos de Números e Biblioteca | [larguras-ajustes-novo-aluno.md](larguras-ajustes-novo-aluno.md) | `main` | Concluída em 12/11/2026 (commit e49f6b82; Números e Equipe hoje em 765e06d5) | 12/11/2026 |
-| Brief de ajustes e funcionalidades (Início, Aulões, Biblioteca, Lançamentos, Cobranças e lote, Lembretes, Agenda, Interessados, Ajuda) | [ajustes-e-funcionalidades-12-11.md](ajustes-e-funcionalidades-12-11.md) | `main` | Código commitado em 12/11/2026 (hashes no plano); push e run da CI no fechamento | 12/11/2026 |
+| Brief de ajustes e funcionalidades (Início, Aulões, Biblioteca, Lançamentos, Cobranças e lote, Lembretes, Agenda, Interessados, Ajuda) | [ajustes-e-funcionalidades-12-11.md](ajustes-e-funcionalidades-12-11.md) | `main` | Publicada em 12/11/2026 (`4eb68bbf`, run 43315925886, `publicar` verde; hashes por passo no plano) | 12/11/2026 |
 
 ## Pendências soltas
 
