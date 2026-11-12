@@ -14,7 +14,6 @@ import { Cabecalho } from '../../ui/Cabecalho';
 import { Escolha } from '../../ui/Escolha';
 import { LinkTexto } from '../../ui/LinkTexto';
 import { Tela } from '../../ui/Tela';
-import { Texto } from '../../ui/Texto';
 
 /** Biblioteca da consultoria: exercícios, alimentos, suplementos e o catálogo. Planilhas vão em Importação. */
 export default function Biblioteca() {
@@ -29,8 +28,8 @@ export default function Biblioteca() {
   const setAba = (valor: AbaDaBiblioteca) => { if (valor !== aba) router.push({ pathname: '/treinador/biblioteca', params: { aba: valor } }); };
   return (
     <Tela bordas={['top']} largura={LARGURA_LISTA}>
-      <Cabecalho titulo="Biblioteca" mostrarMarca="celular" />
-      <Texto variante="suave">Exercícios, alimentos e suplementos que você usa nos planos: cadastre, copie do catálogo pronto ou importe da sua planilha.</Texto>
+      <Cabecalho titulo="Biblioteca" mostrarMarca="celular"
+        subtitulo="Exercícios, alimentos e suplementos que você usa nos planos: cadastre, copie do catálogo pronto ou importe da sua planilha." />
       {destinosPermitidos(pode).length > 0 ? <LinkTexto href="/treinador/importacao" texto="Importar da sua planilha" /> : null}
       <Abas abas={abas} ativa={aba} aoMudar={setAba} />
       {aba === 'exercicios' ? <AbaExercicios /> : null}

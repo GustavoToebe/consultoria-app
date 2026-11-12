@@ -34,6 +34,12 @@ interface Props {
   diasPadrao?: number | null;
   /** Controle extra no começo da seção "Acompanhamento" (na ficha, a escolha do questionário, que grava na hora). */
   noAcompanhamento?: ReactNode;
+  /**
+   * Seções lado a lado quando cabem (Novo aluno, no PC): Cadastro, Dados pessoais e Acompanhamento, cada uma uma coluna
+   * de 440 a 560 px, na mesma ordem de leitura e de foco; o que não cabe desce para a linha de baixo, alinhado à
+   * esquerda. Sem a prop (a ficha), uma coluna só, como sempre.
+   */
+  colunas?: boolean;
 }
 
 /** Texto do campo em número de 1 a 365; vazio = sem prazo (undefined → null no envio) e inválido = null. */
@@ -51,7 +57,7 @@ function diasDoCampo(texto: string): number | null {
  * escolhe o dele ao aceitar o convite). O telefone é do usuário do aluno, então só aparece na edição de quem já tem
  * acesso. Objetivo, observações, CPF e endereço são dado sensível: ficam só no banco, nunca em log.
  */
-export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPadrao = null, noAcompanhamento }: Props) {
+export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPadrao = null, noAcompanhamento, colunas = false }: Props) {
   const {pode,usuario}=useSessao();
   // Na edição, vazio continua vazio: salvar sem mexer não grava quem está editando. No aluno novo, começa com quem cadastra.
   const [responsavelId,setResponsavelId]=useState(inicial ? (inicial.responsavelId ?? '') : (usuario?.id ?? ''));
@@ -123,8 +129,13 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
     );
   };
 
+  // As colunas saem do `flexWrap` (a largura do próprio contêiner decide, sem medir): mudar a janela não remonta nenhum campo.
+  const secao = colunas ? [estilos.form, estilos.colunaDaSecao] : estilos.form;
+  const titulo = colunas ? null : estilos.secao;
   return (
     <View style={estilos.form}>
+      <View style={colunas ? estilos.secoesEmColunas : estilos.form}>
+      <View style={secao}>
       <Texto variante="secao">Cadastro</Texto>
       <Campo rotulo="Nome" valor={nome} aoMudar={setNome} erro={campos.nome} autoComplete="off" maxLength={120} />
       <Escolha rotulo="Sexo" valor={sexo} aoMudar={setSexo} opcoes={[{ valor: '', rotulo: 'Não informado' }, ...OPCOES_DE_SEXO]} />
@@ -149,14 +160,18 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
       ) : null}
       <Permitido codigo="ALUNO_SENSIVEL_ALTERAR"><Campo rotulo="Objetivo (opcional)" valor={objetivo} aoMudar={setObjetivo} erro={campos.objetivo} maxLength={200}
         ajuda={SENSIVEL} /></Permitido>
+      </View>
       <Permitido codigo="ALUNO_SENSIVEL_ALTERAR">
-        <Texto variante="secao" style={estilos.secao}>Dados pessoais</Texto>
+        <View style={secao}>
+        <Texto variante="secao" style={titulo}>Dados pessoais</Texto>
         <Campo rotulo="CPF (opcional)" valor={cpf} aoMudar={(t) => setCpf(mascaraCpf(t))} erro={erroCpf ?? cpfEmUso ?? campos.cpf} keyboardType="number-pad"
           inputMode="numeric" maxLength={14} ajuda={SENSIVEL} />
         <CamposDeEndereco valor={endereco} aoMudar={setEndereco}
           erros={Object.fromEntries(CAMPOS_DO_ENDERECO.map((c) => [c, errosEndereco[c] ?? campos[`endereco.${c}`]]))} />
+        </View>
       </Permitido>
-      <Texto variante="secao" style={estilos.secao}>Acompanhamento</Texto>
+      <View style={secao}>
+      <Texto variante="secao" style={titulo}>Acompanhamento</Texto>
       {noAcompanhamento}
       {responsaveis?<Escolha rotulo="Treinador responsável" opcoes={[{valor:'',rotulo:'Sem responsável'},...responsaveis.map(r=>({valor:r.id,rotulo:r.nome}))]} valor={responsavelId} aoMudar={setResponsavelId}/>:null}
       {erroResponsaveis?<MensagemErro texto={textoDoErro(erroResponsaveis)} tentarDeNovo={recarregar}/>:null}
@@ -187,6 +202,8 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
         maxLength={4000}
         ajuda={SENSIVEL}
       /></Permitido>
+      </View>
+      </View>
       {erro && Object.keys(campos).length === 0 && !cpfEmUso ? <MensagemErro texto={textoDoErro(erro)} /> : null}
       <View style={estilos.botoes}>
         {aoCancelar ? <Botao rotulo="Cancelar" tipo="fantasma" aoTocar={aoCancelar} /> : null}
@@ -202,5 +219,8 @@ const estilos = StyleSheet.create({
   // Separação maior entre Cadastro, Dados pessoais e Acompanhamento (guia de 11/11, pág. 11).
   secao: { marginTop: espaco(2) },
   meta: { gap: espaco(0.5) },
+  // Seções lado a lado (empilhadas, o mesmo vão de 28 px de antes entre elas): 440 cabe o endereço (número e complemento na mesma linha); 560 é o teto do campo de texto.
+  secoesEmColunas: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', columnGap: espaco(4), rowGap: espaco(3.5) },
+  colunaDaSecao: { flexGrow: 1, flexShrink: 1, flexBasis: 440, minWidth: 0, maxWidth: 560 },
   botoes: { flexDirection: 'row', justifyContent: 'flex-end', gap: espaco(1), flexWrap: 'wrap' },
 });

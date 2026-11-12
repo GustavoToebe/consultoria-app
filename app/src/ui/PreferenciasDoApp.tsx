@@ -24,14 +24,24 @@ const TAMANHOS: { valor: TamanhoTexto; rotulo: string }[] = [
 ];
 
 /**
+ * Colunas lado a lado pelo `flexWrap` (a largura do próprio contêiner decide, sem medir): a partir de uns 950 px (janela de
+ * 1280 com o menu aberto) cabem duas de 464; abaixo, uma coluna na ordem de sempre. O teto de 720 deixa o interruptor perto do rótulo.
+ */
+const BASE_DA_COLUNA = 464;
+const LARGURA_DA_COLUNA = 720;
+
+/**
  * Preferências pessoais: tema, contraste, bordas reforçadas, tamanho do texto, animações, vibração e restaurar o padrão. Valem só neste
  * aparelho. `comTitulo` mostra o título "Preferências" (o painel do aluno); a tela Ajustes do treinador já tem o seu.
+ * `duasColunas` (Ajustes do treinador, no PC largo): o tema à esquerda e o resto (leitura, uso e unidade) à direita; a
+ * mesma árvore numa coluna ou em duas, e "Restaurar padrão" sempre depois de tudo.
  */
-export function PreferenciasDoApp({ comTitulo = true, extras }: { comTitulo?: boolean; extras?: ReactNode }) {
+export function PreferenciasDoApp({ comTitulo = true, extras, duasColunas = false }: { comTitulo?: boolean; extras?: ReactNode; duasColunas?: boolean }) {
   const sessao = useSessao();
   const { preferencias, escolherPreferencia, restaurarPadrao, fatorTexto, marca } = useTema();
   const { avisar } = useAviso();
   const [confirmandoRestaurar, setConfirmandoRestaurar] = useState(false);
+  const coluna = [estilos.coluna, duasColunas ? estilos.metade : null];
   const mudar = (parcial: Partial<Preferencias>) => escolherPreferencia(parcial);
   const temaDaConsultoria = paletaDe(sessao.marca?.temaPadrao).cores;
   // O texto fala com quem lê: o aluno recebe o tema do treinador; o treinador é quem o escolhe, em Marca.
@@ -48,6 +58,8 @@ export function PreferenciasDoApp({ comTitulo = true, extras }: { comTitulo?: bo
         </View>
       ) : null}
 
+      <View style={[estilos.coluna, duasColunas ? estilos.ladoALado : null]}>
+      <View style={coluna}>
       <Cartao titulo="Tema" descricao="Escuro, claro, claro areia, o da consultoria ou o do aparelho.">
         <GradeDeOpcoes rotulo="Tema">
           <OpcaoCartao
@@ -87,7 +99,9 @@ export function PreferenciasDoApp({ comTitulo = true, extras }: { comTitulo?: bo
           />
         </GradeDeOpcoes>
       </Cartao>
+      </View>
 
+      <View style={coluna}>
       <Cartao titulo="Contraste" descricao="Alto deixa bordas, campos e textos secundários mais nítidos.">
         <Escolha
           descricao="Contraste"
@@ -186,6 +200,8 @@ export function PreferenciasDoApp({ comTitulo = true, extras }: { comTitulo?: bo
 
       {/* Cartões de quem usa a tela (os lembretes do aluno), para o `ui/` não importar a área do aluno. */}
       {extras}
+      </View>
+      </View>
 
       <Botao rotulo="Restaurar padrão" tipo="fantasma" aoTocar={() => setConfirmandoRestaurar(true)} />
       <PainelConfirmacao
@@ -244,6 +260,9 @@ function PreviaDoTexto({ nome, fator }: { nome: string; fator: number }) {
 
 const estilos = StyleSheet.create({
   coluna: { gap: espaco(3) },
+  // Cada coluna termina com o próprio conteúdo (sem esticar até a altura da vizinha), alinhadas à esquerda.
+  ladoALado: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start' },
+  metade: { flexGrow: 1, flexShrink: 1, flexBasis: BASE_DA_COLUNA, minWidth: 0, maxWidth: LARGURA_DA_COLUNA },
   cabecaPreferencias: { gap: 2, marginTop: espaco(1) },
   linha: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
   amostra: { width: 40, height: 40, flexDirection: 'row' },
