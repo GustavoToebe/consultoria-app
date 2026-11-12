@@ -78,14 +78,14 @@ for (const largura of [390, 1280]) {
   });
 }
 
-/** Histórico do aluno com duas avaliações; `funcionalidades` é o que o plano da consultoria liga (nulo = tudo, como sem a lista). */
-async function abrirHistoricoDoAluno(page: Page, funcionalidades: string[] | null) {
+/** Histórico do aluno (duas avaliações por padrão); `funcionalidades` é o que o plano da consultoria liga (nulo = tudo, como sem a lista). */
+async function abrirHistoricoDoAluno(page: Page, funcionalidades: string[] | null, avaliacoes = [avaliacao('av2', '2026-09-01', 87, null, null), ANTIGA]) {
   const api = await simularApi(page, {
     ...(await sessaoDeAluno(page)),
     ...(funcionalidades ? await sessao(page, ALUNO, { funcionalidadesDoPlano: funcionalidades }) : {}),
     'GET /aluno/pesos': { corpo: [] },
     'GET /aluno/fotos/linha-do-tempo': { corpo: [] },
-    'GET /aluno/avaliacoes-fisicas': { corpo: [avaliacao('av2', '2026-09-01', 87, null, null), ANTIGA] },
+    'GET /aluno/avaliacoes-fisicas': { corpo: avaliacoes },
   });
   await page.goto('/aluno/historico');
   await expect(page.getByText('Suas medidas registradas pelo seu treinador, em centímetros.')).toBeVisible();
@@ -134,6 +134,43 @@ for (const largura of [390, 1280]) {
       window.dispatchEvent(new Event('online'));
     });
     await expect(page.getByRole('button', { name: 'Baixar comparativo' })).toBeVisible();
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+/** Título, selo de período e descrição do cartão (o selo "Desde o primeiro registro" também existe no cartão Fotos). */
+const faixaDoCartao = (page: Page) =>
+  page.locator('div').filter({ has: page.getByRole('heading', { name: 'Avaliação física', exact: true }) }).filter({ hasNotText: 'Fotos' }).last();
+
+for (const largura of [390, 1280]) {
+  test(`vazio: a equipe vê uma frase só e "Nova avaliação"; o aluno vê o vazio de sempre em ${largura}px`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { errosDaPagina } = await simularApi(page, {
+      ...(await sessao(page, TREINADOR, { permissoes: PERMISSOES_TREINADOR })),
+      'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
+      'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+      [`GET /alunos/${ALUNO_ID}`]: { corpo: FICHA },
+      [`GET /alunos/${ALUNO_ID}/avaliacoes-fisicas`]: { corpo: [] },
+    });
+    await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=evolucao`);
+    const faixa = faixaDoCartao(page);
+    await faixa.scrollIntoViewIfNeeded();
+    await expect(faixa.getByText('Nenhuma avaliação registrada. Circunferências em centímetros, por data.', { exact: true })).toBeVisible();
+    // Sem registro nenhum, "Desde o primeiro registro" enganaria; a linha solta do vazio também sai.
+    await expect(faixa.getByText('Desde o primeiro registro')).toHaveCount(0);
+    await expect(page.getByText('Nenhuma avaliação registrada.', { exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Nova avaliação' })).toBeVisible();
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`vazio do aluno no Histórico continua com selo, descrição e a linha do vazio em ${largura}px`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { errosDaPagina } = await abrirHistoricoDoAluno(page, null, []);
+    const faixa = faixaDoCartao(page);
+    await expect(faixa.getByText('Desde o primeiro registro')).toBeVisible();
+    await expect(faixa.getByText('Suas medidas registradas pelo seu treinador, em centímetros.', { exact: true })).toBeVisible();
+    await expect(page.getByText('Nenhuma avaliação registrada.', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Nova avaliação' })).toHaveCount(0);
     expect(errosDaPagina).toEqual([]);
   });
 }

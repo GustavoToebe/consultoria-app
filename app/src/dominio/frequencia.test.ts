@@ -1,5 +1,49 @@
 import type { DiaDeTreino } from '../api/tipos';
-import { frequenciaDe, planejarFrequencia, textoDaContagem, treinosComRegistro, ultimoDiaComRegistro } from './frequencia';
+import { frequenciaDe, planejarFrequencia, resumoDaFrequencia, textoDaContagem, treinosComRegistro, ultimoDiaComRegistro, type Frequencia } from './frequencia';
+
+describe('resumoDaFrequencia (cartão "Frequência e mobilidade")', () => {
+  const comPasta: Frequencia = { semana: 2, ultimo: null, pasta: { titulo: 'Hipertrofia', de: '2026-11-02', ate: '2026-11-12', limitada: false, treinos: 4 } };
+  const vigente = { titulo: 'Hipertrofia' };
+
+  it('com pasta e mobilidade: o rótulo da pasta uma vez e as duas linhas com semana e pasta', () => {
+    expect(resumoDaFrequencia(comPasta, vigente, { naSemana: 1, naPasta: 0 })).toEqual({
+      pasta: 'Pasta Hipertrofia (02/11 a 12/11)',
+      comColunaDaPasta: true,
+      linhas: [
+        { rotulo: 'Treinos', semana: '2 treinos', naPasta: '4 treinos' },
+        { rotulo: 'Mobilidade', semana: '1 dia', naPasta: 'Nenhum registro' },
+      ],
+    });
+  });
+
+  it('sem a permissão da mobilidade (ou com a busca dela em erro): só a linha Treinos', () => {
+    expect(resumoDaFrequencia(comPasta, vigente, 'oculta').linhas.map((l) => l.rotulo)).toEqual(['Treinos']);
+  });
+
+  it('pasta sem mobilidade publicada: a frase só na linha da mobilidade', () => {
+    expect(resumoDaFrequencia(comPasta, vigente, null).linhas[1]).toEqual({ rotulo: 'Mobilidade', aviso: 'A pasta vigente não tem mobilidade publicada.' });
+  });
+
+  it('sem pasta vigente: "Nenhuma pasta vigente." uma vez, sem a coluna da pasta e sem a linha da mobilidade', () => {
+    const r = resumoDaFrequencia({ semana: 0, ultimo: null, pasta: null }, null, null);
+    expect(r).toEqual({ pasta: 'Nenhuma pasta vigente.', comColunaDaPasta: false, linhas: [{ rotulo: 'Treinos', semana: 'Nenhum registro', naPasta: null }] });
+    expect(resumoDaFrequencia({ semana: 0, ultimo: null, pasta: null }, null, 'oculta').linhas).toHaveLength(1);
+  });
+
+  it('pasta vigente sem período contável: rótulo sem datas e as duas células da pasta em "—"', () => {
+    const r = resumoDaFrequencia({ semana: 1, ultimo: null, pasta: null }, { titulo: 'Futura' }, { naSemana: 0, naPasta: 0 });
+    expect(r.pasta).toBe('Pasta Futura');
+    expect(r.linhas).toEqual([
+      { rotulo: 'Treinos', semana: '1 treino', naPasta: '—' },
+      { rotulo: 'Mobilidade', semana: 'Nenhum registro', naPasta: '—' },
+    ]);
+  });
+
+  it('pasta cortada no último ano: diz "últimos 12 meses"', () => {
+    const longa: Frequencia = { ...comPasta, pasta: { ...comPasta.pasta!, de: '2025-11-13', limitada: true } };
+    expect(resumoDaFrequencia(longa, vigente, 'oculta').pasta).toBe('Pasta Hipertrofia (13/11 a 12/11, últimos 12 meses)');
+  });
+});
 
 const serie = (concluida: boolean) => ({ id: 's', serieUid: 'su', tipo: 'WS', trabalho: true, carga: null, unidade: null, repeticoes: null, concluida, observacao: null });
 const dia = (data: string, ...sessoes: [string, boolean[]][]): DiaDeTreino => ({

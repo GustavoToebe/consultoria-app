@@ -55,8 +55,8 @@ export interface ItemMenu {
 /**
  * Casca das áreas logadas: menu lateral fixo a partir de 768 px (um trilho com o rótulo curto embaixo de cada ícone até
  * 1024; expandido a partir daí, recolhível à escolha) e barra inferior no celular. Sem barra de topo (guia de 11/11, D1): o
- * conteúdo começa no `painel`. No menu lateral, de cima para baixo e nessa ordem de Tab: a identidade com o botão de
- * recolher ao lado (embaixo dela no minimizado; o trilho não recolhe), a `busca`, a lista que rola e a `conta` num rodapé
+ * conteúdo começa no `painel`. No menu lateral, de cima para baixo e nessa ordem de Tab: a identidade numa linha só dela,
+ * a `busca` com o botão de recolher ao lado (embaixo dela no minimizado; o trilho não recolhe), a lista que rola e a `conta` num rodapé
  * fixo (os dois só existem na web do treinador). Visual de 11/11: o menu fica no `fundo`, sem contorno, e o conteúdo num
  * `painel` destacado (contorno `divisor`, cantos de 12, 8 px de folga). Item ativo com a seleção neutra (`superficie3`,
  * texto principal) e a marca só no pequeno indicador (`marcaPeca`: barra de 3 × 16 à esquerda no menu, 20 × 2 em cima na
@@ -124,12 +124,13 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
             ref={refDoTrilho}
             accessibilityRole="menubar"
             style={[estilos.lateral, recolhido && (trilho ? estilos.lateralTrilho : estilos.lateralRecolhido), { backgroundColor: cores.fundo }]}>
-            {/* O botão fica no mesmo lugar da árvore aberto ou minimizado: alternar não o desmonta e o foco continua nele. */}
-            <View style={recolhido ? null : estilos.identidade}>
-              {recolhido ? <MarcaDoTrilho marca={marca} /> : <MarcaDoMenu marca={marca} />}
+            {/* Marca sozinha numa linha; embaixo, a busca e o recolher lado a lado (empilhados, ícones centralizados, no
+                minimizado). O botão fica no mesmo lugar da árvore aberto ou minimizado: alternar não o desmonta e o foco continua nele. */}
+            {recolhido ? <MarcaDoTrilho marca={marca} /> : <MarcaDoMenu marca={marca} />}
+            <View style={recolhido ? estilos.acoesRecolhido : estilos.acoes}>
+              {busca ? <View style={recolhido ? null : estilos.busca}>{busca}</View> : null}
               {trilho ? null : <BotaoRecolher recolhido={recolhido} aoTocar={() => { esconderDica(); alternar(); }} />}
             </View>
-            {busca ? <View style={recolhido ? null : estilos.busca}>{busca}</View> : null}
             {/* A lista rola quando não cabe na altura (D20); a dica é desenhada no menu, fora da rolagem, que a cortaria. A
                 barra de rolagem aparece só no menu aberto: nos trilhos ela comeria a largura dos ícones e dos rótulos. */}
             <ScrollView nativeID={ROLAGEM_DO_MENU} style={estilos.rolagem} showsVerticalScrollIndicator={!recolhido}
@@ -306,7 +307,7 @@ export function useDicaNoMenu(texto: string, ativa: boolean, noRef: RefObject<Vi
 }
 
 /**
- * Recolher e expandir o menu, na linha da identidade (D4): à direita da marca no menu aberto, embaixo dela no minimizado.
+ * Recolher e expandir o menu, na linha da busca: à direita dela no menu aberto, embaixo dela no minimizado.
  * Só ícone, com o nome na dica. A preferência fica salva no aparelho (`CHAVE_MENU_RECOLHIDO`).
  */
 function BotaoRecolher({ recolhido, aoTocar }: { recolhido: boolean; aoTocar: () => void }) {
@@ -324,9 +325,9 @@ function BotaoRecolher({ recolhido, aoTocar }: { recolhido: boolean; aoTocar: ()
 }
 
 /**
- * Identidade do menu aberto (prévia de 11/11): a logo (ou a inicial) e o nome numa linha, 68 px no conjunto. Logo larga
- * (mais de 1,5 vez a altura) já traz o nome e fica sozinha, até 200 px, para a marca real continuar inteira. Nome longo
- * trunca sem empurrar o menu. O padrão do `MarcaTitulo` (telas públicas, aluno, Marca) não muda.
+ * Identidade do menu aberto (prévia de 11/11): a logo (ou a inicial) e o nome numa linha só deles, 68 px no conjunto. Logo
+ * larga (mais de 1,5 vez a altura) já traz o nome e fica sozinha, até 200 px, para a marca real continuar inteira. Nome
+ * longo ocupa até duas linhas e depois trunca, sem empurrar o menu. O padrão do `MarcaTitulo` (telas públicas, aluno, Marca) não muda.
  */
 function MarcaDoMenu({ marca }: { marca: Marca | null }) {
   const { cores, marca: cor, sobreMarca } = useTema();
@@ -347,7 +348,7 @@ function MarcaDoMenu({ marca }: { marca: Marca | null }) {
         )}
       </View>
       {larga ? null : (
-        <Texto numberOfLines={1} style={[estilos.nomeMenu, fonte ? { fontFamily: fonte } : null, metal && estilos.nomeMetal]}>{nome}</Texto>
+        <Texto numberOfLines={2} style={[estilos.nomeMenu, fonte ? { fontFamily: fonte } : null, metal && estilos.nomeMetal]}>{nome}</Texto>
       )}
     </View>
   );
@@ -402,14 +403,15 @@ const estilos = StyleSheet.create({
   bloco: { gap: espaco(0.5) },
   tituloGrupo: { paddingHorizontal: espaco(1.5), paddingBottom: 2, textTransform: 'none', letterSpacing: 0, fontFamily: fontes.medio },
   fio: { height: 1, marginVertical: espaco(0.5), marginHorizontal: espaco(1) },
-  // Identidade do menu aberto: a marca encolhe e o recolher fica à direita, na mesma linha de 68 px.
-  identidade: { flexDirection: 'row', alignItems: 'center' },
+  // Menu aberto: a busca ocupa o que sobra e o recolher fica à direita dela; minimizado, um embaixo do outro.
+  acoes: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5), marginBottom: espaco(1) },
+  acoesRecolhido: { gap: espaco(0.5) },
   recolher: { minWidth: ALVO_TOQUE, minHeight: ALVO_TOQUE, alignItems: 'center', justifyContent: 'center', borderRadius: RAIO_CONTROLE },
-  busca: { marginBottom: espaco(1) },
+  busca: { flex: 1, minWidth: 0 },
   // Rodapé fixo com a conta: um fio `divisor` em cima; a lista rola acima dele sem escondê-lo.
   rodapeDoMenu: { borderTopWidth: 1, paddingTop: espaco(1), paddingBottom: espaco(1) },
   // Linha de 44 + 12 em cima e embaixo = 68 px; a logo começa na mesma coluna dos ícones do menu.
-  marca: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: espaco(1.25), minHeight: ALVO_TOQUE + espaco(3), paddingVertical: espaco(1.5), paddingLeft: espaco(1.5), paddingRight: espaco(0.5) },
+  marca: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: espaco(1.25), minHeight: ALVO_TOQUE + espaco(3), paddingVertical: espaco(1.5), paddingLeft: espaco(1.5), paddingRight: espaco(0.5) },
   // A logo larga ocupa o que sobra ao lado do recolher, até 200 px.
   caixaLogoLarga: { flex: 1, minWidth: 0 },
   logoLarga: { width: '100%', maxWidth: 200, height: 44 },

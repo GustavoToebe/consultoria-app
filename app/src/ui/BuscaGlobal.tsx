@@ -55,8 +55,9 @@ export function ProvedorDaBuscaGlobal({ children }: { children: ReactNode }) {
 }
 
 /**
- * "Buscar" do menu lateral, logo abaixo da identidade (D2). Menu aberto: linha com cara de campo, a lupa, "Buscar" e o
- * atalho à direita. Minimizado (72): só a lupa, com o nome e o atalho na dica. Trilho do tablet (88): a lupa com "Buscar"
+ * "Buscar" do menu lateral, na linha abaixo da identidade, com o recolher ao lado (D2). Menu aberto: linha leve, só com
+ * contorno `divisor`, a lupa e "Buscar"; o atalho fica na dica e no nome acessível, sem selo. Minimizado (72): só a lupa,
+ * centralizada, com o nome e o atalho na dica. Trilho do tablet (88): a lupa com "Buscar"
  * embaixo, como os itens. Não é campo de verdade: abre a folha da busca.
  */
 export function BotaoDaBusca() {
@@ -65,7 +66,8 @@ export function BotaoDaBusca() {
   const { cores } = useTema();
   const soIcone = recolhido && !trilho;
   const noRef = useRef<View | null>(null);
-  const dica = useDicaNoMenu(`Buscar (${ATALHO})`, soIcone, noRef);
+  // O atalho não aparece mais no botão: a dica (no menu aberto e no minimizado) e o nome acessível o dizem.
+  const dica = useDicaNoMenu(`Buscar (${ATALHO})`, !trilho, noRef);
   const alvo = useAlvoDoPasseio('menu:busca');
   const ref = useCallback((n: View | null) => {
     noRef.current = n;
@@ -83,17 +85,12 @@ export function BotaoDaBusca() {
         estilos.gatilho,
         recolhido
           ? [estilos.gatilhoIcone, trilho && estilos.gatilhoTrilho]
-          : [estilos.gatilhoAberto, { borderColor: cores.bordaCampo, backgroundColor: cores.campo }],
+          : [estilos.gatilhoAberto, { borderColor: cores.divisor }],
         sobre(estado) && { backgroundColor: cores.superficie2 },
       ]}>
       <Search size={recolhido ? 20 : 16} color={cores.textoSuave} strokeWidth={2} />
       {soIcone ? null : (
         <Texto numberOfLines={1} style={[trilho ? estilos.rotuloTrilho : estilos.rotuloAberto, { color: cores.textoSuave }]}>Buscar</Texto>
-      )}
-      {recolhido || Platform.OS !== 'web' ? null : (
-        <View aria-hidden style={[estilos.atalho, { borderColor: cores.bordaCampo, backgroundColor: cores.superficie2 }]}>
-          <Texto variante="pequeno" style={estilos.textoAtalho}>{ATALHO}</Texto>
-        </View>
       )}
     </Pressable>
   );
@@ -230,8 +227,6 @@ const estilos = StyleSheet.create({
   gatilhoTrilho: { flexDirection: 'column', gap: 2, paddingVertical: espaco(0.5) },
   rotuloAberto: { flex: 1, fontSize: 15 },
   rotuloTrilho: { alignSelf: 'stretch', textAlign: 'center', fontSize: 12, lineHeight: 16, fontFamily: fontes.medio },
-  atalho: { borderWidth: 1, borderRadius: 6, paddingHorizontal: espaco(0.75), paddingVertical: 2 },
-  textoAtalho: { fontSize: 12, fontFamily: fontes.semi },
   painel: { gap: espaco(1.5) },
   cabeca: { gap: 2 },
   lista: { gap: 2 },

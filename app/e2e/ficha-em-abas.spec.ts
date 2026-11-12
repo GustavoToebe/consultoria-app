@@ -270,6 +270,83 @@ for (const [nome, t, contraste] of TEMAS) {
   }
 }
 
+// Acompanhamento: Frequência e mobilidade num cartão só (linhas Treinos e Mobilidade × Esta semana e Na pasta). Datas
+// relativas a hoje: a pasta vai de hoje−10 a hoje+10 e o treino e a marca da mobilidade são de hoje.
+const diaLocal = (dias: number) => new Date(Date.now() + dias * 86_400_000).toLocaleDateString('sv-SE');
+const VIGENTE: PastaResumo = { id: PASTA_ID, alunoId: ALUNO_ID, titulo: 'Hipertrofia fictícia', inicio: diaLocal(-10), fim: diaLocal(10), concluidaEm: null };
+const PLANO_DE_MOBILIDADE = {
+  id: 'm1', alunoId: ALUNO_ID, pastaId: PASTA_ID, titulo: 'Mobilidade fictícia', inicio: VIGENTE.inicio, fim: VIGENTE.fim, ativo: true,
+  versaoPublicada: 1, publicadoEm: null, rascunhoAlteradoDepoisDePublicar: false, versao: 1,
+};
+const TREINO_DE_HOJE = {
+  data: diaLocal(0),
+  sessoes: [{ sessaoUid: 's1', sessao: 'Treino A', planoVersaoId: 'v1', exercicios: [{ exercicioUid: 'e1', exercicioId: null, nome: 'Exercício fictício',
+    series: [{ id: 'x1', serieUid: 'su1', tipo: 'WS', trabalho: true, carga: null, unidade: null, repeticoes: null, concluida: true, observacao: null }] }] }],
+};
+const comPastaVigente = (mobilidade: unknown[]): RespostasApi => ({
+  [`GET /alunos/${ALUNO_ID}/pastas/vigente`]: { corpo: { pasta: VIGENTE } },
+  [`GET /alunos/${ALUNO_ID}/execucoes`]: { corpo: [TREINO_DE_HOJE] },
+  [`GET /alunos/${ALUNO_ID}/planos-mobilidade`]: { corpo: mobilidade },
+  [`GET /alunos/${ALUNO_ID}/mobilidade/registros`]: { corpo: [{ planoVersaoId: 'mv1', secaoUid: 's', itemUid: 'i', data: diaLocal(0), feito: true }] },
+});
+const tabelaDaFrequencia = (page: Page) => page.getByRole('table', { name: 'Frequência e mobilidade' });
+const pediuMobilidade = (pedidos: { caminho: string }[]) => pedidos.some((p) => p.caminho.endsWith('/planos-mobilidade') || p.caminho.endsWith('/mobilidade/registros'));
+
+for (const largura of [390, 1280]) {
+  test(`${largura}px: Frequência e mobilidade num cartão, com o rótulo da pasta uma vez e a tabela Treinos/Mobilidade`, async ({ page }) => {
+    const { errosDaPagina } = await abrir(page, { largura, url: `/treinador/alunos/${ALUNO_ID}?aba=acompanhamento`, extra: comPastaVigente([PLANO_DE_MOBILIDADE]) });
+    await expect(page.getByRole('heading', { name: 'Frequência e mobilidade', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Mobilidade', exact: true })).toHaveCount(0);
+    await expect(page.getByText(/^Pasta Hipertrofia fictícia \(\d\d\/\d\d a \d\d\/\d\d\)$/)).toHaveCount(1);
+    const tabela = tabelaDaFrequencia(page);
+    await expect(tabela.getByRole('columnheader')).toHaveText(['Esta semana', 'Na pasta']);
+    await expect(tabela.getByRole('row').nth(1)).toHaveText(/Treinos\s*1 treino\s*1 treino/);
+    await expect(tabela.getByRole('row').nth(2)).toHaveText(/Mobilidade\s*1 dia\s*1 dia/);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+test('Frequência e mobilidade sem pasta vigente: diz uma vez, só a semana e sem a linha da mobilidade', async ({ page }) => {
+  const { pedidos } = await abrir(page, { url: `/treinador/alunos/${ALUNO_ID}?aba=acompanhamento` });
+  await expect(page.getByText('Nenhuma pasta vigente.', { exact: true })).toHaveCount(1);
+  const tabela = tabelaDaFrequencia(page);
+  await expect(tabela.getByRole('columnheader')).toHaveText(['Esta semana']);
+  await expect(tabela.getByRole('rowheader')).toHaveText(['Treinos']);
+  await expect(tabela.getByRole('cell')).toHaveText(['Nenhum registro']);
+  expect(pediuMobilidade(pedidos)).toBe(false);
+});
+
+test('Frequência e mobilidade: pasta sem mobilidade publicada diz isso só na linha da mobilidade', async ({ page }) => {
+  await abrir(page, { url: `/treinador/alunos/${ALUNO_ID}?aba=acompanhamento`, extra: comPastaVigente([]) });
+  const linha = tabelaDaFrequencia(page).getByRole('row').nth(2);
+  await expect(linha).toHaveText(/^Mobilidade\s*A pasta vigente não tem mobilidade publicada\.$/);
+  await expect(page.getByText('A pasta vigente não tem mobilidade publicada.', { exact: true })).toHaveCount(1);
+});
+
+test('Frequência e mobilidade sem TREINO_LER: só a linha Treinos e nada da mobilidade é pedido', async ({ page }) => {
+  const { pedidos } = await abrir(page, {
+    url: `/treinador/alunos/${ALUNO_ID}?aba=acompanhamento`, permissoes: PERMISSOES_TREINADOR.filter((p) => p !== 'TREINO_LER'),
+    extra: comPastaVigente([PLANO_DE_MOBILIDADE]),
+  });
+  const tabela = tabelaDaFrequencia(page);
+  await expect(tabela.getByRole('rowheader')).toHaveText(['Treinos']);
+  await expect(tabela.getByRole('row').nth(1)).toHaveText(/Treinos\s*1 treino\s*1 treino/);
+  expect(pediuMobilidade(pedidos)).toBe(false);
+});
+
+test('Frequência e mobilidade com o resumo da ficha em erro: a mensagem uma vez, sem tabela e sem pedir a mobilidade', async ({ page }) => {
+  const { pedidos } = await abrir(page, {
+    url: `/treinador/alunos/${ALUNO_ID}?aba=acompanhamento`,
+    extra: { ...comPastaVigente([PLANO_DE_MOBILIDADE]), [`GET /alunos/${ALUNO_ID}/pastas/vigente`]: erroApi(500, 'Falha fictícia.') },
+  });
+  await expect(page.getByRole('heading', { name: 'Frequência e mobilidade', exact: true })).toBeVisible();
+  await expect(page.getByText('Falha fictícia.', { exact: true })).toHaveCount(1);
+  await expect(tabelaDaFrequencia(page)).toHaveCount(0);
+  await expect(page.getByText('Mobilidade', { exact: true })).toHaveCount(0);
+  expect(pediuMobilidade(pedidos)).toBe(false);
+});
+
 test('sem permissão: aba sem bloco permitido não aparece e o endereço dela cai no Resumo', async ({ page }) => {
   await abrir(page, { permissoes: ['ALUNO_LER'], url: `/treinador/alunos/${ALUNO_ID}?aba=evolucao` });
   await expect(aba(page, 'Resumo')).toHaveAttribute('aria-selected', 'true');

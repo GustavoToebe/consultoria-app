@@ -1,5 +1,6 @@
 import type { DiaDeTreino } from '../api/tipos';
-import { somarDias } from './formatos';
+import { dataCurta, somarDias } from './formatos';
+import { textoDosDiasDeMobilidade, type ContagemDaMobilidade } from './mobilidadeFeita';
 import { periodoDaSemana } from './progressoSemana';
 
 /** A API recusa consulta de execuções com mais de 366 dias entre as datas. */
@@ -81,6 +82,39 @@ export function ultimoDiaComRegistro(dias: DiaDeTreino[]): string | null {
     if (feito && (ultimo === null || dia.data > ultimo)) ultimo = dia.data;
   }
   return ultimo;
+}
+
+/** Uma linha do resumo: os dois números, ou uma frase no lugar deles. `naPasta` nulo = sem a coluna da pasta. */
+export type LinhaDoResumo = { rotulo: string; semana: string; naPasta: string | null } | { rotulo: string; aviso: string };
+
+export interface ResumoDaFrequencia {
+  /** "Pasta <título> (dd/mm a dd/mm)", dito uma vez para as duas linhas; sem pasta vigente, "Nenhuma pasta vigente.". */
+  pasta: string;
+  /** Sem pasta vigente a coluna "Na pasta" some. */
+  comColunaDaPasta: boolean;
+  linhas: LinhaDoResumo[];
+}
+
+/**
+ * Cartão "Frequência e mobilidade" da ficha. `mobilidade`: `'oculta'` sem a permissão (ou com a busca dela em erro, que a
+ * tela mostra à parte), `null` sem plano de mobilidade publicado na pasta. Sem pasta vigente não há mobilidade a contar:
+ * a linha some e o cartão diz isso uma vez. A pasta da mobilidade conta o mesmo período da frequência: sem período
+ * contável (sem início ou começando no futuro), as duas células da pasta são "—".
+ */
+export function resumoDaFrequencia(
+  f: Frequencia, vigente: { titulo: string } | null, mobilidade: ContagemDaMobilidade | null | 'oculta',
+): ResumoDaFrequencia {
+  const p = f.pasta;
+  const pasta = !vigente ? 'Nenhuma pasta vigente.'
+    : p ? `Pasta ${p.titulo} (${dataCurta(p.de)} a ${dataCurta(p.ate)}${p.limitada ? ', últimos 12 meses' : ''})`
+      : `Pasta ${vigente.titulo}`;
+  const linhas: LinhaDoResumo[] = [{ rotulo: 'Treinos', semana: textoDaContagem(f.semana), naPasta: vigente ? textoDaContagem(p ? p.treinos : null) : null }];
+  if (!vigente || mobilidade === 'oculta') return { pasta, comColunaDaPasta: !!vigente, linhas };
+  if (mobilidade === null) linhas.push({ rotulo: 'Mobilidade', aviso: 'A pasta vigente não tem mobilidade publicada.' });
+  else {
+    linhas.push({ rotulo: 'Mobilidade', semana: textoDosDiasDeMobilidade(mobilidade.naSemana), naPasta: textoDosDiasDeMobilidade(p ? mobilidade.naPasta : null) });
+  }
+  return { pasta, comColunaDaPasta: true, linhas };
 }
 
 /** "—" sem período contável; zero é "Nenhum registro"; senão "1 treino", "16 treinos" (o número sozinho não diz de quê). */

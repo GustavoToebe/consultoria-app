@@ -123,27 +123,53 @@ pelo Gustavo): o que só a tela mostra está em "A conferir na tela".
   depois da tecla `m`; passou 12 de 12 sozinho e 39 de 39 na spec inteira; está em Pendências soltas). Typecheck, lint e
   Jest repetidos depois da última mudança no app, com o mesmo resultado.
 
-### Divergências do PDF deixadas para o Gustavo decidir (sem código)
+### Passada de 12/11 (conferência visual e ajustes; estado local sem commit, base `7611f497`)
 
-- "Fixado" continua na linha do autor, não junto do tipo: mudar mexe no `CartaoDoPost`, compartilhado com o aluno.
-- O selo do Aviso continua em âmbar (regra da V071 no `AGENTS.md`), embora a página 36 diga que tipo de post não vira
-  alerta.
-- Textos do esquema da página 36 que estão em peças compartilhadas ("Buscar nas publicações", "Ver N comentários") não
-  mudaram.
-- No trilho de 88 px a lupa e a conta ficam com rótulo visível em vez de dica.
+Ordem pedida pelo Gustavo: conferir em 1280×720, 1440×900 e 390 px; compactar onde a conferência mostrasse necessidade
+(na peça compartilhada, só no treinador); rever; mexer em "Fixado" e redações só com benefício claro.
 
-### Não feito
+- **Capturas feitas, por tema e estado** (Chromium, API simulada, relógio fixo em 12/11; pares "antes" e "depois" só nas telas do guia, o menu só tem "depois"):
+  - Telas do guia (Resumo, Planos, Acompanhamento, Evolução, Ficha, Comunidade em aulões e mural, menu da conta), em
+    **tema escuro**, em 1280×720, 1440×900 e 390×844, vazias e, onde cabe, com dados (Acompanhamento e Evolução).
+  - Histórico do aluno (Avaliação física), em **tema claro**, nas três larguras.
+  - Topo da lateral, primeira rodada: em **tema claro**, **sem logo** (inicial da marca), nome curto e longo, em 1280×720,
+    1440×900 e 900×700 (trilho de 88 px); menu minimizado e a dica, só em 1280 e 1440. Só o recorte do topo, não a tela.
+  - **Tela inteira com o menu novo, em tema escuro, com logo de imagem** (o ícone do próprio produto, `assets/images/icon.png`,
+    servido como logo; não é a logo de uma consultoria), em 1280×720 e 1440×900, nome curto e nome longo, menu aberto e
+    minimizado, cada um com a lista no topo e rolada até o fim. Marca, Buscar, recolher, rolagem e conta no rodapé
+    couberam juntos e inteiros na janela em todas as situações (conferido por captura e por asserção de viewport).
+- **Frequência e mobilidade** num cartão só na aba Acompanhamento (`treinador/CartaoFrequencia`, que agora busca a
+  mobilidade; `CartaoMobilidade` apagado). Formato, rótulo da pasta e frases em `dominio/frequencia.resumoDaFrequencia`;
+  a linha só aparece com `mostraMobilidade` (`dominio/fichaDoAluno`: `REGISTRO_LER` + `TREINO_LER`, mobilidade publicada e
+  ativa na pasta vigente). Grade com `role` de tabela; em 390 px "Nenhum registro" cabe numa linha.
+- **Avaliação física vazia**, só no treinador (`daEquipe`): descrição com "Nenhuma avaliação registrada.", sem o painel de
+  confirmação vazio e sem a pílula do período. O ramo do aluno (Histórico) e o cartão com dados saíram idênticos ao antes,
+  conferido por captura nas três larguras.
+- **Topo da lateral** (`ui/Navegacao`, `ui/BuscaGlobal`): marca numa linha só dela (nome até duas linhas); na seguinte,
+  Buscar com o botão de recolher ao lado. Busca mais leve (só o contorno `divisor`, sem fundo de campo) e sem o selo
+  "Ctrl K": o atalho segue no `Ctrl+K`, no nome acessível e na dica (agora também no menu aberto). Minimizado: lupa e
+  seta empilhadas e centralizadas, nomes acessíveis. A marca perdeu o `flex: 1`, que a esticava na vertical.
+- **Sem mudança, por decisão do Gustavo:** "Fixado" (sem colisão em 390 px); selo do Aviso em âmbar (V071 intacta);
+  "Buscar nas publicações" e "Ver N comentários" são exemplos de redação; rótulos visíveis no trilho de 88 px.
+- **Verificações:** `tsc` 0 erros; `lint` 0 erros (11 avisos já existentes, em arquivos de teste e `CartaoSerieComEtapas`);
+  Jest `frequencia`, `fichaDoAluno` e `ajuda`: 51 de 51; e2e `ficha-em-abas`, `avaliacao-fisica`, `agua-do-aluno`,
+  `mobilidade-aluno`, `aluno-clareza` e `peso-historico-aluno`: 75 de 75; e2e `menu-do-treinador` e `painel`: 30 de 30.
 
-- Vazios compactos de Peso e Avaliação física (os cartões também são do Histórico do aluno, fora do escopo).
-- Resumo único de frequência e mobilidade na aba Acompanhamento.
+### Não feito / sem conferir
+
+- Peso: vazio sem compactar (fora da ordem do Gustavo).
+- "Nova avaliação" em 390 px segue numa linha própria no vazio da equipe: decisão do Gustavo, não forçar na mesma linha.
+- Temas areia e contraste alto, teclado aberto, texto ampliado e dados reais: não capturados em tela nenhuma. Tema claro:
+  só o Histórico do aluno e o topo da lateral sem logo. Tema escuro: as telas do guia e a tela inteira do menu com logo.
+- Topo da lateral: não capturado em escuro sem logo, nem com logo no trilho de 900 px, nem com logo larga (mais de 1,5
+  vez a altura, que fica sozinha sem o nome) e nem com a logo de uma consultoria real; o ícone preto do produto quase some
+  no fundo escuro, o que é do arquivo, não do menu. Em 390 px não há lateral.
+- Em 390 px "Nova avaliação" fica numa linha própria no vazio da equipe (limite do `Cartao`, compartilhado) e o corpo do
+  cartão aparece por trás do modal ao abri-lo.
 - Erro de `confirmarRemoverPost` e `removerApelido` ainda vai ao aviso atrás do `PainelConfirmacao`.
-- APK não regenerado (não foi pedido nesta rodada).
-
-### A conferir na tela
-
-Corte do menu da conta quando abre para o lado; alinhamento da foto de 56 px com o título no PC (`marginTop` 23,
-`shortcut:`); quebras em 390 px (faixa de fatos da ficha, "ou / Definir e-mail e senha", ações da Comunidade no
-cabeçalho, linha da pasta com três selos, duas colunas da água).
+- Guias em PDF não regenerados (`node scripts/guias/gerar.mjs`, no fim do lote) e APK não regenerado.
+- Menu da conta ao lado, foto de 56 px alinhada ao título no PC e quebras em 390 px (faixa de fatos, "ou / Definir
+  e-mail e senha", ações da Comunidade, linha da pasta com três selos): vistas nas capturas, sem defeito percebido.
 
 ## Texto integral das páginas 28 a 37
 

@@ -88,6 +88,8 @@ export function CartaoAvaliacaoFisica(p: Props) {
   const comparacao = podeComparar(marcadas) ? comparar(lista, marcadas) : null;
   const visiveis = todas ? lista : lista.slice(0, LINHAS_INICIAIS);
   const semConexao = erro instanceof ErroApi && erro.semConexao;
+  // Equipe sem avaliação: o vazio e a explicação numa frase só, na faixa do cartão (sem selo de período nem corpo).
+  const vazioDaEquipe = daEquipe && dados?.length === 0;
 
   const confirmarExclusao = () => {
     const alvo = excluir;
@@ -130,14 +132,15 @@ export function CartaoAvaliacaoFisica(p: Props) {
   return (
     <Cartao
       titulo="Avaliação física"
-      periodo={dados ? periodoDesdeOPrimeiro(dados.map((a) => a.data)) : undefined}
-      descricao={daEquipe ? 'Circunferências em centímetros, por data.' : 'Suas medidas registradas pelo seu treinador, em centímetros.'}
+      periodo={dados && !vazioDaEquipe ? periodoDesdeOPrimeiro(dados.map((a) => a.data)) : undefined}
+      descricao={vazioDaEquipe ? 'Nenhuma avaliação registrada. Circunferências em centímetros, por data.'
+        : daEquipe ? 'Circunferências em centímetros, por data.' : 'Suas medidas registradas pelo seu treinador, em centímetros.'}
       acoes={podeGravar ? <Botao rotulo="Nova avaliação" tipo="secundario" Icone={Plus} aoTocar={() => setEditando('nova')} /> : null}>
       {erro && !semConexao ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {semConexao ? <Texto variante="suave">Sem conexão.</Texto> : null}
       {erroAcao ? <MensagemErro texto={textoDoErro(erroAcao)} /> : null}
       {!dados && carregando ? <Esqueleto cartoes={1} texto="Carregando avaliações" /> : null}
-      {dados && dados.length === 0 ? <Texto variante="suave">Nenhuma avaliação registrada.</Texto> : null}
+      {!daEquipe && dados && dados.length === 0 ? <Texto variante="suave">Nenhuma avaliação registrada.</Texto> : null}
       {lista.length >= 2 ? (
         <Texto variante="suave">Marque de 2 a {COMPARAR_MAXIMO} datas para comparar.</Texto>
       ) : null}
@@ -204,7 +207,8 @@ export function CartaoAvaliacaoFisica(p: Props) {
           }}
         />
       ) : null}
-      <PainelConfirmacao
+      {/* Sem avaliação não há o que excluir; montado, o painel daria corpo ao cartão vazio (`Cartao` conta os filhos). */}
+      {vazioDaEquipe ? null : <PainelConfirmacao
         visivel={excluir !== null}
         titulo="Excluir esta avaliação física?"
         mensagem={excluir ? `Avaliação de ${dataParaTela(excluir.data)}. As medidas saem; o registro de peso continua.` : undefined}
@@ -212,7 +216,7 @@ export function CartaoAvaliacaoFisica(p: Props) {
         perigo
         aoConfirmar={confirmarExclusao}
         aoCancelar={() => setExcluir(null)}
-      />
+      />}
     </Cartao>
   );
 }

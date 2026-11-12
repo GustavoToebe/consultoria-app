@@ -1,11 +1,11 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
-import { PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
+import { MARCA, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
 
 /**
  * Menu do treinador (auditoria-ficha, N29 e o menu do tablet): grupos com título no PC, rótulo curto embaixo do ícone no
  * trilho de 768 a 1023 px, PC minimizado só com ícone e dica, barra do celular igual. Guia de 11/11 (p. 28, 29 e 37): sem
- * barra de topo; o recolher fica na linha da marca, "Buscar" (Ctrl K) logo abaixo e a conta fixa no pé do menu; o menu
+ * barra de topo; a marca fica numa linha só dela, "Buscar" (atalho Ctrl K só na dica) com o recolher ao lado, logo abaixo, e a conta fixa no pé do menu; o menu
  * aberto mostra as contagens. Só dados fictícios.
  */
 const TODAS = [...PERMISSOES_TREINADOR, 'ATUALIZACAO_LER', 'AGENDA_LER', 'BIBLIOTECA_LER', 'MODELO_LER', 'FINANCEIRO_LER', 'EQUIPE_LER', 'AUDITORIA_LER'];
@@ -56,7 +56,7 @@ test('PC (1280): quatro grupos com título, na ordem do D6, e o fim do menu alca
 const botaoDaBusca = (page: Page) => menu(page).getByRole('button', { name: /^Buscar telas e ações, atalho/ });
 const botaoDaConta = (page: Page) => menu(page).getByRole('button', { name: /^Conta de / });
 
-test('PC (1280×720): sem barra de topo; recolher na linha da marca, Buscar abaixo e a conta fixa no pé, com a lista rolada', async ({ page }) => {
+test('PC (1280×720): sem barra de topo; marca sozinha, Buscar com o recolher ao lado e a conta fixa no pé, com a lista rolada', async ({ page }) => {
   const { errosDaPagina } = await abrir(page, 1280, 720);
   const minimizar = menu(page).getByRole('button', { name: 'Minimizar menu' });
   // A tela aberta é a Ajuda, perto do fim da lista: o item ativo rola a lista sozinho, então o Início volta antes de medir.
@@ -67,8 +67,13 @@ test('PC (1280×720): sem barra de topo; recolher na linha da marca, Buscar abai
     await menu(page).getByRole('link', { name: 'Início', exact: true }).boundingBox(),
     await botaoDaConta(page).boundingBox(),
   ];
-  // Ordem de cima para baixo: marca + recolher, Buscar, itens, conta; alvos de 44.
-  expect(caixaMin!.y).toBeLessThan(caixaBusca!.y);
+  // Ordem de cima para baixo: marca sozinha, Buscar com o recolher à direita na mesma linha, itens, conta; alvos de 44.
+  const marca = await menu(page).getByText(MARCA.nome, { exact: true }).boundingBox();
+  expect(marca!.y + marca!.height).toBeLessThanOrEqual(caixaBusca!.y);
+  expect(Math.abs(caixaMin!.y - caixaBusca!.y)).toBeLessThanOrEqual(2);
+  expect(caixaMin!.x).toBeGreaterThanOrEqual(caixaBusca!.x + caixaBusca!.width);
+  // O selo "Ctrl K" saiu do botão: o atalho vive no nome acessível e na dica.
+  await expect(botaoDaBusca(page).getByText(/Ctrl K|⌘ K/)).toHaveCount(0);
   expect(caixaBusca!.y).toBeLessThan(caixaInicio!.y);
   expect(caixaInicio!.y).toBeLessThan(caixaConta!.y);
   for (const caixa of [caixaMin!, caixaBusca!, caixaConta!]) expect(caixa.height).toBeGreaterThanOrEqual(44);
@@ -81,6 +86,32 @@ test('PC (1280×720): sem barra de topo; recolher na linha da marca, Buscar abai
   await auditoria.scrollIntoViewIfNeeded();
   await expect(botaoDaBusca(page)).toBeInViewport({ ratio: 1 });
   await expect(botaoDaConta(page)).toBeInViewport({ ratio: 1 });
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('PC (1280): nome longo da consultoria ocupa até duas linhas sem empurrar Buscar; minimizado, lupa e recolher centralizados com nome acessível', async ({ page }) => {
+  const nome = 'Saraiva Team Consultoria Esportiva e Nutricional de Alta Performance';
+  await page.setViewportSize({ width: 1280, height: 720 });
+  const { errosDaPagina } = await simularApi(page, {
+    ...(await sessao(page, TREINADOR, { permissoes: TODAS, marca: { ...MARCA, nome } })),
+    'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+    'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
+  });
+  await page.goto('/treinador/ajuda');
+  const texto = menu(page).getByText(nome, { exact: true });
+  await expect(texto).toBeVisible();
+  const linhas = await texto.evaluate((el) => Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)));
+  expect(linhas).toBe(2);
+  const [t, busca] = [await texto.boundingBox(), await botaoDaBusca(page).boundingBox()];
+  expect(t!.y + t!.height).toBeLessThanOrEqual(busca!.y);
+  // Minimizado: a lupa e o recolher empilhados, ambos centralizados na coluna de 72 px, cada um com o nome acessível.
+  await menu(page).getByRole('button', { name: 'Minimizar menu' }).click();
+  const expandir = menu(page).getByRole('button', { name: 'Expandir menu' });
+  const [lupa, seta, coluna] = [await botaoDaBusca(page).boundingBox(), await expandir.boundingBox(), await menu(page).boundingBox()];
+  const centro = (c: { x: number; width: number }) => c.x + c.width / 2;
+  expect(Math.abs(centro(lupa!) - centro(seta!))).toBeLessThanOrEqual(1);
+  expect(Math.abs(centro(lupa!) - (coluna!.x + 36))).toBeLessThanOrEqual(6);
+  expect(seta!.y).toBeGreaterThan(lupa!.y);
   expect(errosDaPagina).toEqual([]);
 });
 

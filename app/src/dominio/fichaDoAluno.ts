@@ -21,7 +21,7 @@ export interface ContextoDaFicha {
 /** Blocos de conteúdo que moram nas abas Planos, Acompanhamento, Evolução e Ficha (o Resumo só reúne o que decide a próxima ação). */
 export type BlocoDaFicha =
   | 'pastas'
-  | 'frequencia' | 'mobilidade' | 'agua' | 'treinosConcluidos' | 'recordesDaSemana' | 'evolucaoDasRespostas'
+  | 'frequencia' | 'agua' | 'treinosConcluidos' | 'recordesDaSemana' | 'evolucaoDasRespostas'
   | 'peso' | 'avaliacaoFisica' | 'fotos' | 'progresso'
   | 'dadosDoAluno' | 'acessoAoApp' | 'planoContratado' | 'anamnese' | 'lesoes';
 
@@ -32,9 +32,8 @@ export type BlocoDaFicha =
  */
 const BLOCOS: readonly { bloco: BlocoDaFicha; aba: AbaDaFicha; visivel: (c: ContextoDaFicha) => boolean }[] = [
   { bloco: 'pastas', aba: 'planos', visivel: () => true },
-  // Frequência, mobilidade e água ficam dentro do bloco de registros; a água é dado de dieta (a rota pede as duas).
+  // Frequência (com a mobilidade, `mostraMobilidade`) e água ficam dentro do bloco de registros; a água é dado de dieta (a rota pede as duas).
   { bloco: 'frequencia', aba: 'acompanhamento', visivel: (c) => c.pode('REGISTRO_LER') },
-  { bloco: 'mobilidade', aba: 'acompanhamento', visivel: (c) => c.pode('REGISTRO_LER') && c.pode('TREINO_LER') },
   { bloco: 'agua', aba: 'acompanhamento', visivel: (c) => c.pode('REGISTRO_LER') && c.pode('ALUNO_SENSIVEL_LER') },
   { bloco: 'treinosConcluidos', aba: 'acompanhamento', visivel: (c) => c.retornoHabilitado && c.pode('REGISTRO_LER') },
   { bloco: 'recordesDaSemana', aba: 'acompanhamento', visivel: (c) => c.retornoHabilitado && c.pode('REGISTRO_LER') },
@@ -53,6 +52,9 @@ const BLOCOS: readonly { bloco: BlocoDaFicha; aba: AbaDaFicha; visivel: (c: Cont
 
 export const blocoVisivel = (bloco: BlocoDaFicha, contexto: ContextoDaFicha): boolean =>
   BLOCOS.some((b) => b.bloco === bloco && b.visivel(contexto));
+
+/** A linha da mobilidade no resumo de frequência: os registros e o plano de mobilidade (lido com as permissões do treino). */
+export const mostraMobilidade = (contexto: ContextoDaFicha): boolean => contexto.pode('REGISTRO_LER') && contexto.pode('TREINO_LER');
 
 /** Os blocos permitidos de uma aba, na ordem em que a tela os mostra. */
 export const blocosDaAba = (aba: AbaDaFicha, contexto: ContextoDaFicha): BlocoDaFicha[] =>

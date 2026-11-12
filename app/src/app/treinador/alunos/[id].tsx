@@ -10,14 +10,13 @@ import { enderecoParaLeitura, NOTA_TELEFONE_SEM_ACESSO } from '../../../dominio/
 import { rotuloDoSexo } from '../../../dominio/sexo';
 import { textoDaMeta } from '../../../dominio/metaDoPesoNaFicha';
 import { cicloDoAluno, textoDoCiclo } from '../../../dominio/periodo';
-import { ABAS_DA_FICHA, abaDaUrl, abaParaEditar, abaParaPasta, abasVisiveis, blocosDaAba, type AbaDaFicha, type BlocoDaFicha } from '../../../dominio/fichaDoAluno';
+import { ABAS_DA_FICHA, abaDaUrl, abaParaEditar, abaParaPasta, abasVisiveis, blocosDaAba, mostraMobilidade, type AbaDaFicha, type BlocoDaFicha } from '../../../dominio/fichaDoAluno';
 import type { AlunoDetalhe } from '../../../api/tipos';
 import { espaco, LARGURA_LISTA, LARGURA_MENU_LATERAL } from '../../../tema/tokens';
 import { CartaoAcesso } from '../../../treinador/CartaoAcesso';
 import { CartaoEvolucaoRespostas } from '../../../treinador/CartaoEvolucaoRespostas';
 import { CartaoFrequencia, useAcompanhamentoDoAluno } from '../../../treinador/CartaoFrequencia';
 import { CartaoAgua } from '../../../treinador/CartaoAgua';
-import { CartaoMobilidade } from '../../../treinador/CartaoMobilidade';
 import { CartaoRecordesDaSemana } from '../../../treinador/CartaoRecordesDaSemana';
 import { CartaoTreinosConcluidos } from '../../../treinador/CartaoTreinosConcluidos';
 import { FolhaDeAcoes } from '../../../treinador/FolhaDeAcoes';
@@ -125,8 +124,7 @@ export default function FichaAluno() {
       case 'pastas':
         return <CartaoPastas key={`${a.id}:${pedidoDePasta.vez}`} pastaInicialId={pedidoDePasta.id} alunoId={a.id} alunoNome={a.nome} diasAtualizacao={cicloDoAluno(a.diasAtualizacao, padrao)}
           geracao={geracaoPastas} aoMudar={mudouPastas} aoGravarPeso={() => setGeracaoPeso((g) => g + 1)} />;
-      case 'frequencia': return <CartaoFrequencia acompanhamento={acompanhamento} />;
-      case 'mobilidade': return acompanhamento.erro ? null : <CartaoMobilidade alunoId={a.id} acompanhamento={acompanhamento} />;
+      case 'frequencia': return <CartaoFrequencia alunoId={a.id} acompanhamento={acompanhamento} comMobilidade={mostraMobilidade(contexto)} />;
       case 'agua': return <CartaoAgua alunoId={a.id} comDieta={pode('DIETA_LER')} />;
       // Retorno ao aluno (Engajamento 0.5): treinos concluídos com o "Visto" e os recordes da semana.
       case 'treinosConcluidos': return <CartaoTreinosConcluidos alunoId={a.id} />;
@@ -161,7 +159,7 @@ export default function FichaAluno() {
     const contagens = lista.filter((b) => CONTAGENS.includes(b));
     return (
       <>
-        {/* Frequência, Mobilidade e Água são o mesmo tipo de contagem: lado a lado no PC, uma embaixo da outra no celular. */}
+        {/* Frequência e mobilidade (um cartão) e Água são o mesmo tipo de contagem: lado a lado no PC, uma embaixo da outra no celular. */}
         {contagens.length > 0 ? (
           <View style={estilos.contagens}>
             {contagens.map((b) => {
@@ -214,7 +212,7 @@ export default function FichaAluno() {
 }
 
 /** Contagens da aba Acompanhamento que dividem uma linha. */
-const CONTAGENS: readonly BlocoDaFicha[] = ['frequencia', 'mobilidade', 'agua'];
+const CONTAGENS: readonly BlocoDaFicha[] = ['frequencia', 'agua'];
 
 /** Inativar ou reativar (do menu ⋯ da ficha). Inativar encerra o acesso na hora; nada é apagado. */
 function ConfirmarSituacao({ aluno, visivel, aoFechar, aoAlterar }: { aluno: AlunoDetalhe; visivel: boolean; aoFechar: () => void; aoAlterar: (a: AlunoDetalhe) => void }) {

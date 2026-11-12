@@ -1,7 +1,7 @@
 import type { ItemDeAtividade } from '../api/tipos';
 import {
   ABAS_DA_FICHA, abaDaUrl, abaParaEditar, abaParaPasta, abasVisiveis, avisoDeLesoes, blocosDaAba, blocoVisivel, destinoDoEvento,
-  textoDoEvento, ultimoPeso, type ContextoDaFicha,
+  mostraMobilidade, textoDoEvento, ultimoPeso, type ContextoDaFicha,
 } from './fichaDoAluno';
 
 const contexto = (permissoes: string[], extra: Partial<Omit<ContextoDaFicha, 'pode'>> = {}): ContextoDaFicha => ({
@@ -40,12 +40,12 @@ describe('abas da ficha', () => {
     expect(blocoVisivel('fotos', contexto(['ALUNO_LER', 'ATUALIZACAO_LER']))).toBe(false);
   });
 
-  it('mobilidade e água ficam dentro do bloco de registros: pedem TREINO_LER e ALUNO_SENSIVEL_LER além de REGISTRO_LER', () => {
-    expect(blocoVisivel('mobilidade', contexto(['REGISTRO_LER']))).toBe(false);
-    expect(blocoVisivel('mobilidade', contexto(['REGISTRO_LER', 'TREINO_LER']))).toBe(true);
+  it('a linha da mobilidade (dentro do resumo de frequência) e a água pedem TREINO_LER e ALUNO_SENSIVEL_LER além de REGISTRO_LER', () => {
+    expect(mostraMobilidade(contexto(['REGISTRO_LER']))).toBe(false);
+    expect(mostraMobilidade(contexto(['REGISTRO_LER', 'TREINO_LER']))).toBe(true);
+    expect(mostraMobilidade(contexto(['TREINO_LER']))).toBe(false);
     expect(blocoVisivel('agua', contexto(['REGISTRO_LER']))).toBe(false);
     expect(blocoVisivel('agua', contexto(['REGISTRO_LER', 'ALUNO_SENSIVEL_LER']))).toBe(true);
-    expect(blocoVisivel('mobilidade', contexto(['TREINO_LER']))).toBe(false);
   });
 
   it('treinos concluídos e recordes da semana só com o retorno habilitado e REGISTRO_LER', () => {
@@ -71,7 +71,7 @@ describe('abas da ficha', () => {
     const c = contexto(TUDO, { pagamentosHabilitados: true, retornoHabilitado: true });
     expect(abasVisiveis(c)).toEqual(['resumo', 'planos', 'acompanhamento', 'evolucao', 'ficha']);
     expect(blocosDaAba('planos', c)).toEqual(['pastas']);
-    expect(blocosDaAba('acompanhamento', c)).toEqual(['frequencia', 'mobilidade', 'agua', 'treinosConcluidos', 'recordesDaSemana', 'evolucaoDasRespostas']);
+    expect(blocosDaAba('acompanhamento', c)).toEqual(['frequencia', 'agua','treinosConcluidos', 'recordesDaSemana', 'evolucaoDasRespostas']);
     expect(blocosDaAba('evolucao', c)).toEqual(['peso', 'progresso', 'avaliacaoFisica', 'fotos']);
     expect(blocosDaAba('ficha', c)).toEqual(['dadosDoAluno', 'acessoAoApp', 'planoContratado', 'anamnese', 'lesoes']);
   });
