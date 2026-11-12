@@ -355,18 +355,13 @@ for (const { largura, altura } of [{ largura: 1280, altura: 900 }, { largura: 39
     await expect(page.getByText(CPF)).toBeVisible();
     await expect(page.getByLabel('Acesso ao app: Com acesso')).toBeVisible();
 
-    // Grade: no PC as três seções lado a lado; no celular uma embaixo da outra.
-    const cadastro = await topo(page.getByText('Cadastro', { exact: true }));
-    const pessoais = await topo(page.getByText('Dados pessoais', { exact: true }));
-    // "Acompanhamento" também é o título de um grupo do menu lateral (aria-hidden) e o nome de uma aba: vale só o da seção.
-    const acompanhamento = await topo(page.getByText('Acompanhamento', { exact: true }).and(page.locator(':not([aria-hidden="true"]):not([role="tab"] *)')));
-    if (largura >= 1100) {
-      expect(Math.abs(pessoais - cadastro)).toBeLessThan(2);
-      expect(Math.abs(acompanhamento - cadastro)).toBeLessThan(2);
-    } else {
-      expect(cadastro).toBeLessThan(pessoais);
-      expect(pessoais).toBeLessThan(acompanhamento);
-    }
+    // Por assunto (guia de 11/11, pág. 34): no PC as duas seções lado a lado; no celular uma embaixo da outra.
+    const contato = await topo(page.getByText('Dados e contato', { exact: true }));
+    const configuracao = await topo(page.getByText('Configuração do acompanhamento', { exact: true }));
+    if (largura >= 1100) expect(Math.abs(configuracao - contato)).toBeLessThan(2);
+    else expect(contato).toBeLessThan(configuracao);
+    // O acesso tem bloco próprio, com título.
+    await expect(page.getByRole('heading', { name: 'Acesso ao app', exact: true })).toBeVisible();
     // Nada passa da largura da tela.
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(largura);
 

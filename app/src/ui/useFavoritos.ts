@@ -38,8 +38,8 @@ export function useFavoritos(): { favoritos: string[]; alternar: (id: string) =>
 }
 
 /**
- * Apaga os favoritos do aparelho ao sair. Fica no layout do treinador (sempre montado), e não no `useFavoritos`, que só
- * existe com a barra de topo: sair pelo Perfil do celular, ou com a janela estreita, também precisa limpar.
+ * Apaga os favoritos do aparelho ao sair. Fica no layout do treinador (sempre montado), e não no `useFavoritos`, que mora
+ * na busca global: sair por qualquer caminho (Perfil do celular, menu da conta) precisa limpar, mesmo sem a busca aberta.
  */
 export function useLimparFavoritosAoSair(): void {
   const { aoSair } = useSessao();

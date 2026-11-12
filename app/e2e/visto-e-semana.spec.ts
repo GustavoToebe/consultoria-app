@@ -97,6 +97,30 @@ for (const largura of [390, 1280]) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     expect(api.errosDaPagina).toEqual([]);
   });
+
+  // Guia de 11/11, pág. 33: vazio vira uma frase só, na faixa do cartão (antes "0 séries…" e "Nenhum recorde…" repetiam).
+  test(`ficha: treinos e recordes vazios ficam numa frase só (${largura} px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    await fixarHoje(page);
+    const { errosDaPagina } = await simularApi(page, {
+      ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'REGISTRO_LER'], retornoHabilitado: true })),
+      'GET /painel': { corpo: PAINEL },
+      'GET /recordes/semana': { corpo: { ...RECORDES, total: 0, series: [] } },
+      [`GET /alunos/${ALUNO_ID}`]: { corpo: FICHA },
+      [`GET /alunos/${ALUNO_ID}/pastas`]: { corpo: [] },
+      [`GET /alunos/${ALUNO_ID}/pesos`]: { corpo: [] },
+      [`GET /alunos/${ALUNO_ID}/execucoes`]: { corpo: [] },
+      [`GET /alunos/${ALUNO_ID}/sessoes-concluidas`]: { corpo: { totalConcluidos: 3, sessoes: [] } },
+      [`GET /alunos/${ALUNO_ID}/recordes/semana`]: { corpo: { ...RECORDES, total: 0, series: [] } },
+    });
+    await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=acompanhamento`);
+    await expect(page.getByRole('heading', { name: 'Treinos concluídos' })).toBeVisible();
+    await expect(page.getByText('Nenhum treino concluído nos últimos 14 dias · 3 treinos concluídos no total')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Recordes da semana' })).toBeVisible();
+    await expect(page.getByText('Nenhum recorde nos últimos 7 dias.')).toHaveCount(1);
+    await expect(page.getByText(/0 séries com recorde/)).toHaveCount(0);
+    expect(errosDaPagina).toEqual([]);
+  });
 }
 
 test('sem REGISTRO_REAGIR o treinador só lê: sem botão, com o selo "Visto" quando já marcado', async ({ page }) => {

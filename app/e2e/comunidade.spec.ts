@@ -857,12 +857,27 @@ for (const largura of [390, 1280]) {
       await page.goto('/treinador/comunidade');
       await expect(page.getByRole('heading', { level: 1, name: 'Comunidade' })).toBeVisible();
       await expect(page.getByText('Técnica', { exact: true })).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Abrir o vídeo' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Abrir vídeo: Aulão de técnica' })).toBeVisible();
       await expect(page.getByRole('tab', { name: 'Ranking' })).toHaveCount(0);
+      // Uma ação principal por vez, a da aba ativa, no cabeçalho (guia pág. 35).
+      await expect(page.getByRole('button', { name: 'Novo aulão' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Nova publicação' })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Configurações do mural' })).toHaveCount(0);
+      // Coluna de leitura de 800 px (D10): o título da tela não passa dela, mesmo com a janela larga.
+      if (largura >= 1280) {
+        const titulo = await page.getByRole('heading', { level: 1, name: 'Comunidade' }).boundingBox();
+        const acao = await page.getByRole('button', { name: 'Novo aulão' }).boundingBox();
+        expect(acao!.x + acao!.width - titulo!.x).toBeLessThanOrEqual(800);
+      }
       await capturar(page, `treinador-auloes-${largura}`);
 
       await page.getByRole('tab', { name: 'Mural' }).click();
       await expect(page.getByText('Treino feito.')).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Novo aulão' })).toHaveCount(0);
+      // As chaves não ficam mais no caminho de leitura: só o acesso "Configurações do mural".
+      await expect(page.getByRole('button', { name: 'Configurações do mural' })).toBeVisible();
+      await expect(page.getByRole('switch')).toHaveCount(0);
+      await expect(page.getByText('Quem publica no mural')).toHaveCount(0);
       await expect(page.getByText('Fixado', { exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Curtir' })).toHaveCount(0);
       await page.getByRole('button', { name: 'Nova publicação' }).click();
@@ -906,7 +921,7 @@ for (const largura of [390, 1280]) {
       expect(api.errosDaPagina).toEqual([]);
     });
 
-    test('treinador: as chaves do mural mudam na hora, o PUT manda as duas e a recusa volta com aviso', async ({ page }) => {
+    test('treinador: "Configurações do mural" abre a folha; as chaves mudam na hora, o PUT manda as duas e a recusa volta com o erro na folha', async ({ page }) => {
       let recusar = false;
       const api = await abrirTreinador(page, {
         ...cheia,
@@ -916,8 +931,11 @@ for (const largura of [390, 1280]) {
         },
       });
       await page.goto('/treinador/comunidade?aba=mural');
-      const publicar = page.getByRole('switch', { name: 'Alunos podem publicar' });
-      const fotos = page.getByRole('switch', { name: 'Alunos podem anexar fotos' });
+      await expect(page.getByRole('switch')).toHaveCount(0);
+      await page.getByRole('button', { name: 'Configurações do mural' }).click();
+      const folha = page.getByRole('dialog', { name: 'Configurações do mural' });
+      const publicar = folha.getByRole('switch', { name: 'Alunos podem publicar' });
+      const fotos = folha.getByRole('switch', { name: 'Alunos podem anexar fotos' });
       await expect(publicar).toBeChecked();
       await expect(fotos).not.toBeChecked();
       await capturar(page, `treinador-chaves-${largura}`);
@@ -927,9 +945,13 @@ for (const largura of [390, 1280]) {
 
       recusar = true;
       await publicar.click();
-      await expect(page.getByText('Configuração recusada.')).toBeVisible();
+      // A recusa fica dentro da folha (o aviso de rodapé ficaria atrás do véu).
+      await expect(folha.getByText('Configuração recusada.')).toBeVisible();
       await expect(publicar).toBeChecked();
       expect(api.pedidos.filter((p) => p.metodo === 'PUT').at(-1)?.corpo).toEqual({ alunosPublicam: false, alunosAnexamFotos: true });
+      await page.keyboard.press('Escape');
+      await expect(folha).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Configurações do mural' })).toBeFocused();
       expect(api.errosDaPagina).toEqual([]);
     });
 
@@ -980,6 +1002,7 @@ for (const largura of [390, 1280]) {
       await page.getByRole('tab', { name: 'Mural' }).click();
       await expect(page.getByText('Treino feito.')).toBeVisible();
       await expect(page.getByRole('button', { name: 'Nova publicação' })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Configurações do mural' })).toHaveCount(0);
       await expect(page.getByRole('switch')).toHaveCount(0);
       await expect(page.getByRole('radio', { name: 'Denunciados', exact: true })).toHaveCount(0);
       // O apelido aparece para todos; só a moderação (o ⋯) some.
@@ -1216,6 +1239,19 @@ for (const largura of [390, 1280]) {
       await folha.getByRole('button', { name: 'Publicar para o time' }).click();
       await expect(folha.getByText('Use um link https sem usuário e senha.')).toBeVisible();
       await expect(folha).toBeVisible();
+    });
+
+    test('treinador: falha sem campo (503) ao publicar o aulão aparece no rodapé da folha, que continua aberta', async ({ page }) => {
+      const e = erroApi(503, 'Comunidade indisponível agora.');
+      await abrirTreinador(page, { ...vazia, 'POST /comunidade/aulas': (_p, route) => json(route, e.corpo, e.status) });
+      await page.goto('/treinador/comunidade');
+      await page.getByRole('button', { name: 'Novo aulão' }).click();
+      const folha = page.getByRole('dialog', { name: 'Novo aulão' });
+      await folha.getByRole('textbox', { name: 'Título' }).fill('Aulão de teste');
+      await folha.getByRole('textbox', { name: 'Link do vídeo' }).fill('https://exemplo.test/video');
+      await folha.getByRole('button', { name: 'Publicar para o time' }).click();
+      await expect(folha.getByText('Comunidade indisponível agora.')).toBeVisible();
+      await expect(folha.getByRole('textbox', { name: 'Título' })).toHaveValue('Aulão de teste');
     });
 
     test('treinador: erro da API vira mensagem com "Tentar de novo" e nenhum dado de exemplo', async ({ page }) => {

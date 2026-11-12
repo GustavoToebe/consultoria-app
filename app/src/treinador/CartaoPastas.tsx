@@ -10,11 +10,12 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { atualizacaoDoAluno, atualizacoesDoAluno, excluirPasta, finalizarPasta, reabrirPasta, salvarPastaComoModelo, atualizarPasta, criarPasta, escolherQuestionarioDaPasta, listarPastas, pastaVigenteDoAluno, pesosDoAluno, pesoSugeridoDaPasta, replicarPasta } from '../api/rotas';
 import { SeletorDeQuestionario } from './questionarios/SeletorDeQuestionario';
-import type { Atualizacao, PastaResumo, Receita } from '../api/tipos';
+import type { Atualizacao, PastaResumo, PlanoResumo, Receita } from '../api/tipos';
 import { atualizacaoDaPasta, caminhoAtualizacaoTreinador, statusAtualizacaoTreinador } from '../dominio/atualizacao';
 import { NOTAS_DA_RENOVACAO, PASSOS_DA_RENOVACAO, TITULO_ORDEM_DA_RENOVACAO } from '../dominio/ordemDaRenovacao';
 import { corpoDaFinalizacao, dataDoPesoDaAtualizacao, dataInicialDoPeso, notaDoPesoJaRegistrado, pesoDaAtualizacao, pesoSugeridoSemEdicao, substituiPesoDaAtualizacao, sugestaoParaPreencher, textoDoPesoDaAtualizacao } from '../dominio/pesoNaFinalizacao';
-import { mensagemPastaCopiada, motivoParaNaoCopiar, notaDoPesoSugerido, podeSugerirPeso } from '../dominio/publicarPasta';
+import { mensagemPastaCopiada, motivoParaNaoCopiar, notaDoPesoSugerido, planosDaPasta, podeSugerirPeso } from '../dominio/publicarPasta';
+import { pastaSoComRascunho } from '../dominio/pastaEmRascunho';
 import { rotuloAbrirFicha } from '../dominio/planoDoAluno';
 import { dataDaTelaNaFaixa } from '../dominio/datasValidas';
 import { dataParaTela, hojeIso, numeroParaTela } from '../dominio/formatos';
@@ -100,7 +101,7 @@ export function useRenovarPasta(diasAtualizacao: number | null, aoRenovar: () =>
  * período da pasta acompanha os rascunhos dos planos dela; replicar a pasta copia todos para o próximo ciclo.
  */
 export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, aoGravarPeso, aoMudar, geracao: geracaoExterna = 0, pastaInicialId }: PropsPastas) {
-  const { pode } = useSessao();
+  const { pode, temFuncionalidade } = useSessao();
   const { dados, erro, carregando, recarregar } = useCarregar(`pastas:${alunoId}:${geracaoExterna}`, () => listarPastas(alunoId));
   const [modo, setModo] = useState<Modo | null>(null);
   const [filtro, setFiltro] = useState<FiltroPastas>('todas');
@@ -123,9 +124,17 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
   // "Copiar pasta para outro aluno" (D7), aberto pelo ⋯ da pasta.
   const [copiar, setCopiar] = useState<PastaResumo | null>(null);
   // Planos da pasta em foco (Folha, ⋯ ou cópia), carregados uma vez: os cartões de plano, o "Publicar tudo" e a cópia
-  // usam a mesma lista.
+  // usam a mesma lista. As listas são do aluno inteiro (a chave não leva a pasta), então já buscam com a lista de
+  // pastas na tela, sem nenhuma em foco: o selo "Rascunho" da lista usa as mesmas, sem um segundo pedido. A soma das
+  // gerações (as duas só sobem) busca de novo quando esta lista ou outra parte da ficha mexe nas pastas.
   const emFoco = aberta ?? menuPasta ?? copiar;
-  const planosEmFoco = usePlanosDaPasta(alunoId, emFoco?.id ?? null, geracao);
+  const planosEmFoco = usePlanosDaPasta(alunoId, emFoco?.id ?? dados?.[0]?.id ?? null, geracao + geracaoExterna);
+  // Selo "Rascunho" na lista (guia de 11/11, pág. 33): lista de um tipo que falhou, ainda não chegou ou que a pessoa não
+  // lê fica desconhecida e a pasta fica sem selo (`pastaSoComRascunho`), nunca "rascunho" por palpite.
+  const conhecida = (c: { erro: unknown; dados: PlanoResumo[] | null | undefined }) => (c.erro ? null : c.dados ?? null);
+  const { cargas } = planosEmFoco;
+  const listasDePlanos = { treino: conhecida(cargas.treino), dieta: conhecida(cargas.dieta), mobilidade: conhecida(cargas.mobilidade) };
+  const emRascunho = (id: string) => pastaSoComRascunho(planosDaPasta(id, listasDePlanos, temFuncionalidade('MOBILIDADE')));
   // "Vigente" no cabeçalho da Folha (guia premium, pág. 8) vem da regra da API (`PastaVigente`), nunca de um palpite
   // da tela; falhou ou nenhuma = sem selo.
   const { dados: vigente } = useCarregar(aberta ? `pasta-vigente:${alunoId}:${geracao}` : null, () => pastaVigenteDoAluno(alunoId));
@@ -161,7 +170,7 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
     <>
       <Cartao
         titulo="Pastas de plano"
-        descricao="Cada pasta junta o treino, a dieta e a mobilidade de um período. O período da pasta vale para todos."
+        descricao="Cada pasta junta o treino, a dieta e a mobilidade de um período."
         recolhivel
         acoes={<>
           {podeAplicarModelo('PASTA_PLANO', pode) ? <Botao rotulo="Usar pacote" tipo="secundario" Icone={Package} aoTocar={() => setEscolher(true)} /> : null}
@@ -177,7 +186,7 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
           <Vazio titulo="Nenhuma pasta nesta situação" texto={filtro === 'abertas' ? 'Todas as pastas estão concluídas.' : 'Nenhuma pasta foi concluída ainda.'} />
         ) : null}
         {visiveis.map((p) => (
-          <LinhaPasta key={p.id} pasta={p} atualizacao={daPasta(p.id)} aoAbrir={() => setAbertaId(p.id)} hoje={hoje}
+          <LinhaPasta key={p.id} pasta={p} atualizacao={daPasta(p.id)} rascunho={!p.concluidaEm && emRascunho(p.id)} aoAbrir={() => setAbertaId(p.id)} hoje={hoje}
             aoRevisar={(a) => confirmar(() => router.push(caminhoAtualizacaoTreinador(a)))}
             aoRenovar={pode('PASTA_ALTERAR') && precisaRenovar(p, dados ?? [], hoje) ? () => renovacao.pedir(p) : undefined} />
         ))}
@@ -187,7 +196,7 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
           acaoNoTopo={temAcaoNoMenuDaPasta(pode) ? <IconeBotao Icone={Ellipsis} moldura rotulo={`Mais ações da pasta ${aberta.titulo}`} aoTocar={() => { setAbertaId(null); setMenuPasta(aberta); }} /> : undefined}>
           <View style={estilos.resumo}>
             {vigente?.pasta?.id === aberta.id ? <Selo texto="Vigente" tipo="sucesso" /> : null}
-            <Texto numerico variante="suave">Período: {periodoCurto(aberta.inicio, aberta.fim, hoje)}</Texto>
+            <Texto numerico variante="suave">Período: {!aberta.inicio && !aberta.fim ? 'Não definido' : periodoCurto(aberta.inicio, aberta.fim, hoje)}</Texto>
             <CartaoCicloNoPeriodo alunoId={alunoId} inicio={aberta.inicio} fim={aberta.fim} />
             {aberta.concluidaEm ? <Selo texto={`Concluída em ${dataSemAnoCorrente(hojeIso(new Date(aberta.concluidaEm)), hoje)}`} tipo="neutro" /> : null}
           </View>
@@ -260,8 +269,8 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
  * os planos. Na pasta que pede trabalho, as ações do dia ficam na própria linha: "Revisar atualização" e "Renovar".
  * Os botões ficam fora da área de toque da linha (botão dentro de botão não funciona no leitor de tela).
  */
-function LinhaPasta({ pasta, atualizacao, hoje, aoAbrir, aoRevisar, aoRenovar }: {
-  pasta: PastaResumo; atualizacao: Atualizacao | null; hoje: string; aoAbrir: () => void;
+function LinhaPasta({ pasta, atualizacao, rascunho, hoje, aoAbrir, aoRevisar, aoRenovar }: {
+  pasta: PastaResumo; atualizacao: Atualizacao | null; rascunho: boolean; hoje: string; aoAbrir: () => void;
   aoRevisar: (a: Atualizacao) => void; aoRenovar?: () => void;
 }) {
   const { cores } = useTema();
@@ -270,27 +279,26 @@ function LinhaPasta({ pasta, atualizacao, hoje, aoAbrir, aoRevisar, aoRenovar }:
   const situacao = atualizacao?.dataAtualizacao ? statusAtualizacaoTreinador(atualizacao, hoje) : null;
   const revisar = atualizacao?.fase === 'ENVIADA' && pode('ATUALIZACAO_LER') ? atualizacao : null;
   const Icone = concluida ? FolderCheck : Folder;
-  const periodoTexto = periodoCurto(pasta.inicio, pasta.fim, hoje);
+  // Pasta sem datas: "Não definido" (guia de 11/11, pág. 33), não um "Sem período" que parece erro.
+  const periodoTexto = !pasta.inicio && !pasta.fim ? 'Não definido' : periodoCurto(pasta.inicio, pasta.fim, hoje);
   return (
     <View style={[estilos.linha, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Pasta ${pasta.titulo}, ${concluida ? 'concluída' : 'aberta'}, ${periodoTexto}${situacao ? `, ${situacao.texto}` : ''}. Abrir.`}
+        accessibilityLabel={`Pasta ${pasta.titulo}, ${concluida ? 'concluída' : 'aberta'}${rascunho ? ', rascunho' : ''}, período ${periodoTexto}${situacao ? `, ${situacao.texto}` : ''}. Abrir.`}
         onPress={aoAbrir}
         style={(estado) => [estilos.linhaToque, { backgroundColor: sobre(estado) ? cores.superficie3 : 'transparent' }]}>
         {/* Ícone neutro: a marca não diz situação; quem diz é o selo. */}
         <View style={[estilos.icone, { backgroundColor: cores.superficie3 }]}>
           <Icone size={22} color={concluida ? cores.textoSuave : cores.texto} />
         </View>
+        {/* Título, selos e período numa linha de leitura só (guia de 11/11, pág. 33); quebra no celular. */}
         <View style={estilos.linhaTextos}>
           <Texto numerico style={estilos.linhaTitulo}>{pasta.titulo}</Texto>
-          <Texto numerico variante="suave">{periodoTexto}</Texto>
-          {situacao || concluida ? (
-            <View style={estilos.linhaAtualizacao}>
-              {concluida ? <Selo texto="Concluída" tipo="neutro" /> : null}
-              {situacao ? <Selo texto={situacao.texto} tipo={situacao.tipo} /> : null}
-            </View>
-          ) : null}
+          {rascunho ? <Selo texto="Rascunho" tipo="neutro" /> : null}
+          {concluida ? <Selo texto="Concluída" tipo="neutro" /> : null}
+          {situacao ? <Selo texto={situacao.texto} tipo={situacao.tipo} /> : null}
+          <Texto numerico variante="suave">Período: {periodoTexto}</Texto>
         </View>
         <ChevronRight size={20} color={cores.textoSuave} />
       </Pressable>
@@ -582,7 +590,6 @@ const estilos = StyleSheet.create({
   passo: { flexDirection: 'row', gap: espaco(1), alignItems: 'flex-start' },
   numeroDoPasso: { fontFamily: fontes.semi, minWidth: 20 },
   textoDoPasso: { flex: 1 },
-  linhaAtualizacao: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(0.75), marginTop: espaco(0.5) },
   linha: { borderWidth: 1, borderRadius: RAIO, overflow: 'hidden' },
   linhaToque: {
     flexDirection: 'row',
@@ -593,6 +600,6 @@ const estilos = StyleSheet.create({
   },
   acoesDaLinha: { paddingHorizontal: espaco(1.5), paddingBottom: espaco(1.5) },
   icone: { width: 44, height: 44, borderRadius: RAIO, alignItems: 'center', justifyContent: 'center' },
-  linhaTextos: { flex: 1, gap: 2 },
-  linhaTitulo: { fontFamily: fontes.negrito, fontSize: 17, lineHeight: 23 },
+  linhaTextos: { flex: 1, minWidth: 0, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: espaco(1), rowGap: espaco(0.5) },
+  linhaTitulo: { fontFamily: fontes.negrito, fontSize: 17, lineHeight: 23, flexShrink: 1 },
 });

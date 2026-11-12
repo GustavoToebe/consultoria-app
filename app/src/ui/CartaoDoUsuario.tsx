@@ -1,15 +1,19 @@
-import { router, type Href } from 'expo-router';
-import { ChevronDown, CreditCard, LogOut, Palette, ShieldCheck, SlidersHorizontal, UserRound, type LucideIcon } from 'lucide-react-native';
-import { useRef, useState } from 'react';
+import { router, usePathname, type Href } from 'expo-router';
+import { ChevronUp, CreditCard, LogOut, Palette, ShieldCheck, SlidersHorizontal, UserRound, type LucideIcon } from 'lucide-react-native';
+import { useCallback, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { deixarParaONavegador, type CliqueDoNavegador } from '../dominio/cliqueDeLink';
+import { iniciais } from '../dominio/fotoDePerfil';
+import { naConta } from '../dominio/gruposDoMenu';
 import { itensDoMenuDoUsuario, type IdDoItemDoMenu } from '../dominio/menuDoUsuario';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, RAIO, RAIO_CONTROLE } from '../tema/tokens';
 import { ConfirmarSaida } from './ConfirmarSaida';
 import { useSaidaGuardada } from './GuardaDeSaida';
+import { useDicaNoMenu, useMenuLateral } from './Navegacao';
+import { useAlvoDoPasseio } from './Passeio';
 import { sobre } from './sobre';
 import { propsDeLink } from './propsDeLink';
 import { Texto } from './Texto';
@@ -26,17 +30,32 @@ export const ICONES_DO_MENU: Record<IdDoItemDoMenu, LucideIcon> = {
 };
 
 /**
- * Cartão do usuário na barra de topo: nome, perfil na equipe e seta. Abre o menu (Meus dados, Assinatura e faturas, Marca
- * para o Administrador, Ajustes, Sair). Fecha com Esc e com clique fora; setas escolhem e Enter abre. Sair pede a confirmação de sempre.
+ * Conta de quem está logado, no rodapé fixo do menu lateral da web (guia de 11/11, D3). Menu aberto: as iniciais, o nome
+ * (longo trunca com reticências), o perfil na equipe e a seta. Minimizado: só as iniciais, com o nome na dica. Trilho:
+ * as iniciais com "Conta" embaixo. Fica realçado nas telas da conta. Abre o menu de sempre (Meus dados, Segurança,
+ * Assinatura e faturas, Marca para o Administrador, Ajustes, Sair, conforme a permissão): para cima no menu aberto e para
+ * o lado nos estreitos, sempre dentro da janela. Fecha com Esc (o foco volta ao botão) e com clique fora; setas escolhem e
+ * Enter abre. Sair pede a confirmação de sempre. Sem foto: buscar a imagem aqui seria uma chamada a mais em toda tela.
  */
-export function CartaoDoUsuario({ compacto, ativo: naConta }: { compacto?: boolean; ativo?: boolean } = {}) {
+export function CartaoDoUsuario() {
   const { usuario, perfilEquipe, pode } = useSessao();
   const administrador = !!perfilEquipe?.acessoTotal;
   const { cores } = useTema();
+  const { recolhido, trilho, esconderDica } = useMenuLateral();
+  const soIcone = recolhido && !trilho;
+  const nome = usuario?.nome?.trim() || '—';
+  const realce = naConta(usePathname());
   const [aberto, setAberto] = useState(false);
   const [ativo, setAtivo] = useState(-1);
   const [saindo, setSaindo] = useState(false);
   const caixa = useRef<View>(null);
+  const botaoRef = useRef<View | null>(null);
+  const dica = useDicaNoMenu(nome, soIcone && !aberto, botaoRef);
+  const alvo = useAlvoDoPasseio('menu:conta');
+  const ref = useCallback((n: View | null) => {
+    botaoRef.current = n;
+    alvo(n);
+  }, [alvo]);
   const itens = itensDoMenuDoUsuario(pode, administrador);
 
   const { confirmar } = useSaidaGuardada();
@@ -60,6 +79,7 @@ export function CartaoDoUsuario({ compacto, ativo: naConta }: { compacto?: boole
     }
     if (key === 'Escape') {
       fechar();
+      botaoRef.current?.focus();
       return true;
     }
     if (key === 'ArrowDown' || key === 'ArrowUp') {
@@ -76,47 +96,74 @@ export function CartaoDoUsuario({ compacto, ativo: naConta }: { compacto?: boole
   return (
     <View ref={caixa} style={estilos.caixa}>
       <Pressable
+        ref={ref}
         accessibilityRole="button"
-        accessibilityLabel={`Menu do usuário, ${usuario?.nome ?? ''}`}
-        accessibilityState={{ expanded: aberto, selected: !!naConta }}
-        onPress={() => (aberto ? fechar() : setAberto(true))}
-        style={(estado) => [estilos.cartao, compacto && estilos.cartaoCompacto, { borderColor: cores.borda }, naConta && { backgroundColor: cores.superficie2 }, (aberto || sobre(estado)) && { backgroundColor: cores.superficie3 }]}>
-        <View style={estilos.textos}>
-          <Texto numberOfLines={1} style={estilos.nome}>{usuario?.nome ?? '—'}</Texto>
-          {compacto ? null : <Texto variante="pequeno" numberOfLines={1} style={estilos.perfil}>{perfilEquipe?.nome ?? '—'}</Texto>}
+        // Começa por "Conta", o rótulo visível no trilho (WCAG 2.5.3), e contém o nome, o visível no menu aberto.
+        accessibilityLabel={`Conta de ${nome}`}
+        accessibilityState={{ expanded: aberto, selected: realce }}
+        onPress={() => {
+          esconderDica?.();
+          if (aberto) fechar();
+          else setAberto(true);
+        }}
+        {...dica}
+        style={(estado) => [
+          estilos.cartao,
+          recolhido && (trilho ? estilos.cartaoTrilho : estilos.cartaoIcone),
+          realce && { backgroundColor: cores.superficie2 },
+          (aberto || sobre(estado)) && { backgroundColor: cores.superficie3 },
+        ]}>
+        <View aria-hidden style={[estilos.avatar, { backgroundColor: cores.superficie3, borderColor: cores.divisor }]}>
+          <Texto style={[estilos.iniciais, { color: cores.texto }]}>{iniciais(usuario?.nome)}</Texto>
         </View>
-        <ChevronDown size={16} color={cores.textoSuave} strokeWidth={2} />
+        {soIcone ? null : trilho ? (
+          <Texto numberOfLines={1} style={[estilos.rotuloTrilho, { color: realce ? cores.texto : cores.textoSuave }]}>Conta</Texto>
+        ) : (
+          <>
+            <View style={estilos.textos}>
+              <Texto numberOfLines={1} style={estilos.nome}>{nome}</Texto>
+              <Texto variante="pequeno" numberOfLines={1}>{perfilEquipe?.nome ?? '—'}</Texto>
+            </View>
+            <ChevronUp size={16} color={cores.textoSuave} strokeWidth={2} />
+          </>
+        )}
       </Pressable>
       {aberto ? (
-        <View accessibilityRole="menu" style={[estilos.menu, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
-          {itens.map((item, i) => {
-            const Icone = ICONES_DO_MENU[item.id];
-            const perigo = item.id === 'sair';
-            return (
-              <View key={item.id}>
-                {perigo ? <View style={[estilos.separador, { backgroundColor: cores.divisor }]} /> : null}
-                <Pressable
-                  accessibilityRole="menuitem"
-                  {...(item.href !== null
-                    ? propsDeLink(item.href as Href, () => escolher(item.id, item.href))
-                    : { onPress: () => escolher(item.id, item.href) })}
-                  onPress={(evento) => {
-                    // Ctrl/Cmd+clique abre outra guia e o menu ficava aberto por cima da tela.
-                    if (item.href !== null && deixarParaONavegador(evento as unknown as CliqueDoNavegador)) {
-                      fechar();
-                      return;
-                    }
-                    if (item.href !== null) propsDeLink(item.href as Href, () => escolher(item.id, item.href)).onPress(evento);
-                    else escolher(item.id, item.href);
-                  }}
-                  onHoverIn={() => setAtivo(i)}
-                  style={(estado) => [estilos.item, (i === ativo || sobre(estado)) && { backgroundColor: cores.superficie3 }]}>
-                  <Icone size={18} color={perigo ? cores.perigo : cores.textoSuave} strokeWidth={2} />
-                  <Texto style={[estilos.rotulo, perigo && { color: cores.perigo }]}>{item.rotulo}</Texto>
-                </Pressable>
-              </View>
-            );
-          })}
+        <View style={[estilos.menu, recolhido ? estilos.menuAoLado : estilos.menuAcima, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
+          <View style={[estilos.cabeca, { borderBottomColor: cores.divisor }]}>
+            <Texto numberOfLines={2} style={estilos.nome}>{nome}</Texto>
+            <Texto variante="pequeno" numberOfLines={1}>{perfilEquipe?.nome ?? '—'}</Texto>
+          </View>
+          <View accessibilityRole="menu" accessibilityLabel="Conta">
+            {itens.map((item, i) => {
+              const Icone = ICONES_DO_MENU[item.id];
+              const perigo = item.id === 'sair';
+              return (
+                <View key={item.id}>
+                  {perigo ? <View style={[estilos.separador, { backgroundColor: cores.divisor }]} /> : null}
+                  <Pressable
+                    accessibilityRole="menuitem"
+                    {...(item.href !== null
+                      ? propsDeLink(item.href as Href, () => escolher(item.id, item.href))
+                      : { onPress: () => escolher(item.id, item.href) })}
+                    onPress={(evento) => {
+                      // Ctrl/Cmd+clique abre outra guia e o menu ficava aberto por cima da tela.
+                      if (item.href !== null && deixarParaONavegador(evento as unknown as CliqueDoNavegador)) {
+                        fechar();
+                        return;
+                      }
+                      if (item.href !== null) propsDeLink(item.href as Href, () => escolher(item.id, item.href)).onPress(evento);
+                      else escolher(item.id, item.href);
+                    }}
+                    onHoverIn={() => setAtivo(i)}
+                    style={(estado) => [estilos.item, (i === ativo || sobre(estado)) && { backgroundColor: cores.superficie3 }]}>
+                    <Icone size={18} color={perigo ? cores.perigo : cores.textoSuave} strokeWidth={2} />
+                    <Texto style={[estilos.rotulo, perigo && { color: cores.perigo }]}>{item.rotulo}</Texto>
+                  </Pressable>
+                </View>
+              );
+            })}
+          </View>
         </View>
       ) : null}
       <ConfirmarSaida visivel={saindo} aoFechar={() => setSaindo(false)} />
@@ -129,31 +176,30 @@ const estilos = StyleSheet.create({
   cartao: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: espaco(1.5),
+    gap: espaco(1),
     minHeight: ALVO_TOQUE,
-    maxWidth: 260,
-    paddingHorizontal: espaco(1.5),
-    // Nome (18) + perfil (16) + 3 em cima e embaixo + o contorno = 42: cabe nos 44 e a barra de topo fica com 52 (prévia).
-    paddingVertical: 3,
-    borderWidth: 1,
-    borderRadius: RAIO,
+    paddingHorizontal: espaco(1),
+    paddingVertical: 4,
+    borderRadius: RAIO_CONTROLE,
   },
-  // No trilho (768 a 1023 px) o cartão encurta: só o nome.
-  cartaoCompacto: { maxWidth: 180 },
-  textos: { flexShrink: 1, minWidth: 0 },
+  cartaoIcone: { justifyContent: 'center', paddingHorizontal: 0 },
+  cartaoTrilho: { flexDirection: 'column', justifyContent: 'center', gap: 2, paddingHorizontal: 0 },
+  avatar: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  iniciais: { fontFamily: fontes.semi, fontSize: 13, lineHeight: 16 },
+  textos: { flex: 1, minWidth: 0 },
   nome: { fontFamily: fontes.semi, fontSize: 14, lineHeight: 18 },
-  perfil: { fontSize: 12, lineHeight: 16 },
-  // Logo abaixo do cartão, qualquer que seja a altura dele (texto ampliado).
+  rotuloTrilho: { alignSelf: 'stretch', textAlign: 'center', fontSize: 12, lineHeight: 16, fontFamily: fontes.medio },
   menu: {
     position: 'absolute',
-    top: '100%',
-    marginTop: 4,
-    right: 0,
-    width: 240,
     borderWidth: 1,
     borderRadius: RAIO,
-    paddingVertical: espaco(0.5),
+    paddingBottom: espaco(0.5),
   },
+  // Menu aberto: acima do botão, na largura do rodapé (o botão está no pé da janela).
+  menuAcima: { bottom: '100%', marginBottom: 4, left: 0, right: 0 },
+  // Minimizado e trilho: para o lado, sobre o conteúdo, com o pé alinhado ao do botão.
+  menuAoLado: { left: '100%', marginLeft: espaco(1), bottom: 0, width: 240 },
+  cabeca: { paddingHorizontal: espaco(1.5), paddingVertical: espaco(1), borderBottomWidth: 1, marginBottom: espaco(0.5) },
   item: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.5), minHeight: ALVO_TOQUE, paddingHorizontal: espaco(1.5) },
   rotulo: { fontFamily: fontes.semi, fontSize: 14 },
   separador: { height: 1, marginVertical: espaco(0.5) },

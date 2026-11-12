@@ -670,8 +670,10 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
         titulo: 'Estudo daqui em diante', data: '2026-10-21', versao: 1,
         repeticao: { tipo: 'SEMANAL', diasDaSemana: ['WEDNESDAY'], ate: '2026-11-25' },
       });
-      const apagou = doCaminho(pedidos, 'DELETE', '/agenda/eventos/ev-serie');
-      expect(apagou.map((p) => [p.busca.get('escopo'), p.busca.get('ocorrencia'), p.busca.get('versao')])).toEqual([['TODAS', null, '2']]);
+      // Com a confirmação aberta o fundo some da árvore de acessibilidade, e os dois `expect` acima passam antes de o
+      // DELETE chegar: a conferência espera o pedido.
+      const apagou = () => doCaminho(pedidos, 'DELETE', '/agenda/eventos/ev-serie');
+      await expect.poll(() => apagou().map((p) => [p.busca.get('escopo'), p.busca.get('ocorrencia'), p.busca.get('versao')])).toEqual([['TODAS', null, '2']]);
 
       // Avulso: sem a repetição no formulário e sem a pergunta do escopo; o 409 relê o evento e avisa.
       await page.getByRole('button', { name: 'Abrir evento Reunião de teste, 14:00', exact: true }).click();

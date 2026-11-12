@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { ReactNode } from 'react';
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import type { ReactNode, RefObject } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { router, Slot, usePathname, type Href } from 'expo-router';
 import { PanelLeftClose, PanelLeftOpen, type LucideIcon } from 'lucide-react-native';
 import { Image } from 'expo-image';
@@ -44,7 +44,7 @@ export interface ItemMenu {
   exato?: boolean;
   /** Só no menu lateral do PC (a barra do celular tem espaço para poucos itens). */
   soLateral?: boolean;
-  /** Só na barra inferior do celular (no PC o item vive em outro lugar, como o Perfil no cartão do usuário). */
+  /** Só na barra inferior do celular (no PC o item vive em outro lugar, como o Perfil no menu da conta). */
   soCelular?: boolean;
   /** Outros caminhos que também deixam o item ativo (telas abertas a partir dele). */
   tambem?: string[];
@@ -54,23 +54,27 @@ export interface ItemMenu {
 
 /**
  * Casca das áreas logadas: menu lateral fixo a partir de 768 px (um trilho com o rótulo curto embaixo de cada ícone até
- * 1024; expandido a partir daí, recolhível à escolha) e barra inferior no celular. O controle de recolher mora na barra de
- * topo (`useMenuLateral`); sem barra de topo (tablet nativo largo) ele fica no rodapé do menu, nunca nos dois. Visual de 11/11: o menu fica no
- * `fundo`, sem contorno, e o conteúdo num `painel` destacado (contorno `divisor`, cantos de 12, 8 px de folga). Item ativo
- * com a seleção neutra (`superficie3`, texto principal) e a marca só no pequeno indicador (`marcaPeca`: barra de 3 × 16 à
- * esquerda no menu, 20 × 2 em cima na barra inferior); `aria-current="page"`. No trilho, o topo mostra a logo ou a inicial da consultoria;
- * minimizado no PC, cada ícone diz o nome ao passar o mouse ou focar. Itens com `grupo` ganham título no menu aberto e um fio
- * nos trilhos. `topo` é a barra de topo e só aparece com o menu lateral. Com `sempreInferior` (aluno) a barra
- * inferior vale em qualquer largura e, no PC, fica na mesma coluna do conteúdo (`larguraInferior`).
+ * 1024; expandido a partir daí, recolhível à escolha) e barra inferior no celular. Sem barra de topo (guia de 11/11, D1): o
+ * conteúdo começa no `painel`. No menu lateral, de cima para baixo e nessa ordem de Tab: a identidade com o botão de
+ * recolher ao lado (embaixo dela no minimizado; o trilho não recolhe), a `busca`, a lista que rola e a `conta` num rodapé
+ * fixo (os dois só existem na web do treinador). Visual de 11/11: o menu fica no `fundo`, sem contorno, e o conteúdo num
+ * `painel` destacado (contorno `divisor`, cantos de 12, 8 px de folga). Item ativo com a seleção neutra (`superficie3`,
+ * texto principal) e a marca só no pequeno indicador (`marcaPeca`: barra de 3 × 16 à esquerda no menu, 20 × 2 em cima na
+ * barra inferior); `aria-current="page"`. Minimizado no PC, cada ícone diz o nome ao passar o mouse ou focar
+ * (`useDicaNoMenu`). Itens com `grupo` ganham título no menu aberto e um fio nos trilhos. Com `sempreInferior` (aluno) a
+ * barra inferior vale em qualquer largura e, no PC, fica na mesma coluna do conteúdo (`larguraInferior`).
  */
-export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, conteudo, topo }: {
+export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, conteudo, busca, conta }: {
   itens: ItemMenu[];
   sempreInferior?: boolean;
   /** Largura máxima da barra inferior no PC (a coluna do aluno, 720); sem isto ocupa a janela toda. */
   larguraInferior?: number;
   rodape?: ReactNode;
   conteudo?: ReactNode;
-  topo?: ReactNode;
+  /** Abre a busca global, logo abaixo da identidade; só no menu lateral. */
+  busca?: ReactNode;
+  /** A conta de quem está logado, no rodapé fixo do menu lateral (a lista rola sem escondê-la). */
+  conta?: ReactNode;
 }) {
   const { width } = useWindowDimensions();
   const { cores, bordas } = useTema();
@@ -90,6 +94,11 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
     AsyncStorage.setItem(CHAVE_MENU_RECOLHIDO, proximo ? '1' : '0').catch(() => undefined);
   };
   const larguraDoMenu = trilho ? LARGURA_TRILHO : recolhido ? LARGURA_RECOLHIDO : LARGURA_ABERTO;
+  // No trilho tudo tem o rótulo embaixo: não há dica. Fora dele, o controle só de ícone (lupa, recolher, avatar) a usa.
+  const menu = useMemo<MenuLateral>(
+    () => ({ recolhido, trilho, mostrarDica: trilho ? undefined : mostrarDica, esconderDica }),
+    [recolhido, trilho, mostrarDica, esconderDica],
+  );
 
   if (lateral) {
     const comDica = recolhido && !trilho;
@@ -110,37 +119,32 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
     ));
     return (
       <View style={[estilos.linha, { backgroundColor: cores.fundo }]}>
-        <SafeAreaView edges={['top', 'bottom', 'left']}
-          ref={refDoTrilho}
-          accessibilityRole="menubar"
-          style={[estilos.lateral, recolhido && (trilho ? estilos.lateralTrilho : estilos.lateralRecolhido), { backgroundColor: cores.fundo }]}>
-          {recolhido ? <MarcaDoTrilho marca={marca} /> : <MarcaDoMenu marca={marca} />}
-          {/* A lista rola quando não cabe na altura (D20). No PC minimizado a dica é desenhada no trilho, fora da rolagem, que
-              a cortaria. A barra de rolagem aparece só no menu aberto: nos trilhos ela comeria a largura dos ícones e dos
-              rótulos (o item cortado embaixo já avisa). */}
-          <ScrollView nativeID={ROLAGEM_DO_MENU} style={estilos.rolagem} showsVerticalScrollIndicator={!recolhido}
-            onScroll={comDica ? medirDica : undefined} scrollEventThrottle={32}
-            contentContainerStyle={[estilos.blocos, !recolhido && estilos.blocosAbertos, estilos.folgaDoFoco]}>{blocos}</ScrollView>
-          {/* Sem barra de topo (tablet nativo largo) o recolher fica fixo embaixo; com ela, mora só no topo. */}
-          {trilho || topo ? null : (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={recolhido ? 'Expandir menu' : 'Minimizar menu'}
-              onPress={alternar}
-              style={(estado) => [estilos.itemLateral, estilos.alternar, recolhido && estilos.itemRecolhido, sobre(estado) && { backgroundColor: cores.superficie2 }]}>
-              {recolhido ? <PanelLeftOpen size={20} color={cores.textoSuave} strokeWidth={2} /> : <PanelLeftClose size={20} color={cores.textoSuave} strokeWidth={2} />}
-              {recolhido ? null : <Texto style={[estilos.rotuloLateral, { color: cores.textoSuave }]}>Minimizar</Texto>}
-            </Pressable>
-          )}
-          {comDica && dicaAtual ? (
-            <View pointerEvents="none" accessible={false} style={[estilos.dica, { top: dicaAtual.topo, backgroundColor: cores.texto }]}>
-              <Texto numberOfLines={1} style={[estilos.textoDica, { color: cores.fundo }]}>{dicaAtual.texto}</Texto>
+        <ContextoDoMenu.Provider value={menu}>
+          <SafeAreaView edges={['top', 'bottom', 'left']}
+            ref={refDoTrilho}
+            accessibilityRole="menubar"
+            style={[estilos.lateral, recolhido && (trilho ? estilos.lateralTrilho : estilos.lateralRecolhido), { backgroundColor: cores.fundo }]}>
+            {/* O botão fica no mesmo lugar da árvore aberto ou minimizado: alternar não o desmonta e o foco continua nele. */}
+            <View style={recolhido ? null : estilos.identidade}>
+              {recolhido ? <MarcaDoTrilho marca={marca} /> : <MarcaDoMenu marca={marca} />}
+              {trilho ? null : <BotaoRecolher recolhido={recolhido} aoTocar={() => { esconderDica(); alternar(); }} />}
             </View>
-          ) : null}
-        </SafeAreaView>
+            {busca ? <View style={recolhido ? null : estilos.busca}>{busca}</View> : null}
+            {/* A lista rola quando não cabe na altura (D20); a dica é desenhada no menu, fora da rolagem, que a cortaria. A
+                barra de rolagem aparece só no menu aberto: nos trilhos ela comeria a largura dos ícones e dos rótulos. */}
+            <ScrollView nativeID={ROLAGEM_DO_MENU} style={estilos.rolagem} showsVerticalScrollIndicator={!recolhido}
+              onScroll={comDica ? medirDica : undefined} scrollEventThrottle={32}
+              contentContainerStyle={[estilos.blocos, !recolhido && estilos.blocosAbertos, estilos.folgaDoFoco]}>{blocos}</ScrollView>
+            {conta ? <View style={[estilos.rodapeDoMenu, { borderTopColor: cores.divisor }]}>{conta}</View> : null}
+            {!trilho && dicaAtual ? (
+              <View pointerEvents="none" accessible={false} style={[estilos.dica, { left: larguraDoMenu + 4, top: dicaAtual.topo, backgroundColor: cores.texto }]}>
+                <Texto numberOfLines={1} style={[estilos.textoDica, { color: cores.fundo }]}>{dicaAtual.texto}</Texto>
+              </View>
+            ) : null}
+          </SafeAreaView>
+        </ContextoDoMenu.Provider>
         <View style={[estilos.conteudo, estilos.painel, { backgroundColor: cores.painel, borderColor: cores.divisor, borderWidth: bordas.bloco }]}>
           <ProvedorDoFundoDaArea value={cores.painel}>
-            <ContextoDoMenu.Provider value={{ recolhido, podeRecolher: !trilho, alternar, larguraDoMenu }}>{topo}</ContextoDoMenu.Provider>
             <View style={estilos.conteudo}>
               {conteudo??<Slot />}
             </View>
@@ -273,17 +277,51 @@ function useDicaDoTrilho() {
   return { trilho, atual, mostrar, esconder, aoRolar: medir };
 }
 
-/** Estado do menu lateral para a barra de topo, onde mora o controle de recolher. */
+/** Estado do menu lateral para o que mora nele (a busca e a conta): o modo e a dica dos controles só de ícone. */
 interface MenuLateral {
+  /** Minimizado (72) ou trilho (88): só ícones, ou ícone com o rótulo curto embaixo. */
   recolhido: boolean;
-  /** No trilho (768 a 1023 px) não há o que recolher: o controle não aparece. */
-  podeRecolher: boolean;
-  alternar: () => void;
-  /** Largura do menu agora (240, 72 ou 88): a barra de topo compacta os controles pela largura que sobra. */
-  larguraDoMenu: number;
+  /** Trilho do tablet (768 a 1023 px): rótulo embaixo do ícone, sem dica e sem recolher. */
+  trilho: boolean;
+  mostrarDica?: (texto: string, no: View | null) => void;
+  esconderDica?: () => void;
 }
-const ContextoDoMenu = createContext<MenuLateral>({ recolhido: false, podeRecolher: false, alternar: () => undefined, larguraDoMenu: 0 });
+const ContextoDoMenu = createContext<MenuLateral>({ recolhido: false, trilho: false });
 export const useMenuLateral = () => useContext(ContextoDoMenu);
+
+/**
+ * Dica de um controle só de ícone do menu lateral (o nome ao passar o mouse ou focar), desenhada pelo menu. `ativa` falsa
+ * ou fora do menu lateral: sem eventos. `noRef` é o `ref` do próprio controle (o menu mede onde ele está).
+ */
+export function useDicaNoMenu(texto: string, ativa: boolean, noRef: RefObject<View | null>): {
+  onHoverIn?: () => void;
+  onHoverOut?: () => void;
+  onFocus?: () => void;
+  onBlur?: () => void;
+} {
+  const { mostrarDica, esconderDica } = useContext(ContextoDoMenu);
+  if (!ativa || !mostrarDica) return {};
+  const mostrar = () => mostrarDica(texto, noRef.current);
+  return { onHoverIn: mostrar, onHoverOut: esconderDica, onFocus: mostrar, onBlur: esconderDica };
+}
+
+/**
+ * Recolher e expandir o menu, na linha da identidade (D4): à direita da marca no menu aberto, embaixo dela no minimizado.
+ * Só ícone, com o nome na dica. A preferência fica salva no aparelho (`CHAVE_MENU_RECOLHIDO`).
+ */
+function BotaoRecolher({ recolhido, aoTocar }: { recolhido: boolean; aoTocar: () => void }) {
+  const { cores } = useTema();
+  const rotulo = recolhido ? 'Expandir menu' : 'Minimizar menu';
+  const noRef = useRef<View | null>(null);
+  const dica = useDicaNoMenu(rotulo, true, noRef);
+  const Icone = recolhido ? PanelLeftOpen : PanelLeftClose;
+  return (
+    <Pressable ref={noRef} accessibilityRole="button" accessibilityLabel={rotulo} onPress={aoTocar} {...dica}
+      style={(estado) => [estilos.recolher, sobre(estado) && { backgroundColor: cores.superficie2 }]}>
+      <Icone size={20} color={cores.textoSuave} strokeWidth={2} />
+    </Pressable>
+  );
+}
 
 /**
  * Identidade do menu aberto (prévia de 11/11): a logo (ou a inicial) e o nome numa linha, 68 px no conjunto. Logo larga
@@ -298,7 +336,7 @@ function MarcaDoMenu({ marca }: { marca: Marca | null }) {
   const metal = marca?.fonteTitulo === 'METAL';
   return (
     <View style={estilos.marca} {...(larga ? { accessibilityRole: 'image' as const, accessibilityLabel: nome } : null)}>
-      <View aria-hidden>
+      <View aria-hidden style={larga ? estilos.caixaLogoLarga : null}>
         {marca?.logoUrl ? (
           <Image source={{ uri: urlDaApi(marca.logoUrl) }} style={larga ? estilos.logoLarga : estilos.logoTrilho} contentFit="contain"
             contentPosition="left" onLoad={(e) => setLarga(e.source.width > e.source.height * 1.5)} />
@@ -349,7 +387,7 @@ const estilos = StyleSheet.create({
   conteudo: { flex: 1 },
   lateral: { width: LARGURA_ABERTO, paddingHorizontal: espaco(1.5), gap: espaco(0.5), zIndex: 30 },
   // O conteúdo ao lado do menu: 8 px do topo, da direita e de baixo; o lado do menu fica rente (o menu já tem folga).
-  // `overflow: hidden` deixa os cantos de 12 limpos sob a barra de topo e as faixas fixas das telas.
+  // `overflow: hidden` deixa os cantos de 12 limpos sob as faixas fixas das telas.
   painel: { marginVertical: espaco(1), marginRight: espaco(1), borderRadius: RAIO, overflow: 'hidden' },
   lateralRecolhido: { width: LARGURA_RECOLHIDO, paddingTop: espaco(2) },
   lateralTrilho: { width: LARGURA_TRILHO, paddingTop: espaco(2), paddingHorizontal: espaco(0.5) },
@@ -364,10 +402,17 @@ const estilos = StyleSheet.create({
   bloco: { gap: espaco(0.5) },
   tituloGrupo: { paddingHorizontal: espaco(1.5), paddingBottom: 2, textTransform: 'none', letterSpacing: 0, fontFamily: fontes.medio },
   fio: { height: 1, marginVertical: espaco(0.5), marginHorizontal: espaco(1) },
-  alternar: { marginTop: 'auto', marginBottom: espaco(1) },
+  // Identidade do menu aberto: a marca encolhe e o recolher fica à direita, na mesma linha de 68 px.
+  identidade: { flexDirection: 'row', alignItems: 'center' },
+  recolher: { minWidth: ALVO_TOQUE, minHeight: ALVO_TOQUE, alignItems: 'center', justifyContent: 'center', borderRadius: RAIO_CONTROLE },
+  busca: { marginBottom: espaco(1) },
+  // Rodapé fixo com a conta: um fio `divisor` em cima; a lista rola acima dele sem escondê-lo.
+  rodapeDoMenu: { borderTopWidth: 1, paddingTop: espaco(1), paddingBottom: espaco(1) },
   // Linha de 44 + 12 em cima e embaixo = 68 px; a logo começa na mesma coluna dos ícones do menu.
-  marca: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.25), minHeight: ALVO_TOQUE + espaco(3), paddingVertical: espaco(1.5), paddingHorizontal: espaco(1.5) },
-  logoLarga: { width: 200, height: 44 },
+  marca: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: espaco(1.25), minHeight: ALVO_TOQUE + espaco(3), paddingVertical: espaco(1.5), paddingLeft: espaco(1.5), paddingRight: espaco(0.5) },
+  // A logo larga ocupa o que sobra ao lado do recolher, até 200 px.
+  caixaLogoLarga: { flex: 1, minWidth: 0 },
+  logoLarga: { width: '100%', maxWidth: 200, height: 44 },
   nomeMenu: { flexShrink: 1, fontFamily: fontes.semi, fontSize: 15, lineHeight: 20 },
   nomeMetal: { fontSize: 18, lineHeight: 22, letterSpacing: 1 },
   itemLateral: {
@@ -394,8 +439,8 @@ const estilos = StyleSheet.create({
   // Esticado na largura do item: com `numberOfLines`, nome que não coube vira reticências em vez de vazar do trilho.
   rotuloTrilho: { alignSelf: 'stretch', textAlign: 'center' },
   ponto: { position: 'absolute', right: -5, top: -3, width: 9, height: 9, borderRadius: 5, borderWidth: 1 },
-  // Posição no trilho (72 px): o item começa em 12, e a dica, 64 px depois dele, como antes.
-  dica: { position: 'absolute', left: 76, paddingHorizontal: espaco(1), paddingVertical: 4, borderRadius: 6, zIndex: 50 },
+  // À direita do menu, 4 px depois da borda dele (o `left` vem da largura do menu agora).
+  dica: { position: 'absolute', paddingHorizontal: espaco(1), paddingVertical: 4, borderRadius: 6, zIndex: 50 },
   textoDica: { fontFamily: fontes.semi, fontSize: 13 },
   topoTrilho: { alignItems: 'center', marginBottom: espaco(1) },
   logoTrilho: { width: 44, height: 44 },

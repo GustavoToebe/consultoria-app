@@ -3,7 +3,7 @@ import { Permitido } from '../../../ui/Permitido';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ellipsis, Pencil, UserCheck, UserMinus } from 'lucide-react-native';
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { aluno as buscarAluno, alterarAluno, alterarSituacaoAluno, consultoria as buscarConsultoria, escolherQuestionarioDoAluno } from '../../../api/rotas';
 import { enderecoParaLeitura, NOTA_TELEFONE_SEM_ACESSO } from '../../../dominio/cadastroDoAluno';
@@ -12,8 +12,7 @@ import { textoDaMeta } from '../../../dominio/metaDoPesoNaFicha';
 import { cicloDoAluno, textoDoCiclo } from '../../../dominio/periodo';
 import { ABAS_DA_FICHA, abaDaUrl, abaParaEditar, abaParaPasta, abasVisiveis, blocosDaAba, type AbaDaFicha, type BlocoDaFicha } from '../../../dominio/fichaDoAluno';
 import type { AlunoDetalhe } from '../../../api/tipos';
-import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
-import { AtividadeRecente } from '../../../treinador/AtividadeRecente';
+import { espaco, LARGURA_LISTA, LARGURA_MENU_LATERAL } from '../../../tema/tokens';
 import { CartaoAcesso } from '../../../treinador/CartaoAcesso';
 import { CartaoEvolucaoRespostas } from '../../../treinador/CartaoEvolucaoRespostas';
 import { CartaoFrequencia, useAcompanhamentoDoAluno } from '../../../treinador/CartaoFrequencia';
@@ -22,7 +21,7 @@ import { CartaoMobilidade } from '../../../treinador/CartaoMobilidade';
 import { CartaoRecordesDaSemana } from '../../../treinador/CartaoRecordesDaSemana';
 import { CartaoTreinosConcluidos } from '../../../treinador/CartaoTreinosConcluidos';
 import { FolhaDeAcoes } from '../../../treinador/FolhaDeAcoes';
-import { PesoELesoesNoResumo } from '../../../treinador/PesoELesoesNoResumo';
+import { FotoDePerfilEditavel } from '../../../treinador/FotoDePerfilEditavel';
 import { ResumoDoAluno } from '../../../treinador/ResumoDoAluno';
 import { CartaoPeso } from '../../../treinador/CartaoPeso';
 import { CartaoAvaliacaoFisica } from '../../../treinador/CartaoAvaliacaoFisica';
@@ -56,13 +55,15 @@ import { useCarregar } from '../../../ui/useCarregar';
 
 /**
  * Ficha do aluno em cinco abas (`?aba=resumo|planos|acompanhamento|evolucao|ficha`; regra pura em `dominio/fichaDoAluno`):
- * o Resumo traz só o que decide a próxima ação (próximo passo, pasta vigente, atualização, indicadores, último peso,
- * aviso das lesões e a atividade recente); os blocos das outras abas e a condição de cada um vêm de `blocosDaAba`, e aba
- * sem bloco permitido não aparece. Cada bloco busca e trata o próprio erro, então um que falha não derruba os outros.
+ * a foto fica ao lado do nome, no cabeçalho (guia de 11/11, pág. 31); o Resumo (`ResumoDoAluno`) traz só o que decide a
+ * próxima ação, numa coluna; os blocos das outras abas e a condição de cada um vêm de `blocosDaAba`, e aba sem bloco
+ * permitido não aparece. Cada bloco busca e trata o próprio erro, então um que falha não derruba os outros.
+ * `?secao=acesso` (o "Abrir acesso ao app" do Resumo) rola até o bloco Acesso ao app da aba Ficha e sai do endereço.
  * Ações raras (inativar, exportar, anonimizar) ficam no menu ⋯ do cabeçalho, fora das abas.
  */
 export default function FichaAluno() {
-  const { id, pastaId, editar, aba: abaPedida } = useLocalSearchParams<{ id: string; pastaId?: string; editar?: string; aba?: string }>();
+  const { id, pastaId, editar, aba: abaPedida, secao } = useLocalSearchParams<{ id: string; pastaId?: string; editar?: string; aba?: string; secao?: string }>();
+  const { width } = useWindowDimensions();
   const { pode, pagamentosHabilitados, retornoHabilitado } = useSessao();
   const { confirmar } = useSaidaGuardada();
   const contexto = { pode, pagamentosHabilitados, retornoHabilitado };
@@ -108,7 +109,16 @@ export default function FichaAluno() {
       router.setParams({ aba: valor });
     });
   };
-  const temMenu = !!aluno && ((pode('ALUNO_ALTERAR') && !aluno.anonimizado) || pode('ALUNO_EXPORTAR') || (pode('ALUNO_ANONIMIZAR') && !aluno.ativo && !aluno.anonimizado));
+  // "Abrir acesso ao app" do Resumo: a aba Ficha abre já no bloco do acesso (só leva até lá; nada é enviado).
+  const acessoRef = useRef<View>(null);
+  const comAluno = !!aluno;
+  useEffect(() => {
+    if (secao !== 'acesso' || aba !== 'ficha' || !comAluno) return;
+    // shortcut: só a web rola até o bloco; no celular a aba abre no topo, rolar exige o ScrollView da Tela.
+    if (Platform.OS === 'web') (acessoRef.current as unknown as HTMLElement | null)?.scrollIntoView?.({ block: 'start' });
+    router.setParams({ secao: undefined });
+  }, [secao, aba, comAluno]);
+  const temMenu = !!aluno &&((pode('ALUNO_ALTERAR') && !aluno.anonimizado) || pode('ALUNO_EXPORTAR') || (pode('ALUNO_ANONIMIZAR') && !aluno.ativo && !aluno.anonimizado));
 
   const bloco = (b: BlocoDaFicha, a: AlunoDetalhe): ReactNode => {
     switch (b) {
@@ -128,6 +138,9 @@ export default function FichaAluno() {
       case 'avaliacaoFisica': return <CartaoAvaliacaoFisica alunoId={a.id} alunoNome={a.nome} anonimizado={a.anonimizado} />;
       case 'fotos': return <CartaoFotos alunoId={a.id} autorizadoEm={a.usoDeImagemAutorizadoEm} aoRecarregar={recarregar} />;
       case 'dadosDoAluno': return <Cartao><DadosDoAluno aluno={a} padrao={padrao} aoAlterar={definir} /></Cartao>;
+      // Bloco próprio (guia de 11/11, pág. 34): situação, conta vinculada e as duas formas de dar o acesso.
+      case 'acessoAoApp':
+        return <View ref={acessoRef} nativeID="acesso-ao-app"><Cartao titulo="Acesso ao app"><CartaoAcesso aluno={a} aoAlterar={definir} /></Cartao></View>;
       case 'planoContratado':
         return <CartaoPlanoContratado alunoId={a.id} ativo={a.ativo} anonimizado={a.anonimizado} alunoNome={a.nome} telefoneAluno={a.telefone} />;
       case 'anamnese':
@@ -139,17 +152,9 @@ export default function FichaAluno() {
   const conteudoDaAba = (a: AlunoDetalhe): ReactNode => {
     if (aba === 'resumo') {
       return (
-        // No PC, Resumo e Atividade recente lado a lado; no celular, um embaixo do outro.
-        <View style={estilos.colunas}>
-          <View style={estilos.colunaResumo}>
-            <ResumoDoAluno aluno={a} acompanhamento={acompanhamento} aoRenovar={renovacao.pedir} aoAnonimizado={recarregar}>
-              {pode('ALUNO_SENSIVEL_LER') ? <PesoELesoesNoResumo alunoId={a.id} aoVerLesoes={() => setAba('ficha')} /> : null}
-            </ResumoDoAluno>
-          </View>
-          <View style={estilos.colunaAtividade}>
-            <AtividadeRecente alunoId={a.id} aoAbrirPasta={(p) => router.setParams({ pastaId: p })} />
-          </View>
-        </View>
+        <ResumoDoAluno aluno={a} acompanhamento={acompanhamento} abas={visiveis} aoRenovar={renovacao.pedir} aoAbrirAba={setAba}
+          aoAbrirAcesso={() => confirmar(() => router.setParams({ aba: 'ficha', secao: 'acesso' }))}
+          aoAbrirPasta={(p) => router.setParams({ pastaId: p })} />
       );
     }
     const lista = blocosDaAba(aba, contexto);
@@ -173,7 +178,14 @@ export default function FichaAluno() {
   return (
     <Tela bordas={['top']} largura={LARGURA_LISTA}>
       <Cabecalho titulo={aluno?.nome ?? 'Aluno'} trilha={[{ rotulo: 'Alunos', href: '/treinador/alunos' }, { rotulo: aluno?.nome ?? 'Aluno' }]} voltar="/treinador/alunos"
-        acoes={temMenu ? <IconeBotao Icone={Ellipsis} moldura rotulo="Mais ações do aluno" aoTocar={() => setMenu(true)} /> : undefined} />
+        acoes={temMenu ? <IconeBotao Icone={Ellipsis} moldura rotulo="Mais ações do aluno" aoTocar={() => setMenu(true)} /> : undefined}
+        // A foto ao lado do nome (56 no PC, 44 no celular, `fotoNaFicha`), centrada na linha do título: no celular como a
+        // seta; no PC a trilha fica acima do título (32 px + 4 de vão), então a foto desce até o meio da linha do nome.
+        antesDoTitulo={aluno ? (
+          <View style={[estilos.fotoDoTopo, width < LARGURA_MENU_LATERAL ? estilos.fotoNoCelular : estilos.fotoNoPc]}>
+            <FotoDePerfilEditavel alunoId={aluno.id} alunoNome={aluno.nome} anonimizado={aluno.anonimizado} aoAnonimizado={recarregar} />
+          </View>
+        ) : undefined} />
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar}
         acao={{ rotulo: 'Voltar à lista', aoTocar: () => router.navigate('/treinador/alunos') }} /> : null}
       {!aluno && carregando ? <Esqueleto /> : null}
@@ -244,11 +256,10 @@ function ConfirmarSituacao({ aluno, visivel, aoFechar, aoAlterar }: { aluno: Alu
 }
 
 /**
- * Dados do aluno, no cartão de cima da aba Ficha do aluno: só leitura em grade (Cadastro, Dados pessoais e Acompanhamento,
- * as mesmas seções do formulário) até "Editar", que abre o formulário ali mesmo. A foto de perfil se troca no próprio
- * círculo do topo do mesmo cartão (`FotoDePerfilEditavel`). O acesso ao app fica nessa mesma
- * área, numa linha (situação, e-mail de acesso e senha). O questionário de atualização também se troca no modo de
- * edição (fora dele é um campo de leitura, como os outros).
+ * Dados do aluno, no cartão de cima da aba Ficha do aluno: só leitura em duas seções por assunto (Dados e contato;
+ * Configuração do acompanhamento) até "Editar", que abre o formulário ali mesmo. A foto de perfil se troca no círculo ao
+ * lado do nome, no cabeçalho (`FotoDePerfilEditavel`), e o acesso ao app tem bloco próprio logo abaixo (`acessoAoApp`).
+ * O questionário de atualização também se troca no modo de edição (fora dele é um campo de leitura, como os outros).
  * `?editar=1` (o lápis da lista de alunos) abre já editando, para quem pode editar, e sai do endereço na hora, como o
  * `?novo=1` do Planejamento: o voltar do navegador não tem passo sobrando.
  */
@@ -290,31 +301,31 @@ function DadosDoAluno({ aluno, padrao, aoAlterar }: { aluno: AlunoDetalhe; padra
           }}
         />
       ) : (
-        // As mesmas três seções do formulário de edição, para o que se lê estar onde se edita; no celular, uma embaixo da outra.
+        // Por assunto (guia de 11/11, pág. 34): quem é e como falar com ele; depois como o acompanhamento está configurado,
+        // com objetivo, meta e observações no contexto deles (só com `ALUNO_SENSIVEL_LER`). No celular, um embaixo do outro.
         <View style={estilos.grade}>
           <View style={estilos.colunaDados}>
-            <Texto variante="secao">Cadastro</Texto>
+            <Texto variante="secao">Dados e contato</Texto>
             <CampoLeitura rotulo="E-mail" valor={aluno.email} />
-            <CampoLeitura rotulo="Sexo" valor={rotuloDoSexo(aluno.sexo)} />
             <CampoLeitura rotulo="Telefone" valor={aluno.telefone} />
             {!aluno.temAcesso && !aluno.anonimizado ? <Texto variante="pequeno">{NOTA_TELEFONE_SEM_ACESSO}</Texto> : null}
-            <Permitido codigo="ALUNO_SENSIVEL_LER"><CampoLeitura rotulo="Objetivo" valor={aluno.objetivo} /></Permitido>
-          </View>
-          <Permitido codigo="ALUNO_SENSIVEL_LER">
-            <View style={estilos.colunaDados}>
-              <Texto variante="secao">Dados pessoais</Texto>
+            <CampoLeitura rotulo="Sexo" valor={rotuloDoSexo(aluno.sexo)} />
+            <Permitido codigo="ALUNO_SENSIVEL_LER">
               <CampoLeitura rotulo="CPF" valor={aluno.cpf} />
               <CampoLeitura rotulo="Endereço" valor={enderecoParaLeitura(aluno.endereco)} />
-            </View>
-          </Permitido>
+            </Permitido>
+          </View>
           <View style={estilos.colunaDados}>
-            <Texto variante="secao">Acompanhamento</Texto>
+            <Texto variante="secao">Configuração do acompanhamento</Texto>
             <ResponsavelAluno id={aluno.responsavelId} />
             <CampoLeitura rotulo="Nova atualização a cada" valor={textoDoCiclo(aluno.diasAtualizacao, padrao)} numerico />
             <SeletorDeQuestionario rotulo="Questionário de atualização" valor={aluno.questionarioId} rotuloDoNulo="Padrão da consultoria" podeAlterar={false}
               aoEscolher={async () => {}} />
-            <Permitido codigo="ALUNO_SENSIVEL_LER"><CampoLeitura rotulo="Meta do peso" valor={textoDaMeta(aluno.metaDoPeso)} /></Permitido>
-            <Permitido codigo="ALUNO_SENSIVEL_LER"><CampoLeitura rotulo="Observações" valor={aluno.observacoes} /></Permitido>
+            <Permitido codigo="ALUNO_SENSIVEL_LER">
+              <CampoLeitura rotulo="Objetivo" valor={aluno.objetivo} />
+              <CampoLeitura rotulo="Meta do peso" valor={textoDaMeta(aluno.metaDoPeso)} />
+              <CampoLeitura rotulo="Observações" valor={aluno.observacoes} />
+            </Permitido>
             <LinhaDoCicloNaFicha alunoId={aluno.id} />
           </View>
         </View>
@@ -329,7 +340,6 @@ function DadosDoAluno({ aluno, padrao, aoAlterar }: { aluno: AlunoDetalhe; padra
         aoConfirmar={() => { setDescartar(false); setEditando(false); }}
         aoCancelar={() => setDescartar(false)}
       />
-      <CartaoAcesso aluno={aluno} aoAlterar={aoAlterar} />
     </View>
   );
 }
@@ -340,9 +350,12 @@ const estilos = StyleSheet.create({
   titulo: { flexShrink: 1 },
   grade: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(3), rowGap: espaco(2) },
   colunaDados: { flexBasis: 260, flexGrow: 1, flexShrink: 1, minWidth: 0, gap: espaco(1.5) },
-  contagens: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(3) },
-  colunas: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(3), alignItems: 'flex-start' },
-  colunaResumo: { flexGrow: 3, flexShrink: 1, flexBasis: 520, minWidth: 0 },
-  colunaAtividade: { flexGrow: 2, flexShrink: 1, flexBasis: 360, minWidth: 0 },
+  // No PC as contagens alinham pelo topo (cada uma com a própria altura, sem esticar o vazio); no celular, uma sequência.
+  contagens: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(3), alignItems: 'flex-start' },
   contagem: { flexGrow: 1, flexShrink: 1, flexBasis: 420, minWidth: 0 },
+  fotoDoTopo: { marginRight: espaco(0.5) },
+  fotoNoCelular: { marginTop: -7 },
+  // shortcut: deslocamento calculado das medidas do `Cabecalho` (trilha 32 px + vão 4 + metade da linha de 30 − 28), sem
+  // conferir renderizado; se o cabeçalho mudar, refazer.
+  fotoNoPc: { marginTop: 23 },
 });

@@ -14,8 +14,33 @@ const SEM_CONTA: AlunoDetalhe = {
 const COM_CONTA: AlunoDetalhe = { ...SEM_CONTA, temAcesso: true, emailDeAcesso: ALUNO.email };
 
 const ROTAS_DA_FICHA = { 'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } } };
-/** O acesso fica dentro de Dados do aluno. */
+/** O acesso tem bloco próprio na aba Ficha do aluno, logo depois de Dados do aluno. */
 const acessoDoAluno = (page: Page) => page.getByLabel('Acesso ao app', { exact: true });
+
+test('Resumo de quem não entra no app: "Abrir acesso ao app" leva ao bloco do acesso, sem gerar convite nem senha', async ({ page }) => {
+  const pasta = { id: 'f0000000-0000-4000-8000-0000000000a1', alunoId: ALUNO_ID, titulo: 'Pasta fictícia', inicio: null, fim: null, concluidaEm: null };
+  const { pedidos, errosDaPagina } = await simularApi(page, {
+    ...(await sessao(page, TREINADOR)),
+    ...ROTAS_DA_FICHA,
+    [`GET /alunos/${ALUNO_ID}`]: { corpo: SEM_CONTA },
+    // Com pasta, o passo de cima ("crie a primeira pasta") não vale e sobra o do acesso.
+    [`GET /alunos/${ALUNO_ID}/pastas`]: { corpo: [pasta] },
+  });
+  await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+  await expect(page.getByText('O aluno ainda não entra no app. Abra o acesso e escolha como convidar.', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Abrir acesso ao app', exact: true }).click();
+  await expect(page.getByRole('tab', { name: 'Ficha do aluno', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await expect(page).toHaveURL(/[?&]aba=ficha/);
+  await expect(page).not.toHaveURL(/secao=/);
+  const acesso = acessoDoAluno(page);
+  await expect(acesso).toBeInViewport();
+  // O convite continua em destaque e a senha é a alternativa explícita; nada foi enviado.
+  await expect(acesso.getByRole('button', { name: 'Gerar convite' })).toBeVisible();
+  await expect(acesso.getByText('ou', { exact: true })).toBeVisible();
+  await expect(acesso.getByRole('button', { name: 'Definir e-mail e senha' })).toBeVisible();
+  expect(pedidos.filter((p) => p.metodo !== 'GET' && p.caminho !== '/auth/refresh')).toEqual([]);
+  expect(errosDaPagina).toEqual([]);
+});
 
 test('aluno sem conta: define e-mail e senha gerada, mostra o e-mail em uso no campo e a senha uma vez', async ({ page }) => {
   let tentativas = 0;

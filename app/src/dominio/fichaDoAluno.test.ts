@@ -63,7 +63,7 @@ describe('abas da ficha', () => {
     expect(blocoVisivel('anamnese', contexto(['ANAMNESE_LER', 'ALUNO_SENSIVEL_LER']))).toBe(true);
     expect(blocoVisivel('lesoes', contexto([]))).toBe(false);
     expect(blocoVisivel('lesoes', contexto(['ALUNO_SENSIVEL_LER']))).toBe(true);
-    expect(blocosDaAba('ficha', contexto([]))).toEqual(['dadosDoAluno']);
+    expect(blocosDaAba('ficha', contexto([]))).toEqual(['dadosDoAluno', 'acessoAoApp']);
     expect(abasVisiveis(contexto([]))).toEqual(['resumo', 'planos', 'ficha']);
   });
 
@@ -72,8 +72,8 @@ describe('abas da ficha', () => {
     expect(abasVisiveis(c)).toEqual(['resumo', 'planos', 'acompanhamento', 'evolucao', 'ficha']);
     expect(blocosDaAba('planos', c)).toEqual(['pastas']);
     expect(blocosDaAba('acompanhamento', c)).toEqual(['frequencia', 'mobilidade', 'agua', 'treinosConcluidos', 'recordesDaSemana', 'evolucaoDasRespostas']);
-    expect(blocosDaAba('evolucao', c)).toEqual(['progresso', 'peso', 'avaliacaoFisica', 'fotos']);
-    expect(blocosDaAba('ficha', c)).toEqual(['dadosDoAluno', 'planoContratado', 'anamnese', 'lesoes']);
+    expect(blocosDaAba('evolucao', c)).toEqual(['peso', 'progresso', 'avaliacaoFisica', 'fotos']);
+    expect(blocosDaAba('ficha', c)).toEqual(['dadosDoAluno', 'acessoAoApp', 'planoContratado', 'anamnese', 'lesoes']);
   });
 });
 

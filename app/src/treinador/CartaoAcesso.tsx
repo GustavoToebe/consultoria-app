@@ -88,43 +88,17 @@ export function CartaoAcesso({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlte
     explicacao = aluno.emailDeAcesso ? `Entra com ${aluno.emailDeAcesso}.` : 'O aluno já criou a conta e entra com o e-mail e a senha dele.';
   }
 
+  const rotuloDaSenha = aluno.temAcesso ? (aluno.aguardandoPrimeiroAcesso ? 'Definir outra senha' : 'Definir nova senha') : 'Definir e-mail e senha';
   return (
+    // Situação, conta e ações num bloco só (guia de 11/11, pág. 34). Sem conta, o convite é o caminho em destaque e "Definir
+    // e-mail e senha" a alternativa explícita, ao lado; as duas continuam ações separadas, cada uma com o efeito de sempre.
     <View accessibilityLabel="Acesso ao app" style={estilos.bloco}>
       <CamposEmLinha minimo={180}>
         <View style={estilos.campo} accessibilityLabel={`Acesso ao app: ${selo.texto}`}>
-          <Texto variante="rotulo">Acesso ao app</Texto>
+          <Texto variante="rotulo">Situação</Texto>
           <Selo texto={selo.texto} tipo={selo.tipo} />
         </View>
         <CampoLeitura rotulo="Usuário no app" valor={aluno.emailDeAcesso} />
-        {!definindo ? (
-          <View style={estilos.campo}>
-            <Texto variante="rotulo">Senha</Texto>
-            {mostrarAcoes ? (
-              <Permitido codigo="ALUNO_CONVITE">
-                <Botao
-                  rotulo={aluno.temAcesso ? (aluno.aguardandoPrimeiroAcesso ? 'Definir outra senha' : 'Definir nova senha') : 'Definir e-mail e senha'}
-                  tipo="secundario"
-                  aoTocar={abrirForm}
-                />
-              </Permitido>
-            ) : (
-              <Texto>—</Texto>
-            )}
-          </View>
-        ) : null}
-        {!aluno.temAcesso && mostrarAcoes ? (
-          <View style={estilos.campo}>
-            <Texto variante="rotulo">Convite</Texto>
-            <Permitido codigo="ALUNO_CONVITE">
-              <Botao
-                rotulo={convite || conviteAnterior ? 'Gerar outro convite' : 'Gerar convite'}
-                tipo={convite ? 'secundario' : 'primario'}
-                carregando={gerando}
-                aoTocar={() => (convite || conviteAnterior ? setConfirmar(true) : gerar())}
-              />
-            </Permitido>
-          </View>
-        ) : null}
       </CamposEmLinha>
       {definido ? (
         <View style={estilos.convite}>
@@ -144,6 +118,32 @@ export function CartaoAcesso({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlte
       ) : (
         <Texto variante="suave">{explicacao}</Texto>
       )}
+      {mostrarAcoes ? (
+        <Permitido codigo="ALUNO_CONVITE">
+          {aluno.temAcesso ? (
+            <LinhaDeAcoes>
+              <Botao rotulo={rotuloDaSenha} tipo="secundario" aoTocar={abrirForm} />
+            </LinhaDeAcoes>
+          ) : (
+            <View style={estilos.caminhos}>
+              <Botao
+                rotulo={convite || conviteAnterior ? 'Gerar outro convite' : 'Gerar convite'}
+                tipo={convite ? 'secundario' : 'primario'}
+                carregando={gerando}
+                aoTocar={() => (convite || conviteAnterior ? setConfirmar(true) : gerar())}
+              />
+              <View style={estilos.alternativa}>
+                <Texto variante="suave">ou</Texto>
+                <Botao rotulo={rotuloDaSenha} tipo="secundario" aoTocar={abrirForm} />
+              </View>
+            </View>
+          )}
+        </Permitido>
+      ) : !podeAgir ? (
+        <Texto variante="pequeno">
+          {aluno.anonimizado ? 'Aluno anonimizado: o acesso não muda mais.' : 'Aluno inativo: reative pelo menu ⋯ para mudar o acesso.'}
+        </Texto>
+      ) : null}
       {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
       {definindo ? (
         <FormAcesso
@@ -256,6 +256,8 @@ function Destaque({ rotulo, texto, aoCopiar, grande }: { rotulo: string; texto: 
 const estilos = StyleSheet.create({
   bloco: { gap: espaco(1.5) },
   campo: { gap: espaco(0.25) },
+  caminhos: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1.5) },
+  alternativa: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1.5) },
   convite: { gap: espaco(1.5) },
   form: { gap: espaco(1.5) },
   destaque: {

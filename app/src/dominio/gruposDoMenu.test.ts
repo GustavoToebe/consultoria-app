@@ -1,4 +1,4 @@
-import { contextoDoTopo, GRUPOS_DO_MENU, gruposDoMenu, MENU_DO_TREINADOR, naOrdemDoMenu, posicaoNoMenu, rotuloCurtoDoMenu, type GrupoDoMenu } from './gruposDoMenu';
+import { GRUPOS_DO_MENU, gruposDoMenu, MENU_DO_TREINADOR, naConta, naOrdemDoMenu, posicaoNoMenu, rotuloCurtoDoMenu, type GrupoDoMenu } from './gruposDoMenu';
 
 const item = (rotulo: string, grupo?: GrupoDoMenu) => ({ rotulo, grupo });
 
@@ -101,20 +101,13 @@ describe('posicaoNoMenu', () => {
   });
 });
 
-describe('contextoDoTopo', () => {
-  it('o grupo da tela, "Início" no item sem grupo e "Conta" nas telas do cartão do usuário', () => {
-    expect(contextoDoTopo('/treinador')).toBe('Início');
-    expect(contextoDoTopo('/treinador/atualizacoes')).toBe('Acompanhamento');
-    expect(contextoDoTopo('/treinador/alunos/abc')).toBe('Acompanhamento');
-    expect(contextoDoTopo('/treinador/planejamento/modelo/x')).toBe('Conteúdo');
-    expect(contextoDoTopo('/treinador/interessados')).toBe('Negócio');
-    expect(contextoDoTopo('/treinador/termos')).toBe('Configurações');
-    // Marca e Ajustes estão no `tambem` do Perfil (Configurações), mas no topo valem como Conta.
-    expect(contextoDoTopo('/treinador/marca')).toBe('Conta');
-    expect(contextoDoTopo('/treinador/ajustes')).toBe('Conta');
-  });
-
-  it('tela que nenhum item acende fica sem contexto', () => {
-    expect(contextoDoTopo('/treinador/treinos/abc')).toBeNull();
+describe('naConta', () => {
+  it('as telas do menu da conta, e as subpáginas delas, acendem o botão da conta', () => {
+    expect(naConta('/treinador/marca')).toBe(true);
+    expect(naConta('/treinador/ajustes')).toBe(true);
+    expect(naConta('/treinador/minha-conta/faturas')).toBe(true);
+    expect(naConta('/treinador')).toBe(false);
+    expect(naConta('/treinador/perfil')).toBe(false);
+    expect(naConta('/treinador/marcador')).toBe(false);
   });
 });

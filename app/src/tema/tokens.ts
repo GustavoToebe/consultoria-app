@@ -356,7 +356,7 @@ export const ALVO_TOQUE = 44;
 export const LARGURA_MAXIMA = 1800;
 /** Telas declaradas até esta largura são formulários curtos e não esticam. */
 export const LARGURA_FORMULARIO = 640;
-/** A partir daqui o treinador tem menu lateral (e barra de topo na web); abaixo, barra inferior do celular. */
+/** A partir daqui o treinador tem menu lateral (com a busca e a conta, na web); abaixo, barra inferior do celular. */
 export const LARGURA_MENU_LATERAL = 768;
 /** Abaixo disto o menu lateral fica só com ícones (trilho) para sobrar espaço ao conteúdo. */
 export const LARGURA_MENU_EXPANDIDO = 1024;

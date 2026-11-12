@@ -162,12 +162,12 @@ fundo (menu lateral do PC, telas do celular)           escuro #0A0A0C
 ```
 
 Uso de cada nível (11/11):
-- **`superficie2` (elevada):** menus suspensos (lista suspensa, calendário, busca, cartão do usuário, passeio, com borda
+- **`superficie2` (elevada):** menus suspensos (lista suspensa, calendário, menu da conta, passeio, com borda
   `divisor` e **sem sombra**: o `SOMBRA_FLUTUANTE` saiu em 11/11), conteúdo de apoio, faixa de título e o hover de linhas
   e botões. Dentro de um menu, o item em foco ou sob o ponteiro sobe para `superficie3`.
 - **`superficie3` (seleção neutra):** fundo do item escolhido (chip, opção da folha, dia do calendário, item do menu).
 - **`painel`:** separação discreta entre o menu e o conteúdo no PC (`Navegacao`). Quem pinta o fundo da tela ou casa
-  uma cor com ele (`Tela`, `BarraTopo`, o esmaecido das faixas que rolam) usa `useFundoDaArea()` (`ui/fundoDaArea`),
+  uma cor com ele (`Tela`, o esmaecido das faixas que rolam) usa `useFundoDaArea()` (`ui/fundoDaArea`),
   que devolve `painel` ali e `fundo` no resto.
 - **Cartão só informativo** (um número, uma legenda) pode ficar sobre o fundo sem contorno forte; a borda `divisor` basta.
 - **Texto secundário** perde peso (fonte regular, 13–14), não contraste: `textoSuave` ≥ 4,5:1 em toda superfície, nunca
@@ -192,7 +192,8 @@ Uso de cada nível (11/11):
   - editor em lista + inspetor (treino, dieta, mobilidade, a partir de 960 px de conteúdo): até 1800, como as
     listas, com a "Configuração do plano" segurando os campos em 1040 (Gustavo, 04/11);
   - lista e painel: até 1800;
-  - aluno: 720.
+  - aluno: 720;
+  - Comunidade do treinador: coluna de leitura de 800 (constante local da tela, guia de 11/11; `LARGURA_LISTA` não muda).
 - Pontos de quebra: abaixo de 768 px é celular (barra inferior); de 768 a 1023, menu lateral em trilho, com o
   rótulo curto embaixo de cada ícone; a partir de 1024, menu lateral completo, em grupos com título.
 
@@ -211,7 +212,7 @@ Uso de cada nível (11/11):
 | `Campo` / `MensagemDeErro` | Rótulo permanente, ajuda abaixo do campo, erro com ícone + mensagem + borda `perigo` (`MensagemDeErro` também na `Escolha`, no endereço e na `EscolhaEmFolha`); foco visível pelo `anelFoco`. |
 | `Escolha` | Até cinco opções sem contagem = grupo segmentado; mais = chips com ✓. `contagem` mostra "Todos 48" em texto secundário sem mudar o alvo de toque. |
 | `Abas` | Aba ativa com texto forte e sublinhado de 2 px em `marcaPeca`; contagem em pílula neutra; sem a versão invertida. |
-| `Navegacao` | PC: menu no `fundo`, conteúdo no `painel`; item ativo em `superficie3` com a barrinha da marca; o trilho mostra o nome no hover/foco e tem rótulo acessível. O recolher/expandir mora na barra de topo (52 a 56 px; fica no rodapé do menu só onde não há barra, no tablet nativo largo); o menu aberto mostra a contagem neutra (contorno `divisor`, texto `texto`) de Atualizações e Interessados, e o ponto fica no trilho, no recolhido e no celular. Celular: barra inferior com pílula `superficie3` no ativo. |
+| `Navegacao` | PC: menu no `fundo`, conteúdo no `painel`; item ativo em `superficie3` com a barrinha da marca; o trilho mostra o nome no hover/foco e tem rótulo acessível. Sem barra de topo (guia de 11/11): o conteúdo começa no respiro da `Tela`. Na web do treinador o menu lateral tem, de cima para baixo, a marca com o recolher/expandir na mesma linha (só onde o menu recolhe; 72 px recolhido, 240 aberto, 88 no trilho), "Buscar" com o atalho Ctrl K / ⌘ K (`ui/BuscaGlobal`: abre a `Folha` "Buscar", com as favoritas e a estrela 44 px em `atencao` em cada tela; recolhido, só a lupa com nome acessível e dica no foco), a lista que rola e, fixa no pé, a conta (`ui/CartaoDoUsuario`: iniciais, nome que trunca e perfil; recolhido, só as iniciais com o nome na dica; o menu abre para cima no aberto e para o lado nos estreitos). No celular não há faixa global: Perfil › "Buscar telas" abre a mesma busca. No nativo largo, o recolher fica na linha da marca e a conta segue em Perfil. O menu aberto mostra a contagem neutra (contorno `divisor`, texto `texto`) de Atualizações e Interessados, e o ponto fica no trilho, no recolhido e no celular. Celular: barra inferior com pílula `superficie3` no ativo. |
 | `corDoNumero` (`ui/indicador.ts`) | Número de indicador: comum em `texto`, atrasado em `perigo`, zero em `textoSuave`, nunca a marca; o cartão fica neutro. |
 | `EscolhaSuspensa` / `EscolhaEmFolha` | Escolha com busca: lista suspensa no PC, folha no celular. |
 

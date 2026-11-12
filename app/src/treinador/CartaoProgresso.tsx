@@ -79,9 +79,11 @@ export function CartaoProgresso({ alunoId }: { alunoId?: string }) {
     );
   }
   if (grupos.length === 0) {
+    // Vazio compacto (guia de 11/11, pág. 34): a frase vai na faixa, junto do período, e o cartão fica sem corpo.
     return (
-      <Cartao titulo={titulo} periodo={PERIODO_DO_PROGRESSO}>
-        <Texto numerico variante="suave">{textoDoHistoricoVazio({ temRegistros: totalDeRegistros(cargasPorDivisao(dias)) > 0, graficosLigados: preferencias.graficos, papel, semProgresso: true })}</Texto>
+      <Cartao titulo={titulo} periodo={PERIODO_DO_PROGRESSO}
+        descricao={textoDoHistoricoVazio({ temRegistros: totalDeRegistros(cargasPorDivisao(dias)) > 0, graficosLigados: preferencias.graficos, papel, semProgresso: true }) ?? undefined}>
+        {null}
       </Cartao>
     );
   }

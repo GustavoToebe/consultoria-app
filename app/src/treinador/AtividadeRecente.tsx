@@ -25,16 +25,17 @@ const ICONE: Record<TipoDeAtividade, LucideIcon> = {
 /**
  * Os últimos 5 acontecimentos do aluno (Resumo da ficha), do mais novo ao mais antigo. Texto e destino vêm da regra pura
  * (`dominio/fichaDoAluno`); o item com destino abre o detalhe (a atualização em outra tela, a pasta pela `aoAbrirPasta`,
- * na aba Planos), o sem destino é só leitura. Vazio é uma linha discreta: nada é inventado quando não há evento.
+ * na aba Planos), o sem destino é só leitura. Vazio é só uma linha de apoio, sem cartão (guia de 11/11, pág. 31): nada é
+ * inventado quando não há evento, e a falta de evento recente não diz que o aluno não tem histórico.
  */
 export function AtividadeRecente({ alunoId, aoAbrirPasta }: { alunoId: string; aoAbrirPasta: (pastaId: string) => void }) {
   const { dados, erro, carregando, recarregar } = useCarregar(`atividade-recente:${alunoId}`, () => atividadeRecenteDoAluno(alunoId));
   const itens = dados?.itens ?? [];
+  if (dados && itens.length === 0 && !erro) return <Texto variante="suave">Atividade recente: nenhum evento disponível.</Texto>;
   return (
     <Cartao titulo="Atividade recente">
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto cartoes={1} texto="Carregando a atividade recente" /> : null}
-      {dados && itens.length === 0 ? <Texto variante="suave">Nenhuma atividade recente.</Texto> : null}
       {itens.length > 0 ? (
         <View style={estilos.lista}>
           {itens.map((item, i) => <Evento key={`${item.tipo}:${item.quando}:${i}`} item={item} aoAbrirPasta={aoAbrirPasta} />)}

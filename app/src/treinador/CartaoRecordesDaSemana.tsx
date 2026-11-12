@@ -35,10 +35,10 @@ export function CartaoRecordesDaSemana(p: { alunoId: string; meus?: never; style
   const series = doAluno ? (dados?.series ?? []) : (dados?.series ?? []).slice(0, NO_INICIO);
   const medalha = <View style={estilos.medalha}><Medal size={20} color={cores.sucesso} /></View>;
   return (
-    <Cartao titulo="Recordes da semana" descricao={dados ? textoDoTotalDeRecordes(dados.total) : 'Últimos 7 dias.'} style={p.style}>
+    // Sem recorde, a faixa diz uma vez só e o cartão fica sem corpo (antes "0 séries…" e "Nenhum recorde…" repetiam).
+    <Cartao titulo="Recordes da semana" descricao={!dados ? 'Últimos 7 dias.' : dados.total === 0 ? 'Nenhum recorde nos últimos 7 dias.' : textoDoTotalDeRecordes(dados.total)} style={p.style}>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
-      {dados === undefined && !erro ? <Esqueleto /> : null}
-      {dados && dados.total === 0 ? <Texto variante="suave">Nenhum recorde nos últimos 7 dias.</Texto> : null}
+      {dados === undefined && !erro ? <Esqueleto cartoes={1} /> : null}
       {series.length ? (
         <ListaDeLinhas>
           {series.map((s, i) =>

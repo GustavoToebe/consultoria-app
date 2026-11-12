@@ -54,7 +54,7 @@ export function CartaoFrequencia({ acompanhamento }: { acompanhamento: ReturnTyp
   return (
     <Cartao titulo="Frequência" descricao="Treinos com registro do aluno. Só contagem.">
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
-      {!f && !erro ? <Esqueleto /> : null}
+      {!f && !erro ? <Esqueleto cartoes={1} /> : null}
       {f ? (
         <View style={estilos.linha}>
           <CampoLeitura rotulo="Esta semana" valor={textoDaContagem(f.semana)} numerico />

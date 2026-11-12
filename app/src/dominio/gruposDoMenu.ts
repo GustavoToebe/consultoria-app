@@ -33,16 +33,16 @@ export interface LugarNoMenu {
   caminho: string;
   /** Sem grupo: fica no topo (o Início). */
   grupo?: GrupoDoMenu;
-  /** Telas sem item próprio que acendem este item e entram no mesmo grupo de "Todas as telas". */
+  /** Telas sem item próprio que acendem este item e ganham o mesmo grupo na legenda da busca. */
   tambem?: readonly string[];
 }
 
 /**
  * Fonte única da ordem e dos grupos do menu do treinador (D6 de `docs/planos/auditoria-ficha.md`): o menu lateral
- * (`app/treinador/_layout.tsx`) e "Todas as telas" (`dominio/telas.ts`, D24) saem daqui. A ordem de Início, Alunos,
+ * (`app/treinador/_layout.tsx`) e a legenda da busca global (`dominio/telas.ts`) saem daqui. A ordem de Início, Alunos,
  * Biblioteca, Planejamento e Perfil é a da barra do celular. O Perfil só aparece no menu lateral do tablet nativo; na web
- * as telas dele (Meus dados, Segurança, Ajustes, Assinatura e faturas, Marca) ficam no cartão do usuário e, em "Todas as
- * telas", em Configurações, depois dos itens do menu.
+ * as telas dele (Meus dados, Segurança, Ajustes, Assinatura e faturas, Marca) ficam no menu da conta, no rodapé do menu,
+ * e a busca as mostra em Configurações.
  */
 export const MENU_DO_TREINADOR: readonly LugarNoMenu[] = [
   { caminho: '/treinador' },
@@ -69,7 +69,7 @@ export const MENU_DO_TREINADOR: readonly LugarNoMenu[] = [
 
 /**
  * Põe os itens do menu na ordem de `MENU_DO_TREINADOR` e preenche o grupo e o `tambem` de cada um. Item cujo caminho não
- * está lá é um erro de programação: falha logo, para o menu e "Todas as telas" não se separarem em silêncio.
+ * está lá é um erro de programação: falha logo, para o menu e a legenda da busca não se separarem em silêncio.
  */
 export function naOrdemDoMenu<T extends { caminho: string }>(
   itens: readonly T[],
@@ -114,20 +114,9 @@ export function posicaoNoMenu(caminho: string, menu: readonly LugarNoMenu[] = ME
   return melhor >= 0 ? { grupo: menu[melhor].grupo, indice: melhor, propria: false } : null;
 }
 
-/** Telas abertas pelo cartão do usuário: com elas abertas o cartão fica realçado e o topo diz "Conta". */
+/** Telas abertas pelo menu da conta (rodapé do menu lateral): com elas abertas o botão da conta fica realçado. */
 export const TELAS_DA_CONTA: readonly string[] = ['/treinador/meus-dados', '/treinador/seguranca', '/treinador/minha-conta', '/treinador/marca', '/treinador/ajustes'];
 
 export function naConta(caminho: string): boolean {
   return TELAS_DA_CONTA.some((t) => caminho === t || caminho.startsWith(`${t}/`));
-}
-
-/**
- * Contexto curto da barra de topo: "Conta" nas telas do cartão do usuário, o grupo do menu da tela, "Início" no item sem
- * grupo (só o Início fica fora de grupo). Tela que nenhum item do menu acende (editor do plano do aluno) fica sem contexto.
- */
-export function contextoDoTopo(caminho: string): string | null {
-  if (naConta(caminho)) return 'Conta';
-  const lugar = posicaoNoMenu(caminho);
-  if (!lugar) return null;
-  return lugar.grupo ?? 'Início';
 }

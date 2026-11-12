@@ -14,7 +14,6 @@ import { Esqueleto } from '../ui/Esqueleto';
 import { MensagemErro } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
 import { LinhaDaLista, ListaDeLinhas } from '../ui/LinhaDaLista';
-import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
 
 /** Dias para trás na lista (hoje incluído): duas semanas, o padrão da rota. */
@@ -50,11 +49,14 @@ export function CartaoTreinosConcluidos({ alunoId }: { alunoId: string }) {
   };
 
   const lista = dados ? treinosConcluidos(dados.sessoes) : [];
+  // Vazio é uma linha só na faixa (guia de 11/11, pág. 33): sem corpo, o cartão fica do tamanho do título.
+  const descricao = !dados ? `Últimos ${DIAS} dias.`
+    : lista.length ? `Últimos ${DIAS} dias · ${textoDoTotalDeTreinos(dados.totalConcluidos)}`
+      : `Nenhum treino concluído nos últimos ${DIAS} dias${dados.totalConcluidos > 0 ? ` · ${textoDoTotalDeTreinos(dados.totalConcluidos)}` : '.'}`;
   return (
-    <Cartao titulo="Treinos concluídos" descricao={dados ? `Últimos ${DIAS} dias · ${textoDoTotalDeTreinos(dados.totalConcluidos)}` : `Últimos ${DIAS} dias.`}>
+    <Cartao titulo="Treinos concluídos" descricao={descricao}>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
-      {dados === undefined && !erro ? <Esqueleto /> : null}
-      {dados && !lista.length ? <Texto variante="suave">Nenhum treino concluído nos últimos {DIAS} dias.</Texto> : null}
+      {dados === undefined && !erro ? <Esqueleto cartoes={1} /> : null}
       {lista.length ? (
         <ListaDeLinhas>
           {lista.map((s) => {

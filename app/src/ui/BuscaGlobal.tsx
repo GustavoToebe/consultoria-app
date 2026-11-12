@@ -1,78 +1,142 @@
 import { router, type Href } from 'expo-router';
-import { Search } from 'lucide-react-native';
-import { useId, useRef, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, View, type PressableProps, type Role, type TextInput } from 'react-native';
+import { Search, Star } from 'lucide-react-native';
+import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { Platform, Pressable, StyleSheet, View, type PressableProps, type TextInput } from 'react-native';
 
-import { Input } from '../components/ui/input';
-import { atalhosPadrao, buscarTelas, favoritosVisiveis, legendaDaTela, type TelaDoCatalogo } from '../dominio/telas';
+import { atalhosPadrao, buscarTelas, favoritosVisiveis, legendaDaTela, telasPermitidas, type TelaDoCatalogo } from '../dominio/telas';
+import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, RAIO_CONTROLE } from '../tema/tokens';
+import { Campo } from './Campo';
+import { Folha } from './Folha';
 import { useSaidaGuardada } from './GuardaDeSaida';
+import { useDicaNoMenu, useMenuLateral } from './Navegacao';
+import { useAlvoDoPasseio } from './Passeio';
 import { propsDeLink } from './propsDeLink';
 import { sobre } from './sobre';
 import { Texto } from './Texto';
-import { useCliqueFora, useTeclado } from './usoWeb';
-
-interface Props {
-  /** O que o usuário pode abrir (já filtrado pelas permissões). */
-  permitidas: readonly TelaDoCatalogo[];
-  /** Ids favoritos, na ordem de marcação; aparecem quando o campo está vazio. */
-  favoritos?: readonly string[];
-}
+import { useFavoritos } from './useFavoritos';
+import { useTeclado } from './usoWeb';
 
 /** Texto da dica de atalho; no Mac o atalho é Cmd + K, e o rótulo mostra o que vale ali. */
-const ATALHO = Platform.OS === 'web' && typeof navigator !== 'undefined' && /mac|iphone|ipad/i.test(navigator.platform) ? '⌘ K' : 'Ctrl K';
+export const ATALHO = Platform.OS === 'web' && typeof navigator !== 'undefined' && /mac|iphone|ipad/i.test(navigator.platform) ? '⌘ K' : 'Ctrl K';
+
+const Contexto = createContext<{ abrir: () => void } | null>(null);
+
+/** Abre a busca global (o "Buscar" do menu lateral e o "Buscar telas" do Perfil no celular); `null` fora do provedor. */
+export const useBuscaGlobal = () => useContext(Contexto);
 
 /**
- * Busca global da barra de topo: "Buscar" com o atalho à vista (prévia de 11/11). O nome acessível diz que ela vale para o
- * app todo, porque a busca de cada lista procura só nela. Ocupa a largura que a barra lhe dá; a lista abre alinhada à
- * direita com 400 px, para os nomes caberem mesmo com o campo estreito. Filtra o catálogo de telas e ações (`dominio/telas.ts`) só
- * entre o que o usuário pode abrir. Ctrl+K / Cmd+K foca o campo (web), setas escolhem, Enter abre, Esc fecha e
- * limpa. Para o leitor de tela é um combobox com a lista de opções. Não procura alunos pelo nome.
+ * Dona da busca global do treinador (guia de 11/11, D2 e D6): uma `Folha` só, aberta pelo "Buscar" do menu lateral, pelo
+ * "Buscar telas" do Perfil e por Ctrl+K / Cmd+K em qualquer tela (web). Os favoritos ficam lidos aqui, fora da folha, para a
+ * lista não piscar ao abrir. Fechar desmonta o conteúdo: reabrir começa com o campo vazio.
  */
-export function BuscaGlobal({ permitidas, favoritos = [] }: Props) {
-  const { cores } = useTema();
-  const [texto, setTexto] = useState('');
-  const [aberto, setAberto] = useState(false);
-  const [ativo, setAtivo] = useState(0);
+export function ProvedorDaBuscaGlobal({ children }: { children: ReactNode }) {
+  const [aberta, setAberta] = useState(false);
+  const { favoritos, alternar } = useFavoritos();
   const campo = useRef<TextInput>(null);
-  const caixa = useRef<View>(null);
-  const idLista = useId();
+  useTeclado(true, ({ key, ctrl }) => {
+    if (!ctrl || key.toLowerCase() !== 'k') return undefined;
+    // Já aberta: o atalho volta o foco ao campo (de uma estrela ou de um resultado).
+    if (aberta) campo.current?.focus();
+    else setAberta(true);
+    return true;
+  });
+  const valor = useMemo(() => ({ abrir: () => setAberta(true) }), []);
+  const fechar = () => setAberta(false);
+  return (
+    <Contexto.Provider value={valor}>
+      {children}
+      <Folha visivel={aberta} titulo="Buscar" aoFechar={fechar}>
+        <PainelDaBusca campo={campo} favoritos={favoritos} alternar={alternar} aoFechar={fechar} />
+      </Folha>
+    </Contexto.Provider>
+  );
+}
+
+/**
+ * "Buscar" do menu lateral, logo abaixo da identidade (D2). Menu aberto: linha com cara de campo, a lupa, "Buscar" e o
+ * atalho à direita. Minimizado (72): só a lupa, com o nome e o atalho na dica. Trilho do tablet (88): a lupa com "Buscar"
+ * embaixo, como os itens. Não é campo de verdade: abre a folha da busca.
+ */
+export function BotaoDaBusca() {
+  const busca = useBuscaGlobal();
+  const { recolhido, trilho } = useMenuLateral();
+  const { cores } = useTema();
+  const soIcone = recolhido && !trilho;
+  const noRef = useRef<View | null>(null);
+  const dica = useDicaNoMenu(`Buscar (${ATALHO})`, soIcone, noRef);
+  const alvo = useAlvoDoPasseio('menu:busca');
+  const ref = useCallback((n: View | null) => {
+    noRef.current = n;
+    alvo(n);
+  }, [alvo]);
+  if (!busca) return null;
+  return (
+    <Pressable
+      ref={ref}
+      accessibilityRole="button"
+      accessibilityLabel={`Buscar telas e ações, atalho ${ATALHO}`}
+      onPress={busca.abrir}
+      {...dica}
+      style={(estado) => [
+        estilos.gatilho,
+        recolhido
+          ? [estilos.gatilhoIcone, trilho && estilos.gatilhoTrilho]
+          : [estilos.gatilhoAberto, { borderColor: cores.bordaCampo, backgroundColor: cores.campo }],
+        sobre(estado) && { backgroundColor: cores.superficie2 },
+      ]}>
+      <Search size={recolhido ? 20 : 16} color={cores.textoSuave} strokeWidth={2} />
+      {soIcone ? null : (
+        <Texto numberOfLines={1} style={[trilho ? estilos.rotuloTrilho : estilos.rotuloAberto, { color: cores.textoSuave }]}>Buscar</Texto>
+      )}
+      {recolhido || Platform.OS !== 'web' ? null : (
+        <View aria-hidden style={[estilos.atalho, { borderColor: cores.bordaCampo, backgroundColor: cores.superficie2 }]}>
+          <Texto variante="pequeno" style={estilos.textoAtalho}>{ATALHO}</Texto>
+        </View>
+      )}
+    </Pressable>
+  );
+}
+
+/**
+ * Conteúdo da folha: o campo e a lista. Campo vazio mostra os favoritos (ou, sem nenhum, atalhos do dia a dia); digitando,
+ * as telas e ações do catálogo (`dominio/telas.ts`) que o perfil pode abrir. Cada tela tem a estrela de favorito ao lado
+ * (ação não vira favorito). Nunca lista o catálogo inteiro agrupado. Com o foco no campo, setas escolhem e Enter abre;
+ * Esc fecha pela própria folha. Não procura alunos pelo nome.
+ */
+function PainelDaBusca({ campo, favoritos, alternar, aoFechar }: {
+  campo: RefObject<TextInput | null>;
+  favoritos: readonly string[];
+  alternar: (id: string) => void;
+  aoFechar: () => void;
+}) {
+  const { cores } = useTema();
+  const { pode, perfilEquipe, funcionalidadesDoPlano, pagamentosHabilitados } = useSessao();
+  const administrador = !!perfilEquipe?.acessoTotal;
+  const permitidas = useMemo(
+    () => telasPermitidas(pode, undefined, funcionalidadesDoPlano, pagamentosHabilitados, administrador),
+    [pode, funcionalidadesDoPlano, pagamentosHabilitados, administrador],
+  );
+  const [texto, setTexto] = useState('');
+  const [ativo, setAtivo] = useState(0);
+  const [noCampo, setNoCampo] = useState(false);
+  const { confirmar } = useSaidaGuardada();
 
   const digitando = texto.trim().length > 0;
   const marcados = favoritosVisiveis(favoritos, permitidas);
-  // Campo vazio: os favoritos; sem nenhum, uns atalhos do dia a dia (antes a lista vazia só dava uma instrução).
   const resultados = digitando ? buscarTelas(texto, permitidas) : marcados.length > 0 ? marcados : atalhosPadrao(permitidas);
   const indice = Math.min(ativo, Math.max(resultados.length - 1, 0));
 
-  // Fechar (clique fora, Esc, escolha) limpa o texto: reabrir não mostra a busca antiga.
-  const { confirmar } = useSaidaGuardada();
-  const fechar = () => {
-    setAberto(false);
-    setAtivo(0);
-    setTexto('');
-  };
   const abrir = (tela: TelaDoCatalogo) => {
-    fechar();
-    campo.current?.blur();
+    aoFechar();
     confirmar(() => router.navigate(tela.href as Href));
   };
 
-  useCliqueFora(caixa, aberto, fechar);
-  useTeclado(true, ({ key, ctrl }) => {
-    if (ctrl && key.toLowerCase() === 'k') {
-      campo.current?.focus();
-      setAberto(true);
-      return true;
-    }
-    if (!aberto) return undefined;
-    if (key === 'Escape') {
-      fechar();
-      campo.current?.blur();
-      return true;
-    }
-    if (key === 'ArrowDown' || key === 'ArrowUp') {
-      if (resultados.length > 0) setAtivo((indice + (key === 'ArrowDown' ? 1 : resultados.length - 1)) % resultados.length);
+  // Setas e Enter só aceleram quando o foco está no campo; fora dele, Tab percorre os links e as estrelas.
+  useTeclado(noCampo, ({ key }) => {
+    if ((key === 'ArrowDown' || key === 'ArrowUp') && resultados.length > 0) {
+      setAtivo((indice + (key === 'ArrowDown' ? 1 : resultados.length - 1)) % resultados.length);
       return true;
     }
     if (key === 'Enter' && resultados[indice]) {
@@ -82,136 +146,98 @@ export function BuscaGlobal({ permitidas, favoritos = [] }: Props) {
     return undefined;
   });
 
-  const idDaOpcao = (i: number) => `${idLista}-opcao-${i}`;
+  const situacao = digitando
+    ? resultados.length === 0 ? 'Nada encontrado. Tente outra palavra.' : `${resultados.length} ${resultados.length === 1 ? 'resultado' : 'resultados'}`
+    : marcados.length > 0 ? 'Favoritos' : 'Atalhos';
+
   return (
-    <View ref={caixa} style={estilos.caixa}>
-      <View>
-        <Search size={16} color={cores.textoSuave} strokeWidth={2} style={estilos.lupa} />
-        <Input
-          ref={campo}
-          accessibilityLabel="Buscar telas e ações em todo o app"
-          role="combobox"
-          aria-expanded={aberto}
-          aria-controls={idLista}
-          aria-activedescendant={aberto && resultados[indice] ? idDaOpcao(indice) : undefined}
-          aria-autocomplete="list"
-          placeholder="Buscar"
-          placeholderTextColor={cores.textoSuave}
-          value={texto}
-          onChangeText={(t) => {
-            setTexto(t);
-            setAtivo(0);
-            setAberto(true);
-          }}
-          onFocus={() => setAberto(true)}
-          autoCorrect={false}
-          autoComplete="off"
-          style={[
-            estilos.entrada,
-            { color: cores.texto, backgroundColor: cores.campo, borderColor: aberto ? cores.anelFoco : cores.bordaCampo },
-          ]}
-        />
-        {Platform.OS === 'web' ? (
-          <View pointerEvents="none" style={[estilos.atalho, { borderColor: cores.bordaCampo, backgroundColor: cores.superficie2 }]}>
-            <Texto variante="pequeno" style={estilos.textoAtalho}>{ATALHO}</Texto>
-          </View>
+    <View style={estilos.painel}>
+      <Campo
+        ref={campo}
+        rotulo="Tela ou ação"
+        rotuloAcessivel="Buscar tela ou ação"
+        role="searchbox"
+        placeholder="Ex.: alunos, faturas, novo modelo"
+        valor={texto}
+        aoMudar={(t) => {
+          setTexto(t);
+          setAtivo(0);
+        }}
+        onFocus={() => setNoCampo(true)}
+        onBlur={() => setNoCampo(false)}
+        autoCorrect={false}
+        autoComplete="off"
+      />
+      <View style={estilos.cabeca}>
+        <Texto variante={digitando ? 'suave' : 'rotulo'} accessibilityLiveRegion="polite">{situacao}</Texto>
+        {!digitando && marcados.length === 0 ? (
+          <Texto variante="pequeno">Marque a estrela de uma tela para ela aparecer aqui.</Texto>
         ) : null}
       </View>
-      {aberto ? (
-        <View
-          nativeID={idLista}
-          role={'listbox' as Role}
-          accessibilityLabel="Telas e ações"
-          style={[estilos.menu, { backgroundColor: cores.superficie2, borderColor: cores.divisor }]}>
-          {resultados.length === 0 ? (
-            <Texto variante="suave" style={estilos.vazio}>
-              {digitando ? 'Nada encontrado. Tente outra palavra.' : 'Digite para buscar telas e ações.'}
-            </Texto>
-          ) : (
-            <ScrollView style={estilos.rolagem} keyboardShouldPersistTaps="handled">
-              {digitando ? null : <Texto variante="rotulo" style={estilos.cabecaLista}>{marcados.length > 0 ? 'Favoritos' : 'Atalhos'}</Texto>}
-              {resultados.map((tela, i) => (
-                <LinkDeTela
-                  key={tela.id}
-                  href={tela.acao ? undefined : (tela.href as Href)}
-                  navegar={() => abrir(tela)}
-                  nativeID={idDaOpcao(i)}
-                  role="option"
-                  accessibilityLabel={`${tela.rotulo}, ${legendaDaTela(tela)}`}
-                  accessibilityState={{ selected: i === indice }}
-                  aria-selected={i === indice}
-                  onHoverIn={() => setAtivo(i)}
-                  style={(estado) => [
-                    estilos.item,
-                    (i === indice || sobre(estado)) && { backgroundColor: cores.superficie3 },
-                  ]}>
-                  <Texto style={estilos.nome} numberOfLines={1}>{tela.rotulo}</Texto>
-                  <Texto variante="pequeno" numberOfLines={1}>{legendaDaTela(tela)}</Texto>
-                </LinkDeTela>
-              ))}
-            </ScrollView>
-          )}
-        </View>
-      ) : null}
+      <View style={estilos.lista}>
+        {resultados.map((tela, i) => {
+          const favorita = favoritos.includes(tela.id);
+          return (
+            <View key={tela.id} style={estilos.linha}>
+              <LinkDeTela
+                href={tela.acao ? undefined : (tela.href as Href)}
+                navegar={() => abrir(tela)}
+                accessibilityLabel={`${tela.rotulo}, ${legendaDaTela(tela)}`}
+                onHoverIn={() => setAtivo(i)}
+                style={(estado) => [
+                  estilos.resultado,
+                  sobre(estado) && { backgroundColor: cores.superficie2 },
+                  noCampo && i === indice && { backgroundColor: cores.superficie3 },
+                ]}>
+                <Texto style={estilos.nome} numberOfLines={1}>{tela.rotulo}</Texto>
+                <Texto variante="pequeno" numberOfLines={1}>{legendaDaTela(tela)}</Texto>
+              </LinkDeTela>
+              {tela.acao ? (
+                <View style={estilos.semEstrela} />
+              ) : (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={favorita ? `Tirar ${tela.rotulo} dos favoritos` : `Favoritar ${tela.rotulo}`}
+                  onPress={() => {
+                    alternar(tela.id);
+                    // Sem texto, a linha do favorito desmarcado some: o foco volta ao campo em vez de cair no fim da página.
+                    if (!digitando && favorita) campo.current?.focus();
+                  }}
+                  style={(estado) => [estilos.estrela, sobre(estado) && { backgroundColor: cores.superficie2 }]}>
+                  <Star size={20} color={favorita ? cores.atencao : cores.textoSuave} fill={favorita ? cores.atencao : 'transparent'} strokeWidth={2} />
+                </Pressable>
+              )}
+            </View>
+          );
+        })}
+      </View>
     </View>
   );
 }
 
 /**
- * Resultado da busca. Tela (com `href`) é link (`<a href>` na web); ação segue como botão. A navegação entra por prop e
- * só é chamada no clique: assim o `abrir`, que lê a referência do campo, não é chamado na renderização (regra do React
- * Compiler).
+ * Resultado da busca. Tela (com `href`) é link (`<a href>` na web, abre em outra guia com Ctrl/Cmd); ação segue como
+ * botão. A navegação entra por prop e só é chamada no clique (regra do React Compiler).
  */
 function LinkDeTela({ href, navegar, ...resto }: PressableProps & { href?: Href; navegar: () => void }) {
-  return <Pressable {...resto} {...(href ? propsDeLink(href, navegar) : { onPress: navegar })} />;
+  return <Pressable {...resto} {...(href ? propsDeLink(href, navegar) : { accessibilityRole: 'button' as const, onPress: navegar })} />;
 }
 
 const estilos = StyleSheet.create({
-  caixa: { position: 'relative', width: '100%', zIndex: 30 },
-  lupa: { position: 'absolute', left: espaco(1.25), top: 14, zIndex: 1 },
-  entrada: {
-    minHeight: ALVO_TOQUE,
-    borderRadius: RAIO,
-    borderWidth: 1,
-    fontFamily: fontes.normal,
-    fontSize: 14,
-    paddingLeft: espaco(4),
-    paddingRight: espaco(9),
-    paddingVertical: espaco(1),
-  },
-  atalho: {
-    position: 'absolute',
-    right: espaco(1),
-    top: 11,
-    borderWidth: 1,
-    borderRadius: 6,
-    paddingHorizontal: espaco(0.75),
-    paddingVertical: 2,
-  },
+  gatilho: { flexDirection: 'row', alignItems: 'center', minHeight: ALVO_TOQUE, borderRadius: RAIO_CONTROLE },
+  gatilhoAberto: { gap: espaco(1), paddingLeft: espaco(1.5), paddingRight: espaco(1), borderWidth: 1 },
+  gatilhoIcone: { justifyContent: 'center' },
+  gatilhoTrilho: { flexDirection: 'column', gap: 2, paddingVertical: espaco(0.5) },
+  rotuloAberto: { flex: 1, fontSize: 15 },
+  rotuloTrilho: { alignSelf: 'stretch', textAlign: 'center', fontSize: 12, lineHeight: 16, fontFamily: fontes.medio },
+  atalho: { borderWidth: 1, borderRadius: 6, paddingHorizontal: espaco(0.75), paddingVertical: 2 },
   textoAtalho: { fontSize: 12, fontFamily: fontes.semi },
-  menu: {
-    position: 'absolute',
-    top: '100%',
-    marginTop: 6,
-    right: 0,
-    width: 400,
-    borderWidth: 1,
-    borderRadius: RAIO,
-    paddingVertical: espaco(0.5),
-    overflow: 'hidden',
-    zIndex: 40,
-  },
-  // Muitas telas casam com uma letra só: a lista rola dentro do quadro em vez de vazar por cima da página.
-  rolagem: { maxHeight: 400 },
-  cabecaLista: { paddingHorizontal: espaco(1.5), paddingVertical: espaco(0.5) },
-  vazio: { paddingHorizontal: espaco(1.5), paddingVertical: espaco(1.5) },
-  item: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: espaco(2),
-    minHeight: ALVO_TOQUE,
-    paddingHorizontal: espaco(1.5),
-  },
-  nome: { fontFamily: fontes.semi, fontSize: 14, flexShrink: 1 },
+  painel: { gap: espaco(1.5) },
+  cabeca: { gap: 2 },
+  lista: { gap: 2 },
+  linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5) },
+  resultado: { flex: 1, minWidth: 0, minHeight: ALVO_TOQUE, justifyContent: 'center', paddingHorizontal: espaco(1.5), paddingVertical: espaco(0.75), borderRadius: RAIO_CONTROLE },
+  nome: { fontFamily: fontes.semi, fontSize: 15 },
+  estrela: { width: ALVO_TOQUE, height: ALVO_TOQUE, alignItems: 'center', justifyContent: 'center', borderRadius: RAIO_CONTROLE },
+  semEstrela: { width: ALVO_TOQUE },
 });

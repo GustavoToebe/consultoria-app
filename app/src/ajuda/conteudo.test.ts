@@ -55,6 +55,13 @@ describe('textos da ajuda', () => {
     expect(texto).toContain('cada série mantém o próprio descanso');
   });
 
+  it('o guia do treinador não cita a barra de topo nem "Todas as telas", que saíram (guia de 11/11)', () => {
+    const treinador = textoDoGuia('treinador');
+    expect(treinador).not.toMatch(/Todas as telas|barra de topo|canto superior direito/i);
+    const passeio = GUIAS.treinador.passeio.map((p) => p.alvo);
+    expect(passeio).toEqual(expect.arrayContaining(['menu:busca', 'menu:conta']));
+  });
+
   it('nenhum item fica sem título ou sem texto', () => {
     for (const g of Object.values(GUIAS)) {
       for (const s of g.secoes) for (const i of s.itens) expect(i.titulo.trim() && i.texto.trim()).toBeTruthy();
