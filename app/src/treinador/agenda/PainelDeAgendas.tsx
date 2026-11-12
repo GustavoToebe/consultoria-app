@@ -1,5 +1,5 @@
 import { Check, Pencil, Plus } from 'lucide-react-native';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { AgendaPessoal, CorDaAgenda } from '../../api/agendaTipos';
@@ -13,7 +13,6 @@ import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, CHAVES_DA_AGENDA, espaco, fontes, RAIO, textoSobre } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
-import { Cartao } from '../../ui/Cartao';
 import { MensagemErro } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
@@ -39,7 +38,7 @@ interface Props {
 type Edicao = { tipo: 'nova' } | { tipo: 'editar'; agenda: AgendaPessoal };
 
 /**
- * "Minhas agendas" (bloco com faixa): as duas fixas (compromissos com alunos e atualizações) e as pessoais, cada uma com a
+ * "Minhas agendas" (seção leve da lateral): as duas fixas (compromissos com alunos e atualizações) e as pessoais, cada uma com a
  * caixa de mostrar ou esconder na cor dela (a escolha fica no aparelho, `agendasOcultas`). Com `AGENDA_ALTERAR`, o "+" da
  * faixa ("Nova agenda") e o lápis de cada pessoal abrem a folha de nome e cor, onde também se apaga (com a contagem de
  * eventos na confirmação). No limite de agendas o "+" fica desabilitado e o motivo aparece embaixo da lista.
@@ -51,8 +50,8 @@ export function PainelDeAgendas({ agendas, pessoais, carregando, podeAlterar, ao
   const comNova = podeAlterar && !!pessoais;
   const motivo = `Você já tem ${LIMITES_DA_AGENDA.agendas} agendas. Apague uma para criar outra.`;
   return (
-    <Cartao titulo="Minhas agendas"
-      acoes={comNova ? <IconeBotao Icone={Plus} rotulo={podeCriar ? 'Nova agenda' : `Nova agenda. ${motivo}`} moldura aoTocar={() => setEdicao({ tipo: 'nova' })} desabilitado={!podeCriar} /> : undefined}>
+    <SecaoDaLateral titulo="Minhas agendas"
+      acoes={comNova ? <IconeBotao Icone={Plus} rotulo={podeCriar ? 'Nova agenda' : `Nova agenda. ${motivo}`} aoTocar={() => setEdicao({ tipo: 'nova' })} desabilitado={!podeCriar} /> : undefined}>
       <View style={estilos.lista} role="group" aria-label="Agendas visíveis">
         {agendas.map((a) => <LinhaDaAgenda key={a.chave} agenda={a} aoAlternar={() => aoAlternar(a.chave)}
           aoEditar={podeAlterar && !a.fixa ? () => {
@@ -66,7 +65,24 @@ export function PainelDeAgendas({ agendas, pessoais, carregando, podeAlterar, ao
       ) : null}
       <FolhaDaAgenda key={edicao?.tipo === 'editar' ? edicao.agenda.id : edicao?.tipo ?? 'fechada'} edicao={edicao} pessoais={pessoais ?? []}
         aoFechar={() => setEdicao(null)} aoMudar={() => { setEdicao(null); aoMudar(); }} />
-    </Cartao>
+    </SecaoDaLateral>
+  );
+}
+
+/**
+ * Seção da lateral da agenda (como no Google Agenda): título pequeno em tom secundário (h2) com as ações à direita, sem
+ * cartão em volta, para a grade ficar com o destaque. `divisoria` põe o filete `divisor` em cima (da segunda seção em diante).
+ */
+export function SecaoDaLateral({ titulo, acoes, divisoria, children }: { titulo: string; acoes?: ReactNode; divisoria?: boolean; children: ReactNode }) {
+  const { cores } = useTema();
+  return (
+    <View style={[estilos.secao, divisoria && [estilos.divisoria, { borderTopColor: cores.divisor }]]}>
+      <View style={estilos.topoDaSecao}>
+        <Texto variante="rotulo" nivel={2} style={estilos.tituloDaSecao}>{titulo}</Texto>
+        {acoes}
+      </View>
+      {children}
+    </View>
   );
 }
 
@@ -198,6 +214,10 @@ function EscolhaDeCor({ valor, aoMudar }: { valor: CorDaAgenda; aoMudar: (c: Cor
 }
 
 const estilos = StyleSheet.create({
+  secao: { gap: espaco(1) },
+  divisoria: { borderTopWidth: 1, paddingTop: espaco(2) },
+  topoDaSecao: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), minHeight: ALVO_TOQUE },
+  tituloDaSecao: { flexShrink: 1 },
   lista: { gap: 2, marginHorizontal: -espaco(1) },
   linha: { flexDirection: 'row', alignItems: 'center' },
   caixaELinha: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: espaco(1.5), minHeight: ALVO_TOQUE, paddingHorizontal: espaco(1), borderRadius: RAIO },

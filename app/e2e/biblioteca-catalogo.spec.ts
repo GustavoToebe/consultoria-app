@@ -370,6 +370,77 @@ for (const largura of [390, 1280]) {
   });
 }
 
+/**
+ * Instruções do catálogo: um controle só ("Ver instruções" ↔ "Recolher instruções", com `aria-expanded`) abre a região
+ * "Instruções de execução" com os passos na ordem da fonte, numerados pela apresentação (o texto do passo não leva o
+ * número). Abrir e recolher não marca o item. Com `CAPTURAS_DIR`, também o tema escuro.
+ */
+const PASSOS = ['Deite no banco com os pés apoiados no chão.', 'Desça a barra até a linha do peito, controlando o movimento.', 'Empurre a barra para cima até estender os braços.'];
+const temasDasInstrucoes = process.env.CAPTURAS_DIR ? (['claro', 'escuro'] as const) : (['claro'] as const);
+for (const largura of [390, 1280]) {
+  for (const nomeDoTema of temasDasInstrucoes) {
+    test(`catálogo em ${largura}px, tema ${nomeDoTema}: instruções abrem numa região com os passos em ordem e recolhem`, async ({ page }) => {
+      await page.setViewportSize({ width: largura, height: largura < 768 ? 844 : 900 });
+      await page.addInitScript(([id, pref]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify(pref)), [TREINADOR.id, TEMAS_DA_FOLHA[nomeDoTema]] as const);
+      await servirFotos(page);
+      const comPassos = { ...CATALOGO[0], instrucoes: PASSOS.join('\n') };
+      const { naoTratadas, errosDaPagina } = await simularApi(page, {
+        ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'BIBLIOTECA_LER', 'BIBLIOTECA_ALTERAR'] })),
+        'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+        'GET /exercicios': { corpo: [] },
+        'GET /catalogo/exercicios/grupos': { corpo: GRUPOS },
+        'GET /catalogo/exercicios': { corpo: { itens: [comPassos, CATALOGO[1]], total: 2 } },
+      });
+      await page.goto('/treinador/biblioteca?aba=catalogo');
+      const ver = page.getByRole('button', { name: 'Ver instruções de Supino reto', exact: true });
+      await expect(ver).toBeVisible();
+      await expect(ver).toHaveAttribute('aria-expanded', 'false');
+      // Sem instruções na fonte, sem controle.
+      await expect(page.getByRole('button', { name: 'Ver instruções de Remada baixa' })).toHaveCount(0);
+      await capturar(page, `catalogo-instrucoes-${largura}-${nomeDoTema}-fechado`);
+
+      await ver.click();
+      const regiao = page.getByRole('region', { name: 'Instruções de execução de Supino reto' });
+      await expect(regiao).toBeVisible();
+      await expect(regiao.getByText('Instruções de execução', { exact: true })).toBeVisible();
+      const passos = regiao.getByRole('listitem');
+      await expect(passos).toHaveCount(PASSOS.length);
+      for (const [i, passo] of PASSOS.entries()) {
+        // Número na coluna própria e o texto da fonte intacto: nada de "1. 1." nem número dentro do passo.
+        await expect(passos.nth(i).getByText(passo, { exact: true })).toBeVisible();
+        await expect(passos.nth(i).getByText(`${i + 1}.`, { exact: true })).toBeVisible();
+        await expect(passos.nth(i)).not.toContainText(`${i + 1}. ${i + 1}.`);
+      }
+      const recolher = page.getByRole('button', { name: 'Recolher instruções de Supino reto', exact: true });
+      await expect(recolher).toHaveAttribute('aria-expanded', 'true');
+      await expect(recolher).toBeFocused();
+      if (largura >= 768) {
+        // No PC o bloco começa onde começa o nome do exercício e o texto não passa de ~640 px.
+        const nome = (await page.getByText('Supino reto', { exact: true }).boundingBox())!;
+        const bloco = (await regiao.boundingBox())!;
+        expect(Math.abs(bloco.x - nome.x)).toBeLessThanOrEqual(1);
+        expect((await regiao.getByRole('list').boundingBox())!.width).toBeLessThanOrEqual(640.5);
+      } else {
+        const janela = page.viewportSize()!;
+        const bloco = (await regiao.boundingBox())!;
+        expect(bloco.x + bloco.width).toBeLessThanOrEqual(janela.width + 0.5);
+      }
+      await regiao.scrollIntoViewIfNeeded();
+      await capturar(page, `catalogo-instrucoes-${largura}-${nomeDoTema}-aberto`);
+
+      // Pelo teclado: Enter recolhe e o foco fica no mesmo controle.
+      await page.keyboard.press('Enter');
+      await expect(regiao).toHaveCount(0);
+      await expect(ver).toBeFocused();
+      await expect(ver).toHaveAttribute('aria-expanded', 'false');
+      // Abrir e recolher não marcou o item.
+      await expect(page.getByRole('button', { name: 'Importar selecionados (0)' })).toBeVisible();
+      expect(naoTratadas).toEqual([]);
+      expect(errosDaPagina).toEqual([]);
+    });
+  }
+}
+
 test('exercícios da biblioteca: filtro de vários grupos no servidor', async ({ page }) => {
   await servirFotos(page);
   const doTreinador = (n: number, nome: string, grupo: string): Exercicio => ({

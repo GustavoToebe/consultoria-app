@@ -96,6 +96,7 @@ function medirFolha(dialogo: Locator) {
       rodape: { topo: rodape.top, fundo: rodape.bottom },
       fimDaRolagem: rolagem.getBoundingClientRect().bottom,
       folgaDoFim: parseFloat(getComputedStyle(rolagem.firstElementChild!).paddingBottom),
+      rola: rolagem.scrollHeight > rolagem.clientHeight,
     };
   });
 }
@@ -142,12 +143,15 @@ for (const { largura, altura, temas } of CASOS) {
       await expect(dialogo.getByRole('textbox', { name: 'Nome', exact: true })).toHaveValue(EXERCICIO.nome);
 
       // Evidência 05: o rodapé fecha a folha e o corpo encosta nele, sem a folga do "voltar ao início" numa folha curta.
+      // Com as seções do Editar alimento a folha rola em 390 e 1280: aí a folga (16 + 44 + 8) é a do botão, de propósito.
       const m = await medirFolha(dialogo);
       expect(m.painel.fundo - m.rodape.fundo).toBeLessThanOrEqual(3);
       expect(Math.abs(m.fimDaRolagem - m.rodape.topo)).toBeLessThanOrEqual(2);
-      expect(m.folgaDoFim).toBeLessThanOrEqual(16);
+      const folga = m.rola ? 68 : 16;
+      expect(m.folgaDoFim).toBeLessThanOrEqual(folga);
+      // O "Tirar" fica no último cartão (como no Editar alimento): o recuo do cartão (até 20), a borda e a folga do corpo.
       const tirar = await caixa(dialogo.getByRole('button', { name: 'Tirar da biblioteca' }));
-      expect(m.rodape.topo - (tirar.y + tirar.height)).toBeLessThanOrEqual(18);
+      expect(m.rodape.topo - (tirar.y + tirar.height)).toBeLessThanOrEqual(folga + 24);
 
       const salvar = dialogo.getByRole('button', { name: 'Salvar', exact: true });
       const cancelar = dialogo.getByRole('button', { name: 'Cancelar', exact: true });
@@ -233,6 +237,38 @@ for (const { largura, altura, temas } of CASOS) {
 }
 
 for (const largura of [390, 1280]) {
+  test(`folha Editar exercício ${largura}px: seções do Editar alimento, par em colunas no PC e rodapé visível com o corpo rolado`, async ({ page }) => {
+    // Altura baixa para o corpo rolar também no PC.
+    const { naoTratadas, errosDaPagina } = await abrir(page, largura, 640, { tema: 'CLARO' }, '/treinador/biblioteca', ['BIBLIOTECA_LER', 'BIBLIOTECA_ALTERAR'], {
+      'GET /exercicios/pagina': paginaDeExerciciosFalsa([EXERCICIO]),
+    });
+    await page.getByRole('button', { name: `Editar ${EXERCICIO.nome}` }).click();
+    const dialogo = page.getByRole('dialog', { name: 'Editar exercício' });
+    for (const secao of ['Identificação', 'Instruções', 'Vídeo e imagem']) {
+      await expect(dialogo.getByRole('heading', { name: secao, level: 3 })).toBeVisible();
+    }
+    const grupo = await caixa(dialogo.getByRole('textbox', { name: 'Grupo muscular (opcional)' }));
+    const equipamento = await caixa(dialogo.getByRole('textbox', { name: 'Equipamento (opcional)' }));
+    if (celular(largura)) expect(equipamento.y).toBeGreaterThan(grupo.y + grupo.height);
+    else {
+      expect(Math.abs(equipamento.y - grupo.y)).toBeLessThanOrEqual(1);
+      expect(equipamento.x).toBeGreaterThan(grupo.x + grupo.width);
+    }
+
+    const rolou = await dialogo.evaluate((d) => {
+      const rolagem = [...d.querySelectorAll<HTMLElement>('div')].find((n) => ['auto', 'scroll'].includes(getComputedStyle(n).overflowY))!;
+      rolagem.scrollTop = rolagem.scrollHeight / 2;
+      return rolagem.scrollTop;
+    });
+    expect(rolou).toBeGreaterThan(0);
+    const salvar = dialogo.getByRole('button', { name: 'Salvar', exact: true });
+    await expect(salvar).toBeInViewport();
+    await expect(dialogo.getByRole('button', { name: 'Cancelar', exact: true })).toBeInViewport();
+    expect(await semNadaPorCima(salvar)).toBe(true);
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+
   test(`tela longa ${largura}px: a folga do "voltar ao início" continua no fim da rolagem`, async ({ page }) => {
     const todos = Array.from({ length: 30 }, (_, i) => ({ ...EXERCICIO, id: `e${String(i + 1).padStart(7, '0')}-0000-4000-8000-000000000000`, nome: `Elevação ${i + 1}` }));
     const { naoTratadas, errosDaPagina } = await abrir(page, largura, 844, { tema: 'CLARO' }, '/treinador/biblioteca', ['BIBLIOTECA_LER', 'BIBLIOTECA_ALTERAR'], {

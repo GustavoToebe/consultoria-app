@@ -32,7 +32,16 @@ const opcao = (page: Page, grupo: string, rotulo: string) =>
 
 test('visão geral com dados: cartões, líquido indisponível, resultado do mês, inadimplentes e nenhum "Pagar"', async ({ page }) => {
   await fixarHoje(page);
-  const estado = estadoFinanceiro({ inadimplentes: [INADIMPLENTE], cobrancas: [{ ...COBRANCA_ATRASADA }] });
+  // O painel conta 2 vencidas no período (R$ 300,00); a lista, sem filtro de período, traz essas duas e mais uma de antes
+  // do período (01/05 a 31/10), como faria a API de verdade.
+  const estado = estadoFinanceiro({
+    inadimplentes: [
+      INADIMPLENTE,
+      { ...INADIMPLENTE, cobrancaId: 'c0000000-0000-4000-8000-0000000000a2', alunoId: 'a0000000-0000-4000-8000-0000000000b2', alunoNome: 'Aluno Ficticio Dois', vencimento: '2026-09-05', diasDeAtraso: 44 },
+      { ...INADIMPLENTE, cobrancaId: 'c0000000-0000-4000-8000-0000000000a3', alunoId: 'a0000000-0000-4000-8000-0000000000b3', alunoNome: 'Aluno Ficticio Tres', vencimento: '2026-04-05', diasDeAtraso: 197 },
+    ],
+    cobrancas: [{ ...COBRANCA_ATRASADA }],
+  });
   const { errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
   await page.goto('/treinador/financeiro');
 
@@ -45,7 +54,12 @@ test('visão geral com dados: cartões, líquido indisponível, resultado do mê
 
   // Previsto, atrasado e inadimplência dizem que só contam as cobranças já geradas.
   await expect(page.getByText('considera as cobranças já geradas').first()).toBeVisible();
-  await expect(page.getByText('12,5% · R$ 300,00 de R$ 2.400,00', { exact: true })).toBeVisible();
+  // Resumo compacto da inadimplência: percentual, quanto venceu e quantas cobranças, do mesmo conjunto (o do período).
+  await expect(page.getByText('12,5%', { exact: true })).toBeVisible();
+  await expect(page.getByText('R$ 300,00 de R$ 2.400,00 · 2 cobranças', { exact: true })).toBeVisible();
+  // A lista não tem filtro de período: com outro conjunto, a frase diz que a base é outra, sem repetir valor nem contagem.
+  await expect(page.getByText('A lista abaixo traz todas as vencidas em aberto, de qualquer data, não só as do período.')).toBeVisible();
+  await expect(page.getByText('Aluno Ficticio Tres')).toBeVisible();
 
   // Líquido: indisponível, com o bruto; nada de desconto inventado.
   await expect(page.getByText('Líquido para você')).toBeVisible();
@@ -61,6 +75,20 @@ test('visão geral com dados: cartões, líquido indisponível, resultado do mê
   await expect(page.getByText('14 dias de atraso')).toBeVisible();
   await expect(page.getByRole('button', { name: /^Pagar/ })).toHaveCount(0);
   expect(errosDaPagina).toEqual([]);
+});
+
+test('inadimplência com a lista igual ao período: o resumo basta, sem a frase de base diferente', async ({ page }) => {
+  await fixarHoje(page);
+  // As duas vencidas da lista são as mesmas duas do painel (R$ 300,00).
+  const estado = estadoFinanceiro({ inadimplentes: [
+    INADIMPLENTE,
+    { ...INADIMPLENTE, cobrancaId: 'c0000000-0000-4000-8000-0000000000a2', alunoId: 'a0000000-0000-4000-8000-0000000000b2', alunoNome: 'Aluno Ficticio Dois', vencimento: '2026-09-05', diasDeAtraso: 44 },
+  ] });
+  await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
+  await page.goto('/treinador/financeiro');
+  await expect(page.getByText('R$ 300,00 de R$ 2.400,00 · 2 cobranças', { exact: true })).toBeVisible();
+  await expect(page.getByText('Aluno Ficticio Dois')).toBeVisible();
+  await expect(page.getByText(/não só as do período/)).toHaveCount(0);
 });
 
 test('visão geral vazia: tudo "—", nunca R$ 0,00, e a lista de inadimplentes diz que não há nada vencido', async ({ page }) => {
@@ -92,6 +120,170 @@ test('filtro "Meus": o painel e os inadimplentes são buscados com meus=true', a
   expect(painel.at(-1)?.busca.get('meus')).toBe('true');
   const atrasados = pedidos.filter((p) => p.caminho === '/financeiro/inadimplentes');
   expect(atrasados.at(-1)?.busca.get('meus')).toBe('true');
+  expect(errosDaPagina).toEqual([]);
+});
+
+/** Caixa de um elemento por `testID` (a célula de uma `LinhaDeBlocos`, ou a própria linha). */
+const caixa = async (page: Page, id: string) => {
+  const c = await page.getByTestId(id).boundingBox();
+  if (!c) throw new Error(`${id} sem caixa`);
+  return c;
+};
+const RENOVACOES = { renovacoesProximasCount: 2, renovacoesProximasCentavos: 30_000, projecaoAnualCentavos: 1_080_000 };
+const semRolagemHorizontal = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
+
+for (const tema of ['CLARO', 'ESCURO'] as const) {
+  test(`composição da visão geral em 1440 (${tema.toLowerCase()}): mensais lado a lado, três resumos, forma e plano dividindo a linha, glossário em duas colunas`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.addInitScript(([id, t]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: t })), [TREINADOR.id, tema] as const);
+    await fixarHoje(page);
+    const estado = estadoFinanceiro({ inadimplentes: [INADIMPLENTE], renovacoes: RENOVACOES });
+    const { errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
+    await page.goto('/treinador/financeiro');
+    await expect(page.getByText('Renovações próximas')).toBeVisible();
+
+    // As duas mensais na mesma linha, com a mesma largura, cobrindo a linha inteira.
+    await expect.poll(async () => (await caixa(page, 'linha-mensal-1')).y - (await caixa(page, 'linha-mensal-0')).y).toBe(0);
+    const linha = await caixa(page, 'linha-mensal');
+    const [recebido, movimento] = [await caixa(page, 'linha-mensal-0'), await caixa(page, 'linha-mensal-1')];
+    testInfo.annotations.push({ type: 'largura do conteúdo em 1440', description: String(Math.round(linha.width)) });
+    expect(Math.abs(recebido.width - movimento.width)).toBeLessThan(1);
+    expect(Math.abs(movimento.x + movimento.width - (linha.x + linha.width))).toBeLessThan(1);
+    expect(recebido.x).toBeLessThan(movimento.x);
+    await page.screenshot({ path: testInfo.outputPath(`visao-geral-1440-${tema.toLowerCase()}-topo.png`) });
+    await page.getByTestId('linha-previsoes').scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath(`visao-geral-1440-${tema.toLowerCase()}-meio.png`) });
+
+    // Renovações, próximos recebimentos e líquido: três colunas iguais na mesma linha.
+    const previsoes = [await caixa(page, 'linha-previsoes-0'), await caixa(page, 'linha-previsoes-1'), await caixa(page, 'linha-previsoes-2')];
+    expect(new Set(previsoes.map((p) => Math.round(p.y))).size).toBe(1);
+    expect(Math.abs(previsoes[0].width - previsoes[2].width)).toBeLessThan(1);
+    // Na terça parte da linha os dois prazos empilham e cada valor cabe numa linha só (uma linha de texto < 30 px).
+    const cartaoProximos = page.getByTestId('linha-previsoes-1');
+    const [em7, em30] = [await cartaoProximos.getByText('R$ 150,00 (1 cobrança)').boundingBox(), await cartaoProximos.getByText('R$ 450,00 (3 cobranças)').boundingBox()];
+    expect(em7!.height).toBeLessThan(30);
+    expect(em30!.height).toBeLessThan(30);
+    expect(em30!.y).toBeGreaterThan(em7!.y);
+
+    // Forma e plano: metade cada, sem terceira coluna vazia (o plano termina na borda da linha).
+    const quebras = await caixa(page, 'linha-quebras');
+    const [forma, plano] = [await caixa(page, 'linha-quebras-0'), await caixa(page, 'linha-quebras-1')];
+    expect(forma.y).toBe(plano.y);
+    expect(Math.abs(forma.width - plano.width)).toBeLessThan(1);
+    expect(Math.abs(plano.x + plano.width - (quebras.x + quebras.width))).toBeLessThan(1);
+    expect(forma.width).toBeGreaterThan(quebras.width / 2 - 20);
+
+    // Resultado do mês diz junto ao título que é o mês atual.
+    await expect(page.getByLabel('Período: Mês atual')).toBeVisible();
+
+    // Glossário: recolhido no início; aberto, duas colunas (termo em cima, explicação embaixo) e as regras gerais separadas.
+    await expect(page.getByText('Períodos e limites dos dados')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Como calculamos estes números, recolhido' }).click();
+    const glossario = page.getByTestId('glossario');
+    const termo1 = await glossario.getByText('Recebido', { exact: true }).boundingBox();
+    const termo2 = await glossario.getByText('A receber', { exact: true }).boundingBox();
+    expect(termo1 && termo2 && Math.abs(termo1.y - termo2.y)).toBeLessThan(1);
+    expect(termo1!.x).toBeLessThan(termo2!.x);
+    await expect(page.getByRole('heading', { name: 'Períodos e limites dos dados', level: 3 })).toBeVisible();
+    await expect(page.getByText(/^Com o filtro "Meus", os lançamentos avulsos ficam de fora/)).toBeVisible();
+    await page.getByRole('heading', { name: 'Períodos e limites dos dados' }).scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath(`visao-geral-1440-${tema.toLowerCase()}-glossario.png`) });
+
+    // "Meus" tira as renovações (a rota é da consultoria inteira): os dois que sobram dividem a linha ao meio.
+    await opcao(page, 'Responsável', 'Meus').click();
+    await expect(page.getByText('Renovações próximas')).toHaveCount(0);
+    await expect(page.getByTestId('linha-previsoes-2')).toHaveCount(0);
+    const [proximos, liquido] = [await caixa(page, 'linha-previsoes-0'), await caixa(page, 'linha-previsoes-1')];
+    expect(proximos.y).toBe(liquido.y);
+    expect(Math.abs(proximos.width - liquido.width)).toBeLessThan(1);
+    expect(await semRolagemHorizontal(page)).toBe(true);
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`composição da visão geral em 390 (${tema.toLowerCase()}): uma coluna na ordem de leitura, sem rolagem horizontal, glossário em uma coluna`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.addInitScript(([id, t]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: t })), [TREINADOR.id, tema] as const);
+    await fixarHoje(page);
+    const estado = estadoFinanceiro({ inadimplentes: [INADIMPLENTE], renovacoes: RENOVACOES });
+    const { errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
+    await page.goto('/treinador/financeiro');
+    await expect(page.getByText('Renovações próximas')).toBeVisible();
+
+    const ordem = ['linha-mensal-0', 'linha-mensal-1', 'linha-previsoes-0', 'linha-previsoes-1', 'linha-previsoes-2', 'linha-quebras-0', 'linha-quebras-1'];
+    const caixas = [];
+    for (const id of ordem) caixas.push(await caixa(page, id));
+    for (let i = 1; i < caixas.length; i++) {
+      expect(caixas[i].y).toBeGreaterThan(caixas[i - 1].y);
+      expect(Math.abs(caixas[i].x - caixas[0].x)).toBeLessThan(1);
+      expect(caixas[i].x + caixas[i].width).toBeLessThanOrEqual(390);
+    }
+    // O resultado do mês fica entre os resumos e as quebras.
+    const resultado = await page.getByText('Resultado do mês (entradas − saídas registradas)').boundingBox();
+    expect(resultado!.y).toBeGreaterThan(caixas[4].y);
+    expect(resultado!.y).toBeLessThan(caixas[5].y);
+    expect(await semRolagemHorizontal(page)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`visao-geral-390-${tema.toLowerCase()}-topo.png`) });
+
+    await page.getByRole('button', { name: 'Como calculamos estes números, recolhido' }).click();
+    const glossario = page.getByTestId('glossario');
+    const termo1 = await glossario.getByText('Recebido', { exact: true }).boundingBox();
+    const termo2 = await glossario.getByText('A receber', { exact: true }).boundingBox();
+    expect(Math.abs(termo1!.x - termo2!.x)).toBeLessThan(1);
+    expect(termo2!.y).toBeGreaterThan(termo1!.y);
+    expect(await semRolagemHorizontal(page)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`visao-geral-390-${tema.toLowerCase()}-glossario.png`) });
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+test('visão geral em 1280: largura medida decide; três resumos que não cabem empilham inteiros, sem cartão sozinho pela metade', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await fixarHoje(page);
+  const estado = estadoFinanceiro({ inadimplentes: [INADIMPLENTE], renovacoes: RENOVACOES });
+  const { errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
+  await page.goto('/treinador/financeiro');
+  await expect(page.getByText('Renovações próximas')).toBeVisible();
+  const linha = await caixa(page, 'linha-previsoes');
+  testInfo.annotations.push({ type: 'largura do conteúdo em 1280', description: String(Math.round(linha.width)) });
+  // Seja qual for o arranjo, cada bloco ou ocupa a linha inteira ou divide com os outros por igual: nenhum buraco.
+  for (const nome of ['mensal', 'previsoes', 'quebras']) {
+    const l = await caixa(page, `linha-${nome}`);
+    const n = await page.locator(`[data-testid^="linha-${nome}-"]`).count();
+    const cs = [];
+    for (let i = 0; i < n; i++) cs.push(await caixa(page, `linha-${nome}-${i}`));
+    const mesmaLinha = new Set(cs.map((c) => Math.round(c.y))).size === 1;
+    for (const c of cs) {
+      if (mesmaLinha) expect(Math.abs(c.width - cs[0].width)).toBeLessThan(1);
+      else expect(Math.abs(c.width - l.width)).toBeLessThan(1);
+    }
+  }
+  await page.screenshot({ path: testInfo.outputPath('visao-geral-1280-topo.png') });
+  await page.getByTestId('linha-previsoes').scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath('visao-geral-1280-meio.png') });
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('zero, "—" e nenhum registro continuam distintos na visão geral', async ({ page }) => {
+  await fixarHoje(page);
+  const painel = {
+    ...PAINEL_VAZIO,
+    cartoes: { ...PAINEL_VAZIO.cartoes, recebidoCentavos: 0 },
+    // Tudo pago: 0% com a base; zero não vira "—".
+    inadimplencia: { percentual: 0, vencidoCentavos: 0, cobradoCentavos: 50_000 },
+    resultadoDoMes: { ...PAINEL_VAZIO.resultadoDoMes, entradasAvulsasCentavos: 0 },
+  };
+  const estado = estadoFinanceiro({ painel });
+  const { errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
+  await page.goto('/treinador/financeiro');
+
+  await expect(page.getByText('0%', { exact: true })).toBeVisible();
+  await expect(page.getByText('R$ 0,00 de R$ 500,00', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Recebido no período: R$ 0,00', { exact: false })).toBeVisible();
+  await expect(page.getByLabel('Entradas avulsas: R$ 0,00')).toBeVisible();
+  await expect(page.getByLabel('Saídas avulsas: —')).toBeVisible();
+  await expect(page.getByText('Nenhum pagamento recebido no período.')).toHaveCount(2);
+  await expect(page.getByText('Nenhuma cobrança vencida em aberto.')).toBeVisible();
+  await expect(page.getByText('Nenhuma contratação nova ou encerrada no período.')).toBeVisible();
   expect(errosDaPagina).toEqual([]);
 });
 

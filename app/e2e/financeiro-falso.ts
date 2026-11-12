@@ -2,7 +2,7 @@ import type { Page, Route } from '@playwright/test';
 
 import type {
   CobrancaDoAluno, CobrancaResponse, ConferenciaDePagamento, ContratacaoResponse, FinanceiroDoAluno, Inadimplente, JurosDoParcelamento,
-  LancamentoResponse, Lembretes, LembretesDaCobranca, Painel, PlanoResponse, RecebimentoOnline,
+  LancamentoResponse, Lembretes, LembretesDaCobranca, Painel, PlanoResponse, RecebimentoOnline, VisaoGeralDoFinanceiro,
 } from '../src/api/financeiroTipos';
 import { ALUNO, erroApi, json, PERMISSOES_TREINADOR, sessao, TREINADOR, type PedidoFalso, type RespostasApi } from './api-falsa';
 
@@ -150,6 +150,8 @@ export interface EstadoFinanceiro {
   /** Se preenchido, o `PUT /aluno/lembretes-de-cobranca` responde 503 com esta mensagem (o interruptor tem de voltar). */
   falhaAoDefinirLembretesDoAluno: string | null;
   pedidosDeLembretesDoAluno: unknown[];
+  /** O que `GET /financeiro/visao-geral` devolve (renovações próximas); nulo = 404, e o cartão não aparece. */
+  renovacoes: VisaoGeralDoFinanceiro | null;
 }
 
 /** Os lembretes como a API devolve numa consultoria que nunca os configurou. */
@@ -160,7 +162,7 @@ export function estadoFinanceiro(parcial: Partial<EstadoFinanceiro> = {}): Estad
     planos: [], contratacoes: [], cobrancas: [], lancamentos: [], inadimplentes: [], painel: PAINEL_COM_DADOS,
     recebimento: { ...RECEBIMENTO_NAO_CONFIGURADO }, chaveGuardada: null, conferencias: [], pagamentoOnline: false, retornos: [],
     lembretes: { ...LEMBRETES_PADRAO }, lembretesDasCobrancas: {}, alunoRecebeLembretes: true, falhaAoDefinirLembretesDoAluno: null,
-    pedidosDeLembretesDoAluno: [], ...parcial,
+    pedidosDeLembretesDoAluno: [], renovacoes: null, ...parcial,
   };
 }
 
@@ -224,6 +226,9 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
       pagina: 0,
     }),
     'GET /financeiro/painel': (p, route) => json(route, { ...estado.painel, somenteMeus: p.busca.get('meus') === 'true' }),
+    'GET /financeiro/visao-geral': (_p, route) => (estado.renovacoes
+      ? json(route, estado.renovacoes)
+      : json(route, erroApi(404, 'Não encontrado.', 'NAO_ENCONTRADO').corpo, 404)),
     'GET /financeiro/lancamentos': (_p, route) => json(route, { itens: estado.lancamentos, total: estado.lancamentos.length, pagina: 0 }),
     'GET /financeiro/lancamentos/categorias': (_p, route) =>
       json(route, [...new Set(estado.lancamentos.map((l) => l.categoria).filter((c): c is string => !!c))].sort()),

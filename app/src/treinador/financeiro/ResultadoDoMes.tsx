@@ -10,10 +10,15 @@ import { Texto } from '../../ui/Texto';
  * lucro nem resultado contábil. Com o filtro "Meus" os lançamentos avulsos ficam de fora e aparecem como "—". Os quatro
  * números numa linha no PC (dois por linha no celular), na ordem da conta.
  */
-export function ResultadoDoMes({ resultado, somenteMeus }: { resultado: ResultadoApi | null | undefined; somenteMeus?: boolean }) {
+export function ResultadoDoMes({ resultado, somenteMeus, periodo }: {
+  resultado: ResultadoApi | null | undefined;
+  somenteMeus?: boolean;
+  /** Pílula sob o título (a do `Cartao`): na Visão geral diz que o cartão é o mês atual, não o período do filtro. */
+  periodo?: string;
+}) {
   const r = resultadoDoMesParaTela(resultado);
   return (
-    <Cartao titulo={r.rotulo} descricao={r.descricao}>
+    <Cartao titulo={r.rotulo} descricao={r.descricao} periodo={periodo}>
       <CamposEmLinha>
         <CampoLeitura rotulo="Recebido das cobranças" valor={r.recebido} numerico />
         <CampoLeitura rotulo="Entradas avulsas" valor={r.entradas} numerico />

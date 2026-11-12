@@ -1,5 +1,6 @@
 import { Pencil, Plus, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 
 import { alterarErgogenico, criarErgogenico, inativarErgogenico, listarErgogenicos } from '../../api/rotas';
 import type { ErgogenicoDaBiblioteca, ErgogenicoDaBibliotecaRequest } from '../../api/tipos';
@@ -26,8 +27,19 @@ import { LinhaDaLista, ListaDeLinhas } from '../../ui/LinhaDaLista';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Permitido } from '../../ui/Permitido';
-import { BarraDaBiblioteca } from './BarraDaBiblioteca';
+import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
+import { espaco } from '../../tema/tokens';
+import { BarraDaBiblioteca } from './BarraDaBiblioteca';
+
+// As medidas da `FolhaAlimento`: 180 px por campo deixa o par lado a lado na folha do PC (600) e empilhado no celular.
+const estilos = StyleSheet.create({
+  partes: { gap: espaco(3) },
+  linhaDeCampos: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', gap: espaco(2) },
+  campoLargo: { flexGrow: 1, flexBasis: 180 },
+  tirar: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5) },
+  textoDoTirar: { flexGrow: 1, flexShrink: 1, flexBasis: 240 },
+});
 
 /**
  * Aba "Outros" da biblioteca: medicação, ergogênicos e o que mais o treinador registrar (dado sensível: a aba só existe
@@ -164,33 +176,66 @@ function FolhaErgogenico({
       rodape={
         <>
           <Botao rotulo="Cancelar" tipo="secundario" aoTocar={aoFechar} />
-          <Botao rotulo="Salvar" aoTocar={salvar} carregando={salvando} desabilitado={!completo} />
+          <Botao rotulo="Salvar" aoTocar={salvar} carregando={salvando} desabilitado={!completo} motivo="Informe o nome." />
         </>
       }>
-      <Campo
-        rotulo="Categoria (opcional)"
-        valor={categoria}
-        aoMudar={setCategoria}
-        erro={campos.categoria}
-        maxLength={60}
-        ajuda="Escreva o nome da categoria ou toque numa sugestão. Vazio fica em “Sem categoria”."
-      />
-      {sugestoes.length ? (
-        <LinhaDeAcoes>
-          {sugestoes.map((c) => (
-            <Botao key={c} rotulo={c} tipo="secundario" aoTocar={() => setCategoria(c)} />
-          ))}
-        </LinhaDeAcoes>
-      ) : null}
-      <Campo rotulo="Nome" valor={nome} aoMudar={setNome} erro={campos.nome} maxLength={120} />
-      <Campo rotulo="Princípio ativo (opcional)" valor={principio} aoMudar={setPrincipio} erro={campos.principioAtivo} maxLength={160} />
-      <Campo rotulo="Concentração (opcional)" valor={concentracao} aoMudar={setConcentracao} erro={campos.concentracao} maxLength={40}
-        ajuda="Como está na embalagem, por exemplo “200 mg/ml”." />
-      <Campo rotulo="Apresentação (opcional)" valor={apresentacao} aoMudar={setApresentacao} erro={campos.apresentacao} maxLength={40}
-        ajuda="Por exemplo “10 ml” ou “50 caps”." />
-      <Campo rotulo="Observação (opcional)" valor={observacao} aoMudar={setObservacao} erro={campos.observacao} maxLength={500} linhas={3} />
-      {erro && Object.keys(campos).length === 0 ? <MensagemErro texto={textoDoErro(erro)} /> : null}
-      {inicial && aoTirar ? <Botao rotulo="Tirar da biblioteca" tipo="perigoTexto" Icone={Trash2} aoTocar={aoTirar} /> : null}
+      {/* Mesma composição da `FolhaAlimento`: um cartão com faixa de título por assunto, 24 px entre eles. A categoria
+          continua antes do nome: é por ela que a lista se agrupa. */}
+      <View style={estilos.partes}>
+        <Cartao titulo="Identificação" nivel={3}>
+          <Campo
+            rotulo="Categoria (opcional)"
+            valor={categoria}
+            aoMudar={setCategoria}
+            erro={campos.categoria}
+            maxLength={60}
+            ajuda="Escreva o nome da categoria ou toque numa sugestão. Vazio fica em “Sem categoria”."
+          />
+          {sugestoes.length ? (
+            <LinhaDeAcoes>
+              {sugestoes.map((c) => (
+                <Botao key={c} rotulo={c} tipo="secundario" aoTocar={() => setCategoria(c)} />
+              ))}
+            </LinhaDeAcoes>
+          ) : null}
+          <View style={estilos.linhaDeCampos}>
+            <View style={estilos.campoLargo}>
+              <Campo rotulo="Nome" valor={nome} aoMudar={setNome} erro={campos.nome} maxLength={120} />
+            </View>
+            <View style={estilos.campoLargo}>
+              <Campo rotulo="Princípio ativo (opcional)" valor={principio} aoMudar={setPrincipio} erro={campos.principioAtivo} maxLength={160} />
+            </View>
+          </View>
+        </Cartao>
+
+        <Cartao titulo="Concentração e apresentação" nivel={3}>
+          <View style={estilos.linhaDeCampos}>
+            <View style={estilos.campoLargo}>
+              <Campo rotulo="Concentração (opcional)" valor={concentracao} aoMudar={setConcentracao} erro={campos.concentracao} maxLength={40}
+                ajuda="Como está na embalagem, por exemplo “200 mg/ml”." />
+            </View>
+            <View style={estilos.campoLargo}>
+              <Campo rotulo="Apresentação (opcional)" valor={apresentacao} aoMudar={setApresentacao} erro={campos.apresentacao} maxLength={40}
+                ajuda="Por exemplo “10 ml” ou “50 caps”." />
+            </View>
+          </View>
+        </Cartao>
+
+        <Cartao titulo="Observação" nivel={3}>
+          <Campo rotulo="Observação (opcional)" valor={observacao} aoMudar={setObservacao} erro={campos.observacao} maxLength={500} linhas={3} />
+        </Cartao>
+
+        {erro && Object.keys(campos).length === 0 ? <MensagemErro texto={textoDoErro(erro)} /> : null}
+
+        {inicial && aoTirar ? (
+          <Cartao>
+            <View style={estilos.tirar}>
+              <Texto variante="suave" style={estilos.textoDoTirar}>As dietas que já usam este item continuam com o que foi gravado nelas.</Texto>
+              <Botao rotulo="Tirar da biblioteca" tipo="perigoTexto" Icone={Trash2} aoTocar={aoTirar} />
+            </View>
+          </Cartao>
+        ) : null}
+      </View>
     </Folha>
   );
 }

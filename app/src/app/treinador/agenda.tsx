@@ -21,21 +21,19 @@ import { CartaoSemData, ListaDoCalendario } from '../../treinador/agenda/ListaDo
 import { iconeDoTom } from '../../treinador/agenda/itemDaAgenda';
 import { MenuCriar } from '../../treinador/agenda/MenuCriar';
 import { larguraDoMini, MiniCalendario } from '../../treinador/agenda/MiniCalendario';
-import { PainelDeAgendas } from '../../treinador/agenda/PainelDeAgendas';
+import { FiltroDaAgenda } from '../../treinador/agenda/FiltroDaAgenda';
+import { PainelDeAgendas, SecaoDaLateral } from '../../treinador/agenda/PainelDeAgendas';
 import { useCalendario } from '../../treinador/agenda/useCalendario';
 import { VisaoDoAno } from '../../treinador/agenda/VisaoDoAno';
 import { VisaoDoMes } from '../../treinador/agenda/VisaoDoMes';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
-import { Cartao } from '../../ui/Cartao';
-import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
 import { depoisDeFecharAsFolhas, portalDaFolhaDoTopo } from '../../ui/historicoDasFolhas';
 import { LinkTexto } from '../../ui/LinkTexto';
-import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
 import { Selo } from '../../ui/Selo';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
@@ -153,9 +151,9 @@ export default function AgendaDoTreinador() {
   useEffect(() => {
     if (!ajuste || painelAberto) return;
     const gravados = ajuste;
-    depoisDeFecharAsFolhas(() => { ir(gravados, 'replace'); });
-  // `ir` é recriada a cada render; o que decide é o ajuste e o painel terem fechado.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // `setParams` e não `replace`: o replace remonta a tela, o que fechava o menu do Compromissos a cada caixa marcada e
+    // perdia o foco que volta ao botão do filtro. Os dois trocam o endereço sem criar passo no histórico.
+    depoisDeFecharAsFolhas(() => { router.setParams(gravados); });
   }, [ajuste, painelAberto]);
   useEffect(() => {
     // O endereço já tem o que foi escolhido: o ajuste local cumpriu o papel.
@@ -194,7 +192,7 @@ export default function AgendaDoTreinador() {
   const comSemData = cal.semData.length > 0 && de <= hoje && hoje <= ate;
 
   const filtros = <Filtros meus={meus} membro={membro} situacoes={situacoes} permissoes={permissoes} cal={cal} usuarioId={usuario?.id ?? null}
-    aoMudar={aoMudarFiltro} />;
+    divisoria={cal.painelDeAgendas.length > 0} aoMudar={aoMudarFiltro} />;
   const painel = cal.painelDeAgendas.length ? <PainelDeAgendas agendas={cal.painelDeAgendas} pessoais={cal.agendas} carregando={cal.agendasCarregando}
     podeAlterar={podeAlterar} aoAlternar={alternar} aoMudar={() => { cal.recarregarAgendas(); cal.recarregarEventos(); }} /> : null;
 
@@ -268,14 +266,18 @@ export default function AgendaDoTreinador() {
   </Tela>;
 }
 
+/** Chave do item "Todos" no menu do Compromissos (nenhuma situação é esse valor). */
+const TODAS_AS_SITUACOES = '*';
+
 /**
- * Filtros da agenda (bloco com faixa): o responsável (D19: toda a equipe, só os meus ou um membro, nas três fontes), a
- * situação dos compromissos e o contador de atualizações atrasadas com o link para a lista.
+ * Filtros da agenda (seção leve da lateral), dois botões iguais "Rótulo: valor ⌄": o responsável (D19: toda a equipe, só os
+ * meus ou um membro, nas três fontes; escolha única) e a situação dos compromissos (várias; nenhuma marcada = sem filtro, e o
+ * menu diz "Todos" com ✓), mais o contador de atualizações atrasadas com o link para a lista.
  */
-function Filtros({ meus, membro, situacoes, permissoes, cal, usuarioId, aoMudar }: {
+function Filtros({ meus, membro, situacoes, permissoes, cal, usuarioId, divisoria, aoMudar }: {
   meus: boolean; membro: string | null; situacoes: ReturnType<typeof lerSituacoes>;
   permissoes: { agenda: boolean; equipe: boolean };
-  cal: ReturnType<typeof useCalendario>; usuarioId: string | null; aoMudar: (novos: Partial<Parametros>) => void;
+  cal: ReturnType<typeof useCalendario>; usuarioId: string | null; divisoria: boolean; aoMudar: (novos: Partial<Parametros>) => void;
 }) {
   const opcoes = [
     { valor: TODA_A_EQUIPE, rotulo: 'Toda a equipe' },
@@ -283,22 +285,37 @@ function Filtros({ meus, membro, situacoes, permissoes, cal, usuarioId, aoMudar 
     ...(permissoes.equipe ? cal.equipe.filter((r) => r.id !== usuarioId).map((r) => ({ valor: r.id, rotulo: r.nome })) : []),
   ];
   const valor = meus ? SO_OS_MEUS : membro ?? TODA_A_EQUIPE;
-  const nomeDoMembro = membro ? cal.equipe.find((r) => r.id === membro)?.nome ?? 'Membro da equipe' : 'Toda a equipe';
+  const nomeDoMembro = opcoes.find((o) => o.valor === valor)?.rotulo ?? cal.equipe.find((r) => r.id === membro)?.nome ?? 'Membro da equipe';
+  // As quatro marcadas mostram o mesmo que nenhuma (todo compromisso tem ao menos um aluno), então as duas dizem "Todos";
+  // o endereço continua com o que foi marcado.
+  const todas = situacoes.length === 0 || situacoes.length === OPCOES_SITUACAO.length;
+  const nomes = OPCOES_SITUACAO.filter((o) => situacoes.includes(o.valor)).map((o) => o.rotulo);
+  const resumo = todas ? 'Todos' : nomes.length <= 2 ? nomes.join(', ') : `${nomes.length} selecionados`;
+  const alternarSituacao = (chave: string) => {
+    if (chave === TODAS_AS_SITUACOES) return aoMudar({ situacao: undefined });
+    const novas = situacoes.includes(chave as (typeof situacoes)[number]) ? situacoes.filter((s) => s !== chave) : [...situacoes, chave];
+    aoMudar({ situacao: parametroDasSituacoes(lerSituacoes(novas)) });
+  };
   return (
-    <Cartao titulo="Filtros">
-      <EscolhaEmFolha rotulo="Responsável" titulo="Mostrar a agenda de" valor={valor} opcoes={opcoes} rotuloDoValor={nomeDoMembro}
-        carregando={cal.equipeCarregando} style={estilos.campoDoFiltro}
-        aoMudar={(v) => aoMudar({ meus: v === SO_OS_MEUS ? 'true' : undefined, membro: v && v !== SO_OS_MEUS ? v : undefined })} />
-      {permissoes.agenda ? <>
-        <SelecaoMultiplaSuspensa rotulo="Compromissos" opcoes={OPCOES_SITUACAO} marcados={new Set<string>(situacoes)} rotuloDeTodos="Todas"
-          style={estilos.campoDoFiltro} aoMudar={(m) => aoMudar({ situacao: parametroDasSituacoes(lerSituacoes([...m])) })} />
-        {situacoes.length ? <Texto variante="suave">Com vários alunos, aparecem os compromissos em que algum aluno está em alguma dessas situações.</Texto> : null}
-      </> : null}
+    <SecaoDaLateral titulo="Filtros" divisoria={divisoria}>
+      <View style={estilos.filtros}>
+        <FiltroDaAgenda rotulo="Responsável" valor={nomeDoMembro} itens={opcoes.map((o) => ({ chave: o.valor, rotulo: o.rotulo, marcado: o.valor === valor }))}
+          aoEscolher={(v) => aoMudar({ meus: v === SO_OS_MEUS ? 'true' : undefined, membro: v && v !== SO_OS_MEUS ? v : undefined })} />
+        {permissoes.agenda ? <>
+          <FiltroDaAgenda rotulo="Compromissos" valor={resumo} valorCurto={nomes.length === 2 ? '2 selecionados' : undefined} multipla separarPrimeiro
+            itens={[
+              { chave: TODAS_AS_SITUACOES, rotulo: 'Todos', marcado: todas },
+              ...OPCOES_SITUACAO.map((o) => ({ chave: o.valor, rotulo: o.rotulo, marcado: situacoes.includes(o.valor) })),
+            ]}
+            aoEscolher={alternarSituacao} />
+          {situacoes.length && !todas ? <Texto variante="pequeno">Com vários alunos, aparecem os compromissos em que algum aluno está em alguma dessas situações.</Texto> : null}
+        </> : null}
+      </View>
       {cal.atrasadas ? <View style={estilos.atrasadas}>
         <Selo texto={cal.atrasadas} tipo="perigo" Icone={iconeDoTom('perigo')} />
         <LinkTexto texto="Ver atrasadas" href={caminhoListaAtualizacoes('ATRASADAS', meus)} />
       </View> : null}
-    </Cartao>
+    </SecaoDaLateral>
   );
 }
 
@@ -307,7 +324,7 @@ const estilos = StyleSheet.create({
   lateral: { gap: espaco(3) },
   principal: { flex: 1, minWidth: 0, gap: espaco(2) },
   painelDaFolha: { gap: espaco(3) },
-  // Os dois filtros com a mesma largura, um embaixo do outro (os dois com cara de campo).
-  campoDoFiltro: { alignSelf: 'stretch' },
+  // Os dois filtros com a mesma largura, um embaixo do outro.
+  filtros: { gap: espaco(1) },
   atrasadas: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(1.5) },
 });

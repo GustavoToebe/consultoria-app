@@ -38,13 +38,20 @@ export const TEXTO_LIQUIDO_INDISPONIVEL = 'indisponível';
 export const AVISO_LIQUIDO =
   'O valor líquido ainda não é calculado: nenhuma taxa é descontada nem estimada. Os valores acima são os brutos.';
 
-/** Texto recolhível "Como calculamos estes números". */
-export const COMO_CALCULAMOS: readonly string[] = [
-  'Recebido: soma das cobranças pagas no período, pela data do pagamento.',
-  'A receber: cobranças em aberto com vencimento de hoje em diante.',
-  'Em atraso: cobranças em aberto com vencimento anterior a hoje (horário de Brasília).',
-  'Inadimplência: entre as cobranças que já venceram no período e não foram canceladas, a parte do valor que segue em aberto.',
-  'Receita recorrente mensal: contratações ativas, sem parcela única, com o valor dividido pelos meses da periodicidade do plano.',
+/**
+ * "Como calculamos estes números", parte 1: o glossário dos indicadores. O termo é o título do cartão do painel, para a
+ * pessoa achar a definição pelo nome que acabou de ler; a explicação é a de sempre.
+ */
+export const DEFINICOES_DO_PAINEL: readonly { termo: string; explicacao: string }[] = [
+  { termo: 'Recebido', explicacao: 'Soma das cobranças pagas no período, pela data do pagamento.' },
+  { termo: 'A receber', explicacao: 'Cobranças em aberto com vencimento de hoje em diante.' },
+  { termo: 'Em atraso', explicacao: 'Cobranças em aberto com vencimento anterior a hoje (horário de Brasília).' },
+  { termo: 'Inadimplência', explicacao: 'Entre as cobranças que já venceram no período e não foram canceladas, a parte do valor que segue em aberto.' },
+  { termo: 'Receita recorrente mensal', explicacao: 'Contratações ativas, sem parcela única, com o valor dividido pelos meses da periodicidade do plano.' },
+];
+
+/** Parte 2, "Períodos e limites dos dados": o que vale para vários números ao mesmo tempo (não é definição de um só). */
+export const LIMITES_DOS_DADOS: readonly string[] = [
   `Previsto, atrasado e inadimplência ${NOTA_CONSIDERA_GERADAS}: cobranças que ainda não foram geradas não entram.`,
   'Resultado do mês: entradas menos saídas registradas, somando o recebido das cobranças com os lançamentos avulsos. Não é um resultado contábil.',
   'Com o filtro "Meus", os lançamentos avulsos ficam de fora, porque não pertencem a um aluno.',

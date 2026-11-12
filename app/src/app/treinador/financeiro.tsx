@@ -17,7 +17,6 @@ import { Abas } from '../../ui/Abas';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Tela } from '../../ui/Tela';
-import { Texto } from '../../ui/Texto';
 
 type Aba = 'visao' | 'cobrancas' | 'planos' | 'lancamentos' | 'lembretes' | 'recebimento';
 
@@ -54,11 +53,8 @@ export default function FinanceiroDoTreinador() {
   return (
     <Tela largura={LARGURA_LISTA} bordas={['top']}>
       <Cabecalho titulo="Financeiro" mostrarMarca="celular"
+        subtitulo="O que os seus alunos pagam a você: planos, cobranças e recebimentos. O aluno vê o plano e as cobranças na Conta dele. O app não recebe nem guarda dinheiro."
         acoes={pode('FINANCEIRO_LER') ? <Botao rotulo="Exportar CSV" tipo="secundario" Icone={Download} aoTocar={() => setExportando(true)} /> : undefined} />
-      <Texto variante="suave">
-        O que os seus alunos pagam a você: planos, cobranças e recebimentos. O aluno vê o plano e as cobranças na Conta dele.
-        O app não recebe nem guarda dinheiro.
-      </Texto>
       <Abas abas={abas} ativa={aba} aoMudar={setAba} />
       <View style={{ gap: espaco(2) }}>
         {aba === 'visao' ? <VisaoGeral escopo={escopo} aoMudarEscopo={setEscopo} podeAlterar={podeAlterar} /> : null}

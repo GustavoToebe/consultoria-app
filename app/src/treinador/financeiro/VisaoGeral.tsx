@@ -1,12 +1,13 @@
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { Children, isValidElement, useCallback, useMemo, useState, type ReactNode } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import type { CobrancaResponse, Inadimplente, PaginaInadimplentes } from '../../api/financeiroTipos';
 import { listarCobrancasDoAluno, listarInadimplentes, painelFinanceiro, visaoGeralDoFinanceiro } from '../../api/rotas';
 import {
-  ATALHOS_DE_PERIODO, atrasoParaTela, cartoesDoPainel, COMO_CALCULAMOS, hojeEmBrasilia, inadimplenciaParaTela, liquidoParaTela,
-  periodoDoPainel, rotuloDaForma, serieDoGrafico, valorEQuantidadeParaTela, type AtalhoDePeriodo, type CartaoDoPainel, NOTA_CONSIDERA_GERADAS,
+  ATALHOS_DE_PERIODO, atrasoParaTela, cartoesDoPainel, DEFINICOES_DO_PAINEL, hojeEmBrasilia, inadimplenciaParaTela, LIMITES_DOS_DADOS,
+  liquidoParaTela, periodoDoPainel, rotuloDaForma, serieDoGrafico, valorEQuantidadeParaTela, type AtalhoDePeriodo, type CartaoDoPainel,
+  NOTA_CONSIDERA_GERADAS,
 } from '../../dominio/financeiro';
 import { dataSemAnoCorrente } from '../../dominio/datasRelativas';
 import { centavosParaTela, dataParaTela } from '../../dominio/formatos';
@@ -22,7 +23,6 @@ import { Escolha } from '../../ui/Escolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
-import { Grade } from '../../ui/Grade';
 import { GraficoBarras } from '../../ui/GraficoBarras';
 import { ItemDeLista } from '../../ui/ItemDeLista';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
@@ -37,8 +37,9 @@ import { ResultadoDoMes } from './ResultadoDoMes';
  * Visão geral do financeiro (`GET /financeiro/painel`, só `FINANCEIRO_LER`). Todo número vem pronto da API em centavos;
  * a tela só formata. Valor nulo aparece como "—" (nunca zero inventado). Inadimplência, previsto e atrasado
  * "consideram as cobranças já geradas". O líquido é "indisponível": nenhuma taxa é descontada nem estimada.
- * Ordem do uso: os números do período, quem está com cobrança vencida (a lista que pede ação), o mês a mês e os
- * próximos recebimentos, o resultado do mês e, por fim, as quebras (forma, plano, movimento) e o "como calculamos".
+ * Ordem do uso: os números do período, quem está com cobrança vencida (a lista que pede ação), o mês a mês (recebido e
+ * movimento), renovações, próximos recebimentos e líquido, o resultado do mês, as quebras (forma e plano) e o "como
+ * calculamos". Blocos da mesma linha dividem a largura medida (`LinhaDeBlocos`); sem largura, empilham nessa ordem.
  */
 export function VisaoGeral({ escopo, aoMudarEscopo, podeAlterar }: {
   escopo: Responsabilidade;
@@ -102,32 +103,47 @@ export function VisaoGeral({ escopo, aoMudarEscopo, podeAlterar }: {
               <Indicador key={c.chave} cartao={c} alerta={c.chave === 'emAtraso' && (dados.cartoes.emAtraso?.valorCentavos ?? 0) > 0} />
             ))}
           </View>
-          <Inadimplencia painel={dados.inadimplencia} lista={atrasados} buscando={buscando} podeAlterar={podeAlterar}
-            aoAbrir={(i) => abrirCobrancaDe(i, false)} aoRegistrar={(i) => abrirCobrancaDe(i, true)} />
-          <Cartao titulo="Recebido e previsto por mês" descricao={`O previsto ${NOTA_CONSIDERA_GERADAS}.`}>
-            {dados.serie.length === 0 ? <Texto variante="suave">Nenhum valor recebido ou previsto no período.</Texto> : <GraficoBarras barras={serieDoGrafico(dados.serie)} />}
-          </Cartao>
-          {renovacoes.dados ? (
-            <Cartao titulo="Renovações próximas" descricao="Contratações ativas com a vigência vencida ou terminando nos próximos 40 dias.">
-              <CamposEmLinha>
-                <CampoLeitura rotulo="Para renovar" numerico
-                  valor={`${renovacoes.dados.renovacoesProximasCount} ${renovacoes.dados.renovacoesProximasCount === 1 ? 'plano' : 'planos'}`} />
-                <CampoLeitura rotulo="Valor dessas renovações" valor={centavosParaTela(renovacoes.dados.renovacoesProximasCentavos)} numerico />
-                <CampoLeitura rotulo="Projeção anual" valor={centavosParaTela(renovacoes.dados.projecaoAnualCentavos)} numerico />
-              </CamposEmLinha>
+          <Inadimplencia painel={dados.inadimplencia} vencidasNoPeriodo={dados.cartoes.emAtraso?.cobrancas ?? 0} lista={atrasados}
+            buscando={buscando} podeAlterar={podeAlterar} aoAbrir={(i) => abrirCobrancaDe(i, false)} aoRegistrar={(i) => abrirCobrancaDe(i, true)} />
+          <LinhaDeBlocos nome="mensal" minimo={MINIMO_MENSAL}>
+            <Cartao titulo="Recebido e previsto por mês" descricao={`O previsto ${NOTA_CONSIDERA_GERADAS}.`} style={estilos.esticar}>
+              {dados.serie.length === 0 ? <Texto variante="suave">Nenhum valor recebido ou previsto no período.</Texto> : <GraficoBarras barras={serieDoGrafico(dados.serie)} />}
             </Cartao>
-          ) : null}
-          <Grade gap={espaco(2)}>
+            <Cartao titulo="Movimento de alunos" descricao="Contratações novas e encerradas em cada mês." style={estilos.esticar}>
+              {dados.movimentoDeAlunos.length === 0 ? <Texto variante="suave">Nenhuma contratação nova ou encerrada no período.</Texto> : (
+                <Tabela rotulo="Movimento de alunos por mês" linhas={dados.movimentoDeAlunos} chave={(m) => m.mes} larguraMinima={300} colunas={[
+                  { chave: 'mes', titulo: 'Mês', principal: true, flex: 1.4, render: (m) => <Texto>{rotuloDoMes(m.mes)}</Texto> },
+                  { chave: 'novas', titulo: 'Novas', alinhar: 'direita', render: (m) => <Texto numerico>{contagemParaTela(m.contratacoesNovas)}</Texto> },
+                  { chave: 'encerradas', titulo: 'Encerradas', alinhar: 'direita', render: (m) => <Texto numerico>{contagemParaTela(m.contratacoesEncerradas)}</Texto> },
+                ]} />
+              )}
+            </Cartao>
+          </LinhaDeBlocos>
+          <LinhaDeBlocos nome="previsoes" minimo={MINIMO_CARTAO}>
+            {/* Com "Meus" a chave fica nula e o `useCarregar` guarda os dados de antes: sem o `!meus`, o número da consultoria ficaria. */}
+            {!meus && renovacoes.dados ? (
+              <Cartao titulo="Renovações próximas" descricao="Contratações ativas com a vigência vencida ou terminando nos próximos 40 dias." style={estilos.esticar}>
+                <CamposEmLinha>
+                  <CampoLeitura rotulo="Para renovar" numerico
+                    valor={`${renovacoes.dados.renovacoesProximasCount} ${renovacoes.dados.renovacoesProximasCount === 1 ? 'plano' : 'planos'}`} />
+                  <CampoLeitura rotulo="Valor dessas renovações" valor={centavosParaTela(renovacoes.dados.renovacoesProximasCentavos)} numerico />
+                  <CampoLeitura rotulo="Projeção anual" valor={centavosParaTela(renovacoes.dados.projecaoAnualCentavos)} numerico />
+                </CamposEmLinha>
+              </Cartao>
+            ) : null}
             <Cartao titulo="Próximos recebimentos" descricao={`O previsto ${NOTA_CONSIDERA_GERADAS}.`} style={estilos.esticar}>
-              <CamposEmLinha>
+              {/* Base maior que a padrão (150): numa terça parte da linha "R$ 450,00 (3 cobranças)" quebrava; assim os dois
+                  empilham ali e só ficam lado a lado com o cartão na largura toda. */}
+              <CamposEmLinha minimo={200}>
                 <CampoLeitura rotulo="Próximos 7 dias" valor={valorEQuantidadeParaTela(dados.proximosRecebimentos.em7Dias)} numerico />
                 <CampoLeitura rotulo="Próximos 30 dias" valor={valorEQuantidadeParaTela(dados.proximosRecebimentos.em30Dias)} numerico />
               </CamposEmLinha>
             </Cartao>
             <Liquido liquido={dados.liquido} />
-          </Grade>
-          <ResultadoDoMes resultado={dados.resultadoDoMes} somenteMeus={dados.somenteMeus} />
-          <Grade gap={espaco(2)}>
+          </LinhaDeBlocos>
+          {/* O resultado do mês não acompanha o filtro de período: a pílula junto ao título diz isso antes da descrição. */}
+          <ResultadoDoMes resultado={dados.resultadoDoMes} somenteMeus={dados.somenteMeus} periodo="Mês atual" />
+          <LinhaDeBlocos nome="quebras" minimo={MINIMO_TABELA}>
             <Cartao titulo="Por forma de pagamento" style={estilos.esticar}>
               {dados.porForma.length === 0 ? <Texto variante="suave">Nenhum pagamento recebido no período.</Texto> : (
                 <Tabela rotulo="Recebido por forma de pagamento" linhas={dados.porForma} chave={(f) => f.forma} larguraMinima={300} colunas={[
@@ -146,18 +162,9 @@ export function VisaoGeral({ escopo, aoMudarEscopo, podeAlterar }: {
                 ]} />
               )}
             </Cartao>
-          </Grade>
-          <Cartao titulo="Movimento de alunos" descricao="Contratações novas e encerradas em cada mês.">
-            {dados.movimentoDeAlunos.length === 0 ? <Texto variante="suave">Nenhuma contratação nova ou encerrada no período.</Texto> : (
-              <Tabela rotulo="Movimento de alunos por mês" linhas={dados.movimentoDeAlunos} chave={(m) => m.mes} larguraMinima={300} colunas={[
-                { chave: 'mes', titulo: 'Mês', principal: true, flex: 1.4, render: (m) => <Texto>{rotuloDoMes(m.mes)}</Texto> },
-                { chave: 'novas', titulo: 'Novas', alinhar: 'direita', render: (m) => <Texto numerico>{contagemParaTela(m.contratacoesNovas)}</Texto> },
-                { chave: 'encerradas', titulo: 'Encerradas', alinhar: 'direita', render: (m) => <Texto numerico>{contagemParaTela(m.contratacoesEncerradas)}</Texto> },
-              ]} />
-            )}
-          </Cartao>
+          </LinhaDeBlocos>
           <Cartao titulo="Como calculamos estes números" recolhivel recolhido>
-            {COMO_CALCULAMOS.map((linha) => <Texto key={linha} variante="suave">{linha}</Texto>)}
+            <ComoCalculamos />
           </Cartao>
         </>
       ) : null}
@@ -186,6 +193,54 @@ function Indicador({ cartao, alerta }: { cartao: CartaoDoPainel; alerta: boolean
   );
 }
 
+/**
+ * Blocos de uma linha, pela largura medida do próprio contêiner (que já desconta o menu lateral): lado a lado e com a
+ * mesma largura só quando todos cabem com `minimo` cada; senão um por linha, na mesma ordem. Nunca sobra coluna vazia:
+ * dois dividem a linha ao meio e três que não cabem empilham, em vez de deixar um sozinho embaixo. Bloco ausente (`null`)
+ * não ocupa lugar. Antes da medida, uma coluna.
+ */
+function LinhaDeBlocos({ nome, minimo, children }: { nome: string; minimo: number; children: ReactNode }) {
+  const [largura, setLargura] = useState(0);
+  const itens = Children.toArray(children);
+  const lado = itens.length > 1 && largura >= minimo * itens.length + VAO * (itens.length - 1);
+  return (
+    <View testID={`linha-${nome}`} onLayout={(e) => setLargura(e.nativeEvent.layout.width)} style={[lado ? estilos.linha : null, { gap: VAO }]}>
+      {/* Mesma árvore empilhada e lado a lado (a chave é a do filho): mudar de largura não remonta o gráfico nem a tabela. */}
+      {itens.map((item, i) => (
+        <View key={isValidElement(item) ? item.key : i} testID={`linha-${nome}-${i}`} style={lado ? estilos.celula : null}>{item}</View>
+      ))}
+    </View>
+  );
+}
+
+/**
+ * Corpo de "Como calculamos estes números": um glossário (o nome do indicador em destaque e a explicação embaixo; são
+ * definições, não passos, então sem número) em duas colunas quando o cartão tem largura e, depois de uma divisória, as
+ * regras que valem para vários números ao mesmo tempo.
+ */
+function ComoCalculamos() {
+  const { cores, bordas } = useTema();
+  const [largura, setLargura] = useState(0);
+  const celula = largura >= LARGURA_GLOSSARIO_DUAS ? (largura - VAO_GLOSSARIO) / 2 : undefined;
+  return (
+    <>
+      <View testID="glossario" onLayout={(e) => setLargura(e.nativeEvent.layout.width)} style={estilos.glossario}>
+        {DEFINICOES_DO_PAINEL.map((d) => (
+          <View key={d.termo} style={[estilos.definicao, celula === undefined ? estilos.inteira : { width: celula }]}>
+            <Texto variante="subtitulo">{d.termo}</Texto>
+            <Texto variante="suave">{d.explicacao}</Texto>
+          </View>
+        ))}
+      </View>
+      <View style={{ height: bordas.bloco, backgroundColor: cores.divisor }} />
+      <View style={estilos.limites}>
+        <Texto variante="subtitulo" nivel={3}>Períodos e limites dos dados</Texto>
+        {LIMITES_DOS_DADOS.map((t) => <Texto key={t} variante="suave">{t}</Texto>)}
+      </View>
+    </>
+  );
+}
+
 /** Líquido: sempre "indisponível" por enquanto. Cartão pequeno, ao lado dos próximos recebimentos: não é um número da tela. */
 function Liquido({ liquido }: { liquido: Parameters<typeof liquidoParaTela>[0] }) {
   const l = liquidoParaTela(liquido);
@@ -202,8 +257,10 @@ function Liquido({ liquido }: { liquido: Parameters<typeof liquidoParaTela>[0] }
  * cobrança já no formulário) e "Abrir ficha"; no celular cada linha é um item que abre a cobrança, onde ficam os mesmos
  * botões (na tabela empilhada os dois botões espremiam o nome do aluno).
  */
-function Inadimplencia({ painel, lista, buscando, podeAlterar, aoAbrir, aoRegistrar }: {
+function Inadimplencia({ painel, vencidasNoPeriodo, lista, buscando, podeAlterar, aoAbrir, aoRegistrar }: {
   painel: Parameters<typeof inadimplenciaParaTela>[0];
+  /** Quantas cobranças entram no vencido do período (a API conta as mesmas do "Em atraso"). */
+  vencidasNoPeriodo: number;
   lista: { dados?: PaginaInadimplentes; erro?: unknown; recarregar: () => void };
   buscando: string | null;
   podeAlterar: boolean;
@@ -214,13 +271,26 @@ function Inadimplencia({ painel, lista, buscando, podeAlterar, aoAbrir, aoRegist
   const celular = width < LARGURA_MENU_LATERAL;
   const i = inadimplenciaParaTela(painel);
   const itens = lista.dados?.itens ?? [];
+  const temBase = !!painel && painel.percentual !== null && painel.vencidoCentavos !== null && painel.cobradoCentavos !== null;
+  const quantas = vencidasNoPeriodo > 0 ? ` · ${contagemParaTela(vencidasNoPeriodo)} ${vencidasNoPeriodo === 1 ? 'cobrança' : 'cobranças'}` : '';
+  // A lista não tem filtro de período: quando ela traz o mesmo conjunto do resumo, repetir quantidade e valor só alonga o
+  // cartão; quando traz mais (vencidas antes do período), a frase diz que a base é outra.
+  const outraBase = !!lista.dados && lista.dados.total > 0
+    && (lista.dados.total !== vencidasNoPeriodo || lista.dados.valorTotalCentavos !== (painel?.vencidoCentavos ?? null));
   return (
-    <Cartao titulo="Inadimplência" descricao={i.detalhe}
-      acoes={<Texto variante="destaque" numerico accessibilityLabel={`Inadimplência: ${i.comBase}`}>{i.comBase}</Texto>}>
+    <Cartao titulo="Inadimplência e cobranças vencidas" descricao={i.detalhe}>
+      {/* Resumo compacto, tudo do mesmo conjunto (vencidas no período): percentual, valor de quanto venceu e quantidade. */}
+      <View style={estilos.resumo} accessible accessibilityLabel={`Inadimplência: ${i.comBase}${quantas}`}>
+        <Texto variante="destaque" numerico>{i.percentual}</Texto>
+        {temBase && painel ? (
+          <Texto numerico>{`${centavosParaTela(painel.vencidoCentavos)} de ${centavosParaTela(painel.cobradoCentavos)}${quantas}`}</Texto>
+        ) : null}
+      </View>
       {lista.erro ? <MensagemErro texto={textoDoErro(lista.erro)} erro={lista.erro} tentarDeNovo={lista.recarregar} /> : null}
-      {lista.dados ? (
-        <Texto variante="rotulo">
-          {lista.dados.total === 0 ? 'Nenhuma cobrança vencida em aberto.' : `${lista.dados.total} ${lista.dados.total === 1 ? 'cobrança vencida' : 'cobranças vencidas'}, ${centavosParaTela(lista.dados.valorTotalCentavos)} no total`}
+      {lista.dados?.total === 0 ? <Texto variante="suave">Nenhuma cobrança vencida em aberto.</Texto> : null}
+      {outraBase && lista.dados ? (
+        <Texto variante="suave">
+          A lista abaixo traz todas as vencidas em aberto, de qualquer data, não só as do período.
         </Texto>
       ) : null}
       {itens.length > 0 && celular ? (
@@ -252,8 +322,29 @@ function Inadimplencia({ painel, lista, buscando, podeAlterar, aoAbrir, aoRegist
   );
 }
 
+const VAO = espaco(2);
+/**
+ * Largura mínima de cada bloco para ficar lado a lado. Mensal: o gráfico vira tabela abaixo de 420 px de desenho
+ * (`GraficoBarras`), e 480 por cartão o mantém de pé com o recuo. Tabela das quebras: a `Tabela` empilha abaixo de 300
+ * e 372 é a metade da grade de 760 das telas vizinhas (`dominio/grade`). Cartões de resumo (renovações, próximos,
+ * líquido): com 360 cada, dois campos ainda cabem lado a lado; em 1280 px de janela (~1000 de conteúdo) os três empilham.
+ */
+const MINIMO_MENSAL = 480;
+const MINIMO_TABELA = 372;
+const MINIMO_CARTAO = 360;
+/** O glossário passa a duas colunas quando cada uma tem ao menos ~270 px: a explicação não quebra palavra a palavra. */
+const LARGURA_GLOSSARIO_DUAS = 560;
+const VAO_GLOSSARIO = espaco(3);
+
 const estilos = StyleSheet.create({
   coluna: { gap: espaco(2) },
+  linha: { flexDirection: 'row', alignItems: 'stretch' },
+  celula: { flex: 1, minWidth: 0 },
+  resumo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', columnGap: espaco(1.5), rowGap: espaco(0.5) },
+  glossario: { flexDirection: 'row', flexWrap: 'wrap', columnGap: VAO_GLOSSARIO, rowGap: espaco(2) },
+  definicao: { gap: espaco(0.5) },
+  inteira: { width: '100%' },
+  limites: { gap: espaco(1) },
   filtros: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(3), rowGap: espaco(1.5), alignItems: 'flex-end' },
   caber: { flexShrink: 1, maxWidth: '100%' },
   indicadores: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },

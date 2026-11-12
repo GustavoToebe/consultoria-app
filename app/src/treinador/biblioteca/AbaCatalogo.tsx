@@ -1,13 +1,14 @@
 import { Permitido } from '../../ui/Permitido';
-import { Check, Download } from 'lucide-react-native';
+import { Check, ChevronDown, ChevronUp, Download } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { catalogoAlimentos, catalogoExercicios, gruposDoCatalogo, importarDoCatalogo, listarAlimentos, listarExercicios, type TipoBiblioteca } from '../../api/rotas';
 import { CREDITOS_CATALOGO, passosDasInstrucoes, resumoNutrientes, textoMostrando } from '../../dominio/catalogo';
 import { textoDosFatores } from '../../dominio/fatoresDoAlimento';
 import { useTema } from '../../tema/TemaProvider';
-import { ALVO_TOQUE, espaco } from '../../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, LARGURA_MENU_LATERAL, RAIO, RAIO_CONTROLE } from '../../tema/tokens';
+import { sobre } from '../../ui/sobre';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Cartao } from '../../ui/Cartao';
@@ -43,7 +44,9 @@ interface ListaCatalogo {
 
 /** Catálogo público (só leitura): marcar vários e importar para a biblioteca da consultoria. */
 export function AbaCatalogo() {
-  const { cores } = useTema();
+  const { cores, bordas } = useTema();
+  // Mesmo corte da `LinhaDaLista`: abaixo dele a linha empilha e o bloco usa a largura toda.
+  const largo = useWindowDimensions().width >= LARGURA_MENU_LATERAL;
   const { avisar } = useAviso();
   const [tipo, setTipo] = useState<TipoBiblioteca>('exercicios');
   const [busca, setBusca] = useState('');
@@ -163,24 +166,38 @@ export function AbaCatalogo() {
               {jaTem ? <View style={estilos.jaNaBiblioteca} aria-hidden><Check size={18} color={cores.textoSuave} strokeWidth={2.5} /></View>
                 : <CaixaDaLinha rotulo={item.nome} marcado={sel} aoMudar={() => alternar(item.id)} />}
               {/* Exercício sem foto reserva a caixa (ícone), para o título alinhar com os que têm; alimento não tem miniatura. */}
-              {tipo === 'exercicios' ? <DemonstracaoDoExercicio exercicioId={null} nome={item.nome} imagens={item.imagens} papel="EQUIPE" largura={56} altura={56} preencher ampliavel reservarEspaco /> : null}
+              {tipo === 'exercicios' ? <DemonstracaoDoExercicio exercicioId={null} nome={item.nome} imagens={item.imagens} papel="EQUIPE" largura={LADO_DA_MINIATURA} altura={LADO_DA_MINIATURA} preencher ampliavel reservarEspaco /> : null}
             </View>}
             aoTocarTextos={jaTem ? undefined : () => alternar(item.id)}
+            // Um controle só, sempre no mesmo lugar: recolher não tira o foco da pessoa (um segundo "Recolher" dentro do
+            // bloco sumiria com o foco ao fechar).
             acoes={item.passos.length ? (
               <Pressable
                 accessibilityRole="button"
                 accessibilityState={{ expanded: expandido }}
-                accessibilityLabel={`${expandido ? 'Esconder' : 'Ver'} instruções de ${item.nome}`}
+                aria-expanded={expandido}
+                accessibilityLabel={`${expandido ? 'Recolher' : 'Ver'} instruções de ${item.nome}`}
+                {...(Platform.OS === 'web' && expandido ? ({ 'aria-controls': `instrucoes-${item.id}` } as object) : {})}
                 onPress={() => setAberto(expandido ? null : item.id)}
-                style={estilos.verInstrucoes}>
-                <Texto variante="pequeno" cor={cores.texto} style={estilos.link}>{expandido ? 'Esconder instruções' : 'Ver instruções'}</Texto>
+                // Hover em `superficie2`: a linha aberta já está em `superficie3` e o realce sumiria nela.
+                style={(estado) => [estilos.verInstrucoes, { backgroundColor: sobre(estado) ? cores.superficie2 : 'transparent' }]}>
+                <Texto style={estilos.rotuloDoControle}>{expandido ? 'Recolher instruções' : 'Ver instruções'}</Texto>
+                {expandido ? <ChevronUp size={18} color={cores.texto} /> : <ChevronDown size={18} color={cores.texto} />}
               </Pressable>
             ) : undefined}>
             {expandido ? (
-              <View style={estilos.passos}>
-                {item.passos.map((p, i) => (
-                  <Texto key={i} variante="pequeno">{`${i + 1}. ${p}`}</Texto>
-                ))}
+              <View nativeID={`instrucoes-${item.id}`} role="region" aria-label={`Instruções de execução de ${item.nome}`}
+                style={[estilos.instrucoes, { marginLeft: largo ? RECUO_DO_TITULO : RECUO_DA_LINHA, backgroundColor: cores.superficie2, borderColor: cores.divisor, borderWidth: bordas.bloco }]}>
+                <Texto variante="subtitulo">Instruções de execução</Texto>
+                <View role="list" style={estilos.passos}>
+                  {item.passos.map((p, i) => (
+                    <View key={i} role="listitem" style={estilos.passo}>
+                      {/* A fonte não numera os passos (um por linha): o número é a ordem e fica na coluna própria. */}
+                      <Texto variante="pequeno" numerico style={estilos.numero}>{`${i + 1}.`}</Texto>
+                      <Texto style={estilos.textoDoPasso}>{p}</Texto>
+                    </View>
+                  ))}
+                </View>
               </View>
             ) : null}
           </LinhaDaLista>
@@ -196,13 +213,26 @@ export function AbaCatalogo() {
   );
 }
 
+const LADO_DA_MINIATURA = 56;
+/** Recuo interno da `LinhaDaLista` (padding da linha). */
+const RECUO_DA_LINHA = espaco(1.5);
+/** Onde começa o nome do exercício: padding, caixa, espaço, miniatura e o espaço até os textos (`LinhaDaLista`). */
+const RECUO_DO_TITULO = RECUO_DA_LINHA + ALVO_TOQUE + espaco(1) + LADO_DA_MINIATURA + espaco(1.5);
+/** Cerca de 70 caracteres em 15 px: a linha longa cansa a leitura no PC. */
+const LARGURA_DE_LEITURA = 640;
+
 const estilos = StyleSheet.create({
   inicio: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
-  verInstrucoes: { minHeight: ALVO_TOQUE, justifyContent: 'center', paddingHorizontal: espaco(1) },
-  // Como o `LinkTexto`: cor do texto e sublinhado (a marca fica para o primário da área).
-  link: { textDecorationLine: 'underline' },
+  verInstrucoes: { minHeight: ALVO_TOQUE, flexDirection: 'row', alignItems: 'center', gap: espaco(0.75), paddingHorizontal: espaco(1.5), borderRadius: RAIO_CONTROLE },
+  rotuloDoControle: { fontFamily: fontes.semi },
   jaNaBiblioteca: { width: ALVO_TOQUE, height: ALVO_TOQUE, alignItems: 'center', justifyContent: 'center' },
-  passos: { gap: espaco(0.5), paddingHorizontal: espaco(1.5), paddingBottom: espaco(1.5) },
+  instrucoes: { marginRight: RECUO_DA_LINHA, marginBottom: RECUO_DA_LINHA, padding: espaco(2), gap: espaco(1.5), borderRadius: RAIO },
+  passos: { gap: espaco(1.25), maxWidth: LARGURA_DE_LEITURA },
+  passo: { flexDirection: 'row', alignItems: 'baseline', gap: espaco(1) },
+  // Coluna fixa, número à direita: "9." e "10." terminam no mesmo ponto e o texto começa sempre na mesma linha.
+  // `minWidth`: com o texto ampliado nas preferências o número cresce em vez de cortar.
+  numero: { minWidth: espaco(3), flexShrink: 0, textAlign: 'right' },
+  textoDoPasso: { flex: 1 },
   creditos: { marginTop: espaco(2) },
   /** O seletor nasce com alignSelf flex-start; na barra (alinhada pela base) ele subia e ficava fora do lugar. */
 });

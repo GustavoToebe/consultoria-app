@@ -32,6 +32,12 @@ const OPCOES_MODALIDADE = Object.entries(MODALIDADES).map(([valor, rotulo]) => (
 
 const estilos = StyleSheet.create({
   paginacao: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), flexWrap: 'wrap' },
+  // As medidas da `FolhaAlimento`: 180 px por campo deixa o par lado a lado na folha do PC (600) e empilhado no celular.
+  partes: { gap: espaco(3) },
+  linhaDeCampos: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', gap: espaco(2) },
+  campoLargo: { flexGrow: 1, flexBasis: 180 },
+  tirar: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5) },
+  textoDoTirar: { flexGrow: 1, flexShrink: 1, flexBasis: 240 },
 });
 
 /** Exercícios da consultoria: lista, novo/editar (com vídeo) e inativar (planos já montados guardam a cópia). */
@@ -172,27 +178,53 @@ function FolhaExercicio({ inicial, aoFechar, aoSalvar, aoTirar, aoImagemMudou }:
           <Botao rotulo="Salvar" aoTocar={salvar} carregando={salvando} desabilitado={!nome.trim() || !!erroDoVideo(video)} motivo={!nome.trim() ? 'Informe o nome.' : 'Corrija o link do vídeo.'} />
         </>
       }>
-      <Campo rotulo="Nome" valor={nome} aoMudar={setNome} erro={campos.nome} maxLength={120} />
-      <Escolha rotulo="Modalidade" opcoes={OPCOES_MODALIDADE} valor={modalidade} aoMudar={setModalidade} />
-      <Campo rotulo="Grupo muscular (opcional)" valor={grupo} aoMudar={setGrupo} erro={campos.grupoMuscular} maxLength={60} />
-      <Campo rotulo="Equipamento (opcional)" valor={equipamento} aoMudar={setEquipamento} erro={campos.equipamento} maxLength={60} />
-      <Campo
-        rotulo="Vídeo (link do YouTube, opcional)"
-        valor={video}
-        aoMudar={setVideo}
-        erro={campos.videoUrl ?? erroDoVideo(video)}
-        autoCapitalize="none"
-        keyboardType="url"
-        maxLength={500}
-      />
-      <Campo rotulo="Observações (opcional)" valor={observacoes} aoMudar={setObservacoes} linhas={3} maxLength={4000} />
-      {atual ? (
-        <ImagemDoExercicioEditor exercicio={atual} podeAlterar={pode('BIBLIOTECA_ALTERAR')} aoMudar={(e) => { setAtual(e); aoImagemMudou(); }} />
-      ) : (
-        <Texto variante="suave">Depois de salvar, você pode enviar uma imagem ou GIF deste exercício.</Texto>
-      )}
-      {erro && Object.keys(campos).length === 0 ? <MensagemErro texto={textoDoErro(erro)} /> : null}
-      {inicial && aoTirar ? <Botao rotulo="Tirar da biblioteca" tipo="perigoTexto" Icone={Trash2} aoTocar={aoTirar} /> : null}
+      {/* Mesma composição da `FolhaAlimento`: um cartão com faixa de título por assunto, 24 px entre eles. */}
+      <View style={estilos.partes}>
+        <Cartao titulo="Identificação" nivel={3}>
+          <Campo rotulo="Nome" valor={nome} aoMudar={setNome} erro={campos.nome} maxLength={120} />
+          <Escolha rotulo="Modalidade" opcoes={OPCOES_MODALIDADE} valor={modalidade} aoMudar={setModalidade} />
+          <View style={estilos.linhaDeCampos}>
+            <View style={estilos.campoLargo}>
+              <Campo rotulo="Grupo muscular (opcional)" valor={grupo} aoMudar={setGrupo} erro={campos.grupoMuscular} maxLength={60} />
+            </View>
+            <View style={estilos.campoLargo}>
+              <Campo rotulo="Equipamento (opcional)" valor={equipamento} aoMudar={setEquipamento} erro={campos.equipamento} maxLength={60} />
+            </View>
+          </View>
+        </Cartao>
+
+        <Cartao titulo="Instruções" nivel={3}>
+          <Campo rotulo="Observações (opcional)" valor={observacoes} aoMudar={setObservacoes} linhas={3} maxLength={4000} />
+        </Cartao>
+
+        <Cartao titulo="Vídeo e imagem" nivel={3}>
+          <Campo
+            rotulo="Vídeo (link do YouTube, opcional)"
+            valor={video}
+            aoMudar={setVideo}
+            erro={campos.videoUrl ?? erroDoVideo(video)}
+            autoCapitalize="none"
+            keyboardType="url"
+            maxLength={500}
+          />
+          {atual ? (
+            <ImagemDoExercicioEditor exercicio={atual} podeAlterar={pode('BIBLIOTECA_ALTERAR')} aoMudar={(e) => { setAtual(e); aoImagemMudou(); }} />
+          ) : (
+            <Texto variante="suave">Depois de salvar, você pode enviar uma imagem ou GIF deste exercício.</Texto>
+          )}
+        </Cartao>
+
+        {erro && Object.keys(campos).length === 0 ? <MensagemErro texto={textoDoErro(erro)} /> : null}
+
+        {inicial && aoTirar ? (
+          <Cartao>
+            <View style={estilos.tirar}>
+              <Texto variante="suave" style={estilos.textoDoTirar}>Os planos que já usam este exercício continuam com ele.</Texto>
+              <Botao rotulo="Tirar da biblioteca" tipo="perigoTexto" Icone={Trash2} aoTocar={aoTirar} />
+            </View>
+          </Cartao>
+        ) : null}
+      </View>
     </Folha>
   );
 }

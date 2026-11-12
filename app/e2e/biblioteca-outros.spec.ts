@@ -86,6 +86,43 @@ for (const [nome, largura, altura] of [['PC 1280', 1280, 900], ['celular 390', 3
       expect(errosDaPagina).toEqual([]);
     });
 
+    test('seções do Editar alimento, pares em colunas no PC e empilhados no celular, rodapé visível com o corpo rolado', async ({ page }) => {
+      const { naoTratadas, errosDaPagina } = await abrir(page, COM_CATEGORIAS);
+      await page.getByRole('button', { name: 'Editar Lisdexanfetamina' }).click();
+      const folha = page.getByRole('dialog', { name: 'Editar item' });
+      for (const secao of ['Identificação', 'Concentração e apresentação', 'Observação']) {
+        await expect(folha.getByRole('heading', { name: secao, level: 3 })).toBeVisible();
+      }
+      const pares = [['Nome', 'Princípio ativo (opcional)'], ['Concentração (opcional)', 'Apresentação (opcional)']] as const;
+      for (const [esquerda, direita] of pares) {
+        const a = (await folha.getByRole('textbox', { name: esquerda, exact: true }).boundingBox())!;
+        const b = (await folha.getByRole('textbox', { name: direita, exact: true }).boundingBox())!;
+        if (largura < 768) expect(b.y).toBeGreaterThan(a.y + a.height);
+        else {
+          expect(Math.abs(b.y - a.y)).toBeLessThanOrEqual(1);
+          expect(b.x).toBeGreaterThan(a.x + a.width);
+        }
+      }
+
+      // Sem nome, o Salvar diz por quê.
+      await folha.getByRole('textbox', { name: 'Nome', exact: true }).fill('');
+      await expect(folha.getByRole('button', { name: 'Salvar', exact: true })).toBeDisabled();
+      await expect(folha.getByText('Informe o nome.', { exact: true })).toHaveCount(1);
+
+      await page.setViewportSize({ width: largura, height: 600 });
+      const rolou = await folha.evaluate((d) => {
+        const rolagem = [...d.querySelectorAll<HTMLElement>('div')].find((n) => ['auto', 'scroll'].includes(getComputedStyle(n).overflowY))!;
+        rolagem.scrollTop = rolagem.scrollHeight;
+        return rolagem.scrollTop;
+      });
+      expect(rolou).toBeGreaterThan(0);
+      await expect(folha.getByRole('button', { name: 'Tirar da biblioteca' })).toBeInViewport();
+      await expect(folha.getByRole('button', { name: 'Salvar', exact: true })).toBeInViewport();
+      await expect(folha.getByRole('button', { name: 'Cancelar', exact: true })).toBeInViewport();
+      expect(naoTratadas).toEqual([]);
+      expect(errosDaPagina).toEqual([]);
+    });
+
     test('editar um item existente mantém a categoria dele', async ({ page }) => {
       const { gravados, naoTratadas, errosDaPagina } = await abrir(page, COM_CATEGORIAS);
       await page.getByRole('button', { name: 'Editar Lisdexanfetamina' }).click();
