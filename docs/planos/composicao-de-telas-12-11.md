@@ -1,6 +1,6 @@
 # Composição de telas: editores da Biblioteca, instruções do catálogo e Visão geral do Financeiro
 
-Situação: Implementada, sem commit (verificações verdes em 12/11/2026) · Onde: `main`, local sem commit · Atualizado: 12/11/2026
+Situação: Concluída em 12/11/2026 (verificações verdes) · Onde: `main`, commit ee2824d3 · Atualizado: 12/11/2026
 
 ## Objetivo
 Dar a três telas a mesma composição de "Editar alimento" e organizar o que estava solto: editores de exercício e de item com seções,

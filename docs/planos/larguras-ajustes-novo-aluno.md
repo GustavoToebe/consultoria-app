@@ -18,11 +18,11 @@ leitura nos campos e nos textos. Dois acertos pequenos: o cartão "Equipe hoje" 
 | 6 | Fora | Equipe em cartões, índices laterais e prévias só para preencher espaço: não entram; Perfil, Meus dados, Segurança, Marca, Ajuda e editores só depois de conferir cada tela renderizada | Gustavo |
 
 ## Passos
-- [x] 1. Ajustes (`ui/PreferenciasDoApp.tsx`, `app/treinador/ajustes.tsx`); commit: ver README
-- [x] 2. Novo aluno (`treinador/FormAluno.tsx`, `app/treinador/alunos/novo.tsx`); commit: ver README
-- [x] 3. Lembretes: só o e2e (nenhuma mudança de código; ver decisão 4); commit: ver README
-- [x] 4. Equipe hoje e Biblioteca (`numeros.tsx`, `biblioteca.tsx`, `e2e/numeros.spec.ts`); commit: ver README
-- [x] 5. e2e novo `e2e/larguras-ajustes-cadastro-lembretes.spec.ts` (1920, 1440, 1280 e 390: sem rolagem horizontal, uso acima de 1040 px, colunas lado a lado, uma coluna no celular, campos até 560 px); commit: ver README
+- [x] 1. Ajustes (`ui/PreferenciasDoApp.tsx`, `app/treinador/ajustes.tsx`); commit e49f6b82
+- [x] 2. Novo aluno (`treinador/FormAluno.tsx`, `app/treinador/alunos/novo.tsx`); commit e49f6b82
+- [x] 3. Lembretes: só o e2e (nenhuma mudança de código; ver decisão 4); commit e49f6b82
+- [x] 4. Equipe hoje e Biblioteca (`numeros.tsx`, `biblioteca.tsx`, `e2e/numeros.spec.ts`); `numeros.tsx` e `numeros.spec.ts` entraram no commit 765e06d5 (larguras) e `biblioteca.tsx`, em e49f6b82
+- [x] 5. e2e novo `e2e/larguras-ajustes-cadastro-lembretes.spec.ts` (1920, 1440, 1280 e 390: sem rolagem horizontal, uso acima de 1040 px, colunas lado a lado, uma coluna no celular, campos até 560 px); commit e49f6b82
 
 ## Fora do escopo
 - Renovações em "Meus" (Financeiro › Visão geral): correção funcional separada, de API (`executor`); registrada em `composicao-de-telas-12-11.md`.

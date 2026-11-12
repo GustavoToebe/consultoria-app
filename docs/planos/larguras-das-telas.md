@@ -1,6 +1,6 @@
 # Larguras das telas do treinador (Números, Aulões e Mural)
 
-Situação: Implementada, sem commit (verificações verdes em 12/11/2026) · Onde: `main`, local sem commit · Atualizado: 12/11/2026
+Situação: Concluída em 12/11/2026 (verificações verdes) · Onde: `main`, commit 765e06d5 · Atualizado: 12/11/2026
 
 ## Objetivo
 Tirar a faixa estreita e centralizada que deixava uma margem grande entre o menu e o conteúdo no PC: cabeçalho, tabelas e grades
