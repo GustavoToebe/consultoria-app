@@ -10,7 +10,7 @@ import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { Cartao } from '../../ui/Cartao';
-import { Escolha } from '../../ui/Escolha';
+import { EscolhaSuspensa } from '../../ui/EscolhaSuspensa';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { errosPorCampo, textoDoErro } from '../../ui/erros';
@@ -182,7 +182,7 @@ function FolhaExercicio({ inicial, aoFechar, aoSalvar, aoTirar, aoImagemMudou }:
       <View style={estilos.partes}>
         <Cartao titulo="Identificação" nivel={3}>
           <Campo rotulo="Nome" valor={nome} aoMudar={setNome} erro={campos.nome} maxLength={120} />
-          <Escolha rotulo="Modalidade" opcoes={OPCOES_MODALIDADE} valor={modalidade} aoMudar={setModalidade} />
+          <EscolhaSuspensa rotulo="Modalidade" opcoes={OPCOES_MODALIDADE} valor={modalidade} aoMudar={setModalidade} semBusca />
           <View style={estilos.linhaDeCampos}>
             <View style={estilos.campoLargo}>
               <Campo rotulo="Grupo muscular (opcional)" valor={grupo} aoMudar={setGrupo} erro={campos.grupoMuscular} maxLength={60} />
