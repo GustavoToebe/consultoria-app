@@ -15,6 +15,8 @@ interface Props {
   bordas?: Edge[];
   /** Conteúdo curto no meio da tela (Entrar em janela alta). */
   centrado?: boolean;
+  /** Folga das laterais e do topo; padrão `espaco(2)` (16). Só as telas que pedem respiro maior no PC passam outro valor. */
+  folga?: number;
 }
 
 /**
@@ -22,17 +24,18 @@ interface Props {
  * topo no protótipo), fundo da área (`painel` ao lado do menu no PC, `fundo` no resto) e conteúdo centralizado até LARGURA_MAXIMA. Com rolagem própria, mostra o botão
  * "voltar ao início da página" (`RolagemComTopo`).
  */
-export function Tela({ children, rolar = true, largura = LARGURA_MAXIMA, bordas = ['top', 'bottom'], centrado }: Props) {
+export function Tela({ children, rolar = true, largura = LARGURA_MAXIMA, bordas = ['top', 'bottom'], centrado, folga }: Props) {
   const fundo = useFundoDaArea();
   const larguraUtil = Math.min(largura, LARGURA_MAXIMA);
+  const preenchimento = folga === undefined ? undefined : { padding: folga };
   const conteudo = <View style={[estilos.conteudo, { maxWidth: larguraUtil }, !rolar && { flex: 1, minHeight: 0 }]}>{children}</View>;
   return (
     <SafeAreaView edges={bordas} style={[estilos.raiz, { backgroundColor: fundo }]}>
       <KeyboardAvoidingView style={estilos.raiz} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {rolar ? (
-          <RolagemComTopo preencher contentContainerStyle={[estilos.rolagem, centrado && estilos.centrado]}>{conteudo}</RolagemComTopo>
+          <RolagemComTopo preencher contentContainerStyle={[estilos.rolagem, preenchimento, centrado && estilos.centrado]}>{conteudo}</RolagemComTopo>
         ) : (
-          <View style={[estilos.raiz, estilos.rolagem]}>{conteudo}</View>
+          <View style={[estilos.raiz, estilos.rolagem, preenchimento]}>{conteudo}</View>
         )}
       </KeyboardAvoidingView>
     </SafeAreaView>

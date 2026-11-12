@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { MessageSquare, Pin, PinOff, Plus, Settings, ShieldCheck, Trash2, UserX, Video } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import {
   alternarFixadoDoPost, baixarFotoDoMuralDaEquipe, criarAula, dispensarDenuncias, listarAulasDaEquipe, listarMuralDaEquipe,
@@ -19,7 +19,7 @@ import { FolhaConfiguracoesDoMural } from '../../treinador/comunidade/FolhaConfi
 import { FolhaDeAcoes } from '../../treinador/FolhaDeAcoes';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, RAIO } from '../../tema/tokens';
+import { ALVO_TOQUE, espaco, LARGURA_MENU_LATERAL, RAIO } from '../../tema/tokens';
 import { abrirLinkExterno } from '../../ui/abrirLinkExterno';
 import { Abas } from '../../ui/Abas';
 import { useAviso } from '../../ui/Aviso';
@@ -31,6 +31,7 @@ import { separarErros, textoDoErro } from '../../ui/erros';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { Folha } from '../../ui/Folha';
+import { Grade } from '../../ui/Grade';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Selo } from '../../ui/Selo';
@@ -56,14 +57,17 @@ const RASCUNHO_VAZIO: RascunhoDoPost = { tipo: TIPO_PADRAO_DO_POST, texto: '' };
 const PREFIXO_DO_MURAL = 'treinador-mural:';
 const fixadosPrimeiro = (posts: PostDoMural[]) => [...posts].sort((a, b) => Number(b.fixado) - Number(a.fixado));
 /**
- * Coluna de leitura do treinador (D10, guia pág. 35: 760 a 960 px). 800 deixa o parágrafo do cartão perto de 95
- * caracteres por linha; cabeçalho, abas, busca e feed ficam na mesma coluna, e a ação não se afasta do conteúdo.
- * `LARGURA_LISTA` (1800) continua valendo nas outras listas.
+ * Só as publicações do mural têm coluna de leitura (D10, guia pág. 35: 760 a 960 px): 800 deixa o parágrafo perto de
+ * 95 caracteres por linha. Cabeçalho, abas, busca e a grade dos aulões usam a largura útil, e a coluna fica à esquerda,
+ * na borda do cabeçalho, para não abrir margem entre o menu e o conteúdo.
  */
-const LARGURA_DE_LEITURA = 800;
+const LARGURA_DAS_PUBLICACOES = 800;
+/** Respiro das laterais no PC (24 a 32 px, plano larguras-das-telas); o celular fica com os 16 da `Tela`. */
+const FOLGA_NO_PC = espaco(3.5);
 
 export default function ComunidadeTreinador() {
   const { cores } = useTema();
+  const largo = useWindowDimensions().width >= LARGURA_MENU_LATERAL;
   const { pode } = useSessao();
   const { avisar } = useAviso();
   // A tela abre com TREINO_LER; publicar e moderar (aulões, mural, apelidos) pedem COMUNIDADE_MODERAR (a API confere de novo).
@@ -211,7 +215,7 @@ export default function ComunidadeTreinador() {
   );
 
   return (
-    <Tela bordas={['top']} largura={LARGURA_DE_LEITURA}>
+    <Tela bordas={['top']} folga={largo ? FOLGA_NO_PC : undefined}>
       <Cabecalho titulo="Comunidade" subtitulo="Aulões e mural do time." acoes={acoes} />
 
       <Abas<AbaComunidade>
@@ -228,34 +232,39 @@ export default function ComunidadeTreinador() {
           <EstadoDaFonte carregando={auloes.carregando} erro={auloes.erro} vazio={!auloes.dados?.length}
             textoVazio="Nenhum aulão publicado." recarregar={auloes.recarregar} />
 
-          {/* Título primeiro; categoria e estado discretos (neutros, juntos); descrição de apoio; vídeo e comentários no rodapé. */}
-          {auloes.dados?.map((item) => (
-            <Cartao
-              key={item.id}
-              titulo={item.titulo}
-              acoes={item.categoria || !item.publicada ? (
-                <View style={estilos.linha}>
-                  {item.categoria ? <Selo texto={item.categoria} tipo="neutro" /> : null}
-                  {!item.publicada ? <Selo texto="Não publicado" tipo="neutro" /> : null}
-                </View>
-              ) : undefined}>
-              {item.descricao ? <Texto>{item.descricao}</Texto> : null}
-              <View style={[estilos.linha, estilos.rodapePost, estilos.rodapeDoAulao, { borderTopColor: cores.divisor }]}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Ver ${item.totalComentarios} comentário(s) do aulão ${item.titulo}`}
-                  onPress={() => setComentariosDe({ tipo: 'aula', id: item.id })}
-                  style={(estado) => [estilos.interacao, sobre(estado) && { backgroundColor: cores.superficie3 }]}>
-                  <MessageSquare size={18} color={cores.texto} aria-hidden />
-                  <Texto variante="suave" cor={cores.texto} numerico>{item.totalComentarios} comentário(s)</Texto>
-                </Pressable>
-                {item.videoUrl ? (
-                  <Botao rotulo="Abrir vídeo" rotuloAcessivel={`Abrir vídeo: ${item.titulo}`} tipo="secundario" Icone={Video}
-                    aoTocar={() => void abrir(item.videoUrl)} />
-                ) : null}
-              </View>
-            </Cartao>
-          ))}
+          {/* Título primeiro; categoria e estado discretos (neutros, juntos); descrição de apoio; vídeo e comentários no rodapé.
+              Grade pela largura medida (1 coluna no celular, 2 ou 3 no PC); um aulão só ocupa uma célula, à esquerda. */}
+          {auloes.dados?.length ? (
+            <Grade gap={espaco(3)}>
+              {auloes.dados.map((item) => (
+                <Cartao
+                  key={item.id}
+                  titulo={item.titulo}
+                  acoes={item.categoria || !item.publicada ? (
+                    <View style={estilos.linha}>
+                      {item.categoria ? <Selo texto={item.categoria} tipo="neutro" /> : null}
+                      {!item.publicada ? <Selo texto="Não publicado" tipo="neutro" /> : null}
+                    </View>
+                  ) : undefined}>
+                  {item.descricao ? <Texto>{item.descricao}</Texto> : null}
+                  <View style={[estilos.linha, estilos.rodapePost, estilos.rodapeDoAulao, { borderTopColor: cores.divisor }]}>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Ver ${item.totalComentarios} comentário(s) do aulão ${item.titulo}`}
+                      onPress={() => setComentariosDe({ tipo: 'aula', id: item.id })}
+                      style={(estado) => [estilos.interacao, sobre(estado) && { backgroundColor: cores.superficie3 }]}>
+                      <MessageSquare size={18} color={cores.texto} aria-hidden />
+                      <Texto variante="suave" cor={cores.texto} numerico>{item.totalComentarios} comentário(s)</Texto>
+                    </Pressable>
+                    {item.videoUrl ? (
+                      <Botao rotulo="Abrir vídeo" rotuloAcessivel={`Abrir vídeo: ${item.titulo}`} tipo="secundario" Icone={Video}
+                        aoTocar={() => void abrir(item.videoUrl)} />
+                    ) : null}
+                  </View>
+                </Cartao>
+              ))}
+            </Grade>
+          ) : null}
         </View>
       ) : null}
 
@@ -263,21 +272,23 @@ export default function ComunidadeTreinador() {
         <View style={estilos.blocos}>
           <BarraDoMural filtro={filtro} aoFiltrar={setFiltro} busca={busca} aoBuscar={setBusca} comDenunciados={podePublicar} />
 
-          <EstadoDaFonte carregando={mural.carregando} erro={mural.erro} vazio={!posts?.length}
-            textoVazio={filtro === 'DENUNCIADOS' && !busca.trim() ? 'Nenhuma publicação denunciada.' : textoDoMuralVazio(filtro, busca)}
-            recarregar={mural.recarregar}
-            acaoVazio={filtro || busca.trim() ? { rotulo: 'Limpar filtros', aoTocar: () => { setFiltro(null); setBusca(''); } } : undefined} />
+          <View testID="coluna-das-publicacoes" style={estilos.colunaDasPublicacoes}>
+            <EstadoDaFonte carregando={mural.carregando} erro={mural.erro} vazio={!posts?.length}
+              textoVazio={filtro === 'DENUNCIADOS' && !busca.trim() ? 'Nenhuma publicação denunciada.' : textoDoMuralVazio(filtro, busca)}
+              recarregar={mural.recarregar}
+              acaoVazio={filtro || busca.trim() ? { rotulo: 'Limpar filtros', aoTocar: () => { setFiltro(null); setBusca(''); } } : undefined} />
 
-          {posts ? fixadosPrimeiro(posts).map((post) => (
-            <CartaoDoPost
-              key={post.id}
-              post={post}
-              baixarFoto={baixarFotoDoMuralDaEquipe}
-              aoComentarios={() => setComentariosDe({ tipo: 'post', id: post.id })}
-              aoAbrirMenu={podePublicar ? () => setMenuDe(post) : undefined}
-              aoAssistir={(url) => void abrir(url)}
-            />
-          )) : null}
+            {posts ? fixadosPrimeiro(posts).map((post) => (
+              <CartaoDoPost
+                key={post.id}
+                post={post}
+                baixarFoto={baixarFotoDoMuralDaEquipe}
+                aoComentarios={() => setComentariosDe({ tipo: 'post', id: post.id })}
+                aoAbrirMenu={podePublicar ? () => setMenuDe(post) : undefined}
+                aoAssistir={(url) => void abrir(url)}
+              />
+            )) : null}
+          </View>
         </View>
       ) : null}
 
@@ -349,6 +360,7 @@ export default function ComunidadeTreinador() {
 const estilos = StyleSheet.create({
   // 24 px entre blocos; 16 px dentro do cartão e do item.
   blocos: { gap: espaco(3) },
+  colunaDasPublicacoes: { width: '100%', maxWidth: LARGURA_DAS_PUBLICACOES, gap: espaco(3) },
   linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexWrap: 'wrap' },
   rodapePost: { borderTopWidth: 1, paddingTop: espaco(1), gap: espaco(2) },
   // Comentários à esquerda (como no mural), "Abrir vídeo" à direita; no celular estreito o botão desce para a linha de baixo.

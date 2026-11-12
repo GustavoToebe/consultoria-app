@@ -863,11 +863,12 @@ for (const largura of [390, 1280]) {
       await expect(page.getByRole('button', { name: 'Novo aulão' })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Nova publicação' })).toHaveCount(0);
       await expect(page.getByRole('button', { name: 'Configurações do mural' })).toHaveCount(0);
-      // Coluna de leitura de 800 px (D10): o título da tela não passa dela, mesmo com a janela larga.
+      // Cabeçalho na largura útil (plano larguras-das-telas): a ação vai até a borda direita, sem faixa estreita no meio.
       if (largura >= 1280) {
         const titulo = await page.getByRole('heading', { level: 1, name: 'Comunidade' }).boundingBox();
         const acao = await page.getByRole('button', { name: 'Novo aulão' }).boundingBox();
-        expect(acao!.x + acao!.width - titulo!.x).toBeLessThanOrEqual(800);
+        expect(acao!.x + acao!.width - titulo!.x).toBeGreaterThan(800);
+        expect(largura - (acao!.x + acao!.width)).toBeLessThanOrEqual(48);
       }
       await capturar(page, `treinador-auloes-${largura}`);
 
@@ -1273,6 +1274,72 @@ for (const largura of [390, 1280]) {
         expect(api.errosDaPagina).toEqual([]);
       });
     }
+  });
+}
+
+/** `n` aulões fictícios com títulos distintos. */
+const aulas = (n: number): AulaDaComunidade[] => Array.from({ length: n }, (_, i) => ({ ...AULA, id: `a${i + 1}`, titulo: `Aulão de teste ${i + 1}` }));
+
+/** Colunas da grade dos aulões: quantos `x` distintos têm os botões de comentários (à esquerda de cada cartão). */
+async function colunasDosAuloes(page: Page) {
+  const caixas = await Promise.all((await page.getByRole('button', { name: /comentário\(s\) do aulão/ }).all()).map((b) => b.boundingBox()));
+  return new Set(caixas.map((c) => Math.round(c!.x))).size;
+}
+
+/** Borda esquerda e direita do conteúdo: o título da tela e a ação do cabeçalho, que vai até a borda direita. */
+async function bordasDoConteudo(page: Page, acao: string) {
+  const titulo = (await page.getByRole('heading', { level: 1, name: 'Comunidade' }).boundingBox())!;
+  const botao = (await page.getByRole('button', { name: acao }).boundingBox())!;
+  return { esquerda: titulo.x, direita: botao.x + botao.width };
+}
+
+const semRolagemHorizontal = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
+
+for (const [largura, altura, colunas] of [[390, 900, 1], [1440, 900, 2], [1920, 1080, 3]] as const) {
+  test.describe(`treinador: larguras da Comunidade em ${largura} px`, () => {
+    test.use({ viewport: { width: largura, height: altura } });
+    const abrir = async (page: Page, respostas: RespostasApi) => {
+      await tema(page, TREINADOR.id, 'CLARO');
+      return simularApi(page, { ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'TREINO_LER', 'COMUNIDADE_MODERAR'] })), ...cheia, ...respostas });
+    };
+
+    test(`aulões em ${colunas} coluna(s) pela largura medida; sem rolagem horizontal`, async ({ page }) => {
+      await abrir(page, { 'GET /comunidade/aulas': { corpo: aulas(4) } });
+      await page.goto('/treinador/comunidade');
+      await expect(page.getByRole('button', { name: 'Abrir vídeo: Aulão de teste 4' })).toBeVisible();
+      await expect.poll(() => colunasDosAuloes(page)).toBe(colunas);
+      expect(await semRolagemHorizontal(page)).toBe(true);
+      await capturar(page, `treinador-auloes-grade-${largura}`);
+    });
+
+    test('um aulão só fica à esquerda, com a largura de uma coluna (não estica)', async ({ page }) => {
+      await abrir(page, { 'GET /comunidade/aulas': { corpo: aulas(1) } });
+      await page.goto('/treinador/comunidade');
+      const video = page.getByRole('button', { name: 'Abrir vídeo: Aulão de teste 1' });
+      await expect(video).toBeVisible();
+      const { esquerda, direita } = await bordasDoConteudo(page, 'Novo aulão');
+      const comentarios = (await page.getByRole('button', { name: /comentário\(s\) do aulão Aulão de teste 1/ }).boundingBox())!;
+      // O botão de comentários fica rente ao recuo do cartão, colado à borda esquerda do conteúdo.
+      expect(comentarios.x - esquerda).toBeLessThanOrEqual(32);
+      const fimDoCartao = (await video.boundingBox())!;
+      if (colunas > 1) expect(fimDoCartao.x + fimDoCartao.width - esquerda).toBeLessThanOrEqual((direita - esquerda) / colunas + 2);
+      await capturar(page, `treinador-auloes-um-${largura}`);
+    });
+
+    test('mural: busca na largura útil e publicações numa coluna de leitura na borda esquerda do cabeçalho', async ({ page }) => {
+      await abrir(page, {});
+      await page.goto('/treinador/comunidade?aba=mural');
+      await expect(page.getByText('Treino feito.')).toBeVisible();
+      const { esquerda, direita } = await bordasDoConteudo(page, 'Nova publicação');
+      const coluna = (await page.getByTestId('coluna-das-publicacoes').boundingBox())!;
+      expect(Math.abs(coluna.x - esquerda)).toBeLessThanOrEqual(1);
+      expect(coluna.width).toBeLessThanOrEqual(800);
+      const busca = (await page.getByRole('searchbox', { name: 'Buscar na comunidade' }).boundingBox())!;
+      // No celular a ação desce para baixo do título e não marca a borda direita.
+      if (largura >= 768) expect(Math.abs(busca.x + busca.width - direita)).toBeLessThanOrEqual(2);
+      expect(await semRolagemHorizontal(page)).toBe(true);
+      await capturar(page, `treinador-mural-largura-${largura}`);
+    });
   });
 }
 
