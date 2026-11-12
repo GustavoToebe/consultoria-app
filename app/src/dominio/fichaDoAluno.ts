@@ -23,12 +23,12 @@ export type BlocoDaFicha =
   | 'pastas'
   | 'frequencia' | 'mobilidade' | 'agua' | 'treinosConcluidos' | 'recordesDaSemana' | 'evolucaoDasRespostas'
   | 'peso' | 'avaliacaoFisica' | 'fotos' | 'progresso'
-  | 'dadosDoAluno' | 'planoContratado' | 'anamnese' | 'lesoes';
+  | 'dadosDoAluno' | 'acessoAoApp' | 'planoContratado' | 'anamnese' | 'lesoes';
 
 /**
- * Cada bloco, a aba onde fica e a condição que a ficha usa hoje para mostrá-lo (a API autoriza de novo). `dadosDoAluno` já
- * inclui o acesso ao app e o ciclo, que têm as próprias condições dentro do cartão; as pastas aparecem a quem abre a ficha
- * (`ALUNO_LER`, da própria rota). Aba sem nenhum bloco permitido não aparece.
+ * Cada bloco, a aba onde fica e a condição que a ficha usa hoje para mostrá-lo (a API autoriza de novo). `dadosDoAluno`
+ * inclui o ciclo, e `acessoAoApp` (situação, conta e as ações do convite e da senha) tem as condições dos botões dentro do
+ * cartão; as pastas aparecem a quem abre a ficha (`ALUNO_LER`, da própria rota). Aba sem nenhum bloco permitido não aparece.
  */
 const BLOCOS: readonly { bloco: BlocoDaFicha; aba: AbaDaFicha; visivel: (c: ContextoDaFicha) => boolean }[] = [
   { bloco: 'pastas', aba: 'planos', visivel: () => true },
@@ -39,11 +39,13 @@ const BLOCOS: readonly { bloco: BlocoDaFicha; aba: AbaDaFicha; visivel: (c: Cont
   { bloco: 'treinosConcluidos', aba: 'acompanhamento', visivel: (c) => c.retornoHabilitado && c.pode('REGISTRO_LER') },
   { bloco: 'recordesDaSemana', aba: 'acompanhamento', visivel: (c) => c.retornoHabilitado && c.pode('REGISTRO_LER') },
   { bloco: 'evolucaoDasRespostas', aba: 'acompanhamento', visivel: (c) => c.pode('ATUALIZACAO_LER') && c.pode('ALUNO_SENSIVEL_LER') },
-  { bloco: 'progresso', aba: 'evolucao', visivel: (c) => c.pode('REGISTRO_LER') },
+  // Evolução: o peso (dado que quase sempre existe) antes do progresso de carga (guia de 11/11, pág. 34).
   { bloco: 'peso', aba: 'evolucao', visivel: (c) => c.pode('ALUNO_SENSIVEL_LER') },
+  { bloco: 'progresso', aba: 'evolucao', visivel: (c) => c.pode('REGISTRO_LER') },
   { bloco: 'avaliacaoFisica', aba: 'evolucao', visivel: (c) => c.pode('ALUNO_SENSIVEL_LER') },
   { bloco: 'fotos', aba: 'evolucao', visivel: (c) => c.pode('ATUALIZACAO_LER') && c.pode('ALUNO_SENSIVEL_LER') },
   { bloco: 'dadosDoAluno', aba: 'ficha', visivel: () => true },
+  { bloco: 'acessoAoApp', aba: 'ficha', visivel: () => true },
   { bloco: 'planoContratado', aba: 'ficha', visivel: (c) => c.pagamentosHabilitados && c.pode('FINANCEIRO_LER') },
   { bloco: 'anamnese', aba: 'ficha', visivel: (c) => c.pode('ANAMNESE_LER') && c.pode('ALUNO_SENSIVEL_LER') },
   { bloco: 'lesoes', aba: 'ficha', visivel: (c) => c.pode('ALUNO_SENSIVEL_LER') },

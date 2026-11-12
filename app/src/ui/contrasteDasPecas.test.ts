@@ -51,6 +51,11 @@ describe.each(VARIANTES)('peças comuns no tema %s', (_nome, cores) => {
     for (const cor of [cores.perigo, cores.atencao]) for (const s of [cores.fundo, cores.superficie]) expect(contraste(cor, s)).toBeGreaterThanOrEqual(3);
   });
 
+  it('BuscaGlobal: estrela marcada (`atencao`) e desmarcada (`textoSuave`) ≥ 3:1 sobre a folha e o hover `superficie2`; "Buscar" e atalho em `textoSuave` sobre `campo` e `superficie2`', () => {
+    for (const cor of [cores.atencao, cores.textoSuave]) for (const s of [cores.superficie, cores.superficie2]) expect(contraste(cor, s)).toBeGreaterThanOrEqual(3);
+    for (const s of [cores.campo, cores.superficie2]) expect(contraste(cores.textoSuave, s)).toBeGreaterThanOrEqual(4.5);
+  });
+
   it('Selo normal (`neutro`, sem pílula): texto secundário direto sobre qualquer superfície, inclusive a `faixaForte` do exercício', () => {
     for (const s of [...superficies, cores.painel, cores.faixaForte]) expect(contraste(cores.textoSuave, s)).toBeGreaterThanOrEqual(4.5);
   });

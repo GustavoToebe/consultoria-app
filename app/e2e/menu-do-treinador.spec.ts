@@ -4,8 +4,9 @@ import { PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa
 
 /**
  * Menu do treinador (auditoria-ficha, N29 e o menu do tablet): grupos com título no PC, rótulo curto embaixo do ícone no
- * trilho de 768 a 1023 px, PC minimizado só com ícone e dica, barra do celular igual. Desde 11/11 (guia, p. 28 a 31) o
- * recolher mora na barra de topo, com o contexto curto, e o menu aberto mostra as contagens. Só dados fictícios.
+ * trilho de 768 a 1023 px, PC minimizado só com ícone e dica, barra do celular igual. Guia de 11/11 (p. 28, 29 e 37): sem
+ * barra de topo; o recolher fica na linha da marca, "Buscar" (Ctrl K) logo abaixo e a conta fixa no pé do menu; o menu
+ * aberto mostra as contagens. Só dados fictícios.
  */
 const TODAS = [...PERMISSOES_TREINADOR, 'ATUALIZACAO_LER', 'AGENDA_LER', 'BIBLIOTECA_LER', 'MODELO_LER', 'FINANCEIRO_LER', 'EQUIPE_LER', 'AUDITORIA_LER'];
 
@@ -37,44 +38,100 @@ test('PC (1280): quatro grupos com título, na ordem do D6, e o fim do menu alca
   expect(await nomes('Acompanhamento')).toEqual(['Alunos', 'Atualizações', 'Agenda']);
   expect(await nomes('Conteúdo')).toEqual(['Biblioteca', 'Planejamento']);
   expect(await nomes('Negócio')).toEqual(['Interessados', 'Financeiro', 'Números']);
-  // Na web o Perfil fica na barra de topo, não no menu lateral.
+  // Na web o Perfil não entra na lista: a conta fica no pé do menu.
   expect(await nomes('Configurações')).toEqual(['Equipe', 'Importação', 'Ajuda', 'Auditoria']);
   for (const titulo of ['Acompanhamento', 'Conteúdo', 'Negócio', 'Configurações']) await expect(menu(page).getByText(titulo, { exact: true })).toBeVisible();
   // O Início fica no topo, fora de grupo.
   await expect(menu(page).getByRole('link').first()).toHaveAttribute('aria-label', 'Início');
 
-  // Com os títulos o menu passa de 720 px e a lista rola; o "Minimizar" mora na barra de topo, não no menu (sem cópia).
-  await expect(page.getByRole('button', { name: 'Minimizar menu' })).toBeInViewport();
-  await expect(menu(page).getByRole('button', { name: /Minimizar menu|Expandir menu/ })).toHaveCount(0);
+  // Com os títulos o menu passa de 720 px e só a lista do meio rola; o "Minimizar" fica na linha da marca, uma vez só.
+  await expect(menu(page).getByRole('button', { name: 'Minimizar menu' })).toBeInViewport();
+  await expect(page.getByRole('button', { name: /Minimizar menu|Expandir menu/ })).toHaveCount(1);
   const auditoria = menu(page).getByRole('link', { name: 'Auditoria', exact: true });
   await auditoria.scrollIntoViewIfNeeded();
   await expect(auditoria).toBeInViewport();
   expect(errosDaPagina).toEqual([]);
 });
 
-test('PC (1280×720): barra de topo de 52 a 56 px com recolher, contexto do grupo, busca global e conta', async ({ page }) => {
+const botaoDaBusca = (page: Page) => menu(page).getByRole('button', { name: /^Buscar telas e ações, atalho/ });
+const botaoDaConta = (page: Page) => menu(page).getByRole('button', { name: /^Conta de / });
+
+test('PC (1280×720): sem barra de topo; recolher na linha da marca, Buscar abaixo e a conta fixa no pé, com a lista rolada', async ({ page }) => {
   const { errosDaPagina } = await abrir(page, 1280, 720);
-  const minimizar = page.getByRole('button', { name: 'Minimizar menu' });
-  const busca = page.getByRole('combobox', { name: 'Buscar telas e ações em todo o app' });
-  const conta = page.getByRole('button', { name: /^Menu do usuário/ });
-  await expect(busca).toHaveAttribute('placeholder', 'Buscar');
-  // Ajuda fica em Configurações: o topo diz o grupo, sem repetir o título da tela.
-  await expect(page.getByText('Configurações', { exact: true }).and(page.locator(':not([role="menubar"] *)'))).toBeVisible();
-  const [caixaMin, caixaBusca, caixaConta] = [await minimizar.boundingBox(), await busca.boundingBox(), await conta.boundingBox()];
-  // Tudo na mesma faixa: recolher à esquerda, busca e conta à direita, alvos de 44.
-  expect(caixaMin!.x).toBeLessThan(caixaBusca!.x);
-  expect(caixaBusca!.x).toBeLessThan(caixaConta!.x);
+  const minimizar = menu(page).getByRole('button', { name: 'Minimizar menu' });
+  // A tela aberta é a Ajuda, perto do fim da lista: o item ativo rola a lista sozinho, então o Início volta antes de medir.
+  await menu(page).getByRole('link', { name: 'Início', exact: true }).scrollIntoViewIfNeeded();
+  const [caixaMin, caixaBusca, caixaInicio, caixaConta] = [
+    await minimizar.boundingBox(),
+    await botaoDaBusca(page).boundingBox(),
+    await menu(page).getByRole('link', { name: 'Início', exact: true }).boundingBox(),
+    await botaoDaConta(page).boundingBox(),
+  ];
+  // Ordem de cima para baixo: marca + recolher, Buscar, itens, conta; alvos de 44.
+  expect(caixaMin!.y).toBeLessThan(caixaBusca!.y);
+  expect(caixaBusca!.y).toBeLessThan(caixaInicio!.y);
+  expect(caixaInicio!.y).toBeLessThan(caixaConta!.y);
   for (const caixa of [caixaMin!, caixaBusca!, caixaConta!]) expect(caixa.height).toBeGreaterThanOrEqual(44);
-  const barra = await minimizar.evaluate((el) => {
-    let no: HTMLElement | null = el.parentElement;
-    while (no && getComputedStyle(no).borderBottomWidth === '0px') no = no.parentElement;
-    return no?.getBoundingClientRect().height ?? 0;
-  });
-  expect(barra).toBeGreaterThanOrEqual(52);
-  expect(barra).toBeLessThanOrEqual(56);
-  // Ctrl+K continua focando a busca.
+  // Nada de faixa no topo do conteúdo: o título da tela começa no respiro da Tela (8 de folga do painel + 16). Com a barra
+  // de 52 a 56 px ele ficava abaixo de 76; o teto de 72 separa os dois casos (a Ajuda no PC não tem nada antes do título).
+  const titulo = await page.getByRole('heading', { level: 1 }).boundingBox();
+  expect(titulo!.y).toBeLessThan(72);
+  // Rolar a lista até o fim não tira a busca nem a conta da tela.
+  const auditoria = menu(page).getByRole('link', { name: 'Auditoria', exact: true });
+  await auditoria.scrollIntoViewIfNeeded();
+  await expect(botaoDaBusca(page)).toBeInViewport({ ratio: 1 });
+  await expect(botaoDaConta(page)).toBeInViewport({ ratio: 1 });
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('PC (1280): Ctrl+K abre a busca em qualquer tela, Esc fecha; a estrela favorita e o campo vazio mostra os favoritos', async ({ page }) => {
+  const { errosDaPagina } = await abrir(page, 1280, 900);
   await page.keyboard.press('Control+k');
-  await expect(busca).toBeFocused();
+  const folha = page.getByRole('dialog', { name: 'Buscar' });
+  const campo = folha.getByRole('searchbox', { name: 'Buscar tela ou ação' });
+  await expect(campo).toBeFocused();
+  await expect(folha.getByText('Atalhos', { exact: true })).toBeVisible();
+  await campo.fill('alunos');
+  const estrela = folha.getByRole('button', { name: 'Favoritar Alunos', exact: true });
+  await expect(estrela).toBeVisible();
+  const caixa = await estrela.boundingBox();
+  expect(caixa!.width).toBeGreaterThanOrEqual(44);
+  expect(caixa!.height).toBeGreaterThanOrEqual(44);
+  await estrela.click();
+  await expect(folha.getByRole('button', { name: 'Tirar Alunos dos favoritos', exact: true })).toBeVisible();
+  await campo.fill('');
+  await expect(folha.getByText('Favoritos', { exact: true })).toBeVisible();
+  await expect(folha.getByRole('link', { name: /^Alunos, / })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(folha).toHaveCount(0);
+  // Pelo botão do menu abre a mesma busca, e o foco volta a ele ao fechar.
+  await botaoDaBusca(page).click();
+  await expect(page.getByRole('dialog', { name: 'Buscar' }).getByText('Favoritos', { exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(botaoDaBusca(page)).toBeFocused();
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('PC minimizado (1280): a busca vira a lupa com nome e a conta, só as iniciais; o menu da conta abre ao lado e Esc o fecha', async ({ page }) => {
+  const { errosDaPagina } = await abrir(page, 1280, 900);
+  await menu(page).getByRole('button', { name: 'Minimizar menu' }).click();
+  await expect(botaoDaBusca(page)).toBeVisible();
+  await expect(menu(page).getByText('Buscar', { exact: true })).toHaveCount(0);
+  await botaoDaBusca(page).focus();
+  await expect(menu(page).getByText(/^Buscar \((Ctrl|⌘) K\)$/)).toBeVisible();
+  const conta = botaoDaConta(page);
+  const caixaDaConta = await conta.boundingBox();
+  await conta.click();
+  const opcoes = page.getByRole('menu', { name: 'Conta' });
+  await expect(opcoes.getByRole('menuitem', { name: 'Sair' })).toBeVisible();
+  // Recolhido, o menu abre para o lado, sem sair da janela.
+  const caixaDoMenu = await opcoes.boundingBox();
+  expect(caixaDoMenu!.x).toBeGreaterThan(caixaDaConta!.x + caixaDaConta!.width);
+  expect(caixaDoMenu!.y + caixaDoMenu!.height).toBeLessThanOrEqual(900);
+  await page.keyboard.press('Escape');
+  await expect(opcoes).toHaveCount(0);
+  await expect(conta).toBeFocused();
+  await menu(page).getByRole('button', { name: 'Expandir menu' }).click();
   expect(errosDaPagina).toEqual([]);
 });
 
@@ -148,6 +205,9 @@ for (const [largura, altura] of [[900, 720], [768, 1024]] as const) {
     // Sem rolagem para o lado e sem "Minimizar" (o trilho é fixo nesta largura).
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await expect(page.getByRole('button', { name: /Minimizar menu|Expandir menu/ })).toHaveCount(0);
+    // Busca e conta com o rótulo embaixo, como os itens; o nome acessível começa pelo texto visível.
+    await expect(botaoDaBusca(page)).toContainText('Buscar');
+    await expect(botaoDaConta(page)).toContainText('Conta');
     const auditoria = menu(page).getByRole('link', { name: 'Auditoria', exact: true });
     await auditoria.scrollIntoViewIfNeeded();
     await expect(auditoria).toBeInViewport();
@@ -203,5 +263,11 @@ test('celular (390): a barra inferior é a de antes, sem grupos', async ({ page 
   expect(nomes).toEqual(['Início', 'Alunos', 'Biblioteca', 'Planos (Planejamento)', 'Perfil']);
   await expect(menu(page).getByText('Planos', { exact: true })).toBeVisible();
   await expect(menu(page).getByRole('group')).toHaveCount(0);
+  // Sem faixa global no celular: nem busca nem conta no menu; o Perfil abre a mesma busca em "Buscar telas".
+  await expect(botaoDaBusca(page)).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Conta de / })).toHaveCount(0);
+  await menu(page).getByRole('link', { name: 'Perfil', exact: true }).click();
+  await page.getByRole('button', { name: /^Buscar telas/ }).click();
+  await expect(page.getByRole('dialog', { name: 'Buscar' }).getByRole('searchbox', { name: 'Buscar tela ou ação' })).toBeVisible();
   expect(errosDaPagina).toEqual([]);
 });

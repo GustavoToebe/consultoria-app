@@ -11,6 +11,7 @@ import { CampoLeitura } from '../ui/CampoLeitura';
 import { Esqueleto } from '../ui/Esqueleto';
 import { MensagemErro } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
+import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
 
 /** A API recusa período acima de 366 dias; a pasta muito antiga é cortada aqui, como no cartão de frequência. */
@@ -18,7 +19,8 @@ const DIAS_PARA_TRAS = 364;
 
 /**
  * Mobilidade na ficha: só a contagem de dias em que o aluno marcou algo como feito, na semana corrente e na pasta vigente.
- * Não compara com meta nem interpreta. Sem plano de mobilidade publicado na pasta, "—"; com zero, "Nenhum registro".
+ * Não compara com meta nem interpreta. Sem plano de mobilidade publicado na pasta, uma linha que diz isso; com zero,
+ * "Nenhum registro".
  * Quem renderiza já checou `REGISTRO_LER` e `TREINO_LER` e passa o resultado de `useAcompanhamentoDoAluno`.
  */
 export function CartaoMobilidade({ alunoId, acompanhamento }: { alunoId: string; acompanhamento: ReturnType<typeof useAcompanhamentoDoAluno> }) {
@@ -46,13 +48,17 @@ export function CartaoMobilidade({ alunoId, acompanhamento }: { alunoId: string;
   return (
     <Cartao titulo="Mobilidade" descricao="Dias com algum item marcado como feito. Só contagem.">
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
-      {dados === undefined && !erro ? <Esqueleto /> : null}
-      {dados !== undefined ? (
+      {dados === undefined && !erro ? <Esqueleto cartoes={1} /> : null}
+      {/* Sem mobilidade para contar, uma linha só no lugar de dois "—" (guia de 11/11, pág. 33). */}
+      {dados === null ? (
+        <Texto variante="suave">{pasta ? 'A pasta vigente não tem mobilidade publicada.' : 'Nenhuma pasta vigente.'}</Texto>
+      ) : null}
+      {dados ? (
         <View style={estilos.linha}>
-          <CampoLeitura rotulo="Esta semana" valor={textoDosDiasDeMobilidade(dados ? dados.naSemana : null)} numerico />
+          <CampoLeitura rotulo="Esta semana" valor={textoDosDiasDeMobilidade(dados.naSemana)} numerico />
           <CampoLeitura
             rotulo={pasta && inicio && comPeriodo ? `Na pasta ${pasta.titulo} (${dataCurta(inicio)} a ${dataCurta(ate)})` : 'Na pasta vigente'}
-            valor={textoDosDiasDeMobilidade(dados && comPeriodo ? dados.naPasta : null)}
+            valor={textoDosDiasDeMobilidade(comPeriodo ? dados.naPasta : null)}
             numerico
           />
         </View>

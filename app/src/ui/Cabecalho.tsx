@@ -28,6 +28,8 @@ interface Props {
   /** Linha menor abaixo do título (nome do aluno, período). */
   subtitulo?: string;
   acoes?: ReactNode;
+  /** Peça pequena à esquerda do título (a foto do aluno na ficha). Fica na mesma linha, depois da seta de voltar. */
+  antesDoTitulo?: ReactNode;
   /**
    * `sempre` (área do aluno, sem menu lateral) ou `celular` (treinador: no PC a marca já está no menu). Regra única:
    * a marca só aparece no Início de cada área (`/treinador`, `/aluno`); nas outras telas o pedido é ignorado.
@@ -45,7 +47,7 @@ interface Props {
  * Topo das telas: marca do treinador (ou título da página), selo de "sem conexão" e ações à direita. O título é o
  * único h1 da tela (a marca sem título vira o h1 nas telas públicas e do aluno).
  */
-export function Cabecalho({ titulo, subtitulo, trilha, acoes, mostrarMarca, voltar: voltarPedido }: Props) {
+export function Cabecalho({ titulo, subtitulo, trilha, acoes, antesDoTitulo, mostrarMarca, voltar: voltarPedido }: Props) {
   const { marca, offline, usuario } = useSessao();
   const { cores } = useTema();
   const { width } = useWindowDimensions();
@@ -69,6 +71,7 @@ export function Cabecalho({ titulo, subtitulo, trilha, acoes, mostrarMarca, volt
             />
           </View>
         ) : null}
+        {antesDoTitulo}
         <View style={estilos.esquerda}>
           {trilha && trilha.length > 1 && width >= LARGURA_MENU_LATERAL ? (
             // C1: a trilha é navegação (`<nav aria-label="Trilha">` na web), nunca título: o h1 é só o título da tela.

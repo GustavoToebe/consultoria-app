@@ -4,15 +4,13 @@ import type { AlunoDetalhe } from '../src/api/tipos';
 import { ALUNO, erroApi, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type PedidoFalso } from './api-falsa';
 
 /**
- * Foto de perfil do aluno pela equipe (C44), no próprio círculo do topo da ficha, só com `ALUNO_ALTERAR` e aluno não
- * anonimizado. No PC com mouse (1280 px), a camada aparece no hover ou no foco com câmera e lixeira; no celular (390 px),
- * o botão do canto abre a Folha "Foto de perfil". Troca pela galeria (reduzida no aparelho), remove com confirmação na
- * tela e a foto do topo baixa de novo. Dados fictícios.
+ * Foto de perfil do aluno pela equipe (C44), ao lado do nome no cabeçalho da ficha (guia de 11/11, pág. 31), só com
+ * `ALUNO_ALTERAR` e aluno não anonimizado. O próprio círculo (56 px no PC, 44 no celular) é o botão e abre a Folha "Foto de
+ * perfil" em qualquer largura. Troca pela galeria (reduzida no aparelho), remove com confirmação na tela e a foto do topo
+ * baixa de novo. Dados fictícios.
  */
 const ALUNO_ID = 'a0000000-0000-4000-8000-000000000002';
 const CAMINHO = `/alunos/${ALUNO_ID}/foto-perfil`;
-const TROCAR = 'Trocar foto de perfil';
-const REMOVER = 'Remover foto de perfil';
 const CANTO = 'Foto de perfil: trocar ou remover';
 
 const FICHA: AlunoDetalhe = {
@@ -64,7 +62,7 @@ async function abrirFicha(page: Page, o: { largura: number; permissoes: string[]
   });
   await page.goto(`/treinador/alunos/${ALUNO_ID}`);
   jpeg = await jpegFicticio(page);
-  // A foto fica no topo do Resumo, a aba em que a ficha abre.
+  // A foto fica no cabeçalho, ao lado do nome; a ficha abre no Resumo.
   await expect(page.getByRole('tab', { name: 'Resumo', exact: true })).toHaveAttribute('aria-selected', 'true');
   // O bloco antigo de "Dados do aluno" saiu: a foto se troca só no círculo.
   await expect(page.getByText(/Aparece no topo da ficha/)).toHaveCount(0);
@@ -74,105 +72,67 @@ async function abrirFicha(page: Page, o: { largura: number; permissoes: string[]
 
 const pedidosDaFoto = (pedidos: PedidoFalso[], metodo: string) => pedidos.filter((p) => p.metodo === metodo && p.caminho === CAMINHO);
 const foto = (page: Page) => page.getByRole('img', { name: `Foto de perfil de ${ALUNO.nome}` });
-/** A camada é o pai dos botões; escondida, fica com opacidade 0 (continua no Tab, para o foco revelá-la). */
-const camada = (page: Page) => page.getByRole('button', { name: TROCAR }).locator('..');
 
 async function escolherArquivo(page: Page, jpeg: Buffer, clicar: () => Promise<void>) {
   const [seletor] = await Promise.all([page.waitForEvent('filechooser'), clicar()]);
   await seletor.setFiles({ name: 'retrato-ficticio.jpg', mimeType: 'image/jpeg', buffer: jpeg });
 }
 
-test('1280 px com mouse: a camada aparece no hover e no foco; câmera troca e lixeira remove com confirmação', async ({ page }) => {
-  const { pedidos, errosDaPagina, jpeg } = await abrirFicha(page, { largura: 1280, permissoes: PERMISSOES_TREINADOR, comFoto: false });
-  const trocar = page.getByRole('button', { name: TROCAR });
-  // Sem foto: a camada fica escondida, só com a câmera; sem botão do canto.
-  await expect(camada(page)).toHaveCSS('opacity', '0');
-  await expect(page.getByRole('button', { name: REMOVER })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: CANTO })).toHaveCount(0);
-  const tamanho = await camada(page).boundingBox();
-  expect(Math.round(tamanho!.width)).toBe(96);
+for (const [largura, tamanho] of [[1280, 56], [390, 44]] as const) {
+  test(`${largura} px: o círculo de ${tamanho} px ao lado do nome abre a Folha "Foto de perfil" para trocar e remover`, async ({ page }) => {
+    const { pedidos, errosDaPagina, jpeg } = await abrirFicha(page, { largura, permissoes: PERMISSOES_TREINADOR, comFoto: false });
+    const circulo = page.getByRole('button', { name: CANTO });
+    const caixa = (await circulo.boundingBox())!;
+    expect(Math.round(caixa.width)).toBe(tamanho);
+    expect(caixa.height).toBeGreaterThanOrEqual(44);
+    // Ao lado do título (o h1 é o nome), na mesma faixa de cima.
+    const titulo = (await page.getByRole('heading', { level: 1 }).boundingBox())!;
+    expect(caixa.x + caixa.width).toBeLessThanOrEqual(titulo.x);
+    expect(caixa.y).toBeLessThan(titulo.y + titulo.height);
+    // Não há mais camada de hover nem a foto grande no Resumo.
+    await expect(page.getByRole('button', { name: /^(Trocar|Remover) foto de perfil$/ })).toHaveCount(0);
 
-  // Foco de teclado revela a camada.
-  await trocar.focus();
-  await expect(camada(page)).toHaveCSS('opacity', '1');
-  await trocar.blur();
-  await expect(camada(page)).toHaveCSS('opacity', '0');
+    // Sem foto: a Folha só oferece escolher.
+    await circulo.click();
+    const folha = page.getByRole('dialog', { name: 'Foto de perfil' });
+    await expect(folha.getByText('Escolher da galeria')).toBeVisible();
+    await expect(folha.getByText('Remover foto')).toHaveCount(0);
+    // "Tirar foto" só no celular nativo.
+    await expect(folha.getByText('Tirar foto')).toHaveCount(0);
+    const baixadas = pedidosDaFoto(pedidos, 'GET').length;
+    await escolherArquivo(page, jpeg, () => folha.getByText('Escolher da galeria').click());
+    await expect.poll(() => pedidosDaFoto(pedidos, 'PUT').length, { timeout: 15_000 }).toBe(1);
+    // O arquivo vai com nome fixo, já em JPEG: o nome original não sai do aparelho.
+    const corpo = String(pedidosDaFoto(pedidos, 'PUT')[0].corpo);
+    expect(corpo).toContain('filename="foto.jpg"');
+    expect(corpo).not.toContain('retrato-ficticio');
+    await expect(page.getByText('Foto de perfil salva.')).toBeVisible();
+    await expect.poll(() => pedidosDaFoto(pedidos, 'GET').length).toBeGreaterThan(baixadas);
+    await expect(foto(page)).toBeVisible();
 
-  // Hover revela; a câmera abre direto a escolha do arquivo.
-  await trocar.hover();
-  await expect(camada(page)).toHaveCSS('opacity', '1');
-  const caixa = await trocar.boundingBox();
-  expect(caixa!.width).toBeGreaterThanOrEqual(44);
-  expect(caixa!.height).toBeGreaterThanOrEqual(44);
-  const baixadas = pedidosDaFoto(pedidos, 'GET').length;
-  await escolherArquivo(page, jpeg, () => trocar.click());
-  await expect.poll(() => pedidosDaFoto(pedidos, 'PUT').length, { timeout: 15_000 }).toBe(1);
-  // O arquivo vai com nome fixo, já em JPEG: o nome original não sai do aparelho.
-  const corpo = String(pedidosDaFoto(pedidos, 'PUT')[0].corpo);
-  expect(corpo).toContain('filename="foto.jpg"');
-  expect(corpo).not.toContain('retrato-ficticio');
-  await expect(page.getByText('Foto de perfil salva.')).toBeVisible();
-  await expect.poll(() => pedidosDaFoto(pedidos, 'GET').length).toBeGreaterThan(baixadas);
-  await expect(foto(page)).toBeVisible();
+    // Com foto, a Folha oferece remover, que pede confirmação na tela.
+    await circulo.click();
+    await page.getByRole('dialog', { name: 'Foto de perfil' }).getByText('Remover foto').click();
+    await expect(page.getByText('Remover a foto de perfil?')).toBeVisible();
+    expect(pedidosDaFoto(pedidos, 'DELETE')).toHaveLength(0);
+    await page.getByRole('button', { name: 'Remover', exact: true }).click();
+    await expect.poll(() => pedidosDaFoto(pedidos, 'DELETE').length).toBe(1);
+    await expect(page.getByText('Foto de perfil removida.')).toBeVisible();
+    await expect(foto(page)).toHaveCount(0);
 
-  // Com foto, a lixeira aparece ao lado da câmera e pede confirmação na tela.
-  await trocar.hover();
-  const remover = page.getByRole('button', { name: REMOVER });
-  await expect(remover).toHaveCount(1);
-  await remover.click();
-  await expect(page.getByText('Remover a foto de perfil?')).toBeVisible();
-  expect(pedidosDaFoto(pedidos, 'DELETE')).toHaveLength(0);
-  await page.getByRole('button', { name: 'Remover', exact: true }).click();
-  await expect.poll(() => pedidosDaFoto(pedidos, 'DELETE').length).toBe(1);
-  await expect(page.getByText('Foto de perfil removida.')).toBeVisible();
-  await expect(page.getByRole('button', { name: REMOVER })).toHaveCount(0);
-  await expect(foto(page)).toHaveCount(0);
-  expect(errosDaPagina).toEqual([]);
-});
-
-test('390 px: o botão do canto abre a Folha "Foto de perfil" para trocar e remover', async ({ page }) => {
-  const { pedidos, errosDaPagina, jpeg } = await abrirFicha(page, { largura: 390, permissoes: PERMISSOES_TREINADOR, comFoto: true });
-  await expect(foto(page)).toBeVisible();
-  // Sem camada no toque.
-  await expect(page.getByRole('button', { name: TROCAR })).toHaveCount(0);
-  const canto = page.getByRole('button', { name: CANTO });
-  // O botão do canto mora dentro do círculo, que tem 72 px abaixo de 768 px de largura.
-  const circulo = await canto.locator('..').boundingBox();
-  expect(Math.round(circulo!.width)).toBe(72);
-  const caixa = await canto.boundingBox();
-  expect(caixa!.width).toBeGreaterThanOrEqual(44);
-
-  await canto.click();
-  const folha = page.getByRole('dialog', { name: 'Foto de perfil' });
-  await expect(folha).toBeVisible();
-  await expect(folha.getByText('Escolher da galeria')).toBeVisible();
-  await expect(folha.getByText('Remover foto')).toBeVisible();
-  // "Tirar foto" só no celular nativo.
-  await expect(folha.getByText('Tirar foto')).toHaveCount(0);
-  await escolherArquivo(page, jpeg, () => folha.getByText('Escolher da galeria').click());
-  await expect.poll(() => pedidosDaFoto(pedidos, 'PUT').length, { timeout: 15_000 }).toBe(1);
-  await expect(page.getByText('Foto de perfil salva.')).toBeVisible();
-
-  await canto.click();
-  await page.getByRole('dialog', { name: 'Foto de perfil' }).getByText('Remover foto').click();
-  await expect(page.getByText('Remover a foto de perfil?')).toBeVisible();
-  await page.getByRole('button', { name: 'Remover', exact: true }).click();
-  await expect.poll(() => pedidosDaFoto(pedidos, 'DELETE').length).toBe(1);
-  await expect(page.getByText('Foto de perfil removida.')).toBeVisible();
-  await expect(foto(page)).toHaveCount(0);
-  // Sem foto, a Folha não oferece remover.
-  await canto.click();
-  await expect(page.getByRole('dialog', { name: 'Foto de perfil' }).getByText('Escolher da galeria')).toBeVisible();
-  await expect(page.getByRole('dialog', { name: 'Foto de perfil' }).getByText('Remover foto')).toHaveCount(0);
-  expect(errosDaPagina).toEqual([]);
-});
+    // A foto acompanha o nome em todas as abas.
+    await page.getByRole('tab', { name: 'Ficha do aluno', exact: true }).click();
+    await expect(page.getByRole('button', { name: CANTO })).toBeVisible();
+    expect(errosDaPagina).toEqual([]);
+  });
+}
 
 for (const largura of [390, 1280]) {
   test(`equipe sem ALUNO_ALTERAR vê só a foto, sem nada por cima, em ${largura}px`, async ({ page }) => {
     const { pedidos, errosDaPagina } = await abrirFicha(page, { largura, permissoes: PERMISSOES_TREINADOR.filter((p) => p !== 'ALUNO_ALTERAR'), comFoto: true });
     await expect(foto(page)).toBeVisible();
     await foto(page).hover();
-    await expect(page.getByRole('button', { name: new RegExp(`^(${TROCAR}|${REMOVER}|${CANTO})$`) })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: new RegExp(`^${CANTO}$`) })).toHaveCount(0);
     expect(pedidos.filter((p) => p.metodo !== 'GET' && p.caminho === CAMINHO)).toEqual([]);
     expect(errosDaPagina).toEqual([]);
   });
@@ -184,19 +144,21 @@ test('foto recusada (422) vira aviso e o aluno anonimizado (409) some com a edi�
     largura: 1280, permissoes: PERMISSOES_TREINADOR, comFoto: true,
     put: (route) => json(route, resposta.corpo, resposta.status),
   });
-  const trocar = page.getByRole('button', { name: TROCAR });
-  await trocar.hover();
-  await escolherArquivo(page, ficha.jpeg, () => trocar.click());
+  const circulo = page.getByRole('button', { name: CANTO });
+  const galeria = () => page.getByRole('dialog', { name: 'Foto de perfil' }).getByText('Escolher da galeria');
+  await circulo.click();
+  await escolherArquivo(page, ficha.jpeg, () => galeria().click());
   await expect(page.getByText('A foto passa do tamanho permitido.')).toBeVisible();
-  await expect(trocar).toBeEnabled();
+  await expect(circulo).toBeEnabled();
 
   // Anonimizado entre abrir a ficha e enviar: aviso, a ficha é buscada de novo e a edição sai do círculo.
   resposta = erroApi(409, 'Aluno anonimizado.', 'ALUNO_ANONIMIZADO');
   ficha.anonimizar();
-  await trocar.hover();
-  await escolherArquivo(page, ficha.jpeg, () => trocar.click());
+  await circulo.click();
+  await escolherArquivo(page, ficha.jpeg, () => galeria().click());
   await expect(page.getByText('Aluno anonimizado.')).toBeVisible();
-  await expect(page.getByRole('button', { name: new RegExp(`^(${TROCAR}|${REMOVER})$`) })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: CANTO })).toHaveCount(0);
+  await expect(foto(page)).toBeVisible();
   expect(ficha.errosDaPagina).toEqual([]);
 });
 

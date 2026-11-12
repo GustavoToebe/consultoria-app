@@ -1,11 +1,11 @@
 import { temFuncionalidade } from './funcionalidadesDoPlano';
-import { GRUPOS_DO_MENU, posicaoNoMenu, type GrupoDoMenu } from './gruposDoMenu';
+import { posicaoNoMenu, type GrupoDoMenu } from './gruposDoMenu';
 import { podeAcessarTela } from './permissoes';
 import { NOME_DO_PRODUTO } from './produto';
 
 /**
- * Seção de uma tela em "Todas as telas" e na busca: o grupo do menu lateral (D24 de `docs/planos/auditoria-ficha.md`,
- * os mesmos do D6), tirado de `MENU_DO_TREINADOR`. `null` = o Início, no topo e sem título, como no menu.
+ * Seção de uma tela na busca global: o grupo do menu lateral (D24 de `docs/planos/auditoria-ficha.md`, os mesmos do
+ * D6), tirado de `MENU_DO_TREINADOR`. `null` = o Início, no topo e sem título, como no menu.
  */
 export type SecaoDeTela = GrupoDoMenu | null;
 
@@ -20,7 +20,7 @@ export interface TelaDoCatalogo {
   palavras: string[];
   /** Permissão extra além da que a própria tela já pede em `podeAcessarTela`; `null` = nenhuma. */
   permissao: string | null;
-  /** Atalho para uma ação (não é uma tela): aparece na busca, não em "Todas as telas" e não pode ser favorito. */
+  /** Atalho para uma ação (não é uma tela): aparece na busca e não pode ser favorito. */
   acao?: boolean;
   /** Funcionalidade do plano (`MOBILIDADE`, `PDF`, `EQUIPE`) de que o item depende; desligada, o item some. Ausente = sempre. */
   funcionalidade?: string;
@@ -31,7 +31,7 @@ export interface TelaDoCatalogo {
  * `podeAcessarTela` (a mesma regra do menu e da guarda) mais a `permissao` do item; a API autoriza de novo.
  */
 const CATALOGO: readonly Omit<TelaDoCatalogo, 'secao'>[] = [
-  // Telas na ordem de "Todas as telas" (a do menu); quem ordena de verdade é `agruparPorSecao`.
+  // Telas na ordem do menu; a busca desempata por esta ordem.
   { id: 'inicio', rotulo: 'Início', href: '/treinador', palavras: ['painel', 'resumo', 'home'], permissao: null },
   { id: 'alunos', rotulo: 'Alunos', href: '/treinador/alunos', palavras: ['clientes', 'lista', 'ficha', 'cadastro'], permissao: null },
   { id: 'atualizacoes', rotulo: 'Atualizações', href: '/treinador/atualizacoes', palavras: ['check-in', 'checkin', 'revisar', 'feedback', 'atraso'], permissao: null },
@@ -46,7 +46,7 @@ const CATALOGO: readonly Omit<TelaDoCatalogo, 'secao'>[] = [
   { id: 'importacao', rotulo: 'Importação', href: '/treinador/importacao', palavras: ['planilha', 'xlsx', 'csv', 'importar alunos', 'importar pesos', 'importar alimentos', 'importar exercicios'], permissao: null },
   { id: 'ajuda', rotulo: 'Ajuda', href: '/treinador/ajuda', palavras: ['guia', 'tutorial', 'suporte', 'duvidas', 'perguntas', 'conhecer o menu'], permissao: null },
   { id: 'auditoria', rotulo: 'Auditoria', href: '/treinador/auditoria', palavras: ['historico', 'registro de acoes', 'log', 'eventos'], permissao: null },
-  // "sair" não abre tela (é o último item do cartão do usuário); "senha" acha as duas telas que tratam dela.
+  // "sair" não abre tela (é o último item do menu da conta); "senha" acha as duas telas que tratam dela.
   { id: 'meus-dados', rotulo: 'Meus dados', href: '/treinador/meus-dados', palavras: ['nome', 'email', 'telefone', 'senha', 'trocar senha', 'perfil', 'acesso'], permissao: null },
   { id: 'seguranca', rotulo: 'Segurança', href: '/treinador/seguranca', palavras: ['senha', 'verificacao em duas etapas', 'duas etapas', '2fa', 'mfa', 'autenticador', 'codigo', 'codigos de recuperacao', 'qr'], permissao: null },
   { id: 'minha-conta', rotulo: 'Assinatura e faturas', href: '/treinador/minha-conta', palavras: ['minha conta', 'plano', 'assinatura', 'faturas', 'boleto', 'contrato', 'cadastro da consultoria', 'consumo', 'limites'], permissao: null },
@@ -71,8 +71,8 @@ const CATALOGO: readonly Omit<TelaDoCatalogo, 'secao'>[] = [
 ];
 
 /**
- * Grupo do menu de um caminho do catálogo: o do item do menu, o do item que abre a tela (Meus dados e as outras do cartão
- * do usuário ficam com o Perfil, em Configurações; Termos com a Ajuda) ou o da tela de que ela é subpágina. Caminho fora
+ * Grupo do menu de um caminho do catálogo: o do item do menu, o do item que abre a tela (Meus dados e as outras do menu
+ * da conta ficam com o Perfil, em Configurações; Termos com a Ajuda) ou o da tela de que ela é subpágina. Caminho fora
  * do menu cai em Configurações (D24).
  */
 export function secaoDaTela(href: string): SecaoDeTela {
@@ -138,30 +138,6 @@ export function legendaDaTela(tela: Pick<TelaDoCatalogo, 'secao' | 'acao'>): str
   return tela.acao ? `Ação · ${lugar}` : lugar;
 }
 
-const ORDEM_DAS_SECOES: readonly SecaoDeTela[] = [null, ...GRUPOS_DO_MENU];
-
-/**
- * Telas (sem as ações) de "Todas as telas", nos grupos e na ordem do menu lateral: o Início sem título no topo, depois
- * "Acompanhamento", "Conteúdo", "Negócio" e "Configurações". Dentro do grupo, os itens do menu na ordem dele e, depois, as
- * telas abertas a partir de um item (as do cartão do usuário, Termos), na ordem do catálogo. Seção sem item não aparece.
- */
-export function agruparPorSecao(telas: readonly TelaDoCatalogo[]): { secao: SecaoDeTela; telas: TelaDoCatalogo[] }[] {
-  const chave = (t: TelaDoCatalogo, i: number) => {
-    const lugar = posicaoNoMenu(caminhoDoHref(t.href));
-    const noCatalogo = TELAS.findIndex((c) => c.id === t.id);
-    // Tela que não é item do menu: no fim do grupo, depois dos itens, na ordem do catálogo.
-    return [lugar?.propria ? 0 : 1, lugar?.indice ?? Number.MAX_SAFE_INTEGER, noCatalogo < 0 ? TELAS.length + i : noCatalogo];
-  };
-  const ordenadas = telas
-    .map((t, i) => ({ t, k: chave(t, i) }))
-    .filter(({ t }) => !t.acao)
-    .sort((a, b) => a.k[0] - b.k[0] || a.k[1] - b.k[1] || a.k[2] - b.k[2])
-    .map(({ t }) => t);
-  return ORDEM_DAS_SECOES
-    .map((secao) => ({ secao, telas: ordenadas.filter((t) => t.secao === secao) }))
-    .filter((g) => g.telas.length > 0);
-}
-
 /** Chave do AsyncStorage dos favoritos; por usuário, apagada ao sair da conta. */
 export const chaveDosFavoritos = (usuarioId: string) => `treinos:${usuarioId}:favoritos`;
 
@@ -212,7 +188,7 @@ const TITULOS_DE_SUBTELAS: readonly [string, string][] = [
   ['/treinador/termos', 'Termos e privacidade'],
 ];
 
-/** Nome da tela do caminho atual para a barra de topo; `null` quando não se sabe (a barra mostra só a consultoria). */
+/** Nome da tela do caminho atual para o título da aba do navegador; `null` quando não se sabe (fica só a consultoria). */
 export function nomeDaTela(caminho: string, telas: readonly TelaDoCatalogo[] = TELAS): string | null {
   for (const [prefixo, nome] of TITULOS_DE_SUBTELAS) {
     if (caminho === prefixo || caminho.startsWith(`${prefixo}/`)) return nome;

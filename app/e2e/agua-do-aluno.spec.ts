@@ -136,3 +136,32 @@ for (const largura of [390, 1280]) {
     expect(errosDaPagina).toEqual([]);
   });
 }
+
+// Guia de 11/11, pág. 33: sem nenhuma marcação na semana, uma frase no lugar de sete linhas de "—"; com a meta da
+// dieta, ela é dita; sem dieta publicada em uso, a frase diz isso (e nunca soa como "não cumpriu").
+for (const largura of [390, 1280]) {
+  for (const comDieta of [true, false]) {
+    test(`treinador: água sem registro vira uma frase ${comDieta ? 'com a meta da dieta' : 'sem dieta em uso'} (${largura}px)`, async ({ page }) => {
+      await page.setViewportSize({ width: largura, height: 900 });
+      await fixarHoje(page);
+      const { errosDaPagina } = await simularApi(page, {
+        ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'REGISTRO_LER', 'DIETA_LER'] })),
+        'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
+        'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+        [`GET /alunos/${ALUNO_ID}`]: { corpo: FICHA },
+        [`GET /alunos/${ALUNO_ID}/pastas`]: { corpo: [] },
+        [`GET /alunos/${ALUNO_ID}/agua`]: { corpo: [] },
+        [`GET /alunos/${ALUNO_ID}/planos-dieta`]: { corpo: comDieta ? [DIETA_ATIVA] : [] },
+        [`GET /planos-dieta/${DIETA_ATIVA.id}/versoes/1`]: { corpo: dietaFalsa(4, 3).dieta },
+      });
+      await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=acompanhamento`);
+      await expect(page.getByRole('heading', { name: 'Água', exact: true })).toBeVisible();
+      await expect(page.getByText('Nenhum registro nos últimos 7 dias')).toBeVisible();
+      if (comDieta) await expect(page.getByText('Água por dia na dieta: 3,0 L.')).toBeVisible();
+      else await expect(page.getByText(/^Sem dieta publicada em uso/)).toBeVisible();
+      // As sete linhas de dia somem: nem "Hoje · 19/10" nem os traços.
+      await expect(page.getByText('Hoje · 19/10')).toHaveCount(0);
+      expect(errosDaPagina).toEqual([]);
+    });
+  }
+}

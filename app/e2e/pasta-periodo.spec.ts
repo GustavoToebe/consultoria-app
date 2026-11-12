@@ -155,3 +155,43 @@ test('pasta nova: uma pasta só não oferece copiar', async ({ page }) => {
   await expect(page.getByRole('dialog').getByText('Copiar de')).toHaveCount(0);
   expect(errosDaPagina).toEqual([]);
 });
+
+// Guia de 11/11, pág. 33: na lista, título, selo "Rascunho" e período na mesma linha; pasta sem datas = "Não definido".
+// O selo só aparece com as listas de planos conhecidas e nenhum plano da pasta publicado; lista que falhou = sem selo.
+const plano = (id: string, pastaId: string, versaoPublicada: number) => ({
+  id, alunoId: ALUNO_ID, pastaId, titulo: `Plano ${id}`, inicio: null, fim: null, ativo: versaoPublicada > 0,
+  versaoPublicada, publicadoEm: null, rascunhoAlteradoDepoisDePublicar: false, versao: 1,
+});
+const PASTAS_DO_SELO: PastaResumo[] = [
+  ...PASTAS,
+  { id: 'p4', alunoId: ALUNO_ID, titulo: 'Plano 18', inicio: null, fim: null, concluidaEm: null },
+];
+
+for (const largura of [390, 1280]) {
+  for (const dietaFalha of [false, true]) {
+    test(`lista de pastas: selo Rascunho e "Não definido"${dietaFalha ? ', dieta que falhou não afirma rascunho' : ''} (${largura}px)`, async ({ page }) => {
+      await page.setViewportSize({ width: largura, height: 900 });
+      const { errosDaPagina } = await simularApi(page, {
+        ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'PASTA_ALTERAR', 'TREINO_LER', 'DIETA_LER'] })),
+        'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
+        'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+        [`GET /alunos/${ALUNO_ID}`]: { corpo: FICHA },
+        [`GET /alunos/${ALUNO_ID}/pastas`]: { corpo: PASTAS_DO_SELO },
+        // p1 (concluída) e p2 só com rascunho; p4 com a dieta publicada.
+        [`GET /alunos/${ALUNO_ID}/planos-treino`]: { corpo: [plano('t1', 'p1', 0), plano('t2', 'p2', 0), plano('t4', 'p4', 0)] },
+        [`GET /alunos/${ALUNO_ID}/planos-dieta`]: dietaFalha
+          ? { status: 500, corpo: { codigo: 'ERRO_INTERNO', mensagem: 'Falhou.' } }
+          : { corpo: [plano('d2', 'p2', 0), plano('d4', 'p4', 1)] },
+        [`GET /alunos/${ALUNO_ID}/planos-mobilidade`]: { corpo: [] },
+      });
+
+      await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=planos`);
+      await expect(page.getByRole('button', { name: /^Pasta Plano 18, aberta, período Não definido\. Abrir\.$/ })).toBeVisible();
+      await expect(page.getByText('Período: Não definido', { exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: /^Pasta Plano 16, concluída, período/ })).toBeVisible();
+      // Só a Plano 17 pode ganhar o selo: a 18 tem a dieta publicada e a 16 está concluída (os nomes acima já o excluem).
+      await expect(page.getByRole('button', { name: dietaFalha ? /^Pasta Plano 17, aberta, período/ : /^Pasta Plano 17, aberta, rascunho, período/ })).toBeVisible();
+      expect(errosDaPagina).toEqual([]);
+    });
+  }
+}

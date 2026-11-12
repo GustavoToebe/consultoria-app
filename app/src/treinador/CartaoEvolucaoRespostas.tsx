@@ -42,10 +42,10 @@ export function CartaoEvolucaoRespostas({ alunoId }: { alunoId: string }) {
   const linhas = serie ? linhasDaLista(serie, todas ? null : DATAS_RECENTES) : [];
 
   return (
-    <Cartao titulo="Evolução das respostas" descricao="Notas e números respondidos nas atualizações, pergunta por pergunta.">
+    // Sem resposta numérica, a frase vai na faixa e o cartão fica sem corpo (guia de 11/11, pág. 33).
+    <Cartao titulo="Evolução das respostas" descricao={dados && !serie ? 'Nenhuma resposta numérica ainda.' : 'Notas e números respondidos nas atualizações, pergunta por pergunta.'}>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
-      {!dados && carregando ? <Esqueleto /> : null}
-      {dados && !serie ? <Texto variante="suave">Nenhuma resposta numérica ainda.</Texto> : null}
+      {!dados && carregando ? <Esqueleto cartoes={1} /> : null}
       {dados && serie ? <Texto variante="pequeno">{textoDoAlcance(dados)}</Texto> : null}
       {serie && series.length > OPCOES_PARA_BUSCAR ? (
         <EscolhaEmFolha rotulo="Pergunta" valor={serie.perguntaId} opcoes={opcoes} aoMudar={escolher} titulo="Escolher a pergunta" />

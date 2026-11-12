@@ -66,12 +66,12 @@ describe('passeio pelo menu: passos', () => {
     expect(andamentoDoPasseio(-1, 3).indice).toBe(0);
   });
 
-  it('todo alvo dos guias aponta para um item de menu e todo passo tem texto', () => {
+  it('todo alvo dos guias aponta para um item de menu (ou a busca e a conta do menu lateral) e todo passo tem texto', () => {
     for (const guia of Object.values(GUIAS)) {
       expect(guia.passeio.length).toBeGreaterThan(2);
       for (const p of guia.passeio) {
         expect(p.texto.length).toBeGreaterThan(10);
-        if (p.alvo && p.alvo !== ALVO_PRIMEIROS_PASSOS) expect(p.alvo).toMatch(/^menu:\//);
+        if (p.alvo && p.alvo !== ALVO_PRIMEIROS_PASSOS) expect(p.alvo).toMatch(/^menu:(\/|busca$|conta$)/);
       }
     }
   });

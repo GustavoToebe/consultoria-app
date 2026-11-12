@@ -1,7 +1,7 @@
 import { FUNCIONALIDADES } from './funcionalidadesDoPlano';
 import { pode } from './permissoes';
 import { MENU_DO_TREINADOR, posicaoNoMenu } from './gruposDoMenu';
-import { agruparPorSecao, alternarFavorito, atalhosPadrao, buscarTelas, chaveDosFavoritos, favoritosVisiveis, legendaDaTela, lerFavoritos, nomeDaTela, semAcento, TELAS, telasDaOrigem, telasPermitidas, tituloDaPagina, voltarAutomatico } from './telas';
+import { alternarFavorito, atalhosPadrao, buscarTelas, chaveDosFavoritos, favoritosVisiveis, legendaDaTela, lerFavoritos, nomeDaTela, semAcento, TELAS, telasDaOrigem, telasPermitidas, tituloDaPagina, voltarAutomatico } from './telas';
 
 const com = (codigos: string[]) => (codigo: string) => pode(codigos, codigo);
 const ADMIN = ['PAINEL_VER', 'ALUNO_LER', 'ALUNO_ALTERAR', 'ALUNO_SENSIVEL_LER', 'ATUALIZACAO_LER', 'BIBLIOTECA_LER', 'MODELO_LER', 'MODELO_ALTERAR', 'MARCA_ALTERAR', 'EQUIPE_LER', 'USUARIO_ALTERAR', 'AUDITORIA_LER'];
@@ -28,8 +28,8 @@ describe('catálogo de telas', () => {
     expect(ids(buscarTelas('medicacao', sem))).toEqual([]);
     const com1 = telasPermitidas(com([...ADMIN, 'ERGOGENICO_LER']));
     expect(ids(buscarTelas('medicacao', com1))).toEqual(['ergogenicos']);
-    // É atalho para a aba da Biblioteca, não uma tela: fica fora de "Todas as telas".
-    expect(agruparPorSecao(com1).flatMap((s) => ids(s.telas))).not.toContain('ergogenicos');
+    // É atalho para a aba da Biblioteca, não uma tela: não vira favorito.
+    expect(ids(favoritosVisiveis(['ergogenicos'], com1))).toEqual([]);
   });
 
   it('questionários: atalho só com QUESTIONARIO_LER, "Novo questionário" só com ALTERAR; quem só lê questionário vê o Planejamento', () => {
@@ -41,7 +41,7 @@ describe('catálogo de telas', () => {
     expect(ids(telasPermitidas(com(['QUESTIONARIO_LER', 'QUESTIONARIO_ALTERAR'])))).toContain('nova-anamnese');
     expect(leitor).not.toContain('nova-anamnese');
     expect(ids(buscarTelas('check-in', telasPermitidas(com(['QUESTIONARIO_LER']))))).toContain('questionarios');
-    expect(agruparPorSecao(telasPermitidas(com(['QUESTIONARIO_LER']))).flatMap((s) => ids(s.telas))).not.toContain('questionarios');
+    expect(ids(favoritosVisiveis(['questionarios'], telasPermitidas(com(['QUESTIONARIO_LER']))))).toEqual([]);
   });
 
   it('Comunidade só com TREINO_LER (a regra da tela, sem permissão extra no catálogo) e a busca acha por "mural" e "aulões"', () => {
@@ -184,30 +184,12 @@ describe('busca de telas', () => {
   });
 });
 
-describe('Todas as telas e favoritos', () => {
+describe('favoritos e legenda da busca', () => {
   const permitidas = telasPermitidas(com(ADMIN), TELAS, undefined, false, true);
-  it('agrupa nos grupos do menu lateral, na ordem dele, e deixa as ações de fora (D24)', () => {
-    const grupos = agruparPorSecao(permitidas);
-    expect(grupos.map((g) => g.secao)).toEqual([null, 'Acompanhamento', 'Conteúdo', 'Negócio', 'Configurações']);
-    expect(grupos.map((g) => ids(g.telas))).toEqual([
-      ['inicio'],
-      ['alunos', 'atualizacoes', 'agenda'],
-      ['biblioteca', 'planejamento'],
-      ['numeros'],
-      // Os itens do menu primeiro; depois as telas do cartão do usuário (com o Perfil) e Termos (com a Ajuda).
-      ['equipe', 'importacao', 'ajuda', 'auditoria', 'meus-dados', 'seguranca', 'marca', 'ajustes', 'termos'],
-    ]);
-    expect(agruparPorSecao(telasPermitidas(com([]))).map((g) => g.secao)).toEqual(['Configurações']);
-  });
-  it('Negócio aparece com Interessados, Financeiro e Números, na ordem do menu', () => {
-    const negocio = telasPermitidas(com(['PAINEL_VER', 'INSCRICAO_LER', 'FINANCEIRO_LER', 'ALUNO_LER', 'CONTA_LER']), TELAS, undefined, true, true);
-    const grupos = agruparPorSecao(negocio);
-    expect(grupos.find((g) => g.secao === 'Negócio')?.telas.map((t) => t.id)).toEqual(['interessados', 'financeiro', 'numeros']);
-    expect(grupos.find((g) => g.secao === 'Configurações')?.telas.map((t) => t.id)).toContain('minha-conta');
-  });
-  it('a ordem não depende da ordem em que as telas chegam', () => {
-    const grupos = agruparPorSecao([...permitidas].reverse());
-    expect(grupos.flatMap((g) => ids(g.telas))).toEqual(agruparPorSecao(permitidas).flatMap((g) => ids(g.telas)));
+  it('as telas da conta ficam em Configurações e as de Negócio, em Negócio', () => {
+    const secao = (id: string) => TELAS.find((t) => t.id === id)?.secao;
+    expect(['interessados', 'financeiro', 'numeros'].map(secao)).toEqual(['Negócio', 'Negócio', 'Negócio']);
+    expect(['meus-dados', 'seguranca', 'minha-conta', 'marca', 'ajustes', 'termos'].every((id) => secao(id) === 'Configurações')).toBe(true);
   });
   it('todo item do menu lateral tem a tela no catálogo, no mesmo grupo, e toda tela do catálogo cai num lugar do menu', () => {
     for (const lugar of MENU_DO_TREINADOR) {

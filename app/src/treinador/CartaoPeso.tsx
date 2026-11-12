@@ -148,6 +148,8 @@ export function CartaoPeso({ alunoId }: { alunoId?: string }) {
           faixas={ciclo.ativo && preferencias.mostrarFasesDoCiclo ? ciclo.faixasDe(cronologico[0].data, cronologico[cronologico.length - 1].data) : undefined}
         />
       ) : null}
+      {/* A legenda fica logo acima da tabela (guia de 11/11, pág. 34): com 12 linhas, embaixo ninguém a via. */}
+      {comTabela && algumaVariacao ? <LegendaDaVariacao meta={meta} quem={daEquipe ? 'equipe' : 'aluno'} /> : null}
       {comTabela && lista.length > 0 ? (
         <Tabela
           rotulo="Registros de peso"
@@ -156,7 +158,6 @@ export function CartaoPeso({ alunoId }: { alunoId?: string }) {
           colunas={colunas}
         />
       ) : null}
-      {comTabela && algumaVariacao ? <LegendaDaVariacao meta={meta} quem={daEquipe ? 'equipe' : 'aluno'} /> : null}
       {comTabela && lista.length > LINHAS_INICIAIS ? (
         <Botao rotulo={todos ? 'Mostrar só os últimos' : `Mostrar todos (${lista.length})`} tipo="fantasma" aoTocar={() => setTodos((v) => !v)} />
       ) : null}

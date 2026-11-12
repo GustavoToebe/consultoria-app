@@ -1,13 +1,13 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { MessageSquare, Pin, PinOff, Plus, ShieldCheck, Trash2, UserX, Video } from 'lucide-react-native';
+import { MessageSquare, Pin, PinOff, Plus, Settings, ShieldCheck, Trash2, UserX, Video } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import {
   alternarFixadoDoPost, baixarFotoDoMuralDaEquipe, criarAula, dispensarDenuncias, listarAulasDaEquipe, listarMuralDaEquipe,
-  obterConfiguracaoDaComunidade, removerApelidoDoAutor, removerPostDoMural, salvarConfiguracaoDaComunidade,
+  removerApelidoDoAutor, removerPostDoMural,
 } from '../../api/comunidade';
-import type { AlvoDosComentarios, ConfiguracaoDaComunidade, PostDoMural } from '../../api/comunidadeTipos';
+import type { AlvoDosComentarios, PostDoMural } from '../../api/comunidadeTipos';
 import { ErroApi } from '../../api/cliente';
 import { BarraDoMural } from '../../comunidade/BarraDoMural';
 import { CartaoDoPost } from '../../comunidade/CartaoDoPost';
@@ -15,17 +15,17 @@ import { FolhaComentarios } from '../../comunidade/FolhaComentarios';
 import { FolhaNovaPublicacao } from '../../comunidade/FolhaNovaPublicacao';
 import { type FiltroDoMural, filtrosParaApi, type RascunhoDoPost, textoDoMuralVazio, TIPO_PADRAO_DO_POST } from '../../dominio/comunidade';
 import { erroDoLink } from '../../dominio/links';
+import { FolhaConfiguracoesDoMural } from '../../treinador/comunidade/FolhaConfiguracoesDoMural';
 import { FolhaDeAcoes } from '../../treinador/FolhaDeAcoes';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, LARGURA_LISTA, RAIO } from '../../tema/tokens';
+import { ALVO_TOQUE, espaco, RAIO } from '../../tema/tokens';
 import { abrirLinkExterno } from '../../ui/abrirLinkExterno';
 import { Abas } from '../../ui/Abas';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Campo } from '../../ui/Campo';
-import { Interruptor } from '../../ui/Campos';
 import { Cartao } from '../../ui/Cartao';
 import { separarErros, textoDoErro } from '../../ui/erros';
 import { Esqueleto } from '../../ui/Esqueleto';
@@ -55,47 +55,12 @@ function EstadoDaFonte({ carregando, erro, vazio, textoVazio, recarregar, acaoVa
 const RASCUNHO_VAZIO: RascunhoDoPost = { tipo: TIPO_PADRAO_DO_POST, texto: '' };
 const PREFIXO_DO_MURAL = 'treinador-mural:';
 const fixadosPrimeiro = (posts: PostDoMural[]) => [...posts].sort((a, b) => Number(b.fixado) - Number(a.fixado));
-
 /**
- * As duas chaves do mural (C9, `COMUNIDADE_MODERAR`). Muda na hora e volta com aviso se a API recusar; o PUT manda sempre
- * os dois campos. Uma mudança por vez: enquanto uma salva, a outra espera.
+ * Coluna de leitura do treinador (D10, guia pág. 35: 760 a 960 px). 800 deixa o parágrafo do cartão perto de 95
+ * caracteres por linha; cabeçalho, abas, busca e feed ficam na mesma coluna, e a ação não se afasta do conteúdo.
+ * `LARGURA_LISTA` (1800) continua valendo nas outras listas.
  */
-function ChavesDoMural() {
-  const { avisar } = useAviso();
-  const config = useCarregar('treinador-comunidade-configuracao', () => obterConfiguracaoDaComunidade());
-  const [salvando, setSalvando] = useState(false);
-  const mudar = async (parte: Partial<ConfiguracaoDaComunidade>) => {
-    const antes = config.dados;
-    if (!antes || salvando) return;
-    const depois = { alunosPublicam: antes.alunosPublicam, alunosAnexamFotos: antes.alunosAnexamFotos, ...parte };
-    config.definir(depois);
-    setSalvando(true);
-    try {
-      config.definir(await salvarConfiguracaoDaComunidade(depois));
-    } catch (e) {
-      config.definir(antes);
-      avisar(textoDoErro(e), 'perigo');
-    } finally {
-      setSalvando(false);
-    }
-  };
-  return (
-    <Cartao titulo="Quem publica no mural" descricao="A equipe sempre publica. Comentar e curtir continuam liberados para os alunos.">
-      {config.erro ? (
-        <MensagemErro texto={textoDoErro(config.erro)} erro={config.erro} tentarDeNovo={config.recarregar} />
-      ) : !config.dados ? (
-        <Esqueleto cartoes={1} texto="Carregando as chaves do mural" />
-      ) : (
-        <>
-          <Interruptor rotulo="Alunos podem publicar" valor={config.dados.alunosPublicam}
-            aoMudar={(v) => void mudar({ alunosPublicam: v })} ajuda="Conversa, dúvida e resultado." />
-          <Interruptor rotulo="Alunos podem anexar fotos" valor={config.dados.alunosAnexamFotos}
-            aoMudar={(v) => void mudar({ alunosAnexamFotos: v })} ajuda="Até 4 por publicação; vale só com a de cima ligada." />
-        </>
-      )}
-    </Cartao>
-  );
-}
+const LARGURA_DE_LEITURA = 800;
 
 export default function ComunidadeTreinador() {
   const { cores } = useTema();
@@ -118,6 +83,8 @@ export default function ComunidadeTreinador() {
   const [salvandoAula, setSalvandoAula] = useState(false);
   // Erro que a API apontou no campo (422 `COMUNIDADE_INVALIDA`); some quando o link muda.
   const [errosApi, setErrosApi] = useState<Record<string, string>>({});
+  // Erro sem campo (rede, 503): no rodapé da folha, porque o aviso de rodapé da tela fica atrás do véu do Modal.
+  const [erroDaAula, setErroDaAula] = useState<string | null>(null);
 
   const [filtro, setFiltro] = useState<FiltroDoMural>(null);
   const [busca, setBusca] = useState('');
@@ -127,6 +94,7 @@ export default function ComunidadeTreinador() {
   const posts = mural.dadosDeOutraChave ? undefined : mural.dados?.content;
   const [rascunho, setRascunho] = useState<RascunhoDoPost>(RASCUNHO_VAZIO);
   const [compondo, setCompondo] = useState(false);
+  const [configurando, setConfigurando] = useState(false);
   const [menuDe, setMenuDe] = useState<PostDoMural | null>(null);
   const [removerPost, setRemoverPost] = useState<PostDoMural | null>(null);
   const [removendoPost, setRemovendoPost] = useState(false);
@@ -165,12 +133,14 @@ export default function ComunidadeTreinador() {
     setFolhaNovaAula(false);
     setTentouSalvar(false);
     setErrosApi({});
+    setErroDaAula(null);
   };
 
   const salvarAula = async () => {
     setTentouSalvar(true);
     if (erros.titulo || erros.link) return;
     setSalvandoAula(true);
+    setErroDaAula(null);
     try {
       await criarAula({
         titulo: novoTitulo.trim(),
@@ -188,7 +158,7 @@ export default function ComunidadeTreinador() {
     } catch (e) {
       const { campos, geral } = separarErros(e, ['videoUrl']);
       setErrosApi(campos);
-      if (geral) avisar(geral, 'perigo');
+      setErroDaAula(geral);
     } finally {
       setSalvandoAula(false);
     }
@@ -230,9 +200,19 @@ export default function ComunidadeTreinador() {
     if (!(await abrirLinkExterno(url))) avisar('Não foi possível abrir o link.', 'perigo');
   };
 
+  // Uma ação principal por vez, a da aba ativa, no cabeçalho (guia pág. 35); as configurações do mural ficam em segundo plano.
+  const acoes = !podePublicar ? undefined : aba === 'auloes' ? (
+    <Botao rotulo="Novo aulão" tipo="primario" Icone={Plus} aoTocar={() => setFolhaNovaAula(true)} />
+  ) : (
+    <>
+      <Botao rotulo="Configurações do mural" tipo="secundario" Icone={Settings} aoTocar={() => setConfigurando(true)} />
+      <Botao rotulo="Nova publicação" tipo="primario" Icone={Plus} aoTocar={() => setCompondo(true)} />
+    </>
+  );
+
   return (
-    <Tela bordas={['top']} largura={LARGURA_LISTA}>
-      <Cabecalho titulo="Comunidade" subtitulo="Aulões e mural do time." />
+    <Tela bordas={['top']} largura={LARGURA_DE_LEITURA}>
+      <Cabecalho titulo="Comunidade" subtitulo="Aulões e mural do time." acoes={acoes} />
 
       <Abas<AbaComunidade>
         abas={[
@@ -245,27 +225,22 @@ export default function ComunidadeTreinador() {
 
       {aba === 'auloes' ? (
         <View style={estilos.blocos}>
-          {podePublicar ? (
-            <LinhaDeAcoes alinhar="fim">
-              <Botao rotulo="Novo aulão" tipo="primario" Icone={Plus} aoTocar={() => setFolhaNovaAula(true)} />
-            </LinhaDeAcoes>
-          ) : null}
-
           <EstadoDaFonte carregando={auloes.carregando} erro={auloes.erro} vazio={!auloes.dados?.length}
             textoVazio="Nenhum aulão publicado." recarregar={auloes.recarregar} />
 
+          {/* Título primeiro; categoria e estado discretos (neutros, juntos); descrição de apoio; vídeo e comentários no rodapé. */}
           {auloes.dados?.map((item) => (
             <Cartao
               key={item.id}
               titulo={item.titulo}
-              acoes={item.publicada ? (item.categoria ? <Selo texto={item.categoria} tipo="neutro" /> : undefined) : <Selo texto="Não publicado" tipo="neutro" />}>
+              acoes={item.categoria || !item.publicada ? (
+                <View style={estilos.linha}>
+                  {item.categoria ? <Selo texto={item.categoria} tipo="neutro" /> : null}
+                  {!item.publicada ? <Selo texto="Não publicado" tipo="neutro" /> : null}
+                </View>
+              ) : undefined}>
               {item.descricao ? <Texto>{item.descricao}</Texto> : null}
-              {item.videoUrl ? (
-                <LinhaDeAcoes>
-                  <Botao rotulo="Abrir o vídeo" tipo="secundario" Icone={Video} aoTocar={() => void abrir(item.videoUrl)} />
-                </LinhaDeAcoes>
-              ) : null}
-              <View style={[estilos.linha, estilos.rodapePost, { borderTopColor: cores.divisor }]}>
+              <View style={[estilos.linha, estilos.rodapePost, estilos.rodapeDoAulao, { borderTopColor: cores.divisor }]}>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={`Ver ${item.totalComentarios} comentário(s) do aulão ${item.titulo}`}
@@ -274,6 +249,10 @@ export default function ComunidadeTreinador() {
                   <MessageSquare size={18} color={cores.texto} aria-hidden />
                   <Texto variante="suave" cor={cores.texto} numerico>{item.totalComentarios} comentário(s)</Texto>
                 </Pressable>
+                {item.videoUrl ? (
+                  <Botao rotulo="Abrir vídeo" rotuloAcessivel={`Abrir vídeo: ${item.titulo}`} tipo="secundario" Icone={Video}
+                    aoTocar={() => void abrir(item.videoUrl)} />
+                ) : null}
               </View>
             </Cartao>
           ))}
@@ -282,13 +261,6 @@ export default function ComunidadeTreinador() {
 
       {aba === 'mural' ? (
         <View style={estilos.blocos}>
-          {podePublicar ? <ChavesDoMural /> : null}
-          {podePublicar ? (
-            <LinhaDeAcoes alinhar="fim">
-              <Botao rotulo="Nova publicação" tipo="primario" Icone={Plus} aoTocar={() => setCompondo(true)} />
-            </LinhaDeAcoes>
-          ) : null}
-
           <BarraDoMural filtro={filtro} aoFiltrar={setFiltro} busca={busca} aoBuscar={setBusca} comDenunciados={podePublicar} />
 
           <EstadoDaFonte carregando={mural.carregando} erro={mural.erro} vazio={!posts?.length}
@@ -331,6 +303,8 @@ export default function ComunidadeTreinador() {
         aoCancelar={() => setRemoverPost(null)}
       />
 
+      <FolhaConfiguracoesDoMural visivel={configurando && podePublicar} aoFechar={() => setConfigurando(false)} />
+
       <FolhaNovaPublicacao visivel={compondo && podePublicar} papel="equipe" rascunho={rascunho} aoMudar={setRascunho}
         comFotos={false} aoFechar={() => setCompondo(false)} aoPublicar={publicado} />
 
@@ -352,6 +326,7 @@ export default function ComunidadeTreinador() {
         visivel={folhaNovaAula}
         titulo="Novo aulão"
         aoFechar={fecharFolha}
+        statusDoRodape={erroDaAula ? <MensagemErro texto={erroDaAula} /> : undefined}
         rodape={
           <LinhaDeAcoes>
             <Botao rotulo="Cancelar" tipo="secundario" aoTocar={fecharFolha} />
@@ -376,6 +351,8 @@ const estilos = StyleSheet.create({
   blocos: { gap: espaco(3) },
   linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexWrap: 'wrap' },
   rodapePost: { borderTopWidth: 1, paddingTop: espaco(1), gap: espaco(2) },
+  // Comentários à esquerda (como no mural), "Abrir vídeo" à direita; no celular estreito o botão desce para a linha de baixo.
+  rodapeDoAulao: { justifyContent: 'space-between' },
   // Hover e pressionado pintam `superficie3` (`ui/sobre`), como no mural do aluno.
   interacao: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5), minHeight: ALVO_TOQUE, minWidth: ALVO_TOQUE, borderRadius: RAIO, paddingHorizontal: espaco(1), marginHorizontal: -espaco(1) },
 });

@@ -12,7 +12,8 @@ import { useCarregar } from '../../ui/useCarregar';
 import { podeAcessarTela } from '../../dominio/permissoes';
 import { GuardaDePermissao } from '../../ui/Permitido';
 import { GuardaDePapel } from '../../ui/GuardaDePapel';
-import { BarraTopo } from '../../ui/BarraTopo';
+import { BotaoDaBusca, ProvedorDaBuscaGlobal } from '../../ui/BuscaGlobal';
+import { CartaoDoUsuario } from '../../ui/CartaoDoUsuario';
 import { useLimparFavoritosAoSair } from '../../ui/useFavoritos';
 import { GuardaDeSaida } from '../../ui/GuardaDeSaida';
 import { Navegacao, type ItemMenu } from '../../ui/Navegacao';
@@ -26,7 +27,7 @@ import { GUIAS } from '../../ajuda/conteudo';
  * Biblioteca, Planejamento e Perfil; Atualizações, Interessados, Equipe, Importação, Ajuda e Auditoria ficam no menu lateral e
  * no celular abrem pelo Início (Atualizações) ou pelos atalhos do Perfil. Marca fica no menu da conta, só para o Administrador.
  */
-// Ordem, grupo e `tambem` de cada item vêm de MENU_DO_TREINADOR (dominio/gruposDoMenu), a mesma fonte de "Todas as telas" (D24).
+// Ordem, grupo e `tambem` de cada item vêm de MENU_DO_TREINADOR (dominio/gruposDoMenu), a mesma fonte da legenda da busca (D24).
 const ITENS: ItemMenu[] = naOrdemDoMenu<ItemMenu>([
   { rotulo: 'Início', href: '/treinador', caminho: '/treinador', Icone: House, exato: true, tambemNoCelular: telasDaOrigem('/treinador') },
   { rotulo: 'Alunos', href: '/treinador/alunos', caminho: '/treinador/alunos', Icone: ContactRound },
@@ -38,7 +39,7 @@ const ITENS: ItemMenu[] = naOrdemDoMenu<ItemMenu>([
   { rotulo: 'Interessados', href: '/treinador/interessados', caminho: '/treinador/interessados', Icone: Inbox, soLateral: true },
   { rotulo: 'Financeiro', href: '/treinador/financeiro', caminho: '/treinador/financeiro', Icone: Wallet, soLateral: true },
   { rotulo: 'Números', href: '/treinador/numeros', caminho: '/treinador/numeros', Icone: ChartColumn, soLateral: true },
-  // A barra de topo (com o cartão do usuário) é só da web; num tablet nativo largo o Perfil continua no menu lateral.
+  // A conta no rodapé do menu lateral é só da web; num tablet nativo largo o Perfil continua no menu lateral.
   { rotulo: 'Perfil', href: '/treinador/perfil', caminho: '/treinador/perfil', Icone: CircleUserRound, soCelular: Platform.OS === 'web', tambemNoCelular: telasDaOrigem('/treinador/perfil') },
   { rotulo: 'Equipe', href: '/treinador/equipe', caminho: '/treinador/equipe', Icone: UsersRound, soLateral:true },
   { rotulo: 'Importação', href: '/treinador/importacao', caminho: '/treinador/importacao', Icone: FileUp, soLateral: true },
@@ -50,6 +51,8 @@ const ITENS: ItemMenu[] = naOrdemDoMenu<ItemMenu>([
  * N1: quem não tem o Início (sem PAINEL_VER) e abre só `/treinador` vai para a primeira tela que pode abrir, em vez de cair
  * em "Sem acesso". Só essa rota; as outras seguem na guarda. Sem tela nenhuma, fica o aviso (não há laço: o destino nunca é o Início).
  */
+const web = Platform.OS === 'web';
+
 function SemInicio() {
   const {pode,funcionalidadesDoPlano,pagamentosHabilitados,perfilEquipe}=useSessao();const caminho=usePathname();
   const administrador=!!perfilEquipe?.acessoTotal;
@@ -86,7 +89,11 @@ export default function LayoutTreinador() {
       <SemInicio />
       <ProvedorDoPasseio key={usuario?.id ?? ''} usuarioId={usuario?.id ?? ''} passos={usuario ? GUIAS.treinador.passeio : []}>
         <ProvedorDaUnidadeDeCarga>
-        <Navegacao topo={Platform.OS === 'web' ? <BarraTopo /> : undefined} itens={ITENS.filter(i=>podeAcessarTela(i.caminho,pode,pagamentosHabilitados)).map(comPontos)} conteudo={<GuardaDePermissao><Slot /></GuardaDePermissao>} />
+        {/* Busca global (Ctrl/Cmd+K em qualquer tela) e conta no menu lateral só na web; no celular a busca abre pelo Perfil. */}
+        <ProvedorDaBuscaGlobal>
+        <Navegacao busca={web ? <BotaoDaBusca /> : undefined} conta={web ? <CartaoDoUsuario /> : undefined}
+          itens={ITENS.filter(i=>podeAcessarTela(i.caminho,pode,pagamentosHabilitados)).map(comPontos)} conteudo={<GuardaDePermissao><Slot /></GuardaDePermissao>} />
+        </ProvedorDaBuscaGlobal>
         </ProvedorDaUnidadeDeCarga>
       </ProvedorDoPasseio>
     </GuardaDeSaida></GuardaDePapel></Navigator>

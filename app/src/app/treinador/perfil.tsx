@@ -1,14 +1,14 @@
 import { router, type Href } from 'expo-router';
-import { CalendarDays, FileText, FileUp, History, Inbox, LayoutGrid, LifeBuoy, UsersRound, Wallet } from 'lucide-react-native';
-import { useMemo, useState } from 'react';
+import { CalendarDays, FileText, FileUp, History, Inbox, LifeBuoy, Search, UsersRound, Wallet } from 'lucide-react-native';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { listarInscricoes } from '../../api/rotas';
 import { destinosPermitidos } from '../../dominio/mapeamentoDaImportacao';
 import { itensDoMenuDoUsuario } from '../../dominio/menuDoUsuario';
-import { telasPermitidas } from '../../dominio/telas';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { espaco, LARGURA_EDITOR } from '../../tema/tokens';
+import { useBuscaGlobal } from '../../ui/BuscaGlobal';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
 import { ICONES_DO_MENU } from '../../ui/CartaoDoUsuario';
@@ -18,24 +18,21 @@ import { MensagemErro } from '../../ui/Estados';
 import { ItemDeLista } from '../../ui/ItemDeLista';
 import { Permitido } from '../../ui/Permitido';
 import { Tela } from '../../ui/Tela';
-import { TodasAsTelas } from '../../ui/TodasAsTelas';
 import { useCarregar } from '../../ui/useCarregar';
-import { useFavoritos } from '../../ui/useFavoritos';
 
 /**
- * Perfil: porta de entrada da conta no celular (no PC isso é o cartão do usuário na barra de topo). Os mesmos itens do menu
- * do usuário, em dois grupos (guia de 11/11, pág. 17): "Minha conta" (o que é da pessoa) e "Consultoria" (o que é do negócio,
- * só o que o perfil pode abrir; Marca só para o Administrador). Depois a busca de telas (no celular não há barra de topo), os
- * atalhos e, separado da navegação, o "Sair". As telas abertas daqui voltam para cá pela seta.
+ * Perfil: porta de entrada da conta no celular (no PC isso é o menu da conta, no rodapé do menu lateral). Os mesmos itens do
+ * menu da conta, em dois grupos (guia de 11/11, pág. 17): "Minha conta" (o que é da pessoa) e "Consultoria" (o que é do
+ * negócio, só o que o perfil pode abrir; Marca só para o Administrador). Depois "Buscar telas" (a busca global, com os
+ * favoritos; no celular não há menu lateral), os atalhos e, separado da navegação, o "Sair". As telas abertas daqui voltam
+ * para cá pela seta.
  */
 const DA_CONSULTORIA = new Set(['minha-conta', 'marca']);
 export default function PerfilTreinador() {
-  const { usuario, perfilEquipe, pode, funcionalidadesDoPlano, pagamentosHabilitados } = useSessao();
+  const { usuario, perfilEquipe, pode, pagamentosHabilitados } = useSessao();
   const [saindo, setSaindo] = useState(false);
-  const [todas, setTodas] = useState(false);
+  const busca = useBuscaGlobal();
   const administrador = !!perfilEquipe?.acessoTotal;
-  const permitidas = useMemo(() => telasPermitidas(pode, undefined, funcionalidadesDoPlano, pagamentosHabilitados, administrador), [pode, funcionalidadesDoPlano, pagamentosHabilitados, administrador]);
-  const { favoritos, alternar } = useFavoritos();
   // Inscrições novas: o mesmo aviso do ponto no menu, aqui com a contagem.
   const novas = useCarregar(pode('INSCRICAO_LER') ? 'perfil-inscricoes-novas' : null, () => listarInscricoes({ situacao: 'NOVA', meus: false, pagina: 0 }));
   const totalNovas = novas.dados?.total ?? 0;
@@ -59,7 +56,7 @@ export default function PerfilTreinador() {
           <View style={estilos.lista}>{doNegocio.map(linha)}</View>
         </Cartao>
       ) : null}
-      <ItemDeLista titulo="Buscar telas" detalhe="Todas as telas do app, com busca e favoritos" Icone={LayoutGrid} aoTocar={() => setTodas(true)} />
+      {busca ? <ItemDeLista titulo="Buscar telas" detalhe="Telas e ações do app; marque as favoritas com a estrela" Icone={Search} aoTocar={busca.abrir} /> : null}
       <Cartao titulo="Atalhos" descricao="Páginas de apoio e de gestão da consultoria.">
         {novas.erro ? <MensagemErro texto={`Não foi possível contar as inscrições novas. ${textoDoErro(novas.erro)}`} erro={novas.erro} tentarDeNovo={novas.recarregar} /> : null}
         <View style={estilos.lista}>
@@ -81,7 +78,6 @@ export default function PerfilTreinador() {
           <ItemDeLista titulo={sair.rotulo} Icone={ICONES_DO_MENU.sair} perigo aoTocar={() => setSaindo(true)} />
         </View>
       ) : null}
-      <TodasAsTelas visivel={todas} aoFechar={() => setTodas(false)} permitidas={permitidas} favoritos={favoritos} aoAlternarFavorito={alternar} />
       <ConfirmarSaida visivel={saindo} aoFechar={() => setSaindo(false)} />
     </Tela>
   );

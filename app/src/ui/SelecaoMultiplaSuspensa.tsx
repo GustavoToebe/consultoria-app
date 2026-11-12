@@ -2,6 +2,7 @@ import { Check, ChevronDown, Minus } from 'lucide-react-native';
 import { type ReactNode, useRef, useState } from 'react';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
 
+import { posicaoDaLista, VAO_DO_PAINEL } from '../dominio/escolhaSuspensa';
 import {
   alternarVisiveis,
   estadoDosVisiveis,
@@ -33,6 +34,8 @@ interface Props {
 
 const LARGURA_MINIMA_DA_LISTA = 320;
 const ALTURA_MAXIMA_DA_LISTA = 380;
+/** Topo fixo do painel suspenso: o campo "Filtro" e a linha do "Marcar todos" (a lista rola abaixo deles). */
+const ALTURA_DO_TOPO = 136;
 const FOLGA = 16;
 
 /**
@@ -43,7 +46,7 @@ const FOLGA = 16;
  */
 export function SelecaoMultiplaSuspensa({ rotulo, opcoes, marcados, aoMudar, rotuloDeTodos = 'Todos', style }: Props) {
   const { cores } = useTema();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const [aberta, setAberta] = useState(false);
   const [ancora, setAncora] = useState<Ancora | null>(null);
   const campo = useRef<View>(null);
@@ -59,7 +62,12 @@ export function SelecaoMultiplaSuspensa({ rotulo, opcoes, marcados, aoMudar, rot
     });
   };
   const fechar = () => setAberta(false);
-  const lista = <ListaDeOpcoes rotulo={rotulo} opcoes={opcoes} marcados={vigentes} aoMudar={aoMudar} comFoco={!emFolha} limiteDeAltura={emFolha ? undefined : ALTURA_MAXIMA_DA_LISTA} />;
+  // A mesma regra da `EscolhaSuspensa`: abre do lado em que o painel cabe e a lista nunca passa do espaço desse lado
+  // (a última opção ficava fora da janela quando sobrava pouco mais que o corte antigo de 280 px embaixo).
+  const lugar = ancora
+    ? posicaoDaLista(height - (ancora.y + ancora.h) - FOLGA, ancora.y - FOLGA, ALTURA_DO_TOPO, ALTURA_MAXIMA_DA_LISTA, 2 * ALVO_TOQUE)
+    : { abreEmbaixo: true, alturaMaxima: ALTURA_MAXIMA_DA_LISTA };
+  const lista = <ListaDeOpcoes rotulo={rotulo} opcoes={opcoes} marcados={vigentes} aoMudar={aoMudar} comFoco={!emFolha} limiteDeAltura={emFolha ? undefined : lugar.alturaMaxima} />;
 
   return (
     <>
@@ -82,7 +90,7 @@ export function SelecaoMultiplaSuspensa({ rotulo, opcoes, marcados, aoMudar, rot
         <ChevronDown size={18} color={cores.textoSuave} strokeWidth={2} />
       </Pressable>
       {aberta && emFolha ? <Folha visivel titulo={rotulo} aoFechar={fechar}>{lista}</Folha> : null}
-      {aberta && !emFolha && ancora ? <Suspensa ancora={ancora} rotulo={rotulo} aoFechar={fechar}>{lista}</Suspensa> : null}
+      {aberta && !emFolha && ancora ? <Suspensa ancora={ancora} abreEmbaixo={lugar.abreEmbaixo} rotulo={rotulo} aoFechar={fechar}>{lista}</Suspensa> : null}
     </>
   );
 }
@@ -97,15 +105,12 @@ function Chip({ texto }: { texto: string }) {
 }
 
 /** Painel colado ao campo, sem escurecer a tela (mesmo desenho do `Calendario`). */
-function Suspensa({ ancora, rotulo, aoFechar, children }: { ancora: Ancora; rotulo: string; aoFechar: () => void; children: ReactNode }) {
+function Suspensa({ ancora, abreEmbaixo, rotulo, aoFechar, children }: { ancora: Ancora; abreEmbaixo: boolean; rotulo: string; aoFechar: () => void; children: ReactNode }) {
   const { cores } = useTema();
   const { width, height } = useWindowDimensions();
   const largura = Math.min(Math.max(ancora.w, LARGURA_MINIMA_DA_LISTA), width - 2 * FOLGA);
   const esquerda = Math.max(FOLGA, Math.min(ancora.x, width - largura - FOLGA));
-  const embaixo = height - (ancora.y + ancora.h) - FOLGA;
-  const emCima = ancora.y - FOLGA;
-  const abreEmbaixo = embaixo >= 280 || embaixo >= emCima;
-  const posicao = abreEmbaixo ? { top: ancora.y + ancora.h + 4 } : { bottom: height - ancora.y + 4 };
+  const posicao = abreEmbaixo ? { top: ancora.y + ancora.h + VAO_DO_PAINEL } : { bottom: height - ancora.y + VAO_DO_PAINEL };
   return (
     <Modal transparent visible animationType="none" statusBarTranslucent onRequestClose={aoFechar}>
       <Pressable style={StyleSheet.absoluteFill} onPress={aoFechar} accessibilityLabel={`Fechar ${rotulo}`} />

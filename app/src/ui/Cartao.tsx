@@ -52,11 +52,14 @@ export function Cartao({ children, cabecalho, titulo, descricao, acoes, rodape, 
   const recuo = espaco(width >= LARGURA_MENU_LATERAL ? 2.5 : 2);
   const comFaixa = faixa && !cabecalho && !!(titulo || acoes);
   const rente = !!cabecalho || comFaixa;
+  // Faixa sem nada embaixo (recolhido, ou vazio dito na própria faixa): sem o filete, que dobraria a borda do cartão.
+  const semCorpo = Children.toArray(children).length === 0;
+  const soAFaixa = fechado || (semCorpo && !rodape);
   return (
     <Card style={[estilos.cartao, { borderWidth: bordas.bloco, backgroundColor: cores.superficie, borderColor: cores.divisor, padding: rente ? 0 : recuo }, rente ? estilos.comCabecalho : null, style]}>
       {cabecalho ?? null}
       {titulo || acoes ? (
-        <View style={[estilos.topo, comFaixa ? [estilos.faixa, { backgroundColor: cores.superficie2, borderBottomColor: cores.divisor, borderBottomWidth: bordas.bloco, paddingHorizontal: recuo }, fechado ? estilos.faixaFechada : null] : null]}>
+        <View style={[estilos.topo, comFaixa ? [estilos.faixa, { backgroundColor: cores.superficie2, borderBottomColor: cores.divisor, borderBottomWidth: bordas.bloco, paddingHorizontal: recuo }, soAFaixa ? estilos.faixaFechada : null] : null]}>
           <View style={estilos.tituloEDescricao}>
             {titulo && recolhivel ? (
               <Pressable
@@ -83,7 +86,7 @@ export function Cartao({ children, cabecalho, titulo, descricao, acoes, rodape, 
           {acoes ? <View style={estilos.acoes}>{acoes}</View> : null}
         </View>
       ) : null}
-      {fechado || (rente && Children.toArray(children).length === 0) ? null : rente ? <View style={[estilos.corpo, { padding: recuo }]}>{children}</View> : children}
+      {fechado || (rente && semCorpo) ? null : rente ? <View style={[estilos.corpo, { padding: recuo }]}>{children}</View> : children}
       {rodape && !fechado ? <View style={[estilos.rodape, rente ? { paddingHorizontal: recuo, paddingBottom: recuo } : null]}>{rodape}</View> : null}
     </Card>
   );
