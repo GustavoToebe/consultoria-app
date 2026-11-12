@@ -92,7 +92,7 @@ const SEM_ALUNOS_DA_ULTIMA_VEZ = new Set<string>();
  */
 export default function InicioTreinador() {
   const { usuario, perfilEquipe, pode, pagamentosHabilitados, retornoHabilitado, marca, offline } = useSessao();
-  const { preferencias, escolherPreferencia } = useTema();
+  const { preferencias, escolherPreferencia, fatorTexto } = useTema();
   const unidade = useUnidadeDeCarga();
   const ctx: ContextoDoPainel = useMemo(() => ({ pode, pagamentosHabilitados, retornoHabilitado }), [pode, pagamentosHabilitados, retornoHabilitado]);
   const administrador = !!perfilEquipe?.acessoTotal;
@@ -236,7 +236,7 @@ export default function InicioTreinador() {
     .map((id) => montarBloco(id, ctx, { ...opcoes(id), fontes: fontesDe(porBloco.get(id) ?? []) }))
     .filter((b): b is NonNullable<typeof b> => b !== null);
   const porId = new Map(blocos.map((b) => [b.id, b]));
-  const linhas = linhasDaGrade(blocos.map((b) => b.id), colunasDaGrade(largura));
+  const linhas = linhasDaGrade(blocos.map((b) => b.id), colunasDaGrade(largura, fatorTexto));
   const esperandoTodos = verPainel && fonteTodos.situacao === 'carregando';
 
   const folha = (() => {
@@ -350,5 +350,5 @@ export default function InicioTreinador() {
 
 const estilos = StyleSheet.create({
   painel: { gap: espaco(2) },
-  linha: { flexDirection: 'row', gap: espaco(2), alignItems: 'stretch' },
+  linha: { flexDirection: 'row', gap: espaco(2), alignItems: 'flex-start' },
 });

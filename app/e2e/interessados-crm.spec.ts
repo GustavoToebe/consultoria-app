@@ -346,7 +346,8 @@ for (const largura of process.env.CAPTURAS_DIR ? [390, 768, 1280] : [390, 1280])
         // A primeira pintura pode sair antes de o endereço ser lido (visão Lista por um instante).
         'GET /inscricoes': { corpo: { itens: [], total: 0 } },
       }, '/treinador/interessados?visao=indicadores');
-      await expect(page.getByText('Conversão das entradas')).toBeVisible();
+      // O rótulo do número e o termo do glossário "Como contamos" têm o mesmo texto.
+      await expect(page.getByText('Conversão das entradas').first()).toBeVisible();
       await expect(page.getByText('Como contamos')).toBeVisible();
       await expect(page.getByText('—', { exact: true }).first()).toBeVisible();
       await expect(page.getByText('Média: —')).toBeVisible();

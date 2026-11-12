@@ -7,11 +7,18 @@ import { espaco } from '../tema/tokens';
 /**
  * Itens de uma lista em colunas, pela largura da própria grade (medida com onLayout, como o cartão do Progresso):
  * 1 coluna abaixo de 760 px, 2 a partir de 760 e 3 a partir de 1240. Cada filho ocupa uma célula de largura igual;
- * `gap` é o espaço entre itens (o mesmo da lista que a grade substitui). Sem medida ainda, 1 coluna.
+ * `gap` é o espaço entre itens (o mesmo da lista que a grade substitui). Sem medida ainda, 1 coluna. `colunas` troca a
+ * regra (os indicadores de Interessados: 4, 2 ou 1); sem ela, a de sempre. `alinhar` `inicio`: cada item com a própria
+ * altura (cartões de conteúdos diferentes lado a lado), em vez de esticar até o vizinho.
  */
-export function Grade({ children, gap = espaco(1) }: { children: ReactNode; gap?: number }) {
+export function Grade({ children, gap = espaco(1), colunas: regra = colunasPorLargura, alinhar = 'esticar' }: {
+  children: ReactNode;
+  gap?: number;
+  colunas?: (largura: number) => number;
+  alinhar?: 'esticar' | 'inicio';
+}) {
   const [largura, setLargura] = useState(0);
-  const colunas = colunasPorLargura(largura);
+  const colunas = largura > 0 ? regra(largura) : 1;
   const itens = Children.toArray(children);
   const aoMedir = (e: LayoutChangeEvent) => setLargura(e.nativeEvent.layout.width);
   // Largura exata da célula: o espaço total entre colunas sai da largura medida. A mesma árvore em 1 e em várias colunas
@@ -19,7 +26,7 @@ export function Grade({ children, gap = espaco(1) }: { children: ReactNode; gap?
   // perderiam o foco e o que estava sendo digitado.
   const celula = colunas === 1 ? undefined : (largura - gap * (colunas - 1)) / colunas;
   return (
-    <View onLayout={aoMedir} style={[colunas === 1 ? null : estilos.linha, { gap }]}>
+    <View onLayout={aoMedir} style={[colunas === 1 ? null : estilos.linha, colunas > 1 && alinhar === 'inicio' ? estilos.inicio : null, { gap }]}>
       {itens.map((item, i) => <View key={i} style={celula === undefined ? undefined : { width: celula }}>{item}</View>)}
     </View>
   );
@@ -27,4 +34,5 @@ export function Grade({ children, gap = espaco(1) }: { children: ReactNode; gap?
 
 const estilos = StyleSheet.create({
   linha: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'stretch' },
+  inicio: { alignItems: 'flex-start' },
 });

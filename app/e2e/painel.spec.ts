@@ -121,6 +121,70 @@ for (const largura of [390, 1280]) {
   });
 }
 
+/**
+ * Como os blocos ficaram na tela: rolagem horizontal, cabeçalhos (título e ícones na mesma linha, sem se cobrirem) e
+ * quantos blocos cabem na primeira linha.
+ */
+async function medirOPainel(page: Page) {
+  return page.evaluate(() => {
+    const caixa = (e: Element) => e.getBoundingClientRect();
+    const blocos = [...document.querySelectorAll('[role="heading"][aria-level="2"]')].flatMap((h) => {
+      const titulo = h.textContent ?? '';
+      const abrir = document.querySelector(`[role="button"][aria-label="Abrir ${titulo}"]`);
+      const atualizar = document.querySelector(`[role="button"][aria-label="Atualizar ${titulo}"]`);
+      return abrir && atualizar ? [{ titulo, h: caixa(h), abrir: caixa(abrir), atualizar: caixa(atualizar) }] : [];
+    });
+    const topo = Math.min(...blocos.map((b) => b.h.top));
+    return {
+      rolagem: document.documentElement.scrollWidth - window.innerWidth,
+      naPrimeiraLinha: blocos.filter((b) => Math.abs(b.h.top - topo) < 4).length,
+      foraDaTela: blocos.filter((b) => b.h.left < 0 || b.atualizar.right > window.innerWidth + 0.5).map((b) => b.titulo),
+      iconesSeparados: blocos.filter((b) => Math.abs(b.abrir.top - b.atualizar.top) > 1).map((b) => b.titulo),
+      iconesAbaixoDoTitulo: blocos.filter((b) => b.abrir.top >= b.h.bottom).map((b) => b.titulo),
+      tituloCobreIcone: blocos.filter((b) => b.abrir.top < b.h.bottom && b.h.right > b.abrir.left + 0.5).map((b) => b.titulo),
+      total: blocos.length,
+    };
+  });
+}
+
+// F01 de 12/11: a grade perde coluna antes de espremer o cabeçalho, contando o menu aberto ou recolhido.
+for (const [largura, recolhido, colunas] of [[390, false, 1], [1280, false, 3], [1280, true, 3], [1440, false, 3], [1440, true, 4], [1920, false, 4]] as const) {
+  test(`grade do Início em ${largura}px, menu ${recolhido ? 'recolhido' : 'aberto'}: ${colunas} por linha, sem rolagem lateral, título e ícones na mesma linha`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 1000 });
+    if (recolhido) await page.addInitScript(() => localStorage.setItem('menu-lateral-recolhido', '1'));
+    const { naoTratadas, errosDaPagina } = await abrir(page, { retorno: true });
+    await expect(page.getByRole('link', { name: 'Atualizações para revisar: 3' })).toBeVisible();
+    await expect(page.getByRole('img', { name: /^Recebido \(bruto\)/ })).toBeVisible();
+    const m = await medirOPainel(page);
+    expect(m.total).toBeGreaterThanOrEqual(8);
+    expect(m.rolagem).toBeLessThanOrEqual(0);
+    expect(m.naPrimeiraLinha).toBe(colunas);
+    expect(m.foraDaTela).toEqual([]);
+    expect(m.iconesSeparados).toEqual([]);
+    expect(m.tituloCobreIcone).toEqual([]);
+    // No PC, cada bloco tem largura para o título e os três ícones numa linha; no celular os ícones podem descer juntos.
+    if (colunas > 1) expect(m.iconesAbaixoDoTitulo).toEqual([]);
+    if (process.env.CAPTURAS) await page.screenshot({ path: `${process.env.CAPTURAS}/inicio-${largura}${recolhido ? '-recolhido' : ''}.png` });
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+test('grade do Início com o texto extra grande em 1280px: menos colunas, cabeçalho inteiro e sem rolagem lateral', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.addInitScript((id) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tamanhoTexto: 'EXTRA' })), TREINADOR.id);
+  await abrir(page, { retorno: true });
+  await expect(page.getByRole('link', { name: 'Atualizações para revisar: 3' })).toBeVisible();
+  const m = await medirOPainel(page);
+  expect(m.rolagem).toBeLessThanOrEqual(0);
+  expect(m.naPrimeiraLinha).toBe(2);
+  expect(m.foraDaTela).toEqual([]);
+  expect(m.iconesSeparados).toEqual([]);
+  expect(m.iconesAbaixoDoTitulo).toEqual([]);
+  expect(m.tituloCobreIcone).toEqual([]);
+  if (process.env.CAPTURAS) await page.screenshot({ path: `${process.env.CAPTURAS}/inicio-1280-texto-extra.png` });
+});
+
 test('Todos/Meus é de cada bloco, fica gravado e o Voltar ao padrão limpa; atualizar recarrega só o bloco', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   const { pedidos } = await abrir(page);

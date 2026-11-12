@@ -100,14 +100,20 @@ export default function Interessados() {
   const soRetornos = visao === 'lista' && retornosPedidos === RETORNOS_ATE_HOJE;
   const etapas = visao === 'kanban' ? etapasDoEndereco(etapasPedidas) : null;
   const filtrosDaTela = lerDoEndereco(parametros);
-  // Trocar de visão leva o responsável e a origem; a situação, os retornos e as etapas são de uma visão só.
-  const setVisao = (valor: Visao) => {
-    if (valor !== visao) router.push({ pathname: '/treinador/interessados', params: { visao: valor, ...paraEnderecoSemSituacao(filtrosDaTela) } });
-  };
   const filtro = filtrosDaTela.situacao;
   const [buscaDigitada, setBuscaDigitada] = useState('');
   const busca = useAtrasado(buscaDigitada.trim(), 300);
   const [pagina, setPagina] = useState(0);
+  // Trocar de visão leva o responsável e a origem; a situação, os retornos e as etapas são de uma visão só. `setParams`,
+  // nunca `push`/`replace`: esses montavam a tela de novo e o link de inscrição e os responsáveis voltavam a carregar a
+  // cada aba (F14 de 12/11). Como na Agenda, a troca não empilha histórico: o voltar sai da tela.
+  const trocarEndereco = (params: Record<string, string>) =>
+    router.setParams({ ...paraSetParams(CHAVES_DO_ENDERECO, params), visao: undefined, retornos: undefined, etapas: undefined, ...params });
+  const setVisao = (valor: Visao) => {
+    if (valor === visao) return;
+    setPagina(0);
+    trocarEndereco({ visao: valor, ...paraEnderecoSemSituacao(filtrosDaTela) });
+  };
   const [aberta, setAberta] = useState<{ id: string; pedido?: PedidoDaFolha } | null>(null);
   const [modelos, setModelos] = useState(false);
   // Toda alteração (folha, Kanban) muda a rodada: lista, contagens, retornos e colunas recarregam juntos.
@@ -151,8 +157,8 @@ export default function Interessados() {
   const retornosDoFiltro = soRetornos && retornos.dados ? retornosAteHoje(retornos.dados, hoje) : undefined;
   // Limpar o filtro do endereço fica na mesma visão e mantém o responsável e a origem de agora.
   const manterEscopo = paraEnderecoSemSituacao(filtrosDaTela);
-  const limparRetornos = () => router.replace({ pathname: '/treinador/interessados', params: manterEscopo });
-  const limparEtapas = () => router.replace({ pathname: '/treinador/interessados', params: { visao: 'kanban', ...manterEscopo } });
+  const limparRetornos = () => trocarEndereco(manterEscopo);
+  const limparEtapas = () => trocarEndereco({ visao: 'kanban', ...manterEscopo });
 
   return (
     <Tela largura={LARGURA_LISTA} bordas={['top']}>

@@ -1,13 +1,27 @@
-import { colunasDaGrade, linhasDaGrade } from './grade';
+import { colunasDaGrade, larguraDoTitulo, linhasDaGrade } from './grade';
 
 describe('grade do painel', () => {
-  it('colunas pela largura: 1 no celular, 4 no PC', () => {
+  it('colunas pela largura: 1 no celular, 3 em 1280 e 1440 com o menu aberto, 4 no PC largo', () => {
     expect(colunasDaGrade(0)).toBe(1);
     expect(colunasDaGrade(358)).toBe(1);
-    expect(colunasDaGrade(500)).toBe(2);
-    expect(colunasDaGrade(720)).toBe(3);
-    expect(colunasDaGrade(990)).toBe(4);
-    expect(colunasDaGrade(1600)).toBe(4);
+    expect(colunasDaGrade(640)).toBe(2);
+    // 1280 com o menu aberto (~980 a 1000 px de painel, com ou sem a barra de rolagem do Windows) e 1440 (~1160).
+    expect(colunasDaGrade(980)).toBe(3);
+    expect(colunasDaGrade(1160)).toBe(3);
+    // 1920 (~1640) e 1440 com o menu recolhido (~1320).
+    expect(colunasDaGrade(1320)).toBe(4);
+    expect(colunasDaGrade(1640)).toBe(4);
+  });
+
+  it('cada coluna cabe o título e os três ícones numa linha, também com o texto ampliado', () => {
+    for (const fator of [1, 1.12, 1.25, 1.4]) {
+      for (let largura = 300; largura <= 2000; largura += 7) {
+        const colunas = colunasDaGrade(largura, fator);
+        const bloco = (largura - 16 * (colunas - 1)) / colunas;
+        if (colunas > 1) expect(bloco - 42).toBeGreaterThanOrEqual(larguraDoTitulo(fator) + 3 * 44 + 4 + 8);
+      }
+    }
+    expect(colunasDaGrade(980, 1.4)).toBe(2);
   });
 
   it('na ordem padrão, com 4 colunas: 4 blocos, Agenda e Financeiro, barras e rosca', () => {

@@ -4,6 +4,7 @@ import { StyleSheet, useWindowDimensions, View, type LayoutChangeEvent, type Sty
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, LARGURA_MENU_LATERAL } from '../../tema/tokens';
 import { Texto } from '../../ui/Texto';
+import { larguraDoTitulo } from './grade';
 
 type Medida = 'titulo' | 'faixa';
 
@@ -42,7 +43,7 @@ export function LinhaDeBlocos({ children, style }: { children: ReactNode; style?
  */
 export const FaixaDoPainel = forwardRef<View, { titulo: string; descricao?: string | null; acoes?: ReactNode; meio?: ReactNode }>(
   function FaixaDoPainel({ titulo, descricao, acoes, meio }, ref) {
-    const { cores, bordas } = useTema();
+    const { cores, bordas, fatorTexto } = useTema();
     const { width } = useWindowDimensions();
     const linha = useContext(AlturasDaLinhaContexto);
     const id = useId();
@@ -56,7 +57,7 @@ export const FaixaDoPainel = forwardRef<View, { titulo: string; descricao?: stri
         style={[estilos.faixa, { backgroundColor: cores.superficie2, borderBottomColor: cores.divisor, borderBottomWidth: bordas.bloco, paddingHorizontal: recuo },
           linha ? { minHeight: Math.max(MINIMA, linha.faixa + 2 * VERTICAL + bordas.bloco) } : null]}>
         <View onLayout={linha ? medirFaixa : undefined} style={estilos.conteudo}>
-          <View style={[estilos.titulo, linha ? { minHeight: linha.titulo } : null]}>
+          <View style={[estilos.titulo, { flexBasis: larguraDoTitulo(fatorTexto) }, linha ? { minHeight: linha.titulo } : null]}>
             <View onLayout={linha ? medirTitulo : undefined} style={estilos.textos}>
               <Texto variante="bloco" nivel={2}>{titulo}</Texto>
               {descricao ? <Texto variante="pequeno" cor={cores.textoSuave}>{descricao}</Texto> : null}
@@ -74,11 +75,14 @@ const VERTICAL = espaco(1);
 const MINIMA = 60;
 
 const estilos = StyleSheet.create({
-  faixa: { justifyContent: 'center', paddingVertical: VERTICAL, minHeight: MINIMA },
+  // Conteúdo no alto da faixa: numa linha cuja faixa vizinha é mais alta, o título fica no topo, alinhado aos outros,
+  // em vez de flutuar no meio (F01 de 12/11).
+  faixa: { justifyContent: 'flex-start', paddingVertical: VERTICAL, minHeight: MINIMA },
   conteudo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: espaco(1), rowGap: espaco(0.5) },
-  // O título reserva 150 px antes de dividir a linha com as ações: num bloco estreito as ações descem para a linha de
-  // baixo em vez de espremer o título letra por letra.
-  titulo: { flexGrow: 1, flexShrink: 1, flexBasis: 150, minWidth: 0 },
+  // O título reserva `larguraDoTitulo` (120 px, mais com o texto ampliado) antes de dividir a linha com as ações; a grade
+  // do Início já dá a cada bloco largura para os dois na mesma linha. Sem ela (bloco estreito), as ações descem juntas
+  // para a linha de baixo em vez de espremer o título.
+  titulo: { flexGrow: 1, flexShrink: 1, minWidth: 0 },
   textos: { gap: 2 },
   acoes: { flexDirection: 'row', alignItems: 'center', gap: 2, flexShrink: 0, marginLeft: 'auto' },
 });
