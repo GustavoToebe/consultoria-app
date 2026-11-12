@@ -236,6 +236,13 @@ const participante = (id: string, situacao: Participante['situacao'] = 'AGENDADO
 const comParticipantes = (participantes: Participante[], extra: Partial<Compromisso> = {}) =>
   compromisso({ id: 'c', inicio: '2026-11-10T12:00:00Z', fim: '2026-11-10T13:00:00Z', participantes, ...extra });
 
+describe('formularioNovo', () => {
+  it('abre no dia pedido com a duração padrão; a hora vem do horário clicado ou fica para escolher', () => {
+    expect(formularioNovo('r1', '2026-10-21')).toMatchObject({ data: '21/10/2026', hora: '', duracao: '60', responsavelId: 'r1', alunoIds: [] });
+    expect(formularioNovo('r1', '2026-10-21', '14:00')).toMatchObject({ data: '21/10/2026', hora: '14:00', duracao: '60' });
+  });
+});
+
 describe('linha do completo no painel rápido', () => {
   const novo = formularioNovo('r1', '2026-11-02');
 

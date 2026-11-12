@@ -14,7 +14,7 @@ import { dataDaTela } from '../../dominio/formatos';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
-import { Campo } from '../../ui/Campo';
+import { Campo, MensagemDeErro } from '../../ui/Campo';
 import { CampoData } from '../../ui/Campos';
 import { Escolha } from '../../ui/Escolha';
 import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
@@ -62,8 +62,8 @@ interface Props {
 
 /**
  * Campos do compromisso com aluno, em dois jeitos (D4): o painel rápido do Google Agenda (linhas com o ícone à esquerda:
- * horário e repetição, alunos, responsável, local, observação) e o formulário completo em duas partes ("Quando" e "Alunos e
- * detalhes"), com os dias da semana do semanal. O horário é início–fim (D5) e a repetição, a lista com os rótulos do Google
+ * alunos, data e horário com a repetição, responsável, local, observação) e o formulário completo nas partes "Quem",
+ * "Quando" e "Detalhes" (F12, a mesma ordem), com os dias da semana do semanal. Rótulos sempre à vista. O horário é início–fim (D5) e a repetição, a lista com os rótulos do Google
  * (D6). Os botões ficam no rodapé da folha, fora da rolagem, para o teclado do celular não cobri-los. Toda regra vem de
  * `dominio/agendaPresencial`.
  */
@@ -105,37 +105,42 @@ export function CamposDoCompromisso(p: Props) {
       textoVazio="Nenhum membro ativo na equipe." />
     {erros.responsavelId ? <ErroDoCampo texto={erros.responsavelId} /> : null}
   </View>;
-  const local = <Campo rotulo="Local (opcional)" rotuloOculto={!completo} valor={form.local} aoMudar={(t) => mudar('local', t)} erro={erros.local}
-    maxLength={LIMITES_COMPROMISSO.local} placeholder={completo ? 'Ex.: Sala 2, academia, online' : 'Adicionar local'} />;
-  const observacao = p.comObservacao ? <Campo rotulo="Observação (opcional)" rotuloOculto={!completo} valor={form.observacao}
+  // Rótulo sempre à vista, com "(opcional)" nos dois opcionais (a maioria é obrigatória; P2).
+  const local = <Campo rotulo="Local (opcional)" valor={form.local} aoMudar={(t) => mudar('local', t)} erro={erros.local}
+    maxLength={LIMITES_COMPROMISSO.local} placeholder="Ex.: Sala 2, academia, online" />;
+  const observacao = p.comObservacao ? <Campo rotulo="Observação (opcional)" valor={form.observacao}
     aoMudar={(t) => mudar('observacao', t)} erro={erros.observacao} linhas={3} maxLength={LIMITES_COMPROMISSO.observacao}
-    placeholder={completo ? undefined : 'Adicionar observação'} ajuda="Só a equipe vê. Os alunos não veem a observação." /> : null;
+    ajuda="Só a equipe vê. Os alunos não veem a observação." /> : null;
 
+  // F12: na ordem de quem marca, quem, quando (data e horário, repetição e os avisos de horário) e os detalhes.
   if (!completo) {
     return (
       <View style={estilos.coluna}>
         {p.sobreASerie}
-        <LinhaComIcone Icone={Clock}>{horario}{p.avisos}{repeticao}</LinhaComIcone>
         <LinhaComIcone Icone={Users}>{participantes}</LinhaComIcone>
+        <LinhaComIcone Icone={Clock}>{horario}{repeticao}{p.avisos}</LinhaComIcone>
         <LinhaComIcone Icone={UserRound}>{responsavel}</LinhaComIcone>
         <LinhaComIcone Icone={MapPin}>{local}</LinhaComIcone>
         {observacao ? <LinhaComIcone Icone={AlignLeft}>{observacao}</LinhaComIcone> : null}
       </View>
     );
   }
+  // Duas colunas no PC: Quem e Quando à esquerda, Detalhes à direita (a leitura e o Tab seguem a mesma ordem); uma só
+  // coluna abaixo de 760 px.
   return (
     <View style={estilos.coluna}>
       {p.sobreASerie}
-      <Grade gap={espaco(3)}>
+      <Grade gap={espaco(3)} alinhar="inicio">
         <View style={estilos.parte}>
+          <TituloDaParte texto="Quem" />
+          {participantes}
           <TituloDaParte texto="Quando" />
           {horario}
-          {p.avisos}
           {repeticao}
+          {p.avisos}
         </View>
         <View style={estilos.parte}>
-          <TituloDaParte texto="Alunos e detalhes" />
-          {participantes}
+          <TituloDaParte texto="Detalhes" />
           {responsavel}
           {local}
           {observacao}
@@ -267,9 +272,9 @@ export function DiasDaSemana({ dias, aoMudar }: { dias: readonly DiaDaSemana[]; 
   );
 }
 
+/** Erro de um campo que não é `Campo` (alunos, responsável, repetição): ícone e texto, como o `MensagemDeErro` dos campos. */
 export function ErroDoCampo({ texto }: { texto: string }) {
-  const { cores } = useTema();
-  return <Texto variante="pequeno" cor={cores.perigo} accessibilityLiveRegion="polite">{texto}</Texto>;
+  return <MensagemDeErro erro={texto} />;
 }
 
 const estilos = StyleSheet.create({

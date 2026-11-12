@@ -496,13 +496,31 @@ export function itensDaCelula<T>(itens: readonly T[], limite: number): { visivei
 }
 
 /**
- * A hora (HH:MM) de um ponto da grade, arredondada para baixo ao passo (30 min): o clique num horário vazio abre o evento
- * novo já com ela. Fora da grade fica no primeiro ou no último passo do dia.
+ * A hora (HH:MM) de um ponto da grade, arredondada para baixo ao passo (30 min): o clique num horário vazio abre o
+ * compromisso novo já com ela (F13; o evento novo sai do "Criar"). Fora da grade fica no primeiro ou no último passo do dia.
  */
 export function horaDoPontoDaGrade(y: number, alturaPorHora: number, passo = 30): string {
   const minuto = Math.floor(((y / alturaPorHora) * 60) / passo) * passo;
   const limitado = Math.min(Math.max(0, minuto), MINUTOS_DO_DIA - passo);
   return `${doisDigitos(Math.floor(limitado / 60))}:${doisDigitos(limitado % 60)}`;
+}
+
+/** Retângulo na janela, em px (o de `measureInWindow`/`getBoundingClientRect`). */
+export interface RetanguloNaJanela { x: number; y: number; w: number; h: number }
+
+/**
+ * Lugar do resumo do compromisso no PC (F13), em px da janela: ao lado do item, à direita se couber, senão à esquerda,
+ * senão encostado na borda (sem sair da janela); na vertical, alinhado ao topo do item e puxado para dentro. Resumo mais
+ * alto que a janela fica no topo (quem desenha limita a altura e rola).
+ */
+export function posicaoDoResumo(item: RetanguloNaJanela, resumo: { largura: number; altura: number },
+  janela: { largura: number; altura: number }, folga = 16, vao = 8): { esquerda: number; topo: number } {
+  const aDireita = item.x + item.w + vao;
+  const aEsquerda = item.x - vao - resumo.largura;
+  const esquerda = aDireita + resumo.largura <= janela.largura - folga ? aDireita
+    : aEsquerda >= folga ? aEsquerda
+      : Math.max(folga, janela.largura - folga - resumo.largura);
+  return { esquerda, topo: Math.max(folga, Math.min(item.y, janela.altura - folga - resumo.altura)) };
 }
 
 /** Quantos itens tocam cada dia (dia sem item não aparece). */

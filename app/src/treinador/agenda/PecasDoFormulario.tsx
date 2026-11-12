@@ -10,6 +10,7 @@ import {
 import { dataDaTela } from '../../dominio/formatos';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco } from '../../tema/tokens';
+import { MensagemDeErro } from '../../ui/Campo';
 import { CampoData } from '../../ui/Campos';
 import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
 import { Texto } from '../../ui/Texto';
@@ -36,7 +37,7 @@ export function LinhaComIcone({ Icone, children }: { Icone: LucideIcon; children
   );
 }
 
-/** Título de uma parte do formulário completo ("Quando", "Alunos e detalhes"): `secao`, h3, na cor do texto. */
+/** Título de uma parte do formulário completo ("Quem", "Quando", "Detalhes"): `secao`, h3, na cor do texto. */
 export function TituloDaParte({ texto }: { texto: string }) {
   const { cores } = useTema();
   return <Texto variante="secao" nivel={3} cor={cores.texto}>{texto}</Texto>;
@@ -56,7 +57,7 @@ interface PropsDoHorario {
   aoMudarHora: (hora: string) => void;
   /** Escolher o fim é escolher a duração (o valor da opção). */
   aoMudarDuracao: (duracao: string) => void;
-  /** Painel rápido: a data sem o rótulo em cima (o relógio ao lado já diz). */
+  /** Painel rápido: data, início e fim numa linha só (o rótulo continua em cima de cada um). */
   compacto?: boolean;
   /** Esconde o início e o fim (evento de dia inteiro). */
   semHoras?: boolean;
@@ -76,15 +77,15 @@ export function CamposDoHorario(p: PropsDoHorario) {
   const fimAtual = fimDaHora(p.hora, p.duracao);
   const data = (
     <View style={p.compacto ? estilos.dataCompacta : estilos.data}>
-      <CampoData rotulo="Data" nome={p.nomeDaData} regra="PLANEJAMENTO" valor={p.data} aoMudar={p.aoMudarData} erro={p.erros.data} rotuloOculto={p.compacto} />
+      <CampoData rotulo="Data" nome={p.nomeDaData} regra="PLANEJAMENTO" valor={p.data} aoMudar={p.aoMudarData} erro={p.erros.data} />
     </View>
   );
   const horas = p.semHoras ? null : <>
-    <EscolhaEmFolha rotulo="Início" titulo="Início (Brasília)" valor={p.hora} opcoes={inicios} rotuloDoValor="Escolher"
+    <EscolhaEmFolha rotulo="Início" titulo="Início (Brasília)" valor={p.hora} opcoes={inicios} rotuloDoValor="Escolher" style={estilos.naBase}
       aoMudar={p.aoMudarHora} digitado={{ rotulo: DIGITAR_HORA, opcao: opcaoDigitadaDoInicio }} />
     {fins.length ? (
       <EscolhaEmFolha rotulo="Fim" titulo="Fim (Brasília)" valor={p.duracao.trim()} opcoes={fins}
-        rotuloDoValor={fimAtual ?? 'Escolher'} aoMudar={p.aoMudarDuracao}
+        rotuloDoValor={fimAtual ?? 'Escolher'} aoMudar={p.aoMudarDuracao} style={estilos.naBase}
         digitado={{ rotulo: DIGITAR_HORA, opcao: (texto) => opcaoDigitadaDoFim(p.hora, texto, p.limites) }} />
     ) : <Texto variante="suave" style={estilos.semFim}>Escolha o início para ver o fim.</Texto>}
   </>;
@@ -96,15 +97,10 @@ export function CamposDoHorario(p: PropsDoHorario) {
         {data}
         {horas ? <View style={estilos.linhaDoHorario}>{horas}</View> : null}
       </>}
-      {!p.semHoras && p.erros.hora ? <ErroDoHorario texto={`Início: ${p.erros.hora}`} /> : null}
-      {!p.semHoras && p.erros.duracao ? <ErroDoHorario texto={`Fim: ${p.erros.duracao}`} /> : null}
+      {!p.semHoras && p.erros.hora ? <MensagemDeErro erro={`Início: ${p.erros.hora}`} /> : null}
+      {!p.semHoras && p.erros.duracao ? <MensagemDeErro erro={`Fim: ${p.erros.duracao}`} /> : null}
     </View>
   );
-}
-
-function ErroDoHorario({ texto }: { texto: string }) {
-  const { cores } = useTema();
-  return <Texto variante="pequeno" cor={cores.perigo} accessibilityLiveRegion="polite">{texto}</Texto>;
 }
 
 interface PropsDaRepeticao<T extends TipoDeRepeticao | 'NENHUMA'> {
@@ -144,5 +140,7 @@ const estilos = StyleSheet.create({
   linhaDoHorario: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: espaco(1) },
   data: { width: 190, maxWidth: '100%' },
   dataCompacta: { width: 170, maxWidth: '100%' },
+  // Na base da linha, com o campo da data (o rótulo dela, sempre visível, a deixa mais alta que os botões).
+  naBase: { alignSelf: 'flex-end' },
   semFim: { alignSelf: 'center' },
 });

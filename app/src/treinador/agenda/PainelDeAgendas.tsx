@@ -98,7 +98,8 @@ function LinhaDaAgenda({ agenda: a, aoAlternar, aoEditar }: { agenda: AgendaDoPa
         <View style={[estilos.caixa, { borderColor: cor, backgroundColor: a.visivel ? cor : 'transparent' }]}>
           {a.visivel ? <Check size={14} color={textoSobre(cor)} strokeWidth={3} /> : null}
         </View>
-        <Texto numberOfLines={2} style={estilos.nome}>{a.nome}</Texto>
+        {/* Uma linha com reticências (F20); o nome inteiro está no nome acessível da caixa e na folha do lápis. */}
+        <Texto numberOfLines={1} style={estilos.nome}>{a.nome}</Texto>
       </Pressable>
       {aoEditar ? <IconeBotao Icone={Pencil} rotulo={`Editar a agenda ${a.nome}`} aoTocar={aoEditar} /> : null}
     </View>

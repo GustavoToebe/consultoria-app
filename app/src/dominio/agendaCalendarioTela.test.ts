@@ -1,5 +1,5 @@
 import { CHAVES_DA_AGENDA } from '../tema/tokens';
-import { horaDoPontoDaGrade, itensDaCelula, visaoDoAtalho } from './agendaCalendario';
+import { horaDoPontoDaGrade, itensDaCelula, posicaoDoResumo, visaoDoAtalho } from './agendaCalendario';
 import { ROTULOS_DAS_CORES_DA_AGENDA, textoDaRepeticaoDoEvento } from './agendaEvento';
 
 /** Regras pequenas da tela da Agenda (passo 13): atalhos, "+N" do Mês, hora do clique na grade, nomes das cores e repetição por extenso. */
@@ -51,6 +51,25 @@ describe('horaDoPontoDaGrade', () => {
   it('fora da grade fica no primeiro ou no último passo do dia', () => {
     expect(horaDoPontoDaGrade(-20, 48)).toBe('00:00');
     expect(horaDoPontoDaGrade(48 * 30, 48)).toBe('23:30');
+  });
+});
+
+describe('posicaoDoResumo', () => {
+  const janela = { largura: 1280, altura: 720 };
+  const resumo = { largura: 360, altura: 300 };
+
+  it('fica à direita do item quando cabe, na altura dele', () => {
+    expect(posicaoDoResumo({ x: 400, y: 200, w: 90, h: 48 }, resumo, janela)).toEqual({ esquerda: 498, topo: 200 });
+  });
+
+  it('sem lugar à direita vai para a esquerda; sem lugar dos dois lados, encosta na borda sem sair da janela', () => {
+    expect(posicaoDoResumo({ x: 1100, y: 200, w: 90, h: 48 }, resumo, janela)).toEqual({ esquerda: 732, topo: 200 });
+    expect(posicaoDoResumo({ x: 200, y: 200, w: 200, h: 48 }, resumo, { largura: 700, altura: 720 })).toEqual({ esquerda: 324, topo: 200 });
+  });
+
+  it('item embaixo puxa o resumo para dentro; resumo mais alto que a janela fica no topo', () => {
+    expect(posicaoDoResumo({ x: 400, y: 600, w: 90, h: 48 }, resumo, janela).topo).toBe(404);
+    expect(posicaoDoResumo({ x: 400, y: 600, w: 90, h: 48 }, { largura: 360, altura: 900 }, janela).topo).toBe(16);
   });
 });
 

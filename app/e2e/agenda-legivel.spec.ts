@@ -205,6 +205,8 @@ test.describe('1280 px (grade de horários)', () => {
     // Por último (o mouse fica sobre a grade depois de fechar a folha e acenderia o hover): o realizado de uma hora tem o
     // status em ícone na grade e no nome acessível; o detalhe o diz por extenso.
     await doCompromisso(page, NOMES.realizado).click();
+    // O toque abre o resumo (F13); o detalhe, com a situação por extenso, sai dele.
+    await page.getByRole('dialog', { name: 'Resumo do compromisso' }).getByRole('button', { name: 'Abrir detalhes', exact: true }).click();
     const folha = page.getByRole('dialog', { name: 'Compromisso' });
     await expect(folha.getByText('Realizado', { exact: true }).first()).toBeVisible();
     await folha.getByRole('button', { name: 'Fechar', exact: true }).click();

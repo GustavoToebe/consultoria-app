@@ -25,11 +25,17 @@ import { useAtrasado, useCarregar } from '../../ui/useCarregar';
 import { CamposDoCompromisso } from './CamposDoCompromisso';
 import { DetalheDoCompromisso } from './DetalheDoCompromisso';
 
+/** Vindo do resumo (F13): abre já no formulário de edição ou na confirmação do cancelamento. */
+export type AcaoInicial = 'editar' | 'cancelar';
+
 interface Props {
   /** `'novo'` abre o formulário vazio; um compromisso abre o detalhe; `null` fecha. */
   aberto: Compromisso | 'novo' | null;
+  acaoInicial?: AcaoInicial;
   /** Dia sugerido no compromisso novo (AAAA-MM-DD, Brasília). */
   dataSugerida: string;
+  /** Início sugerido no compromisso novo (HH:MM): o horário clicado na grade. */
+  horaSugerida?: string;
   hoje: string;
   responsaveis: readonly ResponsavelEquipe[];
   /** Compromissos já na tela, só para avisar de sobreposição do responsável antes de salvar (quem decide é a API). */
@@ -42,7 +48,7 @@ interface Props {
 /**
  * Folha do compromisso com aluno: detalhe (participantes com a situação de cada um, editar, cancelar ou reabrir o
  * compromisso inteiro) ou formulário (novo, com repetição; editar). O novo abre no painel rápido do Google Agenda (linhas
- * com ícone, largura da folha comum) e o rodapé tem "Mais opções" + "Marcar compromisso"; "Mais opções", o "Personalizar…" da
+ * com ícone, largura da folha comum) e o rodapé tem "Mais opções", "Cancelar" e "Marcar compromisso"; "Mais opções", o "Personalizar…" da
  * repetição e a edição usam o formulário completo, em `LARGURA_EDITOR`. No compromisso novo, "Menos opções" volta ao
  * painel rápido sem apagar o que foi digitado. Se sobrou campo do completo diferente do padrão, o rodapé diz o que
  * será salvo. A edição já abre no completo e não tem esse botão. Cada compromisso aberto é uma folha nova (a `key` é o id), então nada do anterior sobra. A observação é dado sensível: só aparece com `ALUNO_SENSIVEL_LER` e só se edita com
@@ -59,18 +65,18 @@ type Pergunta =
   | { tipo: 'aluno'; aluno: Participante; acao: AcaoDeSituacao; escopos: EscopoDaSerie[] }
   | { tipo: 'inteiro'; cancelado: boolean; escopos: EscopoDaSerie[] };
 
-function FolhaAberta({ aberto, dataSugerida, hoje, responsaveis, carregados, aoFechar, aoMudar }: Props) {
+function FolhaAberta({ aberto, acaoInicial, dataSugerida, horaSugerida, hoje, responsaveis, carregados, aoFechar, aoMudar }: Props) {
   const { pode, usuario } = useSessao();
   const comObservacao = pode('ALUNO_SENSIVEL_ALTERAR');
   const c = aberto && aberto !== 'novo' ? aberto : null;
   const novo = aberto === 'novo';
-  const [modo, setModo] = useState<'detalhe' | 'formulario'>(novo ? 'formulario' : 'detalhe');
+  const [modo, setModo] = useState<'detalhe' | 'formulario'>(novo || (c && acaoInicial === 'editar') ? 'formulario' : 'detalhe');
   // O novo abre no painel rápido (D4); "Mais opções" e a edição mostram o formulário completo.
   const [completo, setCompleto] = useState(!novo);
 
   // Formulário (novo ou editar): o estado mora aqui para os botões irem ao rodapé fixo da folha.
   const formInicial = (): FormularioDoCompromisso => (c ? formularioDoCompromisso(c)
-    : formularioNovo(responsaveis.some((r) => r.id === usuario?.id) ? usuario?.id ?? '' : '', dataSugerida));
+    : formularioNovo(responsaveis.some((r) => r.id === usuario?.id) ? usuario?.id ?? '' : '', dataSugerida, horaSugerida));
   const nomesIniciais = () => Object.fromEntries((c?.participantes ?? []).map((p) => [p.id, p.nome ?? 'Aluno']));
   const [form, setForm] = useState<FormularioDoCompromisso>(formInicial);
   const [nomes, setNomes] = useState<Record<string, string>>(nomesIniciais);
@@ -81,7 +87,9 @@ function FolhaAberta({ aberto, dataSugerida, hoje, responsaveis, carregados, aoF
   const [salvando, setSalvando] = useState(false);
   // Detalhe: a ação em andamento e a pergunta aberta (escopo e/ou confirmação).
   const [enviando, setEnviando] = useState<string | null>(null);
-  const [pergunta, setPergunta] = useState<Pergunta | null>(null);
+  // "Cancelar compromisso" do resumo abre direto a confirmação (cancelar sempre confirma; reabrir fica no detalhe).
+  const [pergunta, setPergunta] = useState<Pergunta | null>(() => (c && !c.cancelado && acaoInicial === 'cancelar'
+    ? { tipo: 'inteiro', cancelado: true, escopos: escoposPermitidos(c) } : null));
   const [escopo, setEscopo] = useState<EscopoDaSerie>('ESTA');
   const agora = new Date();
 
@@ -106,6 +114,9 @@ function FolhaAberta({ aberto, dataSugerida, hoje, responsaveis, carregados, aoF
     setModo('formulario');
   };
   const voltarAoDetalhe = () => { limparMensagens(); setModo('detalhe'); };
+  // Aberta pelo "Editar" ou pelo cancelamento do resumo: desistir fecha a folha (a pessoa não abriu o detalhe), até a
+  // primeira ação concluída; depois disso a folha se comporta como a aberta pelo detalhe.
+  const [doResumo, setDoResumo] = useState(!!acaoInicial);
 
   // Aviso de aluno ocupado (só aviso, D11/P5): com alunos, data, hora e duração válidas, depois de parar de digitar.
   const filtro = modo === 'formulario' ? filtroDeAlunosOcupados(form, c?.id) : null;
@@ -128,7 +139,7 @@ function FolhaAberta({ aberto, dataSugerida, hoje, responsaveis, carregados, aoF
       setPergunta(null);
       aoMudar(salvo);
       if (novo) aoFechar();
-      else setModo('detalhe');
+      else { setDoResumo(false); setModo('detalhe'); }
     } catch (e) {
       // 409 HORARIO_OCUPADO (com as datas), ALUNO_INATIVO, CONFLITO_EDICAO...: o formulário fica como está.
       setPergunta(null);
@@ -174,6 +185,7 @@ function FolhaAberta({ aberto, dataSugerida, hoje, responsaveis, carregados, aoF
     setErro(null);
     try {
       aoMudar(await alterarCancelamentoCompromisso(c.id, { cancelado, versao: c.versao }, escolhido));
+      setDoResumo(false);
     } catch (e) {
       // Reabrir com aluno inativo dá 409 ALUNO_INATIVO: a mensagem da API, e a folha segue usável.
       setErro(e);
@@ -201,8 +213,8 @@ function FolhaAberta({ aberto, dataSugerida, hoje, responsaveis, carregados, aoF
   const statusDoRodape = linhaDaMensagem || avisoNoRodape ? <>{linhaDaMensagem}{avisoNoRodape}</> : undefined;
   const rodape = modo === 'formulario' ? <>
     {novo && completo ? <Botao rotulo="Menos opções" tipo="secundario" aoTocar={() => setCompleto(false)} /> : null}
-    {completo ? <Botao rotulo="Cancelar" tipo="secundario" aoTocar={novo ? aoFechar : voltarAoDetalhe} />
-      : <Botao rotulo="Mais opções" tipo="secundario" aoTocar={() => setCompleto(true)} />}
+    {completo ? null : <Botao rotulo="Mais opções" tipo="secundario" aoTocar={() => setCompleto(true)} />}
+    <Botao rotulo="Cancelar" tipo="secundario" aoTocar={novo || doResumo ? aoFechar : voltarAoDetalhe} />
     <Botao rotulo={c ? 'Salvar alterações' : 'Marcar compromisso'} aoTocar={salvar} carregando={salvando} desabilitado={salvando} motivo="Salvando." />
   </> : c && pode('AGENDA_ALTERAR') && acaoInteiro ? <>
     <Botao rotulo={acaoInteiro.rotulo} tipo={acaoInteiro.perigo ? 'perigoTexto' : 'secundario'} aoTocar={pedirInteiro}
@@ -236,7 +248,7 @@ function FolhaAberta({ aberto, dataSugerida, hoje, responsaveis, carregados, aoF
         <DetalheDoCompromisso compromisso={c} hoje={hoje} agora={agora} enviando={enviando} aoAgirNoAluno={agirNoAluno} />
       ) : null}
       {c && pergunta ? <Confirmacao pergunta={pergunta} compromisso={c} hoje={hoje} agora={agora} escopo={escopo} aoEscolherEscopo={setEscopo}
-        carregando={ocupado} aoCancelar={() => setPergunta(null)}
+        carregando={ocupado} aoCancelar={doResumo ? aoFechar : () => setPergunta(null)}
         aoConfirmar={() => {
           if (pergunta.tipo === 'salvar') void enviarFormulario(pergunta.pedido, escopo);
           else if (pergunta.tipo === 'aluno') void mudarAluno(pergunta.aluno, pergunta.acao.situacao, escopo);

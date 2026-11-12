@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { Ban, CalendarClock, CircleAlert, CircleCheck, type LucideIcon, TriangleAlert, UserX } from 'lucide-react-native';
-import { StyleSheet, View } from 'react-native';
+import { type GestureResponderEvent, Platform, StyleSheet, View } from 'react-native';
 
 import type { CorDaAgenda, SituacaoCompromisso } from '../../api/agendaTipos';
 import type { ItemDoCalendario } from '../../dominio/agendaCalendario';
@@ -13,8 +13,22 @@ import { corDaAgenda } from '../../tema/tokens';
 import { propsDeLink } from '../../ui/propsDeLink';
 import type { TipoSelo } from '../../ui/Selo';
 
-/** O que a tela faz ao tocar num item: abre a folha do compromisso ou do evento (a atualização é link e vai à ficha). */
-export type AoAbrirItem = (item: ItemDoCalendario) => void;
+/**
+ * O que a tela faz ao tocar num item: o resumo do compromisso ou a folha do evento (a atualização é link e vai à ficha).
+ * `origem` é o elemento tocado (só na web): o resumo se ancora nele e o foco volta para ele.
+ */
+export type AoAbrirItem = (item: ItemDoCalendario, origem?: HTMLElement | null) => void;
+
+/**
+ * O elemento do item tocado, na web. No clique o `currentTarget` é o próprio item; no Enter/Espaço o react-native-web
+ * entrega o evento do documento, e o item é o que está com o foco.
+ */
+export function elementoDoToque(e: GestureResponderEvent | undefined): HTMLElement | null {
+  if (Platform.OS !== 'web' || typeof document === 'undefined') return null;
+  const alvo = (e as unknown as { currentTarget?: unknown } | undefined)?.currentTarget;
+  if (alvo instanceof HTMLElement) return alvo;
+  return document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
+}
 
 /** "09:00–10:00", "Dia inteiro" ou, na atualização, "Atualização". */
 export function horarioDoItem(item: ItemDoCalendario): string {
@@ -109,7 +123,7 @@ export function toqueDoItem(item: ItemDoCalendario, meus: boolean, aoAbrir: AoAb
     const href = caminhoAtualizacaoTreinador(f.atualizacao, { situacao: 'PROXIMAS', meus });
     return { accessibilityRole: 'link' as const, ...propsDeLink(href, () => router.push(href)) };
   }
-  return { accessibilityRole: 'button' as const, onPress: () => aoAbrir(item) };
+  return { accessibilityRole: 'button' as const, onPress: (e?: GestureResponderEvent) => aoAbrir(item, elementoDoToque(e)) };
 }
 
 /** A cor da agenda no tema em uso (o marcador; o texto do item fica na cor do texto). */

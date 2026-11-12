@@ -931,9 +931,10 @@ export interface FormularioDoCompromisso {
 export type ErrosDoCompromisso = Partial<Record<keyof FormularioDoCompromisso, string>>;
 export type ErrosDaRepeticao = Partial<Record<CampoDaRepeticao, string>>;
 
-export function formularioNovo(responsavelId: string, data: string): FormularioDoCompromisso {
+/** Compromisso novo no dia `data` (AAAA-MM-DD); `hora` (HH:MM) vem do horário clicado na grade, senão fica para escolher. */
+export function formularioNovo(responsavelId: string, data: string, hora = ''): FormularioDoCompromisso {
   return {
-    alunoIds: [], responsavelId, data: dataParaTela(data), hora: '', duracao: String(DURACAO_PADRAO), local: '', observacao: '',
+    alunoIds: [], responsavelId, data: dataParaTela(data), hora, duracao: String(DURACAO_PADRAO), local: '', observacao: '',
     repeticao: { ...SEM_REPETICAO, dias: [] },
   };
 }
@@ -954,8 +955,8 @@ function repeticaoPersonalizada(r: FormularioDaRepeticao, data: string): boolean
 }
 
 /**
- * Campos do formulário completo que fogem do padrão de um compromisso novo, na ordem do formulário (Quando, depois
- * Alunos e detalhes). Vazio = sem a linha. A repetição entra quando não é a da lista do painel rápido. Mais de um
+ * Campos do formulário completo que fogem do padrão de um compromisso novo, na ordem do formulário (Quem, Quando,
+ * Detalhes). Vazio = sem a linha. A repetição entra quando não é a da lista do painel rápido. Mais de um
  * aluno entra como "alunos". A observação entra quando tem texto. Responsável e local ficam de fora: são o padrão
  * ou a linha que o painel rápido já mostra vazia.
  */

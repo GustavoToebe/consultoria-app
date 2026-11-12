@@ -125,6 +125,12 @@ async function novoCompromisso(page: Page) {
   await page.getByRole('menuitem', { name: /^Compromisso com aluno/ }).click();
 }
 
+/** Toca no compromisso: abre o resumo (F13) e, dele, o detalhe de sempre. */
+async function abrirDetalhe(page: Page, nome: string) {
+  await page.getByRole('button', { name: nome, exact: true }).click();
+  await page.getByRole('dialog', { name: 'Resumo do compromisso' }).getByRole('button', { name: 'Abrir detalhes', exact: true }).click();
+}
+
 const corposDe = (pedidos: PedidoFalso[], metodo: string, caminho: string) =>
   pedidos.filter((p) => p.metodo === metodo && p.caminho === caminho).map((p) => p.corpo);
 
@@ -426,7 +432,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
         },
       });
       await page.goto('/treinador/agenda');
-      await page.getByRole('button', { name: 'Abrir compromisso de Ana Fictícia, Bruno Exemplo e mais 2, das 15h às 16h', exact: true }).click();
+      await abrirDetalhe(page, 'Abrir compromisso de Ana Fictícia, Bruno Exemplo e mais 2, das 15h às 16h');
       const detalhe = page.getByRole('dialog', { name: 'Compromisso' });
       await expect(detalhe.getByText('Ocorrência 3 de 10')).toBeVisible();
       await expect(detalhe.getByText('Alunos (4)')).toBeVisible();
@@ -507,7 +513,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       if (naLista) await expect(page.getByText('Ana Fictícia, Bruno Exemplo +1')).toBeVisible();
       expect(pedidos.some((p) => p.caminho === '/atualizacoes')).toBe(false);
 
-      await page.getByRole('button', { name: 'Abrir compromisso de Ana Fictícia, Bruno Exemplo e mais 1, das 11h30 às 12h30', exact: true }).click();
+      await abrirDetalhe(page, 'Abrir compromisso de Ana Fictícia, Bruno Exemplo e mais 1, das 11h30 às 12h30');
       const folha = page.getByRole('dialog', { name: 'Compromisso' });
       await expect(folha.getByText('Observação fictícia')).toBeVisible();
       await expect(folha.getByText('3 agendados', { exact: true })).toBeVisible();
@@ -540,7 +546,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await expect(folha).toBeHidden();
 
       // Um aluno só e no futuro: realizado e falta ainda não; cancelar é do compromisso, com confirmação; a ficha aparece.
-      await page.getByRole('button', { name: 'Abrir compromisso de Bruno Exemplo, das 15h às 16h', exact: true }).click();
+      await abrirDetalhe(page, 'Abrir compromisso de Bruno Exemplo, das 15h às 16h');
       const outra = page.getByRole('dialog', { name: 'Compromisso' });
       await expect(outra.getByText('Realizado e falta ficam disponíveis a partir do horário do compromisso.')).toBeVisible();
       await expect(outra.getByRole('button', { name: /^Marcar/ })).toHaveCount(0);

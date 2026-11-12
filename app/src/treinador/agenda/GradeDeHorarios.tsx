@@ -33,7 +33,7 @@ interface Props {
   aoAbrir: AoAbrirItem;
   /** Tocar no cabeçalho do dia (na Semana) abre o Dia. */
   aoAbrirDia?: (data: string) => void;
-  /** Clique num horário vazio (só no PC, com `AGENDA_ALTERAR`): abre o evento novo já com o dia e a hora. */
+  /** Clique num horário vazio (só no PC, com `AGENDA_ALTERAR`): abre o compromisso novo já com o dia e a hora (F13). */
   aoCriarNoHorario?: (data: string, hora: string) => void;
   /** Chave do item aberto na folha (`ItemDoCalendario.chave`): ganha o contorno forte. */
   escolhido?: string | null;
