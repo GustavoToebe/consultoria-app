@@ -36,6 +36,7 @@ Lembretes, Agenda, Interessados e Ajuda). Autorização do Gustavo (12/11): faze
 - [ ] F15 Interessados: glossário "Como contamos" e "Limites dos dados" · F14 · `executor-front` · commit/run: —
 - [ ] F16 Ajuda: refazer com busca e índice lateral; referências à barra superior e a "Todas as telas" corrigidas · sem dependência · `executor-front` · commit/run: —
 - [ ] F17 Ajuda: fonte estruturada de vídeos por tela; guias PDF regenerados ou pendência sinalizada · F16 · `executor-front` + `executor-rapido` (gerador) · commit/run: —
+- [ ] F20 Agenda: lateral interna compacta no PC (mini calendário nas proporções do Google Agenda, lateral de 240 a 280 px, semanas mais baixas, menos moldura, setas leves; grade principal ganha o espaço; sem zoom nem redução geral de fonte; alvos de toque confortáveis; celular tratado à parte; conferir com nomes reais e o mesmo zoom do navegador; `Calendario` compartilhado só por prop opcional) · F12/F13 (mesmos arquivos) · `executor-front` · pedido do Gustavo em 12/11 (após o PDF) · commit/run: —
 - [ ] F08 Aulões API: normalização da categoria · sem dependência · Sonnet · commit/run: —
 - [ ] F18 Revisão independente (API financeira, lote, campos novos) antes do push · F06, F09 · `advisor`/`revisor` · commit/run: —
 - [ ] F19 Verificação final: tsc, lint, Jest, e2e, `mvn verify`, conferência local em 1280/1440/1920/390 com menu aberto e recolhido, temas, texto ampliado, nomes longos, vazio/carregando/falha, capturas · commit/run: —
