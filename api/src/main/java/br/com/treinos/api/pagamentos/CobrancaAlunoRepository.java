@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
@@ -87,7 +88,9 @@ public interface CobrancaAlunoRepository extends JpaRepository<CobrancaAluno, UU
             + "and (:planoId is null or k.planoComercialId = :planoId) "
             + "and (:forma = '' or (c.forma is not null and ((:forma = 'MANUAL' and c.provedor = 'MANUAL') "
             + "or (:forma = 'ONLINE' and c.provedor <> 'MANUAL')))) "
-            + "and (:busca = false or lower(a.nome) like :nome escape '\\') ";
+            + "and (:busca = false or lower(a.nome) like :nome escape '\\') "
+            + "and c.criadoEm >= :emissaoDe and c.criadoEm < :emissaoAte "
+            + "and (:filtraPagamento = false or c.pagoEm between :pagoDe and :pagoAte) ";
 
     String CONTAGEM_DA_LISTA = "select count(c) from CobrancaAluno c join Aluno a on a.id = c.alunoId "
             + "join ContratacaoAluno k on k.id = c.contratacaoId ";
@@ -153,13 +156,15 @@ public interface CobrancaAlunoRepository extends JpaRepository<CobrancaAluno, UU
     @Query(value = LINHA + FILTRO_DA_LISTA + "order by c.vencimento asc, c.id asc", countQuery = CONTAGEM_DA_LISTA + FILTRO_DA_LISTA)
     Page<LinhaDeCobranca> filtrarCrescente(boolean filtraSituacoes, Collection<CobrancaAluno.Situacao> situacoes,
             boolean soVencidas, CobrancaAluno.Situacao aberta, LocalDate hoje, LocalDate de, LocalDate ate, UUID alunoId,
-            UUID responsavelId, UUID planoId, String forma, boolean busca, String nome, Pageable pagina);
+            UUID responsavelId, UUID planoId, String forma, boolean busca, String nome, Instant emissaoDe, Instant emissaoAte,
+            boolean filtraPagamento, LocalDate pagoDe, LocalDate pagoAte, Pageable pagina);
 
     /** A lista filtrada ({@link #FILTRO_DA_LISTA}), das mais recentes: as demais combinações. */
     @Query(value = LINHA + FILTRO_DA_LISTA + "order by c.vencimento desc, c.id desc", countQuery = CONTAGEM_DA_LISTA + FILTRO_DA_LISTA)
     Page<LinhaDeCobranca> filtrarDecrescente(boolean filtraSituacoes, Collection<CobrancaAluno.Situacao> situacoes,
             boolean soVencidas, CobrancaAluno.Situacao aberta, LocalDate hoje, LocalDate de, LocalDate ate, UUID alunoId,
-            UUID responsavelId, UUID planoId, String forma, boolean busca, String nome, Pageable pagina);
+            UUID responsavelId, UUID planoId, String forma, boolean busca, String nome, Instant emissaoDe, Instant emissaoAte,
+            boolean filtraPagamento, LocalDate pagoDe, LocalDate pagoAte, Pageable pagina);
 
     @Query(LINHA + "where c.alunoId = :alunoId order by c.competencia desc, c.id desc")
     List<LinhaDeCobranca> doAluno(UUID alunoId);

@@ -1,9 +1,9 @@
 package br.com.treinos.api.pagamentos;
 
 import br.com.plataforma.comum.web.ApiError;
-import br.com.plataforma.comum.web.BadRequestException;
 import br.com.treinos.api.auditoria.Auditoria;
 import br.com.treinos.api.alunos.AlunoRepository;
+import br.com.treinos.api.equipe.AcessoAtual;
 import br.com.treinos.api.pagamentos.PagamentosDtos.BaixaManualRequest;
 import br.com.treinos.api.pagamentos.PagamentosDtos.CobrancaResponse;
 import br.com.treinos.api.pagamentos.PagamentosDtos.MotivoRequest;
@@ -18,10 +18,14 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * As cobranças vistas e mexidas pelo treinador. As mudanças de situação moram em {@link BaixaDeCobranca}; aqui ficam a
@@ -40,14 +44,16 @@ public class CobrancaService {
     private final AlunoRepository alunos;
     private final PlanoComercialRepository planos;
     private final BaixaDeCobranca baixa;
+    private final BaixaManualDeUma baixaManual;
     private final Auditoria auditoria;
 
     public CobrancaService(CobrancaAlunoRepository cobrancas, AlunoRepository alunos, PlanoComercialRepository planos,
-                           BaixaDeCobranca baixa, Auditoria auditoria) {
+                           BaixaDeCobranca baixa, BaixaManualDeUma baixaManual, Auditoria auditoria) {
         this.cobrancas = cobrancas;
         this.alunos = alunos;
         this.planos = planos;
         this.baixa = baixa;
+        this.baixaManual = baixaManual;
         this.auditoria = auditoria;
     }
 
@@ -57,13 +63,16 @@ public class CobrancaService {
     /**
      * Filtros crus da lista ({@code GET /financeiro/cobrancas}): {@code situacao} repetível (TODAS, VENCIDA ou uma situação
      * gravada; ABERTA inclui as vencidas; vazio = todas), vencimento {@code de}/{@code ate}, {@code busca} no nome do aluno,
-     * {@code alunoId}, {@code planoId} (plano comercial da contratação) e {@code forma} ({@link FormaDaBaixa}).
+     * {@code alunoId}, {@code planoId} (plano comercial da contratação), {@code forma} ({@link FormaDaBaixa}), período de
+     * emissão ({@code criado_em} da cobrança, dias de Brasília) e período do pagamento ({@code pago_em}, só cobranças com baixa).
      */
     public record FiltroDeCobrancas(List<String> situacao, LocalDate de, LocalDate ate, String busca, String alunoId,
-                                    String planoId, String forma) {
+                                    String planoId, String forma, LocalDate emissaoDe, LocalDate emissaoAte,
+                                    LocalDate pagoDe, LocalDate pagoAte) {
 
         public static FiltroDeCobrancas soSituacao(String situacao, LocalDate de, LocalDate ate) {
-            return new FiltroDeCobrancas(situacao == null ? null : List.of(situacao), de, ate, null, null, null, null);
+            return new FiltroDeCobrancas(situacao == null ? null : List.of(situacao), de, ate, null, null, null, null,
+                    null, null, null, null);
         }
     }
 
@@ -94,6 +103,8 @@ public class CobrancaService {
         UUID planoId = f.planoId() == null || f.planoId().isBlank() ? null : FiltrosDeLista.uuid(f.planoId(), "planoId");
         FormaDaBaixa forma = FiltrosDeLista.umEnum(FormaDaBaixa.class, f.forma(), "forma");
         FiltrosDeLista.exigirPeriodo(f.de(), f.ate(), 0, "PERIODO_INVALIDO");
+        FiltrosDeLista.exigirPeriodo(f.emissaoDe(), f.emissaoAte(), 0, "PERIODO_INVALIDO");
+        FiltrosDeLista.exigirPeriodo(f.pagoDe(), f.pagoAte(), 0, "PERIODO_INVALIDO");
         if (alunoId != null) Travas.exigirAluno(alunos, alunoId);
         if (planoId != null && !planos.existsById(planoId)) throw new NaoEncontradoException("Plano não encontrado.");
         LocalDate inicio = f.de() == null ? PRIMEIRO_DIA : f.de();
@@ -108,13 +119,39 @@ public class CobrancaService {
         String textoForma = forma == null ? "" : forma.name();
         boolean busca = f.busca() != null && !f.busca().isBlank();
         String nome = Buscas.padrao(f.busca());
+        // Emissão: dias de Brasília sobre o instante de criação; as pontas ficam dentro de 1900..2999 (o Instant não estoura).
+        Instant emissaoDe = naFaixa(f.emissaoDe(), PRIMEIRO_DIA).atStartOfDay(Fuso.BRASILIA).toInstant();
+        Instant emissaoAte = naFaixa(f.emissaoAte(), ULTIMO_DIA).plusDays(1).atStartOfDay(Fuso.BRASILIA).toInstant();
+        boolean filtraPagamento = f.pagoDe() != null || f.pagoAte() != null;
+        LocalDate pagoDe = naFaixa(f.pagoDe(), PRIMEIRO_DIA);
+        LocalDate pagoAte = naFaixa(f.pagoAte(), ULTIMO_DIA);
         Page<LinhaDeCobranca> page = crescente
                 ? cobrancas.filtrarCrescente(filtraSituacoes, situacoes, vencidas, CobrancaAluno.Situacao.ABERTA, hoje,
-                        inicio, fim, alunoId, responsavelId, planoId, textoForma, busca, nome, pageable)
+                        inicio, fim, alunoId, responsavelId, planoId, textoForma, busca, nome, emissaoDe, emissaoAte,
+                        filtraPagamento, pagoDe, pagoAte, pageable)
                 : cobrancas.filtrarDecrescente(filtraSituacoes, situacoes, vencidas, CobrancaAluno.Situacao.ABERTA, hoje,
-                        inicio, fim, alunoId, responsavelId, planoId, textoForma, busca, nome, pageable);
-        return new PaginaCobrancas(page.getContent().stream().map(l -> Respostas.cobranca(l, hoje)).toList(),
-                page.getTotalElements(), Math.max(0, pagina));
+                        inicio, fim, alunoId, responsavelId, planoId, textoForma, busca, nome, emissaoDe, emissaoAte,
+                        filtraPagamento, pagoDe, pagoAte, pageable);
+        return new PaginaCobrancas(respostas(page.getContent(), hoje), page.getTotalElements(), Math.max(0, pagina));
+    }
+
+    /** Ponta ausente vira o padrão; ponta fora de 1900..2999 é cortada nele (o filtro continua valendo, sem estourar). */
+    private static LocalDate naFaixa(LocalDate dia, LocalDate padrao) {
+        if (dia == null) return padrao;
+        return dia.isBefore(PRIMEIRO_DIA) ? PRIMEIRO_DIA : dia.isAfter(ULTIMO_DIA) ? ULTIMO_DIA : dia;
+    }
+
+    /**
+     * O CPF do aluno só entra para quem tem {@code ALUNO_SENSIVEL_LER} (a mesma regra da ficha); sem a permissão nem é lido do
+     * banco. Uma consulta para a página inteira.
+     */
+    private List<CobrancaResponse> respostas(List<LinhaDeCobranca> linhas, LocalDate hoje) {
+        Map<UUID, String> cpfs = new HashMap<>();
+        if (!linhas.isEmpty() && AcessoAtual.pode("ALUNO_SENSIVEL_LER")) {
+            alunos.findAllById(linhas.stream().map(l -> l.cobranca().getAlunoId()).collect(Collectors.toSet()))
+                    .forEach(a -> cpfs.put(a.getId(), a.getCpf()));
+        }
+        return linhas.stream().map(l -> Respostas.cobranca(l, hoje, cpfs.get(l.cobranca().getAlunoId()))).toList();
     }
 
     /** Todas as cobranças de um aluno (a ficha), da competência mais nova para a mais antiga. */
@@ -122,26 +159,28 @@ public class CobrancaService {
     public List<CobrancaResponse> doAluno(UUID alunoId) {
         Travas.exigirAluno(alunos, alunoId);
         LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
-        return cobrancas.doAluno(alunoId).stream().map(l -> Respostas.cobranca(l, hoje)).toList();
+        return respostas(cobrancas.doAluno(alunoId), hoje);
     }
 
     /** Repetir sobre a cobrança já paga devolve 200 sem mudar nada (nem a auditoria); versão velha numa aberta é 409. */
     @Transactional
     public CobrancaResponse baixaManual(UUID id, BaixaManualRequest r, UUID usuarioId) {
         LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
-        if (r.data().isAfter(hoje) || r.data().isBefore(DATA_MINIMA_DA_BAIXA)) {
-            throw invalida("data", "A data do pagamento não pode ser futura.");
-        }
-        if (!r.forma().manual()) {
-            throw invalida("forma", "Escolha dinheiro, Pix direto, transferência ou outro.");
-        }
-        var resultado = baixa.baixar(id, new BaixaDeCobranca.Baixa(CobrancaAluno.MANUAL, r.forma(), r.data(), usuarioId,
-                Buscas.opcional(r.observacao()), r.versao()));
-        if (resultado.mudou()) {
-            auditoria.registrarEvento("PAGAMENTO_MANUAL_REGISTRADO", "COBRANCA", id, "Registrou o pagamento de uma cobrança.");
-        }
+        exigirDadosDaBaixa(r.data(), r.forma(), hoje);
+        baixaManual.baixar(id, r.data(), r.forma(), Buscas.opcional(r.observacao()), r.versao(), usuarioId);
         return resposta(id, hoje);
     }
+
+    /** A conferência da data e da forma da baixa manual; vale para a individual e para o lote (422 antes de qualquer efeito). */
+    static void exigirDadosDaBaixa(LocalDate data, FormaDePagamento forma, LocalDate hoje) {
+        if (data.isAfter(hoje) || data.isBefore(DATA_MINIMA_DA_BAIXA)) {
+            throw invalida("data", "A data do pagamento não pode ser futura.");
+        }
+        if (!forma.manual()) {
+            throw invalida("forma", "Escolha dinheiro, Pix direto, transferência ou outro.");
+        }
+    }
+
 
     @Transactional
     public CobrancaResponse desfazerBaixa(UUID id, MotivoRequest r) {
@@ -190,7 +229,7 @@ public class CobrancaService {
     }
 
     private CobrancaResponse resposta(UUID id, LocalDate hoje) {
-        return Respostas.cobranca(cobrancas.linha(id).orElseThrow(Travas::cobrancaNaoEncontrada), hoje);
+        return respostas(List.of(cobrancas.linha(id).orElseThrow(Travas::cobrancaNaoEncontrada)), hoje).get(0);
     }
 
     private static ValidacaoException invalida(String campo, String mensagem) {

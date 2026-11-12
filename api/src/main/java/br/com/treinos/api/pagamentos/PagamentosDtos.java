@@ -1,5 +1,6 @@
 package br.com.treinos.api.pagamentos;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -130,12 +131,43 @@ public final class PagamentosDtos {
     /** Desfazer a baixa e cancelar a cobrança: motivo obrigatório, versão conferida. */
     public record MotivoRequest(@NotBlank @Size(max = 300) String motivo, @NotNull Long versao) { }
 
-    /** {@code vencida} é calculada pela API (ABERTA com vencimento anterior a hoje em Brasília). */
+    /**
+     * {@code vencida} é calculada pela API (ABERTA com vencimento anterior a hoje em Brasília). {@code criadoEm} é o instante
+     * em que a linha da cobrança foi gerada (a "Emissão" da tela: a API não emite documento fiscal nem boleto) e
+     * {@code idExterno} a transação do provedor (nulo na baixa manual). {@code alunoCpf} só vem com
+     * {@code ALUNO_SENSIVEL_LER} (senão nulo) e nunca vai a log, auditoria nem {@code toString}.
+     */
     public record CobrancaResponse(UUID id, UUID contratacaoId, UUID alunoId, String alunoNome, String planoNome,
                                    LocalDate competencia, LocalDate vencimento, long valorCentavos,
                                    CobrancaAluno.Situacao situacao, boolean vencida, Long diasDeAtraso,
                                    FormaDePagamento forma, String provedor, LocalDate pagoEm, UUID baixaPor,
-                                   String baixaPorNome, String observacao, String motivo, Long versao) { }
+                                   String baixaPorNome, String observacao, String motivo, Long versao,
+                                   Instant criadoEm, String idExterno, String alunoCpf) {
+
+        @Override
+        public String toString() {
+            return "CobrancaResponse[id=" + id + "]";
+        }
+    }
+
+    // ---- Baixa em lote ----
+
+    /**
+     * Os mesmos dados da baixa manual individual, valendo para todas as cobranças do lote (1 a 100, sem repetir). Sem valor: o
+     * servidor decide o de cada cobrança. {@code versao} é a que a tela leu de cada uma.
+     */
+    public record BaixaEmLoteRequest(
+            @NotNull @Size(min = 1, max = BaixaEmLote.MAXIMO_DE_ITENS) List<@NotNull @Valid ItemDoLote> itens,
+            @NotNull LocalDate data,
+            @NotNull FormaDePagamento forma,
+            @Size(max = 300) String observacao) { }
+
+    public record ItemDoLote(@NotNull UUID cobrancaId, @NotNull Long versao) { }
+
+    /** {@code codigo} nulo quando deu certo; senão o código estável da recusa (o mesmo da baixa individual). */
+    public record ResultadoDoItem(UUID cobrancaId, boolean ok, String codigo) { }
+
+    public record ResultadoDoLote(List<ResultadoDoItem> resultados) { }
 
     public record PaginaCobrancas(List<CobrancaResponse> itens, long total, int pagina) { }
 

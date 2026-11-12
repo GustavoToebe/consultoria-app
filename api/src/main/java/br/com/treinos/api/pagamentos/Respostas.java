@@ -59,13 +59,15 @@ final class Respostas {
         return "EM_DIA";
     }
 
-    static CobrancaResponse cobranca(LinhaDeCobranca l, LocalDate hoje) {
+    /** {@code alunoCpf}: o do aluno, já decidido por quem chama (nulo sem {@code ALUNO_SENSIVEL_LER}). */
+    static CobrancaResponse cobranca(LinhaDeCobranca l, LocalDate hoje, String alunoCpf) {
         CobrancaAluno c = l.cobranca();
         boolean vencida = c.vencida(hoje);
         return new CobrancaResponse(c.getId(), c.getContratacaoId(), c.getAlunoId(), l.alunoNome(), l.planoNome(),
                 c.getCompetencia(), c.getVencimento(), c.getValorCentavos(), c.getSituacao(), vencida,
                 vencida ? diasDeAtraso(c, hoje) : null, c.getForma(), c.getProvedor(), c.getPagoEm(), c.getBaixaPor(),
-                l.baixaPorNome(), c.getObservacao(), c.getMotivo(), c.getVersao());
+                l.baixaPorNome(), c.getObservacao(), c.getMotivo(), c.getVersao(), c.getCriadoEm(), c.getIdExterno(),
+                alunoCpf);
     }
 
     /** Só o que o aluno pode ver: sem observação, motivo, quem deu a baixa nem o provedor. */

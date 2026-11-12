@@ -61,6 +61,10 @@ class PagamentosDesligadosIntegrationTest extends AbstractIntegrationTest {
         api.post("/financeiro/lancamentos", admin,
                 Map.of("data", hoje.toString(), "descricao", "x", "valorCentavos", 1, "tipo", "ENTRADA"), 503);
         api.post("/cobrancas/" + UUID.randomUUID() + "/cancelar", admin, Map.of("motivo", "x", "versao", 0), 503);
+        // O lote de baixas também fica atrás do financeiro, antes de qualquer item.
+        assertThat(api.post("/cobrancas/baixa-em-lote", admin, Map.of("itens",
+                java.util.List.of(Map.of("cobrancaId", UUID.randomUUID().toString(), "versao", 0)), "data", hoje.toString(),
+                "forma", "DINHEIRO"), 503).path("codigo").asString()).isEqualTo("FINANCEIRO_INDISPONIVEL");
 
         JsonNode login = api.convidarEEntrar(admin, aluno);
         assertThat(api.get("/aluno/financeiro", login, 503).path("codigo").asString()).isEqualTo("FINANCEIRO_INDISPONIVEL");
