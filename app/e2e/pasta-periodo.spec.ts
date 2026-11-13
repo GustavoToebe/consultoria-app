@@ -33,9 +33,13 @@ for (const largura of [390, 1280]) {
     });
 
     await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=planos`);
-    // "Abertas", não "Ativas": pasta aberta não quer dizer plano em uso pelo aluno.
-    await expect(page.getByRole('radio', { name: 'Abertas' })).toBeVisible();
-    await expect(page.getByRole('radio', { name: 'Ativas' })).toHaveCount(0);
+    // "Abertas", não "Ativas": pasta aberta não quer dizer plano em uso pelo aluno (no painel "Filtros de pastas").
+    await page.getByRole('button', { name: /^Filtros, / }).click();
+    const filtros = page.getByRole('dialog', { name: 'Filtros de pastas' });
+    await expect(filtros.getByRole('radio', { name: 'Abertas' })).toBeVisible();
+    await expect(filtros.getByRole('radio', { name: 'Ativas' })).toHaveCount(0);
+    await filtros.getByRole('button', { name: 'Cancelar' }).click();
+    await expect(filtros).toHaveCount(0);
 
     await page.getByRole('button', { name: 'Nova pasta' }).click();
     const folha = page.getByRole('dialog');

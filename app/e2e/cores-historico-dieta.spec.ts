@@ -179,13 +179,22 @@ for (const nomeDoTema of ['claro', 'escuro'] as const) {
       await page.getByText('Semana de 05/10 a 11/10', { exact: true }).scrollIntoViewIfNeeded();
       await page.screenshot({ path: testInfo.outputPath(`historico-semana-${nomeDoTema}-${largura}.png`), fullPage: true });
 
+      // O período mora no painel "Filtros de registros" (D5: o padrão não conta; os outros viram etiqueta).
+      const periodo = async (rotulo: string) => {
+        await page.getByRole('button', { name: /^Filtros, / }).click();
+        const painel = page.getByRole('dialog', { name: 'Filtros de registros' });
+        await painel.getByRole('radio', { name: rotulo, exact: true }).click();
+        await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+        await expect(painel).toHaveCount(0);
+      };
       // Pasta anterior: as datas dela vão para a mesma rota, e o período da faixa muda.
-      await page.getByText('Pasta anterior', { exact: true }).click();
+      await periodo('Pasta anterior');
+      await expect(page.getByRole('button', { name: 'Tirar filtro: Período: Pasta anterior' })).toBeVisible();
       await expect(page.getByLabel('Período: Pasta anterior: 01/09 a 30/09', { exact: true })).toBeVisible();
       await expect(page.getByText('Semana de 14/09 a 20/09', { exact: true })).toBeVisible();
       expect(pedidos).toContain('2026-09-01:2026-09-30');
       // Últimos 30 dias: o rótulo diz o período (as datas dependem de hoje).
-      await page.getByText('Últimos 30 dias', { exact: true }).click();
+      await periodo('Últimos 30 dias');
       await expect(page.getByLabel('Período: Últimos 30 dias: 16/09 a 15/10', { exact: true })).toBeVisible();
       expect(errosDaPagina).toEqual([]);
     });

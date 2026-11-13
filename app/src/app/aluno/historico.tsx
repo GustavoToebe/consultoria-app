@@ -10,6 +10,7 @@ import type { ExercicioPlano, Sessao } from '../../api/tipos';
 import { normalizarTreino } from '../../dominio/editorTreino';
 import { dataParaTela } from '../../dominio/formatos';
 import { hojeEmBrasilia } from '../../dominio/financeiro';
+import { chipsDoPeriodoDoHistorico } from '../../dominio/filtrosDosCartoes';
 import { CONFIGURACAO_PADRAO } from '../../dominio/metodologiaPadrao';
 import {
   DIAS_DO_HISTORICO,
@@ -38,6 +39,7 @@ import { HistoricoPorSemana } from '../../treinador/HistoricoPorSemana';
 import { Escolha } from '../../ui/Escolha';
 import { Abas } from '../../ui/Abas';
 import { useAviso } from '../../ui/Aviso';
+import { BarraDeFiltros, GrupoDoPainel } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
 import { NoPlano } from '../../ui/NoPlano';
 import { CartaoFotos } from '../../fotos/CartaoFotos';
@@ -54,7 +56,9 @@ import { useCarregar } from '../../ui/useCarregar';
 /**
  * Histórico: o que ainda está só no aparelho, os treinos registrados no período escolhido (a pasta em uso, a anterior ou
  * os últimos 30 dias; Frente G, D15), o progresso por exercício, o peso (lista e gráfico) e a avaliação física. Cada
- * cartão diz na faixa o período que mostra.
+ * cartão diz na faixa o período que mostra. O período dos Registros fica no painel "Filtros de registros" (`ui/BarraDeFiltros`):
+ * é obrigatório (D5 de `docs/planos/filtros-laterais.md`), então o padrão não conta nem vira etiqueta e "Limpar filtros"
+ * volta a ele. Estado local da tela, como antes.
  */
 export default function HistoricoAluno() {
   const { registros, pacote, escolhida, falhas, tentarDeNovo, online } = useAluno();
@@ -155,7 +159,16 @@ export default function HistoricoAluno() {
         titulo="Registros e cargas"
         periodo={rotuloDoPeriodo(periodo, de, ate)}
         acoes={divisoes.length ? <NoPlano funcionalidade="PDF"><Botao rotulo="PDF" tipo="secundario" Icone={FileDown} carregando={gerando} aoTocar={pdf} /></NoPlano> : null}>
-        {opcoesDoPeriodo.length > 1 ? <Escolha rotulo="Período" opcoes={opcoesDoPeriodo} valor={periodo} aoMudar={setEscolhido} /> : null}
+        {opcoesDoPeriodo.length > 1 ? (
+          <BarraDeFiltros<PeriodoDoHistorico | null> valor={escolhido} limpo={null} aoAplicar={setEscolhido}
+            chips={chipsDoPeriodoDoHistorico(periodo, opcoesDoPeriodo)} aoTirar={() => setEscolhido(null)}
+            painelLateral={{ titulo: 'Filtros de registros' }}
+            seletores={(f, mudar) => (
+              <GrupoDoPainel titulo="Datas" primeiro>
+                <Escolha rotulo="Período" opcoes={opcoesDoPeriodo} valor={periodoValido(f, pasta, anterior)} aoMudar={mudar} />
+              </GrupoDoPainel>
+            )} />
+        ) : null}
         <Abas abas={VISOES} ativa={visao} aoMudar={setVisao} />
         {historico.dados && historico.dados.length ? <Texto numerico variante="pequeno">{fraseDoHistorico(visao, de, ate)}</Texto> : null}
         {semConexao ? <Texto numerico variante="suave">Sem conexão: o histórico do servidor aparece quando voltar a internet.</Texto> : null}

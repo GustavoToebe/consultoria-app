@@ -23,13 +23,16 @@ import { dataSemAnoCorrente, periodoCurto } from '../dominio/datasRelativas';
 import { precisaRenovar } from '../dominio/resumoDoAluno';
 import { dadosDaRenovacao, diasDoPeriodo, fimQueAcompanha, periodoInicial, proximoPeriodo } from '../dominio/periodo';
 import { FILTROS_PASTAS, filtrarPastas, pastasParaCopiarNaNova, type FiltroPastas } from '../dominio/pastas';
+import { chipsDasPastas, PASTAS_SEM_FILTRO } from '../dominio/filtrosDosCartoes';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, LARGURA_EDITOR, RAIO } from '../tema/tokens';
 import { useAviso } from '../ui/Aviso';
 import { useSaidaGuardada } from '../ui/GuardaDeSaida';
+import { BarraDeFiltros, GrupoDoPainel } from '../ui/BarraDeFiltros';
 import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
 import { CampoData, CampoNumerico } from '../ui/Campos';
+import { CampoLeitura } from '../ui/CampoLeitura';
 import { CartaoCicloNoPeriodo } from './ciclo/CicloNaFicha';
 import { Cartao } from '../ui/Cartao';
 import { Escolha } from '../ui/Escolha';
@@ -104,7 +107,7 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
   const { pode, temFuncionalidade } = useSessao();
   const { dados, erro, carregando, recarregar } = useCarregar(`pastas:${alunoId}:${geracaoExterna}`, () => listarPastas(alunoId));
   const [modo, setModo] = useState<Modo | null>(null);
-  const [filtro, setFiltro] = useState<FiltroPastas>('todas');
+  const [filtro, setFiltro] = useState<FiltroPastas>(PASTAS_SEM_FILTRO);
   const { avisar } = useAviso();
   // Saídas para outra tela passam pela guarda (os dados do aluno podem estar em edição na ficha, D7); fechar a Folha da
   // pasta vai junto, para o "Continuar editando" deixar a Folha aberta como estava.
@@ -181,9 +184,15 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
         {dados && dados.length === 0 ? (
           <Vazio titulo="Sem pastas" texto="As pastas reúnem o treino, a dieta e a mobilidade do período." />
         ) : null}
-        {dados && dados.length > 0 ? <Escolha descricao="Situação da pasta" opcoes={FILTROS_PASTAS} valor={filtro} aoMudar={setFiltro} /> : null}
+        {/* Filtro do cartão (painel "Filtros de pastas"): o aluno é o contexto, não conta nem vira etiqueta. Estado local. */}
+        {dados && dados.length > 0 ? (
+          <BarraDeFiltros valor={filtro} limpo={PASTAS_SEM_FILTRO} aoAplicar={setFiltro} chips={chipsDasPastas(filtro)} aoTirar={() => setFiltro(PASTAS_SEM_FILTRO)}
+            painelLateral={{ titulo: 'Filtros de pastas' }}
+            seletores={(f, mudar) => <SeletoresDasPastas filtro={f} aoMudar={mudar} alunoNome={alunoNome} />} />
+        ) : null}
         {dados && dados.length > 0 && visiveis.length === 0 ? (
-          <Vazio titulo="Nenhuma pasta nesta situação" texto={filtro === 'abertas' ? 'Todas as pastas estão concluídas.' : 'Nenhuma pasta foi concluída ainda.'} />
+          <Vazio titulo="Nenhuma pasta nesta situação" texto={filtro === 'abertas' ? 'Todas as pastas estão concluídas.' : 'Nenhuma pasta foi concluída ainda.'}
+            acao={{ rotulo: 'Limpar filtros', aoTocar: () => setFiltro(PASTAS_SEM_FILTRO) }} />
         ) : null}
         {visiveis.map((p) => (
           <LinhaPasta key={p.id} pasta={p} atualizacao={daPasta(p.id)} rascunho={!p.concluidaEm && emRascunho(p.id)} aoAbrir={() => setAbertaId(p.id)} hoje={hoje}
@@ -260,6 +269,18 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
       }} />
       {modo ? <FolhaPasta alunoId={alunoId} modo={modo} diasAtualizacao={diasAtualizacao} pastas={dados ?? []} aoFechar={() => setModo(null)} aoSalvar={aoSalvar} /> : null}
       {finalizar ? <FolhaFinalizar pasta={finalizar} alunoId={alunoId} atualizacao={daPasta(finalizar.id)} aoFechar={() => setFinalizar(null)} aoFinalizar={(comPeso) => { setFinalizar(null); aoSalvar(); if (comPeso) aoGravarPeso?.(); }} /> : null}
+    </>
+  );
+}
+
+/** Painel "Filtros de pastas": o aluno do cartão só como leitura (contexto) e a situação. */
+function SeletoresDasPastas({ filtro, aoMudar, alunoNome }: { filtro: FiltroPastas; aoMudar: (f: FiltroPastas) => void; alunoNome: string }) {
+  return (
+    <>
+      {alunoNome ? <GrupoDoPainel titulo="Identificação" primeiro><CampoLeitura rotulo="Aluno" valor={alunoNome} /></GrupoDoPainel> : null}
+      <GrupoDoPainel titulo="Situação" primeiro={!alunoNome}>
+        <Escolha rotulo="Situação da pasta" opcoes={FILTROS_PASTAS} valor={filtro} aoMudar={aoMudar} />
+      </GrupoDoPainel>
     </>
   );
 }

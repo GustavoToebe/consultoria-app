@@ -4,16 +4,18 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { listarExercicios } from '../../api/rotas';
 import type { Exercicio } from '../../api/tipos';
 import { gruposDosExercicios } from '../../dominio/catalogo';
+import { chipsDoGrupo, selecaoDepoisDoGrupo } from '../../dominio/filtrosDosCartoes';
 import { coincideComBuscaExercicio } from '../../dominio/termosExerciciosIngles';
 import { MODALIDADES } from '../../dominio/modalidades';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, RAIO } from '../../tema/tokens';
+import { BarraDeFiltros } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
 import { CaixaSelecao } from '../../ui/CaixaSelecao';
 import { Campo } from '../../ui/Campo';
 import { Escolha } from '../../ui/Escolha';
-import { EscolhaEmFolha, OPCOES_PARA_BUSCAR } from '../../ui/EscolhaEmFolha';
 import { Esqueleto } from '../../ui/Esqueleto';
+import { useEtapaDeFiltros } from '../../ui/EtapaDeFiltros';
 import { MensagemErro } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
@@ -21,6 +23,9 @@ import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 
+
+/** "Todos" do grupo muscular: sem filtro. */
+const TODOS_OS_GRUPOS = '';
 
 /** Compara sem acento e sem caixa ("rosca" acha "Rosca Direta"). */
 export function normalizar(texto: string): string {
@@ -32,7 +37,9 @@ export function normalizar(texto: string): string {
  * ligar à biblioteca (aí o progresso desse exercício não junta com outros planos). Com `multiplo` (exercício novo) dá
  * para marcar vários do grupo escolhido e adicionar de uma vez; sem ele (trocar um exercício) a escolha é uma só.
  * `aoEscolher` recebe sempre a lista, na ordem em que foram marcados. Com `cardio` ("+ Adicionar cardio") a lista traz só
- * os exercícios de cardio da biblioteca; o nome digitado também vale.
+ * os exercícios de cardio da biblioteca; o nome digitado também vale. O grupo muscular é um filtro: "Filtros" troca a
+ * folha pela etapa "Filtros de exercícios" (`ui/EtapaDeFiltros`, sem painel por cima) e Aplicar/Cancelar/Esc voltam à lista
+ * com a busca e as marcações (aplicar outro grupo tira só o que não é dele, com aviso: `selecaoDepoisDoGrupo`).
  */
 export function FolhaBiblioteca({
   visivel,
@@ -49,14 +56,10 @@ export function FolhaBiblioteca({
 }) {
   const { cores } = useTema();
   const [busca, setBusca] = useState('');
-  const [grupo, setGrupo] = useState('');
+  const [grupo, setGrupo] = useState(TODOS_OS_GRUPOS);
   const [marcados, setMarcados] = useState<ReadonlySet<string>>(new Set());
-  // Cada abertura começa sem nada marcado (estado derivado da prop, o padrão do React).
-  const [estavaVisivel, setEstavaVisivel] = useState(visivel);
-  if (visivel !== estavaVisivel) {
-    setEstavaVisivel(visivel);
-    if (!visivel) setMarcados(new Set());
-  }
+  // Quantos saíram da seleção no último Aplicar com outro grupo (fica até a próxima mudança de filtro ou o fechar).
+  const [avisoDoGrupo, setAvisoDoGrupo] = useState<string | null>(null);
   const { dados, erro, carregando, recarregar } = useCarregar(visivel ? 'biblioteca-exercicios' : null, () =>
     listarExercicios(),
   );
@@ -64,12 +67,24 @@ export function FolhaBiblioteca({
   const daFolha = (dados ?? []).filter((e) => !cardio || e.modalidade === 'CARDIO');
   const grupos = gruposDosExercicios(daFolha);
   const noGrupo = (e: Exercicio, g: string) => !g || e.grupoMuscular?.trim() === g;
-  // Trocar de grupo tira da seleção o que não é do grupo novo: só se adiciona o que está no grupo escolhido.
-  const escolherGrupo = (g: string) => {
+  // Aplicar outro grupo tira da seleção o que não é do grupo novo (só se adiciona o que está no grupo escolhido), com aviso.
+  const aplicarGrupo = (g: string) => {
+    if (g === grupo) return;
     setGrupo(g);
-    const doGrupo = new Set(daFolha.filter((e) => noGrupo(e, g)).map((e) => e.id));
-    setMarcados((atual) => new Set([...atual].filter((id) => doGrupo.has(id))));
+    const r = selecaoDepoisDoGrupo(marcados, g ? new Set(daFolha.filter((e) => noGrupo(e, g)).map((e) => e.id)) : null, g);
+    setMarcados(r.marcados);
+    setAvisoDoGrupo(r.aviso);
   };
+  const etapa = useEtapaDeFiltros({ valor: grupo, limpo: TODOS_OS_GRUPOS, aoAplicar: aplicarGrupo });
+  // Cada abertura começa sem nada marcado e na lista (estado derivado da prop, o padrão do React).
+  const [estavaVisivel, setEstavaVisivel] = useState(visivel);
+  if (visivel !== estavaVisivel) {
+    setEstavaVisivel(visivel);
+    if (!visivel) { setMarcados(new Set()); setAvisoDoGrupo(null); etapa.reiniciar(); }
+  }
+  const opcoesDoGrupo = [{ valor: TODOS_OS_GRUPOS, rotulo: 'Todos' }, ...grupos.map((g) => ({ valor: g, rotulo: g }))];
+  const chips = chipsDoGrupo(grupo, TODOS_OS_GRUPOS);
+  const assunto = cardio ? 'cardio' : 'exercícios';
   const alternar = (id: string, marcar: boolean) =>
     setMarcados((atual) => {
       const novo = new Set(atual);
@@ -101,11 +116,25 @@ export function FolhaBiblioteca({
   };
   const adicionar = () => aoEscolher(marcadosEmOrdem());
 
+  if (etapa.aberta) {
+    return (
+      <Folha visivel={visivel} titulo={`Filtros de ${assunto}`} aoFechar={etapa.fechar} rodape={etapa.rodape}>
+        {etapa.corpo(<Escolha rotulo="Grupo muscular" valor={etapa.rascunho} opcoes={opcoesDoGrupo} aoMudar={etapa.mudar} />)}
+        {multiplo && marcados.size > 0 ? (
+          <Texto variante="pequeno">
+            {marcados.size === 1 ? '1 exercício marcado' : `${marcados.size} exercícios marcados`}. Ao aplicar outro grupo, sai da seleção o que não for dele.
+          </Texto>
+        ) : null}
+      </Folha>
+    );
+  }
+
   return (
     <Folha
       visivel={visivel}
       titulo={cardio ? 'Escolher cardio' : 'Escolher exercício'}
       aoFechar={aoFechar}
+      statusDoRodape={avisoDoGrupo ? <Texto variante="pequeno" role="status">{avisoDoGrupo}</Texto> : undefined}
       rodape={multiplo ? (
         <>
           <Botao rotulo="Cancelar" tipo="secundario" aoTocar={aoFechar} />
@@ -113,11 +142,12 @@ export function FolhaBiblioteca({
             aoTocar={adicionar} desabilitado={marcados.size === 0} motivo={cardio ? 'Marque ao menos um cardio.' : 'Marque ao menos um exercício.'} />
         </>
       ) : undefined}>
-      <Campo rotulo="Buscar na biblioteca" valor={busca} aoMudar={setBusca} placeholder={cardio ? 'Ex.: Esteira, bicicleta' : 'Nome, grupo ou equipamento'} autoFocus />
+      <Campo rotulo="Buscar na biblioteca" valor={busca} aoMudar={setBusca} placeholder={cardio ? 'Ex.: Esteira, bicicleta' : 'Nome, grupo ou equipamento'} autoFocus={!etapa.jaAbriu} />
       {grupos.length ? (
-        grupos.length + 1 > OPCOES_PARA_BUSCAR
-          ? <EscolhaEmFolha rotulo="Grupo muscular" opcoes={[{ valor: '', rotulo: 'Todos' }, ...grupos.map((g) => ({ valor: g, rotulo: g }))]} valor={grupo} aoMudar={escolherGrupo} />
-          : <Escolha descricao="Grupo muscular" opcoes={[{ valor: '', rotulo: 'Todos' }, ...grupos.map((g) => ({ valor: g, rotulo: g }))]} valor={grupo} aoMudar={escolherGrupo} />
+        etapa.barra(
+          <BarraDeFiltros valor={grupo} limpo={TODOS_OS_GRUPOS} aoAplicar={aplicarGrupo} chips={chips} aoTirar={() => aplicarGrupo(TODOS_OS_GRUPOS)}
+            seletores={() => null} painelLateral={{ titulo: `Filtros de ${assunto}` }} naFolha={{ abrir: etapa.abrir }} />,
+        )
       ) : null}
       {busca.trim() ? (
         <Botao rotulo={`${cardio ? 'Cardio' : 'Exercício'} manual: “${busca.trim()}”`} rotuloAcessivel={`Usar só o nome ${busca.trim()}, fora da biblioteca`} tipo="secundario" aoTocar={() => aoEscolher([...marcadosEmOrdem(), { nome: busca.trim() }])} />

@@ -71,9 +71,13 @@ test('escolher exercício: marca vários do grupo escolhido e adiciona de uma ve
   await folha.getByRole('checkbox', { name: 'Supino reto' }).click();
   await folha.getByRole('checkbox', { name: 'Remada baixa' }).click();
   await expect(folha.getByRole('button', { name: 'Adicionar 2 exercícios' })).toBeEnabled();
-  // Trocar de grupo tira da seleção o que não é do grupo novo.
-  await folha.getByRole('radio', { name: 'Peito' }).click();
+  // Trocar de grupo (etapa "Filtros de exercícios" da mesma folha) tira da seleção o que não é do grupo novo, com aviso.
+  await folha.getByRole('button', { name: /^Filtros, / }).click();
+  const etapa = page.getByRole('dialog', { name: 'Filtros de exercícios' });
+  await etapa.getByRole('radio', { name: 'Peito' }).click();
+  await etapa.getByRole('button', { name: 'Aplicar filtros' }).click();
   await expect(folha.getByRole('checkbox', { name: 'Remada baixa' })).toHaveCount(0);
+  await expect(folha.getByRole('status').filter({ hasText: '1 exercício marcado saiu da seleção porque não é do grupo Peito.' })).toBeVisible();
   await expect(folha.getByRole('button', { name: 'Adicionar exercício' })).toBeEnabled();
   await folha.getByRole('button', { name: /Marcar todos os 2 da lista/ }).click();
   await folha.getByRole('button', { name: 'Adicionar 2 exercícios' }).click();

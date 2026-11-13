@@ -1,17 +1,18 @@
 import { FileDown } from 'lucide-react-native';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
 
 import { execucoesDoAluno } from '../api/rotas';
 import type { PastaResumo } from '../api/tipos';
 import { hojeEmBrasilia } from '../dominio/financeiro';
+import { chipsDeRegistros, REGISTROS_SEM_FILTRO, semOFiltroDeRegistros, TODOS_OS_PLANOS, type ChaveDeRegistros, type FiltrosDeRegistros } from '../dominio/filtrosDosCartoes';
 import { dataParaTela } from '../dominio/formatos';
 import { letrasDasDivisoes } from '../dominio/historicoDoAluno';
 import { cargasPorDivisao, filtrarPorSessoes, intervaloDeRegistros, nomeDaDivisao, periodoMisturaVersoes, TEXTO_PERIODO_MISTURA_VERSOES, textoDoHistoricoVazio } from '../dominio/relatorio';
-import { espaco } from '../tema/tokens';
 import { Abas } from '../ui/Abas';
 import { useAviso } from '../ui/Aviso';
+import { BarraDeFiltros, GrupoDoPainel } from '../ui/BarraDeFiltros';
 import { Botao } from '../ui/Botao';
+import { CampoLeitura } from '../ui/CampoLeitura';
 import { Cartao } from '../ui/Cartao';
 import { Escolha } from '../ui/Escolha';
 import { Esqueleto } from '../ui/Esqueleto';
@@ -24,6 +25,7 @@ import { HistoricoPorSemana } from './HistoricoPorSemana';
 import { NoPlano } from '../ui/NoPlano';
 import { gerarPdfDeCargas, sessoesPorUid, treinosDoAluno } from './gerarPdf';
 import { useUnidadeDeCarga } from '../ui/unidadeDeCargaEmUso';
+import { UmaOpcao } from './SeletoresDeFiltro';
 
 
 export const PERIODOS = [
@@ -40,12 +42,15 @@ export const VISOES: { valor: VisaoRegistros; rotulo: string }[] = [
 
 /**
  * Registros do aluno no período: por divisão do plano (carga de trabalho de cada dia, como o relatório em PDF) ou
- * por dia, e o progresso por exercício.
+ * por dia, e o progresso por exercício. Período (só na pasta sem período) e Plano (com mais de um) ficam no painel
+ * "Filtros de registros" (`ui/BarraDeFiltros`), aberto sobre a folha da pasta; o aluno e a pasta são o contexto (não contam
+ * nem viram etiqueta). Estado local, como antes.
  */
 export function CartaoRegistros({ aluno, pasta }: { aluno: { id: string; nome: string }; pasta?: PastaResumo }) {
   const { avisar } = useAviso();
   const unidade = useUnidadeDeCarga();
-  const [dias, setDias] = useState('14');
+  const [filtros, setFiltros] = useState<FiltrosDeRegistros>(REGISTROS_SEM_FILTRO);
+  const { dias, planoId } = filtros;
   const [visao, setVisao] = useState<VisaoRegistros>('divisao');
   const [gerando, setGerando] = useState(false);
   // Dentro da pasta, o período é o dela (sem os filtros de 14/30/60 dias) e só entram os treinos dela.
@@ -56,7 +61,6 @@ export function CartaoRegistros({ aluno, pasta }: { aluno: { id: string; nome: s
     execucoesDoAluno(aluno.id, de, ate),
   );
   const treinos = useCarregar(`treinos:${aluno.id}`, () => treinosDoAluno(aluno.id));
-  const [planoId, setPlanoId] = useState('todos');
   const planos = (treinos.dados ?? []).filter((t) => !daPasta || t.plano.pastaId === pasta?.id);
   const planoEscolhido = planos.find((t) => t.plano.id === planoId);
   const filtrados = dados ? filtrarPorSessoes(dados, planoEscolhido ? new Set(planoEscolhido.sessoes.map((s) => s.uid)) : null) : null;
@@ -65,7 +69,9 @@ export function CartaoRegistros({ aluno, pasta }: { aluno: { id: string; nome: s
   const nomeDaSessao = (s: { sessaoUid: string; sessao: string }) => nomeDaDivisao(s, sessoes);
   // A mesma letra e a mesma cor da divisão nas duas visões (Frente G, D13).
   const letras = letrasDasDivisoes([...divisoes.map((d) => d.nome), ...(filtrados ?? []).flatMap((d) => d.sessoes.map(nomeDaSessao))]);
-  const opcoesPlano = [{ valor: 'todos', rotulo: 'Todos os planos' }, ...planos.map((t) => ({ valor: t.plano.id, rotulo: t.plano.titulo }))];
+  const opcoesPlano = [{ valor: TODOS_OS_PLANOS, rotulo: 'Todos os planos' }, ...planos.map((t) => ({ valor: t.plano.id, rotulo: t.plano.titulo }))];
+  const comPlano = planos.length > 1;
+  const chips = chipsDeRegistros(filtros, { comPeriodo: !daPasta, periodos: PERIODOS, planos: comPlano ? opcoesPlano : [] });
 
   const pdf = () => {
     setGerando(true);
@@ -82,10 +88,25 @@ export function CartaoRegistros({ aluno, pasta }: { aluno: { id: string; nome: s
         acoes={
           divisoes.length ? <NoPlano funcionalidade="PDF"><Botao rotulo="PDF das cargas" tipo="secundario" Icone={FileDown} carregando={gerando} aoTocar={pdf} /></NoPlano> : null
         }>
-        <View style={estilos.filtros}>
-          {daPasta ? null : <Escolha descricao="Período" opcoes={PERIODOS} valor={dias} aoMudar={setDias} />}
-          {planos.length > 1 ? <Escolha descricao="Plano" opcoes={opcoesPlano} valor={planoId} aoMudar={setPlanoId} /> : null}
-        </View>
+        {!daPasta || comPlano ? (
+          <BarraDeFiltros valor={filtros} limpo={REGISTROS_SEM_FILTRO} aoAplicar={setFiltros} chips={chips}
+            aoTirar={(chave) => setFiltros((f) => semOFiltroDeRegistros(f, chave as ChaveDeRegistros))}
+            painelLateral={{ titulo: 'Filtros de registros' }}
+            seletores={(f, mudar) => (
+              <>
+                <GrupoDoPainel titulo="Identificação" primeiro>
+                  <CampoLeitura rotulo="Aluno" valor={aluno.nome || '—'} />
+                  {pasta ? <CampoLeitura rotulo="Pasta" valor={pasta.titulo} /> : null}
+                  {comPlano ? <UmaOpcao rotulo="Plano" valor={f.planoId} opcoes={opcoesPlano} aoMudar={(v) => mudar({ ...f, planoId: v })} /> : null}
+                </GrupoDoPainel>
+                {daPasta ? null : (
+                  <GrupoDoPainel titulo="Datas">
+                    <Escolha rotulo="Período" opcoes={PERIODOS} valor={f.dias} aoMudar={(v) => mudar({ ...f, dias: v })} />
+                  </GrupoDoPainel>
+                )}
+              </>
+            )} />
+        ) : null}
         <Abas abas={VISOES} ativa={visao} aoMudar={setVisao} />
         {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
         {!dados && carregando ? <Esqueleto /> : null}
@@ -99,9 +120,3 @@ export function CartaoRegistros({ aluno, pasta }: { aluno: { id: string; nome: s
       </Cartao>
   );
 }
-
-const estilos = StyleSheet.create({
-  filtros: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
-  col: { flex: 1 },
-  progresso: { gap: espaco(0.75) },
-});

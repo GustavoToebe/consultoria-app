@@ -6,20 +6,23 @@ import { execucoesDoAluno, historicoAluno } from '../api/rotas';
 import { hojeEmBrasilia } from '../dominio/financeiro';
 import { somarDias } from '../dominio/formatos';
 import { PERIODO_DO_PROGRESSO } from '../dominio/historicoDoAluno';
+import { chipsDoGrupo } from '../dominio/filtrosDosCartoes';
 import { agruparPorGrupo } from '../dominio/progresso';
 import { cargasPorDivisao, opcoesDeProgresso, periodoMisturaVersoes, TEXTO_PERIODO_MISTURA_VERSOES, textoDoHistoricoVazio, totalDeRegistros } from '../dominio/relatorio';
 import { LIMITE_PROGRESSO } from '../dominio/selecaoMultipla';
 import { espaco } from '../tema/tokens';
 import { useAviso } from '../ui/Aviso';
 import { useTema } from '../tema/TemaProvider';
+import { BarraDeFiltros } from '../ui/BarraDeFiltros';
 import { Botao } from '../ui/Botao';
 import { Interruptor } from '../ui/Campos';
 import { Campo } from '../ui/Campo';
 import { Cartao } from '../ui/Cartao';
-import { Escolha } from '../ui/Escolha';
 import { MensagemErro, Vazio } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
+import { Escolha } from '../ui/Escolha';
 import { Esqueleto } from '../ui/Esqueleto';
+import { useEtapaDeFiltros } from '../ui/EtapaDeFiltros';
 import { Folha } from '../ui/Folha';
 import { SelecaoMultipla } from '../ui/SelecaoMultipla';
 import { Texto } from '../ui/Texto';
@@ -32,10 +35,13 @@ const LARGURA_DUAS_COLUNAS = 760;
 
 /** A API aceita até 366 dias por consulta; os exercícios listados são os registrados no último ano. */
 const DIAS_DA_LISTA = 364;
+/** "Todos" do grupo muscular na folha de escolher: sem filtro. */
+const TODOS = 'todos';
 
 /**
- * Progresso por exercício na ficha do aluno (fora das pastas): os exercícios se escolhem numa folha (busca, grupo
- * muscular e caixas de seleção, até `LIMITE_PROGRESSO` de uma vez); cada marcado vira um bloco com o histórico
+ * Progresso por exercício na ficha do aluno (fora das pastas): os exercícios se escolhem numa folha (busca, filtro de grupo
+ * muscular e caixas de seleção, até `LIMITE_PROGRESSO` de uma vez); o grupo é a etapa "Filtros de progresso" da mesma
+ * folha (`ui/EtapaDeFiltros`), que só muda a lista visível e nunca as marcações. Cada marcado vira um bloco com o histórico
  * completo do aluno, de todas as pastas. Com o cartão largo (a partir de 760 px, medido nele e não na janela) os blocos ficam em duas colunas.
  */
 export function CartaoProgresso({ alunoId }: { alunoId?: string }) {
@@ -48,14 +54,16 @@ export function CartaoProgresso({ alunoId }: { alunoId?: string }) {
   const de = somarDias(hoje, -DIAS_DA_LISTA);
   const { dados: dias, erro, recarregar } = useCarregar(`exec-progresso:${alunoId ?? 'eu'}:${de}:${hoje}`, () =>
     alunoId ? execucoesDoAluno(alunoId, de, hoje) : historicoAluno(de, hoje));
-  const [grupo, setGrupo] = useState('todos');
+  const [grupo, setGrupo] = useState(TODOS);
   const [busca, setBusca] = useState('');
   const [escolhendo, setEscolhendo] = useState(false);
+  const etapa = useEtapaDeFiltros({ valor: grupo, limpo: TODOS, aoAplicar: setGrupo });
+  const fecharEscolha = () => { etapa.reiniciar(); setEscolhendo(false); };
   // `null` = nada mexido ainda: começa só com o primeiro exercício marcado.
   const [escolhidos, setEscolhidos] = useState<ReadonlySet<string> | null>(null);
   const { grupos, exercicios: todos } = opcoesDeProgresso(dias ?? [], null);
   const termo = normalizar(busca.trim());
-  const visiveis = todos.filter((o) => (grupo === 'todos' || o.grupo === grupo) && (!termo || normalizar(o.rotulo).includes(termo)));
+  const visiveis = todos.filter((o) => (grupo === TODOS || o.grupo === grupo) && (!termo || normalizar(o.rotulo).includes(termo)));
   const marcados = escolhidos ?? new Set(todos.slice(0, 1).map((o) => o.valor));
   const mostrados = todos.filter((o) => marcados.has(o.valor));
   const tirar = (valor: string) => {
@@ -87,6 +95,7 @@ export function CartaoProgresso({ alunoId }: { alunoId?: string }) {
       </Cartao>
     );
   }
+  const opcoesDoGrupo = [{ valor: TODOS, rotulo: 'Todos' }, ...grupos.map((g) => ({ valor: g, rotulo: g }))];
   const avisoDosGraficos = textoDoHistoricoVazio({ temRegistros: true, graficosLigados: preferencias.graficos, papel });
 
   const bloco = (o: (typeof mostrados)[number]) => (
@@ -117,19 +126,30 @@ export function CartaoProgresso({ alunoId }: { alunoId?: string }) {
       )}
     </Cartao>
     </View>
+    {etapa.aberta ? (
+      <Folha visivel={escolhendo} titulo="Filtros de progresso" aoFechar={etapa.fechar} rodape={etapa.rodape}>
+        {etapa.corpo(<Escolha rotulo="Grupo muscular" valor={etapa.rascunho} opcoes={opcoesDoGrupo} aoMudar={etapa.mudar} />)}
+        <Texto variante="pequeno">O grupo só muda a lista para escolher: os exercícios já marcados continuam.</Texto>
+      </Folha>
+    ) : (
     <Folha
       visivel={escolhendo}
       titulo="Escolher exercícios"
-      aoFechar={() => setEscolhendo(false)}
-      rodape={<Botao rotulo="Concluir" cheio aoTocar={() => setEscolhendo(false)} />}>
+      aoFechar={fecharEscolha}
+      rodape={<Botao rotulo="Concluir" cheio aoTocar={fecharEscolha} />}>
       <Campo rotulo="Buscar exercício" valor={busca} aoMudar={setBusca} />
-      {grupos.length > 1 ? <Escolha descricao="Grupo muscular" opcoes={[{ valor: 'todos', rotulo: 'Todos' }, ...grupos.map((g) => ({ valor: g, rotulo: g }))]} valor={grupo} aoMudar={setGrupo} /> : null}
+      {grupos.length > 1 ? (
+        etapa.barra(
+          <BarraDeFiltros valor={grupo} limpo={TODOS} aoAplicar={setGrupo} chips={chipsDoGrupo(grupo, TODOS)} aoTirar={() => setGrupo(TODOS)}
+            seletores={() => null} painelLateral={{ titulo: 'Filtros de progresso' }} naFolha={{ abrir: etapa.abrir }} />,
+        )
+      ) : null}
       {visiveis.length === 0 ? <Texto variante="suave">Nenhum exercício encontrado.</Texto> : null}
       {visiveis.length > 0 ? (
         <SelecaoMultipla
           rotulo="Exercícios"
           opcoes={visiveis.map(({ valor, rotulo }) => ({ valor, rotulo }))}
-          grupos={grupo === 'todos' ? agruparPorGrupo(visiveis).map((g) => ({
+          grupos={grupo === TODOS ? agruparPorGrupo(visiveis).map((g) => ({
             titulo: g.grupo,
             resumo: `${g.opcoes.length} ${g.opcoes.length === 1 ? 'exercício' : 'exercícios'}`,
             opcoes: g.opcoes.map(({ valor, rotulo }) => ({ valor, rotulo })),
@@ -141,6 +161,7 @@ export function CartaoProgresso({ alunoId }: { alunoId?: string }) {
         />
       ) : null}
     </Folha>
+    )}
     </>
   );
 }
