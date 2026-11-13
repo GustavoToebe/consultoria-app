@@ -390,17 +390,64 @@ test('a vigente vencida segue vermelha com a do ciclo seguinte ainda em rascunho
   await expect(page.getByText(VENCIDA)).toHaveCount(1);
 });
 
-// A aba Planos reaproveita a pasta vigente que o Resumo da ficha já buscou: abrir Resumo → Planos pede a rota uma vez só,
-// e a vigente vencida segue vermelha na lista (só leitura; a contagem vem dos pedidos interceptados).
-test('Resumo → Planos: a pasta vigente é pedida uma vez só e o prazo vermelho continua na lista', async ({ page }) => {
+// A aba Planos reaproveita a pasta vigente e a lista de pastas que o Resumo da ficha já buscou: abrir Resumo → Planos pede
+// cada rota uma vez só, e a vigente vencida segue vermelha na lista (só leitura; a contagem vem dos pedidos interceptados).
+const contar = (pedidos: { metodo: string; caminho: string }[], caminho: string) =>
+  pedidos.filter((p) => p.metodo === 'GET' && p.caminho === caminho).length;
+
+test('Resumo → Planos: a pasta vigente e a lista de pastas são pedidas uma vez só e o prazo vermelho continua na lista', async ({ page }) => {
   const pasta = pastaQueTermina(-3);
   const { pedidos } = await abrir(page, { pastas: [pasta], extra: comPasta(pasta, [TREINO_DE_HOJE]) });
   await expect(page.getByText(VENCIDA)).toBeVisible();
   await aba(page, 'Planos').click();
   await expect(page.getByText('Pastas de plano', { exact: true })).toBeVisible();
   await expect(page.getByText(VENCIDA)).toBeVisible();
-  const vigentes = () => pedidos.filter((p) => p.metodo === 'GET' && p.caminho === `/alunos/${ALUNO_ID}/pastas/vigente`).length;
-  expect(vigentes()).toBe(1);
+  expect(contar(pedidos, `/alunos/${ALUNO_ID}/pastas/vigente`)).toBe(1);
+  expect(contar(pedidos, `/alunos/${ALUNO_ID}/pastas`)).toBe(1);
+});
+
+// Finalizar a pasta pela lista refaz a busca da ficha uma vez: a lista mostra a pasta concluída e o Resumo, que usa a mesma
+// resposta, perde o prazo da pasta (voltar a ele não pede nada), com 1 pedido novo da lista de pastas e da vigente, não 2.
+test('mudar a pasta (finalizar) atualiza a lista e o Resumo com 1 pedido novo da lista de pastas', async ({ page }) => {
+  const pasta = pastaQueTermina(5);
+  let concluida = false;
+  const { pedidos, errosDaPagina } = await abrir(page, {
+    permissoes: [...PERMISSOES_TREINADOR, 'PASTA_ALTERAR'],
+    extra: {
+      [`GET /alunos/${ALUNO_ID}/execucoes`]: { corpo: [TREINO_DE_HOJE] },
+      [`GET /alunos/${ALUNO_ID}/pastas/vigente`]: (_p, route) =>
+        route.fulfill({ contentType: 'application/json', body: JSON.stringify({ pasta: concluida ? null : pasta }) }),
+      [`GET /alunos/${ALUNO_ID}/pastas`]: (_p, route) =>
+        route.fulfill({ contentType: 'application/json', body: JSON.stringify([concluida ? { ...pasta, concluidaEm: new Date().toISOString() } : pasta]) }),
+      [`POST /pastas/${PASTA_ID}/finalizar`]: (_p, route) => { concluida = true; return route.fulfill({ status: 204 }); },
+    },
+  });
+  await expect(page.getByText(VENCE)).toBeVisible();
+  await aba(page, 'Planos').click();
+  await page.getByRole('button', { name: new RegExp(`^Pasta ${pasta.titulo}, aberta`) }).click();
+  await page.getByRole('dialog', { name: pasta.titulo }).getByRole('button', { name: 'Finalizar pasta' }).click();
+  const lista = () => contar(pedidos, `/alunos/${ALUNO_ID}/pastas`);
+  const vigente = () => contar(pedidos, `/alunos/${ALUNO_ID}/pastas/vigente`);
+  expect([lista(), vigente()]).toEqual([1, 1]);
+  await page.getByRole('dialog', { name: `Finalizar “${pasta.titulo}”` }).getByRole('button', { name: 'Finalizar pasta' }).click();
+  await expect(page.getByRole('button', { name: new RegExp(`^Pasta ${pasta.titulo}, concluída`) })).toBeVisible();
+  expect([lista(), vigente()]).toEqual([2, 2]);
+  await aba(page, 'Resumo').click();
+  await expect(page.getByRole('tab', { name: 'Resumo', selected: true })).toBeVisible();
+  await expect(page.getByText(VENCE)).toHaveCount(0);
+  expect([lista(), vigente()]).toEqual([2, 2]);
+  expect(errosDaPagina).toEqual([]);
+});
+
+// Com a busca da ficha em erro, o cartão de pastas busca a lista sozinho: a pasta aparece na aba Planos (1 pedido dentro
+// da busca que falhou e 1 do cartão).
+test('busca da ficha em erro: a aba Planos busca a lista sozinha e mostra a pasta', async ({ page }) => {
+  const pasta = pastaQueTermina(5);
+  const { pedidos, errosDaPagina } = await abrir(page, { pastas: [pasta], extra: { [`GET /alunos/${ALUNO_ID}/pastas/vigente`]: erroApi(500, 'Falha fictícia.') } });
+  await aba(page, 'Planos').click();
+  await expect(page.getByRole('button', { name: new RegExp(`^Pasta ${pasta.titulo}, aberta`) })).toBeVisible();
+  expect(contar(pedidos, `/alunos/${ALUNO_ID}/pastas`)).toBe(2);
+  expect(errosDaPagina).toEqual([]);
 });
 
 test('pasta perto do fim: "Vence em 5 dias" em âmbar no Resumo e na lista', async ({ page }) => {

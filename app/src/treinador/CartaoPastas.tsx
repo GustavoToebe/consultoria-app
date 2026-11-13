@@ -73,11 +73,11 @@ interface PropsPastas {
   aoGravarPeso?: () => void;
   /** Chamado depois de criar, alterar, renovar, finalizar ou excluir uma pasta (o resumo do topo da ficha recarrega). */
   aoMudar?: () => void;
-  /** Muda quando outra parte da ficha alterou as pastas (renovar pelo resumo): a lista busca de novo. */
+  /** Muda quando outra parte da ficha alterou as pastas (renovar pelo resumo): os planos (e a lista própria) buscam de novo. */
   geracao?: number;
   /**
-   * A busca do Resumo da ficha (`useAcompanhamentoDoAluno`), que já traz a pasta vigente: a lista a reaproveita em vez de
-   * pedir a mesma rota de novo. Sem ela, ou com ela em erro, o cartão busca a vigente sozinho.
+   * A busca do Resumo da ficha (`useAcompanhamentoDoAluno`), que já traz a lista de pastas e a vigente: o cartão as
+   * reaproveita em vez de pedir as mesmas rotas de novo. Sem ela, ou com ela em erro, o cartão busca as duas sozinho.
    */
   acompanhamento?: ReturnType<typeof useAcompanhamentoDoAluno>;
 }
@@ -112,7 +112,21 @@ export function useRenovarPasta(diasAtualizacao: number | null, aoRenovar: () =>
  */
 export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, aoGravarPeso, aoMudar, geracao: geracaoExterna = 0, pastaInicialId, acompanhamento }: PropsPastas) {
   const { pode, temFuncionalidade } = useSessao();
-  const { dados, erro, carregando, recarregar } = useCarregar(`pastas:${alunoId}:${geracaoExterna}`, () => listarPastas(alunoId));
+  // A lista e a vigente vêm da busca do Resumo da ficha (`acompanhamento`), que já traz as duas: o cartão só busca sozinho
+  // sem ela ou com ela em erro. Toda mudança de pasta daqui passa por `recarregar`, que chama `aoMudar` (a ficha refaz a
+  // busca uma vez e a lista e o Resumo acompanham).
+  const buscarAqui = !acompanhamento || !!acompanhamento.erro;
+  const propria = useCarregar(buscarAqui ? `pastas:${alunoId}:${geracaoExterna}` : null, () => listarPastas(alunoId));
+  // Na troca entre as duas fontes (a busca da ficha refazendo depois de um erro), a última lista própria segura a tela:
+  // a Folha aberta não fecha e a lista não vira esqueleto.
+  const dados = (buscarAqui ? propria.dados : acompanhamento.dados?.pastas) ?? propria.dados;
+  const erro = buscarAqui ? propria.erro : undefined;
+  const carregando = buscarAqui ? propria.carregando : !acompanhamento.dados;
+  const recarregar = () => {
+    if (buscarAqui) propria.recarregar();
+    if (aoMudar) aoMudar();
+    else acompanhamento?.recarregar();
+  };
   const [modo, setModo] = useState<Modo | null>(null);
   const [filtro, setFiltro] = useState<FiltroPastas>(PASTAS_SEM_FILTRO);
   const { avisar } = useAviso();
@@ -147,10 +161,8 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
   const emRascunho = (id: string) => pastaSoComRascunho(planosDaPasta(id, listasDePlanos, temFuncionalidade('MOBILIDADE')));
   // "Vigente" no cabeçalho da Folha (guia premium, pág. 8) vem da regra da API (`PastaVigente`), nunca de um palpite
   // da tela; falhou ou nenhuma = sem selo. Também decide o prazo da lista: a vigente vencida fica vermelha mesmo renovada.
-  // Toda mudança de pasta daqui chama `aoMudar`, que refaz a busca da ficha: a vigente reaproveitada acompanha.
-  const buscarAqui = !acompanhamento || !!acompanhamento.erro;
-  const { dados: propria } = useCarregar(buscarAqui ? `pasta-vigente:${alunoId}:${geracao}:${geracaoExterna}` : null, () => pastaVigenteDoAluno(alunoId));
-  const idDaVigente = (buscarAqui ? propria?.pasta : acompanhamento.dados?.pasta)?.id ?? null;
+  const { dados: vigentePropria } = useCarregar(buscarAqui ? `pasta-vigente:${alunoId}:${geracao}:${geracaoExterna}` : null, () => pastaVigenteDoAluno(alunoId));
+  const idDaVigente = (buscarAqui ? vigentePropria?.pasta : acompanhamento.dados?.pasta)?.id ?? null;
   // A atualização fecha o período da pasta: vem junto na lista e na folha (dado sensível, só com ATUALIZACAO_LER).
   const verAtualizacoes = pode('ATUALIZACAO_LER');
   const { dados: atualizacoes, recarregar: recarregarAtualizacoes } = useCarregar(verAtualizacoes ? `atualizacoes-pastas:${alunoId}` : null, async () => {
@@ -167,14 +179,12 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
     setGeracao((g) => g + 1);
     recarregar();
     recarregarAtualizacoes();
-    aoMudar?.();
   };
   const renovacao = useRenovarPasta(diasAtualizacao, aoSalvar);
   // Publicar muda o plano em uso: os selos, a lista e o resumo da ficha buscam de novo (a Folha continua aberta).
   const aoPublicar = () => {
     setGeracao((g) => g + 1);
     recarregar();
-    aoMudar?.();
   };
   const podePublicarAlgo = pode(PERMISSOES_DO_PLANO.treino.publicar) || pode(PERMISSOES_DO_PLANO.dieta.publicar);
   const hoje = hojeIso();
@@ -230,7 +240,7 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
           <LinhaDeAcoes>
             {aberta.concluidaEm ? (
               <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Reabrir pasta" Icone={RotateCcw} tipo={revisarNaFolha ? 'secundario' : 'primario'} aoTocar={() => {
-                reabrirPasta(aberta.id).then(() => { avisar('Pasta reaberta.', 'sucesso'); recarregar(); aoMudar?.(); }, (e: unknown) => avisar(textoDoErro(e), 'perigo'));
+                reabrirPasta(aberta.id).then(() => { avisar('Pasta reaberta.', 'sucesso'); recarregar(); }, (e: unknown) => avisar(textoDoErro(e), 'perigo'));
               }} /></Permitido>
             ) : (
               <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Finalizar pasta" Icone={CheckCircle2} tipo={revisarNaFolha ? 'secundario' : 'primario'} aoTocar={() => { setAbertaId(null); setFinalizar(aberta); }} /></Permitido>
