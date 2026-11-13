@@ -270,7 +270,10 @@ export function devolverGuardaDoHistorico(depois: () => void) {
   if (guardaPedida?.id === abertas[i].id) guardaPedida = null;
   abertas.splice(i, 1);
   nivelAoRemover = 0;
-  aoChegar = depois;
+  // Encadeia, não substitui: um Aplicar de filtros que já espera o histórico (`depoisDeFecharAsFolhas`) corre antes da saída
+  // e não se perde (a trava da barra ficaria presa, ou o filtro cairia na rota nova depois de sair).
+  const anterior = aoChegar;
+  aoChegar = () => { anterior?.(); depois(); };
   voltar(1);
 }
 

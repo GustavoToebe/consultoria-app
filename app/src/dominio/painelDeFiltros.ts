@@ -59,14 +59,20 @@ export function errosDoPeriodoDigitado(de: string, ate: string, regras: RegrasDo
   }
 }
 
+/** Como o aviso de seleção limpa chama o que estava marcado (concordância de gênero e número). */
+export interface TextoDaSelecao { um: string; varios: (n: number) => string }
+export const SELECAO_DE_COBRANCAS: TextoDaSelecao = { um: 'A cobrança marcada saiu', varios: (n) => `As ${n} cobranças marcadas saíram` };
+export const SELECAO_DE_ALUNOS: TextoDaSelecao = { um: 'O aluno marcado saiu', varios: (n) => `Os ${n} alunos marcados saíram` };
+
 /**
- * Seleção em lote depois de aplicar filtros (regra das Cobranças, D9): filtros diferentes limpam a seleção, com aviso (a
- * lista nova pode esconder itens marcados, e o lote nunca leva o que a pessoa não vê); aplicar o mesmo que já estava
- * (Aplicar sem mudar nada) não mexe nela. Cancelar, X, Esc e o fundo nem chegam aqui. As chaves são as da lista.
+ * Seleção em lote depois de aplicar filtros (regra das Cobranças e dos Alunos, D9): filtros diferentes limpam a seleção, com
+ * aviso (a lista nova pode esconder itens marcados, e o lote nunca leva o que a pessoa não vê); aplicar o mesmo que já estava
+ * (Aplicar sem mudar nada) não mexe nela. Cancelar, X, Esc e o fundo nem chegam aqui. As chaves são as da lista; `texto` diz o
+ * que está marcado (padrão: cobranças).
  */
-export function selecaoDepoisDosFiltros<T>(selecao: readonly T[], chaveAntes: string, chaveDepois: string):
+export function selecaoDepoisDosFiltros<T>(selecao: readonly T[], chaveAntes: string, chaveDepois: string, texto: TextoDaSelecao = SELECAO_DE_COBRANCAS):
   { selecao: readonly T[]; aviso: string | null } {
   if (chaveAntes === chaveDepois || selecao.length === 0) return { selecao, aviso: null };
   const n = selecao.length;
-  return { selecao: [], aviso: `${n === 1 ? 'A cobrança marcada saiu' : `As ${n} cobranças marcadas saíram`} da seleção porque os filtros mudaram.` };
+  return { selecao: [], aviso: `${n === 1 ? texto.um : texto.varios(n)} da seleção porque os filtros mudaram.` };
 }

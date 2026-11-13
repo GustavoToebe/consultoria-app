@@ -100,6 +100,9 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
     [recolhido, trilho, mostrarDica, esconderDica],
   );
 
+  // Uma árvore só nas duas formas (menu lateral × barra de baixo): o conteúdo fica no mesmo lugar e só o menu e a barra entram e
+  // saem, então cruzar os 768 px não remonta a tela (painel de filtros aberto, rascunho e formulários não se perdem).
+  let menuLateral: ReactNode = null;
   if (lateral) {
     const comDica = recolhido && !trilho;
     // Grupos (N29): título no menu aberto; no trilho, um fio. O leitor de tela ouve o nome do grupo nos dois.
@@ -117,57 +120,55 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
         ))}
       </View>
     ));
-    return (
-      <View style={[estilos.linha, { backgroundColor: cores.fundo }]}>
-        <ContextoDoMenu.Provider value={menu}>
-          <SafeAreaView edges={['top', 'bottom', 'left']}
-            ref={refDoTrilho}
-            accessibilityRole="menubar"
-            style={[estilos.lateral, recolhido && (trilho ? estilos.lateralTrilho : estilos.lateralRecolhido), { backgroundColor: cores.fundo }]}>
-            {/* Marca sozinha numa linha; embaixo, a busca e o recolher lado a lado (empilhados, ícones centralizados, no
-                minimizado). O botão fica no mesmo lugar da árvore aberto ou minimizado: alternar não o desmonta e o foco continua nele. */}
-            {recolhido ? <MarcaDoTrilho marca={marca} /> : <MarcaDoMenu marca={marca} />}
-            <View style={recolhido ? estilos.acoesRecolhido : estilos.acoes}>
-              {busca ? <View style={recolhido ? null : estilos.busca}>{busca}</View> : null}
-              {trilho ? null : <BotaoRecolher recolhido={recolhido} aoTocar={() => { esconderDica(); alternar(); }} />}
+    menuLateral = (
+      <ContextoDoMenu.Provider value={menu}>
+        <SafeAreaView edges={['top', 'bottom', 'left']}
+          ref={refDoTrilho}
+          accessibilityRole="menubar"
+          style={[estilos.lateral, recolhido && (trilho ? estilos.lateralTrilho : estilos.lateralRecolhido), { backgroundColor: cores.fundo }]}>
+          {/* Marca sozinha numa linha; embaixo, a busca e o recolher lado a lado (empilhados, ícones centralizados, no
+              minimizado). O botão fica no mesmo lugar da árvore aberto ou minimizado: alternar não o desmonta e o foco continua nele. */}
+          {recolhido ? <MarcaDoTrilho marca={marca} /> : <MarcaDoMenu marca={marca} />}
+          <View style={recolhido ? estilos.acoesRecolhido : estilos.acoes}>
+            {busca ? <View style={recolhido ? null : estilos.busca}>{busca}</View> : null}
+            {trilho ? null : <BotaoRecolher recolhido={recolhido} aoTocar={() => { esconderDica(); alternar(); }} />}
+          </View>
+          {/* A lista rola quando não cabe na altura (D20); a dica é desenhada no menu, fora da rolagem, que a cortaria. A
+              barra de rolagem aparece só no menu aberto: nos trilhos ela comeria a largura dos ícones e dos rótulos. */}
+          <ScrollView nativeID={ROLAGEM_DO_MENU} style={estilos.rolagem} showsVerticalScrollIndicator={!recolhido}
+            onScroll={comDica ? medirDica : undefined} scrollEventThrottle={32}
+            contentContainerStyle={[estilos.blocos, !recolhido && estilos.blocosAbertos, estilos.folgaDoFoco]}>{blocos}</ScrollView>
+          {conta ? <View style={[estilos.rodapeDoMenu, { borderTopColor: cores.divisor }]}>{conta}</View> : null}
+          {!trilho && dicaAtual ? (
+            <View pointerEvents="none" accessible={false} style={[estilos.dica, { left: larguraDoMenu + 4, top: dicaAtual.topo, backgroundColor: cores.texto }]}>
+              <Texto numberOfLines={1} style={[estilos.textoDica, { color: cores.fundo }]}>{dicaAtual.texto}</Texto>
             </View>
-            {/* A lista rola quando não cabe na altura (D20); a dica é desenhada no menu, fora da rolagem, que a cortaria. A
-                barra de rolagem aparece só no menu aberto: nos trilhos ela comeria a largura dos ícones e dos rótulos. */}
-            <ScrollView nativeID={ROLAGEM_DO_MENU} style={estilos.rolagem} showsVerticalScrollIndicator={!recolhido}
-              onScroll={comDica ? medirDica : undefined} scrollEventThrottle={32}
-              contentContainerStyle={[estilos.blocos, !recolhido && estilos.blocosAbertos, estilos.folgaDoFoco]}>{blocos}</ScrollView>
-            {conta ? <View style={[estilos.rodapeDoMenu, { borderTopColor: cores.divisor }]}>{conta}</View> : null}
-            {!trilho && dicaAtual ? (
-              <View pointerEvents="none" accessible={false} style={[estilos.dica, { left: larguraDoMenu + 4, top: dicaAtual.topo, backgroundColor: cores.texto }]}>
-                <Texto numberOfLines={1} style={[estilos.textoDica, { color: cores.fundo }]}>{dicaAtual.texto}</Texto>
-              </View>
-            ) : null}
-          </SafeAreaView>
-        </ContextoDoMenu.Provider>
-        <View style={[estilos.conteudo, estilos.painel, { backgroundColor: cores.painel, borderColor: cores.divisor, borderWidth: bordas.bloco }]}>
-          <ProvedorDoFundoDaArea value={cores.painel}>
-            <View style={estilos.conteudo}>
-              {conteudo??<Slot />}
-            </View>
-          </ProvedorDoFundoDaArea>
-        </View>
-      </View>
+          ) : null}
+        </SafeAreaView>
+      </ContextoDoMenu.Provider>
     );
   }
   return (
-    <View style={[estilos.coluna, { backgroundColor: cores.fundo }]}>
-      <View style={estilos.conteudo}>
-        {conteudo??<Slot />}
+    <View style={[lateral ? estilos.linha : estilos.coluna, { backgroundColor: cores.fundo }]}>
+      {menuLateral}
+      <View style={lateral ? [estilos.conteudo, estilos.painel, { backgroundColor: cores.painel, borderColor: cores.divisor, borderWidth: bordas.bloco }] : estilos.conteudo}>
+        <ProvedorDoFundoDaArea value={lateral ? cores.painel : null}>
+          <View style={estilos.conteudo}>
+            {conteudo??<Slot />}
+          </View>
+        </ProvedorDoFundoDaArea>
       </View>
-      {rodape}
-      <SafeAreaView edges={['bottom']}
-        style={[estilos.inferior, { backgroundColor: cores.superficie, borderColor: cores.divisor }]}>
-        <View accessibilityRole="menubar" style={[estilos.itensInferiores, larguraInferior ? { maxWidth: larguraInferior } : null]}>
-          {itens.filter((item) => !item.soLateral).map((item) => (
-            <ItemNavegacao key={item.caminho} item={item} />
-          ))}
-        </View>
-      </SafeAreaView>
+      {lateral ? null : rodape}
+      {lateral ? null : (
+        <SafeAreaView edges={['bottom']}
+          style={[estilos.inferior, { backgroundColor: cores.superficie, borderColor: cores.divisor }]}>
+          <View accessibilityRole="menubar" style={[estilos.itensInferiores, larguraInferior ? { maxWidth: larguraInferior } : null]}>
+            {itens.filter((item) => !item.soLateral).map((item) => (
+              <ItemNavegacao key={item.caminho} item={item} />
+            ))}
+          </View>
+        </SafeAreaView>
+      )}
     </View>
   );
 }

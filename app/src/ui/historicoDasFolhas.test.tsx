@@ -51,15 +51,25 @@ function carregar(atrasoDoPopstate: number) {
     historico.useFolhaNoHistorico(fechou, {} as PortalDaFolhaValor);
     return null;
   }
+  // Editor com alteração pendente: ocupa a entrada da guarda e pergunta no voltar (`perguntou`).
+  const perguntou = jest.fn();
+  function GuardaFalsa() {
+    historico.useGuardaNoHistorico(true, perguntou);
+    return null;
+  }
   let raiz!: import('react-test-renderer').ReactTestRenderer;
   const passar = (ms: number) => Renderer.act(() => { jest.advanceTimersByTime(ms); });
   return {
+    perguntou,
     historico,
     navegador,
     fechou,
     passar,
-    montar: (folhas: number) => {
-      const filhos = Array.from({ length: folhas }, (_, i) => React.createElement(FolhaFalsa, { key: i }));
+    montar: (folhas: number, comGuarda = false) => {
+      const filhos = [
+        ...(comGuarda ? [React.createElement(GuardaFalsa, { key: 'guarda' })] : []),
+        ...Array.from({ length: folhas }, (_, i) => React.createElement(FolhaFalsa, { key: i })),
+      ];
       Renderer.act(() => {
         if (raiz) raiz.update(React.createElement(React.Fragment, null, filhos));
         else raiz = Renderer.create(React.createElement(React.Fragment, null, filhos));
@@ -190,6 +200,39 @@ describe('depoisDeFecharAsFolhas com o navegador lento (o popstate passa das esp
     expect(depois).not.toHaveBeenCalled();
     passar(2_000);
     expect(depois).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('guarda do editor × Aplicar do painel de filtros (B3)', () => {
+  /** O que o `BarraDeFiltros.aplicar` faz com o painel aberto sobre o editor: fecha a Folha e grava depois que o histórico assenta. */
+  function aplicarComGuarda(atraso: number) {
+    const c = carregar(atraso);
+    c.montar(0, true);
+    c.passar(0);
+    c.montar(1, true);
+    c.passar(0);
+    expect(c.navegador.atual()).toEqual({ id: 'tela', folhaNivel: 2 });
+    const ordem: string[] = [];
+    c.montar(0, true); // Aplicar: a Folha do painel sai
+    c.historico.depoisDeFecharAsFolhas(() => ordem.push('aplicar'));
+    return { ...c, ordem };
+  }
+
+  it('Aplicar com a guarda de baixo: grava e a guarda continua no histórico (o voltar ainda pergunta)', () => {
+    const { navegador, ordem, passar } = aplicarComGuarda(50);
+    passar(5_000);
+    expect(ordem).toEqual(['aplicar']);
+    expect(navegador.atual()).toEqual({ id: 'tela', folhaNivel: 1 });
+  });
+
+  it.each([300, 3_000])('saída confirmada do editor antes de o Aplicar assentar (popstate em %i ms): o Aplicar não se perde nem sobra para depois da saída', (atraso) => {
+    const { historico, ordem, passar } = aplicarComGuarda(atraso);
+    passar(0); // a volta do Aplicar já saiu, o popstate ainda não chegou
+    historico.devolverGuardaDoHistorico(() => ordem.push('sair'));
+    passar(10_000);
+    // Antes: `devolverGuardaDoHistorico` trocava o `aoChegar` e o Aplicar só corria no atraso de 1 s, depois de sair da tela
+    // (o `router.setParams` cairia na rota nova), ou nunca (a trava `aplicando` da barra ficava presa).
+    expect(ordem).toEqual(['aplicar', 'sair']);
   });
 });
 

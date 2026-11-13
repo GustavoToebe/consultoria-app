@@ -17,6 +17,7 @@ import {
   chaveDosFiltros, chipsDosFiltros, filtrosVisiveis, lerDoEndereco, paraEndereco, pedidoDaApi, permissoesDosFiltros, SEM_FILTROS,
   CHAVES_DO_ENDERECO, semOFiltro, semOQueNaoPode, type ChaveDoFiltro, type FiltrosDeAlunos, type ParametrosDoEndereco,
 } from '../../../dominio/filtrosDeAlunos';
+import { SELECAO_DE_ALUNOS, selecaoDepoisDosFiltros } from '../../../dominio/painelDeFiltros';
 import { alternarComLimite, marcarVisiveis } from '../../../dominio/selecaoMultipla';
 import { useTema } from '../../../tema/TemaProvider';
 import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
@@ -90,12 +91,20 @@ export default function Alunos() {
   );
   const animar = usePrimeiraLista(!!dados, `${termo}|${chaveFiltros}|${pagina}`);
   const limparSelecao = () => { setPagina(0); setMarcados(new Set()); };
-  const mudarBusca = (texto: string) => { setBusca(texto); limparSelecao(); };
+  // Buscar também limpa o lote, e a pessoa é avisada (como em Cobranças), só se havia algo marcado.
+  const mudarBusca = (texto: string) => {
+    if (marcados.size > 0) avisar('A seleção de alunos foi limpa porque a lista mudou.', 'neutro');
+    setBusca(texto);
+    limparSelecao();
+  };
   // Aplicar troca o endereço sem empilhar histórico (o voltar sai da tela) e volta à página 1; os mesmos filtros (a chave
   // inclui o responsável) não fazem nada. `setParams`, não `router.replace`: o replace troca a rota inteira e a tela
   // perderia a busca digitada. Chave que sai vai como `undefined` (o setParams junta com os parâmetros de antes).
   const aplicar = (novos: FiltrosDeAlunos) => {
-    if (chaveDosFiltros(novos) === chaveFiltros) return;
+    const depois = chaveDosFiltros(novos);
+    if (depois === chaveFiltros) return;
+    const { aviso } = selecaoDepoisDosFiltros([...marcados], chaveFiltros, depois, SELECAO_DE_ALUNOS);
+    if (aviso) avisar(aviso, 'neutro');
     limparSelecao();
     const params = paraEndereco(novos, comecaEmMeus);
     router.setParams(Object.fromEntries(CHAVES_DO_ENDERECO.map((k) => [k, params[k]])));

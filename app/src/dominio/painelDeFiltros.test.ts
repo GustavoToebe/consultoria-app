@@ -1,5 +1,5 @@
 import { chipsDasCobrancas, SEM_FILTROS_DE_COBRANCAS } from './filtrosDoFinanceiro';
-import { errosDoPeriodoDigitado, resultadoDoAplicar, selecaoDepoisDosFiltros } from './painelDeFiltros';
+import { errosDoPeriodoDigitado, resultadoDoAplicar, SELECAO_DE_ALUNOS, selecaoDepoisDosFiltros } from './painelDeFiltros';
 
 describe('resultadoDoAplicar', () => {
   it('sem problema aplica; com problema fica no painel e diz quantos campos', () => {
@@ -45,6 +45,11 @@ describe('selecaoDepoisDosFiltros', () => {
   it('filtros diferentes limpam a seleção com aviso', () => {
     expect(selecaoDepoisDosFiltros(lote, 'x', 'y')).toEqual({ selecao: [], aviso: 'As 2 cobranças marcadas saíram da seleção porque os filtros mudaram.' });
     expect(selecaoDepoisDosFiltros(['a'], 'x', 'y').aviso).toBe('A cobrança marcada saiu da seleção porque os filtros mudaram.');
+  });
+  it('Alunos usa o mesmo aviso, com o texto de alunos', () => {
+    expect(selecaoDepoisDosFiltros(lote, 'x', 'y', SELECAO_DE_ALUNOS).aviso).toBe('Os 2 alunos marcados saíram da seleção porque os filtros mudaram.');
+    expect(selecaoDepoisDosFiltros(['a'], 'x', 'y', SELECAO_DE_ALUNOS).aviso).toBe('O aluno marcado saiu da seleção porque os filtros mudaram.');
+    expect(selecaoDepoisDosFiltros([], 'x', 'y', SELECAO_DE_ALUNOS).aviso).toBeNull();
   });
   it('os mesmos filtros (Aplicar sem mudar nada) e seleção vazia não mexem', () => {
     expect(selecaoDepoisDosFiltros(lote, 'x', 'x')).toEqual({ selecao: lote, aviso: null });

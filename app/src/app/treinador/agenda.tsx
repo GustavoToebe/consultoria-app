@@ -261,26 +261,23 @@ export default function AgendaDoTreinador() {
       acoes={podeAlterar ? <MenuCriar aoCompromisso={() => abrirNovo(null)} aoEvento={() => setEvento({ tipo: 'novo', data: diaSugerido })}
         aoMudarAberto={setMenuAberto} /> : undefined} />
     <View onLayout={(e) => setLargura(Math.round(e.nativeEvent.layout.width))}>
-      {largura === 0 ? null : lateral ? (
-        <View style={estilos.colunas}>
-          <View testID="lateral-da-agenda" style={estilos.lateral}>
-            <MiniCalendario visao={visao} data={data} hoje={hoje} aoEscolher={escolherData} />
-            {painel}
-            {atrasadas}
-          </View>
+      {/* Uma árvore só nas duas larguras: a coluna principal (barra de filtros, grade) fica no mesmo lugar e só a lateral entra e
+          sai, então cruzar o limite não remonta a barra (o painel de filtros aberto e o rascunho sobrevivem). */}
+      {largura === 0 ? null : (
+        <View style={lateral ? estilos.colunas : undefined}>
+          {lateral ? (
+            <View testID="lateral-da-agenda" style={estilos.lateral}>
+              <MiniCalendario visao={visao} data={data} hoje={hoje} aoEscolher={escolherData} />
+              {painel}
+              {atrasadas}
+            </View>
+          ) : null}
           <View style={estilos.principal}>
             {barra}
             {barraDeFiltros}
             {avisos}
             {conteudo}
           </View>
-        </View>
-      ) : (
-        <View style={estilos.principal}>
-          {barra}
-          {barraDeFiltros}
-          {avisos}
-          {conteudo}
         </View>
       )}
     </View>

@@ -353,3 +353,36 @@ for (const largura of [390, 1280]) {
     expect(errosDaPagina).toEqual([]);
   });
 }
+
+// Agenda: a barra é montada uma vez, só o layout muda; cruzar a largura (PC ↔ celular: o menu lateral a partir de 768 px e a lateral da Agenda a partir de 960 px de conteúdo) não fecha o painel nem
+// perde o rascunho (antes, a barra estava em dois lugares da árvore e remontava).
+test('agenda: o painel aberto e o rascunho sobrevivem a PC → celular → PC', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await fixarHoje(page);
+  const agenda = CASOS[0];
+  const { naoTratadas, errosDaPagina, pedidos } = await simularApi(page, { ...(await agenda.sessao(page)), 'GET /inscricoes': { corpo: { itens: [], total: 0 } }, ...agenda.rotas });
+  await page.goto(agenda.caminho);
+  await expect(agenda.pronto(page)).toBeVisible();
+  await expect(page.getByTestId('lateral-da-agenda')).toBeVisible();
+
+  await page.getByRole('button', { name: /^Filtros, / }).click();
+  const painel = page.getByRole('dialog', { name: agenda.painel });
+  await opcao(painel, 'Responsável', 'Só os meus').click();
+  await expect(opcao(painel, 'Responsável', 'Só os meus')).toHaveAttribute('aria-checked', 'true');
+
+  for (const [largura, altura, lateral] of [[390, 844, false], [1280, 900, true], [900, 900, false], [700, 900, false], [1280, 900, true]] as const) {
+    await page.setViewportSize({ width: largura, height: altura });
+    await expect(page.getByTestId('lateral-da-agenda')).toHaveCount(lateral ? 1 : 0);
+    await expect(painel).toBeVisible();
+    await expect(opcao(painel, 'Responsável', 'Só os meus')).toHaveAttribute('aria-checked', 'true');
+  }
+
+  // Nada foi aplicado no caminho: o endereço continua sem o filtro e o Aplicar ainda vale.
+  expect(new URL(page.url()).searchParams.get('meus')).toBeNull();
+  expect(pedidos.filter((p) => p.caminho === agenda.api && p.busca.get('responsavel') === 'meus')).toHaveLength(0);
+  await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+  await expect(painel).toHaveCount(0);
+  await expect.poll(() => new URL(page.url()).searchParams.get('meus')).toBe('true');
+  expect(naoTratadas).toEqual([]);
+  expect(errosDaPagina).toEqual([]);
+});

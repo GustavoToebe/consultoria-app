@@ -40,6 +40,11 @@ interface Props<T> {
   seletores: (filtros: T, aoMudar: (filtros: T) => void) => ReactNode;
   /** O painel lateral: título "Filtros de <assunto>" (nome do diálogo). */
   painelLateral: { titulo: string };
+  /**
+   * A barra mora dentro de uma folha (escolher exercícios): os filtros são uma etapa dessa folha (`ui/EtapaDeFiltros`), sem
+   * painel empilhado por cima. O botão só chama `abrir`; o rascunho e o rodapé são da etapa.
+   */
+  naFolha?: { abrir: () => void };
 }
 
 /** Campos com problema dentro do painel lateral: quem tem erro se registra, o "Aplicar filtros" soma. */
@@ -79,30 +84,38 @@ export function rotuloDoBotaoDeFiltros(quantos: number, rotulo = 'Filtros'): str
 /**
  * Barra de filtros das listas (`docs/planos/filtros-laterais.md`): o campo de busca e o botão "Filtros" com o número de
  * filtros ligados, que abre o painel lateral (rascunho; Aplicar valida e aplica de uma vez). Embaixo, numa linha só:
- * "Filtrando:", um chip por filtro (o ✕ tira aquele, na hora) e "• Limpar filtros" (tira todos, a busca fica). Quem usa
+ * "Filtrando:", um chip por filtro (o ✕ tira aquele, na hora) e o link "Limpar filtros" (tira todos, a busca fica). Quem usa
  * decide os seletores e o que cada chip significa.
  *
  * O Aplicar grava depois de o histórico assentar (`depoisDeFecharAsFolhas`): gravar no endereço com a Folha aberta cairia
  * na entrada de histórico dela e o fechar desfaria a escolha. Enquanto essa gravação não sai, o botão não reabre o painel
- * (B3): o rascunho copiaria o valor antigo e a gravação atrasada cairia na entrada da folha nova.
+ * (B3): o rascunho copiaria o valor antigo e a gravação atrasada cairia na entrada da folha nova. Se a tela sai antes de a
+ * gravação correr (saída confirmada de um editor com a guarda ativa), ela é descartada: o `setParams` cairia na rota nova.
  */
-export function BarraDeFiltros<T>({ busca, valor, aoAplicar, limpo, chips, aoTirar, seletores, painelLateral }: Props<T>) {
+export function BarraDeFiltros<T>({ busca, valor, aoAplicar, limpo, chips, aoTirar, seletores, painelLateral, naFolha }: Props<T>) {
   const { cores } = useTema();
   // O que foi escolhido e ainda não foi aplicado; `null` = painel fechado.
   const [rascunho, setRascunho] = useState<{ filtros: T } | null>(null);
   const aplicando = useRef(false);
+  // A gravação atrasada do Aplicar só vale com a barra ainda na tela.
+  const montada = useRef(true);
+  useEffect(() => {
+    montada.current = true;
+    return () => { montada.current = false; aplicando.current = false; };
+  }, []);
   const aberto = rascunho !== null;
   const quantos = chips.length;
   const abrir = () => {
     // Aplicação ainda a caminho (dura o voltar do histórico, uns milissegundos): o toque não abre com o valor velho.
     if (aplicando.current) return;
+    if (naFolha) { naFolha.abrir(); return; }
     setRascunho({ filtros: valor });
   };
   const aplicar = (filtros: T) => {
     setRascunho(null);
     aplicando.current = true;
     depoisDeFecharAsFolhas(() => {
-      try { aoAplicar(filtros); } finally { aplicando.current = false; }
+      try { if (montada.current) aoAplicar(filtros); } finally { aplicando.current = false; }
     });
   };
 
@@ -120,7 +133,7 @@ export function BarraDeFiltros<T>({ busca, valor, aoAplicar, limpo, chips, aoTir
           accessibilityLabel={rotuloDoBotaoDeFiltros(quantos)}
           accessibilityState={{ expanded: aberto }}
           aria-expanded={aberto}
-          aria-haspopup="dialog"
+          aria-haspopup={naFolha ? undefined : 'dialog'}
           onPress={abrir}
           style={(e) => [estilos.filtros, { borderColor: cores.bordaCampo, backgroundColor: aberto ? cores.superficie3 : sobre(e) ? cores.superficie2 : 'transparent' }]}>
           <SlidersHorizontal size={18} color={cores.texto} strokeWidth={2} />
@@ -155,12 +168,8 @@ export function BarraDeFiltros<T>({ busca, valor, aoAplicar, limpo, chips, aoTir
               </Pressable>
             ))}
           </View>
-          {/* O "•" quebra junto com o link: nunca fica pendurado no fim da linha nem deixa o link sozinho embaixo. Nome
-              próprio (com o texto visível no começo): a lista vazia também oferece um "Limpar filtros". */}
-          <View style={estilos.limpar}>
-            <Texto variante="suave" aria-hidden>•</Texto>
-            <Botao rotulo="Limpar filtros" rotuloAcessivel="Limpar filtros aplicados" tipo="fantasma" aoTocar={() => aoAplicar(limpo)} />
-          </View>
+          {/* Nome próprio (com o texto visível no começo): a lista vazia também oferece um "Limpar filtros". */}
+          <Botao rotulo="Limpar filtros" rotuloAcessivel="Limpar filtros aplicados" tipo="fantasma" aoTocar={() => aoAplicar(limpo)} />
         </View>
       ) : null}
     </View>
@@ -235,7 +244,6 @@ const estilos = StyleSheet.create({
   filtrado: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1) },
   // Os chips seguem a frase na mesma linha e só quebram quando não cabem.
   chipsAtivos: { flexShrink: 1, maxWidth: '100%' },
-  limpar: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
   chip: {
     minHeight: ALVO_TOQUE, flexDirection: 'row', alignItems: 'center', gap: espaco(0.75), paddingHorizontal: espaco(1.25),
     borderWidth: 1, borderRadius: RAIO_CONTROLE, maxWidth: '100%',
