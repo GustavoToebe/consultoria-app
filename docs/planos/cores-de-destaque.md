@@ -33,6 +33,9 @@ Tirar a aparência monocromática do treinador levando aos pontos importantes (n
 - [ ] 7. Documentação (`design-e-front.md` 4.5 e "Dose de cor", `AGENTS.md`), Ajuda se citar cor, memória de cor contida — responsável: executor — commit: —
 - [ ] 8. Verificação da matriz (D10, com as telas da segunda rodada), capturas finais e revisão independente — responsável: revisor e executor-front — commit: —
 
+## Estado em 13/11 (para retomar)
+- Segunda rodada, parte 1 commitada (`8c76e1d5`). Em execução (executor-front, sem commit): "1 treino" só o número azul, recordes violeta na área do aluno, GET da pasta vigente sem duplicar. Depois: A2 (Agenda, Acompanhamento/Evolução, editores de treino e dieta), capturas e apresentação ao Gustavo. Comunidade: as cores seguem o plano `comunidade-enquetes-reacoes-video.md` (D9). Nulo/cobertura: conclusão técnica registrada abaixo, aguarda decisão de negócio.
+
 ## Fora do escopo
 - **P1 Início editável** (arrastar, redimensionar, adicionar, remover, migrar preferências), **P2 enquetes e reações** e **P3 capas e player de vídeo** são frentes separadas, cada uma com plano e revisão própria, na ordem do PDF (p. 21). Nenhuma delas adia a melhoria visual. P2 e P3 pedem revisar contratos e permissões (V071 registrou vídeo externo sem token e curtida única); decisões em aberto de P2: voto identificado, quem cria enquete, reação da equipe.
 - Fórmulas financeiras, de treino e de dieta; gráficos novos só para ganhar cor.

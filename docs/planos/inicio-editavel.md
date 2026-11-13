@@ -27,6 +27,9 @@ O treinador monta o Início do jeito dele: arrasta os blocos de lugar, escolhe o
 - Frente A (cores e estados): nada deste conjunto. `CartaoRecordesDaSemana` (usado no Início) já está commitado; qualquer mudança nele passa pelo dono da frente A e avisa a B.
 - Compartilhados (`tema/tokens.ts`, `ui/Selo`, `ui/NumeroDeDestaque`): sessão principal.
 
+## Estado em 13/11 (para retomar)
+- Plano e contratos prontos (`157a3a58`, `bb10455a`). Passos 1 a 3 em execução pelo executor-front (porta e2e 8125, sem commit); falta: revisar o diff, conferir capturas em `scratchpad\inicio-editavel\`, `revisor` na persistência, commitar por frente, passo 4 (docs) ao executor. Se a sessão cair sem o relatório: `git status` mostra os arquivos do conjunto "Frente B" acima; nada está commitado.
+
 ## Fora do escopo
 - Sincronizar o painel entre aparelhos e guardá-lo no servidor (pendência abaixo).
 - Blocos novos (gráficos, listas) além dos 8 existentes.

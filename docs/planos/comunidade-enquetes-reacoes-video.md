@@ -44,6 +44,9 @@ Frente C do PDF `guia-cores-painel-e-comunidade.pdf` (P2 enquetes e reações, P
 - `deploy-local/Caddyfile` (CSP local): sessão principal. Compartilhados (`tema/tokens.ts`, `ui/Selo`, `ui/NumeroDeDestaque`): sessão principal.
 - Não tocar: Início editável (frente B) nem Agenda/Evolução/editores (frente A).
 
+## Estado em 13/11 (para retomar)
+- D1 a D4 decididas. Revisão prévia dos contratos (passo 2) pedida ao `revisor`; ainda sem retorno. Nenhum código escrito. Depois da revisão: aplicar os ajustes ao plano, liberar o executor (API, V072) e, com o contrato fechado, o executor-front. Um executor por vez na API; o app só começa depois dos contratos.
+
 ## Fora do escopo
 - Enquete anônima (decisão D2 foi voto identificado), pergunta com texto livre, ranking de votantes, vídeo hospedado por nós, transcodificação.
 - Comentários em enquete além do que o post já tem.
