@@ -101,12 +101,15 @@ export default function Alunos() {
     router.setParams(Object.fromEntries(CHAVES_DO_ENDERECO.map((k) => [k, params[k]])));
   };
   const sairDaSelecao = () => { setSelecionando(false); setMarcados(new Set()); };
+  // Filtro novo carregando: a lista à vista é a do anterior; nada se marca nela (nem por teclado).
   const alternar = (id: string) => {
+    if (dadosDeOutraChave) return;
     const r = alternarComLimite(marcados, id, !marcados.has(id), LIMITE_LOTE);
     if (r.recusado) avisar(`Dá para marcar até ${LIMITE_LOTE} alunos por vez.`, 'neutro');
     setMarcados(r.marcados);
   };
   const marcarOsVisiveis = () => {
+    if (dadosDeOutraChave) return;
     const r = marcarVisiveis((dados?.itens ?? []).map((a) => a.id), marcados, LIMITE_LOTE);
     if (r.deixados > 0) avisar(`Dá para marcar até ${LIMITE_LOTE} alunos por vez; ${r.deixados} ficaram de fora.`, 'neutro');
     setMarcados(r.marcados);
@@ -201,7 +204,7 @@ export default function Alunos() {
       <View style={[estilos.barraLote, { backgroundColor: cores.superficie, borderColor: cores.divisor }]}>
         <Texto numerico style={estilos.textoLote}>{textoDaSelecao(marcados.size)}</Texto>
         <LinhaDeAcoes>
-          <Botao rotulo="Marcar visíveis" tipo="secundario" desabilitado={!dados || dados.itens.length === 0} aoTocar={marcarOsVisiveis} />
+          <Botao rotulo="Marcar visíveis" tipo="secundario" desabilitado={!dados || dados.itens.length === 0 || dadosDeOutraChave} motivo={dadosDeOutraChave ? 'Carregando o filtro novo.' : undefined} aoTocar={marcarOsVisiveis} />
           <Botao rotulo="Ações" desabilitado={marcados.size === 0} motivo="Marque ao menos um aluno." aoTocar={() => setAcoesAbertas(true)} />
         </LinhaDeAcoes>
       </View>

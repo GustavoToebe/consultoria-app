@@ -96,8 +96,10 @@ export function TelaImportacao() {
   const lista = useCarregar(JSON.stringify(filtro), () => listarImportacoes(filtro));
   // Trocar um filtro troca o endereço sem empilhar histórico e volta à página 1.
   const aplicar = (novos: FiltrosDaImportacao) => {
+    const params = paraEndereco(novos);
+    if (JSON.stringify(params) === JSON.stringify(paraEndereco(filtros))) return; // Aplicar sem mudar nada não faz nada
     setPagina(0);
-    router.setParams(paraSetParams(CHAVES_DO_ENDERECO, paraEndereco(novos)));
+    router.setParams(paraSetParams(CHAVES_DO_ENDERECO, params));
   };
   const chips = chipsDosFiltros(filtros, rotuloDoDestino);
 

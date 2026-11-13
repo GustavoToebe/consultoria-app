@@ -280,7 +280,7 @@ for (const caso of CASOS) {
       await expect(painel).toHaveCount(0);
       await expect(botao).toHaveAccessibleName('Filtros, 1 ligado');
       await expect(page.getByRole('button', { name: caso.chip })).toBeVisible();
-      await expect(page.getByRole('list', { name: 'Filtrando' })).toBeVisible();
+      await expect(page.getByRole('group', { name: 'Filtros aplicados' })).toBeVisible();
       if (caso.vazio) await expect(page.getByText(caso.vazio)).toBeVisible();
       if (caso.noPedido) await expect.poll(() => comFiltro().length).toBeGreaterThan(0);
       if (caso.noEndereco) expect(new URL(page.url()).searchParams.has(caso.noEndereco)).toBe(true);

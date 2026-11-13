@@ -109,7 +109,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       // A busca continua, e a contagem e os chips dizem o que está ligado.
       await expect(page.getByRole('textbox', { name: 'Buscar nome do aluno' })).toHaveValue('ana');
       await expect(botaoFiltros(page)).toHaveAccessibleName('Filtros, 4 ligados');
-      const filtrado = page.getByRole('list', { name: 'Filtrando' });
+      const filtrado = page.getByRole('group', { name: 'Filtros aplicados' });
       await expect(filtrado.getByRole('button')).toHaveCount(4);
       await expect(filtrado.getByRole('button', { name: 'Tirar filtro: Responsável: Bia Fictícia, Sem responsável' })).toBeVisible();
 
@@ -122,7 +122,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await page.getByRole('button', { name: 'Limpar filtros aplicados' }).click();
       await expect.poll(() => [...busca(page).keys()]).toEqual([]);
       await expect.poll(() => filtrosDoPedido(pedidos)).toEqual([['situacao', 'ATIVO'], ['meus', 'false']]);
-      await expect(page.getByRole('list', { name: 'Filtrando' })).toHaveCount(0);
+      await expect(page.getByRole('group', { name: 'Filtros aplicados' })).toHaveCount(0);
 
       // Os antigos atalhos com contagem saíram: nenhum pedido de `tamanho=1` só para contar.
       expect(pedidosDaLista(pedidos).some((p) => p.busca.get('tamanho') === '1')).toBe(false);

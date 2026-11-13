@@ -142,7 +142,7 @@ export function BarraDeFiltros<T>({ busca, valor, aoAplicar, limpo, chips, aoTir
       {quantos > 0 ? (
         <View style={estilos.filtrado}>
           <Texto variante="suave">Filtrando:</Texto>
-          <View style={[estilos.filtrado, estilos.chipsAtivos]} accessibilityRole="list" accessibilityLabel="Filtrando">
+          <View style={[estilos.filtrado, estilos.chipsAtivos]} role="group" aria-label="Filtros aplicados">
             {chips.map((c) => (
               <Pressable
                 key={c.chave}

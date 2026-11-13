@@ -325,11 +325,11 @@ function SeletoresDeCobrancas({ filtros, aoMudar, opcoesDePlano, aluno: nomeDoAl
         <View style={estilos.coluna}>
           <Escolha rotulo="Vencimento" opcoes={MODOS_DO_VENCIMENTO} valor={modo} aoMudar={mudarModo} />
           {modo === 'PERIODO' ? (
-            <PeriodoDoFiltro rotulo="Vencimento entre" valor={filtros.periodo} aoMudar={(periodo) => aoMudar({ ...filtros, proximos7Dias: false, periodo })} />
+            <PeriodoDoFiltro nomeUnico rotulo="Vencimento entre" valor={filtros.periodo} aoMudar={(periodo) => aoMudar({ ...filtros, proximos7Dias: false, periodo })} />
           ) : null}
         </View>
-        <PeriodoDoFiltro rotulo="Emissão" valor={filtros.emissao} aoMudar={(emissao) => aoMudar({ ...filtros, emissao })} />
-        <PeriodoDoFiltro rotulo="Pagamento" valor={filtros.pagamento} aoMudar={(pagamento) => aoMudar({ ...filtros, pagamento })} />
+        <PeriodoDoFiltro nomeUnico rotulo="Emissão" valor={filtros.emissao} aoMudar={(emissao) => aoMudar({ ...filtros, emissao })} />
+        <PeriodoDoFiltro nomeUnico rotulo="Pagamento" valor={filtros.pagamento} aoMudar={(pagamento) => aoMudar({ ...filtros, pagamento })} />
       </GrupoDoPainel>
     </>
   );

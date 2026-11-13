@@ -23,6 +23,7 @@ export function CampoData({
   rotuloOculto,
   regra,
   nome,
+  rotuloAcessivel,
 }: {
   rotulo: string;
   valor: string;
@@ -35,6 +36,8 @@ export function CampoData({
   regra?: RegraDeData;
   /** O nome do campo na mensagem da faixa ("Início da pasta"); sem ele, o `rotulo`. */
   nome?: string;
+  /** Nome para o leitor de tela quando o rótulo visível se repete na tela ("De" em três períodos); deve começar pelo rótulo (WCAG 2.5.3). */
+  rotuloAcessivel?: string;
   /** Sem o rótulo em cima (o ícone ao lado já diz o que é); o leitor de tela continua lendo o `rotulo`. */
   rotuloOculto?: boolean;
 }) {
@@ -47,6 +50,7 @@ export function CampoData({
     <Campo
       numerico
       rotulo={rotulo}
+      rotuloAcessivel={rotuloAcessivel}
       rotuloOculto={rotuloOculto}
       valor={valor}
       aoMudar={(t) => aoMudar(mascaraData(t))}
