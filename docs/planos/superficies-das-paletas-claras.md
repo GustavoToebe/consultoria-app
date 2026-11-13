@@ -1,6 +1,6 @@
 # Superfícies das paletas claras
 
-Situação: Concluída em 12/11/2026 (sem commit; a sessão principal integra) · Onde: `main`, alterações locais · Atualizado: 12/11/2026
+Situação: Concluída em 12/11/2026 · Onde: `main`, commit `010f6727` · Atualizado: 12/11/2026
 
 ## Objetivo
 Nas paletas claras (Claro, Areia, Lavanda, Céu e Rosa) o cartão, o campo e a página tinham a mesma cor: no PC o
