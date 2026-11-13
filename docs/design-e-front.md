@@ -407,8 +407,10 @@ A seção "Observado no código" de cada padrão são **hipóteses de causa** ac
     tela no mesmo lugar da árvore nas duas formas; a Agenda, a coluna principal). Quem cria uma casca ou tela com duas
     formas de layout não pode pôr a barra (nem o `Slot`) em dois ramos da árvore. A gravação atrasada do Aplicar é
     descartada se a tela já saiu (saída confirmada de um editor com a guarda do voltar ativa).
-  - **Seleção em lote (Cobranças e Alunos, D9):** filtro diferente ou busca que limpa o lote avisa quantos saíram
-    (`selecaoDepoisDosFiltros`); sem nada marcado não avisa; Aplicar sem mudar nada mantém.
+  - **Seleção em lote (Cobranças e Alunos, D9):** aplicar filtro diferente que limpa o lote avisa quantos saíram
+    (`selecaoDepoisDosFiltros`, `dominio/painelDeFiltros.ts`); a busca que limpa o lote também avisa, em Cobranças com o
+    número e em Alunos sem número ("A seleção de alunos foi limpa porque a lista mudou."); sem nada marcado não avisa;
+    Aplicar sem mudar nada mantém.
   - **Faixa de contexto (Cobranças):** o aluno de "Ver no Financeiro" é contexto obrigatório, não filtro: aparece numa
     faixa neutra acima da barra ("Cobranças de" + o nome) e como leitura no grupo Identificação, não vira etiqueta nem
     entra no contador; os dois "Limpar filtros" o mantêm e só "Ver cobranças de todos os alunos", na faixa, o tira. O
@@ -426,7 +428,10 @@ A seção "Observado no código" de cada padrão são **hipóteses de causa** ac
     voltar retornam à lista sem fechar a folha. A busca e as marcações ficam como estavam. O foco vai ao primeiro controle
     da etapa e, na volta, ao botão "Filtros". Seleção (D9): no editor, aplicar outro grupo tira o que não é dele e avisa
     quantos saíram no status do rodapé (`selecaoDepoisDoGrupo`). No Progresso o grupo só muda a lista e as marcações
-    ficam.
+    ficam; por isso o "Limpar" da `SelecaoMultipla` tira só as marcações das opções à vista (o que o grupo ou a busca
+    esconde continua marcado, como diz a contagem "N de M marcados").
+  - **Folha movida no PC:** a folha centralizada pode ser arrastada pela alça; ao ficar abaixo de 768 px (a tela segue
+    montada) o deslocamento zera e ela volta à posição de folha de baixo, sem levar o arrasto para o celular.
   - **Divergência com o guia de 11/11 (pág. 7):** o guia pedia os atalhos com contagem Todos / Para revisar / Atrasados
     na lista de Alunos; eles viraram as opções "Para revisar" e "Atrasada" do filtro Atualização, no painel (um modo só
     de filtrar; a contagem por atalho saiu junto). Decisão do plano `filtros-laterais.md`, passo 4.
