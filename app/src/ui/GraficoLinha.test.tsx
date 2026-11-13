@@ -42,6 +42,26 @@ function obterDica(raiz: import('react-test-renderer').ReactTestRenderer) {
 }
 
 describe('GraficoLinha', () => {
+  it('sem `cor`, a série fica na cor do texto; com ela, só curva, área e pontos mudam (eixo e datas seguem suaves)', () => {
+    const { ESCURO } = require('../tema/tokens') as typeof import('../tema/tokens');
+    const corDaSerie = (raiz: import('react-test-renderer').ReactTestRenderer) => ({
+      curva: raiz.root.findAll((x) => x.props.strokeWidth === 2.5 && typeof x.props.d === 'string').map((x) => x.props.stroke)[0],
+      area: raiz.root.findAll((x) => x.props.fillOpacity === 0.08).map((x) => x.props.fill)[0],
+      pontos: [...new Set(raiz.root.findAll((x) => x.props.r === 4 && typeof x.props.fill === 'string').map((x) => x.props.fill))],
+      rotulos: [...new Set(raiz.root.findAll((x) => x.props.textAnchor === 'middle' && x.props.fontSize).map((x) => x.props.fill))],
+    });
+    expect(corDaSerie(montar())).toEqual({ curva: ESCURO.texto, area: ESCURO.texto, pontos: [ESCURO.texto], rotulos: [ESCURO.textoSuave] });
+
+    let raiz!: import('react-test-renderer').ReactTestRenderer;
+    Renderer.act(() => {
+      raiz = Renderer.create(
+        <GraficoLinha pontos={PONTOS_DE_TESTE} unidade="kg" descricao="Gráfico de teste de peso" cor="#123456" larguraInicial={500} />,
+      );
+    });
+    expect(corDaSerie(raiz)).toEqual({ curva: '#123456', area: '#123456', pontos: ['#123456'], rotulos: [ESCURO.textoSuave] });
+    expect(obterBotoes(raiz)).toHaveLength(3);
+  });
+
   it('renderiza os pontos interativos com área de toque e rótulo acessível', () => {
     const raiz = montar();
     const botoes = obterBotoes(raiz);

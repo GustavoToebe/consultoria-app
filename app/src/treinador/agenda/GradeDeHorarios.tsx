@@ -13,8 +13,9 @@ import { ALVO_TOQUE, espaco, fontes, LINHA_DA_FAIXA, RAIO } from '../../tema/tok
 import { Selo } from '../../ui/Selo';
 import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
+import { TracoDeHoje } from '../../ui/TracoDeHoje';
 import {
-  type AoAbrirItem, horarioDoItem, IconeDoStatus, rotuloDoItem, seloCurtoDoItem, toqueDoItem, TracoDeHoje, useCorDaAgenda, useCoresDoItem,
+  type AoAbrirItem, horarioDoItem, IconeDoStatus, rotuloDoItem, seloCurtoDoItem, toqueDoItem, useCorDaAgenda, useCoresDoItem,
 } from './itemDaAgenda';
 
 /** Altura de uma hora: 48 px, como no Google Agenda. O item tem no mínimo o alvo de toque (44 px). */

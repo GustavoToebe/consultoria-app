@@ -9,7 +9,7 @@ import { IconeBotao } from '../../ui/IconeBotao';
 import { coresDaSelecao } from '../../ui/selecao';
 import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
-import { TracoDeHoje } from './itemDaAgenda';
+import { TracoDeHoje } from '../../ui/TracoDeHoje';
 
 interface Props {
   visao: VisaoDoCalendario;

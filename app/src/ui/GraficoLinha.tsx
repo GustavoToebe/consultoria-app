@@ -27,19 +27,23 @@ const MARGEM_SEGURA = 4;
 /**
  * Gráfico de linha (SVG): curva suave com a área abaixo preenchida, pontos nos registros e eixo vertical com a
  * unidade ("82 kg"). O eixo horizontal acompanha a data quando todo ponto a traz; sem data, o espaço segue a lista.
- * Pontos já na ordem do eixo; só desenha o que foi registrado. A linha é da cor do texto,
- * nunca da marca (a marca não é dado). Ao passar o mouse ou tocar em cada ponto, exibe o balão com o valor e a data.
+ * Pontos já na ordem do eixo; só desenha o que foi registrado. A linha é da cor do texto, nunca da marca (a marca não
+ * é dado); `cor` troca só a curva, a área e os pontos, para o gráfico acompanhar a tabela da mesma medida (o azul de
+ * indicador, cores-de-destaque D12). Rótulos, eixo e balão continuam neutros, e a série segue legível sem a cor
+ * (rótulo das datas, pontos e "Último…"). Ao passar o mouse ou tocar em cada ponto, exibe o balão com o valor e a data.
  * `semUltimo`: quem já mostra o resumo "Último…" acima não repete a linha de baixo.
  */
-export function GraficoLinha({ pontos, unidade, descricao, semUltimo, faixas, escala, larguraInicial = 0 }: {
+export function GraficoLinha({ pontos, unidade, descricao, semUltimo, faixas, escala, cor, larguraInicial = 0 }: {
   pontos: PontoGrafico[]; unidade: string; descricao: string; semUltimo?: boolean; faixas?: FaixaDoGrafico[];
+  /** Cor da série (curva, área e pontos), com contraste de 3:1 sobre a superfície do cartão. Sem ela, a cor do texto. */
+  cor?: string;
   /** Escala fixa (a NOTA de 1 a 5, por exemplo): o eixo vai do mínimo ao máximo dela, com as duas pontas marcadas. Sem ela, o eixo se ajusta aos pontos. */
   escala?: { min: number; max: number };
   /** Largura inicial (útil para testes ou renderização direta). */
   larguraInicial?: number;
 }) {
   const { cores, fatorTexto } = useTema();
-  const linha = cores.texto;
+  const linha = cor ?? cores.texto;
   // Os rótulos do eixo acompanham o tamanho do texto; margens e altura crescem junto para não cortar.
   const fonte = escalar(11, fatorTexto);
   const MARGEM = { ...MARGEM_BASE, base: escalar(MARGEM_BASE.base, fatorTexto), esq: escalar(MARGEM_BASE.esq, fatorTexto) };

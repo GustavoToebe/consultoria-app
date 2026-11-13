@@ -9,8 +9,9 @@ import { ALVO_TOQUE, espaco, fontes, LINHA_DA_FAIXA, RAIO } from '../../tema/tok
 import { coresDaSelecao } from '../../ui/selecao';
 import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
+import { TracoDeHoje } from '../../ui/TracoDeHoje';
 import { textoDoItemNoMes } from '../../dominio/agendaLegivel';
-import { horarioDoItem, TracoDeHoje, useCorDaAgenda } from './itemDaAgenda';
+import { horarioDoItem, useCorDaAgenda } from './itemDaAgenda';
 
 /** Itens por célula no Mês do PC antes do "+N". */
 const ITENS_NA_CELULA = 4;

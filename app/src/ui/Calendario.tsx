@@ -8,6 +8,7 @@ import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO, RAIO_CONTROLE } from '../tema/tokens';
 import { IconeBotao } from './IconeBotao';
 import { Texto } from './Texto';
+import { TracoDeHoje } from './TracoDeHoje';
 
 /** Posição do botão que abriu o calendário, em coordenadas da janela. */
 export interface Ancora {
@@ -33,7 +34,9 @@ const CELULA = 36;
 
 /**
  * Calendário compacto que abre colado ao campo (embaixo, ou em cima se faltar espaço), sem escurecer a tela: mês
- * anterior/próximo, dias dos meses vizinhos esmaecidos, "Hoje" e "Limpar". Tocar fora fecha.
+ * anterior/próximo, dias dos meses vizinhos esmaecidos, "Hoje" e "Limpar". Tocar fora fecha. Hoje tem o número na cor da
+ * marca e o `TracoDeHoje` embaixo, como na agenda; o dia escolhido é a seleção neutra (`superficie3` + contorno) e, quando
+ * é também hoje, mostra os dois (o traço fica). O nome acessível do dia diz ", hoje".
  */
 export function Calendario({ ancora, valor, aoEscolher, aoLimpar, aoFechar }: Props) {
   const { cores, marcaTexto } = useTema();
@@ -70,16 +73,21 @@ export function Calendario({ ancora, valor, aoEscolher, aoLimpar, aoFechar }: Pr
           <View key={si} style={estilos.linha}>
             {semana.map((d) => {
               const escolhido = d.iso === valor;
-              const cor = escolhido ? cores.texto : d.doMes ? (d.iso === hoje ? marcaTexto : cores.texto) : cores.textoSuave;
+              const ehHoje = d.iso === hoje;
+              const cor = escolhido ? cores.texto : d.doMes ? (ehHoje ? marcaTexto : cores.texto) : cores.textoSuave;
               return (
                 <Pressable
                   key={d.iso}
                   accessibilityRole="button"
-                  accessibilityLabel={d.iso.split('-').reverse().join('/')}
+                  accessibilityLabel={`${d.iso.split('-').reverse().join('/')}${ehHoje ? ', hoje' : ''}`}
                   accessibilityState={{ selected: escolhido }}
+                  // Na web o `selected` de um botão não vira atributo: o `aria-current` diz o escolhido, como no `MiniCalendario`.
+                  aria-current={escolhido ? 'date' : undefined}
                   onPress={() => aoEscolher(d.iso)}
                   style={({ pressed }) => [estilos.dia, escolhido && { backgroundColor: cores.superficie3, borderColor: cores.bordaCampo }, { opacity: pressed ? 0.7 : d.doMes ? 1 : 0.6 }]}>
                   <Texto numerico style={[estilos.numeroDia, { color: cor }]}>{d.dia}</Texto>
+                  {/* Hoje esmaecido no mês vizinho fica sem o traço: a 60% ele perderia o 3:1. */}
+                  {ehHoje && d.doMes ? <TracoDeHoje /> : null}
                 </Pressable>
               );
             })}

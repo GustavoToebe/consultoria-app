@@ -41,7 +41,8 @@ const LINHAS_INICIAIS = 12;
  * equipe (registrar e excluir com `ALUNO_SENSIVEL_ALTERAR`, fases do ciclo); sem ele, o Histórico do próprio aluno:
  * só leitura pela rota do aluno, sem observação e sem ciclo. Nos dois, a variação tem seta e sinal e a cor da meta
  * efetiva que vem em cada item da lista (o app não calcula a meta; sem meta ou `SEM_META`, sem cor). O peso em si é medida,
- * não resultado: vai no azul de indicador (cores-de-destaque D12), que nunca diz bom nem ruim; o gráfico é neutro.
+ * não resultado: vai no azul de indicador (cores-de-destaque D12), que nunca diz bom nem ruim, e o gráfico
+ * acompanha a mesma cor.
  */
 export function CartaoPeso({ alunoId }: { alunoId?: string }) {
   const { cores, preferencias, escolherPreferencia } = useTema();
@@ -147,6 +148,7 @@ export function CartaoPeso({ alunoId }: { alunoId?: string }) {
         <GraficoLinha
           pontos={cronologico.map((p) => ({ rotulo: dataCurta(p.data), valor: p.pesoKg, data: p.data }))}
           unidade="kg"
+          cor={azul}
           descricao={`Gráfico de peso com ${dados.length} registros`}
           faixas={ciclo.ativo && preferencias.mostrarFasesDoCiclo ? ciclo.faixasDe(cronologico[0].data, cronologico[cronologico.length - 1].data) : undefined}
         />

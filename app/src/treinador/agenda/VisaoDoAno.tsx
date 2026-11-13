@@ -7,7 +7,7 @@ import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, LINHA_DA_FAIXA, RAIO } from '../../tema/tokens';
 import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
-import { TracoDeHoje } from './itemDaAgenda';
+import { TracoDeHoje } from '../../ui/TracoDeHoje';
 
 /** Cada dia do mini mês tem o alvo de toque inteiro. */
 const CELULA = ALVO_TOQUE;

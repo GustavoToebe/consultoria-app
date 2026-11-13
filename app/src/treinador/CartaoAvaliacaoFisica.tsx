@@ -275,6 +275,7 @@ function EvolucaoPorMedida({ avaliacoes, daEquipe }: { avaliacoes: AvaliacaoFisi
         <GraficoLinha
           pontos={serie.pontos.map((p) => ({ rotulo: dataCurta(p.data), valor: p.valor, data: p.data }))}
           unidade="cm"
+          cor={azul}
           descricao={`Gráfico de ${nome} com ${datas}`}
         />
       ) : null}

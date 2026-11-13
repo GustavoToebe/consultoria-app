@@ -64,6 +64,7 @@ export function CartaoEvolucaoRespostas({ alunoId }: { alunoId: string }) {
               pontos={pontosDoGrafico(serie)}
               unidade={unidadeDoGrafico(serie)}
               escala={escalaDoGrafico(serie)}
+              cor={azul}
               semUltimo={serie.tipo === 'NOTA'}
               descricao={`Gráfico de ${nomeDaSerie(serie)} com ${serie.pontos.length} respostas`}
             />
