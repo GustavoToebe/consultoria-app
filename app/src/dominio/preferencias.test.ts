@@ -4,6 +4,7 @@ import {
   AGENDAS_OCULTAS_MAXIMO,
   coresComBordasReforcadas,
   coresComContraste,
+  contornoDoCartao,
   escalar,
   espessurasDasBordas,
   fatorDoTexto,
@@ -131,5 +132,16 @@ describe('preferências pessoais', () => {
       expect(contraste(alto.textoSuave, superficie)).toBeGreaterThanOrEqual(7);
     }
     expect(coresComContraste(base, 'PADRAO', escuro)).toBe(base);
+  });
+
+  it.each(Object.entries(PALETAS).map(([codigo, p]) => [codigo, p.cores, p.modo === 'ESCURO'] as const))('contorno do cartão no tema %s: divisor no padrão; no contraste alto ≥ 3:1 contra a página e o cartão, e a divisória fica na borda original', (_nome, base, escuro) => {
+    expect(contornoDoCartao(base, 'PADRAO')).toBe(base.divisor);
+    for (const reforcadas of [false, true]) {
+      const alto = coresComBordasReforcadas(coresComContraste(base, 'ALTO', escuro), reforcadas);
+      const contorno = contornoDoCartao(alto, 'ALTO');
+      for (const fundo of [alto.fundo, alto.painel, alto.superficie]) expect(contraste(contorno, fundo)).toBeGreaterThanOrEqual(3);
+      // Só o contorno do cartão sobe: a divisória interna fica na `borda` original (sem "bordas reforçadas").
+      if (!reforcadas) expect(alto.divisor).toBe(base.borda);
+    }
   });
 });

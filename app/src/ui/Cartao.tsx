@@ -3,6 +3,7 @@ import { CalendarDays, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { Children, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
 
+import { contornoDoCartao } from '../dominio/preferencias';
 import { useTema } from '../tema/TemaProvider';
 import { BORDA_BLOCO, espaco, fontes, LARGURA_MENU_LATERAL, LINHA_DA_FAIXA, RAIO } from '../tema/tokens';
 import { Texto } from './Texto';
@@ -41,11 +42,12 @@ interface Props {
 }
 
 /**
- * Cartão flat: superfície, contorno discreto (`divisor`, 1 px; 2 px com "bordas reforçadas"), cantos de 12 px, sem sombra;
- * a faixa do título é a superfície elevada com o mesmo filete embaixo. Separa seções, dias, exercícios.
+ * Cartão flat: superfície, contorno discreto (`divisor`, 1 px; 2 px com "bordas reforçadas"; `bordaCampo` no contraste
+ * alto, `contornoDoCartao`), cantos de 12 px, sem sombra; a faixa do título é a superfície elevada com o filete `divisor`
+ * embaixo (divisória interna: não acompanha o contorno no contraste alto). Separa seções, dias, exercícios.
  */
 export function Cartao({ children, cabecalho, titulo, descricao, acoes, rodape, recolhivel, recolhido = false, nivel = 2, faixa = true, marcador, periodo, style }: Props) {
-  const { cores, bordas } = useTema();
+  const { cores, bordas, preferencias } = useTema();
   const { width } = useWindowDimensions();
   const [fechado, setFechado] = useState(recolhivel ? recolhido : false);
   const Seta = fechado ? ChevronDown : ChevronUp;
@@ -56,7 +58,7 @@ export function Cartao({ children, cabecalho, titulo, descricao, acoes, rodape, 
   const semCorpo = Children.toArray(children).length === 0;
   const soAFaixa = fechado || (semCorpo && !rodape);
   return (
-    <Card style={[estilos.cartao, { borderWidth: bordas.bloco, backgroundColor: cores.superficie, borderColor: cores.divisor, padding: rente ? 0 : recuo }, rente ? estilos.comCabecalho : null, style]}>
+    <Card testID="cartao" style={[estilos.cartao, { borderWidth: bordas.bloco, backgroundColor: cores.superficie, borderColor: contornoDoCartao(cores, preferencias.contraste), padding: rente ? 0 : recuo }, rente ? estilos.comCabecalho : null, style]}>
       {cabecalho ?? null}
       {titulo || acoes ? (
         <View style={[estilos.topo, comFaixa ? [estilos.faixa, { backgroundColor: cores.superficie2, borderBottomColor: cores.divisor, borderBottomWidth: bordas.bloco, paddingHorizontal: recuo }, soAFaixa ? estilos.faixaFechada : null] : null]}>

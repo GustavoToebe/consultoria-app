@@ -191,8 +191,10 @@ export function escalar(valor: number, fator: number): number {
 }
 
 /**
- * Contraste alto: borda de cartão e divisão ficam tão nítidas quanto a borda de campo, e o texto secundário fica mais
- * forte (≥ 7:1 sobre todas as superfícies).
+ * Contraste alto: `borda` (contorno de linha, item e controle) passa a `bordaCampo`, `divisor` (divisórias internas,
+ * linha da faixa do título, linhas de lista e tabela) sobe só até a `borda` original, para não pesar, e o texto
+ * secundário fica mais forte (≥ 7:1 sobre todas as superfícies). O contorno do `Cartao` não segue o `divisor`: ver
+ * `contornoDoCartao`.
  */
 export function coresComContraste(cores: Cores, contraste: Contraste, escuro: boolean): Cores {
   if (contraste === 'PADRAO') return cores;
@@ -202,6 +204,15 @@ export function coresComContraste(cores: Cores, contraste: Contraste, escuro: bo
     divisor: cores.borda,
     textoSuave: escuro ? '#C4C4CC' : '#3F3F46',
   };
+}
+
+/**
+ * Contorno do `Cartao`: `divisor` (discreto, 1 px), e no contraste alto `bordaCampo`, ≥ 3:1 contra a página e o próprio
+ * cartão. O fundo do cartão quase não se separa da página (cerca de 1,1:1), então o contorno é o que marca a seção; com o
+ * `divisor` reforçado ficava entre 1,75 e 2,33:1 (medido em 13/11, `e2e/cartao-contraste-alto.spec.ts`).
+ */
+export function contornoDoCartao(cores: Cores, contraste: Contraste): string {
+  return contraste === 'ALTO' ? cores.bordaCampo : cores.divisor;
 }
 
 /**
