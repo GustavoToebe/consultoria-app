@@ -28,7 +28,7 @@ import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
-import { ValoresDaDieta } from '../../ui/ValoresDaDieta';
+import { CampoDoMacro, MACROS, ValoresDaDieta } from '../../ui/ValoresDaDieta';
 import { UNIDADES } from '../biblioteca/AbaAlimentos';
 import { CabecalhoDoItem } from '../plano/CabecalhoDoItem';
 import { BotaoDeTexto } from '../treino/BotaoDeAbrir';
@@ -301,12 +301,12 @@ function LinhaItem({ item, posicao, total, comProblema, aoMudar, aoRemover, aoMo
         {item.manual ? null : <View style={estilos.valoresDoItem}><ValoresDaDieta totais={somar([item])} /></View>}
       </View>
       {item.manual ? (
-        // Os quatro valores numa linha só, também no celular (antes quebravam em 3 + 1).
+        // Os quatro valores numa linha só, também no celular (antes quebravam em 3 + 1); P, C e G com a marca da cor no rótulo.
         <View style={estilos.valores}>
           <View style={estilos.valor}><CampoNumerico rotulo="Kcal" valor={item.kcal} aoMudar={(kcal) => mudar({ kcal })} /></View>
-          <View style={estilos.valor}><CampoNumerico rotulo="P (g)" valor={item.proteina} aoMudar={(proteina) => mudar({ proteina })} /></View>
-          <View style={estilos.valor}><CampoNumerico rotulo="C (g)" valor={item.carboidrato} aoMudar={(carboidrato) => mudar({ carboidrato })} /></View>
-          <View style={estilos.valor}><CampoNumerico rotulo="G (g)" valor={item.gordura} aoMudar={(gordura) => mudar({ gordura })} /></View>
+          <View style={estilos.valor}><CampoDoMacro macro={MACROS[0]} rotulo="P (g)" valor={item.proteina} aoMudar={(proteina) => mudar({ proteina })} /></View>
+          <View style={estilos.valor}><CampoDoMacro macro={MACROS[1]} rotulo="C (g)" valor={item.carboidrato} aoMudar={(carboidrato) => mudar({ carboidrato })} /></View>
+          <View style={estilos.valor}><CampoDoMacro macro={MACROS[2]} rotulo="G (g)" valor={item.gordura} aoMudar={(gordura) => mudar({ gordura })} /></View>
         </View>
       ) : null}
     </View>

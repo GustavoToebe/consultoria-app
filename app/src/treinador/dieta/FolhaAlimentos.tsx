@@ -7,7 +7,8 @@ import { espaco, RAIO } from '../../tema/tokens';
 import { Campo } from '../../ui/Campo';
 import { Folha } from '../../ui/Folha';
 import { Texto } from '../../ui/Texto';
-import { resumoAlimento } from '../biblioteca/AbaAlimentos';
+import { LegendaDosMacros } from '../../ui/ValoresDaDieta';
+import { ValoresDoAlimento } from '../biblioteca/AbaAlimentos';
 import { normalizar } from '../treino/FolhaBiblioteca';
 
 /** Escolher um alimento da biblioteca; o item entra com a quantidade-base e os valores calculados. */
@@ -30,6 +31,7 @@ export function FolhaAlimentos({
       {alimentos.length === 0 ? (
         <Texto variante="suave">Nenhum alimento na biblioteca. Use “Item manual” ou importe alimentos na Biblioteca.</Texto>
       ) : null}
+      {lista.length ? <LegendaDosMacros /> : null}
       {lista.slice(0, 80).map((a) => (
         <Pressable
           key={a.id}
@@ -38,7 +40,7 @@ export function FolhaAlimentos({
           onPress={() => aoEscolher(a)}
           style={({ pressed }) => [estilos.item, { borderColor: cores.borda, backgroundColor: pressed ? cores.superficie3 : cores.superficie }]}>
           <Texto>{a.nome}</Texto>
-          <Texto variante="pequeno">{resumoAlimento(a)}</Texto>
+          <ValoresDoAlimento alimento={a} />
         </Pressable>
       ))}
     </Folha>

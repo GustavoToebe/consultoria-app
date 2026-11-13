@@ -20,6 +20,7 @@ import { Escolha } from '../../ui/Escolha';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { useRolagem } from '../../ui/RolagemComTopo';
 import { Texto } from '../../ui/Texto';
+import { corDoTipoDeSerie } from '../../dominio/corDaSerie';
 import { TEXTO_SEQUENCIA_CLUSTER } from '../../dominio/exemplosDePrescricao';
 import { CamposDaTecnica, ErroDoCampo } from '../treino/CamposDaPrescricao';
 import { subProblemas } from '../treino/opcoesDoEditor';
@@ -79,6 +80,7 @@ export function CartaoMetodologia({ configuracao: c, aoMudar, codigosSalvos = []
     nome: t.nome,
     detalhe: `${papelDoTipo(t)} · ${primeiraLinha(t.explicacao)}`,
     presente: c.tipos.some((x) => x.codigo === t.codigo),
+    cor: corDoTipoDeSerie(t.codigo, t.papel),
   }));
   const itensDeTecnica: ItemDoCatalogo[] = CATALOGO_DE_TECNICAS.map((t) => ({
     id: t.tipo,

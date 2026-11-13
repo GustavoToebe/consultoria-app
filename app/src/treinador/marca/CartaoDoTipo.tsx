@@ -1,6 +1,8 @@
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 import type { Configuracao } from '../../api/tipos';
+import { barraDoTipo } from '../../aluno/PartesDaSerie';
+import { corDoTipoDeSerie } from '../../dominio/corDaSerie';
 import type { TipoEmEdicao } from '../../dominio/edicaoMetodologia';
 import { cargaDoModo } from '../../dominio/editorTreino';
 import { PAPEIS, resumoDoTipo, tipoTrabalho } from '../../dominio/metodologia';
@@ -38,10 +40,13 @@ interface Props {
 
 /** Um tipo de série: identificação, prescrição padrão (repetições, carga, RIR, regra de percentuais) e explicação. */
 export function CartaoDoTipo({ tipo: t, config, problemas: p, posicao, total, aberto, aoAlternar, aoMover, aoRemover, aoMudar }: Props) {
-  const { cores } = useTema();
+  const { cores, identificacao } = useTema();
   const nome = t.nome.trim() || 'Novo tipo';
   const quantos = Object.keys(p).length;
-  return <Cartao cabecalho={<CabecalhoDeGrupo titulo={nome} resumo={resumoDoTipo(t, tipoTrabalho(config))} selo={quantos > 0 ? { texto: `${quantos} ${quantos === 1 ? 'problema' : 'problemas'}`, tipo: 'perigo' } : undefined}
+  // A faixa na cor do tipo, a mesma do treino e do aluno (`corDoTipoDeSerie`): o tipo novo segue o papel; "Outro" fica neutro.
+  const chave = corDoTipoDeSerie(t.codigo, t.papel);
+  const faixa = barraDoTipo(chave ? identificacao?.[chave]?.cor ?? null : null);
+  return <Cartao style={faixa ?? undefined} cabecalho={<CabecalhoDeGrupo titulo={nome} resumo={resumoDoTipo(t, tipoTrabalho(config))} selo={quantos > 0 ? { texto: `${quantos} ${quantos === 1 ? 'problema' : 'problemas'}`, tipo: 'perigo' } : undefined}
     aberto={aberto} aoAlternar={aoAlternar} acoes={<>
       <IconeBotao Icone={ArrowUp} rotulo={`Subir o tipo ${nome}`} desabilitado={posicao === 0} aoTocar={() => aoMover(-1)} />
       <IconeBotao Icone={ArrowDown} rotulo={`Descer o tipo ${nome}`} desabilitado={posicao === total - 1} aoTocar={() => aoMover(1)} />

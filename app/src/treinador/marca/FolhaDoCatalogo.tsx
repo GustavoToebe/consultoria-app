@@ -2,8 +2,10 @@ import { Check } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { barraDoTipo } from '../../aluno/PartesDaSerie';
 import { semAcento } from '../../dominio/telas';
 import { useTema } from '../../tema/TemaProvider';
+import type { ChaveDeIdentificacao } from '../../tema/tokens';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
@@ -22,6 +24,8 @@ export interface ItemDoCatalogo {
   detalhe: string;
   grupo?: string;
   presente: boolean;
+  /** Cor de identificação do tipo de série (`corDoTipoDeSerie`), na faixa à esquerda; técnicas e combinações não têm. */
+  cor?: ChaveDeIdentificacao | null;
 }
 
 /**
@@ -43,7 +47,7 @@ export function FolhaDoCatalogo({
   aoFechar: () => void;
   aoAdicionar: (ids: string[]) => void;
 }) {
-  const { cores } = useTema();
+  const { cores, identificacao } = useTema();
   const [marcados, setMarcados] = useState<ReadonlySet<string>>(new Set());
   const [filtro, setFiltro] = useState('');
   const comBusca = itens.length > OPCOES_PARA_BUSCAR;
@@ -90,7 +94,9 @@ export function FolhaDoCatalogo({
                   // Seleção neutra (`ui/selecao`): superfície de seleção, contorno forte e ✓.
                   borderColor: marcado ? coresDaSelecao(cores, true).borda : cores.borda,
                   backgroundColor: item.presente ? coresDoDesabilitado(cores).fundo : marcado ? coresDaSelecao(cores, true).fundo : sobre(estado) ? cores.superficie3 : cores.superficie2,
-                }]}>
+                // A faixa do tipo fica por cima do contorno: marcar não troca a cor da categoria (D9); o que já está na
+                // metodologia (desabilitado) fica sem faixa, para ler como desabilitado.
+                }, barraDoTipo(item.cor && !item.presente ? identificacao?.[item.cor]?.cor ?? null : null)]}>
                 <View style={estilos.textos}>
                   <Texto style={[estilos.nome, { color: item.presente ? cores.textoSuave : cores.texto }]}>{item.nome}</Texto>
                   {detalhe ? <Texto variante="pequeno">{detalhe}</Texto> : null}

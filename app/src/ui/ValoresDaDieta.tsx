@@ -5,12 +5,14 @@ import { numeroParaTela, SEM_DADO } from '../dominio/formatos';
 import { useTema } from '../tema/TemaProvider';
 import type { ChaveDeIdentificacao } from '../tema/tokens';
 import { espaco, fontes } from '../tema/tokens';
+import { CampoNumerico } from './Campos';
 import { Texto } from './Texto';
 
 /**
  * Os três macros com a marca de cor (guia premium pág. 10): proteína ciano, carboidrato azul, gordura violeta, das cores de
  * identificação (`useTema().identificacao`), nunca o verde e o vermelho de situação. A marca é decorativa: o nome (ou a
- * letra, nas linhas curtas) está sempre escrito ao lado. Uma peça só para o editor da dieta e a dieta do aluno.
+ * letra, nas linhas curtas) está sempre escrito ao lado. Uma peça só para o aluno e o treinador (editor e Biblioteca, guia
+ * de 13/11 págs. 5 e 10): mesma cor, sigla e significado nos dois lados.
  */
 export const MACROS = [
   { chave: 'proteina', nome: 'Proteína', curto: 'P', cor: 'CIANO' },
@@ -58,7 +60,42 @@ export function ValoresDaDieta({ totais: t, forte = false, inicio = false }: { t
   );
 }
 
+/** Legenda das siglas com as marcas, uma vez por lista (nunca por linha): o mesmo texto da dieta do aluno. */
+export function LegendaDosMacros() {
+  return (
+    <View style={[estilos.macros, estilos.inicio]}>
+      {MACROS.map((m) => (
+        <View key={m.chave} style={estilos.macro}>
+          <MarcaDoMacro cor={m.cor} />
+          <Texto variante="pequeno">{`${m.curto} = ${m.nome.toLowerCase()}`}</Texto>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/**
+ * Campo de um macro com a marca da cor antes do rótulo ("P (g)" no item manual, "Proteína (g)" no alimento). O nome
+ * acessível começa pelo texto visível (WCAG 2.5.3, quem fala "P (g)" acha o campo) e traz o nome inteiro quando o rótulo é
+ * só a sigla: "P (g), proteína". A cor não entra na caixa nem no número.
+ */
+export function CampoDoMacro({ macro, rotulo, valor, aoMudar, erro }: {
+  macro: (typeof MACROS)[number]; rotulo: string; valor: number | null; aoMudar: (v: number | null) => void; erro?: string | null;
+}) {
+  const { cores } = useTema();
+  return (
+    <View style={estilos.campo}>
+      <View style={estilos.macro} aria-hidden>
+        <MarcaDoMacro cor={macro.cor} />
+        <Texto variante="rotulo" cor={cores.texto} numberOfLines={1}>{rotulo}</Texto>
+      </View>
+      <CampoNumerico rotulo={rotulo} rotuloOculto rotuloAcessivel={rotulo.includes(macro.nome) ? rotulo : `${rotulo}, ${macro.nome.toLowerCase()}`} valor={valor} aoMudar={aoMudar} erro={erro} />
+    </View>
+  );
+}
+
 const estilos = StyleSheet.create({
+  campo: { gap: espaco(0.5) },
   valores: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', columnGap: espaco(1.5), rowGap: espaco(0.5) },
   macros: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', columnGap: espaco(1.5), rowGap: espaco(0.5) },
   inicio: { justifyContent: 'flex-start' },

@@ -26,6 +26,8 @@ interface Base {
   titulo: string;
   /** Linha pequena com números ("6 sessões · 32 exercícios", "Data: 12/10"). */
   metadados?: string;
+  /** Linha de valores com marca própria, logo abaixo dos metadados (os macros da Biblioteca, `ui/ValoresDaDieta`). */
+  valores?: ReactNode;
   /** Texto suave, até 2 linhas. */
   descricao?: string;
   /** Só o que pede atenção, sempre com texto (nunca a cor da marca). */
@@ -122,6 +124,7 @@ export function LinhaDaLista(p: PropsDaLinha) {
     <View style={estilos.textos}>
       {colunas && colunas.definicao.length ? colunas.celulas[colunas.definicao[0].chave] ?? null : <Texto variante="bloco">{p.titulo}</Texto>}
       {p.metadados ? <Texto variante="pequeno" numerico>{p.metadados}</Texto> : null}
+      {p.valores ?? null}
       {p.descricao ? <Texto variante="suave" numberOfLines={2}>{p.descricao}</Texto> : null}
       {selos.length && !largo ? <SelosDaLinha selos={selos} /> : null}
     </View>

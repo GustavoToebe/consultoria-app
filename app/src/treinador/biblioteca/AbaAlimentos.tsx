@@ -42,6 +42,7 @@ import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 import { LinhaDaLista, ListaDeLinhas } from '../../ui/LinhaDaLista';
+import { CampoDoMacro, LegendaDosMacros, MACROS, ValoresDaDieta } from '../../ui/ValoresDaDieta';
 import { normalizar } from '../treino/FolhaBiblioteca';
 
 export const UNIDADES: { valor: UnidadeAlimento; rotulo: string }[] = [
@@ -80,10 +81,18 @@ const OPCOES_PREPARO = [
   { valor: 'REDUZ', rotulo: 'Reduz no preparo (FCc < 1)' },
 ];
 
-/** "100 g · 266 kcal · P 8,4 · C 49,6 · G 3,2" */
-export function resumoAlimento(a: Pick<Alimento, 'baseQuantidade' | 'baseUnidade' | 'kcal' | 'proteina' | 'carboidrato' | 'gordura' | 'porcao'>) {
-  if (a.kcal == null) return a.porcao?.trim() || '—';
-  return `${numeroParaTela(a.baseQuantidade)} ${a.baseUnidade} · ${numeroParaTela(a.kcal, 0)} kcal · P ${numeroParaTela(a.proteina, 1)} · C ${numeroParaTela(a.carboidrato, 1)} · G ${numeroParaTela(a.gordura, 1)}`;
+/**
+ * "Por 100 g" e os valores dessa quantidade pela peça do aluno (`ValoresDaDieta`: kcal e P, C e G com a marca da cor, guia
+ * de 13/11 pág. 10). Sem kcal (suplemento sem tabela), a porção ou "—", como antes: nunca "— kcal" inventado.
+ */
+export function ValoresDoAlimento({ alimento: a }: { alimento: Pick<Alimento, 'baseQuantidade' | 'baseUnidade' | 'kcal' | 'proteina' | 'carboidrato' | 'gordura' | 'porcao'> }) {
+  if (a.kcal == null) return <Texto variante="pequeno">{a.porcao?.trim() || '—'}</Texto>;
+  return (
+    <View style={estilos.valoresDoAlimento}>
+      <Texto variante="pequeno" numerico>{`Por ${numeroParaTela(a.baseQuantidade)} ${a.baseUnidade}`}</Texto>
+      <ValoresDaDieta totais={{ kcal: a.kcal, proteina: a.proteina, carboidrato: a.carboidrato, gordura: a.gordura }} inicio />
+    </View>
+  );
 }
 
 /** Tamanho do grupo do alimento (`GrupoDoAlimento.MAXIMO` na API). */
@@ -201,8 +210,9 @@ export function AbaAlimentos() {
           acao={comFiltros ? { rotulo: 'Limpar filtros', aoTocar: () => setFiltros(SEM_FILTROS) } : dados.length ? { rotulo: 'Limpar busca', aoTocar: () => setBusca('') } : pode('BIBLIOTECA_ALTERAR') ? { rotulo: 'Cadastrar alimento', aoTocar: () => setEditando('novo') } : undefined}
         />
       ) : null}
+      {lista.length ? <LegendaDosMacros /> : null}
       {lista.length ? <ListaDeLinhas divisorias>{lista.map((a) => (
-        <LinhaDaLista key={a.id} titulo={a.nome} metadados={resumoAlimento(a)} descricao={descricaoDoAlimento(a) ?? undefined}
+        <LinhaDaLista key={a.id} titulo={a.nome} valores={<ValoresDoAlimento alimento={a} />} descricao={descricaoDoAlimento(a) ?? undefined}
           acoesAoLado
           acoes={<Permitido codigo="BIBLIOTECA_ALTERAR"><IconeBotao Icone={Pencil} moldura rotulo={`Editar ${a.nome}`} aoTocar={() => setEditando(a)} /></Permitido>} />
       ))}</ListaDeLinhas> : null}
@@ -374,14 +384,15 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
               <View style={estilos.campoMacro}>
                 <CampoNumerico rotulo="Kcal" valor={kcal} aoMudar={setKcal} erro={campos.kcal} />
               </View>
+              {/* Marca da cor só no rótulo (a mesma das listas e do aluno); a caixa e o número seguem neutros. */}
               <View style={estilos.campoMacro}>
-                <CampoNumerico rotulo="Proteína" sufixo="g" valor={proteina} aoMudar={setProteina} erro={campos.proteina} />
+                <CampoDoMacro macro={MACROS[0]} rotulo="Proteína (g)" valor={proteina} aoMudar={setProteina} erro={campos.proteina} />
               </View>
               <View style={estilos.campoMacro}>
-                <CampoNumerico rotulo="Carboidrato" sufixo="g" valor={carboidrato} aoMudar={setCarboidrato} erro={campos.carboidrato} />
+                <CampoDoMacro macro={MACROS[1]} rotulo="Carboidrato (g)" valor={carboidrato} aoMudar={setCarboidrato} erro={campos.carboidrato} />
               </View>
               <View style={estilos.campoMacro}>
-                <CampoNumerico rotulo="Gordura" sufixo="g" valor={gordura} aoMudar={setGordura} erro={campos.gordura} />
+                <CampoDoMacro macro={MACROS[2]} rotulo="Gordura (g)" valor={gordura} aoMudar={setGordura} erro={campos.gordura} />
               </View>
             </View>
           </View>
@@ -435,6 +446,8 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
 const estilos = StyleSheet.create({
   // Seletor no painel de filtros: a largura toda da coluna.
   cheio: { alignSelf: 'stretch' },
+  // "Por 100 g" e os valores numa linha que quebra junta (no celular os macros descem inteiros).
+  valoresDoAlimento: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: espaco(1.5), rowGap: espaco(0.5) },
   // 24 px entre os cartões da folha (seção 4.3 do design); dentro de cada cartão, os 16 px do próprio `Cartao`.
   partes: { gap: espaco(3) },
   linhaDeCampos: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', gap: espaco(2) },
