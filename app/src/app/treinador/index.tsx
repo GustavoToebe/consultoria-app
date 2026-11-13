@@ -30,6 +30,7 @@ import {
   type Fonte,
   type FolhaDoPainelId,
   type OpcoesDoBloco,
+  type PainelDoInicioPreferido,
 } from '../../dominio/painelDoInicio';
 import { OPCOES_DIAS_SEM_REGISTRO } from '../../dominio/preferencias';
 import {
@@ -52,7 +53,7 @@ import { espaco, LARGURA_LISTA } from '../../tema/tokens';
 import { BlocoDoPainel } from '../../treinador/painel/BlocoDoPainel';
 import { LinhaDeBlocos } from '../../treinador/painel/FaixaDoPainel';
 import { PrimeirosPassosAberto, PrimeirosPassosConcluidos, type AcaoGuardada } from '../../treinador/painel/BlocoPrimeirosPassos';
-import { EditarPainel } from '../../treinador/painel/EditarPainel';
+import { BarraDaEdicao, focarDepois, GradeEmEdicao, ID_DO_EDITAR, ID_DO_RESTAURAR } from '../../treinador/painel/EditarPainel';
 import { FolhaDoPainel } from '../../treinador/painel/FolhaDoPainel';
 import { colunasDaGrade, linhasDaGrade } from '../../treinador/painel/grade';
 import { ProximoPasso, type ProximoPassoDaTela } from '../../treinador/painel/ProximoPasso';
@@ -92,7 +93,7 @@ const SEM_ALUNOS_DA_ULTIMA_VEZ = new Set<string>();
  */
 export default function InicioTreinador() {
   const { usuario, perfilEquipe, pode, pagamentosHabilitados, retornoHabilitado, marca, offline } = useSessao();
-  const { preferencias, escolherPreferencia, fatorTexto } = useTema();
+  const { preferencias, preferenciasLidas, escolherPreferencia, fatorTexto } = useTema();
   const unidade = useUnidadeDeCarga();
   const ctx: ContextoDoPainel = useMemo(() => ({ pode, pagamentosHabilitados, retornoHabilitado }), [pode, pagamentosHabilitados, retornoHabilitado]);
   const administrador = !!perfilEquipe?.acessoTotal;
@@ -123,13 +124,14 @@ export default function InicioTreinador() {
   const verInteressados = pode('INSCRICAO_LER');
   const porBloco = useMemo(() => new Map(visiveis.map((id) => [id, consultasDoBloco(id, ctx, opcoes(id))])), [visiveis, ctx, opcoes]);
   // Consultoria que já se sabe sem alunos (última resposta do painel de Todos): os blocos não aparecem, então as consultas
-  // deles não saem. Sem essa resposta saem junto com o painel, para o Início comum não esperar uma volta a mais.
+  // deles não saem. Sem essa resposta saem junto com o painel, para o Início comum não esperar uma volta a mais. Antes de ler
+  // as preferências do aparelho a lista de visíveis é a de fábrica: esperar a leitura evita buscar o bloco que a pessoa ocultou.
   const [semAlunosSabido, setSemAlunosSabido] = useState(() => !!usuarioId && SEM_ALUNOS_DA_ULTIMA_VEZ.has(usuarioId));
   const consultas = useMemo(() => [
     ...(verPainel ? [painelTodos, painelPadrao] : []),
     ...(verInteressados ? [interessadosPadrao] : []),
-    ...(semAlunosSabido ? [] : [...porBloco.values()].flat()),
-  ], [verPainel, painelTodos, painelPadrao, verInteressados, interessadosPadrao, porBloco, semAlunosSabido]);
+    ...(semAlunosSabido || !preferenciasLidas ? [] : [...porBloco.values()].flat()),
+  ], [verPainel, painelTodos, painelPadrao, verInteressados, interessadosPadrao, porBloco, semAlunosSabido, preferenciasLidas]);
   const { fonte, dadosDeOutraChave, fontesDe, recarregar } = useFontesDoPainel(consultas);
 
   // Ao voltar para a tela (não na primeira vez), recarrega tudo e relê o aparelho: cadastrou o aluno ou ligou o link e voltou.
@@ -172,7 +174,9 @@ export default function InicioTreinador() {
 
   // ---- Folhas e Editar ----
   const [folhaAberta, setFolhaAberta] = useState<{ id: FolhaDoPainelId; meus: boolean } | null>(null);
-  const [editando, setEditando] = useState(false);
+  // Modo de edição: o rascunho do painel e a última mudança (o rodapé a mostra). `null` = fora da edição.
+  const [edicao, setEdicao] = useState<{ rascunho: PainelDoInicioPreferido; mensagem: string | null } | null>(null);
+  const editando = edicao !== null;
   const [confirmarDispensa, setConfirmarDispensa] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
 
@@ -236,7 +240,8 @@ export default function InicioTreinador() {
     .map((id) => montarBloco(id, ctx, { ...opcoes(id), fontes: fontesDe(porBloco.get(id) ?? []) }))
     .filter((b): b is NonNullable<typeof b> => b !== null);
   const porId = new Map(blocos.map((b) => [b.id, b]));
-  const linhas = linhasDaGrade(blocos.map((b) => b.id), colunasDaGrade(largura, fatorTexto));
+  const colunas = colunasDaGrade(largura, fatorTexto);
+  const linhas = linhasDaGrade(blocos.map((b) => b.id), colunas, pref.tamanhos);
   const esperandoTodos = verPainel && fonteTodos.situacao === 'carregando';
 
   const folha = (() => {
@@ -270,85 +275,106 @@ export default function InicioTreinador() {
     <>
       <Permitido codigo="ALUNO_ALTERAR"><Botao rotulo="Novo aluno" tipo="secundario" Icone={Plus} aoTocar={() => router.push('/treinador/alunos/novo')} /></Permitido>
       {permitidos.length ? (
-        <Botao rotulo="Editar" rotuloAcessivel="Editar os blocos do Início" tipo="secundario" Icone={Pencil}
-          desabilitado={!!motivoEditar} motivo={motivoEditar} aoTocar={() => setEditando(true)} />
+        <View nativeID={ID_DO_EDITAR}>
+          <Botao rotulo="Editar" rotuloAcessivel="Editar os blocos do Início" tipo="secundario" Icone={Pencil}
+            desabilitado={!!motivoEditar} motivo={motivoEditar}
+            aoTocar={() => {
+              setEdicao({ rascunho: pref, mensagem: null });
+              focarDepois([ID_DO_RESTAURAR]);
+            }} />
+        </View>
       ) : null}
     </>
   );
 
+  // Salvar com a mesma composição só fecha a edição; o rodapé diz se há algo por salvar.
+  const alterado = !!edicao && JSON.stringify(edicao.rascunho) !== JSON.stringify(pref);
+  const fecharEdicao = () => {
+    setEdicao(null);
+    focarDepois([ID_DO_EDITAR]);
+  };
+
   return (
-    <Tela bordas={['top']} largura={LARGURA_LISTA}>
-      <Cabecalho titulo="Início" subtitulo={`Olá, ${usuario?.nome ?? ''}. O que pede atenção na consultoria hoje.`} mostrarMarca="celular" acoes={acoes} />
+    <View style={estilos.raiz}>
+      <Tela bordas={['top']} largura={LARGURA_LISTA}>
+        <Cabecalho titulo="Início" mostrarMarca="celular"
+          subtitulo={editando ? 'Editando os blocos: arraste, mude o tamanho, oculte ou adicione.' : `Olá, ${usuario?.nome ?? ''}. O que pede atenção na consultoria hoje.`}
+          acoes={editando ? undefined : acoes} />
 
-      {offline ? (
-        <Alerta tom="atencao" titulo="Sem internet." texto="Os números podem estar desatualizados.">
-          <Botao rotulo="Tentar de novo" tipo="secundario" aoTocar={recarregarTudo} />
-        </Alerta>
-      ) : null}
-      {aviso ? <Alerta tom="sucesso" texto={aviso} /> : null}
+        {offline ? (
+          <Alerta tom="atencao" titulo="Sem internet." texto="Os números podem estar desatualizados.">
+            <Botao rotulo="Tentar de novo" tipo="secundario" aoTocar={recarregarTudo} />
+          </Alerta>
+        ) : null}
+        {aviso ? <Alerta tom="sucesso" texto={aviso} /> : null}
 
-      {topo.bloco === 'aberto' && passos ? (
-        <PrimeirosPassosAberto passos={passos} aoAcao={aoAcao} aoDispensar={() => setConfirmarDispensa(true)} />
-      ) : null}
-      {topo.bloco === 'concluido' && passos ? (
-        <PrimeirosPassosConcluidos passos={passos} aoAcao={aoAcao} aoFechar={() => gravar(fecharConcluidos)} />
-      ) : null}
-      {topo.proximoPasso ? <ProximoPasso passo={topo.proximoPasso} /> : null}
+        {!editando && topo.bloco === 'aberto' && passos ? (
+          <PrimeirosPassosAberto passos={passos} aoAcao={aoAcao} aoDispensar={() => setConfirmarDispensa(true)} />
+        ) : null}
+        {!editando && topo.bloco === 'concluido' && passos ? (
+          <PrimeirosPassosConcluidos passos={passos} aoAcao={aoAcao} aoFechar={() => gravar(fecharConcluidos)} />
+        ) : null}
+        {!editando && topo.proximoPasso ? <ProximoPasso passo={topo.proximoPasso} /> : null}
 
-      <View onLayout={aoMedir} style={estilos.painel}>
-        {!verPainel && permitidos.length === 0 ? (
-          <Vazio Icone={Lock} titulo="Sem números para o seu perfil" texto="O seu perfil não vê os blocos do Início. Peça a um administrador da consultoria." />
-        ) : esperandoTodos ? (
-          <Esqueleto texto="Carregando o Início" cartoes={2} />
-        ) : semAlunos ? (
-          <Texto variante="suave">{FRASE_INICIO_SEM_ALUNOS}</Texto>
-        ) : blocos.length === 0 ? (
-          <Texto variante="suave">{FRASE_NENHUM_BLOCO}</Texto>
-        ) : (
-          linhas.map((linha) => (
-            <LinhaDeBlocos key={linha.map((c) => c.id).join(':')} style={estilos.linha}>
-              {linha.map((c) => {
-                const bloco = porId.get(c.id);
-                if (!bloco) return null;
-                return (
-                  <BlocoDoPainel key={c.id} bloco={bloco} style={{ flex: c.colunas, flexBasis: 0 }}
-                    aoAtualizar={() => recarregar(porBloco.get(c.id) ?? [])}
-                    aoAlternarFiltro={() => escolherPreferencia({ painelDoInicio: { ...pref, meus: { ...pref.meus, [c.id]: !meusDe(c.id) } } })}
-                    aoAbrirFolha={(id) => setFolhaAberta({ id, meus: bloco.meus })} />
-                );
-              })}
-            </LinhaDeBlocos>
-          ))
-        )}
-      </View>
+        <View onLayout={aoMedir} style={estilos.painel}>
+          {edicao ? (
+            <GradeEmEdicao ctx={ctx} rascunho={edicao.rascunho} colunas={colunas}
+              aoMudar={(rascunho, mensagem) => setEdicao({ rascunho, mensagem })} />
+          ) : !verPainel && permitidos.length === 0 ? (
+            <Vazio Icone={Lock} titulo="Sem números para o seu perfil" texto="O seu perfil não vê os blocos do Início. Peça a um administrador da consultoria." />
+          ) : esperandoTodos ? (
+            <Esqueleto texto="Carregando o Início" cartoes={2} />
+          ) : semAlunos ? (
+            <Texto variante="suave">{FRASE_INICIO_SEM_ALUNOS}</Texto>
+          ) : blocos.length === 0 ? (
+            <Texto variante="suave">{FRASE_NENHUM_BLOCO}</Texto>
+          ) : (
+            linhas.map((linha) => (
+              <LinhaDeBlocos key={linha.map((c) => c.id).join(':')} style={estilos.linha}>
+                {linha.map((c) => {
+                  const bloco = porId.get(c.id);
+                  if (!bloco) return null;
+                  return (
+                    <BlocoDoPainel key={c.id} bloco={bloco} style={{ flex: c.colunas, flexBasis: 0 }}
+                      aoAtualizar={() => recarregar(porBloco.get(c.id) ?? [])}
+                      aoAlternarFiltro={() => escolherPreferencia({ painelDoInicio: { ...pref, meus: { ...pref.meus, [c.id]: !meusDe(c.id) } } })}
+                      aoAbrirFolha={(id) => setFolhaAberta({ id, meus: bloco.meus })} />
+                  );
+                })}
+              </LinhaDeBlocos>
+            ))
+          )}
+        </View>
 
-      {folhaAberta && folha ? (
-        <FolhaDoPainel titulo={folha.titulo} situacao={folha.situacao} folha={folha.dados} aoFechar={() => setFolhaAberta(null)}
-          topo={folhaAberta.id === 'semRegistro' ? (
-            <Escolha descricao="Dias sem registro" opcoes={OPCOES_DIAS_SEM_REGISTRO.map((n) => ({ valor: n, rotulo: `${n} dias` }))} valor={dias}
-              aoMudar={(n) => escolherPreferencia({ diasSemRegistro: n })} />
-          ) : null} />
-      ) : null}
-      {editando ? (
-        <EditarPainel ctx={ctx} inicial={pref} aoFechar={() => setEditando(false)}
-          aoConcluir={(novo) => {
-            escolherPreferencia({ painelDoInicio: novo });
-            setEditando(false);
+        {folhaAberta && folha ? (
+          <FolhaDoPainel titulo={folha.titulo} situacao={folha.situacao} folha={folha.dados} aoFechar={() => setFolhaAberta(null)}
+            topo={folhaAberta.id === 'semRegistro' ? (
+              <Escolha descricao="Dias sem registro" opcoes={OPCOES_DIAS_SEM_REGISTRO.map((n) => ({ valor: n, rotulo: `${n} dias` }))} valor={dias}
+                aoMudar={(n) => escolherPreferencia({ diasSemRegistro: n })} />
+            ) : null} />
+        ) : null}
+        <PainelConfirmacao visivel={confirmarDispensa} titulo={CONFIRMACAO_DE_DISPENSAR.titulo} mensagem={CONFIRMACAO_DE_DISPENSAR.texto}
+          rotuloConfirmar={CONFIRMACAO_DE_DISPENSAR.confirmar} rotuloCancelar={CONFIRMACAO_DE_DISPENSAR.cancelar}
+          aoCancelar={() => setConfirmarDispensa(false)}
+          aoConfirmar={() => {
+            setConfirmarDispensa(false);
+            gravar(dispensar);
+            setAviso(AVISO_DISPENSADO);
+          }} />
+      </Tela>
+      {edicao ? (
+        <BarraDaEdicao mensagem={edicao.mensagem} alterado={alterado} aoCancelar={fecharEdicao}
+          aoSalvar={() => {
+            if (alterado) escolherPreferencia({ painelDoInicio: edicao.rascunho });
+            fecharEdicao();
           }} />
       ) : null}
-      <PainelConfirmacao visivel={confirmarDispensa} titulo={CONFIRMACAO_DE_DISPENSAR.titulo} mensagem={CONFIRMACAO_DE_DISPENSAR.texto}
-        rotuloConfirmar={CONFIRMACAO_DE_DISPENSAR.confirmar} rotuloCancelar={CONFIRMACAO_DE_DISPENSAR.cancelar}
-        aoCancelar={() => setConfirmarDispensa(false)}
-        aoConfirmar={() => {
-          setConfirmarDispensa(false);
-          gravar(dispensar);
-          setAviso(AVISO_DISPENSADO);
-        }} />
-    </Tela>
+    </View>
   );
 }
 
 const estilos = StyleSheet.create({
+  raiz: { flex: 1 },
   painel: { gap: espaco(2) },
   linha: { flexDirection: 'row', gap: espaco(2), alignItems: 'flex-start' },
 });

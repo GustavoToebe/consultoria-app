@@ -20,7 +20,7 @@ describe('preferências pessoais', () => {
   });
 
   it('aceita o objeto e o texto salvo, valor por valor', () => {
-    const salvo = { tema: 'SISTEMA', contraste: 'ALTO', tamanhoTexto: 'EXTRA', movimento: 'REDUZIDO', vibracao: false, graficos: false, bordasReforcadas: true, barrasEscuras: false, diasSemRegistro: 14, mostrarFasesDoCiclo: true, pdfDieta: { modo: 'detalhado', periodo: 'mes', fatores: false }, logoNaComparacao: false, lembretesCompromisso: true, avisoNoCelular: true, agendasOcultas: ['compromissos', 'a1'], unidadeDeCarga: 'lb', painelDoInicio: { ordem: ['financeiro', 'alunos', 'atualizacoes', 'interessados', 'treinos', 'pastas', 'agenda', 'recebido'], escondidos: ['agenda', 'recebido'], meus: { agenda: true, interessados: false } } };
+    const salvo = { tema: 'SISTEMA', contraste: 'ALTO', tamanhoTexto: 'EXTRA', movimento: 'REDUZIDO', vibracao: false, graficos: false, bordasReforcadas: true, barrasEscuras: false, diasSemRegistro: 14, mostrarFasesDoCiclo: true, pdfDieta: { modo: 'detalhado', periodo: 'mes', fatores: false }, logoNaComparacao: false, lembretesCompromisso: true, avisoNoCelular: true, agendasOcultas: ['compromissos', 'a1'], unidadeDeCarga: 'lb', painelDoInicio: { ordem: ['financeiro', 'alunos', 'atualizacoes', 'interessados', 'treinos', 'pastas', 'agenda', 'recebido'], escondidos: ['agenda', 'recebido'], meus: { agenda: true, interessados: false }, tamanhos: { alunos: 3 } } };
     expect(normalizarPreferencias(salvo)).toEqual(salvo);
     expect(normalizarPreferencias(JSON.stringify(salvo))).toEqual(salvo);
     expect(normalizarPreferencias({ tema: 'CLARO' })).toEqual({ ...PREFERENCIAS_PADRAO, tema: 'CLARO' });
@@ -65,7 +65,7 @@ describe('preferências pessoais', () => {
   });
 
   it('painel do Início: padrão com todos os blocos na ordem do protótipo e nenhum escondido', () => {
-    expect(PREFERENCIAS_PADRAO.painelDoInicio).toEqual({ ordem: [...BLOCOS_DO_PAINEL], escondidos: [], meus: {} });
+    expect(PREFERENCIAS_PADRAO.painelDoInicio).toEqual({ ordem: [...BLOCOS_DO_PAINEL], escondidos: [], meus: {}, tamanhos: {} });
     expect(PREFERENCIAS_PADRAO.painelDoInicio.ordem).toHaveLength(8);
     expect(normalizarPreferencias({}).painelDoInicio).toEqual(PREFERENCIAS_PADRAO.painelDoInicio);
   });
@@ -88,6 +88,23 @@ describe('preferências pessoais', () => {
     for (const v of [null, 'Meus', ['agenda'], 3]) {
       expect(normalizarPreferencias({ painelDoInicio: { meus: v } }).painelDoInicio.meus).toEqual({});
     }
+  });
+
+  it('painel do Início: tamanho salvo vale; id desconhecido e valor fora de 1, 2 ou 3 saem', () => {
+    const r = normalizarPreferencias({ painelDoInicio: { tamanhos: { agenda: 3, alunos: 2, treinos: 0, pastas: 4, financeiro: '2', recebido: 2.5, xis: 1 } } }).painelDoInicio;
+    expect(r.tamanhos).toEqual({ agenda: 3, alunos: 2 });
+    for (const v of [null, 'Grande', [3], 2]) {
+      expect(normalizarPreferencias({ painelDoInicio: { tamanhos: v } }).painelDoInicio.tamanhos).toEqual({});
+    }
+  });
+
+  it('painel do Início: a preferência gravada antes dos tamanhos continua valendo (ordem, ocultos e Meus), com os de fábrica', () => {
+    const antiga = { ordem: ['agenda', 'alunos'], escondidos: ['treinos'], meus: { agenda: true } };
+    const r = normalizarPreferencias({ painelDoInicio: antiga }).painelDoInicio;
+    expect(r.ordem.slice(0, 2)).toEqual(['agenda', 'alunos']);
+    expect(r.escondidos).toEqual(['treinos']);
+    expect(r.meus).toEqual({ agenda: true });
+    expect(r.tamanhos).toEqual({});
   });
 
   it('painel do Início: o padrão não é compartilhado (mexer na cópia não muda o padrão)', () => {

@@ -1,5 +1,5 @@
 import { PERIODOS_DA_LISTA, type PeriodoDaLista } from './listaDeCompras';
-import { BLOCOS_DO_PAINEL, ehBlocoDoPainel, PAINEL_DO_INICIO_PADRAO, type PainelDoInicioPreferido } from './painelBlocos';
+import { BLOCOS_DO_PAINEL, ehBlocoDoPainel, ehTamanhoDoBloco, PAINEL_DO_INICIO_PADRAO, type PainelDoInicioPreferido } from './painelBlocos';
 import { BORDA_BLOCO, BORDA_ITEM, type Cores } from '../tema/tokens';
 import { UNIDADES_DE_CARGA, type UnidadeDeCarga } from './unidadeDeCarga';
 
@@ -54,8 +54,8 @@ export interface Preferencias {
   agendasOcultas: string[];
   /**
    * Só treinador: painel do Início (D7). `ordem` traz sempre todos os blocos (os que a pessoa não pode ver guardam o
-   * lugar), `escondidos` os que ela desligou no "Editar" e `meus` o Todos/Meus escolhido em cada bloco (o "Voltar ao
-   * padrão" do Editar limpa os três). Os Primeiros passos não entram.
+   * lugar), `escondidos` os que ela desligou no "Editar", `meus` o Todos/Meus escolhido em cada bloco e `tamanhos` o
+   * Pequeno/Médio/Grande de cada um (o "Restaurar padrão" do Editar limpa os quatro). Os Primeiros passos não entram.
    */
   painelDoInicio: PainelDoInicioPreferido;
   /**
@@ -138,8 +138,8 @@ export function normalizarPreferencias(qualquer: unknown): Preferencias {
 
 /**
  * Ordem salva: ids conhecidos, sem repetir, na ordem salva; os que faltam (bloco novo numa versão futura) entram no fim, na
- * ordem padrão. Escondidos: só ids conhecidos, sem repetir. Meus: só ids conhecidos com valor booleano. Qualquer outra
- * coisa volta ao padrão.
+ * ordem padrão. Escondidos: só ids conhecidos, sem repetir. Meus: só ids conhecidos com valor booleano. Tamanhos: só ids
+ * conhecidos com 1, 2 ou 3. Qualquer outra coisa volta ao padrão.
  */
 function painelDoInicioDe(valor: unknown): PainelDoInicioPreferido {
   const o = valor && typeof valor === 'object' ? (valor as Record<string, unknown>) : {};
@@ -149,10 +149,16 @@ function painelDoInicioDe(valor: unknown): PainelDoInicioPreferido {
   if (o.meus && typeof o.meus === 'object' && !Array.isArray(o.meus)) {
     for (const [id, v] of Object.entries(o.meus)) if (ehBlocoDoPainel(id) && typeof v === 'boolean') meus[id] = v;
   }
+  // Tamanhos: só ids conhecidos com 1, 2 ou 3; ausente (preferência de antes dos tamanhos) = os de fábrica.
+  const tamanhos: NonNullable<PainelDoInicioPreferido['tamanhos']> = {};
+  if (o.tamanhos && typeof o.tamanhos === 'object' && !Array.isArray(o.tamanhos)) {
+    for (const [id, v] of Object.entries(o.tamanhos)) if (ehBlocoDoPainel(id) && ehTamanhoDoBloco(v)) tamanhos[id] = v;
+  }
   return {
     ordem: [...salva, ...BLOCOS_DO_PAINEL.filter((id) => !salva.includes(id))],
     escondidos: conhecidos(o.escondidos),
     meus,
+    tamanhos,
   };
 }
 

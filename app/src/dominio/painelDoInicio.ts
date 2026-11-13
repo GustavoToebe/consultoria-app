@@ -13,10 +13,13 @@ import { rotuloDoMes } from './numeros';
 import { textoDoRecorde } from './recordesPessoais';
 import type { UnidadeDeCarga } from './unidadeDeCarga';
 import { ehRetornoDesligado } from './retornoDesligado';
-import { BLOCOS_DO_PAINEL, type BlocoDoPainelId, ehBlocoDoPainel, PAINEL_DO_INICIO_PADRAO, type PainelDoInicioPreferido } from './painelBlocos';
+import {
+  BLOCOS_DO_PAINEL, type BlocoDoPainelId, ehBlocoDoPainel, ehTamanhoDoBloco, PAINEL_DO_INICIO_PADRAO, type PainelDoInicioPreferido,
+  ROTULOS_DOS_TAMANHOS, TAMANHO_PADRAO_DO_BLOCO, tamanhoDoBloco, TAMANHOS_DO_BLOCO, type TamanhoDoBloco,
+} from './painelBlocos';
 
-export { BLOCOS_DO_PAINEL, ehBlocoDoPainel, PAINEL_DO_INICIO_PADRAO };
-export type { BlocoDoPainelId, PainelDoInicioPreferido };
+export { BLOCOS_DO_PAINEL, ehBlocoDoPainel, PAINEL_DO_INICIO_PADRAO, ROTULOS_DOS_TAMANHOS, TAMANHO_PADRAO_DO_BLOCO, tamanhoDoBloco, TAMANHOS_DO_BLOCO };
+export type { BlocoDoPainelId, PainelDoInicioPreferido, TamanhoDoBloco };
 
 /**
  * Regras do painel novo do Início do treinador (passo 8 de `docs/planos/atualizacao-visual-app-full.md`, D7 e D9; protótipo
@@ -122,46 +125,76 @@ export interface BlocoParaEditar {
   id: BlocoDoPainelId;
   titulo: string;
   descricao: string;
+  /** Aparece no Início (fora da bandeja de ocultos). */
   ligado: boolean;
-  /** Posição entre os permitidos (1 a N) e o total, para "posição 2 de 7" no leitor de tela. */
-  posicao: number;
+  /** Posição entre os que aparecem (1 a N) e o total, para "posição 2 de 7"; `null` no bloco oculto. */
+  posicao: number | null;
   total: number;
   podeSubir: boolean;
   podeDescer: boolean;
-}
-
-/** A lista do "Editar": todos os blocos permitidos, com o interruptor e os botões de subir e descer. */
-export function blocosParaEditar(ctx: ContextoDoPainel, pref: PainelDoInicioPreferido): BlocoParaEditar[] {
-  const ids = blocosPermitidos(ctx, pref);
-  return ids.map((id, i) => ({
-    id, titulo: TITULOS_DOS_BLOCOS[id], descricao: DESCRICOES_DOS_BLOCOS[id], ligado: !pref.escondidos.includes(id),
-    posicao: i + 1, total: ids.length, podeSubir: i > 0, podeDescer: i < ids.length - 1,
-  }));
-}
-
-/** Liga ou desliga um bloco. Id desconhecido não muda nada. */
-export function alternarBloco(pref: PainelDoInicioPreferido, id: BlocoDoPainelId): PainelDoInicioPreferido {
-  if (!ehBlocoDoPainel(id)) return pref;
-  const escondidos = pref.escondidos.includes(id) ? pref.escondidos.filter((x) => x !== id) : [...pref.escondidos, id];
-  return { ordem: [...pref.ordem], escondidos, meus: { ...pref.meus } };
+  /** Tamanho que vale (o escolhido ou o de fábrica). */
+  tamanho: TamanhoDoBloco;
 }
 
 /**
- * Sobe (`-1`) ou desce (`1`) um bloco entre os **permitidos** à pessoa: troca de lugar com o vizinho permitido, sem mexer
- * na posição dos blocos que ela não vê (eles guardam o lugar para outro perfil ou para quando a permissão voltar).
+ * O "Editar": todos os blocos permitidos, na ordem. Subir e Descer andam entre os que **aparecem** (trocar de lugar com
+ * um oculto não mudaria nada na tela); o oculto fica na bandeja e guarda o lugar para quando voltar.
  */
-export function moverBloco(pref: PainelDoInicioPreferido, id: BlocoDoPainelId, sentido: -1 | 1, permitidos: readonly BlocoDoPainelId[]): PainelDoInicioPreferido {
+export function blocosParaEditar(ctx: ContextoDoPainel, pref: PainelDoInicioPreferido): BlocoParaEditar[] {
+  const visiveis = blocosVisiveis(ctx, pref);
+  return blocosPermitidos(ctx, pref).map((id) => {
+    const i = visiveis.indexOf(id);
+    return {
+      id, titulo: TITULOS_DOS_BLOCOS[id], descricao: DESCRICOES_DOS_BLOCOS[id], ligado: i >= 0,
+      posicao: i >= 0 ? i + 1 : null, total: visiveis.length, podeSubir: i > 0, podeDescer: i >= 0 && i < visiveis.length - 1,
+      tamanho: tamanhoDoBloco(id, pref.tamanhos),
+    };
+  });
+}
+
+const copia = (pref: PainelDoInicioPreferido): PainelDoInicioPreferido => ({
+  ordem: [...pref.ordem], escondidos: [...pref.escondidos], meus: { ...pref.meus }, tamanhos: { ...pref.tamanhos },
+});
+
+/** Mostra (`true`, o "Adicionar" da bandeja) ou oculta um bloco. Id desconhecido não muda nada; o resto é preservado. */
+export function mostrarBloco(pref: PainelDoInicioPreferido, id: BlocoDoPainelId, mostrar: boolean): PainelDoInicioPreferido {
+  if (!ehBlocoDoPainel(id)) return pref;
+  const sem = pref.escondidos.filter((x) => x !== id);
+  return { ...copia(pref), escondidos: mostrar ? sem : [...sem, id] };
+}
+
+/**
+ * Leva um bloco para a posição `destino` (0 a N−1) entre `permitidos` (a tela passa os que aparecem). Só as vagas desses
+ * blocos mudam: o oculto e o que a pessoa não vê (outro perfil, permissão que pode voltar) ficam no mesmo lugar.
+ */
+export function moverBlocoPara(pref: PainelDoInicioPreferido, id: BlocoDoPainelId, destino: number, permitidos: readonly BlocoDoPainelId[]): PainelDoInicioPreferido {
   const entre = pref.ordem.filter((x) => permitidos.includes(x));
   const i = entre.indexOf(id);
-  const j = i + sentido;
-  if (i < 0 || j < 0 || j >= entre.length) return pref;
-  const vizinho = entre[j];
-  const ordem = [...pref.ordem];
-  const a = ordem.indexOf(id);
-  const b = ordem.indexOf(vizinho);
-  ordem[a] = vizinho;
-  ordem[b] = id;
-  return { ordem, escondidos: [...pref.escondidos], meus: { ...pref.meus } };
+  if (i < 0 || destino < 0 || destino >= entre.length || destino === i) return pref;
+  const nova = entre.filter((x) => x !== id);
+  nova.splice(destino, 0, id);
+  let k = 0;
+  return { ...copia(pref), ordem: pref.ordem.map((x) => (permitidos.includes(x) ? nova[k++] : x)) };
+}
+
+/** Sobe (`-1`) ou desce (`1`) um bloco entre `permitidos`: troca com o vizinho, sem mexer nos outros. */
+export function moverBloco(pref: PainelDoInicioPreferido, id: BlocoDoPainelId, sentido: -1 | 1, permitidos: readonly BlocoDoPainelId[]): PainelDoInicioPreferido {
+  const i = pref.ordem.filter((x) => permitidos.includes(x)).indexOf(id);
+  return i < 0 ? pref : moverBlocoPara(pref, id, i + sentido, permitidos);
+}
+
+/** Escolhe o tamanho do bloco. O de fábrica não fica gravado (some da preferência); valor fora de 1 a 3 não muda nada. */
+export function redimensionarBloco(pref: PainelDoInicioPreferido, id: BlocoDoPainelId, tamanho: TamanhoDoBloco): PainelDoInicioPreferido {
+  if (!ehBlocoDoPainel(id) || !ehTamanhoDoBloco(tamanho)) return pref;
+  const tamanhos = { ...pref.tamanhos };
+  if (tamanho === TAMANHO_PADRAO_DO_BLOCO[id]) delete tamanhos[id];
+  else tamanhos[id] = tamanho;
+  return { ...copia(pref), tamanhos };
+}
+
+/** "Restaurar padrão": ordem, ocultos, tamanhos e Todos/Meus de fábrica, numa cópia nova (o rascunho pode mexer nela). */
+export function restaurarPadrao(): PainelDoInicioPreferido {
+  return copia(PAINEL_DO_INICIO_PADRAO);
 }
 
 // ---- Fontes (o que a tela já carregou) ----

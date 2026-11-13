@@ -1,4 +1,4 @@
-import type { BlocoDoPainelId } from '../../dominio/painelBlocos';
+import { tamanhoDoBloco, type BlocoDoPainelId, type PainelDoInicioPreferido } from '../../dominio/painelBlocos';
 
 /** Espaço entre os blocos (o `gap` da linha no Início). */
 const ESPACO = 16;
@@ -26,9 +26,9 @@ export function colunasDaGrade(largura: number, fatorTexto = 1): number {
   return Math.max(1, Math.min(4, Math.floor((largura + ESPACO) / (coluna + ESPACO))));
 }
 
-/** Quantas colunas o bloco pede: Agenda e Financeiro 2, as barras 3, o resto 1 (D9). */
-export function larguraDoBloco(id: BlocoDoPainelId): number {
-  return id === 'recebido' ? 3 : id === 'agenda' || id === 'financeiro' ? 2 : 1;
+/** Quantas colunas o bloco pede: o tamanho escolhido no "Editar" ou o de fábrica (Agenda e Financeiro 2, as barras 3, o resto 1). */
+export function larguraDoBloco(id: BlocoDoPainelId, tamanhos?: PainelDoInicioPreferido['tamanhos']): number {
+  return tamanhoDoBloco(id, tamanhos);
 }
 
 export interface CelulaDaGrade {
@@ -42,12 +42,13 @@ export interface CelulaDaGrade {
  * desenhada com `flex: colunas` nos filhos, então a sobra da linha se divide entre os blocos dela (como no protótipo).
  * Cada bloco fica com a própria altura (alinhados no topo): a `LinhaDeBlocos` só iguala as faixas de título.
  */
-export function linhasDaGrade(ids: readonly BlocoDoPainelId[], colunas: number): CelulaDaGrade[][] {
+export function linhasDaGrade(ids: readonly BlocoDoPainelId[], colunas: number, tamanhos?: PainelDoInicioPreferido['tamanhos']): CelulaDaGrade[][] {
   const linhas: CelulaDaGrade[][] = [];
   let atual: CelulaDaGrade[] = [];
   let usadas = 0;
   for (const id of ids) {
-    const n = Math.min(larguraDoBloco(id), colunas);
+    // Em 1 coluna o tamanho não tem efeito (fica gravado para a tela larga).
+    const n = Math.min(larguraDoBloco(id, tamanhos), colunas);
     if (usadas + n > colunas && atual.length) {
       linhas.push(atual);
       atual = [];

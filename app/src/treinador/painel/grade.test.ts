@@ -38,6 +38,16 @@ describe('grade do painel', () => {
     expect(linhas).toEqual([[{ id: 'recebido', colunas: 1 }], [{ id: 'agenda', colunas: 1 }], [{ id: 'alunos', colunas: 1 }]]);
   });
 
+  it('o tamanho escolhido muda a largura; ausente vale o de fábrica; nunca passa da grade', () => {
+    const ids = ['alunos', 'agenda', 'pastas'] as const;
+    const tam = (n: number, t?: Parameters<typeof linhasDaGrade>[2]) => linhasDaGrade(ids, n, t).map((l) => l.map((c) => `${c.id}:${c.colunas}`));
+    expect(tam(4, { alunos: 3, agenda: 1 })).toEqual([['alunos:3', 'agenda:1'], ['pastas:1']]);
+    expect(tam(2, { alunos: 3 })).toEqual([['alunos:2'], ['agenda:2'], ['pastas:1']]);
+    expect(tam(4)).toEqual([['alunos:1', 'agenda:2', 'pastas:1']]);
+    // Em 1 coluna o tamanho não tem efeito (continua gravado para a tela larga).
+    expect(tam(1, { alunos: 3, pastas: 2 })).toEqual([['alunos:1'], ['agenda:1'], ['pastas:1']]);
+  });
+
   it('o bloco que não cabe começa a linha seguinte', () => {
     const linhas = linhasDaGrade(['alunos', 'pastas', 'recebido'], 4);
     expect(linhas.map((l) => l.map((c) => c.id))).toEqual([['alunos', 'pastas'], ['recebido']]);

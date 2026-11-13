@@ -4,10 +4,11 @@ import type { ContagensInscricoes } from '../api/inscricoesTipos';
 import type { PainelTreinador, RecordesDaSemana } from '../api/tipos';
 import { periodoDoCalendario } from './agendaCalendario';
 import {
-  alternarBloco, barrasDoRecebido, blocoDisponivel, BLOCOS_DO_PAINEL, blocosParaEditar, blocosPermitidos, blocosVisiveis,
+  barrasDoRecebido, blocoDisponivel, BLOCOS_DO_PAINEL, blocosParaEditar, blocosPermitidos, blocosVisiveis,
   chaveDaConsulta, compromissosDaSemana, consultaDaAgenda, consultasDoBloco, enderecoDoBloco, FONTE_CARREGANDO, FONTE_DESLIGADA,
-  FONTE_FALHOU, fontePronta, folhaPastasARenovar, folhaRecordes, folhaSemRegistro, fonteDaConsulta, inicioSemAlunos, listaDaFolha, moverBloco,
-  montarBloco, PAINEL_DO_INICIO_PADRAO, periodoDoFinanceiroNoPainel, reaisSemCentavos, resumoDaFolha, roscaDosAlunos,
+  FONTE_FALHOU, fontePronta, folhaPastasARenovar, folhaRecordes, folhaSemRegistro, fonteDaConsulta, inicioSemAlunos, listaDaFolha, moverBloco, moverBlocoPara,
+  montarBloco, mostrarBloco, PAINEL_DO_INICIO_PADRAO, periodoDoFinanceiroNoPainel, reaisSemCentavos, redimensionarBloco, restaurarPadrao,
+  resumoDaFolha, roscaDosAlunos,
   type BlocoDoPainel, type BlocoDoPainelId, type ContextoDoPainel, type FontesDoPainel, type OpcoesDoBloco, type PainelDoInicioPreferido,
 } from './painelDoInicio';
 
@@ -117,27 +118,62 @@ describe('ordem e escondidos (Editar)', () => {
     expect(blocosPermitidos(ctx, pref)).toEqual(['alunos', 'agenda', 'atualizacoes', 'treinos', 'pastas', 'financeiro', 'recebido']);
     const lista = blocosParaEditar(ctx, pref);
     expect(lista.map((b) => b.id)).not.toContain('interessados');
-    expect(lista.find((b) => b.id === 'agenda')?.ligado).toBe(false);
-    expect(lista[0]).toMatchObject({ id: 'alunos', posicao: 1, total: 7, podeSubir: false, podeDescer: true });
-    expect(lista[6]).toMatchObject({ posicao: 7, podeSubir: true, podeDescer: false });
+    // O oculto fica fora da contagem: Subir e Descer andam entre os que aparecem.
+    expect(lista.find((b) => b.id === 'agenda')).toMatchObject({ ligado: false, posicao: null, podeSubir: false, podeDescer: false });
+    expect(lista[0]).toMatchObject({ id: 'alunos', posicao: 1, total: 6, podeSubir: false, podeDescer: true });
+    expect(lista[6]).toMatchObject({ id: 'recebido', posicao: 6, podeSubir: true, podeDescer: false });
+    expect(lista.find((b) => b.id === 'agenda')?.tamanho).toBe(2);
   });
 
   it('tudo escondido: nenhum bloco visível', () => {
     expect(blocosVisiveis(ctxCom(), { ordem: [...BLOCOS_DO_PAINEL], escondidos: [...BLOCOS_DO_PAINEL], meus: {} })).toEqual([]);
   });
 
-  it('ligar, desligar e mover no Editar não perdem o Todos/Meus gravado de cada bloco', () => {
-    const pref = { ...PAINEL_DO_INICIO_PADRAO, meus: { agenda: true } };
-    expect(alternarBloco(pref, 'treinos').meus).toEqual({ agenda: true });
-    expect(moverBloco(pref, 'agenda', -1, BLOCOS_DO_PAINEL).meus).toEqual({ agenda: true });
-    expect(PAINEL_DO_INICIO_PADRAO.meus).toEqual({});
+  it('mostrar, ocultar, mover e redimensionar não perdem o Todos/Meus nem os tamanhos gravados', () => {
+    const pref: PainelDoInicioPreferido = { ...PAINEL_DO_INICIO_PADRAO, meus: { agenda: true }, tamanhos: { treinos: 3 } };
+    for (const r of [
+      mostrarBloco(pref, 'treinos', false), moverBloco(pref, 'agenda', -1, BLOCOS_DO_PAINEL),
+      moverBlocoPara(pref, 'agenda', 0, BLOCOS_DO_PAINEL), redimensionarBloco(pref, 'agenda', 3),
+    ]) {
+      expect(r.meus).toEqual({ agenda: true });
+      expect(r.tamanhos?.treinos).toBe(3);
+    }
+    expect(PAINEL_DO_INICIO_PADRAO).toEqual({ ordem: [...BLOCOS_DO_PAINEL], escondidos: [], meus: {}, tamanhos: {} });
   });
 
-  it('alternarBloco liga e desliga sem mexer na ordem nem no original', () => {
-    const a = alternarBloco(PAINEL_DO_INICIO_PADRAO, 'agenda');
+  it('mostrarBloco oculta e mostra sem mexer na ordem nem no original; repetir não duplica', () => {
+    const a = mostrarBloco(PAINEL_DO_INICIO_PADRAO, 'agenda', false);
     expect(a.escondidos).toEqual(['agenda']);
     expect(a.ordem).toEqual([...BLOCOS_DO_PAINEL]);
-    expect(alternarBloco(a, 'agenda').escondidos).toEqual([]);
+    expect(mostrarBloco(a, 'agenda', false).escondidos).toEqual(['agenda']);
+    expect(mostrarBloco(a, 'agenda', true).escondidos).toEqual([]);
+    expect(mostrarBloco(a, 'xx' as BlocoDoPainelId, true)).toBe(a);
+    expect(PAINEL_DO_INICIO_PADRAO.escondidos).toEqual([]);
+  });
+
+  it('moverBlocoPara leva o bloco à posição e não tira do lugar o oculto nem o sem permissão', () => {
+    const pref = mostrarBloco(PAINEL_DO_INICIO_PADRAO, 'treinos', false);
+    const visiveis = BLOCOS_DO_PAINEL.filter((b) => b !== 'treinos' && b !== 'interessados');
+    // alunos (último) vai para o topo; treinos (oculto, 3º) e interessados (sem permissão, 2º) ficam onde estavam.
+    expect(moverBlocoPara(pref, 'alunos', 0, visiveis).ordem).toEqual(['alunos', 'interessados', 'treinos', 'atualizacoes', 'pastas', 'agenda', 'financeiro', 'recebido']);
+    expect(moverBlocoPara(pref, 'alunos', 99, visiveis)).toBe(pref);
+    expect(moverBlocoPara(pref, 'treinos', 0, visiveis)).toBe(pref);
+  });
+
+  it('redimensionarBloco grava o tamanho escolhido e esquece o de fábrica; valor fora de 1 a 3 não muda nada', () => {
+    const g = redimensionarBloco(PAINEL_DO_INICIO_PADRAO, 'alunos', 3);
+    expect(g.tamanhos).toEqual({ alunos: 3 });
+    expect(redimensionarBloco(g, 'alunos', 1).tamanhos).toEqual({});
+    expect(redimensionarBloco(g, 'alunos', 4 as never)).toBe(g);
+    expect(redimensionarBloco(g, 'alunos', 2.5 as never)).toBe(g);
+  });
+
+  it('restaurarPadrao devolve ordem, ocultos, Todos/Meus e tamanhos de fábrica numa cópia nova', () => {
+    const r = restaurarPadrao();
+    expect(r).toEqual(PAINEL_DO_INICIO_PADRAO);
+    r.ordem.reverse();
+    r.escondidos.push('agenda');
+    expect(PAINEL_DO_INICIO_PADRAO.ordem[0]).toBe('atualizacoes');
     expect(PAINEL_DO_INICIO_PADRAO.escondidos).toEqual([]);
   });
 
