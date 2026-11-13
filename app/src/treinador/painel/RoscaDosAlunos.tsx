@@ -3,9 +3,10 @@ import { ChevronRight } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Text as SvgTexto } from 'react-native-svg';
 
-import type { RoscaDoPainel } from '../../dominio/painelDoInicio';
+import type { FatiaDaRosca, RoscaDoPainel } from '../../dominio/painelDoInicio';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, RAIO } from '../../tema/tokens';
+import { useDestaques } from '../../ui/NumeroDeDestaque';
 import { propsDeLink } from '../../ui/propsDeLink';
 import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
@@ -13,6 +14,8 @@ import { Texto } from '../../ui/Texto';
 const RAIO_DA_ROSCA = 38;
 const TRACO = 18;
 const VOLTA = 2 * Math.PI * RAIO_DA_ROSCA;
+/** Vão entre fatias vizinhas (o fundo do anel aparece): verde, azul e cinza quase não diferem em luminosidade, e a cor não pode ser a única separação. */
+const FOLGA = 2;
 
 /**
  * Rosca dos alunos (SVG, sem biblioteca): ativos com acesso, ativos sem acesso e inativos, com o total no meio. O desenho
@@ -22,7 +25,10 @@ const VOLTA = 2 * Math.PI * RAIO_DA_ROSCA;
  */
 export function RoscaDosAlunos({ rosca }: { rosca: RoscaDoPainel }) {
   const { cores } = useTema();
+  const destaques = useDestaques();
+  const corDe = (cor: FatiaDaRosca['cor']) => (cor === 'neutro' ? cores.neutro : destaques[cor].cor);
   const desenhar = rosca.desenhar && !rosca.vazia;
+  const comFolga = rosca.fatias.filter((f) => f.fracao > 0).length > 1 ? FOLGA : 0;
   return (
     <View style={estilos.area}>
       <Texto variante="secao">{rosca.titulo}</Texto>
@@ -32,8 +38,8 @@ export function RoscaDosAlunos({ rosca }: { rosca: RoscaDoPainel }) {
             <Svg width={112} height={112} viewBox="0 0 100 100" aria-hidden>
               <Circle cx={50} cy={50} r={RAIO_DA_ROSCA} fill="none" stroke={cores.superficie3} strokeWidth={TRACO} />
               {rosca.fatias.filter((f) => f.fracao > 0).map((f) => (
-                <Circle key={f.chave} cx={50} cy={50} r={RAIO_DA_ROSCA} fill="none" stroke={cores[f.cor]} strokeWidth={TRACO}
-                  strokeDasharray={`${f.fracao * VOLTA} ${VOLTA}`} strokeDashoffset={-f.inicio * VOLTA} transform="rotate(-90 50 50)" />
+                <Circle key={f.chave} cx={50} cy={50} r={RAIO_DA_ROSCA} fill="none" stroke={corDe(f.cor)} strokeWidth={TRACO}
+                  strokeDasharray={`${Math.max(f.fracao * VOLTA - comFolga, 0.01)} ${VOLTA}`} strokeDashoffset={-(f.inicio * VOLTA + comFolga / 2)} transform="rotate(-90 50 50)" />
               ))}
               <SvgTexto x={50} y={43} fontSize={12} fill={cores.textoSuave} textAnchor="middle">Alunos</SvgTexto>
               <SvgTexto x={50} y={63} fontSize={18} fontWeight="bold" fill={cores.texto} textAnchor="middle">{String(rosca.total)}</SvgTexto>
@@ -46,7 +52,7 @@ export function RoscaDosAlunos({ rosca }: { rosca: RoscaDoPainel }) {
               <Pressable accessibilityRole="link" accessibilityLabel={`${f.rotulo}: ${f.valor}. Ver na lista de alunos`}
                 {...propsDeLink(f.href as Href, () => router.push(f.href as Href))}
                 style={(e) => [estilos.itemDaLegenda, { backgroundColor: sobre(e) ? cores.superficie3 : 'transparent' }]}>
-                <View style={[estilos.bolinha, { backgroundColor: cores[f.cor] }]} />
+                <View style={[estilos.bolinha, { backgroundColor: corDe(f.cor) }]} />
                 <Texto style={estilos.rotulo}>{f.rotulo}</Texto>
                 <Texto variante="bloco" numerico>{String(f.valor)}</Texto>
                 <ChevronRight size={16} color={cores.textoSuave} strokeWidth={2} />

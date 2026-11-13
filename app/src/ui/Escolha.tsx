@@ -3,6 +3,7 @@ import { Check } from 'lucide-react-native';
 import { useImperativeHandle, useRef, type Ref } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { inteiroComMilhar } from '../dominio/formatos';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO, RAIO_CONTROLE } from '../tema/tokens';
 import { useAnunciarErro, MensagemDeErro } from './Campo';
@@ -73,7 +74,7 @@ export function Escolha<T extends string | number | null>({ opcoes, valor, aoMud
               key={String(o.valor)}
               role="radio"
               accessibilityRole="radio"
-              accessibilityLabel={o.contagem === undefined ? o.rotulo : `${o.rotulo}, ${o.contagem}`}
+              accessibilityLabel={o.contagem === undefined ? o.rotulo : `${o.rotulo}, ${inteiroComMilhar(o.contagem)}`}
               accessibilityHint={o.desabilitada ? o.motivo : undefined}
               accessibilityState={{ checked: ativo, disabled: !!o.desabilitada }}
               disabled={o.desabilitada}
@@ -85,7 +86,7 @@ export function Escolha<T extends string | number | null>({ opcoes, valor, aoMud
               ]}>
               {ativo && !segmento && !o.desabilitada ? <Check size={16} color={visual.texto} strokeWidth={2.5} /> : null}
               <Texto style={[estilos.texto, compacta && estilos.textoCompacto, { color: visual.texto, fontFamily: ativo ? fontes.semi : fontes.medio }]}>{o.rotulo}</Texto>
-              {o.contagem === undefined ? null : <Texto numerico aria-hidden style={[estilos.texto, compacta && estilos.textoCompacto, { color: o.desabilitada ? visual.texto : cores.textoSuave }]}>{o.contagem}</Texto>}
+              {o.contagem === undefined ? null : <Texto numerico aria-hidden style={[estilos.texto, compacta && estilos.textoCompacto, { color: o.desabilitada ? visual.texto : cores.textoSuave }]}>{inteiroComMilhar(o.contagem)}</Texto>}
             </ToggleGroupItem>
           );
         })}

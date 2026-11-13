@@ -118,6 +118,11 @@ export function dataCurta(iso: string): string {
   return m && d ? `${d}/${m}` : '';
 }
 
+/** Contagem inteira com ponto de milhar a partir de 1.000 (`2145` → `2.145`). pt-BR sem `Intl` (o Hermes pode não ter). */
+export function inteiroComMilhar(n: number): string {
+  return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
 /** `1234.5` → `R$ 1.234,50`. Nulo → "—". Não depende de `Intl` (o Hermes do celular pode não ter pt-BR). */
 export function moedaParaTela(valor: number | null | undefined): string {
   if (valor === null || valor === undefined || Number.isNaN(valor)) return SEM_DADO;

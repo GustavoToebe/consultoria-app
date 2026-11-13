@@ -7,6 +7,7 @@ import { descricaoDoGrafico, graficoTemDados, linhasDaTabelaDoGrafico, maiorValo
 import { marcasDoEixo } from '../dominio/grafico';
 import { useTema } from '../tema/TemaProvider';
 import { espaco } from '../tema/tokens';
+import { useDestaques } from './NumeroDeDestaque';
 import { Tabela } from './Tabela';
 import { Texto } from './Texto';
 
@@ -14,14 +15,17 @@ const ALTURA_BASE = 240;
 const MARGEM_BASE = { topo: 14, base: 24, esq: 70, dir: 12 };
 /** Abaixo desta largura as barras ficam apertadas demais para ler: o gráfico vira tabela. */
 const LARGURA_MINIMA_DO_GRAFICO = 420;
+/** Vão de cada lado do centro entre recebido e previsto: azul e ciano diferem pouco em luminosidade (1,25 no claro), então o fundo as separa. */
+const FOLGA = 2;
 
 /**
- * Gráfico de barras mês a mês (SVG): realizado (verde) e previsto (âmbar) lado a lado. As cores têm significado (nunca a
- * marca). Com a preferência "Mostrar gráficos" desligada, ou numa tela estreita, vira tabela com os mesmos valores.
+ * Gráfico de barras mês a mês (SVG): recebido (azul) e previsto (ciano) lado a lado, como os cartões da Visão geral (D6: as cores têm
+ * significado, nunca a marca; as duas quase não diferem em luminosidade, então a legenda tem texto e as barras têm um vão). Com a preferência "Mostrar gráficos" desligada, ou numa tela estreita, vira tabela com os mesmos valores.
  * O leitor de tela recebe a lista de valores em texto (o SVG é decorativo). Valor ausente fica sem barra e "—" na tabela.
  */
 export function GraficoBarras({ barras, rotulo = 'Recebido e previsto por mês' }: { barras: BarraDoMes[]; rotulo?: string }) {
   const { cores, fatorTexto, preferencias } = useTema();
+  const destaques = useDestaques();
   const [largura, setLargura] = useState(0);
   const aoMedir = (e: LayoutChangeEvent) => setLargura(e.nativeEvent.layout.width);
   const descricao = `${rotulo}. ${descricaoDoGrafico(barras)}`;
@@ -49,7 +53,7 @@ export function GraficoBarras({ barras, rotulo = 'Recebido e previsto por mês' 
       ) : largura > 0 ? (
         <View accessible accessibilityRole="image" accessibilityLabel={descricao}>
           <Svg width={largura} height={ALTURA} aria-hidden>
-            {desenho({ barras, largura, ALTURA, MARGEM, fonte, cores })}
+            {desenho({ barras, largura, ALTURA, MARGEM, fonte, cores, destaques })}
           </Svg>
         </View>
       ) : (
@@ -57,8 +61,8 @@ export function GraficoBarras({ barras, rotulo = 'Recebido e previsto por mês' 
       )}
       {comTabela ? null : (
         <View style={{ flexDirection: 'row', gap: espaco(2), flexWrap: 'wrap' }}>
-          <Legenda cor={cores.sucesso} texto="Recebido" />
-          <Legenda cor={cores.atencao} texto="Previsto (cobranças já geradas)" />
+          <Legenda cor={destaques.azul.cor} texto="Recebido" />
+          <Legenda cor={destaques.ciano.cor} texto="Previsto (cobranças já geradas)" />
         </View>
       )}
     </View>
@@ -74,13 +78,14 @@ function Legenda({ cor, texto }: { cor: string; texto: string }) {
   );
 }
 
-function desenho({ barras, largura, ALTURA, MARGEM, fonte, cores }: {
+function desenho({ barras, largura, ALTURA, MARGEM, fonte, cores, destaques }: {
   barras: BarraDoMes[];
   largura: number;
   ALTURA: number;
   MARGEM: { topo: number; base: number; esq: number; dir: number };
   fonte: number;
   cores: ReturnType<typeof useTema>['cores'];
+  destaques: ReturnType<typeof useDestaques>;
 }) {
   const maxReais = Math.max(maiorValorDoGrafico(barras) / 100, 1);
   const marcas = marcasDoEixo(0, maxReais * 1.08);
@@ -106,10 +111,10 @@ function desenho({ barras, largura, ALTURA, MARGEM, fonte, cores }: {
         return (
           <G key={b.rotulo}>
             {b.realizado !== null && b.realizado > 0 ? (
-              <Rect x={centro - larguraBarra - 1} y={y(b.realizado / 100)} width={larguraBarra} height={Math.max(y(0) - y(b.realizado / 100), 1)} fill={cores.sucesso} rx={2} />
+              <Rect x={centro - larguraBarra - FOLGA} y={y(b.realizado / 100)} width={larguraBarra} height={Math.max(y(0) - y(b.realizado / 100), 1)} fill={destaques.azul.cor} rx={2} />
             ) : null}
             {b.previsto !== null && b.previsto > 0 ? (
-              <Rect x={centro + 1} y={y(b.previsto / 100)} width={larguraBarra} height={Math.max(y(0) - y(b.previsto / 100), 1)} fill={cores.atencao} rx={2} />
+              <Rect x={centro + FOLGA} y={y(b.previsto / 100)} width={larguraBarra} height={Math.max(y(0) - y(b.previsto / 100), 1)} fill={destaques.ciano.cor} rx={2} />
             ) : null}
           </G>
         );

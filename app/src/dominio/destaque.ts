@@ -26,3 +26,13 @@ export function enfaseDoNumero(funcao: FuncaoDeDestaque | null, valor: number | 
   if (valor === 0) return 'zero';
   return valor > 0 && funcao ? funcao : 'neutro';
 }
+
+/**
+ * Medida calculada (mediana, média, conversão): com base válida, o zero é um resultado e mantém a cor da função (0 dias,
+ * 0%); a neutralização do zero de `enfaseDoNumero` vale só para contagem e soma. Sem base (nulo, NaN) segue
+ * `indisponivel` ("—" com o motivo); negativo fica neutro, como lá.
+ */
+export function enfaseDaMedida(funcao: FuncaoDeDestaque | null, valor: number | null | undefined): EnfaseDoNumero {
+  if (typeof valor !== 'number' || !Number.isFinite(valor)) return 'indisponivel';
+  return valor >= 0 && funcao ? funcao : 'neutro';
+}

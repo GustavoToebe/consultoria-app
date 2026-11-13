@@ -9,7 +9,7 @@ import type { ContagensInscricoes, FiltroDaFila, InscricaoResumo, SituacaoInscri
 import { etapaDaInscricao, listarInscricoes } from '../../api/rotas';
 import { hojeEmBrasilia } from '../../dominio/agendaPresencial';
 import { instanteRelativo } from '../../dominio/datasRelativas';
-import { dataParaTela } from '../../dominio/formatos';
+import { dataParaTela, inteiroComMilhar } from '../../dominio/formatos';
 import {
   destinoDaColuna,
   destinosDoCartao,
@@ -117,7 +117,7 @@ export function QuadroKanban({ filtros, contagens, rodada, etapas, aoAbrir, aoMu
         {!ladoALado ? (
           <View style={estilos.caber}>
             <Escolha rotulo="Coluna" valor={colunaAtiva} aoMudar={setAtiva}
-              opcoes={situacoes.map((s) => ({ valor: s, rotulo: contagem(s) === undefined ? rotulo(s) : `${rotulo(s)} · ${contagem(s)}` }))} />
+              opcoes={situacoes.map((s) => ({ valor: s, rotulo: contagem(s) === undefined ? rotulo(s) : `${rotulo(s)} · ${inteiroComMilhar(contagem(s)!)}` }))} />
           </View>
         ) : null}
         {etapas?.length ? null : <CaixaSelecao rotulo="Mostrar encerradas" marcado={encerradas} aoMudar={setEncerradas} />}
@@ -202,10 +202,10 @@ function Coluna({ situacao, titulo, total, filtros, rodada, movendo, aoAbrir, ao
   const cabe = (totalDaColuna ?? 0) > itens.length && limite < MAXIMO_NA_COLUNA;
   return (
     <View style={[estilos.coluna, { borderColor: cores.borda, backgroundColor: cores.superficie }]}
-      accessibilityRole="list" accessibilityLabel={`${titulo}: ${totalDaColuna ?? itens.length}`}>
+      accessibilityRole="list" accessibilityLabel={`${titulo}: ${inteiroComMilhar(totalDaColuna ?? itens.length)}`}>
       <View style={[estilos.cabecalho, { backgroundColor: cores.superficie3 }]}>
         <Texto variante="bloco" nivel={2}>{titulo}</Texto>
-        <Texto variante="suave" numerico>{totalDaColuna ?? '—'}</Texto>
+        <Texto variante="suave" numerico>{totalDaColuna === undefined ? '—' : inteiroComMilhar(totalDaColuna)}</Texto>
       </View>
       {mostrando ? <Texto variante="pequeno">{mostrando}</Texto> : null}
       {lista.erro ? <MensagemErro texto={textoDoErro(lista.erro)} erro={lista.erro} tentarDeNovo={lista.recarregar} /> : null}

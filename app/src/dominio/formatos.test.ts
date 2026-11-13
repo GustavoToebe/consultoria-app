@@ -1,4 +1,4 @@
-import { centavosDaTela, centavosParaCampo, centavosParaTela, mascaraDeMoeda, mascaraDeNumero, moedaParaTela } from './formatos';
+import { centavosDaTela, centavosParaCampo, centavosParaTela, inteiroComMilhar, mascaraDeMoeda, mascaraDeNumero, moedaParaTela } from './formatos';
 
 describe('moeda em reais', () => {
   it('usa vírgula, ponto de milhar e duas casas', () => {
@@ -137,5 +137,11 @@ describe('máscara de moeda enquanto digita', () => {
     expect(maximo).toBe('R$ 9.999.999.999,99');
     expect(centavosDaTela(maximo)).toBe(999999999999);
     expect(mascaraDeMoeda(maximo, `${maximo}1`)).toBe(maximo);
+  });
+});
+
+describe('inteiroComMilhar', () => {
+  it('põe ponto a partir de 1.000, sem tocar abaixo disso', () => {
+    expect([0, 7, 999, 1000, 2145, 12345, 1234567].map(inteiroComMilhar)).toEqual(['0', '7', '999', '1.000', '2.145', '12.345', '1.234.567']);
   });
 });

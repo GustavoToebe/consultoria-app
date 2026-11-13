@@ -4,6 +4,7 @@ import { type ReactNode, useEffect, useRef } from 'react';
 import { ScrollView, StyleSheet, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 
 import { deslocamentoParaVer, type Faixa } from '../dominio/rolagemHorizontal';
+import { inteiroComMilhar } from '../dominio/formatos';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes } from '../tema/tokens';
 import { Esmaecido, LARGURA_ESMAECIDO, useEsmaecimento } from './FaixaDeChips';
@@ -95,7 +96,7 @@ export function Abas<T extends string>({ abas, ativa, aoMudar, fundo, depois, at
         <TabsList style={estilos.linha}>
           {abas.map((a) => {
             const sel = a.valor === ativa;
-            const rotulo = [a.contagem === undefined ? a.rotulo : `${a.rotulo} (${a.contagem})`, a.detalhe, a.problema ? TEXTO_DO_PROBLEMA[a.problema] : null].filter(Boolean).join(', ');
+            const rotulo = [a.contagem === undefined ? a.rotulo : `${a.rotulo} (${inteiroComMilhar(a.contagem)})`, a.detalhe, a.problema ? TEXTO_DO_PROBLEMA[a.problema] : null].filter(Boolean).join(', ');
             const corDoProblema = a.problema ? cores[a.problema] : null;
             const IconeDoProblema = a.problema === 'perigo' ? CircleAlert : TriangleAlert;
             return (
@@ -117,7 +118,7 @@ export function Abas<T extends string>({ abas, ativa, aoMudar, fundo, depois, at
                   {a.detalhe ? <Selo texto={a.detalhe} tipo="neutro" /> : null}
                   {a.contagem === undefined ? null : (
                     <View style={[estilos.contagem, { backgroundColor: cores.superficie3 }]}>
-                      <Texto numerico style={[estilos.textoContagem, { color: cores.texto }]}>{a.contagem}</Texto>
+                      <Texto numerico style={[estilos.textoContagem, { color: cores.texto }]}>{inteiroComMilhar(a.contagem)}</Texto>
                     </View>
                   )}
                 </View>

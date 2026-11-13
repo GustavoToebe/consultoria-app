@@ -1,5 +1,5 @@
 import type { MesDeNumeros, NumerosDaConsultoria } from '../api/tipos';
-import { SEM_DADO } from './formatos';
+import { inteiroComMilhar, SEM_DADO } from './formatos';
 
 /**
  * Regras puras da tela Números (`GET /numeros`): só contagens da consultoria, sem nomes. `null` da API é "sem dado" e
@@ -20,10 +20,10 @@ function valor(v: number | null | undefined): number | null {
   return typeof v === 'number' && Number.isFinite(v) ? v : null;
 }
 
-/** Contagem na tela: o número inteiro, ou "—" quando não há dado. Zero é zero. */
+/** Contagem na tela: o número inteiro com ponto de milhar, ou "—" quando não há dado. Zero é zero. */
 export function contagemParaTela(v: number | null | undefined): string {
   const n = valor(v);
-  return n === null ? SEM_DADO : String(Math.round(n));
+  return n === null ? SEM_DADO : inteiroComMilhar(Math.round(n));
 }
 
 /** `2026-05` → `mai/2026`; mês fora do formato → "—". */

@@ -17,7 +17,7 @@ import type {
   ValorEQuantidade,
 } from '../api/financeiroTipos';
 import { dataSemAnoCorrente } from './datasRelativas';
-import { enfaseDoNumero, type EnfaseDoNumero } from './destaque';
+import { enfaseDaMedida, enfaseDoNumero, type EnfaseDoNumero } from './destaque';
 import { centavosParaTela, dataCurta, SEM_DADO } from './formatos';
 import { contagemParaTela, rotuloDoMes, rotuloDoMesCompleto } from './numeros';
 
@@ -538,7 +538,8 @@ export interface CartaoDoPainel {
 export const MOTIVO_SEM_PAGANTES = 'Sem pagamentos no período';
 
 /**
- * Os seis cartões, na ordem da tela. Pagantes e valor médio ficam neutros: contagem e média, sem função de cor no D6.
+ * Os seis cartões, na ordem da tela. Pagantes e valor médio ficam neutros: contagem e média, sem função de cor no D6 (a média é
+ * medida calculada: zero com base válida não é apagado, `enfaseDaMedida`).
  * Somas e contagens vazias são zero (`somaOuZero`); só o valor médio, sem pagante, fica indisponível.
  */
 export function cartoesDoPainel(c: CartoesDoPainel): CartaoDoPainel[] {
@@ -577,7 +578,7 @@ export function cartoesDoPainel(c: CartoesDoPainel): CartaoDoPainel[] {
       chave: 'medio',
       titulo: 'Valor médio por aluno',
       valor: centavosParaTela(c.valorMedioPorAlunoCentavos),
-      enfase: enfaseDoNumero(null, c.valorMedioPorAlunoCentavos),
+      enfase: enfaseDaMedida(null, c.valorMedioPorAlunoCentavos),
       motivo: MOTIVO_SEM_PAGANTES,
     },
   ];

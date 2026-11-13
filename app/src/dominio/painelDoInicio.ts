@@ -6,7 +6,7 @@ import { periodoDoCalendario } from './agendaCalendario';
 import { caminhoListaAtualizacoes } from './atualizacao';
 import { dataRelativa } from './datasRelativas';
 import { enfaseDoNumero, type EnfaseDoNumero, type FuncaoDeDestaque } from './destaque';
-import { centavosParaTela, dataCurta, SEM_DADO } from './formatos';
+import { centavosParaTela, dataCurta, inteiroComMilhar as milhares, SEM_DADO } from './formatos';
 import { hojeEmBrasilia, periodoDoPainel, somaOuZero } from './financeiro';
 import { contadorDeRetornos } from './inicioTreinador';
 import { rotuloDoMes } from './numeros';
@@ -301,9 +301,6 @@ export function consultasDoBloco(id: BlocoDoPainelId, ctx: ContextoDoPainel, o: 
 
 // ---- Cartões ----
 
-/** Nome do token de cor de status (`Cores`): vermelho problema, âmbar atenção, verde positivo, cinza neutro/zero. */
-export type TomDoCartao = 'perigo' | 'atencao' | 'sucesso' | 'neutro';
-
 export type DestinoDoCartao =
   | { tipo: 'endereco'; href: string }
   /** Abre uma `Folha` (use {@link folhaSemRegistro}, {@link folhaPastasARenovar} ou {@link folhaRecordes}). */
@@ -345,7 +342,6 @@ export function reaisSemCentavos(centavos: number): string {
 
 const ehNumero = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
-const milhares = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 
 interface EntradaDeCartao {
   chave: string;
@@ -425,7 +421,8 @@ export interface FatiaDaRosca {
   chave: 'comAcesso' | 'semAcesso' | 'inativos';
   rotulo: string;
   valor: number;
-  cor: TomDoCartao;
+  /** Verde (situação: com acesso), azul (informativo: sem acesso, nunca âmbar, que é pendência explícita) ou cinza. */
+  cor: FuncaoDeDestaque | 'neutro';
   /** Fração do total (0 a 1) e onde começa (0 a 1, a partir do topo, sentido horário). */
   fracao: number;
   inicio: number;
@@ -475,7 +472,7 @@ export interface BarrasDoPainel {
   tipo: 'barras';
   titulo: string;
   desenhar: boolean;
-  series: { chave: SerieDaBarra; rotulo: string; cor: 'texto' | 'neutro' }[];
+  series: { chave: SerieDaBarra; rotulo: string; cor: FuncaoDeDestaque }[];
   meses: MesDasBarras[];
   /** Maior valor das barras (centavos), 0 sem nenhum dado. */
   maximo: number;
@@ -728,7 +725,7 @@ export function barrasDoRecebido(serie: PainelFinanceiro['serie'], meus: boolean
   if (meus) notas.push('Com "Meus", os lançamentos avulsos ficam de fora: não pertencem a um aluno.');
   return {
     tipo: 'barras', titulo: 'Recebido e lançamentos por mês', desenhar: graficos,
-    series: [{ chave: 'recebido', rotulo: 'Recebido (bruto)', cor: 'texto' }, { chave: 'lancamentos', rotulo: nomeLanc, cor: 'neutro' }],
+    series: [{ chave: 'recebido', rotulo: 'Recebido (bruto)', cor: 'azul' }, { chave: 'lancamentos', rotulo: nomeLanc, cor: 'violeta' }],
     meses, maximo: valores.length ? Math.max(...valores) : 0, semDados: valores.length === 0, notas,
     descricao: meses.length
       ? `Recebido (bruto) e ${nomeLanc.toLowerCase()} por mês, de ${meses[0].rotulo} a ${ultimo.rotulo}. ${meses.map((m) => `${m.rotulo}: recebido ${falado(m.recebido)}, ${nomeLanc.toLowerCase()} ${falado(m.lancamentos)}`).join('; ')}.${ultimo.parcial ? ' O último mês é parcial.' : ''}`
@@ -757,8 +754,8 @@ export function roscaDosAlunos(p: Pick<PainelTreinador, 'alunosAtivos' | 'alunos
   const total = ativos + inativos;
   // Cada fatia abre a lista de alunos já filtrada (a situação "Ativos" é o padrão da lista).
   const brutas: Pick<FatiaDaRosca, 'chave' | 'rotulo' | 'valor' | 'cor' | 'href'>[] = [
-    { chave: 'comAcesso', rotulo: 'Ativos com acesso', valor: ativos - semAcesso, cor: 'sucesso', href: listaDeAlunos(meus, 'acesso=COM') },
-    { chave: 'semAcesso', rotulo: 'Ativos sem acesso', valor: semAcesso, cor: 'atencao', href: listaDeAlunos(meus, 'acesso=SEM') },
+    { chave: 'comAcesso', rotulo: 'Ativos com acesso', valor: ativos - semAcesso, cor: 'verde', href: listaDeAlunos(meus, 'acesso=COM') },
+    { chave: 'semAcesso', rotulo: 'Ativos sem acesso', valor: semAcesso, cor: 'azul', href: listaDeAlunos(meus, 'acesso=SEM') },
     { chave: 'inativos', rotulo: 'Inativos', valor: inativos, cor: 'neutro', href: listaDeAlunos(meus, 'situacao=INATIVO') },
   ];
   let acumulado = 0;

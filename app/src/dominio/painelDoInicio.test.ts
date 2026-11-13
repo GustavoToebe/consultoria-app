@@ -476,6 +476,10 @@ describe('Recebido e lançamentos (barras)', () => {
     expect(g.descricao).toContain('out/2026: recebido sem dado');
   });
 
+  it('séries nos tokens de destaque: recebido azul, lançamentos violeta (D13)', () => {
+    expect(barrasDoRecebido(financeiro().serie, false, true).series.map((s) => [s.chave, s.cor])).toEqual([['recebido', 'azul'], ['lancamentos', 'violeta']]);
+  });
+
   it('com Meus avisa que os lançamentos avulsos ficam de fora', () => {
     const g = barrasDoRecebido(financeiro().serie, true, true);
     expect(g.notas.join(' ')).toMatch(/Meus/);
@@ -514,7 +518,7 @@ describe('Alunos (rosca)', () => {
   it('ativos com acesso, ativos sem acesso e inativos; nenhum aluno conta duas vezes', () => {
     const g = roscaDosAlunos({ alunosAtivos: 10, alunosInativos: 4, alunosSemAcesso: 3 }, true);
     expect(g.total).toBe(14);
-    expect(g.fatias.map((f) => [f.chave, f.valor, f.cor])).toEqual([['comAcesso', 7, 'sucesso'], ['semAcesso', 3, 'atencao'], ['inativos', 4, 'neutro']]);
+    expect(g.fatias.map((f) => [f.chave, f.valor, f.cor])).toEqual([['comAcesso', 7, 'verde'], ['semAcesso', 3, 'azul'], ['inativos', 4, 'neutro']]);
     expect(g.fatias.reduce((s, f) => s + f.fracao, 0)).toBeCloseTo(1);
     expect(g.fatias[1].inicio).toBeCloseTo(0.5);
     expect(g.vazia).toBe(false);

@@ -263,6 +263,11 @@ describe('contas do painel', () => {
     expect(cartoes[5].motivo).toBe(MOTIVO_SEM_PAGANTES);
     expect(cartoes[2].detalhe).toBe(NOTA_CONSIDERA_GERADAS);
   });
+  it('valor médio é medida calculada: 0 com base válida não vira o zero apagado, e sem pagante segue "—"', () => {
+    const c = { recebidoCentavos: 0, aReceberCentavos: 0, emAtraso: { valorCentavos: 0, cobrancas: 0 }, receitaRecorrenteMensalCentavos: 0, alunosPagantes: 2 };
+    expect(cartoesDoPainel({ ...c, valorMedioPorAlunoCentavos: 0 })[5].enfase).toBe('neutro');
+    expect(cartoesDoPainel({ ...c, valorMedioPorAlunoCentavos: null })[5].enfase).toBe('indisponivel');
+  });
   it('em atraso sem soma mas com cobranças não vira zero (a contagem não confirma a ausência)', () => {
     const [, , atraso] = cartoesDoPainel({
       recebidoCentavos: 0, aReceberCentavos: 0, emAtraso: { valorCentavos: null, cobrancas: 2 },

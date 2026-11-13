@@ -3,8 +3,9 @@ import { StyleSheet, View } from 'react-native';
 
 import { indicadoresInscricoes } from '../../api/rotas';
 import { hojeEmBrasilia } from '../../dominio/agendaPresencial';
-import { enfaseDoNumero, type FuncaoDeDestaque } from '../../dominio/destaque';
+import { enfaseDaMedida, enfaseDoNumero, type FuncaoDeDestaque } from '../../dominio/destaque';
 import { dataParaTela, SEM_DADO } from '../../dominio/formatos';
+import { contagemParaTela } from '../../dominio/numeros';
 import { colunasDosIndicadores, duasColunasCom } from '../../dominio/grade';
 import {
   dias,
@@ -95,9 +96,9 @@ export function Indicadores() {
               <Numero rotulo="Entradas" valor={ind.entradas} destaque="ciano" />
               <Numero rotulo="Pessoas" valor={ind.pessoas} destaque="azul" />
               <Numero rotulo="Aceites" valor={ind.aceites} destaque="verde" />
-              <Numero rotulo="Conversão das entradas" valor={ind.conversao} texto={porcentagem(ind.conversao)} destaque="violeta" motivo="Sem entradas no período"
+              <Numero rotulo="Conversão das entradas" valor={ind.conversao} texto={porcentagem(ind.conversao)} destaque="violeta" medida motivo="Sem entradas no período"
                 detalhe={ind.entradas > 0 ? `${ind.aceitesDasEntradas} de ${ind.entradas} já viraram aluno` : undefined} />
-              <Numero rotulo="Dias até o aceite (mediana)" valor={ind.diasAteAceite.mediana} texto={dias(ind.diasAteAceite.mediana)} destaque="azul" motivo="Sem aceites no período"
+              <Numero rotulo="Dias até o aceite (mediana)" valor={ind.diasAteAceite.mediana} texto={dias(ind.diasAteAceite.mediana)} destaque="azul" medida motivo="Sem aceites no período"
                 detalhe={`Média: ${dias(ind.diasAteAceite.media)}`} />
               {/* D6: recusas e desistências neutras, para não tratar como falha. */}
               <Numero rotulo="Recusadas" valor={ind.recusadas} destaque={null} />
@@ -111,7 +112,7 @@ export function Indicadores() {
               {ind.porMotivo.length === 0 ? <Texto variante="suave">Nenhuma recusa ou desistência no período.</Texto> : (
                 <Tabela rotulo="Perdas por motivo" linhas={linhasPorMotivo(ind)} chave={(l) => l.rotulo} colunas={[
                   { chave: 'motivo', titulo: 'Motivo', flex: 2, principal: true, render: (l) => <Texto>{l.rotulo}</Texto> },
-                  { chave: 'quantidade', titulo: 'Quantidade', flex: 1, alinhar: 'direita', render: (l) => <Texto numerico>{l.quantidade}</Texto> },
+                  { chave: 'quantidade', titulo: 'Quantidade', flex: 1, alinhar: 'direita', render: (l) => <Texto numerico>{contagemParaTela(l.quantidade)}</Texto> },
                 ]} />
               )}
             </Cartao>
@@ -119,8 +120,8 @@ export function Indicadores() {
               {ind.porOrigem.length === 0 ? <Texto variante="suave">Nenhuma entrada no período.</Texto> : (
                 <Tabela rotulo="Entradas por origem" linhas={linhasPorOrigem(ind)} chave={(l) => l.rotulo} colunas={[
                   { chave: 'origem', titulo: 'Origem', flex: 2, principal: true, render: (l) => <Texto>{l.rotulo}</Texto> },
-                  { chave: 'entradas', titulo: 'Entradas', flex: 1, alinhar: 'direita', render: (l) => <Texto numerico>{l.entradas}</Texto> },
-                  { chave: 'aceites', titulo: 'Aceites', flex: 1, alinhar: 'direita', render: (l) => <Texto numerico>{l.aceites}</Texto> },
+                  { chave: 'entradas', titulo: 'Entradas', flex: 1, alinhar: 'direita', render: (l) => <Texto numerico>{contagemParaTela(l.entradas)}</Texto> },
+                  { chave: 'aceites', titulo: 'Aceites', flex: 1, alinhar: 'direita', render: (l) => <Texto numerico>{contagemParaTela(l.aceites)}</Texto> },
                 ]} />
               )}
             </Cartao>
@@ -146,10 +147,11 @@ export function Indicadores() {
 
 /**
  * Um número do período na peça de destaque (D6 de `docs/planos/cores-de-destaque.md`): a cor diz o que o número mede,
- * nunca se é bom ou ruim; zero e "—" ficam sem cor (D5). O número cru decide a cor; `texto` é o que aparece.
+ * nunca se é bom ou ruim; zero de contagem e "—" ficam sem cor (D5). `medida` (conversão, mediana) é cálculo: o zero com
+ * base válida mantém a cor. O número cru decide a cor; `texto` é o que aparece.
  */
-function Numero({ rotulo, valor, texto, destaque, detalhe, motivo }: { rotulo: string; valor: number | null; texto?: string; destaque: FuncaoDeDestaque | null; detalhe?: string; motivo?: string }) {
-  return <NumeroDeDestaque rotulo={rotulo} valor={texto ?? String(valor ?? SEM_DADO)} enfase={enfaseDoNumero(destaque, valor)} detalhe={detalhe} motivo={motivo} tamanho="medio" />;
+function Numero({ rotulo, valor, texto, destaque, medida, detalhe, motivo }: { rotulo: string; valor: number | null; texto?: string; destaque: FuncaoDeDestaque | null; medida?: boolean; detalhe?: string; motivo?: string }) {
+  return <NumeroDeDestaque rotulo={rotulo} valor={texto ?? contagemParaTela(valor)} enfase={(medida ? enfaseDaMedida : enfaseDoNumero)(destaque, valor)} detalhe={detalhe} motivo={motivo} tamanho="medio" />;
 }
 
 const estilos = StyleSheet.create({

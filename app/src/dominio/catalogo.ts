@@ -1,4 +1,4 @@
-import { numeroParaTela } from './formatos';
+import { inteiroComMilhar, numeroParaTela } from './formatos';
 
 export const CREDITOS_CATALOGO = {
   alimentos:
@@ -31,7 +31,7 @@ export function resumoNutrientes(a: NutrientesDoCatalogo): string {
 /** Rodapé da lista: só aparece quando a busca tem mais resultados do que os mostrados. */
 export function textoMostrando(mostrados: number, total: number): string | null {
   if (total <= mostrados) return null;
-  return `Mostrando ${mostrados} de ${total}. Refine a busca ou escolha um grupo para ver mais.`;
+  return `Mostrando ${mostrados} de ${inteiroComMilhar(total)}. Refine a busca ou escolha um grupo para ver mais.`;
 }
 
 /** Instruções vêm separadas por quebra de linha, um passo por linha. */

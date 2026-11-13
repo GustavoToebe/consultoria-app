@@ -440,6 +440,19 @@ describe.each(VARIANTES)('cores de destaque (%s)', (_nome, cores, escuro) => {
     }
   });
 
+  // Gráficos (cores-de-destaque, 13/11): barras recebido azul × previsto ciano (Visão geral) e recebido azul × entradas violeta
+  // (Início); rosca verde, azul e cinza. Medido: azul × ciano 1,75 no escuro e 1,25 no claro; azul × violeta 1,38 e 1,06. A
+  // luminosidade pouco as separa, então cada série passa 3:1 sobre o cartão (e a trilha da rosca) e a distinção vem da
+  // legenda com texto e do vão entre as barras/fatias; o piso abaixo só trava uma troca de token que juntasse as duas.
+  it('séries dos gráficos: cada cor passa 3:1 sobre o cartão e a trilha, e o par de barras não colapsa', () => {
+    for (const f of ['azul', 'ciano', 'violeta', 'verde'] as const) {
+      for (const fundo of [cores.superficie, cores.superficie2, cores.superficie3]) expect(contraste(destaque[f].cor, fundo)).toBeGreaterThanOrEqual(3);
+    }
+    for (const fundo of [cores.superficie, cores.superficie2, cores.superficie3]) expect(contraste(cores.neutro, fundo)).toBeGreaterThanOrEqual(3);
+    expect(contraste(destaque.azul.cor, destaque.ciano.cor)).toBeGreaterThanOrEqual(1.2);
+    expect(contraste(destaque.azul.cor, destaque.violeta.cor)).toBeGreaterThanOrEqual(1.05);
+  });
+
   it('a faixa lateral passa 3:1 contra o fundo de dentro e as superfícies de fora', () => {
     for (const f of FUNCOES_DE_DESTAQUE) {
       const { cor, fundo, fundoSobre } = destaque[f];

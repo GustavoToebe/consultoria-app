@@ -7,11 +7,16 @@ import { coresDeDestaque, espaco } from '../tema/tokens';
 import { aparenciaDoNumero, contornoDoNumero, type AparenciaDoNumero } from './destaqueDoNumero';
 import { Texto } from './Texto';
 
+/** Os destaques no tema em uso (também para gráficos: a mesma cor do cartão, D13). */
+export function useDestaques() {
+  const { cores, modo } = useTema();
+  return useMemo(() => coresDeDestaque(cores, modo !== 'CLARO'), [cores, modo]);
+}
+
 /** A aparência no tema em uso. Para peça tocável que monta o próprio contêiner (`treinador/painel/CartaoMini`). */
 export function useAparenciaDoNumero(enfase: EnfaseDoNumero): AparenciaDoNumero {
-  const { cores, modo } = useTema();
-  const destaques = useMemo(() => coresDeDestaque(cores, modo !== 'CLARO'), [cores, modo]);
-  return aparenciaDoNumero(enfase, cores, destaques);
+  const { cores } = useTema();
+  return aparenciaDoNumero(enfase, cores, useDestaques());
 }
 
 interface Props {

@@ -13,6 +13,7 @@ import { mesmaTela } from '../dominio/mesmaTela';
 import type { Marca } from '../api/tipos';
 import { NOME_DO_PRODUTO } from '../dominio/produto';
 import { useSessao } from '../sessao/SessaoProvider';
+import { inteiroComMilhar } from '../dominio/formatos';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, LARGURA_MENU_EXPANDIDO, LARGURA_MENU_LATERAL, RAIO, RAIO_CONTROLE } from '../tema/tokens';
 import { ProvedorDoFundoDaArea } from './fundoDaArea';
@@ -215,7 +216,7 @@ function ItemNavegacao({ item, lateral, recolhido, trilho, aoMostrarDica, aoEsco
     <Pressable
       ref={ref}
       accessibilityRole="link"
-      accessibilityLabel={contagem ? `${nomeAcessivel}, ${contagem.numero} ${contagem.descricao}` : ponto ? `${nomeAcessivel}, pendência` : nomeAcessivel}
+      accessibilityLabel={contagem ? `${nomeAcessivel}, ${inteiroComMilhar(contagem.numero)} ${contagem.descricao}` : ponto ? `${nomeAcessivel}, pendência` : nomeAcessivel}
       accessibilityState={{ selected: ativo }}
       // O leitor de tela da web não recebe o `selected` de um link: `aria-current` diz qual é a página atual.
       aria-current={ativo ? 'page' : undefined}
@@ -241,7 +242,7 @@ function ItemNavegacao({ item, lateral, recolhido, trilho, aoMostrarDica, aoEsco
       )}
       {contagem ? (
         <View aria-hidden style={[estilos.contagem, { borderColor: cores.divisor }]}>
-          <Texto numerico style={[estilos.textoContagem, { color: cores.texto }]}>{contagem.numero}</Texto>
+          <Texto numerico style={[estilos.textoContagem, { color: cores.texto }]}>{inteiroComMilhar(contagem.numero)}</Texto>
         </View>
       ) : null}
     </Pressable>

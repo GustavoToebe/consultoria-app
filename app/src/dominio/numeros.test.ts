@@ -11,6 +11,7 @@ describe('contagemParaTela', () => {
     expect(contagemParaTela(undefined)).toBe('—');
     expect(contagemParaTela(0)).toBe('0');
     expect(contagemParaTela(12)).toBe('12');
+    expect(contagemParaTela(2145)).toBe('2.145');
   });
   it('o que não é número finito é sem dado', () => {
     expect(contagemParaTela(Number.NaN)).toBe('—');

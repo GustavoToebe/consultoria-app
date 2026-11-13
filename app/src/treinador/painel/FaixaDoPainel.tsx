@@ -2,7 +2,7 @@ import { createContext, forwardRef, useCallback, useContext, useId, useMemo, use
 import { StyleSheet, useWindowDimensions, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, LARGURA_MENU_LATERAL } from '../../tema/tokens';
+import { ALVO_TOQUE, espaco, LARGURA_MENU_LATERAL } from '../../tema/tokens';
 import { Texto } from '../../ui/Texto';
 import { larguraDoTitulo } from './grade';
 
@@ -59,11 +59,11 @@ export const FaixaDoPainel = forwardRef<View, { titulo: string; descricao?: stri
         <View onLayout={linha ? medirFaixa : undefined} style={estilos.conteudo}>
           <View style={[estilos.titulo, { flexBasis: larguraDoTitulo(fatorTexto) }, linha ? { minHeight: linha.titulo } : null]}>
             <View onLayout={linha ? medirTitulo : undefined} style={estilos.textos}>
-              <Texto variante="bloco" nivel={2}>{titulo}</Texto>
-              {descricao ? <Texto variante="pequeno" cor={cores.textoSuave}>{descricao}</Texto> : null}
+              <View style={estilos.linhaDoTitulo}><Texto variante="bloco" nivel={2}>{titulo}</Texto></View>
+              {descricao ? <Texto variante="pequeno" cor={cores.textoSuave} style={estilos.descricao}>{descricao}</Texto> : null}
             </View>
           </View>
-          {meio}
+          {meio ? <View style={estilos.meio}>{meio}</View> : null}
           {acoes ? <View style={estilos.acoes}>{acoes}</View> : null}
         </View>
       </View>
@@ -76,13 +76,18 @@ const MINIMA = 60;
 
 const estilos = StyleSheet.create({
   // Conteúdo no alto da faixa: numa linha cuja faixa vizinha é mais alta, o título fica no topo, alinhado aos outros,
-  // em vez de flutuar no meio (F01 de 12/11).
+  // em vez de flutuar no meio (F01 de 12/11). A linha do título tem a altura do ícone (44) e o título fica centrado nela,
+  // na mesma linha dos botões em todos os blocos, com ou sem a descrição (que desce para baixo dessa linha).
   faixa: { justifyContent: 'flex-start', paddingVertical: VERTICAL, minHeight: MINIMA },
-  conteudo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: espaco(1), rowGap: espaco(0.5) },
+  conteudo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', columnGap: espaco(1), rowGap: espaco(0.5) },
   // O título reserva `larguraDoTitulo` (120 px, mais com o texto ampliado) antes de dividir a linha com as ações; a grade
   // do Início já dá a cada bloco largura para os dois na mesma linha. Sem ela (bloco estreito), as ações descem juntas
   // para a linha de baixo em vez de espremer o título.
   titulo: { flexGrow: 1, flexShrink: 1, minWidth: 0 },
   textos: { gap: 2 },
+  linhaDoTitulo: { minHeight: ALVO_TOQUE, justifyContent: 'center' },
+  // Sobe a descrição para perto do título, que está centrado numa linha de 44 px.
+  descricao: { marginTop: -espaco(1) },
+  meio: { minHeight: ALVO_TOQUE, justifyContent: 'center' },
   acoes: { flexDirection: 'row', alignItems: 'center', gap: 2, flexShrink: 0, marginLeft: 'auto' },
 });

@@ -23,7 +23,7 @@ import type {
   SituacaoInscricao,
 } from '../api/inscricoesTipos';
 import type { ConteudoQuestionario, OpcaoQuestionario, RespostasAtualizacao } from '../api/tipos';
-import { centavosDaTela, SEM_DADO } from './formatos';
+import { centavosDaTela, inteiroComMilhar, SEM_DADO } from './formatos';
 import { respostasParaEnviar } from './respostasAtualizacao';
 
 /**
@@ -571,7 +571,7 @@ export function destinoDaColuna(de: SituacaoInscricao, coluna: SituacaoInscricao
 /** Cabeçalho da coluna: o total da contagem e, se carregou menos, "Mostrando 20 de 34". */
 export function textoDaColuna(carregados: number, total: number | null | undefined): string | null {
   if (total === null || total === undefined) return null;
-  return carregados < total ? `Mostrando ${carregados} de ${total}` : null;
+  return carregados < total ? `Mostrando ${carregados} de ${inteiroComMilhar(total)}` : null;
 }
 
 // ---- Estados vazios ----

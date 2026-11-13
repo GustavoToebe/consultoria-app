@@ -51,7 +51,7 @@ export function ValoresDaDieta({ totais: t, forte = false, inicio = false }: { t
         {MACROS.map((m) => (
           <View key={m.chave} style={estilos.macro}>
             <MarcaDoMacro cor={m.cor} />
-            <Texto variante={variante} numerico style={estilo} aria-hidden>{`${m.curto} ${gramasNaTela(t[m.chave])}`}</Texto>
+            <Texto variante={variante} numerico style={estilo} numberOfLines={1} aria-hidden>{`${m.curto} ${gramasNaTela(t[m.chave])}`}</Texto>
             <Texto style={estilos.soParaLeitor}>{macroPorExtenso(m.nome, t[m.chave])}</Texto>
           </View>
         ))}
@@ -96,10 +96,12 @@ export function CampoDoMacro({ macro, rotulo, valor, aoMudar, erro }: {
 
 const estilos = StyleSheet.create({
   campo: { gap: espaco(0.5) },
-  valores: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', columnGap: espaco(1.5), rowGap: espaco(0.5) },
-  macros: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', columnGap: espaco(1.5), rowGap: espaco(0.5) },
+  valores: { flexDirection: 'row', flexWrap: 'wrap', flexShrink: 1, minWidth: 0, justifyContent: 'flex-end', alignItems: 'center', columnGap: espaco(1.5), rowGap: espaco(0.5) },
+  // `flexShrink: 1` e `minWidth: 0`: sem eles a linha dos macros não quebra e passa por baixo do botão ao lado (390 px).
+  macros: { flexDirection: 'row', flexWrap: 'wrap', flexShrink: 1, minWidth: 0, justifyContent: 'flex-end', columnGap: espaco(1.5), rowGap: espaco(0.5) },
   inicio: { justifyContent: 'flex-start' },
-  macro: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5) },
+  // Marca e "P 2,5 g" andam juntas: o macro inteiro passa para a linha de baixo, nunca se parte.
+  macro: { flexDirection: 'row', alignItems: 'center', flexShrink: 0, gap: espaco(0.5) },
   marca: { width: 8, height: 8, borderRadius: 2 },
   forte: { fontFamily: fontes.semi },
   // Fora da vista e sem ocupar lugar, mas na árvore de acessibilidade (opacidade 0 continua sendo lida).

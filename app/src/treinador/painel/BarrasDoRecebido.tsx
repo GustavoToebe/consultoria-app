@@ -8,6 +8,7 @@ import type { BarrasDoPainel, MesDasBarras } from '../../dominio/painelDoInicio'
 import { escalar } from '../../dominio/preferencias';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, fontes } from '../../tema/tokens';
+import { useDestaques } from '../../ui/NumeroDeDestaque';
 import { Tabela } from '../../ui/Tabela';
 import { Texto } from '../../ui/Texto';
 
@@ -15,22 +16,24 @@ const ALTURA = 220;
 const MARGEM = { topo: 12, base: 26, esq: 64, dir: 8 };
 /** Abaixo disto o rótulo do mês encurta ("out/26"). */
 const LARGURA_CURTA = 480;
+/** Vão de cada lado do centro entre as duas barras: azul e violeta quase não diferem em luminosidade (1,06 no claro), então o fundo as separa. */
+const FOLGA = 2;
 
 /** "out/2026" vira "out/26" quando a largura aperta. */
 const rotuloCurto = (m: MesDasBarras) => m.rotulo.replace(/\/(\d{2})(\d{2})$/, '/$2');
 
 /**
- * Barras do recebido (bruto, na cor do texto) e dos lançamentos (cinza) dos últimos 6 meses, em SVG sem biblioteca. As
+ * Barras do recebido (bruto, azul de destaque) e dos lançamentos (violeta de destaque) dos últimos 6 meses, em SVG sem biblioteca. As
  * cores são de dado, nunca da marca. O leitor de tela recebe a descrição com todos os valores (o desenho é uma imagem
  * só); com "Mostrar gráficos" desligado ou sem nenhum valor vira a tabela com os mesmos números. Mês sem dado: "—", sem
  * barra; o mês em andamento vem em negrito, com "*".
  */
 export function BarrasDoRecebido({ barras }: { barras: BarrasDoPainel }) {
   const { cores, fatorTexto } = useTema();
+  const destaques = useDestaques();
   const [largura, setLargura] = useState(0);
   const aoMedir = (e: LayoutChangeEvent) => setLargura(e.nativeEvent.layout.width);
   const comTabela = !barras.desenhar || barras.semDados;
-  const corDe = (cor: 'texto' | 'neutro') => (cor === 'texto' ? cores.texto : cores.neutro);
 
   return (
     <View style={estilos.area}>
@@ -51,7 +54,7 @@ export function BarrasDoRecebido({ barras }: { barras: BarrasDoPainel }) {
           <View style={estilos.legenda} aria-hidden importantForAccessibility="no-hide-descendants">
             {barras.series.map((s) => (
               <View key={s.chave} style={estilos.itemDaLegenda}>
-                <View style={[estilos.quadrado, { backgroundColor: corDe(s.cor) }]} />
+                <View style={[estilos.quadrado, { backgroundColor: destaques[s.cor].cor }]} />
                 <Texto variante="pequeno" cor={cores.texto}>{s.rotulo}</Texto>
               </View>
             ))}
@@ -59,7 +62,7 @@ export function BarrasDoRecebido({ barras }: { barras: BarrasDoPainel }) {
           <View onLayout={aoMedir} accessible accessibilityRole="image" accessibilityLabel={barras.descricao}>
             {largura > 0 ? (
               <Svg width={largura} height={ALTURA} aria-hidden>
-                <Desenho barras={barras} largura={largura} fonte={escalar(12, fatorTexto)} cores={cores} />
+                <Desenho barras={barras} largura={largura} fonte={escalar(12, fatorTexto)} cores={cores} destaques={destaques} />
               </Svg>
             ) : <View style={{ height: ALTURA }} />}
           </View>
@@ -70,8 +73,8 @@ export function BarrasDoRecebido({ barras }: { barras: BarrasDoPainel }) {
   );
 }
 
-function Desenho({ barras, largura, fonte, cores }: {
-  barras: BarrasDoPainel; largura: number; fonte: number; cores: ReturnType<typeof useTema>['cores'];
+function Desenho({ barras, largura, fonte, cores, destaques }: {
+  barras: BarrasDoPainel; largura: number; fonte: number; cores: ReturnType<typeof useTema>['cores']; destaques: ReturnType<typeof useDestaques>;
 }) {
   const maxReais = Math.max(barras.maximo / 100, 1);
   const marcas = marcasDoEixo(0, maxReais * 1.08);
@@ -83,7 +86,6 @@ function Desenho({ barras, largura, fonte, cores }: {
   const faixa = areaW / n;
   const larguraBarra = Math.max(Math.min(faixa * 0.3, 28), 4);
   const curto = largura < LARGURA_CURTA;
-  const corDe = (cor: 'texto' | 'neutro') => (cor === 'texto' ? cores.texto : cores.neutro);
   const [recebido, lancamentos] = barras.series;
 
   const barra = (valor: number | null, x: number, cor: string, chave: string) => {
@@ -109,8 +111,8 @@ function Desenho({ barras, largura, fonte, cores }: {
         const centro = MARGEM.esq + faixa * i + faixa / 2;
         return (
           <G key={m.mes}>
-            {barra(m.recebido, centro - larguraBarra - 1, corDe(recebido.cor), 'r')}
-            {barra(m.lancamentos, centro + 1, corDe(lancamentos.cor), 'l')}
+            {barra(m.recebido, centro - larguraBarra - FOLGA, destaques[recebido.cor].cor, 'r')}
+            {barra(m.lancamentos, centro + FOLGA, destaques[lancamentos.cor].cor, 'l')}
             <SvgTexto x={centro} y={ALTURA - 8} fontSize={fonte} fill={m.parcial ? cores.texto : cores.textoSuave} fontWeight={m.parcial ? 'bold' : 'normal'} textAnchor="middle">
               {`${curto ? rotuloCurto(m) : m.rotulo}${m.parcial ? '*' : ''}`}
             </SvgTexto>

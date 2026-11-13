@@ -82,7 +82,7 @@ const BASE_DO_DINHEIRO = 155;
 
 const estilos = StyleSheet.create({
   cartao: { padding: RECUO, minWidth: 0 },
-  empe: { flexGrow: 1, flexShrink: 1, flexBasis: 120, minHeight: 76, gap: espaco(0.5), justifyContent: 'space-between' },
+  empe: { flexGrow: 1, flexShrink: 1, flexBasis: 120, minHeight: 76, gap: espaco(0.5) },
   deitado: { minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5) },
   largo: { flexBasis: '100%' },
   rotuloDeitado: { flexShrink: 1 },
