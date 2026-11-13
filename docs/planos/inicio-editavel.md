@@ -20,7 +20,7 @@ O treinador monta o Início do jeito dele: arrasta os blocos de lugar, escolhe o
 - [ ] 1. Preferência: `tamanhos` em `PainelDoInicioPreferido`, `painelDoInicioDe`, `grade.ts` (`larguraDoBloco` lê o tamanho), regras puras em `dominio/painelDoInicio.ts` (`moverBloco`, `redimensionarBloco`, `restaurarPadrao`) com testes Jest — responsável: executor-front (tela e regra pura do painel) — commit: —
 - [ ] 2. Modo de edição no Início (`app/src/app/treinador/index.tsx`, `treinador/painel/EditarPainel.tsx` e peças novas em `treinador/painel/`): arrastar, tamanho, ocultar e mostrar, Salvar, Cancelar e Restaurar padrão, com teclado e botões — responsável: executor-front — commit: —
 - [ ] 3. Verificação: e2e do painel (`app/e2e/painel.spec.ts`: salvar, cancelar, restaurar, persistir ao recarregar, compatibilidade com a preferência antiga, teclado), 390/768/1280/1920, claro e escuro, texto ampliado, offline (Editar desabilitado) — responsável: executor-front, revisão independente (`revisor`) da persistência — commit: —
-- [ ] 4. Documentação: `docs/design-e-front.md` (painel editável), Ajuda do app se descrever o Início — responsável: executor — commit: —
+- [x] 4. Documentação: `AGENTS.md` (item do Início, corrigido em 13/11 pelo que o código faz: edição na grade, arrastar só com 2 colunas ou mais, Subir e Descer sempre, "Restaurar padrão" só no rascunho, Editar desabilitado sem internet e sem alunos); `docs/design-e-front.md` e a Ajuda do app: **ainda não conferidos** — responsável: sessão principal — commit: o de docs de 13/11 (`git log -- AGENTS.md docs/planos/inicio-editavel.md`); código em `1c629a8c`
 
 ## Responsabilidade por arquivo (um dono por arquivo, 13/11)
 - Frente B (executor-front do Início): `app/src/app/treinador/index.tsx`, `app/src/treinador/painel/*`, `app/src/dominio/painelDoInicio.ts`, `painelBlocos.ts`, `app/src/dominio/preferencias.ts` (só o campo `painelDoInicio`), `app/e2e/painel.spec.ts`.
@@ -28,7 +28,7 @@ O treinador monta o Início do jeito dele: arrasta os blocos de lugar, escolhe o
 - Compartilhados (`tema/tokens.ts`, `ui/Selo`, `ui/NumeroDeDestaque`): sessão principal.
 
 ## Estado em 13/11 (para retomar)
-- Plano e contratos prontos (`157a3a58`, `bb10455a`). Passos 1 a 3 em execução pelo executor-front (porta e2e 8125, sem commit); falta: revisar o diff, conferir capturas em `scratchpad\inicio-editavel\`, `revisor` na persistência, commitar por frente, passo 4 (docs) ao executor. Se a sessão cair sem o relatório: `git status` mostra os arquivos do conjunto "Frente B" acima; nada está commitado.
+- Código commitado em `1c629a8c` (local, sem push). Passos 1 a 3 seguem sem a marca porque o commit e a evidência de cada um (Jest, `painel.spec.ts`, revisão da persistência) não foram reconferidos neste registro; conferir no `verify`/e2e do lote antes de marcar. Passo 4: `AGENTS.md` corrigido em 13/11; `docs/design-e-front.md` e a Ajuda do app ainda por conferir. Pendência aberta: Editar desabilitado sem internet (README, "Pendências soltas").
 
 ## Fora do escopo
 - Sincronizar o painel entre aparelhos e guardá-lo no servidor (pendência abaixo).
