@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { ErroApi } from '../api/cliente';
+import { ehFinanceiroDesligado, TEXTO_RECURSO_DESATIVADO } from '../dominio/financeiroDesligado';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, RAIO, tingido } from '../tema/tokens';
 import { Botao } from './Botao';
@@ -85,10 +86,13 @@ export function Bloqueado({ titulo, texto, Icone = Lock, acao, children }: {
 
 /** Linha pequena com ícone para um total ou lista com valores faltando ("Há itens sem valor informado"). O "—" fica. */
 export function Incompleto({ texto = 'Há itens sem valor informado.' }: { texto?: string }) {
-  const { cores } = useTema();
+  const { cores, fatorTexto } = useTema();
+  // O ícone fica no início da primeira linha, não no meio do bloco: com o texto em várias linhas, centralizar o descia.
+  // Altura da linha do `pequeno` (18, escalada pelo tamanho de texto) menos os 14 do ícone, dividido ao meio.
+  const descida = Math.max(0, Math.round((18 * fatorTexto - 14) / 2));
   return (
     <View style={estilos.incompleto}>
-      <Info size={14} color={cores.textoSuave} aria-hidden />
+      <View style={{ paddingTop: descida }}><Info size={14} color={cores.textoSuave} aria-hidden /></View>
       <Texto variante="pequeno" style={estilos.textoIncompleto}>{texto}</Texto>
     </View>
   );
@@ -153,6 +157,8 @@ export function Alerta({ tom, titulo, texto, children }: { tom: TomDoAlerta; tit
 export function MensagemErro({ texto, tentarDeNovo, erro, acao }: {
   texto: string; tentarDeNovo?: () => void; erro?: unknown; acao?: { rotulo: string; aoTocar: () => void };
 }) {
+  // Financeiro ou recebimento online desligado na plataforma: não é falha (nem alerta, nem "Tentar de novo"), é "Recurso desativado".
+  if (ehFinanceiroDesligado(erro)) return <Bloqueado Icone={PowerOff} titulo={TEXTO_RECURSO_DESATIVADO} texto="Este recurso não está ativo no momento." />;
   const tentar = !!tentarDeNovo && valeTentarDeNovo(erro);
   return (
     <Alerta tom="perigo" texto={textoSemIngles(texto, erro)}>
@@ -179,6 +185,6 @@ const estilos = StyleSheet.create({
   faixaTextos: { flex: 1, gap: espaco(0.5) },
   faixaAcao: { marginTop: espaco(1) },
   acoesDoErro: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
-  incompleto: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5) },
+  incompleto: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(0.5) },
   textoIncompleto: { flexShrink: 1 },
 });

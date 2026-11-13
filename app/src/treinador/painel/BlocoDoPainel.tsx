@@ -2,6 +2,7 @@ import { router, type Href } from 'expo-router';
 import { Funnel, RefreshCw, SquareArrowOutUpRight } from 'lucide-react-native';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
+import { TEXTO_RECURSO_DESATIVADO } from '../../dominio/financeiroDesligado';
 import type { BlocoDoPainel as DadosDoBloco, FolhaDoPainelId } from '../../dominio/painelDoInicio';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, RAIO } from '../../tema/tokens';
@@ -53,6 +54,7 @@ export function BlocoDoPainel({ bloco, aoAtualizar, aoAlternarFiltro, aoAbrirFol
           {bloco.linha ? <CartaoMini cartao={bloco.linha} aoAbrirFolha={aoAbrirFolha} linha /> : null}
           {bloco.grafico?.tipo === 'rosca' ? <RoscaDosAlunos rosca={bloco.grafico} /> : null}
           {bloco.grafico?.tipo === 'barras' ? <BarrasDoRecebido barras={bloco.grafico} /> : null}
+          {bloco.desativado ? <Texto variante="suave">{TEXTO_RECURSO_DESATIVADO}</Texto> : null}
           {semCartoes && !bloco.grafico && bloco.carregando ? (
             <View accessibilityRole="progressbar" accessibilityLabel={`${bloco.titulo}: carregando`}
               style={[estilos.esqueleto, { backgroundColor: cores.superficie2 }]} />

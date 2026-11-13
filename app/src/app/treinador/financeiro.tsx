@@ -3,6 +3,8 @@ import { Download } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 
+import { painelFinanceiro } from '../../api/rotas';
+import { hojeEmBrasilia, periodoDoMes } from '../../dominio/financeiro';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { espaco, LARGURA_LISTA } from '../../tema/tokens';
 import { type Responsabilidade } from '../../treinador/EscolhaResponsabilidade';
@@ -11,12 +13,14 @@ import { AbaLancamentos } from '../../treinador/financeiro/AbaLancamentos';
 import { AbaLembretes } from '../../treinador/financeiro/AbaLembretes';
 import { AbaPlanos } from '../../treinador/financeiro/AbaPlanos';
 import { AbaRecebimentoOnline } from '../../treinador/financeiro/AbaRecebimentoOnline';
+import { AvisoDoHistoricoParcial } from '../../treinador/financeiro/AvisoDoHistoricoParcial';
 import { FolhaDeExportacao } from '../../treinador/financeiro/FolhaDeExportacao';
 import { VisaoGeral } from '../../treinador/financeiro/VisaoGeral';
 import { Abas } from '../../ui/Abas';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Tela } from '../../ui/Tela';
+import { useCarregar } from '../../ui/useCarregar';
 
 type Aba = 'visao' | 'cobrancas' | 'planos' | 'lancamentos' | 'lembretes' | 'recebimento';
 
@@ -29,6 +33,9 @@ const ABAS: { valor: Aba; rotulo: string }[] = [
 ];
 
 /** Só com o recebimento online (InfinitePay) ligado na consultoria; o `?aba=recebimento` sem isso cai na Visão geral. */
+/** Abas que mostram valores do histórico: só nelas a ressalva do histórico parcial aparece (Lembretes e Recebimento online não têm valores dele). */
+const ABAS_COM_VALORES: readonly Aba[] = ['visao', 'cobrancas', 'planos', 'lancamentos'];
+
 const ABA_RECEBIMENTO: { valor: Aba; rotulo: string } = { valor: 'recebimento', rotulo: 'Recebimento online' };
 
 /**
@@ -49,6 +56,11 @@ export default function FinanceiroDoTreinador() {
   const [escopo, setEscopo] = useState<Responsabilidade>(meus === 'true' ? 'meus' : 'todos');
   const [exportando, setExportando] = useState(false);
   const podeAlterar = pode('FINANCEIRO_ALTERAR');
+  // O `historicoFinanceiroParcial` só vem no `/financeiro/painel` (da consultoria, não do período). Uma busca por visita à tela, daqui,
+  // serve às quatro abas, inclusive a quem abre direto numa delas (`?aba=`) e à explicação da exportação. A aba Lançamentos usa a
+  // mesma resposta para o resultado do mês. Falha aqui não esconde lista nem bloqueia aba: sem dado, sem ressalva (e sem erro novo).
+  const mes = periodoDoMes(hojeEmBrasilia());
+  const painelDoMes = useCarregar(`financeiro-painel-do-mes|${mes.de}`, () => painelFinanceiro({ ...mes, meus: false }));
 
   return (
     <Tela largura={LARGURA_LISTA} bordas={['top']}>
@@ -57,14 +69,15 @@ export default function FinanceiroDoTreinador() {
         acoes={pode('FINANCEIRO_LER') ? <Botao rotulo="Exportar CSV" tipo="secundario" Icone={Download} aoTocar={() => setExportando(true)} /> : undefined} />
       <Abas abas={abas} ativa={aba} aoMudar={setAba} />
       <View style={{ gap: espaco(2) }}>
+        {ABAS_COM_VALORES.includes(aba) ? <AvisoDoHistoricoParcial painel={painelDoMes.dados} /> : null}
         {aba === 'visao' ? <VisaoGeral escopo={escopo} aoMudarEscopo={setEscopo} podeAlterar={podeAlterar} /> : null}
         {aba === 'cobrancas' ? <AbaCobrancas podeAlterar={podeAlterar} /> : null}
         {aba === 'planos' ? <AbaPlanos podeAlterar={podeAlterar} /> : null}
-        {aba === 'lancamentos' ? <AbaLancamentos podeAlterar={podeAlterar} /> : null}
+        {aba === 'lancamentos' ? <AbaLancamentos podeAlterar={podeAlterar} resultado={painelDoMes} /> : null}
         {aba === 'lembretes' ? <AbaLembretes podeAlterar={podeAlterar} /> : null}
         {aba === 'recebimento' ? <AbaRecebimentoOnline podeAlterar={podeAlterar} /> : null}
       </View>
-      <FolhaDeExportacao visivel={exportando} aoFechar={() => setExportando(false)} />
+      <FolhaDeExportacao visivel={exportando} aoFechar={() => setExportando(false)} painel={painelDoMes.dados} />
     </Tela>
   );
 }

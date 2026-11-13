@@ -47,6 +47,18 @@ export function avisoDoHistoricoParcial(p: { historicoFinanceiroParcial?: boolea
   return p?.historicoFinanceiroParcial === true ? AVISO_HISTORICO_PARCIAL : null;
 }
 
+/**
+ * Explicação na ação de exportar (13/11, texto do Gustavo): a API acrescenta a coluna `historico_financeiro_parcial` ao CSV; a
+ * frase vive na folha da exportação, nunca dentro do arquivo. O app não depende das colunas: baixa o texto como veio.
+ */
+export const AVISO_EXPORTACAO_PARCIAL =
+  "Esta exportação inclui a coluna historico_financeiro_parcial. Quando for 'true', parte do histórico financeiro foi removida em uma limpeza anterior e os valores consideram só os registros preservados.";
+
+/** A explicação do CSV quando a API marca o histórico como parcial; `null` para `false`, ausente ou sem painel. */
+export function avisoDaExportacao(p: { historicoFinanceiroParcial?: boolean } | null | undefined): string | null {
+  return p?.historicoFinanceiroParcial === true ? AVISO_EXPORTACAO_PARCIAL : null;
+}
+
 /** Rótulo fixo do resultado do mês: não é lucro, só o que foi registrado. */
 export const ROTULO_RESULTADO_DO_MES = 'Resultado do mês (entradas − saídas registradas)';
 

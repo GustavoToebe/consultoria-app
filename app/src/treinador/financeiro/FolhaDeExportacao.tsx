@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { View } from 'react-native';
 
+import type { Painel } from '../../api/financeiroTipos';
 import { exportarFinanceiro } from '../../api/rotas';
-import { ATALHOS_DE_PERIODO, hojeEmBrasilia, nomeDoCsv, periodoDoPainel, type AtalhoDePeriodo } from '../../dominio/financeiro';
+import { ATALHOS_DE_PERIODO, avisoDaExportacao, hojeEmBrasilia, nomeDoCsv, periodoDoPainel, type AtalhoDePeriodo } from '../../dominio/financeiro';
 import { dataParaTela } from '../../dominio/formatos';
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Escolha } from '../../ui/Escolha';
-import { MensagemErro } from '../../ui/Estados';
+import { Incompleto, MensagemErro } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
 import { Texto } from '../../ui/Texto';
@@ -19,7 +20,12 @@ import { baixarCsv } from './baixarCsv';
  * alunos e valores: o aparelho só guarda o temporário do compartilhar (apagado ao sair), nunca uma cópia do financeiro.
  * Passando de 5.000 linhas a API recusa (422) e a mensagem pede um período menor.
  */
-export function FolhaDeExportacao({ visivel, aoFechar }: { visivel: boolean; aoFechar: () => void }) {
+export function FolhaDeExportacao({ visivel, aoFechar, painel }: {
+  visivel: boolean;
+  aoFechar: () => void;
+  /** O painel do mês (só o `historicoFinanceiroParcial` importa): com o histórico parcial, a folha explica a coluna nova do CSV. */
+  painel?: Pick<Painel, 'historicoFinanceiroParcial'>;
+}) {
   const { avisar } = useAviso();
   const [atalho, setAtalho] = useState<AtalhoDePeriodo>('6m');
   const [baixando, setBaixando] = useState(false);
@@ -46,6 +52,7 @@ export function FolhaDeExportacao({ visivel, aoFechar }: { visivel: boolean; aoF
           Cobranças (por vencimento) e lançamentos avulsos (por data) do período, para planilha. O arquivo tem nomes de alunos e
           valores: guarde com cuidado. A exportação fica registrada na auditoria.
         </Texto>
+        {avisoDaExportacao(painel) ? <Incompleto texto={avisoDaExportacao(painel)!} /> : null}
         <Escolha rotulo="Período" opcoes={ATALHOS_DE_PERIODO} valor={atalho} aoMudar={setAtalho} />
         <Texto variante="pequeno">{dataParaTela(periodo.de)} a {dataParaTela(periodo.ate)}</Texto>
         {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} /> : null}

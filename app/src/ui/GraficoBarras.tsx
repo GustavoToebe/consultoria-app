@@ -8,6 +8,7 @@ import { marcasDoEixo } from '../dominio/grafico';
 import { useTema } from '../tema/TemaProvider';
 import { espaco } from '../tema/tokens';
 import { useDestaques } from './NumeroDeDestaque';
+import { MarcaDeZero } from './MarcaDeZero';
 import { Tabela } from './Tabela';
 import { Texto } from './Texto';
 
@@ -21,7 +22,8 @@ const FOLGA = 2;
 /**
  * Gráfico de barras mês a mês (SVG): recebido (azul) e previsto (ciano) lado a lado, como os cartões da Visão geral (D6: as cores têm
  * significado, nunca a marca; as duas quase não diferem em luminosidade, então a legenda tem texto e as barras têm um vão). Com a preferência "Mostrar gráficos" desligada, ou numa tela estreita, vira tabela com os mesmos valores.
- * O leitor de tela recebe a lista de valores em texto (o SVG é decorativo). Valor ausente fica sem barra e "—" na tabela.
+ * O leitor de tela recebe a lista de valores em texto (o SVG é decorativo). Valor ausente fica sem barra e "—" na tabela; zero
+ * (realizado e previsto, igual) é um traço fino na base com "R$ 0" (`MarcaDeZero`), nunca uma barra preenchida.
  */
 export function GraficoBarras({ barras, rotulo = 'Recebido e previsto por mês' }: { barras: BarraDoMes[]; rotulo?: string }) {
   const { cores, fatorTexto, preferencias } = useTema();
@@ -110,13 +112,13 @@ function desenho({ barras, largura, ALTURA, MARGEM, fonte, cores, destaques }: {
         const centro = MARGEM.esq + faixa * i + faixa / 2;
         return (
           <G key={b.rotulo}>
-            {/* Zero de verdade é uma barra rente à base (1 px); sem dado (`null`) não desenha nada. */}
-            {b.realizado !== null ? (
+            {/* Zero de verdade é o traço com "R$ 0" (sem barra preenchida); sem dado (`null`) não desenha nada. */}
+            {b.realizado === null ? null : b.realizado > 0 ? (
               <Rect x={centro - larguraBarra - FOLGA} y={y(b.realizado / 100)} width={larguraBarra} height={Math.max(y(0) - y(b.realizado / 100), 1)} fill={destaques.azul.cor} rx={2} />
-            ) : null}
-            {b.previsto !== null && b.previsto > 0 ? (
+            ) : <MarcaDeZero x={centro - larguraBarra - FOLGA} largura={larguraBarra} yBase={y(0)} ancora="end" fonte={fonte} cor={cores.textoSuave} />}
+            {b.previsto === null ? null : b.previsto > 0 ? (
               <Rect x={centro + FOLGA} y={y(b.previsto / 100)} width={larguraBarra} height={Math.max(y(0) - y(b.previsto / 100), 1)} fill={destaques.ciano.cor} rx={2} />
-            ) : null}
+            ) : <MarcaDeZero x={centro + FOLGA} largura={larguraBarra} yBase={y(0)} ancora="start" fonte={fonte} cor={cores.textoSuave} />}
           </G>
         );
       })}

@@ -17,7 +17,7 @@ export function pode(permissoes:readonly string[]|undefined,codigo:string):boole
  * consultoria também não liga o módulo (C4 da auditoria de 03/11). `null` = a tela não depende de módulo desligado.
  */
 export function moduloDesligadoDaTela(caminho:string,pagamentosHabilitados:boolean=false):{titulo:string;texto:string}|null {
-  if(caminho==='/treinador/financeiro'&&!pagamentosHabilitados) return {titulo:'Financeiro indisponível',texto:'Os pagamentos não estão ativos nesta instalação do app.'};
+  if(caminho==='/treinador/financeiro'&&!pagamentosHabilitados) return {titulo:'Recurso desativado',texto:'Os pagamentos não estão ativos nesta instalação do app.'};
   return null;
 }
 

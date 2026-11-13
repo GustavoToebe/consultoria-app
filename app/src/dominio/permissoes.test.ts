@@ -91,7 +91,7 @@ describe('navegação de membros da equipe', () => {
 
 describe('módulo desligado (C4)', () => {
   it('Financeiro com os pagamentos desligados diz que o módulo está desligado, para qualquer perfil', () => {
-    expect(moduloDesligadoDaTela('/treinador/financeiro', false)).toEqual({ titulo: 'Financeiro indisponível', texto: 'Os pagamentos não estão ativos nesta instalação do app.' });
+    expect(moduloDesligadoDaTela('/treinador/financeiro', false)).toEqual({ titulo: 'Recurso desativado', texto: 'Os pagamentos não estão ativos nesta instalação do app.' });
     expect(moduloDesligadoDaTela('/treinador/financeiro')).not.toBeNull();
   });
   it('com os pagamentos ligados, ou em outra tela, não há módulo desligado (vale a permissão)', () => {

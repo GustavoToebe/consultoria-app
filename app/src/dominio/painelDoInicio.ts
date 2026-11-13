@@ -12,6 +12,7 @@ import { contadorDeRetornos } from './inicioTreinador';
 import { rotuloDoMes } from './numeros';
 import { textoDoRecorde } from './recordesPessoais';
 import type { UnidadeDeCarga } from './unidadeDeCarga';
+import { ehFinanceiroDesligado, TEXTO_RECURSO_DESATIVADO } from './financeiroDesligado';
 import { ehRetornoDesligado } from './retornoDesligado';
 import {
   BLOCOS_DO_PAINEL, type BlocoDoPainelId, ehBlocoDoPainel, ehTamanhoDoBloco, PAINEL_DO_INICIO_PADRAO, type PainelDoInicioPreferido,
@@ -209,7 +210,7 @@ export function restaurarPadrao(): PainelDoInicioPreferido {
 export type Fonte<T> =
   | { situacao: 'carregando' }
   | { situacao: 'falhou' }
-  /** O recurso está desligado na plataforma (503 `RETORNO_INDISPONIVEL`): não é erro, o cartão some. */
+  /** O recurso está desligado na plataforma (503 `RETORNO_INDISPONIVEL`, `FINANCEIRO_INDISPONIVEL` ou `RECEBIMENTO_ONLINE_INDISPONIVEL`): não é erro. O retorno some; o financeiro diz "Recurso desativado". */
   | { situacao: 'desligada' }
   | { situacao: 'pronta'; dados: T };
 
@@ -219,12 +220,12 @@ export const FONTE_DESLIGADA: Fonte<never> = { situacao: 'desligada' };
 export const fontePronta = <T>(dados: T): Fonte<T> => ({ situacao: 'pronta', dados });
 
 /**
- * Converte o retorno do `useCarregar` (`dados`, `erro`, `carregando`) em `Fonte`. Erro: o 503 `RETORNO_INDISPONIVEL` é
- * `desligada`, o resto é `falhou`. Dados `null` (consulta que o chamador engoliu) também é `falhou`. Sem dados, sem erro e
+ * Converte o retorno do `useCarregar` (`dados`, `erro`, `carregando`) em `Fonte`. Erro: o 503 `RETORNO_INDISPONIVEL` ou o do
+ * financeiro desligado (`FINANCEIRO_INDISPONIVEL`) é `desligada`, o resto é `falhou`. Dados `null` (consulta que o chamador engoliu) também é `falhou`. Sem dados, sem erro e
  * ainda carregando: `carregando`. Consulta que a tela não fez (chave nula) é `falhou`: não pedir o que não aparece.
  */
 export function fonteDaConsulta<T>(c: { dados?: T | null; erro?: unknown; carregando?: boolean }): Fonte<T> {
-  if (c.erro !== undefined && c.erro !== null) return ehRetornoDesligado(c.erro) ? FONTE_DESLIGADA : FONTE_FALHOU;
+  if (c.erro !== undefined && c.erro !== null) return ehRetornoDesligado(c.erro) || ehFinanceiroDesligado(c.erro) ? FONTE_DESLIGADA : FONTE_FALHOU;
   if (c.dados !== undefined && c.dados !== null) return fontePronta(c.dados);
   if (c.dados === undefined && c.carregando) return FONTE_CARREGANDO;
   return FONTE_FALHOU;
@@ -353,10 +354,11 @@ export interface CartaoDoPainel {
   rotulo: string;
   /**
    * `valor`: número disponível; `naoCarregou`: consulta falhou ou veio sem o número ("Não carregou" escrito); `semPermissao`:
-   * o servidor devolveu nulo por falta de permissão ("Sem permissão", sem abrir lista nem "Atualizar"); `carregando`.
+   * o servidor devolveu nulo por falta de permissão ("Sem permissão", sem abrir lista nem "Atualizar"); `desativado`: o recurso está
+   * desligado na plataforma ("Recurso desativado", sem abrir lista nem "Atualizar"); `carregando`.
    * Não há "—" solto no Início: o que falta diz por quê em palavras (D14).
    */
-  estado: 'valor' | 'naoCarregou' | 'semPermissao' | 'carregando';
+  estado: 'valor' | 'naoCarregou' | 'semPermissao' | 'desativado' | 'carregando';
   /** Contagem, ou centavos quando `moeda`. `null` fora de `estado: 'valor'`. */
   valor: number | null;
   /** O que a tela escreve: "12", "R$ 1.240" (sem centavos), "Não carregou", "—" ou "…". */
@@ -407,6 +409,9 @@ function cartao(e: EntradaDeCartao): CartaoDoPainel {
   const base = { chave: e.chave, rotulo: e.rotulo, moeda: !!e.moeda, largo: !!e.largo };
   if (e.situacao === 'carregando') {
     return { ...base, estado: 'carregando', valor: null, texto: '…', detalhe: null, enfase: 'indisponivel', falado: `${e.nome}: carregando`, destino: e.destino };
+  }
+  if (e.situacao === 'desligada') {
+    return { ...base, estado: 'desativado', valor: null, texto: TEXTO_RECURSO_DESATIVADO, detalhe: null, enfase: 'indisponivel', falado: `${e.nome}: ${TEXTO_RECURSO_DESATIVADO.toLowerCase()}`, destino: null };
   }
   if (e.situacao === 'pronta' && e.valor === null && e.nuloEPermissao) {
     return { ...base, estado: 'semPermissao', valor: null, texto: TEXTO_SEM_PERMISSAO, detalhe: null, enfase: 'indisponivel', falado: `${e.nome}: ${TEXTO_SEM_PERMISSAO.toLowerCase()}`, destino: null };
@@ -551,13 +556,15 @@ export interface BlocoDoPainel {
   nota: string | null;
   /** Ressalva do histórico financeiro parcial (neutra, com ícone); uma vez por tela, veja {@link ressalvaUmaVez}. */
   ressalva: string | null;
+  /** O recurso do bloco está desligado na plataforma: a tela diz "Recurso desativado" (sem cartões, sem "Atualizar"). */
+  desativado: boolean;
   /** Alguma consulta do bloco ainda carrega. */
   carregando: boolean;
   /** Nada do bloco carregou (todos os cartões "Não carregou", ou o gráfico sem dados): a tela pode mostrar o alerta com "Atualizar". */
   falhou: boolean;
 }
 
-function cabecalho(id: BlocoDoPainelId, meus: boolean, extra: { periodo?: string | null } = {}): Omit<BlocoDoPainel, 'cartoes' | 'linha' | 'grafico' | 'nota' | 'ressalva' | 'carregando' | 'falhou'> {
+function cabecalho(id: BlocoDoPainelId, meus: boolean, extra: { periodo?: string | null } = {}): Omit<BlocoDoPainel, 'cartoes' | 'linha' | 'grafico' | 'nota' | 'ressalva' | 'desativado' | 'carregando' | 'falhou'> {
   const titulo = TITULOS_DOS_BLOCOS[id];
   return {
     id, titulo, periodo: extra.periodo ?? null, escopo: meus ? SO_OS_MEUS : null, meus, temFiltro: true,
@@ -572,6 +579,7 @@ function fechar(base: ReturnType<typeof cabecalho>, partes: { cartoes?: CartaoDo
   const todos = [...cartoes, ...(partes.linha ? [partes.linha] : [])];
   return {
     ...base, cartoes, linha: partes.linha ?? null, grafico: partes.grafico ?? null, nota: partes.nota ?? null, ressalva: partes.ressalva ?? null,
+    desativado: false,
     carregando: todos.some((c) => c.estado === 'carregando'),
     falhou: todos.length > 0 ? todos.every((c) => c.estado === 'naoCarregou') : !!partes.falhouGrafico,
   };
@@ -735,7 +743,7 @@ function blocoFinanceiro(ctx: ContextoDoPainel, o: Entrada): BlocoDoPainel {
   };
   cartoes.push(cartao({ ...entradaRecebido, situacao: sitF, valor: recebido }));
   // Histórico parcial (API, 13/11): a mesma ressalva do Financeiro; não muda nenhum valor.
-  return fechar(cabecalho('financeiro', o.meus), { cartoes, nota: NOTA_FINANCEIRO_GERADAS, ressalva: avisoDoHistoricoParcial(f) });
+  return fechar(cabecalho('financeiro', o.meus), { cartoes, nota: sitF === 'desligada' ? null : NOTA_FINANCEIRO_GERADAS, ressalva: avisoDoHistoricoParcial(f) });
 }
 
 /** A ressalva do histórico parcial aparece uma vez por tela: no bloco Financeiro e, sem ele, no Recebido. */
@@ -749,6 +757,7 @@ function blocoRecebido(o: Entrada): BlocoDoPainel {
   const f = dadosDe(o.fontes.financeiro);
   const base = cabecalho('recebido', o.meus);
   if (sit === 'carregando') return { ...fechar(base, {}), carregando: true };
+  if (sit === 'desligada') return { ...fechar(base, {}), desativado: true };
   if (!f || !Array.isArray(f.serie)) return { ...fechar(base, { falhouGrafico: true }), falhou: true };
   return fechar(base, { grafico: barrasDoRecebido(f.serie, o.meus, o.graficos), ressalva: avisoDoHistoricoParcial(f) });
 }

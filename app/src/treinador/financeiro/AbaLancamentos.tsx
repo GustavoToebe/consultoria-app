@@ -3,9 +3,9 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import type { LancamentoResponse, TipoDeLancamento } from '../../api/financeiroTipos';
-import { alterarLancamento, categoriasDeLancamentos, criarLancamento, excluirLancamento, listarLancamentos, painelFinanceiro } from '../../api/rotas';
-import { hojeEmBrasilia, LIMITES, NOTA_REGISTROS_DISPONIVEIS, periodoDoMes, validarLancamento } from '../../dominio/financeiro';
+import type { LancamentoResponse, Painel, TipoDeLancamento } from '../../api/financeiroTipos';
+import { alterarLancamento, categoriasDeLancamentos, criarLancamento, excluirLancamento, listarLancamentos } from '../../api/rotas';
+import { hojeEmBrasilia, LIMITES, NOTA_REGISTROS_DISPONIVEIS, validarLancamento } from '../../dominio/financeiro';
 import { dataSemAnoCorrente } from '../../dominio/datasRelativas';
 import { paraSetParams } from '../../dominio/filtrosComuns';
 import {
@@ -34,7 +34,6 @@ import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
 import { Texto } from '../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../ui/useCarregar';
-import { AvisoDoHistoricoParcial } from './AvisoDoHistoricoParcial';
 import { avisoDeConflito, CampoMoeda, ehConflito } from './comum';
 import { PeriodoDoFiltro } from './FiltrosEmGrade';
 import { ListaOuTabela } from './ListaOuTabela';
@@ -87,7 +86,11 @@ function TipoDoLancamento({ tipo }: { tipo: TipoDeLancamento }) {
  * (na API, 300 ms depois de digitar) e, no painel, o período (data do lançamento), o tipo e as categorias já usadas, no
  * endereço junto do `?aba=lancamentos` (`?de=&ate=&tipo=&categoria=`).
  */
-export function AbaLancamentos({ podeAlterar }: { podeAlterar: boolean }) {
+export function AbaLancamentos({ podeAlterar, resultado }: {
+  podeAlterar: boolean;
+  /** O `/financeiro/painel` do mês corrente, buscado uma vez pela tela do Financeiro (a mesma resposta serve à ressalva do histórico parcial). */
+  resultado: { dados?: Painel; erro?: unknown; recarregar: () => void };
+}) {
   const [pagina, setPagina] = useState(0);
   const [aberto, setAberto] = useState<LancamentoResponse | 'novo' | null>(null);
   const filtros = lerLancamentosDoEndereco(useLocalSearchParams<{ de?: string; ate?: string; tipo?: string; categoria?: string }>());
@@ -106,8 +109,6 @@ export function AbaLancamentos({ podeAlterar }: { podeAlterar: boolean }) {
     router.setParams(paraSetParams(CHAVES_DE_LANCAMENTOS, lancamentosParaEndereco(novos)));
   };
   const filtrado = temFiltroDeLancamentos(filtros) || !!busca;
-  const mes = periodoDoMes(hojeEmBrasilia());
-  const resultado = useCarregar(`lancamentos-resultado|${mes.de}`, () => painelFinanceiro({ ...mes, meus: false }));
   const dados = lista.dados;
   const paginas = dados ? Math.max(1, Math.ceil(dados.total / TAMANHO_PAGINA)) : 1;
   const { recarregar: recarregarLista } = lista;
@@ -125,7 +126,6 @@ export function AbaLancamentos({ podeAlterar }: { podeAlterar: boolean }) {
       {resultado.dados ? (
         <>
           <Texto variante="suave">{NOTA_REGISTROS_DISPONIVEIS}</Texto>
-          <AvisoDoHistoricoParcial painel={resultado.dados} />
           <ResultadoDoMes resultado={resultado.dados.resultadoDoMes} />
         </>
       ) : null}

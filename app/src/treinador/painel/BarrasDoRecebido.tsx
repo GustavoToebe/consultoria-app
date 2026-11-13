@@ -8,6 +8,7 @@ import type { BarrasDoPainel, MesDasBarras } from '../../dominio/painelDoInicio'
 import { escalar } from '../../dominio/preferencias';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, fontes } from '../../tema/tokens';
+import { MarcaDeZero } from '../../ui/MarcaDeZero';
 import { useDestaques } from '../../ui/NumeroDeDestaque';
 import { Tabela } from '../../ui/Tabela';
 import { Texto } from '../../ui/Texto';
@@ -26,7 +27,8 @@ const rotuloCurto = (m: MesDasBarras) => m.rotulo.replace(/\/(\d{2})(\d{2})$/, '
  * Barras do recebido (bruto, azul de destaque) e dos lançamentos (violeta de destaque) dos últimos 6 meses, em SVG sem biblioteca. As
  * cores são de dado, nunca da marca. O leitor de tela recebe a descrição com todos os valores (o desenho é uma imagem
  * só); com "Mostrar gráficos" desligado ou sem nenhum valor vira a tabela com os mesmos números. Mês sem dado: "—", sem
- * barra; o mês em andamento vem em negrito, com "*".
+ * barra; zero é um traço fino na base com "R$ 0" (`ui/MarcaDeZero`), nunca uma barra preenchida; o mês em andamento vem em
+ * negrito, com "*".
  */
 export function BarrasDoRecebido({ barras }: { barras: BarrasDoPainel }) {
   const { cores, fatorTexto } = useTema();
@@ -88,11 +90,11 @@ function Desenho({ barras, largura, fonte, cores, destaques }: {
   const curto = largura < LARGURA_CURTA;
   const [recebido, lancamentos] = barras.series;
 
-  const barra = (valor: number | null, x: number, cor: string, chave: string) => {
+  const barra = (valor: number | null, x: number, cor: string, chave: string, ancora: 'start' | 'end') => {
     if (valor === null) {
       return <SvgTexto key={chave} x={x + larguraBarra / 2} y={y(0) - 4} fontSize={fonte} fill={cores.textoSuave} textAnchor="middle">—</SvgTexto>;
     }
-    if (valor <= 0) return null;
+    if (valor <= 0) return <MarcaDeZero key={chave} x={x} largura={larguraBarra} yBase={y(0)} ancora={ancora} fonte={fonte} cor={cores.textoSuave} />;
     return <Rect key={chave} x={x} y={y(valor / 100)} width={larguraBarra} height={Math.max(y(0) - y(valor / 100), 1)} fill={cor} rx={2} />;
   };
 
@@ -111,8 +113,8 @@ function Desenho({ barras, largura, fonte, cores, destaques }: {
         const centro = MARGEM.esq + faixa * i + faixa / 2;
         return (
           <G key={m.mes}>
-            {barra(m.recebido, centro - larguraBarra - FOLGA, destaques[recebido.cor].cor, 'r')}
-            {barra(m.lancamentos, centro + FOLGA, destaques[lancamentos.cor].cor, 'l')}
+            {barra(m.recebido, centro - larguraBarra - FOLGA, destaques[recebido.cor].cor, 'r', 'end')}
+            {barra(m.lancamentos, centro + FOLGA, destaques[lancamentos.cor].cor, 'l', 'start')}
             <SvgTexto x={centro} y={ALTURA - 8} fontSize={fonte} fill={m.parcial ? cores.texto : cores.textoSuave} fontWeight={m.parcial ? 'bold' : 'normal'} textAnchor="middle">
               {`${curto ? rotuloCurto(m) : m.rotulo}${m.parcial ? '*' : ''}`}
             </SvgTexto>

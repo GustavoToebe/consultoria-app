@@ -191,6 +191,9 @@ describe('fonteDaConsulta', () => {
   it('dados viram pronta; 503 RETORNO_INDISPONIVEL vira desligada; outro erro vira falhou', () => {
     expect(fonteDaConsulta({ dados: { a: 1 } })).toEqual(fontePronta({ a: 1 }));
     expect(fonteDaConsulta({ erro: new ErroApi(503, 'RETORNO_INDISPONIVEL', 'x') })).toEqual(FONTE_DESLIGADA);
+    expect(fonteDaConsulta({ erro: new ErroApi(503, 'FINANCEIRO_INDISPONIVEL', 'x') })).toEqual(FONTE_DESLIGADA);
+    expect(fonteDaConsulta({ erro: new ErroApi(503, 'RECEBIMENTO_ONLINE_INDISPONIVEL', 'x') })).toEqual(FONTE_DESLIGADA);
+    expect(fonteDaConsulta({ erro: new ErroApi(500, 'FINANCEIRO_INDISPONIVEL', 'x') })).toEqual(FONTE_FALHOU);
     expect(fonteDaConsulta({ erro: new ErroApi(500, 'ERRO', 'x') })).toEqual(FONTE_FALHOU);
     expect(fonteDaConsulta({ erro: new Error('rede') })).toEqual(FONTE_FALHOU);
   });
@@ -505,6 +508,19 @@ describe('Financeiro', () => {
     expect(dos(['recebido'])).toEqual(['recebido']);
     expect(dos(['financeiro'])).toEqual(['financeiro']);
     expect(dos(['alunos', 'recebido', 'agenda'])).toEqual(['recebido']);
+  });
+
+  it('financeiro desligado na plataforma (503): "Recurso desativado", distinto de zero, de "Não carregou" e de "Sem permissão"', () => {
+    const b = bloco('financeiro', fontes({ financeiro: FONTE_DESLIGADA, inadimplentes: FONTE_DESLIGADA }));
+    for (const chave of ['financeiro.vencidas', 'financeiro.vencendo', 'financeiro.recebido']) {
+      expect(cartaoDe(b, chave)).toMatchObject({ estado: 'desativado', texto: 'Recurso desativado', valor: null, destino: null, enfase: 'indisponivel' });
+      expect(cartaoDe(b, chave).falado).toContain('recurso desativado');
+    }
+    // Não pede "Atualizar" (repetir não liga o recurso), não traz a nota de cobranças geradas nem ressalva.
+    expect(b).toMatchObject({ falhou: false, nota: null, ressalva: null });
+    const r = bloco('recebido', fontes({ financeiro: FONTE_DESLIGADA }));
+    expect(r).toMatchObject({ desativado: true, falhou: false, grafico: null, ressalva: null });
+    expect(bloco('recebido').desativado).toBe(false);
   });
 
   it('há cobranças mas o valor veio nulo: "Não carregou", nunca R$ 0', () => {
