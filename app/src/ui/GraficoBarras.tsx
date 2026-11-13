@@ -110,7 +110,8 @@ function desenho({ barras, largura, ALTURA, MARGEM, fonte, cores, destaques }: {
         const centro = MARGEM.esq + faixa * i + faixa / 2;
         return (
           <G key={b.rotulo}>
-            {b.realizado !== null && b.realizado > 0 ? (
+            {/* Zero de verdade é uma barra rente à base (1 px); sem dado (`null`) não desenha nada. */}
+            {b.realizado !== null ? (
               <Rect x={centro - larguraBarra - FOLGA} y={y(b.realizado / 100)} width={larguraBarra} height={Math.max(y(0) - y(b.realizado / 100), 1)} fill={destaques.azul.cor} rx={2} />
             ) : null}
             {b.previsto !== null && b.previsto > 0 ? (

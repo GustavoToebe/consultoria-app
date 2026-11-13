@@ -1,4 +1,7 @@
-import { contadorDeRetornos, proximoPassoDoInicio, TETO_PLANOS_TERMINANDO, tomDoContador, umPorAluno } from './inicioTreinador';
+import {
+  contadorDeRetornos, estadoDaFonte, proximoPassoDoInicio, resumoDoInicio, TETO_PLANOS_TERMINANDO, TEXTO_EM_DIA, TEXTO_NAO_CONFERIU_TUDO,
+  TEXTO_SEM_ACESSO_AO_RESUMO, tomDoContador, umPorAluno, type FontesDoResumo,
+} from './inicioTreinador';
 
 const nada = { paraRevisar: 0, atrasadas: 0, interessadosNovos: 0, planosTerminando: 0, semRegistro: 0, diasSemRegistro: 7 };
 
@@ -50,5 +53,62 @@ describe('contadorDeRetornos', () => {
     expect(contadorDeRetornos(0, 2)).toEqual({ numero: 2, tom: 'atencao', detalhe: '2 para hoje' });
     expect(contadorDeRetornos(1, 0)).toEqual({ numero: 1, tom: 'perigo', detalhe: '1 atrasado' });
     expect(contadorDeRetornos(3, 1)).toEqual({ numero: 4, tom: 'perigo', detalhe: '3 atrasados · 1 para hoje' });
+  });
+});
+
+describe('estadoDaFonte', () => {
+  it('sem acesso vale mais que tudo; só pronta com o número lido é consultada', () => {
+    expect(estadoDaFonte(false, 'pronta', true)).toBe('semAcesso');
+    expect(estadoDaFonte(false, 'carregando', false)).toBe('semAcesso');
+    expect(estadoDaFonte(true, 'carregando', false)).toBe('carregando');
+    expect(estadoDaFonte(true, 'pronta', true)).toBe('consultada');
+    expect(estadoDaFonte(true, 'pronta', false)).toBe('falhou');
+    expect(estadoDaFonte(true, 'falhou', false)).toBe('falhou');
+    expect(estadoDaFonte(true, 'desligada', false)).toBe('falhou');
+  });
+});
+
+describe('resumoDoInicio (D9: "em dia" só com todas as fontes consultadas)', () => {
+  const todas: FontesDoResumo = { atualizacoes: 'consultada', interessados: 'consultada', planosTerminando: 'consultada', semRegistro: 'consultada' };
+  const nulas = { paraRevisar: null, atrasadas: null, interessadosNovos: null, planosTerminando: null, semRegistro: null, diasSemRegistro: 7 };
+
+  it('todas consultadas e sem pendência: "Nada pede sua atenção agora"', () => {
+    expect(resumoDoInicio(nada, todas)).toEqual({ tipo: 'emDia', texto: TEXTO_EM_DIA });
+    expect(TEXTO_EM_DIA).toContain('Nada pede sua atenção agora');
+  });
+
+  it('perfil só com PAINEL_VER (nenhuma fonte acessível): "Você não tem acesso aos dados deste resumo", nunca "em dia"', () => {
+    const semAcesso: FontesDoResumo = { atualizacoes: 'semAcesso', interessados: 'semAcesso', planosTerminando: 'semAcesso', semRegistro: 'semAcesso' };
+    expect(resumoDoInicio(nulas, semAcesso)).toEqual({ tipo: 'semAcesso', texto: 'Você não tem acesso aos dados deste resumo.' });
+    expect(TEXTO_SEM_ACESSO_AO_RESUMO).not.toContain('Nada pede');
+  });
+
+  it('parcial por falta de acesso: avisa que não foi possível conferir tudo e não afirma "em dia"', () => {
+    const r = resumoDoInicio({ ...nulas, paraRevisar: 0, atrasadas: 0 }, { ...todas, interessados: 'semAcesso', planosTerminando: 'semAcesso', semRegistro: 'semAcesso' });
+    expect(r).toMatchObject({ tipo: 'parcial', tentarDeNovo: false });
+    expect((r as { texto: string }).texto).toContain(TEXTO_NAO_CONFERIU_TUDO);
+    expect((r as { texto: string }).texto).not.toContain('Nada pede');
+  });
+
+  it('uma fonte falhou: parcial com "Tentar de novo"; só falha e sem acesso, sem nenhuma consultada, também é parcial', () => {
+    expect(resumoDoInicio(nada, { ...todas, interessados: 'falhou' })).toMatchObject({ tipo: 'parcial', tentarDeNovo: true });
+    expect(resumoDoInicio(nulas, { atualizacoes: 'falhou', interessados: 'semAcesso', planosTerminando: 'semAcesso', semRegistro: 'semAcesso' })).toMatchObject({ tipo: 'parcial', tentarDeNovo: true });
+  });
+
+  it('carregando sem pendência: não afirma nada (nem "em dia" nem "sem acesso" nem "parcial")', () => {
+    expect(resumoDoInicio(nada, { ...todas, atualizacoes: 'carregando' })).toEqual({ tipo: 'carregando' });
+    expect(resumoDoInicio(nulas, { atualizacoes: 'semAcesso', interessados: 'carregando', planosTerminando: 'semAcesso', semRegistro: 'semAcesso' })).toEqual({ tipo: 'carregando' });
+  });
+
+  it('pendência numa fonte consultada continua aparecendo; sem aviso se tudo foi conferido, com aviso se foi parcial', () => {
+    const completo = resumoDoInicio({ ...nada, paraRevisar: 2 }, todas);
+    expect(completo).toMatchObject({ tipo: 'pendencia', aviso: null, passo: { destino: 'PARA_REVISAR' } });
+    const parcial = resumoDoInicio({ ...nada, paraRevisar: 2, interessadosNovos: null }, { ...todas, interessados: 'falhou' });
+    expect(parcial).toMatchObject({ tipo: 'pendencia', aviso: 'Não foi possível conferir tudo.', passo: { destino: 'PARA_REVISAR' } });
+    expect(resumoDoInicio({ ...nulas, semRegistro: 4 }, { ...todas, atualizacoes: 'semAcesso' })).toMatchObject({ tipo: 'pendencia', aviso: TEXTO_NAO_CONFERIU_TUDO });
+  });
+
+  it('pendência aparece mesmo com outra fonte ainda carregando', () => {
+    expect(resumoDoInicio({ ...nada, atrasadas: 1 }, { ...todas, interessados: 'carregando' })).toMatchObject({ tipo: 'pendencia', aviso: null });
   });
 });

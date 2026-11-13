@@ -42,6 +42,61 @@ export function proximoPassoDoInicio(p: PendenciasDoInicio): { texto: string; ac
   return null;
 }
 
+// ---- "Tudo em dia" só com base (D9 de `docs/planos/nulo-e-cobertura.md`, 13/11) ----
+
+/**
+ * Estado de cada fonte do resumo: `consultada` (respondeu com o número), `semAcesso` (falta permissão ou o servidor devolveu
+ * nulo por ela), `falhou` (a consulta falhou ou veio sem o número) e `carregando`. Só `consultada` prova "sem pendência".
+ */
+export type EstadoDaFonte = 'consultada' | 'semAcesso' | 'falhou' | 'carregando';
+
+/** As fontes que `proximoPassoDoInicio` lê: atualizações, interessados (com os retornos), planos terminando e sem registro. */
+export interface FontesDoResumo {
+  atualizacoes: EstadoDaFonte;
+  interessados: EstadoDaFonte;
+  planosTerminando: EstadoDaFonte;
+  semRegistro: EstadoDaFonte;
+}
+
+/** Sem acesso, nada a consultar; carregando, ainda não se sabe; só `pronta` com o número lido vale como consultada. */
+export function estadoDaFonte(temAcesso: boolean, situacao: 'carregando' | 'falhou' | 'desligada' | 'pronta', numeroLido: boolean): EstadoDaFonte {
+  if (!temAcesso) return 'semAcesso';
+  if (situacao === 'carregando') return 'carregando';
+  return situacao === 'pronta' && numeroLido ? 'consultada' : 'falhou';
+}
+
+export const TEXTO_EM_DIA = 'Tudo em dia por aqui. Nada pede sua atenção agora.';
+export const TEXTO_SEM_ACESSO_AO_RESUMO = 'Você não tem acesso aos dados deste resumo.';
+export const TEXTO_NAO_CONFERIU_TUDO = 'Não foi possível conferir tudo.';
+
+export type PassoDoInicio = NonNullable<ReturnType<typeof proximoPassoDoInicio>>;
+
+export type ResumoDoInicio =
+  /** Há pendência numa fonte consultada; `aviso` diz que o resto não foi conferido (parcial). */
+  | { tipo: 'pendencia'; passo: PassoDoInicio; aviso: string | null }
+  | { tipo: 'emDia'; texto: string }
+  | { tipo: 'semAcesso'; texto: string }
+  /** Nenhuma pendência nas fontes que deram certo, mas alguma falhou ou está sem acesso. `tentarDeNovo`: alguma falhou. */
+  | { tipo: 'parcial'; texto: string; tentarDeNovo: boolean }
+  /** Ainda consultando: não afirma nada. */
+  | { tipo: 'carregando' };
+
+/**
+ * O resumo do Início em três saídas além da pendência: em dia (todas as fontes consultadas e sem pendência), sem acesso
+ * (nenhuma fonte acessível) e parcial ("Não foi possível conferir tudo"). Enquanto alguma fonte carrega e nada pende, não
+ * afirma "em dia". `p` traz nulo nas fontes que não foram consultadas (o item não entra na conta).
+ */
+export function resumoDoInicio(p: PendenciasDoInicio, fontes: FontesDoResumo): ResumoDoInicio {
+  const estados = Object.values(fontes);
+  const incompleto = estados.some((e) => e === 'semAcesso' || e === 'falhou');
+  const passo = proximoPassoDoInicio(p);
+  if (passo) return { tipo: 'pendencia', passo, aviso: incompleto ? TEXTO_NAO_CONFERIU_TUDO : null };
+  if (estados.some((e) => e === 'carregando')) return { tipo: 'carregando' };
+  if (estados.every((e) => e === 'consultada')) return { tipo: 'emDia', texto: TEXTO_EM_DIA };
+  if (estados.every((e) => e === 'semAcesso')) return { tipo: 'semAcesso', texto: TEXTO_SEM_ACESSO_AO_RESUMO };
+  return { tipo: 'parcial', texto: `${TEXTO_NAO_CONFERIU_TUDO} O que foi consultado não aponta pendência.`, tentarDeNovo: estados.includes('falhou') };
+}
+
 /** "Últimos registros": o mais recente de cada aluno (a lista do painel vinha quase toda do mesmo aluno), até `limite`. */
 export function umPorAluno<T extends { aluno: { id: string }; data: string }>(itens: readonly T[], limite = 5): T[] {
   const vistos = new Set<string>();

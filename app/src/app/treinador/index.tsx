@@ -7,7 +7,7 @@ import { configuracaoInscricao } from '../../api/rotas';
 import type { ContagensInscricoes } from '../../api/inscricoesTipos';
 import type { PainelTreinador, RecordesDaSemana } from '../../api/tipos';
 import { caminhoListaAtualizacoes } from '../../dominio/atualizacao';
-import { proximoPassoDoInicio, type DestinoDoInicio } from '../../dominio/inicioTreinador';
+import { estadoDaFonte, resumoDoInicio, type DestinoDoInicio } from '../../dominio/inicioTreinador';
 import {
   blocosPermitidos,
   blocosVisiveis,
@@ -72,10 +72,10 @@ import { useCarregar } from '../../ui/useCarregar';
 
 /** Próximo passo da consultoria ainda sem alunos (o `inicioTreinador` não fala disso: só conta pendências). */
 const PASSO_SEM_ALUNOS = { texto: 'Nenhum aluno ainda. Cadastre o primeiro para começar.', acao: 'Cadastrar aluno' };
-const TUDO_EM_DIA = 'Tudo em dia por aqui. Nada pede sua atenção agora.';
 const MOTIVO_SEM_INTERNET = 'Precisa de internet.';
 
 const numero = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+const ehNumero = (v: unknown): v is number => numero(v) !== null;
 const dadosDe = <T,>(f: Fonte<T>): T | null => (f.situacao === 'pronta' ? f.dados : null);
 
 /**
@@ -193,21 +193,35 @@ export default function InicioTreinador() {
   let proximo: ProximoPassoDaTela | null = null;
   if (semAlunos && pode('ALUNO_ALTERAR')) {
     proximo = { texto: PASSO_SEM_ALUNOS.texto, acao: { rotulo: PASSO_SEM_ALUNOS.acao, aoTocar: () => router.push('/treinador/alunos/novo') } };
-  } else if (padrao) {
-    const p = proximoPassoDoInicio({
-      paraRevisar: verAtualizacoes ? padrao.atualizacoesParaRevisar : null,
-      atrasadas: verAtualizacoes ? padrao.atualizacoesAtrasadas : null,
+  } else {
+    // D9: "em dia" só com todas as fontes consultadas com sucesso (cada uma diz se faltou acesso, falhou ou carrega).
+    const sitPadrao = fontePadrao.situacao;
+    const lido = !!padrao;
+    const r = resumoDoInicio({
+      paraRevisar: verAtualizacoes && lido ? padrao.atualizacoesParaRevisar : null,
+      atrasadas: verAtualizacoes && lido ? padrao.atualizacoesAtrasadas : null,
       interessadosNovos: interessados ? interessados.porSituacao?.NOVA ?? 0 : null,
       retornosAtrasados: interessados?.retornosAtrasados ?? null,
       retornosHoje: interessados?.retornosHoje ?? null,
-      planosTerminando: pode('TREINO_LER') ? padrao.planosTerminando?.length ?? null : null,
+      planosTerminando: lido && pode('TREINO_LER') ? padrao.planosTerminando?.length ?? null : null,
       // O total sem o teto de 20, o mesmo número do cartão e da Folha.
-      semRegistro: pode('REGISTRO_LER') ? padrao.alunosSemRegistroTotal ?? null : null,
+      semRegistro: lido && pode('REGISTRO_LER') ? padrao.alunosSemRegistroTotal ?? null : null,
       diasSemRegistro: dias,
+    }, {
+      atualizacoes: estadoDaFonte(verPainel && verAtualizacoes, sitPadrao, lido && ehNumero(padrao.atualizacoesParaRevisar) && ehNumero(padrao.atualizacoesAtrasadas)),
+      interessados: estadoDaFonte(verInteressados, fonte<ContagensInscricoes>(interessadosPadrao).situacao,
+        !!interessados && ehNumero(interessados.retornosAtrasados) && ehNumero(interessados.retornosHoje)),
+      planosTerminando: estadoDaFonte(verPainel && pode('TREINO_LER'), sitPadrao, lido && Array.isArray(padrao.planosTerminando)),
+      semRegistro: estadoDaFonte(verPainel && pode('REGISTRO_LER'), sitPadrao, lido && ehNumero(padrao.alunosSemRegistroTotal)),
     });
-    // Atraso em `perigo`, como o indicador: os retornos só são atraso quando os atrasados vêm antes dos de hoje.
-    const atraso = p?.destino === 'ATRASADAS' || (p?.destino === 'RETORNOS' && !!interessados?.retornosAtrasados);
-    proximo = p ? { texto: p.texto, acao: { rotulo: p.acao, aoTocar: () => irPara(p.destino) }, atraso } : { texto: TUDO_EM_DIA, acao: null };
+    if (r.tipo === 'pendencia') {
+      const p = r.passo;
+      // Atraso em `perigo`, como o indicador: os retornos só são atraso quando os atrasados vêm antes dos de hoje.
+      const atraso = p.destino === 'ATRASADAS' || (p.destino === 'RETORNOS' && !!interessados?.retornosAtrasados);
+      proximo = { texto: p.texto, acao: { rotulo: p.acao, aoTocar: () => irPara(p.destino) }, atraso, aviso: r.aviso };
+    } else if (r.tipo !== 'carregando') {
+      proximo = { texto: r.texto, acao: r.tipo === 'parcial' && r.tentarDeNovo ? { rotulo: 'Tentar de novo', aoTocar: () => recarregar(consultas) } : null };
+    }
   }
 
   // ---- Primeiros passos montados (espera o aparelho e as consultas, para não piscar) ----

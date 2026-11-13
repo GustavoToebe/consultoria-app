@@ -102,7 +102,9 @@ test('sem INSCRICAO_LER não há contador de retornos nem consulta da fila', asy
     'GET /painel': { corpo: PAINEL },
   });
   await page.goto('/treinador');
-  await expect(page.getByText('Tudo em dia por aqui.', { exact: false })).toBeVisible();
+  // Sem nenhuma permissão das fontes do resumo, ele não afirma "em dia" (D9): diz que não há acesso aos dados.
+  await expect(page.getByText('Você não tem acesso aos dados deste resumo.')).toBeVisible();
+  await expect(page.getByText('Tudo em dia por aqui.', { exact: false })).toHaveCount(0);
   await expect(page.getByRole('link', { name: /Retornos a interessados/ })).toHaveCount(0);
   expect(pedidos.some((p) => p.caminho.startsWith('/inscricoes'))).toBe(false);
   expect(errosDaPagina).toEqual([]);

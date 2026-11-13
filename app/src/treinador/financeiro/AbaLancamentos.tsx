@@ -5,7 +5,7 @@ import { StyleSheet, View } from 'react-native';
 
 import type { LancamentoResponse, TipoDeLancamento } from '../../api/financeiroTipos';
 import { alterarLancamento, categoriasDeLancamentos, criarLancamento, excluirLancamento, listarLancamentos, painelFinanceiro } from '../../api/rotas';
-import { hojeEmBrasilia, LIMITES, periodoDoMes, validarLancamento } from '../../dominio/financeiro';
+import { hojeEmBrasilia, LIMITES, NOTA_REGISTROS_DISPONIVEIS, periodoDoMes, validarLancamento } from '../../dominio/financeiro';
 import { dataSemAnoCorrente } from '../../dominio/datasRelativas';
 import { paraSetParams } from '../../dominio/filtrosComuns';
 import {
@@ -34,6 +34,7 @@ import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
 import { Texto } from '../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../ui/useCarregar';
+import { AvisoDoHistoricoParcial } from './AvisoDoHistoricoParcial';
 import { avisoDeConflito, CampoMoeda, ehConflito } from './comum';
 import { PeriodoDoFiltro } from './FiltrosEmGrade';
 import { ListaOuTabela } from './ListaOuTabela';
@@ -121,7 +122,13 @@ export function AbaLancamentos({ podeAlterar }: { podeAlterar: boolean }) {
         {podeAlterar ? <Botao rotulo="Novo lançamento" Icone={Plus} aoTocar={() => setAberto('novo')} /> : null}
       </View>
       {resultado.erro ? <MensagemErro texto={textoDoErro(resultado.erro)} erro={resultado.erro} tentarDeNovo={recarregarResultado} /> : null}
-      {resultado.dados ? <ResultadoDoMes resultado={resultado.dados.resultadoDoMes} /> : null}
+      {resultado.dados ? (
+        <>
+          <Texto variante="suave">{NOTA_REGISTROS_DISPONIVEIS}</Texto>
+          <AvisoDoHistoricoParcial painel={resultado.dados} />
+          <ResultadoDoMes resultado={resultado.dados.resultadoDoMes} />
+        </>
+      ) : null}
       <BarraDeFiltros busca={{ valor: buscaDigitada, aoMudar: (t) => { setBuscaDigitada(t); setPagina(0); }, placeholder: 'Descrição' }}
         valor={filtros} aoAplicar={aplicar} limpo={SEM_FILTROS_DE_LANCAMENTOS} chips={chipsDosLancamentos(filtros)}
         aoTirar={(chave) => aplicar(semOFiltroDeLancamentos(filtros, chave as ChaveDoFiltroDeLancamentos))}

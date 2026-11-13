@@ -11,6 +11,8 @@ export interface ProximoPassoDaTela {
   acao: { rotulo: string; aoTocar: () => void } | null;
   /** A pendência é um atraso: a borda acende em `perigo`, o mesmo do indicador "Atrasadas" (guia de 11/11, pág. 16). */
   atraso?: boolean;
+  /** Linha pequena sob o texto ("Não foi possível conferir tudo."): a verificação foi parcial (D9). */
+  aviso?: string | null;
 }
 
 /**
@@ -26,6 +28,7 @@ export function ProximoPasso({ passo }: { passo: ProximoPassoDaTela }) {
       <View style={estilos.texto}>
         <Texto variante="secao">Próximo passo</Texto>
         <Texto variante="bloco">{passo.texto}</Texto>
+        {passo.aviso ? <Texto variante="pequeno">{passo.aviso}</Texto> : null}
       </View>
       {passo.acao ? <Botao rotulo={passo.acao.rotulo} aoTocar={passo.acao.aoTocar} /> : null}
     </View>

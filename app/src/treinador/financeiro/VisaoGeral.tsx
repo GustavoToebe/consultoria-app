@@ -7,7 +7,7 @@ import { listarCobrancasDoAluno, listarInadimplentes, painelFinanceiro, visaoGer
 import {
   ATALHOS_DE_PERIODO, atrasoParaTela, cartoesDoPainel, DEFINICOES_DO_PAINEL, hojeEmBrasilia, inadimplenciaParaTela, LIMITES_DOS_DADOS,
   liquidoParaTela, periodoDoPainel, rotuloDaForma, serieDoGrafico, valorEQuantidadeParaTela, type AtalhoDePeriodo, type CartaoDoPainel,
-  NOTA_CONSIDERA_GERADAS,
+  NOTA_CONSIDERA_GERADAS, NOTA_REGISTROS_DISPONIVEIS,
 } from '../../dominio/financeiro';
 import { dataSemAnoCorrente } from '../../dominio/datasRelativas';
 import { centavosParaTela, dataParaTela } from '../../dominio/formatos';
@@ -31,6 +31,7 @@ import { Tabela } from '../../ui/Tabela';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 import { EscolhaResponsabilidade, type Responsabilidade } from '../EscolhaResponsabilidade';
+import { AvisoDoHistoricoParcial } from './AvisoDoHistoricoParcial';
 import { FolhaDaCobranca } from './FolhaDaCobranca';
 import { ResultadoDoMes } from './ResultadoDoMes';
 
@@ -97,8 +98,9 @@ export function VisaoGeral({ escopo, aoMudarEscopo, podeAlterar }: {
         <>
           <Texto variante="suave">
             {dataParaTela(dados.periodo.de)} a {dataParaTela(dados.periodo.ate)}
-            {dados.somenteMeus ? ' · só os seus alunos' : ''}. Onde aparece “—”, o número não está disponível.
+            {dados.somenteMeus ? ' · só os seus alunos' : ''}. Onde aparece “—”, o número não está disponível. {NOTA_REGISTROS_DISPONIVEIS}
           </Texto>
+          <AvisoDoHistoricoParcial painel={dados} />
           <View style={estilos.indicadores}>
             {cartoesDoPainel(dados.cartoes).map((c) => (
               <Indicador key={c.chave} cartao={c} />

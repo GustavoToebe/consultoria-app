@@ -1,6 +1,10 @@
 import type { CobrancaDoAluno, MesDoPainel, MotivoDaConferencia } from '../api/financeiroTipos';
 import {
   abertasDaContratacao,
+  avisoDoHistoricoParcial,
+  linhasDaTabelaDoGrafico,
+  motivoDoResultadoNulo,
+  NOTA_REGISTROS_DISPONIVEIS,
   alternarNoLote,
   contagemDoLote,
   cpfMascarado,
@@ -372,6 +376,55 @@ describe('gráfico', () => {
     const texto = espacos(descricaoDoGrafico(serieDoGrafico([mes('2026-05', 1000, null), mes('2026-06', 500, 700)])));
     expect(texto).toContain('mai/2026: recebido R$ 10,00');
     expect(texto).toContain('jun/2026: recebido R$ 5,00, previsto R$ 7,00');
+  });
+  it('recebido 0 do mês é zero (barra zerada, "R$ 0,00"); nulo é sem dado ("—"), nunca zero', () => {
+    const barras = serieDoGrafico([mes('2026-05', 0, null), mes('2026-06', null, null), mes('2026-07', 1000, null)]);
+    expect(barras.map((b) => b.realizado)).toEqual([0, null, 1000]);
+    expect(graficoTemDados(serieDoGrafico([mes('2026-05', 0, null)]))).toBe(true);
+    expect(linhasDaTabelaDoGrafico(barras).map((l) => espacos(l.realizado))).toEqual(['R$ 0,00', '—', 'R$ 10,00']);
+    const texto = espacos(descricaoDoGrafico(barras));
+    expect(texto).toContain('mai/2026: recebido R$ 0,00');
+    expect(texto).toContain('jun/2026: recebido —');
+    // O resultado da série não entra no gráfico nem em soma: só recebido e previsto.
+    expect(maiorValorDoGrafico(barras)).toBe(1000);
+  });
+});
+
+describe('resultado do mês nulo', () => {
+  it('com "Meus": os lançamentos avulsos não entram', () => {
+    expect(motivoDoResultadoNulo({ somenteMeus: true, mes: '2026-10', hoje: '2026-10-19', entradas: null, saidas: null })).toBe('Os lançamentos avulsos não entram no filtro "Meus".');
+  });
+  it('mês depois do corrente: ainda não aconteceu (vale mais que a falta de lançamento)', () => {
+    expect(motivoDoResultadoNulo({ mes: '2026-11', hoje: '2026-10-19', entradas: null, saidas: null })).toBe('Este mês ainda não aconteceu.');
+  });
+  it('entrada ou saída nula: sem lançamentos registrados', () => {
+    const motivo = 'Sem lançamentos avulsos registrados neste mês, então o resultado não pode ser calculado.';
+    expect(motivoDoResultadoNulo({ mes: '2026-10', hoje: '2026-10-19', entradas: null, saidas: 0 })).toBe(motivo);
+    expect(motivoDoResultadoNulo({ mes: '2026-10', hoje: '2026-10-19', entradas: 0, saidas: null })).toBe(motivo);
+    expect(motivoDoResultadoNulo({ mes: '2026-10', hoje: '2026-10-19' })).toBe(motivo);
+  });
+  it('o mês corrente e os anteriores não são "futuro"; sem nenhuma parcela nula não inventa causa', () => {
+    expect(motivoDoResultadoNulo({ mes: '2026-10', hoje: '2026-10-31', entradas: 0, saidas: 0 })).toBeNull();
+    expect(motivoDoResultadoNulo({ mes: '2026-09', hoje: '2026-10-01', entradas: 0, saidas: 0 })).toBeNull();
+  });
+  it('o resultado 0 de verdade segue "R$ 0,00" na tela', () => {
+    const r = resultadoDoMesParaTela({ rotulo: 'x', mes: '2026-10', recebidoCentavos: 0, entradasAvulsasCentavos: 0, saidasAvulsasCentavos: 0, resultadoCentavos: 0 });
+    expect(r.resultado).toBe('R$ 0,00');
+  });
+});
+
+describe('ressalvas informativas do Financeiro', () => {
+  it('a frase geral dos registros disponíveis é a decidida', () => {
+    expect(NOTA_REGISTROS_DISPONIVEIS).toBe('Os valores consideram os registros disponíveis no sistema.');
+  });
+  it('histórico parcial: o texto exato só com true; false, ausente ou sem painel não mostram nada', () => {
+    expect(avisoDoHistoricoParcial({ historicoFinanceiroParcial: true })).toBe(
+      'Parte do histórico financeiro foi removida em uma limpeza anterior. Os valores exibidos consideram os registros preservados e podem não representar todo o movimento dos períodos afetados.',
+    );
+    expect(avisoDoHistoricoParcial({ historicoFinanceiroParcial: false })).toBeNull();
+    expect(avisoDoHistoricoParcial({})).toBeNull();
+    expect(avisoDoHistoricoParcial(null)).toBeNull();
+    expect(avisoDoHistoricoParcial(undefined)).toBeNull();
   });
 });
 

@@ -1048,10 +1048,11 @@ export interface ResultadoValidacao {
 // ---- Início e acompanhamento ----
 
 export interface PainelTreinador {
-  atualizacoesParaRevisar: number;
-  atualizacoesAtrasadas: number;
-  atualizacoesAvisaramAtraso: number;
-  atualizacoesProximas: number;
+  /** As quatro contagens de atualização: nulo sem `ATUALIZACAO_LER` + `ALUNO_SENSIVEL_LER` (nunca 0 no lugar da permissão). */
+  atualizacoesParaRevisar: number | null;
+  atualizacoesAtrasadas: number | null;
+  atualizacoesAvisaramAtraso: number | null;
+  atualizacoesProximas: number | null;
   alunosAtivos: number;
   alunosSemRegistro: { id: string; nome: string; ultimoRegistro: string | null }[];
   ultimasExecucoes: { aluno: { id: string; nome: string }; data: string; sessao: string; series: number }[];

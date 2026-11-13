@@ -280,6 +280,11 @@ export interface Painel {
   proximosRecebimentos: ProximosRecebimentos;
   resultadoDoMes: ResultadoDoMes;
   liquido: Liquido;
+  /**
+   * Informativo (13/11): `true` quando parte do histórico financeiro da consultoria foi removida numa limpeza anterior. Não
+   * muda valor, fórmula nem permissão e nunca diz quais períodos estão completos; ausente (API antiga, mocks) vale `false`.
+   */
+  historicoFinanceiroParcial?: boolean;
 }
 
 export interface Inadimplente {

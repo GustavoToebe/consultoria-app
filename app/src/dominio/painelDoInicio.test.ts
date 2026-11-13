@@ -255,11 +255,36 @@ describe('Atualizações', () => {
     expect(cartaoDe(b, 'atualizacoes.atrasadas').falado).toBe('Atualizações atrasadas: não carregou');
   });
 
-  it('campo nulo numa resposta ok também é "Não carregou", não 0', () => {
-    const b = bloco('atualizacoes', fontes({ painel: fontePronta(painel({ atualizacoesAtrasadas: null as unknown as number })) }));
+  it('campo ausente numa resposta ok é "Não carregou" (falha), não 0', () => {
+    const b = bloco('atualizacoes', fontes({ painel: fontePronta(painel({ atualizacoesAtrasadas: undefined as unknown as number })) }));
     expect(cartaoDe(b, 'atualizacoes.atrasadas').estado).toBe('naoCarregou');
     expect(cartaoDe(b, 'atualizacoes.paraRevisar').estado).toBe('valor');
     expect(b.falhou).toBe(false);
+  });
+
+  it('nulo de permissão nas contagens de atualização: "Sem permissão", neutro, sem número, sem abrir lista nem "Atualizar"', () => {
+    const nulas = { atualizacoesParaRevisar: null, atualizacoesAtrasadas: null, atualizacoesAvisaramAtraso: null, atualizacoesProximas: null };
+    const b = bloco('atualizacoes', fontes({ painel: fontePronta(painel(nulas)) }));
+    for (const c of [...b.cartoes, b.linha!]) {
+      expect(c).toMatchObject({ estado: 'semPermissao', texto: 'Sem permissão', valor: null, enfase: 'indisponivel', destino: null });
+    }
+    expect(cartaoDe(b, 'atualizacoes.atrasadas').falado).toBe('Atualizações atrasadas: sem permissão');
+    expect(b.falhou).toBe(false);
+    expect(b.carregando).toBe(false);
+  });
+
+  it('com as quatro contagens nulas e outras em zero, só o nulo diz "Sem permissão"; zero segue número', () => {
+    const b = bloco('atualizacoes', fontes({ painel: fontePronta(painel({ atualizacoesParaRevisar: 0, atualizacoesAtrasadas: null })) }));
+    expect(cartaoDe(b, 'atualizacoes.paraRevisar')).toMatchObject({ estado: 'valor', texto: '0', enfase: 'zero' });
+    expect(cartaoDe(b, 'atualizacoes.atrasadas').estado).toBe('semPermissao');
+  });
+
+  it('o bloco Atualizações exige as duas permissões', () => {
+    const base = { pagamentosHabilitados: false, retornoHabilitado: false };
+    const com = (...codigos: string[]) => ({ ...base, pode: (c: string) => codigos.includes(c) });
+    expect(blocoDisponivel('atualizacoes', com('PAINEL_VER', 'ATUALIZACAO_LER', 'ALUNO_SENSIVEL_LER'))).toBe(true);
+    expect(blocoDisponivel('atualizacoes', com('PAINEL_VER', 'ATUALIZACAO_LER'))).toBe(false);
+    expect(blocoDisponivel('atualizacoes', com('PAINEL_VER', 'ALUNO_SENSIVEL_LER'))).toBe(false);
   });
 
   it('carregando: cartões em "…", sem tom de alerta', () => {
@@ -442,6 +467,23 @@ describe('Financeiro', () => {
     }));
     expect(cartaoDe(b, 'financeiro.vencidas')).toMatchObject({ estado: 'valor', texto: 'R$ 0', enfase: 'zero', detalhe: null });
     expect(cartaoDe(b, 'financeiro.vencendo')).toMatchObject({ estado: 'valor', texto: 'R$ 0', enfase: 'zero' });
+  });
+
+  it('o bloco diz que vencidas e vencendo só contam as cobranças já geradas', () => {
+    expect(bloco('financeiro').nota).toBe('Vencidas e vencendo consideram só as cobranças já geradas.');
+  });
+
+  it('histórico parcial: a ressalva entra na nota do bloco e nas notas do gráfico, sem mexer em valor; false não muda nada', () => {
+    const aviso = 'Parte do histórico financeiro foi removida em uma limpeza anterior.';
+    const parcial = fontes({ financeiro: fontePronta(financeiro({ historicoFinanceiroParcial: true })) });
+    expect(bloco('financeiro', parcial).nota).toContain(aviso);
+    expect(bloco('financeiro', parcial).nota).toContain('já geradas');
+    const grafico = bloco('recebido', parcial).grafico;
+    expect(grafico?.tipo === 'barras' && grafico.notas.filter((n) => n.startsWith(aviso))).toHaveLength(1);
+    const normal = fontes({ financeiro: fontePronta(financeiro({ historicoFinanceiroParcial: false })) });
+    expect(bloco('financeiro', normal).nota).toBe('Vencidas e vencendo consideram só as cobranças já geradas.');
+    const g = bloco('recebido', normal).grafico;
+    expect(g?.tipo === 'barras' && g.notas.some((n) => n.includes('limpeza anterior'))).toBe(false);
   });
 
   it('há cobranças mas o valor veio nulo: "Não carregou", nunca R$ 0', () => {

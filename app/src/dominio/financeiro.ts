@@ -23,14 +23,30 @@ import { contagemParaTela, rotuloDoMes, rotuloDoMesCompleto } from './numeros';
 
 /**
  * Regras puras do financeiro do aluno ao treinador. Dinheiro em centavos inteiros; `null` da API é "sem dado" e aparece
- * como "—" (nunca zero inventado). `vencida` e `diasDeAtraso` vêm da API, calculados em Brasília: nada aqui decide
- * "vencida" pela data do aparelho. O app nunca calcula valor de cobrança.
+ * como "—" (nunca zero inventado), com UMA exceção conhecida e provisória (`somaOuZero`, D6 de
+ * `docs/planos/nulo-e-cobertura.md`, 13/11): `recebido`, `aReceber`, `receitaRecorrente` e `alunosPagantes` nulos, que a API
+ * devolve para a soma vazia VÁLIDA, são lidos como 0 nos períodos do painel. Isso muda quando a API separar "consulta
+ * concluída sem registro" de "sem dado"; o `resultado` (que o servidor já converteu com `nz`) o app não recupera.
+ * `vencida` e `diasDeAtraso` vêm da API, calculados em Brasília: nada aqui decide "vencida" pela data do aparelho. O app
+ * nunca calcula valor de cobrança.
  */
 
 // ---- Textos fixos ----
 
 /** Dito ao lado de inadimplência, previsto e atrasado: o painel só enxerga cobranças que já existem. */
 export const NOTA_CONSIDERA_GERADAS = 'considera as cobranças já geradas';
+
+/** Frase geral do Financeiro (Visão geral e Lançamentos), uma vez por tela, ao lado das notas de "cobranças já geradas". */
+export const NOTA_REGISTROS_DISPONIVEIS = 'Os valores consideram os registros disponíveis no sistema.';
+
+/** Ressalva informativa de `Painel.historicoFinanceiroParcial` (13/11): texto exato decidido pelo Gustavo. */
+export const AVISO_HISTORICO_PARCIAL =
+  'Parte do histórico financeiro foi removida em uma limpeza anterior. Os valores exibidos consideram os registros preservados e podem não representar todo o movimento dos períodos afetados.';
+
+/** O aviso quando a API marca o histórico como parcial; `null` (sem aviso) para `false`, ausente ou sem painel. */
+export function avisoDoHistoricoParcial(p: { historicoFinanceiroParcial?: boolean } | null | undefined): string | null {
+  return p?.historicoFinanceiroParcial === true ? AVISO_HISTORICO_PARCIAL : null;
+}
 
 /** Rótulo fixo do resultado do mês: não é lucro, só o que foi registrado. */
 export const ROTULO_RESULTADO_DO_MES = 'Resultado do mês (entradas − saídas registradas)';
@@ -630,6 +646,24 @@ export interface ResultadoDoMesNaTela {
   resultado: string;
   /** Os mesmos números crus, para a cor (`enfaseDoNumero`); o recebido já com a soma vazia como zero. */
   centavos: { recebido: number | null | undefined; entradas: number | null | undefined; saidas: number | null | undefined; resultado: number | null | undefined };
+}
+
+export const MOTIVO_RESULTADO_COM_MEUS = 'Os lançamentos avulsos não entram no filtro "Meus".';
+export const MOTIVO_RESULTADO_MES_FUTURO = 'Este mês ainda não aconteceu.';
+export const MOTIVO_RESULTADO_SEM_LANCAMENTOS = 'Sem lançamentos avulsos registrados neste mês, então o resultado não pode ser calculado.';
+
+/**
+ * Por que o resultado do mês veio nulo (a API o devolve nulo quando recebido, entradas ou saídas não estão disponíveis;
+ * nulo nunca é zero nem entra em soma). Só vale chamar com o resultado nulo. `mes` é `AAAA-MM`, `hoje` a data ISO de
+ * Brasília. Sem motivo conhecido (nenhuma parcela nula) devolve `null`: a tela fica no "—" padrão, sem inventar causa.
+ */
+export function motivoDoResultadoNulo(o: {
+  somenteMeus?: boolean; mes?: string | null; hoje: string; entradas?: number | null; saidas?: number | null;
+}): string | null {
+  if (o.somenteMeus) return MOTIVO_RESULTADO_COM_MEUS;
+  if (o.mes && o.mes > o.hoje.slice(0, 7)) return MOTIVO_RESULTADO_MES_FUTURO;
+  if (typeof o.entradas !== 'number' || typeof o.saidas !== 'number') return MOTIVO_RESULTADO_SEM_LANCAMENTOS;
+  return null;
 }
 
 /**

@@ -1,6 +1,6 @@
 import type { ResultadoDoMes as ResultadoApi } from '../../api/financeiroTipos';
 import { enfaseDoNumero, type FuncaoDeDestaque } from '../../dominio/destaque';
-import { resultadoDoMesParaTela } from '../../dominio/financeiro';
+import { hojeEmBrasilia, motivoDoResultadoNulo, resultadoDoMesParaTela } from '../../dominio/financeiro';
 import { colunasDosIndicadores } from '../../dominio/grade';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
@@ -29,13 +29,17 @@ export function ResultadoDoMes({ resultado, somenteMeus, periodo }: {
   const { fatorTexto } = useTema();
   const r = resultadoDoMesParaTela(resultado);
   const motivo = somenteMeus ? MOTIVO_DO_FILTRO_MEUS : undefined;
+  // Resultado nulo: o motivo fica escrito sob o "—" (nunca zero). Resultado 0 de verdade segue "R$ 0,00".
+  const motivoDoResultado = typeof resultado?.resultadoCentavos === 'number' ? undefined : motivoDoResultadoNulo({
+    somenteMeus, mes: resultado?.mes, hoje: hojeEmBrasilia(), entradas: resultado?.entradasAvulsasCentavos, saidas: resultado?.saidasAvulsasCentavos,
+  }) ?? undefined;
   return (
     <Cartao titulo={r.rotulo} descricao={r.descricao} periodo={periodo}>
       <Grade gap={espaco(1.5)} colunas={(l) => colunasDosIndicadores(l, fatorTexto)}>
         <Parcela rotulo="Recebido das cobranças" valor={r.recebido} centavos={r.centavos.recebido} destaque="azul" />
         <Parcela rotulo="Entradas avulsas" valor={r.entradas} centavos={r.centavos.entradas} destaque="violeta" motivo={motivo} />
         <Parcela rotulo="Saídas avulsas" valor={r.saidas} centavos={r.centavos.saidas} destaque="vermelho" motivo={motivo} />
-        <Parcela rotulo="Resultado" valor={r.resultado} centavos={r.centavos.resultado} destaque={null} motivo={motivo} />
+        <Parcela rotulo="Resultado" valor={r.resultado} centavos={r.centavos.resultado} destaque={null} motivo={motivoDoResultado} />
       </Grade>
       {somenteMeus ? <Texto variante="suave">Com o filtro “Meus”, os lançamentos avulsos não entram, porque não pertencem a um aluno.</Texto> : null}
     </Cartao>
@@ -48,6 +52,6 @@ function Parcela({ rotulo, valor, centavos, destaque, motivo }: {
 }) {
   return (
     <NumeroDeDestaque rotulo={rotulo} valor={valor} enfase={enfaseDoNumero(destaque, centavos)} motivo={motivo} tamanho="medio"
-      rotuloAcessivel={`${rotulo}: ${valor}`} />
+      rotuloAcessivel={`${rotulo}: ${valor}${motivo && typeof centavos !== 'number' ? `. ${motivo}` : ''}`} />
   );
 }
