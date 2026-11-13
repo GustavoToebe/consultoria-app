@@ -127,7 +127,7 @@ export interface OpcaoDeMedida {
   detalhe: string;
 }
 
-function valorDaMedida(a: AvaliacaoFisica, campo: CampoDaMedida): number | null {
+export function valorDaMedida(a: AvaliacaoFisica, campo: CampoDaMedida): number | null {
   const v = a.medidas[campo];
   return v === null || v === undefined || Number.isNaN(v) ? null : v;
 }
