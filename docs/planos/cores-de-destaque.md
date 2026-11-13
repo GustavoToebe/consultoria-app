@@ -1,0 +1,36 @@
+# Cores de destaque: mais cor, com significado
+
+Situação: Em andamento: P0 (cores) em execução; P1 a P3 são frentes separadas, ainda sem plano próprio · Onde: `main`, commits locais, sem push · Atualizado: 13/11/2026
+
+## Objetivo
+Tirar a aparência monocromática do treinador levando aos pontos importantes (números dos indicadores, macros, tipos de série) a linguagem de cor já aprovada nas séries e nos macronutrientes: cor viva em área pequena (marcador, rótulo, número, faixa), superfície neutra. Fonte única: PDF `guia-cores-painel-e-comunidade.pdf` (Gustavo, 13/11/2026), que manda neste plano.
+
+## Decisões
+| # | Decisão | Valor | Quem decidiu |
+| --- | --- | --- | --- |
+| D1 | Este PDF vale mais que a "Dose de cor" de 10/11 (`visual-vendavel.md`, itens 1 e 3: "nunca número colorido", status só na exceção) e que a nota de cor contida de 11/11: o número principal do indicador pode levar a cor da sua função, com fundo tonalizado. O resto da regra segue: título, descrição e controles neutros, marca só nos lugares da lista fechada de `docs/design-e-front.md` 4.5, cor nunca sozinha (texto, ícone ou marcador junto) | PDF p. 1, 3, 6 | Gustavo, 13/11 |
+| D2 | Quatro funções da cor, que não se misturam: **marca** (identidade e ação), **situação** (verde conclusão, âmbar ação pendente, vermelho atraso/erro/destrutivo), **categoria** (P/C/G e tipos de série, estável) e **indicador** (azul, ciano, violeta: medida, tendência ou atividade, sem dizer se é bom ou ruim). Trocar a marca não muda as outras três | PDF p. 3 | Gustavo, 13/11 |
+| D3 | Tokens novos de **destaque**, por função e por modo (escuro: azul `#60A5FA`, ciano `#67E8F9`, verde `#86EFAC`, âmbar `#FCD34D`, vermelho `#FDA4AF`, violeta `#C4B5FD`; claro: `#1D4ED8`, `#0E7490`, `#166534`, `#92400E`, `#B91C1C`, `#6D28D9`). Pontos de partida: reaproveitar token equivalente se já existir, ajustar no tema e nunca espalhar HEX por tela. Não substituem as cores de categoria (P/C/G e séries seguem a tabela da p. 5) | PDF p. 4 | Gustavo, 13/11 |
+| D4 | Fundo tonalizado: mistura do destaque sobre a superfície, cerca de 8% no escuro e 6% no claro, composta (nunca opacidade no componente inteiro). O contraste é medido na cor composta, em cada uma das 10 paletas, sem arredondar para aprovar | PDF p. 4, 11 | Gustavo, 13/11 |
+| D5 | Zero ou dado indisponível: número sem ênfase (`textoSuave`), sem cor de função. "0 atrasadas" é neutro; "Sem dados" não é zero e não leva cor de sucesso; prazo próximo não é erro | PDF p. 6, 8 | Gustavo, 13/11 |
+| D6 | Mapa por tela (proposta do PDF, aplicada como está): **Início/Atualizações** "Para revisar" âmbar, "Atrasadas" vermelho, concluídas/revisadas verde (quando o dado existir), próximas datas azul; **Interessados** entradas ciano, pessoas azul, aceites verde, conversão violeta, tempo até aceite azul com rótulo "mediana", reaberturas ciano, recusas e desistências **neutro** (o PDF aceita âmbar ou neutro; escolhido o neutro por não tratar como falha); **Financeiro** recebido e entradas azul, a receber ciano, receita recorrente mensal violeta, vencidas e saídas vermelho com rótulo, pago verde; **Treinos** concluídos verde, recordes violeta, ausência de registro âmbar (vermelho só com regra real de atraso); **Pastas** renovação próxima âmbar, vencida vermelho, "em dia" verde só com estado explícito; **Agenda** cores das agendas, sem recolorir pela marca | PDF p. 8, 9 | Gustavo, 13/11 (escolha do neutro: Claude, a confirmar) |
+| D7 | Lista de Atualizações: cor só no selo da situação, marcador lateral ou prazo crítico; nome do aluno e conteúdo principal seguem fortes; nunca a linha inteira vermelha | PDF p. 8 | Gustavo, 13/11 |
+| D8 | P/C/G com marcador e sigla nas mesmas cores do aluno (P ciano, C azul, G violeta) na Biblioteca, busca, editor de alimento, refeições, substituições e totais, com valores legíveis e legenda, nunca bolinha minúscula sem sigla. Tipos de série na metodologia pelo mesmo mapeamento do treino (`corDoTipoDeSerie`), sem tabela nova; tipo personalizado usa o fallback do domínio e mostra o nome. A cor não muda cálculo de porção, unidade ou macro | PDF p. 5, 10 | Gustavo, 13/11 |
+| D9 | Seleção, foco e conclusão seguem sinais próprios (contorno e marca de seleção); a cor de tipo não vira vermelho da marca ao selecionar | PDF p. 5 | Gustavo, 13/11 |
+| D10 | Aceite: destaque perceptível e significado igual entre treinador e aluno, tela calma. Texto ≥ 4,5:1 e sinais de controle ≥ 3:1 contra o fundo real; matriz mínima: Início, Atualizações, Interessados, Financeiro, Biblioteca, editor de dieta e metodologia, nas paletas Escuro, Claro, Areia, Lavanda, Céu e Rosa, com alto contraste e bordas reforçadas, em 390, 1280, 1440, 1920 px e intermediárias; estados valor positivo, zero, indisponível, nome longo, erro, carregando, seleção, foco; marca em vermelho, azul e outra cor intensa | PDF p. 11, 21 | Gustavo, 13/11 |
+| D11 | Sem push e sem publicação; commits organizados, com hashes, testes e pendências no relatório | PDF p. 1, 22 | Gustavo, 13/11 |
+
+## Passos
+- [ ] 1. Tokens de destaque (D3, D4) em `tema/tokens.ts` com teste de contraste do fundo composto nas 10 paletas, e peça compartilhada de número de destaque (D5) — responsável: executor-front — commit: —
+- [ ] 2. Início e Atualizações (D6, D7): `CartaoMini`, `ProximoPasso`, lista de Atualizações — responsável: executor-front — commit: —
+- [ ] 3. Interessados e Financeiro (D6): `Indicadores.tsx`, `VisaoGeral.tsx` — responsável: executor-front — commit: —
+- [ ] 4. Biblioteca, editor de dieta, totais, substituições e metodologia (D8, D9) — responsável: executor-front — commit: —
+- [ ] 5. Documentação (`design-e-front.md` 4.5 e "Dose de cor", `AGENTS.md`), Ajuda se citar cor, memória de cor contida — responsável: executor — commit: —
+- [ ] 6. Verificação da matriz (D10), capturas finais e revisão independente — responsável: revisor e executor-front — commit: —
+
+## Fora do escopo
+- **P1 Início editável** (arrastar, redimensionar, adicionar, remover, migrar preferências), **P2 enquetes e reações** e **P3 capas e player de vídeo** são frentes separadas, cada uma com plano e revisão própria, na ordem do PDF (p. 21). Nenhuma delas adia a melhoria visual. P2 e P3 pedem revisar contratos e permissões (V071 registrou vídeo externo sem token e curtida única); decisões em aberto de P2: voto identificado, quem cria enquete, reação da equipe.
+- Fórmulas financeiras, de treino e de dieta; gráficos novos só para ganhar cor.
+
+## O que ficou para trás
+- (preencher ao entregar; cada sobra também vai para "Pendências soltas" no README)
