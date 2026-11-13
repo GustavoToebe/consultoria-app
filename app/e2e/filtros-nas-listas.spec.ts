@@ -233,7 +233,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       expect(errosDaPagina).toEqual([]);
     });
 
-    test('Cobranças: busca pelo aluno, várias situações, plano e forma; o aluno vem do endereço e o ✕ o tira', async ({ page }) => {
+    test('Cobranças: busca pelo aluno, várias situações, plano e forma; o aluno vem do endereço e "Ver cobranças de todos os alunos" o tira', async ({ page }) => {
       await fixarHoje(page);
       const PLANO = 'b0000000-0000-4000-8000-0000000000f1';
       const paga = { ...COBRANCA_ATRASADA, id: 'c0000000-0000-4000-8000-0000000000a9', alunoNome: 'Bruno Exemplo', situacao: 'PAGA' as const,
@@ -243,14 +243,19 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
         ...(await sessaoComFinanceiro(page, undefined, false)),
         ...rotasDoFinanceiro(estado),
         'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+        [`GET /alunos/${COBRANCA_ATRASADA.alunoId}`]: { corpo: { id: COBRANCA_ATRASADA.alunoId, nome: COBRANCA_ATRASADA.alunoNome } },
         'GET /financeiro/planos': (p, route) => json(route, p.busca.get('arquivados') === 'true' ? []
           : [{ id: PLANO, nome: 'Consultoria mensal', valorCentavos: 15_000, periodicidade: 'MENSAL', arquivado: false, criadoEm: '2026-10-01T12:00:00Z', versao: 0 }]),
       });
       await page.goto(`/treinador/financeiro?aba=cobrancas&alunoId=${COBRANCA_ATRASADA.alunoId}`);
-      await expect(page.getByRole('button', { name: `Tirar filtro: Aluno: ${COBRANCA_ATRASADA.alunoNome}` })).toBeVisible();
+      // O aluno é o contexto da lista (faixa à parte), não um chip nem um critério do contador.
+      const faixa = page.getByRole('group', { name: 'Aluno', exact: true });
+      await expect(faixa.getByText(COBRANCA_ATRASADA.alunoNome!, { exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: /^Filtros, nenhum ligado/ })).toBeVisible();
       expect(ultimo(pedidos, '/financeiro/cobrancas')?.get('alunoId')).toBe(COBRANCA_ATRASADA.alunoId);
-      await page.getByRole('button', { name: `Tirar filtro: Aluno: ${COBRANCA_ATRASADA.alunoNome}` }).click();
+      await faixa.getByRole('button', { name: 'Ver cobranças de todos os alunos' }).click();
       await expect.poll(() => ultimo(pedidos, '/financeiro/cobrancas')?.has('alunoId')).toBe(false);
+      await expect(faixa).toHaveCount(0);
 
       await page.getByRole('textbox', { name: 'Buscar' }).fill('bruno');
       await expect.poll(() => ultimo(pedidos, '/financeiro/cobrancas')?.get('busca')).toBe('bruno');

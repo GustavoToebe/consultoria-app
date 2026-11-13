@@ -22,6 +22,22 @@ describe('errosDoPeriodoDigitado', () => {
   it('Até antes de De marca o Até', () => {
     expect(errosDoPeriodoDigitado('10/10/2026', '01/10/2026')).toEqual({ de: null, ate: 'Fim antes do início.' });
   });
+  it('com a faixa: data fora dela é erro no campo, com o nome dele e sem repetir o valor', () => {
+    const regras = { regra: 'PLANEJAMENTO' as const, nomes: { de: 'Entrada, data inicial', ate: 'Entrada, data final' }, hoje: '2026-10-19' };
+    expect(errosDoPeriodoDigitado('01/01/1990', '', regras)).toEqual({ de: 'Entrada, data inicial: use uma data entre 01/01/2000 e 31/12/2031', ate: null });
+    expect(errosDoPeriodoDigitado('', '01/01/2099', regras).ate).toBe('Entrada, data final: use uma data entre 01/01/2000 e 31/12/2031');
+    expect(errosDoPeriodoDigitado('01/10/2026', '31/10/2026', regras)).toEqual({ de: null, ate: null });
+  });
+  it('intervalo aberto só é erro onde a tela pede as duas datas (`osDois`); o campo vazio é que fica marcado', () => {
+    expect(errosDoPeriodoDigitado('01/10/2026', '')).toEqual({ de: null, ate: null });
+    expect(errosDoPeriodoDigitado('01/10/2026', '', { osDois: true })).toEqual({ de: null, ate: 'Preencha a data final ou apague a inicial.' });
+    expect(errosDoPeriodoDigitado('', '01/10/2026', { osDois: true })).toEqual({ de: 'Preencha a data inicial ou apague a final.', ate: null });
+    expect(errosDoPeriodoDigitado('', '', { osDois: true })).toEqual({ de: null, ate: null });
+  });
+  it('período mais longo que o máximo marca o Até; dentro dele, nada', () => {
+    expect(errosDoPeriodoDigitado('01/01/2026', '31/12/2026', { osDois: true, maximoDias: 366 })).toEqual({ de: null, ate: null });
+    expect(errosDoPeriodoDigitado('01/01/2026', '01/02/2027', { osDois: true, maximoDias: 366 })).toEqual({ de: null, ate: 'Escolha um período de até 366 dias.' });
+  });
 });
 
 describe('selecaoDepoisDosFiltros', () => {

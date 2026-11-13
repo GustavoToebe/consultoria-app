@@ -1,9 +1,10 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { UserRound } from 'lucide-react-native';
+import { useCallback, useRef, useState } from 'react';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import type { CobrancaResponse } from '../../api/financeiroTipos';
-import { listarCobrancas, listarPlanosComerciais } from '../../api/rotas';
+import { aluno, listarCobrancas, listarPlanosComerciais } from '../../api/rotas';
 import {
   alternarNoLote, atrasoParaTela, contagemDoLote, cpfMascarado, ehPagamentoOnline, emissaoDaCobranca, estadoDaPaginaNoLote,
   hojeEmBrasilia, idCurtoDaCobranca, marcarPaginaNoLote, opcoesDePlanoDoFiltro, podeEntrarNoLote, problemaDoLote, resumoDaCobranca,
@@ -12,19 +13,21 @@ import {
 import { paraSetParams } from '../../dominio/filtrosComuns';
 import {
   CHAVES_DE_COBRANCAS, chaveDasCobrancas, chipsDasCobrancas, cobrancasParaApi, cobrancasParaEndereco, descricaoDasCobrancas,
-  FORMAS_DO_FILTRO, lerCobrancasDoEndereco, SEM_FILTROS_DE_COBRANCAS, semOFiltroDeCobrancas, SITUACOES_DO_FILTRO, temVencimento,
+  FORMAS_DO_FILTRO, lerCobrancasDoEndereco, limpoDasCobrancas, SEM_FILTROS_DE_COBRANCAS, semOFiltroDeCobrancas, SITUACOES_DO_FILTRO, temVencimento,
   textoDoVencimento, type ChaveDoFiltroDeCobrancas, type FiltrosDeCobrancas, type FormaDoFiltro, type SituacaoDoFiltro,
 } from '../../dominio/filtrosDoFinanceiro';
 import { centavosParaTela, dataParaTela, SEM_DADO } from '../../dominio/formatos';
 import { selecaoDepoisDosFiltros } from '../../dominio/painelDeFiltros';
 import { rotuloDoMes } from '../../dominio/numeros';
 import { useSessao } from '../../sessao/SessaoProvider';
-import { espaco } from '../../tema/tokens';
+import { useTema } from '../../tema/TemaProvider';
+import { espaco, RAIO } from '../../tema/tokens';
 import { OPCOES_RESPONSABILIDADE } from '../EscolhaResponsabilidade';
 import { UmaOpcao } from '../SeletoresDeFiltro';
 import { useAviso } from '../../ui/Aviso';
 import { BarraDeFiltros, GrupoDoPainel } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
+import { CampoLeitura } from '../../ui/CampoLeitura';
 import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
 import { Esqueleto } from '../../ui/Esqueleto';
@@ -63,7 +66,8 @@ const dataOuNada = (iso: string | null | undefined) => (iso ? dataParaTela(iso) 
  * ou um período; emissão; pagamento), com rascunho até o "Aplicar filtros".
  * Tudo no endereço junto do `?aba=cobrancas` (`?meus=true&situacao=ABERTA,PAGA&vencimento=PROXIMOS_7_DIAS` ou `&de=&ate=`,
  * `&emissaoDe=&emissaoAte=&pagoDe=&pagoAte=&planoId=&forma=`), como os mini-cartões do Início abrem. Um aluno só chega pelo
- * endereço (`&alunoId=`, o "Ver no Financeiro" da ficha) e sai pelo ✕ do chip. Valor desconhecido no endereço é ignorado.
+ * endereço (`&alunoId=`, o "Ver no Financeiro" da ficha): é o contexto da lista (`FaixaDoAluno`), fica com "Limpar filtros"
+ * e só sai por "Ver cobranças de todos os alunos". Valor desconhecido no endereço é ignorado.
  *
  * Com `FINANCEIRO_ALTERAR`, cada cobrança em aberto (vencida incluída) tem a caixa de marcar ao lado da linha (fora do
  * toque que a abre) e a barra do lote conta as marcadas, seleciona as da página e abre a revisão obrigatória
@@ -115,8 +119,20 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
   // Filtro novo ainda carregando: as linhas à vista são as do filtro anterior, então o lote e a descrição esperam a resposta.
   const desatualizada = !!lista.dadosDeOutraChave;
   const paginas = dados ? Math.max(1, Math.ceil(dados.total / TAMANHO_PAGINA)) : 1;
-  const nomeDoAluno = filtros.alunoId ? dados?.itens.find((c) => c.alunoId === filtros.alunoId)?.alunoNome ?? null : null;
-  const chips = chipsDasCobrancas(filtros, hoje, { aluno: nomeDoAluno, plano: nomeDoPlano });
+  // O aluno de quem chegou pela ficha: o nome vem da ficha (`GET /alunos/{id}`, a mesma `ALUNO_LER` que o Financeiro exige),
+  // com o da lista de reserva; nunca vai ao endereço.
+  const alunoDaFicha = useCarregar(filtros.alunoId ? `aluno-das-cobrancas|${filtros.alunoId}` : null, () => aluno(filtros.alunoId!));
+  const nomeDoAluno = filtros.alunoId
+    ? (alunoDaFicha.dadosDeOutraChave ? null : alunoDaFicha.dados?.nome) ?? dados?.itens.find((c) => c.alunoId === filtros.alunoId)?.alunoNome ?? null
+    : null;
+  const textoDoAluno = nomeDoAluno ?? (alunoDaFicha.carregando ? 'Carregando o aluno…' : 'Aluno escolhido');
+  const barra = useRef<View>(null);
+  const verTodos = () => {
+    aplicar(semOFiltroDeCobrancas(filtros, 'aluno'));
+    // O botão some com a faixa: no teclado o foco vai à busca, logo abaixo, em vez de cair no início da página.
+    if (Platform.OS === 'web') requestAnimationFrame(() => (barra.current as unknown as HTMLElement | null)?.querySelector('input')?.focus());
+  };
+  const chips = chipsDasCobrancas(filtros, hoje, { plano: nomeDoPlano });
   const opcoesDePlano = [{ valor: TODOS, rotulo: 'Todos' }, ...opcoesDePlanoDoFiltro(planos.dados ?? [])];
 
   // A seleção usa a versão mais nova que a página mostra; a que deixou de estar em aberto (paga em outra aba) sai sozinha.
@@ -128,18 +144,27 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
   return (
     <View style={estilos.coluna}>
       {recebimentoOnlineHabilitado && pode('ALUNO_LER') ? <CartaoDeConferencias podeAlterar={podeAlterar} /> : null}
-      <BarraDeFiltros busca={{ valor: buscaDigitada, aoMudar: (t) => { setBuscaDigitada(t); setPagina(0); limparSelecao(); }, placeholder: 'Nome do aluno' }}
-        valor={filtros} aoAplicar={aplicar} limpo={SEM_FILTROS_DE_COBRANCAS} chips={chips}
-        aoTirar={(chave) => aplicar(semOFiltroDeCobrancas(filtros, chave as ChaveDoFiltroDeCobrancas))}
-        painelLateral={{ titulo: 'Filtros de cobranças' }}
-        seletores={(atuais, mudar) => <SeletoresDeCobrancas filtros={atuais} aoMudar={mudar} opcoesDePlano={opcoesDePlano} />} />
+      {filtros.alunoId ? <FaixaDoAluno nome={textoDoAluno} aoVerTodos={verTodos} /> : null}
+      <View ref={barra}>
+        <BarraDeFiltros busca={{ valor: buscaDigitada, aoMudar: (t) => { setBuscaDigitada(t); setPagina(0); limparSelecao(); }, placeholder: 'Nome do aluno' }}
+          valor={filtros} aoAplicar={aplicar} limpo={limpoDasCobrancas(filtros)} chips={chips}
+          aoTirar={(chave) => aplicar(semOFiltroDeCobrancas(filtros, chave as ChaveDoFiltroDeCobrancas))}
+          painelLateral={{ titulo: 'Filtros de cobranças' }}
+          seletores={(atuais, mudar) => (
+            <SeletoresDeCobrancas filtros={atuais} aoMudar={mudar} opcoesDePlano={opcoesDePlano} aluno={atuais.alunoId ? textoDoAluno : null} />
+          )} />
+      </View>
       {lista.erro ? <MensagemErro texto={textoDoErro(lista.erro)} erro={lista.erro} tentarDeNovo={recarregar} /> : null}
       {!dados && lista.carregando ? <Esqueleto /> : null}
       {dados && dados.itens.length === 0 ? (
         <Vazio titulo="Nenhuma cobrança nesta lista"
           texto={temVencimento(filtros) ? `Nenhuma cobrança${filtros.situacoes.length ? ' nesta situação' : ''} vence ${textoDoVencimento(filtros, hoje)}.`
-            : chips.length === 0 && !busca ? 'As cobranças aparecem quando um aluno tem um plano comercial contratado na ficha.' : 'Tente outro filtro ou limpe a busca.'}
-          acao={chips.length ? { rotulo: 'Limpar filtros', aoTocar: () => aplicar(SEM_FILTROS_DE_COBRANCAS) } : undefined} />
+            : chips.length === 0 && !busca
+              ? filtros.alunoId ? 'Este aluno ainda não tem cobranças. Elas aparecem quando ele tem um plano comercial contratado na ficha.'
+                : 'As cobranças aparecem quando um aluno tem um plano comercial contratado na ficha.'
+              : 'Tente outro filtro ou limpe a busca.'}
+          // Só com o aluno, a saída é o "Ver cobranças de todos os alunos" da faixa, logo acima.
+          acao={chips.length ? { rotulo: 'Limpar filtros', aoTocar: () => aplicar(limpoDasCobrancas(filtros)) } : undefined} />
       ) : null}
       {dados && dados.itens.length > 0 ? (
         <Cartao descricao={desatualizada ? undefined : descricaoDasCobrancas(filtros, hoje, dados.total)}>
@@ -263,8 +288,10 @@ const FORMAS: { valor: FormaDoFiltro | typeof TODOS; rotulo: string }[] = [{ val
  * com rótulo próprio. "Escolher período" abre os campos De/Até; o modo fica aqui enquanto o período está vazio (vazio no
  * endereço é "qualquer data"). Os filtros se combinam (todos valem juntos).
  */
-function SeletoresDeCobrancas({ filtros, aoMudar, opcoesDePlano }: {
+function SeletoresDeCobrancas({ filtros, aoMudar, opcoesDePlano, aluno: nomeDoAluno }: {
   filtros: FiltrosDeCobrancas; aoMudar: (f: FiltrosDeCobrancas) => void; opcoesDePlano: { valor: string; rotulo: string }[];
+  /** O aluno de quem chegou pela ficha: só leitura aqui (o painel não o muda nem o "Limpar filtros" o tira). */
+  aluno: string | null;
 }) {
   const doFiltro: ModoDoVencimento = filtros.proximos7Dias ? 'PROXIMOS_7_DIAS' : filtros.periodo.de || filtros.periodo.ate ? 'PERIODO' : 'QUALQUER';
   const [escolhido, setEscolhido] = useState<ModoDoVencimento>(doFiltro);
@@ -277,6 +304,12 @@ function SeletoresDeCobrancas({ filtros, aoMudar, opcoesDePlano }: {
   return (
     <>
       <GrupoDoPainel titulo="Identificação" primeiro>
+        {nomeDoAluno ? (
+          <View style={estilos.alunoNoPainel}>
+            <CampoLeitura rotulo="Aluno" valor={nomeDoAluno} />
+            <Texto variante="pequeno">Vem da ficha e continua com “Limpar filtros”. Para ver todos, use “Ver cobranças de todos os alunos” na página.</Texto>
+          </View>
+        ) : null}
         <Escolha rotulo="Responsável" opcoes={OPCOES_RESPONSABILIDADE} valor={filtros.meus ? 'meus' : 'todos'} aoMudar={(v) => aoMudar({ ...filtros, meus: v === 'meus' })} />
         <UmaOpcao rotulo="Plano" valor={filtros.planoId ?? TODOS} opcoes={opcoesDePlano}
           aoMudar={(v) => aoMudar({ ...filtros, planoId: v === TODOS ? null : v })} />
@@ -299,6 +332,28 @@ function SeletoresDeCobrancas({ filtros, aoMudar, opcoesDePlano }: {
         <PeriodoDoFiltro rotulo="Pagamento" valor={filtros.pagamento} aoMudar={(pagamento) => aoMudar({ ...filtros, pagamento })} />
       </GrupoDoPainel>
     </>
+  );
+}
+
+/**
+ * O aluno de quem chegou por "Ver no Financeiro" da ficha (`?alunoId=`), acima da barra: é o contexto da lista, não um
+ * critério do painel (não conta no botão "Filtros" nem vira chip, e "Limpar filtros" não o tira; D5 e D6 de
+ * `docs/planos/filtros-laterais.md`). Neutro, no contorno dos contêineres; a única saída é "Ver cobranças de todos os
+ * alunos", que tira só o aluno.
+ */
+function FaixaDoAluno({ nome, aoVerTodos }: { nome: string; aoVerTodos: () => void }) {
+  const { cores, bordas } = useTema();
+  return (
+    <View role="group" aria-label="Aluno" style={[estilos.faixaDoAluno, { backgroundColor: cores.superficie, borderColor: cores.divisor, borderWidth: bordas.bloco }]}>
+      <View style={estilos.quemE}>
+        <UserRound size={20} color={cores.textoSuave} strokeWidth={2} aria-hidden />
+        <View style={estilos.celula}>
+          <Texto variante="pequeno">Cobranças de</Texto>
+          <Texto variante="bloco" numberOfLines={2}>{nome}</Texto>
+        </View>
+      </View>
+      <Botao tipo="secundario" rotulo="Ver cobranças de todos os alunos" aoTocar={aoVerTodos} />
+    </View>
   );
 }
 
@@ -346,4 +401,10 @@ const estilos = StyleSheet.create({
   barra: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5) },
   contagem: { flexGrow: 1, flexShrink: 1, flexBasis: 260, gap: 2 },
   paginacao: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), flexWrap: 'wrap' },
+  faixaDoAluno: {
+    flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5),
+    borderRadius: RAIO, paddingVertical: espaco(1.5), paddingHorizontal: espaco(2),
+  },
+  quemE: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.25), flexGrow: 1, flexShrink: 1, flexBasis: 220, minWidth: 0 },
+  alunoNoPainel: { gap: espaco(0.5) },
 });

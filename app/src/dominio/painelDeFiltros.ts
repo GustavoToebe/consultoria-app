@@ -1,3 +1,5 @@
+import { type RegraDeData, dataDaTelaNaFaixa, erroDaData as erroDaFaixa } from './datasValidas';
+import { periodoDigitado } from './filtrosComuns';
 import { dataDaTela } from './formatos';
 
 /**
@@ -12,24 +14,49 @@ export function resultadoDoAplicar(problemas: number): { ok: true } | { ok: fals
   return { ok: false, mensagem: problemas === 1 ? 'Corrija o campo marcado para aplicar os filtros.' : `Corrija os ${problemas} campos marcados para aplicar os filtros.` };
 }
 
-/** Erro de uma data digitada no filtro: vazia não é erro; pela metade ou impossível, sim. */
-function erroDaData(texto: string): string | null {
+/**
+ * Erro de uma data digitada no filtro: vazia não é erro; pela metade, impossível ou (com `regra`) fora da faixa, sim. A
+ * mensagem da faixa é a mesma que o `CampoData` mostra sozinho (`dominio/datasValidas`).
+ */
+function erroDaData(texto: string, regra: RegraDeData | undefined, nome: string, hoje?: string): string | null {
   if (!texto) return null;
-  if (dataDaTela(texto) !== undefined) return null;
-  return texto.length < 10 ? 'Complete a data (DD/MM/AAAA) ou apague.' : 'Data inválida.';
+  if (texto.length < 10) return 'Complete a data (DD/MM/AAAA) ou apague.';
+  if (regra) return erroDaFaixa(texto, nome, regra, hoje);
+  return dataDaTela(texto) === undefined ? 'Data inválida.' : null;
+}
+
+export interface RegrasDoPeriodo {
+  /** As duas datas ou nenhuma (o intervalo aberto não vale; Atualizações). */
+  osDois?: boolean;
+  /** Período mais longo aceito, em dias, contando as duas pontas. */
+  maximoDias?: number;
+  /** Faixa das datas (`dominio/datasValidas`); sem ela só a data impossível é erro. */
+  regra?: RegraDeData;
+  /** Nome de cada campo na mensagem da faixa ("Entrada, data inicial"). */
+  nomes?: { de: string; ate: string };
+  hoje?: string;
 }
 
 /**
- * Erros do par De/Até como digitado (DD/MM/AAAA): cada data sozinha e, com as duas certas, "Até" antes de "De". A tela
- * mostra cada um junto do campo dele.
+ * Erros do par De/Até como digitado (DD/MM/AAAA), um por campo, na mesma ordem do `periodoDigitado`: cada data sozinha;
+ * com as duas certas, "Até" antes de "De" (no Até), só uma das duas onde a tela pede as duas (no campo vazio) e período
+ * longo demais (no Até). A tela mostra cada um junto do campo dele; nunca um intervalo que a tela já aceita aberto vira erro.
  */
-export function errosDoPeriodoDigitado(de: string, ate: string): { de: string | null; ate: string | null } {
-  const erroDe = erroDaData(de);
-  const erroAte = erroDaData(ate);
+export function errosDoPeriodoDigitado(de: string, ate: string, regras: RegrasDoPeriodo = {}): { de: string | null; ate: string | null } {
+  const { osDois = false, maximoDias, regra, nomes = { de: 'Data inicial', ate: 'Data final' }, hoje } = regras;
+  const erroDe = erroDaData(de, regra, nomes.de, hoje);
+  const erroAte = erroDaData(ate, regra, nomes.ate, hoje);
   if (erroDe || erroAte) return { de: erroDe, ate: erroAte };
-  const inicio = dataDaTela(de);
-  const fim = dataDaTela(ate);
-  return { de: null, ate: inicio && fim && fim < inicio ? 'Fim antes do início.' : null };
+  const ler = (t: string) => (regra ? dataDaTelaNaFaixa(t, regra, hoje) : dataDaTela(t));
+  const r = periodoDigitado(ler(de), ler(ate), osDois, maximoDias);
+  if (!('problema' in r)) return { de: null, ate: null };
+  switch (r.problema) {
+    case 'ordem': return { de: null, ate: 'Fim antes do início.' };
+    case 'par': return de ? { de: null, ate: 'Preencha a data final ou apague a inicial.' } : { de: 'Preencha a data inicial ou apague a final.', ate: null };
+    case 'longo': return { de: null, ate: `Escolha um período de até ${maximoDias} dias.` };
+    // 'data' já saiu acima (as duas datas foram conferidas uma a uma).
+    default: return { de: null, ate: null };
+  }
 }
 
 /**

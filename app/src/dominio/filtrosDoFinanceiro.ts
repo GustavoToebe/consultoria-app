@@ -51,6 +51,13 @@ export const SEM_FILTROS_DE_COBRANCAS: FiltrosDeCobrancas = {
   emissao: SEM_PERIODO, pagamento: SEM_PERIODO,
 };
 
+/**
+ * O "Limpar filtros" das cobranças (painel, página e lista vazia): tira os critérios e mantém o aluno, que é o contexto
+ * de quem chegou pela ficha ("Ver no Financeiro"; `docs/planos/filtros-laterais.md`, D5). Só "Ver cobranças de todos os
+ * alunos" o tira (`semOFiltroDeCobrancas(f, 'aluno')`).
+ */
+export const limpoDasCobrancas = (f: FiltrosDeCobrancas): FiltrosDeCobrancas => ({ ...SEM_FILTROS_DE_COBRANCAS, alunoId: f.alunoId });
+
 export const CHAVES_DE_COBRANCAS = [
   'situacao', 'meus', 'vencimento', 'de', 'ate', 'alunoId', 'planoId', 'forma', 'emissaoDe', 'emissaoAte', 'pagoDe', 'pagoAte',
 ] as const;
@@ -138,15 +145,18 @@ export function textoDoVencimento(f: FiltrosDeCobrancas, hoje: string): string {
 
 export interface ChipDoFinanceiro<C extends string> { chave: C; texto: string }
 
-/** Os nomes que a tela conhece (aluno da lista, planos comerciais); sem nome, um texto neutro. */
-export interface NomesDasCobrancas { aluno?: string | null; plano?: (id: string) => string | null }
+/** Os nomes que a tela conhece (planos comerciais); sem nome, um texto neutro. */
+export interface NomesDasCobrancas { plano?: (id: string) => string | null }
 
+/**
+ * Um chip por critério do painel (o contador do botão é quantos são, D6). O aluno não é chip nem conta: é o contexto da
+ * tela, mostrado à parte com "Ver cobranças de todos os alunos" (D5).
+ */
 export function chipsDasCobrancas(f: FiltrosDeCobrancas, hoje: string, nomes: NomesDasCobrancas = {}): ChipDoFinanceiro<ChaveDoFiltroDeCobrancas>[] {
   return [
     ...(f.meus ? [{ chave: 'responsavel' as const, texto: 'Responsável: Meus' }] : []),
     ...(f.situacoes.length ? [{ chave: 'situacao' as const, texto: `Situação: ${textoDasSituacoes(f.situacoes)}` }] : []),
     ...(temVencimento(f) ? [{ chave: 'vencimento' as const, texto: `Vencimento: ${textoDoVencimento(f, hoje)}` }] : []),
-    ...(f.alunoId ? [{ chave: 'aluno' as const, texto: `Aluno: ${nomes.aluno ?? 'escolhido'}` }] : []),
     ...(f.planoId ? [{ chave: 'plano' as const, texto: `Plano: ${nomes.plano?.(f.planoId) ?? 'escolhido'}` }] : []),
     ...(f.forma ? [{ chave: 'forma' as const, texto: `Forma: ${FORMAS_DO_FILTRO.find((o) => o.valor === f.forma)?.rotulo ?? f.forma}` }] : []),
     ...(temPeriodo(f.emissao) ? [{ chave: 'emissao' as const, texto: `Emissão: ${textoDoPeriodo(f.emissao)}` }] : []),

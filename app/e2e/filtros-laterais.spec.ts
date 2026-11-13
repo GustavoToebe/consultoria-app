@@ -1,10 +1,12 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
-import type { CobrancaResponse } from '../src/api/financeiroTipos';
-import type { Alimento, Exercicio, Tema } from '../src/api/tipos';
-import { json, MARCA, paginaDeExerciciosFalsa, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
+import type { CobrancaResponse, ContratacaoResponse } from '../src/api/financeiroTipos';
+import type { Alimento, AlunoDetalhe, Exercicio, Tema } from '../src/api/tipos';
+import { ALUNO, json, MARCA, paginaDeExerciciosFalsa, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
 import { fixarHoje } from './aluno';
-import { COBRANCA_ATRASADA, estadoFinanceiro, PERMISSOES_FINANCEIRO, rotasDoFinanceiro } from './financeiro-falso';
+import {
+  ALUNO_FINANCEIRO_ID, COBRANCA_ATRASADA, estadoFinanceiro, PERMISSOES_FINANCEIRO, rotasDoFinanceiro, sessaoComFinanceiro,
+} from './financeiro-falso';
 
 /**
  * Painel lateral de filtros (`docs/planos/filtros-laterais.md`, passos 1 e 2): Financeiro › Cobranças e Biblioteca ›
@@ -105,8 +107,9 @@ for (const largura of [390, 1280]) {
     await expect(botao(page)).toBeFocused();
     await expect(page).toHaveURL(/situacao=ABERTA(%2C|,)PAGA/);
     await expect(page).toHaveURL(/de=2026-10-01/);
+    // O endereço muda antes de o pedido sair: espera o pedido novo, que tem de levar tudo de uma vez.
+    await expect.poll(() => pedidosDeCobrancas(pedidos).at(-1)!.busca.getAll('situacao')).toEqual(['ABERTA', 'PAGA']);
     const ultimo = pedidosDeCobrancas(pedidos).at(-1)!;
-    expect(ultimo.busca.getAll('situacao')).toEqual(['ABERTA', 'PAGA']);
     expect([ultimo.busca.get('de'), ultimo.busca.get('ate')]).toEqual(['2026-10-01', '2026-10-31']);
     // Botão, chips e lista contam o mesmo: dois critérios (as duas situações são um só) e as 4 de outubro.
     await expect(page.getByRole('button', { name: 'Filtros, 2 ligados' })).toBeVisible();
@@ -303,6 +306,148 @@ for (const largura of [390, 1280]) {
     await page.screenshot({ path: `${CAPTURAS}/antes-lancamentos-filtros-${largura}.png`, fullPage: largura >= 768 });
   });
 }
+
+// Período incompleto no painel (M1): o que foi digitado nunca é ignorado em silêncio; o intervalo aberto que as Cobranças
+// já aceitam (só De ou só Até) continua valendo.
+for (const largura of [390, 1280]) {
+  test(`Cobranças em ${largura}px: vencimento com a data final pela metade segura o Aplicar no campo dela; só o De vale`, async ({ page }) => {
+    const { pedidos, naoTratadas, errosDaPagina } = await abrirCobrancas(page, largura, { preferencias: { tema: 'ESCURO' } });
+    const antes = pedidosDeCobrancas(pedidos).length;
+    const painel = await abrirPainel(page);
+    await painel.getByRole('radiogroup', { name: 'Vencimento' }).getByRole('radio', { name: 'Escolher período' }).click();
+    await data(painel, 'Vencimento entre', 'De').fill('01/10/2026');
+    await data(painel, 'Vencimento entre', 'Até').fill('3/10');
+    await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+    await expect(painel).toBeVisible();
+    await expect(painel.getByText('Corrija o campo marcado para aplicar os filtros.')).toBeVisible();
+    await expect(data(painel, 'Vencimento entre', 'Até')).toHaveAttribute('aria-invalid', 'true');
+    await expect(data(painel, 'Vencimento entre', 'De')).toHaveAttribute('aria-invalid', 'false');
+    await expect(data(painel, 'Vencimento entre', 'Até')).toBeFocused();
+    await expect(painel.getByText('Complete a data (DD/MM/AAAA) ou apague.')).toBeVisible();
+    await page.screenshot({ path: `${CAPTURAS}/a-cobrancas-periodo-incompleto-${largura}.png` });
+    expect(pedidosDeCobrancas(pedidos)).toHaveLength(antes);
+
+    // Apagado o Até, o intervalo aberto vale: vencimento a partir de 01/10.
+    await data(painel, 'Vencimento entre', 'Até').fill('');
+    await expect(painel.getByText(/Corrija o/)).toHaveCount(0);
+    await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+    await expect(painel).toHaveCount(0);
+    await expect(page).toHaveURL(/de=2026-10-01/);
+    expect(pedidosDeCobrancas(pedidos).at(-1)!.busca.has('ate')).toBe(false);
+    await expect(page.getByRole('button', { name: 'Tirar filtro: Vencimento: a partir de 01/10/2026' })).toBeVisible();
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+// Chegada pela ficha ("Ver no Financeiro"): o aluno é o contexto da lista (D5, D6).
+const CONTRATACAO: ContratacaoResponse = {
+  id: 'e0000000-0000-4000-8000-0000000000dd', alunoId: ALUNO_FINANCEIRO_ID, planoComercialId: 'b0000000-0000-4000-8000-0000000000f1',
+  planoNome: 'Consultoria mensal', periodicidade: 'MENSAL', valorCentavos: 15_000, motivoValor: null, inicio: '2026-08-05', diaVencimento: 5,
+  situacao: 'ATIVA', encerradaEm: null, criadoEm: '2026-08-05T12:00:00Z', versao: 0,
+};
+const FICHA: AlunoDetalhe = {
+  id: ALUNO_FINANCEIRO_ID, nome: ALUNO.nome, email: ALUNO.email, telefone: null, objetivo: null, cpf: null, endereco: null,
+  ativo: true, temAcesso: true, conviteExpiraEm: null, versao: 1, diasAtualizacao: null, anonimizado: false,
+  emailDeAcesso: ALUNO.email, aguardandoPrimeiroAcesso: false,
+};
+const DO_ALUNO = { alunoId: ALUNO_FINANCEIRO_ID, alunoNome: ALUNO.nome, contratacaoId: CONTRATACAO.id };
+
+async function chegarPelaFicha(page: Page, largura: number, tema: 'ESCURO' | 'CLARO') {
+  await page.setViewportSize({ width: largura, height: largura < 768 ? 844 : 900 });
+  await fixarHoje(page);
+  await page.addInitScript(([id, t]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: t })), [TREINADOR.id, tema] as const);
+  const estado = estadoFinanceiro({
+    contratacoes: [{ ...CONTRATACAO }],
+    cobrancas: [
+      cobranca('6', ALUNO.nome, DO_ALUNO),
+      cobranca('7', ALUNO.nome, { ...DO_ALUNO, situacao: 'PAGA', vencida: false, diasDeAtraso: null, pagoEm: '2026-10-12', forma: 'PIX_DIRETO', provedor: 'MANUAL', versao: 1 }),
+      { ...BRUNA },
+    ],
+  });
+  const api = await simularApi(page, {
+    ...(await sessaoComFinanceiro(page, undefined, false)), ...rotasDoFinanceiro(estado),
+    'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } }, [`GET /alunos/${ALUNO_FINANCEIRO_ID}`]: { corpo: FICHA },
+    'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+  });
+  await page.goto(`/treinador/alunos/${ALUNO_FINANCEIRO_ID}?aba=ficha`);
+  await page.getByRole('link', { name: 'Ver no Financeiro' }).click();
+  await expect(page).toHaveURL(new RegExp(`alunoId=${ALUNO_FINANCEIRO_ID}`));
+  return api;
+}
+
+const faixaDoAluno = (page: Page) => page.getByRole('group', { name: 'Aluno', exact: true });
+
+for (const largura of [1280, 390]) {
+  test(`Cobranças em ${largura}px pela ficha: o aluno fica visível, fora do contador; Limpar filtros o mantém; "Ver cobranças de todos os alunos" tira só ele`, async ({ page }) => {
+    const { pedidos, errosDaPagina } = await chegarPelaFicha(page, largura, 'ESCURO');
+    const faixa = faixaDoAluno(page);
+    await expect(faixa.getByText(ALUNO.nome, { exact: true })).toBeVisible();
+    await expect(linhas(page)).toHaveCount(2);
+    await expect(page.getByRole('button', { name: 'Filtros, nenhum ligado' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Tirar filtro: Aluno/ })).toHaveCount(0);
+    await page.screenshot({ path: `${CAPTURAS}/a-cobrancas-pela-ficha-escuro-${largura}.png` });
+
+    // No painel o aluno aparece só para leitura; um critério a mais conta 1.
+    let painel = await abrirPainel(page);
+    await expect(painel.getByLabel(`Aluno: ${ALUNO.nome}`)).toBeVisible();
+    await page.screenshot({ path: `${CAPTURAS}/a-cobrancas-painel-com-aluno-escuro-${largura}.png` });
+    await marcar(page, painel, 'Situação', 'Todas', ['Pagas']);
+    await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+    await expect(page.getByRole('button', { name: 'Filtros, 1 ligado' })).toBeVisible();
+    await expect(linhas(page)).toHaveCount(1);
+    expect(pedidosDeCobrancas(pedidos).at(-1)!.busca.get('alunoId')).toBe(ALUNO_FINANCEIRO_ID);
+
+    // "Limpar filtros" da página tira o critério e mantém o aluno.
+    await page.getByRole('button', { name: 'Limpar filtros' }).click();
+    await expect(page.getByRole('button', { name: 'Filtros, nenhum ligado' })).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`alunoId=${ALUNO_FINANCEIRO_ID}`));
+    await expect(page).not.toHaveURL(/situacao=/);
+    await expect(faixa.getByText(ALUNO.nome, { exact: true })).toBeVisible();
+    await expect(linhas(page)).toHaveCount(2);
+
+    // "Limpar filtros" do painel também.
+    painel = await abrirPainel(page);
+    await marcar(page, painel, 'Situação', 'Todas', ['Pagas']);
+    await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+    await expect(page).toHaveURL(/situacao=PAGA/);
+    painel = await abrirPainel(page);
+    await painel.getByRole('button', { name: 'Limpar filtros' }).click();
+    await expect(painel.getByLabel(`Aluno: ${ALUNO.nome}`)).toBeVisible();
+    await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+    await expect(page).not.toHaveURL(/situacao=/);
+    await expect(page).toHaveURL(new RegExp(`alunoId=${ALUNO_FINANCEIRO_ID}`));
+    expect(pedidosDeCobrancas(pedidos).at(-1)!.busca.get('alunoId')).toBe(ALUNO_FINANCEIRO_ID);
+
+    // "Ver cobranças de todos os alunos" tira só o aluno: o critério escolhido fica.
+    painel = await abrirPainel(page);
+    await marcar(page, painel, 'Situação', 'Todas', ['Em aberto']);
+    await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+    await expect(linhas(page)).toHaveCount(1);
+    await faixa.getByRole('button', { name: 'Ver cobranças de todos os alunos' }).focus();
+    await page.keyboard.press('Enter');
+    await expect(faixa).toHaveCount(0);
+    // O botão sumiu com a faixa: o foco vai à busca, logo abaixo, e não ao início da página.
+    await expect(page.getByRole('textbox', { name: 'Buscar' })).toBeFocused();
+    await expect(page).not.toHaveURL(/alunoId=/);
+    await expect(page).toHaveURL(/situacao=ABERTA/);
+    await expect.poll(() => pedidosDeCobrancas(pedidos).at(-1)!.busca.has('alunoId')).toBe(false);
+    expect(pedidosDeCobrancas(pedidos).at(-1)!.busca.getAll('situacao')).toEqual(['ABERTA']);
+    await expect(page.getByRole('button', { name: 'Filtros, 1 ligado' })).toBeVisible();
+    await expect(linhas(page)).toHaveCount(2);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+test('captura pela ficha em tema claro (1280 e 390 px): o aluno na faixa', async ({ page }) => {
+  const { errosDaPagina } = await chegarPelaFicha(page, 1280, 'CLARO');
+  await expect(faixaDoAluno(page).getByText(ALUNO.nome, { exact: true })).toBeVisible();
+  await page.screenshot({ path: `${CAPTURAS}/a-cobrancas-pela-ficha-claro-1280.png` });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(faixaDoAluno(page).getByText(ALUNO.nome, { exact: true })).toBeVisible();
+  await page.screenshot({ path: `${CAPTURAS}/a-cobrancas-pela-ficha-claro-390.png` });
+  expect(errosDaPagina).toEqual([]);
+});
 
 // Biblioteca.
 const exercicio = (n: number, nome: string, grupo: string): Exercicio => ({

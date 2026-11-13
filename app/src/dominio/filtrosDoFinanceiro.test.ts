@@ -1,6 +1,6 @@
 import {
   chaveDosLancamentos, chipsDasCobrancas, chipsDosLancamentos, cobrancasParaApi, cobrancasParaEndereco, descricaoDasCobrancas,
-  lancamentosParaEndereco, lerCobrancasDoEndereco, lerLancamentosDoEndereco, SEM_FILTROS_DE_COBRANCAS, SEM_FILTROS_DE_LANCAMENTOS,
+  lancamentosParaEndereco, lerCobrancasDoEndereco, lerLancamentosDoEndereco, limpoDasCobrancas, SEM_FILTROS_DE_COBRANCAS, SEM_FILTROS_DE_LANCAMENTOS,
   semOFiltroDeCobrancas, semOFiltroDeLancamentos, temFiltroDeLancamentos, vencimentoDaApi,
 } from './filtrosDoFinanceiro';
 
@@ -40,20 +40,27 @@ describe('filtros das cobranças', () => {
   test('chips, ✕ e descrição', () => {
     const f = { ...SEM_FILTROS_DE_COBRANCAS, situacoes: ['ABERTA' as const, 'VENCIDA' as const], meus: true, proximos7Dias: true,
       alunoId: ALUNO, planoId: PLANO, forma: 'ONLINE' as const };
-    expect(chipsDasCobrancas(f, HOJE, { aluno: 'Ana Fictícia', plano: () => 'Mensal' }).map((c) => c.texto)).toEqual([
-      'Responsável: Meus', 'Situação: Em aberto, Vencidas', 'Vencimento: de hoje até 26/10/2026', 'Aluno: Ana Fictícia', 'Plano: Mensal',
-      'Forma: Pagamento online',
+    // O aluno é o contexto da tela (D5): nem chip nem contador.
+    expect(chipsDasCobrancas(f, HOJE, { plano: () => 'Mensal' }).map((c) => c.texto)).toEqual([
+      'Responsável: Meus', 'Situação: Em aberto, Vencidas', 'Vencimento: de hoje até 26/10/2026', 'Plano: Mensal', 'Forma: Pagamento online',
     ]);
-    expect(chipsDasCobrancas({ ...SEM_FILTROS_DE_COBRANCAS, alunoId: ALUNO }, HOJE).map((c) => c.texto)).toEqual(['Aluno: escolhido']);
+    expect(chipsDasCobrancas({ ...SEM_FILTROS_DE_COBRANCAS, alunoId: ALUNO }, HOJE)).toEqual([]);
     expect(semOFiltroDeCobrancas(f, 'vencimento').proximos7Dias).toBe(false);
     expect(semOFiltroDeCobrancas(f, 'responsavel').meus).toBe(false);
     expect(semOFiltroDeCobrancas(f, 'situacao').situacoes).toEqual([]);
-    expect(semOFiltroDeCobrancas(f, 'aluno').alunoId).toBeNull();
+    // "Ver cobranças de todos os alunos": só o aluno sai, os outros critérios ficam.
+    expect(semOFiltroDeCobrancas(f, 'aluno')).toEqual({ ...f, alunoId: null });
     expect(semOFiltroDeCobrancas(f, 'plano').planoId).toBeNull();
     expect(semOFiltroDeCobrancas(f, 'forma').forma).toBeNull();
     expect(descricaoDasCobrancas({ ...SEM_FILTROS_DE_COBRANCAS, situacoes: ['ABERTA'], proximos7Dias: true }, HOJE, 1))
       .toBe('Em aberto, vencimento de hoje até 26/10/2026: 1 cobrança, por vencimento. Toque na linha para abrir.');
     expect(descricaoDasCobrancas(SEM_FILTROS_DE_COBRANCAS, HOJE, 2)).toBe('Todas: 2 cobranças, por vencimento. Toque na linha para abrir.');
+  });
+  test('"Limpar filtros" tira os critérios e mantém o aluno de quem chegou pela ficha', () => {
+    const f = { ...SEM_FILTROS_DE_COBRANCAS, situacoes: ['PAGA' as const], meus: true, proximos7Dias: true, alunoId: ALUNO, planoId: PLANO,
+      forma: 'MANUAL' as const, emissao: { de: '2026-09-01', ate: null }, pagamento: { de: null, ate: '2026-10-01' } };
+    expect(limpoDasCobrancas(f)).toEqual({ ...SEM_FILTROS_DE_COBRANCAS, alunoId: ALUNO });
+    expect(limpoDasCobrancas({ ...f, alunoId: null })).toEqual(SEM_FILTROS_DE_COBRANCAS);
   });
   test('emissão e pagamento: endereço, API, chips e ✕', () => {
     const f = { ...SEM_FILTROS_DE_COBRANCAS, situacoes: ['PAGA' as const], emissao: { de: '2026-09-01', ate: '2026-09-30' },

@@ -1,11 +1,9 @@
-import { useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { periodoDigitado, type Periodo } from '../../dominio/filtrosComuns';
-import { dataDaTela, dataParaTela } from '../../dominio/formatos';
-import { errosDoPeriodoDigitado } from '../../dominio/painelDeFiltros';
-import { useProblemaNoPainel } from '../../ui/BarraDeFiltros';
+import { type Periodo } from '../../dominio/filtrosComuns';
 import { espaco } from '../../tema/tokens';
+import { usePeriodoDoFiltro } from '../SeletoresDeFiltro';
 import { CampoData } from '../../ui/Campos';
 import { CamposEmLinha } from '../../ui/CamposEmLinha';
 import { Grade } from '../../ui/Grade';
@@ -36,38 +34,19 @@ export function FiltrosEmGrade({ children, colunas = duasColunas }: {
 
 /**
  * Período De/Até dos filtros do financeiro: rótulo do grupo à vista ("Vencimento") e as duas datas lado a lado, cada uma
- * com o próprio rótulo ("De", "Até") fora do campo; empilham só quando não cabem duas de `MINIMO_DA_DATA`. O período só
- * vai para quem usa quando os dois campos fazem sentido (vazio ou data válida, fim depois do início): data pela metade
- * não apaga o filtro em vigor; quando o período muda por fora (✕ do chip, "Limpar filtros"), os campos acompanham.
- * No painel lateral a data pela metade, impossível ou fora de ordem segura o "Aplicar filtros" e, depois dele, aparece
- * no campo dela (`useProblemaNoPainel`).
- * shortcut: repete a sincronização do `treinador/SeletoresDeFiltro.CamposDePeriodo` (que empilha De e Até); trocar por
- * ele quando a peça compartilhada adotar o par lado a lado (passo 6 de `docs/planos/composicao-visual.md`).
+ * com o próprio rótulo ("De", "Até") fora do campo; empilham só quando não cabem duas de `MINIMO_DA_DATA`. Intervalo
+ * aberto vale (só De ou só Até). Texto, sincronização e erros (também no painel lateral) são os de
+ * `treinador/SeletoresDeFiltro.usePeriodoDoFiltro`; aqui só o desenho do par lado a lado.
  */
 export function PeriodoDoFiltro({ rotulo, valor, aoMudar }: { rotulo: string; valor: Periodo; aoMudar: (p: Periodo) => void }) {
-  const chave = `${valor.de ?? ''}|${valor.ate ?? ''}`;
-  const [texto, setTexto] = useState({ de: dataParaTela(valor.de), ate: dataParaTela(valor.ate), chave });
-  if (texto.chave !== chave) setTexto({ de: dataParaTela(valor.de), ate: dataParaTela(valor.ate), chave });
-  const resultado = periodoDigitado(dataDaTela(texto.de), dataDaTela(texto.ate));
-  const foraDeOrdem = 'problema' in resultado && resultado.problema === 'ordem';
-  const erros = errosDoPeriodoDigitado(texto.de, texto.ate);
-  const painel = useProblemaNoPainel((erros.de ? 1 : 0) + (erros.ate ? 1 : 0));
-  const erroDe = painel.mostrar ? erros.de : null;
-  const erroAte = painel.mostrar ? erros.ate : foraDeOrdem ? 'Fim antes do início.' : null;
-  const mudar = (campo: 'de' | 'ate', t: string) => {
-    const novo = { ...texto, [campo]: t };
-    setTexto(novo);
-    const r = periodoDigitado(dataDaTela(novo.de), dataDaTela(novo.ate));
-    if ('periodo' in r && (r.periodo.de !== valor.de || r.periodo.ate !== valor.ate)) aoMudar(r.periodo);
-  };
+  const p = usePeriodoDoFiltro({ rotulo, valor, aoMudar });
   return (
     <View style={estilos.periodo} role="group" aria-label={rotulo}>
       <Texto variante="rotulo">{rotulo}</Texto>
       <CamposEmLinha minimo={MINIMO_DA_DATA}>
-        <CampoData rotulo="De" nome={`${rotulo}, data inicial`} valor={texto.de} aoMudar={(t) => mudar('de', t)} erro={erroDe} />
+        <CampoData rotulo="De" nome={`${rotulo}, data inicial`} valor={p.texto.de} aoMudar={(t) => p.mudar('de', t)} erro={p.erroDe} />
         {/* Data impossível o próprio campo avisa ("Data inválida."). */}
-        <CampoData rotulo="Até" nome={`${rotulo}, data final`} valor={texto.ate} aoMudar={(t) => mudar('ate', t)}
-          erro={erroAte} />
+        <CampoData rotulo="Até" nome={`${rotulo}, data final`} valor={p.texto.ate} aoMudar={(t) => p.mudar('ate', t)} erro={p.erroAte} />
       </CamposEmLinha>
     </View>
   );

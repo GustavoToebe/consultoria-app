@@ -227,6 +227,7 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
       const q = (k: string) => p.busca.get(k);
       const itens = estado.cobrancas.filter((c) => (!situacoes.length || situacoes.some((s) => (s === 'VENCIDA' ? c.situacao === 'ABERTA' && c.vencida : c.situacao === s)))
         && (!busca || (c.alunoNome ?? '').toLowerCase().includes(busca))
+        && (!q('alunoId') || c.alunoId === q('alunoId'))
         && entre(c.vencimento, q('de'), q('ate'))
         && entre(c.criadoEm?.slice(0, 10), q('emissaoDe'), q('emissaoAte'))
         && entre(c.pagoEm, q('pagoDe'), q('pagoAte')));
