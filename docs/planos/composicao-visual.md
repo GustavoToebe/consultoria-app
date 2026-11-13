@@ -104,6 +104,14 @@ Fonte: `C:\Users\GustavoToebe\Desktop\orientacoes-correcao-visual-front.pdf` (oi
     tela equivalente no modo antigo (Lançamentos, Importar do catálogo). Folha dentro de folha no celular deixou de
     pintar um segundo véu (`ui/Folha`, medido na captura). Refazer se `ui/Folha`, `ui/BarraDeFiltros` ou `ui/RodapeDeAcoes`
     mudarem.
+  - P2, painel lateral nas demais telas (13/11/2026, `docs/planos/filtros-laterais.md` passos 4 e 5; estado local sem
+    commit): `filtros-laterais-fase-b.spec.ts` (20 casos) e `filtros-laterais-fase-c.spec.ts` (26 casos), capturas fora do
+    repositório: Lançamentos, Alunos, Atualizações, Interessados, Auditoria e Equipe em 390 e 1280 px no escuro (Alunos,
+    Lançamentos, Auditoria e Interessados também em 1280 e 1920 px no claro); Agenda, Comunidade, questionários,
+    Importação e Biblioteca (Importar, Outros, Suplementos) em 390 e 1280 px no escuro (Agenda, Importação e aulões
+    também em 1280 e 1920 px no claro). **Lacuna:** temas Areia e alto contraste nessas telas, leitor de tela e app
+    nativo não conferidos. A tabela da 4.6/P2 em `docs/design-e-front.md` lista as telas e larguras; a promoção do
+    padrão P2 a **Verificado** na peça compartilhada continua dependendo do passo 5 deste plano.
 - [ ] 5. Conferência visual e promoção de **Proposto** para **Verificado** na 4.6, com o e2e ou a conferência que a sustenta (sem capturas) — commit: —
 - [ ] 6. Aplicar às demais ocorrências (Grep pela peça, tela por tela) — commit: —
 

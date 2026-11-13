@@ -1,5 +1,7 @@
 # Filtros avançados da lista de alunos
 
+> **Histórico (13/11/2026):** este plano descreve o painel antigo "Filtros avançados" (cartão no PC, folha no celular). Foi superado por [filtros-laterais.md](filtros-laterais.md): a tela de Alunos hoje usa o painel lateral "Filtros de alunos" e os atalhos Todos, Para revisar e Atrasados viraram o filtro Atualização. O contrato da API descrito aqui continua valendo.
+
 Situação: Concluída em 31/10/2026 · Onde: `main` (6b4b343, PR #28; o `mvn verify` com Docker rodou verde na CI do PR) · Atualizado: 02/11/2026
 
 ## Objetivo
