@@ -15,8 +15,8 @@ Nenhum indicador pode mostrar **0 que mente**: sem permissão, com cobertura inc
 | D3 | Só a correção mínima entra agora: as quatro contagens de atualização do `/painel` (nulo sem `ATUALIZACAO_LER` + `ALUNO_SENSIVEL_LER`, como o `NumerosService`). O resto fica na tabela e no contrato proposto | Escopo desta rodada | Gustavo, 13/11 |
 | D4 | O contrato `cobertura` (abaixo) é **proposta em texto**: nenhum código, endpoint nem tipo foi criado | Aguarda aprovação | Pendente: Gustavo |
 | D5 | Registro de 13/11: **a entrega atual corrige só as quatro contagens de atualização sem permissão**. A cobertura e a retenção dos demais indicadores (Financeiro, Interessados e os outros da tabela) **continuam pendentes onde não foram esclarecidas**; nada nesta rodada afirma que estejam resolvidas | Escopo e estado | Gustavo, 13/11 |
-| D6 | **Decidido em 13/11.** Não manter a conversão automática de nulo para zero nos indicadores cujo significado não foi comprovado: nulo sem interpretação segura vira "—" com a explicação "Dados indisponíveis para este período". O 0 só fica quando a consulta e o contrato confirmam que não há registros aplicáveis. Se o **servidor** já converteu ausência em zero (ex.: `nz` do `resultado`), o app não recupera a distinção sozinho: documentar e corrigir o contrato, sem adivinhar pelo valor. Consequência: `somaOuZero` do app (`app/src/dominio/financeiro.ts:508-513,546-551,640`, `painelDoInicio.ts:716-719`) sai onde o nulo não tem leitura segura; manter o 0 onde a API prova (ex.: atrasadas com período todo no futuro) | Decidida | Gustavo, 13/11 |
-| D8 | **Cobertura do Financeiro: não aprovar `COMPLETA` desde a criação como decisão de negócio.** A classificação precisa de evidência do comportamento dos dados (retenção, exclusões, anonimização, períodos anteriores à criação, módulo desligado) apresentada **antes** de adotar. Mapa de evidência pedido em 13/11; até lá o Financeiro fica sem alegação de cobertura | Aguarda evidência | Gustavo, 13/11 |
+| D6 | **Decidida em 13/11 e esclarecida no mesmo dia.** O problema é converter ausência **ambígua** em zero, não usar zero para soma vazia válida. (a) Consulta válida sem registro aplicável = 0 (R$ 0,00 é o certo). (b) Falha ou falta de permissão nunca é zero. (c) Histórico removido, ou cálculo com componente indisponível, exige tratamento específico, sem virar zero em silêncio. (d) Cobrança ainda não gerada não entra no previsto, e previsto e atraso seguem descritos como "das cobranças já geradas". Registro manual não invalida a soma dos registros existentes. Não trocar todo `SUM` vazio nem todo zero por nulo. O app (`somaOuZero`) **não muda** nesta rodada: ele já lê como 0 o que é 0 certo; quem passa a dizer 0 é a API | Decidida | Gustavo, 13/11 |
+| D8 | **Decidida em 13/11: o Financeiro não adota `COMPLETA` nem afirma cobertura desde a criação.** Os indicadores representam **os registros disponíveis no sistema**. Zero confirmado = consulta concluída sem registro aplicável, sem condição conhecida de indisponibilidade que invalide essa leitura. A evidência está na seção própria abaixo | Decidida | Gustavo, 13/11 |
 | D9 | **"Tudo em dia"** (Início do treinador) só aparece quando as fontes necessárias foram consultadas com sucesso e não apontaram pendência. Sem acesso a nenhuma fonte: "Você não tem acesso aos dados deste resumo". Verificação parcial (alguma fonte sem acesso ou que falhou): informar que não foi possível conferir tudo | Decidida | Gustavo, 13/11 |
 | D7 | Revisão independente (`revisor`, 13/11): **nenhum bloqueante no código**; a correção das quatro contagens está certa e completa. Ajustes pedidos na tabela e na proposta foram aplicados abaixo. Não rodou `git diff` nem `mvn` (sem shell): os 57 testes são do executor | Concluída | revisor |
 
@@ -143,11 +143,83 @@ Perguntas abertas (fora do alcance desta rodada):
 **O que impede `COMPLETA`:** o dado depende de registro manual do treinador; o lançamento avulso pode ser apagado; as séries aceitam data anterior à criação (então "desde a criação" não é o limite do `recebido`); o previsto e as atrasadas dependem de cobranças que só existem depois de uma ação; a V059 truncou o histórico do Saraiva.
 **Recomendação (a decidir pelo Gustavo, D8):** não adotar `COMPLETA`; contrato sem alegação de cobertura para o Financeiro, com o significado escrito: valor `0` = consulta concluída sem registro aplicável, nulo = sem permissão, falha ou sem base (D6). Isso exige corrigir o servidor onde ele já converte ausência em zero (`nz` do `resultado` na série; `sum` vazio que vem nulo em `recebido`, `aReceber` e `receitaRecorrente`), para o app deixar de adivinhar (`somaOuZero`).
 
+## Correção pontual da API do Financeiro (PLANO; nada implementado)
+Fonte: inventário de 13/11 (`explorador`) **conferido por mim linha a linha** em `FinanceiroService.java:77-359` e nos repositórios (`CobrancaAlunoRepository.java:181-227`, `LancamentoFinanceiroRepository.java:48-51`, `ContratacaoAlunoRepository.java:43-59`). Estado: local, base `1c629a8c`, sem commit desta correção. Vale até o código dessas linhas mudar.
+
+### Regra aplicada (D6 esclarecida)
+Quatro classes: **(a)** conjunto vazio válido → **0**; **(b)** dado indisponível (futuro, "Meus" sem lançamento avulso, antes da criação, líquido sem taxa, média sem base) → **nulo**, como já é; **(c)** histórico removido (V059) → tratamento próprio, abaixo; **(d)** cálculo com componente ausente → **nulo**, nunca soma com zero.
+Não se troca `SUM` vazio nem zero em bloco: cada ponto abaixo tem a sua classe e a sua decisão.
+
+### Cada `nz` (há um só) e cada soma composta
+| Ponto | Hoje | Classe | Decisão |
+| --- | --- | --- | --- |
+| `nz` em `resultado()` (`:330-339`), usada em `serie` (`:213`) e em `resultadoDoMes` (`:263-264`) | `recebido + entradas − saídas` tratando nulo como 0, só nulo se os três são nulos | **(d)** | `resultado` passa a ser nulo se **qualquer** componente é nulo; `nz` sai. Os casos reais: mês anterior à `consultoria.criado_em` com baixa retroativa (entrada e saída nulas, `recebido` presente: hoje o resultado sai como se fosse completo) e mês futuro. Com `recebido` corrigido para 0 no mês válido (abaixo), nenhum mês válido perde o resultado. "Meus" já devolve nulo direto (`:213`, `:252`) e não muda |
+| `valorMedioPorAlunoCentavos` (`:138`, recebido ÷ pagantes) | nulo se recebido nulo, pagantes nulo ou 0 | **(d)** média sem base | **Deixar**: com 0 pagantes a média não existe; o nulo é o "—" certo (D1) |
+| `inadimplencia.percentual` (`:218-225`, vencido ÷ cobrado) | nulo se cobrado nulo ou 0; `vencido` nulo vira 0 só quando há cobrado | **(d)** conversão sem base | Percentual **deixar** (sem base é nulo). `vencido` e `cobrado` passam a 0 quando a consulta rodou e não há registro (ver abaixo) |
+| `Numeros.inadimplenciaPercentual` (`:94-104`) | nulo se `ate<de` ou nenhuma cobrança cobrada | **(d)** | **Deixar** (sem base) |
+| `receitaRecorrente` (`:315-327`) | nulo se não há contratação ATIVA recorrente | **(a)** | Passa a **0** (soma vazia válida) |
+| `Liquido.brutoCentavos` (`:157-158`) | herda `recebidoTotal` | — | Herda o 0 corrigido; `disponivel=false` e o motivo não mudam |
+
+### Cada soma, uma a uma (campo × situação × hoje × decisão)
+| Campo (DTO) | Linha | Situação | Hoje | Classe | Decisão |
+| --- | --- | --- | --- | --- | --- |
+| `Cartoes.recebidoCentavos` | `:127-128` | período com início ≤ hoje, sem pagamento | nulo (`SUM` vazio) | (a) | **0** |
+| idem | `:127` | período inteiro no futuro | nulo | (b) | **Deixar** nulo |
+| `Cartoes.aReceberCentavos` | `:130-131` | consulta rodou, sem aberta | nulo | (a) | **0** |
+| idem | `:130` | período inteiro já passado (`aVencerDe>fim`) | nulo | (b) | **Deixar** nulo |
+| `emAtraso.valorCentavos` | `:134,142` | consulta rodou, sem atrasada | nulo | (a) | **0** (quantidade já é 0) |
+| idem | `:133` | nada pode estar vencido (período todo no futuro, ou só hoje) | nulo | (b) | **Deixar** nulo (o app já usa o 0 da quantidade como confirmação: registrado para ninguém "corrigir") |
+| `Cartoes.alunosPagantes` | `:136-137` | recebido consultado, 0 pagantes | nulo | (a) contagem | **0** |
+| `Cartoes.receitaRecorrenteMensalCentavos` | `:144,315` | sem contratação recorrente ativa | nulo | (a) | **0** |
+| `inadimplencia.cobradoCentavos` e `vencidoCentavos` | `:219-224` | consulta rodou, nada cobrado ou vencido | nulo / 0 misto | (a) | **0** nos dois; percentual segue nulo sem base |
+| idem | `:133,135` | `haAtraso=false` | nulo | (b) | **Deixar** nulo |
+| `proximosRecebimentos.em7Dias/em30Dias.valorCentavos` | `:244-247` | sem aberta na janela | nulo (`SUM` vazio) com `cobrancas=0` | (a) | **0** |
+| `serie[].recebidoCentavos` | `:206` | mês até o corrente, sem pagamento | nulo | (a) | **0** |
+| idem | `:206` | mês depois do corrente | nulo | (b) | **Deixar** nulo |
+| `serie[].previstoCentavos` | `:212` | mês corrente ou futuro, sem aberta | nulo | (a) | **0** |
+| idem | `:212` | mês já encerrado | nulo | (b) por regra (o que venceu aparece em atraso) | **Deixar** nulo |
+| `serie[].entradasAvulsasCentavos` e `saidas...` | `:177-184,209-210` | mês dentro da cobertura sem lançamento | 0 | (a) | **Já certo** |
+| idem | `:183,209` | antes da criação, futuro ou "Meus" | nulo | (b) | **Deixar** |
+| `resultadoDoMes.recebidoCentavos` | `:250` | mês corrente, sem pagamento | nulo | (a) | **0** |
+| `inadimplentes.valorTotalCentavos` | `:308` | sem cobrança vencida | nulo | (a) | **0** (itens e total já são 0 e lista vazia) |
+| `Numeros.meses[].recebidoCentavos` | `:84-87` | mês do intervalo (termina no corrente), sem pagamento | nulo | (a) | **0** |
+| `Numeros.previstoCentavos` | `:89` | sem aberta de hoje em diante | nulo | (a) | **0** |
+| `Numeros.receitaRecorrenteMensalCentavos` | `:90-91,315` | sem recorrente | nulo | (a) | **0** (mesma função) |
+| `movimentoDeAlunos[]` (`novas`, `encerradas`) | `:230-235` | mês sem contratação criada ou encerrada | 0 | (a) | **Já certo**. Mês futuro também dá 0 (nada aconteceu ainda): **registrado, não alterado**. Mês de histórico removido: ver V059 |
+| `porForma`, `porPlano`, `inadimplentes.itens`, `visaoGeral` | `:148-151,305,272-294` | vazio | lista vazia ou 0 | (a) | **Já certo**; `visaoGeral` não filtra por "Meus" (pergunta aberta abaixo) |
+| `Liquido` | `:157` | sempre | `disponivel=false` | (b) | **Deixar** |
+
+Nenhum campo vira nulo por esta correção; **o único trecho que passa de número para nulo é o `resultado` (d)**, e só onde hoje ele soma ausência como zero. Nenhum nulo de falha ou de permissão existe nessas rotas (a recusa é 403 pelo `@PreAuthorize` e o módulo desligado é 503 `FINANCEIRO_INDISPONIVEL`: não verificado em execução, vem das anotações).
+
+### Cobranças ainda não geradas (limitação explícita)
+Não há agendador de cobranças (`GeradorDeCobrancas.java:11,35`; comentário em `FinanceiroService.java:45`): `aReceber`, previsto e atraso contam só o que já foi gerado. **Isso não muda.** O texto na tela já diz "considera as cobranças já geradas" (`app/src/dominio/financeiro.ts:33,57`, legenda "Previsto (cobranças já geradas)" em `app/src/ui/GraficoBarras.tsx:65`, ajuda em `app/src/ajuda/conteudo.ts:357`). O executor do app confere se a tela e o cartão do Início também dizem isso e só acrescenta o que faltar.
+
+### V059 (05/11): o que foi afetado e como informar
+- **O que apagou** (`V059__limpeza_da_producao.java:36-153`): na consultoria do **Saraiva**, `cobranca_aluno`, `contratacao_aluno`, `aviso_de_pagamento` e `lembrete_cobranca` (e o resto do conteúdo, como os alunos). Manteve `lancamento_financeiro`, `plano_comercial`, `credencial_pagamento` e `lembrete_configuracao`. A consultoria de teste do Gustavo foi apagada inteira (sem tela para ninguém ler). As demais não foram tocadas.
+- **Indicadores afetados (só a consultoria do Saraiva):** tudo o que lê cobrança ou contratação para datas **anteriores à limpeza**: `recebido`, previsto (já fica nulo em mês encerrado), `aReceber`, atraso, inadimplência, `receitaRecorrente`, `alunosPagantes`, valor médio, `porForma`, `porPlano`, `movimentoDeAlunos`, `Numeros` inteiro e `inadimplentes`. **O resultado de meses anteriores à limpeza mostra só os lançamentos avulsos** (preservados), sem `recebido`, e parece completo (classes (c) e (d)).
+- **Período:** do começo do uso do Financeiro até a data em que a V059 rodou **em produção**. Essa data **não foi confirmada**: o código só grava um log (`:86-87`), e o `flyway_schema_history` está fechado ao papel do app (`afterMigrate__revogar_historico_do_app.sql`). Também não sei se o Financeiro estava ligado para ele antes de 05/11 nem se havia cobrança real (não consultei o banco).
+- **Proposta (a decidir):**
+  - **A (recomendada, sem código novo de dado):** manter D8 como está, "os indicadores representam os registros disponíveis", e **dizer isso em texto fixo na tela do Financeiro** ("Os valores consideram os registros disponíveis no sistema; cobranças ainda não geradas não entram."), junto da nota "cobranças já geradas" que já existe. A V059 fica documentada aqui como evento único. É verdadeira para todas as consultorias e não promete cobertura.
+  - **B (só se o histórico anterior importar):** uma coluna `consultoria.financeiro_historico_desde` (data, nula = sem corte conhecido), gravada por **uma migration nova** só para a consultoria do Saraiva (por id, como a V059) com a data real da limpeza em produção; a API a devolve no painel e a tela mostra "Histórico do Financeiro anterior a DD/MM/AAAA foi removido" e passa a tratar os meses anteriores com `resultado` nulo. Exige: a data real, saber se havia uso, nova migration (total 73) e tela. **Não recomendo agora**: o Saraiva ainda não usa o Financeiro e o Gustavo reseta o banco dele, então o histórico removido não tem consumidor.
+  - Em qualquer caso o **código** desta correção não depende da escolha: ela só mexe no que a API devolve para consulta válida e no `resultado`.
+
+### O que o app muda (já em execução pelo executor do app, não aqui)
+Nada de `somaOuZero` nem de `resultado`. Tipos, "Sem permissão" e D9 seguem o plano dele. Quando a API passar a devolver 0, o app já mostra R$ 0,00; os pontos em que o app trata `null` do `recebidoCentavos` por mês (gráfico de barras, `Numeros`) precisam do e2e conferir que **0 vira barra zerada com valor "R$ 0,00" e não "sem dado"**.
+
+### Testes exigidos da correção
+Por campo da tabela marcado **0** ou **Já certo**: um caso de consulta válida e vazia devolvendo 0 (período passado, corrente e misto); por campo **Deixar nulo**: o caso (b) continua nulo (período futuro, "Meus", antes da criação); `resultado`: mês antes da criação com baixa retroativa e entrada e saída nulas → **nulo**, mês válido sem lançamento → número, mês futuro → nulo, "Meus" → nulo; `valorMedio` e `percentual` sem base → nulos; registro manual (baixa) numa consultoria com cobranças geradas não zera a soma dos existentes. Consultoria **sem** nenhuma cobrança: painel e `/numeros` com 0 nos cartões (não nulo). Isolamento: o 0 de uma consultoria não vem de outra. `mvn verify` completo (Maven um por vez, depois que a API da Comunidade terminar).
+
+### Perguntas que continuam abertas
+1. `GET /financeiro/visao-geral` ignora "Meus": se a tela o mostra com o filtro ligado, o número é da consultoria inteira (candidato a `FILTRO_INCOMPATIVEL`). Não verificado no app.
+2. `movimentoDeAlunos` de meses futuros devolve 0: aceito por ora.
+3. V059: escolher A ou B e informar, se souber, se o Financeiro do Saraiva já tinha uso real antes de 05/11.
+
 ## Passos
 - [x] 1. Mapa e tabela por indicador (este arquivo) — responsável: executor — commit: — (local, sem commit)
 - [x] 2. Correção mínima da API: as quatro contagens de atualização do `/painel` nulas sem permissão; teste novo; `ArquiteturaTest` verde — responsável: executor — commit: — (local, sem commit)
 - [x] 3. Revisão independente (`revisor`) da correção e da tabela — responsável: sessão principal — evidência: sem bloqueante; ajustes na tabela aplicados em 13/11 (D7); `git diff` e `mvn` não rodados por ele
 - [ ] 4. Frente B aplica a mudança do app (tipos, "Sem permissão", "Tudo em dia" sem base, comentário de `painelDoInicio.ts:96`, e2e) — responsável: executor-front — commit: —
+- [ ] 4b. Correção pontual da API do Financeiro (seção própria acima: 0 onde a consulta é válida e vazia, `resultado` nulo com componente ausente, `nz` removido) — responsável: executor — evidência: —; começa depois da API da Comunidade (Maven um por vez) e passa por `revisor`
 - [ ] 5. Decisões do Gustavo que restam: pergunta 1 (anonimização), pergunta 2 (`RECURSO_DESLIGADO`) e aprovação do contrato `cobertura`; D8 exige a evidência do Financeiro antes (D6 e D9 já decididas)
 
 ## Fora do escopo
