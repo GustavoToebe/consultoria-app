@@ -127,6 +127,22 @@ Perguntas abertas (fora do alcance desta rodada):
 1. A anonimização apaga a inscrição aceita (e os eventos) sem deixar rastro: o contrato deve declarar isso como limite fixo ("indicadores não contam quem foi anonimizado") ou fica fora por LGPD? Responsável: Gustavo.
 2. `RECURSO_DESLIGADO` vira um sexto motivo ou entra em `FILTRO_INCOMPATIVEL`? Responsável: Gustavo.
 
+## Evidência da cobertura do Financeiro (D8; mapa de leitura de 13/11, sem executar build nem testes)
+**Nada nesta seção é aprovação de `COMPLETA`.** Fatos, com caminho:linha (`api/.../pagamentos/` salvo indicação):
+- Nenhuma rotina apaga cobrança nem contratação: não há `@Scheduled` que as remova; a retenção só apaga avisos APLICADO, IGNORADO e CONFERIDO após 180 dias (`AvisoDePagamentoRepositorio.java:239-242`), e o painel não lê `aviso_de_pagamento`. Retenção de `lembrete_cobranca`: não achei.
+- Saída do aluno (inativar, anonimizar, excluir a conta): contratação ENCERRADA e cobrança ABERTA vira CANCELADA, a PAGA não muda (`PagamentosDoAluno.java:81-88`); a anonimização só limpa texto e link (`:98-104`). O painel **não filtra** aluno inativo nem anonimizado (`CobrancaAlunoRepository.java:181-227`): as pagas dele seguem em `recebido`.
+- Situações: `recebido` = só PAGA; `aReceber` e atrasadas = só ABERTA; CANCELADA fica fora de tudo; ESTORNADA e CONTESTADA ficam fora do recebido e **entram** no denominador da inadimplência (`CobrancaAlunoRepository.java:187-190`, `situacao <> CANCELADA`); `receitaRecorrente` só lê contratação ATIVA não parcela única (`ContratacaoAlunoRepository.java:43-48`).
+- **Não há agendador de cobranças** (`GeradorDeCobrancas.java:11,35`; comentário `FinanceiroService.java:45`): `aReceber`, previsto e atrasadas contam só o que já foi gerado; uma contratação com cobrança aberta vencida não gera a próxima até baixa ou cancelamento.
+- Datas: a baixa manual aceita de 2000-01-01 até hoje (`CobrancaService.java:41,176`); o lançamento avulso, de hoje − 10 anos até hoje + 1 ano (`LancamentoService.java:102`). Só entradas e saídas **avulsas** são cortadas em mês anterior à criação (`FinanceiroService.java:166-184`); as séries de recebido e previsto **não** são (`:186-216`).
+- Lançamento avulso é apagado fisicamente pelo treinador (`LancamentoService.java:90-95`, com auditoria): edição do dado, não retenção.
+- Módulo desligado: rotas dão 503 e a conciliação sai cedo (`ConciliadorInfinitePay.java:62-74`); `encerrarPorSaida` e `apagarDoAluno` rodam sempre. Guarda do job de lembretes no corpo: não conferido.
+- V059 (05/11) apagou cobranças, contratações, lembretes e avisos da consultoria do Saraiva e mantém lançamentos e planos (`V059__limpeza_da_producao.java:63`); a de teste do Gustavo foi apagada inteira (`:70-77`). Evento único e já executado, mas o Financeiro dessa consultoria **não tem histórico anterior** a ele.
+- Não conferido: `PAUSADA` no enum, corpo de `ExclusaoDeContaService`, guarda de flag em `LembretesDeCobranca`, se a V059 já rodou em produção e quando.
+
+**O que a evidência sustenta:** o sistema só conhece o que foi **registrado** (baixa manual, lançamento, link pago); `recebido` não perde cobrança paga por retenção, exclusão de aluno ou módulo desligado. Logo, "0 = nenhum pagamento **registrado** no período" é verdadeiro quando a consulta conclui; isso não é "cobertura completa do dinheiro que entrou".
+**O que impede `COMPLETA`:** o dado depende de registro manual do treinador; o lançamento avulso pode ser apagado; as séries aceitam data anterior à criação (então "desde a criação" não é o limite do `recebido`); o previsto e as atrasadas dependem de cobranças que só existem depois de uma ação; a V059 truncou o histórico do Saraiva.
+**Recomendação (a decidir pelo Gustavo, D8):** não adotar `COMPLETA`; contrato sem alegação de cobertura para o Financeiro, com o significado escrito: valor `0` = consulta concluída sem registro aplicável, nulo = sem permissão, falha ou sem base (D6). Isso exige corrigir o servidor onde ele já converte ausência em zero (`nz` do `resultado` na série; `sum` vazio que vem nulo em `recebido`, `aReceber` e `receitaRecorrente`), para o app deixar de adivinhar (`somaOuZero`).
+
 ## Passos
 - [x] 1. Mapa e tabela por indicador (este arquivo) — responsável: executor — commit: — (local, sem commit)
 - [x] 2. Correção mínima da API: as quatro contagens de atualização do `/painel` nulas sem permissão; teste novo; `ArquiteturaTest` verde — responsável: executor — commit: — (local, sem commit)
