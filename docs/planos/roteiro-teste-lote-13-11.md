@@ -1,6 +1,6 @@
 # Roteiro de teste local do lote de 13/11
 
-Situação: Para testar (Gustavo, à mão) · Onde: `main` local, 57 commits sem push · Atualizado: 13/11/2026
+Situação: Para testar (Gustavo, à mão) · Onde: `main` local, sem push · Atualizado: 13/11/2026
 
 ## Objetivo
 Conferir na tela, antes do push, o que o lote mudou: capas, reações, enquetes e player da Comunidade; Financeiro (nulo, zero e ressalva); cores de destaque; filtros laterais; Início editável. Só dados fictícios da demonstração: nenhum aluno real, nenhuma planilha, nenhum print do Saraiva.
@@ -11,12 +11,18 @@ Conferir na tela, antes do push, o que o lote mudou: capas, reações, enquetes 
 - Linha com outra largura ou tema diz isso no próprio item. "Falha" = anote item, tema, largura e o que viu (sem print com dado real).
 
 ## Antes de começar
-- [ ] **Imagens novas.** O contêiner `treinos-api-1` local subiu antes do lote: ele não tem a V072 nem a V073. Reconstrua a API e a web (`docker compose up -d --build api web`) e confira que o Flyway chegou à versão 73. Não rode isso enquanto o `mvn verify` ainda estiver usando o Docker.
-- [ ] **Chaves no `.env` local** (só os nomes; hoje o contêiner está com `TREINOS_PAGAMENTOS_HABILITADO=false` e `TREINOS_RETORNO_HABILITADO=false`):
-  - `TREINOS_PAGAMENTOS_HABILITADO=true`: sem ela o Financeiro some (itens de Financeiro, filtros de Cobranças e Lançamentos, bloco Financeiro do Início e o cartão financeiro da ficha).
-  - `TREINOS_RETORNO_HABILITADO=true`: sem ela somem recordes, "Bom trabalho!", mapa de treinos e "Visto pelo treinador".
-  - `TREINOS_FOTOS_HABILITADO` já está ligada (perfis `demo,fotos`). Ciclo e Unidade da carga ficam desligados: nada neste roteiro depende deles.
-- [ ] Entrar com a conta do **treinador demo** (a senha vem do `DEMO_SENHA` do seu `.env`) e com um **aluno demo**. Trocar o tema em Preferências.
+Estado real do ambiente local em 13/11: imagens reconstruídas, API saudável, Flyway na versão 73 com a V072 e a V073 aplicadas.
+- [ ] **Chaves no `.env` local** (só nome = valor; conferidas no contêiner e no `GET /eu`):
+  - `TREINOS_PAGAMENTOS_HABILITADO=true`: Financeiro, filtros de Cobranças e Lançamentos, bloco do Início e cartão da ficha.
+  - `TREINOS_RETORNO_HABILITADO=true`: recordes, "Bom trabalho!", mapa de treinos e "Visto pelo treinador".
+  - `TREINOS_UNIDADE_CARGA_HABILITADA=true`: **libras** em Preferências (aluno e treinador); a carga mostra a unidade escolhida e volta igual. Olhar de passagem, sem bloco próprio.
+  - `TREINOS_EMAIL_HABILITADO=true` com `TREINOS_EMAIL_PROVEDOR=log` (nada sai de verdade: o provedor só registra o envio): valem os **lembretes de cobrança por e-mail** (Financeiro › aba Lembretes; "Receber lembretes" no cartão "Meu plano" do aluno) e "Esqueci a senha". O remetente local é fictício (`TREINOS_EMAIL_REMETENTE`): o módulo de e-mail não sobe sem ele.
+  - `TREINOS_MIGRACAO_ASSISTIDA_HABILITADA=true`: a importação assistida fica visível; a IA segue desligada (`TREINOS_IA_ENVIAR_DADOS_AO_PROVEDOR` fora), então nada vai a provedor externo.
+  - `TREINOS_FOTOS_HABILITADO=true` (perfis `demo,fotos`, como antes).
+  - **`TREINOS_CICLO_HABILITADO=false` de propósito:** o ciclo menstrual fica **fora deste teste (ciclo desligado)**. Nenhum bloco abaixo depende dele.
+  - Continuam desligadas: Turnstile, InfinitePay, integração com a Central, MFA, push, IA da importação e `TREINOS_PLANO_APLICAR`.
+- [ ] Entrar com o **treinador demo** `saraiva@demo.local` (consultoria "SARAIVA TEAM" local, **sem** a ressalva financeira) e com o **aluno demo** `aluno@demo.local`. A senha vem do `DEMO_SENHA` do seu `.env`. Trocar o tema em Preferências.
+- [ ] Para o item "Ressalva ligada" do bloco 5, entrar com `exemplo@demo.local` ("Consultoria Exemplo"): `historico_financeiro_parcial` já está `true` **só no banco local** dela.
 - [ ] Ter à mão: uma imagem JPEG fictícia (qualquer foto sem pessoa) e um link público qualquer do YouTube.
 
 ## 1. Capas dos vídeos (equipe cria, aluno vê)
@@ -55,7 +61,7 @@ Claro 1280 e escuro 390; **areia 1280 também**.
 - [ ] Visão geral: a frase "Os valores consideram os registros disponíveis no sistema." aparece **uma vez** na Visão geral e uma vez em Lançamentos.
 - [ ] **Zero de verdade** mostra "R$ 0" e o traço, **sem barra**; **sem dado** mostra "—" e nenhuma barra. "Resultado" fica "—" se faltar entrada ou saída.
 - [ ] Sem a ressalva (consultoria demo normal): nenhum aviso de histórico parcial em nenhuma aba.
-- [ ] **Ressalva ligada** (só no banco **local**: marque `historico_financeiro_parcial` da consultoria demo; a V073 só liga a do Saraiva, então o demo normal não a mostra): o texto "Parte do histórico financeiro foi removida em uma limpeza anterior…" aparece em **todas as abas** do Financeiro.
+- [ ] **Ressalva ligada** (com `exemplo@demo.local`: `historico_financeiro_parcial` já está ligado só no banco **local** da "Consultoria Exemplo"; a V073 só liga a do Saraiva real, então a SARAIVA TEAM local não a mostra): o texto "Parte do histórico financeiro foi removida em uma limpeza anterior…" aparece em **todas as abas** do Financeiro.
 - [ ] Exportar: a folha explica a coluna `historico_financeiro_parcial` (só com a ressalva ligada). O CSV baixado tem 11 colunas, a última `historico_financeiro_parcial` (`true` ou `false` em todas as linhas), e nenhuma frase dentro do arquivo.
 - [ ] Desligar a chave e reabrir: a tela diz **"Recurso desativado"**, sem alerta vermelho e sem "Tentar de novo".
 
