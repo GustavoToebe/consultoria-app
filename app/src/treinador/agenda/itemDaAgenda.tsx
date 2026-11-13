@@ -164,7 +164,19 @@ export function MarcadorDaAgenda({ cor, forma = 'ponto' }: { cor: CorDaAgenda | 
     style={[forma === 'ponto' ? estilos.ponto : estilos.faixa, { backgroundColor: corDe(cor) }]} />;
 }
 
+/**
+ * Sinal de forma do dia de hoje (cores-de-destaque D12): um traço curto sob o número, em `marcaTexto` (o dia de hoje está
+ * na lista fechada da marca, `design-e-front.md` 4.5). O número já vai em `marcaTexto`, mas só a cor não basta (WCAG
+ * 1.4.1) e some quando hoje é também o dia escolhido (o número passa à cor da seleção); o traço fica nos dois casos e não
+ * se confunde com a seleção (fundo `superficie3` + contorno). Vai dentro da caixa do número; o nome acessível diz "hoje".
+ */
+export function TracoDeHoje() {
+  const { marcaTexto } = useTema();
+  return <View aria-hidden importantForAccessibility="no-hide-descendants" style={[estilos.tracoDeHoje, { backgroundColor: marcaTexto }]} />;
+}
+
 const estilos = StyleSheet.create({
+  tracoDeHoje: { position: 'absolute', bottom: 3, width: 12, height: 2, borderRadius: 1 },
   ponto: { width: 10, height: 10, borderRadius: 5 },
   // Altura fixa: a linha da lista centraliza o `inicio`, então `stretch` deixaria a faixa sem altura.
   faixa: { width: LARGURA_DA_FAIXA, height: 40, borderRadius: 4 },

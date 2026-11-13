@@ -4,7 +4,7 @@ const AGORA = new Date(2026, 9, 19, 20, 0);
 
 describe('seloDoEditor', () => {
   it('o que acontece agora vem antes da publicação', () => {
-    expect(seloDoEditor('pendente', null, { versao: 3, alterado: false })).toEqual({ texto: 'Alterações não salvas', tipo: 'atencao' });
+    expect(seloDoEditor('pendente', null, { versao: 3, alterado: false })).toEqual({ texto: 'Alterações não salvas', tipo: 'neutro', naoSalvo: true });
     expect(seloDoEditor('salvando', null, null).texto).toBe('Salvando…');
     expect(seloDoEditor('erro', null, null).tipo).toBe('perigo');
     expect(seloDoEditor('conflito', null, null).texto).toBe('Alterado em outra aba');
@@ -17,7 +17,7 @@ describe('seloDoEditor', () => {
   });
 
   it('plano salvo diz a relação com o que o aluno vê', () => {
-    // Salvo e sem erro é neutro; o âmbar fica com "Alterações não salvas".
+    // Salvo e sem erro é neutro, como "Alterações não salvas" (que só ganha o marcador de edição).
     expect(seloDoEditor('salvo', null, { versao: 0, alterado: false })).toEqual({ texto: 'Ainda não publicado', tipo: 'neutro' });
     expect(seloDoEditor('salvo', null, { versao: 2, alterado: true })).toEqual({ texto: 'Alterações não publicadas', tipo: 'neutro' });
     expect(seloDoEditor('salvo', null, { versao: 2, alterado: false })).toEqual({ texto: 'Publicado v2', tipo: 'sucesso' });

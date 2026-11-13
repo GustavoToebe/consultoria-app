@@ -16,8 +16,14 @@ export interface Publicacao {
   alterado: boolean;
 }
 
-const FORA_DO_SALVO: Record<Exclude<SituacaoDoEditor, 'salvo'>, { texto: string; tipo: TipoDoSeloDoEditor }> = {
-  pendente: { texto: 'Alterações não salvas', tipo: 'atencao' },
+/**
+ * `naoSalvo`: a barra põe o marcador de edição (lápis) no selo. "Alterações não salvas" é neutro (cores-de-destaque D12):
+ * âmbar é o que falta preencher ("Falta a carga") e vermelho o erro; o que só espera o Salvar fica no texto e no marcador.
+ */
+export interface SeloDoEditor { texto: string; tipo: TipoDoSeloDoEditor; naoSalvo?: true }
+
+const FORA_DO_SALVO: Record<Exclude<SituacaoDoEditor, 'salvo'>, SeloDoEditor> = {
+  pendente: { texto: 'Alterações não salvas', tipo: 'neutro', naoSalvo: true },
   salvando: { texto: 'Salvando…', tipo: 'neutro' },
   erro: { texto: 'Falha ao salvar', tipo: 'perigo' },
   conflito: { texto: 'Alterado em outra aba', tipo: 'perigo' },
@@ -28,12 +34,12 @@ const FORA_DO_SALVO: Record<Exclude<SituacaoDoEditor, 'salvo'>, { texto: string;
  * Selo único do editor. Ordem: o que está acontecendo agora (não salvo, salvando, erro); depois, com tudo salvo, a
  * relação com o que o aluno vê. `publicacao` nulo = modelo (não tem publicação): só "Salvo"/"Salvo às HH:MM".
  */
-export function seloDoEditor(situacao: SituacaoDoEditor, salvoAs: Date | null, publicacao: Publicacao | null): { texto: string; tipo: TipoDoSeloDoEditor } {
+export function seloDoEditor(situacao: SituacaoDoEditor, salvoAs: Date | null, publicacao: Publicacao | null): SeloDoEditor {
   if (situacao !== 'salvo') return FORA_DO_SALVO[situacao];
   if (!publicacao) return { texto: textoDoSalvo(salvoAs), tipo: 'sucesso' };
   const falta = publicacao.versao === 0 || publicacao.alterado;
   if (falta && salvoAs) return { texto: `Salvo às ${horaDoSalvamento(salvoAs)}`, tipo: 'neutro' };
-  // Rascunho salvo e sem erro é neutro (guia premium, pág. 8): âmbar fica para o que pede decisão, como "não salvas".
+  // Rascunho salvo e sem erro é neutro (guia premium, pág. 8), como o "não salvas": âmbar fica para o que falta preencher.
   if (publicacao.versao === 0) return { texto: 'Ainda não publicado', tipo: 'neutro' };
   if (publicacao.alterado) return { texto: 'Alterações não publicadas', tipo: 'neutro' };
   return { texto: `Publicado v${publicacao.versao}`, tipo: 'sucesso' };

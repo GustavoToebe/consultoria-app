@@ -40,10 +40,13 @@ for (const largura of [390, 1280]) {
     await expect(page.getByLabel('Desceu 0,7 kg desde 19/10', { exact: true })).toBeVisible();
     await expect(page.getByLabel('Subiu 1,2 kg desde 12/10', { exact: true })).toBeVisible();
 
-    // Sem meta nos itens: seta e número na mesma cor do peso (a do texto), nunca verde ou vermelho.
+    // Sem meta nos itens: seta e número na cor do texto (a da data), nunca verde ou vermelho. O peso em si é medida e vai
+    // no azul de indicador (cores-de-destaque D12), diferente do texto e da variação.
     const corDoPeso = await lista.getByText('80,5 kg', { exact: true }).evaluate((e) => getComputedStyle(e).color);
+    const corDaData = await lista.getByText('26/10/2026', { exact: true }).evaluate((e) => getComputedStyle(e).color);
     const corDaVariacao = await page.getByText('▼ −0,7 kg', { exact: true }).evaluate((e) => getComputedStyle(e).color);
-    expect(corDaVariacao).toBe(corDoPeso);
+    expect(corDaVariacao).toBe(corDaData);
+    expect(corDoPeso).not.toBe(corDaData);
 
     // Só leitura: nada de registrar, excluir ou da coluna de observação (só da equipe; a rota do aluno a devolve nula);
     // o ciclo do treinador não é consultado.

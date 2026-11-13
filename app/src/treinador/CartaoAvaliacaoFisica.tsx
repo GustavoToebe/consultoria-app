@@ -38,6 +38,7 @@ import { GraficoLinha } from '../ui/GraficoLinha';
 import { IconeBotao } from '../ui/IconeBotao';
 import { CaixaDaLinha, LinhaDaLista, ListaDeLinhas } from '../ui/LinhaDaLista';
 import { NoPlano } from '../ui/NoPlano';
+import { useDestaques } from '../ui/NumeroDeDestaque';
 import { PainelConfirmacao } from '../ui/PainelConfirmacao';
 import { Tabela, type ColunaDaTabela } from '../ui/Tabela';
 import { Texto } from '../ui/Texto';
@@ -221,13 +222,18 @@ export function CartaoAvaliacaoFisica(p: Props) {
   );
 }
 
-/** Medida × data, com a diferença na última coluna (só o número com sinal, na cor do texto). */
+/**
+ * Medida × data, com a diferença na última coluna (só o número com sinal, na cor do texto). O valor medido (cm e o peso
+ * do dia) vai no azul de indicador, o mesmo do `CartaoPeso` (cores-de-destaque D12); sem valor, "—" em texto suave.
+ */
 function TabelaComparativa({ linhas, datas }: { linhas: LinhaDaComparacao[]; datas: string[] }) {
+  const { cores } = useTema();
+  const azul = useDestaques().azul.cor;
   const valor = (l: LinhaDaComparacao, v: number | null) => (l.unidade === 'cm' ? (v === null ? '—' : `${cmParaTela(v)} cm`) : pesoParaTela(v));
   const colunas: ColunaDaTabela<LinhaDaComparacao>[] = [
     { chave: 'medida', titulo: 'Medida', flex: 1.4, principal: true, render: (l) => <Texto style={estilos.forte}>{l.rotulo}</Texto> },
     ...datas.map((d, i): ColunaDaTabela<LinhaDaComparacao> => ({
-      chave: `data-${i}`, titulo: dataParaTela(d), alinhar: 'direita', render: (l) => <Texto numerico>{valor(l, l.valores[i])}</Texto>,
+      chave: `data-${i}`, titulo: dataParaTela(d), alinhar: 'direita', render: (l) => <Texto numerico cor={l.valores[i] === null ? cores.textoSuave : azul}>{valor(l, l.valores[i])}</Texto>,
     })),
     { chave: 'diferenca', titulo: 'Diferença', alinhar: 'direita', render: (l) => <Texto numerico style={estilos.forte}>{diferencaParaTela(l.diferenca, l.unidade)}</Texto> },
   ];
@@ -237,10 +243,12 @@ function TabelaComparativa({ linhas, datas }: { linhas: LinhaDaComparacao[]; dat
 
 /**
  * Uma medida por vez ao longo das datas: gráfico de linha (com a preferência `graficos`; 1 data = só o ponto) e a lista
- * de todas as datas, onde a que não teve a medida aparece com "—". Um eixo só, em cm: o peso tem o próprio cartão.
+ * de todas as datas, onde a que não teve a medida aparece com "—" (texto suave; o valor, no azul de indicador). Um eixo
+ * só, em cm: o peso tem o próprio cartão.
  */
 function EvolucaoPorMedida({ avaliacoes, daEquipe }: { avaliacoes: AvaliacaoFisica[]; daEquipe: boolean }) {
-  const { preferencias } = useTema();
+  const { cores, preferencias } = useTema();
+  const azul = useDestaques().azul.cor;
   const [escolhida, setEscolhida] = useState<CampoDaMedida | null>(null);
   const [todas, setTodas] = useState(false);
   const opcoes = opcoesDeMedida(avaliacoes);
@@ -278,7 +286,7 @@ function EvolucaoPorMedida({ avaliacoes, daEquipe }: { avaliacoes: AvaliacaoFisi
         chave={(l) => l.id}
         colunas={[
           { chave: 'data', titulo: 'Data', principal: true, render: (l) => <Texto numerico style={estilos.forte}>{dataParaTela(l.data)}</Texto> },
-          { chave: 'valor', titulo: nome, alinhar: 'direita', render: (l) => <Texto numerico style={estilos.forte}>{l.valor === null ? '—' : `${cmParaTela(l.valor)} cm`}</Texto> },
+          { chave: 'valor', titulo: nome, alinhar: 'direita', render: (l) => <Texto numerico style={estilos.forte} cor={l.valor === null ? cores.textoSuave : azul}>{l.valor === null ? '—' : `${cmParaTela(l.valor)} cm`}</Texto> },
         ]}
       />
       {serie.linhas.length > DATAS_DA_MEDIDA ? (

@@ -10,7 +10,7 @@ import { coresDaSelecao } from '../../ui/selecao';
 import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
 import { textoDoItemNoMes } from '../../dominio/agendaLegivel';
-import { horarioDoItem, useCorDaAgenda } from './itemDaAgenda';
+import { horarioDoItem, TracoDeHoje, useCorDaAgenda } from './itemDaAgenda';
 
 /** Itens por célula no Mês do PC antes do "+N". */
 const ITENS_NA_CELULA = 4;
@@ -66,13 +66,14 @@ function Celula({ celula, itens, compacta, aoTocar }: { celula: CelulaDoDia; ite
   const corDe = useCorDaAgenda();
   const marcado = celula.selecionado;
   const rotulo = `${dataComDiaDaSemana(celula.data)}${celula.hoje ? ', hoje' : ''}, ${quantos(itens.length)}${compacta ? '' : '. Abrir o dia'}`;
-  // Como o `ui/Calendario`: o escolhido é o mais forte (superficie3 com contorno, sem inverter); hoje é só o número na
-  // cor da marca.
+  // Como o `ui/Calendario`: o escolhido é o mais forte (superficie3 com contorno, sem inverter); hoje é o número na cor
+  // da marca com o traço embaixo, que continua quando hoje é também o escolhido.
   const selecao = coresDaSelecao(cores, true);
   const numero = (
     <View style={[estilos.numero, marcado && { backgroundColor: selecao.fundo, borderWidth: 1, borderColor: selecao.borda }]}>
       <Texto variante="pequeno" numerico style={celula.hoje || marcado ? estilos.forte : undefined}
         cor={marcado ? selecao.texto : celula.hoje ? marcaTexto : celula.doMes ? cores.texto : cores.textoSuave}>{String(celula.dia)}</Texto>
+      {celula.hoje ? <TracoDeHoje /> : null}
     </View>
   );
   if (compacta) {

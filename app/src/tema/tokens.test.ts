@@ -432,6 +432,12 @@ describe.each(VARIANTES)('cores de destaque (%s)', (_nome, cores, escuro) => {
     }
   });
 
+  // Evolução (peso, respostas, medidas da avaliação): o valor medido vai em azul solto na linha da `Tabela`, que no toque
+  // ou na seleção passa a `superficie3`.
+  it('azul (valor medido) passa 4,5:1 como texto também na linha ativa (superficie3)', () => {
+    expect(contraste(destaque.azul.cor, cores.superficie3)).toBeGreaterThanOrEqual(4.5);
+  });
+
   it('rótulo (texto) e detalhe (textoSuave) seguem legíveis sobre o fundo tonalizado', () => {
     for (const f of FUNCOES_DE_DESTAQUE) {
       for (const fundo of [destaque[f].fundo, destaque[f].fundoSobre]) {

@@ -1,7 +1,8 @@
 import type { CorDaAgenda } from '../../api/agendaTipos';
 import { CONTRASTE_DO_GRAFICO, CONTRASTE_DO_TEXTO } from '../../dominio/agendaLegivel';
 import { coresComBordasReforcadas, coresComContraste } from '../../dominio/preferencias';
-import { CHAVES_DA_AGENDA, contraste, PALETA_DA_AGENDA, PALETAS, type Cores } from '../../tema/tokens';
+import { PALETAS as CORES_DA_MARCA } from '../../dominio/paletas';
+import { CHAVES_DA_AGENDA, contraste, marcaParaTexto, PALETA_DA_AGENDA, PALETAS, type Cores } from '../../tema/tokens';
 
 /**
  * Contraste dos itens da agenda (grade do PC, faixa de dia inteiro e lista do celular) sobre o fundo neutro, em todos os
@@ -30,5 +31,16 @@ describe.each(VARIANTES)('itens da agenda no tema %s', (_nome, cores, escuro) =>
       for (const tom of [cores.sucesso, cores.atencao, cores.perigo, cores.neutro]) expect(contraste(tom, base)).toBeGreaterThanOrEqual(CONTRASTE_DO_GRAFICO);
     }
     expect(contraste(cores.bordaCampo, cores.superficie3)).toBeGreaterThanOrEqual(CONTRASTE_DO_GRAFICO);
+  });
+});
+
+// O traço de hoje (`TracoDeHoje`) é um sinal de forma de 2 px: ≥ 3:1 sobre tudo em que o número do dia aparece (faixa da
+// grade, célula do mês e do ano, mini calendário e o dia escolhido em `superficie3`), com as 12 cores da marca.
+describe.each(VARIANTES)('traço de hoje no tema %s', (_nome, cores) => {
+  it.each(CORES_DA_MARCA.map((p) => [p.nome, p.cor]))('%s: ≥ 3:1 sobre as superfícies do calendário', (_marca, marca) => {
+    const traco = marcaParaTexto(marca, cores.superficie3);
+    for (const base of [cores.fundo, cores.painel, cores.superficie, cores.superficie2, cores.superficie3]) {
+      expect(contraste(traco, base)).toBeGreaterThanOrEqual(CONTRASTE_DO_GRAFICO);
+    }
   });
 });

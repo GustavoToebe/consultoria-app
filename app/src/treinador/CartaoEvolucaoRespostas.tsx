@@ -18,6 +18,7 @@ import { Esqueleto } from '../ui/Esqueleto';
 import { MensagemErro } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
 import { GraficoLinha } from '../ui/GraficoLinha';
+import { useDestaques } from '../ui/NumeroDeDestaque';
 import { Tabela } from '../ui/Tabela';
 import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
@@ -28,10 +29,12 @@ const DATAS_RECENTES = 6;
 /**
  * Evolução das respostas numéricas (NOTA e NUMERO) das atualizações enviadas: uma pergunta por vez, gráfico com 2
  * pontos ou mais (se a preferência de gráficos estiver ligada) e a lista das datas. Respostas são dado sensível: só na
- * tela. Nada é calculado além do que o aluno respondeu; pergunta sem resposta não aparece.
+ * tela. Nada é calculado além do que o aluno respondeu; pergunta sem resposta não aparece. A resposta vai no azul de
+ * indicador (medida, sem dizer bom nem ruim: cores-de-destaque D12), o mesmo do peso e das medidas da avaliação.
  */
 export function CartaoEvolucaoRespostas({ alunoId }: { alunoId: string }) {
   const { preferencias } = useTema();
+  const azul = useDestaques().azul.cor;
   const { dados, erro, carregando, recarregar } = useCarregar(`evolucao-respostas:${alunoId}`, () => evolucaoRespostasDoAluno(alunoId));
   const [escolhida, setEscolhida] = useState<string | null>(null);
   const [todas, setTodas] = useState(false);
@@ -71,7 +74,7 @@ export function CartaoEvolucaoRespostas({ alunoId }: { alunoId: string }) {
             chave={(p) => p.atualizacaoId}
             colunas={[
               { chave: 'data', titulo: 'Atualização', principal: true, render: (p) => <Texto numerico style={estilos.negrito}>{dataParaTela(p.data)}</Texto> },
-              { chave: 'valor', titulo: 'Resposta', alinhar: 'direita', render: (p) => <Texto numerico style={estilos.negrito}>{textoDoValor(serie, p.valor)}</Texto> },
+              { chave: 'valor', titulo: 'Resposta', alinhar: 'direita', render: (p) => <Texto numerico style={estilos.negrito} cor={azul}>{textoDoValor(serie, p.valor)}</Texto> },
             ]}
           />
           {serie.pontos.length > DATAS_RECENTES ? (

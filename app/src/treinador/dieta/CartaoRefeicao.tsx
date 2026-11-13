@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, PencilLine, Plus, Trash2 } from 'lucide-react-native';
+import { ArrowDown, ArrowUp, PencilLine, Plus, Trash2, TriangleAlert } from 'lucide-react-native';
 import { Fragment, type ReactNode, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -19,7 +19,7 @@ import { useTema } from '../../tema/TemaProvider';
 import { espaco, fontes, LARGURA_EDITOR, RAIO } from '../../tema/tokens';
 import { AlvoDeRolagem } from '../../ui/AlvoDeRolagem';
 import { Botao } from '../../ui/Botao';
-import { Campo } from '../../ui/Campo';
+import { Campo, MensagemDeErro } from '../../ui/Campo';
 import { CampoNumerico } from '../../ui/Campos';
 import { Cartao } from '../../ui/Cartao';
 import { Divisor } from '../../ui/Divisor';
@@ -267,9 +267,12 @@ function LinhaItem({ item, posicao, total, comProblema, aoMudar, aoRemover, aoMo
   const mudar = (parcial: Partial<ItemDieta>) => aoMudar({ ...item, ...parcial });
   const nome = item.nome || 'item';
   // Quantidade vazia ou zero, a condição que a publicação recusa (`ValidadorDieta`). Vazia é pendência de preenchimento:
-  // âmbar, como o "Falta a carga" do treino (guia premium pág. 4); zero ou negativa é valor errado: vermelho.
+  // "Falta a quantidade" em âmbar com o ícone, como o "Falta a carga" do treino; zero ou negativa é valor errado: a
+  // mensagem da API no próprio campo, em vermelho (cores-de-destaque D12: três sentidos, três textos).
   const semQuantidade = !(item.quantidade && item.quantidade > 0);
-  const tom = item.quantidade == null ? 'atencao' : 'perigo';
+  const faltaQuantidade = item.quantidade == null;
+  const tom = faltaQuantidade ? 'atencao' : 'perigo';
+  const erroDaQuantidade = semQuantidade && !faltaQuantidade ? 'Quantidade precisa ser maior que zero.' : null;
   return (
     <View style={[estilos.item, { borderColor: comProblema ? cores[tom] : cores.divisor, backgroundColor: cores.superficie2 }]}>
       <View style={estilos.topo}>
@@ -279,7 +282,7 @@ function LinhaItem({ item, posicao, total, comProblema, aoMudar, aoRemover, aoMo
           ) : (
             <Texto style={estilos.nomeItem}>{item.nome}</Texto>
           )}
-          {semQuantidade ? <View style={estilos.selo}><Selo texto="Sem quantidade" tipo={tom} /></View> : null}
+          {faltaQuantidade ? <View style={estilos.selo}><Selo texto="Falta a quantidade" tipo="atencao" Icone={TriangleAlert} /></View> : null}
         </View>
         {total > 1 ? (
           <>
@@ -291,7 +294,8 @@ function LinhaItem({ item, posicao, total, comProblema, aoMudar, aoRemover, aoMo
       </View>
       <View style={estilos.linha}>
         <View style={estilos.quantidade}>
-          <CampoNumerico rotulo="Quantidade" valor={item.quantidade} aoMudar={(quantidade) => mudar({ quantidade })} />
+          {/* Campo estreito: a caixa marca o erro e a mensagem vai na linha inteira abaixo, sem empurrar a Unidade. */}
+          <CampoNumerico rotulo="Quantidade" valor={item.quantidade} aoMudar={(quantidade) => mudar({ quantidade })} erro={erroDaQuantidade} erroSemTexto />
         </View>
         {/* Unidade numa lista suspensa ao lado da quantidade (04/11): os chips abertos repetiam em cada alimento e quebravam
             a linha com as opções lado a lado. */}
@@ -300,6 +304,7 @@ function LinhaItem({ item, posicao, total, comProblema, aoMudar, aoRemover, aoMo
         {/* Item da biblioteca: os valores ficam na mesma linha da quantidade; só o manual abre os campos de valor. */}
         {item.manual ? null : <View style={estilos.valoresDoItem}><ValoresDaDieta totais={somar([item])} /></View>}
       </View>
+      {erroDaQuantidade ? <MensagemDeErro erro={erroDaQuantidade} /> : null}
       {item.manual ? (
         // Os quatro valores numa linha só, também no celular (antes quebravam em 3 + 1); P, C e G com a marca da cor no rótulo.
         <View style={estilos.valores}>

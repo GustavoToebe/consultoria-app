@@ -1,14 +1,15 @@
+import { PencilLine } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import type { TipoDoSeloDoEditor } from '../../dominio/barraDoEditor';
+import type { SeloDoEditor } from '../../dominio/barraDoEditor';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, LARGURA_MENU_LATERAL } from '../../tema/tokens';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 
 interface Props {
-  selo: { texto: string; tipo: TipoDoSeloDoEditor };
+  selo: SeloDoEditor;
   /** Uma linha curta ao lado do selo (período e publicação, "Modelo: o aluno não vê"). */
   info?: string | null;
   /** Motivo de uma falha ao salvar (mensagem da API ou "Confira a internet…"). */
@@ -32,7 +33,8 @@ export function BarraDoEditor({ selo, info, erro, inicio, children }: Props) {
     <View style={estilos.barra} accessibilityRole="toolbar" accessibilityLabel="Ações do editor">
       <View style={[estilos.estado, largo && estilos.estadoLargo]}>
         {inicio}
-        <Selo texto={selo.texto} tipo={selo.tipo} />
+        {/* "Alterações não salvas" é neutro com o lápis no lugar do ponto: não é pendência nem erro (D12). */}
+        <Selo texto={selo.texto} tipo={selo.tipo} Icone={selo.naoSalvo ? PencilLine : undefined} />
         {info ? <Texto variante="pequeno" numerico numberOfLines={largo ? 1 : undefined} style={largo ? estilos.infoLarga : estilos.info}>{info}</Texto> : null}
         {erro ? <Texto variante="pequeno" cor={cores.perigo} style={estilos.info}>{erro}</Texto> : null}
       </View>

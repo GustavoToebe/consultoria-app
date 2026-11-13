@@ -9,6 +9,7 @@ import { IconeBotao } from '../../ui/IconeBotao';
 import { coresDaSelecao } from '../../ui/selecao';
 import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
+import { TracoDeHoje } from './itemDaAgenda';
 
 interface Props {
   visao: VisaoDoCalendario;
@@ -22,7 +23,7 @@ interface Props {
  * Mini calendário da lateral do PC, nas proporções do Google Agenda (F20 de 12/11): sem moldura nem faixa, o mês num título
  * discreto e as setas leves (alvo de 44, desenho compacto), semanas baixas (dias de 34 px de altura na largura da lateral,
  * acima dos 32 px pedidos para o PC). As setas trocam só o mês mostrado; o dia tocado leva a visão aberta para ele. A data
- * aberta é a seleção neutra, hoje é o número na cor da marca, o período da visão (a semana, o mês) fica com o fundo do item.
+ * aberta é a seleção neutra, hoje é o número na cor da marca com o traço embaixo, o período da visão (a semana, o mês) fica com o fundo do item.
  * Mudar a data por fora (setas da barra, "Hoje") traz o mini junto (a `key` é o mês da data).
  */
 export function MiniCalendario(props: Props) {
@@ -33,8 +34,8 @@ function MiniDoMes({ visao, data, hoje, aoEscolher }: Props) {
   const { cores, marcaTexto } = useTema();
   const [mes, setMes] = useState(data);
   const m = miniCalendario(mes, visao, data, hoje);
-  // Como o `ui/Calendario`: o escolhido é o mais forte (superficie3 com contorno, sem inverter); hoje é só o número na
-  // cor da marca.
+  // Como o `ui/Calendario`: o escolhido é o mais forte (superficie3 com contorno, sem inverter); hoje é o número na cor
+  // da marca com o traço embaixo, que continua quando hoje é também o escolhido.
   const selecao = coresDaSelecao(cores, true);
   return (
     <View style={estilos.mini}>
@@ -61,6 +62,7 @@ function MiniDoMes({ visao, data, hoje, aoEscolher }: Props) {
                     : sobre(e) && { backgroundColor: cores.superficie3 }]}>
                     <Texto variante="pequeno" numerico style={c.hoje || marcado ? estilos.forte : undefined}
                       cor={marcado ? selecao.texto : c.hoje ? marcaTexto : c.doMes ? cores.texto : cores.textoSuave}>{String(c.dia)}</Texto>
+                    {c.hoje ? <TracoDeHoje /> : null}
                   </View>
                 )}
               </Pressable>

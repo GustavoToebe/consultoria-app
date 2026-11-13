@@ -14,7 +14,7 @@ import { Selo } from '../../ui/Selo';
 import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
 import {
-  type AoAbrirItem, horarioDoItem, IconeDoStatus, rotuloDoItem, seloCurtoDoItem, toqueDoItem, useCorDaAgenda, useCoresDoItem,
+  type AoAbrirItem, horarioDoItem, IconeDoStatus, rotuloDoItem, seloCurtoDoItem, toqueDoItem, TracoDeHoje, useCorDaAgenda, useCoresDoItem,
 } from './itemDaAgenda';
 
 /** Altura de uma hora: 48 px, como no Google Agenda. O item tem no mínimo o alvo de toque (44 px). */
@@ -77,9 +77,10 @@ export function GradeDeHorarios({ dias, itens, hoje, meus, chaveDoPeriodo, aoAbr
           const dia = Number(c.data.slice(8, 10));
           const conteudo = <>
             <Texto variante="pequeno" cor={cores.textoSuave}>{DIAS_DA_SEMANA_CURTOS[diaDaSemanaIso(c.data) - 1]}</Texto>
-            {/* Hoje como no `ui/Calendario`: o número na cor da marca, sem círculo invertido. */}
+            {/* Hoje: o número na cor da marca, sem círculo invertido, e o traço embaixo (a cor não fala sozinha). */}
             <View style={estilos.numero}>
               <Texto variante="bloco" numerico cor={ehHoje ? marcaTexto : cores.texto}>{String(dia)}</Texto>
+              {ehHoje ? <TracoDeHoje /> : null}
             </View>
           </>;
           return (

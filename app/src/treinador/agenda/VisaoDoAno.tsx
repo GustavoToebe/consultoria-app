@@ -7,6 +7,7 @@ import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, LINHA_DA_FAIXA, RAIO } from '../../tema/tokens';
 import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
+import { TracoDeHoje } from './itemDaAgenda';
 
 /** Cada dia do mini mês tem o alvo de toque inteiro. */
 const CELULA = ALVO_TOQUE;
@@ -63,9 +64,10 @@ export function VisaoDoAno({ ano, hoje, contagem, aoAbrirDia, aoAbrirMes }: Prop
                   <Pressable key={c.data} accessibilityRole="button" onPress={() => aoAbrirDia(c.data)}
                     accessibilityLabel={`${dataComDiaDaSemana(c.data)}${c.hoje ? ', hoje' : ''}, ${resumoDoDia(conta)}. Abrir o dia`}
                     style={(e) => [estilos.dia, sobre(e) && { backgroundColor: cores.superficie3 }]}>
-                    {/* Hoje como no `ui/Calendario`: o número na cor da marca, sem círculo invertido. */}
+                    {/* Hoje: o número na cor da marca, sem círculo invertido, e o traço embaixo (a cor não fala sozinha). */}
                     <View style={estilos.numero}>
                       <Texto variante="pequeno" numerico cor={c.hoje ? marcaTexto : cores.texto} style={conta || c.hoje ? estilos.forte : undefined}>{String(c.dia)}</Texto>
+                      {c.hoje ? <TracoDeHoje /> : null}
                     </View>
                     <View style={[estilos.marca, conta && { backgroundColor: cores.texto }]} />
                   </Pressable>

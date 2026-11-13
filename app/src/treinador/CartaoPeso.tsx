@@ -31,6 +31,7 @@ import { IconeBotao } from '../ui/IconeBotao';
 import { PainelConfirmacao } from '../ui/PainelConfirmacao';
 import { Tabela, type ColunaDaTabela } from '../ui/Tabela';
 import { Texto } from '../ui/Texto';
+import { useDestaques } from '../ui/NumeroDeDestaque';
 import { useCarregar } from '../ui/useCarregar';
 
 const LINHAS_INICIAIS = 12;
@@ -39,10 +40,12 @@ const LINHAS_INICIAIS = 12;
  * Registros de peso do aluno (dado sensível: só na tela, nunca em log nem no aparelho). Com `alunoId` é a ficha da
  * equipe (registrar e excluir com `ALUNO_SENSIVEL_ALTERAR`, fases do ciclo); sem ele, o Histórico do próprio aluno:
  * só leitura pela rota do aluno, sem observação e sem ciclo. Nos dois, a variação tem seta e sinal e a cor da meta
- * efetiva que vem em cada item da lista (o app não calcula a meta; sem meta ou `SEM_META`, sem cor). O gráfico é neutro.
+ * efetiva que vem em cada item da lista (o app não calcula a meta; sem meta ou `SEM_META`, sem cor). O peso em si é medida,
+ * não resultado: vai no azul de indicador (cores-de-destaque D12), que nunca diz bom nem ruim; o gráfico é neutro.
  */
 export function CartaoPeso({ alunoId }: { alunoId?: string }) {
   const { cores, preferencias, escolherPreferencia } = useTema();
+  const azul = useDestaques().azul.cor;
   const daEquipe = alunoId !== undefined;
   const ciclo = useCicloNoPeso(alunoId);
   const { pode } = useSessao();
@@ -109,7 +112,7 @@ export function CartaoPeso({ alunoId }: { alunoId?: string }) {
       const fase = ciclo.ativo && preferencias.mostrarFasesDoCiclo ? ciclo.selo(p.data) : null;
       return <View style={{ gap: 4 }}><Texto numerico style={estilos.negrito}>{dataParaTela(p.data)}</Texto>{fase ? <SeloDaFase texto={fase} /> : null}</View>;
     } },
-    { chave: 'peso', titulo: 'Peso', render: (p) => <Texto numerico style={estilos.negrito}>{numeroParaTela(p.pesoKg)} kg</Texto> },
+    { chave: 'peso', titulo: 'Peso', render: (p) => <Texto numerico style={estilos.negrito} cor={azul}>{numeroParaTela(p.pesoKg)} kg</Texto> },
     {
       chave: 'variacao', titulo: 'Variação',
       render: (p) => <VariacaoDoPeso variacao={variacoes[p.id] ?? null} tom={tomDaVariacaoDoPeso(p.variacao, p.metaDoPeso)} />,
