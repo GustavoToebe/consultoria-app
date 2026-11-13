@@ -33,7 +33,7 @@ export function ResultadoDoMes({ resultado, somenteMeus, periodo }: {
     <Cartao titulo={r.rotulo} descricao={r.descricao} periodo={periodo}>
       <Grade gap={espaco(1.5)} colunas={(l) => colunasDosIndicadores(l, fatorTexto)}>
         <Parcela rotulo="Recebido das cobranças" valor={r.recebido} centavos={r.centavos.recebido} destaque="azul" />
-        <Parcela rotulo="Entradas avulsas" valor={r.entradas} centavos={r.centavos.entradas} destaque="azul" motivo={motivo} />
+        <Parcela rotulo="Entradas avulsas" valor={r.entradas} centavos={r.centavos.entradas} destaque="violeta" motivo={motivo} />
         <Parcela rotulo="Saídas avulsas" valor={r.saidas} centavos={r.centavos.saidas} destaque="vermelho" motivo={motivo} />
         <Parcela rotulo="Resultado" valor={r.resultado} centavos={r.centavos.resultado} destaque={null} motivo={motivo} />
       </Grade>
