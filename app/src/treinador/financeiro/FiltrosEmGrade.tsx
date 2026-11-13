@@ -3,6 +3,8 @@ import { StyleSheet, View } from 'react-native';
 
 import { periodoDigitado, type Periodo } from '../../dominio/filtrosComuns';
 import { dataDaTela, dataParaTela } from '../../dominio/formatos';
+import { errosDoPeriodoDigitado } from '../../dominio/painelDeFiltros';
+import { useProblemaNoPainel } from '../../ui/BarraDeFiltros';
 import { espaco } from '../../tema/tokens';
 import { CampoData } from '../../ui/Campos';
 import { CamposEmLinha } from '../../ui/CamposEmLinha';
@@ -37,6 +39,8 @@ export function FiltrosEmGrade({ children, colunas = duasColunas }: {
  * com o próprio rótulo ("De", "Até") fora do campo; empilham só quando não cabem duas de `MINIMO_DA_DATA`. O período só
  * vai para quem usa quando os dois campos fazem sentido (vazio ou data válida, fim depois do início): data pela metade
  * não apaga o filtro em vigor; quando o período muda por fora (✕ do chip, "Limpar filtros"), os campos acompanham.
+ * No painel lateral a data pela metade, impossível ou fora de ordem segura o "Aplicar filtros" e, depois dele, aparece
+ * no campo dela (`useProblemaNoPainel`).
  * shortcut: repete a sincronização do `treinador/SeletoresDeFiltro.CamposDePeriodo` (que empilha De e Até); trocar por
  * ele quando a peça compartilhada adotar o par lado a lado (passo 6 de `docs/planos/composicao-visual.md`).
  */
@@ -46,6 +50,10 @@ export function PeriodoDoFiltro({ rotulo, valor, aoMudar }: { rotulo: string; va
   if (texto.chave !== chave) setTexto({ de: dataParaTela(valor.de), ate: dataParaTela(valor.ate), chave });
   const resultado = periodoDigitado(dataDaTela(texto.de), dataDaTela(texto.ate));
   const foraDeOrdem = 'problema' in resultado && resultado.problema === 'ordem';
+  const erros = errosDoPeriodoDigitado(texto.de, texto.ate);
+  const painel = useProblemaNoPainel((erros.de ? 1 : 0) + (erros.ate ? 1 : 0));
+  const erroDe = painel.mostrar ? erros.de : null;
+  const erroAte = painel.mostrar ? erros.ate : foraDeOrdem ? 'Fim antes do início.' : null;
   const mudar = (campo: 'de' | 'ate', t: string) => {
     const novo = { ...texto, [campo]: t };
     setTexto(novo);
@@ -56,10 +64,10 @@ export function PeriodoDoFiltro({ rotulo, valor, aoMudar }: { rotulo: string; va
     <View style={estilos.periodo} role="group" aria-label={rotulo}>
       <Texto variante="rotulo">{rotulo}</Texto>
       <CamposEmLinha minimo={MINIMO_DA_DATA}>
-        <CampoData rotulo="De" nome={`${rotulo}, data inicial`} valor={texto.de} aoMudar={(t) => mudar('de', t)} />
+        <CampoData rotulo="De" nome={`${rotulo}, data inicial`} valor={texto.de} aoMudar={(t) => mudar('de', t)} erro={erroDe} />
         {/* Data impossível o próprio campo avisa ("Data inválida."). */}
         <CampoData rotulo="Até" nome={`${rotulo}, data final`} valor={texto.ate} aoMudar={(t) => mudar('ate', t)}
-          erro={foraDeOrdem ? 'Fim antes do início.' : null} />
+          erro={erroAte} />
       </CamposEmLinha>
     </View>
   );

@@ -53,8 +53,10 @@ export function AbaExercicios() {
   const gruposEscolhidos = gruposDaConsulta(gruposMarcados, gruposConhecidos);
   // Chave própria da página: a 'biblioteca-exercicios' é da lista inteira, usada em outras telas.
   const chave = JSON.stringify(['biblioteca-exercicios-pagina', pagina, buscaAtrasada, gruposEscolhidos]);
-  const { dados, erro, carregando, recarregar } = useCarregar(chave, () =>
+  const { dados: resposta, erro, carregando, recarregar, dadosDeOutraChave } = useCarregar(chave, () =>
     listarExerciciosPagina({ texto: buscaAtrasada, grupos: gruposEscolhidos, pagina }));
+  // Erro numa busca nova não deixa à vista a lista da busca anterior como se fosse a resposta.
+  const dados = erro && dadosDeOutraChave ? undefined : resposta;
   const [editando, setEditando] = useState<Exercicio | 'novo' | null>(null);
   const [inativar, setInativar] = useState<Exercicio | null>(null);
   // Guardar a lista de grupos da resposta durante o render (não em efeito): a próxima consulta já sai com os grupos certos.
@@ -90,12 +92,12 @@ export function AbaExercicios() {
       titulo="Exercícios da biblioteca"
       descricao="Os exercícios que você escolhe ao montar o treino, com vídeo quando houver."
       acoes={<Permitido codigo="BIBLIOTECA_ALTERAR"><Botao rotulo="Novo exercício" Icone={Plus} aoTocar={() => setEditando('novo')} /></Permitido>}>
-      <BarraDaBiblioteca rotulo="Buscar exercício" placeholder="Nome ou grupo" valor={busca} aoMudar={mudarBusca}
+      <BarraDaBiblioteca rotulo="Buscar exercício" placeholder="Nome ou grupo" valor={busca} aoMudar={mudarBusca} painelLateral={{ titulo: 'Filtros de exercícios' }}
         filtro={grupos.length > 0 ? { tipo: 'varias', rotulo: 'Grupo muscular', rotuloDeTodos: 'Todos os grupos', opcoes: opcoesDeGrupo, marcados: gruposAtivos, aoMudar: mudarGrupos } : null} />
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && total === 0 ? (
-        <Vazio titulo={!semFiltro ? 'Nenhum exercício encontrado' : 'Biblioteca de exercícios vazia'} texto={!semFiltro ? 'Tente outro termo de busca ou outro grupo muscular.' : pode('BIBLIOTECA_ALTERAR') ? 'Importe do catálogo ou cadastre um exercício.' : 'Ainda não há itens cadastrados.'} acao={!semFiltro ? { rotulo: 'Limpar filtros', aoTocar: () => { mudarBusca(''); mudarGrupos(new Set()); } } : pode('BIBLIOTECA_ALTERAR') ? { rotulo: 'Cadastrar exercício', aoTocar: () => setEditando('novo') } : undefined} />
+        <Vazio titulo={!semFiltro ? 'Nenhum exercício encontrado' : 'Biblioteca de exercícios vazia'} texto={!semFiltro ? 'Tente outro termo de busca ou outro grupo muscular.' : pode('BIBLIOTECA_ALTERAR') ? 'Importe do catálogo ou cadastre um exercício.' : 'Ainda não há itens cadastrados.'} acao={gruposAtivos.size > 0 ? { rotulo: 'Limpar filtros', aoTocar: () => mudarGrupos(new Set()) } : !semFiltro ? { rotulo: 'Limpar busca', aoTocar: () => mudarBusca('') } : pode('BIBLIOTECA_ALTERAR') ? { rotulo: 'Cadastrar exercício', aoTocar: () => setEditando('novo') } : undefined} />
       ) : null}
       {lista.length ? <ListaDeLinhas divisorias>{lista.map((e) => (
         <LinhaDaLista key={e.id} titulo={e.nome}

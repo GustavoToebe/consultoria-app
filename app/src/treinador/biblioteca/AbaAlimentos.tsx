@@ -42,7 +42,6 @@ import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 import { LinhaDaLista, ListaDeLinhas } from '../../ui/LinhaDaLista';
-import { CelulaDoFiltro } from '../SeletoresDeFiltro';
 import { normalizar } from '../treino/FolhaBiblioteca';
 
 export const UNIDADES: { valor: UnidadeAlimento; rotulo: string }[] = [
@@ -132,7 +131,7 @@ export function AbaAlimentos() {
 
   const termo = normalizar(busca.trim());
   const { grupos: gruposMarcados, unidades: unidadesMarcadas, fontes: fontesMarcadas, coccao: coccaoMarcadas } = filtros;
-  const limparFiltros = () => { setBusca(''); setFiltros(SEM_FILTROS); };
+  const comFiltros = gruposMarcados.size + unidadesMarcadas.size + fontesMarcadas.size + coccaoMarcadas.size > 0;
   // Um chip por filtro, com a chave do filtro (o ✕ tira só aquele).
   const chips = [
     ...chipDeVarias('Grupo', gruposMarcados, opcoesGrupos).map((c) => ({ ...c, chave: 'grupos' })),
@@ -177,25 +176,17 @@ export function AbaAlimentos() {
       acoes={<Permitido codigo="BIBLIOTECA_ALTERAR"><Botao rotulo="Novo alimento" Icone={Plus} aoTocar={() => setEditando('novo')} /></Permitido>}>
       <BarraDeFiltros busca={{ rotulo: 'Buscar alimento', placeholder: 'Nome do alimento', valor: busca, aoMudar: setBusca }}
         valor={filtros} aoAplicar={setFiltros} limpo={SEM_FILTROS} chips={chips}
-        aoTirar={(chave) => setFiltros((f) => ({ ...f, [chave]: new Set<string>() }))}
+        aoTirar={(chave) => setFiltros((f) => ({ ...f, [chave]: new Set<string>() }))} painelLateral={{ titulo: 'Filtros de alimentos' }}
         seletores={(atual, mudar) => (
           <>
-            <CelulaDoFiltro>
-              <SelecaoMultiplaSuspensa rotulo="Grupo" rotuloDeTodos="Todos os grupos" opcoes={opcoesGrupos} marcados={atual.grupos}
-                aoMudar={(m) => mudar({ ...atual, grupos: m })} />
-            </CelulaDoFiltro>
-            <CelulaDoFiltro>
-              <SelecaoMultiplaSuspensa rotulo="Unidade" rotuloDeTodos="Todas as unidades" opcoes={OPCOES_UNIDADE} marcados={atual.unidades}
-                aoMudar={(m) => mudar({ ...atual, unidades: m })} />
-            </CelulaDoFiltro>
-            <CelulaDoFiltro>
-              <SelecaoMultiplaSuspensa rotulo="Fonte" rotuloDeTodos="Todas as fontes" opcoes={opcoesFontes} marcados={atual.fontes}
-                aoMudar={(m) => mudar({ ...atual, fontes: m })} />
-            </CelulaDoFiltro>
-            <CelulaDoFiltro>
-              <SelecaoMultiplaSuspensa rotulo="Preparo" rotuloDeTodos="Todos os preparos" opcoes={OPCOES_PREPARO} marcados={atual.coccao}
-                aoMudar={(m) => mudar({ ...atual, coccao: m })} />
-            </CelulaDoFiltro>
+            <SelecaoMultiplaSuspensa rotulo="Grupo" rotuloDeTodos="Todos os grupos" opcoes={opcoesGrupos} marcados={atual.grupos}
+              aoMudar={(m) => mudar({ ...atual, grupos: m })} style={estilos.cheio} />
+            <SelecaoMultiplaSuspensa rotulo="Unidade" rotuloDeTodos="Todas as unidades" opcoes={OPCOES_UNIDADE} marcados={atual.unidades}
+              aoMudar={(m) => mudar({ ...atual, unidades: m })} style={estilos.cheio} />
+            <SelecaoMultiplaSuspensa rotulo="Fonte" rotuloDeTodos="Todas as fontes" opcoes={opcoesFontes} marcados={atual.fontes}
+              aoMudar={(m) => mudar({ ...atual, fontes: m })} style={estilos.cheio} />
+            <SelecaoMultiplaSuspensa rotulo="Preparo" rotuloDeTodos="Todos os preparos" opcoes={OPCOES_PREPARO} marcados={atual.coccao}
+              aoMudar={(m) => mudar({ ...atual, coccao: m })} style={estilos.cheio} />
           </>
         )} />
       {dados && lista.length && lista.length !== dados.length ? (
@@ -207,7 +198,7 @@ export function AbaAlimentos() {
         <Vazio
           titulo={dados.length ? 'Nenhum alimento encontrado' : 'Biblioteca de alimentos vazia'}
           texto={dados.length ? 'Tente outros termos de busca ou filtros.' : pode('BIBLIOTECA_ALTERAR') ? 'Importe do catálogo ou cadastre um alimento.' : 'Ainda não há itens cadastrados.'}
-          acao={dados.length ? { rotulo: 'Limpar filtros', aoTocar: limparFiltros } : pode('BIBLIOTECA_ALTERAR') ? { rotulo: 'Cadastrar alimento', aoTocar: () => setEditando('novo') } : undefined}
+          acao={comFiltros ? { rotulo: 'Limpar filtros', aoTocar: () => setFiltros(SEM_FILTROS) } : dados.length ? { rotulo: 'Limpar busca', aoTocar: () => setBusca('') } : pode('BIBLIOTECA_ALTERAR') ? { rotulo: 'Cadastrar alimento', aoTocar: () => setEditando('novo') } : undefined}
         />
       ) : null}
       {lista.length ? <ListaDeLinhas divisorias>{lista.map((a) => (
@@ -442,6 +433,8 @@ function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTir
 }
 
 const estilos = StyleSheet.create({
+  // Seletor no painel de filtros: a largura toda da coluna.
+  cheio: { alignSelf: 'stretch' },
   // 24 px entre os cartões da folha (seção 4.3 do design); dentro de cada cartão, os 16 px do próprio `Cartao`.
   partes: { gap: espaco(3) },
   linhaDeCampos: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', gap: espaco(2) },

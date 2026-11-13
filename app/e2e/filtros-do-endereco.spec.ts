@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import type { CobrancaResponse } from '../src/api/financeiroTipos';
 import type { RetornoPendente } from '../src/api/inscricoesTipos';
@@ -18,7 +18,7 @@ import { contagensFalsas, idDe, resumoFalso, rotasDaTela } from './inscricoes-fa
 const daTela = (p: { caminho: string; busca: URLSearchParams }) =>
   p.caminho === '/inscricoes' && !(p.busca.get('situacao') === 'NOVA' && p.busca.get('meus') === 'false' && p.busca.get('pagina') === '0' && !p.busca.has('tamanho'));
 
-const opcao = (page: Page, grupo: string, rotulo: string) =>
+const opcao = (page: Page | Locator, grupo: string, rotulo: string) =>
   page.getByRole('radiogroup', { name: grupo }).getByRole('radio', { name: rotulo, exact: true });
 
 function retorno(n: number, data: string): RetornoPendente {
@@ -179,16 +179,18 @@ test('Financeiro ?situacao=VENCIDA com meus=true: só as vencidas, "Vencidas" e 
   await expect(page.getByRole('button', { name: 'Tirar filtro: Situação: Vencidas' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Tirar filtro: Responsável: Meus' })).toBeVisible();
   await page.getByRole('button', { name: /^Filtros, / }).click();
-  await expect(page.getByRole('button', { name: 'Situação: Vencidas. Escolher.' })).toBeVisible();
-  await expect(opcao(page, 'Responsável', 'Meus')).toHaveAttribute('aria-checked', 'true');
+  const painel = page.getByRole('dialog', { name: 'Filtros de cobranças' });
+  await expect(painel.getByRole('button', { name: 'Situação: Vencidas. Escolher.' })).toBeVisible();
+  await expect(opcao(painel, 'Responsável', 'Meus')).toHaveAttribute('aria-checked', 'true');
   const ultimo = pedidos.filter((p) => p.caminho === '/financeiro/cobrancas').at(-1);
   expect(ultimo?.busca.getAll('situacao')).toEqual(['VENCIDA']);
   expect(ultimo?.busca.get('meus')).toBe('true');
 
   // A situação vinda do endereço se troca pela própria escolha da tela (várias de uma vez: Vencidas e Pagas).
-  await page.getByRole('button', { name: 'Situação: Vencidas. Escolher.' }).click();
+  await painel.getByRole('button', { name: 'Situação: Vencidas. Escolher.' }).click();
   await page.getByRole('dialog', { name: 'Situação' }).getByRole('checkbox', { name: 'Pagas' }).click();
   await page.keyboard.press('Escape');
+  await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
   await expect(page.getByText('Aluna Paga', { exact: true })).toBeVisible();
   await expect(page.getByText('Aluna Atrasada', { exact: true })).toBeVisible();
   await expect(page).toHaveURL(/situacao=VENCIDA%2CPAGA|situacao=VENCIDA,PAGA/);
@@ -233,8 +235,9 @@ test('Financeiro com valores desconhecidos no endereço: Todas, sem janela e sem
   await expect(page.getByRole('button', { name: /Tirar filtro/ })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /Limpar filtro/ })).toHaveCount(0);
   await page.getByRole('button', { name: 'Filtros, nenhum ligado' }).click();
-  await expect(page.getByRole('button', { name: 'Situação: Todas. Escolher.' })).toBeVisible();
-  await expect(opcao(page, 'Responsável', 'Todos')).toHaveAttribute('aria-checked', 'true');
+  const painel = page.getByRole('dialog', { name: 'Filtros de cobranças' });
+  await expect(painel.getByRole('button', { name: 'Situação: Todas. Escolher.' })).toBeVisible();
+  await expect(opcao(painel, 'Responsável', 'Todos')).toHaveAttribute('aria-checked', 'true');
   const ultimo = pedidos.filter((p) => p.caminho === '/financeiro/cobrancas').at(-1);
   expect([ultimo?.busca.get('situacao'), ultimo?.busca.get('de'), ultimo?.busca.get('meus')]).toEqual([null, null, null]);
   expect(naoTratadas).toEqual([]);

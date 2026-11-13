@@ -74,9 +74,9 @@ test('cobranças: situação, emissão e pagamento combinados vão juntos ao end
   await expect(page.getByText('123.456.789-09')).toHaveCount(0);
   await expect(page.getByText('12/10/2026', { exact: true })).toBeVisible();
 
-  // Em 1440 o painel abre na própria página, sem folha.
+  // Painel lateral "Filtros de cobranças": rascunho até o "Aplicar filtros".
   await page.getByRole('button', { name: /^Filtros/ }).click();
-  const painel = page.locator('body');
+  const painel = page.getByRole('dialog', { name: 'Filtros de cobranças' });
   await painel.getByRole('button', { name: 'Situação: Todas. Escolher.' }).click();
   await page.getByRole('dialog', { name: 'Situação' }).getByRole('checkbox', { name: 'Pagas', exact: true }).click();
   await page.keyboard.press('Escape');
@@ -84,13 +84,15 @@ test('cobranças: situação, emissão e pagamento combinados vão juntos ao end
   await emissao.getByRole('textbox', { name: 'De' }).fill('01/10/2026');
   await emissao.getByRole('textbox', { name: 'Até' }).fill('19/10/2026');
   await painel.getByRole('group', { name: 'Pagamento' }).getByRole('textbox', { name: 'De' }).fill('10/10/2026');
-  // No computador cada escolha já vale (como os outros filtros da tela); no celular é o "Ver cobranças" da folha.
+  await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
 
   await expect(page).toHaveURL(/situacao=PAGA/);
   await expect(page).toHaveURL(/emissaoDe=2026-10-01/);
   await expect(page).toHaveURL(/pagoDe=2026-10-10/);
-  const ultimo = pedidos.filter((p) => p.metodo === 'GET' && p.caminho === '/financeiro/cobrancas').at(-1);
-  expect(ultimo?.busca.get('situacao')).toBe('PAGA');
+  // Tudo vai num pedido só, que pode sair logo depois de o endereço mudar.
+  const ultimoPedido = () => pedidos.filter((p) => p.metodo === 'GET' && p.caminho === '/financeiro/cobrancas').at(-1);
+  await expect.poll(() => ultimoPedido()?.busca.get('situacao')).toBe('PAGA');
+  const ultimo = ultimoPedido();
   expect(ultimo?.busca.get('emissaoDe')).toBe('2026-10-01');
   expect(ultimo?.busca.get('emissaoAte')).toBe('2026-10-19');
   expect(ultimo?.busca.get('pagoDe')).toBe('2026-10-10');

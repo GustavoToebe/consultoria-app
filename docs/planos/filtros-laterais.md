@@ -23,6 +23,7 @@ em barras; os campos e regras já pedidos continuam valendo, muda a apresentaç�
 | D9 | Estado: rascunho separado do aplicado; nada de rascunho na URL; filtros aplicados continuam na URL onde já estavam; sem empilhar histórico por caixa marcada (Agenda: Voltar não desfaz filtro); CPF/CNPJ e dado sensível nunca em URL nem log; aplicar reinicia paginação; resposta antiga não substitui a nova; filtrar com seleção em lote pede regra explícita | pedido | guia |
 | D10 | Abrangência: só filtros (restringem resultado ou período). Abas, Lista/Kanban/Indicadores, Dia/Semana/Mês, hoje/anterior/próximo, mini calendário, edição e preferências ficam onde estão; a busca por texto pode ficar visível. Sem filtros novos só para completar a lista; sem "Meus filtros", sem exportação; área do aluno só adapta os filtros que existem | pedido | guia |
 | D11 | Ordem: inventariar → componente validado em Cobranças (datas + múltipla seleção) e Biblioteca (simples), escuro/claro/celular → só então migrar o resto → testes dos contratos → Ajuda e docs | pedido | guia |
+| D13 | D3 resolvida: 460 px no PC (margem 24 px; o rodapé de três botões cabe numa linha); celular (abaixo de 768 px) mantém a folha de baixo na largura toda, com cabeçalho e rodapé fixos e os botões empilhados (Aplicar em cima) | decisão de implementação, fase 1 | Claude, 12/11 |
 | D12 | Já existe `ui/BarraDeFiltros` (busca + "Filtros" com contador + painel "Filtros avançados" no PC com efeito na hora + `Folha` "Filtros" com rascunho no celular + chips "Filtrando:" com ✕ e "Limpar filtros"): é a base a evoluir, não um segundo componente paralelo | decisão da sessão principal a partir do inventário | Claude, 12/11 |
 
 ## Inventário (explorador, 12/11/2026, a partir do código; ✔ = lido, ? = a confirmar na migração de cada tela)
@@ -30,8 +31,8 @@ Base: `ui/BarraDeFiltros.tsx` (contador = `chips.length`), `ui/Folha.tsx`, `ui/S
 
 | Tela | Onde | Critérios | Situação |
 | --- | --- | --- | --- |
-| Financeiro › Cobranças | `financeiro/AbaCobrancas.tsx` | Responsável (meus/todos), Situação (múltipla), Forma da baixa, Vencimento (modo + próximos 7 dias), Emissão, Pagamento; busca por aluno | fase 1 |
-| Biblioteca › Alimentos / Exercícios | `biblioteca/AbaAlimentos.tsx`, `AbaExercicios.tsx`, `BarraDaBiblioteca.tsx` | Grupo, Unidade, Fonte, Preparo; Modalidade | fase 1 |
+| Financeiro › Cobranças | `financeiro/AbaCobrancas.tsx` | Responsável (meus/todos), Plano (já existia), Situação (múltipla), Forma da baixa, Vencimento (modo + próximos 7 dias), Emissão, Pagamento; busca por aluno | migrada (fase 1) |
+| Biblioteca › Alimentos / Exercícios | `biblioteca/AbaAlimentos.tsx`, `AbaExercicios.tsx`, `BarraDaBiblioteca.tsx` | Alimentos: Grupo, Unidade, Fonte, Preparo; Exercícios: Grupo muscular (não há Modalidade) | migrada (fase 1) |
 | Financeiro › Lançamentos | `AbaLancamentos.tsx` | Tipo, Categoria (múltipla), Data do lançamento | pendente |
 | Financeiro › Visão geral | `VisaoGeral.tsx`, `ResultadoDoMes.tsx` | responsável e período (?) | pendente (confirmar) |
 | Alunos | `alunos/index.tsx` | Mostrar alunos (atalho), Situação, Responsável; avançados na URL | pendente |
@@ -49,11 +50,11 @@ Base: `ui/BarraDeFiltros.tsx` (contador = `chips.length`), `ui/Folha.tsx`, `ui/S
 | Aluno | `aluno/historico.tsx`, `ListaDeComprasDoAluno`, Comunidade › Colegas | período; busca | avaliar (só adaptar o que existe) |
 | Números, Ajuda, Inscrição pública | — | sem filtro (Ajuda: busca textual; Inscrição: campos de formulário) | fora |
 
-Filtros do guia que **não existem** hoje (só entram se houver fonte de dado e o Gustavo já tiver pedido; "sem fonte" fica registrado, não inventado): Cobranças: aluno/pagador como seletor (hoje só busca por nome), plano, responsável como pessoa, competência, CPF/CNPJ (dado sensível; nunca na URL), ID, crédito em conta; Agenda: agendas visíveis (a confirmar); Visão geral: responsável e período (a confirmar).
+Filtros do guia que **não existem** hoje (só entram se houver fonte de dado e o Gustavo já tiver pedido; "sem fonte" fica registrado, não inventado): Cobranças (confirmado na fase 1, **sem fonte**, não criados): aluno/pagador como seletor (hoje só busca por nome e `alunoId` pelo endereço), responsável como pessoa, competência, CPF/CNPJ (dado sensível; nunca na URL), ID, crédito em conta; o Plano já existia e ficou; Agenda: agendas visíveis (a confirmar); Visão geral: responsável e período (a confirmar).
 
 ## Passos
-- [ ] 1. Componente compartilhado `PainelDeFiltros` (rascunho/aplicado, Aplicar/Cancelar/Limpar, foco, Esc, rolagem, camada para lista e calendário, escuro/claro/celular), evoluindo `BarraDeFiltros`; testes de contrato — commit: —
-- [ ] 2. Cobranças migrada (dois status + aluno + vencimento; lote x filtro; cobrança sem data de pagamento; documentar a regra de seleção em lote) e Biblioteca (nome + categoria/modalidade; voltar de uma edição; sem resultado); capturas 390/1280/1440/1920, escuro e claros — commit: —
+- [x] 1. Componente compartilhado, evoluindo `BarraDeFiltros` (sem peça paralela, D12): prop opcional `painelLateral={{ titulo }}` (shortcut: o modo antigo sai nos passos 4 e 5), `Folha lateral` (460 px à direita no PC, `LARGURA_PAINEL_LATERAL`; celular = folha de baixo na largura toda), `GrupoDoPainel`, `useProblemaNoPainel`; regras puras `dominio/painelDeFiltros.ts` (`resultadoDoAplicar`, `errosDoPeriodoDigitado`, `selecaoDepoisDosFiltros`) com `painelDeFiltros.test.ts` (7 testes); camadas pela pilha de `Modal` (lista e calendário acima, Esc fecha a de cima). **Desvio do D1:** sem animação de entrada (a de 180 ms não assentava em 0 sob o relógio fixo dos e2e e deixava o painel 0,7 px fora; o painel aparece pronto à direita; volta, se o Gustavo quiser, com o teste de posição em movimento reduzido). Folha aberta de dentro de outra não pinta segundo véu (D8; vale para toda folha aninhada do sistema, medido na captura de 390 px). Evidência: `e2e/filtros-laterais.spec.ts` (38 casos, API simulada) — commit: —
+- [x] 2. Cobranças (`AbaCobrancas`, grupos Identificação · Situação · Datas; `PeriodoDoFiltro` marca o erro no painel) e Biblioteca (`AbaExercicios`, `AbaAlimentos`, `BarraDaBiblioteca`) migradas; API, endereço e permissões iguais; resposta de outra chave com erro não mostra a lista velha (`dadosDeOutraChave`); "Limpar filtros" do vazio não apaga mais a busca (D5). **Regra do lote (D9):** Aplicar com filtros diferentes limpa a seleção e avisa quantas saíram; Aplicar sem mudar nada, Cancelar, X, Esc e fundo mantêm; a busca continua limpando como antes. Casos e2e: duas situações + vencimento, cobrança sem data de pagamento, lote, Aplicar/Cancelar/X/Esc/fundo, Esc no calendário, datas inválidas e foco, várias caixas, contador/chips/resultado, vazio com chips, voltar da edição mantém o filtro (Exercícios). Capturas antes-/depois- em 390/1024/1280/1440/1920 e temas (fora do repositório). Antigos que passaram: 341 casos em 19 specs — commit: —
 - [ ] 3. Revisão independente do componente (foco, camadas, estado) antes de espalhar — revisor/advisor — —
 - [ ] 4. Financeiro (Lançamentos, Visão geral), Alunos, Atualizações, Interessados (+ Indicadores), Auditoria, Equipe — commit: —
 - [ ] 5. Agenda, Comunidade, Planejamento, Início, Importação, Biblioteca (resto), filtros dentro de editores, ficha e aluno (o que for filtro) — commit: —
@@ -64,3 +65,5 @@ Filtros do guia que **não existem** hoje (só entram se houver fonte de dado e 
 
 ## O que ficou para trás
 - (cada sobra também vai para "Pendências soltas" no README)
+- Fase 1 (12/11): passo 3 (revisão independente do componente) ainda por fazer antes dos passos 4 e 5.
+- Fase 1: não conferido com leitor de tela nem no app nativo (Android/iOS); só web (Chromium) com API simulada.

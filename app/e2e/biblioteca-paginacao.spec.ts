@@ -59,9 +59,8 @@ for (const largura of [390, 1280]) {
     await painel.getByRole('checkbox', { name: 'Costas' }).click();
     await expect(painel.getByRole('checkbox', { name: 'Ombro' })).toBeVisible();
     await page.keyboard.press('Escape');
-    // No celular os filtros ficam numa Folha e só valem ao tocar em "Ver resultado".
-    const verResultado = page.getByRole('button', { name: 'Ver resultado' });
-    if (await verResultado.isVisible()) await verResultado.click();
+    // Painel lateral "Filtros de exercícios": o grupo vale no "Aplicar filtros", nas duas larguras.
+    await page.getByRole('dialog', { name: 'Filtros de exercícios' }).getByRole('button', { name: 'Aplicar filtros' }).click();
     await expect(page.getByText('Elevação 41', { exact: true })).toBeVisible();
     await expect(page.getByText('Elevação 40', { exact: true })).toHaveCount(0);
     await expect(page.getByText('Página 1 de 1')).toHaveCount(0);

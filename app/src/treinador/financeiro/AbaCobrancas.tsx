@@ -16,13 +16,14 @@ import {
   textoDoVencimento, type ChaveDoFiltroDeCobrancas, type FiltrosDeCobrancas, type FormaDoFiltro, type SituacaoDoFiltro,
 } from '../../dominio/filtrosDoFinanceiro';
 import { centavosParaTela, dataParaTela, SEM_DADO } from '../../dominio/formatos';
+import { selecaoDepoisDosFiltros } from '../../dominio/painelDeFiltros';
 import { rotuloDoMes } from '../../dominio/numeros';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { espaco } from '../../tema/tokens';
 import { OPCOES_RESPONSABILIDADE } from '../EscolhaResponsabilidade';
 import { UmaOpcao } from '../SeletoresDeFiltro';
 import { useAviso } from '../../ui/Aviso';
-import { BarraDeFiltros } from '../../ui/BarraDeFiltros';
+import { BarraDeFiltros, GrupoDoPainel } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
 import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
@@ -36,7 +37,7 @@ import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../ui/useCarregar';
 import { CartaoDeConferencias } from './CartaoDeConferencias';
-import { FiltrosEmGrade, PeriodoDoFiltro } from './FiltrosEmGrade';
+import { PeriodoDoFiltro } from './FiltrosEmGrade';
 import { FolhaDaCobranca } from './FolhaDaCobranca';
 import { FolhaDoLote } from './FolhaDoLote';
 import { ListaOuTabela } from './ListaOuTabela';
@@ -50,25 +51,25 @@ const TAMANHO_PAGINA = 50;
  */
 const LARGURA_DA_TABELA = 940;
 
-/** As três datas lado a lado a partir de 1100 px (medidos na grade), duas a partir de 700, uma abaixo disso. */
-const colunasDasDatas = (largura: number) => (largura >= 1100 ? 3 : largura >= 700 ? 2 : 1);
-
 const dataOuNada = (iso: string | null | undefined) => (iso ? dataParaTela(iso) : SEM_DADO);
 
 /**
  * Cobranças dos alunos, por vencimento. "Vencidas" é só um filtro (a API decide pela data de Brasília); "Em aberto"
  * inclui as vencidas. Tocar na linha abre a cobrança, com Registrar pagamento, Desfazer e Cancelar para quem pode alterar.
  * No topo, com o recebimento online ligado, "Pagamentos para conferir" (só aparece quando há algum). Cobrança paga pelo
- * provedor leva o selo "Online". Na barra de filtros (`docs/planos/filtros-nas-listas.md`, D7 e lote 2): a busca pelo
- * nome do aluno (na API, 300 ms depois de digitar) e, no painel, numa grade alinhada (P2): responsável, situações
- * (várias), plano e forma da baixa; embaixo, as datas: vencimento (próximos 7 dias ou um período), emissão e pagamento.
+ * provedor leva o selo "Online". Na barra de filtros: a busca pelo nome do aluno (na API, 300 ms depois de digitar) fica
+ * na página; o resto mora no painel lateral "Filtros de cobranças" (`docs/planos/filtros-laterais.md`), em grupos:
+ * Identificação (responsável, plano), Situação (situações, várias, e forma da baixa) e Datas (vencimento: próximos 7 dias
+ * ou um período; emissão; pagamento), com rascunho até o "Aplicar filtros".
  * Tudo no endereço junto do `?aba=cobrancas` (`?meus=true&situacao=ABERTA,PAGA&vencimento=PROXIMOS_7_DIAS` ou `&de=&ate=`,
  * `&emissaoDe=&emissaoAte=&pagoDe=&pagoAte=&planoId=&forma=`), como os mini-cartões do Início abrem. Um aluno só chega pelo
  * endereço (`&alunoId=`, o "Ver no Financeiro" da ficha) e sai pelo ✕ do chip. Valor desconhecido no endereço é ignorado.
  *
  * Com `FINANCEIRO_ALTERAR`, cada cobrança em aberto (vencida incluída) tem a caixa de marcar ao lado da linha (fora do
  * toque que a abre) e a barra do lote conta as marcadas, seleciona as da página e abre a revisão obrigatória
- * (`FolhaDoLote`). Trocar de página mantém a seleção; mudar um filtro ou a busca a limpa, com aviso.
+ * (`FolhaDoLote`). Trocar de página mantém a seleção. Seleção × filtros (D9, `selecaoDepoisDosFiltros`): aplicar filtros
+ * diferentes (painel, ✕ do chip, "Limpar filtros") ou mudar a busca limpa a seleção, com aviso; aplicar os mesmos filtros
+ * e Cancelar/X/Esc/fundo do painel não mexem nela. Assim o lote nunca leva cobrança que a lista não mostra.
  */
 export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
   const { pode, recebimentoOnlineHabilitado } = useSessao();
@@ -96,15 +97,22 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
     if (selecao.length > 0) avisar('A seleção de cobranças foi limpa porque a lista mudou.', 'neutro');
     setSelecao([]);
   };
-  // Trocar um filtro troca o endereço sem empilhar histórico (a aba fica), volta à página 1 e limpa a seleção.
+  // Trocar um filtro troca o endereço sem empilhar histórico (a aba fica), volta à página 1 e limpa a seleção. Os mesmos
+  // filtros de antes (Aplicar sem mudar nada) não fazem nada.
   const aplicar = (novos: FiltrosDeCobrancas) => {
+    const antes = chaveDasCobrancas(filtros, busca);
+    const depois = chaveDasCobrancas(novos, busca);
+    if (antes === depois) return;
+    const { aviso } = selecaoDepoisDosFiltros(selecao, antes, depois);
+    if (aviso) avisar(aviso, 'neutro');
+    setSelecao([]);
     setPagina(0);
-    limparSelecao();
     router.setParams(paraSetParams(CHAVES_DE_COBRANCAS, cobrancasParaEndereco(novos)));
   };
   const { recarregar } = lista;
   useFocusEffect(useCallback(() => { recarregar(); }, [recarregar]));
-  const dados = lista.dados;
+  // Erro numa busca nova não deixa à vista a lista dos filtros anteriores como se fosse a resposta.
+  const dados = lista.erro && lista.dadosDeOutraChave ? undefined : lista.dados;
   const paginas = dados ? Math.max(1, Math.ceil(dados.total / TAMANHO_PAGINA)) : 1;
   const nomeDoAluno = filtros.alunoId ? dados?.itens.find((c) => c.alunoId === filtros.alunoId)?.alunoNome ?? null : null;
   const chips = chipsDasCobrancas(filtros, hoje, { aluno: nomeDoAluno, plano: nomeDoPlano });
@@ -121,7 +129,8 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
       {recebimentoOnlineHabilitado && pode('ALUNO_LER') ? <CartaoDeConferencias podeAlterar={podeAlterar} /> : null}
       <BarraDeFiltros busca={{ valor: buscaDigitada, aoMudar: (t) => { setBuscaDigitada(t); setPagina(0); limparSelecao(); }, placeholder: 'Nome do aluno' }}
         valor={filtros} aoAplicar={aplicar} limpo={SEM_FILTROS_DE_COBRANCAS} chips={chips}
-        aoTirar={(chave) => aplicar(semOFiltroDeCobrancas(filtros, chave as ChaveDoFiltroDeCobrancas))} rotuloDoResultado="Ver cobranças"
+        aoTirar={(chave) => aplicar(semOFiltroDeCobrancas(filtros, chave as ChaveDoFiltroDeCobrancas))}
+        painelLateral={{ titulo: 'Filtros de cobranças' }}
         seletores={(atuais, mudar) => <SeletoresDeCobrancas filtros={atuais} aoMudar={mudar} opcoesDePlano={opcoesDePlano} />} />
       {lista.erro ? <MensagemErro texto={textoDoErro(lista.erro)} erro={lista.erro} tentarDeNovo={recarregar} /> : null}
       {!dados && lista.carregando ? <Esqueleto /> : null}
@@ -248,10 +257,10 @@ const TODOS = 'TODOS';
 const FORMAS: { valor: FormaDoFiltro | typeof TODOS; rotulo: string }[] = [{ valor: TODOS, rotulo: 'Qualquer' }, ...FORMAS_DO_FILTRO];
 
 /**
- * Seletores das cobranças, em duas grades alinhadas: responsável e situações, plano e forma da baixa (duas colunas); depois
- * as datas (até três colunas): vencimento (qualquer, próximos 7 dias ou período), emissão e pagamento. "Escolher período"
- * abre os campos De/Até; o modo fica aqui enquanto o período está vazio (vazio no endereço é "qualquer data"). Os filtros
- * se combinam (todos valem juntos).
+ * Seletores das cobranças no painel lateral, numa coluna e em grupos (D2): Identificação (responsável, plano), Situação
+ * (situações e forma da baixa) e Datas (vencimento: qualquer, próximos 7 dias ou período; emissão; pagamento), cada data
+ * com rótulo próprio. "Escolher período" abre os campos De/Até; o modo fica aqui enquanto o período está vazio (vazio no
+ * endereço é "qualquer data"). Os filtros se combinam (todos valem juntos).
  */
 function SeletoresDeCobrancas({ filtros, aoMudar, opcoesDePlano }: {
   filtros: FiltrosDeCobrancas; aoMudar: (f: FiltrosDeCobrancas) => void; opcoesDePlano: { valor: string; rotulo: string }[];
@@ -266,17 +275,19 @@ function SeletoresDeCobrancas({ filtros, aoMudar, opcoesDePlano }: {
   };
   return (
     <>
-      <FiltrosEmGrade>
+      <GrupoDoPainel titulo="Identificação" primeiro>
         <Escolha rotulo="Responsável" opcoes={OPCOES_RESPONSABILIDADE} valor={filtros.meus ? 'meus' : 'todos'} aoMudar={(v) => aoMudar({ ...filtros, meus: v === 'meus' })} />
+        <UmaOpcao rotulo="Plano" valor={filtros.planoId ?? TODOS} opcoes={opcoesDePlano}
+          aoMudar={(v) => aoMudar({ ...filtros, planoId: v === TODOS ? null : v })} />
+      </GrupoDoPainel>
+      <GrupoDoPainel titulo="Situação">
         <SelecaoMultiplaSuspensa rotulo="Situação" opcoes={SITUACOES_DO_FILTRO} marcados={new Set(filtros.situacoes)} rotuloDeTodos="Todas"
           aoMudar={(m) => aoMudar({ ...filtros, situacoes: SITUACOES_DO_FILTRO.map((o) => o.valor).filter((v) => m.has(v)) as SituacaoDoFiltro[] })}
           style={estilos.cheio} />
-        <UmaOpcao rotulo="Plano" valor={filtros.planoId ?? TODOS} opcoes={opcoesDePlano}
-          aoMudar={(v) => aoMudar({ ...filtros, planoId: v === TODOS ? null : v })} />
         <Escolha rotulo="Forma da baixa" opcoes={FORMAS} valor={filtros.forma ?? TODOS}
           aoMudar={(v) => aoMudar({ ...filtros, forma: v === TODOS ? null : (v as FormaDoFiltro) })} />
-      </FiltrosEmGrade>
-      <FiltrosEmGrade colunas={colunasDasDatas}>
+      </GrupoDoPainel>
+      <GrupoDoPainel titulo="Datas">
         <View style={estilos.coluna}>
           <Escolha rotulo="Vencimento" opcoes={MODOS_DO_VENCIMENTO} valor={modo} aoMudar={mudarModo} />
           {modo === 'PERIODO' ? (
@@ -285,7 +296,7 @@ function SeletoresDeCobrancas({ filtros, aoMudar, opcoesDePlano }: {
         </View>
         <PeriodoDoFiltro rotulo="Emissão" valor={filtros.emissao} aoMudar={(emissao) => aoMudar({ ...filtros, emissao })} />
         <PeriodoDoFiltro rotulo="Pagamento" valor={filtros.pagamento} aoMudar={(pagamento) => aoMudar({ ...filtros, pagamento })} />
-      </FiltrosEmGrade>
+      </GrupoDoPainel>
     </>
   );
 }

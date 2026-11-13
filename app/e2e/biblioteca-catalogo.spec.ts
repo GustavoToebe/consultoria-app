@@ -461,6 +461,7 @@ test('exercícios da biblioteca: filtro de vários grupos no servidor', async ({
   await painel.getByRole('checkbox', { name: 'Peito' }).click();
   await painel.getByRole('checkbox', { name: 'Costas' }).click();
   await page.keyboard.press('Escape');
+  await page.getByRole('dialog', { name: 'Filtros de exercícios' }).getByRole('button', { name: 'Aplicar filtros' }).click();
   await expect(page.getByText('Supino', { exact: true })).toBeVisible();
   await expect(page.getByText('Remada', { exact: true })).toBeVisible();
   await expect(page.getByText('Agacho', { exact: true })).toHaveCount(0);

@@ -257,11 +257,14 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await expect(page.getByText('Bruno Exemplo', { exact: true }).first()).toBeVisible();
       await page.getByRole('textbox', { name: 'Buscar' }).fill('');
 
-      const painel = await abrirFiltros(page, celular);
+      // Painel lateral (`docs/planos/filtros-laterais.md`): rascunho nas duas larguras, vale no "Aplicar filtros".
+      await botaoFiltros(page).click();
+      const painel = page.getByRole('dialog', { name: 'Filtros de cobranças' });
+      await expect(painel).toBeVisible();
       await marcar(page, painel, 'Situação', 'Todas', ['Vencidas', 'Pagas'], celular);
       await opcao(painel, 'Plano', 'Consultoria mensal').click();
       await opcao(painel, 'Forma da baixa', 'Pagamento online').click();
-      await verResultado(page, celular, 'Ver cobranças');
+      await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
       await expect.poll(() => ultimo(pedidos, '/financeiro/cobrancas')?.get('forma')).toBe('ONLINE');
       expect(ultimo(pedidos, '/financeiro/cobrancas')?.getAll('situacao')).toEqual(['VENCIDA', 'PAGA']);
       expect(ultimo(pedidos, '/financeiro/cobrancas')?.get('planoId')).toBe(PLANO);

@@ -96,6 +96,14 @@ Fonte: `C:\Users\GustavoToebe\Desktop\orientacoes-correcao-visual-front.pdf` (oi
     - Validade: árvore local de 10/11/2026 sem commit; refazer o e2e se `ui/Folha`, `ui/ItemDeLista`, `ui/CampoData`
       ou `CamposEmLinha` mudarem.
   - Aceite (Gustavo, 10/11: **sem capturas de tela**): conferir a renderização em 390, 768, 1280 e desktop amplo (1920, pois os prints 01 a 04 mostram distribuição ruim em tela larga), temas claro e escuro, de cada tela e de uma equivalente, por e2e com asserções de posição e tamanho (rodapé visível, ações na mesma borda, sem sobreposição) e inspeção no navegador, sem salvar imagem; verificações rodadas com resultado.
+  - P2, painel lateral de filtros (12/11/2026, `docs/planos/filtros-laterais.md` fase 1; árvore local sem commit):
+    `app/e2e/filtros-laterais.spec.ts` (38 casos, API simulada) com asserção de posição (encosta à direita, 460 px,
+    altura da janela, tabela com a mesma largura, página sem rolar) e capturas fora do repositório em 390, 1024, 1280,
+    1440 e 1920 px no escuro (topo, fim, calendário perto do rodapé), menu recolhido em 1280, e 390/1280 nos temas
+    Claro, Areia, Lavanda, Céu, Rosa, alto contraste (escuro e claro), bordas reforçadas e texto grande. Comparado com a
+    tela equivalente no modo antigo (Lançamentos, Importar do catálogo). Folha dentro de folha no celular deixou de
+    pintar um segundo véu (`ui/Folha`, medido na captura). Refazer se `ui/Folha`, `ui/BarraDeFiltros` ou `ui/RodapeDeAcoes`
+    mudarem.
 - [ ] 5. Conferência visual e promoção de **Proposto** para **Verificado** na 4.6, com o e2e ou a conferência que a sustenta (sem capturas) — commit: —
 - [ ] 6. Aplicar às demais ocorrências (Grep pela peça, tela por tela) — commit: —
 

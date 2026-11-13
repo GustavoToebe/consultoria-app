@@ -367,6 +367,16 @@ A seção "Observado no código" de cada padrão são **hipóteses de causa** ac
   ("Período") só se os dois rótulos individuais ficarem ocultos para o olho e continuarem para o leitor de tela.
 - **Estrutura da barra de filtros:** busca · "Filtros" com contagem · "Limpar filtros" · "Filtrado por" com chips. No
   PC, os seletores abrem num cartão logo abaixo; no celular, numa `Folha` com rascunho.
+- **Painel lateral de filtros (12/11, `docs/planos/filtros-laterais.md`; substitui o cartão e a folha antigos conforme
+  as telas migram):** `BarraDeFiltros` com `painelLateral={{ titulo: 'Filtros de <assunto>' }}`. O botão abre um diálogo
+  (`role=dialog` com o título como nome, `aria-haspopup`) pela `Folha lateral`: no PC encosta à direita, 460 px
+  (`LARGURA_PAINEL_LATERAL`), altura da janela, borda esquerda em `divisor`, sem sombra e sem animação de entrada; no
+  celular é a folha de baixo na largura toda. Cabeçalho fixo com o X, corpo rolável em uma coluna com grupos
+  `GrupoDoPainel` (título de seção e divisor de 1 px, sem cartão), rodapé fixo `Limpar filtros` (fantasma) · `Cancelar`
+  · `Aplicar filtros` (o único primário). Rascunho copiado do aplicado ao abrir; X, Esc, fundo, Cancelar e o voltar
+  descartam; Aplicar confere os campos (`useProblemaNoPainel` + `dominio/painelDeFiltros`): com erro, o painel fica, a
+  frase vai ao rodapé, cada erro fica no campo e o foco vai ao primeiro marcado. Lista suspensa e calendário abrem
+  acima do painel e o Esc fecha primeiro a camada de cima. A página atrás fica inerte e a tabela não muda de largura.
 - **Peça:** `Campo`, `CamposEmLinha`, `CampoData`, `CampoSenha`, `BarraDeFiltros`, `SelecaoMultiplaSuspensa`, `EscolhaEmFolha`.
 - **Senha:** `CampoSenha` tem o olho como botão de alternar (WAI-ARIA APG): o nome fixo "Mostrar senha" e o estado em
   `aria-pressed` na web e em `checked` no celular, nunca o nome que troca junto com o estado (10/11, `e2e/entrada-por-publico.spec.ts`).
@@ -381,6 +391,10 @@ A seção "Observado no código" de cada padrão são **hipóteses de causa** ac
   escuro, com De e Até lado a lado de mesmo topo, altura e largura (também com "Fim antes do início." no Até), nomes
   "Entrada: data inicial" etc., data inteira sem corte, calendário dentro da janela, Responsável e Origem numa linha e
   os períodos embaixo nas mesmas colunas, sem sobreposição: `app/e2e/interessados-composicao.spec.ts`.
+  Painel lateral = **Verificado só em Financeiro › Cobranças e Biblioteca › Exercícios/Alimentos** (12/11, API
+  simulada): 390, 1024, 1280, 1440 e 1920 px no escuro (topo, fim, calendário perto do rodapé), menu recolhido, e em
+  390 e 1280 px nos temas Claro, Areia, Lavanda, Céu, Rosa, alto contraste (escuro e claro), bordas reforçadas e texto
+  grande, com a lista de Situação aberta: `app/e2e/filtros-laterais.spec.ts` (capturas fora do repositório).
 - **Observado no código:** a `BarraDeFiltros` posiciona seletores em grade com `columnGap` e `rowGap`, mas não define
   nada para o par de datas. O par compartilhado já existe, `treinador/SeletoresDeFiltro.CamposDePeriodo` (Atualizações,
   Auditoria, Importação, Cobranças, Lançamentos), e é ele que empilha De e Até até em 1280 px: rótulo de grupo mais o

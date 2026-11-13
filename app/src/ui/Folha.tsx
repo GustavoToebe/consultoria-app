@@ -19,6 +19,11 @@ import { Texto } from './Texto';
 
 /** Larguras das folhas no PC: formulário curto e escolha (600) ou conteúdo grande (`LARGURA_EDITOR`). */
 export const LARGURA_FOLHA = 600;
+/**
+ * Painel lateral (filtros, `docs/planos/filtros-laterais.md` D3): 460 px no PC, entre os 400 e 480 do guia; cabe o rodapé
+ * "Limpar filtros · Cancelar · Aplicar filtros" numa linha com a margem de 24 px.
+ */
+export const LARGURA_PAINEL_LATERAL = 460;
 
 /**
  * Destino do diálogo aberto de dentro da folha. O `Modal` fica por cima do `PortalHost` da raiz, então a confirmação
@@ -44,6 +49,11 @@ interface Props {
   faixa?: ReactNode;
   /** Largura no PC (centralizada); padrão `LARGURA_FOLHA` (600). Conteúdo grande (pasta com planos e registros) usa `LARGURA_EDITOR`. */
   largura?: number;
+  /**
+   * Painel lateral (filtros): no PC entra pela direita com a altura da janela (`LARGURA_PAINEL_LATERAL`), sem arrastar,
+   * com o rodapé no pé; no celular é a folha de baixo de sempre, que já ocupa a largura. Ignora `largura`.
+   */
+  lateral?: boolean;
 }
 
 /**
@@ -52,7 +62,7 @@ interface Props {
  * de tela é um diálogo modal com o nome do título; na web o foco entra no primeiro controle do conteúdo e, ao fechar,
  * volta a quem abriu a folha; no celular, com leitor de tela, também volta (`ui/focoDaFolha.ts`).
  */
-export function Folha({ visivel, titulo, aoFechar, children, rodape, statusDoRodape, largura, acaoNoTopo, faixa }: Props) {
+export function Folha({ visivel, titulo, aoFechar, children, rodape, statusDoRodape, largura, acaoNoTopo, faixa, lateral }: Props) {
   // Quem estava com o foco ao abrir (web). Ao fechar, o foco volta para ele (C3): na hora em que o painel sai (a folha
   // inteira deixou a tela) e de novo no `onDismiss`, quando a camada do Modal some. Antes disso a trava de foco do Modal,
   // que fica um render a mais depois do `visible={false}`, puxaria o foco de volta para dentro.
@@ -62,8 +72,11 @@ export function Folha({ visivel, titulo, aoFechar, children, rodape, statusDoRod
     marcarFolhaDoTopoFechando();
     aoFechar();
   }, [aoFechar]);
+  // Folha aberta de dentro de outra (a lista "Situação" na folha de filtros do celular): a de baixo já escurece a tela, um
+  // segundo véu escureceria duas vezes.
+  const dentroDeOutra = usePortalDaFolha() !== undefined;
   return <Modal ref={semPapelNoModal} transparent visible={visivel} animationType="none" onRequestClose={fechar} onDismiss={() => devolverFoco(quemAbriuRef)}>
-    {visivel ? <Painel titulo={titulo} aoFechar={fechar} rodape={rodape} statusDoRodape={statusDoRodape} largura={largura} acaoNoTopo={acaoNoTopo} faixa={faixa} quemAbriuRef={quemAbriuRef}>{children}</Painel> : null}
+    {visivel ? <Painel titulo={titulo} aoFechar={fechar} rodape={rodape} statusDoRodape={statusDoRodape} largura={largura} acaoNoTopo={acaoNoTopo} faixa={faixa} lateral={lateral} semVeu={dentroDeOutra} quemAbriuRef={quemAbriuRef}>{children}</Painel> : null}
   </Modal>;
 }
 
@@ -96,16 +109,19 @@ function devolverFoco(quemAbriuRef: RefObject<HTMLElement | null>) {
 }
 
 /** Arraste no cabeçalho para preservar a rolagem e os campos dentro do conteúdo: no PC move a folha, no celular fecha. */
-function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura,acaoNoTopo,faixa,quemAbriuRef}:Omit<Props,'visivel'> & { quemAbriuRef: RefObject<HTMLElement | null> }) {
+function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura,acaoNoTopo,faixa,lateral,semVeu,quemAbriuRef}:Omit<Props,'visivel'> & { semVeu: boolean; quemAbriuRef: RefObject<HTMLElement | null> }) {
   const { cores, bordas } = useTema();
   const { width, height } = useWindowDimensions();
   // No Android o `Modal` já fica acima da barra do sistema; somar a margem de baixo do provider (que está fora dele)
   // deixava um vão sob o rodapé.
   const margem = useSafeAreaInsets();
   const centralizado = width >= LARGURA_MENU_LATERAL;
+  // Painel lateral no PC (no celular a folha de baixo já serve: ocupa a largura, topo e rodapé fixos).
+  const aDireita = centralizado && !!lateral;
   // Com `largura` no PC a altura é fixa (a folha não muda de tamanho ao trocar o conteúdo); o corpo ocupa o que sobra
-  // entre o topo e o rodapé, para o rodapé ficar no pé da folha e não sobrar faixa vazia embaixo dele.
-  const alturaFixa = centralizado && !!largura;
+  // entre o topo e o rodapé, para o rodapé ficar no pé da folha e não sobrar faixa vazia embaixo dele. O painel lateral
+  // tem a altura da janela, pelo mesmo motivo.
+  const alturaFixa = (centralizado && !!largura) || aDireita;
   const reduzido = useMovimentoReduzido();
   const portal = useId();
   const [elementoPortal, setElementoPortal] = useState<HTMLElement | null>(null);
@@ -115,7 +131,7 @@ function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura,acaoNoTo
   useDevolverFocoNoNativo();
   const conteudo = useRef<View>(null);
   const fechar = useRef<View>(null);
-  // Sem animação de entrada: o painel aparece pronto. O deslocamento só existe para o arrastar-para-fechar no celular.
+  // Sem animação de entrada: o painel aparece pronto (também o lateral). O deslocamento só existe para o arrastar-para-fechar no celular.
   const deslocamento = useSharedValue(0);
   const altura = useSharedValue(height * 0.88);
   // No PC o painel também anda para os lados: o cabeçalho é a alça para mover a folha e ver o que está por trás dela.
@@ -132,7 +148,7 @@ function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura,acaoNoTo
     return { transform: [{ translateX: x }, { translateY: y }] };
   });
   // O cabeçalho nunca sai da janela: sobram ao menos 64 px na horizontal e a barra de título na vertical.
-  const mover=Gesture.Pan().enabled(centralizado).minDistance(4)
+  const mover=Gesture.Pan().enabled(centralizado && !aDireita).minDistance(4)
     .onStart(()=>{baseX.set(deslocamentoX.get());baseY.set(deslocamento.get());})
     .onUpdate(evento=>{
       const folgaX=(width+larguraDoPainel.get())/2-64;
@@ -171,7 +187,7 @@ function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura,acaoNoTo
     <PortalDaFolha.Provider value={valorPortal}>
     <GestureHandlerRootView style={{flex:1}} {...capturaDoGatilho}>
       <KeyboardAvoidingView style={estilos.fundoArea} behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}>
-      <View style={[estilos.fundo, centralizado ? estilos.fundoCentral : estilos.fundoInferior]}>
+      <View style={[estilos.fundo, semVeu && estilos.semVeu, aDireita ? estilos.fundoLateral : centralizado ? estilos.fundoCentral : estilos.fundoInferior]}>
         {web
           // Na web o fundo não entra no Tab nem na trava de foco do Modal, que o escolhia ao dar a volta (o X e o Esc
           // fecham pelo teclado); clicar fora continua fechando.
@@ -185,16 +201,19 @@ function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura,acaoNoTo
           aria-label={titulo}
           style={[
             estilos.painel, movimento,
-            centralizado
-              ? [estilos.painelCentral, largura ? { width: largura, height: '90%' as const } : null]
-              : [estilos.painelInferior, { paddingBottom: Platform.OS === 'android' ? 0 : margem.bottom }],
-            { backgroundColor: cores.superficie, borderColor: cores.divisor, borderWidth: bordas.bloco },
+            aDireita
+              ? [estilos.painelLateral, { borderLeftWidth: bordas.bloco }]
+              : centralizado
+                ? [estilos.painelCentral, largura ? { width: largura, height: '90%' as const } : null]
+                : [estilos.painelInferior, { paddingBottom: Platform.OS === 'android' ? 0 : margem.bottom }],
+            { backgroundColor: cores.superficie, borderColor: cores.divisor },
+            aDireita ? null : { borderWidth: bordas.bloco },
           ]}>
           {/* Faixa do título (reunião de 29/10): o topo da folha se separa do conteúdo, como nos cartões; o X tem moldura,
               como as ações na faixa do exercício (protótipo de 30/10). */}
           <View style={[estilos.topo, { backgroundColor: cores.superficie3, borderBottomColor: cores.bordaCampo }]}>
             {/* A alça é só a área do título: arrastar a partir do X ou do menu ⋯ não move nem fecha a folha. */}
-            <GestureDetector gesture={centralizado ? mover : gestoDeFechar}><View style={[estilos.alca, centralizado && estilos.topoArrastavel]}>
+            <GestureDetector gesture={centralizado ? mover : gestoDeFechar}><View style={[estilos.alca, centralizado && !aDireita && estilos.topoArrastavel]}>
               <Texto variante="bloco" nivel={2}>{titulo}</Texto>
             </View></GestureDetector>
             <View style={estilos.acoesTopo}>
@@ -204,10 +223,10 @@ function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura,acaoNoTo
           </View>
           {faixa ? <View style={[estilos.faixa, { borderBottomColor: cores.divisor }]}>{faixa}</View> : null}
           <View ref={conteudo} collapsable={false} style={[estilos.area, alturaFixa && estilos.areaQuePreenche]}>
-            <RolagemComTopo contentContainerStyle={estilos.conteudo} preencher={alturaFixa}>{children}</RolagemComTopo>
+            <RolagemComTopo contentContainerStyle={[estilos.conteudo, aDireita && estilos.conteudoLateral]} preencher={alturaFixa}>{children}</RolagemComTopo>
           </View>
           {rodape || statusDoRodape ? (
-            <View style={[estilos.rodape, { borderColor: cores.divisor }]}>
+            <View style={[estilos.rodape, aDireita && estilos.rodapeLateral, { borderColor: cores.divisor }]}>
               <RodapeDeAcoes status={statusDoRodape} empilhar={!centralizado}>{rodape}</RodapeDeAcoes>
             </View>
           ) : null}
@@ -223,11 +242,15 @@ function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura,acaoNoTo
 const estilos = StyleSheet.create({
   fundoArea: { flex: 1 },
   fundo: { flex: 1, backgroundColor: VEU },
+  semVeu: { backgroundColor: 'transparent' },
   fundoCentral: { alignItems: 'center', justifyContent: 'center', padding: espaco(2) },
   fundoInferior: { justifyContent: 'flex-end' },
+  fundoLateral: { alignItems: 'flex-end' },
   painel: { overflow: 'hidden' },
   painelCentral: { width: LARGURA_FOLHA, maxWidth: '100%', maxHeight: '90%', borderRadius: RAIO },
   painelInferior: { maxHeight: '88%', borderTopLeftRadius: RAIO, borderTopRightRadius: RAIO },
+  // Colado à direita e na altura da janela: sem cantos nem bordas onde encosta na janela, só a da esquerda.
+  painelLateral: { flex: 1, width: LARGURA_PAINEL_LATERAL, maxWidth: '100%' },
   topo: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -249,5 +272,8 @@ const estilos = StyleSheet.create({
   areaQuePreenche: { flexGrow: 1, flexBasis: 0 },
   // A folga do topo (16 px) também deixa o anel de foco (2 px + recuo de 2 px) do primeiro controle inteiro.
   conteudo: { padding: espaco(2), gap: espaco(1.5) },
+  // Painel lateral no PC: margem de 24 px (D3), também no rodapé, para as bordas fecharem.
+  conteudoLateral: { padding: espaco(3) },
   rodape: { padding: espaco(2), borderTopWidth: 1 },
+  rodapeLateral: { paddingHorizontal: espaco(3) },
 });
