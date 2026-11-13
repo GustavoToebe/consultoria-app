@@ -71,6 +71,9 @@ public class PainelService {
      * treinador não pode ver (nunca zero): {@code pastasARenovar} (o total da lista, sem teto) e
      * {@code alunosSemPastaComPeriodo} pedem {@code TREINO_LER}; {@code alunosSemRegistroTotal}, {@code REGISTRO_LER};
      * {@code alunosSemAcesso} segue o {@code alunosAtivos} (sem permissão extra).
+     * As quatro contagens de atualização ({@code atualizacoesParaRevisar}, {@code atualizacoesAtrasadas},
+     * {@code atualizacoesAvisaramAtraso}, {@code atualizacoesProximas}) são {@code null} (nunca zero) sem
+     * {@code ATUALIZACAO_LER} + {@code ALUNO_SENSIVEL_LER}, como o {@code NumerosService}; com elas, zero é zero de verdade.
      * {@code sessoesConcluidas7Dias}: sessões concluídas (completas e parciais) dos alunos do escopo nos últimos
      * {@value RecordesDaSemanaService#DIAS} dias (hoje de Brasília incluído), só número; {@code null} (nunca zero) sem
      * {@code REGISTRO_LER} ou com o retorno desligado ({@code treinos.retorno.habilitado}).
@@ -79,8 +82,8 @@ public class PainelService {
      */
     public record PainelTreinador(long alunosAtivos, List<AlunoSemRegistro> alunosSemRegistro,
                                   List<ExecucaoRecente> ultimasExecucoes, List<PlanoTerminando> planosTerminando,
-                                  long atualizacoesParaRevisar, long atualizacoesAtrasadas,
-                                  long atualizacoesAvisaramAtraso, long atualizacoesProximas,
+                                  Long atualizacoesParaRevisar, Long atualizacoesAtrasadas,
+                                  Long atualizacoesAvisaramAtraso, Long atualizacoesProximas,
                                   Long pastasARenovar, List<PastaARenovar> pastasParaRenovar,
                                   Long alunosSemPastaComPeriodo, Long alunosSemRegistroTotal, Long alunosSemAcesso,
                                   Long sessoesConcluidas7Dias, long alunosInativos) {
@@ -169,8 +172,8 @@ public class PainelService {
         Long concluidas = registros && retorno.habilitado() ? concluidasNa7Dias(ativos, hoje) : null;
         return new PainelTreinador(ativos.size(), registros ? semRegistro : List.of(), registros ? ultimasExecucoes(porId) : List.of(),
                 treinos ? terminando : List.of(),
-                contagem.getOrDefault("PARA_REVISAR",0L), contagem.getOrDefault("ATRASADAS",0L),
-                contagem.getOrDefault("AVISARAM_ATRASO",0L), contagem.getOrDefault("PROXIMAS",0L),
+                contagem.get("PARA_REVISAR"), contagem.get("ATRASADAS"),
+                contagem.get("AVISARAM_ATRASO"), contagem.get("PROXIMAS"),
                 treinos ? Long.valueOf(aRenovar.size()) : null, listaARenovar, semPasta,
                 registros ? Long.valueOf(paradosHaDias.size()) : null, semAcesso, concluidas,
                 alunos.contarInativosNaoAnonimizadosDoEscopo(responsavelId));

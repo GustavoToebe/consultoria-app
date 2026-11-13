@@ -277,6 +277,33 @@ class PainelContagensIntegrationTest extends AbstractIntegrationTest {
         assertThat(completo.path("alunosSemRegistroTotal").asLong()).isEqualTo(1);
     }
 
+    private static final List<String> CONTAGENS_DE_ATUALIZACAO = List.of("atualizacoesParaRevisar", "atualizacoesAtrasadas",
+            "atualizacoesAvisaramAtraso", "atualizacoesProximas");
+
+    @Test
+    void contagensDeAtualizacaoSaoNullSemAsDuasPermissoesEZeroComElasESemNada() throws Exception {
+        aluno(admin, "Aluno sem pasta e sem envio");
+
+        // Sem as duas, ou só com ALUNO_SENSIVEL_LER (ATUALIZACAO_LER sozinha não existe: depende dela), o servidor não pode afirmar: null, nunca 0.
+        for (Set<String> permissoes : List.of(Set.of("PAINEL_VER", "ALUNO_LER"),
+                Set.of("PAINEL_VER", "ALUNO_LER", "ALUNO_SENSIVEL_LER"))) {
+            JsonNode p = painel(membroCom(permissoes), false);
+            for (String campo : CONTAGENS_DE_ATUALIZACAO) {
+                assertThat(p.has(campo)).as(campo).isTrue();
+                assertThat(p.path(campo).isNull()).as("%s com %s", campo, permissoes).isTrue();
+            }
+        }
+
+        // Com as duas e nenhuma atualização para contar: zero de verdade (número, não null).
+        for (JsonNode quem : List.of(admin, membroCom(Set.of("PAINEL_VER", "ALUNO_LER", "ALUNO_SENSIVEL_LER", "ATUALIZACAO_LER")))) {
+            JsonNode p = painel(quem, false);
+            for (String campo : CONTAGENS_DE_ATUALIZACAO) {
+                assertThat(p.path(campo).isNumber()).as(campo).isTrue();
+                assertThat(p.path(campo).asLong()).as(campo).isZero();
+            }
+        }
+    }
+
     // ---- treinos concluídos nos últimos 7 dias (30/10) ----
 
     /** Um aluno com treino publicado e login, para enviar "Concluir treino" como ele. */
