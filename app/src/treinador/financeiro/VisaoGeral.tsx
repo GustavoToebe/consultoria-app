@@ -178,16 +178,18 @@ export function VisaoGeral({ escopo, aoMudarEscopo, podeAlterar }: {
 /**
  * Um número do período na peça de destaque (D6 de `docs/planos/cores-de-destaque.md`): recebido azul, a receber ciano,
  * em atraso vermelho, recorrente violeta, os demais neutros; zero e "—" sem cor (D5). Cor com significado, nunca a
- * marca, e sempre com o título. Os seis cabem três por linha no PC e dois no celular.
+ * marca, e sempre com o título. Três por linha no PC; no celular um por linha, para "R$ 100.000,00" caber inteiro no
+ * tamanho normal (dois por linha só cabiam até a casa dos milhares, encolhendo a fonte).
  */
 function Indicador({ cartao }: { cartao: CartaoDoPainel }) {
   const { width } = useWindowDimensions();
+  const { fatorTexto } = useTema();
   const celular = width < LARGURA_MENU_LATERAL;
-  // Base larga no PC (três ou mais por linha, nunca quatro e dois) e estreita no celular (dois por linha).
+  // Base larga no PC (três ou mais por linha, nunca quatro e dois), crescendo com o texto maior das preferências.
   return (
-    <NumeroDeDestaque rotulo={cartao.titulo} valor={cartao.valor} detalhe={cartao.detalhe} enfase={cartao.enfase} nivelDoRotulo={2}
+    <NumeroDeDestaque rotulo={cartao.titulo} valor={cartao.valor} detalhe={cartao.detalhe} enfase={cartao.enfase} motivo={cartao.motivo} nivelDoRotulo={2}
       rotuloAcessivel={`${cartao.titulo}: ${cartao.valor}${cartao.detalhe ? `. ${cartao.detalhe}` : ''}`}
-      style={[estilos.indicador, { flexBasis: celular ? 150 : 280 }]} estiloDoValor={celular ? estilos.valorCelular : null} />
+      style={[estilos.indicador, { flexBasis: celular ? '100%' : Math.round(280 * fatorTexto) }]} />
   );
 }
 
@@ -348,7 +350,5 @@ const estilos = StyleSheet.create({
   indicadores: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
   indicador: { flexShrink: 1, paddingVertical: espaco(2) },
   lista: { gap: espaco(1) },
-  // No celular o tile tem ~140 px úteis: 20 px ainda cabe "R$ 1.200,00" numa linha.
-  valorCelular: { fontSize: 20, lineHeight: 26 },
   esticar: { flexGrow: 1 },
 });

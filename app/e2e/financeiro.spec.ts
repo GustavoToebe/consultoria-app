@@ -9,6 +9,7 @@ import {
   ALUNO_FINANCEIRO_ID, COBRANCA_ATRASADA, CONFERENCIA_ESTORNO_INFORMADO, CONFERENCIA_SEM_COBRANCA, CONFERENCIA_VALOR_DIFERENTE, estadoFinanceiro, INADIMPLENTE,
   LEMBRETES_PADRAO, LINK_DE_PAGAMENTO, PAINEL_COM_DADOS, PAINEL_VAZIO, RECEBIMENTO_CONFIGURADO, rotasDoFinanceiro, sessaoComFinanceiro,
 } from './financeiro-falso';
+import { esperarValorInteiro } from './valor-inteiro';
 
 /**
  * Pagamentos do aluno ao treinador: painel (com dados e vazio), filtro "Meus", lançamento de saída, baixa pela lista de
@@ -91,7 +92,7 @@ test('inadimplência com a lista igual ao período: o resumo basta, sem a frase 
   await expect(page.getByText(/não só as do período/)).toHaveCount(0);
 });
 
-test('visão geral vazia: tudo "—", nunca R$ 0,00, e a lista de inadimplentes diz que não há nada vencido', async ({ page }) => {
+test('visão geral vazia: soma sem registro é R$ 0,00, só o que não tem base é "—" com o motivo, e a lista diz que não há nada vencido', async ({ page }) => {
   await fixarHoje(page);
   const estado = estadoFinanceiro({ painel: PAINEL_VAZIO });
   const { errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
@@ -99,8 +100,12 @@ test('visão geral vazia: tudo "—", nunca R$ 0,00, e a lista de inadimplentes 
 
   await expect(page.getByRole('heading', { name: 'Recebido no período' })).toBeVisible();
   await expect(page.getByText('Nenhuma cobrança vencida em aberto.')).toBeVisible();
-  await expect(page.getByText('—', { exact: true }).first()).toBeVisible();
-  await expect(page.getByText('R$ 0,00')).toHaveCount(0);
+  // Gustavo, 13/11: a soma vazia (null da API com a consulta feita) é zero; a média sem pagantes não tem base.
+  await expect(page.getByLabel('Recebido no período: R$ 0,00', { exact: false })).toBeVisible();
+  await expect(page.getByLabel('Recebido das cobranças: R$ 0,00')).toBeVisible();
+  const medio = page.getByLabel(/^Valor médio.*—/);
+  await expect(medio).toBeVisible();
+  await expect(medio.getByText('Sem pagamentos no período', { exact: true })).toBeVisible();
   await expect(page.getByText('0%', { exact: true })).toHaveCount(0);
   await expect(page.getByText('indisponível', { exact: true })).toBeVisible();
   expect(errosDaPagina).toEqual([]);
@@ -1325,5 +1330,34 @@ test('aluno que já desligou os lembretes abre com o interruptor desligado; sem 
   await expect(page.getByText('Os dados do seu plano aparecem quando você estiver conectado à internet.')).toBeVisible();
   await expect(interruptor).toHaveCount(0);
   await page.context().setOffline(false);
+  expect(errosDaPagina).toEqual([]);
+});
+
+// Gustavo, 13/11: R$ 10.000,00 e R$ 100.000,00 cabem inteiros (sem cortar, sem o "R$" numa linha e o número noutra e sem
+// encolher a fonte) nos cartões da Visão geral e no Resultado do mês, no celular e no PC.
+for (const extra of [false, true]) test(`valores grandes cabem inteiros nos cartões da visão geral e no resultado do mês, em 390 e 1280${extra ? ', texto extra grande' : ''}`, async ({ page }) => {
+  await fixarHoje(page);
+  if (extra) await page.addInitScript((id) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tamanhoTexto: 'EXTRA' })), TREINADOR.id);
+  const painel = {
+    ...PAINEL_COM_DADOS,
+    cartoes: {
+      recebidoCentavos: 10_000_000, aReceberCentavos: 1_000_000, emAtraso: { valorCentavos: 10_000_000, cobrancas: 40 },
+      receitaRecorrenteMensalCentavos: 1_000_000, alunosPagantes: 120, valorMedioPorAlunoCentavos: 83_333,
+    },
+    resultadoDoMes: { ...PAINEL_COM_DADOS.resultadoDoMes, recebidoCentavos: 10_000_000, entradasAvulsasCentavos: 1_000_000, saidasAvulsasCentavos: 10_000_000, resultadoCentavos: 1_000_000 },
+  };
+  const { errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estadoFinanceiro({ painel })) });
+  await page.goto('/treinador/financeiro');
+  await expect(page.getByText('Resultado do mês (entradas − saídas registradas)')).toBeVisible();
+  const pecas: [string, string][] = [
+    ['Recebido no período', 'R$ 100.000,00'], ['A receber', 'R$ 10.000,00'], ['Em atraso', 'R$ 100.000,00'], ['Receita recorrente mensal', 'R$ 10.000,00'],
+    ['Recebido das cobranças', 'R$ 100.000,00'], ['Entradas avulsas', 'R$ 10.000,00'], ['Saídas avulsas', 'R$ 100.000,00'], ['Resultado', 'R$ 10.000,00'],
+  ];
+  for (const largura of [390, 1280]) {
+    await page.setViewportSize({ width: largura, height: 900 });
+    for (const [rotulo, valor] of pecas) {
+      await esperarValorInteiro(page.getByLabel(`${rotulo}: ${valor}`), [valor]);
+    }
+  }
   expect(errosDaPagina).toEqual([]);
 });

@@ -7,7 +7,7 @@ import { caminhoListaAtualizacoes } from './atualizacao';
 import { dataRelativa } from './datasRelativas';
 import { enfaseDoNumero, type EnfaseDoNumero, type FuncaoDeDestaque } from './destaque';
 import { centavosParaTela, dataCurta, SEM_DADO } from './formatos';
-import { hojeEmBrasilia, periodoDoPainel } from './financeiro';
+import { hojeEmBrasilia, periodoDoPainel, somaOuZero } from './financeiro';
 import { contadorDeRetornos } from './inicioTreinador';
 import { rotuloDoMes } from './numeros';
 import { textoDoRecorde } from './recordesPessoais';
@@ -27,7 +27,9 @@ export type { BlocoDoPainelId, PainelDoInicioPreferido };
  * Regras de ausência (valem em tudo aqui):
  *  - recurso desligado ou sem permissão: o bloco ou o cartão SOME;
  *  - bloco visível, mas a consulta falhou ou veio sem o número: o cartão fica "Não carregou" (`estado: 'naoCarregou'`);
- *  - `null` nunca vira zero; zero de verdade fica em cinza com o "0" (`enfase: 'zero'`); sem dado é `indisponivel`, com o motivo escrito (D5 e D14 de `docs/planos/cores-de-destaque.md`).
+ *  - `null` de dado ausente nunca vira zero; soma vazia de consulta que rodou é zero (`financeiro.somaOuZero`, Gustavo 13/11);
+ *    zero de verdade fica em cinza com o "0" (`enfase: 'zero'`); o indisponível diz o motivo em palavras (D5 e D14 de
+ *    `docs/planos/cores-de-destaque.md`).
  */
 
 // ---- Blocos ----
@@ -313,8 +315,11 @@ export interface CartaoDoPainel {
   chave: string;
   /** Rótulo curto do cartão ("Para revisar"). */
   rotulo: string;
-  /** `valor`: número disponível; `naoCarregou`: consulta falhou ou veio sem o número; `semDado`: a API respondeu sem valor (mostra "—"); `carregando`. */
-  estado: 'valor' | 'naoCarregou' | 'semDado' | 'carregando';
+  /**
+   * `valor`: número disponível; `naoCarregou`: consulta falhou ou veio sem o número ("Não carregou" escrito); `carregando`.
+   * Não há "—" solto no Início: soma vazia é zero (`somaOuZero`) e o que falta diz por quê em palavras (D14).
+   */
+  estado: 'valor' | 'naoCarregou' | 'carregando';
   /** Contagem, ou centavos quando `moeda`. `null` fora de `estado: 'valor'`. */
   valor: number | null;
   /** O que a tela escreve: "12", "R$ 1.240" (sem centavos), "Não carregou", "—" ou "…". */
@@ -378,14 +383,6 @@ function cartao(e: EntradaDeCartao): CartaoDoPainel {
     enfase: enfaseDoNumero(e.destaque, e.valor),
     falado: `${e.nome}: ${falado}${e.detalheFalado ? `, ${e.detalheFalado}` : ''}${aviso}`,
     destino: e.destino,
-  };
-}
-
-/** Cartão cuja API respondeu sem valor (soma vazia): "—", nunca zero. */
-function cartaoSemDado(e: Omit<EntradaDeCartao, 'situacao' | 'valor'>): CartaoDoPainel {
-  return {
-    chave: e.chave, rotulo: e.rotulo, moeda: !!e.moeda, largo: !!e.largo, estado: 'semDado', valor: null, texto: SEM_DADO,
-    detalhe: null, enfase: 'indisponivel', falado: `${e.nome}: sem dado`, destino: e.destino,
   };
 }
 
@@ -687,13 +684,14 @@ function blocoFinanceiro(ctx: ContextoDoPainel, o: Entrada): BlocoDoPainel {
   }));
 
   // Recebido no mês: o `cartoes.recebidoCentavos` cobre o período inteiro (6 meses); o do mês corrente é o do
-  // `resultadoDoMes` (mesma consulta, do dia 1 a hoje). Sem pagamento no mês a soma vem nula: "—", nunca zero.
-  const recebido = f ? f.resultadoDoMes?.recebidoCentavos : undefined;
+  // `resultadoDoMes` (mesma consulta, do dia 1 a hoje, que sempre roda). Sem pagamento no mês a soma vem nula: zero de
+  // verdade (Gustavo, 13/11; o servidor também a soma como zero no resultado). Sem `resultadoDoMes`, "Não carregou".
+  const recebido = f?.resultadoDoMes ? somaOuZero(f.resultadoDoMes.recebidoCentavos) : undefined;
   const entradaRecebido = {
     chave: 'financeiro.recebido', rotulo: 'Recebido no mês (bruto)', nome: 'Recebido no mês, valor bruto', destaque: 'azul' as const, moeda: true, largo: true,
     destino: href('aba=visao'),
   };
-  cartoes.push(sitF === 'pronta' && f && !ehNumero(recebido) && f.resultadoDoMes ? cartaoSemDado(entradaRecebido) : cartao({ ...entradaRecebido, situacao: sitF, valor: recebido }));
+  cartoes.push(cartao({ ...entradaRecebido, situacao: sitF, valor: recebido }));
   return fechar(cabecalho('financeiro', o.meus), { cartoes });
 }
 

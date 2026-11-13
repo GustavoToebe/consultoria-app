@@ -5,7 +5,7 @@ import type { CartaoDoPainel, FolhaDoPainelId } from '../../dominio/painelDoInic
 import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
 import { contornoDoNumero } from '../../ui/destaqueDoNumero';
-import { MotivoDoIndisponivel, useAparenciaDoNumero } from '../../ui/NumeroDeDestaque';
+import { useAparenciaDoNumero } from '../../ui/NumeroDeDestaque';
 import { propsDeLink } from '../../ui/propsDeLink';
 import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
@@ -19,13 +19,13 @@ function partesDoValor(texto: string, moeda: boolean): { prefixo: string | null;
 /**
  * Mini-cartão do painel (guia de 11/11, pág. 16, com as cores de destaque de 13/11, `docs/planos/cores-de-destaque.md`):
  * rótulo curto e detalhe neutros (D1), número na cor da função do cartão com a faixa lateral e o fundo tonalizado
- * (`ui/NumeroDeDestaque`); zero ("0"), sem dado ("—" com "Sem dados" em itálico), "Não carregou" e "…" em `textoSuave`,
- * sem cor nem faixa (D5, D14): nunca o mesmo aspecto do zero. O cartão
+ * (`ui/NumeroDeDestaque`); zero ("0"), "Não carregou" e "…" em `textoSuave`, sem cor nem faixa (D5). Não há "—" solto
+ * no Início (D14): soma vazia é zero e o que falta diz "Não carregou" por extenso, nos quatro layouts. O cartão
  * inteiro é o toque: abre a lista filtrada (link) ou uma Folha (botão), com o hover no fundo tonalizado sobre
  * `superficie2`. `linha`: a linha de baixo do bloco.
  */
 export function CartaoMini({ cartao, aoAbrirFolha, linha }: { cartao: CartaoDoPainel; aoAbrirFolha: (folha: FolhaDoPainelId) => void; linha?: boolean }) {
-  const { cores, bordas } = useTema();
+  const { cores, bordas, fatorTexto } = useTema();
   const comValor = cartao.estado === 'valor';
   const aparencia = useAparenciaDoNumero(cartao.enfase);
   const cor = aparencia.numero;
@@ -47,7 +47,6 @@ export function CartaoMini({ cartao, aoAbrirFolha, linha }: { cartao: CartaoDoPa
         ) : (
           <Texto variante={cartao.estado === 'carregando' ? 'destaque' : 'suave'} cor={cores.textoSuave}>{cartao.texto}</Texto>
         )}
-        {cartao.estado === 'semDado' && !deitado ? <MotivoDoIndisponivel /> : null}
         {cartao.detalhe && comValor && !deitado ? <Texto variante="pequeno" numerico cor={cores.textoSuave}>{cartao.detalhe}</Texto> : null}
       </View>
     </>
@@ -55,7 +54,10 @@ export function CartaoMini({ cartao, aoAbrirFolha, linha }: { cartao: CartaoDoPa
 
   // `largo` ocupa a linha inteira dentro da fileira de cartões; a `linha` fica fora dela, na coluna do bloco, onde
   // `flexBasis: 100%` viraria altura e esticaria o cartão até o fim do bloco.
-  const estilo = [estilos.cartao, deitado ? estilos.deitado : estilos.empe, cartao.largo && !linha ? estilos.largo : null, contornoDoNumero(aparencia.faixa, cores, bordas.bloco, RECUO)];
+  // Dinheiro em pé pede a largura de "R$ 100.000" no tamanho de texto escolhido: sem ela, desce para um por linha em vez
+  // de cortar ou diminuir a fonte. shortcut: dimensionado para até R$ 999.999; acima disso, medir o texto.
+  const base = !deitado && cartao.moeda ? { flexBasis: Math.round(BASE_DO_DINHEIRO * fatorTexto) } : null;
+  const estilo = [estilos.cartao, deitado ? estilos.deitado : estilos.empe, base, cartao.largo && !linha ? estilos.largo : null, contornoDoNumero(aparencia.faixa, cores, bordas.bloco, RECUO)];
   const destino = cartao.destino;
   if (!destino) {
     return (
@@ -75,6 +77,8 @@ export function CartaoMini({ cartao, aoAbrirFolha, linha }: { cartao: CartaoDoPa
 }
 
 const RECUO = espaco(1.25);
+/** "R$" (14) + "100.000" (28) + recuo e faixa, no texto padrão: dois por linha em 390, um por linha com o texto maior. */
+const BASE_DO_DINHEIRO = 155;
 
 const estilos = StyleSheet.create({
   cartao: { padding: RECUO, minWidth: 0 },

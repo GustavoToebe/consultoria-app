@@ -80,6 +80,7 @@ import {
   validarPlano,
   validarRecebimentoOnline,
   valorEQuantidadeParaTela,
+  MOTIVO_SEM_PAGANTES,
 } from './financeiro';
 
 function espacos(texto: string): string {
@@ -241,9 +242,13 @@ describe('contas do painel', () => {
   it('valor e quantidade', () => {
     expect(espacos(valorEQuantidadeParaTela({ valorCentavos: 30000, cobrancas: 2 }))).toBe('R$ 300,00 (2 cobranças)');
     expect(espacos(valorEQuantidadeParaTela({ valorCentavos: 100, cobrancas: 1 }))).toBe('R$ 1,00 (1 cobrança)');
-    expect(valorEQuantidadeParaTela({ valorCentavos: null, cobrancas: 0 })).toBe('—');
+    // Soma vazia com zero cobranças é zero; valor nulo com cobranças (inconsistente) segue "—".
+    expect(espacos(valorEQuantidadeParaTela({ valorCentavos: null, cobrancas: 0 }))).toBe('R$ 0,00 (0 cobranças)');
+    expect(valorEQuantidadeParaTela({ valorCentavos: null, cobrancas: 2 })).toBe('—');
+    expect(valorEQuantidadeParaTela(null)).toBe('—');
   });
-  it('cartões com tudo nulo ficam em "—", nunca zero', () => {
+  // Gustavo, 13/11: soma e contagem vazias de consulta que rodou são zero; só a média sem pagante fica indisponível.
+  it('cartões com tudo nulo: somas e pagantes em zero, valor médio indisponível com o motivo', () => {
     const cartoes = cartoesDoPainel({
       recebidoCentavos: null,
       aReceberCentavos: null,
@@ -253,8 +258,18 @@ describe('contas do painel', () => {
       valorMedioPorAlunoCentavos: null,
     });
     expect(cartoes).toHaveLength(6);
-    expect(cartoes.map((c) => c.valor)).toEqual(['—', '—', '—', '—', '—', '—']);
-    expect(cartoes.every((c) => c.enfase === 'indisponivel')).toBe(true);
+    expect(cartoes.map((c) => espacos(c.valor))).toEqual(['R$ 0,00', 'R$ 0,00', 'R$ 0,00', 'R$ 0,00', '0', '—']);
+    expect(cartoes.map((c) => c.enfase)).toEqual(['zero', 'zero', 'zero', 'zero', 'zero', 'indisponivel']);
+    expect(cartoes[5].motivo).toBe(MOTIVO_SEM_PAGANTES);
+    expect(cartoes[2].detalhe).toBe(NOTA_CONSIDERA_GERADAS);
+  });
+  it('em atraso sem soma mas com cobranças não vira zero (a contagem não confirma a ausência)', () => {
+    const [, , atraso] = cartoesDoPainel({
+      recebidoCentavos: 0, aReceberCentavos: 0, emAtraso: { valorCentavos: null, cobrancas: 2 },
+      receitaRecorrenteMensalCentavos: 0, alunosPagantes: 0, valorMedioPorAlunoCentavos: null,
+    });
+    expect(atraso.valor).toBe('—');
+    expect(atraso.enfase).toBe('indisponivel');
   });
   it('cartões com dados e a nota de cobranças geradas', () => {
     const cartoes = cartoesDoPainel({
@@ -307,12 +322,16 @@ describe('contas do painel', () => {
     expect(r.resultado).toBe('—');
     expect(r.rotulo.toLowerCase()).not.toContain('lucro');
   });
-  it('N14: mês sem lançamento (zero vindo da API) é "R$ 0,00"; sem dado segue "—"', () => {
+  it('N14: mês sem lançamento é "R$ 0,00"; recebido nulo (nenhum pagamento) também é zero; sem resposta, "—"', () => {
     const r = resultadoDoMesParaTela({ rotulo: 'x', mes: '2026-11', recebidoCentavos: null, entradasAvulsasCentavos: 0, saidasAvulsasCentavos: 0, resultadoCentavos: 0 });
     expect(r.entradas).toBe('R$ 0,00');
     expect(r.saidas).toBe('R$ 0,00');
     expect(r.resultado).toBe('R$ 0,00');
-    expect(r.recebido).toBe('—');
+    expect(r.recebido).toBe('R$ 0,00');
+    expect(r.centavos.recebido).toBe(0);
+    const semResposta = resultadoDoMesParaTela(undefined);
+    expect(semResposta.recebido).toBe('—');
+    expect(semResposta.centavos.recebido).toBeNull();
   });
 });
 

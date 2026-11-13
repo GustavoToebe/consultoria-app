@@ -505,12 +505,21 @@ export function percentualParaTela(p: number | null | undefined): string {
   return `${texto}%`;
 }
 
+/**
+ * Soma sem nenhuma linha chega nula da API (`SUM` vazio; o próprio servidor a conta como zero no resultado do mês). Os
+ * períodos do painel (3, 6 e 12 meses, o ano, o mês) vão sempre de antes a depois de hoje, então nula aqui é "nenhum
+ * registro": zero de verdade, não "sem dado" (Gustavo, 13/11). `undefined` (campo que não veio) continua sem dado.
+ */
+export const somaOuZero = (v: number | null | undefined): number | undefined => (v === null ? 0 : v);
+
 /** Valor e quantidade: `R$ 300,00 (2 cobranças)`; sem valor, "—". */
 export function valorEQuantidadeParaTela(v: ValorEQuantidade | null | undefined): string {
-  if (!v || v.valorCentavos === null || v.valorCentavos === undefined) return SEM_DADO;
+  // Soma vazia com zero cobranças é zero (a contagem confirma, como no Início); valor nulo com cobranças segue "—".
+  const valor = v && v.valorCentavos === null && v.cobrancas === 0 ? 0 : v?.valorCentavos;
+  if (!v || valor === null || valor === undefined) return SEM_DADO;
   const n = v.cobrancas;
   const quantidade = n === 1 ? '1 cobrança' : `${n} cobranças`;
-  return `${centavosParaTela(v.valorCentavos)} (${quantidade})`;
+  return `${centavosParaTela(valor)} (${quantidade})`;
 }
 
 export interface CartaoDoPainel {
@@ -521,41 +530,55 @@ export interface CartaoDoPainel {
   detalhe?: string;
   /** Cor do número (D6 de `docs/planos/cores-de-destaque.md`), decidida pelo valor cru: zero e "—" sem cor (D5). */
   enfase: EnfaseDoNumero;
+  /** Por que não há número (só com `enfase: 'indisponivel'`, D14). */
+  motivo?: string;
 }
 
-/** Os seis cartões, na ordem da tela. Pagantes e valor médio ficam neutros: contagem e média, sem função de cor no D6. */
+/** Valor médio sem ninguém que pagou: a média não tem base (não é zero). */
+export const MOTIVO_SEM_PAGANTES = 'Sem pagamentos no período';
+
+/**
+ * Os seis cartões, na ordem da tela. Pagantes e valor médio ficam neutros: contagem e média, sem função de cor no D6.
+ * Somas e contagens vazias são zero (`somaOuZero`); só o valor médio, sem pagante, fica indisponível.
+ */
 export function cartoesDoPainel(c: CartoesDoPainel): CartaoDoPainel[] {
+  const recebido = somaOuZero(c.recebidoCentavos);
+  const aReceber = somaOuZero(c.aReceberCentavos);
+  // Ausência confirmada pela contagem (0 cobranças); soma nula com cobranças seria anomalia e fica "—".
+  const atraso = c.emAtraso?.cobrancas === 0 ? somaOuZero(c.emAtraso.valorCentavos) : c.emAtraso?.valorCentavos;
+  const recorrente = somaOuZero(c.receitaRecorrenteMensalCentavos);
+  const pagantes = somaOuZero(c.alunosPagantes);
   return [
-    { chave: 'recebido', titulo: 'Recebido no período', valor: centavosParaTela(c.recebidoCentavos), enfase: enfaseDoNumero('azul', c.recebidoCentavos) },
+    { chave: 'recebido', titulo: 'Recebido no período', valor: centavosParaTela(recebido), enfase: enfaseDoNumero('azul', recebido) },
     {
       chave: 'aReceber',
       titulo: 'A receber',
-      valor: centavosParaTela(c.aReceberCentavos),
-      enfase: enfaseDoNumero('ciano', c.aReceberCentavos),
+      valor: centavosParaTela(aReceber),
+      enfase: enfaseDoNumero('ciano', aReceber),
       detalhe: NOTA_CONSIDERA_GERADAS,
     },
     {
       chave: 'emAtraso',
       titulo: 'Em atraso',
-      valor: centavosParaTela(c.emAtraso?.valorCentavos),
-      enfase: enfaseDoNumero('vermelho', c.emAtraso?.valorCentavos),
-      detalhe:
-        c.emAtraso && c.emAtraso.valorCentavos !== null
-          ? `${contagemParaTela(c.emAtraso.cobrancas)} ${c.emAtraso.cobrancas === 1 ? 'cobrança' : 'cobranças'} · ${NOTA_CONSIDERA_GERADAS}`
-          : NOTA_CONSIDERA_GERADAS,
+      valor: centavosParaTela(atraso),
+      enfase: enfaseDoNumero('vermelho', atraso),
+      detalhe: c.emAtraso?.cobrancas
+        ? `${contagemParaTela(c.emAtraso.cobrancas)} ${c.emAtraso.cobrancas === 1 ? 'cobrança' : 'cobranças'} · ${NOTA_CONSIDERA_GERADAS}`
+        : NOTA_CONSIDERA_GERADAS,
     },
     {
       chave: 'recorrente',
       titulo: 'Receita recorrente mensal',
-      valor: centavosParaTela(c.receitaRecorrenteMensalCentavos),
-      enfase: enfaseDoNumero('violeta', c.receitaRecorrenteMensalCentavos),
+      valor: centavosParaTela(recorrente),
+      enfase: enfaseDoNumero('violeta', recorrente),
     },
-    { chave: 'pagantes', titulo: 'Alunos pagantes', valor: contagemParaTela(c.alunosPagantes), enfase: enfaseDoNumero(null, c.alunosPagantes) },
+    { chave: 'pagantes', titulo: 'Alunos pagantes', valor: contagemParaTela(pagantes), enfase: enfaseDoNumero(null, pagantes) },
     {
       chave: 'medio',
       titulo: 'Valor médio por aluno',
       valor: centavosParaTela(c.valorMedioPorAlunoCentavos),
       enfase: enfaseDoNumero(null, c.valorMedioPorAlunoCentavos),
+      motivo: MOTIVO_SEM_PAGANTES,
     },
   ];
 }
@@ -604,17 +627,25 @@ export interface ResultadoDoMesNaTela {
   entradas: string;
   saidas: string;
   resultado: string;
+  /** Os mesmos números crus, para a cor (`enfaseDoNumero`); o recebido já com a soma vazia como zero. */
+  centavos: { recebido: number | null | undefined; entradas: number | null | undefined; saidas: number | null | undefined; resultado: number | null | undefined };
 }
 
+/**
+ * O recebido do mês vem da consulta que sempre roda (dia 1 a hoje): nulo é nenhum pagamento, zero (`somaOuZero`). As
+ * avulsas e o resultado nulos são o filtro "Meus" (não pertencem a um aluno): esses seguem "—".
+ */
 export function resultadoDoMesParaTela(r: Painel['resultadoDoMes'] | null | undefined): ResultadoDoMesNaTela {
+  const recebido = r ? somaOuZero(r.recebidoCentavos) : null;
   return {
     rotulo: ROTULO_RESULTADO_DO_MES,
     mes: rotuloDoMes(r?.mes),
     descricao: `Mês de ${rotuloDoMes(r?.mes)} · sempre o mês de hoje, não muda com o período acima`,
-    recebido: centavosParaTela(r?.recebidoCentavos),
+    recebido: centavosParaTela(recebido),
     entradas: centavosParaTela(r?.entradasAvulsasCentavos),
     saidas: centavosParaTela(r?.saidasAvulsasCentavos),
     resultado: centavosParaTela(r?.resultadoCentavos),
+    centavos: { recebido, entradas: r?.entradasAvulsasCentavos, saidas: r?.saidasAvulsasCentavos, resultado: r?.resultadoCentavos },
   };
 }
 

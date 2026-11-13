@@ -413,9 +413,13 @@ describe('Financeiro', () => {
     expect(cartaoDe(b, 'financeiro.vencidas')).toMatchObject({ estado: 'naoCarregou', valor: null });
   });
 
-  it('nada recebido no mês (soma nula): "—", não R$ 0', () => {
+  // Gustavo, 13/11: a consulta do mês sempre roda; soma nula é nenhum pagamento, zero de verdade (o servidor também a
+  // soma como zero no resultado). Sem o `resultadoDoMes`, o cartão segue "Não carregou".
+  it('nada recebido no mês (soma nula): R$ 0 em cinza; sem o resultado do mês, "Não carregou"', () => {
     const b = bloco('financeiro', fontes({ financeiro: fontePronta(financeiro({ resultadoDoMes: { rotulo: 'out/2026', mes: '2026-10', recebidoCentavos: null } })) }));
-    expect(cartaoDe(b, 'financeiro.recebido')).toMatchObject({ estado: 'semDado', texto: '—', valor: null, enfase: 'indisponivel' });
+    expect(cartaoDe(b, 'financeiro.recebido')).toMatchObject({ estado: 'valor', texto: 'R$ 0', valor: 0, enfase: 'zero' });
+    const semResultado = bloco('financeiro', fontes({ financeiro: fontePronta(financeiro({ resultadoDoMes: undefined })) }));
+    expect(cartaoDe(semResultado, 'financeiro.recebido')).toMatchObject({ estado: 'naoCarregou', valor: null, enfase: 'indisponivel' });
   });
 
   it('recebido igual a zero de verdade fica cinza', () => {

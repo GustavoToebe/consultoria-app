@@ -35,17 +35,17 @@ interface Props {
 }
 
 /**
- * Motivo escrito sob o "—" do número indisponível, em itálico (D14): um olhar rápido não confunde "—" com o "0" do zero,
- * que fica sem essa linha. Também no `treinador/painel/CartaoMini`.
+ * Motivo escrito sob o "—" do número indisponível (D14): o zero é só "0"; o indisponível é "—" mais esta linha, em fonte
+ * normal, menor que o número e em `textoSuave` (4,5:1 sobre `superficie` e `superficie2`, `tema/tokens.test.ts`).
  */
 export function MotivoDoIndisponivel({ texto = MOTIVO_SEM_DADOS }: { texto?: string }) {
   const { cores } = useTema();
-  return <Texto variante="pequeno" cor={cores.textoSuave} style={estilos.motivo}>{texto}</Texto>;
+  return <Texto variante="pequeno" cor={cores.textoSuave}>{texto}</Texto>;
 }
 
 /**
  * Número de indicador com destaque (`docs/planos/cores-de-destaque.md`): rótulo neutro, número na cor da função, faixa
- * lateral e fundo tonalizado; zero ("0") e sem dado ("—" com o motivo em itálico) em `textoSuave`, sem faixa nem tinta,
+ * lateral e fundo tonalizado; zero ("0") e sem dado ("—" com o motivo escrito) em `textoSuave`, sem faixa nem tinta,
  * e distintos entre si (D14). A cor nunca vem sozinha: o rótulo
  * diz o que é. Textos quebram linha (nada cortado). Só apresenta: carregando e erro são da tela, como antes.
  */
@@ -67,5 +67,4 @@ const RECUO = espaco(2);
 
 const estilos = StyleSheet.create({
   peca: { flexGrow: 1, minWidth: 0, paddingVertical: espaco(1.5), paddingRight: RECUO, gap: espaco(0.5) },
-  motivo: { fontStyle: 'italic' },
 });

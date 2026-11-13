@@ -6,6 +6,7 @@ import type { PainelTreinador, RecordesDaSemana } from '../src/api/tipos';
 import { fixarHoje } from './aluno';
 import { erroApi, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type AparelhoFalso, type RespostasApi } from './api-falsa';
 import { PAINEL_COM_DADOS } from './financeiro-falso';
+import { esperarValorInteiro } from './valor-inteiro';
 
 /**
  * Painel novo do Início do treinador (passos 8 e 9, D7 a D9): blocos por permissão, "não carregou" no lugar de zero,
@@ -435,4 +436,26 @@ test('o passeio termina apontando os Primeiros passos do Início', async ({ page
   }
   await expect(passeio.getByText('Este bloco do Início mostra o que falta', { exact: false })).toBeVisible();
   await expect(passeio.getByRole('button', { name: 'Começar' })).toBeVisible();
+});
+
+// Gustavo, 13/11: R$ 10.000 e R$ 100.000 inteiros nos mini-cartões do Financeiro no Início (em pé e o largo), com o "R$"
+// pequeno na mesma linha do número, no celular e no PC; também com o texto extra grande (o caso mais apertado).
+for (const extra of [false, true]) test(`valores grandes cabem inteiros nos cartões do financeiro, em 390 e 1280${extra ? ', texto extra grande' : ''}`, async ({ page }) => {
+  if (extra) await page.addInitScript((id) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tamanhoTexto: 'EXTRA' })), TREINADOR.id);
+  await abrir(page, {
+    extra: {
+      'GET /financeiro/painel': { corpo: {
+        ...PAINEL_COM_DADOS,
+        proximosRecebimentos: { fonte: 'VENCIMENTO', em7Dias: { valorCentavos: 1_000_000, cobrancas: 12 }, em30Dias: { valorCentavos: 10_000_000, cobrancas: 40 } },
+        resultadoDoMes: { ...PAINEL_COM_DADOS.resultadoDoMes, recebidoCentavos: 10_000_000 },
+      } },
+      'GET /financeiro/inadimplentes': { corpo: { itens: [], total: 40, valorTotalCentavos: 10_000_000, pagina: 0 } },
+    },
+  });
+  for (const largura of [390, 1280]) {
+    await page.setViewportSize({ width: largura, height: 900 });
+    await esperarValorInteiro(page.getByLabel('Cobranças vencidas: R$ 100.000,00'), ['R$', '100.000']);
+    await esperarValorInteiro(page.getByLabel('Cobranças vencendo em 7 dias: R$ 10.000,00'), ['R$', '10.000']);
+    await esperarValorInteiro(page.getByLabel('Recebido no mês, valor bruto: R$ 100.000,00'), ['R$', '100.000']);
+  }
 });
