@@ -1,6 +1,7 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import type { AlunoDetalhe, Atualizacao, ItemDeAtividade, Lesao, PastaResumo } from '../src/api/tipos';
+import { CLARO, coresDeDestaque } from '../src/tema/tokens';
 import { ALUNO, erroApi, PERMISSOES_TREINADOR as BASE, sessao, simularApi, TREINADOR, type RespostasApi } from './api-falsa';
 
 /**
@@ -64,6 +65,12 @@ async function abrir(page: Page, o: {
 }
 
 const aba = (page: Page, nome: string) => page.getByRole('tab', { name: nome, exact: true });
+
+const rgb = (hex: string) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`;
+const corDe = (l: Locator) => l.evaluate((e) => getComputedStyle(e).color);
+const AZUL_CLARO = coresDeDestaque(CLARO, false).azul.cor;
+const temaClaro = (page: Page) =>
+  page.addInitScript((id) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: 'CLARO' })), TREINADOR.id);
 
 for (const largura of [390, 1280]) {
   test(`${largura}px: abre no Resumo e troca de aba pelo endereço`, async ({ page }) => {
@@ -309,13 +316,111 @@ for (const largura of [390, 1280]) {
 }
 
 test('Frequência e mobilidade sem pasta vigente: diz uma vez, só a semana e sem a linha da mobilidade', async ({ page }) => {
+  await temaClaro(page);
   const { pedidos } = await abrir(page, { url: `/treinador/alunos/${ALUNO_ID}?aba=acompanhamento` });
   await expect(page.getByText('Nenhuma pasta vigente.', { exact: true })).toHaveCount(1);
   const tabela = tabelaDaFrequencia(page);
   await expect(tabela.getByRole('columnheader')).toHaveText(['Esta semana']);
   await expect(tabela.getByRole('rowheader')).toHaveText(['Treinos']);
-  await expect(tabela.getByRole('cell')).toHaveText(['Nenhum registro']);
+  // Zero é "0" neutro (D14), nunca "Nenhum registro" nem a cor do indicador.
+  await expect(tabela.getByRole('cell')).toHaveText(['0 treinos']);
+  expect(await corDe(tabela.getByRole('cell').first().getByText('0 treinos', { exact: true }))).toBe(rgb(CLARO.textoSuave));
   expect(pediuMobilidade(pedidos)).toBe(false);
+});
+
+test('Frequência: a contagem de treinos fica no azul de indicador, com o texto ao lado', async ({ page }) => {
+  await temaClaro(page);
+  await abrir(page, { url: `/treinador/alunos/${ALUNO_ID}?aba=acompanhamento`, extra: comPastaVigente([PLANO_DE_MOBILIDADE]) });
+  const linha = tabelaDaFrequencia(page).getByRole('row').nth(1);
+  await expect(linha).toHaveText(/Treinos\s*1 treino\s*1 treino/);
+  expect(await corDe(linha.getByText('1 treino', { exact: true }).first())).toBe(rgb(AZUL_CLARO));
+});
+
+// Cores da segunda rodada (`docs/planos/cores-de-destaque.md`, D12 a D14) no tema claro: o selo do prazo da pasta é o
+// mesmo no Resumo e na lista de pastas; os treinos da semana em azul; zero ("0") e indisponível ("—" com o motivo) neutros
+// e distintos pelo texto.
+const pastaQueTermina = (fim: number): PastaResumo => ({ ...VIGENTE, inicio: diaLocal(-20), fim: diaLocal(fim) });
+const comPasta = (pasta: PastaResumo, execucoes: unknown[]): RespostasApi => ({
+  [`GET /alunos/${ALUNO_ID}/pastas/vigente`]: { corpo: { pasta } },
+  [`GET /alunos/${ALUNO_ID}/execucoes`]: { corpo: execucoes },
+});
+// Regex, não o texto exato: o "hoje" do app é o de Brasília e o `diaLocal` é o da máquina do teste (UTC na CI).
+const VENCIDA = /^Vencida há [234] dias$/;
+const VENCE = /^Vence em [456] dias$/;
+const numeroDosTreinos = (page: Page) => page.getByText('Treinos registrados', { exact: true }).locator('..');
+
+for (const largura of [390, 1280]) {
+  test(`${largura}px: pasta vencida em vermelho com os dias escritos, no Resumo e na lista; treinos da semana em azul`, async ({ page }) => {
+    await temaClaro(page);
+    const pasta = pastaQueTermina(-3);
+    const { errosDaPagina } = await abrir(page, { largura, pastas: [pasta], extra: comPasta(pasta, [TREINO_DE_HOJE]) });
+    const selo = page.getByText(VENCIDA);
+    await expect(selo).toBeVisible();
+    expect(await corDe(selo)).toBe(rgb(CLARO.perigo));
+    const numero = numeroDosTreinos(page).getByText('1', { exact: true });
+    await expect(numero).toBeVisible();
+    expect(await corDe(numero)).toBe(rgb(AZUL_CLARO));
+    await expect(numeroDosTreinos(page).getByText('nesta semana', { exact: true })).toBeVisible();
+
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+    await aba(page, 'Planos').click();
+    await expect(page.getByText('Pastas de plano', { exact: true })).toBeVisible();
+    await expect(page.getByText(VENCIDA)).toBeVisible();
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+test('a vigente vencida segue vermelha com a do ciclo seguinte ainda em rascunho, no Resumo e na lista', async ({ page }) => {
+  const vigente = pastaQueTermina(-3);
+  const seguinte: PastaResumo = { ...vigente, id: 'f0000000-0000-4000-8000-0000000000a2', titulo: 'Pasta seguinte', inicio: diaLocal(-2), fim: diaLocal(12) };
+  await abrir(page, { pastas: [vigente, seguinte], extra: comPasta(vigente, [TREINO_DE_HOJE]) });
+  await expect(page.getByText(VENCIDA)).toHaveCount(1);
+  await aba(page, 'Planos').click();
+  await expect(page.getByText('Pastas de plano', { exact: true })).toBeVisible();
+  await expect(page.getByText(VENCIDA)).toHaveCount(1);
+});
+
+test('pasta perto do fim: "Vence em 5 dias" em âmbar no Resumo e na lista', async ({ page }) => {
+  await temaClaro(page);
+  const pasta = pastaQueTermina(5);
+  await abrir(page, { pastas: [pasta], extra: comPasta(pasta, [TREINO_DE_HOJE]) });
+  const selo = page.getByText(VENCE);
+  await expect(selo).toBeVisible();
+  expect(await corDe(selo)).toBe(rgb(CLARO.atencao));
+  await aba(page, 'Planos').click();
+  await expect(page.getByText(VENCE)).toBeVisible();
+});
+
+test('pasta vencida já renovada (a seguinte é a vigente): nenhum selo de prazo', async ({ page }) => {
+  const antiga = pastaQueTermina(-3);
+  const nova: PastaResumo = { ...antiga, id: 'f0000000-0000-4000-8000-0000000000a2', titulo: 'Pasta seguinte', inicio: diaLocal(-2), fim: diaLocal(12) };
+  await abrir(page, { pastas: [antiga, nova], extra: comPasta(nova, [TREINO_DE_HOJE]) });
+  await expect(page.getByText('Pasta seguinte', { exact: true })).toBeVisible();
+  await expect(page.getByText(/^Vencida |^Vence /)).toHaveCount(0);
+  await aba(page, 'Planos').click();
+  await expect(page.getByText('Pastas de plano', { exact: true })).toBeVisible();
+  await expect(page.getByText(/^Vencida |^Vence /)).toHaveCount(0);
+});
+
+test('Resumo: semana sem treino mostra "0" neutro, sem o motivo do indisponível', async ({ page }) => {
+  await temaClaro(page);
+  // Treino só antes desta semana (dentro da pasta): a semana tem zero, e o último registro existe.
+  await abrir(page, { pastas: [VIGENTE], extra: comPasta(VIGENTE, [{ ...TREINO_DE_HOJE, data: diaLocal(-8) }]) });
+  const zero = numeroDosTreinos(page).getByText('0', { exact: true });
+  await expect(zero).toBeVisible();
+  expect(await corDe(zero)).toBe(rgb(CLARO.textoSuave));
+  await expect(page.getByText('Não foi possível carregar', { exact: true })).toHaveCount(0);
+});
+
+test('Resumo: treinos que não carregaram mostram "—" com o motivo, nunca o zero', async ({ page }) => {
+  await temaClaro(page);
+  await abrir(page, { extra: { [`GET /alunos/${ALUNO_ID}/pastas/vigente`]: erroApi(500, 'Falha fictícia.') } });
+  const indisponivel = numeroDosTreinos(page);
+  await expect(indisponivel.getByText('—', { exact: true })).toBeVisible();
+  await expect(indisponivel.getByText('Não foi possível carregar', { exact: true })).toBeVisible();
+  await expect(indisponivel.getByText('0', { exact: true })).toHaveCount(0);
+  expect(await corDe(indisponivel.getByText('—', { exact: true }))).toBe(rgb(CLARO.textoSuave));
 });
 
 test('Frequência e mobilidade: pasta sem mobilidade publicada diz isso só na linha da mobilidade', async ({ page }) => {

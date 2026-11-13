@@ -194,7 +194,9 @@ for (const largura of [390, 1280]) {
       await expect(page.getByText('Período: Não definido', { exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: /^Pasta Plano 16, concluída, período/ })).toBeVisible();
       // Só a Plano 17 pode ganhar o selo: a 18 tem a dieta publicada e a 16 está concluída (os nomes acima já o excluem).
-      await expect(page.getByRole('button', { name: dietaFalha ? /^Pasta Plano 17, aberta, período/ : /^Pasta Plano 17, aberta, rascunho, período/ })).toBeVisible();
+      // A Plano 17 terminou em 30/10 sem a do ciclo seguinte: o prazo vencido entra no nome acessível, depois do rascunho.
+      const prazo = '(vencida (há \\d+ dias?|desde \\d\\d/\\d\\d/\\d{4}), )';
+      await expect(page.getByRole('button', { name: new RegExp(`^Pasta Plano 17, aberta, ${dietaFalha ? '' : 'rascunho, '}${prazo}período`) })).toBeVisible();
       expect(errosDaPagina).toEqual([]);
     });
   }

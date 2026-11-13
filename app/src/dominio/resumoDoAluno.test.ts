@@ -1,4 +1,4 @@
-import { planejamentoDoResumo, precisaRenovar, proximoPassoDoAluno, treinosDoResumo, type SituacaoDaFonte } from './resumoDoAluno';
+import { planejamentoDoResumo, prazoDaPasta, precisaRenovar, proximoPassoDoAluno, treinosDoResumo, type SituacaoDaFonte } from './resumoDoAluno';
 
 const HOJE = '2026-10-19';
 const pasta = (id: string, inicio: string | null, fim: string | null, concluidaEm: string | null = null) => ({ id, titulo: `Ciclo ${id}`, inicio, fim, concluidaEm });
@@ -19,6 +19,34 @@ describe('precisaRenovar', () => {
     expect(precisaRenovar(p, [p, pasta('6', '2026-10-20', '2026-11-18')], HOJE)).toBe(false);
     expect(precisaRenovar(pasta('5', '2026-09-20', '2026-10-19', '2026-10-19T10:00:00Z'), [], HOJE)).toBe(false);
     expect(precisaRenovar(pasta('5', '2026-09-20', null), [], HOJE)).toBe(false);
+  });
+});
+
+describe('prazoDaPasta', () => {
+  it('vencida e sem a seguinte: vermelho com os dias (o mesmo texto do atraso)', () => {
+    expect(prazoDaPasta(pasta('5', '2026-09-20', '2026-10-18'), [], HOJE)).toEqual({ texto: 'Vencida há 1 dia', tipo: 'perigo' });
+    expect(prazoDaPasta(pasta('5', '2026-09-20', '2026-10-09'), [], HOJE)).toEqual({ texto: 'Vencida há 10 dias', tipo: 'perigo' });
+    expect(prazoDaPasta(pasta('5', '2024-01-01', '2025-01-01'), [], HOJE)?.texto).toBe('Vencida desde 01/01/2025');
+  });
+  it('perto do fim (até 7 dias, hoje incluído): âmbar', () => {
+    expect(prazoDaPasta(pasta('5', '2026-09-20', '2026-10-19'), [], HOJE)).toEqual({ texto: 'Vence hoje', tipo: 'atencao' });
+    expect(prazoDaPasta(pasta('5', '2026-09-20', '2026-10-20'), [], HOJE)).toEqual({ texto: 'Vence amanhã', tipo: 'atencao' });
+    expect(prazoDaPasta(pasta('5', '2026-09-20', '2026-10-26'), [], HOJE)).toEqual({ texto: 'Vence em 7 dias', tipo: 'atencao' });
+  });
+  it('sem selo: longe do fim, renovada, concluída ou sem fim', () => {
+    expect(prazoDaPasta(pasta('5', '2026-09-20', '2026-10-27'), [], HOJE)).toBeNull();
+    const vencida = pasta('5', '2026-09-20', '2026-10-10');
+    expect(prazoDaPasta(vencida, [vencida, pasta('6', '2026-10-11', '2026-11-10')], HOJE)).toBeNull();
+    expect(prazoDaPasta(pasta('5', '2026-09-20', '2026-10-10', '2026-10-11T10:00:00Z'), [], HOJE)).toBeNull();
+    expect(prazoDaPasta(pasta('5', '2026-09-20', null), [], HOJE)).toBeNull();
+  });
+  it('a vigente vencida fica vermelha mesmo com a seguinte criada (ainda em rascunho); perto do fim e renovada, sem selo', () => {
+    const vencida = pasta('5', '2026-09-20', '2026-10-10');
+    const seguinte = pasta('6', '2026-10-11', '2026-11-10');
+    expect(prazoDaPasta(vencida, [vencida, seguinte], HOJE, true)).toEqual({ texto: 'Vencida há 9 dias', tipo: 'perigo' });
+    const pertoDoFim = pasta('5', '2026-09-20', '2026-10-22');
+    expect(prazoDaPasta(pertoDoFim, [pertoDoFim, pasta('6', '2026-10-23', '2026-11-20')], HOJE, true)).toBeNull();
+    expect(prazoDaPasta(pasta('5', '2026-09-20', '2026-10-10', '2026-10-11T10:00:00Z'), [], HOJE, true)).toBeNull();
   });
 });
 
@@ -120,9 +148,9 @@ describe('treinosDoResumo', () => {
     expect(treinosDoResumo({ semana: 0, ultimo: null, pasta: { de: '2026-10-01' } }, SEGUNDA, HOJE)).toEqual({ apoio: 'Treinos: ainda sem registros desde 01/10.' });
   });
   it('com registro: a contagem da semana e o último, com o escopo da consulta', () => {
-    expect(treinosDoResumo({ semana: 3, ultimo: '2026-10-18', pasta: { de: '2026-10-01' } }, SEGUNDA, HOJE)).toEqual({ contagem: '3 nesta semana', ultimo: 'Ontem · desde 01/10' });
-    expect(treinosDoResumo({ semana: 0, ultimo: '2026-10-15', pasta: { de: '2026-10-01' } }, SEGUNDA, HOJE)).toEqual({ contagem: 'Nenhum nesta semana', ultimo: 'Há 4 dias · desde 01/10' });
+    expect(treinosDoResumo({ semana: 3, ultimo: '2026-10-18', pasta: { de: '2026-10-01' } }, SEGUNDA, HOJE)).toEqual({ semana: 3, ultimo: 'Ontem · desde 01/10' });
+    expect(treinosDoResumo({ semana: 0, ultimo: '2026-10-15', pasta: { de: '2026-10-01' } }, SEGUNDA, HOJE)).toEqual({ semana: 0, ultimo: 'Há 4 dias · desde 01/10' });
     // Pasta que começou depois da segunda: a consulta é a semana.
-    expect(treinosDoResumo({ semana: 1, ultimo: '2026-10-19', pasta: { de: '2026-10-19' } }, SEGUNDA, HOJE)).toEqual({ contagem: '1 nesta semana', ultimo: 'Hoje · nesta semana' });
+    expect(treinosDoResumo({ semana: 1, ultimo: '2026-10-19', pasta: { de: '2026-10-19' } }, SEGUNDA, HOJE)).toEqual({ semana: 1, ultimo: 'Hoje · nesta semana' });
   });
 });

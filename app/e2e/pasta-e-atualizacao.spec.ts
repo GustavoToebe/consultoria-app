@@ -290,6 +290,8 @@ for (const largura of [390, 1280]) {
     });
     const folha = page.getByRole('dialog', { name: 'Plano 17' });
     await expect(folha.getByText('Vigente', { exact: true })).toBeVisible();
+    // O Plano 17 terminou em 20/10 e não tem a do ciclo seguinte: o prazo vencido vem escrito junto do "Vigente".
+    await expect(folha.getByText(/^Vencida (há \d+ dias?|desde \d\d\/\d\d\/\d{4})$/)).toBeVisible();
     await expect(folha.getByText('Rascunho', { exact: true })).toBeVisible();
     await folha.getByRole('button', { name: 'Publicar dieta da pasta Plano 17' }).click();
     await expect(folha.getByText('Dieta publicada. 1 plano sem alteração.')).toBeVisible();

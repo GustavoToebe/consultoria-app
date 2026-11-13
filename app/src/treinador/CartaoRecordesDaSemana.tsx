@@ -5,13 +5,13 @@ import { StyleSheet, View } from 'react-native';
 import { recordesDaSemana, recordesDaSemanaDoAluno } from '../api/rotas';
 import { dataRelativa } from '../dominio/datasRelativas';
 import { textoDaSerieComRecorde, textoDoTotalDeRecordes } from '../dominio/retornoDoTreinador';
-import { useTema } from '../tema/TemaProvider';
 import { espaco } from '../tema/tokens';
 import { Cartao } from '../ui/Cartao';
 import { Esqueleto } from '../ui/Esqueleto';
 import { MensagemErro } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
 import { LinhaDaLista, ListaDeLinhas } from '../ui/LinhaDaLista';
+import { useDestaques } from '../ui/NumeroDeDestaque';
 import { Texto } from '../ui/Texto';
 import { useUnidadeDeCarga } from '../ui/unidadeDeCargaEmUso';
 import { useCarregar } from '../ui/useCarregar';
@@ -26,14 +26,15 @@ const NO_INICIO = 5;
  * chave do retorno.
  */
 export function CartaoRecordesDaSemana(p: { alunoId: string; meus?: never; style?: object } | { alunoId?: never; meus: boolean; style?: object }) {
-  const { cores } = useTema();
+  // Recorde é medida, em violeta (`cores-de-destaque.md`, D6), a mesma do cartão Recordes do Início; o texto diz o que é.
+  const violeta = useDestaques().violeta.cor;
   const unidade = useUnidadeDeCarga();
   const doAluno = !!p.alunoId;
   const { dados, erro, recarregar } = useCarregar(doAluno ? `recordes-semana:${p.alunoId}` : `recordes-semana:${p.meus ? 'meus' : 'todos'}`,
     () => (doAluno ? recordesDaSemanaDoAluno(p.alunoId!) : recordesDaSemana(!!p.meus)));
   if (!doAluno && (!dados || dados.total === 0) && !erro) return null;
   const series = doAluno ? (dados?.series ?? []) : (dados?.series ?? []).slice(0, NO_INICIO);
-  const medalha = <View style={estilos.medalha}><Medal size={20} color={cores.sucesso} /></View>;
+  const medalha = <View style={estilos.medalha}><Medal size={20} color={violeta} aria-hidden /></View>;
   return (
     // Sem recorde, a faixa diz uma vez só e o cartão fica sem corpo (antes "0 séries…" e "Nenhum recorde…" repetiam).
     <Cartao titulo="Recordes da semana" descricao={!dados ? 'Últimos 7 dias.' : dados.total === 0 ? 'Nenhum recorde nos últimos 7 dias.' : textoDoTotalDeRecordes(dados.total)} style={p.style}>

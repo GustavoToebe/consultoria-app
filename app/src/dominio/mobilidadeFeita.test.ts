@@ -128,9 +128,9 @@ describe('contagem no treinador', () => {
     expect(contagemDaMobilidadeNoTreinador(marcas, semana, null, true)).toEqual({ naSemana: 1, naPasta: 0 });
   });
 
-  it('o texto: "—", "Nenhum registro" ou as contagens', () => {
+  it('o texto: "—" sem período, senão a contagem (zero é "0 dias", D14)', () => {
     expect(textoDosDiasDeMobilidade(null)).toBe('—');
-    expect(textoDosDiasDeMobilidade(0)).toBe('Nenhum registro');
+    expect(textoDosDiasDeMobilidade(0)).toBe('0 dias');
     expect(textoDosDiasDeMobilidade(1)).toBe('1 dia');
     expect(textoDosDiasDeMobilidade(12)).toBe('12 dias');
   });

@@ -30,7 +30,9 @@ interface Definicao {
 const DEFINICOES: readonly Definicao[] = [
   { chave: 'PARA_REVISAR', titulo: 'Para revisar', tom: 'atencao', significado: 'A atualização chegou e espera o seu feedback.' },
   { chave: 'ATRASADOS', titulo: 'Atrasados', tom: 'perigo', significado: 'Passou da data e o aluno ainda não enviou.' },
-  { chave: 'EM_DIA', titulo: 'Em dia', tom: 'sucesso', significado: 'Atualização ainda por vir ou já revisada.' },
+  // Neutro (`cores-de-destaque.md`, D12): o grupo junta a atualização por vir e a revisada, então não é um estado
+  // explícito de conclusão; o verde fica no selo "Revisada" de cada linha.
+  { chave: 'EM_DIA', titulo: 'Em dia', tom: 'neutro', significado: 'Atualização ainda por vir ou já revisada.' },
   { chave: 'SEM_PASTA', titulo: 'Sem pasta com período', tom: 'neutro', significado: 'Sem atualização para acompanhar ainda.' },
 ];
 

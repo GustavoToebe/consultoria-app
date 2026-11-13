@@ -115,10 +115,9 @@ export function contagemDaMobilidadeNoTreinador(
 
 /**
  * Cada número do cartão (semana ou pasta), no molde do cartão Frequência: "—" sem mobilidade publicada na pasta,
- * "Nenhum registro" com zero, senão "N dias".
+ * senão "0 dias", "1 dia", "N dias" (D14: zero é "0", distinto do "—").
  */
 export function textoDosDiasDeMobilidade(n: number | null): string {
   if (n === null) return '—';
-  if (n === 0) return 'Nenhum registro';
   return `${n} ${n === 1 ? 'dia' : 'dias'}`;
 }

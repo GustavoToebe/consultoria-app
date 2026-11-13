@@ -14,7 +14,7 @@ describe('agruparAlunos', () => {
     expect(grupos.map((g) => [g.chave, g.titulo, g.tom])).toEqual([
       ['PARA_REVISAR', 'Para revisar', 'atencao'],
       ['ATRASADOS', 'Atrasados', 'perigo'],
-      ['EM_DIA', 'Em dia', 'sucesso'],
+      ['EM_DIA', 'Em dia', 'neutro'],
       ['SEM_PASTA', 'Sem pasta com período', 'neutro'],
     ]);
     expect(grupos.map((g) => g.resumo)).toEqual([

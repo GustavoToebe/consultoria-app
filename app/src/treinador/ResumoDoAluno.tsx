@@ -7,12 +7,13 @@ import { atualizacaoDoAluno } from '../api/rotas';
 import type { AlunoDetalhe, PastaResumo } from '../api/tipos';
 import { caminhoAtualizacaoTreinador, statusAtualizacaoTreinador } from '../dominio/atualizacao';
 import { periodoCurto } from '../dominio/datasRelativas';
+import { enfaseDoNumero } from '../dominio/destaque';
 import type { AbaDaFicha } from '../dominio/fichaDoAluno';
 import { hojeIso } from '../dominio/formatos';
 import { pastaSoComRascunho } from '../dominio/pastaEmRascunho';
 import { periodoDaSemana } from '../dominio/progressoSemana';
 import { planosDaPasta } from '../dominio/publicarPasta';
-import { planejamentoDoResumo, proximoPassoDoAluno, treinosDoResumo, type SituacaoDaFonte } from '../dominio/resumoDoAluno';
+import { planejamentoDoResumo, prazoDaPasta, proximoPassoDoAluno, treinosDoResumo, type SituacaoDaFonte } from '../dominio/resumoDoAluno';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
 import { espaco } from '../tema/tokens';
@@ -21,6 +22,7 @@ import { Cartao } from '../ui/Cartao';
 import { CampoLeitura } from '../ui/CampoLeitura';
 import { Esqueleto } from '../ui/Esqueleto';
 import { MensagemErro } from '../ui/Estados';
+import { NumeroDeDestaque } from '../ui/NumeroDeDestaque';
 import { textoDoErro } from '../ui/erros';
 import { useSaidaGuardada } from '../ui/GuardaDeSaida';
 import { Selo } from '../ui/Selo';
@@ -28,6 +30,7 @@ import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
 import { AtividadeRecente } from './AtividadeRecente';
 import type { useAcompanhamentoDoAluno } from './CartaoFrequencia';
+import { ICONE_DO_SELO } from './iconesDosSelos';
 import { AvisoDeLesoesNoResumo, UltimaMedicao } from './PesoELesoesNoResumo';
 import { usePlanosDaPasta, type CargaDosPlanos } from './usePlanosDaPasta';
 
@@ -37,7 +40,9 @@ import { usePlanosDaPasta, type CargaDosPlanos } from './usePlanosDaPasta';
  * medição, lado a lado no PC; por fim o histórico recente. Vazio é linha de apoio, não cartão. Os atalhos só levam a
  * fluxos que já existem (aba Ficha no Acesso ao app, pasta ou aba Planos, aba Evolução): nada é enviado, renovado ou
  * publicado daqui. Carregando, erro, sem permissão e sem registro têm apresentações próprias, e o próximo passo nunca diz
- * "Tudo em dia" sem as fontes.
+ * "Tudo em dia" sem as fontes. Cores (`docs/planos/cores-de-destaque.md`, D12 e D13): os selos da atualização e do prazo
+ * da pasta são os mesmos da lista de alunos e da lista de pastas (com o ícone do tom); os treinos da semana são medida de
+ * atividade, em azul, com "0" neutro e "—" com o motivo quando não carregou (D14).
  */
 export function ResumoDoAluno({ aluno, acompanhamento, abas, aoRenovar, aoAbrirAba, aoAbrirAcesso, aoAbrirPasta }: {
   aluno: AlunoDetalhe;
@@ -53,6 +58,7 @@ export function ResumoDoAluno({ aluno, acompanhamento, abas, aoRenovar, aoAbrirA
   aoAbrirPasta: (pastaId: string) => void;
 }) {
   const { pode, temFuncionalidade } = useSessao();
+  const verRegistros = pode('REGISTRO_LER');
   const { confirmar } = useSaidaGuardada();
   const { cores } = useTema();
   const hoje = hojeIso();
@@ -98,7 +104,10 @@ export function ResumoDoAluno({ aluno, acompanhamento, abas, aoRenovar, aoAbrirA
   const corDoPasso = passo.tipo === 'perigo' ? cores.perigo : cores.atencao;
 
   const saiu = aluno.anonimizado || !aluno.ativo;
-  const temFatos = saiu || verAtualizacao || !!treinos;
+  // Com REGISTRO_LER e a busca das pastas e execuções em erro, os treinos ficam "—" com o motivo, nunca um zero.
+  const treinosIndisponiveis = verRegistros && !!acompanhamento.erro && !dados;
+  const prazo = planejamento?.vigente && dados ? prazoDaPasta(planejamento.vigente, dados.pastas, hoje, true) : null;
+  const temFatos = saiu || verAtualizacao || !!treinos || treinosIndisponiveis;
   return (
     <View style={estilos.resumo}>
       <Cartao titulo="Próximo passo">
@@ -122,15 +131,19 @@ export function ResumoDoAluno({ aluno, acompanhamento, abas, aoRenovar, aoAbrirA
             {verAtualizacao ? (
               <View style={estilos.fato} accessibilityLabel={`Atualização: ${selo?.curto ?? (fonteAtualizacao === 'ok' ? 'nenhuma' : fonteAtualizacao === 'erro' ? 'indisponível' : 'carregando')}`}>
                 <Texto variante="rotulo">Atualização</Texto>
-                {selo ? <Selo texto={selo.curto} tipo={selo.tipo} />
+                {selo ? <Selo texto={selo.curto} tipo={selo.tipo} Icone={ICONE_DO_SELO[selo.tipo]} />
                   : <Texto variante={fonteAtualizacao === 'ok' ? undefined : 'suave'}>{fonteAtualizacao === 'ok' ? '—' : fonteAtualizacao === 'erro' ? 'Indisponível' : 'Carregando…'}</Texto>}
               </View>
             ) : null}
-            {treinos && 'contagem' in treinos ? (
+            {treinos && 'semana' in treinos ? (
               <>
-                <CampoLeitura rotulo="Treinos registrados" valor={treinos.contagem} numerico />
+                <NumeroDeDestaque rotulo="Treinos registrados" valor={String(treinos.semana)} detalhe="nesta semana" tamanho="medio"
+                  enfase={enfaseDoNumero('azul', treinos.semana)} style={estilos.numero} />
                 <CampoLeitura rotulo="Último registro" valor={treinos.ultimo} numerico />
               </>
+            ) : null}
+            {treinosIndisponiveis ? (
+              <NumeroDeDestaque rotulo="Treinos registrados" valor="—" motivo="Não foi possível carregar" tamanho="medio" enfase="indisponivel" style={estilos.numero} />
             ) : null}
             {treinos && 'apoio' in treinos ? <Texto variante="suave" style={estilos.apoio}>{treinos.apoio}</Texto> : null}
           </View>
@@ -150,8 +163,8 @@ export function ResumoDoAluno({ aluno, acompanhamento, abas, aoRenovar, aoAbrirA
                   <Texto variante="bloco">{planejamento.vigente.titulo}</Texto>
                   <View style={estilos.periodo}>
                     <Texto variante="suave" numerico>{periodoCurto(planejamento.vigente.inicio, planejamento.vigente.fim, hoje)}</Texto>
-                    {/* "Pasta vencida" fica junto da pasta (guia de 11/11, pág. 13): o período já passou e ela não foi finalizada. */}
-                    {planejamento.vigente.fim && planejamento.vigente.fim < hoje && !planejamento.vigente.concluidaEm ? <Selo texto="Pasta vencida" tipo="perigo" /> : null}
+                    {/* O prazo fica junto da pasta (guia de 11/11, pág. 13), com a mesma regra da lista de pastas. */}
+                    {prazo ? <Selo texto={prazo.texto} tipo={prazo.tipo} Icone={ICONE_DO_SELO[prazo.tipo]} /> : null}
                   </View>
                 </>
               ) : planejamento.linha ? <Texto>{planejamento.linha}</Texto> : null}
@@ -186,6 +199,7 @@ const estilos = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth, paddingTop: espaco(2),
   },
   fato: { gap: espaco(0.25) },
+  numero: { flexGrow: 0 },
   apoio: { alignSelf: 'flex-end' },
   linha: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(3), alignItems: 'stretch' },
   bloco: { flexGrow: 1, flexShrink: 1, flexBasis: 280, minWidth: 0 },

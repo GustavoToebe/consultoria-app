@@ -2,7 +2,7 @@ import { Permitido } from '../../../ui/Permitido';
 import { useSessao } from '../../../sessao/SessaoProvider';
 import { EntradaEmCascata, usePrimeiraLista } from '../../../ui/EntradaEmCascata';
 import { router, useLocalSearchParams } from 'expo-router';
-import { CalendarClock, CircleAlert, CircleCheck, Pencil, Plus, TriangleAlert, type LucideIcon } from 'lucide-react-native';
+import { Pencil, Plus } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -21,6 +21,7 @@ import { SELECAO_DE_ALUNOS, selecaoDepoisDosFiltros } from '../../../dominio/pai
 import { alternarComLimite, marcarVisiveis } from '../../../dominio/selecaoMultipla';
 import { useTema } from '../../../tema/TemaProvider';
 import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
+import { ICONE_DO_SELO } from '../../../treinador/iconesDosSelos';
 import { SeletoresDosFiltrosDeAlunos } from '../../../treinador/SeletoresDosFiltrosDeAlunos';
 import { BarraDeFiltros } from '../../../ui/BarraDeFiltros';
 import { Folha } from '../../../ui/Folha';
@@ -36,7 +37,7 @@ import { textoDoErro } from '../../../ui/erros';
 import { IniciaisDePerfil } from '../../../ui/FotoDePerfil';
 import { IconeBotao } from '../../../ui/IconeBotao';
 import { CabecalhoDasColunas, LinhaDaLista, ListaDeLinhas, type CelulasDaLinha, type ColunaDaLista, type SeloDaLinha } from '../../../ui/LinhaDaLista';
-import { Selo, type TipoSelo } from '../../../ui/Selo';
+import { Selo } from '../../../ui/Selo';
 import { Tela } from '../../../ui/Tela';
 import { Texto } from '../../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../../ui/useCarregar';
@@ -54,8 +55,6 @@ const COLUNAS: readonly ColunaDaLista[] = [
   { chave: 'ultimo', rotulo: 'Último registro', peso: 1 },
   { chave: 'responsavel', rotulo: 'Responsável', peso: 1 },
 ];
-/** Ícone do selo da atualização, como os selos do editor de treino; o texto continua dizendo o estado. */
-const ICONE_DO_SELO: Record<TipoSelo, LucideIcon> = { sucesso: CircleCheck, atencao: TriangleAlert, perigo: CircleAlert, neutro: CalendarClock };
 
 export default function Alunos() {
   const { pode, perfilEquipe, usuario } = useSessao();

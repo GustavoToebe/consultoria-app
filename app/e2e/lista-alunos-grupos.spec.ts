@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import type { AlunoDetalhe, AlunoResumo, SituacaoDaAtualizacao } from '../src/api/tipos';
+import { CLARO } from '../src/tema/tokens';
 import { PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
 
 /**
@@ -48,6 +49,8 @@ async function abrir(page: Page, { veAtualizacao = true, veRegistro = true, alun
   });
 }
 
+const rgb = (hex: string) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`;
+const corDe = (l: Locator) => l.evaluate((e) => getComputedStyle(e).color);
 const topo = async (l: Locator) => (await l.boundingBox())?.y ?? Number.NaN;
 const linkDe = (page: Page, nome: string) => page.getByRole('link', { name: new RegExp(`^Abrir ${nome}`) });
 const grupo = (page: Page, titulo: string) => page.getByRole('heading', { name: titulo, exact: true, level: 2 });
@@ -95,6 +98,27 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       }
 
       expect(naoTratadas).toEqual([]);
+      expect(errosDaPagina).toEqual([]);
+    });
+
+    test('cores (D7, D13): nome neutro e forte, a cor só no selo com texto e ícone; "Em dia" sem verde', async ({ page }) => {
+      await page.addInitScript((id) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: 'CLARO' })), TREINADOR.id);
+      const { errosDaPagina } = await abrir(page);
+      await page.goto('/treinador/alunos');
+      await expect(grupo(page, 'Em dia')).toBeVisible();
+
+      for (const nome of ['Ana Fictícia', 'Bruno Exemplo', 'Carla Teste', 'Davi Modelo']) {
+        expect(await corDe(linkDe(page, nome).getByText(nome, { exact: true }))).toBe(rgb(CLARO.texto));
+      }
+      // O mesmo selo da ficha: Para revisar âmbar, Atrasada vermelho, Revisada verde, sempre com o texto.
+      const seloDe = (nome: string, texto: RegExp) => linkDe(page, nome).getByText(texto).first();
+      expect(await corDe(seloDe('Ana Fictícia', /revisar/i))).toBe(rgb(CLARO.atencao));
+      expect(await corDe(seloDe('Bruno Exemplo', /atrasada há 3 dias/i))).toBe(rgb(CLARO.perigo));
+      expect(await corDe(seloDe('Davi Modelo', /revisada/i))).toBe(rgb(CLARO.sucesso));
+      // A bolinha do grupo "Em dia" é neutra (nada de "em dia" verde sem estado explícito); a dos outros segue a situação.
+      const bolinha = (titulo: string) => grupo(page, titulo).locator('xpath=preceding-sibling::*[1]').evaluate((e) => getComputedStyle(e).backgroundColor);
+      expect(await bolinha('Em dia')).toBe(rgb(CLARO.neutro));
+      expect(await bolinha('Atrasados')).toBe(rgb(CLARO.perigo));
       expect(errosDaPagina).toEqual([]);
     });
 

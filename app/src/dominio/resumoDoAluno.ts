@@ -1,4 +1,4 @@
-import { atrasoEmTexto } from './atualizacao';
+import { atrasoEmTexto, emDias } from './atualizacao';
 import { comMaiuscula, dataRelativa } from './datasRelativas';
 import { dataCurta } from './formatos';
 
@@ -24,6 +24,30 @@ export function precisaRenovar(pasta: PastaDoResumo, todas: readonly PastaDoResu
   if (diasEntre(hoje, pasta.fim) > DIAS_PARA_RENOVAR) return false;
   const fim = pasta.fim;
   return !todas.some((p) => p.id !== pasta.id && !!p.inicio && p.inicio > fim);
+}
+
+/** Selo do prazo da pasta: vermelho com os dias de atraso, âmbar perto do fim. */
+export interface PrazoDaPasta {
+  texto: string;
+  tipo: 'perigo' | 'atencao';
+}
+
+/**
+ * Prazo da pasta (`docs/planos/cores-de-destaque.md`, D12 e D13): o mesmo selo no Resumo, na lista de pastas e na Folha.
+ * A pasta **vigente** (a do plano que o aluno segue, `ehVigente`) que já terminou e não foi finalizada é sempre "Vencida
+ * há N dias" (vermelho), mesmo com a do ciclo seguinte criada: até a nova ser publicada o aluno segue o plano vencido. As
+ * outras só ganham selo se pedem renovação (`precisaRenovar`: aberta, termina em até 7 dias ou já terminou, sem a do
+ * ciclo seguinte), junto do "Renovar": já terminou = "Vencida há N dias" (vermelho), senão "Vence hoje", "Vence amanhã"
+ * ou "Vence em N dias" (âmbar). O resto fica sem selo de prazo: antiga já renovada, concluída, sem fim ou longe do fim
+ * (rascunho, vigente e concluída têm selo próprio; nada de "em dia" verde sem estado explícito).
+ */
+export function prazoDaPasta(pasta: PastaDoResumo, todas: readonly PastaDoResumo[], hoje: string, ehVigente = false): PrazoDaPasta | null {
+  if (!pasta.fim || pasta.concluidaEm) return null;
+  const dias = diasEntre(hoje, pasta.fim);
+  const vencida = { texto: `Vencida ${atrasoEmTexto(-dias, hoje)}`, tipo: 'perigo' } as const;
+  if (dias < 0 && ehVigente) return vencida;
+  if (!precisaRenovar(pasta, todas, hoje)) return null;
+  return dias < 0 ? vencida : { texto: `Vence ${emDias(dias)}`, tipo: 'atencao' };
 }
 
 /** `acesso` leva à aba Ficha do aluno, no bloco Acesso ao app: é atalho, nunca gera nem envia o convite. */
@@ -136,15 +160,13 @@ export function planejamentoDoResumo(pasta: PastaDoResumo | null, pastas: readon
 /**
  * Treinos no Resumo, com o período explícito (guia de 11/11, pág. 32): a contagem é da semana corrente e o último
  * registro vale para o que a frequência consulta (a semana e, com pasta vigente contável, desde o início dela). Sem
- * nenhum registro nesse período, os dois viram uma linha de apoio só.
+ * nenhum registro nesse período, os dois viram uma linha de apoio só. A contagem vai crua (`semana`), para a tela dar a
+ * ênfase pelo número (`dominio/destaque.enfaseDoNumero`: azul com treinos, "0" neutro sem nenhum na semana).
  */
 export function treinosDoResumo(f: { semana: number; ultimo: string | null; pasta: { de: string } | null }, inicioDaSemana: string, hoje: string):
-  { apoio: string } | { contagem: string; ultimo: string } {
+  { apoio: string } | { semana: number; ultimo: string } {
   const desde = f.pasta && f.pasta.de < inicioDaSemana ? f.pasta.de : null;
   const escopo = desde ? `desde ${dataCurta(desde)}` : 'nesta semana';
   if (!f.ultimo) return { apoio: `Treinos: ainda sem registros ${escopo}.` };
-  return {
-    contagem: f.semana === 0 ? 'Nenhum nesta semana' : `${f.semana} nesta semana`,
-    ultimo: `${comMaiuscula(dataRelativa(f.ultimo, hoje))} · ${escopo}`,
-  };
+  return { semana: f.semana, ultimo: `${comMaiuscula(dataRelativa(f.ultimo, hoje))} · ${escopo}` };
 }

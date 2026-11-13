@@ -3,15 +3,18 @@ import { StyleSheet, View } from 'react-native';
 import { execucoesDoAluno, listarPastas, listarPlanos, mobilidadeFeitaDoAluno, pastaVigenteDoAluno } from '../api/rotas';
 import type { PastaResumo } from '../api/tipos';
 import { hojeIso, somarDias } from '../dominio/formatos';
-import { frequenciaDe, planejarFrequencia, resumoDaFrequencia, type Frequencia } from '../dominio/frequencia';
+import { frequenciaDe, planejarFrequencia, resumoDaFrequencia, type CelulaDaContagem, type Frequencia } from '../dominio/frequencia';
 import { contagemDaMobilidadeNoTreinador } from '../dominio/mobilidadeFeita';
 import { periodoDaSemana } from '../dominio/progressoSemana';
 import { useSessao } from '../sessao/SessaoProvider';
+import { useTema } from '../tema/TemaProvider';
 import { espaco } from '../tema/tokens';
 import { Cartao } from '../ui/Cartao';
+import { aparenciaDoNumero } from '../ui/destaqueDoNumero';
 import { Esqueleto } from '../ui/Esqueleto';
 import { MensagemErro } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
+import { useDestaques } from '../ui/NumeroDeDestaque';
 import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
 
@@ -50,13 +53,17 @@ const DIAS_PARA_TRAS = 364;
 /**
  * Frequência e mobilidade na ficha, num cartão só: treinos com registro e dias com algum item de mobilidade marcado, na
  * semana corrente (segunda até hoje) e na pasta vigente (do início até hoje). Só contagem: não compara com meta nem
- * interpreta. O formato (linhas, rótulo da pasta, frases) vem de `resumoDaFrequencia`. Quem renderiza já checou
+ * interpreta. O formato (linhas, rótulo da pasta, frases) vem de `resumoDaFrequencia`; a contagem de treinos fica em azul
+ * (medida de atividade) e zero e "—" em `textoSuave`, distintos pelo texto (`cores-de-destaque.md`, D12 e D14). Quem renderiza já checou
  * `REGISTRO_LER`; `comMobilidade` (`mostraMobilidade`: também `TREINO_LER`) liga a linha e a busca da mobilidade.
  */
 export function CartaoFrequencia({ alunoId, acompanhamento, comMobilidade }: {
   alunoId: string; acompanhamento: ReturnType<typeof useAcompanhamentoDoAluno>; comMobilidade: boolean;
 }) {
   const { dados, erro, recarregar } = acompanhamento;
+  const { cores } = useTema();
+  const destaques = useDestaques();
+  const corDa = (c: CelulaDaContagem) => aparenciaDoNumero(c.enfase, cores, destaques).numero;
   const f = dados?.frequencia ?? null;
   const vigente = dados?.pasta ?? null;
   const hoje = hojeIso();
@@ -98,8 +105,8 @@ export function CartaoFrequencia({ alunoId, acompanhamento, comMobilidade }: {
                 <View role="cell" style={estilos.aviso}><Texto variante="suave">{l.aviso}</Texto></View>
               ) : (
                 <>
-                  <View role="cell" style={estilos.valor}><Texto numerico>{l.semana}</Texto></View>
-                  {l.naPasta !== null ? <View role="cell" style={estilos.valor}><Texto numerico>{l.naPasta}</Texto></View> : null}
+                  <View role="cell" style={estilos.valor}><Texto numerico cor={corDa(l.semana)}>{l.semana.texto}</Texto></View>
+                  {l.naPasta !== null ? <View role="cell" style={estilos.valor}><Texto numerico cor={corDa(l.naPasta)}>{l.naPasta.texto}</Texto></View> : null}
                 </>
               )}
             </View>
@@ -112,7 +119,7 @@ export function CartaoFrequencia({ alunoId, acompanhamento, comMobilidade }: {
   );
 }
 
-// Rótulo da linha na largura de "Mobilidade" e as duas colunas de número iguais: em 390 px "Nenhum registro" cabe numa
+// Rótulo da linha na largura de "Mobilidade" e as duas colunas de número iguais: em 390 px "16 treinos" cabe numa
 // linha. Sem a Água ao lado, a tabela não estica pela largura toda.
 const estilos = StyleSheet.create({
   tabela: { gap: espaco(1.5), maxWidth: 480 },

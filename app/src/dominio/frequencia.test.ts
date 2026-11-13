@@ -10,8 +10,8 @@ describe('resumoDaFrequencia (cartão "Frequência e mobilidade")', () => {
       pasta: 'Pasta Hipertrofia (02/11 a 12/11)',
       comColunaDaPasta: true,
       linhas: [
-        { rotulo: 'Treinos', semana: '2 treinos', naPasta: '4 treinos' },
-        { rotulo: 'Mobilidade', semana: '1 dia', naPasta: 'Nenhum registro' },
+        { rotulo: 'Treinos', semana: { texto: '2 treinos', enfase: 'azul' }, naPasta: { texto: '4 treinos', enfase: 'azul' } },
+        { rotulo: 'Mobilidade', semana: { texto: '1 dia', enfase: 'neutro' }, naPasta: { texto: '0 dias', enfase: 'zero' } },
       ],
     });
   });
@@ -26,7 +26,7 @@ describe('resumoDaFrequencia (cartão "Frequência e mobilidade")', () => {
 
   it('sem pasta vigente: "Nenhuma pasta vigente." uma vez, sem a coluna da pasta e sem a linha da mobilidade', () => {
     const r = resumoDaFrequencia({ semana: 0, ultimo: null, pasta: null }, null, null);
-    expect(r).toEqual({ pasta: 'Nenhuma pasta vigente.', comColunaDaPasta: false, linhas: [{ rotulo: 'Treinos', semana: 'Nenhum registro', naPasta: null }] });
+    expect(r).toEqual({ pasta: 'Nenhuma pasta vigente.', comColunaDaPasta: false, linhas: [{ rotulo: 'Treinos', semana: { texto: '0 treinos', enfase: 'zero' }, naPasta: null }] });
     expect(resumoDaFrequencia({ semana: 0, ultimo: null, pasta: null }, null, 'oculta').linhas).toHaveLength(1);
   });
 
@@ -34,8 +34,8 @@ describe('resumoDaFrequencia (cartão "Frequência e mobilidade")', () => {
     const r = resumoDaFrequencia({ semana: 1, ultimo: null, pasta: null }, { titulo: 'Futura' }, { naSemana: 0, naPasta: 0 });
     expect(r.pasta).toBe('Pasta Futura');
     expect(r.linhas).toEqual([
-      { rotulo: 'Treinos', semana: '1 treino', naPasta: '—' },
-      { rotulo: 'Mobilidade', semana: 'Nenhum registro', naPasta: '—' },
+      { rotulo: 'Treinos', semana: { texto: '1 treino', enfase: 'azul' }, naPasta: { texto: '—', enfase: 'indisponivel' } },
+      { rotulo: 'Mobilidade', semana: { texto: '0 dias', enfase: 'zero' }, naPasta: { texto: '—', enfase: 'indisponivel' } },
     ]);
   });
 
@@ -112,9 +112,9 @@ describe('frequenciaDe e textoDaContagem', () => {
   it('sem pasta contável a pasta fica nula', () => {
     expect(frequenciaDe([], planejarFrequencia('2026-10-14', null))).toEqual({ semana: 0, ultimo: null, pasta: null });
   });
-  it('texto: — para ausente, Nenhum registro para zero', () => {
+  it('texto: — para ausente, "0 treinos" para zero (D14: distintos)', () => {
     expect(textoDaContagem(null)).toBe('—');
-    expect(textoDaContagem(0)).toBe('Nenhum registro');
+    expect(textoDaContagem(0)).toBe('0 treinos');
     expect(textoDaContagem(4)).toBe('4 treinos');
     expect(textoDaContagem(1)).toBe('1 treino');
   });

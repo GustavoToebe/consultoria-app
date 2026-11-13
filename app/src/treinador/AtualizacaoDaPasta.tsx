@@ -9,6 +9,7 @@ import { Cartao } from '../ui/Cartao';
 import { Selo } from '../ui/Selo';
 import { Esqueleto } from '../ui/Esqueleto';
 import { Texto } from '../ui/Texto';
+import { ICONE_DO_SELO } from './iconesDosSelos';
 
 /**
  * Fecho do período na folha da pasta, logo abaixo das ações: situação (selo curto no cabeçalho, o cartão já diz que é
@@ -20,7 +21,7 @@ export function AtualizacaoDaPasta({atualizacao,carregando,aoAbrir,destaque=fals
   const selo = registrada ? statusAtualizacaoTreinador(registrada) : null;
   const quando = registrada ? dataRelativa(registrada.dataAtualizacao) : '';
   return (
-    <Cartao titulo="Atualização do período" acoes={selo ? <Selo texto={selo.curto} tipo={selo.tipo} /> : undefined}>
+    <Cartao titulo="Atualização do período" acoes={selo ? <Selo texto={selo.curto} tipo={selo.tipo} Icone={ICONE_DO_SELO[selo.tipo]} /> : undefined}>
       {carregando ? <Esqueleto texto="Carregando atualização" cartoes={1} />
         : !registrada ? <Texto variante="suave">Nenhuma atualização registrada nesta pasta.</Texto>
         : <View style={{gap:espaco(1)}}>
