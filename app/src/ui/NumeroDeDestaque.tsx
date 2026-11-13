@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { StyleSheet, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 
-import type { EnfaseDoNumero } from '../dominio/destaque';
+import { MOTIVO_SEM_DADOS, type EnfaseDoNumero } from '../dominio/destaque';
 import { useTema } from '../tema/TemaProvider';
 import { coresDeDestaque, espaco } from '../tema/tokens';
 import { aparenciaDoNumero, contornoDoNumero, type AparenciaDoNumero } from './destaqueDoNumero';
@@ -30,14 +30,26 @@ interface Props {
   style?: StyleProp<ViewStyle>;
   /** Ajuste do número (tamanho menor no celular, por exemplo); a cor continua a da ênfase. */
   estiloDoValor?: StyleProp<TextStyle>;
+  /** Só com `enfase: 'indisponivel'`: por que não há número ("Sem entradas no período"); padrão "Sem dados". */
+  motivo?: string;
+}
+
+/**
+ * Motivo escrito sob o "—" do número indisponível, em itálico (D14): um olhar rápido não confunde "—" com o "0" do zero,
+ * que fica sem essa linha. Também no `treinador/painel/CartaoMini`.
+ */
+export function MotivoDoIndisponivel({ texto = MOTIVO_SEM_DADOS }: { texto?: string }) {
+  const { cores } = useTema();
+  return <Texto variante="pequeno" cor={cores.textoSuave} style={estilos.motivo}>{texto}</Texto>;
 }
 
 /**
  * Número de indicador com destaque (`docs/planos/cores-de-destaque.md`): rótulo neutro, número na cor da função, faixa
- * lateral e fundo tonalizado; zero ou sem dado em `textoSuave`, sem faixa nem tinta. A cor nunca vem sozinha: o rótulo
+ * lateral e fundo tonalizado; zero ("0") e sem dado ("—" com o motivo em itálico) em `textoSuave`, sem faixa nem tinta,
+ * e distintos entre si (D14). A cor nunca vem sozinha: o rótulo
  * diz o que é. Textos quebram linha (nada cortado). Só apresenta: carregando e erro são da tela, como antes.
  */
-export function NumeroDeDestaque({ rotulo, valor, detalhe, enfase, tamanho = 'grande', nivelDoRotulo, rotuloAcessivel, style, estiloDoValor }: Props) {
+export function NumeroDeDestaque({ rotulo, valor, detalhe, enfase, tamanho = 'grande', nivelDoRotulo, rotuloAcessivel, style, estiloDoValor, motivo }: Props) {
   const { cores, bordas } = useTema();
   const a = useAparenciaDoNumero(enfase);
   return (
@@ -45,6 +57,7 @@ export function NumeroDeDestaque({ rotulo, valor, detalhe, enfase, tamanho = 'gr
       style={[estilos.peca, contornoDoNumero(a.faixa, cores, bordas.bloco, RECUO), { backgroundColor: a.fundo }, style]}>
       <Texto variante="rotulo" cor={cores.texto} nivel={nivelDoRotulo}>{rotulo}</Texto>
       <Texto variante={tamanho === 'grande' ? 'destaque' : 'titulo'} numerico cor={a.numero} style={estiloDoValor}>{valor}</Texto>
+      {enfase === 'indisponivel' ? <MotivoDoIndisponivel texto={motivo} /> : null}
       {detalhe ? <Texto variante="pequeno" cor={cores.textoSuave}>{detalhe}</Texto> : null}
     </View>
   );
@@ -54,4 +67,5 @@ const RECUO = espaco(2);
 
 const estilos = StyleSheet.create({
   peca: { flexGrow: 1, minWidth: 0, paddingVertical: espaco(1.5), paddingRight: RECUO, gap: espaco(0.5) },
+  motivo: { fontStyle: 'italic' },
 });

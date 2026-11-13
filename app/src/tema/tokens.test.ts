@@ -422,6 +422,15 @@ describe.each(VARIANTES)('cores de destaque (%s)', (_nome, cores, escuro) => {
     }
   });
 
+  // Aba Lançamentos: o valor e o tipo usam azul e vermelho de destaque como texto solto na linha, na tabela e no campo.
+  it('azul (entrada) e vermelho (saída) passam 4,5:1 como texto fora do fundo tonalizado', () => {
+    for (const f of ['azul', 'vermelho'] as const) {
+      for (const fundo of [cores.fundo, cores.painel, cores.superficie, cores.superficie2, cores.campo]) {
+        expect(contraste(destaque[f].cor, fundo)).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
   it('rótulo (texto) e detalhe (textoSuave) seguem legíveis sobre o fundo tonalizado', () => {
     for (const f of FUNCOES_DE_DESTAQUE) {
       for (const fundo of [destaque[f].fundo, destaque[f].fundoSobre]) {

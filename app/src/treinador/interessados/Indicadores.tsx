@@ -95,9 +95,9 @@ export function Indicadores() {
               <Numero rotulo="Entradas" valor={ind.entradas} destaque="ciano" />
               <Numero rotulo="Pessoas" valor={ind.pessoas} destaque="azul" />
               <Numero rotulo="Aceites" valor={ind.aceites} destaque="verde" />
-              <Numero rotulo="Conversão das entradas" valor={ind.conversao} texto={porcentagem(ind.conversao)} destaque="violeta"
+              <Numero rotulo="Conversão das entradas" valor={ind.conversao} texto={porcentagem(ind.conversao)} destaque="violeta" motivo="Sem entradas no período"
                 detalhe={ind.entradas > 0 ? `${ind.aceitesDasEntradas} de ${ind.entradas} já viraram aluno` : undefined} />
-              <Numero rotulo="Dias até o aceite (mediana)" valor={ind.diasAteAceite.mediana} texto={dias(ind.diasAteAceite.mediana)} destaque="azul"
+              <Numero rotulo="Dias até o aceite (mediana)" valor={ind.diasAteAceite.mediana} texto={dias(ind.diasAteAceite.mediana)} destaque="azul" motivo="Sem aceites no período"
                 detalhe={`Média: ${dias(ind.diasAteAceite.media)}`} />
               {/* D6: recusas e desistências neutras, para não tratar como falha. */}
               <Numero rotulo="Recusadas" valor={ind.recusadas} destaque={null} />
@@ -148,8 +148,8 @@ export function Indicadores() {
  * Um número do período na peça de destaque (D6 de `docs/planos/cores-de-destaque.md`): a cor diz o que o número mede,
  * nunca se é bom ou ruim; zero e "—" ficam sem cor (D5). O número cru decide a cor; `texto` é o que aparece.
  */
-function Numero({ rotulo, valor, texto, destaque, detalhe }: { rotulo: string; valor: number | null; texto?: string; destaque: FuncaoDeDestaque | null; detalhe?: string }) {
-  return <NumeroDeDestaque rotulo={rotulo} valor={texto ?? String(valor ?? SEM_DADO)} enfase={enfaseDoNumero(destaque, valor)} detalhe={detalhe} tamanho="medio" />;
+function Numero({ rotulo, valor, texto, destaque, detalhe, motivo }: { rotulo: string; valor: number | null; texto?: string; destaque: FuncaoDeDestaque | null; detalhe?: string; motivo?: string }) {
+  return <NumeroDeDestaque rotulo={rotulo} valor={texto ?? String(valor ?? SEM_DADO)} enfase={enfaseDoNumero(destaque, valor)} detalhe={detalhe} motivo={motivo} tamanho="medio" />;
 }
 
 const estilos = StyleSheet.create({

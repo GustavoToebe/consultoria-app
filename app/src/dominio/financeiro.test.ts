@@ -254,7 +254,7 @@ describe('contas do painel', () => {
     });
     expect(cartoes).toHaveLength(6);
     expect(cartoes.map((c) => c.valor)).toEqual(['—', '—', '—', '—', '—', '—']);
-    expect(cartoes.every((c) => c.enfase === 'apagado')).toBe(true);
+    expect(cartoes.every((c) => c.enfase === 'indisponivel')).toBe(true);
   });
   it('cartões com dados e a nota de cobranças geradas', () => {
     const cartoes = cartoesDoPainel({

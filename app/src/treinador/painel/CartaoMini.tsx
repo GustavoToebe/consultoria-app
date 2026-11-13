@@ -5,7 +5,7 @@ import type { CartaoDoPainel, FolhaDoPainelId } from '../../dominio/painelDoInic
 import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
 import { contornoDoNumero } from '../../ui/destaqueDoNumero';
-import { useAparenciaDoNumero } from '../../ui/NumeroDeDestaque';
+import { MotivoDoIndisponivel, useAparenciaDoNumero } from '../../ui/NumeroDeDestaque';
 import { propsDeLink } from '../../ui/propsDeLink';
 import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
@@ -19,7 +19,8 @@ function partesDoValor(texto: string, moeda: boolean): { prefixo: string | null;
 /**
  * Mini-cartão do painel (guia de 11/11, pág. 16, com as cores de destaque de 13/11, `docs/planos/cores-de-destaque.md`):
  * rótulo curto e detalhe neutros (D1), número na cor da função do cartão com a faixa lateral e o fundo tonalizado
- * (`ui/NumeroDeDestaque`); zero, "Não carregou" e "…" em `textoSuave`, sem cor nem faixa (D5), nunca como zero. O cartão
+ * (`ui/NumeroDeDestaque`); zero ("0"), sem dado ("—" com "Sem dados" em itálico), "Não carregou" e "…" em `textoSuave`,
+ * sem cor nem faixa (D5, D14): nunca o mesmo aspecto do zero. O cartão
  * inteiro é o toque: abre a lista filtrada (link) ou uma Folha (botão), com o hover no fundo tonalizado sobre
  * `superficie2`. `linha`: a linha de baixo do bloco.
  */
@@ -46,6 +47,7 @@ export function CartaoMini({ cartao, aoAbrirFolha, linha }: { cartao: CartaoDoPa
         ) : (
           <Texto variante={cartao.estado === 'carregando' ? 'destaque' : 'suave'} cor={cores.textoSuave}>{cartao.texto}</Texto>
         )}
+        {cartao.estado === 'semDado' && !deitado ? <MotivoDoIndisponivel /> : null}
         {cartao.detalhe && comValor && !deitado ? <Texto variante="pequeno" numerico cor={cores.textoSuave}>{cartao.detalhe}</Texto> : null}
       </View>
     </>

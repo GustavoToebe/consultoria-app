@@ -9,7 +9,7 @@ import { RAIO, type CorDeDestaque, type Cores } from '../tema/tokens';
 export const LARGURA_DA_FAIXA = 4;
 
 export interface AparenciaDoNumero {
-  /** Cor do número: a da função, `texto` (neutro) ou `textoSuave` (zero ou sem dado, D5). */
+  /** Cor do número: a da função, `texto` (neutro) ou `textoSuave` (zero ou sem dado, D5; o que os distingue é o texto, D14). */
   numero: string;
   /** Fundo da peça: tonalizado com destaque, `superficie` sem. */
   fundo: string;
@@ -22,7 +22,7 @@ export interface AparenciaDoNumero {
 /** Regra pura da aparência (D1, D4, D5): a cor fica só no número, na faixa e no fundo; rótulo e detalhe seguem neutros. */
 export function aparenciaDoNumero(enfase: EnfaseDoNumero, cores: Pick<Cores, 'texto' | 'textoSuave' | 'superficie' | 'superficie2'>,
   destaques: Record<FuncaoDeDestaque, CorDeDestaque>): AparenciaDoNumero {
-  if (enfase === 'neutro' || enfase === 'apagado') {
+  if (enfase === 'neutro' || enfase === 'zero' || enfase === 'indisponivel') {
     return { numero: enfase === 'neutro' ? cores.texto : cores.textoSuave, fundo: cores.superficie, fundoSobre: cores.superficie2, faixa: null };
   }
   const d = destaques[enfase];

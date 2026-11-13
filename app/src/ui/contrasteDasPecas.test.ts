@@ -268,7 +268,8 @@ describe.each(BASES.flatMap(([nome, base, escuro]) => [false, true].map((alto): 
   });
 
   it('zero e sem dado: textoSuave legível, sem faixa nem tinta (D5); neutro em texto', () => {
-    const apagado = aparenciaDoNumero('apagado', cores, destaques);
+    const apagado = aparenciaDoNumero('zero', cores, destaques);
+    expect(aparenciaDoNumero('indisponivel', cores, destaques)).toEqual(apagado);
     expect(apagado).toEqual({ numero: cores.textoSuave, fundo: cores.superficie, fundoSobre: cores.superficie2, faixa: null });
     expect(contraste(apagado.numero, apagado.fundo)).toBeGreaterThanOrEqual(4.5);
     expect(contraste(apagado.numero, apagado.fundoSobre)).toBeGreaterThanOrEqual(4.5);

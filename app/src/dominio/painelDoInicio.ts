@@ -27,7 +27,7 @@ export type { BlocoDoPainelId, PainelDoInicioPreferido };
  * Regras de ausência (valem em tudo aqui):
  *  - recurso desligado ou sem permissão: o bloco ou o cartão SOME;
  *  - bloco visível, mas a consulta falhou ou veio sem o número: o cartão fica "Não carregou" (`estado: 'naoCarregou'`);
- *  - `null` nunca vira zero; zero de verdade fica em cinza (`enfase: 'apagado'`, D5 de `docs/planos/cores-de-destaque.md`).
+ *  - `null` nunca vira zero; zero de verdade fica em cinza com o "0" (`enfase: 'zero'`); sem dado é `indisponivel`, com o motivo escrito (D5 e D14 de `docs/planos/cores-de-destaque.md`).
  */
 
 // ---- Blocos ----
@@ -363,12 +363,12 @@ interface EntradaDeCartao {
 function cartao(e: EntradaDeCartao): CartaoDoPainel {
   const base = { chave: e.chave, rotulo: e.rotulo, moeda: !!e.moeda, largo: !!e.largo };
   if (e.situacao === 'carregando') {
-    return { ...base, estado: 'carregando', valor: null, texto: '…', detalhe: null, enfase: 'apagado', falado: `${e.nome}: carregando`, destino: e.destino };
+    return { ...base, estado: 'carregando', valor: null, texto: '…', detalhe: null, enfase: 'indisponivel', falado: `${e.nome}: carregando`, destino: e.destino };
   }
   if (e.situacao !== 'pronta' || !ehNumero(e.valor)) {
     // Folha sem dados não abre; a lista de endereço continua valendo.
     const destino = e.destino?.tipo === 'folha' ? null : e.destino;
-    return { ...base, estado: 'naoCarregou', valor: null, texto: TEXTO_NAO_CARREGOU, detalhe: null, enfase: 'apagado', falado: `${e.nome}: não carregou`, destino };
+    return { ...base, estado: 'naoCarregou', valor: null, texto: TEXTO_NAO_CARREGOU, detalhe: null, enfase: 'indisponivel', falado: `${e.nome}: não carregou`, destino };
   }
   const texto = e.moeda ? reaisSemCentavos(e.valor) : milhares(Math.round(e.valor));
   const falado = e.moeda ? centavosParaTela(e.valor) : milhares(Math.round(e.valor));
@@ -385,7 +385,7 @@ function cartao(e: EntradaDeCartao): CartaoDoPainel {
 function cartaoSemDado(e: Omit<EntradaDeCartao, 'situacao' | 'valor'>): CartaoDoPainel {
   return {
     chave: e.chave, rotulo: e.rotulo, moeda: !!e.moeda, largo: !!e.largo, estado: 'semDado', valor: null, texto: SEM_DADO,
-    detalhe: null, enfase: 'apagado', falado: `${e.nome}: sem dado`, destino: e.destino,
+    detalhe: null, enfase: 'indisponivel', falado: `${e.nome}: sem dado`, destino: e.destino,
   };
 }
 

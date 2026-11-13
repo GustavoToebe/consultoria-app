@@ -14,7 +14,6 @@ import {
   type ChaveDoFiltroDeLancamentos, type FiltrosDeLancamentos,
 } from '../../dominio/filtrosDoFinanceiro';
 import { centavosDaTela, centavosParaCampo, centavosParaTela, dataDaTela, dataParaTela } from '../../dominio/formatos';
-import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { BarraDeFiltros, GrupoDoPainel } from '../../ui/BarraDeFiltros';
@@ -30,6 +29,7 @@ import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
+import { useAparenciaDoNumero } from '../../ui/NumeroDeDestaque';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
 import { Texto } from '../../ui/Texto';
@@ -48,10 +48,14 @@ const rotuloDoTipo = (t: TipoDeLancamento) => (t === 'SAIDA' ? 'Saída' : 'Entra
 /** Valor com o sinal do tipo ("+R$ 350,00", "−R$ 350,00"): o sinal e o texto do tipo seguem junto da cor, que nunca é o único sinal. */
 const valorComSinal = (l: LancamentoResponse) => `${l.tipo === 'SAIDA' ? '−' : '+'}${centavosParaTela(l.valorCentavos)}`;
 
-/** Azul de identificação para entrada e `perigo` para saída, só como sinal de direção (uma saída válida não é erro nem status). */
+/**
+ * Azul de destaque para entrada e vermelho de destaque (`perigo`) para saída, os mesmos do Resultado do mês (D13, D14),
+ * só como sinal de direção (uma saída válida não é erro nem status).
+ */
 function useCorDoTipo(): (tipo: TipoDeLancamento) => string {
-  const { cores, identificacao } = useTema();
-  return (tipo) => (tipo === 'SAIDA' ? cores.perigo : identificacao.AZUL.cor);
+  const entrada = useAparenciaDoNumero('azul').numero;
+  const saida = useAparenciaDoNumero('vermelho').numero;
+  return (tipo) => (tipo === 'SAIDA' ? saida : entrada);
 }
 
 /** Valor da linha na cor do tipo. */

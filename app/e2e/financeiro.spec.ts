@@ -281,6 +281,9 @@ test('zero, "—" e nenhum registro continuam distintos na visão geral', async 
   await expect(page.getByLabel('Recebido no período: R$ 0,00', { exact: false })).toBeVisible();
   await expect(page.getByLabel('Entradas avulsas: R$ 0,00')).toBeVisible();
   await expect(page.getByLabel('Saídas avulsas: —')).toBeVisible();
+  // D14: o zero é só "R$ 0,00"; o indisponível tem o "—" e o motivo escrito, para não se parecerem.
+  await expect(page.getByLabel('Entradas avulsas: R$ 0,00').getByText('Sem dados')).toHaveCount(0);
+  await expect(page.getByLabel('Saídas avulsas: —').getByText('Sem dados', { exact: true })).toBeVisible();
   await expect(page.getByText('Nenhum pagamento recebido no período.')).toHaveCount(2);
   await expect(page.getByText('Nenhuma cobrança vencida em aberto.')).toBeVisible();
   await expect(page.getByText('Nenhuma contratação nova ou encerrada no período.')).toBeVisible();
