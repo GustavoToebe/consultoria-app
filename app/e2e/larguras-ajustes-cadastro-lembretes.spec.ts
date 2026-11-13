@@ -122,27 +122,22 @@ test.describe('Novo aluno', () => {
   const dias = (page: Page) => page.getByLabel('Dias para nova atualização (opcional)', { exact: true });
   const titulo = (page: Page, texto: string) => page.getByText(texto, { exact: true }).last();
 
-  for (const [largura, altura] of PC_COM_1280) test(`${largura} px: Cadastro e Dados pessoais lado a lado, campos até 560 px`, async ({ page }) => {
+  for (const [largura, altura] of PC_COM_1280) test(`${largura} px: as quatro seções em duas colunas, campos até 560 px`, async ({ page }) => {
     const errosDaPagina = await abrir(page, largura, altura);
     await capturar(page, `novo-aluno-${largura}`);
     const n = await caixa(nome(page));
     const c = await caixa(cpf(page));
     const d = await caixa(dias(page));
-    expect(c.x).toBeGreaterThan(n.x + n.width);
-    expect(Math.abs((await caixa(titulo(page, 'Cadastro'))).y - (await caixa(titulo(page, 'Dados pessoais'))).y)).toBeLessThan(4);
-    // Até a borda direita da última seção na linha de cima (a terceira em 1920, os dados pessoais em 1440).
-    if (largura >= 1440) expect((largura >= 1920 ? d.x + d.width : c.x + c.width) - n.x).toBeGreaterThan(1040);
+    // Identificação e Contato à esquerda, Acompanhamento e Objetivo à direita: o mesmo arranjo da ficha.
+    const [identificacao, contato, acompanhamento, objetivo] = await Promise.all(
+      ['Identificação', 'Contato e endereço', 'Configuração do acompanhamento', 'Objetivo e observações'].map((t) => caixa(titulo(page, t))));
+    expect(Math.abs(identificacao.y - acompanhamento.y)).toBeLessThan(4);
+    expect(contato.y).toBeGreaterThan(identificacao.y);
+    expect(objetivo.y).toBeGreaterThan(acompanhamento.y);
+    expect(acompanhamento.x).toBeGreaterThan(identificacao.x + identificacao.width - 1);
+    expect(c.y).toBeGreaterThan(n.y);
+    expect(d.x).toBeGreaterThan(n.x + n.width);
     for (const campo of [n, c, d, await caixa(page.getByLabel('Rua, avenida… *', { exact: true }))]) expect(campo.width).toBeLessThanOrEqual(560);
-    const acompanhamento = await caixa(titulo(page, 'Acompanhamento'));
-    if (largura >= 1920) {
-      // Cabe a terceira seção na mesma linha, depois dos dados pessoais.
-      expect(d.x).toBeGreaterThan(c.x + c.width);
-      expect(Math.abs(acompanhamento.y - (await caixa(titulo(page, 'Cadastro'))).y)).toBeLessThan(4);
-    } else {
-      // Desce para a linha de baixo, à esquerda, sem esticar.
-      expect(Math.abs(d.x - n.x)).toBeLessThan(2);
-      expect(acompanhamento.y).toBeGreaterThan(c.y);
-    }
     // Ordem de foco: o Tab sai do CEP para a rua (dentro da coluna), sem pular para outra seção.
     await page.getByLabel('CEP *', { exact: true }).focus();
     await page.keyboard.press('Tab');
@@ -165,14 +160,15 @@ test.describe('Novo aluno', () => {
     expect(errosDaPagina).toEqual([]);
   });
 
-  test('1440 px sem dados sensíveis: Cadastro e Acompanhamento lado a lado, sem coluna vazia reservada', async ({ page }) => {
+  test('1440 px sem dados sensíveis: Identificação e Acompanhamento lado a lado, sem a seção do objetivo', async ({ page }) => {
     await comTema(page, 'ESCURO');
     const errosDaPagina = await abrir(page, 1440, 900, PERMISSOES_TREINADOR.filter((p) => p !== 'ALUNO_SENSIVEL_ALTERAR'));
     await expect(cpf(page)).toHaveCount(0);
     const n = await caixa(nome(page));
     const d = await caixa(dias(page));
     expect(d.x).toBeGreaterThan(n.x + n.width);
-    expect(Math.abs((await caixa(titulo(page, 'Cadastro'))).y - (await caixa(titulo(page, 'Acompanhamento'))).y)).toBeLessThan(4);
+    expect(Math.abs((await caixa(titulo(page, 'Identificação'))).y - (await caixa(titulo(page, 'Configuração do acompanhamento'))).y)).toBeLessThan(4);
+    await expect(page.getByText('Objetivo e observações', { exact: true })).toHaveCount(0);
     await semRolagemHorizontal(page);
     await capturar(page, 'novo-aluno-1440-sem-sensiveis-escuro');
     expect(errosDaPagina).toEqual([]);

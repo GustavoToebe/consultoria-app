@@ -118,7 +118,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${id(1)}\\?aba=ficha$`));
       // Abre editando na aba Ficha do aluno (o formulário com Salvar) e o `editar=1` sai do endereço.
       await expect(page.getByRole('button', { name: 'Salvar', exact: true })).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Editar', exact: true })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Editar dados', exact: true })).toHaveCount(0);
       expect(new URL(page.url()).search).toBe('?aba=ficha');
 
       // Sem passo sobrando: um voltar leva de novo à lista.

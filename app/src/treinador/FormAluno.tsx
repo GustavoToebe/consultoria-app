@@ -1,13 +1,12 @@
 import { useSessao } from '../sessao/SessaoProvider';
-import { Permitido } from '../ui/Permitido';
 import { useState, type ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import type { AlunoDetalhe, AlunoRequest } from '../api/tipos';
 import { responsaveisEquipe } from '../api/rotas';
 import {
   CAMPOS_DO_ENDERECO, CPF_EM_USO, ENDERECO_VAZIO, MENSAGEM_CPF_EM_USO, enderecoParaEnvio, enderecoParaForm, erroDoCpf, erroDoTelefone, errosDoEndereco,
-  mascaraCpf, mascaraTelefone, nascimentoParaEnvio,
+  mascaraCpf, mascaraTelefone, nascimentoParaEnvio, SECOES_DO_ALUNO,
 } from '../dominio/cadastroDoAluno';
 import { dataParaTela } from '../dominio/formatos';
 import { CamposDeEndereco } from '../ui/CamposDeEndereco';
@@ -15,8 +14,12 @@ import { Escolha } from '../ui/Escolha';
 import { useCarregar } from '../ui/useCarregar';
 import { OPCOES_DE_SEXO, sexoDoCampo } from '../dominio/sexo';
 import { metaParaEnvio, OPCOES_DA_META_DO_ALUNO, opcaoDaMeta, type OpcaoDaMeta } from '../dominio/metaDoPesoNaFicha';
-import { espaco } from '../tema/tokens';
+import { useTema } from '../tema/TemaProvider';
+import { espaco, LARGURA_MENU_LATERAL } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
+import { Cartao } from '../ui/Cartao';
+import { EscolhaEmFolha } from '../ui/EscolhaEmFolha';
+import { RodapeDeAcoes } from '../ui/LinhaDeAcoes';
 import { Campo } from '../ui/Campo';
 import { CampoData } from '../ui/Campos';
 import { MensagemErro } from '../ui/Estados';
@@ -32,14 +35,10 @@ interface Props {
   aoCancelar?: () => void;
   /** Ciclo padrão da consultoria: aparece na ajuda do campo ("Padrão: 30 dias."), para o vazio não parecer "sem prazo". */
   diasPadrao?: number | null;
-  /** Controle extra no começo da seção "Acompanhamento" (na ficha, a escolha do questionário, que grava na hora). */
+  /** Controle extra na seção "Configuração do acompanhamento", depois do responsável (na ficha, o questionário, que grava na hora). */
   noAcompanhamento?: ReactNode;
-  /**
-   * Seções lado a lado quando cabem (Novo aluno, no PC): Cadastro, Dados pessoais e Acompanhamento, cada uma uma coluna
-   * de 440 a 560 px, na mesma ordem de leitura e de foco; o que não cabe desce para a linha de baixo, alinhado à
-   * esquerda. Sem a prop (a ficha), uma coluna só, como sempre.
-   */
-  colunas?: boolean;
+  /** Nível dos títulos das seções: 2 no Novo aluno (logo abaixo do h1), 3 na ficha (abaixo de "Dados do aluno"). */
+  nivel?: 2 | 3;
 }
 
 /** Texto do campo em número de 1 a 365; vazio = sem prazo (undefined → null no envio) e inválido = null. */
@@ -52,13 +51,16 @@ function diasDoCampo(texto: string): number | null {
 }
 
 /**
- * Dados do aluno em três seções: "Cadastro" (nome, e-mail, telefone, objetivo), "Dados pessoais" (CPF e endereço, só
- * com permissão de dados sensíveis) e "Acompanhamento" (responsável, ciclo, observações). O e-mail é opcional (o aluno
- * escolhe o dele ao aceitar o convite). O telefone é do usuário do aluno, então só aparece na edição de quem já tem
- * acesso. Objetivo, observações, CPF e endereço são dado sensível: ficam só no banco, nunca em log.
+ * Dados do aluno nas quatro seções da ficha (`SECOES_DO_ALUNO`, a mesma ordem da leitura): Identificação (nome,
+ * nascimento, sexo, CPF), Contato e endereço, Configuração do acompanhamento (responsável, questionário na ficha, dias) e
+ * Objetivo e observações (objetivo, meta, observações). CPF, endereço e a seção 4 inteira só com permissão de alterar
+ * dado sensível; seção sem campo não aparece. O e-mail é opcional (o aluno escolhe o dele ao aceitar o convite).
+ * Objetivo, observações, CPF e endereço são dado sensível: ficam só no banco, nunca em log.
  */
-export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPadrao = null, noAcompanhamento, colunas = false }: Props) {
+export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPadrao = null, noAcompanhamento, nivel = 2 }: Props) {
   const {pode,usuario}=useSessao();
+  const { cores } = useTema();
+  const { width } = useWindowDimensions();
   // Na edição, vazio continua vazio: salvar sem mexer não grava quem está editando. No aluno novo, começa com quem cadastra.
   const [responsavelId,setResponsavelId]=useState(inicial ? (inicial.responsavelId ?? '') : (usuario?.id ?? ''));
   const {dados:responsaveis,erro:erroResponsaveis,recarregar}=useCarregar('responsaveis-form',()=>responsaveisEquipe());
@@ -129,98 +131,125 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
     );
   };
 
-  // As colunas saem do `flexWrap` (a largura do próprio contêiner decide, sem medir): mudar a janela não remonta nenhum campo.
-  const secao = colunas ? [estilos.form, estilos.colunaDaSecao] : estilos.form;
-  const titulo = colunas ? null : estilos.secao;
+  const motivo = !nome.trim() ? 'Informe o nome do aluno.' : diasInvalidos ? 'Os dias de atualização vão de 1 a 365.' : 'Corrija os campos marcados.';
+  // Duas colunas (1 e 2 à esquerda, 3 e 4 à direita) que descem uma embaixo da outra quando não cabem, pelo `flexWrap`:
+  // a ordem de leitura e de foco é 1, 2, 3, 4 em qualquer largura, e mudar a janela não remonta nenhum campo.
   return (
     <View style={estilos.form}>
-      <View style={colunas ? estilos.secoesEmColunas : estilos.form}>
-      <View style={secao}>
-      <Texto variante="secao">Cadastro</Texto>
-      <Campo rotulo="Nome" valor={nome} aoMudar={setNome} erro={campos.nome} autoComplete="off" maxLength={120} />
-      <Escolha rotulo="Sexo" valor={sexo} aoMudar={setSexo} opcoes={[{ valor: '', rotulo: 'Não informado' }, ...OPCOES_DE_SEXO]} />
-      <View style={estilos.meta}>
-        <CampoData rotulo="Data de nascimento (opcional)" nome="Data de nascimento" regra="REGISTRO" valor={nascimento} aoMudar={setNascimento}
-          erro={campos.dataNascimento ?? (nascimentoIncompleto ? 'Complete a data: DD/MM/AAAA.' : null)} />
-        <Texto variante="pequeno">Ajuda a definir o perfil do aluno na comunidade. Só a equipe vê.</Texto>
-      </View>
-      <Campo
-        rotulo="E-mail (opcional)"
-        valor={email}
-        aoMudar={setEmail}
-        erro={campos.email}
-        keyboardType="email-address"
-        autoCapitalize="none"
-        autoComplete="off"
-        maxLength={254}
-      />
-      {comTelefone ? (
-        <Campo rotulo="Telefone (opcional)" valor={telefone} aoMudar={(t) => setTelefone(mascaraTelefone(t))} erro={erroTelefone ?? campos.telefone}
-          keyboardType="phone-pad" autoComplete="tel" maxLength={15} />
-      ) : null}
-      <Permitido codigo="ALUNO_SENSIVEL_ALTERAR"><Campo rotulo="Objetivo (opcional)" valor={objetivo} aoMudar={setObjetivo} erro={campos.objetivo} maxLength={200}
-        ajuda={SENSIVEL} /></Permitido>
-      </View>
-      <Permitido codigo="ALUNO_SENSIVEL_ALTERAR">
-        <View style={secao}>
-        <Texto variante="secao" style={titulo}>Dados pessoais</Texto>
-        <Campo rotulo="CPF (opcional)" valor={cpf} aoMudar={(t) => setCpf(mascaraCpf(t))} erro={erroCpf ?? cpfEmUso ?? campos.cpf} keyboardType="number-pad"
-          inputMode="numeric" maxLength={14} ajuda={SENSIVEL} />
-        <CamposDeEndereco valor={endereco} aoMudar={setEndereco}
-          erros={Object.fromEntries(CAMPOS_DO_ENDERECO.map((c) => [c, errosEndereco[c] ?? campos[`endereco.${c}`]]))} />
+      <View style={estilos.colunas}>
+        <View style={estilos.coluna}>
+          <Cartao titulo={SECOES_DO_ALUNO.identificacao} nivel={nivel}>
+            <View style={estilos.linha}>
+              <View style={estilos.inteiro}>
+                <Campo rotulo="Nome" valor={nome} aoMudar={setNome} erro={campos.nome} autoComplete="off" maxLength={120} />
+              </View>
+              <View style={[estilos.curto, estilos.comAjuda]}>
+                <CampoData rotulo="Data de nascimento (opcional)" nome="Data de nascimento" regra="REGISTRO" valor={nascimento} aoMudar={setNascimento}
+                  erro={campos.dataNascimento ?? (nascimentoIncompleto ? 'Complete a data: DD/MM/AAAA.' : null)} />
+                <Texto variante="pequeno">Ajuda a definir o perfil do aluno na comunidade. Só a equipe vê.</Texto>
+              </View>
+              <View style={estilos.conteudo}>
+                <Escolha rotulo="Sexo" valor={sexo} aoMudar={setSexo} opcoes={[{ valor: '', rotulo: 'Não informado' }, ...OPCOES_DE_SEXO]} />
+              </View>
+              {comSensivel ? (
+                <View style={estilos.curto}>
+                  <Campo rotulo="CPF (opcional)" valor={cpf} aoMudar={(t) => setCpf(mascaraCpf(t))} erro={erroCpf ?? cpfEmUso ?? campos.cpf} keyboardType="number-pad"
+                    inputMode="numeric" maxLength={14} ajuda={SENSIVEL} />
+                </View>
+              ) : null}
+            </View>
+          </Cartao>
+          <Cartao titulo={SECOES_DO_ALUNO.contato} nivel={nivel}>
+            <View style={estilos.linha}>
+              <View style={estilos.medio}>
+                <Campo rotulo="E-mail (opcional)" valor={email} aoMudar={setEmail} erro={campos.email} keyboardType="email-address" autoCapitalize="none"
+                  autoComplete="off" maxLength={254} />
+              </View>
+              {comTelefone ? (
+                <View style={estilos.curto}>
+                  <Campo rotulo="Telefone (opcional)" valor={telefone} aoMudar={(t) => setTelefone(mascaraTelefone(t))} erro={erroTelefone ?? campos.telefone}
+                    keyboardType="phone-pad" autoComplete="tel" maxLength={15} />
+                </View>
+              ) : null}
+            </View>
+            {comSensivel ? (
+              <View style={estilos.endereco}>
+                <CamposDeEndereco valor={endereco} aoMudar={setEndereco}
+                  erros={Object.fromEntries(CAMPOS_DO_ENDERECO.map((c) => [c, errosEndereco[c] ?? campos[`endereco.${c}`]]))} />
+              </View>
+            ) : null}
+          </Cartao>
         </View>
-      </Permitido>
-      <View style={secao}>
-      <Texto variante="secao" style={titulo}>Acompanhamento</Texto>
-      {noAcompanhamento}
-      {responsaveis?<Escolha rotulo="Treinador responsável" opcoes={[{valor:'',rotulo:'Sem responsável'},...responsaveis.map(r=>({valor:r.id,rotulo:r.nome}))]} valor={responsavelId} aoMudar={setResponsavelId}/>:null}
-      {erroResponsaveis?<MensagemErro texto={textoDoErro(erroResponsaveis)} tentarDeNovo={recarregar}/>:null}
-      <Campo
-        numerico
-        rotulo="Dias para nova atualização (opcional)"
-        valor={dias}
-        aoMudar={(t) => setDias(t.replace(/\D/g, '').slice(0, 3))}
-        erro={diasInvalidos ? 'Use de 1 a 365 dias.' : campos.diasAtualizacao}
-        // O padrão vai na ajuda, embaixo do campo, e não como placeholder: o texto some ao digitar e parece valor preenchido.
-        ajuda={`${diasPadrao ? `Padrão: ${diasPadrao} dias. ` : ''}Ao criar uma pasta de plano, o fim do período já vem preenchido com esses dias (você pode mudar). Vazio usa o padrão da consultoria, se houver (Marca › Acompanhamento).`}
-        keyboardType="number-pad"
-        inputMode="numeric"
-        maxLength={3}
-      />
-      {comMeta ? (
-        <View style={estilos.meta}>
-          <Escolha rotulo="Meta do peso" valor={meta} aoMudar={setMeta} opcoes={OPCOES_DA_META_DO_ALUNO} />
-          <Texto variante="pequeno">Pinta a variação do peso: verde na direção da meta, vermelho contra. O padrão é o de Marca › Acompanhamento.</Texto>
+        <View style={estilos.coluna}>
+          <Cartao titulo={SECOES_DO_ALUNO.acompanhamento} nivel={nivel}>
+            {responsaveis ? (
+              <EscolhaEmFolha rotulo="Treinador responsável" valor={responsavelId} aoMudar={setResponsavelId} rotuloDoValor="Membro inativo"
+                opcoes={[{ valor: '', rotulo: 'Sem responsável' }, ...responsaveis.map((r) => ({ valor: r.id, rotulo: r.nome }))]} />
+            ) : null}
+            {erroResponsaveis ? <MensagemErro texto={textoDoErro(erroResponsaveis)} tentarDeNovo={recarregar} /> : null}
+            {noAcompanhamento}
+            <View style={estilos.linha}><View style={estilos.curto}>
+              <Campo
+                numerico
+                rotulo="Dias para nova atualização (opcional)"
+                valor={dias}
+                aoMudar={(t) => setDias(t.replace(/\D/g, '').slice(0, 3))}
+                erro={diasInvalidos ? 'Use de 1 a 365 dias.' : campos.diasAtualizacao}
+                // O padrão vai na ajuda, embaixo do campo, e não como placeholder: o texto some ao digitar e parece valor preenchido.
+                ajuda={`Vazio usa o padrão da consultoria${diasPadrao ? ` (${diasPadrao} dias)` : ''}. Sugere o fim da próxima pasta de plano.`}
+                keyboardType="number-pad"
+                inputMode="numeric"
+                maxLength={3}
+              />
+            </View></View>
+          </Cartao>
+          {comSensivel ? (
+            <Cartao titulo={SECOES_DO_ALUNO.objetivo} nivel={nivel}>
+              <View style={estilos.linha}><View style={estilos.medio}>
+                <Campo rotulo="Objetivo (opcional)" valor={objetivo} aoMudar={setObjetivo} erro={campos.objetivo} maxLength={200} ajuda={SENSIVEL} />
+              </View></View>
+              {comMeta ? (
+                <View style={estilos.meta}>
+                  <Escolha rotulo="Meta do peso" valor={meta} aoMudar={setMeta} opcoes={OPCOES_DA_META_DO_ALUNO} />
+                  <Texto variante="pequeno">Pinta a variação do peso: verde na direção da meta, vermelho contra. O padrão é o de Marca › Acompanhamento.</Texto>
+                </View>
+              ) : null}
+              <View style={estilos.leitura}>
+                <Campo rotulo="Observações (opcional)" valor={observacoes} aoMudar={setObservacoes} erro={campos.observacoes} linhas={4} maxLength={4000} ajuda={SENSIVEL} />
+              </View>
+            </Cartao>
+          ) : null}
         </View>
-      ) : null}
-      <Permitido codigo="ALUNO_SENSIVEL_ALTERAR"><Campo
-        rotulo="Observações (opcional)"
-        valor={observacoes}
-        aoMudar={setObservacoes}
-        erro={campos.observacoes}
-        linhas={4}
-        maxLength={4000}
-        ajuda={SENSIVEL}
-      /></Permitido>
       </View>
-      </View>
-      {erro && Object.keys(campos).length === 0 && !cpfEmUso ? <MensagemErro texto={textoDoErro(erro)} /> : null}
-      <View style={estilos.botoes}>
-        {aoCancelar ? <Botao rotulo="Cancelar" tipo="fantasma" aoTocar={aoCancelar} /> : null}
-        <Botao rotulo={rotuloSalvar} aoTocar={salvar} carregando={salvando} desabilitado={!nome.trim() || diasInvalidos || dadosInvalidos}
-          motivo={!nome.trim() ? 'Informe o nome do aluno.' : diasInvalidos ? 'Os dias de atualização vão de 1 a 365.' : 'Corrija os campos marcados.'} />
+      {/* Barra no fim do formulário, no fluxo (não fixa): nunca cobre o último campo e não disputa o canto com o
+          "Voltar ao início" da rolagem. Erro geral à esquerda; no celular em cima, com os botões em coluna. */}
+      <View style={[estilos.barra, { borderTopColor: cores.divisor }]}>
+        <RodapeDeAcoes empilhar={width < LARGURA_MENU_LATERAL}
+          status={erro && Object.keys(campos).length === 0 && !cpfEmUso ? <MensagemErro texto={textoDoErro(erro)} /> : null}>
+          {aoCancelar ? <Botao rotulo="Cancelar" tipo="secundario" aoTocar={aoCancelar} /> : null}
+          <Botao rotulo={rotuloSalvar} aoTocar={salvar} carregando={salvando} desabilitado={!nome.trim() || diasInvalidos || dadosInvalidos} motivo={motivo} />
+        </RodapeDeAcoes>
       </View>
     </View>
   );
 }
 
 const estilos = StyleSheet.create({
-  form: { gap: espaco(1.5) },
-  // Separação maior entre Cadastro, Dados pessoais e Acompanhamento (guia de 11/11, pág. 11).
-  secao: { marginTop: espaco(2) },
+  form: { gap: espaco(3) },
+  // 24 px entre as seções, como as do "Editar alimento"; 420 é o mínimo de uma coluna (cabe o endereço com número e
+  // complemento lado a lado): abaixo de ~864 px úteis as colunas descem.
+  colunas: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', gap: espaco(3) },
+  coluna: { flexGrow: 1, flexShrink: 1, flexBasis: 420, minWidth: 0, gap: espaco(3) },
+  // Campos de uma seção: largura pelo tamanho da resposta, lado a lado quando cabem, topos alinhados. `medio` e `curto`
+  // só valem dentro de uma `linha` (fora dela o `flexBasis` vira altura, no corpo em coluna do cartão).
+  linha: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', gap: espaco(2) },
+  inteiro: { flexBasis: '100%', maxWidth: 560 },
+  medio: { flexGrow: 1, flexShrink: 1, flexBasis: 260, minWidth: 0, maxWidth: 420 },
+  curto: { flexGrow: 1, flexShrink: 1, flexBasis: 180, minWidth: 0, maxWidth: 240 },
+  conteudo: { flexShrink: 1, maxWidth: '100%' },
+  comAjuda: { gap: espaco(0.5) },
+  endereco: { maxWidth: 560 },
+  leitura: { maxWidth: 640 },
   meta: { gap: espaco(0.5) },
-  // Seções lado a lado (empilhadas, o mesmo vão de 28 px de antes entre elas): 440 cabe o endereço (número e complemento na mesma linha); 560 é o teto do campo de texto.
-  secoesEmColunas: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', columnGap: espaco(4), rowGap: espaco(3.5) },
-  colunaDaSecao: { flexGrow: 1, flexShrink: 1, flexBasis: 440, minWidth: 0, maxWidth: 560 },
-  botoes: { flexDirection: 'row', justifyContent: 'flex-end', gap: espaco(1), flexWrap: 'wrap' },
+  barra: { borderTopWidth: 1, paddingTop: espaco(2) },
 });

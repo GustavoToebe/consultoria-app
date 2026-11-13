@@ -14,6 +14,8 @@ jest.mock('expo-router', () => ({
 jest.mock('../sessao/SessaoProvider', () => ({
   useSessao: () => ({ pode: () => true, usuario: { id: 'u1', papel: 'TREINADOR', nome: 'Quem cadastra' } }),
 }));
+jest.mock('../tema/TemaProvider', () => ({ useTema: () => ({ cores: require('../tema/tokens').CLARO, modo: 'CLARO' }) }));
+jest.mock('../ui/Cartao', () => ({ Cartao: ({ children }: { children?: ReactNode }) => require('react').createElement(require('react-native').View, null, children) }));
 jest.mock('../ui/useAvisoDoPlano', () => ({ useAvisoDoPlano: () => () => false }));
 jest.mock('../ui/useCarregar', () => ({
   useCarregar: () => ({
@@ -53,6 +55,17 @@ jest.mock('../ui/Botao', () => ({
 }));
 jest.mock('../ui/Escolha', () => ({
   Escolha: ({ rotulo, opcoes, valor, aoMudar }: { rotulo: string; opcoes: { valor: string; rotulo: string }[]; valor: string; aoMudar: (valor: string) => void }) =>
+    require('react').createElement(require('react-native').View, { accessibilityLabel: rotulo },
+      opcoes.map((opcao) => require('react').createElement(require('react-native').Pressable, {
+        key: `${rotulo}-${opcao.valor}`,
+        accessibilityLabel: opcao.rotulo,
+        accessibilityState: { selected: opcao.valor === valor },
+        onPress: () => aoMudar(opcao.valor),
+      }))),
+}));
+// O responsável é uma `EscolhaEmFolha`: as opções ficam à vista no mock, para tocar e conferir a marcada.
+jest.mock('../ui/EscolhaEmFolha', () => ({
+  EscolhaEmFolha: ({ rotulo, opcoes, valor, aoMudar }: { rotulo: string; opcoes: { valor: string; rotulo: string }[]; valor: string; aoMudar: (valor: string) => void }) =>
     require('react').createElement(require('react-native').View, { accessibilityLabel: rotulo },
       opcoes.map((opcao) => require('react').createElement(require('react-native').Pressable, {
         key: `${rotulo}-${opcao.valor}`,

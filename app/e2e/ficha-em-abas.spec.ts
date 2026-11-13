@@ -88,9 +88,10 @@ for (const largura of [390, 1280]) {
     await aba(page, 'Ficha do aluno').click();
     await expect(page).toHaveURL(/[?&]aba=ficha/);
     await expect(page.getByText('Dados do aluno', { exact: true })).toBeVisible();
-    // Por assunto (guia de 11/11, pág. 34): dados e contato, acesso ao app em bloco próprio, configuração do acompanhamento.
-    await expect(page.getByText('Dados e contato', { exact: true })).toBeVisible();
-    await expect(page.getByText('Configuração do acompanhamento', { exact: true })).toBeVisible();
+    // As quatro seções dos dados (pedido de 12/11) e o acesso ao app em bloco próprio.
+    for (const secao of ['Identificação', 'Contato e endereço', 'Configuração do acompanhamento', 'Objetivo e observações']) {
+      await expect(page.getByRole('heading', { name: secao, exact: true })).toBeVisible();
+    }
     await expect(page.getByRole('heading', { name: 'Acesso ao app', exact: true })).toBeVisible();
     await expect(page.getByText('Histórico de lesões', { exact: true })).toBeVisible();
     expect(errosDaPagina).toEqual([]);

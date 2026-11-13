@@ -164,7 +164,7 @@ for (const largura of [390, 1280]) {
     expect(await corNoPeso('Cores pela meta: reduzir o peso')).toBe(rgb(CLARO.sucesso));
 
     // Meta própria: Aumentar. Salvar troca as cores sem recarregar a página.
-    await page.getByRole('button', { name: 'Editar', exact: true }).click();
+    await page.getByRole('button', { name: 'Editar dados', exact: true }).click();
     const padrao = opcao(page, 'Meta do peso', 'Padrão da consultoria');
     await expect(padrao).toHaveAttribute('aria-checked', 'true');
     await opcao(page, 'Meta do peso', 'Aumentar').click();
@@ -174,7 +174,7 @@ for (const largura of [390, 1280]) {
     expect(await corNoPeso('Cores pela meta: aumentar o peso')).toBe(rgb(CLARO.perigo));
 
     // Salvar outro campo reenvia a meta escolhida (não a apaga) e volta ao padrão só com PADRAO_DA_CONSULTORIA.
-    await page.getByRole('button', { name: 'Editar', exact: true }).click();
+    await page.getByRole('button', { name: 'Editar dados', exact: true }).click();
     await expect(opcao(page, 'Meta do peso', 'Aumentar')).toHaveAttribute('aria-checked', 'true');
     await opcao(page, 'Meta do peso', 'Padrão da consultoria').click();
     await page.getByRole('button', { name: 'Salvar', exact: true }).click();
@@ -200,7 +200,7 @@ for (const largura of [390, 1280]) {
     await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
     await expect(page.getByText('Dados do aluno', { exact: true })).toBeVisible();
     await expect(page.getByText('Meta do peso', { exact: true })).toHaveCount(0);
-    await page.getByRole('button', { name: 'Editar', exact: true }).click();
+    await page.getByRole('button', { name: 'Editar dados', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Salvar', exact: true })).toBeVisible();
     await expect(page.getByText('Meta do peso', { exact: true })).toHaveCount(0);
     await expect(opcao(page, 'Meta do peso', 'Padrão da consultoria')).toHaveCount(0);

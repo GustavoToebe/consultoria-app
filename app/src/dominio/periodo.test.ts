@@ -54,8 +54,8 @@ describe('ciclo de atualização do aluno (reunião de 17/10)', () => {
 
   it('texto da ficha diz quando vem do padrão', () => {
     expect(textoDoCiclo(15, 30)).toBe('15 dias');
-    expect(textoDoCiclo(null, 30)).toBe('30 dias (padrão da consultoria)');
-    expect(textoDoCiclo(null, null)).toBeNull();
+    expect(textoDoCiclo(null, 30)).toBe('Padrão da consultoria (30 dias)');
+    expect(textoDoCiclo(null, null)).toBe('Padrão da consultoria');
   });
 });
 

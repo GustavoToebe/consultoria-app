@@ -132,6 +132,18 @@ export const enderecoParaLeitura = (e: EnderecoDoAluno | null | undefined): stri
 
 /** Nota do telefone de quem ainda não criou o acesso: fica no cadastro e passa ao acesso quando o aluno entrar. */
 export const NOTA_TELEFONE_SEM_ACESSO = 'O aluno ainda não tem acesso: o telefone passa para o acesso quando ele entrar no app.';
+/**
+ * As quatro seções dos Dados do aluno, na mesma ordem na leitura (ficha) e na edição (ficha e Novo aluno), pedido do
+ * Gustavo de 12/11: quem é, como falar com ele, como o acompanhamento está configurado, para onde vai.
+ */
+export const SECOES_DO_ALUNO = {
+  identificacao: 'Identificação',
+  contato: 'Contato e endereço',
+  acompanhamento: 'Configuração do acompanhamento',
+  objetivo: 'Objetivo e observações',
+} as const;
+/** Ausência de dado nos pares da ficha (o mesmo texto do sexo não informado); nunca um valor inventado. */
+export const NAO_INFORMADO = 'Não informado';
 /** Código do 409 de CPF que já está no cadastro de outro aluno (a API não repete o valor). */
 export const CPF_EM_USO = 'ALUNO_CPF_EM_USO';
 export const MENSAGEM_CPF_EM_USO = 'Este CPF já está no cadastro de outro aluno.';

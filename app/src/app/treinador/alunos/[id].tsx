@@ -1,15 +1,11 @@
 import { useSessao } from '../../../sessao/SessaoProvider';
-import { Permitido } from '../../../ui/Permitido';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Ellipsis, Pencil, UserCheck, UserMinus } from 'lucide-react-native';
+import { Ellipsis, UserCheck, UserMinus } from 'lucide-react-native';
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { aluno as buscarAluno, alterarAluno, alterarSituacaoAluno, consultoria as buscarConsultoria, escolherQuestionarioDoAluno } from '../../../api/rotas';
-import { enderecoParaLeitura, NOTA_TELEFONE_SEM_ACESSO } from '../../../dominio/cadastroDoAluno';
-import { rotuloDoSexo } from '../../../dominio/sexo';
-import { textoDaMeta } from '../../../dominio/metaDoPesoNaFicha';
-import { cicloDoAluno, textoDoCiclo } from '../../../dominio/periodo';
+import { aluno as buscarAluno, alterarSituacaoAluno, consultoria as buscarConsultoria } from '../../../api/rotas';
+import { cicloDoAluno } from '../../../dominio/periodo';
 import { ABAS_DA_FICHA, abaDaUrl, abaParaEditar, abaParaPasta, abasVisiveis, blocosDaAba, mostraMobilidade, type AbaDaFicha, type BlocoDaFicha } from '../../../dominio/fichaDoAluno';
 import type { AlunoDetalhe } from '../../../api/tipos';
 import { espaco, LARGURA_LISTA, LARGURA_MENU_LATERAL } from '../../../tema/tokens';
@@ -29,19 +25,14 @@ import { CartaoProgresso } from '../../../treinador/CartaoProgresso';
 import { CartaoLesoes } from '../../../treinador/CartaoLesoes';
 import { CartaoPastas, useRenovarPasta } from '../../../treinador/CartaoPastas';
 import { CartaoAnamnese } from '../../../treinador/anamnese/CartaoAnamnese';
-import { LinhaDoCicloNaFicha } from '../../../treinador/ciclo/CicloNaFicha';
 import { CartaoPlanoContratado } from '../../../treinador/financeiro/CartaoPlanoContratado';
-import { FormAluno } from '../../../treinador/FormAluno';
+import { DadosDoAluno } from '../../../treinador/DadosDoAluno';
 import { AcoesDePrivacidade } from '../../../treinador/privacidade/AcoesDePrivacidade';
-import { ResponsavelAluno } from '../../../treinador/equipe/ResponsavelAluno';
-import { SeletorDeQuestionario } from '../../../treinador/questionarios/SeletorDeQuestionario';
 import { Abas } from '../../../ui/Abas';
 import { useAviso } from '../../../ui/Aviso';
 import { useSaidaGuardada } from '../../../ui/GuardaDeSaida';
-import { Botao } from '../../../ui/Botao';
 import { Cabecalho } from '../../../ui/Cabecalho';
 import { Cartao } from '../../../ui/Cartao';
-import { CampoLeitura } from '../../../ui/CampoLeitura';
 import { Esqueleto } from '../../../ui/Esqueleto';
 import { IconeBotao } from '../../../ui/IconeBotao';
 import { MensagemErro } from '../../../ui/Estados';
@@ -49,7 +40,6 @@ import { textoDoErro } from '../../../ui/erros';
 import { useAvisoDoPlano } from '../../../ui/useAvisoDoPlano';
 import { PainelConfirmacao } from '../../../ui/PainelConfirmacao';
 import { Tela } from '../../../ui/Tela';
-import { Texto } from '../../../ui/Texto';
 import { useCarregar } from '../../../ui/useCarregar';
 
 /**
@@ -135,7 +125,8 @@ export default function FichaAluno() {
       case 'peso': return <CartaoPeso key={`${geracaoPeso}:${a.metaDoPeso ?? ''}`} alunoId={a.id} />;
       case 'avaliacaoFisica': return <CartaoAvaliacaoFisica alunoId={a.id} alunoNome={a.nome} anonimizado={a.anonimizado} />;
       case 'fotos': return <CartaoFotos alunoId={a.id} autorizadoEm={a.usoDeImagemAutorizadoEm} aoRecarregar={recarregar} />;
-      case 'dadosDoAluno': return <Cartao><DadosDoAluno aluno={a} padrao={padrao} aoAlterar={definir} /></Cartao>;
+      // Sem cartão em volta: as quatro seções são os cartões (dentro de um cartão vai divisor, não outro contorno).
+      case 'dadosDoAluno': return <DadosDoAluno aluno={a} padrao={padrao} aoAlterar={definir} />;
       // Bloco próprio (guia de 11/11, pág. 34): situação, conta vinculada e as duas formas de dar o acesso.
       case 'acessoAoApp':
         return <View ref={acessoRef} nativeID="acesso-ao-app"><Cartao titulo="Acesso ao app"><CartaoAcesso aluno={a} aoAlterar={definir} /></Cartao></View>;
@@ -253,101 +244,7 @@ function ConfirmarSituacao({ aluno, visivel, aoFechar, aoAlterar }: { aluno: Alu
   );
 }
 
-/**
- * Dados do aluno, no cartão de cima da aba Ficha do aluno: só leitura em duas seções por assunto (Dados e contato;
- * Configuração do acompanhamento) até "Editar", que abre o formulário ali mesmo. A foto de perfil se troca no círculo ao
- * lado do nome, no cabeçalho (`FotoDePerfilEditavel`), e o acesso ao app tem bloco próprio logo abaixo (`acessoAoApp`).
- * O questionário de atualização também se troca no modo de edição (fora dele é um campo de leitura, como os outros).
- * `?editar=1` (o lápis da lista de alunos) abre já editando, para quem pode editar, e sai do endereço na hora, como o
- * `?novo=1` do Planejamento: o voltar do navegador não tem passo sobrando.
- */
-function DadosDoAluno({ aluno, padrao, aoAlterar }: { aluno: AlunoDetalhe; padrao: number | null; aoAlterar: (a: AlunoDetalhe) => void }) {
-  const { pode } = useSessao();
-  const { avisar } = useAviso();
-  // "Cancelar" com algum campo mudado pergunta "Descartar alterações?" (não é sair da ficha). Sem alteração, fecha na hora.
-  const { pendente } = useSaidaGuardada();
-  const [editando, setEditando] = useState(false);
-  const [descartar, setDescartar] = useState(false);
-  const { editar } = useLocalSearchParams<{ editar?: string }>();
-  const podeEditar = !aluno.anonimizado && pode('ALUNO_ALTERAR');
-  useEffect(() => {
-    if (editar !== '1') return;
-    let vivo = true;
-    void Promise.resolve().then(() => { if (!vivo) return; if (podeEditar) setEditando(true); router.setParams({ editar: undefined, aba: 'ficha' }); });
-    return () => { vivo = false; };
-  }, [editar, podeEditar]);
-  return (
-    <View style={estilos.dados}>
-      <View style={estilos.tituloDados}>
-        <Texto variante="bloco" nivel={2} style={estilos.titulo}>Dados do aluno</Texto>
-        {editando || !podeEditar ? null : <Botao rotulo="Editar" tipo="secundario" Icone={Pencil} aoTocar={() => setEditando(true)} />}
-      </View>
-      {editando ? (
-        <FormAluno
-          inicial={aluno}
-          diasPadrao={padrao}
-          rotuloSalvar="Salvar"
-          aoCancelar={() => { if (pendente()) setDescartar(true); else setEditando(false); }}
-          // O questionário fica na seção Acompanhamento, mas grava na hora (não espera o Salvar), como antes.
-          noAcompanhamento={<SeletorDeQuestionario rotulo="Questionário de atualização" valor={aluno.questionarioId} rotuloDoNulo="Padrão da consultoria" podeAlterar={pode('ALUNO_ALTERAR')}
-            aoEscolher={async (questionarioId) => { aoAlterar(await escolherQuestionarioDoAluno(aluno.id, questionarioId)); avisar('Questionário trocado.', 'sucesso'); }} />}
-          aoSalvar={async (dados) => {
-            const a = await alterarAluno(aluno.id, dados);
-            aoAlterar(a);
-            setEditando(false);
-            avisar('Dados salvos.', 'sucesso');
-          }}
-        />
-      ) : (
-        // Por assunto (guia de 11/11, pág. 34): quem é e como falar com ele; depois como o acompanhamento está configurado,
-        // com objetivo, meta e observações no contexto deles (só com `ALUNO_SENSIVEL_LER`). No celular, um embaixo do outro.
-        <View style={estilos.grade}>
-          <View style={estilos.colunaDados}>
-            <Texto variante="secao">Dados e contato</Texto>
-            <CampoLeitura rotulo="E-mail" valor={aluno.email} />
-            <CampoLeitura rotulo="Telefone" valor={aluno.telefone} />
-            {!aluno.temAcesso && !aluno.anonimizado ? <Texto variante="pequeno">{NOTA_TELEFONE_SEM_ACESSO}</Texto> : null}
-            <CampoLeitura rotulo="Sexo" valor={rotuloDoSexo(aluno.sexo)} />
-            <Permitido codigo="ALUNO_SENSIVEL_LER">
-              <CampoLeitura rotulo="CPF" valor={aluno.cpf} />
-              <CampoLeitura rotulo="Endereço" valor={enderecoParaLeitura(aluno.endereco)} />
-            </Permitido>
-          </View>
-          <View style={estilos.colunaDados}>
-            <Texto variante="secao">Configuração do acompanhamento</Texto>
-            <ResponsavelAluno id={aluno.responsavelId} />
-            <CampoLeitura rotulo="Nova atualização a cada" valor={textoDoCiclo(aluno.diasAtualizacao, padrao)} numerico />
-            <SeletorDeQuestionario rotulo="Questionário de atualização" valor={aluno.questionarioId} rotuloDoNulo="Padrão da consultoria" podeAlterar={false}
-              aoEscolher={async () => {}} />
-            <Permitido codigo="ALUNO_SENSIVEL_LER">
-              <CampoLeitura rotulo="Objetivo" valor={aluno.objetivo} />
-              <CampoLeitura rotulo="Meta do peso" valor={textoDaMeta(aluno.metaDoPeso)} />
-              <CampoLeitura rotulo="Observações" valor={aluno.observacoes} />
-            </Permitido>
-            <LinhaDoCicloNaFicha alunoId={aluno.id} />
-          </View>
-        </View>
-      )}
-      <PainelConfirmacao
-        visivel={descartar}
-        titulo="Descartar alterações?"
-        mensagem="Há alterações que ainda não foram salvas. Se descartar agora, elas serão perdidas."
-        rotuloConfirmar="Descartar"
-        rotuloCancelar="Continuar editando"
-        perigo
-        aoConfirmar={() => { setDescartar(false); setEditando(false); }}
-        aoCancelar={() => setDescartar(false)}
-      />
-    </View>
-  );
-}
-
 const estilos = StyleSheet.create({
-  dados: { gap: espaco(1.5) },
-  tituloDados: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: espaco(1) },
-  titulo: { flexShrink: 1 },
-  grade: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(3), rowGap: espaco(2) },
-  colunaDados: { flexBasis: 260, flexGrow: 1, flexShrink: 1, minWidth: 0, gap: espaco(1.5) },
   // No PC as contagens alinham pelo topo (cada uma com a própria altura, sem esticar o vazio); no celular, uma sequência.
   contagens: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(3), alignItems: 'flex-start' },
   contagem: { flexGrow: 1, flexShrink: 1, flexBasis: 420, minWidth: 0 },

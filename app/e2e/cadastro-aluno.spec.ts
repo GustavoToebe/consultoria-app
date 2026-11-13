@@ -43,7 +43,7 @@ test('ficha: telefone, CPF e endereço na leitura; edição valida, envia e most
   await expect(page.getByText(CPF)).toBeVisible();
   await expect(page.getByText('Rua Exemplo, 100 - Sala 2 - Centro', { exact: false })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Editar', exact: true }).click();
+  await page.getByRole('button', { name: 'Editar dados', exact: true }).click();
   // CPF com dígito verificador errado: o campo marca e o salvar não sai.
   const cpf = page.getByLabel('CPF (opcional)');
   await cpf.fill('52998224726');
@@ -94,7 +94,7 @@ for (const largura of [390, 1280]) {
       },
     });
     await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
-    await page.getByRole('button', { name: 'Editar', exact: true }).click();
+    await page.getByRole('button', { name: 'Editar dados', exact: true }).click();
     const campo = page.getByLabel('Data de nascimento (opcional)');
     await campo.pressSequentially('09032001');
     await expect(campo).toHaveValue('09/03/2001');
@@ -124,7 +124,7 @@ test('ficha: o CEP completo preenche rua, bairro, cidade e UF sem tocar no núme
       : json(route, erroApi(404, 'CEP não encontrado.', 'CEP_NAO_ENCONTRADO').corpo, 404),
   });
   await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
-  await page.getByRole('button', { name: 'Editar', exact: true }).click();
+  await page.getByRole('button', { name: 'Editar dados', exact: true }).click();
   await page.getByRole('textbox', { name: /^Número/ }).fill('s/n');
   await page.getByLabel('Complemento').fill('Sala 2');
 
@@ -157,7 +157,7 @@ test('ficha: endereço parcial é recusado (só a cidade), "s/n" vale e tudo em 
     [`PUT /alunos/${ALUNO_ID}`]: (p, route) => json(route, { ...FICHA, ...(p.corpo as object), versao: 2 }),
   });
   await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
-  await page.getByRole('button', { name: 'Editar', exact: true }).click();
+  await page.getByRole('button', { name: 'Editar dados', exact: true }).click();
   const salvar = page.getByRole('button', { name: 'Salvar', exact: true });
   await expect(salvar).toBeEnabled();
 
@@ -184,7 +184,7 @@ test('ficha: endereço parcial é recusado (só a cidade), "s/n" vale e tudo em 
   });
 
   // Tudo em branco: o endereço é opcional e o envio leva null.
-  await page.getByRole('button', { name: 'Editar', exact: true }).click();
+  await page.getByRole('button', { name: 'Editar dados', exact: true }).click();
   for (const rotulo of ['CEP', 'Rua, avenida…', 'Número', 'Cidade']) await page.getByRole('textbox', { name: new RegExp('^' + rotulo) }).fill('');
   await page.getByRole('button', { name: /^UF/ }).click();
   await page.getByRole('dialog').getByRole('radio', { name: 'Não informar' }).click();
@@ -213,7 +213,7 @@ test('ficha sem permissão de dados sensíveis: CPF e endereço não aparecem e 
   await expect(page.getByText(CPF)).toHaveCount(0);
   await expect(page.getByText('Rua Exemplo', { exact: false })).toHaveCount(0);
 
-  await page.getByRole('button', { name: 'Editar', exact: true }).click();
+  await page.getByRole('button', { name: 'Editar dados', exact: true }).click();
   await expect(page.getByLabel('CPF (opcional)')).toHaveCount(0);
   await expect(page.getByLabel('CEP')).toHaveCount(0);
   await page.getByLabel('Telefone (opcional)').fill('4533334444');
@@ -234,7 +234,7 @@ test('ficha de aluno sem acesso: telefone com a nota e campo de telefone na edi�
   });
   await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
   await expect(page.getByText('O aluno ainda não tem acesso: o telefone passa para o acesso quando ele entrar no app.')).toBeVisible();
-  await page.getByRole('button', { name: 'Editar', exact: true }).click();
+  await page.getByRole('button', { name: 'Editar dados', exact: true }).click();
   await expect(page.getByLabel('Telefone (opcional)')).toBeVisible();
   await expect(page.getByLabel('CPF (opcional)')).toBeVisible();
 });
@@ -331,9 +331,10 @@ test('folha da anamnese: endereço diferente do cadastro fica para revisar e apl
   expect(errosDaPagina).toEqual([]);
 });
 
-// Dados no cartão de cima (com o resumo), antes das pastas; "Editar" abre o formulário ali mesmo.
+// Dados no cartão de cima (com o resumo), antes das pastas; "Editar dados" abre o formulário ali mesmo.
+const SECOES_DO_ALUNO = ['Identificação', 'Contato e endereço', 'Configuração do acompanhamento', 'Objetivo e observações'];
 for (const { largura, altura } of [{ largura: 1280, altura: 900 }, { largura: 390, altura: 844 }]) {
-  test(`ficha em ${largura} px: dados do aluno no cartão de cima e "Editar" abre o formulário ali`, async ({ page }, testInfo) => {
+  test(`ficha em ${largura} px: dados do aluno no cartão de cima, nas quatro seções, e "Editar dados" abre o formulário ali`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width: largura, height: altura });
     const { errosDaPagina } = await simularApi(page, {
       ...(await sessao(page, TREINADOR)),
@@ -355,11 +356,22 @@ for (const { largura, altura } of [{ largura: 1280, altura: 900 }, { largura: 39
     await expect(page.getByText(CPF)).toBeVisible();
     await expect(page.getByLabel('Acesso ao app: Com acesso')).toBeVisible();
 
-    // Por assunto (guia de 11/11, pág. 34): no PC as duas seções lado a lado; no celular uma embaixo da outra.
-    const contato = await topo(page.getByText('Dados e contato', { exact: true }));
-    const configuracao = await topo(page.getByText('Configuração do acompanhamento', { exact: true }));
-    if (largura >= 1100) expect(Math.abs(configuracao - contato)).toBeLessThan(2);
-    else expect(contato).toBeLessThan(configuracao);
+    // As quatro seções na ordem do pedido de 12/11, iguais na leitura e na edição: no PC 1 e 2 à esquerda e 3 e 4 à
+    // direita (1 e 3 no mesmo topo); no celular uma embaixo da outra, 1, 2, 3, 4.
+    const conferirSecoes = async () => {
+      const c = await Promise.all(SECOES_DO_ALUNO.map(async (s) => (await page.getByRole('heading', { name: s, exact: true }).boundingBox())!));
+      if (largura >= 1100) {
+        expect(Math.abs(c[0].y - c[2].y)).toBeLessThan(2);
+        expect(c[1].y).toBeGreaterThan(c[0].y);
+        expect(c[3].y).toBeGreaterThan(c[2].y);
+        expect(c[2].x).toBeGreaterThan(c[0].x + c[0].width - 1);
+      } else for (let i = 1; i < c.length; i++) expect(c[i].y).toBeGreaterThan(c[i - 1].y);
+    };
+    await conferirSecoes();
+    // Ausência e valor herdado com texto, nunca vazio nem inventado.
+    await expect(page.getByLabel('Sexo: Não informado', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('Observações: Não informado', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('Nova atualização a cada: Padrão da consultoria', { exact: true })).toBeVisible();
     // O acesso tem bloco próprio, com título.
     await expect(page.getByRole('heading', { name: 'Acesso ao app', exact: true })).toBeVisible();
     // Nada passa da largura da tela.
@@ -367,9 +379,11 @@ for (const { largura, altura } of [{ largura: 1280, altura: 900 }, { largura: 39
 
     await page.screenshot({ path: testInfo.outputPath(`ficha-${largura}.png`), fullPage: true });
 
-    await page.getByRole('button', { name: 'Editar', exact: true }).click();
+    await page.getByRole('button', { name: 'Editar dados', exact: true }).click();
     const cpf = page.getByLabel('CPF (opcional)');
     await expect(cpf).toBeVisible();
+    await conferirSecoes();
+    await expect(page.getByRole('button', { name: 'Editar dados', exact: true })).toHaveCount(0);
     expect(await topo(dados)).toBeLessThan(await topo(cpf));
     expect(await topo(cpf)).toBeLessThan(await topo(acesso));
     await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
@@ -491,7 +505,7 @@ for (const largura of [390, 1280]) {
     expect(await medidas(page.getByRole('button', { name: 'Mais ações do aluno', exact: true }))).toEqual({ alvo: [44, 44], desenho: [40, 40] });
 
     // Abrir a edição sem mexer não deixa nada pendente.
-    await page.getByRole('button', { name: 'Editar', exact: true }).click();
+    await page.getByRole('button', { name: 'Editar dados', exact: true }).click();
     await expect(page.getByLabel('Nome', { exact: true })).toHaveValue(ALUNO.nome);
     await page.getByRole('button', { name: 'Voltar', exact: true }).click();
     await expect(page).toHaveURL(/\/treinador\/alunos$/);
@@ -499,7 +513,7 @@ for (const largura of [390, 1280]) {
 
     // Com alteração: o Voltar pergunta; depois de salvar, a saída volta a ser direta.
     await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
-    await page.getByRole('button', { name: 'Editar', exact: true }).click();
+    await page.getByRole('button', { name: 'Editar dados', exact: true }).click();
     await page.getByLabel('Cidade').fill('Outra Cidade');
     await page.getByRole('button', { name: 'Voltar', exact: true }).click();
     await expect(sairSemSalvar(page)).toBeVisible();
@@ -512,7 +526,7 @@ for (const largura of [390, 1280]) {
 
     // E o "Sair sem salvar" de fato sai.
     await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
-    await page.getByRole('button', { name: 'Editar', exact: true }).click();
+    await page.getByRole('button', { name: 'Editar dados', exact: true }).click();
     await page.getByLabel('Cidade').fill('Mais Uma Cidade');
     await page.getByRole('button', { name: 'Voltar', exact: true }).click();
     await page.getByRole('button', { name: 'Sair sem salvar', exact: true }).click();
@@ -538,7 +552,7 @@ for (const largura of [390, 1280]) {
 
     // Com o nome mudado: pergunta; "Continuar editando" fica na aba Ficha com o que foi digitado.
     await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
-    await page.getByRole('button', { name: 'Editar', exact: true }).click();
+    await page.getByRole('button', { name: 'Editar dados', exact: true }).click();
     await page.getByLabel('Nome', { exact: true }).fill('Nome Trocado Fictício');
     await aba('Resumo').click();
     await expect(sairSemSalvar(page)).toBeVisible();
@@ -561,7 +575,7 @@ for (const largura of [390, 1280]) {
 
     // Sem alteração (edição aberta e intacta): troca direto, sem painel.
     await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
-    await page.getByRole('button', { name: 'Editar', exact: true }).click();
+    await page.getByRole('button', { name: 'Editar dados', exact: true }).click();
     await expect(page.getByLabel('Nome', { exact: true })).toHaveValue(ALUNO.nome);
     await aba('Resumo').click();
     await expect(aba('Resumo')).toHaveAttribute('aria-selected', 'true');
@@ -583,12 +597,12 @@ for (const largura of [390, 1280]) {
     const cancelar = page.getByRole('button', { name: 'Cancelar', exact: true });
     await page.goto(`/treinador/alunos/${ALUNO_ID}?aba=ficha`);
 
-    await page.getByRole('button', { name: 'Editar', exact: true }).click();
+    await page.getByRole('button', { name: 'Editar dados', exact: true }).click();
     await cancelar.click();
     await expect(nome).toHaveCount(0);
     await expect(sairSemSalvar(page)).toHaveCount(0);
 
-    await page.getByRole('button', { name: 'Editar', exact: true }).click();
+    await page.getByRole('button', { name: 'Editar dados', exact: true }).click();
     await nome.fill('Nome Trocado Fictício');
     await cancelar.click();
     await expect(page.getByText('Descartar alterações?', { exact: true })).toBeVisible();

@@ -85,7 +85,9 @@ app/src/
 - **Nada é salvo sozinho nos editores.** Existem "Salvar rascunho" e "Publicar"; sair com alteração pendente pergunta
   antes (`GuardaDeSaida`).
 - **O que não existe não aparece.** Recurso desligado, sem permissão ou sem dado some da tela. Valor ausente é
-  "—", nunca zero inventado.
+  "—", nunca zero inventado. Exceção: nos pares rótulo + valor dos Dados do aluno (ficha) o vazio é "Não informado"
+  (`NAO_INFORMADO`, em texto suave) e o valor herdado é "Padrão da consultoria" ou "Padrão da consultoria (N dias)":
+  ali o traço sozinho, numa coluna de texto, se confunde com um valor cortado.
 
 ---
 
@@ -552,7 +554,7 @@ O app tem regras que não aparecem na tela mas sustentam tudo. Um ajuste visual 
 - **Metodologia:** tipos de série, técnicas, grupos, etapas de Cluster/Rest-pause e carga sugerida têm contrato
   próprio com a API.
 - **Isolamento e permissões:** um treinador nunca vê dado de outra consultoria; a tela só esconde, quem barra é a API.
-- **Ausência de dado:** é "—", nunca zero, e nada de opinar sobre saúde.
+- **Ausência de dado:** é "—" (nos pares dos Dados do aluno, "Não informado"), nunca zero, e nada de opinar sobre saúde.
 
 Como garantimos:
 - testes de regra pura (Jest) e testes de tela em 390 e 1280 px (Playwright) antes de subir;

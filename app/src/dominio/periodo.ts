@@ -65,9 +65,8 @@ export function cicloDoAluno(doAluno: number | null | undefined, padraoDaConsult
   return doAluno ?? padraoDaConsultoria ?? null;
 }
 
-/** "15 dias", "20 dias (padrão da consultoria)" ou nulo ("—" na ficha). */
-export function textoDoCiclo(doAluno: number | null | undefined, padraoDaConsultoria: number | null | undefined): string | null {
+/** "15 dias"; sem valor próprio vale o herdado: "Padrão da consultoria (20 dias)", ou só "Padrão da consultoria" sem o número. */
+export function textoDoCiclo(doAluno: number | null | undefined, padraoDaConsultoria: number | null | undefined): string {
   if (doAluno) return `${doAluno} dias`;
-  if (padraoDaConsultoria) return `${padraoDaConsultoria} dias (padrão da consultoria)`;
-  return null;
+  return padraoDaConsultoria ? `Padrão da consultoria (${padraoDaConsultoria} dias)` : 'Padrão da consultoria';
 }
