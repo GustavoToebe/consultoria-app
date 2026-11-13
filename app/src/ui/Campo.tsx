@@ -37,6 +37,8 @@ interface Props extends Omit<TextInputProps, 'style' | 'onChangeText' | 'value'>
   erroSemTexto?: boolean;
   /** Texto maior e em semi-negrito (o título do evento, como o "Adicionar título" do Google Agenda). */
   grande?: boolean;
+  /** Cor do texto digitado, quando ela carrega um sinal (valor de entrada ou de saída); desabilitado continua cinza. */
+  corDoTexto?: string;
 }
 
 /**
@@ -45,7 +47,7 @@ interface Props extends Omit<TextInputProps, 'style' | 'onChangeText' | 'value'>
  * leitor de tela: `aria-invalid` na web, região viva no Android e anúncio no iOS. Foco = borda de 2 px na cor do anel de
  * foco (a cor da marca não contrasta no escuro).
  */
-export function Campo({ rotulo, valor, aoMudar, erro, ajuda, linhas, numerico, acao, rotuloAcessivel, rotuloOculto, sufixo, erroSemTexto, grande, ...resto }: Props) {
+export function Campo({ rotulo, valor, aoMudar, erro, ajuda, linhas, numerico, acao, rotuloAcessivel, rotuloOculto, sufixo, erroSemTexto, grande, corDoTexto, ...resto }: Props) {
   const { cores, fatorTexto } = useTema();
   const [foco, setFoco] = useState(false);
   const cinza = coresDoDesabilitado(cores);
@@ -81,7 +83,7 @@ export function Campo({ rotulo, valor, aoMudar, erro, ajuda, linhas, numerico, a
           numerico ? { fontVariant: ['tabular-nums'] } : null,
           linhas ? { minHeight: linhas * escalar(22, fatorTexto) + 20, textAlignVertical: 'top' } : null,
           acao ? { paddingRight: ALVO_TOQUE } : sufixo ? { paddingRight: espaco(1.5) + escalar(16, fatorTexto) * sufixo.length } : null,
-          { color: cores.texto, backgroundColor: cores.campo, borderColor: corBorda, fontSize: escalar(16, fatorTexto) },
+          { color: corDoTexto ?? cores.texto, backgroundColor: cores.campo, borderColor: corBorda, fontSize: escalar(16, fatorTexto) },
           grande ? { fontSize: escalar(22, fatorTexto), fontFamily: fontes.semi, minHeight: ALVO_TOQUE + 8 } : null,
           resto.editable === false ? { color: cinza.texto, backgroundColor: cinza.fundo, borderColor: cinza.borda } : null,
         ]}

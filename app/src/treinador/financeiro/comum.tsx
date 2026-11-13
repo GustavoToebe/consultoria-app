@@ -14,7 +14,9 @@ export const avisoDeConflito = (sujeito: string): string => `${sujeito} em outro
  * `mascara`: formata enquanto digita (`mascaraDeMoeda`, "R$ 1.000,00"), e o rótulo não repete o "R$". Sem ela, o
  * texto fica como a pessoa digitou.
  */
-export function CampoMoeda({ rotulo, texto, aoMudar, erro, ajuda, mascara }: {
+export function CampoMoeda({ rotulo, texto, aoMudar, erro, ajuda, mascara, corDoTexto }: {
+  /** Cor do número digitado (lançamento: azul de entrada, vermelho de saída). */
+  corDoTexto?: string;
   rotulo: string;
   texto: string;
   aoMudar: (texto: string) => void;
@@ -30,12 +32,12 @@ export function CampoMoeda({ rotulo, texto, aoMudar, erro, ajuda, mascara }: {
     // shortcut: a máscara reescreve o texto inteiro e o cursor vai para o fim (editar no meio não é preservado); trocar por seleção controlada se pedirem.
     return (
       <Campo numerico rotulo={rotulo} valor={exibido} aoMudar={(novo) => aoMudar(mascaraDeMoeda(exibido, novo))}
-        placeholder="R$ 0,00" keyboardType="number-pad" inputMode="numeric" ajuda={ajuda} erro={erro ?? null} />
+        placeholder="R$ 0,00" keyboardType="number-pad" inputMode="numeric" ajuda={ajuda} erro={erro ?? null} corDoTexto={corDoTexto} />
     );
   }
   return (
     <Campo numerico rotulo={rotulo} valor={texto} aoMudar={aoMudar} placeholder="0,00" keyboardType="decimal-pad" inputMode="decimal"
-      ajuda={ajuda} erro={erro ?? (invalido ? 'Valor inválido. Use reais, por exemplo 150,00.' : null)} />
+      ajuda={ajuda} erro={erro ?? (invalido ? 'Valor inválido. Use reais, por exemplo 150,00.' : null)} corDoTexto={corDoTexto} />
   );
 }
 

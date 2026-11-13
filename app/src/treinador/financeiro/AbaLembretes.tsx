@@ -6,7 +6,7 @@ import { buscarLembretes, salvarLembretes } from '../../api/rotas';
 import {
   DIAS_ANTES_MAXIMO, DIAS_DEPOIS_MAXIMO, lerDias, resumoDosLembretes, TEXTO_EMAIL_DESLIGADO, TEXTO_LEMBRETES,
 } from '../../dominio/lembretesDeCobranca';
-import { espaco, LARGURA_EDITOR } from '../../tema/tokens';
+import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
@@ -26,6 +26,9 @@ import { avisoDeConflito, ehConflito } from './comum';
 
 /** Duas áreas lado a lado a partir de 760 px (medidos na própria grade), uma embaixo da outra abaixo disso. */
 const duasColunas = (largura: number) => (largura >= 760 ? 2 : 1);
+
+/** Da largura medida do conteúdo em diante, "Quem recebe e por onde" fica numa coluna à direita do formulário. */
+const LARGURA_PARA_LADO_A_LADO = 1100;
 
 /** Quem recebe e por onde: só as regras que a API aplica (`AGENTS.md`, lembretes de cobrança). */
 const REGRAS = [
@@ -67,6 +70,8 @@ function Formulario({ dados, podeAlterar, aoMudar, aoRecarregar }: {
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
   const [tentou, setTentou] = useState(false);
+  const [largura, setLargura] = useState(0);
+  const larga = largura >= LARGURA_PARA_LADO_A_LADO;
 
   const diasAntes = lerDias(antes, DIAS_ANTES_MAXIMO);
   const diasDepois = lerDias(depois, DIAS_DEPOIS_MAXIMO);
@@ -103,7 +108,9 @@ function Formulario({ dados, podeAlterar, aoMudar, aoRecarregar }: {
   };
 
   return (
-    <>
+    // Mesma árvore em qualquer largura (só o estilo muda), para os campos não remontarem ao redimensionar.
+    <View onLayout={(e) => setLargura(e.nativeEvent.layout.width)} style={[estilos.corpo, larga ? estilos.corpoLargo : null]}>
+      <View style={[estilos.formulario, larga ? estilos.formularioLargo : null]}>
       <Grade colunas={duasColunas} gap={espaco(2)} alinhar="inicio">
         <Cartao titulo="Lembretes de cobrança" descricao="Por e-mail, para toda a consultoria: liga ou desliga os envios automáticos.">
           {podeAlterar ? (
@@ -149,22 +156,31 @@ function Formulario({ dados, podeAlterar, aoMudar, aoRecarregar }: {
           </LinhaDeAcoes>
         </View>
       ) : null}
-      <Cartao titulo="Quem recebe e por onde" descricao={TEXTO_LEMBRETES}>
-        <View role="list" style={estilos.regras}>
-          {REGRAS.map((r) => (
-            <View key={r} role="listitem" style={estilos.regra}>
-              <Texto variante="suave" aria-hidden>•</Texto>
-              <Texto variante="suave" style={estilos.textoDaRegra}>{r}</Texto>
-            </View>
-          ))}
-        </View>
-      </Cartao>
-    </>
+      </View>
+      <View style={larga ? estilos.regrasLargo : undefined}>
+        <Cartao titulo="Quem recebe e por onde" descricao={TEXTO_LEMBRETES}>
+          <View role="list" style={estilos.regras}>
+            {REGRAS.map((r) => (
+              <View key={r} role="listitem" style={estilos.regra}>
+                <Texto variante="suave" aria-hidden>•</Texto>
+                <Texto variante="suave" style={estilos.textoDaRegra}>{r}</Texto>
+              </View>
+            ))}
+          </View>
+        </Cartao>
+      </View>
+    </View>
   );
 }
 
 const estilos = StyleSheet.create({
-  coluna: { gap: espaco(2), width: '100%', maxWidth: LARGURA_EDITOR },
+  // Sem teto de largura: a tela usa o espaço útil (o corpo da página já limita em LARGURA_LISTA).
+  coluna: { gap: espaco(2), width: '100%' },
+  corpo: { gap: espaco(2) },
+  corpoLargo: { flexDirection: 'row', alignItems: 'flex-start' },
+  formulario: { gap: espaco(2) },
+  formularioLargo: { flex: 1, minWidth: 0 },
+  regrasLargo: { width: 360 },
   aviso: { gap: espaco(0.5) },
   acoes: { gap: espaco(1) },
   regras: { gap: espaco(0.75) },

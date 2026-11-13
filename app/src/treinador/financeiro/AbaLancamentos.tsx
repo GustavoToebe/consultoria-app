@@ -45,17 +45,27 @@ const TIPOS: { valor: TipoDeLancamento; rotulo: string }[] = [
   { valor: 'SAIDA', rotulo: 'Saída' },
 ];
 const rotuloDoTipo = (t: TipoDeLancamento) => (t === 'SAIDA' ? 'Saída' : 'Entrada');
-/** Valor com o sinal do tipo ("+R$ 350,00", "−R$ 350,00"): o número fica neutro, quem leva a cor é o marcador do tipo. */
+/** Valor com o sinal do tipo ("+R$ 350,00", "−R$ 350,00"): o sinal e o texto do tipo seguem junto da cor, que nunca é o único sinal. */
 const valorComSinal = (l: LancamentoResponse) => `${l.tipo === 'SAIDA' ? '−' : '+'}${centavosParaTela(l.valorCentavos)}`;
 
+/** Azul de identificação para entrada e `perigo` para saída, só como sinal de direção (uma saída válida não é erro nem status). */
+function useCorDoTipo(): (tipo: TipoDeLancamento) => string {
+  const { cores, identificacao } = useTema();
+  return (tipo) => (tipo === 'SAIDA' ? cores.perigo : identificacao.AZUL.cor);
+}
+
+/** Valor da linha na cor do tipo. */
+function ValorDoLancamento({ lancamento }: { lancamento: LancamentoResponse }) {
+  const corDoTipo = useCorDoTipo();
+  return <Texto numerico cor={corDoTipo(lancamento.tipo)}>{valorComSinal(lancamento)}</Texto>;
+}
+
 /**
- * Marcador do tipo: seta e o texto "Entrada"/"Saída", sempre juntos (a cor nunca é o único sinal). Azul de identificação
- * para entrada e `perigo` para saída só como sinal de direção, sem selo (uma saída válida não é erro nem status).
+ * Marcador do tipo: seta e o texto "Entrada"/"Saída", sempre juntos (a cor nunca é o único sinal), sem selo.
  */
 function TipoDoLancamento({ tipo }: { tipo: TipoDeLancamento }) {
-  const { cores, identificacao } = useTema();
+  const cor = useCorDoTipo()(tipo);
   const saida = tipo === 'SAIDA';
-  const cor = saida ? cores.perigo : identificacao.AZUL.cor;
   const Icone = saida ? ArrowUpRight : ArrowDownLeft;
   return (
     <View style={estilos.tipo}>
@@ -142,7 +152,7 @@ export function AbaLancamentos({ podeAlterar }: { podeAlterar: boolean }) {
                 { chave: 'data', titulo: 'Data', flex: 1, render: (l) => <Texto numerico>{dataParaTela(l.data)}</Texto> },
                 { chave: 'tipo', titulo: 'Tipo', flex: 1, render: (l) => <TipoDoLancamento tipo={l.tipo} /> },
                 { chave: 'categoria', titulo: 'Categoria', flex: 1.2, render: (l) => <Texto numberOfLines={1}>{l.categoria ?? '—'}</Texto> },
-                { chave: 'valor', titulo: 'Valor', flex: 1, alinhar: 'direita', render: (l) => <Texto numerico>{valorComSinal(l)}</Texto> },
+                { chave: 'valor', titulo: 'Valor', flex: 1, alinhar: 'direita', render: (l) => <ValorDoLancamento lancamento={l} /> },
               ]} />
           </View>
           {paginas > 1 ? (
@@ -177,6 +187,7 @@ function Formulario({ lancamento, podeAlterar, aoFechar, aoMudar }: {
   aoMudar: () => void;
 }) {
   const { avisar } = useAviso();
+  const corDoTipo = useCorDoTipo();
   const [tipo, setTipo] = useState<TipoDeLancamento>(lancamento?.tipo ?? 'SAIDA');
   const [data, setData] = useState(dataParaTela(lancamento?.data ?? hojeEmBrasilia()));
   const [descricao, setDescricao] = useState(lancamento?.descricao ?? '');
@@ -243,7 +254,7 @@ function Formulario({ lancamento, podeAlterar, aoFechar, aoMudar }: {
             <CampoData rotulo="Data" valor={data} aoMudar={setData} erro={tentou && !iso ? 'Informe a data do lançamento.' : null} />
             <Campo rotulo="Descrição" valor={descricao} aoMudar={setDescricao} maxLength={LIMITES.descricaoDoLancamento}
               erro={tentou && !descricao.trim() ? 'Descreva o lançamento.' : null} />
-            <CampoMoeda mascara rotulo="Valor" texto={valor} aoMudar={setValor}
+            <CampoMoeda mascara rotulo="Valor" texto={valor} aoMudar={setValor} corDoTexto={corDoTipo(tipo)}
               erro={tentou && centavos === null ? 'Informe um valor maior que zero, por exemplo 150,00.' : null} />
             <Campo rotulo="Categoria (opcional)" valor={categoria} aoMudar={setCategoria} maxLength={LIMITES.categoria}
               ajuda="Texto livre, por exemplo Aluguel ou Equipamentos." />
