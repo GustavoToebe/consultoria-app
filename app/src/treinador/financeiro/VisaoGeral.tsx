@@ -13,7 +13,7 @@ import { dataSemAnoCorrente } from '../../dominio/datasRelativas';
 import { centavosParaTela, dataParaTela } from '../../dominio/formatos';
 import { contagemParaTela, rotuloDoMes } from '../../dominio/numeros';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, LARGURA_MENU_LATERAL, RAIO } from '../../tema/tokens';
+import { espaco, LARGURA_MENU_LATERAL } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { CampoLeitura } from '../../ui/CampoLeitura';
@@ -22,6 +22,7 @@ import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro } from '../../ui/Estados';
+import { NumeroDeDestaque } from '../../ui/NumeroDeDestaque';
 import { textoDoErro } from '../../ui/erros';
 import { GraficoBarras } from '../../ui/GraficoBarras';
 import { ItemDeLista } from '../../ui/ItemDeLista';
@@ -100,7 +101,7 @@ export function VisaoGeral({ escopo, aoMudarEscopo, podeAlterar }: {
           </Texto>
           <View style={estilos.indicadores}>
             {cartoesDoPainel(dados.cartoes).map((c) => (
-              <Indicador key={c.chave} cartao={c} alerta={c.chave === 'emAtraso' && (dados.cartoes.emAtraso?.valorCentavos ?? 0) > 0} />
+              <Indicador key={c.chave} cartao={c} />
             ))}
           </View>
           <Inadimplencia painel={dados.inadimplencia} vencidasNoPeriodo={dados.cartoes.emAtraso?.cobrancas ?? 0} lista={atrasados}
@@ -175,21 +176,18 @@ export function VisaoGeral({ escopo, aoMudarEscopo, podeAlterar }: {
 }
 
 /**
- * Um número do período: rótulo, valor grande e a nota pequena. Só "Em atraso" acende (borda vermelha à esquerda), e só
- * com valor: cor com significado, nunca a marca. Os seis cabem três por linha no PC e dois no celular.
+ * Um número do período na peça de destaque (D6 de `docs/planos/cores-de-destaque.md`): recebido azul, a receber ciano,
+ * em atraso vermelho, recorrente violeta, os demais neutros; zero e "—" sem cor (D5). Cor com significado, nunca a
+ * marca, e sempre com o título. Os seis cabem três por linha no PC e dois no celular.
  */
-function Indicador({ cartao, alerta }: { cartao: CartaoDoPainel; alerta: boolean }) {
-  const { cores } = useTema();
+function Indicador({ cartao }: { cartao: CartaoDoPainel }) {
   const { width } = useWindowDimensions();
+  const celular = width < LARGURA_MENU_LATERAL;
   // Base larga no PC (três ou mais por linha, nunca quatro e dois) e estreita no celular (dois por linha).
-  const base = width < LARGURA_MENU_LATERAL ? 150 : 280;
   return (
-    <View accessibilityLabel={`${cartao.titulo}: ${cartao.valor}${cartao.detalhe ? `. ${cartao.detalhe}` : ''}`}
-      style={[estilos.indicador, { flexBasis: base, backgroundColor: cores.superficie, borderColor: alerta ? cores.perigo : cores.borda, borderLeftWidth: alerta ? 4 : 1 }]}>
-      <Texto variante="suave" nivel={2}>{cartao.titulo}</Texto>
-      <Texto variante="destaque" numerico style={[width < LARGURA_MENU_LATERAL ? estilos.valorCelular : null, alerta ? { color: cores.perigo } : null]}>{cartao.valor}</Texto>
-      {cartao.detalhe ? <Texto variante="pequeno">{cartao.detalhe}</Texto> : null}
-    </View>
+    <NumeroDeDestaque rotulo={cartao.titulo} valor={cartao.valor} detalhe={cartao.detalhe} enfase={cartao.enfase} nivelDoRotulo={2}
+      rotuloAcessivel={`${cartao.titulo}: ${cartao.valor}${cartao.detalhe ? `. ${cartao.detalhe}` : ''}`}
+      style={[estilos.indicador, { flexBasis: celular ? 150 : 280 }]} estiloDoValor={celular ? estilos.valorCelular : null} />
   );
 }
 
@@ -348,7 +346,7 @@ const estilos = StyleSheet.create({
   filtros: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(3), rowGap: espaco(1.5), alignItems: 'flex-end' },
   caber: { flexShrink: 1, maxWidth: '100%' },
   indicadores: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
-  indicador: { flexGrow: 1, flexShrink: 1, minWidth: 0, gap: espaco(0.5), borderWidth: 1, borderRadius: RAIO, padding: espaco(2) },
+  indicador: { flexShrink: 1, paddingVertical: espaco(2) },
   lista: { gap: espaco(1) },
   // No celular o tile tem ~140 px úteis: 20 px ainda cabe "R$ 1.200,00" numa linha.
   valorCelular: { fontSize: 20, lineHeight: 26 },

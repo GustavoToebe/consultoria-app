@@ -12,6 +12,7 @@ import {
   PALETA_DE_IDENTIFICACAO,
   contraste,
   corDaAgenda,
+  coresDeDestaque,
   coresDeIdentificacao,
   luminancia,
   marcaAoPassar,
@@ -22,6 +23,7 @@ import {
   type Cores,
 } from './tokens';
 import { variaveisDoTema } from './variaveis';
+import { FUNCOES_DE_DESTAQUE } from '../dominio/destaque';
 
 /** Todas as paletas da marca (decisão 1 do plano `paletas-da-marca`): cada teste de contraste percorre a lista inteira. */
 const TODAS: [string, Cores, boolean][] = Object.entries(PALETAS).map(([codigo, p]) => [codigo, p.cores, p.modo === 'ESCURO']);
@@ -397,4 +399,44 @@ it('trocar a marca não muda nenhuma cor de situação nem de categoria (pág. 4
       }
     }
   }
+});
+
+// ---- Destaque do número de indicador (`docs/planos/cores-de-destaque.md`, D3 e D4) ----
+
+describe.each(VARIANTES)('cores de destaque (%s)', (_nome, cores, escuro) => {
+  const destaque = coresDeDestaque(cores, escuro);
+
+  it('verde, âmbar e vermelho são os da situação (D13: o mesmo do selo)', () => {
+    expect(destaque.verde.cor).toBe(cores.sucesso);
+    expect(destaque.ambar.cor).toBe(cores.atencao);
+    expect(destaque.vermelho.cor).toBe(cores.perigo);
+  });
+
+  // Medido na cor composta, sem arredondar (D4): `contraste` devolve a razão exata.
+  it('o número na cor do destaque passa 4,5:1 sobre o fundo tonalizado, também no hover', () => {
+    for (const f of FUNCOES_DE_DESTAQUE) {
+      const { cor, fundo, fundoSobre } = destaque[f];
+      expect(fundo).toMatch(/^#[0-9A-F]{6}$/);
+      expect(contraste(cor, fundo)).toBeGreaterThanOrEqual(4.5);
+      expect(contraste(cor, fundoSobre)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it('rótulo (texto) e detalhe (textoSuave) seguem legíveis sobre o fundo tonalizado', () => {
+    for (const f of FUNCOES_DE_DESTAQUE) {
+      for (const fundo of [destaque[f].fundo, destaque[f].fundoSobre]) {
+        expect(contraste(cores.texto, fundo)).toBeGreaterThanOrEqual(4.5);
+        expect(contraste(cores.textoSuave, fundo)).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
+  it('a faixa lateral passa 3:1 contra o fundo de dentro e as superfícies de fora', () => {
+    for (const f of FUNCOES_DE_DESTAQUE) {
+      const { cor, fundo, fundoSobre } = destaque[f];
+      for (const vizinho of [fundo, fundoSobre, cores.superficie, cores.painel, cores.fundo]) {
+        expect(contraste(cor, vizinho)).toBeGreaterThanOrEqual(3);
+      }
+    }
+  });
 });

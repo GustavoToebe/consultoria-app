@@ -1,5 +1,6 @@
 import type { CorDaAgenda } from '../api/agendaTipos';
 import type { Tema } from '../api/tipos';
+import type { FuncaoDeDestaque } from '../dominio/destaque';
 
 /**
  * Visual de 11/11 (prévia `docs/prototipos/visual-vendavel/` + guia em PDF; resumo em
@@ -326,6 +327,35 @@ export function coresDeIdentificacao(cores: Cores, escuro: boolean): Record<Chav
     resultado[chave] = { cor: paleta[chave], fundo: tingido(paleta[chave], cores.superficie) };
   }
   return resultado;
+}
+
+/**
+ * Cores de DESTAQUE do número de indicador (`docs/planos/cores-de-destaque.md`, D3 e D4): azul, ciano e violeta são de
+ * indicador (medida, sem juízo; valores do PDF de 13/11) e ficam fora de `Cores`, como a identificação: o contraste alto e
+ * as bordas reforçadas não mexem nas superfícies. Verde, âmbar e vermelho são os da situação (`sucesso`, `atencao`,
+ * `perigo`), os mesmos do `Selo` (D13: a mesma informação com a mesma cor). Não substituem as cores de categoria.
+ */
+export const PALETA_DE_DESTAQUE: Record<'claro' | 'escuro', Record<'azul' | 'ciano' | 'violeta', string>> = {
+  claro: { azul: '#1D4ED8', ciano: '#0E7490', violeta: '#6D28D9' },
+  escuro: { azul: '#60A5FA', ciano: '#67E8F9', violeta: '#C4B5FD' },
+};
+
+/** Quanto do destaque entra no fundo tonalizado (D4): mistura composta sobre a superfície, nunca opacidade na peça. */
+export const TINTA_DO_DESTAQUE = { claro: 0.06, escuro: 0.08 } as const;
+
+/** Um destaque resolvido para o tema: `cor` (número e faixa), `fundo` (sobre a `superficie`) e `fundoSobre` (hover, sobre a `superficie2`). */
+export interface CorDeDestaque {
+  cor: string;
+  fundo: string;
+  fundoSobre: string;
+}
+
+/** Os seis destaques para as cores do tema em uso; o contraste do número sobre cada fundo é medido em `tokens.test.ts`. */
+export function coresDeDestaque(cores: Cores, escuro: boolean): Record<FuncaoDeDestaque, CorDeDestaque> {
+  const p = PALETA_DE_DESTAQUE[escuro ? 'escuro' : 'claro'];
+  const t = TINTA_DO_DESTAQUE[escuro ? 'escuro' : 'claro'];
+  const de = (cor: string): CorDeDestaque => ({ cor, fundo: misturar(cores.superficie, cor, t), fundoSobre: misturar(cores.superficie2, cor, t) });
+  return { azul: de(p.azul), ciano: de(p.ciano), violeta: de(p.violeta), verde: de(cores.sucesso), ambar: de(cores.atencao), vermelho: de(cores.perigo) };
 }
 
 /** Cor neutra para telas sem marca (entrar, cadastro). */

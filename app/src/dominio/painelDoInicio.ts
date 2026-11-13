@@ -5,6 +5,7 @@ import type { PainelTreinador, RecordesDaSemana } from '../api/tipos';
 import { periodoDoCalendario } from './agendaCalendario';
 import { caminhoListaAtualizacoes } from './atualizacao';
 import { dataRelativa } from './datasRelativas';
+import { enfaseDoNumero, type EnfaseDoNumero, type FuncaoDeDestaque } from './destaque';
 import { centavosParaTela, dataCurta, SEM_DADO } from './formatos';
 import { hojeEmBrasilia, periodoDoPainel } from './financeiro';
 import { contadorDeRetornos } from './inicioTreinador';
@@ -26,7 +27,7 @@ export type { BlocoDoPainelId, PainelDoInicioPreferido };
  * Regras de ausência (valem em tudo aqui):
  *  - recurso desligado ou sem permissão: o bloco ou o cartão SOME;
  *  - bloco visível, mas a consulta falhou ou veio sem o número: o cartão fica "Não carregou" (`estado: 'naoCarregou'`);
- *  - `null` nunca vira zero; zero de verdade fica em cinza (`tom: 'neutro'`).
+ *  - `null` nunca vira zero; zero de verdade fica em cinza (`enfase: 'apagado'`, D5 de `docs/planos/cores-de-destaque.md`).
  */
 
 // ---- Blocos ----
@@ -321,7 +322,8 @@ export interface CartaoDoPainel {
   moeda: boolean;
   /** Linha pequena sob o número ("4 cobranças", "1 atrasado · 1 para hoje"). */
   detalhe: string | null;
-  tom: TomDoCartao;
+  /** Cor do número (D6 de `cores-de-destaque.md`): a função quando há valor positivo; zero e sem dado `apagado`. */
+  enfase: EnfaseDoNumero;
   /** Rótulo do leitor de tela (valor completo em R$ com centavos). */
   falado: string;
   /** `null` quando não dá para abrir (Folha sem dados). */
@@ -347,7 +349,8 @@ interface EntradaDeCartao {
   nome: string;
   situacao: Fonte<unknown>['situacao'];
   valor: number | null | undefined;
-  tom: TomDoCartao;
+  /** Função da cor do número (D6); `null` = neutro. */
+  destaque: FuncaoDeDestaque | null;
   destino: DestinoDoCartao | null;
   moeda?: boolean;
   largo?: boolean;
@@ -360,19 +363,19 @@ interface EntradaDeCartao {
 function cartao(e: EntradaDeCartao): CartaoDoPainel {
   const base = { chave: e.chave, rotulo: e.rotulo, moeda: !!e.moeda, largo: !!e.largo };
   if (e.situacao === 'carregando') {
-    return { ...base, estado: 'carregando', valor: null, texto: '…', detalhe: null, tom: 'neutro', falado: `${e.nome}: carregando`, destino: e.destino };
+    return { ...base, estado: 'carregando', valor: null, texto: '…', detalhe: null, enfase: 'apagado', falado: `${e.nome}: carregando`, destino: e.destino };
   }
   if (e.situacao !== 'pronta' || !ehNumero(e.valor)) {
     // Folha sem dados não abre; a lista de endereço continua valendo.
     const destino = e.destino?.tipo === 'folha' ? null : e.destino;
-    return { ...base, estado: 'naoCarregou', valor: null, texto: TEXTO_NAO_CARREGOU, detalhe: null, tom: 'neutro', falado: `${e.nome}: não carregou`, destino };
+    return { ...base, estado: 'naoCarregou', valor: null, texto: TEXTO_NAO_CARREGOU, detalhe: null, enfase: 'apagado', falado: `${e.nome}: não carregou`, destino };
   }
   const texto = e.moeda ? reaisSemCentavos(e.valor) : milhares(Math.round(e.valor));
   const falado = e.moeda ? centavosParaTela(e.valor) : milhares(Math.round(e.valor));
   const aviso = e.abreLista && e.destino ? '. Abre a lista' : '';
   return {
     ...base, estado: 'valor', valor: e.valor, texto, detalhe: e.detalhe ?? null,
-    tom: e.valor > 0 ? e.tom : 'neutro',
+    enfase: enfaseDoNumero(e.destaque, e.valor),
     falado: `${e.nome}: ${falado}${e.detalheFalado ? `, ${e.detalheFalado}` : ''}${aviso}`,
     destino: e.destino,
   };
@@ -382,7 +385,7 @@ function cartao(e: EntradaDeCartao): CartaoDoPainel {
 function cartaoSemDado(e: Omit<EntradaDeCartao, 'situacao' | 'valor'>): CartaoDoPainel {
   return {
     chave: e.chave, rotulo: e.rotulo, moeda: !!e.moeda, largo: !!e.largo, estado: 'semDado', valor: null, texto: SEM_DADO,
-    detalhe: null, tom: 'neutro', falado: `${e.nome}: sem dado`, destino: e.destino,
+    detalhe: null, enfase: 'apagado', falado: `${e.nome}: sem dado`, destino: e.destino,
   };
 }
 
@@ -559,14 +562,14 @@ type Entrada = OpcoesDoBloco & { fontes: FontesDoPainel };
 function blocoAtualizacoes(o: Entrada): BlocoDoPainel {
   const sit = situacaoDe(o.fontes.painel);
   const p = dadosDe(o.fontes.painel);
-  const base = { situacao: sit, tom: 'neutro' as TomDoCartao };
+  const base = { situacao: sit };
   const ir = (situacao: 'PARA_REVISAR' | 'ATRASADAS' | 'PROXIMAS'): DestinoDoCartao => ({ tipo: 'endereco', href: caminhoListaAtualizacoes(situacao, o.meus) });
   return fechar(cabecalho('atualizacoes', o.meus), {
     cartoes: [
-      cartao({ ...base, chave: 'atualizacoes.paraRevisar', rotulo: 'Para revisar', nome: 'Atualizações para revisar', valor: p?.atualizacoesParaRevisar, tom: 'atencao', destino: ir('PARA_REVISAR') }),
-      cartao({ ...base, chave: 'atualizacoes.atrasadas', rotulo: 'Atrasadas', nome: 'Atualizações atrasadas', valor: p?.atualizacoesAtrasadas, tom: 'perigo', destino: ir('ATRASADAS') }),
+      cartao({ ...base, chave: 'atualizacoes.paraRevisar', rotulo: 'Para revisar', nome: 'Atualizações para revisar', valor: p?.atualizacoesParaRevisar, destaque: 'ambar', destino: ir('PARA_REVISAR') }),
+      cartao({ ...base, chave: 'atualizacoes.atrasadas', rotulo: 'Atrasadas', nome: 'Atualizações atrasadas', valor: p?.atualizacoesAtrasadas, destaque: 'vermelho', destino: ir('ATRASADAS') }),
     ],
-    linha: cartao({ ...base, chave: 'atualizacoes.proximas', rotulo: 'Nos próximos 7 dias', nome: 'Atualizações nos próximos 7 dias', valor: p?.atualizacoesProximas, destino: ir('PROXIMAS') }),
+    linha: cartao({ ...base, chave: 'atualizacoes.proximas', rotulo: 'Nos próximos 7 dias', nome: 'Atualizações nos próximos 7 dias', valor: p?.atualizacoesProximas, destaque: 'azul', destino: ir('PROXIMAS') }),
   });
 }
 
@@ -582,14 +585,14 @@ function blocoInteressados(o: Entrada): BlocoDoPainel {
   const falado = r ? [c!.retornosAtrasados > 0 ? plural(c!.retornosAtrasados, 'atrasado', 'atrasados') : '', c!.retornosHoje > 0 ? `${c!.retornosHoje} de hoje` : ''].filter(Boolean).join(' e ') : '';
   return fechar(cabecalho('interessados', o.meus), {
     cartoes: [
-      cartao({ chave: 'interessados.novos', rotulo: 'Novos', nome: 'Interessados novos', situacao: sit, valor: novos, tom: 'atencao', destino: href('situacao=NOVA') }),
+      cartao({ chave: 'interessados.novos', rotulo: 'Novos', nome: 'Interessados novos', situacao: sit, valor: novos, destaque: 'ciano', destino: href('situacao=NOVA') }),
       cartao({
         chave: 'interessados.retornos', rotulo: 'Retornos', nome: 'Retornos a interessados atrasados ou de hoje', situacao: sit, valor: r?.numero,
-        tom: r?.tom === 'perigo' ? 'perigo' : 'atencao', destino: href('retornos=ATE_HOJE'), detalhe: r?.detalhe ?? null, detalheFalado: falado || null,
+        destaque: r?.tom === 'perigo' ? 'vermelho' : 'ambar', destino: href('retornos=ATE_HOJE'), detalhe: r?.detalhe ?? null, detalheFalado: falado || null,
       }),
       cartao({
         chave: 'interessados.contato', rotulo: 'Em contato ou negociação', nome: 'Interessados em contato ou negociação', situacao: sit, valor: contato,
-        tom: 'neutro', destino: href('visao=kanban', 'etapas=EM_CONTATO,EM_NEGOCIACAO'), largo: true,
+        destaque: null, destino: href('visao=kanban', 'etapas=EM_CONTATO,EM_NEGOCIACAO'), largo: true,
       }),
     ],
   });
@@ -604,15 +607,15 @@ function blocoTreinos(ctx: ContextoDoPainel, o: Entrada): BlocoDoPainel {
   const sitRecordes = situacaoDe(o.fontes.recordes);
   const semRegistro = cartao({
     chave: 'treinos.semRegistro', rotulo: `Sem registro há ${dias} dias`, nome: `Alunos sem registro há ${dias} dias`, situacao: sitPainel,
-    valor: p?.alunosSemRegistroTotal, tom: 'atencao', destino: { tipo: 'folha', folha: 'semRegistro' }, largo: retorno, abreLista: true,
+    valor: p?.alunosSemRegistroTotal, destaque: 'ambar', destino: { tipo: 'folha', folha: 'semRegistro' }, largo: retorno, abreLista: true,
   });
   if (!retorno) return fechar(cabecalho('treinos', o.meus), { cartoes: [semRegistro], nota: NOTA_SEM_RETORNO });
   const alunos: DestinoDoCartao = { tipo: 'endereco', href: listaDeAlunos(o.meus) };
   const recordes = dadosDe(o.fontes.recordes);
   return fechar(cabecalho('treinos', o.meus, { periodo: PERIODO_DOS_TREINOS }), {
     cartoes: [
-      cartao({ chave: 'treinos.concluidos', rotulo: 'Concluídos', nome: 'Sessões concluídas nos últimos 7 dias, completas e parciais', situacao: sitPainel, valor: p?.sessoesConcluidas7Dias, tom: 'sucesso', destino: alunos }),
-      cartao({ chave: 'treinos.recordes', rotulo: 'Recordes', nome: 'Recordes nos últimos 7 dias', situacao: sitRecordes, valor: recordes?.total, tom: 'sucesso', destino: { tipo: 'folha', folha: 'recordes' }, abreLista: true }),
+      cartao({ chave: 'treinos.concluidos', rotulo: 'Concluídos', nome: 'Sessões concluídas nos últimos 7 dias, completas e parciais', situacao: sitPainel, valor: p?.sessoesConcluidas7Dias, destaque: 'verde', destino: alunos }),
+      cartao({ chave: 'treinos.recordes', rotulo: 'Recordes', nome: 'Recordes nos últimos 7 dias', situacao: sitRecordes, valor: recordes?.total, destaque: 'violeta', destino: { tipo: 'folha', folha: 'recordes' }, abreLista: true }),
       semRegistro,
     ],
   });
@@ -626,8 +629,8 @@ function blocoPastas(ctx: ContextoDoPainel, o: Entrada): BlocoDoPainel {
   const filtroSemPasta = ctx.pode('ATUALIZACAO_LER') && ctx.pode('ALUNO_SENSIVEL_LER') && 'atualizacao=SEM_PASTA';
   return fechar(cabecalho('pastas', o.meus), {
     cartoes: [
-      cartao({ chave: 'pastas.aRenovar', rotulo: 'A renovar em 7 dias', nome: 'Pastas a renovar em 7 dias', situacao: sit, valor: p?.pastasARenovar, tom: 'atencao', destino: { tipo: 'folha', folha: 'pastasARenovar' }, abreLista: true }),
-      cartao({ chave: 'pastas.semPasta', rotulo: 'Sem pasta com período', nome: 'Alunos sem pasta com período', situacao: sit, valor: p?.alunosSemPastaComPeriodo, tom: 'neutro', destino: { tipo: 'endereco', href: listaDeAlunos(o.meus, filtroSemPasta) } }),
+      cartao({ chave: 'pastas.aRenovar', rotulo: 'A renovar em 7 dias', nome: 'Pastas a renovar em 7 dias', situacao: sit, valor: p?.pastasARenovar, destaque: 'ambar', destino: { tipo: 'folha', folha: 'pastasARenovar' }, abreLista: true }),
+      cartao({ chave: 'pastas.semPasta', rotulo: 'Sem pasta com período', nome: 'Alunos sem pasta com período', situacao: sit, valor: p?.alunosSemPastaComPeriodo, destaque: null, destino: { tipo: 'endereco', href: listaDeAlunos(o.meus, filtroSemPasta) } }),
     ],
   });
 }
@@ -646,7 +649,7 @@ function blocoAgenda(o: Entrada): BlocoDoPainel {
     cartoes: [
       cartao({
         chave: 'agenda.semana', rotulo: 'Esta semana', nome: 'Compromissos nesta semana, de segunda a domingo', situacao: sit,
-        valor: r && Array.isArray(r.dias) ? compromissosDaSemana(r) : null, tom: 'neutro', largo: true,
+        valor: r && Array.isArray(r.dias) ? compromissosDaSemana(r) : null, destaque: null, largo: true,
         destino: { tipo: 'endereco', href: enderecoDoBloco('agenda', o.meus) },
       }),
     ],
@@ -669,7 +672,7 @@ function blocoFinanceiro(ctx: ContextoDoPainel, o: Entrada): BlocoDoPainel {
     const valor = n === 0 ? 0 : i?.valorTotalCentavos;
     cartoes.push(cartao({
       chave: 'financeiro.vencidas', rotulo: 'Vencidas', nome: 'Cobranças vencidas', situacao: n === null && sit === 'pronta' ? 'falhou' : sit, valor,
-      tom: 'perigo', destino, moeda: true, detalhe: n ? quantidade(n) : null, detalheFalado: n ? quantidade(n) : null,
+      destaque: 'vermelho', destino, moeda: true, detalhe: n ? quantidade(n) : null, detalheFalado: n ? quantidade(n) : null,
     }));
   }
 
@@ -679,7 +682,7 @@ function blocoFinanceiro(ctx: ContextoDoPainel, o: Entrada): BlocoDoPainel {
   const q7 = em7 && ehNumero(em7.cobrancas) ? em7.cobrancas : null;
   cartoes.push(cartao({
     chave: 'financeiro.vencendo', rotulo: 'Vencendo em 7 dias', nome: 'Cobranças vencendo em 7 dias', situacao: q7 === null && sitF === 'pronta' ? 'falhou' : sitF,
-    valor: q7 === 0 ? 0 : em7?.valorCentavos, tom: 'atencao', moeda: true, detalhe: q7 ? quantidade(q7) : null, detalheFalado: q7 ? quantidade(q7) : null,
+    valor: q7 === 0 ? 0 : em7?.valorCentavos, destaque: 'ciano', moeda: true, detalhe: q7 ? quantidade(q7) : null, detalheFalado: q7 ? quantidade(q7) : null,
     destino: href('aba=cobrancas', 'situacao=ABERTA', 'vencimento=PROXIMOS_7_DIAS'),
   }));
 
@@ -687,7 +690,7 @@ function blocoFinanceiro(ctx: ContextoDoPainel, o: Entrada): BlocoDoPainel {
   // `resultadoDoMes` (mesma consulta, do dia 1 a hoje). Sem pagamento no mês a soma vem nula: "—", nunca zero.
   const recebido = f ? f.resultadoDoMes?.recebidoCentavos : undefined;
   const entradaRecebido = {
-    chave: 'financeiro.recebido', rotulo: 'Recebido no mês (bruto)', nome: 'Recebido no mês, valor bruto', tom: 'sucesso' as TomDoCartao, moeda: true, largo: true,
+    chave: 'financeiro.recebido', rotulo: 'Recebido no mês (bruto)', nome: 'Recebido no mês, valor bruto', destaque: 'azul' as const, moeda: true, largo: true,
     destino: href('aba=visao'),
   };
   cartoes.push(sitF === 'pronta' && f && !ehNumero(recebido) && f.resultadoDoMes ? cartaoSemDado(entradaRecebido) : cartao({ ...entradaRecebido, situacao: sitF, valor: recebido }));

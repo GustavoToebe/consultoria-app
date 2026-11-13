@@ -187,8 +187,8 @@ describe('Atualizações', () => {
   it('cartões, cores, números e destinos com meus=true quando o bloco está em Meus', () => {
     const b = bloco('atualizacoes');
     expect(b.cartoes.map((c) => c.texto)).toEqual(['3', '2']);
-    expect(cartaoDe(b, 'atualizacoes.paraRevisar').tom).toBe('atencao');
-    expect(cartaoDe(b, 'atualizacoes.atrasadas').tom).toBe('perigo');
+    expect(cartaoDe(b, 'atualizacoes.paraRevisar').enfase).toBe('ambar');
+    expect(cartaoDe(b, 'atualizacoes.atrasadas').enfase).toBe('vermelho');
     expect(href(cartaoDe(b, 'atualizacoes.paraRevisar').destino)).toBe('/treinador/atualizacoes?situacao=PARA_REVISAR');
     expect(b.meus).toBe(false);
     expect(b.escopo).toBeNull();
@@ -200,21 +200,21 @@ describe('Atualizações', () => {
     expect(m.escopo).toBe('Só os meus alunos');
   });
 
-  it('a linha "Nos próximos 7 dias" é neutra, com número e sem cor de alerta', () => {
+  it('a linha "Nos próximos 7 dias" leva o azul de indicador (data próxima não é alerta)', () => {
     const b = bloco('atualizacoes');
-    expect(b.linha).toMatchObject({ rotulo: 'Nos próximos 7 dias', texto: '5', tom: 'neutro', estado: 'valor' });
+    expect(b.linha).toMatchObject({ rotulo: 'Nos próximos 7 dias', texto: '5', enfase: 'azul', estado: 'valor' });
     expect(b.linha?.falado).toBe('Atualizações nos próximos 7 dias: 5');
   });
 
   it('zero fica cinza, mas continua número', () => {
     const b = bloco('atualizacoes', fontes({ painel: fontePronta(painel({ atualizacoesAtrasadas: 0, atualizacoesParaRevisar: 0 })) }));
-    expect(cartaoDe(b, 'atualizacoes.atrasadas')).toMatchObject({ texto: '0', tom: 'neutro', estado: 'valor', valor: 0 });
-    expect(cartaoDe(b, 'atualizacoes.paraRevisar').tom).toBe('neutro');
+    expect(cartaoDe(b, 'atualizacoes.atrasadas')).toMatchObject({ texto: '0', enfase: 'apagado', estado: 'valor', valor: 0 });
+    expect(cartaoDe(b, 'atualizacoes.paraRevisar').enfase).toBe('apagado');
   });
 
   it('/painel falhou: todos os cartões "Não carregou" (nunca 0) e o bloco avisa que falhou', () => {
     const b = bloco('atualizacoes', fontes({ painel: FONTE_FALHOU }));
-    for (const c of [...b.cartoes, b.linha!]) expect(c).toMatchObject({ estado: 'naoCarregou', texto: 'Não carregou', valor: null, tom: 'neutro' });
+    for (const c of [...b.cartoes, b.linha!]) expect(c).toMatchObject({ estado: 'naoCarregou', texto: 'Não carregou', valor: null, enfase: 'apagado' });
     expect(b.falhou).toBe(true);
     expect(cartaoDe(b, 'atualizacoes.atrasadas').falado).toBe('Atualizações atrasadas: não carregou');
   });
@@ -229,7 +229,7 @@ describe('Atualizações', () => {
   it('carregando: cartões em "…", sem tom de alerta', () => {
     const b = bloco('atualizacoes', fontes({ painel: FONTE_CARREGANDO }));
     expect(b.carregando).toBe(true);
-    expect(b.cartoes[0]).toMatchObject({ estado: 'carregando', texto: '…', tom: 'neutro', valor: null });
+    expect(b.cartoes[0]).toMatchObject({ estado: 'carregando', texto: '…', enfase: 'apagado', valor: null });
   });
 });
 
@@ -251,13 +251,13 @@ describe('Interessados', () => {
   it('retornos: soma atrasados e de hoje, vermelho se houver atrasado, âmbar só de hoje; o leitor de tela diz a quebra', () => {
     const b = bloco('interessados');
     const r = cartaoDe(b, 'interessados.retornos');
-    expect(r).toMatchObject({ texto: '3', tom: 'perigo' });
+    expect(r).toMatchObject({ texto: '3', enfase: 'vermelho' });
     expect(r.detalhe).toBe('1 atrasado · 2 para hoje');
     expect(r.falado).toContain('1 atrasado e 2 de hoje');
     const hoje = bloco('interessados', fontes({ interessados: fontePronta(contagens({ retornosAtrasados: 0, retornosHoje: 2 })) }));
-    expect(cartaoDe(hoje, 'interessados.retornos').tom).toBe('atencao');
+    expect(cartaoDe(hoje, 'interessados.retornos').enfase).toBe('ambar');
     const zero = bloco('interessados', fontes({ interessados: fontePronta(contagens({ retornosAtrasados: 0, retornosHoje: 0 })) }));
-    expect(cartaoDe(zero, 'interessados.retornos')).toMatchObject({ texto: '0', tom: 'neutro' });
+    expect(cartaoDe(zero, 'interessados.retornos')).toMatchObject({ texto: '0', enfase: 'apagado' });
   });
 
   it('consulta falhou: "Não carregou" nos três; a soma nunca esconde um null', () => {
@@ -275,9 +275,9 @@ describe('Treinos', () => {
     expect(b.periodo).toBe('Últimos 7 dias');
     expect(b.cartoes.map((c) => c.chave)).toEqual(['treinos.concluidos', 'treinos.recordes', 'treinos.semRegistro']);
     expect(b.cartoes.map((c) => c.texto)).toEqual(['12', '2', '2']);
-    expect(cartaoDe(b, 'treinos.concluidos')).toMatchObject({ tom: 'sucesso' });
-    expect(cartaoDe(b, 'treinos.recordes')).toMatchObject({ tom: 'sucesso' });
-    expect(cartaoDe(b, 'treinos.semRegistro')).toMatchObject({ tom: 'atencao', rotulo: 'Sem registro há 7 dias', largo: true });
+    expect(cartaoDe(b, 'treinos.concluidos')).toMatchObject({ enfase: 'verde' });
+    expect(cartaoDe(b, 'treinos.recordes')).toMatchObject({ enfase: 'violeta' });
+    expect(cartaoDe(b, 'treinos.semRegistro')).toMatchObject({ enfase: 'ambar', rotulo: 'Sem registro há 7 dias', largo: true });
     expect(cartaoDe(b, 'treinos.recordes').destino).toEqual({ tipo: 'folha', folha: 'recordes' });
     expect(cartaoDe(b, 'treinos.semRegistro').destino).toEqual({ tipo: 'folha', folha: 'semRegistro' });
     // Meus/Todos explícito: quem não tem acesso total abriria a lista nos seus sem o meus=false.
@@ -308,7 +308,7 @@ describe('Treinos', () => {
     const b = bloco('treinos', fontes({ recordes: FONTE_FALHOU, painel: fontePronta(painel({ sessoesConcluidas7Dias: null, alunosSemRegistroTotal: 0 })) }));
     expect(cartaoDe(b, 'treinos.recordes')).toMatchObject({ estado: 'naoCarregou', texto: 'Não carregou' });
     expect(cartaoDe(b, 'treinos.concluidos')).toMatchObject({ estado: 'naoCarregou', valor: null });
-    expect(cartaoDe(b, 'treinos.semRegistro')).toMatchObject({ estado: 'valor', texto: '0', tom: 'neutro' });
+    expect(cartaoDe(b, 'treinos.semRegistro')).toMatchObject({ estado: 'valor', texto: '0', enfase: 'apagado' });
     expect(cartaoDe(b, 'treinos.recordes').destino).toBeNull();
   });
 });
@@ -317,8 +317,8 @@ describe('Pastas', () => {
   it('A renovar em 7 dias (Folha) e Sem pasta com período (lista de alunos), com meus=true', () => {
     const b = bloco('pastas', fontes(), ctxCom(), { meus: true });
     expect(b.cartoes.map((c) => c.texto)).toEqual(['2', '4']);
-    expect(cartaoDe(b, 'pastas.aRenovar')).toMatchObject({ tom: 'atencao', destino: { tipo: 'folha', folha: 'pastasARenovar' } });
-    expect(cartaoDe(b, 'pastas.semPasta').tom).toBe('neutro');
+    expect(cartaoDe(b, 'pastas.aRenovar')).toMatchObject({ enfase: 'ambar', destino: { tipo: 'folha', folha: 'pastasARenovar' } });
+    expect(cartaoDe(b, 'pastas.semPasta').enfase).toBe('neutro');
     expect(href(cartaoDe(b, 'pastas.semPasta').destino)).toBe('/treinador/alunos?atualizacao=SEM_PASTA&meus=true');
   });
 
@@ -346,7 +346,7 @@ describe('Agenda', () => {
   it('soma os compromissos da semana; resposta vazia é zero em cinza', () => {
     expect(compromissosDaSemana({ dias: [{ data: 'a', compromissos: 2, eventos: 4 }, { data: 'b', compromissos: 3, eventos: 0 }] })).toBe(5);
     const b = bloco('agenda');
-    expect(cartaoDe(b, 'agenda.semana')).toMatchObject({ texto: '5', tom: 'neutro', estado: 'valor', largo: true });
+    expect(cartaoDe(b, 'agenda.semana')).toMatchObject({ texto: '5', enfase: 'neutro', estado: 'valor', largo: true });
     expect(href(cartaoDe(b, 'agenda.semana').destino)).toBe('/treinador/agenda?visao=semana');
     const vazio = bloco('agenda', fontes({ agenda: fontePronta({ dias: [] }) }));
     expect(cartaoDe(vazio, 'agenda.semana')).toMatchObject({ texto: '0', estado: 'valor' });
@@ -374,13 +374,13 @@ describe('Financeiro', () => {
   it('Vencidas, Vencendo em 7 dias e Recebido no mês: cores, texto sem centavos e valor completo para o leitor de tela', () => {
     const b = bloco('financeiro');
     const v = cartaoDe(b, 'financeiro.vencidas');
-    expect(v).toMatchObject({ texto: 'R$ 451', tom: 'perigo', moeda: true, detalhe: '3 cobranças', estado: 'valor' });
+    expect(v).toMatchObject({ texto: 'R$ 451', enfase: 'vermelho', moeda: true, detalhe: '3 cobranças', estado: 'valor' });
     expect(v.falado).toContain('R$ 450,50');
     expect(v.falado).toContain('3 cobranças');
     const c = cartaoDe(b, 'financeiro.vencendo');
-    expect(c).toMatchObject({ texto: 'R$ 1.241', tom: 'atencao', detalhe: '4 cobranças' });
+    expect(c).toMatchObject({ texto: 'R$ 1.241', enfase: 'ciano', detalhe: '4 cobranças' });
     expect(c.falado).toContain('R$ 1.240,60');
-    expect(cartaoDe(b, 'financeiro.recebido')).toMatchObject({ texto: 'R$ 3.500', tom: 'sucesso', largo: true, rotulo: 'Recebido no mês (bruto)' });
+    expect(cartaoDe(b, 'financeiro.recebido')).toMatchObject({ texto: 'R$ 3.500', enfase: 'azul', largo: true, rotulo: 'Recebido no mês (bruto)' });
   });
 
   it('Recebido no mês vem do resultadoDoMes, nunca do cartão do período de 6 meses', () => {
@@ -404,8 +404,8 @@ describe('Financeiro', () => {
       inadimplentes: fontePronta(inadimplentes({ total: 0, valorTotalCentavos: null })),
       financeiro: fontePronta(financeiro({ proximosRecebimentos: { fonte: 'ABERTAS', em7Dias: { valorCentavos: null, cobrancas: 0 }, em30Dias: { valorCentavos: null, cobrancas: 0 } } })),
     }));
-    expect(cartaoDe(b, 'financeiro.vencidas')).toMatchObject({ estado: 'valor', texto: 'R$ 0', tom: 'neutro', detalhe: null });
-    expect(cartaoDe(b, 'financeiro.vencendo')).toMatchObject({ estado: 'valor', texto: 'R$ 0', tom: 'neutro' });
+    expect(cartaoDe(b, 'financeiro.vencidas')).toMatchObject({ estado: 'valor', texto: 'R$ 0', enfase: 'apagado', detalhe: null });
+    expect(cartaoDe(b, 'financeiro.vencendo')).toMatchObject({ estado: 'valor', texto: 'R$ 0', enfase: 'apagado' });
   });
 
   it('há cobranças mas o valor veio nulo: "Não carregou", nunca R$ 0', () => {
@@ -415,12 +415,12 @@ describe('Financeiro', () => {
 
   it('nada recebido no mês (soma nula): "—", não R$ 0', () => {
     const b = bloco('financeiro', fontes({ financeiro: fontePronta(financeiro({ resultadoDoMes: { rotulo: 'out/2026', mes: '2026-10', recebidoCentavos: null } })) }));
-    expect(cartaoDe(b, 'financeiro.recebido')).toMatchObject({ estado: 'semDado', texto: '—', valor: null, tom: 'neutro' });
+    expect(cartaoDe(b, 'financeiro.recebido')).toMatchObject({ estado: 'semDado', texto: '—', valor: null, enfase: 'apagado' });
   });
 
   it('recebido igual a zero de verdade fica cinza', () => {
     const b = bloco('financeiro', fontes({ financeiro: fontePronta(financeiro({ resultadoDoMes: { rotulo: 'out/2026', mes: '2026-10', recebidoCentavos: 0 } })) }));
-    expect(cartaoDe(b, 'financeiro.recebido')).toMatchObject({ estado: 'valor', texto: 'R$ 0', tom: 'neutro' });
+    expect(cartaoDe(b, 'financeiro.recebido')).toMatchObject({ estado: 'valor', texto: 'R$ 0', enfase: 'apagado' });
   });
 
   it('consultas falharam: Vencidas e Vencendo "Não carregou" (caso b)', () => {

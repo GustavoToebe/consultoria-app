@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { indicadoresInscricoes } from '../../api/rotas';
 import { hojeEmBrasilia } from '../../dominio/agendaPresencial';
+import { enfaseDoNumero, type FuncaoDeDestaque } from '../../dominio/destaque';
 import { dataParaTela, SEM_DADO } from '../../dominio/formatos';
 import { colunasDosIndicadores, duasColunasCom } from '../../dominio/grade';
 import {
@@ -15,11 +16,12 @@ import {
   type PeriodoDosIndicadores,
 } from '../../dominio/inscricoes';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, RAIO } from '../../tema/tokens';
+import { espaco } from '../../tema/tokens';
 import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro } from '../../ui/Estados';
+import { NumeroDeDestaque } from '../../ui/NumeroDeDestaque';
 import { textoDoErro } from '../../ui/erros';
 import { Grade } from '../../ui/Grade';
 import { Tabela } from '../../ui/Tabela';
@@ -90,16 +92,17 @@ export function Indicadores() {
         <>
           <View style={dados.carregando ? estilos.esmaecido : null} accessibilityState={{ busy: dados.carregando }}>
             <Grade gap={espaco(1.5)} colunas={(l) => colunasDosIndicadores(l, fatorTexto)}>
-              <Numero rotulo="Entradas" valor={String(ind.entradas)} />
-              <Numero rotulo="Pessoas" valor={String(ind.pessoas)} />
-              <Numero rotulo="Aceites" valor={String(ind.aceites)} />
-              <Numero rotulo="Conversão das entradas" valor={porcentagem(ind.conversao)}
+              <Numero rotulo="Entradas" valor={ind.entradas} destaque="ciano" />
+              <Numero rotulo="Pessoas" valor={ind.pessoas} destaque="azul" />
+              <Numero rotulo="Aceites" valor={ind.aceites} destaque="verde" />
+              <Numero rotulo="Conversão das entradas" valor={ind.conversao} texto={porcentagem(ind.conversao)} destaque="violeta"
                 detalhe={ind.entradas > 0 ? `${ind.aceitesDasEntradas} de ${ind.entradas} já viraram aluno` : undefined} />
-              <Numero rotulo="Dias até o aceite (mediana)" valor={dias(ind.diasAteAceite.mediana)}
+              <Numero rotulo="Dias até o aceite (mediana)" valor={ind.diasAteAceite.mediana} texto={dias(ind.diasAteAceite.mediana)} destaque="azul"
                 detalhe={`Média: ${dias(ind.diasAteAceite.media)}`} />
-              <Numero rotulo="Recusadas" valor={String(ind.recusadas)} />
-              <Numero rotulo="Desistências" valor={String(ind.desistencias)} />
-              <Numero rotulo="Reaberturas" valor={String(ind.reaberturas)} />
+              {/* D6: recusas e desistências neutras, para não tratar como falha. */}
+              <Numero rotulo="Recusadas" valor={ind.recusadas} destaque={null} />
+              <Numero rotulo="Desistências" valor={ind.desistencias} destaque={null} />
+              <Numero rotulo="Reaberturas" valor={ind.reaberturas} destaque="ciano" />
             </Grade>
           </View>
           {/* Cada análise com a própria altura: o vazio curto não estica até a altura da tabela vizinha. */}
@@ -141,16 +144,12 @@ export function Indicadores() {
   );
 }
 
-/** Um número do período: rótulo, valor e a nota pequena. Neutro (o número não é sinal aqui) e na altura da linha da grade. */
-function Numero({ rotulo, valor, detalhe }: { rotulo: string; valor: string; detalhe?: string }) {
-  const { cores, bordas } = useTema();
-  return (
-    <View style={[estilos.numero, { borderWidth: bordas.bloco, borderColor: cores.divisor, backgroundColor: cores.superficie }]}>
-      <Texto variante="rotulo">{rotulo}</Texto>
-      <Texto variante="titulo" numerico>{valor}</Texto>
-      {detalhe ? <Texto variante="pequeno">{detalhe}</Texto> : null}
-    </View>
-  );
+/**
+ * Um número do período na peça de destaque (D6 de `docs/planos/cores-de-destaque.md`): a cor diz o que o número mede,
+ * nunca se é bom ou ruim; zero e "—" ficam sem cor (D5). O número cru decide a cor; `texto` é o que aparece.
+ */
+function Numero({ rotulo, valor, texto, destaque, detalhe }: { rotulo: string; valor: number | null; texto?: string; destaque: FuncaoDeDestaque | null; detalhe?: string }) {
+  return <NumeroDeDestaque rotulo={rotulo} valor={texto ?? String(valor ?? SEM_DADO)} enfase={enfaseDoNumero(destaque, valor)} detalhe={detalhe} tamanho="medio" />;
 }
 
 const estilos = StyleSheet.create({
@@ -158,7 +157,6 @@ const estilos = StyleSheet.create({
   periodo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', columnGap: espaco(2), rowGap: espaco(0.5) },
   // Na altura do texto das opções da `Escolha`, para ler como uma linha só.
   intervalo: { paddingBottom: espaco(1.25) },
-  numero: { flexGrow: 1, borderRadius: RAIO, paddingVertical: espaco(1.5), paddingHorizontal: espaco(2), gap: espaco(0.5) },
   esmaecido: { opacity: 0.6 },
   definicao: { gap: espaco(0.5) },
 });

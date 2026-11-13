@@ -15,6 +15,9 @@ const ARQUIVOS = [
   'ui/Calendario.tsx',
   'ui/BuscaGlobal.tsx',
   'ui/CartaoDoUsuario.tsx',
+  'ui/NumeroDeDestaque.tsx',
+  'ui/destaqueDoNumero.ts',
+  'treinador/painel/CartaoMini.tsx',
 ];
 const COR_FIXA = /rgba?\(|['"`]#[0-9a-fA-F]{3,8}['"`]|\b(?:bg|text|border)-(?:black|white)\b/;
 

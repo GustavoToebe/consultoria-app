@@ -1,9 +1,11 @@
 import { coresComBordasReforcadas, coresComContraste } from '../dominio/preferencias';
 import { coresDoDesabilitado } from './desabilitado';
+import { aparenciaDoNumero, contornoDoNumero, LARGURA_DA_FAIXA } from './destaqueDoNumero';
+import { FUNCOES_DE_DESTAQUE } from '../dominio/destaque';
 import { coresDoInterruptor } from './interruptor';
 import { coresDoMarcar } from './marcar';
 import { CORES_DO_PERFIL } from '../dominio/perfilDaComunidade';
-import { CAMADA_DA_FOTO, MARCA_NEUTRA, PALETAS, contraste, corDoTomDoPerfil, marcaParaTexto, textoSobre, tingido, type Cores } from '../tema/tokens';
+import { CAMADA_DA_FOTO, MARCA_NEUTRA, PALETAS, contraste, coresDeDestaque, corDoTomDoPerfil, marcaParaTexto, textoSobre, tingido, type Cores } from '../tema/tokens';
 
 /**
  * Pares de cor que as peças comuns de `ui/` usam depois do passo 1 da atualização visual (30/10), conferidos em todos os
@@ -246,6 +248,40 @@ describe.each(VARIANTES)('telas do aluno (reunião de 30/10) no tema %s', (_nome
     for (const fundo of [cores.superficie, cores.superficie2]) {
       expect(contraste(cores.texto, fundo)).toBeGreaterThanOrEqual(4.5);
       expect(contraste(cores.textoSuave, fundo)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+});
+
+describe.each(BASES.flatMap(([nome, base, escuro]) => [false, true].map((alto): [string, Cores, boolean] => [
+  `${nome}${alto ? ', contraste alto' : ''}`, coresComContraste(base, alto ? 'ALTO' : 'PADRAO', escuro), escuro,
+])))('NumeroDeDestaque no tema %s', (_nome, cores, escuro) => {
+  const destaques = coresDeDestaque(cores, escuro);
+
+  it('com destaque: número e faixa na cor da função, fundo tonalizado; o número passa 4,5:1 nele e no hover', () => {
+    for (const f of FUNCOES_DE_DESTAQUE) {
+      const a = aparenciaDoNumero(f, cores, destaques);
+      expect(a).toEqual({ numero: destaques[f].cor, fundo: destaques[f].fundo, fundoSobre: destaques[f].fundoSobre, faixa: destaques[f].cor });
+      expect(contraste(a.numero, a.fundo)).toBeGreaterThanOrEqual(4.5);
+      expect(contraste(a.numero, a.fundoSobre)).toBeGreaterThanOrEqual(4.5);
+      expect(contraste(cores.texto, a.fundo)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it('zero e sem dado: textoSuave legível, sem faixa nem tinta (D5); neutro em texto', () => {
+    const apagado = aparenciaDoNumero('apagado', cores, destaques);
+    expect(apagado).toEqual({ numero: cores.textoSuave, fundo: cores.superficie, fundoSobre: cores.superficie2, faixa: null });
+    expect(contraste(apagado.numero, apagado.fundo)).toBeGreaterThanOrEqual(4.5);
+    expect(contraste(apagado.numero, apagado.fundoSobre)).toBeGreaterThanOrEqual(4.5);
+    expect(aparenciaDoNumero('neutro', cores, destaques).numero).toBe(cores.texto);
+  });
+
+  it('o conteúdo fica no mesmo lugar com e sem faixa', () => {
+    for (const bloco of [1, 2]) {
+      const com = contornoDoNumero('#000000', cores, bloco, 16);
+      const sem = contornoDoNumero(null, cores, bloco, 16);
+      expect(com.borderLeftWidth).toBe(LARGURA_DA_FAIXA);
+      expect((com.borderLeftWidth as number) + (com.paddingLeft as number)).toBe((sem.borderLeftWidth as number) + (sem.paddingLeft as number));
+      expect(sem.borderLeftColor).toBe(cores.divisor);
     }
   });
 });

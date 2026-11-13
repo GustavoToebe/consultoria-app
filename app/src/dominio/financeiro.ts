@@ -17,6 +17,7 @@ import type {
   ValorEQuantidade,
 } from '../api/financeiroTipos';
 import { dataSemAnoCorrente } from './datasRelativas';
+import { enfaseDoNumero, type EnfaseDoNumero } from './destaque';
 import { centavosParaTela, dataCurta, SEM_DADO } from './formatos';
 import { contagemParaTela, rotuloDoMes, rotuloDoMesCompleto } from './numeros';
 
@@ -518,22 +519,26 @@ export interface CartaoDoPainel {
   valor: string;
   /** Linha pequena sob o valor. */
   detalhe?: string;
+  /** Cor do número (D6 de `docs/planos/cores-de-destaque.md`), decidida pelo valor cru: zero e "—" sem cor (D5). */
+  enfase: EnfaseDoNumero;
 }
 
-/** Os seis cartões, na ordem da tela. */
+/** Os seis cartões, na ordem da tela. Pagantes e valor médio ficam neutros: contagem e média, sem função de cor no D6. */
 export function cartoesDoPainel(c: CartoesDoPainel): CartaoDoPainel[] {
   return [
-    { chave: 'recebido', titulo: 'Recebido no período', valor: centavosParaTela(c.recebidoCentavos) },
+    { chave: 'recebido', titulo: 'Recebido no período', valor: centavosParaTela(c.recebidoCentavos), enfase: enfaseDoNumero('azul', c.recebidoCentavos) },
     {
       chave: 'aReceber',
       titulo: 'A receber',
       valor: centavosParaTela(c.aReceberCentavos),
+      enfase: enfaseDoNumero('ciano', c.aReceberCentavos),
       detalhe: NOTA_CONSIDERA_GERADAS,
     },
     {
       chave: 'emAtraso',
       titulo: 'Em atraso',
       valor: centavosParaTela(c.emAtraso?.valorCentavos),
+      enfase: enfaseDoNumero('vermelho', c.emAtraso?.valorCentavos),
       detalhe:
         c.emAtraso && c.emAtraso.valorCentavos !== null
           ? `${contagemParaTela(c.emAtraso.cobrancas)} ${c.emAtraso.cobrancas === 1 ? 'cobrança' : 'cobranças'} · ${NOTA_CONSIDERA_GERADAS}`
@@ -543,12 +548,14 @@ export function cartoesDoPainel(c: CartoesDoPainel): CartaoDoPainel[] {
       chave: 'recorrente',
       titulo: 'Receita recorrente mensal',
       valor: centavosParaTela(c.receitaRecorrenteMensalCentavos),
+      enfase: enfaseDoNumero('violeta', c.receitaRecorrenteMensalCentavos),
     },
-    { chave: 'pagantes', titulo: 'Alunos pagantes', valor: contagemParaTela(c.alunosPagantes) },
+    { chave: 'pagantes', titulo: 'Alunos pagantes', valor: contagemParaTela(c.alunosPagantes), enfase: enfaseDoNumero(null, c.alunosPagantes) },
     {
       chave: 'medio',
       titulo: 'Valor médio por aluno',
       valor: centavosParaTela(c.valorMedioPorAlunoCentavos),
+      enfase: enfaseDoNumero(null, c.valorMedioPorAlunoCentavos),
     },
   ];
 }
