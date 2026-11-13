@@ -26,6 +26,9 @@ npm-debug.*
 yarn-debug.*
 yarn-error.*
 
+# Playwright (saída dos e2e)
+test-results/
+
 # macOS
 .DS_Store
 *.pem
