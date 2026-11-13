@@ -156,7 +156,7 @@ neo-brutalism UI* (este último mostra o lado "borda forte").
 ```text
 fundo (menu lateral do PC, telas do celular)           escuro #0A0A0C
  └─ painel (conteúdo ao lado do menu no PC)             escuro #101013, borda divisor
-     └─ Cartao              superficie + 1 px divisor   escuro #18181B / #36363C
+     └─ Cartao              superficie + 1 px divisor   escuro #18181B / #36363C (contraste alto: bordaCampo)
          ├─ faixa de título superficie2 + linha divisor ← onde a seção COMEÇA
          ├─ item            superficie2 (elevada)       escuro #222226
          │   └─ selecionado superficie3 + bordaCampo + ✓ escuro #2C2C31 / #82828C
@@ -173,6 +173,7 @@ Uso de cada nível (11/11):
   uma cor com ele (`Tela`, o esmaecido das faixas que rolam) usa `useFundoDaArea()` (`ui/fundoDaArea`),
   que devolve `painel` ali e `fundo` no resto.
 - **Cartão só informativo** (um número, uma legenda) pode ficar sobre o fundo sem contorno forte; a borda `divisor` basta.
+  No contraste alto o contorno do `Cartao` passa a `bordaCampo` (item abaixo).
 - **Texto secundário** perde peso (fonte regular, 13–14), não contraste: `textoSuave` ≥ 4,5:1 em toda superfície, nunca
   opacidade.
 - Os HEX acima são o ponto de partida do escuro (guia de 11/11). As outras nove paletas (claro, areia, lavanda, céu,
@@ -194,6 +195,16 @@ Uso de cada nível (11/11):
 - Temas disponíveis: **claro** (padrão), **escuro**, **claro areia** (opção pedida na reunião de 29/10) e
   **contraste alto**. O contraste de cada combinação é conferido por teste (`tema/tokens.test.ts`): texto ≥ 4,5:1 e
   borda de campo ≥ 3:1.
+- **Contraste alto (`dominio/preferencias.coresComContraste`, 13/11):** `borda` (contorno de linha, item e controle)
+  vira `bordaCampo`; `divisor` (linha da faixa do título, divisórias de lista e de tabela) sobe só até a `borda`
+  original, para as divisórias não pesarem; `textoSuave` ≥ 7:1. O contorno do `Cartao` é a exceção
+  (`contornoDoCartao`): `divisor` no padrão e `bordaCampo` no contraste alto, porque o fundo do cartão quase não se
+  separa da página (cerca de 1,1:1) e é o contorno que marca a seção. Medido em 13/11 (Alunos, Financeiro › Cobranças
+  e Ajustes, 1280 e 390 px; `e2e/cartao-contraste-alto.spec.ts`): o contorno contra a página e contra o cartão ia de
+  1,75 a 1,95:1 no claro e de 2,09 a 2,33:1 no escuro; agora vai de 3,5 a 3,91:1 no claro e de 4,66 a 5,2:1 no escuro
+  (o jest confere ≥ 3:1 nas dez paletas). Não era falha da WCAG 1.4.11 (o cartão é contêiner estático, identificado
+  pelo título e pela faixa, não componente de interface): o ajuste cumpre o que a preferência promete. Com contraste alto **e** "bordas reforçadas" o
+  `divisor` também chega a `bordaCampo` (as divisórias engrossam): é o efeito pedido pela segunda preferência.
 - Seleção (chips, escolhas) é **neutra** (11/11): `superficie3` + `bordaCampo` + ✓, nunca a cor da marca.
 - Larguras:
   - formulário: 640;
@@ -391,10 +402,31 @@ A seção "Observado no código" de cada padrão são **hipóteses de causa** ac
     visível, WCAG 2.5.3, mas o texto visível continua "Limpar filtros"); o do rodapé do painel e o do estado vazio
     seguem "Limpar filtros"; a etiqueta, "Tirar filtro: <texto>". Enquanto uma aplicação está a caminho, o toque em
     "Filtros" é ignorado (alguns milissegundos, o voltar do histórico).
+  - **Ao cruzar a largura (PC ↔ celular, 768 px do menu lateral; 960 px de conteúdo da lateral da Agenda):** o painel
+    aberto e o rascunho sobrevivem, porque a barra e a tela são montadas uma vez e só o layout muda (a `Navegacao` mantém a
+    tela no mesmo lugar da árvore nas duas formas; a Agenda, a coluna principal). Quem cria uma casca ou tela com duas
+    formas de layout não pode pôr a barra (nem o `Slot`) em dois ramos da árvore. A gravação atrasada do Aplicar é
+    descartada se a tela já saiu (saída confirmada de um editor com a guarda do voltar ativa).
+  - **Seleção em lote (Cobranças e Alunos, D9):** filtro diferente ou busca que limpa o lote avisa quantos saíram
+    (`selecaoDepoisDosFiltros`); sem nada marcado não avisa; Aplicar sem mudar nada mantém.
   - **Faixa de contexto (Cobranças):** o aluno de "Ver no Financeiro" é contexto obrigatório, não filtro: aparece numa
     faixa neutra acima da barra ("Cobranças de" + o nome) e como leitura no grupo Identificação, não vira etiqueta nem
     entra no contador; os dois "Limpar filtros" o mantêm e só "Ver cobranças de todos os alunos", na faixa, o tira. O
     mesmo vale para o que chega pelo endereço e não é filtro do painel (`?retornos=` e etapas dos Interessados).
+  - **Filtro de cartão (13/11, passo 7A):** quando o filtro mexe só num cartão de uma tela com vários (ficha do aluno:
+    Pastas, Registros e cargas da pasta; Histórico do aluno: Registros), cada cartão tem a sua `BarraDeFiltros` com o
+    título do cartão ("Filtros de pastas", "Filtros de registros"), as suas etiquetas e o seu contador. O aluno e a pasta
+    são contexto: leitura (`CampoLeitura`) no grupo Identificação, sem etiqueta nem contador. Estado local da tela. O
+    painel dos Registros abre sobre a folha da pasta: é uma folha dentro da outra, com véu duplo como as outras folhas
+    aninhadas; uma etapa trocaria o corpo longo da pasta e perderia a rolagem. O Esc fecha só o painel.
+  - **Etapa dentro da folha (13/11, passo 7A):** o filtro de uma folha de escolher (Escolher exercício no editor de
+    treino; Escolher exercícios do Progresso) não empilha um painel: "Filtros" (`BarraDeFiltros naFolha`) troca o título,
+    o corpo e o rodapé da mesma folha pelos da etapa (`ui/EtapaDeFiltros`; "Filtros de exercícios", "Filtros de
+    progresso"). O rodapé é o mesmo do painel e o rascunho segue as mesmas regras. O X, o Esc, o fundo, o Cancelar e o
+    voltar retornam à lista sem fechar a folha. A busca e as marcações ficam como estavam. O foco vai ao primeiro controle
+    da etapa e, na volta, ao botão "Filtros". Seleção (D9): no editor, aplicar outro grupo tira o que não é dele e avisa
+    quantos saíram no status do rodapé (`selecaoDepoisDoGrupo`). No Progresso o grupo só muda a lista e as marcações
+    ficam.
   - **Divergência com o guia de 11/11 (pág. 7):** o guia pedia os atalhos com contagem Todos / Para revisar / Atrasados
     na lista de Alunos; eles viraram as opções "Para revisar" e "Atrasada" do filtro Atualização, no painel (um modo só
     de filtrar; a contagem por atalho saiu junto). Decisão do plano `filtros-laterais.md`, passo 4.
