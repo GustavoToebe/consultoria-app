@@ -166,7 +166,8 @@ Uso de cada nível (11/11):
   `divisor` e **sem sombra**: o `SOMBRA_FLUTUANTE` saiu em 11/11), conteúdo de apoio, faixa de título e o hover de linhas
   e botões. Dentro de um menu, o item em foco ou sob o ponteiro sobe para `superficie3`.
 - **`superficie3` (seleção neutra):** fundo do item escolhido (chip, opção da folha, dia do calendário, item do menu).
-- **`painel`:** separação discreta entre o menu e o conteúdo no PC (`Navegacao`). Quem pinta o fundo da tela ou casa
+- **`painel`:** separação discreta entre o menu e o conteúdo no PC (`Navegacao`); nas paletas claras é o próprio
+  `fundo` tingido (12/11), separado do menu pelo contorno `divisor`. Quem pinta o fundo da tela ou casa
   uma cor com ele (`Tela`, o esmaecido das faixas que rolam) usa `useFundoDaArea()` (`ui/fundoDaArea`),
   que devolve `painel` ali e `fundo` no resto.
 - **Cartão só informativo** (um número, uma legenda) pode ficar sobre o fundo sem contorno forte; a borda `divisor` basta.
@@ -175,6 +176,12 @@ Uso de cada nível (11/11):
 - Os HEX acima são o ponto de partida do escuro (guia de 11/11). As outras nove paletas (claro, areia, lavanda, céu,
   rosa, meia-noite, ameixa, oceano, café) têm pares próprios e não precisam repetir esses valores: o que vale é o
   contraste medido em `tema/tokens.test.ts`.
+- **Paletas claras (12/11, `docs/planos/superficies-das-paletas-claras.md`):** a página (`fundo` e `painel`, que nas
+  claras são o mesmo tom) é tingida e o cartão e o campo são brancos, sem sombra: o cartão se destaca pelo tom (≥ 1,1:1)
+  e o campo pelo contorno `bordaCampo`, pelo menos o dobro do contraste do `divisor` do cartão. A faixa do título e as
+  linhas (`superficie2`) ficam entre a página e o cartão. Valores de página / faixa / seleção: Claro `#F2F2F4` /
+  `#F8F8F9` / `#E7E7EA`; Areia `#F3F1EB` / `#F9F7F2` / `#E7E3DB`; Lavanda `#EFF0FA` / `#F8F8F9` / `#E6E0FF`; Céu
+  `#EBF2FC` / `#F8F8F9` / `#D5E5FB`; Rosa `#FAEFF3` / `#F8F8F9` / `#F8DCEA`. Cartão e campo `#FFFFFF` nas cinco.
 
 - 24 px entre blocos, 16 px dentro do cartão.
 - Toque mínimo de 44 px (48 nas linhas de lista e caixas de seleção); fonte mínima de 12.

@@ -10,7 +10,7 @@ que o Gustavo ajustou e devolveu com "Copiar meus ajustes".
 ## Decisões
 | # | Decisão | Valor | Quem decidiu |
 | --- | --- | --- | --- |
-| D1 | Fundo da página | Quase branco: claro `#F7F7F8`, claro areia `#FAF9F6` (o cinza `#EAEAED` se confundia com a faixa dos cartões); escuro não muda | Gustavo, 30/10 |
+| D1 | Fundo da página | Quase branco: claro `#F7F7F8`, claro areia `#FAF9F6` (o cinza `#EAEAED` se confundia com a faixa dos cartões); escuro não muda (substituída em 12/11 por `superficies-das-paletas-claras.md`: página tingida, faixa mais clara que ela) | Gustavo, 30/10 |
 | D2 | Bordas | Bloco (cartão, sessão, exercício, tabela) com 2 px; linha de 3 px (`bordaCampo`) embaixo da faixa do título e do topo da Folha; grupo de séries com 2 px | Gustavo, 30/10 (protótipo) |
 | D3 | Cantos | 12 px em tudo (`RAIO`, `--radius-md`) | Gustavo, 30/10 (protótipo) |
 | D4 | Sessão | Barra de 4 px na cor da marca à esquerda do cartão da sessão (identidade, não status) | Gustavo, 30/10 (protótipo) |

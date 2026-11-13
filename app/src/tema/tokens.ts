@@ -32,8 +32,8 @@ export interface Cores {
   /** Borda de campo de digitar (≥ 3:1 sobre `campo`, WCAG 1.4.11). */
   bordaCampo: string;
   /**
-   * Área do conteúdo ao lado do menu no PC (o menu fica no `fundo`): no escuro, 45% do caminho do fundo ao cartão; no
-   * claro, o próprio cartão (branco).
+   * Área do conteúdo ao lado do menu no PC (o menu fica no `fundo`): no escuro, 45% do caminho do fundo ao cartão; nas
+   * claras, o próprio `fundo` tingido, para o cartão e o campo brancos se destacarem dele (12/11).
    */
   painel: string;
   texto: string;
@@ -89,16 +89,20 @@ export const ESCURO: Cores = {
 };
 
 export const CLARO: Cores = {
-  fundo: '#F7F7F8',
+  // Fundo e painel tingidos (12/11, `docs/planos/superficies-das-paletas-claras.md`): o cartão e o campo brancos se
+  // destacam da página; o mais escuro em que a seleção (`superficie3`) ainda se separa do menu (1,1:1).
+  fundo: '#F2F2F4',
   superficie: '#FFFFFF',
-  superficie2: '#F4F4F5',
+  // Faixa, linha e hover entre a página e o cartão (12/11): mais clara que o fundo novo, para o cartão ler como um bloco
+  // claro e a faixa do título não se confundir com a página.
+  superficie2: '#F8F8F9',
   superficie3: '#E7E7EA',
   faixaForte: '#DCDCE1',
   divisor: '#D4D4D8',
   borda: '#B9B9C0',
   campo: '#FFFFFF',
   bordaCampo: '#80808A',
-  painel: '#FFFFFF',
+  painel: '#F2F2F4',
   texto: '#111114',
   textoSuave: '#52525B',
   sucesso: '#176E3C',
@@ -123,9 +127,10 @@ export const CLARO: Cores = {
  */
 export const AREIA: Cores = {
   ...CLARO,
-  fundo: '#FAF9F6',
+  fundo: '#F3F1EB',
+  painel: '#F3F1EB',
   superficie: '#FFFFFF',
-  superficie2: '#F7F5F0',
+  superficie2: '#F9F7F2',
   superficie3: '#E7E3DB',
   faixaForte: '#DDD6CA',
   divisor: '#DDD8CF',
@@ -210,9 +215,11 @@ export const CAFE: Cores = paletaEscura({
   bordaCampo: '#857A74',
 });
 
-export const LAVANDA: Cores = { ...CLARO, fundo: '#F7F8FF', superficie3: '#E6E0FF' };
-export const CEU: Cores = { ...CLARO, fundo: '#F0F7FF', superficie3: '#DBEAFE' };
-export const ROSA: Cores = { ...CLARO, fundo: '#FFF9FB', superficie3: '#FCE7F3' };
+// Fundo e painel tingidos no tom da paleta (12/11); no Céu e no Rosa a seleção ganhou um passo de tom para continuar
+// separada do fundo novo (1,1:1), na força da seleção do Claro e da Areia.
+export const LAVANDA: Cores = { ...CLARO, fundo: '#EFF0FA', painel: '#EFF0FA', superficie3: '#E6E0FF' };
+export const CEU: Cores = { ...CLARO, fundo: '#EBF2FC', painel: '#EBF2FC', superficie3: '#D5E5FB' };
+export const ROSA: Cores = { ...CLARO, fundo: '#FAEFF3', painel: '#FAEFF3', superficie3: '#F8DCEA' };
 
 /** Código da paleta (= `Tema` da API, o `temaPadrao` da consultoria) → nome na tela, cores e modo. Fonte única do modo. */
 export const PALETAS: Record<Tema, { nome: string; cores: Cores; modo: ModoDoTema }> = {

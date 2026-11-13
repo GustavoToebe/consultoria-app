@@ -71,8 +71,9 @@ it.each(TODAS)('%s: campo, borda e cartão se distinguem do fundo e entre si', (
   // Reunião de 29/10: a borda do cartão tem de aparecer (1,9:1 ou mais), também sobre a faixa do cabeçalho.
   expect(contraste(cores.borda, cores.superficie)).toBeGreaterThanOrEqual(1.9);
   expect(contraste(cores.borda, cores.superficie3)).toBeGreaterThanOrEqual(1.25);
-  // Fundo quase branco (30/10): o cartão branco quase some contra ele; quem marca o bloco é a borda e a faixa do título.
-  expect(contraste(cores.borda, cores.fundo)).toBeGreaterThanOrEqual(1.8);
+  // A borda aparece também direto na página. Era 1,8 quando o fundo claro era quase branco e só ela marcava o bloco; desde
+  // 12/11 quem separa o cartão da página nas claras é o tom (trava abaixo), e o fundo tingido levou o piso a 1,7.
+  expect(contraste(cores.borda, cores.fundo)).toBeGreaterThanOrEqual(1.7);
   expect(contraste(cores.superficie3, cores.fundo)).toBeGreaterThanOrEqual(1.1);
   expect(contraste(cores.faixaForte, cores.superficie)).toBeGreaterThan(contraste(cores.superficie3, cores.superficie));
 });
@@ -305,12 +306,31 @@ describe('pares medidos do guia na paleta de partida (Escuro)', () => {
 
 it.each(TODAS)('%s: o painel do conteúdo fica entre o fundo (menu) e o cartão', (_codigo, cores, escuro) => {
   if (!escuro) {
-    expect(cores.painel).toBe(cores.superficie);
+    // Nas claras o conteúdo fica no próprio fundo tingido (12/11): é dele que o cartão branco se destaca.
+    expect(cores.painel).toBe(cores.fundo);
     return;
   }
   const [l, f, s] = [luminancia(cores.painel), luminancia(cores.fundo), luminancia(cores.superficie)];
   expect(l).toBeGreaterThan(Math.min(f, s));
   expect(l).toBeLessThan(Math.max(f, s));
+});
+
+/**
+ * Separação das superfícies nas paletas claras (12/11, `docs/planos/superficies-das-paletas-claras.md`): o cartão e o
+ * campo brancos se destacam da página pelo tom (sem sombra), e o contorno do campo é bem mais forte que o do cartão.
+ * Pisos, não valores exatos: qualquer ajuste de tom que mantenha a separação passa.
+ */
+it.each(TODAS.filter(([, , escuro]) => !escuro))('%s: cartão e campo se destacam da página; o campo tem contorno mais forte que o cartão', (_codigo, cores) => {
+  for (const pagina of [cores.fundo, cores.painel]) {
+    expect(contraste(cores.superficie, pagina)).toBeGreaterThanOrEqual(1.1);
+    expect(contraste(cores.campo, pagina)).toBeGreaterThanOrEqual(1.1);
+  }
+  expect(contraste(cores.bordaCampo, cores.superficie)).toBeGreaterThanOrEqual(2 * contraste(cores.divisor, cores.superficie));
+  // A faixa do título e as linhas (`superficie2`) ficam entre a página e o cartão, sem se confundir com nenhum dos dois.
+  expect(luminancia(cores.superficie2)).toBeGreaterThan(luminancia(cores.painel));
+  expect(luminancia(cores.superficie2)).toBeLessThan(luminancia(cores.superficie));
+  expect(contraste(cores.superficie2, cores.painel)).toBeGreaterThanOrEqual(1.04);
+  expect(contraste(cores.superficie2, cores.superficie)).toBeGreaterThanOrEqual(1.04);
 });
 
 /** Pág. 12: os pares reais de cada paleta, com contraste alto e com bordas reforçadas. */

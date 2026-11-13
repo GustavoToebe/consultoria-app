@@ -83,7 +83,7 @@ const PAINEL = { atualizacoesParaRevisar: 0, atualizacoesAtrasadas: 0, atualizac
  * `superficie2` do tema (guia de 11/11: a cor da agenda fica só na faixa; contraste em `contrasteDaAgenda.test.ts`).
  */
 const CLARO = {
-  texto: 'rgb(17, 17, 20)', superficie2: 'rgb(244, 244, 245)',
+  texto: 'rgb(17, 17, 20)', superficie2: 'rgb(248, 248, 249)',
   azul: 'rgb(27, 111, 214)', indigo: 'rgb(75, 63, 191)', oliva: 'rgb(117, 132, 24)',
 };
 const ESCURO = { texto: 'rgb(244, 244, 245)', azul: 'rgb(74, 144, 247)', superficie2: 'rgb(34, 34, 38)' };

@@ -17,15 +17,15 @@
 @layer theme {
  :root {
   @variant light {
-   --color-background: #F7F7F8;
+   --color-background: #F2F2F4;
    --color-foreground: #111114;
    --color-card: #FFFFFF;
    --color-card-foreground: #111114;
-   --color-muted: #F4F4F5;
+   --color-muted: #F8F8F9;
    --color-muted-foreground: #52525B;
    --color-accent: #E7E7EA;
    --color-accent-foreground: #111114;
-   --color-secondary: #F4F4F5;
+   --color-secondary: #F8F8F9;
    --color-secondary-foreground: #111114;
    --color-border: #D4D4D8;
    --color-input: #80808A;
