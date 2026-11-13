@@ -20,7 +20,7 @@ function partesDoValor(texto: string, moeda: boolean): { prefixo: string | null;
  * Mini-cartão do painel (guia de 11/11, pág. 16, com as cores de destaque de 13/11, `docs/planos/cores-de-destaque.md`):
  * rótulo curto e detalhe neutros (D1), número na cor da função do cartão com a faixa lateral e o fundo tonalizado
  * (`ui/NumeroDeDestaque`); zero ("0"), "Não carregou" e "…" em `textoSuave`, sem cor nem faixa (D5). Não há "—" solto
- * no Início (D14): soma vazia é zero e o que falta diz "Não carregou" por extenso, nos quatro layouts. O cartão
+ * no Início (D14): o que falta diz "Não carregou" (ou "Sem permissão") por extenso, nos quatro layouts. O cartão
  * inteiro é o toque: abre a lista filtrada (link) ou uma Folha (botão), com o hover no fundo tonalizado sobre
  * `superficie2`. `linha`: a linha de baixo do bloco.
  */

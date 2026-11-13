@@ -246,13 +246,14 @@ describe('contas do painel', () => {
   it('valor e quantidade', () => {
     expect(espacos(valorEQuantidadeParaTela({ valorCentavos: 30000, cobrancas: 2 }))).toBe('R$ 300,00 (2 cobranças)');
     expect(espacos(valorEQuantidadeParaTela({ valorCentavos: 100, cobrancas: 1 }))).toBe('R$ 1,00 (1 cobrança)');
-    // Soma vazia com zero cobranças é zero; valor nulo com cobranças (inconsistente) segue "—".
-    expect(espacos(valorEQuantidadeParaTela({ valorCentavos: null, cobrancas: 0 }))).toBe('R$ 0,00 (0 cobranças)');
+    // Consulta válida e vazia: a API manda 0 (R$ 0,00); valor nulo é sem dado ("—"), mesmo com 0 cobranças.
+    expect(espacos(valorEQuantidadeParaTela({ valorCentavos: 0, cobrancas: 0 }))).toBe('R$ 0,00 (0 cobranças)');
+    expect(valorEQuantidadeParaTela({ valorCentavos: null, cobrancas: 0 })).toBe('—');
     expect(valorEQuantidadeParaTela({ valorCentavos: null, cobrancas: 2 })).toBe('—');
     expect(valorEQuantidadeParaTela(null)).toBe('—');
   });
-  // Gustavo, 13/11: soma e contagem vazias de consulta que rodou são zero; só a média sem pagante fica indisponível.
-  it('cartões com tudo nulo: somas e pagantes em zero, valor médio indisponível com o motivo', () => {
+  // 13/11: a API devolve 0 na consulta válida e vazia; o app não converte nulo em zero.
+  it('cartões com tudo nulo (sem dado): "—" em tudo, sem zero inventado', () => {
     const cartoes = cartoesDoPainel({
       recebidoCentavos: null,
       aReceberCentavos: null,
@@ -262,10 +263,22 @@ describe('contas do painel', () => {
       valorMedioPorAlunoCentavos: null,
     });
     expect(cartoes).toHaveLength(6);
-    expect(cartoes.map((c) => espacos(c.valor))).toEqual(['R$ 0,00', 'R$ 0,00', 'R$ 0,00', 'R$ 0,00', '0', '—']);
-    expect(cartoes.map((c) => c.enfase)).toEqual(['zero', 'zero', 'zero', 'zero', 'zero', 'indisponivel']);
+    expect(cartoes.map((c) => espacos(c.valor))).toEqual(['—', '—', '—', '—', '—', '—']);
+    expect(cartoes.map((c) => c.enfase)).toEqual(Array(6).fill('indisponivel'));
     expect(cartoes[5].motivo).toBe(MOTIVO_SEM_PAGANTES);
     expect(cartoes[2].detalhe).toBe(NOTA_CONSIDERA_GERADAS);
+  });
+  it('cartões com consulta válida e vazia (zeros da API): R$ 0,00 e 0 em cinza, médio indisponível', () => {
+    const cartoes = cartoesDoPainel({
+      recebidoCentavos: 0,
+      aReceberCentavos: 0,
+      emAtraso: { valorCentavos: 0, cobrancas: 0 },
+      receitaRecorrenteMensalCentavos: 0,
+      alunosPagantes: 0,
+      valorMedioPorAlunoCentavos: null,
+    });
+    expect(cartoes.map((c) => espacos(c.valor))).toEqual(['R$ 0,00', 'R$ 0,00', 'R$ 0,00', 'R$ 0,00', '0', '—']);
+    expect(cartoes.map((c) => c.enfase)).toEqual(['zero', 'zero', 'zero', 'zero', 'zero', 'indisponivel']);
   });
   it('valor médio é medida calculada: 0 com base válida não vira o zero apagado, e sem pagante segue "—"', () => {
     const c = { recebidoCentavos: 0, aReceberCentavos: 0, emAtraso: { valorCentavos: 0, cobrancas: 0 }, receitaRecorrenteMensalCentavos: 0, alunosPagantes: 2 };
@@ -331,13 +344,16 @@ describe('contas do painel', () => {
     expect(r.resultado).toBe('—');
     expect(r.rotulo.toLowerCase()).not.toContain('lucro');
   });
-  it('N14: mês sem lançamento é "R$ 0,00"; recebido nulo (nenhum pagamento) também é zero; sem resposta, "—"', () => {
-    const r = resultadoDoMesParaTela({ rotulo: 'x', mes: '2026-11', recebidoCentavos: null, entradasAvulsasCentavos: 0, saidasAvulsasCentavos: 0, resultadoCentavos: 0 });
+  it('N14: mês sem lançamento é "R$ 0,00" (zero da API); recebido nulo é "—", nunca zero; sem resposta, "—"', () => {
+    const r = resultadoDoMesParaTela({ rotulo: 'x', mes: '2026-11', recebidoCentavos: 0, entradasAvulsasCentavos: 0, saidasAvulsasCentavos: 0, resultadoCentavos: 0 });
     expect(r.entradas).toBe('R$ 0,00');
     expect(r.saidas).toBe('R$ 0,00');
     expect(r.resultado).toBe('R$ 0,00');
     expect(r.recebido).toBe('R$ 0,00');
     expect(r.centavos.recebido).toBe(0);
+    const semRecebido = resultadoDoMesParaTela({ rotulo: 'x', mes: '2026-11', recebidoCentavos: null, entradasAvulsasCentavos: 0, saidasAvulsasCentavos: 0, resultadoCentavos: null });
+    expect(semRecebido.recebido).toBe('—');
+    expect(semRecebido.centavos.recebido).toBeNull();
     const semResposta = resultadoDoMesParaTela(undefined);
     expect(semResposta.recebido).toBe('—');
     expect(semResposta.centavos.recebido).toBeNull();
@@ -392,20 +408,16 @@ describe('gráfico', () => {
 
 describe('resultado do mês nulo', () => {
   it('com "Meus": os lançamentos avulsos não entram', () => {
-    expect(motivoDoResultadoNulo({ somenteMeus: true, mes: '2026-10', hoje: '2026-10-19', entradas: null, saidas: null })).toBe('Os lançamentos avulsos não entram no filtro "Meus".');
+    expect(motivoDoResultadoNulo({ somenteMeus: true, entradas: null, saidas: null })).toBe('Os lançamentos avulsos não entram no filtro "Meus".');
   });
-  it('mês depois do corrente: ainda não aconteceu (vale mais que a falta de lançamento)', () => {
-    expect(motivoDoResultadoNulo({ mes: '2026-11', hoje: '2026-10-19', entradas: null, saidas: null })).toBe('Este mês ainda não aconteceu.');
+  it('entrada ou saída nula: texto neutro, sem afirmar que não há lançamento (mês sem lançamento é zero)', () => {
+    const motivo = 'Entradas ou saídas do mês não estão disponíveis.';
+    expect(motivoDoResultadoNulo({ entradas: null, saidas: 0 })).toBe(motivo);
+    expect(motivoDoResultadoNulo({ entradas: 0, saidas: null })).toBe(motivo);
+    expect(motivoDoResultadoNulo({})).toBe(motivo);
   });
-  it('entrada ou saída nula: sem lançamentos registrados', () => {
-    const motivo = 'Sem lançamentos avulsos registrados neste mês, então o resultado não pode ser calculado.';
-    expect(motivoDoResultadoNulo({ mes: '2026-10', hoje: '2026-10-19', entradas: null, saidas: 0 })).toBe(motivo);
-    expect(motivoDoResultadoNulo({ mes: '2026-10', hoje: '2026-10-19', entradas: 0, saidas: null })).toBe(motivo);
-    expect(motivoDoResultadoNulo({ mes: '2026-10', hoje: '2026-10-19' })).toBe(motivo);
-  });
-  it('o mês corrente e os anteriores não são "futuro"; sem nenhuma parcela nula não inventa causa', () => {
-    expect(motivoDoResultadoNulo({ mes: '2026-10', hoje: '2026-10-31', entradas: 0, saidas: 0 })).toBeNull();
-    expect(motivoDoResultadoNulo({ mes: '2026-09', hoje: '2026-10-01', entradas: 0, saidas: 0 })).toBeNull();
+  it('sem nenhuma parcela nula não inventa causa', () => {
+    expect(motivoDoResultadoNulo({ entradas: 0, saidas: 0 })).toBeNull();
   });
   it('o resultado 0 de verdade segue "R$ 0,00" na tela', () => {
     const r = resultadoDoMesParaTela({ rotulo: 'x', mes: '2026-10', recebidoCentavos: 0, entradasAvulsasCentavos: 0, saidasAvulsasCentavos: 0, resultadoCentavos: 0 });

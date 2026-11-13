@@ -7,7 +7,7 @@ import { useTema } from '../../tema/TemaProvider';
 import { espaco, RAIO } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { Cartao } from '../../ui/Cartao';
-import { Alerta } from '../../ui/Estados';
+import { Alerta, Incompleto } from '../../ui/Estados';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { Texto } from '../../ui/Texto';
 import { BarrasDoRecebido } from './BarrasDoRecebido';
@@ -58,6 +58,7 @@ export function BlocoDoPainel({ bloco, aoAtualizar, aoAlternarFiltro, aoAbrirFol
               style={[estilos.esqueleto, { backgroundColor: cores.superficie2 }]} />
           ) : null}
           {bloco.nota ? <Texto variante="pequeno">{bloco.nota}</Texto> : null}
+          {bloco.ressalva ? <Incompleto texto={bloco.ressalva} /> : null}
           {/* Nenhum cartão carregou: cada um já diz "Não carregou"; aqui o atalho para tentar de novo. */}
           {bloco.falhou ? <Botao rotulo="Atualizar" rotuloAcessivel={`Atualizar ${bloco.titulo}`} tipo="secundario" Icone={RefreshCw} aoTocar={aoAtualizar} /> : null}
         </>

@@ -275,7 +275,8 @@ test('zero, "—" e nenhum registro continuam distintos na visão geral', async 
     cartoes: { ...PAINEL_VAZIO.cartoes, recebidoCentavos: 0 },
     // Tudo pago: 0% com a base; zero não vira "—".
     inadimplencia: { percentual: 0, vencidoCentavos: 0, cobradoCentavos: 50_000 },
-    resultadoDoMes: { ...PAINEL_VAZIO.resultadoDoMes, entradasAvulsasCentavos: 0 },
+    // Saídas nulas (sem dado) ao lado de entradas 0: o "—" e o zero seguem distintos (a API manda 0 na consulta vazia).
+    resultadoDoMes: { ...PAINEL_VAZIO.resultadoDoMes, entradasAvulsasCentavos: 0, saidasAvulsasCentavos: null },
   };
   const estado = estadoFinanceiro({ painel });
   const { errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });

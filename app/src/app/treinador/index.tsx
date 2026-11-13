@@ -24,6 +24,7 @@ import {
   listaDaFolha,
   montarBloco,
   MOTIVO_EDITAR_SEM_ALUNOS,
+  ressalvaUmaVez,
   type BlocoDoPainelId,
   type ConsultaDoPainel,
   type ContextoDoPainel,
@@ -210,7 +211,7 @@ export default function InicioTreinador() {
     }, {
       atualizacoes: estadoDaFonte(verPainel && verAtualizacoes, sitPadrao, lido && ehNumero(padrao.atualizacoesParaRevisar) && ehNumero(padrao.atualizacoesAtrasadas)),
       interessados: estadoDaFonte(verInteressados, fonte<ContagensInscricoes>(interessadosPadrao).situacao,
-        !!interessados && ehNumero(interessados.retornosAtrasados) && ehNumero(interessados.retornosHoje)),
+        !!interessados && ehNumero(interessados.retornosAtrasados) && ehNumero(interessados.retornosHoje) && ehNumero(interessados.porSituacao?.NOVA)),
       planosTerminando: estadoDaFonte(verPainel && pode('TREINO_LER'), sitPadrao, lido && Array.isArray(padrao.planosTerminando)),
       semRegistro: estadoDaFonte(verPainel && pode('REGISTRO_LER'), sitPadrao, lido && ehNumero(padrao.alunosSemRegistroTotal)),
     });
@@ -250,9 +251,9 @@ export default function InicioTreinador() {
   // ---- Grade ----
   const [largura, setLargura] = useState(0);
   const aoMedir = (e: LayoutChangeEvent) => setLargura(e.nativeEvent.layout.width);
-  const blocos = visiveis
+  const blocos = ressalvaUmaVez(visiveis
     .map((id) => montarBloco(id, ctx, { ...opcoes(id), fontes: fontesDe(porBloco.get(id) ?? []) }))
-    .filter((b): b is NonNullable<typeof b> => b !== null);
+    .filter((b): b is NonNullable<typeof b> => b !== null));
   const porId = new Map(blocos.map((b) => [b.id, b]));
   const colunas = colunasDaGrade(largura, fatorTexto);
   const linhas = linhasDaGrade(blocos.map((b) => b.id), colunas, pref.tamanhos);

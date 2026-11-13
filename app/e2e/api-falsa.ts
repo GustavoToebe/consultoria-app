@@ -170,7 +170,7 @@ export async function sessao(page: Page, usuario: UsuarioResumo, extra: Partial<
   // O Início do treinador conta os interessados novos e os retornos pelas contagens da fila (zeradas aqui; o teste que
   // precisa de outro número a substitui).
   const contagens: RespostasApi = usuario.papel === 'TREINADOR'
-    ? { 'GET /inscricoes/contagens': { corpo: { porSituacao: {}, abertas: 0, todas: 0, retornosAtrasados: 0, retornosHoje: 0 } } }
+    ? { 'GET /inscricoes/contagens': { corpo: { porSituacao: { NOVA: 0, EM_CONTATO: 0, EM_NEGOCIACAO: 0, ACEITA: 0, RECUSADA: 0, DESISTIU: 0 }, abertas: 0, todas: 0, retornosAtrasados: 0, retornosHoje: 0 } } }
     : {};
   return { 'POST /auth/refresh': { corpo: login }, 'GET /eu': { corpo: eu }, ...contagens };
 }

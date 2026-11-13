@@ -16,7 +16,7 @@ import { estadoFinanceiro, PAINEL_COM_DADOS, PAINEL_VAZIO, rotasDoFinanceiro, se
 
 const TEMAS = ['CLARO', 'ESCURO'] as const;
 const LARGURAS = [1280, 390] as const;
-const SEM_LANCAMENTOS = 'Sem lançamentos avulsos registrados neste mês, então o resultado não pode ser calculado.';
+const SEM_DADOS = 'Entradas ou saídas do mês não estão disponíveis.';
 
 async function abrir(page: Page, painel: Painel, o: { rota?: string; tema?: (typeof TEMAS)[number]; largura?: number } = {}) {
   await page.setViewportSize({ width: o.largura ?? 1280, height: 1000 });
@@ -38,6 +38,18 @@ test('consulta válida sem pagamentos: R$ 0,00 no recebido, e a frase dos regist
   await expect(page.getByText(NOTA_REGISTROS_DISPONIVEIS)).toHaveCount(1);
   // "Cobranças já geradas" segue visível nos cartões de previsto, a receber e atraso.
   await expect(page.getByText('considera as cobranças já geradas').first()).toBeVisible();
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('sem dado (nulo da API): "—" nos cartões, nunca R$ 0,00', async ({ page }) => {
+  const nulo: Painel = {
+    ...PAINEL_VAZIO,
+    cartoes: { recebidoCentavos: null, aReceberCentavos: null, emAtraso: { valorCentavos: null, cobrancas: 0 }, receitaRecorrenteMensalCentavos: null, alunosPagantes: null, valorMedioPorAlunoCentavos: null },
+  };
+  const { errosDaPagina } = await abrir(page, nulo);
+  await expect(page.getByLabel('Recebido no período: —')).toBeVisible();
+  await expect(page.getByLabel('A receber: —')).toBeVisible();
+  await expect(page.getByLabel('Recebido no período: R$ 0,00', { exact: false })).toHaveCount(0);
   expect(errosDaPagina).toEqual([]);
 });
 
@@ -66,9 +78,9 @@ test('série do mês: recebido 0 é barra zerada com "R$ 0,00"; sem dado (nulo) 
 test('resultado do mês nulo: "—" com o motivo escrito (nunca zero); resultado 0 de verdade segue "R$ 0,00"', async ({ page }) => {
   const nulo: Painel = { ...PAINEL_COM_DADOS, resultadoDoMes: { ...PAINEL_COM_DADOS.resultadoDoMes, entradasAvulsasCentavos: null, saidasAvulsasCentavos: null, resultadoCentavos: null } };
   const { errosDaPagina } = await abrir(page, nulo);
-  const resultado = page.getByLabel(`Resultado: —. ${SEM_LANCAMENTOS}`);
+  const resultado = page.getByLabel(`Resultado: —. ${SEM_DADOS}`);
   await expect(resultado).toBeVisible();
-  await expect(resultado.getByText(SEM_LANCAMENTOS)).toBeVisible();
+  await expect(resultado.getByText(SEM_DADOS)).toBeVisible();
   await expect(page.getByLabel('Resultado: R$ 0,00')).toHaveCount(0);
   expect(errosDaPagina).toEqual([]);
 
@@ -81,7 +93,7 @@ test('resultado 0 de verdade: "R$ 0,00", sem motivo de indisponível', async ({ 
   const zero: Painel = { ...PAINEL_COM_DADOS, resultadoDoMes: { ...PAINEL_COM_DADOS.resultadoDoMes, recebidoCentavos: 0, entradasAvulsasCentavos: 0, saidasAvulsasCentavos: 0, resultadoCentavos: 0 } };
   const { errosDaPagina } = await abrir(page, zero);
   await expect(page.getByLabel('Resultado: R$ 0,00')).toBeVisible();
-  await expect(page.getByText(SEM_LANCAMENTOS)).toHaveCount(0);
+  await expect(page.getByText(SEM_DADOS)).toHaveCount(0);
   expect(errosDaPagina).toEqual([]);
 });
 
@@ -141,7 +153,13 @@ for (const parcial of [false, true]) {
     await expect(page.getByRole('heading', { name: 'Início', level: 1 })).toBeVisible();
     await expect(page.getByLabel('Recebido no mês, valor bruto: R$ 0')).toBeVisible();
     await expect(page.getByText('Vencidas e vencendo consideram só as cobranças já geradas.', { exact: false })).toBeVisible();
-    await expect(page.getByText(/limpeza anterior/)).toHaveCount(parcial ? 2 : 0);
+    // Uma vez por tela (os blocos Financeiro e Recebido estão visíveis: fica no Financeiro), neutra e com o ícone do Incompleto.
+    await expect(page.getByText(AVISO_HISTORICO_PARCIAL, { exact: true })).toHaveCount(parcial ? 1 : 0);
+    await expect(page.getByText(/limpeza anterior/)).toHaveCount(parcial ? 1 : 0);
+    if (parcial) {
+      await expect(page.getByText(AVISO_HISTORICO_PARCIAL, { exact: true }).locator('xpath=..').locator('svg')).toHaveCount(1);
+      await expect(page.getByRole('alert')).toHaveCount(0);
+    }
     await capturar(page, `inicio-financeiro-${parcial ? 'parcial' : 'zero'}`);
     expect(errosDaPagina).toEqual([]);
   });

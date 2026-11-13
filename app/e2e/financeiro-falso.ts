@@ -68,22 +68,25 @@ export const CONFERENCIA_SEM_COBRANCA: ConferenciaDePagamento = {
 
 const ROTULO_RESULTADO = 'Resultado do mês (entradas − saídas registradas)';
 
-/** Painel sem nenhum dado: tudo nulo ou vazio, como a API devolve numa consultoria nova. */
+/**
+ * Painel de consulta válida e vazia, como a API devolve numa consultoria nova: somas e contagens em 0; nulo só onde não há
+ * base (valor médio sem pagante, percentual sem nada vencido, líquido).
+ */
 export const PAINEL_VAZIO: Painel = {
   periodo: { de: '2026-05-01', ate: '2026-10-31' },
   somenteMeus: false,
   cartoes: {
-    recebidoCentavos: null, aReceberCentavos: null, emAtraso: { valorCentavos: null, cobrancas: 0 }, receitaRecorrenteMensalCentavos: null,
-    alunosPagantes: null, valorMedioPorAlunoCentavos: null,
+    recebidoCentavos: 0, aReceberCentavos: 0, emAtraso: { valorCentavos: 0, cobrancas: 0 }, receitaRecorrenteMensalCentavos: 0,
+    alunosPagantes: 0, valorMedioPorAlunoCentavos: null,
   },
   serie: [],
   inadimplencia: { percentual: null, vencidoCentavos: null, cobradoCentavos: null },
   porForma: [],
   porPlano: [],
   movimentoDeAlunos: [],
-  proximosRecebimentos: { fonte: 'VENCIMENTO', em7Dias: { valorCentavos: null, cobrancas: 0 }, em30Dias: { valorCentavos: null, cobrancas: 0 } },
+  proximosRecebimentos: { fonte: 'VENCIMENTO', em7Dias: { valorCentavos: 0, cobrancas: 0 }, em30Dias: { valorCentavos: 0, cobrancas: 0 } },
   resultadoDoMes: {
-    rotulo: ROTULO_RESULTADO, mes: '2026-10', recebidoCentavos: null, entradasAvulsasCentavos: null, saidasAvulsasCentavos: null, resultadoCentavos: null,
+    rotulo: ROTULO_RESULTADO, mes: '2026-10', recebidoCentavos: 0, entradasAvulsasCentavos: 0, saidasAvulsasCentavos: 0, resultadoCentavos: 0,
   },
   liquido: { disponivel: false, motivo: null, brutoCentavos: null },
 };
@@ -236,7 +239,7 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
     'GET /financeiro/inadimplentes': (_p, route) => json(route, {
       itens: estado.inadimplentes,
       total: estado.inadimplentes.length,
-      valorTotalCentavos: estado.inadimplentes.length ? estado.inadimplentes.reduce((s, i) => s + i.valorCentavos, 0) : null,
+      valorTotalCentavos: estado.inadimplentes.length ? estado.inadimplentes.reduce((s, i) => s + i.valorCentavos, 0) : 0,
       pagina: 0,
     }),
     'GET /financeiro/painel': (p, route) => json(route, { ...estado.painel, somenteMeus: p.busca.get('meus') === 'true' }),

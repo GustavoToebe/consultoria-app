@@ -1,6 +1,6 @@
 import type { ResultadoDoMes as ResultadoApi } from '../../api/financeiroTipos';
 import { enfaseDoNumero, type FuncaoDeDestaque } from '../../dominio/destaque';
-import { hojeEmBrasilia, motivoDoResultadoNulo, resultadoDoMesParaTela } from '../../dominio/financeiro';
+import { motivoDoResultadoNulo, resultadoDoMesParaTela } from '../../dominio/financeiro';
 import { colunasDosIndicadores } from '../../dominio/grade';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
@@ -31,7 +31,7 @@ export function ResultadoDoMes({ resultado, somenteMeus, periodo }: {
   const motivo = somenteMeus ? MOTIVO_DO_FILTRO_MEUS : undefined;
   // Resultado nulo: o motivo fica escrito sob o "—" (nunca zero). Resultado 0 de verdade segue "R$ 0,00".
   const motivoDoResultado = typeof resultado?.resultadoCentavos === 'number' ? undefined : motivoDoResultadoNulo({
-    somenteMeus, mes: resultado?.mes, hoje: hojeEmBrasilia(), entradas: resultado?.entradasAvulsasCentavos, saidas: resultado?.saidasAvulsasCentavos,
+    somenteMeus, entradas: resultado?.entradasAvulsasCentavos, saidas: resultado?.saidasAvulsasCentavos,
   }) ?? undefined;
   return (
     <Cartao titulo={r.rotulo} descricao={r.descricao} periodo={periodo}>

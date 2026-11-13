@@ -109,6 +109,14 @@ test('falta de acesso a parte das fontes: não afirma "em dia" e diz que não co
   expect(errosDaPagina).toEqual([]);
 });
 
+test('contagem de interessados sem a etapa "Novos" não conta como consultada: não afirma "em dia"', async ({ page }) => {
+  const semNovos = { ...CONTAGENS_ZERO, porSituacao: {} };
+  const { errosDaPagina } = await abrir(page, { permissoes: PERMISSOES_DO_RESUMO, extra: { 'GET /inscricoes/contagens': { corpo: semNovos } } });
+  await expect(passo(page).getByText(/^Não foi possível conferir tudo\./)).toBeVisible();
+  await expect(page.getByText('Nada pede sua atenção agora')).toHaveCount(0);
+  expect(errosDaPagina).toEqual([]);
+});
+
 test('pendência numa fonte consultada continua aparecendo, com o aviso quando outra fonte falhou', async ({ page }) => {
   const { errosDaPagina } = await abrir(page, {
     permissoes: PERMISSOES_DO_RESUMO, painel: { ...PAINEL, atualizacoesAtrasadas: 2 },

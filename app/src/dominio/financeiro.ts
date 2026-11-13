@@ -23,10 +23,9 @@ import { contagemParaTela, rotuloDoMes, rotuloDoMesCompleto } from './numeros';
 
 /**
  * Regras puras do financeiro do aluno ao treinador. Dinheiro em centavos inteiros; `null` da API é "sem dado" e aparece
- * como "—" (nunca zero inventado), com UMA exceção conhecida e provisória (`somaOuZero`, D6 de
- * `docs/planos/nulo-e-cobertura.md`, 13/11): `recebido`, `aReceber`, `receitaRecorrente` e `alunosPagantes` nulos, que a API
- * devolve para a soma vazia VÁLIDA, são lidos como 0 nos períodos do painel. Isso muda quando a API separar "consulta
- * concluída sem registro" de "sem dado"; o `resultado` (que o servidor já converteu com `nz`) o app não recupera.
+ * como "—" (nunca zero inventado, `docs/planos/nulo-e-cobertura.md`, 13/11). A API devolve 0 para a consulta válida e vazia
+ * (recebido, a receber, recorrente, pagantes, atraso, resultado do mês) e nulo só para "sem dado" (período futuro, passado
+ * total, filtro "Meus" nas avulsas): o app lê o que vem, sem converter nulo em zero.
  * `vencida` e `diasDeAtraso` vêm da API, calculados em Brasília: nada aqui decide "vencida" pela data do aparelho. O app
  * nunca calcula valor de cobrança.
  */
@@ -521,21 +520,12 @@ export function percentualParaTela(p: number | null | undefined): string {
   return `${texto}%`;
 }
 
-/**
- * Soma sem nenhuma linha chega nula da API (`SUM` vazio; o próprio servidor a conta como zero no resultado do mês). Os
- * períodos do painel (3, 6 e 12 meses, o ano, o mês) vão sempre de antes a depois de hoje, então nula aqui é "nenhum
- * registro": zero de verdade, não "sem dado" (Gustavo, 13/11). `undefined` (campo que não veio) continua sem dado.
- */
-export const somaOuZero = (v: number | null | undefined): number | undefined => (v === null ? 0 : v);
-
-/** Valor e quantidade: `R$ 300,00 (2 cobranças)`; sem valor, "—". */
+/** Valor e quantidade: `R$ 300,00 (2 cobranças)`; sem valor (nulo), "—". */
 export function valorEQuantidadeParaTela(v: ValorEQuantidade | null | undefined): string {
-  // Soma vazia com zero cobranças é zero (a contagem confirma, como no Início); valor nulo com cobranças segue "—".
-  const valor = v && v.valorCentavos === null && v.cobrancas === 0 ? 0 : v?.valorCentavos;
-  if (!v || valor === null || valor === undefined) return SEM_DADO;
+  if (!v || v.valorCentavos === null || v.valorCentavos === undefined) return SEM_DADO;
   const n = v.cobrancas;
   const quantidade = n === 1 ? '1 cobrança' : `${n} cobranças`;
-  return `${centavosParaTela(valor)} (${quantidade})`;
+  return `${centavosParaTela(v.valorCentavos)} (${quantidade})`;
 }
 
 export interface CartaoDoPainel {
@@ -556,15 +546,15 @@ export const MOTIVO_SEM_PAGANTES = 'Sem pagamentos no período';
 /**
  * Os seis cartões, na ordem da tela. Pagantes e valor médio ficam neutros: contagem e média, sem função de cor no D6 (a média é
  * medida calculada: zero com base válida não é apagado, `enfaseDaMedida`).
- * Somas e contagens vazias são zero (`somaOuZero`); só o valor médio, sem pagante, fica indisponível.
+ * Zero da API (consulta válida e vazia) aparece como R$ 0,00; nulo é sem dado e aparece "—". O valor médio, sem pagante,
+ * fica indisponível.
  */
 export function cartoesDoPainel(c: CartoesDoPainel): CartaoDoPainel[] {
-  const recebido = somaOuZero(c.recebidoCentavos);
-  const aReceber = somaOuZero(c.aReceberCentavos);
-  // Ausência confirmada pela contagem (0 cobranças); soma nula com cobranças seria anomalia e fica "—".
-  const atraso = c.emAtraso?.cobrancas === 0 ? somaOuZero(c.emAtraso.valorCentavos) : c.emAtraso?.valorCentavos;
-  const recorrente = somaOuZero(c.receitaRecorrenteMensalCentavos);
-  const pagantes = somaOuZero(c.alunosPagantes);
+  const recebido = c.recebidoCentavos;
+  const aReceber = c.aReceberCentavos;
+  const atraso = c.emAtraso?.valorCentavos;
+  const recorrente = c.receitaRecorrenteMensalCentavos;
+  const pagantes = c.alunosPagantes;
   return [
     { chave: 'recebido', titulo: 'Recebido no período', valor: centavosParaTela(recebido), enfase: enfaseDoNumero('azul', recebido) },
     {
@@ -644,34 +634,27 @@ export interface ResultadoDoMesNaTela {
   entradas: string;
   saidas: string;
   resultado: string;
-  /** Os mesmos números crus, para a cor (`enfaseDoNumero`); o recebido já com a soma vazia como zero. */
+  /** Os mesmos números crus, para a cor (`enfaseDoNumero`); nulo é sem dado, zero é zero. */
   centavos: { recebido: number | null | undefined; entradas: number | null | undefined; saidas: number | null | undefined; resultado: number | null | undefined };
 }
 
 export const MOTIVO_RESULTADO_COM_MEUS = 'Os lançamentos avulsos não entram no filtro "Meus".';
-export const MOTIVO_RESULTADO_MES_FUTURO = 'Este mês ainda não aconteceu.';
-export const MOTIVO_RESULTADO_SEM_LANCAMENTOS = 'Sem lançamentos avulsos registrados neste mês, então o resultado não pode ser calculado.';
+export const MOTIVO_RESULTADO_SEM_DADOS = 'Entradas ou saídas do mês não estão disponíveis.';
 
 /**
- * Por que o resultado do mês veio nulo (a API o devolve nulo quando recebido, entradas ou saídas não estão disponíveis;
- * nulo nunca é zero nem entra em soma). Só vale chamar com o resultado nulo. `mes` é `AAAA-MM`, `hoje` a data ISO de
- * Brasília. Sem motivo conhecido (nenhuma parcela nula) devolve `null`: a tela fica no "—" padrão, sem inventar causa.
+ * Por que o resultado do mês veio nulo (a API o devolve nulo quando entradas ou saídas não estão disponíveis, como no filtro
+ * "Meus"; mês sem lançamento é zero, não nulo; nulo nunca é zero nem entra em soma). Só vale chamar com o resultado nulo.
+ * Sem motivo conhecido (as duas parcelas vieram) devolve `null`: a tela fica no "—" padrão, sem inventar causa.
  */
-export function motivoDoResultadoNulo(o: {
-  somenteMeus?: boolean; mes?: string | null; hoje: string; entradas?: number | null; saidas?: number | null;
-}): string | null {
+export function motivoDoResultadoNulo(o: { somenteMeus?: boolean; entradas?: number | null; saidas?: number | null }): string | null {
   if (o.somenteMeus) return MOTIVO_RESULTADO_COM_MEUS;
-  if (o.mes && o.mes > o.hoje.slice(0, 7)) return MOTIVO_RESULTADO_MES_FUTURO;
-  if (typeof o.entradas !== 'number' || typeof o.saidas !== 'number') return MOTIVO_RESULTADO_SEM_LANCAMENTOS;
+  if (typeof o.entradas !== 'number' || typeof o.saidas !== 'number') return MOTIVO_RESULTADO_SEM_DADOS;
   return null;
 }
 
-/**
- * O recebido do mês vem da consulta que sempre roda (dia 1 a hoje): nulo é nenhum pagamento, zero (`somaOuZero`). As
- * avulsas e o resultado nulos são o filtro "Meus" (não pertencem a um aluno): esses seguem "—".
- */
+/** Nulo da API é sem dado ("—"); zero (consulta válida e vazia) é R$ 0,00. O app não converte um no outro. */
 export function resultadoDoMesParaTela(r: Painel['resultadoDoMes'] | null | undefined): ResultadoDoMesNaTela {
-  const recebido = r ? somaOuZero(r.recebidoCentavos) : null;
+  const recebido = r ? r.recebidoCentavos : null;
   return {
     rotulo: ROTULO_RESULTADO_DO_MES,
     mes: rotuloDoMes(r?.mes),

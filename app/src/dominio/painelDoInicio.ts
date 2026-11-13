@@ -7,7 +7,7 @@ import { caminhoListaAtualizacoes } from './atualizacao';
 import { dataRelativa } from './datasRelativas';
 import { enfaseDoNumero, type EnfaseDoNumero, type FuncaoDeDestaque } from './destaque';
 import { centavosParaTela, dataCurta, inteiroComMilhar as milhares, SEM_DADO } from './formatos';
-import { avisoDoHistoricoParcial, hojeEmBrasilia, periodoDoPainel, somaOuZero } from './financeiro';
+import { avisoDoHistoricoParcial, hojeEmBrasilia, periodoDoPainel } from './financeiro';
 import { contadorDeRetornos } from './inicioTreinador';
 import { rotuloDoMes } from './numeros';
 import { textoDoRecorde } from './recordesPessoais';
@@ -32,7 +32,7 @@ export type { BlocoDoPainelId, PainelDoInicioPreferido, TamanhoDoBloco };
  *  - bloco visível, mas a consulta falhou ou veio sem o número: o cartão fica "Não carregou" (`estado: 'naoCarregou'`);
  *  - consulta que respondeu com nulo de PERMISSÃO (as quatro contagens de atualização do `/painel`, nulas sem `ATUALIZACAO_LER` +
  *    `ALUNO_SENSIVEL_LER`): o cartão diz "Sem permissão" (`estado: 'semPermissao'`), neutro, sem número, sem abrir lista;
- *  - `null` de dado ausente nunca vira zero; soma vazia de consulta que rodou é zero (`financeiro.somaOuZero`, Gustavo 13/11);
+ *  - `null` de dado ausente nunca vira zero (a API devolve 0 para a consulta válida e vazia, 13/11);
  *    zero de verdade fica em cinza com o "0" (`enfase: 'zero'`); o indisponível diz o motivo em palavras (D5 e D14 de
  *    `docs/planos/cores-de-destaque.md`).
  */
@@ -354,7 +354,7 @@ export interface CartaoDoPainel {
   /**
    * `valor`: número disponível; `naoCarregou`: consulta falhou ou veio sem o número ("Não carregou" escrito); `semPermissao`:
    * o servidor devolveu nulo por falta de permissão ("Sem permissão", sem abrir lista nem "Atualizar"); `carregando`.
-   * Não há "—" solto no Início: soma vazia é zero (`somaOuZero`) e o que falta diz por quê em palavras (D14).
+   * Não há "—" solto no Início: o que falta diz por quê em palavras (D14).
    */
   estado: 'valor' | 'naoCarregou' | 'semPermissao' | 'carregando';
   /** Contagem, ou centavos quando `moeda`. `null` fora de `estado: 'valor'`. */
@@ -549,13 +549,15 @@ export interface BlocoDoPainel {
   grafico: RoscaDoPainel | BarrasDoPainel | null;
   /** Frase pequena sob os cartões. */
   nota: string | null;
+  /** Ressalva do histórico financeiro parcial (neutra, com ícone); uma vez por tela, veja {@link ressalvaUmaVez}. */
+  ressalva: string | null;
   /** Alguma consulta do bloco ainda carrega. */
   carregando: boolean;
   /** Nada do bloco carregou (todos os cartões "Não carregou", ou o gráfico sem dados): a tela pode mostrar o alerta com "Atualizar". */
   falhou: boolean;
 }
 
-function cabecalho(id: BlocoDoPainelId, meus: boolean, extra: { periodo?: string | null } = {}): Omit<BlocoDoPainel, 'cartoes' | 'linha' | 'grafico' | 'nota' | 'carregando' | 'falhou'> {
+function cabecalho(id: BlocoDoPainelId, meus: boolean, extra: { periodo?: string | null } = {}): Omit<BlocoDoPainel, 'cartoes' | 'linha' | 'grafico' | 'nota' | 'ressalva' | 'carregando' | 'falhou'> {
   const titulo = TITULOS_DOS_BLOCOS[id];
   return {
     id, titulo, periodo: extra.periodo ?? null, escopo: meus ? SO_OS_MEUS : null, meus, temFiltro: true,
@@ -565,11 +567,11 @@ function cabecalho(id: BlocoDoPainelId, meus: boolean, extra: { periodo?: string
   };
 }
 
-function fechar(base: ReturnType<typeof cabecalho>, partes: { cartoes?: CartaoDoPainel[]; linha?: CartaoDoPainel | null; grafico?: BlocoDoPainel['grafico']; nota?: string | null; falhouGrafico?: boolean }): BlocoDoPainel {
+function fechar(base: ReturnType<typeof cabecalho>, partes: { cartoes?: CartaoDoPainel[]; linha?: CartaoDoPainel | null; grafico?: BlocoDoPainel['grafico']; nota?: string | null; ressalva?: string | null; falhouGrafico?: boolean }): BlocoDoPainel {
   const cartoes = partes.cartoes ?? [];
   const todos = [...cartoes, ...(partes.linha ? [partes.linha] : [])];
   return {
-    ...base, cartoes, linha: partes.linha ?? null, grafico: partes.grafico ?? null, nota: partes.nota ?? null,
+    ...base, cartoes, linha: partes.linha ?? null, grafico: partes.grafico ?? null, nota: partes.nota ?? null, ressalva: partes.ressalva ?? null,
     carregando: todos.some((c) => c.estado === 'carregando'),
     falhou: todos.length > 0 ? todos.every((c) => c.estado === 'naoCarregou') : !!partes.falhouGrafico,
   };
@@ -707,10 +709,8 @@ function blocoFinanceiro(ctx: ContextoDoPainel, o: Entrada): BlocoDoPainel {
     const i = dadosDe(o.fontes.inadimplentes);
     const destino = href('aba=cobrancas', 'situacao=VENCIDA');
     const n = i && ehNumero(i.total) ? i.total : null;
-    // Soma vazia chega sem valor (nulo) com 0 cobranças: quem manda é a contagem, e zero de verdade fica cinza.
-    const valor = n === 0 ? 0 : i?.valorTotalCentavos;
     cartoes.push(cartao({
-      chave: 'financeiro.vencidas', rotulo: 'Vencidas', nome: 'Cobranças vencidas', situacao: n === null && sit === 'pronta' ? 'falhou' : sit, valor,
+      chave: 'financeiro.vencidas', rotulo: 'Vencidas', nome: 'Cobranças vencidas', situacao: n === null && sit === 'pronta' ? 'falhou' : sit, valor: i?.valorTotalCentavos,
       destaque: 'vermelho', destino, moeda: true, detalhe: n ? quantidade(n) : null, detalheFalado: n ? quantidade(n) : null,
     }));
   }
@@ -721,24 +721,27 @@ function blocoFinanceiro(ctx: ContextoDoPainel, o: Entrada): BlocoDoPainel {
   const q7 = em7 && ehNumero(em7.cobrancas) ? em7.cobrancas : null;
   cartoes.push(cartao({
     chave: 'financeiro.vencendo', rotulo: 'Vencendo em 7 dias', nome: 'Cobranças vencendo em 7 dias', situacao: q7 === null && sitF === 'pronta' ? 'falhou' : sitF,
-    valor: q7 === 0 ? 0 : em7?.valorCentavos, destaque: 'ciano', moeda: true, detalhe: q7 ? quantidade(q7) : null, detalheFalado: q7 ? quantidade(q7) : null,
+    valor: em7?.valorCentavos, destaque: 'ciano', moeda: true, detalhe: q7 ? quantidade(q7) : null, detalheFalado: q7 ? quantidade(q7) : null,
     destino: href('aba=cobrancas', 'situacao=ABERTA', 'vencimento=PROXIMOS_7_DIAS'),
   }));
 
   // Recebido no mês: o `cartoes.recebidoCentavos` cobre o período inteiro (6 meses); o do mês corrente é o do
-  // `resultadoDoMes` (mesma consulta, do dia 1 a hoje, que sempre roda). Sem pagamento no mês a soma vem nula: zero de
-  // verdade (Gustavo, 13/11; o servidor também a soma como zero no resultado). Sem `resultadoDoMes`, "Não carregou".
-  // Limite conhecido (D6, 13/11): a API devolve nulo para a soma vazia VÁLIDA e o app a lê como 0; vale até a API distinguir
-  // "consulta concluída sem registro" de "sem dado" (`docs/planos/nulo-e-cobertura.md`).
-  const recebido = f?.resultadoDoMes ? somaOuZero(f.resultadoDoMes.recebidoCentavos) : undefined;
+  // `resultadoDoMes` (mesma consulta, do dia 1 a hoje, que sempre roda). Sem pagamento no mês a API manda 0; nulo ou sem
+  // `resultadoDoMes` é "Não carregou" (nunca zero inventado).
+  const recebido = f?.resultadoDoMes?.recebidoCentavos;
   const entradaRecebido = {
     chave: 'financeiro.recebido', rotulo: 'Recebido no mês (bruto)', nome: 'Recebido no mês, valor bruto', destaque: 'azul' as const, moeda: true, largo: true,
     destino: href('aba=visao'),
   };
   cartoes.push(cartao({ ...entradaRecebido, situacao: sitF, valor: recebido }));
-  // Histórico parcial (API, 13/11): a mesma ressalva do Financeiro, uma vez no bloco; não muda nenhum valor.
-  const ressalva = avisoDoHistoricoParcial(f);
-  return fechar(cabecalho('financeiro', o.meus), { cartoes, nota: ressalva ? `${NOTA_FINANCEIRO_GERADAS} ${ressalva}` : NOTA_FINANCEIRO_GERADAS });
+  // Histórico parcial (API, 13/11): a mesma ressalva do Financeiro; não muda nenhum valor.
+  return fechar(cabecalho('financeiro', o.meus), { cartoes, nota: NOTA_FINANCEIRO_GERADAS, ressalva: avisoDoHistoricoParcial(f) });
+}
+
+/** A ressalva do histórico parcial aparece uma vez por tela: no bloco Financeiro e, sem ele, no Recebido. */
+export function ressalvaUmaVez(blocos: BlocoDoPainel[]): BlocoDoPainel[] {
+  if (!blocos.some((b) => b.id === 'financeiro')) return blocos;
+  return blocos.map((b) => (b.id === 'recebido' && b.ressalva ? { ...b, ressalva: null } : b));
 }
 
 function blocoRecebido(o: Entrada): BlocoDoPainel {
@@ -747,9 +750,7 @@ function blocoRecebido(o: Entrada): BlocoDoPainel {
   const base = cabecalho('recebido', o.meus);
   if (sit === 'carregando') return { ...fechar(base, {}), carregando: true };
   if (!f || !Array.isArray(f.serie)) return { ...fechar(base, { falhouGrafico: true }), falhou: true };
-  const barras = barrasDoRecebido(f.serie, o.meus, o.graficos);
-  const ressalva = avisoDoHistoricoParcial(f);
-  return fechar(base, { grafico: ressalva ? { ...barras, notas: [...barras.notas, ressalva] } : barras });
+  return fechar(base, { grafico: barrasDoRecebido(f.serie, o.meus, o.graficos), ressalva: avisoDoHistoricoParcial(f) });
 }
 
 /** Dados prontos das barras: `serie[]` do `/financeiro/painel`. Valor ausente fica `null` ("—"), nunca zero. */

@@ -8,7 +8,7 @@ import {
   chaveDaConsulta, compromissosDaSemana, consultaDaAgenda, consultasDoBloco, enderecoDoBloco, FONTE_CARREGANDO, FONTE_DESLIGADA,
   FONTE_FALHOU, fontePronta, folhaPastasARenovar, folhaRecordes, folhaSemRegistro, fonteDaConsulta, inicioSemAlunos, listaDaFolha, moverBloco, moverBlocoPara,
   montarBloco, mostrarBloco, PAINEL_DO_INICIO_PADRAO, periodoDoFinanceiroNoPainel, reaisSemCentavos, redimensionarBloco, restaurarPadrao,
-  resumoDaFolha, roscaDosAlunos,
+  resumoDaFolha, ressalvaUmaVez, roscaDosAlunos,
   type BlocoDoPainel, type BlocoDoPainelId, type ContextoDoPainel, type FontesDoPainel, type OpcoesDoBloco, type PainelDoInicioPreferido,
 } from './painelDoInicio';
 
@@ -460,30 +460,51 @@ describe('Financeiro', () => {
     expect(href(cartaoDe(m, 'financeiro.recebido').destino)).toContain('meus=true');
   });
 
-  it('soma vazia (valor nulo com 0 cobranças) é zero em cinza, não "Não carregou"', () => {
+  it('consulta válida e vazia (a API manda 0 com 0 cobranças) é zero em cinza, não "Não carregou"', () => {
+    const b = bloco('financeiro', fontes({
+      inadimplentes: fontePronta(inadimplentes({ total: 0, valorTotalCentavos: 0 })),
+      financeiro: fontePronta(financeiro({ proximosRecebimentos: { fonte: 'ABERTAS', em7Dias: { valorCentavos: 0, cobrancas: 0 }, em30Dias: { valorCentavos: 0, cobrancas: 0 } } })),
+    }));
+    expect(cartaoDe(b, 'financeiro.vencidas')).toMatchObject({ estado: 'valor', texto: 'R$ 0', enfase: 'zero', detalhe: null });
+    expect(cartaoDe(b, 'financeiro.vencendo')).toMatchObject({ estado: 'valor', texto: 'R$ 0', enfase: 'zero' });
+  });
+
+  it('valor nulo é sem dado ("Não carregou"), mesmo com 0 cobranças: o app não converte nulo em zero', () => {
     const b = bloco('financeiro', fontes({
       inadimplentes: fontePronta(inadimplentes({ total: 0, valorTotalCentavos: null })),
       financeiro: fontePronta(financeiro({ proximosRecebimentos: { fonte: 'ABERTAS', em7Dias: { valorCentavos: null, cobrancas: 0 }, em30Dias: { valorCentavos: null, cobrancas: 0 } } })),
     }));
-    expect(cartaoDe(b, 'financeiro.vencidas')).toMatchObject({ estado: 'valor', texto: 'R$ 0', enfase: 'zero', detalhe: null });
-    expect(cartaoDe(b, 'financeiro.vencendo')).toMatchObject({ estado: 'valor', texto: 'R$ 0', enfase: 'zero' });
+    expect(cartaoDe(b, 'financeiro.vencidas')).toMatchObject({ estado: 'naoCarregou', valor: null });
+    expect(cartaoDe(b, 'financeiro.vencendo')).toMatchObject({ estado: 'naoCarregou', valor: null });
   });
 
   it('o bloco diz que vencidas e vencendo só contam as cobranças já geradas', () => {
     expect(bloco('financeiro').nota).toBe('Vencidas e vencendo consideram só as cobranças já geradas.');
   });
 
-  it('histórico parcial: a ressalva entra na nota do bloco e nas notas do gráfico, sem mexer em valor; false não muda nada', () => {
+  it('histórico parcial: a ressalva é um campo à parte (não vai na nota nem nas notas do gráfico), sem mexer em valor; false e ausente não mudam nada', () => {
     const aviso = 'Parte do histórico financeiro foi removida em uma limpeza anterior.';
     const parcial = fontes({ financeiro: fontePronta(financeiro({ historicoFinanceiroParcial: true })) });
-    expect(bloco('financeiro', parcial).nota).toContain(aviso);
-    expect(bloco('financeiro', parcial).nota).toContain('já geradas');
-    const grafico = bloco('recebido', parcial).grafico;
-    expect(grafico?.tipo === 'barras' && grafico.notas.filter((n) => n.startsWith(aviso))).toHaveLength(1);
-    const normal = fontes({ financeiro: fontePronta(financeiro({ historicoFinanceiroParcial: false })) });
-    expect(bloco('financeiro', normal).nota).toBe('Vencidas e vencendo consideram só as cobranças já geradas.');
-    const g = bloco('recebido', normal).grafico;
-    expect(g?.tipo === 'barras' && g.notas.some((n) => n.includes('limpeza anterior'))).toBe(false);
+    expect(bloco('financeiro', parcial).ressalva).toContain(aviso);
+    expect(bloco('financeiro', parcial).nota).toBe('Vencidas e vencendo consideram só as cobranças já geradas.');
+    const recebido = bloco('recebido', parcial);
+    expect(recebido.ressalva).toContain(aviso);
+    expect(recebido.grafico?.tipo === 'barras' && recebido.grafico.notas.some((n) => n.includes('limpeza anterior'))).toBe(false);
+    for (const extra of [{ historicoFinanceiroParcial: false }, {}]) {
+      const normal = fontes({ financeiro: fontePronta(financeiro(extra)) });
+      expect(bloco('financeiro', normal).ressalva).toBeNull();
+      expect(bloco('recebido', normal).ressalva).toBeNull();
+    }
+  });
+
+  it('a ressalva aparece uma vez por tela: no Financeiro e, sem ele, no Recebido', () => {
+    const parcial = fontes({ financeiro: fontePronta(financeiro({ historicoFinanceiroParcial: true })) });
+    const dos = (ids: BlocoDoPainelId[]) => ressalvaUmaVez(ids.map((id) => bloco(id, parcial))).filter((b) => b.ressalva).map((b) => b.id);
+    expect(dos(['financeiro', 'recebido'])).toEqual(['financeiro']);
+    expect(dos(['recebido', 'financeiro'])).toEqual(['financeiro']);
+    expect(dos(['recebido'])).toEqual(['recebido']);
+    expect(dos(['financeiro'])).toEqual(['financeiro']);
+    expect(dos(['alunos', 'recebido', 'agenda'])).toEqual(['recebido']);
   });
 
   it('há cobranças mas o valor veio nulo: "Não carregou", nunca R$ 0', () => {
@@ -491,11 +512,10 @@ describe('Financeiro', () => {
     expect(cartaoDe(b, 'financeiro.vencidas')).toMatchObject({ estado: 'naoCarregou', valor: null });
   });
 
-  // Gustavo, 13/11: a consulta do mês sempre roda; soma nula é nenhum pagamento, zero de verdade (o servidor também a
-  // soma como zero no resultado). Sem o `resultadoDoMes`, o cartão segue "Não carregou".
-  it('nada recebido no mês (soma nula): R$ 0 em cinza; sem o resultado do mês, "Não carregou"', () => {
+  // 13/11: a API manda 0 na consulta válida e vazia; nulo é sem dado e o cartão diz "Não carregou" (nunca zero inventado).
+  it('recebido do mês nulo ou sem o resultado do mês: "Não carregou"', () => {
     const b = bloco('financeiro', fontes({ financeiro: fontePronta(financeiro({ resultadoDoMes: { rotulo: 'out/2026', mes: '2026-10', recebidoCentavos: null } })) }));
-    expect(cartaoDe(b, 'financeiro.recebido')).toMatchObject({ estado: 'valor', texto: 'R$ 0', valor: 0, enfase: 'zero' });
+    expect(cartaoDe(b, 'financeiro.recebido')).toMatchObject({ estado: 'naoCarregou', valor: null, enfase: 'indisponivel' });
     const semResultado = bloco('financeiro', fontes({ financeiro: fontePronta(financeiro({ resultadoDoMes: undefined })) }));
     expect(cartaoDe(semResultado, 'financeiro.recebido')).toMatchObject({ estado: 'naoCarregou', valor: null, enfase: 'indisponivel' });
   });
