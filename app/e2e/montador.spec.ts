@@ -189,6 +189,53 @@ test('montador: monta tela com cabeçalho, cartão com 3 linhas e botão primár
   expect(errosDaPagina).toEqual([]);
 });
 
+test('montador: a BarraDeFiltros do catálogo abre o painel lateral, aplica o rascunho e mostra o chip (1280 e 390 px)', async ({ page }) => {
+  const errosDaPagina: string[] = [];
+  page.on('pageerror', (e) => errosDaPagina.push(e.stack ?? e.message));
+  await page.route('**/api/**', (route) => route.abort());
+  // Captura do painel aberto: sem a entrada animada, ele já está no lugar.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/montador?aba=catalogo');
+  const naoEncontrada = page.getByText('Página não encontrada');
+  await expect(naoEncontrada.or(page.getByRole('heading', { name: 'Montador de telas' }))).toBeVisible();
+  test.skip(await naoEncontrada.isVisible(), 'Requer export com EXPO_PUBLIC_MONTADOR=1');
+  const pastaPrints = process.env.MONTADOR_PRINTS_DIR;
+
+  await page.getByLabel('Pesquisar componente').fill('filtro');
+  const exemplo = page.getByTestId('exemplo-barra-de-filtros');
+  await expect(exemplo.getByText('Situação: Atrasada', { exact: true })).toBeVisible();
+  await exemplo.getByRole('button', { name: /^Filtros, 1 / }).click();
+  const painel = page.getByRole('dialog', { name: 'Filtros de alunos' });
+  await expect(painel).toBeVisible();
+  const caixa = (await painel.boundingBox())!;
+  expect(caixa.x + caixa.width).toBe(1280);
+  expect(caixa.width).toBe(460);
+  await painel.getByRole('button', { name: 'Situação: Atrasada. Escolher.' }).click();
+  const lista = page.getByRole('dialog', { name: 'Situação' });
+  await lista.getByRole('checkbox', { name: 'Em dia', exact: true }).click();
+  await page.keyboard.press('Escape');
+  await expect(lista).toHaveCount(0);
+  if (pastaPrints) await page.screenshot({ path: join(pastaPrints, 'd-catalogo-painel-1280.png') });
+  await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+  await expect(painel).toHaveCount(0);
+  await expect(exemplo.getByText('Situação: Em dia', { exact: true })).toBeVisible();
+  await expect(exemplo.getByRole('button', { name: /^Filtros, 2 / })).toBeFocused();
+  if (pastaPrints) await page.screenshot({ path: join(pastaPrints, 'd-catalogo-1280.png') });
+
+  // Celular: a mesma peça, com o painel na folha de baixo.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(exemplo.getByText('Situação: Em dia', { exact: true })).toBeVisible();
+  if (pastaPrints) await page.screenshot({ path: join(pastaPrints, 'd-catalogo-390.png') });
+  await exemplo.getByRole('button', { name: /^Filtros, 2 / }).click();
+  await expect(painel).toBeVisible();
+  expect((await painel.boundingBox())!.width).toBe(390);
+  if (pastaPrints) await page.screenshot({ path: join(pastaPrints, 'd-catalogo-painel-390.png') });
+  await painel.getByRole('button', { name: 'Cancelar' }).click();
+  await expect(painel).toHaveCount(0);
+  expect(errosDaPagina).toEqual([]);
+});
+
 test('montador: aba Catálogo mostra os componentes de ui/ em 1280 e 390 px, com busca sem acento, folha e aviso de verdade', async ({ page }) => {
   const errosDaPagina: string[] = [];
   page.on('pageerror', (e) => errosDaPagina.push(e.stack ?? e.message));

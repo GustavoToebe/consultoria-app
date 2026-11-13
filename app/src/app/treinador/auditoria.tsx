@@ -46,7 +46,7 @@ export default function Auditoria() {
   const chips=chipsDosFiltros(filtros,nomeDe,ACOES_AUDITORIA);
   return <Tela largura={LARGURA_LISTA} bordas={['top']}><Cabecalho titulo="Auditoria" subtitulo="Ações feitas na consultoria, guardadas por um ano. Valores clínicos não aparecem."/>
     <BarraDeFiltros valor={filtros} aoAplicar={aplicar} limpo={SEM_FILTROS} chips={chips} aoTirar={(chave)=>aplicar(semOFiltro(filtros,chave as ChaveDoFiltro))}
-      rotuloDoResultado="Ver eventos" painelLateral={{titulo:'Filtros de eventos'}} seletores={(atuais,mudar)=><>
+      painelLateral={{titulo:'Filtros de eventos'}} seletores={(atuais,mudar)=><>
         {/* Pessoa e ação com o mesmo padrão: várias opções com busca (nada marcado = todas). */}
         <GrupoDoPainel titulo="Identificação" primeiro>
           <SelecaoMultiplaSuspensa rotulo="Pessoa" opcoes={opcoesDePessoa(membros??[])} marcados={new Set(atuais.pessoas)} rotuloDeTodos="Todas as pessoas" aoMudar={(m)=>mudar({...atuais,pessoas:[...m]})} style={{alignSelf:'stretch'}}/>

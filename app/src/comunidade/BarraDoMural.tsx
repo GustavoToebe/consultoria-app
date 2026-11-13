@@ -16,10 +16,10 @@ export function BarraDoMural({ filtro, aoFiltrar, busca, aoBuscar, comDenunciado
   comDenunciados: boolean;
 }) {
   return (
-    <BarraDeFiltros busca={{ valor: busca, aoMudar: aoBuscar, rotulo: 'Buscar na comunidade', placeholder: 'Palavra da publicação' }}
+    <BarraDeFiltros busca={{ valor: busca, aoMudar: aoBuscar, rotulo: 'Buscar na comunidade', placeholder: 'Palavra da publicação', inputMode: 'search' }}
       valor={filtro} aoAplicar={aoFiltrar} limpo={MURAL_SEM_FILTRO} chips={chipsDoMural(filtro)}
       aoTirar={(chave) => aoFiltrar(semOFiltroDoMural(filtro, chave as ChaveDoFiltroDoMural))}
-      rotuloDoResultado="Ver publicações" painelLateral={{ titulo: 'Filtros do mural' }}
+      painelLateral={{ titulo: 'Filtros do mural' }}
       seletores={(atuais, mudar) => <>
         <GrupoDoPainel titulo="Identificação" primeiro>
           <Escolha rotulo="Tipo de publicação" chips valor={atuais.tipo} aoMudar={(tipo) => mudar({ ...atuais, tipo })} opcoes={opcoesDoTipoDoMural()} />

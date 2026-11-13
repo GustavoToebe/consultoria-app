@@ -1,16 +1,14 @@
-import { ChevronDown, ChevronUp, SlidersHorizontal, X } from 'lucide-react-native';
-import { createContext, type ReactNode, useCallback, useContext, useEffect, useId, useMemo, useState } from 'react';
-import { Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { SlidersHorizontal, X } from 'lucide-react-native';
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Platform, Pressable, StyleSheet, View, type TextInputProps } from 'react-native';
 
 import { resultadoDoAplicar } from '../dominio/painelDeFiltros';
 
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, LARGURA_MENU_LATERAL, RAIO_CONTROLE } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, RAIO_CONTROLE } from '../tema/tokens';
 import { Botao } from './Botao';
 import { Campo } from './Campo';
-import { Cartao } from './Cartao';
 import { MensagemErro } from './Estados';
-import { FaixaDeChips } from './FaixaDeChips';
 import { Folha } from './Folha';
 import { depoisDeFecharAsFolhas } from './historicoDasFolhas';
 import { sobre } from './sobre';
@@ -23,11 +21,14 @@ export interface ChipDaBarra {
 }
 
 interface Props<T> {
-  /** Campo de busca (sempre à vista). Sem ele, a barra é só o botão "Filtros" (lista sem busca útil na API). */
-  busca?: { valor: string; aoMudar: (texto: string) => void; rotulo?: string; placeholder?: string };
+  /**
+   * Campo de busca (sempre à vista). Sem ele, a barra é só o botão "Filtros" (lista sem busca útil na API). `inputMode`
+   * "search" faz dele um `searchbox` para o leitor de tela (o mural, que já era assim).
+   */
+  busca?: { valor: string; aoMudar: (texto: string) => void; rotulo?: string; placeholder?: string; inputMode?: TextInputProps['inputMode'] };
   /** Os filtros em vigor. */
   valor: T;
-  /** Grava os filtros escolhidos (ex.: no endereço). No celular só quando a folha fecha (ver abaixo). */
+  /** Grava os filtros aplicados (ex.: no endereço), depois que o painel fecha e o histórico assenta. */
   aoAplicar: (filtros: T) => void;
   /** Os filtros de "nada filtrado": o "Limpar filtros". */
   limpo: T;
@@ -35,27 +36,10 @@ interface Props<T> {
   chips: readonly ChipDaBarra[];
   /** ✕ do chip: tira só aquele filtro. */
   aoTirar: (chave: string) => void;
-  /** Os seletores do painel "Filtros avançados" (`SelecaoMultiplaSuspensa` para várias opções, `Escolha` para uma). */
+  /** Os seletores do painel, numa coluna agrupada por `GrupoDoPainel` (`SelecaoMultiplaSuspensa` para várias, `Escolha` para uma). */
   seletores: (filtros: T, aoMudar: (filtros: T) => void) => ReactNode;
-  /** Título do painel no PC; padrão "Filtros avançados". No celular a folha se chama "Filtros". */
-  tituloDoPainel?: string;
-  /** Texto do botão que fecha a folha no celular ("Ver alunos"). */
-  rotuloDoResultado?: string;
-  /** Texto do botão que abre o painel; padrão "Filtros" ("Mais filtros" quando há `atalhos` ao lado). */
-  rotuloDoBotao?: string;
-  /**
-   * Chips rápidos (um `Escolha chips`, por exemplo) entre a busca e o botão. Ficam com o botão numa faixa que rola de lado
-   * no celular (`FaixaDeChips`), embaixo da busca, para a lista começar cedo.
-   */
-  atalhos?: ReactNode;
-  /**
-   * Painel lateral (`docs/planos/filtros-laterais.md`): o botão abre um painel modal "Filtros de <assunto>" com rascunho
-   * nas duas larguras, rodapé Limpar filtros · Cancelar · Aplicar filtros e validação no Aplicar. Os seletores vêm numa
-   * coluna, agrupados por `GrupoDoPainel`.
-   * shortcut: o modo antigo (cartão no PC com efeito na hora, folha do celular que aplica ao fechar) fica para as telas
-   * ainda não migradas; sai junto com esta prop quando todas migrarem (passos 4 e 5 do plano).
-   */
-  painelLateral?: { titulo: string };
+  /** O painel lateral: título "Filtros de <assunto>" (nome do diálogo). */
+  painelLateral: { titulo: string };
 }
 
 /** Campos com problema dentro do painel lateral: quem tem erro se registra, o "Aplicar filtros" soma. */
@@ -65,7 +49,7 @@ const ProblemasDoPainel = createContext<Problemas | null>(null);
 /**
  * Para um seletor do painel lateral dizer quantos campos dele estão errados agora (data pela metade, Até antes de De).
  * `mostrar` diz se é hora de marcar o erro no campo (depois do primeiro "Aplicar filtros"). Fora do painel lateral não
- * faz nada (`noPainel` falso): a tela segue com o comportamento de antes.
+ * faz nada (`noPainel` falso).
  */
 export function useProblemaNoPainel(quantos: number): { noPainel: boolean; mostrar: boolean } {
   const ctx = useContext(ProblemasDoPainel);
@@ -93,94 +77,67 @@ export function rotuloDoBotaoDeFiltros(quantos: number, rotulo = 'Filtros'): str
 }
 
 /**
- * Barra de filtros das listas (padrão da Central: busca + botão de filtros que abre os filtros avançados). Linha de
- * cima: o campo de busca, os `atalhos` (se houver) e o botão "Filtros" com o número de filtros ligados. No PC
- * (janela ≥ 768) o botão abre e fecha um cartão "Filtros avançados" logo abaixo, com os seletores em grade; no celular
- * abre uma `Folha` "Filtros". Embaixo, numa linha só: "Filtrando:", um chip por filtro (o ✕ tira aquele) e
- * "• Limpar filtros" (guia de 11/11, pág. 7). Serve a todas as listas do treinador (`docs/planos/filtros-nas-listas.md`):
- * quem usa decide os seletores e o que cada chip significa.
+ * Barra de filtros das listas (`docs/planos/filtros-laterais.md`): o campo de busca e o botão "Filtros" com o número de
+ * filtros ligados, que abre o painel lateral (rascunho; Aplicar valida e aplica de uma vez). Embaixo, numa linha só:
+ * "Filtrando:", um chip por filtro (o ✕ tira aquele, na hora) e "• Limpar filtros" (tira todos, a busca fica). Quem usa
+ * decide os seletores e o que cada chip significa.
  *
- * No PC cada escolha vale na hora (a de um seletor que abre a própria Folha, como `EscolhaEmFolha`, quando ela fecha, pelo
- * mesmo motivo do celular). Na folha do celular as escolhas ficam num rascunho e só são gravadas quando ela fecha
- * (X, tocar fora ou "Ver resultado"), depois do histórico assentar (`depoisDeFecharAsFolhas`): gravar no endereço com a
- * Folha aberta cairia na entrada de histórico dela e o fechar desfaria a escolha.
+ * O Aplicar grava depois de o histórico assentar (`depoisDeFecharAsFolhas`): gravar no endereço com a Folha aberta cairia
+ * na entrada de histórico dela e o fechar desfaria a escolha. Enquanto essa gravação não sai, o botão não reabre o painel
+ * (B3): o rascunho copiaria o valor antigo e a gravação atrasada cairia na entrada da folha nova.
  */
-export function BarraDeFiltros<T>({ busca, valor, aoAplicar, limpo, chips, aoTirar, seletores, tituloDoPainel = 'Filtros avançados', rotuloDoResultado = 'Ver resultado', rotuloDoBotao = 'Filtros', atalhos, painelLateral }: Props<T>) {
+export function BarraDeFiltros<T>({ busca, valor, aoAplicar, limpo, chips, aoTirar, seletores, painelLateral }: Props<T>) {
   const { cores } = useTema();
-  const { width } = useWindowDimensions();
-  const [aberto, setAberto] = useState(false);
-  // Na folha: o que foi escolhido e ainda não foi gravado.
+  // O que foi escolhido e ainda não foi aplicado; `null` = painel fechado.
   const [rascunho, setRascunho] = useState<{ filtros: T } | null>(null);
-  const emFolha = width < LARGURA_MENU_LATERAL;
+  const aplicando = useRef(false);
+  const aberto = rascunho !== null;
   const quantos = chips.length;
-  const Seta = aberto ? ChevronUp : ChevronDown;
-  const alternar = () => {
-    if (emFolha || painelLateral) {
-      setRascunho({ filtros: valor });
-      setAberto(true);
-    } else {
-      setAberto((v) => !v);
-    }
+  const abrir = () => {
+    // Aplicação ainda a caminho (dura o voltar do histórico, uns milissegundos): o toque não abre com o valor velho.
+    if (aplicando.current) return;
+    setRascunho({ filtros: valor });
   };
-  const fecharFolha = () => {
-    const escolhido = rascunho;
-    setAberto(false);
+  const aplicar = (filtros: T) => {
     setRascunho(null);
-    if (escolhido) depoisDeFecharAsFolhas(() => aoAplicar(escolhido.filtros));
+    aplicando.current = true;
+    depoisDeFecharAsFolhas(() => {
+      try { aoAplicar(filtros); } finally { aplicando.current = false; }
+    });
   };
-
-  const botao = (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={rotuloDoBotaoDeFiltros(quantos, rotuloDoBotao)}
-      accessibilityState={{ expanded: aberto }}
-      aria-expanded={aberto}
-      aria-haspopup={painelLateral ? 'dialog' : undefined}
-      onPress={alternar}
-      style={(e) => [estilos.filtros, { borderColor: cores.bordaCampo, backgroundColor: aberto ? cores.superficie3 : sobre(e) ? cores.superficie2 : 'transparent' }]}>
-      <SlidersHorizontal size={18} color={cores.texto} strokeWidth={2} />
-      <Texto style={estilos.rotuloFiltros} cor={cores.texto}>{rotuloDoBotao}</Texto>
-      {/* Contagem neutra: `superficie3` com o botão fechado; aberto (o botão já é `superficie3`), o cartão. */}
-      {quantos > 0 ? (
-        <View style={[estilos.contagem, { backgroundColor: aberto ? cores.superficie : cores.superficie3 }]}>
-          <Texto variante="pequeno" numerico cor={cores.texto} style={estilos.numero}>{String(quantos)}</Texto>
-        </View>
-      ) : null}
-      {emFolha || painelLateral ? null : <Seta size={18} color={cores.textoSuave} strokeWidth={2} />}
-    </Pressable>
-  );
 
   return (
     <View style={estilos.raiz}>
       <View style={estilos.linha}>
         {busca ? (
           <View style={estilos.busca}>
-            <Campo rotulo={busca.rotulo ?? 'Buscar'} valor={busca.valor} aoMudar={busca.aoMudar} placeholder={busca.placeholder}
+            <Campo rotulo={busca.rotulo ?? 'Buscar'} valor={busca.valor} aoMudar={busca.aoMudar} placeholder={busca.placeholder} inputMode={busca.inputMode}
               autoCapitalize="none" autoCorrect={false} spellCheck={false} autoComplete="off" enterKeyHint="search" />
           </View>
         ) : null}
-        {/* Com atalhos, eles e o botão rolam juntos de lado no celular: o botão nunca fica sozinho numa linha. */}
-        {atalhos ? <View style={estilos.faixa}><FaixaDeChips>{atalhos}{botao}</FaixaDeChips></View> : botao}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={rotuloDoBotaoDeFiltros(quantos)}
+          accessibilityState={{ expanded: aberto }}
+          aria-expanded={aberto}
+          aria-haspopup="dialog"
+          onPress={abrir}
+          style={(e) => [estilos.filtros, { borderColor: cores.bordaCampo, backgroundColor: aberto ? cores.superficie3 : sobre(e) ? cores.superficie2 : 'transparent' }]}>
+          <SlidersHorizontal size={18} color={cores.texto} strokeWidth={2} />
+          <Texto style={estilos.rotuloFiltros} cor={cores.texto}>Filtros</Texto>
+          {/* Contagem neutra: `superficie3` com o botão fechado; aberto (o botão já é `superficie3`), o cartão. */}
+          {quantos > 0 ? (
+            <View style={[estilos.contagem, { backgroundColor: aberto ? cores.superficie : cores.superficie3 }]}>
+              <Texto variante="pequeno" numerico cor={cores.texto} style={estilos.numero}>{String(quantos)}</Texto>
+            </View>
+          ) : null}
+        </Pressable>
       </View>
       {/* Montado só aberto: cada abertura começa sem erro à vista. */}
-      {painelLateral && aberto && rascunho ? (
+      {rascunho ? (
         <PainelLateral titulo={painelLateral.titulo} rascunho={rascunho.filtros} limpo={limpo}
           aoMudar={(filtros) => setRascunho({ filtros })} seletores={seletores}
-          aoDescartar={() => { setAberto(false); setRascunho(null); }}
-          aoAplicar={(filtros) => { setAberto(false); setRascunho(null); depoisDeFecharAsFolhas(() => aoAplicar(filtros)); }} />
-      ) : null}
-      {aberto && !emFolha && !painelLateral ? (
-        <Cartao titulo={tituloDoPainel}>
-          {/* Seletor que abre a própria Folha (`EscolhaEmFolha`) escolhe com ela aberta: grava depois que ela fecha. */}
-          <View style={estilos.grade}>{seletores(valor, (filtros) => depoisDeFecharAsFolhas(() => aoAplicar(filtros)))}</View>
-        </Cartao>
-      ) : null}
-      {aberto && emFolha && rascunho && !painelLateral ? (
-        <Folha visivel titulo="Filtros" aoFechar={fecharFolha}
-          rodape={<Botao rotulo={rotuloDoResultado} cheio aoTocar={fecharFolha} />}>
-          <View style={estilos.pilha}>{seletores(rascunho.filtros, (filtros) => setRascunho({ filtros }))}</View>
-          <Botao rotulo="Limpar filtros" tipo="fantasma" Icone={X} aoTocar={() => setRascunho({ filtros: limpo })} />
-        </Folha>
+          aoDescartar={() => setRascunho(null)} aoAplicar={aplicar} />
       ) : null}
       {quantos > 0 ? (
         <View style={estilos.filtrado}>
@@ -198,8 +155,12 @@ export function BarraDeFiltros<T>({ busca, valor, aoAplicar, limpo, chips, aoTir
               </Pressable>
             ))}
           </View>
-          <Texto variante="suave" aria-hidden>•</Texto>
-          <Botao rotulo="Limpar filtros" tipo="fantasma" aoTocar={() => aoAplicar(limpo)} />
+          {/* O "•" quebra junto com o link: nunca fica pendurado no fim da linha nem deixa o link sozinho embaixo. Nome
+              próprio (com o texto visível no começo): a lista vazia também oferece um "Limpar filtros". */}
+          <View style={estilos.limpar}>
+            <Texto variante="suave" aria-hidden>•</Texto>
+            <Botao rotulo="Limpar filtros" rotuloAcessivel="Limpar filtros aplicados" tipo="fantasma" aoTocar={() => aoAplicar(limpo)} />
+          </View>
         </View>
       ) : null}
     </View>
@@ -264,8 +225,6 @@ const estilos = StyleSheet.create({
   raiz: { gap: espaco(1.5) },
   linha: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', columnGap: espaco(1.5), rowGap: espaco(1) },
   busca: { flexGrow: 1, flexShrink: 1, flexBasis: 240, maxWidth: 480 },
-  // A faixa nunca passa da largura da linha: o que sobra rola dentro dela.
-  faixa: { flexShrink: 1, minWidth: 0, maxWidth: '100%' },
   filtros: {
     minHeight: ALVO_TOQUE, flexDirection: 'row', alignItems: 'center', gap: espaco(1), paddingHorizontal: espaco(1.5),
     borderWidth: 1, borderRadius: RAIO_CONTROLE,
@@ -273,14 +232,10 @@ const estilos = StyleSheet.create({
   rotuloFiltros: { fontFamily: fontes.semi },
   contagem: { minWidth: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
   numero: { fontFamily: fontes.semi },
-  // Seletores em grade no PC: cada um com pelo menos 260 px, quebrando linha.
-  grade: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(3), rowGap: espaco(2), alignItems: 'flex-start' },
-  // Na folha a mesma linha que quebra: cada seletor (com base de 280 px, a da célula) ocupa a largura toda. Em coluna, a
-  // base viraria altura.
-  pilha: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(3), rowGap: espaco(2), alignItems: 'flex-start' },
   filtrado: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1) },
   // Os chips seguem a frase na mesma linha e só quebram quando não cabem.
   chipsAtivos: { flexShrink: 1, maxWidth: '100%' },
+  limpar: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
   chip: {
     minHeight: ALVO_TOQUE, flexDirection: 'row', alignItems: 'center', gap: espaco(0.75), paddingHorizontal: espaco(1.25),
     borderWidth: 1, borderRadius: RAIO_CONTROLE, maxWidth: '100%',

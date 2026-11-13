@@ -195,7 +195,6 @@ export default function Interessados() {
             busca={{ valor: buscaDigitada, aoMudar: (t) => { setBuscaDigitada(t); setPagina(0); }, placeholder: 'Nome, e-mail ou WhatsApp' }}
             valor={filtrosDaTela} aoAplicar={aplicar} limpo={limpos(filtrosDaTela, visaoDosFiltros)} chips={chips}
             aoTirar={(chave) => aplicar(semOFiltro(filtrosDaTela, chave as ChaveDoFiltro))}
-            rotuloDoResultado="Ver inscrições"
             painelLateral={{ titulo: 'Filtros de inscrições' }}
             seletores={(atuais, mudar) => <SeletoresDeInteressados visiveis={visiveis} filtros={atuais} aoMudar={mudar}
               opcoesDeSituacao={opcoesDeSituacao} opcoesDeResponsavel={opcoesDeResponsavel(responsaveis.dados ?? [], usuario?.id)} />} />

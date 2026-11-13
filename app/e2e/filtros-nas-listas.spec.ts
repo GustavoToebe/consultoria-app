@@ -393,7 +393,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await expect(page).toHaveURL(/situacao=FALHOU/);
       await expect(page.getByRole('button', { name: 'Tirar filtro: Data: a partir de 01/10/2026' })).toBeVisible();
 
-      await page.getByRole('button', { name: 'Limpar filtros' }).first().click();
+      await page.getByRole('button', { name: 'Limpar filtros aplicados' }).click();
       await expect.poll(() => ultimo(pedidos, '/importacoes')?.toString()).toBe('pagina=0');
       await expect(page.getByRole('button', { name: /Tirar filtro/ })).toHaveCount(0);
       expect(naoTratadas).toEqual([]);

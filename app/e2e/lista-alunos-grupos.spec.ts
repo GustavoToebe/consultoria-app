@@ -240,7 +240,9 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await expect(page.getByText('Você não é responsável por nenhum aluno.')).toBeVisible();
       await expect(page.getByText('Nenhum aluno passa nesses filtros')).toHaveCount(0);
       await expect(page.getByRole('button', { name: 'Ver todos os alunos' })).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Limpar filtros', exact: true })).toHaveCount(1);
+      // O da barra ("Limpar filtros aplicados" para o leitor de tela); o vazio não oferece outro.
+      await expect(page.getByRole('button', { name: 'Limpar filtros aplicados' })).toHaveCount(1);
+      await expect(page.getByRole('button', { name: 'Limpar filtros', exact: true })).toHaveCount(0);
       expect(errosDaPagina).toEqual([]);
     });
   });

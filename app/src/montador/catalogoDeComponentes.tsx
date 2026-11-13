@@ -10,7 +10,7 @@ import { Abas } from '../ui/Abas';
 import { AjusteDeCarga } from '../ui/AjusteDeCarga';
 import { AnelProgresso } from '../ui/AnelProgresso';
 import { useAviso } from '../ui/Aviso';
-import { BarraDeFiltros } from '../ui/BarraDeFiltros';
+import { BarraDeFiltros, GrupoDoPainel } from '../ui/BarraDeFiltros';
 import { BarraProgresso } from '../ui/BarraProgresso';
 import { Botao } from '../ui/Botao';
 import { BotaoMarcar } from '../ui/BotaoMarcar';
@@ -389,8 +389,11 @@ function BarraDeFiltrosDemo() {
       limpo={{ situacoes: [] }}
       chips={filtros.situacoes.map((s) => ({ chave: s, texto: `Situação: ${rotuloDe(s)}` }))}
       aoTirar={(chave) => setFiltros((f) => ({ situacoes: f.situacoes.filter((s) => s !== chave) }))}
+      painelLateral={{ titulo: 'Filtros de alunos' }}
       seletores={(f, mudar) => (
-        <SelecaoMultiplaSuspensa rotulo="Situação" opcoes={SITUACOES} marcados={new Set(f.situacoes)} aoMudar={(m) => mudar({ situacoes: [...m] })} />
+        <GrupoDoPainel titulo="Situação" primeiro>
+          <SelecaoMultiplaSuspensa rotulo="Situação" opcoes={SITUACOES} marcados={new Set(f.situacoes)} aoMudar={(m) => mudar({ situacoes: [...m] })} />
+        </GrupoDoPainel>
       )}
     />
   );
@@ -636,7 +639,7 @@ export const EXEMPLOS_DO_CATALOGO: readonly ExemploComDesenho[] = [
     Desenho: LinhaDeMarcarDemo },
   { id: 'item-de-lista', componente: 'ItemDeLista', estado: 'com selo e de perigo', secao: 'listasETabelas', caminho: 'ui/ItemDeLista', props: 'titulo · detalhe · selo · href | perigo · aoTocar',
     Desenho: ItemDeListaDemo },
-  { id: 'barra-de-filtros', componente: 'BarraDeFiltros', estado: 'com busca e um filtro', secao: 'listasETabelas', caminho: 'ui/BarraDeFiltros', props: 'busca · valor · limpo · chips · aoTirar · seletores',
+  { id: 'barra-de-filtros', componente: 'BarraDeFiltros', estado: 'com busca, um filtro e o painel lateral', secao: 'listasETabelas', caminho: 'ui/BarraDeFiltros', props: 'busca · valor · aoAplicar · limpo · chips · aoTirar · seletores (GrupoDoPainel) · painelLateral={{ titulo }}',
     Desenho: BarraDeFiltrosDemo },
 
   // Estrutura

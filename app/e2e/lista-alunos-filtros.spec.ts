@@ -119,7 +119,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       expect(busca(page).get('registro')).toBe('NUNCA');
       await expect(botaoFiltros(page)).toHaveAccessibleName('Filtros, 3 ligados');
 
-      await page.getByRole('button', { name: 'Limpar filtros', exact: true }).first().click();
+      await page.getByRole('button', { name: 'Limpar filtros aplicados' }).click();
       await expect.poll(() => [...busca(page).keys()]).toEqual([]);
       await expect.poll(() => filtrosDoPedido(pedidos)).toEqual([['situacao', 'ATIVO'], ['meus', 'false']]);
       await expect(page.getByRole('list', { name: 'Filtrando' })).toHaveCount(0);

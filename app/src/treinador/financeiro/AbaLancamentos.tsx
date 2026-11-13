@@ -120,7 +120,7 @@ export function AbaLancamentos({ podeAlterar }: { podeAlterar: boolean }) {
       {resultado.dados ? <ResultadoDoMes resultado={resultado.dados.resultadoDoMes} /> : null}
       <BarraDeFiltros busca={{ valor: buscaDigitada, aoMudar: (t) => { setBuscaDigitada(t); setPagina(0); }, placeholder: 'Descrição' }}
         valor={filtros} aoAplicar={aplicar} limpo={SEM_FILTROS_DE_LANCAMENTOS} chips={chipsDosLancamentos(filtros)}
-        aoTirar={(chave) => aplicar(semOFiltroDeLancamentos(filtros, chave as ChaveDoFiltroDeLancamentos))} rotuloDoResultado="Ver lançamentos"
+        aoTirar={(chave) => aplicar(semOFiltroDeLancamentos(filtros, chave as ChaveDoFiltroDeLancamentos))}
         painelLateral={{ titulo: 'Filtros de lançamentos' }}
         seletores={(atuais, mudar) => (
           <>

@@ -218,7 +218,7 @@ export default function AgendaDoTreinador() {
   ];
   const barraDeFiltros = <BarraDeFiltros valor={filtros} aoAplicar={aplicarFiltros} limpo={AGENDA_SEM_FILTRO}
     chips={chipsDaAgenda(filtros, nomeDoMembro)} aoTirar={(chave) => aplicarFiltros(semOFiltroDaAgenda(filtros, chave as ChaveDoFiltroDaAgenda))}
-    rotuloDoResultado="Ver agenda" painelLateral={{ titulo: 'Filtros da agenda' }}
+    painelLateral={{ titulo: 'Filtros da agenda' }}
     seletores={(atuais, mudar) => <SeletoresDaAgenda filtros={atuais} aoMudar={mudar} opcoesDeResponsavel={opcoesDeResponsavel} comSituacao={permissoes.agenda} />} />;
   const atrasadas = cal.atrasadas ? <SecaoDaLateral titulo="Atualizações" divisoria={cal.painelDeAgendas.length > 0}>
     <View style={estilos.atrasadas}>

@@ -326,11 +326,11 @@ for (const largura of [390, 1280]) {
       await expect(page.getByText('Nenhuma publicação encontrada com esse filtro.')).toBeVisible();
       await expect(page.getByRole('button', { name: 'Tirar filtro: Tipo: Dúvidas' })).toBeVisible();
       await capturar(page, `aluno-mural-filtro-vazio-${largura}`);
-      await page.getByRole('button', { name: 'Limpar filtros' }).first().click();
+      await page.getByRole('button', { name: 'Limpar filtros aplicados' }).click();
       await expect(page.getByText('Treino feito.')).toBeVisible();
       await expect(botaoFiltros(page)).toHaveAccessibleName('Filtros, nenhum ligado');
 
-      await page.getByRole('textbox', { name: 'Buscar na comunidade' }).fill('supino');
+      await page.getByRole('searchbox', { name: 'Buscar na comunidade' }).fill('supino');
       await expect.poll(() => api.pedidos.some((p) => p.caminho === '/aluno/comunidade/mural' && p.busca.get('busca') === 'supino')).toBe(true);
       await expect(page.getByText('Nenhuma publicação encontrada com esse filtro.')).toBeVisible();
       expect(api.errosDaPagina).toEqual([]);
@@ -1662,7 +1662,7 @@ for (const [largura, altura, colunas] of [[390, 900, 1], [1440, 900, 2], [1920, 
       const coluna = (await page.getByTestId('coluna-das-publicacoes').boundingBox())!;
       expect(Math.abs(coluna.x - esquerda)).toBeLessThanOrEqual(1);
       expect(coluna.width).toBeLessThanOrEqual(800);
-      const busca = (await page.getByRole('textbox', { name: 'Buscar na comunidade' }).boundingBox())!;
+      const busca = (await page.getByRole('searchbox', { name: 'Buscar na comunidade' }).boundingBox())!;
       const filtros = (await botaoFiltros(page).boundingBox())!;
       // A barra de filtros (busca e botão "Filtros", na largura da peça compartilhada) começa na borda esquerda e cabe no
       // conteúdo. No celular a ação do cabeçalho desce para baixo do título e não marca a borda direita.

@@ -1,7 +1,7 @@
 import type { FaseAtualizacao, SituacaoFiltro } from '../api/tipos';
 
 /**
- * Filtros avançados da lista de alunos (`docs/planos/filtros-da-lista-de-alunos.md`, 31/10): o que a tela guarda, como
+ * Filtros da lista de alunos (`docs/planos/filtros-da-lista-de-alunos.md`, 31/10): o que a tela guarda, como
  * vai para o endereço (`/treinador/alunos?acesso=SEM&...`), como vai para a API (`GET /alunos`, parâmetros repetidos), os
  * chips do "Filtrando:" e quais filtros cada permissão vê. Funções puras.
  *

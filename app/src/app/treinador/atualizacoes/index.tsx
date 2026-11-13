@@ -87,7 +87,7 @@ export default function ListaAtualizacoes() {
   return <Tela largura={LARGURA_LISTA} bordas={['top']}>
     <Cabecalho titulo="Atualizações" subtitulo="Revise os envios e acompanhe os prazos." mostrarMarca="celular" />
     <BarraDeFiltros busca={{valor:busca,aoMudar:setBusca,placeholder:'Nome do aluno'}} valor={filtros} aoAplicar={aplicar} limpo={SEM_FILTROS}
-      chips={chips} aoTirar={(chave)=>aplicar(semOFiltro(filtros,chave as ChaveDoFiltro))} rotuloDoResultado="Ver atualizações"
+      chips={chips} aoTirar={(chave)=>aplicar(semOFiltro(filtros,chave as ChaveDoFiltro))}
       painelLateral={{titulo:'Filtros de atualizações'}}
       seletores={(atuais,mudar)=><>
         <GrupoDoPainel titulo="Identificação" primeiro>

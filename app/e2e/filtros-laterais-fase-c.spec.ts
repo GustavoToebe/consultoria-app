@@ -290,7 +290,7 @@ for (const caso of CASOS) {
         await busca.fill('zzzz');
         await expect(page.getByText(caso.buscaQueEsvazia.vazio)).toBeVisible();
         await expect(page.getByRole('button', { name: caso.chip })).toBeVisible();
-        await expect(page.getByRole('button', { name: 'Limpar filtros' }).last()).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Limpar filtros', exact: true })).toBeVisible();
         await capturar(page, caso, v, 'vazio-com-chips');
         await busca.fill('');
       }

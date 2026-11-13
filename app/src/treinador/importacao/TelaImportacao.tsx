@@ -116,7 +116,7 @@ export function TelaImportacao() {
       <ItemDeLista titulo="Importação assistida" Icone={FileSearch}
         detalhe="PDFs, DOCX, planilhas e texto colado num lote só. Você confere tudo antes de gravar." href="/treinador/importacao/assistida" />
       <BarraDeFiltros valor={filtros} aoAplicar={aplicar} limpo={SEM_FILTROS} chips={chips}
-        aoTirar={(chave) => aplicar(semOFiltro(filtros, chave as ChaveDoFiltro))} rotuloDoResultado="Ver importações"
+        aoTirar={(chave) => aplicar(semOFiltro(filtros, chave as ChaveDoFiltro))}
         painelLateral={{ titulo: 'Filtros de importações' }}
         seletores={(atuais, mudar) => <>
           <GrupoDoPainel titulo="Identificação" primeiro>

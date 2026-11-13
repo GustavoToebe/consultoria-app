@@ -131,7 +131,7 @@ for (const largura of [390, 1280]) {
     await page.getByRole('textbox', { name: 'Buscar' }).fill('ninguem');
     await expect(page.getByText('Nenhuma cobrança nesta lista')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Tirar filtro: Situação: Em aberto, Pagas' })).toBeVisible();
-    await page.getByRole('button', { name: 'Limpar filtros' }).first().click();
+    await page.getByRole('button', { name: 'Limpar filtros aplicados' }).click();
     await expect(page.getByRole('button', { name: 'Filtros, nenhum ligado' })).toBeVisible();
     await expect(page.getByRole('textbox', { name: 'Buscar' })).toHaveValue('ninguem');
     expect(naoTratadas).toEqual([]);
@@ -222,6 +222,35 @@ test('Cobranças: seleção em lote antes de filtrar; Cancelar e os mesmos filtr
   await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
   await expect(page.getByText('As 4 cobranças marcadas saíram da seleção porque os filtros mudaram.')).toBeVisible();
   await expect(page.getByText('4 cobranças selecionadas')).toHaveCount(0);
+  expect(naoTratadas).toEqual([]);
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('Cobranças (B3): reabrir logo depois de Aplicar não copia o valor antigo nem desfaz o filtro ao fechar', async ({ page }) => {
+  // O voltar do histórico (que fecha a entrada do painel) demora: a aplicação fica pendente o bastante para o toque cair nela.
+  await page.addInitScript(() => {
+    const ir = History.prototype.go;
+    History.prototype.go = function (this: History, delta?: number) { setTimeout(() => ir.call(this, delta), 300); };
+  });
+  const { naoTratadas, errosDaPagina } = await abrirCobrancas(page, 1280);
+  const painel = await abrirPainel(page);
+  await marcar(page, painel, 'Situação', 'Todas', ['Pagas']);
+  await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+  await expect(painel).toHaveCount(0);
+  // Toque durante a aplicação pendente: não abre (abriria com "Todas" e o filtro cairia na entrada da folha nova).
+  await botao(page).click();
+  await expect(page).toHaveURL(/situacao=PAGA/);
+  await expect(painelDe(page)).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Filtros, 1 ligado' })).toBeVisible();
+
+  // Depois de aplicado, abre com o valor novo; Cancelar não leva o endereço de volta ao antigo.
+  const outra = await abrirPainel(page);
+  await expect(outra.getByRole('button', { name: 'Situação: Pagas. Escolher.' })).toBeVisible();
+  await outra.getByRole('button', { name: 'Cancelar' }).click();
+  await expect(outra).toHaveCount(0);
+  await page.waitForTimeout(600); // o voltar atrasado (300 ms) do Cancelar já passou
+  await expect(page).toHaveURL(/situacao=PAGA/);
+  await expect(page.getByRole('button', { name: 'Filtros, 1 ligado' })).toBeVisible();
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);
 });
@@ -399,7 +428,7 @@ for (const largura of [1280, 390]) {
     expect(pedidosDeCobrancas(pedidos).at(-1)!.busca.get('alunoId')).toBe(ALUNO_FINANCEIRO_ID);
 
     // "Limpar filtros" da página tira o critério e mantém o aluno.
-    await page.getByRole('button', { name: 'Limpar filtros' }).click();
+    await page.getByRole('button', { name: 'Limpar filtros aplicados' }).click();
     await expect(page.getByRole('button', { name: 'Filtros, nenhum ligado' })).toBeVisible();
     await expect(page).toHaveURL(new RegExp(`alunoId=${ALUNO_FINANCEIRO_ID}`));
     await expect(page).not.toHaveURL(/situacao=/);
@@ -511,7 +540,7 @@ for (const largura of [390, 1280]) {
     await expect(page.getByText('Nenhum exercício encontrado')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Tirar filtro: Grupo muscular: Peito' })).toBeVisible();
     await page.screenshot({ path: `${CAPTURAS}/depois-exercicios-vazio-${largura}.png`, fullPage: true });
-    await page.getByRole('button', { name: 'Limpar filtros' }).last().click();
+    await page.getByRole('button', { name: 'Limpar filtros', exact: true }).click();
     await expect(page.getByText('Remada curvada', { exact: true })).toBeVisible();
     await expect(page.getByRole('textbox', { name: 'Buscar exercício' })).toHaveValue('remada');
     expect(naoTratadas).toEqual([]);

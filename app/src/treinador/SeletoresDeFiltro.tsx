@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from 'react';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { type RegraDeData, dataDaTelaNaFaixa } from '../dominio/datasValidas';
@@ -13,14 +13,9 @@ import { EscolhaEmFolha, OPCOES_PARA_BUSCAR } from '../ui/EscolhaEmFolha';
 import { Texto } from '../ui/Texto';
 
 /**
- * Peças dos painéis de filtros das listas (`ui/BarraDeFiltros`, `docs/planos/filtros-nas-listas.md`): a célula da grade,
- * a escolha de uma opção (chips até oito, folha com busca acima disso) e o período De/Até.
+ * Peças dos painéis de filtros das listas (`ui/BarraDeFiltros`, `docs/planos/filtros-laterais.md`): a escolha de uma
+ * opção (chips até oito, folha com busca acima disso) e o período De/Até.
  */
-
-/** Uma célula da grade do painel (no celular, a folha empilha). */
-export function CelulaDoFiltro({ children }: { children: ReactNode }) {
-  return <View style={estilos.celula}>{children}</View>;
-}
 
 /** Escolha de uma opção num filtro: `Escolha` até oito opções, `EscolhaEmFolha` (com busca) acima disso. */
 export function UmaOpcao<T extends string>({ rotulo, valor, opcoes, aoMudar }: {
@@ -104,7 +99,6 @@ export function CamposDePeriodo({ rotulo = 'Período', valor, aoMudar, osDois, m
 }
 
 const estilos = StyleSheet.create({
-  celula: { flexGrow: 1, flexShrink: 1, flexBasis: 280, minWidth: 0 },
   periodo: { gap: espaco(1) },
   datas: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
   data: { flexGrow: 1, flexShrink: 1, flexBasis: 150, minWidth: 0 },

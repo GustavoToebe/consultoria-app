@@ -226,7 +226,7 @@ export default function ComunidadeTreinador() {
               categoria que sumiu volta para "Todas" (`filtroDeCategoriaValido`) e a etiqueta some junto. */}
           {!auloes.erro && categorias.length ? (
             <BarraDeFiltros valor={filtroDeCategoria} aoAplicar={setFiltroPedido} limpo={null} chips={chipDaCategoria(filtroDeCategoria)}
-              aoTirar={() => setFiltroPedido(null)} rotuloDoResultado="Ver aulões" painelLateral={{ titulo: 'Filtros de aulões' }}
+              aoTirar={() => setFiltroPedido(null)} painelLateral={{ titulo: 'Filtros de aulões' }}
               seletores={(atual, mudar) => (
                 <GrupoDoPainel titulo="Identificação" primeiro>
                   <Escolha rotulo="Categoria do aulão" chips valor={atual} aoMudar={mudar} opcoes={opcoesDoFiltroDeCategoria(todasAsAulas)} />

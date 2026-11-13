@@ -46,7 +46,7 @@ export function UsuariosEquipe({membros,perfis,recarregar}:{membros:MembroEquipe
   return <>
     <Cartao titulo="Membros da equipe" descricao="Convide pessoas por e-mail e escolha o perfil de cada uma." acoes={<NoPlano funcionalidade="EQUIPE"><Permitido codigo="USUARIO_ALTERAR"><Botao rotulo="Convidar membro" aoTocar={()=>setEditar('novo')}/></Permitido></NoPlano>}>
     <BarraDeFiltros busca={{valor:busca,aoMudar:setBusca,placeholder:'Nome ou e-mail'}} valor={filtros} aoAplicar={setFiltros} limpo={SEM_FILTROS} chips={chips}
-      aoTirar={(chave)=>setFiltros(semOFiltro(filtros,chave as ChaveDoFiltro))} rotuloDoResultado="Ver membros"
+      aoTirar={(chave)=>setFiltros(semOFiltro(filtros,chave as ChaveDoFiltro))}
       painelLateral={{titulo:'Filtros de membros'}}
       seletores={(atuais,mudar)=><>
         <GrupoDoPainel titulo="Identificação" primeiro>

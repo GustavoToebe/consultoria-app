@@ -45,19 +45,19 @@ export function linhaDeUso(q: Pick<QuestionarioResumo, 'uso'>) {
 }
 
 /** Textos da lista por finalidade (o resto da tela é igual nas três abas). */
-const TEXTOS: Record<FinalidadeQuestionario, { titulo: string; descricao: string; novo: string; buscar: string; ver: string; vazio: string }> = {
+const TEXTOS: Record<FinalidadeQuestionario, { titulo: string; descricao: string; novo: string; buscar: string; vazio: string }> = {
   ATUALIZACAO: {
-    titulo: 'Questionários de atualização', novo: 'Novo questionário', buscar: 'Buscar questionário', ver: 'Ver questionários',
+    titulo: 'Questionários de atualização', novo: 'Novo questionário', buscar: 'Buscar questionário',
     descricao: 'O check-in que o aluno responde a cada período. O padrão vale para quem não tem outro escolhido na ficha ou na pasta.',
     vazio: 'Nenhum questionário ainda.',
   },
   ANAMNESE: {
-    titulo: 'Anamneses', novo: 'Nova anamnese', buscar: 'Buscar anamnese', ver: 'Ver anamneses',
+    titulo: 'Anamneses', novo: 'Nova anamnese', buscar: 'Buscar anamnese',
     descricao: 'O questionário inicial que você envia ao aluno pela ficha dele (cartão Anamnese). Ele responde no app, logado; a versão enviada não muda depois.',
     vazio: 'Nenhuma anamnese ainda. Crie uma em branco e monte as seções.',
   },
   INSCRICAO: {
-    titulo: 'Perguntas da inscrição', novo: 'Novas perguntas', buscar: 'Buscar perguntas', ver: 'Ver perguntas',
+    titulo: 'Perguntas da inscrição', novo: 'Novas perguntas', buscar: 'Buscar perguntas',
     descricao: 'As perguntas da página "Quero ser aluno", embaixo dos campos fixos. A página usa sempre o padrão publicado; as respostas aparecem na inscrição, em Interessados.',
     vazio: 'Nenhuma pergunta de inscrição ainda.',
   },
@@ -113,7 +113,7 @@ export function ListaDeQuestionarios({ finalidade = 'ATUALIZACAO', pedirNovo, ao
       {/* Busca e o botão "Filtros" (situação e publicação), como nas outras listas. */}
       <BarraDeFiltros busca={{ valor: busca, aoMudar: setBusca, rotulo: textos.buscar, placeholder: 'Nome ou descrição' }}
         valor={filtros} aoAplicar={setFiltros} limpo={SEM_FILTROS} chips={chips} aoTirar={(chave) => setFiltros(semOFiltro(filtros, chave as ChaveDoFiltro))}
-        rotuloDoResultado={textos.ver} painelLateral={{ titulo: 'Filtros de questionários' }}
+        painelLateral={{ titulo: 'Filtros de questionários' }}
         seletores={(atuais, mudar) => (
           <GrupoDoPainel titulo="Situação" primeiro>
             <Escolha rotulo="Situação" opcoes={[...SITUACOES_DO_QUESTIONARIO]} valor={atuais.situacao} aoMudar={(situacao) => mudar({ ...atuais, situacao })} />

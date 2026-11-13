@@ -74,7 +74,7 @@ export default function Alunos() {
     const r = id ? responsaveis.find((x) => x.id === id) : undefined;
     return r ? primeiroNome(r.nome) : null;
   };
-  // Filtros avançados no endereço (`dominio/filtrosDeAlunos`): o Início abre a lista já filtrada e o voltar sai da tela.
+  // Filtros no endereço (`dominio/filtrosDeAlunos`): o Início abre a lista já filtrada e o voltar sai da tela.
   // Quem não tem acesso total começa nos próprios alunos, como antes; filtro sem a permissão é ignorado.
   const comecaEmMeus = !perfilEquipe?.acessoTotal;
   const permissoes = permissoesDosFiltros(pode);
