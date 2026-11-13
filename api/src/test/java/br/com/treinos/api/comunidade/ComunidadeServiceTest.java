@@ -40,6 +40,9 @@ class ComunidadeServiceTest {
     @Mock private ComunidadeMuralFotoRepository fotos;
     @Mock private ComunidadeMuralDenunciaRepository denuncias;
     @Mock private ConfiguracaoDaComunidadeService configuracao;
+    @Mock private ReacoesDoMuralService reacoes;
+    @Mock private EnquetesDoMuralService enquetes;
+    @Mock private CapasDaComunidadeService capas;
 
     private ComunidadeService service;
     private final UUID consultoriaId = UUID.randomUUID();
@@ -50,12 +53,16 @@ class ComunidadeServiceTest {
     @BeforeEach
     void setUp() {
         service = new ComunidadeService(aulas, aulaComentarios, muralPosts, muralReacoes, muralComentarios,
-                conquistas, alunos, sessoes, usuarios, fotos, denuncias, configuracao);
+                conquistas, alunos, sessoes, usuarios, fotos, denuncias, configuracao, reacoes, enquetes, capas);
         eu = new UsuarioAutenticado(usuarioId, consultoriaId, "ALUNO", alunoId);
     }
 
-    private CriarAulaRequest aula(String video, String miniatura) {
-        return new CriarAulaRequest("Aulão de Periodização", "Descrição", video, miniatura, "Treino", 1, true);
+    private CriarAulaRequest aula(String video, UUID capaId) {
+        return new CriarAulaRequest("Aulão de Periodização", "Descrição", video, "Treino", 1, true, capaId);
+    }
+
+    private static CriarPostRequest post(String tipo, String texto, String videoUrl) {
+        return new CriarPostRequest(tipo, texto, videoUrl, null, null, null, null, null);
     }
 
     @Test
@@ -84,9 +91,6 @@ class ComunidadeServiceTest {
                         assertThat(e.getMessage()).doesNotContain(ruim);
                     });
         }
-        assertThatThrownBy(() -> service.criarAula(aula("https://youtube.com/watch?v=1", "http://exemplo.test/m.png")))
-                .isInstanceOfSatisfying(ValidacaoException.class,
-                        e -> assertThat(e.getProblemas().get(0).field()).isEqualTo("miniaturaUrl"));
         verify(aulas, never()).saveAndFlush(any());
     }
 
@@ -96,7 +100,7 @@ class ComunidadeServiceTest {
         when(usuario.getNome()).thenReturn("Aluno Fictício");
         when(usuarios.findById(usuarioId)).thenReturn(Optional.of(usuario));
 
-        MuralPostResponse post = service.criarPostMural(new CriarPostRequest(null, "Treino concluído hoje!", null, null), eu);
+        MuralPostResponse post = service.criarPostMural(post(null, "Treino concluído hoje!", null), eu);
 
         assertThat(post.texto()).isEqualTo("Treino concluído hoje!");
         assertThat(post.autorNome()).isEqualTo("Aluno Fictício");
@@ -104,34 +108,21 @@ class ComunidadeServiceTest {
 
         assertThat(post.tipo()).isEqualTo("CONVERSA");
         UsuarioAutenticado equipe = new UsuarioAutenticado(UUID.randomUUID(), consultoriaId, "TREINADOR", null);
-        assertThatThrownBy(() -> service.criarPostMural(new CriarPostRequest("VIDEO", "Oi", "http://exemplo.test/v", null), equipe))
+        assertThatThrownBy(() -> service.criarPostMural(post("VIDEO", "Oi", "http://exemplo.test/v"), equipe))
                 .isInstanceOfSatisfying(ValidacaoException.class, e -> {
                     assertThat(e.getProblemas().get(0).field()).isEqualTo("videoUrl");
                     assertThat(e.getMessage()).doesNotContain("exemplo.test");
                 });
         // Aluno não publica vídeo nem aviso, e só vídeo leva link.
         for (String tipo : List.of("VIDEO", "AVISO", "NAO_EXISTE")) {
-            assertThatThrownBy(() -> service.criarPostMural(new CriarPostRequest(tipo, "Oi", null, null), eu))
+            assertThatThrownBy(() -> service.criarPostMural(post(tipo, "Oi", null), eu))
                     .isInstanceOfSatisfying(ValidacaoException.class,
                             e -> assertThat(e.getProblemas().get(0).field()).isEqualTo("tipo"));
         }
-        assertThatThrownBy(() -> service.criarPostMural(new CriarPostRequest("DUVIDA", "Oi", "https://exemplo.test/v", null), eu))
+        assertThatThrownBy(() -> service.criarPostMural(post("DUVIDA", "Oi", "https://exemplo.test/v"), eu))
                 .isInstanceOfSatisfying(ValidacaoException.class,
                         e -> assertThat(e.getProblemas().get(0).field()).isEqualTo("videoUrl"));
         verify(muralPosts, times(1)).saveAndFlush(any());
-    }
-
-    @Test
-    void reagirAlternaNoPostVisivel() {
-        UUID postId = UUID.randomUUID();
-        ComunidadeMuralPost post = mock(ComunidadeMuralPost.class);
-        when(post.isOculto()).thenReturn(false);
-        when(muralPosts.findById(postId)).thenReturn(Optional.of(post));
-        when(muralReacoes.findByPostIdAndUsuarioIdAndEmoji(postId, usuarioId, "🔥")).thenReturn(Optional.empty());
-
-        service.alternarReacaoMural(postId, "🔥", eu);
-
-        verify(muralReacoes).saveAndFlush(any(ComunidadeMuralReacao.class));
     }
 
     @Test
@@ -144,12 +135,10 @@ class ComunidadeServiceTest {
         when(muralPosts.findById(oculto)).thenReturn(Optional.of(postOculto));
 
         for (UUID id : List.of(deOutra, oculto)) {
-            assertThatThrownBy(() -> service.alternarReacaoMural(id, "🔥", eu)).isInstanceOf(NaoEncontradoException.class);
             assertThatThrownBy(() -> service.adicionarComentarioMural(id, "Oi", eu)).isInstanceOf(NaoEncontradoException.class);
             assertThatThrownBy(() -> service.listarComentariosMural(id, null, null)).isInstanceOf(NaoEncontradoException.class);
             assertThatThrownBy(() -> service.fixarPost(id)).isInstanceOf(NaoEncontradoException.class);
         }
-        verify(muralReacoes, never()).saveAndFlush(any());
         verify(muralComentarios, never()).saveAndFlush(any());
     }
 
@@ -223,6 +212,6 @@ class ComunidadeServiceTest {
 
         assertThat(e.posts()).isEmpty();
         assertThat(e.reacoes()).isEmpty();
-        verifyNoInteractions(muralPosts, muralReacoes, muralComentarios, aulaComentarios);
+        verifyNoInteractions(muralPosts, muralReacoes, muralComentarios, aulaComentarios, enquetes);
     }
 }

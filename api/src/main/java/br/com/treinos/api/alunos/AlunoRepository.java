@@ -57,6 +57,14 @@ public interface AlunoRepository extends JpaRepository<Aluno, UUID>, JpaSpecific
             + "from Aluno a where a.ativo = true and a.anonimizadoEm is null and a.usuarioId is not null and a.usuarioId <> :usuarioId")
     List<ColegaDaComunidade> colegasDaComunidade(UUID usuarioId);
 
+    /**
+     * Quem votou (por id de usuário) que é aluno, em qualquer situação (o inativo continua aparecendo com o nome), numa consulta
+     * só. Quem não vem é da equipe. Voto de anonimizado não existe (a anonimização os apaga).
+     */
+    @Query("select new br.com.treinos.api.alunos.VotanteDaComunidade(a.id, a.usuarioId, a.nome, a.apelido, a.ativo, a.anonimizadoEm, "
+            + "a.perfilReservado, a.dataNascimento) from Aluno a where a.usuarioId in :usuarioIds")
+    List<VotanteDaComunidade> votantesDaComunidade(java.util.Collection<UUID> usuarioIds);
+
     /** Alunos da consultoria da sessão com este e-mail, sem diferenciar maiúsculas (importação assistida). */
     List<Aluno> findByEmailIgnoreCase(String email);
 

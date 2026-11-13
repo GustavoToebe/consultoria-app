@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import {
-  alternarReacaoDoAluno, baixarFotoDoMuralDoAluno, listarAulasDoAluno, listarMinhasConquistas, listarMuralDoAluno, obterConfiguracaoDoAluno,
-  obterMeuRanking,
+  baixarCapaDoAluno, baixarFotoDoColega, baixarFotoDoMuralDoAluno, listarAulasDoAluno, listarMinhasConquistas, listarMuralDoAluno,
+  obterConfiguracaoDoAluno, obterMeuRanking, reagirComoAluno, votarComoAluno,
 } from '../../api/comunidade';
 import type { AlvoDosComentarios, PostDoMural } from '../../api/comunidadeTipos';
 import { AvisoDoPerfilNaComunidade } from '../../aluno/AvisoDoPerfil';
@@ -13,12 +13,14 @@ import { ColecoesDeAuloes } from '../../aluno/ColecoesDeAuloes';
 import { BarraDoMural } from '../../comunidade/BarraDoMural';
 import { CartaoDoPost } from '../../comunidade/CartaoDoPost';
 import { FolhaComentarios } from '../../comunidade/FolhaComentarios';
+import { type AlvoDosVotos, FolhaDosVotos } from '../../comunidade/FolhaDosVotos';
 import { FolhaNovaPublicacao } from '../../comunidade/FolhaNovaPublicacao';
 import { FolhaPerfilDoColega } from '../../comunidade/FolhaPerfilDoColega';
 import { ListaDeColegas } from '../../comunidade/ListaDeColegas';
 import { PainelDeDenuncia } from '../../comunidade/PainelDeDenuncia';
+import { useAcoesDoPost } from '../../comunidade/useAcoesDoPost';
 import {
-  EMOJI_DA_CURTIDA, type FiltroDoMural, filtrosParaApi, MURAL_SEM_FILTRO, podeAnexarFoto, podePublicar, type RascunhoDoPost, textoDaPosicao,
+  type FiltroDoMural, filtrosParaApi, MURAL_SEM_FILTRO, podeAnexarFoto, podePublicar, type RascunhoDoPost, textoDaPosicao,
   textoDoMuralVazio, TIPO_PADRAO_DO_POST, tipoPedido,
 } from '../../dominio/comunidade';
 import { dataParaTela } from '../../dominio/formatos';
@@ -77,8 +79,8 @@ export default function ComunidadeAluno() {
   const [filtro, setFiltro] = useState<FiltroDoMural>(MURAL_SEM_FILTRO);
   const [busca, setBusca] = useState('');
   const buscaAtrasada = useAtrasado(busca);
-  const mural = useCarregar(online ? `${PREFIXO_DO_MURAL}${JSON.stringify(filtrosParaApi(filtro, buscaAtrasada))}` : null,
-    (c) => listarMuralDoAluno(JSON.parse(c.slice(PREFIXO_DO_MURAL.length))));
+  const chaveDoMural = online ? `${PREFIXO_DO_MURAL}${JSON.stringify(filtrosParaApi(filtro, buscaAtrasada))}` : null;
+  const mural = useCarregar(chaveDoMural, (c) => listarMuralDoAluno(JSON.parse(c.slice(PREFIXO_DO_MURAL.length))));
   const posts = mural.dadosDeOutraChave ? undefined : mural.dados?.content;
   // Quem publica e se anexa foto: a API decide e o app só segue (sem a configuração, o formulário não aparece).
   const config = useCarregar(online ? 'mural-configuracao' : null, () => obterConfiguracaoDoAluno());
@@ -117,14 +119,8 @@ export default function ComunidadeAluno() {
     mural.recarregar();
   };
 
-  const curtir = async (postId: string) => {
-    try {
-      await alternarReacaoDoAluno(postId, EMOJI_DA_CURTIDA);
-      mural.recarregar();
-    } catch (e) {
-      avisar(textoDoErro(e), 'perigo');
-    }
-  };
+  const acoes = useAcoesDoPost({ mural, chave: chaveDoMural, reagir: reagirComoAluno, votar: votarComoAluno });
+  const [votosDe, setVotosDe] = useState<AlvoDosVotos>(null);
 
   const abrir = async (url: string | null | undefined) => {
     if (!(await abrirLinkExterno(url))) avisar('Não foi possível abrir o link.', 'perigo');
@@ -161,7 +157,7 @@ export default function ComunidadeAluno() {
                   <Botao rotulo="Nova publicação" tipo="primario" Icone={Plus} aoTocar={() => setCompondo(true)} />
                 </LinhaDeAcoes>
               ) : config.dados ? (
-                <Texto variante="suave">No momento, só a equipe publica no mural. Você pode curtir e comentar.</Texto>
+                <Texto variante="suave">No momento, só a equipe publica no mural. Você pode reagir, votar nas enquetes e comentar.</Texto>
               ) : null}
 
               <BarraDoMural filtro={filtro} aoFiltrar={setFiltro} busca={busca} aoBuscar={setBusca} comDenunciados={false} />
@@ -176,11 +172,16 @@ export default function ComunidadeAluno() {
                   post={p}
                   baixarFoto={baixarFotoDoMuralDoAluno}
                   aoAbrirPerfil={p.autorEhAluno ? () => setPerfilAberto(p.autorId) : undefined}
-                  aoCurtir={() => void curtir(p.id)}
+                  baixarCapa={baixarCapaDoAluno}
+                  aoReagir={(codigo, ligar) => acoes.aoReagir?.(p.id, codigo, ligar)}
+                  aoVotar={(ids) => acoes.aoVotar?.(p.id, ids)}
+                  ocupado={acoes.ocupados.has(p.id)}
+                  aoMostrarVotos={() => setVotosDe({ postId: p.id })}
+                  baixarFotoDoVotante={baixarFotoDoColega}
                   aoComentarios={() => setComentariosDe({ tipo: 'post', id: p.id })}
                   // O próprio post não tem ação para o aluno: denunciar é só de post de outra pessoa.
                   aoAbrirMenu={p.autorId !== usuario?.id ? () => setMenuDe(p) : undefined}
-                  aoAssistir={(url) => void abrir(url)}
+                  aoAbrirFora={(url) => void abrir(url)}
                 />
               )) : null}
             </View>
@@ -191,7 +192,7 @@ export default function ComunidadeAluno() {
               <EstadoDaFonte carregando={auloes.carregando} erro={auloes.erro} vazio={!auloes.dados?.length}
                 textoVazio="Nenhum aulão por enquanto." recarregar={auloes.recarregar} />
               {auloes.dados?.length ? (
-                <ColecoesDeAuloes aulas={auloes.dados} aoAssistir={(url) => void abrir(url)}
+                <ColecoesDeAuloes aulas={auloes.dados} baixarCapa={baixarCapaDoAluno} aoAbrirFora={(url) => void abrir(url)}
                   aoComentarios={(a) => setComentariosDe({ tipo: 'aula', id: a.id })} />
               ) : null}
             </View>
@@ -243,6 +244,7 @@ export default function ComunidadeAluno() {
       <FolhaPerfilDoColega autorId={perfilAberto} online={online} aoFechar={() => setPerfilAberto(null)} />
       <FolhaComentarios alvo={comentariosDe} modo={{ tipo: 'aluno', online }} aoFechar={() => setComentariosDe(null)}
         aoAlterar={comentariosDe?.tipo === 'aula' ? auloes.recarregar : mural.recarregar} />
+      <FolhaDosVotos alvo={votosDe} papel="aluno" aoFechar={() => setVotosDe(null)} />
       <FolhaNovaPublicacao visivel={compondo && publica} papel="aluno" rascunho={rascunho} aoMudar={setRascunho}
         comFotos={podeAnexarFoto(config.dados)} online={online} aoFechar={() => setCompondo(false)} aoPublicar={publicado} />
       {menuDe ? (

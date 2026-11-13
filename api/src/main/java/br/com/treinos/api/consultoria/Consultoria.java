@@ -76,6 +76,13 @@ public class Consultoria {
     @Column(name = "comunidade_alunos_anexam_fotos", nullable = false)
     private boolean comunidadeAlunosAnexamFotos = true;
 
+    /**
+     * Aviso do Financeiro (V073): parte do histórico foi removida numa limpeza. Só leitura (a migration liga; ninguém grava) e só
+     * informativo: não muda valor nem permissão.
+     */
+    @Column(name = "historico_financeiro_parcial", nullable = false, insertable = false, updatable = false)
+    private boolean historicoFinanceiroParcial;
+
     @Column(name = "logo_tipo", insertable = false, updatable = false)
     private String logoTipo;
 
@@ -151,6 +158,10 @@ public class Consultoria {
     public void definirChavesDaComunidade(boolean alunosPublicam, boolean alunosAnexamFotos) {
         this.comunidadeAlunosPublicam = alunosPublicam;
         this.comunidadeAlunosAnexamFotos = alunosAnexamFotos;
+    }
+
+    public boolean isHistoricoFinanceiroParcial() {
+        return historicoFinanceiroParcial;
     }
 
     public String getLogoTipo() {

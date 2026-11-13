@@ -17,17 +17,18 @@ public final class ComunidadeDtos {
             @NotBlank @Size(max = 120) String titulo,
             @Size(max = 4000) String descricao,
             @NotBlank @Size(max = 500) String videoUrl,
-            @Size(max = 500) String miniaturaUrl,
             @Size(max = 60) String categoria,
             Integer ordem,
-            Boolean publicada) {}
+            Boolean publicada,
+            UUID capaId) {}
 
+    /** {@code capaId}: a capa enviada pela equipe (bytes em {@code .../capas/{id}}); nulo = sem capa. */
     public record AulaResumo(
             UUID id,
             String titulo,
             String descricao,
             String videoUrl,
-            String miniaturaUrl,
+            UUID capaId,
             String categoria,
             int ordem,
             boolean publicada,
@@ -74,17 +75,26 @@ public final class ComunidadeDtos {
 
     /**
      * {@code tipo} ausente = {@code CONVERSA}. {@code videoUrl} só no tipo {@code VIDEO} (equipe); {@code fotoIds} só do aluno
-     * (0 a 4, enviadas antes por {@code POST /aluno/comunidade/mural/fotos}). Os limites e as regras por papel são do serviço
-     * (422 {@code POST_INVALIDO} no campo); aqui só um teto para não ler corpo enorme.
+     * (0 a 4, enviadas antes por {@code POST /aluno/comunidade/mural/fotos}); {@code capaId} só no {@code VIDEO} (enviada por
+     * {@code POST /comunidade/capas}); {@code opcoes}, {@code variasRespostas} e {@code encerraEm} só na {@code ENQUETE}, que é
+     * da equipe. Os limites e as regras por tipo e papel são do serviço (422 {@code POST_INVALIDO} no campo); aqui só um teto
+     * para não ler corpo enorme.
      */
     public record CriarPostRequest(
             @Size(max = 20) String tipo,
             @NotBlank @Size(max = 2000) String texto,
             @Size(max = 500) String videoUrl,
-            @Size(max = 20) List<UUID> fotoIds) {}
+            @Size(max = 20) List<UUID> fotoIds,
+            UUID capaId,
+            @Size(max = 20) List<@Size(max = 500) String> opcoes,
+            Boolean variasRespostas,
+            Instant encerraEm) {}
 
     /** Id da foto pendente que acabou de ser enviada. */
     public record FotoCriada(UUID id) {}
+
+    /** Id da capa pendente que acabou de ser enviada; vai em {@code capaId} do aulão ou do post de vídeo. */
+    public record CapaCriada(UUID id) {}
 
     public record DenunciaRequest(@NotBlank @Size(max = 20) String motivo) {}
 
@@ -96,11 +106,54 @@ public final class ComunidadeDtos {
     /** O que o aluno precisa saber: se publica e se pode anexar foto (sem dizer o motivo, que pode ser a idade). */
     public record ConfiguracaoDoAluno(boolean alunosPublicam, boolean podeAnexarFoto) {}
 
-    public record ReacaoRequest(@NotBlank @Size(max = 16) String emoji) {}
+    /** Corpo do {@code PUT .../votos}: o conjunto de opções escolhidas (vazio retira o voto). */
+    public record VotoRequest(List<UUID> opcaoIds) {}
+
+    /**
+     * A enquete no mural. {@code encerrada} já considera {@code encerraEm}; {@code meusVotos} são as opções que o próprio usuário
+     * escolheu; {@code participantes} são os usuários distintos que votaram (não a soma dos votos das opções).
+     */
+    public record EnqueteResponse(
+            boolean variasRespostas,
+            boolean encerrada,
+            Instant encerraEm,
+            List<OpcaoDaEnquete> opcoes,
+            List<UUID> meusVotos,
+            long participantes) {}
+
+    /** {@code votantesAmostra}: até 3 votantes, os mais recentes da opção (para as mini-fotos). */
+    public record OpcaoDaEnquete(UUID id, String texto, long votos, List<VotanteDaAmostra> votantesAmostra) {}
+
+    /** {@code temFoto} segue a mesma regra de {@code GET .../perfis/{autorId}/foto}; sem foto o app mostra as iniciais. */
+    public record VotanteDaAmostra(UUID autorId, String nome, @JsonInclude(JsonInclude.Include.NON_NULL) String apelido, boolean temFoto) {}
+
+    /** O painel "Mostrar votos": a pergunta, os participantes únicos, a contagem por opção e a página de votantes. */
+    public record VotosDaEnquete(String pergunta, long participantes, List<OpcaoComVotos> opcoes, PaginaDeVotantes votantes) {}
+
+    public record OpcaoComVotos(UUID opcaoId, String texto, long votos) {}
+
+    /** Uma linha por voto (ordem {@code votadoEm desc, id}); {@code total} conta os votos do filtro, não os participantes. */
+    public record PaginaDeVotantes(List<Votante> itens, long total) {}
+
+    /**
+     * Voto identificado: {@code nome} do aluno (ou do membro da equipe) com o {@code apelido} atual à parte (some se não há; aluno
+     * inativo vem sem apelido e sem foto); {@code votadoEm} é o horário em que ESTA opção foi escolhida (o do voto vigente).
+     */
+    public record Votante(
+            UUID autorId,
+            UUID opcaoId,
+            String nome,
+            @JsonInclude(JsonInclude.Include.NON_NULL) String apelido,
+            boolean temFoto,
+            Instant votadoEm,
+            boolean ehVoce) {}
 
     /**
      * {@code autorEhAluno} como em {@link ComentarioResponse}: só aluno ativo abre o perfil. {@code fotos} são ids, na ordem
-     * (os bytes vêm de {@code .../mural/fotos/{id}}). {@code respondida} só vale em {@code DUVIDA}: existe comentário visível
+     * (os bytes vêm de {@code .../mural/fotos/{id}}). {@code capaId} (só no {@code VIDEO}; nulo sem capa) abre em
+     * {@code .../comunidade/capas/{id}}. {@code enquete} só vem no tipo {@code ENQUETE} (nulo nos outros). {@code reacoes} conta
+     * por código ({@code CURTIR}, {@code FORCA}, {@code FOGO}, {@code PALMAS}, {@code RISO}) e {@code minhasReacoes} lista os
+     * códigos que o próprio usuário deu. {@code respondida} só vale em {@code DUVIDA}: existe comentário visível
      * da equipe. {@code denuncias} é a contagem e só sai na rota da equipe (o aluno nunca a vê: o campo some do JSON).
      */
     public record MuralPostResponse(
@@ -113,7 +166,9 @@ public final class ComunidadeDtos {
             String texto,
             String tipo,
             String videoUrl,
+            UUID capaId,
             List<UUID> fotos,
+            EnqueteResponse enquete,
             boolean respondida,
             boolean fixado,
             Instant criadoEm,
@@ -230,6 +285,7 @@ public final class ComunidadeDtos {
             List<ComentarioExportado> comentariosDeAulas,
             List<ComentarioExportado> comentariosDoMural,
             List<ReacaoExportada> reacoes,
+            List<VotoExportado> votos,
             List<FotoExportada> fotos,
             List<DenunciaExportada> denuncias,
             List<ConquistaResponse> conquistas,
@@ -246,5 +302,8 @@ public final class ComunidadeDtos {
     /** {@code alvoId} é a aula ou o post comentado. */
     public record ComentarioExportado(UUID id, UUID alvoId, String texto, boolean oculto, Instant criadoEm) {}
 
-    public record ReacaoExportada(UUID postId, String emoji, Instant criadoEm) {}
+    public record ReacaoExportada(UUID postId, String codigo, Instant criadoEm) {}
+
+    /** Voto do próprio aluno numa enquete: a opção escolhida e o horário em que a escolheu. */
+    public record VotoExportado(UUID postId, UUID opcaoId, String opcaoTexto, Instant votadoEm) {}
 }

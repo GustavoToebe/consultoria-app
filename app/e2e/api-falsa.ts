@@ -145,9 +145,12 @@ export interface AparelhoFalso {
 export async function sessao(page: Page, usuario: UsuarioResumo, extra: Partial<EuResponse> = {}, aparelho: AparelhoFalso = {}): Promise<RespostasApi> {
   const primeirosPassos = aparelho.primeirosPassos === undefined ? JSON.stringify({ dispensado: true }) : aparelho.primeirosPassos;
   await page.addInitScript(({ id, passeio, passos }) => {
-    if (passeio) localStorage.setItem(`treinos:${id}:passeioVisto`, '1');
-    const chave = `treinos:${id}:primeirosPassos`;
-    if (passos !== null && localStorage.getItem(chave) === null) localStorage.setItem(chave, passos);
+    // O script roda em todo quadro da página, inclusive no iframe do player (sandbox, outra origem), onde o localStorage nega acesso.
+    try {
+      if (passeio) localStorage.setItem(`treinos:${id}:passeioVisto`, '1');
+      const chave = `treinos:${id}:primeirosPassos`;
+      if (passos !== null && localStorage.getItem(chave) === null) localStorage.setItem(chave, passos);
+    } catch { /* quadro sem acesso ao armazenamento: nada a preparar ali */ }
   }, { id: usuario.id, passeio: aparelho.passeioVisto !== false, passos: primeirosPassos });
   const login: LoginResponse = { accessToken: 'token-falso', expiresIn: 900, usuario, marca: MARCA };
   const eu: EuResponse = {

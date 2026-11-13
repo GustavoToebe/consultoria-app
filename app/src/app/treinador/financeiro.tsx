@@ -57,8 +57,10 @@ export default function FinanceiroDoTreinador() {
   const [exportando, setExportando] = useState(false);
   const podeAlterar = pode('FINANCEIRO_ALTERAR');
   // O `historicoFinanceiroParcial` só vem no `/financeiro/painel` (da consultoria, não do período). Uma busca por visita à tela, daqui,
-  // serve às quatro abas, inclusive a quem abre direto numa delas (`?aba=`) e à explicação da exportação. A aba Lançamentos usa a
-  // mesma resposta para o resultado do mês. Falha aqui não esconde lista nem bloqueia aba: sem dado, sem ressalva (e sem erro novo).
+  // serve às abas com valores (`ABAS_COM_VALORES`: Visão geral, Cobranças, Planos e Lançamentos; Lembretes e Recebimento online
+  // não mostram valores do histórico), inclusive a quem abre direto numa delas (`?aba=`), e à explicação da exportação. A aba
+  // Lançamentos usa a mesma resposta para o resultado do mês. Falha aqui não esconde lista nem bloqueia aba: sem dado, sem
+  // ressalva (e sem erro novo).
   const mes = periodoDoMes(hojeEmBrasilia());
   const painelDoMes = useCarregar(`financeiro-painel-do-mes|${mes.de}`, () => painelFinanceiro({ ...mes, meus: false }));
 

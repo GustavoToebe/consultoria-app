@@ -1,4 +1,4 @@
-import { Camera, ImagePlus, X } from 'lucide-react-native';
+import { Camera, ImagePlus, Plus, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
@@ -6,9 +6,11 @@ import { ErroApi } from '../api/cliente';
 import { apagarFotoPendenteDoMural, baixarFotoDoMuralDoAluno, publicarNoMuralDaEquipe, publicarNoMuralDoAluno } from '../api/comunidade';
 import { FotoRecusada } from '../aluno/atualizacao/fotos/prepararFoto';
 import {
-  type CampoDoPost, errosDoPost, POST_FOTOS_MAXIMO, type PapelNoMural, postParaEnviar, type RascunhoDoPost, tiposParaEscolher,
+  AVISO_AO_CRIAR_ENQUETE, type CampoDoPost, ENQUETE_OPCAO_MAXIMA, ENQUETE_OPCOES_MAXIMO, ENQUETE_OPCOES_MINIMO, errosDoPost,
+  OPCOES_INICIAIS_DA_ENQUETE, POST_FOTOS_MAXIMO, type PapelNoMural, postParaEnviar, type RascunhoDoPost, tiposParaEscolher,
 } from '../dominio/comunidade';
 import { espaco } from '../tema/tokens';
+import { CampoData, Interruptor } from '../ui/Campos';
 import { Botao } from '../ui/Botao';
 import { Campo, MensagemDeErro } from '../ui/Campo';
 import { Escolha } from '../ui/Escolha';
@@ -19,15 +21,17 @@ import { ImagemProtegida } from '../ui/ImagemProtegida';
 import { LinhaDeAcoes } from '../ui/LinhaDeAcoes';
 import { Texto } from '../ui/Texto';
 import { separarErros, textoDoErro } from '../ui/erros';
+import { CampoDaCapa } from './CampoDaCapa';
 import { escolherEEnviarFotoDoMural } from './fotosDoMural';
 
-const CAMPOS: CampoDoPost[] = ['tipo', 'texto', 'videoUrl', 'fotoIds'];
+const CAMPOS: CampoDoPost[] = ['tipo', 'texto', 'videoUrl', 'fotoIds', 'capaId', 'opcoes', 'encerraEm'];
 const SEM_INTERNET = 'Sem conexão: publicar precisa de internet.';
 
 /**
  * "Nova publicação" do mural numa `Folha` (aluno e equipe). O rascunho mora na tela (fechar e reabrir mantém); os erros
  * aparecem no envio, cada um no seu campo, com as regras de `dominio/comunidade` e o 422 da API no mesmo lugar. A equipe
- * escolhe também Aviso (nasce fixado) e Vídeo (link https, aberto fora do app); fotos só para o aluno com `comFotos`,
+ * escolhe também Aviso (nasce fixado), Vídeo (link https e capa opcional) e Enquete (a pergunta é o texto; 2 a 6 opções,
+ * várias respostas e prazo opcionais, com o aviso de que o voto é identificado); fotos só para o aluno com `comFotos`,
  * uma por vez, pendentes até publicar.
  */
 export function FolhaNovaPublicacao({ visivel, papel, rascunho, aoMudar, comFotos, online = true, aoFechar, aoPublicar }: {
@@ -55,6 +59,14 @@ export function FolhaNovaPublicacao({ visivel, papel, rascunho, aoMudar, comFoto
     aoMudar({ ...rascunho, ...parte });
     if (errosApi[campo]) setErrosApi({ ...errosApi, [campo]: undefined });
   };
+  // A capa só vale no vídeo: trocar de tipo a tira (a API recusaria) e a enquete começa com duas opções vazias.
+  const mudarTipo = (tipo: RascunhoDoPost['tipo']) => mudar({
+    tipo,
+    ...(tipo !== 'VIDEO' && rascunho.capaId ? { capaId: null } : {}),
+    ...(tipo === 'ENQUETE' && !rascunho.opcoes ? { opcoes: [...OPCOES_INICIAIS_DA_ENQUETE] } : {}),
+  }, 'tipo');
+  const opcoesDaEnquete = rascunho.opcoes ?? OPCOES_INICIAIS_DA_ENQUETE;
+  const mudarOpcao = (i: number, texto: string) => mudar({ opcoes: opcoesDaEnquete.map((o, j) => (j === i ? texto : o)) }, 'opcoes');
 
   const fechar = () => { setTentou(false); setErrosApi({}); setAlerta(null); setErroDaFoto(null); aoFechar(); };
 
@@ -117,22 +129,54 @@ export function FolhaNovaPublicacao({ visivel, papel, rascunho, aoMudar, comFoto
             motivo={!online ? SEM_INTERNET : 'Espere a foto terminar de enviar.'} aoTocar={() => void publicar()} />
         </LinhaDeAcoes>
       }>
-      {/* A equipe tem cinco tipos: em chips, que quebram a linha no celular em vez de espremer o segmento. */}
+      {/* A equipe tem seis tipos: em chips, que quebram a linha no celular em vez de espremer o segmento. */}
       <Escolha rotulo="Tipo" opcoes={opcoes} valor={rascunho.tipo} chips={opcoes.length > 3}
-        aoMudar={(tipo) => mudar({ tipo }, 'tipo')} erro={erro('tipo')} />
+        aoMudar={mudarTipo} erro={erro('tipo')} />
       {rascunho.tipo === 'AVISO' ? <Texto variante="suave">O aviso nasce fixado no topo do mural. Dá para desafixar depois, no ⋯ da publicação.</Texto> : null}
       {rascunho.tipo === 'VIDEO' ? (
         <Campo rotulo="Link do vídeo" placeholder="https://" valor={rascunho.videoUrl ?? ''} autoCapitalize="none" autoCorrect={false}
-          inputMode="url" ajuda="Abre fora do app, como os aulões." aoMudar={(videoUrl) => mudar({ videoUrl }, 'videoUrl')} erro={erro('videoUrl')} />
+          inputMode="url" ajuda="Link do YouTube toca aqui mesmo; outro link abre fora do app." aoMudar={(videoUrl) => mudar({ videoUrl }, 'videoUrl')} erro={erro('videoUrl')} />
       ) : null}
+      {rascunho.tipo === 'ENQUETE' ? <Alerta tom="atencao" texto={AVISO_AO_CRIAR_ENQUETE} /> : null}
       <Campo
-        rotulo={rascunho.tipo === 'VIDEO' ? 'Título do vídeo' : 'Texto'}
-        placeholder={rascunho.tipo === 'DUVIDA' ? 'Qual é a sua dúvida?' : 'Escreva para o time'}
+        rotulo={rascunho.tipo === 'VIDEO' ? 'Título do vídeo' : rascunho.tipo === 'ENQUETE' ? 'Pergunta' : 'Texto'}
+        placeholder={rascunho.tipo === 'DUVIDA' ? 'Qual é a sua dúvida?' : rascunho.tipo === 'ENQUETE' ? 'O que você quer perguntar ao time?' : 'Escreva para o time'}
         valor={rascunho.texto}
         aoMudar={(texto) => mudar({ texto }, 'texto')}
-        linhas={rascunho.tipo === 'VIDEO' ? 2 : 4}
+        linhas={rascunho.tipo === 'VIDEO' || rascunho.tipo === 'ENQUETE' ? 2 : 4}
         erro={erro('texto')}
       />
+      {rascunho.tipo === 'VIDEO' ? (
+        <CampoDaCapa capaId={rascunho.capaId ?? null} aoMudar={(capaId) => mudar({ capaId }, 'capaId')} erro={erro('capaId')} />
+      ) : null}
+
+      {rascunho.tipo === 'ENQUETE' ? (
+        <View style={estilos.fotos}>
+          <Texto variante="rotulo">{`Opções (de ${ENQUETE_OPCOES_MINIMO} a ${ENQUETE_OPCOES_MAXIMO})`}</Texto>
+          {opcoesDaEnquete.map((o, i) => (
+            <View key={i} style={estilos.opcao}>
+              <View style={estilos.campoDaOpcao}>
+                <Campo rotulo={`Opção ${i + 1}`} valor={o} maxLength={ENQUETE_OPCAO_MAXIMA} aoMudar={(t) => mudarOpcao(i, t)} />
+              </View>
+              {opcoesDaEnquete.length > ENQUETE_OPCOES_MINIMO ? (
+                <IconeBotao Icone={X} rotulo={`Remover a opção ${i + 1}`} moldura
+                  aoTocar={() => mudar({ opcoes: opcoesDaEnquete.filter((_, j) => j !== i) }, 'opcoes')} />
+              ) : null}
+            </View>
+          ))}
+          {erro('opcoes') ? <MensagemDeErro erro={erro('opcoes') as string} /> : null}
+          <LinhaDeAcoes>
+            <Botao rotulo="Adicionar opção" tipo="secundario" Icone={Plus}
+              desabilitado={opcoesDaEnquete.length >= ENQUETE_OPCOES_MAXIMO} motivo={`Até ${ENQUETE_OPCOES_MAXIMO} opções.`}
+              aoTocar={() => mudar({ opcoes: [...opcoesDaEnquete, ''] }, 'opcoes')} />
+          </LinhaDeAcoes>
+          <Interruptor rotulo="Permitir várias respostas" ajuda="Cada pessoa marca quantas opções quiser."
+            valor={rascunho.variasRespostas === true} aoMudar={(variasRespostas) => mudar({ variasRespostas }, 'opcoes')} />
+          <CampoData rotulo="Encerra em (opcional)" valor={rascunho.encerraEm ?? ''} erro={erro('encerraEm')}
+            aoMudar={(encerraEm) => mudar({ encerraEm }, 'encerraEm')} />
+          <Texto variante="pequeno">Sem data, a enquete fica aberta. Com data, encerra às 23:59 do dia (horário de Brasília).</Texto>
+        </View>
+      ) : null}
 
       {papel === 'aluno' && comFotos ? (
         <View style={estilos.fotos}>
@@ -168,4 +212,7 @@ const estilos = StyleSheet.create({
   fotos: { gap: espaco(1) },
   miniaturas: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
   miniatura: { alignItems: 'center', gap: espaco(0.5) },
+  // O X fica alinhado à caixa do campo, não ao rótulo.
+  opcao: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(1) },
+  campoDaOpcao: { flex: 1, minWidth: 0 },
 });

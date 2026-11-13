@@ -4,6 +4,7 @@ import br.com.treinos.api.alunos.Aluno;
 import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.alunos.ColegaDaComunidade;
 import br.com.treinos.api.alunos.FotoPerfilService;
+import br.com.treinos.api.alunos.VotanteDaComunidade;
 import br.com.treinos.api.biblioteca.Exercicio;
 import br.com.treinos.api.biblioteca.ExercicioRepository;
 import br.com.treinos.api.comunidade.dto.ComunidadeDtos.AtividadeRecente;
@@ -101,12 +102,33 @@ public class ColegasDaComunidadeService {
     @Transactional(readOnly = true)
     public byte[] foto(UUID autorId, UsuarioAutenticado eu) {
         Aluno aluno = exigirColega(autorId);
-        boolean reservado = RegrasDoPerfil.reservadoEfetivo(aluno.getPerfilReservado(), aluno.getDataNascimento(),
-                LocalDate.now(Fuso.BRASILIA));
-        if (!RegrasDoPerfil.mostraTudo(autorId.equals(eu.usuarioId()), reservado)) {
+        if (!podeVerAFoto(autorId.equals(eu.usuarioId()), aluno.getPerfilReservado(), aluno.getDataNascimento(),
+                LocalDate.now(Fuso.BRASILIA))) {
             throw new NaoEncontradoException(NAO_ENCONTRADO);
         }
         return fotos.jpegDoColega(aluno.getId()).orElseThrow(() -> new NaoEncontradoException(NAO_ENCONTRADO));
+    }
+
+    /** A regra única da foto: o dono vê a dele; os outros, só se o perfil não está reservado (pela escolha ou pela idade). */
+    private static boolean podeVerAFoto(boolean ehVoce, Boolean escolhaDoPerfil, LocalDate nascimento, LocalDate hoje) {
+        return RegrasDoPerfil.mostraTudo(ehVoce, RegrasDoPerfil.reservadoEfetivo(escolhaDoPerfil, nascimento, hoje));
+    }
+
+    /**
+     * Dos alunos votantes, os usuários cuja foto {@code quemPede} receberia em {@link #foto}: aluno ativo e não anonimizado, com
+     * foto, e perfil não reservado (ou o próprio). É a mesma regra da rota da foto, em lote (uma consulta de fotos); equipe,
+     * inativo, anonimizado e reservado ficam de fora. Quem não é aluno nem entra aqui.
+     */
+    @Transactional(readOnly = true)
+    public Set<UUID> comFotoVisivel(java.util.Collection<VotanteDaComunidade> votantes, UUID quemPede) {
+        LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
+        List<VotanteDaComunidade> elegiveis = votantes.stream()
+                .filter(v -> v.ativo() && v.anonimizadoEm() == null
+                        && podeVerAFoto(v.usuarioId().equals(quemPede), v.perfilReservado(), v.dataNascimento(), hoje))
+                .toList();
+        Set<UUID> comFoto = fotos.comFoto(elegiveis.stream().map(VotanteDaComunidade::alunoId).toList());
+        return elegiveis.stream().filter(v -> comFoto.contains(v.alunoId())).map(VotanteDaComunidade::usuarioId)
+                .collect(Collectors.toSet());
     }
 
     /**

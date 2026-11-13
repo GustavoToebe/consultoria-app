@@ -1,11 +1,11 @@
-import { COMENTARIOS_POR_PAGINA } from '../dominio/comunidade';
+import { COMENTARIOS_POR_PAGINA, VOTANTES_POR_PAGINA } from '../dominio/comunidade';
 import type { CorpoDoPerfil } from '../dominio/perfilDaComunidade';
 import { COLEGAS_POR_PAGINA } from '../dominio/perfilDoColega';
 import { requisicao } from './cliente';
 import type {
-  AlvoDosComentarios, AulaDaComunidade, ComentarioDoMural, ConfiguracaoDaComunidade, ConfiguracaoDoAluno, ConquistaDoAluno,
-  CriarPostRequest, FiltrosDoMural, MotivoDeDenuncia, NovaAula, PaginaDeColegas, PaginaDeComentarios, PaginaDoMural,
-  PerfilDaComunidade, PosicaoNoRanking, PostDoMural, PreferenciasDoPerfil,
+  AlvoDosComentarios, AulaDaComunidade, CodigoDeReacao, ComentarioDoMural, ConfiguracaoDaComunidade, ConfiguracaoDoAluno,
+  ConquistaDoAluno, CriarPostRequest, EnqueteDoMural, FiltrosDoMural, MotivoDeDenuncia, NovaAula, PaginaDeColegas,
+  PaginaDeComentarios, PaginaDoMural, PerfilDaComunidade, PosicaoNoRanking, PostDoMural, PreferenciasDoPerfil, VotosDaEnquete,
 } from './comunidadeTipos';
 
 // Rotas reais da API (`AlunoComunidadeController` e `ComunidadeController`). Erro é erro: a tela mostra o aviso com
@@ -29,7 +29,10 @@ const filtrosDoMural = (f: FiltrosDoMural | undefined, comDenunciados: boolean):
   ].join('');
 };
 
-const comBusca =(caminho: string, busca?: string): string => {
+const paginaDeVotos = (opcaoId: string | null, n: number) =>
+  `?pagina=${n}&tamanho=${VOTANTES_POR_PAGINA}${opcaoId ? `&opcaoId=${encodeURIComponent(opcaoId)}` : ''}`;
+
+const comBusca = (caminho: string, busca?: string): string => {
   const b = busca?.trim();
   return b ? `${caminho}?busca=${encodeURIComponent(b)}` : caminho;
 };
@@ -70,9 +73,24 @@ export const baixarFotoDoMuralDoAluno = (id: string) =>
 export const denunciarPost = (postId: string, motivo: MotivoDeDenuncia) =>
   requisicao<void>(`/aluno/comunidade/mural/${encodeURIComponent(postId)}/denuncias`, { metodo: 'POST', corpo: { motivo } });
 
-/** Liga ou desliga a reação do aluno (a API alterna; responde 204). */
-export const alternarReacaoDoAluno = (postId: string, emoji: string) =>
-  requisicao<void>(`/aluno/comunidade/mural/${postId}/reacoes`, { metodo: 'POST', corpo: { emoji } });
+/** Liga (`PUT`) ou desliga (`DELETE`) uma reação do aluno: idempotente, 204; código fora da lista = 422 `REACAO_INVALIDA`. */
+export const reagirComoAluno = (postId: string, codigo: CodigoDeReacao, ligar: boolean) =>
+  requisicao<void>(`/aluno/comunidade/mural/${encodeURIComponent(postId)}/reacoes/${codigo}`, { metodo: ligar ? 'PUT' : 'DELETE' });
+
+/**
+ * Substitui o voto do aluno (`[]` retira) e devolve a enquete atualizada. 409 `ENQUETE_ENCERRADA` (também ao retirar),
+ * 422 `VOTO_INVALIDO`, 404 se o post saiu.
+ */
+export const votarComoAluno = (postId: string, opcaoIds: string[]) =>
+  requisicao<EnqueteDoMural>(`/aluno/comunidade/mural/${encodeURIComponent(postId)}/votos`, { metodo: 'PUT', corpo: { opcaoIds } });
+
+/** "Mostrar votos": uma página (base 0) de votantes, mais recentes primeiro; `opcaoId` filtra uma opção. */
+export const listarVotosDoAluno = (postId: string, opcaoId: string | null, n: number) =>
+  requisicao<VotosDaEnquete>(`/aluno/comunidade/mural/${encodeURIComponent(postId)}/votos${paginaDeVotos(opcaoId, n)}`);
+
+/** Bytes da capa de um vídeo (post ou aulão), com o token. */
+export const baixarCapaDoAluno = (id: string) =>
+  requisicao<Blob>(`/aluno/comunidade/capas/${encodeURIComponent(id)}`, { binario: true, limiteMs: 30000 });
 
 /** 404 se o post ou a aula não está ao alcance (outra consultoria, oculto ou aula não publicada). */
 export const listarComentariosDoAluno = (alvo: AlvoDosComentarios, n: number) =>
@@ -165,3 +183,28 @@ export const removerComentario = (tipo: AlvoDosComentarios['tipo'], comentarioId
 /** Limpa o apelido de um aluno (moderação); ele pode pôr outro depois. */
 export const removerApelidoDoAutor = (autorId: string) =>
   requisicao<void>(`/comunidade/perfis/${encodeURIComponent(autorId)}/apelido`, { metodo: 'DELETE' });
+
+/** Reação da equipe (`COMUNIDADE_MODERAR`): as mesmas regras da do aluno. */
+export const reagirComoEquipe = (postId: string, codigo: CodigoDeReacao, ligar: boolean) =>
+  requisicao<void>(`/comunidade/mural/${encodeURIComponent(postId)}/reacoes/${codigo}`, { metodo: ligar ? 'PUT' : 'DELETE' });
+
+/** Voto da equipe (`TREINO_LER`): as mesmas regras e respostas do voto do aluno. */
+export const votarComoEquipe = (postId: string, opcaoIds: string[]) =>
+  requisicao<EnqueteDoMural>(`/comunidade/mural/${encodeURIComponent(postId)}/votos`, { metodo: 'PUT', corpo: { opcaoIds } });
+
+export const listarVotosDaEquipe = (postId: string, opcaoId: string | null, n: number) =>
+  requisicao<VotosDaEnquete>(`/comunidade/mural/${encodeURIComponent(postId)}/votos${paginaDeVotos(opcaoId, n)}`);
+
+/** Foto de quem votou, vista pela equipe (`TREINO_LER`); fica só em memória, e a falha vira iniciais. */
+export const baixarFotoDoVotanteDaEquipe = (autorId: string) =>
+  requisicao<Blob>(`/comunidade/perfis/${encodeURIComponent(autorId)}/foto`, { binario: true, limiteMs: 30000 });
+
+/**
+ * Capa pendente do vídeo (`COMUNIDADE_MODERAR`): `FormData` com o campo `arquivo` (JPEG já reduzido, `anexarFoto`). Devolve
+ * o id que vai em `capaId`. 422 `FOTO_INVALIDA`, `FOTO_GRANDE_DEMAIS` (300 KB) ou `IMAGENS_LIMITE_DIARIO`.
+ */
+export const enviarCapa = (arquivo: FormData) =>
+  requisicao<{ id: string }>('/comunidade/capas', { metodo: 'POST', corpoBruto: arquivo, limiteMs: 60000 });
+
+export const baixarCapaDaEquipe = (id: string) =>
+  requisicao<Blob>(`/comunidade/capas/${encodeURIComponent(id)}`, { binario: true, limiteMs: 30000 });

@@ -2,16 +2,19 @@ import {
   apelidoParaEnviar, COMENTARIO_MAXIMO, comentarioParaEnviar, comentariosDaPrimeiraPagina, comentariosQueFaltam, comComentarioEnviado,
   contadorDoComentario, erroDoComentario, juntarPaginaDeComentarios, MENSAGEM_COMENTARIO_LONGO, MENSAGEM_COMENTARIO_VAZIO,
   proximaPaginaDeComentarios, semOComentario, tamanhoDoComentario,
-  curtidoPorMim, EMOJI_DA_CURTIDA, erroDoApelido, MENSAGEM_APELIDO_FORMATO, MENSAGEM_APELIDO_LINK, textoDaPosicao, totalDeCurtidas,
+  comReacao, reagiu, REACOES, rotuloDaReacao, totalDaReacao, erroDoApelido, MENSAGEM_APELIDO_FORMATO, MENSAGEM_APELIDO_LINK, textoDaPosicao,
+  AVISO_AO_CRIAR_ENQUETE, AVISO_ANTES_DO_VOTO, erroDasOpcoes, erroDoPrazo, MENSAGEM_PRAZO_DA_ENQUETE, nomeDoVotante, percentualDaOpcao,
+  prazoDaEnquete, textoDosParticipantes, textoDosVotos, votosAoTocar,
+  ATRIBUTOS_DO_PLAYER, htmlDoPlayer, idDoYoutube, navegacaoDoPlayerPermitida, urlDoEmbed, urlNoYoutube,
   errosDoPost, MOTIVOS_DE_DENUNCIA, podeAnexarFoto, podePublicar, postParaEnviar, rotuloDoMotivo, rotuloDoTipo, TIPOS_DE_POST,
   tiposParaEscolher, chipsDoMural, MURAL_SEM_FILTRO, opcoesDoTipoDoMural, semOFiltroDoMural, filtrosParaApi, textoDoMuralVazio, textoDasDenuncias, tipoPedido,
   agruparAuloesPorCategoria, buscarAuloes, categoriasDosAuloes, corpoDaAula, errosDaAula, filtrarAuloesPorCategoria,
   chipDaCategoria, filtroDeCategoriaValido, opcoesDoFiltroDeCategoria, RASCUNHO_DA_AULA_VAZIO, rascunhoDaAula, resumoDosAuloes,
 } from './comunidade';
-import type { AulaDaComunidade } from '../api/comunidadeTipos';
+import type { AulaDaComunidade, PostDoMural } from '../api/comunidadeTipos';
 
 const aula = (id: string, categoria: string | null, extra: Partial<AulaDaComunidade> = {}): AulaDaComunidade => ({
-  id, titulo: `Aula ${id}`, descricao: null, videoUrl: 'https://exemplo.com/v', miniaturaUrl: null, categoria,
+  id, titulo: `Aula ${id}`, descricao: null, videoUrl: 'https://exemplo.com/v', capaId: null, categoria,
   ordem: 0, publicada: true, criadaEm: '2026-11-01T10:00:00Z', totalComentarios: 0, ...extra,
 });
 
@@ -63,14 +66,22 @@ describe('aulões', () => {
   });
 
   it('cria só com o que foi preenchido e edita reenviando os sete campos', () => {
-    const r = { titulo: ' Novo ', link: 'https://exemplo.com/v', categoria: ' Técnica  de base ', descricao: '' };
+    const r = { titulo: ' Novo ', link: 'https://exemplo.com/v', categoria: ' Técnica  de base ', descricao: '', capaId: null };
     expect(corpoDaAula(r)).toEqual({ titulo: 'Novo', descricao: undefined, videoUrl: 'https://exemplo.com/v', categoria: 'Técnica de base' });
-    const original = aula('9', 'Antiga', { publicada: false, ordem: 3, miniaturaUrl: 'https://exemplo.com/m.jpg', descricao: 'Velha' });
-    expect(rascunhoDaAula(original)).toEqual({ titulo: 'Aula 9', link: 'https://exemplo.com/v', categoria: 'Antiga', descricao: 'Velha' });
+    expect(corpoDaAula({ ...r, capaId: 'c1' }).capaId).toBe('c1');
+    const original = aula('9', 'Antiga', { publicada: false, ordem: 3, capaId: 'capa-9', descricao: 'Velha' });
+    expect(rascunhoDaAula(original)).toEqual({ titulo: 'Aula 9', link: 'https://exemplo.com/v', categoria: 'Antiga', descricao: 'Velha', capaId: 'capa-9' });
     expect(corpoDaAula({ ...rascunhoDaAula(original), categoria: '', descricao: '' }, original)).toEqual({
-      titulo: 'Aula 9', descricao: null, videoUrl: 'https://exemplo.com/v', miniaturaUrl: 'https://exemplo.com/m.jpg',
+      titulo: 'Aula 9', descricao: null, videoUrl: 'https://exemplo.com/v', capaId: 'capa-9',
       categoria: null, ordem: 3, publicada: false,
     });
+  });
+
+  it('editar sem tocar na capa mantém a capa; remover manda nulo (o PUT sem capaId apagaria)', () => {
+    const original = aula('9', null, { capaId: 'capa-9' });
+    expect(corpoDaAula({ ...rascunhoDaAula(original), titulo: 'Outro' }, original).capaId).toBe('capa-9');
+    const semCapa = corpoDaAula({ ...rascunhoDaAula(original), capaId: null }, original);
+    expect(semCapa).toHaveProperty('capaId', null);
   });
 
   it('resume a quantidade', () => {
@@ -79,15 +90,139 @@ describe('aulões', () => {
   });
 });
 
-describe('curtida do mural', () => {
-  it('conta só a curtida e ignora as outras reações', () => {
-    expect(totalDeCurtidas({ reacoes: { [EMOJI_DA_CURTIDA]: 3, '🔥': 9 } })).toBe(3);
-    expect(totalDeCurtidas({ reacoes: { '🔥': 9 } })).toBe(0);
-    expect(totalDeCurtidas({ reacoes: {} })).toBe(0);
+describe('reações do mural', () => {
+  it('cinco códigos na ordem da API, cada um com emoji e rótulo', () => {
+    expect(REACOES.map((r) => r.codigo)).toEqual(['CURTIR', 'FORCA', 'FOGO', 'PALMAS', 'RISO']);
+    expect(REACOES.map((r) => r.emoji).join('')).toBe('❤️💪🔥👏😂');
   });
-  it('sabe se a curtida é minha', () => {
-    expect(curtidoPorMim({ minhasReacoes: ['🔥', EMOJI_DA_CURTIDA] })).toBe(true);
-    expect(curtidoPorMim({ minhasReacoes: ['🔥'] })).toBe(false);
+  it('conta e reconhece a minha por código', () => {
+    expect(totalDaReacao({ reacoes: { CURTIR: 3, FOGO: 9 } }, 'CURTIR')).toBe(3);
+    expect(totalDaReacao({ reacoes: {} }, 'RISO')).toBe(0);
+    expect(reagiu({ minhasReacoes: ['FOGO', 'CURTIR'] }, 'CURTIR')).toBe(true);
+    expect(reagiu({ minhasReacoes: ['FOGO'] }, 'CURTIR')).toBe(false);
+  });
+  it('ligar e desligar mexem na contagem e na marca, na ordem da API; repetir não muda nada', () => {
+    const p = { reacoes: { FOGO: 2 }, minhasReacoes: ['FOGO' as const] };
+    const ligado = comReacao(p, 'CURTIR', true);
+    expect(ligado).toEqual({ reacoes: { FOGO: 2, CURTIR: 1 }, minhasReacoes: ['CURTIR', 'FOGO'] });
+    expect(comReacao(ligado, 'CURTIR', true)).toBe(ligado);
+    expect(comReacao(ligado, 'FOGO', false)).toEqual({ reacoes: { FOGO: 1, CURTIR: 1 }, minhasReacoes: ['CURTIR'] });
+    const soRiso: Pick<PostDoMural, 'reacoes' | 'minhasReacoes'> = { reacoes: {}, minhasReacoes: ['RISO'] };
+    expect(comReacao(soRiso, 'RISO', false).reacoes.RISO).toBe(0);
+  });
+  it('o nome acessível começa pelo rótulo e diz se a pessoa reagiu', () => {
+    expect(rotuloDaReacao('Curtir', 1, true)).toBe('Curtir, 1 reação, você reagiu');
+    expect(rotuloDaReacao('Fogo', 0, false)).toBe('Fogo, 0 reações');
+  });
+});
+
+describe('enquete', () => {
+  const agora = new Date('2026-11-13T15:00:00Z');
+  it('avisos fixos do plano', () => {
+    expect(AVISO_AO_CRIAR_ENQUETE).toBe('O voto é identificado: não pergunte sobre saúde, lesão, peso ou dieta.');
+    expect(AVISO_ANTES_DO_VOTO).toBe('Seu nome, suas escolhas e o horário do voto ficam visíveis para quem tem acesso a esta enquete.');
+  });
+  it('opções: 2 a 6, 1 a 80 depois do strip, sem repetir ignorando maiúsculas', () => {
+    expect(erroDasOpcoes(['Sim', 'Não'])).toBeNull();
+    expect(erroDasOpcoes(['Sim'])).toBe('Use de 2 a 6 opções.');
+    expect(erroDasOpcoes(['1', '2', '3', '4', '5', '6', '7'])).toBe('Use de 2 a 6 opções.');
+    expect(erroDasOpcoes(['Sim', '   '])).toBe('Cada opção tem de 1 a 80 caracteres.');
+    expect(erroDasOpcoes(['a'.repeat(80), ` ${'b'.repeat(80)} `])).toBeNull();
+    expect(erroDasOpcoes(['a'.repeat(81), 'b'])).toBe('Cada opção tem de 1 a 80 caracteres.');
+    expect(erroDasOpcoes(['Manhã', ' manhã '])).toBe('Não repita opções.');
+  });
+  it('prazo: fim do dia em Brasília, futuro e em até 1 ano', () => {
+    expect(prazoDaEnquete('')).toBeNull();
+    expect(prazoDaEnquete('31/02/2026')).toBeUndefined();
+    expect(prazoDaEnquete('20/11/2026')).toBe('2026-11-21T02:59:59.000Z');
+    expect(erroDoPrazo('', agora)).toBeNull();
+    expect(erroDoPrazo('13/11/2026', agora)).toBeNull();
+    expect(erroDoPrazo('12/11/2026', agora)).toBe(MENSAGEM_PRAZO_DA_ENQUETE);
+    expect(erroDoPrazo('12/11/2027', agora)).toBeNull();
+    expect(erroDoPrazo('14/11/2027', agora)).toBe(MENSAGEM_PRAZO_DA_ENQUETE);
+    expect(erroDoPrazo('1/1', agora)).toBe('Data inválida. Use DD/MM/AAAA.');
+  });
+  it('a enquete passa pela validação do post e vira o corpo da API', () => {
+    const r = { tipo: 'ENQUETE' as const, texto: ' Melhor horário? ', opcoes: [' Manhã ', 'Noite'], variasRespostas: true, encerraEm: '20/11/2026' };
+    expect(errosDoPost(r, 'equipe', agora)).toEqual({});
+    expect(errosDoPost(r, 'aluno', agora).tipo).toBeTruthy();
+    expect(errosDoPost({ ...r, texto: ' ' }, 'equipe', agora).texto).toBe('Escreva a pergunta.');
+    expect(errosDoPost({ ...r, opcoes: ['Só uma'] }, 'equipe', agora).opcoes).toBeTruthy();
+    expect(errosDoPost({ ...r, encerraEm: '01/01/2020' }, 'equipe', agora).encerraEm).toBe(MENSAGEM_PRAZO_DA_ENQUETE);
+    expect(errosDoPost({ ...r, videoUrl: 'https://youtu.be/abcdefghijk' }, 'equipe', agora).videoUrl).toBeTruthy();
+    expect(postParaEnviar(r)).toEqual({
+      tipo: 'ENQUETE', texto: 'Melhor horário?', opcoes: ['Manhã', 'Noite'], variasRespostas: true, encerraEm: '2026-11-21T02:59:59.000Z',
+    });
+    expect(postParaEnviar({ ...r, variasRespostas: undefined, encerraEm: '' })).toEqual({
+      tipo: 'ENQUETE', texto: 'Melhor horário?', opcoes: ['Manhã', 'Noite'], variasRespostas: false,
+    });
+  });
+  it('tocar numa opção: única troca ou retira; várias liga e desliga só a tocada', () => {
+    expect(votosAoTocar({ variasRespostas: false, meusVotos: [] }, 'a')).toEqual(['a']);
+    expect(votosAoTocar({ variasRespostas: false, meusVotos: ['a'] }, 'b')).toEqual(['b']);
+    expect(votosAoTocar({ variasRespostas: false, meusVotos: ['a'] }, 'a')).toEqual([]);
+    expect(votosAoTocar({ variasRespostas: true, meusVotos: ['a'] }, 'b')).toEqual(['a', 'b']);
+    expect(votosAoTocar({ variasRespostas: true, meusVotos: ['a', 'b'] }, 'a')).toEqual(['b']);
+  });
+  it('percentual sobre as pessoas, sem NaN e sem passar de 100', () => {
+    expect(percentualDaOpcao(0, 0)).toBe(0);
+    expect(percentualDaOpcao(1, 3)).toBe(33);
+    expect(percentualDaOpcao(3, 3)).toBe(100);
+    expect(percentualDaOpcao(4, 3)).toBe(100);
+  });
+  it('textos de votos, participantes e votante', () => {
+    expect(textoDosVotos(1)).toBe('1 voto');
+    expect(textoDosVotos(0)).toBe('0 votos');
+    expect(textoDosParticipantes(0)).toBe('Ninguém votou ainda');
+    expect(textoDosParticipantes(1)).toBe('1 pessoa votou');
+    expect(textoDosParticipantes(5)).toBe('5 pessoas votaram');
+    expect(nomeDoVotante({ nome: 'Ana Souza', ehVoce: true })).toBe('Você');
+    expect(nomeDoVotante({ nome: 'Ana Souza', apelido: 'Aninha' })).toBe('Ana Souza (Aninha)');
+    expect(nomeDoVotante({ nome: 'Ana Souza' })).toBe('Ana Souza');
+  });
+});
+
+describe('vídeo do YouTube', () => {
+  const id = 'dQw4w9WgXcQ';
+  it('aceita só os hosts e caminhos conhecidos, com id de 11', () => {
+    for (const url of [
+      `https://www.youtube.com/watch?v=${id}`, `https://youtube.com/watch?v=${id}&t=10`, `https://m.youtube.com/watch?feature=x&v=${id}`,
+      `https://youtu.be/${id}`, `https://youtu.be/${id}?si=abc`, `https://www.youtube.com/shorts/${id}`,
+      `https://www.youtube.com/embed/${id}`, `https://www.youtube.com/live/${id}`, `https://www.youtube.com:443/watch?v=${id}`,
+      `  https://youtu.be/${id}  `,
+    ]) expect(idDoYoutube(url)).toBe(id);
+  });
+  it('recusa outro domínio, usuário, http, outra porta e id de tamanho errado', () => {
+    for (const url of [
+      `https://youtube.com.evil.com/watch?v=${id}`, `https://youtube.com@evil.com/watch?v=${id}`,
+      `https://evil.com/youtube.com/watch?v=${id}`, `http://www.youtube.com/watch?v=${id}`,
+      `https://www.youtube.com:8443/watch?v=${id}`, 'https://youtu.be/dQw4w9WgXc', 'https://youtu.be/dQw4w9WgXcQQ',
+      'https://www.youtube.com/watch?v=dQw4w9WgXc!', 'https://vimeo.com/123', `https://www.youtube-nocookie.com/embed/${id}`,
+      'javascript:alert(1)', '', null, undefined,
+    ]) expect(idDoYoutube(url)).toBeNull();
+  });
+  it('o player e o botão externo saem de moldes fixos pelo id', () => {
+    expect(urlDoEmbed(id)).toBe('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ');
+    expect(urlNoYoutube(id)).toBe('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+    expect(ATRIBUTOS_DO_PLAYER).toEqual({
+      referrerpolicy: 'strict-origin-when-cross-origin', allow: 'fullscreen; picture-in-picture; encrypted-media',
+      sandbox: 'allow-scripts allow-same-origin allow-presentation', loading: 'lazy',
+    });
+    const html = htmlDoPlayer(id, 'Aula "boa" <b>');
+    expect(html).toContain('src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"');
+    expect(html).toContain('title="Aula &#34;boa&#34; &#60;b&#62;"');
+    expect(html).not.toContain('autoplay');
+  });
+  it('o WebView só navega na própria página e no youtube-nocookie', () => {
+    const origem = 'https://overtraining.app';
+    expect(navegacaoDoPlayerPermitida(`https://www.youtube-nocookie.com/embed/${id}`, origem)).toBe(true);
+    expect(navegacaoDoPlayerPermitida(origem, origem)).toBe(true);
+    expect(navegacaoDoPlayerPermitida('about:blank', origem)).toBe(true);
+    expect(navegacaoDoPlayerPermitida(`https://www.youtube.com/watch?v=${id}`, origem)).toBe(false);
+    expect(navegacaoDoPlayerPermitida('https://www.youtube-nocookie.com.evil.com/', origem)).toBe(false);
+    expect(navegacaoDoPlayerPermitida('https://www.youtube-nocookie.com@evil.com/', origem)).toBe(false);
+    expect(navegacaoDoPlayerPermitida('https://overtraining.app/aluno', origem)).toBe(false);
+    expect(navegacaoDoPlayerPermitida(undefined, origem)).toBe(false);
   });
 });
 
@@ -211,13 +346,13 @@ describe('páginas de comentários', () => {
 });
 
 describe('tipos de publicação', () => {
-  it('lista os cinco tipos com rótulo em português', () => {
-    expect(TIPOS_DE_POST.map((t) => t.tipo)).toEqual(['AVISO', 'VIDEO', 'DUVIDA', 'RESULTADO', 'CONVERSA']);
+  it('lista os seis tipos com rótulo em português', () => {
+    expect(TIPOS_DE_POST.map((t) => t.tipo)).toEqual(['AVISO', 'VIDEO', 'ENQUETE', 'DUVIDA', 'RESULTADO', 'CONVERSA']);
     expect(rotuloDoTipo('DUVIDA')).toBe('Dúvida');
   });
   it('o aluno escolhe só conversa, dúvida e resultado; a equipe, todos', () => {
     expect(tiposParaEscolher('aluno').map((t) => t.tipo)).toEqual(['DUVIDA', 'RESULTADO', 'CONVERSA']);
-    expect(tiposParaEscolher('equipe')).toHaveLength(5);
+    expect(tiposParaEscolher('equipe')).toHaveLength(6);
   });
 });
 
@@ -244,6 +379,11 @@ describe('validação da publicação', () => {
     expect(errosDoPost({ tipo: 'RESULTADO', texto: 'x', fotoIds: ['a', 'b', 'c', 'd', 'e'] }, 'aluno').fotoIds).toBeTruthy();
     expect(errosDoPost({ tipo: 'RESULTADO', texto: 'x', fotoIds: ['a', 'a'] }, 'aluno').fotoIds).toBeTruthy();
     expect(errosDoPost({ tipo: 'CONVERSA', texto: 'x', fotoIds: ['a'] }, 'equipe').fotoIds).toBeTruthy();
+  });
+  it('capa só no vídeo, e vai no corpo junto com o link', () => {
+    expect(errosDoPost({ tipo: 'AVISO', texto: 'x', capaId: 'c1' }, 'equipe').capaId).toBeTruthy();
+    expect(postParaEnviar({ tipo: 'VIDEO', texto: 'Aula', videoUrl: 'https://youtu.be/abc', capaId: 'c1' }).capaId).toBe('c1');
+    expect(postParaEnviar({ tipo: 'VIDEO', texto: 'Aula', videoUrl: 'https://youtu.be/abc', capaId: null })).not.toHaveProperty('capaId');
   });
   it('o corpo do envio tem strip e só leva link e fotos quando valem', () => {
     expect(postParaEnviar({ tipo: 'CONVERSA', texto: '  oi  ', videoUrl: 'https://x.com/a', fotoIds: [] })).toEqual({ tipo: 'CONVERSA', texto: 'oi' });
@@ -275,7 +415,7 @@ describe('motivos de denúncia', () => {
 
 describe('filtros do mural', () => {
   it('tipos no plural; etiquetas do tipo e das denunciadas', () => {
-    expect(opcoesDoTipoDoMural().map((f) => f.rotulo)).toEqual(['Todos', 'Avisos', 'Vídeos', 'Dúvidas', 'Resultados', 'Conversas']);
+    expect(opcoesDoTipoDoMural().map((f) => f.rotulo)).toEqual(['Todos', 'Avisos', 'Vídeos', 'Enquetes', 'Dúvidas', 'Resultados', 'Conversas']);
     expect(chipsDoMural(MURAL_SEM_FILTRO)).toEqual([]);
     expect(chipsDoMural({ tipo: 'DUVIDA', denunciados: true })).toEqual([
       { chave: 'tipo', texto: 'Tipo: Dúvidas' }, { chave: 'denunciados', texto: 'Só denunciadas' },

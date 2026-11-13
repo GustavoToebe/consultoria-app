@@ -3,11 +3,11 @@ package br.com.treinos.api.comunidade;
 import java.util.Optional;
 
 /**
- * Tipo da publicação do mural (C1 e C2, lista fechada). {@code AVISO} e {@code VIDEO} só a equipe publica; o aluno publica
- * {@code CONVERSA} (o padrão, para o post sem assunto), {@code DUVIDA} e {@code RESULTADO}.
+ * Tipo da publicação do mural (C1 e C2, lista fechada). {@code AVISO}, {@code VIDEO} e {@code ENQUETE} só a equipe publica; o aluno
+ * publica {@code CONVERSA} (o padrão, para o post sem assunto), {@code DUVIDA} e {@code RESULTADO}.
  */
 public enum TipoDePost {
-    AVISO(false), VIDEO(false), DUVIDA(true), RESULTADO(true), CONVERSA(true);
+    AVISO(false), VIDEO(false), DUVIDA(true), RESULTADO(true), CONVERSA(true), ENQUETE(false);
 
     private final boolean doAluno;
 

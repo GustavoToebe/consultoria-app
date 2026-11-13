@@ -8,7 +8,8 @@ export interface AulaDaComunidade {
   descricao: string | null;
   /** Link https do vídeo; a API já omite o que não passa na regra de links. */
   videoUrl: string | null;
-  miniaturaUrl: string | null;
+  /** Capa enviada pela equipe (bytes por `baixarCapa*`, com o token); nula = sem capa. */
+  capaId: string | null;
   categoria: string | null;
   ordem: number;
   publicada: boolean;
@@ -24,15 +25,56 @@ export interface NovaAula {
   titulo: string;
   descricao?: string | null;
   videoUrl: string;
-  miniaturaUrl?: string | null;
   /** Até 60 depois da normalização do servidor (espaços nas pontas e repetidos saem; vazio vira nulo). */
   categoria?: string | null;
   ordem?: number;
   publicada?: boolean;
+  /** Id de `POST /comunidade/capas`. No `PUT`, ausente ou nulo REMOVE a capa: a edição manda sempre a do rascunho. */
+  capaId?: string | null;
 }
 
 /** Tipo da publicação do mural (`TipoDePost` da API). */
-export type TipoDePost = 'AVISO' | 'VIDEO' | 'DUVIDA' | 'RESULTADO' | 'CONVERSA';
+export type TipoDePost = 'AVISO' | 'VIDEO' | 'DUVIDA' | 'RESULTADO' | 'CONVERSA' | 'ENQUETE';
+
+/** Reação por código (D6, lista fechada da API); o emoji é só desenho no app (`dominio/comunidade.REACOES`). */
+export type CodigoDeReacao = 'CURTIR' | 'FORCA' | 'FOGO' | 'PALMAS' | 'RISO';
+
+/** Votante da amostra do cartão (até 3, mais recentes primeiro); `apelido` só vem quando existe. */
+export interface VotanteDaAmostra { autorId: string; nome: string; apelido?: string; temFoto: boolean }
+
+export interface OpcaoDaEnquete { id: string; texto: string; votos: number; votantesAmostra: VotanteDaAmostra[] }
+
+/**
+ * Enquete do post `ENQUETE` (`EnqueteResponse`). `encerrada` já considera `encerraEm`; `participantes` são pessoas distintas
+ * (não a soma dos votos); `meusVotos` são as opções do usuário da sessão. Sem total de elegíveis.
+ */
+export interface EnqueteDoMural {
+  variasRespostas: boolean;
+  encerrada: boolean;
+  encerraEm: string | null;
+  opcoes: OpcaoDaEnquete[];
+  meusVotos: string[];
+  participantes: number;
+}
+
+/** Uma linha por voto, mais recente primeiro; `ehVoce` = o próprio usuário (a tela escreve "Você"). */
+export interface VotanteDaEnquete {
+  autorId: string;
+  opcaoId: string;
+  nome: string;
+  apelido?: string;
+  temFoto: boolean;
+  votadoEm: string;
+  ehVoce: boolean;
+}
+
+/** "Mostrar votos" (`GET .../mural/{id}/votos`): `votantes.total` conta os votos do filtro, não os participantes. */
+export interface VotosDaEnquete {
+  pergunta: string;
+  participantes: number;
+  opcoes: { opcaoId: string; texto: string; votos: number }[];
+  votantes: { total: number; itens: VotanteDaEnquete[] };
+}
 
 /** Motivo de uma denúncia (`MotivoDeDenuncia` da API, lista fechada). */
 export type MotivoDeDenuncia = 'OFENSIVO' | 'SPAM' | 'IMPROPRIO' | 'OUTRO';
@@ -51,27 +93,39 @@ export interface PostDoMural {
   tipo: TipoDePost;
   /** Link https; só no tipo `VIDEO`. */
   videoUrl: string | null;
+  /** Capa do vídeo enviada pela equipe; nula fora do `VIDEO` ou sem capa. */
+  capaId: string | null;
   /** Ids das fotos, na ordem (bytes por `baixarFotoDoMural`, com o token). Só posts do aluno têm. */
   fotos: string[];
+  /** Só no tipo `ENQUETE` (a pergunta é o `texto`); nula nos outros. */
+  enquete: EnqueteDoMural | null;
   /** Só vale em `DUVIDA`: já há comentário da equipe. */
   respondida: boolean;
   fixado: boolean;
   criadoEm: string;
-  /** Contagem por emoji. */
-  reacoes: Record<string, number>;
-  /** Emojis que o usuário da sessão marcou neste post. */
-  minhasReacoes: string[];
+  /** Contagem por código (código sem reação pode faltar). */
+  reacoes: Partial<Record<CodigoDeReacao, number>>;
+  /** Códigos que o usuário da sessão marcou neste post. */
+  minhasReacoes: CodigoDeReacao[];
   totalComentarios: number;
   /** Quantidade de denúncias: só na rota da equipe; o aluno nunca recebe (o campo some). */
   denuncias?: number | null;
 }
 
-/** Corpo do `POST` do mural. `tipo` ausente = `CONVERSA`; `videoUrl` só em `VIDEO`; `fotoIds` só do aluno (0 a 4). */
+/**
+ * Corpo do `POST` do mural. `tipo` ausente = `CONVERSA`; `videoUrl` e `capaId` só em `VIDEO`; `fotoIds` só do aluno (0 a 4);
+ * `opcoes`, `variasRespostas` e `encerraEm` só em `ENQUETE` (da equipe).
+ */
 export interface CriarPostRequest {
   tipo?: TipoDePost;
   texto: string;
   videoUrl?: string;
   fotoIds?: string[];
+  capaId?: string;
+  opcoes?: string[];
+  variasRespostas?: boolean;
+  /** Instante ISO futuro, no máximo 1 ano à frente; ausente = sem prazo. */
+  encerraEm?: string;
 }
 
 /** Chaves da Comunidade da equipe (`GET`/`PUT /comunidade/configuracao`). */

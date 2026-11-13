@@ -1,16 +1,166 @@
 import type {
-  AulaDaComunidade, ConfiguracaoDoAluno, CriarPostRequest, FiltrosDoMural, MotivoDeDenuncia, NovaAula, PostDoMural, TipoDePost,
+  AulaDaComunidade, CodigoDeReacao, ConfiguracaoDoAluno, CriarPostRequest, EnqueteDoMural, FiltrosDoMural, MotivoDeDenuncia,
+  NovaAula, PostDoMural, TipoDePost,
 } from '../api/comunidadeTipos';
 import { paraBusca } from './filtrosComuns';
+import { dataDaTela } from './formatos';
 import { normalizarGrupo } from './gruposDaLista';
 import { erroDoLink, linkExternoSeguro, MENSAGEM_LINK } from './links';
 
-/** A única reação do app é a curtida; o resto das reações que a API aceita não aparece na tela. */
-export const EMOJI_DA_CURTIDA = '❤️';
+// ---- Reações (D6): o código vai à API; o emoji é só desenho ----
 
-export const totalDeCurtidas = (post: Pick<PostDoMural, 'reacoes'>): number => post.reacoes[EMOJI_DA_CURTIDA] ?? 0;
+export const REACOES: readonly { codigo: CodigoDeReacao; emoji: string; rotulo: string }[] = [
+  { codigo: 'CURTIR', emoji: '❤️', rotulo: 'Curtir' },
+  { codigo: 'FORCA', emoji: '💪', rotulo: 'Força' },
+  { codigo: 'FOGO', emoji: '🔥', rotulo: 'Fogo' },
+  { codigo: 'PALMAS', emoji: '👏', rotulo: 'Palmas' },
+  { codigo: 'RISO', emoji: '😂', rotulo: 'Risada' },
+];
 
-export const curtidoPorMim = (post: Pick<PostDoMural, 'minhasReacoes'>): boolean => post.minhasReacoes.includes(EMOJI_DA_CURTIDA);
+export const totalDaReacao = (post: Pick<PostDoMural, 'reacoes'>, codigo: CodigoDeReacao): number => post.reacoes[codigo] ?? 0;
+
+export const reagiu = (post: Pick<PostDoMural, 'minhasReacoes'>, codigo: CodigoDeReacao): boolean => post.minhasReacoes.includes(codigo);
+
+/** Nome lido pelo leitor de tela: começa pelo rótulo da reação e diz a contagem e se a pessoa já reagiu. */
+export function rotuloDaReacao(rotulo: string, total: number, minha: boolean): string {
+  const contagem = total === 1 ? '1 reação' : `${total} reações`;
+  return `${rotulo}, ${contagem}${minha ? ', você reagiu' : ''}`;
+}
+
+/**
+ * O post depois do `PUT` (ligar) ou `DELETE` (desligar) que a API confirmou (204): a contagem anda um e a marca entra ou
+ * sai, sem buscar o mural de novo. Repetir o que já vale não muda nada (as rotas são idempotentes).
+ */
+export function comReacao<T extends Pick<PostDoMural, 'reacoes' | 'minhasReacoes'>>(post: T, codigo: CodigoDeReacao, ligar: boolean): T {
+  if (reagiu(post, codigo) === ligar) return post;
+  const total = Math.max(0, totalDaReacao(post, codigo) + (ligar ? 1 : -1));
+  const minhas = ligar ? [...post.minhasReacoes, codigo] : post.minhasReacoes.filter((c) => c !== codigo);
+  return {
+    ...post,
+    reacoes: { ...post.reacoes, [codigo]: total },
+    minhasReacoes: REACOES.map((r) => r.codigo).filter((c) => minhas.includes(c)),
+  };
+}
+
+// ---- Enquete ----
+
+export const ENQUETE_OPCOES_MINIMO = 2;
+export const ENQUETE_OPCOES_MAXIMO = 6;
+export const ENQUETE_OPCAO_MAXIMA = 80;
+/** Aviso fixo na criação (plano, passo 4). */
+export const AVISO_AO_CRIAR_ENQUETE = 'O voto é identificado: não pergunte sobre saúde, lesão, peso ou dieta.';
+/** Aviso fixo que aparece antes do voto, sempre (plano, passo 4). */
+export const AVISO_ANTES_DO_VOTO = 'Seu nome, suas escolhas e o horário do voto ficam visíveis para quem tem acesso a esta enquete.';
+export const MENSAGEM_PRAZO_DA_ENQUETE = 'O prazo tem de ser daqui para frente e em até 1 ano.';
+
+/**
+ * Prazo digitado (DD/MM/AAAA) → instante: a enquete encerra no fim daquele dia em Brasília (sem horário de verão desde
+ * 2019). Vazio = `null` (sem prazo); data impossível = `undefined`.
+ */
+export function prazoDaEnquete(texto: string): string | null | undefined {
+  const iso = dataDaTela(texto);
+  if (!iso) return iso;
+  return new Date(`${iso}T23:59:59-03:00`).toISOString();
+}
+
+/** Mesma regra de `EnquetesDoMuralService.conferirPrazo`: futuro e até 1 ano à frente (`agora` vem de fora, para testar). */
+export function erroDoPrazo(texto: string, agora: Date): string | null {
+  const prazo = prazoDaEnquete(texto);
+  if (prazo === null) return null;
+  if (prazo === undefined) return 'Data inválida. Use DD/MM/AAAA.';
+  const limite = new Date(agora);
+  limite.setUTCFullYear(limite.getUTCFullYear() + 1);
+  const instante = new Date(prazo).getTime();
+  return instante <= agora.getTime() || instante > limite.getTime() ? MENSAGEM_PRAZO_DA_ENQUETE : null;
+}
+
+/** Mesma regra de `opcoesLimpas`: 2 a 6, cada uma com 1 a 80 depois do strip, sem repetir (sem diferença de maiúsculas). */
+export function erroDasOpcoes(opcoes: readonly string[]): string | null {
+  if (opcoes.length < ENQUETE_OPCOES_MINIMO || opcoes.length > ENQUETE_OPCOES_MAXIMO) {
+    return `Use de ${ENQUETE_OPCOES_MINIMO} a ${ENQUETE_OPCOES_MAXIMO} opções.`;
+  }
+  const limpas = opcoes.map((o) => o.trim());
+  if (limpas.some((o) => !o || o.length > ENQUETE_OPCAO_MAXIMA)) return `Cada opção tem de 1 a ${ENQUETE_OPCAO_MAXIMA} caracteres.`;
+  if (new Set(limpas.map((o) => o.toLowerCase())).size !== limpas.length) return 'Não repita opções.';
+  return null;
+}
+
+/**
+ * O conjunto que vai no `PUT .../votos` ao tocar numa opção. Escolha única: a opção tocada substitui a anterior, e tocar
+ * na mesma retira o voto (`[]`). Várias respostas: liga ou desliga só a tocada.
+ */
+export function votosAoTocar(enquete: Pick<EnqueteDoMural, 'meusVotos' | 'variasRespostas'>, opcaoId: string): string[] {
+  const marcada = enquete.meusVotos.includes(opcaoId);
+  if (!enquete.variasRespostas) return marcada ? [] : [opcaoId];
+  return marcada ? enquete.meusVotos.filter((id) => id !== opcaoId) : [...enquete.meusVotos, opcaoId];
+}
+
+/**
+ * Percentual da opção sobre as pessoas que votaram (`participantes`), nunca sobre a soma dos votos: em "várias respostas"
+ * a soma passa de 100% e cada barra continua dizendo quantas pessoas escolheram aquilo. Sem participantes = 0 (sem NaN).
+ */
+export const percentualDaOpcao = (votos: number, participantes: number): number =>
+  participantes > 0 ? Math.round((Math.min(votos, participantes) / participantes) * 100) : 0;
+
+export const textoDosVotos = (n: number): string => (n === 1 ? '1 voto' : `${n} votos`);
+
+export function textoDosParticipantes(n: number): string {
+  if (n === 0) return 'Ninguém votou ainda';
+  return n === 1 ? '1 pessoa votou' : `${n} pessoas votaram`;
+}
+
+/** Nome do votante na lista: o próprio é "Você"; o apelido vem ao lado, nunca no lugar. */
+export const nomeDoVotante = (v: { nome: string; apelido?: string | null; ehVoce?: boolean }): string =>
+  v.ehVoce ? 'Você' : v.apelido ? `${v.nome} (${v.apelido})` : v.nome;
+
+export const VOTANTES_POR_PAGINA = 30;
+
+// ---- Vídeo do YouTube (D8): id por regex fechada; a URL gravada nunca vai direto ao player ----
+
+/**
+ * Hosts do YouTube que o player aceita (youtube.com, www, m e youtu.be; https, porta 443 ou nenhuma; o cadastro do link na
+ * Comunidade aceita qualquer https por `LinksExternos`, e só o player usa esta regra) e os caminhos de vídeo
+ * conhecidos (`watch?v=`, `shorts/`, `embed/`, `live/` e `youtu.be/<id>`). O host vem logo depois de `https://`: usuário
+ * (`@`), outro domínio ou outra porta não passam. Id de exatamente 11 caracteres `[A-Za-z0-9_-]`.
+ */
+const VIDEO_DO_YOUTUBE =
+  /^https:\/\/(?:(?:www\.|m\.)?youtube\.com(?::443)?\/(?:watch\?(?:[^#]*&)?v=|shorts\/|embed\/|live\/)|youtu\.be(?::443)?\/)([A-Za-z0-9_-]{11})(?=$|[?&#])/;
+
+export function idDoYoutube(url: string | null | undefined): string | null {
+  return VIDEO_DO_YOUTUBE.exec(url?.trim() ?? '')?.[1] ?? null;
+}
+
+/** O único `src` do player: molde fixo a partir do id já validado. */
+export const urlDoEmbed = (id: string): string => `https://www.youtube-nocookie.com/embed/${id}`;
+
+/** "Abrir no YouTube": também montado pelo id, sem nenhum parâmetro da URL gravada. */
+export const urlNoYoutube = (id: string): string => `https://www.youtube.com/watch?v=${id}`;
+
+/** Atributos do iframe (web e o HTML do WebView no celular): sem autoplay, câmera nem microfone. */
+export const ATRIBUTOS_DO_PLAYER = {
+  referrerpolicy: 'strict-origin-when-cross-origin',
+  allow: 'fullscreen; picture-in-picture; encrypted-media',
+  sandbox: 'allow-scripts allow-same-origin allow-presentation',
+  loading: 'lazy',
+} as const;
+
+const escaparHtml = (t: string): string => t.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
+/** Página do WebView: só o iframe montado pelo id (o `baseUrl` dá a origem que o embed pede no Referer). */
+export function htmlDoPlayer(id: string, titulo: string): string {
+  const a = ATRIBUTOS_DO_PLAYER;
+  return '<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">'
+    + '<style>html,body{margin:0;height:100%;background:#000}iframe{border:0;width:100%;height:100%}</style></head><body>'
+    + `<iframe src="${urlDoEmbed(id)}" title="${escaparHtml(titulo)}" referrerpolicy="${a.referrerpolicy}" allow="${a.allow}"`
+    + ` sandbox="${a.sandbox}" loading="${a.loading}" allowfullscreen></iframe></body></html>`;
+}
+
+/** Navegação do WebView: só a página acima (a `origem` exata) e o embed (host exato, https, sem usuário nem porta). */
+export function navegacaoDoPlayerPermitida(url: unknown, origem: string): boolean {
+  if (typeof url !== 'string') return false;
+  if (url === 'about:blank' || url === 'about:srcdoc' || url === origem || url === `${origem}/`) return true;
+  return /^https:\/\/www\.youtube-nocookie\.com(?:[/?#]|$)/.test(url);
+}
 
 /** "3º de 12 participantes" (empate divide a posição, como na API). */
 export function textoDaPosicao(posicao: number, participantes: number): string {
@@ -149,6 +299,7 @@ export function semOComentario<T extends { id: string }>(c: ComentariosLidos<T>,
 export const TIPOS_DE_POST: readonly { tipo: TipoDePost; rotulo: string }[] = [
   { tipo: 'AVISO', rotulo: 'Aviso' },
   { tipo: 'VIDEO', rotulo: 'Vídeo' },
+  { tipo: 'ENQUETE', rotulo: 'Enquete' },
   { tipo: 'DUVIDA', rotulo: 'Dúvida' },
   { tipo: 'RESULTADO', rotulo: 'Resultado' },
   { tipo: 'CONVERSA', rotulo: 'Conversa' },
@@ -156,7 +307,7 @@ export const TIPOS_DE_POST: readonly { tipo: TipoDePost; rotulo: string }[] = [
 
 export const rotuloDoTipo = (tipo: TipoDePost): string => TIPOS_DE_POST.find((t) => t.tipo === tipo)?.rotulo ?? tipo;
 
-/** Aluno publica só estes três; `AVISO` e `VIDEO` são da equipe (decisão C2). A API confere de novo. */
+/** Aluno publica só estes três; `AVISO`, `VIDEO` e `ENQUETE` são da equipe (decisão C2). A API confere de novo. */
 const TIPOS_DO_ALUNO: readonly TipoDePost[] = ['CONVERSA', 'DUVIDA', 'RESULTADO'];
 
 export type PapelNoMural = 'aluno' | 'equipe';
@@ -173,15 +324,40 @@ export const MENSAGEM_POST_VAZIO = 'Escreva a publicação.';
 export const MENSAGEM_POST_LONGO = `Use até ${POST_TEXTO_MAXIMO} caracteres.`;
 export const MENSAGEM_POST_VIDEO_SEM_LINK = 'Informe o link do vídeo.';
 
-export type CampoDoPost = 'tipo' | 'texto' | 'videoUrl' | 'fotoIds';
-export interface RascunhoDoPost { tipo: TipoDePost; texto: string; videoUrl?: string; fotoIds?: string[] }
+export const MENSAGEM_ENQUETE_SEM_PERGUNTA = 'Escreva a pergunta.';
+
+export type CampoDoPost = 'tipo' | 'texto' | 'videoUrl' | 'fotoIds' | 'capaId' | 'opcoes' | 'encerraEm';
+/**
+ * O que a folha guarda. Na enquete a pergunta é o `texto`, `opcoes` são os campos na ordem e `encerraEm` é a data digitada
+ * (DD/MM/AAAA, vazia = sem prazo). `capaId` é a capa já enviada do vídeo.
+ */
+export interface RascunhoDoPost {
+  tipo: TipoDePost;
+  texto: string;
+  videoUrl?: string;
+  fotoIds?: string[];
+  capaId?: string | null;
+  opcoes?: string[];
+  variasRespostas?: boolean;
+  encerraEm?: string;
+}
+
+/** Folha nova de enquete: duas opções vazias, escolha única e sem prazo. */
+export const OPCOES_INICIAIS_DA_ENQUETE: readonly string[] = ['', ''];
 
 /** Erros por campo (vazio = pode enviar), nas mesmas regras que o servidor devolve em 422 `POST_INVALIDO`. */
-export function errosDoPost(r: RascunhoDoPost, papel: PapelNoMural): Partial<Record<CampoDoPost, string>> {
+export function errosDoPost(r: RascunhoDoPost, papel: PapelNoMural, agora: Date = new Date()): Partial<Record<CampoDoPost, string>> {
   const erros: Partial<Record<CampoDoPost, string>> = {};
   if (papel === 'aluno' && !TIPOS_DO_ALUNO.includes(r.tipo)) erros.tipo = 'Este tipo só a equipe publica.';
-  if (!r.texto.trim()) erros.texto = MENSAGEM_POST_VAZIO;
+  if (!r.texto.trim()) erros.texto = r.tipo === 'ENQUETE' ? MENSAGEM_ENQUETE_SEM_PERGUNTA : MENSAGEM_POST_VAZIO;
   else if (r.texto.length > POST_TEXTO_MAXIMO) erros.texto = MENSAGEM_POST_LONGO;
+  if (r.tipo === 'ENQUETE') {
+    const opcoes = erroDasOpcoes(r.opcoes ?? []);
+    if (opcoes) erros.opcoes = opcoes;
+    const prazo = erroDoPrazo(r.encerraEm ?? '', agora);
+    if (prazo) erros.encerraEm = prazo;
+  }
+  if (r.capaId && r.tipo !== 'VIDEO') erros.capaId = 'Só a publicação de vídeo leva capa.';
   const link = r.videoUrl?.trim() ?? '';
   if (r.tipo === 'VIDEO') {
     if (!link) erros.videoUrl = MENSAGEM_POST_VIDEO_SEM_LINK;
@@ -195,11 +371,18 @@ export function errosDoPost(r: RascunhoDoPost, papel: PapelNoMural): Partial<Rec
   return erros;
 }
 
-/** O corpo do `POST`: texto com strip, link só no vídeo, fotos só quando há. */
+/** O corpo do `POST`: texto com strip, link e capa só no vídeo, fotos só quando há, opções e prazo só na enquete. */
 export function postParaEnviar(r: RascunhoDoPost): CriarPostRequest {
   const corpo: CriarPostRequest = { tipo: r.tipo, texto: r.texto.trim() };
   if (r.tipo === 'VIDEO' && r.videoUrl?.trim()) corpo.videoUrl = r.videoUrl.trim();
+  if (r.tipo === 'VIDEO' && r.capaId) corpo.capaId = r.capaId;
   if (r.fotoIds?.length) corpo.fotoIds = r.fotoIds;
+  if (r.tipo === 'ENQUETE') {
+    corpo.opcoes = (r.opcoes ?? []).map((o) => o.trim());
+    corpo.variasRespostas = r.variasRespostas === true;
+    const prazo = prazoDaEnquete(r.encerraEm ?? '');
+    if (prazo) corpo.encerraEm = prazo;
+  }
   return corpo;
 }
 
@@ -236,7 +419,7 @@ export type ChaveDoFiltroDoMural = keyof FiltroDoMural;
 export const MURAL_SEM_FILTRO: FiltroDoMural = { tipo: null, denunciados: false };
 
 const PLURAL_DO_TIPO: Record<TipoDePost, string> = {
-  AVISO: 'Avisos', VIDEO: 'Vídeos', DUVIDA: 'Dúvidas', RESULTADO: 'Resultados', CONVERSA: 'Conversas',
+  AVISO: 'Avisos', VIDEO: 'Vídeos', DUVIDA: 'Dúvidas', RESULTADO: 'Resultados', CONVERSA: 'Conversas', ENQUETE: 'Enquetes',
 };
 
 /** Opções do tipo de publicação, na ordem da tela. */
@@ -291,13 +474,14 @@ export const AULA_DESCRICAO_MAXIMA = 4000;
 export const AULA_CATEGORIA_MAXIMA = 60;
 export const SEM_CATEGORIA_DO_AULAO = 'Sem categoria';
 
-export interface RascunhoDaAula { titulo: string; link: string; categoria: string; descricao: string }
+/** `capaId` começa com a da aula: o `PUT` sem ela apagaria a capa, então "Remover capa" é o único jeito de pôr `null`. */
+export interface RascunhoDaAula { titulo: string; link: string; categoria: string; descricao: string; capaId: string | null }
 
-export const RASCUNHO_DA_AULA_VAZIO: RascunhoDaAula = { titulo: '', link: '', categoria: '', descricao: '' };
+export const RASCUNHO_DA_AULA_VAZIO: RascunhoDaAula = { titulo: '', link: '', categoria: '', descricao: '', capaId: null };
 
 /** O formulário de edição começa com o que a aula tem. */
 export const rascunhoDaAula = (a: AulaDaComunidade): RascunhoDaAula =>
-  ({ titulo: a.titulo, link: a.videoUrl ?? '', categoria: a.categoria ?? '', descricao: a.descricao ?? '' });
+  ({ titulo: a.titulo, link: a.videoUrl ?? '', categoria: a.categoria ?? '', descricao: a.descricao ?? '', capaId: a.capaId ?? null });
 
 /** Erros por campo (`null` = pode enviar), com as mensagens que a folha já mostrava. */
 export function errosDaAula(r: RascunhoDaAula): { titulo: string | null; link: string | null } {
@@ -310,15 +494,18 @@ export function errosDaAula(r: RascunhoDaAula): { titulo: string | null; link: s
 /**
  * Corpo do envio. Sem `original` (criar) vai só o que a pessoa preencheu, e a API publica com ordem 0. Com `original`
  * (editar) vão os sete campos: o `PUT` substitui tudo e despublicaria (`publicada` ausente = `true`), voltaria a ordem a 0
- * e apagaria a miniatura se faltassem. Vazio vira nulo, para limpar a descrição ou a categoria.
+ * e apagaria a capa se faltassem (a capa vem do rascunho, que começa com a da aula). Vazio vira nulo, para limpar a
+ * descrição ou a categoria.
  */
 export function corpoDaAula(r: RascunhoDaAula, original?: AulaDaComunidade): NovaAula {
   const titulo = r.titulo.trim();
   const videoUrl = r.link.trim();
   const descricao = r.descricao.trim() || null;
   const categoria = normalizarGrupo(r.categoria) || null;
-  if (!original) return { titulo, descricao: descricao ?? undefined, videoUrl, categoria: categoria ?? undefined };
-  return { titulo, descricao, videoUrl, miniaturaUrl: original.miniaturaUrl, categoria, ordem: original.ordem, publicada: original.publicada };
+  if (!original) {
+    return { titulo, descricao: descricao ?? undefined, videoUrl, categoria: categoria ?? undefined, ...(r.capaId ? { capaId: r.capaId } : {}) };
+  }
+  return { titulo, descricao, videoUrl, categoria, ordem: original.ordem, publicada: original.publicada, capaId: r.capaId };
 }
 
 /** Categoria da aula como a API grava (espaços nas pontas e repetidos saem); vazia = `null`. */

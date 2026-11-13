@@ -215,25 +215,30 @@ Nada de `somaOuZero` nem de `resultado`. Tipos, "Sem permissão" e D9 seguem o p
 Por campo da tabela marcado **0** ou **Já certo**: um caso de consulta válida e vazia devolvendo 0 (período passado, corrente e misto); por campo **Deixar nulo**: o caso (b) continua nulo (período futuro, "Meus", antes da criação); `resultado`: mês antes da criação com baixa retroativa e entrada e saída nulas → **nulo**, mês válido sem lançamento → número, mês futuro → nulo, "Meus" → nulo; `valorMedio` e `percentual` sem base → nulos; registro manual (baixa) numa consultoria com cobranças geradas não zera a soma dos existentes. Consultoria **sem** nenhuma cobrança: painel e `/numeros` com 0 nos cartões (não nulo). Isolamento: o 0 de uma consultoria não vem de outra. `mvn verify` completo (Maven um por vez, depois que a API da Comunidade terminar).
 
 ### Perguntas que continuam abertas
-1. `GET /financeiro/visao-geral` ignora "Meus": se a tela o mostra com o filtro ligado, o número é da consultoria inteira (candidato a `FILTRO_INCOMPATIVEL`). Não verificado no app.
+1. ~~`GET /financeiro/visao-geral` ignora "Meus"~~ **Resolvida em 13/11 (só leitura, sem furo):** `FinanceiroController.java:57-59` e `VisaoGeral.tsx:53-58,124-125` só buscam e mostram a visão geral com `!meus` (com "Meus" ligado ela nem aparece), então nenhum número da consultoria inteira é exibido como "meu". `GET /financeiro/cobrancas` também confere: o controller passa `meus ? eu.usuarioId() : null` a `CobrancaService.listar` (`CobrancaController.java:53-69`, `CobrancaService.java:86-133`), o repositório filtra `responsavelId` (`CobrancaAlunoRepository`) e a aba manda `meus` (`AbaCobrancas.tsx:313`).
 2. `movimentoDeAlunos` de meses futuros devolve 0: aceito por ora.
-3. V059: escolher A ou B e informar, se souber, se o Financeiro do Saraiva já tinha uso real antes de 05/11.
+3. ~~V059: escolher A ou B~~ **Resolvida em 13/11:** vale a ressalva por consultoria da V073 (`historico_financeiro_parcial`, só informativa; ver "Decisões de 13/11"). A data em que a V059 rodou em produção continua não confirmada e o aviso não declara período completo; conferir a coluna em produção com `claude_leitura` depois do deploy.
 
 ## Passos
 - [x] 1. Mapa e tabela por indicador (este arquivo) — responsável: executor — commit: — (local, sem commit)
 - [x] 2. Correção mínima da API: as quatro contagens de atualização do `/painel` nulas sem permissão; teste novo; `ArquiteturaTest` verde — responsável: executor — commit: — (local, sem commit)
 - [x] 3. Revisão independente (`revisor`) da correção e da tabela — responsável: sessão principal — evidência: sem bloqueante; ajustes na tabela aplicados em 13/11 (D7); `git diff` e `mvn` não rodados por ele
-- [ ] 4. Frente B aplica a mudança do app (tipos, "Sem permissão", "Tudo em dia" sem base, comentário de `painelDoInicio.ts:96`, e2e) — responsável: executor-front — commit: —
+- [x] 4. Frente B aplica a mudança do app (tipos, "Sem permissão", "Tudo em dia" sem base, comentário de `painelDoInicio.ts:96`, e2e) — responsável: executor-front — commits: `8819fd65`, `e0eb0eb7`, `a9a61a12` (13/11; ressalva do histórico parcial em todas as abas do Financeiro, "Recurso desativado" distinto de zero, falha e sem permissão; evidências em `scratchpad\final-13-11\financeiro\`, fora do repositório)
 - [ ] 4b. Correção pontual da API do Financeiro (seção própria acima: 0 onde a consulta é válida e vazia, `resultado` nulo com componente ausente, `nz` removido) — responsável: executor — evidência: —; começa depois da API da Comunidade (Maven um por vez) e passa por `revisor`
-- [ ] 5. Decisões do Gustavo que restam: pergunta 1 (anonimização), pergunta 2 (`RECURSO_DESLIGADO`) e aprovação do contrato `cobertura`; D8 exige a evidência do Financeiro antes (D6 e D9 já decididas)
+- [ ] 5. Perguntas abertas de nulo, **registradas separadamente** (Gustavo, 13/11); cada uma continua pendência enquanto não for resolvida:
+  - **5a. Anonimização/remoção:** esclarecer quais contagens históricas (atualizações, alunos ativos, atrasadas, financeiro) são afetadas por anonimizar ou remover um aluno e como a tela deve dizer isso. **Não mudar a retenção** nesta frente.
+  - **5b. Recurso desligado:** mostrar "Recurso desativado" (distinto de zero, de falha e de sem permissão) onde o estado for conhecido. Feito nas telas do Financeiro que recebem o 503 `FINANCEIRO_INDISPONIVEL`/`RECEBIMENTO_ONLINE_INDISPONIVEL`; **resta** o Início, onde `pagamentosHabilitados=false` esconde os blocos pela regra "recurso que não existe não aparece" (mudar isso é decisão do Gustavo).
+  - **5c. Cobertura:** manter as limitações documentadas em "Evidência da cobertura do Financeiro" e **não emitir `COMPLETA` sem evidência**; o contrato `cobertura` segue sem aprovação.
 
 ## Fora do escopo
-- Qualquer indicador além das quatro contagens do `/painel`; qualquer mudança de `/numeros`, `/financeiro/painel` ou `/inscricoes/indicadores`.
-- Código do contrato `cobertura`, migration, endpoint novo.
-- Arquivos do app (`painelDoInicio.ts`, `index.tsx`, `treinador/painel/*` são da frente B).
+Atualizado em 13/11 (o que antes estava aqui contradizia a V073 e as mudanças do Financeiro, já feitas e aprovadas):
+- Código do contrato `cobertura` (segue sem aprovação) e endpoint novo; `COMPLETA` nunca é emitida sem evidência.
+- Mudar a retenção ou a anonimização (5a só esclarece contagens afetadas).
+- Pagamento parcial, pagador separado e mudança na geração das cobranças.
+- Fazem parte do que foi feito, **não** são mais "fora do escopo": a migration V073 (`historico_financeiro_parcial`, só informativa), a correção dos zeros e do `resultado` nulo em `/financeiro/painel` e `/numeros` (4b), a ressalva e o "Recurso desativado" no app do Financeiro (passo 4) e a coluna `historico_financeiro_parcial` no fim do CSV da exportação.
 
 ## O que ficou para trás
-- Não verificado: `GET /financeiro/visao-geral` ignora o responsável e devolve primitivos (`FinanceiroService.java:270-295`); se a tela o mostra com "Meus" ligado, é candidato a `FILTRO_INCOMPATIVEL`. `GET /financeiro/cobrancas` segue não verificado.
+- Resolvido em 13/11 (só leitura): `GET /financeiro/visao-geral` e `GET /financeiro/cobrancas` com "Meus" estão coerentes (ver pergunta aberta 1).
 - Teste opcional: incluir as quatro contagens no laço da outra consultoria (consultoria sem aluno ativo) em `PainelContagensIntegrationTest.java:191`.
 - Cobertura e retenção dos indicadores além das quatro contagens (D5): `resultado` e `nz` do Financeiro, recebido/a receber/receita recorrente, Interessados com retenção de 180 dias, e os "não verificados" da tabela.
 - Passos 3 a 5 acima; cada sobra vai também para "Pendências soltas" no README com a origem "nulo-e-cobertura".

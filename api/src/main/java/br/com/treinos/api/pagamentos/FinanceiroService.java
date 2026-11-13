@@ -39,10 +39,13 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Os números do financeiro: só agregados (JPQL, filtrados pela consultoria da sessão), datas em Brasília. {@code null}
- * é "sem dado" e nunca vira zero inventado: soma sem nenhuma linha sai nula, e contagem é sempre um número de verdade.
- * Cancelada não entra em nada; estornada e baixa desfeita saem do recebido porque deixam de ser PAGA. Atraso é o das
- * cobranças já geradas (não há agendador): a tela diz isso.
+ * Os números do financeiro: só agregados (JPQL, filtrados pela consultoria da sessão), datas em Brasília. Regra do
+ * contrato: {@code 0} = a consulta rodou e não achou registro aplicável (soma sem linha, por si só, é 0 quando a consulta
+ * é válida para o período); {@code null} = indisponível (período ou mês no futuro, "Meus" sem lançamento avulso, mês
+ * anterior à criação da consultoria, média ou percentual sem base). Conta composta nunca soma ausência como zero: o
+ * {@code resultado} é nulo se faltar recebido, entradas ou saídas. Cancelada não entra em nada; estornada e baixa desfeita
+ * saem do recebido porque deixam de ser PAGA. O 0 vale para o que está registrado: atraso e previsto são os das
+ * cobranças já geradas (não há agendador), e a tela diz isso.
  */
 @Service
 public class FinanceiroService {
@@ -84,11 +87,12 @@ public class FinanceiroService {
         Map<YearMonth, Long> recebido = porMes(cobrancas.recebidoPorMes(PAGA, primeiro.atDay(1), hoje, null));
         List<MesRecebido> lista = new ArrayList<>();
         for (YearMonth mes = primeiro; !mes.isAfter(atual); mes = mes.plusMonths(1)) {
-            lista.add(new MesRecebido(mes.toString(), mes.equals(atual), recebido.get(mes)));
+            // O intervalo termina no mês corrente e a consulta cobre até hoje: mês sem pagamento é 0.
+            lista.add(new MesRecebido(mes.toString(), mes.equals(atual), recebido.getOrDefault(mes, 0L)));
         }
-        Long previsto = cobrancas.abertasPorVencimento(ABERTA, hoje, ULTIMO_DIA, null).getTotal();
+        long previsto = ouZero(cobrancas.abertasPorVencimento(ABERTA, hoje, ULTIMO_DIA, null).getTotal());
         return new Numeros(List.copyOf(lista), previsto, inadimplenciaPorContagem(primeiro.atDay(1), hoje.minusDays(1)),
-                receitaRecorrente(null));
+                receitaRecorrente(null), daConsultoria().historicoParcial());
     }
 
     private BigDecimal inadimplenciaPorContagem(LocalDate de, LocalDate ate) {
@@ -125,21 +129,22 @@ public class FinanceiroService {
         LocalDate ateHoje = fim.isBefore(hoje) ? fim : hoje;
 
         Soma recebido = inicio.isAfter(hoje) ? null : cobrancas.pagasPorPagamento(PAGA, inicio, ateHoje, responsavelId);
-        Long recebidoTotal = recebido == null ? null : recebido.getTotal();
+        // Período inteiro no futuro: sem consulta, sem dado (nulo). Consulta que rodou e não achou nada: 0.
+        Long recebidoTotal = recebido == null ? null : ouZero(recebido.getTotal());
         LocalDate aVencerDe = inicio.isAfter(hoje) ? inicio : hoje;
         Long aReceber = aVencerDe.isAfter(fim) ? null
-                : cobrancas.abertasPorVencimento(ABERTA, aVencerDe, fim, responsavelId).getTotal();
+                : Long.valueOf(ouZero(cobrancas.abertasPorVencimento(ABERTA, aVencerDe, fim, responsavelId).getTotal()));
         LocalDate atrasoAte = fim.isBefore(hoje) ? fim : hoje.minusDays(1);
         boolean haAtraso = !atrasoAte.isBefore(inicio);
         Soma atrasadas = haAtraso ? cobrancas.abertasPorVencimento(ABERTA, inicio, atrasoAte, responsavelId) : null;
         Soma cobradas = haAtraso ? cobrancas.cobradoPorVencimento(CANCELADA, inicio, atrasoAte, responsavelId) : null;
-        Long pagantes = recebido == null || recebido.getQuantidade() == 0 ? null
-                : cobrancas.alunosQuePagaram(PAGA, inicio, ateHoje, responsavelId);
+        Long pagantes = recebido == null ? null : recebido.getQuantidade() == 0 ? Long.valueOf(0)
+                : Long.valueOf(cobrancas.alunosQuePagaram(PAGA, inicio, ateHoje, responsavelId));
         Long medio = recebidoTotal == null || pagantes == null || pagantes == 0 ? null
                 : BigDecimal.valueOf(recebidoTotal).divide(BigDecimal.valueOf(pagantes), 0, RoundingMode.HALF_UP).longValueExact();
 
         Cartoes cartoes = new Cartoes(recebidoTotal, aReceber,
-                new ValorEQuantidade(atrasadas == null ? null : atrasadas.getTotal(),
+                new ValorEQuantidade(atrasadas == null ? null : ouZero(atrasadas.getTotal()),
                         atrasadas == null ? 0 : atrasadas.getQuantidade()),
                 receitaRecorrente(responsavelId), pagantes, medio);
 
@@ -150,27 +155,39 @@ public class FinanceiroService {
         List<PagamentosDtos.PorPlano> porPlano = inicio.isAfter(hoje) ? List.of()
                 : cobrancas.pagasPorPlano(PAGA, inicio, ateHoje, responsavelId).stream().map(FinanceiroService::plano).toList();
 
-        YearMonth mesDaCriacao = meus ? null : mesDaCriacao();
+        DaConsultoria consultoria = daConsultoria();
+        YearMonth mesDaCriacao = consultoria.mesDaCriacao();
         return new Painel(new Periodo(inicio, fim), meus, cartoes,
                 serie(primeiro, ultimo, atual, hoje, responsavelId, mesDaCriacao), inadimplencia, porForma, porPlano,
                 movimento(primeiro, ultimo, responsavelId), proximos(hoje, responsavelId),
                 resultadoDoMes(atual, hoje, responsavelId, mesDaCriacao), new Liquido(false,
-                        "O líquido precisa das taxas do provedor, que ainda não estão informadas.", recebidoTotal));
+                        "O líquido precisa das taxas do provedor, que ainda não estão informadas.", recebidoTotal),
+                consultoria.historicoParcial());
     }
 
     /**
      * O mês (em Brasília) em que a consultoria foi criada. Antes dele não há o que contar: entradas e saídas avulsas ficam
      * nulas ("sem dado"), a mesma regra do {@code /numeros} (decisão D19 do Gustavo, 03/11). Sem a consultoria da sessão,
-     * nulo, e nenhum mês é cortado.
+     * nulo, e nenhum mês é cortado; o aviso de histórico parcial fica falso.
      */
-    private YearMonth mesDaCriacao() {
+    private DaConsultoria daConsultoria() {
         UUID consultoriaId = TenantContext.get();
         if (consultoriaId == null) {
-            return null;
+            return DaConsultoria.SEM_DADO;
         }
         return consultorias.findById(consultoriaId)
-                .map(c -> c.getCriadoEm() == null ? null : YearMonth.from(c.getCriadoEm().atZone(Fuso.BRASILIA)))
-                .orElse(null);
+                .map(c -> new DaConsultoria(
+                        c.getCriadoEm() == null ? null : YearMonth.from(c.getCriadoEm().atZone(Fuso.BRASILIA)),
+                        c.isHistoricoFinanceiroParcial()))
+                .orElse(DaConsultoria.SEM_DADO);
+    }
+
+    /**
+     * O que o financeiro lê da consultoria da sessão numa leitura só: o mês da criação (nulo = nenhum mês é cortado) e o aviso
+     * de histórico parcial (V073, só informativo: nunca muda valor nem fórmula).
+     */
+    private record DaConsultoria(YearMonth mesDaCriacao, boolean historicoParcial) {
+        static final DaConsultoria SEM_DADO = new DaConsultoria(null, false);
     }
 
     /** Entrada ou saída avulsa do mês: o total; sem lançamento, 0 do mês da criação até o corrente; fora disso, nulo. */
@@ -203,24 +220,27 @@ public class FinanceiroService {
         }
         List<MesDoPainel> serie = new ArrayList<>();
         for (YearMonth mes = primeiro; !mes.isAfter(ultimo); mes = mes.plusMonths(1)) {
-            Long rec = recebido.get(mes);
+            // Recebido: 0 até o mês corrente (a consulta cobre até hoje); depois dele, sem dado. Previsto: 0 do mês corrente
+            // em diante; mês encerrado fica nulo (o que venceu aparece em atraso).
+            Long rec = mes.isAfter(atual) ? null : recebido.getOrDefault(mes, 0L);
+            Long prev = mes.atEndOfMonth().isBefore(hoje) ? null : previsto.getOrDefault(mes, 0L);
             // Mês sem lançamento, da criação da consultoria até o corrente, é 0; antes da criação, o futuro e o "Meus" seguem
             // sem dado (nulo).
             Long ent = meus ? null : avulsoDoMes(entradas, mes, atual, mesDaCriacao);
             Long sai = meus ? null : avulsoDoMes(saidas, mes, atual, mesDaCriacao);
-            serie.add(new MesDoPainel(mes.toString(), mes.equals(atual), rec,
-                    mes.atEndOfMonth().isBefore(hoje) ? null : previsto.get(mes), ent, sai,
+            serie.add(new MesDoPainel(mes.toString(), mes.equals(atual), rec, prev, ent, sai,
                     meus ? null : resultado(rec, ent, sai)));
         }
         return List.copyOf(serie);
     }
 
     private static Inadimplencia inadimplenciaPorValor(Soma atrasadas, Soma cobradas) {
-        Long cobrado = cobradas == null ? null : cobradas.getTotal();
-        if (cobrado == null || cobrado == 0) {
-            return new Inadimplencia(null, atrasadas == null ? null : atrasadas.getTotal(), cobrado);
+        // As duas somas vêm juntas (haAtraso): ambas nulas = nada pode estar vencido; consulta que rodou sem registro = 0.
+        Long cobrado = cobradas == null ? null : ouZero(cobradas.getTotal());
+        Long vencido = atrasadas == null ? null : ouZero(atrasadas.getTotal());
+        if (cobrado == null || vencido == null || cobrado == 0) {
+            return new Inadimplencia(null, vencido, cobrado);
         }
-        long vencido = atrasadas == null || atrasadas.getTotal() == null ? 0 : atrasadas.getTotal();
         return new Inadimplencia(percentual(vencido, cobrado), vencido, cobrado);
     }
 
@@ -243,11 +263,12 @@ public class FinanceiroService {
 
     private ValorEQuantidade janela(LocalDate de, LocalDate ate, UUID responsavelId) {
         Soma s = cobrancas.abertasPorVencimento(ABERTA, de, ate, responsavelId);
-        return new ValorEQuantidade(s.getTotal(), s.getQuantidade());
+        return new ValorEQuantidade(ouZero(s.getTotal()), s.getQuantidade());
     }
 
     private ResultadoDoMes resultadoDoMes(YearMonth mes, LocalDate hoje, UUID responsavelId, YearMonth mesDaCriacao) {
-        Long recebido = cobrancas.pagasPorPagamento(PAGA, mes.atDay(1), hoje, responsavelId).getTotal();
+        // O mês é o corrente e a consulta vai até hoje: sem pagamento é 0.
+        long recebido = ouZero(cobrancas.pagasPorPagamento(PAGA, mes.atDay(1), hoje, responsavelId).getTotal());
         if (responsavelId != null) {
             return new ResultadoDoMes(ROTULO_RESULTADO, mes.toString(), recebido, null, null, null);
         }
@@ -305,19 +326,16 @@ public class FinanceiroService {
         List<Inadimplente> itens = page.getContent().stream().map(l -> new Inadimplente(l.cobranca().getId(),
                 l.cobranca().getAlunoId(), l.alunoNome(), l.cobranca().getValorCentavos(), l.cobranca().getVencimento(),
                 Respostas.diasDeAtraso(l.cobranca(), hoje))).toList();
-        Long total = cobrancas.abertasPorVencimento(ABERTA, PRIMEIRO_DIA, hoje.minusDays(1), responsavelId).getTotal();
+        long total = ouZero(cobrancas.abertasPorVencimento(ABERTA, PRIMEIRO_DIA, hoje.minusDays(1), responsavelId).getTotal());
         return new PaginaInadimplentes(itens, page.getTotalElements(), total, Math.max(0, pagina));
     }
 
     // ---- Contas comuns ----
 
     /** Contratações ativas e recorrentes: valor ÷ meses da periodicidade, arredondado ao centavo em cada contratação. */
-    private Long receitaRecorrente(UUID responsavelId) {
+    private long receitaRecorrente(UUID responsavelId) {
         var grupos = contratacoes.recorrentes(ContratacaoAluno.Situacao.ATIVA, PeriodoDoPlano.PARCELA_UNICA, responsavelId);
-        if (grupos.isEmpty()) {
-            return null;
-        }
-        long soma = 0;
+        long soma = 0; // sem contratação recorrente ativa a consulta é válida e a soma é 0
         for (var g : grupos) {
             long mensal = BigDecimal.valueOf(g.getValor())
                     .divide(BigDecimal.valueOf(g.getPeriodicidade().meses()), 0, RoundingMode.HALF_UP).longValueExact();
@@ -326,16 +344,17 @@ public class FinanceiroService {
         return soma;
     }
 
-    /** Resultado = recebido + entradas − saídas; sem nenhuma das três fontes, sem dado. */
+    /** Resultado = recebido + entradas − saídas; falta qualquer um dos três, sem dado: ausência nunca soma como zero. */
     private static Long resultado(Long recebido, Long entradas, Long saidas) {
-        if (recebido == null && entradas == null && saidas == null) {
+        if (recebido == null || entradas == null || saidas == null) {
             return null;
         }
-        return nz(recebido) + nz(entradas) - nz(saidas);
+        return recebido + entradas - saidas;
     }
 
-    private static long nz(Long valor) {
-        return valor == null ? 0 : valor;
+    /** Soma de consulta válida que não achou linha: o {@code SUM} vem nulo e o contrato diz 0. */
+    private static long ouZero(Long soma) {
+        return soma == null ? 0 : soma;
     }
 
     /** De 0 a 100 com uma casa. */

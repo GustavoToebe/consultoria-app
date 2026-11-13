@@ -1,18 +1,21 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { Ellipsis, MessageSquare, Pencil, Pin, PinOff, Plus, Settings, ShieldCheck, Trash2, UserX, Video } from 'lucide-react-native';
+import { Ellipsis, MessageSquare, Pencil, Pin, PinOff, Plus, Settings, ShieldCheck, Trash2, UserX } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import {
-  alternarFixadoDoPost, baixarFotoDoMuralDaEquipe, dispensarDenuncias, excluirAula, listarAulasDaEquipe, listarMuralDaEquipe,
-  removerApelidoDoAutor, removerPostDoMural,
+  alternarFixadoDoPost, baixarCapaDaEquipe, baixarFotoDoMuralDaEquipe, baixarFotoDoVotanteDaEquipe, dispensarDenuncias, excluirAula,
+  listarAulasDaEquipe, listarMuralDaEquipe, reagirComoEquipe, removerApelidoDoAutor, removerPostDoMural, votarComoEquipe,
 } from '../../api/comunidade';
 import type { AlvoDosComentarios, AulaDaComunidade, PostDoMural } from '../../api/comunidadeTipos';
 import { ErroApi } from '../../api/cliente';
 import { BarraDoMural } from '../../comunidade/BarraDoMural';
+import { CapaDoVideo } from '../../comunidade/CapaDoVideo';
 import { CartaoDoPost } from '../../comunidade/CartaoDoPost';
 import { FolhaComentarios } from '../../comunidade/FolhaComentarios';
+import { type AlvoDosVotos, FolhaDosVotos } from '../../comunidade/FolhaDosVotos';
 import { FolhaNovaPublicacao } from '../../comunidade/FolhaNovaPublicacao';
+import { useAcoesDoPost } from '../../comunidade/useAcoesDoPost';
 import {
   categoriasDosAuloes, type FiltroDeCategoria, filtrarAuloesPorCategoria, filtroDeCategoriaValido, type FiltroDoMural, filtrosParaApi, chipsDoMural, chipDaCategoria, MURAL_SEM_FILTRO,
   opcoesDoFiltroDeCategoria, type RascunhoDoPost, textoDoMuralVazio, TIPO_PADRAO_DO_POST,
@@ -75,6 +78,8 @@ export default function ComunidadeTreinador() {
   const { avisar } = useAviso();
   // A tela abre com TREINO_LER; publicar e moderar (aulões, mural, apelidos) pedem COMUNIDADE_MODERAR (a API confere de novo).
   const podePublicar = pode('COMUNIDADE_MODERAR');
+  // Reagir é de quem modera; votar, de quem abre a tela (TREINO_LER), como a API.
+  const podeVotar = pode('TREINO_LER');
   // A aba mora no endereço (`?aba=`). `setParams` e não `push`: o push remonta a tela e perderia o rascunho do mural.
   const { aba: abaPedida } = useLocalSearchParams<{ aba?: string }>();
   const aba: AbaComunidade = abaPedida === 'mural' ? 'mural' : 'auloes';
@@ -98,8 +103,11 @@ export default function ComunidadeTreinador() {
   const [filtro, setFiltro] = useState<FiltroDoMural>(MURAL_SEM_FILTRO);
   const [busca, setBusca] = useState('');
   const buscaAtrasada = useAtrasado(busca);
-  const mural = useCarregar(`${PREFIXO_DO_MURAL}${JSON.stringify(filtrosParaApi(filtro, buscaAtrasada))}`,
-    (c) => listarMuralDaEquipe(JSON.parse(c.slice(PREFIXO_DO_MURAL.length))));
+  const chaveDoMural = `${PREFIXO_DO_MURAL}${JSON.stringify(filtrosParaApi(filtro, buscaAtrasada))}`;
+  const mural = useCarregar(chaveDoMural, (c) => listarMuralDaEquipe(JSON.parse(c.slice(PREFIXO_DO_MURAL.length))));
+  const acoesDoPost = useAcoesDoPost({ mural, chave: chaveDoMural, reagir: podePublicar ? reagirComoEquipe : undefined,
+    votar: podeVotar ? votarComoEquipe : undefined });
+  const [votosDe, setVotosDe] = useState<AlvoDosVotos>(null);
   const posts = mural.dadosDeOutraChave ? undefined : mural.dados?.content;
   const [rascunho, setRascunho] = useState<RascunhoDoPost>(RASCUNHO_VAZIO);
   const [compondo, setCompondo] = useState(false);
@@ -259,7 +267,9 @@ export default function ComunidadeTreinador() {
                     </View>
                   ) : undefined}>
                   {item.descricao ? <Texto>{item.descricao}</Texto> : null}
-                  <View style={[estilos.linha, estilos.rodapePost, estilos.rodapeDoAulao, { borderTopColor: cores.divisor }]}>
+                  <CapaDoVideo videoUrl={item.videoUrl} titulo={item.titulo} capaId={item.capaId ?? null} baixarCapa={baixarCapaDaEquipe}
+                    aoAbrirFora={(url) => void abrir(url)} />
+                  <View style={[estilos.linha, estilos.rodapePost, { borderTopColor: cores.divisor }]}>
                     <Pressable
                       accessibilityRole="button"
                       accessibilityLabel={`Ver ${item.totalComentarios} comentário(s) do aulão ${item.titulo}`}
@@ -268,10 +278,6 @@ export default function ComunidadeTreinador() {
                       <MessageSquare size={18} color={cores.texto} aria-hidden />
                       <Texto variante="suave" cor={cores.texto} numerico>{item.totalComentarios} comentário(s)</Texto>
                     </Pressable>
-                    {item.videoUrl ? (
-                      <Botao rotulo="Abrir vídeo" rotuloAcessivel={`Abrir vídeo: ${item.titulo}`} tipo="secundario" Icone={Video}
-                        aoTocar={() => void abrir(item.videoUrl)} />
-                    ) : null}
                   </View>
                 </Cartao>
               ))}
@@ -298,7 +304,13 @@ export default function ComunidadeTreinador() {
                 baixarFoto={baixarFotoDoMuralDaEquipe}
                 aoComentarios={() => setComentariosDe({ tipo: 'post', id: post.id })}
                 aoAbrirMenu={podePublicar ? () => setMenuDe(post) : undefined}
-                aoAssistir={(url) => void abrir(url)}
+                baixarCapa={baixarCapaDaEquipe}
+                aoAbrirFora={(url) => void abrir(url)}
+                aoReagir={acoesDoPost.aoReagir ? (codigo, ligar) => acoesDoPost.aoReagir?.(post.id, codigo, ligar) : undefined}
+                aoVotar={acoesDoPost.aoVotar ? (ids) => acoesDoPost.aoVotar?.(post.id, ids) : undefined}
+                ocupado={acoesDoPost.ocupados.has(post.id)}
+                aoMostrarVotos={() => setVotosDe({ postId: post.id })}
+                baixarFotoDoVotante={baixarFotoDoVotanteDaEquipe}
               />
             )) : null}
           </View>
@@ -345,6 +357,7 @@ export default function ComunidadeTreinador() {
 
       <FolhaComentarios alvo={comentariosDe} modo={{ tipo: 'equipe', podeModerar: podePublicar }}
         aoFechar={() => setComentariosDe(null)} aoAlterar={comentariosDe?.tipo === 'aula' ? auloes.recarregar : mural.recarregar} />
+      <FolhaDosVotos alvo={votosDe} papel="equipe" aoFechar={() => setVotosDe(null)} />
 
       {/* Criar fica montada (o rascunho sobrevive ao Cancelar); editar monta por aula, já preenchida. */}
       <FolhaDoAulao visivel={folhaNovaAula && podePublicar} categorias={categorias} aoFechar={() => setFolhaNovaAula(false)}
@@ -386,8 +399,6 @@ const estilos = StyleSheet.create({
   acoesDoAulao: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexShrink: 1, maxWidth: '100%' },
   selosDoAulao: { flexShrink: 1, minWidth: 0 },
   rodapePost: { borderTopWidth: 1, paddingTop: espaco(1), gap: espaco(2) },
-  // Comentários à esquerda (como no mural), "Abrir vídeo" à direita; no celular estreito o botão desce para a linha de baixo.
-  rodapeDoAulao: { justifyContent: 'space-between' },
   // Hover e pressionado pintam `superficie3` (`ui/sobre`), como no mural do aluno.
   interacao: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5), minHeight: ALVO_TOQUE, minWidth: ALVO_TOQUE, borderRadius: RAIO, paddingHorizontal: espaco(1), marginHorizontal: -espaco(1) },
 });

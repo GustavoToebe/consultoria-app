@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { ErroApi } from '../../api/cliente';
 import { alterarAula, criarAula } from '../../api/comunidade';
 import type { AulaDaComunidade } from '../../api/comunidadeTipos';
+import { CampoDaCapa } from '../../comunidade/CampoDaCapa';
 import {
   AULA_CATEGORIA_MAXIMA, AULA_DESCRICAO_MAXIMA, AULA_TITULO_MAXIMO, corpoDaAula, errosDaAula, RASCUNHO_DA_AULA_VAZIO,
   type RascunhoDaAula, rascunhoDaAula, SEM_CATEGORIA_DO_AULAO,
@@ -19,11 +20,11 @@ import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 /** Teto do link na API (`CriarAulaRequest.videoUrl`). */
 const LINK_MAXIMO = 500;
 // A categoria não entra: o campo já corta em 60, e um erro dela (raro) vai ao rodapé.
-const CAMPOS_NA_TELA = ['titulo', 'videoUrl', 'descricao'];
+const CAMPOS_NA_TELA = ['titulo', 'videoUrl', 'descricao', 'capaId'];
 
 interface Props {
   visivel: boolean;
-  /** Ausente = "Novo aulão"; presente = editar esta aula (o `PUT` reenvia publicada, ordem e miniatura dela). */
+  /** Ausente = "Novo aulão"; presente = editar esta aula (o `PUT` reenvia publicada e ordem dela; a capa é a do rascunho, e sem ela o `PUT` a apaga). */
   original?: AulaDaComunidade;
   /** Categorias já usadas nos aulões, para escolher sem redigitar. */
   categorias: readonly string[];
@@ -113,6 +114,10 @@ export function FolhaDoAulao({ visivel, original, categorias, aoFechar, aoSalvar
       <Campo rotulo="Descrição (opcional)" placeholder="O que será abordado e o que o aluno precisa saber" valor={r.descricao}
         maxLength={AULA_DESCRICAO_MAXIMA} aoMudar={mudar('descricao', 'descricao')} linhas={4}
         erro={errosApi.descricao || undefined} />
+      <CampoDaCapa capaId={r.capaId} erro={errosApi.capaId || undefined} aoMudar={(capaId) => {
+        setR((atual) => ({ ...atual, capaId }));
+        setErrosApi((a) => Object.fromEntries(Object.entries(a).filter(([k]) => k !== 'capaId')));
+      }} />
     </Folha>
   );
 }

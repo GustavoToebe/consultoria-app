@@ -1,7 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import type {
-  AulaDaComunidade, ComentarioDoMural, ConquistaDoAluno, PaginaDeComentarios, PaginaDoMural, PerfilDaComunidade, PosicaoNoRanking, PostDoMural,
+  AulaDaComunidade, ComentarioDoMural, ConquistaDoAluno, EnqueteDoMural, PaginaDeComentarios, PaginaDoMural, PerfilDaComunidade, PosicaoNoRanking,
+  PostDoMural, VotosDaEnquete,
 } from '../src/api/comunidadeTipos';
 import type { EuResponse } from '../src/api/tipos';
 import { MEUS_DADOS_VAZIOS, sessaoDeAluno } from './aluno';
@@ -12,18 +13,18 @@ import { ALUNO, erroApi, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINAD
  * mural/{id}/reacoes, conquistas, ranking}` e `/comunidade/{aulas, mural}`). Só dados fictícios. O erro da API chega à tela
  * como erro de verdade, com "Tentar de novo": o cliente não troca falha por dado de exemplo.
  */
-const CURTIDA = '❤️';
 const POST: PostDoMural = {
   id: 'p1', autorId: 'u1', autorNome: 'Treinadora Teste', autorApelido: null, autorEhAluno: false, autorFotoUrl: null, texto: 'Semana de constância, time!',
-  tipo: 'CONVERSA', videoUrl: null, fotos: [], respondida: false, fixado: true, criadoEm: '2026-10-19T12:00:00-03:00', reacoes: { [CURTIDA]: 2, '🔥': 5 }, minhasReacoes: [], totalComentarios: 4,
+  tipo: 'CONVERSA', videoUrl: null, capaId: null, enquete: null, fotos: [], respondida: false, fixado: true, criadoEm: '2026-10-19T12:00:00-03:00',
+  reacoes: { CURTIR: 2, FOGO: 5 }, minhasReacoes: [], totalComentarios: 4,
 };
 const POST_CURTIDO: PostDoMural = {
   ...POST, id: 'p2', autorId: 'u2', autorNome: 'Aluno Fictício', autorApelido: 'Fictí', autorEhAluno: true, texto: 'Treino feito.', fixado: false,
-  reacoes: { [CURTIDA]: 1 }, minhasReacoes: [CURTIDA], totalComentarios: 0,
+  reacoes: { CURTIR: 1 }, minhasReacoes: ['CURTIR'], totalComentarios: 0,
 };
 const pagina = (...content: PostDoMural[]): PaginaDoMural => ({ content, totalElements: content.length });
 const AULA: AulaDaComunidade = {
-  id: 'a1', titulo: 'Aulão de técnica', descricao: 'Pauta do aulão de teste.', videoUrl: 'https://exemplo.test/video', miniaturaUrl: null,
+  id: 'a1', titulo: 'Aulão de técnica', descricao: 'Pauta do aulão de teste.', videoUrl: 'https://exemplo.test/video', capaId: null,
   categoria: 'Técnica', ordem: 0, publicada: true, criadaEm: '2026-10-19T12:00:00-03:00', totalComentarios: 0,
 };
 const CONQUISTAS: ConquistaDoAluno[] = [
@@ -85,7 +86,8 @@ const cheia: RespostasApi = {
   'GET /aluno/comunidade/aulas': { corpo: [AULA] },
   'GET /aluno/comunidade/conquistas': { corpo: CONQUISTAS },
   'GET /aluno/comunidade/ranking': { corpo: RANKING },
-  'POST /aluno/comunidade/mural/{id}/reacoes': { status: 204 },
+  'PUT /aluno/comunidade/mural/{id}/reacoes/{codigo}': { status: 204 },
+  'DELETE /aluno/comunidade/mural/{id}/reacoes/{codigo}': { status: 204 },
   'GET /comunidade/mural': { corpo: pagina(POST, POST_CURTIDO) },
   'GET /comunidade/aulas': { corpo: [AULA] },
 };
@@ -167,19 +169,30 @@ for (const largura of [390, 1280]) {
       await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
       await expect(page.getByText('Semana de constância, time!')).toBeVisible();
       await expect(page.getByText('Fixado', { exact: true })).toBeVisible();
-      // Só a curtida conta: as outras reações (🔥) não entram no número.
-      await expect(page.getByText('2 curtida(s)')).toBeVisible();
+      // As cinco reações, cada uma com a própria contagem; "você reagiu" no nome e no aria-pressed, não só na cor.
+      const curtirP1 = page.getByRole('button', { name: 'Curtir, 2 reações', exact: true });
+      await expect(curtirP1).toHaveAttribute('aria-pressed', 'false');
+      await expect(page.getByRole('button', { name: 'Fogo, 5 reações', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Risada, 0 reações', exact: true })).toHaveCount(2);
+      const curtidoP2 = page.getByRole('button', { name: 'Curtir, 1 reação, você reagiu' });
+      await expect(curtidoP2).toHaveAttribute('aria-pressed', 'true');
       await expect(page.getByText('4 comentário(s)')).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Desfazer curtida' })).toBeVisible();
       await capturar(page, `aluno-mural-${largura}`);
 
-      await page.getByRole('button', { name: 'Curtir' }).click();
-      await expect.poll(() => api.pedidos.find((p) => foiPost(p, '/aluno/comunidade/mural/p1/reacoes'))?.corpo).toEqual({ emoji: CURTIDA });
+      // Sem otimismo: a contagem muda quando a API confirma (204).
+      await curtirP1.click();
+      await expect.poll(() => api.pedidos.some((p) => p.metodo === 'PUT' && p.caminho === '/aluno/comunidade/mural/p1/reacoes/CURTIR')).toBe(true);
+      await expect(page.getByRole('button', { name: 'Curtir, 3 reações, você reagiu' })).toHaveAttribute('aria-pressed', 'true');
+      await curtidoP2.click();
+      await expect.poll(() => api.pedidos.some((p) => p.metodo === 'DELETE' && p.caminho === '/aluno/comunidade/mural/p2/reacoes/CURTIR')).toBe(true);
+      await expect(page.getByRole('button', { name: 'Curtir, 0 reações', exact: true })).toBeVisible();
 
       await page.getByRole('tab', { name: 'Aulões' }).click();
       await expect(page.getByText('Pauta do aulão de teste.')).toBeVisible();
       await expect(page.getByText('Técnica', { exact: true })).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Assistir ao aulão' })).toBeVisible();
+      // Link que não é do YouTube: só o botão de abrir fora, sem player.
+      await expect(page.getByRole('button', { name: 'Abrir vídeo: Aulão de técnica' })).toBeVisible();
+      await expect(page.getByRole('button', { name: /^Assistir aqui/ })).toHaveCount(0);
 
       await page.getByRole('tab', { name: 'Conquistas' }).click();
       await expect(page.getByText('Conquistada', { exact: true })).toBeVisible();
@@ -214,12 +227,12 @@ for (const largura of [390, 1280]) {
       expect(api.errosDaPagina).toEqual([]);
     });
 
-    test('aluno: com "Alunos podem publicar" desligado, só a frase neutra; curtir e comentar continuam', async ({ page }) => {
+    test('aluno: com "Alunos podem publicar" desligado, só a frase neutra; reagir e comentar continuam', async ({ page }) => {
       const api = await simularApi(page, { ...(await sessaoDeAluno(page)), ...cheia, 'GET /aluno/comunidade/configuracao': { corpo: { alunosPublicam: false, podeAnexarFoto: false } } });
       await page.goto('/aluno/comunidade');
-      await expect(page.getByText('No momento, só a equipe publica no mural. Você pode curtir e comentar.')).toBeVisible();
+      await expect(page.getByText('No momento, só a equipe publica no mural. Você pode reagir, votar nas enquetes e comentar.')).toBeVisible();
       await expect(page.getByRole('button', { name: 'Nova publicação' })).toHaveCount(0);
-      await expect(page.getByRole('button', { name: 'Curtir' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Curtir, 2 reações', exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Ver 4 comentário(s)' })).toBeVisible();
       expect(api.errosDaPagina).toEqual([]);
     });
@@ -248,7 +261,7 @@ for (const largura of [390, 1280]) {
     test('aluno: vindo do "Bom trabalho!" com a chave desligada, nada abre e fica a frase neutra', async ({ page }) => {
       const api = await simularApi(page, { ...(await sessaoDeAluno(page)), ...vazia, 'GET /aluno/comunidade/configuracao': { corpo: { alunosPublicam: false, podeAnexarFoto: false } } });
       await page.goto('/aluno/comunidade?publicar=RESULTADO&texto=Treino%20conclu%C3%ADdo.');
-      await expect(page.getByText('No momento, só a equipe publica no mural. Você pode curtir e comentar.')).toBeVisible();
+      await expect(page.getByText('No momento, só a equipe publica no mural. Você pode reagir, votar nas enquetes e comentar.')).toBeVisible();
       await expect(novaPublicacao(page)).toHaveCount(0);
       await expect(page).not.toHaveURL(/publicar=/);
       expect(api.pedidos.some((p) => foiPost(p, '/aluno/comunidade/mural'))).toBe(false);
@@ -336,7 +349,7 @@ for (const largura of [390, 1280]) {
       expect(api.errosDaPagina).toEqual([]);
     });
 
-    test('aluno: aviso fixado no topo, vídeo com "Assistir" fora do app e dúvida respondida', async ({ page, context }) => {
+    test('aluno: aviso fixado no topo, vídeo de outro site só com "Abrir vídeo" fora do app e dúvida respondida', async ({ page, context }) => {
       await context.route('https://video.exemplo.invalid/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<p>Vídeo de teste</p>' }));
       const api = await simularApi(page, { ...(await sessaoDeAluno(page)), ...cheia, 'GET /aluno/comunidade/mural': { corpo: pagina(VIDEO, DUVIDA, AVISO) } });
       await page.goto('/aluno/comunidade');
@@ -348,10 +361,11 @@ for (const largura of [390, 1280]) {
       await expect(page.getByText('Aviso', { exact: true })).toBeVisible();
       await expect(page.getByText('Fixado', { exact: true })).toBeVisible();
       await expect(page.getByText('Respondida', { exact: true })).toBeVisible();
-      // O vídeo não traz miniatura de fora: só o título e o botão.
+      // O vídeo não traz miniatura de fora nem player (o link não é do YouTube): só o título e o botão.
       await expect(page.locator('img[src^="http"]')).toHaveCount(0);
+      await expect(page.locator('iframe')).toHaveCount(0);
       await capturar(page, `aluno-mural-tipos-${largura}`);
-      const [popup] = await Promise.all([page.waitForEvent('popup'), page.getByRole('button', { name: 'Assistir: Vídeo de teste da técnica' }).click()]);
+      const [popup] = await Promise.all([page.waitForEvent('popup'), page.getByRole('button', { name: 'Abrir vídeo: Vídeo de teste da técnica' }).click()]);
       await popup.waitForURL('https://video.exemplo.invalid/aula');
       expect(await popup.evaluate(() => window.opener)).toBeNull();
       expect(api.errosDaPagina).toEqual([]);
@@ -878,9 +892,9 @@ for (const largura of [390, 1280]) {
     const abrirTreinador = async (page: Page, respostas: RespostasApi, permissoes = [...PERMISSOES_TREINADOR, 'TREINO_LER', 'COMUNIDADE_MODERAR']) =>
       simularApi(page, { ...(await sessao(page, TREINADOR, { permissoes })), ...respostas });
 
-    test('treinador: aulões e mural com dados, sem ranking nem curtida', async ({ page }) => {
+    test('treinador: aulões e mural com dados, sem ranking; com moderação, reage como equipe', async ({ page }) => {
       await tema(page, TREINADOR.id, 'CLARO');
-      const api = await abrirTreinador(page, cheia);
+      const api = await abrirTreinador(page, { ...cheia, 'PUT /comunidade/mural/{id}/reacoes/{codigo}': { status: 204 } });
       await page.goto('/treinador/comunidade');
       await expect(page.getByRole('heading', { level: 1, name: 'Comunidade' })).toBeVisible();
       // A categoria aparece no selo neutro do cartão e, com a contagem, no painel "Filtros de aulões".
@@ -912,7 +926,9 @@ for (const largura of [390, 1280]) {
       await expect(page.getByRole('switch')).toHaveCount(0);
       await expect(page.getByText('Quem publica no mural')).toHaveCount(0);
       await expect(page.getByText('Fixado', { exact: true })).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Curtir' })).toHaveCount(0);
+      await page.getByRole('button', { name: 'Fogo, 5 reações', exact: true }).click();
+      await expect.poll(() => api.pedidos.some((p) => p.metodo === 'PUT' && p.caminho === '/comunidade/mural/p1/reacoes/FOGO')).toBe(true);
+      await expect(page.getByRole('button', { name: 'Fogo, 6 reações, você reagiu' })).toBeVisible();
       await page.getByRole('button', { name: 'Nova publicação' }).click();
       await novaPublicacao(page).getByRole('textbox', { name: 'Texto', exact: true }).fill('Rascunho de teste');
       await novaPublicacao(page).getByRole('button', { name: 'Cancelar' }).click();
@@ -1340,8 +1356,8 @@ for (const largura of [390, 1280]) {
     };
 
     test('editar abre a folha preenchida e o PUT reenvia os sete campos; o que gravou continua depois de recarregar', async ({ page }) => {
-      // Aula despublicada, na posição 3 e com miniatura: o PUT substitui tudo, e sem esses campos ela voltaria publicada e à ordem 0.
-      const estado: { aula: AulaDaComunidade } = { aula: { ...AULA, publicada: false, ordem: 3, miniaturaUrl: 'https://exemplo.test/miniatura.jpg' } };
+      // Aula despublicada, na posição 3 e com capa: o PUT substitui tudo, e sem esses campos ela voltaria publicada, à ordem 0 e sem capa.
+      const estado: { aula: AulaDaComunidade } = { aula: { ...AULA, publicada: false, ordem: 3, capaId: 'capa-1' } };
       const api = await abrir(page, {
         'GET /comunidade/aulas': (_p, route) => json(route, [estado.aula]),
         'PUT /comunidade/aulas/{id}': (p, route) => {
@@ -1375,7 +1391,7 @@ for (const largura of [390, 1280]) {
       await folha.getByRole('button', { name: 'Salvar alterações' }).click();
       await expect.poll(() => api.pedidos.find((p) => p.metodo === 'PUT')?.corpo).toEqual({
         titulo: 'Aulão de técnica avançada', descricao: null, videoUrl: 'https://exemplo.test/video-novo',
-        miniaturaUrl: 'https://exemplo.test/miniatura.jpg', categoria: 'Mobilidade', ordem: 3, publicada: false,
+        capaId: 'capa-1', categoria: 'Mobilidade', ordem: 3, publicada: false,
       });
       expect(api.pedidos.find((p) => p.metodo === 'PUT')?.caminho).toBe('/comunidade/aulas/a1');
       await expect(folha).toHaveCount(0);
@@ -1488,7 +1504,7 @@ for (const [largura, altura] of [[390, 900], [1280, 900], [1440, 900], [1920, 10
       await expect.poll(() => titulosNaTela(page)).toEqual(['Aulão de proteína', 'Aulão de técnica', 'Aulão de execução', 'Aulão de boas-vindas']);
       // Sem o selo da categoria no item: a coleção já diz.
       await expect(page.getByText('Técnica', { exact: true })).toHaveCount(1);
-      await expect(page.getByRole('button', { name: 'Assistir ao aulão' })).toHaveCount(4);
+      await expect(page.getByRole('button', { name: /^Abrir vídeo: / })).toHaveCount(4);
       await capturar(page, `aluno-colecoes-${largura}`);
 
       await page.getByRole('button', { name: 'Técnica, aberto' }).click();
@@ -1688,3 +1704,313 @@ test.describe('barra inferior do aluno em 390 px', () => {
     await capturar(page, 'aluno-barra-390');
   });
 });
+
+/**
+ * Passo 4 do plano `comunidade-enquetes-reacoes-video`: enquete (aviso antes do voto, voto na hora, "Mostrar votos",
+ * encerrada, 409), vídeo do YouTube (player só depois do toque, `youtube-nocookie`, "Abrir no YouTube") e capa do vídeo
+ * (bytes pela API; envio na nova publicação e no aulão). Só dados fictícios; o YouTube é interceptado, nunca o real.
+ */
+const ENQUETE_ABERTA: EnqueteDoMural = {
+  variasRespostas: false, encerrada: false, encerraEm: '2026-12-31T23:59:59-03:00', participantes: 5, meusVotos: [],
+  opcoes: [
+    { id: 'o1', texto: 'Manhã', votos: 3, votantesAmostra: [{ autorId: 'u7', nome: 'Colega Fictícia', temFoto: false }] },
+    { id: 'o2', texto: 'Noite', votos: 2, votantesAmostra: [] },
+  ],
+};
+const POST_ENQUETE: PostDoMural = {
+  ...POST, id: 'p9', tipo: 'ENQUETE', texto: 'Qual horário de treino você prefere?', fixado: false, reacoes: {}, totalComentarios: 0,
+  enquete: ENQUETE_ABERTA,
+};
+const ID_DO_YOUTUBE = 'abcDEF12345';
+const VIDEO_YT: PostDoMural = {
+  ...POST, id: 'p8', tipo: 'VIDEO', texto: 'Técnica do agachamento', videoUrl: `https://www.youtube.com/watch?v=${ID_DO_YOUTUBE}`,
+  capaId: 'capa-1', fixado: false, reacoes: {}, totalComentarios: 0,
+};
+const VOTOS: VotosDaEnquete = {
+  pergunta: POST_ENQUETE.texto, participantes: 5,
+  opcoes: [{ opcaoId: 'o1', texto: 'Manhã', votos: 3 }, { opcaoId: 'o2', texto: 'Noite', votos: 2 }],
+  votantes: {
+    total: 2,
+    itens: [
+      { autorId: ALUNO.id, opcaoId: 'o2', nome: 'Aluno Fictício', temFoto: false, votadoEm: '2026-11-12T10:00:00-03:00', ehVoce: true },
+      { autorId: 'u7', opcaoId: 'o1', nome: 'Colega Fictícia', apelido: 'Coleguinha', temFoto: false, votadoEm: '2026-11-11T09:00:00-03:00', ehVoce: false },
+    ],
+  },
+};
+
+/** DD/MM/AAAA daqui a `dias` dias (o prazo precisa ser futuro e até 1 ano). */
+function dataDaquiA(dias: number): { tela: string; iso: string } {
+  const d = new Date(Date.now() + dias * 86400000);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const aaaa = d.getFullYear();
+  return { tela: `${dd}/${mm}/${aaaa}`, iso: new Date(`${aaaa}-${mm}-${dd}T23:59:59-03:00`).toISOString() };
+}
+
+const opcaoDaEnquete = (page: Page, nome: RegExp) => page.getByRole('radiogroup', { name: 'Opções da enquete' }).getByRole('radio', { name: nome });
+
+for (const largura of [390, 1280]) {
+  test.describe(`enquete, vídeo e capa em ${largura} px`, () => {
+    test.use({ viewport: { width: largura, height: 900 } });
+
+    for (const [nome, t] of [['claro', 'CLARO'], ['escuro', 'ESCURO']] as const) {
+      test(`aluno (${nome}): aviso antes das opções, voto na hora (o PUT devolve a enquete), troca e retira`, async ({ page }) => {
+        await tema(page, ALUNO.id, t);
+        const api = await simularApi(page, {
+          ...(await sessaoDeAluno(page)), ...cheia,
+          'GET /aluno/comunidade/mural': { corpo: pagina(POST_ENQUETE) },
+          'PUT /aluno/comunidade/mural/{id}/votos': (p, route) => {
+            const ids = (p.corpo as { opcaoIds: string[] }).opcaoIds;
+            const opcoes = ENQUETE_ABERTA.opcoes.map((o) => ({ ...o, votos: o.votos + (ids.includes(o.id) ? 1 : 0) }));
+            return json(route, { ...ENQUETE_ABERTA, opcoes, meusVotos: ids, participantes: ENQUETE_ABERTA.participantes + (ids.length ? 1 : 0) });
+          },
+        });
+        await page.goto('/aluno/comunidade');
+        await expect(page.getByRole('heading', { level: 3, name: 'Qual horário de treino você prefere?' })).toBeVisible();
+        const aviso = page.getByText('Seu nome, suas escolhas e o horário do voto ficam visíveis para quem tem acesso a esta enquete.');
+        await expect(aviso).toBeVisible();
+        const manha = opcaoDaEnquete(page, /^Manhã, 3 votos, 60%/);
+        // O aviso vem antes das opções, na leitura e na tela.
+        expect((await aviso.boundingBox())!.y).toBeLessThan((await manha.boundingBox())!.y);
+        await expect(page.getByText('Escolha uma opção')).toBeVisible();
+        await expect(page.getByText('5 pessoas votaram')).toBeVisible();
+        await expect(manha).toHaveAttribute('aria-checked', 'false');
+        await capturar(page, `enquete-aberta-${nome}-${largura}`);
+
+        await opcaoDaEnquete(page, /^Noite/).click();
+        await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').map((p) => p.corpo)).toEqual([{ opcaoIds: ['o2'] }]);
+        expect(api.pedidos.find((p) => p.metodo === 'PUT')?.caminho).toBe('/aluno/comunidade/mural/p9/votos');
+        const noite = opcaoDaEnquete(page, /^Noite, 3 votos, 50%, seu voto$/);
+        await expect(noite).toHaveAttribute('aria-checked', 'true');
+        await expect(page.getByText('Seu voto', { exact: true })).toBeVisible();
+        await expect(page.getByText('6 pessoas votaram')).toBeVisible();
+        await capturar(page, `enquete-votada-${nome}-${largura}`);
+
+        // Tocar de novo na mesma retira o voto (conjunto vazio).
+        await noite.click();
+        await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').map((p) => p.corpo)).toEqual([{ opcaoIds: ['o2'] }, { opcaoIds: [] }]);
+        await expect(opcaoDaEnquete(page, /^Noite, 2 votos, 40%$/)).toHaveAttribute('aria-checked', 'false');
+        expect(api.naoTratadas).toEqual([]);
+        expect(api.errosDaPagina).toEqual([]);
+      });
+    }
+
+    test('aluno: várias respostas liga e desliga cada opção (caixas de seleção)', async ({ page }) => {
+      const varias: EnqueteDoMural = { ...ENQUETE_ABERTA, variasRespostas: true };
+      const api = await simularApi(page, {
+        ...(await sessaoDeAluno(page)), ...cheia,
+        'GET /aluno/comunidade/mural': { corpo: pagina({ ...POST_ENQUETE, enquete: varias }) },
+        'PUT /aluno/comunidade/mural/{id}/votos': (p, route) => json(route, { ...varias, meusVotos: (p.corpo as { opcaoIds: string[] }).opcaoIds }),
+      });
+      await page.goto('/aluno/comunidade');
+      await expect(page.getByText('Escolha uma ou mais opções')).toBeVisible();
+      await page.getByRole('checkbox', { name: /^Manhã/ }).click();
+      await expect(page.getByRole('checkbox', { name: /^Manhã.*seu voto$/ })).toHaveAttribute('aria-checked', 'true');
+      await page.getByRole('checkbox', { name: /^Noite/ }).click();
+      await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').map((p) => p.corpo)).toEqual([{ opcaoIds: ['o1'] }, { opcaoIds: ['o1', 'o2'] }]);
+      await expect(page.getByRole('checkbox', { name: /seu voto$/ })).toHaveCount(2);
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('aluno: "Mostrar votos" abre a folha com "Você" e filtra por opção', async ({ page }) => {
+      const api = await simularApi(page, {
+        ...(await sessaoDeAluno(page)), ...cheia,
+        'GET /aluno/comunidade/mural': { corpo: pagina({ ...POST_ENQUETE, enquete: { ...ENQUETE_ABERTA, meusVotos: ['o2'] } }) },
+        'GET /aluno/comunidade/mural/{id}/votos': (p, route) => {
+          const opcao = p.busca.get('opcaoId');
+          const itens = VOTOS.votantes.itens.filter((v) => !opcao || v.opcaoId === opcao);
+          return json(route, { ...VOTOS, votantes: { total: itens.length, itens } });
+        },
+      });
+      await page.goto('/aluno/comunidade');
+      await page.getByRole('button', { name: 'Mostrar votos' }).click();
+      const folha = page.getByRole('dialog', { name: 'Votos da enquete' });
+      await expect(folha.getByText('Você', { exact: true })).toBeVisible();
+      await expect(folha.getByText('Colega Fictícia (Coleguinha)')).toBeVisible();
+      await expect(folha.getByText(/^Noite · /)).toBeVisible();
+      await capturar(page, `enquete-votos-${largura}`);
+      await folha.getByRole('radio', { name: /^Manhã/ }).click();
+      await expect.poll(() => api.pedidos.some((p) => p.caminho === '/aluno/comunidade/mural/p9/votos' && p.busca.get('opcaoId') === 'o1')).toBe(true);
+      await expect(folha.getByText('Você', { exact: true })).toHaveCount(0);
+      await expect(folha.getByText('Colega Fictícia (Coleguinha)')).toBeVisible();
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('aluno: enquete encerrada mostra o selo, sem aviso e sem voto; 409 ENQUETE_ENCERRADA avisa e recarrega', async ({ page }) => {
+      let encerrada = false;
+      const e = erroApi(409, 'A enquete foi encerrada.', 'ENQUETE_ENCERRADA');
+      const api = await simularApi(page, {
+        ...(await sessaoDeAluno(page)), ...cheia,
+        'GET /aluno/comunidade/mural': (_p, route) => json(route, pagina({ ...POST_ENQUETE, enquete: { ...ENQUETE_ABERTA, encerrada } })),
+        'PUT /aluno/comunidade/mural/{id}/votos': (_p, route) => { encerrada = true; return json(route, e.corpo, e.status); },
+      });
+      await page.goto('/aluno/comunidade');
+      await opcaoDaEnquete(page, /^Manhã/).click();
+      await expect(page.getByText('A enquete foi encerrada. Seu voto não mudou.')).toBeVisible();
+      await expect(page.getByText('Encerrada', { exact: true })).toBeVisible();
+      await expect(page.getByText(/^Seu nome, suas escolhas/)).toHaveCount(0);
+      await expect(opcaoDaEnquete(page, /^Manhã/)).toBeDisabled();
+      expect(api.pedidos.filter((p) => p.metodo === 'GET' && p.caminho === '/aluno/comunidade/mural').length).toBeGreaterThanOrEqual(2);
+      await capturar(page, `enquete-encerrada-${largura}`);
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('aluno: vídeo do YouTube com a nossa capa; o player só monta depois do toque, e "Abrir no YouTube" vai pelo id', async ({ page, context }) => {
+      await context.route('https://www.youtube-nocookie.com/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<p>player de teste</p>' }));
+      await context.route('https://www.youtube.com/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<p>YouTube de teste</p>' }));
+      let jpeg: Buffer = Buffer.alloc(0);
+      const api = await simularApi(page, {
+        ...(await sessaoDeAluno(page)), ...cheia,
+        'GET /aluno/comunidade/mural': { corpo: pagina(VIDEO_YT) },
+        'GET /aluno/comunidade/capas/{id}': (_p, route) => route.fulfill({ status: 200, contentType: 'image/jpeg', body: jpeg }),
+      });
+      // O JPEG fictício sai da página em branco, antes de abrir a tela (a capa é pedida logo na primeira renderização).
+      jpeg = await jpegFicticio(page);
+      await page.goto('/aluno/comunidade');
+      const assistir = page.getByRole('button', { name: 'Assistir aqui: Técnica do agachamento' });
+      await expect(assistir).toBeVisible();
+      await expect.poll(() => api.pedidos.some((p) => p.caminho === '/aluno/comunidade/capas/capa-1')).toBe(true);
+      // A capa é a nossa (blob: pela API), nunca imagem de fora; nada do YouTube carrega antes do toque.
+      await expect(page.locator('img[src^="blob:"]')).toHaveCount(1);
+      await expect(page.locator('img[src^="http"]')).toHaveCount(0);
+      await expect(page.locator('iframe')).toHaveCount(0);
+      await capturar(page, `video-capa-${largura}`);
+
+      await assistir.click();
+      const player = page.locator('iframe');
+      await expect(player).toHaveAttribute('src', `https://www.youtube-nocookie.com/embed/${ID_DO_YOUTUBE}`);
+      await expect(player).toHaveAttribute('title', 'Vídeo: Técnica do agachamento');
+      await expect(player).toHaveAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+      await expect(player).toHaveAttribute('allow', 'fullscreen; picture-in-picture; encrypted-media');
+      await expect(player).toHaveAttribute('sandbox', 'allow-scripts allow-same-origin allow-presentation');
+      await expect(player).toHaveAttribute('loading', 'lazy');
+      await expect(assistir).toHaveCount(0);
+      await capturar(page, `video-tocando-${largura}`);
+
+      const [popup] = await Promise.all([page.waitForEvent('popup'), page.getByRole('button', { name: 'Abrir no YouTube: Técnica do agachamento' }).click()]);
+      await popup.waitForURL(`https://www.youtube.com/watch?v=${ID_DO_YOUTUBE}`);
+      expect(await popup.evaluate(() => window.opener)).toBeNull();
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('aluno: vídeo de outro site também mostra a nossa capa, sem player, e "Abrir vídeo" abre fora do app', async ({ page, context }) => {
+      await context.route('https://video.exemplo.invalid/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<p>Vídeo de teste</p>' }));
+      let jpeg: Buffer = Buffer.alloc(0);
+      const api = await simularApi(page, {
+        ...(await sessaoDeAluno(page)), ...cheia,
+        'GET /aluno/comunidade/mural': { corpo: pagina({ ...VIDEO, capaId: 'capa-1' }) },
+        'GET /aluno/comunidade/capas/{id}': (_p, route) => route.fulfill({ status: 200, contentType: 'image/jpeg', body: jpeg }),
+      });
+      jpeg = await jpegFicticio(page);
+      await page.goto('/aluno/comunidade');
+      const abrir = page.getByRole('button', { name: 'Abrir vídeo: Vídeo de teste da técnica' });
+      await expect(abrir).toBeVisible();
+      await expect.poll(() => api.pedidos.some((p) => p.caminho === '/aluno/comunidade/capas/capa-1')).toBe(true);
+      await expect(page.locator('img[src^="blob:"]')).toHaveCount(1);
+      await expect(page.locator('img[src^="http"]')).toHaveCount(0);
+      await expect(page.locator('iframe')).toHaveCount(0);
+      await expect(page.getByRole('button', { name: /^Assistir aqui/ })).toHaveCount(0);
+      await capturar(page, `video-outro-site-capa-${largura}`);
+      const [popup] = await Promise.all([page.waitForEvent('popup'), abrir.click()]);
+      await popup.waitForURL('https://video.exemplo.invalid/aula');
+      expect(await popup.evaluate(() => window.opener)).toBeNull();
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    const abrirEquipe = async (page: Page, respostas: RespostasApi, permissoes = [...PERMISSOES_TREINADOR, 'TREINO_LER', 'COMUNIDADE_MODERAR']) =>
+      simularApi(page, { ...(await sessao(page, TREINADOR, { permissoes })), ...vazia, ...respostas });
+
+    test('treinador: cria enquete com o aviso de voto identificado, 2 a 6 opções, várias respostas e prazo', async ({ page }) => {
+      const api = await abrirEquipe(page, { 'POST /comunidade/mural': { corpo: { ...POST_ENQUETE, id: 'novo' } } });
+      await page.goto('/treinador/comunidade?aba=mural');
+      await page.getByRole('button', { name: 'Nova publicação' }).click();
+      const folha = novaPublicacao(page);
+      await folha.getByRole('radio', { name: 'Enquete', exact: true }).click();
+      await expect(folha.getByText('O voto é identificado: não pergunte sobre saúde, lesão, peso ou dieta.')).toBeVisible();
+      await expect(folha.getByRole('button', { name: 'Remover a opção 1' })).toHaveCount(0);
+      await folha.getByRole('button', { name: /^Publicar/ }).click();
+      await expect(folha.getByText('Cada opção tem de 1 a 80 caracteres.')).toBeVisible();
+      expect(api.pedidos.some((p) => foiPost(p, '/comunidade/mural'))).toBe(false);
+
+      await folha.getByRole('textbox', { name: 'Pergunta' }).fill('Qual horário de treino você prefere?');
+      await folha.getByRole('textbox', { name: 'Opção 1' }).fill('Manhã');
+      await folha.getByRole('textbox', { name: 'Opção 2' }).fill('Noite');
+      await folha.getByRole('button', { name: 'Adicionar opção' }).click();
+      await folha.getByRole('textbox', { name: 'Opção 3' }).fill('Tarde');
+      await folha.getByRole('button', { name: 'Remover a opção 3' }).click();
+      await expect(folha.getByRole('textbox', { name: 'Opção 3' })).toHaveCount(0);
+      await folha.getByRole('switch', { name: 'Permitir várias respostas' }).click();
+      const prazo = dataDaquiA(10);
+      await folha.getByRole('textbox', { name: /^Encerra em/ }).fill(prazo.tela);
+      await capturar(page, `treinador-nova-enquete-${largura}`);
+      await folha.getByRole('button', { name: /^Publicar/ }).click();
+      await expect.poll(() => api.pedidos.find((p) => foiPost(p, '/comunidade/mural'))?.corpo).toEqual({
+        tipo: 'ENQUETE', texto: 'Qual horário de treino você prefere?', opcoes: ['Manhã', 'Noite'], variasRespostas: true, encerraEm: prazo.iso,
+      });
+      await expect(folha).toHaveCount(0);
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('treinador: vídeo com capa (envia na hora, prévia pela API, remove e escolhe de novo) e aulão com capa', async ({ page }) => {
+      let n = 0;
+      let jpeg: Buffer = Buffer.alloc(0);
+      const api = await abrirEquipe(page, {
+        'POST /comunidade/capas': (_p, route) => json(route, { id: `capa-${++n}` }),
+        'GET /comunidade/capas/{id}': (_p, route) => route.fulfill({ status: 200, contentType: 'image/jpeg', body: jpeg }),
+        'POST /comunidade/mural': { corpo: { ...VIDEO_YT, id: 'novo' } },
+        'POST /comunidade/aulas': { corpo: { ...AULA, id: 'novo' } },
+      });
+      await page.goto('/treinador/comunidade?aba=mural');
+      jpeg = await jpegFicticio(page);
+      await page.getByRole('button', { name: 'Nova publicação' }).click();
+      const folha = novaPublicacao(page);
+      await folha.getByRole('radio', { name: 'Vídeo', exact: true }).click();
+      await folha.getByRole('textbox', { name: 'Título do vídeo' }).fill('Técnica do agachamento');
+      await folha.getByRole('textbox', { name: 'Link do vídeo' }).fill(VIDEO_YT.videoUrl!);
+      const escolherCapa = async (dentro: ReturnType<Page['getByRole']>, rotulo: string) => {
+        const [seletor] = await Promise.all([page.waitForEvent('filechooser'), dentro.getByRole('button', { name: rotulo }).click()]);
+        await seletor.setFiles({ name: 'capa-ficticia.jpg', mimeType: 'image/jpeg', buffer: jpeg });
+      };
+      await escolherCapa(folha, 'Escolher capa');
+      await expect(folha.getByRole('button', { name: 'Trocar capa' })).toBeVisible();
+      await expect(folha.getByRole('img', { name: 'Capa do vídeo' })).toBeVisible();
+      await capturar(page, `treinador-video-com-capa-${largura}`);
+      await folha.getByRole('button', { name: 'Remover capa' }).click();
+      await expect(folha.getByRole('button', { name: 'Escolher capa' })).toBeVisible();
+      await escolherCapa(folha, 'Escolher capa');
+      await expect(folha.getByRole('button', { name: 'Trocar capa' })).toBeVisible();
+      await folha.getByRole('button', { name: /^Publicar/ }).click();
+      await expect.poll(() => api.pedidos.find((p) => foiPost(p, '/comunidade/mural'))?.corpo).toEqual({
+        tipo: 'VIDEO', texto: 'Técnica do agachamento', videoUrl: VIDEO_YT.videoUrl, capaId: 'capa-2',
+      });
+      await expect(folha).toHaveCount(0);
+
+      await page.getByRole('tab', { name: 'Aulões' }).click();
+      await page.getByRole('button', { name: 'Novo aulão' }).click();
+      const aulao = page.getByRole('dialog', { name: 'Novo aulão' });
+      await aulao.getByRole('textbox', { name: 'Título' }).fill('Aulão de teste');
+      await aulao.getByRole('textbox', { name: 'Link do vídeo' }).fill('https://youtu.be/abcDEF12345');
+      await escolherCapa(aulao, 'Escolher capa');
+      await expect(aulao.getByRole('button', { name: 'Trocar capa' })).toBeVisible();
+      await aulao.getByRole('button', { name: 'Publicar para o time' }).click();
+      await expect.poll(() => api.pedidos.find((p) => foiPost(p, '/comunidade/aulas'))?.corpo)
+        .toEqual({ titulo: 'Aulão de teste', videoUrl: 'https://youtu.be/abcDEF12345', capaId: 'capa-3' });
+      expect(api.pedidos.filter((p) => foiPost(p, '/comunidade/capas')).length).toBe(3);
+      expect(api.errosDaPagina).toEqual([]);
+    });
+
+    test('treinador sem moderar: reações só para leitura (sem botões), mas vota com TREINO_LER', async ({ page }) => {
+      const api = await abrirEquipe(page, {
+        'GET /comunidade/mural': { corpo: pagina(POST, POST_ENQUETE) },
+        'PUT /comunidade/mural/{id}/votos': (p, route) => json(route, { ...ENQUETE_ABERTA, meusVotos: (p.corpo as { opcaoIds: string[] }).opcaoIds }),
+      }, [...PERMISSOES_TREINADOR, 'TREINO_LER']);
+      await page.goto('/treinador/comunidade?aba=mural');
+      await expect(page.getByText('Semana de constância, time!')).toBeVisible();
+      await expect(page.getByLabel('Curtir, 2 reações', { exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: /reaç(ão|ões)/ })).toHaveCount(0);
+      await opcaoDaEnquete(page, /^Manhã/).click();
+      await expect.poll(() => api.pedidos.find((p) => p.metodo === 'PUT')?.caminho).toBe('/comunidade/mural/p9/votos');
+      expect(api.errosDaPagina).toEqual([]);
+    });
+  });
+}

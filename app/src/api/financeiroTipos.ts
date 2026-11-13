@@ -196,7 +196,10 @@ export interface CartoesDoPainel {
   valorMedioPorAlunoCentavos: number | null;
 }
 
-/** Um mês da série (`mes` = `AAAA-MM`). `previstoCentavos` só de hoje em diante; as avulsas são nulas com o filtro "meus". */
+/**
+ * Um mês da série (`mes` = `AAAA-MM`). `previstoCentavos` só de hoje em diante; as avulsas são nulas com o filtro "meus".
+ * `resultadoCentavos` é nulo se faltar o recebido, as entradas ou as saídas (nunca soma ausência como zero).
+ */
 export interface MesDoPainel {
   mes: string;
   parcial: boolean;
@@ -240,7 +243,10 @@ export interface ProximosRecebimentos {
   em30Dias: ValorEQuantidade;
 }
 
-/** Rótulo fixo "entradas − saídas registradas": não é lucro. Avulsas nulas com o filtro "meus". */
+/**
+ * Rótulo fixo "entradas − saídas registradas": não é lucro. Avulsas nulas com o filtro "meus"; `resultadoCentavos` é nulo
+ * se faltar o recebido, as entradas ou as saídas.
+ */
 export interface ResultadoDoMes {
   rotulo: string;
   mes: string;

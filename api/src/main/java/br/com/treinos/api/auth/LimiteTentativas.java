@@ -145,6 +145,19 @@ public class LimiteTentativas {
     }
 
     /**
+     * "Mostrar votos" de uma enquete pela equipe: 300 por usuário por hora, balde próprio (o do aluno é o {@code perfilDoColega}),
+     * contado antes de qualquer checagem. Cada leitura resolve nomes e fotos dos votantes.
+     */
+    public void votosDaEquipe(java.util.UUID usuarioId) {
+        porUsuario("votos-equipe", usuarioId, 300);
+    }
+
+    /** Foto de um votante pela equipe: 300 por usuário por hora, balde próprio, contado antes de qualquer checagem (toda tentativa conta). */
+    public void fotoDaEquipe(java.util.UUID usuarioId) {
+        porUsuario("foto-equipe", usuarioId, 300);
+    }
+
+    /**
      * CPF enviado pelo próprio aluno em "Meus dados" ({@code PUT /aluno/meus-dados}): o CPF só preenche um cadastro vazio, e a
      * resposta (200 ou 409 {@code ALUNO_CPF_EM_USO}) diria se um CPF já é de outro aluno da consultoria. Dez envios com CPF por
      * usuário em 24 h fecham essa consulta; chamado fora da transação, então a tentativa recusada também conta.
@@ -166,6 +179,18 @@ public class LimiteTentativas {
         long agora = clock.millis();
         var estado = contador.tentar(chave("foto-mural", usuarioId.toString()), agora, 86_400_000L);
         return estado.tentativas() <= 20;
+    }
+
+    /**
+     * Capa da comunidade (aulão e post de vídeo): {@code limite} envios por consultoria em 24 h, sem lançar (quem chama responde
+     * 422 {@code IMAGENS_LIMITE_DIARIO}). Janela fixa e contador atômico no banco, como o {@link #fotoDoMuralCabe}: envios em
+     * paralelo serializam na linha da chave, então nunca passam do limite; apagar a capa não devolve cota. Chamada dentro da
+     * transação do envio, o consumo de quem falha depois volta com o rollback.
+     */
+    public boolean capaDaComunidadeCabe(java.util.UUID consultoriaId, int limite) {
+        long agora = clock.millis();
+        var estado = contador.tentar(chave("capa-comunidade", consultoriaId.toString()), agora, 86_400_000L);
+        return estado.tentativas() <= limite;
     }
 
     /**

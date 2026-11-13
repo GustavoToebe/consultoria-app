@@ -27,9 +27,6 @@ public class ComunidadeAula {
     @Column(name = "video_url", nullable = false, length = 500)
     private String videoUrl;
 
-    @Column(name = "miniatura_url", length = 500)
-    private String miniaturaUrl;
-
     @Column(length = 60)
     private String categoria;
 
@@ -47,23 +44,21 @@ public class ComunidadeAula {
 
     protected ComunidadeAula() {}
 
-    public ComunidadeAula(String titulo, String descricao, String videoUrl, String miniaturaUrl,
+    public ComunidadeAula(String titulo, String descricao, String videoUrl,
                           String categoria, int ordem, boolean publicada) {
         this.titulo = titulo;
         this.descricao = descricao;
         this.videoUrl = videoUrl;
-        this.miniaturaUrl = miniaturaUrl;
         this.categoria = categoria;
         this.ordem = ordem;
         this.publicada = publicada;
     }
 
-    public void atualizar(String titulo, String descricao, String videoUrl, String miniaturaUrl,
+    public void atualizar(String titulo, String descricao, String videoUrl,
                           String categoria, int ordem, boolean publicada) {
         this.titulo = titulo;
         this.descricao = descricao;
         this.videoUrl = videoUrl;
-        this.miniaturaUrl = miniaturaUrl;
         this.categoria = categoria;
         this.ordem = ordem;
         this.publicada = publicada;
@@ -75,7 +70,6 @@ public class ComunidadeAula {
     public String getTitulo() { return titulo; }
     public String getDescricao() { return descricao; }
     public String getVideoUrl() { return videoUrl; }
-    public String getMiniaturaUrl() { return miniaturaUrl; }
     public String getCategoria() { return categoria; }
     public int getOrdem() { return ordem; }
     public boolean isPublicada() { return publicada; }

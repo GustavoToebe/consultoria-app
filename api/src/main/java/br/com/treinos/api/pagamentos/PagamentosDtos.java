@@ -188,17 +188,18 @@ public final class PagamentosDtos {
 
     // ---- Números e painel ----
 
-    /** {@code null} = sem dado, nunca zero inventado. */
+    /** 0 = o mês já ocorreu (até o corrente) e não teve pagamento registrado; {@code null} = sem dado. */
     public record MesRecebido(String mes, boolean parcial, Long recebidoCentavos) { }
 
     /**
      * Números do financeiro. {@code previstoCentavos}: abertas com vencimento de hoje em diante. {@code inadimplencia}:
      * entre as cobranças não canceladas que já venceram dentro da janela, a fração (0 a 100, uma casa) das que seguem
      * abertas, contada por cobrança. {@code receitaRecorrenteMensalCentavos}: contratações ativas, sem parcela única,
-     * valor dividido pelos meses da periodicidade.
+     * valor dividido pelos meses da periodicidade. {@code historicoFinanceiroParcial}: só informativo (a consultoria teve
+     * parte do histórico removida numa limpeza); não altera valor nem declara período completo.
      */
     public record Numeros(List<MesRecebido> meses, Long previstoCentavos, BigDecimal inadimplenciaPercentual,
-                          Long receitaRecorrenteMensalCentavos) { }
+                          Long receitaRecorrenteMensalCentavos, boolean historicoFinanceiroParcial) { }
 
     public record Periodo(LocalDate de, LocalDate ate) { }
 
@@ -207,7 +208,10 @@ public final class PagamentosDtos {
     public record Cartoes(Long recebidoCentavos, Long aReceberCentavos, ValorEQuantidade emAtraso,
                           Long receitaRecorrenteMensalCentavos, Long alunosPagantes, Long valorMedioPorAlunoCentavos) { }
 
-    /** Um mês da série. {@code previstoCentavos} só de hoje em diante; as avulsas são nulas com o filtro "meus". */
+    /**
+     * Um mês da série. {@code previstoCentavos} só do mês corrente em diante (0 sem aberta; mês encerrado é nulo); as avulsas
+     * são nulas com o filtro "meus"; {@code resultadoCentavos} é nulo se faltar recebido, entradas ou saídas.
+     */
     public record MesDoPainel(String mes, boolean parcial, Long recebidoCentavos, Long previstoCentavos,
                               Long entradasAvulsasCentavos, Long saidasAvulsasCentavos, Long resultadoCentavos) { }
 
@@ -228,10 +232,11 @@ public final class PagamentosDtos {
     /** Na Fase 1 não há taxa conhecida: o líquido é sempre indisponível e nada é descontado. */
     public record Liquido(boolean disponivel, String motivo, Long brutoCentavos) { }
 
+    /** {@code historicoFinanceiroParcial}: só informativo, não muda nenhum valor nem declara período completo. */
     public record Painel(Periodo periodo, boolean somenteMeus, Cartoes cartoes, List<MesDoPainel> serie,
                          Inadimplencia inadimplencia, List<PorForma> porForma, List<PorPlano> porPlano,
                          List<MovimentoDeAlunos> movimentoDeAlunos, ProximosRecebimentos proximosRecebimentos,
-                         ResultadoDoMes resultadoDoMes, Liquido liquido) { }
+                         ResultadoDoMes resultadoDoMes, Liquido liquido, boolean historicoFinanceiroParcial) { }
 
     public record Inadimplente(UUID cobrancaId, UUID alunoId, String alunoNome, long valorCentavos, LocalDate vencimento,
                                long diasDeAtraso) { }

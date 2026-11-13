@@ -165,6 +165,9 @@ class CartoesDoInicioBatemComAListaIntegrationTest extends AbstractIntegrationTe
         assertThat(vencidasDaLista(admin, false)).isEqualTo(new Numero(0, 0));
         JsonNode janela = api.get("/financeiro/painel", admin, 200).path("proximosRecebimentos").path("em7Dias");
         assertThat(janela.get("cobrancas").asLong()).isZero();
+        // O valor é 0 de verdade (número), não nulo que o asLong() esconderia.
+        assertThat(janela.get("valorCentavos").isNumber()).isTrue();
+        assertThat(api.get("/financeiro/inadimplentes", admin, 200).get("valorTotalCentavos").isNumber()).isTrue();
         assertThat(vencendoDaLista(admin, false)).isEqualTo(new Numero(0, 0));
     }
 }

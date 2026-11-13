@@ -33,10 +33,17 @@ public class AlunoComunidadeController {
     private final FotosDoMuralService fotos;
     private final DenunciasDoMuralService denuncias;
     private final ConfiguracaoDaComunidadeService configuracao;
+    private final ReacoesDoMuralService reacoes;
+    private final EnquetesDoMuralService enquetes;
+    private final CapasDaComunidadeService capas;
 
     public AlunoComunidadeController(ComunidadeService comunidade, ApelidoDoAlunoService apelidos, PerfilDoAlunoService perfil,
                                      ColegasDaComunidadeService colegas, LimiteTentativas limite, FotosDoMuralService fotos,
-                                     DenunciasDoMuralService denuncias, ConfiguracaoDaComunidadeService configuracao) {
+                                     DenunciasDoMuralService denuncias, ConfiguracaoDaComunidadeService configuracao,
+                                     ReacoesDoMuralService reacoes, EnquetesDoMuralService enquetes, CapasDaComunidadeService capas) {
+        this.reacoes = reacoes;
+        this.enquetes = enquetes;
+        this.capas = capas;
         this.fotos = fotos;
         this.denuncias = denuncias;
         this.configuracao = configuracao;
@@ -91,13 +98,49 @@ public class AlunoComunidadeController {
         return comunidade.criarPostMural(request, eu);
     }
 
+    /** Liga o código de reação (204, idempotente); uma pessoa pode ter vários no mesmo post. Fora da lista = 422 {@code REACAO_INVALIDA}. */
     @PreAuthorize("hasRole('ALUNO')")
-    @PostMapping("/mural/{id}/reacoes")
-    public ResponseEntity<Void> reagirMural(@PathVariable UUID id, @RequestBody @Valid ReacaoRequest request,
+    @PutMapping("/mural/{id}/reacoes/{codigo}")
+    public ResponseEntity<Void> reagirMural(@PathVariable UUID id, @PathVariable String codigo,
                                             @AuthenticationPrincipal UsuarioAutenticado eu) {
         limite.comunidade(eu.usuarioId());
-        comunidade.alternarReacaoMural(id, request.emoji(), eu);
+        reacoes.reagir(id, codigo, eu);
         return ResponseEntity.noContent().build();
+    }
+
+    @PreAuthorize("hasRole('ALUNO')")
+    @DeleteMapping("/mural/{id}/reacoes/{codigo}")
+    public ResponseEntity<Void> desfazerReacaoMural(@PathVariable UUID id, @PathVariable String codigo,
+                                                    @AuthenticationPrincipal UsuarioAutenticado eu) {
+        limite.comunidade(eu.usuarioId());
+        reacoes.desfazer(id, codigo, eu);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Substitui o conjunto de opções do aluno na enquete (vazio retira o voto); devolve a enquete como o mural a mostra. */
+    @PreAuthorize("hasRole('ALUNO')")
+    @PutMapping("/mural/{id}/votos")
+    public EnqueteResponse votar(@PathVariable UUID id, @RequestBody @Valid VotoRequest request,
+                                 @AuthenticationPrincipal UsuarioAutenticado eu) {
+        limite.comunidade(eu.usuarioId());
+        return enquetes.votar(id, request.opcaoIds(), eu);
+    }
+
+    /** "Mostrar votos": balde {@code perfilDoColega}, contado antes de qualquer checagem (cada leitura resolve nomes e fotos). */
+    @PreAuthorize("hasRole('ALUNO')")
+    @GetMapping("/mural/{id}/votos")
+    public VotosDaEnquete votos(@PathVariable UUID id, @RequestParam(required = false) UUID opcaoId,
+                                @RequestParam(required = false) Integer pagina, @RequestParam(required = false) Integer tamanho,
+                                @AuthenticationPrincipal UsuarioAutenticado eu) {
+        limite.perfilDoColega(eu.usuarioId());
+        return enquetes.votos(id, opcaoId, pagina, tamanho, eu);
+    }
+
+    /** Bytes da capa de aulão publicado ou de post visível (a pendente e a de post oculto dão 404); {@code no-store}. */
+    @PreAuthorize("hasRole('ALUNO')")
+    @GetMapping("/capas/{id}")
+    public ResponseEntity<byte[]> capa(@PathVariable UUID id) {
+        return RespostaDeFoto.de(capas.lerDoAluno(id));
     }
 
     @PreAuthorize("hasRole('ALUNO')")

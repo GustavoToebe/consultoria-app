@@ -59,11 +59,11 @@ class ComunidadeIntegrationTest extends AbstractIntegrationTest {
         loginB = api.convidarEEntrar(admin, alunoB);
     }
 
-    private Map<String, Object> aula(String video, String miniatura, boolean publicada) {
+    private Map<String, Object> aula(String video, UUID capaId, boolean publicada) {
         Map<String, Object> corpo = new LinkedHashMap<>();
         corpo.put("titulo", "Aulão fictício");
         corpo.put("videoUrl", video);
-        corpo.put("miniaturaUrl", miniatura);
+        corpo.put("capaId", capaId);
         corpo.put("publicada", publicada);
         return corpo;
     }
@@ -123,7 +123,7 @@ class ComunidadeIntegrationTest extends AbstractIntegrationTest {
         api.post("/aluno/comunidade/aulas/" + o.aula + "/comentarios", loginA, Map.of("texto", "Oi"), 404);
         api.get("/aluno/comunidade/mural/" + o.post + "/comentarios", loginA, 404);
         api.post("/aluno/comunidade/mural/" + o.post + "/comentarios", loginA, Map.of("texto", "Oi"), 404);
-        api.post("/aluno/comunidade/mural/" + o.post + "/reacoes", loginA, Map.of("emoji", "🔥"), 404);
+        api.put("/aluno/comunidade/mural/" + o.post + "/reacoes/FOGO", loginA, Map.of(), 404);
 
         assertThat(contar("select count(*) from comunidade_aula_comentario where aula_id = ?::uuid", o.aula)).isEqualTo(1);
         assertThat(contar("select count(*) from comunidade_mural_comentario where post_id = ?::uuid", o.post)).isEqualTo(1);
@@ -170,7 +170,7 @@ class ComunidadeIntegrationTest extends AbstractIntegrationTest {
         String post = criarPost(loginB, "Post que será ocultado");
         api.delete("/comunidade/mural/" + post, admin, 204);
         api.get("/aluno/comunidade/mural/" + post + "/comentarios", loginA, 404);
-        api.post("/aluno/comunidade/mural/" + post + "/reacoes", loginA, Map.of("emoji", "🔥"), 404);
+        api.put("/aluno/comunidade/mural/" + post + "/reacoes/FOGO", loginA, Map.of(), 404);
     }
 
     @Test
@@ -192,9 +192,9 @@ class ComunidadeIntegrationTest extends AbstractIntegrationTest {
             assertThat(erro.get("fieldErrors").get(0).get("field").asString()).isEqualTo("videoUrl");
             assertThat(erro.toString()).doesNotContain(ruim);
         }
-        JsonNode miniatura = api.post("/comunidade/aulas", admin,
-                aula("https://youtube.com/watch?v=abc", "http://exemplo.test/m.png", true), 422);
-        assertThat(miniatura.get("fieldErrors").get(0).get("field").asString()).isEqualTo("miniaturaUrl");
+        // Capa que não existe (ou é de outra consultoria): 422 no campo capaId, e o aulão não nasce.
+        JsonNode capa = api.post("/comunidade/aulas", admin, aula("https://youtube.com/watch?v=abc", UUID.randomUUID(), true), 422);
+        assertThat(capa.get("fieldErrors").get(0).get("field").asString()).isEqualTo("capaId");
 
         Map<String, Object> post = new LinkedHashMap<>();
         post.put("tipo", "VIDEO");
@@ -212,12 +212,11 @@ class ComunidadeIntegrationTest extends AbstractIntegrationTest {
     @Test
     void linkAntigoForaDaRegraNaoSaiNaLeitura() throws Exception {
         String aula = criarAula(admin, true);
-        jdbc.update("update comunidade_aula set video_url = 'http://exemplo.test/antigo', miniatura_url = 'javascript:x' where id = ?::uuid",
-                aula);
+        jdbc.update("update comunidade_aula set video_url = 'http://exemplo.test/antigo' where id = ?::uuid", aula);
         for (JsonNode a : api.get("/aluno/comunidade/aulas", loginA, 200)) {
             if (a.get("id").asString().equals(aula)) {
                 assertThat(a.get("videoUrl").isNull()).isTrue();
-                assertThat(a.get("miniaturaUrl").isNull()).isTrue();
+                assertThat(a.get("capaId").isNull()).isTrue();
                 return;
             }
         }
@@ -272,8 +271,8 @@ class ComunidadeIntegrationTest extends AbstractIntegrationTest {
         api.post("/aluno/comunidade/aulas/" + aula + "/comentarios", loginA, Map.of("texto", COMENTARIO_A), 200);
         api.post("/aluno/comunidade/mural/" + postA + "/comentarios", loginA, Map.of("texto", COMENTARIO_A), 200);
         String postB = criarPost(loginB, "Texto fictício do colega");
-        api.post("/aluno/comunidade/mural/" + postB + "/reacoes", loginA, Map.of("emoji", "🔥"), 204);
-        api.post("/aluno/comunidade/mural/" + postA + "/reacoes", loginB, Map.of("emoji", "💪"), 204);
+        api.put("/aluno/comunidade/mural/" + postB + "/reacoes/FOGO", loginA, Map.of(), 204);
+        api.put("/aluno/comunidade/mural/" + postA + "/reacoes/FORCA", loginB, Map.of(), 204);
         return postA;
     }
 
@@ -288,10 +287,10 @@ class ComunidadeIntegrationTest extends AbstractIntegrationTest {
         assertThat(comunidade.get("comentariosDeAulas")).hasSize(1);
         assertThat(comunidade.get("comentariosDoMural")).hasSize(1);
         assertThat(comunidade.get("reacoes")).hasSize(1);
-        assertThat(comunidade.get("reacoes").get(0).get("emoji").asString()).isEqualTo("🔥");
+        assertThat(comunidade.get("reacoes").get(0).get("codigo").asString()).isEqualTo("FOGO");
         assertThat(comunidade.get("truncado").asBoolean()).isFalse();
         // Nada do colega (a reação dele ao post da Ana não é da Ana).
-        assertThat(comunidade.toString()).doesNotContain("colega").doesNotContain("💪");
+        assertThat(comunidade.toString()).doesNotContain("colega").doesNotContain("FORCA");
     }
 
     @Test
@@ -473,12 +472,12 @@ class ComunidadeIntegrationTest extends AbstractIntegrationTest {
         String post = criarPost(loginA, TEXTO_A);
         // A criação do post já gastou uma; mais 119 passam e a seguinte leva 429.
         for (int i = 0; i < 119; i++) {
-            api.post("/aluno/comunidade/mural/" + post + "/reacoes", loginA, Map.of("emoji", "🔥"), 204);
+            api.put("/aluno/comunidade/mural/" + post + "/reacoes/FOGO", loginA, Map.of(), 204);
         }
-        api.post("/aluno/comunidade/mural/" + post + "/reacoes", loginA, Map.of("emoji", "🔥"), 429);
+        api.put("/aluno/comunidade/mural/" + post + "/reacoes/FOGO", loginA, Map.of(), 429);
         api.post("/aluno/comunidade/mural", loginA, Map.of("texto", "Outro"), 429);
         // Outro aluno tem o próprio balde; leitura não conta.
-        api.post("/aluno/comunidade/mural/" + post + "/reacoes", loginB, Map.of("emoji", "👏"), 204);
+        api.put("/aluno/comunidade/mural/" + post + "/reacoes/PALMAS", loginB, Map.of(), 204);
         api.get("/aluno/comunidade/mural", loginA, 200);
     }
 }

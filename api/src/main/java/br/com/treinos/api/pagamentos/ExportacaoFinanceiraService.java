@@ -2,6 +2,9 @@ package br.com.treinos.api.pagamentos;
 
 import br.com.plataforma.comum.web.BadRequestException;
 import br.com.treinos.api.auditoria.Auditoria;
+import br.com.treinos.api.consultoria.Consultoria;
+import br.com.treinos.api.consultoria.ConsultoriaRepository;
+import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.web.ValidacaoException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,18 +14,21 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * CSV das cobranças (por vencimento) e dos lançamentos avulsos (por data) de um período, para o contador do treinador.
  * Até {@value #LIMITE_DE_LINHAS} linhas; acima disso, 422 pedindo um período menor. Separador ponto e vírgula, valor em reais
  * com vírgula, UTF-8 com marca de ordem (abre certo no Excel). Célula que começa com {@code = + - @} (ou tabulação) ganha
- * um apóstrofo na frente, para a planilha não executar fórmula. Observação e motivo das cobranças não saem.
+ * um apóstrofo na frente, para a planilha não executar fórmula. Observação e motivo das cobranças não saem. A última coluna,
+ * {@code historico_financeiro_parcial}, repete {@code true}/{@code false} em todas as linhas (aviso informativo da consultoria;
+ * o arquivo segue só tabular, sem frase).
  */
 @Service
 public class ExportacaoFinanceiraService {
 
     public static final int LIMITE_DE_LINHAS = 5000;
-    private static final String CABECALHO = "registro;data;descricao;aluno;situacao;forma;pago_em;tipo;categoria;valor";
+    private static final String CABECALHO = "registro;data;descricao;aluno;situacao;forma;pago_em;tipo;categoria;valor;historico_financeiro_parcial";
 
     /** Classe, não record: array em record compara por referência (Error Prone, ArrayRecordComponent). */
     public static final class Csv {
@@ -46,12 +52,14 @@ public class ExportacaoFinanceiraService {
     private final CobrancaAlunoRepository cobrancas;
     private final LancamentoFinanceiroRepository lancamentos;
     private final Auditoria auditoria;
+    private final ConsultoriaRepository consultorias;
 
     public ExportacaoFinanceiraService(CobrancaAlunoRepository cobrancas, LancamentoFinanceiroRepository lancamentos,
-                                       Auditoria auditoria) {
+                                       Auditoria auditoria, ConsultoriaRepository consultorias) {
         this.cobrancas = cobrancas;
         this.lancamentos = lancamentos;
         this.auditoria = auditoria;
+        this.consultorias = consultorias;
     }
 
     /** Não é só leitura: a exportação grava o evento de auditoria na mesma transação. */
@@ -66,19 +74,27 @@ public class ExportacaoFinanceiraService {
                     "EXPORTACAO_GRANDE_DEMAIS", List.of(new ApiError.FieldError("de",
                             "Escolha um período menor: o limite é de " + LIMITE_DE_LINHAS + " linhas.")));
         }
+        String parcial = String.valueOf(historicoParcial());
         StringBuilder csv = new StringBuilder("﻿").append(CABECALHO).append("\r\n");
         for (LinhaDeCobranca l : cobrancas.paraExportar(de, ate)) {
             CobrancaAluno c = l.cobranca();
             linha(csv, "COBRANCA", c.getVencimento().toString(), l.planoNome(), l.alunoNome(), c.getSituacao().name(),
                     c.getForma() == null ? null : c.getForma().name(), c.getPagoEm() == null ? null : c.getPagoEm().toString(),
-                    null, null, reais(c.getValorCentavos()));
+                    null, null, reais(c.getValorCentavos()), parcial);
         }
         for (LancamentoFinanceiro l : lancamentos.findByDataBetweenOrderByDataAscCriadoEmAscIdAsc(de, ate)) {
             linha(csv, "LANCAMENTO", l.getData().toString(), l.getDescricao(), null, null, null, null, l.getTipo().name(),
-                    l.getCategoria(), reais(l.getValorCentavos()));
+                    l.getCategoria(), reais(l.getValorCentavos()), parcial);
         }
         auditoria.registrarEvento("FINANCEIRO_EXPORTADO", "FINANCEIRO", null, "Exportou o financeiro em CSV.");
         return new Csv("financeiro-" + de + "-a-" + ate + ".csv", csv.toString().getBytes(StandardCharsets.UTF_8));
+    }
+
+    /** Aviso informativo da consultoria da sessão (mesmo caminho do painel); sem consultoria, {@code false}. */
+    private boolean historicoParcial() {
+        UUID consultoriaId = TenantContext.get();
+        return consultoriaId != null
+                && consultorias.findById(consultoriaId).map(Consultoria::isHistoricoFinanceiroParcial).orElse(false);
     }
 
     private static void linha(StringBuilder csv, String... celulas) {

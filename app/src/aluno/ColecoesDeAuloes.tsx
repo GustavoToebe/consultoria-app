@@ -1,17 +1,16 @@
-import { MessageSquare, Video } from 'lucide-react-native';
+import { MessageSquare } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { AulaDaComunidade } from '../api/comunidadeTipos';
+import { CapaDoVideo } from '../comunidade/CapaDoVideo';
 import { agruparAuloesPorCategoria, buscarAuloes, resumoDosAuloes } from '../dominio/comunidade';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, RAIO } from '../tema/tokens';
-import { Botao } from '../ui/Botao';
 import { CabecalhoDeGrupo } from '../ui/CabecalhoDeGrupo';
 import { Campo } from '../ui/Campo';
 import { Cartao } from '../ui/Cartao';
 import { Vazio } from '../ui/Estados';
-import { LinhaDeAcoes } from '../ui/LinhaDeAcoes';
 import { sobre } from '../ui/sobre';
 import { Texto } from '../ui/Texto';
 
@@ -22,11 +21,12 @@ const chave = (categoria: string | null) => categoria ?? '';
  * Aulões do aluno em coleções por categoria (como as coleções do Planejamento): um cartão por categoria com
  * `CabecalhoDeGrupo` recolhível, ordem alfabética e "Sem categoria" por último; dentro, a ordem da API. A busca é local
  * (título e descrição, sem acento), procura em todas as coleções e reabre as recolhidas. Sem rede nova: usa a lista já
- * carregada.
+ * carregada. O vídeo é a `CapaDoVideo` (a capa do treinador, o player só depois do toque e "Abrir no YouTube").
  */
-export function ColecoesDeAuloes({ aulas, aoAssistir, aoComentarios }: {
+export function ColecoesDeAuloes({ aulas, baixarCapa, aoAbrirFora, aoComentarios }: {
   aulas: readonly AulaDaComunidade[];
-  aoAssistir: (url: string | null) => void;
+  baixarCapa: (id: string) => Promise<Blob>;
+  aoAbrirFora: (url: string) => void;
   aoComentarios: (aula: AulaDaComunidade) => void;
 }) {
   const { cores } = useTema();
@@ -58,11 +58,7 @@ export function ColecoesDeAuloes({ aulas, aoAssistir, aoComentarios }: {
               <View key={a.id} style={[estilos.aula, i > 0 && { borderTopWidth: 1, borderTopColor: cores.divisor, paddingTop: espaco(2) }]}>
                 <Texto variante="bloco" nivel={2}>{a.titulo}</Texto>
                 {a.descricao ? <Texto>{a.descricao}</Texto> : null}
-                {a.videoUrl ? (
-                  <LinhaDeAcoes>
-                    <Botao rotulo="Assistir ao aulão" tipo="secundario" Icone={Video} aoTocar={() => aoAssistir(a.videoUrl)} />
-                  </LinhaDeAcoes>
-                ) : null}
+                <CapaDoVideo videoUrl={a.videoUrl} titulo={a.titulo} capaId={a.capaId ?? null} baixarCapa={baixarCapa} aoAbrirFora={aoAbrirFora} />
                 <View style={estilos.linha}>
                   <Pressable
                     accessibilityRole="button"

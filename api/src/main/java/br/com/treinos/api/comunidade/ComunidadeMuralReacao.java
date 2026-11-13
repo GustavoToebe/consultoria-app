@@ -25,23 +25,23 @@ public class ComunidadeMuralReacao {
     private UUID usuarioId;
 
     @Column(nullable = false, length = 16)
-    private String emoji;
+    private String codigo;
 
     @Column(name = "criado_em", nullable = false, updatable = false)
     private Instant criadoEm = Instant.now();
 
     protected ComunidadeMuralReacao() {}
 
-    public ComunidadeMuralReacao(UUID postId, UUID usuarioId, String emoji) {
+    public ComunidadeMuralReacao(UUID postId, UUID usuarioId, String codigo) {
         this.postId = postId;
         this.usuarioId = usuarioId;
-        this.emoji = emoji;
+        this.codigo = codigo;
     }
 
     public UUID getId() { return id; }
     public UUID getConsultoriaId() { return consultoriaId; }
     public UUID getPostId() { return postId; }
     public UUID getUsuarioId() { return usuarioId; }
-    public String getEmoji() { return emoji; }
+    public String getCodigo() { return codigo; }
     public Instant getCriadoEm() { return criadoEm; }
 }

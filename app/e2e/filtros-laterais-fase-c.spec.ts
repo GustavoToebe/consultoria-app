@@ -69,12 +69,12 @@ const QUESTIONARIO: QuestionarioResumo = {
 };
 const POST: PostDoMural = {
   id: 'p1', autorId: 'u2', autorNome: 'Aluno Fictício', autorApelido: null, autorEhAluno: true, autorFotoUrl: null, texto: 'Treino feito.',
-  tipo: 'CONVERSA', videoUrl: null, fotos: [], respondida: false, fixado: false, criadoEm: '2026-10-19T12:00:00-03:00', reacoes: {}, minhasReacoes: [],
+  tipo: 'CONVERSA', videoUrl: null, capaId: null, enquete: null, fotos: [], respondida: false, fixado: false, criadoEm: '2026-10-19T12:00:00-03:00', reacoes: {}, minhasReacoes: [],
   totalComentarios: 0,
 };
 const mural = (...content: PostDoMural[]): PaginaDoMural => ({ content, totalElements: content.length });
 const aula = (id: string, titulo: string, categoria: string | null): AulaDaComunidade => ({
-  id, titulo, descricao: null, videoUrl: 'https://exemplo.test/video', miniaturaUrl: null, categoria, ordem: 0, publicada: true,
+  id, titulo, descricao: null, videoUrl: 'https://exemplo.test/video', capaId: null, categoria, ordem: 0, publicada: true,
   criadaEm: '2026-10-19T12:00:00-03:00', totalComentarios: 0,
 });
 const COMUNIDADE: RespostasApi = {

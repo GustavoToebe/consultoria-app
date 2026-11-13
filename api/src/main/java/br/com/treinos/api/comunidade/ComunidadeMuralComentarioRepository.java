@@ -17,6 +17,16 @@ public interface ComunidadeMuralComentarioRepository extends JpaRepository<Comun
     @Query("select distinct c.postId from ComunidadeMuralComentario c where c.postId in :postIds and c.oculto = false and c.daEquipe = true")
     List<UUID> comRespostaDaEquipe(Collection<UUID> postIds);
 
+    /** Comentários visíveis por post da lista (só posts com pelo menos um), numa consulta só. */
+    interface TotalDoPost {
+        UUID getPostId();
+        long getTotal();
+    }
+
+    @Query("select c.postId as postId, count(c) as total from ComunidadeMuralComentario c "
+            + "where c.postId in :postIds and c.oculto = false group by c.postId")
+    List<TotalDoPost> totaisVisiveis(Collection<UUID> postIds);
+
     long countByPostIdAndOcultoFalse(UUID postId);
     List<ComunidadeMuralComentario> findTop5000ByAutorIdOrderByCriadoEmDesc(UUID autorId);
 }

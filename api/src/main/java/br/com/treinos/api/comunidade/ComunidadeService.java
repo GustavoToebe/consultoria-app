@@ -29,7 +29,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
@@ -54,6 +53,9 @@ public class ComunidadeService {
     private final ComunidadeMuralFotoRepository fotos;
     private final ComunidadeMuralDenunciaRepository denuncias;
     private final ConfiguracaoDaComunidadeService configuracao;
+    private final ReacoesDoMuralService reacoes;
+    private final EnquetesDoMuralService enquetes;
+    private final CapasDaComunidadeService capas;
 
     public ComunidadeService(ComunidadeAulaRepository aulas,
                              ComunidadeAulaComentarioRepository aulaComentarios,
@@ -66,7 +68,10 @@ public class ComunidadeService {
                              UsuarioRepository usuarios,
                              ComunidadeMuralFotoRepository fotos,
                              ComunidadeMuralDenunciaRepository denuncias,
-                             ConfiguracaoDaComunidadeService configuracao) {
+                             ConfiguracaoDaComunidadeService configuracao,
+                             ReacoesDoMuralService reacoes,
+                             EnquetesDoMuralService enquetes,
+                             CapasDaComunidadeService capas) {
         this.aulas = aulas;
         this.aulaComentarios = aulaComentarios;
         this.muralPosts = muralPosts;
@@ -79,24 +84,21 @@ public class ComunidadeService {
         this.fotos = fotos;
         this.denuncias = denuncias;
         this.configuracao = configuracao;
+        this.reacoes = reacoes;
+        this.enquetes = enquetes;
+        this.capas = capas;
     }
 
     // ---- Aulões ----
 
     @Transactional(readOnly = true)
     public List<AulaResumo> listarAulasAluno(String busca) {
-        return aulas.findByPublicadaTrueOrderByOrdemAscCriadaEmDesc().stream()
-                .filter(a -> casaComABusca(a, busca))
-                .map(a -> resumo(a, aulaComentarios.countByAulaIdAndOcultoFalse(a.getId())))
-                .toList();
+        return resumos(aulas.findByPublicadaTrueOrderByOrdemAscCriadaEmDesc().stream().filter(a -> casaComABusca(a, busca)).toList());
     }
 
     @Transactional(readOnly = true)
     public List<AulaResumo> listarAulasEquipe(String busca) {
-        return aulas.findAllByOrderByOrdemAscCriadaEmDesc().stream()
-                .filter(a -> casaComABusca(a, busca))
-                .map(a -> resumo(a, aulaComentarios.countByAulaIdAndOcultoFalse(a.getId())))
-                .toList();
+        return resumos(aulas.findAllByOrderByOrdemAscCriadaEmDesc().stream().filter(a -> casaComABusca(a, busca)).toList());
     }
 
     /**
@@ -109,21 +111,23 @@ public class ComunidadeService {
                 || Buscas.semAcento(a.getDescricao()).contains(termo);
     }
 
+    /** A capa (se vier) tem de ser uma pendente da consultoria; senão 422 no campo {@code capaId} e o aulão não é criado. */
     public AulaResumo criarAula(CriarAulaRequest r) {
         ComunidadeAula a = new ComunidadeAula(r.titulo().trim(), r.descricao(), linkDaEntrada("videoUrl", r.videoUrl()),
-                linkDaEntrada("miniaturaUrl", r.miniaturaUrl()), categoriaLimpa(r.categoria()), r.ordem() == null ? 0 : r.ordem(),
-                r.publicada() == null || r.publicada());
+                categoriaLimpa(r.categoria()), r.ordem() == null ? 0 : r.ordem(), r.publicada() == null || r.publicada());
         aulas.saveAndFlush(a);
-        return resumo(a, 0);
+        capas.definirDaAula(a.getId(), r.capaId());
+        return resumo(a, 0, r.capaId());
     }
 
+    /** No {@code PUT}, {@code capaId} nulo ou ausente remove a capa; a mesma que já está ligada não muda. */
     public AulaResumo alterarAula(UUID id, CriarAulaRequest r) {
         ComunidadeAula a = aulas.findById(id).orElseThrow(() -> new NaoEncontradoException("Aula não encontrada."));
-        a.atualizar(r.titulo().trim(), r.descricao(), linkDaEntrada("videoUrl", r.videoUrl()),
-                linkDaEntrada("miniaturaUrl", r.miniaturaUrl()), categoriaLimpa(r.categoria()),
+        a.atualizar(r.titulo().trim(), r.descricao(), linkDaEntrada("videoUrl", r.videoUrl()), categoriaLimpa(r.categoria()),
                 r.ordem() == null ? 0 : r.ordem(), r.publicada() == null || r.publicada());
         aulas.saveAndFlush(a);
-        return resumo(a, aulaComentarios.countByAulaIdAndOcultoFalse(a.getId()));
+        capas.definirDaAula(a.getId(), r.capaId());
+        return resumo(a, aulaComentarios.countByAulaIdAndOcultoFalse(a.getId()), r.capaId());
     }
 
     public void excluirAula(UUID id) {
@@ -144,7 +148,7 @@ public class ComunidadeService {
     }
 
     /** Mesma convenção de GET /atualizacoes/pagina: base 0, 30 por padrão, entre 1 e 100; a ordem tem desempate por id. */
-    private static Pageable paginar(Integer pagina, Integer tamanho) {
+    static Pageable paginar(Integer pagina, Integer tamanho) {
         int tam = tamanho == null ? TAMANHO_DA_PAGINA : Math.max(1, Math.min(tamanho, TAMANHO_MAXIMO));
         // O deslocamento (pagina * tam) precisa caber num int: página além disso vira a última possível (lista vazia, total real).
         return PageRequest.of(Math.max(0, Math.min(pagina == null ? 0 : pagina, Integer.MAX_VALUE / tam)), tam);
@@ -178,11 +182,21 @@ public class ComunidadeService {
         }
     }
 
-    private static AulaResumo resumo(ComunidadeAula a, long totalComentarios) {
+    /**
+     * Os aulões da lista com a contagem de comentários e a capa de cada um. shortcut: a contagem de comentários segue uma consulta
+     * por aulão (a lista não é paginada nem passa de algumas dezenas); a capa sai numa consulta só.
+     */
+    private List<AulaResumo> resumos(List<ComunidadeAula> doLote) {
+        Map<UUID, UUID> capasDasAulas = capas.idsDasAulas(doLote.stream().map(ComunidadeAula::getId).toList());
+        return doLote.stream()
+                .map(a -> resumo(a, aulaComentarios.countByAulaIdAndOcultoFalse(a.getId()), capasDasAulas.get(a.getId())))
+                .toList();
+    }
+
+    private static AulaResumo resumo(ComunidadeAula a, long totalComentarios, UUID capaId) {
         // Link guardado que não passa mais na regra (linha antiga) não vai ao app: abriria o que não deveria.
-        return new AulaResumo(a.getId(), a.getTitulo(), a.getDescricao(), linkSeguro(a.getVideoUrl()),
-                linkSeguro(a.getMiniaturaUrl()), a.getCategoria(), a.getOrdem(), a.isPublicada(), a.getCriadaEm(),
-                totalComentarios);
+        return new AulaResumo(a.getId(), a.getTitulo(), a.getDescricao(), linkSeguro(a.getVideoUrl()), capaId, a.getCategoria(),
+                a.getOrdem(), a.isPublicada(), a.getCriadaEm(), totalComentarios);
     }
 
     /** Vazio vira nulo; só https sem credenciais, senão 422 no campo (sem repetir o valor). */
@@ -207,7 +221,8 @@ public class ComunidadeService {
     /**
      * O mural visível (fixados primeiro, depois os mais novos), filtrado por {@code tipo} (400 {@code FILTRO_INVALIDO} se
      * desconhecido) e {@code busca} (sem acento, sobre {@code texto_busca}). {@code soDenunciados} e a contagem de denúncias só
-     * valem para a equipe. Fotos, respostas da equipe e denúncias saem em consultas agrupadas por página, sem N+1.
+     * valem para a equipe. Fotos, capas, reações, comentários, enquetes, respostas da equipe e denúncias saem em consultas
+     * agrupadas por página, sem N+1.
      */
     @Transactional(readOnly = true)
     public Page<MuralPostResponse> listarMural(Pageable pageable, UsuarioAutenticado eu, String tipo, String busca,
@@ -221,7 +236,12 @@ public class ComunidadeService {
         Map<UUID, List<UUID>> fotosDosPosts = new HashMap<>();
         Map<UUID, Long> denunciasDosPosts = new HashMap<>();
         Set<UUID> respondidos = new HashSet<>();
+        Map<UUID, Long> comentariosDosPosts = new HashMap<>();
+        Map<UUID, UUID> capasDosPosts = Map.of();
         if (!ids.isEmpty()) {
+            capasDosPosts = capas.idsDosPosts(page.getContent().stream()
+                    .filter(p -> TipoDePost.VIDEO.name().equals(p.getTipo())).map(ComunidadeMuralPost::getId).toList());
+            muralComentarios.totaisVisiveis(ids).forEach(c -> comentariosDosPosts.put(c.getPostId(), c.getTotal()));
             fotos.idsDosPosts(ids).forEach(f -> fotosDosPosts.computeIfAbsent(f.getPostId(), k -> new ArrayList<>()).add(f.getId()));
             List<UUID> duvidas = page.getContent().stream().filter(p -> TipoDePost.DUVIDA.name().equals(p.getTipo()))
                     .map(ComunidadeMuralPost::getId).toList();
@@ -232,20 +252,16 @@ public class ComunidadeService {
                 denuncias.contagens(ids).forEach(c -> denunciasDosPosts.put(c.getPostId(), c.getTotal()));
             }
         }
-        return page.map(p -> {
-            List<ComunidadeMuralReacao> reacoes = muralReacoes.findByPostId(p.getId());
-            Map<String, Long> contagem = reacoes.stream()
-                    .collect(Collectors.groupingBy(ComunidadeMuralReacao::getEmoji, Collectors.counting()));
-            List<String> minhas = eu == null ? List.of() : reacoes.stream()
-                    .filter(r -> r.getUsuarioId().equals(eu.usuarioId()))
-                    .map(ComunidadeMuralReacao::getEmoji)
-                    .toList();
-            long totalComentarios = muralComentarios.countByPostIdAndOcultoFalse(p.getId());
-            return new MuralPostResponse(p.getId(), p.getAutorId(), p.getAutorNome(), apelidos.get(p.getAutorId()),
-                    apelidos.containsKey(p.getAutorId()), p.getAutorFotoUrl(), p.getTexto(), p.getTipo(), linkSeguro(p.getVideoUrl()),
-                    fotosDosPosts.getOrDefault(p.getId(), List.of()), respondidos.contains(p.getId()), p.isFixado(), p.getCriadoEm(),
-                    contagem, minhas, totalComentarios, equipe ? denunciasDosPosts.getOrDefault(p.getId(), 0L) : null);
-        });
+        Map<UUID, Map<String, Long>> contagens = reacoes.contagens(ids);
+        Map<UUID, List<String>> minhas = reacoes.minhas(ids, eu == null ? null : eu.usuarioId());
+        Map<UUID, EnqueteResponse> enquetesDosPosts = eu == null ? Map.of() : enquetes.resumos(page.getContent(), eu);
+        Map<UUID, UUID> capasDaPagina = capasDosPosts;
+        return page.map(p -> new MuralPostResponse(p.getId(), p.getAutorId(), p.getAutorNome(), apelidos.get(p.getAutorId()),
+                apelidos.containsKey(p.getAutorId()), p.getAutorFotoUrl(), p.getTexto(), p.getTipo(), linkSeguro(p.getVideoUrl()),
+                capasDaPagina.get(p.getId()), fotosDosPosts.getOrDefault(p.getId(), List.of()), enquetesDosPosts.get(p.getId()),
+                respondidos.contains(p.getId()), p.isFixado(), p.getCriadoEm(), contagens.getOrDefault(p.getId(), Map.of()),
+                minhas.getOrDefault(p.getId(), List.of()), comentariosDosPosts.getOrDefault(p.getId(), 0L),
+                equipe ? denunciasDosPosts.getOrDefault(p.getId(), 0L) : null));
     }
 
     /** Vazio = todos os tipos; desconhecido = 400 sem repetir o valor. */
@@ -260,8 +276,11 @@ public class ComunidadeService {
     /**
      * Publica no mural. Aluno: só {@code CONVERSA}, {@code DUVIDA} e {@code RESULTADO}, com 0 a 4 fotos pendentes dele e a chave
      * {@code alunosPublicam} ligada (403 {@code PUBLICACAO_DESLIGADA}); equipe: todos os tipos, sem fotos. {@code VIDEO} exige
-     * {@code videoUrl} https e só ele a aceita; {@code AVISO} nasce fixado. Tipo, link ou fotos fora da regra = 422
-     * {@code POST_INVALIDO} no campo, sem repetir o valor; as fotos se ligam num UPDATE só e, se alguma falhar, nada é publicado.
+     * {@code videoUrl} https e só ele a aceita (e a {@code capaId}, opcional); {@code ENQUETE} (só a equipe) exige {@code opcoes}
+     * (2 a 6) e aceita {@code variasRespostas} e {@code encerraEm}, e recusa link, fotos e capa; os outros tipos recusam
+     * {@code opcoes}, {@code variasRespostas}, {@code encerraEm} e (menos o vídeo) {@code capaId}; {@code AVISO} nasce fixado. Tipo,
+     * link, fotos, capa ou enquete fora da regra = 422 {@code POST_INVALIDO} no campo, sem repetir o valor; as fotos se ligam num
+     * UPDATE só e, se alguma falhar (ou a capa não estiver disponível), nada é publicado.
      */
     public MuralPostResponse criarPostMural(CriarPostRequest r, UsuarioAutenticado eu) {
         boolean aluno = souAluno(eu);
@@ -297,6 +316,24 @@ public class ComunidadeService {
                 erros.add(new ApiError.FieldError("fotoIds", "Use de 1 a " + MAXIMO_DE_FOTOS + " fotos, sem repetir."));
             }
         }
+        List<String> opcoesLimpas = List.of();
+        if (tipo == TipoDePost.ENQUETE) {
+            opcoesLimpas = EnquetesDoMuralService.opcoesLimpas(r.opcoes(), erros);
+            EnquetesDoMuralService.conferirPrazo(r.encerraEm(), erros);
+        } else if (tipo != null) {
+            if (r.opcoes() != null && !r.opcoes().isEmpty()) {
+                erros.add(new ApiError.FieldError("opcoes", "Só a enquete leva opções."));
+            }
+            if (r.variasRespostas() != null) {
+                erros.add(new ApiError.FieldError("variasRespostas", "Só a enquete aceita várias respostas."));
+            }
+            if (r.encerraEm() != null) {
+                erros.add(new ApiError.FieldError("encerraEm", "Só a enquete tem prazo."));
+            }
+        }
+        if (r.capaId() != null && tipo != null && tipo != TipoDePost.VIDEO) {
+            erros.add(new ApiError.FieldError("capaId", "Só a publicação de vídeo leva capa."));
+        }
         if (!erros.isEmpty()) {
             throw new ValidacaoException("Confira a publicação.", "POST_INVALIDO", erros);
         }
@@ -307,17 +344,28 @@ public class ComunidadeService {
         String nome = usuarios.findById(eu.usuarioId()).map(Usuario::getNome).orElse("Membro");
         String texto = r.texto().trim();
         ComunidadeMuralPost post = new ComunidadeMuralPost(eu.usuarioId(), nome, null, texto, tipo, video, Buscas.semAcento(texto));
+        if (tipo == TipoDePost.ENQUETE) {
+            post.definirEnquete(Boolean.TRUE.equals(r.variasRespostas()), r.encerraEm());
+        }
         muralPosts.saveAndFlush(post);
+        if (tipo == TipoDePost.ENQUETE) {
+            enquetes.criarOpcoes(post.getId(), opcoesLimpas);
+        }
+        if (r.capaId() != null && !capas.ligarAoPost(r.capaId(), post.getId())) {
+            // Capa inexistente, de outra consultoria ou já com dono: desfaz o post também (a exceção reverte a transação).
+            throw new ValidacaoException("Confira a publicação.", "POST_INVALIDO", List.of(CapasDaComunidadeService.CAPA_INDISPONIVEL));
+        }
         if (!fotoIds.isEmpty() && fotos.vincular(post.getId(), eu.usuarioId(), fotoIds) != fotoIds.size()) {
             // Foto de outro autor, inexistente ou já ligada: desfaz o post também (a exceção reverte a transação).
             throw new ValidacaoException("Confira a publicação.", "POST_INVALIDO",
                     List.of(new ApiError.FieldError("fotoIds", "Alguma foto não está disponível. Envie de novo.")));
         }
         Map<UUID, String> autor = apelidosDe(Stream.of(post.getAutorId()));
+        EnqueteResponse enquete = tipo == TipoDePost.ENQUETE ? enquetes.resumos(List.of(post), eu).get(post.getId()) : null;
         return new MuralPostResponse(post.getId(), post.getAutorId(), post.getAutorNome(), autor.get(post.getAutorId()),
                 autor.containsKey(post.getAutorId()), post.getAutorFotoUrl(), post.getTexto(), post.getTipo(),
-                post.getVideoUrl(), fotosDoPost(post.getId(), fotoIds), false, post.isFixado(), post.getCriadoEm(), Map.of(), List.of(), 0,
-                aluno ? null : 0L);
+                post.getVideoUrl(), r.capaId(), fotosDoPost(post.getId(), fotoIds), enquete, false, post.isFixado(), post.getCriadoEm(),
+                Map.of(), List.of(), 0, aluno ? null : 0L);
     }
 
     /** Mesma ordem da lista do mural: a do envio das fotos (não a ordem do pedido). */
@@ -327,16 +375,6 @@ public class ComunidadeService {
 
     private static boolean souAluno(UsuarioAutenticado eu) {
         return eu != null && "ALUNO".equals(eu.papel());
-    }
-
-    public void alternarReacaoMural(UUID postId, String emoji, UsuarioAutenticado eu) {
-        exigirPostVisivel(postId);
-        var existente = muralReacoes.findByPostIdAndUsuarioIdAndEmoji(postId, eu.usuarioId(), emoji);
-        if (existente.isPresent()) {
-            muralReacoes.delete(existente.get());
-        } else {
-            muralReacoes.saveAndFlush(new ComunidadeMuralReacao(postId, eu.usuarioId(), emoji));
-        }
     }
 
     @Transactional(readOnly = true)
@@ -371,8 +409,9 @@ public class ComunidadeService {
         ComunidadeMuralPost p = muralPosts.findById(postId).orElseThrow(() -> new NaoEncontradoException("Post não encontrado."));
         p.ocultar();
         muralPosts.saveAndFlush(p);
-        // Post oculto não guarda foto (C7): os bytes saem do banco junto.
+        // Post oculto não guarda foto (C7) nem capa (D7): os bytes saem do banco junto. Os votos ficam, escondidos com o post.
         fotos.apagarDoPost(postId);
+        capas.apagarDoPost(postId);
     }
 
     public void fixarPost(UUID postId) {
@@ -465,7 +504,7 @@ public class ComunidadeService {
         UUID usuarioId = aluno.getUsuarioId();
         if (usuarioId == null) {
             return new ComunidadeExportada(aluno.getApelido(), perfil, List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
-                    minhasConquistas, false);
+                    List.of(), minhasConquistas, false);
         }
         var posts = muralPosts.findTop5000ByAutorIdOrderByCriadoEmDesc(usuarioId).stream()
                 .map(p -> new PostExportado(p.getId(), p.getTipo(), p.getTexto(), p.getVideoUrl(), p.isFixado(), p.isOculto(), p.getCriadoEm()))
@@ -476,9 +515,10 @@ public class ComunidadeService {
         var doMural = muralComentarios.findTop5000ByAutorIdOrderByCriadoEmDesc(usuarioId).stream()
                 .map(c -> new ComentarioExportado(c.getId(), c.getPostId(), c.getTexto(), c.isOculto(), c.getCriadoEm()))
                 .toList();
-        var reacoes = muralReacoes.findTop5000ByUsuarioIdOrderByCriadoEmDesc(usuarioId).stream()
-                .map(r -> new ReacaoExportada(r.getPostId(), r.getEmoji(), r.getCriadoEm()))
+        var reacoesDadas = muralReacoes.findTop5000ByUsuarioIdOrderByCriadoEmDesc(usuarioId).stream()
+                .map(r -> new ReacaoExportada(r.getPostId(), r.getCodigo(), r.getCriadoEm()))
                 .toList();
+        var votos = enquetes.exportar(usuarioId);
         // Só metadados da foto (a imagem não sai) e as denúncias que ele fez; as feitas contra ele não são dele.
         var fotosEnviadas = fotos.findTop5000ByAutorIdOrderByCriadoEmDesc(usuarioId).stream()
                 .map(f -> new FotoExportada(f.getId(), f.getPostId(), f.getTamanho(), f.getCriadoEm()))
@@ -488,9 +528,10 @@ public class ComunidadeService {
                 .toList();
         boolean truncado = fotosEnviadas.size() == LIMITE_DA_EXPORTACAO || denunciasFeitas.size() == LIMITE_DA_EXPORTACAO
                 || posts.size() == LIMITE_DA_EXPORTACAO || deAulas.size() == LIMITE_DA_EXPORTACAO
-                || doMural.size() == LIMITE_DA_EXPORTACAO || reacoes.size() == LIMITE_DA_EXPORTACAO;
-        return new ComunidadeExportada(aluno.getApelido(), perfil, posts, deAulas, doMural, reacoes, fotosEnviadas, denunciasFeitas,
-                minhasConquistas, truncado);
+                || doMural.size() == LIMITE_DA_EXPORTACAO || reacoesDadas.size() == LIMITE_DA_EXPORTACAO
+                || votos.size() == LIMITE_DA_EXPORTACAO;
+        return new ComunidadeExportada(aluno.getApelido(), perfil, posts, deAulas, doMural, reacoesDadas, votos, fotosEnviadas,
+                denunciasFeitas, minhasConquistas, truncado);
     }
 
     /** Categoria é texto livre opcional: sem espaços nas pontas nem repetidos no meio; vazio vira nulo (nunca "" no banco). */

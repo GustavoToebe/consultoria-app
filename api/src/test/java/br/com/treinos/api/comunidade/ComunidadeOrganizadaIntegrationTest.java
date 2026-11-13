@@ -556,7 +556,7 @@ class ComunidadeOrganizadaIntegrationTest extends AbstractIntegrationTest {
         assertThat(contar("select count(*) from comunidade_mural_post where autor_id = ?", usuarioDoAluno(alunoA))).isZero();
         // Comentar e reagir continuam; a equipe também segue publicando; o aluno enxerga a chave.
         api.post(MURAL + "/" + post + "/comentarios", loginA, Map.of("texto", "Oi"), 200);
-        api.post(MURAL + "/" + post + "/reacoes", loginA, Map.of("emoji", "🔥"), 204);
+        api.put(MURAL + "/" + post + "/reacoes/FOGO", loginA, Map.of(), 204);
         equipePosta("AVISO", "Aviso", null);
         assertThat(api.get("/aluno/comunidade/configuracao", loginA, 200).get("alunosPublicam").asBoolean()).isFalse();
 

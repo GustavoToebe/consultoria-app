@@ -5,12 +5,14 @@ import br.com.treinos.api.AbstractIntegrationTest;
 import br.com.treinos.api.ApiDeTeste;
 import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.web.Fuso;
+import db.migration.V073__historico_financeiro_parcial;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
@@ -18,6 +20,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
@@ -54,6 +57,8 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
 
     /** UTF-8 com marca de ordem (BOM): o Excel abre o CSV com a acentuação certa. */
     private static final String MARCA_DE_ORDEM = String.valueOf((char) 0xFEFF);
+    private static final String CABECALHO_DO_CSV =
+            "registro;data;descricao;aluno;situacao;forma;pago_em;tipo;categoria;valor;historico_financeiro_parcial";
 
     private ApiDeTeste api;
     private JsonNode admin;
@@ -181,6 +186,17 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         return n == null || n.isNull() || n.isMissingNode();
     }
 
+    private static JsonNode semOCampo(JsonNode resposta, String campo) {
+        ObjectNode copia = (ObjectNode) resposta.deepCopy();
+        copia.remove(campo);
+        return copia;
+    }
+
+    /** É um número e é 0 (não vale nulo: {@code asLong()} de nulo também dá 0). */
+    private static boolean zero(JsonNode n) {
+        return n != null && n.isNumber() && n.asLong() == 0;
+    }
+
     private int auditorias(String acao, String entidadeId) {
         Integer n = jdbc.queryForObject("select count(*) from auditoria where acao = ? and entidade_id = ?::uuid",
                 Integer.class, acao, entidadeId);
@@ -264,7 +280,8 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.get("/financeiro/planos", outro, 200)).isEmpty();
         assertThat(api.get("/financeiro/cobrancas", outro, 200).get("itens")).isEmpty();
         assertThat(api.get("/financeiro/lancamentos", outro, 200).get("itens")).isEmpty();
-        assertThat(nulo(api.get("/financeiro/numeros?meses=6", outro, 200).get("previstoCentavos"))).isTrue();
+        // O previsto da outra consultoria é 0 (consulta válida e vazia), nunca o da primeira.
+        assertThat(zero(api.get("/financeiro/numeros?meses=6", outro, 200).get("previstoCentavos"))).isTrue();
 
         api.get("/alunos/" + aluno + "/contratacoes", outro, 404);
         api.get("/alunos/" + aluno + "/cobrancas", outro, 404);
@@ -337,7 +354,7 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         assertThat(painelA.get("movimentoDeAlunos").get(5).get("contratacoesNovas").asLong()).isEqualTo(2);
         assertThat(painelA.get("resultadoDoMes").get("recebidoCentavos").asLong()).isEqualTo(11111);
         assertThat(painelA.get("resultadoDoMes").get("entradasAvulsasCentavos").asLong()).isEqualTo(4444);
-        assertThat(painelA.get("resultadoDoMes").get("saidasAvulsasCentavos").asLong()).isZero();
+        assertThat(zero(painelA.get("resultadoDoMes").get("saidasAvulsasCentavos"))).isTrue();
         assertThat(painelA.get("resultadoDoMes").get("resultadoCentavos").asLong()).isEqualTo(11111 + 4444);
         assertThat(painelA.toString()).doesNotContain("Beta");
         JsonNode numerosA = api.get("/financeiro/numeros?meses=6", admin, 200);
@@ -1286,28 +1303,53 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
     // ---- números e painel ----
 
     @Test
-    void numerosSemDadoSaemNulosENuncaZero() throws Exception {
+    void consultoriaSemCobrancaNenhumaTemZeroNoQueEVazioENuloNoQueNaoTemBase() throws Exception {
         JsonNode vazio = api.get("/financeiro/numeros?meses=6", admin, 200);
         assertThat(vazio.get("meses")).hasSize(6);
+        // Consulta válida e vazia: 0 (classe a), nunca nulo.
         for (JsonNode mes : vazio.get("meses")) {
-            assertThat(nulo(mes.get("recebidoCentavos"))).isTrue();
+            assertThat(zero(mes.get("recebidoCentavos"))).isTrue();
         }
         assertThat(vazio.get("meses").get(5).get("parcial").asBoolean()).isTrue();
         assertThat(vazio.get("meses").get(0).get("parcial").asBoolean()).isFalse();
-        assertThat(nulo(vazio.get("previstoCentavos"))).isTrue();
+        assertThat(zero(vazio.get("previstoCentavos"))).isTrue();
+        assertThat(zero(vazio.get("receitaRecorrenteMensalCentavos"))).isTrue();
+        // Sem cobrança cobrada não há base para o percentual: segue nulo (classe b).
         assertThat(nulo(vazio.get("inadimplenciaPercentual"))).isTrue();
-        assertThat(nulo(vazio.get("receitaRecorrenteMensalCentavos"))).isTrue();
         assertThat(api.get("/financeiro/numeros?meses=12", admin, 200).get("meses")).hasSize(12);
         api.get("/financeiro/numeros?meses=7", admin, 400);
 
         JsonNode painel = api.get("/financeiro/painel", admin, 200);
         assertThat(painel.get("serie")).hasSize(6);
-        assertThat(nulo(painel.get("cartoes").get("recebidoCentavos"))).isTrue();
-        assertThat(nulo(painel.get("cartoes").get("alunosPagantes"))).isTrue();
-        assertThat(nulo(painel.get("cartoes").get("valorMedioPorAlunoCentavos"))).isTrue();
+        JsonNode cartoes = painel.get("cartoes");
+        assertThat(zero(cartoes.get("recebidoCentavos"))).isTrue();
+        assertThat(zero(cartoes.get("aReceberCentavos"))).isTrue();
+        assertThat(zero(cartoes.get("emAtraso").get("valorCentavos"))).isTrue();
+        assertThat(zero(cartoes.get("receitaRecorrenteMensalCentavos"))).isTrue();
+        assertThat(zero(cartoes.get("alunosPagantes"))).isTrue();
+        // Sem pagante não há média (classe d, sem base): nulo.
+        assertThat(nulo(cartoes.get("valorMedioPorAlunoCentavos"))).isTrue();
+        assertThat(zero(painel.get("inadimplencia").get("cobradoCentavos"))).isTrue();
+        assertThat(zero(painel.get("inadimplencia").get("vencidoCentavos"))).isTrue();
         assertThat(nulo(painel.get("inadimplencia").get("percentual"))).isTrue();
-        assertThat(painel.get("cartoes").get("emAtraso").get("cobrancas").asLong()).isZero();
-        assertThat(painel.get("movimentoDeAlunos").get(5).get("contratacoesNovas").asLong()).isZero();
+        assertThat(zero(painel.get("proximosRecebimentos").get("em7Dias").get("valorCentavos"))).isTrue();
+        assertThat(zero(painel.get("proximosRecebimentos").get("em30Dias").get("valorCentavos"))).isTrue();
+        assertThat(zero(api.get("/financeiro/inadimplentes", admin, 200).get("valorTotalCentavos"))).isTrue();
+        assertThat(cartoes.get("emAtraso").get("cobrancas").asLong()).isZero();
+        // Série: recebido 0 em todos os meses até o corrente; previsto 0 só no corrente, nulo nos meses encerrados.
+        for (int i = 0; i < 6; i++) {
+            assertThat(zero(painel.get("serie").get(i).get("recebidoCentavos"))).as("recebido do mês %d", i).isTrue();
+        }
+        assertThat(zero(painel.get("serie").get(5).get("previstoCentavos"))).isTrue();
+        assertThat(nulo(painel.get("serie").get(0).get("previstoCentavos"))).isTrue();
+        assertThat(zero(painel.get("resultadoDoMes").get("recebidoCentavos"))).isTrue();
+        // Mês corrente válido, sem lançamento nem pagamento: o resultado é um número (0), não nulo.
+        assertThat(zero(painel.get("resultadoDoMes").get("resultadoCentavos"))).isTrue();
+        assertThat(zero(painel.get("serie").get(5).get("resultadoCentavos"))).isTrue();
+        assertThat(zero(painel.get("movimentoDeAlunos").get(5).get("contratacoesNovas"))).isTrue();
+        assertThat(zero(painel.get("movimentoDeAlunos").get(5).get("contratacoesEncerradas"))).isTrue();
+        // O bruto do líquido herda o recebido: 0 (número); o líquido segue indisponível.
+        assertThat(zero(painel.get("liquido").get("brutoCentavos"))).isTrue();
         assertThat(painel.get("liquido").get("disponivel").asBoolean()).isFalse();
         assertThat(painel.get("resultadoDoMes").get("rotulo").asString()).isEqualTo(FinanceiroService.ROTULO_RESULTADO);
         assertThat(painel.get("porForma")).isEmpty();
@@ -1316,24 +1358,24 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         // Mês sem lançamento: da criação da consultoria (hoje) até o corrente é R$ 0,00; os meses anteriores à criação e o
         // "Meus", que não cobre lançamento, seguem nulos.
         JsonNode semLancamento = painel.get("resultadoDoMes");
-        assertThat(semLancamento.get("entradasAvulsasCentavos").asLong()).isZero();
-        assertThat(semLancamento.get("saidasAvulsasCentavos").asLong()).isZero();
-        assertThat(nulo(semLancamento.get("recebidoCentavos"))).isTrue();
+        assertThat(zero(semLancamento.get("entradasAvulsasCentavos"))).isTrue();
+        assertThat(zero(semLancamento.get("saidasAvulsasCentavos"))).isTrue();
+        assertThat(zero(semLancamento.get("recebidoCentavos"))).isTrue();
         JsonNode serieVazia = painel.get("serie");
         for (int i = 0; i < 5; i++) {
             assertThat(nulo(serieVazia.get(i).get("entradasAvulsasCentavos"))).isTrue();
             assertThat(nulo(serieVazia.get(i).get("saidasAvulsasCentavos"))).isTrue();
             assertThat(nulo(serieVazia.get(i).get("resultadoCentavos"))).isTrue();
         }
-        assertThat(serieVazia.get(5).get("entradasAvulsasCentavos").asLong()).isZero();
-        assertThat(serieVazia.get(5).get("saidasAvulsasCentavos").asLong()).isZero();
+        assertThat(zero(serieVazia.get(5).get("entradasAvulsasCentavos"))).isTrue();
+        assertThat(zero(serieVazia.get(5).get("saidasAvulsasCentavos"))).isTrue();
         JsonNode meusVazio = api.get("/financeiro/painel?meus=true", admin, 200);
         assertThat(nulo(meusVazio.get("resultadoDoMes").get("entradasAvulsasCentavos"))).isTrue();
         assertThat(nulo(meusVazio.get("serie").get(5).get("entradasAvulsasCentavos"))).isTrue();
         // Mês futuro segue sem dado (nulo), nunca zero.
         JsonNode futuro = api.get("/financeiro/painel?de=" + hoje + "&ate=" + hoje.plusMonths(2), admin, 200).get("serie");
         assertThat(nulo(futuro.get(futuro.size() - 1).get("entradasAvulsasCentavos"))).isTrue();
-        assertThat(futuro.get(0).get("entradasAvulsasCentavos").asLong()).isZero();
+        assertThat(zero(futuro.get(0).get("entradasAvulsasCentavos"))).isTrue();
     }
 
     @Test
@@ -1359,16 +1401,242 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         // Do mês da criação até o corrente, sem lançamento, é R$ 0,00.
         assertThat(serie.get(2).get("mes").asString()).isEqualTo(criacao.toString());
         for (int i = 2; i < 6; i++) {
-            assertThat(serie.get(i).get("entradasAvulsasCentavos").asLong()).isZero();
-            assertThat(serie.get(i).get("saidasAvulsasCentavos").asLong()).isZero();
+            assertThat(zero(serie.get(i).get("entradasAvulsasCentavos"))).isTrue();
+            assertThat(zero(serie.get(i).get("saidasAvulsasCentavos"))).isTrue();
         }
         JsonNode resultado = api.get("/financeiro/painel", admin, 200).get("resultadoDoMes");
-        assertThat(resultado.get("entradasAvulsasCentavos").asLong()).isZero();
-        assertThat(resultado.get("saidasAvulsasCentavos").asLong()).isZero();
+        assertThat(zero(resultado.get("entradasAvulsasCentavos"))).isTrue();
+        assertThat(zero(resultado.get("saidasAvulsasCentavos"))).isTrue();
         // O "Meus" não cobre lançamento: nulo em todos os meses, antes e depois da criação.
         JsonNode meus = api.get("/financeiro/painel?meus=true", admin, 200).get("serie");
         assertThat(nulo(meus.get(0).get("entradasAvulsasCentavos"))).isTrue();
         assertThat(nulo(meus.get(5).get("entradasAvulsasCentavos"))).isTrue();
+    }
+
+    @Test
+    void periodoTodoNoFuturoEPeriodoJaPassadoMantemOsNulosDaClasseB() throws Exception {
+        // Período inteiro no futuro: não há o que ter recebido nem atrasado (nulo); o que vai vencer é uma consulta válida (0).
+        JsonNode futuro = api.get("/financeiro/painel?de=" + hoje.plusMonths(1) + "&ate=" + hoje.plusMonths(2), admin, 200);
+        JsonNode cartoes = futuro.get("cartoes");
+        assertThat(nulo(cartoes.get("recebidoCentavos"))).isTrue();
+        assertThat(nulo(cartoes.get("alunosPagantes"))).isTrue();
+        assertThat(nulo(cartoes.get("valorMedioPorAlunoCentavos"))).isTrue();
+        assertThat(nulo(cartoes.get("emAtraso").get("valorCentavos"))).isTrue();
+        assertThat(cartoes.get("emAtraso").get("cobrancas").asLong()).isZero();
+        assertThat(zero(cartoes.get("aReceberCentavos"))).isTrue();
+        assertThat(zero(cartoes.get("receitaRecorrenteMensalCentavos"))).isTrue();
+        assertThat(nulo(futuro.get("inadimplencia").get("cobradoCentavos"))).isTrue();
+        assertThat(nulo(futuro.get("inadimplencia").get("vencidoCentavos"))).isTrue();
+        assertThat(nulo(futuro.get("inadimplencia").get("percentual"))).isTrue();
+        assertThat(futuro.get("porForma")).isEmpty();
+        assertThat(futuro.get("porPlano")).isEmpty();
+        assertThat(futuro.get("serie")).hasSize(2);
+        for (JsonNode mes : futuro.get("serie")) {
+            assertThat(nulo(mes.get("recebidoCentavos"))).isTrue();
+            assertThat(zero(mes.get("previstoCentavos"))).isTrue();
+            assertThat(nulo(mes.get("resultadoCentavos"))).isTrue();
+        }
+
+        // Período já passado: o que ainda vai vencer não existe (nulo); recebido e atraso são consultas válidas (0).
+        JsonNode passado = api.get("/financeiro/painel?de=" + hoje.minusMonths(3) + "&ate=" + hoje.minusMonths(2), admin, 200);
+        assertThat(nulo(passado.get("cartoes").get("aReceberCentavos"))).isTrue();
+        assertThat(zero(passado.get("cartoes").get("recebidoCentavos"))).isTrue();
+        assertThat(zero(passado.get("cartoes").get("alunosPagantes"))).isTrue();
+        assertThat(zero(passado.get("cartoes").get("emAtraso").get("valorCentavos"))).isTrue();
+        assertThat(zero(passado.get("inadimplencia").get("cobradoCentavos"))).isTrue();
+        assertThat(zero(passado.get("inadimplencia").get("vencidoCentavos"))).isTrue();
+        for (JsonNode mes : passado.get("serie")) {
+            assertThat(zero(mes.get("recebidoCentavos"))).isTrue();
+            assertThat(nulo(mes.get("previstoCentavos"))).as("previsto de mês encerrado").isTrue();
+        }
+    }
+
+    @Test
+    void cartoesEmPeriodoMistoPassadoEFuturoSeguemARegraDoPlano() throws Exception {
+        String periodo = "/financeiro/painel?de=" + hoje.minusMonths(1) + "&ate=" + hoje.plusMonths(1);
+
+        // Sem nenhuma cobrança: o início já passou, então recebido, a receber e atraso são consultas válidas e vazias (0).
+        JsonNode vazio = api.get(periodo, admin, 200);
+        JsonNode c0 = vazio.get("cartoes");
+        assertThat(zero(c0.get("recebidoCentavos"))).isTrue();
+        assertThat(zero(c0.get("aReceberCentavos"))).isTrue();
+        assertThat(zero(c0.get("emAtraso").get("valorCentavos"))).isTrue();
+        assertThat(zero(c0.get("alunosPagantes"))).isTrue();
+        assertThat(nulo(c0.get("valorMedioPorAlunoCentavos"))).isTrue();
+        assertThat(zero(vazio.get("inadimplencia").get("cobradoCentavos"))).isTrue();
+        assertThat(zero(vazio.get("inadimplencia").get("vencidoCentavos"))).isTrue();
+        assertThat(zero(vazio.get("liquido").get("brutoCentavos"))).isTrue();
+        JsonNode s0 = vazio.get("serie");
+        assertThat(s0).hasSize(3);
+        assertThat(zero(s0.get(0).get("recebidoCentavos"))).isTrue();
+        assertThat(nulo(s0.get(0).get("previstoCentavos"))).as("mês encerrado").isTrue();
+        assertThat(zero(s0.get(1).get("recebidoCentavos"))).isTrue();
+        assertThat(zero(s0.get(1).get("previstoCentavos"))).isTrue();
+        assertThat(nulo(s0.get(2).get("recebidoCentavos"))).as("mês depois do corrente").isTrue();
+        assertThat(zero(s0.get(2).get("previstoCentavos"))).isTrue();
+
+        // Com uma paga hoje, uma aberta que vence hoje e uma vencida há dois dias (parcela única, sem a seguinte).
+        UUID pago = aluno();
+        UUID aberto = aluno();
+        UUID atrasado = aluno();
+        contratarHoje(pago, plano("Plano misto pago", 30000, "PARCELA_UNICA"));
+        contratarHoje(aberto, plano("Plano misto aberto", 10000, "PARCELA_UNICA"));
+        contratarHoje(atrasado, plano("Plano misto atrasado", 20000, "PARCELA_UNICA"));
+        baixar(cobrancas(pago).get(0), hoje, 200);
+        vencerHaDias(cobrancas(atrasado).get(0), 2);
+
+        JsonNode painel = api.get(periodo, admin, 200);
+        JsonNode c = painel.get("cartoes");
+        assertThat(c.get("recebidoCentavos").asLong()).isEqualTo(30000);
+        assertThat(c.get("aReceberCentavos").asLong()).isEqualTo(10000);
+        assertThat(c.get("emAtraso").get("valorCentavos").asLong()).isEqualTo(20000);
+        assertThat(c.get("emAtraso").get("cobrancas").asLong()).isEqualTo(1);
+        assertThat(c.get("alunosPagantes").asLong()).isEqualTo(1);
+        assertThat(painel.get("inadimplencia").get("vencidoCentavos").asLong()).isEqualTo(20000);
+        assertThat(painel.get("liquido").get("brutoCentavos").asLong()).isEqualTo(30000);
+        assertThat(painel.get("serie").get(1).get("recebidoCentavos").asLong()).isEqualTo(30000);
+        assertThat(painel.get("serie").get(1).get("previstoCentavos").asLong()).isEqualTo(10000);
+        assertThat(nulo(painel.get("serie").get(2).get("recebidoCentavos"))).isTrue();
+        assertThat(zero(painel.get("serie").get(2).get("previstoCentavos"))).isTrue();
+    }
+
+    @Test
+    void resultadoSoExisteComOsTresComponentesEUmMesSemLancamentoContaComoNumero() throws Exception {
+        UUID aluno = aluno();
+        UUID consultoria = jdbc.queryForObject("select consultoria_id from aluno where id = ?::uuid", UUID.class,
+                aluno.toString());
+        YearMonth atual = YearMonth.from(hoje);
+        YearMonth criacao = atual.minusMonths(3);
+        jdbc.update("update consultoria set criado_em = ? where id = ?", Timestamp.from(ZonedDateTime.of(criacao.getYear(),
+                criacao.getMonthValue(), 15, 12, 0, 0, 0, Fuso.BRASILIA).toInstant()), consultoria);
+        contratarHoje(aluno, plano("Plano da baixa retroativa", 10000, "MENSAL"));
+        baixar(cobrancas(aluno).get(0), hoje, 200);
+        // Baixa retroativa: o pagamento cai num mês anterior à criação da consultoria (entradas e saídas avulsas nulas ali).
+        jdbc.update("update cobranca_aluno set pago_em = ?::date where aluno_id = ?::uuid and situacao = 'PAGA'",
+                atual.minusMonths(5).atDay(10).toString(), aluno.toString());
+
+        JsonNode serie = api.get("/financeiro/painel", admin, 200).get("serie");
+        assertThat(serie.get(0).get("recebidoCentavos").asLong()).isEqualTo(10000);
+        assertThat(nulo(serie.get(0).get("entradasAvulsasCentavos"))).isTrue();
+        assertThat(nulo(serie.get(0).get("saidasAvulsasCentavos"))).isTrue();
+        // Falta componente: o resultado é nulo, não o recebido somado como se fosse completo.
+        assertThat(nulo(serie.get(0).get("resultadoCentavos"))).isTrue();
+        assertThat(zero(serie.get(1).get("recebidoCentavos"))).isTrue();
+        assertThat(nulo(serie.get(1).get("resultadoCentavos"))).isTrue();
+        // Da criação ao mês corrente, sem lançamento: os três componentes existem e o resultado é um número (0).
+        for (int i = 2; i < 6; i++) {
+            assertThat(zero(serie.get(i).get("resultadoCentavos"))).as("resultado do mês %d", i).isTrue();
+        }
+
+        api.post("/financeiro/lancamentos", admin, Map.of("data", hoje.toString(), "descricao", "Venda fictícia",
+                "valorCentavos", 5000, "tipo", "ENTRADA"), 200);
+        JsonNode comLancamento = api.get("/financeiro/painel", admin, 200);
+        assertThat(comLancamento.get("serie").get(5).get("resultadoCentavos").asLong()).isEqualTo(5000);
+        assertThat(comLancamento.get("resultadoDoMes").get("resultadoCentavos").asLong()).isEqualTo(5000);
+
+        // Mês futuro: sem recebido, entradas e saídas, o resultado é nulo; o corrente do mesmo período segue número.
+        JsonNode comFuturo = api.get("/financeiro/painel?de=" + hoje + "&ate=" + hoje.plusMonths(2), admin, 200).get("serie");
+        assertThat(comFuturo.get(0).get("resultadoCentavos").asLong()).isEqualTo(5000);
+        assertThat(nulo(comFuturo.get(comFuturo.size() - 1).get("resultadoCentavos"))).isTrue();
+
+        // "Meus": há recebido, mas as avulsas não têm aluno; o resultado é nulo em qualquer mês.
+        JsonNode meus = api.get("/financeiro/painel?meus=true", admin, 200);
+        assertThat(meus.get("serie").get(0).get("recebidoCentavos").asLong()).isEqualTo(10000);
+        for (JsonNode mes : meus.get("serie")) {
+            assertThat(nulo(mes.get("resultadoCentavos"))).isTrue();
+        }
+        assertThat(nulo(meus.get("resultadoDoMes").get("resultadoCentavos"))).isTrue();
+    }
+
+    @Test
+    void baixaManualNaoZeraASomaDasCobrancasJaGeradas() throws Exception {
+        UUID alunoA = aluno();
+        UUID alunoB = aluno();
+        // Parcela única: a baixa não gera a seguinte, então as somas são exatas.
+        contratarHoje(alunoA, plano("Plano A", 10000, "PARCELA_UNICA"));
+        contratarHoje(alunoB, plano("Plano B", 20000, "PARCELA_UNICA"));
+        assertThat(api.get("/financeiro/painel", admin, 200).get("cartoes").get("aReceberCentavos").asLong()).isEqualTo(30000);
+        assertThat(api.get("/financeiro/numeros?meses=6", admin, 200).get("previstoCentavos").asLong()).isEqualTo(30000);
+
+        baixar(cobrancas(alunoB).get(0), hoje, 200);
+        JsonNode depoisDeB = api.get("/financeiro/painel", admin, 200);
+        assertThat(depoisDeB.get("cartoes").get("aReceberCentavos").asLong()).isEqualTo(10000);
+        assertThat(depoisDeB.get("cartoes").get("recebidoCentavos").asLong()).isEqualTo(20000);
+        assertThat(depoisDeB.get("proximosRecebimentos").get("em7Dias").get("valorCentavos").asLong()).isEqualTo(10000);
+        JsonNode numerosDepoisDeB = api.get("/financeiro/numeros?meses=6", admin, 200);
+        assertThat(numerosDepoisDeB.get("previstoCentavos").asLong()).isEqualTo(10000);
+        assertThat(numerosDepoisDeB.get("meses").get(5).get("recebidoCentavos").asLong()).isEqualTo(20000);
+
+        // Quando a última aberta também é baixada, a soma esvazia: 0 de verdade (número), não nulo.
+        baixar(cobrancas(alunoA).get(0), hoje, 200);
+        JsonNode semAbertas = api.get("/financeiro/painel", admin, 200);
+        assertThat(zero(semAbertas.get("cartoes").get("aReceberCentavos"))).isTrue();
+        assertThat(semAbertas.get("cartoes").get("recebidoCentavos").asLong()).isEqualTo(30000);
+        assertThat(zero(semAbertas.get("proximosRecebimentos").get("em7Dias").get("valorCentavos"))).isTrue();
+        assertThat(zero(api.get("/financeiro/numeros?meses=6", admin, 200).get("previstoCentavos"))).isTrue();
+    }
+
+    @Test
+    void oZeroDeUmaConsultoriaNaoVemDeOutra() throws Exception {
+        UUID aluno = aluno();
+        contratarHoje(aluno, plano("Plano com dado", 10000, "MENSAL"));
+        baixar(cobrancas(aluno).get(0), hoje, 200);
+        JsonNode comDado = api.get("/financeiro/painel", admin, 200);
+        assertThat(comDado.get("cartoes").get("recebidoCentavos").asLong()).isEqualTo(10000);
+        assertThat(api.get("/financeiro/numeros?meses=6", admin, 200).get("previstoCentavos").asLong()).isPositive();
+
+        // A outra consultoria não tem nada: tudo o que é consulta válida e vazia é 0, nenhum valor emprestado da primeira.
+        JsonNode outro = api.novoTreinador();
+        JsonNode painel = api.get("/financeiro/painel", outro, 200);
+        JsonNode cartoes = painel.get("cartoes");
+        assertThat(zero(cartoes.get("recebidoCentavos"))).isTrue();
+        assertThat(zero(cartoes.get("aReceberCentavos"))).isTrue();
+        assertThat(zero(cartoes.get("emAtraso").get("valorCentavos"))).isTrue();
+        assertThat(zero(cartoes.get("receitaRecorrenteMensalCentavos"))).isTrue();
+        assertThat(zero(cartoes.get("alunosPagantes"))).isTrue();
+        assertThat(painel.get("porForma")).isEmpty();
+        assertThat(painel.get("porPlano")).isEmpty();
+        JsonNode numeros = api.get("/financeiro/numeros?meses=6", outro, 200);
+        assertThat(zero(numeros.get("previstoCentavos"))).isTrue();
+        assertThat(zero(numeros.get("receitaRecorrenteMensalCentavos"))).isTrue();
+        assertThat(zero(numeros.get("meses").get(5).get("recebidoCentavos"))).isTrue();
+        assertThat(zero(api.get("/financeiro/inadimplentes", outro, 200).get("valorTotalCentavos"))).isTrue();
+    }
+
+    @Test
+    void avisoDeHistoricoParcialSoInformaENaoMudaValorNemPermissao() throws Exception {
+        UUID aluno = aluno();
+        contratarHoje(aluno, plano("Plano do aviso", 10000, "MENSAL"));
+        baixar(cobrancas(aluno).get(0), hoje, 200);
+        JsonNode outro = api.novoTreinador();
+        UUID consultoria = jdbc.queryForObject("select consultoria_id from aluno where id = ?::uuid", UUID.class,
+                aluno.toString());
+
+        String campo = "historicoFinanceiroParcial";
+        JsonNode painelSem = api.get("/financeiro/painel", admin, 200);
+        JsonNode numerosSem = api.get("/financeiro/numeros?meses=6", admin, 200);
+        assertThat(painelSem.get(campo).isBoolean()).isTrue();
+        assertThat(painelSem.get(campo).asBoolean()).isFalse();
+        assertThat(numerosSem.get(campo).asBoolean()).isFalse();
+
+        jdbc.update("update consultoria set historico_financeiro_parcial = true where id = ?", consultoria);
+        JsonNode painelCom = api.get("/financeiro/painel", admin, 200);
+        JsonNode numerosCom = api.get("/financeiro/numeros?meses=6", admin, 200);
+        assertThat(painelCom.get(campo).asBoolean()).isTrue();
+        assertThat(numerosCom.get(campo).asBoolean()).isTrue();
+        assertThat(api.get("/financeiro/painel?meus=true", admin, 200).get(campo).asBoolean()).isTrue();
+        // Só o campo muda: nenhum valor, fórmula ou período.
+        assertThat(semOCampo(painelCom, campo)).isEqualTo(semOCampo(painelSem, campo));
+        assertThat(semOCampo(numerosCom, campo)).isEqualTo(semOCampo(numerosSem, campo));
+
+        // A outra consultoria não recebe o aviso.
+        assertThat(api.get("/financeiro/painel", outro, 200).get(campo).asBoolean()).isFalse();
+        assertThat(api.get("/financeiro/numeros?meses=6", outro, 200).get(campo).asBoolean()).isFalse();
+
+        // A permissão não muda: sem FINANCEIRO_LER segue 403, mesmo com o aviso ligado.
+        JsonNode semFinanceiro = membro("Sem financeiro do aviso", Set.of("ALUNO_LER"));
+        api.get("/financeiro/painel", semFinanceiro, 403);
+        api.get("/financeiro/numeros?meses=6", semFinanceiro, 403);
     }
 
     @Test
@@ -1533,10 +1801,10 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         contratarHoje(aluno, plano("Plano do recebido", 10000, "MENSAL"));
         JsonNode aberta = cobrancas(aluno).get(0);
 
-        // Antes da baixa: nada recebido; o previsto é só a cobrança de hoje.
-        assertThat(nulo(api.get("/financeiro/numeros?meses=6", admin, 200).get("meses").get(5).get("recebidoCentavos"))).isTrue();
+        // Antes da baixa: nada recebido (0, a consulta rodou); o previsto é só a cobrança de hoje.
+        assertThat(zero(api.get("/financeiro/numeros?meses=6", admin, 200).get("meses").get(5).get("recebidoCentavos"))).isTrue();
         assertThat(api.get("/financeiro/numeros?meses=6", admin, 200).get("previstoCentavos").asLong()).isEqualTo(10000);
-        assertThat(nulo(api.get("/financeiro/painel", admin, 200).get("cartoes").get("recebidoCentavos"))).isTrue();
+        assertThat(zero(api.get("/financeiro/painel", admin, 200).get("cartoes").get("recebidoCentavos"))).isTrue();
 
         // Com a baixa: soma no recebido (números e painel).
         JsonNode paga = baixar(aberta, hoje, 200);
@@ -1552,17 +1820,18 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         // Desfeita a baixa: o valor sai do recebido e a cobrança volta a ser prevista.
         motivo("/cobrancas/" + aberta.get("id").asString() + "/desfazer-baixa", paga, 200);
         JsonNode numeros = api.get("/financeiro/numeros?meses=6", admin, 200);
-        assertThat(nulo(numeros.get("meses").get(5).get("recebidoCentavos"))).isTrue();
+        assertThat(zero(numeros.get("meses").get(5).get("recebidoCentavos"))).isTrue();
         assertThat(numeros.get("previstoCentavos").asLong()).isEqualTo(10000 + 10000);
         JsonNode semBaixa = api.get("/financeiro/painel", admin, 200);
-        assertThat(nulo(semBaixa.get("cartoes").get("recebidoCentavos"))).isTrue();
-        assertThat(nulo(semBaixa.get("cartoes").get("alunosPagantes"))).isTrue();
+        assertThat(zero(semBaixa.get("cartoes").get("recebidoCentavos"))).isTrue();
+        assertThat(zero(semBaixa.get("cartoes").get("alunosPagantes"))).isTrue();
+        // Sem pagante não há média: o nulo é o "—" certo.
         assertThat(nulo(semBaixa.get("cartoes").get("valorMedioPorAlunoCentavos"))).isTrue();
-        assertThat(nulo(semBaixa.get("serie").get(5).get("recebidoCentavos"))).isTrue();
+        assertThat(zero(semBaixa.get("serie").get(5).get("recebidoCentavos"))).isTrue();
         assertThat(semBaixa.get("porForma")).isEmpty();
         assertThat(semBaixa.get("porPlano")).isEmpty();
-        assertThat(nulo(semBaixa.get("resultadoDoMes").get("recebidoCentavos"))).isTrue();
-        assertThat(semBaixa.get("resultadoDoMes").get("resultadoCentavos").asLong()).isZero();
+        assertThat(zero(semBaixa.get("resultadoDoMes").get("recebidoCentavos"))).isTrue();
+        assertThat(zero(semBaixa.get("resultadoDoMes").get("resultadoCentavos"))).isTrue();
     }
 
     @Test
@@ -1680,7 +1949,7 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         assertThat(resposta.getHeader("Content-Disposition")).contains("attachment").contains(".csv");
         assertThat(resposta.getContentType()).startsWith("text/csv");
         String csv = resposta.getContentAsString(StandardCharsets.UTF_8);
-        assertThat(csv).startsWith(MARCA_DE_ORDEM + "registro;data;descricao;aluno;situacao;forma;pago_em;tipo;categoria;valor");
+        assertThat(csv).startsWith(MARCA_DE_ORDEM + CABECALHO_DO_CSV + "\r\n");
         assertThat(csv).contains(";'=1+1;").contains(";'+cmd;").contains(";'-2;").contains(";'@soma;")
                 .contains(";\"Com;ponto e vírgula\";");
         assertThat(csv).contains("Aluno do CSV").contains(";123,45").contains("COBRANCA;").contains("LANCAMENTO;");
@@ -1696,6 +1965,51 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
                 consultoria.toString(), hoje.toString());
         assertThat(codigo(api.get("/financeiro/exportacao?de=" + hoje + "&ate=" + hoje, admin, 422)))
                 .isEqualTo("EXPORTACAO_GRANDE_DEMAIS");
+    }
+
+    private List<String> linhasDoCsv(JsonNode quem, LocalDate de, LocalDate ate) throws Exception {
+        var resposta = mvc.perform(MockMvcRequestBuilders.get("/financeiro/exportacao?de=" + de + "&ate=" + ate)
+                .header(HttpHeaders.AUTHORIZATION, ApiDeTeste.bearer(quem))).andReturn().getResponse();
+        assertThat(resposta.getStatus()).isEqualTo(200);
+        String csv = resposta.getContentAsString(StandardCharsets.UTF_8);
+        assertThat(csv).startsWith(MARCA_DE_ORDEM + CABECALHO_DO_CSV + "\r\n");
+        // Só tabular: cabeçalho e linhas, nenhuma frase antes nem no meio.
+        return List.of(csv.substring(MARCA_DE_ORDEM.length()).split("\r\n"));
+    }
+
+    @Test
+    void exportacaoCsvTrazOAvisoDeHistoricoParcialEmTodasAsLinhas() throws Exception {
+        UUID aluno = api.criarAluno(admin, "Aluno do aviso no CSV");
+        contratarHoje(aluno, plano("Plano do aviso no CSV", 12345, "MENSAL"));
+        api.post("/financeiro/lancamentos", admin, Map.of("data", hoje.toString(), "descricao", "Lançamento do aviso",
+                "valorCentavos", 100, "tipo", "ENTRADA"), 200);
+        UUID consultoria = jdbc.queryForObject("select consultoria_id from aluno where id = ?::uuid", UUID.class,
+                aluno.toString());
+        LocalDate de = hoje.minusDays(1);
+        LocalDate ate = hoje.plusDays(40);
+
+        // Não marcada: false na cobrança e no lançamento.
+        List<String> sem = linhasDoCsv(admin, de, ate);
+        assertThat(sem).hasSizeGreaterThanOrEqualTo(3).first().isEqualTo(CABECALHO_DO_CSV);
+        assertThat(sem.subList(1, sem.size())).allSatisfy(l -> assertThat(l).endsWith(";false"));
+        assertThat(sem).anySatisfy(l -> assertThat(l).startsWith("COBRANCA;"))
+                .anySatisfy(l -> assertThat(l).startsWith("LANCAMENTO;"));
+
+        // Marcada pela lógica da V073: true em todas.
+        jdbc.execute((ConnectionCallback<Integer>) c -> V073__historico_financeiro_parcial.marcar(c, consultoria));
+        List<String> com = linhasDoCsv(admin, de, ate);
+        assertThat(com).hasSameSizeAs(sem).first().isEqualTo(CABECALHO_DO_CSV);
+        assertThat(com.subList(1, com.size())).allSatisfy(l -> assertThat(l).endsWith(";true"));
+
+        // Período sem linhas: só o cabeçalho, já com a coluna.
+        assertThat(linhasDoCsv(admin, hoje.minusYears(3), hoje.minusYears(3).plusDays(1))).containsExactly(CABECALHO_DO_CSV);
+
+        // Outra consultoria não herda a marca.
+        JsonNode outro = api.novoTreinador();
+        UUID alunoDeFora = api.criarAluno(outro, "Aluno de fora do aviso");
+        contratar(outro, alunoDeFora, plano(outro, "Plano de fora", 5000, "MENSAL"), hoje, hoje.getDayOfMonth());
+        List<String> fora = linhasDoCsv(outro, de, ate);
+        assertThat(fora.subList(1, fora.size())).isNotEmpty().allSatisfy(l -> assertThat(l).endsWith(";false"));
     }
 
     // ---- /eu e auditoria ----
@@ -1772,8 +2086,8 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         assertThat(estornada.cobranca().getSituacao()).isEqualTo(CobrancaAluno.Situacao.ESTORNADA);
         var repetida = TenantContext.executarComo(consultoria, () -> tx.execute(s -> baixaDeCobranca.estornar(cobrancaId, "Devolvido", null)));
         assertThat(repetida.mudou()).isFalse();
-        // Estornada não conta no recebido.
-        assertThat(nulo(api.get("/financeiro/painel", admin, 200).get("cartoes").get("recebidoCentavos"))).isTrue();
+        // Estornada não conta no recebido: a consulta rodou e não achou nada, então é 0.
+        assertThat(zero(api.get("/financeiro/painel", admin, 200).get("cartoes").get("recebidoCentavos"))).isTrue();
         assertThatThrownBy(() -> TenantContext.executarComo(consultoria,
                 () -> tx.execute(s -> baixaDeCobranca.contestar(cobrancaId, "Contestou", null))))
                 .isInstanceOf(ConflictException.class);
