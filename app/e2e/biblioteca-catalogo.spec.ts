@@ -21,7 +21,7 @@ async function servirFotos(page: Page) {
   await page.route((url) => url.pathname.startsWith('/catalogo/exercicios/'), (route) => route.fulfill({ status: 200, contentType: 'image/png', body: AZUL }));
 }
 
-test('catálogo: marcar vários grupos filtra por "ou", Marcar todos age só no que o filtro deixa e Esc fecha', async ({ page }) => {
+test('catálogo: no painel, marcar vários grupos filtra por "ou" no Aplicar, Marcar todos age só no que o filtro deixa e Esc fecha só a lista', async ({ page }) => {
   await servirFotos(page);
   const consultas: string[] = [];
   const { naoTratadas, errosDaPagina } = await simularApi(page, {
@@ -40,35 +40,51 @@ test('catálogo: marcar vários grupos filtra por "ou", Marcar todos age só no 
   await expect(page.getByText('Supino reto', { exact: true })).toBeVisible();
   await expect(page.getByText('Tríceps testa', { exact: true })).toBeVisible();
 
-  // O grupo fica no painel "Filtros avançados" da barra de filtros (o botão "Filtros" abre).
-  await page.getByRole('button', { name: 'Filtros, nenhum ligado' }).click();
-  const campo = page.getByRole('button', { name: 'Grupo: Todos. Escolher.' });
-  await campo.click();
+  // O grupo fica no painel lateral "Filtros do catálogo" (`docs/planos/filtros-laterais.md`): as caixas são rascunho e a
+  // consulta só sai no "Aplicar filtros".
+  const abrirPainel = async () => {
+    await page.getByRole('button', { name: /^Filtros, / }).click();
+    const filtros = page.getByRole('dialog', { name: 'Filtros do catálogo' });
+    await expect(filtros).toBeVisible();
+    return filtros;
+  };
+  const aplicar = async (filtros: Locator) => {
+    await filtros.getByRole('button', { name: 'Aplicar filtros' }).click();
+    await expect(filtros).toHaveCount(0);
+  };
+  let filtros = await abrirPainel();
+  await filtros.getByRole('button', { name: 'Grupo: Todos. Escolher.' }).click();
   const painel = page.getByRole('dialog', { name: 'Grupo' });
   await expect(painel).toBeVisible();
   await painel.getByRole('checkbox', { name: 'Peito' }).click();
   await painel.getByRole('checkbox', { name: 'Costas' }).click();
-  // Marcar não fecha a lista; a consulta leva os dois grupos, repetidos (um `grupo` por valor).
+  // Marcar não fecha a lista nem consulta: é rascunho.
   await expect(painel).toBeVisible();
-  await expect.poll(() => consultas.at(-1)).toBe('Costas|Peito');
-  await expect(page.getByText('Agachamento', { exact: true })).toHaveCount(0);
-  await expect(page.getByText('Supino reto', { exact: true })).toBeVisible();
-  await expect(page.getByText('Remada baixa', { exact: true })).toBeVisible();
+  expect(consultas.every((c) => c === '')).toBe(true);
 
   // "Marcar todos" com filtro digitado marca só os visíveis (sem acento: "triceps" acha "Tríceps").
   await painel.getByRole('textbox', { name: 'Filtro' }).fill('triceps');
   await expect(painel.getByRole('checkbox', { name: 'Peito' })).toHaveCount(0);
   await painel.getByRole('checkbox', { name: 'Marcar todos os visíveis' }).click();
-  await expect.poll(() => consultas.at(-1)).toBe('Costas|Peito|Tríceps');
-  await painel.getByRole('textbox', { name: 'Filtro' }).fill('');
-  await painel.getByRole('button', { name: 'Limpar Grupo' }).click();
-  await expect.poll(() => consultas.at(-1)).toBe('');
-
-  await painel.getByRole('checkbox', { name: 'Peito' }).click();
+  // Esc fecha só a lista; o painel continua.
   await page.keyboard.press('Escape');
   await expect(painel).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Grupo: Peito. Escolher.' })).toBeVisible();
-  // O "Filtrando:" mostra o grupo, e o ✕ do chip tira o filtro.
+  await expect(filtros).toBeVisible();
+  await aplicar(filtros);
+  // A consulta leva os grupos repetidos (um `grupo` por valor).
+  await expect.poll(() => consultas.at(-1)).toBe('Costas|Peito|Tríceps');
+  await expect(page.getByText('Agachamento', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Supino reto', { exact: true })).toBeVisible();
+
+  filtros = await abrirPainel();
+  await filtros.getByRole('button', { name: /^Grupo: .*Escolher\.$/ }).click();
+  await painel.getByRole('button', { name: 'Limpar Grupo' }).click();
+  await painel.getByRole('checkbox', { name: 'Peito' }).click();
+  await page.keyboard.press('Escape');
+  await expect(filtros.getByRole('button', { name: 'Grupo: Peito. Escolher.' })).toBeVisible();
+  await aplicar(filtros);
+  await expect.poll(() => consultas.at(-1)).toBe('Peito');
+  // O "Filtrando:" mostra o grupo, e o ✕ do chip tira o filtro na hora.
   await page.getByRole('button', { name: 'Tirar filtro: Grupo: Peito' }).click();
   await expect.poll(() => consultas.at(-1)).toBe('');
 

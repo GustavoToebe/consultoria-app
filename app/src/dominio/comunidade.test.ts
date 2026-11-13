@@ -4,9 +4,9 @@ import {
   proximaPaginaDeComentarios, semOComentario, tamanhoDoComentario,
   curtidoPorMim, EMOJI_DA_CURTIDA, erroDoApelido, MENSAGEM_APELIDO_FORMATO, MENSAGEM_APELIDO_LINK, textoDaPosicao, totalDeCurtidas,
   errosDoPost, MOTIVOS_DE_DENUNCIA, podeAnexarFoto, podePublicar, postParaEnviar, rotuloDoMotivo, rotuloDoTipo, TIPOS_DE_POST,
-  tiposParaEscolher, filtrosDoMural, filtrosParaApi, textoDoMuralVazio, textoDasDenuncias, tipoPedido,
+  tiposParaEscolher, chipsDoMural, MURAL_SEM_FILTRO, opcoesDoTipoDoMural, semOFiltroDoMural, filtrosParaApi, textoDoMuralVazio, textoDasDenuncias, tipoPedido,
   agruparAuloesPorCategoria, buscarAuloes, categoriasDosAuloes, corpoDaAula, errosDaAula, filtrarAuloesPorCategoria,
-  filtroDeCategoriaValido, opcoesDoFiltroDeCategoria, RASCUNHO_DA_AULA_VAZIO, rascunhoDaAula, resumoDosAuloes,
+  chipDaCategoria, filtroDeCategoriaValido, opcoesDoFiltroDeCategoria, RASCUNHO_DA_AULA_VAZIO, rascunhoDaAula, resumoDosAuloes,
 } from './comunidade';
 import type { AulaDaComunidade } from '../api/comunidadeTipos';
 
@@ -44,6 +44,9 @@ describe('aulões', () => {
     expect(filtroDeCategoriaValido('Técnica', aulas)).toBe('Técnica');
     expect(filtroDeCategoriaValido('Sumiu', aulas)).toBeNull();
     expect(filtroDeCategoriaValido('', [aula('1', 'A')])).toBeNull();
+    expect(chipDaCategoria(null)).toEqual([]);
+    expect(chipDaCategoria('Técnica')).toEqual([{ chave: 'categoria', texto: 'Categoria: Técnica' }]);
+    expect(chipDaCategoria('')).toEqual([{ chave: 'categoria', texto: 'Categoria: Sem categoria' }]);
   });
 
   it('busca no título e na descrição sem acento nem caixa', () => {
@@ -271,19 +274,27 @@ describe('motivos de denúncia', () => {
 });
 
 describe('filtros do mural', () => {
-  it('chips no plural, "Denunciados" só para quem modera', () => {
-    expect(filtrosDoMural(false).map((f) => f.rotulo)).toEqual(['Todos', 'Avisos', 'Vídeos', 'Dúvidas', 'Resultados', 'Conversas']);
-    expect(filtrosDoMural(true).at(-1)).toEqual({ valor: 'DENUNCIADOS', rotulo: 'Denunciados' });
+  it('tipos no plural; etiquetas do tipo e das denunciadas', () => {
+    expect(opcoesDoTipoDoMural().map((f) => f.rotulo)).toEqual(['Todos', 'Avisos', 'Vídeos', 'Dúvidas', 'Resultados', 'Conversas']);
+    expect(chipsDoMural(MURAL_SEM_FILTRO)).toEqual([]);
+    expect(chipsDoMural({ tipo: 'DUVIDA', denunciados: true })).toEqual([
+      { chave: 'tipo', texto: 'Tipo: Dúvidas' }, { chave: 'denunciados', texto: 'Só denunciadas' },
+    ]);
+    expect(semOFiltroDoMural({ tipo: 'DUVIDA', denunciados: true }, 'tipo')).toEqual({ tipo: null, denunciados: true });
+    expect(semOFiltroDoMural({ tipo: 'DUVIDA', denunciados: true }, 'denunciados')).toEqual({ tipo: 'DUVIDA', denunciados: false });
   });
-  it('vira a query da API: tipo, denunciados e busca com strip', () => {
-    expect(filtrosParaApi(null, '  ')).toEqual({});
-    expect(filtrosParaApi('DUVIDA', ' supino ')).toEqual({ tipo: 'DUVIDA', busca: 'supino' });
-    expect(filtrosParaApi('DENUNCIADOS', '')).toEqual({ denunciados: true });
+  it('vira a query da API: tipo e denunciados combinam, busca com strip', () => {
+    expect(filtrosParaApi(MURAL_SEM_FILTRO, '  ')).toEqual({});
+    expect(filtrosParaApi({ tipo: 'DUVIDA', denunciados: false }, ' supino ')).toEqual({ tipo: 'DUVIDA', busca: 'supino' });
+    expect(filtrosParaApi({ tipo: null, denunciados: true }, '')).toEqual({ denunciados: true });
+    expect(filtrosParaApi({ tipo: 'CONVERSA', denunciados: true }, '')).toEqual({ tipo: 'CONVERSA', denunciados: true });
   });
   it('vazio com e sem filtro', () => {
-    expect(textoDoMuralVazio(null, '')).toBe('Nenhuma publicação no mural ainda.');
-    expect(textoDoMuralVazio('AVISO', '')).toBe('Nenhuma publicação encontrada com esse filtro.');
-    expect(textoDoMuralVazio(null, 'x')).toBe('Nenhuma publicação encontrada com esse filtro.');
+    expect(textoDoMuralVazio(MURAL_SEM_FILTRO, '')).toBe('Nenhuma publicação no mural ainda.');
+    expect(textoDoMuralVazio({ tipo: 'AVISO', denunciados: false }, '')).toBe('Nenhuma publicação encontrada com esse filtro.');
+    expect(textoDoMuralVazio(MURAL_SEM_FILTRO, 'x')).toBe('Nenhuma publicação encontrada com esse filtro.');
+    expect(textoDoMuralVazio({ tipo: null, denunciados: true }, '')).toBe('Nenhuma publicação denunciada.');
+    expect(textoDoMuralVazio({ tipo: 'AVISO', denunciados: true }, '')).toBe('Nenhuma publicação encontrada com esse filtro.');
   });
   it('denúncias no singular e no plural', () => {
     expect(textoDasDenuncias(1)).toBe('1 denúncia');

@@ -33,7 +33,7 @@ export interface FiltroDeVarias {
  * Barra única das abas da Biblioteca: a mesma barra de filtros das outras listas (`ui/BarraDeFiltros`; busca, botão
  * "Filtros", "Filtrando:"), com o filtro de cada aba (grupo, fatores ou categoria) no painel. Sem filtro (lista ainda
  * sem categorias, por exemplo) fica só a busca. Com `painelLateral` o filtro mora no painel lateral com rascunho
- * (`docs/planos/filtros-laterais.md`; hoje só Exercícios); as outras abas seguem no modo antigo até migrarem.
+ * (`docs/planos/filtros-laterais.md`; hoje todas as abas o passam).
  */
 export function BarraDaBiblioteca<T extends string>({ rotulo, placeholder, valor, aoMudar, filtro, painelLateral }: Busca & {
   filtro?: FiltroDeUmaOpcao<T> | FiltroDeVarias | null; painelLateral?: { titulo: string };

@@ -14,7 +14,7 @@ import { CartaoDoPost } from '../../comunidade/CartaoDoPost';
 import { FolhaComentarios } from '../../comunidade/FolhaComentarios';
 import { FolhaNovaPublicacao } from '../../comunidade/FolhaNovaPublicacao';
 import {
-  categoriasDosAuloes, type FiltroDeCategoria, filtrarAuloesPorCategoria, filtroDeCategoriaValido, type FiltroDoMural, filtrosParaApi,
+  categoriasDosAuloes, type FiltroDeCategoria, filtrarAuloesPorCategoria, filtroDeCategoriaValido, type FiltroDoMural, filtrosParaApi, chipsDoMural, chipDaCategoria, MURAL_SEM_FILTRO,
   opcoesDoFiltroDeCategoria, type RascunhoDoPost, textoDoMuralVazio, TIPO_PADRAO_DO_POST,
 } from '../../dominio/comunidade';
 import { FolhaConfiguracoesDoMural } from '../../treinador/comunidade/FolhaConfiguracoesDoMural';
@@ -33,7 +33,7 @@ import { textoDoErro } from '../../ui/erros';
 import { Escolha } from '../../ui/Escolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
-import { FaixaDeChips } from '../../ui/FaixaDeChips';
+import { BarraDeFiltros, GrupoDoPainel } from '../../ui/BarraDeFiltros';
 import { Grade } from '../../ui/Grade';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
@@ -95,7 +95,7 @@ export default function ComunidadeTreinador() {
   const filtroDeCategoria = filtroDeCategoriaValido(filtroPedido, todasAsAulas);
   const aulasVisiveis = filtrarAuloesPorCategoria(todasAsAulas, filtroDeCategoria);
 
-  const [filtro, setFiltro] = useState<FiltroDoMural>(null);
+  const [filtro, setFiltro] = useState<FiltroDoMural>(MURAL_SEM_FILTRO);
   const [busca, setBusca] = useState('');
   const buscaAtrasada = useAtrasado(busca);
   const mural = useCarregar(`${PREFIXO_DO_MURAL}${JSON.stringify(filtrosParaApi(filtro, buscaAtrasada))}`,
@@ -222,12 +222,16 @@ export default function ComunidadeTreinador() {
           <EstadoDaFonte carregando={auloes.carregando} erro={auloes.erro} vazio={!auloes.dados?.length}
             textoVazio="Nenhum aulão publicado." recarregar={auloes.recarregar} />
 
-          {/* Filtro por categoria (P2): só quando alguma aula tem uma; seleção neutra e a contagem em cada chip. */}
+          {/* Filtro por categoria no painel lateral (`docs/planos/filtros-laterais.md`): só quando alguma aula tem uma; a
+              categoria que sumiu volta para "Todas" (`filtroDeCategoriaValido`) e a etiqueta some junto. */}
           {!auloes.erro && categorias.length ? (
-            <FaixaDeChips quebrar accessibilityLabel="Categoria do aulão">
-              <Escolha descricao="Categoria do aulão" chips valor={filtroDeCategoria} aoMudar={setFiltroPedido}
-                opcoes={opcoesDoFiltroDeCategoria(todasAsAulas)} />
-            </FaixaDeChips>
+            <BarraDeFiltros valor={filtroDeCategoria} aoAplicar={setFiltroPedido} limpo={null} chips={chipDaCategoria(filtroDeCategoria)}
+              aoTirar={() => setFiltroPedido(null)} rotuloDoResultado="Ver aulões" painelLateral={{ titulo: 'Filtros de aulões' }}
+              seletores={(atual, mudar) => (
+                <GrupoDoPainel titulo="Identificação" primeiro>
+                  <Escolha rotulo="Categoria do aulão" chips valor={atual} aoMudar={mudar} opcoes={opcoesDoFiltroDeCategoria(todasAsAulas)} />
+                </GrupoDoPainel>
+              )} />
           ) : null}
 
           {/* Título primeiro; categoria e estado discretos (neutros, juntos); descrição de apoio; vídeo e comentários no rodapé.
@@ -282,9 +286,10 @@ export default function ComunidadeTreinador() {
 
           <View testID="coluna-das-publicacoes" style={estilos.colunaDasPublicacoes}>
             <EstadoDaFonte carregando={mural.carregando} erro={mural.erro} vazio={!posts?.length}
-              textoVazio={filtro === 'DENUNCIADOS' && !busca.trim() ? 'Nenhuma publicação denunciada.' : textoDoMuralVazio(filtro, busca)}
+              textoVazio={textoDoMuralVazio(filtro, busca)}
               recarregar={mural.recarregar}
-              acaoVazio={filtro || busca.trim() ? { rotulo: 'Limpar filtros', aoTocar: () => { setFiltro(null); setBusca(''); } } : undefined} />
+              acaoVazio={chipsDoMural(filtro).length ? { rotulo: 'Limpar filtros', aoTocar: () => setFiltro(MURAL_SEM_FILTRO) }
+                : busca.trim() ? { rotulo: 'Limpar busca', aoTocar: () => setBusca('') } : undefined} />
 
             {posts ? fixadosPrimeiro(posts).map((post) => (
               <CartaoDoPost

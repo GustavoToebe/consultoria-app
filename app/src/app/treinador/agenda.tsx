@@ -1,5 +1,5 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { SlidersHorizontal } from 'lucide-react-native';
+import { CalendarDays } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 
@@ -8,8 +8,12 @@ import {
   alternarAgendaOculta, deslocarCalendario, diasDoPeriodo, type ItemDoCalendario, lerEnderecoDoCalendario, modoDaVisao, periodoDoCalendario,
   type RetanguloNaJanela, type VisaoDoCalendario, visaoDoAtalho,
 } from '../../dominio/agendaCalendario';
-import { hojeEmBrasilia, lerSituacoes, OPCOES_SITUACAO, parametroDasSituacoes } from '../../dominio/agendaPresencial';
+import { hojeEmBrasilia, OPCOES_SITUACAO } from '../../dominio/agendaPresencial';
 import { caminhoListaAtualizacoes } from '../../dominio/atualizacao';
+import {
+  AGENDA_SEM_FILTRO, chipsDaAgenda, enderecoDaAgenda, type ChaveDoFiltroDaAgenda, type FiltrosDaAgenda, lerFiltrosDaAgenda, semOFiltroDaAgenda,
+  SO_OS_MEUS, TODA_A_EQUIPE,
+} from '../../dominio/filtrosDaAgenda';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, LARGURA_LISTA, LARGURA_MENU_LATERAL } from '../../tema/tokens';
@@ -21,12 +25,13 @@ import { CartaoSemData, ListaDoCalendario } from '../../treinador/agenda/ListaDo
 import { iconeDoTom } from '../../treinador/agenda/itemDaAgenda';
 import { MenuCriar } from '../../treinador/agenda/MenuCriar';
 import { LARGURA_DA_LATERAL, MiniCalendario } from '../../treinador/agenda/MiniCalendario';
-import { FiltroDaAgenda } from '../../treinador/agenda/FiltroDaAgenda';
 import { PainelDeAgendas, SecaoDaLateral } from '../../treinador/agenda/PainelDeAgendas';
 import { ResumoDoCompromisso } from '../../treinador/agenda/ResumoDoCompromisso';
 import { useCalendario } from '../../treinador/agenda/useCalendario';
+import { UmaOpcao } from '../../treinador/SeletoresDeFiltro';
 import { VisaoDoAno } from '../../treinador/agenda/VisaoDoAno';
 import { VisaoDoMes } from '../../treinador/agenda/VisaoDoMes';
+import { BarraDeFiltros, GrupoDoPainel } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Esqueleto } from '../../ui/Esqueleto';
@@ -35,15 +40,13 @@ import { textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
 import { depoisDeFecharAsFolhas, portalDaFolhaDoTopo } from '../../ui/historicoDasFolhas';
 import { LinkTexto } from '../../ui/LinkTexto';
+import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
 import { Selo } from '../../ui/Selo';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 
-/** Conteúdo a partir do qual o mini calendário, as agendas e os filtros ficam numa coluna à esquerda (PC). */
+/** Conteúdo a partir do qual o mini calendário e as agendas ficam numa coluna à esquerda (PC). */
 const LARGURA_DO_PAINEL_LATERAL = 960;
-/** Valor do filtro de responsável sem escolha e com "Só os meus". */
-const TODA_A_EQUIPE = '';
-const SO_OS_MEUS = 'meus';
 
 type Parametros = { meus?: string; membro?: string; visao?: string; data?: string; situacao?: string | string[]; novo?: string };
 
@@ -91,13 +94,12 @@ export default function AgendaDoTreinador() {
   const { width: larguraDaJanela } = useWindowDimensions();
   const [largura, setLargura] = useState(0);
   const { visao, data } = lerEnderecoDoCalendario(p, hoje, larguraDaJanela);
-  // Os filtros (responsável, situação) vão para o endereço, mas só depois de as Folhas fecharem: um `router.replace` com a
-  // Folha aberta cai na entrada de histórico dela e o fechar desfaz a escolha. Até lá o que foi escolhido vale daqui.
-  const [ajuste, setAjuste] = useState<Partial<Parametros> | null>(null);
-  const filtrosDoEndereco: Parametros = { ...p, ...ajuste };
-  const meus = filtrosDoEndereco.meus === 'true';
-  const membro = !meus && permissoes.equipe && filtrosDoEndereco.membro ? filtrosDoEndereco.membro : null;
-  const situacoes = useMemo(() => (permissoes.agenda ? lerSituacoes(filtrosDoEndereco.situacao) : []), [permissoes.agenda, filtrosDoEndereco.situacao]);
+  // Filtros aplicados (responsável, situação), lidos do endereço; o painel "Filtros da agenda" grava lá só no Aplicar.
+  const filtros = useMemo(() => lerFiltrosDaAgenda({ meus: p.meus, membro: p.membro, situacao: p.situacao }, permissoes),
+    [p.meus, p.membro, p.situacao, permissoes]);
+  const meus = filtros.responsavel === SO_OS_MEUS;
+  const membro = meus || filtros.responsavel === TODA_A_EQUIPE ? null : filtros.responsavel;
+  const { situacoes } = filtros;
   const modo = modoDaVisao(visao, larguraDaJanela);
   const lateral = largura >= LARGURA_DO_PAINEL_LATERAL;
 
@@ -111,7 +113,7 @@ export default function AgendaDoTreinador() {
   const ir = (novos: Partial<Parametros>, como: 'replace' | 'push') => {
     const atual: Parametros = {
       visao: visao === 'semana' ? undefined : visao, data: data === hoje ? undefined : data,
-      meus: meus ? 'true' : undefined, membro: membro ?? undefined, situacao: parametroDasSituacoes(situacoes),
+      ...enderecoDaAgenda(filtros),
     };
     const juntos = { ...atual, ...novos };
     const params = Object.fromEntries(Object.entries(juntos).filter(([, v]) => v !== undefined && v !== '')) as Record<string, string>;
@@ -144,29 +146,17 @@ export default function AgendaDoTreinador() {
     return () => document.removeEventListener('keydown', ouvir, true);
   }, []);
 
-  // Folhas: compromisso (`?novo=1` abre o novo e sai do endereço na hora), evento e, no celular, agendas e filtros.
+  // Folhas: compromisso (`?novo=1` abre o novo e sai do endereço na hora), evento e, no celular, as agendas.
   const [compromisso, setCompromisso] = useState<Compromisso | 'novo' | null>(null);
   // O que a folha do compromisso faz ao abrir pelo resumo (Editar, Cancelar) e o dia e a hora do horário clicado na grade.
   const [acaoInicial, setAcaoInicial] = useState<AcaoInicial | undefined>(undefined);
   const [novoNoHorario, setNovoNoHorario] = useState<{ data: string; hora: string } | null>(null);
   const [resumo, setResumo] = useState<{ compromisso: Compromisso; origem: HTMLElement | null; ancora: RetanguloNaJanela | null } | null>(null);
   const [evento, setEvento] = useState<EventoAberto | null>(null);
-  const [painelAberto, setPainelAberto] = useState(false);
-  const aoMudarFiltro = (novos: Partial<Parametros>) => setAjuste((atual) => ({ ...atual, ...novos }));
-  useEffect(() => {
-    if (!ajuste || painelAberto) return;
-    const gravados = ajuste;
-    // `setParams` e não `replace`: o replace remonta a tela, o que fechava o menu do Compromissos a cada caixa marcada e
-    // perdia o foco que volta ao botão do filtro. Os dois trocam o endereço sem criar passo no histórico.
-    depoisDeFecharAsFolhas(() => { router.setParams(gravados); });
-  }, [ajuste, painelAberto]);
-  useEffect(() => {
-    // O endereço já tem o que foi escolhido: o ajuste local cumpriu o papel.
-    if (!ajuste || !(Object.keys(ajuste) as (keyof Parametros)[]).every((k) => (p[k] ?? undefined) === (ajuste[k] ?? undefined))) return undefined;
-    let vivo = true;
-    void Promise.resolve().then(() => { if (vivo) setAjuste(null); });
-    return () => { vivo = false; };
-  }, [ajuste, p]);
+  const [agendasAbertas, setAgendasAbertas] = useState(false);
+  // `setParams` e não `replace`/`push`: troca o endereço sem remontar a tela e sem criar passo (o Voltar não desfaz o filtro).
+  // O painel lateral chama o `aoAplicar` depois de fechar (fora da entrada de histórico dele).
+  const aplicarFiltros = (f: FiltrosDaAgenda) => router.setParams(enderecoDaAgenda(f));
   const diaSugerido = data < hoje ? hoje : data;
   useEffect(() => {
     if ((p.novo !== '1' && p.novo !== 'evento') || !podeAlterar) return;
@@ -220,8 +210,22 @@ export default function AgendaDoTreinador() {
   const vazio = cal.pronto && itens.length === 0 && cal.semData.length === 0 && (visao !== 'ano' || (cal.contagem?.size ?? 0) === 0);
   const comSemData = cal.semData.length > 0 && de <= hoje && hoje <= ate;
 
-  const filtros = <Filtros meus={meus} membro={membro} situacoes={situacoes} permissoes={permissoes} cal={cal} usuarioId={usuario?.id ?? null}
-    divisoria={cal.painelDeAgendas.length > 0} aoMudar={aoMudarFiltro} />;
+  const nomeDoMembro = (id: string) => cal.equipe.find((r) => r.id === id)?.nome;
+  const opcoesDeResponsavel = [
+    { valor: TODA_A_EQUIPE, rotulo: 'Toda a equipe' },
+    { valor: SO_OS_MEUS, rotulo: 'Só os meus' },
+    ...(permissoes.equipe ? cal.equipe.filter((r) => r.id !== usuario?.id).map((r) => ({ valor: r.id, rotulo: r.nome })) : []),
+  ];
+  const barraDeFiltros = <BarraDeFiltros valor={filtros} aoAplicar={aplicarFiltros} limpo={AGENDA_SEM_FILTRO}
+    chips={chipsDaAgenda(filtros, nomeDoMembro)} aoTirar={(chave) => aplicarFiltros(semOFiltroDaAgenda(filtros, chave as ChaveDoFiltroDaAgenda))}
+    rotuloDoResultado="Ver agenda" painelLateral={{ titulo: 'Filtros da agenda' }}
+    seletores={(atuais, mudar) => <SeletoresDaAgenda filtros={atuais} aoMudar={mudar} opcoesDeResponsavel={opcoesDeResponsavel} comSituacao={permissoes.agenda} />} />;
+  const atrasadas = cal.atrasadas ? <SecaoDaLateral titulo="Atualizações" divisoria={cal.painelDeAgendas.length > 0}>
+    <View style={estilos.atrasadas}>
+      <Selo texto={cal.atrasadas} tipo="perigo" Icone={iconeDoTom('perigo')} />
+      <LinkTexto texto="Ver atrasadas" href={caminhoListaAtualizacoes('ATRASADAS', meus)} />
+    </View>
+  </SecaoDaLateral> : null;
   const painel = cal.painelDeAgendas.length ? <PainelDeAgendas agendas={cal.painelDeAgendas} pessoais={cal.agendas} carregando={cal.agendasCarregando}
     podeAlterar={podeAlterar} aoAlternar={alternar} aoMudar={() => { cal.recarregarAgendas(); cal.recarregarEventos(); }} /> : null;
 
@@ -250,7 +254,7 @@ export default function AgendaDoTreinador() {
   </>;
   const barra = <BarraDoCalendario visao={visao} data={data} aoMudarVisao={mudarVisao} aoMudarMenuAberto={setMenuAberto}
     aoDeslocar={(s) => escolherData(deslocarCalendario(visao, data, s))} aoHoje={() => { if (data !== hoje) ir({ data: undefined }, 'replace'); }}
-    extra={lateral ? undefined : <Botao rotulo="Agendas e filtros" tipo="secundario" Icone={SlidersHorizontal} aoTocar={() => setPainelAberto(true)} />} />;
+    extra={lateral || (!painel && !atrasadas) ? undefined : <Botao rotulo="Agendas" tipo="secundario" Icone={CalendarDays} aoTocar={() => setAgendasAbertas(true)} />} />;
 
   return <Tela largura={LARGURA_LISTA} bordas={['top']}>
     <Cabecalho titulo="Agenda" mostrarMarca="celular"
@@ -262,10 +266,11 @@ export default function AgendaDoTreinador() {
           <View testID="lateral-da-agenda" style={estilos.lateral}>
             <MiniCalendario visao={visao} data={data} hoje={hoje} aoEscolher={escolherData} />
             {painel}
-            {filtros}
+            {atrasadas}
           </View>
           <View style={estilos.principal}>
             {barra}
+            {barraDeFiltros}
             {avisos}
             {conteudo}
           </View>
@@ -273,16 +278,17 @@ export default function AgendaDoTreinador() {
       ) : (
         <View style={estilos.principal}>
           {barra}
+          {barraDeFiltros}
           {avisos}
           {conteudo}
         </View>
       )}
     </View>
 
-    {lateral ? null : <Folha visivel={painelAberto} titulo="Agendas e filtros" aoFechar={() => setPainelAberto(false)}>
+    {lateral ? null : <Folha visivel={agendasAbertas} titulo="Agendas" aoFechar={() => setAgendasAbertas(false)}>
       <View style={estilos.painelDaFolha}>
         {painel}
-        {filtros}
+        {atrasadas}
       </View>
     </Folha>}
     {resumo ? <ResumoDoCompromisso compromisso={resumo.compromisso} hoje={hoje} ancora={resumo.ancora} aoFechar={() => fecharResumo()}
@@ -298,57 +304,28 @@ export default function AgendaDoTreinador() {
   </Tela>;
 }
 
-/** Chave do item "Todos" no menu do Compromissos (nenhuma situação é esse valor). */
-const TODAS_AS_SITUACOES = '*';
-
 /**
- * Filtros da agenda (seção leve da lateral), dois botões iguais "Rótulo: valor ⌄": o responsável (D19: toda a equipe, só os
- * meus ou um membro, nas três fontes; escolha única) e a situação dos compromissos (várias; nenhuma marcada = sem filtro, e o
- * menu diz "Todos" com ✓), mais o contador de atualizações atrasadas com o link para a lista.
+ * O que vai no painel "Filtros da agenda": o responsável (D19: toda a equipe, só os meus ou um membro, nas três fontes;
+ * escolha única) e, com `AGENDA_LER`, a situação dos compromissos (várias; nenhuma = sem filtro).
  */
-function Filtros({ meus, membro, situacoes, permissoes, cal, usuarioId, divisoria, aoMudar }: {
-  meus: boolean; membro: string | null; situacoes: ReturnType<typeof lerSituacoes>;
-  permissoes: { agenda: boolean; equipe: boolean };
-  cal: ReturnType<typeof useCalendario>; usuarioId: string | null; divisoria: boolean; aoMudar: (novos: Partial<Parametros>) => void;
+function SeletoresDaAgenda({ filtros, aoMudar, opcoesDeResponsavel, comSituacao }: {
+  filtros: FiltrosDaAgenda; aoMudar: (f: FiltrosDaAgenda) => void;
+  opcoesDeResponsavel: { valor: string; rotulo: string }[]; comSituacao: boolean;
 }) {
-  const opcoes = [
-    { valor: TODA_A_EQUIPE, rotulo: 'Toda a equipe' },
-    { valor: SO_OS_MEUS, rotulo: 'Só os meus' },
-    ...(permissoes.equipe ? cal.equipe.filter((r) => r.id !== usuarioId).map((r) => ({ valor: r.id, rotulo: r.nome })) : []),
-  ];
-  const valor = meus ? SO_OS_MEUS : membro ?? TODA_A_EQUIPE;
-  const nomeDoMembro = opcoes.find((o) => o.valor === valor)?.rotulo ?? cal.equipe.find((r) => r.id === membro)?.nome ?? 'Membro da equipe';
-  // As quatro marcadas mostram o mesmo que nenhuma (todo compromisso tem ao menos um aluno), então as duas dizem "Todos";
-  // o endereço continua com o que foi marcado.
-  const todas = situacoes.length === 0 || situacoes.length === OPCOES_SITUACAO.length;
-  const nomes = OPCOES_SITUACAO.filter((o) => situacoes.includes(o.valor)).map((o) => o.rotulo);
-  const resumo = todas ? 'Todos' : nomes.length <= 2 ? nomes.join(', ') : `${nomes.length} selecionados`;
-  const alternarSituacao = (chave: string) => {
-    if (chave === TODAS_AS_SITUACOES) return aoMudar({ situacao: undefined });
-    const novas = situacoes.includes(chave as (typeof situacoes)[number]) ? situacoes.filter((s) => s !== chave) : [...situacoes, chave];
-    aoMudar({ situacao: parametroDasSituacoes(lerSituacoes(novas)) });
-  };
-  return (
-    <SecaoDaLateral titulo="Filtros" divisoria={divisoria}>
-      <View style={estilos.filtros}>
-        <FiltroDaAgenda rotulo="Responsável" valor={nomeDoMembro} itens={opcoes.map((o) => ({ chave: o.valor, rotulo: o.rotulo, marcado: o.valor === valor }))}
-          aoEscolher={(v) => aoMudar({ meus: v === SO_OS_MEUS ? 'true' : undefined, membro: v && v !== SO_OS_MEUS ? v : undefined })} />
-        {permissoes.agenda ? <>
-          <FiltroDaAgenda rotulo="Compromissos" valor={resumo} valorCurto={nomes.length === 2 ? '2 selecionados' : undefined} multipla separarPrimeiro
-            itens={[
-              { chave: TODAS_AS_SITUACOES, rotulo: 'Todos', marcado: todas },
-              ...OPCOES_SITUACAO.map((o) => ({ chave: o.valor, rotulo: o.rotulo, marcado: situacoes.includes(o.valor) })),
-            ]}
-            aoEscolher={alternarSituacao} />
-          {situacoes.length && !todas ? <Texto variante="pequeno">Com vários alunos, aparecem os compromissos em que algum aluno está em alguma dessas situações.</Texto> : null}
-        </> : null}
-      </View>
-      {cal.atrasadas ? <View style={estilos.atrasadas}>
-        <Selo texto={cal.atrasadas} tipo="perigo" Icone={iconeDoTom('perigo')} />
-        <LinkTexto texto="Ver atrasadas" href={caminhoListaAtualizacoes('ATRASADAS', meus)} />
-      </View> : null}
-    </SecaoDaLateral>
-  );
+  const { situacoes } = filtros;
+  return <>
+    <GrupoDoPainel titulo="Identificação" primeiro>
+      <UmaOpcao rotulo="Responsável" valor={filtros.responsavel} opcoes={opcoesDeResponsavel} aoMudar={(responsavel) => aoMudar({ ...filtros, responsavel })} />
+    </GrupoDoPainel>
+    {comSituacao ? (
+      <GrupoDoPainel titulo="Situação">
+        <SelecaoMultiplaSuspensa rotulo="Compromissos" opcoes={OPCOES_SITUACAO} marcados={new Set(situacoes)} rotuloDeTodos="Todos"
+          aoMudar={(m) => aoMudar({ ...filtros, situacoes: OPCOES_SITUACAO.map((o) => o.valor).filter((v) => m.has(v)) })} style={estilos.cheio} />
+        {situacoes.length && situacoes.length < OPCOES_SITUACAO.length
+          ? <Texto variante="pequeno">Com vários alunos, aparecem os compromissos em que algum aluno está em alguma dessas situações.</Texto> : null}
+      </GrupoDoPainel>
+    ) : null}
+  </>;
 }
 
 const estilos = StyleSheet.create({
@@ -357,7 +334,6 @@ const estilos = StyleSheet.create({
   lateral: { width: LARGURA_DA_LATERAL, gap: espaco(2) },
   principal: { flex: 1, minWidth: 0, gap: espaco(2) },
   painelDaFolha: { gap: espaco(3) },
-  // Os dois filtros com a mesma largura, um embaixo do outro.
-  filtros: { gap: espaco(1) },
+  cheio: { alignSelf: 'stretch' },
   atrasadas: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(1.5) },
 });

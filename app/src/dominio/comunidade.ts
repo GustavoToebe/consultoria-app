@@ -226,34 +226,49 @@ export const rotuloDoMotivo = (motivo: MotivoDeDenuncia): string => MOTIVOS_DE_D
 
 // ---- Filtros do mural ----
 
-/** Filtro da faixa de chips: um tipo, os denunciados (só a equipe) ou `null` = todos. */
-export type FiltroDoMural = TipoDePost | 'DENUNCIADOS' | null;
+/**
+ * Filtros do mural (painel "Filtros do mural", `docs/planos/filtros-laterais.md`): um tipo (`null` = todos) e, só para quem
+ * modera, as denunciadas. Os dois combinam: a API aplica `tipo` e `denunciados` juntos.
+ */
+export interface FiltroDoMural { tipo: TipoDePost | null; denunciados: boolean }
+export type ChaveDoFiltroDoMural = keyof FiltroDoMural;
+
+export const MURAL_SEM_FILTRO: FiltroDoMural = { tipo: null, denunciados: false };
 
 const PLURAL_DO_TIPO: Record<TipoDePost, string> = {
   AVISO: 'Avisos', VIDEO: 'Vídeos', DUVIDA: 'Dúvidas', RESULTADO: 'Resultados', CONVERSA: 'Conversas',
 };
 
-/** Chips do mural na ordem da tela; "Denunciados" só para quem modera. */
-export function filtrosDoMural(comDenunciados: boolean): { valor: FiltroDoMural; rotulo: string }[] {
+/** Opções do tipo de publicação, na ordem da tela. */
+export function opcoesDoTipoDoMural(): { valor: TipoDePost | null; rotulo: string }[] {
+  return [{ valor: null, rotulo: 'Todos' }, ...TIPOS_DE_POST.map((t) => ({ valor: t.tipo, rotulo: PLURAL_DO_TIPO[t.tipo] }))];
+}
+
+/** Etiquetas dos filtros aplicados (o contador do botão é o número delas). */
+export function chipsDoMural(f: FiltroDoMural): { chave: ChaveDoFiltroDoMural; texto: string }[] {
   return [
-    { valor: null, rotulo: 'Todos' },
-    ...TIPOS_DE_POST.map((t) => ({ valor: t.tipo, rotulo: PLURAL_DO_TIPO[t.tipo] })),
-    ...(comDenunciados ? [{ valor: 'DENUNCIADOS' as const, rotulo: 'Denunciados' }] : []),
+    ...(f.tipo ? [{ chave: 'tipo' as const, texto: `Tipo: ${PLURAL_DO_TIPO[f.tipo]}` }] : []),
+    ...(f.denunciados ? [{ chave: 'denunciados' as const, texto: 'Só denunciadas' }] : []),
   ];
 }
+
+export const semOFiltroDoMural = (f: FiltroDoMural, chave: ChaveDoFiltroDoMural): FiltroDoMural => ({ ...f, [chave]: MURAL_SEM_FILTRO[chave] });
 
 /** O filtro da tela no formato da API (`FiltrosDoMural`); busca em branco não vai. */
 export function filtrosParaApi(filtro: FiltroDoMural, busca: string): FiltrosDoMural {
   const b = busca.trim();
   return {
-    ...(filtro === 'DENUNCIADOS' ? { denunciados: true } : filtro ? { tipo: filtro } : {}),
+    ...(filtro.tipo ? { tipo: filtro.tipo } : {}),
+    ...(filtro.denunciados ? { denunciados: true } : {}),
     ...(b ? { busca: b } : {}),
   };
 }
 
 /** Mural vazio: com filtro ou busca a frase diz que nada bateu, sem filtro que ninguém publicou. */
-export const textoDoMuralVazio = (filtro: FiltroDoMural, busca: string): string =>
-  filtro || busca.trim() ? 'Nenhuma publicação encontrada com esse filtro.' : 'Nenhuma publicação no mural ainda.';
+export function textoDoMuralVazio(filtro: FiltroDoMural, busca: string): string {
+  if (filtro.denunciados && !filtro.tipo && !busca.trim()) return 'Nenhuma publicação denunciada.';
+  return filtro.tipo || filtro.denunciados || busca.trim() ? 'Nenhuma publicação encontrada com esse filtro.' : 'Nenhuma publicação no mural ainda.';
+}
 
 /** "1 denúncia", "3 denúncias" (só a equipe vê o número). */
 export const textoDasDenuncias = (n: number): string => `${n} ${n === 1 ? 'denúncia' : 'denúncias'}`;
@@ -331,6 +346,10 @@ export function opcoesDoFiltroDeCategoria(aulas: readonly AulaDaComunidade[]): {
 /** O filtro escolhido, ou "Todas" se a categoria sumiu (a última aula dela foi editada ou excluída). */
 export const filtroDeCategoriaValido = (filtro: FiltroDeCategoria, aulas: readonly AulaDaComunidade[]): FiltroDeCategoria =>
   opcoesDoFiltroDeCategoria(aulas).some((o) => o.valor === filtro) ? filtro : null;
+
+/** Etiqueta da categoria aplicada ("Todas" não vira etiqueta). */
+export const chipDaCategoria = (filtro: FiltroDeCategoria): { chave: 'categoria'; texto: string }[] =>
+  filtro === null ? [] : [{ chave: 'categoria', texto: `Categoria: ${filtro || SEM_CATEGORIA_DO_AULAO}` }];
 
 export function filtrarAuloesPorCategoria<T extends Pick<AulaDaComunidade, 'categoria'>>(aulas: readonly T[], filtro: FiltroDeCategoria): T[] {
   if (filtro === null) return [...aulas];

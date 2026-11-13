@@ -18,7 +18,7 @@ import { FolhaPerfilDoColega } from '../../comunidade/FolhaPerfilDoColega';
 import { ListaDeColegas } from '../../comunidade/ListaDeColegas';
 import { PainelDeDenuncia } from '../../comunidade/PainelDeDenuncia';
 import {
-  EMOJI_DA_CURTIDA, type FiltroDoMural, filtrosParaApi, podeAnexarFoto, podePublicar, type RascunhoDoPost, textoDaPosicao,
+  EMOJI_DA_CURTIDA, type FiltroDoMural, filtrosParaApi, MURAL_SEM_FILTRO, podeAnexarFoto, podePublicar, type RascunhoDoPost, textoDaPosicao,
   textoDoMuralVazio, TIPO_PADRAO_DO_POST, tipoPedido,
 } from '../../dominio/comunidade';
 import { dataParaTela } from '../../dominio/formatos';
@@ -74,7 +74,7 @@ export default function ComunidadeAluno() {
   const aba: AbaComunidade = params.aba === 'auloes' || params.aba === 'ranking' || params.aba === 'colegas' ? params.aba : 'mural';
   const setAba = (valor: AbaComunidade) => { if (valor !== aba) router.setParams({ aba: valor }); };
 
-  const [filtro, setFiltro] = useState<FiltroDoMural>(null);
+  const [filtro, setFiltro] = useState<FiltroDoMural>(MURAL_SEM_FILTRO);
   const [busca, setBusca] = useState('');
   const buscaAtrasada = useAtrasado(busca);
   const mural = useCarregar(online ? `${PREFIXO_DO_MURAL}${JSON.stringify(filtrosParaApi(filtro, buscaAtrasada))}` : null,
@@ -116,8 +116,6 @@ export default function ComunidadeAluno() {
     avisar('Publicado no mural.', 'sucesso');
     mural.recarregar();
   };
-
-  const limparFiltros = () => { setFiltro(null); setBusca(''); };
 
   const curtir = async (postId: string) => {
     try {
@@ -170,7 +168,7 @@ export default function ComunidadeAluno() {
 
               <EstadoDaFonte carregando={mural.carregando} erro={mural.erro} vazio={!posts?.length}
                 textoVazio={textoDoMuralVazio(filtro, busca)} recarregar={mural.recarregar}
-                acaoVazio={filtro || busca.trim() ? { rotulo: 'Limpar filtros', aoTocar: limparFiltros } : undefined} />
+                acaoVazio={filtro.tipo ? { rotulo: 'Limpar filtros', aoTocar: () => setFiltro(MURAL_SEM_FILTRO) } : busca.trim() ? { rotulo: 'Limpar busca', aoTocar: () => setBusca('') } : undefined} />
 
               {posts ? fixadosPrimeiro(posts).map((p) => (
                 <CartaoDoPost

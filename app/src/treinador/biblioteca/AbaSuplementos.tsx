@@ -67,7 +67,7 @@ export function AbaSuplementos() {
       titulo="Suplementos da biblioteca"
       descricao="Os produtos que você escolhe na sugestão de suplementação da dieta. Só nome, porção e link: nada é somado."
       acoes={<Permitido codigo="BIBLIOTECA_ALTERAR"><Botao rotulo="Novo suplemento" Icone={Plus} aoTocar={() => setEditando('novo')} /></Permitido>}>
-      <BarraDaBiblioteca rotulo="Buscar suplemento" placeholder="Nome, marca ou categoria" valor={busca} aoMudar={setBusca}
+      <BarraDaBiblioteca rotulo="Buscar suplemento" placeholder="Nome, marca ou categoria" valor={busca} aoMudar={setBusca} painelLateral={{ titulo: 'Filtros de suplementos' }}
         filtro={categorias.length ? { tipo: 'uma', rotulo: 'Categoria', valor: categoria, todos: '', aoMudar: setCategoria,
           opcoes: [{ valor: '', rotulo: 'Todas' }, ...categorias.map((c) => ({ valor: c, rotulo: c }))] } : null} />
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
@@ -77,7 +77,7 @@ export function AbaSuplementos() {
           titulo={dados.length ? 'Nenhum suplemento encontrado' : 'Biblioteca de suplementos vazia'}
           texto={dados.length ? 'Tente outro termo ou outra categoria.' : 'Cadastre um suplemento ou importe a lista pelo script de importação.'}
           acao={dados.length
-            ? { rotulo: 'Limpar filtros', aoTocar: () => { setBusca(''); setCategoria(''); } }
+            ? categoria ? { rotulo: 'Limpar filtros', aoTocar: () => setCategoria('') } : { rotulo: 'Limpar busca', aoTocar: () => setBusca('') }
             : pode('BIBLIOTECA_ALTERAR') ? { rotulo: 'Cadastrar suplemento', aoTocar: () => setEditando('novo') } : undefined}
         />
       ) : null}

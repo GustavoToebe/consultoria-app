@@ -145,11 +145,12 @@ export function AbaCatalogo() {
           setMarcados(new Set());
         }}
       />
-      <BarraDaBiblioteca rotulo="Buscar no catálogo" placeholder={tipo === 'exercicios' ? 'Nome do exercício' : 'Nome do alimento'} valor={busca} aoMudar={setBusca}
+      <BarraDaBiblioteca rotulo="Buscar no catálogo" placeholder={tipo === 'exercicios' ? 'Nome do exercício' : 'Nome do alimento'} valor={busca} aoMudar={setBusca} painelLateral={{ titulo: 'Filtros do catálogo' }}
         filtro={opcoesDeGrupo.length ? { tipo: 'varias', rotulo: 'Grupo', rotuloDeTodos: 'Todos', opcoes: opcoesDeGrupo, marcados: new Set(gruposDoFiltro), aoMudar: setGruposMarcados } : null} />
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
-      {dados && dados.itens.length === 0 ? <Vazio titulo="Nenhum resultado no catálogo" texto="Tente outro nome ou ajuste o filtro de grupo." /> : null}
+      {dados && dados.itens.length === 0 ? <Vazio titulo="Nenhum resultado no catálogo" texto="Tente outro nome ou ajuste o filtro de grupo."
+        acao={gruposDoFiltro.length ? { rotulo: 'Limpar filtros', aoTocar: () => setGruposMarcados(new Set()) } : busca ? { rotulo: 'Limpar busca', aoTocar: () => setBusca('') } : undefined} /> : null}
       {dados && dados.itens.length > 0 ? <ListaDeLinhas divisorias>{dados.itens.map((item) => {
         const sel = marcados.has(item.id);
         const expandido = aberto === item.id;

@@ -112,10 +112,11 @@ test.describe('F20: lateral compacta no PC', () => {
     });
   }
 
-  test('390 px: sem a lateral (agendas e filtros na folha) e sem rolagem horizontal', async ({ page }) => {
+  test('390 px: sem a lateral (agendas na folha, filtros no painel) e sem rolagem horizontal', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     const { errosDaPagina } = await abrir(page, { compromissos: [compromisso('k1', [ANA], HOJE, '09:00')] });
-    await expect(page.getByRole('button', { name: 'Agendas e filtros', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Agendas', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Filtros, nenhum ligado', exact: true })).toBeVisible();
     await expect(page.getByTestId('lateral-da-agenda')).toHaveCount(0);
     await page.screenshot({ path: captura('f20-celular-390.png') });
     await semRolagemHorizontal(page);

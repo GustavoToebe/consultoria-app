@@ -20,14 +20,6 @@ const botaoFiltros = (page: Page) => page.getByRole('button', { name: /^Filtros,
 const opcao = (onde: Locator, grupo: string, rotulo: string) =>
   onde.getByRole('radiogroup', { name: grupo }).getByRole('radio', { name: rotulo, exact: true });
 
-/** Abre os filtros: no PC o painel fica na página; no celular, a folha "Filtros". */
-async function abrirFiltros(page: Page, celular: boolean): Promise<Locator> {
-  if (celular || (await botaoFiltros(page).getAttribute('aria-expanded')) !== 'true') await botaoFiltros(page).click();
-  const painel = celular ? page.getByRole('dialog', { name: 'Filtros' }) : page.locator('body');
-  if (celular) await expect(painel).toBeVisible();
-  return painel;
-}
-
 /**
  * Marca opções num filtro de várias opções (`SelecaoMultiplaSuspensa`): o botão "Rótulo: valor. Escolher." abre a lista
  * (no PC suspensa, no celular uma folha), cada rótulo é uma caixa; fecha com Esc (PC) ou Fechar (celular).
@@ -40,9 +32,20 @@ async function marcar(page: Page, onde: Locator, rotulo: string, valorAtual: str
   else await page.keyboard.press('Escape');
 }
 
-/** No celular as escolhas valem quando a folha fecha. */
-async function verResultado(page: Page, celular: boolean, rotulo: string) {
-  if (celular) await page.getByRole('button', { name: rotulo, exact: true }).click();
+/**
+ * Telas já no painel lateral (`docs/planos/filtros-laterais.md`): o botão abre o diálogo "Filtros de <assunto>" nas duas
+ * larguras; as escolhas são rascunho e só valem no "Aplicar filtros", que fecha o painel. A lista de várias opções fecha
+ * com Esc (só ela), nas duas larguras.
+ */
+async function abrirPainelLateral(page: Page, nome: string): Promise<Locator> {
+  await botaoFiltros(page).click();
+  const painel = page.getByRole('dialog', { name: nome });
+  await expect(painel).toBeVisible();
+  return painel;
+}
+async function aplicarFiltros(painel: Locator) {
+  await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+  await expect(painel).toHaveCount(0);
 }
 
 function atualizacao(n: number, nome: string): AtualizacaoDaLista {
@@ -103,10 +106,13 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await page.getByRole('textbox', { name: 'Buscar' }).fill('');
       await expect(page.getByRole('link', { name: /Ana Fictícia/ })).toBeVisible();
 
-      // Vários responsáveis: Bia e Sem responsável.
-      const painel = await abrirFiltros(page, celular);
-      await marcar(page, painel, 'Responsável', 'Todos', ['Bia Fictícia', 'Sem responsável'], celular);
-      await verResultado(page, celular, 'Ver atualizações');
+      // Vários responsáveis: Bia e Sem responsável (rascunho: nada vai à API antes do Aplicar).
+      const painel = await abrirPainelLateral(page, 'Filtros de atualizações');
+      const antes = pedidos.length;
+      await marcar(page, painel, 'Responsável', 'Todos', ['Bia Fictícia', 'Sem responsável'], false);
+      expect(pedidos.slice(antes).some((p) => p.caminho === '/atualizacoes/pagina')).toBe(false);
+      await expect(page).not.toHaveURL(/responsavel=/);
+      await aplicarFiltros(painel);
       await expect.poll(() => ultimo(pedidos, '/atualizacoes/pagina')?.getAll('responsavel')).toEqual([OUTRA.id, 'nenhum']);
       expect(ultimo(pedidos, '/atualizacoes/pagina')?.has('meus')).toBe(false);
       await expect(page).toHaveURL(new RegExp(`responsavel=${OUTRA.id}(%2C|,)nenhum`));
@@ -117,12 +123,19 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       // A revisão em fila segue os mesmos filtros.
       await expect(page.getByRole('link', { name: /Ana Fictícia/ })).toHaveAttribute('href', new RegExp(`responsavel=${OUTRA.id}%2Cnenhum`));
 
-      // Data: só vale com as duas pontas (a rota só aceita o par).
-      const painel2 = await abrirFiltros(page, celular);
+      // Data: só vale com as duas pontas (a rota só aceita o par). Só o De segura o Aplicar: erro no Até, que recebe o
+      // foco, e nada vai ao endereço nem à API.
+      const painel2 = await abrirPainelLateral(page, 'Filtros de atualizações');
       await painel2.getByRole('textbox', { name: 'De', exact: true }).fill('01/10/2026');
-      await expect(painel2.getByText('Preencha as duas datas.')).toBeVisible();
+      const antesDaData = pedidos.length;
+      await painel2.getByRole('button', { name: 'Aplicar filtros' }).click();
+      await expect(painel2).toBeVisible();
+      await expect(painel2.getByRole('textbox', { name: 'Até', exact: true })).toHaveAttribute('aria-invalid', 'true');
+      await expect(painel2.getByRole('textbox', { name: 'Até', exact: true })).toBeFocused();
+      await expect(page).not.toHaveURL(/de=/);
+      expect(pedidos.slice(antesDaData).some((p) => p.caminho === '/atualizacoes/pagina')).toBe(false);
       await painel2.getByRole('textbox', { name: 'Até', exact: true }).fill('31/10/2026');
-      await verResultado(page, celular, 'Ver atualizações');
+      await aplicarFiltros(painel2);
       await expect.poll(() => ultimo(pedidos, '/atualizacoes/pagina')?.get('ate')).toBe('2026-10-31');
       expect(ultimo(pedidos, '/atualizacoes/pagina')?.get('de')).toBe('2026-10-01');
       await expect(page.getByRole('button', { name: 'Tirar filtro: Data: 01/10/2026 a 31/10/2026' })).toBeVisible();
@@ -207,12 +220,14 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await page.goto('/treinador/interessados');
       await expect(page.getByText('Pessoa Fictícia 1', { exact: true }).first()).toBeVisible();
 
-      const painel = await abrirFiltros(page, celular);
-      await marcar(page, painel, 'Responsável', 'Toda a equipe', ['Meus', 'Bia Fictícia'], celular);
-      await marcar(page, painel, 'Origem', 'Todas', ['Instagram', 'Não informada'], celular);
+      const painel = await abrirPainelLateral(page, 'Filtros de inscrições');
+      await marcar(page, painel, 'Responsável', 'Toda a equipe', ['Meus', 'Bia Fictícia'], false);
+      await marcar(page, painel, 'Origem', 'Todas', ['Instagram', 'Não informada'], false);
       await painel.getByRole('textbox', { name: 'Entrada: data inicial', exact: true }).fill('01/10/2026');
       await painel.getByRole('textbox', { name: 'Última atividade: data final', exact: true }).fill('31/10/2026');
-      await verResultado(page, celular, 'Ver inscrições');
+      // Rascunho: nada no endereço antes do Aplicar.
+      await expect(page).not.toHaveURL(/origem=/);
+      await aplicarFiltros(painel);
       // Meus junto de outra pessoa vira o id do usuário (a API recusa `meus` com `responsavel`).
       await expect.poll(() => daTela(1)?.get('atividadeAte')).toBe('2026-10-31');
       expect(daTela(1)?.getAll('responsavel').sort()).toEqual([OUTRA.id, TREINADOR.id].sort());
@@ -305,10 +320,12 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await expect.poll(() => ultimo(pedidos, '/financeiro/lancamentos')?.get('busca')).toBe('halter');
       await page.getByRole('textbox', { name: 'Buscar' }).fill('');
 
-      const painel = await abrirFiltros(page, celular);
+      const painel = await abrirPainelLateral(page, 'Filtros de lançamentos');
       await opcao(painel, 'Tipo', 'Saídas').click();
-      await marcar(page, painel, 'Categoria', 'Todas', ['Aluguel, luz e água'], celular);
-      await verResultado(page, celular, 'Ver lançamentos');
+      await marcar(page, painel, 'Categoria', 'Todas', ['Aluguel, luz e água'], false);
+      await expect(page).not.toHaveURL(/tipo=/);
+      await aplicarFiltros(painel);
+      await expect(page).toHaveURL(/tipo=SAIDA/);
       await expect.poll(() => ultimo(pedidos, '/financeiro/lancamentos')?.getAll('categoria')).toEqual(['Aluguel, luz e água']);
       expect(ultimo(pedidos, '/financeiro/lancamentos')?.get('tipo')).toBe('SAIDA');
       await expect(page.getByRole('button', { name: 'Tirar filtro: Categoria: Aluguel, luz e água' })).toBeVisible();
@@ -337,9 +354,10 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await expect(page.getByRole('button', { name: 'Tirar filtro: Ação: Aluno cadastrado' })).toBeVisible();
       expect(ultimo(pedidos, '/auditoria')?.getAll('acao')).toEqual(['ALUNO_CRIADO']);
 
-      const painel = await abrirFiltros(page, celular);
-      await marcar(page, painel, 'Pessoa', 'Todas as pessoas', ['Bia Fictícia', 'Sistema'], celular);
-      await verResultado(page, celular, 'Ver eventos');
+      const painel = await abrirPainelLateral(page, 'Filtros de eventos');
+      await marcar(page, painel, 'Pessoa', 'Todas as pessoas', ['Bia Fictícia', 'Sistema'], false);
+      await expect(page).not.toHaveURL(/usuarioId=/);
+      await aplicarFiltros(painel);
       await expect.poll(() => ultimo(pedidos, '/auditoria')?.getAll('usuarioId')).toEqual([OUTRA.id, 'sistema']);
       await expect(page.getByRole('button', { name: 'Tirar filtro: Pessoa: Bia Fictícia, Sistema' })).toBeVisible();
 
@@ -366,10 +384,10 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
         .toEqual(['alunos', 'csv', null]);
       expect(ultimo(pedidos, '/importacoes')?.has('busca')).toBe(false);
 
-      const painel = await abrirFiltros(page, celular);
+      const painel = await abrirPainelLateral(page, 'Filtros de importações');
       await opcao(painel, 'Situação', 'Falhou').click();
       await painel.getByRole('textbox', { name: 'De', exact: true }).fill('01/10/2026');
-      await verResultado(page, celular, 'Ver importações');
+      await aplicarFiltros(painel);
       await expect.poll(() => ultimo(pedidos, '/importacoes')?.get('situacao')).toBe('FALHOU');
       await expect.poll(() => ultimo(pedidos, '/importacoes')?.get('de')).toBe('2026-10-01');
       await expect(page).toHaveURL(/situacao=FALHOU/);
@@ -398,13 +416,9 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await expect(page.getByText('Ana Fictícia', { exact: true })).toHaveCount(0);
       await page.getByRole('textbox', { name: 'Buscar' }).fill('');
 
-      const painel = await abrirFiltros(page, celular);
-      await painel.getByRole('button', { name: 'Situação: Todas. Escolher.' }).click();
-      const lista = page.getByRole('dialog', { name: 'Situação' });
-      await lista.getByRole('checkbox', { name: 'Inativos' }).click();
-      if (celular) await lista.getByRole('button', { name: 'Fechar' }).click();
-      else await page.keyboard.press('Escape');
-      await verResultado(page, celular, 'Ver membros');
+      const painel = await abrirPainelLateral(page, 'Filtros de membros');
+      await marcar(page, painel, 'Situação', 'Todas', ['Inativos'], false);
+      await aplicarFiltros(painel);
       await expect(page.getByText('Ana Fictícia', { exact: true })).toHaveCount(0);
       await expect(page.getByText('Bia Exemplo', { exact: true })).toBeVisible();
       await page.getByRole('button', { name: 'Tirar filtro: Situação: Inativos' }).click();
@@ -426,24 +440,24 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await page.goto('/treinador/planejamento?aba=atualizacao');
       await expect(page.getByText('Check-in semanal', { exact: true })).toBeVisible();
 
-      const painel = await abrirFiltros(page, celular);
+      const painel = await abrirPainelLateral(page, 'Filtros de questionários');
       await opcao(painel, 'Publicação', 'Nunca publicados').click();
-      await verResultado(page, celular, 'Ver questionários');
+      await aplicarFiltros(painel);
       await expect(page.getByText('Check-in semanal', { exact: true })).toHaveCount(0);
       await expect(page.getByText('Rascunho novo', { exact: true })).toBeVisible();
 
-      const painel2 = await abrirFiltros(page, celular);
+      const painel2 = await abrirPainelLateral(page, 'Filtros de questionários');
       await opcao(painel2, 'Publicação', 'Todos').click();
       await opcao(painel2, 'Situação', 'Arquivados').click();
-      await verResultado(page, celular, 'Ver questionários');
+      await aplicarFiltros(painel2);
       await expect(page.getByText('Antigo', { exact: true })).toBeVisible();
       expect(ultimo(pedidos, '/questionarios')?.get('arquivados')).toBe('true');
       await expect(page.getByRole('button', { name: 'Tirar filtro: Situação: Arquivados' })).toBeVisible();
 
       // "Todos": ativos e arquivados juntos, numa consulta só.
-      const painel3 = await abrirFiltros(page, celular);
+      const painel3 = await abrirPainelLateral(page, 'Filtros de questionários');
       await opcao(painel3, 'Situação', 'Todos').click();
-      await verResultado(page, celular, 'Ver questionários');
+      await aplicarFiltros(painel3);
       await expect.poll(() => ultimo(pedidos, '/questionarios')?.get('arquivados')).toBe('todos');
       await expect(page.getByText('Antigo', { exact: true })).toBeVisible();
       await expect(page.getByText('Check-in semanal', { exact: true })).toBeVisible();

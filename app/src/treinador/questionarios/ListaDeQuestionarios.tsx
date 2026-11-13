@@ -14,7 +14,7 @@ import {
 import { AVISO_SAUDE_NA_INSCRICAO } from '../../dominio/inscricoes';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useAviso } from '../../ui/Aviso';
-import { BarraDeFiltros } from '../../ui/BarraDeFiltros';
+import { BarraDeFiltros, GrupoDoPainel } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { Cartao } from '../../ui/Cartao';
@@ -29,7 +29,6 @@ import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Permitido } from '../../ui/Permitido';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
-import { CelulaDoFiltro } from '../SeletoresDeFiltro';
 import { CamposFixosDaInscricao } from './CamposFixosDaInscricao';
 
 const irParaEditor = (id: string) => router.push(`/treinador/planejamento/questionario/${id}`);
@@ -114,15 +113,19 @@ export function ListaDeQuestionarios({ finalidade = 'ATUALIZACAO', pedirNovo, ao
       {/* Busca e o botão "Filtros" (situação e publicação), como nas outras listas. */}
       <BarraDeFiltros busca={{ valor: busca, aoMudar: setBusca, rotulo: textos.buscar, placeholder: 'Nome ou descrição' }}
         valor={filtros} aoAplicar={setFiltros} limpo={SEM_FILTROS} chips={chips} aoTirar={(chave) => setFiltros(semOFiltro(filtros, chave as ChaveDoFiltro))}
-        rotuloDoResultado={textos.ver}
-        seletores={(atuais, mudar) => <>
-          <CelulaDoFiltro><Escolha rotulo="Situação" opcoes={[...SITUACOES_DO_QUESTIONARIO]} valor={atuais.situacao} aoMudar={(situacao) => mudar({ ...atuais, situacao })} /></CelulaDoFiltro>
-          <CelulaDoFiltro><Escolha rotulo="Publicação" opcoes={[...PUBLICACOES]} valor={atuais.publicacao} aoMudar={(publicacao) => mudar({ ...atuais, publicacao })} /></CelulaDoFiltro>
-        </>} />
+        rotuloDoResultado={textos.ver} painelLateral={{ titulo: 'Filtros de questionários' }}
+        seletores={(atuais, mudar) => (
+          <GrupoDoPainel titulo="Situação" primeiro>
+            <Escolha rotulo="Situação" opcoes={[...SITUACOES_DO_QUESTIONARIO]} valor={atuais.situacao} aoMudar={(situacao) => mudar({ ...atuais, situacao })} />
+            <Escolha rotulo="Publicação" opcoes={[...PUBLICACOES]} valor={atuais.publicacao} aoMudar={(publicacao) => mudar({ ...atuais, publicacao })} />
+          </GrupoDoPainel>
+        )} />
       {lista.erro ? <MensagemErro texto={textoDoErro(lista.erro)} erro={lista.erro} tentarDeNovo={lista.recarregar} /> : null}
       {!lista.dados && lista.carregando ? <Esqueleto /> : null}
-      {lista.dados?.length && filtrados?.length === 0 ? <Vazio texto={filtros.publicacao ? 'Nenhum questionário com essa busca e esses filtros.' : 'Nenhum questionário com essa busca.'} /> : null}
-      {lista.dados?.length === 0 ? <Vazio texto={arquivados === true ? 'Nenhum questionário arquivado.' : textos.vazio} /> : null}
+      {lista.dados?.length && filtrados?.length === 0 ? <Vazio texto={filtros.publicacao ? 'Nenhum questionário com essa busca e esses filtros.' : 'Nenhum questionário com essa busca.'}
+        acao={chips.length ? { rotulo: 'Limpar filtros', aoTocar: () => setFiltros(SEM_FILTROS) } : busca ? { rotulo: 'Limpar busca', aoTocar: () => setBusca('') } : undefined} /> : null}
+      {lista.dados?.length === 0 ? <Vazio texto={arquivados === true ? 'Nenhum questionário arquivado.' : textos.vazio}
+        acao={chips.length ? { rotulo: 'Limpar filtros', aoTocar: () => setFiltros(SEM_FILTROS) } : undefined} /> : null}
       {filtrados?.length ? <ListaDeLinhas>{filtrados.map((q) =>
         <LinhaDoQuestionario key={q.id} q={q} ocupado={ocupado === q.id} podeAlterar={podeAlterar} aoAbrir={() => irParaEditor(q.id)} aoMenu={podeAlterar ? () => setMenu(q) : undefined} />)}</ListaDeLinhas> : null}
     </Cartao>

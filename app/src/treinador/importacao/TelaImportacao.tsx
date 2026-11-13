@@ -24,7 +24,7 @@ import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, LARGURA_MAXIMA, RAIO, espaco, fontes } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
-import { BarraDeFiltros } from '../../ui/BarraDeFiltros';
+import { BarraDeFiltros, GrupoDoPainel } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Campo } from '../../ui/Campo';
@@ -44,7 +44,7 @@ import { sobre } from '../../ui/sobre';
 import { Tabela } from '../../ui/Tabela';
 import { Texto } from '../../ui/Texto';
 import { textoDoErro as textoDoErroDaApi } from '../../ui/erros';
-import { CamposDePeriodo, CelulaDoFiltro, UmaOpcao } from '../SeletoresDeFiltro';
+import { CamposDePeriodo, UmaOpcao } from '../SeletoresDeFiltro';
 import { useCarregar } from '../../ui/useCarregar';
 import { baixarCsv } from '../financeiro/baixarCsv';
 import { TelaDoEditor } from '../plano/TelaDoEditor';
@@ -117,22 +117,21 @@ export function TelaImportacao() {
         detalhe="PDFs, DOCX, planilhas e texto colado num lote só. Você confere tudo antes de gravar." href="/treinador/importacao/assistida" />
       <BarraDeFiltros valor={filtros} aoAplicar={aplicar} limpo={SEM_FILTROS} chips={chips}
         aoTirar={(chave) => aplicar(semOFiltro(filtros, chave as ChaveDoFiltro))} rotuloDoResultado="Ver importações"
+        painelLateral={{ titulo: 'Filtros de importações' }}
         seletores={(atuais, mudar) => <>
-          <CelulaDoFiltro>
+          <GrupoDoPainel titulo="Identificação" primeiro>
             <UmaOpcao rotulo="Destino" valor={atuais.destino} aoMudar={(destino) => mudar({ ...atuais, destino })}
               opcoes={[{ valor: '', rotulo: 'Todos' }, ...permitidos.map((d) => ({ valor: d.id, rotulo: d.rotulo }))]} />
-          </CelulaDoFiltro>
-          <CelulaDoFiltro>
-            <UmaOpcao rotulo="Situação" valor={atuais.situacao} aoMudar={(situacao) => mudar({ ...atuais, situacao })}
-              opcoes={[{ valor: '' as const, rotulo: 'Todas' }, ...SITUACOES]} />
-          </CelulaDoFiltro>
-          <CelulaDoFiltro>
             <UmaOpcao rotulo="Arquivo" valor={atuais.arquivo} aoMudar={(arquivo) => mudar({ ...atuais, arquivo })}
               opcoes={[{ valor: '' as const, rotulo: 'Todos' }, ...ARQUIVOS]} />
-          </CelulaDoFiltro>
-          <CelulaDoFiltro>
+          </GrupoDoPainel>
+          <GrupoDoPainel titulo="Situação">
+            <UmaOpcao rotulo="Situação" valor={atuais.situacao} aoMudar={(situacao) => mudar({ ...atuais, situacao })}
+              opcoes={[{ valor: '' as const, rotulo: 'Todas' }, ...SITUACOES]} />
+          </GrupoDoPainel>
+          <GrupoDoPainel titulo="Datas">
             <CamposDePeriodo rotulo="Data da importação" regra="PLANEJAMENTO" valor={atuais.periodo} aoMudar={(periodo) => mudar({ ...atuais, periodo })} />
-          </CelulaDoFiltro>
+          </GrupoDoPainel>
         </>} />
       {lista.erro ? <MensagemErro texto={textoDoErroDaApi(lista.erro)} tentarDeNovo={lista.recarregar} /> : null}
       {lista.carregando && !lista.dados ? <Esqueleto /> : null}

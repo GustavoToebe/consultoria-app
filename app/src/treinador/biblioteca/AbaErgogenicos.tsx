@@ -75,7 +75,7 @@ export function AbaErgogenicos() {
         titulo="Outros"
         descricao="Medicação, ergogênicos e o que mais você quiser ter à mão, nas categorias que você criar. Só o que está no rótulo: dose, horário e prescrição quem escreve é você, na dieta do aluno."
         acoes={<Permitido codigo="ERGOGENICO_ALTERAR"><Botao rotulo="Novo item" Icone={Plus} aoTocar={() => setEditando('novo')} /></Permitido>}>
-        <BarraDaBiblioteca rotulo="Buscar em Outros" placeholder="Nome, princípio ativo ou categoria" valor={busca} aoMudar={setBusca}
+        <BarraDaBiblioteca rotulo="Buscar em Outros" placeholder="Nome, princípio ativo ou categoria" valor={busca} aoMudar={setBusca} painelLateral={{ titulo: 'Filtros de outros itens' }}
           filtro={categorias.length ? { tipo: 'uma', rotulo: 'Categoria', valor: categoria, todos: '', aoMudar: setCategoria,
             opcoes: [{ valor: '', rotulo: 'Todas' }, ...categorias.map((c) => ({ valor: c, rotulo: c }))] } : null} />
         {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
@@ -84,7 +84,7 @@ export function AbaErgogenicos() {
           <Vazio
             titulo={dados.length ? 'Nenhum item encontrado' : 'Biblioteca vazia'}
             texto={dados.length ? 'Tente outro termo ou outra categoria.' : 'Cadastre um item ou importe a lista pelo script de importação.'}
-            acao={dados.length ? { rotulo: 'Limpar filtros', aoTocar: () => { setBusca(''); setCategoria(''); } } : undefined}
+            acao={!dados.length ? undefined : categoria ? { rotulo: 'Limpar filtros', aoTocar: () => setCategoria('') } : { rotulo: 'Limpar busca', aoTocar: () => setBusca('') }}
           />
         ) : null}
       </Cartao>

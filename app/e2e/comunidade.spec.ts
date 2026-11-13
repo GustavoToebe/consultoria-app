@@ -114,6 +114,28 @@ const TEMAS = [['claro', 'CLARO', 'PADRAO'], ['escuro', 'ESCURO', 'PADRAO'], ['a
 const foiPost = (p: { metodo: string; caminho: string }, caminho: string) => p.metodo === 'POST' && p.caminho === caminho;
 const novaPublicacao = (page: Page) => page.getByRole('dialog', { name: 'Nova publicação' });
 
+/**
+ * Filtros no painel lateral (`docs/planos/filtros-laterais.md`): o botão "Filtros, …" abre o diálogo "Filtros do mural" ou
+ * "Filtros de aulões"; as escolhas são rascunho e só valem no "Aplicar filtros".
+ */
+const botaoFiltros = (page: Page) => page.getByRole('button', { name: /^Filtros, / });
+async function abrirPainel(page: Page, nome: string) {
+  await botaoFiltros(page).click();
+  const painel = page.getByRole('dialog', { name: nome });
+  await expect(painel).toBeVisible();
+  return painel;
+}
+async function aplicarFiltros(painel: ReturnType<Page['getByRole']>) {
+  await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
+  await expect(painel).toHaveCount(0);
+}
+/** Escolhe a categoria no painel dos aulões e aplica. */
+async function filtrarCategoria(page: Page, rotulo: string) {
+  const painel = await abrirPainel(page, 'Filtros de aulões');
+  await painel.getByRole('radio', { name: rotulo, exact: true }).click();
+  await aplicarFiltros(painel);
+}
+
 /** Posts de cada tipo, como a API manda (o aviso fixado vem por último para conferir que a tela o põe no topo). */
 const DUVIDA: PostDoMural = { ...POST_CURTIDO, id: 'p3', tipo: 'DUVIDA', texto: 'Dúvida de teste sobre o aquecimento.', respondida: true, minhasReacoes: [] };
 const VIDEO: PostDoMural = { ...POST, id: 'p4', tipo: 'VIDEO', texto: 'Vídeo de teste da técnica', videoUrl: 'https://video.exemplo.invalid/aula', fixado: false, totalComentarios: 0 };
@@ -285,25 +307,30 @@ for (const largura of [390, 1280]) {
       await expect(page.getByText('Nenhuma publicação no mural ainda.')).toBeVisible();
     });
 
-    test('aluno: chips do tipo e busca vão à API; vazio com filtro diz isso e limpa', async ({ page }) => {
+    test('aluno: tipo (no painel) e busca vão à API; vazio com filtro diz isso e limpa', async ({ page }) => {
       const api = await simularApi(page, {
         ...(await sessaoDeAluno(page)), ...cheia,
         'GET /aluno/comunidade/mural': (p, route) => json(route, p.busca.get('tipo') || p.busca.get('busca') ? pagina() : pagina(POST, POST_CURTIDO)),
       });
       await page.goto('/aluno/comunidade');
       await expect(page.getByText('Treino feito.')).toBeVisible();
+      const painel = await abrirPainel(page, 'Filtros do mural');
       for (const rotulo of ['Todos', 'Avisos', 'Vídeos', 'Dúvidas', 'Resultados', 'Conversas']) {
-        await expect(page.getByRole('radio', { name: rotulo, exact: true })).toHaveCount(1);
+        await expect(painel.getByRole('radio', { name: rotulo, exact: true })).toHaveCount(1);
       }
-      await expect(page.getByRole('radio', { name: 'Denunciados', exact: true })).toHaveCount(0);
-      await page.getByRole('radio', { name: 'Dúvidas', exact: true }).click();
+      // "Só denunciadas" é só de quem modera.
+      await expect(painel.getByRole('checkbox', { name: /Só denunciadas/ })).toHaveCount(0);
+      await painel.getByRole('radio', { name: 'Dúvidas', exact: true }).click();
+      await aplicarFiltros(painel);
       await expect.poll(() => api.pedidos.some((p) => p.caminho === '/aluno/comunidade/mural' && p.busca.get('tipo') === 'DUVIDA')).toBe(true);
       await expect(page.getByText('Nenhuma publicação encontrada com esse filtro.')).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Tirar filtro: Tipo: Dúvidas' })).toBeVisible();
       await capturar(page, `aluno-mural-filtro-vazio-${largura}`);
-      await page.getByRole('button', { name: 'Limpar filtros' }).click();
+      await page.getByRole('button', { name: 'Limpar filtros' }).first().click();
       await expect(page.getByText('Treino feito.')).toBeVisible();
+      await expect(botaoFiltros(page)).toHaveAccessibleName('Filtros, nenhum ligado');
 
-      await page.getByRole('searchbox', { name: 'Buscar na comunidade' }).fill('supino');
+      await page.getByRole('textbox', { name: 'Buscar na comunidade' }).fill('supino');
       await expect.poll(() => api.pedidos.some((p) => p.caminho === '/aluno/comunidade/mural' && p.busca.get('busca') === 'supino')).toBe(true);
       await expect(page.getByText('Nenhuma publicação encontrada com esse filtro.')).toBeVisible();
       expect(api.errosDaPagina).toEqual([]);
@@ -856,9 +883,12 @@ for (const largura of [390, 1280]) {
       const api = await abrirTreinador(page, cheia);
       await page.goto('/treinador/comunidade');
       await expect(page.getByRole('heading', { level: 1, name: 'Comunidade' })).toBeVisible();
-      // A categoria aparece no chip do filtro (com a contagem) e no selo neutro do cartão.
-      await expect(page.getByRole('radio', { name: 'Técnica, 1' })).toBeVisible();
-      await expect(page.getByText('Técnica', { exact: true })).toHaveCount(2);
+      // A categoria aparece no selo neutro do cartão e, com a contagem, no painel "Filtros de aulões".
+      await expect(page.getByText('Técnica', { exact: true })).toHaveCount(1);
+      const painel = await abrirPainel(page, 'Filtros de aulões');
+      await expect(painel.getByRole('radio', { name: 'Técnica, 1' })).toBeVisible();
+      await painel.getByRole('button', { name: 'Cancelar' }).click();
+      await expect(painel).toHaveCount(0);
       await expect(page.getByRole('button', { name: 'Abrir vídeo: Aulão de técnica' })).toBeVisible();
       await expect(page.getByRole('tab', { name: 'Ranking' })).toHaveCount(0);
       // Uma ação principal por vez, a da aba ativa, no cabeçalho (guia pág. 35).
@@ -976,8 +1006,11 @@ for (const largura of [390, 1280]) {
       await expect.poll(() => api.pedidos.some((p) => foiPost(p, '/comunidade/mural/p1/fixar'))).toBe(true);
       await expect(page.getByText('Publicação desafixada.')).toBeVisible();
 
-      await page.getByRole('radio', { name: 'Denunciados', exact: true }).click();
+      const filtros = await abrirPainel(page, 'Filtros do mural');
+      await filtros.getByRole('checkbox', { name: /Só denunciadas/ }).click();
+      await aplicarFiltros(filtros);
       await expect.poll(() => api.pedidos.some((p) => p.caminho === '/comunidade/mural' && p.busca.get('denunciados') === 'true')).toBe(true);
+      await expect(page.getByRole('button', { name: 'Tirar filtro: Só denunciadas' })).toBeVisible();
       await expect(page.getByText('Semana de constância, time!')).toHaveCount(0);
       await capturar(page, `treinador-denunciados-${largura}`);
       await page.getByRole('button', { name: 'Ações da publicação de Aluno Fictício' }).click();
@@ -1009,7 +1042,9 @@ for (const largura of [390, 1280]) {
       await expect(page.getByRole('button', { name: 'Nova publicação' })).toHaveCount(0);
       await expect(page.getByRole('button', { name: 'Configurações do mural' })).toHaveCount(0);
       await expect(page.getByRole('switch')).toHaveCount(0);
-      await expect(page.getByRole('radio', { name: 'Denunciados', exact: true })).toHaveCount(0);
+      const filtros = await abrirPainel(page, 'Filtros do mural');
+      await expect(filtros.getByRole('checkbox', { name: /Só denunciadas/ })).toHaveCount(0);
+      await filtros.getByRole('button', { name: 'Cancelar' }).click();
       // O apelido aparece para todos; só a moderação (o ⋯) some.
       await expect(page.getByText('«Fictí»')).toBeVisible();
       await expect(page.getByRole('button', { name: /^Ações da publicação/ })).toHaveCount(0);
@@ -1350,7 +1385,8 @@ for (const largura of [390, 1280]) {
       await page.reload();
       await expect(page.getByRole('heading', { level: 2, name: 'Aulão de técnica avançada' })).toBeVisible();
       await expect(page.getByText('Não publicado', { exact: true })).toBeVisible();
-      await expect(page.getByRole('radio', { name: 'Mobilidade, 1' })).toBeVisible();
+      const filtros = await abrirPainel(page, 'Filtros de aulões');
+      await expect(filtros.getByRole('radio', { name: 'Mobilidade, 1' })).toBeVisible();
       expect(api.errosDaPagina).toEqual([]);
     });
 
@@ -1402,7 +1438,9 @@ for (const largura of [390, 1280]) {
       await expect(page.getByRole('heading', { level: 2, name: 'Aulão de proteína' })).toHaveCount(0);
       expect(api.pedidos.filter((p) => p.metodo === 'DELETE').map((p) => p.caminho)).toEqual(['/comunidade/aulas/a2', '/comunidade/aulas/a2']);
       // A categoria que ficou sem aula sai do filtro.
-      await expect(page.getByRole('radio', { name: /^Alimentação/ })).toHaveCount(0);
+      const filtros = await abrirPainel(page, 'Filtros de aulões');
+      await expect(filtros.getByRole('radio', { name: /^Técnica/ })).toBeVisible();
+      await expect(filtros.getByRole('radio', { name: /^Alimentação/ })).toHaveCount(0);
       expect(api.errosDaPagina).toEqual([]);
     });
   });
@@ -1412,7 +1450,7 @@ for (const [largura, altura] of [[390, 900], [1280, 900], [1440, 900], [1920, 10
   test.describe(`aulões por categoria em ${largura} px`, () => {
     test.use({ viewport: { width: largura, height: altura } });
 
-    test('treinador: chips Todas, cada categoria e Sem categoria filtram a grade; vazio do filtro limpa', async ({ page }) => {
+    test('treinador: no painel, Todas, cada categoria e Sem categoria filtram a grade; a etiqueta tira o filtro', async ({ page }) => {
       await tema(page, TREINADOR.id, 'CLARO');
       const estado = { aulas: [...AULAS_VARIADAS] };
       await simularApi(page, {
@@ -1420,17 +1458,24 @@ for (const [largura, altura] of [[390, 900], [1280, 900], [1440, 900], [1920, 10
         'GET /comunidade/aulas': (_p, route) => json(route, estado.aulas),
       });
       await page.goto('/treinador/comunidade');
-      const chips = page.getByRole('radiogroup', { name: 'Categoria do aulão' }).getByRole('radio');
+      await expect.poll(() => titulosNaTela(page)).toHaveLength(4);
+      const painel = await abrirPainel(page, 'Filtros de aulões');
+      const chips = painel.getByRole('radiogroup', { name: 'Categoria do aulão' }).getByRole('radio');
       // Ordem alfabética pt-BR e "Sem categoria" por último, com a contagem.
       await expect(chips).toHaveText([/^Todas\s*4$/, /^Alimentação\s*1$/, /^Técnica\s*2$/, /^Sem categoria\s*1$/]);
-      await expect(page.getByRole('radio', { name: 'Todas, 4' })).toBeChecked();
-      await page.getByRole('radio', { name: 'Técnica, 2' }).click();
-      await expect.poll(() => titulosNaTela(page)).toEqual(['Aulão de técnica', 'Aulão de execução']);
-      await capturar(page, `treinador-filtro-categoria-${largura}`);
-      await page.getByRole('radio', { name: 'Sem categoria, 1' }).click();
-      await expect.poll(() => titulosNaTela(page)).toEqual(['Aulão de boas-vindas']);
-      await page.getByRole('radio', { name: 'Todas, 4' }).click();
+      await expect(painel.getByRole('radio', { name: 'Todas, 4' })).toBeChecked();
+      await painel.getByRole('radio', { name: 'Técnica, 2' }).click();
+      // Rascunho: a grade só muda no Aplicar.
       await expect.poll(() => titulosNaTela(page)).toHaveLength(4);
+      await aplicarFiltros(painel);
+      await expect.poll(() => titulosNaTela(page)).toEqual(['Aulão de técnica', 'Aulão de execução']);
+      await expect(botaoFiltros(page)).toHaveAccessibleName('Filtros, 1 ligado');
+      await capturar(page, `treinador-filtro-categoria-${largura}`);
+      await filtrarCategoria(page, 'Sem categoria, 1');
+      await expect.poll(() => titulosNaTela(page)).toEqual(['Aulão de boas-vindas']);
+      await page.getByRole('button', { name: 'Tirar filtro: Categoria: Sem categoria' }).click();
+      await expect.poll(() => titulosNaTela(page)).toHaveLength(4);
+      await expect(botaoFiltros(page)).toHaveAccessibleName('Filtros, nenhum ligado');
       expect(await semRolagemHorizontal(page)).toBe(true);
     });
 
@@ -1532,7 +1577,8 @@ test.describe('aulões do aluno: estados', () => {
     await expect(page.getByRole('progressbar').first()).toBeVisible();
     await capturar(page, 'treinador-auloes-carregando-390');
     liberar();
-    await expect(page.getByRole('radio', { name: 'Todas, 4' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: /^Aulão de/ })).toHaveCount(4);
+    await expect(botaoFiltros(page)).toBeVisible();
   });
 
   test('carregando mostra o esqueleto e depois as coleções; falha tem "Tentar de novo"', async ({ page }) => {
@@ -1608,7 +1654,7 @@ for (const [largura, altura, colunas] of [[390, 900, 1], [1440, 900, 2], [1920, 
       await capturar(page, `treinador-auloes-um-${largura}`);
     });
 
-    test('mural: busca na largura útil e publicações numa coluna de leitura na borda esquerda do cabeçalho', async ({ page }) => {
+    test('mural: barra de filtros e publicações numa coluna de leitura na borda esquerda do cabeçalho', async ({ page }) => {
       await abrir(page, {});
       await page.goto('/treinador/comunidade?aba=mural');
       await expect(page.getByText('Treino feito.')).toBeVisible();
@@ -1616,9 +1662,13 @@ for (const [largura, altura, colunas] of [[390, 900, 1], [1440, 900, 2], [1920, 
       const coluna = (await page.getByTestId('coluna-das-publicacoes').boundingBox())!;
       expect(Math.abs(coluna.x - esquerda)).toBeLessThanOrEqual(1);
       expect(coluna.width).toBeLessThanOrEqual(800);
-      const busca = (await page.getByRole('searchbox', { name: 'Buscar na comunidade' }).boundingBox())!;
-      // No celular a ação desce para baixo do título e não marca a borda direita.
-      if (largura >= 768) expect(Math.abs(busca.x + busca.width - direita)).toBeLessThanOrEqual(2);
+      const busca = (await page.getByRole('textbox', { name: 'Buscar na comunidade' }).boundingBox())!;
+      const filtros = (await botaoFiltros(page).boundingBox())!;
+      // A barra de filtros (busca e botão "Filtros", na largura da peça compartilhada) começa na borda esquerda e cabe no
+      // conteúdo. No celular a ação do cabeçalho desce para baixo do título e não marca a borda direita.
+      expect(Math.abs(busca.x - esquerda)).toBeLessThanOrEqual(2);
+      expect(filtros.x).toBeGreaterThan(busca.x + busca.width);
+      if (largura >= 768) expect(filtros.x + filtros.width).toBeLessThanOrEqual(direita + 1);
       expect(await semRolagemHorizontal(page)).toBe(true);
       await capturar(page, `treinador-mural-largura-${largura}`);
     });
