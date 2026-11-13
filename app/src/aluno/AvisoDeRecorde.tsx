@@ -10,6 +10,7 @@ import { useUnidadeDeCarga } from '../ui/unidadeDeCargaEmUso';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
 import { DemonstracaoDoExercicio } from '../ui/DemonstracaoDoExercicio';
+import { useDestaques } from '../ui/NumeroDeDestaque';
 import { Texto } from '../ui/Texto';
 import { useMovimentoReduzido } from '../ui/useMovimentoReduzido';
 
@@ -33,6 +34,8 @@ export interface RecordeParaAvisar {
  */
 export function AvisoDeRecorde({ aviso, aoFechar }: { aviso: RecordeParaAvisar | null; aoFechar: () => void }) {
   const { cores } = useTema();
+  // Recorde é indicador em violeta (`cores-de-destaque.md` D6), na área do aluno inteira; conclusão segue verde.
+  const { violeta } = useDestaques();
   const unidade = useUnidadeDeCarga();
   const margem = useSafeAreaInsets();
   const reduzido = useMovimentoReduzido();
@@ -53,17 +56,17 @@ export function AvisoDeRecorde({ aviso, aoFechar }: { aviso: RecordeParaAvisar |
         role="status"
         accessibilityLiveRegion="polite"
         accessibilityLabel={`Recorde pessoal em ${aviso.nome}, série ${aviso.numeroDaSerie}: ${linhas.join('; ')}`}
-        style={[estilos.aviso, { backgroundColor: cores.superficie2, borderColor: cores.sucesso }]}>
+        style={[estilos.aviso, { backgroundColor: cores.superficie2, borderColor: violeta.cor }]}>
         {aviso.demonstracao ? (
           <DemonstracaoDoExercicio exercicioId={aviso.exercicioId} nome={aviso.nome} imagens={aviso.demonstracao.imagens}
             imagemPropriaEm={aviso.demonstracao.imagemPropriaEm} papel="ALUNO" largura={44} altura={44} preencher />
         ) : (
-          <View style={[estilos.icone, { borderColor: cores.sucesso }]}>
-            <Medal size={22} color={cores.sucesso} />
+          <View style={[estilos.icone, { borderColor: violeta.cor }]}>
+            <Medal size={22} color={violeta.cor} />
           </View>
         )}
         <View style={estilos.textos}>
-          <Texto variante="pequeno" style={[estilos.titulo, { color: cores.sucesso }]}>Recorde pessoal · {aviso.nome}</Texto>
+          <Texto variante="pequeno" style={[estilos.titulo, { color: violeta.cor }]}>Recorde pessoal · {aviso.nome}</Texto>
           {linhas.map((l) => (
             <Texto key={l} numerico style={estilos.linha}>{l}</Texto>
           ))}

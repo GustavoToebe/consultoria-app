@@ -50,6 +50,7 @@ import { FolhaReceitas } from './FolhaReceitas';
 import { FolhaSalvarReceita } from './FolhaSalvarReceita';
 import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
+import type { useAcompanhamentoDoAluno } from './CartaoFrequencia';
 import { AtualizacaoDaPasta } from './AtualizacaoDaPasta';
 import { CartaoRegistros } from './CartaoRegistros';
 import { CartaoPlanos } from './CartaoPlanos';
@@ -74,6 +75,11 @@ interface PropsPastas {
   aoMudar?: () => void;
   /** Muda quando outra parte da ficha alterou as pastas (renovar pelo resumo): a lista busca de novo. */
   geracao?: number;
+  /**
+   * A busca do Resumo da ficha (`useAcompanhamentoDoAluno`), que já traz a pasta vigente: a lista a reaproveita em vez de
+   * pedir a mesma rota de novo. Sem ela, ou com ela em erro, o cartão busca a vigente sozinho.
+   */
+  acompanhamento?: ReturnType<typeof useAcompanhamentoDoAluno>;
 }
 
 /**
@@ -104,7 +110,7 @@ export function useRenovarPasta(diasAtualizacao: number | null, aoRenovar: () =>
  * Pastas do aluno (ex.: "Plano 16"): cada uma agrupa treinos e dietas e tem o período que vale para todos. Mudar o
  * período da pasta acompanha os rascunhos dos planos dela; replicar a pasta copia todos para o próximo ciclo.
  */
-export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, aoGravarPeso, aoMudar, geracao: geracaoExterna = 0, pastaInicialId }: PropsPastas) {
+export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, aoGravarPeso, aoMudar, geracao: geracaoExterna = 0, pastaInicialId, acompanhamento }: PropsPastas) {
   const { pode, temFuncionalidade } = useSessao();
   const { dados, erro, carregando, recarregar } = useCarregar(`pastas:${alunoId}:${geracaoExterna}`, () => listarPastas(alunoId));
   const [modo, setModo] = useState<Modo | null>(null);
@@ -141,8 +147,10 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
   const emRascunho = (id: string) => pastaSoComRascunho(planosDaPasta(id, listasDePlanos, temFuncionalidade('MOBILIDADE')));
   // "Vigente" no cabeçalho da Folha (guia premium, pág. 8) vem da regra da API (`PastaVigente`), nunca de um palpite
   // da tela; falhou ou nenhuma = sem selo. Também decide o prazo da lista: a vigente vencida fica vermelha mesmo renovada.
-  const { dados: vigente } = useCarregar(`pasta-vigente:${alunoId}:${geracao}:${geracaoExterna}`, () => pastaVigenteDoAluno(alunoId));
-  const idDaVigente = vigente?.pasta?.id ?? null;
+  // Toda mudança de pasta daqui chama `aoMudar`, que refaz a busca da ficha: a vigente reaproveitada acompanha.
+  const buscarAqui = !acompanhamento || !!acompanhamento.erro;
+  const { dados: propria } = useCarregar(buscarAqui ? `pasta-vigente:${alunoId}:${geracao}:${geracaoExterna}` : null, () => pastaVigenteDoAluno(alunoId));
+  const idDaVigente = (buscarAqui ? propria?.pasta : acompanhamento.dados?.pasta)?.id ?? null;
   // A atualização fecha o período da pasta: vem junto na lista e na folha (dado sensível, só com ATUALIZACAO_LER).
   const verAtualizacoes = pode('ATUALIZACAO_LER');
   const { dados: atualizacoes, recarregar: recarregarAtualizacoes } = useCarregar(verAtualizacoes ? `atualizacoes-pastas:${alunoId}` : null, async () => {

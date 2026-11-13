@@ -113,7 +113,7 @@ export default function FichaAluno() {
     switch (b) {
       case 'pastas':
         return <CartaoPastas key={`${a.id}:${pedidoDePasta.vez}`} pastaInicialId={pedidoDePasta.id} alunoId={a.id} alunoNome={a.nome} diasAtualizacao={cicloDoAluno(a.diasAtualizacao, padrao)}
-          geracao={geracaoPastas} aoMudar={mudouPastas} aoGravarPeso={() => setGeracaoPeso((g) => g + 1)} />;
+          geracao={geracaoPastas} aoMudar={mudouPastas} aoGravarPeso={() => setGeracaoPeso((g) => g + 1)} acompanhamento={acompanhamento} />;
       case 'frequencia': return <CartaoFrequencia alunoId={a.id} acompanhamento={acompanhamento} comMobilidade={mostraMobilidade(contexto)} />;
       case 'agua': return <CartaoAgua alunoId={a.id} comDieta={pode('DIETA_LER')} />;
       // Retorno ao aluno (Engajamento 0.5): treinos concluídos com o "Visto" e os recordes da semana.

@@ -6,6 +6,7 @@ import { textoDoRecorde, type Recorde } from '../dominio/recordesPessoais';
 import { useUnidadeDeCarga } from '../ui/unidadeDeCargaEmUso';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../tema/tokens';
+import { useDestaques } from '../ui/NumeroDeDestaque';
 import { Selo } from '../ui/Selo';
 import { Texto } from '../ui/Texto';
 import { SeloComExplicacao } from './SeloComExplicacao';
@@ -20,7 +21,8 @@ import { TipoDaSerieComExplicacao } from './TipoDaSerieComExplicacao';
 
 /**
  * "Série 3 · Back off" (o tipo é o toque da explicação), o selo da técnica e, só na série já registrada, o selo "Feita" ou
- * "Não feita" (série sem registro não tem selo). Com recorde, a medalha e o selo "Recorde" (verde: é um fato concluído).
+ * "Não feita" (série sem registro não tem selo). Com recorde, a medalha e o selo "Recorde" em violeta (indicador de recorde,
+ * `cores-de-destaque.md` D6; o "Feita" continua verde).
  * "Feita" só é verde na série que a pessoa acabou de marcar (`agora`); a que já estava feita leva o selo neutro.
  */
 export function CabecalhoDaSerie({ numero, tipo, tecnica, recordes, registro, agora = false }: {
@@ -33,7 +35,7 @@ export function CabecalhoDaSerie({ numero, tipo, tecnica, recordes, registro, ag
   /** Marcada agora, com a tela aberta (`useMarcadoAgora`). */
   agora?: boolean;
 }) {
-  const { cores } = useTema();
+  const { violeta } = useDestaques();
   const unidade = useUnidadeDeCarga();
   const comRecorde = !!recordes?.length;
   return (
@@ -41,7 +43,7 @@ export function CabecalhoDaSerie({ numero, tipo, tecnica, recordes, registro, ag
       <View style={estilos.titulo}>
         {comRecorde ? (
           <View accessible accessibilityRole="text" accessibilityLabel={`Série ${numero}, recorde pessoal: ${recordes!.map((r) => textoDoRecorde(r, unidade)).join('; ')}`}>
-            <Medal size={20} color={cores.sucesso} />
+            <Medal size={20} color={violeta.cor} />
           </View>
         ) : null}
         <Texto variante="bloco" nivel={3}>{`Série ${numero}`}</Texto>
@@ -53,7 +55,7 @@ export function CabecalhoDaSerie({ numero, tipo, tecnica, recordes, registro, ag
         ) : null}
       </View>
       {tecnica ? <SeloComExplicacao nome={tecnica.nome} explicacao={tecnica.explicacao} rotuloAcessivel={`Explicação de ${tecnica.nome}, série ${numero}`} /> : null}
-      {comRecorde ? <Selo texto="Recorde" tipo="sucesso" /> : null}
+      {comRecorde ? <Selo texto="Recorde" categoria={{ cor: violeta.cor, fundo: violeta.fundo }} /> : null}
       {registro === 'FEITA' ? <Selo texto="Feita" tipo={agora ? 'sucesso' : 'neutro'} Icone={Check} /> : null}
       {registro === 'NAO_FEITA' ? <Selo texto="Não feita" tipo="neutro" /> : null}
     </View>

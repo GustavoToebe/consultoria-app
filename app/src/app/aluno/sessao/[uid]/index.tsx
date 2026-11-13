@@ -22,6 +22,7 @@ import { espaco } from '../../../../tema/tokens';
 import { BarraProgresso } from '../../../../ui/BarraProgresso';
 import { Botao } from '../../../../ui/Botao';
 import { Cabecalho } from '../../../../ui/Cabecalho';
+import { useDestaques } from '../../../../ui/NumeroDeDestaque';
 import { Cartao } from '../../../../ui/Cartao';
 import { Esqueleto } from '../../../../ui/Esqueleto';
 import { Vazio } from '../../../../ui/Estados';
@@ -38,6 +39,7 @@ export default function SessaoAluno() {
   const animar = usePrimeiraLista(dia.carregado);
   const reduzido = useMovimentoReduzido();
   const { cores, marcaPeca } = useTema();
+  const { violeta } = useDestaques();
   const { retornoHabilitado } = useSessao();
 
   if (!dia.carregado) {
@@ -89,8 +91,8 @@ export default function SessaoAluno() {
         <BarraProgresso feitas={feitas} total={total} cor={marcaPeca} trilho={cores.superficie3} />
         {dia.recordesNoDia ? (
           <View style={estilos.recordes}>
-            <Medal size={18} color={cores.sucesso} />
-            <Texto numerico cor={cores.sucesso}>{textoDaContagem(dia.recordesNoDia)} neste treino</Texto>
+            <Medal size={18} color={violeta.cor} aria-hidden />
+            <Texto numerico cor={violeta.cor}>{textoDaContagem(dia.recordesNoDia)} neste treino</Texto>
           </View>
         ) : null}
         {data !== hoje ? <Texto variante="suave">Você está registrando o treino de {dataParaTela(data)}.</Texto> : null}

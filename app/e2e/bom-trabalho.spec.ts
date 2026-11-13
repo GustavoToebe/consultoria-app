@@ -4,6 +4,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 import type { PainelAluno, RecordesDoPacote, RegistroSessaoConcluidaEnvio, SessoesConcluidasResponse } from '../src/api/tipos';
 import { fixarHoje, sessaoDeAlunoComTreino, sessaoFalsa } from './aluno';
+import { CLARO, PALETA_DE_DESTAQUE } from '../src/tema/tokens';
 import { ALUNO, json, sessao, simularApi } from './api-falsa';
 
 /**
@@ -69,6 +70,7 @@ const cartao = (page: Page) => page.getByRole('img', { name: /^Cartão do treino
 for (const largura of [390, 1280]) {
   test(`concluir abre o "Bom trabalho!" com número, resumo, recorde e o cartão para baixar (${largura} px)`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
+    await page.addInitScript((id) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: 'CLARO' })), ALUNO.id);
     const api = await abrir(page);
     await page.goto(EXERCICIO);
 
@@ -92,6 +94,11 @@ for (const largura of [390, 1280]) {
     await expect(page.getByLabel('Volume: 1.425 kg', { exact: true })).toBeVisible();
     await expect(page.getByText('Supino de teste: Maior carga · 62,5 kg', { exact: true })).toBeVisible();
     await expect(page.getByText('Supino de teste: Maior volume · 625 kg', { exact: true })).toBeVisible();
+    // Recorde em violeta (medalha); conclusão segue verde (`cores-de-destaque.md`, D6).
+    const medalha = page.getByText('Supino de teste: Maior carga · 62,5 kg', { exact: true }).locator('xpath=..').locator('svg');
+    expect((await medalha.getAttribute('stroke'))?.toLowerCase()).toBe(PALETA_DE_DESTAQUE.claro.violeta.toLowerCase());
+    const verde = `rgb(${[1, 3, 5].map((i) => parseInt(CLARO.sucesso.slice(i, i + 2), 16)).join(', ')})`;
+    expect(await page.getByText('Treino concluído', { exact: true }).first().evaluate((e) => getComputedStyle(e).color)).toBe(verde);
 
     // Cartão: número, treino, dias do mês (05/10 do servidor e hoje); o volume só entra se o aluno ligar.
     await expect(cartao(page)).toHaveAttribute('aria-label', 'Cartão do treino: 12º treino, Segunda · Treino curto · 19/10. 2 dias treinados em outubro.');

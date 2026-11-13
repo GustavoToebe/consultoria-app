@@ -8,7 +8,7 @@ import { contagemDaMobilidadeNoTreinador } from '../dominio/mobilidadeFeita';
 import { periodoDaSemana } from '../dominio/progressoSemana';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
-import { espaco } from '../tema/tokens';
+import { espaco, fontes } from '../tema/tokens';
 import { Cartao } from '../ui/Cartao';
 import { aparenciaDoNumero } from '../ui/destaqueDoNumero';
 import { Esqueleto } from '../ui/Esqueleto';
@@ -53,8 +53,8 @@ const DIAS_PARA_TRAS = 364;
 /**
  * Frequência e mobilidade na ficha, num cartão só: treinos com registro e dias com algum item de mobilidade marcado, na
  * semana corrente (segunda até hoje) e na pasta vigente (do início até hoje). Só contagem: não compara com meta nem
- * interpreta. O formato (linhas, rótulo da pasta, frases) vem de `resumoDaFrequencia`; a contagem de treinos fica em azul
- * (medida de atividade) e zero e "—" em `textoSuave`, distintos pelo texto (`cores-de-destaque.md`, D12 e D14). Quem renderiza já checou
+ * interpreta. O formato (linhas, rótulo da pasta, frases) vem de `resumoDaFrequencia`; o número da contagem de treinos fica em
+ * azul (medida de atividade), com a unidade no texto comum, e zero e "—" em `textoSuave`, distintos pelo texto (`cores-de-destaque.md`, D12 e D14). Quem renderiza já checou
  * `REGISTRO_LER`; `comMobilidade` (`mostraMobilidade`: também `TREINO_LER`) liga a linha e a busca da mobilidade.
  */
 export function CartaoFrequencia({ alunoId, acompanhamento, comMobilidade }: {
@@ -63,7 +63,16 @@ export function CartaoFrequencia({ alunoId, acompanhamento, comMobilidade }: {
   const { dados, erro, recarregar } = acompanhamento;
   const { cores } = useTema();
   const destaques = useDestaques();
-  const corDa = (c: CelulaDaContagem) => aparenciaDoNumero(c.enfase, cores, destaques).numero;
+  // Cor e peso de indicador só no número; a unidade fica no texto comum ("3" azul, "treinos" neutro). O espaço vai no
+  // texto de fora, para a célula dizer "3 treinos" inteira ao leitor de tela.
+  const celula = (c: CelulaDaContagem) => (
+    <View role="cell" style={estilos.valor}>
+      <Texto numerico cor={cores.texto}>
+        <Texto numerico style={estilos.numero} cor={aparenciaDoNumero(c.enfase, cores, destaques).numero}>{c.numero}</Texto>
+        {c.unidade ? ` ${c.unidade}` : null}
+      </Texto>
+    </View>
+  );
   const f = dados?.frequencia ?? null;
   const vigente = dados?.pasta ?? null;
   const hoje = hojeIso();
@@ -105,8 +114,8 @@ export function CartaoFrequencia({ alunoId, acompanhamento, comMobilidade }: {
                 <View role="cell" style={estilos.aviso}><Texto variante="suave">{l.aviso}</Texto></View>
               ) : (
                 <>
-                  <View role="cell" style={estilos.valor}><Texto numerico cor={corDa(l.semana)}>{l.semana.texto}</Texto></View>
-                  {l.naPasta !== null ? <View role="cell" style={estilos.valor}><Texto numerico cor={corDa(l.naPasta)}>{l.naPasta.texto}</Texto></View> : null}
+                  {celula(l.semana)}
+                  {l.naPasta !== null ? celula(l.naPasta) : null}
                 </>
               )}
             </View>
@@ -126,5 +135,6 @@ const estilos = StyleSheet.create({
   linha: { flexDirection: 'row', alignItems: 'baseline', gap: espaco(1) },
   rotulo: { width: 72 },
   valor: { flex: 1, minWidth: 0 },
+  numero: { fontFamily: fontes.semi },
   aviso: { flex: 2, minWidth: 0 },
 });

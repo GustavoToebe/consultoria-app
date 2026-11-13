@@ -112,12 +112,3 @@ export function contagemDaMobilidadeNoTreinador(
     naPasta: pasta?.inicio && pasta.fim ? diasComAlgoFeito(marcas, pasta.inicio, pasta.fim) : 0,
   };
 }
-
-/**
- * Cada número do cartão (semana ou pasta), no molde do cartão Frequência: "—" sem mobilidade publicada na pasta,
- * senão "0 dias", "1 dia", "N dias" (D14: zero é "0", distinto do "—").
- */
-export function textoDosDiasDeMobilidade(n: number | null): string {
-  if (n === null) return '—';
-  return `${n} ${n === 1 ? 'dia' : 'dias'}`;
-}

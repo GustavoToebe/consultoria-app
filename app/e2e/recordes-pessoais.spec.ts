@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 import type { PainelAluno, RecordesDoPacote, SessoesConcluidasResponse } from '../src/api/tipos';
 import { fixarHoje, sessaoDeAlunoComTreino, sessaoFalsa } from './aluno';
+import { CLARO, ESCURO, PALETA_DE_DESTAQUE } from '../src/tema/tokens';
 import { ALUNO, json, sessao, simularApi } from './api-falsa';
 
 /**
@@ -68,6 +69,38 @@ for (const largura of [390, 1280]) {
 
     await page.goto(LISTA);
     await expect(page.getByText('1 recorde pessoal neste treino', { exact: true })).toBeVisible();
+    expect(api.errosDaPagina).toEqual([]);
+  });
+}
+
+// Recorde é indicador em violeta na área do aluno (`docs/planos/cores-de-destaque.md`, D6): aviso, medalha, selo e a
+// contagem da lista do dia; o "Feita" recém-marcado continua verde (conclusão). Claro e escuro, com captura em 390 px.
+const rgb = (hex: string) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`;
+for (const tema of ['CLARO', 'ESCURO'] as const) {
+  test(`recorde em violeta e "Feita" em verde (${tema.toLowerCase()})`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: 390, height: 900 });
+    await page.addInitScript(([id, t]) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: t })), [ALUNO.id, tema] as const);
+    const api = await abrir(page, true);
+    const violeta = rgb(PALETA_DE_DESTAQUE[tema === 'CLARO' ? 'claro' : 'escuro'].violeta);
+    const sucesso = rgb((tema === 'CLARO' ? CLARO : ESCURO).sucesso);
+    const cor = (l: ReturnType<Page['getByText']>) => l.evaluate((e) => getComputedStyle(e).color);
+    await page.goto(EXERCICIO);
+    await peso(page, 1).fill('62,5');
+    await reps(page, 1).fill('10');
+    await marcar(page, 1);
+    await expect(aviso(page)).toBeVisible();
+    expect(await cor(aviso(page).getByText(/^Recorde pessoal · /))).toBe(violeta);
+    await expect(page.getByText('Recorde', { exact: true })).toBeVisible();
+    expect(await cor(page.getByText('Recorde', { exact: true }))).toBe(violeta);
+    expect(await cor(page.getByText('Feita', { exact: true }))).toBe(sucesso);
+    const medalha = page.getByLabel(/Série 1, recorde pessoal: /).locator('svg');
+    expect((await medalha.getAttribute('stroke'))?.toLowerCase()).toBe(PALETA_DE_DESTAQUE[tema === 'CLARO' ? 'claro' : 'escuro'].violeta.toLowerCase());
+    await page.screenshot({ path: testInfo.outputPath(`recorde-${tema.toLowerCase()}-390.png`) });
+    await page.getByRole('button', { name: 'Fechar aviso de recorde' }).click();
+    await page.goto(LISTA);
+    const contagem = page.getByText('1 recorde pessoal neste treino', { exact: true });
+    await expect(contagem).toBeVisible();
+    expect(await cor(contagem)).toBe(violeta);
     expect(api.errosDaPagina).toEqual([]);
   });
 }

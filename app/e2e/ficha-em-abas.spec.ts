@@ -324,16 +324,25 @@ test('Frequência e mobilidade sem pasta vigente: diz uma vez, só a semana e se
   await expect(tabela.getByRole('rowheader')).toHaveText(['Treinos']);
   // Zero é "0" neutro (D14), nunca "Nenhum registro" nem a cor do indicador.
   await expect(tabela.getByRole('cell')).toHaveText(['0 treinos']);
-  expect(await corDe(tabela.getByRole('cell').first().getByText('0 treinos', { exact: true }))).toBe(rgb(CLARO.textoSuave));
+  const celula = tabela.getByRole('cell').first();
+  expect(await corDe(celula.getByText('0', { exact: true }))).toBe(rgb(CLARO.textoSuave));
+  expect(await corDe(celula.getByText('0 treinos', { exact: true }))).toBe(rgb(CLARO.texto));
   expect(pediuMobilidade(pedidos)).toBe(false);
 });
 
-test('Frequência: a contagem de treinos fica no azul de indicador, com o texto ao lado', async ({ page }) => {
+test('Frequência: só o número dos treinos fica no azul de indicador, em peso semibold; a palavra e a mobilidade seguem neutras', async ({ page }) => {
   await temaClaro(page);
   await abrir(page, { url: `/treinador/alunos/${ALUNO_ID}?aba=acompanhamento`, extra: comPastaVigente([PLANO_DE_MOBILIDADE]) });
   const linha = tabelaDaFrequencia(page).getByRole('row').nth(1);
   await expect(linha).toHaveText(/Treinos\s*1 treino\s*1 treino/);
-  expect(await corDe(linha.getByText('1 treino', { exact: true }).first())).toBe(rgb(AZUL_CLARO));
+  const celula = linha.getByRole('cell').first();
+  await expect(celula).toHaveText('1 treino');
+  const numero = celula.getByText('1', { exact: true });
+  expect(await corDe(numero)).toBe(rgb(AZUL_CLARO));
+  expect(await numero.evaluate((e) => getComputedStyle(e).fontFamily)).toMatch(/SemiBold/);
+  expect(await corDe(celula.getByText('1 treino', { exact: true }))).toBe(rgb(CLARO.texto));
+  const mobilidade = tabelaDaFrequencia(page).getByRole('row').nth(2).getByRole('cell').first();
+  expect(await corDe(mobilidade.getByText('1', { exact: true }))).toBe(rgb(CLARO.texto));
 });
 
 // Cores da segunda rodada (`docs/planos/cores-de-destaque.md`, D12 a D14) no tema claro: o selo do prazo da pasta é o
@@ -379,6 +388,19 @@ test('a vigente vencida segue vermelha com a do ciclo seguinte ainda em rascunho
   await aba(page, 'Planos').click();
   await expect(page.getByText('Pastas de plano', { exact: true })).toBeVisible();
   await expect(page.getByText(VENCIDA)).toHaveCount(1);
+});
+
+// A aba Planos reaproveita a pasta vigente que o Resumo da ficha já buscou: abrir Resumo → Planos pede a rota uma vez só,
+// e a vigente vencida segue vermelha na lista (só leitura; a contagem vem dos pedidos interceptados).
+test('Resumo → Planos: a pasta vigente é pedida uma vez só e o prazo vermelho continua na lista', async ({ page }) => {
+  const pasta = pastaQueTermina(-3);
+  const { pedidos } = await abrir(page, { pastas: [pasta], extra: comPasta(pasta, [TREINO_DE_HOJE]) });
+  await expect(page.getByText(VENCIDA)).toBeVisible();
+  await aba(page, 'Planos').click();
+  await expect(page.getByText('Pastas de plano', { exact: true })).toBeVisible();
+  await expect(page.getByText(VENCIDA)).toBeVisible();
+  const vigentes = () => pedidos.filter((p) => p.metodo === 'GET' && p.caminho === `/alunos/${ALUNO_ID}/pastas/vigente`).length;
+  expect(vigentes()).toBe(1);
 });
 
 test('pasta perto do fim: "Vence em 5 dias" em âmbar no Resumo e na lista', async ({ page }) => {

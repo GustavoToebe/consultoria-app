@@ -1,7 +1,7 @@
 import type { DiaDeTreino } from '../api/tipos';
 import { enfaseDoNumero, type EnfaseDoNumero, type FuncaoDeDestaque } from './destaque';
 import { dataCurta, somarDias } from './formatos';
-import { textoDosDiasDeMobilidade, type ContagemDaMobilidade } from './mobilidadeFeita';
+import type { ContagemDaMobilidade } from './mobilidadeFeita';
 import { periodoDaSemana } from './progressoSemana';
 
 /** A API recusa consulta de execuções com mais de 366 dias entre as datas. */
@@ -86,17 +86,25 @@ export function ultimoDiaComRegistro(dias: DiaDeTreino[]): string | null {
 }
 
 /**
- * Uma célula de contagem: o texto ("3 treinos", "0 treinos", "—") e a ênfase do número cru (`dominio/destaque`). Treinos
+ * Uma célula de contagem: o número ("3", "0", "—"), a unidade ("treinos", "dia"; nula no "—") e a ênfase do número cru
+ * (`dominio/destaque`). A cor e o peso de indicador ficam só no número; a unidade segue na cor do texto. Treinos
  * registrados são medida de atividade, em azul (`docs/planos/cores-de-destaque.md`, D12); zero e sem período ficam
- * neutros e distintos pelo texto (D14). A mobilidade não tem cor decidida: fica neutra.
+ * neutros e distintos pelo texto (D14). A mobilidade não tem cor decidida: fica neutra. O texto inteiro da célula é
+ * `textoDaCelula` ("3 treinos").
  */
-export interface CelulaDaContagem { texto: string; enfase: EnfaseDoNumero }
+export interface CelulaDaContagem { numero: string; unidade: string | null; enfase: EnfaseDoNumero }
 
 /** Uma linha do resumo: as duas células, ou uma frase no lugar delas. `naPasta` nulo = sem a coluna da pasta. */
 export type LinhaDoResumo = { rotulo: string; semana: CelulaDaContagem; naPasta: CelulaDaContagem | null } | { rotulo: string; aviso: string };
 
-const celula = (texto: (n: number | null) => string, funcao: FuncaoDeDestaque | null, n: number | null): CelulaDaContagem =>
-  ({ texto: texto(n), enfase: enfaseDoNumero(funcao, n) });
+const celula = (singular: string, plural: string, funcao: FuncaoDeDestaque | null, n: number | null): CelulaDaContagem =>
+  n === null ? { numero: '—', unidade: null, enfase: enfaseDoNumero(funcao, n) }
+    : { numero: String(n), unidade: n === 1 ? singular : plural, enfase: enfaseDoNumero(funcao, n) };
+
+/** "3 treinos", "1 dia", "—": o que o leitor de tela e o texto da célula dizem. */
+export function textoDaCelula(c: CelulaDaContagem): string {
+  return c.unidade ? `${c.numero} ${c.unidade}` : c.numero;
+}
 
 export interface ResumoDaFrequencia {
   /** "Pasta <título> (dd/mm a dd/mm)", dito uma vez para as duas linhas; sem pasta vigente, "Nenhuma pasta vigente.". */
@@ -119,19 +127,13 @@ export function resumoDaFrequencia(
   const pasta = !vigente ? 'Nenhuma pasta vigente.'
     : p ? `Pasta ${p.titulo} (${dataCurta(p.de)} a ${dataCurta(p.ate)}${p.limitada ? ', últimos 12 meses' : ''})`
       : `Pasta ${vigente.titulo}`;
-  const treinos = (n: number | null) => celula(textoDaContagem, 'azul', n);
+  const treinos = (n: number | null) => celula('treino', 'treinos', 'azul', n);
   const linhas: LinhaDoResumo[] = [{ rotulo: 'Treinos', semana: treinos(f.semana), naPasta: vigente ? treinos(p ? p.treinos : null) : null }];
   if (!vigente || mobilidade === 'oculta') return { pasta, comColunaDaPasta: !!vigente, linhas };
   if (mobilidade === null) linhas.push({ rotulo: 'Mobilidade', aviso: 'A pasta vigente não tem mobilidade publicada.' });
   else {
-    const dias = (n: number | null) => celula(textoDosDiasDeMobilidade, null, n);
+    const dias = (n: number | null) => celula('dia', 'dias', null, n);
     linhas.push({ rotulo: 'Mobilidade', semana: dias(mobilidade.naSemana), naPasta: dias(p ? mobilidade.naPasta : null) });
   }
   return { pasta, comColunaDaPasta: true, linhas };
-}
-
-/** "—" sem período contável; senão "0 treinos", "1 treino", "16 treinos" (D14: zero é "0", não some; o número sozinho não diz de quê). */
-export function textoDaContagem(n: number | null): string {
-  if (n === null) return '—';
-  return `${n} ${n === 1 ? 'treino' : 'treinos'}`;
 }

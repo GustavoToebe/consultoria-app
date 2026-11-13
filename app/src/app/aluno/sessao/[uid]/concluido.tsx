@@ -30,7 +30,7 @@ import { textoDoVolumeAoVivo, volumeDaSessao } from '../../../../dominio/treinoA
 import { useAluno } from '../../../../offline/AlunoProvider';
 import { logoComoDataUri } from '../../../../pdf/logo';
 import { useSessao } from '../../../../sessao/SessaoProvider';
-import { useTema } from '../../../../tema/TemaProvider';
+import { useDestaques } from '../../../../ui/NumeroDeDestaque';
 import { espaco, fontes } from '../../../../tema/tokens';
 import { useAviso } from '../../../../ui/Aviso';
 import { Botao } from '../../../../ui/Botao';
@@ -60,7 +60,7 @@ export default function TreinoConcluido() {
   const aluno = useAluno();
   const { retornoHabilitado } = useSessao();
   const { avisar } = useAviso();
-  const { cores } = useTema();
+  const { violeta } = useDestaques();
   const unidade = useUnidadeDeCarga();
   const svg = useRef<Svg>(null);
   const [comVolume, setComVolume] = useState(false);
@@ -140,7 +140,7 @@ export default function TreinoConcluido() {
         <Cartao titulo={recordes.length === 1 ? 'Recorde pessoal' : 'Recordes pessoais'}>
           {recordes.map((r, i) => (
             <View key={`${i}-${r}`} style={estilos.linha}>
-              <Medal size={18} color={cores.sucesso} />
+              <Medal size={18} color={violeta.cor} aria-hidden />
               <Texto numerico style={estilos.recorde}>{r}</Texto>
             </View>
           ))}

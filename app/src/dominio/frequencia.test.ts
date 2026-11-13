@@ -1,5 +1,5 @@
 import type { DiaDeTreino } from '../api/tipos';
-import { frequenciaDe, planejarFrequencia, resumoDaFrequencia, textoDaContagem, treinosComRegistro, ultimoDiaComRegistro, type Frequencia } from './frequencia';
+import { frequenciaDe, planejarFrequencia, resumoDaFrequencia, textoDaCelula, treinosComRegistro, ultimoDiaComRegistro, type Frequencia } from './frequencia';
 
 describe('resumoDaFrequencia (cartão "Frequência e mobilidade")', () => {
   const comPasta: Frequencia = { semana: 2, ultimo: null, pasta: { titulo: 'Hipertrofia', de: '2026-11-02', ate: '2026-11-12', limitada: false, treinos: 4 } };
@@ -10,8 +10,8 @@ describe('resumoDaFrequencia (cartão "Frequência e mobilidade")', () => {
       pasta: 'Pasta Hipertrofia (02/11 a 12/11)',
       comColunaDaPasta: true,
       linhas: [
-        { rotulo: 'Treinos', semana: { texto: '2 treinos', enfase: 'azul' }, naPasta: { texto: '4 treinos', enfase: 'azul' } },
-        { rotulo: 'Mobilidade', semana: { texto: '1 dia', enfase: 'neutro' }, naPasta: { texto: '0 dias', enfase: 'zero' } },
+        { rotulo: 'Treinos', semana: { numero: '2', unidade: 'treinos', enfase: 'azul' }, naPasta: { numero: '4', unidade: 'treinos', enfase: 'azul' } },
+        { rotulo: 'Mobilidade', semana: { numero: '1', unidade: 'dia', enfase: 'neutro' }, naPasta: { numero: '0', unidade: 'dias', enfase: 'zero' } },
       ],
     });
   });
@@ -26,7 +26,7 @@ describe('resumoDaFrequencia (cartão "Frequência e mobilidade")', () => {
 
   it('sem pasta vigente: "Nenhuma pasta vigente." uma vez, sem a coluna da pasta e sem a linha da mobilidade', () => {
     const r = resumoDaFrequencia({ semana: 0, ultimo: null, pasta: null }, null, null);
-    expect(r).toEqual({ pasta: 'Nenhuma pasta vigente.', comColunaDaPasta: false, linhas: [{ rotulo: 'Treinos', semana: { texto: '0 treinos', enfase: 'zero' }, naPasta: null }] });
+    expect(r).toEqual({ pasta: 'Nenhuma pasta vigente.', comColunaDaPasta: false, linhas: [{ rotulo: 'Treinos', semana: { numero: '0', unidade: 'treinos', enfase: 'zero' }, naPasta: null }] });
     expect(resumoDaFrequencia({ semana: 0, ultimo: null, pasta: null }, null, 'oculta').linhas).toHaveLength(1);
   });
 
@@ -34,8 +34,8 @@ describe('resumoDaFrequencia (cartão "Frequência e mobilidade")', () => {
     const r = resumoDaFrequencia({ semana: 1, ultimo: null, pasta: null }, { titulo: 'Futura' }, { naSemana: 0, naPasta: 0 });
     expect(r.pasta).toBe('Pasta Futura');
     expect(r.linhas).toEqual([
-      { rotulo: 'Treinos', semana: { texto: '1 treino', enfase: 'azul' }, naPasta: { texto: '—', enfase: 'indisponivel' } },
-      { rotulo: 'Mobilidade', semana: { texto: '0 dias', enfase: 'zero' }, naPasta: { texto: '—', enfase: 'indisponivel' } },
+      { rotulo: 'Treinos', semana: { numero: '1', unidade: 'treino', enfase: 'azul' }, naPasta: { numero: '—', unidade: null, enfase: 'indisponivel' } },
+      { rotulo: 'Mobilidade', semana: { numero: '0', unidade: 'dias', enfase: 'zero' }, naPasta: { numero: '—', unidade: null, enfase: 'indisponivel' } },
     ]);
   });
 
@@ -103,7 +103,7 @@ describe('planejarFrequencia', () => {
   });
 });
 
-describe('frequenciaDe e textoDaContagem', () => {
+describe('frequenciaDe e textoDaCelula', () => {
   it('conta a semana e a pasta com os mesmos dias', () => {
     const plano = planejarFrequencia('2026-10-14', { titulo: 'Plano', inicio: '2026-10-05', fim: '2026-10-30' });
     const dias = [dia('2026-10-06', ['a', [true]]), dia('2026-10-13', ['a', [true]])];
@@ -112,11 +112,13 @@ describe('frequenciaDe e textoDaContagem', () => {
   it('sem pasta contável a pasta fica nula', () => {
     expect(frequenciaDe([], planejarFrequencia('2026-10-14', null))).toEqual({ semana: 0, ultimo: null, pasta: null });
   });
-  it('texto: — para ausente, "0 treinos" para zero (D14: distintos)', () => {
-    expect(textoDaContagem(null)).toBe('—');
-    expect(textoDaContagem(0)).toBe('0 treinos');
-    expect(textoDaContagem(4)).toBe('4 treinos');
-    expect(textoDaContagem(1)).toBe('1 treino');
+  it('texto da célula: — para ausente, "0 treinos" para zero (D14: distintos), singular e plural de treinos e dias', () => {
+    const vigente = { titulo: 'P' };
+    const textos = (semana: number, naPasta: number | null, mob: { naSemana: number; naPasta: number }) =>
+      resumoDaFrequencia({ semana, ultimo: null, pasta: naPasta === null ? null : { titulo: 'P', de: '2026-10-01', ate: '2026-10-14', limitada: false, treinos: naPasta } }, vigente, mob)
+        .linhas.flatMap((l) => ('aviso' in l ? [] : [l.semana, l.naPasta!].map(textoDaCelula)));
+    expect(textos(0, null, { naSemana: 0, naPasta: 0 })).toEqual(['0 treinos', '—', '0 dias', '—']);
+    expect(textos(1, 4, { naSemana: 1, naPasta: 12 })).toEqual(['1 treino', '4 treinos', '1 dia', '12 dias']);
   });
 });
 
