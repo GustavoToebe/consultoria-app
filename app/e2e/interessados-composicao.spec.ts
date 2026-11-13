@@ -85,7 +85,8 @@ for (const { largura, temas } of CASOS) {
           expect(ate.x).toBeGreaterThan(de.x + de.width - 1);
           expect(de.width).toBeGreaterThanOrEqual(150);
         }
-        // Seletores numa linha (ou um sob o outro, sem espaço), períodos na linha de baixo, nas mesmas colunas.
+        // Painel lateral numa coluna (`docs/planos/filtros-laterais.md`, D2): seletores um sob o outro, períodos embaixo, na
+        // mesma borda esquerda.
         expect(perto(responsavel.height, origem.height)).toBe(true);
         expect(perto(responsavel.x, entradaDe.x) && perto(origem.x, atividadeDe.x)).toBe(true);
         if (perto(responsavel.y, origem.y)) expect(perto(entradaDe.y, atividadeDe.y)).toBe(true);
@@ -96,8 +97,9 @@ for (const { largura, temas } of CASOS) {
           expect(todas[i].x + todas[i].width).toBeLessThanOrEqual(largura);
           for (let j = i + 1; j < todas.length; j++) expect(sobrepoe(todas[i], todas[j])).toBe(false);
         }
-        // Tela larga: os seletores não se esticam pela janela inteira.
+        // Tela larga: os seletores não se esticam pela janela inteira (o painel tem 460 px).
         expect(responsavel.width).toBeLessThanOrEqual(481);
+        expect(perto(responsavel.width, origem.width)).toBe(true);
 
         // Data inteira sem cortar o texto.
         for (const nome of DATAS) {
@@ -128,10 +130,17 @@ for (const { largura, temas } of CASOS) {
         await expect(page.getByRole('button', { name: 'Mês anterior' })).toHaveCount(0);
 
         if (visao === 'lista') {
-          // Na Lista a Situação vem antes, numa linha só dela.
+          // Na Lista a Situação é o grupo do meio do painel lateral (Identificação · Situação · Datas), numa faixa só dela.
           // O grupo de opções não tem borda própria: mede ele mesmo, não o painel em volta.
-          const situacao = (await page.getByRole('radiogroup', { name: 'Situação' }).boundingBox())!;
-          expect(situacao.y + situacao.height).toBeLessThanOrEqual(responsavel.y + 1);
+          // Medidos juntos: preencher as datas rolou o corpo do painel no celular.
+          const [origemAgora, situacao, entradaAgora] = await Promise.all([
+            caixa(page.getByRole('button', { name: /^Origem:/ })), page.getByRole('radiogroup', { name: 'Situação' }).boundingBox(),
+            caixa(page.getByRole('textbox', { name: DATAS[0], exact: true })),
+          ]);
+          expect(situacao!.y).toBeGreaterThanOrEqual(origemAgora.y + origemAgora.height - 1);
+          expect(situacao!.y + situacao!.height).toBeLessThanOrEqual(entradaAgora.y + 1);
+        } else {
+          await expect(page.getByRole('radiogroup', { name: 'Situação' })).toHaveCount(0);
         }
         expect(naoTratadas).toEqual([]);
         expect(errosDaPagina).toEqual([]);

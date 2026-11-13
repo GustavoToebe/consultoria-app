@@ -17,7 +17,7 @@ import { centavosDaTela, centavosParaCampo, centavosParaTela, dataDaTela, dataPa
 import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
-import { BarraDeFiltros } from '../../ui/BarraDeFiltros';
+import { BarraDeFiltros, GrupoDoPainel } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { CampoLeitura } from '../../ui/CampoLeitura';
@@ -35,7 +35,7 @@ import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
 import { Texto } from '../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../ui/useCarregar';
 import { avisoDeConflito, CampoMoeda, ehConflito } from './comum';
-import { FiltrosEmGrade, PeriodoDoFiltro } from './FiltrosEmGrade';
+import { PeriodoDoFiltro } from './FiltrosEmGrade';
 import { ListaOuTabela } from './ListaOuTabela';
 import { ResultadoDoMes } from './ResultadoDoMes';
 
@@ -96,6 +96,7 @@ export function AbaLancamentos({ podeAlterar }: { podeAlterar: boolean }) {
   const categorias = useCarregar('categorias-de-lancamentos', () => categoriasDeLancamentos().catch((): string[] => []));
   const opcoesDeCategoria = [...new Set([...(categorias.dados ?? []), ...filtros.categorias])].map((c) => ({ valor: c, rotulo: c }));
   const aplicar = (novos: FiltrosDeLancamentos) => {
+    if (chaveDosLancamentos(novos, busca) === chaveDosLancamentos(filtros, busca)) return;
     setPagina(0);
     router.setParams(paraSetParams(CHAVES_DE_LANCAMENTOS, lancamentosParaEndereco(novos)));
   };
@@ -120,14 +121,20 @@ export function AbaLancamentos({ podeAlterar }: { podeAlterar: boolean }) {
       <BarraDeFiltros busca={{ valor: buscaDigitada, aoMudar: (t) => { setBuscaDigitada(t); setPagina(0); }, placeholder: 'Descrição' }}
         valor={filtros} aoAplicar={aplicar} limpo={SEM_FILTROS_DE_LANCAMENTOS} chips={chipsDosLancamentos(filtros)}
         aoTirar={(chave) => aplicar(semOFiltroDeLancamentos(filtros, chave as ChaveDoFiltroDeLancamentos))} rotuloDoResultado="Ver lançamentos"
+        painelLateral={{ titulo: 'Filtros de lançamentos' }}
         seletores={(atuais, mudar) => (
-          <FiltrosEmGrade>
-            <Escolha<TipoDeLancamento | 'TODOS'> rotulo="Tipo" opcoes={[{ valor: 'TODOS', rotulo: 'Todos' }, ...TIPOS_DO_FILTRO]} valor={atuais.tipo ?? 'TODOS'}
-              aoMudar={(v) => mudar({ ...atuais, tipo: v === 'TODOS' ? null : v })} />
-            <SelecaoMultiplaSuspensa rotulo="Categoria" opcoes={opcoesDeCategoria} marcados={new Set(atuais.categorias)} rotuloDeTodos="Todas"
-              aoMudar={(m) => mudar({ ...atuais, categorias: opcoesDeCategoria.map((o) => o.valor).filter((v) => m.has(v)) })} style={estilos.cheio} />
-            <PeriodoDoFiltro rotulo="Data do lançamento" valor={atuais.periodo} aoMudar={(periodo) => mudar({ ...atuais, periodo })} />
-          </FiltrosEmGrade>
+          <>
+            <GrupoDoPainel titulo="Identificação" primeiro>
+              <Escolha<TipoDeLancamento | 'TODOS'> rotulo="Tipo" opcoes={[{ valor: 'TODOS', rotulo: 'Todos' }, ...TIPOS_DO_FILTRO]} valor={atuais.tipo ?? 'TODOS'}
+                aoMudar={(v) => mudar({ ...atuais, tipo: v === 'TODOS' ? null : v })} />
+              <SelecaoMultiplaSuspensa rotulo="Categoria" opcoes={opcoesDeCategoria} marcados={new Set(atuais.categorias)} rotuloDeTodos="Todas"
+                aoMudar={(m) => mudar({ ...atuais, categorias: opcoesDeCategoria.map((o) => o.valor).filter((v) => m.has(v)) })} style={estilos.cheio} />
+            </GrupoDoPainel>
+            <GrupoDoPainel titulo="Datas">
+              {/* O mesmo par De/Até das Cobranças (intervalo aberto vale, como antes). */}
+              <PeriodoDoFiltro rotulo="Data do lançamento" valor={atuais.periodo} aoMudar={(periodo) => mudar({ ...atuais, periodo })} />
+            </GrupoDoPainel>
+          </>
         )} />
       {lista.erro ? <MensagemErro texto={textoDoErro(lista.erro)} erro={lista.erro} tentarDeNovo={recarregarLista} /> : null}
       {!dados && lista.carregando ? <Esqueleto /> : null}

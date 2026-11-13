@@ -8,7 +8,7 @@ import { Texto } from '../../ui/Texto';
 import { usePeriodoDoFiltro } from '../SeletoresDeFiltro';
 
 /** Largura mínima de cada data: "31/12/2026" e o ícone do calendário cabem sem cortar. */
-export const MINIMO_DA_DATA = 150;
+const MINIMO_DA_DATA = 150;
 
 /**
  * Período De/Até dos filtros dos Interessados (P2 de `docs/design-e-front.md` 4.6): um rótulo de grupo à vista

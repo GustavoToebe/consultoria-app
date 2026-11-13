@@ -9,8 +9,8 @@ import {
 } from '../../dominio/filtrosDeAuditoria';
 import { dataHoraParaTela } from '../../dominio/formatos';
 import { LARGURA_LISTA,espaco,fontes } from '../../tema/tokens';
-import { CamposDePeriodo, CelulaDoFiltro } from '../../treinador/SeletoresDeFiltro';
-import { BarraDeFiltros } from '../../ui/BarraDeFiltros';
+import { CamposDePeriodo } from '../../treinador/SeletoresDeFiltro';
+import { BarraDeFiltros, GrupoDoPainel } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
@@ -27,9 +27,9 @@ import { ACOES_AUDITORIA } from '../../treinador/equipe/acoesAuditoria';
 const OPCOES_DE_ACAO=Object.entries(ACOES_AUDITORIA).map(([codigo,nome])=>({valor:codigo,rotulo:nome})).sort((a,b)=>a.rotulo.localeCompare(b.rotulo,'pt-BR'));
 
 /**
- * Auditoria: eventos da consultoria. Pessoas (várias, e "Sistema"), ações (várias) e período ficam na barra de filtros
- * (`docs/planos/filtros-nas-listas.md`, D9 e lote 2), no endereço (`?usuarioId=&acao=&de=&ate=`, várias numa vírgula), e
- * valem na hora. Período incompleto ou inválido não busca: fica o último período válido.
+ * Auditoria: eventos da consultoria. Pessoas (várias, e "Sistema"), ações (várias) e período ficam no painel lateral de
+ * filtros (`docs/planos/filtros-laterais.md`), no endereço (`?usuarioId=&acao=&de=&ate=`, várias numa vírgula), e valem
+ * no "Aplicar filtros". Período incompleto ou inválido segura o Aplicar com o erro no campo.
  */
 export default function Auditoria() {
   const filtros=lerDoEndereco(useLocalSearchParams<Record<keyof ParametrosDoEndereco,string>>(),ACOES_AUDITORIA);
@@ -37,20 +37,24 @@ export default function Auditoria() {
   const {dados:membros,erro:erroPessoas,recarregar:recarregarPessoas}=useCarregar('pessoas-auditoria',()=>pessoasAuditoria());
   const filtro={...pedidoDaApi(filtros),pagina};
   const {dados,erro,carregando,recarregar}=useCarregar(JSON.stringify(filtro),()=>listarAuditoria(filtro));
-  // Trocar um filtro troca o endereço sem empilhar histórico e volta à página 1.
-  const aplicar=(novos:FiltrosDeAuditoria)=>{setPagina(0);router.setParams(paraSetParams(CHAVES_DO_ENDERECO,paraEndereco(novos)));};
+  // Trocar um filtro troca o endereço sem empilhar histórico e volta à página 1; Aplicar sem mudar nada não mexe na página.
+  const aplicar=(novos:FiltrosDeAuditoria)=>{
+    if(JSON.stringify(pedidoDaApi(novos))===JSON.stringify(pedidoDaApi(filtros)))return;
+    setPagina(0);router.setParams(paraSetParams(CHAVES_DO_ENDERECO,paraEndereco(novos)));
+  };
   const nomeDe=(id:string)=>membros?.find(m=>m.id===id)?.nome??null;
   const chips=chipsDosFiltros(filtros,nomeDe,ACOES_AUDITORIA);
   return <Tela largura={LARGURA_LISTA} bordas={['top']}><Cabecalho titulo="Auditoria" subtitulo="Ações feitas na consultoria, guardadas por um ano. Valores clínicos não aparecem."/>
     <BarraDeFiltros valor={filtros} aoAplicar={aplicar} limpo={SEM_FILTROS} chips={chips} aoTirar={(chave)=>aplicar(semOFiltro(filtros,chave as ChaveDoFiltro))}
-      rotuloDoResultado="Ver eventos" seletores={(atuais,mudar)=><>
+      rotuloDoResultado="Ver eventos" painelLateral={{titulo:'Filtros de eventos'}} seletores={(atuais,mudar)=><>
         {/* Pessoa e ação com o mesmo padrão: várias opções com busca (nada marcado = todas). */}
-        <CelulaDoFiltro><SelecaoMultiplaSuspensa rotulo="Pessoa" opcoes={opcoesDePessoa(membros??[])} marcados={new Set(atuais.pessoas)} rotuloDeTodos="Todas as pessoas" aoMudar={(m)=>mudar({...atuais,pessoas:[...m]})} style={{alignSelf:'stretch'}}/>
+        <GrupoDoPainel titulo="Identificação" primeiro>
+          <SelecaoMultiplaSuspensa rotulo="Pessoa" opcoes={opcoesDePessoa(membros??[])} marcados={new Set(atuais.pessoas)} rotuloDeTodos="Todas as pessoas" aoMudar={(m)=>mudar({...atuais,pessoas:[...m]})} style={{alignSelf:'stretch'}}/>
           {/* Falha da lista de pessoas é do filtro: fica no controle dele, não como segundo alerta acima da lista. */}
           {erroPessoas?<MensagemErro texto={textoDoErro(erroPessoas)} erro={erroPessoas} tentarDeNovo={recarregarPessoas}/>:null}
-        </CelulaDoFiltro>
-        <CelulaDoFiltro><SelecaoMultiplaSuspensa rotulo="Ação" opcoes={OPCOES_DE_ACAO} marcados={new Set(atuais.acoes)} rotuloDeTodos="Todas as ações" aoMudar={(m)=>mudar({...atuais,acoes:[...m]})} style={{alignSelf:'stretch'}}/></CelulaDoFiltro>
-        <CelulaDoFiltro><CamposDePeriodo regra="PLANEJAMENTO" valor={atuais.periodo} aoMudar={(periodo)=>mudar({...atuais,periodo})}/></CelulaDoFiltro>
+          <SelecaoMultiplaSuspensa rotulo="Ação" opcoes={OPCOES_DE_ACAO} marcados={new Set(atuais.acoes)} rotuloDeTodos="Todas as ações" aoMudar={(m)=>mudar({...atuais,acoes:[...m]})} style={{alignSelf:'stretch'}}/>
+        </GrupoDoPainel>
+        <GrupoDoPainel titulo="Datas"><CamposDePeriodo regra="PLANEJAMENTO" valor={atuais.periodo} aoMudar={(periodo)=>mudar({...atuais,periodo})}/></GrupoDoPainel>
       </>}/>
     {erro?<MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar}/>:null}{carregando&&!dados?<Esqueleto/>:null}
     {dados?.itens.length===0?<Vazio titulo="Sem eventos neste filtro" texto="Tente outro período, pessoa ou ação." acao={chips.length?{rotulo:'Limpar filtros',aoTocar:()=>aplicar(SEM_FILTROS)}:undefined}/>:null}

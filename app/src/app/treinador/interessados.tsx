@@ -33,11 +33,10 @@ import { Indicadores } from '../../treinador/interessados/Indicadores';
 import { QuadroKanban, type FiltrosDoQuadro } from '../../treinador/interessados/QuadroKanban';
 import { EscolhaResponsabilidade } from '../../treinador/EscolhaResponsabilidade';
 import { FiltroDoEndereco } from '../../treinador/FiltroDoEndereco';
-import { MINIMO_DA_DATA, PeriodoDoFiltro } from '../../treinador/interessados/PeriodoDoFiltro';
-import { CelulaDoFiltro } from '../../treinador/SeletoresDeFiltro';
+import { PeriodoDoFiltro } from '../../treinador/interessados/PeriodoDoFiltro';
 import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
 import { Abas } from '../../ui/Abas';
-import { BarraDeFiltros } from '../../ui/BarraDeFiltros';
+import { BarraDeFiltros, GrupoDoPainel } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
@@ -131,6 +130,7 @@ export default function Interessados() {
   useFocusEffect(useCallback(() => { recarregar(); }, [recarregar]));
   // Trocar um filtro troca o endereço sem empilhar histórico (o voltar sai da tela) e volta à página 1.
   const aplicar = (novos: FiltrosDeInteressados) => {
+    if (novos.situacao === filtrosDaTela.situacao && chaveDaFila(novos, '') === chaveDaFila(filtrosDaTela, '')) return;
     setPagina(0);
     router.setParams(paraSetParams(CHAVES_DO_ENDERECO, paraEndereco(novos)));
   };
@@ -196,6 +196,7 @@ export default function Interessados() {
             valor={filtrosDaTela} aoAplicar={aplicar} limpo={limpos(filtrosDaTela, visaoDosFiltros)} chips={chips}
             aoTirar={(chave) => aplicar(semOFiltro(filtrosDaTela, chave as ChaveDoFiltro))}
             rotuloDoResultado="Ver inscrições"
+            painelLateral={{ titulo: 'Filtros de inscrições' }}
             seletores={(atuais, mudar) => <SeletoresDeInteressados visiveis={visiveis} filtros={atuais} aoMudar={mudar}
               opcoesDeSituacao={opcoesDeSituacao} opcoesDeResponsavel={opcoesDeResponsavel(responsaveis.dados ?? [], usuario?.id)} />} />
           {visao === 'lista' ? (
@@ -240,10 +241,9 @@ export default function Interessados() {
 }
 
 /**
- * Seletores do painel de filtros: situação (só na Lista, com a contagem de cada uma), responsáveis e origens (várias de
- * cada, nada marcado = todos), entrada e última atividade (De/Até). Duas linhas intencionais na mesma grade de duas
- * colunas (P2 de `docs/design-e-front.md` 4.6): os seletores (rótulo dentro da caixa) e, embaixo, os períodos (rótulo do
- * grupo em cima); assim cada linha tem uma base só e Entrada fica sob Responsável. Sem espaço para duas colunas, uma.
+ * Seletores do painel lateral de filtros (`docs/planos/filtros-laterais.md`, D2), numa coluna: Identificação
+ * (responsáveis e origens, várias de cada, nada marcado = todos), Situação (só na Lista, com a contagem de cada uma) e
+ * Datas (entrada e última atividade, De/Até lado a lado, cada campo com o nome inteiro para o leitor de tela).
  */
 function SeletoresDeInteressados({ visiveis, filtros, aoMudar, opcoesDeSituacao, opcoesDeResponsavel }: {
   visiveis: readonly ChaveDoFiltro[];
@@ -254,30 +254,22 @@ function SeletoresDeInteressados({ visiveis, filtros, aoMudar, opcoesDeSituacao,
 }) {
   return (
     <>
+      <GrupoDoPainel titulo="Identificação" primeiro>
+        <SelecaoMultiplaSuspensa rotulo="Responsável" opcoes={opcoesDeResponsavel} marcados={new Set(filtros.responsaveis)} rotuloDeTodos="Toda a equipe"
+          aoMudar={(m) => aoMudar({ ...filtros, responsaveis: [...m] })} style={estilos.cheio} />
+        <SelecaoMultiplaSuspensa rotulo="Origem" opcoes={OPCOES_FILTRO_ORIGEM} marcados={new Set(filtros.origens)} rotuloDeTodos="Todas"
+          aoMudar={(m) => aoMudar({ ...filtros, origens: OPCOES_FILTRO_ORIGEM.map((o) => o.valor).filter((v) => m.has(v)) as FiltroDeOrigem[] })} style={estilos.cheio} />
+      </GrupoDoPainel>
       {visiveis.includes('situacao') ? (
-        <CelulaDoFiltro>
-          {/* Oito situações: a escolha quebra linha dentro da célula. */}
+        <GrupoDoPainel titulo="Situação">
+          {/* Oito situações: a escolha quebra linha dentro do painel. */}
           <View style={estilos.caber}><Escolha rotulo="Situação" opcoes={opcoesDeSituacao} valor={filtros.situacao} aoMudar={(situacao) => aoMudar({ ...filtros, situacao })} /></View>
-        </CelulaDoFiltro>
+        </GrupoDoPainel>
       ) : null}
-      <View style={estilos.linhaDoPainel}>
-        <View style={estilos.colunaDoPainel}>
-          <SelecaoMultiplaSuspensa rotulo="Responsável" opcoes={opcoesDeResponsavel} marcados={new Set(filtros.responsaveis)} rotuloDeTodos="Toda a equipe"
-            aoMudar={(m) => aoMudar({ ...filtros, responsaveis: [...m] })} style={estilos.cheio} />
-        </View>
-        <View style={estilos.colunaDoPainel}>
-          <SelecaoMultiplaSuspensa rotulo="Origem" opcoes={OPCOES_FILTRO_ORIGEM} marcados={new Set(filtros.origens)} rotuloDeTodos="Todas"
-            aoMudar={(m) => aoMudar({ ...filtros, origens: OPCOES_FILTRO_ORIGEM.map((o) => o.valor).filter((v) => m.has(v)) as FiltroDeOrigem[] })} style={estilos.cheio} />
-        </View>
-      </View>
-      <View style={estilos.linhaDoPainel}>
-        <View style={estilos.colunaDoPainel}>
-          <PeriodoDoFiltro rotulo="Entrada" valor={filtros.entrada} aoMudar={(entrada) => aoMudar({ ...filtros, entrada })} />
-        </View>
-        <View style={estilos.colunaDoPainel}>
-          <PeriodoDoFiltro rotulo="Última atividade" valor={filtros.atividade} aoMudar={(atividade) => aoMudar({ ...filtros, atividade })} />
-        </View>
-      </View>
+      <GrupoDoPainel titulo="Datas">
+        <PeriodoDoFiltro rotulo="Entrada" valor={filtros.entrada} aoMudar={(entrada) => aoMudar({ ...filtros, entrada })} />
+        <PeriodoDoFiltro rotulo="Última atividade" valor={filtros.atividade} aoMudar={(atividade) => aoMudar({ ...filtros, atividade })} />
+      </GrupoDoPainel>
     </>
   );
 }
@@ -315,11 +307,6 @@ const estilos = StyleSheet.create({
   selos: { flexDirection: 'row', gap: espaco(0.75), flexWrap: 'wrap', alignItems: 'center' },
   caber: { flexShrink: 1, maxWidth: '100%' },
   cheio: { alignSelf: 'stretch' },
-  // Uma linha inteira da grade do painel (`BarraDeFiltros`), com o mesmo espaçamento dela.
-  linhaDoPainel: { flexBasis: '100%', flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(3), rowGap: espaco(2), alignItems: 'flex-start' },
-  // Coluna: cabe um período com as duas datas lado a lado (o vão é o da `CamposEmLinha`); o teto é o do campo de busca
-  // da barra, para os seletores não se esticarem pela tela larga.
-  colunaDoPainel: { flexGrow: 1, flexShrink: 1, flexBasis: 2 * MINIMO_DA_DATA + espaco(2), minWidth: 0, maxWidth: 480 },
   esmaecido: { opacity: 0.6 },
   paginacao: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), flexWrap: 'wrap' },
 });

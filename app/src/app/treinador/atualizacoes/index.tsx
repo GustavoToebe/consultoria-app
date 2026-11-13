@@ -11,9 +11,9 @@ import {
   CHAVES_DO_ENDERECO, chaveDosFiltros, chipsDosFiltros, lerDoEndereco, MAXIMO_DIAS, opcoesDeResponsavel,
   paraEndereco, pedidoDaApi, SEM_FILTROS, semOFiltro, type ChaveDoFiltro, type FiltrosDeAtualizacoes,
 } from '../../../dominio/filtrosDeAtualizacoes';
-import { CamposDePeriodo, CelulaDoFiltro } from '../../../treinador/SeletoresDeFiltro';
+import { CamposDePeriodo } from '../../../treinador/SeletoresDeFiltro';
 import { SelecaoMultiplaSuspensa } from '../../../ui/SelecaoMultiplaSuspensa';
-import { BarraDeFiltros } from '../../../ui/BarraDeFiltros';
+import { BarraDeFiltros, GrupoDoPainel } from '../../../ui/BarraDeFiltros';
 import { ICONE_DO_SELO } from '../../../treinador/iconesDosSelos';
 import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
 import { Botao } from '../../../ui/Botao';
@@ -88,9 +88,14 @@ export default function ListaAtualizacoes() {
     <Cabecalho titulo="Atualizações" subtitulo="Revise os envios e acompanhe os prazos." mostrarMarca="celular" />
     <BarraDeFiltros busca={{valor:busca,aoMudar:setBusca,placeholder:'Nome do aluno'}} valor={filtros} aoAplicar={aplicar} limpo={SEM_FILTROS}
       chips={chips} aoTirar={(chave)=>aplicar(semOFiltro(filtros,chave as ChaveDoFiltro))} rotuloDoResultado="Ver atualizações"
+      painelLateral={{titulo:'Filtros de atualizações'}}
       seletores={(atuais,mudar)=><>
-        <CelulaDoFiltro><SelecaoMultiplaSuspensa rotulo="Responsável" opcoes={opcoesDeResponsavel(responsaveis,usuario?.id)} marcados={new Set(atuais.responsaveis)} aoMudar={(m)=>mudar({...atuais,responsaveis:[...m]})} rotuloDeTodos="Todos" style={{alignSelf:'stretch'}} /></CelulaDoFiltro>
-        <CelulaDoFiltro><CamposDePeriodo rotulo="Data da atualização" regra="PLANEJAMENTO" osDois maximoDias={MAXIMO_DIAS} valor={atuais.periodo} aoMudar={(periodo)=>mudar({...atuais,periodo})} /></CelulaDoFiltro>
+        <GrupoDoPainel titulo="Identificação" primeiro>
+          <SelecaoMultiplaSuspensa rotulo="Responsável" opcoes={opcoesDeResponsavel(responsaveis,usuario?.id)} marcados={new Set(atuais.responsaveis)} aoMudar={(m)=>mudar({...atuais,responsaveis:[...m]})} rotuloDeTodos="Todos" style={{alignSelf:'stretch'}} />
+        </GrupoDoPainel>
+        <GrupoDoPainel titulo="Datas">
+          <CamposDePeriodo rotulo="Data da atualização" regra="PLANEJAMENTO" osDois maximoDias={MAXIMO_DIAS} valor={atuais.periodo} aoMudar={(periodo)=>mudar({...atuais,periodo})} />
+        </GrupoDoPainel>
       </>} />
     {/* A aba (situação) é um passo do histórico; os filtros da barra vão junto. */}
     <Abas abas={ABAS.map(a=>({...a,contagem:contagens[a.valor]}))} ativa={filtro} aoMudar={valor=>{ if(valor!==filtro) router.push({pathname:'/treinador/atualizacoes',params:{situacao:valor,...paraEndereco(filtros)}}); }} />
@@ -99,8 +104,9 @@ export default function ListaAtualizacoes() {
     {lista.erro?<MensagemErro texto={`Não foi possível carregar as atualizações. ${textoDoErro(lista.erro)}`} erro={lista.erro} tentarDeNovo={recarregar} />:null}
     {lista.carregando?<Esqueleto />:null}
     {!lista.carregando && lista.dados && total===0?(filtrado
-      ?<Vazio titulo={buscaAtrasada?`Nenhuma atualização para "${buscaAtrasada}"`:'Nenhuma atualização com esses filtros'} texto="Confira o nome, tire algum filtro ou limpe tudo."
-        acao={{rotulo:'Limpar filtros',aoTocar:()=>{setBusca('');if(chips.length) aplicar(SEM_FILTROS);}}} />
+      ?<Vazio titulo={buscaAtrasada?`Nenhuma atualização para "${buscaAtrasada}"`:'Nenhuma atualização com esses filtros'} texto={!buscaAtrasada?'Tire algum filtro para ver mais atualizações.':chips.length?'Confira o nome ou tire algum filtro.':'Confira o nome ou limpe a busca.'}
+        // "Limpar filtros" tira só os filtros (a busca é independente, D5); só com a busca, a saída é limpá-la.
+        acao={chips.length?{rotulo:'Limpar filtros',aoTocar:()=>aplicar(SEM_FILTROS)}:{rotulo:'Limpar a busca',aoTocar:()=>setBusca('')}} />
       :<Vazio texto={VAZIO_DA_ABA[filtro]} />):null}
     {/* A aba já diz a lista: a faixa do cartão leva a contagem, não repete o nome da aba. Mais antiga primeiro (é a
         que espera há mais tempo). Sem título o cartão não tinha faixa e a descrição nem aparecia. */}

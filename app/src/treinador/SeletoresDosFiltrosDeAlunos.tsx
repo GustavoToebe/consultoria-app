@@ -1,11 +1,11 @@
-import { type ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import type { ResponsavelEquipe } from '../api/equipeTipos';
 import {
   ACESSOS, FASES, opcoesDeResponsavel, PLANOS, REGISTROS, SITUACOES,
   type AcessoDoFiltro, type ChaveDoFiltro, type FaseDoFiltro, type FiltrosDeAlunos, type PlanoDoFiltro, type RegistroDoFiltro,
 } from '../dominio/filtrosDeAlunos';
+import { GrupoDoPainel } from '../ui/BarraDeFiltros';
 import { Escolha } from '../ui/Escolha';
 import { SelecaoMultiplaSuspensa } from '../ui/SelecaoMultiplaSuspensa';
 
@@ -22,9 +22,10 @@ const TODOS = 'TODOS';
 type Unico<T extends string> = T | typeof TODOS;
 
 /**
- * Seletores do painel "Filtros avançados" da lista de alunos: várias opções em `SelecaoMultiplaSuspensa` (responsável,
- * acesso, atualização; nada marcado = todos) e uma opção em `Escolha` (situação, plano em uso, pasta a renovar, último
- * registro). Cada mudança devolve os filtros inteiros; quem usa troca o endereço.
+ * Seletores do painel "Filtros de alunos", em grupos (painel lateral de `docs/design-e-front.md` 4.6): Identificação (responsável,
+ * acesso), Situação (situação, atualização, pasta) e Outros (plano em uso, último registro). Várias opções em
+ * `SelecaoMultiplaSuspensa` (nada marcado = todos) e uma em `Escolha`. Cada mudança devolve o rascunho inteiro; o
+ * endereço só muda no "Aplicar filtros". Grupo sem filtro permitido some.
  */
 export function SeletoresDosFiltrosDeAlunos({ visiveis, filtros, aoMudar, responsaveis, usuarioId }: Props) {
   const mostra = (c: ChaveDoFiltro) => visiveis.includes(c);
@@ -32,57 +33,45 @@ export function SeletoresDosFiltrosDeAlunos({ visiveis, filtros, aoMudar, respon
   const deUnico = <T extends string>(valor: Unico<T>): T | null => (valor === TODOS ? null : (valor as T));
   return (
     <>
-      {mostra('situacao') ? (
-        <Celula>
-          <Escolha rotulo="Situação" opcoes={[...SITUACOES]} valor={filtros.situacao} aoMudar={(situacao) => aoMudar({ ...filtros, situacao })} />
-        </Celula>
-      ) : null}
-      {mostra('responsavel') ? (
-        <Celula>
+      <GrupoDoPainel titulo="Identificação" primeiro>
+        {mostra('responsavel') ? (
           <SelecaoMultiplaSuspensa rotulo="Responsável" opcoes={opcoesDeResponsavel(responsaveis, usuarioId)} marcados={new Set(filtros.responsaveis)}
             aoMudar={(m) => aoMudar({ ...filtros, responsaveis: [...m] })} rotuloDeTodos="Todos" style={estilos.cheio} />
-        </Celula>
-      ) : null}
-      {mostra('acesso') ? (
-        <Celula>
+        ) : null}
+        {mostra('acesso') ? (
           <SelecaoMultiplaSuspensa rotulo="Acesso ao app" opcoes={ACESSOS} marcados={new Set(filtros.acesso)}
             aoMudar={(m) => aoMudar({ ...filtros, acesso: ACESSOS.map((o) => o.valor).filter((v) => m.has(v)) as AcessoDoFiltro[] })} style={estilos.cheio} />
-        </Celula>
-      ) : null}
-      {mostra('atualizacao') ? (
-        <Celula>
+        ) : null}
+      </GrupoDoPainel>
+      <GrupoDoPainel titulo="Situação">
+        {mostra('situacao') ? (
+          <Escolha rotulo="Situação" opcoes={[...SITUACOES]} valor={filtros.situacao} aoMudar={(situacao) => aoMudar({ ...filtros, situacao })} />
+        ) : null}
+        {mostra('atualizacao') ? (
           <SelecaoMultiplaSuspensa rotulo="Atualização" opcoes={FASES} marcados={new Set(filtros.atualizacao)}
             aoMudar={(m) => aoMudar({ ...filtros, atualizacao: FASES.map((o) => o.valor).filter((v) => m.has(v)) as FaseDoFiltro[] })} style={estilos.cheio} />
-        </Celula>
-      ) : null}
-      {mostra('plano') ? (
-        <Celula>
-          <Escolha<Unico<PlanoDoFiltro>> rotulo="Plano em uso" opcoes={[{ valor: TODOS, rotulo: 'Todos' }, ...PLANOS]} valor={unico(filtros.plano)}
-            aoMudar={(v) => aoMudar({ ...filtros, plano: deUnico(v) })} />
-        </Celula>
-      ) : null}
-      {mostra('pasta') ? (
-        <Celula>
+        ) : null}
+        {mostra('pasta') ? (
           <Escolha<'TODAS' | 'A_RENOVAR'> rotulo="Pasta" opcoes={[{ valor: 'TODAS', rotulo: 'Todas' }, { valor: 'A_RENOVAR', rotulo: 'A renovar em 7 dias' }]}
             valor={filtros.pastaARenovar ? 'A_RENOVAR' : 'TODAS'} aoMudar={(v) => aoMudar({ ...filtros, pastaARenovar: v === 'A_RENOVAR' })} />
-        </Celula>
-      ) : null}
-      {mostra('registro') ? (
-        <Celula>
-          <Escolha<Unico<RegistroDoFiltro>> rotulo="Último registro" opcoes={[{ valor: TODOS, rotulo: 'Qualquer' }, ...REGISTROS]} valor={unico(filtros.registro)}
-            aoMudar={(v) => aoMudar({ ...filtros, registro: deUnico(v) })} />
-        </Celula>
+        ) : null}
+      </GrupoDoPainel>
+      {mostra('plano') || mostra('registro') ? (
+        <GrupoDoPainel titulo="Outros">
+          {mostra('plano') ? (
+            <Escolha<Unico<PlanoDoFiltro>> rotulo="Plano em uso" opcoes={[{ valor: TODOS, rotulo: 'Todos' }, ...PLANOS]} valor={unico(filtros.plano)}
+              aoMudar={(v) => aoMudar({ ...filtros, plano: deUnico(v) })} />
+          ) : null}
+          {mostra('registro') ? (
+            <Escolha<Unico<RegistroDoFiltro>> rotulo="Último registro" opcoes={[{ valor: TODOS, rotulo: 'Qualquer' }, ...REGISTROS]} valor={unico(filtros.registro)}
+              aoMudar={(v) => aoMudar({ ...filtros, registro: deUnico(v) })} />
+          ) : null}
+        </GrupoDoPainel>
       ) : null}
     </>
   );
 }
 
-/** Uma célula da grade do painel (no celular, a folha empilha). */
-function Celula({ children }: { children: ReactNode }) {
-  return <View style={estilos.celula}>{children}</View>;
-}
-
 const estilos = StyleSheet.create({
-  celula: { flexGrow: 1, flexShrink: 1, flexBasis: 280, minWidth: 0 },
   cheio: { alignSelf: 'stretch' },
 });

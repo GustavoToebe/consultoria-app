@@ -12,7 +12,7 @@ import { perfisAtribuiveis, podeCancelarConvite, podeEditarMembro } from '../../
 import { useSessao } from '../../sessao/SessaoProvider';
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
-import { BarraDeFiltros } from '../../ui/BarraDeFiltros';
+import { BarraDeFiltros, GrupoDoPainel } from '../../ui/BarraDeFiltros';
 import { Botao } from '../../ui/Botao';
 import { CaixaSelecao } from '../../ui/CaixaSelecao';
 import { Campo } from '../../ui/Campo';
@@ -29,7 +29,6 @@ import { Permitido } from '../../ui/Permitido';
 import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
 import { Texto } from '../../ui/Texto';
 import { useAvisoDoPlano } from '../../ui/useAvisoDoPlano';
-import { CelulaDoFiltro } from '../SeletoresDeFiltro';
 import { useAtorEquipe } from './useAtorEquipe';
 
 export function UsuariosEquipe({membros,perfis,recarregar}:{membros:MembroEquipe[];perfis:PerfilEquipe[];recarregar:()=>void}) {
@@ -48,9 +47,14 @@ export function UsuariosEquipe({membros,perfis,recarregar}:{membros:MembroEquipe
     <Cartao titulo="Membros da equipe" descricao="Convide pessoas por e-mail e escolha o perfil de cada uma." acoes={<NoPlano funcionalidade="EQUIPE"><Permitido codigo="USUARIO_ALTERAR"><Botao rotulo="Convidar membro" aoTocar={()=>setEditar('novo')}/></Permitido></NoPlano>}>
     <BarraDeFiltros busca={{valor:busca,aoMudar:setBusca,placeholder:'Nome ou e-mail'}} valor={filtros} aoAplicar={setFiltros} limpo={SEM_FILTROS} chips={chips}
       aoTirar={(chave)=>setFiltros(semOFiltro(filtros,chave as ChaveDoFiltro))} rotuloDoResultado="Ver membros"
+      painelLateral={{titulo:'Filtros de membros'}}
       seletores={(atuais,mudar)=><>
-        <CelulaDoFiltro><SelecaoMultiplaSuspensa rotulo="Situação" opcoes={SITUACOES_DO_MEMBRO} marcados={new Set(atuais.situacoes)} aoMudar={(m)=>mudar({...atuais,situacoes:naOrdem(m,SITUACOES_DO_MEMBRO)})} rotuloDeTodos="Todas"/></CelulaDoFiltro>
-        <CelulaDoFiltro><SelecaoMultiplaSuspensa rotulo="Perfil" opcoes={opcoesDePerfil} marcados={new Set(atuais.perfis)} aoMudar={(m)=>mudar({...atuais,perfis:naOrdem(m,opcoesDePerfil)})} rotuloDeTodos="Todos"/></CelulaDoFiltro>
+        <GrupoDoPainel titulo="Identificação" primeiro>
+          <SelecaoMultiplaSuspensa rotulo="Perfil" opcoes={opcoesDePerfil} marcados={new Set(atuais.perfis)} aoMudar={(m)=>mudar({...atuais,perfis:naOrdem(m,opcoesDePerfil)})} rotuloDeTodos="Todos" style={{alignSelf:'stretch'}}/>
+        </GrupoDoPainel>
+        <GrupoDoPainel titulo="Situação">
+          <SelecaoMultiplaSuspensa rotulo="Situação" opcoes={SITUACOES_DO_MEMBRO} marcados={new Set(atuais.situacoes)} aoMudar={(m)=>mudar({...atuais,situacoes:naOrdem(m,SITUACOES_DO_MEMBRO)})} rotuloDeTodos="Todas" style={{alignSelf:'stretch'}}/>
+        </GrupoDoPainel>
       </>}/>
     {membros.length&&!visiveis.length?<Vazio titulo="Nenhum membro encontrado" texto="Tente outro nome ou tire algum filtro." acao={chips.length?{rotulo:'Limpar filtros',aoTocar:()=>setFiltros(SEM_FILTROS)}:undefined}/>:null}
     {/* Linhas comparáveis (P3): nome em destaque, perfil e situação logo abaixo (texto neutro: convite pendente é espera, não

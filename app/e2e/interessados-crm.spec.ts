@@ -250,17 +250,16 @@ for (const largura of process.env.CAPTURAS_DIR ? [390, 768, 1280] : [390, 1280])
       expect(pedidos.some((p) => p.caminho === '/inscricoes' && p.busca.get('busca') === 'ana')).toBe(true);
       await page.getByLabel('Buscar', { exact: true }).fill('');
       await expect(page.getByText('Pessoa Fictícia 1', { exact: true })).toBeVisible();
-      // Situação (com a contagem) e responsável ficam no painel de filtros (PC) ou na folha "Filtros" (celular).
+      // Situação (com a contagem) e responsável ficam no painel lateral de filtros (nas duas larguras).
       await page.getByRole('button', { name: /^Filtros, / }).click();
-      const painel = largura < 768 ? page.getByRole('dialog', { name: 'Filtros' }) : page.locator('body');
+      const painel = page.getByRole('dialog', { name: 'Filtros de inscrições' });
       await expect(painel.getByRole('radio', { name: 'Novas · 2' })).toBeVisible();
       // Responsável é de várias opções (nada marcado = toda a equipe): marcar só "Meus" vira `meus=true`.
       await painel.getByRole('button', { name: 'Responsável: Toda a equipe. Escolher.' }).click();
       const lista = page.getByRole('dialog', { name: 'Responsável' });
       await lista.getByRole('checkbox', { name: 'Meus' }).click();
-      if (largura < 768) await lista.getByRole('button', { name: 'Fechar' }).click();
-      else await page.keyboard.press('Escape');
-      if (largura < 768) await page.getByRole('button', { name: 'Ver inscrições' }).click();
+      await page.keyboard.press('Escape');
+      await painel.getByRole('button', { name: 'Aplicar filtros' }).click();
       await expect(page.getByText('Nenhuma inscrição atribuída a você nesta lista.')).toBeVisible();
       await expect(page).toHaveURL(/meus=true/);
       await expect(page.getByRole('button', { name: 'Tirar filtro: Responsável: Meus' })).toBeVisible();

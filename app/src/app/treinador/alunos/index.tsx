@@ -14,15 +14,14 @@ import { SEM_DADO } from '../../../dominio/formatos';
 import { agruparAlunos, colunasDaLista, metadadosDaLinha, primeiroNome, ultimoRegistroDaLinha, vazioDaLista, type TomDoGrupo } from '../../../dominio/gruposDeAlunos';
 import { LIMITE_LOTE, textoDaSelecao } from '../../../dominio/loteDeAlunos';
 import {
-  ATALHOS, atalhoAtual, chaveDosFiltros, chipsDosFiltros, comAtalho, filtrosVisiveis, lerDoEndereco, paraEndereco, pedidoDaApi, permissoesDosFiltros, SEM_FILTROS,
-  CHAVES_DO_ENDERECO, semOFiltro, semOQueNaoPode, type AtalhoDaLista, type ChaveDoFiltro, type FiltrosDeAlunos, type ParametrosDoEndereco,
+  chaveDosFiltros, chipsDosFiltros, filtrosVisiveis, lerDoEndereco, paraEndereco, pedidoDaApi, permissoesDosFiltros, SEM_FILTROS,
+  CHAVES_DO_ENDERECO, semOFiltro, semOQueNaoPode, type ChaveDoFiltro, type FiltrosDeAlunos, type ParametrosDoEndereco,
 } from '../../../dominio/filtrosDeAlunos';
 import { alternarComLimite, marcarVisiveis } from '../../../dominio/selecaoMultipla';
 import { useTema } from '../../../tema/TemaProvider';
 import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
 import { SeletoresDosFiltrosDeAlunos } from '../../../treinador/SeletoresDosFiltrosDeAlunos';
 import { BarraDeFiltros } from '../../../ui/BarraDeFiltros';
-import { Escolha } from '../../../ui/Escolha';
 import { Folha } from '../../../ui/Folha';
 import { LinhaDeAcoes } from '../../../ui/LinhaDeAcoes';
 import { AcoesEmLote } from '../../../treinador/AcoesEmLote';
@@ -92,10 +91,11 @@ export default function Alunos() {
   const animar = usePrimeiraLista(!!dados, `${termo}|${chaveFiltros}|${pagina}`);
   const limparSelecao = () => { setPagina(0); setMarcados(new Set()); };
   const mudarBusca = (texto: string) => { setBusca(texto); limparSelecao(); };
-  // Trocar um filtro troca o endereço sem empilhar histórico (o voltar sai da tela) e volta à página 1. `setParams`, não
-  // `router.replace`: o replace troca a rota inteira e a tela perderia a busca digitada e o painel aberto. Chave que sai
-  // vai como `undefined` (o setParams junta com os parâmetros de antes).
+  // Aplicar troca o endereço sem empilhar histórico (o voltar sai da tela) e volta à página 1; os mesmos filtros (a chave
+  // inclui o responsável) não fazem nada. `setParams`, não `router.replace`: o replace troca a rota inteira e a tela
+  // perderia a busca digitada. Chave que sai vai como `undefined` (o setParams junta com os parâmetros de antes).
   const aplicar = (novos: FiltrosDeAlunos) => {
+    if (chaveDosFiltros(novos) === chaveFiltros) return;
     limparSelecao();
     const params = paraEndereco(novos, comecaEmMeus);
     router.setParams(Object.fromEntries(CHAVES_DO_ENDERECO.map((k) => [k, params[k]])));
@@ -122,22 +122,6 @@ export default function Alunos() {
   const chips = chipsDosFiltros(filtros, nomeCompleto);
   const vazio = vazioDaLista({ termo, chaves: chips.map((c) => c.chave), responsaveis: filtros.responsaveis });
 
-  // Número de cada atalho = o `total` da API com aquele filtro (e a mesma busca e os outros filtros), nunca contado na tela.
-  // O atalho em vigor usa o total da própria lista; sem a leitura, o chip fica sem número.
-  // Pede `tamanho=1` (o mínimo do `GET /alunos`): só o `total` interessa. shortcut: ainda são dois pedidos por troca
-  // de filtro; trocar por uma rota de contagens, como a de `/atualizacoes/contagens`, se a lista ficar lenta.
-  const atalho = atalhoAtual(filtros);
-  const chaveDaContagem = (a: AtalhoDaLista) => (veAtualizacao && a !== atalho ? `contagem-alunos:${termo}|${chaveDosFiltros(comAtalho(filtros, a))}` : null);
-  const contar = (a: AtalhoDaLista) => () => listarAlunos({ busca: termo, pagina: 0, tamanho: 1, filtros: pedidoDaApi(comAtalho(filtros, a), usuario?.id) }).then((r) => r.total);
-  const contagens: Record<AtalhoDaLista, { dados?: number; erro?: unknown }> = {
-    todos: useCarregar(chaveDaContagem('todos'), contar('todos')),
-    revisar: useCarregar(chaveDaContagem('revisar'), contar('revisar')),
-    atrasados: useCarregar(chaveDaContagem('atrasados'), contar('atrasados')),
-  };
-  // Na troca de atalho, enquanto a lista nova chega, o atalho em vigor usa o último total que a contagem dele leu (o do
-  // mesmo filtro), em vez de ficar sem número.
-  const contagemDo = (a: AtalhoDaLista) => (a === atalho ? (dadosDeOutraChave ? contagens[a].dados : dados?.total) : contagens[a].erro ? undefined : contagens[a].dados);
-
   return (
     <View style={estilos.raiz}>
     <Tela bordas={['top']} largura={LARGURA_LISTA}>
@@ -157,22 +141,16 @@ export default function Alunos() {
           </View>
         }
       />
-      {/* Ordem (guia de 11/11, pág. 7): busca → atalhos com contagem → "Mais filtros" (o resto, com o painel e o
-          "Filtrando:"). Sem ver atualizações os dois atalhos não filtram nada: somem todos (só sobraria "Todos"). */}
+      {/* Busca → "Filtros" (painel lateral, `docs/planos/filtros-laterais.md`) → "Filtrando:". Os antigos atalhos
+          "Todos / Para revisar / Atrasados" (guia de 11/11, pág. 7) viraram o filtro Atualização do painel (D10). */}
       <BarraDeFiltros
         busca={{ valor: busca, aoMudar: mudarBusca, rotulo: 'Buscar nome do aluno' }}
-        rotuloDoBotao={veAtualizacao ? 'Mais filtros' : 'Filtros'}
-        atalhos={veAtualizacao ? (
-          <Escolha<AtalhoDaLista | null> chips descricao="Mostrar alunos" valor={atalho}
-            aoMudar={(v) => { if (v) aplicar(comAtalho(filtros, v)); }}
-            opcoes={ATALHOS.map((a) => ({ valor: a.valor, rotulo: a.rotulo, contagem: contagemDo(a.valor) }))} />
-        ) : undefined}
         valor={filtros}
         aoAplicar={aplicar}
         limpo={SEM_FILTROS}
         chips={chips}
         aoTirar={(chave) => aplicar(semOFiltro(filtros, chave as ChaveDoFiltro))}
-        rotuloDoResultado="Ver alunos"
+        painelLateral={{ titulo: 'Filtros de alunos' }}
         seletores={(atuais, mudar) => (
           <SeletoresDosFiltrosDeAlunos visiveis={visiveis} filtros={atuais} aoMudar={mudar} responsaveis={responsaveis} usuarioId={usuario?.id} />
         )}
@@ -187,7 +165,8 @@ export default function Alunos() {
             : termo || chips.length || !podeEditar ? undefined : { rotulo: 'Cadastrar aluno', aoTocar: () => router.push('/treinador/alunos/novo') }}
         />
       ) : null}
-      <View style={[estilos.lista, carregando && dados ? estilos.esmaecido : null]}>
+      {/* Filtro novo ainda carregando: as linhas à vista são do anterior; esmaecidas e sem toque, como em Cobranças. */}
+      <View style={[estilos.lista, carregando && dados ? estilos.esmaecido : null]} pointerEvents={dadosDeOutraChave ? 'none' : 'auto'}>
         {grupos.map((g, gi) => (
           <Cartao key={g.chave} titulo={g.titulo} descricao={g.resumo} marcador={g.tom ? <Bolinha tom={g.tom} /> : undefined}>
             <CabecalhoDasColunas colunas={colunas} marcar={selecionando} aoLado={!selecionando && podeEditar} />
