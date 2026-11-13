@@ -273,7 +273,9 @@ export function devolverGuardaDoHistorico(depois: () => void) {
   // Encadeia, não substitui: um Aplicar de filtros que já espera o histórico (`depoisDeFecharAsFolhas`) corre antes da saída
   // e não se perde (a trava da barra ficaria presa, ou o filtro cairia na rota nova depois de sair).
   const anterior = aoChegar;
-  aoChegar = () => { anterior?.(); depois(); };
+  aoChegar = () => {
+    try { anterior?.(); } finally { depois(); }
+  };
   voltar(1);
 }
 

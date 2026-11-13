@@ -234,6 +234,21 @@ describe('guarda do editor × Aplicar do painel de filtros (B3)', () => {
     // (o `router.setParams` cairia na rota nova), ou nunca (a trava `aplicando` da barra ficava presa).
     expect(ordem).toEqual(['aplicar', 'sair']);
   });
+
+  it('se o Aplicar encadeado lançar erro, a saída confirmada do editor ainda acontece', () => {
+    const c = carregar(300);
+    c.montar(0, true);
+    c.passar(0);
+    c.montar(1, true);
+    c.passar(0);
+    const ordem: string[] = [];
+    c.montar(0, true);
+    c.historico.depoisDeFecharAsFolhas(() => { throw new Error('aplicar quebrou'); });
+    c.passar(0);
+    c.historico.devolverGuardaDoHistorico(() => ordem.push('sair'));
+    try { c.passar(10_000); } catch { /* o erro do Aplicar sobe; a saída já correu */ }
+    expect(ordem).toEqual(['sair']);
+  });
 });
 
 describe('portalDaFolhaDoTopo no celular', () => {

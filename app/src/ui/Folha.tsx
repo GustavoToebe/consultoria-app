@@ -146,6 +146,12 @@ function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura,acaoNoTo
   const altura = useSharedValue(height * 0.88);
   // No PC o painel também anda para os lados: o cabeçalho é a alça para mover a folha e ver o que está por trás dela.
   const deslocamentoX = useSharedValue(0);
+  // A tela segue montada ao cruzar 768 px: a folha movida no PC não pode levar o deslocamento para a folha de baixo.
+  useEffect(() => {
+    if (centralizado) return;
+    deslocamentoX.set(0);
+    deslocamento.set(0);
+  }, [centralizado, deslocamentoX, deslocamento]);
   const baseX = useSharedValue(0);
   const baseY = useSharedValue(0);
   const larguraDoPainel = useSharedValue(largura ?? LARGURA_FOLHA);

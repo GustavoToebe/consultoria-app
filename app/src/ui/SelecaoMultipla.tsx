@@ -57,6 +57,8 @@ export function SelecaoMultipla({ rotulo, opcoes, marcados, aoMudar, limite, aoP
     aoMudar(r.marcados);
     if (r.deixados > 0) aoPassarDoLimite?.();
   };
+  // Só as opções à vista: o que um filtro esconde (busca, grupo) continua marcado, como diz a contagem.
+  const limparVisiveis = () => aoMudar(new Set([...marcados].filter((v) => !opcoes.some((o) => o.valor === v))));
   const quantos = opcoes.filter((o) => marcados.has(o.valor)).length;
   const caixa = (o: OpcaoMultipla) => (
     <CaixaSelecao key={o.valor} rotulo={o.rotulo} marcado={marcados.has(o.valor)} aoMudar={(m) => alternar(o.valor, m)} />
@@ -69,7 +71,7 @@ export function SelecaoMultipla({ rotulo, opcoes, marcados, aoMudar, limite, aoP
           {quantos} de {opcoes.length} marcados{limite === undefined ? '' : ` · máximo ${limite} no total`}
         </Texto>
         <Botao rotulo={limite === undefined ? 'Marcar todos' : `Marcar os visíveis (até ${limite})`} tipo="secundario" aoTocar={marcarTodos} />
-        <Botao rotulo="Limpar" tipo="secundario" aoTocar={() => aoMudar(new Set())} />
+        <Botao rotulo="Limpar" tipo="secundario" aoTocar={limparVisiveis} />
       </View>
       {grupos ? (
         <View style={estilos.grupos}>
