@@ -14,6 +14,9 @@ import { contagensFalsas, resumoFalso, rotasDaTela } from './inscricoes-falsas';
  * lista vazia mantém os chips; com outro filtro, a lista filtrada aparece com o chip; data pela metade (ou só uma ponta, onde a rota pede as duas) segura o Aplicar com o erro
  * no campo. Com `CAPTURAS_FILTROS` (pasta), grava as capturas `b-<tela>-…`. Só dados fictícios, API simulada.
  */
+// Painel pronto, sem a entrada animada: aqui se mede e se captura o painel (a entrada tem spec próprio, filtros-laterais-entrada).
+test.use({ contextOptions: { reducedMotion: 'reduce' } });
+
 const OUTRA = { id: 'u0000000-0000-4000-8000-000000000007', nome: 'Bia Fictícia' };
 const PASTA = process.env.CAPTURAS_FILTROS;
 

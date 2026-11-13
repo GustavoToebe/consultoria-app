@@ -66,6 +66,8 @@ for (const { largura, temas } of CASOS) {
   for (const tema of temas) {
     for (const visao of ['kanban', 'lista'] as const) {
       test(`filtros de data ${visao} ${largura}px ${nomeDoTema(tema)}: grupos De/Até, base comum, nomes únicos e calendário na janela`, async ({ page }) => {
+        // Mede dentro do painel lateral: sem a entrada animada, ele já nasce no lugar.
+        await page.emulateMedia({ reducedMotion: 'reduce' });
         const { naoTratadas, errosDaPagina } = await abrir(page, largura, tema, `/treinador/interessados?visao=${visao}`);
         await abrirFiltros(page);
 

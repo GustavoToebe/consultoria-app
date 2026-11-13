@@ -14,6 +14,9 @@ import {
  * e o fundo descartam; o foco volta ao botão; a seleção em lote segue a regra D9. Relógio em 19/10/2026; só dados
  * fictícios, API simulada. As capturas vão para `CAPTURAS_FILTROS` (ou `test-results/filtros-laterais`).
  */
+// Painel pronto, sem a entrada animada: aqui se mede e se captura o painel (a entrada tem spec próprio, filtros-laterais-entrada).
+test.use({ contextOptions: { reducedMotion: 'reduce' } });
+
 const CAPTURAS = process.env.CAPTURAS_FILTROS ?? 'test-results/filtros-laterais';
 
 const cobranca = (id: string, alunoNome: string, parcial: Partial<CobrancaResponse>): CobrancaResponse => ({

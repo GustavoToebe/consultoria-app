@@ -13,6 +13,9 @@ import { ALUNO, json, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type 
  * etiquetas; data pela metade segura o Aplicar com o erro no campo. Com `CAPTURAS_FILTROS` (pasta), grava as capturas
  * `c-<tela>-…`. Só dados fictícios, API simulada.
  */
+// Painel pronto, sem a entrada animada: aqui se mede e se captura o painel (a entrada tem spec próprio, filtros-laterais-entrada).
+test.use({ contextOptions: { reducedMotion: 'reduce' } });
+
 const PASTA = process.env.CAPTURAS_FILTROS;
 const OUTRO_MEMBRO = { id: 'u0000000-0000-4000-8000-000000000003', nome: 'Bruno Equipe' };
 

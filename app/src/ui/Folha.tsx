@@ -1,4 +1,4 @@
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { scheduleOnRN } from 'react-native-worklets';
 import { useMovimentoReduzido } from './useMovimentoReduzido';
@@ -24,6 +24,8 @@ export const LARGURA_FOLHA = 600;
  * "Limpar filtros · Cancelar · Aplicar filtros" numa linha com a margem de 24 px.
  */
 export const LARGURA_PAINEL_LATERAL = 460;
+/** Entrada do painel lateral (D1: curta e discreta); com movimento reduzido não há animação. */
+const DURACAO_DA_ENTRADA = 180;
 
 /**
  * Destino do diálogo aberto de dentro da folha. O `Modal` fica por cima do `PortalHost` da raiz, então a confirmação
@@ -131,7 +133,15 @@ function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura,acaoNoTo
   useDevolverFocoNoNativo();
   const conteudo = useRef<View>(null);
   const fechar = useRef<View>(null);
-  // Sem animação de entrada: o painel aparece pronto (também o lateral). O deslocamento só existe para o arrastar-para-fechar no celular.
+  // Entrada só do painel lateral (D1 de filtros-laterais): desliza da direita e o véu clareia em `DURACAO_DA_ENTRADA`.
+  // Com movimento reduzido nasce pronto. A saída é imediata: o foco volta a quem abriu sem esperar animação (D8).
+  const animarEntrada = aDireita && !reduzido;
+  const entrada = useSharedValue(animarEntrada ? 0 : 1);
+  useEffect(() => {
+    entrada.set(animarEntrada ? withTiming(1, { duration: DURACAO_DA_ENTRADA, easing: Easing.out(Easing.cubic) }) : 1);
+  }, [animarEntrada, entrada]);
+  const veuDaEntrada = useAnimatedStyle(() => ({ opacity: entrada.get() }));
+  // O deslocamento vertical serve ao arrastar-para-fechar no celular; o horizontal, ao mover a folha no PC.
   const deslocamento = useSharedValue(0);
   const altura = useSharedValue(height * 0.88);
   // No PC o painel também anda para os lados: o cabeçalho é a alça para mover a folha e ver o que está por trás dela.
@@ -139,12 +149,14 @@ function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura,acaoNoTo
   const baseX = useSharedValue(0);
   const baseY = useSharedValue(0);
   const larguraDoPainel = useSharedValue(largura ?? LARGURA_FOLHA);
-  // Na web, transform mesmo em zero cria uma camada. No monitor 21:9 essa camada pintava o painel cortado.
+  // Na web, transform mesmo em zero cria uma camada. No monitor 21:9 essa camada pintava o painel cortado. Em repouso
+  // vai `transform: []` (vira `''` e tira o inline): `{}` não serve, porque a web do reanimated junta o estilo novo ao
+  // anterior e deixava o último quadro da animação no elemento (o painel parava a 0,7 px da borda).
   const web = Platform.OS === 'web';
   const movimento = useAnimatedStyle(() => {
-    const x = deslocamentoX.get();
+    const x = deslocamentoX.get() + (1 - entrada.get()) * LARGURA_PAINEL_LATERAL;
     const y = deslocamento.get();
-    if (web && x === 0 && y === 0) return {};
+    if (web && x === 0 && y === 0) return { transform: [] };
     return { transform: [{ translateX: x }, { translateY: y }] };
   });
   // O cabeçalho nunca sai da janela: sobram ao menos 64 px na horizontal e a barra de título na vertical.
@@ -187,7 +199,9 @@ function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura,acaoNoTo
     <PortalDaFolha.Provider value={valorPortal}>
     <GestureHandlerRootView style={{flex:1}} {...capturaDoGatilho}>
       <KeyboardAvoidingView style={estilos.fundoArea} behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}>
-      <View style={[estilos.fundo, semVeu && estilos.semVeu, aDireita ? estilos.fundoLateral : centralizado ? estilos.fundoCentral : estilos.fundoInferior]}>
+      <View style={[estilos.fundo, (semVeu || aDireita) && estilos.semVeu, aDireita ? estilos.fundoLateral : centralizado ? estilos.fundoCentral : estilos.fundoInferior]}>
+        {/* Véu em camada própria: a opacidade no fundo apagaria o painel junto. */}
+        {aDireita && !semVeu ? <Animated.View style={[StyleSheet.absoluteFill, estilos.veu, veuDaEntrada]} pointerEvents="none" /> : null}
         {web
           // Na web o fundo não entra no Tab nem na trava de foco do Modal, que o escolhia ao dar a volta (o X e o Esc
           // fecham pelo teclado); clicar fora continua fechando.
@@ -243,6 +257,7 @@ const estilos = StyleSheet.create({
   fundoArea: { flex: 1 },
   fundo: { flex: 1, backgroundColor: VEU },
   semVeu: { backgroundColor: 'transparent' },
+  veu: { backgroundColor: VEU },
   fundoCentral: { alignItems: 'center', justifyContent: 'center', padding: espaco(2) },
   fundoInferior: { justifyContent: 'flex-end' },
   fundoLateral: { alignItems: 'flex-end' },
