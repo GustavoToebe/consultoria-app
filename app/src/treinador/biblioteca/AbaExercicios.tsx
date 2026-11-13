@@ -53,10 +53,8 @@ export function AbaExercicios() {
   const gruposEscolhidos = gruposDaConsulta(gruposMarcados, gruposConhecidos);
   // Chave própria da página: a 'biblioteca-exercicios' é da lista inteira, usada em outras telas.
   const chave = JSON.stringify(['biblioteca-exercicios-pagina', pagina, buscaAtrasada, gruposEscolhidos]);
-  const { dados: resposta, erro, carregando, recarregar, dadosDeOutraChave } = useCarregar(chave, () =>
+  const { dados, erro, carregando, recarregar } = useCarregar(chave, () =>
     listarExerciciosPagina({ texto: buscaAtrasada, grupos: gruposEscolhidos, pagina }));
-  // Erro numa busca nova não deixa à vista a lista da busca anterior como se fosse a resposta.
-  const dados = erro && dadosDeOutraChave ? undefined : resposta;
   const [editando, setEditando] = useState<Exercicio | 'novo' | null>(null);
   const [inativar, setInativar] = useState<Exercicio | null>(null);
   // Guardar a lista de grupos da resposta durante o render (não em efeito): a próxima consulta já sai com os grupos certos.

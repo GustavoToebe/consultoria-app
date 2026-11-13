@@ -30,7 +30,7 @@ export const LARGURA_PAINEL_LATERAL = 460;
  * precisa ir para dentro do próprio Modal: no nativo pelo `nome` do portal, na web pelo `elemento` (o `hostName` do
  * primitivo é ignorado na web, e sem container o diálogo iria para o fim do body, atrás do Modal). Fora de folha é `undefined`.
  */
-export interface PortalDaFolhaValor { nome: string; elemento: HTMLElement | null }
+export interface PortalDaFolhaValor { nome: string; elemento: HTMLElement | null; /** Painel lateral (filtros): só a folha aberta dentro dele dispensa o véu. */ lateral?: boolean }
 const PortalDaFolha = createContext<PortalDaFolhaValor | undefined>(undefined);
 export const usePortalDaFolha = () => useContext(PortalDaFolha);
 
@@ -72,9 +72,9 @@ export function Folha({ visivel, titulo, aoFechar, children, rodape, statusDoRod
     marcarFolhaDoTopoFechando();
     aoFechar();
   }, [aoFechar]);
-  // Folha aberta de dentro de outra (a lista "Situação" na folha de filtros do celular): a de baixo já escurece a tela, um
-  // segundo véu escureceria duas vezes.
-  const dentroDeOutra = usePortalDaFolha() !== undefined;
+  // Folha aberta de dentro do painel de filtros (a lista "Situação"): o painel já escurece a tela, um segundo véu escureceria
+  // duas vezes. As outras folhas aninhadas do sistema seguem como antes até haver captura de cada uma.
+  const dentroDeOutra = usePortalDaFolha()?.lateral === true;
   return <Modal ref={semPapelNoModal} transparent visible={visivel} animationType="none" onRequestClose={fechar} onDismiss={() => devolverFoco(quemAbriuRef)}>
     {visivel ? <Painel titulo={titulo} aoFechar={fechar} rodape={rodape} statusDoRodape={statusDoRodape} largura={largura} acaoNoTopo={acaoNoTopo} faixa={faixa} lateral={lateral} semVeu={dentroDeOutra} quemAbriuRef={quemAbriuRef}>{children}</Painel> : null}
   </Modal>;
@@ -126,7 +126,7 @@ function Painel({titulo,aoFechar,children,rodape,statusDoRodape,largura,acaoNoTo
   const portal = useId();
   const [elementoPortal, setElementoPortal] = useState<HTMLElement | null>(null);
   const guardarElementoPortal = useCallback((no: View | null) => setElementoPortal(Platform.OS === 'web' ? (no as unknown as HTMLElement | null) : null), []);
-  const valorPortal = useMemo(() => ({ nome: portal, elemento: elementoPortal }), [portal, elementoPortal]);
+  const valorPortal = useMemo(() => ({ nome: portal, elemento: elementoPortal, lateral: !!lateral }), [portal, elementoPortal, lateral]);
   useFolhaNoHistorico(aoFechar, valorPortal);
   useDevolverFocoNoNativo();
   const conteudo = useRef<View>(null);

@@ -103,7 +103,7 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
     const antes = chaveDasCobrancas(filtros, busca);
     const depois = chaveDasCobrancas(novos, busca);
     if (antes === depois) return;
-    const { aviso } = selecaoDepoisDosFiltros(selecao, antes, depois);
+    const { aviso } = selecaoDepoisDosFiltros(lote, antes, depois);
     if (aviso) avisar(aviso, 'neutro');
     setSelecao([]);
     setPagina(0);
@@ -111,8 +111,9 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
   };
   const { recarregar } = lista;
   useFocusEffect(useCallback(() => { recarregar(); }, [recarregar]));
-  // Erro numa busca nova não deixa à vista a lista dos filtros anteriores como se fosse a resposta.
-  const dados = lista.erro && lista.dadosDeOutraChave ? undefined : lista.dados;
+  const dados = lista.dados;
+  // Filtro novo ainda carregando: as linhas à vista são as do filtro anterior, então o lote e a descrição esperam a resposta.
+  const desatualizada = !!lista.dadosDeOutraChave;
   const paginas = dados ? Math.max(1, Math.ceil(dados.total / TAMANHO_PAGINA)) : 1;
   const nomeDoAluno = filtros.alunoId ? dados?.itens.find((c) => c.alunoId === filtros.alunoId)?.alunoNome ?? null : null;
   const chips = chipsDasCobrancas(filtros, hoje, { aluno: nomeDoAluno, plano: nomeDoPlano });
@@ -122,7 +123,7 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
   const naPagina = new Map((dados?.itens ?? []).map((c) => [c.id, c]));
   const lote = selecao.map((s) => naPagina.get(s.id) ?? s).filter(podeEntrarNoLote);
   const marcadas = new Set(lote.map((c) => c.id));
-  const comLote = podeAlterar && !!dados && dados.itens.length > 0;
+  const comLote = podeAlterar && !!dados && dados.itens.length > 0 && !desatualizada;
 
   return (
     <View style={estilos.coluna}>
@@ -141,13 +142,13 @@ export function AbaCobrancas({ podeAlterar }: { podeAlterar: boolean }) {
           acao={chips.length ? { rotulo: 'Limpar filtros', aoTocar: () => aplicar(SEM_FILTROS_DE_COBRANCAS) } : undefined} />
       ) : null}
       {dados && dados.itens.length > 0 ? (
-        <Cartao descricao={descricaoDasCobrancas(filtros, hoje, dados.total)}>
+        <Cartao descricao={desatualizada ? undefined : descricaoDasCobrancas(filtros, hoje, dados.total)}>
           {comLote ? (
             <BarraDoLote lote={lote} pagina={dados.itens}
               aoMarcarPagina={(marcar) => setSelecao((s) => marcarPaginaNoLote(s, dados.itens, marcar))}
               aoLimpar={() => setSelecao([])} aoRevisar={() => setRevisando(true)} />
           ) : null}
-          <View style={lista.carregando ? estilos.esmaecido : null}>
+          <View style={lista.carregando ? estilos.esmaecido : null} pointerEvents={desatualizada ? 'none' : 'auto'}>
             <ListaOuTabela rotulo="Cobranças" linhas={dados.itens} chave={(c) => c.id} aoTocar={setAberta} larguraMinima={LARGURA_DA_TABELA}
               rotuloDaLinha={(c) => `Abrir cobrança de ${c.alunoNome ?? 'aluno'}`}
               // `null` (nunca `undefined`) na que não entra no lote: a coluna fica, vazia, e a tabela não desalinha.
