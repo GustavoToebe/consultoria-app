@@ -2,8 +2,8 @@ import type { AvaliacaoFisica, MedidasCorporais } from '../api/avaliacaoFisicaTi
 import type { Marca } from '../api/tipos';
 import { medidasVazias } from '../dominio/avaliacaoFisica';
 import { compararAvaliacoes } from '../dominio/comparacaoDeAvaliacoes';
-import { dataParaTela } from '../dominio/formatos';
-import { documentoAvaliacaoFisica, htmlDaAvaliacaoFisica, type DadosPdfAvaliacaoFisica } from './pdfAvaliacaoFisica';
+import { documentoCompleto } from './html';
+import { documentoAvaliacaoFisica, type DadosPdfAvaliacaoFisica } from './pdfAvaliacaoFisica';
 
 /** O gráfico sai como `<img src="data:image/svg+xml;base64,...">`: devolve o SVG decodificado (ou nulo sem imagem). */
 function svgDoCorpo(corpo: string): string | null {
@@ -41,7 +41,7 @@ function esperadoDaTela(escolhidas: string[]): string[] {
   const c = compararAvaliacoes(todas, escolhidas);
   if (c.estado !== 'ok') throw new Error('inválido');
   return [
-    ...c.colunas.map((col) => dataParaTela(col.data)),
+    ...c.colunas.map((col) => col.dataTexto),
     c.referencia,
     ...c.grupos.flatMap((g) => [g.titulo, ...g.itens.flatMap((i) => [i.rotulo, ...i.celulas.map((x) => x.texto), i.variacao.texto])]),
   ];
@@ -71,9 +71,30 @@ describe('PDF da avaliação física', () => {
   it('datas em ordem cronológica no cabeçalho, mesmo com a seleção fora de ordem', () => {
     const { corpo } = gerar(['c', 'a', 'b']);
     const cab = corpo.slice(corpo.indexOf('<thead>'), corpo.indexOf('</thead>'));
-    expect(cab.indexOf('01/07/2026')).toBeLessThan(cab.indexOf('01/09/2026'));
-    expect(cab.indexOf('01/09/2026')).toBeLessThan(cab.indexOf('01/10/2026'));
+    expect(cab.indexOf('>01/07<')).toBeLessThan(cab.indexOf('>01/09<'));
+    expect(cab.indexOf('>01/09<')).toBeLessThan(cab.indexOf('>01/10<'));
+    expect(cab).not.toContain('2026'); // mesmo ano: dd/mm (D11)
     expect(corpo).toContain('primeira e última datas selecionadas');
+  });
+
+  it('datas de anos diferentes: cabeçalho da tabela e eixo do gráfico levam o ano; no mesmo ano o eixo é dd/mm', () => {
+    const virada = [avaliacao('x', '2025-11-01', { cintura: 90, bracoDireito: 34 }, null), avaliacao('y', '2026-02-01', { cintura: 88, bracoDireito: 35 }, null)];
+    const { corpo } = gerar(['x', 'y'], {
+      avaliacoes: virada,
+      grafico: { rotulo: 'Braço direito', unidade: 'cm', pontos: [{ data: '2025-11-01', valor: 34 }, { data: '2026-02-01', valor: 35 }] },
+    });
+    const cab = corpo.slice(corpo.indexOf('<thead>'), corpo.indexOf('</thead>'));
+    expect(cab).toContain('>01/11/2025<');
+    expect(cab).toContain('>01/02/2026<');
+    expect(corpo).toContain('Variação = 01/02/2026 menos 01/11/2025.');
+    const svg = svgDoCorpo(corpo) as string;
+    expect(svg).toContain('>01/11/2025<');
+    expect(svg).toContain('>01/02/2026<');
+
+    const mesmoAno = svgDoCorpo(gerar(['a', 'b'], { grafico: { rotulo: 'Cintura', unidade: 'cm', pontos: [{ data: '2026-07-01', valor: 90 }, { data: '2026-09-01', valor: 85 }] } }).corpo) as string;
+    expect(mesmoAno).toContain('>01/07<');
+    expect(mesmoAno).toContain('>01/09<');
+    expect(mesmoAno).not.toContain('2026');
   });
 
   it('variação com sinal escrito, igual e indisponível; medida ausente escrita', () => {
@@ -119,7 +140,7 @@ describe('PDF da avaliação física', () => {
     expect(corpo).toContain('Aluno &lt;script&gt;alert(1)&lt;/script&gt;');
     expect(corpo).toContain('Consultoria &lt;Fictícia&gt;');
     expect(titulo).toContain('<script>'); // o título vai escapado por documentoCompleto
-    expect(htmlDaAvaliacaoFisica({ marca, logoDataUri: null, aluno: 'Aluno <script>alert(1)</script>', avaliacoes: todas, escolhidas: ['a', 'c'], emitidoEm: new Date() })).not.toContain('<title>Avaliação física - Aluno <script>');
+    expect(documentoCompleto(gerar(['a', 'c']))).not.toContain('<title>Avaliação física - Aluno <script>');
   });
 
   it('gráfico: sem ele não há imagem; com ele, `<img>` com SVG estático em base64, limites, pontos reais e legenda das duas séries', () => {

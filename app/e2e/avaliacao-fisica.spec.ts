@@ -1,10 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
-import { mkdirSync } from 'node:fs';
 
 import type { AvaliacaoFisica } from '../src/api/avaliacaoFisicaTipos';
 import type { AlunoDetalhe, ConsultoriaResponse } from '../src/api/tipos';
 import { medidasVazias } from '../src/dominio/avaliacaoFisica';
-import { ALUNO, json, MARCA, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type Resposta, type RespostasApi } from './api-falsa';
+import { ALUNO, erroApi, json, MARCA, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR, type Resposta, type RespostasApi } from './api-falsa';
 import { sessaoDeAluno } from './aluno';
 
 /**
@@ -255,9 +254,9 @@ for (const largura of LARGURAS) {
     await expect(tabela.getByText('−2 kg', { exact: true })).toBeVisible();
 
     if (largura >= 768) {
-      // PC: tabela com as datas em ordem cronológica no cabeçalho.
+      // PC: tabela com as datas em ordem cronológica no cabeçalho (dd/mm: as três datas são do mesmo ano).
       const cabecalho = await page.getByRole('table', { name: 'Tronco: circunferências por data' }).getByRole('columnheader').allTextContents();
-      expect(cabecalho).toEqual(['Medida', '01/07/2026', '01/09/2026', '01/11/2026', 'Variação']);
+      expect(cabecalho).toEqual(['Medida', '01/07', '01/09', '01/11', 'Variação']);
     } else {
       // Celular: um bloco por medida, sem rolagem lateral.
       await expect(page.getByRole('list', { name: 'Tronco: circunferências por data' })).toBeVisible();
@@ -290,7 +289,7 @@ test('Baixar comparativo gera o PDF sem erro, com o interruptor do gráfico liga
   await page.getByRole('button', { name: 'Comparar as duas últimas' }).click();
   const interruptor = page.getByRole('switch', { name: 'Incluir o gráfico da medida no PDF' });
   await expect(interruptor).not.toBeChecked();
-  await expect(page.getByText('O gráfico de braço direito e braço esquerdo, como na Evolução por medida.')).toBeVisible();
+  await expect(page.getByText('O gráfico de braço direito e braço esquerdo, só com as datas marcadas.')).toBeVisible();
   await interruptor.click();
   await expect(interruptor).toBeChecked();
   await page.getByRole('button', { name: 'Baixar comparativo' }).click();
@@ -302,12 +301,9 @@ test('Baixar comparativo gera o PDF sem erro, com o interruptor do gráfico liga
   expect(errosNoConsole).toEqual([]);
 });
 
-/** Capturas da prova do gráfico na impressão: fora do projeto (pasta de trabalho da sessão). */
-const PASTA_CAPTURAS = 'C:\\Users\\GUSTAV~1\\AppData\\Local\\Temp\\claude\\0d7dddcf5c9df61c\\a46aad27-0d6d-4bdf-a8c6-0c922768ea8e\\scratchpad\\capturas\\print-grafico';
 const IMG_DO_GRAFICO = '#treinos-impressao img[src^="data:image/svg+xml;base64,"]';
 
 test('PDF: o gráfico (svg em <img>) decodifica, aparece na impressão em tema claro e some com o interruptor desligado', async ({ page }) => {
-  mkdirSync(PASTA_CAPTURAS, { recursive: true });
   await page.setViewportSize({ width: 1280, height: 900 });
   // Tela no tema Escuro: a impressão tem de sair clara mesmo assim. `window.print` só conta (não abre o diálogo) e o
   // `afterprint` nunca dispara, então o bloco de impressão fica na página para ser conferido.
@@ -365,8 +361,6 @@ test('PDF: o gráfico (svg em <img>) decodifica, aparece na impressão em tema c
   expect(emImpressao.outros.length).toBeGreaterThan(0);
   expect(emImpressao.outros.every((d) => d === 'none')).toBe(true);
   expect(emImpressao).toMatchObject({ fundoBody: 'rgb(255, 255, 255)', fundoHtml: 'rgb(255, 255, 255)', texto: 'rgb(0, 0, 0)' });
-  await page.screenshot({ path: `${PASTA_CAPTURAS}\\01-impressao-grafico-ligado.png`, fullPage: true });
-  await page.locator('#treinos-impressao .grafico').screenshot({ path: `${PASTA_CAPTURAS}\\02-grafico-ampliado.png` });
 
   // Desligado: nova impressão troca o bloco e não há mais <img> de svg.
   await page.emulateMedia({ media: 'screen' });
@@ -378,19 +372,131 @@ test('PDF: o gráfico (svg em <img>) decodifica, aparece na impressão em tema c
   await expect(page.locator('#treinos-impressao')).toContainText('Tronco');
   await page.emulateMedia({ media: 'print' });
   await expect(page.locator('#treinos-impressao')).toBeVisible();
-  await page.screenshot({ path: `${PASTA_CAPTURAS}\\03-impressao-grafico-desligado.png`, fullPage: true });
 
   expect(errosDaPagina).toEqual([]);
   expect(errosNoConsole).toEqual([]);
 });
 
-test('datas de anos diferentes: resumo e referência levam o ano', async ({ page }) => {
+const VIRADA_DO_ANO = [avaliacao('a2', '2026-02-01', 88, null, null), avaliacao('a1', '2025-11-01', 90, null, null)];
+const consultoriaDoPdf: ConsultoriaResponse = { marca: MARCA, versao: 3, diasAtualizacaoPadrao: null, metaDoPeso: 'REDUZIR' };
+
+/** `window.print` só conta (não abre o diálogo): o bloco de impressão fica na página para ser conferido. */
+async function simularImpressao(page: Page) {
+  await page.addInitScript(() => {
+    (window as unknown as { __impressoes: number }).__impressoes = 0;
+    window.print = () => { (window as unknown as { __impressoes: number }).__impressoes += 1; };
+  });
+  return () => page.evaluate(() => (window as unknown as { __impressoes: number }).__impressoes);
+}
+
+/** O SVG do gráfico do PDF, decodificado do `<img src="data:image/svg+xml;base64,...">`. */
+const svgDoPdf = (page: Page) => page.evaluate((seletor) => {
+  const src = document.querySelector(seletor)?.getAttribute('src') ?? '';
+  return atob(src.split(',')[1] ?? '');
+}, IMG_DO_GRAFICO);
+
+test('datas de anos diferentes: resumo, eixo do gráfico, Comparar e referência levam o ano (D11)', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
-  const { errosDaPagina } = await fichaDoTreinador(page, [avaliacao('a2', '2026-02-01', 88, null, null), avaliacao('a1', '2025-11-01', 90, null, null)]);
+  const { errosDaPagina } = await fichaDoTreinador(page, VIRADA_DO_ANO);
   await expect(page.getByText('desde 01/11/2025', { exact: true })).toBeVisible();
+  // Eixo do gráfico: com dois anos, as duas pontas levam o ano (não há dois "01/xx" ambíguos).
+  const grafico = page.getByRole('img', { name: /^Gráfico de Cintura com 2 datas\./ });
+  await expect(grafico.locator('text', { hasText: /^01\/11\/2025$/ })).toBeAttached();
+  await expect(grafico.locator('text', { hasText: /^01\/02\/2026$/ })).toBeAttached();
   await abaComparar(page).click();
   await page.getByRole('button', { name: 'Comparar as duas últimas' }).click();
   await expect(page.getByText('Variação = 01/02/2026 menos 01/11/2025.')).toBeVisible();
+  const cabecalho = await page.getByRole('table', { name: 'Tronco: circunferências por data' }).getByRole('columnheader').allTextContents();
+  expect(cabecalho).toEqual(['Medida', '01/11/2025', '01/02/2026', 'Variação']);
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('mesmo ano: o eixo do gráfico da Evolução fica em dd/mm', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const { errosDaPagina } = await fichaDoTreinador(page, DUAS);
+  const grafico = page.getByRole('img', { name: /^Gráfico de Cintura com 2 datas\./ });
+  await expect(grafico.locator('text', { hasText: /^01\/07$/ })).toBeAttached();
+  await expect(grafico.locator('text', { hasText: /^01\/09$/ })).toBeAttached();
+  await expect(grafico.locator('text', { hasText: /2026/ })).toHaveCount(0);
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('PDF atravessando o ano: cabeçalho da tabela e eixo do gráfico levam o ano', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const impressoes = await simularImpressao(page);
+  const { errosDaPagina } = await fichaDoTreinador(page, VIRADA_DO_ANO, { 'GET /consultoria': { corpo: consultoriaDoPdf } });
+  await abaComparar(page).click();
+  await page.getByRole('button', { name: 'Comparar as duas últimas' }).click();
+  await page.getByRole('switch', { name: 'Incluir o gráfico da medida no PDF' }).click();
+  await page.getByRole('button', { name: 'Baixar comparativo' }).click();
+  await expect.poll(impressoes).toBe(1);
+  const cabecalho = await page.locator('#treinos-impressao thead th').allTextContents();
+  expect(cabecalho.slice(0, 3)).toEqual(['Medida (cm)', '01/11/2025', '01/02/2026']);
+  const svg = await svgDoPdf(page);
+  expect(svg).toContain('>01/11/2025<');
+  expect(svg).toContain('>01/02/2026<');
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('PDF: o gráfico leva só as datas marcadas (os mesmos pontos da tabela), não todas as avaliações', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const impressoes = await simularImpressao(page);
+  const { errosDaPagina } = await fichaDoTreinador(page, TRES, { 'GET /consultoria': { corpo: consultoriaDoPdf } });
+  await abaComparar(page).click();
+  // Marca 01/07 e 01/11; a de 01/09 existe, mas fica fora da tabela e, agora, do gráfico.
+  for (const d of ['01/07/2026', '01/11/2026']) await page.getByRole('checkbox', { name: `Comparar ${d}` }).click();
+  await page.getByRole('switch', { name: 'Incluir o gráfico da medida no PDF' }).click();
+  await page.getByRole('button', { name: 'Baixar comparativo' }).click();
+  await expect.poll(impressoes).toBe(1);
+  expect(await page.locator('#treinos-impressao thead th').allTextContents()).toEqual(expect.arrayContaining(['01/07', '01/11']));
+  expect(await page.locator('#treinos-impressao thead').first().textContent()).not.toContain('01/09');
+  const svg = await svgDoPdf(page);
+  // Braço direito (círculos) e esquerdo (quadrados): dois pontos de cada, nas duas datas marcadas.
+  expect((svg.match(/<circle /g) ?? []).length).toBe(2);
+  expect((svg.match(/<rect x=/g) ?? []).length).toBe(2);
+  expect(svg).toContain('>01/07<');
+  expect(svg).toContain('>01/11<');
+  expect(svg).not.toContain('>01/09<');
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('histórico ordenado por data desc e "Mais recente" na data mais nova, mesmo com a API fora de ordem', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const { errosDaPagina } = await fichaDoTreinador(page, [...TRES].reverse());
+  const rotulos = await page.getByRole('button', { name: /^Editar avaliação de / }).evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
+  expect(rotulos).toEqual(['Editar avaliação de 01/11/2026', 'Editar avaliação de 01/09/2026', 'Editar avaliação de 01/07/2026']);
+  await expect(page.getByText('Mais recente', { exact: true })).toHaveCount(1);
+  const linhaDaMaisNova = page.locator('div').filter({ has: page.getByRole('button', { name: 'Editar avaliação de 01/11/2026' }) }).filter({ hasText: 'Mais recente' });
+  await expect(linhaDaMaisNova.last()).toBeVisible();
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('editar com a avaliação já alterada por outra pessoa (409): fecha a Folha, mostra o erro e recarrega a lista', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const { pedidos, errosDaPagina } = await fichaDoTreinador(page, TRES, {
+    'PUT /avaliacoes-fisicas/t3': (_p, route) => json(route, erroApi(409, 'Outra pessoa alterou esta avaliação. Recarregue e confira.', 'CONFLITO_EDICAO').corpo, 409),
+  });
+  const buscas = () => pedidos.filter((p) => p.metodo === 'GET' && p.caminho.endsWith('/avaliacoes-fisicas')).length;
+  const antes = buscas();
+  await page.getByRole('button', { name: 'Editar avaliação de 01/11/2026' }).click();
+  await page.getByRole('button', { name: 'Salvar' }).click();
+  await expect(page.getByRole('button', { name: 'Salvar' })).toHaveCount(0);
+  await expect(page.getByText('Outra pessoa alterou esta avaliação. Recarregue e confira.')).toBeVisible();
+  await expect.poll(buscas).toBeGreaterThan(antes);
+  // Abrir a Folha de novo limpa o erro da ação anterior.
+  await page.getByRole('button', { name: 'Editar avaliação de 01/11/2026' }).click();
+  await expect(page.getByText('Outra pessoa alterou esta avaliação. Recarregue e confira.')).toHaveCount(0);
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('Folha da avaliação: com o texto no maior tamanho, a data digitada cabe no campo', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  await page.addInitScript((id) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tamanhoTexto: 'EXTRA' })), TREINADOR.id);
+  const { errosDaPagina } = await fichaDoTreinador(page, TRES);
+  await page.getByRole('button', { name: 'Editar avaliação de 01/11/2026' }).click();
+  const campo = page.getByLabel('Data', { exact: true });
+  await expect(campo).toHaveValue('01/11/2026');
+  expect(await campo.evaluate((e: HTMLInputElement) => e.scrollWidth <= e.clientWidth)).toBe(true);
   expect(errosDaPagina).toEqual([]);
 });
 

@@ -1,8 +1,8 @@
 import type { AvaliacaoFisica, CampoDaMedida, MedidasCorporais } from '../api/avaliacaoFisicaTipos';
 import { MEDIDAS, medidasVazias } from './avaliacaoFisica';
 import {
-  agruparMedidas, compararAvaliacoes, GRUPOS_DE_MEDIDAS, idDaMaisRecente, idsDasDuasUltimas, limparSelecao,
-  PARES_DIREITA_ESQUERDA, resumoDaMedida, seriesDoPar, textoDaSelecao, type ComparacaoDeAvaliacoes, type LinhaComparada,
+  agruparMedidas, compararAvaliacoes, formatadorDeDatas, GRUPOS_DE_MEDIDAS, idsDasDuasUltimas, limparSelecao,
+  linhaDoPeso, maisRecentesPrimeiro, PARES_DIREITA_ESQUERDA, resumoDaMedida, seriesDoPar, textoDaSelecao, type ComparacaoDeAvaliacoes, type LinhaComparada,
 } from './comparacaoDeAvaliacoes';
 
 function av(id: string, data: string, parcial: Partial<MedidasCorporais>): AvaliacaoFisica {
@@ -199,6 +199,34 @@ describe('resumo da evolução de uma medida', () => {
   });
 });
 
+describe('regra única de data (D11)', () => {
+  it('dd/mm no mesmo ano (inclusive 01/01 a 31/12); dd/mm/aaaa quando abrange mais de um ano, em qualquer ordem', () => {
+    expect(formatadorDeDatas(['2026-01-01', '2026-12-31'])('2026-12-31')).toBe('31/12');
+    expect(formatadorDeDatas(['2026-03-10'])('2026-03-10')).toBe('10/03');
+    expect(formatadorDeDatas(['2026-02-01', '2025-11-01'])('2026-02-01')).toBe('01/02/2026');
+    expect(formatadorDeDatas(['2025-11-01', '2026-02-01'])('2025-11-01')).toBe('01/11/2025');
+    expect(formatadorDeDatas([])('2026-11-01')).toBe('01/11');
+  });
+});
+
+describe('peso do dia', () => {
+  const comPeso = (id: string, data: string, pesoKg: number | null): AvaliacaoFisica => ({ ...av(id, data, {}), pesoKg });
+  const colunas = (...ids: string[]) => ids.map((id) => ({ id, data: '', dataTexto: '' }));
+
+  it('células por coluna, variação com as duas pontas (kg, 2 casas, sinal escrito)', () => {
+    const l = linhaDoPeso([comPeso('a', '2026-07-01', 82), comPeso('b', '2026-09-01', null), comPeso('c', '2026-11-01', 80.25)], colunas('a', 'b', 'c'));
+    expect(l?.celulas).toEqual([{ valor: 82, texto: '82 kg' }, { valor: null, texto: '—' }, { valor: 80.25, texto: '80,25 kg' }]);
+    expect(l?.variacao).toEqual({ valor: -1.75, direcao: 'reducao', texto: '−1,75 kg' });
+    expect(linhaDoPeso([comPeso('a', '2026-07-01', 80), comPeso('b', '2026-09-01', 80)], colunas('a', 'b'))?.variacao).toMatchObject({ direcao: 'igual', texto: '0 kg' });
+  });
+
+  it('uma ponta sem peso: "Indisponível"; nenhuma data com peso: nulo', () => {
+    const l = linhaDoPeso([comPeso('a', '2026-07-01', 82), comPeso('b', '2026-09-01', null)], colunas('a', 'b'));
+    expect(l?.variacao).toEqual({ valor: null, direcao: 'indisponivel', texto: 'Indisponível' });
+    expect(linhaDoPeso([comPeso('a', '2026-07-01', null), comPeso('b', '2026-09-01', null)], colunas('a', 'b'))).toBeNull();
+  });
+});
+
 describe('seleção', () => {
   const lista = [av('b', '2026-11-05', {}), av('d', '2026-11-13', {}), av('a', '2026-11-01', {})];
 
@@ -209,10 +237,16 @@ describe('seleção', () => {
     expect(idsDasDuasUltimas(lista.slice(0, 2))).toEqual(['b', 'd']);
   });
 
-  it('"Mais recente" e limpar seleção', () => {
-    expect(idDaMaisRecente(lista)).toBe('d');
-    expect(idDaMaisRecente([])).toBeNull();
+  it('"Mais recente" é o primeiro da ordem do histórico; limpar seleção', () => {
+    expect(maisRecentesPrimeiro(lista)[0].id).toBe('d');
+    expect(maisRecentesPrimeiro([])[0]).toBeUndefined();
     expect(limparSelecao()).toEqual([]);
+  });
+
+  it('ordem do histórico: data desc, qualquer que seja a ordem da API, sem mexer na lista original', () => {
+    const embaralhada = [av('a', '2026-11-01', {}), av('d', '2026-11-13', {}), av('x', '2025-12-31', {}), av('b', '2026-11-05', {})];
+    expect(maisRecentesPrimeiro(embaralhada).map((x) => x.id)).toEqual(['d', 'b', 'a', 'x']);
+    expect(embaralhada.map((x) => x.id)).toEqual(['a', 'd', 'x', 'b']);
   });
 
   it('"N de 4 selecionadas"', () => {

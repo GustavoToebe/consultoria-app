@@ -1,10 +1,10 @@
 import type { AvaliacaoFisica } from '../api/avaliacaoFisicaTipos';
 import type { Marca } from '../api/tipos';
-import { cmParaTela, diferenca, diferencaParaTela, pesoParaTela } from '../dominio/avaliacaoFisica';
-import { compararAvaliacoes, TEXTO_INDISPONIVEL, type ColunaComparada } from '../dominio/comparacaoDeAvaliacoes';
+import { cmParaTela } from '../dominio/avaliacaoFisica';
+import { compararAvaliacoes, formatadorDeDatas, linhaDoPeso, type ColunaComparada } from '../dominio/comparacaoDeAvaliacoes';
 import { dataParaTela } from '../dominio/formatos';
 import { base64DeTexto } from './base64';
-import { cabecalhoDoPdf, cssBase, documentoCompleto, esc, escLinhas, type Documento } from './html';
+import { cabecalhoDoPdf, cssBase, esc, escLinhas, type Documento } from './html';
 
 /** Um ponto real do gráfico: data ISO `AAAA-MM-DD` e valor em cm (sem interpolar data sem medida). */
 export interface PontoDoGrafico {
@@ -76,8 +76,9 @@ function svgDoGrafico(a: PontoDoGrafico[], b: PontoDoGrafico[], titulo: string):
     .join('');
   // shortcut: rótulos de data não se evitam entre si, datas a menos de ~2 dias ficam coladas; trocar por seleção de ticks se isso ocorrer.
   const datas = [...new Set(todos.map((p) => p.data))].sort();
+  const formatarData = formatadorDeDatas(datas);
   const eixoX = datas
-    .map((d) => `<line x1="${f(x(d))}" y1="${baseY}" x2="${f(x(d))}" y2="${baseY + 4}" stroke="#555" stroke-width="0.8"/>${texto(x(d), baseY + 15, dataParaTela(d), 'middle')}`)
+    .map((d) => `<line x1="${f(x(d))}" y1="${baseY}" x2="${f(x(d))}" y2="${baseY + 4}" stroke="#555" stroke-width="0.8"/>${texto(x(d), baseY + 15, formatarData(d), 'middle')}`)
     .join('');
   const serie = (pontos: PontoDoGrafico[], cor: string, tracejada: boolean) => {
     if (!pontos.length) return '';
@@ -134,7 +135,7 @@ function colgroup(n: number): string {
 }
 
 function cabecalhoDaTabela(primeira: string, colunas: readonly ColunaComparada[]): string {
-  return `<thead><tr><th>${esc(primeira)}</th>${colunas.map((c) => `<th class="num">${esc(dataParaTela(c.data))}</th>`).join('')}<th class="num">Variação</th></tr></thead>`;
+  return `<thead><tr><th>${esc(primeira)}</th>${colunas.map((c) => `<th class="num">${esc(c.dataTexto)}</th>`).join('')}<th class="num">Variação</th></tr></thead>`;
 }
 
 function linha(rotulo: string, celulas: { texto: string; ausente: boolean }[], variacao: string): string {
@@ -162,14 +163,13 @@ export function documentoAvaliacaoFisica(d: DadosPdfAvaliacaoFisica): Documento 
       .join('')}</tbody></table></section>`)
     .join('');
 
-  // Peso do dia: informativo, fora dos grupos; a variação só existe com as duas pontas (como no cartão atual).
-  const pesos = escolhidasEmOrdem.map((a) => a.pesoKg);
-  const variacaoDoPeso = diferenca(pesos[0], pesos[pesos.length - 1], 2);
-  const peso = pesos.some((p) => p !== null)
+  // Peso do dia: informativo, fora dos grupos; a mesma regra da tela (`linhaDoPeso`).
+  const pesoDoDia = linhaDoPeso(d.avaliacoes, colunas);
+  const peso = pesoDoDia
     ? `<section class="grupo-bloco"><h3>Peso do dia (informativo)</h3><table class="comp">${colgroup(colunas.length)}${cabecalhoDaTabela('Registro de peso', colunas)}<tbody>${linha(
         'Peso',
-        pesos.map((p) => ({ texto: pesoParaTela(p), ausente: p === null })),
-        variacaoDoPeso === null ? TEXTO_INDISPONIVEL : diferencaParaTela(variacaoDoPeso, 'kg'),
+        pesoDoDia.celulas.map((x) => ({ texto: x.texto, ausente: x.valor === null })),
+        pesoDoDia.variacao.texto,
       )}</tbody></table></section>`
     : '';
 
@@ -212,9 +212,4 @@ export function documentoAvaliacaoFisica(d: DadosPdfAvaliacaoFisica): Documento 
 .doc .obs { margin: 4pt 0; padding: 4pt 0; border-bottom: 1px solid #ddd; overflow-wrap: anywhere; }
 `;
   return { titulo: `Avaliação física - ${d.aluno}`, css, corpo };
-}
-
-/** HTML completo (o mesmo que vira PDF): serve para conferir o resultado no navegador contra a tela. */
-export function htmlDaAvaliacaoFisica(d: DadosPdfAvaliacaoFisica): string {
-  return documentoCompleto(documentoAvaliacaoFisica(d));
 }

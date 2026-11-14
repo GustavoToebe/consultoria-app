@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native';
 
 import type { AvaliacaoFisica } from '../../api/avaliacaoFisicaTipos';
 import { COMPARAR_MAXIMO, medidasPreenchidas, pesoParaTela } from '../../dominio/avaliacaoFisica';
-import { idDaMaisRecente } from '../../dominio/comparacaoDeAvaliacoes';
+import { maisRecentesPrimeiro } from '../../dominio/comparacaoDeAvaliacoes';
 import { dataParaTela } from '../../dominio/formatos';
 import { espaco } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
@@ -37,8 +37,10 @@ interface Props {
 export function HistoricoDeAvaliacoes({ avaliacoes, marcar, podeGravar, aoEditar, aoExcluir }: Props) {
   const [todas, setTodas] = useState(false);
   const [menu, setMenu] = useState<AvaliacaoFisica | null>(null);
-  const maisRecente = idDaMaisRecente(avaliacoes);
-  const visiveis = todas ? avaliacoes : avaliacoes.slice(0, LINHAS_INICIAIS);
+  // Ordena aqui (data desc): a lista, o corte de 6 e o selo não dependem da ordem em que a API devolve.
+  const ordenadas = maisRecentesPrimeiro(avaliacoes);
+  const maisRecente = ordenadas[0]?.id ?? null;
+  const visiveis = todas ? ordenadas : ordenadas.slice(0, LINHAS_INICIAIS);
   const cheia = (marcar?.marcadas.length ?? 0) >= COMPARAR_MAXIMO;
 
   return (

@@ -1,7 +1,7 @@
 import type { AvaliacaoFisica, CampoDaMedida } from '../../api/avaliacaoFisicaTipos';
 import { cmParaTela, diferenca, diferencaParaTela, MEDIDAS, serieDaMedida } from '../../dominio/avaliacaoFisica';
-import { PARES_DIREITA_ESQUERDA, seriesDoPar, type SeriesDoPar } from '../../dominio/comparacaoDeAvaliacoes';
-import { dataCurta, dataParaTela } from '../../dominio/formatos';
+import { formatadorDeDatas, PARES_DIREITA_ESQUERDA, seriesDoPar, type SeriesDoPar } from '../../dominio/comparacaoDeAvaliacoes';
+import { dataParaTela } from '../../dominio/formatos';
 import type { GraficoDoPdf } from '../../pdf/pdfAvaliacaoFisica';
 
 type Pontos = { data: string; valor: number }[];
@@ -34,10 +34,12 @@ export function graficoDoPdf(s: SeriesDaEvolucao): GraficoDoPdf {
 }
 
 /**
- * Apresentação do gráfico da Evolução por medida (só texto e números da tela, sem regra nova): os limites da escala que o
- * gráfico usa e o texto que diz quais são, e as linhas do balão de cada ponto. As regras da medida ficam em
- * `dominio/comparacaoDeAvaliacoes` e `dominio/avaliacaoFisica`.
+ * O gráfico do PDF segue as datas MARCADAS no Comparar (D9: o PDF leva exatamente as datas da tela): a mesma série da
+ * Evolução, mas só com as avaliações marcadas, mantendo a medida escolhida e o modo direito × esquerdo.
  */
+export function graficoDoPdfDasMarcadas(avaliacoes: readonly AvaliacaoFisica[], marcadas: readonly string[], campo: CampoDaMedida, verPar: boolean): GraficoDoPdf {
+  return graficoDoPdf(seriesDaEvolucao(avaliacoes.filter((a) => marcadas.includes(a.id)), campo, verPar));
+}
 
 /**
  * Limites inteiros da escala vertical, com folga de 15% (mínimo 0,5 cm) dos dois lados, para a linha não encostar nas
@@ -58,12 +60,18 @@ export function textoDaEscala({ min, max }: { min: number; max: number }): strin
 
 /**
  * Linhas do balão de um ponto: o nome da série (com duas séries), "13/11/2026 · 35,2 cm" e a diferença para o primeiro
- * ponto da MESMA série ("+0,8 cm desde 01/11"); o primeiro ponto diz que é o primeiro registro.
+ * ponto da MESMA série ("+0,8 cm desde 01/11"; com datas de anos diferentes a referência leva o ano); o primeiro ponto diz
+ * que é o primeiro registro. `formatar` é o do gráfico todo (padrão: as datas desta série).
  */
-export function linhasDaDica(pontos: readonly { data: string; valor: number }[], indice: number, serie?: string): string[] {
+export function linhasDaDica(
+  pontos: readonly { data: string; valor: number }[],
+  indice: number,
+  serie?: string,
+  formatar: (iso: string) => string = formatadorDeDatas(pontos.map((p) => p.data)),
+): string[] {
   const ponto = pontos[indice];
   if (!ponto) return [];
   const primeiro = pontos[0];
-  const referencia = indice === 0 ? 'Primeiro registro' : `${diferencaParaTela(diferenca(primeiro.valor, ponto.valor))} desde ${dataCurta(primeiro.data)}`;
+  const referencia = indice === 0 ? 'Primeiro registro' : `${diferencaParaTela(diferenca(primeiro.valor, ponto.valor))} desde ${formatar(primeiro.data)}`;
   return [...(serie ? [serie] : []), `${dataParaTela(ponto.data)} · ${cmParaTela(ponto.valor)} cm`, referencia];
 }

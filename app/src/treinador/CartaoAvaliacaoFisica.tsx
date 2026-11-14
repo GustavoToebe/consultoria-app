@@ -26,7 +26,7 @@ import { textoDoErro } from '../ui/erros';
 import { PainelConfirmacao } from '../ui/PainelConfirmacao';
 import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
-import { graficoDoPdf, seriesDaEvolucao } from './avaliacao/apresentacao';
+import { graficoDoPdfDasMarcadas, seriesDaEvolucao } from './avaliacao/apresentacao';
 import { ResultadoDaComparacao, SelecaoDoComparar } from './avaliacao/CompararAvaliacoes';
 import { EvolucaoDaMedida } from './avaliacao/EvolucaoDaMedida';
 import { FolhaAvaliacao } from './avaliacao/FolhaAvaliacao';
@@ -84,6 +84,17 @@ export function CartaoAvaliacaoFisica(p: Props) {
   // Equipe sem avaliação: o vazio e a explicação numa frase só, na faixa do cartão (sem selo de período nem corpo).
   const vazioDaEquipe = daEquipe && dados?.length === 0;
 
+  const tentarDeNovo = () => {
+    setErroAcao(null);
+    recarregar();
+  };
+
+  // O erro de uma ação some quando a pessoa abre a Folha, tenta de novo ou salva (não fica um erro velho na tela).
+  const abrirFolha = (alvo: AvaliacaoFisica | 'nova') => {
+    setErroAcao(null);
+    setEditando(alvo);
+  };
+
   const confirmarExclusao = () => {
     const alvo = excluir;
     setExcluir(null);
@@ -113,7 +124,8 @@ export function CartaoAvaliacaoFisica(p: Props) {
             aluno: nome,
             avaliacoes: lista,
             escolhidas: marcadas,
-            grafico: incluirGrafico && series ? graficoDoPdf(series) : undefined,
+            // Só as datas marcadas (as da tabela do PDF), na medida escolhida.
+            grafico: incluirGrafico && campo ? graficoDoPdfDasMarcadas(lista, marcadas, campo, verPar) : undefined,
             emitidoEm: new Date(),
           }),
         ),
@@ -127,7 +139,7 @@ export function CartaoAvaliacaoFisica(p: Props) {
       avaliacoes={lista}
       marcar={abaAtiva === 'comparar' ? { marcadas, aoAlternar: (id) => setEscolhidas(alternarEscolha(marcadas, id)) } : undefined}
       podeGravar={podeGravar}
-      aoEditar={setEditando}
+      aoEditar={abrirFolha}
       aoExcluir={setExcluir}
     />
   );
@@ -138,8 +150,8 @@ export function CartaoAvaliacaoFisica(p: Props) {
       periodo={dados && !vazioDaEquipe ? periodoDesdeOPrimeiro(dados.map((a) => a.data)) : undefined}
       descricao={vazioDaEquipe ? 'Nenhuma avaliação registrada. Circunferências em centímetros, por data.'
         : daEquipe ? 'Circunferências em centímetros, por data.' : 'Suas medidas registradas pelo seu treinador, em centímetros.'}
-      acoes={podeGravar ? <Botao rotulo="Nova avaliação" tipo="secundario" Icone={Plus} aoTocar={() => setEditando('nova')} /> : null}>
-      {erro && !semConexao ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
+      acoes={podeGravar ? <Botao rotulo="Nova avaliação" tipo="secundario" Icone={Plus} aoTocar={() => abrirFolha('nova')} /> : null}>
+      {erro && !semConexao ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={tentarDeNovo} /> : null}
       {semConexao ? <Texto variante="suave">Sem conexão.</Texto> : null}
       {erroAcao ? <MensagemErro texto={textoDoErro(erroAcao)} /> : null}
       {!dados && carregando ? <Esqueleto cartoes={1} texto="Carregando avaliações" /> : null}
@@ -176,6 +188,13 @@ export function CartaoAvaliacaoFisica(p: Props) {
           aoFechar={() => setEditando(null)}
           aoSalvar={() => {
             setEditando(null);
+            setErroAcao(null);
+            recarregar();
+          }}
+          aoConflito={(e) => {
+            // Outra pessoa mudou a avaliação: fecha, mostra a mensagem da API e busca a lista de novo (a versão aberta ficou velha).
+            setEditando(null);
+            setErroAcao(e);
             recarregar();
           }}
         />

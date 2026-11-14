@@ -3,8 +3,11 @@ import { StyleSheet, View } from 'react-native';
 
 import type { AvaliacaoFisica, MedidasCorporais } from '../../api/avaliacaoFisicaTipos';
 import { alterarAvaliacaoFisica, registrarAvaliacaoFisica } from '../../api/rotas';
+import { ErroApi } from '../../api/cliente';
 import { corpoDaAvaliacao, MEDIDAS, medidasVazias, OBSERVACAO_MAXIMA, problemasDaAvaliacao } from '../../dominio/avaliacaoFisica';
 import { dataDaTela, dataParaTela, hojeIso, mascaraDeNumero } from '../../dominio/formatos';
+import { escalar } from '../../dominio/preferencias';
+import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
@@ -14,8 +17,18 @@ import { errosPorCampo, textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
 import { Texto } from '../../ui/Texto';
 
+const LARGURA_DO_CAMPO_DATA = 190;
+
 /** Nova ou editar avaliação física: data, as 10 circunferências duas por linha e a observação. */
-export function FolhaAvaliacao({ alunoId, avaliacao, aoFechar, aoSalvar }: { alunoId: string; avaliacao: AvaliacaoFisica | null; aoFechar: () => void; aoSalvar: () => void }) {
+export function FolhaAvaliacao({ alunoId, avaliacao, aoFechar, aoSalvar, aoConflito }: {
+  alunoId: string;
+  avaliacao: AvaliacaoFisica | null;
+  aoFechar: () => void;
+  aoSalvar: () => void;
+  /** 409 `CONFLITO_EDICAO` (outra pessoa mudou ou apagou a avaliação): quem abriu fecha a Folha, mostra o erro e recarrega a lista. */
+  aoConflito: (erro: unknown) => void;
+}) {
+  const { fatorTexto } = useTema();
   const [data, setData] = useState(dataParaTela(avaliacao?.data ?? hojeIso()));
   const [medidas, setMedidas] = useState<MedidasCorporais>(avaliacao ? { ...medidasVazias(), ...avaliacao.medidas } : medidasVazias());
   const [observacao, setObservacao] = useState(avaliacao?.observacao ?? '');
@@ -36,7 +49,8 @@ export function FolhaAvaliacao({ alunoId, avaliacao, aoFechar, aoSalvar }: { alu
     setErro(null);
     (avaliacao ? alterarAvaliacaoFisica(avaliacao.id, corpo) : registrarAvaliacaoFisica(alunoId, corpo)).then(aoSalvar, (e: unknown) => {
       setSalvando(false);
-      setErro(e);
+      if (e instanceof ErroApi && e.codigo === 'CONFLITO_EDICAO') aoConflito(e);
+      else setErro(e);
     });
   };
 
@@ -51,7 +65,8 @@ export function FolhaAvaliacao({ alunoId, avaliacao, aoFechar, aoSalvar }: { alu
           <Botao rotulo="Salvar" aoTocar={salvar} carregando={salvando} />
         </>
       }>
-      <View style={estilos.campoData}>
+      {/* Largura que acompanha o tamanho do texto da preferência (190 fixos cortariam "DD/MM/AAAA" ampliado) e nunca passa da Folha. */}
+      <View style={[estilos.campoData, { width: escalar(LARGURA_DO_CAMPO_DATA, fatorTexto) }]}>
         <CampoData rotulo="Data" nome="Data da avaliação" regra="REGISTRO" valor={data} aoMudar={setData} erro={campos.data} />
       </View>
       <Texto variante="secao" nivel={3}>Circunferências (cm)</Texto>
@@ -79,7 +94,7 @@ export function FolhaAvaliacao({ alunoId, avaliacao, aoFechar, aoSalvar }: { alu
 }
 
 const estilos = StyleSheet.create({
-  campoData: { width: 190 },
+  campoData: { maxWidth: '100%' },
   grade: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
   // Duas por linha (direita e esquerda lado a lado), no celular e no PC.
   medida: { flexGrow: 1, flexBasis: '40%', minWidth: 0 },

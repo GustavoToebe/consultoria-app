@@ -3,8 +3,8 @@ import { StyleSheet, View } from 'react-native';
 
 import type { AvaliacaoFisica, CampoDaMedida } from '../../api/avaliacaoFisicaTipos';
 import { cmParaTela, graficoDaMedida, serieDaMedida, type OpcaoDeMedida } from '../../dominio/avaliacaoFisica';
-import { resumoDaMedida, type ResumoDaMedida } from '../../dominio/comparacaoDeAvaliacoes';
-import { dataCurta, dataParaTela } from '../../dominio/formatos';
+import { formatadorDeDatas, resumoDaMedida, type ResumoDaMedida } from '../../dominio/comparacaoDeAvaliacoes';
+import { dataParaTela } from '../../dominio/formatos';
 import { TEXTO_GRAFICOS_DESLIGADOS, TEXTO_GRAFICOS_DESLIGADOS_ALUNO } from '../../dominio/relatorio';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, fontes } from '../../tema/tokens';
@@ -50,7 +50,9 @@ export function EvolucaoDaMedida({ avaliacoes, daEquipe, opcoes, campo, aoEscolh
   const descricao = b
     ? `Gráfico de ${a.rotulo} (${qtd(a.pontos.length)}) e ${b.rotulo.toLowerCase()} (${qtd(b.pontos.length)}). ${legenda}`
     : `Gráfico de ${nome} com ${qtd(a.pontos.length)}. ${legenda}`;
-  const comoPontos = (ps: { data: string; valor: number }[]) => ps.map((p) => ({ rotulo: dataCurta(p.data), valor: p.valor, data: p.data }));
+  // Uma regra de data para o eixo e o balão: dd/mm, com o ano quando as datas do gráfico (as duas séries) abrangem mais de um.
+  const formatar = formatadorDeDatas([...a.pontos, ...(b?.pontos ?? [])].map((p) => p.data));
+  const comoPontos = (ps: { data: string; valor: number }[]) => ps.map((p) => ({ rotulo: formatar(p.data), valor: p.valor, data: p.data }));
 
   return (
     <View style={estilos.bloco}>
@@ -94,7 +96,7 @@ export function EvolucaoDaMedida({ avaliacoes, daEquipe, opcoes, campo, aoEscolh
           legendaDaEscala={legenda}
           rotuloA={b ? a.rotulo : undefined}
           serieB={b ? { pontos: comoPontos(b.pontos), cor: violeta, rotulo: b.rotulo } : undefined}
-          textoDaDica={(_p, i, s) => (s === 'B' && b ? linhasDaDica(b.pontos, i, b.rotulo) : linhasDaDica(a.pontos, i, b ? a.rotulo : undefined))}
+          textoDaDica={(_p, i, s) => (s === 'B' && b ? linhasDaDica(b.pontos, i, b.rotulo, formatar) : linhasDaDica(a.pontos, i, b ? a.rotulo : undefined, formatar))}
         />
       ) : null}
       {grafico === 'ponto' ? <Texto variante="pequeno">Com uma data só, o gráfico mostra o ponto; a linha aparece a partir de duas datas.</Texto> : null}

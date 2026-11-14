@@ -2,11 +2,10 @@ import { FileDown } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 
 import type { AvaliacaoFisica } from '../../api/avaliacaoFisicaTipos';
-import { COMPARAR_MAXIMO, diferenca, diferencaParaTela, pesoParaTela } from '../../dominio/avaliacaoFisica';
+import { COMPARAR_MAXIMO } from '../../dominio/avaliacaoFisica';
 import {
-  idsDasDuasUltimas, limparSelecao, TEXTO_INDISPONIVEL, textoDaSelecao, type ComparacaoDeAvaliacoes, type DirecaoDaVariacao,
+  idsDasDuasUltimas, limparSelecao, linhaDoPeso, textoDaSelecao, type ComparacaoDeAvaliacoes, type DirecaoDaVariacao,
 } from '../../dominio/comparacaoDeAvaliacoes';
-import { dataParaTela } from '../../dominio/formatos';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, fontes } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
@@ -77,7 +76,7 @@ export function ResultadoDaComparacao(p: PropsDoResultado) {
     { chave: 'medida', titulo: 'Medida', flex: 1.4, principal: true, render: (l) => <Texto style={estilos.forte}>{l.rotulo}</Texto> },
     ...c.colunas.map((col, i): ColunaDaTabela<LinhaDaTabela> => ({
       chave: `data-${col.id}`,
-      titulo: dataParaTela(col.data),
+      titulo: col.dataTexto,
       alinhar: 'direita',
       render: (l) => (
         <Texto numerico cor={l.celulas[i].ausente ? cores.textoSuave : cores.texto} style={i === ultima ? estilos.forte : undefined}>{l.celulas[i].texto}</Texto>
@@ -95,17 +94,13 @@ export function ResultadoDaComparacao(p: PropsDoResultado) {
     <Tabela rotulo={rotulo} linhas={linhas} chave={(l) => l.chave} colunas={colunas} larguraMinima={LARGURA_DA_TABELA} />
   );
 
-  // Peso do registro da mesma data (valor do dia ou "—"): só informativo, fora dos grupos; a variação só com as duas
-  // pontas, como no PDF.
-  const pesos = c.colunas.map((col) => p.avaliacoes.find((a) => a.id === col.id)?.pesoKg ?? null);
-  const difDoPeso = diferenca(pesos[0], pesos[ultima], 2);
-  const linhaDoPeso: LinhaDaTabela | null = pesos.some((v) => v !== null) ? {
+  // Peso do registro da mesma data (valor do dia ou "—"): só informativo, fora dos grupos; a regra é a mesma do PDF.
+  const peso = linhaDoPeso(p.avaliacoes, c.colunas);
+  const linhaPeso: LinhaDaTabela | null = peso ? {
     chave: 'peso',
     rotulo: 'Peso',
-    celulas: pesos.map((v) => ({ texto: pesoParaTela(v), ausente: v === null })),
-    variacao: difDoPeso === null
-      ? { texto: TEXTO_INDISPONIVEL, direcao: 'indisponivel' }
-      : { texto: diferencaParaTela(difDoPeso, 'kg'), direcao: difDoPeso === 0 ? 'igual' : difDoPeso > 0 ? 'aumento' : 'reducao' },
+    celulas: peso.celulas.map((x) => ({ texto: x.texto, ausente: x.valor === null })),
+    variacao: peso.variacao,
   } : null;
 
   return (
@@ -122,10 +117,10 @@ export function ResultadoDaComparacao(p: PropsDoResultado) {
           </View>
         ))}
         {c.grupos.length === 0 ? <Texto variante="suave">Nenhuma medida nas datas escolhidas.</Texto> : null}
-        {linhaDoPeso ? (
+        {linhaPeso ? (
           <View style={estilos.grupo}>
             <Texto variante="subtitulo">Peso do dia (informativo)</Texto>
-            {tabela('Peso do registro da mesma data', [linhaDoPeso])}
+            {tabela('Peso do registro da mesma data', [linhaPeso])}
             <Texto variante="pequeno">O peso é o registro de peso da mesma data; não é medido na avaliação.</Texto>
           </View>
         ) : null}
@@ -135,7 +130,7 @@ export function ResultadoDaComparacao(p: PropsDoResultado) {
           <View style={estilos.bloco}>
             {p.graficoDoPdf ? (
               <Interruptor rotulo="Incluir o gráfico da medida no PDF" valor={p.incluirGrafico} aoMudar={p.aoIncluirGrafico}
-                ajuda={`O gráfico de ${p.graficoDoPdf.toLowerCase()}, como na Evolução por medida.`} />
+                ajuda={`O gráfico de ${p.graficoDoPdf.toLowerCase()}, só com as datas marcadas.`} />
             ) : null}
             <View style={estilos.botoes}>
               <Botao rotulo="Baixar comparativo" tipo="secundario" Icone={FileDown} carregando={p.gerando} aoTocar={p.aoBaixar} />

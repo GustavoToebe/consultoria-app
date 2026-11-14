@@ -1,6 +1,7 @@
 import type { AvaliacaoFisica } from '../../api/avaliacaoFisicaTipos';
 import { medidasVazias } from '../../dominio/avaliacaoFisica';
-import { escalaDoGrafico, graficoDoPdf, linhasDaDica, seriesDaEvolucao, textoDaEscala } from './apresentacao';
+import { formatadorDeDatas } from '../../dominio/comparacaoDeAvaliacoes';
+import { escalaDoGrafico, graficoDoPdf, graficoDoPdfDasMarcadas, linhasDaDica, seriesDaEvolucao, textoDaEscala } from './apresentacao';
 
 const av = (id: string, data: string, medidas: Partial<AvaliacaoFisica['medidas']>): AvaliacaoFisica =>
   ({ id, data, medidas: { ...medidasVazias(), ...medidas }, observacao: null, pesoKg: null, versao: 0 }) as unknown as AvaliacaoFisica;
@@ -34,6 +35,32 @@ describe('séries da Evolução', () => {
   });
 });
 
+describe('gráfico do PDF segue as datas marcadas (D9)', () => {
+  const lista = [
+    av('1', '2026-07-01', { bracoDireito: 34, bracoEsquerdo: 33 }),
+    av('2', '2026-09-01', { bracoDireito: 35, bracoEsquerdo: 34 }),
+    av('3', '2026-10-01', { bracoDireito: 35.5 }),
+    av('4', '2026-11-01', { bracoDireito: 36, bracoEsquerdo: 35 }),
+  ];
+
+  test('só os pontos das datas marcadas, na medida escolhida, em qualquer ordem da seleção', () => {
+    const g = graficoDoPdfDasMarcadas(lista, ['4', '2'], 'bracoDireito', false);
+    expect(g.pontos).toEqual([{ data: '2026-09-01', valor: 35 }, { data: '2026-11-01', valor: 36 }]);
+    expect(g.rotulo).toBe('Braço direito');
+    expect(g.serieB).toBeUndefined();
+  });
+
+  test('direito × esquerdo: os dois lados só nas datas marcadas; lado sem nenhuma data marcada fica só com a medida', () => {
+    const par = graficoDoPdfDasMarcadas(lista, ['1', '2', '4'], 'bracoEsquerdo', true);
+    expect(par.pontos.map((p) => p.data)).toEqual(['2026-07-01', '2026-09-01', '2026-11-01']);
+    expect(par.serieB?.pontos).toEqual([{ data: '2026-07-01', valor: 33 }, { data: '2026-09-01', valor: 34 }, { data: '2026-11-01', valor: 35 }]);
+    // A data 3 não tem braço esquerdo, mas também não está marcada: nada dela entra.
+    expect(par.pontos.some((p) => p.data === '2026-10-01')).toBe(false);
+    expect(graficoDoPdfDasMarcadas(lista, ['2', '3'], 'bracoDireito', true).serieB?.pontos).toEqual([{ data: '2026-09-01', valor: 34 }]);
+    expect(graficoDoPdfDasMarcadas(lista, ['3'], 'bracoDireito', true).serieB).toBeUndefined();
+  });
+});
+
 describe('escala do gráfico da avaliação física', () => {
   test('folga de 15% dos dois lados, em inteiros', () => {
     expect(escalaDoGrafico([81.2, 82, 84])).toEqual({ min: 80, max: 85 });
@@ -59,6 +86,15 @@ describe('balão do ponto', () => {
     expect(linhasDaDica(pontos, 0)).toEqual(['01/11/2026 · 34,4 cm', 'Primeiro registro']);
     expect(linhasDaDica(pontos, 1)).toEqual(['13/11/2026 · 35,2 cm', '+0,8 cm desde 01/11']);
     expect(linhasDaDica([{ data: '2026-11-01', valor: 36 }, pontos[1]], 1)[1]).toBe('−0,8 cm desde 01/11');
+  });
+
+  test('datas de anos diferentes: a referência "desde" leva o ano (o balão já traz a data completa)', () => {
+    const virada = [{ data: '2025-11-01', valor: 34.4 }, { data: '2026-11-01', valor: 35.2 }];
+    expect(linhasDaDica(virada, 1)).toEqual(['01/11/2026 · 35,2 cm', '+0,8 cm desde 01/11/2025']);
+    // Formatador do gráfico todo: a série B, só de 2026, também leva o ano porque o gráfico abrange dois.
+    const soDe2026 = [{ data: '2026-03-01', valor: 33 }, { data: '2026-11-01', valor: 34 }];
+    expect(linhasDaDica(soDe2026, 1)[1]).toBe('+1,0 cm desde 01/03');
+    expect(linhasDaDica(soDe2026, 1, undefined, formatadorDeDatas(['2025-11-01', '2026-11-01']))[1]).toBe('+1,0 cm desde 01/03/2026');
   });
 
   test('com duas séries o nome da série vem primeiro; índice fora devolve vazio', () => {

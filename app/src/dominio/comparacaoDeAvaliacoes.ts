@@ -1,6 +1,6 @@
 import type { AvaliacaoFisica, CampoDaMedida } from '../api/avaliacaoFisicaTipos';
 import {
-  COMPARAR_MAXIMO, COMPARAR_MINIMO, cmParaTela, diferenca, diferencaParaTela, MEDIDAS, serieDaMedida, valorDaMedida,
+  COMPARAR_MAXIMO, COMPARAR_MINIMO, cmParaTela, diferenca, diferencaParaTela, MEDIDAS, pesoParaTela, serieDaMedida, valorDaMedida,
 } from './avaliacaoFisica';
 import { dataCurta, dataParaTela } from './formatos';
 
@@ -56,10 +56,10 @@ export interface VariacaoDaMedida {
   texto: string;
 }
 
-function variacaoEntre(primeiro: number | null, ultimo: number | null): VariacaoDaMedida {
-  const valor = diferenca(primeiro, ultimo);
+function variacaoEntre(primeiro: number | null, ultimo: number | null, unidade: 'cm' | 'kg' = 'cm'): VariacaoDaMedida {
+  const valor = diferenca(primeiro, ultimo, unidade === 'cm' ? 1 : 2);
   if (valor === null) return { valor: null, direcao: 'indisponivel', texto: TEXTO_INDISPONIVEL };
-  return { valor, direcao: valor > 0 ? 'aumento' : valor < 0 ? 'reducao' : 'igual', texto: diferencaParaTela(valor) };
+  return { valor, direcao: valor > 0 ? 'aumento' : valor < 0 ? 'reducao' : 'igual', texto: diferencaParaTela(valor, unidade) };
 }
 
 const emCm = (v: number): string => `${cmParaTela(v)} cm`;
@@ -74,8 +74,13 @@ export interface ColunaComparada {
   dataTexto: string;
 }
 
-/** Ano diferente entre a primeira e a última data (ISO ordenável): só então o dd/mm sozinho ficaria ambíguo. */
-const anosDiferentes = (primeira: string, ultima: string): boolean => primeira.slice(0, 4) !== ultima.slice(0, 4);
+/**
+ * Regra única de data (D11): "dd/mm", e "dd/mm/aaaa" só quando as `datas` mostradas (ISO) abrangem mais de um ano (só então o
+ * dd/mm sozinho ficaria ambíguo). Tela, gráfico e PDF usam esta função.
+ */
+export function formatadorDeDatas(datas: readonly string[]): (iso: string) => string {
+  return new Set(datas.map((d) => d.slice(0, 4))).size > 1 ? dataParaTela : dataCurta;
+}
 
 export interface CelulaComparada {
   /** Nulo = não registrada nessa data. */
@@ -123,7 +128,7 @@ export function compararAvaliacoes(todas: readonly AvaliacaoFisica[], escolhidas
   const avaliacoes = todas.filter((a) => ids.has(a.id)).sort((a, b) => a.data.localeCompare(b.data));
   if (avaliacoes.length < COMPARAR_MINIMO) return { estado: 'invalido', motivo: 'poucas', mensagem: `Escolha pelo menos ${COMPARAR_MINIMO} datas para comparar.` };
   if (avaliacoes.length > COMPARAR_MAXIMO) return { estado: 'invalido', motivo: 'muitas', mensagem: `Compare no máximo ${COMPARAR_MAXIMO} datas.` };
-  const formatar = anosDiferentes(avaliacoes[0].data, avaliacoes[avaliacoes.length - 1].data) ? dataParaTela : dataCurta;
+  const formatar = formatadorDeDatas(avaliacoes.map((a) => a.data));
   const colunas = avaliacoes.map((a) => ({ id: a.id, data: a.data, dataTexto: formatar(a.data) }));
   const linhas = MEDIDAS.flatMap(({ campo, rotulo }): LinhaComparada[] => {
     const valores = avaliacoes.map((a) => valorDaMedida(a, campo));
@@ -136,6 +141,23 @@ export function compararAvaliacoes(todas: readonly AvaliacaoFisica[], escolhidas
     }];
   });
   return { estado: 'ok', colunas, referencia: fraseDaReferencia(colunas), grupos: agruparMedidas(linhas).grupos };
+}
+
+export interface LinhaDoPeso {
+  /** Uma célula por coluna: o peso do registro da mesma data ("82 kg") ou "—" (valor nulo). */
+  celulas: { valor: number | null; texto: string }[];
+  /** Última − primeira em kg; só com as duas pontas, senão "Indisponível". */
+  variacao: VariacaoDaMedida;
+}
+
+/** Peso do dia das `colunas` (informativo, fora dos grupos; tela e PDF). Nulo quando nenhuma das datas tem peso. */
+export function linhaDoPeso(avaliacoes: readonly AvaliacaoFisica[], colunas: readonly ColunaComparada[]): LinhaDoPeso | null {
+  const pesos = colunas.map((col) => avaliacoes.find((a) => a.id === col.id)?.pesoKg ?? null);
+  if (pesos.every((p) => p === null)) return null;
+  return {
+    celulas: pesos.map((valor) => ({ valor, texto: pesoParaTela(valor) })),
+    variacao: variacaoEntre(pesos[0], pesos[pesos.length - 1], 'kg'),
+  };
 }
 
 // ---------- Resumo da evolução de uma medida ----------
@@ -160,13 +182,14 @@ export function resumoDaMedida(avaliacoes: readonly AvaliacaoFisica[], campo: Ca
   // `dataTexto` segue dd/mm (a tela e o PDF dependem dele); `dataCompleta` é sempre dd/mm/aaaa.
   const ultima = { valor: ultimo.valor, data: ultimo.data, dataTexto: dataCurta(ultimo.data), dataCompleta: dataParaTela(ultimo.data), texto: emCm(ultimo.valor) };
   if (pontos.length < 2) return { pontos: 1, ultima, variacao: null, desde: null };
-  const formatar = anosDiferentes(primeiro.data, ultimo.data) ? dataParaTela : dataCurta;
+  const formatar = formatadorDeDatas(pontos.map((p) => p.data));
   return { pontos: pontos.length, ultima, variacao: variacaoEntre(primeiro.valor, ultimo.valor), desde: `desde ${formatar(primeiro.data)}` };
 }
 
 // ---------- Seleção do Comparar ----------
 
-function maisRecentesPrimeiro(avaliacoes: readonly AvaliacaoFisica[]): AvaliacaoFisica[] {
+/** Da data mais nova à mais antiga (o histórico e o selo "Mais recente" não dependem da ordem em que a API devolve). */
+export function maisRecentesPrimeiro(avaliacoes: readonly AvaliacaoFisica[]): AvaliacaoFisica[] {
   return [...avaliacoes].sort((a, b) => b.data.localeCompare(a.data));
 }
 
@@ -174,11 +197,6 @@ function maisRecentesPrimeiro(avaliacoes: readonly AvaliacaoFisica[]): Avaliacao
 export function idsDasDuasUltimas(avaliacoes: readonly AvaliacaoFisica[]): string[] {
   if (avaliacoes.length < COMPARAR_MINIMO) return [];
   return maisRecentesPrimeiro(avaliacoes).slice(0, 2).map((a) => a.id).reverse();
-}
-
-/** Id da avaliação "Mais recente" (selo na lista); nulo sem avaliação. */
-export function idDaMaisRecente(avaliacoes: readonly AvaliacaoFisica[]): string | null {
-  return maisRecentesPrimeiro(avaliacoes)[0]?.id ?? null;
 }
 
 /** "2 de 4 selecionadas" (M = `COMPARAR_MAXIMO`, o limite do Comparar, como no guia; não o total de avaliações). */
