@@ -1,6 +1,6 @@
 # Peso: evolução mais legível
 
-Situação: Planejando (começa depois da Avaliação física) · Onde: `main`, commits locais, sem push · Atualizado: 13/11/2026
+Situação: Entregue localmente (sem push) · Onde: `main`, commits locais, sem push · Atualizado: 13/11/2026
 
 ## Objetivo
 O treinador lê o último registro de peso com a data, a diferença desde o anterior (com a referência), um gráfico fiel às medições e um histórico compacto, sem julgar saúde. Fonte: `guia-peso-visual-grafico-e-historico.pdf` (13/11/2026, 5 páginas) e pedido do Gustavo de 13/11. Depende do `GraficoLinha` já alterado em `avaliacao-fisica-visual.md`.
@@ -17,16 +17,26 @@ O treinador lê o último registro de peso com a data, a diferença desde o ante
 | D7 | Se o guia e a regra de segurança do projeto divergirem, vale a regra do projeto (peso é dado sensível, e2e e capturas só com dados fictícios) | Pedido do Gustavo | Gustavo |
 
 ## Passos
-- [ ] C1. Regras puras novas em `dominio/` (resumo, diferença desde o anterior, escala e margem, intervalos irregulares, registros fora de ordem, um registro, iguais) com Jest — responsável: executor — commit: —
-- [ ] C2. Tela: resumo, gráfico, estados, histórico compacto, legenda da meta (`CartaoPeso` na ficha e no Histórico) — responsável: executor-front — commit: —
-- [ ] C3. Verificação: e2e `peso-historico-aluno` e `cor-da-variacao-do-peso` atualizados mais os estados novos, 390/1280/1440, texto ampliado, capturas em Escuro, Claro e Areia, tokens nas outras paletas e no alto contraste; reconferir `CartaoEvolucaoRespostas`, `ProgressoDoExercicio`, catálogo do montador e a Avaliação física — responsável: executor-front e sessão principal — commit: —
-- [ ] C4. `ajuda/conteudo.ts`, guias em PDF, item do peso no `AGENTS.md`; revisão do `revisor` — commit: —
+- [x] C1. Regras puras novas em `dominio/` (resumo, diferença desde o anterior, escala e margem, intervalos irregulares, registros fora de ordem, um registro, iguais) com Jest — responsável: executor — commit: `5e46fad6` (`resumoDoPeso.ts`, 19 testes)
+- [x] C2. Tela: resumo, gráfico, estados, histórico compacto, legenda da meta (`CartaoPeso` na ficha e no Histórico) — responsável: executor-front — commit: `3998c635`
+- [x] C3. Verificação: e2e `peso-historico-aluno` e `cor-da-variacao-do-peso` atualizados mais os estados novos, 390/1280/1440, texto ampliado, capturas em Escuro, Claro e Areia, tokens nas outras paletas e no alto contraste; reconferir `CartaoEvolucaoRespostas`, `ProgressoDoExercicio`, catálogo do montador e a Avaliação física — responsável: executor-front e sessão principal — commit: `3998c635` (e2e); correções da revisão em `b0ca7f98` (erro antigo, `key` do gráfico, foco após excluir, código morto, e2e da visão que se mantém)
+- [x] C4. `ajuda/conteudo.ts`, guias em PDF, item do peso no `AGENTS.md`; revisão do `revisor` — commit: "Docs: Avaliação física e Peso" (13/11); revisão corrigida em `b0ca7f98`
 
 ## Lacunas conhecidas
-- Origem da meta (do aluno ou padrão da consultoria): a registrar aqui conforme o que a API já devolve; sem frente de API.
+- Origem da meta (do aluno ou padrão da consultoria): **a API só devolve a meta efetiva** (não há `metaDoPesoOrigem` em `AlunoDetalhe`), então a tela escreve só "Cores pela meta: reduzir o peso", sem a origem. Sem frente de API; fica para quando o Gustavo pedir.
+
+## Decisões da execução (13/11, sessão principal e `executor-front`)
+- Casas do peso: `pesoComCasas` (de `dominio/resumoDoPeso.ts`; renomeado de `pesoParaTela` para não colidir com o de `avaliacaoFisica.ts`, que mostra "80,5 kg"/"—") dá casas fixas (80 → "80,0 kg").
+- Aba Gráfico aparece com 1 registro (só o ponto); a legenda das setas saiu; a frase da meta aparece uma vez, abaixo do resumo, e só com 2+ registros; a linha mais recente leva o texto "Mais recente"; a observação vira `detalhe` da `Tabela`; coluna Ações com 64 px; resumo empilhado em 390 px.
+- Azul informativo: `useDestaques().azul.cor` na linha do gráfico e no peso registrado (número do "Último registro" e coluna Peso, como no guia p. 1 e na D12 de `cores-de-destaque.md`); a variação (tabela e resumo) nunca é azul: segue a cor pela meta (V052) com sinal e seta. Atenção: o pedido de 13/11 dizia "só a linha do gráfico azul"; se o Gustavo quiser os números do peso neutros, mudar `CartaoPeso.tsx` (coluna Peso), `peso/ResumoDoPeso.tsx` e o e2e `peso-historico-aluno.spec.ts:67`.
+- Casas da variação: a tela mostra "+1,0 kg" (`pesoComCasas`) e o PDF da dieta ainda mostra "+1 kg" (`dominio/variacaoDoPeso.formatar`, `pdfDieta.ts:75`); fica como pendência, fora da tela.
+- Sugestões de design system para depois: `Tabela` sem destaque por linha; `GraficoLinha` arredonda a 1 casa o nome acessível do ponto (79,85 lido como 79,9); Variação alinhada à direita no modo empilhado.
 
 ## Fora do escopo
 - Filtro de período novo (evolução separada); edição de registro; meta calculada; interpretação de saúde.
 
-## O que ficou para trás
-- (preencher ao entregar; cada sobra também vai para "Pendências soltas" no README)
+## O que ficou para trás (13/11; cada item também está em "Pendências soltas" do README)
+- Origem da meta (do aluno ou padrão da consultoria) não aparece: a API só devolve a meta efetiva.
+- Casas da variação: tela "+1,0 kg", PDF da dieta ainda "+1 kg" (`pdfDieta.ts:75`).
+- Azul no número do peso registrado (guia p.1) em vez de só na linha do gráfico: decisão do Gustavo (onde mudar está nas Decisões da execução).
+- Foco após excluir só conferido na web; sem e2e de "exclusão que falha e depois abrir Registrar peso".

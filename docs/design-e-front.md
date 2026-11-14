@@ -225,7 +225,8 @@ Uso de cada nível (11/11):
 | `CabecalhoDeGrupo` | Faixa de grupo (sessão, refeição, pasta, dia), recolhível, com resumo e selo. |
 | `Folha` | Painel por cima da tela (formulários, escolhas). No PC pode ser arrastada pelo cabeçalho; no celular o mesmo arraste fecha. Entra no histórico do navegador. |
 | `LinhaDaLista` / `ListaDeLinhas` | Lista de registros numa coluna: título, metadados, selos, ações. `ListaDeLinhas divisorias` (11/11): superfície comum, sem caixa por linha, divisória `divisor` só entre as linhas, realce `superficie3` no hover com mouse, no foco e com o conteúdo de baixo aberto; seleção neutra mantida; padrão desligado (hoje só a Biblioteca usa). |
-| `Tabela` | Colunas no PC, cartões empilhados no celular. |
+| `Tabela` | Colunas no PC, cartões empilhados no celular. `detalhe` põe um conteúdo extra abaixo do registro (a observação do peso); a coluna `acao` com `largura` fixa guarda os botões (Ações do peso, 64 px). |
+| `GraficoLinha` | Gráfico SVG próprio. Opcionais, que não mudam os usos antigos (peso e avaliação física, 13/11): `segmentos="retos"` e `semArea` (só os pontos medidos, sem sugerir valor entre as datas), segunda série tracejada em outra cor com legenda em texto (`serieB`, no máximo duas), dica por mouse, toque e teclado (`textoDaDica`), `destacarUltimo` e as pontas do eixo escritas só quando há `escala` (ou `legendaDaEscala`) com os mesmos números da legenda. Alvo de toque do ponto: 36 px, abaixo dos 44 do projeto (pendência de decisão). |
 | `Alerta` | Caixa de aviso: `perigo` (erro), `atencao` (cuidado, mas não impede), `sucesso`. |
 | `Selo` | Status curto com texto (11/11): `sucesso`/`atencao`/`perigo` viram pílula com ponto e texto na cor sobre o `*Suave` da situação; o estado normal (`neutro`) é só texto secundário, sem pílula. `categoria` (tipo de série, refeição: `useTema().identificacao[chave]`) é pílula escura com o texto na cor da categoria, sem ponto. |
 | `Botao` | Um `primario` por área, na cor da marca (hover `marcaHover`); o secundário tem borda `bordaCampo` e hover `superficie2`. Desabilitado sempre diz o porquê (`motivo`). |
@@ -595,7 +596,7 @@ fluidez, mas **dependeu de explicação para se achar**. O diagnóstico é de **
   só como referência.
 - Quantidade sem fator de cocção era lida como "compra em cru"; agora o item mostra "Sem fator" / "(como na dieta)".
   Na pendência: separar escrito "Conforme a dieta" de "Estimativa para compra".
-- O gráfico de peso "sumia" com um registro só; agora a tela explica que ele aparece com duas datas.
+- O gráfico de peso "sumia" com um registro só; hoje (13/11) ele aparece com um registro, mostrando só o ponto, e a linha vem a partir de dois. O cartão Peso começa por um resumo acima de Lista e Gráfico ("Último registro" e "Desde o registro anterior"); a Lista tem Data, Peso, Variação e Ações, com a observação (só da equipe) como detalhe do registro e a meta escrita abaixo do resumo. A legenda das setas saiu: seta e sinal já dizem a direção. A Avaliação física abre pela Evolução (abas Evolução e Comparar com 2 ou mais avaliações; plano `docs/planos/avaliacao-fisica-visual.md`).
 - **Princípio:** linguagem do treinador, não do banco. Se dois conceitos podem ser confundidos, os nomes têm de ser
   visivelmente diferentes.
 

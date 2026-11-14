@@ -69,6 +69,13 @@ O eixo do `GraficoLinha` passou a acompanhar a data (`fracaoNoEixo` em `dominio/
 - Conferido em 04/11/2026 (provas em [conferencia-pendencias-04-11.md](conferencia-pendencias-04-11.md)): o gráfico por medida (`dominio/avaliacaoFisica.ts`, `CartaoAvaliacaoFisica`, e2e `avaliacao-fisica.spec.ts`) e a foto de perfil pela equipe (`FotoPerfilController`, `FotoPerfilPelaEquipeIntegrationTest`) estão na `main` pelo squash `2320c1e8` (#41); os hashes dos passos acima são da branch. A troca passou a ser no próprio círculo do topo da ficha (`FotoDePerfilEditavel`, e2e `foto-perfil-equipe.spec.ts`) no lote #93, `78e07269`.
 - O botão "Registrar peso" (`CartaoPeso`) aparece para aluno anonimizado e a API responde 409; esconder como a avaliação
   física faz (já era assim antes da frente). Sem código agora (Gustavo, 02/11).
-- Com uma data só, o Peso mostra o texto "O gráfico aparece com pelo menos duas datas" e a Evolução por medida mostra o
-  ponto; e há dois textos de "gráficos desligados" nos cartões vizinhos (`progresso.ts` e `relatorio.ts`). Uniformizar.
-  Sem código agora (Gustavo, 02/11).
+- Com uma data só, o Peso mostrava o texto "O gráfico aparece com pelo menos duas datas" e a Evolução por medida mostrava o
+  ponto; e há dois textos de "gráficos desligados" nos cartões vizinhos (`progresso.ts` e `relatorio.ts`). O Peso foi
+  corrigido em 13/11 (a aba Gráfico aparece já com um registro, só o ponto); os dois textos de "gráficos desligados"
+  continuam sem uniformizar. Sem código agora (Gustavo, 02/11).
+
+## Atualização de 13/11/2026 (telas redesenhadas)
+O que este plano descreve (C42 e C43) foi refeito em [peso-visual.md](peso-visual.md) e [avaliacao-fisica-visual.md](avaliacao-fisica-visual.md); o texto acima é o registro de 02/11. Hoje, no código:
+- `CartaoPeso` (ficha e Histórico): o resumo ("Último registro" e "Desde o registro anterior") fica acima de Lista e Gráfico; a Lista tem Data, Peso, Variação e Ações (a lixeira só com `ALUNO_SENSIVEL_ALTERAR`), com "Mais recente" na linha mais nova; a observação (só da equipe) é detalhe do registro, sem coluna própria. A legenda das setas saiu; a variação segue a cor pela meta (D2), com a meta escrita abaixo do resumo. A aba Gráfico aparece com 1 registro (só o ponto) e respeita a preferência `graficos`.
+- `GraficoLinha` (compartilhado): ganhou, de forma opcional, segmentos retos sem área, segunda série tracejada, dica por mouse, toque e teclado, destaque do último ponto e pontas do eixo escritas só com `escala`; alvo de toque do ponto de 36 px.
+- `CartaoAvaliacaoFisica`: abre pela Evolução (resumo "Última medida" e "Variação", gráfico a partir de 1 data, direito × esquerdo no mesmo gráfico) com a aba Comparar (2 a 4 datas, tabela por grupo, PDF com gráfico opcional); a observação da avaliação segue visível ao aluno.
