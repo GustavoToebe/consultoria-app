@@ -217,10 +217,9 @@ const rotulosDoEixo = (raiz: Raiz) =>
   raiz.root.findAll((x) => x.props.textAnchor === 'end' && x.props.fontSize).map((x) => [x.props.children].flat()[0] as string);
 const temTexto = (raiz: Raiz, texto: string) => raiz.root.findAll((x) => x.props.children === texto).length > 0;
 const regiaoViva = (raiz: Raiz) => raiz.root.find((x) => x.props.accessibilityLiveRegion === 'polite' && typeof x.type !== 'string');
-const linhasDaDica = (raiz: Raiz) => {
-  const filhos = obterDica(raiz)?.props.children;
-  return [filhos].flat().map((t: { props: { children: string } }) => t.props.children);
-};
+const linhasDaDicaDe = (dica: import('react-test-renderer').ReactTestInstance | null) =>
+  [dica?.props.children].flat().map((t: { props: { children: string } }) => t.props.children);
+const linhasDaDica = (raiz: Raiz) => linhasDaDicaDe(obterDica(raiz));
 
 describe('GraficoLinha: opções do guia (todas opcionais)', () => {
   it('sem as props novas o desenho é o de sempre: curva suave, área, uma série, marcas redondas e sem legenda', () => {
@@ -277,6 +276,48 @@ describe('GraficoLinha: opções do guia (todas opcionais)', () => {
     // Sem texto da tela, a dica diz de qual série é.
     Renderer.act(() => botoes.find((x) => x.props.accessibilityLabel === 'Esquerdo, 20/10: 31 kg')!.props.onHoverIn());
     expect(linhasDaDica(raiz)).toEqual(['Esquerdo · 20/10 · 31 kg']);
+  });
+
+  it('duas séries com uma data só: os pontos ficam no meio, não em cima da coluna dos rótulos', () => {
+    const unico = (valor: number): PontoGrafico[] => [{ rotulo: '10/10', valor, data: '2026-10-10' }];
+    const raiz = montarCom(
+      { segmentos: 'retos', rotuloA: 'Direito', serieB: { pontos: unico(30), cor: '#654321', rotulo: 'Esquerdo' } },
+      unico(31),
+    );
+    const botoes = obterBotoes(raiz);
+    expect(botoes).toHaveLength(2);
+    // Largura 500, margens 58 (esquerda) e 18 (direita): o meio da área do gráfico.
+    const centro = 58 + (500 - 58 - 18) / 2;
+    for (const b of botoes) {
+      const { left, width } = [b.props.style].flat()[0];
+      expect(left + width / 2).toBeCloseTo(centro, 5);
+    }
+  });
+
+  it('na web a dica não tem papel `summary` (landmark sem nome a cada hover) e a região viva segue; no celular o papel fica', () => {
+    const { Platform } = require('react-native') as typeof import('react-native');
+    const dicaAberta = () => {
+      const raiz = montar();
+      Renderer.act(() => obterBotoes(raiz)[0].props.onHoverIn());
+      return raiz;
+    };
+    const dicaPorPointerEvents = (raiz: Raiz) => raiz.root.findAll((x) => x.props.pointerEvents === 'none' && typeof x.type !== 'string');
+
+    const celular = dicaAberta();
+    expect(obterDica(celular)).toBeTruthy();
+
+    const original = Platform.OS;
+    Platform.OS = 'web';
+    try {
+      const web = dicaAberta();
+      expect(obterDica(web)).toBeNull();
+      const dica = dicaPorPointerEvents(web)[0];
+      expect(dica.props.accessibilityRole).toBeUndefined();
+      expect(linhasDaDicaDe(dica)).toEqual(['10/10 · 80,5 kg']);
+      expect(regiaoViva(web).props.children).toBe('10/10 · 80,5 kg');
+    } finally {
+      Platform.OS = original;
+    }
   });
 
   it('ponto único: um alvo, um ponto e nenhum traço', () => {

@@ -109,7 +109,8 @@ export function GraficoLinha({
   const areaW = w - MARGEM.esq - MARGEM.dir;
   const areaH = ALTURA - MARGEM.topo - MARGEM.base;
   // Duas séries com data em todo ponto: o tempo é o da união das datas; senão cada série segue a própria lista.
-  const pelaUniao = pontosB.length > 0 && todos.every((p) => p.data);
+  // Com uma data só na união, `fracaoNoEixo` daria 0 (tudo na coluna dos rótulos): cada série cai no meio, como numa série só.
+  const pelaUniao = pontosB.length > 0 && todos.every((p) => p.data) && new Set(todos.map((p) => p.data)).size > 1;
   const xDe = (s: QualSerie, i: number) =>
     MARGEM.esq + (pelaUniao ? fracaoNoEixo(todos, s === 'A' ? i : pontos.length + i) : fracaoNoEixo(s === 'A' ? pontos : pontosB, i)) * areaW;
   const x = (i: number) => xDe('A', i);
@@ -279,7 +280,8 @@ export function GraficoLinha({
           {atual ? (
             <View
               pointerEvents="none"
-              accessibilityRole="summary"
+              // Na web `summary` vira landmark sem nome a cada hover; no celular a dica é o único lugar com a linha da diferença.
+              accessibilityRole={Platform.OS === 'web' ? undefined : 'summary'}
               onLayout={(e) => setMedida({ texto: textoDaDicaJunto, altura: e.nativeEvent.layout.height })}
               style={[
                 estilos.dica,

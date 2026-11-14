@@ -61,6 +61,7 @@ export function CartaoEvolucaoRespostas({ alunoId }: { alunoId: string }) {
           <Texto variante="bloco">{serie.rotulo.trim() || nomeDaSerie(serie)}</Texto>
           {mostraGrafico(serie, preferencias.graficos) ? (
             <GraficoLinha
+              key={serie.perguntaId}
               pontos={pontosDoGrafico(serie)}
               unidade={unidadeDoGrafico(serie)}
               escala={escalaDoGrafico(serie)}
