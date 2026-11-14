@@ -11,6 +11,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
@@ -94,7 +95,7 @@ class AlunoDataDeNascimentoIntegrationTest extends AbstractIntegrationTest {
             JsonNode erro = alterar(id, ruim, 422);
             assertThat(erro.path("codigo").asString()).isEqualTo("ALUNO_INVALIDO");
             assertThat(erro.path("fieldErrors").get(0).path("field").asString()).isEqualTo("dataNascimento");
-            assertThat(erro.toString()).doesNotContain(ruim);
+            assertThat(semHorario(erro)).doesNotContain(ruim);
         }
         // No cadastro novo também, e nada é criado.
         JsonNode erro = criar("1899-12-31", 422);
@@ -129,5 +130,12 @@ class AlunoDataDeNascimentoIntegrationTest extends AbstractIntegrationTest {
         assertThat(coluna(id)).isNull();
         assertThat(banco.queryForMap("select perfil_reservado, perfil_cor, perfil_moldura, perfil_destaques from aluno where id = ?::uuid", id)
                 .values()).containsOnlyNulls();
+    }
+
+    /** O `timestamp` do erro é UTC e, depois das 21h de Brasília, traz a data de amanhã: não conta como repetir o valor. */
+    private static String semHorario(JsonNode erro) {
+        ObjectNode copia = (ObjectNode) erro.deepCopy();
+        copia.remove("timestamp");
+        return copia.toString();
     }
 }
