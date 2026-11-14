@@ -1,6 +1,6 @@
 # Areia do Saraiva: paleta "Claro areia" mais escura
 
-Situação: Entregue localmente (sem push) · Onde: `main`, commit local, sem push · Atualizado: 14/11/2026
+Situação: Aprovada pelo Gustavo, publicada em 14/11/2026 (aprovação do Saraiva pendente) · Onde: `main` · Atualizado: 14/11/2026
 
 ## Objetivo
 O Saraiva vai usar só o tema "Claro areia" e aprovou um exemplo (montado no Gemini): areia mais escura e acinzentada, cartões em branco quente e faixas de título um tom abaixo. A paleta `AREIA` de `app/src/tema/tokens.ts` passa a seguir esse exemplo sem afrouxar nenhum teste de contraste. É mudança de valor de token (design system): afeta quem escolher "Claro areia" nas Preferências e as consultorias que escolheram Areia na Marca (`PALETAS.AREIA` de `dominio/paletas.ts`). Claro e Escuro não mudam; a cor da marca (vermelho do Saraiva) não muda.
@@ -34,7 +34,7 @@ Cores fixas só da Areia: agenda AZUL `#1B6FD6` → `#1B6ED4`, TURQUESA `#0B7F8A
 - [x] A1. `tokens.ts` (AREIA, `VarianteDoTema`, tabelas fixas), `preferencias.ts`, `TemaProvider` e os quatro componentes que liam `modo` — responsável: sessão principal — evidência: `tsc`, `lint` e `jest` (314 suítes, 7550 testes) verdes
 - [x] A2. Testes de agenda, perfil, identificação, destaque e enquete nas três variantes; dois testes do contraste alto — evidência: `tokens.test.ts`, `contrasteDasPecas.test.ts`, `contrasteDaAgenda.test.ts`, `coresDaEnquete.test.ts`, `preferencias.test.ts`
 - [x] A3. `AGENTS.md` (Níveis, Preferências pessoais) e `docs/design-e-front.md` — evidência: este commit
-- [ ] A4. Capturas em Claro areia antes e depois (390 e 1280) para o Saraiva aprovar, fora do git — ver o relatório da sessão
+- [x] A4. Capturas em Claro areia antes e depois (390 e 1280), fora do git — aprovado pelo Gustavo em 14/11/2026 pelas capturas e pelo teste local. A aprovação do Saraiva continua pendente: se ele pedir outro tom, vira ajuste novo
 
 ## Telas e peças afetadas
 Tudo que usa `fundo`, `painel`, `superficie`, `superficie2`, `superficie3`, `faixaForte`, `campo`, `divisor`, `borda`, `bordaCampo`, `textoSuave` e os status no tema Claro areia: `Cartao` e sua faixa, `CabecalhoDeGrupo`, `Tabela`, `Folha`, `OpcaoCartao` (seleção), `ui/interruptor.ts`, chips e escolhas, `Selo`, `Alerta`, `Botao` (perigo), séries do aluno, fases do ciclo, agenda (marcadores), perfil da Comunidade (anel e amostras), cores de identificação (tipo de série, divisão, refeição) e números e gráficos de destaque (Financeiro, peso, avaliação, enquete). Também `PALETAS.AREIA` da Marca (consultorias que escolheram Areia).
