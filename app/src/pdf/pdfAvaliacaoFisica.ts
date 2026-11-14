@@ -130,7 +130,7 @@ function blocoDoGrafico(g: GraficoDoPdf): string {
 
 function colgroup(n: number): string {
   const largura = Math.floor(54 / Math.max(1, n));
-  return `<colgroup><col style="width:28%">${'<col style="width:' + largura + '%">'.repeat(n)}<col style="width:${100 - 28 - largura * n}%"></colgroup>`;
+  return `<colgroup><col style="width:28%">${`<col style="width:${largura}%">`.repeat(n)}<col style="width:${100 - 28 - largura * n}%"></colgroup>`;
 }
 
 function cabecalhoDaTabela(primeira: string, colunas: readonly ColunaComparada[]): string {

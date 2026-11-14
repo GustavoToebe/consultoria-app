@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { mkdirSync } from 'node:fs';
 
 import type { AvaliacaoFisica } from '../src/api/avaliacaoFisicaTipos';
 import type { AlunoDetalhe, ConsultoriaResponse } from '../src/api/tipos';
@@ -297,6 +298,88 @@ test('Baixar comparativo gera o PDF sem erro, com o interruptor do gráfico liga
   const html = await page.evaluate(() => (window as unknown as { __pdf: string }).__pdf);
   expect(html).toContain(ALUNO.nome);
   expect(html).toContain('Não registrada');
+  expect(errosDaPagina).toEqual([]);
+  expect(errosNoConsole).toEqual([]);
+});
+
+/** Capturas da prova do gráfico na impressão: fora do projeto (pasta de trabalho da sessão). */
+const PASTA_CAPTURAS = 'C:\\Users\\GUSTAV~1\\AppData\\Local\\Temp\\claude\\0d7dddcf5c9df61c\\a46aad27-0d6d-4bdf-a8c6-0c922768ea8e\\scratchpad\\capturas\\print-grafico';
+const IMG_DO_GRAFICO = '#treinos-impressao img[src^="data:image/svg+xml;base64,"]';
+
+test('PDF: o gráfico (svg em <img>) decodifica, aparece na impressão em tema claro e some com o interruptor desligado', async ({ page }) => {
+  mkdirSync(PASTA_CAPTURAS, { recursive: true });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  // Tela no tema Escuro: a impressão tem de sair clara mesmo assim. `window.print` só conta (não abre o diálogo) e o
+  // `afterprint` nunca dispara, então o bloco de impressão fica na página para ser conferido.
+  await page.addInitScript((id) => {
+    localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: 'ESCURO' }));
+    (window as unknown as { __impressoes: number }).__impressoes = 0;
+    window.print = () => { (window as unknown as { __impressoes: number }).__impressoes += 1; };
+  }, TREINADOR.id);
+  const errosNoConsole: string[] = [];
+  const foraDoCartao = /\/api\/alunos\/[^/]+\/(pastas|pesos|foto-perfil)$/;
+  page.on('console', (m) => {
+    if (m.type() === 'error' && !(m.text().startsWith('Failed to load resource') && foraDoCartao.test(m.location().url))) {
+      errosNoConsole.push(`${m.text()} @ ${m.location().url}`);
+    }
+  });
+  const consultoria: ConsultoriaResponse = { marca: MARCA, versao: 3, diasAtualizacaoPadrao: null, metaDoPeso: 'REDUZIR' };
+  const { errosDaPagina } = await fichaDoTreinador(page, TRES, { 'GET /consultoria': { corpo: consultoria } });
+  await abaComparar(page).click();
+  for (const d of ['01/07/2026', '01/09/2026', '01/11/2026']) await page.getByRole('checkbox', { name: `Comparar ${d}` }).click();
+  const interruptor = page.getByRole('switch', { name: 'Incluir o gráfico da medida no PDF' });
+  await interruptor.click();
+  await expect(interruptor).toBeChecked();
+
+  const impressoes = () => page.evaluate(() => (window as unknown as { __impressoes: number }).__impressoes);
+  await page.getByRole('button', { name: 'Baixar comparativo' }).click();
+  await expect.poll(impressoes).toBe(1);
+
+  // Ligado: o <img> sobreviveu ao sanitizador e decodificou de verdade.
+  const grafico = page.locator(IMG_DO_GRAFICO);
+  await expect(grafico).toHaveCount(1);
+  await expect.poll(() => grafico.evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0 && i.naturalHeight > 0)).toBe(true);
+  await expect(page.locator('#treinos-impressao .legenda')).toContainText('Linha contínua, círculos: Braço direito');
+  await expect(page.locator('#treinos-impressao .legenda')).toContainText('Linha tracejada, quadrados: Braço esquerdo');
+
+  // Em impressão: só o bloco aparece, o resto da página some e o fundo é branco (tema da tela é Escuro).
+  // O escuro do RN web fica num elemento do app, não no `body`: sobe do ponto central até o primeiro fundo opaco.
+  const fundoNaTela = await page.evaluate(() => {
+    for (let e: Element | null = document.elementFromPoint(640, 450); e; e = e.parentElement) {
+      const c = getComputedStyle(e).backgroundColor;
+      if (c !== 'rgba(0, 0, 0, 0)' && c !== 'transparent') return c;
+    }
+    return 'transparent';
+  });
+  expect(fundoNaTela).not.toBe('rgb(255, 255, 255)');
+  expect(fundoNaTela).not.toBe('transparent');
+  await page.emulateMedia({ media: 'print' });
+  await expect(page.locator('#treinos-impressao')).toBeVisible();
+  await expect(grafico).toBeVisible();
+  const emImpressao = await page.evaluate(() => ({
+    outros: Array.from(document.body.children).filter((e) => e.id !== 'treinos-impressao').map((e) => getComputedStyle(e).display),
+    fundoBody: getComputedStyle(document.body).backgroundColor,
+    fundoHtml: getComputedStyle(document.documentElement).backgroundColor,
+    texto: getComputedStyle(document.body).color,
+  }));
+  expect(emImpressao.outros.length).toBeGreaterThan(0);
+  expect(emImpressao.outros.every((d) => d === 'none')).toBe(true);
+  expect(emImpressao).toMatchObject({ fundoBody: 'rgb(255, 255, 255)', fundoHtml: 'rgb(255, 255, 255)', texto: 'rgb(0, 0, 0)' });
+  await page.screenshot({ path: `${PASTA_CAPTURAS}\\01-impressao-grafico-ligado.png`, fullPage: true });
+  await page.locator('#treinos-impressao .grafico').screenshot({ path: `${PASTA_CAPTURAS}\\02-grafico-ampliado.png` });
+
+  // Desligado: nova impressão troca o bloco e não há mais <img> de svg.
+  await page.emulateMedia({ media: 'screen' });
+  await interruptor.click();
+  await expect(interruptor).not.toBeChecked();
+  await page.getByRole('button', { name: 'Baixar comparativo' }).click();
+  await expect.poll(impressoes).toBe(2);
+  await expect(page.locator(IMG_DO_GRAFICO)).toHaveCount(0);
+  await expect(page.locator('#treinos-impressao')).toContainText('Tronco');
+  await page.emulateMedia({ media: 'print' });
+  await expect(page.locator('#treinos-impressao')).toBeVisible();
+  await page.screenshot({ path: `${PASTA_CAPTURAS}\\03-impressao-grafico-desligado.png`, fullPage: true });
+
   expect(errosDaPagina).toEqual([]);
   expect(errosNoConsole).toEqual([]);
 });

@@ -163,6 +163,18 @@ describe('PDF da avaliação física', () => {
     expect(nenhum.corpo).not.toContain('<img');
   });
 
+  it.each([['2 datas', ['a', 'b'], 2], ['4 datas', ['d', 'b', 'a', 'c'], 4]])('colgroup: uma <col> por data, sem texto solto e larguras somando 100 (%s)', (_nome, ids, n) => {
+    const { corpo } = gerar(ids);
+    const grupos = corpo.match(/<colgroup>.*?<\/colgroup>/g) ?? [];
+    expect(grupos.length).toBeGreaterThan(0);
+    for (const g of grupos) {
+      expect(g.replace(/<\/?colgroup>|<col style="width:\d+%">/g, '')).toBe('');
+      const larguras = [...g.matchAll(/width:(\d+)%/g)].map((m) => Number(m[1]));
+      expect(larguras).toHaveLength(n + 2);
+      expect(larguras.reduce((x, y) => x + y, 0)).toBe(100);
+    }
+  });
+
   it('impressão: quebras de página e tabela estável', () => {
     const { css, corpo } = gerar(['a', 'b']);
     expect(css).toMatch(/tr \{ break-inside: avoid/);
