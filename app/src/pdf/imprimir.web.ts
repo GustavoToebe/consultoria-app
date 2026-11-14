@@ -58,12 +58,20 @@ const ESQUEMAS_PERMITIDOS = new Set(['http', 'https', 'mailto', 'blob']);
 /**
  * Endereço permitido: relativo, âncora, http(s), mailto, blob ou `data:image/` raster (a logo). O navegador ignora tab e
  * quebra de linha dentro do esquema (`java&#9;script:`), então o teste olha o valor sem nenhum caractere de controle ou espaço.
+ *
+ * Única exceção a mais (decisão do Gustavo, 13/11, `docs/planos/avaliacao-fisica-visual.md`): o gráfico do PDF da avaliação
+ * física é um SVG feito por nós e entra como `<img src="data:image/svg+xml;base64,...">`. `svgEmImg` só vale para o `src`
+ * de um `<img>` e aceita exatamente esse prefixo com corpo base64, conferido no valor bruto (sem tab, quebra de linha nem espaço); SVG dentro de `<img>` não executa script nem carrega
+ * recurso de fora. Em qualquer outro atributo ou elemento, e em qualquer outro `data:` (`text/html`, `svg+xml` sem base64),
+ * continua bloqueado; o `<svg>` solto também continua sendo removido.
  */
-function urlPermitida(valor: string): boolean {
+const SVG_BASE64_EM_IMG = /^data:image\/svg\+xml;base64,[A-Za-z0-9+/]{1,500000}={0,2}$/;
+
+function urlPermitida(valor: string, svgEmImg = false): boolean {
   const limpo = valor.replace(/[\x00-\x20]/g, '');
   const esquema = /^([a-z][a-z0-9+.-]*):/i.exec(limpo)?.[1].toLowerCase();
   if (!esquema) return true;
-  if (esquema === 'data') return /^data:image\/(png|jpe?g|gif|webp)[;,]/i.test(limpo);
+  if (esquema === 'data') return /^data:image\/(png|jpe?g|gif|webp)[;,]/i.test(limpo) || (svgEmImg && SVG_BASE64_EM_IMG.test(valor));
   return ESQUEMAS_PERMITIDOS.has(esquema);
 }
 
@@ -79,7 +87,8 @@ export function montarCorpo(html: string): DocumentFragment {
   for (const e of lido.body.querySelectorAll('*')) {
     for (const nome of e.getAttributeNames()) {
       const minusculo = nome.toLowerCase();
-      if (minusculo.startsWith('on') || (ATRIBUTOS_DE_URL.has(minusculo) && !urlPermitida(e.getAttribute(nome) ?? ''))) {
+      const srcDeImg = e.localName === 'img' && minusculo === 'src';
+      if (minusculo.startsWith('on') || (ATRIBUTOS_DE_URL.has(minusculo) && !urlPermitida(e.getAttribute(nome) ?? '', srcDeImg))) {
         e.removeAttribute(nome);
       }
     }

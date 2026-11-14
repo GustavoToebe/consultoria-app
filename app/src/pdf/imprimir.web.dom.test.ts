@@ -103,6 +103,41 @@ describe('montarCorpo (impressão na web)', () => {
       expect(raiz.querySelector('img')?.getAttribute('src')).toBe('data:image/png;base64,AAAA');
     });
 
+    describe('gráfico do PDF: SVG em base64 só no src de <img>', () => {
+      const base64 = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><script>alert(1)</script></svg>', 'utf8').toString('base64');
+      const uri = `data:image/svg+xml;base64,${base64}`;
+
+      it('o <img> fica com o src, e nada executável entra no fragmento', () => {
+        const raiz = noCorpo(`<img alt="g" src="${uri}" width="560" height="220">`);
+        expect(raiz.querySelector('img')?.getAttribute('src')).toBe(uri);
+        expect(raiz.querySelectorAll('script, svg').length).toBe(0);
+      });
+
+      it('o mesmo valor em href, srcset, data e poster, ou em outro elemento, é barrado', () => {
+        const raiz = noCorpo(`<a href="${uri}">x</a><img srcset="${uri} 1x"><object data="${uri}"></object><video poster="${uri}"></video>`);
+        expect(raiz.querySelector('a')?.hasAttribute('href')).toBe(false);
+        expect(raiz.querySelector('img')?.hasAttribute('srcset')).toBe(false);
+        expect(raiz.querySelector('object')).toBeNull();
+        expect(raiz.querySelector('video')?.hasAttribute('poster')).toBe(false);
+      });
+
+      it.each([
+        ['sem base64', 'data:image/svg+xml,<svg onload=alert(1)>'],
+        ['utf8', 'data:image/svg+xml;utf8,<svg/>'],
+        ['tipo em maiúsculas', uri.replace('image/svg+xml', 'IMAGE/SVG+XML')],
+        ['text/html', `data:text/html;base64,${base64}`],
+        ['base64 com caractere fora do alfabeto', `data:image/svg+xml;base64,${base64}%3C`],
+      ])('no <img> também é barrado: %s', (_nome, src) => {
+        expect(noCorpo(`<img src="${src}">`).querySelector('img')?.hasAttribute('src')).toBe(false);
+      });
+
+      it('esquema disfarçado com tab, quebra de linha ou espaço não é o prefixo exato: barrado também no <img>', () => {
+        const disfarcado = uri.replace('data:image', 'da&#9;ta:ima&#10;ge').replace('base64,', 'base64, ');
+        expect(noCorpo(`<img src="${disfarcado}">`).querySelector('img')?.hasAttribute('src')).toBe(false);
+        expect(noCorpo(`<a href="${disfarcado}">x</a>`).querySelector('a')?.hasAttribute('href')).toBe(false);
+      });
+    });
+
     it('texto escapado pelo gerador continua texto', () => {
       const raiz = noCorpo('<div>&quot;&gt;&lt;img src=x onerror=alert(1)&gt;</div>');
       expect(raiz.querySelector('img')).toBeNull();
