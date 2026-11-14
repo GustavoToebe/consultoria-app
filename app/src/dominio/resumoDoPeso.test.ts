@@ -80,6 +80,28 @@ describe('resumo do peso', () => {
     expect(textoDaDiferenca(-1)).toBe('−1,0 kg');
     expect(textoDaDiferenca(0)).toBe('0,0 kg');
     expect(textoDaDiferenca(0.1 + 0.2 - 0.3)).toBe('0,0 kg'); // ruído de ponto flutuante não vira sinal
+    expect(textoDaDiferenca(0.3 - 0.1 - 0.2)).toBe('0,0 kg'); // ruído negativo: sem "−0,0"
+  });
+});
+
+describe('registros inválidos (comportamento atual: o filtro `valido` os ignora)', () => {
+  const ruim = [peso('n', '2026-09-10', Number.NaN), peso('v', '', 70), peso('i', '2026-09-11', Number.POSITIVE_INFINITY)];
+
+  it('só inválidos: resumo vazio, sem período, sem escala e sem pontos', () => {
+    expect(resumoDoPeso(ruim)).toEqual({ vazio: true });
+    expect(noPeriodo(ruim)).toBeNull();
+    expect(escalaDoPeso(ruim)).toBeNull();
+    expect(pontosDoPeso(ruim)).toEqual([]);
+  });
+
+  it('misturados com válidos: não entram no último, no anterior, no período, na escala nem nos pontos', () => {
+    const boa = [peso('a', '2026-08-19', 51), peso('b', '2026-09-02', 51.6)];
+    const mistura = [...ruim, ...boa, peso('x', '2026-12-01', Number.NaN)];
+    expect(resumoDoPeso(mistura)).toEqual(resumoDoPeso(boa));
+    expect(noPeriodo(mistura)).toEqual(noPeriodo(boa));
+    expect(escalaDoPeso(mistura)).toEqual(escalaDoPeso(boa));
+    expect(pontosDoPeso(mistura)).toEqual(pontosDoPeso(boa));
+    expect(pontosDoPeso(mistura)).toHaveLength(2);
   });
 });
 
@@ -148,6 +170,16 @@ describe('gráfico do peso', () => {
       expect(e!.min).toBeGreaterThan(0);
       expect(e!.min).toBeLessThanOrEqual(Math.min(...valores));
       expect(e!.max).toBeGreaterThanOrEqual(Math.max(...valores));
+    }
+  });
+
+  it('as pontas são sempre múltiplos de 0,5, em vários conjuntos de pesos', () => {
+    const conjuntos = [[50.4, 52.1], [80, 80.1], [61.37, 61.4, 70.2], [45, 120], [30, 250], [70], [53.33, 53.34], [100.9, 101.1, 99.2], [48.2, 49.9, 55.55], [91.234, 62.5]];
+    for (const valores of conjuntos) {
+      const e = escalaDoPeso(valores.map((v, i) => peso(String(i), `2026-01-${String(i + 1).padStart(2, '0')}`, v)))!;
+      expect(Number.isInteger(e.min * 2)).toBe(true);
+      expect(Number.isInteger(e.max * 2)).toBe(true);
+      expect(e.max).toBeGreaterThan(e.min);
     }
   });
 

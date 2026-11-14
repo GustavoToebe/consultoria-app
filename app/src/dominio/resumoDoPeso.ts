@@ -165,7 +165,8 @@ const PASSOS = [0.5, 1, 2, 2.5, 5, 10];
 
 /**
  * Escala vertical do gráfico: do menor ao maior peso com margem pequena, pontas em número redondo (`50` a `52,5`).
- * Nunca zero artificial: a margem não leva o mínimo abaixo da metade do menor peso. Pesos iguais dão um intervalo
+ * Nunca zero artificial: a margem não leva o mínimo abaixo da metade do menor peso (o arredondamento seguinte, para o passo
+ * do eixo, pode descer mais: 30 e 250 kg dão mínimo 10, e abaixo de ~20 kg chega a 0). Pesos iguais dão um intervalo
  * válido (a linha horizontal fica no meio). Sem registro válido, `null`.
  * shortcut: passo máximo de 10 kg e peso abaixo de ~20 kg pode arredondar o mínimo para 0; não é peso de aluno, trocar se virar.
  */

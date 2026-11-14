@@ -2,7 +2,7 @@ import type { AvaliacaoFisica, CampoDaMedida } from '../api/avaliacaoFisicaTipos
 import {
   COMPARAR_MAXIMO, COMPARAR_MINIMO, cmParaTela, diferenca, diferencaParaTela, MEDIDAS, serieDaMedida, valorDaMedida,
 } from './avaliacaoFisica';
-import { dataCurta } from './formatos';
+import { dataCurta, dataParaTela } from './formatos';
 
 /**
  * Regras da Avaliação física visual (plano `docs/planos/avaliacao-fisica-visual.md`, D2 e D3): grupos das medidas,
@@ -70,9 +70,12 @@ export interface ColunaComparada {
   id: string;
   /** ISO. */
   data: string;
-  /** "dd/mm". */
+  /** "dd/mm" quando todas as datas escolhidas são do mesmo ano; "dd/mm/aaaa" quando abrangem mais de um ano. */
   dataTexto: string;
 }
+
+/** Ano diferente entre a primeira e a última data (ISO ordenável): só então o dd/mm sozinho ficaria ambíguo. */
+const anosDiferentes = (primeira: string, ultima: string): boolean => primeira.slice(0, 4) !== ultima.slice(0, 4);
 
 export interface CelulaComparada {
   /** Nulo = não registrada nessa data. */
@@ -96,13 +99,16 @@ export type ComparacaoDeAvaliacoes =
       estado: 'ok';
       /** Em ordem cronológica, qualquer que tenha sido a ordem da seleção. */
       colunas: ColunaComparada[];
-      /** "Variação = 13/11 menos 01/11." (2 datas) ou com "(primeira e última datas selecionadas)" (3 ou 4). */
+      /** "Variação = 13/11 menos 01/11." (2 datas) ou com "(primeira e última datas selecionadas)" (3 ou 4); com anos diferentes as datas levam o ano. */
       referencia: string;
       /** Só circunferências (o peso fica fora dos grupos), grupos e medidas na ordem fixa. Medida sem valor em nenhuma das datas não aparece. */
       grupos: GrupoDeItens<LinhaComparada>[];
     };
 
-/** Frase da referência da variação; com mais de 2 datas ela diz que usa a primeira e a última (nunca muda em silêncio). */
+/**
+ * Frase da referência da variação; com mais de 2 datas ela diz que usa a primeira e a última (nunca muda em silêncio).
+ * Usa o `dataTexto` das colunas, que já é dd/mm ou dd/mm/aaaa conforme os anos das datas escolhidas.
+ */
 export function fraseDaReferencia(colunas: readonly ColunaComparada[]): string {
   const base = `Variação = ${colunas[colunas.length - 1].dataTexto} menos ${colunas[0].dataTexto}`;
   return colunas.length > COMPARAR_MINIMO ? `${base} (primeira e última datas selecionadas).` : `${base}.`;
@@ -117,7 +123,8 @@ export function compararAvaliacoes(todas: readonly AvaliacaoFisica[], escolhidas
   const avaliacoes = todas.filter((a) => ids.has(a.id)).sort((a, b) => a.data.localeCompare(b.data));
   if (avaliacoes.length < COMPARAR_MINIMO) return { estado: 'invalido', motivo: 'poucas', mensagem: `Escolha pelo menos ${COMPARAR_MINIMO} datas para comparar.` };
   if (avaliacoes.length > COMPARAR_MAXIMO) return { estado: 'invalido', motivo: 'muitas', mensagem: `Compare no máximo ${COMPARAR_MAXIMO} datas.` };
-  const colunas = avaliacoes.map((a) => ({ id: a.id, data: a.data, dataTexto: dataCurta(a.data) }));
+  const formatar = anosDiferentes(avaliacoes[0].data, avaliacoes[avaliacoes.length - 1].data) ? dataParaTela : dataCurta;
+  const colunas = avaliacoes.map((a) => ({ id: a.id, data: a.data, dataTexto: formatar(a.data) }));
   const linhas = MEDIDAS.flatMap(({ campo, rotulo }): LinhaComparada[] => {
     const valores = avaliacoes.map((a) => valorDaMedida(a, campo));
     if (valores.every((v) => v === null)) return [];
@@ -137,10 +144,10 @@ export interface ResumoDaMedida {
   /** Pontos da série (datas que têm a medida). */
   pontos: number;
   /** Medida mais recente; nulo sem nenhum ponto. */
-  ultima: { valor: number; data: string; dataTexto: string; texto: string } | null;
+  ultima: { valor: number; data: string; dataTexto: string; dataCompleta: string; texto: string } | null;
   /** Último − primeiro ponto; nulo com menos de 2 pontos (um ponto só mostra só o valor, sem variação inventada). */
   variacao: VariacaoDaMedida | null;
-  /** "desde 01/11" (data do primeiro ponto); nulo com menos de 2 pontos. */
+  /** "desde 01/11" (data do primeiro ponto; "desde 01/11/2025" se for de ano diferente da última); nulo com menos de 2 pontos. */
   desde: string | null;
 }
 
@@ -150,9 +157,11 @@ export function resumoDaMedida(avaliacoes: readonly AvaliacaoFisica[], campo: Ca
   if (!pontos.length) return { pontos: 0, ultima: null, variacao: null, desde: null };
   const primeiro = pontos[0];
   const ultimo = pontos[pontos.length - 1];
-  const ultima = { valor: ultimo.valor, data: ultimo.data, dataTexto: dataCurta(ultimo.data), texto: emCm(ultimo.valor) };
+  // `dataTexto` segue dd/mm (a tela e o PDF dependem dele); `dataCompleta` é sempre dd/mm/aaaa.
+  const ultima = { valor: ultimo.valor, data: ultimo.data, dataTexto: dataCurta(ultimo.data), dataCompleta: dataParaTela(ultimo.data), texto: emCm(ultimo.valor) };
   if (pontos.length < 2) return { pontos: 1, ultima, variacao: null, desde: null };
-  return { pontos: pontos.length, ultima, variacao: variacaoEntre(primeiro.valor, ultimo.valor), desde: `desde ${dataCurta(primeiro.data)}` };
+  const formatar = anosDiferentes(primeiro.data, ultimo.data) ? dataParaTela : dataCurta;
+  return { pontos: pontos.length, ultima, variacao: variacaoEntre(primeiro.valor, ultimo.valor), desde: `desde ${formatar(primeiro.data)}` };
 }
 
 // ---------- Seleção do Comparar ----------

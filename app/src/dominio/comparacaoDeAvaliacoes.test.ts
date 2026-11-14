@@ -120,6 +120,32 @@ describe('comparação de 2 a 4 datas', () => {
     expect(r.grupos.flatMap((g) => g.itens).some((i) => (i.chave as string) === 'peso')).toBe(false);
   });
 
+  it('anos diferentes (2025 × 2026): colunas e frase em dd/mm/aaaa, nas 2, 3 e 4 datas', () => {
+    const t = [av('a', '2025-11-01', { cintura: 90 }), av('b', '2026-03-10', { cintura: 89 }), av('c', '2026-11-01', { cintura: 88 })];
+    const dois = ok(compararAvaliacoes(t, ['c', 'a']));
+    expect(dois.colunas.map((x) => x.dataTexto)).toEqual(['01/11/2025', '01/11/2026']);
+    expect(dois.referencia).toBe('Variação = 01/11/2026 menos 01/11/2025.');
+    const tres = ok(compararAvaliacoes(t, ['a', 'b', 'c']));
+    expect(tres.colunas.map((x) => x.dataTexto)).toEqual(['01/11/2025', '10/03/2026', '01/11/2026']);
+    expect(tres.referencia).toBe('Variação = 01/11/2026 menos 01/11/2025 (primeira e última datas selecionadas).');
+    // Só as duas do mesmo ano: volta ao dd/mm (a regra olha as datas ESCOLHIDAS, não todas as avaliações).
+    const mesmo = ok(compararAvaliacoes(t, ['b', 'c']));
+    expect(mesmo.colunas.map((x) => x.dataTexto)).toEqual(['10/03', '01/11']);
+    expect(mesmo.referencia).toBe('Variação = 01/11 menos 10/03.');
+  });
+
+  it('mesmo ano: saída antiga preservada (dd/mm), inclusive na virada de 01/01 a 31/12', () => {
+    const r = ok(compararAvaliacoes([av('a', '2026-01-01', { cintura: 90 }), av('b', '2026-12-31', { cintura: 88 })], ['a', 'b']));
+    expect(r.colunas.map((x) => x.dataTexto)).toEqual(['01/01', '31/12']);
+    expect(r.referencia).toBe('Variação = 31/12 menos 01/01.');
+  });
+
+  it('nenhuma medida com valor nas datas escolhidas: ok com grupos vazios (a tela decide o texto)', () => {
+    const r = ok(compararAvaliacoes([av('a', '2026-01-01', {}), av('b', '2026-02-01', {})], ['a', 'b']));
+    expect(r.grupos).toEqual([]);
+    expect(r.colunas).toHaveLength(2);
+  });
+
   it('uma data só, zero datas, mais de 4 e ids inexistentes ou repetidos: inválido, sem lançar', () => {
     expect(compararAvaliacoes(todas, ['a'])).toMatchObject({ estado: 'invalido', motivo: 'poucas' });
     expect(compararAvaliacoes(todas, [])).toMatchObject({ estado: 'invalido', motivo: 'poucas', mensagem: 'Escolha pelo menos 2 datas para comparar.' });
@@ -137,7 +163,7 @@ describe('resumo da evolução de uma medida', () => {
   it('última medida, variação no período e "desde dd/mm", só com as datas que têm a medida', () => {
     expect(resumoDaMedida(lista, 'cintura')).toEqual({
       pontos: 2,
-      ultima: { valor: 86.5, data: '2026-11-13', dataTexto: '13/11', texto: '86,5 cm' },
+      ultima: { valor: 86.5, data: '2026-11-13', dataTexto: '13/11', dataCompleta: '13/11/2026', texto: '86,5 cm' },
       variacao: { valor: -1.5, direcao: 'reducao', texto: '−1,5 cm' },
       desde: 'desde 01/11',
     });
@@ -145,8 +171,21 @@ describe('resumo da evolução de uma medida', () => {
 
   it('um ponto: só o valor, sem variação nem "desde"', () => {
     expect(resumoDaMedida(lista, 'quadril')).toEqual({
-      pontos: 1, ultima: { valor: 99, data: '2026-11-05', dataTexto: '05/11', texto: '99,0 cm' }, variacao: null, desde: null,
+      pontos: 1, ultima: { valor: 99, data: '2026-11-05', dataTexto: '05/11', dataCompleta: '05/11/2026', texto: '99,0 cm' }, variacao: null, desde: null,
     });
+  });
+
+  it('anos diferentes (2025 × 2026): "desde" leva o ano; dataTexto da última continua dd/mm e dataCompleta traz o ano', () => {
+    const r = resumoDaMedida([av('1', '2025-11-01', { cintura: 90 }), av('2', '2026-11-01', { cintura: 88 })], 'cintura');
+    expect(r.desde).toBe('desde 01/11/2025');
+    expect(r.ultima).toMatchObject({ dataTexto: '01/11', dataCompleta: '01/11/2026' });
+    expect(r.variacao?.texto).toBe('−2,0 cm');
+  });
+
+  it('mesmo ano: "desde dd/mm" como antes (virada de ano dentro do mesmo ano civil não conta)', () => {
+    const r = resumoDaMedida([av('1', '2026-01-02', { cintura: 90 }), av('2', '2026-12-31', { cintura: 88 })], 'cintura');
+    expect(r.desde).toBe('desde 02/01');
+    expect(r.ultima?.dataCompleta).toBe('31/12/2026');
   });
 
   it('nenhum ponto e lista vazia', () => {
