@@ -38,6 +38,13 @@ export interface PontoXY {
   y: number;
 }
 
+const xy = (a: PontoXY) => `${Math.round(a.x * 100) / 100},${Math.round(a.y * 100) / 100}`;
+
+/** Caminho SVG de segmentos retos entre os pontos medidos (a curva sugere um caminho que ninguém mediu). */
+export function caminhoReto(pontos: PontoXY[]): string {
+  return pontos.map((a, i) => `${i === 0 ? 'M' : 'L'}${xy(a)}`).join('');
+}
+
 /**
  * Caminho SVG de uma curva suave que passa por todos os pontos (cúbica monótona, Fritsch–Butland): não passa
  * dos valores registrados nem cria subidas e descidas que o peso não teve. `x` não pode diminuir;
@@ -46,7 +53,7 @@ export interface PontoXY {
 export function caminhoSuave(pontos: PontoXY[]): string {
   const n = pontos.length;
   if (n === 0) return '';
-  const p = (a: PontoXY) => `${Math.round(a.x * 100) / 100},${Math.round(a.y * 100) / 100}`;
+  const p = xy;
   if (n === 1) return `M${p(pontos[0])}`;
   if (n === 2) return `M${p(pontos[0])}L${p(pontos[1])}`;
   const h = pontos.slice(1).map((a, i) => a.x - pontos[i].x);

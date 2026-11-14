@@ -1,4 +1,4 @@
-import { caminhoSuave, fracaoNoEixo, marcasDaEscala, marcasDoEixo } from './grafico';
+import { caminhoReto, caminhoSuave, fracaoNoEixo, marcasDaEscala, marcasDoEixo } from './grafico';
 
 describe('gráfico', () => {
   it('caminhoSuave liga todos os pontos com uma curva por trecho', () => {
@@ -25,6 +25,12 @@ describe('gráfico', () => {
     expect(caminhoSuave([])).toBe('');
     expect(caminhoSuave([{ x: 1, y: 2 }])).toBe('M1,2');
     expect(caminhoSuave([{ x: 1, y: 2 }, { x: 3, y: 4 }])).toBe('M1,2L3,4');
+  });
+
+  it('caminhoReto liga os pontos só por retas, com o mesmo arredondamento', () => {
+    expect(caminhoReto([])).toBe('');
+    expect(caminhoReto([{ x: 1, y: 2 }])).toBe('M1,2');
+    expect(caminhoReto([{ x: 0, y: 0 }, { x: 10.004, y: 20 }, { x: 20, y: 25.126 }])).toBe('M0,0L10,20L20,25.13');
   });
 
   it('o eixo horizontal acompanha a data: iguais no mesmo lugar, 1 dia junto e 30 dias afastados', () => {

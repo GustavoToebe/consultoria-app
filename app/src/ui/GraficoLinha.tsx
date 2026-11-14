@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import { useRef, useState } from 'react';
+import { Platform, Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import Svg, { Circle, G, Line, Path, Rect, Text as SvgTexto } from 'react-native-svg';
 
 import { faixasSobrePontos, type FaixaDoGrafico } from '../dominio/cicloMenstrual';
-import { caminhoSuave, fracaoNoEixo, marcasDaEscala, marcasDoEixo } from '../dominio/grafico';
+import { caminhoReto, caminhoSuave, fracaoNoEixo, marcasDaEscala, marcasDoEixo } from '../dominio/grafico';
 import { escalar } from '../dominio/preferencias';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes } from '../tema/tokens';
@@ -16,13 +16,34 @@ export interface PontoGrafico {
   data?: string;
 }
 
+/** Segunda série do mesmo gráfico (esquerdo ao lado do direito, por exemplo): tracejada, com pontos vazados. */
+export interface SerieDoGrafico {
+  pontos: PontoGrafico[];
+  cor: string;
+  rotulo: string;
+}
+
+type QualSerie = 'A' | 'B';
+
+/**
+ * Na web, o Enter num `role="button"` chega ao `onPress` como clique sintético (`detail` 0) e o soltar da tecla como o
+ * próprio evento de teclado; clique do mouse e toque têm `detail` ≥ 1, e no celular o evento não traz nenhum dos dois.
+ */
+const veioDoTeclado = (e: unknown) => {
+  const ev = e as { key?: string; nativeEvent?: { detail?: number } } | null | undefined;
+  return !!ev && ('key' in ev || ev.nativeEvent?.detail === 0);
+};
+
 const ALTURA_BASE = 240;
 const MARGEM_BASE = { topo: 14, base: 24, esq: 58, dir: 18 };
 const TAMANHO_TOQUE = 36;
 const LARGURA_DICA = 120;
-const ALTURA_DICA = 26;
+/** Balão com mais de uma linha (texto da tela ou duas séries): cabe "01/09/2026 · 87,0 cm" e a referência. */
+const LARGURA_DICA_LARGA = 208;
+const LINHA_DICA = 16;
 const ESPACO_DICA = 12;
 const MARGEM_SEGURA = 4;
+const TRACEJADO = '6 4';
 
 /**
  * Gráfico de linha (SVG): curva suave com a área abaixo preenchida, pontos nos registros e eixo vertical com a
@@ -30,10 +51,18 @@ const MARGEM_SEGURA = 4;
  * Pontos já na ordem do eixo; só desenha o que foi registrado. A linha é da cor do texto, nunca da marca (a marca não
  * é dado); `cor` troca só a curva, a área e os pontos, para o gráfico acompanhar a tabela da mesma medida (o azul de
  * indicador, cores-de-destaque D12). Rótulos, eixo e balão continuam neutros, e a série segue legível sem a cor
- * (rótulo das datas, pontos e "Último…"). Ao passar o mouse ou tocar em cada ponto, exibe o balão com o valor e a data.
+ * (rótulo das datas, pontos e "Último…"). Ao passar o mouse, tocar ou focar cada ponto, exibe o balão com o valor e a
+ * data; o teclado anda pelos pontos com as setas (Home e End nas pontas) e o Esc fecha o balão.
  * `semUltimo`: quem já mostra o resumo "Último…" acima não repete a linha de baixo.
+ *
+ * Opcionais do guia de peso e avaliação (avaliacao-fisica-visual D4, D5, D7; peso-visual D4), todos desligados por
+ * padrão: `segmentos="retos"`, `semArea`, `serieB` (tracejada, mesma escala e mesmo eixo de datas, legenda em texto),
+ * `textoDaDica`, `legendaDaEscala` (que também rotula as duas pontas do eixo) e `destacarUltimo`.
  */
-export function GraficoLinha({ pontos, unidade, descricao, semUltimo, faixas, escala, cor, larguraInicial = 0 }: {
+export function GraficoLinha({
+  pontos, unidade, descricao, semUltimo, faixas, escala, cor, larguraInicial = 0,
+  segmentos = 'suaves', semArea, serieB, rotuloA, textoDaDica, legendaDaEscala, destacarUltimo,
+}: {
   pontos: PontoGrafico[]; unidade: string; descricao: string; semUltimo?: boolean; faixas?: FaixaDoGrafico[];
   /** Cor da série (curva, área e pontos), com contraste de 3:1 sobre a superfície do cartão. Sem ela, a cor do texto. */
   cor?: string;
@@ -41,6 +70,20 @@ export function GraficoLinha({ pontos, unidade, descricao, semUltimo, faixas, es
   escala?: { min: number; max: number };
   /** Largura inicial (útil para testes ou renderização direta). */
   larguraInicial?: number;
+  /** `retos` liga os pontos por segmentos retos, sem sugerir valores entre as datas medidas. */
+  segmentos?: 'suaves' | 'retos';
+  /** Sem o preenchimento sob a linha. */
+  semArea?: boolean;
+  /** Segunda série (no máximo duas). Data sem valor fica fora da lista: nunca é interpolada. */
+  serieB?: SerieDoGrafico;
+  /** Nome da série principal na legenda e no rótulo dos pontos; passe junto com `serieB`. */
+  rotuloA?: string;
+  /** Linhas do balão (data, valor, referência da diferença), montadas pela tela. Sem ela, "data · valor". */
+  textoDaDica?: (ponto: PontoGrafico, indice: number, serie: QualSerie) => string[];
+  /** Texto pequeno abaixo do gráfico; liga também o rótulo das duas pontas. Passe `escala` com os mesmos números do texto. */
+  legendaDaEscala?: string;
+  /** Destaque discreto (raio e anel maiores, sem cor nova) no último ponto de cada série. */
+  destacarUltimo?: boolean;
 }) {
   const { cores, fatorTexto } = useTema();
   const linha = cor ?? cores.texto;
@@ -49,11 +92,15 @@ export function GraficoLinha({ pontos, unidade, descricao, semUltimo, faixas, es
   const MARGEM = { ...MARGEM_BASE, base: escalar(MARGEM_BASE.base, fatorTexto), esq: escalar(MARGEM_BASE.esq, fatorTexto) };
   const ALTURA = ALTURA_BASE + (MARGEM.base - MARGEM_BASE.base);
   const [largura, setLargura] = useState(larguraInicial);
-  const [pontoAtivo, setPontoAtivo] = useState<number | null>(null);
+  const [ativo, setAtivo] = useState<string | null>(null);
+  const [medida, setMedida] = useState<{ texto: string; altura: number } | null>(null);
+  const alvosNaTela = useRef<Record<string, { focus?: () => void } | null>>({});
   const aoMedir = (e: LayoutChangeEvent) => setLargura(e.nativeEvent.layout.width);
   if (pontos.length === 0) return null;
 
-  const valores = pontos.map((p) => p.valor);
+  const pontosB = serieB?.pontos ?? [];
+  const todos = pontosB.length > 0 ? [...pontos, ...pontosB] : pontos;
+  const valores = todos.map((p) => p.valor);
   const folga = Math.max((Math.max(...valores) - Math.min(...valores)) * 0.15, 0.5);
   // Com escala, o eixo é o dela; um ponto fora (escala trocada pelo treinador) alarga o eixo em vez de sumir do desenho.
   const min = escala ? Math.min(escala.min, ...valores) : Math.min(...valores) - folga;
@@ -61,104 +108,167 @@ export function GraficoLinha({ pontos, unidade, descricao, semUltimo, faixas, es
   const w = Math.max(largura, 1);
   const areaW = w - MARGEM.esq - MARGEM.dir;
   const areaH = ALTURA - MARGEM.topo - MARGEM.base;
-  const x = (i: number) => MARGEM.esq + fracaoNoEixo(pontos, i) * areaW;
+  // Duas séries com data em todo ponto: o tempo é o da união das datas; senão cada série segue a própria lista.
+  const pelaUniao = pontosB.length > 0 && todos.every((p) => p.data);
+  const xDe = (s: QualSerie, i: number) =>
+    MARGEM.esq + (pelaUniao ? fracaoNoEixo(todos, s === 'A' ? i : pontos.length + i) : fracaoNoEixo(s === 'A' ? pontos : pontosB, i)) * areaW;
+  const x = (i: number) => xDe('A', i);
   const y = (v: number) => MARGEM.topo + (1 - (v - min) / (max - min)) * areaH;
-  const marcas = escala ? marcasDaEscala(min, max) : marcasDoEixo(min, max);
-  const passoRotulo = Math.max(1, Math.ceil(pontos.length / Math.max(Math.floor(areaW / 72), 1)));
-  const curva = caminhoSuave(pontos.map((p, i) => ({ x: x(i), y: y(p.valor) })));
+  const marcas = escala || legendaDaEscala !== undefined ? marcasDaEscala(min, max) : marcasDoEixo(min, max);
+  const tracar = segmentos === 'retos' ? caminhoReto : caminhoSuave;
+  const curva = tracar(pontos.map((p, i) => ({ x: x(i), y: y(p.valor) })));
+  const curvaB = tracar(pontosB.map((p, i) => ({ x: xDe('B', i), y: y(p.valor) })));
   const bandas = faixasSobrePontos(pontos, faixas ?? []);
   const meio = pontos.length <= 1 ? 12 : Math.abs(x(1) - x(0)) / 2;
   const formato = (v: number) => String(Math.round(v * 10) / 10).replace('.', ',');
+  const rotuloDaSerie = (s: QualSerie) => (pontosB.length === 0 ? undefined : s === 'A' ? rotuloA : serieB?.rotulo);
 
-  const ativo = pontoAtivo !== null && pontoAtivo >= 0 && pontoAtivo < pontos.length ? pontos[pontoAtivo] : null;
-  const ativoIdx = ativo ? pontoAtivo : null;
+  // Datas do eixo: as da série principal; com duas séries, a união (uma data que só a B tem também aparece).
+  const datasDoEixo = pontosB.length === 0
+    ? pontos.map((p, i) => ({ rotulo: p.rotulo, x: x(i) }))
+    : [...pontos.map((p, i) => ({ rotulo: p.rotulo, x: x(i) })), ...pontosB.map((p, i) => ({ rotulo: p.rotulo, x: xDe('B', i) }))]
+        .sort((a, b) => a.x - b.x)
+        .filter((d, i, lista) => i === 0 || d.rotulo !== lista[i - 1].rotulo || Math.abs(d.x - lista[i - 1].x) > 0.5);
+  const passoRotulo = Math.max(1, Math.ceil(datasDoEixo.length / Math.max(Math.floor(areaW / 72), 1)));
 
-  const cxAtivo = ativoIdx !== null ? x(ativoIdx) : 0;
-  const cyAtivo = ativo ? y(ativo.valor) : 0;
+  // Alvos de toque e de teclado, na ordem do eixo (A antes de B na mesma data): as setas andam nesta ordem.
+  const alvos = [
+    ...pontos.map((p, i) => ({ chave: `A${i}`, serie: 'A' as QualSerie, i, p, cx: x(i), cy: y(p.valor) })),
+    ...pontosB.map((p, i) => ({ chave: `B${i}`, serie: 'B' as QualSerie, i, p, cx: xDe('B', i), cy: y(p.valor) })),
+  ].sort((a, b) => a.cx - b.cx || (a.serie < b.serie ? -1 : a.serie > b.serie ? 1 : 0));
+  const atual = alvos.find((a) => a.chave === ativo) ?? null;
+  // Uma parada só do Tab (tabindex móvel): o ponto ativo, senão o mais recente da série principal.
+  const paradaDoTab = atual?.chave ?? `A${pontos.length - 1}`;
 
+  const valorComUnidade = (v: number) => `${formato(v)}${unidade ? ` ${unidade}` : ''}`;
+  const prefixo = (s: QualSerie) => (rotuloDaSerie(s) ? `${rotuloDaSerie(s)} · ` : '');
+  const linhasDaDica = !atual
+    ? []
+    : textoDaDica
+      ? textoDaDica(atual.p, atual.i, atual.serie)
+      : [`${prefixo(atual.serie)}${atual.p.rotulo ? `${atual.p.rotulo} · ` : ''}${valorComUnidade(atual.p.valor)}`];
+  const textoDaDicaJunto = linhasDaDica.join('. ');
+  const larga = !!textoDaDica || pontosB.length > 0;
+  const larguraDica = Math.min(escalar(larga ? LARGURA_DICA_LARGA : LARGURA_DICA, fatorTexto), w - 2 * MARGEM_SEGURA);
+  const alturaEstimada = linhasDaDica.length * escalar(LINHA_DICA, fatorTexto) + 10;
+  const alturaDica = medida?.texto === textoDaDicaJunto ? medida.altura : alturaEstimada;
+
+  const cxAtivo = atual?.cx ?? 0;
+  const cyAtivo = atual?.cy ?? 0;
   // Clampa a posição horizontal para garantir que a dica nunca corte nas bordas esquerda e direita
-  const maxLeft = Math.max(MARGEM_SEGURA, w - LARGURA_DICA - MARGEM_SEGURA);
-  const dicaLeft = Math.max(MARGEM_SEGURA, Math.min(cxAtivo - LARGURA_DICA / 2, maxLeft));
-
+  const maxLeft = Math.max(MARGEM_SEGURA, w - larguraDica - MARGEM_SEGURA);
+  const dicaLeft = Math.max(MARGEM_SEGURA, Math.min(cxAtivo - larguraDica / 2, maxLeft));
   // Se o ponto estiver muito alto (perto do topo), posiciona a dica abaixo do ponto para não cortar no topo
-  const cabeAcima = cyAtivo - ALTURA_DICA - ESPACO_DICA >= MARGEM_SEGURA;
-  const dicaTop = cabeAcima ? cyAtivo - ALTURA_DICA - ESPACO_DICA : cyAtivo + ESPACO_DICA;
+  const cabeAcima = cyAtivo - alturaDica - ESPACO_DICA >= MARGEM_SEGURA;
+  const dicaTop = cabeAcima ? cyAtivo - alturaDica - ESPACO_DICA : cyAtivo + ESPACO_DICA;
 
-  const valorFormatado = `${formato(ativo?.valor ?? 0)}${unidade ? ` ${unidade}` : ''}`;
-  const textoDica = ativo?.rotulo ? `${ativo.rotulo} · ${valorFormatado}` : valorFormatado;
+  const fecharSeFor = (chave: string) => setAtivo((a) => (a === chave ? null : a));
+  const teclar = (posicao: number) => (e: { key: string; preventDefault?: () => void; stopPropagation?: () => void }) => {
+    if (e.key === 'Escape') {
+      if (ativo === null) return;
+      // Fecha só o balão: a folha em volta não fecha junto.
+      e.stopPropagation?.();
+      e.preventDefault?.();
+      setAtivo(null);
+      return;
+    }
+    const salto = ({ ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 } as Record<string, number>)[e.key];
+    const destino = salto !== undefined ? posicao + salto : e.key === 'Home' ? 0 : e.key === 'End' ? alvos.length - 1 : null;
+    if (destino === null) return;
+    e.preventDefault?.();
+    const alvo = alvos[Math.min(alvos.length - 1, Math.max(0, destino))];
+    setAtivo(alvo.chave);
+    alvosNaTela.current[alvo.chave]?.focus?.();
+  };
+
+  const circulo = (s: QualSerie, i: number, p: PontoGrafico, cx: number, total: number) => {
+    const corDaSerie = s === 'A' ? linha : (serieB?.cor ?? linha);
+    const selecionado = ativo === `${s}${i}`;
+    const destacado = !!destacarUltimo && i === total - 1;
+    // Série B com o ponto vazado: a forma também separa as séries, além do tracejado.
+    const vazado = s === 'B';
+    return (
+      <G key={`${s}${p.rotulo}${i}`}>
+        {selecionado ? <Circle cx={cx} cy={y(p.valor)} r={10} fill={corDaSerie} fillOpacity={0.18} /> : null}
+        <Circle
+          cx={cx}
+          cy={y(p.valor)}
+          r={selecionado ? 6 : destacado ? 5.5 : 4}
+          fill={vazado ? cores.superficie : corDaSerie}
+          stroke={vazado ? corDaSerie : cores.superficie}
+          strokeWidth={(vazado ? 2 : selecionado ? 2 : 1.5) + (destacado ? 1 : 0)}
+        />
+      </G>
+    );
+  };
 
   return (
-    <View onLayout={aoMedir} accessible accessibilityRole="image" accessibilityLabel={descricao} style={{ gap: espaco(0.5) }}>
+    <View onLayout={aoMedir} style={{ gap: espaco(0.5) }}>
       {largura > 0 ? (
         <View style={{ position: 'relative', width: w, height: ALTURA }}>
-          <Svg width={w} height={ALTURA} aria-hidden>
-            {bandas.map((f) => (
-              <Rect key={`${f.rotulo}${f.de}`} x={Math.max(MARGEM.esq, x(f.de) - meio)} y={MARGEM.topo}
-                width={Math.max(4, Math.min(w - MARGEM.dir, x(f.ate) + meio) - Math.max(MARGEM.esq, x(f.de) - meio))}
-                height={areaH} fill={f.tom} fillOpacity={0.45} />
-            ))}
-            {marcas.map((m) => (
-              <Line key={m} x1={MARGEM.esq} x2={w - MARGEM.dir} y1={y(m)} y2={y(m)} stroke={cores.borda} strokeWidth={1} />
-            ))}
-            {marcas.map((m) => (
-              <SvgTexto key={`t${m}`} x={MARGEM.esq - 6} y={y(m) + 4} fontSize={fonte} fill={cores.textoSuave} textAnchor="end">
-                {formato(m)} {unidade}
-              </SvgTexto>
-            ))}
-            <Path d={`${curva}L${x(pontos.length - 1)},${y(min)}L${x(0)},${y(min)}Z`} fill={linha} fillOpacity={0.08} />
-            <Path d={curva} fill="none" stroke={linha} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
-            {ativoIdx !== null ? (
-              <Line
-                x1={x(ativoIdx)}
-                x2={x(ativoIdx)}
-                y1={MARGEM.topo}
-                y2={ALTURA - MARGEM.base}
-                stroke={cores.divisor}
-                strokeWidth={1}
-                strokeDasharray="3 3"
-              />
-            ) : null}
-            {pontos.map((p, i) => {
-              const selecionado = pontoAtivo === i;
-              return (
-                <G key={`${p.rotulo}${i}`}>
-                  {selecionado ? (
-                    <Circle cx={x(i)} cy={y(p.valor)} r={10} fill={linha} fillOpacity={0.18} />
-                  ) : null}
-                  <Circle
-                    cx={x(i)}
-                    cy={y(p.valor)}
-                    r={selecionado ? 6 : 4}
-                    fill={linha}
-                    stroke={cores.superficie}
-                    strokeWidth={selecionado ? 2 : 1.5}
-                  />
-                </G>
-              );
-            })}
-            {pontos.map((p, i) =>
-              i % passoRotulo === 0 || i === pontos.length - 1 ? (
-                <SvgTexto key={`r${i}`} x={x(i)} y={ALTURA - 6} fontSize={fonte} fill={cores.textoSuave} textAnchor="middle">
-                  {p.rotulo}
+          {/* Só o desenho é a imagem: os pontos ficam fora dela para o leitor de tela e o teclado chegarem neles. */}
+          <View accessible accessibilityRole="image" accessibilityLabel={descricao}>
+            <Svg width={w} height={ALTURA} aria-hidden>
+              {bandas.map((f) => (
+                <Rect key={`${f.rotulo}${f.de}`} x={Math.max(MARGEM.esq, x(f.de) - meio)} y={MARGEM.topo}
+                  width={Math.max(4, Math.min(w - MARGEM.dir, x(f.ate) + meio) - Math.max(MARGEM.esq, x(f.de) - meio))}
+                  height={areaH} fill={f.tom} fillOpacity={0.45} />
+              ))}
+              {marcas.map((m) => (
+                <Line key={m} x1={MARGEM.esq} x2={w - MARGEM.dir} y1={y(m)} y2={y(m)} stroke={cores.borda} strokeWidth={1} />
+              ))}
+              {marcas.map((m) => (
+                <SvgTexto key={`t${m}`} x={MARGEM.esq - 6} y={y(m) + 4} fontSize={fonte} fill={cores.textoSuave} textAnchor="end">
+                  {formato(m)} {unidade}
                 </SvgTexto>
-              ) : null,
-            )}
-          </Svg>
-          {pontos.map((p, i) => (
+              ))}
+              {semArea ? null : (
+                <Path d={`${curva}L${x(pontos.length - 1)},${y(min)}L${x(0)},${y(min)}Z`} fill={linha} fillOpacity={0.08} />
+              )}
+              <Path d={curva} fill="none" stroke={linha} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+              {serieB && pontosB.length > 0 ? (
+                <Path d={curvaB} fill="none" stroke={serieB.cor} strokeWidth={2.5} strokeDasharray={TRACEJADO} strokeLinejoin="round" />
+              ) : null}
+              {atual ? (
+                <Line
+                  x1={atual.cx}
+                  x2={atual.cx}
+                  y1={MARGEM.topo}
+                  y2={ALTURA - MARGEM.base}
+                  stroke={cores.divisor}
+                  strokeWidth={1}
+                  strokeDasharray="3 3"
+                />
+              ) : null}
+              {pontos.map((p, i) => circulo('A', i, p, x(i), pontos.length))}
+              {pontosB.map((p, i) => circulo('B', i, p, xDe('B', i), pontosB.length))}
+              {datasDoEixo.map((d, i) =>
+                i % passoRotulo === 0 || i === datasDoEixo.length - 1 ? (
+                  <SvgTexto key={`r${i}`} x={d.x} y={ALTURA - 6} fontSize={fonte} fill={cores.textoSuave} textAnchor="middle">
+                    {d.rotulo}
+                  </SvgTexto>
+                ) : null,
+              )}
+            </Svg>
+          </View>
+          {alvos.map((a, posicao) => (
             <Pressable
-              key={`alvo-${p.rotulo}${i}`}
+              key={`alvo-${a.serie}${a.p.rotulo}${a.i}`}
+              ref={(no) => { alvosNaTela.current[a.chave] = no as { focus?: () => void } | null; }}
               accessibilityRole="button"
-              accessibilityLabel={`${p.rotulo}: ${formato(p.valor)} ${unidade}`}
-              accessibilityState={{ selected: pontoAtivo === i }}
-              onHoverIn={() => setPontoAtivo(i)}
-              onHoverOut={() => setPontoAtivo((atual) => (atual === i ? null : atual))}
-              onFocus={() => setPontoAtivo(i)}
-              onBlur={() => setPontoAtivo((atual) => (atual === i ? null : atual))}
-              onPress={() => setPontoAtivo((atual) => (atual === i ? null : i))}
+              accessibilityLabel={`${rotuloDaSerie(a.serie) ? `${rotuloDaSerie(a.serie)}, ` : ''}${a.p.rotulo}: ${formato(a.p.valor)} ${unidade}`}
+              accessibilityState={{ selected: ativo === a.chave }}
+              {...({ onKeyDown: teclar(posicao), ...(Platform.OS === 'web' ? { tabIndex: a.chave === paradaDoTab ? 0 : -1 } : null) } as object)}
+              onHoverIn={() => setAtivo(a.chave)}
+              onHoverOut={() => fecharSeFor(a.chave)}
+              onFocus={() => setAtivo(a.chave)}
+              onBlur={() => fecharSeFor(a.chave)}
+              // Enter e Espaço só abrem; o toque e o clique alternam.
+              onPress={(e) => (veioDoTeclado(e) ? setAtivo(a.chave) : setAtivo((atualmente) => (atualmente === a.chave ? null : a.chave)))}
               style={{
                 position: 'absolute',
-                left: x(i) - TAMANHO_TOQUE / 2,
-                top: y(p.valor) - TAMANHO_TOQUE / 2,
+                left: a.cx - TAMANHO_TOQUE / 2,
+                top: a.cy - TAMANHO_TOQUE / 2,
                 width: TAMANHO_TOQUE,
                 height: TAMANHO_TOQUE,
                 borderRadius: TAMANHO_TOQUE / 2,
@@ -166,13 +276,15 @@ export function GraficoLinha({ pontos, unidade, descricao, semUltimo, faixas, es
               }}
             />
           ))}
-          {ativo ? (
+          {atual ? (
             <View
               pointerEvents="none"
               accessibilityRole="summary"
+              onLayout={(e) => setMedida({ texto: textoDaDicaJunto, altura: e.nativeEvent.layout.height })}
               style={[
                 estilos.dica,
                 {
+                  width: larguraDica,
                   backgroundColor: cores.texto,
                   borderColor: cores.superficie,
                   left: dicaLeft,
@@ -180,15 +292,45 @@ export function GraficoLinha({ pontos, unidade, descricao, semUltimo, faixas, es
                 },
               ]}
             >
-              <Texto numberOfLines={1} numerico style={[estilos.textoDica, { color: cores.superficie }]}>
-                {textoDica}
-              </Texto>
+              {larga ? (
+                linhasDaDica.map((texto, i) => (
+                  <Texto key={i} numerico style={[estilos.textoDica, { color: cores.superficie }, i > 0 ? estilos.linhaDeApoio : null]}>
+                    {texto}
+                  </Texto>
+                ))
+              ) : (
+                <Texto numberOfLines={1} numerico style={[estilos.textoDica, { color: cores.superficie }]}>
+                  {linhasDaDica[0]}
+                </Texto>
+              )}
             </View>
           ) : null}
         </View>
       ) : (
         <View style={{ height: ALTURA }} />
       )}
+      {/* O ponto que mudou é anunciado; os valores continuam na tabela da tela, nunca só aqui. */}
+      <Texto style={estilos.soParaLeitor} accessibilityLiveRegion="polite">
+        {textoDaDicaJunto}
+      </Texto>
+      {serieB && pontosB.length > 0 ? (
+        <View style={estilos.legenda}>
+          {[
+            { rotulo: rotuloA, cor: linha, tracejada: false },
+            { rotulo: serieB.rotulo, cor: serieB.cor, tracejada: true },
+          ].map((s) =>
+            s.rotulo ? (
+              <View key={`${s.tracejada}`} style={estilos.itemDaLegenda}>
+                <Svg width={28} height={12} aria-hidden>
+                  <Line x1={1} x2={27} y1={6} y2={6} stroke={s.cor} strokeWidth={2.5} strokeDasharray={s.tracejada ? TRACEJADO : undefined} />
+                  <Circle cx={14} cy={6} r={4} fill={s.tracejada ? cores.superficie : s.cor} stroke={s.tracejada ? s.cor : cores.superficie} strokeWidth={s.tracejada ? 2 : 1.5} />
+                </Svg>
+                <Texto variante="pequeno" cor={cores.texto}>{s.rotulo}</Texto>
+              </View>
+            ) : null,
+          )}
+        </View>
+      ) : null}
       {bandas.length > 0 ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) }}>
           {[...new Map(bandas.map((f) => [f.rotulo, f.tom])).entries()].map(([rotulo, tom]) => (
@@ -199,6 +341,7 @@ export function GraficoLinha({ pontos, unidade, descricao, semUltimo, faixas, es
           ))}
         </View>
       ) : null}
+      {legendaDaEscala ? <Texto variante="pequeno">{legendaDaEscala}</Texto> : null}
       {semUltimo ? null : (
         <Texto variante="pequeno">
           Último: {formato(pontos[pontos.length - 1].valor)} {unidade} em {pontos[pontos.length - 1].rotulo}
@@ -211,7 +354,6 @@ export function GraficoLinha({ pontos, unidade, descricao, semUltimo, faixas, es
 const estilos = StyleSheet.create({
   dica: {
     position: 'absolute',
-    width: LARGURA_DICA,
     paddingHorizontal: espaco(1),
     paddingVertical: 4,
     borderRadius: 6,
@@ -223,6 +365,11 @@ const estilos = StyleSheet.create({
   textoDica: {
     fontFamily: fontes.semi,
     fontSize: 12,
+    lineHeight: LINHA_DICA,
     textAlign: 'center',
   },
+  linhaDeApoio: { fontFamily: fontes.normal },
+  soParaLeitor: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0 },
+  legenda: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(2), rowGap: espaco(0.5) },
+  itemDaLegenda: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75) },
 });

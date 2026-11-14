@@ -197,3 +197,143 @@ describe('GraficoLinha', () => {
     expect(left + 120).toBeLessThanOrEqual(largura);
   });
 });
+
+type Raiz = import('react-test-renderer').ReactTestRenderer;
+type Props = Parameters<typeof GraficoLinha>[0];
+
+function montarCom(extra: Partial<Props>, pontos = PONTOS_DE_TESTE) {
+  let raiz!: Raiz;
+  Renderer.act(() => {
+    raiz = Renderer.create(<GraficoLinha pontos={pontos} unidade="kg" descricao="Gráfico de teste" larguraInicial={500} {...extra} />);
+  });
+  return raiz;
+}
+
+const Svg = require('react-native-svg') as typeof import('react-native-svg');
+const caminhos = (raiz: Raiz) => raiz.root.findAllByType(Svg.Path);
+const linhas = (raiz: Raiz) => caminhos(raiz).filter((x) => x.props.fill === 'none');
+const areas = (raiz: Raiz) => caminhos(raiz).filter((x) => x.props.fillOpacity === 0.08);
+const rotulosDoEixo = (raiz: Raiz) =>
+  raiz.root.findAll((x) => x.props.textAnchor === 'end' && x.props.fontSize).map((x) => [x.props.children].flat()[0] as string);
+const temTexto = (raiz: Raiz, texto: string) => raiz.root.findAll((x) => x.props.children === texto).length > 0;
+const regiaoViva = (raiz: Raiz) => raiz.root.find((x) => x.props.accessibilityLiveRegion === 'polite' && typeof x.type !== 'string');
+const linhasDaDica = (raiz: Raiz) => {
+  const filhos = obterDica(raiz)?.props.children;
+  return [filhos].flat().map((t: { props: { children: string } }) => t.props.children);
+};
+
+describe('GraficoLinha: opções do guia (todas opcionais)', () => {
+  it('sem as props novas o desenho é o de sempre: curva suave, área, uma série, marcas redondas e sem legenda', () => {
+    const { marcasDoEixo } = require('../dominio/grafico') as typeof import('../dominio/grafico');
+    const raiz = montar();
+    expect(linhas(raiz)).toHaveLength(1);
+    expect(linhas(raiz)[0].props.d).toMatch(/C/);
+    expect(linhas(raiz)[0].props.strokeDasharray).toBeUndefined();
+    expect(areas(raiz)).toHaveLength(1);
+    expect(obterBotoes(raiz)).toHaveLength(3);
+    const folga = (95 - 78.2) * 0.15;
+    expect(rotulosDoEixo(raiz)).toEqual(marcasDoEixo(78.2 - folga, 95 + folga).map((m) => String(m).replace('.', ',')));
+    expect(temTexto(raiz, 'Direito')).toBe(false);
+    expect(regiaoViva(raiz).props.children).toBe('');
+  });
+
+  it('segmentos retos ligam os pontos sem curva', () => {
+    const d = linhas(montarCom({ segmentos: 'retos' }))[0].props.d as string;
+    expect(d).not.toMatch(/C/);
+    expect(d.match(/L/g)).toHaveLength(2);
+  });
+
+  it('semArea tira o preenchimento e deixa a linha', () => {
+    const raiz = montarCom({ semArea: true });
+    expect(areas(raiz)).toHaveLength(0);
+    expect(linhas(raiz)).toHaveLength(1);
+  });
+
+  it('segunda série tracejada, no mesmo eixo de datas, com pontos reais e legenda em texto', () => {
+    // Esquerdo sem a medida de 15/10: a data fica fora da série, sem ponto e sem valor inventado.
+    const esquerdo: PontoGrafico[] = [
+      { rotulo: '10/10', valor: 30, data: '2026-10-10' },
+      { rotulo: '20/10', valor: 31, data: '2026-10-20' },
+    ];
+    const raiz = montarCom({ segmentos: 'retos', rotuloA: 'Direito', serieB: { pontos: esquerdo, cor: '#654321', rotulo: 'Esquerdo' } });
+    const [a, b] = linhas(raiz);
+    expect(a.props.strokeDasharray).toBeUndefined();
+    expect(b.props.strokeDasharray).toBe('6 4');
+    expect(b.props.stroke).toBe('#654321');
+    expect((b.props.d as string).match(/L/g)).toHaveLength(1);
+    expect(temTexto(raiz, 'Direito')).toBe(true);
+    expect(temTexto(raiz, 'Esquerdo')).toBe(true);
+
+    const botoes = obterBotoes(raiz);
+    expect(botoes).toHaveLength(5);
+    const rotulos = botoes.map((x) => x.props.accessibilityLabel);
+    expect(rotulos).toContain('Esquerdo, 20/10: 31 kg');
+    expect(rotulos).toContain('Direito, 15/10: 95 kg');
+    // Mesmo X para a mesma data nas duas séries (a escala cobre 30 a 95 kg).
+    const left = (rotulo: string) => [botoes.find((x) => x.props.accessibilityLabel === rotulo)!.props.style].flat()[0].left;
+    expect(left('Esquerdo, 20/10: 31 kg')).toBe(left('Direito, 20/10: 78,2 kg'));
+    expect(left('Esquerdo, 10/10: 30 kg')).toBe(left('Direito, 10/10: 80,5 kg'));
+
+    // Sem texto da tela, a dica diz de qual série é.
+    Renderer.act(() => botoes.find((x) => x.props.accessibilityLabel === 'Esquerdo, 20/10: 31 kg')!.props.onHoverIn());
+    expect(linhasDaDica(raiz)).toEqual(['Esquerdo · 20/10 · 31 kg']);
+  });
+
+  it('ponto único: um alvo, um ponto e nenhum traço', () => {
+    const raiz = montarCom({ segmentos: 'retos' }, [PONTOS_DE_TESTE[0]]);
+    expect(obterBotoes(raiz)).toHaveLength(1);
+    expect(linhas(raiz)[0].props.d).not.toMatch(/[LC]/);
+  });
+
+  it('teclado: o foco mostra a dica da tela, as setas andam, Enter só abre e Esc fecha; a mudança vai à região viva', () => {
+    const textoDaDica = jest.fn((p: PontoGrafico, i: number) => [`${p.rotulo} · ${p.valor} kg`, i === 0 ? 'Primeira data' : `Desde 10/10`]);
+    const raiz = montarCom({ textoDaDica });
+    const botoes = () => obterBotoes(raiz);
+    // Uma parada só do Tab não vale no Jest (só na web); os três alvos existem e respondem ao teclado.
+    Renderer.act(() => botoes()[1].props.onFocus());
+    expect(linhasDaDica(raiz)).toEqual(['15/10 · 95 kg', 'Desde 10/10']);
+    expect(textoDaDica).toHaveBeenLastCalledWith(PONTOS_DE_TESTE[1], 1, 'A');
+    expect(regiaoViva(raiz).props.children).toBe('15/10 · 95 kg. Desde 10/10');
+
+    const tecla = (indice: number, key: string) => Renderer.act(() => botoes()[indice].props.onKeyDown({ key, preventDefault: () => undefined, stopPropagation: () => undefined }));
+    tecla(1, 'ArrowRight');
+    expect(linhasDaDica(raiz)[0]).toBe('20/10 · 78.2 kg');
+    tecla(2, 'Home');
+    expect(linhasDaDica(raiz)[0]).toBe('10/10 · 80.5 kg');
+    tecla(0, 'Escape');
+    expect(obterDica(raiz)).toBeNull();
+    expect(regiaoViva(raiz).props.children).toBe('');
+
+    // Enter/Espaço chegam ao onPress como clique sintético (detail 0) e como o evento de tecla: abrem e não alternam.
+    Renderer.act(() => botoes()[0].props.onPress({ nativeEvent: { detail: 0 } }));
+    Renderer.act(() => botoes()[0].props.onPress({ key: 'Enter' }));
+    expect(linhasDaDica(raiz)[0]).toBe('10/10 · 80.5 kg');
+    // O clique do mouse (detail 1) continua alternando.
+    Renderer.act(() => botoes()[0].props.onPress({ nativeEvent: { detail: 1 } }));
+    expect(obterDica(raiz)).toBeNull();
+  });
+
+  it('legenda da escala abaixo do gráfico e as duas pontas do eixo rotuladas', () => {
+    const legenda = 'Escala vertical: 75 a 100 kg · pontos = registros';
+    const raiz = montarCom({ legendaDaEscala: legenda, escala: { min: 75, max: 100 } });
+    expect(temTexto(raiz, legenda)).toBe(true);
+    const rotulos = rotulosDoEixo(raiz);
+    expect(rotulos[0]).toBe('75');
+    expect(rotulos[rotulos.length - 1]).toBe('100');
+
+    // Sem escala, a legenda também liga as pontas: o mínimo e o máximo calculados aparecem.
+    const folga = (95 - 78.2) * 0.15;
+    const semEscala = rotulosDoEixo(montarCom({ legendaDaEscala: legenda }));
+    expect(semEscala[0]).toBe(String(Math.round((78.2 - folga) * 10) / 10).replace('.', ','));
+    expect(semEscala[semEscala.length - 1]).toBe(String(Math.round((95 + folga) * 10) / 10).replace('.', ','));
+  });
+
+  it('destacarUltimo aumenta só o último ponto, sem cor nova e sem círculo a mais', () => {
+    const circulos = (raiz: Raiz) => raiz.root.findAllByType(Svg.Circle);
+    const normal = circulos(montar());
+    const destacado = circulos(montarCom({ destacarUltimo: true }));
+    expect(destacado).toHaveLength(normal.length);
+    expect(destacado.map((c) => c.props.r)).toEqual([4, 4, 5.5]);
+    expect(new Set(destacado.map((c) => c.props.fill))).toEqual(new Set(normal.map((c) => c.props.fill)));
+  });
+});
