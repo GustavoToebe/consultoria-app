@@ -5,14 +5,14 @@ import { FUNCOES_DE_DESTAQUE } from '../dominio/destaque';
 import { coresDoInterruptor } from './interruptor';
 import { coresDoMarcar } from './marcar';
 import { CORES_DO_PERFIL } from '../dominio/perfilDaComunidade';
-import { CAMADA_DA_FOTO, MARCA_NEUTRA, PALETAS, contraste, coresDeDestaque, corDoTomDoPerfil, marcaParaTexto, textoSobre, tingido, type Cores } from '../tema/tokens';
+import { CAMADA_DA_FOTO, MARCA_NEUTRA, PALETAS, contraste, coresDeDestaque, corDoTomDoPerfil, marcaParaTexto, textoSobre, tingido, type Cores, type VarianteDoTema } from '../tema/tokens';
 
 /**
  * Pares de cor que as peças comuns de `ui/` usam depois do passo 1 da atualização visual (30/10), conferidos em todos os
  * temas, com contraste alto e com "Bordas reforçadas": texto ≥ 4,5:1 e borda de controle ≥ 3:1 (WCAG 1.4.3 e 1.4.11).
  * O Jest não monta as peças (o lucide é ESM); quem mudar uma cor nelas atualiza o par aqui.
  */
-const BASES: [string, Cores, boolean][] = Object.entries(PALETAS).map(([codigo, p]) => [codigo, p.cores, p.modo === 'ESCURO']);
+const BASES: [string, Cores, boolean, VarianteDoTema][] = Object.entries(PALETAS).map(([codigo, p]) => [codigo, p.cores, p.modo === 'ESCURO', p.variante]);
 const VARIANTES: [string, Cores][] = BASES.flatMap(([nome, base, escuro]) => [false, true].flatMap((alto) => [false, true].map((reforcadas): [string, Cores] => [
   `${nome}${alto ? ', contraste alto' : ''}${reforcadas ? ', bordas reforçadas' : ''}`,
   coresComBordasReforcadas(coresComContraste(base, alto ? 'ALTO' : 'PADRAO', escuro), reforcadas),
@@ -183,13 +183,13 @@ describe('camada da foto de perfil na ficha: a mesma nos temas, por cima de qual
  * as cinco cores do perfil pintam só anel, amostra e quadradinho (marcador ≥ 3:1, WCAG 1.4.11), nunca texto, em todos os
  * temas, com contraste alto e bordas reforçadas. O dia sem treino é só o contorno `borda`, e a forma (cheio × vazio) já distingue.
  */
-describe.each(BASES.flatMap(([nome, base, escuro]) => [false, true].map((alto): [string, Cores, boolean] => [
+describe.each(BASES.flatMap(([nome, base, escuro, variante]) => [false, true].map((alto): [string, Cores, VarianteDoTema] => [
   `${nome}${alto ? ', contraste alto e bordas reforçadas' : ''}`,
   alto ? coresComBordasReforcadas(coresComContraste(base, 'ALTO', escuro), true) : base,
-  escuro,
-])))('cores do perfil no tema %s', (_nome, cores, escuro) => {
+  variante,
+])))('cores do perfil no tema %s', (_nome, cores, variante) => {
   it.each(CORES_DO_PERFIL.map((c) => [c.nome, c.tom] as const))('%s: anel, amostra e dia treinado ≥ 3:1 sobre o fundo e as superfícies', (_cor, tom) => {
-    for (const s of [cores.fundo, cores.superficie, cores.superficie2, cores.superficie3]) expect(contraste(corDoTomDoPerfil(tom, escuro), s)).toBeGreaterThanOrEqual(3);
+    for (const s of [cores.fundo, cores.superficie, cores.superficie2, cores.superficie3]) expect(contraste(corDoTomDoPerfil(tom, variante), s)).toBeGreaterThanOrEqual(3);
   });
 });
 
@@ -252,10 +252,10 @@ describe.each(VARIANTES)('telas do aluno (reunião de 30/10) no tema %s', (_nome
   });
 });
 
-describe.each(BASES.flatMap(([nome, base, escuro]) => [false, true].map((alto): [string, Cores, boolean] => [
-  `${nome}${alto ? ', contraste alto' : ''}`, coresComContraste(base, alto ? 'ALTO' : 'PADRAO', escuro), escuro,
-])))('NumeroDeDestaque no tema %s', (_nome, cores, escuro) => {
-  const destaques = coresDeDestaque(cores, escuro);
+describe.each(BASES.flatMap(([nome, base, escuro, variante]) => [false, true].map((alto): [string, Cores, VarianteDoTema] => [
+  `${nome}${alto ? ', contraste alto' : ''}`, coresComContraste(base, alto ? 'ALTO' : 'PADRAO', escuro), variante,
+])))('NumeroDeDestaque no tema %s', (_nome, cores, variante) => {
+  const destaques = coresDeDestaque(cores, variante);
 
   it('com destaque: número e faixa na cor da função, fundo tonalizado; o número passa 4,5:1 nele e no hover', () => {
     for (const f of FUNCOES_DE_DESTAQUE) {

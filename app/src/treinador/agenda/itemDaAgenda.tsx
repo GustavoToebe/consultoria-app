@@ -128,8 +128,8 @@ export function toqueDoItem(item: ItemDoCalendario, meus: boolean, aoAbrir: AoAb
 
 /** A cor da agenda no tema em uso (o marcador; o texto do item fica na cor do texto). */
 export function useCorDaAgenda() {
-  const { modo } = useTema();
-  return (cor: CorDaAgenda | string) => corDaAgenda(cor, modo === 'ESCURO');
+  const { variante } = useTema();
+  return (cor: CorDaAgenda | string) => corDaAgenda(cor, variante);
 }
 
 /**

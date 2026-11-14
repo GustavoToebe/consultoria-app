@@ -123,25 +123,60 @@ export const CLARO: Cores = {
 
 /**
  * "Claro areia" (D2 da frente "Clareza do treinador", 30/10): a mesma regra do claro, com fundo e faixas em tom areia,
- * a pedido do Gustavo na reunião de 29/10. Vale como opção nas Preferências e como paleta da marca; o padrão continua o claro neutro. Status,
- * fases, foco e texto são os do claro (conferidos sobre estas superfícies em `tokens.test.ts`).
+ * a pedido do Gustavo na reunião de 29/10. Vale como opção nas Preferências e como paleta da marca; o padrão continua o claro neutro. Fases,
+ * foco e texto são os do claro.
+ *
+ * 14/11: areia mais escura e acinzentada, do exemplo que o Saraiva aprovou (cinza-areia na página, cartão em branco quente,
+ * faixa do título um tom abaixo do cartão; valores tirados de uma imagem comprimida e ajustados só no que o contraste pede).
+ * Sobre essas superfícies os status do claro caem a 4,1–4,4:1 (e menos ainda sob a caixa de aviso, tingida sobre a página),
+ * então os quatro são escurecidos aqui no mínimo para fechar 4,5:1, as quatro fases fecham 3:1 e os fundos dos selos são
+ * tingidos sobre o cartão novo, como na `paletaEscura`. As cores fixas de agenda, perfil, identificação e destaque ganharam a
+ * variante `areia` pelo mesmo motivo (`VarianteDoTema`).
  */
+const SUPERFICIE_AREIA = '#E6E5E1';
+const SUCESSO_AREIA = '#125830';
+const ATENCAO_AREIA = '#6C460D';
+const PERIGO_AREIA = '#961717';
 export const AREIA: Cores = {
   ...CLARO,
-  fundo: '#F3F1EB',
-  painel: '#F3F1EB',
-  superficie: '#FFFFFF',
-  superficie2: '#F9F7F2',
-  superficie3: '#E7E3DB',
-  faixaForte: '#DDD6CA',
-  divisor: '#DDD8CF',
-  borda: '#B9B3A9',
-  campo: '#FFFFFF',
-  bordaCampo: '#77736B',
+  // O exemplo tinha #CAC7C0; um passo mais claro para o Âmbar e o Verde da Marca seguirem a 3:1 da página (`paletas.test.ts`).
+  fundo: '#CDCAC3',
+  painel: '#CDCAC3',
+  superficie: SUPERFICIE_AREIA,
+  superficie2: '#D9D6CF',
+  // Acompanha o fundo: precisa de 1,1:1 contra ele (`tokens.test.ts`).
+  superficie3: '#D7D4CD',
+  faixaForte: '#CCC9C1',
+  divisor: '#B0ACA2',
+  borda: '#8E8A80',
+  campo: '#F4F3F0',
+  bordaCampo: '#625E56',
+  // O do claro (#52525B) cai a 4,2:1 sobre a série feita (verde translúcido sobre `superficie2`); um passo mais escuro fecha 4,5:1.
+  textoSuave: '#4C4C54',
+  sucesso: SUCESSO_AREIA,
+  atencao: ATENCAO_AREIA,
+  perigo: PERIGO_AREIA,
+  neutro: '#4D4D53',
+  sucessoSuave: tingido(SUCESSO_AREIA, SUPERFICIE_AREIA),
+  atencaoSuave: tingido(ATENCAO_AREIA, SUPERFICIE_AREIA),
+  perigoSuave: tingido(PERIGO_AREIA, SUPERFICIE_AREIA),
+  perigoFundo: PERIGO_AREIA,
+  // Mesmo tom e mínimo mais escuro para fechar 3:1 sobre o cartão novo (`tokens.test.ts`).
+  fase1: '#AC5E76',
+  fase2: '#537E79',
+  fase3: '#957029',
+  fase4: '#6973A9',
 };
 
-/** Modo de uma paleta: decide a barra de status, as paletas das agendas e da identificação e o esquema do Uniwind. */
+/** Modo de uma paleta: decide a barra de status e o esquema do Uniwind. */
 export type ModoDoTema = 'ESCURO' | 'CLARO';
+
+/**
+ * Variante das cores fixas (agenda, perfil, identificação, destaque), que ficam fora de `Cores`: `claro` e `escuro` seguem o
+ * modo; `areia` é a do "Claro areia", cujas superfícies mais escuras pedem as mesmas cores um passo mais escuras. Vem da
+ * paleta em uso (`PALETAS[...].variante`, `useTema().variante`): nenhuma tela decide a cor por conta própria.
+ */
+export type VarianteDoTema = 'claro' | 'areia' | 'escuro';
 
 /**
  * Paleta escura a partir do "chão" dela: texto e situação do Escuro (fixos, nunca da marca), `painel` a 45% do fundo ao
@@ -223,17 +258,17 @@ export const CEU: Cores = { ...CLARO, fundo: '#EBF2FC', painel: '#EBF2FC', super
 export const ROSA: Cores = { ...CLARO, fundo: '#FAEFF3', painel: '#FAEFF3', superficie3: '#F8DCEA' };
 
 /** Código da paleta (= `Tema` da API, o `temaPadrao` da consultoria) → nome na tela, cores e modo. Fonte única do modo. */
-export const PALETAS: Record<Tema, { nome: string; cores: Cores; modo: ModoDoTema }> = {
-  ESCURO: { nome: 'Escuro', cores: ESCURO, modo: 'ESCURO' },
-  MEIA_NOITE: { nome: 'Meia-noite', cores: MEIA_NOITE, modo: 'ESCURO' },
-  AMEIXA: { nome: 'Ameixa', cores: AMEIXA, modo: 'ESCURO' },
-  OCEANO: { nome: 'Oceano', cores: OCEANO, modo: 'ESCURO' },
-  CAFE: { nome: 'Café', cores: CAFE, modo: 'ESCURO' },
-  CLARO: { nome: 'Claro', cores: CLARO, modo: 'CLARO' },
-  AREIA: { nome: 'Areia', cores: AREIA, modo: 'CLARO' },
-  LAVANDA: { nome: 'Lavanda', cores: LAVANDA, modo: 'CLARO' },
-  CEU: { nome: 'Céu', cores: CEU, modo: 'CLARO' },
-  ROSA: { nome: 'Rosa', cores: ROSA, modo: 'CLARO' },
+export const PALETAS: Record<Tema, { nome: string; cores: Cores; modo: ModoDoTema; variante: VarianteDoTema }> = {
+  ESCURO: { nome: 'Escuro', cores: ESCURO, modo: 'ESCURO', variante: 'escuro' },
+  MEIA_NOITE: { nome: 'Meia-noite', cores: MEIA_NOITE, modo: 'ESCURO', variante: 'escuro' },
+  AMEIXA: { nome: 'Ameixa', cores: AMEIXA, modo: 'ESCURO', variante: 'escuro' },
+  OCEANO: { nome: 'Oceano', cores: OCEANO, modo: 'ESCURO', variante: 'escuro' },
+  CAFE: { nome: 'Café', cores: CAFE, modo: 'ESCURO', variante: 'escuro' },
+  CLARO: { nome: 'Claro', cores: CLARO, modo: 'CLARO', variante: 'claro' },
+  AREIA: { nome: 'Areia', cores: AREIA, modo: 'CLARO', variante: 'areia' },
+  LAVANDA: { nome: 'Lavanda', cores: LAVANDA, modo: 'CLARO', variante: 'claro' },
+  CEU: { nome: 'Céu', cores: CEU, modo: 'CLARO', variante: 'claro' },
+  ROSA: { nome: 'Rosa', cores: ROSA, modo: 'CLARO', variante: 'claro' },
 };
 
 /**
@@ -253,10 +288,16 @@ export const modoDaPaleta = (codigo: string | null | undefined): ModoDoTema => p
  */
 export const CHAVES_DA_AGENDA: readonly CorDaAgenda[] = ['AZUL', 'INDIGO', 'VIOLETA', 'MAGENTA', 'TURQUESA', 'ARDOSIA', 'TERRA', 'OLIVA'];
 
-export const PALETA_DA_AGENDA: Record<'claro' | 'escuro', Record<CorDaAgenda, string>> = {
+export const PALETA_DA_AGENDA: Record<VarianteDoTema, Record<CorDaAgenda, string>> = {
   claro: {
     AZUL: '#1B6FD6', INDIGO: '#4B3FBF', VIOLETA: '#9333B8', MAGENTA: '#C0306F',
     TURQUESA: '#0B7F8A', ARDOSIA: '#51677E', TERRA: '#A64F43', OLIVA: '#758418',
+  },
+  // Areia (14/11): AZUL, TURQUESA e OLIVA, um passo mais escuras (3:1 sobre a página mais escura); TERRA, um pouco mais clara,
+  // porque o vermelho de perigo escurecido da Areia a deixava a 22,6 de distância dele (piso 25).
+  areia: {
+    AZUL: '#1B6ED4', INDIGO: '#4B3FBF', VIOLETA: '#9333B8', MAGENTA: '#C0306F',
+    TURQUESA: '#0B7C87', ARDOSIA: '#51677E', TERRA: '#A25346', OLIVA: '#697716',
   },
   escuro: {
     AZUL: '#4A90F7', INDIGO: '#8B7CF0', VIOLETA: '#C07DE8', MAGENTA: '#E8579F',
@@ -264,9 +305,9 @@ export const PALETA_DA_AGENDA: Record<'claro' | 'escuro', Record<CorDaAgenda, st
   },
 };
 
-/** Cor do marcador de uma agenda pela chave e pelo tema em uso; chave desconhecida cai em ARDOSIA, a mais neutra. */
-export function corDaAgenda(chave: string | null | undefined, escuro: boolean): string {
-  const paleta = PALETA_DA_AGENDA[escuro ? 'escuro' : 'claro'];
+/** Cor do marcador de uma agenda pela chave e pela variante do tema em uso; chave desconhecida cai em ARDOSIA, a mais neutra. */
+export function corDaAgenda(chave: string | null | undefined, variante: VarianteDoTema): string {
+  const paleta = PALETA_DA_AGENDA[variante];
   return (CHAVES_DA_AGENDA as readonly string[]).includes(chave ?? '') ? paleta[chave as CorDaAgenda] : paleta.ARDOSIA;
 }
 
@@ -279,8 +320,9 @@ export function corDaAgenda(chave: string | null | undefined, escuro: boolean): 
  */
 export type CorSoDoPerfil = 'LARANJA';
 
-export const PALETA_SO_DO_PERFIL: Record<'claro' | 'escuro', Record<CorSoDoPerfil, string>> = {
+export const PALETA_SO_DO_PERFIL: Record<VarianteDoTema, Record<CorSoDoPerfil, string>> = {
   claro: { LARANJA: '#D15700' },
+  areia: { LARANJA: '#BC4E00' },
   escuro: { LARANJA: '#FF7A1A' },
 };
 
@@ -288,9 +330,9 @@ export const PALETA_SO_DO_PERFIL: Record<'claro' | 'escuro', Record<CorSoDoPerfi
 export type TomDoPerfil = CorDaAgenda | CorSoDoPerfil;
 
 /** Cor do anel e da amostra do perfil no tema em uso; o que não é só do perfil sai da paleta das agendas. */
-export function corDoTomDoPerfil(tom: TomDoPerfil, escuro: boolean): string {
-  const so = PALETA_SO_DO_PERFIL[escuro ? 'escuro' : 'claro'];
-  return Object.hasOwn(so, tom) ? so[tom as CorSoDoPerfil] : corDaAgenda(tom, escuro);
+export function corDoTomDoPerfil(tom: TomDoPerfil, variante: VarianteDoTema): string {
+  const so = PALETA_SO_DO_PERFIL[variante];
+  return Object.hasOwn(so, tom) ? so[tom as CorSoDoPerfil] : corDaAgenda(tom, variante);
 }
 
 /**
@@ -305,8 +347,10 @@ export type ChaveDeIdentificacao = 'CIANO' | 'AZUL' | 'INDIGO' | 'VIOLETA' | 'MA
 
 export const CHAVES_DE_IDENTIFICACAO: readonly ChaveDeIdentificacao[] = ['CIANO', 'AZUL', 'INDIGO', 'VIOLETA', 'MAGENTA'];
 
-export const PALETA_DE_IDENTIFICACAO: Record<'claro' | 'escuro', Record<ChaveDeIdentificacao, string>> = {
+export const PALETA_DE_IDENTIFICACAO: Record<VarianteDoTema, Record<ChaveDeIdentificacao, string>> = {
   claro: { CIANO: '#00698A', AZUL: '#1A5CBA', INDIGO: '#4B3FBF', VIOLETA: '#8A2DB0', MAGENTA: '#A3237F' },
+  // Areia (14/11): ciano e azul, um passo mais escuros para fechar 4,5:1 sobre o cartão, a faixa e o selo novos.
+  areia: { CIANO: '#006483', AZUL: '#1959B4', INDIGO: '#4B3FBF', VIOLETA: '#8A2DB0', MAGENTA: '#A3237F' },
   escuro: { CIANO: '#3CC3D6', AZUL: '#62A0F8', INDIGO: '#A196F5', VIOLETA: '#CF8DEE', MAGENTA: '#F07AC8' },
 };
 
@@ -320,8 +364,8 @@ export interface CorDeIdentificacao {
  * As cinco cores de identificação para as cores do tema em uso: `cor` da paleta do modo e `fundo` = `tingido` da cor sobre
  * a `superficie` (o mesmo fundo do selo com ícone). `useTema().identificacao` entrega o resultado.
  */
-export function coresDeIdentificacao(cores: Cores, escuro: boolean): Record<ChaveDeIdentificacao, CorDeIdentificacao> {
-  const paleta = PALETA_DE_IDENTIFICACAO[escuro ? 'escuro' : 'claro'];
+export function coresDeIdentificacao(cores: Cores, variante: VarianteDoTema): Record<ChaveDeIdentificacao, CorDeIdentificacao> {
+  const paleta = PALETA_DE_IDENTIFICACAO[variante];
   const resultado = {} as Record<ChaveDeIdentificacao, CorDeIdentificacao>;
   for (const chave of CHAVES_DE_IDENTIFICACAO) {
     resultado[chave] = { cor: paleta[chave], fundo: tingido(paleta[chave], cores.superficie) };
@@ -335,13 +379,16 @@ export function coresDeIdentificacao(cores: Cores, escuro: boolean): Record<Chav
  * as bordas reforçadas não mexem nas superfícies. Verde, âmbar e vermelho são os da situação (`sucesso`, `atencao`,
  * `perigo`), os mesmos do `Selo` (D13: a mesma informação com a mesma cor). Não substituem as cores de categoria.
  */
-export const PALETA_DE_DESTAQUE: Record<'claro' | 'escuro', Record<'azul' | 'ciano' | 'violeta', string>> = {
+export const PALETA_DE_DESTAQUE: Record<VarianteDoTema, Record<'azul' | 'ciano' | 'violeta', string>> = {
   claro: { azul: '#1D4ED8', ciano: '#0E7490', violeta: '#6D28D9' },
+  // Areia (14/11): 4,5:1 sobre a página, o cartão e o fundo tonalizado novos; o azul fica mais escuro que o ciano e o violeta
+  // (que já estão no limite de 4,5:1) para o par de barras azul × ciano manter 1,2:1.
+  areia: { azul: '#173EAB', ciano: '#0B5D73', violeta: '#6A27D2' },
   escuro: { azul: '#60A5FA', ciano: '#67E8F9', violeta: '#C4B5FD' },
 };
 
 /** Quanto do destaque entra no fundo tonalizado (D4): mistura composta sobre a superfície, nunca opacidade na peça. */
-export const TINTA_DO_DESTAQUE = { claro: 0.06, escuro: 0.08 } as const;
+export const TINTA_DO_DESTAQUE = { claro: 0.06, areia: 0.06, escuro: 0.08 } as const;
 
 /** Um destaque resolvido para o tema: `cor` (número e faixa), `fundo` (sobre a `superficie`) e `fundoSobre` (hover, sobre a `superficie2`). */
 export interface CorDeDestaque {
@@ -351,9 +398,9 @@ export interface CorDeDestaque {
 }
 
 /** Os seis destaques para as cores do tema em uso; o contraste do número sobre cada fundo é medido em `tokens.test.ts`. */
-export function coresDeDestaque(cores: Cores, escuro: boolean): Record<FuncaoDeDestaque, CorDeDestaque> {
-  const p = PALETA_DE_DESTAQUE[escuro ? 'escuro' : 'claro'];
-  const t = TINTA_DO_DESTAQUE[escuro ? 'escuro' : 'claro'];
+export function coresDeDestaque(cores: Cores, variante: VarianteDoTema): Record<FuncaoDeDestaque, CorDeDestaque> {
+  const p = PALETA_DE_DESTAQUE[variante];
+  const t = TINTA_DO_DESTAQUE[variante];
   const de = (cor: string): CorDeDestaque => ({ cor, fundo: misturar(cores.superficie, cor, t), fundoSobre: misturar(cores.superficie2, cor, t) });
   return { azul: de(p.azul), ciano: de(p.ciano), violeta: de(p.violeta), verde: de(cores.sucesso), ambar: de(cores.atencao), vermelho: de(cores.perigo) };
 }

@@ -183,8 +183,19 @@ Uso de cada nível (11/11):
   claras são o mesmo tom) é tingida e o cartão e o campo são brancos, sem sombra: o cartão se destaca pelo tom (≥ 1,1:1)
   e o campo pelo contorno `bordaCampo`, pelo menos o dobro do contraste do `divisor` do cartão. A faixa do título e as
   linhas (`superficie2`) ficam entre a página e o cartão. Valores de página / faixa / seleção: Claro `#F2F2F4` /
-  `#F8F8F9` / `#E7E7EA`; Areia `#F3F1EB` / `#F9F7F2` / `#E7E3DB`; Lavanda `#EFF0FA` / `#F8F8F9` / `#E6E0FF`; Céu
-  `#EBF2FC` / `#F8F8F9` / `#D5E5FB`; Rosa `#FAEFF3` / `#F8F8F9` / `#F8DCEA`. Cartão e campo `#FFFFFF` nas cinco.
+  `#F8F8F9` / `#E7E7EA`; Areia (14/11, ver abaixo) `#CDCAC3` / `#D9D6CF` / `#D7D4CD`; Lavanda `#EFF0FA` / `#F8F8F9` / `#E6E0FF`; Céu
+  `#EBF2FC` / `#F8F8F9` / `#D5E5FB`; Rosa `#FAEFF3` / `#F8F8F9` / `#F8DCEA`. Cartão e campo `#FFFFFF` nas quatro que não são a Areia.
+- **Areia (14/11, pedido do Saraiva):** areia mais escura e acinzentada, de um exemplo que ele aprovou (valores tirados de
+  uma imagem comprimida, ajustados só no que o contraste pede). Página (`fundo` e `painel`) `#CDCAC3` (o exemplo tinha
+  `#CAC7C0`; o Âmbar e o Verde da Marca precisam de 3:1 da página), cartão `#E6E5E1` (branco quente, não branco puro),
+  `superficie2` `#D9D6CF`, `superficie3` (faixa, seleção) `#D7D4CD`, `faixaForte` `#CCC9C1`, campo `#F4F3F0`, `divisor`
+  `#B0ACA2`, `borda` `#8E8A80`, `bordaCampo` (também o interruptor desligado) `#625E56`, `textoSuave` `#4C4C54`. A cor da marca
+  não muda. Status e fases ficam um passo mais escuros só nessa paleta (`sucesso` `#125830`, `atencao` `#6C460D`, `perigo`
+  `#961717`, `neutro` `#4D4D53`, fases `#AC5E76` `#537E79` `#957029` `#6973A9`) e os fundos dos selos são tingidos sobre o cartão novo.
+  As cores fixas fora de `Cores` ganharam a coluna `areia` (`VarianteDoTema`; só o que os pisos pediam): agenda AZUL `#1B6ED4`,
+  TURQUESA `#0B7C87`, OLIVA `#697716`, TERRA `#A25346`; perfil LARANJA `#BC4E00`; identificação CIANO `#006483`, AZUL `#1959B4`;
+  destaque azul `#173EAB`, ciano `#0B5D73`, violeta `#6A27D2`. Contraste alto: o `textoSuave` do claro (`#3F3F46`) é escurecido
+  na conta até 7:1 sobre fundo, painel, `superficie`, `superficie2`, `superficie3` e `faixaForte`; nas claras de sempre segue `#3F3F46`.
 
 - 24 px entre blocos, 16 px dentro do cartão.
 - Toque mínimo de 44 px (48 nas linhas de lista e caixas de seleção); fonte mínima de 12.
@@ -192,7 +203,7 @@ Uso de cada nível (11/11):
   meta 13–14 (`pequeno` 13/18), selo 12. Rótulo de campo sempre visível; o placeholder nunca o substitui.
 - **Movimento:** transições de 120–220 ms só em cor, borda e o "afundar" do botão (`translateY 1` + `scale 0,98`),
   desligadas com `useMovimentoReduzido`; nada segura a ação.
-- Temas disponíveis: **claro** (padrão), **escuro**, **claro areia** (opção pedida na reunião de 29/10) e
+- Temas disponíveis: **claro** (padrão), **escuro**, **claro areia** (opção pedida na reunião de 29/10; areia mais escura desde 14/11) e
   **contraste alto**. O contraste de cada combinação é conferido por teste (`tema/tokens.test.ts`): texto ≥ 4,5:1 e
   borda de campo ≥ 3:1.
 - **Contraste alto (`dominio/preferencias.coresComContraste`, 13/11):** `borda` (contorno de linha, item e controle)

@@ -16,7 +16,7 @@ jest.mock('../api/comunidade', () => ({ meuPerfilDaComunidade: jest.fn(), salvar
 jest.mock('../api/rotas', () => ({ baixarFotoDePerfil: jest.fn() }));
 jest.mock('../offline/AlunoProvider', () => ({ useAluno: () => ({ online: true }) }));
 jest.mock('../sessao/SessaoProvider', () => ({ useSessao: () => ({ usuario: { nome: 'Aluno Fictício' } }) }));
-jest.mock('../tema/TemaProvider', () => ({ useTema: () => ({ cores: require('../tema/tokens').CLARO, modo: 'CLARO' }) }));
+jest.mock('../tema/TemaProvider', () => ({ useTema: () => ({ cores: require('../tema/tokens').CLARO, modo: 'CLARO', variante: 'claro' }) }));
 jest.mock('./versaoDaFotoDePerfil', () => ({ useVersaoDaFotoDePerfil: () => 0 }));
 jest.mock('../ui/Aviso', () => ({ useAviso: () => ({ avisar: mockAvisar }) }));
 jest.mock('../ui/RolagemComTopo', () => ({ useRolagem: () => ({ rolarAte: jest.fn() }) }));

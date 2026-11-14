@@ -68,7 +68,7 @@ const aba = (page: Page, nome: string) => page.getByRole('tab', { name: nome, ex
 
 const rgb = (hex: string) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`;
 const corDe = (l: Locator) => l.evaluate((e) => getComputedStyle(e).color);
-const AZUL_CLARO = coresDeDestaque(CLARO, false).azul.cor;
+const AZUL_CLARO = coresDeDestaque(CLARO, 'claro').azul.cor;
 const temaClaro = (page: Page) =>
   page.addInitScript((id) => localStorage.setItem(`treinos:${id}:preferencias`, JSON.stringify({ tema: 'CLARO' })), TREINADOR.id);
 

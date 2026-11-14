@@ -1,6 +1,6 @@
 import { PERIODOS_DA_LISTA, type PeriodoDaLista } from './listaDeCompras';
 import { BLOCOS_DO_PAINEL, ehBlocoDoPainel, ehTamanhoDoBloco, PAINEL_DO_INICIO_PADRAO, type PainelDoInicioPreferido } from './painelBlocos';
-import { BORDA_BLOCO, BORDA_ITEM, type Cores } from '../tema/tokens';
+import { BORDA_BLOCO, BORDA_ITEM, contraste, misturar, type Cores } from '../tema/tokens';
 import { UNIDADES_DE_CARGA, type UnidadeDeCarga } from './unidadeDeCarga';
 
 /**
@@ -208,8 +208,18 @@ export function coresComContraste(cores: Cores, contraste: Contraste, escuro: bo
     ...cores,
     borda: cores.bordaCampo,
     divisor: cores.borda,
-    textoSuave: escuro ? '#C4C4CC' : '#3F3F46',
+    textoSuave: escuro ? '#C4C4CC' : textoSuaveClaroDeContrasteAlto(cores),
   };
+}
+
+const TEXTO_SUAVE_CLARO_ALTO = '#3F3F46';
+
+/** `#3F3F46`, ou o mínimo mais escuro que ainda chega a 7:1 sobre a superfície mais escura (a Areia de 14/11 pede). */
+function textoSuaveClaroDeContrasteAlto(c: Cores): string {
+  const superficies = [c.fundo, c.painel, c.superficie, c.superficie2, c.superficie3, c.faixaForte];
+  let cor = TEXTO_SUAVE_CLARO_ALTO;
+  for (let t = 0.04; t <= 0.8 && superficies.some((s) => contraste(cor, s) < 7.05); t += 0.04) cor = misturar(TEXTO_SUAVE_CLARO_ALTO, '#000000', t);
+  return cor;
 }
 
 /**

@@ -151,6 +151,21 @@ describe('preferências pessoais', () => {
     expect(coresComContraste(base, 'PADRAO', escuro)).toBe(base);
   });
 
+  // 14/11: a Areia ficou mais escura e o #3F3F46 fixo do Claro caiu a ~6,2:1 sobre ela; a conta vale para toda superfície em que o
+  // texto secundário aparece, não só para uma delas.
+  it('contraste alto na Areia: textoSuave ≥ 7:1 sobre fundo, painel, superficie, superficie2, superficie3 e faixaForte', () => {
+    const alto = coresComContraste(PALETAS.AREIA.cores, 'ALTO', false);
+    for (const s of [alto.fundo, alto.painel, alto.superficie, alto.superficie2, alto.superficie3, alto.faixaForte]) {
+      expect(contraste(alto.textoSuave, s)).toBeGreaterThanOrEqual(7);
+    }
+  });
+
+  it('contraste alto no Claro (e nas outras paletas claras): o texto secundário continua #3F3F46', () => {
+    for (const codigo of ['CLARO', 'LAVANDA', 'CEU', 'ROSA'] as const) {
+      expect(coresComContraste(PALETAS[codigo].cores, 'ALTO', false).textoSuave).toBe('#3F3F46');
+    }
+  });
+
   it.each(Object.entries(PALETAS).map(([codigo, p]) => [codigo, p.cores, p.modo === 'ESCURO'] as const))('contorno do cartão no tema %s: divisor no padrão; no contraste alto ≥ 3:1 contra a página e o cartão, e a divisória fica na borda original', (_nome, base, escuro) => {
     expect(contornoDoCartao(base, 'PADRAO')).toBe(base.divisor);
     for (const reforcadas of [false, true]) {

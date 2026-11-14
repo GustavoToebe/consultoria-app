@@ -47,7 +47,7 @@ const AMOSTRA = 22;
 export function CartaoMeuPerfil() {
   const { online } = useAluno();
   const { usuario } = useSessao();
-  const { cores, modo } = useTema();
+  const { cores, variante } = useTema();
   const { avisar } = useAviso();
   const { rolarAte } = useRolagem();
   const { secao } = useLocalSearchParams<{ secao?: string }>();
@@ -81,7 +81,7 @@ export function CartaoMeuPerfil() {
   const destaques = edicao.destaques ?? lido.destaques;
   const cor = corDoPerfil(edicao.cor ?? lido.cor);
   const moldura = molduraDoPerfil(edicao.moldura ?? lido.moldura);
-  const tom = corDoTomDoPerfil(cor.tom, modo === 'ESCURO');
+  const tom = corDoTomDoPerfil(cor.tom, variante);
   const mudou = perfilMudou(lido, edicao);
   const nota = notaDoReservar(lido, edicao);
   const titulos = new Map(lido.opcoesDeDestaque.map((c) => [c.tipo, c.titulo]));
@@ -193,7 +193,7 @@ export function CartaoMeuPerfil() {
           <GradeDeOpcoes rotulo="Cor de destaque" descricao="Pinta a moldura da sua foto.">
             {CORES_DO_PERFIL.map((c) => (
               <OpcaoCartao key={c.valor} titulo={c.nome} selecionada={cor.valor === c.valor} aoEscolher={() => mudar({ cor: c.valor })}
-                amostra={<View style={[estilos.amostra, { backgroundColor: corDoTomDoPerfil(c.tom, modo === 'ESCURO'), borderColor: cores.borda }]} />} />
+                amostra={<View style={[estilos.amostra, { backgroundColor: corDoTomDoPerfil(c.tom, variante), borderColor: cores.borda }]} />} />
             ))}
           </GradeDeOpcoes>
           {erroDoGrupo('cor')}

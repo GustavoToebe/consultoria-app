@@ -75,10 +75,10 @@ export function FolhaPerfilDoColega({ autorId, online, aoFechar }: { autorId: st
 }
 
 function PerfilAberto({ perfil, aoEditar }: { perfil: PerfilDaComunidade; aoEditar: () => void }) {
-  const { cores, modo } = useTema();
+  const { cores, variante } = useTema();
   const reservadoParaMim = soONome(perfil);
   // Reservado para quem vê: nada da cor nem da moldura (a API nem manda); a faixa da capa fica neutra.
-  const tom = reservadoParaMim ? cores.borda : corDoTomDoPerfil(corDoPerfil(perfil.cor).tom, modo === 'ESCURO');
+  const tom = reservadoParaMim ? cores.borda : corDoTomDoPerfil(corDoPerfil(perfil.cor).tom, variante);
   const atividade = perfil.atividade;
 
   return (

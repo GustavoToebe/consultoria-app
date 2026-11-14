@@ -9,8 +9,8 @@ import { Texto } from './Texto';
 
 /** Os destaques no tema em uso (também para gráficos: a mesma cor do cartão, D13). */
 export function useDestaques() {
-  const { cores, modo } = useTema();
-  return useMemo(() => coresDeDestaque(cores, modo !== 'CLARO'), [cores, modo]);
+  const { cores, variante } = useTema();
+  return useMemo(() => coresDeDestaque(cores, variante), [cores, variante]);
 }
 
 /** A aparência no tema em uso. Para peça tocável que monta o próprio contêiner (`treinador/painel/CartaoMini`). */

@@ -2,7 +2,7 @@ import type { CorDaAgenda } from '../../api/agendaTipos';
 import { CONTRASTE_DO_GRAFICO, CONTRASTE_DO_TEXTO } from '../../dominio/agendaLegivel';
 import { coresComBordasReforcadas, coresComContraste } from '../../dominio/preferencias';
 import { PALETAS as CORES_DA_MARCA } from '../../dominio/paletas';
-import { CHAVES_DA_AGENDA, contraste, marcaParaTexto, PALETA_DA_AGENDA, PALETAS, type Cores } from '../../tema/tokens';
+import { CHAVES_DA_AGENDA, contraste, marcaParaTexto, PALETA_DA_AGENDA, PALETAS, type Cores, type VarianteDoTema } from '../../tema/tokens';
 
 /**
  * Contraste dos itens da agenda (grade do PC, faixa de dia inteiro e lista do celular) sobre o fundo neutro, em todos os
@@ -10,15 +10,15 @@ import { CHAVES_DA_AGENDA, contraste, marcaParaTexto, PALETA_DA_AGENDA, PALETAS,
  * aberto (`superficie3`): título e horário (`texto`) ≥ 4,5:1, a faixa de 8 px e os ícones de status ≥ 3:1, e o contorno do
  * item aberto (`bordaCampo`) ≥ 3:1. A cor da agenda fica só na faixa (guia de 11/11): as telas usam `useCoresDoItem`.
  */
-const BASES: [string, Cores, boolean][] = Object.entries(PALETAS).map(([codigo, p]) => [codigo, p.cores, p.modo === 'ESCURO']);
-const VARIANTES: [string, Cores, boolean][] = BASES.flatMap(([nome, base, escuro]) => [false, true].flatMap((alto) => [false, true].map((reforcadas): [string, Cores, boolean] => [
+const BASES: [string, Cores, boolean, VarianteDoTema][] = Object.entries(PALETAS).map(([codigo, p]) => [codigo, p.cores, p.modo === 'ESCURO', p.variante]);
+const VARIANTES: [string, Cores, VarianteDoTema][] = BASES.flatMap(([nome, base, escuro, variante]) => [false, true].flatMap((alto) => [false, true].map((reforcadas): [string, Cores, VarianteDoTema] => [
   `${nome}${alto ? ', contraste alto' : ''}${reforcadas ? ', bordas reforçadas' : ''}`,
   coresComBordasReforcadas(coresComContraste(base, alto ? 'ALTO' : 'PADRAO', escuro), reforcadas),
-  escuro,
+  variante,
 ])));
 
-describe.each(VARIANTES)('itens da agenda no tema %s', (_nome, cores, escuro) => {
-  const paleta = PALETA_DA_AGENDA[escuro ? 'escuro' : 'claro'];
+describe.each(VARIANTES)('itens da agenda no tema %s', (_nome, cores, variante) => {
+  const paleta = PALETA_DA_AGENDA[variante];
   const bases = [cores.superficie2, cores.superficie3];
 
   it.each(CHAVES_DA_AGENDA as CorDaAgenda[])('%s: a faixa ≥ 3:1 sobre o fundo neutro', (chave) => {

@@ -15,7 +15,7 @@ jest.mock('lucide-react-native', () => new Proxy({} as Record<string | symbol, u
 jest.mock('../api/comunidade', () => ({ obterPerfilDaComunidade: jest.fn(), baixarFotoDoColega: jest.fn() }));
 jest.mock('../aluno/AvisoDoPerfil', () => ({ CHAVE_DO_MEU_PERFIL: 'meu-perfil' }));
 jest.mock('../aluno/MapaDeTreinos', () => ({ MapaDeTreinos: () => require('react').createElement(require('react-native').Text, null, 'Mapa dos treinos') }));
-jest.mock('../tema/TemaProvider', () => ({ useTema: () => ({ cores: require('../tema/tokens').CLARO, modo: 'CLARO' }) }));
+jest.mock('../tema/TemaProvider', () => ({ useTema: () => ({ cores: require('../tema/tokens').CLARO, modo: 'CLARO', variante: 'claro' }) }));
 jest.mock('../ui/unidadeDeCargaEmUso', () => ({ useUnidadeDeCarga: () => 'kg' }));
 jest.mock('../ui/Folha', () => ({
   Folha: ({ visivel, children }: { visivel: boolean; children?: ReactNode }) =>

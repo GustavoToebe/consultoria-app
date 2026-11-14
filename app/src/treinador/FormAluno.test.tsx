@@ -14,7 +14,7 @@ jest.mock('expo-router', () => ({
 jest.mock('../sessao/SessaoProvider', () => ({
   useSessao: () => ({ pode: () => true, usuario: { id: 'u1', papel: 'TREINADOR', nome: 'Quem cadastra' } }),
 }));
-jest.mock('../tema/TemaProvider', () => ({ useTema: () => ({ cores: require('../tema/tokens').CLARO, modo: 'CLARO' }) }));
+jest.mock('../tema/TemaProvider', () => ({ useTema: () => ({ cores: require('../tema/tokens').CLARO, modo: 'CLARO', variante: 'claro' }) }));
 jest.mock('../ui/Cartao', () => ({ Cartao: ({ children }: { children?: ReactNode }) => require('react').createElement(require('react-native').View, null, children) }));
 jest.mock('../ui/useAvisoDoPlano', () => ({ useAvisoDoPlano: () => () => false }));
 jest.mock('../ui/useCarregar', () => ({

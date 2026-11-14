@@ -30,6 +30,7 @@ import {
   type CorDeIdentificacao,
   type Cores,
   type ModoDoTema,
+  type VarianteDoTema,
 } from './tokens';
 
 /**
@@ -41,6 +42,8 @@ import {
 interface ValorTema {
   /** Tema em uso agora (escuro ou claro), já resolvido: consultoria, escolha da pessoa ou aparelho. */
   modo: ModoDoTema;
+  /** Variante das cores fixas (agenda, perfil, identificação, destaque): a da paleta em uso. */
+  variante: VarianteDoTema;
   cores: Cores;
   /** Espessura do contorno do bloco e do item (1 px; 2 px com "Bordas reforçadas"). */
   bordas: { bloco: number; item: number };
@@ -123,11 +126,12 @@ export function TemaProvider({ children }: { children: ReactNode }) {
         : preferencias.tema === 'SISTEMA'
           ? doAparelho
           : doTreinador;
-    const { cores: base, modo } = paletaDe(codigo);
+    const { cores: base, modo, variante } = paletaDe(codigo);
     const marca = sessao.marca?.corPrimaria ?? MARCA_NEUTRA;
     const cores = coresComBordasReforcadas(coresComContraste(base, preferencias.contraste, modo !== 'CLARO'), preferencias.bordasReforcadas);
     return {
       modo,
+      variante,
       cores,
       bordas: espessurasDasBordas(preferencias.bordasReforcadas),
       marca,
@@ -136,7 +140,7 @@ export function TemaProvider({ children }: { children: ReactNode }) {
       marcaTexto: marcaParaTexto(marca, cores.superficie3),
       marcaHover: marcaAoPassar(marca),
       marcaPeca: marcaParaPeca(marca, [cores.superficie3, cores.fundo, cores.painel, cores.superficie]),
-      identificacao: coresDeIdentificacao(cores, modo !== 'CLARO'),
+      identificacao: coresDeIdentificacao(cores, variante),
       preferencias,
       preferenciasLidas,
       fatorTexto: fatorDoTexto(preferencias.tamanhoTexto),

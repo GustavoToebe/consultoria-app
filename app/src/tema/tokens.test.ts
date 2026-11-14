@@ -21,12 +21,13 @@ import {
   textoSobre,
   tingido,
   type Cores,
+  type VarianteDoTema,
 } from './tokens';
 import { variaveisDoTema } from './variaveis';
 import { FUNCOES_DE_DESTAQUE } from '../dominio/destaque';
 
 /** Todas as paletas da marca (decisão 1 do plano `paletas-da-marca`): cada teste de contraste percorre a lista inteira. */
-const TODAS: [string, Cores, boolean][] = Object.entries(PALETAS).map(([codigo, p]) => [codigo, p.cores, p.modo === 'ESCURO']);
+const TODAS: [string, Cores, boolean, VarianteDoTema][] = Object.entries(PALETAS).map(([codigo, p]) => [codigo, p.cores, p.modo === 'ESCURO', p.variante]);
 
 it.each(TODAS)('%s: preserva contraste AA nos detalhes de todas as superfícies', (_codigo, cores) => {
   for (const superficie of [cores.superficie, cores.superficie2, cores.superficie3]) {
@@ -115,8 +116,8 @@ const distanciaDeCor = (a: string, b: string) => Math.hypot(...lab(a).map((v, i)
 const DISTANCIA_DO_STATUS = 25;
 const DISTANCIA_ENTRE_AGENDAS = 15;
 
-describe.each(TODAS)('paleta das agendas (%s)', (_codigo, cores, escuro) => {
-  const paleta = PALETA_DA_AGENDA[escuro ? 'escuro' : 'claro'];
+describe.each(TODAS)('paleta das agendas (%s)', (_codigo, cores, _escuro, variante) => {
+  const paleta = PALETA_DA_AGENDA[variante];
 
   it('tem as oito chaves da API, todas #RRGGBB', () => {
     expect(Object.keys(paleta).sort()).toEqual([...CHAVES_DA_AGENDA].sort());
@@ -151,18 +152,19 @@ describe.each(TODAS)('paleta das agendas (%s)', (_codigo, cores, escuro) => {
 
 describe('corDaAgenda', () => {
   it('escolhe o par pelo tema; chave desconhecida ou nula cai em ARDOSIA', () => {
-    expect(corDaAgenda('AZUL', false)).toBe(PALETA_DA_AGENDA.claro.AZUL);
-    expect(corDaAgenda('AZUL', true)).toBe(PALETA_DA_AGENDA.escuro.AZUL);
-    expect(corDaAgenda('ROSA', true)).toBe(PALETA_DA_AGENDA.escuro.ARDOSIA);
-    expect(corDaAgenda(null, false)).toBe(PALETA_DA_AGENDA.claro.ARDOSIA);
+    expect(corDaAgenda('AZUL', 'claro')).toBe(PALETA_DA_AGENDA.claro.AZUL);
+    expect(corDaAgenda('AZUL', 'areia')).toBe(PALETA_DA_AGENDA.areia.AZUL);
+    expect(corDaAgenda('AZUL', 'escuro')).toBe(PALETA_DA_AGENDA.escuro.AZUL);
+    expect(corDaAgenda('ROSA', 'escuro')).toBe(PALETA_DA_AGENDA.escuro.ARDOSIA);
+    expect(corDaAgenda(null, 'claro')).toBe(PALETA_DA_AGENDA.claro.ARDOSIA);
   });
 });
 
 // ---- Cores só do perfil da Comunidade (laranja, 10/11) ----
 
-describe.each(TODAS)('cores só do perfil (%s)', (_codigo, base, escuro) => {
-  const paleta = PALETA_SO_DO_PERFIL[escuro ? 'escuro' : 'claro'];
-  const agendas = PALETA_DA_AGENDA[escuro ? 'escuro' : 'claro'];
+describe.each(TODAS)('cores só do perfil (%s)', (_codigo, base, escuro, variante) => {
+  const paleta = PALETA_SO_DO_PERFIL[variante];
+  const agendas = PALETA_DA_AGENDA[variante];
   // O contraste alto mexe só em borda, divisor e texto suave: as superfícies são as mesmas, e o anel continua passando.
   const variantes = [base, coresComContraste(base, 'ALTO', escuro), coresComBordasReforcadas(coresComContraste(base, 'ALTO', escuro), true)];
 
@@ -192,10 +194,12 @@ describe.each(TODAS)('cores só do perfil (%s)', (_codigo, base, escuro) => {
 
 describe('corDoTomDoPerfil', () => {
   it('o laranja sai da paleta só do perfil; o resto, da das agendas, sem mudar valor nenhum delas', () => {
-    expect(corDoTomDoPerfil('LARANJA', false)).toBe(PALETA_SO_DO_PERFIL.claro.LARANJA);
-    expect(corDoTomDoPerfil('LARANJA', true)).toBe(PALETA_SO_DO_PERFIL.escuro.LARANJA);
-    expect(corDoTomDoPerfil('OLIVA', true)).toBe(PALETA_DA_AGENDA.escuro.OLIVA);
-    expect(corDoTomDoPerfil('TERRA', false)).toBe('#A64F43');
+    expect(corDoTomDoPerfil('LARANJA', 'claro')).toBe(PALETA_SO_DO_PERFIL.claro.LARANJA);
+    expect(corDoTomDoPerfil('LARANJA', 'areia')).toBe(PALETA_SO_DO_PERFIL.areia.LARANJA);
+    expect(corDoTomDoPerfil('LARANJA', 'escuro')).toBe(PALETA_SO_DO_PERFIL.escuro.LARANJA);
+    expect(corDoTomDoPerfil('OLIVA', 'escuro')).toBe(PALETA_DA_AGENDA.escuro.OLIVA);
+    expect(corDoTomDoPerfil('OLIVA', 'areia')).toBe(PALETA_DA_AGENDA.areia.OLIVA);
+    expect(corDoTomDoPerfil('TERRA', 'claro')).toBe('#A64F43');
     expect(CHAVES_DA_AGENDA).not.toContain('LARANJA');
   });
 });
@@ -230,24 +234,24 @@ test.each(TODAS)(
 // ---- Cores de identificação: tipo de série, divisão e refeição (Frente G, D6, D9 a D14) ----
 
 /** Os três temas, cada um também com contraste alto e com bordas reforçadas (que não podem derrubar o contraste). */
-const TEMAS_DA_IDENTIFICACAO: [string, Cores, boolean][] = TODAS.flatMap(([nome, base, escuro]) => [
-  [nome as string, base as Cores, escuro as boolean],
-  [`${nome} com contraste alto`, coresComContraste(base as Cores, 'ALTO', escuro as boolean), escuro as boolean],
-  [`${nome} com bordas reforçadas`, coresComBordasReforcadas(base as Cores, true), escuro as boolean],
-]) as [string, Cores, boolean][];
+const TEMAS_DA_IDENTIFICACAO: [string, Cores, VarianteDoTema][] = TODAS.flatMap(([nome, base, escuro, variante]) => [
+  [nome, base, variante],
+  [`${nome} com contraste alto`, coresComContraste(base, 'ALTO', escuro), variante],
+  [`${nome} com bordas reforçadas`, coresComBordasReforcadas(base, true), variante],
+]) as [string, Cores, VarianteDoTema][];
 
 /** Mais longe do status que a paleta das agendas: o tipo de série aparece ao lado dos selos Pronta/Atenção/Corrigir. */
 const DISTANCIA_DA_IDENTIFICACAO_AO_STATUS = 40;
 /** Do cinza "encerrado" (neutro): ardósia ficou de fora da paleta por ficar perto dele. */
 const DISTANCIA_DA_IDENTIFICACAO_AO_NEUTRO = 20;
 
-describe.each(TEMAS_DA_IDENTIFICACAO)('cores de identificação (%s)', (_nome, cores, escuro) => {
-  const identificacao = coresDeIdentificacao(cores, escuro);
+describe.each(TEMAS_DA_IDENTIFICACAO)('cores de identificação (%s)', (_nome, cores, variante) => {
+  const identificacao = coresDeIdentificacao(cores, variante);
 
   it('tem as cinco chaves, todas #RRGGBB, e o tom vem da paleta do modo', () => {
     expect(Object.keys(identificacao).sort()).toEqual([...CHAVES_DE_IDENTIFICACAO].sort());
     for (const chave of CHAVES_DE_IDENTIFICACAO) {
-      expect(identificacao[chave].cor).toBe(PALETA_DE_IDENTIFICACAO[escuro ? 'escuro' : 'claro'][chave]);
+      expect(identificacao[chave].cor).toBe(PALETA_DE_IDENTIFICACAO[variante][chave]);
       expect(identificacao[chave].cor).toMatch(/^#[0-9A-F]{6}$/);
       expect(identificacao[chave].fundo).toBe(tingido(identificacao[chave].cor, cores.superficie));
     }
@@ -336,11 +340,11 @@ it.each(TODAS.filter(([, , escuro]) => !escuro))('%s: cartão e campo se destaca
 });
 
 /** Pág. 12: os pares reais de cada paleta, com contraste alto e com bordas reforçadas. */
-const VARIANTES: [string, Cores, boolean][] = TODAS.flatMap(([nome, base, escuro]) => [
-  [nome, base, escuro],
-  [`${nome} com contraste alto`, coresComContraste(base, 'ALTO', escuro), escuro],
-  [`${nome} com bordas reforçadas`, coresComBordasReforcadas(base, true), escuro],
-]) as [string, Cores, boolean][];
+const VARIANTES: [string, Cores, VarianteDoTema][] = TODAS.flatMap(([nome, base, escuro, variante]) => [
+  [nome, base, variante],
+  [`${nome} com contraste alto`, coresComContraste(base, 'ALTO', escuro), variante],
+  [`${nome} com bordas reforçadas`, coresComBordasReforcadas(base, true), variante],
+]) as [string, Cores, VarianteDoTema][];
 
 describe.each(VARIANTES)('medidas do guia (%s)', (_nome, cores) => {
   const superficies = [cores.fundo, cores.painel, cores.superficie, cores.superficie2, cores.superficie3];
@@ -403,8 +407,8 @@ it('trocar a marca não muda nenhuma cor de situação nem de categoria (pág. 4
 
 // ---- Destaque do número de indicador (`docs/planos/cores-de-destaque.md`, D3 e D4) ----
 
-describe.each(VARIANTES)('cores de destaque (%s)', (_nome, cores, escuro) => {
-  const destaque = coresDeDestaque(cores, escuro);
+describe.each(VARIANTES)('cores de destaque (%s)', (_nome, cores, variante) => {
+  const destaque = coresDeDestaque(cores, variante);
 
   it('verde, âmbar e vermelho são os da situação (D13: o mesmo do selo)', () => {
     expect(destaque.verde.cor).toBe(cores.sucesso);
