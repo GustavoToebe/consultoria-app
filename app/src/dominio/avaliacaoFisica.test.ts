@@ -1,7 +1,7 @@
 import type { AvaliacaoFisica, MedidasCorporais } from '../api/avaliacaoFisicaTipos';
 import {
-  alternarEscolha, cmParaTela, comparar, corpoDaAvaliacao, diferenca, diferencaParaTela, graficoDaMedida, MEDIDAS,
-  medidaEscolhida, medidasPreenchidas, medidasVazias, opcoesDeMedida, pesoParaTela, podeBaixarComparativo, podeComparar,
+  alternarEscolha, cmParaTela, corpoDaAvaliacao, diferenca, diferencaParaTela, graficoDaMedida, MEDIDAS,
+  medidaEscolhida, medidasPreenchidas, medidasVazias, opcoesDeMedida, pesoParaTela, podeBaixarComparativo,
   problemasDaAvaliacao, serieDaMedida,
 } from './avaliacaoFisica';
 
@@ -73,20 +73,11 @@ describe('formatação', () => {
 });
 
 describe('comparação', () => {
-  const todas = [
-    avaliacao('c', '2026-09-01', { cintura: 85, quadril: 100 }, 80),
-    avaliacao('a', '2026-07-01', { cintura: 90, bracoDireito: 34 }, null),
-    avaliacao('b', '2026-08-01', { cintura: 88 }, 81.5),
-  ];
-
   it('escolhe de 2 a 4; o quinto não entra', () => {
     let e: string[] = [];
     for (const id of ['1', '2', '3', '4', '5']) e = alternarEscolha(e, id);
     expect(e).toEqual(['1', '2', '3', '4']);
     expect(alternarEscolha(e, '2')).toEqual(['1', '3', '4']);
-    expect(podeComparar(['1'])).toBe(false);
-    expect(podeComparar(['1', '2'])).toBe(true);
-    expect(podeComparar(['1', '2', '3', '4', '5'])).toBe(false);
   });
 
   it('"Baixar comparativo": a equipe sempre; o aluno só com internet e com a marca da sessão', () => {
@@ -94,27 +85,6 @@ describe('comparação', () => {
     expect(podeBaixarComparativo({ daEquipe: false, online: true, temMarca: true })).toBe(true);
     expect(podeBaixarComparativo({ daEquipe: false, online: false, temMarca: true })).toBe(false);
     expect(podeBaixarComparativo({ daEquipe: false, online: true, temMarca: false })).toBe(false);
-  });
-
-  it('colunas em ordem cronológica e diferença entre a primeira e a última escolhida', () => {
-    const c = comparar(todas, ['c', 'a']);
-    expect(c.colunas.map((x) => x.data)).toEqual(['2026-07-01', '2026-09-01']);
-    const cintura = c.linhas.find((l) => l.chave === 'cintura');
-    expect(cintura).toMatchObject({ valores: [90, 85], diferenca: -5, unidade: 'cm' });
-    // Só um dos dois valores: aparece, mas sem diferença.
-    expect(c.linhas.find((l) => l.chave === 'quadril')).toMatchObject({ valores: [null, 100], diferenca: null });
-    expect(c.linhas.find((l) => l.chave === 'bracoDireito')).toMatchObject({ valores: [34, null], diferenca: null });
-    // Peso só numa das datas: sem diferença.
-    expect(c.linhas.find((l) => l.chave === 'peso')).toMatchObject({ valores: [null, 80], diferenca: null, unidade: 'kg' });
-    // Medida que nenhuma das datas tem não aparece.
-    expect(c.linhas.some((l) => l.chave === 'coxaDireita')).toBe(false);
-  });
-
-  it('com três datas a diferença ignora a do meio; peso com as duas pontas', () => {
-    const c = comparar(todas, ['a', 'b', 'c']);
-    expect(c.linhas.find((l) => l.chave === 'cintura')).toMatchObject({ valores: [90, 88, 85], diferenca: -5 });
-    const d = comparar(todas, ['b', 'c']);
-    expect(d.linhas.find((l) => l.chave === 'peso')).toMatchObject({ valores: [81.5, 80], diferenca: -1.5 });
   });
 });
 

@@ -108,10 +108,6 @@ export function alternarEscolha(escolhidas: readonly string[], id: string): stri
   return [...escolhidas, id];
 }
 
-export function podeComparar(escolhidas: readonly string[]): boolean {
-  return escolhidas.length >= COMPARAR_MINIMO && escolhidas.length <= COMPARAR_MAXIMO;
-}
-
 /**
  * Quando o "Baixar comparativo" aparece (a funcionalidade `PDF` do plano é conferida à parte, por `NoPlano`). A equipe
  * sempre o tem. O aluno só com internet (o PDF baixa a logo e a rota não funciona sem rede) e com a marca da sessão.
@@ -175,38 +171,4 @@ export function graficoDaMedida(pontos: number, graficosLigados: boolean): 'linh
   if (pontos === 0) return 'nada';
   if (!graficosLigados) return 'desligado';
   return pontos === 1 ? 'ponto' : 'linha';
-}
-
-export interface LinhaDaComparacao {
-  chave: CampoDaMedida | 'peso';
-  rotulo: string;
-  unidade: 'cm' | 'kg';
-  /** Um valor por coluna (data), na ordem das colunas; nulo = "—". */
-  valores: (number | null)[];
-  /** Última coluna − primeira, só com os dois valores. */
-  diferenca: number | null;
-}
-
-export interface Comparacao {
-  /** Datas em ordem cronológica (a primeira e a última são as da diferença). */
-  colunas: { id: string; data: string }[];
-  linhas: LinhaDaComparacao[];
-}
-
-/**
- * Tabela medida × data das avaliações escolhidas, em ordem cronológica, mais a linha do peso (do registro de peso da
- * mesma data). Linha sem nenhum valor nas datas escolhidas não aparece (nada a comparar).
- */
-export function comparar(todas: readonly AvaliacaoFisica[], escolhidas: readonly string[]): Comparacao {
-  const avaliacoes = todas.filter((a) => escolhidas.includes(a.id)).sort((a, b) => a.data.localeCompare(b.data));
-  const linha = (chave: LinhaDaComparacao['chave'], rotulo: string, unidade: 'cm' | 'kg', valor: (a: AvaliacaoFisica) => number | null): LinhaDaComparacao => {
-    const valores = avaliacoes.map((a) => valor(a) ?? null);
-    const dif = valores.length < COMPARAR_MINIMO ? null : diferenca(valores[0], valores[valores.length - 1], unidade === 'cm' ? 1 : 2);
-    return { chave, rotulo, unidade, valores, diferenca: dif };
-  };
-  const linhas = [
-    ...MEDIDAS.map(({ campo, rotulo }) => linha(campo, rotulo, 'cm', (a) => a.medidas[campo])),
-    linha('peso', 'Peso', 'kg', (a) => a.pesoKg),
-  ].filter((l) => l.valores.some((v) => v !== null));
-  return { colunas: avaliacoes.map((a) => ({ id: a.id, data: a.data })), linhas };
 }

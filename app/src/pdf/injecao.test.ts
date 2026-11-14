@@ -4,6 +4,8 @@ import type { ConteudoDieta, Marca } from '../api/tipos';
 import { normalizarDieta } from '../dominio/dieta';
 import { normalizarTreino } from '../dominio/editorTreino';
 import { carga, exercicio, grupo, rir, serie, sessao, tecnica } from '../dominio/exemplosDeTreino.apoioTeste';
+import { medidasVazias } from '../dominio/avaliacaoFisica';
+import type { AvaliacaoFisica } from '../api/avaliacaoFisicaTipos';
 import { normalizarMobilidade } from '../dominio/mobilidade';
 import type { LinhaDaLista } from '../dominio/listaDeCompras';
 import { documentoCompleto, type Documento } from './html';
@@ -11,6 +13,7 @@ import { documentoCargas } from './pdfCargas';
 import { documentoDieta } from './pdfDieta';
 import { ajustarQuantidade, gravarAvulso, itensDoAluno, MARCACOES_VAZIAS } from '../dominio/listaDeComprasDoAluno';
 import { documentoListaDeCompras } from './pdfListaDeCompras';
+import { documentoAvaliacaoFisica } from './pdfAvaliacaoFisica';
 import { documentoMobilidade } from './pdfMobilidade';
 import { documentoTreino } from './pdfTreino';
 import { montarCorpo } from './imprimir.web';
@@ -18,7 +21,7 @@ import { montarCorpo } from './imprimir.web';
 jest.mock('../dominio/uid', () => ({ novoUid: () => 'uid' }));
 
 /**
- * Trava de segurança da impressão na web: os cinco geradores montam HTML por texto e `imprimir.web.ts` o lê por
+ * Trava de segurança da impressão na web: os seis geradores montam HTML por texto e `imprimir.web.ts` o lê por
  * `DOMParser` e o põe na página (sem `innerHTML`; a segunda barreira está em `imprimir.web.dom.test.ts`), então um campo de texto livre sem `esc()` viraria XSS armazenado. Aqui TODA string das entradas vira um
  * ataque (com o caminho do campo dentro dele), menos as chaves que só LIGAM objetos entre si (`LIGACAO`: se mudassem de
  * valor, o grupo perderia os exercícios e o PDF mostraria menos). Campo novo de texto livre entra no teste sozinho; se
@@ -30,7 +33,7 @@ jest.mock('../dominio/uid', () => ({ novoUid: () => 'uid' }));
  */
 
 /** Chaves que só ligam um objeto a outro (uid, referência). Nunca são texto do usuário nem aparecem no PDF. */
-const LIGACAO = ['uid', 'id', 'exercicioId', 'alimentoId', 'grupoUid'];
+const LIGACAO = ['uid', 'id', 'exercicioId', 'alimentoId', 'grupoUid', 'escolhidas'];
 /** Códigos, enums e datas que escolhem uma entrada da metodologia ou um formato; o servidor os valida. */
 const CODIGOS = [
   'chave', 'codigo', 'tipo', 'modo', 'papel', 'tecnica', 'modalidade', 'regiao', 'unidade', 'periodo',
@@ -273,6 +276,84 @@ describe('PDF da lista de compras não deixa texto virar HTML', () => {
   });
 });
 
+const avaliacoes: AvaliacaoFisica[] = [
+  { id: 'a1', data: '2026-07-01', medidas: { ...medidasVazias(), cintura: 90, bracoDireito: 35 }, observacao: 'Observação da primeira', pesoKg: 82, versao: 0, criadoEm: '2026-07-01T10:00:00Z', alteradoEm: '2026-07-01T10:00:00Z' },
+  { id: 'a2', data: '2026-10-01', medidas: { ...medidasVazias(), cintura: 85.5, bracoDireito: 36.2, quadril: 100 }, observacao: 'Observação da segunda', pesoKg: 80, versao: 0, criadoEm: '2026-10-01T10:00:00Z', alteradoEm: '2026-10-01T10:00:00Z' },
+];
+const dadosDaAvaliacao = { ...base, avaliacoes, escolhidas: ['a1', 'a2'] };
+
+const graficoDaAvaliacao = {
+  rotulo: 'Braço direito',
+  unidade: 'cm' as const,
+  pontos: [{ data: '2026-07-01', valor: 35 }, { data: '2026-10-01', valor: 36.2 }],
+  serieB: { rotulo: 'Braço esquerdo', pontos: [{ data: '2026-07-01', valor: 34 }, { data: '2026-10-01', valor: 34.6 }] },
+};
+
+describe('PDF da avaliação física não deixa texto virar HTML', () => {
+  conferir('avaliação física', documentoAvaliacaoFisica as never, { ...dadosDaAvaliacao, grafico: undefined });
+  // Com o gráfico (um `<img>` com SVG em base64): na variação com os códigos preservados as datas valem e a imagem sai.
+  conferir('avaliação física com gráfico', documentoAvaliacaoFisica as never, { ...dadosDaAvaliacao, grafico: graficoDaAvaliacao });
+});
+
+describe('o gráfico só passa como <img> com SVG em base64 (barreira da web)', () => {
+  const noCorpo = (html: string) => {
+    const raiz = document.createElement('div');
+    raiz.append(montarCorpo(html));
+    return raiz;
+  };
+  const svgBase64 = (svg: string) => `data:image/svg+xml;base64,${Buffer.from(svg, 'utf8').toString('base64')}`;
+
+  it('(a) <svg><script> solto é removido', () => {
+    const raiz = noCorpo('<div><svg xmlns="http://www.w3.org/2000/svg"><script>window.__x = 1</script><text>x</text></svg></div>');
+    expect(raiz.querySelectorAll('svg, script').length).toBe(0);
+  });
+
+  it('(b) <img> com <script> dentro do SVG em base64 continua só como <img>, sem nó executável no fragmento', () => {
+    const src = svgBase64('<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><script>alert(1)</script><text>x</text></svg>');
+    const raiz = noCorpo(`<div class="grafico"><img alt="g" src="${src}" width="560" height="220"></div>`);
+    expect(raiz.querySelector('img')?.getAttribute('src')).toBe(src);
+    expect(raiz.querySelectorAll('script, svg, object, embed, iframe').length).toBe(0);
+    expect([...raiz.querySelectorAll('*')].map((e) => e.localName)).toEqual(['div', 'img']);
+    expect([...raiz.querySelectorAll('*')].flatMap((e) => e.getAttributeNames()).filter((n) => /^on/i.test(n))).toEqual([]);
+  });
+
+  it.each([
+    ['img com data:text/html', '<img src="data:text/html,<script>alert(1)</script>">', 'img', 'src'],
+    ['img com javascript:', '<img src="javascript:alert(1)">', 'img', 'src'],
+    ['svg base64 em <a href>', `<a href="${svgBase64('<svg/>')}">x</a>`, 'a', 'href'],
+    ['svg base64 em srcset', `<img srcset="${svgBase64('<svg/>')} 1x">`, 'img', 'srcset'],
+    ['svg base64 em <object data>', `<object data="${svgBase64('<svg/>')}"></object>`, 'object', 'data'],
+    ['svg sem base64', '<img src="data:image/svg+xml,<svg onload=alert(1)>">', 'img', 'src'],
+    ['svg utf8', '<img src="data:image/svg+xml;utf8,<svg/>">', 'img', 'src'],
+    ['svg com maiúsculas no tipo', `<img src="${svgBase64('<svg/>').replace('image/svg+xml', 'image/SVG+xml')}">`, 'img', 'src'],
+    ['svg com base64 inválido', '<img src="data:image/svg+xml;base64,PHN2Zz4=%3Cscript%3E">', 'img', 'src'],
+    ['svg base64 em poster', `<video poster="${svgBase64('<svg/>')}"></video>`, 'video', 'poster'],
+  ])('(c) endereço barrado: %s', (_nome, html, seletor, atributo) => {
+    const raiz = noCorpo(html);
+    expect(raiz.querySelector(seletor)?.hasAttribute(atributo) ?? false).toBe(false);
+    for (const e of raiz.querySelectorAll('*')) {
+      for (const n of e.getAttributeNames()) expect(e.getAttribute(n) ?? '').not.toMatch(/^\s*(data:|javascript:)/i);
+    }
+  });
+
+  it('(d) rótulo atacado dentro do gráfico sai escapado no SVG e a imagem atravessa a barreira intacta', () => {
+    const ataqueNoRotulo = `<script>alert("x")</script> & 'y'`;
+    const { corpo } = documentoAvaliacaoFisica({
+      ...dadosDaAvaliacao,
+      grafico: { ...graficoDaAvaliacao, rotulo: ataqueNoRotulo, serieB: { ...graficoDaAvaliacao.serieB, rotulo: `"E" <b>` } },
+    });
+    const src = /<img [^>]*src="(data:image\/svg\+xml;base64,[A-Za-z0-9+/]+={0,2})"/.exec(corpo)?.[1] as string;
+    const svg = Buffer.from(src.split(',')[1], 'base64').toString('utf8');
+    expect(svg).toContain('&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt; &amp; &#39;y&#39;');
+    expect(svg).toContain('&quot;E&quot; &lt;b&gt;');
+    expect(svg).not.toContain('<script');
+    expect(svg).not.toContain('<b>');
+    const raiz = noCorpo(corpo);
+    expect(raiz.querySelector('img[src^="data:image/svg+xml;base64,"]')?.getAttribute('src')).toBe(src);
+    expect(raiz.querySelectorAll('script, svg').length).toBe(0);
+  });
+});
+
 describe('cor da marca nunca chega crua ao CSS nem ao HTML', () => {
   const cor = 'red;}</style><script>alert(1)</script>';
   const geradores: Record<string, (m: Marca) => Documento> = {
@@ -281,6 +362,7 @@ describe('cor da marca nunca chega crua ao CSS nem ao HTML', () => {
     mobilidade: (m) => documentoMobilidade({ ...base, marca: m, versao: 1, conteudo: mobilidade }),
     cargas: (m) => documentoCargas({ ...base, marca: m, de: '2026-10-01', ate: '2026-10-14', divisoes: [] }),
     'lista de compras': (m) => documentoListaDeCompras({ ...base, marca: m, versao: 1, periodo: 'semana', opcoes: [], linhas: [] }),
+    'avaliação física': (m) => documentoAvaliacaoFisica({ ...dadosDaAvaliacao, marca: m }),
   };
   for (const [nome, gerar] of Object.entries(geradores)) {
     it(`${nome}: cor fora de #RRGGBB cai no neutro`, () => {

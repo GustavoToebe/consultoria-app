@@ -1,52 +1,36 @@
-import { FileDown, Pencil, Plus, Trash2 } from 'lucide-react-native';
+import { Plus } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ErroApi } from '../api/cliente';
-import type { AvaliacaoFisica, CampoDaMedida, MedidasCorporais } from '../api/avaliacaoFisicaTipos';
+import type { AvaliacaoFisica, CampoDaMedida } from '../api/avaliacaoFisicaTipos';
 import type { Marca } from '../api/tipos';
-import {
-  alterarAvaliacaoFisica, avaliacoesFisicasDoAluno, consultoria, excluirAvaliacaoFisica, minhasAvaliacoesFisicas,
-  registrarAvaliacaoFisica,
-} from '../api/rotas';
-import {
-  alternarEscolha, cmParaTela, COMPARAR_MAXIMO, comparar, corpoDaAvaliacao, diferencaParaTela, graficoDaMedida, MEDIDAS,
-  medidaEscolhida, medidasPreenchidas, medidasVazias, OBSERVACAO_MAXIMA, opcoesDeMedida, pesoParaTela, podeBaixarComparativo,
-  podeComparar, problemasDaAvaliacao, serieDaMedida, type LinhaDaComparacao,
-} from '../dominio/avaliacaoFisica';
-import { dataCurta, dataDaTela, dataParaTela, hojeIso, mascaraDeNumero } from '../dominio/formatos';
+import { avaliacoesFisicasDoAluno, consultoria, excluirAvaliacaoFisica, minhasAvaliacoesFisicas } from '../api/rotas';
+import { alternarEscolha, medidaEscolhida, opcoesDeMedida, podeBaixarComparativo } from '../dominio/avaliacaoFisica';
+import { compararAvaliacoes } from '../dominio/comparacaoDeAvaliacoes';
+import { dataParaTela } from '../dominio/formatos';
 import { periodoDesdeOPrimeiro } from '../dominio/historicoDoAluno';
-import { TEXTO_GRAFICOS_DESLIGADOS, TEXTO_GRAFICOS_DESLIGADOS_ALUNO } from '../dominio/relatorio';
 import { imprimir } from '../pdf/imprimir';
 import { logoComoDataUri } from '../pdf/logo';
 import { documentoAvaliacaoFisica } from '../pdf/pdfAvaliacaoFisica';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
-import { espaco, fontes } from '../tema/tokens';
+import { espaco } from '../tema/tokens';
+import { Abas } from '../ui/Abas';
 import { useAviso } from '../ui/Aviso';
 import { Botao } from '../ui/Botao';
-import { Campo } from '../ui/Campo';
-import { CampoData, CampoNumerico } from '../ui/Campos';
 import { Cartao } from '../ui/Cartao';
-import { Escolha } from '../ui/Escolha';
-import { EscolhaEmFolha, OPCOES_PARA_BUSCAR } from '../ui/EscolhaEmFolha';
 import { Esqueleto } from '../ui/Esqueleto';
 import { MensagemErro } from '../ui/Estados';
-import { errosPorCampo, textoDoErro } from '../ui/erros';
-import { Folha } from '../ui/Folha';
-import { GraficoLinha } from '../ui/GraficoLinha';
-import { IconeBotao } from '../ui/IconeBotao';
-import { CaixaDaLinha, LinhaDaLista, ListaDeLinhas } from '../ui/LinhaDaLista';
-import { NoPlano } from '../ui/NoPlano';
-import { useDestaques } from '../ui/NumeroDeDestaque';
+import { textoDoErro } from '../ui/erros';
 import { PainelConfirmacao } from '../ui/PainelConfirmacao';
-import { Tabela, type ColunaDaTabela } from '../ui/Tabela';
 import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
-
-const LINHAS_INICIAIS = 6;
-/** Datas da lista de uma medida antes de "Mostrar todas". */
-const DATAS_DA_MEDIDA = 6;
+import { graficoDoPdf, seriesDaEvolucao } from './avaliacao/apresentacao';
+import { ResultadoDaComparacao, SelecaoDoComparar } from './avaliacao/CompararAvaliacoes';
+import { EvolucaoDaMedida } from './avaliacao/EvolucaoDaMedida';
+import { FolhaAvaliacao } from './avaliacao/FolhaAvaliacao';
+import { HistoricoDeAvaliacoes } from './avaliacao/HistoricoDeAvaliacoes';
 
 type Props =
   /** Ficha do aluno (equipe): lista, nova, editar, excluir, comparar e baixar o comparativo. */
@@ -57,16 +41,17 @@ type Props =
    */
   | { alunoId?: undefined; alunoNome?: undefined; anonimizado?: undefined; online?: boolean };
 
-function metadados(a: AvaliacaoFisica): string {
-  const n = medidasPreenchidas(a.medidas);
-  return [`${n} ${n === 1 ? 'medida' : 'medidas'}`, a.pesoKg !== null ? `Peso ${pesoParaTela(a.pesoKg)}` : null].filter(Boolean).join(' · ');
-}
+type Aba = 'evolucao' | 'comparar';
+const ABAS: { valor: Aba; rotulo: string }[] = [
+  { valor: 'evolucao', rotulo: 'Evolução por medida' },
+  { valor: 'comparar', rotulo: 'Comparar avaliações' },
+];
 
 /**
- * Avaliação física (circunferências em cm por data; dado sensível, só na tela). A equipe registra; o aluno só lê. Marcar
- * de 2 a 4 datas mostra a tabela medida × data com a diferença entre a primeira e a última: só números, sem cor de
- * "bom/ruim" nem texto que interprete. Embaixo, a evolução de uma medida por vez (gráfico e lista das datas). Regras em
- * `dominio/avaliacaoFisica`.
+ * Avaliação física (circunferências em cm por data; dado sensível, só na tela). A equipe registra; o aluno só lê. Duas
+ * abas: "Evolução por medida" (resumo, gráfico e datas de uma medida, ou direito × esquerdo) e "Comparar avaliações" (2 a
+ * 4 datas, tabela por grupo e o PDF). O histórico compacto fica embaixo nas duas. Só números: sem cor de "bom/ruim", soma,
+ * meta nem interpretação. Regras em `dominio/avaliacaoFisica` e `dominio/comparacaoDeAvaliacoes`.
  */
 export function CartaoAvaliacaoFisica(p: Props) {
   const { cores } = useTema();
@@ -78,16 +63,23 @@ export function CartaoAvaliacaoFisica(p: Props) {
   const [editando, setEditando] = useState<AvaliacaoFisica | 'nova' | null>(null);
   const [excluir, setExcluir] = useState<AvaliacaoFisica | null>(null);
   const [erroAcao, setErroAcao] = useState<unknown>(null);
+  const [aba, setAba] = useState<Aba>('evolucao');
   const [escolhidas, setEscolhidas] = useState<string[]>([]);
-  const [todas, setTodas] = useState(false);
+  const [medida, setMedida] = useState<CampoDaMedida | null>(null);
+  const [verPar, setVerPar] = useState(true);
+  const [incluirGrafico, setIncluirGrafico] = useState(false);
   const [gerando, setGerando] = useState(false);
   const podeGravar = daEquipe && pode('ALUNO_SENSIVEL_ALTERAR') && !p.anonimizado;
 
   const lista = dados ?? [];
   // Só valem as escolhas que ainda existem (uma avaliação pode ter sido excluída).
   const marcadas = escolhidas.filter((id) => lista.some((a) => a.id === id));
-  const comparacao = podeComparar(marcadas) ? comparar(lista, marcadas) : null;
-  const visiveis = todas ? lista : lista.slice(0, LINHAS_INICIAIS);
+  const comparacao = compararAvaliacoes(lista, marcadas);
+  const opcoes = opcoesDeMedida(lista);
+  const campo = medidaEscolhida(opcoes, medida);
+  const series = campo ? seriesDaEvolucao(lista, campo, verPar) : null;
+  const comAbas = lista.length >= 2;
+  const abaAtiva: Aba = comAbas ? aba : 'evolucao';
   const semConexao = erro instanceof ErroApi && erro.semConexao;
   // Equipe sem avaliação: o vazio e a explicação numa frase só, na faixa do cartão (sem selo de período nem corpo).
   const vazioDaEquipe = daEquipe && dados?.length === 0;
@@ -105,12 +97,11 @@ export function CartaoAvaliacaoFisica(p: Props) {
 
   // O aluno usa a marca que a sessão já tem (a rota `/consultoria` é da equipe); a equipe a busca como sempre.
   const online = p.alunoId === undefined ? p.online === true : true;
-  const mostrarBaixar = !!comparacao && podeBaixarComparativo({ daEquipe, online, temMarca: marcaDaSessao !== null });
+  const mostrarBaixar = comparacao.estado === 'ok' && podeBaixarComparativo({ daEquipe, online, temMarca: marcaDaSessao !== null });
 
   const baixar = () => {
-    if (!comparacao || (!daEquipe && !marcaDaSessao)) return;
+    if (comparacao.estado !== 'ok' || (!daEquipe && !marcaDaSessao)) return;
     setGerando(true);
-    const escolhidasEmOrdem = comparacao.colunas.map((c) => lista.find((a) => a.id === c.id)).filter((a): a is AvaliacaoFisica => !!a);
     const nome = daEquipe ? p.alunoNome : (usuario?.nome ?? '');
     const marcaDoPdf: Promise<Marca> = daEquipe ? consultoria().then((c) => c.marca) : Promise.resolve(marcaDaSessao as Marca);
     marcaDoPdf
@@ -120,8 +111,9 @@ export function CartaoAvaliacaoFisica(p: Props) {
             marca,
             logoDataUri: await logoComoDataUri(marca),
             aluno: nome,
-            comparacao,
-            observacoes: escolhidasEmOrdem.map((a) => ({ data: a.data, texto: a.observacao ?? '' })),
+            avaliacoes: lista,
+            escolhidas: marcadas,
+            grafico: incluirGrafico && series ? graficoDoPdf(series) : undefined,
             emitidoEm: new Date(),
           }),
         ),
@@ -129,6 +121,16 @@ export function CartaoAvaliacaoFisica(p: Props) {
       .catch((e: unknown) => avisar(textoDoErro(e), 'perigo'))
       .finally(() => setGerando(false));
   };
+
+  const historico = (
+    <HistoricoDeAvaliacoes
+      avaliacoes={lista}
+      marcar={abaAtiva === 'comparar' ? { marcadas, aoAlternar: (id) => setEscolhidas(alternarEscolha(marcadas, id)) } : undefined}
+      podeGravar={podeGravar}
+      aoEditar={setEditando}
+      aoExcluir={setExcluir}
+    />
+  );
 
   return (
     <Cartao
@@ -142,61 +144,31 @@ export function CartaoAvaliacaoFisica(p: Props) {
       {erroAcao ? <MensagemErro texto={textoDoErro(erroAcao)} /> : null}
       {!dados && carregando ? <Esqueleto cartoes={1} texto="Carregando avaliações" /> : null}
       {!daEquipe && dados && dados.length === 0 ? <Texto variante="suave">Nenhuma avaliação registrada.</Texto> : null}
-      {lista.length >= 2 ? (
-        <Texto variante="suave">Marque de 2 a {COMPARAR_MAXIMO} datas para comparar.</Texto>
-      ) : null}
       {lista.length ? (
-        <ListaDeLinhas>
-          {visiveis.map((a) => {
-            const marcada = marcadas.includes(a.id);
-            const cheia = !marcada && marcadas.length >= COMPARAR_MAXIMO;
-            const data = dataParaTela(a.data);
-            return (
-              <LinhaDaLista
-                key={a.id}
-                titulo={data}
-                metadados={metadados(a)}
-                descricao={a.observacao ?? undefined}
-                marcado={marcada}
-                inicio={lista.length >= 2 ? (
-                  <CaixaDaLinha
-                    rotulo={cheia ? `Comparar ${data} (máximo de ${COMPARAR_MAXIMO} datas)` : `Comparar ${data}`}
-                    marcado={marcada}
-                    desabilitado={cheia}
-                    aoMudar={() => setEscolhidas((e) => alternarEscolha(e.filter((id) => lista.some((x) => x.id === id)), a.id))}
-                  />
-                ) : undefined}
-                acoesAoLado
-                acoes={podeGravar ? (
-                  <View style={estilos.acoes}>
-                    <IconeBotao Icone={Pencil} rotulo={`Editar avaliação de ${data}`} aoTocar={() => setEditando(a)} />
-                    <IconeBotao Icone={Trash2} rotulo={`Excluir avaliação de ${data}`} cor={cores.textoSuave} aoTocar={() => setExcluir(a)} />
-                  </View>
-                ) : undefined}
-              />
-            );
-          })}
-        </ListaDeLinhas>
-      ) : null}
-      {lista.length > LINHAS_INICIAIS ? (
-        <Botao rotulo={todas ? 'Mostrar só as últimas' : `Mostrar todas (${lista.length})`} tipo="fantasma" aoTocar={() => setTodas((v) => !v)} />
-      ) : null}
-      {comparacao ? (
-        <View style={estilos.comparacao}>
-          <Texto variante="secao" nivel={3}>Comparativo</Texto>
-          <TabelaComparativa linhas={comparacao.linhas} datas={comparacao.colunas.map((c) => c.data)} />
-          <Texto variante="pequeno">
-            Diferença = {dataParaTela(comparacao.colunas[comparacao.colunas.length - 1].data)} menos {dataParaTela(comparacao.colunas[0].data)}.
-            {' '}O peso é o registro de peso da mesma data.
-          </Texto>
-          {mostrarBaixar ? (
-            <NoPlano funcionalidade="PDF">
-              <Botao rotulo="Baixar comparativo" tipo="secundario" Icone={FileDown} carregando={gerando} aoTocar={baixar} />
-            </NoPlano>
+        <View style={estilos.corpo}>
+          {comAbas ? <Abas abas={ABAS} ativa={abaAtiva} aoMudar={setAba} fundo={cores.superficie} /> : (
+            <Texto variante="secao" nivel={3}>Evolução por medida</Texto>
+          )}
+          {abaAtiva === 'evolucao' && campo && series ? (
+            <EvolucaoDaMedida avaliacoes={lista} daEquipe={daEquipe} opcoes={opcoes} campo={campo} aoEscolher={setMedida}
+              series={series} verPar={verPar} aoVerPar={setVerPar} />
+          ) : null}
+          {abaAtiva === 'comparar' ? <SelecaoDoComparar avaliacoes={lista} marcadas={marcadas} aoMudar={setEscolhidas} /> : null}
+          {historico}
+          {abaAtiva === 'comparar' ? (
+            <ResultadoDaComparacao
+              avaliacoes={lista}
+              comparacao={comparacao}
+              mostrarBaixar={mostrarBaixar}
+              gerando={gerando}
+              aoBaixar={baixar}
+              graficoDoPdf={series ? (series.b ? `${series.a.rotulo} e ${series.b.rotulo.toLowerCase()}` : series.nome) : null}
+              incluirGrafico={incluirGrafico}
+              aoIncluirGrafico={setIncluirGrafico}
+            />
           ) : null}
         </View>
       ) : null}
-      {lista.length ? <EvolucaoPorMedida avaliacoes={lista} daEquipe={daEquipe} /> : null}
       {editando && daEquipe ? (
         <FolhaAvaliacao
           alunoId={p.alunoId}
@@ -222,150 +194,6 @@ export function CartaoAvaliacaoFisica(p: Props) {
   );
 }
 
-/**
- * Medida × data, com a diferença na última coluna (só o número com sinal, na cor do texto). O valor medido (cm e o peso
- * do dia) vai no azul de indicador, o mesmo do `CartaoPeso` (cores-de-destaque D12); sem valor, "—" em texto suave.
- */
-function TabelaComparativa({ linhas, datas }: { linhas: LinhaDaComparacao[]; datas: string[] }) {
-  const { cores } = useTema();
-  const azul = useDestaques().azul.cor;
-  const valor = (l: LinhaDaComparacao, v: number | null) => (l.unidade === 'cm' ? (v === null ? '—' : `${cmParaTela(v)} cm`) : pesoParaTela(v));
-  const colunas: ColunaDaTabela<LinhaDaComparacao>[] = [
-    { chave: 'medida', titulo: 'Medida', flex: 1.4, principal: true, render: (l) => <Texto style={estilos.forte}>{l.rotulo}</Texto> },
-    ...datas.map((d, i): ColunaDaTabela<LinhaDaComparacao> => ({
-      chave: `data-${i}`, titulo: dataParaTela(d), alinhar: 'direita', render: (l) => <Texto numerico cor={l.valores[i] === null ? cores.textoSuave : azul}>{valor(l, l.valores[i])}</Texto>,
-    })),
-    { chave: 'diferenca', titulo: 'Diferença', alinhar: 'direita', render: (l) => <Texto numerico style={estilos.forte}>{diferencaParaTela(l.diferenca, l.unidade)}</Texto> },
-  ];
-  if (!linhas.length) return <Texto variante="suave">Nenhuma medida nas datas escolhidas.</Texto>;
-  return <Tabela rotulo="Comparativo da avaliação física" linhas={linhas} chave={(l) => l.chave} colunas={colunas} larguraMinima={420 + datas.length * 60} />;
-}
-
-/**
- * Uma medida por vez ao longo das datas: gráfico de linha (com a preferência `graficos`; 1 data = só o ponto) e a lista
- * de todas as datas, onde a que não teve a medida aparece com "—" (texto suave; o valor, no azul de indicador). Um eixo
- * só, em cm: o peso tem o próprio cartão.
- */
-function EvolucaoPorMedida({ avaliacoes, daEquipe }: { avaliacoes: AvaliacaoFisica[]; daEquipe: boolean }) {
-  const { cores, preferencias } = useTema();
-  const azul = useDestaques().azul.cor;
-  const [escolhida, setEscolhida] = useState<CampoDaMedida | null>(null);
-  const [todas, setTodas] = useState(false);
-  const opcoes = opcoesDeMedida(avaliacoes);
-  const campo = medidaEscolhida(opcoes, escolhida);
-  if (!campo) return null;
-  const nome = opcoes.find((o) => o.valor === campo)?.rotulo ?? '';
-  const serie = serieDaMedida(avaliacoes, campo);
-  const grafico = graficoDaMedida(serie.pontos.length, preferencias.graficos);
-  const linhas = todas ? serie.linhas : serie.linhas.slice(0, DATAS_DA_MEDIDA);
-  const escolher = (c: CampoDaMedida) => { setEscolhida(c); setTodas(false); };
-  const datas = serie.pontos.length === 1 ? '1 data' : `${serie.pontos.length} datas`;
-
-  return (
-    <View style={estilos.comparacao}>
-      <Texto variante="secao" nivel={3}>Evolução por medida</Texto>
-      {opcoes.length > OPCOES_PARA_BUSCAR ? (
-        <EscolhaEmFolha rotulo="Medida" valor={campo} opcoes={opcoes} aoMudar={escolher} titulo="Escolher a medida" />
-      ) : opcoes.length > 1 ? (
-        <Escolha rotulo="Medida" opcoes={opcoes} valor={campo} aoMudar={escolher} />
-      ) : (
-        <Texto variante="bloco">{nome}</Texto>
-      )}
-      {grafico === 'linha' || grafico === 'ponto' ? (
-        <GraficoLinha
-          pontos={serie.pontos.map((p) => ({ rotulo: dataCurta(p.data), valor: p.valor, data: p.data }))}
-          unidade="cm"
-          cor={azul}
-          descricao={`Gráfico de ${nome} com ${datas}`}
-        />
-      ) : null}
-      {grafico === 'ponto' ? <Texto variante="pequeno">Com uma data só, o gráfico mostra o ponto; a linha aparece a partir de duas datas.</Texto> : null}
-      {grafico === 'desligado' ? <Texto variante="pequeno">{daEquipe ? TEXTO_GRAFICOS_DESLIGADOS : TEXTO_GRAFICOS_DESLIGADOS_ALUNO}</Texto> : null}
-      <Tabela
-        rotulo={`${nome} por data`}
-        linhas={linhas}
-        chave={(l) => l.id}
-        colunas={[
-          { chave: 'data', titulo: 'Data', principal: true, render: (l) => <Texto numerico style={estilos.forte}>{dataParaTela(l.data)}</Texto> },
-          { chave: 'valor', titulo: nome, alinhar: 'direita', render: (l) => <Texto numerico style={estilos.forte} cor={l.valor === null ? cores.textoSuave : azul}>{l.valor === null ? '—' : `${cmParaTela(l.valor)} cm`}</Texto> },
-        ]}
-      />
-      {serie.linhas.length > DATAS_DA_MEDIDA ? (
-        <Botao rotulo={todas ? 'Mostrar só as últimas' : `Mostrar todas as datas (${serie.linhas.length})`} tipo="fantasma" aoTocar={() => setTodas((v) => !v)} />
-      ) : null}
-    </View>
-  );
-}
-
-function FolhaAvaliacao({ alunoId, avaliacao, aoFechar, aoSalvar }: { alunoId: string; avaliacao: AvaliacaoFisica | null; aoFechar: () => void; aoSalvar: () => void }) {
-  const [data, setData] = useState(dataParaTela(avaliacao?.data ?? hojeIso()));
-  const [medidas, setMedidas] = useState<MedidasCorporais>(avaliacao ? { ...medidasVazias(), ...avaliacao.medidas } : medidasVazias());
-  const [observacao, setObservacao] = useState(avaliacao?.observacao ?? '');
-  const [salvando, setSalvando] = useState(false);
-  const [tentou, setTentou] = useState(false);
-  const [erro, setErro] = useState<unknown>(null);
-  const dataIso = dataDaTela(data);
-  const corpo = corpoDaAvaliacao(dataIso ?? null, medidas, observacao, avaliacao ? avaliacao.versao : undefined);
-  const locais = problemasDaAvaliacao(corpo, hojeIso());
-  if (dataIso === undefined) locais.data = 'Use o formato DD/MM/AAAA.';
-  const daApi = errosPorCampo(erro);
-  const campos: Record<string, string | undefined> = { ...(tentou ? locais : {}), ...daApi };
-
-  const salvar = () => {
-    setTentou(true);
-    if (Object.keys(locais).length) return;
-    setSalvando(true);
-    setErro(null);
-    (avaliacao ? alterarAvaliacaoFisica(avaliacao.id, corpo) : registrarAvaliacaoFisica(alunoId, corpo)).then(aoSalvar, (e: unknown) => {
-      setSalvando(false);
-      setErro(e);
-    });
-  };
-
-  return (
-    <Folha
-      visivel
-      titulo={avaliacao ? 'Editar avaliação física' : 'Nova avaliação física'}
-      aoFechar={aoFechar}
-      rodape={
-        <>
-          <Botao rotulo="Cancelar" tipo="secundario" aoTocar={aoFechar} />
-          <Botao rotulo="Salvar" aoTocar={salvar} carregando={salvando} />
-        </>
-      }>
-      <View style={estilos.campoData}>
-        <CampoData rotulo="Data" nome="Data da avaliação" regra="REGISTRO" valor={data} aoMudar={setData} erro={campos.data} />
-      </View>
-      <Texto variante="secao" nivel={3}>Circunferências (cm)</Texto>
-      <Texto variante="pequeno">Preencha só o que foi medido; ao menos uma medida. O peso vem do registro de peso da mesma data.</Texto>
-      {campos.medidas ? <MensagemErro texto={campos.medidas} /> : null}
-      <View style={estilos.grade}>
-        {MEDIDAS.map(({ campo, rotulo }) => (
-          <View key={campo} style={estilos.medida}>
-            <CampoNumerico
-              rotulo={rotulo}
-              sufixo="cm"
-              valor={medidas[campo]}
-              aoMudar={(v) => setMedidas((m) => ({ ...m, [campo]: v }))}
-              mascara={(t) => mascaraDeNumero(t, 1)}
-              erro={campos[`medidas.${campo}`]}
-            />
-          </View>
-        ))}
-      </View>
-      <Campo rotulo="Observação (opcional)" valor={observacao} aoMudar={setObservacao} maxLength={OBSERVACAO_MAXIMA} multiline erro={campos.observacao}
-        ajuda="O aluno vê esta observação." />
-      {erro && Object.keys(daApi).length === 0 ? <MensagemErro texto={textoDoErro(erro)} /> : null}
-    </Folha>
-  );
-}
-
 const estilos = StyleSheet.create({
-  acoes: { flexDirection: 'row' },
-  forte: { fontFamily: fontes.semi },
-  comparacao: { gap: espaco(1.5) },
-  campoData: { width: 190 },
-  grade: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
-  // Duas por linha (direita e esquerda lado a lado), no celular e no PC.
-  medida: { flexGrow: 1, flexBasis: '40%', minWidth: 0 },
+  corpo: { gap: espaco(2) },
 });
