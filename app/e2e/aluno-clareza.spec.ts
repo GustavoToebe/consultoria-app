@@ -132,11 +132,12 @@ for (const largura of [390, 1280]) {
     // B6: registros e progresso vazios dizem por quê, em vez de sumir.
     await expect(page.getByText('Nenhum registro neste período.', { exact: true }).first()).toBeVisible();
     await expect(page.getByText('Nenhum registro neste período.', { exact: true })).toHaveCount(2);
-    // A11: direção e número na cor do texto, contra quando; legenda uma vez.
+    // A11: direção e número na cor do texto, contra quando; o resumo acima explica a diferença (sem legenda de setas).
+    const lista = page.getByLabel('Registros de peso');
     await expect(page.getByLabel('Subiu 1,2 kg desde 12/10', { exact: true })).toBeVisible();
-    await expect(page.getByText('▲ +1,2 kg', { exact: true })).toBeVisible();
-    await expect(page.getByLabel('Sem registro anterior', { exact: true })).toBeVisible();
-    await expect(page.getByText('▲ subiu · ▼ desceu desde o registro anterior', { exact: true })).toHaveCount(1);
+    await expect(lista.getByText('▲ +1,2 kg', { exact: true })).toBeVisible();
+    await expect(lista.getByLabel('Sem registro anterior', { exact: true })).toBeVisible();
+    await expect(page.getByText('▲ subiu · ▼ desceu desde o registro anterior', { exact: true })).toHaveCount(0);
     await semEstourar(page);
     expect(errosDaPagina).toEqual([]);
   });

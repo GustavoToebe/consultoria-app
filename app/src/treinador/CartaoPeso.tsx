@@ -6,17 +6,18 @@ import { StyleSheet, View } from 'react-native';
 import { ErroApi } from '../api/cliente';
 import { excluirPeso, pesosAluno, pesosDoAluno, registrarPeso } from '../api/rotas';
 import type { RegistroPeso } from '../api/tipos';
-import { tomDaVariacaoDoPeso } from '../dominio/corDaVariacaoDoPeso';
 import { dataDaTelaNaFaixa } from '../dominio/datasValidas';
-import { dataCurta, dataParaTela, hojeIso, numeroParaTela } from '../dominio/formatos';
+import { dataParaTela, hojeIso } from '../dominio/formatos';
 import { periodoDesdeOPrimeiro } from '../dominio/historicoDoAluno';
+import { linhaDaMeta } from '../dominio/metaDoPesoNaFicha';
 import { avisoDoGrafico } from '../dominio/progresso';
-import { variacoesDoPeso } from '../dominio/variacaoDoPeso';
+import { escalaDoPeso, legendaDaEscala, linhaDoHistorico, pesoComCasas, pontosDoPeso } from '../dominio/resumoDoPeso';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes } from '../tema/tokens';
 import { SeloDaFase, useCicloNoPeso } from './ciclo/CicloNaFicha';
-import { LegendaDaVariacao, VariacaoDoPeso } from './VariacaoDoPeso';
+import { ResumoDoPeso } from './peso/ResumoDoPeso';
+import { SETA_DO_PESO, VariacaoDoPeso } from './VariacaoDoPeso';
 import { Abas } from '../ui/Abas';
 import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
@@ -42,7 +43,9 @@ const LINHAS_INICIAIS = 12;
  * só leitura pela rota do aluno, sem observação e sem ciclo. Nos dois, a variação tem seta e sinal e a cor da meta
  * efetiva que vem em cada item da lista (o app não calcula a meta; sem meta ou `SEM_META`, sem cor). O peso em si é medida,
  * não resultado: vai no azul de indicador (cores-de-destaque D12), que nunca diz bom nem ruim, e o gráfico
- * acompanha a mesma cor.
+ * acompanha a mesma cor. Ordem (peso-visual D3 a D6): resumo (último registro e desde o anterior, com a meta escrita),
+ * Lista ou Gráfico (linha reta, sem área, escala com as pontas escritas) e, na Lista, o histórico com a observação da
+ * equipe como detalhe do registro. Textos e contas vêm de `dominio/resumoDoPeso`.
  */
 export function CartaoPeso({ alunoId }: { alunoId?: string }) {
   const { cores, preferencias, escolherPreferencia } = useTema();
@@ -90,44 +93,72 @@ export function CartaoPeso({ alunoId }: { alunoId?: string }) {
     const alvo = excluir;
     setExcluir(null);
     if (!alvo || !alunoId) return;
+    // `recarregar` mantém os dados na tela e a visão escolhida; resumo, gráfico e diferenças saem da lista nova.
     excluirPeso(alunoId, alvo.id).then(recarregar, (e: unknown) => setErroSalvar(e));
   };
 
   // Não depende da ordem da API (hoje, do mais novo para o mais antigo): `cronologico` é do mais antigo ao mais novo
   // (eixo do gráfico, pela data); a tabela mostra o mais recente primeiro. Sem numeração: "Atual. N" parecia o número
   // da atualização e não é.
-  const cronologico = [...(dados ?? [])].sort((a, b) => a.data.localeCompare(b.data));
+  const registros = dados ?? [];
+  const cronologico = [...registros].sort((a, b) => a.data.localeCompare(b.data));
   const lista = [...cronologico].reverse();
   const [todos, setTodos] = useState(false);
-  const comGrafico = preferencias.graficos && visao === 'grafico' && !!dados && dados.length > 1;
+  // Um registro já tem gráfico: só o ponto, sem linha nem variação inventada (D5, como a Evolução por medida).
+  const comAbas = preferencias.graficos && registros.length > 0;
+  const comGrafico = comAbas && visao === 'grafico';
   const comTabela = !comGrafico;
   const visiveis = todos ? lista : lista.slice(0, LINHAS_INICIAIS);
   // A11: a variação diz contra quando ("desde 12/10"), a partir da lista inteira recebida, não só das linhas visíveis.
-  const variacoes = variacoesDoPeso(dados ?? []);
-  const algumaVariacao = visiveis.some((p) => variacoes[p.id]);
-  // A meta efetiva é a mesma em todos os itens; serve só para a linha que explica as cores.
-  const meta = dados?.find((p) => p.metaDoPeso)?.metaDoPeso;
-  const aviso = dados ? avisoDoGrafico(dados.length, preferencias.graficos, daEquipe ? 'TREINADOR' : 'ALUNO') : null;
+  const historico = (p: RegistroPeso) => linhaDoHistorico(p, registros);
+  // A meta efetiva é a mesma em todos os itens; serve só para a frase que explica as cores, com 2 registros ou mais
+  // (quando há alguma variação para pintar).
+  const meta = registros.find((p) => p.metaDoPeso)?.metaDoPeso;
+  const fraseDaMeta = registros.length > 1 ? linhaDaMeta(meta, daEquipe ? 'equipe' : 'aluno') : null;
+  // Só o aviso dos gráficos desligados: com um registro o gráfico mostra o ponto, então "pelo menos duas datas" não vale aqui.
+  const aviso = registros.length > 0 && !preferencias.graficos ? avisoDoGrafico(registros.length, false, daEquipe ? 'TREINADOR' : 'ALUNO') : null;
+  const maisRecente = lista[0]?.id;
   const colunas: ColunaDaTabela<RegistroPeso>[] = [
     { chave: 'data', titulo: 'Data', flex: 1.2, principal: true, render: (p) => {
       const fase = ciclo.ativo && preferencias.mostrarFasesDoCiclo ? ciclo.selo(p.data) : null;
-      return <View style={{ gap: 4 }}><Texto numerico style={estilos.negrito}>{dataParaTela(p.data)}</Texto>{fase ? <SeloDaFase texto={fase} /> : null}</View>;
+      // Destaque suave da linha mais recente (D6) em texto, não em cor: a `Tabela` não pinta linha.
+      return (
+        <View style={estilos.data}>
+          <Texto numerico style={estilos.negrito}>{dataParaTela(p.data)}</Texto>
+          {p.id === maisRecente && lista.length > 1 ? <Texto variante="pequeno">Mais recente</Texto> : null}
+          {fase ? <SeloDaFase texto={fase} /> : null}
+        </View>
+      );
     } },
-    { chave: 'peso', titulo: 'Peso', render: (p) => <Texto numerico style={estilos.negrito} cor={azul}>{numeroParaTela(p.pesoKg)} kg</Texto> },
     {
-      chave: 'variacao', titulo: 'Variação',
-      render: (p) => <VariacaoDoPeso variacao={variacoes[p.id] ?? null} tom={tomDaVariacaoDoPeso(p.variacao, p.metaDoPeso)} />,
+      chave: 'peso', titulo: 'Peso', alinhar: 'direita',
+      render: (p) => <Texto numerico style={[estilos.negrito, estilos.direita]} cor={azul}>{pesoComCasas(p.pesoKg)} kg</Texto>,
     },
+    { chave: 'variacao', titulo: 'Variação', flex: 1.2, alinhar: 'direita', render: (p) => <VariacaoDoPeso linha={historico(p)} direita /> },
   ];
-  if (daEquipe) {
-    colunas.push({ chave: 'obs', titulo: 'Obs', flex: 1.4, render: (p) => <Texto variante="suave" numberOfLines={2}>{p.observacao || '—'}</Texto> });
-  }
   if (podeGravar) {
     colunas.push({
-      chave: 'acao', titulo: 'Excluir', largura: 44, acao: true,
+      chave: 'acao', titulo: 'Ações', largura: 64, acao: true, tituloNaTabela: true, alinhar: 'direita',
       render: (p) => <Permitido codigo="ALUNO_SENSIVEL_ALTERAR"><IconeBotao Icone={Trash2} rotulo={`Excluir peso de ${dataParaTela(p.data)}`} cor={cores.textoSuave} aoTocar={() => setExcluir(p)} /></Permitido>,
     });
   }
+  // A observação é só da equipe (a rota do aluno a devolve nula) e vira detalhe do registro que a tem, sem coluna de "—".
+  const comObservacao = daEquipe && visiveis.some((p) => p.observacao);
+  const escala = escalaDoPeso(registros);
+  const dicaDoPonto = (ponto: { data?: string; valor: number }) => {
+    const r = cronologico.find((p) => p.data === ponto.data && p.pesoKg === ponto.valor);
+    if (!r) return [`${pesoComCasas(ponto.valor)} kg`];
+    const h = historico(r);
+    const diferenca = h.seta ? [SETA_DO_PESO[h.seta], h.texto, h.desde].filter(Boolean).join(' ') : h.texto;
+    return [`${dataParaTela(r.data)} · ${pesoComCasas(r.pesoKg)} kg`, diferenca];
+  };
+  const primeiro = cronologico[0];
+  const ultimo = cronologico[cronologico.length - 1];
+  const descricaoDoGrafico = cronologico.length === 1
+    ? `Gráfico de peso com 1 registro, em ${dataParaTela(primeiro.data)}. O valor está na visão Lista.`
+    : primeiro && ultimo
+      ? `Gráfico de peso com ${cronologico.length} registros, de ${dataParaTela(primeiro.data)} a ${dataParaTela(ultimo.data)}. Os valores estão na visão Lista.`
+      : 'Gráfico de peso';
 
   return (
     <Cartao titulo="Peso" periodo={dados ? periodoDesdeOPrimeiro(dados.map((p) => p.data)) : undefined} descricao={daEquipe ? 'Evolução do peso ao longo do tempo.' : 'Seus registros de peso, do mais recente ao mais antigo.'}
@@ -136,31 +167,38 @@ export function CartaoPeso({ alunoId }: { alunoId?: string }) {
       {semConexao ? <Texto variante="suave">Sem conexão.</Texto> : null}
       {!dados && carregando ? <Esqueleto texto="Carregando pesos" cartoes={1} /> : null}
       {dados && dados.length === 0 ? <Texto variante="suave">Nenhum registro de peso.</Texto> : null}
+      {registros.length > 0 ? <ResumoDoPeso registros={registros} meta={meta} linhaDaMeta={fraseDaMeta} /> : null}
       {aviso ? <Texto variante="suave">{aviso}</Texto> : null}
-      {preferencias.graficos && dados && dados.length > 1 ? (
+      {comAbas ? (
         <Abas abas={[{ valor: 'lista', rotulo: 'Lista' }, { valor: 'grafico', rotulo: 'Gráfico' }]} ativa={visao} aoMudar={setVisao} />
       ) : null}
       {ciclo.ativo ? (
         <Interruptor rotulo="Mostrar fases do ciclo" valor={preferencias.mostrarFasesDoCiclo}
           aoMudar={(mostrarFasesDoCiclo) => escolherPreferencia({ mostrarFasesDoCiclo })} />
       ) : null}
-      {comGrafico ? (
+      {comGrafico && escala && primeiro && ultimo ? (
         <GraficoLinha
-          pontos={cronologico.map((p) => ({ rotulo: dataCurta(p.data), valor: p.pesoKg, data: p.data }))}
+          pontos={pontosDoPeso(registros)}
           unidade="kg"
           cor={azul}
-          descricao={`Gráfico de peso com ${dados.length} registros`}
-          faixas={ciclo.ativo && preferencias.mostrarFasesDoCiclo ? ciclo.faixasDe(cronologico[0].data, cronologico[cronologico.length - 1].data) : undefined}
+          segmentos="retos"
+          semArea
+          destacarUltimo
+          semUltimo
+          escala={escala}
+          legendaDaEscala={legendaDaEscala(escala)}
+          textoDaDica={dicaDoPonto}
+          descricao={descricaoDoGrafico}
+          faixas={ciclo.ativo && preferencias.mostrarFasesDoCiclo ? ciclo.faixasDe(primeiro.data, ultimo.data) : undefined}
         />
       ) : null}
-      {/* A legenda fica logo acima da tabela (guia de 11/11, pág. 34): com 12 linhas, embaixo ninguém a via. */}
-      {comTabela && algumaVariacao ? <LegendaDaVariacao meta={meta} quem={daEquipe ? 'equipe' : 'aluno'} /> : null}
       {comTabela && lista.length > 0 ? (
         <Tabela
           rotulo="Registros de peso"
           linhas={visiveis}
           chave={(p) => p.id}
           colunas={colunas}
+          detalhe={comObservacao ? (p) => (p.observacao ? <Texto variante="suave">Observação: {p.observacao}</Texto> : null) : undefined}
         />
       ) : null}
       {comTabela && lista.length > LINHAS_INICIAIS ? (
@@ -188,7 +226,7 @@ export function CartaoPeso({ alunoId }: { alunoId?: string }) {
       {podeGravar ? <PainelConfirmacao
         visivel={excluir !== null}
         titulo="Excluir este registro de peso?"
-        mensagem={excluir ? `${dataParaTela(excluir.data)} · ${numeroParaTela(excluir.pesoKg)} kg` : undefined}
+        mensagem={excluir ? `${dataParaTela(excluir.data)} · ${pesoComCasas(excluir.pesoKg)} kg` : undefined}
         rotuloConfirmar="Excluir"
         perigo
         aoConfirmar={confirmarExclusao}
@@ -200,6 +238,8 @@ export function CartaoPeso({ alunoId }: { alunoId?: string }) {
 
 const estilos = StyleSheet.create({
   negrito: { fontFamily: fontes.negrito },
+  direita: { textAlign: 'right' },
+  data: { gap: 4 },
   form: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
   campoData: { width: 190 },
   campo: { width: 150 },

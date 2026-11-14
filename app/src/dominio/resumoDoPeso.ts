@@ -26,7 +26,7 @@ export interface PesoEmData {
 }
 
 /** Peso com ao menos uma casa e no máximo duas (o peso tem duas): `51` → `51,0`, `51,25` fica. */
-export function pesoParaTela(kg: number): string {
+export function pesoComCasas(kg: number): string {
   const t = numeroParaTela(kg);
   return t.includes(',') ? t : `${t},0`;
 }
@@ -35,7 +35,7 @@ export function pesoParaTela(kg: number): string {
 export function textoDaDiferenca(diferenca: number): string {
   const d = Math.round(diferenca * 100) / 100;
   const sinal = d > 0 ? '+' : d < 0 ? '−' : '';
-  return `${sinal}${pesoParaTela(Math.abs(d))} kg`;
+  return `${sinal}${pesoComCasas(Math.abs(d))} kg`;
 }
 
 const valido = (r: RegistroPeso) => Number.isFinite(r.pesoKg) && !!r.data;
@@ -98,7 +98,7 @@ export function resumoDoPeso(registros: readonly RegistroPeso[]): ResumoDoPeso |
   return {
     vazio: false,
     rotuloUltimo: ROTULO_ULTIMO_REGISTRO,
-    ultimo: { ...emData(ultimo), texto: `${pesoParaTela(ultimo.pesoKg)} kg`, dataTexto: dataParaTela(ultimo.data) },
+    ultimo: { ...emData(ultimo), texto: `${pesoComCasas(ultimo.pesoKg)} kg`, dataTexto: dataParaTela(ultimo.data) },
     rotuloDiferenca: ROTULO_DESDE_ANTERIOR,
     desdeAnterior: ref && diferenca !== null ? {
       diferenca,
@@ -106,7 +106,7 @@ export function resumoDoPeso(registros: readonly RegistroPeso[]): ResumoDoPeso |
       texto: diferenca === 0 ? `${textoDaDiferenca(0)} · sem alteração` : textoDaDiferenca(diferenca),
       kgReferencia: ref.pesoKg,
       dataReferencia: ref.data,
-      referencia: `${pesoParaTela(ref.pesoKg)} kg em ${dataParaTela(ref.data)}`,
+      referencia: `${pesoComCasas(ref.pesoKg)} kg em ${dataParaTela(ref.data)}`,
     } : null,
   };
 }

@@ -1,7 +1,7 @@
 import type { RegistroPeso } from '../api/tipos';
 import { fracaoNoEixo } from './grafico';
 import {
-  escalaDoPeso, legendaDaEscala, linhaDoHistorico, noPeriodo, pesoParaTela, pontosDoPeso, resumoDoPeso, textoDaDiferenca,
+  escalaDoPeso, legendaDaEscala, linhaDoHistorico, noPeriodo, pesoComCasas, pontosDoPeso, resumoDoPeso, textoDaDiferenca,
   type DesdeAnterior, type ResumoDoPeso,
 } from './resumoDoPeso';
 
@@ -73,9 +73,9 @@ describe('resumo do peso', () => {
   });
 
   it('formatação com vírgula e ao menos uma casa', () => {
-    expect(pesoParaTela(51)).toBe('51,0');
-    expect(pesoParaTela(51.5)).toBe('51,5');
-    expect(pesoParaTela(51.25)).toBe('51,25');
+    expect(pesoComCasas(51)).toBe('51,0');
+    expect(pesoComCasas(51.5)).toBe('51,5');
+    expect(pesoComCasas(51.25)).toBe('51,25');
     expect(textoDaDiferenca(0.6)).toBe('+0,6 kg');
     expect(textoDaDiferenca(-1)).toBe('−1,0 kg');
     expect(textoDaDiferenca(0)).toBe('0,0 kg');

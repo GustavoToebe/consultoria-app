@@ -8,7 +8,8 @@ import { sessaoDeAluno } from './aluno';
 /**
  * Cor da variação do peso pela meta que o treinador decide (plano cor-da-variacao-do-peso): campo na Marca e na ficha,
  * cor na lista do peso da ficha e no Histórico do aluno (REDUZIR: queda verde; AUMENTAR: queda vermelha; SEM_META:
- * cor do texto), seta e sinal sempre, a linha que explica as cores e o campo escondido sem `ALUNO_SENSIVEL_LER`.
+ * cor do texto), na lista e no resumo, seta e sinal sempre, a linha que explica as cores e o campo escondido sem
+ * `ALUNO_SENSIVEL_LER`.
  * A meta efetiva vem pronta em cada item da lista de pesos: a tela nunca a calcula. Dados fictícios.
  */
 const ALUNO_ID = 'a0000000-0000-4000-8000-000000000002';
@@ -39,10 +40,15 @@ function rgb(hex: string): string {
 const opcao = (onde: Locator | Page, grupo: string, rotulo: string) =>
   onde.getByRole('radiogroup', { name: grupo }).getByRole('radio', { name: rotulo, exact: true });
 
+/** Cor do texto na lista do peso (o resumo acima repete a última variação; ele tem o próprio teste, `corNoResumo`). */
 async function corDe(page: Page, texto: string): Promise<string> {
-  const alvo = page.getByText(texto, { exact: true });
+  const alvo = page.getByLabel('Registros de peso').getByText(texto, { exact: true });
   await alvo.scrollIntoViewIfNeeded();
   return alvo.evaluate((e) => getComputedStyle(e).color);
+}
+
+async function corNoResumo(page: Page, texto: string): Promise<string> {
+  return page.getByLabel(/^Desde o registro anterior/).getByText(texto, { exact: true }).evaluate((e) => getComputedStyle(e).color);
 }
 
 async function preparar(page: Page, largura: number, tema: NomeDoTema, usuarioId: string) {
@@ -76,7 +82,10 @@ for (const tema of Object.keys(TEMAS) as NomeDoTema[]) {
         const { errosDaPagina } = await abrirFicha(page, 'REDUZIR');
         expect(await corDe(page, '▼ −0,7 kg')).toBe(rgb(cores.sucesso));
         expect(await corDe(page, '▲ +1,2 kg')).toBe(rgb(cores.perigo));
+        expect(await corNoResumo(page, '▼ −0,7 kg')).toBe(rgb(cores.sucesso));
         await expect(page.getByLabel('Desceu 0,7 kg desde 19/10', { exact: true })).toBeVisible();
+        // A meta escrita uma vez, junto do resumo.
+        await expect(page.getByText('Cores pela meta: reduzir o peso', { exact: true })).toHaveCount(1);
         await expect(page.getByText('Cores pela meta: reduzir o peso', { exact: true })).toBeVisible();
         expect(errosDaPagina).toEqual([]);
       });
@@ -86,7 +95,7 @@ for (const tema of Object.keys(TEMAS) as NomeDoTema[]) {
         const { errosDaPagina } = await abrirFicha(page, 'SEM_META');
         expect(await corDe(page, '▼ −0,7 kg')).toBe(rgb(cores.texto));
         expect(await corDe(page, '▲ +1,2 kg')).toBe(rgb(cores.texto));
-        await expect(page.getByText('▲ subiu · ▼ desceu desde o registro anterior')).toBeVisible();
+        expect(await corNoResumo(page, '▼ −0,7 kg')).toBe(rgb(cores.texto));
         await expect(page.getByText(/Cores pela meta/)).toHaveCount(0);
         expect(errosDaPagina).toEqual([]);
       });
@@ -103,6 +112,7 @@ for (const tema of Object.keys(TEMAS) as NomeDoTema[]) {
         await expect(page.getByLabel('Registros de peso').getByText('80,5 kg', { exact: true })).toBeVisible();
         expect(await corDe(page, '▼ −0,7 kg')).toBe(rgb(cores.perigo));
         expect(await corDe(page, '▲ +1,2 kg')).toBe(rgb(cores.sucesso));
+        expect(await corNoResumo(page, '▼ −0,7 kg')).toBe(rgb(cores.perigo));
         await expect(page.getByText('Verde: no caminho da sua meta', { exact: true })).toBeVisible();
         await expect(page.getByText(/Cores pela meta/)).toHaveCount(0);
         expect(errosDaPagina).toEqual([]);
